@@ -73,9 +73,9 @@ pccard_beep_sub(void *arg)
 	struct tone *melody;
 	melody = (struct tone *)arg;
 
-	if (melody->duration != NULL) {
-		sysbeep(melody->duration, melody->pitch);
-		timeout(pccard_beep_sub, ++melody, melody->pitch);
+	if (melody->pitch != NULL) {
+		sysbeep(melody->pitch, melody->duration);
+		timeout(pccard_beep_sub, ++melody, melody->duration);
 	} else 
 		allow_beep = BEEP_ON;
 }
@@ -86,10 +86,10 @@ pccard_beep_start(void *arg)
 	struct tone *melody;
 	melody = (struct tone *)arg;
 
-	if (allow_beep == BEEP_ON && melody->duration != NULL) {
+	if (allow_beep == BEEP_ON && melody->pitch != NULL) {
 		allow_beep = BEEP_OFF;
-		sysbeep(melody->duration, melody->pitch);
-		timeout(pccard_beep_sub, ++melody, melody->pitch);
+		sysbeep(melody->pitch, melody->duration);
+		timeout(pccard_beep_sub, ++melody, melody->duration);
 	}
 }
 
