@@ -7,7 +7,6 @@ ISC DHCP client 3.0.1rc11
 
 For the import of ISC-dhclient the following files were removed:
 	doc/*			relay/*			server/*
-	dhcpctl/*
 
 	client/scripts/
 	bsdos			linux			netbsd
