@@ -37,34 +37,26 @@
 #ifndef _SEMAPHORE_H_
 #define _SEMAPHORE_H_
 
-#include <sys/_posix.h>
-#include <machine/limits.h>
-
-#ifdef _P1003_1B_INCLUDE_MAYBES
-#include <sys/types.h>
-#include <fcntl.h>
-#endif
-
 /* Opaque type definition. */
 struct sem;
 typedef	struct sem *	sem_t;
 
 #define	SEM_FAILED	((sem_t *)0)
-#define	SEM_VALUE_MAX	UINT_MAX
+#define	SEM_VALUE_MAX	(~0U)		/* Equivalent to UINT_MAX. */
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	 sem_init(sem_t *, int, unsigned int);
-int	 sem_destroy(sem_t *);
-sem_t	*sem_open(const char *, int, ...);
 int	 sem_close(sem_t *);
+int	 sem_destroy(sem_t *);
+int	 sem_getvalue(sem_t * __restrict, int * __restrict);
+int	 sem_init(sem_t *, int, unsigned int);
+sem_t	*sem_open(const char *, int, ...);
+int	 sem_post(sem_t *);
+int	 sem_trywait(sem_t *);
 int	 sem_unlink(const char *);
 int	 sem_wait(sem_t *);
-int	 sem_trywait(sem_t *);
-int	 sem_post(sem_t *);
-int	 sem_getvalue(sem_t *, int *);
 __END_DECLS
 
 #endif
