@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: pcibus.c,v 1.31 1997/02/22 09:36:58 peter Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -167,14 +167,27 @@ pcibus_check (void)
 	if (bootverbose) printf ("pcibus_check:\tdevice ");
 
 	for (device = 0; device < pci_maxdevice; device++) {
-		unsigned long id;
+		unsigned long id, class, header;
 		if (bootverbose) 
 			printf ("%d ", device);
 		id = pcibus_read (pcibus_tag (0,device,0), 0);
-		if (id && id != 0xfffffffful) {
-			if (bootverbose) printf ("is there (id=%08lx)\n", id);
-			return 1;
-		}
+		if ((id == 0) || (id == 0xfffffffful))
+			continue;
+
+		class = pcibus_read (pcibus_tag (0,device,0), 8);
+		if (bootverbose)
+			printf ("[class=%x] ", class >> 8);
+		if ((class & 0xfff0ff00) != 0x06000000)
+			continue;
+
+		header = pcibus_read (pcibus_tag (0,device,0), 12);
+		if (bootverbose) 
+			printf ("[hdr=%x] ", (header >> 16) & 0xff);
+		if ((header & 0x007e0000) != 0)
+			continue;
+
+		if (bootverbose) printf ("is there (id=%08lx)\n", id);
+		return 1;
 	}
 	if (bootverbose) 
 		printf ("-- nothing found\n");
