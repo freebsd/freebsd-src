@@ -46,6 +46,7 @@ Local Changes:
 	  r1.6 - document -D option.
           - remove dhcpd from SEE ALSO section.
 	client/dhclient.c
+	  r1.25 - correct release lease option
 	  r1.19 - connect std{in,out,err}.
 	  r1.13 - prefer strlcpy to strcpy.
 	  r1.6  - quiet by default.
