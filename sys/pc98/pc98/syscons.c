@@ -2127,14 +2127,14 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
 		case 4:
 		default:
 		    /*
-		     * Clear the flag and force the previous switch to finish,
-		     * but return now with error.
+		     * Act as if the controlling program returned
+		     * VT_FALSE.
 		     */
 		    DPRINTF(5, ("force reset WAIT_REL, "));
 		    sc->cur_scp->status &= ~SWITCH_WAIT_REL; 
-		    s = do_switch_scr(sc, s);
+		    sc->switch_in_progress = 0;
 		    splx(s);
-		    DPRINTF(5, ("force finishing previous switch\n"));
+		    DPRINTF(5, ("act as if VT_FALSE was seen\n"));
 		    return EINVAL;
 		}
 	    } else if (sc->cur_scp->status & SWITCH_WAIT_ACQ) {
