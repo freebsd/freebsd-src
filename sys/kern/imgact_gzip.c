@@ -225,12 +225,6 @@ do_aout_hdr(struct imgact_gzip * gz)
 	/* Find out how far we should go */
 	gz->file_end = gz->file_offset + gz->a_out.a_text + gz->a_out.a_data;
 
-	/* copy in arguments and/or environment from old process */
-	error = exec_extract_strings(gz->ip);
-	if (error) {
-		gz->where = __LINE__;
-		return (error);
-	}
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */

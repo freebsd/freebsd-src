@@ -216,13 +216,13 @@ linux_fixup(register_t **stack_base, struct image_params *imgp)
 	register_t *argv, *envp;
 
 	argv = *stack_base;
-	envp = *stack_base + (imgp->argc + 1);
+	envp = *stack_base + (imgp->args->argc + 1);
 	(*stack_base)--;
 	**stack_base = (intptr_t)(void *)envp;
 	(*stack_base)--;
 	**stack_base = (intptr_t)(void *)argv;
 	(*stack_base)--;
-	**stack_base = imgp->argc;
+	**stack_base = imgp->args->argc;
 	return 0;
 }
 
@@ -236,7 +236,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	    (curthread->td_proc->p_flag & P_SA) == 0,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
 	args = (Elf32_Auxargs *)imgp->auxargs;
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
 	if (args->trace)
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
@@ -259,7 +259,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (register_t)imgp->argc;
+	**stack_base = (register_t)imgp->args->argc;
 	return 0;
 }
 

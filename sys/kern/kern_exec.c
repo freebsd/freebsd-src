@@ -79,8 +79,8 @@ MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
-static int do_execve(struct thread *td, char *fname, char **argv,
-	char **envv, struct mac *mac_p);
+static int do_execve(struct thread *td, struct image_args *args,
+    struct mac *mac_p);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -171,8 +171,18 @@ execve(td, uap)
 		char **envv;
 	} */ *uap;
 {
+	int error;
+	struct image_args args;
 
-	return (kern_execve(td, uap->fname, uap->argv, uap->envv, NULL));
+	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+	    uap->argv, uap->envv);
+
+	if (error == 0)
+		error = kern_execve(td, &args, NULL);
+
+	exec_free_args(&args);
+
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -197,21 +207,28 @@ __mac_execve(td, uap)
 		struct mac *mac_p;
 	} */ *uap;
 {
-
 #ifdef MAC
-	return (kern_execve(td, uap->fname, uap->argv, uap->envv,
-	    uap->mac_p));
+	int error;
+	struct image_args args;
+
+	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+	    uap->argv, uap->envv);
+
+	if (error == 0)
+		error = kern_execve(td, &args, uap->mac_p);
+
+	exec_free_args(&args);
+
+	return (error);
 #else
 	return (ENOSYS);
 #endif
 }
 
 int
-kern_execve(td, fname, argv, envv, mac_p)
+kern_execve(td, args, mac_p)
 	struct thread *td;
-	char *fname;
-	char **argv;
-	char **envv;
+	struct image_args *args;
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
@@ -226,7 +243,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 		PROC_UNLOCK(p);
 	}
 
-	error = do_execve(td, fname, argv, envv, mac_p);
+	error = do_execve(td, args, mac_p);
 
 	if (p->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p);
@@ -235,7 +252,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 		 * force other threads to suicide.
 		 */
 		if (error == 0)
-			thread_single(SINGLE_EXIT);		
+			thread_single(SINGLE_EXIT);
 		else
 			thread_single_end();
 		PROC_UNLOCK(p);
@@ -251,11 +268,9 @@ kern_execve(td, fname, argv, envv, mac_p)
  * MPSAFE
  */
 static int
-do_execve(td, fname, argv, envv, mac_p)
+do_execve(td, args, mac_p)
 	struct thread *td;
-	char *fname;
-	char **argv;
-	char **envv;
+	struct image_args *args;
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
@@ -300,12 +315,8 @@ do_execve(td, fname, argv, envv, mac_p)
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
-	imgp->userspace_argv = argv;
-	imgp->userspace_envv = envv;
 	imgp->execlabel = NULL;
 	imgp->attr = &attr;
-	imgp->argc = imgp->envc = 0;
-	imgp->argv0 = NULL;
 	imgp->entry_addr = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
@@ -316,6 +327,7 @@ do_execve(td, fname, argv, envv, mac_p)
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
+	imgp->args = args;
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
@@ -325,18 +337,6 @@ do_execve(td, fname, argv, envv, mac_p)
 	}
 #endif
 
-	/*
-	 * Allocate temporary demand zeroed space for argument and
-	 *	environment strings
-	 */
-	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX);
-	if (imgp->stringbase == NULL) {
-		error = ENOMEM;
-		mtx_lock(&Giant);
-		goto exec_fail;
-	}
-	imgp->stringp = imgp->stringbase;
-	imgp->stringspace = ARG_MAX;
 	imgp->image_header = NULL;
 
 	/*
@@ -345,20 +345,16 @@ do_execve(td, fname, argv, envv, mac_p)
 	 */
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-	    UIO_USERSPACE, fname, td);
+	    UIO_SYSSPACE, args->fname, td);
 
 	mtx_lock(&Giant);
 interpret:
 
 	error = namei(ndp);
-	if (error) {
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-		    ARG_MAX);
+	if (error)
 		goto exec_fail;
-	}
 
 	imgp->vp = ndp->ni_vp;
-	imgp->fname = fname;
 
 	/*
 	 * Check file permissions (also 'opens' file)
@@ -387,7 +383,7 @@ interpret:
 
 	/*
 	 *	If the current process has a special image activator it
-	 *	wants to try first, call it.   For example, emulating shell 
+	 *	wants to try first, call it.   For example, emulating shell
 	 *	scripts differently.
 	 */
 	error = -1;
@@ -460,7 +456,7 @@ interpret:
 	if (p->p_sysent->sv_fixup != NULL)
 		(*p->p_sysent->sv_fixup)(&stack_base, imgp);
 	else
-		suword(--stack_base, imgp->argc);
+		suword(--stack_base, imgp->args->argc);
 
 	/*
 	 * For security and other reasons, the file descriptor table cannot
@@ -473,7 +469,7 @@ interpret:
 	 */
 	newcred = crget();
 	euip = uifind(attr.va_uid);
-	i = imgp->endargs - imgp->stringbase;
+	i = imgp->args->begin_envv - imgp->args->begin_argv;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs))
 		newargs = pargs_alloc(i);
 
@@ -662,7 +658,7 @@ interpret:
 
 	/* Cache arguments if they fit inside our allowance */
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		bcopy(imgp->stringbase, newargs->ar_args, i);
+		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
 		p->p_args = newargs;
 		newargs = NULL;
 	}
@@ -718,10 +714,6 @@ exec_fail_dealloc:
 		vput(imgp->vp);
 	}
 
-	if (imgp->stringbase != NULL)
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-		    ARG_MAX);
-
 	if (imgp->object != NULL)
 		vm_object_deallocate(imgp->object);
 
@@ -739,7 +731,7 @@ exec_fail:
 	PROC_LOCK(p);
 	p->p_flag &= ~P_INEXEC;
 	PROC_UNLOCK(p);
-	
+
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
 #ifdef MAC
@@ -925,71 +917,93 @@ exec_new_vmspace(imgp, sv)
  *	address space into the temporary string buffer.
  */
 int
-exec_extract_strings(imgp)
-	struct image_params *imgp;
+exec_copyin_args(struct image_args *args, char *fname,
+    enum uio_seg segflg, char **argv, char **envv)
 {
-	char	**argv, **envv;
-	char	*argp, *envp;
-	int	error;
-	size_t	length;
+	char *argp, *envp;
+	int error;
+	size_t length;
+
+	error = 0;
+
+	bzero(args, sizeof(*args));
+	if (argv == NULL)
+		return (EFAULT);
+	/*
+	 * Allocate temporary demand zeroed space for argument and
+	 *	environment strings
+	 */
+	args->buf = (char *) kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	if (args->buf == NULL)
+		return (ENOMEM);
+	args->begin_argv = args->buf;
+	args->endp = args->begin_argv;
+	args->stringspace = ARG_MAX;
+
+	args->fname = args->buf + ARG_MAX;
+
+	/*
+	 * Copy the file name.
+	 */
+	error = (segflg == UIO_SYSSPACE) ?
+	    copystr(fname, args->fname, PATH_MAX, &length) :
+	    copyinstr(fname, args->fname, PATH_MAX, &length);
+	if (error != 0) {
+		if (error == ENAMETOOLONG)
+			return (E2BIG);
+		return (error);
+	}
 
 	/*
 	 * extract arguments first
 	 */
-
-	argv = imgp->userspace_argv;
-
-	if (argv) {
-		argp = (caddr_t)(intptr_t)fuword(argv);
-		if (argp == (caddr_t)-1)
+	while ((argp = (caddr_t) (intptr_t) fuword(argv++))) {
+		if (argp == (caddr_t) -1)
 			return (EFAULT);
-		if (argp)
-			argv++;
-		if (imgp->argv0)
-			argp = imgp->argv0;
-		if (argp) {
-			do {
-				if (argp == (caddr_t)-1)
-					return (EFAULT);
-				if ((error = copyinstr(argp, imgp->stringp,
-				    imgp->stringspace, &length))) {
-					if (error == ENAMETOOLONG)
-						return (E2BIG);
-					return (error);
-				}
-				imgp->stringspace -= length;
-				imgp->stringp += length;
-				imgp->argc++;
-			} while ((argp = (caddr_t)(intptr_t)fuword(argv++)));
+		if ((error = copyinstr(argp, args->endp,
+		    args->stringspace, &length))) {
+			if (error == ENAMETOOLONG)
+				return (E2BIG);
+			return (error);
 		}
-	} else
-		return (EFAULT);
+		args->stringspace -= length;
+		args->endp += length;
+		args->argc++;
+	}
 
-	imgp->endargs = imgp->stringp;
+	args->begin_envv = args->endp;
 
 	/*
 	 * extract environment strings
 	 */
-
-	envv = imgp->userspace_envv;
-
 	if (envv) {
 		while ((envp = (caddr_t)(intptr_t)fuword(envv++))) {
 			if (envp == (caddr_t)-1)
 				return (EFAULT);
-			if ((error = copyinstr(envp, imgp->stringp,
-			    imgp->stringspace, &length))) {
+			if ((error = copyinstr(envp, args->endp,
+			    args->stringspace, &length))) {
 				if (error == ENAMETOOLONG)
 					return (E2BIG);
 				return (error);
 			}
-			imgp->stringspace -= length;
-			imgp->stringp += length;
-			imgp->envc++;
+			args->stringspace -= length;
+			args->endp += length;
+			args->envc++;
 		}
 	}
 
 	return (0);
+}
+
+void
+exec_free_args(struct image_args *args)
+{
+
+	if (args->buf) {
+		kmem_free_wakeup(exec_map,
+		    (vm_offset_t)args->buf, PATH_MAX + ARG_MAX);
+		args->buf = NULL;
+	}
 }
 
 /*
@@ -1019,7 +1033,7 @@ exec_copyout_strings(imgp)
 	if (p->p_sysent->sv_szsigcode != NULL)
 		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-	    roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -1044,30 +1058,32 @@ exec_copyout_strings(imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2 +
-		    imgp->auxarg_size) * sizeof(char *));
+		vectp = (char **)(destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size) *
+		    sizeof(char *));
 
-	} else 
+	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2) *
+		vectp = (char **)(destp - (imgp->args->argc + imgp->args->envc + 2) *
 		    sizeof(char *));
+	}
 
 	/*
 	 * vectp also becomes our initial stack base
 	 */
 	stack_base = (register_t *)vectp;
 
-	stringp = imgp->stringbase;
-	argc = imgp->argc;
-	envc = imgp->envc;
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
 
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, destp, ARG_MAX - imgp->stringspace);
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.

@@ -528,8 +528,6 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
-	imgp->userspace_argv = NULL;
-	imgp->userspace_envv = NULL;
 	imgp->attr = attr;
 	imgp->firstpage = NULL;
 	imgp->image_header = NULL;
@@ -647,7 +645,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long text_addr = 0, data_addr = 0;
 	u_long seg_size, seg_addr;
 	u_long addr, entry = 0, proghdr = 0;
-	int error, i;
+	int error = 0, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
@@ -705,9 +703,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		interp = brand_info->interp_newpath;
-
-	if ((error = exec_extract_strings(imgp)) != 0)
-		goto fail;
 
 	exec_new_vmspace(imgp, sv);
 
@@ -879,7 +874,7 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	Elf_Addr *pos;
 
 	base = (Elf_Addr *)*stack_base;
-	pos = base + (imgp->argc + imgp->envc + 2);
+	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	if (args->trace) {
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
@@ -900,7 +895,7 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	base--;
-	suword(base, (long)imgp->argc);
+	suword(base, (long)imgp->args->argc);
 	*stack_base = (register_t *)base;
 	return (0);
 }

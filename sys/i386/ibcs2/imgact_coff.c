@@ -332,11 +332,6 @@ exec_coff_imgact(imgp)
 
 	VOP_UNLOCK(imgp->vp, 0, td);
 
-	if ((error = exec_extract_strings(imgp)) != 0) {
-		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
-		goto fail;
-	}
-
 	exec_new_vmspace(imgp, &ibcs2_svr3_sysvec);
 	vmspace = imgp->proc->p_vmspace;
 

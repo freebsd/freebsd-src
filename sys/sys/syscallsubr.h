@@ -40,6 +40,7 @@ struct rusage;
 struct sockaddr;
 struct itimerval;
 struct msqid_ds;
+struct image_args;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -52,7 +53,7 @@ int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
 int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
-int	kern_execve(struct thread *td, char *fname, char **argv, char **envv,
+int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,

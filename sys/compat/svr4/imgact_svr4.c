@@ -117,11 +117,6 @@ exec_svr4_imgact(imgp)
 
     VOP_UNLOCK(imgp->vp, 0, td);
 
-    /* copy in arguments and/or environment from old process */
-    error = exec_extract_strings(imgp);
-    if (error)
-	goto fail;
-
     /*
      * Destroy old process VM and create a new one (with a new stack)
      */
