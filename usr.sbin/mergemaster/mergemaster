@@ -9,13 +9,11 @@
 # Doug@gorean.org
 
 # $FreeBSD$
-# $Revision: 1.36 $
-# $Date: 1999/09/10 20:56:33 $
 
 PATH=/bin:/usr/bin:/usr/sbin
 
 display_usage () {
-  VERSION_NUMBER=`grep "[$]Revision:" $0 | cut -d ' ' -f 3`
+  VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
   echo "Usage: mergemaster [-scrvah] [-m /path] [-t /path] [-d] [-u N] [-w N]"
   echo "Options:"
