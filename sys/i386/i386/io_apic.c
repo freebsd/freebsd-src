@@ -403,32 +403,39 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
+	int changed;
 
 	KASSERT(!(trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM),
 	    ("%s: Conforming trigger or polarity\n", __func__));
 
 	/*
-	 * For now we ignore any requests but do output any changes that
-	 * would be made to the console it bootverbose is enabled.  The only
-	 * known causes of these messages so far is a bug in acpi(4) that
-	 * causes the ISA IRQs used for PCI interrupts in PIC mode to be
-	 * set to level/low when they aren't being used.  There are possibly
-	 * legitimate requests, so at some point when the acpi(4) driver is
-	 * fixed this code can be changed to actually change the intpin as
-	 * requested.
+	 * EISA interrupts always use active high polarity, so don't allow
+	 * them to be set to active low.
+	 *
+	 * XXX: Should we write to the ELCR if the trigger mode changes for
+	 * an EISA IRQ?
 	 */
-	if (!bootverbose)
-		return (0);
-	if (intpin->io_edgetrigger != (trig == INTR_TRIGGER_EDGE))
-		printf(
-	"ioapic%u: Request to change trigger for pin %u to %s ignored\n",
-		    io->io_id, intpin->io_intpin, trig == INTR_TRIGGER_EDGE ?
-		    "edge" : "level");
-	if (intpin->io_activehi != (pol == INTR_POLARITY_HIGH))
-		printf(
-	"ioapic%u: Request to change polarity for pin %u to %s ignored\n",
-		    io->io_id, intpin->io_intpin, pol == INTR_POLARITY_HIGH ?
-		    "high" : "low");
+	if (intpin->io_bus == APIC_BUS_EISA)
+		pol = INTR_POLARITY_HIGH;
+	changed = 0;
+	if (intpin->io_edgetrigger != (trig == INTR_TRIGGER_EDGE)) {
+		if (bootverbose)
+			printf("ioapic%u: Changing trigger for pin %u to %s\n",
+			    io->io_id, intpin->io_intpin,
+			    trig == INTR_TRIGGER_EDGE ? "edge" : "level");
+		intpin->io_edgetrigger = (trig == INTR_TRIGGER_EDGE);
+		changed++;
+	}
+	if (intpin->io_activehi != (pol == INTR_POLARITY_HIGH)) {
+		if (bootverbose)
+			printf("ioapic%u: Changing polarity for pin %u to %s\n",
+			    io->io_id, intpin->io_intpin,
+			    pol == INTR_POLARITY_HIGH ? "high" : "low");
+		intpin->io_activehi = (pol == INTR_POLARITY_HIGH);
+		changed++;
+	}
+	if (changed)
+		ioapic_program_intpin(intpin);
 	return (0);
 }
 
