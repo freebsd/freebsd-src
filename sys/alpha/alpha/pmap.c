@@ -2204,7 +2204,7 @@ pmap_remove_pages(pmap, sva, eva)
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 		pte = vtopte(pv->pv_va);
 #else
-		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_quick(pmap, pv->pv_va);
 #endif
 		if (!pmap_pte_v(pte))
 			panic("pmap_remove_pages: page on pm_pvlist has no pte\n");
@@ -2222,22 +2222,21 @@ pmap_remove_pages(pmap, sva, eva)
 
 		m = PHYS_TO_VM_PAGE(pmap_pte_pa(&tpte));
 
-		pv->pv_pmap->pm_stats.resident_count--;
+		pmap->pm_stats.resident_count--;
 
 		if ((tpte & PG_FOW) == 0)
 			if (pmap_track_modified(pv->pv_va))
 				vm_page_dirty(m);
 
 		npv = TAILQ_NEXT(pv, pv_plist);
-		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
+		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 
 		m->md.pv_list_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL) {
+		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
-		}
 
-		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
+		pmap_unuse_pt(pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
 	pmap_invalidate_all(pmap);
