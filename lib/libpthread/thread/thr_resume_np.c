@@ -50,19 +50,10 @@ _pthread_resume_np(pthread_t thread)
 
 	/* Add a reference to the thread: */
 	if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0)) == 0) {
-		/* Is it currently suspended? */
-		if ((thread->flags & THR_FLAGS_SUSPENDED) != 0) {
-			/* Lock the threads scheduling queue: */
-			THR_SCHED_LOCK(curthread, thread);
-
-			if ((curthread->state != PS_DEAD) &&
-			    (curthread->state != PS_DEADLOCK) &&
-			    ((curthread->flags & THR_FLAGS_EXITING) != 0))
-				resume_common(thread);
-
-			/* Unlock the threads scheduling queue: */
-			THR_SCHED_UNLOCK(curthread, thread);
-		}
+		/* Lock the threads scheduling queue: */
+		THR_SCHED_LOCK(curthread, thread);
+		resume_common(thread);
+		THR_SCHED_UNLOCK(curthread, thread);
 		_thr_ref_delete(curthread, thread);
 	}
 	return (ret);
@@ -80,11 +71,7 @@ _pthread_resume_all_np(void)
 	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
-		if ((thread != curthread) &&
-		    ((thread->flags & THR_FLAGS_SUSPENDED) != 0) &&
-		    (thread->state != PS_DEAD) &&
-		    (thread->state != PS_DEADLOCK) &&
-		    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
+		if (thread != curthread) {
 			THR_SCHED_LOCK(curthread, thread);
 			resume_common(thread);
 			THR_SCHED_UNLOCK(curthread, thread);

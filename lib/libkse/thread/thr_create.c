@@ -259,8 +259,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->flags = 0;
 			new_thread->continuation = NULL;
 
-			if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
+			if (new_thread->attr.suspend == THR_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
+				new_thread->flags = THR_FLAGS_SUSPENDED;
+			}
 			else
 				new_thread->state = PS_RUNNING;
 

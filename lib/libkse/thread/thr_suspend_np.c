@@ -97,9 +97,10 @@ suspend_common(struct pthread *thread)
 	    (thread->state != PS_DEADLOCK) &&
 	    ((thread->flags & THR_FLAGS_EXITING) == 0)) {
 		thread->flags |= THR_FLAGS_SUSPENDED;
-		if ((thread->flags & THR_FLAGS_IN_RUNQ) != 0)
+		if ((thread->flags & THR_FLAGS_IN_RUNQ) != 0) {
 			THR_RUNQ_REMOVE(thread);
-		THR_SET_STATE(thread, PS_SUSPENDED);
+			THR_SET_STATE(thread, PS_SUSPENDED);
+		}
 #ifdef NOT_YET
 		if ((thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0)
 			/* ??? */
