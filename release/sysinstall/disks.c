@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.65 1996/10/01 04:56:31 jkh Exp $
+ * $Id: disks.c,v 1.66 1996/10/03 06:01:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,10 +181,10 @@ diskPartition(Device *dev, Disk *d)
        since we don't always know who called us */
     dialog_clear_norefresh(), clear();
 
-    while (chunking) {
-	/* Set up the chunk array */
-	record_chunks(d);
+    /* Set up the chunk array */
+    record_chunks(d);
 
+    while (chunking) {
 	/* Now print our overall state */
 	print_chunks(d);
 	print_command_summary();
@@ -259,6 +259,7 @@ diskPartition(Device *dev, Disk *d)
 	    if (rv)
 		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
 	    variable_set2(DISK_PARTITIONED, "yes");
+	    record_chunks(d);
 	    clear();
 	    break;
 
@@ -309,6 +310,7 @@ diskPartition(Device *dev, Disk *d)
 		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    variable_set2(DISK_PARTITIONED, "yes");
+		    record_chunks(d);
 		    }
 		}
 		clear();
@@ -322,6 +324,7 @@ diskPartition(Device *dev, Disk *d)
 	    else {
 		Delete_Chunk(d, chunk_info[current_chunk]);
 		variable_set2(DISK_PARTITIONED, "yes");
+		record_chunks(d);
 	    }
 	    break;
 
@@ -361,14 +364,16 @@ diskPartition(Device *dev, Disk *d)
 	    dev->private = d;
 	    variable_unset(DISK_PARTITIONED);
 	    variable_unset(DISK_LABELLED);
+	    record_chunks(d);
 	    clear();
 	    break;
 
 	case 'W':
 	    if (!msgYesNo("WARNING:  This should only be used for modifying an\n"
-			  "EXISTING installation - DO NOT USE this option if you\n"
-			  "are installing FreeBSD for the first time!  This is not\n"
-			  "an option for use during the standard install.\n\n"
+			  "EXISTING installation - If you are installing FreeBSD\n"
+			  "for the first time then you should simply hit 'Q' now."
+			  "Your changes will be committed in one batch at the end\n"
+			  "of this section and do not have to be written now.\n\n"
 			  "Are you absolutely sure you want to do this now?")) {
 
 		variable_set2(DISK_PARTITIONED, "yes");
@@ -396,6 +401,7 @@ diskPartition(Device *dev, Disk *d)
 		refresh();
 		slice_wizard(d);
 		variable_set2(DISK_PARTITIONED, "yes");
+		record_chunks(d);
 	    }
 	    else
 		msg = "Wise choice!";

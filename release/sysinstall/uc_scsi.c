@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_scsi.c,v 1.1 1996/10/03 06:01:44 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -183,6 +183,7 @@ get_scsi_info(struct kernel *kp){
       spc=sp=(struct uc_scsi*)malloc(sizeof(struct uc_scsi));
       total=0;
       ctrl_total=0;
+      uc_scbus = NULL;	/* Just prevent unused warning */
 
       /* static kernel, we'll first get the wired controllers/devices */
       if((t=kp->nl[SCSI_CINIT].n_value)){

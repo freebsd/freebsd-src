@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.238 1996/09/25 00:43:23 pst Exp $
+#	$Id: Makefile,v 1.239 1996/09/26 20:48:03 pst Exp $
 #
 # How to roll a release:
 #
@@ -111,7 +111,8 @@ rerelease release:
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh&& rm foo )
 	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && \
-	  mv version.h.new version.h )
+	  mv version.h.new version.h && \
+	  echo XXXX )
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
@@ -199,7 +200,8 @@ release.3:
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/sysinstall && make obj && make depend && make all
+	cd ${.CURDIR}/sysinstall && make depend all \
+	  KERNEL_NAME=${RD}/kernels/BOOTMFS.std
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	for j in ${WHICH_CRUNCH} ; do \
@@ -227,43 +229,43 @@ release.5:
 
 	# Move all the manpages out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
-		rm -rf ${RD}/trees/manpages/usr/share/man &&\
-		mv ${RD}/trees/bin/usr/share/man \
-			${RD}/trees/manpages/usr/share/man ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/man . | \
+			tar xf - -C ${RD}/trees/manpages/usr/share/man && \
+		rm -rf ${RD}/trees/bin/usr/share/man; \
 	fi
 	# Move all the games out to their own dist
 	if [ -d ${RD}/trees/bin/usr/games ] ; then \
-		rm -rf ${RD}/trees/games/usr/games &&\
-		mv ${RD}/trees/bin/usr/games \
-			${RD}/trees/games/usr/games ;\
+		tar -cf - -C ${RD}/trees/bin/usr/games . | \
+			tar -xf - -C ${RD}/trees/games/usr/games && \
+		rm -rf ${RD}/trees/bin/usr/games; \
 	fi
 	if [ -d ${RD}/trees/bin/usr/share/games ] ; then \
-		rm -rf ${RD}/trees/games/usr/share/games &&\
-		mv ${RD}/trees/bin/usr/share/games \
-			${RD}/trees/games/usr/share/games ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/games . | \
+			tar -xf - -C ${RD}/trees/games/usr/share/games && \
+		rm -rf ${RD}/trees/bin/usr/share/games; \
 	fi
 	if [ -d ${RD}/trees/bin/var/games ] ; then \
-		rm -rf ${RD}/trees/games/var/games &&\
-		mv ${RD}/trees/bin/var/games \
-			${RD}/trees/games/var/games ;\
+		tar -cf - -C ${RD}/trees/bin/var/games . | \
+			tar -xf - -C ${RD}/trees/games/var/games && \
+		rm -rf ${RD}/trees/bin/var/games; \
 	fi
 	# Move the dict out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/dict ] ; then \
-		rm -rf ${RD}/trees/dict/usr/share/dict &&\
-		mv ${RD}/trees/bin/usr/share/dict \
-			${RD}/trees/dict/usr/share/dict ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/dict . | \
+			tar -xf - -C ${RD}/trees/dict/usr/share/dict && \
+		rm -rf ${RD}/trees/bin/usr/share/dict; \
 	fi
 	for i in airport birthtoken flowers na.phone zipcodes ; do \
 		if [ -f ${RD}/trees/bin/usr/share/misc/$$i ] ; then \
 			mv ${RD}/trees/bin/usr/share/misc/$$i \
-				${RD}/trees/dict/usr/share/misc ; \
+				${RD}/trees/dict/usr/share/misc; \
 		fi ; \
 	done
 	# Move the info files out to their own dist
 	if [ -d ${RD}/trees/bin/usr/share/info ] ; then \
-		rm -rf ${RD}/trees/info/usr/share/info &&\
-		mv ${RD}/trees/bin/usr/share/info \
-			${RD}/trees/info/usr/share ;\
+		tar -cf - -C ${RD}/trees/bin/usr/share/info . | \
+			tar -xf - -C ${RD}/trees/info/usr/share/info && \
+		rm -rf ${RD}/trees/bin/usr/share/info; \
 	fi
 	# Move the profiled libraries out to their own dist
 	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \

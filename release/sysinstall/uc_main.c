@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.1 1996/10/03 06:01:41 jkh Exp $
+ * $Id: uc_main.c,v 1.2 1996/10/03 07:50:09 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -43,6 +43,9 @@
 extern int	isDebug(void);
 extern void	msgDebug(char *fmt, ...);
 
+#ifdef KERN_NO_SYMBOLS
+#include "kern-nlist.h"
+#else
 struct nlist    nl[] = {
   {"_isa_devtab_bio"},
   {"_isa_devtab_tty"},
@@ -60,11 +63,11 @@ struct nlist    nl[] = {
   {"_scsi_tinit"},
   {""},
 };
-
+#endif
 
 struct kernel *
 uc_open(char *name){
-  int kd, i, flags, incore;
+  int kd, flags, incore;
   struct kernel *kern;
   struct stat sb;
   char kname[80];
@@ -81,11 +84,25 @@ uc_open(char *name){
     strncpy(kname, name, 79);
   }
   if (isDebug())
-      msgDebug("Kernel name is %s, incore = %d\n", kname, incore);
+      msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
 
   kern=(struct kernel *)malloc(sizeof(struct kernel));
 
-  i=nlist(kname, nl);
+#ifdef KERN_NO_SYMBOLS
+  if (incore) {
+      kern->nl=kern_nl;
+      i = 0;
+  }
+  else
+      i = nlist(kname, nl);
+#else
+  i = nlist(kname, nl);
+#endif
+  if (i == -1) {
+      msgDebug("uc_open: kernel %s does not contain symbols.\n", kname);
+      kern = (struct kernel *)-5;
+      return kern;
+  }
   kern->nl=(struct nlist *)malloc(sizeof(nl));
   bcopy(nl, kern->nl, sizeof(nl));
 
@@ -118,6 +135,8 @@ uc_open(char *name){
       return(kern);
     }
 
+    if (isDebug())
+	msgDebug("uc_open: attempting to open %s\n", kname);
     if((kd=open(kname, O_RDWR, 0644))<0){
       free(kern);
       kern=(struct kernel *)-3;
@@ -127,6 +146,8 @@ uc_open(char *name){
 
     fchflags(kd, flags);
 
+    if (isDebug())
+	msgDebug("uc_open: attempting to mmap %d bytes\n", sb.st_size);
     kern->core=mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
 		    MAP_SHARED, kd, 0);
     kern->incore=0;
@@ -141,12 +162,20 @@ uc_open(char *name){
 
   kern->fd=kd;
 
+  if (isDebug())
+      msgDebug("uc_open: getting isa information\n");
   get_isa_info(kern);
 
+  if (isDebug())
+      msgDebug("uc_open: getting pci information\n");
   get_pci_info(kern);
 
+  if (isDebug())
+      msgDebug("uc_open: getting eisa information\n");
   get_eisa_info(kern);
 
+  if (isDebug())
+      msgDebug("uc_open: getting scsi information\n");
   get_scsi_info(kern);
 
   return(kern);
