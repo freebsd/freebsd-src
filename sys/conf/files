@@ -55,6 +55,7 @@ kern/kern_physio.c	standard
 kern/kern_proc.c	standard
 kern/kern_prot.c	standard
 kern/kern_resource.c	standard
+kern/kern_shutdown.c	standard
 kern/kern_sig.c		standard
 kern/kern_subr.c	standard
 kern/kern_synch.c	standard
