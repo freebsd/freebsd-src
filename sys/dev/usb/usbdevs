@@ -1161,6 +1161,7 @@ product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 product SANDISK SDDR75		0x0810	ImageMate SDDR-75
+product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
 
 /* Sanyo Electric products */
 product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
