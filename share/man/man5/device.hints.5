@@ -1,4 +1,3 @@
-.\"
 .\" Copyright (c) 2001
 .\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
 .\" All rights reserved.
@@ -34,7 +33,7 @@
 .Nd device resource hints
 .Sh DESCRIPTION
 The
-.Pa /boot/device.hints
+.Nm
 file is read in by the boot
 .Xr loader 8
 when the system is about to start and its contents will be
@@ -46,10 +45,10 @@ These variables are typically
 .\" .Dq device hints ,
 .\" and other control variables.
 .Pp
-The file contain one variable per line.
-Lines starting with
-.Li #
-are comments and are ignore by the boot loader.
+The file contains one variable per line.
+Lines starting with the
+.Ql #
+character are comments and are ignored by the boot loader.
 .Pp
 After the file is read by the boot loader, you may examine
 the variables by the
@@ -60,10 +59,8 @@ or delete one by the
 and
 .Ic unset
 commands of the boot loader
-.Po
-see
-.Xr loader 8
-.Pc .
+(see
+.Xr loader 8 ) .
 .Pp
 After the system has started, you can dump these variables
 by the
@@ -78,31 +75,33 @@ resources it will attempt to use.
 .Pp
 A device hint line looks like:
 .Pp
-.Dl hint.<driver>.<unit>.<keyword>="<value>"
+.Sm off
+.D1 Li hint. Ar driver Li . Ar unit Li . Ar keyword Li = Qq Ar value
+.Sm on
 .Pp
 where
-.Ar <driver>
+.Ar driver
 is the name of a device driver,
-.Ar <unit>
+.Ar unit
 is the unit number,
-.Ar <keyword>
+.Ar keyword
 is the keyword of the hint.
 The keyword may be:
 .Pp
-.Bl -tag -width "disabledXXX" -compact -offset indent
-.It at
+.Bl -tag -width ".Li disabled" -compact -offset indent
+.It Li at
 specifies a bus to which the device is attached.
-.It port
+.It Li port
 specifies the start address of I/O ports to be used by the device.
-.It irq
+.It Li irq
 is the interrupt line number to be used.
-.It drq
+.It Li drq
 is the DMA channel number.
-.It maddr
+.It Li maddr
 specifies the physical memory address occupied by the device.
-.It flags
+.It Li flags
 sets various flag bits for the device.
-.It disabled
+.It Li disabled
 is set to
 .Qq 1
 to disable the device.
@@ -123,22 +122,23 @@ keywords and their possible values.
 .\" WE SHOULD LIST AVAILABLE VARIABLE NAMES AND THEIR POSSIBLE VALUES HERE!
 .\" .Pp
 .Sh FILES
-.Bl -tag -width /sys/<arch>/conf/GENERIC.hintsXXX -compact
+.Bl -tag -width ".Pa /sys/ Ns Ar ARCH Ns Pa /conf/GENERIC.hints" -compact
 .It Pa /boot/device.hints
-Device resource hint file.
-.It Pa /sys/<arch>/conf/GENERIC.hints
-Sample resource hints for the GENERIC kernel.
-.It Pa /sys/<arch>/conf/NOTES
+Device resource hints file.
+.It Pa /sys/ Ns Ar ARCH Ns Pa /conf/GENERIC.hints
+Sample resource hints for the
+.Pa GENERIC
+kernel.
+.It Pa /sys/ Ns Ar ARCH Ns Pa /conf/NOTES
 Notes on the kernel configuration file and device resource hints.
 .El
 .Sh EXAMPLES
 The following example sets up resources for the
 .Xr sio 4
 driver on the ISA bus.
-.Pp
 .Bd -literal -offset indent
 hint.sio.0.at="isa"
-hint.sio.0.port="0x3f8"
+hint.sio.0.port="0x3F8"
 hint.sio.0.flags="0x10"
 hint.sio.0.irq="4"
 .Ed
