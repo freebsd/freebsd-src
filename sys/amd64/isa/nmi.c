@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.9 1998/03/03 22:56:29 tegge Exp $
+ *	$Id: intr_machdep.c,v 1.10 1998/05/17 21:15:18 tegge Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -268,56 +268,19 @@ isa_strayintr(d)
 }
 
 /*
- * Return nonzero if a (masked) irq is pending for a given device.
+ * Return a bitmap of the current interrupt requests.  This is 8259-specific
+ * and is only suitable for use at probe time.
  */
-#if defined(APIC_IO)
-
-int
-isa_irq_pending(dvp)
-	struct isa_device *dvp;
+intrmask_t
+isa_irq_pending()
 {
-#ifdef FAST_HI
-/* XXX not quite right for >1 IO APIC yet */
-	if (dvp->id_ri_flags & RI_FAST)
-		/* read APIC IRR containing the FAST INTerrupts */
-		return ((lapic.irr3 & 0x00ffffff)
-			& (u_int32_t)dvp->id_irq) ? 1 : 0;
-	else
-#endif /* FAST_HI */
-		/* read APIC IRR containing the SLOW INTerrupts */
-		return ((lapic.irr1 & 0x00ffffff)
-			& (u_int32_t)dvp->id_irq) ? 1 : 0;
+	u_char irr1;
+	u_char irr2;
+
+	irr1 = inb(IO_ICU1);
+	irr2 = inb(IO_ICU2);
+	return ((irr2 << 8) | irr1);
 }
-
-/*
- * an 8259 specific routine,
- * for use by boot probes in certain device drivers.
- */
-int
-icu_irq_pending(dvp)
-	struct isa_device *dvp;
-{
-	unsigned id_irq;
-	id_irq = dvp->id_irq;
-	if (id_irq & 0xff)
-		return (inb(IO_ICU1) & id_irq);
-	return (inb(IO_ICU2) & (id_irq >> 8));
-}
-
-#else /* APIC_IO */
-
-int
-isa_irq_pending(dvp)
-	struct isa_device *dvp;
-{
-	unsigned id_irq;
-	id_irq = dvp->id_irq;
-	if (id_irq & 0xff)
-		return (inb(IO_ICU1) & id_irq);
-	return (inb(IO_ICU2) & (id_irq >> 8));
-}
-
-#endif /* APIC_IO */
 
 int
 update_intr_masks(void)

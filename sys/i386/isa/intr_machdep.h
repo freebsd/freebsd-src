@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.10 1998/03/03 20:55:24 tegge Exp $
+ *	$Id: intr_machdep.h,v 1.11 1998/03/03 22:56:30 tegge Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -190,10 +190,7 @@ inthand_t
 struct isa_device;
 
 void	isa_defaultirq __P((void));
-int	isa_irq_pending __P((struct isa_device *dvp));
-#if defined(SMP) || defined(APIC_IO)
-int	icu_irq_pending __P((struct isa_device *dvp));
-#endif
+intrmask_t isa_irq_pending __P((void));
 int	isa_nmi __P((int cd));
 void	update_intrname __P((int intr, int device_id));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
