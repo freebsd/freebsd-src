@@ -27,7 +27,7 @@ LOCALE_LINKS=${US_LOCALE_LINKS}
 all: tree links
 
 tree:
-	mtree -deU -f ../build/mfs.mtree -p ${DESTDIR}
+	mtree -deLU -f ../build/mfs.mtree -p ${DESTDIR}
 
 links: tree
 	(cd ${DESTDIR}; \
