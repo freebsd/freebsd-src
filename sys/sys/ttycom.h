@@ -142,5 +142,6 @@ struct winsize {
 #define	SLIPDISC	4		/* serial IP discipline */
 #define	PPPDISC		5		/* PPP discipline */
 #define	NETGRAPHDISC	6		/* Netgraph tty node discipline */
+#define	H4DISC		7		/* Netgraph Bluetooth H4 discipline */
 
 #endif /* !_SYS_TTYCOM_H_ */
