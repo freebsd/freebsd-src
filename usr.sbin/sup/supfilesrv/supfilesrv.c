@@ -42,6 +42,9 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.3  1996/02/06 18:48:03  pst
+ * Setproctitle some useful information
+ *
  * Revision 1.2  1995/12/26 05:03:11  peter
  * Apply ports/net/sup/patches/patch-aa...
  *
@@ -846,8 +849,10 @@ setup ()
 #endif
 	if (release == NULL)
 		release = salloc (DEFRELEASE);
+#ifdef notyet	/* XXX re-enable when setproctitle() makes it back in XXX */
 	setproctitle("supfilesrv: serving %s/%s to %s",
 		     collname, release, remotehost());
+#endif
 	if (basedir == NULL || *basedir == '\0') {
 		basedir = NULL;
 		(void) sprintf (buf,FILEDIRS,DEFDIR);
