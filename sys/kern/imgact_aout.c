@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.26 1996/04/08 01:21:57 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.27 1996/05/01 02:42:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -80,14 +80,14 @@ exec_aout_imgact(imgp)
 	case ZMAGIC:
 		virtual_offset = 0;
 		if (a_out->a_text) {
-			file_offset = NBPG;
+			file_offset = PAGE_SIZE;
 		} else {
 			/* Bill's "screwball mode" */
 			file_offset = 0;
 		}
 		break;
 	case QMAGIC:
-		virtual_offset = NBPG;
+		virtual_offset = PAGE_SIZE;
 		file_offset = 0;
 		break;
 	default:
@@ -95,7 +95,7 @@ exec_aout_imgact(imgp)
 		switch ((int)(ntohl(a_out->a_magic) & 0xffff)) {
 		case ZMAGIC:
 		case QMAGIC:
-			virtual_offset = NBPG;
+			virtual_offset = PAGE_SIZE;
 			file_offset = 0;
 			break;
 		default:
@@ -103,7 +103,7 @@ exec_aout_imgact(imgp)
 		}
 	}
 
-	bss_size = roundup(a_out->a_bss, NBPG);
+	bss_size = roundup(a_out->a_bss, PAGE_SIZE);
 
 	/*
 	 * Check various fields in header for validity/bounds.
@@ -113,8 +113,7 @@ exec_aout_imgact(imgp)
 	    a_out->a_entry >= virtual_offset + a_out->a_text ||
 
 	    /* text and data size must each be page rounded */
-	    a_out->a_text % NBPG ||
-	    a_out->a_data % NBPG)
+	    a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK)
 		return (-1);
 
 	/* text + data can't exceed file size */

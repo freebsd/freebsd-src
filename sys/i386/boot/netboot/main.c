@@ -278,7 +278,7 @@ cfg_done:
 	offset = N_TXTOFF(head);
 	printf("text=0x%X, ",head.a_text);
 	nfsload(head.a_text);
-	while (((int)loadpoint) & CLOFSET)
+	while (((int)loadpoint) & PAGE_MASK)
 		*(loadpoint++) = 0;
 
 	printf("data=0x%X, ",head.a_data);
@@ -287,7 +287,7 @@ cfg_done:
 	printf("bss=0x%X, ",head.a_bss);
 	while(head.a_bss--) *(loadpoint++) = 0;
 
-	while (((int)loadpoint) & CLOFSET)
+	while (((int)loadpoint) & PAGE_MASK)
 		*(loadpoint++) = 0;
 
 	bootinfo.bi_symtab = (int) loadpoint;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.50 1995/12/14 23:35:17 bde Exp $
+ *	$Id: autoconf.c,v 1.51 1995/12/16 18:52:05 peter Exp $
  */
 
 /*
@@ -288,7 +288,7 @@ setdumpdev(dev)
 	psize = bdevsw[maj]->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
-	newdumplo = psize - Maxmem * NBPG / DEV_BSIZE;
+	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
 	if (newdumplo < 0)
 		return (ENOSPC);
 	dumpdev = dev;
