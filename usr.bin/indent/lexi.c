@@ -153,7 +153,7 @@ lexi(void)
 	const char *j;		/* used for searching thru list of
 				 *
 				 * reserved words */
-	register struct templ *p;
+	struct templ *p;
 
 	if (isdigit(*buf_ptr) || (buf_ptr[0] == '.' && isdigit(buf_ptr[1]))) {
 	    int         seendot = 0,
@@ -315,7 +315,7 @@ lexi(void)
 	    }			/* end of switch */
 	}			/* end of if (found_it) */
 	if (*buf_ptr == '(' && ps.tos <= 1 && ps.ind_level == 0) {
-	    register char *tp = buf_ptr;
+	    char *tp = buf_ptr;
 	    while (tp < buf_end)
 		if (*tp++ == ')' && (*tp == ';' || *tp == ','))
 		    goto not_proc;
@@ -588,7 +588,7 @@ stop_lit:
 void
 addkey(char *key, int val)
 {
-    register struct templ *p = specials;
+    struct templ *p = specials;
     while (p->rwd)
 	if (p->rwd[0] == key[0] && strcmp(p->rwd, key) == 0)
 	    return;

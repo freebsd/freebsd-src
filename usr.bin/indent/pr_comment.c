@@ -136,7 +136,7 @@ pr_comment(void)
 		ps.com_col = 1 + !format_col1_comments;
 	}
 	else {
-	    register int target_col;
+	    int target_col;
 	    break_delim = 0;
 	    if (s_code != e_code)
 		target_col = count_spaces(compute_code_target(), s_code);
