@@ -29,7 +29,7 @@
 # $FreeBSD$
 #
 
-my (%myaddr, %hisaddr);
+my (%proto, %myaddr, %hisaddr);
 my ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock, $laddr, $faddr);
 
 print <<EOH;
@@ -40,11 +40,13 @@ format STDOUT =
 $user,   $cmd,    $pid, $fd, $proto,$laddr,               $faddr
 .
 
-open NETSTAT, "netstat -Aan -finet | tail +3 |" or die "'netstat' failed: $!";
+open NETSTAT, "netstat -Aan |" or die "'netstat' failed: $!";
+<NETSTAT>; <NETSTAT>;
 
 while (<NETSTAT>) {
     my ($sock, $proto, $recvq, $sendq, $laddr, $faddr, $state) = split;
-    ($myaddr{$sock}, $hisaddr{$sock}) = ($laddr, $faddr);
+    ($proto{$sock}, $myaddr{$sock}, $hisaddr{$sock}) =
+	($proto, $laddr, $faddr);
 }
 
 close NETSTAT;
@@ -54,8 +56,9 @@ open FSTAT, "fstat |" or die "'fstat' failed: $!\n";
 while (<FSTAT>) {
     ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock) = split;
     chop $fd;
-    next unless ($inet eq "internet");
-    ($laddr, $faddr) = ($myaddr{$sock}, $hisaddr{$sock});
+    next unless ($inet =~ m/^internet6?$/);
+    ($proto, $laddr, $faddr) =
+	($proto{$sock}, $myaddr{$sock}, $hisaddr{$sock});
     write STDOUT;
 }
 
