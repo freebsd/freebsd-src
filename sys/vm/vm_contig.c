@@ -221,6 +221,7 @@ again1:
 				vm_page_busy(m);
 				vm_page_free(m);
 			}
+			mtx_lock_spin(&vm_page_queue_free_mtx);
 			vm_pageq_remove_nowakeup(m);
 			m->valid = VM_PAGE_BITS_ALL;
 			if (m->flags & PG_ZERO)
@@ -230,6 +231,7 @@ again1:
 			m->wire_count = 0;
 			m->busy = 0;
 			m->object = NULL;
+			mtx_unlock_spin(&vm_page_queue_free_mtx);
 		}
 
 		/*
