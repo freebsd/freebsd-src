@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dirs.c,v 1.9 1997/06/18 06:28:46 charnier Exp $
+ *	$Id: dirs.c,v 1.10 1997/09/18 14:04:49 phk Exp $
  */
 
 #ifndef lint
@@ -470,7 +470,7 @@ rst_seekdir(dirp, loc, base)
 		return;
 	loc -= base;
 	if (loc < 0)
-		fprintf(stderr, "bad seek pointer to rst_seekdir %d\n", loc);
+		fprintf(stderr, "bad seek pointer to rst_seekdir %ld\n", loc);
 	(void) lseek(dirp->dd_fd, base + (loc & ~(DIRBLKSIZ - 1)), SEEK_SET);
 	dirp->dd_loc = loc & (DIRBLKSIZ - 1);
 	if (dirp->dd_loc != 0)
