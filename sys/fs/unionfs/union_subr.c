@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.23 1997/12/27 02:56:26 bde Exp $
+ * $Id: union_subr.c,v 1.24 1998/01/20 10:02:52 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1007,7 +1007,7 @@ union_removed_upper(un)
 
 	/*
 	 * Do not set the uppervp to NULLVP.  If lowervp is NULLVP,
-	 * union node will have neither uppervp nor lowervp.  We romove
+	 * union node will have neither uppervp nor lowervp.  We remove
 	 * the union node from cache, so that it will not be referrenced.
 	 */
 #if 0
