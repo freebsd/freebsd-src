@@ -14,6 +14,7 @@
   G            * Go to line N, default the end of the file.
   p, %         * Position to N percent into the file.
   HOME           Toggle horizontal scroll and line-wrap on and off
+  tab          * Tab N x 8 columns to the right
 
   r, ^L          Repaint screen.
   R              Repaint screen, discarding buffered input.
