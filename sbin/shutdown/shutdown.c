@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -55,6 +57,7 @@ static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 #include "pathnames.h"
 
@@ -104,10 +107,8 @@ main(argc, argv)
 	int arglen, ch, len, readstdin;
 
 #ifndef DEBUG
-	if (geteuid()) {
-		(void)fprintf(stderr, "shutdown: NOT super-user\n");
-		exit(1);
-	}
+	if (geteuid())
+		errx(1, "NOT super-user");
 #endif
 	nosync = NULL;
 	readstdin = 0;
@@ -139,8 +140,7 @@ main(argc, argv)
 		usage();
 
 	if (doreboot && dohalt) {
-		(void)fprintf(stderr,
-		    "shutdown: incompatible switches -h and -r.\n");
+		warnx("incompatible switches -h and -r.");
 		usage();
 	}
 	getoffset(*argv++);
@@ -191,14 +191,10 @@ main(argc, argv)
 		int forkpid;
 
 		forkpid = fork();
-		if (forkpid == -1) {
-			perror("shutdown: fork");
-			exit(1);
-		}
-		if (forkpid) {
-			(void)printf("shutdown: [pid %d]\n", forkpid);
-			exit(0);
-		}
+		if (forkpid == -1)
+			err(1, "fork");
+		if (forkpid)
+			errx(0, "[pid %d]", forkpid);
 	}
 #endif
 	openlog("shutdown", LOG_CONS, LOG_AUTH);
@@ -406,11 +402,8 @@ getoffset(timearg)
 		lt->tm_sec = 0;
 		if ((shuttime = mktime(lt)) == -1)
 			badtime();
-		if ((offset = shuttime - now) < 0) {
-			(void)fprintf(stderr,
-			    "shutdown: that time is already past.\n");
-			exit(1);
-		}
+		if ((offset = shuttime - now) < 0)
+			errx(1, "that time is already past.");
 		break;
 	default:
 		badtime();
@@ -451,8 +444,7 @@ finish(signo)
 void
 badtime()
 {
-	(void)fprintf(stderr, "shutdown: bad time format.\n");
-	exit(1);
+	errx(1, "bad time format.");
 }
 
 void
