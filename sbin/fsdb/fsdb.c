@@ -59,8 +59,8 @@ usage()
 	exit(1);
 }
 
-int returntosingle = 0;
-char nflag = 0;
+int returntosingle;
+char nflag;
 
 /*
  * We suck in lots of fsck code, and just pick & choose the stuff we want.
