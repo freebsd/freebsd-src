@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.59 1995/12/19 14:30:48 davidg Exp $
+ *	$Id: isa.c,v 1.61 1996/01/19 23:38:06 phk Exp $
  */
 
 /*
@@ -48,28 +48,20 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>		/* isn't it a joy */
-#include <sys/kernel.h>		/* to have three of these */
+#include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/conf.h>
-#include <sys/file.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
-#include <sys/rlist.h>
 #include <machine/segments.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <machine/spl.h>
 #include <machine/cpu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
-#include <i386/isa/ic/i8042.h>
 #include <sys/devconf.h>
 #include "vector.h"
 
@@ -88,14 +80,6 @@
 #define	DMA2_SMSK	(IO_DMA2 + 2*10)	/* single mask register */
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
-
-/*
- * XXX these defines should be in a central place.
- */
-#define	read_eflags()		({u_long ef; \
-				  __asm("pushfl; popl %0" : "=a" (ef)); \
-				  ef; })
-#define	write_eflags(ef)	__asm("pushl %0; popfl" : : "a" ((u_long)(ef)))
 
 u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
@@ -142,6 +126,7 @@ static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  char const *format));
 static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
+static int isa_dmarangecheck __P((caddr_t va, unsigned length, unsigned chan));
 static inthand2_t isa_strayintr;
 static void register_imask __P((struct isa_device *dvp, u_int mask));
 
@@ -244,7 +229,6 @@ haveseen(dvp, tmpdvp, checkbits)
  * Search through all the isa_devtab_* tables looking for anything that
  * conflicts with the current device.
  */
-
 int
 haveseen_isadev(dvp, checkbits)
 	struct isa_device *dvp;
@@ -333,9 +317,7 @@ isa_configure() {
  * during spltty.
  */
 #include "sl.h"
-#include "ppp.h"
-
-#if (NSL > 0)
+#if NSL > 0
 	net_imask |= tty_imask;
 	tty_imask = net_imask;
 #endif
@@ -344,7 +326,7 @@ isa_configure() {
 
 	if (bootverbose)
 		printf("imasks: bio %x, tty %x, net %x\n",
-			bio_imask, tty_imask, net_imask);
+		       bio_imask, tty_imask, net_imask);
 
 	/*
 	 * Finish initializing intr_mask[].  Note that the partly
@@ -396,15 +378,12 @@ config_isadev_c(isdp, mp, reconfig)
 	int last_alive;
 	struct isa_driver *dp = isdp->id_driver;
 
- 	checkbits = 0;
-	checkbits |= CC_DRQ;
-	checkbits |= CC_IOADDR;
-	checkbits |= CC_MEMADDR;
 	if (!isdp->id_enabled) {
 		printf("%s%d: disabled, not probed.\n",
 			dp->name, isdp->id_unit);
 		return;
 	}
+	checkbits = CC_DRQ | CC_IOADDR | CC_MEMADDR;
 	if (!reconfig && haveseen_isadev(isdp, checkbits))
 		return;
 	if (!reconfig && isdp->id_maddr) {
@@ -431,10 +410,10 @@ config_isadev_c(isdp, mp, reconfig)
 		if (!isdp->id_reconfig) {
 			printf("%s%d", dp->name, isdp->id_unit);
 			if (id_alive != -1) {
- 				printf(" at 0x%x", isdp->id_iobase);
- 				if ((isdp->id_iobase + id_alive - 1) !=
- 				     isdp->id_iobase) {
- 					printf("-0x%x",
+				printf(" at 0x%x", isdp->id_iobase);
+				if (isdp->id_iobase + id_alive - 1 !=
+				    isdp->id_iobase) {
+					printf("-0x%x",
 					       isdp->id_iobase + id_alive - 1);
 				}
 			}
@@ -465,7 +444,7 @@ config_isadev_c(isdp, mp, reconfig)
 			 * *dvp to avoid conflicts if given a chance.  We
 			 * already skip the early check for IRQs and force
 			 * a check for IRQs in the next group of checks.
-		 	 */
+			 */
 			checkbits |= CC_IRQ;
 			if (haveseen_isadev(isdp, checkbits))
 				return;
@@ -486,7 +465,8 @@ config_isadev_c(isdp, mp, reconfig)
 		}
 		if (!last_alive) {
 			if (!isdp->id_reconfig) {
-				printf("%s%d not found", dp->name, isdp->id_unit);
+				printf("%s%d not found",
+				       dp->name, isdp->id_unit);
 				if (isdp->id_iobase) {
 					printf(" at 0x%x", isdp->id_iobase);
 				}
@@ -609,9 +589,6 @@ void isa_dmacascade(unsigned chan)
 		outb(DMA2_SMSK, chan & 3);
 	}
 }
-
-static int
-isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan);
 
 /*
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
