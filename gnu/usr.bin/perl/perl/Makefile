@@ -7,8 +7,9 @@ NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	perlmain.c config.h
 NOSHARED= no
-DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
-LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
+DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
+DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD}
+LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
 	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
@@ -31,7 +32,7 @@ NONXS_EXT=	Errno/pm_to_blib
 
 MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
-		PERL=perl FULLPERL=perl
+		PERL=perl FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include
 
 ${PROG}: Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
