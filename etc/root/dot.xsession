@@ -15,7 +15,7 @@ export CPU
 #LANG=de_DE.ISO_8859-1
 #export LANG
 
-# A rightous umask
+# A righteous umask
 umask 22
 
 # Useful clients.
