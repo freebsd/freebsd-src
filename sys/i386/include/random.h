@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id$
+ * $Id: random.h,v 1.11 1997/02/22 09:35:05 peter Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -57,9 +57,6 @@
 #define	MEM_RETURNIRQ	_IOR('r', 3, u_int16_t)	/* return interrupt */
 
 #ifdef KERNEL
-
-/* XXX include from the wrong place(s) for inthand2_t. */
-#include <i386/isa/isa_device.h>
 
 /* Interrupts to be used in the randomizing process */
 
