@@ -138,8 +138,8 @@ FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
  |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
  |      |                    |             OpenBSD 2.8     BSD/OS 4.2
  |      |                 NetBSD 1.5           |             |
- |   FreeBSD 4.3             |                 |             v
- |      |                    |                 |
+ |   FreeBSD 4.3             |    |            |             v
+ |      |                    | NetBSD 1.5.1    |
  |      v                    |                 |
  |                           |                 |
 FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
@@ -328,6 +328,7 @@ BSD/OS 4.2		2000-11-29 [BSDI]
 OpenBSD 2.8		2000-12-01 [OBD]
 NetBSD 1.5              2000-12-06 [NBD]
 FreeBSD 4.3  		2001-04-20 [FBD]
+NetBSD 1.5.1		2000-00-xx [NBD] (patch release)
 
 
 Bibliography
