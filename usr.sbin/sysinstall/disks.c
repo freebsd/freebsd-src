@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.99 1998/09/14 19:14:11 jkh Exp $
+ * $Id: disks.c,v 1.100 1998/09/15 10:24:46 gibbs Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -269,6 +269,9 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'A':
+#ifdef __alpha__
+	    rv = 1;
+#else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
 	    if (cp && !strcasecmp(cp, "always"))
 		rv = 1;
@@ -281,6 +284,7 @@ diskPartition(Device *dev)
 		if (rv == -1)
 		    rv = 0;
 	    }
+#endif
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
