@@ -43,14 +43,14 @@
 .Sh SYNOPSIS
 .In signal.h
 .Bd -literal
-struct sigaltstack {
-	char	*ss_sp;
-	size_t	ss_size;
-	int     ss_flags;
-};
+typedef struct sigaltstack {
+        char    *ss_sp;
+        size_t  ss_size;
+        int     ss_flags;
+} stack_t;
 .Ed
 .Ft int
-.Fn sigaltstack "const struct sigaltstack *ss" "struct sigaltstack *oss"
+.Fn sigaltstack "const stack_t *ss" "stack_t *oss"
 .Sh DESCRIPTION
 .Fn Sigaltstack
 allows users to define an alternate stack on which signals
