@@ -650,12 +650,12 @@ ndis_attach(dev)
 		ndis_init_dma(sc);
 
 	/*
-	 * See if the OID_802_11_NETWORK_TYPES_SUPPORTED OID is
+	 * See if the OID_802_11_CONFIGURATION OID is
 	 * supported by this driver. If it is, then this an 802.11
 	 * wireless driver, and we should set up media for wireless.
 	 */
 	for (i = 0; i < sc->ndis_oidcnt; i++) {
-		if (sc->ndis_oids[i] == OID_802_11_NETWORK_TYPES_SUPPORTED) {
+		if (sc->ndis_oids[i] == OID_802_11_CONFIGURATION) {
 			sc->ndis_80211++;
 			break;
 		}
@@ -959,8 +959,10 @@ ndis_suspend(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
+#ifdef notdef
 	if (ifp->if_flags & IFF_UP)
         	ndis_stop(sc);
+#endif
 
 	return(0);
 }
