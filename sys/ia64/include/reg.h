@@ -33,7 +33,7 @@
 
 struct ia64_fpreg {
 	uint64_t	fpr_bits[2];
-} __attribute__ ((aligned (16)));
+} __aligned(16);
 
 #define _IA64_FPREG_DEFINED
 

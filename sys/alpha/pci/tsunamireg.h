@@ -10,7 +10,7 @@
 
 
 typedef struct {
-	volatile u_int64_t reg __attribute__((aligned(64)));
+	volatile u_int64_t reg __aligned(64);
 } tsunami_reg;
 					/* notes */
 typedef struct { 
