@@ -2375,6 +2375,13 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		return (KERN_NO_SPACE);
 	}
 
+	/* If we would blow our VMEM resource limit, no go */
+	if (map->size + init_ssize >
+	    curthread->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+		vm_map_unlock(map);
+		return (KERN_NO_SPACE);
+	}
+
 	/* If we can't accomodate max_ssize in the current mapping,
 	 * no go.  However, we need to be aware that subsequent user
 	 * mappings might map into the space we have reserved for
@@ -2516,6 +2523,13 @@ Retry:
 	                     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
 		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
 		              ctob(vm->vm_ssize);
+	}
+
+	/* If we would blow our VMEM resource limit, no go */
+	if (map->size + grow_amount >
+	    curthread->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+		vm_map_unlock_read(map);
+		return (KERN_NO_SPACE);
 	}
 
 	if (vm_map_lock_upgrade(map))
