@@ -442,7 +442,7 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 		# Unmodified nvi editor backup files either have the
 		# execute bit set or are zero length.  Delete them.
 		if [ -x "${i}" -o ! -s "${i}" ]; then
-			rm -f ${i}
+			rm -f "${i}"
 		fi
 	done
 
@@ -461,9 +461,9 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 			# Else send mail to the user.
 			recfile=`awk '/^X-vi-recover-path:/{print $2}' < ${i}`
 			if [ -n "${recfile}" -a -s "${recfile}" ]; then
-				sendmail -t < ${i}
+				sendmail -t < "${i}"
 			else
-				rm -f ${i}
+				rm -f "${i}"
 			fi
 		done
 	fi
