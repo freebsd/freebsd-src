@@ -51,6 +51,9 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+# XXX: this should probably go somewhere else
+COPTS+=		-mcmodel=medlow
+
 SYSTEM_SFILES= $S/$M/$M/locore.s $S/$M/$M/exception.s
 SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
 
