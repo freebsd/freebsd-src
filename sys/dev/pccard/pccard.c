@@ -284,14 +284,16 @@ pccard_detach_card(device_t dev)
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 	struct pccard_config_entry *cfe;
+	int state;
 
 	/*
 	 * We are running on either the PCCARD socket's event thread
 	 * or in user context detaching a device by user request.
 	 */
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		int state = device_get_state(pf->dev);
-
+		if (pf->dev == NULL)
+			continue;
+		state = device_get_state(pf->dev);
 		if (state == DS_ATTACHED || state == DS_BUSY)
 			device_detach(pf->dev);
 		if (pf->cfe != NULL)
