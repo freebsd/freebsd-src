@@ -171,6 +171,12 @@
       have been fixed.
       More information can be found in security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>. &merged;</para>
+
+    <para>A potential denial of service in
+      <application>BIND</application> has been fixed.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -453,6 +459,13 @@
 	has been added.  The &man.ip6addrctl.8; utility can be used to
 	configure the address selection policy.</para>
 
+      <para>The <literal>tcp_hostcache</literal> feature has been
+        added to the TCP implementation.  It caches measured
+        parameters of past TCP sessions to provide better initial
+        start values for following connections from or to the same
+        source or destination.  Similar information that used to be
+        stored in the routing table has been removed.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -576,6 +589,10 @@
       environment via the <option>-u</option>, <option>-g</option>,
       and <option>-G</option> options respectively. &merged;</para>
 
+    <para>The <filename>compat4x.i386</filename> libraries have bee
+      updated to correspond to those available in &os;
+      4.9-RELEASE.</para>
+
     <para>The dev_mkdb utility is unnecessary due to the mandatory
       presence of devfs, and has been removed.</para>
 
@@ -662,6 +679,9 @@
       &man.mount.smbfs.8; utilities have been moved from
       <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
 
+    <para>The &man.nologin.8; program has been reimplemented in C (it
+      was formerly a shell script).</para>
+
     <para>The &man.rc.conf.5; variable <varname>ntpd_flags</varname> for
       &man.ntpd.8; now includes <option>-f /var/db/ntpd.drift</option>
       by default.</para>
@@ -689,10 +709,15 @@
       <application>exim</application> and
       <application>Postfix</application> are supported.</para>
 
+    <para>&man.sysinstall.8; no longer supports system <quote>security
+      profiles</quote>; this feature has been replaced by individual
+      tuning knobs to enable and disable &man.sshd.8; and set the
+      system securelevels.</para>
+
     <para>&man.systat.1; now includes displays for IPv6 and ICMPv6
       traffic. &merged;</para>
 
-    <para>A number of utilities available in <filename>/bin</filename>
+    <para arch="i386,alpha,amd64,sparc64,pc98">A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
       statically-linked <quote>crunched</quote> binary that lives in
       <filename>/rescue</filename>.  This functionality is similar to
@@ -731,7 +756,7 @@
       updated from a 14 March 2003 snapshot to a 29 July 2003 snapshot.</para>
 
     <para><application>BIND</application> has been updated from 8.3.4
-      to 8.3.6.</para>
+      to 8.3.7. &merged;</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
       a 3.3.3 post-release snapshot from 6 November 2003.
@@ -778,7 +803,9 @@
     <para><application>OpenSSL</application> has been updated from
       0.9.7a to 0.9.7c. &merged;</para>
 
-    <para><application>sendmail</application> has been updated to
+    <para><application>sendmail</application> has been updated
+      from version 8.12.9
+      to
       version 8.12.10. &merged;</para>
 
     <para><application>texinfo</application> has been updated from 4.5
