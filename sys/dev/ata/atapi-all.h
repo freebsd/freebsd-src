@@ -131,10 +131,10 @@ struct atapi_reqsense {
     u_int8_t	eom		:1;		/* end of medium */
     u_int8_t	filemark	:1;		/* filemark */
 						/* cmd information */
-    u_int32_t	cmd_info __attribute__((packed));
+    u_int32_t	cmd_info __packed;
     u_int8_t	sense_length;			/* additional sense len (n-7) */
 						/* additional cmd spec info */
-    u_int32_t	cmd_specific_info __attribute__((packed));
+    u_int32_t	cmd_specific_info __packed;
     u_int8_t	asc;				/* additional sense code */
     u_int8_t	ascq;				/* additional sense code qual */
     u_int8_t	replaceable_unit_code;		/* replaceable unit code */

@@ -32,20 +32,20 @@
 struct vesa_info
 {
     /* mandatory fields */
-    u_int8_t		v_sig[4] __attribute__ ((packed));	/* VESA */
-    u_int16_t		v_version __attribute__ ((packed));	/* ver in BCD */
-    u_int32_t		v_oemstr __attribute__ ((packed));	/* OEM string */
-    u_int32_t		v_flags __attribute__ ((packed));	/* flags */
+    u_int8_t		v_sig[4] __packed;	/* VESA */
+    u_int16_t		v_version __packed;	/* ver in BCD */
+    u_int32_t		v_oemstr __packed;	/* OEM string */
+    u_int32_t		v_flags __packed;	/* flags */
 #define V_DAC8		(1<<0)
 #define V_NONVGA	(1<<1)
 #define V_SNOW		(1<<2)
-    u_int32_t		v_modetable __attribute__ ((packed));	/* modes */
-    u_int16_t		v_memsize __attribute__ ((packed));	/* in 64K */
+    u_int32_t		v_modetable __packed;	/* modes */
+    u_int16_t		v_memsize __packed;	/* in 64K */
     /* 2.0 */
-    u_int16_t		v_revision __attribute__ ((packed));	/* software rev */
-    u_int32_t		v_venderstr __attribute__ ((packed));	/* vender */
-    u_int32_t		v_prodstr __attribute__ ((packed));	/* product name */
-    u_int32_t		v_revstr __attribute__ ((packed));	/* product rev */
+    u_int16_t		v_revision __packed;	/* software rev */
+    u_int32_t		v_venderstr __packed;	/* vender */
+    u_int32_t		v_prodstr __packed;	/* product name */
+    u_int32_t		v_revstr __packed;	/* product rev */
 };
 
 struct vesa_mode 

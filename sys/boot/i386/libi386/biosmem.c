@@ -42,7 +42,7 @@ struct smap {
     u_int64_t	base;
     u_int64_t	length;
     u_int32_t	type;
-} __attribute__ ((packed));
+} __packed;
 
 static struct smap smap;
 

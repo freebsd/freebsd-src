@@ -110,7 +110,7 @@ xenix_ftime(td, uap)
 {
 	struct timeval tv;
 	struct ibcs2_timeb {
-		unsigned long time __attribute__((packed));
+		unsigned long time __packed;
 		unsigned short millitm;
 		short timezone;
 		short dstflag;

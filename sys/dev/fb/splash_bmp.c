@@ -178,43 +178,43 @@ bmp_splash(video_adapter_t *adp, int on)
 */
 
 typedef struct tagBITMAPFILEHEADER {    /* bmfh */
-    u_short	bfType		__attribute__ ((packed));
-    int		bfSize		__attribute__ ((packed));
-    u_short	bfReserved1	__attribute__ ((packed));
-    u_short	bfReserved2	__attribute__ ((packed));
-    int		bfOffBits	__attribute__ ((packed));
+    u_short	bfType		__packed;
+    int		bfSize		__packed;
+    u_short	bfReserved1	__packed;
+    u_short	bfReserved2	__packed;
+    int		bfOffBits	__packed;
 } BITMAPFILEHEADER;
 
 typedef struct tagBITMAPINFOHEADER {    /* bmih */
-    int		biSize		__attribute__ ((packed));
-    int		biWidth		__attribute__ ((packed));
-    int		biHeight	__attribute__ ((packed));
-    short	biPlanes	__attribute__ ((packed));
-    short	biBitCount	__attribute__ ((packed));
-    int		biCompression	__attribute__ ((packed));
-    int		biSizeImage	__attribute__ ((packed));
-    int		biXPelsPerMeter	__attribute__ ((packed));
-    int		biYPelsPerMeter	__attribute__ ((packed));
-    int		biClrUsed	__attribute__ ((packed));
-    int		biClrImportant	__attribute__ ((packed));
+    int		biSize		__packed;
+    int		biWidth		__packed;
+    int		biHeight	__packed;
+    short	biPlanes	__packed;
+    short	biBitCount	__packed;
+    int		biCompression	__packed;
+    int		biSizeImage	__packed;
+    int		biXPelsPerMeter	__packed;
+    int		biYPelsPerMeter	__packed;
+    int		biClrUsed	__packed;
+    int		biClrImportant	__packed;
 } BITMAPINFOHEADER;
 
 typedef struct tagRGBQUAD {     /* rgbq */
-    u_char	rgbBlue		__attribute__ ((packed));
-    u_char	rgbGreen	__attribute__ ((packed));
-    u_char	rgbRed		__attribute__ ((packed));
-    u_char	rgbReserved	__attribute__ ((packed));
+    u_char	rgbBlue		__packed;
+    u_char	rgbGreen	__packed;
+    u_char	rgbRed		__packed;
+    u_char	rgbReserved	__packed;
 } RGBQUAD;
 
 typedef struct tagBITMAPINFO {  /* bmi */
-    BITMAPINFOHEADER	bmiHeader	__attribute__ ((packed));
-    RGBQUAD		bmiColors[256]	__attribute__ ((packed));
+    BITMAPINFOHEADER	bmiHeader	__packed;
+    RGBQUAD		bmiColors[256]	__packed;
 } BITMAPINFO;
 
 typedef struct tagBITMAPF
 {
-    BITMAPFILEHEADER	bmfh	__attribute__ ((packed));
-    BITMAPINFO		bmfi	__attribute__ ((packed));
+    BITMAPFILEHEADER	bmfh	__packed;
+    BITMAPINFO		bmfi	__packed;
 } BITMAPF;
 
 #define BI_RGB		0

@@ -66,7 +66,7 @@ struct ncp_fh_s {
 		u_int32_t val32;
 		u_int16_t val16;
 	} val;
-} __attribute__((packed));
+} __packed;
 
 typedef	struct ncp_fh_s ncp_fh;
 
@@ -133,7 +133,7 @@ struct nw_queue_job_entry {
 	u_int32_t	ServerObjectID;
 	char		JobTextDescription[50];
 	char		ClientRecordArea[152];
-} __attribute__((packed));
+} __packed;
 
 struct queue_job {
 	struct nw_queue_job_entry j;
@@ -168,13 +168,13 @@ struct print_job_record {
 	char		FnameBanner[13];
 	char		FnameHeader[14];
 	char		Path[80];
-} __attribute__((packed));
+} __packed;
 
 struct ncp_station_addr {
 	u_int32_t	NetWork;
 	u_int8_t	Node[6];
 	u_int16_t	Socket;
-} __attribute__((packed));
+} __packed;
 
 struct ncp_prop_login_control {
 	u_int8_t	AccountExpireDate[3];
@@ -193,7 +193,7 @@ struct ncp_prop_login_control {
 	u_int16_t	BadLoginCount;
 	u_int32_t	BadLoginCountDown;
 	struct ncp_station_addr LastIntruder;
-} __attribute__((packed));
+} __packed;
 
 #define NCP_VOLNAME_LEN (16)
 #define NCP_NUMBER_OF_VOLUMES (64)
@@ -313,7 +313,7 @@ struct nw_entry_info {
 	u_int32_t	NSCreator;
 	u_int8_t	nameLen;
 	u_int8_t	entryName[256];
-} __attribute__((packed));
+} __packed;
 
 typedef struct nw_entry_info NW_ENTRY_INFO;
 
@@ -347,13 +347,13 @@ struct nw_modify_dos_info {
 	u_int16_t inheritanceGrantMask;
 	u_int16_t inheritanceRevokeMask;
 	u_int32_t maximumSpace;
-}  __attribute__((packed));
+}  __packed;
 
 struct nw_search_seq {
 	u_int8_t	volNumber;
 	u_int32_t	dirNumber;
 	u_int32_t	searchDirNumber;
-}  __attribute__((packed));
+}  __packed;
 
 typedef struct nw_search_seq SEARCH_SEQUENCE;
 
@@ -376,7 +376,7 @@ struct ncp_file_server_info {
 	u_int8_t	RestrictionLevel;
 	u_int8_t	InternetBridge;
 	u_int8_t	Reserved[60];
-} __attribute__((packed));
+} __packed;
 
 struct nw_time_buffer {
 	u_int8_t	year;
@@ -386,6 +386,6 @@ struct nw_time_buffer {
 	u_int8_t	minute;
 	u_int8_t	second;
 	u_int8_t	wday;
-} __attribute__((packed));
+} __packed;
 
 #endif /*_NCP_H_ */

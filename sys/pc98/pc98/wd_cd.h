@@ -281,7 +281,7 @@ struct write_param {
 	u_char 	vendor_specific_byte3;
 */
 
-} __attribute__((packed));
+} __packed;
 /*
  * CDROM Read Track Information structure
  */
