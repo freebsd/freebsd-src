@@ -411,6 +411,60 @@ wi_printwords(struct wi_req *wreq)
 }
 
 void
+wi_printswords(struct wi_req *wreq)
+{
+	int			i;
+
+	printf("[ ");
+	for (i = 0; i < wreq->wi_len - 1; i++)
+		printf("%d ", ((int16_t *) wreq->wi_val)[i]);
+	printf("]");
+
+	return;
+}
+
+void
+wi_printhexwords(struct wi_req *wreq)
+{
+	int			i;
+
+	printf("[ ");
+	for (i = 0; i < wreq->wi_len - 1; i++)
+		printf("%x ", wreq->wi_val[i]);
+	printf("]");
+
+	return;
+}
+
+void
+wi_printregdoms(struct wi_req *wreq)
+{
+	int			i;
+	unsigned char		*c;
+
+	c = (unsigned char *)&wreq->wi_val[1];
+
+	printf("[ ");
+	for (i = 0; i < wreq->wi_val[0]; i++) {
+		switch (c[i]) {
+		case 0x10: printf("usa"); break;
+		case 0x20: printf("canada"); break;
+		case 0x30: printf("eu/au"); break;
+		case 0x31: printf("es"); break;
+		case 0x32: printf("fr"); break;
+		case 0x40: printf("jp"); break;
+		case 0x41: printf("jp new"); break;
+		default: printf("0x%x", c[i]); break;
+		}
+		if (i < wreq->wi_val[0] - 1)
+			printf(", ");
+	}
+	printf(" ]");
+
+	return;
+}
+
+void
 wi_printbool(struct wi_req *wreq)
 {
 	if (wreq->wi_val[0])
@@ -542,6 +596,9 @@ wi_printaplist(const char *iface)
 #define WI_WORDS		0x03
 #define WI_HEXBYTES		0x04
 #define WI_KEYSTRUCT		0x05
+#define WI_SWORDS		0x06
+#define WI_HEXWORDS		0x07
+#define WI_REGDOMS		0x08
 
 struct wi_table {
 	int			wi_code;
@@ -556,10 +613,11 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_CURRENT_SSID, WI_STRING, "Current netname (SSID):\t\t\t" },
 	{ WI_RID_DESIRED_SSID, WI_STRING, "Desired netname (SSID):\t\t\t" },
 	{ WI_RID_CURRENT_BSSID, WI_HEXBYTES, "Current BSSID:\t\t\t\t" },
-	{ WI_RID_CHANNEL_LIST, WI_WORDS, "Channel list:\t\t\t\t" },
+	{ WI_RID_CHANNEL_LIST, WI_HEXWORDS, "Channel list:\t\t\t\t" },
 	{ WI_RID_OWN_CHNL, WI_WORDS, "IBSS channel:\t\t\t\t" },
 	{ WI_RID_CURRENT_CHAN, WI_WORDS, "Current channel:\t\t\t" },
 	{ WI_RID_COMMS_QUALITY, WI_WORDS, "Comms quality/signal/noise:\t\t" },
+	{ WI_RID_DBM_COMMS_QUAL, WI_SWORDS, "dBm Coms Quality:\t\t\t" },
 	{ WI_RID_PROMISC, WI_BOOL, "Promiscuous mode:\t\t\t" },
 	{ WI_RID_PROCFRAME, WI_BOOL, "Process 802.11b Frame:\t\t\t" },
 	{ WI_RID_PRISM2, WI_WORDS, "Intersil-Prism2 based card:\t\t" },
@@ -572,6 +630,17 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_SYSTEM_SCALE, WI_WORDS, "Access point density:\t\t\t" },
 	{ WI_RID_PM_ENABLED, WI_WORDS, "Power Mgmt (1=on, 0=off):\t\t" },
 	{ WI_RID_MAX_SLEEP, WI_WORDS, "Max sleep time:\t\t\t\t" },
+	{ WI_RID_PRI_IDENTITY, WI_WORDS, "PRI Identity:\t\t\t\t" },
+	{ WI_RID_STA_IDENTITY, WI_WORDS, "STA Identity:\t\t\t\t" } ,
+	{ WI_RID_CARD_ID, WI_HEXWORDS, "Card ID register:\t\t\t" },
+	{ WI_RID_REG_DOMAINS, WI_REGDOMS, "Regulatory Domains:\t\t\t" },
+	{ WI_RID_TEMP_TYPE, WI_WORDS, "Tempterture Range:\t\t\t" },
+#ifdef WI_EXTRA_INFO
+	{ WI_RID_PRI_SUP_RANGE, WI_WORDS, "PRI Sup Range:\t\t\t\t" },
+	{ WI_RID_CIF_ACT_RANGE, WI_WORDS, "CFI Act Sup Range:\t\t\t" },
+	{ WI_RID_STA_SUP_RANGE, WI_WORDS, "STA Sup Range:\t\t\t\t" } ,
+	{ WI_RID_MFI_ACT_RANGE, WI_WORDS, "MFI Act Sup Range:\t\t\t" } ,
+#endif
 	{ 0, 0, NULL }
 };
 
@@ -613,6 +682,15 @@ wi_dumpinfo(const char *iface)
 			break;
 		case WI_WORDS:
 			wi_printwords(&wreq);
+			break;
+		case WI_SWORDS:
+			wi_printswords(&wreq);
+			break;
+		case WI_HEXWORDS:
+			wi_printhexwords(&wreq);
+			break;
+		case WI_REGDOMS:
+			wi_printregdoms(&wreq);
 			break;
 		case WI_BOOL:
 			wi_printbool(&wreq);
