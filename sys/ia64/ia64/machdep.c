@@ -305,6 +305,38 @@ map_pal_code(void)
 	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
 }
 
+void
+map_port_space(void)
+{
+	struct ia64_pte pte;
+	u_int64_t psr;
+
+	/* XXX we should fail hard if there's no I/O port space. */
+	if (ia64_port_base == 0)
+		return;
+
+	bzero(&pte, sizeof(pte));
+	pte.pte_p = 1;
+	pte.pte_ma = PTE_MA_UC;
+	pte.pte_a = 1;
+	pte.pte_d = 1;
+	pte.pte_pl = PTE_PL_KERN;
+	pte.pte_ar = PTE_AR_RWX;
+	pte.pte_ppn = ia64_port_base >> 12;
+
+	__asm __volatile("mov %0=psr;;" : "=r" (psr));
+	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
+	__asm __volatile("mov cr.ifa=%0" ::
+	    "r"(IA64_PHYS_TO_RR6(ia64_port_base)));
+	/* XXX We should use the size from the memory descriptor. */
+	__asm __volatile("mov cr.itir=%0" :: "r"(24 << 2));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("itr.i itr[%0]=%1;;" ::
+	    "r"(1), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("mov psr.l=%0;; srlz.i;;" :: "r" (psr));
+}
+
 static void
 calculate_frequencies(void)
 {
@@ -412,6 +444,11 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 			ia64_pal_base = mdp->PhysicalStart;
 	}
 
+	/* Map the memory mapped I/O Port space */
+	KASSERT(ia64_port_base != 0,
+	    ("%s: no I/O port memory region", __func__));
+	map_port_space();
+
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep)
 		preload_metadata = (caddr_t)bootinfo.bi_modulep;
@@ -421,9 +458,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		kern_envp = static_env;
 	else
 		kern_envp = (caddr_t)bootinfo.bi_envp;
-
-	KASSERT(ia64_port_base != 0,
-	    ("%s: no I/O memory region", __func__));
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
