@@ -20,7 +20,7 @@ SUBDIR= ac accton adduser amd arp bootparamd chown chroot cron crunch ctm \
 
 .if   make(clean) || make(cleandir)
 SUBDIR+=apm apmconf bad144 cdplay config config.new fdformat fdwrite \
-	fdcontrol iostat kbdcontrol lptcontrol ncrcontrol rtprio \
+	fdcontrol iostat kbdcontrol lptcontrol mixer ncrcontrol rtprio \
 	sgsc spkrtest swapinfo vidcontrol 
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat 
