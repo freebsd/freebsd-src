@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.20 1997/02/22 15:06:40 peter Exp $
+ * $Id: write_disk.c,v 1.21 1998/06/27 02:01:25 jdp Exp $
  *
  */
 
@@ -113,6 +113,16 @@ Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	return 0;
 }
 
+static void
+Write_Int32(u_int32_t *p, u_int32_t v)
+{
+    u_int8_t *bp = (u_int8_t *)p;
+    bp[0] = (v >> 0) & 0xff;
+    bp[1] = (v >> 8) & 0xff;
+    bp[2] = (v >> 16) & 0xff;
+    bp[3] = (v >> 24) & 0xff;
+}
+
 int
 Write_Disk(struct disk *d1)
 {
@@ -154,8 +164,8 @@ Write_Disk(struct disk *d1)
 		if (c1->type == freebsd)
 			ret += Write_FreeBSD(fd, d1,old,c1);
 
-		dp[j].dp_start = c1->offset;
-		dp[j].dp_size = c1->size;
+		Write_Int32(&dp[j].dp_start, c1->offset);
+		Write_Int32(&dp[j].dp_size, c1->size);
 
 		i = c1->offset;
 		if (i >= 1024*d1->bios_sect*d1->bios_hd) {
