@@ -32,7 +32,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <stddef.h>
+#include <sys/types.h>
 #include <sys/kse.h>
+#include <machine/sysarch.h>
 #include <ucontext.h>
 
 extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
@@ -150,10 +152,15 @@ void		_kcb_dtor(struct kcb *);
 static __inline void
 _kcb_set(struct kcb *kcb)
 {
+#ifndef COMPAT_32BIT
 	int val;
 
 	val = (kcb->kcb_ldt << 3) | 7;
 	__asm __volatile("movl %0, %%gs" : : "r" (val));
+#else
+	_amd64_set_gsbase(kcb);
+#endif
+
 }
 
 /* Get the current kcb. */
