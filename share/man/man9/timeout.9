@@ -65,7 +65,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft void
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Ft void
-.Fn callout_init "struct callout *c"
+.Fn callout_init "struct callout *c" "int mpsafe"
 .Ft void
 .Fn callout_stop "struct callout *c"
 .Ft void
@@ -169,6 +169,14 @@ initializes a callout so it can be passed to
 or
 .Fn callout_reset
 without any side effects.
+If the
+.Fa mpsafe
+argument is zero,
+the callout structure is not considered to be
+.Dq multi-processor safe ;
+that is,
+the Giant lock will be acquired before calling the callout function,
+and released when the callout function returns.
 .Pp
 The function
 .Fn callout_stop
