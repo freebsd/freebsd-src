@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7.6.1 1997/02/14 01:53:29 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.6.2 1997/02/15 16:36:16 jkh Exp $";
 #endif
 
 /*
@@ -26,16 +26,16 @@ static const char *rcsid = "$Id: extract.c,v 1.7.6.1 1997/02/14 01:53:29 jkh Exp
 #include "add.h"
 
 
-#define STARTSTRING "tar cf -"
-#define TOOBIG(str) ((strlen(str) + 6 + strlen(home) + where_count > maxargs) \
+#define STARTSTRING "tar cf - "
+#define TOOBIG(str) ((strlen(str) + 22 + strlen(home) + where_count > maxargs) \
 		|| (strlen(str) + 6 + strlen(home) + perm_count > maxargs))
 
 #define PUSHOUT(todir) /* push out string */ \
-	if (strlen(where_args) > sizeof(STARTSTRING)-1) { \
+        if (where_count > sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar xf - -C "); \
 		    strcat(where_args, todir); \
 		    if (system(where_args)) \
-			barf("can't invoke tar pipeline"); \
+			barf("can not invoke %d byte tar pipeline: %s", strlen(where_args), where_args); \
 		    strcpy(where_args, STARTSTRING); \
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
@@ -53,9 +53,7 @@ extract_plist(char *home, Package *pkg)
     char *where_args, *perm_args, *last_chdir;
     int maxargs, where_count = 0, perm_count = 0, add_count;
 
-    maxargs = sysconf(_SC_ARG_MAX);
-    maxargs -= 64;			/* some slop for the tar cmd text,
-					   and sh -c */
+    maxargs = sysconf(_SC_ARG_MAX) / 2;	/* Just use half the argument space */
     where_args = alloca(maxargs);
     if (!where_args)
 	barf("can't get argument list space");
@@ -97,10 +95,10 @@ extract_plist(char *home, Package *pkg)
 		/* first try to rename it into place */
 		sprintf(try, "%s/%s", Directory, p->name);
 		if (rename(p->name, try) == 0) {
-		    /* try to add to list of perms to be changed,
-		       and run in bulk. */
-		    if (p->name[0] == '/' || TOOBIG(p->name))
+		    /* try to add to list of perms to be changed and run in bulk. */
+		    if (p->name[0] == '/' || TOOBIG(p->name)) {
 			PUSHOUT(Directory);
+		    }
 		    add_count = snprintf(&perm_args[perm_count],
 					 maxargs - perm_count,
 					 "%s ", p->name);
@@ -110,10 +108,12 @@ extract_plist(char *home, Package *pkg)
 		}
 		else {
 		    /* rename failed, try copying with a big tar command */
-		    if (p->name[0] == '/' || TOOBIG(p->name) ||
-			last_chdir != Directory) {
+		    if (last_chdir != Directory) {
 			PUSHOUT(last_chdir);
 			last_chdir = Directory;
+		    }
+		    else if (p->name[0] == '/' || TOOBIG(p->name)) {
+			PUSHOUT(Directory);
 		    }
 		    add_count = snprintf(&where_args[where_count],
 					 maxargs - where_count,
@@ -127,9 +127,6 @@ extract_plist(char *home, Package *pkg)
 		    if (add_count > maxargs - perm_count)
 			barf("oops, miscounted strings!");
 		    perm_count += add_count;
-		    if (p->name[0] == '/') {
-			PUSHOUT(Directory);
-		    }
 		}
 	    }
 	    break;
