@@ -92,8 +92,8 @@ struct ctlname {
 #define OID_AUTO	(-1)
 
 #ifdef _KERNEL
-#define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req)
+#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
+	struct sysctl_req *req
 
 /*
  * This describes the access space for a sysctl request.  This is needed
@@ -126,18 +126,18 @@ struct sysctl_oid {
 	void		*oid_arg1;
 	int		oid_arg2;
 	const char	*oid_name;
-	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
+	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
 #define SYSCTL_OUT(r, p, l) (r->oldfunc)(r, p, l)
 
-int sysctl_handle_int SYSCTL_HANDLER_ARGS;
-int sysctl_handle_long SYSCTL_HANDLER_ARGS;
-int sysctl_handle_intptr SYSCTL_HANDLER_ARGS;
-int sysctl_handle_string SYSCTL_HANDLER_ARGS;
-int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
+int sysctl_handle_int(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_intptr(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 
 /*
  * These functions are used to add/remove an oid from the mib.

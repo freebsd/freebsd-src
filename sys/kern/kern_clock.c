@@ -465,7 +465,7 @@ statclock(frame)
  * Return information about system clocks.
  */
 static int
-sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
+sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 {
 	struct clockinfo clkinfo;
 	/*
@@ -823,7 +823,7 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, method, CTLFLAG_RW, &tco_method, 0,
 );
 
 static int
-sysctl_kern_timecounter_hardware SYSCTL_HANDLER_ARGS
+sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 {
 	char newname[32];
 	struct timecounter *newtc, *tc;

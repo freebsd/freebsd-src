@@ -68,7 +68,7 @@ SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,
 	   &if_index, 0, "Number of configured interfaces");
 
 static int
-sysctl_ifdata SYSCTL_HANDLER_ARGS /* XXX bad syntax! */
+sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 {
 	int *name = (int *)arg1;
 	int error, ifnlen;

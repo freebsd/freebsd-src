@@ -140,7 +140,7 @@ static void free_devtab(void);
 static void save_resource(struct uc_device *);
 
 static int
-sysctl_machdep_uc_devlist SYSCTL_HANDLER_ARGS
+sysctl_machdep_uc_devlist(SYSCTL_HANDLER_ARGS)
 {
 	struct uc_device *id;
 	int error=0;
@@ -2829,7 +2829,7 @@ set_device_disable(CmdParm *parms)
 #if NPNP > 0
 
 static int
-sysctl_machdep_uc_pnplist SYSCTL_HANDLER_ARGS
+sysctl_machdep_uc_pnplist(SYSCTL_HANDLER_ARGS)
 {
 	int error=0;
 

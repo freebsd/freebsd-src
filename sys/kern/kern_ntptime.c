@@ -197,7 +197,7 @@ static void hardupdate(long offset);
  * See the timex.h header file for synopsis and API description.
  */
 static int
-ntp_sysctl SYSCTL_HANDLER_ARGS
+ntp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ntptimeval ntv;	/* temporary structure */
 	struct timespec atv;	/* nanosecond time */

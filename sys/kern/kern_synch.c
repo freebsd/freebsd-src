@@ -76,7 +76,7 @@ static void	schedcpu __P((void *arg));
 static void	updatepri __P((struct proc *p));
 
 static int
-sysctl_kern_quantum SYSCTL_HANDLER_ARGS
+sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 {
 	int error, new_val;
 

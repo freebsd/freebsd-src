@@ -125,7 +125,7 @@ SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD,
     &averunnable, loadavg, "Machine loadaverage history");
 
 static int
-vmtotal SYSCTL_HANDLER_ARGS
+vmtotal(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
 	struct vmtotal total, *totalp;

@@ -850,7 +850,7 @@ static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
  */
 
 static int
-sysctl_machdep_comdefaultrate SYSCTL_HANDLER_ARGS
+sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 {
 	int error, s;
 	speed_t newspeed;

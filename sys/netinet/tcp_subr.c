@@ -768,7 +768,7 @@ tcp_notify(inp, error)
 }
 
 static int
-tcp_pcblist SYSCTL_HANDLER_ARGS
+tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n, s;
 	struct inpcb *inp, **inp_list;
@@ -860,7 +860,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 	    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
 
 static int
-tcp_getcred SYSCTL_HANDLER_ARGS
+tcp_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
@@ -890,7 +890,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 
 #ifdef INET6
 static int
-tcp6_getcred SYSCTL_HANDLER_ARGS
+tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;

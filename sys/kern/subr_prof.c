@@ -276,7 +276,7 @@ kmstartup(dummy)
  * Return kernel profiling information.
  */
 static int
-sysctl_kern_prof SYSCTL_HANDLER_ARGS
+sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *) arg1;
 	u_int namelen = arg2;

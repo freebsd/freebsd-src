@@ -520,7 +520,7 @@ udp_ctlinput(cmd, sa, vip)
 }
 
 static int
-udp_pcblist SYSCTL_HANDLER_ARGS
+udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n, s;
 	struct inpcb *inp, **inp_list;
@@ -606,7 +606,7 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 	    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
 
 static int
-udp_getcred SYSCTL_HANDLER_ARGS
+udp_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;

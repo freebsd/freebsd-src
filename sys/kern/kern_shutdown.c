@@ -436,7 +436,7 @@ dump_conf(dummy)
 SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
 
 static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+sysctl_kern_dumpdev(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	udev_t ndumpdev;

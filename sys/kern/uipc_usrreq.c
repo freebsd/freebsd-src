@@ -722,7 +722,7 @@ prison_unpcb(struct proc *p, struct unpcb *unp)
 }
 
 static int
-unp_pcblist SYSCTL_HANDLER_ARGS
+unp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
 	struct unpcb *unp, **unp_list;

@@ -567,7 +567,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 }
 
 static int
-rip_pcblist SYSCTL_HANDLER_ARGS
+rip_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n, s;
 	struct inpcb *inp, **inp_list;

@@ -232,7 +232,7 @@ cputime()
 }
 
 static int
-sysctl_machdep_cputime_clock SYSCTL_HANDLER_ARGS
+sysctl_machdep_cputime_clock(SYSCTL_HANDLER_ARGS)
 {
 	int clock;
 	int error;

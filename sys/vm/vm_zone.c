@@ -50,7 +50,7 @@ static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
  */
 
 static struct vm_zone *zlist;
-static int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
+static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 static int zone_kmem_pages, zone_kern_pages, zone_kmem_kvaspace;
 
 /*
@@ -382,7 +382,7 @@ _zget(vm_zone_t z)
 }
 
 static int
-sysctl_vm_zone SYSCTL_HANDLER_ARGS
+sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 {
 	int error=0;
 	vm_zone_t curzone, nextzone;

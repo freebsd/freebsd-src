@@ -102,7 +102,7 @@ getenv_quad(char *name, quad_t *data)
 }
 
 static int
-sysctl_kernenv SYSCTL_HANDLER_ARGS
+sysctl_kernenv(SYSCTL_HANDLER_ARGS)
 {
     int		*name = (int *)arg1;
     u_int	namelen = arg2;
