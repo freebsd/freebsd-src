@@ -1,4 +1,4 @@
-# $Id$
+# $Id: INDEX.keymaps,v 1.11 1997/02/22 13:56:37 peter Exp $
 #
 # database for kbdmap(8) 
 #
@@ -68,6 +68,8 @@ jp.106.kbd:de:Japanisch 106
 
 jp.106x.kbd:en:Japanese 106x
 jp.106x.kbd:de:Japanisch 106x
+
+lat-amer.kbd:en:Latin American
 
 norwegian.iso.kbd:en:Norwegian ISO-8859-1
 norwegian.iso.kbd:no:Norsk ISO-8859-1
