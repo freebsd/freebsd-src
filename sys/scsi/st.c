@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.81 1997/09/07 10:08:23 joerg Exp $
+ * $Id: st.c,v 1.82 1997/09/21 22:03:19 gibbs Exp $
  */
 
 /*
@@ -424,7 +424,7 @@ struct scsi_link *sc_link)
 	 * file marks written on it when closed, even if not written to.
 	 * This is for SUN compatibility
 	 */
-	if ((flags & O_ACCMODE) == FWRITE)
+	if (flags & FWRITE)
 		st->flags |= ST_WRITTEN;
 
 	/* PREVENT ALLOW MEDIUM REMOVAL is optional per the SCSI-2 specs */
