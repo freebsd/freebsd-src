@@ -349,7 +349,7 @@ sub update_passwd_file {
     # Run pwd_mkdb to install the updated password files and databases
 
     print STDERR " updating databases,";
-    system('/usr/sbin/pwd_mkdb', '-p', ${passwd_file});
+    system('/usr/sbin/pwd_mkdb', '-p', ${passwd_tmp});
     print STDERR " done.\n";
 
     close(MASTER_PW);		# Not useful anymore
