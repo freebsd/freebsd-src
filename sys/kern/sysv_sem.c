@@ -499,6 +499,25 @@ __semctl(td, uap)
 		goto done2;
 	}
 
+	switch(cmd) {
+	case SEM_STAT:
+		if (semid < 0 || semid >= seminfo.semmsl)
+			return(EINVAL);
+		semaptr = &sema[semid];
+		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 )
+			return(EINVAL);
+		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
+			return(error);
+		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
+			return(error);
+		error = copyout((caddr_t)semaptr, real_arg.buf,
+			sizeof(struct semid_ds));
+		rval = IXSEQ_TO_IPCID(semid,semaptr->sem_perm);
+		if (error == 0)
+			td->td_retval[0] = rval;
+		goto done2;
+	}
+
 	semid = IPCID_TO_IX(semid);
 	if (semid < 0 || semid >= seminfo.semmsl) {
 		error = EINVAL;
