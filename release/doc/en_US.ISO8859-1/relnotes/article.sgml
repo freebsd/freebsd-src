@@ -1304,7 +1304,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         access.</para>
 
       <para>The &man.targ.4; driver has been rewritten and a new
-	usermode has been added to share/examples/scsi_target that
+	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
 	emulates a direct access device.</para>
 
       <para arch="i386" role="historic">The ciss driver, for devices utilizing the
