@@ -511,6 +511,24 @@ a v1 and v2 server.
 .Xr ypserv 8
 manual page for a detailed description of these special features
 and flags.)
+.Sh HISTORY
+The
+.Nm YP
+subsystem was written from the ground up by
+.An Theo de Raadt
+to be compatible to Sun's implementation.
+Bug fixes, improvements
+and
+.Tn NIS
+server support were later added by
+.An Bill Paul .
+The server-side code was originally written by
+.An Peter Eriksson
+and
+.An Tobias Reber
+and is subject to the GNU Public License.
+No Sun code was
+referenced.
 .Sh BUGS
 While
 .Fx
@@ -546,21 +564,3 @@ manuals for there.
 Neither Sun nor this author have found a clean way to handle
 the problems that occur when ypbind cannot find its server
 upon bootup.
-.Sh HISTORY
-The
-.Nm YP
-subsystem was written from the ground up by
-.An Theo de Raadt
-to be compatible to Sun's implementation.
-Bug fixes, improvements
-and
-.Tn NIS
-server support were later added by
-.An Bill Paul .
-The server-side code was originally written by
-.An Peter Eriksson
-and
-.An Tobias Reber
-and is subject to the GNU Public License.
-No Sun code was
-referenced.

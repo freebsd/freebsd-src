@@ -89,18 +89,6 @@ DTC 3290 SCSI controller in 1542 emulation mode
 .It
 Tekram SCSI controllers in 154x emulation mode
 .El
-.Sh BUGS
-The AHA-154xA card does not support residuals on data transfers.
-As a result, this card is no longer supported.
-.Pp
-There have been some reports that the AHA-154xB does not work well
-under heavy load.
-.Pp
-The AHA-154xCP is a plug and play controller.
-However, its resources are set using the on-board BIOS and cannot be
-moved.
-Failures to attached for this card are often caused when the resources
-set in the BIOS conflict.
 .Sh SEE ALSO
 .Xr ahb 4 ,
 .Xr ahc 4 ,
@@ -122,3 +110,15 @@ from the
 .Nm bt
 driver written by
 .An Justin T. Gibbs .
+.Sh BUGS
+The AHA-154xA card does not support residuals on data transfers.
+As a result, this card is no longer supported.
+.Pp
+There have been some reports that the AHA-154xB does not work well
+under heavy load.
+.Pp
+The AHA-154xCP is a plug and play controller.
+However, its resources are set using the on-board BIOS and cannot be
+moved.
+Failures to attached for this card are often caused when the resources
+set in the BIOS conflict.

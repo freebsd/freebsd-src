@@ -78,15 +78,6 @@ This node type supports only the generic control messages.
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
-.Sh BUGS
-Technically, frames on DLCI X should not be transmitted to the switch
-until the LMI protocol entity on both ends has configured DLCI X as active.
-The
-.Nm
-node type ignores this restriction, and will always pass data received
-on a DLCI hook to
-.Dv downstream .
-Instead, it should query the LMI node first.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_lmi 4 ,
@@ -98,3 +89,12 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org
+.Sh BUGS
+Technically, frames on DLCI X should not be transmitted to the switch
+until the LMI protocol entity on both ends has configured DLCI X as active.
+The
+.Nm
+node type ignores this restriction, and will always pass data received
+on a DLCI hook to
+.Dv downstream .
+Instead, it should query the LMI node first.

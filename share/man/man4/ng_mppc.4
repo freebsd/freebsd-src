@@ -160,11 +160,6 @@ These files must be obtained elsewhere and added to the kernel
 sources before this node type will compile with the
 .Dv NETGRAPH_MPPC_COMPRESSION
 option.
-.Sh BUGS
-In PPP, encryption should be handled by the Encryption Control Protocol (ECP)
-rather than CCP.
-However, Microsoft combined both compression and encryption into their
-``compression'' algorithm, which is confusing.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ppp 4 ,
@@ -192,3 +187,8 @@ However, Microsoft combined both compression and encryption into their
 .Re
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org
+.Sh BUGS
+In PPP, encryption should be handled by the Encryption Control Protocol (ECP)
+rather than CCP.
+However, Microsoft combined both compression and encryption into their
+``compression'' algorithm, which is confusing.

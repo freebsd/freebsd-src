@@ -149,12 +149,12 @@ struct dirent {
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr inode 5
-.Sh BUGS
-The usage of the member d_type of struct dirent is unportable as it is
-.Fx Ns -specific .
-It also may fail on certain file systems, for example the cd9660 file system.
 .Sh HISTORY
 A
 .Nm
 file format appeared in
 .At v7 .
+.Sh BUGS
+The usage of the member d_type of struct dirent is unportable as it is
+.Fx Ns -specific .
+It also may fail on certain file systems, for example the cd9660 file system.

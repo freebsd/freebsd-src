@@ -474,10 +474,6 @@ at ppc level to avoid ppbus to adapter function call overhead.
 But some
 actions like deciding whereas the transfer is IEEE1284-1994 compliant are
 executed at ppbus layer.
-.Sh BUGS
-Only one level of submicrosequences is allowed.
-.Pp
-When triggering the port, maximum delay allowed is 255 us.
 .Sh SEE ALSO
 .Xr ppbus 4 ,
 .Xr ppc 4 ,
@@ -491,3 +487,7 @@ manual page first appeared in
 This
 manual page was written by
 .An Nicolas Souchu .
+.Sh BUGS
+Only one level of submicrosequences is allowed.
+.Pp
+When triggering the port, maximum delay allowed is 255 us.

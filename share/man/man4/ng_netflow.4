@@ -222,14 +222,6 @@ node in this example is connected to
 	msg netflow:export connect inet/10.0.0.1:4444
 SEQ
 .Ed
-.Sh BUGS
-The
-.Nm
-node type does not fill in AS numbers.
-This is due to the lack of necessary information in the kernel routing table.
-However, this information can be injected into the kernel from a routing daemon
-such as GNU Zebra.
-This functionality may become available in future releases.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ksocket 4 ,
@@ -247,3 +239,11 @@ based on
 .Nm ng_ipacct
 written by
 .An Roman V. Palagin Aq romanp@unshadow.net .
+.Sh BUGS
+The
+.Nm
+node type does not fill in AS numbers.
+This is due to the lack of necessary information in the kernel routing table.
+However, this information can be injected into the kernel from a routing daemon
+such as GNU Zebra.
+This functionality may become available in future releases.

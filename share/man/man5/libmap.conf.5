@@ -95,6 +95,11 @@ The most common use at the date of writing is for allowing multiple
 .Tn POSIX
 threading libraries to be used on a system without relinking or
 changing symlinks.
+.Sh FILES
+.Bl -tag -width ".Pa /etc/libmap.conf" -compact
+.It Pa /etc/libmap.conf
+The libmap configuration file.
+.El
 .Sh EXAMPLES
 .Bd -literal
 # /etc/libmap.conf
@@ -121,11 +126,6 @@ libpthread.so		libpthread.so
 libpthread.so.1		libthr.so.1
 libpthread.so		libthr.so
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /etc/libmap.conf" -compact
-.It Pa /etc/libmap.conf
-The libmap configuration file.
-.El
 .Sh SEE ALSO
 .Xr ldd 1 ,
 .Xr rtld 1

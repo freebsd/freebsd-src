@@ -241,6 +241,12 @@ No further I/O will be handled.
 The controller was successfully reset,
 and outstanding commands were restarted.
 .El
+.Sh AUTHORS
+The
+.Nm
+driver and manpage were written by
+.An Michael Smith
+.Aq msmith@FreeBSD.org .
 .Sh BUGS
 The controller cannot handle I/O transfers
 that are not aligned to a 512-byte boundary.
@@ -250,9 +256,3 @@ This process is inefficient,
 and thus in order to obtain best performance
 user-space applications accessing the device
 should do so with aligned buffers.
-.Sh AUTHORS
-The
-.Nm
-driver and manpage were written by
-.An Michael Smith
-.Aq msmith@FreeBSD.org .

@@ -54,11 +54,6 @@ The
 .Nm
 driver only works on the i386 platform as it requires a binary blob object
 from the manufacturer which they only supply for the i386 platform.
-.Sh BUGS
-The
-.Nm
-driver does not support manipulating the RAID from the OS, RAIDs need
-to be set up from the on-board BIOS.
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr kldload 8 ,
@@ -80,3 +75,8 @@ by
 .An Scott Long .
 This manual page was written by
 .An David E. O'Brien .
+.Sh BUGS
+The
+.Nm
+driver does not support manipulating the RAID from the OS, RAIDs need
+to be set up from the on-board BIOS.

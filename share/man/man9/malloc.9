@@ -231,18 +231,6 @@ one must include
 .In sys/types.h )
 and
 .In sys/kernel.h .
-.Sh RETURN VALUES
-The
-.Fn malloc ,
-.Fn realloc ,
-and
-.Fn reallocf
-functions return a kernel virtual address that is suitably aligned for
-storage of any type of object, or
-.Dv NULL
-if the request could not be satisfied (implying that
-.Dv M_NOWAIT
-was set).
 .Sh IMPLEMENTATION NOTES
 The memory allocator allocates memory in chunks that have size a power
 of two for requests up to the size of a page of memory.
@@ -290,10 +278,18 @@ when holding a
 .Xr vnode 9
 interlock, will cause a LOR (Lock Order Reversal) due to the
 intertwining of VM Objects and Vnodes.
-.Sh SEE ALSO
-.Xr vmstat 8 ,
-.Xr contigmalloc 9 ,
-.Xr vnode 9
+.Sh RETURN VALUES
+The
+.Fn malloc ,
+.Fn realloc ,
+and
+.Fn reallocf
+functions return a kernel virtual address that is suitably aligned for
+storage of any type of object, or
+.Dv NULL
+if the request could not be satisfied (implying that
+.Dv M_NOWAIT
+was set).
 .Sh DIAGNOSTICS
 A kernel compiled with the
 .Dv INVARIANTS
@@ -305,3 +301,7 @@ and
 functions.
 Failing consistency checks will cause a panic or a system console
 message.
+.Sh SEE ALSO
+.Xr vmstat 8 ,
+.Xr contigmalloc 9 ,
+.Xr vnode 9

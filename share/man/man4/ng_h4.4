@@ -104,11 +104,6 @@ Reset all statistic counters to zero.
 .Sh SHUTDOWN
 This node shuts down when the corresponding device is closed
 (or the line discipline is uninstalled on the device).
-.Sh BUGS
-This node still uses
-.Xr spltty 9
-to lock tty layer.
-This is wrong.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr netgraph 4 ,
@@ -121,3 +116,8 @@ node type was implemented in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.Sh BUGS
+This node still uses
+.Xr spltty 9
+to lock tty layer.
+This is wrong.
