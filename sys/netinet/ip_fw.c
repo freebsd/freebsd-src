@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.116 1999/08/01 16:57:15 green Exp $
+ *	$Id: ip_fw.c,v 1.117 1999/08/11 15:34:47 luigi Exp $
  */
 
 /*
@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/ucred.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -93,15 +94,11 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
     &fw_verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 #endif
 
-#define dprintf(a)	if (!fw_debug); else printf a
-
-#define print_ip(a)	printf("%d.%d.%d.%d",				\
-			    (int)(ntohl(a.s_addr) >> 24) & 0xFF,	\
-			    (int)(ntohl(a.s_addr) >> 16) & 0xFF,	\
-			    (int)(ntohl(a.s_addr) >> 8) & 0xFF,		\
-			    (int)(ntohl(a.s_addr)) & 0xFF);
-
-#define dprint_ip(a)	if (!fw_debug); else print_ip(a)
+#define dprintf(a)	do {						\
+				if (fw_debug)				\
+					printf a;			\
+			} while (0)
+#define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 
 static int	add_entry __P((struct ip_fw_head *chainptr, struct ip_fw *frwl));
 static int	del_entry __P((struct ip_fw_head *chainptr, u_short number));
@@ -308,6 +305,9 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
 	u_int64_t count;
+	char *action;
+	char action2[32], proto[47], name[18], fragment[17];
+	int len;
 
 	count = f ? f->fw_pcnt : ++counter;
 	if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
@@ -315,105 +315,129 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		return;
 
 	/* Print command name */
-	printf("ipfw: %d ", f ? f->fw_number : -1);
+	snprintf(SNPARGS(name, 0), "ipfw: %d", f ? f->fw_number : -1);
+
+	action = action2;
 	if (!f)
-		printf("Refuse");
-	else
+		action = "Refuse";
+	else {
 		switch (f->fw_flg & IP_FW_F_COMMAND) {
 		case IP_FW_F_DENY:
-			printf("Deny");
+			action = "Deny";
 			break;
 		case IP_FW_F_REJECT:
 			if (f->fw_reject_code == IP_FW_REJECT_RST)
-				printf("Reset");
+				action = "Reset";
 			else
-				printf("Unreach");
+				action = "Unreach";
 			break;
 		case IP_FW_F_ACCEPT:
-			printf("Accept");
+			action = "Accept";
 			break;
 		case IP_FW_F_COUNT:
-			printf("Count");
+			action = "Count";
 			break;
 #ifdef IPDIVERT
 		case IP_FW_F_DIVERT:
-			printf("Divert %d", f->fw_divert_port);
+			snprintf(SNPARGS(action2, 0), "Divert %d",
+			    f->fw_divert_port);
 			break;
 		case IP_FW_F_TEE:
-			printf("Tee %d", f->fw_divert_port);
+			snprintf(SNPARGS(action2, 0), "Tee %d",
+			    f->fw_divert_port);
 			break;
 #endif
 		case IP_FW_F_SKIPTO:
-			printf("SkipTo %d", f->fw_skipto_rule);
+			snprintf(SNPARGS(action2, 0), "SkipTo %d",
+			    f->fw_skipto_rule);
 			break;
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
-			printf("Pipe %d", f->fw_skipto_rule);
+			snprintf(SNPARGS(action2, 0), "Pipe %d",
+			    f->fw_skipto_rule);
 			break;
 #endif
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
-			printf("Forward to ");
-			print_ip(f->fw_fwd_ip.sin_addr);
 			if (f->fw_fwd_ip.sin_port)
-				printf(":%d", f->fw_fwd_ip.sin_port);
+				snprintf(SNPARGS(action2, 0),
+				    "Forward to %s:%d",
+				    inet_ntoa(f->fw_fwd_ip.sin_addr),
+				    f->fw_fwd_ip.sin_port);
+			else
+				snprintf(SNPARGS(action2, 0), "Forward to %s",
+				    inet_ntoa(f->fw_fwd_ip.sin_addr));
 			break;
 #endif
 		default:	
-			printf("UNKNOWN");
+			action = "UNKNOWN";
 			break;
 		}
-	printf(" ");
+	}
 
+	len = 0;
 	switch (ip->ip_p) {
 	case IPPROTO_TCP:
-		printf("TCP ");
-		print_ip(ip->ip_src);
+		len = snprintf(SNPARGS(proto, 0), "TCP %s",
+		    inet_ntoa(ip->ip_src));
 		if ((ip->ip_off & IP_OFFMASK) == 0)
-			printf(":%d ", ntohs(tcp->th_sport));
+			len += snprintf(SNPARGS(proto, len), ":%d ",
+			    ntohs(tcp->th_sport));
 		else
-			printf(" ");
-		print_ip(ip->ip_dst);
+			len += snprintf(SNPARGS(proto, len), " ");
+		len += snprintf(SNPARGS(proto, len), "%s",
+		    inet_ntoa(ip->ip_dst));
 		if ((ip->ip_off & IP_OFFMASK) == 0)
-			printf(":%d", ntohs(tcp->th_dport));
+			snprintf(SNPARGS(proto, len), ":%d",
+			    ntohs(tcp->th_dport));
 		break;
 	case IPPROTO_UDP:
-		printf("UDP ");
-		print_ip(ip->ip_src);
+		len = snprintf(SNPARGS(proto, 0), "UDP %s",
+		    inet_ntoa(ip->ip_src));
 		if ((ip->ip_off & IP_OFFMASK) == 0)
-			printf(":%d ", ntohs(udp->uh_sport));
+			len += snprintf(SNPARGS(proto, len), ":%d ",
+			    ntohs(udp->uh_sport));
 		else
-			printf(" ");
-		print_ip(ip->ip_dst);
+			len += snprintf(SNPARGS(proto, len), " ");
+		len += snprintf(SNPARGS(proto, len), "%s",
+		    inet_ntoa(ip->ip_dst));
 		if ((ip->ip_off & IP_OFFMASK) == 0)
-			printf(":%d", ntohs(udp->uh_dport));
+			snprintf(SNPARGS(proto, len), ":%d",
+			    ntohs(udp->uh_dport));
 		break;
 	case IPPROTO_ICMP:
 		if ((ip->ip_off & IP_OFFMASK) == 0)
-			printf("ICMP:%u.%u ", icmp->icmp_type, icmp->icmp_code);
+			len = snprintf(SNPARGS(proto, 0), "ICMP:%u.%u ",
+			    icmp->icmp_type, icmp->icmp_code);
 		else
-			printf("ICMP ");
-		print_ip(ip->ip_src);
-		printf(" ");
-		print_ip(ip->ip_dst);
+			len = snprintf(SNPARGS(proto, 0), "ICMP ");
+		snprintf(SNPARGS(proto, len), "%s %s", inet_ntoa(ip->ip_src),
+		    inet_ntoa(ip->ip_dst));
 		break;
 	default:
-		printf("P:%d ", ip->ip_p);
-		print_ip(ip->ip_src);
-		printf(" ");
-		print_ip(ip->ip_dst);
+		snprintf(SNPARGS(proto, 0), "P:%d %s %s", ip->ip_p,
+		    inet_ntoa(ip->ip_src), inet_ntoa(ip->ip_dst));
 		break;
 	}
+
+	if ((ip->ip_off & IP_OFFMASK))
+		snprintf(SNPARGS(fragment, 0), " Fragment = %d",
+		    ip->ip_off & IP_OFFMASK);
+	else
+		fragment[0] = '\0';
 	if (oif)
-		printf(" out via %s%d", oif->if_name, oif->if_unit);
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s out via %s%d%s\n",
+		    name, action, proto, oif->if_name, oif->if_unit, fragment);
 	else if (rif)
-		printf(" in via %s%d", rif->if_name, rif->if_unit);
-	if ((ip->ip_off & IP_OFFMASK)) 
-		printf(" Fragment = %d",ip->ip_off & IP_OFFMASK);
-	printf("\n");
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s in via %s%d%s\n", name,
+		    action, proto, rif->if_name, rif->if_unit, fragment);
+	else
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s%s\n", name, action,
+		    proto, fragment);
 	if ((f ? f->fw_logamount != 0 : 1) &&
 	    count == (f ? f->fw_loghighest : fw_verbose_limit))
-		printf("ipfw: limit %d reached on rule #%d\n",
+		log(LOG_SECURITY | LOG_NOTICE,
+		    "ipfw: limit %d reached on entry %d\n",
 		    f ? f->fw_logamount : fw_verbose_limit,
 		    f ? f->fw_number : -1);
     }
@@ -1116,9 +1140,11 @@ zero_entry(struct ip_fw *frwl)
 
 	if (fw_verbose) {
 		if (frwl)
-			printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ipfw: Entry %d cleared.\n", frwl->fw_number);
 		else
-			printf("ipfw: Accounting cleared.\n");
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ipfw: Accounting cleared.\n");
 	}
 
 	return (0);
@@ -1164,10 +1190,12 @@ resetlog_entry(struct ip_fw *frwl)
 
 	if (fw_verbose) {
 		if (frwl)
-			printf("ipfw: Entry %d logging count reset.\n",
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ipfw: Entry %d logging count reset.\n",
 			    frwl->fw_number);
 		else
-			printf("ipfw: All logging counts cleared.\n");
+			log(LOG_SECURITY | LOG_NOTICE, "
+			    ipfw: All logging counts cleared.\n");
 	}
 
 	return (0);
