@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.21 1997/02/07 04:26:38 jkh Exp $
+ * $Id: misc.c,v 1.12.2.22 1997/02/18 04:38:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,7 +320,7 @@ Mount(char *mountp, void *dev)
 	return DITEM_SUCCESS;
 
     if (*((char *)dev) != '/') {
-    	sprintf(device, "%s/dev/%s", (char *)dev, RunningAsInit ? "/mnt" : "");
+    	sprintf(device, "%s/dev/%s", RunningAsInit ? "/mnt" : "", (char *)dev);
 	sprintf(mountpoint, "%s%s", RunningAsInit ? "/mnt" : "", mountp);
     }
     else {
