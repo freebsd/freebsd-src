@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am,v 1.145 2002/08/29 04:02:24 assar Exp $
+# $Id: Makefile.am,v 1.147 2002/09/03 14:45:13 joda Exp $
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
@@ -211,7 +211,8 @@ TESTS = \
 	string-to-key-test			\
 	derived-key-test			\
 	store-test				\
-	parse-name-test
+	parse-name-test				\
+	name-45-test
 
 
 check_PROGRAMS = $(TESTS)
@@ -406,7 +407,7 @@ libkrb5_la_OBJECTS = $(am_libkrb5_la_OBJECTS)
 bin_PROGRAMS = verify_krb5_conf$(EXEEXT)
 check_PROGRAMS = n-fold-test$(EXEEXT) string-to-key-test$(EXEEXT) \
 	derived-key-test$(EXEEXT) store-test$(EXEEXT) \
-	parse-name-test$(EXEEXT)
+	parse-name-test$(EXEEXT) name-45-test$(EXEEXT)
 noinst_PROGRAMS = dump_config$(EXEEXT) test_get_addrs$(EXEEXT) \
 	krbhst-test$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
@@ -435,6 +436,12 @@ n_fold_test_LDADD = $(LDADD)
 n_fold_test_DEPENDENCIES = libkrb5.la \
 	$(top_builddir)/lib/asn1/libasn1.la
 n_fold_test_LDFLAGS =
+name_45_test_SOURCES = name-45-test.c
+name_45_test_OBJECTS = name-45-test.$(OBJEXT)
+name_45_test_LDADD = $(LDADD)
+name_45_test_DEPENDENCIES = libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+name_45_test_LDFLAGS =
 parse_name_test_SOURCES = parse-name-test.c
 parse_name_test_OBJECTS = parse-name-test.$(OBJEXT)
 parse_name_test_LDADD = $(LDADD)
@@ -481,13 +488,14 @@ LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 CFLAGS = @CFLAGS@
 DIST_SOURCES = $(libkrb5_la_SOURCES) derived-key-test.c dump_config.c \
-	krbhst-test.c n-fold-test.c parse-name-test.c store-test.c \
-	string-to-key-test.c test_get_addrs.c verify_krb5_conf.c
+	krbhst-test.c n-fold-test.c name-45-test.c parse-name-test.c \
+	store-test.c string-to-key-test.c test_get_addrs.c \
+	verify_krb5_conf.c
 MANS = $(man_MANS)
 HEADERS = $(include_HEADERS)
 
 DIST_COMMON = $(include_HEADERS) Makefile.am Makefile.in
-SOURCES = $(libkrb5_la_SOURCES) derived-key-test.c dump_config.c krbhst-test.c n-fold-test.c parse-name-test.c store-test.c string-to-key-test.c test_get_addrs.c verify_krb5_conf.c
+SOURCES = $(libkrb5_la_SOURCES) derived-key-test.c dump_config.c krbhst-test.c n-fold-test.c name-45-test.c parse-name-test.c store-test.c string-to-key-test.c test_get_addrs.c verify_krb5_conf.c
 
 all: all-am
 
@@ -583,6 +591,9 @@ krbhst-test$(EXEEXT): $(krbhst_test_OBJECTS) $(krbhst_test_DEPENDENCIES)
 n-fold-test$(EXEEXT): $(n_fold_test_OBJECTS) $(n_fold_test_DEPENDENCIES) 
 	@rm -f n-fold-test$(EXEEXT)
 	$(LINK) $(n_fold_test_LDFLAGS) $(n_fold_test_OBJECTS) $(n_fold_test_LDADD) $(LIBS)
+name-45-test$(EXEEXT): $(name_45_test_OBJECTS) $(name_45_test_DEPENDENCIES) 
+	@rm -f name-45-test$(EXEEXT)
+	$(LINK) $(name_45_test_LDFLAGS) $(name_45_test_OBJECTS) $(name_45_test_LDADD) $(LIBS)
 parse-name-test$(EXEEXT): $(parse_name_test_OBJECTS) $(parse_name_test_DEPENDENCIES) 
 	@rm -f parse-name-test$(EXEEXT)
 	$(LINK) $(parse_name_test_LDFLAGS) $(parse_name_test_OBJECTS) $(parse_name_test_LDADD) $(LIBS)
@@ -1121,10 +1132,10 @@ install-data-local: install-cat-mans
 
 $(libkrb5_la_OBJECTS): $(srcdir)/krb5-protos.h $(srcdir)/krb5-private.h
 
-$(srcdir)/krb5-protos.h: $(ERR_FILES)
+$(srcdir)/krb5-protos.h:
 	cd $(srcdir) && perl ../../cf/make-proto.pl -q -P comment -o krb5-protos.h $(libkrb5_la_SOURCES) || rm -f krb5-protos.h
 
-$(srcdir)/krb5-private.h: $(ERR_FILES)
+$(srcdir)/krb5-private.h:
 	cd $(srcdir) && perl ../../cf/make-proto.pl -q -P comment -p krb5-private.h $(libkrb5_la_SOURCES) || rm -f krb5-private.h
 
 $(libkrb5_la_OBJECTS): krb5_err.h heim_err.h k524_err.h

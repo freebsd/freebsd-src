@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.46 2002/02/18 20:02:14 joda Exp $");
+RCSID("$Id: rshd.c,v 1.47 2002/09/03 20:03:26 joda Exp $");
 
 int
 login_access( struct passwd *user, char *from);
@@ -199,7 +199,7 @@ recv_krb4_auth (int s, u_char *buf,
 			   version);
     if (status != KSUCCESS)
 	syslog_and_die ("recvauth: %s", krb_get_err_text(status));
-    if (strncmp (version, KCMD_VERSION, KRB_SENDAUTH_VLEN) != 0)
+    if (strncmp (version, KCMD_OLD_VERSION, KRB_SENDAUTH_VLEN) != 0)
 	syslog_and_die ("bad version: %s", version);
 
     read_str (s, server_username, USERNAME_SZ, "remote username");
@@ -277,6 +277,24 @@ krb5_start_session (void)
     return;
 }
 
+static int protocol_version;
+
+static krb5_boolean
+match_kcmd_version(const void *data, const char *version)
+{
+    if(strcmp(version, KCMD_NEW_VERSION) == 0) {
+	protocol_version = 2;
+	return TRUE;
+    }
+    if(strcmp(version, KCMD_OLD_VERSION) == 0) {
+	protocol_version = 1;
+	key_usage = KRB5_KU_OTHER_ENCRYPTED;
+	return TRUE;
+    }
+    return FALSE;
+}
+
+
 static int
 recv_krb5_auth (int s, u_char *buf,
 		struct sockaddr *thisaddr,
@@ -311,14 +329,15 @@ recv_krb5_auth (int s, u_char *buf,
 	syslog_and_die ("krb5_sock_to_principal: %s",
 			krb5_get_err_text(context, status));
 
-    status = krb5_recvauth(context,
-			   &auth_context,
-			   &s,
-			   KCMD_VERSION,
-			   server,
-			   KRB5_RECVAUTH_IGNORE_VERSION,
-			   NULL,
-			   &ticket);
+    status = krb5_recvauth_match_version(context,
+					 &auth_context,
+					 &s,
+					 match_kcmd_version,
+					 NULL,
+					 server,
+					 KRB5_RECVAUTH_IGNORE_VERSION,
+					 NULL,
+					 &ticket);
     krb5_free_principal (context, server);
     if (status)
 	syslog_and_die ("krb5_recvauth: %s",
@@ -328,8 +347,17 @@ recv_krb5_auth (int s, u_char *buf,
     read_str (s, cmd, COMMAND_SZ, "command");
     read_str (s, client_username, COMMAND_SZ, "local username");
 
-    status = krb5_auth_con_getkey (context, auth_context, &keyblock);
-    if (status)
+    if(protocol_version == 2) {
+	status = krb5_auth_con_getremotesubkey(context, auth_context, 
+					       &keyblock);
+	if(status != 0 || keyblock == NULL)
+	    syslog_and_die("failed to get remote subkey");
+    } else if(protocol_version == 1) {
+	status = krb5_auth_con_getkey (context, auth_context, &keyblock);
+	if(status != 0 || keyblock == NULL)
+	    syslog_and_die("failed to get key");
+    }
+    if (status != 0 || keyblock == NULL)
        syslog_and_die ("krb5_auth_con_getkey: %s",
                        krb5_get_err_text(context, status));
 
@@ -436,6 +464,11 @@ loop (int from0, int to0,
     if(from0 >= FD_SETSIZE || from1 >= FD_SETSIZE || from2 >= FD_SETSIZE)
 	errx (1, "fd too large");
 
+#ifdef KRB5
+    if(auth_method == AUTH_KRB5 && protocol_version == 2)
+	init_ivecs(0);
+#endif
+
     FD_ZERO(&real_readset);
     FD_SET(from0, &real_readset);
     FD_SET(from1, &real_readset);
@@ -454,7 +487,7 @@ loop (int from0, int to0,
 		syslog_and_die ("select: %m");
 	}
 	if (FD_ISSET(from0, &readset)) {
-	    ret = do_read (from0, buf, sizeof(buf));
+	    ret = do_read (from0, buf, sizeof(buf), ivec_in[0]);
 	    if (ret < 0)
 		syslog_and_die ("read: %m");
 	    else if (ret == 0) {
@@ -475,7 +508,7 @@ loop (int from0, int to0,
 		if (--count == 0)
 		    exit (0);
 	    } else
-		do_write (to1, buf, ret);
+		do_write (to1, buf, ret, ivec_out[0]);
 	}
 	if (FD_ISSET(from2, &readset)) {
 	    ret = read (from2, buf, sizeof(buf));
@@ -488,7 +521,7 @@ loop (int from0, int to0,
 		if (--count == 0)
 		    exit (0);
 	    } else
-		do_write (to2, buf, ret);
+		do_write (to2, buf, ret, ivec_out[1]);
 	}
    }
 }

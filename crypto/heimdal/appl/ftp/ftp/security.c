@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -37,7 +37,7 @@
 #include "ftp_locl.h"
 #endif
 
-RCSID("$Id: security.c,v 1.18 2001/02/07 10:49:43 assar Exp $");
+RCSID("$Id: security.c,v 1.19 2002/09/04 22:01:28 joda Exp $");
 
 static enum protection_level command_prot;
 static enum protection_level data_prot;
@@ -387,9 +387,11 @@ sec_vfprintf(FILE *f, const char *fmt, va_list ap)
 	return -1;
     }
     if(base64_encode(enc, len, &buf) < 0){
+	free(enc);
 	printf("Out of memory base64-encoding.\n");
 	return -1;
     }
+    free(enc);
 #ifdef FTP_SERVER
     if(command_prot == prot_safe)
 	fprintf(f, "631 %s\r\n", buf);

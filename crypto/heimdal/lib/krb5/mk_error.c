@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mk_error.c,v 1.17 2002/03/27 09:29:43 joda Exp $");
+RCSID("$Id: mk_error.c,v 1.18 2002/09/04 16:26:04 joda Exp $");
 
 krb5_error_code
 krb5_mk_error(krb5_context context,
@@ -47,8 +47,6 @@ krb5_mk_error(krb5_context context,
 	      krb5_data *reply)
 {
     KRB_ERROR msg;
-    u_char *buf;
-    size_t buf_size;
     int32_t sec, usec;
     size_t len;
     krb5_error_code ret = 0;
@@ -84,45 +82,10 @@ krb5_mk_error(krb5_context context,
 	msg.cname = &client->name;
     }
 
-    buf_size = 1024;
-    buf = malloc (buf_size);
-    if (buf == NULL) {
-	krb5_set_error_string (context, "malloc: out of memory");
-	return ENOMEM;
-    }
-
-    do {
-	ret = encode_KRB_ERROR(buf + buf_size - 1,
-			       buf_size,
-			       &msg,
-			       &len);
-	if (ret) {
-	    if (ret == ASN1_OVERFLOW) {
-		u_char *tmp;
-
-		buf_size *= 2;
-		tmp = realloc (buf, buf_size);
-		if (tmp == NULL) {
-		    krb5_set_error_string (context, "malloc: out of memory");
-		    ret = ENOMEM;
-		    goto out;
-		}
-		buf = tmp;
-	    } else {
-		goto out;
-	    }
-	}
-    } while (ret == ASN1_OVERFLOW);
-
-    reply->length = len;
-    reply->data = malloc(len);
-    if (reply->data == NULL) {
-	krb5_set_error_string (context, "malloc: out of memory");
-	ret = ENOMEM;
-	goto out;
-    }
-    memcpy (reply->data, buf + buf_size - len, len);
-out:
-    free (buf);
-    return ret;
+    ASN1_MALLOC_ENCODE(KRB_ERROR, reply->data, reply->length, &msg, &len, ret);
+    if (ret)
+	return ret;
+    if(reply->length != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
+    return 0;
 }

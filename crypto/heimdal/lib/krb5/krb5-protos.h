@@ -194,6 +194,12 @@ krb5_auth_con_genaddrs (
 	int /*flags*/);
 
 krb5_error_code
+krb5_auth_con_generatelocalsubkey (
+	krb5_context /*context*/,
+	krb5_auth_context /*auth_context*/,
+	krb5_keyblock */*key*/);
+
+krb5_error_code
 krb5_auth_con_getaddrs (
 	krb5_context /*context*/,
 	krb5_auth_context /*auth_context*/,
@@ -804,6 +810,12 @@ krb5_error_code
 krb5_crypto_destroy (
 	krb5_context /*context*/,
 	krb5_crypto /*crypto*/);
+
+krb5_error_code
+krb5_crypto_getblocksize (
+	krb5_context /*context*/,
+	krb5_crypto /*crypto*/,
+	size_t */*blocksize*/);
 
 krb5_error_code
 krb5_crypto_init (

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_rep.c,v 1.19 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: mk_rep.c,v 1.20 2002/09/04 16:26:05 joda Exp $");
 
 krb5_error_code
 krb5_mk_rep(krb5_context context,
@@ -72,21 +72,10 @@ krb5_mk_rep(krb5_context context,
   ap.enc_part.etype = auth_context->keyblock->keytype;
   ap.enc_part.kvno  = NULL;
 
-  buf_size = length_EncAPRepPart(&body);
-  buf = malloc (buf_size);
-  if (buf == NULL) {
-      free_EncAPRepPart (&body);
-      krb5_set_error_string (context, "malloc: out of memory");
-      return ENOMEM;
-  }
-
-  ret = krb5_encode_EncAPRepPart (context, 
-				  buf + buf_size - 1,
-				  buf_size,
-				  &body, 
-				  &len);
-
+  ASN1_MALLOC_ENCODE(EncAPRepPart, buf, buf_size, &body, &len, ret);
   free_EncAPRepPart (&body);
+  if(ret)
+      return ret;
   ret = krb5_crypto_init(context, auth_context->keyblock, 
 			 0 /* ap.enc_part.etype */, &crypto);
   if (ret) {
@@ -105,20 +94,7 @@ krb5_mk_rep(krb5_context context,
       return ret;
   }
 
-  buf_size = length_AP_REP(&ap);
-  buf = realloc(buf, buf_size);
-  if(buf == NULL) {
-      free_AP_REP (&ap);
-      krb5_set_error_string (context, "malloc: out of memory");
-      return ENOMEM;
-  }
-  ret = encode_AP_REP (buf + buf_size - 1, buf_size, &ap, &len);
-  
+  ASN1_MALLOC_ENCODE(AP_REP, outbuf->data, outbuf->length, &ap, &len, ret);
   free_AP_REP (&ap);
-
-  if(len != buf_size)
-      krb5_abortx(context, "krb5_mk_rep: encoded length != calculated length");
-  outbuf->data = buf;
-  outbuf->length = len;
-  return 0;
+  return ret;
 }
