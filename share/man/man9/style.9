@@ -268,16 +268,9 @@ Functions that are used locally in more than one module go into a
 separate header file, e.g.\&
 .Qq Pa extern.h .
 .Pp
-Only use the
+Do not use the
 .Dv __P
-macro from the include file
-.Aq Pa sys/cdefs.h
-if the source
-file in general is (to be) compilable with a K&R Old Testament compiler.
-Use of the
-.Dv __P
-macro in new code is discouraged, although modifications
-to existing files should be consistent with that file's conventions.
+macro.
 .Pp
 In general code can be considered
 .Dq "new code"
