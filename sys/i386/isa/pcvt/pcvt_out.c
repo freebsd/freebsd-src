@@ -66,6 +66,8 @@
 
 #include "pcvt_hdr.h"		/* global include */
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 extern u_short csd_ascii[];	/* pcvt_tbl.h */
 extern u_short csd_supplemental[];

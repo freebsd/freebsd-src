@@ -32,9 +32,6 @@
 #include <sys/buf.h>
 #include <i386/isa/isa_device.h>
 #include <machine/cpufunc.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_extern.h>
 
 /* These few lines are used by 386BSD (only??). */
 
