@@ -488,7 +488,7 @@ ast_start(struct atapi_softc *atp)
 static int32_t 
 ast_done(struct atapi_request *request)
 {
-    struct buf *bp = request->bp;
+    struct buf *bp = request->driver;
     struct ast_softc *stp = request->device->driver;
 
     if (request->error) {

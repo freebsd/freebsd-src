@@ -150,7 +150,7 @@ atapi_detach(struct atapi_softc *atp)
 int32_t	  
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
 		int32_t count, int32_t flags, int32_t timeout,
-		atapi_callback_t callback, struct buf *bp)
+		atapi_callback_t callback, void *driver)
 {
     struct atapi_request *request;
     int32_t error, s;
@@ -168,7 +168,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     bcopy(ccb, request->ccb, request->ccbsize);
     if (callback) {
 	request->callback = callback;
-	request->bp = bp;
+	request->driver = driver;
     }
 
     s = splbio();
@@ -178,7 +178,15 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 	asleep((caddr_t)request, PRIBIO, "atprq", 0);
 
     /* append onto controller queue and try to start controller */
-    TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
+#ifdef ATAPI_DEBUG
+    printf("%s: queueing %s ", 
+	   request->device->devname, atapi_cmd2str(request->ccb[0]));
+    atapi_dump("ccb = ", &request->ccb[0], sizeof(request->ccb));
+#endif
+    if (flags & ATPR_F_AT_HEAD)
+	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+    else
+	TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
     ata_start(atp->controller);
 
     /* if callback used, then just return, gets called from interrupt context */
@@ -191,6 +199,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     await(PRIBIO, 0);
     splx(s);
     error = request->error;
+#ifdef ATAPI_DEBUG
+    printf("%s: finished %s\n", 
+	   request->device->devname, atapi_cmd2str(request->ccb[0]));
+#endif
     free(request, M_ATAPI);
     return error;
 }
@@ -425,6 +437,10 @@ op_finished:
 	    }
 	}
 	if (request->callback) {
+#ifdef ATAPI_DEBUG
+	    printf("%s: finished %s (callback)\n", 
+		   request->device->devname, atapi_cmd2str(request->ccb[0]));
+#endif
 	    if (!((request->callback)(request)))
 		free(request, M_ATAPI);
 	}
