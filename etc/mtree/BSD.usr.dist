@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.usr.dist,v 1.9 1994/02/15 10:38:49 rgrimes Exp $
 #
 
 /set type=file uname=bin gname=bin mode=0755
@@ -95,45 +95,45 @@ share	type=dir uname=bin gname=bin mode=0755
 	..
 
 	/set type=file uname=bin gname=bin mode=0755
-	man	type=dir uname=bin gname=bin mode=0755
-		cat1	type=dir uname=bin gname=bin mode=0755
+	man	type=dir uname=bin gname=man mode=0755
+		cat1	type=dir uname=bin gname=man mode=0775
 		..
-		cat2	type=dir uname=bin gname=bin mode=0755
+		cat2	type=dir uname=bin gname=man mode=0775
 		..
-		cat3	type=dir uname=bin gname=bin mode=0755
+		cat3	type=dir uname=bin gname=man mode=0775
 		..
-		cat4	type=dir uname=bin gname=bin mode=0755
-			i386	type=dir uname=bin gname=bin mode=0755
+		cat4	type=dir uname=bin gname=man mode=0775
+			i386	type=dir uname=bin gname=man mode=0775
 			..
 		..
-		cat5	type=dir uname=bin gname=bin mode=0755
+		cat5	type=dir uname=bin gname=man mode=0775
 		..
-		cat6	type=dir uname=bin gname=bin mode=0755
+		cat6	type=dir uname=bin gname=man mode=0775
 		..
-		cat7	type=dir uname=bin gname=bin mode=0755
+		cat7	type=dir uname=bin gname=man mode=0775
 		..
-		cat8	type=dir uname=bin gname=bin mode=0755
-			i386	type=dir uname=bin gname=bin mode=0755
+		cat8	type=dir uname=bin gname=man mode=0775
+			i386	type=dir uname=bin gname=man mode=0775
 			..
 		..
-		man1	type=dir uname=bin gname=bin mode=0755
+		man1	type=dir uname=bin gname=man mode=0755
 		..
-		man2	type=dir uname=bin gname=bin mode=0755
+		man2	type=dir uname=bin gname=man mode=0755
 		..
-		man3	type=dir uname=bin gname=bin mode=0755
+		man3	type=dir uname=bin gname=man mode=0755
 		..
-		man4	type=dir uname=bin gname=bin mode=0755
-			i386	type=dir uname=bin gname=bin mode=0755
+		man4	type=dir uname=bin gname=man mode=0755
+			i386	type=dir uname=bin gname=man mode=0755
 			..
 		..
-		man5	type=dir uname=bin gname=bin mode=0755
+		man5	type=dir uname=bin gname=man mode=0755
 		..
-		man6	type=dir uname=bin gname=bin mode=0755
+		man6	type=dir uname=bin gname=man mode=0755
 		..
-		man7	type=dir uname=bin gname=bin mode=0755
+		man7	type=dir uname=bin gname=man mode=0755
 		..
-		man8	type=dir uname=bin gname=bin mode=0755
-			i386	type=dir uname=bin gname=bin mode=0755
+		man8	type=dir uname=bin gname=man mode=0755
+			i386	type=dir uname=bin gname=man mode=0755
 			..
 		..
 	..
