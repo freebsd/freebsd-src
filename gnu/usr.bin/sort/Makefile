@@ -23,6 +23,7 @@ SRCS=   sort.c \
 	strnlen.c \
 	umaxtostr.c \
 	version-etc.c \
+	xalloc-die.c \
 	xmalloc.c \
 	xmemcoll.c \
 	xstrtoul.c \
