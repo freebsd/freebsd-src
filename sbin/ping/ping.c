@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.19 1997/03/02 20:01:13 imp Exp $";
+	"$Id: ping.c,v 1.20 1997/03/03 09:50:21 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -430,7 +430,7 @@ main(argc, argv)
 	sigemptyset(&si_sa.sa_mask);
 	si_sa.sa_flags = 0;
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
-		err(EX_OSERR, "sigsction");
+		err(EX_OSERR, "sigaction");
 	}
 
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
