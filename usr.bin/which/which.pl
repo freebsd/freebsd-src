@@ -12,8 +12,8 @@
 #    documentation and/or other materials provided with the distribution.
 # 3. All advertising materials mentioning features or use of this software
 #    must display the following acknowledgement:
-#      This product includes software developed by the University of
-#      California, Berkeley and its contributors.
+#      This product includes software developed by Wolfram Schneider
+#      and the FreeBSD Project.
 # 4. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
@@ -31,7 +31,7 @@
 #
 # [whew!]
 #
-# $Id: which.pl,v 1.2 1995/01/28 17:35:56 asami Exp $
+# $Id: which.pl,v 1.3 1995/01/30 17:49:19 asami Exp $
 
 $all = 0;
 $silent = 0;
