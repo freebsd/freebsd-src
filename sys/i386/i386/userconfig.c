@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.127 1999/01/28 01:59:50 dillon Exp $
+ **      $Id: userconfig.c,v 1.128 1999/01/31 13:08:25 yokota Exp $
  **/
 
 /**
@@ -405,8 +405,10 @@ static DEV_INFO device_info[] = {
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
+{"atkbdc",      "Keyboard controller",			FLG_INVISIBLE,	CLS_INPUT},
+{"atkbd",       "Keyboard",				FLG_FIXED,	CLS_INPUT},
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
-{"psm",         "PS/2 Mouse",				0,		CLS_INPUT},
+{"psm",         "PS/2 Mouse",				FLG_FIXED,	CLS_INPUT},
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
 {"vt",          "PCVT console driver",			FLG_IMMUTABLE,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_IMMUTABLE,	CLS_INPUT},
@@ -2505,7 +2507,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.127 1999/01/28 01:59:50 dillon Exp $
+ *      $Id: userconfig.c,v 1.128 1999/01/31 13:08:25 yokota Exp $
  */
 
 #include "scbus.h"
