@@ -75,7 +75,6 @@
 #ifndef	_MACHINE_BUS_H_
 #define	_MACHINE_BUS_H_
 
-#include "opt_bus.h"
 #ifdef BUS_SPACE_DEBUG
 #include <sys/ktr.h>
 #endif
