@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2002 Douglas Barton
+# Copyright 1998-2003 Douglas Barton
 # DougB@FreeBSD.org
 
 # $FreeBSD$
@@ -115,10 +115,9 @@ diff_loop () {
 	echo '   ======================================================================   '
 	echo ''
         (
-          echo ''
           echo "  *** Displaying differences between ${COMPFILE} and installed version:"
           echo ''
-          diff "${DIFF_FLAG}" "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
+          diff ${DIFF_FLAG} ${DIFF_OPTIONS} "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
         ) | ${PAGER}
         echo ''
       fi
@@ -242,6 +241,7 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   s)
     STRICT=yes
+    unset DIFF_OPTIONS
     ;;
   c)
     DIFF_FLAG='-c'
@@ -372,7 +372,7 @@ SOURCEDIR=${SOURCEDIR:-/usr/src/etc}
 # Check the width of the user's terminal
 #
 if [ -t 0 ]; then
-  w=$(stty -a | sed -ne 's/.* \([0-9][0-9]*\) columns.*/\1/p')
+  w=`tput columns`
   case "${w}" in
   0|'') ;; # No-op, since the input is not valid
   *)
@@ -812,7 +812,8 @@ for COMPFILE in `find . -type f -size +0`; do
     # Do an absolute diff first to see if the files are actually different.
     # If they're not different, delete the one in temproot.
     #
-    if diff -q "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > /dev/null 2>&1; then
+    if diff -q ${DIFF_OPTIONS} "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
+      /dev/null 2>&1; then
       echo " *** Temp ${COMPFILE} and installed are the same, deleting"
       rm "${COMPFILE}"
     else
