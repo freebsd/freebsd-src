@@ -61,12 +61,13 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.90 1997/02/22 09:48:28 peter Exp $
+ * $Id: vm_object.c,v 1.91 1997/04/26 11:46:25 peter Exp $
  */
 
 /*
  *	Virtual memory object module.
  */
+#include "opt_smp_privpages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -61,13 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.34 1997/03/31 11:11:24 davidg Exp $
+ * $Id: vm_kern.c,v 1.35 1997/04/26 11:46:23 peter Exp $
  */
 
 /*
  *	Kernel memory management.
  */
-#include "opt_smp.h"
 #include "opt_smp_privpages.h"
 
 #include <sys/param.h>
