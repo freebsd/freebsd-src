@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysinstall.8,v 1.10 1998/07/21 06:44:42 jkh Exp $
+.\"	$Id: sysinstall.8,v 1.11 1998/10/12 23:53:57 jkh Exp $
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
@@ -280,9 +280,9 @@ the script.
 For example, let's say you have a SCSI disk on which you've created a new
 FreeBSD partition in slice 2 (your DOS partition residing in slice 1).
 The slice name would be
-.Ar sd0s2
+.Ar da0s2
 for the whole FreeBSD partition (
-.Ar sd0s1
+.Ar da0s1
 being your DOS primary
 partition).  Now let's further assume that you have 500MB in this
 partition and you want to sub-partition that space into root, swap,
@@ -290,13 +290,13 @@ var and usr file systems for FreeBSD.  Your invocation of the
 .Ar diskLabelEditor
 function might involve setting the following variables:
 .Bl -tag -width findx
-.It Li "sd0s2-1=ufs 40960 /"
+.It Li "da0s2-1=ufs 40960 /"
 A 20MB root file system (all sizes are in 512 byte blocks).
-.It Li "sd0s2-2=swap 131072 /"
+.It Li "da0s2-2=swap 131072 /"
 A 64MB swap partition.
-.It Li "sd0s2-3=ufs 204800 /var"
+.It Li "da0s2-3=ufs 204800 /var"
 A 100MB /var file system.
-.It Li "sd0s2-4=ufs 0 /usr"
+.It Li "da0s2-4=ufs 0 /usr"
 With the balance of free space (around 316MB) going to the /usr
 file system.
 .El
@@ -311,7 +311,7 @@ entry is created for it in the new installation.  Before calling the
 .Ar diskLabelEditor
 function, we simply add an additional line:
 .nf
-	sd0s1=/dos_c N
+	da0s1=/dos_c N
 
 .fi
 before the call.  This tells the label editor that you want to mount
