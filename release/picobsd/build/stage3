@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.3 1998/09/26 17:27:18 abial Exp $
+#	$Id: stage3,v 1.4 1999/01/14 23:14:46 abial Exp $
 #
 set -e
 
@@ -31,9 +31,9 @@ then
 	exit 10
 fi
 
-dd if=/usr/mdec/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
+dd if=/boot/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
 
-disklabel -Brw -b /usr/mdec/fdboot -s /usr/mdec/bootfd /dev/rvn0 fd1440 2>&1 >/dev/null
+disklabel -Brw -b /boot/boot1 -s /boot/boot2 /dev/rvn0 fd1440 2>&1 >/dev/null
 if [ "X$?" != "X0" ]
 then
 	echo "-> ERROR while labeling picobsd.bin on /dev/rvn0..."
