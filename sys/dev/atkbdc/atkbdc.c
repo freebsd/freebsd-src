@@ -154,7 +154,7 @@ atkbdc_configure(void)
 #endif
 
 	/* XXX: tag should be passed from the caller */
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	tag = I386_BUS_SPACE_IO;
 #elif defined(__alpha__)
 	tag = busspace_isa_io;
