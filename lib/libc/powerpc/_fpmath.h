@@ -29,14 +29,13 @@
 union IEEEl2bits {
 	long double	e;
 	struct {
-		unsigned int	sign	:1;
-		unsigned int	exp	:15;
-		unsigned long	manh	:48;
-		unsigned long	manl	:64;
+		unsigned int		sign	:1;
+		unsigned int		exp	:15;
+		unsigned long long	manh	:48;
+		unsigned long long	manl	:64;
 	} bits;
 };
 
-/* XXX does powerpc have a normalization bit? */
 #define	mask_nbit_l(u)	((void)0)
 #define	LDBL_IMPLICIT_NBIT
 
