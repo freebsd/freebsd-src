@@ -68,13 +68,6 @@
 #include "tun.h"
 #include "ip.h"
 
-static const u_short interactive_ports[32] = {
-  544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  80, 81, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
-};
-
-#define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
-
 static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
 
 static __inline int
@@ -319,7 +312,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   struct icmp *icmph;
   char *ptop;
   int mask, len, n;
-  int pri = PRI_NORMAL;
+  int pri = 0;
   int logit, loglen;
   char logbuf[200];
 
@@ -394,11 +387,12 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   case IPPROTO_TCP:
     th = (struct tcphdr *) ptop;
     if (pip->ip_tos == IPTOS_LOWDELAY)
-      pri = PRI_FAST;
-    else if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
-      if (INTERACTIVE(ntohs(th->th_sport)) || INTERACTIVE(ntohs(th->th_dport)))
-	pri = PRI_FAST;
-    }
+      pri++;
+    else if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
+             ipcp_IsUrgentPort(&bundle->ncp.ipcp, ntohs(th->th_sport),
+                               ntohs(th->th_dport)))
+      pri++;
+
     if (logit && loglen < sizeof logbuf) {
       len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - (th->th_off << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
@@ -505,7 +499,7 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
 {
   struct mbuf *bp;
 
-  if (pri < 0 || pri > sizeof ipcp->Queue / sizeof ipcp->Queue[0])
+  if (pri < 0 || pri >= IPCP_QUEUES(ipcp))
     log_Printf(LogERROR, "Can't store in ip queue %d\n", pri);
   else {
     /*
@@ -518,7 +512,7 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
     bp->offset += 4;
     bp->cnt -= 6;
     memcpy(MBUF_CTOP(bp), ptr, count);
-    mbuf_Enqueue(&ipcp->Queue[pri], bp);
+    mbuf_Enqueue(ipcp->Queue + pri, bp);
   }
 }
 
@@ -527,7 +521,7 @@ ip_DeleteQueue(struct ipcp *ipcp)
 {
   struct mqueue *queue;
 
-  for (queue = ipcp->Queue; queue < ipcp->Queue + PRI_MAX; queue++)
+  for (queue = ipcp->Queue; queue < ipcp->Queue + IPCP_QUEUES(ipcp); queue++)
     while (queue->top)
       mbuf_Free(mbuf_Dequeue(queue));
 }
@@ -538,7 +532,7 @@ ip_QueueLen(struct ipcp *ipcp)
   struct mqueue *queue;
   int result = 0;
 
-  for (queue = ipcp->Queue; queue < ipcp->Queue + PRI_MAX; queue++)
+  for (queue = ipcp->Queue; queue < ipcp->Queue + IPCP_QUEUES(ipcp); queue++)
     result += queue->qlen;
 
   return result;
@@ -556,17 +550,19 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   if (ipcp->fsm.state != ST_OPENED)
     return 0;
 
-  for (queue = &ipcp->Queue[PRI_FAST]; queue >= ipcp->Queue; queue--)
+  queue = ipcp->Queue + IPCP_QUEUES(ipcp) - 1;
+  do {
     if (queue->top) {
       bp = mbuf_Contiguous(mbuf_Dequeue(queue));
       cnt = mbuf_Length(bp);
       pip = (struct ip *)MBUF_CTOP(bp);
       if (!FilterCheck(pip, &bundle->filter.alive))
         bundle_StartIdleTimer(bundle);
-      link_PushPacket(l, bp, bundle, PRI_NORMAL, PROTO_IP);
+      link_PushPacket(l, bp, bundle, 0, PROTO_IP);
       ipcp_AddOutOctets(ipcp, cnt);
       return 1;
     }
+  } while (queue-- != ipcp->Queue);
 
   return 0;
 }

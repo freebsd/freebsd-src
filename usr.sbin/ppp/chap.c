@@ -104,7 +104,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   else
     log_Printf(LogPHASE, "Chap Output: %s (%s)\n", chapcodes[code], text);
   link_PushPacket(&physical->link, bp, physical->dl->bundle,
-                  PRI_LINK, PROTO_CHAP);
+                  LINK_QUEUES(&physical->link) - 1, PROTO_CHAP);
 }
 
 static char *

@@ -122,6 +122,7 @@
 #define	VAR_CD		30
 #define	VAR_PARITY	31
 #define VAR_CRTSCTS	32
+#define VAR_URGENTPORTS	33
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -1375,7 +1376,7 @@ static int
 SetVariable(struct cmdargs const *arg)
 {
   long long_val, param = (long)arg->cmd->args;
-  int mode, dummyint;
+  int mode, dummyint, f;
   const char *argp;
   struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
@@ -1787,6 +1788,21 @@ SetVariable(struct cmdargs const *arg)
       log_Printf(LogWARN, err);
     }
     break;
+
+  case VAR_URGENTPORTS:
+    if (arg->argn == arg->argc)
+      ipcp_ClearUrgentPorts(&arg->bundle->ncp.ipcp);
+    else for (f = arg->argn; f < arg->argc; f++)
+      if (*arg->argv[f] == '+')
+        ipcp_AddUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+      else if (*arg->argv[f] == '-')
+        ipcp_RemoveUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f] + 1));
+      else {
+        if (f == arg->argn)
+          ipcp_ClearUrgentPorts(&arg->bundle->ncp.ipcp);
+        ipcp_AddUrgentPort(&arg->bundle->ncp.ipcp, atoi(arg->argv[f]));
+      }
+    break;
   }
 
   return err ? 1 : 0;
@@ -1802,6 +1818,8 @@ static struct cmdtab const SetCommands[] = {
   {"autoload", NULL, SetVariable, LOCAL_AUTH,
   "auto link [de]activation", "set autoload maxtime maxload mintime minload",
   (const void *)VAR_AUTOLOAD},
+  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
+  "datalink bandwidth", "set bandwidth value"},
   {"callback", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "callback control", "set callback [none|auth|cbcp|"
   "E.164 *|number[,number]...]...", (const void *)VAR_CALLBACK},
@@ -1893,10 +1911,10 @@ static struct cmdtab const SetCommands[] = {
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
+  {"urgent", NULL, SetVariable, LOCAL_AUTH,
+  "urgent ports", "set urgent [+|-]port...", (const void *)VAR_URGENTPORTS},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]"},
-  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
-  "datalink bandwidth", "set bandwidth value"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
