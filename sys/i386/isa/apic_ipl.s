@@ -22,12 +22,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.1 1997/07/18 22:54:17 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.2 1997/07/19 02:28:29 fsmp Exp $
  */
+
+#ifdef APIC_IO
+#include <machine/smptests.h>		/** APIC_PIN0_TIMER */
+#endif /* APIC_IO */
 
 	.data
 	ALIGN_DATA
 
+#ifndef APIC_PIN0_TIMER
 /* this allows us to change the 8254 APIC pin# assignment */
 	.globl _Xintr8254
 _Xintr8254:
@@ -37,6 +42,7 @@ _Xintr8254:
 	.globl _mask8254
 _mask8254:
 	.long	0
+#endif /* APIC_PIN0_TIMER */
 
 #ifdef DO_RTC_VEC
 /** XXX FIXME: remove me after several weeks of no problems */
@@ -76,6 +82,17 @@ _vec:
  * generic vector function for 8254 clock
  */
 	ALIGN_TEXT
+#ifdef APIC_PIN0_TIMER
+vec0:
+	popl	%eax			/* return address */
+	pushfl
+	pushl	$KCSEL
+	pushl	%eax
+	cli
+	andl	$~IRQ_BIT(0), iactive ;	/* lazy masking */
+	MEXITCOUNT
+	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
+#else
 	.globl	_vec8254
 _vec8254:
 	popl	%eax			/* return address */
@@ -83,12 +100,14 @@ _vec8254:
 	pushl	$KCSEL
 	pushl	%eax
 	cli
-	movl	_mask8254,%eax		/* lazy masking */
+	movl	_mask8254, %eax		/* lazy masking */
 	notl	%eax
-	andl	%eax,iactive
+	andl	%eax, iactive
 	MEXITCOUNT
 	movl	_Xintr8254, %eax
 	jmp	%eax			/* XXX might need _Xfastintr# */
+#endif /* APIC_PIN0_TIMER */
+
 
 /*
  * generic vector function for RTC clock
@@ -142,7 +161,9 @@ __CONCAT(vec,irq_num): ;						\
 	jmp	__CONCAT(_Xintr,irq_num)
 
 
-	BUILD_VEC(0)			/* NOT specific in IO APIC hardware */
+#ifndef APIC_PIN0_TIMER
+	BUILD_VEC(0)
+#endif /* APIC_PIN0_TIMER */
 	BUILD_VEC(1)
 	BUILD_VEC(2)
 	BUILD_VEC(3)
