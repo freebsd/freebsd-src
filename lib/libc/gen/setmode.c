@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -255,12 +259,12 @@ getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
 				break;
 			case 's':
 				/* If only "other" bits ignore set-id. */
-				if (who & ~S_IRWXO)
+				if (!who || who & ~S_IRWXO)
 					perm |= S_ISUID|S_ISGID;
 				break;
 			case 't':
 				/* If only "other" bits ignore sticky. */
-				if (who & ~S_IRWXO) {
+				if (!who || who & ~S_IRWXO) {
 					who |= S_ISTXT;
 					perm |= S_ISTXT;
 				}
