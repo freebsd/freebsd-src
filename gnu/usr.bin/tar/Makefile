@@ -18,6 +18,4 @@ SRCS+=	buffer.c compare.c create.c delete.c extract.c incremen.c list.c \
 
 CFLAGS+= -DHAVE_CONFIG_H -I${.CURDIR} -I${TARDIR}/lib -I${TARDIR}/src
 
-NOSHARED?= YES
-
 .include <bsd.prog.mk>
