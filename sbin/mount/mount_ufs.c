@@ -137,11 +137,8 @@ mount_ufs(argc, argv)
 				warnx("%s on %s: incorrect super block",
 					args.fspec, fs_name);
 			break;
-		case ENOENT:
-			warn("%s", args.fspec);
-			break;
 		default:
-			warn(NULL);
+			warn("%s", args.fspec);
 			break;
 		}
 		return (1);
