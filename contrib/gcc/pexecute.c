@@ -739,7 +739,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
 #else
       fprintf (stderr, ": %s\n", xstrerror (errno));
 #endif
-      exit (-1);
+      _exit (1);
       /* NOTREACHED */
       return 0;
 
