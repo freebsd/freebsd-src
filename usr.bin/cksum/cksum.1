@@ -32,22 +32,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)cksum.1	8.1 (Berkeley) 6/29/93
-.\"	$Id: cksum.1,v 1.2 1997/04/27 08:45:43 jmg Exp $
+.\"	@(#)cksum.1		8.2 (Berkeley) 4/28/95
+.\"	$Id: cksum.1,v 1.3 1997/04/29 08:41:26 jmg Exp $
 .\"
-.Dd June 29, 1993
+.Dd April 28, 1995
 .Dt CKSUM 1
 .Os BSD 4.4
 .Sh NAME
 .Nm cksum
 .Nd display file checksums and block counts
 .Sh SYNOPSIS
-.Nm
-.Op Fl o Op \&1 \&| \&2
+.Nm cksum
+.Op Fl o Ar \&1 No \&| Ar \&2
 .Op Ar file ...
 .Sh DESCRIPTION
 The
-.Nm
+.Nm cksum
 utility writes to the standard output three whitespace separated
 fields for each input file.
 These fields are a checksum
@@ -158,10 +158,11 @@ article.
 .Re
 .Sh STANDARDS
 The
-.Nm
-utility is expected to be POSIX 1003.2 compatible.
+.Nm cksum
+utility is expected to conform to
+.St -p1003.2-92 .
 .Sh HISTORY
 The
-.Nm
+.Nm cksum
 utility appeared in
 .Bx 4.4 .
