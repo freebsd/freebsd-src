@@ -1018,6 +1018,11 @@ COMMON ITEMS:
 
 	To upgrade from 4.x-stable to current
 	-------------------------------------
+	# 5.x uses more space than 4.x.  Also, the location of kernel
+	# modules has changed.  If you are installing 5.0 onto a 4.x
+	# system, you'll need about 30MB of free disk space on your /
+	# partition.  If you have less than this, you may encounter difficult
+	# to back out of problems with this proceedure.
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
