@@ -180,10 +180,12 @@ afterinstall:
 		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
 		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-15; \
 		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-15; \
+		ln -fs english ${DESTDIR}/usr/share/vi/catalog/$$l.US-ASCII; \
 	done
-	ln -fs english ${DESTDIR}/usr/share/vi/catalog/en_US.US-ASCII
 	ln -fs english ${DESTDIR}/usr/share/vi/catalog/US-ASCII
 	ln -fs english ${DESTDIR}/usr/share/vi/catalog/ASCII
+	ln -fs english ${DESTDIR}/usr/share/vi/catalog/POSIX
+	ln -fs english ${DESTDIR}/usr/share/vi/catalog/C
 	for l in ${FRLINKS}; do \
 		ln -fs french ${DESTDIR}/usr/share/vi/catalog/$$l.ISO8859-1; \
 		ln -fs french ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
