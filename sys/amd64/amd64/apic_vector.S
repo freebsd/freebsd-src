@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.34 1998/09/06 22:41:41 tegge Exp $
+ *	$Id: apic_vector.s,v 1.35 1999/04/10 19:19:02 tegge Exp $
  */
 
 
@@ -996,47 +996,5 @@ CNAME(cpustop_restartfunc):
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
 	.long	0
-
-
-/*
- * Interrupt counters and names.  The format of these and the label names
- * must agree with what vmstat expects.  The tables are indexed by device
- * ids so that we don't have to move the names around as devices are
- * attached.
- */
-#include "vector.h"
-	.globl	_intrcnt, _eintrcnt
-_intrcnt:
-	.space	(NR_DEVICES + ICU_LEN) * 4
-_eintrcnt:
-
-	.globl	_intrnames, _eintrnames
-_intrnames:
-	.ascii	DEVICE_NAMES
-	.asciz	"stray irq0"
-	.asciz	"stray irq1"
-	.asciz	"stray irq2"
-	.asciz	"stray irq3"
-	.asciz	"stray irq4"
-	.asciz	"stray irq5"
-	.asciz	"stray irq6"
-	.asciz	"stray irq7"
-	.asciz	"stray irq8"
-	.asciz	"stray irq9"
-	.asciz	"stray irq10"
-	.asciz	"stray irq11"
-	.asciz	"stray irq12"
-	.asciz	"stray irq13"
-	.asciz	"stray irq14"
-	.asciz	"stray irq15"
-	.asciz	"stray irq16"
-	.asciz	"stray irq17"
-	.asciz	"stray irq18"
-	.asciz	"stray irq19"
-	.asciz	"stray irq20"
-	.asciz	"stray irq21"
-	.asciz	"stray irq22"
-	.asciz	"stray irq23"
-_eintrnames:
 
 	.text
