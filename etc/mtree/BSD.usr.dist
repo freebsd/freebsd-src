@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.146.2.2 1999/03/25 07:06:50 brian Exp $
+#	$Id: BSD.usr.dist,v 1.146.2.3 1999/05/05 13:26:39 markm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -505,6 +505,8 @@
             ..
             ja_JP.SJIS
             ..
+            ja_JP.Shift_JIS
+            ..
 	    ko_KR.EUC
             ..
 	    lt_LN.ASCII
@@ -706,6 +708,8 @@
             ja_JP.EUC
             ..
             ja_JP.SJIS
+            ..
+            ja_JP.Shift_JIS
             ..
 	    ko_KR.EUC
             ..
