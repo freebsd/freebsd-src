@@ -32,6 +32,7 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 
+#include <machine/frame.h>
 #include <machine/unwind.h>
 #include <machine/rse.h>
 

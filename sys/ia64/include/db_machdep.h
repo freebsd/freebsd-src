@@ -28,8 +28,8 @@
  * rights to redistribute these changes.
  */
 
-#ifndef	_ALPHA_DB_MACHDEP_H_
-#define	_ALPHA_DB_MACHDEP_H_
+#ifndef	_MACHINE_DB_MACHDEP_H_
+#define	_MACHINE_DB_MACHDEP_H_
 
 /*
  * Machine-dependent defines for new kernel debugger.
@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <vm/vm.h>
 #include <machine/frame.h>
+#include <machine/ia64_cpu.h>
 
 #define DB_NO_AOUT
 
@@ -110,4 +111,4 @@ void	db_skip_breakpoint(void);
  */
 #define	DB_ELFSIZE	64
 
-#endif	/* _ALPHA_DB_MACHDEP_H_ */
+#endif	/* _MACHINE_DB_MACHDEP_H_ */

@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
-#ifndef	_ALPHA_VMPARAM_H
-#define	_ALPHA_VMPARAM_H
+#ifndef	_MACHINE_VMPARAM_H
+#define	_MACHINE_VMPARAM_H
 /*
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
@@ -45,7 +45,7 @@
  */
 
 /*
- * Machine dependent constants for Alpha.
+ * Machine dependent constants for ia64.
  */
 /*
  * USRTEXT is the start of the user text/data space, while USRSTACK
@@ -121,6 +121,15 @@
 					   protected against replacement */
 
 /*
+ * Manipulating region bits of an address.
+ */
+#define IA64_RR_BASE(n)         (((u_int64_t) (n)) << 61)
+#define IA64_RR_MASK(x)         ((x) & ((1L << 61) - 1))
+
+#define IA64_PHYS_TO_RR6(x)     ((x) | IA64_RR_BASE(6))
+#define IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))
+
+/*
  * Mach derived constants
  */
 
@@ -130,6 +139,8 @@
 #define VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
 #define VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(5)
 #define VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(6) - 1)
+
+#define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
@@ -150,4 +161,4 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
-#endif	/* !_ALPHA_VMPARAM_H */
+#endif	/* !_MACHINE_VMPARAM_H */

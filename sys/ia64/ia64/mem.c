@@ -59,6 +59,7 @@
 #include <sys/systm.h>
 #include <sys/uio.h>
 
+#include <machine/cpu.h>
 #include <machine/frame.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
