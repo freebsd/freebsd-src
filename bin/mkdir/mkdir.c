@@ -74,14 +74,14 @@ main(argc, argv)
 	mode = NULL;
 	while ((ch = getopt(argc, argv, "m:pv")) != -1)
 		switch(ch) {
+		case 'm':
+			mode = optarg;
+			break;
 		case 'p':
 			pflag = 1;
 			break;
 		case 'v':
 			vflag = 1;
-			break;
-		case 'm':
-			mode = optarg;
 			break;
 		case '?':
 		default:
@@ -203,6 +203,7 @@ build(path, omode)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: mkdir [-p] [-m mode] [-v] directory ...\n");
+
+	(void)fprintf(stderr, "usage: mkdir [-pv] [-m mode] directory ...\n");
 	exit (EX_USAGE);
 }
