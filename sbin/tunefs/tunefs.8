@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm tunefs
-.Nd tune up an existing file system
+.Nd tune up an existing filesystem
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
@@ -55,13 +55,13 @@
 .Ar special | Ar filesystem
 .Sh DESCRIPTION
 .Nm Tunefs
-is designed to change the dynamic parameters of a file system
+is designed to change the dynamic parameters of a filesystem
 which affect the layout policies.
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width indent
 .It Fl A
-The file system has several backups of the super-block.  Specifying
+The filesystem has several backups of the super-block.  Specifying
 this option will cause all backups to be modified as well as the
 primary super-block.  This is potentially dangerous - use with caution.
 .It Fl a Ar maxcontig
@@ -92,7 +92,7 @@ in that cylinder group.
 The effect of this limit is to cause big files to do long seeks
 more frequently than if they were allowed to allocate all the blocks
 in a cylinder group before seeking elsewhere.
-For file systems with exclusively large files,
+For filesystems with exclusively large files,
 this parameter should be set higher.
 .It Fl f Ar avgfilezsize
 Specify the expected average file size.
@@ -121,16 +121,16 @@ been deleted to get under the higher threshold.
 Turn on/off soft updates.
 An unmounted filesystem is required.
 .It Fl o Ar space | time
-The file system can either try to minimize the time spent
+The filesystem can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
 fragmentation on the disk.
 Optimization for space has much
 higher overhead for file writes.
 The kernel normally changes the preference automatically as
-the percent fragmentation changes on the file system.
+the percent fragmentation changes on the filesystem.
 .It Fl p
 Show a summary of what the current tunable settings
-are on the selected file system.  More detailed information can be
+are on the selected filesystem.  More detailed information can be
 obtained in the
 .Xr dumpfs 8
 manual page.
@@ -139,6 +139,12 @@ Specify the expected number of files per directory.
 .El
 .Pp
 At least one of the above flags is required.
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+read this to determine the device file for a
+specified mount point.
+.El
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr dumpfs 8 ,
@@ -156,16 +162,16 @@ At least one of the above flags is required.
 .%O "(reprinted in the BSD System Manager's Manual, SMM:5)"
 .Re
 .Sh BUGS
-This program should work on mounted and active file systems.
+This program should work on mounted and active filesystems.
 Because the super-block is not kept in the buffer cache,
 the changes will only take effect if the program
-is run on dismounted file systems.
-To change the root file system, the system must be rebooted
-after the file system is tuned.
+is run on dismounted filesystems.
+To change the root filesystem, the system must be rebooted
+after the filesystem is tuned.
 .\" Take this out and a Unix Demon will dog your steps from now until
 .\" the time_t's wrap around.
 .Pp
-You can tune a file system, but you can't tune a fish.
+You can tune a filesystem, but you can't tune a fish.
 .Sh HISTORY
 The
 .Nm
