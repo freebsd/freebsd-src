@@ -264,7 +264,6 @@ device		isa
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
 
-options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 options 	AUTO_EOI_1
 
 options 	MAXMEM=(128*1024)
@@ -472,8 +471,8 @@ device		pmc
 hint.pmc.0.at="isa"
 hint.pmc.0.port="0x8f0"
 device		pmtimer			# Adjust system timer at wakeup time
-device		cy	1
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+#device		cy	1
+#options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		digi
 # BIOS & FEP/OS components of device digi.
 device		digi_CX
