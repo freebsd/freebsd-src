@@ -72,7 +72,7 @@
 #include "report.h"
 
 
-static int rtmsg __P((int));
+static int rtmsg(int);
 
 static int s = -1; 	/* routing socket */
 
