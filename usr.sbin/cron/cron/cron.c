@@ -45,12 +45,13 @@ static	void	usage __P((void)),
 		parse_args __P((int c, char *v[]));
 
 static time_t	last_time = 0;
+static int	dst_enabled = 0;
 
 static void
 usage() {
     char **dflags;
 
-	fprintf(stderr, "usage: cron [-x debugflag[,...]]\n");
+	fprintf(stderr, "usage: cron [-s] [-x debugflag[,...]]\n");
 	fprintf(stderr, "\ndebugflags: ");
 
         for(dflags = DebugFlagNames; *dflags; dflags++) {
@@ -186,8 +187,9 @@ cron_tick(db)
 	 * we support only change by +-1 hour happening at :00 minutes,
 	 * those living in more strange timezones are out of luck
 	 */
-	if (last_time != 0 && tm->tm_isdst != lasttm.tm_isdst
-	&& TargetTime > last_time /* exclude stepping back */) {
+	if (dst_enabled && last_time != 0 
+	&& TargetTime > last_time /* exclude stepping back */
+	&& tm->tm_isdst != lasttm.tm_isdst ) {
 		int	prevhr, nexthr, runtime;
 		int	lastmin, lasthour; 
 		int	trandom, tranmonth, trandow;
@@ -432,8 +434,11 @@ parse_args(argc, argv)
 {
 	int	argch;
 
-	while ((argch = getopt(argc, argv, "x:")) != -1) {
+	while ((argch = getopt(argc, argv, "sx:")) != -1) {
 		switch (argch) {
+		case 's':
+			dst_enabled = 1;
+			break;
 		case 'x':
 			if (!set_debug_flags(optarg))
 				usage();
