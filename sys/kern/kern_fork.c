@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.61 1999/04/28 11:36:53 phk Exp $
+ * $Id: kern_fork.c,v 1.62 1999/06/30 15:33:34 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -130,7 +130,7 @@ rfork(p, uap)
 
 	error = fork1(p, uap->flags, &p2);
 	if (error == 0) {
-		p->p_retval[0] = p2->p_pid;
+		p->p_retval[0] = p2 ? p2->p_pid : 0;
 		p->p_retval[1] = 0;
 	}
 	return error;
@@ -196,6 +196,7 @@ fork1(p1, flags, procp)
 				p1->p_fd = newfd;
 			}
 		}
+		*procp = NULL;
 		return (0);
 	}
 
