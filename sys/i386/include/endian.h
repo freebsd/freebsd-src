@@ -60,10 +60,10 @@
 #endif
 
 __BEGIN_DECLS
-unsigned long	htonl __P((unsigned long));
-unsigned short	htons __P((unsigned short));
-unsigned long	ntohl __P((unsigned long));
-unsigned short	ntohs __P((unsigned short));
+unsigned long	htonl(unsigned long);
+unsigned short	htons(unsigned short);
+unsigned long	ntohl(unsigned long);
+unsigned short	ntohs(unsigned short);
 __END_DECLS
 
 #ifdef __GNUC__
@@ -71,7 +71,9 @@ __END_DECLS
 static __inline unsigned long
 __uint16_swap_uint32(unsigned long __x)
 {
+#ifndef	lint
 	__asm ("rorl $16, %1" : "=r" (__x) : "0" (__x));
+#endif
 
 	return __x;
 }
@@ -79,11 +81,13 @@ __uint16_swap_uint32(unsigned long __x)
 static __inline unsigned long
 __uint8_swap_uint32(unsigned long __x)
 {
+#ifndef	lint
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 	__asm ("bswap %0" : "=r" (__x) : "0" (__x));
 #else
 	__asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1"
 	    : "=q" (__x) : "0" (__x));
+#endif
 #endif
 	return __x;
 }
@@ -91,7 +95,9 @@ __uint8_swap_uint32(unsigned long __x)
 static __inline unsigned short
 __uint8_swap_uint16(unsigned short __x)
 {
+#ifndef	lint
 	__asm ("xchgb %h1, %b1" : "=q" (__x) : "0" (__x));
+#endif
 
 	return __x;
 }
