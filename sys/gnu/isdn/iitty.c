@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.5 1995/03/28 07:54:43 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.6 1995/07/21 16:30:37 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,22 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.5 1995/03/28 07:54:43 bde Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.6  1995/07/21  16:30:37  bde
+ * Obtained from:	partly from an ancient patch of mine via 1.1.5
+ *
+ * Temporarily nuke TS_WOPEN.  It was only used for the obscure MDMBUF
+ * flow control option in the kernel and for informational purposes
+ * in `pstat -t'.  The latter worked properly only for ptys.  In
+ * general there may be multiple processes sleeping in open() and
+ * multiple processes that successfully opened the tty by opening it
+ * in O_NONBLOCK mode or during a window when CLOCAL was set.  tty.c
+ * doesn't have enough information to maintain the flag but always
+ * cleared it in ttyopen().
+ *
+ * TS_WOPEN should be restored someday just so that `pstat -t' can
+ * display it (MDMBUF is already fixed).  Fixing it requires counting
+ * of processes sleeping in open() in too many serial drivers.
+ *
  * Revision 1.5  1995/03/28  07:54:43  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed
@@ -132,7 +148,7 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	       (tp->t_state & TS_CARR_ON) == 0)
 	{
 		if (error = ttysleep(tp, (caddr_t) & tp->t_rawq, TTIPRI | PCATCH,
-				     ttopen, 0))
+				     "iidcd", 0))
 			break;
 	}
 	(void) spl0();
