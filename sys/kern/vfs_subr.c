@@ -83,8 +83,8 @@ static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
-static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
-		    int slpflag, int slptimeo, int *errorp);
+static int	flushbuflist(struct bufv *bufv, int flags, struct vnode *vp,
+		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vx_lock(struct vnode *vp);
@@ -917,7 +917,6 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	struct thread *td;
 	int slpflag, slptimeo;
 {
-	struct buf *blist;
 	int error;
 	vm_object_t object;
 	struct bufobj *bo;
@@ -952,27 +951,17 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	 * reacquired in flushbuflist.  Special care is needed to ensure that
 	 * no race conditions occur from this.
 	 */
-	for (error = 0;;) {
-		blist = TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd);
-		if (blist != NULL &&
-		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
-			if (error)
-				break;
-			continue;
+	do {
+		error = flushbuflist(&bo->bo_clean,
+		    flags, vp, slpflag, slptimeo);
+		if (error == 0)
+			error = flushbuflist(&bo->bo_dirty,
+			    flags, vp, slpflag, slptimeo);
+		if (error != EAGAIN) {
+			BO_UNLOCK(bo);
+			return (error);
 		}
-		blist = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
-		if (blist != NULL &&
-		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
-			if (error)
-				break;
-			continue;
-		}
-		break;
-	}
-	if (error) {
-		VI_UNLOCK(vp);
-		return (error);
-	}
+	} while (error != 0);
 
 	/*
 	 * Wait for I/O to complete.  XXX needs cleaning up.  The vnode can
@@ -1017,20 +1006,19 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
  *
  */
 static int
-flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
-	struct buf *blist;
+flushbuflist(bufv, flags, vp, slpflag, slptimeo)
+	struct bufv *bufv;
 	int flags;
 	struct vnode *vp;
 	int slpflag, slptimeo;
-	int *errorp;
 {
 	struct buf *bp, *nbp;
 	int found, error;
 
 	ASSERT_VI_LOCKED(vp, "flushbuflist");
 
-	for (found = 0, bp = blist; bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_bobufs);
+	found = 0;
+	TAILQ_FOREACH_SAFE(bp, &bufv->bv_hd, b_bobufs, nbp) {
 		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
 			continue;
@@ -1040,9 +1028,8 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, VI_MTX(vp),
 		    "flushbuf", slpflag, slptimeo);
 		if (error) {
-			if (error != ENOLCK)
-				*errorp = error;
-			goto done;
+			VI_LOCK(vp);
+			return (error != ENOLCK ? error : EAGAIN);
 		}
 		/*
 		 * XXX Since there are no node locks for NFS, I
@@ -1067,7 +1054,8 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 				bremfree(bp);
 				(void) bwrite(bp);
 			}
-			goto done;
+			VI_LOCK(vp);
+			return (EAGAIN);
 		}
 		bremfree(bp);
 		bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
@@ -1075,10 +1063,7 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 		brelse(bp);
 		VI_LOCK(vp);
 	}
-	return (found);
-done:
-	VI_LOCK(vp);
-	return (found);
+	return (found ? EAGAIN : 0);
 }
 
 /*
