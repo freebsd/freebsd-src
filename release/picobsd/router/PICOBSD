@@ -62,7 +62,8 @@ device		sio3	at isa? disable port IO_COM4 irq 9
 
 # The following Ethernet NICs are all PCI devices.
 #
-device de0	# DEC/Intel DC21x4x (``Tulip'')
+device miibus
+device dc0
 device fxp0	# Intel EtherExpress PRO/100B (82557, 82558)
 
 # Order is important here due to intrusive probes, do *not* alphabetize
