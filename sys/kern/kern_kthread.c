@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/signalvar.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -97,3 +98,42 @@ kthread_exit(int ecode)
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
 
+/*
+ * Advise a kernel process to suspend (or resume) in its main loop.
+ * Participation is voluntary.
+ */
+int
+suspend_kproc(struct proc *p, int timo)
+{
+	/*
+	 * Make sure this is indeed a system process and we can safely
+	 * use the p_siglist field.
+	 */
+	if ((p->p_flag & P_SYSTEM) == 0)
+		return (EINVAL);
+	SIGADDSET(p->p_siglist, SIGSTOP);
+	return tsleep((caddr_t)&p->p_siglist, PPAUSE, "suspkp", timo);
+}
+
+int
+resume_kproc(struct proc *p)
+{
+	/*
+	 * Make sure this is indeed a system process and we can safely
+	 * use the p_siglist field.
+	 */
+	if ((p->p_flag & P_SYSTEM) == 0)
+		return (EINVAL);
+	SIGDELSET(p->p_siglist, SIGSTOP);
+	wakeup((caddr_t)&p->p_siglist);
+	return (0);
+}
+
+void
+kproc_suspend_loop(struct proc *p)
+{
+	while (SIGISMEMBER(p->p_siglist, SIGSTOP)) {
+		wakeup((caddr_t)&p->p_siglist);
+		tsleep((caddr_t)&p->p_siglist, PPAUSE, "kpsusp", 0);
+	}
+}

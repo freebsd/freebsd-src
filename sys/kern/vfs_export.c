@@ -46,20 +46,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
+#include <sys/conf.h>
+#include <sys/dirent.h>
+#include <sys/domain.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/socket.h>
-#include <sys/vnode.h>
 #include <sys/stat.h>
-#include <sys/buf.h>
-#include <sys/domain.h>
-#include <sys/dirent.h>
+#include <sys/sysctl.h>
 #include <sys/vmmeter.h>
-#include <sys/conf.h>
+#include <sys/vnode.h>
 
 #include <machine/limits.h>
 
@@ -72,7 +75,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <vm/vm_zone.h>
-#include <sys/sysctl.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
@@ -975,9 +977,14 @@ sched_sync(void)
 	int s;
 	struct proc *p = updateproc;
 
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, p,
+	    SHUTDOWN_PRI_LAST);   
+
 	p->p_flag |= P_BUFEXHAUST;
 
 	for (;;) {
+		kproc_suspend_loop(p);
+
 		starttime = time_second;
 
 		/*
