@@ -238,6 +238,7 @@ enum objflags {
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
     VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
     VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
+    VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
 };
 
 /* Global configuration information for the vinum subsystem */
