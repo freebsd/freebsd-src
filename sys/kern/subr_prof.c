@@ -90,7 +90,6 @@ kmupetext(uintfptr_t nhighpc)
 	struct gmonparam np;	/* slightly large */
 	struct gmonparam *p = &_gmonparam;
 	char *cp;
-	critical_t savecrit;
 
 	GIANT_REQUIRED;
 	bcopy(p, &np, sizeof(*p));
@@ -127,7 +126,7 @@ kmupetext(uintfptr_t nhighpc)
 	np.mcount_count = &KCOUNT(&np, PC_TO_I(&np, mcount));
 	np.mexitcount_count = &KCOUNT(&np, PC_TO_I(&np, mexitcount));
 #endif
-	savecrit = critical_enter();
+	critical_enter();
 	bcopy(p->tos, np.tos, p->tossize);
 	bzero((char *)np.tos + p->tossize, np.tossize - p->tossize);
 	bcopy(p->kcount, np.kcount, p->kcountsize);
@@ -137,7 +136,7 @@ kmupetext(uintfptr_t nhighpc)
 	bzero((char *)np.froms + p->fromssize, np.fromssize - p->fromssize);
 	cp = (char *)p->tos;
 	bcopy(&np, p, sizeof(*p));
-	critical_exit(savecrit);
+	critical_exit();
 	free(cp, M_GPROF);
 }
 
@@ -156,7 +155,6 @@ kmstartup(dummy)
 	int nullfunc_loop_overhead;
 	int nullfunc_loop_profiled_time;
 	uintfptr_t tmp_addr;
-	critical_t savecrit;
 #endif
 
 	/*
@@ -195,7 +193,7 @@ kmstartup(dummy)
 	 * Disable interrupts to avoid interference while we calibrate
 	 * things.
 	 */
-	savecrit = critical_enter();
+	critical_enter();
 
 	/*
 	 * Determine overheads.
@@ -249,7 +247,7 @@ kmstartup(dummy)
 	p->state = GMON_PROF_OFF;
 	stopguprof(p);
 
-	critical_exit(savecrit);
+	critical_exit();
 
 	nullfunc_loop_profiled_time = 0;
 	for (tmp_addr = (uintfptr_t)nullfunc_loop_profiled;

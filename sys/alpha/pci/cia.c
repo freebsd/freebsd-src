@@ -156,12 +156,12 @@ cia_swiz_set_hae_mem(void *arg, u_int32_t pa)
 		u_int32_t msb = pa & REG1;
 		critical_t s;
 		
-		s = critical_enter();
+		s = cpu_critical_enter();
 		cia_hae_mem = (cia_hae_mem & ~REG1) | msb;
 		REGVAL(CIA_CSR_HAE_MEM) = cia_hae_mem;
 		alpha_mb();
 		cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
-		critical_exit(s);
+		cpu_critical_exit(s);
 	}
 	return pa & ~REG1;
 }
@@ -226,7 +226,7 @@ cia_sgmap_invalidate_pyxis(void)
 	int i;
 	critical_t s;
 
-	s = critical_enter();
+	s = cpu_critical_enter();
 	
 	/*
 	 * Put the Pyxis into PCI loopback mode.
@@ -257,7 +257,7 @@ cia_sgmap_invalidate_pyxis(void)
 	REGVAL(CIA_CSR_CTRL) = ctrl;
 	alpha_mb();
 
-	critical_exit(s);
+	cpu_critical_exit(s);
 }
 
 static void

@@ -92,7 +92,7 @@ t2_pcib_maxslots(device_t dev)
 
 #define T2_TYPE1_SETUP(b,s,old_hae3) if((b)) {			\
         do {							\
-		(s) = critical_enter();				\
+		(s) = cpu_critical_enter();			\
 		(old_hae3) = REGVAL(T2_HAE0_3);			\
 		alpha_mb();					\
 		REGVAL(T2_HAE0_3) = (old_hae3) | (1<<30);	\
@@ -105,7 +105,7 @@ t2_pcib_maxslots(device_t dev)
 		alpha_mb();				\
 		REGVAL(T2_HAE0_3) = (old_hae3);		\
 		alpha_mb();				\
-		critical_exit((s));			\
+		cpu_critical_exit((s));			\
         } while(0);					\
 }
 

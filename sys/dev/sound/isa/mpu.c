@@ -241,7 +241,6 @@ mpu_probe2(device_t dev)
 	sc_p scp;
 	int unit, i;
 	intrmask_t irqp0, irqp1;
-	critical_t savecrit;
 
 	scp = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -267,7 +266,7 @@ mpu_probe2(device_t dev)
 	 * Idea-stolen-from: sys/isa/sio.c:sioprobe()
 	 */
 
-	savecrit = critical_enter();
+	critical_enter();
 
 	/*
 	 * See the initial irq. We have to do this now,
@@ -279,7 +278,7 @@ mpu_probe2(device_t dev)
 
 	/* Switch to uart mode. */
 	if (mpu_uartmode(scp) != 0) {
-		critical_exit(savecrit);
+		critical_exit();
 		printf("mpu%d: mode switching failed.\n", unit);
 		mpu_releaseres(scp, dev);
 		return (ENXIO);
@@ -298,7 +297,7 @@ mpu_probe2(device_t dev)
 			break;
 	}
 	if (irqp1 == irqp0) {
-		critical_exit(savecrit);
+		critical_exit();
 		printf("mpu%d: switching the mode gave no interrupt.\n", unit);
 		mpu_releaseres(scp, dev);
 		return (ENXIO);
@@ -307,13 +306,13 @@ mpu_probe2(device_t dev)
 no_irq:
 	/* Wait to see an ACK. */
 	if (mpu_waitack(scp) != 0) {
-		critical_exit(savecrit);
+		critical_exit();
 		printf("mpu%d: not acked.\n", unit);
 		mpu_releaseres(scp, dev);
 		return (ENXIO);
 	}
 
-	critical_exit(savecrit);
+	critical_exit();
 
 	if (device_get_flags(dev) & MPU_DF_NO_IRQ)
 		scp->irq_val = 0;

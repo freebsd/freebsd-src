@@ -646,7 +646,7 @@ enable_K5_wt_alloc(void)
 	 * a stepping of 4 or greater.
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
-		savecrit = critical_enter();
+		savecrit = cpu_critical_enter();
 		msr = rdmsr(0x83);		/* HWCR */
 		wrmsr(0x83, msr & !(0x10));
 
@@ -678,7 +678,7 @@ enable_K5_wt_alloc(void)
 		msr=rdmsr(0x83);
 		wrmsr(0x83, msr|0x10); /* enable write allocate */
 
-		critical_exit(savecrit);
+		cpu_critical_exit(savecrit);
 	}
 }
 

@@ -124,11 +124,11 @@ perfmon_setup(int pmc, unsigned int control)
 
 	perfmon_inuse |= (1 << pmc);
 	control &= ~(PMCF_SYS_FLAGS << 16);
-	savecrit = critical_enter();
+	savecrit = cpu_critical_enter();
 	ctl_shadow[pmc] = control;
 	writectl(pmc);
 	wrmsr(msr_pmc[pmc], pmc_shadow[pmc] = 0);
-	critical_exit(savecrit);
+	cpu_critical_exit(savecrit);
 	return 0;
 }
 
@@ -169,11 +169,11 @@ perfmon_start(int pmc)
 		return EINVAL;
 
 	if (perfmon_inuse & (1 << pmc)) {
-		savecrit = critical_enter();
+		savecrit = cpu_critical_enter();
 		ctl_shadow[pmc] |= (PMCF_EN << 16);
 		wrmsr(msr_pmc[pmc], pmc_shadow[pmc]);
 		writectl(pmc);
-		critical_exit(savecrit);
+		cpu_critical_exit(savecrit);
 		return 0;
 	}
 	return EBUSY;
@@ -188,11 +188,11 @@ perfmon_stop(int pmc)
 		return EINVAL;
 
 	if (perfmon_inuse & (1 << pmc)) {
-		savecrit = critical_enter();
+		savecrit = cpu_critical_enter();
 		pmc_shadow[pmc] = rdmsr(msr_pmc[pmc]) & 0xffffffffffULL;
 		ctl_shadow[pmc] &= ~(PMCF_EN << 16);
 		writectl(pmc);
-		critical_exit(savecrit);
+		cpu_critical_exit(savecrit);
 		return 0;
 	}
 	return EBUSY;

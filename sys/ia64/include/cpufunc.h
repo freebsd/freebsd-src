@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <machine/ia64_cpu.h>
 
+#define	CRITICAL_FORK	(ia64_get_psr() |= IA64_PSR_I)
+
 #ifdef __GNUC__
 
 static __inline void
@@ -283,7 +285,7 @@ enable_intr(void)
 }
 
 static __inline critical_t
-critical_enter(void)
+cpu_critical_enter(void)
 {
 	critical_t psr;
 
@@ -293,7 +295,7 @@ critical_enter(void)
 }
 
 static __inline void
-critical_exit(critical_t psr)
+cpu_critical_exit(critical_t psr)
 {
 	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r" (psr));
 }

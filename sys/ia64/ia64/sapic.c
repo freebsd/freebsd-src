@@ -82,10 +82,10 @@ sapic_read_rte(struct sapic *sa, int which,
 {
 	u_int32_t *p = (u_int32_t *) rte;
 	critical_t c;
-	c = critical_enter();
+	c = cpu_critical_enter();
 	p[0] = sapic_read(sa, SAPIC_RTE_BASE + 2*which);
 	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2*which + 1);
-	critical_exit(c);
+	cpu_critical_exit(c);
 }
 
 #endif
@@ -96,10 +96,10 @@ sapic_write_rte(struct sapic *sa, int which,
 {
 	u_int32_t *p = (u_int32_t *) rte;
 	critical_t c;
-	c = critical_enter();
+	c = cpu_critical_enter();
 	sapic_write(sa, SAPIC_RTE_BASE + 2*which, p[0]);
 	sapic_write(sa, SAPIC_RTE_BASE + 2*which + 1, p[1]);
-	critical_exit(c);
+	cpu_critical_exit(c);
 }
 
 struct sapic *

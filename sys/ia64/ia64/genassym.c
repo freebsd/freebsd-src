@@ -71,7 +71,6 @@ ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(MTX_LOCK,		offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE,	offsetof(struct mtx, mtx_recurse));
-ASSYM(MTX_SAVECRIT,	offsetof(struct mtx, mtx_savecrit));
 ASSYM(MTX_UNOWNED,	MTX_UNOWNED);
 
 ASSYM(TD_PROC,		offsetof(struct thread, td_proc));

@@ -275,6 +275,8 @@ struct thread {
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* Kernel VA of kstack. */
+	u_int		td_critnest;	/* (k) Critical section nest level. */
+	critical_t	td_savecrit;	/* (k) Saved critical section state. */
 };
 
 /*

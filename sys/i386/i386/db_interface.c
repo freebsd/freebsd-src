@@ -324,10 +324,10 @@ Debugger(msg)
 	    return;
 
 	if (atomic_cmpset_acq_int(&in_Debugger, 0, 1)) {
-	    savecrit = critical_enter();
+	    savecrit = cpu_critical_enter();
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
-	    critical_exit(savecrit);
+	    cpu_critical_exit(savecrit);
 	    atomic_store_rel_int(&in_Debugger, 0);
 	}
 }

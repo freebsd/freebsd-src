@@ -270,13 +270,13 @@ trap(a0, a1, a2, entry, framep)
 	 * Find our per-cpu globals.
 	 */
 #ifdef SMP
-	s = critical_enter();
+	s = cpu_critical_enter();
 #endif
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;
-	critical_exit(s);
+	cpu_critical_exit(s);
 #endif
 	p = td->td_proc;
 
@@ -672,13 +672,13 @@ syscall(code, framep)
 	 * Find our per-cpu globals.
 	 */
 #ifdef SMP
-	s = critical_enter();
+	s = cpu_critical_enter();
 #endif
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;
-	critical_exit(s);
+	cpu_critical_exit(s);
 #endif
 	p = td->td_proc;
 
