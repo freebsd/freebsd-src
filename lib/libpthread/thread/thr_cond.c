@@ -285,7 +285,6 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		if (interrupted != 0) {
 			if (_thread_run->continuation != NULL)
 				_thread_run->continuation((void *) _thread_run);
-			rval = EINTR;
 		}
 
 		_thread_leave_cancellation_point();
@@ -455,7 +454,6 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		if (interrupted != 0) {
 			if (_thread_run->continuation != NULL)
 				_thread_run->continuation((void *) _thread_run);
-			rval = EINTR;
 		}
 
 		_thread_leave_cancellation_point();
@@ -489,9 +487,18 @@ pthread_cond_signal(pthread_cond_t * cond)
 		switch ((*cond)->c_type) {
 		/* Fast condition variable: */
 		case COND_TYPE_FAST:
-			if ((pthread = cond_queue_deq(*cond)) != NULL)
-				/* Allow the thread to run: */
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+			if ((pthread = cond_queue_deq(*cond)) != NULL) {
+				/*
+				 * Unless the thread is currently suspended,
+				 * allow it to run.  If the thread is suspended,
+				 * make a note that the thread isn't in a wait
+				 * queue any more.
+				 */
+				if (pthread->state != PS_SUSPENDED)
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				else
+					pthread->suspended = SUSP_NOWAIT;
+			}
 
 			/* Check for no more waiters: */
 			if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
@@ -546,7 +553,16 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 			 * condition queue:
 			 */
 			while ((pthread = cond_queue_deq(*cond)) != NULL) {
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				/*
+				 * Unless the thread is currently suspended,
+				 * allow it to run.  If the thread is suspended,
+				 * make a note that the thread isn't in a wait
+				 * queue any more.
+				 */
+				if (pthread->state != PS_SUSPENDED)
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				else
+					pthread->suspended = SUSP_NOWAIT;
 			}
 
 			/* There are no more waiting threads: */
