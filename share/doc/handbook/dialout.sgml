@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialout Services.
-     $Id$
+     $Id: dialout.sgml,v 1.1 1996/11/28 18:09:25 jfieber Exp $
 
      The FreeBSD Documentation Project
 
@@ -24,7 +24,7 @@
 
 The following are tips to getting your host to be able to connect over the modem to another computer.  This is appropriate for establishing a terminal session with a remote host.  
 <p>This is useful to log onto a BBS.
-<p>This kind of connection can be extremely helpful to get a file on the internet if you have problems with PPP.  If you need to ftp something and PPP is broken, use the terminal session to ftp it.  Then use zmodem to transfer it to your machine. 
+<p>This kind of connection can be extremely helpful to get a file on the Internet if you have problems with PPP.  If you need to ftp something and PPP is broken, use the terminal session to ftp it.  Then use zmodem to transfer it to your machine. 
 <sect1>
 	<heading>Why cannot I run <tt/tip/ or <tt/cu/?</heading>
         <p>
@@ -71,7 +71,7 @@ The following are tips to getting your host to be able to connect over the modem
         <heading>How am I expected to enter these AT commands?<label id="direct-at"></heading>
         <p>
           Make what is called a ``<tt/direct/'' entry in your
-          <tt>/etc/remote</tt> file.  For example, if your modem's hooked
+          <tt>/etc/remote</tt> file.  For example, if your modem is hooked
           up to the first serial port, <tt>/dev/cuaa0</tt>, then put in the
           following line:
           <verb>
