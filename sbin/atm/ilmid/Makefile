@@ -26,7 +26,12 @@
 PROG=	ilmid
 MAN=	ilmid.8
 
+.if ${MACHINE_ARCH} == "arm"
+WARNS?= 3
+.else
 WARNS?=	6
+.endif
+
 CFLAGS+= -I${.CURDIR}/../../../sys
 
 DPADD=	${LIBATM}

@@ -3,7 +3,11 @@
 LIB=	archive
 SHLIB_MAJOR=	1
 
+.if ${MACHINE_ARCH} == "arm"
+WARNS?= 3 
+.else
 WARNS?=	6
+.endif
 
 # I'm not yet ready for a shared version of this library, as
 # there are a couple of API changes still in the works.
