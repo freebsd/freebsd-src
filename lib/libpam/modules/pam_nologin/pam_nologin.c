@@ -47,9 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -60,23 +57,19 @@ __FBSDID("$FreeBSD$");
 static char nologin_def[] = NOLOGIN;
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
 	login_cap_t *lc;
-	struct options options;
 	struct passwd *pwd;
 	struct stat st;
 	int retval, fd;
 	const char *user, *nologin;
 	char *mtmp;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	PAM_LOG("Got user: %s", user);
 
@@ -87,7 +80,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	fd = open(nologin, O_RDONLY, 0);
 	if (fd < 0)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	PAM_LOG("Opened %s file", NOLOGIN);
 
@@ -100,9 +93,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		else
 			retval = PAM_AUTH_ERR;
 	}
-	
+
 	if (fstat(fd, &st) < 0)
-		PAM_RETURN(retval);
+		return (retval);
 
 	mtmp = malloc(st.st_size + 1);
 	if (mtmp != NULL) {
@@ -111,71 +104,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		pam_error(pamh, "%s", mtmp, NULL);
 		free(mtmp);
 	}
-	
+
 	if (retval != PAM_SUCCESS)
 		PAM_VERBOSE_ERROR("Administrator refusing you: %s", NOLOGIN);
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_nologin");

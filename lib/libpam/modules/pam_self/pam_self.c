@@ -44,112 +44,46 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum {
-	PAM_OPT_ALLOW_ROOT	= PAM_OPT_STD_MAX,
-};
-
-static struct opttab other_options[] = {
-	{ "allow_root",		PAM_OPT_ALLOW_ROOT },
-	{ NULL, 0 }
-};
+#define OPT_ALLOW_ROOT "allow_root"
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	struct passwd *pwd;
 	const char *luser;
 	int pam_err;
 	uid_t uid;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	pam_err = pam_get_user(pamh, &luser, NULL);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 	if (luser == NULL || (pwd = getpwnam(luser)) == NULL)
-		PAM_RETURN(PAM_AUTH_ERR);
+		return (PAM_AUTH_ERR);
 
 	uid = getuid();
-	if (uid == 0 && !pam_test_option(&options, PAM_OPT_ALLOW_ROOT, NULL))
-		PAM_RETURN(PAM_AUTH_ERR);
-	
+	if (uid == 0 && !openpam_get_option(pamh, OPT_ALLOW_ROOT))
+		return (PAM_AUTH_ERR);
+
 	if (uid == (uid_t)pwd->pw_uid)
-		PAM_RETURN(PAM_SUCCESS);
-	
+		return (PAM_SUCCESS);
+
 	PAM_VERBOSE_ERROR("Refused; source and target users differ");
 
-	PAM_RETURN(PAM_AUTH_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_self");
