@@ -920,7 +920,8 @@ pointer:
 
 asterisk:
 	  T_MULT {
-		$$ = xcalloc(1, sizeof (pqinf_t));
+		if (($$ = calloc(1, sizeof (pqinf_t))) == NULL)
+			nomem();
 		$$->p_pcnt = 1;
 	  }
 	;
@@ -936,7 +937,8 @@ type_qualifier_list:
 
 type_qualifier:
 	  T_QUAL {
-		$$ = xcalloc(1, sizeof (pqinf_t));
+		if (($$ = calloc(1, sizeof (pqinf_t))) == NULL)
+			nomem();
 		if ($1 == CONST) {
 			$$->p_const = 1;
 		} else {

@@ -163,7 +163,8 @@ initdecl()
 	};
 
 	/* declaration stack */
-	dcs = xcalloc(1, sizeof (dinfo_t));
+	if ((dcs = calloc(1, sizeof (dinfo_t))) == NULL)
+		nomem();
 	dcs->d_ctx = EXTERN;
 	dcs->d_ldlsym = &dcs->d_dlsyms;
 
@@ -176,7 +177,8 @@ initdecl()
 	}
 	
 	/* shared type structures */
-	typetab = xcalloc(NTSPEC, sizeof (type_t));
+	if ((typetab = calloc(NTSPEC, sizeof (type_t))) == NULL)
+		nomem();
 	for (i = 0; i < NTSPEC; i++)
 		typetab[i].t_tspec = NOTSPEC;
 	typetab[CHAR].t_tspec = CHAR;
@@ -557,7 +559,8 @@ pushdecl(sc)
 		(void)printf("pushdecl(%d)\n", (int)sc);
 
 	/* put a new element on the declaration stack */
-	di = xcalloc(1, sizeof (dinfo_t));
+	if ((di = calloc(1, sizeof (dinfo_t))) == NULL)
+		nomem();
 	di->d_nxt = dcs;
 	dcs = di;
 	di->d_ctx = sc;
