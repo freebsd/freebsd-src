@@ -1076,10 +1076,12 @@ Use Alternate Value.  If parameter is unset
 or null, null is substituted;
 otherwise, the expansion of word is
 substituted.
+.El
 .Pp
 In the parameter expansions shown previously, use of the colon in the
 format results in a test for a parameter that is unset or null; omission
 of the colon results in a test for a parameter that is only unset.
+.Bl -tag -width indent
 .It Li ${#parameter}
 String Length.  The length in characters of
 the value of parameter.
