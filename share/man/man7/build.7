@@ -94,10 +94,6 @@ Rebuild the kernel and the kernel modules.
 Install the kernel and the kernel modules.
 .It Cm reinstallkernel
 Reinstall the kernel and the kernel modules.
-.It Cm most
-Build user commands, no libraries or include files.
-.It Cm installmost
-Install user commands, no libraries or include files.
 .El
 .Pp
 For more information about the ports build process, see
@@ -146,7 +142,7 @@ method of updating your system from the latest sources is:
 make buildworld
 make buildkernel KERNCONF=FOO
 make installkernel KERNCONF=FOO
-<Reboot in single user mode>
+<Reboot the new kernel in single user mode>
 make installworld
 mergemaster
 .Ed
@@ -174,6 +170,11 @@ otherwise many programs which have been rebuilt
 .Xr top 1 ,
 etc.\&)
 may not work with the old kernel which is still running.
+While not strictly necessary much of the time for upgrades from very
+recent sources, the reboot into single user mode is critically
+important for upgrading from older kernels, or when you know
+.Dq weird things 
+have happened with the kernel.
 .Pp
 The following sequence of commands can be used to cross-build the
 system for the Alpha architecture on an i386 host:
