@@ -36,7 +36,7 @@
 .\"	from: NetBSD: eeprom.8,v 1.11 2003/03/31 01:31:39 perry Exp
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2004
+.Dd August 15, 2004
 .Dt EEPROM 8 sparc64
 .Os
 .Sh NAME
@@ -254,13 +254,20 @@ Default:
 .It Va local-mac-address?
 If set to
 .Dq Li false ,
-all Ethernet devices will use the system default MAC address.
+all Ethernet devices with FCode will use the system default MAC address.
 If set to
 .Dq Li true ,
-Ethernet devices which have a unique MAC address will use it rather
-than the system's default MAC address.
+Ethernet devices with FCode that contains an unique MAC address will use it
+rather than the system's default MAC address.
 Default:
 .Dq Li false .
+.Pp
+Ethernet devices with FCode include those supported by
+.Xr dc 4 ,
+.Xr gem 4
+and
+.Xr hme 4 .
+Please see the respective manual page for further information.
 .It Va mfg-mode
 Manufacture test mode interpreted by the POST.
 Possible values are
@@ -649,9 +656,25 @@ New password:
 Retype new password:
 .Ed
 .Sh SEE ALSO
+.Xr dc 4 ,
+.Xr gem 4 ,
+.Xr hme 4 ,
 .Xr ofwdump 8
 .Sh HISTORY
 The
+.Nm
+utility first appeared in
+.Bx 4.4 .
+It was adopted from there by
+.Fx 2.0 .
+The
+.Nm
+utility was removed from
+.Fx
+again after
+.Fx 2.1.7
+because the utility was unused at that time.
+The present implementation of the
 .Nm
 utility first appeared in
 .Fx 5.3 .
@@ -661,6 +684,22 @@ It is inspired by the
 and SunOS/Solaris
 .Xr eeprom 1M
 utilities.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility uses base code from the
+.Nx
+version written by
+.An "Jason R. Thorpe" .
+The handlers for the Open Firmware
+.Pa /options
+node were written by
+.An "Marius Strobl" Aq marius@FreeBSD.org .
+The code for accessing the Open Firmware device tree is shared with the
+.Xr ofwdump 8
+utility written by
+.An "Thomas Moestl" Aq tmm@FreeBSD.org .
 .Sh BUGS
 Currently,
 .Nm
