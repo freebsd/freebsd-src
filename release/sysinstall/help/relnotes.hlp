@@ -333,6 +333,11 @@ Version 2, have been added to the POSIX threads library, libc_r.
 System files are now owned by user `root', group `wheel'.  UID 0 is far
 more protected than `bin'.  Especially over NFS.
 
+/bin/sh signal and trap handling reworked. Among other things, this
+makes tty-mode emacs work when called from system(2), i.e. by a mail
+agent. Several syntax bugs have been fixed.
+[MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
+
 
 2. Supported Configurations
 ---------------------------
