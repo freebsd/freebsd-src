@@ -193,17 +193,6 @@ static struct fd_type fd_types[NUMTYPES] =
 #endif
 };
 
-#ifdef PC98	/* XXX Should be used PC/AT also */
-#ifdef DEVFS
-static int fd_typesizes[NUMDENS] = {
-	1720, 1480, 1440, 1200, 820, 800, 720, 360,
-#ifdef PC98
-	 640, 1232, 1280, 1476,
-#endif
-};
-#endif /* DEVFS */
-#endif
-
 #ifdef PC98
 #define DRVS_PER_CTLR 4		/* 4 floppies */
 #else
@@ -751,12 +740,19 @@ static int pc98_fd_check_ready(fdu_t fdu)
 }
 #endif
 
+/*
+ * fdc controller section.
+ */
 static int
 fdc_probe(device_t dev)
 {
 	int	error, i, ic_type;
 	struct	fdc_data *fdc;
 	char	myname[8];	/* better be long enough */
+
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
@@ -896,12 +892,13 @@ fdc_add_device(device_t dev, const char *name, int unit)
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT);
 	if (ivar == 0)
 		return;
-	if (resource_int_value(name, unit, "drive", ivar) == 0)
+	if (resource_int_value(name, unit, "drive", ivar) != 0)
 		*ivar = 0;
 	child = device_add_child(dev, name, unit, ivar);
 	if (child == 0)
 		return;
-	if (resource_int_value(name, unit, "disabled", &disabled) == 0)
+	if (resource_int_value(name, unit, "disabled", &disabled) == 0
+	    && disabled != 0)
 		device_disable(child);
 }
 
@@ -955,6 +952,34 @@ fdc_print_child(device_t me, device_t child)
 	return (retval);
 }
 
+static device_method_t fdc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fdc_probe),
+	DEVMETHOD(device_attach,	fdc_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	fdc_print_child),
+	/* Our children never use any other bus interface methods. */
+
+	{ 0, 0 }
+};
+
+static driver_t fdc_driver = {
+	"fdc",
+	fdc_methods,
+	sizeof(struct fdc_data)
+};
+
+DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+
+/******************************************************************/
+/*
+ * devices attached to the controller section.  
+ */
 static int
 fd_probe(device_t dev)
 {
@@ -1016,6 +1041,7 @@ fd_probe(device_t dev)
 		break;
 	}
 #else
+#ifdef __i386__
 	/* look up what bios thinks we have */
 	switch (fd->fdu) {
 	case 0:
@@ -1031,6 +1057,9 @@ fd_probe(device_t dev)
 		fdt = RTCFDT_NONE;
 		break;
 	}
+#else
+	fdt = RTCFDT_144M;	/* XXX probably */
+#endif
 #endif
 
 	/* is there a unit? */
@@ -1178,79 +1207,20 @@ fd_attach(device_t dev)
 	struct	fd_data *fd;
 #if 0
 	int	i;
-	int     mynor;
-	int     typemynor;
-	int     typesize;
+	int	mynor;
+	int	typemynor;
+	int	typesize;
 #endif
 
 	fd = device_get_softc(dev);
 
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
 		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
-#if 0 /* DEVFS */
-	for (i = 1; i < 1 + NUMDENS; i++) {
-		/*
-		 * XXX this and the lookup in Fdopen() should be
-		 * data driven.
-		 */
-#ifdef PC98
-		/* XXX any types are OK for PC-98 */
-#else
-		switch (fd->type) {
-		case FD_360:
-			if (i != FD_360)
-				continue;
-			break;
-		case FD_720:
-			if (i != FD_720 && i != FD_800 && i != FD_820)
-				continue;
-			break;
-		case FD_1200:
-			if (i != FD_360 && i != FD_720 && i != FD_800
-			    && i != FD_820 && i != FD_1200
-			    && i != FD_1440 && i != FD_1480)
-				continue;
-			break;
-		case FD_1440:
-			if (i != FD_720 && i != FD_800 && i != FD_820
-			    && i != FD_1200 && i != FD_1440
-			    && i != FD_1480 && i != FD_1720)
-				continue;
-			break;
-		}
-#endif
-#ifdef PC98
-		typesize = fd_typesizes[i - 1];
-#else
-		typesize = fd_types[i - 1].size / 2;
-		/*
-		 * XXX all these conversions give bloated code and
-		 * confusing names.
-		 */
-		if (typesize == 1476)
-			typesize = 1480;
-		if (typesize == 1722)
-			typesize = 1720;
-#endif
-		typemynor = mynor | i;
-		fd->bdevs[i] =
-			devfs_add_devswf(&fd_cdevsw, typemynor, DV_BLK,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "fd%d.%d", fd->fdu, typesize);
-		fd->cdevs[i] =
-			devfs_add_devswf(&fd_cdevsw, typemynor, DV_CHR,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "rfd%d.%d", fd->fdu, typesize);
-	}
 
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-						"fd%d%c", fd->fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] =
-			devfs_makelink(fd->cdevs[0],
-				   "rfd%d%c", fd->fdu, 'a' + i);
-	}
-#endif /* DEVFS */
+#if 0
+	/* Other make_dev() go here. */
+#endif
+
 	/*
 	 * Export the drive to the devstat interface.
 	 */
@@ -1260,6 +1230,28 @@ fd_attach(device_t dev)
 			  DEVSTAT_PRIORITY_FD);
 	return (0);
 }
+
+static device_method_t fd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fd_probe),
+	DEVMETHOD(device_attach,	fd_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
+	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
+
+	{ 0, 0 }
+};
+
+static driver_t fd_driver = {
+	"fd",
+	fd_methods,
+	sizeof(struct fd_data)
+};
+
+DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fd_cdevsw, 0, 0);
+
+/******************************************************************/
 
 #ifdef FDC_YE
 /*
@@ -1274,11 +1266,6 @@ static int yeattach(struct isa_device *dev)
 	fdu_t   fdu;
 	fd_p    fd;
 	int     st0, st3, i;
-#ifdef DEVFS
-	int     mynor;
-	int     typemynor;
-	int     typesize;
-#endif
 	fdc->fdcu = fdcu;
 	/*
 	 * the FDC_PCMCIA flag is used to to indicate special PIO is used
@@ -1354,41 +1341,6 @@ static int yeattach(struct isa_device *dev)
 	printf("fdc%d: 1.44MB 3.5in PCMCIA\n", fdcu);
 	fd->type = FD_1440;
 
-#ifdef DEVFS
-	mynor = fdcu << 6;
-	fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"fd%d", fdu);
-	fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
-		UID_ROOT, GID_OPERATOR, 0640,
-		"rfd%d", fdu);
-	/*
-	 * XXX this and the lookup in Fdopen() should be
-	 * data driven.
-	 */
-	typemynor = mynor | FD_1440;
-	typesize = fd_types[FD_1440 - 1].size / 2;
-	/*
-	 * XXX all these conversions give bloated code and
-	 * confusing names.
-	 */
-	if (typesize == 1476)
-		typesize = 1480;
-	if (typesize == 1722)
-		typesize = 1720;
-	fd->bdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_BLK, UID_ROOT, GID_OPERATOR,
-		0640, "fd%d.%d", fdu, typesize);
-	fd->cdevs[FD_1440] = devfs_add_devswf(&fd_cdevsw, typemynor,
-		DV_CHR, UID_ROOT, GID_OPERATOR,
-		0640,"rfd%d.%d", fdu, typesize);
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
-			"fd%d%c", fdu, 'a' + i);
-		fd->cdevs[1 + NUMDENS + i] = devfs_makelink(fd->cdevs[0],
-			"rfd%d%c", fdu, 'a' + i);
-	}
-#endif /* DEVFS */
 	return (1);
 }
 #endif
@@ -2739,50 +2691,6 @@ fdioctl(dev, cmd, addr, flag, p)
 	}
 	return (error);
 }
-
-static device_method_t fdc_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		fdc_probe),
-	DEVMETHOD(device_attach,	fdc_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	fdc_print_child),
-	/* Our children never use any other bus interface methods. */
-
-	{ 0, 0 }
-};
-
-static driver_t fdc_driver = {
-	"fdc",
-	fdc_methods,
-	sizeof(struct fdc_data)
-};
-
-DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
-
-static device_method_t fd_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		fd_probe),
-	DEVMETHOD(device_attach,	fd_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend), /* XXX */
-	DEVMETHOD(device_resume,	bus_generic_resume), /* XXX */
-
-	{ 0, 0 }
-};
-
-static driver_t fd_driver = {
-	"fd",
-	fd_methods,
-	sizeof(struct fd_data)
-};
-
-DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fd_cdevsw, 0, 0);
 
 #endif /* NFDC > 0 */
 
