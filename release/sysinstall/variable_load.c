@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.4 1997/05/16 20:40:00 pst Exp $
+ * $Id: variable_load.c,v 1.5 1997/05/22 22:11:17 pst Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -83,6 +83,8 @@ variableLoad(dialogMenuItem * self)
 
     msgNotify("Loading %s pre-configuration file", cp);
 
+    /* Hint to others that we're running from a script, should they care */
+    variable_set2(VAR_NONINTERACTIVE, "YES");
     while (fgets(buf, sizeof buf, fp)) {
 	if ((cp = strchr(buf, '\n')) != NULL)
 	    *cp = '\0';
@@ -102,5 +104,6 @@ terminate_file:
 terminate_device:
     mediaClose();
 
+    variable_unset(VAR_NONINTERACTIVE);
     return what;
 }
