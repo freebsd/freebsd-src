@@ -202,8 +202,8 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
 
 	/* Calculate routing info length based on arp table entry */
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
-		if (sdl->sdl_rcf != NULL)
-			rif_len = TR_RCF_RIFLEN(sdl->sdl_rcf);
+		if (SDL_ISO88025(sdl)->trld_rcf != NULL)
+			rif_len = TR_RCF_RIFLEN(SDL_ISO88025(sdl)->trld_rcf);
 
 	/* Generate a generic 802.5 header for the packet */
 	gen_th.ac = TR_AC;
