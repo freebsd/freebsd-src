@@ -18,33 +18,22 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.4 1997/08/07 03:52:54 dyson Exp $
+ * $Id: vm_zone.c,v 1.5 1997/08/18 03:29:21 fsmp Exp $
  */
 
 #include <sys/param.h>
-#include <sys/uio.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/vmmeter.h>
-#include <sys/lock.h>
 #include <sys/sysctl.h>
-
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
-#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
-#include <vm/vm_pageout.h>
 
 /*
  * This file comprises a very simple zone allocator.  This is used

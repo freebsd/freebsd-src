@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.27 1997/02/22 09:48:35 peter Exp $
+ * $Id: vm_pager.c,v 1.28 1997/08/25 22:15:28 bde Exp $
  */
 
 /*
@@ -71,8 +71,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
 
@@ -81,7 +79,6 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 

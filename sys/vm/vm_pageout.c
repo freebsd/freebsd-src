@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.96 1997/02/27 15:38:41 bde Exp $
+ * $Id: vm_pageout.c,v 1.97 1997/07/27 04:49:19 dyson Exp $
  */
 
 /*
@@ -77,8 +77,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -92,7 +90,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
