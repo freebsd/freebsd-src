@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.82 1998/10/10 09:38:02 kato Exp $
+ *	$Id: mp_machdep.c,v 1.83 1998/10/10 13:37:16 kato Exp $
  */
 
 #include "opt_smp.h"
@@ -2183,12 +2183,12 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
 	   &forward_irq_enabled, 0, "");
 
 /* Enable forwarding of a signal to a process running on a different CPU */
-int forward_signal_enabled = 1;
+static int forward_signal_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
 	   &forward_signal_enabled, 0, "");
 
 /* Enable forwarding of roundrobin to all other cpus */
-int forward_roundrobin_enabled = 1;
+static int forward_roundrobin_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 	   &forward_roundrobin_enabled, 0, "");
 
