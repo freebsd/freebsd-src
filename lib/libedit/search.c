@@ -464,8 +464,7 @@ cv_search(el, dir)
 	    (void)strncpy(tmpbuf, el->el_search.patbuf, sizeof(tmpbuf) - 1);
 	    el->el_search.patbuf[0] = '.';
 	    el->el_search.patbuf[1] = '*';
-	    (void)strncpy(&el->el_search.patbuf[2], tmpbuf,
-			   sizeof(el->el_search.patbuf) - 3);
+	    (void)strncpy(&el->el_search.patbuf[2], tmpbuf, EL_BUFSIZ - 3);
 	    el->el_search.patlen++;
 	    el->el_search.patbuf[el->el_search.patlen++] = '.';
 	    el->el_search.patbuf[el->el_search.patlen++] = '*';
@@ -479,8 +478,7 @@ cv_search(el, dir)
 	tmpbuf[tmplen++] = '*';
 #endif
 	tmpbuf[tmplen] = '\0';
-	(void)strncpy(el->el_search.patbuf, tmpbuf,
-		       sizeof(el->el_search.patbuf) - 1);
+	(void)strncpy(el->el_search.patbuf, tmpbuf, EL_BUFSIZ - 1);
 	el->el_search.patlen = tmplen;
     }
     el->el_state.lastcmd = (el_action_t) dir; /* avoid c_setpat */
