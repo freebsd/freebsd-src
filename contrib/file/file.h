@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.43 2002/07/03 18:57:52 christos Exp $
+ * @(#)$Id: file.h,v 1.45 2003/02/08 18:33:53 christos Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -43,6 +43,8 @@
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
+#elif defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
 #endif
 /* Do this here and now, because struct stat gets re-defined on solaris */
 #include <sys/stat.h>
@@ -59,6 +61,10 @@
 
 #define CHECK	1
 #define COMPILE	2
+
+#ifndef __GNUC__
+#define __attribute__(a)
+#endif
 
 struct magic {
 	uint16_t cont_level;	/* level of ">" */

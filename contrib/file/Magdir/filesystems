@@ -25,32 +25,107 @@
 >512    belong&077777777	0600407	\b, boot block present
 0x1FE	leshort	0xAA55			x86 boot sector
 >2	string	OSBS			\b, OS/BS MBR
-# J\xf6rg Jenderek <joerg@pcialias.localnet>
+# J\xf6rg Jenderek <joerg.jenderek@gmx.net>
 >0x8C	string	Invalid\ partition\ table	\b, MS-DOS MBR
 >0x9D	string	Invalid\ partition\ table	\b, DR-DOS MBR, version 7.01 to 7.03
 >0x10F	string	Ung\201ltige\ Partitionstabelle	\b, MS-DOS MBR, german version 4.10.1998, 4.10.2222
 >0x8B	string	Ung\201ltige\ Partitionstabelle	\b, MS-DOS MBR, german version 5.00 to 4.00.950
 >0x145	string	Default:\ F			\b, FREE-DOS MBR
 >0	string	\0\0\0\0		\b, extended partition table
->0	leshort 0x3CEB			\b, system
->>3	string	>\0			%s
->>0x36	string	FAT			\b, %s
->>>0x39	string	12			(%s bit)
->>>0x39	string	16			(%s bit)
->0x52	string	FAT32			\b, FAT (32 bit)
->>>43	string		>NO\ NAME	label: %.11s,
->>>43	string		<NO\ NAME	label: %.11s,
->>>43	string		NO\ NAME	unlabeled,
->>>19	leshort		>0		%d sectors
->>>19	leshort		0		
->>>>32	lelong		x		%d sectors
+# JuMP short     bootcodeoffset NOP assembler instructions will usually be EB xx 90
+# older drives may use E9 xx xx
+>0		lelong&0x009000EB	0x009000EB 
+>0		lelong&0x000000E9	0x000000E9 
+>>1		ubyte			>37	\b, code offset 0x%x
+# mtools-3.9.8/msdos.h
+# usual values are marked with comments to get only informations of strange FAT systems
+# valid sectorsize are from 32 to 2048
+>>>11		uleshort	<2049	
+>>>>11		uleshort	>31	
+>>>>>3		string		>\0		\b, OEM-ID "%8.8s"
+>>>>>11		uleshort	>512		\b, Bytes/sector %u
+#>>>>>11	uleshort	=512		\b, Bytes/sector %u=512 (usual)
+>>>>>11		uleshort	<512		\b, Bytes/sector %u
+>>>>>13		ubyte		>1		\b, sectors/cluster %u
+#>>>>>13	ubyte		=1		\b, sectors/cluster %u (usual on Floppies)
+>>>>>14		uleshort	>32		\b, reserved sectors %u
+#>>>>>14	uleshort	=32		\b, reserved sectors %u (usual Fat32)
+#>>>>>14	uleshort	>1		\b, reserved sectors %u
+#>>>>>14	uleshort	=1		\b, reserved sectors %u (usual FAT12,FAT16)
+>>>>>14		uleshort	<1		\b, reserved sectors %u
+>>>>>16		ubyte		>2		\b, FATs %u
+#>>>>>16	ubyte		=2		\b, FATs %u (usual)
+>>>>>16		ubyte		=1		\b, FAT  %u
+>>>>>16		ubyte		>0
+>>>>>17		uleshort	>0		\b, root entries %u
+#>>>>>17	uleshort	=0		\b, root entries %u=0 (usual Fat32)
+>>>>>19		uleshort	>0		\b, sectors %u (volumes <=32 MB) 
+#>>>>>19	uleshort	=0		\b, sectors %u=0 (usual Fat32)
+>>>>>21		ubyte		>0xF0		\b, Media descriptor 0x%x
+#>>>>>21	ubyte		=0xF0		\b, Media descriptor 0x%x (usual floppy)
+>>>>>21		ubyte		<0xF0		\b, Media descriptor 0x%x
+>>>>>22		uleshort	>0		\b, sectors/FAT %u
+#>>>>>22	uleshort	=0		\b, sectors/FAT %u=0 (usual Fat32)
+>>>>>26		ubyte		>2		\b, heads %u
+#>>>>>26	ubyte		=2		\b, heads %u (usual floppy)
+>>>>>26		ubyte		=1		\b, heads %u
+>>>>>28		ulelong		>0		\b, hidden sectors %u
+#>>>>>28	ulelong		=0		\b, hidden sectors %u (usual floppy)
+>>>>>32		ulelong		>0		\b, sectors %u (volumes > 32 MB) 
+#>>>>>32	ulelong		=0		\b, sectors %u (volumes > 32 MB) 
+# FAT<32 specific 
+# NOT le FAT3=NOT 3TAF=0xCCABBEB9
+>>>>>82		ulelong&0xCCABBEB9	>0
+>>>>>>36	ubyte		>0x80		\b, physical drive 0x%x
+#>>>>>>36	ubyte		=0x80		\b, physical drive 0x%x=0x80 (usual harddisk)
+>>>>>>36	ubyte&0x7F	>0		\b, physical drive 0x%x
+#>>>>>>36	ubyte		=0		\b, physical drive 0x%x=0 (usual floppy)
+>>>>>>37	ubyte		>0		\b, reserved 0x%x
+#>>>>>>37	ubyte		=0		\b, reserved 0x%x
+>>>>>>38	ubyte		>0x29		\b, dos < 4.0 BootSector (0x%x)
+>>>>>>38	ubyte		<0x29		\b, dos < 4.0 BootSector (0x%x)
+>>>>>>38	ubyte		=0x29
+>>>>>>>39	ulelong		x		\b, serial number 0x%x
+>>>>>>>43	string		<NO\ NAME	\b, label: "%11.11s"
+>>>>>>>43	string		>NO\ NAME	\b, label: "%11.11s"
+>>>>>>>43	string		=NO\ NAME	\b, unlabeled
+>>>>>>54	string		FAT1		\b, FAT
+>>>>>>>54	string		FAT12		\b (12 bit)
+>>>>>>>54	string		FAT16		\b (16 bit)
+# FAT32 specific
+>>>>>82		string		FAT32		\b, FAT (32 bit)
+>>>>>>36	ulelong		x		\b, sectors/FAT %u
+>>>>>>40	uleshort	>0		\b, extension flags %u
+#>>>>>>40	uleshort	=0		\b, extension flags %u
+>>>>>>42	uleshort	>0		\b, fsVersion %u
+#>>>>>>42	uleshort	=0		\b, fsVersion %u (usual)
+>>>>>>44	ulelong		>2		\b, rootdir cluster %u
+#>>>>>>44	ulelong		=2		\b, rootdir cluster %u
+#>>>>>>44	ulelong		=1		\b, rootdir cluster %u
+>>>>>>48	uleshort	>1		\b, infoSector %u
+#>>>>>>48	uleshort	=1		\b, infoSector %u (usual)
+>>>>>>48	uleshort	<1		\b, infoSector %u
+>>>>>>50	uleshort	>6		\b, Backup boot sector %u
+#>>>>>>50	uleshort	=6		\b, Backup boot sector %u (usual) 
+>>>>>>50	uleshort	<6		\b, Backup boot sector %u
+>>>>>>54	ulelong		>0		\b, reserved1 0x%x
+>>>>>>58	ulelong		>0		\b, reserved2 0x%x
+>>>>>>62	ulelong		>0		\b, reserved3 0x%x
+# same structure as FAT1X 
+>>>>>>64	ubyte		>0x80		\b, physical drive 0x%x
+#>>>>>>64	ubyte		=0x80		\b, physical drive 0x%x=80 (usual harddisk)
+>>>>>>64	ubyte&0x7F	>0		\b, physical drive 0x%x
+#>>>>>>64	ubyte		=0		\b, physical drive 0x%x=0 (usual floppy)
+>>>>>>65	ubyte		>0		\b, reserved 0x%x
+>>>>>>66	ubyte		>0x29		\b, dos < 4.0 BootSector (0x%x)
+>>>>>>66	ubyte		<0x29		\b, dos < 4.0 BootSector (0x%x)
+>>>>>>66	ubyte		=0x29
+>>>>>>>67	ulelong		x		\b, serial number 0x%x
+>>>>>>>71	string		<NO\ NAME	\b, label: "%11.11s"
+>>>>>>71	string		>NO\ NAME	\b, label: "%11.11s"
+>>>>>>71	string		=NO\ NAME	\b, unlabeled
+### FATs end
 >0x200	lelong	0x82564557		\b, BSD disklabel
-
-# Solaris 7 FAT12 floppies J\xf6rg Jenderek <joerg@pcialias.localnet>
->0	leshort 0x7AEB			\b, system
->>3	string	>\0			%s
->>0x36	string	FAT			\b, %s
->>>0x39	string	12			(%s bit)
 
 # Minix filesystems - Juan Cespedes <cespedes@debian.org>
 0x410	leshort		0x137f		Minix filesystem
