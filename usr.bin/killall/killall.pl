@@ -30,7 +30,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.4 1996/02/03 21:49:56 wosch Exp $
+# $Id: killall.pl,v 1.3 1996/02/03 22:52:27 wosch Exp $
 #
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security
@@ -102,7 +102,7 @@ foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
 closedir PROCFS;
 
 if ($#kill < 0) {		# nothing found
-    print "No matching process.\n" if $debug || $show;
+    warn "No matching processes ``$program''.\n";
     exit(1);
 }
 
