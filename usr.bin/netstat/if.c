@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)if.c	8.2 (Berkeley) 2/21/94";
+static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -91,7 +91,7 @@ intpr(interval, ifnetaddr)
 	}
 	if (kread(ifnetaddr, (char *)&ifnetaddr, sizeof ifnetaddr))
 		return;
-	printf("%-5.5s %-5.5s %-11.11s %-15.15s %8.8s %5.5s",
+	printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		"Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 	if (bflag)
 		printf(" %10.10s","Ibytes");
@@ -127,7 +127,7 @@ intpr(interval, ifnetaddr)
 		}
 		printf("%-5.5s %-5d ", name, ifnet.if_mtu);
 		if (ifaddraddr == 0) {
-			printf("%-11.11s ", "none");
+			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
 		} else {
 			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)) {
@@ -139,7 +139,7 @@ intpr(interval, ifnetaddr)
 				CP(&ifaddr); sa = (struct sockaddr *)cp;
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
-				printf("%-11.11s ", "none");
+				printf("%-13.13s ", "none");
 				printf("%-15.15s ", "none");
 				break;
 			case AF_INET:
@@ -150,10 +150,10 @@ intpr(interval, ifnetaddr)
 				 */
 				in = inet_makeaddr(ifaddr.in.ia_subnet,
 					INADDR_ANY);
-				printf("%-11.11s ", netname(in.s_addr,
+				printf("%-13.13s ", netname(in.s_addr,
 				    ifaddr.in.ia_subnetmask));
 #else
-				printf("%-11.11s ",
+				printf("%-13.13s ",
 				    netname(htonl(ifaddr.in.ia_subnet),
 				    ifaddr.in.ia_subnetmask));
 #endif
@@ -170,7 +170,7 @@ intpr(interval, ifnetaddr)
 				*(union ns_net *) &net = sns->sns_addr.x_net;
 				sprintf(netnum, "%lxH", ntohl(net));
 				upHex(netnum);
-				printf("ns:%-8s ", netnum);
+				printf("ns:%-10s ", netnum);
 				printf("%-15s ",
 				    ns_phost((struct sockaddr *)sns));
 				}
@@ -194,7 +194,7 @@ intpr(interval, ifnetaddr)
 				while (--n >= 0)
 					m += printf("%02x%c", *cp++ & 0xff,
 						    n > 0 ? '.' : ' ');
-				m = 28 - m;
+				m = 30 - m;
 				while (m-- > 0)
 					putchar(' ');
 				break;
@@ -249,14 +249,16 @@ sidewaysintpr(interval, off)
 	register struct iftot *ip, *total;
 	register int line;
 	struct iftot *lastif, *sum, *interesting;
-	int oldmask;
+	int oldmask, first;
+	u_long interesting_off;
 
 	if (kread(off, (char *)&firstifnet, sizeof (u_long)))
 		return;
 	lastif = iftot;
 	sum = iftot + MAXIF - 1;
 	total = sum - 1;
-	interesting = iftot;
+	interesting = NULL;
+	interesting_off = 0;
 	for (off = firstifnet, ip = iftot; off;) {
 		char *cp;
 		char name[16], tname[16];
@@ -267,8 +269,10 @@ sidewaysintpr(interval, off)
 			break;
 		tname[15] = '\0';
 		snprintf(name, 16, "%s%d", tname, ifnet.if_unit);
-		if (interface && strcmp(name, interface) == 0)
+		if (interface && strcmp(name, interface) == 0) {
 			interesting = ip;
+			interesting_off = off;
+		}
 		snprintf(ip->ift_name, 16, "(%s)", name);;
 		ip++;
 		if (ip >= iftot + MAXIF - 2)
@@ -280,116 +284,96 @@ sidewaysintpr(interval, off)
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
 	(void)alarm(interval);
-banner:
-	printf("     input   %s%-6.6s  %soutput       ", bflag ? "          " : "",
-	    interesting->ift_name, bflag ? "          " : "");
-	if (lastif - iftot > 0) {
-		if (dflag)
-			printf("      ");
-		printf("          input  %s(Total)  %soutput", bflag ? "          " : "",
-		    bflag ? "          " : "");
-	}
 	for (ip = iftot; ip < iftot + MAXIF; ip++) {
 		ip->ift_ip = 0;
 		ip->ift_ie = 0;
+		ip->ift_ib = 0;
 		ip->ift_op = 0;
 		ip->ift_oe = 0;
+		ip->ift_ob = 0;
 		ip->ift_co = 0;
 		ip->ift_dr = 0;
-		ip->ift_ib = 0;
-		ip->ift_ob = 0;
 	}
+	first = 1;
+banner:
+	printf("%17s %14s %16s", "input",
+	    interesting ? interesting->ift_name : "(Total)", "output");
 	putchar('\n');
-	printf("%8.8s %5.5s ", "packets", "errs");
-	if (bflag)
-		printf("%10.10s ","bytes");
-	printf("%8.8s %5.5s ", "packets", "errs");
-	if (bflag)
-		printf("%10.10s ","bytes");
-	printf("%5.5s ", "colls");
+	printf("%10s %5s %10s %10s %5s %10s %5s",
+	    "packets", "errs", "bytes", "packets", "errs", "bytes", "colls");
 	if (dflag)
-		printf("%5.5s ", "drops");
-	if (lastif - iftot > 0) {
-		printf(" %8.8s %5.5s", "packets", "errs");
-		if (bflag)
-			printf(" %10.10s", "bytes");
-		printf(" %8.8s %5.5s", "packets", "errs");
-		if (bflag)
-			printf(" %10.10s", "bytes");
-		printf(" %5.5s", "colls");
-		if (dflag)
-			printf(" %5.5s", "drops");
-	}
+		printf(" %5.5s", "drops");
 	putchar('\n');
 	fflush(stdout);
 	line = 0;
 loop:
-	sum->ift_ip = 0;
-	sum->ift_ie = 0;
-	sum->ift_op = 0;
-	sum->ift_oe = 0;
-	sum->ift_co = 0;
-	sum->ift_dr = 0;
-	sum->ift_ib = 0;
-	sum->ift_ob = 0;
-	for (off = firstifnet, ip = iftot; off && ip < lastif; ip++) {
-		if (kread(off, (char *)&ifnet, sizeof ifnet)) {
-			off = 0;
-			continue;
-		}
-		if (ip == interesting) {
-			printf("%8u %5u ",
+	if (interesting != NULL) {
+		ip = interesting;
+		if (kread(interesting_off, (char *)&ifnet, sizeof ifnet)) {
+			printf("???\n");
+			exit(1);
+		};
+		if (!first) {
+			printf("%10u %5u %10u %10u %5u %10u %5u",
 				ifnet.if_ipackets - ip->ift_ip,
-				ifnet.if_ierrors - ip->ift_ie);
-			if (bflag)
-				printf("%10u ", ifnet.if_ibytes - ip->ift_ib);
-			printf("%8u %5u ",
+				ifnet.if_ierrors - ip->ift_ie,
+				ifnet.if_ibytes - ip->ift_ib,
 				ifnet.if_opackets - ip->ift_op,
-				ifnet.if_oerrors - ip->ift_oe);
-			if (bflag)
-				printf("%10u ", ifnet.if_obytes - ip->ift_ob);
-			printf("%5u", ifnet.if_collisions - ip->ift_co);
+				ifnet.if_oerrors - ip->ift_oe,
+				ifnet.if_obytes - ip->ift_ob,
+				ifnet.if_collisions - ip->ift_co);
 			if (dflag)
-				printf(" %5u",
-				    ifnet.if_snd.ifq_drops - ip->ift_dr);
+				printf(" %5u", ifnet.if_snd.ifq_drops - ip->ift_dr);
 		}
 		ip->ift_ip = ifnet.if_ipackets;
 		ip->ift_ie = ifnet.if_ierrors;
+		ip->ift_ib = ifnet.if_ibytes;
 		ip->ift_op = ifnet.if_opackets;
 		ip->ift_oe = ifnet.if_oerrors;
+		ip->ift_ob = ifnet.if_obytes;
 		ip->ift_co = ifnet.if_collisions;
 		ip->ift_dr = ifnet.if_snd.ifq_drops;
-		ip->ift_ib = ifnet.if_ibytes;
-		ip->ift_ob = ifnet.if_obytes;
-		sum->ift_ip += ip->ift_ip;
-		sum->ift_ie += ip->ift_ie;
-		sum->ift_op += ip->ift_op;
-		sum->ift_oe += ip->ift_oe;
-		sum->ift_co += ip->ift_co;
-		sum->ift_dr += ip->ift_dr;
-		sum->ift_ib += ip->ift_ib;
-		sum->ift_ob += ip->ift_ob;
-		off = (u_long) ifnet.if_next;
+	} else {
+		sum->ift_ip = 0;
+		sum->ift_ie = 0;
+		sum->ift_ib = 0;
+		sum->ift_op = 0;
+		sum->ift_oe = 0;
+		sum->ift_ob = 0;
+		sum->ift_co = 0;
+		sum->ift_dr = 0;
+		for (off = firstifnet, ip = iftot; off && ip < lastif; ip++) {
+			if (kread(off, (char *)&ifnet, sizeof ifnet)) {
+				off = 0;
+				continue;
+			}
+			sum->ift_ip += ifnet.if_ipackets;
+			sum->ift_ie += ifnet.if_ierrors;
+			sum->ift_ib += ifnet.if_ibytes;
+			sum->ift_op += ifnet.if_opackets;
+			sum->ift_oe += ifnet.if_oerrors;
+			sum->ift_ob += ifnet.if_obytes;
+			sum->ift_co += ifnet.if_collisions;
+			sum->ift_dr += ifnet.if_snd.ifq_drops;
+			off = (u_long) ifnet.if_next;
+		}
+		if (!first) {
+			printf("%10u %5u %10u %10u %5u %10u %5u",
+				sum->ift_ip - total->ift_ip,
+				sum->ift_ie - total->ift_ie,
+				sum->ift_ib - total->ift_ib,
+				sum->ift_op - total->ift_op,
+				sum->ift_oe - total->ift_oe,
+				sum->ift_ob - total->ift_ob,
+				sum->ift_co - total->ift_co);
+			if (dflag)
+				printf(" %5u", sum->ift_dr - total->ift_dr);
+		}
+		*total = *sum;
 	}
-	if (lastif - iftot > 0) {
-		printf("  %8u %5u",
-			sum->ift_ip - total->ift_ip,
-			sum->ift_ie - total->ift_ie);
-		if (bflag)
-			printf(" %10u", sum->ift_ib - total->ift_ib);
-		printf(" %8u %5u",
-			sum->ift_op - total->ift_op,
-			sum->ift_oe - total->ift_oe);
-		if (bflag)
-			printf(" %10u", sum->ift_ob - total->ift_ob);
-		printf(" %5u", sum->ift_co - total->ift_co);
-		if (dflag)
-			printf(" %5u", sum->ift_dr - total->ift_dr);
-	}
-	*total = *sum;
-	putchar('\n');
+	if (!first)
+		putchar('\n');
 	fflush(stdout);
-	line++;
 	oldmask = sigblock(sigmask(SIGALRM));
 	if (! signalled) {
 		sigpause(0);
@@ -397,9 +381,12 @@ loop:
 	sigsetmask(oldmask);
 	signalled = NO;
 	(void)alarm(interval);
+	line++;
+	first = 0;
 	if (line == 21)
 		goto banner;
-	goto loop;
+	else
+		goto loop;
 	/*NOTREACHED*/
 }
 

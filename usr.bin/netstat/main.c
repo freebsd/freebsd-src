@@ -343,12 +343,20 @@ main(argc, argv)
 			printf("%s: no stats routine\n", tp->pr_name);
 		exit(0);
 	}
+#if 0
 	/*
 	 * Keep file descriptors open to avoid overhead
 	 * of open/close on each call to get* routines.
 	 */
 	sethostent(1);
 	setnetent(1);
+#else
+	/*
+	 * This does not make sense any more with DNS being default over
+	 * the files.  Doing a setXXXXent(1) causes a tcp connection to be
+	 * used for the queries, which is slower.
+	 */
+#endif
 	if (iflag) {
 		intpr(interval, nl[N_IFNET].n_value);
 		exit(0);
@@ -510,3 +518,33 @@ usage()
 "       %s [-M core] [-N system] [-p protocol]\n", prog);
 	exit(1);
 }
+
+void
+trimdomain(cp)
+	char *cp;
+{
+	static char domain[MAXHOSTNAMELEN + 1];
+	static int first = 1;
+	char *s;
+
+	if (first) {
+		first = 0;
+		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+		    (s = strchr(domain, '.')))
+			(void) strcpy(domain, s + 1);
+		else
+			domain[0] = 0;
+	}
+
+	if (domain[0]) {
+		while ((cp = strchr(cp, '.'))) {
+			if (!strcasecmp(cp + 1, domain)) {
+				*cp = 0;	/* hit it */
+				break;
+			} else {
+				cp++;
+			}
+		}
+	}
+}
+
