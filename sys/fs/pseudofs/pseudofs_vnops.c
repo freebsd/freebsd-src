@@ -51,17 +51,25 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
-#if 0
+#ifdef PSEUDOFS_TRACE
+static int pfs_trace;
+SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
+    "enable tracing of pseudofs vnode operations");
+
 #define PFS_TRACE(foo) \
 	do { \
-		printf("pseudofs: %s(): line %d: ", __func__, __LINE__); \
-		printf foo ; \
-		printf("\n"); \
+		if (pfs_trace) { \
+			printf("%s(): line %d: ", __func__, __LINE__); \
+			printf foo ; \
+			printf("\n"); \
+		} \
 	} while (0)
 #define PFS_RETURN(err) \
 	do { \
-		printf("pseudofs: %s(): line %d: returning %d\n", \
-		    __func__, __LINE__, err); \
+		if (pfs_trace) { \
+			printf("%s(): line %d: returning %d\n", \
+			    __func__, __LINE__, err); \
+		} \
 		return (err); \
 	} while (0)
 #else
