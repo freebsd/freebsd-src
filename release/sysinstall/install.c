@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.206 1998/03/09 15:00:56 jkh Exp $
+ * $Id: install.c,v 1.207 1998/03/10 13:42:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -541,7 +541,7 @@ nodisks:
 
     dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
-	variable_set2("nfs_client", "YES");
+	variable_set2("nfs_client_enable", "YES");
 
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?")) {

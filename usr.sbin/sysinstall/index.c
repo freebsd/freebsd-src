@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.52 1997/11/13 11:44:42 jkh Exp $
+ * $Id: index.c,v 1.53 1998/03/23 05:59:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,7 @@ static char *descrs[] = {
     "astro", "Applications related to astronomy.",
     "archivers", "Utilities for archiving and unarchiving data.",
     "audio", "Audio utilities - most require a supported sound card.",
+    "biology", "Software related to Biology.",
     "benchmarks", "Utilities for measuring system performance.",
     "benchmarking", "Utilities for measuring system performance.",
     "cad", "Computer Aided Design utilities.",
@@ -86,6 +87,7 @@ static char *descrs[] = {
     "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
     "japanese", "Ported software for the Japanese market.",
+    "kde", "Software for the K Desktop Environment.",
     "korean", "Ported software for the Korean market.",
     "lang", "Computer languages.",
     "languages", "Computer languages.",
@@ -100,6 +102,7 @@ static char *descrs[] = {
     "numeric", "Mathematical computation software.",
     "orphans", "Packages without a home elsewhere.",
     "perl5", "Utilities/modules for the PERL5 language..",
+    "pilot", "Software support for the USR Palm Pilot(tm).",
     "plan9", "Software from the plan9 Operating System.",
     "print", "Utilities for dealing with printing.",
     "printing", "Utilities for dealing with printing.",

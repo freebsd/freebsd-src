@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.108 1998/03/10 17:24:03 jkh Exp $
+ * $Id: config.c,v 1.109 1998/03/13 11:12:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -343,10 +343,9 @@ configEnvironmentResolv(char *config)
 
 	if (!strncmp(lines[i], "domain", 6) && !variable_get(VAR_DOMAINNAME))
 	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)));
-	else if (!strncmp(lines[i], "nameserver", 10) && !name_set) {
+	else if (!name_set && !strncmp(lines[i], "nameserver", 10)) {
 	    /* Only take the first nameserver setting - we're lame */
 	    variable_set2(VAR_NAMESERVER, string_skipwhite(string_prune(lines[i] + 10)));
-	    name_set = TRUE;
 	}
 	free(lines[i]);
     }
