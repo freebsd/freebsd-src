@@ -184,7 +184,7 @@ main(argc, argv)
 	if (namelist[X_DK_NDRIVE].n_type == 0)
 		errx(1, "dk_ndrive not found in namelist");
 	(void)nlread(X_DK_NDRIVE, dk_ndrive);
-	if (dk_ndrive <= 0)
+	if (dk_ndrive < 0)
 		errx(1, "invalid dk_ndrive %d\n", dk_ndrive);
 
 	cur.dk_time = calloc(dk_ndrive, sizeof(long));

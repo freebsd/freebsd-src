@@ -7,6 +7,10 @@ of the shell script for usage instructions.
 
 burncd.sh takes the filesystem image produced by makecdfs.sh and burns
 it onto an HP 4020i CDR drive (see script for information on customizing
-it to other types of CDR drives).
+it to other types of CDR drives).  If you want to simply test your CDR
+without wasting a blank, you can also do:
 
-It's that simple!
+	burncd.sh mybigtestimage dummy
+
+And it will "write" the CD without the laser turned on, so that it's
+actually untouched.
