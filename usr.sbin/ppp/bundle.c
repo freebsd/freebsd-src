@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.28 1998/07/28 21:54:50 brian Exp $
+ *	$Id: bundle.c,v 1.29 1998/07/29 18:21:11 brian Exp $
  */
 
 #include <sys/param.h>
@@ -460,9 +460,6 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
 
   struct datalink *dl, *this_dl;
   int others_active;
-
-  if (bundle->phase == PHASE_TERMINATE || bundle->phase == PHASE_DEAD)
-    return;
 
   others_active = 0;
   this_dl = NULL;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.138 1998/06/27 14:17:28 brian Exp $
+ * $Id: main.c,v 1.139 1998/06/27 14:18:07 brian Exp $
  *
  *	TODO:
  */
@@ -85,8 +85,7 @@ void
 Cleanup(int excode)
 {
   SignalBundle->CleaningUp = 1;
-  if (bundle_Phase(SignalBundle) != PHASE_DEAD)
-    bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
+  bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
 }
 
 void
