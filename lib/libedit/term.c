@@ -1222,7 +1222,7 @@ term_echotc(el, argc, argv)
     int     arg_need, arg_cols, arg_rows;
     int     verbose = 0, silent = 0;
     char   *area;
-    static char *fmts = "%s\n", *fmtd = "%d\n";
+    static const char fmts[] = "%s\n", fmtd[] = "%d\n";
     struct termcapstr *t;
     char    buf[TC_BUFSIZE];
 
