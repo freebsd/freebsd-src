@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.12 1995/06/08 23:32:09 jkh Exp $
+#	$Id: Makefile,v 1.192.2.13 1995/06/09 06:52:44 jkh Exp $
 #
 # How to roll a release:
 #
@@ -283,8 +283,6 @@ release.6:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
-	( cd ${RD}/dists/krb && \
-	if [ -f krb.aa ] ; then mv krb.* ../des ; fi )
 	touch release.6
 
 
@@ -341,6 +339,7 @@ release.8: write_mfs_in_kernel
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	rm -rf ${.CURDIR}/sysinstall/help/ja_JP.JIS
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
