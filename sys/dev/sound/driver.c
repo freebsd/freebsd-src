@@ -64,9 +64,8 @@ MODULE_DEPEND(snd_driver, snd_gusc, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_maestro, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_mss, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_neomagic, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_sb, 1, 1, 1);
-/* MODULE_DEPEND(snd_driver, snd_sb8, 1, 1, 1); */
-/* MODULE_DEPEND(snd_driver, snd_sb16, 1, 1, 1); */
+MODULE_DEPEND(snd_driver, snd_sb8, 1, 1, 1);
+MODULE_DEPEND(snd_driver, snd_sb16, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_sbc, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_solo, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_t4dwave, 1, 1, 1);
