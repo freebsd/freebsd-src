@@ -169,8 +169,8 @@ hfa_attach (device_t dev)
 	 */
 	fup->fu_unit = device_get_unit(dev);
 	fup->fu_mtu = FORE_IFF_MTU;
-	fup->fu_vcc_pool = &fore_vcc_pool;
-	fup->fu_nif_pool = &fore_nif_pool;
+	fup->fu_vcc_zone = fore_vcc_zone;
+	fup->fu_nif_zone = fore_nif_zone;
 	fup->fu_ioctl = fore_atm_ioctl;
 	fup->fu_instvcc = fore_instvcc;
 	fup->fu_openvcc = fore_openvcc;
@@ -377,6 +377,19 @@ hfa_modevent (module_t mod, int what, void *arg)
 			error = EINVAL;
 			break;
 		}
+
+		fore_nif_zone = uma_zcreate("fore nif", sizeof(struct atm_nif), NULL,
+		    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+		if (fore_nif_zone == NULL)
+			panic("hfa_modevent:uma_zcreate nif");
+		uma_zone_set_max(fore_nif_zone, 52);
+
+		fore_vcc_zone = uma_zcreate("fore vcc", sizeof(Fore_vcc), NULL,
+		    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+		if (fore_vcc_zone == NULL)
+			panic("hfa_modevent: uma_zcreate vcc");
+		uma_zone_set_max(fore_vcc_zone, 100);
+	
 		/*
 		* Initialize DMA mapping
 		*/
@@ -398,6 +411,9 @@ hfa_modevent (module_t mod, int what, void *arg)
 		 * Stop watchdog timer
 		 */
 		atm_untimeout(&fore_timer);
+
+		uma_zdestroy(fore_nif_zone);
+		uma_zdestroy(fore_vcc_zone);
 
 		break;
 	default:

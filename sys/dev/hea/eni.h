@@ -491,8 +491,8 @@ typedef	struct eni_unit		Eni_unit;
 #define	eu_mtu		eu_cmn.cu_mtu
 #define	eu_open_vcc	eu_cmn.cu_open_vcc
 #define	eu_vcc		eu_cmn.cu_vcc
-#define	eu_vcc_pool	eu_cmn.cu_vcc_pool
-#define	eu_nif_pool	eu_cmn.cu_nif_pool
+#define	eu_vcc_zone	eu_cmn.cu_vcc_zone
+#define	eu_nif_zone	eu_cmn.cu_nif_zone
 #define	eu_ioctl	eu_cmn.cu_ioctl
 #define	eu_instvcc	eu_cmn.cu_instvcc
 #define	eu_openvcc	eu_cmn.cu_openvcc

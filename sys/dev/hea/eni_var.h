@@ -79,7 +79,7 @@ int	eni_closevcc(Cmn_unit *, Cmn_vcc *);
  */
 extern Eni_unit		*eni_units[];
 extern struct stack_defn	*eni_services;
-extern struct sp_info	eni_nif_pool;
-extern struct sp_info	eni_vcc_pool;
+extern uma_zone_t	eni_nif_zone;
+extern uma_zone_t	eni_vcc_zone;
 
 #endif	/* _ENI_ENI_VAR_H */

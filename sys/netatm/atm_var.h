@@ -117,7 +117,7 @@ void		atm_dev_pdu_print(Cmn_unit *, Cmn_vcc *, KBuffer *, char *);
 int		atm_physif_register(Cmn_unit *, char *,
 			struct stack_defn *);
 int		atm_physif_deregister(Cmn_unit *);
-void		atm_physif_freenifs(struct atm_pif *);
+void		atm_physif_freenifs(struct atm_pif *, uma_zone_t);
 int		atm_netconv_register(struct atm_ncm *);
 int		atm_netconv_deregister(struct atm_ncm *);
 int		atm_nif_attach(struct atm_nif *);

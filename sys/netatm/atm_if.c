@@ -214,14 +214,14 @@ atm_physif_deregister(cup)
 	/*
 	 * Free all of our network interfaces
 	 */
-	atm_physif_freenifs(pip);
+	atm_physif_freenifs(pip, cup->cu_nif_zone);
 
 	/*
 	 * Free unit's vcc information
 	 */
 	cvp = cup->cu_vcc;
 	while (cvp) {
-		atm_free(cvp);
+		uma_zfree(cup->cu_vcc_zone, cvp);
 		cvp = cvp->cv_next;
 	}
 	cup->cu_vcc = (Cmn_vcc *)NULL;
@@ -243,8 +243,9 @@ atm_physif_deregister(cup)
  *
  */
 void
-atm_physif_freenifs(pip)
+atm_physif_freenifs(pip, zone)
 	struct atm_pif	*pip;
+	uma_zone_t 	zone;
 {
 	struct atm_nif	*nip = pip->pif_nif;
 	int	s = splnet();
@@ -260,8 +261,8 @@ atm_physif_freenifs(pip)
 		/*
 		 * Clean up network i/f trails
 		 */
-		atm_nif_detach ( nip );
-		atm_free ((caddr_t)nip);
+		atm_nif_detach(nip);
+		uma_zfree(zone, nip);
 		nip = nipp;
 	}
 	pip->pif_nif = (struct atm_nif *)NULL;
@@ -270,7 +271,6 @@ atm_physif_freenifs(pip)
 
 	return;
 }
-
 
 /*
  * Handle physical interface ioctl's
@@ -488,20 +488,20 @@ atm_physif_ioctl(code, data, arg)
 		/*
 		 * Free any previously allocated NIFs
 		 */
-		atm_physif_freenifs(pip);
+		atm_physif_freenifs(pip, cup->cu_nif_zone);
 
 		/*
 		 * Add list of interfaces
 		 */
 		for ( count = 0; count < asr->asr_nif_cnt; count++ )
 		{
-			nip = (struct atm_nif *)atm_allocate(cup->cu_nif_pool);
+			nip = uma_zalloc(cup->cu_nif_zone, M_WAITOK | M_ZERO);
 			if ( nip == NULL )
 			{
 				/*
 				 * Destroy any successful nifs
 				 */
-				atm_physif_freenifs(pip);
+				atm_physif_freenifs(pip, cup->cu_nif_zone);
 				err = ENOMEM;
 				break;
 			}
@@ -540,12 +540,11 @@ atm_physif_ioctl(code, data, arg)
 				break;
 			}
 			if ((err = atm_nif_attach(nip)) != 0) {
-				atm_free ( (caddr_t)nip );
-
+				uma_zfree(cup->cu_nif_zone, nip);
 				/*
 				 * Destroy any successful nifs
 				 */
-				atm_physif_freenifs(pip);
+				atm_physif_freenifs(pip, cup->cu_nif_zone);
 				break;
 			}
 			/*
