@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.72 1998/06/09 12:52:35 bde Exp $
+ * $Id: systm.h,v 1.73 1998/07/13 06:45:17 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -137,7 +137,6 @@ int	suword __P((void *base, long word));
 long	fusword __P((void *base));
 int	susword __P((void *base, long word));
 
-int	hzto __P((struct timeval *tv));
 void	realitexpire __P((void *));
 
 void	hardclock __P((struct clockframe *frame));
@@ -182,46 +181,45 @@ void	callout_handle_init __P((struct callout_handle *));
 struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
-#ifdef __i386__
-
 /* Interrupt management */
-void		setdelayed(void);
-void		setsoftast(void);
-void		setsoftclock(void);
-void		setsoftnet(void);
-void		setsoftcambio(void);
-void		setsoftcamnet(void);
-void		setsoftvm(void);
-void		setsofttty(void);
-void		schedsoftnet(void);
-void		schedsofttty(void);
-void		schedsoftcamnet(void);
-void		schedsoftcambio(void);
-void		schedsoftvm(void);
-void		spl0(void);
-intrmask_t	softclockpending(void);
-intrmask_t	splbio(void);
-intrmask_t	splclock(void);
-intrmask_t	splhigh(void);
-intrmask_t	splimp(void);
-intrmask_t	splnet(void);
-#ifdef SMP
-intrmask_t	splq(intrmask_t mask);
-#endif
-intrmask_t	splcam(void);
-intrmask_t	splsoftcam(void);
-intrmask_t	splsoftcambio(void);
-intrmask_t	splsoftcamnet(void);
-intrmask_t	splsoftclock(void);
-intrmask_t	splsofttty(void);
-intrmask_t	splsoftvm(void);
-intrmask_t	splstatclock(void);
-intrmask_t	spltty(void);
-intrmask_t	splvm(void);
-void		splx(intrmask_t ipl);
-void		splz(void);
 
+#ifdef __i386__
+void		setdelayed __P((void));
+void		setsoftast __P((void));
+void		setsoftcambio __P((void));
+void		setsoftcamnet __P((void));
+void		setsoftclock __P((void));
+void		setsoftnet __P((void));
+void		setsofttty __P((void));
+void		setsoftvm __P((void));
+void		schedsoftcamnet __P((void));
+void		schedsoftcambio __P((void));
+void		schedsoftnet __P((void));
+void		schedsofttty __P((void));
+void		schedsoftvm __P((void));
+intrmask_t	softclockpending __P((void));
+void		spl0 __P((void));
+intrmask_t	splbio __P((void));
+intrmask_t	splcam __P((void));
+intrmask_t	splclock __P((void));
+intrmask_t	splhigh __P((void));
+intrmask_t	splimp __P((void));
+intrmask_t	splnet __P((void));
+#ifdef SMP
+intrmask_t	splq __P((intrmask_t mask));
 #endif
+intrmask_t	splsoftcam __P((void));
+intrmask_t	splsoftcambio __P((void));
+intrmask_t	splsoftcamnet __P((void));
+intrmask_t	splsoftclock __P((void));
+intrmask_t	splsofttty __P((void));
+intrmask_t	splsoftvm __P((void));
+intrmask_t	splstatclock __P((void));
+intrmask_t	spltty __P((void));
+intrmask_t	splvm __P((void));
+void		splx __P((intrmask_t ipl));
+void		splz __P((void));
+#endif /* __i386__ */
 
 #ifdef __alpha__
 #include <machine/ipl.h>
