@@ -1,11 +1,9 @@
-<!-- $Id$ -->
+<!-- $Id: crypt.sgml,v 1.3 1997/02/22 12:58:13 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>DES, MD5, and Crypt<label id="crypt"></heading>
 
 <p><em>Contributed by &a.wollman;<newline>24 September 1995.</em>
-
-<p><bf>History</bf>
 
 <p>In order to protect the security of passwords on UN*X systems from
 being easily exposed, passwords have traditionally been scrambled in
@@ -47,7 +45,7 @@ created with the entry points to actually perform encryption.  The
 code was partitioned in this way to make it easier to get an export
 license for the compiled library.
 
-<p><bf>Recognizing your `<tt>crypt</tt>' mechanism</bf>
+<sect1><heading>Recognizing your `<tt>crypt</tt>' mechanism</heading>
 
 <p>It is fairly easy to recognize whether a particular password
 string was created using the DES- or MD5-based hash function.
