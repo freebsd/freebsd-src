@@ -850,7 +850,7 @@ sysctl_machdep_comdefaultrate SYSCTL_HANDLER_ARGS
 		return (0);
 
 	com = com_addr(comconsole);
-	if (!com)
+	if (com == NULL)
 		return (ENXIO);
 
 	/*
@@ -918,11 +918,11 @@ sio_pccard_detach(dev)
 	struct com_s	*com;
 
 	com = (struct com_s *) device_get_softc(dev);
-	if (!com) {
+	if (com == NULL) {
 		device_printf(dev, "NULL com in siounload\n");
 		return (0);
 	}
-	if (!com->iobase) {
+	if (com->iobase == 0) {
 		device_printf(dev, "already unloaded!\n");
 		return (0);
 	}
@@ -934,17 +934,16 @@ sio_pccard_detach(dev)
 	if (com->ioportres)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
-		device_printf(dev, "unload\n");
+		device_printf(dev, "still open, forcing close\n");
 		com->tp->t_gen++;
 		ttyclose(com->tp);
 		ttwakeup(com->tp);
 		ttwwakeup(com->tp);
-		device_printf(dev, "Was busy, so crash likely\n");
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
-		device_printf(dev, "unload, gone\n");
 	}
+	device_printf(dev, "unloaded\n");
 	return (0);
 }
 #endif /* NCARD > 0 */
@@ -1073,7 +1072,7 @@ sioprobe(dev)
 				  0, ~0, IO_COMSIZE, RF_ACTIVE);
 #endif
 	if (!port)
-		return ENXIO;
+		return (ENXIO);
 
 #if 0
 	/*
@@ -1140,7 +1139,7 @@ sioprobe(dev)
 	 * If the port is i8251 UART (internal, B98_01)
 	 */
 	if (pc98_check_if_type(dev, &iod) == -1)
-		return ENXIO;
+		return (ENXIO);
 	if (iod.irq > 0)
 		bus_set_resource(dev, SYS_RES_IRQ, 0, iod.irq, 1);
 	if (IS_8251(iod.if_type)) {
@@ -1157,7 +1156,7 @@ sioprobe(dev)
 		outb(iod.cmd, 0x01);	/* CMD (dummy) */
 		DELAY(1000);		/* for a while...*/
 		if (( inb(iod.sts) & STS8251_TxEMP ) == 0 ) {
-		    result = ENXIO;
+		    result = (ENXIO);
 		}
 		if (if_8251_type[iod.if_type & 0x0f].check_irq) {
 		    COM_INT_DISABLE
@@ -1639,7 +1638,7 @@ sioattach(dev)
 				  0, ~0, IO_COMSIZE, RF_ACTIVE);
 #endif
 	if (!port)
-		return ENXIO;
+		return (ENXIO);
 
 	iobase = rman_get_start(port);
 	unit = device_get_unit(dev);
@@ -2264,6 +2263,8 @@ sioclose(dev, flag, mode, p)
 	if (mynor & CONTROL_MASK)
 		return (0);
 	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (com == NULL)
+		return (ENODEV);
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -2410,7 +2411,7 @@ sioread(dev, uio, flag)
 	if (mynor & CONTROL_MASK)
 		return (ENODEV);
 	com = com_addr(MINOR_TO_UNIT(mynor));
-	if (com->gone)
+	if (com == NULL || com->gone)
 		return (ENODEV);
 	return ((*linesw[com->tp->t_line].l_read)(com->tp, uio, flag));
 }
@@ -2431,7 +2432,7 @@ siowrite(dev, uio, flag)
 
 	unit = MINOR_TO_UNIT(mynor);
 	com = com_addr(unit);
-	if (com->gone)
+	if (com == NULL || com->gone)
 		return (ENODEV);
 	/*
 	 * (XXX) We disallow virtual consoles if the physical console is
@@ -3037,7 +3038,7 @@ sioioctl(dev, cmd, data, flag, p)
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
-	if (com->gone)
+	if (com == NULL || com->gone)
 		return (ENODEV);
 	iobase = com->iobase;
 	if (mynor & CONTROL_MASK) {
@@ -3376,6 +3377,8 @@ comparam(tp, t)
 #ifndef PC98
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
+	if (com == NULL)
+		return (ENODEV);
 	iobase = com->iobase;
 #endif
 	s = spltty();
@@ -3687,6 +3690,8 @@ comstart(tp)
 
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
+	if (com == NULL)
+		return;
 	s = spltty();
 	disable_intr();
 	if (tp->t_state & TS_TTSTOP)
@@ -3815,7 +3820,7 @@ comstop(tp, rw)
 #endif
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
-	if (com->gone)
+	if (com == NULL || com->gone)
 		return;
 #ifdef PC98
 	if (!IS_8251(com->pc98_if_type))
