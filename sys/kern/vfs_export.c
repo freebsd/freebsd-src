@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.34 1995/07/13 08:47:40 davidg Exp $
+ * $Id: vfs_subr.c,v 1.35 1995/08/11 11:31:07 davidg Exp $
  */
 
 /*
@@ -840,6 +840,7 @@ vrele(vp)
 	VOP_INACTIVE(vp);
 }
 
+#ifdef DIAGNOSTIC
 /*
  * Page or buffer structure gets a reference.
  */
@@ -863,6 +864,7 @@ holdrele(vp)
 		panic("holdrele: holdcnt");
 	vp->v_holdcnt--;
 }
+#endif /* DIAGNOSTIC */
 
 /*
  * Remove any vnodes in the vnode table belonging to mount point mp.
