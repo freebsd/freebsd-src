@@ -241,6 +241,8 @@ struct	cmd {
 	{ "-link1",	-IFF_LINK1,	setifflags },
 	{ "link2",	IFF_LINK2,	setifflags },
 	{ "-link2",	-IFF_LINK2,	setifflags },
+	{ "staticarp",	IFF_STATICARP,	setifflags },
+	{ "-staticarp",	-IFF_STATICARP,	setifflags },
 #ifdef USE_IF_MEDIA
 	{ "media",	NEXTARG,	setmedia },
 	{ "mediaopt",	NEXTARG,	setmediaopt },
@@ -1135,7 +1137,7 @@ setifmtu(val, dummy, s, afp)
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
-"\20MULTICAST"
+"\20MULTICAST\024STATICARP"
 
 #define	IFCAPBITS \
 "\003\1rxcsum\2txcsum\3netcons"
