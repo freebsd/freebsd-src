@@ -187,6 +187,8 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
+vm_offset_t vhpt_base, vhpt_size;
+
 /*
  * We use an object to own the kernel's 'page tables'. For simplicity,
  * we use one page directory to index a set of pages containing
@@ -298,7 +300,6 @@ void
 pmap_bootstrap()
 {
 	int i, j, count, ridbits;
-	vm_offset_t vhpt_size, vhpt_base;
 	struct ia64_pal_result res;
 
 	/*
