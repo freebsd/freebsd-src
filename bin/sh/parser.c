@@ -1145,6 +1145,8 @@ parseredir: {
 			np->type = NAPPEND;
 		else if (c == '&')
 			np->type = NTOFD;
+		else if (c == '|')
+			np->type = NCLOBBER;
 		else {
 			np->type = NTO;
 			pungetc();
