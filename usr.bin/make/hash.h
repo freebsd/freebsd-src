@@ -99,13 +99,13 @@ typedef struct Hash_Search {
  *     char *val;
  */
 
-#define	Hash_SetValue(h, val) ((h)->clientData = (void *) (val))
+#define	Hash_SetValue(h, val) ((h)->clientData = (void *)(val))
 
 /*
  * Hash_Size(n) returns the number of words in an object of n bytes
  */
 
-#define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))
+#define	Hash_Size(n)	(((n) + sizeof(int) - 1) / sizeof(int))
 
 void Hash_InitTable(Hash_Table *, int);
 void Hash_DeleteTable(Hash_Table *);

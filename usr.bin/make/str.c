@@ -55,6 +55,7 @@ void
 str_init(void)
 {
     char *p1;
+
     argv = (char **)emalloc(((argmax = 50) + 1) * sizeof(char *));
     argv[0] = Var_Value(".MAKE", VAR_GLOBAL, &p1);
 }
@@ -115,10 +116,10 @@ str_concat(char *s1, char *s2, int flags)
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)free(s1);
-		(void)free(s2);
+		free(s1);
+		free(s2);
 	}
-	return(result);
+	return (result);
 }
 
 /*-
@@ -238,11 +239,11 @@ brk_string(char *str, int *store_argc, Boolean expand)
 		}
 		if (!start)
 			start = t;
-		*t++ = (char) ch;
+		*t++ = (char)ch;
 	}
 done:	argv[argc] = (char *)NULL;
 	*store_argc = argc;
-	return(argv);
+	return (argv);
 }
 
 /*
@@ -268,9 +269,9 @@ Str_Match(const char *string, const char *pattern)
 		 * pattern but not at the end of the string, we failed.
 		 */
 		if (*pattern == 0)
-			return(!*string);
+			return (!*string);
 		if (*string == 0 && *pattern != '*')
-			return(0);
+			return (0);
 		/*
 		 * Check for a "*" as the next pattern character.  It matches
 		 * any substring.  We handle this by calling ourselves
@@ -280,13 +281,13 @@ Str_Match(const char *string, const char *pattern)
 		if (*pattern == '*') {
 			pattern += 1;
 			if (*pattern == 0)
-				return(1);
+				return (1);
 			while (*string != 0) {
 				if (Str_Match(string, pattern))
-					return(1);
+					return (1);
 				++string;
 			}
-			return(0);
+			return (0);
 		}
 		/*
 		 * Check for a "?" as the next pattern character.  It matches
@@ -303,13 +304,13 @@ Str_Match(const char *string, const char *pattern)
 			++pattern;
 			for (;;) {
 				if ((*pattern == ']') || (*pattern == 0))
-					return(0);
+					return (0);
 				if (*pattern == *string)
 					break;
 				if (pattern[1] == '-') {
 					c2 = pattern[2];
 					if (c2 == 0)
-						return(0);
+						return (0);
 					if ((*pattern <= *string) &&
 					    (c2 >= *string))
 						break;
@@ -331,14 +332,14 @@ Str_Match(const char *string, const char *pattern)
 		if (*pattern == '\\') {
 			++pattern;
 			if (*pattern == 0)
-				return(0);
+				return (0);
 		}
 		/*
 		 * There's no special character.  Just make sure that the
 		 * next characters of each string match.
 		 */
 		if (*pattern != *string)
-			return(0);
+			return (0);
 thisCharOK:	++pattern;
 		++string;
 	}
@@ -370,13 +371,13 @@ Str_SYSVMatch(const char *word, const char *pattern, int *len)
     if (*w == '\0') {
 	/* Zero-length word cannot be matched against */
 	*len = 0;
-	return NULL;
+	return (NULL);
     }
 
     if (*p == '\0') {
 	/* Null pattern is the whole string */
 	*len = strlen(w);
-	return w;
+	return (w);
     }
 
     if ((m = strchr(p, '%')) != NULL) {
@@ -385,12 +386,12 @@ Str_SYSVMatch(const char *word, const char *pattern, int *len)
 	     continue;
 
 	if (p != m)
-	    return NULL;	/* No match */
+	    return (NULL);	/* No match */
 
 	if (*++p == '\0') {
 	    /* No more pattern, return the rest of the string */
 	    *len = strlen(w);
-	    return w;
+	    return (w);
 	}
     }
 
@@ -400,11 +401,11 @@ Str_SYSVMatch(const char *word, const char *pattern, int *len)
     do
 	if (strcmp(p, w) == 0) {
 	    *len = w - m;
-	    return m;
+	    return (m);
 	}
     while (*w++ != '\0');
 
-    return NULL;
+    return (NULL);
 }
 
 
@@ -430,14 +431,14 @@ Str_SYSVSubst(Buffer buf, const char *pat, const char *src, int len)
 
     if ((m = strchr(pat, '%')) != NULL) {
 	/* Copy the prefix */
-	Buf_AddBytes(buf, m - pat, (Byte *) pat);
+	Buf_AddBytes(buf, m - pat, (Byte *)pat);
 	/* skip the % */
 	pat = m + 1;
     }
 
     /* Copy the pattern */
-    Buf_AddBytes(buf, len, (Byte *) src);
+    Buf_AddBytes(buf, len, (Byte *)src);
 
     /* append the rest */
-    Buf_AddBytes(buf, strlen(pat), (Byte *) pat);
+    Buf_AddBytes(buf, strlen(pat), (Byte *)pat);
 }

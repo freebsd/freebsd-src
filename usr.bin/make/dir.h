@@ -68,6 +68,6 @@ void Dir_Concat(Lst, Lst);
 void Dir_PrintDirectories(void);
 void Dir_PrintPath(Lst);
 void Dir_Destroy(void *);
-void * Dir_CopyDir(void *);
+void *Dir_CopyDir(void *);
 
 #endif /* _DIR */

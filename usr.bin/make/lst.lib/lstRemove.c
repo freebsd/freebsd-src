@@ -68,7 +68,7 @@ ReturnStatus
 Lst_Remove(Lst list, LstNode ln)
 {
 
-    if (!Lst_Valid (list) || !Lst_NodeValid (ln, list)) {
+    if (!Lst_Valid(list) || !Lst_NodeValid(ln, list)) {
 	    return (FAILURE);
     }
 
