@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.6 1998/11/15 18:25:15 dfr Exp $ */
+/* $Id: swtch.s,v 1.7 1998/12/02 10:24:56 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -95,6 +95,7 @@ IMPORT(Lev1map, 8)
 LEAF(idle, 0)
 	br	pv, Lidle1
 Lidle1:	LDGP(pv)
+	stq	zero, switchtime		/* zero switchtime.tv_sec */
 	stq	zero, curproc			/* curproc <- NULL for stats */
 	mov	zero, a0			/* enable all interrupts */
 	call_pal PAL_OSF1_swpipl
