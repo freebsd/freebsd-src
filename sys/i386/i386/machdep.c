@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.179 1996/03/26 19:57:51 wollman Exp $
+ *	$Id: machdep.c,v 1.180 1996/04/05 03:36:02 ache Exp $
  */
 
 #include "npx.h"
@@ -578,7 +578,6 @@ identifycpu()
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
 		printf("586");
-		bzero = i586_bzero;
 		break;
 #endif
 #if defined(I686_CPU)
@@ -587,7 +586,6 @@ identifycpu()
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
 		printf("686");
-		bzero = i686_bzero;
 		break;
 #endif
 	default:
