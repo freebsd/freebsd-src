@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.17 1997/04/17 11:17:30 kato Exp $
+ *	$Id: null_vnops.c,v 1.18 1997/05/25 04:50:02 peter Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.17 1997/04/17 11:17:30 kato Exp $
+ * $Id: null_vnops.c,v 1.18 1997/05/25 04:50:02 peter Exp $
  */
 
 /*
@@ -83,7 +83,7 @@
  * The null layer is the minimum file system layer,
  * simply bypassing all possible operations to the lower layer
  * for processing there.  The majority of its activity centers
- * on the bypass routine, though which nearly all vnode operations
+ * on the bypass routine, through which nearly all vnode operations
  * pass.
  *
  * The bypass routine accepts arbitrary vnode operations for
