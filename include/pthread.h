@@ -128,10 +128,16 @@ struct pthread_once {
  * Default attribute arguments.
  */
 #define pthread_condattr_default    NULL
-#define pthread_mutexattr_default   NULL
 #ifndef PTHREAD_KERNEL
+#define pthread_mutexattr_default   NULL
 #define pthread_attr_default        NULL
 #endif
+
+enum pthread_mutextype {
+	MUTEX_TYPE_FAST			= 1,
+	MUTEX_TYPE_COUNTING_FAST	= 2,	/* Recursive */
+	MUTEX_TYPE_MAX
+};
 
 /*
  * Thread function prototype definitions:
@@ -177,7 +183,7 @@ int		pthread_create __P((pthread_t *, const pthread_attr_t *,
 int		pthread_detach __P((pthread_t *));
 int		pthread_equal __P((pthread_t, pthread_t));
 void		pthread_exit __P((void *));
-int		pthread_getspecific __P((pthread_key_t, void **));
+void		*pthread_getspecific __P((pthread_key_t));
 int		pthread_join __P((pthread_t, void **));
 int		pthread_key_create __P((pthread_key_t *,
 			void (*routine) (void *)));
