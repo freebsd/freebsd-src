@@ -41,6 +41,8 @@ enum rcs_delta_op {RCS_ANNOTATE, RCS_FETCH};
 static void RCS_deltas PROTO ((RCSNode *, FILE *, char *, enum rcs_delta_op,
 			       char **, size_t *, char **, size_t *));
 
+static char * getfullCVSname PROTO ((char *));
+
 /*
  * We don't want to use isspace() from the C library because:
  *
@@ -2174,28 +2176,31 @@ struct rcs_keyword
 {
     const char *string;
     size_t len;
+    int expandit;
 };
 #define KEYWORD_INIT(s) (s), sizeof (s) - 1
 static struct rcs_keyword keywords[] =
 {
-    { KEYWORD_INIT ("Author") },
-    { KEYWORD_INIT ("Date") },
-    { KEYWORD_INIT ("Header") },
-    { KEYWORD_INIT ("Id") },
-    { KEYWORD_INIT ("Locker") },
-    { KEYWORD_INIT ("Log") },
-    { KEYWORD_INIT ("Name") },
-    { KEYWORD_INIT ("RCSfile") },
-    { KEYWORD_INIT ("Revision") },
-    { KEYWORD_INIT ("Source") },
-    { KEYWORD_INIT ("State") },
-    { NULL, 0 },
-    { NULL, 0 }
+    { KEYWORD_INIT ("Author"), 1 },
+    { KEYWORD_INIT ("Date"), 1 },
+    { KEYWORD_INIT ("CVSHeader"), 1 },
+    { KEYWORD_INIT ("Header"), 1 },
+    { KEYWORD_INIT ("Id"), 1 },
+    { KEYWORD_INIT ("Locker"), 1 },
+    { KEYWORD_INIT ("Log"), 1 },
+    { KEYWORD_INIT ("Name"), 1 },
+    { KEYWORD_INIT ("RCSfile"), 1 },
+    { KEYWORD_INIT ("Revision"), 1 },
+    { KEYWORD_INIT ("Source"), 1 },
+    { KEYWORD_INIT ("State"), 1 },
+    { NULL, 0, 0 },
+    { NULL, 0, 0 }
 };
 enum keyword
 {
     KEYWORD_AUTHOR = 0,
     KEYWORD_DATE,
+    KEYWORD_CVSHEADER,
     KEYWORD_HEADER,
     KEYWORD_ID,
     KEYWORD_LOCKER,
@@ -2207,6 +2212,7 @@ enum keyword
     KEYWORD_STATE,
     KEYWORD_LOCALID
 };
+enum keyword keyword_local = KEYWORD_ID;
 
 /* Convert an RCS date string into a readable string.  This is like
    the RCS date2str function.  */
@@ -2342,11 +2348,6 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 	return;
     }
 
-    if (RCS_citag != NULL && keywords[KEYWORD_LOCALID].string == NULL) {
-	keywords[KEYWORD_LOCALID].string = RCS_citag;
-	keywords[KEYWORD_LOCALID].len = strlen(RCS_citag);
-    }
-
     /* If we are using -kkvl, dig out the locker information if any.  */
     locker = NULL;
     if (expand == KFLAG_KVL && rcs->other != NULL)
@@ -2422,7 +2423,8 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 	slen = s - srch;
 	for (keyword = keywords; keyword->string != NULL; keyword++)
 	{
-	    if (keyword->len == slen
+	    if (keyword->expandit
+		&& keyword->len == slen
 		&& strncmp (keyword->string, srch, slen) == 0)
 	    {
 		break;
@@ -2469,6 +2471,7 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 		free_value = 1;
 		break;
 
+	    case KEYWORD_CVSHEADER:
 	    case KEYWORD_HEADER:
 	    case KEYWORD_ID:
 	    case KEYWORD_LOCALID:
@@ -2477,8 +2480,14 @@ expand_keywords (rcs, ver, name, log, loglen, expand, buf, len, retbuf, retlen)
 		    int free_path;
 		    char *date;
 
-		    if (kw == KEYWORD_HEADER)
+		    if (kw == KEYWORD_HEADER ||
+			    (kw == KEYWORD_LOCALID &&
+			     keyword_local == KEYWORD_HEADER))
 			path = rcs->path;
+		    else if (kw == KEYWORD_CVSHEADER ||
+			     (kw == KEYWORD_LOCALID &&
+			      keyword_local == KEYWORD_CVSHEADER))
+			path = getfullCVSname(rcs->path);
 		    else
 			path = last_component (rcs->path);
 		    path = escape_keyword_value (path, &free_path);
@@ -4283,4 +4292,98 @@ annotate (argc, argv)
 			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			    argc, argv, local, W_LOCAL, 0, 1, (char *)NULL,
 			    1);
+}
+
+void
+RCS_setlocalid (arg)
+    const char *arg;
+{
+    char *copy, *next, *key;
+
+    copy = strdup(arg);
+    next = copy;
+    key = strtok(next, "=");
+
+    keywords[KEYWORD_LOCALID].string = strdup(key);
+    keywords[KEYWORD_LOCALID].len = strlen(key);
+
+    /* options? */
+    while (key = strtok(NULL, ",")) {
+	if (!strcmp(key, keywords[KEYWORD_ID].string))
+	    keyword_local = KEYWORD_ID;
+	else if (!strcmp(key, keywords[KEYWORD_HEADER].string))
+	    keyword_local = KEYWORD_HEADER;
+	else if (!strcmp(key, keywords[KEYWORD_CVSHEADER].string))
+	    keyword_local = KEYWORD_CVSHEADER;
+	else
+	    error(1, 0, "Unknown LocalId mode: %s", key);
+    }
+    free(copy);
+}
+
+void
+RCS_setincexc (arg)
+    const char *arg;
+{
+    char *key;
+    char *copy, *next;
+    int include = 0;
+    struct rcs_keyword *keyword;
+
+    copy = strdup(arg);
+    next = copy;
+    switch (*next++) {
+	case 'e':
+	    include = 0;
+	    break;
+	case 'i':
+	    include = 1;
+	    break;
+	default:
+	    free(copy);
+	    return;
+    }
+
+    if (include)
+	for (keyword = keywords; keyword->string != NULL; keyword++)
+	{
+	    keyword->expandit = 0;
+	}
+
+    key = strtok(next, ",");
+    while (key) {
+	for (keyword = keywords; keyword->string != NULL; keyword++) {
+	    if (strcmp (keyword->string, key) == 0)
+		keyword->expandit = include;
+	}
+	key = strtok(NULL, ",");
+    }
+    free(copy);
+    return;
+}
+
+static char *
+getfullCVSname(CVSname)
+    char *CVSname;
+{
+    int rootlen;
+
+    if (CVSroot_directory) {
+	rootlen = strlen(CVSroot_directory);
+	/* ignore trailing '/' chars from $CVSROOT */
+	while (rootlen > 0) {
+	    if (CVSroot_directory[rootlen - 1] == '/')
+		rootlen--;
+	    else
+		break;
+	}
+	if (strncmp(CVSname, CVSroot_directory, rootlen) == 0) {
+	    CVSname += rootlen;
+	    /* skip any leading '/' chars */
+	    while (*CVSname == '/')
+		CVSname++;
+	    return CVSname;
+	}
+    }
+    return CVSname;
 }
