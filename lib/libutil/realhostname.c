@@ -87,19 +87,21 @@ int
 realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 {
 	int result, error;
+	char buf[NI_MAXHOST];
 
 	result = HOSTNAME_INVALIDADDR;
 
-	error = getnameinfo(addr, addrlen, host, hsize, NULL, 0, 0);
-	if (error == NULL) {
+	error = getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0, 0);
+	if (error == 0) {
 		struct addrinfo hints, *res, *ores;
 		struct sockaddr *sa;
 
 		memset(&hints, 0, sizeof(struct addrinfo));
-		hints.ai_family = AF_UNSPEC;
+		hints.ai_family =
+			(addr->sa_family == AF_INET) ? AF_INET : AF_UNSPEC;
 		hints.ai_flags = AI_CANONNAME;
 
-		error = getaddrinfo(host, NULL, &hints, &res);
+		error = getaddrinfo(buf, NULL, &hints, &res);
 		if (error) {
 			result = HOSTNAME_INVALIDNAME;
 			goto numeric;
@@ -122,13 +124,20 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				port = ((struct sockinet *)addr)->si_port;
 				((struct sockinet *)addr)->si_port = 0;
 				if (!memcmp(sa, addr, sa->sa_len)) {
-					if (res->ai_canonname != 0)
-						strncpy(host,
-							res->ai_canonname,
-							hsize);
 					result = HOSTNAME_FOUND;
 					((struct sockinet *)addr)->si_port =
 						port;
+					if (res->ai_canonname == 0) {
+						freeaddrinfo(ores);
+						goto numeric;
+					}
+					if (strlen(res->ai_canonname) > hsize &&
+					    addr->sa_family == AF_INET) {
+						freeaddrinfo(ores);
+						goto numeric;
+					}
+					strncpy(host, res->ai_canonname,
+						hsize);
 					break;
 				}
 				((struct sockinet *)addr)->si_port = port;
@@ -148,11 +157,18 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				if (IN6_IS_ADDR_V4MAPPED(in6) &&
 				    !memcmp(&in6->s6_addr[12], in,
 					    sizeof(*in))) {
-					if (res->ai_canonname != 0)
+					result = HOSTNAME_FOUND;
+					if (res->ai_canonname == 0) {
+						freeaddrinfo(ores);
+						goto numeric;
+					}
+					if (strlen(res->ai_canonname) > hsize)
+						strncpy(host, inet_ntoa(*in),
+							hsize);
+					else
 						strncpy(host,
 							res->ai_canonname,
 							hsize);
-					result = HOSTNAME_FOUND;
 					break;
 				}
 			}
@@ -161,9 +177,9 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 		freeaddrinfo(ores);
 	} else {
     numeric:
-		getnameinfo(addr, addrlen, host, hsize, NULL, 0,
-			    NI_NUMERICHOST|NI_WITHSCOPEID);
-		/* XXX: do 'error' check */
+		if (getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
+				NI_NUMERICHOST|NI_WITHSCOPEID) == 0)
+			strncpy(host, buf, hsize);
 	}
 
 	return result;
