@@ -269,17 +269,19 @@ typedef enum {
  */
 struct aac_adapter_init {
 	u_int32_t	InitStructRevision;
-#define AAC_INIT_STRUCT_REVISION	3
+#define AAC_INIT_STRUCT_REVISION		3
 	u_int32_t	MiniPortRevision;
+#define	AAC_INIT_STRUCT_MINIPORT_REVISION	1
 	u_int32_t	FilesystemRevision;
 	u_int32_t	CommHeaderAddress;
 	u_int32_t	FastIoCommAreaAddress;
 	u_int32_t	AdapterFibsPhysicalAddress;
-	void		*AdapterFibsVirtualAddress;
+	u_int32_t	AdapterFibsVirtualAddress;
 	u_int32_t	AdapterFibsSize;
 	u_int32_t	AdapterFibAlign;
 	u_int32_t	PrintfBufferAddress;
 	u_int32_t	PrintfBufferSize;
+#define	AAC_PAGE_SIZE				4096
 	u_int32_t	HostPhysMemPages;
 	u_int32_t	HostElapsedSeconds;
 } __packed;
