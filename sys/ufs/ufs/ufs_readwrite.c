@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.41 1998/01/30 11:34:05 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.42 1998/02/05 03:32:33 dyson Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -538,4 +538,18 @@ ffs_getpages(ap)
 		(ap->a_reqpage - firstpage), physoffset);
 
 	return (rtval);
+}
+
+/*
+ * put page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+ffs_putpages(ap)
+	struct vop_putpages_args *ap;
+{
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
 }

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.85 1998/02/23 08:22:48 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.86 1998/02/25 03:55:53 dyson Exp $
  */
 
 /*
@@ -88,11 +88,6 @@ struct pagerops vnodepagerops = {
 	NULL
 };
 
-static int vnode_pager_leaf_getpages __P((vm_object_t object, vm_page_t *m,
-					  int count, int reqpage));
-static int vnode_pager_leaf_putpages __P((vm_object_t object, vm_page_t *m,
-					  int count, boolean_t sync,
-					  int *rtvals));
 
 /*
  * Allocate (or lookup) pager for a vnode.
@@ -519,6 +514,14 @@ vnode_pager_input_old(object, m)
  * generic vnode pager input routine
  */
 
+/*
+ * EOPNOTSUPP is no longer legal.  For local media VFS's that do not
+ * implement their own VOP_GETPAGES, their VOP_GETPAGES should call to
+ * vnode_pager_generic_getpages() to implement the previous behaviour.
+ *
+ * All other FS's should use the bypass to get to the local media
+ * backing vp's VOP_GETPAGES.
+ */
 static int
 vnode_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
@@ -530,31 +533,43 @@ vnode_pager_getpages(object, m, count, reqpage)
 	struct vnode *vp;
 
 	vp = object->handle;
+	/* 
+	 * XXX temporary diagnostic message to help track stale FS code,
+	 * Returning EOPNOTSUPP from here may make things unhappy.
+	 */
 	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
 	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_getpages(object, m, count, reqpage);
-	else
-		return rtval;
+	    printf("vnode_pager: *** WARNING *** stale FS code in system.\n");
+	return rtval;
 }
 
-static int
-vnode_pager_leaf_getpages(object, m, count, reqpage)
-	vm_object_t object;
+
+/*
+ * This is now called from local media FS's to operate against their
+ * own vnodes if they fail to implement VOP_GETPAGES.
+ */
+int
+vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
+	struct vnode *vp;
 	vm_page_t *m;
-	int count;
+	int bytecount;
 	int reqpage;
 {
+	vm_object_t object;
 	vm_offset_t kva;
 	off_t foff;
 	int i, size, bsize, first, firstaddr;
-	struct vnode *dp, *vp;
+	struct vnode *dp;
 	int runpg;
 	int runend;
 	struct buf *bp;
 	int s;
+	int count;
 	int error = 0;
 
-	vp = object->handle;
+	object = vp->v_object;
+	count = bytecount / PAGE_SIZE;
+
 	if (vp->v_mount == NULL)
 		return VM_PAGER_BAD;
 
@@ -770,6 +785,14 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
+/*
+ * EOPNOTSUPP is no longer legal.  For local media VFS's that do not
+ * implement their own VOP_PUTPAGES, their VOP_PUTPAGES should call to
+ * vnode_pager_generic_putpages() to implement the previous behaviour.
+ *
+ * All other FS's should use the bypass to get to the local media
+ * backing vp's VOP_PUTPAGES.
+ */
 static int
 vnode_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
@@ -782,34 +805,35 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	struct vnode *vp;
 
 	vp = object->handle;
-	rtval = VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
-	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals);
-	else
-		return rtval;
+	return VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
 }
 
+
 /*
- * generic vnode pager output routine
+ * This is now called from local media FS's to operate against their
+ * own vnodes if they fail to implement VOP_GETPAGES.
  */
-static int
-vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
-	vm_object_t object;
+int
+vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
+	struct vnode *vp;
 	vm_page_t *m;
-	int count;
+	int bytecount;
 	boolean_t sync;
 	int *rtvals;
 {
 	int i;
+	vm_object_t object;
+	int count;
 
-	struct vnode *vp;
 	int maxsize, ncount;
 	vm_ooffset_t poffset;
 	struct uio auio;
 	struct iovec aiov;
 	int error;
 
-	vp = object->handle;;
+	object = vp->v_object;
+	count = bytecount / PAGE_SIZE;
+
 	for (i = 0; i < count; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
 
