@@ -760,12 +760,13 @@ madvise(td, uap)
 	 * "immortal."
 	 */
 	if (uap->behav == MADV_PROTECT) {
-		p = td->td_proc;
-		PROC_LOCK(p);
 		error = suser(td);
-		if (error == 0)
+		if (error == 0) {
+			p = td->td_proc;
+			PROC_LOCK(p);
 			p->p_flag |= P_PROTECTED;
-		PROC_UNLOCK(p);
+			PROC_UNLOCK(p);
+		}
 		return (error);
 	}
 	/*
