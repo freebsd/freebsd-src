@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ip_icmp.c,v 1.25 1997/02/22 09:41:33 peter Exp $
  */
 
 #include <sys/param.h>
@@ -517,7 +517,7 @@ icmp_reflect(m)
 			break;
 	}
 	icmpdst.sin_addr = t;
-	if (ia == (struct in_ifaddr *)0)
+	if ((ia == (struct in_ifaddr *)0) && m->m_pkthdr.rcvif)
 		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
 			(struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 	/*
