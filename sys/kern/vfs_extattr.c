@@ -2223,22 +2223,28 @@ pathconf(td, uap)
 		int name;
 	} */ *uap;
 {
-	int error;
-	struct nameidata nd;
-	int vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, UIO_USERSPACE,
-	    uap->path, td);
+	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name));
+}
+
+int
+kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name)
+{
+	struct nameidata nd;
+	int error, vfslocked;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, pathseg, path,
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* If asynchronous I/O is available, it works for all files. */
-	if (uap->name == _PC_ASYNC_IO)
+	if (name == _PC_ASYNC_IO)
 		td->td_retval[0] = async_io_version;
 	else
-		error = VOP_PATHCONF(nd.ni_vp, uap->name, td->td_retval);
+		error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
