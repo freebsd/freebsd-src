@@ -67,6 +67,7 @@ SYSTEM_CFILES= vnode_if.c hints.c env.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
+SYSTEM_OBJS+= majors.o
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o

@@ -72,7 +72,7 @@ tlphy.o xmphy.o: miidevs.h
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	      vers.c vnode_if.c vnode_if.h \
+	      vers.c vnode_if.c vnode_if.h majors.c \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 
@@ -213,6 +213,12 @@ vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
 
 vnode_if.o:
+	${NORMAL_C}
+
+majors.c: $S/conf/majors $S/conf/majors.awk
+	${AWK} -f $S/conf/majors.awk $S/conf/majors > majors.c
+
+majors.o:
 	${NORMAL_C}
 
 .include <bsd.kern.mk>
