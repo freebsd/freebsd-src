@@ -513,7 +513,7 @@ snppoll(dev, events, p)
 #ifdef DEVFS
 static	void	*snp_devfs_token[NSNP];
 #endif
-static snp_devsw_installed = 0;
+static	int	snp_devsw_installed;
 
 static void snp_drvinit __P((void *unused));
 static void

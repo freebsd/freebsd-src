@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.36 1997/11/18 16:29:53 bde Exp $
+ * $Id: bpf.c,v 1.37 1998/01/24 02:54:37 eivind Exp $
  */
 
 #include "bpfilter.h"
@@ -1270,7 +1270,7 @@ bpfattach(ifp, dlt, hdrlen)
 static	void *bpf_devfs_token[NBPFILTER];
 #endif
 
-static bpf_devsw_installed = 0;
+static	int bpf_devsw_installed;
 
 static void bpf_drvinit __P((void *unused));
 static void

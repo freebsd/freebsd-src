@@ -96,7 +96,7 @@ static struct cdevsw tun_cdevsw = {
 };
 
 
-static tun_devsw_installed = 0;
+static	int	tun_devsw_installed;
 #ifdef	DEVFS
 static	void	*tun_devfs_token[NTUN];
 #endif

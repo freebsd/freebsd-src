@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.31 1998/01/24 02:54:25 eivind Exp $
+ *    $Id: spkr.c,v 1.32 1998/02/09 06:08:41 eivind Exp $
  */
 
 #include "speaker.h"
@@ -584,7 +584,7 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
 }
 
 
-static spkr_devsw_installed = 0;
+static int spkr_devsw_installed;
 
 static void
 spkr_drvinit(void *unused)
