@@ -39,7 +39,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.35 2004/01/31 23:16:09 das Exp ");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfscanf.c,v 1.37 2004/05/02 10:55:05 das 
+Exp");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -58,9 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
-#define FLOATING_POINT
-
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 #include <locale.h>
 #endif
 
@@ -263,7 +262,7 @@ literal:
 			base = 16;
 			break;
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case 'A': case 'E': case 'F': case 'G':
 		case 'a': case 'e': case 'f': case 'g':
 			c = CT_FLOAT;
@@ -690,7 +689,7 @@ literal:
 			nconversions++;
 			break;
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case CT_FLOAT:
 			/* scan a floating point number as if by strtod */
 			if (width == 0 || width > sizeof(buf) /
@@ -716,7 +715,7 @@ literal:
 			nread += width;
 			nconversions++;
 			break;
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 		}
 	}
 input_failure:
@@ -725,7 +724,7 @@ match_failure:
 	return (nassigned);
 }
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 static int
 parsefloat(FILE *fp, wchar_t *buf, wchar_t *end)
 {
