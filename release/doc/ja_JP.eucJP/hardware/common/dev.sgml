@@ -27,7 +27,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.256
+        Original revision: 1.261
 -->
 
 <sect1 id="support">
@@ -260,6 +260,9 @@
     <para arch="i386">Promise SuperTrak ATA RAID コントローラ (&man.pst.4;
     ドライバ)</para>
 
+    <para arch="i386">HighPoint RocketRAID 182x SATA コントローラ
+      (hptmv(4) ドライバ)</para>
+
     &hwlist.ips;
 
     &hwlist.mpt;
@@ -325,238 +328,7 @@
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) ベースの Ethernet NIC
       (&man.tx.4; ドライバ)</para>
     
-    <para arch="i386,pc98">National Semiconductor DS8390 ベースの Ethernet NIC。
-      これには Novell NE2000 とその互換品が含まれます。
-      (&man.ed.4; ドライバ)
-      <note arch="pc98">
-        <para>非 PCI デバイスの場合には、
-	  カーネル設定にフラグをセットする必要があります。</para>
-      </note>
-      <itemizedlist>
-        <listitem arch="i386,alpha">
-	  <para>3C503 Etherlink II (&man.ed.4; ドライバ)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>DEC Etherworks DE305</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>Hewlett-Packard PC Lan+ 27247B および 27252A</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>NetVin 5000</para>
-        </listitem>
-        <listitem>
-          <para>Novell NE1000, NE2000, NE2100</para>
-	</listitem>
-        <listitem>
-	  <para>RealTek 8029</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>SMC Elite 16 WD8013 Ethernet インタフェース</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>SMC Elite Ultra</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>SMC WD8003E, WD8003EBT, WD8003W, WD8013W, WD8003S,
-	  WD8003SBT, WD8013EBT およびその互換品</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Surecom NE-34</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>VIA VT86C926</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>Winbond W89C940</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>I-O DATA ET2/T-PCI</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MELCO LGY-PCI-TR</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>PLANEX ENW-8300-T</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Allied Telesis LA-98 (flags 0x000000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Corega Ether98-T (flags 0x000000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>SMC EtherEZ98 (flags 0x000000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>ELECOM LD-BDN, LD-NW801G (flags 0x200000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>PLANEX EN-2298-C (flags 0x200000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MELCO EGY-98 (flags 0x300000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(98)E-A, C-NET(98)L-A, C-NET(98)P (flags
-          0x300000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MELCO LGY-98, LGH-98, IND-SP, IND-SS, LGY-98-N
-          (110pin) (flags 0x400000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MACNICA NE2098 (flags 0x400000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>ICM IF-2766ET, IF-2771ET, AD-ET2-T, DT-ET-25, DT-ET-T5,
-          NB-ET-T  (110pin) (flags 0x500000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>D-Link DE-298, DE-298P (flags 0x500000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>ELECOM LD-98P (flags 0x500000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>PLANEX EN-2298-T, EN-2298P-T (flags 0x500000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Allied Telesis SIC-98, SIU-98, SIC-98NOTE  (110pin) (flags
-          0x600000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Allied Telesis SIU-98-D (flags 0x610000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9801-107, 108 (flags 0x800000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>I-O DATA LA/T-98, LA/T-98SB, LA2/T-98, ET/T-98 (flags
-          0x900000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>MACNICA ME98 (flags 0x900000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Kansai KLA-98C/T (flags 0x900000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9801-77, 78 (flags 0x910000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(98), RT-1007(98), C-NET(9N) (110pin) (flags
-          0xa00000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(98)E, C-NET(98)L, C-NET(9N)L (110pin) (flags
-          0xb00000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Logitec LAN-98T (flags 0xb00000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Networld 98X3 (flags 0xd00000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Accton EN1644(old model), EN1646(old model), EN2203(old
-          model) (110pin) (flags 0xd00000)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Networld EC-98X, EP-98X (flags 0xd10000)</para>
-        </listitem>
-      </itemizedlist>
-    </para>    
-
-    <para arch="i386,pc98">NE2000 互換の PC-Card (PCMCIA) Ethernet, FastEthernet
-      カード (&man.ed.4; ドライバ)
-      <itemizedlist>
-        <listitem>
-          <para>AR-P500 Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>Accton EN2212/EN2216/UE2216</para>
-        </listitem>
-	<listitem>
-	  <para>Allied Telesis CentreCOM LA100-PCM_V2</para>
-        </listitem>
-	<listitem>
-	  <para>AmbiCom 10BaseT カード</para>
-        </listitem>
-	<listitem>
-	  <para>BayNetworks NETGEAR FA410TXC Fast Ethernet</para>
-        </listitem>
-	<listitem>
-	  <para>CNet BC40 アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>COREGA Ether PCC-T/EtherII PCC-T/FEther PCC-TXF/PCC-TXD</para>
-        </listitem>
-	<listitem>
-	  <para>Compex Net-A アダプタ</para>
-        </listitem>
-	<listitem>
-	  <para>CyQ've ELA-010</para>
-        </listitem>
-	<listitem>
-	  <para>D-Link DE-650/660</para>
-        </listitem>
-	<listitem>
-	  <para>Danpex EN-6200P2</para>
-        </listitem>
-	<listitem>
-	  <para>Elecom Laneed LD-CDL/TX, LD-CDF, LD-CDS, LD-10/100CD,
-            LD-CDWA (DP83902A), MACNICA Ethernet ME1 for JEIDA</para>
-        </listitem>
-	<listitem>
-	  <para>IO DATA PCLATE</para>
-        </listitem>
-	<listitem>
-	  <para>IBM Creditcard Ethernet I/II</para>
-        </listitem>
-	<listitem>
-	  <para>IC-CARD Ethernet/IC-CARD+ Ethernet</para>
-        </listitem>
-        <listitem>
-          <para>Kingston KNE-PC2, KNE-PCM/x Ethernet</para>
-        </listitem>
-	<listitem>
-          <para>Linksys EC2T/PCMPC100/PCM100, PCMLM56, EtherFast 10/100 PC Card,
-            Combo PCMCIA Ethernet カード
-            (PCMPC100 V2)</para>
-        </listitem>
-	<listitem>
-	  <para>MELCO LPC-T/LPC2-T/LPC2-CLT/LPC2-TX/LPC3-TX/LPC3-CLX</para>
-        </listitem>
-	<listitem>
-	  <para>NDC Ethernet Instant-Link</para>
-        </listitem>
-	<listitem>
-	  <para>National Semiconductor InfoMover NE4100</para>
-        </listitem>
-	<listitem>
-	  <para>NetGear FA-410TX</para>
-	</listitem>
-	<listitem>
-	  <para>Network Everywhere Ethernet 10BaseT PC Card</para>
-        </listitem>
-	<listitem>
-	  <para>Planex FNW-3600-T</para>
-        </listitem>
-	<listitem>
-	  <para>Socket LP-E</para>
-        </listitem>
-	<listitem>
-	  <para>Surecom EtherPerfect EP-427</para>
-        </listitem>
-	<listitem>
-	  <para>TDK LAK-CD031,Grey Cell GCS2000 Ethernet カード</para>
-        </listitem>
-	<listitem>
-	  <para>Telecom Device SuperSocket RE450T</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ed;
 
     &hwlist.rl;
 
@@ -622,8 +394,6 @@
     &hwlist.bge;
 
     &hwlist.em;
-
-    &hwlist.gx;
 
     &hwlist.hme;
 
@@ -1029,6 +799,8 @@
 
     &hwlist.snd.es137x;
 
+    &hwlist.snd.ess;
+
     <para arch="i386,alpha,amd64">ESS
       <itemizedlist>
         <listitem>
@@ -1178,9 +950,6 @@
         <listitem>
 	  <para>Creative Technology Video Blaster WebCam Plus</para>
 	</listitem>
-        <listitem>
-	  <para>Diamond Rio 500, 600, 800 MP3 プレーヤ (&man.urio.4; ドライバ)</para>
-	</listitem>
 	<listitem>
 	  <para>D-Link DSB-R100 USB Radio (&man.ufm.4; ドライバ)</para>
 	</listitem>
@@ -1190,12 +959,13 @@
       </itemizedlist>
     </para>
 
+    &hwlist.urio;
+
     &hwlist.umodem;
 
     <para arch="i386,pc98,alpha,amd64">マウス (&man.ums.4; ドライバ)</para>
 
-    <para arch="i386,pc98,alpha,amd64">プリンタ、パラレルプリンタ変換ケーブル
-      (&man.ulpt.4; ドライバ)</para>
+    &hwlist.ulpt;
 
     &hwlist.ubsa;
 
@@ -1204,6 +974,8 @@
     &hwlist.uftdi;
 
     &hwlist.uplcom;
+
+    &hwlist.umct;
 
     &hwlist.uscanner;
 
