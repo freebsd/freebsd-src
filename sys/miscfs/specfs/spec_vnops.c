@@ -57,7 +57,6 @@
 #include <vm/vm_extern.h>
 
 static int	spec_advlock __P((struct vop_advlock_args *));  
-static int	spec_badop __P((void));
 static int	spec_bmap __P((struct vop_bmap_args *));
 static int	spec_close __P((struct vop_close_args *));
 static int	spec_freeblks __P((struct vop_freeblks_args *));
@@ -81,31 +80,31 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
 	{ &vop_close_desc,		(vop_t *) spec_close },
-	{ &vop_create_desc,		(vop_t *) spec_badop },
+	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) spec_badop },
-	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
-	{ &vop_mknod_desc,		(vop_t *) spec_badop },
+	{ &vop_link_desc,		(vop_t *) vop_panic },
+	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
+	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
-	{ &vop_readdir_desc,		(vop_t *) spec_badop },
-	{ &vop_readlink_desc,		(vop_t *) spec_badop },
-	{ &vop_reallocblks_desc,	(vop_t *) spec_badop },
+	{ &vop_readdir_desc,		(vop_t *) vop_panic },
+	{ &vop_readlink_desc,		(vop_t *) vop_panic },
+	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
 	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_remove_desc,		(vop_t *) spec_badop },
-	{ &vop_rename_desc,		(vop_t *) spec_badop },
-	{ &vop_rmdir_desc,		(vop_t *) spec_badop },
+	{ &vop_remove_desc,		(vop_t *) vop_panic },
+	{ &vop_rename_desc,		(vop_t *) vop_panic },
+	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
-	{ &vop_symlink_desc,		(vop_t *) spec_badop },
+	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };
@@ -822,17 +821,6 @@ spec_advlock(ap)
 {
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
-}
-
-/*
- * Special device bad operation
- */
-static int
-spec_badop()
-{
-
-	panic("spec_badop called");
-	/* NOTREACHED */
 }
 
 static void
