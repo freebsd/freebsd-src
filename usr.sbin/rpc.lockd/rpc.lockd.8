@@ -53,14 +53,14 @@ Options and operands available for
 The
 .Fl d
 option causes debugging information to be written to syslog, recording
-all RPC transations to the daemon.  These messages are logged with level
+all RPC transactions to the daemon.  These messages are logged with level
 LOG_DEBUG and facility LOG_DAEMON.  If debug_level is not specified,
 level 1 is assumed, giving one log line per protocol operation.  Higher
 debug levels can be specified, causing display of operation arguments
 and internal operations of the daemon.
 .El
 .Pp
-Error conditions are logged to syslog, irrespecive of the debug level,
+Error conditions are logged to syslog, irrespective of the debug level,
 using log level LOG_ERR and facility LOG_DAEMON.
 .Pp
 The
