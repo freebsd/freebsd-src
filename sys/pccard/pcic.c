@@ -307,7 +307,7 @@ pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 {
 	u_int32_t	reg;
 
-	if (sp->sc->csc_route == pci_parallel) {
+	if (sp->sc->csc_route == pcic_iw_pci) {
 		/* Do the PCI side of things: Enable the Card Change int */
 		reg = CB_SM_CD;
 		bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, reg);
@@ -412,7 +412,7 @@ pcic_sresource(struct slot *slt, caddr_t data)
 	 * return in pr->resource_addr).
 	 */
 	if (pr->type == SYS_RES_IRQ) {
-		if (sp->sc->func_route >= pci_parallel) {
+		if (sp->sc->func_route >= pcic_iw_pci) {
 			pr->resource_addr = sp->sc->irq;
 			return (0);
 		}
@@ -613,7 +613,7 @@ static void
 pcic_mapirq(struct slot *slt, int irq)
 {
 	struct pcic_slot *sp = slt->cdata;
-	if (sp->sc->csc_route == pci_parallel)
+	if (sp->sc->csc_route == pcic_iw_pci)
 		return;
 	irq = host_irq_to_pcic(irq);
 	if (irq == 0)
@@ -794,9 +794,9 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 	int err;
 
 #if __FreeBSD_version >= 500000
-	if (sc->csc_route == pci_parallel && (flags & INTR_FAST))
+	if (sc->csc_route == pcic_iw_pci && (flags & INTR_FAST))
 #else
-	if (sc->csc_route == pci_parallel && (flags & INTR_TYPE_FAST))
+	if (sc->csc_route == pcic_iw_pci && (flags & INTR_TYPE_FAST))
 #endif
 		return (EINVAL);
 
@@ -927,7 +927,7 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	/*
 	 * If we're routing via pci, we can share.
 	 */
-	if (sc->func_route == pci_parallel && type == SYS_RES_IRQ) {
+	if (sc->func_route == pcic_iw_pci && type == SYS_RES_IRQ) {
 		if (bootverbose)
 			device_printf(child, "Forcing IRQ to %d\n", sc->irq);
 		start = end = sc->irq;
