@@ -129,7 +129,7 @@ setup_and_wait(char *command[])
  */
 
 int
-start_tracing(int pid, int eventflags, int flags)
+start_tracing(int pid, int failisfatal, int eventflags, int flags)
 {
 	int fd;
 	char buf[32];
@@ -144,8 +144,8 @@ start_tracing(int pid, int eventflags, int flags)
 		 * happens with SUGID programs.  So we need to see if it still
 		 * exists before we complain bitterly.
 		 */
-		if (kill(pid, 0) == -1)
-			return -1;
+		if (!failisfatal && kill(pid, 0) == -1)
+			return (-1);
 		err(8, "cannot open %s", buf);
 	}
 
