@@ -38,7 +38,7 @@
 .Nm crcopy ,
 .Nm crdup ,
 .Nm cru2x ,
-.NM cred_update_thread
+.Nm cred_update_thread
 .Nd "functions related to user credentials"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -180,7 +180,7 @@ the thread credential are to be made later during the same system call,
 the thread credential must also be refreshed from the process credential
 so as to prevent use of a stale value.
 To avoid this scenario, it is recommended that system calls updating the
-process credential by designed to avoid other authorization functions.
+process credential be designed to avoid other authorization functions.
 .Pp
 If temporarily elevated privileges are required for a thread, the thread
 credential can by replaced for the duration of an activity, or for
