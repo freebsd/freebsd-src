@@ -12,14 +12,14 @@ crunch:
 	else \
 		crunchgen -p ${PICO_OBJ} -o ./crunch1.conf ; \
 	fi )
-	@${MAKE} -f crunch1.mk
+	@${MAKE} -s -f crunch1.mk
 	strip --remove-section=.note --remove-section=.comment crunch1
 
 
 clean:
-	if [ -f crunch1.mk ]; then \
+	-( if [ -f crunch1.mk ]; then \
 		make -f crunch1.mk realclean ; \
-	fi ;
+	fi )
 	rm  -f crunch1*
 
 install: 
