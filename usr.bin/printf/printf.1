@@ -188,7 +188,9 @@ from a string; if the digit string is missing, the precision is treated
 as zero;
 .It Format:
 A character which indicates the type of format to use (one of
-.Cm diouxXfwEgGcsb ) .
+.Cm diouxXfFeEgGaAcsb ) .
+The uppercase formats differ from their lowercase counterparts only in
+that the output of the latter is entirely in uppercase.
 .El
 .Pp
 A field width or precision may be
@@ -205,7 +207,7 @@ The
 .Ar argument
 is printed as a signed decimal (d or i), unsigned octal, unsigned decimal,
 or unsigned hexadecimal (X or x), respectively.
-.It Cm f
+.It Cm fF
 The
 .Ar argument
 is printed in the style `[\-]ddd.ddd' where the number of d's
@@ -213,6 +215,11 @@ after the decimal point is equal to the precision specification for
 the argument.
 If the precision is missing, 6 digits are given; if the precision
 is explicitly 0, no digits and no decimal point are printed.
+The values \*[If] and \*[Na] are printed as
+.Ql inf
+and
+.Ql nan ,
+respectively.
 .It Cm eE
 The
 .Ar argument
@@ -225,16 +232,37 @@ where there
 is one digit before the decimal point and the number after is equal to
 the precision specification for the argument; when the precision is
 missing, 6 digits are produced.
-An upper-case E is used for an `E' format.
+The values \*[If] and \*[Na] are printed as
+.Ql inf
+and
+.Ql nan ,
+respectively.
 .It Cm gG
 The
 .Ar argument
 is printed in style
 .Cm f
+.Pq Cm F
 or in style
 .Cm e
 .Pq Cm E
 whichever gives full precision in minimum space.
+.It Cm aA
+The
+.Ar argument
+is printed in style
+.Sm off
+.Sq Op - Ar h.hhh No \(+- Li p Ar d
+.Sm on
+where there is one digit before the hexadecimal point and the number
+after is equal to the precision specification for the argument;
+when the precision is missing, enough digits are produced to convey
+the argument's exact double-precision floating-point representation.
+The values \*[If] and \*[Na] are printed as
+.Ql inf
+and
+.Ql nan ,
+respectively.
 .It Cm c
 The first character of
 .Ar argument
