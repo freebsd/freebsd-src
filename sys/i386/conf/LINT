@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.349 1997/07/01 00:14:39 bde Exp $
+#	$Id: LINT,v 1.350 1997/07/08 15:39:29 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -834,6 +834,7 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 #	0x20	force this unit to be the console (unless there is another
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
+#	0x20000	supports 16650 type devices with hardware RTS/CTS && larger buffers.
 #
 
 # Options for serial drivers that support consoles (only for sio now):
