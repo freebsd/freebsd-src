@@ -152,8 +152,10 @@ int	susword __P((void *base, int word));
 void	realitexpire __P((void *));
 
 void	hardclock __P((struct clockframe *frame));
+void	hardclock_process __P((struct proc *p, int user));
 void	softclock __P((void *));
 void	statclock __P((struct clockframe *frame));
+void	statclock_process __P((struct proc *p, register_t pc, int user));
 
 void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));

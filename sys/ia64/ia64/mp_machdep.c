@@ -34,6 +34,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -42,7 +43,6 @@
 #include <sys/user.h>
 #include <sys/dkstat.h>
 
-#include <machine/smp.h>
 #include <machine/atomic.h>
 #include <machine/ipl.h>
 #include <machine/globaldata.h>
@@ -53,8 +53,6 @@
 #define CHECKSTATE_SYS	1
 #define CHECKSTATE_INTR	2
 
-volatile u_int		stopped_cpus;
-volatile u_int		started_cpus;
 volatile u_int		checkstate_probed_cpus;
 volatile u_int		checkstate_need_ast;
 volatile u_int		checkstate_pending_ast;
@@ -62,76 +60,27 @@ struct proc*		checkstate_curproc[MAXCPU];
 int			checkstate_cpustate[MAXCPU];
 u_long			checkstate_pc[MAXCPU];
 volatile u_int		resched_cpus;
-void (*cpustop_restartfunc) __P((void));
-int			mp_ncpus;
 
-int			smp_started;
 int			boot_cpu_id;
-u_int32_t		all_cpus;
-
-static struct globaldata	*cpuid_to_globaldata[MAXCPU];
-
-int smp_active = 0;	/* are the APs allowed to run? */
-SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
 
 /* Is forwarding of a interrupt to the CPU holding the ISR lock enabled ? */
 int forward_irq_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
 	   &forward_irq_enabled, 0, "");
 
-/* Enable forwarding of a signal to a process running on a different CPU */
-static int forward_signal_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
-	   &forward_signal_enabled, 0, "");
-
-/* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0, "");
-
-/*
- * Initialise a struct globaldata.
- */
-void
-globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
+int
+cpu_mp_probe()
 {
-	bzero(globaldata, sz);
-	globaldata->gd_cpuid = cpuid;
-	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuid);
-	cpuid_to_globaldata[cpuid] = globaldata;
-}
-
-struct globaldata *
-globaldata_find(int cpuid)
-{
-	return cpuid_to_globaldata[cpuid];
-}
-
-/* Other stuff */
-
-/* lock around the MP rendezvous */
-static struct mtx smp_rv_mtx;
-
-static void
-init_locks(void)
-{
-
-	mtx_init(&smp_rv_mtx, "smp_rendezvous", MTX_SPIN);
+	return (0);
 }
 
 void
-mp_start()
-{
-	init_locks();
-}
-
-void
-mp_announce()
+cpu_mp_start()
 {
 }
 
 void
-smp_invltlb()
+cpu_mp_announce()
 {
 }
 
@@ -426,227 +375,6 @@ forward_hardclock(int pscnt)
 	}
 }
 
-void
-forward_signal(struct proc *p)
-{
-	int map;
-	int id;
-	int i;
-
-	/* Kludge. We don't yet have separate locks for the interrupts
-	 * and the kernel. This means that we cannot let the other processors
-	 * handle complex interrupts while inhibiting them from entering
-	 * the kernel in a non-interrupt context.
-	 *
-	 * What we can do, without changing the locking mechanisms yet,
-	 * is letting the other processors handle a very simple interrupt
-	 * (wich determines the processor states), and do the main
-	 * work ourself.
-	 */
-
-	CTR1(KTR_SMP, "forward_signal(%p)", p);
-
-	if (!smp_started || cold || panicstr)
-		return;
-	if (!forward_signal_enabled)
-		return;
-	while (1) {
-		if (p->p_stat != SRUN)
-			return;
-		id = p->p_oncpu;
-		if (id == 0xff)
-			return;
-		map = (1<<id);
-		checkstate_need_ast |= map;
-		ipi_selected(map, IPI_AST);
-		i = 0;
-		while ((checkstate_need_ast & map) != 0) {
-			/* spin */
-			i++;
-			if (i > 100000) { 
-#if 0
-				printf("forward_signal: dropped ast 0x%x\n",
-				       checkstate_need_ast & map);
-#endif
-				break;
-			}
-		}
-		if (id == p->p_oncpu)
-			return;
-	}
-}
-
-void
-forward_roundrobin(void)
-{
-	u_int map;
-	int i;
-
-	CTR0(KTR_SMP, "forward_roundrobin()");
-
-	if (!smp_started || cold || panicstr)
-		return;
-	if (!forward_roundrobin_enabled)
-		return;
-	resched_cpus |= PCPU_GET(other_cpus);
-	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
-	ipi_selected(map, IPI_AST);
-	i = 0;
-	while ((checkstate_need_ast & map) != 0) {
-		/* spin */
-		i++;
-		if (i > 100000) {
-#if 0
-			printf("forward_roundrobin: dropped ast 0x%x\n",
-			       checkstate_need_ast & map);
-#endif
-			break;
-		}
-	}
-}
-
-/*
- * When called the executing CPU will send an IPI to all other CPUs
- *  requesting that they halt execution.
- *
- * Usually (but not necessarily) called with 'other_cpus' as its arg.
- *
- *  - Signals all CPUs in map to stop.
- *  - Waits for each to stop.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
- */
-int
-stop_cpus(u_int map)
-{
-	int i;
-
-	if (!smp_started)
-		return 0;
-
-	CTR1(KTR_SMP, "stop_cpus(%x)", map);
-
-	/* send the stop IPI to all CPUs in map */
-	ipi_selected(map, IPI_STOP);
-	
-	i = 0;
-	while ((stopped_cpus & map) != map) {
-		/* spin */
-		i++;
-		if (i == 100000) {
-			printf("timeout stopping cpus\n");
-			break;
-		}
-		ia64_mf();
-	}
-
-	printf("stopped_cpus=%x\n", stopped_cpus);
-
-	return 1;
-}
-
-
-/*
- * Called by a CPU to restart stopped CPUs. 
- *
- * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
- *
- *  - Signals all CPUs in map to restart.
- *  - Waits for each to restart.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- */
-int
-restart_cpus(u_int map)
-{
-	if (!smp_started)
-		return 0;
-
-	CTR1(KTR_SMP, "restart_cpus(%x)", map);
-
-	started_cpus = map;		/* signal other cpus to restart */
-	ia64_mf();
-
-	while ((stopped_cpus & map) != 0) /* wait for each to clear its bit */
-		ia64_mf();
-
-	return 1;
-}
-
-/*
- * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
- * (if specified), rendezvous, execute the action function (if specified),
- * rendezvous again, execute the teardown function (if specified), and then
- * resume.
- *
- * Note that the supplied external functions _must_ be reentrant and aware
- * that they are running in parallel and in an unknown lock context.
- */
-static void (*smp_rv_setup_func)(void *arg);
-static void (*smp_rv_action_func)(void *arg);
-static void (*smp_rv_teardown_func)(void *arg);
-static void *smp_rv_func_arg;
-static volatile int smp_rv_waiters[2];
-
-void
-smp_rendezvous_action(void)
-{
-	/* setup function */
-	if (smp_rv_setup_func != NULL)
-		smp_rv_setup_func(smp_rv_func_arg);
-	/* spin on entry rendezvous */
-	atomic_add_int(&smp_rv_waiters[0], 1);
-	while (smp_rv_waiters[0] < mp_ncpus)
-		;
-	/* action function */
-	if (smp_rv_action_func != NULL)
-		smp_rv_action_func(smp_rv_func_arg);
-	/* spin on exit rendezvous */
-	atomic_add_int(&smp_rv_waiters[1], 1);
-	while (smp_rv_waiters[1] < mp_ncpus)
-		;
-	/* teardown function */
-	if (smp_rv_teardown_func != NULL)
-		smp_rv_teardown_func(smp_rv_func_arg);
-}
-
-void
-smp_rendezvous(void (* setup_func)(void *), 
-	       void (* action_func)(void *),
-	       void (* teardown_func)(void *),
-	       void *arg)
-{
-
-	/* obtain rendezvous lock */
-	mtx_lock_spin(&smp_rv_mtx);
-
-	/* set static function pointers */
-	smp_rv_setup_func = setup_func;
-	smp_rv_action_func = action_func;
-	smp_rv_teardown_func = teardown_func;
-	smp_rv_func_arg = arg;
-	smp_rv_waiters[0] = 0;
-	smp_rv_waiters[1] = 0;
-
-	/* signal other processors, which will enter the IPI with interrupts off */
-	ipi_all_but_self(IPI_RENDEZVOUS);
-
-	/* call executor function */
-	smp_rendezvous_action();
-
-	/* release lock */
-	mtx_unlock_spin(&smp_rv_mtx);
-}
-
 /*
  * send an IPI to a set of cpus.
  */
@@ -661,7 +389,7 @@ ipi_selected(u_int32_t cpus, u_int64_t ipi)
 		int cpuid = ffs(cpus) - 1;
 		cpus &= ~(1 << cpuid);
 
-		globaldata = cpuid_to_globaldata[cpuid];
+		globaldata = globaldata_find(cpuid);
 		if (globaldata) {
 			atomic_set_64(&globaldata->gd_pending_ipis, ipi);
 			ia64_mf();
@@ -733,9 +461,6 @@ smp_handle_ipi(struct trapframe *frame)
 			CTR0(KTR_SMP, "IPI_AST");
 			atomic_clear_int(&checkstate_need_ast, 1<<cpuid);
 			atomic_set_int(&checkstate_pending_ast, 1<<cpuid);
-			if ((frame->tf_cr_ipsr & IA64_PSR_CPL)
-			    == IA64_PSR_CPL_USER)
-				ast(frame); /* XXX */
 			break;
 
 		case IPI_CHECKSTATE:

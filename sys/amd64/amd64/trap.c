@@ -177,7 +177,7 @@ userret(p, frame, oticks)
 
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (resched_wanted()) {
+	if (resched_wanted(p)) {
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
@@ -1277,7 +1277,7 @@ ast(framep)
 	 * acquiring and releasing mutexes in assembly is not fun.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (!(astpending(p) || resched_wanted())) {
+	if (!(astpending(p) || resched_wanted(p))) {
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}

@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/dkstat.h>
 #include <sys/cons.h>	/* cngetc() */
 
@@ -57,9 +58,9 @@
 #include <sys/gmon.h>
 #endif
 
-#include <machine/smp.h>
 #include <machine/apic.h>
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/ipl.h>
 #include <machine/mpapic.h>
@@ -243,7 +244,6 @@ int	current_postcode;
 extern struct region_descriptor r_gdt, r_idt;
 
 int	bsp_apic_ready = 0;	/* flags useability of BSP apic */
-int	mp_ncpus;		/* # of CPUs, including BSP */
 int	mp_naps;		/* # of Applications processors */
 int	mp_nbusses;		/* # of busses */
 int	mp_napics;		/* # of IO APICs */
@@ -273,9 +273,6 @@ int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
 
 
-/* Bitmap of all available CPUs */
-u_int	all_cpus;
-
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
 static int bootAP;
@@ -288,27 +285,8 @@ extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[MAXCPU];
 
-int smp_started;		/* has the system started? */
-int smp_active = 0;		/* are the APs allowed to run? */
-SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
-
-/* XXX maybe should be hw.ncpu */
-static int smp_cpus = 1;	/* how many cpu's running */
-SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
-
 int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
 SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
-
-/* Enable forwarding of a signal to a process running on a different CPU */
-static int forward_signal_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
-	   &forward_signal_enabled, 0, "");
-
-/* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
-SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0, "");
-
 
 /*
  * Local data and functions.
@@ -354,9 +332,6 @@ struct mtx		mcount_mtx;
 struct mtx		com_mtx;
 #endif /* USE_COMLOCK */
 
-/* lock around the MP rendezvous */
-static struct mtx	smp_rv_mtx;
-
 static void
 init_locks(void)
 {
@@ -367,13 +342,9 @@ init_locks(void)
 	 */
 	mtx_init(&mcount_mtx, "mcount", MTX_DEF);
 
-	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
-
 #ifdef USE_COMLOCK
 	mtx_init(&com_mtx, "com", MTX_SPIN);
 #endif /* USE_COMLOCK */
-
-	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 }
 
 /*
@@ -397,8 +368,8 @@ mp_bootaddress(u_int basemem)
 /*
  * Look for an Intel MP spec table (ie, SMP capable hardware).
  */
-int
-mp_probe(void)
+void
+i386_mp_probe(void)
 {
 	int     x;
 	u_long  segment;
@@ -427,7 +398,7 @@ mp_probe(void)
 	/* nothing found */
 	mpfps = (mpfps_t)0;
 	mp_capable = 0;
-	return 0;
+	return;
 
 found:
 	/* calculate needed resources */
@@ -436,15 +407,19 @@ found:
 
 	/* flag fact that we are running multiple processors */
 	mp_capable = 1;
-	return 1;
 }
 
+int
+cpu_mp_probe(void)
+{
+	return (mp_capable);
+}
 
 /*
  * Initialize the SMP hardware and the APIC and start up the AP's.
  */
 void
-mp_start(void)
+cpu_mp_start(void)
 {
 	POSTCODE(MP_START_POST);
 
@@ -453,6 +428,8 @@ mp_start(void)
 		mp_enable(boot_address);
 	else
 		panic("MP hardware not found!");
+
+	cpu_setregs();
 }
 
 
@@ -460,13 +437,12 @@ mp_start(void)
  * Print various information about the SMP system hardware and setup.
  */
 void
-mp_announce(void)
+cpu_mp_announce(void)
 {
 	int     x;
 
 	POSTCODE(MP_ANNOUNCE_POST);
 
-	printf("FreeBSD/SMP: Multiprocessor motherboard\n");
 	printf(" cpu0 (BSP): apic id: %2d", CPU_TO_ID(0));
 	printf(", version: 0x%08x", cpu_apic_versions[0]);
 	printf(", at 0x%08x\n", cpu_apic_address);
@@ -623,8 +599,12 @@ mp_enable(u_int boot_addr)
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-	/* install an inter-CPU IPI for reading processor state */
-	setidt(XCPUCHECKSTATE_OFFSET, Xcpucheckstate,
+	/* install an inter-CPU IPI for forwarding hardclock() */
+	setidt(XHARDCLOCK_OFFSET, Xhardclock,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	
+	/* install an inter-CPU IPI for forwarding statclock() */
+	setidt(XSTATCLOCK_OFFSET, Xstatclock,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	
 	/* install an inter-CPU IPI for all-CPU rendezvous */
@@ -1938,6 +1918,8 @@ start_all_aps(u_int boot_addr)
 
 	POSTCODE(START_ALL_APS_POST);
 
+	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
+
 	/* initialize BSP's local APIC */
 	apic_initialize();
 	bsp_apic_ready = 1;
@@ -1985,8 +1967,8 @@ start_all_aps(u_int boot_addr)
 			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
 		/* prime data page for it to use */
-		SLIST_INSERT_HEAD(&cpuhead, gd, gd_allcpu);
 		gd->gd_cpuid = x;
+		globaldata_register(gd);
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -2328,471 +2310,64 @@ ap_init(void)
 	panic("scheduler returned us to ap_init");
 }
 
-#define CHECKSTATE_USER	0
-#define CHECKSTATE_SYS	1
-#define CHECKSTATE_INTR	2
-
-/* Do not staticize.  Used from apic_vector.s */
-struct proc*	checkstate_curproc[MAXCPU];
-int		checkstate_cpustate[MAXCPU];
-u_long		checkstate_pc[MAXCPU];
-
-#define PC_TO_INDEX(pc, prof)				\
-        ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
-            (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
-
-static void
-addupc_intr_forwarded(struct proc *p, int id, int *astmap)
-{
-	int i;
-	struct uprof *prof;
-	u_long pc;
-
-	pc = checkstate_pc[id];
-	prof = &p->p_stats->p_prof;
-	if (pc >= prof->pr_off &&
-	    (i = PC_TO_INDEX(pc, prof)) < prof->pr_size) {
-		mtx_assert(&sched_lock, MA_OWNED);
-		if ((p->p_sflag & PS_OWEUPC) == 0) {
-			prof->pr_addr = pc;
-			prof->pr_ticks = 1;
-			p->p_sflag |= PS_OWEUPC;
-		}
-		*astmap |= (1 << id);
-	}
-}
-
-static void
-forwarded_statclock(int id, int pscnt, int *astmap)
-{
-	struct pstats *pstats;
-	long rss;
-	struct rusage *ru;
-	struct vmspace *vm;
-	int cpustate;
-	struct proc *p;
-#ifdef GPROF
-	register struct gmonparam *g;
-	int i;
-#endif
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	p = checkstate_curproc[id];
-	cpustate = checkstate_cpustate[id];
-
-	/* XXX */
-	if (p->p_ithd)
-		cpustate = CHECKSTATE_INTR;
-	else if (p == SMP_prvspace[id].globaldata.gd_idleproc)
-		cpustate = CHECKSTATE_SYS;
-
-	switch (cpustate) {
-	case CHECKSTATE_USER:
-		if (p->p_sflag & PS_PROFIL)
-			addupc_intr_forwarded(p, id, astmap);
-		if (pscnt > 1)
-			return;
-		p->p_uticks++;
-		if (p->p_nice > NZERO)
-			cp_time[CP_NICE]++;
-		else
-			cp_time[CP_USER]++;
-		break;
-	case CHECKSTATE_SYS:
-#ifdef GPROF
-		/*
-		 * Kernel statistics are just like addupc_intr, only easier.
-		 */
-		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON) {
-			i = checkstate_pc[id] - g->lowpc;
-			if (i < g->textsize) {
-				i /= HISTFRACTION * sizeof(*g->kcount);
-				g->kcount[i]++;
-			}
-		}
-#endif
-		if (pscnt > 1)
-			return;
-
-		p->p_sticks++;
-		if (p == SMP_prvspace[id].globaldata.gd_idleproc)
-			cp_time[CP_IDLE]++;
-		else
-			cp_time[CP_SYS]++;
-		break;
-	case CHECKSTATE_INTR:
-	default:
-#ifdef GPROF
-		/*
-		 * Kernel statistics are just like addupc_intr, only easier.
-		 */
-		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON) {
-			i = checkstate_pc[id] - g->lowpc;
-			if (i < g->textsize) {
-				i /= HISTFRACTION * sizeof(*g->kcount);
-				g->kcount[i]++;
-			}
-		}
-#endif
-		if (pscnt > 1)
-			return;
-		KASSERT(p != NULL, ("NULL process in interrupt state"));
-		p->p_iticks++;
-		cp_time[CP_INTR]++;
-	}
-
-	schedclock(p);
-		
-	/* Update resource usage integrals and maximums. */
-	if ((pstats = p->p_stats) != NULL &&
-	    (ru = &pstats->p_ru) != NULL &&
-	    (vm = p->p_vmspace) != NULL) {
-		ru->ru_ixrss += pgtok(vm->vm_tsize);
-		ru->ru_idrss += pgtok(vm->vm_dsize);
-		ru->ru_isrss += pgtok(vm->vm_ssize);
-		rss = pgtok(vmspace_resident_count(vm));
-		if (ru->ru_maxrss < rss)
-			ru->ru_maxrss = rss;
-	}
-}
-
+/*
+ * For statclock, we send an IPI to all CPU's to have them call this
+ * function.
+ */
 void
-forward_statclock(int pscnt)
+forwarded_statclock(struct trapframe frame)
 {
-	int map;
-	int id;
-	int i;
 
-	/* Kludge. We don't yet have separate locks for the interrupts
-	 * and the kernel. This means that we cannot let the other processors
-	 * handle complex interrupts while inhibiting them from entering
-	 * the kernel in a non-interrupt context.
-	 *
-	 * What we can do, without changing the locking mechanisms yet,
-	 * is letting the other processors handle a very simple interrupt
-	 * (wich determines the processor states), and do the main
-	 * work ourself.
-	 */
-
-	CTR1(KTR_SMP, "forward_statclock(%d)", pscnt);
-
-	if (!smp_started || !invltlb_ok || cold || panicstr)
-		return;
-
-	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle ) */
-	
-	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
-	checkstate_probed_cpus = 0;
-	if (map != 0)
-		ipi_selected(map, IPI_CHECKSTATE);
-
-	i = 0;
-	while (checkstate_probed_cpus != map) {
-		/* spin */
-		i++;
-		if (i == 100000) {
-#ifdef DIAGNOSTIC
-			printf("forward_statclock: checkstate %x\n",
-			       checkstate_probed_cpus);
-#endif
-			break;
-		}
-	}
-
-	/*
-	 * Step 2: walk through other processors processes, update ticks and 
-	 * profiling info.
-	 */
-	
-	map = 0;
-	for (id = 0; id < mp_ncpus; id++) {
-		if (id == PCPU_GET(cpuid))
-			continue;
-		if (((1 << id) & checkstate_probed_cpus) == 0)
-			continue;
-		forwarded_statclock(id, pscnt, &map);
-	}
-	if (map != 0) {
-		checkstate_need_ast |= map;
-		ipi_selected(map, IPI_AST);
-		i = 0;
-		while ((checkstate_need_ast & map) != 0) {
-			/* spin */
-			i++;
-			if (i > 100000) { 
-#ifdef DIAGNOSTIC
-				printf("forward_statclock: dropped ast 0x%x\n",
-				       checkstate_need_ast & map);
-#endif
-				break;
-			}
-		}
-	}
-}
-
-void 
-forward_hardclock(int pscnt)
-{
-	int map;
-	int id;
-	struct proc *p;
-	struct pstats *pstats;
-	int i;
-
-	/* Kludge. We don't yet have separate locks for the interrupts
-	 * and the kernel. This means that we cannot let the other processors
-	 * handle complex interrupts while inhibiting them from entering
-	 * the kernel in a non-interrupt context.
-	 *
-	 * What we can do, without changing the locking mechanisms yet,
-	 * is letting the other processors handle a very simple interrupt
-	 * (wich determines the processor states), and do the main
-	 * work ourself.
-	 */
-
-	CTR1(KTR_SMP, "forward_hardclock(%d)", pscnt);
-
-	if (!smp_started || !invltlb_ok || cold || panicstr)
-		return;
-
-	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle) */
-	
-	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
-	checkstate_probed_cpus = 0;
-	if (map != 0)
-		ipi_selected(map, IPI_CHECKSTATE);
-	
-	i = 0;
-	while (checkstate_probed_cpus != map) {
-		/* spin */
-		i++;
-		if (i == 100000) {
-#ifdef DIAGNOSTIC
-			printf("forward_hardclock: checkstate %x\n",
-			       checkstate_probed_cpus);
-#endif
-			break;
-		}
-	}
-
-	/*
-	 * Step 2: walk through other processors processes, update virtual 
-	 * timer and profiling timer. If stathz == 0, also update ticks and 
-	 * profiling info.
-	 */
-	
-	map = 0;
-	for (id = 0; id < mp_ncpus; id++) {
-		if (id == PCPU_GET(cpuid))
-			continue;
-		if (((1 << id) & checkstate_probed_cpus) == 0)
-			continue;
-		p = checkstate_curproc[id];
-		if (p) {
-			pstats = p->p_stats;
-			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
-			    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-				p->p_sflag |= PS_ALRMPEND;
-				map |= (1 << id);
-			}
-			if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-				p->p_sflag |= PS_PROFPEND;
-				map |= (1 << id);
-			}
-		}
-		if (stathz == 0) {
-			forwarded_statclock( id, pscnt, &map);
-		}
-	}
-	if (map != 0) {
-		checkstate_need_ast |= map;
-		ipi_selected(map, IPI_AST);
-		i = 0;
-		while ((checkstate_need_ast & map) != 0) {
-			/* spin */
-			i++;
-			if (i > 100000) { 
-#ifdef DIAGNOSTIC
-				printf("forward_hardclock: dropped ast 0x%x\n",
-				       checkstate_need_ast & map);
-#endif
-				break;
-			}
-		}
-	}
-}
-
-void 
-forward_signal(struct proc *p)
-{
-	int map;
-	int id;
-	int i;
-
-	/* Kludge. We don't yet have separate locks for the interrupts
-	 * and the kernel. This means that we cannot let the other processors
-	 * handle complex interrupts while inhibiting them from entering
-	 * the kernel in a non-interrupt context.
-	 *
-	 * What we can do, without changing the locking mechanisms yet,
-	 * is letting the other processors handle a very simple interrupt
-	 * (wich determines the processor states), and do the main
-	 * work ourself.
-	 */
-
-	CTR1(KTR_SMP, "forward_signal(%p)", p);
-
-	if (!smp_started || !invltlb_ok || cold || panicstr)
-		return;
-	if (!forward_signal_enabled)
-		return;
 	mtx_lock_spin(&sched_lock);
-	while (1) {
-		if (p->p_stat != SRUN) {
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
-		id = p->p_oncpu;
-		mtx_unlock_spin(&sched_lock);
-		if (id == 0xff)
-			return;
-		map = (1<<id);
-		checkstate_need_ast |= map;
-		ipi_selected(map, IPI_AST);
-		i = 0;
-		while ((checkstate_need_ast & map) != 0) {
-			/* spin */
-			i++;
-			if (i > 100000) { 
-#if 0
-				printf("forward_signal: dropped ast 0x%x\n",
-				       checkstate_need_ast & map);
-#endif
-				break;
-			}
-		}
-		mtx_lock_spin(&sched_lock);
-		if (id == p->p_oncpu) {
-			mtx_unlock_spin(&sched_lock);
-			return;
-		}
-	}
+	statclock_process(curproc, TRAPF_PC(&frame), TRAPF_USERMODE(&frame));
+	mtx_unlock_spin(&sched_lock);
 }
 
 void
-forward_roundrobin(void)
+forward_statclock(void)
+{
+	int map;
+
+	CTR0(KTR_SMP, "forward_statclock");
+
+	if (!smp_started || !invltlb_ok || cold || panicstr)
+		return;
+
+	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
+	if (map != 0)
+		ipi_selected(map, IPI_STATCLOCK);
+}
+
+/*
+ * For each hardclock(), we send an IPI to all other CPU's to have them
+ * execute this function.  It would be nice to reduce contention on
+ * sched_lock if we could simply peek at the CPU to determine the user/kernel
+ * state and call hardclock_process() on the CPU receiving the clock interrupt
+ * and then just use a simple IPI to handle any ast's if needed.
+ */
+void
+forwarded_hardclock(struct trapframe frame)
+{
+
+	mtx_lock_spin(&sched_lock);
+	hardclock_process(curproc, TRAPF_USERMODE(&frame));
+	mtx_unlock_spin(&sched_lock);
+}
+
+void 
+forward_hardclock(void)
 {
 	u_int map;
-	int i;
 
-	CTR0(KTR_SMP, "forward_roundrobin()");
+	CTR0(KTR_SMP, "forward_hardclock");
 
 	if (!smp_started || !invltlb_ok || cold || panicstr)
 		return;
-	if (!forward_roundrobin_enabled)
-		return;
-	resched_cpus |= PCPU_GET(other_cpus);
+
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
-#if 1
-	ipi_selected(map, IPI_AST);
-#else
-	ipi_all_but_self(IPI_AST);
-#endif
-	i = 0;
-	while ((checkstate_need_ast & map) != 0) {
-		/* spin */
-		i++;
-		if (i > 100000) {
-#if 0
-			printf("forward_roundrobin: dropped ast 0x%x\n",
-			       checkstate_need_ast & map);
-#endif
-			break;
-		}
-	}
+	if (map != 0)
+		ipi_selected(map, IPI_HARDCLOCK);
 }
-
-/*
- * When called the executing CPU will send an IPI to all other CPUs
- *  requesting that they halt execution.
- *
- * Usually (but not necessarily) called with 'other_cpus' as its arg.
- *
- *  - Signals all CPUs in map to stop.
- *  - Waits for each to stop.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- *
- * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
- *            from executing at same time.
- */
-int
-stop_cpus(u_int map)
-{
-	int count = 0;
-
-	if (!smp_started)
-		return 0;
-
-	/* send the Xcpustop IPI to all CPUs in map */
-	ipi_selected(map, IPI_STOP);
-	
-	while (count++ < 100000 && (stopped_cpus & map) != map)
-		/* spin */ ;
-
-#ifdef DIAGNOSTIC
-	if ((stopped_cpus & map) != map)
-		printf("Warning: CPUs 0x%x did not stop!\n",
-		    (~(stopped_cpus & map)) & map);
-#endif
-
-	return 1;
-}
-
-
-/*
- * Called by a CPU to restart stopped CPUs. 
- *
- * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
- *
- *  - Signals all CPUs in map to restart.
- *  - Waits for each to restart.
- *
- * Returns:
- *  -1: error
- *   0: NA
- *   1: ok
- */
-int
-restart_cpus(u_int map)
-{
-	int count = 0;
-
-	if (!smp_started)
-		return 0;
-
-	started_cpus = map;		/* signal other cpus to restart */
-
-	/* wait for each to clear its bit */
-	while (count++ < 100000 && (stopped_cpus & map) != 0)
-		/* spin */ ;
-
-#ifdef DIAGNOSTIC
-	if ((stopped_cpus & map) != 0)
-		printf("Warning: CPUs 0x%x did not restart!\n",
-		    (~(stopped_cpus & map)) & map);
-#endif
-
-	return 1;
-}
-
 
 #ifdef APIC_INTR_REORDER
 /*
@@ -2809,73 +2384,6 @@ set_lapic_isrloc(int intr, int vector)
 	apic_isrbit_location[intr].bit = (1<<(vector & 31));
 }
 #endif
-
-/*
- * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
- * (if specified), rendezvous, execute the action function (if specified),
- * rendezvous again, execute the teardown function (if specified), and then
- * resume.
- *
- * Note that the supplied external functions _must_ be reentrant and aware
- * that they are running in parallel and in an unknown lock context.
- */
-static void (*smp_rv_setup_func)(void *arg);
-static void (*smp_rv_action_func)(void *arg);
-static void (*smp_rv_teardown_func)(void *arg);
-static void *smp_rv_func_arg;
-static volatile int smp_rv_waiters[2];
-
-void
-smp_rendezvous_action(void)
-{
-	/* setup function */
-	if (smp_rv_setup_func != NULL)
-		smp_rv_setup_func(smp_rv_func_arg);
-	/* spin on entry rendezvous */
-	atomic_add_int(&smp_rv_waiters[0], 1);
-	while (smp_rv_waiters[0] < mp_ncpus)
-		;
-	/* action function */
-	if (smp_rv_action_func != NULL)
-		smp_rv_action_func(smp_rv_func_arg);
-	/* spin on exit rendezvous */
-	atomic_add_int(&smp_rv_waiters[1], 1);
-	while (smp_rv_waiters[1] < mp_ncpus)
-		;
-	/* teardown function */
-	if (smp_rv_teardown_func != NULL)
-		smp_rv_teardown_func(smp_rv_func_arg);
-}
-
-void
-smp_rendezvous(void (* setup_func)(void *), 
-	       void (* action_func)(void *),
-	       void (* teardown_func)(void *),
-	       void *arg)
-{
-
-	/* obtain rendezvous lock */
-	mtx_lock_spin(&smp_rv_mtx);
-
-	/* set static function pointers */
-	smp_rv_setup_func = setup_func;
-	smp_rv_action_func = action_func;
-	smp_rv_teardown_func = teardown_func;
-	smp_rv_func_arg = arg;
-	smp_rv_waiters[0] = 0;
-	smp_rv_waiters[1] = 0;
-
-	/*
-	 * signal other processors, which will enter the IPI with interrupts off
-	 */
-	ipi_all_but_self(IPI_RENDEZVOUS);
-
-	/* call executor function */
-	smp_rendezvous_action();
-
-	/* release lock */
-	mtx_unlock_spin(&smp_rv_mtx);
-}
 
 /*
  * send an IPI to a set of cpus.

@@ -382,16 +382,16 @@ sigonstack(size_t sp)
  * Preempt the current process if in interrupt from user mode,
  * or after the current trap/syscall if in system mode.
  */
-#define	need_resched() do {						\
+#define	need_resched(p) do {						\
 	mtx_assert(&sched_lock, MA_OWNED);				\
-	curproc->p_sflag |= PS_NEEDRESCHED;				\
+	(p)->p_sflag |= PS_NEEDRESCHED;					\
 } while (0)
 
-#define	resched_wanted()	(curproc->p_sflag & PS_NEEDRESCHED)
+#define	resched_wanted(p)	((p)->p_sflag & PS_NEEDRESCHED)
 
-#define	clear_resched() do {						\
+#define	clear_resched(p) do {						\
 	mtx_assert(&sched_lock, MA_OWNED);				\
-	curproc->p_sflag &= ~PS_NEEDRESCHED;				\
+	(p)->p_sflag &= ~PS_NEEDRESCHED;				\
 } while (0)
 
 /*

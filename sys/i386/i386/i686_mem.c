@@ -31,13 +31,10 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
+#include <sys/smp.h>
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 
 /*
  * i686 memory range operations

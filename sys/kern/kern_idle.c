@@ -12,6 +12,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
@@ -30,7 +31,6 @@
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
-#include <machine/smp.h>
 
 #include <machine/globaldata.h>
 #include <machine/globals.h>
@@ -48,26 +48,32 @@ static void idle_proc(void *dummy);
 static void
 idle_setup(void *dummy)
 {
+#ifdef SMP
 	struct globaldata *gd;
+#endif
+	struct proc *p;
 	int error;
 
-	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
 #ifdef SMP
-		error = kthread_create(idle_proc, NULL, &gd->gd_idleproc,
-				       RFSTOPPED|RFHIGHPID, "idle: cpu%d",
-				       gd->gd_cpuid);
+	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
+		error = kthread_create(idle_proc, NULL, &p,
+		    RFSTOPPED | RFHIGHPID, "idle: cpu%d", gd->gd_cpuid);
+		gd->gd_idleproc = p;
+		if (gd->gd_curproc == NULL)
+			gd->gd_curproc = p;
 #else
-		error = kthread_create(idle_proc, NULL, &gd->gd_idleproc,
-				       RFSTOPPED|RFHIGHPID, "idle");
+		error = kthread_create(idle_proc, NULL, &p,
+		    RFSTOPPED | RFHIGHPID, "idle");
+		PCPU_SET(idleproc, p);
 #endif
 		if (error)
 			panic("idle_setup: kthread_create error %d\n", error);
 
-		gd->gd_idleproc->p_flag |= P_NOLOAD;
-		gd->gd_idleproc->p_stat = SRUN;
-		if (gd->gd_curproc == NULL)
-			gd->gd_curproc = gd->gd_idleproc;
+		p->p_flag |= P_NOLOAD;
+		p->p_stat = SRUN;
+#ifdef SMP
 	}
+#endif
 }
 
 /*

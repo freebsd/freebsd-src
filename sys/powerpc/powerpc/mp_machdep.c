@@ -34,6 +34,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -42,7 +43,6 @@
 #include <sys/user.h>
 #include <sys/dkstat.h>
 
-#include <machine/smp.h>
 #include <machine/atomic.h>
 #include <machine/globaldata.h>
 #include <machine/pmap.h>
