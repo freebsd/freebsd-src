@@ -187,7 +187,6 @@ static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 
 static struct witness_order_list_entry order_lists[] = {
 	{ "Giant", &lock_class_mtx_sleep },
-	{ "pgrpsess", &lock_class_sx },
 	{ "proctree", &lock_class_sx },
 	{ "allproc", &lock_class_sx },
 	{ "process group", &lock_class_mtx_sleep },
