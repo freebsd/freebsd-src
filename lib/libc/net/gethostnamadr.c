@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.9 1996/08/20 08:20:21 julian Exp $";
-static char rcsid[] = "$Id: gethostnamadr.c,v 1.9 1996/08/20 08:20:21 julian Exp $";
+static char sccsid[] = "@(#)$Id: gethostnamadr.c,v 1.10 1996/08/29 20:07:57 peter Exp $";
+static char rcsid[] = "$Id: gethostnamadr.c,v 1.10 1996/08/29 20:07:57 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ struct hostent_data;
 int gethostbyaddr_r(const char *addr, int len, int type,
 	struct hostent *result, struct hostent_data *buffer)
 {
-	struct hostent *hp = 0;
+	struct hostent *hp;
 	int ret;
 	if ((hp = gethostbyaddr(addr, len, type)) == NULL) {
 		ret = -1;
