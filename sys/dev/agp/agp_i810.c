@@ -29,6 +29,7 @@
 
 /*
  * Fixes for 830/845G support: David Dawes <dawes@xfree86.org>
+ * 852GM/855GM/865G support added by David Dawes <dawes@xfree86.org>
  */
 
 #include "opt_bus.h"
@@ -65,7 +66,8 @@ MALLOC_DECLARE(M_AGP);
 #define WRITE4(off,v)	bus_space_write_4(sc->bst, sc->bsh, off, v)
 
 #define CHIP_I810 0	/* i810/i815 */
-#define CHIP_I830 1	/* i830/i845 */
+#define CHIP_I830 1	/* 830M/845G */
+#define CHIP_I855 2	/* 852GM/855GM/865G */
 
 struct agp_i810_softc {
 	struct agp_softc agp;
@@ -101,10 +103,31 @@ agp_i810_match(device_t dev)
 		return ("Intel 82815 (i815 GMCH) SVGA controller");
 
 	case 0x35778086:
-		return ("Intel 82830 (i830M GMCH) SVGA controller");
+		return ("Intel 82830M (830M GMCH) SVGA controller");
 
 	case 0x25628086:
-		return ("Intel 82845 (i845 GMCH) SVGA controller");
+		return ("Intel 82845G (845G GMCH) SVGA controller");
+
+	case 0x35828086:
+		switch (pci_read_config(dev, AGP_I85X_CAPID, 1)) {
+		case AGP_I855_GME:
+			return ("Intel 82855GME (855GME GMCH) SVGA controller");
+
+		case AGP_I855_GM:
+			return ("Intel 82855GM (855GM GMCH) SVGA controller");
+
+		case AGP_I852_GME:
+			return ("Intel 82852GME (852GME GMCH) SVGA controller");
+
+		case AGP_I852_GM:
+			return ("Intel 82852GM (852GM GMCH) SVGA controller");
+
+		default:
+			return ("Intel 8285xM (85xGM GMCH) SVGA controller");
+		}
+
+	case 0x25728086:
+		return ("Intel 82865G (865G GMCH) SVGA controller");
 	};
 
 	return NULL;
@@ -134,6 +157,8 @@ agp_i810_find_bridge(device_t dev)
 	case 0x11328086:
 	case 0x35778086:
 	case 0x25628086:
+	case 0x35828086:
+	case 0x25728086:
 		devid -= 0x20000;
 		break;
 	};
@@ -173,8 +198,10 @@ agp_i810_probe(device_t dev)
 		/*
 		 * checking whether internal graphics device has been activated.
 		 */
-		if ( (devid != 0x35778086 ) &&
-		     (devid != 0x25628086 ) ) {
+		if ( (devid == 0x71218086 ) ||
+		     (devid == 0x71238086 ) ||
+		     (devid == 0x71258086 ) ||
+		     (devid == 0x11328086 ) ) {
 			smram = pci_read_config(bdev, AGP_I810_SMRAM, 1);
 			if ((smram & AGP_I810_SMRAM_GMS)
 			    == AGP_I810_SMRAM_GMS_DISABLED) {
@@ -226,6 +253,10 @@ agp_i810_attach(device_t dev)
 	case 0x25628086:
 		sc->chiptype = CHIP_I830;
 		break;
+	case 0x35828086:
+	case 0x25728086:
+		sc->chiptype = CHIP_I855;
+		break;
 	};
 
 	/* Same for i810 and i830 */
@@ -273,7 +304,7 @@ agp_i810_attach(device_t dev)
 		agp_flush_cache();
 		/* Install the GATT. */
 		WRITE4(AGP_I810_PGTBL_CTL, gatt->ag_physical | 1);
-	} else {
+	} else if ( sc->chiptype == CHIP_I830 ) {
 		/* The i830 automatically initializes the 128k gatt on boot. */
 		unsigned int gcc1, pgtblctl;
 		
@@ -300,9 +331,43 @@ agp_i810_attach(device_t dev)
 
 		/* GATT address is already in there, make sure it's enabled */
 		pgtblctl = READ4(AGP_I810_PGTBL_CTL);
-#if 0
-		device_printf(dev, "PGTBL_CTL is 0x%08x\n", pgtblctl);
-#endif
+		pgtblctl |= 1;
+		WRITE4(AGP_I810_PGTBL_CTL, pgtblctl);
+
+		gatt->ag_physical = pgtblctl & ~1;
+	} else {	/* CHIP_I855 */
+		/* The 855GM automatically initializes the 128k gatt on boot. */
+		unsigned int gcc1, pgtblctl;
+		
+		gcc1 = pci_read_config(sc->bdev, AGP_I855_GCC1, 1);
+		switch (gcc1 & AGP_I855_GCC1_GMS) {
+			case AGP_I855_GCC1_GMS_STOLEN_1M:
+				sc->stolen = (1024 - 132) * 1024 / 4096;
+				break;
+			case AGP_I855_GCC1_GMS_STOLEN_4M: 
+				sc->stolen = (4096 - 132) * 1024 / 4096;
+				break;
+			case AGP_I855_GCC1_GMS_STOLEN_8M: 
+				sc->stolen = (8192 - 132) * 1024 / 4096;
+				break;
+			case AGP_I855_GCC1_GMS_STOLEN_16M: 
+				sc->stolen = (16384 - 132) * 1024 / 4096;
+				break;
+			case AGP_I855_GCC1_GMS_STOLEN_32M: 
+				sc->stolen = (32768 - 132) * 1024 / 4096;
+				break;
+			default:
+				sc->stolen = 0;
+				device_printf(dev, "unknown memory configuration, disabling\n");
+				agp_generic_detach(dev);
+				return EINVAL;
+		}
+		if (sc->stolen > 0)
+			device_printf(dev, "detected %dk stolen memory\n", sc->stolen * 4);
+		device_printf(dev, "aperture size is %dM\n", sc->initial_aperture / 1024 / 1024);
+
+		/* GATT address is already in there, make sure it's enabled */
+		pgtblctl = READ4(AGP_I810_PGTBL_CTL);
 		pgtblctl |= 1;
 		WRITE4(AGP_I810_PGTBL_CTL, pgtblctl);
 
@@ -363,7 +428,7 @@ agp_i810_get_aperture(device_t dev)
 			return 32 * 1024 * 1024;
 		else
 			return 64 * 1024 * 1024;
-	} else {	/* I830 */
+	} else if ( sc->chiptype == CHIP_I830 ) {
 		unsigned int gcc1;
 
 		gcc1 = pci_read_config(sc->bdev, AGP_I830_GCC1, 2);
@@ -371,6 +436,8 @@ agp_i810_get_aperture(device_t dev)
 			return 64 * 1024 * 1024;
 		else
 			return 128 * 1024 * 1024;
+	} else { /* CHIP_I855 */
+		return 128 * 1024 * 1024;
 	}
 }
 
@@ -397,7 +464,7 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 			miscc |= AGP_I810_MISCC_WINSIZE_64;
 	
 		pci_write_config(sc->bdev, AGP_I810_MISCC, miscc, 2);
-	} else {	/* I830 */
+	} else if ( sc->chiptype == CHIP_I830 ) {
 		unsigned int gcc1;
 
 		if (aperture != 64 * 1024 * 1024 && aperture != 128 * 1024 * 1024) {
@@ -412,6 +479,11 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 			gcc1 |= AGP_I830_GCC1_GMASIZE_128;
 
 		pci_write_config(sc->bdev, AGP_I830_GCC1, gcc1, 2);
+	} else {	/* CHIP_I855 */
+		if (aperture != 128 * 1024 * 1024) {
+			device_printf(dev, "bad aperture size %d\n", aperture);
+			return EINVAL;
+		}
 	}
 
 	return 0;
@@ -427,7 +499,7 @@ agp_i810_bind_page(device_t dev, int offset, vm_offset_t physical)
 		return EINVAL;
 	}
 
-	if ( sc->chiptype == CHIP_I830 ) {
+	if ( sc->chiptype != CHIP_I810 ) {
 		if ( (offset >> AGP_PAGE_SHIFT) < sc->stolen ) {
 			device_printf(dev, "trying to bind into stolen memory");
 			return EINVAL;
@@ -446,7 +518,7 @@ agp_i810_unbind_page(device_t dev, int offset)
 	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
 
-	if ( sc->chiptype == CHIP_I830 ) {
+	if ( sc->chiptype != CHIP_I810 ) {
 		if ( (offset >> AGP_PAGE_SHIFT) < sc->stolen ) {
 			device_printf(dev, "trying to unbind from stolen memory");
 			return EINVAL;
@@ -488,7 +560,7 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 		/*
 		 * Mapping local DRAM into GATT.
 		 */
-		if ( sc->chiptype == CHIP_I830 )
+		if ( sc->chiptype != CHIP_I810 )
 			return 0;
 		if (size != sc->dcache_size)
 			return 0;
@@ -572,7 +644,7 @@ agp_i810_bind_memory(device_t dev, struct agp_memory *mem,
 	if (mem->am_type != 1)
 		return agp_generic_bind_memory(dev, mem, offset);
 
-	if ( sc->chiptype == CHIP_I830 )
+	if ( sc->chiptype != CHIP_I810 )
 		return EINVAL;
 
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE) {
@@ -592,7 +664,7 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 	if (mem->am_type != 1)
 		return agp_generic_unbind_memory(dev, mem);
 
-	if ( sc->chiptype == CHIP_I830 )
+	if ( sc->chiptype != CHIP_I810 )
 		return EINVAL;
 
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE)
