@@ -493,6 +493,11 @@ exec_elf_imgact(struct image_params *imgp)
 	 * From this point on, we may have resources that need to be freed.
 	 */
 
+	if ((error = exec_extract_strings(imgp)) != 0)
+		goto fail;
+
+	exec_new_vmspace(imgp);
+
 	/*
 	 * Yeah, I'm paranoid.  There is every reason in the world to get
 	 * VTEXT now since from here on out, there are places we can have
@@ -502,11 +507,6 @@ exec_elf_imgact(struct image_params *imgp)
 	simple_lock(&imgp->vp->v_interlock);
 	imgp->vp->v_flag |= VTEXT;
 	simple_unlock(&imgp->vp->v_interlock);
-
-	if ((error = exec_extract_strings(imgp)) != 0)
-		goto fail;
-
-	exec_new_vmspace(imgp);
 
 	vmspace = imgp->proc->p_vmspace;
 
