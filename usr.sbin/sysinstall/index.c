@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.53 1998/03/23 05:59:13 jkh Exp $
+ * $Id: index.c,v 1.54 1998/03/24 09:51:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -100,6 +100,7 @@ static char *descrs[] = {
     "networking", "Networking utilities.",
     "news", "USENET News support software.",
     "numeric", "Mathematical computation software.",
+    "offix", "An office automation suite of sorts.",
     "orphans", "Packages without a home elsewhere.",
     "perl5", "Utilities/modules for the PERL5 language..",
     "pilot", "Software support for the USR Palm Pilot(tm).",
@@ -107,6 +108,7 @@ static char *descrs[] = {
     "print", "Utilities for dealing with printing.",
     "printing", "Utilities for dealing with printing.",
     "programming", "Software development utilities and libraries.",
+    "python", "Software related to the python language.",
     "russian", "Ported software for the Russian market.",
     "security", "System security software.",
     "shells", "Various shells (tcsh, bash, etc).",
