@@ -63,7 +63,7 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	 */
 	if (cnt != size) {
 		ERROR(disk, "short read from block device");
-		for (cnt = 0; cnt < disk->d_fs.fs_bsize; cnt++)
+		for (cnt = 0; cnt < MIN(size, disk->d_fs.fs_bsize); cnt++)
 			buf[cnt] = 0;
 		return -1;
 	}
