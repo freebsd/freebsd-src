@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.105 1997/04/02 12:07:27 jkh Exp $
+ * $Id: dist.c,v 1.106 1997/04/20 16:46:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,6 +198,36 @@ distReset(dialogMenuItem *self)
     XF86ServerDists = 0;
     XF86FontDists = 0;
 #endif
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+int
+distConfig(dialogMenuItem *self)
+{
+    char *cp;
+
+    distReset(NULL);
+
+    if ((cp = variable_get(VAR_DIST_MAIN)) != NULL)
+	Dists = atoi(cp);
+
+    if ((cp = variable_get(VAR_DIST_DES)) != NULL)
+	DESDists = atoi(cp);
+
+    if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
+	SrcDists = atoi(cp);
+
+#ifndef	USE_XIG_ENFIRONMENT
+    if ((cp = variable_get(VAR_DIST_X11)) != NULL)
+	XF86Dists = atoi(cp);
+
+    if ((cp = variable_get(VAR_DIST_XSERVER)) != NULL)
+	XF86ServerDists = atoi(cp);
+
+    if ((cp = variable_get(VAR_DIST_XFONTS)) != NULL)
+	XF86FontDists = atoi(cp);
+#endif
+
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.124 1997/04/20 16:46:36 jkh Exp $
+ * $Id: sysinstall.h,v 1.125 1997/04/28 10:31:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,6 +98,13 @@
 #define VAR_CPIO_VERBOSITY		"cpioVerbose"
 #define VAR_DEBUG			"debug"
 #define VAR_DISK			"disk"
+#define VAR_DIST_MAIN			"distMain"
+#define VAR_DIST_DES			"distDES"
+#define VAR_DIST_SRC			"distSRC"
+#define VAR_DIST_X11			"distX11"
+#define VAR_DIST_XSERVER		"distXserver"
+#define VAR_DIST_XFONTS			"distXfonts"
+#define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
@@ -456,6 +463,7 @@ extern int	dispatchCommand(char *command);
 
 /* dist.c */
 extern int	distReset(dialogMenuItem *self);
+extern int	distConfig(dialogMenuItem *self);
 extern int	distSetCustom(char *str);
 extern int	distSetDeveloper(dialogMenuItem *self);
 extern int	distSetXDeveloper(dialogMenuItem *self);
