@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.12 1997/02/22 14:05:03 peter Exp $
+ *	$Id: keyword.c,v 1.13 1997/03/03 08:20:28 ache Exp $
  */
 
 #ifndef lint
@@ -48,6 +48,7 @@ static char const sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utmp.h>
 
 #include "ps.h"
 
@@ -83,7 +84,7 @@ int	utime(), stime(), ixrss(), idrss(), isrss();
 #define	UIDLEN	5
 #define	PIDFMT	"d"
 #define	PIDLEN	5
-#define	USERLEN	8
+#define USERLEN UT_NAMESIZE
 
 VAR var[] = {
 #ifdef NEWVM
@@ -150,7 +151,7 @@ VAR var[] = {
 		NULL, 0, pvar, 8, POFF(p_sigignore), LONG, "x"},
 	{"sigmask", "BLOCKED", NULL, 0, pvar, 8, POFF(p_sigmask), LONG, "x"},
 	{"sl", "SL", NULL, 0, pvar, 3, POFF(p_slptime), ULONG, "d"},
-	{"start", "STARTED", NULL, LJUST|USER, started, 8},
+	{"start", "STARTED", NULL, LJUST|USER, started, 7},
 	{"stat", "", "state"},
 	{"state", "STAT", NULL, 0, state, 4},
 	{"svgid", "SVGID",
@@ -236,7 +237,7 @@ VAR var[] = {
 		NULL, 0, pvar, 8, POFF(p_sigignore), LONG, "x"},
 	{"sigmask", "BLOCKED", NULL, 0, pvar, 8, POFF(p_sigmask), LONG, "x"},
 	{"sl", "SL", NULL, 0, pvar, 3, POFF(p_slptime), ULONG, "d"},
-	{"start", "STARTED", NULL, LJUST|USER, started, 8},
+	{"start", "STARTED", NULL, LJUST|USER, started, 7},
 	{"stat", "", "state"},
 	{"state", "STAT", NULL, 0, state, 4},
 	{"svgid", "SVGID",
