@@ -926,6 +926,8 @@ f_perm(plan, entry)
 	    (S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO);
 	if (plan->flags == F_ATLEAST)
 		return ((plan->m_data | mode) == mode);
+	else if (plan->flags == F_ANY )
+		return (plan->m_data & mode);
 	else
 		return (mode == plan->m_data);
 	/* NOTREACHED */
@@ -944,6 +946,9 @@ c_perm(perm)
 
 	if (*perm == '-') {
 		new->flags = F_ATLEAST;
+		++perm;
+	} else if (*perm == '+') {
+		new->flags = F_ANY;
 		++perm;
 	}
 
