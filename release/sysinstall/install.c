@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.73 1995/12/07 10:33:52 peter Exp $
+ * $Id: install.c,v 1.74 1996/01/14 11:45:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -766,7 +766,7 @@ installFilesystems(char *str)
 
     msgNotify("Copying initial device files..");
     /* Copy the boot floppy's dev files */
-    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdmv /mnt")) {
+    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdumv /mnt")) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the /dev files!");
 	return RET_FAIL;
@@ -806,7 +806,7 @@ copySelf(void)
     int i;
 
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
-    i = vsystem("find -x /stand | cpio -pdmv /mnt");
+    i = vsystem("find -x /stand | cpio -pdumv /mnt");
     if (i) {
 	dialog_clear();
 	msgConfirm("Copy returned error status of %d!", i);
@@ -814,7 +814,7 @@ copySelf(void)
     }
 
     /* Copy the /etc files into their rightful place */
-    if (vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt")) {
+    if (vsystem("cd /mnt/stand; find etc | cpio -pdumv /mnt")) {
 	dialog_clear();
 	msgConfirm("Couldn't copy up the /etc files!");
 	return TRUE;
