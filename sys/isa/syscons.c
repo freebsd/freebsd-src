@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.207 1997/03/28 10:11:24 yokota Exp $
+ *  $Id: syscons.c,v 1.208 1997/04/03 21:42:42 brian Exp $
  */
 
 #include "sc.h"
@@ -331,14 +331,10 @@ scprobe(struct isa_device *dev)
     c |= KBD_OVERRIDE_KBD_LOCK;
 #endif
 
-    /*
-     * enable the keyboard port, but disable the keyboard intr. 
-     * the aux port (mouse port) is disabled too.
-     */
+    /* enable the keyboard port, but disable the keyboard intr. */
     if (!set_controller_command_byte(sc_kbdc,
-            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS,
-            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+            KBD_KBD_CONTROL_BITS, 
+            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT)) {
 	/* CONTROLLER ERROR 
 	 * there is very little we can do...
 	 */
@@ -410,8 +406,8 @@ scprobe(struct isa_device *dev)
     }
     /* enable the keyboard port and intr. */
     if (!set_controller_command_byte(sc_kbdc, 
-            KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK,
-	    (c & (KBD_AUX_CONTROL_BITS | KBD_OVERRIDE_KBD_LOCK))
+            KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
+	    (c & (KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK))
 	        | KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
 	/* CONTROLLER ERROR 
 	 * This is serious; we are left with the disabled keyboard intr. 
