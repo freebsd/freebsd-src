@@ -239,6 +239,30 @@ wrap_unparse_rcs_options (line, first_call_p)
 #endif /* SERVER_SUPPORT || CLIENT_SUPPORT */
 
 /*
+ * Remove fmt str specifier other than %% or %s. And allow
+ * only max_s %s specifiers
+ */
+wrap_clean_fmt_str(char *fmt, int max_s)
+{
+    while (*fmt) {
+	if (fmt[0] == '%' && fmt[1])
+	{
+	    if (fmt[1] == '%') 
+		fmt++;
+	    else
+		if (fmt[1] == 's' && max_s > 0)
+		{
+		    max_s--;
+		    fmt++;
+		} else 
+		    *fmt = ' ';
+	}
+	fmt++;
+    }
+    return;
+}
+
+/*
  * Open a file and read lines, feeding each line to a line parser. Arrange
  * for keeping a temporary list of wrappers at the end, if the "temp"
  * argument is set.
@@ -558,9 +582,8 @@ wrap_tocvs_process_file(fileName)
     args = xmalloc (strlen (e->tocvsFilter)
 		    + strlen (fileName)
 		    + strlen (buf));
-    /* FIXME: sprintf will blow up if the format string contains items other
-       than %s, or contains too many %s's.  We should instead be parsing
-       e->tocvsFilter ourselves and giving a real error.  */
+
+    wrap_clean_fmt_str(e->tocvsFilter, 2);
     sprintf (args, e->tocvsFilter, fileName, buf);
     run_setup (args);
     run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY );
@@ -592,9 +615,8 @@ wrap_fromcvs_process_file(fileName)
 
     args = xmalloc (strlen (e->fromcvsFilter)
 		    + strlen (fileName));
-    /* FIXME: sprintf will blow up if the format string contains items other
-       than %s, or contains too many %s's.  We should instead be parsing
-       e->fromcvsFilter ourselves and giving a real error.  */
+
+    wrap_clean_fmt_str(e->fromcvsFilter, 1);
     sprintf (args, e->fromcvsFilter, fileName);
     run_setup (args);
     run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL );

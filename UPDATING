@@ -8,13 +8,26 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
-20040630:	p2	FreeBSD-SA-04.13.linux
+This is for the 4.10 release branch.  All entries since 4.10 are an
+itemized list of commits to this branch, numbered from the beginning.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+20040919:	p3	FreeBSD-SA-04:14.cvs
+	Correct several vulnerabilities in CVS (CAN-2004-0414,
+	CAN-2004-0416, CAN-2004-0417, CAN-2004-0418, CAN-2004-0778).
+
+20040630:	p2	FreeBSD-SA-04:13.linux
 	Correct an input validation error in the linux binary
 	compatibility code.
 
 20040626:	p1	FreeBSD-EN-04:01.twe
 	Fix a bug in twe(4) that could cause kernel lockups.
-	
+
 20040527:
 	FreeBSD 4.10-RELEASE.
 

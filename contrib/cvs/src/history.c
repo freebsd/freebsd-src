@@ -414,8 +414,11 @@ history (argc, argv)
 		working = 1;
 		break;
 	    case 'X':			/* Undocumented debugging flag */
+#ifdef DEBUG
 		histfile = optarg;
+#endif
 		break;
+
 	    case 'D':			/* Since specified date */
 		if (*since_rev || *since_tag || *backto)
 		{
@@ -890,9 +893,13 @@ save_user (name)
 {
     if (user_count == user_max)
     {
-	user_max += USER_INCREMENT;
-	user_list = (char **) xrealloc ((char *) user_list,
-					(int) user_max * sizeof (char *));
+	user_max = xsum (user_max, USER_INCREMENT);
+	if (size_overflow_p (xtimes (user_max, sizeof (char *))))
+	{
+	    error (0, 0, "save_user: too many users");
+	    return;
+	}
+	user_list = xrealloc (user_list, xtimes (user_max, sizeof (char *)));
     }
     user_list[user_count++] = xstrdup (name);
 }
@@ -920,9 +927,13 @@ save_file (dir, name, module)
 
     if (file_count == file_max)
     {
-	file_max += FILE_INCREMENT;
-	file_list = (struct file_list_str *) xrealloc ((char *) file_list,
-						   file_max * sizeof (*fl));
+	file_max = xsum (file_max, FILE_INCREMENT);
+	if (size_overflow_p (xtimes (file_max, sizeof (*fl))))
+	{
+	    error (0, 0, "save_file: too many files");
+	    return;
+	}
+	file_list = xrealloc (file_list, xtimes (file_max, sizeof (*fl)));
     }
     fl = &file_list[file_count++];
     fl->l_file = cp = xmalloc (strlen (dir) + strlen (name) + 2);
@@ -961,9 +972,13 @@ save_module (module)
 {
     if (mod_count == mod_max)
     {
-	mod_max += MODULE_INCREMENT;
-	mod_list = (char **) xrealloc ((char *) mod_list,
-				       mod_max * sizeof (char *));
+	mod_max = xsum (mod_max, MODULE_INCREMENT);
+	if (size_overflow_p (xtimes (mod_max, sizeof (char *))))
+	{
+	    error (0, 0, "save_module: too many modules");
+	    return;
+	}
+	mod_list = xrealloc (mod_list, xtimes (mod_max, sizeof (char *)));
     }
     mod_list[mod_count++] = xstrdup (module);
 }
