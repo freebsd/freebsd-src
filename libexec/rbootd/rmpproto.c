@@ -54,6 +54,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <netinet/in.h>
 
 #include <errno.h>
 #include <fcntl.h>
