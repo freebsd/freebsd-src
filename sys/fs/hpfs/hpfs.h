@@ -386,12 +386,6 @@ MALLOC_DECLARE(M_HPFSNO);
 #define	HPTOV(h)	((struct vnode *)((h)->h_vp))
 #define	FID(f)		(*((lsn_t *)(f)->fid_data))
 
-#define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
-#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b), (c))
-#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
-#define VGET(a, b, c)		vget((a), (b), (c))
-#define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
-
 extern vop_t ** hpfs_vnodeop_p;
 
 /* Hash routines, too small to be separate header */

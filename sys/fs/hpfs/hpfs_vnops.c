@@ -616,12 +616,12 @@ hpfs_inactive(ap)
 		vprint("hpfs_inactive: pushing active", vp);
 
 	if (hp->h_flag & H_INVAL) {
-		VOP__UNLOCK(vp,0,ap->a_td);
+		VOP_UNLOCK(vp,0,ap->a_td);
 		vrecycle(vp, NULL, ap->a_td);
 		return (0);
 	}
 
-	VOP__UNLOCK(vp,0,ap->a_td);
+	VOP_UNLOCK(vp,0,ap->a_td);
 	return (0);
 }
 
@@ -1104,17 +1104,17 @@ hpfs_lookup(ap)
 		dprintf(("hpfs_lookup(0x%x,...): .. faked (0x%x)\n",
 			dhp->h_no, dhp->h_fn.fn_parent));
 
-		VOP__UNLOCK(dvp,0,cnp->cn_thread);
+		VOP_UNLOCK(dvp,0,cnp->cn_thread);
 
 		error = VFS_VGET(hpmp->hpm_mp,
 				 dhp->h_fn.fn_parent, ap->a_vpp); 
 		if(error) {
-			VOP__LOCK(dvp, 0, cnp->cn_thread);
+			VOP_LOCK(dvp, 0, cnp->cn_thread);
 			return(error);
 		}
 
 		if( lockparent && (flags & ISLASTCN) && 
-		    (error = VOP__LOCK(dvp, 0, cnp->cn_thread)) ) {
+		    (error = VOP_LOCK(dvp, 0, cnp->cn_thread)) ) {
 			vput( *(ap->a_vpp) );
 			return (error);
 		}
@@ -1130,7 +1130,7 @@ hpfs_lookup(ap)
 			if ((error == ENOENT) && (flags & ISLASTCN) &&
 			    (nameiop == CREATE || nameiop == RENAME)) {
 				if(!lockparent)
-					VOP__UNLOCK(dvp, 0, cnp->cn_thread);
+					VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 				cnp->cn_flags |= SAVENAME;
 				return (EJUSTRETURN);
 			}
@@ -1176,7 +1176,7 @@ hpfs_lookup(ap)
 		brelse(bp);
 
 		if(!lockparent || !(flags & ISLASTCN))
-			VOP__UNLOCK(dvp, 0, cnp->cn_thread);
+			VOP_UNLOCK(dvp, 0, cnp->cn_thread);
 		if ((flags & MAKEENTRY) &&
 		    (!(flags & ISLASTCN) || 
 		     (nameiop != DELETE && nameiop != CREATE)))
