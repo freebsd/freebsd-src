@@ -556,16 +556,16 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
      * for outgoing packets from ether_output().
      */
     BDG_STAT(ifp, BDG_IN);
-    switch ((int)dst) {
-    case (int)BDG_BCAST:
-    case (int)BDG_MCAST:
-    case (int)BDG_LOCAL:
-    case (int)BDG_UNKNOWN:
-    case (int)BDG_DROP:
+    switch ((uintptr_t)dst) {
+    case (uintptr_t) BDG_BCAST:
+    case (uintptr_t) BDG_MCAST:
+    case (uintptr_t) BDG_LOCAL:
+    case (uintptr_t) BDG_UNKNOWN:
+    case (uintptr_t) BDG_DROP:
 	BDG_STAT(ifp, dst);
 	break ;
     default :
-	if (dst == ifp || dropit )
+	if (dst == ifp || dropit)
 	    BDG_STAT(ifp, BDG_DROP);
 	else
 	    BDG_STAT(ifp, BDG_FORWARD);
@@ -649,7 +649,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	ifp = dst ;
 	once = 1 ;
     }
-    if ( (u_int)(ifp) <= (u_int)BDG_FORWARD )
+    if (ifp <= BDG_FORWARD)
 	panic("bdg_forward: bad dst");
 
     /*
