@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
  *
- * $Id: pt_tcp.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp $
+ * $Id: pt_tcp.c,v 1.2 1995/04/19 12:24:08 gpalmer Exp $
  */
 
 #include <stdio.h>
@@ -59,7 +59,7 @@
  * Create a TCP socket connected to the
  * requested host and port.
  * Some trailing suffix values have special meanings.
- * An unrecognised suffix is an error.
+ * An unrecognized suffix is an error.
  */
 int portal_tcp(pcr, key, v, kso, fdp)
 struct portal_cred *pcr;
