@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -46,9 +47,9 @@ static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include "telldir.h"
-
 /*
  * Open a directory.
  */
@@ -56,7 +57,6 @@ DIR *
 opendir(name)
 	const char *name;
 {
-
 	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
 }
 
@@ -73,8 +73,8 @@ __opendir2(name, flags)
 	struct stat statb;
 
 	/*
-	 * stat() before open() because opening of special files may be
-	 * harmful.  fstat() after open because the file may have changed.
+	 * stat() before _open() because opening of special files may be
+	 * harmful.  _fstat() after open because the file may have changed.
 	 */
 	if (stat(name, &statb) != 0)
 		return (NULL);
@@ -85,7 +85,7 @@ __opendir2(name, flags)
 	if ((fd = _open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return (NULL);
 	dirp = NULL;
-	if (fstat(fd, &statb) != 0)
+	if (_fstat(fd, &statb) != 0)
 		goto fail;
 	if (!S_ISDIR(statb.st_mode)) {
 		errno = ENOTDIR;
@@ -102,7 +102,7 @@ __opendir2(name, flags)
 	/*
 	 * Use the system page size if that is a multiple of DIRBLKSIZ.
 	 * Hopefully this can be a big win someday by allowing page
-	 * trades to user space to be done by getdirentries().
+	 * trades to user space to be done by _getdirentries().
 	 */
 	incr = getpagesize();
 	if ((incr % DIRBLKSIZ) != 0) 
@@ -114,7 +114,7 @@ __opendir2(name, flags)
 	if (flags & DTF_NODUP) {
 		struct statfs sfb;
 
-		if (fstatfs(fd, &sfb) < 0)
+		if (_fstatfs(fd, &sfb) < 0)
 			goto fail;
 		unionstack = !strcmp(sfb.f_fstypename, "union");
 	} else {
@@ -140,7 +140,7 @@ __opendir2(name, flags)
 		do {
 			/*
 			 * Always make at least DIRBLKSIZ bytes
-			 * available to getdirentries
+			 * available to _getdirentries
 			 */
 			if (space < DIRBLKSIZ) {
 				space += incr;
@@ -151,7 +151,7 @@ __opendir2(name, flags)
 				ddptr = buf + (len - space);
 			}
 
-			n = getdirentries(fd, ddptr, space, &dirp->dd_seek);
+			n = _getdirentries(fd, ddptr, space, &dirp->dd_seek);
 			if (n > 0) {
 				ddptr += n;
 				space -= n;
@@ -265,6 +265,7 @@ __opendir2(name, flags)
 	dirp->dd_loc = 0;
 	dirp->dd_fd = fd;
 	dirp->dd_flags = flags;
+	dirp->dd_lock = NULL;
 
 	/*
 	 * Set up seek point for rewinddir.

@@ -52,9 +52,6 @@
  *	the renamed functions (introduced in gcc-2.5.3; previous versions
  *	only supported *jmp with 0 or 1 leading underscores).
  *
- *	Use sigprocmask() instead of sigblock() and sigsetmask(), and
- *	check for and handle errors.
- *
  *	Restore _all_ the registers and the signal mask atomically.  Can
  *	use sigreturn() if sigreturn() works.
  */
@@ -70,11 +67,7 @@ ENTRY(sigsetjmp)
 	pushl	%eax			/* (sigset_t*)oset */
 	pushl	$0			/* (sigset_t*)set  */
 	pushl	$1			/* SIG_BLOCK       */
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
-#else
-	call	PIC_PLT(CNAME(sigprocmask))
-#endif
+	call	PIC_PLT(CNAME(_sigprocmask))
 	addl	$12,%esp
 	PIC_EPILOGUE
 	movl	4(%esp),%ecx
@@ -89,10 +82,8 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifndef _THREAD_SAFE
-.weak CNAME(siglongjmp);
-.set CNAME(siglongjmp),CNAME(__siglongjmp);
-#endif
+	.weak CNAME(siglongjmp);
+	.set CNAME(siglongjmp),CNAME(__siglongjmp);
 ENTRY(__siglongjmp);
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
@@ -102,11 +93,7 @@ ENTRY(__siglongjmp);
 	leal	28(%edx), %eax
 	pushl	%eax			/* (sigset_t*)set  */
 	pushl	$3			/* SIG_SETMASK     */
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigprocmask))
-#else
-	call	PIC_PLT(CNAME(sigprocmask))
-#endif
+	call	PIC_PLT(CNAME(_sigprocmask))
 	addl	$12,%esp
 	PIC_EPILOGUE
 	movl	4(%esp),%edx

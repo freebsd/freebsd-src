@@ -42,9 +42,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
 #include "local.h"
 #include "libc_private.h"
 
@@ -57,11 +59,10 @@ static int __submore __P((FILE *));
  * are all at the end (stack-style).
  */
 static int
-__submore(fp)
-	register FILE *fp;
+__submore(FILE *fp)
 {
-	register int i;
-	register unsigned char *p;
+	int i;
+	unsigned char *p;
 
 	if (fp->_ub._base == fp->_ubuf) {
 		/*
@@ -89,30 +90,42 @@ __submore(fp)
 	return (0);
 }
 
+/*
+ * MT-safe version
+ */
 int
-ungetc(c, fp)
-	int c;
-	register FILE *fp;
+ungetc(int c, FILE *fp)
 {
+	int ret;
+
 	if (c == EOF)
 		return (EOF);
 	if (!__sdidinit)
 		__sinit();
 	FLOCKFILE(fp);
+	ret = __ungetc(c, fp);
+	FUNLOCKFILE(fp);
+	return (ret);
+}
+
+/*
+ * Non-MT-safe version
+ */
+int
+__ungetc(int c, FILE *fp)
+{
+	if (c == EOF)
+		return (EOF);
 	if ((fp->_flags & __SRD) == 0) {
 		/*
 		 * Not already reading: no good unless reading-and-writing.
 		 * Otherwise, flush any current write stuff.
 		 */
-		if ((fp->_flags & __SRW) == 0) {
-			FUNLOCKFILE(fp);
+		if ((fp->_flags & __SRW) == 0)
 			return (EOF);
-		}
 		if (fp->_flags & __SWR) {
-			if (__sflush(fp)) {
-				FUNLOCKFILE(fp);
+			if (__sflush(fp))
 				return (EOF);
-			}
 			fp->_flags &= ~__SWR;
 			fp->_w = 0;
 			fp->_lbfsize = 0;
@@ -126,13 +139,10 @@ ungetc(c, fp)
 	 * This may require expanding the current ungetc buffer.
 	 */
 	if (HASUB(fp)) {
-		if (fp->_r >= fp->_ub._size && __submore(fp)) {
-			FUNLOCKFILE(fp);
+		if (fp->_r >= fp->_ub._size && __submore(fp))
 			return (EOF);
-		}
 		*--fp->_p = c;
 		fp->_r++;
-		FUNLOCKFILE(fp);
 		return (c);
 	}
 	fp->_flags &= ~__SEOF;
@@ -146,7 +156,6 @@ ungetc(c, fp)
 	    fp->_p[-1] == c) {
 		fp->_p--;
 		fp->_r++;
-		FUNLOCKFILE(fp);
 		return (c);
 	}
 
@@ -161,6 +170,5 @@ ungetc(c, fp)
 	fp->_ubuf[sizeof(fp->_ubuf) - 1] = c;
 	fp->_p = &fp->_ubuf[sizeof(fp->_ubuf) - 1];
 	fp->_r = 1;
-	FUNLOCKFILE(fp);
 	return (c);
 }

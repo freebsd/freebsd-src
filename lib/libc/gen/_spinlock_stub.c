@@ -35,16 +35,25 @@
 
 #include <stdio.h>
 
-/* Don't build these stubs into libc_r: */
-#ifndef	_THREAD_SAFE
 #include "spinlock.h"
 
 /*
- * Declare weak references in case the application is not linked
+ * Declare weak definitions in case the application is not linked
  * with libpthread.
  */
+#pragma weak _atomic_lock=_atomic_lock_stub
 #pragma weak _spinlock=_spinlock_stub
 #pragma weak _spinlock_debug=_spinlock_debug_stub
+
+/*
+ * This function is a stub for the _atomic_lock function in libpthread.
+ */
+long
+_atomic_lock_stub(volatile long *lck)
+{
+	return (0L);
+}
+
 
 /*
  * This function is a stub for the spinlock function in libpthread.
@@ -61,4 +70,3 @@ void
 _spinlock_debug_stub(spinlock_t *lck, char *fname, int lineno)
 {
 }
-#endif

@@ -29,14 +29,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)exit.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
 #include "atexit.h"
 
 void (*__cleanup)();
@@ -60,11 +64,10 @@ exit(status)
 	register struct atexit *p;
 	register int n;
 
-#ifdef	_THREAD_SAFE
-	extern int _thread_autoinit_dummy_decl;
 	/* Ensure that the auto-initialization routine is linked in: */
+	extern int _thread_autoinit_dummy_decl;
+
 	_thread_autoinit_dummy_decl = 1;
-#endif
 
 	for (p = __atexit; p; p = p->next)
 		for (n = p->ind; --n >= 0;)

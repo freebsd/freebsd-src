@@ -42,15 +42,19 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
-#include "local.h"
+#include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
-/* Flush a single file, or (if fp is NULL) all files.  */
+/*
+ * Flush a single file, or (if fp is NULL) all files.
+ * MT-safe version
+ */
 int
-fflush(fp)
-	register FILE *fp;
+fflush(FILE *fp)
 {
 	int retval;
 
@@ -60,19 +64,36 @@ fflush(fp)
 	if ((fp->_flags & (__SWR | __SRW)) == 0) {
 		errno = EBADF;
 		retval = EOF;
-	} else {
+	} else
 		retval = __sflush(fp);
-	}
 	FUNLOCKFILE(fp);
 	return (retval);
 }
 
+/*
+ * Flush a single file, or (if fp is NULL) all files.
+ * Non-MT-safe version
+ */
 int
-__sflush(fp)
-	register FILE *fp;
+__fflush(FILE *fp)
 {
-	register unsigned char *p;
-	register int n, t;
+	int retval;
+
+	if (fp == NULL)
+		return (_fwalk(__sflush));
+	if ((fp->_flags & (__SWR | __SRW)) == 0) {
+		errno = EBADF;
+		retval = EOF;
+	} else
+		retval = __sflush(fp);
+	return (retval);
+}
+
+int
+__sflush(FILE *fp)
+{
+	unsigned char *p;
+	int n, t;
 
 	t = fp->_flags;
 	if ((t & __SWR) == 0)

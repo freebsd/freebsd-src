@@ -37,9 +37,11 @@
 static char sccsid[] = "@(#)daemon.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <fcntl.h>
 #include <paths.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 int
 daemon(nochdir, noclose)
@@ -63,9 +65,9 @@ daemon(nochdir, noclose)
 		(void)chdir("/");
 
 	if (!noclose && (fd = _open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-		(void)dup2(fd, STDIN_FILENO);
-		(void)dup2(fd, STDOUT_FILENO);
-		(void)dup2(fd, STDERR_FILENO);
+		(void)_dup2(fd, STDIN_FILENO);
+		(void)_dup2(fd, STDOUT_FILENO);
+		(void)_dup2(fd, STDERR_FILENO);
 		if (fd > 2)
 			(void)_close(fd);
 	}

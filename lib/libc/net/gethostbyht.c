@@ -63,7 +63,6 @@ static char rcsid[] = "$FreeBSD$";
 #include <netdb.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>

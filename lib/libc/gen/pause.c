@@ -48,7 +48,5 @@ __pause()
 {
 	return sigpause(sigblock(0L));
 }
-
-#ifndef _THREAD_SAFE
 __weak_reference(__pause, pause);
-#endif
+__weak_reference(__pause, _pause);

@@ -39,8 +39,10 @@ static char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <time.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 int
 usleep(useconds)

@@ -37,12 +37,16 @@
 static char sccsid[] = "@(#)telldir.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <dirent.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
+#include "libc_private.h"
 #include "telldir.h"
 
 /*
@@ -63,10 +67,14 @@ telldir(dirp)
 
 	if ((lp = (struct ddloc *)malloc(sizeof(struct ddloc))) == NULL)
 		return (-1);
+	if (__isthreaded)
+		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
 	lp->loc_index = dirp->dd_td->td_loccnt++;
 	lp->loc_seek = dirp->dd_seek;
 	lp->loc_loc = dirp->dd_loc;
 	LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
+	if (__isthreaded)
+		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
 	return (lp->loc_index);
 }
 
@@ -94,7 +102,7 @@ _seekdir(dirp, loc)
 	dirp->dd_seek = lp->loc_seek;
 	dirp->dd_loc = 0;
 	while (dirp->dd_loc < lp->loc_loc) {
-		dp = readdir(dirp);
+		dp = _readdir_unlocked(dirp);
 		if (dp == NULL)
 			break;
 	}

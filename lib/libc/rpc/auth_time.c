@@ -31,6 +31,7 @@
  *
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <stdio.h>
 #include <syslog.h>
 #include <string.h>
@@ -46,6 +47,7 @@
 #include <rpc/rpc_com.h>
 #undef NIS
 #include <rpcsvc/nis.h>
+#include "un-namespace.h"
 
 /*
  * FreeBSD currently uses RPC 4.0, which uses portmap rather than
@@ -385,7 +387,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			goto error;
 		}
 
-		s = socket(AF_INET, type, 0);
+		s = _socket(AF_INET, type, 0);
 		if (s == -1) {
 			msg("unable to open fd to network.");
 			goto error;
@@ -401,7 +403,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			fd_set readfds;
 			int res;
 
-			if (sendto(s, &thetime, sizeof(thetime), 0,
+			if (_sendto(s, &thetime, sizeof(thetime), 0,
 				(struct sockaddr *)&sin, sizeof(sin)) == -1) {
 				msg("udp : sendto failed.");
 				goto error;
@@ -409,13 +411,13 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			do {
 				FD_ZERO(&readfds);
 				FD_SET(s, &readfds);
-				res = select(_rpc_dtablesize(), &readfds,
+				res = _select(_rpc_dtablesize(), &readfds,
 				     (fd_set *)NULL, (fd_set *)NULL, &timeout);
 			} while (res < 0 && errno == EINTR);
 			if (res <= 0)
 				goto error;
 			len = sizeof(from);
-			res = recvfrom(s, (char *)&thetime, sizeof(thetime), 0,
+			res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0,
 				       (struct sockaddr *)&from, &len);
 			if (res == -1) {
 				msg("recvfrom failed on udp transport.");
@@ -428,7 +430,7 @@ __rpc_get_time_offset(td, srv, thost, uaddr, netid)
 			oldsig = (void (*)())signal(SIGALRM, alarm_hndler);
 			saw_alarm = 0; /* global tracking the alarm */
 			alarm(20); /* only wait 20 seconds */
-			res = connect(s, (struct sockaddr *)&sin, sizeof(sin));
+			res = _connect(s, (struct sockaddr *)&sin, sizeof(sin));
 			if (res == -1) {
 				msg("failed to connect to tcp endpoint.");
 				goto error;

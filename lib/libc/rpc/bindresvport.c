@@ -40,12 +40,14 @@ static char *rcsid = "$FreeBSD$";
  * Portions Copyright(C) 1996, Jason Downs.  All rights reserved.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+#include "un-namespace.h"
 
 /*
  * Bind a socket to a privileged IP port
@@ -78,7 +80,7 @@ bindresvport_sa(sd, sa)
 		salen = sizeof(myaddr);
 		sa = (struct sockaddr *)&myaddr;
 
-		if (getsockname(sd, sa, &salen) == -1)
+		if (_getsockname(sd, sa, &salen) == -1)
 			return -1;	/* errno is correctly set */
 
 		af = sa->sa_family;
@@ -110,23 +112,23 @@ bindresvport_sa(sd, sa)
 	if (port == 0) {
 		int oldlen = sizeof(old);
 
-		error = getsockopt(sd, proto, portrange, &old, &oldlen);
+		error = _getsockopt(sd, proto, portrange, &old, &oldlen);
 		if (error < 0)
 			return (error);
 
-		error = setsockopt(sd, proto, portrange, &portlow,
+		error = _setsockopt(sd, proto, portrange, &portlow,
 		    sizeof(portlow));
 		if (error < 0)
 			return (error);
 	}
 
-	error = bind(sd, sa, salen);
+	error = _bind(sd, sa, salen);
 
 	if (port == 0) {
 		int saved_errno = errno;
 
 		if (error) {
-			if (setsockopt(sd, proto, portrange, &old,
+			if (_setsockopt(sd, proto, portrange, &old,
 			    sizeof(old)) < 0)
 				errno = saved_errno;
 			return (error);
@@ -134,7 +136,7 @@ bindresvport_sa(sd, sa)
 
 		if (sa != (struct sockaddr *)&myaddr) {
 			/* Hmm, what did the kernel assign... */
-			if (getsockname(sd, sa, &salen) < 0)
+			if (_getsockname(sd, sa, &salen) < 0)
 				errno = saved_errno;
 			return (error);
 		}

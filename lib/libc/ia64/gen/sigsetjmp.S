@@ -55,12 +55,8 @@ Lsavesig:
 #endif
 END(sigsetjmp)
 
-#ifdef _THREAD_SAFE
+XENTRY(siglongjmp)
 ENTRY(__siglongjmp, 2)
-#else
-XENTRY(__siglongjmp)
-ENTRY(siglongjmp, 2)
-#endif
 #if 0
 	LDGP(pv)
 	ldq	t0, (81 * 8)(a0)		/* get the mask */
@@ -69,8 +65,4 @@ ENTRY(siglongjmp, 2)
 Lrestoresig:
 	jmp	zero, longjmp
 #endif
-#ifdef _THREAD_SAFE
 END(__siglongjmp)
-#else
-END(siglongjmp)
-#endif

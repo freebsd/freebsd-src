@@ -41,8 +41,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <signal.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 int
 sigvec(signo, sv, osv)
@@ -62,7 +65,7 @@ sigvec(signo, sv, osv)
 	} else
 		sap = NULL;
 	osap = osv != NULL ? &osa : NULL;
-	ret = sigaction(signo, sap, osap);
+	ret = _sigaction(signo, sap, osap);
 	if (ret == 0 && osv != NULL) {
 		osv->sv_handler = osa.sa_handler;
 		osv->sv_flags = osa.sa_flags ^ SV_INTERRUPT;
@@ -80,7 +83,7 @@ sigsetmask(mask)
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-	n = sigprocmask(SIG_SETMASK, &set, &oset);
+	n = _sigprocmask(SIG_SETMASK, &set, &oset);
 	if (n)
 		return (n);
 	return (oset.__bits[0]);
@@ -95,7 +98,7 @@ sigblock(mask)
 
 	sigemptyset(&set);
 	set.__bits[0] = mask;
-	n = sigprocmask(SIG_BLOCK, &set, &oset);
+	n = _sigprocmask(SIG_BLOCK, &set, &oset);
 	if (n)
 		return (n);
 	return (oset.__bits[0]);

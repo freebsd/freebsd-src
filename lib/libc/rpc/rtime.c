@@ -41,6 +41,7 @@
  * subtract seconds before Jan 1, 1970 to get
  * what unix uses.
  */
+#include "namespace.h"
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -51,6 +52,7 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <netdb.h>
+#include "un-namespace.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)rtime.c	2.2 88/08/10 4.0 RPCSRC; from 1.8 88/02/08 SMI"; */
@@ -84,7 +86,7 @@ rtime(addrp, timep, timeout)
 	} else {
 		type = SOCK_DGRAM;
 	}
-	s = socket(AF_INET, type, 0);
+	s = _socket(AF_INET, type, 0);
 	if (s < 0) {
 		return(-1);
 	}
@@ -98,7 +100,7 @@ rtime(addrp, timep, timeout)
 	addrp->sin_port = serv->s_port;
 
 	if (type == SOCK_DGRAM) {
-		res = sendto(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _sendto(s, (char *)&thetime, sizeof(thetime), 0, 
 			     (struct sockaddr *)addrp, sizeof(*addrp));
 		if (res < 0) {
 			do_close(s);
@@ -107,7 +109,7 @@ rtime(addrp, timep, timeout)
 		do {
 			FD_ZERO(&readfds);
 			FD_SET(s, &readfds);
-			res = select(_rpc_dtablesize(), &readfds,
+			res = _select(_rpc_dtablesize(), &readfds,
 				     (fd_set *)NULL, (fd_set *)NULL, timeout);
 		} while (res < 0 && errno == EINTR);
 		if (res <= 0) {
@@ -118,14 +120,14 @@ rtime(addrp, timep, timeout)
 			return(-1);	
 		}
 		fromlen = sizeof(from);
-		res = recvfrom(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0, 
 			       (struct sockaddr *)&from, &fromlen);
 		do_close(s);
 		if (res < 0) {
 			return(-1);	
 		}
 	} else {
-		if (connect(s, (struct sockaddr *)addrp, sizeof(*addrp)) < 0) {
+		if (_connect(s, (struct sockaddr *)addrp, sizeof(*addrp)) < 0) {
 			do_close(s);
 			return(-1);
 		}

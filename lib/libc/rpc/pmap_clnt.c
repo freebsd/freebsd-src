@@ -40,6 +40,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -47,6 +48,7 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
 #include <netinet/in.h>
+#include "un-namespace.h"
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };

@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)getcwd.c	8.5 (Berkeley) 2/7/95";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -47,6 +48,7 @@ static char sccsid[] = "@(#)getcwd.c	8.5 (Berkeley) 2/7/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #define	ISDOT(dp) \
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
@@ -166,7 +168,7 @@ getcwd(pt, size)
 		*bup = '\0';
 
 		/* Open and stat parent directory. */
-		if (!(dir = opendir(up)) || fstat(dirfd(dir), &s))
+		if (!(dir = opendir(up)) || _fstat(dirfd(dir), &s))
 			goto err;
 
 		/* Add trailing slash for next directory. */

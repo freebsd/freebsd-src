@@ -86,6 +86,7 @@
  * - classful IPv4 numeric (127.1) is allowed.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -106,6 +107,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <nsswitch.h>
+#include "un-namespace.h"
 
 #if defined(__KAME__) && defined(INET6)
 # define FAITH
@@ -665,7 +667,7 @@ explore_null(pai, servname, res)
 	 * filter out AFs that are not supported by the kernel
 	 * XXX errno?
 	 */
-	s = socket(pai->ai_family, SOCK_DGRAM, 0);
+	s = _socket(pai->ai_family, SOCK_DGRAM, 0);
 	if (s < 0) {
 		if (errno != EMFILE)
 			return 0;
@@ -1059,18 +1061,18 @@ addrconfig(pai)
 	 */
 	af = pai->ai_family;
 	if (af == AF_UNSPEC) {
-		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 			af = AF_INET;
 		else {
 			_close(s);
-			if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+			if ((s = _socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 				af = AF_INET6;
 			else
 				_close(s);
 		}
 	}
 	if (af != AF_UNSPEC) {
-		if ((s = socket(af, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(af, SOCK_DGRAM, 0)) < 0)
 			return 0;
 		_close(s);
 	}

@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -59,6 +60,7 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <rpcsvc/ypclnt.h>
 #endif
 #include <arpa/nameser.h>
+#include "un-namespace.h"
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
@@ -100,7 +102,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	struct addrinfo hints, *res, *ai;
 	struct sockaddr_storage from;
 	fd_set reads;
-	long oldmask;
+	sigset_t oldmask, newmask;
 	pid_t pid;
 	int s, aport, lport, timo, error;
 	char c;
@@ -136,7 +138,9 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		nres++;
 	ai = res;
 	refused = 0;
-	oldmask = sigblock(sigmask(SIGURG));
+	sigemptyset(&newmask);
+	sigaddset(&newmask, SIGURG);
+	_sigprocmask(SIG_BLOCK, (const sigset_t *)&newmask, &oldmask);
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
 		s = rresvport_af(&lport, ai->ai_family);
 		if (s < 0) {
@@ -151,11 +155,12 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				(void)fprintf(stderr, "rcmd: socket: %s\n",
 				    strerror(errno));
 			freeaddrinfo(res);
-			sigsetmask(oldmask);
+			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			    NULL);
 			return (-1);
 		}
 		_fcntl(s, F_SETOWN, pid);
-		if (connect(s, ai->ai_addr, ai->ai_addrlen) >= 0)
+		if (_connect(s, ai->ai_addr, ai->ai_addrlen) >= 0)
 			break;
 		(void)_close(s);
 		if (errno == EADDRINUSE) {
@@ -168,7 +173,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			(void)fprintf(stderr, "%s: %s\n",
 				      *ahost, strerror(errno));
 			freeaddrinfo(res);
-			sigsetmask(oldmask);
+			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			    NULL);
 			return (-1);
 		}
 		if (nres > 1) {
@@ -214,7 +220,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 
 		if (s2 < 0)
 			goto bad;
-		listen(s2, 1);
+		_listen(s2, 1);
 		(void)snprintf(num, sizeof(num), "%d", lport);
 		if (_write(s, num, strlen(num)+1) != strlen(num)+1) {
 			(void)fprintf(stderr,
@@ -234,7 +240,7 @@ again:
 		FD_SET(s, &reads);
 		FD_SET(s2, &reads);
 		errno = 0;
-		if (select(nfds, &reads, 0, 0, 0) < 1 || !FD_ISSET(s2, &reads)){
+		if (_select(nfds, &reads, 0, 0, 0) < 1 || !FD_ISSET(s2, &reads)){
 			if (errno != 0)
 				(void)fprintf(stderr,
 				    "rcmd: select (setting up stderr): %s\n",
@@ -245,7 +251,7 @@ again:
 			(void)_close(s2);
 			goto bad;
 		}
-		s3 = accept(s2, (struct sockaddr *)&from, &len);
+		s3 = _accept(s2, (struct sockaddr *)&from, &len);
 		switch (from.ss_family) {
 		case AF_INET:
 			aport = ntohs(((struct sockaddr_in *)&from)->sin_port);
@@ -297,7 +303,7 @@ again:
 		}
 		goto bad2;
 	}
-	sigsetmask(oldmask);
+	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (s);
 bad2:
@@ -305,7 +311,7 @@ bad2:
 		(void)_close(*fd2p);
 bad:
 	(void)_close(s);
-	sigsetmask(oldmask);
+	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (-1);
 }
@@ -345,12 +351,12 @@ rresvport_af(alport, family)
 		return -1;
 	}
 
-	s = socket(ss.ss_family, SOCK_STREAM, 0);
+	s = _socket(ss.ss_family, SOCK_STREAM, 0);
 	if (s < 0)
 		return (-1);
 #if 0 /* compat_exact_traditional_rresvport_semantics */
 	sin.sin_port = htons((u_short)*alport);
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
+	if (_bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 		return (s);
 	if (errno != EADDRINUSE) {
 		(void)_close(s);
@@ -486,7 +492,7 @@ again:
 			cp = ".rhosts lstat failed";
 		else if (!S_ISREG(sbuf.st_mode))
 			cp = ".rhosts not regular file";
-		else if (fstat(fileno(hostf), &sbuf) < 0)
+		else if (_fstat(fileno(hostf), &sbuf) < 0)
 			cp = ".rhosts fstat failed";
 		else if (sbuf.st_uid && sbuf.st_uid != pwd->pw_uid)
 			cp = "bad .rhosts owner";

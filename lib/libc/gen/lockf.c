@@ -43,9 +43,11 @@ static const char rcsid[]=
   "$FreeBSD$";
 #endif
 
+#include "namespace.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 int
 lockf(filedes, function, size)

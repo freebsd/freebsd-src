@@ -2,6 +2,8 @@
  * getvfsent.c - get a listing of installed filesystems
  * Written September 1994 by Garrett A. Wollman
  * This file is in the public domain.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -14,7 +16,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <paths.h>
 
 /* XXX hide some compatibility problems. */

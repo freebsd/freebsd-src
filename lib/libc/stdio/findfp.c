@@ -43,15 +43,15 @@ static const char rcsid[] =
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <machine/atomic.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <libc_private.h>
 #include <spinlock.h>
 
+#include "libc_private.h"
 #include "local.h"
 #include "glue.h"
 
@@ -65,7 +65,7 @@ int	__sdidinit;
 
 				/* the usual - (stdin + stdout + stderr) */
 static FILE usual[FOPEN_MAX - 3];
-static struct glue uglue = { 0, FOPEN_MAX - 3, usual };
+static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
 FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),		/* stdin */
@@ -73,6 +73,7 @@ FILE __sF[3] = {
 	std(__SWR|__SNBF, STDERR_FILENO)	/* stderr */
 };
 struct glue __sglue = { &uglue, 3, __sF };
+static struct glue *lastglue = &uglue;
 
 static struct glue *	moreglue __P((int));
 
@@ -80,12 +81,18 @@ static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
 #define THREAD_LOCK()	if (__isthreaded) _SPINLOCK(&thread_lock)
 #define THREAD_UNLOCK()	if (__isthreaded) _SPINUNLOCK(&thread_lock)
 
+#if NOT_YET
+#define	SET_GLUE_PTR(ptr, val)	atomic_set_ptr(&(ptr), (uintptr_t)(val))
+#else
+#define	SET_GLUE_PTR(ptr, val)	ptr = val
+#endif
+
 static struct glue *
 moreglue(n)
-	register int n;
+	int n;
 {
-	register struct glue *g;
-	register FILE *p;
+	struct glue *g;
+	FILE *p;
 	static FILE empty;
 
 	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE));
@@ -106,22 +113,28 @@ moreglue(n)
 FILE *
 __sfp()
 {
-	register FILE *fp;
-	register int n;
-	register struct glue *g;
+	FILE	*fp;
+	int	n;
+	struct glue *g;
 
 	if (!__sdidinit)
 		__sinit();
+	/*
+	 * The list must be locked because a FILE may be updated.
+	 */
 	THREAD_LOCK();
-	for (g = &__sglue;; g = g->next) {
+	for (g = &__sglue; g != NULL; g = g->next) {
 		for (fp = g->iobs, n = g->niobs; --n >= 0; fp++)
 			if (fp->_flags == 0)
 				goto found;
-		if (g->next == NULL && (g->next = moreglue(NDYNAMIC)) == NULL)
-			break;
 	}
-	THREAD_UNLOCK();
-	return (NULL);
+	THREAD_UNLOCK();	/* don't hold lock while malloc()ing. */
+	if ((g == moreglue(NDYNAMIC)) == NULL)
+		return (NULL);
+	THREAD_LOCK();		/* reacquire the lock */
+	SET_GLUE_PTR(lastglue->next, g); /* atomically append glue to list */
+	lastglue = g;		/* not atomic; only accessed when locked */
+	fp = g->iobs;
 found:
 	fp->_flags = 1;		/* reserve this slot; caller sets real flags */
 	THREAD_UNLOCK();
@@ -137,6 +150,7 @@ found:
 	fp->_ub._size = 0;
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
+	/* fp->_lock = NULL; */
 	return (fp);
 }
 
@@ -150,14 +164,23 @@ __warn_references(f_prealloc,
 void
 f_prealloc()
 {
-	register struct glue *g;
+	struct glue *g;
 	int n;
 
 	n = getdtablesize() - FOPEN_MAX + 20;		/* 20 for slop. */
+	/*
+	 * It should be safe to walk the list without locking it;
+	 * new nodes are only added to the end and none are ever
+	 * removed.
+	 */
 	for (g = &__sglue; (n -= g->niobs) > 0 && g->next; g = g->next)
 		/* void */;
-	if (n > 0)
-		g->next = moreglue(n);
+	if ((n > 0) && ((g = moreglue(n)) != NULL)) {
+		THREAD_LOCK();
+		SET_GLUE_PTR(lastglue->next, g);
+		lastglue = g;
+		THREAD_UNLOCK();
+	}
 }
 
 /*

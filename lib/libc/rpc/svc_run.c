@@ -37,6 +37,7 @@ static char *rcsid = "$FreeBSD$";
  * This is the rpc server side idle loop
  * Wait for input, call server program.
  */
+#include "namespace.h"
 #include <rpc/rpc.h>
 #include <stdio.h>
 #include <sys/errno.h>
@@ -45,6 +46,7 @@ static char *rcsid = "$FreeBSD$";
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
 
 extern int __svc_fdsetsize;
 extern fd_set *__svc_fdset;
@@ -62,7 +64,7 @@ svc_run()
 			memcpy(fds, __svc_fdset, bytes);
 		} else
 			fds = NULL;
-		switch (select(svc_maxfd + 1, fds, NULL, NULL,
+		switch (_select(svc_maxfd + 1, fds, NULL, NULL,
 				(struct timeval *)0)) {
 		case -1:
 			if (errno == EINTR) {
@@ -79,7 +81,7 @@ svc_run()
 				free(fds);
 			continue;
 		default:
-			/* if fds == NULL, select() can't return a result */
+			/* if fds == NULL, _select() can't return a result */
 			svc_getreqset2(fds, svc_maxfd + 1);
 			free(fds);
 		}

@@ -37,11 +37,15 @@
 static char sccsid[] = "@(#)closedir.c	8.1 (Berkeley) 6/10/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <dirent.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
+#include "libc_private.h"
 #include "telldir.h"
 
 /*
@@ -53,12 +57,18 @@ closedir(dirp)
 {
 	int fd;
 
-	seekdir(dirp, dirp->dd_rewind);	/* free seekdir storage */
+	if (__isthreaded)
+		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+	_seekdir(dirp, dirp->dd_rewind);	/* free seekdir storage */
 	fd = dirp->dd_fd;
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
 	free((void *)dirp->dd_buf);
 	_reclaim_telldir(dirp);
+	if (__isthreaded) {
+		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_destroy((pthread_mutex_t *)&dirp->dd_lock);
+	}
 	free((void *)dirp);
 	return(_close(fd));
 }

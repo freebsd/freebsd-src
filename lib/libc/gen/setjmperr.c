@@ -44,8 +44,10 @@ static char sccsid[] = "@(#)setjmperr.c	8.1 (Berkeley) 6/4/93";
  * If this routine returns, the program is aborted.
  */
 
+#include "namespace.h"
 #include <setjmp.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 void
 longjmperror()

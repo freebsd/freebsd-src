@@ -41,6 +41,7 @@ static char *rcsid = "$FreeBSD$";
  * to add an error handling routine.
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
@@ -52,6 +53,7 @@ static char *rcsid = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 #include "msgcat.h"
 

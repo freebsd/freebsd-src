@@ -38,11 +38,13 @@
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/time.h>          /* for srandomdev() */
 #include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>            /* for srandomdev() */
+#include "un-namespace.h"
 
 /*
  * random.c:

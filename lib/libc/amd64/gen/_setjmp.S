@@ -66,12 +66,9 @@ ENTRY(_setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
+	.weak	CNAME(_longjmp)
+	.set	CNAME(_longjmp),CNAME(___longjmp)
 ENTRY(___longjmp)
-#else
-ALTENTRY(___longjmp)
-ENTRY(_longjmp)
-#endif
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

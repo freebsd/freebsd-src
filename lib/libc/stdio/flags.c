@@ -46,11 +46,12 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <stdio.h>
 #include <errno.h>
+
 #include "local.h"
 
 /*
  * Return the (stdio) flags for a given mode.  Store the flags
- * to be passed to an open() syscall through *optr.
+ * to be passed to an _open() syscall through *optr.
  * Return 0 on error.
  */
 int

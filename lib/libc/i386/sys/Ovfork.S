@@ -51,12 +51,11 @@
  * %eax == pid of child in parent, %eax == pid of parent in child.
  *
  */
-
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_vfork)
-#else
-ENTRY(vfork)
-#endif
+	.weak	_vfork
+	.set	_vfork,__sys_vfork
+	.weak	vfork
+	.set	vfork,__sys_vfork
+ENTRY(__sys_vfork)
 	popl	%ecx		/* my rta into ecx */
 	lea	SYS_vfork,%eax
 	KERNCALL

@@ -32,25 +32,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)makebuf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "local.h"
+#include "un-namespace.h"
 
 /*
  * Allocate a file buffer, or switch to unbuffered I/O.
  * Per the ANSI C standard, ALL tty devices default to line buffered.
  *
  * As a side effect, we set __SOPT or __SNPT (en/dis-able fseek
- * optimisation) right after the fstat() that finds the buffer size.
+ * optimisation) right after the _fstat() that finds the buffer size.
  */
 void
 __smakebuf(fp)
@@ -93,7 +97,7 @@ __swhatbuf(fp, bufsize, couldbetty)
 {
 	struct stat st;
 
-	if (fp->_file < 0 || fstat(fp->_file, &st) < 0) {
+	if (fp->_file < 0 || _fstat(fp->_file, &st) < 0) {
 		*couldbetty = 0;
 		*bufsize = BUFSIZ;
 		return (__SNPT);
