@@ -99,20 +99,20 @@ static struct timeval	glob_clock;
 static int 		cmos_alarm_time = 0;
 static int		cmos_alarm_daytime = 0;
 
-static inline int
+static __inline int
 day_in_mon_year(int mon, int year)
 {
     return day_in_year[mon] + (mon > 2 && (year % 4 == 0));
 }
 
-static inline int
+static __inline int
 to_BCD (int n)
 {
     n &= 0xFF;
     return n%10 + ((n/10)<<4);
 }
 
-static inline int
+static __inline int
 from_BCD (int n)
 {
     n &= 0xFF;

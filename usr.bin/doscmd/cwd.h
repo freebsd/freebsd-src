@@ -32,67 +32,67 @@
  * $FreeBSD$
  */
 
-static inline u_char *
+static __inline u_char *
 ustrcpy(u_char *s1, u_char *s2)
 {
     return((u_char *)strcpy((char *)s1, (char *)s2));
 }
 
-static inline u_char *
+static __inline u_char *
 ustrcat(u_char *s1, u_char *s2)
 {
     return((u_char *)strcat((char *)s1, (char *)s2));
 }
 
-static inline u_char *
+static __inline u_char *
 ustrncat(u_char *s1, const u_char *s2, size_t n)
 {
     return((u_char *)strncat((char *)s1, (const char *)s2, n));
 }
 
-static inline u_char *
+static __inline u_char *
 ustrncpy(u_char *s1, u_char *s2, size_t n)
 {
     return((u_char *)strncpy((char *)s1, (char *)s2, n));
 }
 
-static inline int
+static __inline int
 ustrcmp(u_char *s1, u_char *s2)
 {
     return(strcmp((char *)s1, (char *)s2));
 }
 
-static inline int
+static __inline int
 ustrncmp(const u_char *s1, const u_char *s2, size_t n)
 {
     return(strncmp((const char *)s1, (const char *)s2, n));
 }
 
-static inline int
+static __inline int
 ustrlen(const u_char *s)
 {
     return(strlen((const char *)s));
 }
 
-static inline u_char *
+static __inline u_char *
 ustrrchr(u_char *s, u_char c)
 {
     return((u_char *)strrchr((char *)s, c));
 }
 
-static inline u_char *
+static __inline u_char *
 ustrdup(const u_char *s)
 {
     return((u_char *)strdup((const char *)s));
 }
 
-static inline int
+static __inline int
 ustat(u_char *s, struct stat *sb)
 {
     return(stat((char *)s, sb));
 }
 
-static inline int
+static __inline int
 uaccess(u_char *s, int mode)
 {
     return(access((char *)s, mode));
