@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wicontrol.c,v 1.16 1999/05/06 16:12:06 wpaul Exp $
+ *	$Id: wicontrol.c,v 1.17 1999/05/07 03:14:21 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $Id: wicontrol.c,v 1.16 1999/05/06 16:12:06 wpaul Exp $";
+	"@(#) $Id: wicontrol.c,v 1.17 1999/05/07 03:14:21 wpaul Exp $";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
@@ -308,6 +308,8 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_RTS_THRESH, WI_WORDS, "RTS/CTS handshake threshold:\t\t"},
 	{ WI_RID_CREATE_IBSS, WI_BOOL, "Create IBSS:\t\t\t\t" },
 	{ WI_RID_SYSTEM_SCALE, WI_WORDS, "Access point density:\t\t\t" },
+	{ WI_RID_PM_ENABLED, WI_WORDS, "Power Mgmt (1=on, 0=off):\t\t" },
+	{ WI_RID_MAX_SLEEP, WI_WORDS, "Max sleep time:\t\t\t\t" },
 	{ 0, NULL }
 };
 
@@ -426,6 +428,9 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -m mac address\n", p);
 	fprintf(stderr, "\t%s -i iface -d max data length\n", p);
 	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
+	fprintf(stderr, "\t%s -i iface -f frequenct\n", p);
+	fprintf(stderr, "\t%s -i iface -P power mgmt\n", p);
+	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
 
 	exit(1);
 }
@@ -438,7 +443,8 @@ int main(argc, argv)
 	char			*iface = NULL;
 	char			*p = argv[0];
 
-	while((ch = getopt(argc, argv, "hoc:d:f:i:p:r:q:t:n:s:m:")) != -1) {
+	while((ch = getopt(argc, argv,
+	    "hoc:d:f:i:p:r:q:t:n:s:m:P:S:")) != -1) {
 		switch(ch) {
 		case 'o':
 			wi_dumpstats(iface);
@@ -485,6 +491,14 @@ int main(argc, argv)
 			break;
 		case 'q':
 			wi_setstr(iface, WI_RID_OWN_SSID, optarg);
+			exit(0);
+			break;
+		case 'S':
+			wi_setword(iface, WI_RID_MAX_SLEEP, atoi(optarg));
+			exit(0);
+			break;
+		case 'P':
+			wi_setword(iface, WI_RID_PM_ENABLED, atoi(optarg));
 			exit(0);
 			break;
 		case 'h':
