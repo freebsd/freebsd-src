@@ -409,8 +409,39 @@ ip6_input(m)
 	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) != 0) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst)) {
 			struct in6_ifaddr *ia6;
+#ifndef FAKE_LOOPBACK_IF
+			int deliverifid;
 
-			if ((ia6 = in6ifa_ifpwithaddr(m->m_pkthdr.rcvif,
+			/*
+			 * Get a "real" delivered interface, which should be
+			 * embedded in the second 16 bits of the destination
+			 * address.  We can probably trust the value, but we
+			 * add validation for the value just for safety.
+			 */
+			deliverifid = ntohs(ip6->ip6_dst.s6_addr16[1]);
+			if (deliverifid > 0 && deliverifid <= if_index) {
+				deliverifp = ifindex2ifnet[deliverifid];
+
+				/*
+				 * XXX: fake the rcvif to the real interface.
+				 * Since m_pkthdr.rcvif should be lo0 (or a
+				 * variant), it would confuse scope handling
+				 * code later.
+				 */
+				m->m_pkthdr.rcvif = deliverifp;
+			}
+			else {
+				/*
+				 * Last resort; just use rcvif.
+				 * XXX: the packet would be discarded by the
+				 * succeeding check.
+				 */
+				deliverifp = m->m_pkthdr.rcvif;
+			}
+#else
+			deliverifp = m->m_pkthdr.rcvif;			
+#endif
+			if ((ia6 = in6ifa_ifpwithaddr(deliverifp,
 						      &ip6->ip6_dst)) != NULL) {
 				ia6->ia_ifa.if_ipackets++;
 				ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
@@ -423,7 +454,6 @@ ip6_input(m)
 				goto bad;
 			}
 			ours = 1;
-			deliverifp = m->m_pkthdr.rcvif;
 			goto hbhcheck;
 		}
 	}
