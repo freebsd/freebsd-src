@@ -299,7 +299,7 @@ dma_restart(struct asc_unit *scu)
     unsigned char al=scu->cmd_byte;
 
     if (geomtab[scu->geometry].g_res==0) {/* color */
-	isa_dmastart(B_READ, scu->sbuf.base+scu->sbuf.wptr,
+	isa_dmastart(ISADMA_READ, scu->sbuf.base+scu->sbuf.wptr,
 	    scu->linesize + 90 /* XXX */ , scu->dma_num);
 	/*
 	 * looks like we have to set and then clear this
@@ -312,7 +312,7 @@ dma_restart(struct asc_unit *scu)
 	outb( ASC_CMD, al &= 0xfb );
 	scu->cmd_byte = al;
     } else {					/* normal */
-    isa_dmastart(B_READ, scu->sbuf.base+scu->sbuf.wptr,
+    isa_dmastart(ISADMA_READ, scu->sbuf.base+scu->sbuf.wptr,
 	scu->linesize, scu->dma_num);
     /*** this is done in sub_20, after dmastart ? ***/  
 #if 0
@@ -513,7 +513,7 @@ ascintr(int unit)
 	outb( ASC_CMD, ASC_STANDBY);
 	scu->flags &= ~DMA_ACTIVE;
 		/* bounce buffers... */
-        isa_dmadone(B_READ, scu->sbuf.base+scu->sbuf.wptr,
+        isa_dmadone(ISADMA_READ, scu->sbuf.base+scu->sbuf.wptr,
 	    scu->linesize, scu->dma_num);
 	scu->sbuf.wptr += scu->linesize;
 	if (scu->sbuf.wptr >= scu->sbuf.size) scu->sbuf.wptr=0;

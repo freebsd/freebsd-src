@@ -456,8 +456,8 @@ sb16_swap(void *v, int dir)
 			t = sb->pch.buffer->chan;
 			sb->pch.buffer->chan = sb->rch.buffer->chan;
 			sb->rch.buffer->chan = t;
-			sb->pch.buffer->dir = B_WRITE;
-			sb->rch.buffer->dir = B_READ;
+			sb->pch.buffer->dir = ISADMA_WRITE;
+			sb->rch.buffer->dir = ISADMA_READ;
 		}
 	}
 }
