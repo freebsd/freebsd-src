@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mount_smbfs.c,v 1.13 2001/04/16 12:46:46 bp Exp $
+ * $Id: mount_smbfs.c,v 1.15 2001/12/20 15:03:41 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -71,10 +71,19 @@ main(int argc, char *argv[])
 	struct smb_ctx sctx, *ctx = &sctx;
 	struct smbfs_args mdata;
 	struct stat st;
+#ifdef APPLE
+	extern void dropsuid();
+	extern int loadsmbvfs();
+#else
 	struct vfsconf vfc;
+#endif /* APPLE */
 	char *next;
 	int opt, error, mntflags, caseopt;
 
+
+#ifdef APPLE
+	dropsuid();
+#endif /* APPLE */
 	if (argc == 2) {
 		if (strcmp(argv[1], "-h") == 0) {
 			usage();
@@ -87,6 +96,9 @@ main(int argc, char *argv[])
 	if (argc < 3)
 		usage();
 
+#ifdef APPLE
+	error = loadsmbvfs();
+#else
 	error = getvfsbyname(SMBFS_VFSNAME, &vfc);
 	if (error && vfsisloadable(SMBFS_VFSNAME)) {
 		if(vfsload(SMBFS_VFSNAME))
@@ -94,6 +106,7 @@ main(int argc, char *argv[])
 		endvfsent();
 		error = getvfsbyname(SMBFS_VFSNAME, &vfc);
 	}
+#endif /* APPLE */
 	if (error)
 		errx(EX_OSERR, "SMB filesystem is not available");
 
@@ -204,9 +217,9 @@ main(int argc, char *argv[])
 	if (smb_getextattr(mount_point, &einfo) == 0)
 		errx(EX_OSERR, "can't mount on %s twice", mount_point);
 */
-	if (mdata.uid == -1)
+	if (mdata.uid == (uid_t)-1)
 		mdata.uid = st.st_uid;
-	if (mdata.gid == -1)
+	if (mdata.gid == (gid_t)-1)
 		mdata.gid = st.st_gid;
 	if (mdata.file_mode == 0 )
 		mdata.file_mode = st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
