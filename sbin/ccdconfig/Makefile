@@ -3,7 +3,6 @@
 PROG=	ccdconfig
 MAN=	ccdconfig.8
 
-CFLAGS+=	-I${.CURDIR}/../../sys
 LDADD+=		-lkvm
 DPADD+=		${LIBKVM}
 BINGRP=		kmem

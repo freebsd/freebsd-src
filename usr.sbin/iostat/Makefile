@@ -5,7 +5,6 @@ MAINTAINER=ken@FreeBSD.ORG
 
 PROG=	iostat
 MAN=	iostat.8
-CFLAGS+=-I${.CURDIR}/../../sys
 DPADD=	${LIBKVM} ${LIBDEVSTAT}
 LDADD=	-lkvm -ldevstat
 BINGRP=	kmem
