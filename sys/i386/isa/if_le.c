@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.40 1997/08/21 09:01:00 fsmp Exp $
+ * $Id: if_le.c,v 1.41 1997/08/25 22:28:57 bde Exp $
  */
 
 /*
@@ -37,6 +37,7 @@
 
 #include "le.h"
 #if NLE > 0
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.56 1997/10/20 14:32:46 matt Exp $	*/
-/*	$Id: if_de.c,v 1.74 1997/11/08 14:46:53 peter Exp $ */
+/*	$Id: if_de.c,v 1.75 1997/11/22 06:45:57 bde Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -38,6 +38,8 @@
  *   board which support 21040, 21041, or 21140 (mostly).
  */
 #define	TULIP_HDR_DATA
+
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

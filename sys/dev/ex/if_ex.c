@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.7 1997/09/26 17:17:43 msmith Exp $
+ *	$Id: if_ex.c,v 1.8 1997/11/07 08:52:38 phk Exp $
  */
 
 /*
@@ -38,6 +38,7 @@
 #include "ex.h"
 #if NEX > 0
 #include "bpfilter.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

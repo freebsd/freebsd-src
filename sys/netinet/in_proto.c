@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.43 1997/10/28 15:58:43 bde Exp $
+ *	$Id: in_proto.c,v 1.44 1997/11/05 20:17:16 joerg Exp $
  */
 
 #include "opt_ipdivert.h"
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

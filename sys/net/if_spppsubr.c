@@ -17,8 +17,10 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.26 1997/09/02 01:18:37 bde Exp $
+ * $Id: if_spppsubr.c,v 1.28 1997/10/11 11:25:28 joerg Exp $
  */
+
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
