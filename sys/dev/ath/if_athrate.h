@@ -121,14 +121,14 @@ void	ath_rate_newstate(struct ath_softc *, enum ieee80211_state);
  * can be transmitted with multi-rate retry.
  */
 void	ath_rate_findrate(struct ath_softc *, struct ath_node *,
-		HAL_BOOL shortPreamble, size_t frameLen,
+		int shortPreamble, size_t frameLen,
 		u_int8_t *rix, int *try0, u_int8_t *txrate);
 /*
  * Setup any extended (multi-rate) descriptor state for a data packet.
  * The rate index returned by ath_rate_findrate is passed back in.
  */
 void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
-		struct ath_desc *, HAL_BOOL shortPreamble, u_int8_t rix);
+		struct ath_desc *, int shortPreamble, u_int8_t rix);
 /*
  * Update rate control state for a packet associated with the
  * supplied transmit descriptor.  The routine is invoked both

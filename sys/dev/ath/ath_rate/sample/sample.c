@@ -237,7 +237,7 @@ static __inline int pick_sample_ndx(struct sample_node *sn, int size_bin)
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
-		  HAL_BOOL shortPreamble, size_t frameLen,
+		  int shortPreamble, size_t frameLen,
 		  u_int8_t *rix, int *try0, u_int8_t *txrate)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
@@ -378,7 +378,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
-		      struct ath_desc *ds, HAL_BOOL shortPreamble, u_int8_t rix)
+		      struct ath_desc *ds, int shortPreamble, u_int8_t rix)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int rateCode = -1;
