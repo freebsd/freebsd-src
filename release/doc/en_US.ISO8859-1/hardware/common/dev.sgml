@@ -2064,6 +2064,9 @@
         <listitem>
 	  <para>ActiveWire I/O Board</para>
 	</listitem>
+        <listitem>
+	  <para>Rio500 MP3 player (&man.urio.4; driver)</para>
+	</listitem>
       </itemizedlist>
     </para>
     <para>Modems (umodem driver)
