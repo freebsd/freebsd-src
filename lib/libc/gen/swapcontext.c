@@ -36,11 +36,15 @@ __FBSDID("$FreeBSD$");
 
 __weak_reference(__swapcontext, swapcontext);
 
+#warning "FIX __swapcontext on non i386 please!"
+
 int
 __swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	int ret;
 
+#ifdef __i386__
+	/* XXX PLEASE FIX! XXX */
 	if ((oucp == NULL) ||
 	    (oucp->uc_mcontext.mc_len != sizeof(mcontext_t)) ||
 	    (ucp == NULL) ||
@@ -48,6 +52,7 @@ __swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 		errno = EINVAL;
 		return (-1);
 	}
+#endif
 	oucp->uc_flags &= ~UCF_SWAPPED;
 	ret = getcontext(oucp);
 	if ((ret == 0) && !(oucp->uc_flags & UCF_SWAPPED)) {
