@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.62 (Berkeley) 5/29/97";
+static char sccsid[] = "@(#)mci.c	8.66 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -330,10 +330,10 @@ mci_get(host, m)
 		{
 			/* get peer host address for logging reasons only */
 			/* (this should really be in the mci struct) */
-			int socksize = sizeof CurHostAddr;
+			SOCKADDR_LEN_T socklen = sizeof CurHostAddr;
 
 			(void) getpeername(fileno(mci->mci_in),
-				(struct sockaddr *) &CurHostAddr, &socksize);
+				(struct sockaddr *) &CurHostAddr, &socklen);
 		}
 # endif
 	}
@@ -571,7 +571,7 @@ mci_lock_host_statfile(mci)
 		goto cleanup;
 	}
 
-	mci->mci_statfile = safefopen(fname, O_RDWR|O_CREAT, FileMode,
+	mci->mci_statfile = safefopen(fname, O_RDWR, FileMode,
 		   SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY|SFF_CREAT);
 
 	if (mci->mci_statfile == NULL)
@@ -694,7 +694,7 @@ mci_load_persistent(mci)
 	}
 
 	fp = safefopen(fname, O_RDONLY, FileMode,
-		       SFF_NOLOCK|SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY);
+		       SFF_NOLINK|SFF_OPENASROOT|SFF_REGONLY);
 	if (fp == NULL)
 	{
 		/* I can't think of any reason this should ever happen */
