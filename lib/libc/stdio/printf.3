@@ -123,10 +123,9 @@ used to end output to strings).
 .Fn Asprintf
 and
 .Fn vasprintf
-return a pointer to a buffer sufficiently large to hold the
-string in the
-.Fa ret
-argument;
+set
+.Fa *ret
+to be a pointer to a buffer sufficiently large to hold the formatted string.
 This pointer should be passed to
 .Xr free 3
 to release the allocated storage when it is no longer needed.
