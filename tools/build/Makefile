@@ -26,6 +26,11 @@ INCS+=		elf-hints.h
 INCS+=		stdbool.h
 .endif
 
+# usr.bin/mklocale needs <runefile.h>.
+.if !exists(/usr/include/runefile.h)
+INCS+=		runefile.h
+.endif
+
 # usr.bin/xargs needs <nl_langinfo.h>.
 .if !exists(/usr/include/langinfo.h)
 INCS+=		langinfo.h
