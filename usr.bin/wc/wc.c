@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
@@ -65,6 +66,8 @@ main(argc, argv)
 {
 	register int ch;
 	int total;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "lwc")) != EOF)
 		switch((char)ch) {
@@ -115,9 +118,9 @@ void
 cnt(file)
 	char *file;
 {
-	register u_char *p;
+	register u_char *p, ch;
 	register short gotsp;
-	register int ch, len;
+	register int len;
 	register u_long linect, wordct, charct;
 	struct stat sb;
 	int fd;
