@@ -147,7 +147,7 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 device		miibus		# MII bus support
 #device		dc		# DEC/Intel 21143 and workalikes
 #device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		gem		# Sun GEM/Sun ERI/Apple HMAC
+device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		hme		# Sun HME (Happy Meal Ethernet)
 #device		pcn		# AMD Am79C97x PCI 10/100 NICs
 #device		rl		# RealTek 8129/8139
