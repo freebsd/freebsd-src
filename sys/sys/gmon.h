@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.7 1995/08/29 03:09:14 bde Exp $
+ * $Id: gmon.h,v 1.8 1995/12/29 15:29:26 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -57,7 +57,7 @@ struct gmonhdr {
  * Type of histogram counters used in the kernel.
  */
 #ifdef GPROF4
-#define	HISTCOUNTER	unsigned
+#define	HISTCOUNTER	int
 #else
 #define	HISTCOUNTER	unsigned short
 #endif
@@ -174,22 +174,17 @@ struct gmonparam {
 	fptrint_t	highpc;
 	u_long		textsize;
 	u_long		hashfraction;
-	u_long		profrate;
+	int		profrate;	/* XXX wrong type to match gmonhdr */
 	HISTCOUNTER	*cputime_count;
-	u_int		cputime_overhead;
-	u_int		cputime_overhead_frac;
-	u_int		cputime_overhead_resid;
-	u_int		cputime_overhead_sub;
+	int		cputime_overhead;
 	HISTCOUNTER	*mcount_count;
-	u_int		mcount_overhead;
-	u_int		mcount_overhead_frac;
-	u_int		mcount_overhead_resid;
-	u_int		mcount_overhead_sub;
+	int		mcount_overhead;
+	int		mcount_post_overhead;
+	int		mcount_pre_overhead;
 	HISTCOUNTER	*mexitcount_count;
-	u_int		mexitcount_overhead;
-	u_int		mexitcount_overhead_frac;
-	u_int		mexitcount_overhead_resid;
-	u_int		mexitcount_overhead_sub;
+	int		mexitcount_overhead;
+	int		mexitcount_post_overhead;
+	int		mexitcount_pre_overhead;
 };
 extern struct gmonparam _gmonparam;
 

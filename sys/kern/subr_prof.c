@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.15 1995/12/26 01:21:39 bde Exp $
+ * $Id: subr_prof.c,v 1.16 1995/12/29 15:29:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,22 @@ struct gmonparam _gmonparam = { GMON_PROF_OFF };
 extern char btext[];
 extern char etext[];
 
+#ifdef GUPROF
+void
+nullfunc_loop_profiled()
+{
+	int i;
+
+	for (i = 0; i < CALIB_SCALE; i++)
+		nullfunc_profiled();
+}
+
+void
+nullfunc_profiled()
+{
+}
+#endif /* GUPROF */
+
 static void
 kmstartup(dummy)
 	void *dummy;
@@ -63,8 +79,14 @@ kmstartup(dummy)
 	char *cp;
 	struct gmonparam *p = &_gmonparam;
 #ifdef GUPROF
-	fptrint_t kmstartup_addr;
+	int cputime_overhead;
+	int empty_loop_time;
 	int i;
+	fptrint_t kmstartup_addr;
+	int mcount_overhead;
+	int mexitcount_overhead;
+	int nullfunc_loop_overhead;
+	int nullfunc_loop_profiled_time;
 #endif
 
 	/*
@@ -74,7 +96,7 @@ kmstartup(dummy)
 	p->lowpc = ROUNDDOWN((u_long)btext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->highpc = ROUNDUP((u_long)etext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->textsize = p->highpc - p->lowpc;
-	printf("Profiling kernel, textsize=%d [%x..%x]\n",
+	printf("Profiling kernel, textsize=%lu [%x..%x]\n",
 	       p->textsize, p->lowpc, p->highpc);
 	p->kcountsize = p->textsize / HISTFRACTION;
 	p->hashfraction = HASHFRACTION;
@@ -99,41 +121,56 @@ kmstartup(dummy)
 	p->froms = (u_short *)cp;
 
 #ifdef GUPROF
-	/*
-	 * Initialize pointers to overhead counters.
-	 */
+	/* Initialize pointers to overhead counters. */
 	p->cputime_count = &KCOUNT(p, PC_TO_I(p, cputime));
 	p->mcount_count = &KCOUNT(p, PC_TO_I(p, mcount));
 	p->mexitcount_count = &KCOUNT(p, PC_TO_I(p, mexitcount));
 
 	/*
-	 * Determine overheads.
+	 * Disable interrupts to avoid interference while we calibrate
+	 * things.
 	 */
 	disable_intr();
+
+	/*
+	 * Determine overheads.
+	 * XXX this needs to be repeated for each useful timer/counter.
+	 */
+	cputime_overhead = 0;
+	startguprof(p);
+	for (i = 0; i < CALIB_SCALE; i++)
+		cputime_overhead += cputime();
+
+	empty_loop();
+	startguprof(p);
+	empty_loop();
+	empty_loop_time = cputime();
+
+	nullfunc_loop_profiled();
+
+	/*
+	 * Start profiling.  There won't be any normal function calls since
+	 * interrupts are disabled, but we will call the profiling routines
+	 * directly to determine their overheads.
+	 */
 	p->state = GMON_PROF_HIRES;
 
-	p->cputime_overhead = 0;
-	(void)cputime();
-	for (i = 0; i < CALIB_SCALE; i++)
-		p->cputime_overhead += cputime();
+	startguprof(p);
+	nullfunc_loop_profiled();
 
-	(void)cputime();
+	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
 #if defined(i386) && __GNUC__ >= 2
-		/*
-		 * Underestimate slightly by always calling __mcount, never
-		 * mcount.
-		 */
 		asm("pushl %0; call __mcount; popl %%ecx"
 		    :
-		    : "i" (kmstartup)
+		    : "i" (profil)
 		    : "ax", "bx", "cx", "dx", "memory");
 #else
 #error
 #endif
-	p->mcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup));
+	mcount_overhead = KCOUNT(p, PC_TO_I(p, profil));
 
-	(void)cputime();
+	startguprof(p);
 	for (i = 0; i < CALIB_SCALE; i++)
 #if defined(i386) && __GNUC__ >= 2
 		    asm("call mexitcount; 1:"
@@ -142,25 +179,96 @@ kmstartup(dummy)
 #else
 #error
 #endif
-	p->mexitcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup_addr));
+	mexitcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup_addr));
 
 	p->state = GMON_PROF_OFF;
+	stopguprof(p);
+
 	enable_intr();
 
-	p->mcount_overhead_sub = p->mcount_overhead - p->cputime_overhead;
-	p->mexitcount_overhead_sub = p->mexitcount_overhead
-				     - p->cputime_overhead;
-	printf("Profiling overheads: %u+%u %u+%u\n",
-		p->cputime_overhead, p->mcount_overhead_sub,
-		p->cputime_overhead, p->mexitcount_overhead_sub);
-	p->cputime_overhead_frac = p->cputime_overhead % CALIB_SCALE;
-	p->cputime_overhead /= CALIB_SCALE;
-	p->mcount_overhead_frac = p->mcount_overhead_sub % CALIB_SCALE;
-	p->mcount_overhead_sub /= CALIB_SCALE;
-	p->mcount_overhead /= CALIB_SCALE;
-	p->mexitcount_overhead_frac = p->mexitcount_overhead_sub % CALIB_SCALE;
-	p->mexitcount_overhead_sub /= CALIB_SCALE;
-	p->mexitcount_overhead /= CALIB_SCALE;
+	nullfunc_loop_profiled_time = 0;
+	for (i = 0; i < 28; i += sizeof(HISTCOUNTER)) {
+		int x;
+
+		x = KCOUNT(p, PC_TO_I(p,
+				      (fptrint_t)nullfunc_loop_profiled + i));
+		nullfunc_loop_profiled_time += x;
+		printf("leaf[%d] = %d sum %d\n",
+		       i, x, nullfunc_loop_profiled_time);
+	}
+#define CALIB_DOSCALE(count)	(((count) + CALIB_SCALE / 3) / CALIB_SCALE)
+#define	c2n(count, freq)	((int)((count) * 1000000000LL / freq))
+	printf("cputime %d, empty_loop %d, nullfunc_loop_profiled %d, mcount %d, mexitcount %d\n",
+	       CALIB_DOSCALE(c2n(cputime_overhead, p->profrate)),
+	       CALIB_DOSCALE(c2n(empty_loop_time, p->profrate)),
+	       CALIB_DOSCALE(c2n(nullfunc_loop_profiled_time, p->profrate)),
+	       CALIB_DOSCALE(c2n(mcount_overhead, p->profrate)),
+	       CALIB_DOSCALE(c2n(mexitcount_overhead, p->profrate)));
+	cputime_overhead -= empty_loop_time;
+	mcount_overhead -= empty_loop_time;
+	mexitcount_overhead -= empty_loop_time;
+
+	/*-
+	 * Profiling overheads are determined by the times between the
+	 * following events:
+	 *	MC1: mcount() is called
+	 *	MC2: cputime() (called from mcount()) latches the timer
+	 *	MC3: mcount() completes
+	 *	ME1: mexitcount() is called
+	 *	ME2: cputime() (called from mexitcount()) latches the timer
+	 *	ME3: mexitcount() completes.
+	 * The times between the events vary slightly depending on instruction
+	 * combination and cache misses, etc.  Attempt to determine the
+	 * minimum times.  These can be subtracted from the profiling times
+	 * without much risk of reducing the profiling times below what they
+	 * would be when profiling is not configured.  Abbreviate:
+	 *	ab = minimum time between MC1 and MC3
+	 *	a  = minumum time between MC1 and MC2
+	 *	b  = minimum time between MC2 and MC3
+	 *	cd = minimum time between ME1 and ME3
+	 *	c  = minimum time between ME1 and ME2
+	 *	d  = minimum time between ME2 and ME3.
+	 * These satisfy the relations:
+	 *	ab            <= mcount_overhead		(just measured)
+	 *	a + b         <= ab
+	 *	        cd    <= mexitcount_overhead		(just measured)
+	 *	        c + d <= cd
+	 *	a         + d <= nullfunc_loop_profiled_time	(just measured)
+	 *	a >= 0, b >= 0, c >= 0, d >= 0.
+	 * Assume that ab and cd are equal to the minimums.
+	 */
+	p->cputime_overhead = CALIB_DOSCALE(cputime_overhead);
+	p->mcount_overhead = CALIB_DOSCALE(mcount_overhead - cputime_overhead);
+	p->mexitcount_overhead = CALIB_DOSCALE(mexitcount_overhead
+					       - cputime_overhead);
+	nullfunc_loop_overhead = nullfunc_loop_profiled_time - empty_loop_time;
+	p->mexitcount_post_overhead = CALIB_DOSCALE((mcount_overhead
+						     - nullfunc_loop_overhead)
+						    / 4);
+	p->mexitcount_pre_overhead = p->mexitcount_overhead
+				     + p->cputime_overhead
+				     - p->mexitcount_post_overhead;
+	p->mcount_pre_overhead = CALIB_DOSCALE(nullfunc_loop_overhead)
+				 - p->mexitcount_post_overhead;
+	p->mcount_post_overhead = p->mcount_overhead
+				  + p->cputime_overhead
+				  - p->mcount_pre_overhead;
+	printf(
+"Profiling overheads: mcount: %d+%d, %d+%d; mexitcount: %d+%d, %d+%d nsec\n",
+	       c2n(p->cputime_overhead, p->profrate),
+	       c2n(p->mcount_overhead, p->profrate),
+	       c2n(p->mcount_pre_overhead, p->profrate),
+	       c2n(p->mcount_post_overhead, p->profrate),
+	       c2n(p->cputime_overhead, p->profrate),
+	       c2n(p->mexitcount_overhead, p->profrate),
+	       c2n(p->mexitcount_pre_overhead, p->profrate),
+	       c2n(p->mexitcount_post_overhead, p->profrate));
+	printf(
+"Profiling overheads: mcount: %d+%d, %d+%d; mexitcount: %d+%d, %d+%d cycles\n",
+	       p->cputime_overhead, p->mcount_overhead,
+	       p->mcount_pre_overhead, p->mcount_post_overhead,
+	       p->cputime_overhead, p->mexitcount_overhead,
+	       p->mexitcount_pre_overhead, p->mexitcount_post_overhead);
 #endif /* GUPROF */
 }
 
@@ -189,16 +297,20 @@ sysctl_kern_prof SYSCTL_HANDLER_ARGS
 		if (!req->newptr)
 			return (0);
 		if (state == GMON_PROF_OFF) {
+			gp->state = state;
 			stopprofclock(&proc0);
-			gp->state = state;
+			stopguprof(gp);
 		} else if (state == GMON_PROF_ON) {
+			gp->state = GMON_PROF_OFF;
+			stopguprof(gp);
 			gp->profrate = profhz;
-			gp->state = state;
 			startprofclock(&proc0);
+			gp->state = state;
 #ifdef GUPROF
 		} else if (state == GMON_PROF_HIRES) {
-			gp->profrate = 1193182;	/* XXX */
+			gp->state = GMON_PROF_OFF;
 			stopprofclock(&proc0);
+			startguprof(gp);
 			gp->state = state;
 #endif
 		} else if (state != gp->state)

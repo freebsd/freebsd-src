@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.22 1996/10/09 18:36:44 bde Exp $
+#	$Id: options.i386,v 1.23 1996/10/09 19:47:07 bde Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -18,6 +18,8 @@ COMCONSOLE		opt_comconsole.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
+I586_CTR_GUPROF		opt_i586_guprof.h
+I586_PMC_GUPROF		opt_i586_guprof.h
 FAT_CURSOR		opt_pcvt.h
 PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
