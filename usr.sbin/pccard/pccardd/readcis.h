@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#define	CIS_MAXSTR	30
+#define	CIS_MAXSTR	254
 struct tuple {
 	struct tuple *next;
 	unsigned char code;
