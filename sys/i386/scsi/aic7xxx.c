@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.10 1995/01/13 02:27:08 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.11 1995/01/16 16:33:46 gibbs Exp $
  */
 /*
  * TODO:
@@ -127,6 +127,34 @@ struct scsi_device ahc_dev =
 #define		ENAUTOATNI	0x04
 #define		ENAUTOATNP	0x02
 #define		SCSIRSTO	0x01
+
+/*
+ * SCSI Transfer Control 1 Register (pp. 3-14,15).
+ * Controls the SCSI module data path.
+ */
+#define	SXFRCTL1		0xc02ul
+#define		BITBUCKET	0x80
+#define		SWRAPEN		0x40
+#define		ENSPCHK		0x20
+#define		STIMESEL	0x18
+#define		ENSTIMER	0x04
+#define		ACTNEGEN	0x02
+#define		STPWEN		0x01	/* Powered Termination */
+
+/*
+ * SCSI Interrrupt Mode 1 (pp. 3-28,29).
+ * Set bits in this register enable the corresponding
+ * interrupt source.
+ */
+#define	SIMODE1			0xc11ul
+#define		ENSELTIMO	0x80
+#define		ENATNTARG	0x40
+#define		ENSCSIRST	0x20
+#define		ENPHASEMIS	0x10
+#define		ENBUSFREE	0x08
+#define		ENSCSIPERR	0x04
+#define		ENPHASECHG	0x02
+#define		ENREQINIT	0x01
 
 /*
  * SCSI Control Signal Read Register (p. 3-15). 
@@ -692,7 +720,6 @@ ahc_send_scb( ahc, scb )
         u_long iobase = ahc->baseport;
          
         PAUSE_SEQUENCER(ahc);
-        
         outb(QINFIFO + iobase, scb->position);
 
         UNPAUSE_SEQUENCER(ahc);
@@ -1241,6 +1268,7 @@ ahc_init(unit)
 {
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
+	u_char	scsi_conf;
 	int     intdef, i;
 
 	/*
@@ -1250,7 +1278,8 @@ ahc_init(unit)
 
 #ifdef AHCDEBUG
 	printf("ahc%d: scb %d bytes; SCB_SIZE %d bytes, ahc_dma %d bytes\n", 
-		unit, sizeof(struct scb), SCB_DOWN_SIZE, sizeof(struct ahc_dma_seg));
+		unit, sizeof(struct scb), SCB_DOWN_SIZE, 
+		sizeof(struct ahc_dma_seg));
 #endif /* AHCDEBUG */
 	printf("ahc%d: reading board settings\n", unit);
 
@@ -1295,6 +1324,7 @@ ahc_init(unit)
 		outb(HA_FLAGS + iobase, WIDE_BUS);
                 break;
             case 8:
+	    case 0xc8:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
 		ahc->our_id_b = (inb(HA_SCSICONF + 1 + iobase) & HSCSIID);
                 printf("Twin Channel, A SCSI Id=%d, B SCSI Id=%d, ",
@@ -1358,10 +1388,25 @@ ahc_init(unit)
 	if (ahc->type < AHC_294)
 		outb(BCTL + iobase, ENABLE); 
 
-	/* Reset the SCSI bus.  Is this necessary? */
-        outb(SCSISEQ + iobase, SCSIRSTO);
-        DELAY(500);
-        outb(SCSISEQ + iobase, 0);
+	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channes */
+	if( ahc->type == AHC_274T || ahc->type == AHC_284T 
+				  || ahc->type == AHC_294T)
+	{
+		/* 
+		 * The device is gated to channel B after a chip reset,
+		 * so set those values first
+		 */
+		outb(SCSIID + iobase, ahc->our_id_b);
+		scsi_conf = inb(HA_SCSICONF + 1 + iobase) & (ENSPCHK|STIMESEL);
+		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
+		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
+		/* Select Channel A */
+		outb(SBLKCTL + iobase, 0);
+	}
+	outb(SCSIID + iobase, ahc->our_id);
+	scsi_conf = inb(HA_SCSICONF + iobase) & (ENSPCHK|STIMESEL);
+	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
+	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
 
 	/*
 	 * Look at the information that board initialization or
