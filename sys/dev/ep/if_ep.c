@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.25 1995/04/10 21:24:58 jkh Exp $
+ *  $Id: if_ep.c,v 1.26 1995/04/12 20:47:49 wollman Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -210,7 +210,7 @@ ep_look_for_board_at(is)
 
         /* Look for the ISA boards. Init and leave them actived */
 	outb(id_port, 0xc0);	/* Global reset */
-	DELAY(1000);
+	DELAY(10000);
 	for (i = 0; i < EP_MAX_BOARDS; i++) {
 	    outb(id_port, 0);
 	    outb(id_port, 0);
