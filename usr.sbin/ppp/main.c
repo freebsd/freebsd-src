@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.126 1998/05/27 22:43:31 brian Exp $
+ * $Id: main.c,v 1.127 1998/05/28 23:17:48 brian Exp $
  *
  *	TODO:
  */
@@ -182,38 +182,44 @@ Usage(void)
 static char *
 ProcessArgs(int argc, char **argv, int *mode)
 {
-  int optc, labelrequired;
+  int optc, labelrequired, newmode;
   char *cp;
 
   optc = labelrequired = 0;
-  *mode = PHYS_MANUAL;
+  *mode = PHYS_INTERACTIVE;
   while (argc > 0 && **argv == '-') {
     cp = *argv + 1;
-    if (strcmp(cp, "auto") == 0) {
-      *mode = PHYS_DEMAND;
-      labelrequired = 1;
-    } else if (strcmp(cp, "background") == 0) {
-      *mode = PHYS_1OFF;
-      labelrequired = 1;
-    } else if (strcmp(cp, "direct") == 0)
-      *mode = PHYS_DIRECT;
-    else if (strcmp(cp, "dedicated") == 0)
-      *mode = PHYS_DEDICATED;
-    else if (strcmp(cp, "ddial") == 0) {
-      *mode = PHYS_PERM;
-      labelrequired = 1;
-    } else if (strcmp(cp, "alias") == 0) {
+    newmode = Nam2mode(cp);
+    switch (newmode) {
+      case PHYS_NONE:
+        if (strcmp(cp, "alias") == 0) {
 #ifndef NOALIAS
-      if (alias_Load() != 0)
+          if (alias_Load() != 0)
 #endif
-	log_Printf(LogWARN, "Cannot load alias library\n");
-      optc--;			/* this option isn't exclusive */
-    } else
-      Usage();
+	    log_Printf(LogWARN, "Cannot load alias library\n");
+          optc--;			/* this option isn't exclusive */
+        } else
+          Usage();
+        break;
+
+      case PHYS_ALL:
+        Usage();
+        break;
+
+      case PHYS_AUTO:
+      case PHYS_BACKGROUND:
+      case PHYS_DDIAL:
+        labelrequired = 1;
+        /* fall through */
+
+      default:
+        *mode = newmode;
+    }
     optc++;
     argv++;
     argc--;
   }
+
   if (argc > 1) {
     fprintf(stderr, "You may specify only one system label.\n");
     exit(EX_START);
@@ -266,7 +272,7 @@ main(int argc, char **argv)
    * routing table and then run ppp in interactive mode.  The `show route'
    * command will drop chunks of data !!!
    */
-  if (mode == PHYS_MANUAL) {
+  if (mode == PHYS_INTERACTIVE) {
     close(STDIN_FILENO);
     if (open(_PATH_TTY, O_RDONLY) != STDIN_FILENO) {
       fprintf(stderr, "Cannot open %s for input !\n", _PATH_TTY);
@@ -279,24 +285,8 @@ main(int argc, char **argv)
   if (mode == PHYS_DIRECT)
     prompt = NULL;
   else {
-    const char *m;
-
     SignalPrompt = prompt = prompt_Create(NULL, NULL, PROMPT_STD);
-    if (mode == PHYS_PERM)
-      m = "direct dial";
-    else if (mode & PHYS_1OFF)
-      m = "background";
-    else if (mode & PHYS_DEMAND)
-      m = "auto";
-    else if (mode & PHYS_DEDICATED)
-      m = "dedicated";
-    else if (mode & PHYS_MANUAL)
-      m = "interactive";
-    else
-      m = NULL;
-
-    if (m)
-      prompt_Printf(prompt, "Working in %s mode\n", m);
+    prompt_Printf(prompt, "Working in %s mode\n", mode2Nam(mode));
   }
 
   ID0init();
@@ -346,7 +336,7 @@ main(int argc, char **argv)
   sig_signal(SIGALRM, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
 
-  if (mode == PHYS_MANUAL)
+  if (mode == PHYS_INTERACTIVE)
     sig_signal(SIGTSTP, TerminalStop);
 
   sig_signal(SIGUSR2, BringDownServer);
@@ -364,7 +354,7 @@ main(int argc, char **argv)
       AbortProgram(EX_START);
     }
     bundle_SetLabel(bundle, label);
-    if (mode == PHYS_DEMAND &&
+    if (mode == PHYS_AUTO &&
 	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
       prompt_Printf(prompt, "You must \"set ifaddr\" with a peer address "
                     "in label %s for auto mode.\n", label);
@@ -372,12 +362,12 @@ main(int argc, char **argv)
     }
   }
 
-  if (mode != PHYS_MANUAL) {
+  if (mode != PHYS_INTERACTIVE) {
     if (mode != PHYS_DIRECT) {
       int bgpipe[2];
       pid_t bgpid;
 
-      if (mode == PHYS_1OFF && pipe(bgpipe)) {
+      if (mode == PHYS_BACKGROUND && pipe(bgpipe)) {
         log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
 	AbortProgram(EX_SOCK);
       }
@@ -391,7 +381,7 @@ main(int argc, char **argv)
       if (bgpid) {
 	char c = EX_NORMAL;
 
-	if (mode == PHYS_1OFF) {
+	if (mode == PHYS_BACKGROUND) {
 	  close(bgpipe[1]);
 	  BGPid = bgpid;
           /* If we get a signal, kill the child */
@@ -415,7 +405,7 @@ main(int argc, char **argv)
 	  close(bgpipe[0]);
 	}
 	return c;
-      } else if (mode == PHYS_1OFF) {
+      } else if (mode == PHYS_BACKGROUND) {
 	close(bgpipe[0]);
         bundle->notify.fd = bgpipe[1];
       }

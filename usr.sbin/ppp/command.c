@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.88 1998/05/21 01:13:26 brian Exp $
+ * $Id: command.c,v 1.135 1998/05/21 21:44:44 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/21 01:13:26 $";
+const char VersionDate[] = "$Date: 1998/05/21 21:44:44 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -296,8 +296,9 @@ DialCommand(struct cmdargs const *arg)
 {
   int res;
 
-  if ((arg->cx && !(arg->cx->physical->type & (PHYS_MANUAL|PHYS_DEMAND)))
-      || (!arg->cx && (arg->bundle->phys_type & ~(PHYS_MANUAL|PHYS_DEMAND)))) {
+  if ((arg->cx && !(arg->cx->physical->type & (PHYS_INTERACTIVE|PHYS_AUTO)))
+      || (!arg->cx &&
+          (arg->bundle->phys_type & ~(PHYS_INTERACTIVE|PHYS_AUTO)))) {
     log_Printf(LogWARN, "Manual dial is only available for auto and"
               " interactive links\n");
     return 1;
@@ -1140,7 +1141,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
   }
 
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
-                                  arg->bundle->phys_type & PHYS_DEMAND))
+                                  arg->bundle->phys_type & PHYS_AUTO))
     return 4;
 
   return 0;
