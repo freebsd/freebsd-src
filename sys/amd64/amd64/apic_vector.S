@@ -1,12 +1,12 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.15 1997/08/10 20:58:57 fsmp Exp $
+ *	$Id: apic_vector.s,v 1.24 1997/08/21 04:52:30 smp Exp smp $
  */
 
 
 #include <machine/apic.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>		/** PEND_INTS, various counters */
+#include <machine/smptests.h>			/** various things... */
 
 #include "i386/isa/intr_machdep.h"
 
@@ -27,17 +27,13 @@
 
 #define GET_FAST_INTR_LOCK						\
 	call	_get_isrlock
+
 #define REL_FAST_INTR_LOCK						\
 	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
 	call	_MPrellock ;						\
 	add	$4, %esp
 
 #endif /* FAST_SIMPLELOCK */
-
-#define REL_ISR_LOCK							\
-	pushl	$_mp_lock ;	/* GIANT_LOCK */			\
-	call	_MPrellock ;						\
-	add	$4, %esp
 
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
@@ -47,105 +43,13 @@
 
 
 /*
- * 'lazy masking' code suggested by Bruce Evans <bde@zeta.org.au>
- */
-
-#ifdef PEND_INTS
-
-/*
- * the 1st version fails because masked edge-triggered INTs are lost
- * by the IO APIC.  This version tests to see whether we are handling
- * an edge or level triggered INT.  Level-triggered INTs must still be
- * masked as we don't clear the source, and the EOI cycle would allow
- * recursive INTs to occur.
- */
-#define MAYBE_MASK_IRQ(irq_num)						\
-	lock ;					/* MP-safe */		\
-	btsl	$(irq_num),iactive ;		/* lazy masking */	\
-	jc	6f ;				/* already active */	\
-	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
-	call	_MPtrylock ;			/* try to get lock */	\
-	add $4,	%esp ;							\
-	testl	%eax, %eax ;			/* did we get it? */	\
-	jnz	8f ;				/* yes, enter kernel */	\
-6: ;						/* active or locked */	\
-	IMASK_LOCK ;				/* into critical reg */	\
-	testl	$IRQ_BIT(irq_num),_apic_pin_trigger ;			\
-	jz	7f ;				/* edge, don't mask */	\
-	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0] addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-7: ;									\
-	lock ;					/* MP-safe */		\
-	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
-	IMASK_UNLOCK ;				/* exit critical reg */	\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp ;						\
-	iret ;								\
-;									\
-	ALIGN_TEXT ;							\
-8:
-
-#else /* PEND_INTS */
-
-#define MAYBE_MASK_IRQ(irq_num)						\
-	lock ;					/* MP-safe */		\
-	btsl	$(irq_num),iactive ;		/* lazy masking */	\
-	jnc	1f ;				/* NOT active */	\
-	IMASK_LOCK ;				/* enter critical reg */\
-	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	lock ;					/* MP-safe */		\
-	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-	IMASK_UNLOCK ;				/* exit critical reg */	\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp ;						\
-	iret ;								\
-;									\
-	ALIGN_TEXT ;							\
-1: ;									\
-	call	_get_mplock			/* SMP Spin lock */
-
-#endif /* PEND_INTS */
-
-
-#define MAYBE_UNMASK_IRQ(irq_num)					\
-	cli ;	/* must unmask _apic_imen and IO APIC atomically */	\
-	lock ;					/* MP-safe */		\
-	andl	$~IRQ_BIT(irq_num),iactive ;				\
-	IMASK_LOCK ;				/* enter critical reg */\
-	testl	$IRQ_BIT(irq_num),_apic_imen ;				\
-	je	9f ;							\
-	andl	$~IRQ_BIT(irq_num),_apic_imen ;	/* clear mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-9: ;									\
-	IMASK_UNLOCK ;				/* exit critical reg */	\
-	sti	/* XXX _doreti repeats the cli/sti */
-
-
-/*
  * Macros for interrupt interrupt entry, call to handler, and exit.
  */
 
 #ifdef FAST_WITHOUTCPL
 
+/*
+ */
 #define	FAST_INTR(irq_num, vec_name)					\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
@@ -244,51 +148,122 @@ IDTVEC(vec_name) ;							\
 #endif /** FAST_WITHOUTCPL */
 
 
-#define	INTR(irq_num, vec_name)						\
-	.text ;								\
-	SUPERALIGN_TEXT ;						\
-IDTVEC(vec_name) ;							\
+/*
+ * 
+ */
+#define PUSH_FRAME							\
 	pushl	$0 ;		/* dummy error code */			\
 	pushl	$0 ;		/* dummy trap type */			\
 	pushal ;							\
 	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	movl	$KDSEL,%eax ;	/* ... and reload with kernel's ... */	\
-	movl	%ax,%ds ;	/* ... early for obsolete reasons */	\
-	movl	%ax,%es ;						\
-	MAYBE_MASK_IRQ(irq_num) ;					\
-	movl	$0, lapic_eoi ;						\
-	movl	_cpl,%eax ;						\
-	testl	$IRQ_BIT(irq_num), %eax ;				\
-	jne	3f ;							\
+	pushl	%es
+
+#define POP_FRAME							\
+	popl	%es ;							\
+	popl	%ds ;							\
+	popal ;								\
+	addl	$4+4,%esp
+
+/*
+ * Test to see whether we are handling an edge or level triggered INT.
+ *  Level-triggered INTs must still be masked as we don't clear the source,
+ *  and the EOI cycle would cause redundant INTs to occur.
+ */
+#define MASK_LEVEL_IRQ(irq_num)						\
+	IMASK_LOCK ;				/* into critical reg */	\
+	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
+	jz	8f ;				/* edge, don't mask */	\
+	orl	$IRQ_BIT(irq_num), _apic_imen ;	/* set the mask bit */	\
+	movl	_ioapic, %ecx ;			/* ioapic[0] addr */	\
+	movl	$REDTBL_IDX(irq_num), (%ecx) ;	/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx), %eax ;	/* current value */	\
+	orl	$IOART_INTMASK, %eax ;		/* set the mask */	\
+	movl	%eax, IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+8: ;									\
+	IMASK_UNLOCK
+
+/*
+ * Test to see if the source is currntly masked, clear if so.
+ */
+#define UNMASK_IRQ(irq_num)					\
+	IMASK_LOCK ;				/* into critical reg */	\
+	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
+	je	9f ;							\
+	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
+	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
+	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
+	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
+	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+9: ;									\
+	IMASK_UNLOCK
+
+#define	INTR(irq_num, vec_name)						\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
+	movl	%ax, %ds ;						\
+	movl	%ax, %es ;						\
+;									\
+	lock ;					/* MP-safe */		\
+	btsl	$(irq_num), iactive ;		/* lazy masking */	\
+	jc	1f ;				/* already active */	\
+;									\
+	ISR_TRYLOCK ;		/* XXX this is going away... */		\
+	testl	%eax, %eax ;			/* did we get it? */	\
+	jz	1f ;				/* no */		\
+;									\
+	CPL_LOCK ;				/* MP-safe */		\
+	testl	$IRQ_BIT(irq_num), _cpl ;				\
+	jne	2f ;							\
+	orl	$IRQ_BIT(irq_num), _cil ;				\
+	CPL_UNLOCK ;							\
+;									\
+	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
 __CONCAT(Xresume,irq_num): ;						\
-	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid dbl cnt */ \
-	incl	_cnt+V_INTR ;	/* tally interrupts */			\
-	movl	_intr_countp + (irq_num) * 4,%eax ;			\
-	incl	(%eax) ;						\
-	movl	_cpl,%eax ;						\
+	FAKE_MCOUNT(12*4(%esp)) ;		/* XXX avoid dbl cnt */ \
+	lock ;	incl	_cnt+V_INTR ;		/* tally interrupts */	\
+	movl	_intr_countp + (irq_num) * 4, %eax ;			\
+	lock ;	incl	(%eax) ;					\
+;									\
+	CPL_LOCK ;				/* MP-safe */		\
+	movl	_cpl, %eax ;						\
 	pushl	%eax ;							\
+	orl	_intr_mask + (irq_num) * 4, %eax ;			\
+	movl	%eax, _cpl ;						\
+	CPL_UNLOCK ;							\
+;									\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
-	orl	_intr_mask + (irq_num) * 4,%eax ;			\
-	movl	%eax,_cpl ;						\
 	sti ;								\
 	call	*_intr_handler + (irq_num) * 4 ;			\
-	MAYBE_UNMASK_IRQ(irq_num) ;					\
+	cli ;								\
+;									\
+	lock ;	andl	$~IRQ_BIT(irq_num), iactive ;			\
+	UNMASK_IRQ(irq_num) ;						\
+	sti ;				/* doreti repeats cli/sti */	\
 	MEXITCOUNT ;							\
 	jmp	_doreti ;						\
 ;									\
 	ALIGN_TEXT ;							\
-3: ;									\
-	/* XXX skip mcounting here to avoid double count */		\
-	lock ;					/* MP-safe */		\
+1: ;						/* active or locked */	\
+	MASK_LEVEL_IRQ(irq_num) ;					\
+	movl	$0, lapic_eoi ;			/* do the EOI */	\
+;									\
+	CPL_LOCK ;				/* MP-safe */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	REL_ISR_LOCK ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp ;						\
-	iret
+	CPL_UNLOCK ;							\
+;									\
+	POP_FRAME ;							\
+	iret ;								\
+;									\
+	ALIGN_TEXT ;							\
+2: ;						/* masked by cpl */	\
+	CPL_UNLOCK ;							\
+	ISR_RELLOCK ;		/* XXX this is going away... */		\
+	jmp	1b
 
 
 /*
@@ -302,10 +277,6 @@ __CONCAT(Xresume,irq_num): ;						\
 	SUPERALIGN_TEXT
 	.globl _Xspuriousint
 _Xspuriousint:
-#ifdef COUNT_SPURIOUS_INTS
-	ss
-	incl	_sihits
-#endif
 
 	/* No EOI cycle used here */
 
@@ -357,10 +328,6 @@ _Xcpustop:
 	movl	%ax, %ds		/* use KERNEL data segment */
 
 	movl	_cpuid, %eax
-
-#ifdef COUNT_CSHITS
-	incl	_cshits(,%eax,4)
-#endif /* COUNT_CSHITS */
 
 	ASMPOSTCODE_HI(0x1)
 
@@ -470,12 +437,6 @@ _ivectors:
 iactive:
 	.long	0
 
-#ifdef COUNT_SPURIOUS_INTS
-	.globl	_sihits
-_sihits:
-	.long	0
-#endif /* COUNT_SPURIOUS_INTS */
-
 #ifdef COUNT_XINVLTLB_HITS
 	.globl	_xhits
 _xhits:
@@ -489,17 +450,9 @@ _stopped_cpus:
 _started_cpus:
 	.long	0
 
-#ifdef COUNT_CSHITS
-	.globl	_cshits
-_cshits:
-	.space	(NCPU * 4), 0
-#endif /* COUNT_CSHITS */
-
-#ifdef PEND_INTS
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
 	.space	(NAPIC * 4), 0
-#endif /* PEND_INTS */
 
 
 /*
