@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		lptcontrol
+WARNS?=		2
 MAN=		lptcontrol.8
-CFLAGS+=	-Wall
 
 .include <bsd.prog.mk>
