@@ -37,9 +37,17 @@
 
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+
+#ifndef NOPAM
+#include <security/pam_appl.h>
+#ifdef _OPENPAM
+#include <security/openpam.h>
+#endif
+#endif /* !NOPAM */
 
 #include "layer.h"
 #include "mbuf.h"
@@ -93,10 +101,28 @@ Auth2Nam(u_short auth, u_char type)
   return "unknown";
 }
 
+#if !defined(NOPAM) && !defined(_OPENPAM)
+static int
+pam_conv(int n, const struct pam_message **msg, struct pam_response **resp,
+  void *data)
+{
+
+  if (n != 1 || msg[0]->msg_style != PAM_PROMPT_ECHO_OFF)
+    return (PAM_CONV_ERR);
+  if ((*resp = malloc(sizeof(struct pam_response))) == NULL)
+    return (PAM_CONV_ERR);
+  (*resp)[0].resp = strdup((const char *)data);
+  (*resp)[0].resp_retcode = 0;
+
+  return ((*resp)[0].resp != NULL ? PAM_SUCCESS : PAM_CONV_ERR);
+}
+#endif /* !defined(NOPAM) && !defined(_OPENPAM) */
+
 static int
 auth_CheckPasswd(const char *name, const char *data, const char *key)
 {
   if (!strcmp(data, "*")) {
+#ifdef NOPAM
     /* Then look up the real password database */
     struct passwd *pw;
     int result;
@@ -105,6 +131,28 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
              !strcmp(crypt(key, pw->pw_passwd), pw->pw_passwd);
     endpwent();
     return result;
+#else /* !NOPAM */
+    /* Then consult with PAM. */
+    pam_handle_t *pamh;
+    int status;
+
+    struct pam_conv pamc = {
+#ifdef _OPENPAM
+      &openpam_nullconv, NULL
+#else
+      &pam_conv, key
+#endif
+    };
+
+    if (pam_start("ppp", name, &pamc, &pamh) != PAM_SUCCESS)
+      return (0);
+#ifdef _OPENPAM
+    if ((status = pam_set_item(pamh, PAM_AUTHTOK, key)) == PAM_SUCCESS)
+#endif
+      status = pam_authenticate(pamh, 0);
+    pam_end(pamh, status);
+    return (status == PAM_SUCCESS);
+#endif /* !NOPAM */
   }
 
   return !strcmp(data, key);
