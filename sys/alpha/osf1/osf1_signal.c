@@ -451,7 +451,7 @@ osf1_signal(td, uap)
 
 			bmask = stackgap_alloc(&sg, sizeof(sigset_t));
 			PROC_LOCK(p);
-			set = p->p_sigmask;
+			set = td->td_sigmask;
 			PROC_UNLOCK(p);
 			SIGDELSET(set, signum);
 			sa.sigmask = bmask;
@@ -481,7 +481,7 @@ osf1_sigprocmask(td, uap)
 	p = td->td_proc;
 	error = 0;
 		/* Fix the return value first if needed */
-	bsd_to_osf1_sigset(&p->p_sigmask, &oss);
+	bsd_to_osf1_sigset(&td->td_sigmask, &oss);
 	td->td_retval[0] = oss;
 
 	osf1_to_bsd_sigset(&uap->mask, &bss);
@@ -490,19 +490,19 @@ osf1_sigprocmask(td, uap)
 
 	switch (uap->how) {
 	case OSF1_SIG_BLOCK:
-		SIGSETOR(p->p_sigmask, bss);
-		SIG_CANTMASK(p->p_sigmask);
+		SIGSETOR(td->td_sigmask, bss);
+		SIG_CANTMASK(td->td_sigmask);
 		break;
 
 	case OSF1_SIG_UNBLOCK:
-		SIGSETNAND(p->p_sigmask, bss);
-		signotify(p);
+		SIGSETNAND(td->td_sigmask, bss);
+		signotify(td);
 		break;
 
 	case OSF1_SIG_SETMASK:
-		p->p_sigmask = bss;
-		SIG_CANTMASK(p->p_sigmask);
-		signotify(p);
+		td->td_sigmask = bss;
+		SIG_CANTMASK(td->td_sigmask);
+		signotify(td);
 		break;
 
 	default:
@@ -528,8 +528,9 @@ osf1_sigpending(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	bss = p->p_siglist;
-	SIGSETAND(bss, p->p_sigmask);
+	bss = td->td_siglist;
+	SIGSETOR(bss, p->p_siglist);
+	SIGSETAND(bss, td->td_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_osf1_sigset(&bss, &oss);
 
@@ -727,9 +728,9 @@ osf1_sigreturn(struct thread *td,
 	 * sigmask is stored in sc_reserved, sc_mask is only used for
 	 * backward compatibility.
 	 */
-	osf1_to_bsd_sigset(&ksc.sc_mask, &p->p_sigmask);
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	osf1_to_bsd_sigset(&ksc.sc_mask, &td->td_sigmask);
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	set_regs(td, (struct reg *)ksc.sc_regs);

@@ -324,11 +324,11 @@ ibcs2_sigsys(td, uap)
                         if(IBCS2_SIGCALL(uap->sig) == IBCS2_SIGSET_MASK) {
 				PROC_LOCK(p);
 			        /* check to make sure signal is not blocked */
-                                if(sigismember(&p->p_sigmask, signum)) {
+                                if(sigismember(&td->td_sigmask, signum)) {
 				        /* return SIG_HOLD and unblock signal*/
                                         td->td_retval[0] = (int)IBCS2_SIG_HOLD;
-					SIGDELSET(p->p_sigmask, signum);
-					signotify(p);
+					SIGDELSET(td->td_sigmask, signum);
+					signotify(td);
 				}
 				PROC_UNLOCK(p);
 			}
@@ -377,7 +377,7 @@ ibcs2_sigsys(td, uap)
 			struct sigsuspend_args sa;
 
 			PROC_LOCK(p);
-			mask = p->p_sigmask;
+			mask = td->td_sigmask;
 			PROC_UNLOCK(p);
 			SIGDELSET(mask, signum);
 			sa.sigmask = &mask;
@@ -402,7 +402,7 @@ ibcs2_sigprocmask(td, uap)
 	if (uap->oset != NULL) {
 		/* Fix the return value first if needed */
 		PROC_LOCK(p);
-		bsd_to_ibcs2_sigset(&p->p_sigmask, &iss);
+		bsd_to_ibcs2_sigset(&td->td_sigmask, &iss);
 		PROC_UNLOCK(p);
 		if ((error = copyout(&iss, uap->oset, sizeof(iss))) != 0)
 			return error;
@@ -421,19 +421,19 @@ ibcs2_sigprocmask(td, uap)
 
 	switch (uap->how) {
 	case IBCS2_SIG_BLOCK:
-		SIGSETOR(p->p_sigmask, bss);
-		SIG_CANTMASK(p->p_sigmask);
+		SIGSETOR(td->td_sigmask, bss);
+		SIG_CANTMASK(td->td_sigmask);
 		break;
 
 	case IBCS2_SIG_UNBLOCK:
-		SIGSETNAND(p->p_sigmask, bss);
-		signotify(p);
+		SIGSETNAND(td->td_sigmask, bss);
+		signotify(td);
 		break;
 
 	case IBCS2_SIG_SETMASK:
-		p->p_sigmask = bss;
-		SIG_CANTMASK(p->p_sigmask);
-		signotify(p);
+		td->td_sigmask = bss;
+		SIG_CANTMASK(td->td_sigmask);
+		signotify(td);
 		break;
 
 	default:
@@ -456,8 +456,9 @@ ibcs2_sigpending(td, uap)
 	ibcs2_sigset_t iss;
 
 	PROC_LOCK(p);
-	bss = p->p_siglist;
-	SIGSETAND(bss, p->p_sigmask);
+	bss = td->td_siglist;
+	SIGSETOR(bss, p->p_siglist);
+	SIGSETAND(bss, td->td_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_ibcs2_sigset(&bss, &iss);
 
@@ -492,7 +493,7 @@ ibcs2_pause(td, uap)
 	struct sigsuspend_args sa;
 
 	PROC_LOCK(p);
-	mask = td->td_proc->p_sigmask;
+	mask = td->td_sigmask;
 	PROC_UNLOCK(p);
 	sa.sigmask = &mask;
 	return sigsuspend(td, &sa);

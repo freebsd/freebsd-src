@@ -69,17 +69,21 @@ smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred)
 }
 
 int
-smb_proc_intr(struct proc *p)
+smb_td_intr(struct thread *td)
 {
+	struct proc *p;
 	sigset_t tmpset;
 
-	if (p == NULL)
+	if (td == NULL)
 		return 0;
+
+	p = td->td_proc;
 	PROC_LOCK(p);
 	tmpset = p->p_siglist;
-	SIGSETNAND(tmpset, p->p_sigmask);
+	SIGSETOR(tmpset, td->td_siglist);
+	SIGSETNAND(tmpset, td->td_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (SIGNOTEMPTY(p->p_siglist) && SMB_SIGMASK(tmpset)) {
+	if (SIGNOTEMPTY(td->td_siglist) && SMB_SIGMASK(tmpset)) {
 		PROC_UNLOCK(p);
                 return EINTR;
 	}

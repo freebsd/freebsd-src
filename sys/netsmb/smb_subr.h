@@ -140,7 +140,7 @@ struct smb_vc;
 struct smb_rq;
 
 void smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred);
-int  smb_proc_intr(struct proc *);
+int  smb_td_intr(struct thread *);
 char *smb_strdup(const char *s);
 void *smb_memdup(const void *umem, int len);
 char *smb_strdupin(char *s, int maxlen);

@@ -496,8 +496,10 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
 	td->td_flags = TDF_UPCALLING;
+#if 0	/* XXX This shouldn't be necessary */
 	if (p->p_sflag & PS_NEEDSIGCHK)
 		td->td_flags |= TDF_ASTPENDING;
+#endif
 	mtx_unlock_spin(&sched_lock);
 	PROC_LOCK(p);
 	while ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 &&
@@ -744,7 +746,7 @@ thread_getcontext(struct thread *td, ucontext_t *uc)
 #ifdef __i386__
 	get_mcontext(td, &uc->uc_mcontext);
 #endif
-	uc->uc_sigmask = td->td_proc->p_sigmask;
+	uc->uc_sigmask = td->td_sigmask;
 }
 
 /*
@@ -769,7 +771,7 @@ thread_setcontext(struct thread *td, ucontext_t *uc)
 	if (ret == 0) {
 		SIG_CANTMASK(uc->uc_sigmask);
 		PROC_LOCK(td->td_proc);
-		td->td_proc->p_sigmask = uc->uc_sigmask;
+		td->td_sigmask = uc->uc_sigmask;
 		PROC_UNLOCK(td->td_proc);
 	}
 	return (ret);
@@ -1247,6 +1249,7 @@ thread_exit(void)
 	} else {
 		PROC_UNLOCK(p);
 	}
+	/* XXX Shouldn't cpu_throw() here. */
 	cpu_throw();
 	/* NOTREACHED */
 }
@@ -1428,8 +1431,10 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
 	td2->td_flags  = TDF_UPCALLING;
+#if 0	/* XXX This shouldn't be necessary */
 	if (td->td_proc->p_sflag & PS_NEEDSIGCHK)
 		td2->td_flags |= TDF_ASTPENDING;
+#endif
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
@@ -1593,6 +1598,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 
+	
 	/* Nothing to do with non-threaded group/process */
 	if (td->td_ksegrp->kg_numupcalls == 0)
 		return (0);
@@ -1621,12 +1627,12 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	if (TD_CAN_UNBIND(td)) {
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_CAN_UNBIND;
-		mtx_unlock_spin(&sched_lock);
 		ku = td->td_upcall;
-		if ((p->p_sflag & PS_NEEDSIGCHK) == 0 &&
+		if ((td->td_flags & TDF_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
 		    (kg->kg_upquantum && ticks >= kg->kg_nextupcall)) {
+			mtx_unlock_spin(&sched_lock);
 			thread_update_usr_ticks(td, 0);
 			nanotime(&ts);
 			error = copyout(&ts,
@@ -1637,6 +1643,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				goto out;
 			return (0);
 		}
+		mtx_unlock_spin(&sched_lock);
 		error = thread_export_context(td);
 		if (error) {
 			/*
