@@ -223,7 +223,7 @@ extract_plist(const char *home, Package *pkg)
 		errx(2, "%s: no directory specified for '%s' command",
 		    __func__, p->name);
 	    }
-	    format_cmd(cmd, p->name, Directory, last_file);
+	    format_cmd(cmd, FILENAME_MAX, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
 	    if (Verbose)
 		printf("extract: execute '%s'\n", cmd);

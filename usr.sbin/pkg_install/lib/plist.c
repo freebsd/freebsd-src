@@ -427,7 +427,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    break;
 
 	case PLIST_UNEXEC:
-	    format_cmd(tmp, p->name, Where, last_file);
+	    format_cmd(tmp, FILENAME_MAX, p->name, Where, last_file);
 	    if (Verbose)
 		printf("Execute '%s'\n", tmp);
 	    if (!Fake && system(tmp)) {

@@ -370,50 +370,58 @@ unpack(const char *pkg, const char *flist)
  *
  */
 void
-format_cmd(char *buf, const char *fmt, const char *dir, const char *name)
+format_cmd(char *buf, int max, const char *fmt, const char *dir, const char *name)
 {
     char *cp, scratch[FILENAME_MAX * 2];
+    int l;
 
-    while (*fmt) {
+    while (*fmt && max > 0) {
 	if (*fmt == '%') {
 	    switch (*++fmt) {
 	    case 'F':
-		strcpy(buf, name);
-		buf += strlen(name);
+		strncpy(buf, name, max);
+		l = strlen(name);
+		buf += l, max -= l;
 		break;
 
 	    case 'D':
-		strcpy(buf, dir);
-		buf += strlen(dir);
+		strncpy(buf, dir, max);
+		l = strlen(dir);
+		buf += l, max -= l;
 		break;
 
 	    case 'B':
-		sprintf(scratch, "%s/%s", dir, name);
+		snprintf(scratch, FILENAME_MAX * 2, "%s/%s", dir, name);
 		cp = &scratch[strlen(scratch) - 1];
 		while (cp != scratch && *cp != '/')
 		    --cp;
 		*cp = '\0';
-		strcpy(buf, scratch);
-		buf += strlen(scratch);
+		strncpy(buf, scratch, max);
+		l = strlen(scratch);
+		buf += l, max -= l;
 		break;
 
 	    case 'f':
-		sprintf(scratch, "%s/%s", dir, name);
+		snprintf(scratch, FILENAME_MAX * 2, "%s/%s", dir, name);
 		cp = &scratch[strlen(scratch) - 1];
 		while (cp != scratch && *(cp - 1) != '/')
 		    --cp;
-		strcpy(buf, cp);
-		buf += strlen(cp);
+		strncpy(buf, cp, max);
+		l = strlen(cp);
+		buf += l, max -= l;
 		break;
 
 	    default:
 		*buf++ = *fmt;
+		--max;
 		break;
 	    }
 	    ++fmt;
 	}
-	else
+	else {
 	    *buf++ = *fmt++;
+	    --max;
+	}
     }
     *buf = '\0';
 }
