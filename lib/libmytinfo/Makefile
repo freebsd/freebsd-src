@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.7 1994/10/28 06:58:04 ache Exp $
+# $Id: Makefile,v 1.8 1994/11/16 11:54:09 ache Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
@@ -22,7 +22,7 @@ update_term_h: ${.CURDIR}/term.head ${.CURDIR}/term.tail
 beforeinstall:
 	-cmp -s ${.CURDIR}/term.h ${DESTDIR}/usr/include/term.h && \
 	 cmp -s ${.CURDIR}/term.h ${DESTDIR}/usr/include/nterm.h || \
-	  ( $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 \
+	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/term.h ${DESTDIR}/usr/include; \
 	    rm -f ${DESTDIR}/usr/include/nterm.h; \
 	    ln -s term.h ${DESTDIR}/usr/include/nterm.h )
