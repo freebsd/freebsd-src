@@ -48,15 +48,18 @@
 .Nm
 .Fl w
 .Op Fl r
+.Op Fl n
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Nm
 .Fl e
 .Op Fl r
+.Op Fl n
 .Ar disk
 .Nm
 .Fl R
 .Op Fl r
+.Op Fl n
 .Ar disk Ar protofile
 .Nm
 .Op Fl NW
@@ -73,6 +76,7 @@
 .Nm
 .Fl w
 .Fl B
+.Op Fl n
 .Oo
 .Fl b Ar boot1
 .Fl s Ar boot2
@@ -82,6 +86,7 @@
 .Nm
 .Fl R
 .Fl B
+.Op Fl n
 .Oo
 .Fl b Ar boot1
 .Fl s Ar boot2
@@ -170,12 +175,14 @@ To write a standard label, use the form
 .Nm
 .Fl w
 .Op Fl r
+.Op Fl n
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Pp
 .Nm
 .Fl w
 .Op Fl r
+.Op Fl n
 .Ar disk
 auto
 .Pp
@@ -188,7 +195,14 @@ different disks of the same physical type are to have different partitions, it
 will be necessary to have separate disktab entries describing each, or to edit
 the label after installation as described below.  The optional argument is a
 pack identification string, up to 16 characters long.  The pack id must be
-quoted if it contains blanks.  If the
+quoted if it contains blanks.
+.Pp
+If the
+.Fl n
+flag is given, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
+.Pp
+If the
 .Fl r
 flag is given, the disk sectors containing the label and bootstrap
 will be written directly.
@@ -220,6 +234,9 @@ disk is the only supported operation, and the
 itself must be provided as the canonical name, i.e. not as a full
 path name.
 .Pp
+For most harddisks, a label based on percentages for most partitions (and
+one partition with a size of '*') will produce a reasonable configuration.
+.Pp
 PC-based systems have special requirements in order for the BIOS to properly
 recognize a
 .Fx
@@ -244,6 +261,7 @@ To edit an existing disk label, use the form
 .Nm
 .Fl e
 .Op Fl r
+.Op Fl n
 .Ar disk
 .Pp
 This command reads the label from the in-core kernel copy, or directly from the
@@ -257,7 +275,11 @@ environment variable,
 is used.  When the editor terminates, the label file is used to rewrite the disk
 label.  Existing bootstrap code is unchanged regardless of whether
 .Fl r
-was specified.
+was specified.  If
+.Fl n
+is specified, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.  This is
+useful to see how a partitioning scheme will work out for a specific disk.
 .Ss Restoring a disk label from a file
 .Pp
 To restore a disk label from a file, use the form
@@ -265,6 +287,7 @@ To restore a disk label from a file, use the form
 .Nm
 .Fl R
 .Op Fl r
+.Op Fl n
 .Ar disk Ar protofile
 .Pp
 .Nm
@@ -277,6 +300,11 @@ clobbered if
 .Fl r
 is specified and will be unaffected otherwise.  See the boot options below for a
 method of restoring the label and writing the bootstrap at the same time.
+If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.  This is
+useful to see how a partitioning scheme will work out for a specific disk.
 .Ss Enabling and disabling writing to the disk label area
 .Pp
 By default, it is not possible to write to the disk label area at the beginning
@@ -331,6 +359,7 @@ This command is typically run on a slice such as
 .Nm
 .Fl w
 .Fl B
+.Op Fl n
 .Oo
 .Fl b Ar boot1
 .Fl s Ar boot2
@@ -345,10 +374,15 @@ In addition to writing a new volume label, it also installs the bootstrap.
 If run on a base disk this command will create a
 .Dq dangerously-dedicated
 label.  This command is normally run on a slice rather than a base disk.
+If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
 .Pp
 .Nm
 .Fl R
 .Fl B
+.Op Fl n
 .Oo
 .Fl b Ar boot1
 .Fl s Ar boot2
@@ -367,7 +401,10 @@ label.  This command is normally run on a slice rather than a base disk.
 The bootstrap commands always access the disk directly, so it is not necessary
 to specify the
 .Fl r
-flag.
+flag.  If
+.Fl n
+is used, no data will be written to the device, and instead the
+disklabel that would have been written will be printed to stdout.
 .Pp
 The bootstrap code is comprised of two boot programs.  Specify the name of the
 boot programs to be installed in one of these ways:
@@ -548,21 +585,63 @@ By convention, partition
 .Nm c
 is reserved to describe the entire disk.
 .It size
-is the size of the partition in sectors.
+is the size of the partition in sectors,
+.Nm K
+(kilobytes - 1024),
+.Nm M
+(megabytes - 1024*1024),
+.Nm G
+(gigabytes - 1024*1024*1024),
+.Nm %
+(percentage of free space AFTER removing any fixed-size partitions other
+than partition
+.Nm c
+), or * (all remaining free space AFTER fixed-size and percentage
+partitions).  For partition
+.Nm c ,
+a size of * indicates the entire disk.  Lowercase versions of K, M, and G
+are allowed.
+Size and type should be specifed without any spaces between them.
+.Pp
+Example: 2097152, 1g, 1024m and 1048576k are all the same size
+(assuming 512-byte sectors).
 .It offset
-is the offset of the start of the partition from the beginning of the drive.
+is the offset of the start of the partition from the beginning of the
+drive in sectors, or * to have
+.Nm
+calculate the correct offset to use (the end of the previous partition plus
+one, ignoring partition
+.Nm c .
+For partition
+.Nm c ,
+* will be interpreted as an offset of 0.
 .It fstype
 describes the purpose of the partition.  The example shows most normal usages.
-For UFS file systems, use type 4.2BSD.  See
+For UFS file systems, use type
+.Nm 4.2BSD .
+Other common types are
+.Nm unused
+and
+.Nm swap .
+See
 .Pa /usr/include/sys/disklabel.h 
 for a complete list.
 .It fsize
-For file systems only, the fragment size.
+For
+.Nm 4.2BSD
+and LFS file systems only, the fragment size.  Defaults to 8192 for
+partitions smaller than 1 GB, 16384 for partitions 1GB or larger.
 .It bsize
-For file systems only, the block size.
+For
+.Nm 4.2BSD
+and LFS file systems only, the block size.  Defaults to 1024 for
+partitions smaller than 1 GB, 4096 for partitions 1GB or larger.
 .It bps/cpg
-For UFS file systems, the number of cylinders in a cylinder group.  For LFS file
-systems, the segment shift value.
+For
+.Nm 4.2BSD
+file systems, the number of cylinders in a cylinder group.  For LFS file
+systems, the segment shift value.  Defaults to 16 for
+partitions smaller than 1 GB, 64 for partitions 1GB or larger.
 .El
 .Pp
 The remainder of the line is a comment and shows the cylinder allocations based
@@ -611,6 +690,13 @@ Read the on-disk label for
 edit it and reinstall in-core as well as on-disk.  Existing bootstrap code is
 unaffected.
 .Pp
+.Dl disklabel -e -r -n da0s1
+.Pp
+Read the on-disk label for 
+.Pa da0s1 ,
+edit it, and display what the new label would be (in sectors).  It does
+NOT install the new label either in-core or on-disk.
+.Pp
 .Dl disklabel -r -w da0s1 auto
 .Pp
 Try to auto-detect the required information from 
@@ -625,6 +711,15 @@ Restore the on-disk and in-core label for
 from information in
 .Pa savedlabel .
 Existing bootstrap code is unaffected.
+.Pp
+.Dl disklabel -R -n da0s1 label_layout
+.Pp
+Display what the label would be for 
+.Pa da0s1
+using the partition layout in
+.Pa label_layout .
+This is useful for determining how much space would be alloted for various
+partitions with a labelling scheme using %-based or * partition sizes.
 .Pp
 .Dl disklabel -B da0s1
 .Pp
@@ -661,6 +756,40 @@ initialize the slice, then edit it to your needs.  The
 .Pa dd
 commands are optional, but may be necessary for some BIOSes to properly
 recognize the disk.
+.Pp
+This is an example disklabel that uses some of the new partition size types
+such as %, M, G, and *, which could be used as a source file for
+.Pp
+.Dl disklabel -R ad0s1c new_label_file
+.Bd -literal -offset 4n
+# /dev/ad0s1c:
+type: ESDI
+disk: ad0s1
+label: 
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 16
+sectors/cylinder: 1008
+cylinders: 40633
+sectors/unit: 40959009
+rpm: 3600
+interleave: 1
+trackskew: 0
+cylinderskew: 0
+headswitch: 0		# milliseconds
+track-to-track seek: 0	# milliseconds
+drivedata: 0 
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:   400M        0    4.2BSD     4096 16384    75 	# (Cyl.    0 - 812*)
+  b:     1G        *      swap  
+  c:      *        *    unused  
+  e: 204800        *    4.2BSD  
+  f:     5g        *    4.2BSD  
+  g:      *        *    4.2BSD  
+.Ed
 .Sh SEE ALSO
 .Xr disklabel 5 ,
 .Xr disktab 5 ,
@@ -723,5 +852,9 @@ concern if the disk is fully dedicated, so that the BSD disklabel
 starts at absolute block 0 on the disk.
 .Pp
 .Nm
-does not perform adequate error checking.  No warning is given if partitions
-overlap, nor if space remains unused.
+does not perform all possible error checking.  Warning *is* given if partitions
+overlap; if an absolute offset doesn't match the expected offset; if the
+.Nm c
+partition doesn't start at 0 or doesn't cover the entire slice; if a
+partition runs past the end of the device; and a number of other errors; but
+no warning is given if space remains unused.
