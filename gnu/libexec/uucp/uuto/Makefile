@@ -1,11 +1,12 @@
 # Makefile for uuto
-# $Id: Makefile,v 1.1 1993/08/05 18:28:09 conklin Exp $
+# $Id: Makefile,v 1.2 1993/08/06 23:28:02 rgrimes Exp $
 
 BINDIR=		$(bindir)
 
 PROG=		uuto
 SRCS=
-NOMAN=
+NOMAN=	yes
+NOOBJ=	yes
 STRIP=
 
 uuto:	uuto.in
