@@ -28,11 +28,11 @@ __bangpxeentry:
 		.byte   0x9a			# far call
 __bangpxeoff:	.word   0x0000			# offset
 __bangpxeseg:	.word   0x0000			# segment
-		add $6, %sp			# restore stack
-		.byte 0xcb			# to vm86int
+		add	$6, %sp			# restore stack
+		.byte	0xcb			# to vm86int
 #
 __pxenventry:
 		.byte   0x9a			# far call
 __pxenvoff:	.word   0x0000			# offset
 __pxenvseg:	.word   0x0000			# segment
-		.byte 0xcb			# to vm86int
+		.byte	0xcb			# to vm86int
