@@ -87,7 +87,7 @@ str_end()
  */
 char *
 str_concat(s1, s2, flags)
-	const char *s1, *s2;
+	char *s1, *s2;
 	int flags;
 {
 	int len1, len2;
@@ -117,8 +117,8 @@ str_concat(s1, s2, flags)
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)efree((void *)s1);
-		(void)efree((void *)s2);
+		(void)efree(s1);
+		(void)efree(s2);
 	}
 	return(result);
 }
