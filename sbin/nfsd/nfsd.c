@@ -81,6 +81,7 @@ static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <libutil.h>
 
 /* Global defs */
 #ifdef DEBUG
@@ -91,8 +92,10 @@ int	debug = 0;
 #endif
 
 struct	nfsd_srvargs nsd;
+#ifdef OLD_SETPROCTITLE
 char	**Argv = NULL;		/* pointer to argument vector */
 char	*LastArg = NULL;	/* end of argv */
+#endif
 
 #ifdef NFSKERB
 char		lnam[ANAME_SZ];
@@ -108,8 +111,10 @@ NFSKERBKEYSCHED_T kerb_keysched;
 
 void	nonfs __P((int));
 void	reapchild __P((int));
+#ifdef OLD_SETPROCTITLE
 #ifdef __FreeBSD__
 void	setproctitle __P((char *));
+#endif
 #endif
 void	usage __P((void));
 
@@ -167,6 +172,7 @@ main(argc, argv, envp)
 	}
 #endif
 
+#ifdef OLD_SETPROCTITLE
 	/* Save start and extent of argv for setproctitle. */
 	Argv = argv;
 	if (envp == 0 || *envp == 0)
@@ -174,6 +180,7 @@ main(argc, argv, envp)
 	while (*envp)
 		envp++;
 	LastArg = envp[-1] + strlen(envp[-1]);
+#endif
 
 #define	MAXNFSDCNT	20
 #define	DEFNFSDCNT	 4
@@ -643,6 +650,7 @@ reapchild(signo)
 	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
+#ifdef OLD_SETPROCTITLE
 #ifdef __FreeBSD__
 void
 setproctitle(a)
@@ -660,3 +668,4 @@ setproctitle(a)
 	Argv[1] = NULL;
 }
 #endif	/* __FreeBSD__ */
+#endif
