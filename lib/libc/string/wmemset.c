@@ -47,8 +47,6 @@ wmemset(s, c, n)
 	size_t i;
 	wchar_t *p;
 
-	_DIAGASSERT(s != NULL);
-
 	p = (wchar_t *)s;
 	for (i = 0; i < n; i++) {
 		*p = c;

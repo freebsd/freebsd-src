@@ -46,8 +46,5 @@ wmemcpy(d, s, n)
 	size_t n;
 {
 
-	_DIAGASSERT(d != NULL);
-	_DIAGASSERT(s != NULL);
-
 	return (wchar_t *)memcpy(d, s, n * sizeof(wchar_t));
 }

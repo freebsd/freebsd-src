@@ -47,9 +47,6 @@ wcsstr(big, little)
 	const wchar_t *q;
 	const wchar_t *r;
 
-	_DIAGASSERT(big != NULL);
-	_DIAGASSERT(little != NULL);
-
 	if (!*little) {
 		/* LINTED interface specification */
 		return (wchar_t *)big;

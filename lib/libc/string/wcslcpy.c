@@ -54,9 +54,6 @@ wcslcpy(dst, src, siz)
 	const wchar_t *s = src;
 	size_t n = siz;
 
-	_DIAGASSERT(dst != NULL);
-	_DIAGASSERT(src != NULL);
-
 	/* Copy as many bytes as will fit */
 	if (n != 0 && --n != 0) {
 		do {

@@ -45,8 +45,6 @@ wcswidth(s, n)
 {
 	int w;
 
-	_DIAGASSERT(s != NULL);
-
 	w = 0;
 	while (n && *s) {
 		w += wcwidth(*s);
