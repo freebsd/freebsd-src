@@ -446,13 +446,20 @@ vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
 
-	if (object != kmem_object)
-		mtx_lock(&Giant);
 	while (object != NULL) {
+		/*
+		 * In general, the object should be locked when working with
+		 * its type.  In this case, in order to maintain proper lock
+		 * ordering, an exception is possible because a vnode-backed
+		 * object never changes its type.
+		 */
+		if (object->type == OBJT_VNODE)
+			mtx_lock(&Giant);
 		VM_OBJECT_LOCK(object);
 		if (object->type == OBJT_VNODE) {
 			vm_object_vndeallocate(object);
-			goto done;
+			mtx_unlock(&Giant);
+			return;
 		}
 
 		KASSERT(object->ref_count != 0,
@@ -467,7 +474,7 @@ vm_object_deallocate(vm_object_t object)
 		object->ref_count--;
 		if (object->ref_count > 1) {
 			VM_OBJECT_UNLOCK(object);
-			goto done;
+			return;
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
@@ -526,7 +533,7 @@ retry:
 				VM_OBJECT_UNLOCK(robject);
 			}
 			VM_OBJECT_UNLOCK(object);
-			goto done;
+			return;
 		}
 doterm:
 		temp = object->backing_object;
@@ -549,9 +556,6 @@ doterm:
 			VM_OBJECT_UNLOCK(object);
 		object = temp;
 	}
-done:
-	if (object != kmem_object)
-		mtx_unlock(&Giant);
 }
 
 /*
