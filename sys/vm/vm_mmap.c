@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.65 1997/07/17 04:34:03 dyson Exp $
+ * $Id: vm_mmap.c,v 1.66 1997/08/25 22:15:25 bde Exp $
  */
 
 /*
@@ -132,6 +132,15 @@ ogetpagesize(p, uap, retval)
 }
 #endif				/* COMPAT_43 || COMPAT_SUNOS */
 
+
+/* 
+ * Memory Map (mmap) system call.  Note that the file offset
+ * and address are allowed to be NOT page aligned, though if
+ * the MAP_FIXED flag it set, both must have the same remainder
+ * modulo the PAGE_SIZE (POSIX 1003.1b).  If the address is not
+ * page-aligned, the actual mapping starts at trunc_page(addr)
+ * and the return value is adjusted up by the page offset.
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct mmap_args {
 	caddr_t addr;
@@ -158,33 +167,45 @@ mmap(p, uap, retval)
 	vm_prot_t prot, maxprot;
 	caddr_t handle;
 	int flags, error;
+	off_t pos;
 
+	addr = (vm_offset_t) uap->addr;
+	size = uap->len;
 	prot = uap->prot & VM_PROT_ALL;
 	flags = uap->flags;
-	/*
-	 * Address (if FIXED) must be page aligned. Size is implicitly rounded
-	 * to a page boundary.
-	 */
-	addr = (vm_offset_t) uap->addr;
-	if (((flags & MAP_FIXED) && (addr & PAGE_MASK)) ||
-	    (ssize_t) uap->len < 0 || ((flags & MAP_ANON) && uap->fd != -1))
+	pos = uap->pos;
+
+	/* make sure mapping fits into numeric range etc */
+	if ((pos + size > (vm_offset_t)-PAGE_SIZE) ||
+	    (ssize_t) uap->len < 0 ||
+	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
 	/*
-	 * Round page if not already disallowed by above test
-	 * XXX: Is there any point in the MAP_FIXED align requirement above?
+	 * Align the file position to a page boundary,
+	 * and save its page offset component.
 	 */
-	size = uap->len;
-	pageoff = (addr & PAGE_MASK);
-	addr -= pageoff;
-	size += pageoff;
-	size = (vm_size_t) round_page(size);
+	pageoff = (pos & PAGE_MASK);
+	pos -= pageoff;
+
+	/* Adjust size for rounding (on both ends). */
+	size += pageoff;			/* low end... */
+	size = (vm_size_t) round_page(size);	/* hi end */
 
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
 	if (flags & MAP_FIXED) {
+		/*
+		 * The specified address must have the same remainder
+		 * as the file offset taken modulo PAGE_SIZE, so it
+		 * should be aligned after adjustment by pageoff.
+		 */
+		addr -= pageoff;
+		if (addr & PAGE_MASK)
+			return (EINVAL);
+		/* Address range must be all in user VM space. */
 		if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
 			return (EINVAL);
 #ifndef i386
@@ -195,19 +216,23 @@ mmap(p, uap, retval)
 			return (EINVAL);
 	}
 	/*
-	 * XXX if no hint provided for a non-fixed mapping place it after the
-	 * end of the largest possible heap.
+	 * XXX for non-fixed mappings where no hint is provided or
+	 * the hint would fall in the potential heap space,
+	 * place it after the end of the largest possible heap.
 	 *
-	 * There should really be a pmap call to determine a reasonable location.
+	 * There should really be a pmap call to determine a reasonable
+	 * location.
 	 */
-	if (addr == 0 && (flags & MAP_FIXED) == 0)
+	else if (addr < round_page(p->p_vmspace->vm_daddr + MAXDSIZ))
 		addr = round_page(p->p_vmspace->vm_daddr + MAXDSIZ);
+
 	if (flags & MAP_ANON) {
 		/*
 		 * Mapping blank space is trivial.
 		 */
 		handle = NULL;
 		maxprot = VM_PROT_ALL;
+		pos = 0;
 	} else {
 		/*
 		 * Mapping file, get fp for validation. Obtain vnode and make
@@ -229,6 +254,7 @@ mmap(p, uap, retval)
 			handle = NULL;
 			maxprot = VM_PROT_ALL;
 			flags |= MAP_ANON;
+			pos = 0;
 		} else {
 			/*
 			 * Ensure that file and memory protections are
@@ -255,9 +281,9 @@ mmap(p, uap, retval)
 		}
 	}
 	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
-	    flags, handle, uap->pos);
+	    flags, handle, pos);
 	if (error == 0)
-		*retval = (int) addr;
+		*retval = (int) (addr + pageoff);
 	return (error);
 }
 
@@ -432,8 +458,6 @@ munmap(p, uap, retval)
 	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 		return (EINVAL);
 #endif
-	if (addr + size < addr)
-		return (EINVAL);
 	map = &p->p_vmspace->vm_map;
 	/*
 	 * Make sure entire range is allocated.
