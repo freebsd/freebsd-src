@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20.4.1 1995/09/17 01:51:19 davidg Exp $
+ * $Id: vm_glue.c,v 1.20.4.2 1995/10/16 20:43:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -183,7 +183,7 @@ vm_fork(p1, p2, isvfork)
 	register struct user *up;
 	vm_offset_t addr, ptaddr;
 	int error, i;
-	struct vm_map *vp;
+	struct vm_map *map;
 
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
@@ -210,19 +210,21 @@ vm_fork(p1, p2, isvfork)
 
 	addr = (vm_offset_t) kstack;
 
-	vp = &p2->p_vmspace->vm_map;
+	map = &p2->p_vmspace->vm_map;
 
 	/* get new pagetables and kernel stack */
-	(void) vm_map_find(vp, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE);
+	error = vm_map_find(map, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE);
+	if (error != KERN_SUCCESS)
+		panic("vm_fork: vm_map_find failed, addr=0x%x, error=%d", addr, error);
 
 	/* force in the page table encompassing the UPAGES */
 	ptaddr = trunc_page((u_int) vtopte(addr));
-	error = vm_map_pageable(vp, ptaddr, ptaddr + NBPG, FALSE);
+	error = vm_map_pageable(map, ptaddr, ptaddr + NBPG, FALSE);
 	if (error)
 		panic("vm_fork: wire of PT failed. error=%d", error);
 
 	/* and force in (demand-zero) the UPAGES */
-	error = vm_map_pageable(vp, addr, addr + UPAGES * NBPG, FALSE);
+	error = vm_map_pageable(map, addr, addr + UPAGES * NBPG, FALSE);
 	if (error)
 		panic("vm_fork: wire of UPAGES failed. error=%d", error);
 
@@ -235,7 +237,7 @@ vm_fork(p1, p2, isvfork)
 	for (i = 0; i < UPAGES; i++)
 		pmap_enter(vm_map_pmap(u_map),
 		    ((vm_offset_t) up) + NBPG * i,
-		    pmap_extract(vp->pmap, addr + NBPG * i),
+		    pmap_extract(map->pmap, addr + NBPG * i),
 		    VM_PROT_READ | VM_PROT_WRITE, 1);
 
 	p2->p_addr = up;
