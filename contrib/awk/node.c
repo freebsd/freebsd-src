@@ -61,9 +61,9 @@ register NODE *n;
 		return 0.0;
 
 	cpend = cp + n->stlen;
-	while (cp < cpend && isspace((unsigned char)*cp))
+	while (cp < cpend && isspace(*cp))
 		cp++;
-	if (cp == cpend || isalpha((unsigned char)*cp))
+	if (cp == cpend || isalpha(*cp))
 		return 0.0;
 
 	if (n->flags & MAYBE_NUM) {
@@ -489,7 +489,7 @@ char **string_ptr;
 		}
 		if (do_posix)
 			return ('x');
-		if (! isxdigit((unsigned char)(*string_ptr)[0])) {
+		if (! isxdigit((*string_ptr)[0])) {
 			warning("no hex digits in \\x escape sequence");
 			return ('x');
 		}

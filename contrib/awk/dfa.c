@@ -736,9 +736,9 @@ lex()
 		    setbit(c3, ccl);
 		    if (case_fold)
 		      if (ISUPPER(c3))
-			setbit(tolower((unsigned char)c3), ccl);
+			setbit(tolower(c3), ccl);
 		      else if (ISLOWER(c3))
-			setbit(toupper((unsigned char)c3), ccl);
+			setbit(toupper(c3), ccl);
 		  }
 	      }
 #else
@@ -747,9 +747,9 @@ lex()
 		  setbit(c, ccl);
 		  if (case_fold)
 		    if (ISUPPER(c))
-		      setbit(tolower((unsigned char)c), ccl);
+		      setbit(tolower(c), ccl);
 		    else if (ISLOWER(c))
-		      setbit(toupper((unsigned char)c), ccl);
+		      setbit(toupper(c), ccl);
 		  ++c;
 		}
 #endif
@@ -773,10 +773,10 @@ lex()
 	    {
 	      zeroset(ccl);
 	      setbit(c, ccl);
-	      if (isupper((unsigned char)c))
-		setbit(tolower((unsigned char)c), ccl);
+	      if (isupper(c))
+		setbit(tolower(c), ccl);
 	      else
-		setbit(toupper((unsigned char)c), ccl);
+		setbit(toupper(c), ccl);
 	      return lasttok = CSET + charclass_index(ccl);
 	    }
 	  return c;
@@ -2047,7 +2047,7 @@ dfacomp(s, len, d, searchflag)
       case_fold = 0;
       for (i = 0; i < len; ++i)
 	if (ISUPPER(s[i]))
-	  lcopy[i] = tolower((unsigned char)s[i]);
+	  lcopy[i] = tolower(s[i]);
 	else
 	  lcopy[i] = s[i];
 
