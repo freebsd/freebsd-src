@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_param.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_param.h,v 1.2 1994/08/02 07:51:19 davidg Exp $
  */
+
+#ifndef _NETISO_TP_PARAM_H_
+#define _NETISO_TP_PARAM_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,14 +66,10 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_param.h,v 1.1.1.1 1994/05/24 10:06:50 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_param.h,v 1.2 1994/08/02 07:51:19 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_param.h,v $
  *
  */
-
-#ifndef __TP_PARAM__
-#define __TP_PARAM__
-
 
 /******************************************************
  * compile time parameters that can be changed
@@ -365,4 +364,4 @@ extern int tp_rttadd, tp_rttdiv;
 #endif  /* tp_NSTATES  */
 #endif /* KERNEL */
 
-#endif /* __TP_PARAM__ */
+#endif 

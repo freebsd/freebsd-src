@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)argo_debug.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: argo_debug.h,v 1.2 1994/08/02 07:49:31 davidg Exp $
  */
+
+#ifndef _NETISO_ARGO_DEBUG_H_
+#define _NETISO_ARGO_DEBUG_H_
 
 /*****************************************************************
 				Copyright IBM Corporation 1987
@@ -61,12 +64,10 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /* 
- * $Header: /home/ncvs/src/sys/netiso/argo_debug.h,v 1.1.1.1 1994/05/24 10:06:38 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/argo_debug.h,v 1.2 1994/08/02 07:49:31 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/argo_debug.h,v $
  */
 
-#ifndef __ARGO_DEBUG__
-#define __ARGO_DEBUG__
 
 #define dump_buf(a, b) Dump_buf((caddr_t)(a), (int)(b))
 
@@ -294,4 +295,4 @@ void dump_mbuf();
 
 #endif /* ARGO_DEBUG */
 
-#endif /* __ARGO_DEBUG__ */
+#endif 

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_errno.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_errno.h,v 1.2 1994/08/02 07:50:34 davidg Exp $
  */
+
+#ifndef _NETISO_ISO_ERRNO_H_
+#define _NETISO_ISO_ERRNO_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,9 +63,6 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-
-#ifndef __ISO_ERRNO__
-#define __ISO_ERRNO__
 
 #define ISO_ERROR_MASK 	0x8000
 #define BSD_ERROR_MASK 	0x0000
@@ -272,4 +272,4 @@ SOFTWARE.
 
 #define CONL_ERROR_MAX 0x1c3
 
-#endif /* __ISO_ERRNO__ */
+#endif 

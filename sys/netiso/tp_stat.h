@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_stat.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
  */
+
+#ifndef _NETISO_TP_STAT_H_
+#define _NETISO_TP_STAT_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,15 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.1.1.1 1994/05/24 10:06:47 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_stat.h,v $
  *
  * Here are the data structures in which the global
  * statistics(counters) are gathered.
  */
-
-#ifndef __TP_STAT__
-#define __TP_STAT__
 
 struct tp_stat {
 	u_long ts_param_ignored;
@@ -281,4 +281,4 @@ int PStat_Junk;
 
 #endif /* TP_PERF_MEAS */
 
-#endif /* __TP_STAT__ */
+#endif 

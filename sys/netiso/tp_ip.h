@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_ip.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
  */
+
+#ifndef _NETISO_TP_IP_H_
+#define _NETISO_TP_IP_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,16 +66,12 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.1.1.1 1994/05/24 10:06:53 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_ip.h,v $
  *
  * internet IP-dependent structures and include files
  *
  */
-
-
-#ifndef __TP_IP__
-#define __TP_IP__
 
 #ifndef SOCK_STREAM
 #include <sys/socket.h>
@@ -89,4 +88,4 @@ SOFTWARE.
 struct inpcb tp_inpcb;	
 	/* queue of active inpcbs for tp ; for tp with dod ip */
 
-#endif /* __TP_IP__ */
+#endif

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp.h	8.2 (Berkeley) 4/16/94
- * $Id$
+ * $Id: clnp.h,v 1.2 1994/08/02 07:49:34 davidg Exp $
  */
+
+#ifndef _NETISO_CLNP_H_
+#define _NETISO_CLNP_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.1.1.1 1994/05/24 10:07:27 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.2 1994/08/02 07:49:34 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp.h,v $ */
 
 /* should be config option but cpp breaks with too many #defines */
@@ -462,3 +465,5 @@ struct mbuf		*clnp_reass();
 struct troll	trollctl;
 #endif	/* TROLL */
 #endif	/* KERNEL */
+
+#endif

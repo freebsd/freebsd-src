@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $
  */
+
+#ifndef _NETISO_ISO_PCB_H_
+#define _NETISO_ISO_PCB_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.1.1.1 1994/05/24 10:07:10 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso_pcb.h,v $ */
 
 #define	MAXX25CRUDLEN	16	/* 16 bytes of call request user data */
@@ -111,4 +114,6 @@ struct rawisopcb {
 
 #ifdef KERNEL
 struct	isopcb *iso_pcblookup();
+#endif
+
 #endif
