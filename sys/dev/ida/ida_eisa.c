@@ -80,7 +80,7 @@ ida_v1_submit(struct ida_softc *ida, struct ida_qcb *qcb)
 	ida_outb(ida, R_EISA_SYSTEM_DOORBELL, EISA_CHANNEL_CLEAR);
 	ida_outl(ida, R_EISA_LIST_ADDR, qcb->hwqcb_busaddr);
 	ida_outw(ida, R_EISA_LIST_LEN, size);
-	ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_CLEAR);
+	ida_outb(ida, R_EISA_LOCAL_DOORBELL, EISA_CHANNEL_BUSY);
 }
 
 static bus_addr_t
@@ -247,6 +247,7 @@ ida_eisa_probe(device_t dev)
 		return (ENXIO);
 	}
 
+	eisa_add_iospace(dev, io_base, 0x100, RESVADDR_NONE);
 	eisa_add_iospace(dev, (io_base + IDA_EISA_IOPORT_START),
 			 IDA_EISA_IOPORT_LEN, RESVADDR_NONE);
 
