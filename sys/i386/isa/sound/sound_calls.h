@@ -184,7 +184,7 @@ void gus_midi_interrupt(int dummy);
 /*	From mpu401.c */
 void attach_mpu401(struct address_info * hw_config);
 int probe_mpu401(struct address_info *hw_config);
-void mpuintr(int irq);
+ointhand2_t mpuintr;
 
 /*	From uart6850.c */
 void attach_uart6850(struct address_info * hw_config);
@@ -286,3 +286,8 @@ int probe_maui(struct address_info *hw_config);
 /*	From sound_pnp.c */
 void sound_pnp_init(void);
 void sound_pnp_disconnect(void);
+
+/*	From pcm86.c */
+void attach_nss(struct address_info * hw_config);
+int probe_nss(struct address_info *hw_config);
+ointhand2_t nssintr;

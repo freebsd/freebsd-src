@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.63.2.4 1999/04/01 14:47:01 kato Exp $
+#	$Id: GENERIC98,v 1.63.2.5 1999/04/19 16:09:00 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -236,8 +236,9 @@ options "FE_8BIT_SUPPORT"	# LAC-98 support
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
 #device	opl0	at isa? port 0x28d2
-#device pcm0    at isa? port 0xa460 irq 12
+#device	nss0	at isa? port 0xa460 irq 12
 #device	mss0	at isa? port 0xf40 irq 12 drq 1
+#device	mpu0	at isa? port 0xe0d0 irq 6
 
 pseudo-device	loop
 pseudo-device	ether

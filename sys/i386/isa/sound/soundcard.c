@@ -36,6 +36,7 @@
 #if NSND > 0	/* from "snd.h" */
 #include "uart.h"
 
+#include <sys/select.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/mman.h>
@@ -129,6 +130,7 @@ struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
 struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
 struct isa_driver sscapedriver = {sndprobe, sndattach, "sscape"};
 struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
+struct isa_driver nssdriver = {sndprobe, sndattach, "nss"};
 
 short ipri_to_irq(u_short ipri);
 
@@ -323,6 +325,8 @@ driver_to_voxunit(struct isa_driver * driver)
 	return (SNDCARD_TRXPRO);
     else if (driver == &trixsbdriver)
 	return (SNDCARD_TRXPRO_SB);
+    else if (driver == &nssdriver)
+	return (SNDCARD_NSS);
     else
 	return (0);
 }
@@ -432,6 +436,14 @@ sndattach(struct isa_device * dev)
 #if NUART > 0
     if (strcmp(dname, "uart0") == 0)
 	dev->id_ointr = m6850intr;
+#endif
+#if NMPU > 0 && defined(CONFIG_MIDI)
+    if (strcmp(dname, "mpu") == 0)
+	dev->id_ointr = mpuintr;
+#endif
+#if NNSS > 0
+    if (strcmp(dname, "nss") == 0)
+	dev->id_ointr = nssintr;
 #endif
 
     unit = driver_to_voxunit(dev->id_driver);
