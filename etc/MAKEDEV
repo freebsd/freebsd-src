@@ -242,7 +242,7 @@ all)
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 			# bdev, SCSI disk
 	sh MAKEDEV ad0 ad1 ad2 ad3 			# bdev, ATA disk
-	sh MAKEDEV acd0 afd0 ast0			# bdev, ATAPI devices
+	sh MAKEDEV acd0 acd0t afd0 ast0			# bdev, ATAPI devices
 	sh MAKEDEV wd0 wd1 wd2 wd3			# bdev, OLD disk
 	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
 	sh MAKEDEV vn0					# bdev, virtual disk
@@ -796,6 +796,38 @@ ast*)
 	umask 77
 	;;
 
+acd*t*)
+	umask $disk_umask
+	units=`expr $i : '...\(.*\)t'`;
+	tracks=`expr $i : '.*t\(.*\)'`;
+	name=acd;
+	chr=117;
+	if [ -z "${units}" -o "${units}" -le 0 ]; then
+		units=1
+	fi
+	if [ -z "${tracks}" -o "${tracks}" -le 0 ]; then
+		tracks=100
+	fi
+	if [ "${units}" -le 31 -a "${tracks}" -le 169 ]; then
+		i=0
+		while [ $i -le $units ]; do
+			dname=$name$i
+			rm -rf ${dname}t*
+			j=1
+			while [ $j -le ${tracks} ]; do
+				mknod ${dname}t$j c $chr \
+					$((($i * 8) + (65536 * $j))) \
+					root:operator
+				j=$(($j + 1))
+			done
+			i=$(($i + 1))
+		done
+	else
+		echo "$i is invalid -- can't have more than 32 cd devices or 169 tracks"
+	fi
+	umask 77
+	;;
+
 acd*|cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
@@ -811,21 +843,11 @@ acd*|cd*|mcd*|scd*)
 		i=0
 		while [ $i -le $units ]; do
 			dname=$name$i
-			rm -rf ${dname}* r${dname}*
+			rm -rf ${dname}[!t]* r${dname}*
 			mknod ${dname}a c $chr $(($i * 8)) root:operator
 			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
 			ln -f ${dname}a r${dname}a
 			ln -f ${dname}c r${dname}c
-			if [ $name = "acd" ]; then
-				rm -rf ${dname}t*
-				j=0
-				while [ $j -le 99 ]; do
-					mknod ${dname}t$j c $chr \
-						$((($i * 8) + (65536 * $j))) \
-						root:operator
-					j=$(($j + 1))
-				done
-			fi
 			i=$(($i + 1))
 		done
 	else
