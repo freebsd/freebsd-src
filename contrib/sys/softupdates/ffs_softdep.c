@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id:$
+ *	$Id: ffs_softdep.c,v 1.6 1998/05/19 23:07:22 julian Exp $
  */
 
 /*
@@ -2691,6 +2691,9 @@ scan_page(bp)
 		if (dp->d_reclen <= 0)
 			break;
 		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_name[0] == '.' && (dp->d_namlen == 1 ||
+		    (dp->d_namlen == 2 && dp->d_name[1] == '.')))
 			continue;
 		if (inodedep_lookup(fs, dp->d_ino, 0, &inodedep) == 0)
 			continue;
