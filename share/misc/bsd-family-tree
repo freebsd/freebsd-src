@@ -179,11 +179,11 @@ was the announcement in Usenet or if it was available as tape.
 [FBD] FreeBSD Project, The.
 [KB]  Keith Bostic. BSD2.10 available from Usenix. comp.unix.sources,
 	Volume 11, Info 4, April, 1987.
+[KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
+	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
 [KSJ] Michael J. Karels, Carl F. Smith, and William F. Jolitz.
 	Changes in the Kernel in 2.9BSD. Second Berkeley Software
 	Distribution UNIX Version 2.9, July, 1983.
-[KKK] Mike Karels, Kirk McKusick, and Keith Bostic. tahoe announcement.
-	comp.bugs.4bsd.ucb-fixes, June 15, 1988.
 [NBD] NetBSD Project, The.
 [OBD] OpenBSD Project, The.
 [QCU] Salus, Peter H. A quarter century of UNIX.
@@ -354,13 +354,13 @@ OpenBSD 2.9  		2001-06-01 [OBD]
 NetBSD 1.5.1		2001-07-11 [NBD] (patch release)
 NetBSD 1.5.2		2001-09-13 [NBD] (patch release)
 FreeBSD 4.4  		2001-09-18 [FBD]
-Mac OS X 10.1		2001-09-xx [APL]
+Mac OS X 10.1		2001-09-29 [APL]
 OpenBSD 3.0		2001-12-01 [OBD]
 FreeBSD 4.5  		2002-01-29 [FBD]
 BSD/OS 4.3		2002-03-14 [WRS]
 OpenBSD 3.1		2002-05-19 [OBD]
 FreeBSD 4.6  		2002-06-15 [FBD]
-NetBSD 1.5.3            2002-07-22 [NBD] (patch release)
+NetBSD 1.5.3		2002-07-22 [NBD] (patch release)
 FreeBSD 4.6.2		2002-08-15 [FBD] (patch release)
 Mac OS X 10.2		2002-08-23 [APL]
 NetBSD 1.6		2002-09-14 [NBD]
