@@ -61,6 +61,7 @@ static d_poll_t random_poll;
 
 static struct cdevsw random_cdevsw = {
 	.d_version = D_VERSION,
+	.d_flags = D_NEEDGIANT,
 	.d_close = random_close,
 	.d_read = random_read,
 	.d_write = random_write,
@@ -89,11 +90,10 @@ random_close(dev_t dev __unused, int flags, int fmt __unused,
 {
 	if ((flags & FWRITE) && (suser(td) == 0)
 	    && (securelevel_gt(td->td_ucred, 0) == 0)) {
-		mtx_lock(&random_systat.lock);
 		(*random_systat.reseed)();
 		random_systat.seeded = 1;
-		mtx_unlock(&random_systat.lock);
 	}
+
 	return (0);
 }
 
@@ -103,15 +103,17 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 {
 	int c, error = 0;
 
-	mtx_lock(&random_systat.lock);
-
 	/* Blocking logic */
 	while (!random_systat.seeded && !error) {
 		if (flag & IO_NDELAY)
 			error = EWOULDBLOCK;
-		else
-			error = msleep(&random_systat, &random_systat.lock,
+		else {
+			/* No complaints please. This is temporary! */
+			printf("Entropy device is blocking. "
+			    "Dance fandango on keyboard to unblock.\n");
+			error = tsleep(&random_systat,
 			    PUSER | PCATCH, "block", 0);
+		}
 	}
 
 	/* The actual read */
@@ -123,8 +125,6 @@ random_read(dev_t dev __unused, struct uio *uio, int flag)
 		}
 	}
 
-	mtx_unlock(&random_systat.lock);
-
 	return (error);
 }
 
@@ -134,7 +134,6 @@ random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 {
 	int c, error = 0;
 
-	mtx_lock(&random_systat.lock);
 	while (uio->uio_resid > 0) {
 		c = MIN((int)uio->uio_resid, PAGE_SIZE);
 		error = uiomove(random_buf, c, uio);
@@ -142,7 +141,7 @@ random_write(dev_t dev __unused, struct uio *uio, int flag __unused)
 			break;
 		(*random_systat.write)(random_buf, c);
 	}
-	mtx_unlock(&random_systat.lock);
+
 	return (error);
 }
 
@@ -189,8 +188,6 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 		random_ident_hardware(&random_systat);
-		mtx_init(&random_systat.lock, "entropy device lock",
-		    NULL, MTX_DEF);
 		(*random_systat.init)();
 
 		printf("random: <entropy source, %s>\n", random_systat.ident);
@@ -204,7 +201,6 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_UNLOAD:
 		(*random_systat.deinit)();
 		free(random_buf, M_TEMP);
-		mtx_destroy(&random_systat.lock);
 
 		destroy_dev(random_dev);
 
