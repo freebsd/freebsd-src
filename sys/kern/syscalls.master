@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.40 1997/06/16 00:29:32 dyson Exp $
+	$Id: syscalls.master,v 1.41 1997/08/19 05:53:48 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -335,7 +335,8 @@
 207	STD	BSD	{ int getpgid(pid_t pid); }
 208	UNIMPL	NOHIDE	newreboot (NetBSD)
 ; problem. NetBSD and OpenBSD have a different syscall number for poll()
-209	UNIMPL	NOHIDE	poll2 (NetBSD, OpenBSD used 252 first)
+209	STD	BSD	{ int poll(struct pollfd *fds, u_int nfds, \
+			    int timeout); }
 
 ;
 ; The following are reserved for loadable syscalls
@@ -398,7 +399,8 @@
 ; syscall numbers initially used in OpenBSD
 250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
-252	UNIMPL	NOHIDE	poll (OpenBSD syscall number)
+252	STD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
+			    int timeout); }
 253	STD	BSD	{ int issetugid(void); }
 254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
 255	UNIMPL	NOHIDE	nosys
