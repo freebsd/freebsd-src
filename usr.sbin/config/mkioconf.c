@@ -608,9 +608,9 @@ i386_ioconf()
 	static char *old_d_name;
 	static char old_shandler[32 + 1];
 
-	fp = fopen(path("ioconf.c"), "w");
+	fp = fopen(path("ioconf.c.new"), "w");
 	if (fp == 0) {
-		perror(path("ioconf.c"));
+		perror(path("ioconf.c.new"));
 		exit(1);
 	}
 	fprintf(fp, "/*\n");
@@ -622,9 +622,9 @@ i386_ioconf()
 	fprintf(fp, "#include \"ioconf.h\"\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#define C (caddr_t)\n");
-	fp1 = fopen(path("ioconf.h"), "w");
+	fp1 = fopen(path("ioconf.h.new"), "w");
 	if (fp1 == 0) {
-		perror(path("ioconf.h"));
+		perror(path("ioconf.h.new"));
 		exit(1);
 	}
 	fprintf(fp1, "/*\n");
@@ -701,6 +701,8 @@ i386_ioconf()
 	fprintf(fp1, "\n");
 	fprintf(fp1, "#endif /* IOCONF_H */\n");
 	(void) fclose(fp1);
+	moveifchanged(path("ioconf.c.new"), path("ioconf.c"));
+	moveifchanged(path("ioconf.h.new"), path("ioconf.h"));
 }
 
 isa_biotab(fp, table)
