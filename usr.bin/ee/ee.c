@@ -2041,6 +2041,7 @@ char *arguments[];
 	struct files *temp_names = NULL;
 	char *name;
 	char *ptr;
+	int no_more_opts = FALSE;
 
 	/*
 	 |	see if editor was invoked as 'ree' (restricted mode)
@@ -2057,7 +2058,7 @@ char *arguments[];
 	input_file = FALSE;
 	recv_file = FALSE;
 	count = 1;
-	while (count < numargs)
+	while ((count < numargs) && (!no_more_opts))
 	{
 		buff = arguments[count];
 		if (!strcmp("-i", buff))
@@ -2086,9 +2087,18 @@ char *arguments[];
 			buff++;
 			start_at_line = buff;
 		}
-
+		else if (!(strcmp("--", buff)))
+			no_more_opts = TRUE;
 		else
 		{
+			count--;
+			no_more_opts = TRUE;
+		}
+		count++;
+	}
+	while (count < numargs)
+	{
+			buff = arguments[count];
 			if (top_of_stack == NULL)
 			{
 				temp_names = top_of_stack = name_alloc();
@@ -2109,7 +2119,6 @@ char *arguments[];
 			temp_names->next_name = NULL;
 			input_file = TRUE;
 			recv_file = TRUE;
-		}
 		count++;
 	}
 }
