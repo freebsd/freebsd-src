@@ -1255,6 +1255,9 @@ sosetopt(so, sopt)
 	struct	linger l;
 	struct	timeval tv;
 	u_long  val;
+#ifdef MAC
+	struct mac extmac;
+#endif /* MAC */
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1379,6 +1382,20 @@ sosetopt(so, sopt)
 				break;
 			}
 			break;
+		case SO_LABEL:
+#ifdef MAC
+			error = sooptcopyin(sopt, &extmac, sizeof extmac,
+			    sizeof extmac);
+			if (error)
+				goto bad;
+
+			error = mac_setsockopt_label_set(
+			    sopt->sopt_td->td_ucred, so, &extmac);
+
+#else /* MAC */
+			error = EOPNOTSUPP;
+#endif /* MAC */
+			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -1435,6 +1452,9 @@ sogetopt(so, sopt)
 #ifdef INET
 	struct accept_filter_arg *afap;
 #endif
+#ifdef MAC
+	struct mac extmac;
+#endif /* MAC */
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1516,7 +1536,28 @@ integer:
 			tv.tv_usec = (optval % hz) * tick;
 			error = sooptcopyout(sopt, &tv, sizeof tv);
 			break;
-
+		case SO_LABEL:
+#ifdef MAC
+			error = mac_getsockopt_label_get(
+			    sopt->sopt_td->td_ucred, so, &extmac);
+			if (error)
+				return (error);
+			error = sooptcopyout(sopt, &extmac, sizeof extmac);
+#else /* MAC */
+			error = EOPNOTSUPP;
+#endif /* MAC */
+			break;
+		case SO_PEERLABEL:
+#ifdef MAC
+			error = mac_getsockopt_peerlabel_get(
+			    sopt->sopt_td->td_ucred, so, &extmac);
+			if (error)
+				return (error);
+			error = sooptcopyout(sopt, &extmac, sizeof extmac);
+#else /* MAC */
+			error = EOPNOTSUPP;
+#endif /* MAC */
+			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
