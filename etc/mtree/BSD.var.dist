@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.17 1994/09/09 13:35:59 rgrimes Exp $
+#	$Id: BSD.var.dist,v 1.18 1994/09/09 13:43:21 rgrimes Exp $
 #
 
 .	type=dir uname=root gname=wheel mode=0755
@@ -14,7 +14,7 @@ at
 	spool
 	..
 ..
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0750
 backups
 ..
 crash
@@ -23,6 +23,7 @@ cron
 	tabs	uname=root gname=wheel mode=0700
 	..
 ..
+/set type=dir uname=bin gname=bin mode=0755
 db
 ..
 log
