@@ -76,7 +76,7 @@ than their respective fields, trailing spaces are implied.
 .It Va type
 This is the type of device that is returned by the device.  Look in
 .Pa /sys/scsi/scsi_all.h
-for the list of avaliable types
+for the list of available types
 .Pq look for the Dv T_xxx macros .
 .It Va driver
 This specifies the driver to assign to the devices that match this entry.
@@ -84,7 +84,7 @@ It usually has the same value as
 .Va type ,
 unless a particular device is lying about its identity.
 .It Va removable
-This specifices wether the device is removable
+This specifies wether the device is removable
 .Pq Dv T_REMOV
 or fixed
 .Pq Dv T_FIXED .
@@ -116,12 +116,12 @@ overriding a type-specific default that would restrict probing to only
 one LUN.
 .El
 .It Va quirks
-Ths field specifies device specific flags.  See the device-specific man pages in
+This field specifies device specific flags.  See the device-specific man pages in
 section 9 for more info on these flags.
 .It Va devmodes
 This is a pointer to a device specific struct.  Currently only used by
 .Xr st 4
-to set inital modes.
+to set initial modes.
 .El
 .Sh FILES
 .Bl -tag -width /sys/scsi/scsiconf.c -compact
