@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.64.2.5 1996/12/13 00:06:59 joerg Exp $
+ *      $Id$
  */
 
 #include "opt_scsi.h"
@@ -265,19 +265,11 @@ static struct scsidevs knowndevs[] =
 		T_DIRECT, T_OPTICAL, T_REMOV, "RICOH", "RO-*", "*",
 		"od", SC_ONE_LU
 	},
-	{
-		T_OPTICAL, T_OPTICAL, T_REMOV, "*", "*", "*",
-		"od", SC_ONE_LU
-	},
 #endif	/* NOD */
 #if NSD > 0
 	{
 		T_DIRECT, T_DIRECT, T_FIXED, "EMULEX", "MD21*" , "*",
 		"sd", SC_MORE_LUS
-	},
-	{
-		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
-		"sd", SC_ONE_LU
 	},
 #endif	/* NSD */
 #if NST > 0
@@ -313,17 +305,7 @@ static struct scsidevs knowndevs[] =
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "Quantum", "DLT*", "*",
 		"st", SC_MORE_LUS, 0
 	},
-	{
-		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "*", "*", "*",
-		"st", SC_ONE_LU, 0, mode_unktape
-	},
 #endif	/* NST */
-#if NCH > 0
-	{
-		T_CHANGER, T_CHANGER, T_REMOV, "*", "*", "*",
-		"ch", SC_ONE_LU
-	},
-#endif	/* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	/*
@@ -371,10 +353,6 @@ static struct scsidevs knowndevs[] =
 	 * Doobe-doo-be doooo
 	 * -Mary
 	 */
-	{
-		T_READONLY, T_READONLY, T_REMOV, "*", "*", "*",
-		"cd", SC_ONE_LU
-	},
 #endif /* !UKTEST */
 #endif	/* NCD */
 #if NWORM > 0
@@ -399,6 +377,44 @@ static struct scsidevs knowndevs[] =
 		T_READONLY, T_WORM, T_REMOV, "PLASMON", "RF41*", "*",
 		"worm", SC_ONE_LU
 	},
+#endif /* NWORM */
+
+	/*
+	 * Wildcard entries.  Keep them down here below all device
+	 * specific entries, so the above ones can override the type
+	 * driver if necessary.
+	 */
+#if NOD > 0
+	{
+		T_OPTICAL, T_OPTICAL, T_REMOV, "*", "*", "*",
+		"od", SC_ONE_LU
+	},
+#endif /* NOD */
+#if NSD > 0
+	{
+		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
+		"sd", SC_ONE_LU
+	},
+#endif /* NSD */
+#if NST > 0
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "*", "*", "*",
+		"st", SC_ONE_LU, 0, mode_unktape
+	},
+#endif /* NST */
+#if NCH > 0
+	{
+		T_CHANGER, T_CHANGER, T_REMOV, "*", "*", "*",
+		"ch", SC_ONE_LU
+	},
+#endif	/* NCH */
+#if NCD > 0 && !defined(UKTEST)
+	{
+		T_READONLY, T_READONLY, T_REMOV, "*", "*", "*",
+		"cd", SC_ONE_LU
+	},
+#endif /* NCD */
+#if NWORM > 0
 	{
 		T_WORM, T_WORM, T_REMOV, "*", "*", "*",
 		"worm", SC_ONE_LU
