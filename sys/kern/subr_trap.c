@@ -67,9 +67,11 @@ userret(p, frame, oticks)
 {
 	int sig;
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
+	mtx_unlock(&Giant);
 
 	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK_NOSWITCH(p);
