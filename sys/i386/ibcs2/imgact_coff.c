@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.15 1996/05/01 02:42:12 bde Exp $
+ *	$Id: imgact_coff.c,v 1.16 1996/06/12 05:03:10 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -296,9 +296,9 @@ int
 exec_coff_imgact(imgp)
 	struct image_params *imgp;
 {
-	struct filehdr *fhdr = (struct filehdr*)imgp->image_header;
-	struct aouthdr *ahdr;
-	struct scnhdr *scns;
+	const struct filehdr *fhdr = (const struct filehdr*)imgp->image_header;
+	const struct aouthdr *ahdr;
+	const struct scnhdr *scns;
 	int i;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	int nscns;
@@ -326,13 +326,13 @@ exec_coff_imgact(imgp)
 		return -1;
 	}
 
-	ahdr = (struct aouthdr*)((char*)(imgp->image_header) +
-				 sizeof(struct filehdr));
+	ahdr = (const struct aouthdr*)
+	       ((const char*)(imgp->image_header) + sizeof(struct filehdr));
 	imgp->entry_addr = ahdr->entry;
 
-	scns = (struct scnhdr*)((char*)(imgp->image_header) +
-				sizeof(struct filehdr) +
-				sizeof(struct aouthdr));
+	scns = (const struct scnhdr*)
+	       ((const char*)(imgp->image_header) + sizeof(struct filehdr) +
+		sizeof(struct aouthdr));
 
 	if (error = exec_extract_strings(imgp)) {
 		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
