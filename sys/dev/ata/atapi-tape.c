@@ -148,13 +148,6 @@ ast_attach(struct ata_device *atadev)
 	dev->si_iosize_max = DFLTPHYS;
     stp->dev2 = dev;
 
-    /* use DMA if allowed and if drive/controller supports it */
-    if (atapi_dma && atadev->channel->dma &&
-	(atadev->param->config & ATA_DRQ_MASK) != ATA_DRQ_INTR)
-	atadev->setmode(atadev, ATA_DMA_MAX);
-    else
-	atadev->setmode(atadev, ATA_PIO_MAX);
-
     /* setup the function ptrs */ 
     atadev->detach = ast_detach;
     atadev->start = ast_start;

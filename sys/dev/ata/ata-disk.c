@@ -137,12 +137,6 @@ ad_attach(struct ata_device *atadev)
 	    adp->max_iosize = secsperint * DEV_BSIZE;
     }
 
-    /* use DMA if allowed and if drive/controller supports it */
-    if (ata_dma && atadev->channel->dma) 
-	atadev->setmode(atadev, ATA_DMA_MAX);
-    else 
-	atadev->setmode(atadev, ATA_PIO_MAX);
-
     /* setup the function ptrs */
     atadev->detach = ad_detach;
     atadev->start = ad_start;
