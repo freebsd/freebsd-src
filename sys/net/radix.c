@@ -76,7 +76,7 @@ static int	rn_lexobetter(void *m_arg, void *n_arg);
 static struct radix_mask *
 		rn_new_radix_mask(struct radix_node *tt,
 		    struct radix_mask *next);
-static int	rn_satsifies_leaf(char *trial, struct radix_node *leaf,
+static int	rn_satisfies_leaf(char *trial, struct radix_node *leaf,
 		    int skip);
 
 /*
@@ -198,7 +198,7 @@ rn_lookup(v_arg, m_arg, head)
 }
 
 static int
-rn_satsifies_leaf(trial, leaf, skip)
+rn_satisfies_leaf(trial, leaf, skip)
 	char *trial;
 	register struct radix_node *leaf;
 	int skip;
@@ -289,7 +289,7 @@ on1:
 		if (t->rn_flags & RNF_NORMAL) {
 			if (rn_bit <= t->rn_bit)
 				return t;
-		} else if (rn_satsifies_leaf(v, t, matched_off))
+		} else if (rn_satisfies_leaf(v, t, matched_off))
 				return t;
 	t = saved_t;
 	/* start searching up the tree */
@@ -312,7 +312,7 @@ on1:
 				x = rn_search_m(v, t, m->rm_mask);
 				while (x && x->rn_mask != m->rm_mask)
 					x = x->rn_dupedkey;
-				if (x && rn_satsifies_leaf(v, x, off))
+				if (x && rn_satisfies_leaf(v, x, off))
 					return x;
 			}
 			m = m->rm_mklist;
