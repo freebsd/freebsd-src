@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.7 1997/08/05 12:58:02 ache Exp $
+ * $Id: uucplock.c,v 1.8 1997/08/10 18:42:39 ache Exp $
  *
  */
 
@@ -66,7 +66,8 @@ static pid_t get_pid (int fd,int *err);
  * uucp style locking routines
  */
 
-int uu_lock (const char *ttyname)
+int
+uu_lock(const char *ttyname)
 {
 	int fd, tmpfd, i;
 	pid_t pid;
@@ -127,7 +128,28 @@ ret0:
 	return uuerr;
 }
 
-int uu_unlock (const char *ttyname)
+int
+uu_lock_txfr(const char *ttyname, pid_t pid)
+{
+	int fd, err;
+	char lckname[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
+
+	snprintf(lckname, sizeof(lckname), _PATH_UUCPLOCK LOCKFMT, ttyname);
+
+	if ((fd = open(lckname, O_RDWR)) < 0)
+		return UU_LOCK_OWNER_ERR;
+	if (get_pid(fd, &err) != getpid())
+		return UU_LOCK_OWNER_ERR;
+        lseek(fd, 0, SEEK_SET);
+	if (put_pid(fd, pid))
+		return UU_LOCK_WRITE_ERR;
+	close(fd);
+
+	return UU_LOCK_OK;
+}
+
+int
+uu_unlock(const char *ttyname)
 {
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
@@ -135,7 +157,8 @@ int uu_unlock (const char *ttyname)
 	return unlink(tbuf);
 }
 
-const char *uu_lockerr (int uu_lockresult)
+const char *
+uu_lockerr(int uu_lockresult)
 {
 	static char errbuf[128];
 	char *fmt;
@@ -163,6 +186,9 @@ const char *uu_lockerr (int uu_lockresult)
 		case UU_LOCK_TRY_ERR:
 			fmt = "too many tries: %s";
 			break;
+		case UU_LOCK_OWNER_ERR:
+			fmt = "not locking process: %s";
+			break;
 		default:
 			fmt = "undefined error: %s";
 			break;
@@ -172,7 +198,8 @@ const char *uu_lockerr (int uu_lockresult)
 	return errbuf;
 }
 
-static int put_pid (int fd, pid_t pid)
+static int
+put_pid(int fd, pid_t pid)
 {
 	char buf[32];
 	int len;
@@ -181,7 +208,8 @@ static int put_pid (int fd, pid_t pid)
 	return write (fd, buf, len) == len;
 }
 
-static pid_t get_pid (int fd, int *err)
+static pid_t
+get_pid(int fd, int *err)
 {
 	int bytes_read;
 	char buf[32];
