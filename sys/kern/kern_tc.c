@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.67 1998/04/08 09:01:53 phk Exp $
+ * $Id: kern_clock.c,v 1.68 1998/05/17 11:52:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -493,6 +493,8 @@ sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
+#define TC_DELTA(tc) \
+	(((tc)->get_timecount() - (tc)->offset_count) & (tc)->counter_mask)
 
 /*
  * We have four functions for looking at the clock, two for microseconds
@@ -528,8 +530,7 @@ microtime(struct timeval *tv)
 	tc = (struct timecounter *)timecounter;
 	tv->tv_sec = tc->offset_sec;
 	tv->tv_usec = tc->offset_micro;
-	tv->tv_usec += 
-	    ((u_int64_t)tc->get_timedelta(tc) * tc->scale_micro) >> 32;
+	tv->tv_usec += ((u_int64_t)TC_DELTA(tc) * tc->scale_micro) >> 32;
 	tv->tv_usec += boottime.tv_usec;
 	tv->tv_sec += boottime.tv_sec;
 	while (tv->tv_usec >= 1000000) {
@@ -541,13 +542,13 @@ microtime(struct timeval *tv)
 void
 nanotime(struct timespec *tv)
 {
-	u_int count;
+	unsigned count;
 	u_int64_t delta;
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
 	tv->tv_sec = tc->offset_sec;
-	count = tc->get_timedelta(tc);
+	count = TC_DELTA(tc);
 	delta = tc->offset_nano;
 	delta += ((u_int64_t)count * tc->scale_nano_f);
 	delta >>= 32;
@@ -589,8 +590,7 @@ microuptime(struct timeval *tv)
 	tc = (struct timecounter *)timecounter;
 	tv->tv_sec = tc->offset_sec;
 	tv->tv_usec = tc->offset_micro;
-	tv->tv_usec += 
-	    ((u_int64_t)tc->get_timedelta(tc) * tc->scale_micro) >> 32;
+	tv->tv_usec += ((u_int64_t)TC_DELTA(tc) * tc->scale_micro) >> 32;
 	if (tv->tv_usec >= 1000000) {
 		tv->tv_usec -= 1000000;
 		tv->tv_sec++;
@@ -606,7 +606,7 @@ nanouptime(struct timespec *tv)
 
 	tc = (struct timecounter *)timecounter;
 	tv->tv_sec = tc->offset_sec;
-	count = tc->get_timedelta(tc);
+	count = TC_DELTA(tc);
 	delta = tc->offset_nano;
 	delta += ((u_int64_t)count * tc->scale_nano_f);
 	delta >>= 32;
@@ -634,21 +634,12 @@ tco_setscales(struct timecounter *tc)
 	tc->scale_nano_i = scale >> 32;
 }
 
-static u_int
-delta_timecounter(struct timecounter *tc)
-{
-
-	return((tc->get_timecount() - tc->offset_count) & tc->counter_mask);
-}
-
 void
 init_timecounter(struct timecounter *tc)
 {
 	struct timespec ts0, ts1;
 	int i;
 
-	if (!tc->get_timedelta) 
-		tc->get_timedelta = delta_timecounter;
 	tc->adjustment = 0;
 	tco_setscales(tc);
 	tc->offset_count = tc->get_timecount();
@@ -662,13 +653,10 @@ init_timecounter(struct timecounter *tc)
 
 	/* 
 	 * Figure out the cost of calling this timecounter.
-	 * XXX: The 1:15 ratio is a guess at reality.
 	 */
 	nanotime(&ts0);
-	for (i = 0; i < 16; i ++) 
+	for (i = 0; i < 256; i ++) 
 		tc->get_timecount();
-	for (i = 0; i < 240; i ++)
-		tc->get_timedelta(tc);
 	nanotime(&ts1);
 	ts1.tv_sec -= ts0.tv_sec;
 	tc->cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
@@ -731,13 +719,13 @@ static struct timecounter *
 sync_other_counter(void)
 {
 	struct timecounter *tc, *tco;
-	u_int delta;
+	unsigned delta;
 
 	tc = timecounter->other;
 	tco = tc->other;
 	*tc = *timecounter;
 	tc->other = tco;
-	delta = tc->get_timedelta(tc);
+	delta = TC_DELTA(tc);
 	tc->offset_count += delta;
 	tc->offset_count &= tc->counter_mask;
 	tc->offset_nano += (u_int64_t)delta * tc->scale_nano_f;
@@ -811,18 +799,17 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
  * timeservices.
  */
 
-static u_int64_t
+static u_int
 dummy_get_timecount(void)
 {
-	static u_int64_t now;
+	static u_int now;
 	return (++now);
 }
 
 static struct timecounter dummy_timecounter[3] = {
 	{
-		0,
 		dummy_get_timecount,
-		~0,
+		~0u,
 		1000000,
 		"dummy"
 	}
