@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.94 1996/08/07 13:21:43 peter Exp $
+#	$Id: Makefile,v 1.95 1996/08/07 13:25:54 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -146,7 +146,6 @@ world:
 	@echo "Not cleaning anything! I sure hope you know what you are doing!"
 .else
 	cd ${.CURDIR} && ${MAKE} ${CLEANDIR}
-.endif
 .endif
 	@echo
 .if !defined(NOOBJDIR)
