@@ -41,13 +41,13 @@ cd /dev
 # This isn't necessarily a good example, since we probably shouldn't need this.
 # However, a lot of X software depends on it.
 #
-if [ -c ttyv0 ]; then
+if [ -c ttyv0 -a ! -e vga ]; then
 	ln -fs ttyv0 vga
 fi
 
 # Commonly used by many ports
 #
-#if [ -c acd0c ]; then
+#if [ -c acd0c -a ! -e cdrom ]; then
 #	ln -fs acd0c cdrom
 #fi
 
