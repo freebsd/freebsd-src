@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.11 1995/12/14 09:54:24 phk Exp $
+ *      $Id: pt.c,v 1.12 1995/12/14 19:51:13 bde Exp $
  */
 
 /*
@@ -45,6 +45,8 @@
  *     going to add it until it is done in a simple way that provides
  *     base behavior in scsi_driver.c
  */
+
+#include "opt_bounce.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

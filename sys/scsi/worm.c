@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.16 1995/12/14 09:54:35 phk Exp $
+ *      $Id: worm.c,v 1.17 1996/01/02 15:44:00 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -50,6 +50,8 @@
  *     When it is finished I hope to hoist the partition code up into
  *     "scsi_driver" and use common code for all devices.
  */
+
+#include "opt_bounce.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
