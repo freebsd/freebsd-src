@@ -319,7 +319,7 @@ updatepwd(char *dir)
 #define MAXPWD 256
 
 int
-pwdcmd(int argc __unused, char **argv __unused)
+pwdcmd(int argc, char **argv)
 {
 	char buf[MAXPWD];
 	int ch, phys;
