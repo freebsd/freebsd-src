@@ -80,8 +80,6 @@ apic_initialize(void)
 	/* set the Task Priority Register as needed */
 	temp = lapic.tpr;
 	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
-	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
-
 	lapic.tpr = temp;
 
 	/* enable the local APIC */
