@@ -24,10 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
 
@@ -837,69 +837,54 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	return ((ln2range == 64) ? 2 : 1);
 }
 
-static int
-pci_is_ata_legacy(device_t dev)
-{
-	/*
-	 * ATA PCI in compatibility mode are hard wired to certain
-	 * compatibility addresses.  Such entries does not contain
-	 * valid resources as they are at fixed positions to be
-	 * compatible with old ISA requirements.
-	 */
-	if ((pci_get_class(dev) == PCIC_STORAGE) &&
-	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
-	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV))
-		return 1;
-	return 0;
-}
-
 /*
- * The ATA PCI spec specifies that in legacy mode, the device shall
- * decode the resources listed below.  The ata driver allocates
- * resources in this order, and many atapci devices actually have
- * values similar to these in the actual underlying bars.  Part of the
- * problem is that the floppy controller and ata overlap for 1 byte,
- * which makes it difficult to properly allocate things.
- *
- * My reading of the pci spec is such that this appears to be the only
- * allowed exception to the rule that devices only decode the addresses
- * presented in their BARs.  We also ensure that the bits that take
- * the device out of legacy mode are set to 0 before making this
- * reservation.
+ * For ATA devices we need to decide early what addressing mode to use.
+ * Legacy demands that the primary and secondary ATA ports sits on the
+ * same addresses that old ISA hardware did. This dictates that we use
+ * those addresses and ignore the BAR's if we cannot set PCI native 
+ * addressing mode.
  */
 static void
-pci_add_ata_legacy_maps(device_t pcib, device_t bus, device_t dev, int b,
-    int s, int f, struct resource_list *rl)
+pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
+	     int s, int f, struct resource_list *rl)
 {
-	int rid;
-	int type;
-
+	int rid, type, progif;
+#if 1
+	/* if this device supports PCI native addressing use it */
+	progif = pci_read_config(dev, PCIR_PROGIF, 1);
+	if ((progif & 0x8a) == 0x8a) {
+		if (pci_mapbase(pci_read_config(dev, PCIR_BAR(0), 4)) &&
+		    pci_mapbase(pci_read_config(dev, PCIR_BAR(2), 4))) {
+			printf("Trying ATA native PCI addressing mode\n");
+			pci_write_config(dev, PCIR_PROGIF, progif | 0x05, 1);
+		}
+	}
+#endif
+	progif = pci_read_config(dev, PCIR_PROGIF, 1);
 	type = SYS_RES_IOPORT;
-	if ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MODEPRIM) == 0) {
-		rid = PCIR_BAR(0);
-		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7, 8,
-		    0);
-		rid = PCIR_BAR(1);
-		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6, 1,
-		    0);
-	} else {
+	if (progif & PCIP_STORAGE_IDE_MODEPRIM) {
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(0), rl);
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(1), rl);
 	}
-	if ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MODESEC) == 0) {
-		rid = PCIR_BAR(2);
-		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177, 8,
-		    0);
-		rid = PCIR_BAR(3);
-		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376, 1,
-		    0);
-	} else {
+	else {
+		rid = PCIR_BAR(0);
+		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7,8,0);
+		rid = PCIR_BAR(1);
+		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6,1,0);
+	}
+	if (progif & PCIP_STORAGE_IDE_MODESEC) {
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(2), rl);
 		pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(3), rl);
+	}
+	else {
+		rid = PCIR_BAR(2);
+		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177,8,0);
+		rid = PCIR_BAR(3);
+		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
+		resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376,1,0);
 	}
 	pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(4), rl);
 }
@@ -917,8 +902,11 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 	s = cfg->slot;
 	f = cfg->func;
 
-	if (pci_is_ata_legacy(dev))
-		pci_add_ata_legacy_maps(pcib, bus, dev, b, s, f, rl);
+	/* ATA devices needs special map treatment */
+	if ((pci_get_class(dev) == PCIC_STORAGE) &&
+	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV))
+		pci_ata_maps(pcib, bus, dev, b, s, f, rl);
 	else
 		for (i = 0; i < cfg->nummaps;)
 			i += pci_add_map(pcib, bus, dev, b, s, f, PCIR_BAR(i),
