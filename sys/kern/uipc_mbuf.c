@@ -40,6 +40,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
@@ -95,9 +96,11 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
 	   "Maximum number of ext_buf counters available");
+
 #ifndef NMBCLUSTERS
 #define NMBCLUSTERS	(512 + MAXUSERS * 16)
 #endif
+
 TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
 TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
 TUNABLE_INT_DECL("kern.ipc.nmbcnt", EXT_COUNTERS, nmbcnt);
@@ -137,6 +140,8 @@ mbinit(void *dummy)
 	mclfree.m_head = NULL;
 	mcntfree.m_head = NULL;
 	mtx_init(&mbuf_mtx, "mbuf free list lock", MTX_DEF);
+	cv_init(&mmbfree.m_starved, "mbuf free list starved cv");
+	cv_init(&mclfree.m_starved, "mbuf cluster free list starved cv");
  
 	/*
 	 * Initialize mbuf subsystem (sysctl exported) statistics structure.
@@ -283,7 +288,7 @@ m_mballoc(int nmb, int how)
  *
  * Here we request for the protocols to free up some resources and, if we
  * still cannot get anything, then we wait for an mbuf to be freed for a 
- * designated (mbuf_wait) time. 
+ * designated (mbuf_wait) time, at most.
  *
  * Must be called with the mmbfree mutex held.
  */
@@ -309,30 +314,24 @@ m_mballoc_wait(void)
 	_MGET(p, M_DONTWAIT);
 
 	if (p == NULL) {
+		int retval;
+
 		m_mballoc_wid++;
-		msleep(&m_mballoc_wid, &mbuf_mtx, PVM, "mballc",
+		retval = cv_timedwait(&mmbfree.m_starved, &mbuf_mtx,
 		    mbuf_wait);
 		m_mballoc_wid--;
 
 		/*
-		 * Try again (one last time).
-		 *
-		 * We retry to fetch _even_ if the sleep timed out. This
-		 * is left this way, purposely, in the [unlikely] case
-		 * that an mbuf was freed but the sleep was not awoken
-		 * in time.
-		 *
-		 * If the sleep didn't time out (i.e. we got woken up) then
-		 * we have the lock so we just grab an mbuf, hopefully.
+		 * If we got signaled (i.e. didn't time out), allocate.
 		 */
-		_MGET(p, M_DONTWAIT);
+		if (retval == 0)
+			_MGET(p, M_DONTWAIT);
 	}
 
-	/* If we waited and got something... */
 	if (p != NULL) {
 		mbstat.m_wait++;
 		if (mmbfree.m_head != NULL)
-			MBWAKEUP(m_mballoc_wid);
+			MBWAKEUP(m_mballoc_wid, &mmbfree.m_starved);
 	}
 
 	return (p);
@@ -389,8 +388,8 @@ m_clalloc(int ncl, int how)
 /*
  * Once the mb_map submap has been exhausted and the allocation is called with
  * M_TRYWAIT, we rely on the mclfree list. If nothing is free, we will
- * sleep for a designated amount of time (mbuf_wait) or until we're woken up
- * due to sudden mcluster availability.
+ * block on a cv for a designated amount of time (mbuf_wait) or until we're
+ * signaled due to sudden mcluster availability.
  *
  * Must be called with the mclfree lock held.
  */
@@ -398,21 +397,22 @@ caddr_t
 m_clalloc_wait(void)
 {
 	caddr_t p = NULL;
+	int retval;
 
 	m_clalloc_wid++;
-	msleep(&m_clalloc_wid, &mbuf_mtx, PVM, "mclalc", mbuf_wait);
+	retval = cv_timedwait(&mclfree.m_starved, &mbuf_mtx, mbuf_wait);
 	m_clalloc_wid--;
 
 	/*
 	 * Now that we (think) that we've got something, try again.
 	 */
-	_MCLALLOC(p, M_DONTWAIT);
+	if (retval == 0)
+		_MCLALLOC(p, M_DONTWAIT);
 
-	/* If we waited and got something ... */
 	if (p != NULL) {
 		mbstat.m_wait++;
 		if (mclfree.m_head != NULL)
-			MBWAKEUP(m_clalloc_wid);
+			MBWAKEUP(m_clalloc_wid, &mclfree.m_starved);
 	}
 
 	return (p);
@@ -433,7 +433,7 @@ m_reclaim(void)
 	struct protosw *pr;
 
 #ifdef WITNESS
-	KASSERT(witness_list(CURPROC) == 0,
+	KASSERT(witness_list(curproc) == 0,
 	    ("m_reclaim called with locks held"));
 #endif
 
