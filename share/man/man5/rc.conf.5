@@ -299,8 +299,8 @@ ipfs_enable="YES"
 .Ed
 .Pp
 into
-.Pa /etc/rc.conf .
-Then you should edit
+.Pa /etc/rc.conf
+and editing
 .Pa /etc/ipf.rules
 and
 .Pa /etc/ipnat.rules
@@ -308,7 +308,7 @@ appropriately.
 .Pp
 Note that
 .Va ipfilter_enable
-and 
+and
 .Va ipnat_enable
 can be enabled independently.
 .Va ipmon_enable
@@ -464,12 +464,11 @@ too.
 See
 .Va ipfilter_enable
 for a detailed discussion.
-Note that if you are running with
+Note that if
 .Va kern_securelevel
-set to
-.Dq 3 ,
-then you cannot use
+is set to 3,
 .Va ipfs_enable
+cannot be used
 because the raised securelevel will prevent
 .Xr ipfs 8
 from saving the state tables at shutdown time.
