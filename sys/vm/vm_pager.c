@@ -566,6 +566,7 @@ flushchainbuf(struct buf *nbp)
 		nbp->b_bufsize = nbp->b_bcount;
 		if ((nbp->b_flags & B_READ) == 0)
 			nbp->b_dirtyend = nbp->b_bcount;
+		BUF_KERNPROC(nbp);
 		VOP_STRATEGY(nbp->b_vp, nbp);
 	} else {
 		biodone(nbp);
