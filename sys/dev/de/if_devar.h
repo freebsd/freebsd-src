@@ -1,5 +1,5 @@
 /*	$NetBSD: if_devar.h,v 1.32 1999/04/01 14:55:25 tsubai Exp $	*/
-/*	$Id: if_devar.h,v 1.14 1999/07/06 19:23:25 des Exp $ */
+/*	$Id: if_devar.h,v 1.15 1999/08/08 19:56:06 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -62,12 +62,8 @@ typedef bus_addr_t tulip_csrptr_t;
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if !defined(__FreeBSD__) || __FreeBSD_version < 300000
-typedef u_long uintptr_t;
-#endif
-
 #if !defined(__NetBSD__)
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
+#if defined(__FreeBSD__)
 typedef pci_port_t tulip_csrptr_t;
 #else
 typedef u_int16_t tulip_csrptr_t;
@@ -951,11 +947,7 @@ static void tulip_softintr(void);
 
 #if defined(__FreeBSD__)
 typedef void ifnet_ret_t;
-#if __FreeBSD_version >= 300000
 typedef u_long ioctl_cmd_t;
-#else
-typedef int ioctl_cmd_t;
-#endif
 #if defined(TULIP_HDR_DATA)
 static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
