@@ -85,7 +85,6 @@ static struct cdevsw iir_cdevsw = {
         /* kq */        nokqfilter
 };
 
-static int iir_devsw_installed = 0;
 #ifndef SDEV_PER_HBA
 static int sdev_made = 0;
 #endif
@@ -356,17 +355,3 @@ iir_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
     --gdt_stat.io_count_act;
     return (0);
 }
-
-static void
-iir_drvinit(void *unused)
-{
-    GDT_DPRINTF(GDT_D_DEBUG, ("iir_drvinit()\n"));
-                
-    if (!iir_devsw_installed) {
-        /* Add the I/O (data) channel */
-        cdevsw_add(&iir_cdevsw);
-        iir_devsw_installed = 1;
-    }
-}
-
-SYSINIT(iir_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, iir_drvinit, NULL)
