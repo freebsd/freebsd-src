@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.38 1996/11/11 06:50:44 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.39 1996/11/17 00:25:26 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -907,22 +907,29 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	<heading>Compress manpages, strip binaries</heading>
 
 	<p>Do compress manpages and strip binaries.  If the original
-	  source already does that, fine; otherwise, you can add a
-	  <tt>post-install</tt> rule to do it yourself.  Make sure
-	  that you check the variable <tt>NOMANCOMPRESS</tt> that the
-	  user can set in <tt>/etc/make.conf</tt> to disable man page
-	  compression.  Here is an example:
+	  source already strips the binary, fine; otherwise, you can add a
+	  <tt>post-install</tt> rule to do it yourself.  Here is an example:
 <tscreen><verb>
  post-install:
 	 strip ${PREFIX}/bin/xdl
- .if !defined(NOMANCOMPRESS)
-	 gzip -9nf ${PREFIX}/man/man1/xdl.1
- .endif
 </verb></tscreen>
-
 	<p>Use the <tt>file</tt> command on the installed executable
 	  to check whether the binary is stripped or not.  If it
 	  does not say `not stripped', it is stripped.
+
+	<p>To automagically compress the manpages, use the MAN[1-9LN]
+	   variables.  They will check the variable <tt>NOMANCOMPRESS</tt>
+	   that the user can set in <tt>/etc/make.conf</tt> to disable man
+	   page compression.
+	   Place them last in the section below the MAINTAINER variable.
+	   Here is an example:
+<tscreen><verb>
+MAN1=      foo.1 bar.1
+MAN5=      foo.conf.5
+MAN8=      baz.8
+</verb></tscreen>
+	<p>Note that this is not usually nessicary with ports that are X
+	   applications and use Imake to build.
 
       <sect3>
 	<heading>INSTALL_* macros</heading>
