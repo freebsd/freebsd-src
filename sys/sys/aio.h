@@ -25,7 +25,6 @@
 
 /*
  * Returned by aio_cancel:
- *  (Note that FreeBSD's aio is not cancellable -- yet.)
  */
 #define	AIO_CANCELED		0x1
 #define	AIO_NOTCANCELED		0x2
