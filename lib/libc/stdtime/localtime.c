@@ -305,8 +305,10 @@ register struct state * const	sp;
 				doaccess = TRUE;
 			name = fullname;
 		}
-		if (doaccess && access(name, R_OK) != 0)
-			return -1;
+		/* XXX Should really be issetguid(), but we don't have that */
+		if (doaccess && 
+			(getuid() != geteuid() || getgid() != getegid()) )
+		     	return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
 			return -1;
 		if ((fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))
