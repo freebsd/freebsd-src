@@ -10,13 +10,16 @@ the common items quick how-tos, followed by entries for versions of
 
 This is for the 4.6 release branch.  All entries since 4.6 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.6.1-RELEASE-p1.
+By this count, we're at 4.6.1-RELEASE-p2.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20020730:	p2	FreeBSD-SA-02:32.pppd
+	A fix for a race condition in pppd(8) was corrected.
 
 20020730:	p1	FreeBSD-SA-02:23.stdio.v1.2
 	A bug in the previous patch for the vulnerability described
