@@ -322,12 +322,7 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-	struct ip_fw *rule = NULL;
-
-	/* Extract info from dummynet tag, ignore others */
-	for (; m->m_type == MT_TAG; m = m->m_next)
-		if (m->m_flags == PACKET_TAG_DUMMYNET)
-			rule = ((struct dn_pkt *)m)->rule;
+	struct ip_fw *rule = ip_dn_claim_rule(m);
 
 	if (rule == NULL && BDG_ACTIVE(ifp)) {
 		/*
@@ -397,7 +392,6 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 
 	args.m = m;		/* the packet we are looking at		*/
 	args.oif = dst;		/* destination, if any			*/
-	args.divert_rule = 0;	/* we do not support divert yet		*/
 	args.rule = *rule;	/* matching rule to restart		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
@@ -611,14 +605,10 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #if defined(NETATALK)
 	struct llc *l;
 #endif
-	struct ip_fw *rule = NULL;
+	struct ip_fw *rule = ip_dn_claim_rule(m);
 
-	/* Extract info from dummynet tag, ignore others */
-	for (;m->m_type == MT_TAG; m = m->m_next)
-		if (m->m_flags == PACKET_TAG_DUMMYNET) {
-			rule = ((struct dn_pkt *)m)->rule;
-			ifp = m->m_next->m_pkthdr.rcvif;
-		}
+	if (rule != NULL)
+		ifp = m->m_pkthdr.rcvif;
 
 	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
 

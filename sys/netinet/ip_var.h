@@ -65,8 +65,6 @@ struct ipq {
 	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 	u_char	ipq_nfrags;		/* # frags in this packet */
-	u_int32_t ipq_div_info;		/* ipfw divert port & flags */
-	u_int16_t ipq_div_cookie;	/* ipfw divert cookie */
 	struct label *ipq_label;		/* MAC label */
 };
 #endif /* _KERNEL */
@@ -139,6 +137,9 @@ struct	ipstat {
 #define	IP_ROUTETOIF		SO_DONTROUTE	/* bypass routing tables */
 #define	IP_ALLOWBROADCAST	SO_BROADCAST	/* can send broadcast packets */
 
+/* mbuf flag used by ip_fastfwd */
+#define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
+
 struct ip;
 struct inpcb;
 struct route;
@@ -197,14 +198,21 @@ extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
 extern void	(*rsvp_input_p)(struct mbuf *m, int off);
 
-
-#ifdef IPDIVERT
-void	div_init(void);
-void	div_input(struct mbuf *, int);
-void	div_ctlinput(int, struct sockaddr *, void *);
-void	divert_packet(struct mbuf *m, int incoming, int port, int rule);
-extern struct pr_usrreqs div_usrreqs;
-#endif
+/*
+ * Obtain next_hop information asociated with the mbuf; if any.
+ * If a tag is present devalidate it also.
+ */
+static __inline struct sockaddr_in *
+ip_claim_next_hop(struct mbuf *m)
+{
+	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (mtag) {
+		struct sockaddr_in *sin = *(struct sockaddr_in **)(mtag+1);
+		mtag->m_tag_id = PACKET_TAG_NONE;
+		return sin;
+	} else
+		return NULL;
+}
 
 #ifdef PFIL_HOOKS
 extern	struct pfil_head inet_pfil_hook;
