@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)assert.h	8.2 (Berkeley) 1/21/94
+ * $FreeBSD$
  */
 
 /*
@@ -52,14 +53,16 @@
 #else
 #define	_assert(e)	assert(e)
 #ifdef __STDC__
-#define	assert(e)	((e) ? (void)0 : __assert(__FILE__, __LINE__, #e))
+#define	assert(e)	((e) ? (void)0 : __assert(__func__, __FILE__, \
+						  __LINE__, #e))
 #else	/* PCC */
-#define	assert(e)	((e) ? (void)0 : __assert(__FILE__, __LINE__, "e"))
+#define	assert(e)	((e) ? (void)0 : __assert(__func__, __FILE__, \
+						  __LINE__, "e"))
 #endif
 #endif
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void __assert __P((const char *, int, const char *));
+void	__assert(const char *, const char *, int, const char *);
 __END_DECLS
