@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.45 1998/05/09 08:41:23 des Exp $ */
+/* $Id: main.c,v 1.46 1998/05/09 08:56:07 des Exp $ */
 
 #include <sys/types.h>
 
@@ -52,7 +52,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
-		"usage: fetch [-DHILMNPRTValmnpqrv] [-o outputfile]",
+		"usage: fetch [-DHILMNPRTValmnpqrv] [-o outputfile] [-S bytes]",
 		"             [-f file -h host [-c dir] | URL]");
 	exit(EX_USAGE);
 }
@@ -71,9 +71,10 @@ main(int argc, char *const *argv)
     init_schemes();
     fs = clean_fetch_state;
     fs.fs_verbose = 1;
+    fs.fs_expectedsize = -1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "abc:D:f:h:HilLmMnNo:pPqRrtT:vV:")) != -1) {
+    while ((c = getopt(argc, argv, "abc:D:f:h:HilLmMnNo:pPqRrS:tT:vV:")) != -1) {
 	    switch (c) {
 	    case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 		    break;	/* ncftp compatibility */
@@ -132,6 +133,16 @@ main(int argc, char *const *argv)
 	    
 	    case 't':
 		    fs.fs_use_connect = 1;
+		    break;
+
+	    case 'S':
+		    /* strtol sets errno to ERANGE in the case of overflow */
+		    errno = 0;
+		    l = strtoul(optarg, &ep, 0);
+		    if (!optarg[0] || *ep || errno != 0 || l > INT_MAX)
+			    errx(EX_USAGE, "invalid size value: `%s'", 
+				 optarg);
+		    fs.fs_expectedsize = l;
 		    break;
 
 	    case 'T':
