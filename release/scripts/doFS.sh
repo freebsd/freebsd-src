@@ -53,9 +53,9 @@ do
 		cp -p ${FSPROTO} ${MNT}
 	fi
 
-	df -ki /mnt
+	df -ki ${MNT}
 
-	set `df -ki /mnt | tail -1`
+	set `df -ki ${MNT} | tail -1`
 
 	umount ${MNT}
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
