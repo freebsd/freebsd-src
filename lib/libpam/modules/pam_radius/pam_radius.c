@@ -51,18 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum {
-	PAM_OPT_CONF = PAM_OPT_STD_MAX,
-	PAM_OPT_TEMPLATE_USER,
-	PAM_OPT_NAS_ID
-};
-
-static struct opttab other_options[] = {
-	{ "conf",		PAM_OPT_CONF },
-	{ "template_user",	PAM_OPT_TEMPLATE_USER },
-	{ "nas_id",		PAM_OPT_NAS_ID },
-	{ NULL, 0 }
-};
+#define PAM_OPT_CONF		"conf"
+#define PAM_OPT_TEMPLATE_USER	"template_user"
+#define PAM_OPT_NAS_ID		"nas_id"
 
 #define	MAX_CHALLENGE_MSGS	10
 #define	PASSWORD_PROMPT		"RADIUS Password:"
@@ -218,25 +209,17 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	struct rad_handle *radh;
 	const char *user, *tmpuser, *pass;
-	char *conf_file, *template_user, *nas_id;
+	const char *conf_file, *template_user, *nas_id;
 	int retval;
 	int e;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	conf_file = NULL;
-	pam_test_option(&options, PAM_OPT_CONF, &conf_file);
-	template_user = NULL;
-	pam_test_option(&options, PAM_OPT_TEMPLATE_USER, &template_user);
-	nas_id = NULL;
-	pam_test_option(&options, PAM_OPT_NAS_ID, &nas_id);
+	conf_file = openpam_get_option(pamh, PAM_OPT_CONF);
+	template_user = openpam_get_option(pamh, PAM_OPT_TEMPLATE_USER);
+	nas_id = openpam_get_option(pamh, PAM_OPT_NAS_ID);
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)

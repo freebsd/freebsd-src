@@ -52,16 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum {
-	PAM_OPT_CONF = PAM_OPT_STD_MAX,
-	PAM_OPT_TEMPLATE_USER
-};
-
-static struct opttab other_options[] = {
-	{ "conf",		PAM_OPT_CONF },
-	{ "template_user",	PAM_OPT_TEMPLATE_USER },
-	{ NULL, 0 }
-};
+#define PAM_OPT_CONF		"conf"
+#define PAM_OPT_TEMPLATE_USER	"template_user"
 
 typedef int (*set_func)(struct tac_handle *, const char *);
 
@@ -115,22 +107,14 @@ set_msg(struct tac_handle *tach, const char *msg)
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	int retval;
 	struct tac_handle *tach;
-	char *conf_file;
-	char *template_user;
+	const char *conf_file, *template_user;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	conf_file = NULL;
-	pam_test_option(&options, PAM_OPT_CONF, &conf_file);
-	template_user = NULL;
-	pam_test_option(&options, PAM_OPT_TEMPLATE_USER, &template_user);
+	conf_file = openpam_get_option(pamh, PAM_OPT_CONF);
+	template_user = openpam_get_option(pamh, PAM_OPT_TEMPLATE_USER);
 
 	tach = tac_open();
 	if (tach == NULL) {
@@ -184,8 +168,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			return (PAM_AUTHINFO_UNAVAIL);
 		}
 		status = TAC_AUTHEN_STATUS(sflags);
-		if (!TAC_AUTHEN_NOECHO(sflags))
-			pam_set_option(&options, PAM_OPT_ECHO_PASS);
+		openpam_set_option(pamh, PAM_OPT_ECHO_PASS,
+		    TAC_AUTHEN_NOECHO(sflags) ? NULL : "");
 		switch (status) {
 
 		case TAC_AUTHEN_STATUS_PASS:
@@ -245,8 +229,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			if ((srvr_msg = get_msg(tach)) == NULL)
 				return (PAM_SERVICE_ERR);
 			retval = pam_prompt(pamh,
-			    pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL)
-				? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
+			    openpam_get_option(pamh, PAM_OPT_ECHO_PASS) ?
+			    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
 			    &data_msg, "%s", *srvr_msg ? srvr_msg : "Data:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
