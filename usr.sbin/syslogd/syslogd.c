@@ -294,7 +294,7 @@ void	die __P((int));
 void	dodie __P((int));
 void	domark __P((int));
 void	fprintlog __P((struct filed *, int, char *));
-int*	socksetup __P((int));
+int*	socksetup __P((int, const char *));
 void	init __P((int));
 void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
@@ -324,13 +324,15 @@ main(argc, argv)
 	fd_set *fdsr = NULL;
 	FILE *fp;
 	char *hname, line[MAXLINE + 1];
+	const char *bindhostname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	sigset_t mask;
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:P:suv")) != -1)
+	bindhostname = NULL;
+	while ((ch = getopt(argc, argv, "46Aa:b:df:kl:m:np:P:suv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -346,6 +348,9 @@ main(argc, argv)
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
 				usage();
+			break;
+		case 'b':
+			bindhostname = optarg;
 			break;
 		case 'd':		/* debug */
 			Debug++;
@@ -447,7 +452,7 @@ main(argc, argv)
 		}
 	}
 	if (SecureMode <= 1)
-		finet = socksetup(family);
+		finet = socksetup(family, bindhostname);
 
 	if (finet) {
 		if (SecureMode) {
@@ -2292,8 +2297,9 @@ log_deadchild(pid, status, name)
 }
 
 int *
-socksetup(af)
+socksetup(af, bindhostname)
 	int af;
+	const char *bindhostname;
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
@@ -2302,7 +2308,7 @@ socksetup(af)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = af;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(NULL, "syslog", &hints, &res);
+	error = getaddrinfo(bindhostname, "syslog", &hints, &res);
 	if (error) {
 		logerror(gai_strerror(error));
 		errno = 0;
