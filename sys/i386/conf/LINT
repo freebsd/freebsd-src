@@ -1518,6 +1518,9 @@ options	"EISA_SLOTS=12"
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
 # and motherboard based AIC7870/AIC7880 adapters.
 #
+# The `amd' device provides support for the AMD 53C974 SCSI host
+# adapter chip as found on devices such as the Tekram DC-390(T).
+#
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
 #
