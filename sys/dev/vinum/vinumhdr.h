@@ -92,9 +92,11 @@
 #define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
 caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
+#define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
 #define Malloc(x)  malloc((x), M_DEVBUF, M_WAITOK)
 #define Free(x)    free((x), M_DEVBUF)
+#define LOCKDRIVE(d) lockdrive (d)
 #endif
 #else
 #define Malloc(x)  malloc ((x))				    /* just the size */
