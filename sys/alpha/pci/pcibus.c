@@ -217,7 +217,7 @@ pci_init_resources(void)
  * child of one of our descendants, not a direct child of the pci chipset.
  */
 struct resource *
-pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
 	struct	rman *rm;
