@@ -758,6 +758,7 @@ cdrom.1:
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
+.if ${MACHINE} != "pc98"
 	@echo "Setting up /boot"
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/boot/mfsroot.gz
@@ -766,6 +767,7 @@ cdrom.1:
 	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC1}/boot/loader.conf
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC1}/boot/loader.conf
 	@ln -f ${CD_DISC1}/boot/loader.conf ${CD_DISC2}/boot/loader.conf
+.endif
 .if ${MACHINE} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
