@@ -28,7 +28,7 @@ PROG=	file
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I${SRCDIR}
+CFLAGS+= -I${.CURDIR}
 
 DPADD=	${LIBMAGIC} ${LIBZ}
 LDADD=	-lmagic -lz
