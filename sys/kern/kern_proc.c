@@ -84,6 +84,7 @@ vm_zone_t ithread_zone;
 void
 procinit()
 {
+	int i, j;
 
 	lockinit(&allproc_lock, PZERO, "allproc", 0, 0);
 	lockinit(&proctree_lock, PZERO, "proctree", 0, 0);
@@ -97,9 +98,17 @@ procinit()
 	 * This should really be a compile time warning, but I do
 	 * not know of any way to do that...
 	 */
-	if (sizeof(struct kinfo_proc) != KINFO_PROC_SIZE)
-		printf("WARNING: size of kinfo_proc (%ld) should be %d!!!\n",
-			(long)sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
+	if (sizeof(struct kinfo_proc) != KINFO_PROC_SIZE) {
+		printf("This message will repeat for the next 20 seconds\n");
+		for (i = 0; i < 20; i++) {
+			printf("WARNING: size of kinfo_proc (%ld) should be %d!!!\n",
+			    (long)sizeof(struct kinfo_proc), KINFO_PROC_SIZE);
+			printf("The kinfo_proc structure was changed ");
+			printf("incorrectly in <sys/user.h>\n");
+			for (j = 0; j < 0x7ffffff; j++);
+		}
+
+	}
 }
 
 /*
