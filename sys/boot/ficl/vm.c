@@ -13,11 +13,9 @@
 ** of the interp.
 */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <stand.h>
 #include <stdarg.h>
 #include <string.h>
-#include <ctype.h>
 #include "ficl.h"
 
 static char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
