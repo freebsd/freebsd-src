@@ -112,6 +112,21 @@ printscol(dp)
 	}
 }
 
+/*
+ * print name in current style
+ */
+static int
+printname(name)
+	const char *name;
+{
+	if (f_octal || f_octal_escape)
+		return prn_octal(name);
+	else if (f_nonprint)
+		return prn_printable(name);
+	else
+		return printf("%s", name);
+}
+
 void
 printlong(dp)
 	DISPLAY *dp;
@@ -166,8 +181,7 @@ printlong(dp)
 		if (f_color)
 			color_printed = colortype(sp->st_mode);
 #endif
-		if (f_octal || f_octal_escape) (void)prn_octal(p->fts_name);
-		else (void)printf("%s", p->fts_name);
+		(void)printname(p->fts_name);
 #ifdef COLORLS
 		if (f_color && color_printed)
 			endcolor(0);
@@ -278,8 +292,7 @@ printaname(p, inodefield, sizefield)
 	if (f_color)
 		color_printed = colortype(sp->st_mode);
 #endif
-	chcnt += (f_octal || f_octal_escape) ? prn_octal(p->fts_name)
-	                                     : printf("%s", p->fts_name);
+	chcnt += printname(p->fts_name);
 #ifdef COLORLS
 	if (f_color && color_printed)
 		endcolor(0);
@@ -494,9 +507,6 @@ printlink(p)
 		return;
 	}
 	path[lnklen] = '\0';
-	if (f_octal || f_octal_escape) {
-	        (void)printf(" -> ");
-	        (void)prn_octal(path);
-	}
-	else (void)printf(" -> %s", path);
+	(void)printf(" -> ");
+	printname(path);
 }
