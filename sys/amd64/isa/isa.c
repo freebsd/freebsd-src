@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.23 1994/09/13 06:43:57 phk Exp $
+ *	$Id: isa.c,v 1.24 1994/09/13 17:06:47 phk Exp $
  */
 
 /*
@@ -311,7 +311,7 @@ isa_configure() {
 		register_imask(dvp, net_imask);
 	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
 		register_imask(dvp, SWI_CLOCK_MASK);
-	splnone();
+	spl0();
 }
 
 /*
