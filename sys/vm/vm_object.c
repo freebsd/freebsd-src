@@ -1515,6 +1515,7 @@ vm_object_collapse(vm_object_t object)
 		 * we check the backing object first, because it is most likely
 		 * not collapsable.
 		 */
+		VM_OBJECT_LOCK(backing_object);
 		if (backing_object->handle != NULL ||
 		    (backing_object->type != OBJT_DEFAULT &&
 		     backing_object->type != OBJT_SWAP) ||
@@ -1523,6 +1524,7 @@ vm_object_collapse(vm_object_t object)
 		    (object->type != OBJT_DEFAULT &&
 		     object->type != OBJT_SWAP) ||
 		    (object->flags & OBJ_DEAD)) {
+			VM_OBJECT_UNLOCK(backing_object);
 			break;
 		}
 
@@ -1531,6 +1533,7 @@ vm_object_collapse(vm_object_t object)
 		    backing_object->paging_in_progress != 0
 		) {
 			vm_object_qcollapse(object);
+			VM_OBJECT_UNLOCK(backing_object);
 			break;
 		}
 
@@ -1554,7 +1557,6 @@ vm_object_collapse(vm_object_t object)
 			/*
 			 * Move the pager from backing_object to object.
 			 */
-			VM_OBJECT_LOCK(backing_object);
 			if (backing_object->type == OBJT_SWAP) {
 				vm_object_pip_add(backing_object, 1);
 				VM_OBJECT_UNLOCK(backing_object);
@@ -1642,6 +1644,7 @@ vm_object_collapse(vm_object_t object)
 			 * there is nothing we can do so we give up.
 			 */
 			if (vm_object_backing_scan(object, OBSC_TEST_ALL_SHADOWED) == 0) {
+				VM_OBJECT_UNLOCK(backing_object);
 				break;
 			}
 
@@ -1650,7 +1653,6 @@ vm_object_collapse(vm_object_t object)
 			 * chain.  Deallocating backing_object will not remove
 			 * it, since its reference count is at least 2.
 			 */
-			VM_OBJECT_LOCK(backing_object);
 			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
 			backing_object->generation++;
