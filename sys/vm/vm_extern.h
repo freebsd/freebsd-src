@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.19 1995/11/14 09:29:29 phk Exp $
+ * $Id: vm_extern.h,v 1.20 1995/12/07 12:48:08 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -81,7 +81,7 @@ vm_offset_t kmem_malloc __P((vm_map_t, vm_size_t, boolean_t));
 vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t, boolean_t));
 void munmapfd __P((struct proc *, int));
 int pager_cache __P((vm_object_t, boolean_t));
-int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long ));
+int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
 void swapout __P((struct proc *));
 void swapout_procs __P((void));
 void swstrategy __P((struct buf *));
@@ -92,19 +92,20 @@ void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fork __P((struct proc *, struct proc *, int));
 void vm_map_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int, char *));
-int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_offset_t));
-void vm_object_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int, char *));
+int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_ooffset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_set_page_size __P((void));
 void vmmeter __P((void));
 struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
 struct vmspace *vmspace_fork __P((struct vmspace *));
 void vmspace_free __P((struct vmspace *));
-void vnode_pager_setsize __P((struct vnode *, u_long));
+void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
 void vnode_pager_umount __P((struct mount *));
 void vnode_pager_uncache __P((struct vnode *));
 void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int, int));
+void vm_object_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int,
+			  char *));
 
 #endif				/* KERNEL */
 

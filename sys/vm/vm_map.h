@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.7 1995/08/26 23:18:37 bde Exp $
+ * $Id: vm_map.h,v 1.8 1995/12/07 12:48:17 davidg Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ struct vm_map_entry {
 	vm_offset_t start;		/* start address */
 	vm_offset_t end;		/* end address */
 	union vm_map_object object;	/* object I point to */
-	vm_offset_t offset;		/* offset into object */
+	vm_ooffset_t offset;		/* offset into object */
 	boolean_t is_a_map:1,		/* Is "object" a map? */
 	 is_sub_map:1,			/* Is "object" a submap? */
 	/* Only in sharing maps: */
@@ -217,13 +217,13 @@ vm_map_entry_t vm_map_entry_create __P((vm_map_t));
 void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
 void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
-int vm_map_find __P((vm_map_t, vm_object_t, vm_offset_t, vm_offset_t *, vm_size_t, boolean_t));
+int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t));
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
 int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
 void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t, boolean_t));
-int vm_map_insert __P((vm_map_t, vm_object_t, vm_offset_t, vm_offset_t, vm_offset_t));
+int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t));
 int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
-    vm_offset_t *, vm_prot_t *, boolean_t *, boolean_t *));
+    vm_pindex_t *, vm_prot_t *, boolean_t *, boolean_t *));
 void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));

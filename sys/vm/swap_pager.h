@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.10 1995/10/07 19:02:52 davidg Exp $
+ *	$Id: swap_pager.h,v 1.11 1995/11/16 09:51:22 bde Exp $
  */
 
 /*
@@ -59,7 +59,7 @@
 struct swblock {
 	unsigned short swb_valid;	/* bitmask for valid pages */
 	unsigned short swb_locked;	/* block locked */
-	int swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
+	daddr_t swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
 };
 typedef struct swblock *sw_blk_t;
 
@@ -71,8 +71,9 @@ int swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 int swap_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));    
 void swap_pager_sync __P((void));
 int swap_pager_swp_alloc __P((vm_object_t, int));
-void swap_pager_copy __P((vm_object_t, vm_offset_t, vm_object_t, vm_offset_t, vm_offset_t));
-void swap_pager_freespace __P((vm_object_t, vm_offset_t, vm_offset_t));
+void swap_pager_copy __P((vm_object_t, vm_pindex_t, vm_object_t,
+	vm_pindex_t, vm_pindex_t));
+void swap_pager_freespace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_swap_init __P((void));
 #endif
 

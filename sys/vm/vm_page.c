@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.39 1995/12/03 12:18:39 bde Exp $
+ *	$Id: vm_page.c,v 1.40 1995/12/07 12:48:23 davidg Exp $
  */
 
 /*
@@ -115,6 +115,7 @@ vm_offset_t first_phys_addr;
 vm_offset_t last_phys_addr;
 vm_size_t page_mask;
 int page_shift;
+int vm_page_zero_count;
 
 /*
  * map of contiguous valid DEV_BSIZE chunks in a page
@@ -354,9 +355,11 @@ vm_page_startup(starta, enda, vaddr)
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  */
 static inline __pure int
-vm_page_hash(vm_object_t object, vm_offset_t offset)
+vm_page_hash(object, pindex)
+	vm_object_t object;
+	vm_pindex_t pindex;
 {
-	return ((unsigned) object + (offset >> PAGE_SHIFT)) & vm_page_hash_mask;
+	return ((unsigned) object + pindex) & vm_page_hash_mask;
 }
 
 /*
@@ -369,10 +372,10 @@ vm_page_hash(vm_object_t object, vm_offset_t offset)
  */
 
 inline void
-vm_page_insert(mem, object, offset)
+vm_page_insert(mem, object, pindex)
 	register vm_page_t mem;
 	register vm_object_t object;
-	register vm_offset_t offset;
+	register vm_pindex_t pindex;
 {
 	register struct pglist *bucket;
 
@@ -384,13 +387,13 @@ vm_page_insert(mem, object, offset)
 	 */
 
 	mem->object = object;
-	mem->offset = offset;
+	mem->pindex = pindex;
 
 	/*
 	 * Insert it into the object_object/offset hash table
 	 */
 
-	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
+	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 	TAILQ_INSERT_TAIL(bucket, mem, hashq);
 
 	/*
@@ -430,7 +433,7 @@ vm_page_remove(mem)
 	 * Remove from the object_object/offset hash table
 	 */
 
-	bucket = &vm_page_buckets[vm_page_hash(mem->object, mem->offset)];
+	bucket = &vm_page_buckets[vm_page_hash(mem->object, mem->pindex)];
 	TAILQ_REMOVE(bucket, mem, hashq);
 
 	/*
@@ -458,9 +461,9 @@ vm_page_remove(mem)
  */
 
 vm_page_t
-vm_page_lookup(object, offset)
+vm_page_lookup(object, pindex)
 	register vm_object_t object;
-	register vm_offset_t offset;
+	register vm_pindex_t pindex;
 {
 	register vm_page_t mem;
 	register struct pglist *bucket;
@@ -470,11 +473,11 @@ vm_page_lookup(object, offset)
 	 * Search the hash table for this object/offset pair
 	 */
 
-	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
+	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
 
 	s = splhigh();
 	for (mem = bucket->tqh_first; mem != NULL; mem = mem->hashq.tqe_next) {
-		if ((mem->object == object) && (mem->offset == offset)) {
+		if ((mem->object == object) && (mem->pindex == pindex)) {
 			splx(s);
 			return (mem);
 		}
@@ -493,19 +496,16 @@ vm_page_lookup(object, offset)
  *	The object must be locked.
  */
 void
-vm_page_rename(mem, new_object, new_offset)
+vm_page_rename(mem, new_object, new_pindex)
 	register vm_page_t mem;
 	register vm_object_t new_object;
-	vm_offset_t new_offset;
+	vm_pindex_t new_pindex;
 {
 	int s;
 
-	if (mem->object == new_object)
-		return;
-
 	s = splhigh();
 	vm_page_remove(mem);
-	vm_page_insert(mem, new_object, new_offset);
+	vm_page_insert(mem, new_object, new_pindex);
 	splx(s);
 }
 
@@ -556,24 +556,19 @@ vm_page_unqueue(vm_page_t mem)
  *	Object must be locked.
  */
 vm_page_t
-vm_page_alloc(object, offset, page_req)
+vm_page_alloc(object, pindex, page_req)
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_pindex_t pindex;
 	int page_req;
 {
 	register vm_page_t mem;
 	int s;
 
-#ifdef DIAGNOSTIC
-	if (offset != trunc_page(offset))
-		panic("vm_page_alloc: offset not page aligned");
-
-#if 0
-	mem = vm_page_lookup(object, offset);
+/* #ifdef DIAGNOSTIC */
+	mem = vm_page_lookup(object, pindex);
 	if (mem)
 		panic("vm_page_alloc: page already allocated");
-#endif
-#endif
+/* #endif */
 
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
@@ -587,6 +582,7 @@ vm_page_alloc(object, offset, page_req)
 			if (page_req & VM_ALLOC_ZERO) {
 				mem = vm_page_queue_zero.tqh_first;
 				if (mem) {
+					--vm_page_zero_count;
 					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
 					mem->flags = PG_BUSY|PG_ZERO;
 				} else {
@@ -600,6 +596,7 @@ vm_page_alloc(object, offset, page_req)
 					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
 					mem->flags = PG_BUSY;
 				} else {
+					--vm_page_zero_count;
 					mem = vm_page_queue_zero.tqh_first;
 					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
 					mem->flags = PG_BUSY|PG_ZERO;
@@ -628,6 +625,7 @@ vm_page_alloc(object, offset, page_req)
 			if (page_req & VM_ALLOC_ZERO) {
 				mem = vm_page_queue_zero.tqh_first;
 				if (mem) {
+					--vm_page_zero_count;
 					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
 					mem->flags = PG_BUSY|PG_ZERO;
 				} else {
@@ -641,6 +639,7 @@ vm_page_alloc(object, offset, page_req)
 					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
 					mem->flags = PG_BUSY;
 				} else {
+					--vm_page_zero_count;
 					mem = vm_page_queue_zero.tqh_first;
 					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
 					mem->flags = PG_BUSY|PG_ZERO;
@@ -669,6 +668,7 @@ vm_page_alloc(object, offset, page_req)
 				TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
 				mem->flags = PG_BUSY;
 			} else {
+				--vm_page_zero_count;
 				mem = vm_page_queue_zero.tqh_first;
 				TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
 				mem->flags = PG_BUSY|PG_ZERO;
@@ -694,7 +694,7 @@ vm_page_alloc(object, offset, page_req)
 	mem->bmapped = 0;
 
 	/* XXX before splx until vm_page_insert is safe */
-	vm_page_insert(mem, object, offset);
+	vm_page_insert(mem, object, pindex);
 
 	splx(s);
 
@@ -777,7 +777,8 @@ again:
 		m->act_count = 0;
 		m->bmapped = 0;
 		m->busy = 0;
-		vm_page_insert(m, kernel_object, tmp_addr - VM_MIN_KERNEL_ADDRESS);
+		vm_page_insert(m, kernel_object,
+			OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
 		vm_page_wire(m);
 		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
 		tmp_addr += PAGE_SIZE;
@@ -810,8 +811,8 @@ vm_page_free(mem)
 	if (mem->bmapped || mem->busy || flags & (PG_BUSY|PG_FREE)) {
 		if (flags & PG_FREE)
 			panic("vm_page_free: freeing free page");
-		printf("vm_page_free: offset(%ld), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
-		    mem->offset, mem->bmapped, mem->busy, (flags & PG_BUSY) ? 1 : 0);
+		printf("vm_page_free: pindex(%ld), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
+		    mem->pindex, mem->bmapped, mem->busy, (flags & PG_BUSY) ? 1 : 0);
 		panic("vm_page_free: freeing busy page");
 	}
 
