@@ -397,4 +397,5 @@ pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
 pc98/pc98/wfd.c			count		wfd wdc
 pc98/pc98/wst.c			count		wst wdc
+pccard/mecia.c			optional	mecia card
 #pci/ide_pci.c			optional	wdc pci
