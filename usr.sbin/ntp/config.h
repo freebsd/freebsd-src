@@ -453,7 +453,9 @@
 #define HAVE_MKTIME 1
 
 /* Define to 1 if you have the `mlockall' function. */
+#if __FreeBSD_version >= 500102
 #define HAVE_MLOCKALL 1
+#endif
 
 /* Define to 1 if you have the `mrand48' function. */
 #define HAVE_MRAND48 1
