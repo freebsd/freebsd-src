@@ -4,6 +4,6 @@
 PROG=	route6d
 MAN=	route6d.8
 
-CFLAGS+= -DINET6
+CFLAGS+= -DINET6 -DHAVE_POLL_H
 
 .include <bsd.prog.mk>
