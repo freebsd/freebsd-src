@@ -135,15 +135,11 @@ sock_ntop(const struct sockaddr *sa, size_t salen)
 	}
 	case AF_LINK: {
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *) sa;
-		int l = sdl->sdl_nlen ;
 
-		if (l >= sizeof(str) )
-			l = sizeof(str) - 1 ;
-
-		if (l > 0) {
-			strncpy(str, &sdl->sdl_data[0], l);
-			str[l] = '\0';
-		} else
+		if (sdl->sdl_nlen > 0)
+			snprintf(str, sizeof(str), "%*s",
+				 sdl->sdl_nlen, &sdl->sdl_data[0]);
+		else
 			snprintf(str, sizeof(str), "link#%d", sdl->sdl_index);
 		return(str);
 	}
@@ -307,15 +303,16 @@ print_routing(char *proto)
 	    printf("----------------\n");
 	    printf("Name  Mtu   Network       Address            "
 		    "Ipkts Ierrs    Opkts Oerrs  Coll\n");
-	    i=0;
-	    for(next=if_buf;next<lim;next+=ifm->ifm_msglen) {
+	}
+	i=0;
+	for(next=if_buf;next<lim;next+=ifm->ifm_msglen) {
 
 		ifm=(struct if_msghdr *)next;
 		if_table[i]=(struct sockaddr *)(ifm+1);
 		ifm_table[i]=ifm;
 
 		sa = if_table[i];
-		if (sa->sa_family == AF_LINK) {
+		if (iflag && sa->sa_family == AF_LINK) {
 		    struct sockaddr_dl *sdl = (struct sockaddr_dl *) sa;
 
 		    printf("%-4s  %-5d <Link>   ",
@@ -336,7 +333,6 @@ print_routing(char *proto)
 			);
 		}
 		i++;
-	    }
 	}
 	if (!rflag) {
 		free(rt_buf);
