@@ -1313,6 +1313,7 @@ extern char *_tracechar(const unsigned char);
 extern char *_tracechtype(chtype);
 extern char *_tracechtype2(int, chtype);
 extern char *_tracemouse(const MEVENT *);
+#define trace _nc_trace
 extern void trace(const unsigned int);
 
 /* trace masks */
