@@ -27,4 +27,4 @@
  */
 
 /* mount_ufs.c */
-int mount_ifs __P((int, char *const *));
+int mount_ifs(int, char *const *);

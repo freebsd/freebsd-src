@@ -59,7 +59,7 @@ static const char rcsid[] =
 #include "extern.h"
 #include "mntopts.h"
 
-static void ufs_usage __P((void));
+static void ufs_usage(void);
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
