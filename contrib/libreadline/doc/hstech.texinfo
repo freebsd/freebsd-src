@@ -1,7 +1,7 @@
 @ignore
 This file documents the user interface to the GNU History library.
 
-Copyright (C) 1988-2001 Free Software Foundation, Inc.
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
 Authored by Brian Fox and Chet Ramey.
 
 Permission is granted to make and distribute verbatim copies of this manual
@@ -188,8 +188,9 @@ Stifle the history list, remembering only the last @var{max} entries.
 @end deftypefun
 
 @deftypefun int unstifle_history (void)
-Stop stifling the history.  This returns the previous amount the
-history was stifled.  The value is positive if the history was
+Stop stifling the history.  This returns the previously-set
+maximum number of history entries (as set by @code{stifle_history()}).
+The value is positive if the history was
 stifled, negative if it wasn't.
 @end deftypefun
 
@@ -422,7 +423,7 @@ This is disabled by default.
 @end deftypevar
 
 @deftypevar {char *} history_word_delimiters
-The characters that separate tokens for \fBhistory_tokenize()\fP.
+The characters that separate tokens for @code{history_tokenize()}.
 The default value is @code{" \t\n()<>;&|"}.
 @end deftypevar
 

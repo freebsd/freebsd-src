@@ -8,7 +8,7 @@ This document describes the GNU Readline Library, a utility for aiding
 in the consitency of user interface across discrete programs that need
 to provide a command line interface.
 
-Copyright (C) 1988-2001 Free Software Foundation, Inc.
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -111,12 +111,13 @@ function, and has the advantage of no static buffer to overflow:
 /* A static variable for holding the line. */
 static char *line_read = (char *)NULL;
 
-/* Read a string, and return a pointer to it.  Returns NULL on EOF. */
+/* Read a string, and return a pointer to it.
+   Returns NULL on EOF. */
 char *
 rl_gets ()
 @{
-  /* If the buffer has already been allocated, return the memory
-     to the free pool. */
+  /* If the buffer has already been allocated,
+     return the memory to the free pool. */
   if (line_read)
     @{
       free (line_read);
@@ -126,7 +127,8 @@ rl_gets ()
   /* Get a line from the user. */
   line_read = readline ("");
 
-  /* If the line has any text in it, save it on the history. */
+  /* If the line has any text in it,
+     save it on the history. */
   if (line_read && *line_read)
     add_history (line_read);
 
@@ -175,6 +177,16 @@ application writer should include the file @code{<readline/readline.h>}
 in any file that uses Readline's features.  Since some of the definitions
 in @code{readline.h} use the @code{stdio} library, the file
 @code{<stdio.h>} should be included before @code{readline.h}.
+
+@code{readline.h} defines a C preprocessor variable that should
+be treated as an integer, @code{RL_READLINE_VERSION}, which may
+be used to conditionally compile application code depending on
+the installed Readline version.  The value is a hexadecimal
+encoding of the major and minor version numbers of the library,
+of the form 0x@var{MMmm}.  @var{MM} is the two-digit major
+version number; @var{mm} is the two-digit minor version number. 
+For Readline 4.2, for example, the value of
+@code{RL_READLINE_VERSION} would be @code{0x0402}. 
 
 @menu
 * Readline Typedefs::	C declarations to make code readable.
@@ -253,7 +265,7 @@ variables that describe the current state of the line read so far.
 The calling sequence for a command @code{foo} looks like
 
 @example
-@code{foo (int count, int key)}
+@code{int foo (int count, int key)}
 @end example
 
 @noindent
@@ -269,6 +281,9 @@ function uses the numeric argument as a repeat count, it should be able
 to do something useful with both negative and positive arguments.
 At the very least, it should be aware that it can be passed a
 negative argument.
+
+A command function should return 0 if its action completes successfully,
+and a non-zero value if some error occurs.
 
 @node Readline Variables
 @section Readline Variables
@@ -348,6 +363,14 @@ never sets it.
 The version number of this revision of the library.
 @end deftypevar
 
+@deftypevar int rl_readline_version
+An integer encoding the current version of the library.  The encoding is
+of the form 0x@var{MMmm}, where @var{MM} is the two-digit major version
+number, and @var{mm} is the two-digit minor version number.
+For example, for Readline-4.2, @code{rl_readline_version} would have the
+value 0x0402.
+@end deftypevar
+
 @deftypevar {int} rl_gnu_readline_p
 Always set to 1, denoting that this is @sc{gnu} readline rather than some
 emulation.
@@ -367,10 +390,12 @@ The value allows conditional parsing of the inputrc file
 
 @deftypevar {FILE *} rl_instream
 The stdio stream from which Readline reads input.
+If @code{NULL}, Readline defaults to @var{stdin}.
 @end deftypevar
 
 @deftypevar {FILE *} rl_outstream
 The stdio stream to which Readline performs output.
+If @code{NULL}, Readline defaults to @var{stdout}.
 @end deftypevar
 
 @deftypevar {rl_command_func_t *} rl_last_func
@@ -748,9 +773,9 @@ This is done with @code{rl_begin_undo_group()} and
 
 The types of events that can be undone are:
 
-@example
+@smallexample
 enum undo_code @{ UNDO_DELETE, UNDO_INSERT, UNDO_BEGIN, UNDO_END @}; 
-@end example
+@end smallexample
 
 Notice that @code{UNDO_DELETE} means to insert some text, and
 @code{UNDO_INSERT} means to delete some text.  That is, the undo code
@@ -883,10 +908,12 @@ to the result.
 
 @deftypefun int rl_insert_text (const char *text)
 Insert @var{text} into the line at the current cursor position.
+Returns the number of characters inserted.
 @end deftypefun
 
 @deftypefun int rl_delete_text (int start, int end)
 Delete the text between @var{start} and @var{end} in the current line.
+Returns the number of characters deleted.
 @end deftypefun
 
 @deftypefun {char *} rl_copy_text (int start, int end)
@@ -929,7 +956,9 @@ be the keyboard.
 @deftypefun int rl_stuff_char (int c)
 Insert @var{c} into the Readline input stream.  It will be "read"
 before Readline attempts to read characters from the terminal with
-@code{rl_read_key()}.
+@code{rl_read_key()}.  Up to 512 characters may be pushed back.
+@code{rl_stuff_char} returns 1 if the character was successfully inserted;
+0 otherwise.
 @end deftypefun
 
 @deftypefun int rl_execute_next (int c)
@@ -981,6 +1010,13 @@ environment variable is used.
 
 @node Utility Functions
 @subsection Utility Functions
+
+@deftypefun void rl_replace_line (const char *text, int clear_undo)
+Replace the contents of @code{rl_line_buffer} with @var{text}.
+The point and mark are preserved, if possible.
+If @var{clear_undo} is non-zero, the undo list associated with the
+current line is cleared.
+@end deftypefun
 
 @deftypefun int rl_extend_line_buffer (int len)
 Ensure that @code{rl_line_buffer} has enough space to hold @var{len}
@@ -1076,6 +1112,15 @@ Set the time interval (in microseconds) that Readline waits when showing
 a balancing character when @code{blink-matching-paren} has been enabled.
 @end deftypefun
 
+@deftypefun {char *} rl_get_termcap (const char *cap)
+Retrieve the string value of the termcap capability @var{cap}.
+Readline fetches the termcap entry for the current terminal name and
+uses those capabilities to move around the screen line and perform other
+terminal-specific operations, like erasing a line.  Readline does not
+use all of a terminal's capabilities, and this function will return
+values for only those capabilities Readline uses.
+@end deftypefun
+
 @node Alternate Interface
 @subsection Alternate Interface
 
@@ -1096,16 +1141,26 @@ The function takes the text of the line as an argument.
 @deftypefun void rl_callback_read_char (void)
 Whenever an application determines that keyboard input is available, it
 should call @code{rl_callback_read_char()}, which will read the next
-character from the current input source.  If that character completes the
-line, @code{rl_callback_read_char} will invoke the @var{lhandler}
-function saved by @code{rl_callback_handler_install} to process the
-line.  @code{EOF} is  indicated by calling @var{lhandler} with a
+character from the current input source.
+If that character completes the line, @code{rl_callback_read_char} will
+invoke the @var{lhandler} function saved by @code{rl_callback_handler_install}
+to process the line.
+Before calling the @var{lhandler} function, the terminal settings are
+reset to the values they had before calling
+@code{rl_callback_handler_install}.
+If the @var{lhandler} function returns,
+the terminal settings are modified for Readline's use again.
+@code{EOF} is  indicated by calling @var{lhandler} with a
 @code{NULL} line.
 @end deftypefun
 
 @deftypefun void rl_callback_handler_remove (void)
 Restore the terminal to its initial state and remove the line handler.
 This may be called from within a callback as well as independently.
+If the @var{lhandler} installed by @code{rl_callback_handler_install}
+does not exit the program, either this function or the function referred
+to by the value of @code{rl_deprep_term_function} should be called before
+the program exits to reset the terminal settings.
 @end deftypefun
 
 @node A Readline Example
@@ -1158,8 +1213,8 @@ invert_case_line (count, key)
       end = temp;
     @}
 
-  /* Tell readline that we are modifying the line, so it will save
-     the undo information. */
+  /* Tell readline that we are modifying the line,
+     so it will save the undo information. */
   rl_modifying (start, end);
 
   for (i = start; i != end; i++)
@@ -1415,6 +1470,14 @@ partially-completed word.  See description of @code{rl_complete()}.
 This calls @code{rl_complete_internal()} with an argument of @samp{*}.
 @end deftypefun
 
+@deftypefun int rl_completion_mode (rl_command_func_t *cfunc)
+Returns the apppriate value to pass to @code{rl_complete_internal()}
+depending on whether @var{cfunc} was called twice in succession and
+the value of the @code{show-all-if-ambiguous} variable.
+Application-specific completion functions may use this function to present
+the same interface as @code{rl_complete()}.
+@end deftypefun
+
 @deftypefun {char **} rl_completion_matches (const char *text, rl_compentry_func_t *entry_func)
 Returns an array of strings which is a list of completions for
 @var{text}.  If there are no completions, returns @code{NULL}.
@@ -1501,10 +1564,41 @@ character found in @code{rl_completer_word_break_characters} should be
 used to break words for the completer.
 @end deftypevar
 
-@deftypevar int rl_completion_query_items
-Up to this many items will be displayed in response to a
-possible-completions call.  After that, we ask the user if she is sure
-she wants to see them all.  The default value is 100.
+@deftypevar {rl_compignore_func_t *} rl_ignore_some_completions_function
+This function, if defined, is called by the completer when real filename
+completion is done, after all the matching names have been generated.
+It is passed a @code{NULL} terminated array of matches.
+The first element (@code{matches[0]}) is the
+maximal substring common to all matches. This function can
+re-arrange the list of matches as required, but each element deleted
+from the array must be freed.
+@end deftypevar
+
+@deftypevar {rl_icppfunc_t *} rl_directory_completion_hook
+This function, if defined, is allowed to modify the directory portion
+of filenames Readline completes.  It is called with the address of a
+string (the current directory name) as an argument, and may modify that string.
+If the string is replaced with a new string, the old value should be freed.
+Any modified directory name should have a trailing slash.
+The modified value will be displayed as part of the completion, replacing
+the directory portion of the pathname the user typed.
+It returns an integer that should be non-zero if the function modifies
+its directory argument.
+It could be used to expand symbolic links or shell variables in pathnames.
+@end deftypevar
+
+@deftypevar {rl_compdisp_func_t *} rl_completion_display_matches_hook
+If non-zero, then this is the address of a function to call when
+completing a word would normally display the list of possible matches.
+This function is called in lieu of Readline displaying the list.
+It takes three arguments:
+(@code{char **}@var{matches}, @code{int} @var{num_matches}, @code{int} @var{max_length})
+where @var{matches} is the array of matching strings,
+@var{num_matches} is the number of strings in that array, and
+@var{max_length} is the length of the longest string in that array.
+Readline provides a convenience function, @code{rl_display_match_list},
+that takes care of doing the display to Readline's output stream.  That
+function may be called from this hook.
 @end deftypevar
 
 @deftypevar {const char *} rl_basic_word_break_characters
@@ -1544,6 +1638,12 @@ For instance, Bash sets this variable to "$@@" so that it can complete
 shell variables and hostnames.
 @end deftypevar
 
+@deftypevar int rl_completion_query_items
+Up to this many items will be displayed in response to a
+possible-completions call.  After that, we ask the user if she is sure
+she wants to see them all.  The default value is 100.
+@end deftypevar
+
 @deftypevar {int} rl_completion_append_character
 When a single completion alternative matches at the end of the command
 line, this character is appended to the inserted completion text.  The
@@ -1552,6 +1652,24 @@ character (@samp{\0}) prevents anything being appended automatically.
 This can be changed in custom completion functions to
 provide the ``most sensible word separator character'' according to
 an application-specific command line syntax specification.
+@end deftypevar
+
+@deftypevar int rl_completion_suppress_append
+If non-zero, @var{rl_completion_append_character} is not appended to
+matches at the end of the command line, as described above.  It is
+set to 0 before any application-specific completion function is called.
+@end deftypevar
+
+@deftypevar int rl_completion_mark_symlink_dirs
+If non-zero, a slash will be appended to completed filenames that are
+symbolic links to directory names, subject to the value of the
+user-settable @var{mark-directories} variable.
+This variable exists so that application completion functions can
+override the user's global preference (set via the
+@var{mark-symlinked-directories} Readline variable) if appropriate.
+This variable is set to the user's preference before any
+application completion function is called, so unless that function
+modifies the value, the user's preferences are honored.
 @end deftypevar
 
 @deftypevar int rl_ignore_completion_duplicates
@@ -1596,43 +1714,6 @@ attempting; see the description of @code{rl_complete_internal()}
 @deftypevar int rl_inhibit_completion
 If this variable is non-zero, completion is inhibited.  The completion
 character will be inserted as any other bound to @code{self-insert}.
-@end deftypevar
-
-@deftypevar {rl_compignore_func_t *} rl_ignore_some_completions_function
-This function, if defined, is called by the completer when real filename
-completion is done, after all the matching names have been generated.
-It is passed a @code{NULL} terminated array of matches.
-The first element (@code{matches[0]}) is the
-maximal substring common to all matches. This function can
-re-arrange the list of matches as required, but each element deleted
-from the array must be freed.
-@end deftypevar
-
-@deftypevar {rl_icppfunc_t *} rl_directory_completion_hook
-This function, if defined, is allowed to modify the directory portion
-of filenames Readline completes.  It is called with the address of a
-string (the current directory name) as an argument, and may modify that string.
-If the string is replaced with a new string, the old value should be freed.
-Any modified directory name should have a trailing slash.
-The modified value will be displayed as part of the completion, replacing
-the directory portion of the pathname the user typed.
-It returns an integer that should be non-zero if the function modifies
-its directory argument.
-It could be used to expand symbolic links or shell variables in pathnames.
-@end deftypevar
-
-@deftypevar {rl_compdisp_func_t *} rl_completion_display_matches_hook
-If non-zero, then this is the address of a function to call when
-completing a word would normally display the list of possible matches.
-This function is called in lieu of Readline displaying the list.
-It takes three arguments:
-(@code{char **}@var{matches}, @code{int} @var{num_matches}, @code{int} @var{max_length})
-where @var{matches} is the array of matching strings,
-@var{num_matches} is the number of strings in that array, and
-@var{max_length} is the length of the longest string in that array.
-Readline provides a convenience function, @code{rl_display_match_list},
-that takes care of doing the display to Readline's output stream.  That
-function may be called from this hook.
 @end deftypevar
 
 @node A Short Completion Example
@@ -2062,12 +2143,13 @@ too_dangerous (caller)
      char *caller;
 @{
   fprintf (stderr,
-           "%s: Too dangerous for me to distribute.  Write it yourself.\n",
+           "%s: Too dangerous for me to distribute.\n"
            caller);
+  fprintf (stderr, "Write it yourself.\n");
 @}
 
-/* Return non-zero if ARG is a valid argument for CALLER, else print
-   an error message and return zero. */
+/* Return non-zero if ARG is a valid argument for CALLER,
+   else print an error message and return zero. */
 int
 valid_argument (caller, arg)
      char *caller, *arg;
