@@ -35,7 +35,7 @@
  * $FreeBSD$
  */
 
-#define	PCIC_I82365	0		/* Intel chip */
+#define	PCIC_I82365	0		/* Intel i82365SL-A/B or clone */
 #define	PCIC_IBM	1		/* IBM clone */
 #define	PCIC_VLSI	2		/* VLSI chip */
 #define	PCIC_PD672X	3		/* Cirrus logic 672x */
@@ -46,9 +46,7 @@
 #define	PCIC_VG469	8		/* Vadem 469 */
 #define	PCIC_RF5C396	9		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	10		/* IBM KING PCMCIA Controller */
-#define	PCIC_PC98	11		/* NEC PC98 PCMCIA Controller */
-/* These last ones aren't in normal freebsd */
-#define	PCIC_TI1130	12		/* TI PCI1130 CardBus */
+#define PCIC_I82365SL_DF 11		/* Intel i82365sl-DF step */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -103,6 +101,7 @@
 /* For Identification and Revision (PCIC_ID_REV) */
 #define PCIC_INTEL0	0x82	/* Intel 82365SL Rev. 0; Both Memory and I/O */
 #define PCIC_INTEL1	0x83	/* Intel 82365SL Rev. 1; Both Memory and I/O */
+#define PCIC_INTEL2	0x84	/* Intel 82365SL step D */
 #define PCIC_VLSI82C146	0x84	/* VLSI 82C146 */
 #define PCIC_IBM1	0x88	/* IBM PCIC clone; Both Memory and I/O */
 #define PCIC_IBM2	0x89	/* IBM PCIC clone; Both Memory and I/O */
