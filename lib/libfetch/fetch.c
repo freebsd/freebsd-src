@@ -294,7 +294,7 @@ fetchMakeURL(char *scheme, char *host, int port, char *doc,
 struct url *
 fetchParseURL(char *URL)
 {
-    char *p, *q;
+    char *doc, *p, *q;
     struct url *u;
     int i;
 
@@ -367,15 +367,16 @@ nohost:
     if (!*p)
 	p = "/";
     
-    if (strcmp(u->scheme, "http") == 0 || strcmp(u->scheme, "https") == 0) {
+    if (strcasecmp(u->scheme, SCHEME_HTTP) == 0 ||
+	strcasecmp(u->scheme, SCHEME_HTTPS) == 0) {
 	const char hexnums[] = "0123456789abcdef";
-	char *doc;
 
-	/* Perform %hh encoding of white space. */
-	if ((doc = u->doc = malloc(strlen(p) * 3 + 1)) == NULL) {
+	/* percent-escape whitespace. */
+	if ((doc = malloc(strlen(p) * 3 + 1)) == NULL) {
 	    _fetch_syserr();
 	    goto ouch;
 	}
+	u->doc = doc;
 	while (*p != '\0') {
 	    if (!isspace(*p)) {
 		*doc++ = *p++;
