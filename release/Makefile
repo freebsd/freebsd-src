@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.279 1997/03/06 07:51:40 joerg Exp $
+#	$Id$
 #
 # How to roll a release:
 #
@@ -134,8 +134,17 @@ rerelease release:
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
+	# This eases bootstrapping from a more recent hosting environment:
+	echo "mkdir -p /usr/lib/compat"		>> ${CHROOTDIR}/mk
+	echo "chflags noschg /usr/lib/lib*.so.*" >> ${CHROOTDIR}/mk
+	echo "mv /usr/lib/lib*.so.* /usr/lib/compat" >> ${CHROOTDIR}/mk
+	echo "ldconfig /usr/lib /usr/lib/compat" >> ${CHROOTDIR}/mk
 	echo "make world"			>> ${CHROOTDIR}/mk
 	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
+	# Now we've got our own shared libs, remove the bootstrapping
+	# libs again.
+	echo "rm -f /usr/lib/compat/*"		>> ${CHROOTDIR}/mk
+	echo "ldconfig /usr/lib"		>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
