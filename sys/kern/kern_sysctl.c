@@ -155,10 +155,9 @@ sysctl_order_all(void)
  *
  * {0,0}	printf the entire MIB-tree.
  * {0,1,...}	return the name of the "..." OID.
- * {0,2}	return the next OID.
+ * {0,2,...}	return the next OID.
  * {0,3}	return the OID of the name in "new"
  * {0,4,...}	return the kind & format info for the "..." OID.
- * {0,5,...}	return the description for the "..." OID.
  */
 
 static void
@@ -490,52 +489,8 @@ found:
 	return (error);
 }
 
+
 SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD, sysctl_sysctl_oidfmt, "");
-
-static int
-sysctl_sysctl_descr SYSCTL_HANDLER_ARGS
-{
-#ifndef NO_SYSCTL_DESCRIPTIONS
-	int *name = (int *) arg1;
-	u_int namelen = arg2;
-	int i, j, error = 0;
-	struct sysctl_oid **oidpp;
-	struct linker_set *lsp = &sysctl_;
-
-	if (!lsp || !namelen)
-		return (SYSCTL_OUT(req, "", 1));
-	
-	while (namelen) {
-		oidpp = (struct sysctl_oid **) lsp->ls_items;
-		j = lsp->ls_length;
-		lsp = 0;
-		for (i = 0; i < j; i++, oidpp++) {
-			if (*oidpp && ((*oidpp)->oid_number != *name))
-				continue;
-
-			namelen--;
-			name++;
-
-			if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
-				break;
-
-			if ((*oidpp)->oid_handler)
-				break;
-
-			lsp = (struct linker_set*)(*oidpp)->oid_arg1;
-			break;
-		}
-	}
-	
-	error = SYSCTL_OUT(req, (*oidpp)->oid_descr,
-			   strlen((*oidpp)->oid_descr) + 1);
-	return (error);
-#else
-	return (SYSCTL_OUT(req, "", 1));
-#endif /* !NO_SYSCTL_DESCRIPTIONS */
-}
-
-SYSCTL_NODE(_sysctl, 5, descr, CTLFLAG_RD, sysctl_sysctl_descr, "");
 
 /*
  * Default "handler" functions.
