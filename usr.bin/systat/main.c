@@ -38,11 +38,16 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 
+#include <err.h>
 #include <locale.h>
 #include <nlist.h>
 #include <signal.h>
@@ -91,16 +96,10 @@ main(argc, argv)
 			struct cmdtab *p;
 
 			p = lookup(&argv[0][1]);
-			if (p == (struct cmdtab *)-1) {
-				fprintf(stderr, "%s: ambiguous request\n",
-				    &argv[0][1]);
-				exit(1);
-			}
-			if (p == (struct cmdtab *)0) {
-				fprintf(stderr, "%s: unknown request\n",
-				    &argv[0][1]);
-				exit(1);
-			}
+			if (p == (struct cmdtab *)-1)
+				errx(1, "%s: ambiguous request", &argv[0][1]);
+			if (p == (struct cmdtab *)0)
+				errx(1, "%s: unknown request", &argv[0][1]);
 			curcmd = p;
 		} else {
 			naptime = atoi(argv[0]);
@@ -128,22 +127,20 @@ main(argc, argv)
 	CMDLINE = LINES - 1;
 	wnd = (*curcmd->c_open)();
 	if (wnd == NULL) {
-		fprintf(stderr, "Couldn't initialize display.\n");
+		warnx("couldn't initialize display");
 		die(0);
 	}
 	wload = newwin(1, 0, 3, 20);
 	if (wload == NULL) {
-		fprintf(stderr, "Couldn't set up load average window.\n");
+		warnx("couldn't set up load average window");
 		die(0);
 	}
 	if (kvm_nlist(kd, namelist)) {
 		nlisterr(namelist);
 		exit(1);
 	}
-	if (namelist[X_FIRST].n_type == 0) {
-		fprintf(stderr, "couldn't read namelist.\n");
-		exit(1);
-	}
+	if (namelist[X_FIRST].n_type == 0)
+		errx(1, "couldn't read namelist");
 	gethostname(hostname, sizeof (hostname));
 	NREAD(X_HZ, &hz, LONG);
 	NREAD(X_STATHZ, &stathz, LONG);
