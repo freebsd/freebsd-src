@@ -106,7 +106,7 @@ svr4_to_native_rl(rl)
 	case SVR4_RLIMIT_NOFILE:
 		return RLIMIT_NOFILE;
 	case SVR4_RLIMIT_VMEM:
-		return RLIMIT_RSS;
+		return RLIMIT_VMEM;
 	default:
 		return -1;
 	}
