@@ -63,8 +63,8 @@ gerr(s)
 void
 gprint(tp, wp, ldisc)
 	struct termios *tp;
-	struct winsize *wp;
-	int ldisc;
+	struct winsize *wp __unused;
+	int ldisc __unused;
 {
 	struct cchar *cp;
 
