@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -79,12 +80,6 @@ __FBSDID("$FreeBSD$");
 #define CX_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
 
-#define UNIT(d)		(minor(d) & 0x3f)
-#define IF_CUNIT(d)	(minor(d) & 0x40)
-#define UNIT_CTL	0x3f
-#define CALLOUT(d)	(minor(d) & 0x80)
-#define CDEV_MAJOR	42
-
 typedef struct _async_q {
 	int beg;
 	int end;
@@ -102,6 +97,9 @@ static void cx_identify		__P((driver_t *, device_t));
 static int cx_probe		__P((device_t));
 static int cx_attach		__P((device_t));
 static int cx_detach		__P((device_t));
+static t_open_t			cx_topen;
+static t_modem_t		cx_tmodem;
+static t_close_t		cx_tclose;
 
 static device_method_t cx_isa_methods [] = {
 	DEVMETHOD(device_identify,	cx_identify),
@@ -143,7 +141,7 @@ typedef struct _drv_t {
 #else
 	struct sppp pp;
 #endif
-	struct cdev *devt[3];
+	struct cdev *devt;
 	async_q aqueue;
 #define CX_READ 1
 #define CX_WRITE 2
@@ -733,8 +731,6 @@ static int cx_attach (device_t dev)
 	printf ("cx%d: <Cronyx-Sigma-%s>\n", b->num, b->name);
 
 	for (c=b->chan; c<b->chan+NCHAN; ++c) {
-		char *dnmt="tty %x";
-		char *dnmc="cua %x";
 		if (c->type == T_NONE)
 			continue;
 		d = &bd->channel[c->num];
@@ -798,16 +794,23 @@ static int cx_attach (device_t dev)
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
 #endif /*NETGRAPH*/
 		}
+		d->tty = ttyalloc ();
+		d->tty->t_open = cx_topen;
+		d->tty->t_close = cx_tclose;
+		d->tty->t_param = cx_param;
+		d->tty->t_stop  = cx_stop;
+		d->tty->t_modem  = cx_tmodem;
+		d->tty->t_sc = d;
 		cx_start_chan (c, d->dmamem.virt, d->dmamem.phys);
 		cx_register_receive (c, &cx_receive);
 		cx_register_transmit (c, &cx_transmit);
 		cx_register_error (c, &cx_error);
 		cx_register_modem (c, &cx_modem);
-		dnmt[3] = 'x'+b->num;
-		dnmc[3] = 'x'+b->num;
-		d->devt[0] = make_dev (&cx_cdevsw, b->num*NCHAN + c->num, UID_ROOT, GID_WHEEL, 0644, dnmt, b->num*NCHAN + c->num);
-		d->devt[1] = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
-		d->devt[2] = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 128, UID_ROOT, GID_WHEEL, 0660, dnmc, b->num*NCHAN + c->num);
+
+		ttycreate(d->tty, NULL, 0, MINOR_CALLOUT,
+		    "x%r%r", b->num, c->num);
+		d->devt = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
+		d->devt->si_drv1 = d;
 	}
 	splx (s);
 
@@ -875,7 +878,7 @@ static int cx_detach (device_t dev)
 			continue;
 			
 		if (d->tty) {
-			ttyrel (d->tty);
+			ttyfree (d->tty);
 			d->tty = NULL;
 		}
 
@@ -895,9 +898,7 @@ static int cx_detach (device_t dev)
 
 		if_detach (&d->pp.pp_if);
 #endif		
-		destroy_dev (d->devt[0]);
-		destroy_dev (d->devt[1]);
-		destroy_dev (d->devt[2]);
+		destroy_dev (d->devt);
 	}
 
 	cx_led_off (b);
@@ -1346,217 +1347,92 @@ static void cx_error (cx_chan_t *c, int data)
 	}
 }
 
+static int cx_topen (struct tty *tp, struct cdev *dev)
+{
+	drv_t *d;
+
+	d = tp->t_sc;
+	if (d->chan->mode != M_ASYNC)
+		return (EBUSY);
+	d->open_dev |= 0x2;
+	cx_start_chan (d->chan, 0, 0);
+	cx_set_dtr (d->chan, 1);
+	cx_set_rts (d->chan, 1);
+	d->cd = cx_get_cd (d->chan);
+	return (0);
+}
+
+static void cx_tclose (struct tty *tp)
+{
+	drv_t *d;
+
+	d = tp->t_sc;
+	/* Disable receiver.
+	 * Transmitter continues sending the queued data. */
+	cx_enable_receive (d->chan, 0);
+	d->open_dev &= ~0x2;
+}
+
+static int cx_tmodem (struct tty *tp, int sigon, int sigoff)
+{
+	drv_t *d;
+
+	d = tp->t_sc;
+
+	if (!sigon && !sigoff) {
+		if (cx_get_dsr (d->chan)) sigon |= SER_DSR;
+		if (cx_get_cd  (d->chan)) sigon |= SER_DCD;
+		if (cx_get_cts (d->chan)) sigon |= SER_CTS;
+		if (d->chan->dtr)	  sigon |= SER_DTR;
+		if (d->chan->rts)	  sigon |= SER_RTS;
+		return sigon;
+	}
+
+	if (sigon & SER_DTR)
+		cx_set_dtr (d->chan, 1);
+	if (sigoff & SER_DTR)
+		cx_set_dtr (d->chan, 0);
+	if (sigon & SER_RTS)
+		cx_set_rts (d->chan, 1);
+	if (sigoff & SER_RTS)
+		cx_set_rts (d->chan, 0);
+	return (0);
+}
+
 static int cx_open (struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	int unit = UNIT (dev);
+	int unit;
 	drv_t *d;
-	int error;
 
-	if (unit >= NCX*NCHAN || ! (d = channel[unit]))
-		return ENXIO;
+	d = dev->si_drv1;
+	unit = d->chan->num;
 	CX_DEBUG2 (d, ("cx_open unit=%d, flag=0x%x, mode=0x%x\n",
 		    unit, flag, mode));
 
-	if (d->chan->mode != M_ASYNC || IF_CUNIT(dev)) {
-		d->open_dev |= 0x1;
-		return 0;
-	}
-	if (!d->tty) {
-		d->tty = ttymalloc (d->tty);
-		d->tty->t_oproc = cx_oproc;
-		d->tty->t_param = cx_param;
-		d->tty->t_stop  = cx_stop;
-	}
-	dev->si_tty = d->tty;
-	d->tty->t_dev = dev;
-again:
-	error = ttydtrwaitsleep(d->tty);
-	if (error)
-		return error;
-
-	if ((d->tty->t_state & TS_ISOPEN) && (d->tty->t_state & TS_XCLUDE) &&
-		suser (td))
-		return EBUSY;
-
-	if (d->tty->t_state & TS_ISOPEN) {
-		/*
-		 * Cannot open /dev/cua if /dev/tty already opened.
-		 */
-		if (CALLOUT (dev) && ! d->callout)
-			return EBUSY;
-
-		/*
-		 * Opening /dev/tty when /dev/cua is already opened.
-		 * Wait for close, then try again.
-		 */
-		if (! CALLOUT (dev) && d->callout) {
-			if (flag & O_NONBLOCK)
-				return EBUSY;
-			error = tsleep (d, TTIPRI | PCATCH, "cxbi", 0);
-			if (error)
-				return error;
-			goto again;
-		}
-	} else if (d->lock && ! CALLOUT (dev) && (flag & O_NONBLOCK))
-		/*
-		 * We try to open /dev/tty in non-blocking mode
-		 * while somebody is already waiting for carrier on it.
-		 */
-		return EBUSY;
-	else {
-		ttychars (d->tty);
-		if (d->tty->t_ispeed == 0) {
-			d->tty->t_iflag = 0;
-			d->tty->t_oflag = 0;
-			d->tty->t_lflag = 0;
-			d->tty->t_cflag = CREAD | CS8 | HUPCL;
-			d->tty->t_ispeed = d->chan->rxbaud;
-			d->tty->t_ospeed = d->chan->txbaud;
-		}
-		if (CALLOUT (dev))
-			d->tty->t_cflag |= CLOCAL;
-		else
-			d->tty->t_cflag &= ~CLOCAL;
-		cx_param (d->tty, &d->tty->t_termios);
-		ttsetwater (d->tty);
-	}
-
-	splhigh ();
-	if (! (d->tty->t_state & TS_ISOPEN)) {
-		cx_start_chan (d->chan, 0, 0);
-		cx_set_dtr (d->chan, 1);
-		cx_set_rts (d->chan, 1);
-		d->cd = cx_get_cd (d->chan);
-		if (CALLOUT (dev) || cx_get_cd (d->chan))
-			ttyld_modem(d->tty, 1);
-	}
-
-	if (! (flag & O_NONBLOCK) && ! (d->tty->t_cflag & CLOCAL) &&
-	    ! (d->tty->t_state & TS_CARR_ON)) {
-		/* Lock the channel against cxconfig while we are
-		 * waiting for carrier. */
-		d->lock++;
-		error = tsleep (&d->tty->t_rawq, TTIPRI | PCATCH, "cxdcd", 0);
-		/* Unlock the channel. */
-		d->lock--;
-		spl0 ();
-		if (error)
-			goto failed;
-		goto again;
-	}
-
-	error = ttyld_open (d->tty, dev);
-	ttyldoptim (d->tty);
-	spl0 ();
-	if (error) {
-failed:		if (! (d->tty->t_state & TS_ISOPEN)) {
-			splhigh ();
-			cx_set_dtr (d->chan, 0);
-			cx_set_rts (d->chan, 0);
-			ttydtrwaitstart(d->tty);
-			spl0 ();
-		}
-		return error;
-	}
-
-	if (d->tty->t_state & TS_ISOPEN)
-		d->callout = CALLOUT (dev) ? 1 : 0;
-
-	d->open_dev |= 0x2;
-	CX_DEBUG2 (d, ("cx_open done\n"));
+	d->open_dev |= 0x1;
 	return 0;
 }
 
 static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	drv_t *d = channel [UNIT (dev)];
-	int s;
+	drv_t *d;
 
+	d = dev->si_drv1;
 	CX_DEBUG2 (d, ("cx_close\n"));
-	if ((!(d->open_dev&0x2)) || IF_CUNIT(dev)){
-		d->open_dev &= ~0x1;
-		return 0;
-	}
-	s = splhigh ();
-	ttyld_close(d->tty, flag);
-	ttyldoptim (d->tty);
-
-	/* Disable receiver.
-	 * Transmitter continues sending the queued data. */
-	cx_enable_receive (d->chan, 0);
-
-	/* Clear DTR and RTS. */
-	if ((d->tty->t_cflag & HUPCL) || ! (d->tty->t_state & TS_ISOPEN)) {
-		cx_set_dtr (d->chan, 0);
-		cx_set_rts (d->chan, 0);
-		ttydtrwaitstart(d->tty);
-	}
-	tty_close (d->tty);
-	splx (s);
-	d->callout = 0;
-
-	/*
-	 * Wake up bidirectional opens.
-	 * Since we may be opened twice we couldn't call ttyrel() here.
-	 * So just keep d->tty for future use. It would be freed by
-	 * ttyrel() at cx_detach().
-	 */
-	
-	wakeup (d);
-	d->open_dev &= ~0x2;
-
+	d->open_dev &= ~0x1;
 	return 0;
-}
-
-static int cx_read (struct cdev *dev, struct uio *uio, int flag)
-{
-	drv_t *d = channel [UNIT (dev)];
-
-	if (d)	CX_DEBUG2 (d, ("cx_read\n"));
-	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev) || !d->tty)
-		return EBADF;
-
-	return ttyld_read (d->tty, uio, flag);
-}
-
-static int cx_write (struct cdev *dev, struct uio *uio, int flag)
-{
-	drv_t *d = channel [UNIT (dev)];
-
-	if (d) CX_DEBUG2 (d, ("cx_write\n"));
-	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev) || !d->tty)
-		return EBADF;
-
-	return ttyld_write (d->tty, uio, flag);
-}
-
-static int cx_modem_status (drv_t *d)
-{
-	int status = 0, s = splhigh ();
-	/* Already opened by someone or network interface is up? */
-	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
-	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
-		status = TIOCM_LE;	/* always enabled while open */
-
-	if (cx_get_dsr (d->chan)) status |= TIOCM_DSR;
-	if (cx_get_cd  (d->chan)) status |= TIOCM_CD;
-	if (cx_get_cts (d->chan)) status |= TIOCM_CTS;
-	if (d->chan->dtr)	  status |= TIOCM_DTR;
-	if (d->chan->rts)	  status |= TIOCM_RTS;
-	splx (s);
-	return status;
 }
 
 static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	drv_t *d = channel [UNIT (dev)];
+	drv_t *d;
 	cx_chan_t *c;
 	struct serial_statistics *st;
 	int error, s;
 	char mask[16];
 
-	if (!d || !(c = d->chan))
-		return EINVAL;
+	d = dev->si_drv1;
+	c = d->chan;
 		
 	switch (cmd) {
 	case SERIAL_GETREGISTERED:
@@ -1842,72 +1718,6 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 	}
 
-	if (c->mode == M_ASYNC && !IF_CUNIT(dev) && d->tty) {
-		error = ttyioctl (dev, cmd, data, flag, td);
-		ttyldoptim (d->tty);
-		if (error != ENOTTY) {
-			if (error)
-			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
-			return error;
-		}
-	}
-
-	switch (cmd) {
-	case TIOCSBRK:	/* Start sending line break */
-	        CX_DEBUG2 (d, ("ioctl: tiocsbrk\n"));
-		s = splhigh ();
-		cx_send_break (c, 500);
-		splx (s);
-	        return 0;
-
-	case TIOCCBRK:	/* Stop sending line break */
-		CX_DEBUG2 (d, ("ioctl: tioccbrk\n"));
-		return 0;
-
-	case TIOCSDTR:	/* Set DTR */
-		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
-		s = splhigh ();
-		cx_set_dtr (c, 1);
-		splx (s);
-		return 0;
-
-	case TIOCCDTR:	/* Clear DTR */
-		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
-		s = splhigh ();
-		cx_set_dtr (c, 0);
-		splx (s);
-		return 0;
-
-	case TIOCMSET:	/* Set DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
-		s = splhigh ();
-		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
-		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
-		splx (s);
-		return 0;
-
-	case TIOCMBIS:	/* Add DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
-		s = splhigh ();
-		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
-		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
-		splx (s);
-		return 0;
-
-	case TIOCMBIC:	/* Clear DTR/RTS */
-		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
-		s = splhigh ();
-		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
-		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
-		splx (s);
-		return 0;
-
-	case TIOCMGET:	/* Get modem status */
-		CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
-		*(int*)data = cx_modem_status (d);
-		return 0;
-
-	}
 	CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
 	return ENOTTY;
 }
@@ -1985,16 +1795,15 @@ void cx_softintr (void *unused)
  */
 static void cx_oproc (struct tty *tp)
 {
-	int s = splhigh (), k;
-	drv_t *d = channel [UNIT (tp->t_dev)];
+	int s, k;
+	drv_t *d;
 	static u_char buf[DMABUFSZ];
 	u_char *p;
 	u_short len = 0, sublen = 0;
 
-	if (!d) {
-		splx (s);
-		return;
-	}
+	s = splhigh();
+
+	d = tp->t_sc;
 		
 	CX_DEBUG2 (d, ("cx_oproc\n"));
 	if (tp->t_cflag & CRTSCTS && (tp->t_state & TS_TBLOCK) && d->chan->rts)
@@ -2049,11 +1858,10 @@ static void cx_oproc (struct tty *tp)
 
 static int cx_param (struct tty *tp, struct termios *t)
 {
-	drv_t *d = channel [UNIT (tp->t_dev)];
+	drv_t *d;
 	int s, bits, parity;
 
-	if (!d)
-		return EINVAL;
+	d = tp->t_sc;
 		
 	s = splhigh ();
 	if (t->c_ospeed == 0) {
@@ -2109,12 +1917,10 @@ static int cx_param (struct tty *tp, struct termios *t)
  */
 static void cx_stop (struct tty *tp, int flag)
 {
-	drv_t *d = channel [UNIT (tp->t_dev)];
+	drv_t *d;
 	int s;
 
-	if (!d)
-		return;
-		
+	d = tp->t_sc;
 	s = splhigh ();
 
 	if (tp->t_state & TS_BUSY) {
@@ -2173,11 +1979,8 @@ static struct cdevsw cx_cdevsw = {
 	.d_version  = D_VERSION,
 	.d_open     = cx_open,
 	.d_close    = cx_close,
-	.d_read     = cx_read,
-	.d_write    = cx_write,
 	.d_ioctl    = cx_ioctl,
 	.d_name     = "cx",
-	.d_maj      = CDEV_MAJOR,
 	.d_flags    = D_TTY | D_NEEDGIANT,
 };
 
