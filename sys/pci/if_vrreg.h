@@ -81,6 +81,10 @@
 #define VR_CRC_CNT		0x7E
 #define VR_STICKHW		0x83
 
+/* Misc Registers */
+#define VR_MISC_CR1		0x81
+#define VR_MISCCR1_FORSRST	0x40
+
 /*
  * RX config bits.
  */
@@ -459,6 +463,7 @@ struct vr_softc {
 	struct vr_type		*vr_info;	/* Rhine adapter info */
 	u_int8_t		vr_unit;	/* interface number */
 	u_int8_t		vr_type;
+	u_int8_t		vr_revid;	/* Rhine chip revision */
 	struct vr_list_data	*vr_ldata;
 	struct vr_chain_data	vr_cdata;
 	struct callout_handle	vr_stat_ch;
@@ -522,6 +527,19 @@ struct vr_softc {
  */
 #define ADDTRON_DEVICEID_RHINE_II	0x1320
 
+/*
+ * VIA Rhine revision IDs
+ */
+
+#define REV_ID_VT3043_E			0x04
+#define REV_ID_VT3071_A			0x20
+#define REV_ID_VT3071_B			0x21
+#define REV_ID_VT3065_A			0x40
+#define REV_ID_VT3065_B			0x41
+#define REV_ID_VT3065_C			0x42
+#define REV_ID_VT3106			0x80
+#define REV_ID_VT3106_J			0x80    /* 0x80-0x8F */
+#define REV_ID_VT3106_S			0x90    /* 0x90-0xA0 */
 
 /*
  * PCI low memory base and low I/O base register, and
@@ -532,6 +550,7 @@ struct vr_softc {
 #define VR_PCI_DEVICE_ID	0x02
 #define VR_PCI_COMMAND		0x04
 #define VR_PCI_STATUS		0x06
+#define VR_PCI_REVID		0x08
 #define VR_PCI_CLASSCODE	0x09
 #define VR_PCI_LATENCY_TIMER	0x0D
 #define VR_PCI_HEADER_TYPE	0x0E
