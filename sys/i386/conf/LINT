@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.394 1998/01/24 02:54:10 eivind Exp $
+#	$Id: LINT,v 1.395 1998/01/25 03:55:47 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1410,3 +1410,46 @@ options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
 options		SPX_HACK
 options		TSC_GUPROF
+
+# The 'dpt' driver provides hardware RAID-{0,1,5} support, multi-initiator I/O
+# See sys/dev/dpt for debugging and other subtle options.
+#   DPT_VERIFY_HINTR        Performs some strict hardware interrupts testing.
+#                           Only use if you suspect PCI bus corruption problems
+#   DPT_RESTRICTED_FREELIST Normally, the freelisat used by the DPT for queue
+#                           will grow to accomodate increased use.  This growth
+#                           will NOT shrink.  To restrict the number of queue
+#                           slots to exactly what the DPT can hold at one time,
+#                           enable this option.
+#   DPT_TRACK_CCB_STATES    Enabling thos option will try to enforce strict 
+#                           sanity checking in the queue management.  Rarely,
+#                           if ever, needed.
+#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
+#                           instruments are enabled.  Assumed to be enabled by
+#                           /usr/sbin/dpt_* tools.
+#   DPT_FREELIST_IS_STACK   For optimat L{1,2} CPU cache utilization, enable
+#                           this option.  Otherwise, the transaction queue is
+#                           a LIFO.  I cannot measure the performance gain.
+#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
+#                           If you ant the driver to handle timeouts, enable
+#                           this option.  If your system is very busy, this
+#                           option will create more trouble than solve.
+#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
+#                           wait when timing out with the above option.
+#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
+#  DPT_LOST_IRQ             When enabled, will try, once per second, to catch
+#                           any interrupt that got lost.  Seems to help in some
+#                           DPT-firmware/Motherboard combinations.  Minimal
+#                           cost, great benefit.
+
+controller      dpt0
+
+# DPT options
+options DPT_VERIFY_HINTR
+options DPT_RESTRICTED_FREELIST
+options DPT_TRACK_CCB_STATES
+options DPT_MEASURE_PERFORMANCE
+options DPT_FREELIST_IS_STACK
+options DPT_HANDLE_TIMEOUTS
+options DPT_TIMEOUT_FACTOR=4
+options	DPT_INTR_DELAY=200      # Some motherboards need that
+options DPT_LOST_IRQ
