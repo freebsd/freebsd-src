@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
@@ -33,7 +35,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: kauthd.c,v 1.25 1999/12/02 16:58:31 joda Exp $");
+RCSID("$Id: kauthd.c,v 1.25.2.1 2000/06/28 19:07:58 assar Exp $");
 
 krb_principal princ;
 static char locuser[SNAME_SZ];
@@ -128,7 +130,7 @@ doit(int sock)
      if( kuserok(&auth, locuser) != 0) {
 	 snprintf(buf, sizeof(buf), "%s cannot get tickets for %s",
 		  locuser, krb_unparse_name(&princ));
-	 syslog (LOG_ERR, buf);
+	 syslog (LOG_ERR, "%s", buf);
 	 write_encrypted (sock, buf, strlen(buf), schedule,
 			  &auth.session, &thisaddr, &thataddr);
 	 return 1;
@@ -136,7 +138,7 @@ doit(int sock)
      passwd = k_getpwnam (locuser);
      if (passwd == NULL) {
 	  snprintf (buf, sizeof(buf), "No user '%s'", locuser);
-	  syslog (LOG_ERR, buf);
+	  syslog (LOG_ERR, "%s", buf);
 	  write_encrypted (sock, buf, strlen(buf), schedule,
 			   &auth.session, &thisaddr, &thataddr);
 	  return 1;
@@ -145,7 +147,7 @@ doit(int sock)
 	 initgroups(passwd->pw_name, passwd->pw_gid) ||
 	 setuid(passwd->pw_uid)) {
 	  snprintf (buf, sizeof(buf), "Could not change user");
-	  syslog (LOG_ERR, buf);
+	  syslog (LOG_ERR, "%s", buf);
 	  write_encrypted (sock, buf, strlen(buf), schedule,
 			   &auth.session, &thisaddr, &thataddr);
 	  return 1;
@@ -182,7 +184,7 @@ doit(int sock)
 	  return 0;
      } else {
 	  snprintf (buf, sizeof(buf), "TGT failed: %s", krb_get_err_text(status));
-	  syslog (LOG_NOTICE, buf);
+	  syslog (LOG_NOTICE, "%s", buf);
 	  write_encrypted (sock, buf, strlen(buf), schedule,
 			   &auth.session, &thisaddr, &thataddr);
 	  return 1;
