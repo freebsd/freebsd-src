@@ -173,7 +173,7 @@ expcmd(argc, argv)
 
 	i = arith(p);
 
-	out1fmt("%d\n", i);
+	out1fmt("%ld\n", i);
 	return (! i);
 }
 
