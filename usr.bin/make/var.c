@@ -224,7 +224,7 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	 * and substitute the short version in for 'name' if it matches one of
 	 * them.
 	 */
-	if (*name == '.' && isupper((unsigned char)name[1]))
+	if (*name == '.') {
 		switch (name[1]) {
 		case 'A':
 			if (!strcmp(name, ".ALLSRC"))
@@ -252,7 +252,10 @@ VarFind(const char *name, GNode *ctxt, int flags)
 			if (!strcmp(name, ".TARGET"))
 				name = TARGET;
 			break;
+		default:
+			break;
 		}
+	}
 
     /*
      * Note whether this is one of the specific variables we were told through
