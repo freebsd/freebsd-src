@@ -106,7 +106,7 @@ struct ukbd_data {
 #define MAXKEYS (NMOD+2*NKEYCODE)
 
 typedef struct ukbd_softc {
-	bdevice		sc_dev;		/* base device */
+	device_t		sc_dev;		/* base device */
 } ukbd_softc_t;
 
 #define	UKBD_CHUNK	128	/* chunk size for read */
@@ -116,7 +116,6 @@ typedef void usbd_intr_t(usbd_request_handle, usbd_private_handle, usbd_status);
 typedef void usbd_disco_t(void *);
 
 static usbd_intr_t	ukbd_intr;
-static usbd_disco_t	ukbd_disconnect;
 
 USB_DECLARE_DRIVER(ukbd);
 
@@ -125,7 +124,7 @@ USB_MATCH(ukbd)
 	USB_MATCH_START(ukbd, uaa);
 
 	keyboard_switch_t *sw;
-	void *arg[3];
+	void *arg[2];
 	int unit = device_get_unit(self);
 
 	sw = kbd_get_switch(DRIVER_NAME);
@@ -134,7 +133,6 @@ USB_MATCH(ukbd)
 
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
-	arg[2] = (void *)ukbd_disconnect;
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		return (UMATCH_NONE);
 
@@ -150,7 +148,7 @@ USB_ATTACH(ukbd)
 
 	keyboard_switch_t *sw;
 	keyboard_t *kbd;
-	void *arg[3];
+	void *arg[2];
 	int unit = device_get_unit(self);
 
 	sw = kbd_get_switch(DRIVER_NAME);
@@ -165,7 +163,6 @@ USB_ATTACH(ukbd)
 
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
-	arg[2] = (void *)ukbd_disconnect;
 	kbd = NULL;
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		USB_ATTACH_ERROR_RETURN;
@@ -195,6 +192,8 @@ ukbd_detach(device_t self)
 		DPRINTF(("%s: keyboard not attached!?\n", USBDEVNAME(self)));
 		return ENXIO;
 	}
+	(*kbdsw[kbd->kb_index]->disable)(kbd);
+
 #ifdef KBD_INSTALL_CDEV
 	error = kbd_detach(kbd);
 	if (error)
@@ -207,15 +206,6 @@ ukbd_detach(device_t self)
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
 	return (0);
-}
-
-static void
-ukbd_disconnect(void *p)
-{
-	keyboard_t *kbd = (keyboard_t *)p;
-
-	DPRINTF(("ukbd_disconnect: kbd:%p\n", kbd));
-	(*kbdsw[kbd->kb_index]->disable)(kbd);
 }
 
 void
@@ -440,7 +430,7 @@ ukbd_configure(int flags)
 	keyboard_t *kbd;
 	device_t device;
 	struct usb_attach_arg *uaa;
-	void *arg[3];
+	void *arg[2];
 
 	device = devclass_get_device(ukbd_devclass, UKBD_DEFAULT);
 	if (device == NULL)
@@ -452,7 +442,6 @@ ukbd_configure(int flags)
 	/* probe the default keyboard */
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
-	arg[2] = (void *)ukbd_disconnect;
 	kbd = NULL;
 	if (ukbd_probe(UKBD_DEFAULT, arg, flags))
 		return 0;
@@ -581,11 +570,8 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	if (!KBD_IS_CONFIGURED(kbd)) {
 		if (kbd_register(kbd) < 0)
 			return ENXIO;
-		if (ukbd_enable_intr(kbd, TRUE, (usbd_intr_t *)data[1]) == 0) {
-			usbd_set_disco(state->ks_intrpipe,
-				       (usbd_disco_t *)data[2], (void *)kbd);
+		if (ukbd_enable_intr(kbd, TRUE, (usbd_intr_t *)data[1]) == 0)
 			ukbd_timeout((void *)kbd);
-		}
 		KBD_CONFIG_DONE(kbd);
 	}
 
@@ -774,16 +760,16 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 	for (i = state->ks_inputhead, j = 0; j < state->ks_inputs; ++j,
 		i = (i + 1)%INPUTBUFSIZE) {
 		c = state->ks_input[i];
-		printf("0x%x (%d) %s\n", c, c,
-			(c & KEY_RELEASE) ? "released":"pressed");
+		DPRINTF(("0x%x (%d) %s\n", c, c,
+			(c & KEY_RELEASE) ? "released":"pressed"));
 	}
 	if (ud->modifiers)
-		printf("mod:0x%04x ", ud->modifiers);
+		DPRINTF(("mod:0x%04x ", ud->modifiers));
         for (i = 0; i < NKEYCODE; i++) {
 		if (ud->keycode[i])
-			printf("%d ", ud->keycode[i]);
+			DPRINTF(("%d ", ud->keycode[i]));
 	}
-	printf("\n");
+	DPRINTF(("\n"));
 #endif /* UKBD_DEBUG */
 
 	if (state->ks_polling)
@@ -806,16 +792,15 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 static int
 ukbd_getc(ukbd_state_t *state)
 {
-	usbd_lock_token l;
 	int c;
 	int s;
 
 	if (state->ks_polling) {
 		DPRINTFN(1,("ukbd_getc: polling\n"));
-		l = usbd_lock();
+		s = splusb();
 		while (state->ks_inputs <= 0)
 			usbd_dopoll(state->ks_iface);
-		usbd_unlock(l);
+		splx(s);
 	}
 	s = splusb();
 	if (state->ks_inputs <= 0) {
@@ -1362,13 +1347,14 @@ init_keyboard(ukbd_state_t *state, int *type, int flags)
 
 	DPRINTFN(10,("ukbd:init_keyboard: \
 bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d bInterval=%d\n",
-	       ed->bLength, ed->bDescriptorType, ed->bEndpointAddress & UE_ADDR,
-	       ed->bEndpointAddress & UE_IN ? "in" : "out",
-	       ed->bmAttributes & UE_XFERTYPE,
+	       ed->bLength, ed->bDescriptorType,
+	       UE_GET_ADDR(ed->bEndpointAddress),
+	       UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN ? "in":"out",
+	       UE_GET_XFERTYPE(ed->bmAttributes),
 	       UGETW(ed->wMaxPacketSize), ed->bInterval));
 
-	if ((ed->bEndpointAddress & UE_IN) != UE_IN ||
-	    (ed->bmAttributes & UE_XFERTYPE) != UE_INTERRUPT) {
+	if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_IN ||
+	    UE_GET_XFERTYPE(ed->bmAttributes) != UE_INTERRUPT) {
 		printf("ukbd: unexpected endpoint\n");
 		return EINVAL;
 	}
