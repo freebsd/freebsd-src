@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.34 1998/09/15 21:07:54 gibbs Exp $";
+	"$Id: mkmakefile.c,v 1.35 1999/04/07 09:27:56 grog Exp $";
 #endif /* not lint */
 
 /*
@@ -790,10 +790,7 @@ do_load(f)
 	fputs("all:", f);
 	for (fl = conf_list; fl; fl = fl->f_next)
 		if (fl->f_type == SYSTEMSPEC)
-			if (debugging)
-				fprintf(f, " %s.debug", fl->f_needs);
-			else
-				fprintf(f, " %s", fl->f_needs);
+			fprintf(f, " %s", fl->f_needs);
 	putc('\n', f);
 }
 
@@ -831,7 +828,14 @@ do_systemspec(f, fl, first)
 		fprintf(f,
 			"KERNEL=\t\t%s\n"
 			"FULLKERNEL=\t%s.debug\n"
-			"INSTALL=\tinstall.debug\n\n",
+			"INSTALL=\tinstall.debug\n\n"
+			"%s: %s.debug\n",
+			fl->f_needs,
+			fl->f_needs,
+			fl->f_needs,
+			fl->f_needs );
+		fprintf (f,
+			 "\tobjcopy --strip-debug %s.debug %s\n\n",
 			fl->f_needs,
 			fl->f_needs );
 		fprintf(f, "%s.debug: ${SYSTEM_DEP} swap%s.o", fl->f_needs, fl->f_fn);

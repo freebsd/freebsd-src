@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.27 1999/04/07 09:27:56 grog Exp $";
+	"$Id: main.c,v 1.28 1999/04/10 14:03:38 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -86,13 +86,10 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	debugging = 1;					    /* on by default */
-	while ((ch = getopt(argc, argv, "gprns")) != -1)
+	while ((ch = getopt(argc, argv, "gprn")) != -1)
 		switch (ch) {
 		case 'g':
-			fprintf(stderr,
-				"Debugging is enabled by default, there is "
-				"no need to specify the -g option\n" );
+			debugging++;
 			break;
 		case 'p':
 			profiling++;
@@ -105,9 +102,6 @@ main(argc, argv)
 		case 'r':
 			no_config_clobber = FALSE;
 			break;
-		case 's':
-			debugging = 0;
-			break;
 		case '?':
 		default:
 			usage();
@@ -117,14 +111,6 @@ main(argc, argv)
 
 	if (argc != 1)
 		usage();
-
-	if (debugging)
-		printf("Building kernel with full debugging symbols.  Do\n"
-		       "\"config -s %s\" "
-		       "for historic partial symbolic support.\n"
-		       "To install the debugging kernel, do "
-		       "make install.debug\n",
-		       argv [0] );
 
 	if (freopen(PREFIX = *argv, "r", stdin) == NULL)
 		err(2, "%s", PREFIX);
@@ -224,7 +210,7 @@ main(argc, argv)
 static void
 usage()
 {
-		fprintf(stderr, "usage: config [-gprs] sysname\n");
+		fprintf(stderr, "usage: config [-gpr] sysname\n");
 		exit(1);
 }
 
