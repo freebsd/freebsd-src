@@ -614,12 +614,12 @@ icmp_reflect(m)
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
-                        ia = ifatoia(ifa);
-                        if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-                            t.s_addr)
-                                goto match;
-        	}
-        }
+			ia = ifatoia(ifa);
+			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
+			    t.s_addr)
+				goto match;
+		}
+	}
 	ro = &rt;
 	bzero(ro, sizeof(*ro));
 	ia = ip_rtaddr(ip->ip_dst, ro);
