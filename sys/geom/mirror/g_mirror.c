@@ -51,9 +51,11 @@ static MALLOC_DEFINE(M_MIRROR, "mirror data", "GEOM_MIRROR Data");
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0, "GEOM_MIRROR stuff");
 u_int g_mirror_debug = 0;
+TUNABLE_INT("kern.geom.mirror.debug", &g_mirror_debug);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
     "Debug level");
 static u_int g_mirror_timeout = 8;
+TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
 static u_int g_mirror_reqs_per_sync = 5;
@@ -1898,18 +1900,12 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 		break;
 	    }
 	case G_MIRROR_DEVICE_STATE_RUNNING:
-		/*
-		 * Bump syncid here, if we need to do it immediately.
-		 */
-		if (sc->sc_bump_syncid == G_MIRROR_BUMP_IMMEDIATELY) {
-			sc->sc_bump_syncid = 0;
-			g_mirror_bump_syncid(sc);
-		}
 		if (g_mirror_ndisks(sc, -1) == 0) {
 			/*
 			 * No disks at all, we need to destroy device.
 			 */
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
+			break;
 		} else if (g_mirror_ndisks(sc,
 		    G_MIRROR_DISK_STATE_ACTIVE) == 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
@@ -1918,6 +1914,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider != NULL)
 				g_mirror_destroy_provider(sc);
+			break;
 		} else if (g_mirror_ndisks(sc,
 		    G_MIRROR_DISK_STATE_ACTIVE) > 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
@@ -1927,6 +1924,13 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider == NULL)
 				g_mirror_launch_provider(sc);
+		}
+		/*
+		 * Bump syncid here, if we need to do it immediately.
+		 */
+		if (sc->sc_bump_syncid == G_MIRROR_BUMP_IMMEDIATELY) {
+			sc->sc_bump_syncid = 0;
+			g_mirror_bump_syncid(sc);
 		}
 		break;
 	default:
@@ -2402,7 +2406,6 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	 */
 	gp = g_new_geomf(mp, "%s.sync", md->md_name);
 	gp->softc = sc;
-	gp->spoiled = g_mirror_spoiled;
 	gp->orphan = g_mirror_orphan;
 	sc->sc_sync.ds_geom = gp;
 	sc->sc_sync.ds_ndisks = 0;
@@ -2488,6 +2491,9 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_MIRROR_DEBUG(2, "Tasting %s.", pp->name);
+	/* Skip providers with 0 sectorsize. */
+	if (pp->sectorsize == 0)
+		return (NULL);
 
 	gp = g_new_geomf(mp, "mirror:taste");
 	/*
@@ -2660,6 +2666,15 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    balance_name(sc->sc_balance));
 		sbuf_printf(sb, "%s<Components>%u</Components>\n", indent,
 		    sc->sc_ndisks);
+		sbuf_printf(sb, "%s<State>", indent);
+		if (sc->sc_state == G_MIRROR_DEVICE_STATE_STARTING)
+			sbuf_printf(sb, "%s", "STARTING");
+		else if (sc->sc_ndisks ==
+		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE))
+			sbuf_printf(sb, "%s", "COMPLETE");
+		else
+			sbuf_printf(sb, "%s", "DEGRADED");
+		sbuf_printf(sb, "</State>\n");
 	}
 }
 
