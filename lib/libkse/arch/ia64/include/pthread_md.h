@@ -33,6 +33,8 @@
 #include <stddef.h>
 #include <ucontext.h>
 
+#define	KSE_STACKSIZE		16384
+
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	PANIC("THR_SETCONTEXT() now in use!\n")
 
