@@ -41,12 +41,12 @@
 .Nm tee
 .Nd pipe fitting
 .Sh SYNOPSIS
-.Nm tee
+.Nm
 .Op Fl ai
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
-.Nm tee
+.Nm
 utility copies standard input to standard output,
 making a copy in zero or more files.
 The output is unbuffered.
@@ -64,25 +64,24 @@ signal.
 .Pp
 The following operands are available:
 .Bl -tag -width file
-.It file
+.It Ar file
 A pathname of an output
 .Ar file .
 .El
 .Pp
 The
-.Nm tee
+.Nm
 utility takes the default action for all signals,
 except in the event of the
 .Fl i
 option.
 .Pp
 The
-.Nm tee
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh STANDARDS
 The
-.Nm tee
+.Nm
 function is expected to be
-.Tn POSIX
 .St -p1003.2
 compatible.
