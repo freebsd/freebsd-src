@@ -107,15 +107,15 @@ int	lflag;				/* log requests flag */
 int	pflag;				/* no incoming port flag */
 int	from_remote;			/* from remote socket */
 
-int		  main __P((int, char **));
-static void       reapchild __P((int));
-static void       mcleanup __P((int));
-static void       doit __P((void));
-static void       startup __P((void));
-static void       chkhost __P((struct sockaddr *));
-static int	  ckqueue __P((struct printer *));
-static void	  usage __P((void));
-static int	  *socksetup __P((int, int));
+int		 main(int argc, char **_argv);
+static void	 reapchild(int _signo);
+static void	 mcleanup(int _signo);
+static void	 doit(void);
+static void	 startup(void);
+static void	 chkhost(struct sockaddr *_f);
+static int	 ckqueue(struct printer *_pp);
+static void	 usage(void);
+static int	*socksetup(int _af, int _options);
 
 /* XXX from libc/net/rcmd.c */
 extern int __ivaliduser_sa __P((FILE *, struct sockaddr *, socklen_t,
@@ -124,9 +124,7 @@ extern int __ivaliduser_sa __P((FILE *, struct sockaddr *, socklen_t,
 uid_t	uid, euid;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int errs, f, funix, *finet, fromlen, i, options, socket_debug;
 	fd_set defreadfds;
@@ -382,8 +380,7 @@ main(argc, argv)
 }
 
 static void
-reapchild(signo)
-	int signo;
+reapchild(int signo __unused)
 {
 	union wait status;
 
@@ -392,8 +389,7 @@ reapchild(signo)
 }
 
 static void
-mcleanup(signo)
-	int signo;
+mcleanup(int signo)
 {
 	/*
 	 * XXX syslog(3) is not signal-safe.
@@ -419,7 +415,7 @@ char	*person;		/* name of person doing lprm */
 
 char	fromb[MAXHOSTNAMELEN];	/* buffer for client's machine name */
 char	cbuf[BUFSIZ];		/* command line buffer */
-char	*cmdnames[] = {
+const char	*cmdnames[] = {
 	"null",
 	"printjob",
 	"recvjob",
@@ -429,7 +425,7 @@ char	*cmdnames[] = {
 };
 
 static void
-doit()
+doit(void)
 {
 	char *cp, *printer;
 	int n;
@@ -543,7 +539,7 @@ doit()
  * files left from the last time the machine went down.
  */
 static void
-startup()
+startup(void)
 {
 	int pid, status, more;
 	struct printer myprinter, *pp = &myprinter;
@@ -584,8 +580,7 @@ errloop:
  * Make sure there's some work to do before forking off a child
  */
 static int
-ckqueue(pp)
-	struct printer *pp;
+ckqueue(struct printer *pp)
 {
 	register struct dirent *d;
 	DIR *dirp;
@@ -610,8 +605,7 @@ ckqueue(pp)
  * Check to see if the from host has access to the line printer.
  */
 static void
-chkhost(f)
-	struct sockaddr *f;
+chkhost(struct sockaddr *f)
 {
 	struct addrinfo hints, *res, *r;
 	register FILE *hostf;
@@ -706,8 +700,7 @@ again:
 /* if af is PF_UNSPEC more than one socket may be returned */
 /* the returned list is dynamically allocated, so caller needs to free it */
 static int *
-socksetup(af, options)
-        int af, options;
+socksetup(int af, int options)
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
@@ -786,7 +779,7 @@ socksetup(af, options)
 }
 
 static void
-usage()
+usage(void)
 {
 #ifdef INET6
 	fprintf(stderr, "usage: lpd [-dlp46] [port#]\n");

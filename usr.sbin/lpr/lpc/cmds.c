@@ -70,27 +70,24 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
-static void	abortpr __P((struct printer *, int));
-static int	doarg __P((char *));
-static int	doselect __P((struct dirent *));
-static void	putmsg __P((struct printer *, int, char **));
-static int	sortq __P((const void *, const void *));
-static void	startpr __P((struct printer *, int));
-static int	touch __P((struct jobqueue *));
-static void	unlinkf __P((char *));
-static void	upstat __P((struct printer *, char *));
+static void	 abortpr(struct printer *_pp, int _dis);
+static int	 doarg(char *_job);
+static int	 doselect(struct dirent *_d);
+static void	 putmsg(struct printer *_pp, int _argc, char **_argv);
+static int	 sortq(const void *_a, const void *_b);
+static void	 startpr(struct printer *_pp, int _chgenable);
+static int	 touch(struct jobqueue *_jq);
+static void	 unlinkf(char *_name);
+static void	 upstat(struct printer *_pp, const char *_msg);
 
 /*
  * generic framework for commands which operate on all or a specified
  * set of printers
  */
 void
-generic(doit, argc, argv)
-	void (*doit) __P((struct printer *));
-	int argc;
-	char *argv[];
+generic(void (*specificrtn)(struct printer *_pp), int argc, char *argv[])
 {
-	int status, more;
+	int cmdstatus, more;
 	struct printer myprinter, *pp = &myprinter;
 
 	if (argc == 1) {
@@ -98,15 +95,15 @@ generic(doit, argc, argv)
 		return;
 	}
 	if (argc == 2 && strcmp(argv[1], "all") == 0) {
-		more = firstprinter(pp, &status);
-		if (status)
+		more = firstprinter(pp, &cmdstatus);
+		if (cmdstatus)
 			goto looperr;
 		while (more) {
-			(*doit)(pp);
+			(*specificrtn)(pp);
 			do {
-				more = nextprinter(pp, &status);
+				more = nextprinter(pp, &cmdstatus);
 looperr:
-				switch (status) {
+				switch (cmdstatus) {
 				case PCAPERR_TCOPEN:
 					printf("warning: %s: unresolved "
 					       "tc= reference(s) ",
@@ -114,19 +111,19 @@ looperr:
 				case PCAPERR_SUCCESS:
 					break;
 				default:
-					fatal(pp, pcaperr(status));
+					fatal(pp, pcaperr(cmdstatus));
 				}
-			} while (more && status);
+			} while (more && cmdstatus);
 		}
 		return;
 	}
 	while (--argc) {
 		++argv;
 		init_printer(pp);
-		status = getprintcap(*argv, pp);
-		switch(status) {
+		cmdstatus = getprintcap(*argv, pp);
+		switch (cmdstatus) {
 		default:
-			fatal(pp, pcaperr(status));
+			fatal(pp, pcaperr(cmdstatus));
 		case PCAPERR_NOTFOUND:
 			printf("unknown printer %s\n", *argv);
 			continue;
@@ -137,7 +134,7 @@ looperr:
 		case PCAPERR_SUCCESS:
 			break;
 		}
-		(*doit)(pp);
+		(*specificrtn)(pp);
 	}
 }
 
@@ -145,16 +142,13 @@ looperr:
  * kill an existing daemon and disable printing.
  */
 void
-doabort(pp)
-	struct printer *pp;
+doabort(struct printer *pp)
 {
 	abortpr(pp, 1);
 }
 
 static void
-abortpr(pp, dis)
-	struct printer *pp;
-	int dis;
+abortpr(struct printer *pp, int dis)
 {
 	register FILE *fp;
 	struct stat stbuf;
@@ -222,9 +216,7 @@ out:
  * Write a message into the status file.
  */
 static void
-upstat(pp, msg)
-	struct printer *pp;
-	char *msg;
+upstat(struct printer *pp, const char *msg)
 {
 	register int fd;
 	char statfile[MAXPATHLEN];
@@ -245,8 +237,7 @@ upstat(pp, msg)
 }
 
 static int
-doselect(d)
-	struct dirent *d;
+doselect(struct dirent *d)
 {
 	int c = d->d_name[0];
 
@@ -260,14 +251,13 @@ doselect(d)
  * by `cf', `tf', or `df', then by the sequence letter A-Z, a-z.
  */
 static int
-sortq(a, b)
-	const void *a, *b;
+sortq(const void *a, const void *b)
 {
-	struct dirent **d1, **d2;
+	const struct dirent **d1, **d2;
 	int c1, c2;
 
-	d1 = (struct dirent **)a;
-	d2 = (struct dirent **)b;
+	d1 = (const struct dirent **)a;
+	d2 = (const struct dirent **)b;
 	if ((c1 = strcmp((*d1)->d_name + 3, (*d2)->d_name + 3)))
 		return(c1);
 	c1 = (*d1)->d_name[0];
@@ -287,8 +277,7 @@ sortq(a, b)
  * Remove incomplete jobs from spooling area.
  */
 void
-clean(pp)
-	struct printer *pp;
+clean(struct printer *pp)
 {
 	register int i, n;
 	register char *cp, *cp1, *lp;
@@ -345,8 +334,7 @@ clean(pp)
 }
  
 static void
-unlinkf(name)
-	char	*name;
+unlinkf(char *name)
 {
 	seteuid(euid);
 	if (unlink(name) < 0)
@@ -360,8 +348,7 @@ unlinkf(name)
  * Enable queuing to the printer (allow lpr's).
  */
 void
-enable(pp)
-	struct printer *pp;
+enable(struct printer *pp)
 {
 	struct stat stbuf;
 	char lf[MAXPATHLEN];
@@ -386,8 +373,7 @@ enable(pp)
  * Disable queuing.
  */
 void
-disable(pp)
-	struct printer *pp;
+disable(struct printer *pp)
 {
 	register int fd;
 	struct stat stbuf;
@@ -424,11 +410,9 @@ disable(pp)
  * (reason for being down).
  */
 void
-down(argc, argv)
-	int argc;
-	char *argv[];
+down(int argc, char *argv[])
 {
-        int status, more;
+        int cmdstatus, more;
 	struct printer myprinter, *pp = &myprinter;
 
 	if (argc == 1) {
@@ -436,15 +420,15 @@ down(argc, argv)
 		return;
 	}
 	if (!strcmp(argv[1], "all")) {
-		more = firstprinter(pp, &status);
-		if (status)
+		more = firstprinter(pp, &cmdstatus);
+		if (cmdstatus)
 			goto looperr;
 		while (more) {
 			putmsg(pp, argc - 2, argv + 2);
 			do {
-				more = nextprinter(pp, &status);
+				more = nextprinter(pp, &cmdstatus);
 looperr:
-				switch (status) {
+				switch (cmdstatus) {
 				case PCAPERR_TCOPEN:
 					printf("warning: %s: unresolved "
 					       "tc= reference(s) ",
@@ -452,17 +436,17 @@ looperr:
 				case PCAPERR_SUCCESS:
 					break;
 				default:
-					fatal(pp, pcaperr(status));
+					fatal(pp, pcaperr(cmdstatus));
 				}
-			} while (more && status);
+			} while (more && cmdstatus);
 		}
 		return;
 	}
 	init_printer(pp);
-	status = getprintcap(argv[1], pp);
-	switch(status) {
+	cmdstatus = getprintcap(argv[1], pp);
+	switch (cmdstatus) {
 	default:
-		fatal(pp, pcaperr(status));
+		fatal(pp, pcaperr(cmdstatus));
 	case PCAPERR_NOTFOUND:
 		printf("unknown printer %s\n", argv[1]);
 		return;
@@ -476,10 +460,7 @@ looperr:
 }
 
 static void
-putmsg(pp, argc, argv)
-	struct printer *pp;
-	int argc;
-	char **argv;
+putmsg(struct printer *pp, int argc, char **argv)
 {
 	register int fd;
 	register char *cp1, *cp2;
@@ -547,9 +528,7 @@ putmsg(pp, argc, argv)
  * Exit lpc
  */
 void
-quit(argc, argv)
-	int argc;
-	char *argv[];
+quit(int argc __unused, char *argv[] __unused)
 {
 	exit(0);
 }
@@ -558,8 +537,7 @@ quit(argc, argv)
  * Kill and restart the daemon.
  */
 void
-restart(pp)
-	struct printer *pp;
+restart(struct printer *pp)
 {
 	abortpr(pp, 0);
 	startpr(pp, 0);
@@ -569,16 +547,13 @@ restart(pp)
  * Enable printing on the specified printer and startup the daemon.
  */
 void
-startcmd(pp)
-	struct printer *pp;
+startcmd(struct printer *pp)
 {
 	startpr(pp, 1);
 }
 
 static void
-startpr(pp, enable)
-	struct printer *pp;
-	int enable;
+startpr(struct printer *pp, int chgenable)
 {
 	struct stat stbuf;
 	char lf[MAXPATHLEN];
@@ -587,13 +562,13 @@ startpr(pp, enable)
 	printf("%s:\n", pp->printer);
 
 	/*
-	 * For enable==1 ('start'), turn off the LFM_PRINT_DIS bit of the
-	 * lock file to re-enable printing.  For enable==2 ('up'), also
+	 * For chgenable==1 ('start'), turn off the LFM_PRINT_DIS bit of the
+	 * lock file to re-enable printing.  For chgenable==2 ('up'), also
 	 * turn off the LFM_QUEUE_DIS bit to re-enable queueing.
 	 */
 	seteuid(euid);
-	if (enable && stat(lf, &stbuf) >= 0) {
-		mode_t bits = (enable == 2 ? 0 : LFM_QUEUE_DIS);
+	if (chgenable && stat(lf, &stbuf) >= 0) {
+		mode_t bits = (chgenable == 2 ? 0 : LFM_QUEUE_DIS);
 		if (chmod(lf, stbuf.st_mode & (LOCK_FILE_MODE | bits)) < 0)
 			printf("\tcannot enable printing\n");
 		else
@@ -610,8 +585,7 @@ startpr(pp, enable)
  * Print the status of the printer queue.
  */
 void
-status(pp)
-	struct printer *pp;
+status(struct printer *pp)
 {
 	struct stat stbuf;
 	register int fd, i;
@@ -674,8 +648,7 @@ status(pp)
  * printing.
  */
 void
-stop(pp)
-	struct printer *pp;
+stop(struct printer *pp)
 {
 	register int fd;
 	struct stat stbuf;
@@ -719,13 +692,11 @@ time_t	mtime;
  * Put the specified jobs at the top of printer queue.
  */
 void
-topq(argc, argv)
-	int argc;
-	char *argv[];
+topq(int argc, char *argv[])
 {
 	register int i;
 	struct stat stbuf;
-	int status, changed;
+	int cmdstatus, changed;
 	struct printer myprinter, *pp = &myprinter;
 
 	if (argc < 3) {
@@ -736,10 +707,10 @@ topq(argc, argv)
 	--argc;
 	++argv;
 	init_printer(pp);
-	status = getprintcap(*argv, pp);
-	switch(status) {
+	cmdstatus = getprintcap(*argv, pp);
+	switch(cmdstatus) {
 	default:
-		fatal(pp, pcaperr(status));
+		fatal(pp, pcaperr(cmdstatus));
 	case PCAPERR_NOTFOUND:
 		printf("unknown printer %s\n", *argv);
 		return;
@@ -793,8 +764,7 @@ out:
  * the control file.
  */
 static int
-touch(q)
-	struct jobqueue *q;
+touch(struct jobqueue *jq)
 {
 	struct timeval tvp[2];
 	int ret;
@@ -802,7 +772,7 @@ touch(q)
 	tvp[0].tv_sec = tvp[1].tv_sec = --mtime;
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
 	seteuid(euid);
-	ret = utimes(q->job_cfname, tvp);
+	ret = utimes(jq->job_cfname, tvp);
 	seteuid(uid);
 	return (ret);
 }
@@ -812,8 +782,7 @@ touch(q)
  * Returns:  negative (-1) if argument name is not in the queue.
  */
 static int
-doarg(job)
-	char *job;
+doarg(char *job)
 {
 	register struct jobqueue **qq;
 	register int jobnum, n;
@@ -884,8 +853,7 @@ doarg(job)
  * Enable everything and start printer (undo `down').
  */
 void
-up(pp)
-	struct printer *pp;
+up(struct printer *pp)
 {
 	startpr(pp, 2);
 }

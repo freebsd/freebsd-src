@@ -153,7 +153,7 @@ struct	request {
  * Global definitions for the line printer system.
  */
 extern char	line[BUFSIZ];
-extern char	*name;		/* program name */
+extern const char	*name;		/* program name */
 				/* host machine name */
 extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
@@ -221,48 +221,48 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 __BEGIN_DECLS
 struct	 dirent;
 
-void     blankfill __P((int));
-char	*checkremote __P((struct printer *pp));
-int      chk __P((char *));
-void	 closeallfds __P((int start));
-void     delay __P((int));
-void     displayq __P((struct printer *pp, int format));
-void     dump __P((char *, char *, int));
-void	 fatal __P((const struct printer *pp, const char *fmp, ...));
-int	 firstprinter __P((struct printer *pp, int *status));
-void	 free_printer __P((struct printer *pp));
-void	 free_request __P((struct request *rp));
-int	 getline __P((FILE *));
-int	 getport __P((const struct printer *pp, const char *, int));
-int	 getprintcap __P((const char *printer, struct printer *pp));
-int	 getq __P((const struct printer *, struct jobqueue *(*[])));
-void     header __P((void));
-void     inform __P((const struct printer *pp, char *cf));
-void	 init_printer __P((struct printer *pp));
-void	 init_request __P((struct request *rp));
-int      inlist __P((char *, char *));
-int      iscf __P((struct dirent *));
-int      isowner __P((char *, char *));
-void     ldump __P((char *, char *, int));
-void	 lastprinter __P((void));
-int      lockchk __P((struct printer *pp, char *));
-char	*lock_file_name __P((const struct printer *pp, char *buf, size_t len));
-void	 lpd_gettime __P((struct timespec *_tsp, char *_strp, int _strsize));
-int	 nextprinter __P((struct printer *pp, int *status));
+void	 blankfill(int _tocol);
+char	*checkremote(struct printer *_pp);
+int	 chk(char *_file);
+void	 closeallfds(int _start);
+void	 delay(int _millisec);
+void	 displayq(struct printer *_pp, int _format);
+void	 dump(const char *_nfile, const char *_datafile, int _copies);
+void	 fatal(const struct printer *_pp, const char *_msg, ...);
+int	 firstprinter(struct printer *_pp, int *_error);
+void	 free_printer(struct printer *_pp);
+void	 free_request(struct request *_rp);
+int	 getline(FILE *_cfp);
+int	 getport(const struct printer *_pp, const char *_rhost, int _rport);
+int	 getprintcap(const char *_printer, struct printer *_pp);
+int	 getq(const struct printer *_pp, struct jobqueue *(*_namelist[]));
+void	 header(void);
+void	 inform(const struct printer *_pp, char *_cf);
+void	 init_printer(struct printer *_pp);
+void	 init_request(struct request *_rp);
+int	 inlist(char *_uname, char *_cfile);
+int	 iscf(struct dirent *_d);
+int	 isowner(char *_owner, char *_file);
+void	 ldump(const char *_nfile, const char *_datafile, int _copies);
+void	 lastprinter(void);
+int	 lockchk(struct printer *_pp, char *_slockf);
+char	*lock_file_name(const struct printer *_pp, char *_buf, size_t _len);
+void	 lpd_gettime(struct timespec *_tsp, char *_strp, int _strsize);
+int	 nextprinter(struct printer *_pp, int *_error);
 const
-char	*pcaperr __P((int error));
-void     prank __P((int));
-void     process __P((const struct printer *pp, char *));
-void     rmjob __P((const char *printer));
-void     rmremote __P((const struct printer *pp));
-void	 setprintcap __P((char *newprintcap));
-void     show __P((char *, char *, int));
-int      startdaemon __P((const struct printer *pp));
-char	*status_file_name __P((const struct printer *pp, char *buf,
-			       size_t len));
-void	 trstat_init __P((struct printer *pp, const char *fname, int filenum));
-void	 trstat_write __P((struct printer *pp, tr_sendrecv sendrecv,
-			   size_t bytecnt, const char *userid,
-			   const char *otherhost, const char *orighost));
-ssize_t	 writel __P((int s, ...));
+char	*pcaperr(int _error);
+void	 prank(int _n);
+void	 process(const struct printer *_pp, char *_file);
+void	 rmjob(const char *_printer);
+void	 rmremote(const struct printer *_pp);
+void	 setprintcap(char *_newfile);
+void	 show(const char *_nfile, const char *_datafile, int _copies);
+int	 startdaemon(const struct printer *_pp);
+char	*status_file_name(const struct printer *_pp, char *_buf,
+	    size_t _len);
+void	 trstat_init(struct printer *_pp, const char *_fname, int _filenum);
+void	 trstat_write(struct printer *_pp, tr_sendrecv _sendrecv,
+	    size_t _bytecnt, const char *_userid, const char *_otherhost,
+	    const char *_orighost);
+ssize_t	 writel(int _strm, ...);
 __END_DECLS

@@ -88,7 +88,7 @@ static int	 hdr = 1;	/* print header or not (default is yes) */
 static int	 iflag;		/* indentation wanted */
 static int	 inchar;	/* location to increment char in file names */
 static int	 indent;	/* amount to indent */
-static char	*jobname;	/* job name on header page */
+static const char *jobname;	/* job name on header page */
 static int	 mailflg;	/* send mail */
 static int	 nact;		/* number of jobs to act on */
 static int	 ncopies = 1;	/* # of copies to make */
@@ -107,30 +107,30 @@ static char	*Zflag;		/* extra filter options for LPRng servers */
 
 static struct stat statb;
 
-static void	 card __P((int, char *));
-static int	 checkwriteperm __P((char*, char *));
-static void	 chkprinter __P((char *printer, struct printer *pp));
-static void	 cleanup __P((int));
-static void	 copy __P((const struct printer *, int, char []));
-static char	*itoa __P((int));
-static char	*linked __P((char *));
-int		 main __P((int, char **));
-static char	*lmktemp __P((const struct printer *pp, char *, int, int));
-static void	 mktemps __P((const struct printer *pp));
-static int	 nfile __P((char *));
-static int	 test __P((char *));
-static void	 usage __P((void));
+static void	 card(int _c, const char *_p2);
+static int	 checkwriteperm(const char *_file, const char *_directory);
+static void	 chkprinter(const char *_ptrname, struct printer *_pp);
+static void	 cleanup(int _signo);
+static void	 copy(const struct printer *_pp, int _f, const char _n[]);
+static char	*itoa(int _i);
+static const char  *linked(const char *_file);
+int		 main(int _argc, char *_argv[]);
+static char	*lmktemp(const struct printer *_pp, const char *_id,
+		    int _num, int len);
+static void	 mktemps(const struct printer *_pp);
+static int	 nfile(char *_n);
+static int	 test(const char *_file);
+static void	 usage(void);
 
 uid_t	uid, euid;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct passwd *pw;
 	struct group *gptr;
-	char *arg, *cp, *printer, *p;
+	const char *arg, *cp, *printer;
+	char *p;
 	char buf[BUFSIZ];
 	int c, i, f, errs;
 	int	 ret, didlink;
@@ -528,10 +528,7 @@ main(argc, argv)
  * Create the file n and copy from file descriptor f.
  */
 static void
-copy(pp, f, n)
-	const struct printer *pp;
-	int f;
-	char n[];
+copy(const struct printer *pp, int f, const char n[])
 {
 	register int fd, i, nr, nc;
 	char buf[BUFSIZ];
@@ -571,9 +568,8 @@ copy(pp, f, n)
  * Try and link the file to dfname. Return a pointer to the full
  * path name if successful.
  */
-static char *
-linked(file)
-	register char *file;
+static const char *
+linked(const char *file)
 {
 	register char *cp;
 	static char buf[MAXPATHLEN];
@@ -611,9 +607,7 @@ linked(file)
  * Put a line into the control file.
  */
 static void
-card(c, p2)
-	register int c;
-	register char *p2;
+card(int c, const char *p2)
 {
 	char buf[BUFSIZ];
 	register char *p1 = buf;
@@ -632,8 +626,7 @@ card(c, p2)
  * Create a new file in the spool directory.
  */
 static int
-nfile(n)
-	char *n;
+nfile(char *n)
 {
 	register int f;
 	int oldumask = umask(0);		/* should block signals */
@@ -665,8 +658,7 @@ nfile(n)
  * Cleanup after interrupts and errors.
  */
 static void
-cleanup(signo)
-	int signo;
+cleanup(int signo __unused)
 {
 	register int i;
 
@@ -700,8 +692,7 @@ cleanup(signo)
  * we should remove it after printing.
  */
 static int
-test(file)
-	char *file;
+test(const char *file)
 {
 	struct exec execb;
 	char	*path;
@@ -765,8 +756,7 @@ error1:
 }
 
 static int
-checkwriteperm(file, directory)
-	char *file, *directory;
+checkwriteperm(const char *file, const char *directory)
 {
 	struct	stat	stats;
 	if (access(directory, W_OK) == 0) {
@@ -785,8 +775,7 @@ checkwriteperm(file, directory)
  * itoa - integer to string conversion
  */
 static char *
-itoa(i)
-	register int i;
+itoa(int i)
 {
 	static char b[10] = "########";
 	register char *p;
@@ -802,22 +791,20 @@ itoa(i)
  * Perform lookup for printer name or abbreviation --
  */
 static void
-chkprinter(s, pp)
-	char *s;
-	struct printer *pp;
+chkprinter(const char *ptrname, struct printer *pp)
 {
 	int status;
 
 	init_printer(pp);
-	status = getprintcap(s, pp);
+	status = getprintcap(ptrname, pp);
 	switch(status) {
 	case PCAPERR_OSERR:
 	case PCAPERR_TCLOOP:
-		errx(1, "%s: %s", s, pcaperr(status));
+		errx(1, "%s: %s", ptrname, pcaperr(status));
 	case PCAPERR_NOTFOUND:
-		errx(1, "%s: unknown printer", s);
+		errx(1, "%s: unknown printer", ptrname);
 	case PCAPERR_TCOPEN:
-		warnx("%s: unresolved tc= reference(s)", s);
+		warnx("%s: unresolved tc= reference(s)", ptrname);
 	}
 }
 
@@ -825,7 +812,7 @@ chkprinter(s, pp)
  * Tell the user what we wanna get.
  */
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n",
 "usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]\n"
@@ -839,8 +826,7 @@ usage()
  * Make the temp files.
  */
 static void
-mktemps(pp)
-	const struct printer *pp;
+mktemps(const struct printer *pp)
 {
 	register int len, fd, n;
 	register char *cp;
@@ -881,10 +867,7 @@ mktemps(pp)
  * Make a temp file name.
  */
 static char *
-lmktemp(pp, id, num, len)
-	const struct printer *pp;
-	char	*id;
-	int	num, len;
+lmktemp(const struct printer *pp, const char *id, int num, int len)
 {
 	register char *s;
 

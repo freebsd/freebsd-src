@@ -73,12 +73,11 @@ static char	current[7+MAXHOSTNAMELEN];  /* active control file name */
 
 extern uid_t	uid, euid;		/* real and effective user id's */
 
-static	void	alarmhandler __P((int));
-static	void	do_unlink __P((char *));
+static	void	alarmhandler(int _signo);
+static	void	do_unlink(char *_file);
 
 void
-rmjob(printer)
-	const char *printer;
+rmjob(const char *printer)
 {
 	register int i, nitems;
 	int assasinated = 0;
@@ -154,17 +153,15 @@ rmjob(printer)
  * Return boolean indicating existence of a lock file.
  */
 int
-lockchk(pp, s)
-	struct printer *pp;
-	char *s;
+lockchk(struct printer *pp, char *slockf)
 {
 	register FILE *fp;
 	register int i, n;
 
 	seteuid(euid);
-	if ((fp = fopen(s, "r")) == NULL) {
+	if ((fp = fopen(slockf, "r")) == NULL) {
 		if (errno == EACCES)
-			fatal(pp, "%s: %s", s, strerror(errno));
+			fatal(pp, "%s: %s", slockf, strerror(errno));
 		else
 			return(0);
 	}
@@ -194,9 +191,7 @@ lockchk(pp, s)
  * Process a control file.
  */
 void
-process(pp, file)
-	const struct printer *pp;
-	char *file;
+process(const struct printer *pp, char *file)
 {
 	FILE *cfp;
 
@@ -219,8 +214,7 @@ process(pp, file)
 }
 
 static void
-do_unlink(file)
-	char *file;
+do_unlink(char *file)
 {
 	int	ret;
 
@@ -236,8 +230,7 @@ do_unlink(file)
  * Do the dirty work in checking
  */
 int
-chk(file)
-	char *file;
+chk(char *file)
 {
 	register int *r, n;
 	register char **u, *cp;
@@ -293,13 +286,12 @@ chk(file)
  * Normal users can only remove the file from where it was sent.
  */
 int
-isowner(owner, file)
-	char *owner, *file;
+isowner(char *owner, char *file)
 {
 	if (!strcmp(person, root) && (from == host || !strcmp(from, file+6)))
-		return(1);
+		return (1);
 	if (!strcmp(person, owner) && !strcmp(from, file+6))
-		return(1);
+		return (1);
 	if (from != host)
 		printf("%s: ", host);
 	printf("%s: Permission denied\n", file);
@@ -311,8 +303,7 @@ isowner(owner, file)
  * then try removing files on the remote machine.
  */
 void
-rmremote(pp)
-	const struct printer *pp;
+rmremote(const struct printer *pp)
 {
 	int i, elem, firstreq, niov, rem, totlen;
 	char buf[BUFSIZ];
@@ -390,15 +381,14 @@ rmremote(pp)
  * Return 1 if the filename begins with 'cf'
  */
 int
-iscf(d)
-	struct dirent *d;
+iscf(struct dirent *d)
 {
 	return(d->d_name[0] == 'c' && d->d_name[1] == 'f');
 }
 
 void
-alarmhandler(signo)
-	int signo;
+alarmhandler(int signo __unused)
 {
-	/* ignored */
+	/* the signal is ignored */
+	/* (the '__unused' is just to avoid a compile-time warning) */
 }
