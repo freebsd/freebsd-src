@@ -118,6 +118,10 @@ SPECIAL				{ yylval.i = _CTYPE_T|_CTYPE_R|_CTYPE_G;
 				  return(LIST); }
 PHONOGRAM			{ yylval.i = _CTYPE_Q|_CTYPE_R|_CTYPE_G;
 				  return(LIST); }
+SWIDTH0				{ yylval.i = _CTYPE_SW0; return(LIST); }
+SWIDTH1				{ yylval.i = _CTYPE_SW1; return(LIST); }
+SWIDTH2				{ yylval.i = _CTYPE_SW2; return(LIST); }
+SWIDTH3				{ yylval.i = _CTYPE_SW3; return(LIST); }
 
 VARIABLE[\t ]			{ static char vbuf[1024];
 				  char *v = vbuf;
