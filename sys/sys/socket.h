@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id$
+ * $Id: socket.h,v 1.17 1997/02/22 09:45:55 peter Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -289,6 +289,29 @@ struct cmsghdr {
 /* followed by	u_char  cmsg_data[]; */
 };
 
+/*
+ * While we may have more groups than this, the cmsgcred struct must
+ * be able to fit in an mbuf, and NGROUPS_MAX is too large to allow
+ * this.
+*/
+#define CMGROUP_MAX 16
+
+/*
+ * Credentials structure, used to verify the identity of a peer
+ * process that has sent us a message. This is allocated by the
+ * peer process but filled in by the kernel. This prevents the
+ * peer from lying about its identity. (Note that cmcred_groups[0]
+ * is the effective GID.)
+ */
+struct cmsgcred {
+	pid_t	cmcred_pid;		/* PID of sending process */
+	uid_t	cmcred_uid;		/* real UID of sending process */
+	uid_t	cmcred_euid;		/* effective UID of sending process */
+	gid_t	cmcred_gid;		/* real GID of sending process */
+	short	cmcred_ngroups;		/* number or groups */
+	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
+};
+
 /* given pointer to struct cmsghdr, return pointer to data */
 #define	CMSG_DATA(cmsg)		((u_char *)((cmsg) + 1))
 
@@ -304,6 +327,7 @@ struct cmsghdr {
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
 #define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */
+#define	SCM_CREDS	0x03		/* process creds (struct cmsgcred) */
 
 /*
  * 4.3 compat sockaddr, move to compat file later
