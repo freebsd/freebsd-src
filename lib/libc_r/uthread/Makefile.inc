@@ -18,6 +18,7 @@ SRCS+= \
 	uthread_attr_getschedparam.c \
 	uthread_attr_getschedpolicy.c \
 	uthread_attr_getscope.c \
+	uthread_attr_getstack.c \
 	uthread_attr_getstackaddr.c \
 	uthread_attr_getstacksize.c \
 	uthread_attr_get_np.c \
@@ -28,6 +29,7 @@ SRCS+= \
 	uthread_attr_setschedparam.c \
 	uthread_attr_setschedpolicy.c \
 	uthread_attr_setscope.c \
+	uthread_attr_setstack.c \
 	uthread_attr_setstackaddr.c \
 	uthread_attr_setstacksize.c \
 	uthread_autoinit.c \
