@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.77 1996/06/12 05:02:54 gpalmer Exp $
+ *	$Id: trap.c,v 1.78 1996/06/13 07:17:21 asami Exp $
  */
 
 /*
@@ -163,19 +163,10 @@ userret(p, frame, oticks)
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL) {
-		u_quad_t ticks = p->p_sticks - oticks;
+	if (p->p_flag & P_PROFIL)
+		addupc_task(p, frame->tf_eip,
+			    (u_int)(p->p_sticks - oticks) * psratio);
 
-		if (ticks) {
-#ifdef PROFTIMER
-			extern int profscale;
-			addupc(frame->tf_eip, &p->p_stats->p_prof,
-			    ticks * profscale);
-#else
-			addupc(frame->tf_eip, &p->p_stats->p_prof, ticks);
-#endif
-		}
-	}
 	curpriority = p->p_priority;
 }
 
@@ -227,8 +218,9 @@ trap(frame)
 			astoff();
 			cnt.v_soft++;
 			if (p->p_flag & P_OWEUPC) {
-				addupc(frame.tf_eip, &p->p_stats->p_prof, 1);
 				p->p_flag &= ~P_OWEUPC;
+				addupc_task(p, p->p_stats->p_prof.pr_addr,
+					    p->p_stats->p_prof.pr_ticks);
 			}
 			goto out;
 
