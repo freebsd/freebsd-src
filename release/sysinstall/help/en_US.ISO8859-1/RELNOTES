@@ -59,6 +59,13 @@ FreeBSD 2.0.5 represents the culmination of 2 years of work and many
 thousands of man hours put in by an international development team.
 We hope you enjoy it!
 
+A number of additional documents which you may find very helpful in
+the process of installing and using FreeBSD may also be found in
+the "FAQ" directory, either under /usr/share/FAQ on an installed
+system or at the top level of the CDROM or FTP distribution from
+where you're reading this file.  Please consult FAQ/Text/ROADMAP
+for a brief description of the resources provided by the FAQ directory.
+
 For a list of contributors and a general project description, please see
 the file "CONTRIB.FreeBSD" which should be bundled with your binary
 distribution.
@@ -726,4 +733,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.5 1995/06/06 01:21:36 jkh Exp $
+$Id: RELNOTES,v 1.6 1995/06/06 02:15:16 jkh Exp $
