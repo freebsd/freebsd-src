@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.16 1998/12/14 08:34:55 dillon Exp $ */
+/* $Id: sem.h,v 1.17 1998/12/14 21:01:47 dillon Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -140,7 +140,12 @@ extern struct seminfo	seminfo;
 #define SEMOPM	100		/* max # of operations per semop call */
 #endif
 
-#define SEM_ALIGN(bytes)	(((bytes) + 15) & ~15)
+/*
+ * Due to the way semaphore memory is allocated, we have to ensure that
+ * SEMUSZ is properly aligned.
+ */
+
+#define SEM_ALIGN(bytes) (((bytes) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
 
 /* actual size of an undo structure */
 #define SEMUSZ	SEM_ALIGN(offsetof(struct sem_undo, un_ent[SEMUME]))
