@@ -1526,7 +1526,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	origpte = *pte;
 	opa = (pmap_lpte_present(&origpte)) ? pmap_lpte_ppn(&origpte) : 0UL;
 	managed = FALSE;
-	pa = VM_PAGE_TO_PHYS(m) & ~PAGE_MASK;
+	pa = VM_PAGE_TO_PHYS(m);
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
