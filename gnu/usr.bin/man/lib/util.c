@@ -53,9 +53,9 @@ mkprogname (s)
 
 void
 downcase (s)
-     char *s;
+     unsigned char *s;
 {
-  register char c;
+  register unsigned char c;
   while ((c = *s) != '\0')
     {
       if (isalpha (c))
