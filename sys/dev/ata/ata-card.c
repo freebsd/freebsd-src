@@ -44,9 +44,21 @@
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
 
+static const struct pccard_product ata_pccard_products[] = {
+	/* NetBSD has a few others that need to migrate into pccarddevs */
+	/* XXX */
+	PCMCIA_CARD(EXP, EXPMULTIMEDIA, 0),
+	PCMCIA_CARD(IODATA, CBIDE2, 0),
+	PCMCIA_CARD(OEM2, CDROM1, 0),
+	PCMCIA_CARD(PANASONIC, KXLC005, 0),
+	PCMCIA_CARD(TEAC, IDECARDII, 0),
+	{NULL}
+};
+
 static int
 ata_pccard_match(device_t dev)
 {
+    const struct pccard_product *pp;
     u_int32_t fcn = PCCARD_FUNCTION_UNSPEC;
     int error = 0;
 
@@ -58,7 +70,13 @@ ata_pccard_match(device_t dev)
     if (fcn == PCCARD_FUNCTION_DISK)
 	return (0);
 
-    /* other devices might need to be matched here */
+    /* Match other devices here, primarily cdrom/dvd rom */
+    if ((pp = pccard_product_lookup(dev, ata_pccard_products,
+      sizeof(ata_pccard_products[0]), NULL)) != NULL) {
+	if (pp->pp_name)
+	    device_set_desc(dev, pp->pp_name);
+	return (0);
+    }
     return(ENXIO);
 }
 
