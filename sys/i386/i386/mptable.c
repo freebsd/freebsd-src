@@ -580,12 +580,18 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-		return (INTR_TRIGGER_EDGE);
+#ifndef PC98
+		if (elcr_found)
+			return (elcr_read_trigger(src_bus_irq));
+		else
+#endif
+			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
 #ifndef PC98
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
+		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
 #endif
 	default:
