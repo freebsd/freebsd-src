@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)sccs.c	8.1 (Berkeley) 6/6/93";
 #include "pathnames.h"
 #include <paths.h>
 #include <pwd.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -271,27 +272,41 @@ bool	RealUser;		/* if set, running as real user */
 # ifdef DEBUG
 bool	Debug;			/* turn on tracing */
 # endif
-# ifndef V6
-extern char	*getenv();
-# endif /* V6 */
 
-char *gstrcat(), *strcat();
-char *gstrncat(), *strncat();
-char *gstrcpy(), *strcpy();
+int callprog(char *, short, char **, bool);
+int clean(int, char **);
+int command(char **, bool, char *);
+int dodiff(char **, char *);
+struct pfile *getpfent(FILE *);
+bool isbranch(char *);
+bool isdir(char *);
+struct sccsprog *lookup(char *);
+char *makefile(char *);
+char *nextfield(char *);
+void putpfent(struct pfile *, FILE *);
+bool safepath(char *);
+void syserr(const char *, ...);
+char *tail(char *);
+char *username(void);
+bool unedit(char *);
+int usrerr(const char *, ...);
+
+void gstrbotch(char *, char *);
+char *gstrcat(char *, char *, size_t); 
+char *gstrcpy(char *, char *, size_t);
+char *gstrncat(char *, char *, size_t, size_t);
+
 #define	FBUFSIZ	BUFSIZ
 #define	PFILELG	120
 
-main(argc, argv)
-	int argc;
-	char **argv;
+int
+main(int argc, char *argv[])
 {
 	register char *p;
-	extern struct sccsprog *lookup();
 	register int i;
 # ifndef V6
 # ifndef SCCSDIR
 	register struct passwd *pw;
-	extern struct passwd *getpwnam();
 	char buf[FBUFSIZ];
 
 	/* pull "SccsDir" out of the environment (possibly) */
@@ -406,26 +421,19 @@ main(argc, argv)
 **		none.
 */
 
-command(argv, forkflag, arg0)
-	char **argv;
-	bool forkflag;
-	char *arg0;
+int
+command(char **argv, bool forkflag, char *arg0)
 {
 	register struct sccsprog *cmd;
 	register char *p;
 	char buf[FBUFSIZ];
-	extern struct sccsprog *lookup();
 	char *nav[1000];
 	char **np;
 	register char **ap;
 	register int i;
 	register char *q;
-	extern bool unedit();
 	int rval = 0;
-	extern char *index();
-	extern char *makefile();
 	char *editchs;
-	extern char *tail();
 
 # ifdef DEBUG
 	if (Debug)
@@ -660,8 +668,7 @@ command(argv, forkflag, arg0)
 */
 
 struct sccsprog *
-lookup(name)
-	char *name;
+lookup(char *name)
 {
 	register struct sccsprog *cmd;
 
@@ -693,11 +700,8 @@ lookup(name)
 **		Can exit if forkflag == FALSE.
 */
 
-callprog(progpath, flags, argv, forkflag)
-	char *progpath;
-	short flags;
-	char **argv;
-	bool forkflag;
+int
+callprog(char *progpath, short flags, char **argv, bool forkflag)
 {
 	register int i;
 	register int wpid;
@@ -821,15 +825,10 @@ callprog(progpath, flags, argv, forkflag)
 */
 
 char *
-makefile(name)
-	char *name;
+makefile(char *name)
 {
 	register char *p;
 	char buf[3*FBUFSIZ];
-	extern char *malloc();
-	extern char *rindex();
-	extern bool safepath();
-	extern bool isdir();
 	register char *q;
 
 	p = rindex(name, '/');
@@ -911,8 +910,7 @@ makefile(name)
 */
 
 bool
-isdir(name)
-	char *name;
+isdir(char *name)
 {
 	struct stat stbuf;
 
@@ -938,11 +936,8 @@ isdir(name)
 */
 
 bool
-safepath(p)
-	register char *p;
+safepath(char *p)
 {
-	extern char *index();
-
 	if (*p != '/')
 	{
 		while (strncmp(p, "../", 3) != 0 && strcmp(p, "..") != 0)
@@ -970,7 +965,7 @@ safepath(p)
 **		argv -- the rest of the argument vector.
 **
 **	Returns:
-**		none.
+**		exit value.
 **
 **	Side Effects:
 **		Removes files in the current directory.
@@ -978,9 +973,8 @@ safepath(p)
 **		Exits if a "check" command.
 */
 
-clean(mode, argv)
-	int mode;
-	char **argv;
+int
+clean(int mode, char **argv)
 {
 	struct dirent *dir;
 	char buf[FBUFSIZ];
@@ -991,10 +985,8 @@ clean(mode, argv)
 	bool gotpfent;
 	FILE *pfp;
 	bool nobranch = FALSE;
-	extern struct pfile *getpfent();
 	register struct pfile *pf;
 	register char **ap;
-	extern char *username();
 	char *usernm = NULL;
 	char *subdir = NULL;
 	char *cmdname;
@@ -1063,7 +1055,7 @@ clean(mode, argv)
 	*/
 
 	gotedit = FALSE;
-	while (dir = readdir(dirp)) {
+	while ((dir = readdir(dirp)) != NULL) {
 		if (strncmp(dir->d_name, "s.", 2) != 0)
 			continue;
 		
@@ -1142,8 +1134,8 @@ clean(mode, argv)
 **		none.
 */
 
-isbranch(sid)
-	char *sid;
+bool
+isbranch(char *sid)
 {
 	register char *p;
 	int dots;
@@ -1179,8 +1171,7 @@ isbranch(sid)
 */
 
 bool
-unedit(fn)
-	char *fn;
+unedit(char *fn)
 {
 	register FILE *pfp;
 	char *cp, *pfn;
@@ -1190,11 +1181,8 @@ unedit(fn)
 	bool delete = FALSE;
 	bool others = FALSE;
 	char *myname;
-	extern char *username();
 	struct pfile *pent;
-	extern struct pfile *getpfent();
 	char buf[PFILELG];
-	extern char *makefile(), *rindex(), *tail();
 
 	/* make "s." filename & find the trailing component */
 	pfn = makefile(fn);
@@ -1255,8 +1243,6 @@ unedit(fn)
 	 * the file in question (assuming it exists).
 	 */
 	if (delete) {
-		extern int errno;
-
 		cp = tail(fn);
 		errno = 0;
 		if (access(cp, 0) < 0 && errno != ENOENT)
@@ -1335,16 +1321,14 @@ unedit(fn)
 **		none.
 */
 
-dodiff(getv, gfile)
-	char **getv;
-	char *gfile;
+int
+dodiff(char **getv, char *gfile)
 {
 	int pipev[2];
 	int rval;
 	register int i;
 	register int pid;
 	auto int st;
-	extern int errno;
 	sig_t osig;
 
 	printf("\n------- %s -------\n", gfile);
@@ -1402,8 +1386,7 @@ dodiff(getv, gfile)
 */
 
 char *
-tail(fn)
-	register char *fn;
+tail(char *fn)
 {
 	register char *p;
 
@@ -1428,13 +1411,11 @@ tail(fn)
 */
 
 struct pfile *
-getpfent(pfp)
-	FILE *pfp;
+getpfent(FILE *pfp)
 {
 	static struct pfile ent;
 	static char buf[PFILELG];
 	register char *p;
-	extern char *nextfield();
 
 	if (fgets(buf, sizeof buf, pfp) == NULL)
 		return (NULL);
@@ -1451,8 +1432,7 @@ getpfent(pfp)
 
 
 char *
-nextfield(p)
-	register char *p;
+nextfield(char *p)
 {
 	if (p == NULL || *p == '\0')
 		return (NULL);
@@ -1480,9 +1460,8 @@ nextfield(p)
 **		pf is written onto file f.
 */
 
-putpfent(pf, f)
-	register struct pfile *pf;
-	register FILE *f;
+void
+putpfent(struct pfile *pf, FILE *f)
 {
 	fprintf(f, "%s %s %s %s %s", pf->p_osid, pf->p_nsid,
 		pf->p_user, pf->p_date, pf->p_time);
@@ -1497,7 +1476,7 @@ putpfent(pf, f)
 **
 **	Parameters:
 **		f -- format string.
-**		p1-p3 -- parameters to a printf.
+**		... -- parameters to a printf.
 **
 **	Returns:
 **		-1
@@ -1506,12 +1485,14 @@ putpfent(pf, f)
 **		none.
 */
 
-/*VARARGS1*/
-usrerr(f, p1, p2, p3)
-	char *f;
+int
+usrerr(const char *f, ...)
 {
+	va_list ap;
+
+	va_start(ap, f);
 	fprintf(stderr, "\n%s: ", MyName);
-	fprintf(stderr, f, p1, p2, p3);
+	vfprintf(stderr, f, ap);
 	fprintf(stderr, "\n");
 
 	return (-1);
@@ -1522,7 +1503,7 @@ usrerr(f, p1, p2, p3)
 **
 **	Parameters:
 **		f -- format string to a printf.
-**		p1, p2, p3 -- parameters to f.
+**		... - parameters to f.
 **
 **	Returns:
 **		never.
@@ -1531,14 +1512,14 @@ usrerr(f, p1, p2, p3)
 **		none.
 */
 
-/*VARARGS1*/
-syserr(f, p1, p2, p3)
-	char *f;
+void
+syserr(const char *f, ...)
 {
-	extern int errno;
+	va_list ap;
 
+	va_start(ap, f);
 	fprintf(stderr, "\n%s SYSERR: ", MyName);
-	fprintf(stderr, f, p1, p2, p3);
+	vfprintf(stderr, f, ap);
 	fprintf(stderr, "\n");
 	if (errno == 0)
 		exit(EX_SOFTWARE);
@@ -1562,10 +1543,9 @@ syserr(f, p1, p2, p3)
 */
 
 char *
-username()
+username(void)
 {
 # ifdef UIDUSER
-	extern struct passwd *getpwuid();
 	register struct passwd *pw;
 
 	pw = getpwuid(getuid());
@@ -1576,7 +1556,6 @@ username()
 	}
 	return (pw->pw_name);
 # else
-	extern char *getlogin();
 	register char *p;
 
 	p = getenv("USER");
@@ -1591,9 +1570,8 @@ username()
 **	is the length of the buffer into which the strcpy or strcat
 **	is to be done.
 */
-char *gstrcat(to, from, length)
-	char	*to, *from;
-	int	length;
+char *
+gstrcat(char *to, char *from, size_t length)
 {
 	if (strlen(from) + strlen(to) >= length) {
 		gstrbotch(to, from);
@@ -1601,10 +1579,8 @@ char *gstrcat(to, from, length)
 	return(strcat(to, from));
 }
 
-char *gstrncat(to, from, n, length)
-	char	*to, *from;
-	int	n;
-	int	length;
+char *
+gstrncat(char *to, char *from, size_t n, size_t length)
 {
 	if (n + strlen(to) >= length) {
 		gstrbotch(to, from);
@@ -1612,17 +1588,17 @@ char *gstrncat(to, from, n, length)
 	return(strncat(to, from, n));
 }
 
-char *gstrcpy(to, from, length)
-	char	*to, *from;
-	int	length;
+char *
+gstrcpy(char *to, char *from, size_t length)
 {
 	if (strlen(from) >= length) {
 		gstrbotch(from, (char *)0);
 	}
 	return(strcpy(to, from));
 }
-gstrbotch(str1, str2)
-	char	*str1, *str2;
+
+void
+gstrbotch(char *str1, char *str2)
 {
 	usrerr("Filename(s) too long: %s %s", str1, str2);
 }
