@@ -1,7 +1,7 @@
 /* human.h -- print human readable file size
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free
-   Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,12 +29,11 @@
 # include <limits.h>
 # include <stdbool.h>
 
-# if HAVE_INTTYPES_H
-#  include <inttypes.h>
-# else
-#  if HAVE_STDINT_H
-#   include <stdint.h>
-#  endif
+# if HAVE_STDINT_H
+#  include <stdint.h>
+# endif
+# if HAVE_UNISTD_H
+#  include <unistd.h>
 # endif
 
 /* A conservative bound on the maximum length of a human-readable string.

@@ -1,5 +1,5 @@
 /* xstrtoumax.c -- A more useful interface to strtoumax.
-   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2003, 2004 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,11 +21,7 @@
 # include <config.h>
 #endif
 
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#elif HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include "xstrtol.h"
 
 #define __strtol strtoumax
 #define __strtol_t uintmax_t
