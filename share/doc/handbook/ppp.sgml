@@ -1,4 +1,4 @@
-<!-- $Id: ppp.sgml,v 1.5 1995/09/27 00:46:27 jmz Exp $ -->
+<!-- $Id: ppp.sgml,v 1.6 1995/12/04 17:58:46 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up kernel PPP<label id="ppp"></heading>
@@ -246,7 +246,7 @@ exit
 
 This <tt>/etc/ppp/kermit.dial</tt> script is used for dialing and authorizing
 on remote host. You will need to customize it for your needs.
-Put your login and password in this script , also you'll need
+Put your login and password in this script , also you will need
 to change input statement depending on responses from your modem
 and remote host.
 <verb>

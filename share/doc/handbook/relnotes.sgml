@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.9 1996/01/31 14:26:15 mpp Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.10 1996/02/02 05:27:27 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -28,7 +28,7 @@
 	  the Adaptec 2940 (WIDE and narrow) and many hundreds of
 	  bug fixes.
 
-	  We've also taken the comments and suggestions of many
+	  We have also taken the comments and suggestions of many
 	  of our users to heart and have attempted to provide
 	  what we hope is a more sane and easily understood
 	  installation process.  Your feedback on this
@@ -92,7 +92,7 @@
 	  security may be all you require!  We feel that our
 	  default security model is more than a match for DES,
 	  and without any messy export issues to deal with.  If
-	  you're outside (or even inside) the U.S., give it a
+	  you are outside (or even inside) the U.S., give it a
 	  try!
 
 <![ IGNORE [
@@ -119,7 +119,7 @@
 	  Ethernet adapters, improved support for the Adaptec
 	  2940 and hundreds of bug fixes.
 
-	  We've also taken the comments and suggestions of many
+	  We have also taken the comments and suggestions of many
 	  of our users to heart and have attempted to provide
 	  what we hope is a more sane and easily understood
 	  installation process.  Your feedback on this constantly
@@ -523,7 +523,7 @@
 	  <tag>UNIONFS and LFS</tag> The unionfs and LFS file
 	    systems are known to be severely broken in FreeBSD
 	    2.0.5.  This is in part due to old bugs that we
-	    haven't had time to resolve yet and the need to
+	    have not had time to resolve yet and the need to
 	    update these file systems to deal with the new VM
 	    system.  We hope to address these issues in a later
 	    release of FreeBSD.
@@ -556,7 +556,7 @@
 	The preferred method to submit bug reports from a machine
 	with Internet mail connectivity is to use the send-pr
 	command.  Bug reports will be dutifully filed by our
-	faithful bug-filer program and you can be sure that we'll
+	faithful bug-filer program and you can be sure that we will
 	do our best to respond to all reported bugs as soon as
 	possible.
 
@@ -580,8 +580,8 @@
 	subscribe to: <tscreen>announce@FreeBSD.org</tscreen>
 
 	All but the freebsd-bugs groups can be freely joined by
-	anyone wishing to do so.  Send mail to
-	MajorDomo@FreeBSD.org and include the keyword `help' on a
+	anyone wishing to do so.  Send mail to &a.majordomo
+	and include the keyword `help' on a
 	line by itself somewhere in the body of the message.
 	This will give you more information on joining the
 	various lists, accessing archives, etc.  There are a

@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.13 1996/02/11 00:16:18 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.14 1996/05/09 23:04:53 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -28,9 +28,9 @@ track changes to the -stable release, refer to
 <tt>/usr/share/examples/sup/stable-supfile</tt>
 instead.
 
-If you're inside the United States, you may also uncomment
+If you are inside the United States, you may also uncomment
 the `secure' and `eBones' collection lines to grab the DES code.  
-If you're outside the
+If you are outside the
 U.S., you should NOT sup this code from sup.FreeBSD.ORG as this will
 violate U.S. export restrictions.  Instead you should use the 
 <tt>secure-supfile</tt> found within the above directory.  This will
@@ -45,7 +45,7 @@ listed in the above example files is currently overloaded and any traffic
 that can be transfered to a different host will help relieve some of 
 the strain.
 
-Once this is setup, you're ready to go.  To start sup type:
+Once this is setup, you are ready to go.  To start sup type:
 <verb>
 	sup supfile
 </verb>
@@ -54,7 +54,7 @@ like so:
 <verb>
 	sup -v supfile
 </verb>
-Thats all there is to it!  Remember that if you're running current,
+Thats all there is to it!  Remember that if you are running current,
 which is what you will have if you sup with the standard-supfile, please 
 join the &a.current mailing list.  You should also be sure to read 
 <ref id="current" name="Staying current with FreeBSD">
@@ -125,7 +125,7 @@ ports-x11:	  /usr/ports/x11	X11 software
 <p>If you want to keep updated on the original source of the ports,
 you can also add this to your supfile.  But note that this collection
 is <em>enormous</em>, and unless you are an ftp site mirroring the
-entire FreeBSD tree (but can't use ``mirror'' for some reason), you
+entire FreeBSD tree (but cannot use ``mirror'' for some reason), you
 (and us) are much better off not using sup to collect these:
 <verb>
 ports-distfiles: /usr/ports/distfiles	original tarballs

@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.12 1995/12/29 01:27:38 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.13 1996/01/31 14:26:07 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -9,11 +9,11 @@ The FreeBSD project had its genesis in the early part of 1993,
 partially as an outgrowth of the "Unofficial 386BSD Patchkit" by the
 patchkit's last 3 coordinators: Nate Williams, Rod Grimes and myself.
 David Greenman and Julian Elischer were also lurking in the background
-around this time, though they didn't come fully into the project until
+around this time, though they did not come fully into the project until
 a month or two after it was more or less officially launched.  Our
 original goal was to produce an intermediate snapshot of 386BSD in
 order to fix a number of problems with it that the patchkit mechanism
-just wasn't capable of solving.  Some of you may remember the early
+just was not capable of solving.  Some of you may remember the early
 working title for the project being "386BSD 0.5" or "386BSD Interim"
 in reference to that fact.
 
@@ -26,7 +26,7 @@ snapshot.  Those plans came to a rude halt when Bill Jolitz suddenly
 decided to withdraw his sanction from the project and without any
 clear indication of what would be done instead.
 
-It didn't take us long to decide that the goal remained worthwhile
+It did not take us long to decide that the goal remained worthwhile
 even without Bill's support, and so we adopted the name "FreeBSD",
 which was coined by David Greenman.  Our initial objectives were set
 after consulting with the system's current users, and once it became
@@ -79,7 +79,7 @@ easier to install FreeBSD 2.0.5 release in June of 1995.
 <em>Where to from here?</em>
 
 We just released FreeBSD 2.1.0 on November 19th, 1995 and, by all
-accounts, people are pretty happy with it.  We'll therefore continue
+accounts, people are pretty happy with it.  We will therefore continue
 with the 2.1-STABLE branch of FreeBSD (which actually began with 2.0.5)
 well into Q1 of 1996 with at least one additional release:
 FreeBSD 2.1.1.
@@ -90,7 +90,7 @@ where long term projects for everything from NFS v3 to PCCARD support
 are currently taking place.  Preliminary timelines suggest that development
 in 2.2 will begin slowing down and early release engineering simulations
 (2.2 SNAPshots) started in Q1 of 1996.  Given a favorable prognosis for 2.2's
-general health, a migration to 2.2 will then begin in early Q2 of '96 and
+general health, a migration to 2.2 will then begin in early Q2 of 1996 and
 a new 2.3 branch created for next-generation development.  Around the
 time that 2.2-RELEASE is produced (late Q2 1996), the 2.1.x lineage will
 also be phased out.
@@ -108,7 +108,7 @@ changes can propagate automatically to other users of FreeBSD.  Our
 centralized development model is designed for the convenience of the
 <em>users</em> of FreeBSD, who are thereby provided with an easy way of
 tracking one central code base, not to keep potential contributors out!
-Individuals who've shown a consistent and significant dedication to the project
+Individuals who hae shown a consistent and significant dedication to the project
 are even often asked to join the FreeBSD core team to help in setting
 the project's overall directions and goals, so truly no part of the project
 is closed to additional members.  All we ask of those wishing for closer

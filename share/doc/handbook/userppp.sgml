@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.5 1995/12/06 22:01:50 jfieber Exp $ -->
+<!-- $Id: userppp.sgml,v 1.6 1996/01/31 14:26:20 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -11,11 +11,11 @@
   (and above).
 
   I hope this document turns into a collaborative effort, largely
-  because I am not really much of an authority on PPP. I've got
+  because I am not really much of an authority on PPP. I have got
   it working, and want to pass on details of what I did so that
-  other people can get it working. But I'm not 100% clear on some
+  other people can get it working. But I am not 100% clear on some
   details, so I hope that by writing this and having others
-  flesh out some of the information I'm going to learn something
+  flesh out some of the information I am going to learn something
   as well.
 -->
 
@@ -27,7 +27,7 @@
 <quote>
        This is a user process PPP software package. Normally, PPP is
        implemented as a part of the kernel (e.g. as managed by pppd) and
-       it's thus somewhat hard to debug and/or modify its behavior. However,
+       it is thus somewhat hard to debug and/or modify its behavior. However,
        in this implementation PPP is done as a user process with the help of
        the tunnel device driver (tun).
 </quote>
@@ -50,7 +50,7 @@
 
 <sect1><heading>Before you start</heading>
 
-<p>This document assumes you're in roughly this position:
+<p>This document assumes you are in roughly this position:
 
     You have an account with an Internet Service Provider (ISP) which lets you
     use PPP. Further, you have a modem (or other device) connected and
@@ -77,7 +77,7 @@
   your kernel. Check <ref id="kernelconfig" name="Kernel
   Configuration"> for more information on how to acquire these.
 
-  In addition, I've assumed that because your connection to the Internet is  
+  In addition, I have assumed that because your connection to the Internet is  
   not full time you are not running a name server (<tt>named(8)</tt>).
 
 <sect1><heading>Building a ppp ready kernel</heading>
@@ -92,7 +92,7 @@
 pseudo-device	  tun		1
 </verb></tscreen>
   in it somewhere. The stock GENERIC kernel has this as standard, so if you
-  have not installed a custom kernel you don't have to change anything.
+  have not installed a custom kernel you do not have to change anything.
   If your kernel configuration file does not have this line in it then you
   should add the line, re-compile and then re-install the kernel. Boot from
   this new kernel.
@@ -159,7 +159,7 @@ bind
      and then to consult the DNS if the name was not found in the
      <tt>/etc/hosts</tt> file.
 
-     It's probably a good idea to make sure you are not running the ``named''
+     It is probably a good idea to make sure you are not running the ``named''
      service. Check your <tt>/etc/sysconfig</tt> file for the line that refers
      to ``namedflags'', and make sure the line reads
 <tscreen><verb>
@@ -170,7 +170,7 @@ namedflags="NO"
 
 <p>This file should contain the IP addresses and names of machines on your
      network. At a bare minimum it should contain entries for the machine
-     which will be running ppp. Assuming that you're machine is called
+     which will be running ppp. Assuming that your machine is called
      foo.bar.com with the IP address 10.0.0.1, <tt>/etc/hosts</tt> should
      contain:
 <tscreen><verb>
@@ -228,7 +228,7 @@ nameserver 158.152.1.65
 10       set timeout 120
 11       set ifaddr x.x.x.x y.y.y.y
 </verb></tscreen>
-    Don't include the line numbers, they're just for this discussion.
+    Do not include the line numbers, they are just for this discussion.
 
 <descrip>
 <tag/Line 1:/ Identifies the default entry. Commands in this entry are
@@ -239,7 +239,7 @@ nameserver 158.152.1.65
 
 <tag/Line 3:/ Sets the speed you want to connect at.
 
-<tag/* Lines 4 and 5:/ Don't know exactly what effect these lines have
+<tag/* Lines 4 and 5:/ Do not know exactly what effect these lines have
 
 <tag/Line 6:/ Dial string commands. user ppp uses the <tt>chat(8)</tt>
               language. Check the manual page for information on the features
@@ -247,10 +247,10 @@ nameserver 158.152.1.65
 
 <tag/Line 7:/ Identifies an entry for a provider called ``provider''.
 
-<tag/Line 8:/ Sets the phone number for this provider. Don't include any
+<tag/Line 8:/ Sets the phone number for this provider. Do not include any
               spaces in the phone number.
 
-<tag/Line 9:/ Set's the login string sequence. In this example, the string is
+<tag/Line 9:/ Sets the login string sequence. In this example, the string is
 	      for a service who's login session looks like
 <tscreen><verb>
 J. Random Provider
@@ -298,8 +298,8 @@ set ifaddr 0 0
 
 <sect1><heading>Final system configuration</heading>
 
-<p>You now have PPP configured, but there's a few more things to do before
-    it's ready to work. They all involve editing the <tt>/etc/sysconfig</tt>
+<p>You now have PPP configured, but there are a few more things to do before
+    it is ready to work. They all involve editing the <tt>/etc/sysconfig</tt>
     file.
 
     Working from the top down in this file, make sure the ``hostname='' line
@@ -330,7 +330,7 @@ ifconfig_tun0="inet foo.bar.com y.y.y.y netmask 0xffffffff"
 <tscreen><verb>
 routedflags=-s
 </verb></tscreen>
-    It's probably worth your while ensuring that the ``sendmail_flags'' line
+    It is probably worth your while ensuring that the ``sendmail_flags'' line
     does not include the ``-q'' option, otherwise sendmail will attempt to do
     a network lookup every now and then, possibly causing your machine to dial
     out. My sendmail line looks like
@@ -343,7 +343,7 @@ sendmail_flags="-bd"
 # /usr/sbin/sendmail -q
 </verb></tscreen>
     That should be about all you need to do to get PPP working with a static
-    IP address. All that's left is to reboot the machine. During startup the
+    IP address. All that is left is to reboot the machine. During startup the
     tun0 device should be detected, and two lines like the following should be
     printed,
 <tscreen><verb>
