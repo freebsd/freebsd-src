@@ -711,8 +711,11 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE), sc->cred, p);
 	if (sc->cred != NULL)
 		crfree(sc->cred);
-	if (sc->object != NULL)
+	if (sc->object != NULL) {
+		mtx_lock(&vm_mtx);
 		vm_pager_deallocate(sc->object);
+		mtx_unlock(&vm_mtx);
+	}
 	if (sc->secp != NULL) {
 		for (u = 0; u < sc->nsect; u++) 
 			if ((uintptr_t)sc->secp[u] > 255)
@@ -763,17 +766,20 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	 * Note the truncation.
 	 */
 
+	mtx_lock(&vm_mtx);
 	sc->secsize = PAGE_SIZE;
 	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
+			mtx_unlock(&vm_mtx);
 			sc->object = NULL;
 			mddestroy(sc, mdio, p);
 			return(EDOM);
 		}
 	}
+	mtx_unlock(&vm_mtx);
 	error = mdsetcred(sc, p->p_ucred);
 	if (error)
 		mddestroy(sc, mdio, p);
