@@ -36,9 +36,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <net/if.h>
