@@ -664,6 +664,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0014490a, NULL},	/* BRI1400 - Boca 33.6 PnP */
 	{0x0015490a, NULL},	/* BRI1500 - Internal Fax Data */
 	{0x0034490a, NULL},	/* BRI3400 - Internal ACF Modem */
+	{0x0094490a, NULL},	/* BRI9400 - Boca K56Flex PnP */
 	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
 	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
@@ -715,6 +716,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x70917256, NULL},	/* USR9170 - U.S. Robotics 56K FAX INT */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
+	{0x01a0896a, NULL},	/* ZTIA001 - Zoom Internal V90 Faxmodem */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
 	{0}
 };
