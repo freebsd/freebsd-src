@@ -1387,8 +1387,8 @@ ath_desc_alloc(struct ath_softc *sc)
 		goto fail1;
 
 	ds = sc->sc_desc;
-	DPRINTF(ATH_DEBUG_ANY, ("%s: DMA map: %p (%d) -> %p (%lu)\n",
-	    __func__, ds, sc->sc_desc_len, (caddr_t) sc->sc_desc_paddr,
+	DPRINTF(ATH_DEBUG_ANY, ("%s: DMA map: %p (%lu) -> %p (%lu)\n",
+	    __func__, ds, (u_long) sc->sc_desc_len, (caddr_t) sc->sc_desc_paddr,
 	    /*XXX*/ (u_long) sc->sc_desc_len));
 
 	/* allocate buffers */
@@ -2157,7 +2157,7 @@ ath_tx_proc(void *arg, int npending)
 
 	DPRINTF(ATH_DEBUG_TX_PROC, ("%s: pending %u tx queue %p, link %p\n",
 		__func__, npending,
-		(caddr_t) ath_hal_gettxbuf(sc->sc_ah, sc->sc_txhalq),
+		(caddr_t)(uintptr_t) ath_hal_gettxbuf(sc->sc_ah, sc->sc_txhalq),
 		sc->sc_txlink));
 	for (;;) {
 		ATH_TXQ_LOCK(sc);
@@ -2249,12 +2249,12 @@ ath_draintxq(struct ath_softc *sc)
 		(void) ath_hal_stoptxdma(ah, sc->sc_txhalq);
 		DPRINTF(ATH_DEBUG_RESET,
 		    ("%s: tx queue %p, link %p\n", __func__,
-		    (caddr_t) ath_hal_gettxbuf(ah, sc->sc_txhalq),
+		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_txhalq),
 		    sc->sc_txlink));
 		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
 		DPRINTF(ATH_DEBUG_RESET,
 		    ("%s: beacon queue %p\n", __func__,
-		    (caddr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq)));
+		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq)));
 	}
 	for (;;) {
 		ATH_TXQ_LOCK(sc);
@@ -2310,7 +2310,7 @@ ath_stoprecv(struct ath_softc *sc)
 		struct ath_buf *bf;
 
 		printf("%s: rx queue %p, link %p\n", __func__,
-			(caddr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
+			(caddr_t)(uintptr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
 			if (ath_hal_rxprocdesc(ah, ds, bf->bf_daddr,
