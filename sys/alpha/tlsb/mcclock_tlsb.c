@@ -1,4 +1,4 @@
-/* $Id: mcclock_tlsb.c,v 1.1 1998/06/10 10:55:52 dfr Exp $ */
+/* $Id: mcclock_tlsb.c,v 1.2 1998/06/14 13:45:26 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -125,4 +125,4 @@ mcclock_tlsb_read(device_t dev, u_int reg)
 	return *ptr;
 }
 
-DRIVER_MODULE(mcclock_tlsb, gbus, mcclock_tlsb_driver, mcclock_devclass, 0, 0);
+DRIVER_MODULE(mcclock, gbus, mcclock_tlsb_driver, mcclock_devclass, 0, 0);
