@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.5 1998/12/04 10:52:47 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.6 1998/12/16 15:21:50 bde Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -151,11 +151,11 @@ cpu_fork(p1, p2)
 	 * Set the floating point state.
 	 */
 	if ((p2->p_addr->u_pcb.pcb_fp_control & IEEE_INHERIT) == 0) {
-		p2->p_addr->u_pcb.pcb_fp_control = (IEEE_TRAP_ENABLE_INV
-						    | IEEE_TRAP_ENABLE_DZE
-						    | IEEE_TRAP_ENABLE_OVF);
+		p2->p_addr->u_pcb.pcb_fp_control = 0;
 		p2->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
-						   | FPCR_INED | FPCR_UNFD);
+						   | FPCR_INVD | FPCR_DZED
+						   | FPCR_OVFD | FPCR_INED
+						   | FPCR_UNFD);
 	}
 
 	/*

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.100 1998/12/19 02:55:33 julian Exp $
+ * $Id: init_main.c,v 1.101 1998/12/19 08:23:31 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -636,7 +636,7 @@ start_init(p)
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
-	addr = trunc_page(VM_MAXUSER_ADDRESS - PAGE_SIZE);
+	addr = trunc_page(USRSTACK - PAGE_SIZE);
 	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;

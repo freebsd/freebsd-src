@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.90 1998/12/16 16:28:57 bde Exp $
+ *	$Id: kern_exec.c,v 1.91 1998/12/27 18:03:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -149,6 +149,7 @@ interpret:
 	}
 
 	imgp->vp = ndp->ni_vp;
+	imgp->fname = uap->fname;
 
 	/*
 	 * Check file permissions (also 'opens' file)
@@ -323,8 +324,8 @@ exec_fail_dealloc:
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
 			ARG_MAX + PAGE_SIZE);
 
-	if (ndp->ni_vp) {
-		vrele(ndp->ni_vp);
+	if (imgp->vp) {
+		vrele(imgp->vp);
 		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 	}
 
@@ -438,8 +439,8 @@ exec_new_vmspace(imgp)
 	if (vmspace->vm_refcnt == 1) {
 		if (vmspace->vm_shm)
 			shmexit(imgp->proc);
-		pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
-		vm_map_remove(map, 0, USRSTACK);
+		pmap_remove_pages(&vmspace->vm_pmap, 0, VM_MAXUSER_ADDRESS);
+		vm_map_remove(map, 0, VM_MAXUSER_ADDRESS);
 	} else {
 		vmspace_exec(imgp->proc);
 		vmspace = imgp->proc->p_vmspace;
