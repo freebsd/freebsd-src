@@ -48,10 +48,8 @@
 #include <gnu/ext2fs/alpha-bitops.h>
 #elif __i386__
 #include <gnu/ext2fs/i386-bitops.h>
-#elif __ia64__
-#include <gnu/ext2fs/ia64-bitops.h>
 #else
-#error please provide bit operation functions
+#include <gnu/ext2fs/ext2_bitops.h>
 #endif
 
 /* this is supposed to mark a buffer dirty on ready for delayed writing

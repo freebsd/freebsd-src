@@ -46,10 +46,8 @@
 #include <gnu/ext2fs/alpha-bitops.h>
 #elif __i386__
 #include <gnu/ext2fs/i386-bitops.h>
-#elif __ia64__
-#include <gnu/ext2fs/ia64-bitops.h>
 #else
-#error Provide a bitops.h file, please!
+#include <gnu/ext2fs/ext2_bitops.h>
 #endif
 
 #define in_range(b, first, len)		((b) >= (first) && (b) <= (first) + (len) - 1)
