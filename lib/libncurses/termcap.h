@@ -1,14 +1,9 @@
-
-
 #ifndef _TERMCAP_H
 #define _TERMCAP_H	1
 
-#ifdef __cplusplus
-extern "C" 
-{
-#endif /* __cplusplus */
-
 #include <sys/cdefs.h>
+
+__BEGIN_DECLS
 
 extern char PC;
 extern char *UP;
@@ -25,8 +20,6 @@ extern int tputs __P((const char *, int, int (*)(int)));
 extern char *tgoto __P((const char *, int, int));
 extern char *tparam __P((const char *, char *, int, ...));
 
-#ifdef __cplusplus
-}
-#endif
+__END_DECLS
 
 #endif /* _TERMCAP_H */
