@@ -32,13 +32,15 @@
  */
 
 #ifndef lint
-static const char sccsid[] = "@(#)pass3.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass3.c	8.2 (Berkeley) 4/27/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+
 #include "fsck.h"
 
 void

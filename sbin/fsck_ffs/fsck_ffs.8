@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)fsck.8	8.2 (Berkeley) 12/11/93
-.|'	$Id$
+.\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
+.|'	$Id: fsck.8,v 1.8 1997/02/22 14:32:23 peter Exp $
 .\"
-.Dd December 11, 1993
+.Dd May 9, 1995
 .Dt FSCK 8
 .Os BSD 4
 .Sh NAME
@@ -75,7 +75,12 @@ of the device name that ends in a digit; the remaining characters are assumed
 to be the partition designator.
 .Pp
 The clean flag of each filesystem's superblock is examined and only those filesystems that
-are not marked clean are checked. If the
+are not marked clean are checked.
+Filesystems are marked clean when they are unmounted,
+when they have been mounted read-only, or when
+.Nm fsck
+runs on them successfully.
+If the
 .Fl f
 option is specified, the filesystems
 will be checked regardless of the state of their clean flag.
@@ -189,7 +194,7 @@ do not open the filesystem for writing.
 Convert the filesystem to the specified level.
 Note that the level of a filesystem can only be raised.
 .Bl -tag -width indent
-There are currently three levels defined:
+There are currently four levels defined:
 .It 0
 The filesystem is in the old (static table) format.
 .It 1
@@ -198,6 +203,10 @@ The filesystem is in the new (dynamic table) format.
 The filesystem supports 32-bit uid's and gid's,
 short symbolic links are stored in the inode, 
 and directories have an added field showing the file type.
+.It 3
+If maxcontig is greater than one,
+build the free segment maps to aid in finding contiguous sets of blocks.
+If maxcontig is equal to one, delete any existing segment maps.
 .El
 .Pp
 In interactive mode,
