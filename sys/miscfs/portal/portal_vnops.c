@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.21 1997/09/14 02:57:57 peter Exp $
+ * $Id: portal_vnops.c,v 1.22 1997/10/15 09:21:11 phk Exp $
  */
 
 /*
@@ -697,16 +697,16 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) portal_abortop },
 	{ &vop_access_desc,		(vop_t *) portal_access },
 	{ &vop_advlock_desc,		(vop_t *) portal_advlock },
-	{ &vop_blkatoff_desc,	(vop_t *) portal_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) portal_blkatoff },
 	{ &vop_bmap_desc,		(vop_t *) portal_bmap },
 	{ &vop_bwrite_desc,		(vop_t *) portal_bwrite },
 	{ &vop_close_desc,		(vop_t *) portal_close },
 	{ &vop_create_desc,		(vop_t *) portal_create },
 	{ &vop_fsync_desc,		(vop_t *) portal_fsync },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
-	{ &vop_inactive_desc,	(vop_t *) portal_inactive },
+	{ &vop_inactive_desc,		(vop_t *) portal_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) portal_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) portal_islocked },
+	{ &vop_islocked_desc,		(vop_t *) portal_islocked },
 	{ &vop_link_desc,		(vop_t *) portal_link },
 	{ &vop_lock_desc,		(vop_t *) portal_lock },
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
@@ -714,12 +714,12 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) portal_mknod },
 	{ &vop_mmap_desc,		(vop_t *) portal_mmap },
 	{ &vop_open_desc,		(vop_t *) portal_open },
-	{ &vop_pathconf_desc,	(vop_t *) portal_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) portal_pathconf },
 	{ &vop_poll_desc,		(vop_t *) portal_poll },
 	{ &vop_print_desc,		(vop_t *) portal_print },
 	{ &vop_read_desc,		(vop_t *) portal_read },
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
-	{ &vop_readlink_desc,	(vop_t *) portal_readlink },
+	{ &vop_readlink_desc,		(vop_t *) portal_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
 	{ &vop_remove_desc,		(vop_t *) portal_remove },
 	{ &vop_rename_desc,		(vop_t *) portal_rename },
@@ -727,9 +727,9 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) portal_rmdir },
 	{ &vop_seek_desc,		(vop_t *) portal_seek },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },
-	{ &vop_strategy_desc,	(vop_t *) portal_strategy },
+	{ &vop_strategy_desc,		(vop_t *) portal_strategy },
 	{ &vop_symlink_desc,		(vop_t *) portal_symlink },
-	{ &vop_truncate_desc,	(vop_t *) portal_truncate },
+	{ &vop_truncate_desc,		(vop_t *) portal_truncate },
 	{ &vop_unlock_desc,		(vop_t *) portal_unlock },
 	{ &vop_update_desc,		(vop_t *) portal_update },
 	{ &vop_valloc_desc,		(vop_t *) portal_valloc },

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.19 1997/09/18 18:33:23 phk Exp $
+ * $Id: umap_vnops.c,v 1.20 1997/10/15 09:21:26 phk Exp $
  */
 
 /*
@@ -532,12 +532,12 @@ static struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) umap_bypass },
 	{ &vop_bwrite_desc,		(vop_t *) umap_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) umap_getattr },
-	{ &vop_inactive_desc,	(vop_t *) umap_inactive },
+	{ &vop_inactive_desc,		(vop_t *) umap_inactive },
 	{ &vop_lock_desc,		(vop_t *) umap_lock },
 	{ &vop_print_desc,		(vop_t *) umap_print },
 	{ &vop_reclaim_desc,		(vop_t *) umap_reclaim },
 	{ &vop_rename_desc,		(vop_t *) umap_rename },
-	{ &vop_strategy_desc,	(vop_t *) umap_strategy },
+	{ &vop_strategy_desc,		(vop_t *) umap_strategy },
 	{ &vop_unlock_desc,		(vop_t *) umap_unlock },
 	{ NULL, NULL }
 };

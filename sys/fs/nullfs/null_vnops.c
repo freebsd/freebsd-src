@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.22 1997/09/18 18:33:18 phk Exp $
+ *	$Id: null_vnops.c,v 1.23 1997/10/15 09:21:07 phk Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.22 1997/09/18 18:33:18 phk Exp $
+ * $Id: null_vnops.c,v 1.23 1997/10/15 09:21:07 phk Exp $
  */
 
 /*
@@ -643,13 +643,13 @@ static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) null_access },
 	{ &vop_bwrite_desc,		(vop_t *) null_bwrite },
 	{ &vop_getattr_desc,		(vop_t *) null_getattr },
-	{ &vop_inactive_desc,	(vop_t *) null_inactive },
+	{ &vop_inactive_desc,		(vop_t *) null_inactive },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
 	{ &vop_lookup_desc,		(vop_t *) null_lookup },
 	{ &vop_print_desc,		(vop_t *) null_print },
 	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) null_setattr },
-	{ &vop_strategy_desc,	(vop_t *) null_strategy },
+	{ &vop_strategy_desc,		(vop_t *) null_strategy },
 	{ &vop_unlock_desc,		(vop_t *) null_unlock },
 	{ NULL, NULL }
 };

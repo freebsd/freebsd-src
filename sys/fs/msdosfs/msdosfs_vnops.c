@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.45 1997/09/21 04:23:39 dyson Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.46 1997/10/15 09:21:39 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1998,9 +1998,9 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) msdosfs_create },
 	{ &vop_fsync_desc,		(vop_t *) msdosfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) msdosfs_getattr },
-	{ &vop_inactive_desc,	(vop_t *) msdosfs_inactive },
+	{ &vop_inactive_desc,		(vop_t *) msdosfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) msdosfs_ioctl },
-	{ &vop_islocked_desc,	(vop_t *) msdosfs_islocked },
+	{ &vop_islocked_desc,		(vop_t *) msdosfs_islocked },
 	{ &vop_link_desc,		(vop_t *) msdosfs_link },
 	{ &vop_lock_desc,		(vop_t *) msdosfs_lock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
@@ -2008,12 +2008,12 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) msdosfs_mknod },
 	{ &vop_mmap_desc,		(vop_t *) msdosfs_mmap },
 	{ &vop_open_desc,		(vop_t *) msdosfs_open },
-	{ &vop_pathconf_desc,	(vop_t *) msdosfs_pathconf },
+	{ &vop_pathconf_desc,		(vop_t *) msdosfs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) msdosfs_poll },
 	{ &vop_print_desc,		(vop_t *) msdosfs_print },
 	{ &vop_read_desc,		(vop_t *) msdosfs_read },
 	{ &vop_readdir_desc,		(vop_t *) msdosfs_readdir },
-	{ &vop_readlink_desc,	(vop_t *) msdosfs_readlink },
+	{ &vop_readlink_desc,		(vop_t *) msdosfs_readlink },
 	{ &vop_reallocblks_desc,	(vop_t *) msdosfs_reallocblks },
 	{ &vop_reclaim_desc,		(vop_t *) msdosfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) msdosfs_remove },
@@ -2021,7 +2021,7 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) msdosfs_rmdir },
 	{ &vop_seek_desc,		(vop_t *) msdosfs_seek },
 	{ &vop_setattr_desc,		(vop_t *) msdosfs_setattr },
-	{ &vop_strategy_desc,	(vop_t *) msdosfs_strategy },
+	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) msdosfs_unlock },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
