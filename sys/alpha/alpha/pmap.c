@@ -1686,6 +1686,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if ((sva & PAGE_MASK) || (eva & PAGE_MASK))
 		panic("pmap_protect: unaligned addresses");
 
+	PMAP_LOCK(pmap);
 	while (sva < eva) {
 
 		/*
@@ -1736,6 +1737,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		sva += PAGE_SIZE;
 	}
+	PMAP_UNLOCK(pmap);
 }
 
 /*
