@@ -697,7 +697,7 @@
       <filename>/usr/src/sys/ufs/ufs/README.acls</filename>.</para>
 
       <para>The directory layout preference algorithm for FFS has been
-      changed to improve its speed on large filesystems.</para>
+      changed to improve its speed on large filesystems. &merged;</para>
 
       <para arch="i386">smbfs (CIFS) support in kernel has been added.
       The corresponding userland filesystem mount utility can be found 
@@ -1568,10 +1568,6 @@
     of processor-specific optimizations in various pieces of code such
     as <application>OpenSSL</application>. &merged;</para>
 
-    <para>The default value for &man.cvs.1;'s
-    <envar>CVS_RSH</envar> variable is now <literal>ssh</literal>,
-    rather than <literal>rsh</literal>. &merged;</para>
-
     <para>&man.ipfstat.8; now supports the <option>-t</option> option
     to turn on a &man.top.1;-like display. &merged;</para>
 
@@ -1839,7 +1835,7 @@
     <option>-b</option> option.</para>
 
     <para>&man.cat.1; now has the ability to read from UNIX-domain
-    sockets.</para>
+    sockets. &merged;</para>
 
     <sect3>
       <title>Contributed Software</title>
@@ -1868,9 +1864,6 @@
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
       library to the base system. &merged;</para>
-
-      <para><application>cvs</application> has been updated to
-      1.11.1p1. &merged;</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2. &merged;</para>
@@ -1962,6 +1955,25 @@
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
       variable. &merged;</para>
+
+      <sect4>
+        <title>CVS</title>
+
+        <para><application>cvs</application> has been updated to
+        1.11.1p1. &merged;</para>
+
+        <para>The default value for &man.cvs.1;'s
+        <envar>CVS_RSH</envar> variable is now <literal>ssh</literal>,
+        rather than <literal>rsh</literal>. &merged;</para>
+
+        <para>&man.cvs.1; now supports a <option>-T</option> option to
+        update a sandbox's <filename>CVS/Template</filename> file from
+        the repository. &merged;</para>
+
+	<para>&man.cvs.1; <literal>diff</literal> now supports the
+	<option>-j</option> option to perform differences against a
+	revision relative to a branch tag. &merged;</para>
+      </sect4>
 
       <sect4>
 	<title>CVSup</title>
