@@ -147,11 +147,11 @@ SUBDIR=	alias \
 	quota \
 	renice \
 	rev \
-	rlogin \
+	${_rlogin} \
 	rpcgen \
 	rpcinfo \
 	rs \
-	rsh \
+	${_rsh} \
 	rup \
 	ruptime \
 	rusers \
@@ -259,6 +259,11 @@ _nc=		nc
 _ypcat=		ypcat
 _ypmatch=	ypmatch
 _ypwhich=	ypwhich
+.endif
+
+.if !defined(NO_RCMDS)
+_rlogin=	rlogin
+_rsh=		rsh
 .endif
 
 .if !defined(NO_SENDMAIL)
