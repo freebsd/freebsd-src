@@ -224,7 +224,7 @@ DBGSRCS=lib_traceatr.c \
 SRCS+=	termcap.c
 
 CLEANFILES+=	${GENSRC} ${GENHDR} keys.tries make_hash term.h.new \
-	make_keys MKterm.h.awk comp_captab.c \
+	make_keys MKterm.h.awk comp_captab.c curses.head \
 	namehdr nameftr codeftr ${NAMESRC} ${CODESRC}
 
 SYMLINKS+=libncurses.a ${LIBDIR}/libcurses.a
