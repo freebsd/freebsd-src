@@ -26,11 +26,12 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw.c,v 1.1.1.1.2.5 1997/11/04 07:16:15 charnier Exp $";
+	"$Id: pw.c,v 1.1.1.1.2.6 1998/07/16 17:20:18 nate Exp $";
 #endif /* not lint */
 
 #include "pw.h"
 #include <err.h> 
+#include <fcntl.h>
 
 const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
 const char     *Which[] = {"user", "group", NULL};
@@ -47,6 +48,7 @@ static struct cargs arglist;
 
 static int      getindex(const char *words[], const char *word);
 static void     cmdhelp(int mode, int which);
+static void     filelock(const char *filename);
 
 
 int
@@ -145,7 +147,20 @@ main(int argc, char *argv[])
 	 * Now, let's do the common initialisation
 	 */
 	cnf = read_userconfig(getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL);
+
+	/*
+	 * Try to lock the master passowrd and group files right away (we
+	 * don't care if it works, since this is just advisory locking.
+	 */
+	filelock(_PATH_GROUP);
+	filelock(_PATH_MASTERPASSWD);
 	return funcs[which] (cnf, mode, &arglist);
+}
+
+static void
+filelock(const char *filename)
+{
+	open(filename, O_RDONLY | O_EXLOCK, 0);
 }
 
 static int
