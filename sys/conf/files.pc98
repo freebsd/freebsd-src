@@ -110,6 +110,7 @@ dev/snc/if_snc.c		optional	snc
 dev/snc/if_snc_cbus.c		optional	snc isa
 dev/snc/if_snc_pccard.c		optional	snc card
 dev/sr/if_sr_isa.c		optional	sr isa
+dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
