@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.13 1995/05/24 23:33:42 davidg Exp $
+ *	$Id: subr_diskslice.c,v 1.14 1995/05/30 08:05:51 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -454,7 +454,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		 */
 		old_wlabel = sp->ds_wlabel;
 		set_ds_wlabel(ssp, slice, TRUE);
-		error = correct_writedisklabel(dev, strat, sp->ds_label);
+		error = writedisklabel(dev, strat, sp->ds_label);
 		/* XXX should invalidate in-core label if write failed. */
 		set_ds_wlabel(ssp, slice, old_wlabel);
 		return (error);
@@ -628,7 +628,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 		*lp1 = *lp;
 		lp = lp1;
 		TRACE(("readdisklabel\n"));
-		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
+		msg = readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
 #if 0 /* XXX */
 		if (msg == NULL && setgeom != NULL && setgeom(lp) != 0)
 			msg = "setgeom failed";

@@ -1,9 +1,3 @@
-#define	PRE_DISKSLICE_COMPAT
-#ifndef PRE_DISKSLICE_COMPAT
-#define	correct_readdisklabel	readdisklabel
-#define	correct_writedisklabel	writedisklabel
-#endif
-
 /*
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -42,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.17 1995/08/07 14:20:27 davidg Exp $
+ * $Id: ufs_disksubr.c,v 1.18 1995/08/28 16:09:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +44,6 @@
 #include <sys/buf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/dkbad.h>
 #include <sys/syslog.h>
 
 /*
@@ -149,13 +142,13 @@ insert:
 
 /*
  * Attempt to read a disk label from a device using the indicated strategy
- * routine.  The label must be partly set up before this: secpercyl and
- * anything required in the strategy routine (e.g., sector size) must be
- * filled in before calling us.  Returns NULL on success and an error
- * string on failure.
+ * routine.  The label must be partly set up before this: secpercyl, secsize
+ * and anything required in the strategy routine (e.g., dummy bounds for the
+ * partition containing the label) must be * filled in before calling us.
+ * Returns NULL on success and an error string on failure.
  */
 char *
-correct_readdisklabel(dev, strat, lp)
+readdisklabel(dev, strat, lp)
 	dev_t dev;
 	d_strategy_t *strat;
 	register struct disklabel *lp;
@@ -163,22 +156,6 @@ correct_readdisklabel(dev, strat, lp)
 	register struct buf *bp;
 	struct disklabel *dlp;
 	char *msg = NULL;
-
-#if 0
-	/*
-	 * This clobbers valid labels built by drivers.  It should fail,
-	 * except on ancient systems, because it sets lp->d_npartitions
-	 * to 1 but the label is supposed to be read from the raw partition,
-	 * which is 0 only on ancient systems.  Apparently most drivers
-	 * don't check lp->d_npartitions.
-	 */
-	if (lp->d_secperunit == 0)
-		lp->d_secperunit = 0x1fffffff;
-	lp->d_npartitions = 1;
-	if (lp->d_partitions[0].p_size == 0)
-		lp->d_partitions[0].p_size = 0x1fffffff;
-	lp->d_partitions[0].p_offset = 0;
-#endif
 
 	bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = dev;
@@ -209,139 +186,6 @@ correct_readdisklabel(dev, strat, lp)
 	brelse(bp);
 	return (msg);
 }
-
-#ifdef PRE_DISKSLICE_COMPAT
-/*
- * Attempt to read a disk label from a device using the indicated strategy
- * routine.  The label must be partly set up before this: secpercyl and
- * anything required in the strategy routine (e.g., sector size) must be
- * filled in before calling us.  Returns NULL on success and an error
- * string on failure.
- * If Machine Specific Partitions (MSP) are not found, then it will proceed
- * as if the BSD partition starts at 0
- * The MBR on an IBM PC is an example of an MSP.
- */
-char *
-readdisklabel(dev, strat, lp, dp, bdp)
-	dev_t dev;
-	d_strategy_t *strat;
-	register struct disklabel *lp;
-	struct dos_partition *dp;
-	struct dkbad *bdp;
-{
-	register struct buf *bp;
-	struct disklabel *dlp;
-	char *msgMSP = NULL;
-	char *msg = NULL;
-	int i;
-	int cyl = 0;
-
-	/*
-	 * Set up the disklabel as in case there is no MSP.
-	 * We set the BSD part, but don't need to set the
-	 * RAW part, because readMSPtolabel() will reset that
-	 * itself. On return however, if there was no MSP,
-	 * then we will be looking into OUR part to find the label
-	 * and we will want that to start at 0, and have at least SOME length.
-	 */
-	if (lp->d_secperunit == 0)
-		lp->d_secperunit = 0x1fffffff;
-	lp->d_npartitions = OURPART + 1;
-	if (lp->d_partitions[OURPART].p_size == 0)
-		lp->d_partitions[OURPART].p_size = 0x100; /*enough for a label*/
-	lp->d_partitions[OURPART].p_offset = 0;
-
-	/*
-	 * Dig out the Dos MSP.. If we get it, all remaining transfers
-	 * will be relative to the base of the BSD part.
-	 */
-	msgMSP = readMSPtolabel(dev, strat, lp, dp, &cyl );
-
-	/*
-	 * next, dig out disk label, relative to either the base of the
-	 * BSD part, or block 0, depending on if an MSP was found.
-	 */
-	bp = geteblk((int)lp->d_secsize);
-	bp->b_blkno = LABELSECTOR;
-	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), OURPART));
-	bp->b_bcount = lp->d_secsize;
-	bp->b_flags = B_BUSY | B_READ;
-	bp->b_cylinder = cyl;
-	(*strat)(bp);
-	if (biowait(bp))
-		msg = "I/O error";
-	else for (dlp = (struct disklabel *)bp->b_data;
-	    dlp <= (struct disklabel *)((char *)bp->b_data +
-	    DEV_BSIZE - sizeof(*dlp));
-	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
-		if (dlp->d_magic != DISKMAGIC || dlp->d_magic2 != DISKMAGIC) {
-			if (msg == NULL)
-				msg = "no disk label";
-		} else if (dlp->d_npartitions > MAXPARTITIONS ||
-			   dkcksum(dlp) != 0)
-			msg = "disk label corrupted";
-		else {
-			*lp = *dlp;
-			msg = NULL;
-			break;
-		}
-	}
-
-	if (msg && msgMSP) {
-		msg = msgMSP;
-		goto done;
-	}
-
-	/*
-	 * Since we had one of the two labels, either one made up from the
-	 * MSP, one found in the FreeBSD-MSP-partitions sector 2, or even
-	 * one in sector 2 absolute on the disk, there is not really an error.
-	 */
-
-	msg = NULL;
-
-	/* obtain bad sector table if requested and present */
-	if (bdp && (lp->d_flags & D_BADSECT)) {
-		struct dkbad *db;
-
-		printf("d_secsize: %ld\n", lp->d_secsize);
-		i = 0;
-		do {
-			/* read a bad sector table */
-			bp->b_flags = B_BUSY | B_READ;
-			bp->b_blkno = lp->d_secperunit - lp->d_nsectors + i;
-			if (lp->d_secsize > DEV_BSIZE)
-				bp->b_blkno *= lp->d_secsize / DEV_BSIZE;
-			else
-				bp->b_blkno /= DEV_BSIZE / lp->d_secsize;
-			bp->b_bcount = lp->d_secsize;
-			bp->b_cylinder = lp->d_ncylinders - 1;
-			(*strat)(bp);
-
-			/* if successful, validate, otherwise try another */
-			if (biowait(bp)) {
-				msg = "bad sector table I/O error";
-			} else {
-				db = (struct dkbad *)(bp->b_un.b_addr);
-#define DKBAD_MAGIC 0x4321
-				if (db->bt_mbz == 0
-					&& db->bt_flag == DKBAD_MAGIC) {
-					msg = NULL;
-					*bdp = *db;
-					break;
-				} else
-					msg = "bad sector table corrupted";
-			}
-		} while ((bp->b_flags & B_ERROR) && (i += 2) < 10 &&
-			i < lp->d_nsectors);
-	}
-
-done:
-	bp->b_flags = B_INVAL | B_AGE;
-	brelse(bp);
-	return (msg);
-}
-#endif /* PRE_DISKSLICE_COMPAT */
 
 /*
  * Check new disk label for sensibility before setting it.
@@ -398,7 +242,7 @@ setdisklabel(olp, nlp, openmask)
  * Write disk label back to device after modification.
  */
 int
-correct_writedisklabel(dev, strat, lp)
+writedisklabel(dev, strat, lp)
 	dev_t dev;
 	d_strategy_t *strat;
 	register struct disklabel *lp;
@@ -418,6 +262,14 @@ correct_writedisklabel(dev, strat, lp)
 	bp->b_dev = dkmodpart(dev, labelpart);
 	bp->b_blkno = LABELSECTOR;
 	bp->b_bcount = lp->d_secsize;
+#if 1
+	/*
+	 * We read the label first to see if it's there,
+	 * in which case we will put ours at the same offset into the block..
+	 * (I think this is stupid [Julian])
+	 * Note that you can't write a label out over a corrupted label!
+	 * (also stupid.. how do you write the first one? by raw writes?)
+	 */
 	bp->b_flags = B_BUSY | B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
@@ -438,141 +290,18 @@ correct_writedisklabel(dev, strat, lp)
 	}
 	error = ESRCH;
 done:
+#else
+	bzero(bp->b_data, lp->d_secsize);
+	dlp = (struct disklabel *)bp->b_data;
+	*dlp = *lp;
+	bp->b_flags = B_BUSY | B_WRITE;
+	(*strat)(bp);
+	error = biowait(bp);
+#endif
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	return (error);
 }
-
-#ifdef PRE_DISKSLICE_COMPAT
-/*
- * Write disk label back to device after modification.
- * For FreeBSD 2.0(x86) this routine will refuse to install a label if
- * there is no DOS MSP. (this can be changed)
- *
- * Assumptions for THIS VERSION:
- * The given disklabel pointer is actually that which is controlling this
- * Device, so that by fiddling it, readMSPtolabel() can ensure that
- * it can read from the MSP if it exists,
- * This assumption will cease as soon as ther is a better way of ensuring
- * that a read is done to the whole raw device.
- * MSP defines a BSD part, label is in block 1 (2nd block) of this
- */
-int
-writedisklabel(dev, strat, lp)
-	dev_t dev;
-	d_strategy_t *strat;
-	register struct disklabel *lp;
-{
-	struct buf *bp = NULL;
-	struct disklabel *dlp;
-	int error = 0;
-	struct disklabel label;
-	char *msg;
-	int BSDstart,BSDlen;
-	int cyl; /* dummy arg for readMSPtolabel() */
-
-	/*
-	 * Save the label (better be the real one)
-	 * because we are going to play funny games with the disklabel
-	 * controlling this device..
-	 */
-	bcopy(lp,&label,sizeof(label));
-	/*
-	 * Unlike the read, we will trust the parameters given to us
-	 * about the disk, in the new disklabel but will simply
-	 * force OURPART to start at block 0 as a default in case there is NO
-	 * MSP.
-	 * readMSPtolabel() will reset it to start at the start of the BSD
-	 * part if it exists
-	 * At this time this is an error contition but I've left support for it
-	 */
-	lp->d_npartitions = OURPART + 1;
-	if (lp->d_partitions[OURPART].p_size == 0)
-		lp->d_partitions[OURPART].p_size = 0x1fffffff;
-	lp->d_partitions[OURPART].p_offset = 0;
-
-	msg = readMSPtolabel(dev, strat, lp, 0, &cyl );
-	/*
-	 * If we want to be able to install without an Machine Specific
-	 * Partitioning , then
-	 * the failure of readMSPtolabel() should be made non fatal.
-	 */
-	if(msg) {
-		printf("writedisklabel:%s\n",msg);
-		error = ENXIO;
-		goto done;
-	}
-	/*
-	 * If we had MSP (no message) but there
-	 * was no BSD part in it
-	 * then balk.. they should use fdisk to make one first or smash it..
-	 * This may just be me being paranoid, but it's my choice for now..
-	 * note we test for !msg, because the test above might be changed
-	 * as a valid option..
-	 */
-	if((!msg) && (!(lp->d_subtype & DSTYPE_INDOSPART))) {
-		printf("writedisklabel: MSP with no BSD part\n");
-	}
-
-	/*
-	 * get all the other bits back from the good new disklabel
-	 * (the user wouldn't try confuse us would he?)
-	 * With the exception of the OURPART which now points to the
-	 * BSD partition.
-	 */
-	BSDstart = lp->d_partitions[OURPART].p_offset;
-	BSDlen = lp->d_partitions[OURPART].p_size;
-	bcopy(&label,lp,sizeof(label));
-	lp->d_partitions[OURPART].p_offset = BSDstart;
-	lp->d_partitions[OURPART].p_size = BSDlen;
-
-	bp = geteblk((int)lp->d_secsize);
-	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), OURPART));
-	bp->b_blkno = LABELSECTOR;
-	bp->b_bcount = lp->d_secsize;
-#ifdef STUPID
-	/*
-	 * We read the label first to see if it's there,
-	 * in which case we will put ours at the same offset into the block..
-	 * (I think this is stupid [Julian])
-	 * Note that you can't write a label out over a corrupted label!
-	 * (also stupid.. how do you write the first one? by raw writes?)
-	 */
-	bp->b_flags = B_BUSY | B_READ;
-	(*strat)(bp);
-	error = biowait(bp);
-	if (error)
-		goto done;
-	for (dlp = (struct disklabel *)bp->b_data;
-	    dlp <= (struct disklabel *)
-	      ((char *)bp->b_data + lp->d_secsize - sizeof(*dlp));
-	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
-		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
-		    dkcksum(dlp) == 0) {
-			bcopy(&label,dlp,sizeof(label));
-			bp->b_flags = B_BUSY | B_WRITE;
-			(*strat)(bp);
-			error = biowait(bp);
-			goto done;
-		}
-	}
-	error = ESRCH;
-#else	/* Stupid */
-	dlp = (struct disklabel *)bp->b_data;
-	bcopy(&label,dlp,sizeof(label));
-	bp->b_flags = B_BUSY | B_WRITE;
-	(*strat)(bp);
-	error = biowait(bp);
-#endif 	/* Stupid */
-done:
-	bcopy(&label,lp,sizeof(label)); /* start using the new label again */
-	if (bp) {
-		bp->b_flags = B_INVAL | B_AGE;
-		brelse(bp);
-	}
-	return (error);
-}
-#endif /* PRE_DISKSLICE_COMPAT */
 
 /*
  * Compute checksum for disk label.
