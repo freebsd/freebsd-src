@@ -115,9 +115,6 @@ int cold = 1;
 long dumplo;
 int Maxmem;
 
-struct mtx Giant;
-struct mtx sched_lock;
-
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 char uarea0[UAREA_PAGES * PAGE_SIZE];
 struct trapframe frame0;
@@ -294,7 +291,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF;
 	thread0.td_frame = &frame0;
-	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Prime our per-cpu data page for use.  Note, we are using it for our
@@ -323,15 +319,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
-	/*
-	 * Initialize mutexes.
-	 */
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
+	mutex_init();
 	intr_init2();
-
-	mtx_lock(&Giant);
 }
 
 void

@@ -81,6 +81,12 @@ struct lock_class lock_class_mtx_spin = {
 };
 
 /*
+ * System-wide mutexes
+ */
+struct mtx sched_lock;
+struct mtx Giant;
+
+/*
  * Prototypes for non-exported routines.
  */
 static void	propagate_priority(struct thread *);
@@ -860,6 +866,27 @@ mtx_destroy(struct mtx *m)
 	}
 
 	WITNESS_DESTROY(&m->mtx_object);
+}
+
+/*
+ * Intialize the mutex code and system mutexes.  This is called from the MD
+ * startup code prior to mi_startup().  The per-CPU data space needs to be
+ * setup before this is called.
+ */
+void
+mutex_init(void)
+{
+
+	/* Setup thread0 so that mutexes work. */
+	LIST_INIT(&thread0.td_contested);
+
+	/*
+	 * Initialize mutexes.
+	 */
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF | MTX_DUPOK);
+	mtx_lock(&Giant);
 }
 
 /*
