@@ -471,6 +471,7 @@ dumpsymtable(filename, checkpt)
 		fprintf(stderr, "fopen: %s\n", strerror(errno));
 		panic("cannot create save file %s for symbol table\n",
 			filename);
+		done(1);
 	}
 	clearerr(fd);
 	/*
