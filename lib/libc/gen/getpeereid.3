@@ -34,18 +34,22 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <unistd.h>
+.In sys/types.h
+.In unistd.h
 .Ft int
 .Fn getpeereid "int s" "uid_t *euid" "gid_t *egid"
 .Sh DESCRIPTION
 The
 .Fn getpeereid
-routine returns the effective user and group IDs of the
-peer connected to a UNIX-domain socket.
+function returns the effective user and group IDs of the
+peer connected to a
+.Ux Ns -domain
+socket.
 The argument
 .Fa s
-must be a UNIX-domain socket
+must be a
+.Ux Ns -domain
+socket
 .Pq Xr unix 4
 of type
 .Dv SOCK_STREAM
@@ -75,7 +79,9 @@ or
 .Xr listen 2 )
 under different effective credentials.
 .Pp
-One common use of this routine is for a UNIX-domain server
+One common use of this routine is for a
+.Ux Ns -domain
+server
 to verify the credentials of its client.
 Likewise, the client can verify the credentials of the server.
 .Sh IMPLEMENTATION NOTES
@@ -87,18 +93,10 @@ is implemented in terms of the
 .Xr unix 4
 socket option.
 .Sh RETURN VALUES
-If the call succeeds, a value of 0 is returned and
-.Fa euid
-and
-.Fa egid
-contain the effective user and group IDs of the peer on
-.Fa s ,
-respectively.
-If the call fails, a value of \-1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std getpeerid
 .Sh ERRORS
-The call succeeds unless:
+.Fn getpeerid
+fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The argument
@@ -132,5 +130,5 @@ does not refer to a socket of type
 .Sh HISTORY
 The
 .Fn getpeereid
-routine appeared in
+function appeared in
 .Fx 5.0 .
