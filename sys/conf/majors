@@ -150,7 +150,7 @@ chrdev	name		comments
 130	mlx		Mylex DAC960 RAID (control device)
 131	mlxd		Mylex DAC960 RAID (disk device)
 132	amr		AMI MegaRAID (control device)
-133	amrd		AMI MegaRAID (disk device)
+133
 134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
 135	zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
