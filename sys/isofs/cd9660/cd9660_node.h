@@ -112,8 +112,6 @@ void cd9660_defattr(struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE);
 void cd9660_deftstamp(struct iso_directory_record *,
 			struct iso_node *, struct buf *, enum ISO_FTYPE);
-int cd9660_ihashget(struct cdev *, ino_t, int, struct vnode **);
-void cd9660_ihashins(struct iso_node *);
 int cd9660_tstamp_conv7(u_char *, struct timespec *, enum ISO_FTYPE);
 int cd9660_tstamp_conv17(u_char *, struct timespec *);
 
