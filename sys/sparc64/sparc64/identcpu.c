@@ -11,8 +11,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 #include <machine/ver.h>
 
 void
@@ -65,7 +65,7 @@ cpu_identify(unsigned int freq)
 	printf("CPU: %s %s Processor (%d.%02d MHZ CPU)\n", manus, impls,
 	    (freq + 4999) / 1000000, ((freq + 4999) / 10000) % 100);
 	if (bootverbose) {
-		printf("  mask=0x%x maxtl=%d maxwin=%d\n", VER_MASK(vers),
+		printf("  mask=0x%lx maxtl=%ld maxwin=%ld\n", VER_MASK(vers),
 		    VER_MAXTL(vers), VER_MAXWIN(vers));
 	}
 }
