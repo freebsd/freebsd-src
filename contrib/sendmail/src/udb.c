@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if USERDB
-static char id[] = "@(#)$Id: udb.c,v 8.111.16.1 2001/01/04 18:18:37 gshapiro Exp $ (with USERDB)";
+static char id[] = "@(#)$Id: udb.c,v 8.111.16.2 2001/05/03 17:24:17 gshapiro Exp $ (with USERDB)";
 # else /* USERDB */
-static char id[] = "@(#)$Id: udb.c,v 8.111.16.1 2001/01/04 18:18:37 gshapiro Exp $ (without USERDB)";
+static char id[] = "@(#)$Id: udb.c,v 8.111.16.2 2001/05/03 17:24:17 gshapiro Exp $ (without USERDB)";
 # endif /* USERDB */
 #endif /* ! lint */
 
@@ -290,7 +290,7 @@ udbexpand(a, sendq, aliaslevel, e)
 
 					memmove(nuser, user, usersize);
 					if (user != userbuf)
-						free(user);
+						sm_free(user);
 					user = nuser;
 					usersize += size;
 					userleft += size;
@@ -545,7 +545,7 @@ udbexpand(a, sendq, aliaslevel, e)
 			break;
 		}
 		if (user != userbuf)
-			free(user);
+			sm_free(user);
 	}
 	return EX_OK;
 }
@@ -1055,11 +1055,11 @@ _udbx_init(e)
 							  errstring(errno));
 					up->udb_type = UDB_EOLIST;
 					if (up->udb_dbname != spec)
-						free(up->udb_dbname);
+						sm_free(up->udb_dbname);
 					goto tempfail;
 				}
 				if (up->udb_dbname != spec)
-					free(up->udb_dbname);
+					sm_free(up->udb_dbname);
 				break;
 			}
 			if (tTd(28, 1))

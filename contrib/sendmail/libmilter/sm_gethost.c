@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.6 2001/02/14 04:07:23 gshapiro Exp $";
+static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.10 2001/05/09 20:57:12 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -29,7 +29,7 @@ static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.6 2001/02/14 04:07:23 gshapiro
 **	Support IPv6 as well as IPv4.
 */
 
-#if NETINET6 && NEEDSGETIPNODE && __RES < 19990909
+#if NETINET6 && NEEDSGETIPNODE
 
 # ifndef AI_V4MAPPED
 #  define AI_V4MAPPED	0	/* dummy */
@@ -75,7 +75,7 @@ freehostent(h)
 	return;
 }
 # endif /* _FFR_FREEHOSTENT */
-#endif /* NEEDSGETIPNODE && NETINET6 && __RES < 19990909 */
+#endif /* NEEDSGETIPNODE && NETINET6 */
 
 struct hostent *
 mi_gethostbyname(name, family)

@@ -1,10 +1,74 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.208 2001/02/26 21:24:54 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.235 2001/05/27 21:39:16 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.4/8.11.4	2001/05/28
+	Clean up signal handling routines to reduce the chances of heap
+		corruption and other potential race conditions.
+		Terminating and restarting the daemon may not be
+		instantaneous due to this change.  Also, non-root users can
+		no longer send out-of-band signals.  Problem reported by
+		Michal Zalewski of BindView.
+	If LogLevel is greater than 9 and SASL fails to negotiate an
+		encryption layer, avoid core dump logging the encryption
+		strength.  Problem noted by Miroslav Zubcic of Crol.
+	If a server offers "AUTH=" and "AUTH " and the list of mechanisms is
+		different in those two lines, sendmail might not have
+		recognized (and used) all of the offered mechanisms.
+	Fix an IP address lookup problem on Solaris 2.0 - 2.3.  Patch
+		from Kenji Miyake.
+	This time, really don't use the .. directory when expanding
+		QueueDirectory wildcards.
+	If a process is interrupted while closing a map, don't try to close
+		the same map again while exiting.
+	Allow local mailers (F=l) to contact remote hosts (e.g., via
+		LMTP).  Problem noted by Norbert Klasen of the University
+		of Tuebingen.
+	If Timeout.QueueReturn was set to a value less the time it took
+		to write a new queue file (e.g., 0 seconds), the bounce
+		message would be lost.  Problem noted by Lorraine L Goff of
+		Oklahoma State University.
+	Pass map argument vector into map rewriting engine for the regex
+		and prog map types.  Problem noted by Stephen Gildea of
+		InTouch Systems, Inc.
+	When closing an LDAP map due to a temporary error, close all of the
+		other LDAP maps which share the original map's connection
+		to the LDAP server.  Patch from Victor Duchovni of
+		Morgan Stanley.
+	To detect changes of NDBM aliases files check the timestamp of the
+		.pag file instead of the .dir file.  Problem noted by Neil
+		Rickert of Northern Illinois University.
+	Don't treat temporary hesiod lookup failures as permanent.  Patch
+		from Werner Wiethege.
+	If ClientPortOptions is set, make sure to create the outgoing socket
+		with the family set in that option.  Patch from Sean Farley.
+	Avoid a segmentation fault trying to dereference a NULL pointer
+		when logging a MaxHopCount exceeded error with an empty
+		recipient list.  Problem noted by Chris Adams of HiWAAY
+		Internet Services.
+	Fix DSN for "Too many hops" bounces.  Problem noticed by Ulrich
+		Windl of the Universitaet Regensburg.
+	Fix DSN for "mail loops back to me" bounces.  Problem noticed by
+		Kari Hurtta of the Finnish Meteorological Institute.
+	Portability:
+		OpenBSD has a broken setreuid() implementation.
+	CONFIG: Undo change from 8.11.1: change 501 SMTP reply code back
+		to 553 since it is allowed by DRUMS.
+	CONFIG: Add OSTYPE(freebsd4) for FreeBSD 4.X.
+	DEVTOOLS: install.sh did not properly handle paths in the source
+		file name argument.  Noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	DEVTOOLS: Add FAST_PID_RECYCLE to compile time options for OpenBSD
+		since it generates random process ids.
+	PRALIASES: Add back adaptive algorithm to deal with different endings
+		of entries in the database (with/without trailing '\0').
+		Patch from John Beck of Sun Microsystems.
+	New Files:
+		cf/ostype/freebsd4.m4
 
 8.11.3/8.11.3	2001/02/27
 	Prevent a segmentation fault when a bogus value was used in the
@@ -2651,7 +2715,7 @@ summary of the changes in that release.
 	CONFIG: new FEATURE(relay_based_on_MX) to allow relaying based on
 		the MX records of the host portion of an incoming recipient.
 	CONFIG: new FEATURE(access_db) which turns on the access database
-		feature.  This database give you the ability to allow
+		feature.  This database gives you the ability to allow
 		or refuse to accept mail from specified domains for
 		administrative reasons.  By default, names that are listed
 		as "OK" in the access db are domain names, not host names.

@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.67 2001/01/07 19:31:05 gshapiro Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.77 2001/05/27 22:20:30 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.67 2001/01/07 19:31:05 gshapiro Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: srvrsmtp.c,v 8.471.2.2.2.77 2001/05/27 22:20:30 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -44,7 +44,7 @@ static SSL_CTX	*srv_ctx = NULL;
 #  if !TLS_NO_RSA
 static RSA	*rsa = NULL;
 #  endif /* !TLS_NO_RSA */
-static bool	tls_ok = FALSE;
+static bool	tls_ok_srv = FALSE;
 static int	tls_verify_cb __P((X509_STORE_CTX *));
 #  if !TLS_NO_RSA
 #   define RSA_KEYLENGTH	512
@@ -966,7 +966,7 @@ smtp(nullserver, d_flags, e)
 				message("503 5.5.0 TLS not available");
 				break;
 			}
-			if (!tls_ok)
+			if (!tls_ok_srv)
 			{
 				message("454 4.3.3 TLS not available after start");
 				break;
@@ -1038,7 +1038,7 @@ smtp(nullserver, d_flags, e)
 					if (LogLevel > 9)
 						tlslogerr();
 				}
-				tls_ok = FALSE;
+				tls_ok_srv = FALSE;
 				SSL_free(srv_ssl);
 				srv_ssl = NULL;
 
@@ -1080,7 +1080,7 @@ smtp(nullserver, d_flags, e)
 			QuickAbort = saveQuickAbort;
 			SuprErrs = saveSuprErrs;
 
-			tls_ok = FALSE;	/* don't offer STARTTLS again */
+			tls_ok_srv = FALSE;	/* don't offer STARTTLS again */
 			gothello = FALSE;	/* discard info */
 			n_helo = 0;
 			OneXact = TRUE;	/* only one xaction this run */
@@ -1100,7 +1100,7 @@ smtp(nullserver, d_flags, e)
 					sasl_ok = sasl_setprop(conn, SASL_SSF_EXTERNAL,
 							       &ext_ssf) == SASL_OK;
 					if (mechlist != NULL)
-						free(mechlist);
+						sm_free(mechlist);
 					mechlist = NULL;
 					if (sasl_ok)
 					{
@@ -1301,7 +1301,7 @@ smtp(nullserver, d_flags, e)
 				message("250-AUTH %s", mechlist);
 # endif /* SASL */
 # if STARTTLS
-			if (tls_ok && usetls)
+			if (tls_ok_srv && usetls)
 				message("250-STARTTLS");
 # endif /* STARTTLS */
 			message("250 HELP");
@@ -1525,7 +1525,8 @@ smtp(nullserver, d_flags, e)
 				goto undo_subproc_no_pm;
 
 			if (MaxMessageSize > 0 &&
-			   (e->e_msgsize > MaxMessageSize || e->e_msgsize < 0))
+			    (e->e_msgsize > MaxMessageSize ||
+			     e->e_msgsize < 0))
 			{
 				usrerr("552 5.2.3 Message size exceeds fixed maximum message size (%ld)",
 					MaxMessageSize);
@@ -1567,7 +1568,7 @@ smtp(nullserver, d_flags, e)
 					break;
 				}
 				if (response != NULL)
-					free(response);
+					sm_free(response);
 			}
 # endif /* _FFR_MILTER */
 			if (Errors > 0)
@@ -1745,7 +1746,7 @@ smtp(nullserver, d_flags, e)
 					break;
 				}
 				if (response != NULL)
-					free(response);
+					sm_free(response);
 			}
 # endif /* _FFR_MILTER */
 
@@ -1847,7 +1848,7 @@ smtp(nullserver, d_flags, e)
 					break;
 				}
 				if (response != NULL)
-					free(response);
+					sm_free(response);
 			}
 
 			/* abort message filters that didn't get the body */
@@ -1858,7 +1859,7 @@ smtp(nullserver, d_flags, e)
 			/* redefine message size */
 			if ((q = macvalue(macid("{msg_size}", NULL), e))
 			    != NULL)
-				free(q);
+				sm_free(q);
 			snprintf(inp, sizeof inp, "%ld", e->e_msgsize);
 			define(macid("{msg_size}", NULL), newstr(inp), e);
 			if (Errors > 0)
@@ -2163,16 +2164,12 @@ smtp(nullserver, d_flags, e)
 			else
 				*--id = '@';
 
-			if ((new = (QUEUE_CHAR *)malloc(sizeof(QUEUE_CHAR))) == NULL)
-			{
-				syserr("500 5.5.0 ETRN out of memory");
-				break;
-			}
+			new = (QUEUE_CHAR *)xalloc(sizeof(QUEUE_CHAR));
 			new->queue_match = id;
 			new->queue_next = NULL;
 			QueueLimitRecipient = new;
 			ok = runqueue(TRUE, FALSE);
-			free(QueueLimitRecipient);
+			sm_free(QueueLimitRecipient);
 			QueueLimitRecipient = NULL;
 			if (ok && Errors == 0)
 				message("250 2.0.0 Queuing for node %s started", p);
@@ -2357,8 +2354,8 @@ checksmtpattack(pcounter, maxcount, waitnow, cname, e)
 		if (*pcounter == maxcount && LogLevel > 5)
 		{
 			sm_syslog(LOG_INFO, e->e_id,
-				  "%.100s: %.40s attack?",
-				  CurSmtpClient, cname);
+				  "%.100s: possible SMTP attack: command=%.40s, count=%d",
+				  CurSmtpClient, cname, *pcounter);
 		}
 		s = 1 << (*pcounter - maxcount);
 		if (s >= MAXTIMEOUT)
@@ -2604,7 +2601,8 @@ mail_esmtp_args(kp, vp, e)
 				dprintf("auth=\"%.100s\" trusted\n", pbuf);
 			e->e_auth_param = newstr(auth_param);
 		}
-		free(auth_param);
+		sm_free(auth_param);
+
 		/* reset values */
 		Errors = 0;
 		QuickAbort = saveQuickAbort;
@@ -2848,6 +2846,12 @@ runinchild(label, e)
 			/* child */
 			InChild = TRUE;
 			QuickAbort = FALSE;
+
+			/* Reset global flags */
+			RestartRequest = NULL;
+			ShutdownRequest = NULL;
+			PendingSignal = 0;
+
 			clearstats();
 			clearenvelope(e, FALSE);
 			assign_queueid(e);
@@ -2992,7 +2996,6 @@ tls_rand_init(randfile, logl)
 {
 # ifndef HASURANDOMDEV
 	/* not required if /dev/urandom exists, OpenSSL does it internally */
-
 #define RF_OK		0	/* randfile OK */
 #define RF_MISS		1	/* randfile == NULL || *randfile == '\0' */
 #define RF_UNKNOWN	2	/* unknown prefix for randfile */
@@ -3017,7 +3020,7 @@ tls_rand_init(randfile, logl)
 	ok = FALSE;
 	done = RI_FAIL;
 	randdef = (randfile == NULL || *randfile == '\0') ? RF_MISS : RF_OK;
-#   if EGD
+#    if EGD
 	if (randdef == RF_OK && strncasecmp(randfile, "egd:", 4) == 0)
 	{
 		randfile += 4;
@@ -3031,7 +3034,7 @@ tls_rand_init(randfile, logl)
 			ok = TRUE;
 	}
 	else
-#   endif /* EGD */
+#    endif /* EGD */
 	if (randdef == RF_OK && strncasecmp(randfile, "file:", 5) == 0)
 	{
 		int fd;
@@ -3288,7 +3291,39 @@ tls_safe_f(var, sff)
 		else if (req) \
 			ok = FALSE;	\
 	}
+/*
+**  INIT_TLS_LIBRARY -- calls functions which setup TLS library for global use
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		succeeded?
+**
+**	Side Effects:
+**		Sets tls_ok_srv static, even when called from main()
+*/
 
+bool
+init_tls_library()
+{
+	/*
+	**  basic TLS initialization
+	**  ignore result for now
+	*/
+
+	SSL_library_init();
+	SSL_load_error_strings();
+# if 0
+	/* this is currently a macro for SSL_library_init */
+	SSLeay_add_ssl_algorithms();
+# endif /* 0 */
+
+	/* initialize PRNG */
+	tls_ok_srv = tls_rand_init(RandFile, 7);
+
+	return tls_ok_srv;
+}
 /*
 **  INITTLS -- initialize TLS
 **
@@ -3471,6 +3506,8 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 			if (LogLevel > 7)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "TLS: error: SSL_CTX_new(SSLv23_server_method()) failed");
+			if (LogLevel > 9)
+				tlslogerr();
 			return FALSE;
 		}
 	}
@@ -3481,6 +3518,8 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 			if (LogLevel > 7)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "TLS: error: SSL_CTX_new(SSLv23_client_method()) failed");
+			if (LogLevel > 9)
+				tlslogerr();
 			return FALSE;
 		}
 	}
@@ -3802,15 +3841,18 @@ inittls(ctx, req, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 **
 **	Returns:
 **		succeeded?
+**
+**	Side Effects:
+**		sets tls_ok_srv static, even when called from main()
 */
 
 bool
 initsrvtls()
 {
 
-	tls_ok = inittls(&srv_ctx, TLS_I_SRV, TRUE, SrvCERTfile, Srvkeyfile,
-			 CACERTpath, CACERTfile, DHParams);
-	return tls_ok;
+	tls_ok_srv = inittls(&srv_ctx, TLS_I_SRV, TRUE, SrvCERTfile,
+			     Srvkeyfile, CACERTpath, CACERTfile, DHParams);
+	return tls_ok_srv;
 }
 /*
 **  TLS_GET_INFO -- get information about TLS connection
