@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.38 1997/08/02 14:33:26 bde Exp $
+ * $Id: vm_kern.c,v 1.39 1997/08/05 00:01:52 dyson Exp $
  */
 
 /*
@@ -227,11 +227,10 @@ kmem_free(map, addr, size)
  *	pageable	Can the region be paged
  */
 vm_map_t
-kmem_suballoc(parent, min, max, size, pageable)
+kmem_suballoc(parent, min, max, size)
 	register vm_map_t parent;
 	vm_offset_t *min, *max;
 	register vm_size_t size;
-	boolean_t pageable;
 {
 	register int ret;
 	vm_map_t result;
@@ -247,7 +246,7 @@ kmem_suballoc(parent, min, max, size, pageable)
 	}
 	*max = *min + size;
 	pmap_reference(vm_map_pmap(parent));
-	result = vm_map_create(vm_map_pmap(parent), *min, *max, pageable);
+	result = vm_map_create(vm_map_pmap(parent), *min, *max);
 	if (result == NULL)
 		panic("kmem_suballoc: cannot create submap");
 	if ((ret = vm_map_submap(parent, *min, *max, result)) != KERN_SUCCESS)
@@ -439,7 +438,7 @@ kmem_init(start, end)
 {
 	register vm_map_t m;
 
-	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end, FALSE);
+	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
 	vm_map_lock(m);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	kernel_map = m;

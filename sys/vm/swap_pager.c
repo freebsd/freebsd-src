@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.80 1997/12/24 15:05:21 dyson Exp $
+ * $Id: swap_pager.c,v 1.81 1998/01/17 09:16:47 dyson Exp $
  */
 
 /*
@@ -477,30 +477,31 @@ swap_pager_free_swap(object)
 	/*
 	 * Free left over swap blocks
 	 */
-	s = splvm();
 	swb = object->un_pager.swp.swp_blocks;
-	if (!swb)
+	if (swb == NULL) {
 		return;
+	}
 
+	s = splvm();
 	for (i = 0; i < object->un_pager.swp.swp_nblocks; i++, swb++) {
 		for (j = 0; j < SWB_NPAGES; j++) {
 			if (swb->swb_block[j] != SWB_EMPTY) {
 				/*
-   				* initially the length of the run is zero
-   				*/
+   				 * initially the length of the run is zero
+   				 */
 				if (block_count == 0) {
 					first_block = swb->swb_block[j];
 					block_count = btodb(PAGE_SIZE);
 					swb->swb_block[j] = SWB_EMPTY;
 				/*
-   				* if the new block can be included into the current run
-   				*/
+   				 * if the new block can be included into the current run
+   				 */
 				} else if (swb->swb_block[j] == first_block + block_count) {
 					block_count += btodb(PAGE_SIZE);
 					swb->swb_block[j] = SWB_EMPTY;
 				/*
-   				* terminate the previous run, and start a new one
-   				*/
+   				 * terminate the previous run, and start a new one
+   				 */
 				} else {
 					swap_pager_freeswapspace(object, first_block,
    					(unsigned) first_block + block_count - 1);

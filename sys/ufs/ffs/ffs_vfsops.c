@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.64 1998/01/06 05:23:41 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.65 1998/01/17 09:16:43 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -386,6 +386,7 @@ ffs_reload(mp, cred, p)
 	 * increases the opportunity for metadata caching.
 	 */
 	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
 

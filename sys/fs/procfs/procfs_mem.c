@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.26 1997/08/02 14:32:14 bde Exp $
+ *	$Id: procfs_mem.c,v 1.27 1997/08/12 04:34:28 sef Exp $
  */
 
 /*
@@ -107,7 +107,7 @@ procfs_rwmem(p, uio)
 		int page_offset;		/* offset into page */
 		vm_map_entry_t out_entry;
 		vm_prot_t out_prot;
-		boolean_t wired, single_use;
+		boolean_t wired;
 		vm_pindex_t pindex;
 		u_int len;
 		vm_page_t m;
@@ -180,7 +180,7 @@ procfs_rwmem(p, uio)
 		tmap = map;
 		error = vm_map_lookup(&tmap, pageno, reqprot,
 			      &out_entry, &object, &pindex, &out_prot,
-			      &wired, &single_use);
+			      &wired);
 
 		if (error) {
 			error = EFAULT;

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.74 1998/01/12 01:44:25 dyson Exp $
+ * $Id: vm_fault.c,v 1.75 1998/01/17 09:16:49 dyson Exp $
  */
 
 /*
@@ -131,12 +131,13 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	vm_prot_t prot;
 	int result;
 	boolean_t wired;
-	boolean_t su;
 	boolean_t lookup_still_valid;
+	int map_generation;
 	vm_page_t old_m;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault = 0;
+	int faultcount;
 	struct vnode *vp = NULL;
 	struct proc *p = curproc;	/* XXX */
 
@@ -184,6 +185,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 
 
 RetryFault:;
+	faultcount = 0;
 
 	/*
 	 * Find the backing store object and offset into it to begin the
@@ -191,7 +193,7 @@ RetryFault:;
 	 */
 	if ((result = vm_map_lookup(&map, vaddr,
 		fault_type, &entry, &first_object,
-		&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
+		&first_pindex, &prot, &wired)) != KERN_SUCCESS) {
 		if ((result != KERN_PROTECTION_FAILURE) ||
 			((fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE)) {
 			return result;
@@ -206,7 +208,7 @@ RetryFault:;
    		 */
 		result = vm_map_lookup(&map, vaddr,
 			VM_PROT_READ|VM_PROT_WRITE|VM_PROT_OVERRIDE_WRITE,
-			&entry, &first_object, &first_pindex, &prot, &wired, &su);
+			&entry, &first_object, &first_pindex, &prot, &wired);
 		if (result != KERN_SUCCESS) {
 			return result;
 		}
@@ -219,6 +221,8 @@ RetryFault:;
 		if ((entry->protection & VM_PROT_WRITE) == 0)
 			entry->max_protection &= ~VM_PROT_WRITE;
 	}
+
+	map_generation = map->timestamp;
 
 	if (entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
@@ -363,15 +367,20 @@ readrest:
 		if (object->type != OBJT_DEFAULT &&
 			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
 			int rv;
-			int faultcount;
 			int reqpage;
 			int ahead, behind;
 
-			ahead = VM_FAULT_READ_AHEAD;
-			behind = VM_FAULT_READ_BEHIND;
 			if (first_object->behavior == OBJ_RANDOM) {
 				ahead = 0;
 				behind = 0;
+			} else {
+				behind = (vaddr - entry->start) >> PAGE_SHIFT;
+				if (behind > VM_FAULT_READ_BEHIND)
+					behind = VM_FAULT_READ_BEHIND;
+
+				ahead = ((entry->end - vaddr) >> PAGE_SHIFT) - 1;
+				if (ahead > VM_FAULT_READ_AHEAD)
+					ahead = VM_FAULT_READ_AHEAD;
 			}
 
 			if ((first_object->type != OBJT_DEVICE) &&
@@ -568,7 +577,7 @@ readrest:
 			 * first object.  Note that we must mark the page dirty in the
 			 * first object so that it will go out to swap when needed.
 			 */
-			if (lookup_still_valid &&
+			if (map_generation == map->timestamp &&
 				/*
 				 * Only one shadow object
 				 */
@@ -589,8 +598,17 @@ readrest:
 				/*
 				 * We don't chase down the shadow chain
 				 */
-				(object == first_object->backing_object)) {
+				(object == first_object->backing_object) &&
 
+				/*
+				 * grab the lock if we need to
+				 */
+				(lookup_still_valid ||
+						(((entry->eflags & MAP_ENTRY_IS_A_MAP) == 0) &&
+						 lockmgr(&map->lock,
+							LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curproc) == 0))) {
+				
+				lookup_still_valid = 1;
 				/*
 				 * get rid of the unnecessary page
 				 */
@@ -611,91 +629,12 @@ readrest:
 				vm_page_copy(m, first_m);
 			}
 
-			/*
-			 * This code handles the case where there are two references to the
-			 * backing object, and one reference is getting a copy of the
-			 * page.  If the other reference is the only other object that
-			 * points to the backing object, then perform a virtual copy
-			 * from the backing object to the other object after the
-			 * page is copied to the current first_object.  If the other
-			 * object already has the page, we destroy it in the backing object
-			 * performing an optimized collapse-type operation.  We don't
-			 * bother removing the page from the backing object's swap space.
-			 */
-			if (lookup_still_valid &&
-				/*
-				 * make sure that we have two shadow objs
-				 */
-				(object->shadow_count == 2) &&
-				/*
-				 * And no COW refs -- note that there are sometimes
-				 * temp refs to objs, but ignore that case -- we just
-				 * punt.
-				 */
-				(object->ref_count == 2) &&
-				/*
-				 * Noone else can look us up
-				 */
-				(object->handle == NULL) &&
-				/*
-				 * Not something that can be referenced elsewhere
-				 */
-				((object->type == OBJT_DEFAULT) ||
-				 (object->type == OBJT_SWAP)) &&
-				/*
-				 * We don't bother chasing down object chain
-				 */
-				(object == first_object->backing_object)) {
-
-				vm_object_t other_object;
-				vm_pindex_t other_pindex, other_pindex_offset;
-				vm_page_t tm;
-				
-				other_object = TAILQ_FIRST(&object->shadow_head);
-				if (other_object == first_object)
-					other_object = TAILQ_NEXT(other_object, shadow_list);
-				if (!other_object)
-					panic("vm_fault: other object missing");
-				if (other_object &&
-					(other_object->type == OBJT_DEFAULT) &&
-					(other_object->paging_in_progress == 0)) {
-					other_pindex_offset =
-						OFF_TO_IDX(other_object->backing_object_offset);
-					if (pindex >= other_pindex_offset) {
-						other_pindex = pindex - other_pindex_offset;
-						/*
-						 * If the other object has the page, just free it.
-						 */
-						if ((tm = vm_page_lookup(other_object, other_pindex))) {
-							if ((tm->flags & PG_BUSY) == 0 &&
-								tm->busy == 0 &&
-								tm->valid == VM_PAGE_BITS_ALL) {
-								/*
-								 * get rid of the unnecessary page
-								 */
-								vm_page_protect(m, VM_PROT_NONE);
-								PAGE_WAKEUP(m);
-								vm_page_free(m);
-								m = NULL;
-								tm->dirty = VM_PAGE_BITS_ALL;
-								first_m->dirty = VM_PAGE_BITS_ALL;
-							}
-						} else {
-							/*
-							 * If the other object doesn't have the page,
-							 * then we move it there.
-							 */
-							vm_page_rename(m, other_object, other_pindex);
-							m->dirty = VM_PAGE_BITS_ALL;
-							m->valid = VM_PAGE_BITS_ALL;
-						}
-					}
-				}
-			}
-
 			if (m) {
-				if (m->queue != PQ_ACTIVE)
+				if (m->queue != PQ_ACTIVE) {
 					vm_page_activate(m);
+					m->act_count = 0;
+				}
+
 			/*
 			 * We no longer need the old page or object.
 			 */
@@ -712,16 +651,6 @@ readrest:
 			object = first_object;
 			pindex = first_pindex;
 
-			/*
-			 * Now that we've gotten the copy out of the way,
-			 * let's try to collapse the top object.
-			 *
-			 * But we have to play ugly games with
-			 * paging_in_progress to do that...
-			 */
-			vm_object_pip_wakeup(object);
-			vm_object_collapse(object);
-			object->paging_in_progress++;
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}
@@ -732,7 +661,8 @@ readrest:
 	 * lookup.
 	 */
 
-	if (!lookup_still_valid) {
+	if (!lookup_still_valid &&
+		(map->timestamp != map_generation)) {
 		vm_object_t retry_object;
 		vm_pindex_t retry_pindex;
 		vm_prot_t retry_prot;
@@ -751,7 +681,8 @@ readrest:
 		 * and will merely take another fault.
 		 */
 		result = vm_map_lookup(&map, vaddr, fault_type & ~VM_PROT_WRITE,
-		    &entry, &retry_object, &retry_pindex, &retry_prot, &wired, &su);
+		    &entry, &retry_object, &retry_pindex, &retry_prot, &wired);
+		map_generation = map->timestamp;
 
 		/*
 		 * If we don't need the page any longer, put it on the active
@@ -808,8 +739,9 @@ readrest:
 	m->flags &= ~PG_ZERO;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
-	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0))
-		pmap_prefault(map->pmap, vaddr, entry, first_object);
+	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
+		pmap_prefault(map->pmap, vaddr, entry);
+	}
 
 	m->flags |= PG_MAPPED|PG_REFERENCED;
 	if (fault_flags & VM_FAULT_HOLD)
@@ -912,6 +844,7 @@ vm_fault_user_wire(map, start, end)
 	 * Inform the physical mapping system that the range of addresses may
 	 * not fault, so that page tables and such can be locked down as well.
 	 */
+
 	pmap_pageable(pmap, start, end, FALSE);
 
 	/*
@@ -1087,12 +1020,10 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t *marray;
 	int *reqpage;
 {
-	int i;
+	int i,j;
 	vm_object_t object;
 	vm_pindex_t pindex, startpindex, endpindex, tpindex;
-	vm_offset_t size;
 	vm_page_t rtm;
-	int treqpage;
 	int cbehind, cahead;
 
 	object = m->object;
@@ -1112,8 +1043,9 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	 */
 
 	if (!vm_pager_has_page(object,
-		OFF_TO_IDX(object->paging_offset) + pindex, &cbehind, &cahead))
+		OFF_TO_IDX(object->paging_offset) + pindex, &cbehind, &cahead)) {
 		return 0;
+	}
 
 	if ((cbehind == 0) && (cahead == 0)) {
 		*reqpage = 0;
@@ -1135,91 +1067,78 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	if ((rahead + rbehind) >
 		((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved)) {
 		pagedaemon_wakeup();
-		*reqpage = 0;
 		marray[0] = m;
+		*reqpage = 0;
 		return 1;
 	}
 
 	/*
-	 * scan backward for the read behind pages -- in memory or on disk not
-	 * in same object
+	 * scan backward for the read behind pages -- in memory 
 	 */
-	tpindex = pindex - 1;
-	if (tpindex < pindex) {
-		if (rbehind > pindex)
+	if (pindex > 0) {
+		if (rbehind > pindex) {
 			rbehind = pindex;
-		startpindex = pindex - rbehind;
-		while (tpindex >= startpindex) {
+			startpindex = 0;
+		} else {
+			startpindex = pindex - rbehind;
+		}
+
+		for ( tpindex = pindex - 1; tpindex >= startpindex; tpindex -= 1) {
 			if (vm_page_lookup( object, tpindex)) {
 				startpindex = tpindex + 1;
 				break;
 			}
 			if (tpindex == 0)
 				break;
-			tpindex -= 1;
+		}
+
+		for(i = 0, tpindex = startpindex; tpindex < pindex; i++, tpindex++) {
+
+			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			if (rtm == NULL) {
+				for (j = 0; j < i; j++) {
+					FREE_PAGE(marray[j]);
+				}
+				marray[0] = m;
+				*reqpage = 0;
+				return 1;
+			}
+
+			marray[i] = rtm;
 		}
 	} else {
-		startpindex = pindex;
+		startpindex = 0;
+		i = 0;
 	}
+
+	marray[i] = m;
+	/* page offset of the required page */
+	*reqpage = i;
+
+	tpindex = pindex + 1;
+	i++;
 
 	/*
-	 * scan forward for the read ahead pages -- in memory or on disk not
-	 * in same object
+	 * scan forward for the read ahead pages
 	 */
-	tpindex = pindex + 1;
-	endpindex = pindex + (rahead + 1);
+	endpindex = tpindex + rahead;
 	if (endpindex > object->size)
 		endpindex = object->size;
-	while (tpindex <  endpindex) {
-		if ( vm_page_lookup(object, tpindex)) {
+
+	for( ; tpindex < endpindex; i++, tpindex++) {
+
+		if (vm_page_lookup(object, tpindex)) {
 			break;
-		}	
-		tpindex += 1;
-	}
-	endpindex = tpindex;
-
-	/* calculate number of bytes of pages */
-	size = endpindex - startpindex;
-
-	/* calculate the page offset of the required page */
-	treqpage = pindex - startpindex;
-
-	/* see if we have space (again) */
-	if ((cnt.v_free_count + cnt.v_cache_count) >
-		(cnt.v_free_reserved + size)) {
-		/*
-		 * get our pages and don't block for them
-		 */
-		for (i = 0; i < size; i++) {
-			if (i != treqpage) {
-				rtm = vm_page_alloc(object,
-					startpindex + i,
-					VM_ALLOC_NORMAL);
-				if (rtm == NULL) {
-					if (i < treqpage) {
-						int j;
-						for (j = 0; j < i; j++) {
-							FREE_PAGE(marray[j]);
-						}
-						*reqpage = 0;
-						marray[0] = m;
-						return 1;
-					} else {
-						size = i;
-						*reqpage = treqpage;
-						return size;
-					}
-				}
-				marray[i] = rtm;
-			} else {
-				marray[i] = m;
-			}
 		}
 
-		*reqpage = treqpage;
-		return size;
+		rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+		if (rtm == NULL) {
+			break;
+		}
+
+		marray[i] = rtm;
 	}
-	*reqpage = 0;
-	marray[0] = m;
-	return 1;
+
+	/* return number of bytes of pages */
+	return i;
 }
