@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.42 1997/08/19 14:10:45 peter Exp $ */
+/* $Id: if_ppp.c,v 1.43 1997/08/19 17:05:26 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -283,7 +283,7 @@ pppdealloc(sc)
 
     if_down(&sc->sc_if);
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
-    microtime(&sc->sc_if.if_lastchange);
+    gettime(&sc->sc_if.if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
     for (;;) {
@@ -854,7 +854,7 @@ pppoutput(ifp, m0, dst, rtp)
 	IF_ENQUEUE(ifq, m0);
 	(*sc->sc_start)(sc);
     }
-    ifp->if_lastchange = time;
+    gettime(&ifp->if_lastchange);
     ifp->if_opackets++;
     ifp->if_obytes += len;
 
@@ -1530,7 +1530,7 @@ ppp_inproc(sc, m)
     splx(s);
     ifp->if_ipackets++;
     ifp->if_ibytes += ilen;
-    ifp->if_lastchange = time;
+    gettime(&ifp->if_lastchange);
 
     if (rv)
 	(*sc->sc_ctlp)(sc);
