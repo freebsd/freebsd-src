@@ -173,7 +173,7 @@ struct callout_handle
 timeout(ftn, arg, to_ticks)
 	timeout_t *ftn;
 	void *arg;
-	register int to_ticks;
+	int to_ticks;
 {
 	int s;
 	struct callout *new;
@@ -242,12 +242,11 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 void
-_callout_reset(c, to_ticks, ftn, arg, flags)
+callout_reset(c, to_ticks, ftn, arg)
 	struct	callout *c;
 	int	to_ticks;
 	void	(*ftn) __P((void *));
 	void	*arg;
-	int	flags;
 {
 	int	s;
 
@@ -265,8 +264,7 @@ _callout_reset(c, to_ticks, ftn, arg, flags)
 		to_ticks = 1;
 
 	c->c_arg = arg;
-	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING |
-	    (flags & CALLOUT_MPSAFE));
+	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	c->c_func = ftn;
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
@@ -308,10 +306,13 @@ callout_stop(c)
 }
 
 void
-callout_init(c)
+callout_init(c, mpsafe)
 	struct	callout *c;
+	int mpsafe;
 {
 	bzero(c, sizeof *c);
+	if (mpsafe)
+		c->c_flags |= CALLOUT_MPSAFE;
 }
 
 #ifdef APM_FIXUP_CALLTODO

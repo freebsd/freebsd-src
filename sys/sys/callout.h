@@ -77,17 +77,10 @@ extern struct mtx callout_lock;
 
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
-void	callout_init __P((struct callout *));
+void	callout_init __P((struct callout *, int));
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-void	_callout_reset __P((struct callout *, int, void (*)(void *), void *,
-			    int));
+void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
 void	callout_stop __P((struct callout *));
-
-#define	callout_reset(c, ticks, func, arg)				\
-	_callout_reset((c), (ticks), (func), (arg), 0)
-
-#define	mp_callout_reset(c, ticks, func, arg)				\
-	_callout_reset((c), (ticks), (func), (arg), CALLOUT_MPSAFE)
 
 #endif
 

@@ -490,11 +490,11 @@ tcp_newtcpcb(inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init(tp->tt_rexmt = &it->inp_tp_rexmt);
-	callout_init(tp->tt_persist = &it->inp_tp_persist);
-	callout_init(tp->tt_keep = &it->inp_tp_keep);
-	callout_init(tp->tt_2msl = &it->inp_tp_2msl);
-	callout_init(tp->tt_delack = &it->inp_tp_delack);
+	callout_init(tp->tt_rexmt = &it->inp_tp_rexmt, 0);
+	callout_init(tp->tt_persist = &it->inp_tp_persist, 0);
+	callout_init(tp->tt_keep = &it->inp_tp_keep, 0);
+	callout_init(tp->tt_2msl = &it->inp_tp_2msl, 0);
+	callout_init(tp->tt_delack = &it->inp_tp_delack, 0);
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
