@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.13 1995/09/22 17:57:48 wollman Exp $
+ * $Id: if_loop.c,v 1.14 1995/10/26 20:30:13 julian Exp $
  */
 
 /*
@@ -93,8 +93,8 @@ struct	ifnet loif[NLOOP];
 
 /* ARGSUSED */
 static void
-loopattach(udata)
-	void *udata;
+loopattach(dummy)
+	void *dummy;
 {
 	register struct ifnet *ifp;
 	register int i = 0;

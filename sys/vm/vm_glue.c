@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.29 1995/10/23 05:35:42 dyson Exp $
+ * $Id: vm_glue.c,v 1.30 1995/11/05 20:45:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -291,7 +291,7 @@ static void
 vm_init_limits(udata)
 	void *udata;
 {
-	register struct proc *p = (struct proc *)udata;
+	register struct proc *p = udata;
 	int rss_limit;
 
 	/*
@@ -372,8 +372,8 @@ faultin(p)
  */
 /* ARGSUSED*/
 static void
-scheduler(udata)
-	void *udata;		/* not used*/
+scheduler(dummy)
+	void *dummy;
 {
 	register struct proc *p;
 	register int pri;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.7 1995/09/22 17:57:47 wollman Exp $
+ *	$Id: if_disc.c,v 1.8 1995/10/29 15:31:59 phk Exp $
  */
 
 /*
@@ -80,7 +80,7 @@
 #define DSMTU	65532
 #endif
 
-static void discattach __P((void *udata));
+static void discattach __P((void *dummy));
 PSEUDO_SET(discattach, if_disc);
 
 static struct	ifnet dsif;
@@ -90,8 +90,8 @@ static int dsioctl(struct ifnet *, int, caddr_t);
 
 /* ARGSUSED */
 static void
-discattach(udata)
-	void *udata;
+discattach(dummy)
+	void *dummy;
 {
 	register struct ifnet *ifp = &dsif;
 

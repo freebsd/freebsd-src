@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.31 1995/10/08 00:05:59 swallace Exp $
+ * $Id: init_main.c,v 1.32 1995/11/28 07:29:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -223,9 +223,9 @@ main(framep)
 /* ARGSUSED*/
 void
 kproc_start(udata)
-	void *udata;	/* pointer to a 'kproc_desc' ? */
+	void *udata;
 {
-	struct kproc_desc	*kp = (struct kproc_desc *)udata;
+	struct kproc_desc	*kp = udata;
 	struct proc		*p = curproc;
 
 	/* save a global descriptor, if desired*/
@@ -242,7 +242,7 @@ kproc_start(udata)
 	(*kp->func)();
 
 	/* NOTREACHED */
-	panic( "kproc_start: %s", kp->arg0);
+	panic("kproc_start: %s", kp->arg0);
 }
 
 
@@ -279,8 +279,7 @@ print_caddr_t(data)
 {
 	printf("%s", (char *)data);
 }
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
-	copyright)
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright)
 
 
 /*
@@ -297,10 +296,10 @@ SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
  ***************************************************************************
  */
 /* ARGSUSED*/
-void proc0_init __P((void *udata));
+void proc0_init __P((void *dummy));
 void
-proc0_init(udata)
-	void *udata;		/* not used*/
+proc0_init(dummy)
+	void *dummy;
 {
 	register struct proc		*p;
 	register struct filedesc0	*fdp;
@@ -400,10 +399,10 @@ proc0_init(udata)
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL)
 
 /* ARGSUSED*/
-void proc0_post __P((void *udata));
+void proc0_post __P((void *dummy));
 void
-proc0_post(udata)
-	void *udata;		/* not used*/
+proc0_post(dummy)
+	void *dummy;
 {
 	/*
 	 * Now can look at time, having had a chance to verify the time
@@ -430,10 +429,10 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL)
  ***************************************************************************
  */
 /* ARGSUSED*/
-void sched_setup __P((void *udata));
+void sched_setup __P((void *dummy));
 void
-sched_setup(udata)
-	void *udata;		/* not used*/
+sched_setup(dummy)
+	void *dummy;
 {
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
@@ -442,10 +441,10 @@ sched_setup(udata)
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_mountroot __P((void *udata));
+void xxx_vfs_mountroot __P((void *dummy));
 void
-xxx_vfs_mountroot(udata)
-	void *udata;		/* not used*/
+xxx_vfs_mountroot(dummy)
+	void *dummy;
 {
 	/* Mount the root file system. */
 	if ((*mountroot)(mountrootvfsops))
@@ -454,10 +453,10 @@ xxx_vfs_mountroot(udata)
 SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
 
 /* ARGSUSED*/
-void xxx_vfs_root_fdtab __P((void *udata));
+void xxx_vfs_root_fdtab __P((void *dummy));
 void
-xxx_vfs_root_fdtab(udata)
-	void *udata;		/* not used*/
+xxx_vfs_root_fdtab(dummy)
+	void *dummy;
 {
 	register struct filedesc0	*fdp = &filedesc0;
 
@@ -485,7 +484,7 @@ SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
  ***************************************************************************
  */
 
-static void kthread_init __P((void *udata));
+static void kthread_init __P((void *dummy));
 SYSINIT_KT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
 
 
@@ -493,8 +492,8 @@ static void start_init __P((struct proc *p, void *framep));
 
 /* ARGSUSED*/
 static void
-kthread_init(udata)
-	void *udata;		/* not used*/
+kthread_init(dummy)
+	void *dummy;
 {
 
 	/* Create process 1 (init(8)). */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.13 1995/11/09 08:13:51 bde Exp $
+ * $Id: vfs_init.c,v 1.14 1995/11/20 12:42:09 phk Exp $
  */
 
 
@@ -56,12 +56,10 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-/*
- * System initialization
- */
-
 static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
+
+void vfs_op_init __P((void));
 
 /*
  * Sigh, such primitive tools are these...
@@ -239,8 +237,8 @@ struct vattr va_null;
  */
 /* ARGSUSED*/
 static void
-vfsinit(udata)
-	void *udata;		/* not used*/
+vfsinit(dummy)
+	void *dummy;
 {
 	struct vfsops **vfsp;
 	struct vfsconf **vfc;

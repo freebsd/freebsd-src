@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.12 1995/08/28 09:18:45 julian Exp $
+ * $Id: kern_synch.c,v 1.13 1995/09/09 18:10:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -54,15 +54,8 @@
 
 #include <machine/cpu.h>
 
-
-/*
- * System initialization
- */
-
 static void rqinit __P((void *));
 SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
-
-
 
 u_char	curpriority;		/* usrpri of curproc */
 int	lbolt;			/* once a second sleep address */
@@ -614,8 +607,8 @@ mi_switch()
  */
 /* ARGSUSED*/
 static void
-rqinit(udata)
-	void *udata;		/* not used*/
+rqinit(dummy)
+	void *dummy;
 {
 	register int i;
 
