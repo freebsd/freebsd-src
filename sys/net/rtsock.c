@@ -310,11 +310,16 @@ rts_sockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 static struct pr_usrreqs route_usrreqs = {
-	rts_abort, pru_accept_notsupp, rts_attach, rts_bind, rts_connect,
-	pru_connect2_notsupp, pru_control_notsupp, rts_detach, rts_disconnect,
-	pru_listen_notsupp, rts_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
-	rts_send, pru_sense_null, rts_shutdown, rts_sockaddr,
-	sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		rts_abort,
+	.pru_attach =		rts_attach,
+	.pru_bind =		rts_bind,
+	.pru_connect =		rts_connect,
+	.pru_detach =		rts_detach,
+	.pru_disconnect =	rts_disconnect,
+	.pru_peeraddr =		rts_peeraddr,
+	.pru_send =		rts_send,
+	.pru_shutdown =		rts_shutdown,
+	.pru_sockaddr =		rts_sockaddr,
 };
 
 /*ARGSUSED*/

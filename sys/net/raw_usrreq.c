@@ -297,9 +297,14 @@ raw_usockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs raw_usrreqs = {
-	raw_uabort, pru_accept_notsupp, raw_uattach, raw_ubind, raw_uconnect,
-	pru_connect2_notsupp, pru_control_notsupp, raw_udetach, 
-	raw_udisconnect, pru_listen_notsupp, raw_upeeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, raw_usend, pru_sense_null, raw_ushutdown,
-	raw_usockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		raw_uabort,
+	.pru_attach =		raw_uattach,
+	.pru_bind =		raw_ubind,
+	.pru_connect =		raw_uconnect,
+	.pru_detach =		raw_udetach, 
+	.pru_disconnect =	raw_udisconnect,
+	.pru_peeraddr =		raw_upeeraddr,
+	.pru_send =		raw_usend,
+	.pru_shutdown =		raw_ushutdown,
+	.pru_sockaddr =		raw_usockaddr,
 };

@@ -563,14 +563,16 @@ key_sockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs key_usrreqs = {
-	key_abort, pru_accept_notsupp, key_attach, key_bind,
-	key_connect,
-	pru_connect2_notsupp, pru_control_notsupp, key_detach,
-	key_disconnect, pru_listen_notsupp, key_peeraddr,
-	pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, key_send, pru_sense_null, key_shutdown,
-	key_sockaddr, sosend, soreceive, sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		key_abort,
+	.pru_attach =		key_attach,
+	.pru_bind =		key_bind,
+	.pru_connect =		key_connect,
+	.pru_detach =		key_detach,
+	.pru_disconnect =	key_disconnect,
+	.pru_peeraddr =		key_peeraddr,
+	.pru_send =		key_send,
+	.pru_shutdown =		key_shutdown,
+	.pru_sockaddr =		key_sockaddr,
 };
 
 /* sysctl */

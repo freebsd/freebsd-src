@@ -190,8 +190,12 @@ struct uio;
  * Having this structure separated out from the main protoswitch is allegedly
  * a big (12 cycles per call) lose on high-end CPUs.  We will eventually
  * migrate this stuff back into the main structure.
+ *
+ * Some fields initialized to defaults if they are NULL.
+ * See uipc_domain.c:net_init_domain()
  */
 struct pr_usrreqs {
+	double	__Break_the_struct_layout_for_now;
 	int	(*pru_abort)(struct socket *so);
 	int	(*pru_accept)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_attach)(struct socket *so, int proto, struct thread *td);

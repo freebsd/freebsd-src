@@ -1006,51 +1006,29 @@ dummy_disconnect(struct socket *so)
  */
 
 static struct pr_usrreqs ngc_usrreqs = {
-	NULL,			/* abort */
-	pru_accept_notsupp,
-	ngc_attach,
-	ngc_bind,
-	ngc_connect,
-	pru_connect2_notsupp,
-	pru_control_notsupp,
-	ngc_detach,
-	dummy_disconnect,	/* disconnect */
-	pru_listen_notsupp,
-	NULL,			/* setpeeraddr */
-	pru_rcvd_notsupp,
-	pru_rcvoob_notsupp,
-	ngc_send,
-	pru_sense_null,
-	NULL,			/* shutdown */
-	ng_setsockaddr,
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		NULL,
+	.pru_attach =		ngc_attach,
+	.pru_bind =		ngc_bind,
+	.pru_connect =		ngc_connect,
+	.pru_detach =		ngc_detach,
+	.pru_disconnect =	dummy_disconnect,
+	.pru_peeraddr =		NULL,
+	.pru_send =		ngc_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr =		ng_setsockaddr,
 };
 
 static struct pr_usrreqs ngd_usrreqs = {
-	NULL,			/* abort */
-	pru_accept_notsupp,
-	ngd_attach,
-	NULL,			/* bind */
-	ngd_connect,
-	pru_connect2_notsupp,
-	pru_control_notsupp,
-	ngd_detach,
-	dummy_disconnect,	/* disconnect */
-	pru_listen_notsupp,
-	NULL,			/* setpeeraddr */
-	pru_rcvd_notsupp,
-	pru_rcvoob_notsupp,
-	ngd_send,
-	pru_sense_null,
-	NULL,			/* shutdown */
-	ng_setsockaddr,
-	sosend,
-	soreceive,
-	sopoll,
-	pru_sosetlabel_null
+	.pru_abort =		NULL,
+	.pru_attach =		ngd_attach,
+	.pru_bind =		NULL,
+	.pru_connect =		ngd_connect,
+	.pru_detach =		ngd_detach,
+	.pru_disconnect =	dummy_disconnect,
+	.pru_peeraddr =		NULL,
+	.pru_send =		ngd_send,
+	.pru_shutdown =		NULL,
+	.pru_sockaddr		ng_setsockaddr,
 };
 
 /*
