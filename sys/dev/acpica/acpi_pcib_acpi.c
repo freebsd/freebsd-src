@@ -100,7 +100,7 @@ static driver_t acpi_pcib_driver = {
     sizeof(struct acpi_pcib_softc),
 };
 
-devclass_t acpi_pcib_devclass;
+static devclass_t acpi_pcib_devclass;
 DRIVER_MODULE(acpi_pcib, acpi, acpi_pcib_driver, acpi_pcib_devclass, 0, 0);
 
 static int
