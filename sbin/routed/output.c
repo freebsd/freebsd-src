@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.17 $"
+#ident "$Revision: 1.18 $"
 
 #include "defs.h"
 
@@ -53,35 +53,43 @@ struct {
 	naddr	to_std_mask;
 	naddr	to_std_net;
 	struct interface *ifp;		/* usually output interface */
-	struct ws_buf {			/* info for each buffer */
-	    struct rip	*buf;
-	    struct netinfo *n;
-	    struct netinfo *base;
-	    struct netinfo *lim;
-	    enum output_type type;
-	} v12, v2;
+	struct auth_key *a;
 	char	metric;			/* adjust metrics by interface */
 	int	npackets;
 	int	gen_limit;
 	u_int	state;
 #define	    WS_ST_FLASH	    0x001	/* send only changed routes */
-#define	    WS_ST_RIP2_SAFE 0x002	/* send RIPv2 safe for RIPv1 */
-#define	    WS_ST_RIP2_ALL  0x004	/* send full featured RIPv2 */
-#define	    WS_ST_AG	    0x008	/* ok to aggregate subnets */
-#define	    WS_ST_SUPER_AG  0x010	/* ok to aggregate networks */
-#define	    WS_ST_SUB_AG    0x020	/* aggregate subnets in odd case */
-#define	    WS_ST_QUERY	    0x040	/* responding to a query */
-#define	    WS_ST_TO_ON_NET 0x080	/* sending onto one of our nets */
-#define	    WS_ST_DEFAULT   0x100	/* faking a default */
-#define	    WS_ST_PM_RDISC  0x200	/* poor-man's router discovery */
+#define	    WS_ST_RIP2_ALL  0x002	/* send full featured RIPv2 */
+#define	    WS_ST_AG	    0x004	/* ok to aggregate subnets */
+#define	    WS_ST_SUPER_AG  0x008	/* ok to aggregate networks */
+#define	    WS_ST_SUB_AG    0x010	/* aggregate subnets in odd case */
+#define	    WS_ST_QUERY	    0x020	/* responding to a query */
+#define	    WS_ST_TO_ON_NET 0x040	/* sending onto one of our nets */
+#define	    WS_ST_DEFAULT   0x080	/* faking a default */
 } ws;
 
 /* A buffer for what can be heard by both RIPv1 and RIPv2 listeners */
+struct ws_buf v12buf;
 union pkt_buf ripv12_buf;
 
 /* Another for only RIPv2 listeners */
+struct ws_buf v2buf;
 union pkt_buf rip_v2_buf;
 
+
+
+void
+bufinit(void)
+{
+	ripv12_buf.rip.rip_cmd = RIPCMD_RESPONSE;
+	v12buf.buf = &ripv12_buf.rip;
+	v12buf.base = &v12buf.buf->rip_nets[0];
+
+	rip_v2_buf.rip.rip_cmd = RIPCMD_RESPONSE;
+	rip_v2_buf.rip.rip_vers = RIPv2;
+	v2buf.buf = &rip_v2_buf.rip;
+	v2buf.base = &v2buf.buf->rip_nets[0];
+}
 
 
 /* Send the contents of the global buffer via the non-multicast socket
@@ -137,7 +145,7 @@ output(enum output_type type,
 			msg = "Send pt-to-pt";
 		} else if (ifp->int_state & IS_DUP) {
 			trace_act("abort multicast output via %s"
-				  " with duplicate address\n",
+				  " with duplicate address",
 				  ifp->int_name);
 			return 0;
 		} else {
@@ -198,20 +206,86 @@ output(enum output_type type,
 }
 
 
-/* install authentication if appropriate
+/* Find the first key that has not expired, but settle for
+ * the last key if they have all expired.
+ * If no key is ready yet, give up.
  */
-static void
-set_auth(struct ws_buf *w)
+struct auth_key *
+find_auth(struct interface *ifp)
 {
-	if (ws.ifp != 0
-	    && ws.ifp->int_passwd[0] != '\0'
-	    && (ws.state & WS_ST_RIP2_SAFE)) {
-		w->n->n_family = RIP_AF_AUTH;
-		((struct netauth*)w->n)->a_type = RIP_AUTH_PW;
-		bcopy(ws.ifp->int_passwd, ((struct netauth*)w->n)->au.au_pw,
-		      sizeof(((struct netauth*)w->n)->au.au_pw));
-		w->n++;
+	struct auth_key *ap, *res;
+	int i;
+
+
+	if (ifp == 0 || ifp->int_auth.type == RIP_AUTH_NONE)
+		return 0;
+	
+	res = 0;
+	ap = ifp->int_auth.keys;
+	for (i = 0; i < MAX_AUTH_KEYS; i++, ap++) {
+		if ((u_long)ap->start <= (u_long)clk.tv_sec) {
+			if ((u_long)ap->end >= (u_long)clk.tv_sec)
+				return ap;
+			res = ap;
+		}
 	}
+	return res;
+}
+
+
+void
+clr_ws_buf(struct ws_buf *wb,
+	   struct auth_key *ap,
+	   struct interface *ifp)
+{
+	struct netauth *na;
+
+	wb->lim = wb->base + NETS_LEN;
+	wb->n = wb->base;
+	bzero(wb->n, NETS_LEN*sizeof(*wb->n));
+
+	/* install authentication if appropriate
+	 */
+	if (ap == 0)
+		return;
+	na = (struct netauth*)wb->n;
+	if (ifp->int_auth.type == RIP_AUTH_PW) {
+		na->a_family = RIP_AF_AUTH;
+		na->a_type = RIP_AUTH_PW;
+		bcopy(ap->key, na->au.au_pw, sizeof(na->au.au_pw));
+		wb->n++;
+
+	} else if (ifp->int_auth.type ==  RIP_AUTH_MD5) {
+		na->a_family = RIP_AF_AUTH;
+		na->a_type = RIP_AUTH_MD5;
+		na->au.a_md5.md5_keyid = ap->keyid;
+		na->au.a_md5.md5_auth_len = RIP_AUTH_PW_LEN;
+		na->au.a_md5.md5_seqno = clk.tv_sec;
+		wb->n++;
+		wb->lim--;		/* make room for trailer */
+	}
+}
+
+
+void
+end_md5_auth(struct ws_buf *wb,
+	     struct auth_key *ap)
+{
+	struct netauth *na, *na2;
+	MD5_CTX md5_ctx;
+
+
+	na = (struct netauth*)wb->base;
+	na2 = (struct netauth*)wb->n;
+	na2->a_family = RIP_AF_AUTH;
+	na2->a_type = 1;
+	bcopy(ap->key, na2->au.au_pw, sizeof(na2->au.au_pw));
+	na->au.a_md5.md5_pkt_len = (char *)na2-(char *)(na+1);
+	MD5Init(&md5_ctx);
+	MD5Update(&md5_ctx, (u_char *)na,
+		  (char *)(na2+1) - (char *)na);
+	MD5Final(na2->au.au_pw, &md5_ctx);
+	wb->n++;
 }
 
 
@@ -226,12 +300,14 @@ supply_write(struct ws_buf *wb)
 	 */
 	switch (wb->type) {
 	case NO_OUT_MULTICAST:
-		trace_pkt("skip multicast to %s because impossible\n",
+		trace_pkt("skip multicast to %s because impossible",
 			  naddr_ntoa(ws.to.sin_addr.s_addr));
 		break;
 	case NO_OUT_RIPV2:
 		break;
 	default:
+		if (ws.ifp->int_auth.type == RIP_AUTH_MD5)
+			end_md5_auth(wb,ws.a);
 		if (output(wb->type, &ws.to, ws.ifp, wb->buf,
 			   ((char *)wb->n - (char*)wb->buf)) < 0
 		    && ws.ifp != 0)
@@ -240,9 +316,7 @@ supply_write(struct ws_buf *wb)
 		break;
 	}
 
-	bzero(wb->n = wb->base, sizeof(*wb->n)*NETS_LEN);
-	if (wb->buf->rip_vers == RIPv2)
-		set_auth(wb);
+	clr_ws_buf(wb,ws.a,ws.ifp);
 }
 
 
@@ -252,7 +326,7 @@ static void
 supply_out(struct ag_info *ag)
 {
 	int i;
-	naddr mask, v1_mask, s_mask, dst_h, ddst_h;
+	naddr mask, v1_mask, dst_h, ddst_h;
 	struct ws_buf *wb;
 
 
@@ -272,7 +346,6 @@ supply_out(struct ag_info *ag)
 	mask = ag->ag_mask;
 	v1_mask = ripv1_mask_host(htonl(dst_h),
 				  (ws.state & WS_ST_TO_ON_NET) ? ws.ifp : 0);
-	s_mask = std_mask(htonl(dst_h));
 	i = 0;
 
 	/* If we are sending RIPv2 packets that cannot (or must not) be
@@ -280,19 +353,16 @@ supply_out(struct ag_info *ag)
 	 * Subnets (from other networks) can only be sent via multicast.
 	 * A pair of subnet routes might have been promoted so that they
 	 * are legal to send by RIPv1.
-	 * If RIPv1 is off, use the multicast buffer, unless this is the
-	 * fake default route and it is acting as a poor-man's router-
-	 * discovery mechanism.
+	 * If RIPv1 is off, use the multicast buffer.
 	 */
-	if (((ws.state & WS_ST_RIP2_ALL)
-	     && (dst_h != RIP_DEFAULT || !(ws.state & WS_ST_PM_RDISC)))
+	if ((ws.state & WS_ST_RIP2_ALL)
 	    || ((ag->ag_state & AGS_RIPV2) && v1_mask != mask)) {
 		/* use the RIPv2-only buffer */
-		wb = &ws.v2;
+		wb = &v2buf;
 
 	} else {
 		/* use the RIPv1-or-RIPv2 buffer */
-		wb = &ws.v12;
+		wb = &v12buf;
 
 		/* Convert supernet route into corresponding set of network
 		 * routes for RIPv1, but leave non-contiguous netmasks
@@ -333,18 +403,20 @@ supply_out(struct ag_info *ag)
 				   ? HOPCNT_INFINITY
 				   : ag->ag_metric);
 		HTONL(wb->n->n_metric);
-		if (wb->buf->rip_vers == RIPv2) {
+		/* Any non-zero bits in the supposedly unused RIPv1 fields
+		 * cause the old `routed` to ignore the route.
+		 * That means the mask and so forth cannot be sent
+		 * in the hybrid RIPv1/RIPv2 mode.
+		 */
+		if (ws.state & WS_ST_RIP2_ALL) {
 			if (ag->ag_nhop != 0
-			    && (ws.state & WS_ST_RIP2_SAFE)
 			    && ((ws.state & WS_ST_QUERY)
 				|| (ag->ag_nhop != ws.ifp->int_addr
 				    && on_net(ag->ag_nhop,
 					      ws.ifp->int_net,
 					      ws.ifp->int_mask))))
 				wb->n->n_nhop = ag->ag_nhop;
-			if ((ws.state & WS_ST_RIP2_ALL)
-			    || mask != s_mask)
-				wb->n->n_mask = htonl(mask);
+			wb->n->n_mask = htonl(mask);
 			wb->n->n_tag = ag->ag_tag;
 		}
 		dst_h += ddst_h;
@@ -368,20 +440,20 @@ walk_supply(struct radix_node *rn,
 	naddr dst, nhop;
 
 
-	/* Do not advertise the loopback interface
-	 * or external remote interfaces
+	/* Do not advertise external remote interfaces or passive interfaces.
 	 */
 	if ((RT->rt_state & RS_IF)
 	    && RT->rt_ifp != 0
-	    && ((RT->rt_ifp->int_if_flags & IFF_LOOPBACK)
-		|| (RT->rt_ifp->int_state & IS_EXTERNAL))
+	    && (RT->rt_ifp->int_if_flags & IS_PASSIVE)
 	    && !(RT->rt_state & RS_MHOME))
 		return 0;
 
 	/* If being quiet about our ability to forward, then
-	 * do not say anything unless responding to a query.
+	 * do not say anything unless responding to a query,
+	 * except about our main interface.
 	 */
-	if (!supplier && !(ws.state & WS_ST_QUERY))
+	if (!supplier && !(ws.state & WS_ST_QUERY)
+	    && !(RT->rt_state & RS_MHOME))
 		return 0;
 
 	dst = RT->rt_dst;
@@ -528,14 +600,15 @@ walk_supply(struct radix_node *rn,
 
 	} else {
 		/* Do not advertise stable routes that will be ignored,
-		 * unless they are being held down and poisoned.  If the
-		 * route recently was advertised with a metric that would
-		 * have been less than infinity through this interface, we
-		 * need to continue to advertise it in order to poison it.
+		 * unless we are answering a query.
+		 * If the route recently was advertised with a metric that
+		 * would have been less than infinity through this interface,
+		 * we need to continue to advertise it in order to poison it.
 		 */
 		pref = RT->rt_poison_metric + ws.metric;
-		if (pref >= HOPCNT_INFINITY
-		    || RT->rt_poison_time < now_garbage )
+		if (!(ws.state & WS_ST_QUERY)
+		    && (pref >= HOPCNT_INFINITY
+			|| RT->rt_poison_time < now_garbage))
 			return 0;
 
 		metric = HOPCNT_INFINITY;
@@ -556,10 +629,11 @@ supply(struct sockaddr_in *dst,
        struct interface *ifp,		/* output interface */
        enum output_type type,
        int flash,			/* 1=flash update */
-       int vers)			/* RIP version */
+       int vers,			/* RIP version */
+       int passwd_ok)			/* OK to include cleartext password */
 {
-	static int init = 1;
 	struct rt_entry *rt;
+	int def_metric;
 
 
 	ws.state = 0;
@@ -598,94 +672,79 @@ supply(struct sockaddr_in *dst,
 		ws.metric = ifp->int_metric+1;
 	}
 
-	if (init) {
-		init = 0;
-
-		bzero(&ripv12_buf, sizeof(ripv12_buf));
-		ripv12_buf.rip.rip_cmd = RIPCMD_RESPONSE;
-		ws.v12.buf = &ripv12_buf.rip;
-		ws.v12.base = &ws.v12.buf->rip_nets[0];
-		ws.v12.lim = ws.v12.base + NETS_LEN;
-
-		bzero(&rip_v2_buf, sizeof(rip_v2_buf));
-		rip_v2_buf.rip.rip_cmd = RIPCMD_RESPONSE;
-		rip_v2_buf.rip.rip_vers = RIPv2;
-		ws.v2.buf = &rip_v2_buf.rip;
-		ws.v2.base = &ws.v2.buf->rip_nets[0];
-		ws.v2.lim = ws.v2.base + NETS_LEN;
-	}
 	ripv12_buf.rip.rip_vers = vers;
-
-	ws.v12.n = ws.v12.base;
-	set_auth(&ws.v12);
-	ws.v2.n = ws.v2.base;
-	set_auth(&ws.v2);
 
 	switch (type) {
 	case OUT_BROADCAST:
-		ws.v2.type = ((ws.ifp != 0
-			       && (ws.ifp->int_if_flags & IFF_MULTICAST))
+		v2buf.type = ((ifp != 0 && (ifp->int_if_flags & IFF_MULTICAST))
 			      ? OUT_MULTICAST
 			      : NO_OUT_MULTICAST);
-		ws.v12.type = OUT_BROADCAST;
+		v12buf.type = OUT_BROADCAST;
 		break;
 	case OUT_MULTICAST:
-		ws.v2.type = ((ws.ifp != 0
-			       && (ws.ifp->int_if_flags & IFF_MULTICAST))
+		v2buf.type = ((ifp != 0 && (ifp->int_if_flags & IFF_MULTICAST))
 			      ? OUT_MULTICAST
 			      : NO_OUT_MULTICAST);
-		ws.v12.type = OUT_BROADCAST;
+		v12buf.type = OUT_BROADCAST;
 		break;
 	case OUT_UNICAST:
 	case OUT_QUERY:
-		ws.v2.type = (vers == RIPv2) ? type : NO_OUT_RIPV2;
-		ws.v12.type = type;
+		v2buf.type = (vers == RIPv2) ? type : NO_OUT_RIPV2;
+		v12buf.type = type;
 		break;
 	default:
-		ws.v2.type = type;
-		ws.v12.type = type;
+		v2buf.type = type;
+		v12buf.type = type;
 		break;
 	}
 
 	if (vers == RIPv2) {
-		/* if asked to send RIPv2, send at least that which can
-		 * be safely heard by RIPv1 listeners.
-		 */
-		ws.state |= WS_ST_RIP2_SAFE;
-
 		/* full RIPv2 only if cannot be heard by RIPv1 listeners */
 		if (type != OUT_BROADCAST)
 			ws.state |= WS_ST_RIP2_ALL;
 		if (!(ws.state & WS_ST_TO_ON_NET)) {
 			ws.state |= (WS_ST_AG | WS_ST_SUPER_AG);
-		} else if (ws.ifp == 0 || !(ws.ifp->int_state & IS_NO_AG)) {
+		} else if (ifp == 0 || !(ifp->int_state & IS_NO_AG)) {
 			ws.state |= WS_ST_AG;
 			if (type != OUT_BROADCAST
-			    && (ws.ifp == 0
-				|| !(ws.ifp->int_state & IS_NO_SUPER_AG)))
+			    && (ifp == 0 || !(ifp->int_state&IS_NO_SUPER_AG)))
 				ws.state |= WS_ST_SUPER_AG;
 		}
 
-	} else if (ws.ifp == 0 || !(ws.ifp->int_state & IS_NO_AG)) {
+	} else if (ifp == 0 || !(ifp->int_state & IS_NO_AG)) {
 		ws.state |= WS_ST_SUB_AG;
 	}
 
-	if (supplier) {
-		/*  Fake a default route if asked, and if there is not
-		 * a better, real default route.
-		 */
-		if (ifp->int_d_metric != 0
-		    && (0 == (rt = rtget(RIP_DEFAULT, 0))
-			|| rt->rt_metric+ws.metric >= ifp->int_d_metric)) {
+	ws.a = (vers == RIPv2) ? find_auth(ifp) : 0;
+	if (ws.a != 0 && !passwd_ok && ifp->int_auth.type == RIP_AUTH_PW)
+		ws.a = 0;
+	clr_ws_buf(&v12buf,ws.a,ifp);
+	clr_ws_buf(&v2buf,ws.a,ifp);
+
+	/*  Fake a default route if asked and if there is not already
+	 * a better, real default route.
+	 */
+	if (supplier && (def_metric = ifp->int_d_metric) != 0) {
+		if (0 == (rt = rtget(RIP_DEFAULT, 0))
+		    || rt->rt_metric+ws.metric >= def_metric) {
 			ws.state |= WS_ST_DEFAULT;
-			ag_check(0, 0, 0, 0,
-				 ifp->int_d_metric,ifp->int_d_metric,
+			ag_check(0, 0, 0, 0, def_metric, def_metric,
 				 0, 0, 0, supply_out);
+		} else {
+			def_metric = rt->rt_metric+ws.metric;
 		}
+
+		/* If both RIPv2 and the poor-man's router discovery
+		 * kludge are on, arrange to advertise an extra
+		 * default route via RIPv1.
+		 */
 		if ((ws.state & WS_ST_RIP2_ALL)
 		    && (ifp->int_state & IS_PM_RDISC)) {
-			ws.state |= WS_ST_PM_RDISC;
 			ripv12_buf.rip.rip_vers = RIPv1;
+			v12buf.n->n_family = RIP_AF_INET;
+			v12buf.n->n_dst = htonl(RIP_DEFAULT);
+			v12buf.n->n_metric = htonl(def_metric);
+			v12buf.n++;
 		}
 	}
 
@@ -695,21 +754,21 @@ supply(struct sockaddr_in *dst,
 	/* Flush the packet buffers, provided they are not empty and
 	 * do not contain only the password.
 	 */
-	if (ws.v12.n != ws.v12.base
-	    && (ws.v12.n > ws.v12.base+1
-		|| ws.v12.n->n_family != RIP_AF_AUTH))
-		supply_write(&ws.v12);
-	if (ws.v2.n != ws.v2.base
-	    && (ws.v2.n > ws.v2.base+1
-		|| ws.v2.n->n_family != RIP_AF_AUTH))
-		supply_write(&ws.v2);
+	if (v12buf.n != v12buf.base
+	    && (v12buf.n > v12buf.base+1
+		|| v12buf.base->n_family != RIP_AF_AUTH))
+		supply_write(&v12buf);
+	if (v2buf.n != v2buf.base
+	    && (v2buf.n > v2buf.base+1
+		|| v2buf.base->n_family != RIP_AF_AUTH))
+		supply_write(&v2buf);
 
 	/* If we sent nothing and this is an answer to a query, send
 	 * an empty buffer.
 	 */
 	if (ws.npackets == 0
 	    && (ws.state & WS_ST_QUERY))
-		supply_write(&ws.v12);
+		supply_write(&v12buf);
 }
 
 
@@ -737,36 +796,28 @@ rip_bcast(int flash)
 	if (rip_sock < 0)
 		return;
 
-	trace_act("send %s and inhibit dynamic updates for %.3f sec\n",
+	trace_act("send %s and inhibit dynamic updates for %.3f sec",
 		  flash ? "dynamic update" : "all routes",
 		  rtime.tv_sec + ((float)rtime.tv_usec)/1000000.0);
 
 	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
-		/* skip interfaces not doing RIP, those already queried,
-		 * and aliases.  Do try broken interfaces to see
-		 * if they have healed.
+		/* Skip interfaces not doing RIP.
+		 * Do try broken interfaces to see if they have healed.
 		 */
-		if (0 != (ifp->int_state & (IS_PASSIVE | IS_ALIAS)))
+		if (IS_RIP_OUT_OFF(ifp->int_state))
 			continue;
 
 		/* skip turned off interfaces */
 		if (!iff_alive(ifp->int_if_flags))
 			continue;
 
-		/* default to RIPv1 output */
-		if (ifp->int_state & IS_NO_RIPV1_OUT) {
-			/* Say nothing if this interface is turned off */
-			if (ifp->int_state & IS_NO_RIPV2_OUT)
-				continue;
-			vers = RIPv2;
-		} else {
-			vers = RIPv1;
-		}
+		vers = (ifp->int_state & IS_NO_RIPV1_OUT) ? RIPv2 : RIPv1;
 
 		if (ifp->int_if_flags & IFF_BROADCAST) {
 			/* ordinary, hardware interface */
 			dst.sin_addr.s_addr = ifp->int_brdaddr;
-			/* if RIPv1 is not turned off, then broadcast so
+
+			/* If RIPv1 is not turned off, then broadcast so
 			 * that RIPv1 listeners can hear.
 			 */
 			if (vers == RIPv2
@@ -781,13 +832,17 @@ rip_bcast(int flash)
 			dst.sin_addr.s_addr = ifp->int_dstaddr;
 			type = OUT_UNICAST;
 
-		} else {
+		} else if (ifp->int_state & IS_REMOTE) {
 			/* remote interface */
 			dst.sin_addr.s_addr = ifp->int_addr;
 			type = OUT_UNICAST;
+
+		} else {
+			/* ATM, HIPPI, etc. */
+			continue;
 		}
 
-		supply(&dst, ifp, type, flash, vers);
+		supply(&dst, ifp, type, flash, vers, 1);
 	}
 
 	update_seqno++;			/* all routes are up to date */
@@ -817,28 +872,21 @@ rip_query(void)
 	bzero(&buf, sizeof(buf));
 
 	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
-		/* skip interfaces not doing RIP, those already queried,
-		 * and aliases.  Do try broken interfaces to see
-		 * if they have healed.
+		/* Skip interfaces those already queried.
+		 * Do not ask via interfaces through which we don't
+		 * accept input.  Do not ask via interfaces that cannot
+		 * send RIP packets.
+		 * Do try broken interfaces to see if they have healed.
 		 */
-		if (0 != (ifp->int_state & (IS_RIP_QUERIED
-					    | IS_PASSIVE | IS_ALIAS)))
+		if (IS_RIP_IN_OFF(ifp->int_state)
+		    || ifp->int_query_time != NEVER)
 			continue;
 
 		/* skip turned off interfaces */
 		if (!iff_alive(ifp->int_if_flags))
 			continue;
 
-		/* default to RIPv1 output */
-		if (ifp->int_state & IS_NO_RIPV2_OUT) {
-			/* Say nothing if this interface is turned off */
-			if (ifp->int_state & IS_NO_RIPV1_OUT)
-				continue;
-			buf.rip_vers = RIPv1;
-		} else {
-			buf.rip_vers = RIPv2;
-		}
-
+		buf.rip_vers = (ifp->int_state&IS_NO_RIPV1_OUT) ? RIPv2:RIPv1;
 		buf.rip_cmd = RIPCMD_REQUEST;
 		buf.rip_nets[0].n_family = RIP_AF_UNSPEC;
 		buf.rip_nets[0].n_metric = htonl(HOPCNT_INFINITY);
@@ -861,13 +909,17 @@ rip_query(void)
 			dst.sin_addr.s_addr = ifp->int_dstaddr;
 			type = OUT_UNICAST;
 
-		} else {
+		} else if (ifp->int_state & IS_REMOTE) {
 			/* remote interface */
 			dst.sin_addr.s_addr = ifp->int_addr;
 			type = OUT_UNICAST;
+
+		} else {
+			/* ATM, HIPPI, etc. */
+			continue;
 		}
 
-		ifp->int_state |= IS_RIP_QUERIED;
+		ifp->int_query_time = now.tv_sec+SUPPLY_INTERVAL;
 		if (output(type, &dst, ifp, &buf, sizeof(buf)) < 0)
 			if_sick(ifp);
 	}
