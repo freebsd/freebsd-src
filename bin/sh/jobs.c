@@ -221,7 +221,7 @@ bgcmd(int argc, char **argv)
 			continue;
 		restartjob(jp);
 		jp->foreground = 0;
-		fmtstr(s, 64, "[%d] ", jp - jobtab + 1);
+		fmtstr(s, 64, "[%td] ", jp - jobtab + 1);
 		out1str(s);
 		out1str(jp->ps[0].cmd);
 		out1c('\n');
