@@ -64,6 +64,7 @@ MALLOC_DECLARE(M_P31B);
 int p31b_proc(struct proc *, pid_t, struct proc **);
 
 void p31b_setcfg(int, int);
+int p31b_getcfg(int);
 
 #ifdef _KPOSIX_PRIORITY_SCHEDULING
 
