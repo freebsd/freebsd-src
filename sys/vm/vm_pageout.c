@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.114 1998/02/09 06:11:34 eivind Exp $
+ * $Id: vm_pageout.c,v 1.115 1998/02/23 08:22:37 dyson Exp $
  */
 
 /*
@@ -1163,7 +1163,7 @@ vm_size_t count;
 	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
 		cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
-		cnt.v_pageout_free_min + (count / 2048) + PQ_L2_SIZE;
+		cnt.v_pageout_free_min + (count / 768) + PQ_L2_SIZE;
 	cnt.v_free_min += cnt.v_free_reserved;
 	return 1;
 }
@@ -1188,12 +1188,15 @@ vm_pageout()
 	 * free_reserved needs to include enough for the largest swap pager
 	 * structures plus enough for any pv_entry structs when paging.
 	 */
-	cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
+	if (cnt.v_free_count > 6144)
+		cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
+	else
+		cnt.v_free_target = 2 * cnt.v_free_min + cnt.v_free_reserved;
 
-	if (cnt.v_free_count > 1024) {
-		cnt.v_cache_max = (cnt.v_free_count - 1024) / 2;
-		cnt.v_cache_min = cnt.v_free_target * 2;
-		cnt.v_inactive_target = 2*cnt.v_cache_min + 192;
+	if (cnt.v_free_count > 2048) {
+		cnt.v_cache_min = cnt.v_free_target;
+		cnt.v_cache_max = 2 * cnt.v_cache_min;
+		cnt.v_inactive_target = (3 * cnt.v_free_target) / 2;
 	} else {
 		cnt.v_cache_min = 0;
 		cnt.v_cache_max = 0;
