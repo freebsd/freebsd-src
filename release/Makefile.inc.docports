@@ -9,6 +9,9 @@
 # names, so the required part of the ports infrastructure will
 # be cvs co'ed accordingly.
 #
+# This list of ports should be checked with the output of :
+# make all-depends-list | sed -e 's|^/usr/||' | sed -e 's|$| \\|'
+#
 
 # Get __FreeBSD_version
 .if !defined(OSVERSION)
@@ -26,9 +29,10 @@ MINIMALDOCPORTS= \
 	ports/archivers/unzip \
 	ports/converters/libiconv \
 	ports/devel/gettext \
-	ports/devel/gettext-old \
 	ports/devel/gmake \
+	ports/devel/imake-4 \
 	ports/devel/libtool13 \
+	ports/devel/libtool15 \
 	ports/devel/pkgconfig \
 	ports/graphics/gd \
 	ports/graphics/jbigkit \
@@ -42,6 +46,7 @@ MINIMALDOCPORTS= \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
 	ports/print/ghostscript-gnu-nox11 \
+	ports/print/gsfonts \
 	ports/textproc/docbook \
 	ports/textproc/docbook-241 \
 	ports/textproc/docbook-300 \
