@@ -255,8 +255,6 @@ procfs_rw(ap)
 	if (p == NULL)
 		return (EINVAL);
 	PROC_UNLOCK(p);
-	if (p->p_pid == 1 && securelevel > 0 && uio->uio_rw == UIO_WRITE)
-		return (EACCES);
 
 	mp_fixme("pfs_lockowner needs a lock");
 	while (pfs->pfs_lockowner) {
