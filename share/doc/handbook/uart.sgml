@@ -1,4 +1,4 @@
-<!-- $Id: uart.sgml,v 1.1 1996/02/16 13:28:22 jkh Exp $ -->
+<!-- $Id: uart.sgml,v 1.2 1996/02/27 15:57:51 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -33,7 +33,7 @@
 	"S" if it supports Synchronous communications.  Both forms are
 	described below.
 
-	Some common acryonyms are:
+	Some common acronyms are:
 <quote>UART	Universal Asynchronous Receiver/Transmitter</quote>
 <quote>USART	Universal Synchronous-Asynchronous Receiver/Transmitter</quote>
 
@@ -297,7 +297,7 @@ Pin	Pin	Symbol	Symbol
 
     <sect3><heading>Bits, Baud and Symbols</heading>
 
-	<p>Baud is a measurment of transmission speed in asynchronous
+	<p>Baud is a measurement of transmission speed in asynchronous
 	communication.  Because of advances in modem communication
 	technology, this term is frequently misused when describing
 	the data rates in newer devices.
@@ -505,10 +505,10 @@ Pin	Pin	Symbol	Symbol
 	"N"	DIP	(dual inline package) through hole straight lead type
 	"V"	LPCC	(lead plastic chip carrier) J lead type</verb>
 
-	The "<em>g</em>" is the product grade field.  If an "I" preceeds
+	The "<em>g</em>" is the product grade field.  If an "I" precedes
 	the package-type letter, it indicates an "industrial" grade part,
 	which has higher specs than a standard part but not as high as
-	Miltary Specification (Milspec) component.  This is an optional field.
+	Military Specification (Milspec) component.  This is an optional field.
 
 	So what we used to call a NS16550AFN (DIP Package) is now called a
 	PC16550DN or PC16550DIN.
@@ -526,7 +526,7 @@ Pin	Pin	Symbol	Symbol
 	In internal modems, the modem designer will frequently emulate the
 	8250A/16450 with the modem microprocessor, and the emulated UART will
 	frequently have a hidden buffer consisting of several hundred bytes.
-	Because of the suze of the buffer, these emulations can be as
+	Because of the size of the buffer, these emulations can be as
 	reliable as a 16550A in their ability to handle high speed data.
 	However, most operating systems will still report that
 	the UART is only a 8250A or 16450, and may not make effective use
@@ -638,7 +638,7 @@ Sierra		modem with an internal
 	functionality.  COMTEST appears to turn a blind eye to the
 	differences within the National product line and reports no errors
 	on the National parts (except for the original 16550) even when
-	there are official erattas that describe bugs in the A, B and C 
+	there are official erratas that describe bugs in the A, B and C 
 	revisions of the parts, so this bias in COMTEST must be taken into
 	account.
 
@@ -948,7 +948,7 @@ Port	Allowed
 				to DCD.
 
 			Bit 3	OUT 2
-				An auxillary output that the host
+				An auxiliary output that the host
 				processor may set high or low.
 				In the IBM PC serial adapter (and most
 				clones), OUT 2 is used to tri-state 
@@ -956,7 +956,7 @@ Port	Allowed
 				8250/16450/16550 UART.
 
 			Bit 2	OUT 1
-				An auxillary output that the host
+				An auxiliary output that the host
 				processor may set high or low.
 				This output is not used on the IBM PC
 				serial adapter.
