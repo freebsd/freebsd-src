@@ -389,6 +389,7 @@ struct dos_partition {
 #define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
 #define DIOCGPART	_IOW('d', 104, struct partinfo)	/* get partition */
+#define DIOCGDVIRGIN	_IOR('d', 105, struct disklabel) /* get virgin label */
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
