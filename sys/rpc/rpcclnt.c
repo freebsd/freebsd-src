@@ -1212,7 +1212,8 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 		if (rpc->rc_soflags & PR_CONNREQUIRED)
 			error = rpcclnt_sndlock(&rpc->rc_flag, task);
 		if (!error) {
-			error = rpcclnt_send(rpc->rc_so, rpc->rc_name, m_copym(m, 0, M_COPYALL, M_TRYWAIT),
+			error = rpcclnt_send(rpc->rc_so, rpc->rc_name,
+					     m_copym(m, 0, M_COPYALL, M_TRYWAIT),
 					     task);
 			if (rpc->rc_soflags & PR_CONNREQUIRED)
 				rpcclnt_sndunlock(&rpc->rc_flag);
@@ -1292,19 +1293,24 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 		case RPC_MISMATCH:
 			rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
 			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
-			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl);
+			reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
+			error = EOPNOTSUPP;
 			break;
 		case RPC_AUTHERR:
 			rpcm_dissect(tl, u_int32_t *, RPCX_UNSIGNED);
 			reply->stat.autherr = fxdr_unsigned(u_int32_t, *tl);
+			error = EACCES;
 			break;
 		default:
 			error = EBADRPC;
-			goto rpcmout;
 			break;
 		}
-		RPC_RETURN(0);
-	} else if (reply->stat.type == RPC_MSGACCEPTED) {
+		goto rpcmout;
+	} else if (reply->stat.type != RPC_MSGACCEPTED) {
+		error = EBADRPC;
+		goto rpcmout;
+	}
+
 		rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
 
 		reply->verf_md = md;
@@ -1342,13 +1348,9 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 			error = EBADRPC;
 			goto rpcmout;
 		}
-		RPC_RETURN(0);
-	} else {
-		error = EBADRPC;
-	}
+	error = 0;
 
 rpcmout:
-	RPCDEBUG("request returning error %d", error);
 	RPC_RETURN(error);
 }
 
