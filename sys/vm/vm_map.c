@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.40 1996/03/28 04:22:17 dyson Exp $
+ * $Id: vm_map.c,v 1.41 1996/03/28 04:53:24 dyson Exp $
  */
 
 /*
@@ -226,7 +226,8 @@ vmspace_alloc(min, max, pageable)
 	bzero(vm, (caddr_t) &vm->vm_startcopy - (caddr_t) vm);
 	vm_map_init(&vm->vm_map, min, max, pageable);
 	pmap_pinit(&vm->vm_pmap);
-	vm->vm_map.pmap = &vm->vm_pmap;	/* XXX */
+	vm->vm_map.pmap = &vm->vm_pmap;		/* XXX */
+	vm->vm_pmap.pm_map = &vm->vm_map;
 	vm->vm_refcnt = 1;
 	return (vm);
 }
@@ -242,10 +243,6 @@ vmspace_free(vm)
 	if (--vm->vm_refcnt == 0) {
 		int s, i;
 
-/*
-		pmap_remove(&vm->vm_pmap, (vm_offset_t) kstack, (vm_offset_t) kstack+UPAGES*PAGE_SIZE);
-*/
-			
 		/*
 		 * Lock the map, to wait out all other references to it.
 		 * Delete all of the mappings and pages they hold, then call
@@ -254,7 +251,6 @@ vmspace_free(vm)
 		vm_map_lock(&vm->vm_map);
 		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 		    vm->vm_map.max_offset);
-		vm_object_deallocate(vm->vm_upages_obj);
 		vm_map_unlock(&vm->vm_map);
 		while( vm->vm_map.ref_count != 1)
 			tsleep(&vm->vm_map.ref_count, PVM, "vmsfre", 0);
