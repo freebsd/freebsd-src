@@ -61,12 +61,12 @@ void feeder_printchain(struct pcm_feeder *head);
 
 #define FEEDER_DECLARE(feeder, palign, pdata) \
 static struct feeder_class feeder ## _class = { \
-	name:		#feeder, \
-	methods:	feeder ## _methods, \
-	size:		sizeof(struct pcm_feeder), \
-	align:		palign, \
-	desc:		feeder ## _desc, \
-	data:		pdata, \
+	.name =		#feeder, \
+	.methods =	feeder ## _methods, \
+	.size =		sizeof(struct pcm_feeder), \
+	.align =	palign, \
+	.desc =		feeder ## _desc, \
+	.data =		pdata, \
 }; \
 SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _class);
 

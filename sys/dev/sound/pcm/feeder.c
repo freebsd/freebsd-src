@@ -425,12 +425,12 @@ static kobj_method_t feeder_root_methods[] = {
 	{ 0, 0 }
 };
 static struct feeder_class feeder_root_class = {
-	name:		"feeder_root",
-	methods:	feeder_root_methods,
-	size:		sizeof(struct pcm_feeder),
-	align:		0,
-	desc:		NULL,
-	data:		NULL,
+	.name =		"feeder_root",
+	.methods =	feeder_root_methods,
+	.size =		sizeof(struct pcm_feeder),
+	.align =	0,
+	.desc =		NULL,
+	.data =		NULL,
 };
 SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);
