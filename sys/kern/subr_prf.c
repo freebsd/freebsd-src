@@ -139,7 +139,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 
 	if (pri != -1)
 		flags |= TOLOG;
-	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
+	if (p && p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
 		SESSHOLD(p->p_session);
 		shld++;
 		if (ttycheckoutq(p->p_session->s_ttyp, 0)) {
