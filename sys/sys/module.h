@@ -37,135 +37,130 @@
 #define	MDT_VERSION	3		/* module version(s) */
 
 #define	MDT_STRUCT_VERSION	1	/* version of metadata structure */
-
 #define	MDT_SETNAME	"modmetadata_set"
 
 typedef enum modeventtype {
-    MOD_LOAD,
-    MOD_UNLOAD,
-    MOD_SHUTDOWN
+	MOD_LOAD,
+	MOD_UNLOAD,
+	MOD_SHUTDOWN
 } modeventtype_t;
 
-typedef	struct module *module_t;
-
-typedef	int (*modeventhand_t)(module_t mod, int /*modeventtype_t*/ what,
-			      void *arg);
+typedef struct module *module_t;
+typedef int (*modeventhand_t)(module_t, int /* modeventtype_t */, void *);
 
 /*
  * Struct for registering modules statically via SYSINIT.
  */
 typedef struct moduledata {
-	const char	*name;	/* module name */
-	modeventhand_t	evhand;	/* event handler */
-	void		*priv;	/* extra data */
+	const char	*name;		/* module name */
+	modeventhand_t  evhand;		/* event handler */
+	void		*priv;		/* extra data */
 } moduledata_t;
 
 /*
- * A module can use this to report module specific data to
- * the user via kldstat(2).
+ * A module can use this to report module specific data to the user via
+ * kldstat(2).
  */
 typedef union modspecific {
-    int		intval;
-    u_int	uintval;
-    long	longval;
-    u_long	ulongval;
+	int	intval;
+	u_int	uintval;
+	long	longval;
+	u_long	ulongval;
 } modspecific_t;
 
 /*
  * Module dependency declarartion
  */
 struct mod_depend {
-    int		md_ver_minimum;
-    int		md_ver_preferred;
-    int		md_ver_maximum;
+	int	md_ver_minimum;
+	int	md_ver_preferred;
+	int	md_ver_maximum;
 };
 
 /*
  * Module version declaration
  */
 struct mod_version {
-    int		mv_version;
+	int	mv_version;
 };
 
 struct mod_metadata {
-    int		md_version;		/* structure version MDTV_* */
-    int		md_type;		/* type of entry MDT_* */
-    void 	*md_data;		/* specific data */
-    const char	*md_cval;		/* common string label */
+	int		md_version;	/* structure version MDTV_* */
+	int		md_type;	/* type of entry MDT_* */
+	void		*md_data;	/* specific data */
+	const char	*md_cval;	/* common string label */
 };
 
-#ifdef _KERNEL
+#ifdef	_KERNEL
 
 #include <sys/linker_set.h>
 
-#define MODULE_METADATA(uniquifier, type, data, cval)		\
-    static struct mod_metadata _mod_metadata ## uniquifier = {	\
-	MDT_STRUCT_VERSION,				\
-	type,						\
-	data,						\
-	cval						\
-    };							\
-    DATA_SET(modmetadata_set, _mod_metadata ## uniquifier)
+#define	MODULE_METADATA(uniquifier, type, data, cval)			\
+	static struct mod_metadata _mod_metadata##uniquifier = {	\
+		MDT_STRUCT_VERSION,					\
+		type,							\
+		data,							\
+		cval							\
+	};								\
+	DATA_SET(modmetadata_set, _mod_metadata##uniquifier)
 
-#define MODULE_DEPEND(module, mdepend, vmin, vpref, vmax) \
-    static struct mod_depend _ ##module ## _depend_on_ ## mdepend = {	\
-	vmin,					\
-	vpref,					\
-	vmax					\
-    };						\
-    MODULE_METADATA(_md_ ##module ## _on_ ##mdepend, MDT_DEPEND, \
-	&_ ##module ## _depend_on_ ##mdepend, #mdepend)
+#define	MODULE_DEPEND(module, mdepend, vmin, vpref, vmax)		\
+	static struct mod_depend _##module##_depend_on_##mdepend = {	\
+		vmin,							\
+		vpref,							\
+		vmax							\
+	};								\
+	MODULE_METADATA(_md_##module##_on_##mdepend, MDT_DEPEND,	\
+	    &_##module##_depend_on_##mdepend, #mdepend)
 
-#define DECLARE_MODULE(name, data, sub, order) \
-    MODULE_METADATA(_md_ ##name, MDT_MODULE, &data, #name); \
-    SYSINIT(name##module, sub, order, module_register_init, &data) \
-    struct __hack
+#define	DECLARE_MODULE(name, data, sub, order)				\
+	MODULE_METADATA(_md_##name, MDT_MODULE, &data, #name);		\
+	SYSINIT(name##module, sub, order, module_register_init, &data)	\
+	struct __hack
 
-#define MODULE_VERSION(module, version) \
-    static struct mod_version _ ## module ## _version = {	\
-	version							\
-    };								\
-    MODULE_METADATA(_ ## module ## _version, MDT_VERSION, 	\
-	& _ ## module ## _version, #module)
+#define	MODULE_VERSION(module, version)					\
+	static struct mod_version _##module##_version = {		\
+		version							\
+	};								\
+	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
+	    &_##module##_version, #module)
 
-void module_register_init(const void *data);
 struct linker_file;
-int module_register(const struct moduledata *data, struct linker_file *lf);
-module_t module_lookupbyname(const char *name);
-module_t module_lookupbyid(int modid);
-void module_reference(module_t mod);
-void module_release(module_t mod);
-int module_unload(module_t mod);
-int module_getid(module_t mod);
-module_t module_getfnext(module_t mod);
-void module_setspecific(module_t mod, modspecific_t *datap);
 
-#ifdef MOD_DEBUG
+void	module_register_init(const void *);
+int	module_register(const struct moduledata *, struct linker_file *);
+module_t	module_lookupbyname(const char *);
+module_t	module_lookupbyid(int);
+void	module_reference(module_t);
+void	module_release(module_t);
+int	module_unload(module_t);
+int	module_getid(module_t);
+module_t	module_getfnext(module_t);
+void	module_setspecific(module_t, modspecific_t *);
 
+#ifdef	MOD_DEBUG
 extern int mod_debug;
-#define MOD_DEBUG_REFS	1
+#define	MOD_DEBUG_REFS	1
 
-#define MOD_DPF(cat, args)					\
-	do {							\
-		if (mod_debug & MOD_DEBUG_##cat) printf args;	\
-	} while (0)
+#define	MOD_DPF(cat, args) do {						\	
+	if (mod_debug & MOD_DEBUG_##cat)				\
+		printf(args);						\
+} while (0)
 
-#else
+#else	/* !MOD_DEBUG */
 
-#define MOD_DPF(cat, args)
-
+#define	MOD_DPF(cat, args)
 #endif
+#endif	/* _KERNEL */
 
-#endif /* _KERNEL */
-
-#define MAXMODNAME	32
+#define	MAXMODNAME	32
 
 struct module_stat {
-    int		version;	/* set to sizeof(struct module_stat) */
-    char	name[MAXMODNAME];
-    int		refs;
-    int		id;
-    modspecific_t data;
+	int		version;	/* set to sizeof(struct module_stat) */
+	char		name[MAXMODNAME];
+	int		refs;
+	int		id;
+	modspecific_t	data;
 };
 
 #ifndef _KERNEL
@@ -175,7 +170,7 @@ struct module_stat {
 __BEGIN_DECLS
 int	modnext(int _modid);
 int	modfnext(int _modid);
-int	modstat(int _modid, struct module_stat* _stat);
+int	modstat(int _modid, struct module_stat *_stat);
 int	modfind(const char *_name);
 __END_DECLS
 
