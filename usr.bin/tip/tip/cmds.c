@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.5 1997/08/25 05:02:09 imp Exp $";
+	"$Id: cmds.c,v 1.6 1997/08/26 10:25:16 eivind Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -181,7 +181,7 @@ cu_take(cc)
 		printf("\r\n%s: cannot create\r\n", argv[1]);
 		return;
 	}
-	(void)sprintf(line, "cat %s ; echo \"\" ; echo ___tip_end_of_file_marker___", argv[0]);
+	(void)snprintf(line, sizeof(line), "cat %s ; echo \"\" ; echo ___tip_end_of_file_marker___", argv[0]);
 	xfer(line, fd, "\n___tip_end_of_file_marker___\n");
 }
 
@@ -554,9 +554,9 @@ cu_put(cc)
 		return;
 	}
 	if (boolean(value(ECHOCHECK)))
-		sprintf(line, "cat>%s\r", argv[1]);
+		snprintf(line, sizeof(line), "cat>%s\r", argv[1]);
 	else
-		sprintf(line, "stty -echo;cat>%s;stty echo\r", argv[1]);
+		snprintf(line, sizeof(line), "stty -echo;cat>%s;stty echo\r", argv[1]);
 	transmit(fd, "\04", line);
 }
 
@@ -1027,7 +1027,7 @@ expand(name)
 		/* signal(SIGINT, sigint) */
 		return(name);
 	}
-	sprintf(cmdbuf, "echo %s", name);
+	snprintf(cmdbuf, sizeof(cmdbuf), "echo %s", name);
 	if ((pid = vfork()) == 0) {
 		Shell = value(SHELL);
 		if (Shell == NOSTR)
