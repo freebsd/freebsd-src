@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id: ffs_softdep.c,v 1.9 1998/06/10 20:45:46 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.10 1998/06/11 17:44:32 julian Exp $
  */
 
 /*
@@ -2412,18 +2412,17 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	int isrmdir;		/* indicates if doing RMDIR */
 {
 	int offset;
-	struct diradd *dap;
+	struct diradd *dap = NULL;
 	struct dirrem *dirrem;
+	struct pagedep *pagedep;
 	struct inodedep *inodedep;
 
 	offset = blkoff(dp->i_fs, dp->i_offset);
 
 	/*
-	 * Whiteouts have no addition dependencies.
+	 * Whiteouts do not need diradd dependencies.
 	 */
-	if (newinum == WINO) {
-		dap = NULL;
-	} else {
+	if (newinum != WINO) {
 		MALLOC(dap, struct diradd *, sizeof(struct diradd),
 		    M_DIRADD, M_WAITOK);
 		bzero(dap, sizeof(struct diradd));
@@ -2434,31 +2433,53 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	}
 
 	/*
-	 * Allocate a new dirrem if appropriate and ACQUIRE_LOCK.
+	 * Allocate a new dirrem and ACQUIRE_LOCK.
 	 */
 	dirrem = newdirrem(bp, dp, ip, isrmdir);
+	pagedep = dirrem->dm_pagedep;
 
 	/*
-	 * If the inode has already been written, then no addition
-	 * dependency needs to be created.
+	 * Whiteouts have no additional dependencies,
+	 * so just put the dirrem on the correct list.
 	 */
-	if (inodedep_lookup(dp->i_fs, newinum, 0, &inodedep) == 0 ||
-	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
-		WORKITEM_FREE(dap, D_DIRADD);
-		dap = NULL;
+	if (newinum == WINO) {
+		if ((dirrem->dm_state & COMPLETE) == 0) {
+			LIST_INSERT_HEAD(&pagedep->pd_dirremhd, dirrem,
+			    dm_next);
+		} else {
+			dirrem->dm_dirinum = pagedep->pd_ino;
+			add_to_worklist(&dirrem->dm_list);
+		}
+		FREE_LOCK(&lk);
+		return;
 	}
 
-	if (dap) {
-		dap->da_previous = dirrem;
-		LIST_INSERT_HEAD(
-		    &dirrem->dm_pagedep->pd_diraddhd[DIRADDHASH(offset)],
+	/*
+	 * Link into its inodedep. Put it on the id_bufwait list if the inode
+	 * is not yet written. If it is written, do the post-inode write
+	 * processing to put it on the id_pendinghd list.
+	 */
+	dap->da_previous = dirrem;
+	if (inodedep_lookup(dp->i_fs, newinum, DEPALLOC, &inodedep) == 0 ||
+	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
+		dap->da_state |= COMPLETE;
+		LIST_INSERT_HEAD(&pagedep->pd_pendinghd, dap, da_pdlist);
+		WORKLIST_INSERT(&inodedep->id_pendinghd, &dap->da_list);
+	} else {
+		LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)],
 		    dap, da_pdlist);
 		WORKLIST_INSERT(&inodedep->id_bufwait, &dap->da_list);
-	} else if ((dirrem->dm_state & COMPLETE) == 0) {
-		LIST_INSERT_HEAD(&dirrem->dm_pagedep->pd_dirremhd, dirrem,
-		    dm_next);
-	} else {
-		dirrem->dm_dirinum = dirrem->dm_pagedep->pd_ino;
+	}
+	/*
+	 * If the previous inode was never written or its previous directory
+	 * entry was never written, then we do not want to roll back to this
+	 * previous value. Instead we want to roll back to zero and immediately
+	 * free the unwritten or unreferenced inode.
+	 */
+	if (dirrem->dm_state & COMPLETE) {
+		dap->da_state &= ~DIRCHG;
+		dap->da_pagedep = pagedep;
+		dirrem->dm_dirinum = pagedep->pd_ino;
 		add_to_worklist(&dirrem->dm_list);
 	}
 	FREE_LOCK(&lk);
