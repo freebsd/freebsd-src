@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.21 1996/07/31 09:26:37 davidg Exp $
+ * $Id: kern_synch.c,v 1.22 1996/07/31 10:35:47 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -88,7 +88,7 @@ roundrobin(arg)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that hardclock updates p_estcpu and p_cpticks independently.
+ * Note that statclock updates p_estcpu and p_cpticks independently.
  *
  * We wish to decay away 90% of p_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
