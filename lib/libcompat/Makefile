@@ -14,10 +14,6 @@ NOPIC=
 # XXX MISSING:	tell.c vlimit.c vtimes.c
 SRCS+=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
 
-.if (${MACHINE_ARCH} == "vax")
-SRCS+=	reset.s
-.endif
-
 MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3 4.1/vlimit.3 4.1/vtimes.3
 MAN3+=	4.1/cftime.3
 
@@ -27,20 +23,7 @@ MLINKS+=cftime.3 ascftime.3
 # compat 4.3 sources
 # XXX MISSING:	ecvt.c gcvt.c sibuf.c sobuf.c strout.c
 SRCS+=	cfree.c lsearch.c regex.c rexec.c
-
-.if	(${MACHINE_ARCH} == "hp300" || ${MACHINE_ARCH} == "luna68k")
-SRCS+=	insque.s remque.s
-.elif	(${MACHINE_ARCH} == "i386")
 SRCS+=	insque.c remque.c
-.elif	(${MACHINE_ARCH} == "mips")
-SRCS+=	insque.c remque.c
-.elif	(${MACHINE_ARCH} == "sparc")
-SRCS+=	insque.c remque.c
-.elif	(${MACHINE_ARCH} == "tahoe")
-SRCS+=	nargs.s insque.s remque.s
-.elif	(${MACHINE_ARCH} == "vax")
-SRCS+=	nargs.s insque.s remque.s
-.endif
 
 # XXX MISSING:	ecvt.0
 MAN3+=  4.3/cfree.3 4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
