@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.37 1998/05/31 17:27:45 peter Exp $
+ * $Id: nfs.h,v 1.38 1998/05/31 17:48:03 peter Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -639,6 +639,7 @@ void	nfsrv_updatecache __P((struct nfsrv_descript *, int, struct mbuf *));
 void	nfsrv_cleancache __P((void));
 int	nfs_connect __P((struct nfsmount *, struct nfsreq *));
 void	nfs_disconnect __P((struct nfsmount *));
+void	nfs_safedisconnect __P((struct nfsmount *));
 int	nfs_getattrcache __P((struct vnode *, struct vattr *));
 int	nfsm_strtmbuf __P((struct mbuf **, char **, const char *, long));
 int	nfs_bioread __P((struct vnode *, struct uio *, int, struct ucred *,

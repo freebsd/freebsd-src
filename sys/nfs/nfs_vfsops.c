@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.66 1998/05/31 18:19:43 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.67 1998/05/31 19:20:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
 #endif
 
 static int	nfs_iosize __P((struct nfsmount *nmp));
+static void	nfs_decode_args __P((struct nfsmount *nmp,
+			struct nfs_args *argp));
 static int	mountnfs __P((struct nfs_args *,struct mount *,
 			struct sockaddr *,char *,char *,struct vnode **));
 static int	nfs_mount __P(( struct mount *mp, char *path, caddr_t data,
@@ -589,139 +591,16 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	return (0);
 }
 
-/*
- * VFS Operations.
- *
- * mount system call
- * It seems a bit dumb to copyinstr() the host and path here and then
- * bcopy() them in mountnfs(), but I wanted to detect errors before
- * doing the sockargs() call because sockargs() allocates an mbuf and
- * an error after that means that I have to release the mbuf.
- */
-/* ARGSUSED */
-static int
-nfs_mount(mp, path, data, ndp, p)
-	struct mount *mp;
-	char *path;
-	caddr_t data;
-	struct nameidata *ndp;
-	struct proc *p;
+static void    
+nfs_decode_args(nmp, argp)
+	struct nfsmount *nmp;
+	struct nfs_args *argp;
 {
-	int error;
-	struct nfs_args args;
-	struct sockaddr *nam;
-	struct vnode *vp;
-	char pth[MNAMELEN], hst[MNAMELEN];
-	u_int len;
-	u_char nfh[NFSX_V3FHMAX];
+	int s;
+	int adjsock;
+	int maxio;
 
-	if (path == NULL) {
-		nfs_mountroot(mp);
-		return (0);
-	}
-	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
-	if (error)
-		return (error);
-	if (args.version != NFS_ARGSVERSION) {
-#ifndef NO_COMPAT_PRELITE2
-		/*
-		 * If the argument version is unknown, then assume the
-		 * caller is a pre-lite2 4.4BSD client and convert its
-		 * arguments.
-		 */
-		struct onfs_args oargs;
-		error = copyin(data, (caddr_t)&oargs, sizeof (struct onfs_args));
-		if (error)
-			return (error);
-		nfs_convert_oargs(&args,&oargs);
-#else /* NO_COMPAT_PRELITE2 */
-		return (EPROGMISMATCH);
-#endif /* !NO_COMPAT_PRELITE2 */
-	}
-	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
-	if (error)
-		return (error);
-	error = copyinstr(path, pth, MNAMELEN-1, &len);
-	if (error)
-		return (error);
-	bzero(&pth[len], MNAMELEN - len);
-	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
-	if (error)
-		return (error);
-	bzero(&hst[len], MNAMELEN - len);
-	/* sockargs() call must be after above copyin() calls */
-	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
-	if (error)
-		return (error);
-	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, pth, hst, &vp);
-	return (error);
-}
-
-/*
- * Common code for mount and mountroot
- */
-static int
-mountnfs(argp, mp, nam, pth, hst, vpp)
-	register struct nfs_args *argp;
-	register struct mount *mp;
-	struct sockaddr *nam;
-	char *pth, *hst;
-	struct vnode **vpp;
-{
-	register struct nfsmount *nmp;
-	struct nfsnode *np;
-	int error, maxio;
-	struct vattr attrs;
-
-	if (mp->mnt_flag & MNT_UPDATE) {
-		nmp = VFSTONFS(mp);
-		/* update paths, file handles, etc, here	XXX */
-		FREE(nam, M_SONAME);
-		return (0);
-	} else {
-		nmp = zalloc(nfsmount_zone);
-		bzero((caddr_t)nmp, sizeof (struct nfsmount));
-		TAILQ_INIT(&nmp->nm_uidlruhead);
-		TAILQ_INIT(&nmp->nm_bufq);
-		mp->mnt_data = (qaddr_t)nmp;
-	}
-	vfs_getnewfsid(mp);
-	nmp->nm_mountp = mp;
-	nmp->nm_flag = argp->flags;
-	if (nmp->nm_flag & NFSMNT_NQNFS)
-		/*
-		 * We have to set mnt_maxsymlink to a non-zero value so
-		 * that COMPAT_43 routines will know that we are setting
-		 * the d_type field in directories (and can zero it for
-		 * unsuspecting binaries).
-		 */
-		mp->mnt_maxsymlinklen = 1;
-
-	if ((argp->flags & NFSMNT_NFSV3) == 0)
-		/*
-		 * V2 can only handle 32 bit filesizes. For v3, nfs_fsinfo
-		 * will fill this in.
-		 */
-		nmp->nm_maxfilesize = 0xffffffffLL;
-
-	nmp->nm_timeo = NFS_TIMEO;
-	nmp->nm_retry = NFS_RETRANS;
-	nmp->nm_wsize = NFS_WSIZE;
-	nmp->nm_rsize = NFS_RSIZE;
-	nmp->nm_readdirsize = NFS_READDIRSIZE;
-	nmp->nm_numgrps = NFS_MAXGRPS;
-	nmp->nm_readahead = NFS_DEFRAHEAD;
-	nmp->nm_leaseterm = NQ_DEFLEASE;
-	nmp->nm_deadthresh = NQ_DEADTHRESH;
-	CIRCLEQ_INIT(&nmp->nm_timerhead);
-	nmp->nm_inprog = NULLVP;
-	nmp->nm_fhsize = argp->fhsize;
-	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
-	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
-	nmp->nm_nam = nam;
-
+	s = splnet();
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
 	 * no sense in that context.
@@ -732,6 +611,17 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	/* Also clear RDIRPLUS if not NFSv3, it crashes some servers */
 	if ((argp->flags & NFSMNT_NFSV3) == 0)
 		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
+
+	/* Re-bind if rsrvd port requested and wasn't on one */
+	adjsock = !(nmp->nm_flag & NFSMNT_RESVPORT)
+		  && (argp->flags & NFSMNT_RESVPORT);
+	/* Also re-bind if we're switching to/from a connected UDP socket */
+	adjsock |= ((nmp->nm_flag & NFSMNT_NOCONN) !=
+		    (argp->flags & NFSMNT_NOCONN));
+
+	/* Update flags atomically.  Don't change the lock bits. */
+	nmp->nm_flag = argp->flags | nmp->nm_flag;
+	splx(s);
 
 	if ((argp->flags & NFSMNT_TIMEO) && argp->timeo > 0) {
 		nmp->nm_timeo = (argp->timeo * NFS_HZ + 5) / 10;
@@ -820,9 +710,175 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	if ((argp->flags & NFSMNT_DEADTHRESH) && argp->deadthresh >= 1 &&
 		argp->deadthresh <= NQ_NEVERDEAD)
 		nmp->nm_deadthresh = argp->deadthresh;
+
+	adjsock |= ((nmp->nm_sotype != argp->sotype) ||
+		    (nmp->nm_soproto != argp->proto));
+	nmp->nm_sotype = argp->sotype;
+	nmp->nm_soproto = argp->proto;
+
+	if (nmp->nm_so && adjsock) {
+		nfs_safedisconnect(nmp);
+		if (nmp->nm_sotype == SOCK_DGRAM)
+			while (nfs_connect(nmp, (struct nfsreq *)0)) {
+				printf("nfs_args: retrying connect\n");
+				(void) tsleep((caddr_t)&lbolt,
+					PSOCK, "nfscon", 0);
+			}
+	}
+}
+
+/*
+ * VFS Operations.
+ *
+ * mount system call
+ * It seems a bit dumb to copyinstr() the host and path here and then
+ * bcopy() them in mountnfs(), but I wanted to detect errors before
+ * doing the sockargs() call because sockargs() allocates an mbuf and
+ * an error after that means that I have to release the mbuf.
+ */
+/* ARGSUSED */
+static int
+nfs_mount(mp, path, data, ndp, p)
+	struct mount *mp;
+	char *path;
+	caddr_t data;
+	struct nameidata *ndp;
+	struct proc *p;
+{
+	int error;
+	struct nfs_args args;
+	struct sockaddr *nam;
+	struct vnode *vp;
+	char pth[MNAMELEN], hst[MNAMELEN];
+	u_int len;
+	u_char nfh[NFSX_V3FHMAX];
+
+	if (path == NULL) {
+		nfs_mountroot(mp);
+		return (0);
+	}
+	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
+	if (error)
+		return (error);
+	if (args.version != NFS_ARGSVERSION) {
+#ifndef NO_COMPAT_PRELITE2
+		/*
+		 * If the argument version is unknown, then assume the
+		 * caller is a pre-lite2 4.4BSD client and convert its
+		 * arguments.
+		 */
+		struct onfs_args oargs;
+		error = copyin(data, (caddr_t)&oargs, sizeof (struct onfs_args));
+		if (error)
+			return (error);
+		nfs_convert_oargs(&args,&oargs);
+#else /* NO_COMPAT_PRELITE2 */
+		return (EPROGMISMATCH);
+#endif /* !NO_COMPAT_PRELITE2 */
+	}
+	if (mp->mnt_flag & MNT_UPDATE) {
+		register struct nfsmount *nmp = VFSTONFS(mp);
+
+		if (nmp == NULL)
+			return (EIO);
+		/*
+		 * When doing an update, we can't change from or to
+		 * v3 and/or nqnfs, or change cookie translation
+		 */
+		args.flags = (args.flags &
+		    ~(NFSMNT_NFSV3|NFSMNT_NQNFS /*|NFSMNT_XLATECOOKIE*/)) |
+		    (nmp->nm_flag &
+			(NFSMNT_NFSV3|NFSMNT_NQNFS /*|NFSMNT_XLATECOOKIE*/));
+		nfs_decode_args(nmp, &args);
+		return (0);
+	}
+	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
+	if (error)
+		return (error);
+	error = copyinstr(path, pth, MNAMELEN-1, &len);
+	if (error)
+		return (error);
+	bzero(&pth[len], MNAMELEN - len);
+	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
+	if (error)
+		return (error);
+	bzero(&hst[len], MNAMELEN - len);
+	/* sockargs() call must be after above copyin() calls */
+	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
+	if (error)
+		return (error);
+	args.fh = nfh;
+	error = mountnfs(&args, mp, nam, pth, hst, &vp);
+	return (error);
+}
+
+/*
+ * Common code for mount and mountroot
+ */
+static int
+mountnfs(argp, mp, nam, pth, hst, vpp)
+	register struct nfs_args *argp;
+	register struct mount *mp;
+	struct sockaddr *nam;
+	char *pth, *hst;
+	struct vnode **vpp;
+{
+	register struct nfsmount *nmp;
+	struct nfsnode *np;
+	int error, maxio;
+	struct vattr attrs;
+
+	if (mp->mnt_flag & MNT_UPDATE) {
+		nmp = VFSTONFS(mp);
+		/* update paths, file handles, etc, here	XXX */
+		FREE(nam, M_SONAME);
+		return (0);
+	} else {
+		nmp = zalloc(nfsmount_zone);
+		bzero((caddr_t)nmp, sizeof (struct nfsmount));
+		TAILQ_INIT(&nmp->nm_uidlruhead);
+		TAILQ_INIT(&nmp->nm_bufq);
+		mp->mnt_data = (qaddr_t)nmp;
+	}
+	vfs_getnewfsid(mp);
+	nmp->nm_mountp = mp;
+	if (argp->flags & NFSMNT_NQNFS)
+		/*
+		 * We have to set mnt_maxsymlink to a non-zero value so
+		 * that COMPAT_43 routines will know that we are setting
+		 * the d_type field in directories (and can zero it for
+		 * unsuspecting binaries).
+		 */
+		mp->mnt_maxsymlinklen = 1;
+
+	if ((argp->flags & NFSMNT_NFSV3) == 0)
+		/*
+		 * V2 can only handle 32 bit filesizes. For v3, nfs_fsinfo
+		 * will fill this in.
+		 */
+		nmp->nm_maxfilesize = 0xffffffffLL;
+
+	nmp->nm_timeo = NFS_TIMEO;
+	nmp->nm_retry = NFS_RETRANS;
+	nmp->nm_wsize = NFS_WSIZE;
+	nmp->nm_rsize = NFS_RSIZE;
+	nmp->nm_readdirsize = NFS_READDIRSIZE;
+	nmp->nm_numgrps = NFS_MAXGRPS;
+	nmp->nm_readahead = NFS_DEFRAHEAD;
+	nmp->nm_leaseterm = NQ_DEFLEASE;
+	nmp->nm_deadthresh = NQ_DEADTHRESH;
+	CIRCLEQ_INIT(&nmp->nm_timerhead);
+	nmp->nm_inprog = NULLVP;
+	nmp->nm_fhsize = argp->fhsize;
+	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
+	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
+	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
+	nmp->nm_nam = nam;
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
+
+	nfs_decode_args(nmp, argp);
 
 	/*
 	 * For Connection based sockets (TCP,...) defer the connect until
