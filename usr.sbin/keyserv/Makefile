@@ -9,7 +9,7 @@ CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 CFLAGS+= -DOBJFORMAT_ELF
 .endif
 
-DPADD=	${LIBMP} ${LIBRPCSVC}
+DPADD=	${LIBMP} ${LIBCRYPTO} ${LIBRPCSVC}
 LDADD=	-lmp -lcrypto -lrpcsvc
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
