@@ -116,7 +116,7 @@ flaopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct fla_s *sc;
 	int error;
-	struct disklabel *dl;
+	u_int spu, ncyl, nt, ns;
 
 	if (fla_debug)
 		printf("flaopen(%s %x %x %p)\n",
@@ -131,12 +131,11 @@ flaopen(dev_t dev, int flag, int fmt, struct thread *td)
 		return (EIO);
 	}
 
-	dl = &sc->disk.d_label;
-	bzero(dl, sizeof(*dl));
-	error = doc2k_size(sc->unit, &dl->d_secperunit,
-	    &dl->d_ncylinders, &dl->d_ntracks, &dl->d_nsectors);
-	dl->d_secsize = DEV_BSIZE;
-	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors; /* XXX */
+	error = doc2k_size(sc->unit, &spu, &ncyl, &nt, &ns);
+	sc->disk.d_sectorsize = DEV_BSIZE;
+	sc->disk.d_mediasize = (off_t)spu * DEV_BSIZE;
+	sc->disk.d_fwsectors = ns;
+	sc->disk.d_fwheads = nt;
 
 	return (0);
 }

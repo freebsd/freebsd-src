@@ -98,7 +98,6 @@ static int
 mlxd_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct mlxd_softc	*sc = (struct mlxd_softc *)dev->si_drv1;
-    struct disklabel	*label;
 
     debug_called(1);
 	
@@ -109,15 +108,10 @@ mlxd_open(dev_t dev, int flags, int fmt, struct thread *td)
     if (sc->mlxd_controller->mlx_state & MLX_STATE_SHUTDOWN)
 	return(ENXIO);
 
-    label = &sc->mlxd_disk.d_label;
-    bzero(label, sizeof(*label));
-    label->d_type = DTYPE_SCSI;
-    label->d_secsize    = MLX_BLKSIZE;
-    label->d_nsectors   = sc->mlxd_drive->ms_sectors;
-    label->d_ntracks    = sc->mlxd_drive->ms_heads;
-    label->d_ncylinders = sc->mlxd_drive->ms_cylinders;
-    label->d_secpercyl  = sc->mlxd_drive->ms_sectors * sc->mlxd_drive->ms_heads;
-    label->d_secperunit = sc->mlxd_drive->ms_size;
+    sc->mlxd_disk.d_sectorsize = MLX_BLKSIZE;
+    sc->mlxd_disk.d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
+    sc->mlxd_disk.d_fwsectors = sc->mlxd_drive->ms_sectors;
+    sc->mlxd_disk.d_fwheads = sc->mlxd_drive->ms_heads;
 
     sc->mlxd_flags |= MLXD_OPEN;
     return (0);

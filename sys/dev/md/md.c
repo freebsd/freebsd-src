@@ -360,7 +360,6 @@ static int
 mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct md_s *sc;
-	struct disklabel *dl;
 
 	if (md_debug)
 		printf("mdopen(%s %x %x %p)\n",
@@ -368,14 +367,10 @@ mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 
-	dl = &sc->disk.d_label;
-	bzero(dl, sizeof(*dl));
-	dl->d_secsize = sc->secsize;
-	dl->d_nsectors = sc->nsect > 63 ? 63 : sc->nsect;
-	dl->d_ntracks = 1;
-	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
-	dl->d_secperunit = sc->nsect;
-	dl->d_ncylinders = dl->d_secperunit / dl->d_secpercyl;
+	sc->disk.d_sectorsize = sc->secsize;
+	sc->disk.d_mediasize = (off_t)sc->nsect * sc->secsize;
+	sc->disk.d_fwsectors = 0;
+	sc->disk.d_fwheads = 0;
 	sc->opencount++;
 	return (0);
 }
@@ -646,7 +641,7 @@ mdnew(int unit)
 	}
 	if (unit == -1)
 		unit = max + 1;
-	if (unit > DKMAXUNIT)
+	if (unit > 255)
 		return (NULL);
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
