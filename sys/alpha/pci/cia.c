@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.14 1998/12/04 22:54:42 archie Exp $
+ *	$Id: cia.c,v 1.14.2.1 1999/05/07 09:01:51 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -549,18 +549,41 @@ cia_swiz_maxdevs(u_int b)
         } while(0);					\
 }
 
+/*
+ * From NetBSD:
+ * Some (apparently-common) revisions of EB164 and AlphaStation
+ * firmware do the Wrong thing with PCI master and target aborts,
+ * which are caused by accesing the configuration space of devices
+ * that don't exist (for example).
+ *
+ * To work around this, we clear the CIA error register's PCI
+ * master and target abort bits before touching PCI configuration
+ * space and check it afterwards.  If it indicates a master or target
+ * abort, the device wasn't there so we return ~0
+ */
+
+
 #define SWIZ_CFGREAD(b, s, f, r, width, type)				\
 	type val = ~0;							\
 	int ipl = 0;							\
-	u_int32_t old_cfg = 0;						\
+	u_int32_t old_cfg = 0, errbits;					\
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
 	vm_offset_t kv = SPARSE_##width##_ADDRESS(KV(CIA_PCI_CONF), off); \
+	REGVAL(CIA_CSR_CIA_ERR) = CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT;\
 	alpha_mb();							\
 	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
 		val = SPARSE_##width##_EXTRACT(off, SPARSE_READ(kv));	\
 	}								\
         CIA_TYPE1_TEARDOWN(b,ipl,old_cfg);				\
+	errbits = REGVAL(CIA_CSR_CIA_ERR);				\
+	if (errbits & (CIA_ERR_RCVD_MAS_ABT|CIA_ERR_RCVD_TAR_ABT))	\
+		val = ~0;						\
+	if (errbits) {							\
+		REGVAL(CIA_CSR_CIA_ERR) = errbits;			\
+		alpha_mb();						\
+		alpha_pal_draina();					\
+	}								\
 	return val;							
 
 #define SWIZ_CFGWRITE(b, s, f, r, data, width, type)			\
