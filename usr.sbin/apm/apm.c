@@ -107,6 +107,16 @@ apm_getinfo(int fd, apm_info_t aip)
 }
 
 void 
+apm_enable(int fd)
+{
+	struct apm_info info;
+
+	apm_getinfo(fd, &info);
+	if (ioctl(fd, info.ai_status ? APMIO_DISABLE : APMIO_ENABLE) == -1)
+		err(1, NULL);
+}
+
+void 
 print_all_info(int fd, apm_info_t aip)
 {
 	struct apm_bios_arg args;
@@ -293,7 +303,7 @@ main(int argc, char *argv[])
 	int	c, fd;
 	int     sleep = 0, all_info = 1, apm_status = 0, batt_status = 0;
 	int     display = 0, batt_life = 0, ac_status = 0, standby = 0;
-	int	batt_time = 0, delta = 0;
+	int	batt_time = 0, delta = 0, enable = 0;
 	char	*cmdname;
 	size_t	cmos_wall_len = sizeof(cmos_wall);
 
@@ -310,7 +320,7 @@ main(int argc, char *argv[])
 		all_info = 0;
 		goto finish_option;
 	}
-	while ((c = getopt(argc, argv, "ablRr:stzd:Z")) != -1) {
+	while ((c = getopt(argc, argv, "abelRr:stzd:Z")) != -1) {
 		switch (c) {
 		case 'a':
 			ac_status = 1;
@@ -343,6 +353,9 @@ main(int argc, char *argv[])
 			apm_status = 1;
 			all_info = 0;
 			break;
+		case 'e':
+			enable = 1;
+			break;
 		case 't':
 			batt_time = 1;
 			all_info = 0;
@@ -368,6 +381,8 @@ finish_option:
 		warn("can't open %s", APMDEV);
 		return 1;
 	}
+	if (enable)
+		apm_enable(fd);
 	if (delta)
 		apm_set_timer(fd, delta);
 	if (sleep)
