@@ -465,7 +465,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		if (v == MTX_UNOWNED) {
 			turnstile_release(&m->mtx_object);
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			ia32_pause();
 #endif
 			continue;
@@ -497,7 +497,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    !atomic_cmpset_ptr(&m->mtx_lock, (void *)v,
 			(void *)(v | MTX_CONTESTED))) {
 			turnstile_release(&m->mtx_object);
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			ia32_pause();
 #endif
 			continue;
@@ -512,7 +512,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		if (m != &Giant && TD_IS_RUNNING(owner)) {
 			turnstile_release(&m->mtx_object);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 				ia32_pause();
 #endif
 			}
@@ -579,7 +579,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 		critical_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
 			if (i++ < 10000000) {
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 				ia32_pause();
 #endif
 				continue;
@@ -595,7 +595,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 #endif
 				panic("spin lock held too long");
 			}
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			ia32_pause();
 #endif
 		}
