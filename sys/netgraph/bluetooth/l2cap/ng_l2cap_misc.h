@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_L2CAP_MISC_H_
-#define _NETGRAPH_L2CAP_MISC_H_ 1
+#define _NETGRAPH_L2CAP_MISC_H_
 
 void           ng_l2cap_send_hook_info (node_p, hook_p, void *, int);
 

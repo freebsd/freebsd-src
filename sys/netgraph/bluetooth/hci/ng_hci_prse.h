@@ -36,7 +36,7 @@
  ***************************************************************************/
 
 #ifndef _NETGRAPH_HCI_PRSE_H_
-#define _NETGRAPH_HCI_PRSE_H_ 1
+#define _NETGRAPH_HCI_PRSE_H_
 
 /* BDADDR */
 static const struct ng_parse_fixedarray_info	ng_hci_bdaddr_type_info = {

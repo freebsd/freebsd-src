@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_HCI_MISC_H_
-#define _NETGRAPH_HCI_MISC_H_ 1
+#define _NETGRAPH_HCI_MISC_H_
 
 void              ng_hci_mtap                   (ng_hci_unit_p, struct mbuf *);
 void              ng_hci_node_is_up             (node_p, hook_p, void *, int);

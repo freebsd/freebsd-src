@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_BTSOCKET_L2CAP_H_
-#define _NETGRAPH_BTSOCKET_L2CAP_H_ 1
+#define _NETGRAPH_BTSOCKET_L2CAP_H_
 
 /*
  * L2CAP routing entry
