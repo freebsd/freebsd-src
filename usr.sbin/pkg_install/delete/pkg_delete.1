@@ -25,7 +25,7 @@
 .Nd a utility for deleting previously installed software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfGinvx
+.Op Fl dDfGinrvx
 .Op Fl p Ar prefix
 .Ar pkg-name ...
 .Nm
@@ -119,6 +119,9 @@ provided, in that case
 .Nm
 deletes all packages that match at least one
 regular expression from the list.
+.It Fl r
+Recursive removal.  In addition to specified packages, delete all
+packages that depend on those packages as well.
 .El
 .Sh TECHNICAL DETAILS
 .Nm
