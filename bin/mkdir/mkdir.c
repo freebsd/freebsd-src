@@ -63,7 +63,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, exitval, omode, pflag;
+	int ch, exitval, success, omode, pflag;
 	mode_t *set = (mode_t *)NULL;
 	char *mode;
 
@@ -96,13 +96,16 @@ main(argc, argv)
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {
+		success = 1;
 		if (pflag) {
 			if (build(*argv, omode))
-				exitval = 1;
+				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
 			warn("%s", *argv);
-			exitval = 1;
+			success = 0;
 		}
+		if (!success)
+			exitval = 1;
 		/*
 		 * The mkdir() and umask() calls both honor only the low
 		 * nine bits, so if you try to set a mode including the
@@ -110,9 +113,8 @@ main(argc, argv)
 		 * this unless the user has specifically requested a mode,
 		 * as chmod will (obviously) ignore the umask.
 		 */
-		if ((exitval == 0) && 
-		    (mode != NULL) && (chmod(*argv, omode) == -1)) {
-			warn("chmod %s", *argv);
+		if (success && mode != NULL && chmod(*argv, omode) == -1) {
+			warn("%s", *argv);
 			exitval = 1;
 		}
 	}
