@@ -35,10 +35,8 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.11 1997/08/02 14:32:04 bde Exp $
+ * $Id: null_subr.c,v 1.12 1997/08/27 08:44:43 kato Exp $
  */
-
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -245,6 +243,8 @@ null_node_create(mp, lowervp, newvpp)
 }
 
 #ifdef NULLFS_DIAGNOSTIC
+#include "opt_ddb.h"
+
 #ifdef DDB
 #define	null_checkvp_barrier	1
 #else
