@@ -479,7 +479,8 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 		if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
 			fail |= 0x04;
 	}
-	rate = ieee80211_fix_rate(ic, ni, IEEE80211_F_DONEGO);
+	rate = ieee80211_fix_rate(ic, ni,
+			IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
 	if (rate & IEEE80211_RATE_BASIC)
 		fail |= 0x08;
 	if (ic->ic_des_esslen != 0 &&
@@ -749,15 +750,10 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
 		/*
-		 * Check rate set before committing to this node.
+		 * Delete unusable rates; we've already checked
+		 * that the negotiated rate set is acceptable.
 		 */
-		ieee80211_fix_rate(ic, selbs, IEEE80211_F_DOFRATE |
-		    IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
-		if (selbs->ni_rates.rs_nrates == 0) {
-			selbs->ni_fails++;
-			ic->ic_stats.is_ibss_norate++;
-			return 0;
-		}
+		ieee80211_fix_rate(ic, selbs, IEEE80211_F_DODEL);
 		/*
 		 * Create the neighbor table; it will already
 		 * exist if we are simply switching mastership.
