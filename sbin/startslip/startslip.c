@@ -292,7 +292,6 @@ restart:
 	        exit(2);
 	}
 	cfmakeraw(&t);
-	t.c_iflag &= ~IMAXBEL;
 	switch (flowcontrol) {
 	case FC_HW:
 		t.c_cflag |= (CRTS_IFLOW|CCTS_OFLOW);
