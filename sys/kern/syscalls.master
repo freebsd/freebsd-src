@@ -490,7 +490,7 @@
 342	MSTD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \
 			    struct sigaction *oact); }
 343	MSTD	POSIX	{ int sigpending(sigset_t *set); }
-344	STD	BSD	{ int sigreturn(const struct __ucontext *sigcntxp); }
+344	MSTD	BSD	{ int sigreturn(const struct __ucontext *sigcntxp); }
 345	UNIMPL	NOHIDE	sigtimedwait
 346	UNIMPL	NOHIDE	sigwaitinfo
 347	MSTD	BSD	{ int __acl_get_file(const char *path, \
