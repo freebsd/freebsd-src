@@ -223,6 +223,23 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 #define	TEMP_FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
 
 /*
+ * Bit-flags for set_qstate() actions, followed by the return values.
+ */
+#define SQS_DISABLEQ	0x01	/* Disable the queuing of new jobs */
+#define SQS_STOPP	0x02	/* Stop the printing of jobs */
+#define SQS_ENABLEQ	0x10	/* Enable the queuing of new jobs */
+#define SQS_STARTP	0x20	/* Start the printing of jobs */
+
+#define SQS_PARMERR	-9	/* Invalid parameters from caller */
+#define SQS_CREFAIL	-3	/* File did not exist, and create failed */
+#define SQS_CHGFAIL	-2	/* File exists, but unable to change state */
+#define SQS_STATFAIL	-1	/* Unable to stat() the lock file */
+#define SQS_CHGOK	1	/* File existed, and the state was changed */
+#define SQS_CREOK	2	/* File did not exist, but was created OK */
+#define SQS_SKIPCREOK	3	/* File did not exist, and there was */
+				/* no need to create it */
+
+/*
  * Command codes used in the protocol.
  */
 #define	CMD_CHECK_QUE	'\1'
@@ -272,6 +289,7 @@ void	 process(const struct printer *_pp, char *_file);
 void	 rmjob(const char *_printer);
 void	 rmremote(const struct printer *_pp);
 void	 setprintcap(char *_newfile);
+int	 set_qstate(int _action, const char *_lfname);
 void	 show(const char *_nfile, const char *_datafile, int _copies);
 int	 startdaemon(const struct printer *_pp);
 char	*status_file_name(const struct printer *_pp, char *_buf,
