@@ -386,7 +386,7 @@ print_insn_@arch@ (pc, info)
 #ifdef CGEN_COMPUTE_ISA
   isa = CGEN_COMPUTE_ISA (info);
 #else
-  isa = 0;
+  isa = info->insn_sets;
 #endif
 
   /* If we've switched cpu's, close the current table and open a new one.  */

@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
    Perhaps the definition of bfd_vma can be moved outside of bfd.h.
    Or perhaps one could duplicate its definition in another file.
    Until such time, this file conditionally compiles definitions that require
-   bfd_vma using BFD_VERSION.  */
+   bfd_vma using BFD_VERSION_DATE.  */
 
 /* Enums must be defined before they can be used.
    Allow them to be used in struct definitions, even though the enum must
@@ -276,7 +276,7 @@ typedef const char * (cgen_parse_fn)
    PC is the pc value of the insn.
    The result is an error message or NULL if success.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef const char * (cgen_insert_fn)
      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *insn_,
 	      CGEN_FIELDS *fields_, CGEN_INSN_BYTES_PTR insnp_,
@@ -297,7 +297,7 @@ typedef const char * (cgen_insert_fn) ();
    PC is the pc value of the insn.
    The result is the length of the insn in bits or zero if not recognized.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef int (cgen_extract_fn)
      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *insn_,
 	      CGEN_EXTRACT_INFO *ex_info_, CGEN_INSN_INT base_insn_,
@@ -316,7 +316,7 @@ typedef int (cgen_extract_fn) ();
    PC is the pc value of the insn.
    LEN is the length of the insn, in bits.  */
 
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
 typedef void (cgen_print_fn)
      PARAMS ((CGEN_CPU_DESC, PTR info_, const CGEN_INSN *insn_,
 	      CGEN_FIELDS *fields_, bfd_vma pc_, int len_));
@@ -381,7 +381,7 @@ enum cgen_parse_operand_result
   CGEN_PARSE_OPERAND_RESULT_ERROR
 };
 
-#ifdef BFD_VERSION /* Don't require bfd.h unnecessarily.  */
+#ifdef BFD_VERSION_DATE /* Don't require bfd.h unnecessarily.  */
 typedef const char * (cgen_parse_operand_fn)
      PARAMS ((CGEN_CPU_DESC,
 	      enum cgen_parse_operand_type, const char **, int, int,
@@ -565,7 +565,7 @@ const CGEN_KEYWORD_ENTRY *cgen_keyword_search_next
 
 extern const char *cgen_parse_keyword
      PARAMS ((CGEN_CPU_DESC, const char **, CGEN_KEYWORD *, long *));
-#ifdef BFD_VERSION /* Don't require bfd.h unnecessarily.  */
+#ifdef BFD_VERSION_DATE /* Don't require bfd.h unnecessarily.  */
 extern const char *cgen_parse_signed_integer
      PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
 extern const char *cgen_parse_unsigned_integer
@@ -1253,7 +1253,7 @@ typedef struct cgen_cpu_desc
   const char * (*parse_operand)
      PARAMS ((CGEN_CPU_DESC, int opindex_, const char **,
 	      CGEN_FIELDS *fields_));
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
   const char * (*insert_operand)
      PARAMS ((CGEN_CPU_DESC, int opindex_, CGEN_FIELDS *fields_,
 	      CGEN_INSN_BYTES_PTR, bfd_vma pc_));
@@ -1286,7 +1286,7 @@ typedef struct cgen_cpu_desc
        PARAMS ((CGEN_CPU_DESC, int opindex_, const CGEN_FIELDS *fields_));
   void (*set_int_operand)
        PARAMS ((CGEN_CPU_DESC, int opindex_, CGEN_FIELDS *fields_, int value_));
-#ifdef BFD_VERSION
+#ifdef BFD_VERSION_DATE
   bfd_vma (*get_vma_operand)
        PARAMS ((CGEN_CPU_DESC, int opindex_, const CGEN_FIELDS *fields_));
   void (*set_vma_operand)

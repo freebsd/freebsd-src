@@ -1,6 +1,6 @@
 /* Generic symbol-table support for the BFD library.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -183,126 +183,125 @@ CODE_FRAGMENT
 .
 .typedef struct symbol_cache_entry
 .{
-.	{* A pointer to the BFD which owns the symbol. This information
-.	   is necessary so that a back end can work out what additional
-.   	   information (invisible to the application writer) is carried
-.	   with the symbol.
+.  {* A pointer to the BFD which owns the symbol. This information
+.     is necessary so that a back end can work out what additional
+.     information (invisible to the application writer) is carried
+.     with the symbol.
 .
-.	   This field is *almost* redundant, since you can use section->owner
-.	   instead, except that some symbols point to the global sections
-.	   bfd_{abs,com,und}_section.  This could be fixed by making
-.	   these globals be per-bfd (or per-target-flavor).  FIXME. *}
+.     This field is *almost* redundant, since you can use section->owner
+.     instead, except that some symbols point to the global sections
+.     bfd_{abs,com,und}_section.  This could be fixed by making
+.     these globals be per-bfd (or per-target-flavor).  FIXME.  *}
+.  struct _bfd *the_bfd; {* Use bfd_asymbol_bfd(sym) to access this field.  *}
 .
-.  struct _bfd *the_bfd; {* Use bfd_asymbol_bfd(sym) to access this field. *}
-.
-.	{* The text of the symbol. The name is left alone, and not copied; the
-.	   application may not alter it. *}
+.  {* The text of the symbol. The name is left alone, and not copied; the
+.     application may not alter it.  *}
 .  const char *name;
 .
-.	{* The value of the symbol.  This really should be a union of a
-.          numeric value with a pointer, since some flags indicate that
-.          a pointer to another symbol is stored here.  *}
+.  {* The value of the symbol.  This really should be a union of a
+.     numeric value with a pointer, since some flags indicate that
+.     a pointer to another symbol is stored here.  *}
 .  symvalue value;
 .
-.	{* Attributes of a symbol: *}
-.
+.  {* Attributes of a symbol.  *}
 .#define BSF_NO_FLAGS    0x00
 .
-.	{* The symbol has local scope; <<static>> in <<C>>. The value
-. 	   is the offset into the section of the data. *}
+.  {* The symbol has local scope; <<static>> in <<C>>. The value
+.     is the offset into the section of the data.  *}
 .#define BSF_LOCAL	0x01
 .
-.	{* The symbol has global scope; initialized data in <<C>>. The
-.	   value is the offset into the section of the data. *}
+.  {* The symbol has global scope; initialized data in <<C>>. The
+.     value is the offset into the section of the data.  *}
 .#define BSF_GLOBAL	0x02
 .
-.	{* The symbol has global scope and is exported. The value is
-.	   the offset into the section of the data. *}
-.#define BSF_EXPORT	BSF_GLOBAL {* no real difference *}
+.  {* The symbol has global scope and is exported. The value is
+.     the offset into the section of the data.  *}
+.#define BSF_EXPORT	BSF_GLOBAL {* No real difference.  *}
 .
-.	{* A normal C symbol would be one of:
-.	   <<BSF_LOCAL>>, <<BSF_FORT_COMM>>,  <<BSF_UNDEFINED>> or
-.	   <<BSF_GLOBAL>> *}
+.  {* A normal C symbol would be one of:
+.     <<BSF_LOCAL>>, <<BSF_FORT_COMM>>,  <<BSF_UNDEFINED>> or
+.     <<BSF_GLOBAL>>.  *}
 .
-.	{* The symbol is a debugging record. The value has an arbitary
-.	   meaning, unless BSF_DEBUGGING_RELOC is also set.  *}
+.  {* The symbol is a debugging record. The value has an arbitary
+.     meaning, unless BSF_DEBUGGING_RELOC is also set.  *}
 .#define BSF_DEBUGGING	0x08
 .
-.	{* The symbol denotes a function entry point.  Used in ELF,
-.	   perhaps others someday.  *}
+.  {* The symbol denotes a function entry point.  Used in ELF,
+.     perhaps others someday.  *}
 .#define BSF_FUNCTION    0x10
 .
-.	{* Used by the linker. *}
+.  {* Used by the linker.  *}
 .#define BSF_KEEP        0x20
 .#define BSF_KEEP_G      0x40
 .
-.	{* A weak global symbol, overridable without warnings by
-.	   a regular global symbol of the same name.  *}
+.  {* A weak global symbol, overridable without warnings by
+.     a regular global symbol of the same name.  *}
 .#define BSF_WEAK        0x80
 .
-.       {* This symbol was created to point to a section, e.g. ELF's
-.	   STT_SECTION symbols.  *}
+.  {* This symbol was created to point to a section, e.g. ELF's
+.     STT_SECTION symbols.  *}
 .#define BSF_SECTION_SYM 0x100
 .
-.	{* The symbol used to be a common symbol, but now it is
-.	   allocated. *}
+.  {* The symbol used to be a common symbol, but now it is
+.     allocated.  *}
 .#define BSF_OLD_COMMON  0x200
 .
-.	{* The default value for common data. *}
+.  {* The default value for common data.  *}
 .#define BFD_FORT_COMM_DEFAULT_VALUE 0
 .
-.	{* In some files the type of a symbol sometimes alters its
-.	   location in an output file - ie in coff a <<ISFCN>> symbol
-.	   which is also <<C_EXT>> symbol appears where it was
-.	   declared and not at the end of a section.  This bit is set
-.  	   by the target BFD part to convey this information. *}
-.
+.  {* In some files the type of a symbol sometimes alters its
+.     location in an output file - ie in coff a <<ISFCN>> symbol
+.     which is also <<C_EXT>> symbol appears where it was
+.     declared and not at the end of a section.  This bit is set
+.     by the target BFD part to convey this information.  *}
 .#define BSF_NOT_AT_END    0x400
 .
-.	{* Signal that the symbol is the label of constructor section. *}
+.  {* Signal that the symbol is the label of constructor section.  *}
 .#define BSF_CONSTRUCTOR   0x800
 .
-.	{* Signal that the symbol is a warning symbol.  The name is a
-.	   warning.  The name of the next symbol is the one to warn about;
-.	   if a reference is made to a symbol with the same name as the next
-.	   symbol, a warning is issued by the linker. *}
+.  {* Signal that the symbol is a warning symbol.  The name is a
+.     warning.  The name of the next symbol is the one to warn about;
+.     if a reference is made to a symbol with the same name as the next
+.     symbol, a warning is issued by the linker.  *}
 .#define BSF_WARNING       0x1000
 .
-.	{* Signal that the symbol is indirect.  This symbol is an indirect
-.	   pointer to the symbol with the same name as the next symbol. *}
+.  {* Signal that the symbol is indirect.  This symbol is an indirect
+.     pointer to the symbol with the same name as the next symbol.  *}
 .#define BSF_INDIRECT      0x2000
 .
-.	{* BSF_FILE marks symbols that contain a file name.  This is used
-.	   for ELF STT_FILE symbols.  *}
+.  {* BSF_FILE marks symbols that contain a file name.  This is used
+.     for ELF STT_FILE symbols.  *}
 .#define BSF_FILE          0x4000
 .
-.	{* Symbol is from dynamic linking information.  *}
+.  {* Symbol is from dynamic linking information.  *}
 .#define BSF_DYNAMIC	   0x8000
 .
-.       {* The symbol denotes a data object.  Used in ELF, and perhaps
-.          others someday.  *}
+.  {* The symbol denotes a data object.  Used in ELF, and perhaps
+.     others someday.  *}
 .#define BSF_OBJECT	   0x10000
 .
-.       {* This symbol is a debugging symbol.  The value is the offset
-.          into the section of the data.  BSF_DEBUGGING should be set
-.          as well.  *}
+.  {* This symbol is a debugging symbol.  The value is the offset
+.     into the section of the data.  BSF_DEBUGGING should be set
+.     as well.  *}
 .#define BSF_DEBUGGING_RELOC 0x20000
 .
 .  flagword flags;
 .
-.	{* A pointer to the section to which this symbol is
-.	   relative.  This will always be non NULL, there are special
-.          sections for undefined and absolute symbols.  *}
+.  {* A pointer to the section to which this symbol is
+.     relative.  This will always be non NULL, there are special
+.     sections for undefined and absolute symbols.  *}
 .  struct sec *section;
 .
-.	{* Back end special data.  *}
+.  {* Back end special data.  *}
 .  union
 .    {
 .      PTR p;
 .      bfd_vma i;
-.    } udata;
+.    }
+.  udata;
+.}
+.asymbol;
 .
-.} asymbol;
 */
 
 #include "bfd.h"
@@ -335,7 +334,7 @@ DESCRIPTION
 
 .#define bfd_get_symtab_upper_bound(abfd) \
 .     BFD_SEND (abfd, _bfd_get_symtab_upper_bound, (abfd))
-
+.
 */
 
 /*
@@ -380,6 +379,7 @@ DESCRIPTION
 
 .#define bfd_is_local_label_name(abfd, name) \
 .     BFD_SEND (abfd, _bfd_is_local_label_name, (abfd, name))
+.
 */
 
 /*
@@ -396,7 +396,7 @@ DESCRIPTION
 .#define bfd_canonicalize_symtab(abfd, location) \
 .     BFD_SEND (abfd, _bfd_canonicalize_symtab,\
 .                  (abfd, location))
-
+.
 */
 
 /*
@@ -492,6 +492,7 @@ DESCRIPTION
 
 .#define bfd_make_empty_symbol(abfd) \
 .     BFD_SEND (abfd, _bfd_make_empty_symbol, (abfd))
+.
 */
 
 /*
@@ -530,6 +531,7 @@ DESCRIPTION
 
 .#define bfd_make_debug_symbol(abfd,ptr,size) \
 .        BFD_SEND (abfd, _bfd_make_debug_symbol, (abfd, ptr, size))
+.
 */
 
 struct section_to_type
@@ -716,7 +718,7 @@ DESCRIPTION
 .#define bfd_copy_private_symbol_data(ibfd, isymbol, obfd, osymbol) \
 .     BFD_SEND (obfd, _bfd_copy_private_symbol_data, \
 .		(ibfd, isymbol, obfd, osymbol))
-
+.
 */
 
 /* The generic version of the function which returns mini symbols.

@@ -114,7 +114,7 @@
 	skip_past_newline
 	get_stuff_in_command
 	strip_trailing_newlines
-	"\n{* " swap catstr " *}\n" catstr
+	"\n{* " swap catstr "  *}\n" catstr
 	translatecomments
 	- discard it if we're doing internal mode
 	"" swap 0 internalmode maybecatstr

@@ -1,4 +1,4 @@
-@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002
 @c Free Software Foundation, Inc.
 @c This file is part of the documentation for the GAS manual
 
@@ -27,8 +27,10 @@
 @c CPUs of interest
 @c ================
 @set A29K
+@set ALPHA
 @set ARC
 @set ARM
+@set CRIS
 @set D10V
 @set D30V
 @set H8/300

@@ -31,6 +31,7 @@ HFILES = \
 	sysdep.h \
 	ia64-asmtab.h \
 	ia64-opc.h \
+	  sh64-opc.h \
 	w65-opc.h \
 	xstormy16-desc.h xstormy16-opc.h \
 	z8k-opc.h
@@ -106,6 +107,8 @@ CFILES = \
 	openrisc-dis.c \
 	openrisc-ibld.c \
 	openrisc-opc.c \
+	or32-dis.c \
+	or32-opc.c \
 	pdp11-dis.c \
 	pdp11-opc.c \
 	pj-dis.c \
@@ -126,6 +129,8 @@ CFILES = \
 	v850-dis.c \
 	v850-opc.c \
 	vax-dis.c \
+	  sh64-dis.c \
+	  sh64-opc.c \
 	w65-dis.c \
 	xstormy16-asm.c \
 	xstormy16-desc.c \
@@ -195,6 +200,8 @@ ALL_MACHINES = \
 	openrisc-dis.lo \
 	openrisc-ibld.lo \
 	openrisc-opc.lo \
+	or32-dis.lo \
+	or32-opc.lo \
 	pdp11-dis.lo \
 	pdp11-opc.lo \
 	pj-dis.lo \
@@ -214,6 +221,8 @@ ALL_MACHINES = \
 	v850-dis.lo \
 	v850-opc.lo \
 	vax-dis.lo \
+	  sh64-dis.lo \
+	  sh64-opc.lo \
 	w65-dis.lo \
 	xstormy16-asm.lo \
 	xstormy16-desc.lo \
@@ -309,6 +318,10 @@ $(srcdir)/fr30-desc.h $(srcdir)/fr30-desc.c $(srcdir)/fr30-opc.h $(srcdir)/fr30-
 	@true
 stamp-fr30: $(CGENDEPS) $(CPUDIR)/fr30.cpu $(CPUDIR)/fr30.opc
 	$(MAKE) run-cgen arch=fr30 prefix=fr30 options= extrafiles=
+
+sh64-opc.lo: sh64-opc.c sh64-opc.h
+sh64-dis.lo: sh64-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
+  sh64-opc.h $(INCDIR)/dis-asm.h $(BFD_H) opintl.h
 
 $(srcdir)/openrisc-desc.h $(srcdir)/openrisc-desc.c $(srcdir)/openrisc-opc.h $(srcdir)/openrisc-opc.c $(srcdir)/openrisc-ibld.c $(srcdir)/openrisc-asm.c $(srcdir)/openrisc-dis.c: $(OPENRISC_DEPS)
 	@true
@@ -564,6 +577,11 @@ openrisc-ibld.lo: openrisc-ibld.c sysdep.h config.h \
 openrisc-opc.lo: openrisc-opc.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(BFD_H) $(INCDIR)/symcat.h openrisc-desc.h $(INCDIR)/opcode/cgen.h \
   openrisc-opc.h $(INCDIR)/libiberty.h
+or32-dis.lo: or32-dis.c $(INCDIR)/dis-asm.h $(BFD_H) \
+  $(INCDIR)/ansidecl.h $(INCDIR)/symcat.h $(INCDIR)/opcode/or32.h \
+  $(INCDIR)/safe-ctype.h
+or32-opc.lo: or32-opc.c $(INCDIR)/safe-ctype.h $(INCDIR)/ansidecl.h \
+  $(INCDIR)/opcode/or32.h
 pdp11-dis.lo: pdp11-dis.c sysdep.h config.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/dis-asm.h $(BFD_H) $(INCDIR)/symcat.h $(INCDIR)/opcode/pdp11.h
 pdp11-opc.lo: pdp11-opc.c $(INCDIR)/opcode/pdp11.h

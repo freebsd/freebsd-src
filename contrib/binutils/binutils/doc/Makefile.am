@@ -155,6 +155,10 @@ $(DEMANGLER_NAME).1: cxxfilt.man Makefile
 	    -e 's/cxxfilt/$(DEMANGLER_NAME)/' < $$man \
 		> $(DEMANGLER_NAME).1
 
+# We want install to imply install-info as per GNU standards, despite the
+# cygnus option.
+install: install-info
+
 # Maintenance
 
 # We need it for the taz target in ../../Makefile.in.

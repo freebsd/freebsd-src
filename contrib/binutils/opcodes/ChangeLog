@@ -1,3 +1,162 @@
+2002-02-15  Richard Henderson  <rth@redhat.com>
+
+	* alpha-opc.c (alpha_opcodes): Fix thinko in ret pseudo
+	disassembly mask.
+
+2002-02-15  Richard Henderson  <rth@redhat.com>
+
+	* alpha-opc.c (alpha_opcodes): Add simple pseudos for
+	lda, ldah, jmp, ret.
+
+2002-02-13  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* configure.in <bfd_sh_arc>: For sh-* and shl-*, enable sh64
+	support only for sh-*-*elf*, shl-*-*elf*, sh-*-linux* and
+	shl-*-linux*.
+	* configure: Regenerate.
+
+2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sparc-dis.c (print_insn_sparc): Make sure 0xFFFFFFFF is not
+	sign-extended.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* cgen-dis.c: Add prototypes for count_decodable_bits
+	and add_insn_to_hash_chain.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in <bfd_sh_arc>: Enable sh64 support on sh-*.
+	* configure: Rebuilt.
+
+2002-02-08  Ivan Guzvinec <ivang@opencores.org>
+
+	* or32-opc.c: Fix compile time warning messages.
+	* or32-dis.c: Fix compile time warning messages.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2001-10-08  Nick Clifton  <nickc@cambridge.redhat.com>
+	* sh64-opc.c: Regenerate.
+	2001-03-13  DJ Delorie  <dj@redhat.com>
+	* sh64-opc.h: Rename A_RESV_Fx to A_REUSE_PREV so that its
+	purpose is more obvious.
+	* sh64-opc.c (shmedia_table): Ditto.
+	* sh64-dis.c (initialize_shmedia_opcode_mask_table): Ditto.
+	(print_insn_shmedia): Ditto.
+	2001-03-12  DJ Delorie  <dj@redhat.com>
+	* sh64-opc.c: Adjust comments to reflect reality: replace bits
+	3:0 with zeros (not "reserved"), replace "rrrrrr" with
+	"gggggg" for two-operand floating point opcodes.  Remove
+	"fsina".
+	2001-01-08  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-dis.c (print_insn_shmedia) <failing read_memory_func>:
+	Correct printing of .byte:s.  Return number of printed bytes or
+	-1; never 0.
+	(print_insn_sh64x) <not CRT_SH5_ISA16>: Ditto.  Print as .byte:s
+	to next four-byte-alignment if insn or data is not aligned.
+	2001-01-06  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-dis.c: Update comments and fix comment formatting.
+	(initialize_shmedia_opcode_mask_table) <case A_IMMM>:
+	Abort instead of setting length to 0.
+	(crange_qsort_cmpb, crange_qsort_cmpl, crange_bsearch_cmpb,
+	crange_bsearch_cmpl, sh64_get_contents_type,
+	sh64_address_in_cranges): Move to bfd/elf32-sh64.c.
+	2001-01-05  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-opc.c: Remove #if 0:d entries for instructions not found in
+	SH-5/ST50-023-04: fcosa.s, fsrra.s and prefo.
+	2000-12-30  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-dis.c (print_insn_shmedia): Display MOVI/SHORI-formed
+	address with same prefix as SHcompact.
+	In the disassembler, use a .cranges section for linked executables.
+	* sh64-dis.c (SAVED_MOVI_R, SAVED_MOVI_IMM): Move to head of file
+	and update for using structure in info->private_data.
+	(struct sh64_disassemble_info): New.
+	(is_shmedia_p): Delete.
+	(crange_qsort_cmpb): New function.
+	(crange_qsort_cmpl, crange_bsearch_cmpb): New functions.
+	(crange_bsearch_cmpl, sh64_address_in_cranges): New functions.
+	(init_sh64_disasm_info, sh64_get_contents_type_disasm): New functions.
+	(sh64_get_contents_type, sh64_address_is_shmedia): New functions.
+	(print_insn_shmedia): Correct displaying of address after MOVI/SHORI
+	pair.  Display addresses for linked executables only.
+	(print_insn_sh64x_media): Initialize info->private_data by calling
+	init_sh64_disasm_info.
+	(print_insn_sh64x): Ditto.  Find out type of contents by calling
+	sh64_contents_type_disasm.  Display data regions using ".long" and
+	".byte" similar to unrecognized opcodes.
+	2000-12-19  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-dis.c (is_shmedia_p): Check info->section and look for ISA
+	information in section flags before considering symbols.  Don't
+	assume an info->mach setting of bfd_mach_sh5 means SHmedia code.
+	* configure.in (bfd_sh_arch): Check presence of sh64 insns by
+	matching $target $canon_targets instead of looking at the
+	now-removed -DINCLUDE_SHMEDIA in $targ_cflags.
+	* configure: Regenerate.
+	2000-11-25  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-opc.c (shmedia_creg_table): New.
+	* sh64-opc.h (shmedia_creg_info): New type.
+	(shmedia_creg_table): Declare.
+	* sh64-dis.c (creg_name): New function.
+	(print_insn_shmedia): Use it.
+	* disassemble.c (disassembler) [ARCH_sh, INCLUDE_SHMEDIA]: Map
+	bfd_mach_sh5 to print_insn_sh64 if big-endian and to
+	print_insn_sh64l if little-endian.
+	* sh64-dis.c (print_insn_shmedia): Make r unsigned.
+	(print_insn_sh64l): New.
+	(print_insn_sh64x): New.
+	(print_insn_sh64x_media): New.
+	(print_insn_sh64): Break out code to print_insn_sh64x and
+	print_insn_sh64x_media.
+	2000-11-24  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh64-opc.h: New file
+	* sh64-opc.c: New file
+	* sh64-dis.c: New file
+	* Makefile.am: Add sh64 targets.
+	(HFILES): Add sh64-opc.h.
+	(CFILES): Add sh64-opc.c and sh64-dis.c.
+	(ALL_MACHINES): Add sh64 files.
+	* Makefile.in: Regenerate.
+	* configure.in: Add support for sh64 to bfd_sh_arch.
+	* configure: Regenerate.
+	* disassemble.c [ARCH_all] (INCLUDE_SHMEDIA): Define.
+	(disassembler) [ARCH_sh, INCLUDE_SHMEDIA]: Map bfd_mach_sh5 to
+	print_insn_sh64.
+	* sh-dis.c (print_insn_shx): Handle bfd_mach_sh5 as arch_sh4.
+	* po/POTFILES.in: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2002-02-04  Frank Ch. Eigler  <fche@redhat.com>
+
+	* cgen-dis.in (print_insn_@arch@): Support disassemble_info.insn_sets.
+
+2002-02-04  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sh-opc.h (sh_arg_type): Added A_DISP_PC_ABS.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* or32-dis.c: New file.
+	* or32-opc.c: New file.
+	* configure.in: Add support for or32.
+	* configure: Regenerate.
+	* Makefile.am: Add support for or32.
+	* Makefile.in: Regenerate.
+	* disassemble.c: Add support for or32.
+	* po/POTFILES.in: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure: Regenerated.
+
 2002-01-26  Nick Clifton  <nickc@cambridge.redhat.com>
 
 	* po/fr.po: Updated version.

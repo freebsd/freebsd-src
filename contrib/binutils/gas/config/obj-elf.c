@@ -1995,9 +1995,9 @@ elf_frob_file_before_adjust ()
       symbolS *symp;
 
       for (symp = symbol_rootP; symp; symp = symbol_next (symp))
-	if (symbol_get_obj (symp)->versioned_name)
+	if (!S_IS_DEFINED (symp))
 	  {
-	    if (!S_IS_DEFINED (symp))
+	    if (symbol_get_obj (symp)->versioned_name)
 	      {
 		char *p;
 
@@ -2017,6 +2017,14 @@ elf_frob_file_before_adjust ()
 		    && symbol_used_in_reloc_p (symp) == 0)
 		  symbol_remove (symp, &symbol_rootP, &symbol_lastP);
 	      }
+
+	    /* If there was .weak foo, but foo was neither defined nor
+	       used anywhere, remove it.  */
+
+	    else if (S_IS_WEAK (symp)
+		     && symbol_used_p (symp) == 0
+		     && symbol_used_in_reloc_p (symp) == 0)
+	      symbol_remove (symp, &symbol_rootP, &symbol_lastP);
 	  }
     }
 }

@@ -1,5 +1,6 @@
 /* BFD PowerPC CPU definition
-   Copyright 1994, 1995, 1996, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -47,7 +48,7 @@ powerpc_compatible (a,b)
   /*NOTREACHED*/
 }
 
-static const bfd_arch_info_type arch_info_struct[] =
+const bfd_arch_info_type bfd_powerpc_archs[] =
 {
   {
     32,	/* 32 bits in a word */
@@ -61,7 +62,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[1]
+    &bfd_powerpc_archs[1]
   },
   {
     32,	/* 32 bits in a word */
@@ -75,7 +76,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[2]
+    &bfd_powerpc_archs[2]
   },
   {
     32,	/* 32 bits in a word */
@@ -89,7 +90,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[3]
+    &bfd_powerpc_archs[3]
   },
   {
     32,	/* 32 bits in a word */
@@ -103,7 +104,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[4]
+    &bfd_powerpc_archs[4]
   },
   {
     32,	/* 32 bits in a word */
@@ -117,7 +118,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[5]
+    &bfd_powerpc_archs[5]
   },
   {
     64,	/* 64 bits in a word */
@@ -128,10 +129,10 @@ static const bfd_arch_info_type arch_info_struct[] =
     "powerpc",
     "powerpc:620",
     3,
-    BFD_DEFAULT_TARGET_SIZE == 64, /* default for 64 bit target */
+    false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[6]
+    &bfd_powerpc_archs[6]
   },
   {
     64,	/* 64 bits in a word */
@@ -145,7 +146,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[7]
+    &bfd_powerpc_archs[7]
   },
   {
     64,	/* 64 bits in a word */
@@ -159,7 +160,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[8]
+    &bfd_powerpc_archs[8]
   },
   {
     64,	/* 64 bits in a word */
@@ -173,7 +174,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[9]
+    &bfd_powerpc_archs[9]
   },
   {
     64,	/* 64 bits in a word */
@@ -187,7 +188,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[10]
+    &bfd_powerpc_archs[10]
   },
   {
     32,	/* 32 bits in a word */
@@ -201,7 +202,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[11]
+    &bfd_powerpc_archs[11]
   },
   {
     32,       /* 32 bits in a word */
@@ -215,11 +216,22 @@ static const bfd_arch_info_type arch_info_struct[] =
     false, /* not the default */
     powerpc_compatible,
     bfd_default_scan,
-    0
-  }
-};
-
-const bfd_arch_info_type bfd_powerpc_arch =
+    &bfd_powerpc_archs[12]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc64,
+    "powerpc",
+    "powerpc:common64",
+    3,
+    BFD_DEFAULT_TARGET_SIZE == 64, /* default for 64 bit target */
+    powerpc_compatible,
+    bfd_default_scan,
+    &bfd_powerpc_archs[13]
+  },
   {
     32,	/* 32 bits in a word */
     32,	/* 32 bits in an address */
@@ -232,5 +244,6 @@ const bfd_arch_info_type bfd_powerpc_arch =
     BFD_DEFAULT_TARGET_SIZE != 64, /* default for 32 bit target */
     powerpc_compatible,
     bfd_default_scan,
-    &arch_info_struct[0]
-  };
+    0
+  }
+};

@@ -220,18 +220,20 @@ elf_core_file_p (abfd)
       elf_swap_phdr_in (abfd, &x_phdr, i_phdrp + phindex);
     }
 
-  /* Process each program header.  */
-  for (phindex = 0; phindex < i_ehdrp->e_phnum; ++phindex)
-    {
-      if (! bfd_section_from_phdr (abfd, i_phdrp + phindex, (int) phindex))
-	goto fail;
-    }
-
-  /* Set the machine architecture.  */
+  /* Set the machine architecture.  Do this before processing the
+     program headers since we need to know the architecture type
+     when processing the notes of some systems' core files.  */
   if (! bfd_default_set_arch_mach (abfd, ebd->arch, 0))
     {
       /* It's OK if this fails for the generic target.  */
       if (ebd->elf_machine_code != EM_NONE)
+	goto fail;
+    }
+
+  /* Process each program header.  */
+  for (phindex = 0; phindex < i_ehdrp->e_phnum; ++phindex)
+    {
+      if (! bfd_section_from_phdr (abfd, i_phdrp + phindex, (int) phindex))
 	goto fail;
     }
 
