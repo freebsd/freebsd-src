@@ -58,6 +58,7 @@
     run
         named           uname=bind gname=bind
         ..
+        ppp             gname=network mode=0770
     ..
     rwho            gname=daemon	mode=0775
     ..

@@ -156,7 +156,7 @@ TA:
 
  set mru 1504			# Some extra room for the MP header
 
- set server /tmp/ppp-TA "" 0177	# The diagnostic port (-rw-------)
+ set server /var/run/ppp/ppp-TA "" 0177	# The diagnostic port (-rw-------)
 
 
 #                          Example segments
@@ -182,7 +182,7 @@ examples:
 # First, you must set up your control socket.  It's safest to use
 # a UNIX domain socket, and watch the permissions:
 #
-    set server /var/tmp/internet MySecretPassword 0177
+    set server /var/run/ppp/internet MySecretPassword 0177
 #
 # Although a TCP port may be used if you want to allow control
 # connections from other machines:
@@ -566,7 +566,7 @@ loop:
  set dial
  set login
  set ifaddr 127.0.0.2 127.0.0.3
- set server /var/tmp/loop "" 0177
+ set server /var/run/ppp/loop "" 0177
  
 loop-in:
  set timeout 0

@@ -75,7 +75,7 @@ isdn:
  link * set mode auto			# Automatically manage the second link
  set autoload 10 80 30			# Down @10% usage, up at 80%, 30s sample
 
- set server /tmp/ppp-isdn "" 0177	# The diagnostic port (-rw-------)
+ set server /var/run/ppp/ppp-isdn "" 0177 # The diagnostic port (-rw-------)
 
 #
 # When phone calls become free (say 0:00 Saturday morning), we may want
