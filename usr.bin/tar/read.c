@@ -65,17 +65,17 @@ tar_mode_x(struct bsdtar *bsdtar)
 /*
  * Handle 'x' and 't' modes.
  */
-void
+static void
 read_archive(struct bsdtar *bsdtar, char mode)
 {
 	struct archive		 *a;
 	struct archive_entry	 *entry;
 	int			  r;
 
-        while (*bsdtar->argv) {
+	while (*bsdtar->argv) {
 		include(bsdtar, *bsdtar->argv);
 		bsdtar->argv++;
-        }
+	}
 
 	if (bsdtar->names_from_file != NULL)
 		include_from_file(bsdtar, bsdtar->names_from_file);
@@ -232,7 +232,6 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	fprintf(out, "%s %d ", tmp, st->st_nlink);
 
 	/* Use uname if it's present, else uid. */
-	w = 0;
 	p = archive_entry_uname(entry);
 	if (p && *p) {
 		sprintf(tmp, "%s ", p);
@@ -245,14 +244,13 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	fprintf(out, "%-*s", (int)bsdtar->u_width, tmp);
 
 	/* Use gname if it's present, else gid. */
-	w = 0;
 	p = archive_entry_gname(entry);
-	if (p && *p) {
+	if (p != NULL && p[0] != '\0') {
 		fprintf(out, "%s", p);
-		w += strlen(p);
+		w = strlen(p);
 	} else {
 		sprintf(tmp, "%d", st->st_gid);
-		w += strlen(tmp);
+		w = strlen(tmp);
 		fprintf(out, "%s", tmp);
 	}
 
@@ -304,7 +302,7 @@ struct security {
  * generate warnings as appropriate, return non-zero to prevent
  * this entry from being extracted.
  */
-int
+static int
 security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
 	struct stat st;
@@ -355,8 +353,12 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	pn = name;
 	if (bsdtar->security == NULL) {
 		bsdtar->security = malloc(sizeof(*bsdtar->security));
+		if (bsdtar->security == NULL)
+			bsdtar_errc(bsdtar, 1, errno, "No Memory");
 		bsdtar->security->path_size = MAXPATHLEN + 1;
 		bsdtar->security->path = malloc(bsdtar->security->path_size);
+		if (bsdtar->security->path == NULL)
+			bsdtar_errc(bsdtar, 1, errno, "No Memory");
 	}
 	if (strlen(name) >= bsdtar->security->path_size) {
 		free(bsdtar->security->path);
@@ -390,12 +392,16 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 					    "Removing symlink %s",
 					    bsdtar->security->path);
 				}
-				unlink(bsdtar->security->path);
+				if (unlink(bsdtar->security->path))
+					bsdtar_errc(bsdtar, 1, errno,
+					    "Unlink failed");
 				/* Symlink gone.  No more problem! */
 				return (0);
 			} else if (bsdtar->option_unlink_first) {
 				/* User asked us to remove problems. */
-				unlink(bsdtar->security->path);
+				if (unlink(bsdtar->security->path))
+					bsdtar_errc(bsdtar, 1, errno,
+					    "Unlink failed");
 			} else {
 				bsdtar_warnc(bsdtar, 0,
 				    "Cannot extract %s through symlink %s",
@@ -413,8 +419,7 @@ static void
 cleanup_security(struct bsdtar *bsdtar)
 {
 	if (bsdtar->security != NULL) {
-		if (bsdtar->security->path != NULL)
-			free(bsdtar->security->path);
+		free(bsdtar->security->path);
 		free(bsdtar->security);
 	}
 }
