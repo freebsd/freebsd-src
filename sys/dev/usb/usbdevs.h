@@ -798,6 +798,7 @@
 #define	USB_PRODUCT_LOGITECH_UN58A	0xc030		/* iFeel Mouse */
 #define	USB_PRODUCT_LOGITECH_BB13	0xc401		/* USB-PS/2 Trackball */
 #define	USB_PRODUCT_LOGITECH_WMPAD	0xc208		/* WingMan GamePad Extreme */
+#define	USB_PRODUCT_LOGITECH_WMRPAD	0xc20a		/* WingMan RumblePad */
 #define	USB_PRODUCT_LOGITECH_WMJOY	0xc281		/* WingMan Force joystick */
 #define	USB_PRODUCT_LOGITECH_RK53	0xc501		/* Cordless mouse */
 #define	USB_PRODUCT_LOGITECH_RB6	0xc503		/* Cordless keyboard */
@@ -864,6 +865,7 @@
 
 /* Motorola products */
 #define	USB_PRODUCT_MOTOROLA_MC141555	0x1555		/* MC141555 hub controller */
+#define	USB_PRODUCT_MOTOROLA_SB4100	0x4100		/* SB4100 USB Cable Modem */
 
 /* MultiTech products */
 #define	USB_PRODUCT_MULTITECH_ATLAS	0xf101		/* MT5634ZBA-USB modem */
@@ -995,6 +997,7 @@
 
 /* SanDisk products */
 #define	USB_PRODUCT_SANDISK_SDDR05A	0x0001		/* ImageMate SDDR-05a */
+#define	USB_PRODUCT_SANDISK_SDDR05	0x0005		/* ImageMate SDDR-05 */
 #define	USB_PRODUCT_SANDISK_SDDR31	0x0002		/* ImageMate SDDR-31 */
 #define	USB_PRODUCT_SANDISK_SDDR12	0x0100		/* ImageMate SDDR-12 */
 #define	USB_PRODUCT_SANDISK_SDDR09	0x0200		/* ImageMate SDDR-09 */
