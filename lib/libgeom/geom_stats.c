@@ -42,11 +42,6 @@
 #include <sys/types.h>
 
 #include <geom/geom_stats.h>
-#if 0
-#include <stdio.h>
-#include <stdint.h>
-#include <err.h>
-#endif
 
 /************************************************************/
 static uint npages, pagesize, spp;
