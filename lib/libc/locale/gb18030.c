@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-int	_GB18030_init(_RuneLocale *);
-size_t	_GB18030_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
-	    mbstate_t * __restrict);
-int	_GB18030_mbsinit(const mbstate_t *);
-size_t	_GB18030_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+static size_t	_GB18030_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static int	_GB18030_mbsinit(const mbstate_t *);
+static size_t	_GB18030_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
 
 typedef struct {
 	int	count;
@@ -63,14 +63,14 @@ _GB18030_init(_RuneLocale *rl)
 	return (0);
 }
 
-int
+static int
 _GB18030_mbsinit(const mbstate_t *ps)
 {
 
 	return (ps == NULL || ((const _GB18030State *)ps)->count == 0);
 }
 
-size_t
+static size_t
 _GB18030_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
     size_t n, mbstate_t * __restrict ps)
 {
@@ -154,7 +154,7 @@ ilseq:
 	return ((size_t)-1);
 }
 
-size_t
+static size_t
 _GB18030_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 	_GB18030State *gs;
