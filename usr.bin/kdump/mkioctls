@@ -42,7 +42,7 @@ BEGIN {
 	print ioctl_includes
 	print ""
 	print "char *"
-	print "ioctlname(val)"
+	print "ioctlname(u_long val)"
 	print "{"
 	print ""
 	generate_case_statement = 0
