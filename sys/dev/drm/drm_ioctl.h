@@ -33,53 +33,6 @@
 
 #include "dev/drm/drmP.h"
 
-int DRM(irq_busid)( DRM_IOCTL_ARGS )
-{
-#ifdef __FreeBSD__
-	drm_irq_busid_t id;
-	devclass_t pci;
-	device_t bus, dev;
-	device_t *kids;
-	int error, i, num_kids;
-
-	DRM_COPY_FROM_USER_IOCTL( id, (drm_irq_busid_t *)data, sizeof(id) );
-
-	pci = devclass_find("pci");
-	if (!pci)
-		return ENOENT;
-	bus = devclass_get_device(pci, id.busnum);
-	if (!bus)
-		return ENOENT;
-	error = device_get_children(bus, &kids, &num_kids);
-	if (error)
-		return error;
-
-	dev = 0;
-	for (i = 0; i < num_kids; i++) {
-		dev = kids[i];
-		if (pci_get_slot(dev) == id.devnum
-		    && pci_get_function(dev) == id.funcnum)
-			break;
-	}
-
-	free(kids, M_TEMP);
-
-	if (i != num_kids)
-		id.irq = pci_get_irq(dev);
-	else
-		id.irq = 0;
-	DRM_DEBUG("%d:%d:%d => IRQ %d\n",
-		  id.busnum, id.devnum, id.funcnum, id.irq);
-	
-	DRM_COPY_TO_USER_IOCTL( (drm_irq_busid_t *)data, id, sizeof(id) );
-
-	return 0;
-#else
-	/* don't support interrupt-driven drivers on Net yet */
-	return ENOENT;
-#endif
-}
-
 /*
  * Beginning in revision 1.1 of the DRM interface, getunique will return
  * a unique in the form pci:oooo:bb:dd.f (o=domain, b=bus, d=device, f=function)
@@ -110,7 +63,8 @@ int DRM(getunique)( DRM_IOCTL_ARGS )
 int DRM(setunique)( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
-	drm_unique_t	 u;
+	drm_unique_t u;
+	int domain, bus, slot, func, ret;
 
 	if (dev->unique_len || dev->unique)
 		return DRM_ERR(EBUSY);
@@ -131,6 +85,21 @@ int DRM(setunique)( DRM_IOCTL_ARGS )
 
 	dev->unique[dev->unique_len] = '\0';
 
+	/* Return error if the busid submitted doesn't match the device's actual
+	 * busid.
+	 */
+	ret = sscanf(dev->unique, "PCI:%d:%d:%d", &bus, &slot, &func);
+	if (ret != 3)
+		return DRM_ERR(EINVAL);
+	domain = bus >> 8;
+	bus &= 0xff;
+	
+	if ((domain != dev->pci_domain) ||
+	    (bus != dev->pci_bus) ||
+	    (slot != dev->pci_slot) ||
+	    (func != dev->pci_func))
+		return DRM_ERR(EINVAL);
+
 	return 0;
 }
 
@@ -147,10 +116,8 @@ DRM(set_busid)(drm_device_t *dev)
 	if (dev->unique == NULL)
 		return ENOMEM;
 
-	/* XXX Fix domain number (alpha hoses) */
 	snprintf(dev->unique, dev->unique_len, "pci:%04x:%02x:%02x.%1x",
-	    0, pci_get_bus(dev->device), pci_get_slot(dev->device),
-	    pci_get_function(dev->device));
+	    dev->pci_domain, dev->pci_bus, dev->pci_slot, dev->pci_func);
 
 	return 0;
 }
@@ -261,26 +228,31 @@ int DRM(getstats)( DRM_IOCTL_ARGS )
 	return 0;
 }
 
+#define DRM_IF_MAJOR	1
+#define DRM_IF_MINOR	2
+
 int DRM(setversion)(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_set_version_t sv;
 	drm_set_version_t retv;
+	int if_version;
 
 	DRM_COPY_FROM_USER_IOCTL(sv, (drm_set_version_t *)data, sizeof(sv));
 
-	retv.drm_di_major = 1;
-	retv.drm_di_minor = 1;
+	retv.drm_di_major = DRM_IF_MAJOR;
+	retv.drm_di_minor = DRM_IF_MINOR;
 	retv.drm_dd_major = DRIVER_MAJOR;
 	retv.drm_dd_minor = DRIVER_MINOR;
 	
 	DRM_COPY_TO_USER_IOCTL((drm_set_version_t *)data, retv, sizeof(sv));
 
 	if (sv.drm_di_major != -1) {
-		if (sv.drm_di_major != 1 || sv.drm_di_minor < 0)
+		if (sv.drm_di_major != DRM_IF_MAJOR ||
+		    sv.drm_di_minor < 0 || sv.drm_di_minor > DRM_IF_MINOR)
 			return EINVAL;
-		if (sv.drm_di_minor > 1)
-			return EINVAL;
+		if_version = DRM_IF_VERSION(sv.drm_di_major, sv.drm_dd_minor);
+		dev->if_version = DRM_MAX(if_version, dev->if_version);
 		if (sv.drm_di_minor >= 1) {
 			/*
 			 * Version 1.1 includes tying of DRM to specific device
@@ -290,12 +262,11 @@ int DRM(setversion)(DRM_IOCTL_ARGS)
 	}
 
 	if (sv.drm_dd_major != -1) {
-		if (sv.drm_dd_major != DRIVER_MAJOR || sv.drm_dd_minor < 0)
-			return EINVAL;
-		if (sv.drm_dd_minor > DRIVER_MINOR)
+		if (sv.drm_dd_major != DRIVER_MAJOR ||
+		    sv.drm_dd_minor < 0 || sv.drm_dd_minor > DRIVER_MINOR)
 			return EINVAL;
 #ifdef DRIVER_SETVERSION
-		DRIVER_SETVERSION(dev, sv);
+		DRIVER_SETVERSION(dev, &sv);
 #endif
 	}
 	return 0;
