@@ -27,9 +27,6 @@
 	know for sure that an entity and manpage exist; sweeps through
 	this file to fix "missed" conversions are likely to break the
 	build.
-
-	$FreeBSD$
-
 -->
 
 <sect1>
