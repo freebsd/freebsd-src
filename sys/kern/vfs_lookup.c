@@ -278,7 +278,8 @@ lookup(ndp)
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
 	if (cnp->cn_nameiop == DELETE ||
-	    (wantparent && cnp->cn_nameiop != CREATE))
+	    (wantparent && cnp->cn_nameiop != CREATE &&
+	     cnp->cn_nameiop != LOOKUP))
 		docache = 0;
 	rdonly = cnp->cn_flags & RDONLY;
 	ndp->ni_dvp = NULL;
