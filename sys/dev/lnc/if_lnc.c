@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995
+ * Copyright (c) 1995, 1996
  *	Paul Richards.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
  */
 
 /*
+#define LNC_MULTICAST
 #define DIAGNOSTIC
 #define DEBUG
  *
@@ -68,7 +69,7 @@
 #define FCS_LEN 4
 #define ETHER_ADDR_LEN 6
 #define ETHER_HDR_LEN 14
-#define MULTICAST_ADDR_LEN 8
+#define MULTICAST_FILTER_LEN 8
 #define ETHER_MIN_LEN 64
 
 #include <sys/param.h>
@@ -128,7 +129,7 @@ static struct lnc_softc {
 	LNCSTATS_STRUCT
 } lnc_softc[NLNC];
 
-static void lnc_setladrf __P((struct ifnet *ifp, struct lnc_softc *sc));
+static void lnc_setladrf __P((struct lnc_softc *sc));
 static void lnc_stop __P((int unit));
 static void lnc_reset __P((int unit));
 static void lnc_free_mbufs __P((struct lnc_softc *sc));
@@ -150,7 +151,7 @@ static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
-static void lnc_watchdog __P((struct ifnet *ifp));
+static void lnc_watchdog __P((int unit));
 #ifdef DEBUG
 static void lnc_dump_state __P((int unit));
 static void mbuf_dump_chain __P((struct mbuf *m));
@@ -229,13 +230,78 @@ lnc_registerdev(struct isa_device *isa_dev)
 }
 
 
-#ifdef notyet
-static void
-lnc_setladrf(struct ifnet *ifp, struct lnc_softc *sc)
+#ifdef LNC_MULTICAST
+static inline u_long
+ether_crc(u_char *ether_addr)
 {
+#define POLYNOMIAL 0x04c11db6
+	u_long crc = 0xffffffffL;
+	int i, j, carry;
+	u_char b;
 
+	for (i = ETHER_ADDR_LEN; --i >= 0;) {
+		b = *ether_addr++;
+		for (j = 8; --j >= 0;) {
+			carry  = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
+			crc <<= 1;
+			b >>= 1;
+			if (carry)
+				crc = ((crc ^ POLYNOMIAL) | carry);
+		}
+	}
+	return crc;
+#undef POLYNOMIAL
 }
-#endif /* notyet */
+
+/*
+ * Set up the logical address filter for multicast packets
+ */
+static void
+lnc_setladrf(struct lnc_softc *sc)
+{
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct ether_multistep step;
+	struct ether_multi *enm;
+	u_long index;
+	int i;
+
+	/* If promiscuous mode is set then all packets are accepted anyway */
+	if (ifp->if_flags & IFF_PROMISC) {
+		ifp->if_flags |= IFF_ALLMULTI;
+		for (i = 0; i < MULTICAST_FILTER_LEN; i++)
+			sc->init_block->ladrf[i] = 0xff;
+		return;
+	}   
+
+/*
+ * For each multicast address, calculate a crc for that address and
+ * then use the high order 6 bits of the crc as a hash code where
+ * bits 3-5 select the byte of the address filter and bits 0-2 select
+ * the bit within that byte.
+ */
+
+	bzero(sc->init_block->ladrf, MULTICAST_FILTER_LEN);
+	ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
+	while (enm != NULL) {
+		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, ETHER_ADDR_LEN) != 0) {
+			/*
+			 * A range of multicast addresses should be accepted but
+			 * but for now just accept all multicasts. Only currently
+			 * used by multicast routing where the range would require
+			 * all bits to be set anyway.
+			 */
+			ifp->if_flags |= IFF_ALLMULTI;
+			for (i = 0; i < MULTICAST_FILTER_LEN; i++)
+				sc->init_block->ladrf[i] = 0xff;
+			return;
+		}
+
+		index = ether_crc(enm->enm_addrlo) >> 26;
+		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
+		ETHER_NEXT_MULTI(step, enm);
+	}
+}
+#endif /* LNC_MULTICAST */
 
 static void
 lnc_stop(int unit)
@@ -1237,8 +1303,12 @@ lnc_init(int unit)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->init_block->padr[i] = sc->arpcom.ac_enaddr[i];
 
-	for (i = 0; i < MULTICAST_ADDR_LEN; i++)
+#ifdef LNC_MULTICAST
+			lnc_setladrf(sc);
+#else
+	for (i = 0; i < MULTICAST_FILTER_LEN; i++)
 		sc->init_block->ladrf[i] = MULTI_INIT_ADDR;
+#endif
 
 	sc->init_block->rdra = kvtop(sc->recv_ring->md);
 	sc->init_block->rlen = ((kvtop(sc->recv_ring->md) >> 16) & 0xff) | (sc->nrdre << 13);
@@ -1648,7 +1718,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 		sc->kdc.kdc_state =
 			((ifp->if_flags & IFF_UP) ? DC_BUSY : DC_IDLE);
 		break;
-#ifdef notyet
+#ifdef LNC_MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		error = (command == SIOCADDMULTI) ?
@@ -1656,7 +1726,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 					ether_delmulti(ifr, &sc->arpcom);
 
 		if (error == ENETRESET) {
-			lnc_setladrf(ifp,sc);
+			lnc_setladrf(sc);
 			error = 0;
 		}
 		break;
@@ -1679,11 +1749,12 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 }
 
 static void
-lnc_watchdog(struct ifnet *ifp)
+lnc_watchdog(int unit)
 {
-	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", ifp->if_unit);
-	ifp->if_oerrors++;
-	lnc_reset(ifp->if_unit);
+	struct lnc_softc *sc = &lnc_softc[unit];
+	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", unit);
+	++sc->arpcom.ac_if.if_oerrors;
+	lnc_reset(unit);
 }
 
 #ifdef DEBUG
