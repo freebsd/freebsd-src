@@ -221,8 +221,6 @@ struct acpi_parse_resource_set {
 extern struct acpi_parse_resource_set	acpi_res_parse_set;
 extern ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 			    struct acpi_parse_resource_set *set);
-/* XXX until Intel fix this in their headers, based on NEXT_RESOURCE */
-#define ACPI_RESOURCE_NEXT(Res) (ACPI_RESOURCE *)((UINT8 *)Res + Res->Length)
 
 /* ACPI event handling */
 extern UINT32	acpi_event_power_button_sleep(void *context);
