@@ -1,5 +1,5 @@
-/* filesys.c -- File system specific functions for hacking this system.
-   $Id: filesys.c,v 1.6 1998/02/21 22:52:46 karl Exp $
+/* filesys.c -- filesystem specific functions.
+   $Id: filesys.c,v 1.10 1998/12/06 21:58:30 karl Exp $
 
    Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
@@ -26,6 +26,7 @@
 
 /* Local to this file. */
 static char *info_file_in_path (), *lookup_info_filename ();
+static char *info_absolute_file ();
 static void remember_info_filename (), maybe_initialize_infopath ();
 
 typedef struct
@@ -35,18 +36,29 @@ typedef struct
 } COMPRESSION_ALIST;
 
 static char *info_suffixes[] = {
-  "",
   ".info",
   "-info",
   "/index",
-  (char *)NULL
+  ".inf",       /* 8+3 file on filesystem which supports long file names */
+#ifdef __MSDOS__
+  /* 8+3 file names strike again...  */
+  ".in",        /* for .inz, .igz etc. */
+  ".i",
+#endif
+  "",
+  NULL
 };
 
 static COMPRESSION_ALIST compress_suffixes[] = {
+  { ".gz", "gunzip" },
+  { ".bz2", "bunzip2" },
+  { ".z", "gunzip" },
   { ".Z", "uncompress" },
   { ".Y", "unyabba" },
-  { ".z", "gunzip" },
-  { ".gz", "gunzip" },
+#ifdef __MSDOS__
+  { "gz", "gunzip" },
+  { "z", "gunzip" },
+#endif
   { (char *)NULL, (char *)NULL }
 };
 
@@ -86,21 +98,22 @@ info_find_fullpath (partial)
       /* If we have the full path to this file, we still may have to add
          various extensions to it.  I guess we have to stat this file
          after all. */
-      if (initial_character == '/')
-        temp = info_file_in_path (partial + 1, "/");
+      if (IS_ABSOLUTE (partial))
+	temp = info_absolute_file (partial);
       else if (initial_character == '~')
         {
           expansion = tilde_expand_word (partial);
-          if (*expansion == '/')
+          if (IS_ABSOLUTE (expansion))
             {
-              temp = info_file_in_path (expansion + 1, "/");
+              temp = info_absolute_file (expansion);
               free (expansion);
             }
           else
             temp = expansion;
         }
       else if (initial_character == '.' &&
-               (partial[1] == '/' || (partial[1] == '.' && partial[2] == '/')))
+               (IS_SLASH (partial[1]) ||
+		(partial[1] == '.' && IS_SLASH (partial[2]))))
         {
           if (local_temp_filename_size < 1024)
             local_temp_filename = (char *)xrealloc
@@ -117,7 +130,9 @@ info_find_fullpath (partial)
 
           strcat (local_temp_filename, "/");
           strcat (local_temp_filename, partial);
-          return (local_temp_filename);
+	  temp = info_absolute_file (local_temp_filename); /* try extensions */
+	  if (!temp)
+	    partial = local_temp_filename;
         }
       else
         temp = info_file_in_path (partial, infopath);
@@ -167,7 +182,7 @@ info_file_in_path (filename, path)
 
       temp = (char *)xmalloc (30 + strlen (temp_dirname) + strlen (filename));
       strcpy (temp, temp_dirname);
-      if (temp[(strlen (temp)) - 1] != '/')
+      if (!IS_SLASH (temp[(strlen (temp)) - 1]))
         strcat (temp, "/");
       strcat (temp, filename);
 
@@ -229,8 +244,26 @@ info_file_in_path (filename, path)
   return ((char *)NULL);
 }
 
-/* Given a string containing units of information separated by colons,
-   return the next one pointed to by IDX, or NULL if there are no more.
+/* Assume FNAME is an absolute file name, and check whether it is
+   a regular file.  If it is, return it as a new string; otherwise
+   return a NULL pointer.  We do it by taking the file name apart
+   into its directory and basename parts, and calling info_file_in_path.*/
+static char *
+info_absolute_file (fname)
+     char *fname;
+{
+  char *containing_dir = xstrdup (fname);
+  char *base = filename_non_directory (containing_dir);
+
+  if (base > containing_dir)
+    base[-1] = '\0';
+
+  return info_file_in_path (filename_non_directory (fname), containing_dir);
+}
+
+/* Given a string containing units of information separated by
+   the PATH_SEP character, return the next one pointed to by
+   IDX, or NULL if there are no more.
    Advance IDX to the character after the colon. */
 char *
 extract_colon_unit (string, idx)
@@ -243,7 +276,7 @@ extract_colon_unit (string, idx)
   if ((i >= strlen (string)) || !string)
     return ((char *) NULL);
 
-  while (string[i] && string[i] != ':')
+  while (string[i] && string[i] != PATH_SEP[0])
     i++;
   if (i == start)
     {
@@ -285,7 +318,7 @@ lookup_info_filename (filename)
       register int i;
       for (i = 0; names_and_files[i]; i++)
         {
-          if (strcmp (names_and_files[i]->filename, filename) == 0)
+          if (FILENAME_CMP (names_and_files[i]->filename, filename) == 0)
             return (names_and_files[i]->expansion);
         }
     }
@@ -354,14 +387,14 @@ info_add_path (path, where)
     strcpy (infopath, path);
   else if (where == INFOPATH_APPEND)
     {
-      strcat (infopath, ":");
+      strcat (infopath, PATH_SEP);
       strcat (infopath, path);
     }
   else if (where == INFOPATH_PREPEND)
     {
       char *temp = xstrdup (infopath);
       strcpy (infopath, path);
-      strcat (infopath, ":");
+      strcat (infopath, PATH_SEP);
       strcat (infopath, temp);
       free (temp);
     }
@@ -378,28 +411,70 @@ zap_infopath ()
   infopath_size = 0;
 }
 
+/* Given a chunk of text and its length, convert all CRLF pairs at every
+   end-of-line into a single Newline character.  Return the length of
+   produced text.
+
+   This is required because the rest of code is too entrenched in having
+   a single newline at each EOL; in particular, searching for various
+   Info headers and cookies can become extremely tricky if that assumption
+   breaks.
+
+   FIXME: this could also support Mac-style text files with a single CR
+   at the EOL, but what about random CR characters in non-Mac files?  Can
+   we afford converting them into newlines as well?  Maybe implement some
+   heuristics here, like in Emacs 20.
+
+   FIXME: is it a good idea to show the EOL type on the modeline?  */
+long
+convert_eols (text, textlen)
+     char *text;
+     long textlen;
+{
+  register char *s = text;
+  register char *d = text;
+
+  while (textlen--)
+    {
+      if (*s == '\r' && textlen && s[1] == '\n')
+	{
+	  s++;
+	  textlen--;
+	}
+      *d++ = *s++;
+    }
+
+  return (long)(d - text);
+}
+
 /* Read the contents of PATHNAME, returning a buffer with the contents of
    that file in it, and returning the size of that buffer in FILESIZE.
    FINFO is a stat struct which has already been filled in by the caller.
+   If the file turns out to be compressed, set IS_COMPRESSED to non-zero.
    If the file cannot be read, return a NULL pointer. */
 char *
-filesys_read_info_file (pathname, filesize, finfo)
+filesys_read_info_file (pathname, filesize, finfo, is_compressed)
      char *pathname;
      long *filesize;
      struct stat *finfo;
+     int *is_compressed;
 {
   long st_size;
 
   *filesize = filesys_error_number = 0;
 
   if (compressed_filename_p (pathname))
-    return (filesys_read_compressed (pathname, filesize, finfo));
+    {
+      *is_compressed = 1;
+      return (filesys_read_compressed (pathname, filesize, finfo));
+    }
   else
     {
       int descriptor;
       char *contents;
 
-      descriptor = open (pathname, O_RDONLY, 0666);
+      *is_compressed = 0;
+      descriptor = open (pathname, O_RDONLY | O_BINARY, 0666);
 
       /* If the file couldn't be opened, give up. */
       if (descriptor < 0)
@@ -413,15 +488,24 @@ filesys_read_info_file (pathname, filesize, finfo)
       contents = (char *)xmalloc (1 + st_size);
       if ((read (descriptor, contents, st_size)) != st_size)
         {
-          filesys_error_number = errno;
-          close (descriptor);
-          free (contents);
-          return ((char *)NULL);
+	  filesys_error_number = errno;
+	  close (descriptor);
+	  free (contents);
+	  return ((char *)NULL);
         }
 
       close (descriptor);
 
-      *filesize = st_size;
+      /* Convert any DOS-style CRLF EOLs into Unix-style NL.
+	 Seems like a good idea to have even on Unix, in case the Info
+	 files are coming from some Windows system across a network.  */
+      *filesize = convert_eols (contents, st_size);
+
+      /* EOL conversion can shrink the text quite a bit.  We don't
+	 want to waste storage.  */
+      if (*filesize < st_size)
+	contents = (char *)xrealloc (contents, 1 + *filesize);
+
       return (contents);
     }
 }
@@ -449,8 +533,11 @@ filesys_read_compressed (pathname, filesize, finfo)
   if (!decompressor)
     return ((char *)NULL);
 
-  command = (char *)xmalloc (10 + strlen (pathname) + strlen (decompressor));
-  sprintf (command, "%s < %s", decompressor, pathname);
+  command = (char *)xmalloc (15 + strlen (pathname) + strlen (decompressor));
+  /* Explicit .exe suffix makes the diagnostics of `popen'
+     better on systems where COMMAND.COM is the stock shell.  */
+  sprintf (command, "%s%s < %s",
+	   decompressor, STRIP_DOT_EXE ? ".exe" : "", pathname);
 
 #if !defined (BUILDING_LIBRARY)
   if (info_windows_initialized_p)
@@ -464,7 +551,7 @@ filesys_read_compressed (pathname, filesize, finfo)
     }
 #endif /* !BUILDING_LIBRARY */
 
-  stream = popen (command, "r");
+  stream = popen (command, FOPEN_RBIN);
   free (command);
 
   /* Read chunks from this file until there are none left to read. */
@@ -493,9 +580,18 @@ filesys_read_compressed (pathname, filesize, finfo)
         }
 
       free (chunk);
-      pclose (stream);
-      contents = (char *)xrealloc (contents, offset + 1);
-      *filesize = offset;
+      if (pclose (stream) == -1)
+	{
+	  if (contents)
+	    free (contents);
+	  contents = (char *)NULL;
+	  filesys_error_number = errno;
+	}
+      else
+	{
+	  *filesize = convert_eols (contents, offset);
+	  contents = (char *)xrealloc (contents, 1 + *filesize);
+	}
     }
   else
     {
@@ -547,8 +643,18 @@ filesys_decompressor_for_file (filename)
     return ((char *)NULL);
 
   for (i = 0; compress_suffixes[i].suffix; i++)
-    if (strcmp (extension, compress_suffixes[i].suffix) == 0)
+    if (FILENAME_CMP (extension, compress_suffixes[i].suffix) == 0)
       return (compress_suffixes[i].decompressor);
+
+#if defined (__MSDOS__)
+  /* If no other suffix matched, allow any extension which ends
+     with `z' to be decompressed by gunzip.  Due to limited 8+3 DOS
+     file namespace, we can expect many such cases, and supporting
+     every weird suffix thus produced would be a pain.  */
+  if (extension[strlen (extension) - 1] == 'z' ||
+      extension[strlen (extension) - 1] == 'Z')
+    return "gunzip";
+#endif
 
   return ((char *)NULL);
 }
@@ -582,3 +688,26 @@ filesys_error_string (filename, error_num)
   return (errmsg_buf);
 }
 
+
+/* Check for FILENAME eq "dir" first, then all the compression
+   suffixes.  */
+
+int
+is_dir_name (filename)
+    char *filename;
+{
+  unsigned i;
+  if (strcasecmp (filename, "dir") == 0)
+    return 1;
+  
+  for (i = 0; compress_suffixes[i].suffix; i++)
+    {
+      char dir_compressed[50]; /* can be short */
+      strcpy (dir_compressed, "dir"); 
+      strcat (dir_compressed, compress_suffixes[i].suffix);
+      if (strcasecmp (filename, dir_compressed) == 0)
+        return 1;
+    }
+  
+  return 0;
+}

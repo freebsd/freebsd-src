@@ -1,7 +1,7 @@
 /* terminal.c -- How to handle the physical terminal for Info.
-   $Id: terminal.c,v 1.9 1998/02/22 00:05:15 karl Exp $
+   $Id: terminal.c,v 1.19 1999/09/20 12:28:54 karl Exp $
 
-   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 97, 98
+   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 97, 98, 99
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 
 #include <sys/types.h>
 #include <signal.h>
+#include <sys/ioctl.h> /* TIOCGWINSZ on LynxOS, at least */
 
 /* The Unix termcap interface code. */
 #ifdef HAVE_NCURSES_TERMCAP_H
@@ -76,9 +77,10 @@ VFunction *terminal_scroll_terminal_hook = (VFunction *)NULL;
 /* **************************************************************** */
 
 /* A buffer which holds onto the current terminal description, and a pointer
-   used to float within it. */
-static char *term_buffer = (char *)NULL;
-static char *term_string_buffer = (char *)NULL;
+   used to float within it.  And the name of the terminal.  */
+static char *term_buffer = NULL;
+static char *term_string_buffer = NULL;
+static char *term_name;
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
 static char *term_goto, *term_clreol, *term_cr, *term_clrpag;
@@ -146,12 +148,13 @@ terminal_begin_using_terminal ()
 #endif
 
   send_to_terminal (term_begin_use);
-  /* Without this fflush and sleep, running info in a shelltool or
-     cmdtool (TERM=sun-cmd) with scrollbars loses -- the scrollbars are
-     not restored properly.
-     From: strube@physik3.gwdg.de (Hans Werner Strube).  */
   fflush (stdout);
-  sleep (1);
+  if (STREQ (term_name, "sun-cmd"))
+    /* Without this fflush and sleep, running info in a shelltool or
+       cmdtool (TERM=sun-cmd) with scrollbars loses -- the scrollbars are
+       not restored properly.
+       From: strube@physik3.gwdg.de (Hans Werner Strube).  */
+    sleep (1);
 
 #ifdef SIGWINCH
   signal (SIGWINCH, sigsave);
@@ -177,7 +180,9 @@ terminal_end_using_terminal ()
 
   send_to_terminal (term_end_use);
   fflush (stdout);
-  sleep (1);
+  if (STREQ (term_name, "sun-cmd"))
+    /* See comments at other sleep.  */
+    sleep (1);
 
 #ifdef SIGWINCH
   signal (SIGWINCH, sigsave);
@@ -516,7 +521,7 @@ void
 terminal_initialize_terminal (terminal_name)
      char *terminal_name;
 {
-  char *term, *buffer;
+  char *buffer;
 
   terminal_is_dumb_p = 0;
 
@@ -526,37 +531,46 @@ terminal_initialize_terminal (terminal_name)
       return;
     }
 
-  term = terminal_name ? terminal_name : getenv ("TERM");
+  term_name = terminal_name ? terminal_name : getenv ("TERM");
+  if (!term_name)
+    term_name = "dumb";
 
   if (!term_string_buffer)
-    term_string_buffer = (char *)xmalloc (2048);
+    term_string_buffer = xmalloc (2048);
 
   if (!term_buffer)
-    term_buffer = (char *)xmalloc (2048);
+    term_buffer = xmalloc (2048);
 
   buffer = term_string_buffer;
 
-  term_clrpag = term_cr = term_clreol = (char *)NULL;
+  term_clrpag = term_cr = term_clreol = NULL;
 
-  if (!term)
-    term = "dumb";
-
-  if (tgetent (term_buffer, term) <= 0)
+  /* HP-UX 11.x returns 0 for OK --jeff.hull@state.co.us.  */
+  if (tgetent (term_buffer, term_name) < 0)
     {
       terminal_is_dumb_p = 1;
       screenwidth = 80;
       screenheight = 24;
       term_cr = "\r";
-      term_up = term_dn = audible_bell = visible_bell = (char *)NULL;
-      term_ku = term_kd = term_kl = term_kr = (char *)NULL;
-      term_kP = term_kN = (char *)NULL;
+      term_up = term_dn = audible_bell = visible_bell = NULL;
+      term_ku = term_kd = term_kl = term_kr = NULL;
+      term_kP = term_kN = NULL;
       return;
     }
 
   BC = tgetstr ("pc", &buffer);
   PC = BC ? *BC : 0;
 
-#if defined (TIOCGETP)
+#if defined (HAVE_TERMIOS_H)
+  {
+    struct termios ti;
+    if (tcgetattr (fileno(stdout), &ti) != -1)
+      ospeed = cfgetospeed (&ti);
+    else
+      ospeed = B9600;
+  }
+#else
+# if defined (TIOCGETP)
   {
     struct sgttyb sg;
 
@@ -565,16 +579,17 @@ terminal_initialize_terminal (terminal_name)
     else
       ospeed = B9600;
   }
-#else
+# else
   ospeed = B9600;
-#endif                          /* !TIOCGETP */
+# endif /* !TIOCGETP */
+#endif
 
   term_cr = tgetstr ("cr", &buffer);
   term_clreol = tgetstr ("ce", &buffer);
   term_clrpag = tgetstr ("cl", &buffer);
   term_goto = tgetstr ("cm", &buffer);
 
-  /* Find out about this terminals scrolling capability. */
+  /* Find out about this terminal's scrolling capability. */
   term_AL = tgetstr ("AL", &buffer);
   term_DL = tgetstr ("DL", &buffer);
   term_al = tgetstr ("al", &buffer);
@@ -633,23 +648,7 @@ terminal_initialize_terminal (terminal_name)
     terminal_is_dumb_p = 1;
 }
 
-/* **************************************************************** */
-/*                                                                  */
-/*               How to Read Characters From the Terminal           */
-/*                                                                  */
-/* **************************************************************** */
-
-#if defined (TIOCGETC)
-/* A buffer containing the terminal interrupt characters upon entry
-   to Info. */
-struct tchars original_tchars;
-#endif
-
-#if defined (TIOCGLTC)
-/* A buffer containing the local terminal mode characters upon entry
-   to Info. */
-struct ltchars original_ltchars;
-#endif
+/* How to read characters from the terminal.  */
 
 #if defined (HAVE_TERMIOS_H)
 struct termios original_termios, ttybuff;
@@ -662,6 +661,25 @@ struct termio original_termio, ttybuff;
 int original_tty_flags = 0;
 int original_lmode;
 struct sgttyb ttybuff;
+
+#    if defined(TIOCGETC) && defined(M_XENIX)
+/* SCO 3.2v5.0.2 defines but does not support TIOCGETC.  Gak.  Maybe
+   better fix would be to use Posix termios in preference.  --gildea,
+   1jul99.  */
+#      undef TIOCGETC
+#    endif
+
+#    if defined (TIOCGETC)
+/* A buffer containing the terminal interrupt characters upon entry
+   to Info. */
+struct tchars original_tchars;
+#    endif
+
+#    if defined (TIOCGLTC)
+/* A buffer containing the local terminal mode characters upon entry
+   to Info. */
+struct ltchars original_ltchars;
+#    endif
 #  endif /* !HAVE_TERMIO_H */
 #endif /* !HAVE_TERMIOS_H */
 
@@ -835,3 +853,6 @@ terminal_unprep_terminal ()
   terminal_end_using_terminal ();
 }
 
+#ifdef __MSDOS__
+# include "pcterm.c"
+#endif
