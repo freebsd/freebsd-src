@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.31 1994/09/23 18:02:22 davidg Exp $
+#	$Id: rc,v 1.32 1994/09/24 03:42:08 wollman Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -122,12 +122,6 @@ then
 	logger -s -p auth.err \
 	'password file may be incorrect -- /etc/ptmp exists'
 fi
-
-# Recover elvis editor files.
-echo preserving editor files
-(cd /var/tmp && /usr/libexec/elvispreserve "-the system rebooted" elv* &&
-	rm -f elvis[0-9a-f][0-9a-f][0-9a-f][0-9a-f]* \
-	elvis_[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
 
 # Recover vi editor files.
 virecovery=/var/tmp/vi.recover/recover.*
