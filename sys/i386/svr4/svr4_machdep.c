@@ -467,6 +467,7 @@ svr4_sendsig(catcher, sig, mask, code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		sigexit(p, SIGILL);
 		/* NOTREACHED */
 	}

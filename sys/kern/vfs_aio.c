@@ -609,8 +609,11 @@ aio_process(struct aiocblist *aiocbe)
 	if ((error) && (auio.uio_resid != cnt)) {
 		if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)
 			error = 0;
-		if ((error == EPIPE) && (cb->aio_lio_opcode == LIO_WRITE))
+		if ((error == EPIPE) && (cb->aio_lio_opcode == LIO_WRITE)) {
+			PROC_LOCK(userp);
 			psignal(userp, SIGPIPE);
+			PROC_UNLOCK(userp);
+		}
 	}
 
 	cnt -= auio.uio_resid;
@@ -800,10 +803,11 @@ aio_daemon(void *uproc)
 				    lj->lioj_queue_count) &&
 				    (lj->lioj_buffer_finished_count ==
 				    lj->lioj_buffer_count)) {
-						psignal(userp,
-						    lj->lioj_signal.sigev_signo);
-						lj->lioj_flags |=
-						    LIOJ_SIGNAL_POSTED;
+					PROC_LOCK(userp);
+					psignal(userp,
+					    lj->lioj_signal.sigev_signo);
+					PROC_UNLOCK(userp);
+					lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 				}
 			}
 			splx(s);
@@ -834,7 +838,9 @@ aio_daemon(void *uproc)
 			}
 
 			if (cb->aio_sigevent.sigev_notify == SIGEV_SIGNAL) {
+				PROC_LOCK(userp);
 				psignal(userp, cb->aio_sigevent.sigev_signo);
+				PROC_UNLOCK(userp);
 			}
 		}
 
@@ -1695,8 +1701,11 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 				cancelled++;
 /* XXX cancelled, knote? */
 			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
-				    SIGEV_SIGNAL)
+				    SIGEV_SIGNAL) {
+					PROC_LOCK(cbe->userproc);
 					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
+					PROC_UNLOCK(cbe->userproc);
+				}
 				if (uap->aiocbp) 
 					break;
 			}
@@ -1734,8 +1743,11 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 				cbe->uaiocb._aiocb_private.error = ECANCELED;
 /* XXX cancelled, knote? */
 			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
-				    SIGEV_SIGNAL)
+				    SIGEV_SIGNAL) {
+					PROC_LOCK(cbe->userproc);
 					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
+					PROC_UNLOCK(cbe->userproc);
+				}
 			} else {
 				notcancelled++;
 			}
@@ -2050,13 +2062,18 @@ process_signal(void *aioj)
 	struct aiocb *cb = &aiocbe->uaiocb;
 
 	if ((lj) && (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL) &&
-	    (lj->lioj_queue_count == lj->lioj_queue_finished_count)) {
+		(lj->lioj_queue_count == lj->lioj_queue_finished_count)) {
+		PROC_LOCK(lj->lioj_ki->kaio_p);
 		psignal(lj->lioj_ki->kaio_p, lj->lioj_signal.sigev_signo);
+		PROC_UNLOCK(lj->lioj_ki->kaio_p);
 		lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 	}
 
-	if (cb->aio_sigevent.sigev_notify == SIGEV_SIGNAL)
+	if (cb->aio_sigevent.sigev_notify == SIGEV_SIGNAL) {
+		PROC_LOCK(aiocbe->userproc);
 		psignal(aiocbe->userproc, cb->aio_sigevent.sigev_signo);
+		PROC_UNLOCK(aiocbe->userproc);
+	}
 }
 
 /*

@@ -823,7 +823,9 @@ restart:
 	 */
 	if (p && uio->uio_offset + uio->uio_resid >
 	      p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+		PROC_LOCK(p);
 		psignal(p, SIGXFSZ);
+		PROC_UNLOCK(p);
 		if (haverslock)
 			nfs_rsunlock(np, p);
 		return (EFBIG);
@@ -1440,8 +1442,10 @@ nfs_doio(bp, cr, p)
 			 (!(nmp->nm_flag & NFSMNT_NQNFS) &&
 			  np->n_mtime != np->n_vattr.va_mtime.tv_sec))) {
 			uprintf("Process killed due to text file modification\n");
+			PROC_LOCK(p);
 			psignal(p, SIGKILL);
-			PHOLD(p);
+			_PHOLD(p);
+			PROC_UNLOCK(p);
 		}
 		break;
 	    case VLNK:

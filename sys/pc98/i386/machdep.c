@@ -523,8 +523,8 @@ osendsig(catcher, sig, mask, code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -605,7 +605,9 @@ osendsig(catcher, sig, mask, code)
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
 		 */
+		PROC_LOCK(p);
 		sigexit(p, SIGILL);
+		/* NOTREACHED */
 	}
 
 	regs->tf_esp = (int)fp;
@@ -684,8 +686,8 @@ sendsig(catcher, sig, mask, code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -753,7 +755,9 @@ sendsig(catcher, sig, mask, code)
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
 		 */
+		PROC_LOCK(p);
 		sigexit(p, SIGILL);
+		/* NOTREACHED */
 	}
 
 	regs->tf_esp = (int)sfp;

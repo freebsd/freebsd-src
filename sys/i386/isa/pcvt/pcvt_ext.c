@@ -2294,11 +2294,17 @@ vgapage(int new_screen)
 		/* Try resignaling uncooperative X-window servers */
 		if (vsp->smode.mode == VT_PROCESS) {
 			if (vsp->vt_status & VT_WAIT_REL) {
-				if(vsp->smode.relsig)
+				if(vsp->smode.relsig) {
+					PROC_LOCK(vsp->proc);
 					psignal(vsp->proc, vsp->smode.relsig);
+					PROC_UNLOCK(vsp->proc);
+				}
 			} else if (vsp->vt_status & VT_WAIT_ACK) {
-				if(vsp->smode.acqsig)
+				if(vsp->smode.acqsig) {
+					PROC_LOCK(vsp->proc);
 					psignal(vsp->proc, vsp->smode.acqsig);
+					PROC_UNLOCK(vsp->proc);
+				}
 			}
 		}
 		return EAGAIN;
@@ -2310,8 +2316,11 @@ vgapage(int new_screen)
 	{
 		/* we cannot switch immediately here */
 		vsp->vt_status |= VT_WAIT_REL;
-		if(vsp->smode.relsig)
+		if(vsp->smode.relsig) {
+			PROC_LOCK(vsp->proc);
 			psignal(vsp->proc, vsp->smode.relsig);
+			PROC_UNLOCK(vsp->proc);
+		}
 	}
 	else
 	{
@@ -2341,8 +2350,11 @@ vgapage(int new_screen)
 		{
 			/* if _new_ vt is under process control... */
 			vsp->vt_status |= VT_WAIT_ACK;
-			if(vsp->smode.acqsig)
+			if(vsp->smode.acqsig) {
+				PROC_LOCK(vsp->proc);
 				psignal(vsp->proc, vsp->smode.acqsig);
+				PROC_UNLOCK(vsp->proc);
+			}
 		}
 		else
 		{
@@ -2502,9 +2514,12 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					 */
 					vsp->vt_status
 						|= VT_WAIT_ACK;
-					if(vsp->smode.acqsig)
+					if(vsp->smode.acqsig) {
+						PROC_LOCK(vsp->proc);
 						psignal(vsp->proc,
 							vsp->smode.acqsig);
+						PROC_UNLOCK(vsp->proc);
+					}
 				}
 				else
 				{

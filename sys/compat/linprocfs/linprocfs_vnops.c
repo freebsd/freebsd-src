@@ -300,13 +300,13 @@ linprocfs_ioctl(ap)
 	    PROC_UNLOCK(procp);
 	    return EINVAL;	/* Can only start a stopped process */
 	  }
-	  PROC_UNLOCK(procp);
 	  if ((signo = *(int*)ap->a_data) != 0) {
-	    if (signo >= NSIG || signo <= 0)
+	    if (signo >= NSIG || signo <= 0) {
+	      PROC_UNLOCK(procp);
 	      return EINVAL;
+	    }
 	    psignal(procp, signo);
 	  }
-	  PROC_LOCK(procp);
 	  procp->p_step = 0;
 	  PROC_UNLOCK(procp);
 	  wakeup(&procp->p_step);
