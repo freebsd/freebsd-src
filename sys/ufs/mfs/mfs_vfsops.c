@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.32 1997/09/07 16:21:08 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.33 1997/09/21 22:10:01 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -297,7 +297,7 @@ mfs_mount(mp, path, data, ndp, p)
 		/*
 		 * Attempt mount
 		 */
-		if( (err = ffs_mountfs(rootvp, mp, p)) != 0 ) {
+		if( (err = ffs_mountfs(rootvp, mp, p, M_MFSNODE)) != 0 ) {
 			/* fs specific cleanup (if any)*/
 			rootvp->v_data = NULL;
 			FREE(mfsp, M_MFSNODE);
@@ -401,7 +401,7 @@ mfs_mount(mp, path, data, ndp, p)
 			&size);				/* real size*/
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
-	if (err = ffs_mountfs(devvp, mp, p)) {
+	if (err = ffs_mountfs(devvp, mp, p, M_MFSNODE)) {
 		mfsp->mfs_active = 0;
 		goto error_2;
 	}
