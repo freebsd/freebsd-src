@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <err.h>
 #include <math.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,12 +89,12 @@ __FBSDID("$FreeBSD$");
 
 /* Maximum widths of various fields. */
 struct maxwidths {
-	size_t mntfrom;
-	size_t total;
-	size_t used;
-	size_t avail;
-	size_t iused;
-	size_t ifree;
+	int	mntfrom;
+	int	total;
+	int	used;
+	int	avail;
+	int	iused;
+	int	ifree;
 };
 
 static uintmax_t vals_si [] = {
@@ -120,7 +120,7 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 static char	 *getmntpt(const char *);
-static size_t	  int64width(int64_t);
+static int	  int64width(int64_t);
 static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(double);
@@ -130,8 +130,8 @@ static unit_t	  unit_adjust(double *);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
 static void	  usage(void);
 
-static __inline u_int
-max(u_int a, u_int b)
+static __inline int
+imax(int a, int b)
 {
 	return (a > b ? a : b);
 }
@@ -414,54 +414,51 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	int64_t used, availblks, inodes;
 
 	if (++timesthrough == 1) {
-		mwp->mntfrom = max(mwp->mntfrom, strlen("Filesystem"));
+		mwp->mntfrom = imax(mwp->mntfrom, (int)strlen("Filesystem"));
 		if (hflag) {
 			header = "  Size";
-			mwp->total = mwp->used = mwp->avail = strlen(header);
+			mwp->total = mwp->used = mwp->avail =
+			    (int)strlen(header);
 		} else {
 			header = getbsize(&headerlen, &blocksize);
-			mwp->total = max(mwp->total, (u_int)headerlen);
+			mwp->total = imax(mwp->total, headerlen);
 		}
-		mwp->used = max(mwp->used, strlen("Used"));
-		mwp->avail = max(mwp->avail, strlen("Avail"));
+		mwp->used = imax(mwp->used, (int)strlen("Used"));
+		mwp->avail = imax(mwp->avail, (int)strlen("Avail"));
 
 		(void)printf("%-*s %-*s %*s %*s Capacity",
-		    (u_int)mwp->mntfrom, "Filesystem",
-		    (u_int)mwp->total, header,
-		    (u_int)mwp->used, "Used",
-		    (u_int)mwp->avail, "Avail");
+		    mwp->mntfrom, "Filesystem", mwp->total, header,
+		    mwp->used, "Used", mwp->avail, "Avail");
 		if (iflag) {
-			mwp->iused = max(mwp->iused, strlen("  iused"));
-			mwp->ifree = max(mwp->ifree, strlen("ifree"));
+			mwp->iused = imax(mwp->iused, (int)strlen("  iused"));
+			mwp->ifree = imax(mwp->ifree, (int)strlen("ifree"));
 			(void)printf(" %*s %*s %%iused",
-			    (u_int)mwp->iused - 2, "iused",
-			    (u_int)mwp->ifree, "ifree");
+			    mwp->iused - 2, "iused", mwp->ifree, "ifree");
 		}
 		(void)printf("  Mounted on\n");
 	}
-	(void)printf("%-*s", (u_int)mwp->mntfrom, sfsp->f_mntfromname);
+	(void)printf("%-*s", mwp->mntfrom, sfsp->f_mntfromname);
 	used = sfsp->f_blocks - sfsp->f_bfree;
 	availblks = sfsp->f_bavail + used;
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
 		(void)printf(" %*jd %*jd %*jd",
-		  (u_int)mwp->total,
-		  (intmax_t)fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
-		  (u_int)mwp->used,
-		  (intmax_t)fsbtoblk(used, sfsp->f_bsize, blocksize),
-	          (u_int)mwp->avail,
-	          (intmax_t)fsbtoblk(sfsp->f_bavail, sfsp->f_bsize, blocksize));
+		    mwp->total, (intmax_t)fsbtoblk(sfsp->f_blocks,
+		    sfsp->f_bsize, blocksize),
+		    mwp->used, (intmax_t)fsbtoblk(used, sfsp->f_bsize,
+		    blocksize),
+		    mwp->avail, (intmax_t)fsbtoblk(sfsp->f_bavail,
+		    sfsp->f_bsize, blocksize));
 	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*jd %*jd %4.0f%% ",
-		   (u_int)mwp->iused, (intmax_t)used,
-		   (u_int)mwp->ifree, (intmax_t)sfsp->f_ffree,
-		   inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
+		(void)printf(" %*jd %*jd %4.0f%% ", mwp->iused, (intmax_t)used,
+		    mwp->ifree, (intmax_t)sfsp->f_ffree, inodes == 0 ? 100.0 :
+		    (double)used / (double)inodes * 100.0);
 	} else
 		(void)printf("  ");
 	(void)printf("  %s\n", sfsp->f_mntonname);
@@ -480,23 +477,24 @@ update_maxwidths(struct maxwidths *mwp, const struct statfs *sfsp)
 	if (blocksize == 0)
 		getbsize(&dummy, &blocksize);
 
-	mwp->mntfrom = max(mwp->mntfrom, strlen(sfsp->f_mntfromname));
-	mwp->total = max(mwp->total, int64width(
+	mwp->mntfrom = imax(mwp->mntfrom, (int)strlen(sfsp->f_mntfromname));
+	mwp->total = imax(mwp->total, int64width(
 	    fsbtoblk((int64_t)sfsp->f_blocks, sfsp->f_bsize, blocksize)));
-	mwp->used = max(mwp->used, int64width(fsbtoblk((int64_t)sfsp->f_blocks -
+	mwp->used = imax(mwp->used,
+	    int64width(fsbtoblk((int64_t)sfsp->f_blocks -
 	    (int64_t)sfsp->f_bfree, sfsp->f_bsize, blocksize)));
-	mwp->avail = max(mwp->avail, int64width(fsbtoblk(sfsp->f_bavail,
+	mwp->avail = imax(mwp->avail, int64width(fsbtoblk(sfsp->f_bavail,
 	    sfsp->f_bsize, blocksize)));
-	mwp->iused = max(mwp->iused, int64width((int64_t)sfsp->f_files -
+	mwp->iused = imax(mwp->iused, int64width((int64_t)sfsp->f_files -
 	    sfsp->f_ffree));
-	mwp->ifree = max(mwp->ifree, int64width(sfsp->f_ffree));
+	mwp->ifree = imax(mwp->ifree, int64width(sfsp->f_ffree));
 }
 
-/* Return the width in characters of the specified long. */
-static size_t
+/* Return the width in characters of the specified value. */
+static int
 int64width(int64_t val)
 {
-	size_t len;
+	int len;
 
 	len = 0;
 	/* Negative or zero values require one extra digit. */
