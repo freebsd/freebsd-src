@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.4 2002/03/06 09:44:11 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.5 2002/10/03 13:47:19 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -326,15 +326,6 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 	case SIOCGFRST :
 		error = IWCOPYPTR((caddr_t)ipfr_fragstats(), data,
 			       sizeof(ipfrstat_t));
-		break;
-	case SIOCAUTHW :
-	case SIOCAUTHR :
-		if (!(mode & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-	case SIOCATHST :
-		error = fr_auth_ioctl(data, mode, cmd, NULL, NULL);
 		break;
 	case SIOCFRSYN :
 		if (!(mode & FWRITE))
