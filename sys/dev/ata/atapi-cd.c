@@ -1540,22 +1540,23 @@ acd_read_track_info(struct acd_softc *cdp,
 static int
 acd_get_progress(struct acd_softc *cdp, int *finished)
 {
-    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
-		       sizeof(struct atapi_reqsense),
-		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    struct atapi_reqsense sense;
-    int error;
+    int8_t ccb[16] = { ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0,  
+		       0, 0, 0, 0, 0, 0, 0, 0 };
+    char tmp[8];
 
-    if ((error = atapi_test_ready(cdp->atp)) != EBUSY) {
-	*finished = 100;
-	return error;
+    if (atapi_test_ready(cdp->atp) != EBUSY) {
+	if (atapi_queue_cmd(cdp->atp, ccb, tmp, sizeof(tmp),
+			    ATPR_F_READ, 30, NULL, NULL) != EBUSY) {
+	    *finished = 100;
+	    return 0;
+	}
     }
-
-    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&sense, sizeof(sense),
-    			    ATPR_F_READ, 10, NULL, NULL);
-
-    *finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100)/65535;
-    return error;
+    if (cdp->atp->sense.sksv)
+	*finished = ((cdp->atp->sense.sk_specific2 |
+		     (cdp->atp->sense.sk_specific1 << 8)) * 100) / 65535;
+    else
+	*finished = 0;
+    return 0;
 }
 
 static int
