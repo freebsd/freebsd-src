@@ -11,7 +11,7 @@ AC_INIT(as.h)
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(gas, 2.9.5)
+AM_INIT_AUTOMAKE(gas, 2.10)
 
 AM_PROG_LIBTOOL
 
@@ -202,8 +202,10 @@ changequote([,])dnl
       i386-*-lynxos*)       fmt=coff em=lynx ;;
       i386-*-sysv4* | i386-*-solaris* | i386-*-elf)
 			    fmt=elf bfd_gas=yes ;;
+changequote(,)dnl
       i386-*-freebsdaout* | i386-*-freebsd[12].* | i386-*-freebsd[12])
                             fmt=aout em=386bsd ;;
+changequote([,])dnl
       i386-*-freebsd*)	    fmt=elf em=freebsd bfd_gas=yes ;;
       i386-*-coff | i386-*-sysv* | i386-*-sco3.2v5*coff | i386-*-isc*)
                           fmt=coff ;;
@@ -217,8 +219,9 @@ changequote([,])dnl
       i386-*-vsta)          fmt=aout ;;
       i386-*-msdosdjgpp* | i386-*-go32* | i386-go32-rtems*)
 			    fmt=coff em=go32;;
+      i386-*-rtemscoff*)    fmt=coff ;;
       i386-*-rtemself*)     fmt=elf ;;
-      i386-*-rtems*)        fmt=coff ;;
+      i386-*-rtems*)        fmt=elf ;;
       i386-*-gnu*)          fmt=elf ;;
       i386-*-mach*)
 			    fmt=aout em=mach bfd_gas=yes ;;
@@ -232,6 +235,8 @@ changequote([,])dnl
       i386-*-vxworks*)      fmt=aout ;;
       i960-*-bout)          fmt=bout ;;
       i960-*-coff)          fmt=coff em=ic960 ;;
+      i960-*-rtemscoff*)    fmt=coff em=ic960 ;;
+      i960-*-rtemself*)     fmt=elf ;;
       i960-*-rtems*)        fmt=coff em=ic960 ;;
       i960-*-nindy*)        fmt=bout ;;
       i960-*-vxworks4*)     fmt=bout ;;
@@ -250,7 +255,10 @@ changequote([,])dnl
       m68k-*-sysv4*) # must be before -sysv*
 			    fmt=elf em=svr4 ;;
       m68k-*-elf*)	    fmt=elf ;;
-      m68k-*-coff | m68k-*-sysv* | m68k-*-rtems*)
+      m68k-*-rtemscoff*)    fmt=coff ;;
+      m68k-*-rtemself*)	    fmt=elf ;;
+      m68k-*-rtems*)        fmt=elf ;;
+      m68k-*-coff | m68k-*-sysv*)
 			    fmt=coff ;;
       m68k-*-hpux*)         fmt=hp300 em=hp300 ;;
       m68k-*-linux*aout*)   fmt=aout em=linux ;;
@@ -325,13 +333,16 @@ changequote([,])dnl
       sh-*-coff*)           fmt=coff ;;
       sh-*-pe*)             fmt=coff em=pe bfd_gas=yes;;
       sh-*-rtemself*)       fmt=elf ;;
-      sh-*-rtems*)	    fmt=coff ;;
+      sh-*-rtemscoff*)	    fmt=coff ;;
+      sh-*-rtems*)          fmt=coff ;;
 
       ns32k-pc532-mach* | ns32k-pc532-ux*)    fmt=aout em=pc532mach ;;
       ns32k-pc532-netbsd* | ns32k-pc532-lites*)  fmt=aout em=nbsd532 ;;
       ns32k-pc532-openbsd*) fmt=aout em=nbsd532 ;;
 
-      sparc-*-rtems*)       fmt=aout ;;
+      sparc-*-rtemsaout*)   fmt=aout ;;
+      sparc-*-rtemself*)    fmt=elf ;;
+      sparc-*-rtems*)       fmt=elf ;;
       sparc-*-sunos4*)      fmt=aout em=sun3 ;;
       sparc-*-aout | sparc*-*-vxworks*)
 			    fmt=aout em=sparcaout ;;
