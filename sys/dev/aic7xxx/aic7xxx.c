@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.26 1999/05/08 21:58:56 dfr Exp $
+ *      $Id: aic7xxx.c,v 1.27 1999/05/14 05:07:21 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -362,7 +362,7 @@ static __inline struct ahc_initiator_tinfo *
 static __inline void
 		ahcfreescb(struct ahc_softc *ahc, struct scb *scb);
 static __inline struct scb *
-                ahcgetscb(struct ahc_softc *ahc);
+		ahcgetscb(struct ahc_softc *ahc);
 
 static __inline u_int32_t
 ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index)
@@ -3691,7 +3691,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		/*
 		 * We performed autosense retrieval.
 		 *
-		 * bzero from the sense data before having
+		 * bzero the sense data before having
 		 * the drive fill it.  The SCSI spec mandates
 		 * that any untransfered data should be
 		 * assumed to be zero.  Complete the 'bounce'
