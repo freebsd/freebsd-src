@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.26 1997/05/07 14:15:11 kato Exp $
+ *	$Id: pc98.c,v 1.27 1997/05/28 09:18:23 kato Exp $
  */
 
 /*
@@ -53,7 +53,6 @@
  */
 
 #include "opt_auto_eoi.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -589,20 +588,20 @@ config_isadev_c(isdp, mp, reconfig)
 		(*dp->attach)(isdp);
 		if (isdp->id_irq) {
 #if defined(APIC_IO)
-		    /*
-		     * Some motherboards use upper IRQs for traditional
-		     * ISA INTerrupt sources.  In particular we have
-		     * seen the secondary IDE connected to IRQ20.
-		     * This code detects and fixes this situation.
-		     */
+			/*
+			 * Some motherboards use upper IRQs for traditional
+			 * ISA INTerrupt sources.  In particular we have
+			 * seen the secondary IDE connected to IRQ20.
+			 * This code detects and fixes this situation.
+			 */
 			u_int	apic_mask;
 			int	rirq;
 
-			apic_mask = get_isa_apic_mask( isdp->id_irq );
-			if ( apic_mask != isdp->id_irq ) {
-				rirq = ffs( isdp->id_irq ) - 1;
+			apic_mask = get_isa_apic_mask(isdp->id_irq);
+			if (apic_mask != isdp->id_irq) {
+				rirq = ffs(isdp->id_irq) - 1;
 				isdp->id_irq = apic_mask;
-				undirect_isa_irq( rirq ); /* free for ISA */
+				undirect_isa_irq(rirq);	/* free for ISA */
 			}
 #endif  /* APIC_IO */
 			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
@@ -1172,7 +1171,7 @@ isa_irq_pending(dvp)
 	struct isa_device *dvp;
 {
 	/* read APIC IRR containing the 16 ISA INTerrupts */
-	return ((apic_base[APIC_IRR1] & 0x00ffffff)
+	return ((lapic__irr1 & 0x00ffffff)
 		& (u_int32_t)dvp->id_irq) ? 1 : 0;
 }
 
