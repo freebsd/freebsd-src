@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.31 1998/03/09 04:00:42 jb Exp $
+# $Id: makesyscalls.sh,v 1.32 1998/06/07 17:11:37 dfr Exp $
 
 set -e
 
@@ -112,8 +112,8 @@ s/\$//g
 		printf "#define\t%s\n\n", sysproto_h > sysarg
 		printf "#include <sys/signal.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
-		printf "#define PAD_(t) sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
-		printf "\t\t0 : sizeof(register_t) - sizeof(t)\n\n" > sysarg
+		printf "#define\tPAD_(t)\t(sizeof(register_t) <= sizeof(t) ? \\\n" > sysarg
+		printf "\t\t0 : sizeof(register_t) - sizeof(t))\n\n" > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
 		printf "char *%s[] = {\n", namesname > sysnames
@@ -162,14 +162,14 @@ s/\$//g
 		next
 	}
 	syscall != $1 {
-		printf "%s: line %d: syscall number out of sync at %d\n", \
-		   infile, NR, syscall
+		printf "%s: line %d: syscall number out of sync at %d\n",
+		    infile, NR, syscall
 		printf "line is:\n"
 		print
 		exit 1
 	}
 	function parserr(was, wanted) {
-		printf "%s: line %d: unexpected %s (expected %s)\n", \
+		printf "%s: line %d: unexpected %s (expected %s)\n",
 		    infile, NR, was, wanted
 		exit 1
 	}
@@ -259,18 +259,18 @@ s/\$//g
 			if (argc != 0 && $2 != "NOARGS" && $2 != "NOPROTO") {
 				printf("struct\t%s {\n", argalias) > sysarg
 				for (i = 1; i <= argc; i++)
-					printf("\t%s %s;\tchar %s_[PAD_(%s)];\n",
+					printf("\t%s\t%s;\tchar %s_[PAD_(%s)];\n",
 					    argtype[i], argname[i],
 					    argname[i], argtype[i]) > sysarg
 				printf("};\n") > sysarg
 			}
 			else if($2 != "NOARGS" && $2 != "NOPROTO")
-				printf("struct\t%s {\n\tregister_t dummy;\n};\n", \
-					argalias) > sysarg
+				printf("struct\t%s {\n\tregister_t dummy;\n};\n",
+				    argalias) > sysarg
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
 		    (!lkmnosys || funcname != "lkmnosys")) {
-			printf("%s\t%s __P((struct proc *, struct %s *))", \
+			printf("%s\t%s __P((struct proc *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
 			if (funcname == "exit")
 				printf(" __dead2") > sysdcl
@@ -281,22 +281,22 @@ s/\$//g
 		if (funcname == "lkmnosys")
 			lkmnosys = 1
 	 	if ($2 != "NOIMPL") {
-			printf("\t{ %d, (sy_call_t *)%s },\t\t", \
+			printf("\t{ %d, (sy_call_t *)%s },\t\t",
 			    argc+bigargc, funcname) > sysent
 			if(length(funcname) < 11)
 				printf("\t") > sysent
 			printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		} else {
-			printf("\t{ %d, (sy_call_t *)%s },\t\t", \
+			printf("\t{ %d, (sy_call_t *)%s },\t\t",
 			    argc+bigargc, "nosys") > sysent
 			if(length("nosys") < 11)
 				printf("\t") > sysent
 			printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		}
-		printf("\t\"%s\",\t\t\t/* %d = %s */\n", \
+		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
 		if ($2 != "NODEF") {
-			printf("#define\t%s%s\t%d\n", syscallprefix, \
+			printf("#define\t%s%s\t%d\n", syscallprefix,
 		    	    funcalias, syscall) > syshdr
 			printf(" \\\n\t%s.o", funcalias) > sysmk
 		}
@@ -310,21 +310,21 @@ s/\$//g
 		if (argc != 0 && $2 != "CPT_NOA") {
 			printf("struct\t%s {\n", argalias) > syscompat
 			for (i = 1; i <= argc; i++)
-				printf("\t%s %s;\tchar %s_[PAD_(%s)];\n",
+				printf("\t%s\t%s;\tchar %s_[PAD_(%s)];\n",
 				    argtype[i], argname[i],
 				    argname[i], argtype[i]) > syscompat
 			printf("};\n") > syscompat
 		}
 		else if($2 != "CPT_NOA")
-			printf("struct\t%s {\n\tregister_t dummy;\n};\n", \
-				argalias) > sysarg
-		printf("%s\to%s __P((struct proc *, struct %s *));\n", \
+			printf("struct\t%s {\n\tregister_t dummy;\n};\n",
+			    argalias) > sysarg
+		printf("%s\to%s __P((struct proc *, struct %s *));\n",
 		    rettype, funcname, argalias) > syscompatdcl
-		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n", \
+		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n",
 		    argc+bigargc, funcname, syscall, funcalias) > sysent
-		printf("\t\"old.%s\",\t\t/* %d = old %s */\n", \
+		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
-		printf("\t\t\t\t/* %d is old %s */\n", \
+		printf("\t\t\t\t/* %d is old %s */\n",
 		    syscall, funcalias) > syshdr
 		if ($3 != "NOHIDE")
 			printf("HIDE_%s(%s)\n", $3, funcname) > syshide
@@ -334,11 +334,11 @@ s/\$//g
 	$2 == "LIBCOMPAT" {
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n", \
+		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n",
 		    argc+bigargc, funcname, syscall, funcalias) > sysent
-		printf("\t\"old.%s\",\t\t/* %d = old %s */\n", \
+		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
-		printf("#define\t%s%s\t%d\t/* compatibility; still used by libc */\n", \
+		printf("#define\t%s%s\t%d\t/* compatibility; still used by libc */\n",
 		    syscallprefix, funcalias, syscall) > syshdr
 		printf(" \\\n\t%s.o", funcalias) > sysmk
 		if ($3 != "NOHIDE")
@@ -347,11 +347,11 @@ s/\$//g
 		next
 	}
 	$2 == "OBSOL" {
-		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = obsolete %s */\n", \
+		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = obsolete %s */\n",
 		    syscall, comment) > sysent
-		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n", \
+		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
 		    $4, syscall, comment) > sysnames
-		printf("\t\t\t\t/* %d is obsolete %s */\n", \
+		printf("\t\t\t\t/* %d is obsolete %s */\n",
 		    syscall, comment) > syshdr
 		if ($3 != "NOHIDE")
 			printf("HIDE_%s(%s)\n", $3, $4) > syshide
@@ -359,9 +359,9 @@ s/\$//g
 		next
 	}
 	$2 == "UNIMPL" {
-		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = %s */\n", \
+		printf("\t{ 0, (sy_call_t *)nosys },\t\t\t/* %d = %s */\n",
 		    syscall, comment) > sysent
-		printf("\t\"#%d\",\t\t\t/* %d = %s */\n", \
+		printf("\t\"#%d\",\t\t\t/* %d = %s */\n",
 		    syscall, syscall, comment) > sysnames
 		if ($3 != "NOHIDE")
 			printf("HIDE_%s(%s)\n", $3, $4) > syshide
@@ -377,11 +377,10 @@ s/\$//g
 		printf("#undef PAD_\n") > syscompatdcl
 		printf("\n#endif /* !%s */\n", sysproto_h) > syscompatdcl
 
-
 		printf("};\n") > sysent
 		printf("};\n") > sysnames
 		printf("#define\t%sMAXSYSCALL\t%d\n", syscallprefix, syscall) \
-			> syshdr
+		    > syshdr
 	} '
 
 cat $sysinc $sysent >$syssw
