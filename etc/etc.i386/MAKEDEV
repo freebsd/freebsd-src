@@ -82,6 +82,11 @@
 #	iic*	I2C devices
 #	smb*	SMBUS devices
 #
+# USB devices:
+#	ums*	mouse
+#	ulpt*	printer
+#	ugen*	generic USB device
+#
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ssc	The ``super scsi'' device
 #	worm*	WORM driver
@@ -121,7 +126,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.192 1999/03/05 23:08:45 gibbs Exp $
+#	$Id: MAKEDEV,v 1.193 1999/03/16 13:34:00 sos Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -224,6 +229,7 @@ all)
 	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
+	sh MAKEDEV ums0 ulpt0 ugen0			# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
 	sh MAKEDEV apm card0 card1			# cdev, laptop
