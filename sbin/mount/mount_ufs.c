@@ -138,7 +138,7 @@ mount_ufs(argc, argv)
 					args.fspec, fs_name);
 			break;
 		default:
-			warn(NULL);
+			warn("%s", args.fspec);
 			break;
 		}
 		return (1);
