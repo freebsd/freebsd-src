@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.40 1997/06/06 08:12:17 dfr Exp $
+ * $Id: nfs_bio.c,v 1.41 1997/06/16 00:23:40 dyson Exp $
  */
 
 
@@ -67,6 +67,9 @@
 
 static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 					struct proc *p));
+static struct buf *nfs_getwriteblk __P((struct vnode *vp, daddr_t bn,
+					int size, struct proc *p,
+					struct ucred *cred, int off, int len));
 
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
@@ -595,7 +598,7 @@ again:
 			bufsize = np->n_size - lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
-		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
+		bp = nfs_getwriteblk(vp, lbn, bufsize, p, cred, on, n);
 		if (!bp)
 			return (EINTR);
 		if (bp->b_wcred == NOCRED) {
@@ -603,23 +606,6 @@ again:
 			bp->b_wcred = cred;
 		}
 		np->n_flag |= NMODIFIED;
-
-		if ((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend > np->n_size) {
-			bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
-		}
-
-		/*
-		 * If the new write will leave a contiguous dirty
-		 * area, just update the b_dirtyoff and b_dirtyend,
-		 * otherwise force a write rpc of the old dirty area.
-		 */
-		if (bp->b_dirtyend > 0 &&
-		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			bp->b_proc = p;
-			if (VOP_BWRITE(bp) == EINTR)
-				return (EINTR);
-			goto again;
-		}
 
 		/*
 		 * Check for valid write lease and get one as required.
@@ -694,6 +680,116 @@ again:
 			bdwrite(bp);
 	} while (uio->uio_resid > 0 && n > 0);
 	return (0);
+}
+
+/*
+ * Get a cache block for writing.  The range to be written is
+ * (off..off+len) within the block.  This routine ensures that the
+ * block is either has no dirty region or that the given range is
+ * contiguous with the existing dirty region.
+ */
+static struct buf *
+nfs_getwriteblk(vp, bn, size, p, cred, off, len)
+	struct vnode *vp;
+	daddr_t bn;
+	int size;
+	struct proc *p;
+	struct ucred *cred;
+	int off, len;
+{
+	struct nfsnode *np = VTONFS(vp);
+	struct buf *bp;
+	int error;
+
+ again:
+	bp = nfs_getcacheblk(vp, bn, size, p);
+	if (!bp)
+		return (NULL);
+	if (bp->b_wcred == NOCRED) {
+		crhold(cred);
+		bp->b_wcred = cred;
+	}
+
+	if ((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend > np->n_size) {
+		bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
+	}
+
+	/*
+	 * If the new write will leave a contiguous dirty
+	 * area, just update the b_dirtyoff and b_dirtyend,
+	 * otherwise try to extend the dirty region.
+	 */
+	if (bp->b_dirtyend > 0 &&
+	    (off > bp->b_dirtyend || (off + len) < bp->b_dirtyoff)) {
+		struct iovec iov;
+		struct uio uio;
+		off_t boff, start, end;
+
+		boff = ((off_t)bp->b_blkno) * DEV_BSIZE;
+		if (off > bp->b_dirtyend) {
+			start = boff + bp->b_validend;
+			end = boff + off;
+		} else {
+			start = boff + off + len;
+			end = boff + bp->b_validoff;
+		}
+		
+		/*
+		 * It may be that the valid region in the buffer
+		 * covers the region we want, in which case just
+		 * extend the dirty region.  Otherwise we try to
+		 * extend the valid region.
+		 */
+		if (end > start) {
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_offset = start;
+			uio.uio_resid = end - start;
+			uio.uio_segflg = UIO_SYSSPACE;
+			uio.uio_rw = UIO_READ;
+			uio.uio_procp = p;
+			iov.iov_base = bp->b_data + (start - boff);
+			iov.iov_len = end - start;
+			error = nfs_readrpc(vp, &uio, cred);
+			if (error) {
+				/*
+				 * If we couldn't read, fall back to writing
+				 * out the old dirty region.
+				 */
+				bp->b_proc = p;
+				if (VOP_BWRITE(bp) == EINTR)
+					return (NULL);
+				goto again;
+			} else {
+				/*
+				 * The read worked.
+				 */
+				if (uio.uio_resid > 0) {
+					/*
+					 * If there was a short read,
+					 * just zero fill.
+					 */
+					bzero(iov.iov_base,
+					      uio.uio_resid);
+				}
+				if (off > bp->b_dirtyend)
+					bp->b_validend = off;
+				else
+					bp->b_validoff = off + len;
+			}
+		}
+
+		/*
+		 * We now have a valid region which extends up to the
+		 * dirty region which we want.
+		 */
+		if (off > bp->b_dirtyend)
+			bp->b_dirtyend = off;
+		else
+			bp->b_dirtyoff = off + len;
+	}
+
+	return bp;
 }
 
 /*
