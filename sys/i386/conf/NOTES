@@ -464,6 +464,14 @@ options 	NETATALKDEBUG		#Appletalk debugging
 #options 	NS			#Xerox NS protocols
 #options 	NSIP			#XNS over IP
 
+#
+# SMB/CIFS requester
+# NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
+# options.
+# NETSMBCRYPTO enables support for encrypted passwords.
+options 	NETSMB			#SMB/CIFS requester
+options 	NETSMBCRYPTO		#encrypted password support for SMB
+
 # mchain library. It can be either loaded as KLD or compiled into kernel
 options 	LIBMCHAIN
 
@@ -737,6 +745,7 @@ options 	NULLFS			#NULL filesystem
 options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	SMBFS			#SMB/CIFS filesystem
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # options 	NODEVFS			#disable devices filesystem
@@ -3043,12 +3052,9 @@ options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
 options 	NETGRAPH_BRIDGE
-options 	NETSMB
-options 	NETSMBCRYPTO
 # PFIL_HOOKS has no effect here since it is a subset of IPFILTER.
 options 	PFIL_HOOKS
 # SIMOS is broken since it is alpha-only but not ifdefed.
 ##options 	SIMOS
-options 	SMBFS
 options 	VESA_DEBUG
 options 	VGA_DEBUG
