@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: boot0cfg.c,v 1.1.1.1 1999/02/21 21:23:42 rnordier Exp $";
+	"$Id: boot0cfg.c,v 1.2 1999/02/22 09:36:54 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #define MBRSIZE         512     /* master boot record size */
 
+#define OFF_DRIVE	0x1ba	/* offset: setdrv drive */
 #define OFF_FLAGS       0x1bb   /* offset: option flags */
 #define OFF_TICKS       0x1bc   /* offset: clock ticks */
 #define OFF_PTBL        0x1be   /* offset: partition table */
@@ -154,6 +155,8 @@ main(int argc, char *argv[])
             errx(1, "%s: bad magic", bpath);
         memcpy(buf + OFF_PTBL, part, sizeof(part));
     }
+    if (d_arg != -1)
+	buf[OFF_DRIVE] = d_arg;
     if (o_flag) {
         buf[OFF_FLAGS] &= o_and;
         buf[OFF_FLAGS] |= o_or;
@@ -185,7 +188,7 @@ main(int argc, char *argv[])
                        part[i].dp_size);
             }
         printf("\n");
-        printf("drive=0x0  options=");
+        printf("drive=0x%x  options=", buf[OFF_DRIVE]);
         for (i = 0; i < nopt; i++) {
             if (i)
                 printf(",");
