@@ -273,6 +273,9 @@ Terminal(void *v)
     struct thread_data *td;
     const char *l;
     int len;
+#ifdef __NetBSD__
+    HistEvent hev = { 0, "" };
+#endif
 
     act.sa_handler = InputHandler;
     sigemptyset(&act.sa_mask);
@@ -285,7 +288,7 @@ Terminal(void *v)
     while ((l = SmartGets(td->edit, &len, td->ppp))) {
         if (len > 1)
 #ifdef __NetBSD__
-            history(td->hist, NULL, H_ENTER, l);
+            history(td->hist, &hev, H_ENTER, l);
 #else
             history(td->hist, H_ENTER, l);
 #endif
@@ -535,6 +538,9 @@ main(int argc, char **argv)
                 struct thread_data td;
                 const char *env;
                 int size;
+#ifdef __NetBSD__
+                HistEvent hev = { 0, "" };
+#endif
 
                 td.hist = history_init();
                 if ((env = getenv("EL_SIZE"))) {
@@ -544,7 +550,7 @@ main(int argc, char **argv)
                 } else
                     size = 20;
 #ifdef __NetBSD__
-                history(td.hist, NULL, H_SETSIZE, size);
+                history(td.hist, &hev, H_SETSIZE, size);
                 td.edit = el_init("pppctl", stdin, stdout, stderr);
 #else
                 history(td.hist, H_EVENT, size);
