@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.7 1997/04/15 18:05:59 jkh Exp $
+#	$Id: GENERIC,v 1.77.2.8 1997/04/18 14:06:20 nate Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -47,6 +47,7 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 tape		ft0	at fdc0 drive 2
 
+options		"CMD640"	# work around CMD640 chip deficiency
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
