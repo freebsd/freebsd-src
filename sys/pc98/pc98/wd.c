@@ -487,7 +487,7 @@ wdattach(struct isa_device *dvp)
 "wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
 			       lunit,
 			       du->dk_dd.d_secperunit
-			       * du->dk_dd.d_secsize / (1024 * 1024),
+			       / ((1024L * 1024L) / du->dk_dd.d_secsize),
 			       du->dk_dd.d_secperunit,
 			       du->dk_dd.d_ncylinders,
 			       du->dk_dd.d_ntracks,
