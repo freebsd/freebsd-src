@@ -344,7 +344,7 @@ found:
 		    name, unit, devname);
 	}
 	for (unit = 1; ; unit++) {
-		if (unit < if_index && ifaddr_byindex(unit) != NULL)
+		if (unit <= if_index && ifaddr_byindex(unit) != NULL)
 			continue;
 		if (resource_string_value(name, unit, "ether", &p) == 0 ||
 		    resource_string_value(name, unit, "dev", &p) == 0)
@@ -382,8 +382,8 @@ if_attach(ifp)
 	SLIST_INIT(&ifp->if_klist);
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_index = if_findindex(ifp);
-	if (ifp->if_index >= if_index)
-		if_index = ifp->if_index + 1;
+	if (ifp->if_index > if_index)
+		if_index = ifp->if_index;
 	if (if_index >= if_indexlim)
 		if_grow();
 
