@@ -592,18 +592,6 @@
       protocol or routing) can be performed on these devices.  The
       <varname>SIOCGIFCONF</varname> ioctl may be performed on the
       special <filename>/dev/network</filename> node.</para>
-
-      <para arch="i386">Selected network drivers now implement a
-      semi-polling mode, which makes systems much more resilient to
-      attacks and overloads.  To enable polling, the following options
-      are required in a kernel configuration file:
-
-      <programlisting>options DEVICE_POLLING
-options HZ=1000 # not compulsory but strongly recommended</programlisting>
-
-      The <varname>kern.polling.enable</varname> sysctl variable will
-      then activate polling mode.  The devices initially supporting
-      polling are &man.dc.4;, &man.fxp.4;, and &man.sis.4;. &merged;</para>
     </sect3>
 
     <sect3>
@@ -940,6 +928,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The virtual memory subsystem now backs UFS directory
       memory requirements by default (this behavior is controlled via
       the <varname>vfs.vmiodirenable</varname> sysctl variable. &merged;</para>
+
+      <para>A bug in the TCP implementation, which could cause
+      connections to stall if a sender saw a zero-sized window, has
+      been corrected. &merged;</para>
     </sect3>
 
     <sect3>
@@ -1346,7 +1338,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     involving the <literal>UseLogin yes</literal> setting, has been
     closed (note that the default for this setting is
     <literal>UseLogin no</literal>). &merged;</para>
-
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
