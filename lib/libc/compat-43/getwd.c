@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 char *
 getwd(char *buf)
