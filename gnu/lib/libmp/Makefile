@@ -37,7 +37,7 @@ CFLAGS+=	-I${GMPDIR}/mpn/m68k -I${GMPDIR}/mpz -DBERKELEY_MP
 
 MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
 
-.elif ${MACHINE_ARCH} == "sparc" || ${MACHINE_ARCH} == "sparc64"
+.elif ${MACHINE_ARCH} == "arm32" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "ppc" ||  ${MACHINE_ARCH} == "sparc" || ${MACHINE_ARCH} == "sparc64"
 .PATH:		${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/generic \
 		${GMPDIR}/mpbsd
 
