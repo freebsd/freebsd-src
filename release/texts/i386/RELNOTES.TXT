@@ -165,7 +165,7 @@ sendmail upgraded from version 8.9.3 to version 8.11.0.  Important changes
 include: new default file locations (see
 /usr/src/contrib/sendmail/cf/README); newaliases is limited to root and
 trusted users; and the MSA port (587) is turned on by default.  See
-/usr/src/contrib/sendmail/RELEASE_NOTES for more information.
+/usr/src/contrib/sendmail/RELEASE_NOTES for more information. [MERGED]
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
