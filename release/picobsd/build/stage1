@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.4 1998/09/20 00:46:07 abial Exp $
+#	$Id: stage1,v 1.5 1998/10/25 15:15:55 abial Exp $
 #
 
 set -e
@@ -65,7 +65,7 @@ then
 fi
 
 # Default setting for other (custom) setups.
-INODES=16000
+INODES=4096
 # You can save some space on MFS if you don't want so many inodes...
 if [ "${TYPE}" = "dial" ]
 then

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.5 1998/09/19 21:44:42 abial Exp $
+#	$Id: populate,v 1.6 1998/09/26 17:27:18 abial Exp $
 #
 
 . ../Version
@@ -74,12 +74,4 @@ if [ ! -f ../tools/dumpnlist/dumpnlist ]
 then
 	(cd ../tools/dumpnlist; make)
 fi
-../tools/dumpnlist/dumpnlist ./kernel >/mnt/stand/symbols
-
-echo "-> Preparing kernel config list..."
-if [ ! -f ../tinyware/kget/kget ]
-then
-	(cd ../tinyware/kget; make)
-fi
-../tinyware/kget/kget ./kernel /mnt/stand/vanilla
 (echo "-> Fixing permissions"; cd /mnt; chown -R root *)
