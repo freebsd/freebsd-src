@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.9 1994/09/29 13:19:43 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.10 1994/12/06 00:51:50 jkh Exp $";
 #endif
 
 /*
@@ -374,7 +374,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 #define REMOVE(dir,ie) vsystem("%s %s%s", REMOVE_CMD, (ie ? "-f " : ""), dir)
 #else
 #define RMDIR rmdir
-#define	REMOVE(file,ie) remove(file)
+#define	REMOVE(file,ie) (remove(file) && !(ie))
 #endif
 
 /* Selectively delete a hierarchy */
@@ -384,11 +384,15 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     char *cp1, *cp2;
     
     cp1 = cp2 = dir;
-    if (nukedirs) {
+    if (!fexists(dir)) {
+	if (!ign_err)
+	    whinge("%s '%s' doesn't really exist.",
+		   isdir(dir) ? "Directory" : "File", dir);
+    } else if (nukedirs) {
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
 	    return 1;
     } else if (isdir(dir)) {
-	if (RMDIR(dir))
+	if (RMDIR(dir) && !ign_err)
 	    return 1;
     } else {
 	if (REMOVE(dir, ign_err))
@@ -402,8 +406,11 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	    *cp2 = '\0';
 	if (!isemptydir(dir))
 	    return 0;
-	if (RMDIR(dir) && ign_err)
-	    return 1;
+	if (RMDIR(dir) && !ign_err)
+	    if (!fexists(dir))
+		whinge("Directory '%s' doesn't really exist.", dir);
+	    else
+		return 1;
 	/* back up the pathname one component */
 	if (cp2) {
 	    cp1 = dir;
