@@ -84,12 +84,7 @@ OBJCOPY?=	objcopy
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
@@ -183,7 +178,6 @@ maninstall: _SUBDIR
 
 _ILINKS=@ machine
 
-.MAIN: all
 all: objwarn ${PROG} _SUBDIR
 
 beforedepend: ${_ILINKS}
