@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.39 1996/05/21 15:57:21 jkh Exp $
+ * $Id: tcpip.c,v 1.40 1996/06/12 17:09:34 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -542,7 +542,7 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	status = FALSE;
     }
-    else if (cnt == 1 || !RunningAsInit) {
+    else if (cnt == 1 || (!RunningAsInit && !Fake)) {
 	/* If we're running in user mode, assume network already up */
 	if (RunningAsInit)
 	    tcpOpenDialog(devs[0]);

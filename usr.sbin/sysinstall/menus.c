@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.65 1996/06/12 14:20:18 jkh Exp $
+ * $Id: menus.c,v 1.66 1996/06/12 17:09:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,34 +122,37 @@ clearX11Fonts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+#define IS_DEVELOPER(dist, extra) (((dist) == (_DIST_DEVELOPER | (extra))) || ((dist) == (_DIST_DEVELOPER | DIST_DES | (extra))))
+#define IS_USER(dist, extra) (((dist) == (_DIST_USER | (extra))) || ((dist) == (_DIST_USER | DIST_DES | (extra))))
+
 static int
 checkDistDeveloper(dialogMenuItem *self)
 {
-    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_ALL);
+    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL);
+    return (IS_DEVELOPER(Dists, DIST_XF86) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
 checkDistKernDeveloper(dialogMenuItem *self)
 {
-    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_SYS);
+    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_SYS);
 }
 
 static int
 checkDistUser(dialogMenuItem *self)
 {
-    return (Dists == _DIST_USER);
+    return (IS_USER(Dists, 0));
 }
 
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_USER | DIST_XF86));
+    return (IS_USER(Dists, DIST_XF86));
 }
 
 static int
