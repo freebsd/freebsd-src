@@ -648,6 +648,7 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
+void		 m_tag_free(struct m_tag *);
 struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct	m_tag	*m_tag_copy(struct m_tag *, int);
 int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
@@ -675,15 +676,6 @@ m_tag_setup(struct m_tag *t, u_int32_t cookie, int type, int len)
 	t->m_tag_id = type;
 	t->m_tag_len = len;
 	t->m_tag_cookie = cookie;
-}
-
-/*
- * Reclaim resources associated with a tag.
- */
-static __inline void
-m_tag_free(struct m_tag *t)
-{
-	(*t->m_tag_free)(t);
 }
 
 /*

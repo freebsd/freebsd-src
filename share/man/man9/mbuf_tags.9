@@ -91,8 +91,7 @@ fields are set to type, length,
 and
 cookie, respectively.
 .Va m_tag_free
-points to
-.Xr free 9 .
+points to a function which will be used to free this tag.
 Following this structure are
 .Va m_tag_len
 bytes of space that can be used to store tag-specific information.
@@ -194,11 +193,16 @@ Return the first tag associated with
 .It Fn m_tag_free tag
 Free
 .Fa tag
-using its
-.Va m_tag_free
-method.
-.Xr free 9
-is used by default.
+using default free method.
+This function should only be used at the end of a custom free method.
+It should never be used to free a packet tag of an unknown origination.
+To perform the latter
+.Fn m_tag_delete
+should be used in case of an attached
+.Fa tag
+or (tag->m_tag_free)(tag)
+should be called in case of a detached
+.Fa tag .
 .It Fn m_tag_init mbuf
 Initialize the tag storage for packet
 .Fa mbuf .
