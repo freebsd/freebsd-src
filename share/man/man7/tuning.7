@@ -360,12 +360,19 @@ RAID controller from the list of
 .Fx
 supported controllers.
 .Sh SYSCTL TUNING
-There are several hundred
 .Xr sysctl 8
-variables in the system, including many that appear to be candidates for
-tuning but actually aren't.
-In this document we will only cover the ones
-that have the greatest effect on the system.
+variables permit system behavior to be monitored and controlled at
+run-time.
+Some sysctls simply report on the behavior of the system; others allow
+the system behavior to be modified;
+some may be set at boot time using
+.Xr rc.conf 5 ,
+but most will be set via
+.Xr sysctl.conf 5 .
+There are several hundred sysctls in the system, including many that appear
+to be candidates for tuning but actually aren't.
+In this document we will only cover the ones that have the greatest effect
+on the system.
 .Pp
 The
 .Va kern.ipc.shm_use_phys
@@ -763,6 +770,8 @@ over services you export from your box (web services, email).
 .Xr ata 4 ,
 .Xr dummynet 4 ,
 .Xr login.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr sysctl.conf 5 ,
 .Xr firewall 7 ,
 .Xr hier 7 ,
 .Xr ports 7 ,
