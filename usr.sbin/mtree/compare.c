@@ -148,6 +148,7 @@ typeerr:		LABEL;
 		tab = "\t";
 	}
 	if (s->flags & F_MODE &&
+	    !S_ISLNK(p->fts_statp->st_mode) &&
 	    s->st_mode != (p->fts_statp->st_mode & MBITS)) {
 		LABEL;
 		(void)printf("%spermissions expected %#o found %#o",
