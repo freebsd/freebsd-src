@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.2 1993/10/16 14:39:29 rgrimes Exp $
+ *	$Id: reg.h,v 1.3 1993/11/07 17:43:07 wollman Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -82,17 +82,35 @@
 #define	sESP	(11)
 #define	sSS	(12)
 
-#define	PC	sEIP
-#define	SP	sESP
-#define	PS	sEFLAGS
-#define	R0	sEDX
-#define	R1	sECX
+#define PC	sEIP
+#define SP	sESP
+#define PS	sEFLAGS
+#define R0	sEDX
+#define R1	sECX
+
 /*
  * Registers accessible to ptrace(2) syscall for debugger
+ * The machine-dependent code for PT_{SET,GET}REGS needs to
+ * use whichver order, defined above, is correct, so that it
+ * is all invisible to the user.
  */
-#ifdef IPCREG
-#define	NIPCREG 14
-int ipcreg[NIPCREG] =
-  { tES,tDS,tEDI,tESI,tEBP,tEBX,tEDX,tECX,tEAX,tEIP,tCS,tEFLAGS,tESP,tSS };
-#endif
+struct regs {
+	unsigned int	r_es;
+	unsigned int	r_ds;
+	unsigned int	r_edi;
+	unsigned int	r_esi;
+	unsigned int	r_ebp;
+	unsigned int	r_ebx;
+	unsigned int	r_edx;
+	unsigned int	r_ecx;
+	unsigned int	r_eax;
+	unsigned int	r_eip;
+	unsigned int	r_cs;
+	unsigned int	r_eflags;
+	unsigned int	r_esp;
+	unsigned int	r_ss;
+	unsigned int	r_fs;
+	unsigned int	r_gs;
+};
+
 #endif /* _MACHINE_REG_H_ */
