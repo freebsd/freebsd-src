@@ -1337,7 +1337,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	td->td_kse      = NULL;
 
 	LIST_INIT(&td->td_contested);
-	callout_init(&td->td_slpcallout, 1);
+	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	p->p_numthreads++;

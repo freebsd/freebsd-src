@@ -652,7 +652,7 @@ sched_setup(dummy)
 	void *dummy;
 {
 	callout_init(&loadav_callout, 0);
-	callout_init(&lbolt_callout, 1);
+	callout_init(&lbolt_callout, CALLOUT_MPSAFE);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);
