@@ -63,6 +63,22 @@ isp_pci_dmateardown __P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
 static void isp_pci_reset1 __P((struct ispsoftc *));
 static void isp_pci_dumpregs __P((struct ispsoftc *));
 
+#ifndef	ISP_CODE_ORG
+#define	ISP_CODE_ORG		0x1000
+#endif
+#ifndef	ISP_1040_RISC_CODE
+#define	ISP_1040_RISC_CODE	NULL
+#endif
+#ifndef	ISP_1080_RISC_CODE
+#define	ISP_1080_RISC_CODE	NULL
+#endif
+#ifndef	ISP_2100_RISC_CODE
+#define	ISP_2100_RISC_CODE	NULL
+#endif
+#ifndef	ISP_2200_RISC_CODE
+#define	ISP_2200_RISC_CODE	NULL
+#endif
+
 #ifndef ISP_DISABLE_1020_SUPPORT
 static struct ispmdvec mdvec = {
 	isp_pci_rd_reg,
@@ -73,8 +89,8 @@ static struct ispmdvec mdvec = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP_RISC_CODE,
-	ISP_CODE_LENGTH,
+	ISP_1040_RISC_CODE,
+	0,
 	ISP_CODE_ORG,
 	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
@@ -92,9 +108,9 @@ static struct ispmdvec mdvec_1080 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP1080_RISC_CODE,
-	ISP1080_CODE_LENGTH,
-	ISP1080_CODE_ORG,
+	ISP_1080_RISC_CODE,
+	0,
+	ISP_CODE_ORG,
 	0,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
@@ -111,9 +127,9 @@ static struct ispmdvec mdvec_2100 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP2100_RISC_CODE,
-	ISP2100_CODE_LENGTH,
-	ISP2100_CODE_ORG,
+	ISP_2100_RISC_CODE,
+	0,
+	ISP_CODE_ORG,
 	0,
 	0,
 	0
@@ -130,9 +146,9 @@ static struct ispmdvec mdvec_2200 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	ISP2200_RISC_CODE,
-	ISP2200_CODE_LENGTH,
-	ISP2100_CODE_ORG,
+	ISP_2200_RISC_CODE,
+	0,
+	ISP_CODE_ORG,
 	0,
 	0,
 	0
