@@ -85,6 +85,7 @@ struct if_data {
 	u_char	ifi_link_state;		/* current link state */
 	u_char	ifi_recvquota;		/* polling quota for receive intrs */
 	u_char	ifi_xmitquota;		/* polling quota for xmit intrs */
+	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
 	u_long	ifi_baudrate;		/* linespeed */
