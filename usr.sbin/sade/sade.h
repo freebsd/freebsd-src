@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.19 1995/05/18 15:29:45 jkh Exp $
+ * $Id: sysinstall.h,v 1.20 1995/05/19 16:58:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,8 +76,6 @@
 #define DISK_LABELLED		"_diskLabelled"
 #define TCP_CONFIGURED		"_tcpConfigured"
 #define NO_CONFIRMATION		"_noConfirmation"
-#define MEDIA_DEVICE		"mediaDevice"
-#define MEDIA_TYPE		"mediaType"
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -146,6 +144,7 @@ typedef enum {
 typedef struct _device {
     char name[DEV_NAME_MAX];
     char *description;
+    char *devname;
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *);
@@ -185,6 +184,7 @@ extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
 extern Variable		*VarHead;		/* The head of the variable chain		*/
+extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
@@ -230,6 +230,7 @@ extern Boolean	decode_and_dispatch_multiple(DMenu *menu, char *names);
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
 extern void	deviceGetAll(void);
 extern Device	**deviceFind(char *name, DeviceType type);
+extern int	deviceCount(Device **devs);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);
