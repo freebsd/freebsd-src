@@ -970,13 +970,13 @@ void
 vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 {
 	vm_pindex_t end, tpindex;
-	vm_object_t tobject;
+	vm_object_t backing_object, tobject;
 	vm_page_t m;
 
 	if (object == NULL)
 		return;
 
-	vm_object_lock(object);
+	mtx_lock(&Giant);
 
 	end = pindex + count;
 
@@ -987,6 +987,7 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 relookup:
 		tobject = object;
 		tpindex = pindex;
+		VM_OBJECT_LOCK(tobject);
 shadowlookup:
 		/*
 		 * MADV_FREE only operates on OBJT_DEFAULT or OBJT_SWAP pages
@@ -996,7 +997,7 @@ shadowlookup:
 			if ((tobject->type != OBJT_DEFAULT &&
 			     tobject->type != OBJT_SWAP) ||
 			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
-				continue;
+				goto unlock_tobject;
 			}
 		}
 
@@ -1012,9 +1013,12 @@ shadowlookup:
 			/*
 			 * next object
 			 */
-			tobject = tobject->backing_object;
-			if (tobject == NULL)
-				continue;
+			backing_object = tobject->backing_object;
+			if (backing_object == NULL)
+				goto unlock_tobject;
+			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_UNLOCK(tobject);
+			tobject = backing_object;
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
@@ -1031,10 +1035,12 @@ shadowlookup:
 		    (m->flags & PG_UNMANAGED) ||
 		    m->valid != VM_PAGE_BITS_ALL) {
 			vm_page_unlock_queues();
-			continue;
+			goto unlock_tobject;
 		}
- 		if (vm_page_sleep_if_busy(m, TRUE, "madvpo"))
+ 		if (vm_page_sleep_if_busy(m, TRUE, "madvpo")) {
+			VM_OBJECT_UNLOCK(tobject);
   			goto relookup;
+		}
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
 		} else if (advise == MADV_DONTNEED) {
@@ -1063,8 +1069,10 @@ shadowlookup:
 		vm_page_unlock_queues();
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 			swap_pager_freespace(tobject, tpindex, 1);
+unlock_tobject:
+		VM_OBJECT_UNLOCK(tobject);
 	}	
-	vm_object_unlock(object);
+	mtx_unlock(&Giant);
 }
 
 /*
