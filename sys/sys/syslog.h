@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.6 1996/03/28 18:29:14 scrappy Exp $
+ * $Id: syslog.h,v 1.7 1996/10/23 20:17:54 julian Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_
 #define _SYS_SYSLOG_H_
 
-#define	_OLD_PATH_LOG	"/dev/log"
 #define	_PATH_LOG	"/var/run/log"
 
 /*
