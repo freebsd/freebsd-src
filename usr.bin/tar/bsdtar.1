@@ -140,6 +140,9 @@ In c and r mode, this changes the directory before adding
 the following files.
 In x mode, change directories after opening the archive
 but before extracting entries from the archive.
+.It Fl -check-links ( Fl W Cm check-links )
+(c and r modes only)
+Issue a warning message unless all links to each file are archived.
 .It Fl -exclude Ar pattern ( Fl W Cm exclude Ns = Ns Ar pattern )
 Do not process files or directories that match the
 specified pattern.
@@ -220,8 +223,16 @@ All symbolic links will be followed.
 Normally, symbolic links are archived as such.
 With this option, the target of the link will be archived instead.
 .It Fl l
-(c mode only)
-Issue a warning message unless all links to each file are archived.
+If
+.Ev POSIXLY_CORRECT
+is specified in the environment, this is a synonym for the
+.Fl -check-links
+option.
+Otherwise, an error will be displayed.
+Users who desire behavior compatible with GNU tar should use
+the
+.Fl -one-file-system
+option instead.
 .It Fl m
 (x mode only)
 Do not extract modification time.
@@ -387,6 +398,11 @@ The locale to use.
 See
 .Xr environ 7
 for more information.
+.It Ev POSIXLY_CORRECT
+If this environment variable is defined, the
+.Fl l
+option will be interpreted in accordance with
+.St -p1003.1-96 .
 .It Ev TAPE
 The default tape device.
 The
