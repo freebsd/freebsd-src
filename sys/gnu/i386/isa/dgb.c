@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.42 1999/01/30 12:17:32 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.43 1999/03/13 13:20:54 joerg Exp $
  *
  *  Digiboard driver.
  *
@@ -519,8 +519,8 @@ dgbattach(dev)
 	int unit=dev->id_unit;
 	struct dgb_softc *sc= &dgb_softc[dev->id_unit];
 	int i, t;
-	u_char *mem;
-	u_char *ptr;
+	u_char volatile *mem;
+	u_char volatile *ptr;
 	int addr;
 	struct dgb_p *port;
 	volatile struct board_chan *bc;
@@ -591,8 +591,8 @@ dgbattach(dev)
 	/* very short memory test */
 
 	addr=setinitwin(sc,BOTWIN);
-	*(u_long *)(mem+addr) = 0xA55A3CC3;
-	if(*(u_long *)(mem+addr)!=0xA55A3CC3) {
+	*(u_long volatile *)(mem+addr) = 0xA55A3CC3;
+	if(*(u_long volatile *)(mem+addr)!=0xA55A3CC3) {
 		printf("dgb%d: 1st memory test failed\n",dev->id_unit);
 		sc->status=DISABLED;
 		hidewin(sc);
@@ -600,8 +600,8 @@ dgbattach(dev)
 	}
 		
 	addr=setinitwin(sc,TOPWIN);
-	*(u_long *)(mem+addr) = 0x5AA5C33C;
-	if(*(u_long *)(mem+addr)!=0x5AA5C33C) {
+	*(u_long volatile *)(mem+addr) = 0x5AA5C33C;
+	if(*(u_long volatile *)(mem+addr)!=0x5AA5C33C) {
 		printf("dgb%d: 2nd memory test failed\n",dev->id_unit);
 		sc->status=DISABLED;
 		hidewin(sc);
@@ -609,8 +609,8 @@ dgbattach(dev)
 	}
 		
 	addr=setinitwin(sc,BIOSCODE+((0xF000-sc->mem_seg)<<4));
-	*(u_long *)(mem+addr) = 0x5AA5C33C;
-	if(*(u_long *)(mem+addr)!=0x5AA5C33C) {
+	*(u_long volatile *)(mem+addr) = 0x5AA5C33C;
+	if(*(u_long volatile *)(mem+addr)!=0x5AA5C33C) {
 		printf("dgb%d: 3rd (BIOS) memory test failed\n",dev->id_unit);
 	}
 		
@@ -659,14 +659,14 @@ dgbattach(dev)
 		DPRINT3(DB_INFO,"dgb%d: reset dropped after %d us\n",unit,i);
 
 		for(i=0; i<200000; i++) {
-			if( *((ushort *)(mem+MISCGLOBAL)) == *((ushort *)"GD") )
+			if( *((ushort volatile *)(mem+MISCGLOBAL)) == *((ushort *)"GD") )
 				goto load_fep;
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
 		DPRINT4(DB_EXCEPT,"dgb%d: code=0x%x must be 0x%x\n",
 			dev->id_unit,
-			*((ushort *)(mem+MISCGLOBAL)),
+			*((ushort volatile *)(mem+MISCGLOBAL)),
 			*((ushort *)"GD"));
 
 		sc->status=DISABLED;
@@ -716,16 +716,16 @@ dgbattach(dev)
 		addr=setwin(sc,MISCGLOBAL);
 
 		for(i=0; i<200000; i++) {
-			if(*(ushort *)(mem+addr)== *(ushort *)"GD")
+			if(*(ushort volatile *)(mem+addr)== *(ushort *)"GD")
 				goto load_fep;
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
 		DPRINT5(DB_EXCEPT,"dgb%d: Error#(0x%x,0x%x) code=0x%x\n",
 			dev->id_unit,
-			*(ushort *)(mem+0xC12),
-			*(ushort *)(mem+0xC14),
-			*(ushort *)(mem+MISCGLOBAL));
+			*(ushort volatile *)(mem+0xC12),
+			*(ushort volatile *)(mem+0xC14),
+			*(ushort volatile *)(mem+MISCGLOBAL));
 
 		sc->status=DISABLED;
 		hidewin(sc);
@@ -743,21 +743,21 @@ load_fep:
 		*ptr++ = pcxx_cook[i];
 
 	addr=setwin(sc,MBOX);
-	*(ushort *)(mem+addr+ 0)=2;
-	*(ushort *)(mem+addr+ 2)=sc->mem_seg+FEPCODESEG;
-	*(ushort *)(mem+addr+ 4)=0;
-	*(ushort *)(mem+addr+ 6)=FEPCODESEG;
-	*(ushort *)(mem+addr+ 8)=0;
-	*(ushort *)(mem+addr+10)=pcxx_ncook;
-	
+	*(ushort volatile *)(mem+addr+ 0)=2;
+	*(ushort volatile *)(mem+addr+ 2)=sc->mem_seg+FEPCODESEG;
+	*(ushort volatile *)(mem+addr+ 4)=0;
+	*(ushort volatile *)(mem+addr+ 6)=FEPCODESEG;
+	*(ushort volatile *)(mem+addr+ 8)=0;
+	*(ushort volatile *)(mem+addr+10)=pcxx_ncook;
+
 	outb(sc->port,FEPMEM|FEPINT); /* send interrupt to BIOS */
 	outb(sc->port,FEPMEM);
 
-	for(i=0; *(ushort *)(mem+addr)!=0; i++) {
+	for(i=0; *(ushort volatile *)(mem+addr)!=0; i++) {
 		if(i>200000) {
 			printf("dgb%d: FEP code download failed\n",unit);
 			DPRINT3(DB_EXCEPT,"dgb%d: code=0x%x must be 0\n", unit,
-				*(ushort *)(mem+addr));
+				*(ushort volatile *)(mem+addr));
 			sc->status=DISABLED;
 			hidewin(sc);
 			return 0;
@@ -766,17 +766,17 @@ load_fep:
 
 	DPRINT2(DB_INFO,"dgb%d: FEP code loaded\n",unit);
 
-	*(ushort *)(mem+setwin(sc,FEPSTAT))=0;
+	*(ushort volatile *)(mem+setwin(sc,FEPSTAT))=0;
 	addr=setwin(sc,MBOX);
-	*(ushort *)(mem+addr+0)=1;
-	*(ushort *)(mem+addr+2)=FEPCODESEG;
-	*(ushort *)(mem+addr+4)=0x4;
+	*(ushort volatile *)(mem+addr+0)=1;
+	*(ushort volatile *)(mem+addr+2)=FEPCODESEG;
+	*(ushort volatile *)(mem+addr+4)=0x4;
 
 	outb(sc->port,FEPINT); /* send interrupt to BIOS */
 	outb(sc->port,FEPCLR);
 
 	addr=setwin(sc,FEPSTAT);
-	for(i=0; *(ushort *)(mem+addr)!= *(ushort *)"OS"; i++) {
+	for(i=0; *(ushort volatile *)(mem+addr)!= *(ushort *)"OS"; i++) {
 		if(i>200000) {
 			printf("dgb%d: FEP/OS start failed\n",dev->id_unit);
 			sc->status=DISABLED;
@@ -787,7 +787,7 @@ load_fep:
 
 	DPRINT2(DB_INFO,"dgb%d: FEP/OS started\n",dev->id_unit);
 
-	sc->numports= *(ushort *)(mem+setwin(sc,NPORT));
+	sc->numports= *(ushort volatile *)(mem+setwin(sc,NPORT));
 
 	printf("dgb%d: %d ports\n",unit,sc->numports);
 
@@ -809,7 +809,7 @@ load_fep:
 	nports+=sc->numports;
 
 	addr=setwin(sc,PORTBASE);
-	pstat=(ushort *)(mem+addr);
+	pstat=(ushort volatile *)(mem+addr);
 
 	for(i=0; i<sc->numports && pstat[i]; i++)
 		if(pstat[i])
