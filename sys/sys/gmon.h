@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.8 1995/12/29 15:29:26 bde Exp $
+ * $Id: gmon.h,v 1.9 1996/10/17 19:32:31 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -68,12 +68,7 @@ struct gmonhdr {
  * addresses, so that each counter belongs to a unique function.
  * A lower density of counters would give less resolution but a
  * higher density would be wasted.
- *
- * Assume that function addresses are at least 4-byte-aligned.
- * It would be better to get the linker to align functions more
- * strictly so that we could use smaller tables.
  */
-#define	FUNCTION_ALIGNMENT	4
 #define	HISTFRACTION	(FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER) == 0 \
 			 ? 1 : FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER))
 
