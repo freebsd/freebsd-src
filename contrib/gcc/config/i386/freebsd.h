@@ -341,6 +341,72 @@ Boston, MA 02111-1307, USA.  */
       fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
   }
 
+#undef  ASM_OUTPUT_ALIGNED_COMMON
+#define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
+  do {									\
+    if (TARGET_ELF)							\
+      {									\
+	fprintf ((FILE), "%s", COMMON_ASM_OP);				\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), ",%u,%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
+      }									\
+    else								\
+      {									\
+	int rounded = (SIZE);						\
+	if (rounded == 0) rounded = 1;					\
+	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
+	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
+		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
+	fprintf ((FILE), "%s ", COMMON_ASM_OP);				\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), ",%u\n", (rounded));				\
+      }									\
+  } while (0)
+
+/* This says how to output assembler code to declare an
+   uninitialized internal linkage data object.  Under SVR4,
+   the linker seems to want the alignment of data objects
+   to depend on their types.  We do exactly that here.  */
+
+#undef  ASM_OUTPUT_ALIGNED_LOCAL
+#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
+  do {									\
+    if (TARGET_ELF)							\
+      {									\
+	fprintf ((FILE), "%s", LOCAL_ASM_OP);				\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), "\n");						\
+	ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));	\
+      }									\
+    else								\
+      {									\
+	int rounded = (SIZE);						\
+	if (rounded == 0) rounded = 1;					\
+	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
+	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
+		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
+	fputs ("\t.lcomm\t", (FILE));					\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), ",%u\n", (rounded));				\
+      }									\
+  } while (0)
+
+/* How to output some space.  The rules are different depending on the
+   object format.  */
+#undef  ASM_OUTPUT_SKIP
+#define ASM_OUTPUT_SKIP(FILE, SIZE) 					\
+  do {									\
+    if (TARGET_ELF)							\
+      {									\
+        fprintf ((FILE), "%s%u\n", SKIP_ASM_OP, (SIZE));		\
+      }									\
+    else								\
+      {									\
+        fprintf ((FILE), "\t.space\t%u\n", (SIZE));			\
+      }									\
+  } while (0)
+
+
 #undef  ASM_OUTPUT_SOURCE_LINE
 #define ASM_OUTPUT_SOURCE_LINE(FILE, LINE)				\
   do {									\
@@ -553,6 +619,48 @@ Boston, MA 02111-1307, USA.  */
     else								\
       const_section ();							\
   }
+
+/* A C statement (sans semicolon) to output an element in the table of
+   global constructors.  */
+#undef  ASM_OUTPUT_CONSTRUCTOR
+#define ASM_OUTPUT_CONSTRUCTOR(FILE, NAME)				\
+  do {									\
+    if (TARGET_ELF)							\
+      {									\
+	ctors_section ();						\
+	fprintf ((FILE), "%s ", INT_ASM_OP);				\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), "\n");						\
+      }									\
+    else								\
+      {									\
+	fprintf (asm_out_file, "%s \"%s__CTOR_LIST__\",22,0,0,",	\
+		 ASM_STABS_OP, (TARGET_UNDERSCORES) ? "_" : "");	\
+	assemble_name (asm_out_file, name);				\
+	fputc ('\n', asm_out_file);					\
+      }									\
+  } while (0)
+
+/* A C statement (sans semicolon) to output an element in the table of
+   global destructors.  */
+#undef  ASM_OUTPUT_DESTRUCTOR
+#define ASM_OUTPUT_DESTRUCTOR(FILE, NAME)				\
+  do {									\
+    if (TARGET_ELF)							\
+      {									\
+	dtors_section ();						\
+	fprintf ((FILE), "%s ", INT_ASM_OP);				\
+	assemble_name ((FILE), (NAME));					\
+	fprintf ((FILE), "\n");						\
+      }									\
+    else								\
+      {									\
+	fprintf (asm_out_file, "%s \"%s__DTOR_LIST__\",22,0,0,",	\
+		 ASM_STABS_OP, (TARGET_UNDERSCORES) ? "_" : "");	\
+	assemble_name (asm_out_file, name);				\
+	fputc ('\n', asm_out_file);					\
+      }									\
+  } while (0)
 
 /* Define macro used to output shift-double opcodes when the shift
    count is in %cl.  Some assemblers require %cl as an argument;
