@@ -171,6 +171,7 @@ struct fxp_softc {
 	bus_dmamap_t mcs_map;		/* DMA map for the multicast setup */
 	bus_dmamap_t spare_map;		/* spare DMA map */
 	struct fxp_desc_list fxp_desc;	/* descriptors management struct */
+	int maxtxseg;			/* maximum # of TX segments */
 	int tx_queued;			/* # of active TxCB's */
 	int need_mcsetup;		/* multicast filter needs programming */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
