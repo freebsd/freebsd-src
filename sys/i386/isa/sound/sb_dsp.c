@@ -26,10 +26,11 @@
  * SUCH DAMAGE.
  *
  * Modified:
- *	Hunyue Yau	Jan 6 1994
- *	Added code to support Sound Galaxy NX Pro
+ *      Hunyue Yau      Jan 6 1994
+ *      Added code to support Sound Galaxy NX Pro
  *
- * $Id: sb_dsp.c,v 1.22 1994/12/10 22:55:50 ats Exp $
+ *      JRA Gibson      April 1995
+ *      Code added for MV ProSonic/Jazz 16 in 16 bit mode
  */
 
 #include "sound_config.h"
@@ -43,6 +44,7 @@
 int             sbc_base = 0;
 static int      sbc_irq = 0;
 static int      open_mode = 0;	/* Read, write or both */
+int             Jazz16_detected = 0;
 
 /*
  * The DSP channel can be used either for input or output. Variable
@@ -84,6 +86,21 @@ volatile int    sb_irq_mode = IMODE_NONE;	/*
 						 * IMODE_NONE   */
 static volatile int irq_ok = 0;
 
+#ifdef JAZZ16
+/* 16 bit support
+ */
+
+static int      dsp_16bit = 0;
+static int      dma8 = 1;
+static int      dma16 = 5;
+
+static int      dsp_set_bits (int arg);
+static int      initialize_ProSonic16 (void);
+
+/* end of 16 bit support
+ */
+#endif
+
 int             sb_duplex_midi = 0;
 static int      my_dev = 0;
 
@@ -104,8 +121,8 @@ sb_dsp_command (unsigned char val)
   int             i;
   unsigned long   limit;
 
-  limit = GET_TIME () + HZ / 10;/*
-					   * The timeout is 0.1 seconds
+  limit = GET_TIME () + HZ / 10;	/*
+					   * The timeout is 0.1 secods
 					 */
 
   /*
@@ -131,27 +148,22 @@ sb_dsp_command (unsigned char val)
 }
 
 void
-sbintr (int unit)
+sbintr (INT_HANDLER_PARMS (irq, dummy))
 {
   int             status;
 
 #ifndef EXCLUDE_SBPRO
   if (sb16)
     {
-      unsigned char   src = sb_getmixer (IRQ_STAT);	/*
-
-
-							 * *  * * Interrupt
-							 * source * *
-							 * register   */
+      unsigned char   src = sb_getmixer (IRQ_STAT);	/* Interrupt source register */
 
 #ifndef EXCLUDE_SB16
       if (src & 3)
-	sb16_dsp_interrupt (unit);
+	sb16_dsp_interrupt (irq);
 
 #ifndef EXCLUDE_MIDI
       if (src & 4)
-	sb16midiintr (unit);	/*
+	sb16midiintr (irq);	/*
 				 * SB MPU401 interrupt
 				 */
 #endif
@@ -160,13 +172,13 @@ sbintr (int unit)
 
       if (!(src & 1))
 	return;			/*
-				 * Not a DSP interrupt
+				 * Not a DSP interupt
 				 */
     }
 #endif
 
-  status = INB (DSP_DATA_AVAIL);/*
-					 * Clear interrupt
+  status = INB (DSP_DATA_AVAIL);	/*
+					   * Clear interrupt
 					 */
 
   if (sb_intr_active)
@@ -192,7 +204,7 @@ sbintr (int unit)
 
       case IMODE_MIDI:
 #ifndef EXCLUDE_MIDI
-	sb_midi_interrupt (unit);
+	sb_midi_interrupt (irq);
 #endif
 	break;
 
@@ -209,7 +221,7 @@ sb_get_irq (void)
   int             ok;
 
   if (!sb_irq_usecount)
-    if ((ok = snd_set_irq_handler (sbc_irq, sbintr)) < 0)
+    if ((ok = snd_set_irq_handler (sbc_irq, sbintr, "SoundBlaster")) < 0)
       return ok;
 
   sb_irq_usecount++;
@@ -282,16 +294,16 @@ dsp_speed (int speed)
     speed = 4000;
 
   /*
- * Older SB models don't support higher speeds than 22050.
- */
+     * Older SB models don't support higher speeds than 22050.
+   */
 
   if (sbc_major < 2 ||
       (sbc_major == 2 && sbc_minor == 0))
     max_speed = 22050;
 
   /*
- * SB models earlier than SB Pro have low limit for the input speed.
- */
+     * SB models earlier than SB Pro have low limit for the input speed.
+   */
   if (open_mode != OPEN_WRITE)	/* Recording is possible */
     if (sbc_major < 3)		/* Limited input speed with these cards */
       if (sbc_major == 2 && sbc_minor > 0)
@@ -304,11 +316,14 @@ dsp_speed (int speed)
 				 * Invalid speed
 				 */
 
-  if (dsp_stereo && speed > 22050)
-    speed = 22050;
+  /* Logitech SoundMan Games and Jazz16 cards can support 44.1kHz stereo */
+#if !defined (SM_GAMES)
   /*
    * Max. stereo speed is 22050
    */
+  if (dsp_stereo && speed > 22050 && Jazz16_detected == 0)
+    speed = 22050;
+#endif
 
   if ((speed > 22050) && sb_midi_busy)
     {
@@ -349,7 +364,7 @@ dsp_speed (int speed)
       tconst = (256 - ((1000000 + speed / 2) / speed)) & 0xff;
 
       DISABLE_INTR (flags);
-      if (sb_dsp_command (0x40))/*
+      if (sb_dsp_command (0x40))	/*
 					 * Set time constant
 					 */
 	sb_dsp_command (tconst);
@@ -409,14 +424,14 @@ sb_dsp_output_block (int dev, unsigned long buf, int count,
   if (sb_dsp_highspeed)
     {
       DISABLE_INTR (flags);
-      if (sb_dsp_command (0x48))/*
-					 * High speed size
+      if (sb_dsp_command (0x48))	/*
+					   * High speed size
 					 */
 	{
 	  sb_dsp_command ((unsigned char) (count & 0xff));
 	  sb_dsp_command ((unsigned char) ((count >> 8) & 0xff));
-	  sb_dsp_command (0x91);/*
-					 * High speed 8 bit DAC
+	  sb_dsp_command (0x91);	/*
+					   * High speed 8 bit DAC
 					 */
 	}
       else
@@ -426,8 +441,8 @@ sb_dsp_output_block (int dev, unsigned long buf, int count,
   else
     {
       DISABLE_INTR (flags);
-      if (sb_dsp_command (0x14))/*
-					 * 8-bit DAC (DMA)
+      if (sb_dsp_command (0x14))	/*
+					   * 8-bit DAC (DMA)
 					 */
 	{
 	  sb_dsp_command ((unsigned char) (count & 0xff));
@@ -463,14 +478,14 @@ sb_dsp_start_input (int dev, unsigned long buf, int count, int intrflag,
   if (sb_dsp_highspeed)
     {
       DISABLE_INTR (flags);
-      if (sb_dsp_command (0x48))/*
-					 * High speed size
+      if (sb_dsp_command (0x48))	/*
+					   * High speed size
 					 */
 	{
 	  sb_dsp_command ((unsigned char) (count & 0xff));
 	  sb_dsp_command ((unsigned char) ((count >> 8) & 0xff));
-	  sb_dsp_command (0x99);/*
-					 * High speed 8 bit ADC
+	  sb_dsp_command (0x99);	/*
+					   * High speed 8 bit ADC
 					 */
 	}
       else
@@ -480,8 +495,8 @@ sb_dsp_start_input (int dev, unsigned long buf, int count, int intrflag,
   else
     {
       DISABLE_INTR (flags);
-      if (sb_dsp_command (0x24))/*
-					 * 8-bit ADC (DMA)
+      if (sb_dsp_command (0x24))	/*
+					   * 8-bit ADC (DMA)
 					 */
 	{
 	  sb_dsp_command ((unsigned char) (count & 0xff));
@@ -511,11 +526,23 @@ sb_dsp_prepare_for_input (int dev, int bsize, int bcount)
 				 * SB Pro
 				 */
     {
+#ifdef JAZZ16
+      /* Select correct dma channel
+         * for 16/8 bit acccess
+       */
+      audio_devs[my_dev]->dmachan = dsp_16bit ? dma16 : dma8;
+      if (dsp_stereo)
+	sb_dsp_command (dsp_16bit ? 0xac : 0xa8);
+      else
+	sb_dsp_command (dsp_16bit ? 0xa4 : 0xa0);
+#else
+      /* 8 bit only cards use this
+       */
       if (dsp_stereo)
 	sb_dsp_command (0xa8);
       else
 	sb_dsp_command (0xa0);
-
+#endif
       dsp_speed (dsp_current_speed);	/*
 					 * Speed must be recalculated if
 					 * #channels * changes
@@ -535,7 +562,19 @@ sb_dsp_prepare_for_output (int dev, int bsize, int bcount)
 				 * SB Pro
 				 */
     {
+#ifdef JAZZ16
+      /* 16 bit specific instructions
+       */
+      audio_devs[my_dev]->dmachan = dsp_16bit ? dma16 : dma8;
+      if (Jazz16_detected != 2)	/* SM Wave */
+	sb_mixer_set_stereo (dsp_stereo);
+      if (dsp_stereo)
+	sb_dsp_command (dsp_16bit ? 0xac : 0xa8);
+      else
+	sb_dsp_command (dsp_16bit ? 0xa4 : 0xa0);
+#else
       sb_mixer_set_stereo (dsp_stereo);
+#endif
       dsp_speed (dsp_current_speed);	/*
 					 * Speed must be recalculated if
 					 * #channels * changes
@@ -616,12 +655,28 @@ sb_dsp_open (int dev, int mode)
   if (retval)
     return retval;
 
+  /* Allocate 8 bit dma
+   */
   if (DMAbuf_open_dma (dev) < 0)
     {
       sb_free_irq ();
       printk ("SB: DMA Busy\n");
       return RET_ERROR (EBUSY);
     }
+#ifdef JAZZ16
+  /* Allocate 16 bit dma
+   */
+  if (Jazz16_detected != 0)
+    if (dma16 != dma8)
+      {
+	if (ALLOC_DMA_CHN (dma16, "Jazz16 16 bit"))
+	  {
+	    sb_free_irq ();
+	    RELEASE_DMA_CHN (dma8);
+	    return RET_ERROR (EBUSY);
+	  }
+      }
+#endif
 
   sb_irq_mode = IMODE_NONE;
 
@@ -634,6 +689,13 @@ sb_dsp_open (int dev, int mode)
 static void
 sb_dsp_close (int dev)
 {
+#ifdef JAZZ16
+  /* Release 16 bit dma channel
+   */
+  if (Jazz16_detected)
+    RELEASE_DMA_CHN (dma16);
+#endif
+
   DMAbuf_close_dma (dev);
   sb_free_irq ();
   dsp_cleanup ();
@@ -642,6 +704,32 @@ sb_dsp_close (int dev)
   sb_dsp_highspeed = 0;
   open_mode = 0;
 }
+
+#ifdef JAZZ16
+/* Function dsp_set_bits() only required for 16 bit cards
+ */
+static int
+dsp_set_bits (int arg)
+{
+  if (arg)
+    if (Jazz16_detected == 0)
+      dsp_16bit = 0;
+    else
+      switch (arg)
+	{
+	case 8:
+	  dsp_16bit = 0;
+	  break;
+	case 16:
+	  dsp_16bit = 1;
+	  break;
+	default:
+	  dsp_16bit = 0;
+	}
+  return dsp_16bit ? 16 : 8;
+}
+
+#endif /* ifdef JAZZ16 */
 
 static int
 sb_dsp_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
@@ -678,14 +766,31 @@ sb_dsp_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
       return IOCTL_OUT (arg, dsp_set_stereo (IOCTL_IN (arg)));
       break;
 
+#ifdef JAZZ16
+      /* Word size specific cases here.
+         * SNDCTL_DSP_SETFMT=SOUND_PCM_WRITE_BITS
+       */
+    case SNDCTL_DSP_SETFMT:
+      if (local)
+	return dsp_set_bits (arg);
+      return IOCTL_OUT (arg, dsp_set_bits (IOCTL_IN (arg)));
+      break;
+
+    case SOUND_PCM_READ_BITS:
+      if (local)
+	return dsp_16bit ? 16 : 8;
+      return IOCTL_OUT (arg, dsp_16bit ? 16 : 8);
+      break;
+#else
     case SOUND_PCM_WRITE_BITS:
     case SOUND_PCM_READ_BITS:
       if (local)
 	return 8;
-      return IOCTL_OUT (arg, 8);/*
-					 * Only 8 bits/sample supported
+      return IOCTL_OUT (arg, 8);	/*
+					   * Only 8 bits/sample supported
 					 */
       break;
+#endif /* ifdef JAZZ16  */
 
     case SOUND_PCM_WRITE_FILTER:
     case SOUND_PCM_READ_FILTER:
@@ -715,6 +820,232 @@ sb_dsp_reset (int dev)
 
 #endif
 
+
+#ifdef JAZZ16
+
+/*
+ * Initialization of a Media Vision ProSonic 16 Soundcard.
+ * The function initializes a ProSonic 16 like PROS.EXE does for DOS. It sets
+ * the base address, the DMA-channels, interrupts and enables the joystickport.
+ *
+ * Also used by Jazz 16 (same card, different name)
+ *
+ * written 1994 by Rainer Vranken
+ * E-Mail: rvranken@polaris.informatik.uni-essen.de
+ */
+
+
+#ifndef MPU_BASE		/* take default values if not specified */
+#define MPU_BASE 0x330
+#endif
+#ifndef MPU_IRQ
+#define MPU_IRQ 9
+#endif
+
+unsigned int
+get_sb_byte (void)
+{
+  int             i;
+
+  for (i = 1000; i; i--)
+    if (INB (DSP_DATA_AVAIL) & 0x80)
+      {
+	return INB (DSP_READ);
+      }
+
+  return 0xffff;
+}
+
+#ifdef SM_WAVE
+/*
+ * Logitech Soundman Wave detection and initialization by Hannu Savolainen.
+ *
+ * There is a microcontroller (8031) in the SM Wave card for MIDI emulation.
+ * it's located at address MPU_BASE+4.  MPU_BASE+7 is a SM Wave specific
+ * control register for MC reset, SCSI, OPL4 and DSP (future expansion)
+ * address decoding. Otherwise the SM Wave is just a ordinary MV Jazz16
+ * based soundcard.
+ */
+
+static void
+smw_putmem (int base, int addr, unsigned char val)
+{
+  unsigned long   flags;
+
+  DISABLE_INTR (flags);
+
+  OUTB (addr & 0xff, base + 1);	/* Low address bits */
+  OUTB (addr >> 8, base + 2);	/* High address bits */
+  OUTB (val, base);		/* Data */
+
+  RESTORE_INTR (flags);
+}
+
+static unsigned char
+smw_getmem (int base, int addr)
+{
+  unsigned long   flags;
+  unsigned char   val;
+
+  DISABLE_INTR (flags);
+
+  OUTB (addr & 0xff, base + 1);	/* Low address bits */
+  OUTB (addr >> 8, base + 2);	/* High address bits */
+  val = INB (base);		/* Data */
+
+  RESTORE_INTR (flags);
+  return val;
+}
+
+static int
+initialize_smw (void)
+{
+#ifdef SMW_MIDI0001_INCLUDED
+#include "smw-midi0001.h"
+#else
+  unsigned char   smw_ucode[1];
+  int             smw_ucodeLen = 0;
+
+#endif
+
+  int             mp_base = MPU_BASE + 4;	/* Microcontroller base */
+  int             i;
+  unsigned char   control;
+
+  /*
+     *  Reset the microcontroller so that the RAM can be accessed
+   */
+
+  control = INB (MPU_BASE + 7);
+  OUTB (control | 3, MPU_BASE + 7);	/* Set last two bits to 1 (?) */
+  OUTB ((control & 0xfe) | 2, MPU_BASE + 7);	/* xxxxxxx0 resets the mc */
+
+  for (i = 0; i < 300; i++)	/* Wait at least 1ms */
+    tenmicrosec ();
+
+  OUTB (control & 0xfc, MPU_BASE + 7);	/* xxxxxx00 enables RAM */
+
+  /*
+     *  Detect microcontroller by probing the 8k RAM area
+   */
+  smw_putmem (mp_base, 0, 0x00);
+  smw_putmem (mp_base, 1, 0xff);
+  tenmicrosec ();
+
+  if (smw_getmem (mp_base, 0) != 0x00 || smw_getmem (mp_base, 1) != 0xff)
+    {
+      printk ("\nSM Wave: No microcontroller RAM detected (%02x, %02x)\n",
+	      smw_getmem (mp_base, 0), smw_getmem (mp_base, 1));
+      return 0;			/* No RAM */
+    }
+
+  /*
+     *  There is RAM so assume it's really a SM Wave
+   */
+
+#ifdef SMW_MIDI0001_INCLUDED
+  if (smw_ucodeLen != 8192)
+    {
+      printk ("\nSM Wave: Invalid microcode (MIDI0001.BIN) length\n");
+      return 1;
+    }
+#endif
+
+  /*
+     *  Download microcode
+   */
+
+  for (i = 0; i < 8192; i++)
+    smw_putmem (mp_base, i, smw_ucode[i]);
+
+  /*
+     *  Verify microcode
+   */
+
+  for (i = 0; i < 8192; i++)
+    if (smw_getmem (mp_base, i) != smw_ucode[i])
+      {
+	printk ("SM Wave: Microcode verification failed\n");
+	return 0;
+      }
+
+  control = 0;
+#ifdef SMW_SCSI_IRQ
+  /*
+     * Set the SCSI interrupt (IRQ2/9, IRQ3 or IRQ10). The SCSI interrupt
+     * is disabled by default.
+     *
+     * Btw the Zilog 5380 SCSI controller is located at MPU base + 0x10.
+   */
+  {
+    static unsigned char scsi_irq_bits[] =
+    {0, 0, 3, 1, 0, 0, 0, 0, 0, 3, 2, 0, 0, 0, 0, 0};
+
+    control |= scsi_irq_bits[SMW_SCSI_IRQ] << 6;
+  }
+#endif
+
+#ifdef SMW_OPL4_ENABLE
+  /*
+     *  Make the OPL4 chip visible on the PC bus at 0x380.
+     *
+     *  There is no need to enable this feature since VoxWare
+     *  doesn't support OPL4 yet. Also there is no RAM in SM Wave so
+     *  enabling OPL4 is pretty useless.
+   */
+  control |= 0x10;		/* Uses IRQ12 if bit 0x20 == 0 */
+  /* control |= 0x20;      Uncomment this if you want to use IRQ7 */
+#endif
+
+  OUTB (control | 0x03, MPU_BASE + 7);	/* xxxxxx11 restarts */
+  return 1;
+}
+
+#endif
+
+static int
+initialize_ProSonic16 (void)
+{
+  int             x;
+  static unsigned char int_translat[16] =
+  {0, 0, 2, 3, 0, 1, 0, 4, 0, 2, 5, 0, 0, 0, 0, 6}, dma_translat[8] =
+  {0, 1, 0, 2, 0, 3, 0, 4};
+
+  OUTB (0xAF, 0x201);		/* ProSonic/Jazz16 wakeup */
+  for (x = 0; x < 1000; ++x)	/* wait 10 milliseconds */
+    tenmicrosec ();
+  OUTB (0x50, 0x201);
+  OUTB ((sbc_base & 0x70) | ((MPU_BASE & 0x30) >> 4), 0x201);
+
+  if (sb_reset_dsp ())
+    {				/* OK. We have at least a SB */
+
+      /* Check the version number of ProSonic (I guess) */
+
+      if (!sb_dsp_command (0xFA))
+	return 1;
+      if (get_sb_byte () != 0x12)
+	return 1;
+
+      if (sb_dsp_command (0xFB) &&	/* set DMA-channels and Interrupts */
+	  sb_dsp_command ((dma_translat[JAZZ_DMA16] << 4) | dma_translat[SBC_DMA]) &&
+      sb_dsp_command ((int_translat[MPU_IRQ] << 4) | int_translat[sbc_irq]))
+	{
+	  Jazz16_detected = 1;
+#ifdef SM_WAVE
+	  if (initialize_smw ())
+	    Jazz16_detected = 2;
+#endif
+	  sb_dsp_disable_midi ();
+	}
+
+      return 1;			/* There was at least a SB */
+    }
+  return 0;			/* No SB or ProSonic16 detected */
+}
+
+#endif /* ifdef JAZZ16  */
+
 int
 sb_dsp_detect (struct address_info *hw_config)
 {
@@ -725,9 +1056,16 @@ sb_dsp_detect (struct address_info *hw_config)
     return 0;			/*
 				 * Already initialized
 				 */
+#ifdef JAZZ16
+  dma8 = hw_config->dma;
+  dma16 = JAZZ_DMA16;
 
+  if (!initialize_ProSonic16 ())
+    return 0;
+#else
   if (!sb_reset_dsp ())
     return 0;
+#endif
 
   return 1;			/*
 				 * Detected
@@ -737,7 +1075,7 @@ sb_dsp_detect (struct address_info *hw_config)
 #ifndef EXCLUDE_AUDIO
 static struct audio_operations sb_dsp_operations =
 {
-  "SoundBlaster                    ",
+  "SoundBlaster",
   NOTHING_SPECIAL,
   AFMT_U8,			/* Just 8 bits. Poor old SB */
   NULL,
@@ -792,6 +1130,9 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 #ifndef EXCLUDE_SBPRO
   if (sbc_major >= 3)
     mixer_type = sb_mixer_init (sbc_major);
+#else
+  if (sbc_major >= 3)
+    printk ("\n\n\n\nNOTE! SB Pro support is required with your soundcard!\n\n\n");
 #endif
 
 #ifndef EXCLUDE_YM3812
@@ -801,35 +1142,46 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
     enable_opl3_mode (OPL3_LEFT, OPL3_RIGHT, OPL3_BOTH);
 #endif
 
+#ifndef EXCLUDE_AUDIO
   if (sbc_major >= 3)
     {
-#if !defined(SCO) && !defined(EXCLUDE_AUDIO)
-#  ifdef __SGNXPRO__
+      if (Jazz16_detected)
+	{
+	  if (Jazz16_detected == 2)
+	    sprintf (sb_dsp_operations.name, "SoundMan Wave %d.%d", sbc_major, sbc_minor);
+	  else
+	    sprintf (sb_dsp_operations.name, "MV Jazz16 %d.%d", sbc_major, sbc_minor);
+	  sb_dsp_operations.format_mask |= AFMT_S16_LE;		/* Hurrah, 16 bits          */
+	}
+      else
+#ifdef __SGNXPRO__
       if (mixer_type == 2)
 	{
 	  sprintf (sb_dsp_operations.name, "Sound Galaxy NX Pro %d.%d", sbc_major, sbc_minor);
 	}
       else
-#  endif
+#endif
+
+      if (sbc_major == 4)
+	{
+	  sprintf (sb_dsp_operations.name, "SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
+	}
+      else
 	{
 	  sprintf (sb_dsp_operations.name, "SoundBlaster Pro %d.%d", sbc_major, sbc_minor);
 	}
-#endif
     }
   else
     {
-#ifndef SCO
       sprintf (sb_dsp_operations.name, "SoundBlaster %d.%d", sbc_major, sbc_minor);
-#endif
     }
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
   printk ("sb0: <%s>", sb_dsp_operations.name);
 #else
   printk (" <%s>", sb_dsp_operations.name);
 #endif
 
-#ifndef EXCLUDE_AUDIO
 #if !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
   if (!sb16)			/*
 				 * There is a better driver for SB16
@@ -844,6 +1196,8 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
       }
     else
       printk ("SB: Too many DSP devices available\n");
+#else
+  printk (" <SoundBlaster (configured without audio support)>");
 #endif
 
 #ifndef EXCLUDE_MIDI

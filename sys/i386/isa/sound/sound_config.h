@@ -2,7 +2,7 @@
  *
  * A driver for Soundcards, misc configuration parameters.
  *
- *
+ * 
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sound_config.h,v 1.9 1995/03/12 23:34:07 swallace Exp $
  */
 
 #include "local.h"
+#include "os.h"
+#include "soundvers.h"
+
+#if !defined(PSS_MPU_BASE) && defined(EXCLUDE_SSCAPE) && defined(EXCLUDE_TRIX)
+#define EXCLUDE_MPU_EMU
+#endif
 
 #if defined(ISC) || defined(SCO) || defined(SVR42)
 #define GENERIC_SYSV
@@ -39,8 +44,12 @@
  * Disable the AD1848 driver if there are no other drivers requiring it.
  */
 
-#if defined(EXCLUDE_GUS16) && defined(EXCLUDE_MSS) && defined(EXCLUDE_PSS) && defined(EXCLUDE_GUSMAX)
+#if defined(EXCLUDE_GUS16) && defined(EXCLUDE_MSS) && defined(EXCLUDE_PSS) && defined(EXCLUDE_GUSMAX) && defined(EXCLUDE_SSCAPE) && defined(EXCLUDE_TRIX)
 #define EXCLUDE_AD1848
+#endif
+
+#ifdef PSS_MSS_BASE
+#undef EXCLUDE_AD1848
 #endif
 
 #undef CONFIGURE_SOUNDCARD
@@ -53,9 +62,9 @@
 #endif
 
 #ifdef EXCLUDE_SEQUENCER
-#ifndef EXCLUDE_YM3812
+#define EXCLUDE_MIDI
 #define EXCLUDE_YM3812
-#endif
+#define EXCLUDE_OPL3
 #endif
 
 #ifndef SND_DEFAULT_ENABLE
@@ -117,16 +126,8 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define GUS_DMA		6
 #endif
 
-#ifndef GUS16_BASE
-#define GUS16_BASE	0x530
-#endif
-
-#ifndef GUS16_IRQ
-#define GUS16_IRQ	7
-#endif
-
-#ifndef GUS16_DMA
-#define GUS16_DMA	3
+#ifndef GUS_DMA_READ
+#define GUS_DMA_READ	3
 #endif
 
 #ifndef MPU_BASE
@@ -150,32 +151,68 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define PSS_DMA         1
 #endif
 
-#ifndef MAX_REALTIME_FACTOR
-#define MAX_REALTIME_FACTOR	4
-#endif
-
 #ifndef MSS_BASE
-#define MSS_BASE	0x530
-#endif
-
-#ifndef MSS_IRQ
-#define MSS_IRQ		10
+#define MSS_BASE 0
 #endif
 
 #ifndef MSS_DMA
-#define MSS_DMA		1
+#define MSS_DMA 0
 #endif
 
-#ifndef U6850_BASE
-#define U6850_BASE	0x330
+#ifndef MSS_IRQ
+#define MSS_IRQ 0
 #endif
 
-#ifndef U6850_IRQ
-#define U6850_IRQ	5
+#ifndef GUS16_BASE
+#define GUS16_BASE 0
 #endif
 
-#ifndef U6850_DMA
-#define U6850_DMA	1
+#ifndef GUS16_DMA
+#define GUS16_DMA 0
+#endif
+
+#ifndef GUS16_IRQ
+#define GUS16_IRQ 0
+#endif
+
+#ifndef SSCAPE_BASE
+#define SSCAPE_BASE 0
+#endif
+
+#ifndef SSCAPE_DMA
+#define SSCAPE_DMA 0
+#endif
+
+#ifndef SSCAPE_IRQ
+#define SSCAPE_IRQ 0
+#endif
+
+#ifndef SSCAPE_MSS_BASE
+#define SSCAPE_MSS_BASE 0
+#endif
+
+#ifndef SSCAPE_MSS_DMA
+#define SSCAPE_MSS_DMA 0
+#endif
+
+#ifndef SSCAPE_MSS_IRQ
+#define SSCAPE_MSS_IRQ 0
+#endif
+
+#ifndef TRIX_BASE
+#define	TRIX_BASE	0x530
+#endif
+
+#ifndef TRIX_IRQ
+#define TRIX_IRQ	10
+#endif
+
+#ifndef TRIX_DMA
+#define TRIX_DMA	1
+#endif
+
+#ifndef MAX_REALTIME_FACTOR
+#define MAX_REALTIME_FACTOR	4
 #endif
 
 /************* PCM DMA buffer sizes *******************/
@@ -227,7 +264,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
 #define SND_DEV_STATUS	6	/* /dev/sndstat */
 /* #7 not in use now. Was in 2.4. Free for use after v3.0. */
-#define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
+#define SND_DEV_SEQ2	8	/* /dev/sequecer, level 2 interface */
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC
 
@@ -237,19 +274,22 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define OFF		0
 
 #define MAX_AUDIO_DEV	5
-#define MAX_MIXER_DEV	2
+#define MAX_MIXER_DEV	5
 #define MAX_SYNTH_DEV	3
 #define MAX_MIDI_DEV	6
 #define MAX_TIMER_DEV	3
 
 struct fileinfo {
-       	  int mode;	/* Open mode */
+       	  int mode;	      /* Open mode */
+	  DECLARE_FILE();     /* Reference to file-flags. OS-dependent. */
        };
 
 struct address_info {
 	int io_base;
 	int irq;
-	int dma;
+	int dma;		/* write dma channel */
+	int dma_read;		/* read dma channel */
+	int always_detect;	/* 1=Trust me, it's there */
 };
 
 #define SYNTH_MAX_VOICES	32
@@ -259,10 +299,13 @@ struct voice_alloc_info {
 		int used_voices;
 		int ptr;		/* For device specific use */
 		unsigned short map[SYNTH_MAX_VOICES]; /* (ch << 8) | (note+1) */
+		int timestamp;
+		int alloc_times[SYNTH_MAX_VOICES];
 	};
 
 struct channel_info {
 		int pgm_num;
+		int bender_value;
 		unsigned char controllers[128];
 	};
 
@@ -279,17 +322,18 @@ struct channel_info {
 #define OPEN_WRITE	2
 #define OPEN_READWRITE	3
 
-#include "os.h"
 #include "sound_calls.h"
 #include "dev_table.h"
 
 #ifndef DEB
 #define DEB(x)
+#endif
+
+#ifndef AUDIO_DDB
+#define AUDIO_DDB(x)
+#endif
 
 #define TIMER_ARMED	121234
 #define TIMER_NOT_ARMED	1
-
-#define FUTURE_VERSION
-#endif
 
 #endif

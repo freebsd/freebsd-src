@@ -1,10 +1,22 @@
-Changelog for version 2.90
+Changelog for version 3.0-950506
 ------------------------------------
 
-This is an intermediate release (v3.0 prototype with some experimental
-features disabled). See experimental.txt for more info.
+Since 3.0-94xxxx
+- Too many changes
 
-Since pre-3.0-949712
+Since 3.0-940818
+- Fixes for Linux 1.1.4x.
+- Disables Disney Sound System with SG NX Pro 16 (less noise).
+
+Since 2.90-2
+- Fixes to soundcard.h
+- Non blocking mode to /dev/sequencer
+- Experimental detection code for Ensoniq Soundscape.
+
+Since 2.90
+- Minor and major bug fixes
+
+Since pre-3.0-940712
 - GUS MAX support
 - Partially working MSS/WSS support (could work with some cards).
 - Hardware u-Law and A-Law support with AD1848/CS4248 and CS4231 codecs

@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * pas2_card.c,v 1.11 1994/10/01 12:42:17 ache Exp
  */
 
 #include "sound_config.h"
@@ -45,11 +44,11 @@ int             translat_code;
 static int      pas_intr_mask = 0;
 static int      pas_irq = 0;
 
-static char     pas_model;
-static unsigned char board_rev_id;
+char            pas_model;
 static char    *pas_model_names[] =
 {"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
+extern void mix_write (unsigned char data, int ioaddr);
 /*
  * pas_read() and pas_write() are equivalents of INB() and OUTB()
  */
@@ -72,23 +71,6 @@ pas_write (unsigned char data, int ioaddr)
   OUTB (data, ioaddr ^ translat_code);
 }
 
-/*
- * The Revision D cards have a problem with their MVA508 interface. The
- * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
- * MSBs out of the output byte and to do a 16-bit out to the mixer port -
- * 1.
- */
-
-void
-mix_write (unsigned char data, int ioaddr)
-{
-  if (pas_model == PAS_16D) {
-	outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
-	outb (0, 0x80);
-  } else
-	OUTB (data, ioaddr ^ translat_code);
-}
-
 void
 pas2_msg (char *foo)
 {
@@ -98,13 +80,13 @@ pas2_msg (char *foo)
 /******************* Begin of the Interrupt Handler ********************/
 
 void
-pasintr (int unused)
+pasintr (INT_HANDLER_PARMS (irq, dummy))
 {
   int             status;
 
   status = pas_read (INTERRUPT_STATUS);
-  pas_write (status, INTERRUPT_STATUS);	/*
-						 * Clear interrupt
+  pas_write (status, INTERRUPT_STATUS);		/*
+						   * Clear interrupt
 						 */
 
   if (status & I_S_PCM_SAMPLE_BUFFER_IRQ)
@@ -136,7 +118,7 @@ pas_set_intr (int mask)
 
   if (!pas_intr_mask)
     {
-      if ((err = snd_set_irq_handler (pas_irq, pasintr)) < 0)
+      if ((err = snd_set_irq_handler (pas_irq, pasintr, "PAS16")) < 0)
 	return err;
     }
   pas_intr_mask |= mask;
@@ -201,9 +183,13 @@ config_pas_hw (struct address_info *hw_config)
   pas_write (S_M_PCM_RESET | S_M_FM_RESET | S_M_SB_RESET | S_M_MIXER_RESET	/*
 										 * |
 										 * S_M_OPL3_DUAL_MONO
-	     	     	     	     	     	     	     	     	     	     	     	     	     	     	     	     										 */ , SERIAL_MIXER);
+										 */ , SERIAL_MIXER);
 
-  pas_write (I_C_1_BOOT_RESET_ENABLE, IO_CONFIGURATION_1);
+  pas_write (I_C_1_BOOT_RESET_ENABLE
+#ifdef PAS_JOYSTICK_ENABLE
+	     | I_C_1_JOYSTICK_ENABLE
+#endif
+	     ,IO_CONFIGURATION_1);
 
   if (pas_irq < 0 || pas_irq > 15)
     {
@@ -238,9 +224,9 @@ config_pas_hw (struct address_info *hw_config)
     }
 
   /*
- * This fixes the timing problems of the PAS due to the Symphony chipset
- * as per Media Vision.  Only define this if your PAS doesn't work correctly.
- */
+     * This fixes the timing problems of the PAS due to the Symphony chipset
+     * as per Media Vision.  Only define this if your PAS doesn't work correctly.
+   */
 #ifdef SYMPHONY_PAS
   OUTB (0x05, 0xa8);
   OUTB (0x60, 0xa9);
@@ -380,14 +366,13 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
   if (detect_pas_hw (hw_config))
     {
 
- 	board_rev_id = pas_read (BOARD_REV_ID);
-	if (pas_model = pas_read (CHIP_REV))
+      if (pas_model = pas_read (CHIP_REV))
 	{
 #ifdef __FreeBSD__
-	  printk ("pas0: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
-#else /* __FreeBSD__ */
+	  printk ("pas0: <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
+#else
 	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
-#endif /* __FreeBSD__ */
+#endif
 	}
 
       if (config_pas_hw (hw_config))

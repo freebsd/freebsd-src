@@ -3,7 +3,7 @@
  *
  * The DMA buffer manager for digitized voice applications
  *
- * Copyright by Hannu Savolainen 1993, 1994
+ * Copyright by Hannu Savolainen 1993, 1994, 1995
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -25,29 +25,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.15 1995/05/07 06:38:47 pst Exp $
  */
 
 #include "sound_config.h"
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include "sound_calls.h"
-#ifdef __FreeBSD__
-#include <machine/soundcard.h>
-extern struct selinfo selinfo[SND_NDEVS>>4];
-#endif
-
 #if !defined(EXCLUDE_AUDIO) || !defined(EXCLUDE_GUS)
 
 DEFINE_WAIT_QUEUES (dev_sleeper[MAX_AUDIO_DEV], dev_sleep_flag[MAX_AUDIO_DEV]);
 
 static struct dma_buffparms dmaps[MAX_AUDIO_DEV] =
-{0};				/*
-		 * Primitive way to allocate
-		 * such a large array.
-		 * Needs dynamic run-time alloction.
-		 */
+{
+  {0}};				/*
+
+				   * Primitive way to allocate
+				   * such a large array.
+				   * Needs dynamic run-time alloction.
+				 */
 
 static void
 reorganize_buffers (int dev)
@@ -83,10 +78,10 @@ reorganize_buffers (int dev)
       sz = sr * nc * sz;
 
       /*
-   * Compute a buffer size for time not exeeding 1 second.
-   * Usually this algorithm gives a buffer size for 0.5 to 1.0 seconds
-   * of sound (using the current speed, sample size and #channels).
-   */
+         * Compute a buffer size for time not exeeding 1 second.
+         * Usually this algorithm gives a buffer size for 0.5 to 1.0 seconds
+         * of sound (using the current speed, sample size and #channels).
+       */
 
       bsz = dsp_dev->buffsize;
       while (bsz > sz)
@@ -111,9 +106,9 @@ reorganize_buffers (int dev)
   else
     {
       /*
- * The process has specified the buffer sice with SNDCTL_DSP_SETFRAGMENT or
- * the buffer sice computation has already been done.
- */
+         * The process has specified the buffer sice with SNDCTL_DSP_SETFRAGMENT or
+         * the buffer sice computation has already been done.
+       */
       if (dmap->fragment_size > audio_devs[dev]->buffsize)
 	dmap->fragment_size = audio_devs[dev]->buffsize;
       bsz = dmap->fragment_size;
@@ -162,7 +157,6 @@ dma_init_buffers (int dev)
   dmap->flags = DMA_BUSY;	/* Other flags off */
   dmap->qlen = dmap->qhead = dmap->qtail = 0;
 
-  dmap->qlen = dmap->qtail = dmap->qhead = 0;
   dmap->dma_mode = DMODE_NONE;
 }
 
@@ -255,7 +249,7 @@ dma_sync (int dev)
 
       /*
        * Some devices such as GUS have huge amount of on board RAM for the
-       * audio data. We have to wait util the device has finished playing.
+       * audio data. We have to wait until the device has finished playing.
        */
 
       DISABLE_INTR (flags);
@@ -300,9 +294,10 @@ DMAbuf_release (int dev, int mode)
 }
 
 int
-DMAbuf_start_input(int dev)
+DMAbuf_getrdbuffer (int dev, char **buf, int *len, int dontblock)
 {
   unsigned long   flags;
+  int             err = EIO;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
 
   DISABLE_INTR (flags);
@@ -324,7 +319,7 @@ DMAbuf_start_input(int dev)
       if (!(dmap->flags & DMA_ALLOC_DONE))
 	reorganize_buffers (dev);
 
-      if (dmap->dma_mode)
+      if (!dmap->dma_mode)
 	{
 	  int             err;
 
@@ -345,32 +340,24 @@ DMAbuf_start_input(int dev)
 					!(dmap->flags & DMA_STARTED));
 	  dmap->flags |= DMA_ACTIVE | DMA_STARTED;
 	}
-    }
-  RESTORE_INTR (flags);
 
-  return 0;
-}
-
-int
-DMAbuf_getrdbuffer (int dev, char **buf, int *len)
-{
-  unsigned long   flags;
-  int             err = EIO;
-  struct dma_buffparms *dmap = audio_devs[dev]->dmap;
-
-  DISABLE_INTR (flags);
-  if (!dmap->qlen)
-    {
-      if(err = DMAbuf_start_input(dev))
-	return err;
+      if (dontblock)
+	{
+	  RESTORE_INTR (flags);
+#if defined(__FreeBSD__)
+	  return RET_ERROR (EWOULDBLOCK);
+#else
+	  return RET_ERROR (EAGAIN);
+#endif
+	}
 
       /* Wait for the next block */
 
-      err = EIO;
       DO_SLEEP (dev_sleeper[dev], dev_sleep_flag[dev], 2 * HZ);
       if (TIMED_OUT (dev_sleeper[dev], dev_sleep_flag[dev]))
 	{
 	  printk ("Sound: DMA timed out - IRQ/DRQ config error?\n");
+	  err = EIO;
 	  SET_ABORT_FLAG (dev_sleeper[dev], dev_sleep_flag[dev]);
 	}
       else
@@ -436,15 +423,15 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 
     case SNDCTL_DSP_SETBLKSIZE:
       {
-        int     size = IOCTL_IN (arg);
-
+        int size = IOCTL_IN(arg);
+        
         if(!(dmap->flags & DMA_ALLOC_DONE) && size)
           {
-             dmap->fragment_size = size;
-             return 0;
+            dmap->fragment_size = size;
+	    return 0;
           }
         else
-          return RET_ERROR (EINVAL);    /* Too late to change */
+          return RET_ERROR (EINVAL);  /* Too late to change */
       }
       break;
 
@@ -461,7 +448,7 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 	  }
 
 	if (dmap->subdivision != 0 ||
-	    dmap->fragment_size)/* Loo late to change */
+	    dmap->fragment_size)	/* Loo late to change */
 	  return RET_ERROR (EINVAL);
 
 	if (fact > MAX_REALTIME_FACTOR)
@@ -484,7 +471,7 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 	  return RET_ERROR (EIO);
 
 	if (dmap->subdivision != 0 ||
-	    dmap->fragment_size)/* Loo late to change */
+	    dmap->fragment_size)	/* Loo late to change */
 	  return RET_ERROR (EINVAL);
 
 	bytes = fact & 0xffff;
@@ -514,12 +501,24 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
       }
       break;
 
+    case SNDCTL_DSP_GETISPACE:
+    case SNDCTL_DSP_GETOSPACE:
+      if (!local)
+	return RET_ERROR (EINVAL);
+
+      {
+	audio_buf_info *info = (audio_buf_info *) arg;
+
+	info->fragments = dmap->qlen;
+	info->fragsize = dmap->fragment_size;
+	info->bytes = dmap->qlen * dmap->fragment_size;
+      }
+      return 0;
+
     default:
       return audio_devs[dev]->ioctl (dev, cmd, arg, local);
     }
 
-  /* NOTREACHED */
-  return RET_ERROR (EIO);
 }
 
 static int
@@ -528,13 +527,13 @@ space_in_queue (int dev)
   int             len, max, tmp;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
 
-  if (dmap->qlen == dmap->nbufs)/* No space at all */
+  if (dmap->qlen == dmap->nbufs)	/* No space at all */
     return 0;
 
   /*
-  * Verify that there are no more pending buffers than the limit
-  * defined by the process.
-  */
+     * Verify that there are no more pending buffers than the limit
+     * defined by the process.
+   */
 
   max = dmap->max_fragments;
   len = dmap->qlen;
@@ -544,8 +543,8 @@ space_in_queue (int dev)
       tmp = audio_devs[dev]->local_qlen (dev);
       if (tmp & len)
 	tmp--;			/*
-			 * This buffer has been counted twice
-			 */
+				   * This buffer has been counted twice
+				 */
       len += tmp;
     }
 
@@ -555,7 +554,7 @@ space_in_queue (int dev)
 }
 
 int
-DMAbuf_getwrbuffer (int dev, char **buf, int *size)
+DMAbuf_getwrbuffer (int dev, char **buf, int *size, int dontblock)
 {
   unsigned long   flags;
   int             abort, err = EIO;
@@ -587,6 +586,13 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size)
 	return err;
     }
 
+
+  if (dontblock)
+#if defined(__FreeBSD__)
+    return RET_ERROR (EWOULDBLOCK);
+#else
+    return RET_ERROR (EAGAIN);
+#endif
 
   DISABLE_INTR (flags);
 
@@ -692,28 +698,41 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
       set_dma_count (chan, dmap->bytes_in_use);
       enable_dma (chan);
       RESTORE_INTR (flags);
-#else /* linux */
-#ifdef __FreeBSD__
-      isa_dmastart (B_RAW + ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE),
+#else
+
+#if defined(__FreeBSD__)
+
+      isa_dmastart (B_RAW + (dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
 		    (caddr_t)dmap->raw_buf_phys[0],
 		    dmap->bytes_in_use,
 		    chan);
-#else /* __FreeBSD__ */
+#else /* else __FreeBSD__ */
 #if defined(GENERIC_SYSV)
 #ifndef DMAMODE_AUTO
       printk ("sound: Invalid DMA mode for device %d\n", dev);
-#endif /* DMAMODE_AUTO */
+#endif
+#if defined(SVR42)
+
+      /*
+         ** send full count to snd_dma_prog, it will take care of subtracting
+         ** one if it is required.
+       */
+      snd_dma_prog (chan, dmap->raw_buf_phys[0], dmap->bytes_in_use,
+		    dma_mode, TRUE);
+
+#else /* !SVR42 */
       dma_param (chan, ((dma_mode == DMA_MODE_READ) ? DMA_Rdmode : DMA_Wrmode)
 #ifdef DMAMODE_AUTO
 		 | DMAMODE_AUTO
-#endif /* DMAMODE_AUTO */
+#endif
 		 ,
-		 dmap->raw_buf_phys[0], dmap->bytes_in_use);
+		 dmap->raw_buf_phys[0], dmap->bytes_in_use - 1);
       dma_enable (chan);
-#else /* GENERIC_SYSV */
+#endif /*  ! SVR42 */
+#else
 #error This routine is not valid for this OS.
-#endif /* __FreeBSD__ */
-#endif /* linux */
+#endif
+#endif
 
 #endif
     }
@@ -728,24 +747,30 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
       set_dma_count (chan, count);
       enable_dma (chan);
       RESTORE_INTR (flags);
-#else /* linux */
-#ifdef __FreeBSD__
+#else
+#if defined(__FreeBSD__)
       isa_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
 		    (caddr_t)physaddr,
 		    count,
 		    chan);
-#else /* __FreeBSD__ */
+#else /* FreeBSD */
 
 #if defined(GENERIC_SYSV)
+#if defined(SVR42)
+
+      snd_dma_prog (chan, physaddr, count, dma_mode, FALSE);
+
+#else /* ! SVR42 */
       dma_param (chan, ((dma_mode == DMA_MODE_READ) ? DMA_Rdmode : DMA_Wrmode),
 		 physaddr, count);
       dma_enable (chan);
-#else /* GENERIC_SYSV */
+#endif /* SVR42 */
+#else
 #error This routine is not valid for this OS.
 #endif /* GENERIC_SYSV */
-#endif /* __FreeBSD */
+#endif
 
-#endif /* linux */
+#endif
     }
 
   return count;
@@ -756,9 +781,13 @@ DMAbuf_init (long mem_start)
 {
   int             dev;
 
+#if defined(SVR42)
+  snd_dma_init ();
+#endif /* SVR42 */
+
   /*
- * NOTE! This routine could be called several times.
- */
+     * NOTE! This routine could be called several times.
+   */
 
   for (dev = 0; dev < num_audiodevs; dev++)
     audio_devs[dev]->dmap = &dmaps[dev];
@@ -769,17 +798,21 @@ void
 DMAbuf_outputintr (int dev, int event_type)
 {
   /*
- * Event types:
- *	0 = DMA transfer done. Device still has more data in the local
- *	    buffer.
- *	1 = DMA transfer done. Device doesn't have local buffer or it's
- *	    empty now.
- *	2 = No DMA transfer but the device has now more space in it's local
- *	    buffer.
- */
+     * Event types:
+     *  0 = DMA transfer done. Device still has more data in the local
+     *      buffer.
+     *  1 = DMA transfer done. Device doesn't have local buffer or it's
+     *      empty now.
+     *  2 = No DMA transfer but the device has now more space in it's local
+     *      buffer.
+   */
 
   unsigned long   flags;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+
+#if defined(SVR42)
+  snd_dma_intr (audio_devs[dev]->dmachan);
+#endif /* SVR42 */
 
   if (event_type != 2)
     {
@@ -819,7 +852,7 @@ DMAbuf_outputintr (int dev, int event_type)
       WAKE_UP (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
   if(selinfo[dev].si_pid)
     selwakeup(&selinfo[dev]);
 #endif
@@ -830,6 +863,10 @@ DMAbuf_inputintr (int dev)
 {
   unsigned long   flags;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+
+#if defined(SVR42)
+  snd_dma_intr (audio_devs[dev]->dmachan);
+#endif /* SVR42 */
 
   if (dmap->qlen == (dmap->nbufs - 1))
     {
@@ -862,7 +899,7 @@ DMAbuf_inputintr (int dev)
       WAKE_UP (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
   if(selinfo[dev].si_pid)
     selwakeup(&selinfo[dev]);
 #endif
@@ -874,7 +911,7 @@ DMAbuf_open_dma (int dev)
   unsigned long   flags;
   int             chan = audio_devs[dev]->dmachan;
 
-  if (ALLOC_DMA_CHN (chan))
+  if (ALLOC_DMA_CHN (chan, audio_devs[dev]->name))
     {
       printk ("Unable to grab DMA%d for the audio driver\n", chan);
       return RET_ERROR (EBUSY);
@@ -895,67 +932,80 @@ DMAbuf_close_dma (int dev)
 {
   int             chan = audio_devs[dev]->dmachan;
 
-  DMAbuf_reset_dma (chan);
+  DMAbuf_reset_dma (dev);
   RELEASE_DMA_CHN (chan);
 }
 
 void
-DMAbuf_reset_dma (int chan)
+DMAbuf_reset_dma (int dev)
 {
+#if 0
+  int             chan = audio_devs[dev]->dmachan;
+
+  disable_dma (chan);
+#endif
 }
 
-/*
- * Used by unix select system call to see if data is ready.
- */
+#ifdef ALLOW_SELECT
 int
-DMAbuf_output_ready(int dev)
+DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
 {
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+  unsigned long   flags;
 
-  if (!(dmap->flags & DMA_ALLOC_DONE))
-    reorganize_buffers (dev);
-  return space_in_queue (dev);
-}
-int
-DMAbuf_input_ready(int dev)
-{
-  int	h,i,r;
-  struct dma_buffparms *dmap = audio_devs[dev]->dmap;
-
-  r = 0;
-  if(dmap->qlen)
+  switch (sel_type)
     {
-      if(dmap->fragment_size)
-        {
-          for(i=0; i<dmap->qlen; i++)
-            {
-              h = (dmap->qhead + i) % dmap->nbufs;
-              r += dmap->fragment_size - dmap->counts[h];
-              if(r >= dmap->fragment_size)
-                 break;
-            }
-          if(r < dmap->fragment_size)
-            r = 0;
-          else
-            r = 1;
-        }
-      else
-          r = 1;
-    }
-  else
-    DMAbuf_start_input(dev);
+    case SEL_IN:
+      if (dmap->dma_mode != DMODE_INPUT)
+	return 0;
 
-  return(r);
-}
-/*
- * The sound_mem_init() is called by mem_init() immediately after mem_map is
- * initialized and before free_page_list is created.
- *
- * This routine allocates DMA buffers at the end of available physical memory (
- * <16M) and marks pages reserved at mem_map.
- */
-
+      if (!dmap->qlen)
+	{
+	  DISABLE_INTR (flags);
+#if defined(__FreeBSD__)
+	  selrecord(wait, &selinfo[dev]);
 #else
+	  dev_sleep_flag[dev].mode = WK_SLEEP;
+	  select_wait (&dev_sleeper[dev], wait);
+#endif
+	  RESTORE_INTR (flags);
+	  return 0;
+	}
+      return 1;
+      break;
+
+    case SEL_OUT:
+      if (dmap->dma_mode == DMODE_INPUT)
+	return 0;
+
+      if (dmap->dma_mode == DMODE_NONE)
+	return 1;
+
+      if (!space_in_queue (dev))
+	{
+	  DISABLE_INTR (flags);
+#if defined(__FreeBSD__)
+	  selrecord(wait, &selinfo[dev]);
+#else
+	  dev_sleep_flag[dev].mode = WK_SLEEP;
+	  select_wait (&dev_sleeper[dev], wait);
+#endif
+	  RESTORE_INTR (flags);
+	  return 0;
+	}
+      return 1;
+      break;
+
+    case SEL_EX:
+      return 0;
+    }
+
+  return 0;
+}
+
+#endif /* ALLOW_SELECT */
+
+#else /* EXCLUDE_AUDIO */
 /*
  * Stub versions if audio services not included
  */
@@ -973,31 +1023,13 @@ DMAbuf_release (int dev, int mode)
 }
 
 int
-DMAbuf_start_input (int dev)
+DMAbuf_getwrbuffer (int dev, char **buf, int *size, int dontblock)
 {
   return RET_ERROR (EIO);
 }
 
 int
-DMAbuf_input_ready (int dev)
-{
-  return 0;
-}
-
-int
-DMAbuf_output_ready (int dev)
-{
-  return 0;
-}
-
-int
-DMAbuf_getwrbuffer (int dev, char **buf, int *size)
-{
-  return RET_ERROR (EIO);
-}
-
-int
-DMAbuf_getrdbuffer (int dev, char **buf, int *len)
+DMAbuf_getrdbuffer (int dev, char **buf, int *len, int dontblock)
 {
   return RET_ERROR (EIO);
 }
@@ -1033,19 +1065,19 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
 }
 
 int
-DMAbuf_open_dma (int chan)
+DMAbuf_open_dma (int dev)
 {
   return RET_ERROR (ENXIO);
 }
 
 void
-DMAbuf_close_dma (int chan)
+DMAbuf_close_dma (int dev)
 {
   return;
 }
 
 void
-DMAbuf_reset_dma (int chan)
+DMAbuf_reset_dma (int dev)
 {
   return;
 }

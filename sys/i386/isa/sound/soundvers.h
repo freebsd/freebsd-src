@@ -1,0 +1,1 @@
+#define SOUND_VERSION_STRING "3.0-beta-950506"
