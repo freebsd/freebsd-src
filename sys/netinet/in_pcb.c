@@ -752,26 +752,26 @@ in_pcbnotifyall(pcbinfo, faddr, errno, notify)
 	int s;
 
 	s = splnet();
-	INP_INFO_RLOCK(pcbinfo);
+	INP_INFO_WLOCK(pcbinfo);
 	head = pcbinfo->listhead;
 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
 		INP_LOCK(inp);
 		ninp = LIST_NEXT(inp, inp_list);
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0) {
-			INP_UNLOCK(inp);		
+			INP_UNLOCK(inp);
 			continue;
 		}
 #endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
 		    inp->inp_socket == NULL) {
-				INP_UNLOCK(inp);		
-				continue;
+			INP_UNLOCK(inp);
+			continue;
 		}
-		(*notify)(inp, errno);
-		INP_UNLOCK(inp);		
+		if ((*notify)(inp, errno))
+			INP_UNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(pcbinfo);
+	INP_INFO_WUNLOCK(pcbinfo);
 	splx(s);
 }
 
