@@ -319,7 +319,8 @@ fetchParseURL(const char *URL)
 	p = URL;
     }
     if (!*URL || *URL == '/' || *URL == '.' ||
-	(u->scheme[0] == '\0' && strchr(URL, '/') == NULL))
+	(u->scheme[0] == '\0' &&
+    	    strchr(URL, '/') == NULL && strchr(URL, ':') == NULL))
 	goto nohost;
 
     p = strpbrk(URL, "/@");
