@@ -36,7 +36,7 @@
 #include <bits/os_defines.h>
 
 // The current version of the C++ library in compressed ISO date format.
-#define __GLIBCPP__ 20020514
+#define __GLIBCPP__ 20021119
 
 // This is necessary until GCC supports separate template
 // compilation.  
@@ -57,6 +57,9 @@
 // Use corrected code from the committee library group's issues list.
 #define _GLIBCPP_RESOLVE_LIB_DEFECTS 1
 
+// Hopefully temporary workaround to autoconf/m4 issue with quoting '@'.
+#define _GLIBCPP_AT_AT "@@"
+
 // In those parts of the standard C++ library that use a mutex instead
 // of a spin-lock, we now unconditionally use GCC's gthr.h mutex
 // abstraction layer.  All support to directly map to various
@@ -71,7 +74,15 @@
 // that threads are properly configured on your platform before
 // assigning blame to the STL container-memory allocator.  After doing
 // so, please report any possible issues to libstdc++@gcc.gnu.org .
-// Do not blindly #define __USE_MALLOC here or on the command line.
+// Do not define __USE_MALLOC on the command line.  Enforce it here:
+#ifdef __USE_MALLOC
+#error __USE_MALLOC should only be defined within \
+libstdc++-v3/include/bits/c++config before full recompilation of the library.
+#endif
+// Define __USE_MALLOC after this point in the file in order to aid debugging
+// or globally change allocation policy.  This breaks the ABI, thus
+// completely recompile the library.  A patch to better support
+// changing the global allocator policy would be probably be accepted.
 
 // The remainder of the prewritten config is mostly automatic; all the
 // user hooks are listed above.
@@ -103,6 +114,20 @@
 
 // Define to use concept checking code from the boost libraries.
 /* #undef _GLIBCPP_CONCEPT_CHECKS */
+
+// Define to use symbol versioning in the shared library.
+/* #undef _GLIBCPP_SYMVER */
+
+// Define symbol versioning in assember directives. If symbol
+// versioning is beigng used, and the assembler supports this kind of
+// thing, then use it.
+// NB: _GLIBCPP_AT_AT is a hack to work around quoting issues in m4.
+#if _GLIBCPP_SYMVER
+  #define _GLIBCPP_ASM_SYMVER(cur, old, version) \
+   asm (".symver " #cur "," #old _GLIBCPP_AT_AT #version);
+#else
+  #define _GLIBCPP_ASM_SYMVER(cur, old, version)
+#endif
 
 // Define if mbstate_t exists in wchar.h.
 #define _GLIBCPP_HAVE_MBSTATE_T 1
@@ -393,7 +418,7 @@
 /* #undef _GLIBCPP_HAVE_ATANL */
 
 /* Define if you have the btowc function.  */
-/* #undef _GLIBCPP_HAVE_BTOWC */
+#define _GLIBCPP_HAVE_BTOWC 1
 
 /* Define if you have the ceilf function.  */
 #define _GLIBCPP_HAVE_CEILF 1
@@ -438,10 +463,10 @@
 /* #undef _GLIBCPP_HAVE_FABSL */
 
 /* Define if you have the fgetwc function.  */
-/* #undef _GLIBCPP_HAVE_FGETWC */
+#define _GLIBCPP_HAVE_FGETWC 1
 
 /* Define if you have the fgetws function.  */
-/* #undef _GLIBCPP_HAVE_FGETWS */
+#define _GLIBCPP_HAVE_FGETWS 1
 
 /* Define if you have the finite function.  */
 #define _GLIBCPP_HAVE_FINITE 1
@@ -468,10 +493,10 @@
 /* #undef _GLIBCPP_HAVE_FPCLASS */
 
 /* Define if you have the fputwc function.  */
-/* #undef _GLIBCPP_HAVE_FPUTWC */
+#define _GLIBCPP_HAVE_FPUTWC 1
 
 /* Define if you have the fputws function.  */
-/* #undef _GLIBCPP_HAVE_FPUTWS */
+#define _GLIBCPP_HAVE_FPUTWS 1
 
 /* Define if you have the frexpf function.  */
 #define _GLIBCPP_HAVE_FREXPF 1
@@ -480,22 +505,22 @@
 /* #undef _GLIBCPP_HAVE_FREXPL */
 
 /* Define if you have the fwide function.  */
-/* #undef _GLIBCPP_HAVE_FWIDE */
+#define _GLIBCPP_HAVE_FWIDE 1
 
 /* Define if you have the fwprintf function.  */
-/* #undef _GLIBCPP_HAVE_FWPRINTF */
+#define _GLIBCPP_HAVE_FWPRINTF 1
 
 /* Define if you have the fwscanf function.  */
-/* #undef _GLIBCPP_HAVE_FWSCANF */
+#define _GLIBCPP_HAVE_FWSCANF 1
 
 /* Define if you have the getpagesize function.  */
 #define _GLIBCPP_HAVE_GETPAGESIZE 1
 
 /* Define if you have the getwc function.  */
-/* #undef _GLIBCPP_HAVE_GETWC */
+#define _GLIBCPP_HAVE_GETWC 1
 
 /* Define if you have the getwchar function.  */
-/* #undef _GLIBCPP_HAVE_GETWCHAR */
+#define _GLIBCPP_HAVE_GETWCHAR 1
 
 /* Define if you have the hypot function.  */
 #define _GLIBCPP_HAVE_HYPOT 1
@@ -552,16 +577,16 @@
 /* #undef _GLIBCPP_HAVE_LOGL */
 
 /* Define if you have the mbrlen function.  */
-/* #undef _GLIBCPP_HAVE_MBRLEN */
+#define _GLIBCPP_HAVE_MBRLEN 1
 
 /* Define if you have the mbrtowc function.  */
-/* #undef _GLIBCPP_HAVE_MBRTOWC */
+#define _GLIBCPP_HAVE_MBRTOWC 1
 
 /* Define if you have the mbsinit function.  */
-/* #undef _GLIBCPP_HAVE_MBSINIT */
+#define _GLIBCPP_HAVE_MBSINIT 1
 
 /* Define if you have the mbsrtowcs function.  */
-/* #undef _GLIBCPP_HAVE_MBSRTOWCS */
+#define _GLIBCPP_HAVE_MBSRTOWCS 1
 
 /* Define if you have the modff function.  */
 #define _GLIBCPP_HAVE_MODFF 1
@@ -582,10 +607,10 @@
 /* #undef _GLIBCPP_HAVE_POWL */
 
 /* Define if you have the putwc function.  */
-/* #undef _GLIBCPP_HAVE_PUTWC */
+#define _GLIBCPP_HAVE_PUTWC 1
 
 /* Define if you have the putwchar function.  */
-/* #undef _GLIBCPP_HAVE_PUTWCHAR */
+#define _GLIBCPP_HAVE_PUTWCHAR 1
 
 /* Define if you have the qfpclass function.  */
 /* #undef _GLIBCPP_HAVE_QFPCLASS */
@@ -627,10 +652,10 @@
 /* #undef _GLIBCPP_HAVE_STRTOLD */
 
 /* Define if you have the swprintf function.  */
-/* #undef _GLIBCPP_HAVE_SWPRINTF */
+#define _GLIBCPP_HAVE_SWPRINTF 1
 
 /* Define if you have the swscanf function.  */
-/* #undef _GLIBCPP_HAVE_SWSCANF */
+#define _GLIBCPP_HAVE_SWSCANF 1
 
 /* Define if you have the tanf function.  */
 #define _GLIBCPP_HAVE_TANF 1
@@ -645,28 +670,28 @@
 /* #undef _GLIBCPP_HAVE_TANL */
 
 /* Define if you have the ungetwc function.  */
-/* #undef _GLIBCPP_HAVE_UNGETWC */
+#define _GLIBCPP_HAVE_UNGETWC 1
 
 /* Define if you have the vfwprintf function.  */
-/* #undef _GLIBCPP_HAVE_VFWPRINTF */
+#define _GLIBCPP_HAVE_VFWPRINTF 1
 
 /* Define if you have the vfwscanf function.  */
-/* #undef _GLIBCPP_HAVE_VFWSCANF */
+#define _GLIBCPP_HAVE_VFWSCANF 1
 
 /* Define if you have the vswprintf function.  */
-/* #undef _GLIBCPP_HAVE_VSWPRINTF */
+#define _GLIBCPP_HAVE_VSWPRINTF 1
 
 /* Define if you have the vswscanf function.  */
-/* #undef _GLIBCPP_HAVE_VSWSCANF */
+#define _GLIBCPP_HAVE_VSWSCANF 1
 
 /* Define if you have the vwprintf function.  */
-/* #undef _GLIBCPP_HAVE_VWPRINTF */
+#define _GLIBCPP_HAVE_VWPRINTF 1
 
 /* Define if you have the vwscanf function.  */
-/* #undef _GLIBCPP_HAVE_VWSCANF */
+#define _GLIBCPP_HAVE_VWSCANF 1
 
 /* Define if you have the wcrtomb function.  */
-/* #undef _GLIBCPP_HAVE_WCRTOMB */
+#define _GLIBCPP_HAVE_WCRTOMB 1
 
 /* Define if you have the wcscat function.  */
 #define _GLIBCPP_HAVE_WCSCAT 1
@@ -678,7 +703,7 @@
 #define _GLIBCPP_HAVE_WCSCMP 1
 
 /* Define if you have the wcscoll function.  */
-/* #undef _GLIBCPP_HAVE_WCSCOLL */
+#define _GLIBCPP_HAVE_WCSCOLL 1
 
 /* Define if you have the wcscpy function.  */
 #define _GLIBCPP_HAVE_WCSCPY 1
@@ -687,7 +712,7 @@
 #define _GLIBCPP_HAVE_WCSCSPN 1
 
 /* Define if you have the wcsftime function.  */
-/* #undef _GLIBCPP_HAVE_WCSFTIME */
+#define _GLIBCPP_HAVE_WCSFTIME 1
 
 /* Define if you have the wcslen function.  */
 #define _GLIBCPP_HAVE_WCSLEN 1
@@ -708,7 +733,7 @@
 #define _GLIBCPP_HAVE_WCSRCHR 1
 
 /* Define if you have the wcsrtombs function.  */
-/* #undef _GLIBCPP_HAVE_WCSRTOMBS */
+#define _GLIBCPP_HAVE_WCSRTOMBS 1
 
 /* Define if you have the wcsspn function.  */
 #define _GLIBCPP_HAVE_WCSSPN 1
@@ -717,25 +742,25 @@
 #define _GLIBCPP_HAVE_WCSSTR 1
 
 /* Define if you have the wcstod function.  */
-/* #undef _GLIBCPP_HAVE_WCSTOD */
+#define _GLIBCPP_HAVE_WCSTOD 1
 
 /* Define if you have the wcstof function.  */
 /* #undef _GLIBCPP_HAVE_WCSTOF */
 
 /* Define if you have the wcstok function.  */
-/* #undef _GLIBCPP_HAVE_WCSTOK */
+#define _GLIBCPP_HAVE_WCSTOK 1
 
 /* Define if you have the wcstol function.  */
-/* #undef _GLIBCPP_HAVE_WCSTOL */
+#define _GLIBCPP_HAVE_WCSTOL 1
 
 /* Define if you have the wcstoul function.  */
-/* #undef _GLIBCPP_HAVE_WCSTOUL */
+#define _GLIBCPP_HAVE_WCSTOUL 1
 
 /* Define if you have the wcsxfrm function.  */
-/* #undef _GLIBCPP_HAVE_WCSXFRM */
+#define _GLIBCPP_HAVE_WCSXFRM 1
 
 /* Define if you have the wctob function.  */
-/* #undef _GLIBCPP_HAVE_WCTOB */
+#define _GLIBCPP_HAVE_WCTOB 1
 
 /* Define if you have the wmemchr function.  */
 #define _GLIBCPP_HAVE_WMEMCHR 1
@@ -753,10 +778,10 @@
 #define _GLIBCPP_HAVE_WMEMSET 1
 
 /* Define if you have the wprintf function.  */
-/* #undef _GLIBCPP_HAVE_WPRINTF */
+#define _GLIBCPP_HAVE_WPRINTF 1
 
 /* Define if you have the wscanf function.  */
-/* #undef _GLIBCPP_HAVE_WSCANF */
+#define _GLIBCPP_HAVE_WSCANF 1
 
 /* Define if you have the <endian.h> header file.  */
 /* #undef _GLIBCPP_HAVE_ENDIAN_H */
@@ -789,7 +814,10 @@
 /* #undef _GLIBCPP_HAVE_NAN_H */
 
 /* Define if you have the <stdlib.h> header file.  */
-/* #undef _GLIBCPP_HAVE_STDLIB_H */
+#define _GLIBCPP_HAVE_STDLIB_H 1
+
+/* Define if you have the <string.h> header file.  */
+#define _GLIBCPP_HAVE_STRING_H 1
 
 /* Define if you have the <sys/isa_defs.h> header file.  */
 /* #undef _GLIBCPP_HAVE_SYS_ISA_DEFS_H */
@@ -804,7 +832,7 @@
 /* #undef _GLIBCPP_HAVE_SYS_STAT_H */
 
 /* Define if you have the <sys/types.h> header file.  */
-/* #undef _GLIBCPP_HAVE_SYS_TYPES_H */
+#define _GLIBCPP_HAVE_SYS_TYPES_H 1
 
 /* Define if you have the <unistd.h> header file.  */
 #define _GLIBCPP_HAVE_UNISTD_H 1
@@ -822,7 +850,7 @@
 #define _GLIBCPP_PACKAGE "libstdc++"
 
 /* Version number of package */
-#define _GLIBCPP_VERSION "3.1.0"
+#define _GLIBCPP_VERSION "3.2.1"
 
 /* Define if the compiler is configured for setjmp/longjmp exceptions. */
 /* #undef _GLIBCPP_SJLJ_EXCEPTIONS */
