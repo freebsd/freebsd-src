@@ -4,8 +4,8 @@
 #			ptx spell spline struct units xsend
 # XXX MISSING SOURCES:	file grep sort
 # XXX MISSING Makefile:	uucp
-# XXX Use GNU versions:	ld man
-SUBDIR=	apply apropos ar banner basename bdes biff cal calendar \
+# XXX Use GNU versions:	ld man apropos whatis
+SUBDIR=	apply ar banner basename bdes biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
 	env error expand false find finger fmt fold fpr from \
@@ -19,7 +19,7 @@ SUBDIR=	apply apropos ar banner basename bdes biff cal calendar \
 	strings strip su talk tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
-	vgrind vis w wall wc what whatis whereis who whois window write \
+	vgrind vis w wall wc what whereis who whois window write \
 	xargs xinstall xstr yacc yes
 
 # Cmp, look and tail all use mmap, so new-VM only.
