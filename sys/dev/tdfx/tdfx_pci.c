@@ -799,8 +799,8 @@ tdfx_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	int retval = 0;
 	struct tdfx_pio_data *piod = (struct tdfx_pio_data*)data;
 #ifdef	DEBUG
-	printf("IOCTL'd by #%d, cmd: 0x%x, data: 0x%x\n", td->td_proc->p_pid, (u_int32_t)cmd,
-			(unsigned int)piod);
+	printf("IOCTL'd by #%d, cmd: 0x%x, data: %p\n", td->td_proc->p_pid, (u_int32_t)cmd,
+			piod);
 #endif
 	switch(_IOC_TYPE(cmd)) {
 		/* Return the real error if negative, or simply stick the valid return
