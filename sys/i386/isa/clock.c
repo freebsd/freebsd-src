@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.48 1996/01/15 21:12:50 phk Exp $
+ *	$Id: clock.c,v 1.49 1996/01/15 21:26:43 phk Exp $
  */
 
 /*
@@ -524,11 +524,9 @@ resettodr()
 	     tm -= m;
 
 	/* Now we have the years in y and the day-of-the-year in tm */
-#ifdef USE_RTC_CENTURY
 	writertc(RTC_YEAR, bin2bcd(y%100));		/* Write back Year    */
+#ifdef USE_RTC_CENTURY
 	writertc(RTC_CENTURY, bin2bcd(y/100));		/* ... and Century    */
-#else
-	writertc(RTC_YEAR, bin2bcd(y - 1900));          /* Write back Year    */
 #endif
 	for (m = 0; ; m++) {
 		int ml;
