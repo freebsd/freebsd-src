@@ -72,10 +72,8 @@ struct wi_req {
  */
 #define WI_RID_IFACE_STATS	0x0100
 #define WI_RID_MGMT_XMIT	0x0200
-#ifdef WICACHE
 #define WI_RID_ZERO_CACHE	0x0300
 #define WI_RID_READ_CACHE	0x0400
-#endif
 
 struct wi_80211_hdr {
 	u_int16_t		frame_ctl;
@@ -133,9 +131,6 @@ struct wi_mgmt_hdr {
  *
  * Each entry in the wi_sigcache has a unique macsrc.
  */
-#ifdef WICACHE
-#define	MAXWICACHE	10
-
 struct wi_sigcache {
 	char	macsrc[6];	/* unique MAC address for entry */
 	int	ipsrc;		/* ip address associated with packet */
@@ -143,7 +138,6 @@ struct wi_sigcache {
 	int	noise;		/* noise value */
 	int	quality;	/* quality of the packet */
 };
-#endif
 
 #ifndef _KERNEL
 struct wi_counters {
