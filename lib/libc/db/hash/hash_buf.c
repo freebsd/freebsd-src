@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993, 1994
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)hash_buf.c	8.5 (Berkeley) 7/15/94";
+static char sccsid[] = "@(#)hash_buf.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -57,10 +57,8 @@ static char sccsid[] = "@(#)hash_buf.c	8.5 (Berkeley) 7/15/94";
 #include <sys/param.h>
 
 #include <errno.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #ifdef DEBUG
 #include <assert.h>
 #endif
@@ -70,7 +68,7 @@ static char sccsid[] = "@(#)hash_buf.c	8.5 (Berkeley) 7/15/94";
 #include "page.h"
 #include "extern.h"
 
-static BUFHEAD *newbuf __P((HTAB *, u_int32_t, BUFHEAD *));
+static BUFHEAD *newbuf __P((HTAB *, u_int, BUFHEAD *));
 
 /* Unlink B from its place in the lru */
 #define BUF_REMOVE(B) { \
@@ -104,12 +102,12 @@ static BUFHEAD *newbuf __P((HTAB *, u_int32_t, BUFHEAD *));
 extern BUFHEAD *
 __get_buf(hashp, addr, prev_bp, newpage)
 	HTAB *hashp;
-	u_int32_t addr;
+	u_int addr;
 	BUFHEAD *prev_bp;
 	int newpage;	/* If prev_bp set, indicates a new overflow page. */
 {
 	register BUFHEAD *bp;
-	register u_int32_t is_disk_mask;
+	register u_int is_disk_mask;
 	register int is_disk, segment_ndx;
 	SEGMENT segp;
 
@@ -142,7 +140,7 @@ __get_buf(hashp, addr, prev_bp, newpage)
 			return (NULL);
 		if (!prev_bp)
 			segp[segment_ndx] =
-			    (BUFHEAD *)((ptrdiff_t)bp | is_disk_mask);
+			    (BUFHEAD *)((u_int)bp | is_disk_mask);
 	} else {
 		BUF_REMOVE(bp);
 		MRU_INSERT(bp);
@@ -159,7 +157,7 @@ __get_buf(hashp, addr, prev_bp, newpage)
 static BUFHEAD *
 newbuf(hashp, addr, prev_bp)
 	HTAB *hashp;
-	u_int32_t addr;
+	u_int addr;
 	BUFHEAD *prev_bp;
 {
 	register BUFHEAD *bp;		/* The buffer we're going to use */
@@ -167,7 +165,7 @@ newbuf(hashp, addr, prev_bp)
 	register BUFHEAD *next_xbp;
 	SEGMENT segp;
 	int segment_ndx;
-	u_int16_t oaddr, *shortp;
+	u_short oaddr, *shortp;
 
 	oaddr = 0;
 	bp = LRU;
@@ -179,16 +177,10 @@ newbuf(hashp, addr, prev_bp)
 		/* Allocate a new one */
 		if ((bp = (BUFHEAD *)malloc(sizeof(BUFHEAD))) == NULL)
 			return (NULL);
-#ifdef PURIFY
-		memset(bp, 0xff, sizeof(BUFHEAD));
-#endif
 		if ((bp->page = (char *)malloc(hashp->BSIZE)) == NULL) {
 			free(bp);
 			return (NULL);
 		}
-#ifdef PURIFY
-		memset(bp->page, 0xff, hashp->BSIZE);
-#endif
 		if (hashp->nbufs)
 			hashp->nbufs--;
 	} else {
@@ -203,7 +195,7 @@ newbuf(hashp, addr, prev_bp)
 			 * Set oaddr before __put_page so that you get it
 			 * before bytes are swapped.
 			 */
-			shortp = (u_int16_t *)bp->page;
+			shortp = (u_short *)bp->page;
 			if (shortp[0])
 				oaddr = shortp[shortp[0] - 1];
 			if ((bp->flags & BUF_MOD) && __put_page(hashp, bp->page,
@@ -246,7 +238,7 @@ newbuf(hashp, addr, prev_bp)
 				    (oaddr != xbp->addr))
 					break;
 
-				shortp = (u_int16_t *)xbp->page;
+				shortp = (u_short *)xbp->page;
 				if (shortp[0])
 					/* set before __put_page */
 					oaddr = shortp[shortp[0] - 1];
@@ -331,10 +323,8 @@ __buf_free(hashp, do_free, to_disk)
 		}
 		/* Check if we are freeing stuff */
 		if (do_free) {
-			if (bp->page) {
-				(void)memset(bp->page, 0, hashp->BSIZE);
+			if (bp->page)
 				free(bp->page);
-			}
 			BUF_REMOVE(bp);
 			free(bp);
 			bp = LRU;
