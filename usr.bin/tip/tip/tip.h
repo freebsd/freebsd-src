@@ -173,7 +173,7 @@ typedef
 		char	e_char;		/* char to match on */
 		char	e_flags;	/* experimental, priviledged */
 		const char *e_help;	/* help string */
-		int 	(*e_func)(char);	/* command */
+		void 	(*e_func)(char);	/* command */
 	}
 	esctable_t;
 
@@ -330,3 +330,8 @@ void	t3000_abort(void);
 int	v831_dialer(char *, char *);
 void	v831_disconnect(void);
 void	v831_abort(void);
+
+void shell(char c), getfl(char c), sendfile(char c), chdirectory(char c);
+void finish(char c), help(char c), pipefile(char c), pipeout(char c);
+void consh(char c), variable(char c), cu_take(char c), cu_put(char c);
+void dollar(char c), genbrk(char c), suspend(char c), listvariables(char c);

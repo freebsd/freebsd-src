@@ -81,6 +81,7 @@ main(argc, argv)
 	char *system = NOSTR;
 	int i;
 	char *p;
+	const char *p2;
 	char sbuf[12];
 
 	gid = getgid();
@@ -198,8 +199,8 @@ notnumber:
 	 */
 	if (HW)
 		ttysetup(i);
-	if ((p = connect())) {
-		printf("\07%s\n[EOT]\n", p);
+	if ((p2 = connect())) {
+		printf("\07%s\n[EOT]\n", p2);
 		daemon_uid();
 		(void)uu_unlock(uucplock);
 		exit(1);

@@ -46,10 +46,6 @@ static char rcsid[] = "$OpenBSD: cmdtab.c,v 1.3 2001/09/09 17:58:41 millert Exp 
 
 #include "tip.h"
 
-extern	int shell(), getfl(), sendfile(), chdirectory();
-extern	int finish(), help(), pipefile(), pipeout(), consh(), variable();
-extern	int cu_take(), cu_put(), dollar(), genbrk(), suspend(), listvariables();
-
 esctable_t etable[] = {
 	{ '!',	NORM,	"shell",			 shell },
 	{ '<',	NORM,	"receive file from remote host", getfl },
