@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: amd.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
  *
  */
 
@@ -57,8 +57,8 @@ struct amu_global_options gopt;	/* where global options are stored */
 char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
 char *progname;			/* "amd" */
 char *hostdomain = "unknown.domain";
-char hostname[MAXHOSTNAMELEN + 1] = "localhost";	/* Hostname */
-char hostd[2 * MAXHOSTNAMELEN + 1];	/* Host+domain */
+char hostname[MAXHOSTNAMELEN + 1] = "localhost"; /* Hostname */
+char hostd[2 * MAXHOSTNAMELEN + 1]; /* Host+domain */
 char *endian = ARCH_ENDIAN;	/* Big or Little endian */
 char *cpu = HOST_CPU;		/* CPU type */
 char *PrimNetName;		/* name of primary network */
