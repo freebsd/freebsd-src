@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/main.c,v 1.89 2004/08/06 08:47:11 brandt Exp $
+ * $Begemot: bsnmp/snmpd/main.c,v 1.90 2005/02/25 11:50:03 brandt_h Exp $
  *
  * SNMPd main stuff.
  */
@@ -612,7 +612,7 @@ fd_resume(void *p)
 #ifdef USE_LIBBEGEMOT
 	if (f->id >= 0)
 		return (0);
-	if ((f->fd = poll_register(f->fd, input, f, POLL_IN)) < 0) {
+	if ((f->id = poll_register(f->fd, input, f, POLL_IN)) < 0) {
 		err = errno;
 		syslog(LOG_ERR, "select fd %d: %m", f->fd);
 		errno = err;
