@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.66 1996/11/11 09:09:37 msmith Exp $
+ **      $Id: userconfig.c,v 1.67 1996/11/12 09:51:16 bde Exp $
  **/
 
 /**
@@ -1484,7 +1484,7 @@ static int
 editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 {
     int		i = *val;			/* work with copy of the value */
-    char	buf[10],tc[8];			/* display buffer, text copy */
+    char	buf[2+11+1],tc[11+1];		/* display buffer, text copy */
     int		xp = 0;				/* cursor offset into text copy */
     int		delta = 1;			/* force redraw first time in */
     int		c;
@@ -1573,7 +1573,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    }
 	    if (xp)				/* still something left to delete */
 	    {
-		i = i / (hex?0x10:10);		/* strip last digit */
+		i = (hex ? i/0x10u : i/10);	/* strip last digit */
 		delta = 1;			/* force update */
 	    }
 	    break;
@@ -1720,7 +1720,7 @@ editparams(DEV_LIST *dev)
 	}
     ep_flags:
 	puthelp("  Device-specific flag values.");
-	ret = editval(18,20,5,1,0x0,0xffff,&(dev->flags),0);
+	ret = editval(18,20,8,1,INT_MIN,INT_MAX,&(dev->flags),0);
 	switch(ret)
 	{
 	case KEY_EXIT:
@@ -2223,7 +2223,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.66 1996/11/11 09:09:37 msmith Exp $
+ *      $Id: userconfig.c,v 1.67 1996/11/12 09:51:16 bde Exp $
  */
 
 #include "scbus.h"
