@@ -64,7 +64,7 @@ struct sbc_softc {
 
 	void *ih[IRQ_MAX];
 
-	void *lock;
+	struct mtx *lock;
 
 	u_int32_t bd_ver;
 };

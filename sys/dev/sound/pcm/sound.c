@@ -50,7 +50,7 @@ struct snddev_info {
 	char status[SND_STATUSLEN];
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
-	void *lock;
+	struct mtx *lock;
 };
 
 devclass_t pcm_devclass;

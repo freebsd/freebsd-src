@@ -73,7 +73,7 @@ struct au_info {
 	bus_space_handle_t sh[3];
 
 	bus_dma_tag_t	parent_dmat;
-	void *lock;
+	struct mtx *lock;
 
 	u_int32_t	x[32], y[128];
 	char		z[128];
