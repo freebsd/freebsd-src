@@ -1414,6 +1414,12 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	vm_offset_t		buf;
 	struct format_params	*fp;
 	int                     i;
+	u_long			par;
+	u_char			write;
+	int			i2c_addr;
+	int			i2c_port;
+	u_long			data;
+ 
 	bt848 =	bktr->base;
 
 	switch ( cmd ) {
@@ -1952,11 +1958,11 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	/* end of METEORSETGEO */
 
 	case BT848_I2CWR:
-		u_long par = *(u_long *)arg;
-		u_char write = (par >> 24) & 0xff ;
-		int i2c_addr = (par >> 16) & 0xff ;
-		int i2c_port = (par >> 8) & 0xff ;
-		u_long data = (par) & 0xff ;
+		par = *(u_long *)arg;
+		write = (par >> 24) & 0xff ;
+		i2c_addr = (par >> 16) & 0xff ;
+		i2c_port = (par >> 8) & 0xff ;
+		data = (par) & 0xff ;
  
 		if (write) { 
 			i2cWrite( bktr, i2c_addr, i2c_port, data);
