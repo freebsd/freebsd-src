@@ -163,7 +163,7 @@
 #include "log.h"
 #include "atomicio.h"
 
-RCSID("$Id: loginrec.c,v 1.40 2002/04/23 13:09:19 djm Exp $");
+RCSID("$Id: loginrec.c,v 1.44 2002/09/26 00:38:49 tim Exp $");
 
 #ifdef HAVE_UTIL_H
 #  include <util.h>
@@ -622,13 +622,13 @@ construct_utmp(struct logininfo *li,
 	switch (li->type) {
 	case LTYPE_LOGIN:
 		ut->ut_type = USER_PROCESS;
-#ifdef _CRAY
+#ifdef _UNICOS
 		cray_set_tmpdir(ut);
 #endif
 		break;
 	case LTYPE_LOGOUT:
 		ut->ut_type = DEAD_PROCESS;
-#ifdef _CRAY
+#ifdef _UNICOS
 		cray_retain_utmp(ut, li->pid);
 #endif
 		break;
@@ -1249,7 +1249,7 @@ wtmpx_get_entry(struct logininfo *li)
 	}
 	if (fstat(fd, &st) != 0) {
 		log("wtmpx_get_entry: couldn't stat %s: %s",
-		    WTMP_FILE, strerror(errno));
+		    WTMPX_FILE, strerror(errno));
 		close(fd);
 		return 0;
 	}
@@ -1271,6 +1271,7 @@ wtmpx_get_entry(struct logininfo *li)
 		/* Logouts are recorded as a blank username on a particular line.
 		 * So, we just need to find the username in struct utmpx */
 		if ( wtmpx_islogin(li, &utx) ) {
+			found = 1;
 # ifdef HAVE_TV_IN_UTMPX
 			li->tv_sec = utx.ut_tv.tv_sec;
 # else

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.10 2002/06/23 09:30:14 deraadt Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.11 2002/09/11 22:41:50 djm Exp $ */
 
 /*
  * Copyright (c) 2001,2002 Damien Miller.  All rights reserved.
@@ -47,9 +47,6 @@ u_int sftp_proto_version(struct sftp_conn *);
 
 /* Close file referred to by 'handle' */
 int do_close(struct sftp_conn *, char *, u_int);
-
-/* List contents of directory 'path' to stdout */
-int do_ls(struct sftp_conn *, char *);
 
 /* Read contents of 'path' to NULL-terminated array 'dir' */
 int do_readdir(struct sftp_conn *, char *, SFTP_DIRENT ***);

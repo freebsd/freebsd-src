@@ -39,7 +39,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: channels.c,v 1.179 2002/06/26 08:55:02 markus Exp $");
+RCSID("$OpenBSD: channels.c,v 1.183 2002/09/17 07:47:02 itojun Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -186,6 +186,7 @@ channel_register_fds(Channel *c, int rfd, int wfd, int efd,
 	} else {
 		c->isatty = 0;
 	}
+	c->wfd_isatty = isatty(c->wfd);
 
 	/* enable nonblocking mode */
 	if (nonblock) {
@@ -572,6 +573,7 @@ void
 channel_send_open(int id)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL) {
 		log("channel_send_open: %d: bad id", id);
 		return;
@@ -589,6 +591,7 @@ void
 channel_request_start(int local_id, char *service, int wantconfirm)
 {
 	Channel *c = channel_lookup(local_id);
+
 	if (c == NULL) {
 		log("channel_request_start: %d: unknown channel id", local_id);
 		return;
@@ -603,6 +606,7 @@ void
 channel_register_confirm(int id, channel_callback_fn *fn)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL) {
 		log("channel_register_comfirm: %d: bad id", id);
 		return;
@@ -613,6 +617,7 @@ void
 channel_register_cleanup(int id, channel_callback_fn *fn)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL) {
 		log("channel_register_cleanup: %d: bad id", id);
 		return;
@@ -623,6 +628,7 @@ void
 channel_cancel_cleanup(int id)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL) {
 		log("channel_cancel_cleanup: %d: bad id", id);
 		return;
@@ -633,6 +639,7 @@ void
 channel_register_filter(int id, channel_filter_fn *fn)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL) {
 		log("channel_register_filter: %d: bad id", id);
 		return;
@@ -645,6 +652,7 @@ channel_set_fds(int id, int rfd, int wfd, int efd,
     int extusage, int nonblock, u_int window_max)
 {
 	Channel *c = channel_lookup(id);
+
 	if (c == NULL || c->type != SSH_CHANNEL_LARVAL)
 		fatal("channel_activate for non-larval channel %d.", id);
 	channel_register_fds(c, rfd, wfd, efd, extusage, nonblock);
@@ -815,6 +823,7 @@ static void
 channel_pre_x11_open_13(Channel *c, fd_set * readset, fd_set * writeset)
 {
 	int ret = x11_open_helper(&c->output);
+
 	if (ret == 1) {
 		/* Start normal processing for the channel. */
 		c->type = SSH_CHANNEL_OPEN;
@@ -866,7 +875,7 @@ channel_pre_x11_open(Channel *c, fd_set * readset, fd_set * writeset)
 static int
 channel_decode_socks4(Channel *c, fd_set * readset, fd_set * writeset)
 {
-	u_char *p, *host;
+	char *p, *host;
 	int len, have, i, found;
 	char username[256];
 	struct {
@@ -1278,6 +1287,11 @@ channel_handle_wfd(Channel *c, fd_set * readset, fd_set * writeset)
 	    buffer_len(&c->output) > 0) {
 		data = buffer_ptr(&c->output);
 		dlen = buffer_len(&c->output);
+#ifdef _AIX
+		/* XXX: Later AIX versions can't push as much data to tty */ 
+		if (compat20 && c->wfd_isatty && dlen > 8*1024)
+			dlen = 8*1024;
+#endif
 		len = write(c->wfd, data, dlen);
 		if (len < 0 && (errno == EINTR || errno == EAGAIN))
 			return 1;
@@ -1395,6 +1409,7 @@ static void
 channel_post_output_drain_13(Channel *c, fd_set * readset, fd_set * writeset)
 {
 	int len;
+
 	/* Send buffered output data to the socket. */
 	if (FD_ISSET(c->sock, writeset) && buffer_len(&c->output) > 0) {
 		len = write(c->sock, buffer_ptr(&c->output),
@@ -1472,6 +1487,7 @@ static void
 channel_handler_init(void)
 {
 	int i;
+
 	for (i = 0; i < SSH_CHANNEL_MAX_TYPE; i++) {
 		channel_pre[i] = NULL;
 		channel_post[i] = NULL;
@@ -2006,7 +2022,6 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
 	struct addrinfo hints, *ai, *aitop;
 	const char *host;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
-	struct linger linger;
 
 	success = 0;
 	host = (type == SSH_CHANNEL_RPORT_LISTENER) ?
@@ -2049,13 +2064,13 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
 			continue;
 		}
 		/*
-		 * Set socket options.  We would like the socket to disappear
-		 * as soon as it has been closed for whatever reason.
+		 * Set socket options.
+		 * Allow local port reuse in TIME_WAIT.
 		 */
-		setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-		linger.l_onoff = 1;
-		linger.l_linger = 5;
-		setsockopt(sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+		if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on,
+		    sizeof(on)) == -1)
+			error("setsockopt SO_REUSEADDR: %s", strerror(errno));
+
 		debug("Local forwarding listening on %s port %s.", ntop, strport);
 
 		/* Bind the socket to the address. */
@@ -2605,6 +2620,7 @@ void
 deny_input_open(int type, u_int32_t seq, void *ctxt)
 {
 	int rchan = packet_get_int();
+
 	switch (type) {
 	case SSH_SMSG_AGENT_OPEN:
 		error("Warning: ssh server tried agent forwarding.");

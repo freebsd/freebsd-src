@@ -1,5 +1,5 @@
 /* 
- * $Id: bsd-cray.c,v 1.6 2002/05/15 16:39:51 mouring Exp $
+ * $Id: bsd-cray.c,v 1.8 2002/09/26 00:38:51 tim Exp $
  *
  * bsd-cray.c
  *
@@ -34,8 +34,8 @@
  * on UNICOS systems.
  *
  */
+#ifdef _UNICOS
 
-#ifdef _CRAY
 #include <udb.h>
 #include <tmpdir.h>
 #include <unistd.h>
@@ -45,18 +45,32 @@
 #include <signal.h>
 #include <sys/priv.h>
 #include <sys/secparm.h>
+#include <sys/tfm.h>
 #include <sys/usrv.h>
 #include <sys/sysv.h>
 #include <sys/sectab.h>
+#include <sys/secstat.h>
 #include <sys/stat.h>
+#include <sys/session.h>
 #include <stdlib.h>
 #include <pwd.h>
 #include <fcntl.h>
 #include <errno.h>
-
+#include <ia.h>
+#include <urm.h>
+#include "ssh.h"
+#include "log.h"
+#include "servconf.h"
 #include "bsd-cray.h"
 
+#define MAXACID 80
+
+extern ServerOptions options;
+
 char cray_tmpdir[TPATHSIZ+1];		    /* job TMPDIR path */
+
+struct		sysv sysv;	/* system security structure */
+struct		usrv usrv;      /* user   security structure */
 
 /*
  * Functions.
@@ -65,68 +79,538 @@ void cray_retain_utmp(struct utmp *, int);
 void cray_delete_tmpdir(char *, int, uid_t);
 void cray_init_job(struct passwd *);
 void cray_set_tmpdir(struct utmp *);
+void cray_login_failure(char *, int);
+int cray_setup(uid_t, char *, const char *);
+int cray_access_denied(char *);
 
+void
+cray_login_failure(char *username, int errcode)
+{
+	struct udb	*ueptr;		/* UDB pointer for username */
+	ia_failure_t	fsent;		/* ia_failure structure */
+	ia_failure_ret_t fret;		/* ia_failure return stuff */
+	struct jtab	jtab;		/* job table structure */
+	int		jid = 0;	/* job id */
+
+	if ((jid = getjtab(&jtab)) < 0) {
+		debug("cray_login_failure(): getjtab error");
+	}
+	getsysudb();
+	if ((ueptr = getudbnam(username)) == UDB_NULL) {
+		debug("cray_login_failure(): getudbname() returned NULL");
+	}
+	endudb();
+	fsent.revision	= 0;
+	fsent.uname	= username;
+	fsent.host	= (char *)get_canonical_hostname(options.verify_reverse_mapping);
+	fsent.ttyn	= "sshd";
+	fsent.caller	= IA_SSHD;
+	fsent.flags	= IA_INTERACTIVE;
+	fsent.ueptr	= ueptr;
+	fsent.jid	= jid;
+	fsent.errcode	= errcode;
+	fsent.pwdp	= NULL;
+	fsent.exitcode	= 0;	/* dont exit in ia_failure() */
+
+	fret.revision	= 0;
+	fret.normal	= 0;
+
+	/*
+	 * Call ia_failure because of an login failure.
+	 */
+	ia_failure(&fsent,&fret);
+}
 
 /*
- * Orignal written by:
- *     Wayne Schroeder
- *     San Diego Supercomputer Center
- *     schroeder@sdsc.edu
-*/
-void
-cray_setup(uid_t uid, char *username)
+ *  Cray access denied
+ */
+int
+cray_access_denied(char *username)
 {
-	struct udb *p;
+	struct udb	*ueptr;		/* UDB pointer for username */
+	int 		errcode;	/* IA errorcode */
+
+	errcode = 0;
+	getsysudb();
+	if ((ueptr = getudbnam(username)) == UDB_NULL) {
+		debug("cray_login_failure(): getudbname() returned NULL");
+	}
+	endudb();
+	if (ueptr && ueptr->ue_disabled)
+		errcode = IA_DISABLED;
+	if (errcode)
+		cray_login_failure(username, errcode);
+	return (errcode);
+}
+
+int
+cray_setup (uid_t uid, char *username, const char *command)
+{
+	extern struct udb *getudb();
 	extern char *setlimits();
-	int i, j;
-	int accts[MAXVIDS];
-	int naccts;
-	int err;
-	char *sr;
-	int pid;
-	struct jtab jbuf;
-	int jid;
 
-	if ((jid = getjtab(&jbuf)) < 0)
-		fatal("getjtab: no jid");
+	int err;                      /* error return */
+	time_t		system_time;	/* current system clock */
+	time_t		expiration_time; /* password expiration time */
+	int		maxattempts;	/* maximum no. of failed login attempts */
+	int		SecureSys;	/* unicos security flag */
+	int		minslevel = 0;	/* system minimum security level */
+	int		i, j;
+	int		valid_acct = -1; /* flag for reading valid acct */
+	char acct_name[MAXACID]  = { "" }; /* used to read acct name */
+	struct		jtab jtab;	/* Job table struct */
+	struct		udb ue;		/* udb entry for logging-in user */
+	struct		udb *up;	/* pointer to UDB entry */
+	struct		secstat secinfo; /* file  security attributes */
+	struct          servprov init_info; /* used for sesscntl() call */
+	int		jid;		/* job ID */
+	int		pid;		/* process ID */
+	char		*sr;            /* status return from setlimits() */
+	char		*ttyn = NULL;	/* ttyname or command name*/
+	char		hostname[MAXHOSTNAMELEN];
+	passwd_t	pwdacm,
+			pwddialup,
+			pwdudb,
+			pwdwal,
+			pwddce;		/* passwd stuff for ia_user */
+	ia_user_ret_t	uret;		/* stuff returned from ia_user */
+	ia_user_t	usent;		/* ia_user main structure */
+	int		ia_rcode;	/* ia_user return code */
+	ia_failure_t	fsent;		/* ia_failure structure */
+	ia_failure_ret_t fret;		/* ia_failure return stuff */
+	ia_success_t	ssent;		/* ia_success structure */
+	ia_success_ret_t sret;		/* ia_success return stuff */
+	int		ia_mlsrcode;    /* ia_mlsuser return code */
+	int		secstatrc;      /* [f]secstat return code */
 
-	err = setudb();	   /* open and rewind the Cray User DataBase */
-	if (err != 0)
-		fatal("UDB open failure");
-	naccts = 0;
-	p = getudbnam(username);
-	if (p == NULL)
-		fatal("No UDB entry for %.100s", username);
-	if (uid != p->ue_uid)
-		fatal("UDB entry %.100s uid(%d) does not match uid %d",
-		    username, (int) p->ue_uid, (int) uid);
-	for (j = 0; p->ue_acids[j] != -1 && j < MAXVIDS; j++) {
-		accts[naccts] = p->ue_acids[j];
-		naccts++;
+	if (SecureSys = (int)sysconf(_SC_CRAY_SECURE_SYS)) {
+		getsysv(&sysv, sizeof(struct sysv));
+		minslevel = sysv.sy_minlvl;
+		if (getusrv(&usrv) < 0) {
+			debug("getusrv() failed, errno = %d",errno);
+			exit(1);
+		}
 	}
-	endudb();	 /* close the udb */
+	hostname[0] = '\0';
+	strncpy(hostname,
+	   (char *)get_canonical_hostname(options.verify_reverse_mapping),
+	   MAXHOSTNAMELEN);
+        /*
+         *  Fetch user's UDB entry.
+         */
+        getsysudb();
+        if ((up = getudbnam(username)) == UDB_NULL) {
+                debug("cannot fetch user's UDB entry");
+                exit(1);
+        }
 
-	if (naccts != 0) {
-		/* Perhaps someday we'll prompt users who have multiple accounts
-		   to let them pick one (like CRI's login does), but for now just set
-		   the account to the first entry. */
-		if (acctid(0, accts[0]) < 0)
-			fatal("System call acctid failed, accts[0]=%d", accts[0]);
+        /*
+         *  Prevent any possible fudging so perform a data
+         *  safety check and compare the supplied uid against
+         *  the udb's uid.
+         */
+        if (up->ue_uid != uid) {
+                debug("IA uid missmatch");
+                exit(1);
+        }
+	endudb();
+
+	if ((jid = getjtab (&jtab)) < 0) {
+		debug("getjtab");
+		return -1;
 	}
-
-	/* Now set limits, including CPU time for the (interactive) job and process,
-	   and set up permissions (for chown etc), etc.	 This is via an internal CRI
-	   routine, setlimits, used by CRI's login. */
-
 	pid = getpid();
+	ttyn = ttyname(0);
+	if (SecureSys) {
+		if (ttyn) {
+			secstatrc = secstat(ttyn, &secinfo);
+		} else {
+			secstatrc = fsecstat(1, &secinfo);
+		}
+		if (secstatrc == 0) {
+			debug("[f]secstat() successful");
+		} else {
+			debug("[f]secstat() error, rc = %d", secstatrc);
+			exit(1);
+		}
+	}
+	if ((ttyn == NULL) && ((char *)command != NULL))
+		ttyn = (char *)command;
+        /*
+         *  Initialize all structures to call ia_user
+         */
+        usent.revision = 0;
+        usent.uname    = username;
+        usent.host     = hostname;
+        usent.ttyn     = ttyn;
+        usent.caller   = IA_SSHD; 
+        usent.pswdlist = &pwdacm;
+        usent.ueptr    = &ue;
+        usent.flags    = IA_INTERACTIVE | IA_FFLAG;
+        pwdacm.atype   = IA_SECURID;
+        pwdacm.pwdp    = NULL;
+        pwdacm.next    = &pwdudb;
+
+        pwdudb.atype   = IA_UDB;
+        pwdudb.pwdp    = NULL;
+        pwdudb.next    = &pwddce;
+
+        pwddce.atype   = IA_DCE;
+        pwddce.pwdp    = NULL;
+        pwddce.next    = &pwddialup;
+
+        pwddialup.atype = IA_DIALUP;
+        pwddialup.pwdp  = NULL;
+        /* pwddialup.next  = &pwdwal; */
+        pwddialup.next  = NULL;
+
+        pwdwal.atype = IA_WAL;
+        pwdwal.pwdp  = NULL;
+        pwdwal.next  = NULL;
+
+        uret.revision = 0;
+        uret.pswd     = NULL;
+        uret.normal   = 0;
+
+        ia_rcode = ia_user(&usent, &uret);
+
+        switch (ia_rcode) {
+                /*
+                 *  These are acceptable return codes from ia_user()
+                 */
+                case IA_UDBWEEK:        /* Password Expires in 1 week */
+		     expiration_time = ue.ue_pwage.time + ue.ue_pwage.maxage;
+		     printf ("WARNING - your current password will expire %s\n",
+                     ctime((const time_t *)&expiration_time));
+                     break;
+                case IA_UDBEXPIRED:
+		     if (ttyname(0) != NULL) {
+		     /* Force a password change */
+		         printf("Your password has expired; Choose a new one.\n");
+		         execl("/bin/passwd", "passwd", username, 0);
+		         exit(9);
+		     }
+
+		     break;
+                case IA_NORMAL:         /* Normal Return Code */
+                     break;
+                case IA_BACKDOOR:
+                     strcpy(ue.ue_name, "root");
+                     strcpy(ue.ue_passwd, "");
+                     strcpy(ue.ue_dir, "/");
+                     strcpy(ue.ue_shell, "/bin/sh");
+                     strcpy(ue.ue_age, "");
+                     strcpy(ue.ue_comment, "");
+                     strcpy(ue.ue_loghost, "");
+                     strcpy(ue.ue_logline, "");
+                     ue.ue_uid=-1;
+                     ue.ue_nice[UDBRC_INTER]=0;
+                     for (i=0;i<MAXVIDS;i++)
+                         ue.ue_gids[i]=0;
+                     ue.ue_logfails=0;
+                     ue.ue_minlvl=minslevel; 
+                     ue.ue_maxlvl=minslevel;
+                     ue.ue_deflvl=minslevel;
+                     ue.ue_defcomps=0;
+                     ue.ue_comparts=0;
+                     ue.ue_permits=0;
+                     ue.ue_trap=0;
+                     ue.ue_disabled=0;
+                     ue.ue_logtime=0;
+                     break;
+                case IA_CONSOLE:        /* Superuser not from Console */
+		case IA_TRUSTED:	/* Trusted user */
+		     if (options.permit_root_login > PERMIT_NO)
+                     	break;		/* Accept root login */
+   	        default:
+                /*
+                 *  These are failed return codes from ia_user()
+                 */
+		     switch (ia_rcode) 
+		       {
+		       case IA_BADAUTH:
+			 printf ("Bad authorization, access denied.\n");
+			 break;
+		       case IA_DIALUPERR:
+			 break;
+		       case IA_DISABLED:
+			 printf ("Your login has been disabled. Contact the system ");
+			 printf ("administrator for assistance.\n");
+			 break;
+		       case IA_GETSYSV:
+			 printf ("getsysv() failed - errno = %d\n", errno);
+			 break;
+		       case IA_LOCALHOST:
+			 break;
+		       case IA_MAXLOGS:
+			 printf ("Maximum number of failed login attempts exceeded.\n");
+			 printf ("Access denied.\n");
+			 break;
+		       case IA_NOPASS:
+			 break;
+		       case IA_PUBLIC:
+			 break;
+		       case IA_SECURIDERR:
+			 break;
+		       case IA_CONSOLE:
+			 break;
+		       case IA_TRUSTED:
+			 break;
+		       case IA_UDBERR:
+			 break;
+		       case IA_UDBPWDNULL:
+			 /* 
+			  * NULL password not allowed on MLS systems
+			  */
+			 if (SecureSys) {
+			   printf("NULL Password not allowed on MLS systems.\n");
+			 }
+			 break;
+		       case IA_UNKNOWN:
+			 break;
+		       case IA_UNKNOWNYP:
+			 break;
+		       case IA_WALERR:
+			 break;
+		       default:
+			 /* nothing special */
+			 ;
+		       }   /* 2. switch  (ia_rcode) */
+		     /*
+		      *  Authentication failed.
+		      */
+		     printf("sshd: Login incorrect, (0%o)\n",
+			    ia_rcode-IA_ERRORCODE);
+		     
+		     /*
+		      *  Initialize structure for ia_failure
+		      *  which will exit.
+		      */
+		     fsent.revision = 0;
+		     fsent.uname    = username;
+		     fsent.host     = hostname;
+		     fsent.ttyn     = ttyn;
+		     fsent.caller   = IA_SSHD;
+		     fsent.flags    = IA_INTERACTIVE;
+		     fsent.ueptr    = &ue;
+		     fsent.jid      = jid;
+		     fsent.errcode  = ia_rcode;
+		     fsent.pwdp     = uret.pswd;
+		     fsent.exitcode = 1;
+		     
+		     fret.revision  = 0;
+		     fret.normal    = 0;
+		     
+		     /*
+		      *  Call ia_failure because of an IA failure.
+		      *  There is no return because ia_failure exits.
+		      */
+	
+		     ia_failure(&fsent,&fret);
+
+		     exit(1); 
+	}   /* 1. switch  (ia_rcode) */
+	ia_mlsrcode = IA_NORMAL;
+	if (SecureSys) {
+		debug("calling ia_mlsuser()");
+		ia_mlsrcode = ia_mlsuser (&ue, &secinfo, &usrv, NULL, 0);
+	}
+	if (ia_mlsrcode != IA_NORMAL) {
+		printf("sshd: Login incorrect, (0%o)\n",
+		ia_mlsrcode-IA_ERRORCODE);
+		/*
+ 		 *  Initialize structure for ia_failure
+ 		 *  which will exit.
+		*/
+		fsent.revision = 0;
+		fsent.uname    = username;
+		fsent.host     = hostname;
+		fsent.ttyn     = ttyn;
+		fsent.caller   = IA_SSHD;
+		fsent.flags    = IA_INTERACTIVE;
+		fsent.ueptr    = &ue;
+		fsent.jid      = jid;
+		fsent.errcode  = ia_mlsrcode;
+		fsent.pwdp     = uret.pswd;
+		fsent.exitcode = 1;
+		fret.revision  = 0;
+		fret.normal    = 0;
+
+		/*
+		*  Call ia_failure because of an IA failure.
+		*  There is no return because ia_failure exits.
+		*/
+		ia_failure(&fsent,&fret);
+		exit(1); 
+	}
+
+        /* Provide login status information */
+        if (options.print_lastlog && ue.ue_logtime != 0) {
+            printf("Last successful login was : %.*s ",
+                    19, (char *)ctime(&ue.ue_logtime));
+  
+           if (*ue.ue_loghost != '\0')
+                printf("from %.*s\n", sizeof(ue.ue_loghost), ue.ue_loghost);
+ 
+            else printf("on %.*s\n", sizeof(ue.ue_logline), ue.ue_logline);
+ 
+            if ( SecureSys && (ue.ue_logfails != 0)) 
+                printf("  followed by %d failed attempts\n", ue.ue_logfails);
+        }
+
+	
+	/*
+	 * Call ia_success to process successful I/A.
+	 */
+	ssent.revision = 0;
+	ssent.uname = username;
+	ssent.host = hostname;
+	ssent.ttyn = ttyn;
+	ssent.caller = IA_SSHD;
+	ssent.flags = IA_INTERACTIVE;
+	ssent.ueptr = &ue;
+	ssent.jid = jid;
+	ssent.errcode = ia_rcode;
+	ssent.us = NULL;
+	ssent.time = 1;      		 /* Set ue_logtime */
+
+	sret.revision = 0;
+	sret.normal = 0;
+
+	ia_success(&ssent,&sret);
+
+        /*
+         * Query for account, iff > 1 valid acid & askacid permbit
+         */
+        if (((ue.ue_permbits & PERMBITS_ACCTID) ||
+             (ue.ue_acids[0] >= 0) && (ue.ue_acids[1] >= 0)) &&
+            ue.ue_permbits & PERMBITS_ASKACID) {
+		if (ttyname(0) != NULL) {
+		  debug("cray_setup: ttyname true case, %.100s", ttyname);
+                  while (valid_acct == -1) {
+                        printf("Account (? for available accounts)"
+                               " [%s]: ", acid2nam(ue.ue_acids[0]));
+                        gets(acct_name);
+                        switch (acct_name[0]) {
+                        case EOF:
+                                exit(0);
+                                break;
+                        case '\0':
+                                valid_acct = ue.ue_acids[0];
+                                strcpy(acct_name, acid2nam(valid_acct));
+                                break;
+                        case '?':
+                                /* Print the list 3 wide */
+                                for (i = 0, j = 0; i < MAXVIDS; i++) {
+                                        if (ue.ue_acids[i] == -1) {
+                                                printf("\n");
+                                                break;
+                                        }
+                                        if (++j == 4) {
+                                                j = 1;
+                                                printf("\n");
+                                        }
+                                        printf(" %s",
+                                               acid2nam(ue.ue_acids[i]));
+                                }
+                                if (ue.ue_permbits & PERMBITS_ACCTID)
+                                        printf("\"acctid\" permbit also allows"
+                                               " you to select any valid "
+                                               "account name.\n");
+                                printf("\n");
+                                break;
+                        default:
+                                if ((valid_acct = nam2acid(acct_name)) == -1)                                        printf("Account id not found for"
+                                               " account name \"%s\"\n\n",
+                                               acct_name);
+                                break;
+                        }
+                        /*
+                         * If an account was given, search the user's
+                         * acids array to verify they can use this account.
+                         */
+                        if ((valid_acct != -1) &&
+                            !(ue.ue_permbits & PERMBITS_ACCTID)) {
+                                for (i = 0; i < MAXVIDS; i++) {
+                                        if (ue.ue_acids[i] == -1)
+                                                break;
+                                        if (valid_acct == ue.ue_acids[i])
+                                                break;
+                                }
+                                if (i == MAXVIDS ||
+                                    ue.ue_acids[i] == -1) {
+                                        fprintf(stderr, "Cannot set"
+                                                " account name to "
+                                                "\"%s\", permission "
+                                                "denied\n\n", acct_name);
+                                        valid_acct = -1;
+                                }
+                        }
+                  }
+		} else {
+			/*
+			 * The client isn't connected to a terminal and can't
+			 * respond to an acid prompt.  Use default acid.
+			 */
+			debug("cray_setup: ttyname false case, %.100s", ttyname);
+			valid_acct = ue.ue_acids[0];
+		}
+        } else {
+                /*
+                 * The user doesn't have the askacid permbit set or
+                 * only has one valid account to use.
+                 */
+                valid_acct = ue.ue_acids[0];
+        }
+        if (acctid(0, valid_acct) < 0) {
+                printf ("Bad account id: %d\n", valid_acct);
+                exit(1);
+        }
+
+/* set up shares and quotas */
+/* Now set shares, quotas, limits, including CPU time for the (interactive) 
+ * job and process, and set up permissions (for chown etc), etc.
+ */
+	if (setshares(ue.ue_uid, valid_acct, printf, 0, 0)) {
+		printf("Unable to give %d shares to <%s>(%d/%d)\n", ue.ue_shares, ue.ue_name, ue.ue_uid, valid_acct);
+		exit(1);
+        }
+
 	sr = setlimits(username, C_PROC, pid, UDBRC_INTER);
-	if (sr != NULL)
-		fatal("%.200s", sr);
-
+	if (sr != NULL) {
+		debug("%.200s", sr);
+		exit(1);
+	}
 	sr = setlimits(username, C_JOB, jid, UDBRC_INTER);
-	if (sr != NULL)
-		fatal("%.200s", sr);
+	if (sr != NULL) {
+		debug("%.200s", sr);
+		exit(1);
+	}
+	/*
+ 	 * Place the service provider information into
+	 * the session table (Unicos) or job table (Unicos/mk).
+	 * There exist double defines for the job/session table in
+	 * unicos/mk (jtab.h) so no need for a compile time switch.
+	 */
+	bzero((char *)&init_info, sizeof(struct servprov));
+	init_info.s_sessinit.si_id  = URM_SPT_LOGIN;
+	init_info.s_sessinit.si_pid = getpid();
+	init_info.s_sessinit.si_sid = jid;
+	init_info.s_routing.seqno = 0;
+	init_info.s_routing.iadrs = 0;
+	sesscntl(0, S_SETSERVPO, (int)&init_info);
 
+	/*
+	 * Set user and controlling tty security attributes.
+	 */
+	if (SecureSys) {
+		if (setusrv(&usrv) == -1) {
+			debug("setusrv() failed, errno = %d",errno);
+			exit(1);
+		}
+	}
+
+        return(0);
 }
 
 /*
@@ -143,7 +627,6 @@ drop_cray_privs()
 	int			  result;
 	extern	    int		  priv_set_proc();
 	extern	    priv_proc_t*  priv_init_proc();
-	struct	    usrv	  usrv;
 
 	/*
 	 * If ether of theses two flags are not set
@@ -154,9 +637,23 @@ drop_cray_privs()
 	if (!sysconf(_SC_CRAY_POSIX_PRIV))
 		fatal("Not POSIX_PRIV.");
 
-	debug("Dropping privileges.");
+	debug("Setting MLS labels.");;
 
-	memset(&usrv, 0, sizeof(usrv));
+	if (sysconf(_SC_CRAY_SECURE_MAC)) {
+		usrv.sv_minlvl = SYSLOW;
+		usrv.sv_actlvl = SYSHIGH;
+		usrv.sv_maxlvl = SYSHIGH;
+	} else {
+		usrv.sv_minlvl = sysv.sy_minlvl;
+		usrv.sv_actlvl = sysv.sy_minlvl;
+		usrv.sv_maxlvl = sysv.sy_maxlvl;
+	}       
+	usrv.sv_actcmp = 0;
+	usrv.sv_valcmp = sysv.sy_valcmp;
+
+	usrv.sv_intcat = TFM_SYSTEM;
+	usrv.sv_valcat |= (TFM_SYSTEM | TFM_SYSFILE);
+
 	if (setusrv(&usrv) < 0)
 		fatal("%s(%d): setusrv(): %s", __FILE__, __LINE__,
 		    strerror(errno));
@@ -189,7 +686,6 @@ cray_retain_utmp(struct utmp *ut, int pid)
 		while (read(fd, (char *)&utmp, sizeof(utmp)) == sizeof(utmp)) {
 			if (pid == utmp.ut_pid) {
 				ut->ut_jid = utmp.ut_jid;
-				/* XXX: MIN_SIZEOF here? can this go in loginrec? */
 				strncpy(ut->ut_tpath, utmp.ut_tpath, sizeof(utmp.ut_tpath));
 				strncpy(ut->ut_host, utmp.ut_host, sizeof(utmp.ut_host));
 				strncpy(ut->ut_name, utmp.ut_name, sizeof(utmp.ut_name));
@@ -198,7 +694,8 @@ cray_retain_utmp(struct utmp *ut, int pid)
 		}
 		close(fd);
 	}
-	/* XXX: error message? */
+	else
+	fatal("Unable to open utmp file");
 }
 
 /*
@@ -245,7 +742,7 @@ cray_job_termination_handler(int sig)
 	char *login = NULL;
 	struct jtab jtab;
 
-	debug("Received SIG JOB.");
+	debug("received signal %d",sig);
 
 	if ((jid = waitjob(&jtab)) == -1 ||
 	    (login = uid2nam(jtab.j_uid)) == NULL)
