@@ -804,6 +804,7 @@ show_prerequisites(int *flags, int want, int cmd)
 static void
 show_ipfw(struct ip_fw *rule)
 {
+	static int twidth = 0;
 	int l;
 	ipfw_insn *cmd;
 	int proto = 0;		/* default */
@@ -825,15 +826,22 @@ show_ipfw(struct ip_fw *rule)
 		printf("%10qu %10qu ", rule->pcnt, rule->bcnt);
 
 	if (do_time) {
+		char timestr[30];
+		time_t t = (time_t)0;
+
+		if (twidth == 0) {
+			strcpy(timestr, ctime(&t));
+			*strchr(timestr, '\n') = '\0';
+			twidth = strlen(timestr);
+		}
 		if (rule->timestamp) {
-			char timestr[30];
-			time_t t = _long_to_time(rule->timestamp);
+			t = _long_to_time(rule->timestamp);
 
 			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
 			printf("%s ", timestr);
 		} else {
-			printf("			 ");
+			printf("%*s", twidth, " ");
 		}
 	}
 
