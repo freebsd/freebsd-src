@@ -9,6 +9,7 @@
 ARCHS=		i386 alpha sparc64
 MULTITEXTS=	installation relnotes hardware
 UNITEXTS=	readme errata
+PC98MULTITEXTS=	relnotes hardware
 
 IMAGEDIR=	.imagedir
 RHOST=		freefall.freebsd.org
@@ -40,6 +41,11 @@ image:	all
 			for k in ${FORMATS}; do \
 	cp -p ${DOCDIR}/${LANG}/$${j}/$${i}/article.$${k} ${IMAGEDIR}/$${j}-$${i}.$${k} ; \
 			done; \
+		done; \
+	done
+	for j in ${PC98MULTITEXTS}; do \
+		for k in ${FORMATS}; do \
+	cp -p ${DOCDIR}/${LANG}/$${j}/pc98/article.$${k} ${IMAGEDIR}/$${j}-pc98.$${k} ; \
 		done; \
 	done
 	for j in ${UNITEXTS}; do \
