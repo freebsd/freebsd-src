@@ -8,7 +8,7 @@ CFLAGS+=	-DDEFAULT_EMULATION=\"elf64alpha\"
 CFLAGS+=	-DTARGET=\"alpha-unknown-freebsdelf\"
 _alpha_path=	\"/usr/lib\"
 .else
-_alpha_path=	\"/usr/cross/alpha-freebsdelf/usr/lib\"
+_alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf64alpha_emulation
 LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \

@@ -3,12 +3,12 @@
 #
 
 .if	${MACHINE_ARCH} == "m68k"
-HOST=		m68k-unknown-freebsdelf
+HOST=		m68k-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_m68k\"
-CFLAGS+=	-DTARGET=\"m68k-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"m68k-unknown-freebsd\"
 _m68k_path=	\"/usr/lib\"
 .else
-_m68k_path=	\"/usr/cross/m68k-freebsdelf/usr/lib\"
+_m68k_path=	\"/usr/cross/m68k-freebsd/usr/lib\"
 .endif
 EMS+=		ld_m68kelf_emulation	\
 		ld_m68klynx_emulation	\

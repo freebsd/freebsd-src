@@ -3,12 +3,12 @@
 #
 
 .if	${MACHINE_ARCH} == "sparc"
-HOST=		sparc-unknown-freebsdelf
+HOST=		sparc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf32_sparc\"
-CFLAGS+=	-DTARGET=\"sparc-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"sparc-unknown-freebsd\"
 _sparc_path=	\"/usr/lib\"
 .else
-_sparc_path=	\"/usr/cross/sparc-freebsdelf/usr/lib\"
+_sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf32_sparc_emulation
 LDSCRIPTS+=	elf32_sparc.x elf32_sparc.xbn elf32_sparc.xn elf32_sparc.xr \
@@ -19,6 +19,6 @@ CLEANFILES+=	eelf32_sparc.c
 eelf32_sparc.c:	emulparams/elf32_sparc.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld ${_sparc_path} \
-	    ${HOST} sparc-unknown-freebsdelf sparc-unknown-freebsdelf \
-	    elf32_sparc "" elf32_sparc sparc-unknown-freebsdelf
+	    ${HOST} sparc-unknown-freebsd sparc-unknown-freebsd \
+	    elf32_sparc "" elf32_sparc sparc-unknown-freebsd
 
