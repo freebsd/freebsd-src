@@ -50,6 +50,7 @@ typedef enum {
 	Pproc,		/* a process-specific sub-directory */
 	Pexe,		/* the executable file */
 	Pmem,		/* the process's memory image */
+	Pcmdline,	/* command line */
 	Pprocstat,	/* the process's status */
 	Pprocstatus,	/* the process's status (again) */
 	Pmeminfo,	/* memory system statistics */
