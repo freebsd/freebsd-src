@@ -172,20 +172,6 @@ struct wi_counters {
 #endif
 
 /*
- * These are all the LTV record types that we can read or write
- * from the WaveLAN. Not all of them are temendously useful, but I
- * list as many as I know about here for completeness.
- */
-
-#define WI_RID_DNLD_BUF		0xFD01
-#define WI_RID_MEMSZ		0xFD02
-#define WI_RID_DOMAINS		0xFD11
-#define WI_RID_CIS		0xFD13
-#define WI_RID_COMMQUAL		0xFD43
-#define WI_RID_SCALETHRESH	0xFD46
-#define WI_RID_PCF		0xFD87
-
-/*
  * Network parameters, static configuration entities.
  */
 #define WI_RID_PORTTYPE		0xFC00 /* Connection control characteristics */
@@ -264,7 +250,9 @@ struct wi_ltv_keys {
 /*
  * NIC information
  */
-#define WI_RID_FIRM_ID		0xFD02 /* Primary func firmware ID. */
+#define WI_RID_DNLD_BUF		0xFD01
+#define WI_RID_MEMSZ		0xFD02 /* memory size info (XXX Lucent) */
+#define	WI_RID_PRI_IDENTITY	0xFD02 /* primary funcs firmware ident (PRISM2) */
 #define WI_RID_PRI_SUP_RANGE	0xFD03 /* primary supplier compatibility */
 #define WI_RID_CIF_ACT_RANGE	0xFD04 /* controller sup. compatibility */
 #define WI_RID_SERIALNO		0xFD0A /* card serial number */
@@ -278,7 +266,11 @@ struct wi_ltv_keys {
 #define WI_RID_STA_IDENTITY	0xFD20 /* station funcs firmware ident */
 #define WI_RID_STA_SUP_RANGE	0xFD21 /* station supplier compat */
 #define WI_RID_MFI_ACT_RANGE	0xFD22
+#define WI_RID_SYMBOL_IDENTITY	0xFD24
 #define WI_RID_CFI_ACT_RANGE	0xFD33
+#define WI_RID_COMMQUAL		0xFD43
+#define WI_RID_SCALETHRESH	0xFD46
+#define WI_RID_PCF		0xFD87
 
 /*
  * MAC information

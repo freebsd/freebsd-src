@@ -561,10 +561,8 @@ struct wi_ltv_commqual {
 };
 
 /*
- * Actual system scale thresholds (0xFD46).
+ * Actual system scale thresholds (0xFC06, 0xFD46).
  */
-#define WI_RID_SYSTEM_SCALE	0xFC06
-#define WI_RID_SCALETHRESH	0xFD46
 struct wi_ltv_scalethresh {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -579,7 +577,6 @@ struct wi_ltv_scalethresh {
 /*
  * PCF info struct (0xFD87).
  */
-#define WI_RID_PCF		0xFD87
 struct wi_ltv_pcf {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -591,21 +588,21 @@ struct wi_ltv_pcf {
 };
 
 /*
- * Connection control characteristics.
+ * Connection control characteristics. (0xFC00)
+ * 0 == IBSS (802.11 compliant mode) (Only PRISM2)
  * 1 == Basic Service Set (BSS)
  * 2 == Wireless Distribudion System (WDS)
- * 3 == Pseudo IBSS
+ * 3 == Pseudo IBSS 
+ *	(Only PRISM2; not 802.11 compliant mode, testing use only)
+ * 6 == HOST AP (Only PRISM2)
  */
-#define WI_RID_PORTTYPE		0xFC00
 #define WI_PORTTYPE_BSS		0x1
 #define WI_PORTTYPE_WDS		0x2
 #define WI_PORTTYPE_ADHOC	0x3
 
 /*
- * Mac addresses.
+ * Mac addresses. (0xFC01, 0xFC08)
  */
-#define WI_RID_MAC_NODE		0xFC01
-#define WI_RID_MAC_WDS		0xFC08
 struct wi_ltv_macaddr {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
