@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.12 1999/04/30 19:12:51 obrien Exp $ */
+/* $Id: freebsd.h,v 1.13 1999/06/28 09:05:56 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -26,14 +26,14 @@ Boston, MA 02111-1307, USA.  */
    egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
 
 
-/* Don't assume anything about the header files. */
+/* Don't assume anything about the header files.  */
 #undef NO_IMPLICIT_EXTERN_C
 #define NO_IMPLICIT_EXTERN_C
 
 /* This defines which switch letters take arguments.  On FreeBSD, most of
    the normal cases (defined in gcc.c) apply, and we also have -h* and
    -z* options (for the linker) (comming from svr4).
-   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
+   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc.  */
 
 #define FBSD_SWITCH_TAKES_ARG(CHAR) \
   (DEFAULT_SWITCH_TAKES_ARG (CHAR) \
@@ -53,11 +53,11 @@ Boston, MA 02111-1307, USA.  */
 
 /* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
    libc, depending on whether we're doing profiling. 
-   (like the default, except no -lg, and no -p.  */
+   (like the default, except no -lg, and no -p).  */
 #undef LIB_SPEC
 #define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
 
-/* Let gcc locate this for us according to the -m rules */
+/* Let gcc locate this for us according to the -m rules.  */
 #undef LIBGCC_SPEC
 #define LIBGCC_SPEC \
  "%{!shared:%{!pthread:%{!kthread:libgcc.a%s}}%{pthread|kthread:libgcc_r.a%s}}"
@@ -66,24 +66,24 @@ Boston, MA 02111-1307, USA.  */
 /* Code generation parameters.  */
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
-   we want to retain compatibility with older gcc versions.  
+   we want to retain compatibility with older gcc versions  
    (even though the svr4 ABI for the i386 says that records and unions are
-   returned in memory)  */
+   returned in memory).  */
 #undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
 /* Ensure we the configuration knows our system correctly so we can link with
-   libraries compiled with the native cc. */
+   libraries compiled with the native cc.  */
 #undef NO_DOLLAR_IN_LABEL
 
 /* Use more efficient ``thunks'' to implement C++ vtables.  XXX note that 
    this setting is claimed to have a few bugs by the EGCS maintainers.  They
-   believe the bugs will be worked out in EGCS 1.2. */
+   believe the bugs will be worked out in EGCS 1.2.  */
 #undef DEFAULT_VTABLE_THUNKS
 #define DEFAULT_VTABLE_THUNKS 1
 
 /* Our malloc can allocte pagesized blocks efficiently.  The default size 
-   of 4072 bytes is not optimal on the i386 nor the Alpha. */
+   of 4072 bytes is not optimal on the i386 nor the Alpha.  */
 #define OBSTACK_CHUNK_SIZE	(getpagesize())
 
 
