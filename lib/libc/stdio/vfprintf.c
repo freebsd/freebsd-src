@@ -1233,6 +1233,7 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
+	va_end(orgap);
 #ifndef NO_FLOATING_POINT
 	if (dtoaresult != NULL)
 		freedtoa(dtoaresult);
