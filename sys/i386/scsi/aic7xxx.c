@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.62 1996/04/22 13:21:40 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.63 1996/04/23 04:22:41 gibbs Exp $
  */
 /*
  * TODO:
@@ -2218,7 +2218,7 @@ static void ahc_loadseq(iobase)
 		outb(SEQCTL + iobase, SEQRESET|FASTMODE);
 
 	} while (inb(SEQADDR0 + iobase) != 0 &&
-		 inb(SEQADDR1 + iobase != 0));
+		 inb(SEQADDR1 + iobase) != 0);
 }
 
 /*
