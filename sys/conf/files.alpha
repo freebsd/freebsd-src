@@ -76,7 +76,6 @@ alpha/alpha/simplelock.s	optional	smp
 alpha/alpha/support.s		standard
 alpha/alpha/swtch.s		standard
 alpha/alpha/sys_machdep.c	standard
-alpha/alpha/synch_machdep.c	standard
 alpha/alpha/trap.c		standard
 alpha/alpha/userconfig.c	optional	userconfig
 alpha/alpha/vm_machdep.c	standard

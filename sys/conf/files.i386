@@ -186,7 +186,6 @@ i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
-i386/i386/synch_machdep.c	standard
 i386/i386/trap.c		standard
 i386/i386/userconfig.c		optional	userconfig
 i386/i386/vm86.c		standard
