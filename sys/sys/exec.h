@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.20 1998/11/15 15:33:52 bde Exp $
+ * $Id: exec.h,v 1.21 1998/12/16 16:28:58 bde Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -111,7 +111,7 @@ int exec_unregister __P((const struct execsw *));
 		name ## _modevent, \
 		(void *)& execsw_arg \
 	}; \
-	DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
+	C_DECLARE_MODULE(name, name ## _mod, SI_SUB_EXEC, SI_ORDER_ANY)
 #endif
 #endif
 
