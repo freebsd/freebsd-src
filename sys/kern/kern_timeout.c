@@ -480,9 +480,9 @@ _callout_stop_safe(c, safe)
 		nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
 	}
 	TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c, c_links.tqe);
-	c->c_func = NULL;
 
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
+		c->c_func = NULL;
 		SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
 	}
 	mtx_unlock_spin(&callout_lock);
