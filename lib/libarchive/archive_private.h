@@ -123,7 +123,7 @@ struct archive {
 	void	 *compression_data;		/* Data for (de)compressor. */
 	int	(*compression_init)(struct archive *);	/* Initialize. */
 	int	(*compression_finish)(struct archive *);
-	ssize_t	(*compression_write)(struct archive *, const void *, size_t);
+	int	(*compression_write)(struct archive *, const void *, size_t);
 	/*
 	 * Read uses a peek/consume I/O model: the decompression code
 	 * returns a pointer to the requested block and advances the
