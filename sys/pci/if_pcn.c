@@ -136,7 +136,7 @@ static void pcn_miibus_statchg	(device_t);
 
 static void pcn_setfilt		(struct ifnet *);
 static void pcn_setmulti	(struct pcn_softc *);
-static u_int32_t pcn_mchash	(caddr_t);
+static uint32_t pcn_mchash	(const uint8_t *);
 static void pcn_reset		(struct pcn_softc *);
 static int pcn_list_rx_init	(struct pcn_softc *);
 static int pcn_list_tx_init	(struct pcn_softc *);
@@ -310,11 +310,11 @@ pcn_miibus_statchg(dev)
 
 static u_int32_t
 pcn_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

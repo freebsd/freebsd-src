@@ -159,7 +159,7 @@ static int sf_setvlan		(struct sf_softc *, int, u_int32_t);
 #endif
 
 static u_int8_t sf_read_eeprom	(struct sf_softc *, int);
-static u_int32_t sf_mchash	(caddr_t);
+static uint32_t sf_mchash	(const uint8_t *);
 
 static int sf_miibus_readreg	(device_t, int, int);
 static int sf_miibus_writereg	(device_t, int, int, int);
@@ -260,11 +260,11 @@ csr_write_4(sc, reg, val)
 
 static u_int32_t
 sf_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

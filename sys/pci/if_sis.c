@@ -155,7 +155,7 @@ static void sis_miibus_statchg	(device_t);
 
 static void sis_setmulti_sis	(struct sis_softc *);
 static void sis_setmulti_ns	(struct sis_softc *);
-static u_int32_t sis_mchash	(struct sis_softc *, caddr_t);
+static uint32_t sis_mchash	(struct sis_softc *, const uint8_t *);
 static void sis_reset		(struct sis_softc *);
 static int sis_list_rx_init	(struct sis_softc *);
 static int sis_list_tx_init	(struct sis_softc *);
@@ -839,11 +839,11 @@ sis_miibus_statchg(dev)
 static u_int32_t
 sis_mchash(sc, addr)
 	struct sis_softc	*sc;
-	caddr_t			addr;
+	const uint8_t		*addr;
 {
-	u_int32_t		crc, carry; 
+	uint32_t		crc, carry; 
 	int			idx, bit;
-	u_int8_t		data;
+	uint8_t			data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

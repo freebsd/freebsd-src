@@ -206,7 +206,7 @@ static void bge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static u_int8_t	bge_eeprom_getbyte	(struct bge_softc *, int, u_int8_t *);
 static int bge_read_eeprom	(struct bge_softc *, caddr_t, int, int);
 
-static u_int32_t bge_mchash	(caddr_t);
+static uint32_t bge_mchash	(const uint8_t *);
 static void bge_setmulti	(struct bge_softc *);
 
 static void bge_handle_events	(struct bge_softc *);
@@ -1130,13 +1130,13 @@ bge_init_tx_ring(sc)
 
 #define BGE_POLY	0xEDB88320
 
-static u_int32_t
+static uint32_t
 bge_mchash(addr)
-	caddr_t addr;
+	const uint8_t *addr;
 {
-	u_int32_t crc;
+	uint32_t crc;
 	int idx, bit;
-	u_int8_t data;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

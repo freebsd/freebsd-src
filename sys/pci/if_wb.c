@@ -174,7 +174,7 @@ static int wb_mii_readreg	(struct wb_softc *, struct wb_mii_frame *);
 static int wb_mii_writereg	(struct wb_softc *, struct wb_mii_frame *);
 
 static void wb_setcfg		(struct wb_softc *, u_int32_t);
-static u_int32_t wb_mchash	(caddr_t);
+static uint32_t wb_mchash	(const uint8_t *);
 static void wb_setmulti		(struct wb_softc *);
 static void wb_reset		(struct wb_softc *);
 static void wb_fixmedia		(struct wb_softc *);
@@ -588,11 +588,11 @@ wb_miibus_statchg(dev)
 
 static u_int32_t
 wb_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

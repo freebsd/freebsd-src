@@ -2046,14 +2046,14 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 /*
  * Compute hash value for an Ethernet address
  */
-static u_int32_t
-fe_mchash (caddr_t addr)
+static uint32_t
+fe_mchash (const uint8_t *addr)
 {
 #define	FE_POLY 0xEDB88320L
 
-	u_long carry, crc = 0xFFFFFFFFL;
+	uint32_t carry, crc = 0xFFFFFFFFL;
 	int idx, bit;
-	u_int8_t data;
+	uint8_t data;
 
 	for ( idx = ETHER_ADDR_LEN; --idx >= 0; ) {
 		for (data = *addr++, bit = 8; --bit >= 0; data >>= 1) {

@@ -189,13 +189,13 @@ lance_probe(struct lnc_softc *sc)
 		return (UNKNOWN);
 }
 
-static __inline u_int32_t
-lnc_mchash(caddr_t ether_addr)
+static __inline uint32_t
+lnc_mchash(const uint8_t *ether_addr)
 {
 #define LNC_POLYNOMIAL		0xEDB88320UL
-    u_int32_t crc = 0xFFFFFFFFUL;
+    uint32_t crc = 0xFFFFFFFF;
     int idx, bit;
-    u_int8_t data;
+    uint8_t data;
 
     for (idx = 0; idx < ETHER_ADDR_LEN; idx++) {
 	for (data = *ether_addr++, bit = 0; bit < MULTICAST_FILTER_LEN; bit++) {

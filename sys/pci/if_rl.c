@@ -206,7 +206,7 @@ static int rl_miibus_readreg	(device_t, int, int);
 static int rl_miibus_writereg	(device_t, int, int, int);
 static void rl_miibus_statchg	(device_t);
 
-static u_int32_t rl_mchash	(caddr_t);
+static uint32_t rl_mchash	(const uint8_t *);
 static void rl_setmulti		(struct rl_softc *);
 static void rl_reset		(struct rl_softc *);
 static int rl_list_tx_init	(struct rl_softc *);
@@ -737,11 +737,11 @@ rl_miibus_statchg(dev)
  */
 static u_int32_t
 rl_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
