@@ -138,12 +138,12 @@ minor glitch that is generated during program startup.
 speaker device file
 .El
 .Sh ENVIRONMENT
-If you
+If your
 .Ev LC_CTYPE
 locale codeset is
 .Ql KOI8-R ,
 characters with the high-order bit set are interpreted as
-Cyrillic characters.  If you
+Cyrillic characters.  If your
 .Ev LC_CTYPE
 locale codeset is
 .Ql ISO8859-1
@@ -164,8 +164,10 @@ Ability to key an external device added by
 .An J\(:org Wunsch
 (DL8DTL).
 .Sh BUGS
-Does only understand a few European characters (namely German and
-French), but neither Asian ones, or the continental landline code.
+Only understands a few European characters
+(German and French),
+no Asian characters,
+and no continental landline code.
 .Pp
 Sends a bit slower than it should due to system overhead. Some people
 would call this a feature.
