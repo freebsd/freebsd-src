@@ -97,6 +97,7 @@ struct devfs_ruleset {
 	int	ds_refcount;
 	int	ds_flags;
 #define	DS_IMMUTABLE	0x001
+	int	ds_running;
 };
 
 static devfs_rid devfs_rid_input(devfs_rid rid, struct devfs_mount *dm);
@@ -679,11 +680,10 @@ devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de)
 	if (dr->dr_iacts & DRA_INCSET) {
 		ds = devfs_ruleset_bynum(dk->dk_rule.dr_incset);
 		KASSERT(ds != NULL, ("DRA_INCSET but bad dr_incset"));
-		if (dk->dk_ruleset == ds) {
-			/* XXX: Do a better job of detecting loops. */
-			printf("Warning: Ruleset %d including itself!\n",
-			    dk->dk_ruleset->ds_number);
-		} else
+		if (ds->ds_running)
+			printf("Warning: avoiding loop through ruleset %d\n",
+			    ds->ds_number);
+		else
 			devfs_ruleset_applyde(ds, de);
 	}
 }
@@ -696,9 +696,12 @@ devfs_ruleset_applyde(struct devfs_ruleset *ds, struct devfs_dirent *de)
 {
 	struct devfs_krule *dk;
 
+	KASSERT(!ds->ds_running,("ruleset %d already running", ds->ds_number));
+	ds->ds_running = 1;
 	SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
 		devfs_rule_applyde(dk, de);
 	}
+	ds->ds_running = 0;
 }
 
 /*
@@ -709,6 +712,8 @@ devfs_ruleset_applydm(struct devfs_ruleset *ds, struct devfs_mount *dm)
 {
 	struct devfs_krule *dk;
 
+	KASSERT(!ds->ds_running,("ruleset %d already running", ds->ds_number));
+	ds->ds_running = 1;
 	/*
 	 * XXX: Does it matter whether we do
 	 *
@@ -728,6 +733,7 @@ devfs_ruleset_applydm(struct devfs_ruleset *ds, struct devfs_mount *dm)
 	SLIST_FOREACH(dk, &ds->ds_rules, dk_list) {
 		devfs_rule_applydm(dk, dm);
 	}
+	ds->ds_running = 0;
 }
 
 /*
