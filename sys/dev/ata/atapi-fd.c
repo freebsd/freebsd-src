@@ -213,7 +213,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label;
 
-    atapi_wait_ready(fdp->atp, 10);
+    atapi_test_ready(fdp->atp);
     afd_prevent_allow(fdp, 1);
     if (afd_sense(fdp))
 	printf("afd%d: sense media type failed\n", fdp->lun);
