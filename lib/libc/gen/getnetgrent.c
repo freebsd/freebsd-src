@@ -283,7 +283,7 @@ int len;
 	if ((ptr = strstr(list, group)) == NULL)
 		return(0);
 
-	if (*(ptr + strlen(group)) == ',' || *(ptr + strlen(group)) == '\n')
+	if (*(ptr + strlen(group)) == ',' || *(ptr + strlen(group)) == '\0')
 		return(1);
 
 	return(0);
