@@ -190,7 +190,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 {
 	int i;
 	int param, ins, arg, type;
-	va_list p_list = 0;
+	va_list p_list;
 
 	va_start(p_list, nbparam);
 
