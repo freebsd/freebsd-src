@@ -351,7 +351,7 @@ cpu_mp_probe(void)
 	boot_cpu_id = PCPU_GET(cpuid);
 	KASSERT(boot_cpu_id == hwrpb->rpb_primary_cpu_id,
 	    ("cpu_mp_probe() called on non-primary CPU"));
-	all_cpus = 1 << boot_cpu_id;
+	all_cpus = PCPU_GET(cpumask);
 
 	mp_ncpus = 1;
 
@@ -413,12 +413,12 @@ cpu_mp_start(void)
 		all_cpus |= (1 << i);
 		mp_ncpus++;
 	}
-	PCPU_SET(other_cpus, all_cpus & ~(1 << boot_cpu_id));
+	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		if (i == boot_cpu_id)
 			continue;
-		if (all_cpus & (1 << i))
+		if (!CPU_ABSENT(i))
 			smp_start_secondary(i);
 	}
 }
@@ -476,7 +476,7 @@ ipi_all_but_self(u_int64_t ipi)
 void
 ipi_self(u_int64_t ipi)
 {
-	ipi_selected(1 << PCPU_GET(cpuid), ipi);
+	ipi_selected(PCPU_GET(cpumask), ipi);
 }
 
 /*
@@ -489,7 +489,7 @@ smp_handle_ipi(struct trapframe *frame)
 	u_int64_t ipi;
 	int cpumask;
 
-	cpumask = 1 << PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	CTR1(KTR_SMP, "smp_handle_ipi(), ipis=%lx", ipis);
 	while (ipis) {
