@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.7 1998/09/26 01:31:10 msmith Exp $
+ *	$Id: main.c,v 1.8 1998/09/28 20:17:05 peter Exp $
  */
 
 /*
@@ -55,6 +55,8 @@ struct bootinfo	*initial_bootinfo;
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
+static void		extract_currdev(void);
+
 /* from vers.c */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -64,7 +66,6 @@ extern char end[];
 void
 main(void)
 {
-    struct i386_devdesc	currdev;
     int			i;
 
     /* Pick up arguments */
@@ -106,18 +107,8 @@ main(void)
     printf("using %d bytes of stack at %p\n",  (&stacktop - &stackbase), &stacktop);
 #endif
 
-    /* We're booting from a BIOS disk, try to spiff this */
-    currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
-    currdev.d_type = currdev.d_dev->dv_type;
-    currdev.d_kind.biosdisk.unit = 0;			/* XXX wrong, need to get from bootinfo etc. */
-    currdev.d_kind.biosdisk.slice = -1;			/* XXX should be able to detect this, default to autoprobe */
-    currdev.d_kind.biosdisk.partition = 0;		/* default to 'a' */
-
-    /* Create i386-specific variables */
-    
-    env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev), i386_setcurrdev, env_nounset);
-    env_setenv("loaddev", EV_VOLATILE,  i386_fmtdev(&currdev), env_noset, env_nounset);
-    setenv("LINES", "24", 1);				/* optional */
+    extract_currdev();				/* set $currdev and $loaddev */
+    setenv("LINES", "24", 1);			/* optional */
     
     archsw.arch_autoload = i386_autoload;
     archsw.arch_getdev = i386_getdev;
@@ -131,6 +122,43 @@ main(void)
     legacy_config();		/* read old /boot.config file */
 #endif
     interact();			/* doesn't return */
+}
+
+/*
+ * Set the 'current device' by (if possible) recovering the boot device as 
+ * supplied by the initial bootstrap.
+ *
+ * XXX should be extended for netbooting.
+ */
+static void
+extract_currdev(void)
+{
+    struct i386_devdesc	currdev;
+    int			major, biosdev, i;
+
+    /* We're booting from a BIOS disk, try to spiff this */
+    currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
+    currdev.d_type = currdev.d_dev->dv_type;
+    currdev.d_kind.biosdisk.slice = (B_ADAPTOR(kargs->bootdev) << 4) + B_CONTROLLER(kargs->bootdev) - 1;
+    currdev.d_kind.biosdisk.partition = B_PARTITION(kargs->bootdev);
+
+    biosdev = initial_bootinfo->bi_bios_dev;
+    major = B_TYPE(kargs->bootdev);
+
+    /*
+     * If we are booted by an old bootstrap, we have to guess at the BIOS
+     * unit number.  We will loose if there is more than one disk type
+     * and we are not booting from the lowest-numbered disk type.
+     */
+    if ((biosdev == 0) && (major != 2))			/* biosdev doesn't match major */
+	biosdev = 0x80 + B_UNIT(kargs->bootdev);	/* assume harddisk */
+
+    if ((currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1) {
+	printf("Can't work out which disk we are booting from, defaulting to disk0:\n");
+	currdev.d_kind.biosdisk.unit;
+    }
+    env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev), i386_setcurrdev, env_nounset);
+    env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&currdev), env_noset, env_nounset);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -150,26 +178,6 @@ exit(int code)
 {
     __exit(code);
 }
-
-#if 0 /* XXX learn to ask BTX */
-
-COMMAND_SET(stack, "stack", "show stack usage", command_stack);
-
-extern char stackbase, stacktop;
-
-static int
-command_stack(int argc, char *argv[])
-{
-    char	*cp;
-
-    for (cp = &stackbase; cp < &stacktop; cp++)
-	if (*cp != 0)
-	    break;
-    
-    printf("%d bytes of stack used\n", &stacktop - cp);
-    return(CMD_OK);
-}
-#endif
 
 COMMAND_SET(heap, "heap", "show heap usage", command_heap);
 
