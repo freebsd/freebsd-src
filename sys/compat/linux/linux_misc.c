@@ -1204,7 +1204,7 @@ linux_getgroups(p, uap)
 
 	pc = p->p_cred;
 	bsd_gidset = pc->pc_ucred->cr_groups;
-	bsd_gidsetsz = pc->pc_ucred->cr_ngroups;
+	bsd_gidsetsz = pc->pc_ucred->cr_ngroups - 1;
 
 	/*
 	 * cr_groups[0] holds egid. Returning the whole set
@@ -1213,16 +1213,16 @@ linux_getgroups(p, uap)
 	 */
 
 	if ((ngrp = uap->gidsetsize) == 0) {
-		p->p_retval[0] = bsd_gidsetsz - 1;
+		p->p_retval[0] = bsd_gidsetsz;
 		return (0);
 	}
 
-	if (ngrp < bsd_gidsetsz - 1)
+	if (ngrp < bsd_gidsetsz)
 		return (EINVAL);
 
-	ngrp = 1;
+	ngrp = 0;
 	while (ngrp < bsd_gidsetsz) {
-		linux_gidset[ngrp - 1] = bsd_gidset[ngrp];
+		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
 	}
 
@@ -1230,7 +1230,7 @@ linux_getgroups(p, uap)
 	    ngrp * sizeof(linux_gid_t))))
 		return (error);
 
-	p->p_retval[0] = ngrp - 1;
+	p->p_retval[0] = ngrp;
 	return (0);
 }
 
