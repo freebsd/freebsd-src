@@ -33,19 +33,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: setlocale.c,v 1.10 1996/11/26 08:00:17 ache Exp $
  */
+
+#ifdef LIBC_RCS
+static const char rcsid[] =
+	"$Id$";
+#endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <limits.h>
 #include <locale.h>
 #include <rune.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <unistd.h>
 #include "collate.h"
 
 /*
@@ -225,21 +232,20 @@ loadlocale(category)
 	char *new = new_categories[category];
 	char *old = current_categories[category];
 
-	if (strcmp(new, old) == 0)
-		return (old);
-
-	if (   !_PathLocale
-	    && strcmp(new, "C") && strcmp(new, "POSIX")
-	   ) {
-		char *pl = getenv("PATH_LOCALE");
-
-		if (!pl)
+	if (!_PathLocale) {
+		if (   !(ret = getenv("PATH_LOCALE"))
+		    || getuid() != geteuid()
+		    || getgid() != getegid()
+		   )
 			_PathLocale = _PATH_LOCALE;
-		else if (   strlen(pl) + 45 > PATH_MAX
-			 || !(_PathLocale = strdup(pl))
+		else if (   strlen(ret) + 45 > PATH_MAX
+			 || !(_PathLocale = strdup(ret))
 			)
 			return (NULL);
 	}
+
+	if (strcmp(new, old) == 0)
+		return (old);
 
 	if (category == LC_CTYPE) {
 #ifdef XPG4
