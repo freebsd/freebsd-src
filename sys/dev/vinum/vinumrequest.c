@@ -1049,7 +1049,6 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	}
 	bp->b_bcount = size << DEV_BSHIFT;
     }
-    bp->b_pblkno = bp->b_blkno;
     return 1;
 }
 
