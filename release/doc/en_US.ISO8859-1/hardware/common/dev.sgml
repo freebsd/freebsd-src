@@ -1348,6 +1348,35 @@
         <listitem>
 	  <para>3cSOHO100-TX OfficeConnect adapter</para>
         </listitem>
+        <listitem>
+	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Optiplex GX1 on-board 3C918</para>
+        </listitem>
+        <listitem>
+	  <para>Dell On-board 3C920</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Precision on-board 3C905B</para>
+        </listitem>
+        <listitem>
+	  <para>Dell Latitude laptop docking station embedded 3C905-TX</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">3Com 3C59X series NICs (&man.vx.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3C590 Etherlink III (PCI)</para>
+	</listitem>
+        <listitem>
+	  <para>3C595 Fast Etherlink III (PCI)</para>
+	</listitem>
+        <listitem>
+	  <para>3C592/3C597 (EISA)</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1355,15 +1384,6 @@
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>3C503 Etherlink II (&man.ed.4; driver)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C590/592/595 (&man.vx.4; driver)</para>
-	</listitem>
-        <listitem>
-	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
-        </listitem>
-        <listitem>
-	  <para>EISA (Fast) Etherlink III / (Fast) Etherlink XL</para>
         </listitem>
       </itemizedlist>
     </para>
