@@ -1,0 +1,296 @@
+#
+# Copyright (c) 1992, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
+#
+vop_lookup {
+	IN struct vnode *dvp;
+	INOUT struct vnode **vpp;
+	IN struct componentname *cnp;
+};
+
+vop_create {
+	IN WILLRELE struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+vop_mknod {
+	IN WILLRELE struct vnode *dvp;
+	OUT WILLRELE struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+vop_open {
+	IN struct vnode *vp;
+	IN int mode;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_close {
+	IN struct vnode *vp;
+	IN int fflag;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_access {
+	IN struct vnode *vp;
+	IN int mode;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_getattr {
+	IN struct vnode *vp;
+	IN struct vattr *vap;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_setattr {
+	IN struct vnode *vp;
+	IN struct vattr *vap;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_read {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN int ioflag;
+	IN struct ucred *cred;
+};
+
+vop_write {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN int ioflag;
+	IN struct ucred *cred;
+};
+
+vop_ioctl {
+	IN struct vnode *vp;
+	IN int command;
+	IN caddr_t data;
+	IN int fflag;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+# Needs work?  (fflags)
+vop_select {
+	IN struct vnode *vp;
+	IN int which;
+	IN int fflags;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_mmap {
+	IN struct vnode *vp;
+	IN int fflags;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_fsync {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN int waitfor;
+	IN struct proc *p;
+};
+
+# Needs word: Is newoff right?  What's it mean?
+vop_seek {
+	IN struct vnode *vp;
+	IN off_t oldoff;
+	IN off_t newoff;
+	IN struct ucred *cred;
+};
+
+vop_remove {
+	IN WILLRELE struct vnode *dvp;
+	IN WILLRELE struct vnode *vp;
+	IN struct componentname *cnp;
+};
+
+vop_link {
+	IN WILLRELE struct vnode *vp;
+	IN struct vnode *tdvp;
+	IN struct componentname *cnp;
+};
+
+vop_rename {
+	IN WILLRELE struct vnode *fdvp;
+	IN WILLRELE struct vnode *fvp;
+	IN struct componentname *fcnp;
+	IN WILLRELE struct vnode *tdvp;
+	IN WILLRELE struct vnode *tvp;
+	IN struct componentname *tcnp;
+};
+
+vop_mkdir {
+	IN WILLRELE struct vnode *dvp;
+	OUT struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+};
+
+vop_rmdir {
+	IN WILLRELE struct vnode *dvp;
+	IN WILLRELE struct vnode *vp;
+	IN struct componentname *cnp;
+};
+
+vop_symlink {
+	IN WILLRELE struct vnode *dvp;
+	OUT WILLRELE struct vnode **vpp;
+	IN struct componentname *cnp;
+	IN struct vattr *vap;
+	IN char *target;
+};
+
+vop_readdir {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+};
+
+vop_readlink {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+};
+
+vop_abortop {
+	IN struct vnode *dvp;
+	IN struct componentname *cnp;
+};
+
+vop_inactive {
+	IN struct vnode *vp;
+};
+
+vop_reclaim {
+	IN struct vnode *vp;
+};
+
+vop_lock {
+	IN struct vnode *vp;
+};
+
+vop_unlock {
+	IN struct vnode *vp;
+};
+
+vop_bmap {
+	IN struct vnode *vp;
+	IN daddr_t bn;
+	OUT struct vnode **vpp;
+	IN daddr_t *bnp;
+	OUT int *runp;
+};
+
+#vop_strategy {
+#	IN struct buf *bp;
+#};
+
+vop_print {
+	IN struct vnode *vp;
+};
+
+vop_islocked {
+	IN struct vnode *vp;
+};
+
+vop_pathconf {
+	IN struct vnode *vp;
+	IN int name;
+	OUT int *retval;
+};
+
+vop_advlock {
+	IN struct vnode *vp;
+	IN caddr_t id;
+	IN int op;
+	IN struct flock *fl;
+	IN int flags;
+};
+
+vop_blkatoff {
+	IN struct vnode *vp;
+	IN off_t offset;
+	OUT char **res;
+	OUT struct buf **bpp;
+};
+
+vop_valloc {
+	IN struct vnode *pvp;
+	IN int mode;
+	IN struct ucred *cred;
+	OUT struct vnode **vpp;
+};
+
+vop_reallocblks {
+	IN struct vnode *vp;
+	IN struct cluster_save *buflist;
+};
+
+vop_vfree {
+	IN struct vnode *pvp;
+	IN ino_t ino;
+	IN int mode;
+};
+
+vop_truncate {
+	IN struct vnode *vp;
+	IN off_t length;
+	IN int flags;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+vop_update {
+	IN struct vnode *vp;
+	IN struct timeval *access;
+	IN struct timeval *modify;
+	IN int waitfor;
+};
+
+# Needs work: no vp?
+#vop_bwrite {
+#	IN struct buf *bp;
+#};

@@ -1,0 +1,64 @@
+/* $Header: test.trans,v 0.2 88/09/19 12:58:29 nhall Exp $
+ */
+*PROTOCOL test
+
+*INCLUDE
+
+{
+#include "test_def.h"
+}
+
+*PCB    test_pcbstruct 	SYNONYM  P
+
+*STATES
+
+STATE_A
+STATE_B
+STATE_C
+ALL_STATES = [STATE_A, STATE_B, STATE_C]
+
+*EVENTS		{ int ev_all; } 		SYNONYM  E
+
+EV_1	{ char *ev1_char; }
+EV_2	{ int	ev2_int; char ev2_char; }
+EV_3
+EV_4		{ struct blah	*ev4_blahptr; 
+			  unsigned int 	ev4_uint;
+			  int 			ev4_int; 
+			}
+
+*TRANSITIONS
+
+SAME			<==			[ STATE_A, STATE_B ] [ EV_1, EV_2, EV_3 ]
+	( $E.ev_all > 0 )
+	{
+		if( $P.test_state == STATE_A )
+			printf("state is STATE_A\n"); 
+		else
+			printf("state is STATE_B\n"); 
+		printf("action first transition\n"); 
+	}
+
+;
+STATE_C			<==			[ STATE_A, STATE_B ] [ EV_1, EV_2, EV_3 ]
+	DEFAULT
+	{
+		printf("default - transition 2\n");
+		MACRO1( $P.test_pcbfield );
+	}
+;
+
+STATE_C			<==			[ STATE_A, STATE_B ] 	EV_4
+	( $$.ev4_blahptr->blahfield & 0x1 )
+	NULLACTION
+;
+
+STATE_C			<==			 ALL_STATES	EV_4
+	DEFAULT
+	{
+		printf("default - transition 4\n");
+		printf("pcb is 0x%x, event is 0x%x \n", $P, $E);
+		printf("ev4 values are : blahptr 0x%x uint 0x%x int 0x%x\n",
+			$$.ev4_blahptr, $$.ev4_uint, $$.ev4_int);
+	}
+;

@@ -1,0 +1,7 @@
+If you plan on using union mounts, then you should consider replacing
+"libc/gen/opendir.c" in the C library with the file "libc.opendir.c"
+in this directory.  The replacement version of opendir() automatically
+removes duplicate names when a union stack is encountered.  You will
+then need to rebuild the C library and all commands.
+
+@(#)README	8.1 (Berkeley) 2/15/94
