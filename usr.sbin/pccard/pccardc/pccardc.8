@@ -54,6 +54,8 @@ Device driver enabler
 Print command summary
 .It Pa pccardmem
 Allocate memory for pccard driver
+.It Pa power
+Power on/off slots
 .It Pa rdattr
 Read attribute memory
 .It Pa rdmap
@@ -162,6 +164,21 @@ This subcommand corresponds to
 in
 .Xr rc.conf 5 .
 .It
+.Nm power Ar slot 0|1
+.Pp
+It turns ON/OFF a power supply of a card in the slot specified in
+.Ar slot .
+.Pp
+.Bl -tag -width Ds
+.It Ar 0
+turn OFF a power supply. If a card becomes unstable when it is removed at
+activate state,
+this can force it to turn into inactive state first and remove it safely.
+.It Ar 1
+turn ON a power supply and into active state similar to a card insertion.
+.El
+.Pp
+It
 .Nm rdattr Ar slot offs length
 .Pp
 Prints a hex dump
