@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "calendar.h"
 
 struct tm *tp;
+static const struct tm tm0;
 int *cumdays, offset, yrdays;
 char dayname[10];
 
@@ -179,10 +180,7 @@ time_t Mktime (dp)
     (void)time(&t);
     tp = localtime(&t);
 
-    tm.tm_sec = 0;
-    tm.tm_min = 0;
-    tm.tm_hour = 0;
-    tm.tm_wday = 0;
+    tm = tm0;
     tm.tm_mday = tp->tm_mday;
     tm.tm_mon = tp->tm_mon;
     tm.tm_year = tp->tm_year;
