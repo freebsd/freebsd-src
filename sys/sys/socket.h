@@ -95,6 +95,8 @@ typedef	_BSD_SOCKLEN_T_	socklen_t;
 #define	SO_RCVTIMEO	0x1006		/* receive timeout */
 #define	SO_ERROR	0x1007		/* get error status and clear */
 #define	SO_TYPE		0x1008		/* get socket type */
+#define	SO_LABEL	0x1009		/* socket's MAC label */
+#define	SO_PEERLABEL	0x1010		/* socket's peer's MAC label */
 
 /*
  * Structure used for manipulating linger option.
