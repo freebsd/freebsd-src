@@ -194,6 +194,6 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: dmesg [-M core] [-N system]\n");
+	(void)fprintf(stderr, "usage: dmesg [-a] [-M core] [-N system]\n");
 	exit(1);
 }
