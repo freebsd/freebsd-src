@@ -38,6 +38,12 @@
 .Nm sbp
 .Nd Serial Bus Protocol 2 (SBP-2) Mass Storage Devices driver
 .Sh SYNOPSIS
+.Cd "kldload firewire"
+.Cd "kldload cam"
+.Cd "kldload sbp"
+.Pp
+or
+.Pp
 .Cd "device sbp"
 .Cd "device firewire"
 .Cd "device scbus"
@@ -56,6 +62,7 @@ HDD, CDROM drive and DVD drive.
 .Xr camcontrol 8 ,
 .Xr firewire 4 ,
 .Xr fwcontrol 8 ,
+.Xr kldload 8 ,
 .Xr sysctl 8
 .Sh AUTHORS
 .An -nosplit
