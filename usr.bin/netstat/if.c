@@ -82,6 +82,7 @@ intpr(interval, ifnetaddr)
 	u_long ifnetaddr;
 {
 	struct ifnet ifnet;
+	struct ifnethead ifnethead;
 	union {
 		struct ifaddr ifa;
 		struct in_ifaddr in;
@@ -107,8 +108,12 @@ intpr(interval, ifnetaddr)
 		sidewaysintpr((unsigned)interval, ifnetaddr);
 		return;
 	}
-	if (kread(ifnetaddr, (char *)&ifnetaddr, sizeof ifnetaddr))
+	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
 		return;
+	ifnetaddr = (u_long)ifnethead.tqh_first;
+	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
+		return;
+
 	printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		"Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 	if (bflag)
@@ -134,7 +139,7 @@ intpr(interval, ifnetaddr)
 			    kread((u_long)ifnet.if_name, tname, 16))
 				return;
 			tname[15] = '\0';
-			ifnetaddr = (u_long)ifnet.if_next;
+			ifnetaddr = (u_long)ifnet.if_link.tqe_next;
 			snprintf(name, 32, "%s%d", tname, ifnet.if_unit);
 			if (interface != 0 && (strcmp(name, interface) != 0))
 				continue;
@@ -332,6 +337,7 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * Repeat display every interval seconds, showing statistics
  * collected over that interval.  Assumes that interval is non-zero.
  * First line printed at top of screen is always cumulative.
+ * XXX - should be rewritten to use ifmib(4).
  */
 static void
 sidewaysintpr(interval, off)
@@ -340,14 +346,17 @@ sidewaysintpr(interval, off)
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
+	struct ifnethead ifnethead;
 	register struct iftot *ip, *total;
 	register int line;
 	struct iftot *lastif, *sum, *interesting;
 	int oldmask, first;
 	u_long interesting_off;
 
-	if (kread(off, (char *)&firstifnet, sizeof (u_long)))
+	if (kread(off, (char *)&ifnethead, sizeof ifnethead))
 		return;
+	firstifnet = (u_long)ifnethead.tqh_first;
+
 	lastif = iftot;
 	sum = iftot + MAXIF - 1;
 	total = sum - 1;
@@ -370,7 +379,7 @@ sidewaysintpr(interval, off)
 		ip++;
 		if (ip >= iftot + MAXIF - 2)
 			break;
-		off = (u_long) ifnet.if_next;
+		off = (u_long) ifnet.if_link.tqe_next;
 	}
 	lastif = ip;
 
@@ -448,7 +457,7 @@ loop:
 			sum->ift_ob += ifnet.if_obytes;
 			sum->ift_co += ifnet.if_collisions;
 			sum->ift_dr += ifnet.if_snd.ifq_drops;
-			off = (u_long) ifnet.if_next;
+			off = (u_long) ifnet.if_link.tqe_next;
 		}
 		if (!first) {
 			printf("%10u %5u %10u %10u %5u %10u %5u",
