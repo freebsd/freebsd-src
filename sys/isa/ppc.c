@@ -1692,6 +1692,12 @@ ppc_setmode(device_t dev, int mode)
 	return (ENXIO);
 }
 
+static struct isa_pnp_id lpc_ids[] = {
+	{ 0x0004d041, "Standard parallel printer port" }, /* PNP0400 */
+	{ 0x0104d041, "ECP parallel printer port" }, /* PNP0401 */
+	{ 0 }
+};
+
 static int
 ppc_probe(device_t dev)
 {
@@ -1703,14 +1709,13 @@ ppc_probe(device_t dev)
 	int error;
 	u_long port;
 
-	/* If we are a PNP device, abort.  Otherwise we attach to *everthing* */
-	if (isa_get_logicalid(dev))
-                return ENXIO;
-
 	parent = device_get_parent(dev);
 
-	/* XXX shall be set after detection */
-	device_set_desc(dev, "Parallel port");
+	error = ISA_PNP_PROBE(parent, dev, lpc_ids);
+	if (error == ENXIO)
+		return (ENXIO);
+	else if (error != 0)	/* XXX shall be set after detection */
+		device_set_desc(dev, "Parallel port");
 
 	/*
 	 * Allocate the ppc_data structure.
