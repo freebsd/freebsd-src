@@ -290,8 +290,7 @@ pmap_kmem_choose(vm_offset_t addr)
 	vm_offset_t newaddr = addr;
 #if defined(I686_CPU) && !defined(NO_PSE_HACK)
 	/* Deal with un-resolved Pentium4 issues */
-	if (!has_pse_bug && cpu == CPU_686 &&
-	    (cpu_id & 0xf00) == 0xf00 &&
+	if (cpu == CPU_686 && (cpu_id & 0xf00) == 0xf00 &&
 	    strcmp(cpu_vendor, "GenuineIntel") == 0) {
 		has_pse_bug = 1;
 		return newaddr;
@@ -428,12 +427,8 @@ pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 #endif
 #if defined(I686_CPU) && !defined(NO_PSE_HACK)
 	/* Deal with un-resolved Pentium4 issues */
-	if (!has_pse_bug && cpu == CPU_686 &&
-	    (cpu_id & 0xf00) == 0xf00 &&
-	    strcmp(cpu_vendor, "GenuineIntel") == 0) {
-		has_pse_bug = 1;
+	if (has_pse_bug)
 		pseflag = 0;
-	}
 #endif
 	/*
 	 * The 4MB page version of the initial
