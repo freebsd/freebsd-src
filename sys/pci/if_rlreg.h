@@ -667,6 +667,8 @@ struct rl_softc {
 /*
  * register space access macros
  */
+#define	CSR_WRITE_STREAM_4(sc, reg, val)	\
+	bus_space_write_stream_4(sc->rl_btag, sc->rl_bhandle, reg, val)
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_space_write_4(sc->rl_btag, sc->rl_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
