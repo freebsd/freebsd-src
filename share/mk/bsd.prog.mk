@@ -61,7 +61,8 @@ ${PROG}: ${OBJS}
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
 	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
 	!defined(MAN1aout)
-MAN1=	${PROG}.1
+MAN=	${PROG}.1
+MAN1=	${MAN}
 .endif
 .endif
 
