@@ -1,10 +1,10 @@
 #
-# $Id$
+# $Id: Makefile,v 1.4 1997/02/22 16:14:17 peter Exp $
 #
 
 PROG= propdelay
-LDADD+= -L${.CURDIR}/../lib -lntp -lm
-DPADD+= ${.CURDIR}/../lib/libntp.a ${LIBM}
+DPADD=	${LIBNTP} ${LIBM}
+LDADD=	${LIBNTP} -lm
 
 SRCS= propdelay.c
 NOMAN=
