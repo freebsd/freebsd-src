@@ -668,10 +668,14 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 }
 
 int
-iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    void **vaddr, int flags, bus_dmamap_t *mapp)
+iommu_dvmamem_alloc_size(bus_dma_tag_t pt, bus_dma_tag_t dt,
+    struct iommu_state *is, void **vaddr, int flags, bus_dmamap_t *mapp,
+    bus_size_t size)
 {
 	int error;
+
+	if (size > dt->maxsize)
+		return (ENOMEM);
 
 	/*
 	 * XXX: This will break for 32 bit transfers on machines with more than
@@ -679,7 +683,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 */
 	if ((error = sparc64_dmamem_alloc_map(dt, mapp)) != 0)
 		return (error);
-	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU,
+	if ((*vaddr = malloc(size, M_IOMMU,
 	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0)) == NULL) {
 		error = ENOMEM;
 		sparc64_dmamem_free_map(dt, *mapp);
@@ -690,18 +694,33 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 * Try to preallocate DVMA space. If this fails, it is retried at load
 	 * time.
 	 */
-	iommu_dvma_valloc(dt, is, *mapp, IOMMU_SIZE_ROUNDUP(dt->dt_maxsize));
+	iommu_dvma_valloc(dt, is, *mapp, IOMMU_SIZE_ROUNDUP(size));
 	return (0);
+}
+
+int
+iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
+    void **vaddr, int flags, bus_dmamap_t *mapp)
+{
+	return (iommu_dvmamem_alloc_size(pt, dt, is, vaddr, flags, mapp,
+	    dt->maxsize));
+}
+
+void
+iommu_dvmamem_free_size(bus_dma_tag_t pt, bus_dma_tag_t dt,
+    struct iommu_state *is, void *vaddr, bus_dmamap_t map, bus_size_t size)
+{
+
+	iommu_dvma_vfree(is, map);
+	sparc64_dmamem_free_map(dt, map);
+	free(vaddr, M_IOMMU);
 }
 
 void
 iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     void *vaddr, bus_dmamap_t map)
 {
-
-	iommu_dvma_vfree(is, map);
-	sparc64_dmamem_free_map(dt, map);
-	free(vaddr, M_IOMMU);
+	iommu_dvmamem_free_size(pt, dt, is, vaddr, map, dt->maxsize);
 }
 
 int
