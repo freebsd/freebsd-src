@@ -256,6 +256,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->sigstk.ss_sp = 0;
 			new_thread->sigstk.ss_size = 0;
 			new_thread->sigstk.ss_flags = SS_DISABLE;
+			new_thread->oldsigmask = NULL;
 
 			if (new_thread->attr.suspend == THR_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
