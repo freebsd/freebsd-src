@@ -1,0 +1,93 @@
+Tasks for GNU textutils (listed in no particular order):
+
+  write texinfo documentation for sha1sum
+
+  Something that I would really appreciate is if someone would run the
+  Open Group's VSC-lite test suite against the fileutils and textutils
+  and report the failures.
+
+    http://www.opengroup.org/testing/downloads/vsclite.html
+
+  I've been meaning to do it myself for months, but haven't found the time.
+  There's a bit of set-up required, some of which requires root access, e.g.,
+  to create a few test user accounts and some test groups.
+  ------------------
+
+  uniq: remove support for obsolescent +N syntax
+
+  add tests for od
+  add some endian-aware tests for od
+
+  tac: Set DONT_UNLINK_WHILE_OPEN when necessary.
+
+  tail: add an option so that using -f on N files doesn't monopolize
+    N file descriptors
+
+  tac: add options to help handle boundary cases
+     E.g., options to distinguish DELIM_STRING is
+        - starter    (see existing --before option)
+        - terminator (this is what most people expect wrt NEWLINE
+        - separator  (this would make `echo -n a:b:c|tac -s:' print `c:b:a')
+
+  tail: support -r option by librarifying tac and using that
+
+  cut: maybe add an option to say `fields are separated by whitespace'.
+     Of course, that isn't really necessary because you can preprocess
+     cut's input with tr to get the same effect:
+
+        echo 'a     b     c' |tr -s '[:blank:]' | cut -d ' ' -f 2
+
+------------
+
+  From: kwzh@gnu.ai.mit.edu (Karl Heuer)
+  Subject: [textutils-1.22] [sort] feature requests
+  To: textutils-bugs@gnu.ai.mit.edu
+  Date: Thu, 5 Jun 97 13:06:51 -0400
+
+  [...]
+  Another feature that I would sometimes find useful: change -c so that
+  it will report up to N instances of disorder before bailing out, where
+  N defaults to 1 but can be set to infinity or to some finite value by
+  another option.  (An "instance of disorder" is two adjacent lines that
+  are malsorted; this does not imply that swapping them or removing one
+  or both would cause the list to be sorted.  (1 3 5 7 9 0 2 4 6 8) has
+  just one instance of disorder.)
+
+------------
+
+  Date: Fri, 1 May 1998 20:27:39 -0700 (PDT)
+  From: Paul Rubin <phr@netcom.com>
+  To: gnu@gnu.org
+  Subject: small project suggestion
+
+  Someone should rewrite the "sum" utility to give a choice of
+  different checksum algorithms (it's poorly organized for that now).
+  An experienced programmer could probably do it in a day or so,
+  or it might be a good, self-contained project for someone who is
+  just getting started.
+
+  Algorithms that it should include are:
+    -- the POSIX algorithm
+    -- the BSD algorithm
+    -- CRC32 algorithm (used by pkzip)
+    -- CRC16 (used in TCP/IP)
+    -- possibly other CRC's (like the different CCITT polynomials)
+    -- SHA-1 and MD5 cryptographic hashes (replacing "md5sum").
+  and possibly:
+    -- DSA digital signature based on secret key generated from
+       a passphrase (prompt the user, or read an environment variable).
+
+
+---------------------
+
+comm: add an option-enable check for sortedness of input files
+
+---------------------
+
+uniq: add a more flexible key selection mechanism
+
+---------------------
+
+Charles Randall <crandall@matchlogic.com>
+is working on making sort more suitable and efficient for very
+large sets of input data.
