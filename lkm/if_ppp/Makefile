@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.11 1998/01/08 23:50:18 eivind Exp $
+#       $Id: Makefile,v 1.12 1998/01/09 01:01:17 eivind Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod
@@ -6,7 +6,6 @@ SRCS=	bsd_comp.c if_ppp.c ppp_tty.c slcompress.c bpfilter.h ppp.h \
 	opt_inet.h opt_ipx.h opt_ppp.h
 NOMAN=
 PSEUDO_LKM=
-CFLAGS+= -I.
 
 NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1

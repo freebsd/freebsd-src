@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.5 1997/02/22 12:48:16 peter Exp $
+#	$Id: Makefile,v 1.6 1998/01/24 02:21:51 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	= joy_mod
 SRCS	= joy.c joy.h opt_devfs.h
 MAN8	= joy.8
 
-CFLAGS		+= -I. -DJOY_MODULE
+CFLAGS		+= -DJOY_MODULE
 CLEANFILES	+= joy.h opt_devfs.h
 
 joy.h:
