@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sl.c,v 1.56 2000/10/10 05:06:10 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sl.c,v 1.57 2001/07/05 18:54:17 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -62,6 +62,7 @@ sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	register u_int length = h->len;
 	register const struct ip *ip;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < SLIP_HDRLEN) {
@@ -100,6 +101,9 @@ sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		default_print((u_char *)ip, caplen - SLIP_HDRLEN);
  out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 
 
@@ -110,6 +114,7 @@ sl_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	register u_int length = h->len;
 	register const struct ip *ip;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < SLIP_HDRLEN) {
@@ -139,6 +144,9 @@ sl_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		default_print((u_char *)ip, caplen - SLIP_HDRLEN);
  out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 
 static void
