@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_sa.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #ifndef	_SCSI_SCSI_SA_H
@@ -197,6 +197,22 @@ struct scsi_data_compression_page {
 #define RELEASE_UNIT		0x17
 #define ERASE			0x19
 #define LOAD_UNLOAD		0x1B
+
+/*
+ * Tape specific density codes- only enough of them here to recognize
+ * some specific older units so we can choose 2FM@EOD or FIXED blocksize
+ * quirks.
+ */
+#define SCSI_DENSITY_HALFINCH_800	0x01
+#define SCSI_DENSITY_HALFINCH_1600	0x02
+#define SCSI_DENSITY_HALFINCH_6250	0x03
+#define SCSI_DENSITY_HALFINCH_6250C	0xC3	/* HP Compressed 6250 */
+#define SCSI_DENSITY_QIC_11_4TRK	0x04
+#define SCSI_DENSITY_QIC_11_9TRK	0x84	/* Vendor Unique Emulex */
+#define SCSI_DENSITY_QIC_24		0x05
+#define SCSI_DENSITY_HALFINCH_PE	0x06
+#define SCSI_DENSITY_QIC_120		0x0f
+#define SCSI_DENSITY_QIC_150		0x10    
 
 __BEGIN_DECLS
 void	scsi_read_block_limits(struct ccb_scsiio *, u_int32_t,
