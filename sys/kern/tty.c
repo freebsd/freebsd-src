@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.84 1996/08/31 16:52:26 bde Exp $
+ * $Id: tty.c,v 1.85 1996/11/29 15:06:09 bde Exp $
  */
 
 /*-
@@ -326,14 +326,15 @@ ttyinput(c, tp)
 	err = (ISSET(c, TTY_ERRORMASK));
 	if (err) {
 		CLR(c, TTY_ERRORMASK);
-		if (ISSET(err, TTY_BI)) { /* Break. */
+		if (ISSET(err, TTY_BI)) {
 			if (ISSET(iflag, IGNBRK))
 				return (0);
-			else if (ISSET(iflag, BRKINT) &&
-			    ISSET(lflag, ISIG) &&
-			    (cc[VINTR] != _POSIX_VDISABLE))
-				c = cc[VINTR];
-			else if (ISSET(iflag, PARMRK))
+			if (ISSET(iflag, BRKINT)) {
+				ttyflush(tp, FREAD | FWRITE);
+				pgsignal(tp->t_pgrp, SIGINT, 1);
+				goto endcase;
+			}
+			if (ISSET(iflag, PARMRK))
 				goto parmrk;
 		} else if ((ISSET(err, TTY_PE) && ISSET(iflag, INPCK))
 			|| ISSET(err, TTY_FE)) {
