@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.7 1997/11/16 15:59:58 steve Exp $
+.\"     $Id: rc.conf.5,v 1.8 1997/12/24 00:59:28 alex Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -592,35 +592,54 @@ this is the actual screen saver to use (blank, snake, daemon, etc).
 .Ar NO ,
 this is the type of mouse you would like to use for doing
 cut/paste selection on the console.
-It should be chosen from the following list of types:
+The
+.Xr moused 8
+daemon
+is able to detect the appropriate mouse type automatically in many cases.
+Set this variable to 
+.Ar auto
+to let the daemon to detect it.
+Or select one from the following list if it fails to do so for your mouse.
 .Bd -literal
 microsoft        Microsoft mouse
+intellimouse     Microsoft IntelliMouse
 mousesystems     Mouse systems Corp mouse
 mmseries         MM Series mouse
 logitech         Logitech mouse
 busmouse         A bus mouse
 mouseman         Logitech MouseMan and TrackMan
+glidepoint       ALPS GlidePoint
+thinkingmouse    Kensignton ThinkingMouse
 ps/2             PS/2 mouse
 mmhittab         MM HitTablet
 
 .Ed
+Even if your mouse is not in the above list, it may be compatible
+with one in the list. Refer to the man page for
+.Xr moused 8
+for compatibility information.
+.Pp
 It should also be noted that while this is enabled, any
 other client of the mouse (such as an X server) should access
 the mouse through the virtual mouse device:
 .Pa /dev/sysmouse
-and configure it as a mousesystems type mouse, since all
+and configure it as a sysmouse type mouse, since all
 mouse data is converted to this single canonical format when
 using
 .Xr moused 8 .
+If the client program does not support the sysmouse type, 
+specify the mousesystems type. It is the second prefered type.
 .It Ar moused_port
 (str) If
 .Ar moused_type
 is set, this is the actual port the mouse is on.
 It might be
 .Pa /dev/cuaa0
-for a COM1 serial mouse or
+for a COM1 serial mouse,
 .Pa /dev/psm0
-for a PS/2 mouse, for example.
+for a PS/2 mouse or
+.Pa /dev/mse0
+for a bus mouse, for example.
 .It Ar moused_flags
 (str) If
 .Ar moused_type
@@ -750,7 +769,7 @@ to be cleaned at startup.
 The
 .Nm
 file appeared in
-.Bx 2.2.2 .
+.Fx 2.2.2 .
 
 .Sh AUTHOR
 Jordan K. Hubbard.
