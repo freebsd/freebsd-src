@@ -1460,7 +1460,7 @@ allocdirect_merge(adphead, newadp, oldadp)
 	    newadp->ad_oldsize != oldadp->ad_newsize ||
 	    newadp->ad_lbn >= NDADDR) {
 		FREE_LOCK(&lk);
-		panic("%s %lld != new %lld || old size %ld != new %ld",
+		panic("%s %jd != new %jd || old size %ld != new %ld",
 		    "allocdirect_merge: old blkno",
 		    (intmax_t)newadp->ad_oldblkno,
 		    (intmax_t)oldadp->ad_newblkno,
@@ -3402,7 +3402,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		if (adp->ad_lbn < NDADDR &&
 		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno) {
 			FREE_LOCK(&lk);
-			panic("%s: direct pointer #%lld mismatch %d != %lld",
+			panic("%s: direct pointer #%jd mismatch %d != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn,
 			    dp->di_db[adp->ad_lbn],
@@ -3411,7 +3411,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		if (adp->ad_lbn >= NDADDR &&
 		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno) {
 			FREE_LOCK(&lk);
-			panic("%s: indirect pointer #%lld mismatch %d != %lld",
+			panic("%s: indirect pointer #%jd mismatch %d != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn - NDADDR,
 			    dp->di_ib[adp->ad_lbn - NDADDR],
@@ -3554,7 +3554,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if (adp->ad_lbn < NDADDR &&
 		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno) {
 			FREE_LOCK(&lk);
-			panic("%s: direct pointer #%lld mismatch %lld != %lld",
+			panic("%s: direct pointer #%jd mismatch %jd != %jd",
 			    "softdep_write_inodeblock",
 			    (intmax_t)adp->ad_lbn,
 			    (intmax_t)dp->di_db[adp->ad_lbn],
@@ -3563,7 +3563,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if (adp->ad_lbn >= NDADDR &&
 		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno) {
 			FREE_LOCK(&lk);
-			panic("%s indirect pointer #%lld mismatch %lld != %lld",
+			panic("%s indirect pointer #%jd mismatch %jd != %jd",
 			    "softdep_write_inodeblock:",
 			    (intmax_t)adp->ad_lbn - NDADDR,
 			    (intmax_t)dp->di_ib[adp->ad_lbn - NDADDR],
@@ -3954,7 +3954,7 @@ handle_written_inodeblock(inodedep, bp)
 			if (adp->ad_lbn < NDADDR) {
 				if (dp1->di_db[adp->ad_lbn]!=adp->ad_oldblkno) {
 					lk.lkt_held = NOHOLDER;
-					panic("%s %s #%lld mismatch %d != %lld",
+					panic("%s %s #%jd mismatch %d != %jd",
 					    "handle_written_inodeblock:",
 					    "direct pointer",
 					    (intmax_t)adp->ad_lbn,
@@ -3965,7 +3965,7 @@ handle_written_inodeblock(inodedep, bp)
 			} else {
 				if (dp1->di_ib[adp->ad_lbn - NDADDR] != 0) {
 					lk.lkt_held = NOHOLDER;
-					panic("%s: %s #%lld allocated as %d",
+					panic("%s: %s #%jd allocated as %d",
 					    "handle_written_inodeblock",
 					    "indirect pointer",
 					    (intmax_t)adp->ad_lbn - NDADDR,
@@ -3978,7 +3978,7 @@ handle_written_inodeblock(inodedep, bp)
 			if (adp->ad_lbn < NDADDR) {
 				if (dp2->di_db[adp->ad_lbn]!=adp->ad_oldblkno) {
 					lk.lkt_held = NOHOLDER;
-					panic("%s: %s #%lld %s %lld != %lld",
+					panic("%s: %s #%jd %s %jd != %jd",
 					    "handle_written_inodeblock",
 					    "direct pointer",
 					    (intmax_t)adp->ad_lbn, "mismatch",
@@ -3989,7 +3989,7 @@ handle_written_inodeblock(inodedep, bp)
 			} else {
 				if (dp2->di_ib[adp->ad_lbn - NDADDR] != 0) {
 					lk.lkt_held = NOHOLDER;
-					panic("%s: %s #%lld allocated as %lld",
+					panic("%s: %s #%jd allocated as %jd",
 					    "handle_written_inodeblock",
 					    "indirect pointer",
 					    (intmax_t)adp->ad_lbn - NDADDR,
