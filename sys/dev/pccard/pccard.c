@@ -1,4 +1,4 @@
-/*	$NetBSD: pcmcia.c,v 1.13 1998/12/24 04:51:59 marc Exp $	*/
+/*	$NetBSD: pcmcia.c,v 1.23 2000/07/28 19:17:02 drochner Exp $	*/
 /* $FreeBSD$ */
 
 /*
@@ -203,6 +203,59 @@ pccard_detach_card(device_t dev, int flags)
 			device_delete_child(dev, pf->dev);
 	}
 	return 0;
+}
+
+const struct pccard_product *
+pccard_product_lookup(device_t dev, const struct pccard_product *tab,
+    size_t ent_size, pccard_product_match_fn matchfn)
+{
+	const struct pccard_product *ent;
+	int matches;
+	u_int32_t fcn;
+	u_int32_t vendor;
+	u_int32_t prod;
+	char *vendorstr;
+	char *prodstr;
+
+#ifdef DIAGNOSTIC
+	if (sizeof *ent > ent_size)
+		panic("pccard_product_lookup: bogus ent_size %ld", 
+		    (long) ent_size);
+#endif
+	if (pccard_get_vendor(dev, &vendor))
+		return (NULL);
+	if (pccard_get_product(dev, &prod))
+		return (NULL);
+	if (pccard_get_function_number(dev, &fcn))
+		return (NULL);
+	if (pccard_get_vendor_str(dev, &vendorstr))
+		return (NULL);
+	if (pccard_get_product_str(dev, &prodstr))
+		return (NULL);
+        for (ent = tab; ent->pp_name != NULL; 
+	     ent = (const struct pccard_product *)
+		 ((const char *) ent + ent_size)) {
+		matches = 1;
+		if (matches && ent->pp_vendor != PCCARD_VENDOR_ANY &&
+		    vendor != ent->pp_vendor)
+			matches = 0;
+		if (matches && ent->pp_product != PCCARD_PRODUCT_ANY &&
+		    prod != ent->pp_product)
+			matches = 0;
+		if (matches && fcn != ent->pp_expfunc)
+			matches = 0;
+		if (matches && ent->pp_vendor_str && 
+		    strcmp(ent->pp_vendor_str, vendorstr) != 0)
+			matches = 0;
+		if (matches && ent->pp_product_str && 
+		    strcmp(ent->pp_product_str, prodstr) != 0)
+			matches = 0;
+		if (matchfn != NULL)
+			matches = (*matchfn)(dev, ent, matches);
+		if (matches)
+			return (ent);
+	}
+	return (NULL);
 }
 
 static int 
