@@ -544,7 +544,6 @@ twe_clear_pci_abort(struct twe_softc *sc)
 struct twed_softc 
 {
     device_t		twed_dev;
-    dev_t		twed_dev_t;
     struct twe_softc	*twed_controller;	/* parent device softc */
     struct twe_drive	*twed_drive;		/* drive data in parent softc */
     struct disk		twed_disk;		/* generic disk handle */
@@ -581,29 +580,7 @@ DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
 /*
  * Disk device control interface.
  */
-static	d_open_t	twed_open;
-static	d_strategy_t	twed_strategy;
-static	dumper_t	twed_dump;
 
-#define TWED_CDEV_MAJOR	147
-
-static struct cdevsw twed_cdevsw = {
-    twed_open,
-    nullclose,
-    physread,
-    physwrite,
-    noioctl,
-    nopoll,
-    nommap,
-    twed_strategy,
-    "twed",
-    TWED_CDEV_MAJOR,
-    twed_dump,
-    nopsize,
-    D_DISK
-};
-
-static struct cdevsw	tweddisk_cdevsw;
 #ifdef FREEBSD_4
 static int		disks_registered = 0;
 #endif
@@ -615,9 +592,9 @@ static int		disks_registered = 0;
  * for opens on subdevices (eg. slices, partitions).
  */
 static int
-twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+twed_open(struct disk *dp)
 {
-    struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
+    struct twed_softc	*sc = (struct twed_softc *)dp->d_drv1;
 
     debug_called(4);
 	
@@ -627,11 +604,6 @@ twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
     /* check that the controller is up and running */
     if (sc->twed_controller->twe_state & TWE_STATE_SHUTDOWN)
 	return(ENXIO);
-
-    sc->twed_disk.d_sectorsize = TWE_BLOCK_SIZE;
-    sc->twed_disk.d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
-    sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
-    sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
 
     return (0);
 }
@@ -680,7 +652,7 @@ twed_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
     struct disk		*dp;
 
     dp = arg;
-    twed_sc = (struct twed_softc *)dp->d_dev->si_drv1;
+    twed_sc = (struct twed_softc *)dp->d_drv1;
     twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
     if (!twed_sc || !twe_sc)
 	return(ENXIO);
@@ -726,7 +698,6 @@ twed_attach(device_t dev)
 {
     struct twed_softc	*sc;
     device_t		parent;
-    dev_t		dsk;
     
     debug_called(4);
 
@@ -748,16 +719,24 @@ twed_attach(device_t dev)
 		      DEVSTAT_PRIORITY_ARRAY);
 
     /* attach a generic disk device to ourselves */
-    dsk = disk_create(device_get_unit(dev), &sc->twed_disk, 0, &twed_cdevsw, &tweddisk_cdevsw);
-    dsk->si_drv1 = sc;
-    dsk->si_drv2 = &sc->twed_drive->td_unit;
-    sc->twed_dev_t = dsk;
+
+    sc->twed_disk.d_open = twed_open;
+    sc->twed_disk.d_strategy = twed_strategy;
+    sc->twed_disk.d_dump = (dumper_t *)twed_dump;
+    sc->twed_disk.d_name = "twed";
+    sc->twed_disk.d_drv1 = sc;
+    sc->twed_disk.d_maxsize = (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE;
+    sc->twed_disk.d_sectorsize = TWE_BLOCK_SIZE;
+    sc->twed_disk.d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
+    sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
+    sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
+
+    disk_create(device_get_unit(dev), &sc->twed_disk, 0, NULL, NULL);
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
 
     /* set the maximum I/O size to the theoretical maximum allowed by the S/G list size */
-    dsk->si_iosize_max = (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE;
 
     return (0);
 }
