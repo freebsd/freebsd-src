@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.17 1996/11/30 22:41:35 dyson Exp $
+ * $Id: param.h,v 1.18 1996/12/04 11:30:40 jkh Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -144,10 +144,15 @@
  * primarily determines the size of buffers in the buffer pool.  It may be
  * made larger without any effect on existing file systems; however making
  * it smaller make make some file systems unmountable.  Also, MAXBSIZE
- * must be less than MAXPHYS!!!
+ * must be less than MAXPHYS!!!  DFLTBSIZE is the average amount of
+ * memory allocated by vfs_bio per nbuf.  BKVASIZE is the average amount
+ * of kernel virtual space allocated per nbuf.  BKVASIZE should be >=
+ * DFLTBSIZE.  If it is significantly bigger than DFLTBSIZE, then
+ * kva fragmentation causes fewer performance problems.
  */
 #define	MAXBSIZE	65536
-#define DFLTBSIZE	8192
+#define BKVASIZE	8192
+#define DFLTBSIZE	4096
 #define MAXFRAG 	8
 
 /*
