@@ -2,9 +2,8 @@
 #
 #          Example of ppp.linkup file
 #
-#
-#  This file is checked when PPP establishes a connection.
-#  PPP searches the labels in this file as follows:
+#  This file is checked when ppp establishes a connection.
+#  ppp searches the labels in this file as follows:
 #
 #  1) The label that matches the IP number assigned to our side.
 #
@@ -12,9 +11,20 @@
 #
 #  3) If no label has been found, use MYADDR if it exists.
 #
-# $Id: ppp.linkup.sample,v 1.9 1997/09/21 02:10:41 brian Exp $
+#
+# $Id: ppp.linkup.sample,v 1.10 1997/11/07 20:44:12 brian Exp $
 #
 #########################################################################
+
+# By default, simply delete any existing default route and add the peer
+# as default gateway.
+# If you're into sound effects when the link comes up, you can run
+# ``auplay'' (assuming NAS is installed and configured).
+#
+MYADDR:
+ delete 0
+ add 0 0 HISADDR
+ !bg /usr/X11R6/bin/auplay /etc/ppp/linkup.au
 
 # If we've got 192.244.176.32 as our address, then regard peer as a gateway
 # to 192.244.176.0 network.
@@ -22,41 +32,24 @@
 192.244.176.32:
  add 192.244.176.0 0 HISADDR
 
-# If we are invoked with an argument ``iij-demand'', then delete all
-# existing route entries and add the peer as the default gateway.
-#
-iij-demand:
- delete ALL
- add 0 0 HISADDR
-
-# Otherwise, simply add peer as default gateway.
-#
-MYADDR:
- delete 0
- add 0 0 HISADDR
-
 # If we are invoked with an argument ``pmdemand'', then
 # delete all existing (wrong) routing entries and add the peer IP
 # as our default gateway.
 # This is vital if you don't already know either sides IP number.
 #
-# We create a loopback route to ourselves so that we can "ping"
-# our side of the connection
-#
 # We also want to execute a script on startup.  This script can do
 # nice things such as kick off "sendmail -q", "popclient my.isp" and
 # "slurp -d news".  It can be passed MYADDR, HISADDR and INTERFACE
-# too - useful for informing a DNS.
+# as arguments too - useful for informing a DNS of your assigned IP.
 #
 pmdemand:
  delete ALL
  add 0 0 HISADDR
- add MYADDR 255.255.255.255 127.0.0.1
  !bg /etc/ppp/ppp.etherup.pmdemand
 
 # If your minimum call charge is 5 minutes, you may as well stay on
 # the line for that amount of time.  If we want a 60 second subsequent
-# timeout, set your timeout to 0 in ppp.conf and then do this:
+# timeout, set your timeout to 300 in ppp.conf and then do this:
 # 
 min5minutes:
  !bg sh -c "sleep 240; pppctl -p mypassword 3000 set timeout 60"
