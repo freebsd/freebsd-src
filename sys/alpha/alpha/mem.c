@@ -68,7 +68,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static caddr_t zeropage;
+static caddr_t zbuf;
 
 static	d_open_t	mmopen;
 static	d_close_t	mmclose;
@@ -188,6 +188,7 @@ kmemphys:
 			rw = (uio->uio_rw == UIO_READ) ? VM_PROT_READ : VM_PROT_WRITE;
 			if ((alpha_pa_access(v) & rw) != rw) {
 				error = EFAULT;
+				c = 0;
 				break;
 			}
 
@@ -195,7 +196,7 @@ kmemphys:
 			c = min(uio->uio_resid, (int)(PAGE_SIZE - o));
 			error =
 			    uiomove((caddr_t)ALPHA_PHYS_TO_K0SEG(v), c, uio);
-			break;
+			continue;
 
 /* minor device 1 is kernel memory */
 		case 1: {
@@ -223,20 +224,21 @@ kmemphys:
 			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
 			error = uiomove((caddr_t)v, c, uio);
-			break;
+			continue;
 		}
 
 /* minor device 2 is EOF/rathole */
 		case 2:
-			if (uio->uio_rw == UIO_WRITE)
-				uio->uio_resid = 0;
-			return (0);
+			if (uio->uio_rw == UIO_READ)
+				return (0);
+			c = iov->iov_len;
+			break;
 
 /* minor device 3 (/dev/random) is source of filth on read, rathole on write */
 		case 3:
 			if (uio->uio_rw == UIO_WRITE) {
-				uio->uio_resid = 0;
-				return (0);
+				c = iov->iov_len;
+				break;
 			}
 			if (buf == NULL)
 				buf = (caddr_t)
@@ -280,26 +282,34 @@ kmemphys:
 /* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
 		case 12:
 			if (uio->uio_rw == UIO_WRITE) {
-				uio->uio_resid = 0;
-				return (0);
+				c = iov->iov_len;
+				break;
 			}
 			/*
 			 * On the first call, allocate and zero a page
 			 * of memory for use with /dev/zero.
 			 */
-			if (zeropage == NULL) {
-				zeropage = (caddr_t)
+			if (zbuf == NULL) {
+				zbuf = (caddr_t)
 				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-				bzero(zeropage, PAGE_SIZE);
+				bzero(zbuf, PAGE_SIZE);
 			}
 			c = min(iov->iov_len, PAGE_SIZE);
-			error = uiomove(zeropage, c, uio);
-			break;
+			error = uiomove(zbuf, c, uio);
+			continue;
 
 		default:
 			return (ENXIO);
 		}
+		if (error)
+			break;
+		iov->iov_base += c;
+		iov->iov_len -= c;
+		uio->uio_offset += c;
+		uio->uio_resid -= c;
 	}
+	if (buf)
+		free(buf, M_TEMP);
 	return (error);
 }
 
