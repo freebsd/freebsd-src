@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.55 1995/09/09 18:10:37 davidg Exp $
+ * $Id: vm_pageout.c,v 1.56 1995/10/06 09:42:11 phk Exp $
  */
 
 /*
@@ -124,7 +124,6 @@ extern int npendingio;
 int vm_pageout_req_swapout;	/* XXX */
 int vm_daemon_needed;
 extern int nswiodone;
-extern int swap_pager_full;
 extern int vm_swap_size;
 extern int vfs_update_wakeup;
 
@@ -136,6 +135,12 @@ extern int vfs_update_wakeup;
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
+
+typedef int freeer_fcn_t __P((vm_map_t, vm_object_t, int, int));
+static void vm_pageout_map_deactivate_pages __P((vm_map_t, vm_map_entry_t,
+						 int *, freeer_fcn_t *));
+static freeer_fcn_t vm_pageout_object_deactivate_pages;
+static void vm_req_vmdaemon __P((void));
 
 /*
  * vm_pageout_clean:
@@ -358,7 +363,7 @@ do_backward:
  *
  *	The object and map must be locked.
  */
-int
+static int
 vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	vm_map_t map;
 	vm_object_t object;
@@ -466,12 +471,12 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
  * that is really hard to do.
  */
 
-void
+static void
 vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	vm_map_t map;
 	vm_map_entry_t entry;
 	int *count;
-	int (*freeer) (vm_map_t, vm_object_t, int);
+	freeer_fcn_t *freeer;
 {
 	vm_map_t tmpm;
 	vm_map_entry_t tmpe;
@@ -487,25 +492,25 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	if (entry == 0) {
 		tmpe = map->header.next;
 		while (tmpe != &map->header && *count > 0) {
-			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer, 0);
+			vm_pageout_map_deactivate_pages(map, tmpe, count, freeer);
 			tmpe = tmpe->next;
 		};
 	} else if (entry->is_sub_map || entry->is_a_map) {
 		tmpm = entry->object.share_map;
 		tmpe = tmpm->header.next;
 		while (tmpe != &tmpm->header && *count > 0) {
-			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer, 0);
+			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer);
 			tmpe = tmpe->next;
 		};
 	} else if ((obj = entry->object.vm_object) != 0) {
-		*count -= (*freeer) (map, obj, *count);
+		*count -= (*freeer) (map, obj, *count, TRUE);
 	}
 	lock_read_done(&map->lock);
 	vm_map_deallocate(map);
 	return;
 }
 
-void
+static void
 vm_req_vmdaemon()
 {
 	static int lastrun = 0;
