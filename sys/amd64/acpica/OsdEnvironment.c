@@ -30,32 +30,50 @@
 /*
  * 6.1 : Environmental support
  */
+#include <sys/types.h>
+#include <sys/linker_set.h>
+#include <sys/sysctl.h>
 
 #include "acpi.h"
 
 #include <machine/pc/bios.h>
 
+u_long i386_acpi_root;
+
+SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &i386_acpi_root, 0,
+    "The physical address of the RSDP");
+
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-    return(0);
+	return(0);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
-    return(0);
+	return(0);
 }
 
 ACPI_STATUS
-AcpiOsGetRootPointer(
-    UINT32			Flags,
-    ACPI_POINTER         	*RsdpPhysicalAddress)
+AcpiOsGetRootPointer(UINT32 Flags, ACPI_POINTER *RsdpPhysicalAddress)
 {
-    /*
-     * The loader passes the physical address at which it found the
-     * RSDP in a hint.  We could recover this rather than searching
-     * manually here.
-     */
-    return(AcpiFindRootPointer(Flags, RsdpPhysicalAddress));
+	ACPI_POINTER ptr;
+	ACPI_STATUS status;
+
+	if (i386_acpi_root == 0) {
+		/*
+		 * The loader passes the physical address at which it found the
+		 * RSDP in a hint.  We could recover this rather than searching
+		 * manually here.
+		 */
+		status = AcpiFindRootPointer(Flags, &ptr);
+		if (status == AE_OK)
+			i386_acpi_root = ptr.Pointer.Physical;
+	} else
+		status = AE_OK;
+
+	RsdpPhysicalAddress->PointerType = ACPI_PHYSICAL_POINTER;
+	RsdpPhysicalAddress->Pointer.Physical = i386_acpi_root;
+	return (status);
 }
