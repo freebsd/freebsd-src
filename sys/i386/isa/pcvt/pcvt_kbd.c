@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Sun Apr  2 18:59:04 1995]
+ * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Mon Apr 19 17:16:47 1999]
  *
  */
 
@@ -715,7 +715,7 @@ kbd_code_init1(void)
 static
 void ovlinit(int force)
 {
-	register i;
+	register int i;
 
 	if(force || ovlinitflag==0)
 	{
@@ -1808,7 +1808,7 @@ rmkeydef(int key)
 static int
 setkeydef(Ovl_tbl *data)
 {
-	register i;
+	register int i;
 
 	if( data->keynum > MAXKEYNUM		 ||
 	    (data->type & KBD_MASK) == KBD_BREAK ||

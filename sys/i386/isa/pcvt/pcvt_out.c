@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Apr  2 18:59:11 1995]
+ * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Mon Apr 19 17:18:58 1999]
  *
  */
 
@@ -173,7 +173,7 @@ sput (u_char *s, U_char kernel, int len, int page)
     attrib = kernel ? kern_attr : svsp->c_attr;
 
     while (len-- > 0)
-    if (ch = *(s++))
+    if((ch = *(s++)) > 0)
     {
 	if(svsp->sevenbit)
 		ch &= 0x7f;
@@ -1862,7 +1862,7 @@ update_hp(struct video_state *svsp)
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
 		  + svsp->maxcol - 3) = user_attr | '[';
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
-		  + svsp->maxcol - 2) = user_attr | current_video_screen + '0';
+		  + svsp->maxcol - 2) = user_attr | (current_video_screen + '0');
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
 		  + svsp->maxcol - 1) = user_attr | ']';
 	}
