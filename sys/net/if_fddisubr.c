@@ -520,8 +520,7 @@ fddi_ifattach(ifp, bpf)
 #endif
 	ifa = ifaddr_byindex(ifp->if_index);
 	if (ifa == NULL) {
-		printf("%s(): no lladdr for %s%d!\n", __FUNCTION__,
-		       ifp->if_name, ifp->if_unit);
+		if_printf(ifp, "%s() no lladdr!\n", __func__);
 		return;
 	}
 
