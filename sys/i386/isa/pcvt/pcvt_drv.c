@@ -974,6 +974,9 @@ pcstart(register struct tty *tp)
 		timeout(ttrstrt, tp, 1);
 	}
 
+#ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
+	ttwwakeup(tp);
+#else
 	if (rbp->c_cc <= tp->t_lowat)
 	{
 		if (tp->t_state&TS_ASLEEP)
@@ -983,6 +986,7 @@ pcstart(register struct tty *tp)
 		}
 		selwakeup(&tp->t_wsel);
 	}
+#endif
 out:
 	splx(s);
 }

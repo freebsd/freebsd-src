@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.8 1995/07/05 12:15:52 bde Exp $
+ *	$Id: cy.c,v 1.9 1995/07/21 22:51:31 bde Exp $
  */
 
 #include "cy.h"
@@ -155,8 +155,6 @@
  * XXX temporary kludges for 2.0 (XXX TK2.0).
  */
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
-#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
-#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -2137,20 +2135,7 @@ comstart(tp)
 		siointr1(com);	/* fake interrupt to start output */
 	enable_intr();
 #endif
-
-#if 0 /* XXX TK2.0 */
-	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
-		ttwwakeup(tp);
-#else
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state & TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup(TSA_OLOWAT(tp));
-		}
-		selwakeup(&tp->t_wsel);
-	}
-#endif
-
+	ttwwakeup(tp);
 	splx(s);
 }
 

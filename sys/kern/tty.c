@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.54 1995/07/21 20:52:38 bde Exp $
+ * $Id: tty.c,v 1.55 1995/07/21 22:51:50 bde Exp $
  */
 
 /*-
@@ -2051,6 +2051,23 @@ ttwakeup(tp)
 	if (ISSET(tp->t_state, TS_ASYNC))
 		pgsignal(tp->t_pgrp, SIGIO, 1);
 	wakeup((caddr_t)&tp->t_rawq);
+}
+
+/*
+ * Wake up any writers on a tty.
+ */
+void
+ttwwakeup(tp)
+	register struct tty *tp;
+{
+
+	if (tp->t_outq.c_cc <= tp->t_lowat) {
+		if (tp->t_state & TS_ASLEEP) {
+			tp->t_state &= ~TS_ASLEEP;
+			wakeup(&tp->t_outq);
+		}
+		selwakeup(&tp->t_wsel);
+	}
 }
 
 /*

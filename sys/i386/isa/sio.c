@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.102 1995/07/05 14:30:07 bde Exp $
+ *	$Id: sio.c,v 1.103 1995/07/21 22:51:34 bde Exp $
  */
 
 #include "sio.h"
@@ -71,7 +71,6 @@
  */
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
-#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -1868,19 +1867,7 @@ comstart(tp)
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
 	enable_intr();
-
-#if 0 /* XXX TK2.0 */
-	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
-		ttwwakeup(tp);
-#else
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state & TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup(TSA_OLOWAT(tp));
-		}
-		selwakeup(&tp->t_wsel);
-	}
-#endif
+	ttwwakeup(tp);
 	splx(s);
 }
 
