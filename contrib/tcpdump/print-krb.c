@@ -22,8 +22,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-krb.c,v 1.6 96/07/23 14:17:24 leres Exp $";
+static const char rcsid[] =
+    "@(#) $Header: print-krb.c,v 1.8 96/12/10 23:17:39 leres Exp $";
 #endif
 
 #include <sys/param.h>
@@ -110,19 +110,19 @@ static struct tok kerr2str[] = {
 
 /* little endian (unaligned) to host byte order */
 /* XXX need to look at this... */
-#define vtohlp(x)	    ((( ((char*)(x))[0] )      )  | \
-			     (( ((char*)(x))[1] ) <<  8)  | \
-			     (( ((char*)(x))[2] ) << 16)  | \
-			     (( ((char*)(x))[3] ) << 24))
-#define vtohsp(x)          ((( ((char*)(x))[0] )      )  | \
-			     (( ((char*)(x))[1] ) <<  8))
+#define vtohlp(x)	    ((( ((char *)(x))[0] )      )  | \
+			     (( ((char *)(x))[1] ) <<  8)  | \
+			     (( ((char *)(x))[2] ) << 16)  | \
+			     (( ((char *)(x))[3] ) << 24))
+#define vtohsp(x)          ((( ((char *)(x))[0] )      )  | \
+			     (( ((char *)(x))[1] ) <<  8))
 /* network (big endian) (unaligned) to host byte order */
-#define ntohlp(x)	    ((( ((char*)(x))[3] )      )  | \
-			     (( ((char*)(x))[2] ) <<  8)  | \
-			     (( ((char*)(x))[1] ) << 16)  | \
-			     (( ((char*)(x))[0] ) << 24))
-#define ntohsp(x)          ((( ((char*)(x))[1] )      )  | \
-			     (( ((char*)(x))[0] ) <<  8))
+#define ntohlp(x)	    ((( ((char *)(x))[3] )      )  | \
+			     (( ((char *)(x))[2] ) <<  8)  | \
+			     (( ((char *)(x))[1] ) << 16)  | \
+			     (( ((char *)(x))[0] ) << 24))
+#define ntohsp(x)          ((( ((char *)(x))[1] )      )  | \
+			     (( ((char *)(x))[0] ) <<  8))
 
 
 
@@ -281,7 +281,7 @@ krb_print(const u_char *dat, u_int length)
 
 	case 4:
 		printf(" v%d", kp->pvno);
-		krb4_print((const u_char*)kp);
+		krb4_print((const u_char *)kp);
 		break;
 
 	case 106:

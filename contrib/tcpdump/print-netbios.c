@@ -17,21 +17,15 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-
-/*
+ *
  * Format and print NETBIOS packets.
  * Contributed by Brad Parker (brad@fcr.com).
  */
-#ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: print-netbios.c,v 1.8 96/07/23 14:17:25 leres Exp $";
-#endif
 
-#ifdef __STDC__
-#include <stdlib.h>
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Header: print-netbios.c,v 1.10 96/12/10 23:25:12 leres Exp $";
 #endif
-#include <stdio.h>
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -45,6 +39,10 @@ static  char rcsid[] =
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
+#include <stdio.h>
 #include <string.h>
 
 #include "interface.h"

@@ -1,4 +1,4 @@
-dnl @(#) $Header: configure.in,v 1.53 96/07/17 15:27:31 leres Exp $ (LBL)
+dnl @(#) $Header: configure.in,v 1.58 96/11/29 15:37:31 leres Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996
 dnl	The Regents of the University of California.  All rights reserved.
@@ -23,6 +23,9 @@ AC_HEADER_TIME
 
 AC_REPLACE_FUNCS(vfprintf strcasecmp)
 AC_CHECK_FUNCS(ether_ntoa setlinebuf)
+
+dnl The following generates a warning...
+AC_C_BIGENDIAN
 
 AC_CHECK_LIB(dnet, main)
 AC_CHECK_LIB(rpc, main)
@@ -63,7 +66,13 @@ osf*)
 	V_GROUP=system
 	case "$target_os" in
 
-	osf3*)
+	osf1*)
+		;;
+
+	osf2*)
+		;;
+
+	*)
 		dnl Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h
 		AC_DEFINE(__STDC__,2)
 		;;
@@ -72,6 +81,10 @@ osf*)
 
 solaris*)
 	V_GROUP=sys
+	;;
+
+linux*)
+	V_INCLS="$V_INCLS -Ilinux-include"
 	;;
 esac
 
@@ -82,66 +95,15 @@ fi
 AC_CHECK_TYPE(int32_t, int)
 AC_CHECK_TYPE(u_int32_t, u_int)
 
-AC_LBL_TYPE_SIGNAL
-
 AC_LBL_DEVEL(V_CCOPT)
 
+AC_LBL_TYPE_SIGNAL
 AC_LBL_SOCKADDR_SA_LEN
-
-AC_MSG_CHECKING(if altzone is available)
-AC_CACHE_VAL(ac_cv_decl_altzone,
-    AC_TRY_COMPILE([
-#	include <sys/types.h>
-#	include <sys/time.h>
-#	ifdef TIME_WITH_SYS_TIME
-#	include <time.h>
-#	endif],
-	[long i = -altzone],
-	ac_cv_decl_altzone=yes,
-	ac_cv_decl_altzone=no))
-AC_MSG_RESULT($ac_cv_decl_altzone)
-if test $ac_cv_decl_altzone = yes ; then
-	AC_DEFINE(HAVE_ALTZONE)
-fi
-
-AC_MSG_CHECKING(if timezone and daylight are available)
-AC_CACHE_VAL(ac_cv_decl_timezone,
-    AC_TRY_LINK([
-#	include <sys/types.h>
-#	include <sys/time.h>
-#	ifdef TIME_WITH_SYS_TIME
-#	include <time.h>
-#	endif],
-	[long i;
-	tzset();
-	i = -timezone + daylight ? 3600 : 0],
-	ac_cv_decl_timezone=yes,
-	ac_cv_decl_timezone=no))
-AC_MSG_RESULT($ac_cv_decl_timezone)
-if test $ac_cv_decl_timezone = yes ; then
-	AC_DEFINE(HAVE_TIMEZONE)
-fi
-
-if test $ac_cv_decl_altzone = no ; then
-	AC_MSG_CHECKING(if tm struct has tm_gmtoff member)
-	AC_CACHE_VAL(ac_cv_tm_has_tm_gmtoff,
-	    AC_TRY_COMPILE([
-#		include <sys/types.h>
-#		include <sys/time.h>
-#		ifdef TIME_WITH_SYS_TIME
-#		include <time.h>
-#		endif],
-		[u_int i = sizeof(((struct tm *)0)->tm_gmtoff)],
-		ac_cv_tm_has_tm_gmtoff=yes,
-		ac_cv_tm_has_tm_gmtoff=no))
-	AC_MSG_RESULT($ac_cv_tm_has_tm_gmtoff)
-	if test $ac_cv_tm_has_tm_gmtoff = yes ; then
-		AC_DEFINE(HAVE_TM_GMTOFF)
-	fi
-fi
 
 AC_MSG_CHECKING(if ether_header uses ether_addr structs)
 AC_CACHE_VAL(ac_cv_ether_header_has_ea,
+    LBL_SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $V_INCLS"
     AC_TRY_COMPILE([
 #	include <sys/types.h>
 #	if __STDC__
@@ -156,7 +118,8 @@ AC_CACHE_VAL(ac_cv_ether_header_has_ea,
 	[u_int i =
 	    sizeof(((struct ether_header *)0)->ether_dhost.ether_addr_octet)],
 	ac_cv_ether_header_has_ea=yes,
-	ac_cv_ether_header_has_ea=no))
+	ac_cv_ether_header_has_ea=no)
+    CFLAGS="$LBL_SAVE_CFLAGS")
 AC_MSG_RESULT($ac_cv_ether_header_has_ea)
 if test $ac_cv_ether_header_has_ea = yes ; then
 	AC_DEFINE(ETHER_HEADER_HAS_EA)
@@ -164,6 +127,8 @@ fi
 
 AC_MSG_CHECKING(if ether_arp uses ether_addr structs)
 AC_CACHE_VAL(ac_cv_ether_arp_has_ea,
+    LBL_SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $V_INCLS"
     AC_TRY_COMPILE([
 #	include <sys/types.h>
 #	if __STDC__
@@ -178,7 +143,8 @@ AC_CACHE_VAL(ac_cv_ether_arp_has_ea,
 	[u_int i =
 	    sizeof(((struct ether_arp *)0)->arp_sha.ether_addr_octet)],
 	ac_cv_ether_arp_has_ea=yes,
-	ac_cv_ether_arp_has_ea=no))
+	ac_cv_ether_arp_has_ea=no)
+    CFLAGS="$LBL_SAVE_CFLAGS")
 AC_MSG_RESULT($ac_cv_ether_arp_has_ea)
 if test $ac_cv_ether_arp_has_ea = yes ; then
 	AC_DEFINE(ETHER_ARP_HAS_EA)
@@ -186,6 +152,8 @@ fi
 
 AC_MSG_CHECKING(if ether_arp uses erp_xsha member)
 AC_CACHE_VAL(ac_cv_struct_ether_arp_x,
+    LBL_SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $V_INCLS"
     AC_TRY_COMPILE([
 #	include <sys/types.h>
 #	include <sys/socket.h>
@@ -199,7 +167,8 @@ AC_CACHE_VAL(ac_cv_struct_ether_arp_x,
 #	include <netinet/if_ether.h>],
 	[u_int i = sizeof( ((struct ether_arp *)0)->arp_xsha)],
 	ac_cv_struct_ether_arp_x=yes,
-	ac_cv_struct_ether_arp_x=no))
+	ac_cv_struct_ether_arp_x=no)
+    CFLAGS="$LBL_SAVE_CFLAGS")
 AC_MSG_RESULT($ac_cv_struct_ether_arp_x)
 if test $ac_cv_struct_ether_arp_x = yes ; then
 	AC_DEFINE(ETHER_ARP_HAS_X)

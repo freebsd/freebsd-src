@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: extract.h,v 1.14 96/07/15 18:23:12 leres Exp $ (LBL)
+ * @(#) $Header: extract.h,v 1.15 96/11/26 22:03:22 leres Exp $ (LBL)
  */
 
 /* Network to host order macros */
@@ -36,7 +36,7 @@
 #define EXTRACT_16BITS(p) \
 	((u_short)ntohs(*(u_short *)(p)))
 #define EXTRACT_32BITS(p) \
-	ntohl(*(u_int32_t *)(p))
+	((u_int32_t)ntohl(*(u_int32_t *)(p)))
 #endif
 
 #define EXTRACT_24BITS(p) \

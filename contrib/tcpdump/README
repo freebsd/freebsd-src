@@ -1,6 +1,6 @@
-@(#) $Header: README,v 1.49 96/07/15 18:28:23 leres Exp $ (LBL)
+@(#) $Header: README,v 1.50 96/08/20 14:36:28 leres Exp $ (LBL)
 
-TCPDUMP 3.2.1
+TCPDUMP 3.3
 Lawrence Berkeley National Laboratory
 Network Research Group
 tcpdump@ee.lbl.gov
