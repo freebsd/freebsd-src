@@ -222,12 +222,12 @@ static struct synclist *syncer_workitem_pending;
 
 #define SYNCER_MAXDELAY		32
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
-time_t syncdelay = 30;		/* max time to delay syncing data */
-time_t filedelay = 30;		/* time to delay syncing files */
+static int syncdelay = 30;		/* max time to delay syncing data */
+static int filedelay = 30;		/* time to delay syncing files */
 SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0, "");
-time_t dirdelay = 29;		/* time to delay syncing directories */
+static int dirdelay = 29;		/* time to delay syncing directories */
 SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
-time_t metadelay = 28;		/* time to delay syncing metadata */
+static int metadelay = 28;		/* time to delay syncing metadata */
 SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
 static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
