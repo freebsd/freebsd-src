@@ -357,20 +357,23 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_CALC_GEOMETRY:
 	{
 		struct	  ccb_calc_geometry *ccg;
-		u_int32_t secs_per_cylinder;
 
 		ccg = &ccb->ccg;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_CALC_GEOMETRY (%d, %d) request\n",
-			vpo->vpo_unit, ccg->volume_size, ccg->block_size);
+		printf("vpo%d: XPT_CALC_GEOMETRY (bs=%d,vs=%d,c=%d,h=%d,spt=%d) request\n",
+			vpo->vpo_unit,
+			ccg->block_size,
+			ccg->volume_size,
+			ccg->cylinders,
+			ccg->heads,
+			ccg->secs_per_track);
 #endif
-		
+
 		ccg->heads = 64;
 		ccg->secs_per_track = 32;
-
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+		ccg->cylinders = ccg->volume_size /
+				 (ccg->heads * ccg->secs_per_track);
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
