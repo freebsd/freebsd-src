@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	rnordier
+
 PROG=		boot0
 NOMAN=
 STRIP=
