@@ -977,6 +977,7 @@ in6_status(s, info)
 	struct in6_addrlifetime lifetime;
 	time_t t = time(NULL);
 	int error;
+	u_int32_t scopeid;
 
 	memset(&null_sin, 0, sizeof(null_sin));
 
@@ -1013,6 +1014,7 @@ in6_status(s, info)
 		if (sin->sin6_scope_id == 0)
 			sin->sin6_scope_id = ntohs(index);
 	}
+	scopeid = sin->sin6_scope_id;
 
 	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
 			    sizeof(addr_buf), NULL, 0,
@@ -1071,6 +1073,8 @@ in6_status(s, info)
 	if (flags6 & IN6_IFF_DEPRECATED)
 		printf("deprecated ");
 
+        if (scopeid)
+		printf(" scopeid 0x%x", scopeid);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
 		printf("pltime ");
