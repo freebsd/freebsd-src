@@ -1336,7 +1336,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_ncylinders = du->dk_dd.d_ncylinders;
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
-	error = dsopen(dev, fmt, 0, &du->dk_slices, &label);
+	error = dsopen(dev, fmt, DSO_BAD144, &du->dk_slices, &label);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");
