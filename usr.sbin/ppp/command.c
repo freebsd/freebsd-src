@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.81 1997/09/16 23:15:11 brian Exp $
+ * $Id: command.c,v 1.82 1997/09/17 23:17:52 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -353,7 +353,7 @@ struct cmdtab const Commands[] = {
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
   "Run a subshell", "shell|! [sh command]"},
   {"show", NULL, ShowCommand, LOCAL_AUTH,
-  "Show status and statictics", "show var"},
+  "Show status and statistics", "show var"},
   {"term", NULL, TerminalCommand, LOCAL_AUTH,
   "Enter to terminal mode", "term"},
   {"alias", NULL, AliasCommand, LOCAL_AUTH,
@@ -569,7 +569,7 @@ struct cmdtab const ShowCommands[] = {
   {"ccp", NULL, ReportCcpStatus, LOCAL_AUTH,
   "Show CCP status", "show cpp"},
   {"compress", NULL, ReportCompress, LOCAL_AUTH,
-  "Show compression statictics", "show compress"},
+  "Show compression statistics", "show compress"},
   {"dfilter", NULL, ShowDfilter, LOCAL_AUTH,
   "Show Demand filters", "show dfilteroption .."},
   {"escape", NULL, ShowEscape, LOCAL_AUTH,
