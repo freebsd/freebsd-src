@@ -25,7 +25,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/addrtoname.c,v 1.83 2001/09/17 21:57:50 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/addrtoname.c,v 1.83.4.1 2002/06/02 00:08:07 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,14 +36,16 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 
-struct mbuf;
-struct rtentry;
-#include <net/if.h>
-
 #include <netinet/in.h>
+
+#ifdef USE_ETHER_NTOHOST
 #ifdef HAVE_NETINET_IF_ETHER_H
+struct mbuf;		/* Squelch compiler warnings on some platforms for */
+struct rtentry;		/* declarations in <net/if.h> */
+#include <net/if.h>	/* for "struct ifnet" in "struct arpcom" on Solaris */
 #include <netinet/if_ether.h>
-#endif
+#endif /* HAVE_NETINET_IF_ETHER_H */
+#endif /* USE_ETHER_NTOHOST */
 
 #include <arpa/inet.h>
 
