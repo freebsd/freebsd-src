@@ -514,6 +514,14 @@ configXDesktop(dialogMenuItem *self)
 		write_root_xprofile("gnome-session &\nexec afterstep");
 	}
     }
+    else if (!strcmp(desk, "enlightenment")) {
+	ret = package_add("gnomecore");
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
+	    ret = package_add("enlightenment");
+	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
+		write_root_xprofile("gnome-session &\nexec enlightenment\n");
+	}
+    }
     else if (!strcmp(desk, "afterstep")) {
 	ret = package_add("afterstep");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("afterstep"))
@@ -525,13 +533,8 @@ configXDesktop(dialogMenuItem *self)
 	    write_root_xprofile("xterm &\n[ ! -d $HOME/GNUstep/Library/WindowMaker ] && /usr/X11R6/bin/wmaker.inst\nexec /usr/X11R6/bin/wmaker\n");
 	}
     }
-    else if (!strcmp(desk, "enlightenment")) {
-	ret = package_add("enlightenment");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
-	    write_root_xprofile("xterm &\nexec enlightenment\n");
-    }
-    else if (!strcmp(desk, "fvwm")) {
-	ret = package_add("fvwm");
+    else if (!strcmp(desk, "fvwm2")) {
+	ret = package_add("fvwm2");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm2"))
 	    write_root_xprofile("xterm &\nexec fvwm2\n");
     }
