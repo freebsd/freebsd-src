@@ -296,11 +296,10 @@ mly_rescan_btl(struct mly_softc *sc, int bus, int target)
 	return;				/* we'll be retried soon */
 
     /* set up the data buffer */
-    if ((mc->mc_data = malloc(sizeof(union mly_devinfo), M_DEVBUF, M_NOWAIT)) == NULL) {
+    if ((mc->mc_data = malloc(sizeof(union mly_devinfo), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 	mly_release_command(mc);
 	return;				/* we'll get retried the next time a command completes */
     }
-    bzero(mc->mc_data, sizeof(union mly_devinfo));
     mc->mc_flags |= MLY_CMD_DATAIN;
     mc->mc_complete = mly_complete_rescan;
 
@@ -589,11 +588,10 @@ mly_fetch_event(struct mly_softc *sc)
 	return;				/* we'll get retried the next time a command completes */
 
     /* set up the data buffer */
-    if ((mc->mc_data = malloc(sizeof(struct mly_event), M_DEVBUF, M_NOWAIT)) == NULL) {
+    if ((mc->mc_data = malloc(sizeof(struct mly_event), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 	mly_release_command(mc);
 	return;				/* we'll get retried the next time a command completes */
     }
-    bzero(mc->mc_data, sizeof(struct mly_event));
     mc->mc_length = sizeof(struct mly_event);
     mc->mc_flags |= MLY_CMD_DATAIN;
     mc->mc_complete = mly_complete_event;
