@@ -48,26 +48,26 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
-static int
-nexus_pcib_maxslots(device_t dev)
+int
+legacy_pcib_maxslots(device_t dev)
 {
 	return 31;
 }
 
 /* read configuration space register */
 
-static u_int32_t
-nexus_pcib_read_config(device_t dev, int bus, int slot, int func,
-		       int reg, int bytes)
+u_int32_t
+legacy_pcib_read_config(device_t dev, int bus, int slot, int func,
+			int reg, int bytes)
 {
 	return(pci_cfgregread(bus, slot, func, reg, bytes));
 }
 
 /* write configuration space register */
 
-static void
-nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
-			int reg, u_int32_t data, int bytes)
+void
+legacy_pcib_write_config(device_t dev, int bus, int slot, int func,
+			 int reg, u_int32_t data, int bytes)
 {
 	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
@@ -75,7 +75,7 @@ nexus_pcib_write_config(device_t dev, int bus, int slot, int func,
 /* route interrupt */
 
 static int
-nexus_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
 
 	/* No routing possible */
@@ -83,9 +83,9 @@ nexus_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 }
 
 static const char *
-nexus_pcib_is_host_bridge(int bus, int slot, int func,
-			  u_int32_t id, u_int8_t class, u_int8_t subclass,
-			  u_int8_t *busnum)
+legacy_pcib_is_host_bridge(int bus, int slot, int func,
+			   u_int32_t id, u_int8_t class, u_int8_t subclass,
+			   u_int8_t *busnum)
 {
 	const char *s = NULL;
 	static u_int8_t pxb[4];	/* hack for 450nx */
@@ -96,7 +96,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 	case 0x12258086:
 		s = "Intel 824?? host to PCI bridge";
 		/* XXX This is a guess */
-		/* *busnum = nexus_pcib_read_config(0, bus, slot, func, 0x41, 1); */
+		/* *busnum = legacy_pcib_read_config(0, bus, slot, func, 0x41, 1); */
 		*busnum = bus;
 		break;
 	case 0x71208086:
@@ -134,7 +134,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		break;
 	case 0x84c48086:
 		s = "Intel 82454KX/GX (Orion) host to PCI bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x4a, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x4a, 1);
 		break;
 	case 0x84ca8086:
 		/*
@@ -148,13 +148,13 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		 * Since the MIOC doesn't have a pci bus attached, we
 		 * pretend it wasn't there.
 		 */
-		pxb[0] = nexus_pcib_read_config(0, bus, slot, func,
+		pxb[0] = legacy_pcib_read_config(0, bus, slot, func,
 						0xd0, 1); /* BUSNO[0] */
-		pxb[1] = nexus_pcib_read_config(0, bus, slot, func,
+		pxb[1] = legacy_pcib_read_config(0, bus, slot, func,
 						0xd1, 1) + 1;	/* SUBA[0]+1 */
-		pxb[2] = nexus_pcib_read_config(0, bus, slot, func,
+		pxb[2] = legacy_pcib_read_config(0, bus, slot, func,
 						0xd3, 1); /* BUSNO[1] */
-		pxb[3] = nexus_pcib_read_config(0, bus, slot, func,
+		pxb[3] = legacy_pcib_read_config(0, bus, slot, func,
 						0xd4, 1) + 1;	/* SUBA[1]+1 */
 		return NULL;
 	case 0x84cb8086:
@@ -242,7 +242,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		/* ServerWorks -- vendor 0x1166 */
 	case 0x00051166:
 		s = "ServerWorks NB6536 2.0HE host to PCI bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 	
 	case 0x00061166:
@@ -253,24 +253,24 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		/* FALLTHROUGH */
 	case 0x010f1014: /* IBM re-badged ServerWorks chipset */
 		s = "ServerWorks host to PCI bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 	case 0x00091166:
 		s = "ServerWorks NB6635 3.0LE host to PCI bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 	case 0x00101166:
 		s = "ServerWorks CIOB30 host to PCI bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 	case 0x00111166:
 		/* FALLTHROUGH */
 	case 0x03021014: /* IBM re-badged ServerWorks chipset */
 		s = "ServerWorks CMIC-HE host to PCI-X bridge";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 		/* XXX unknown chipset, but working */
@@ -278,7 +278,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		/* FALLTHROUGH */
 	case 0x01011166:
 		s = "ServerWorks host to PCI bridge(unknown chipset)";
-		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
@@ -300,7 +300,7 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
  * to the nexus for each bridge.
  */
 static void
-nexus_pcib_identify(driver_t *driver, device_t parent)
+legacy_pcib_identify(driver_t *driver, device_t parent)
 {
 	int bus, slot, func;
 	u_int8_t  hdrtype;
@@ -327,7 +327,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
  retry:
 	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 		func = 0;
-		hdrtype = nexus_pcib_read_config(0, bus, slot, func,
+		hdrtype = legacy_pcib_read_config(0, bus, slot, func,
 						 PCIR_HDRTYPE, 1);
 		/*
 		 * When enumerating bus devices, the standard says that
@@ -352,16 +352,16 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			device_t *devs;
 			int ndevs, i;
 
-			id = nexus_pcib_read_config(0, bus, slot, func,
+			id = legacy_pcib_read_config(0, bus, slot, func,
 						    PCIR_DEVVENDOR, 4);
 			if (id == -1)
 				continue;
-			class = nexus_pcib_read_config(0, bus, slot, func,
+			class = legacy_pcib_read_config(0, bus, slot, func,
 						       PCIR_CLASS, 1);
-			subclass = nexus_pcib_read_config(0, bus, slot, func,
+			subclass = legacy_pcib_read_config(0, bus, slot, func,
 							  PCIR_SUBCLASS, 1);
 
-			s = nexus_pcib_is_host_bridge(bus, slot, func,
+			s = legacy_pcib_is_host_bridge(bus, slot, func,
 						      id, class, subclass,
 						      &busnum);
 			if (s == NULL)
@@ -414,14 +414,14 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	if (!found) {
 		if (bootverbose)
 			printf(
-	"nexus_pcib_identify: no bridge found, adding pcib0 anyway\n");
+	"legacy_pcib_identify: no bridge found, adding pcib0 anyway\n");
 		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
 		legacy_set_pcibus(child, 0);
 	}
 }
 
 static int
-nexus_pcib_probe(device_t dev)
+legacy_pcib_probe(device_t dev)
 {
 
 	if (pci_cfgregopen() == 0)
@@ -429,8 +429,8 @@ nexus_pcib_probe(device_t dev)
 	return 0;
 }
 
-static int
-nexus_pcib_attach(device_t dev)
+int
+legacy_pcib_attach(device_t dev)
 {
 	device_t child;
 
@@ -439,8 +439,9 @@ nexus_pcib_attach(device_t dev)
 	return bus_generic_attach(dev);
 }
 
-static int
-nexus_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+int
+legacy_pcib_read_ivar(device_t dev, device_t child, int which,
+    uintptr_t *result)
 {
 
 	switch (which) {
@@ -451,8 +452,9 @@ nexus_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return ENOENT;
 }
 
-static int
-nexus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+int
+legacy_pcib_write_ivar(device_t dev, device_t child, int which,
+    uintptr_t value)
 {
 
 	switch (which) {
@@ -464,19 +466,19 @@ nexus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 
-static device_method_t nexus_pcib_methods[] = {
+static device_method_t legacy_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	nexus_pcib_identify),
-	DEVMETHOD(device_probe,		nexus_pcib_probe),
-	DEVMETHOD(device_attach,	nexus_pcib_attach),
+	DEVMETHOD(device_identify,	legacy_pcib_identify),
+	DEVMETHOD(device_probe,		legacy_pcib_probe),
+	DEVMETHOD(device_attach,	legacy_pcib_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,	nexus_pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,	nexus_pcib_write_ivar),
+	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -485,21 +487,21 @@ static device_method_t nexus_pcib_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	nexus_pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	nexus_pcib_read_config),
-	DEVMETHOD(pcib_write_config,	nexus_pcib_write_config),
-	DEVMETHOD(pcib_route_interrupt,	nexus_pcib_route_interrupt),
+	DEVMETHOD(pcib_maxslots,	legacy_pcib_maxslots),
+	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
+	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
 
 	{ 0, 0 }
 };
 
-static driver_t nexus_pcib_driver = {
+static driver_t legacy_pcib_driver = {
 	"pcib",
-	nexus_pcib_methods,
+	legacy_pcib_methods,
 	1,
 };
 
-DRIVER_MODULE(pcib, legacy, nexus_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, pcib_devclass, 0, 0);
 
 
 /*
