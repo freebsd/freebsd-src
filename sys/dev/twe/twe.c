@@ -273,7 +273,7 @@ twe_del_unit(struct twe_softc *sc, int unit)
 {
     int error;
 
-    if (unit < 0 || unit > TWE_MAX_UNITS)
+    if (unit < 0 || unit >= TWE_MAX_UNITS)
 	return (ENXIO);
 
     if (sc->twe_drive[unit].td_disk == NULL)
