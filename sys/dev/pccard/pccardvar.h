@@ -349,10 +349,10 @@ PCCARD_ACCESSOR(product,	PRODUCT,		uint32_t)
 PCCARD_ACCESSOR(prodext,	PRODEXT,		uint16_t)
 PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	uint32_t)
 PCCARD_ACCESSOR(function,	FUNCTION,		uint32_t)
-PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
-PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
-PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)
-PCCARD_ACCESSOR(cis4_str,	CIS4_STR,		char *)
+PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		const char *)
+PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		const char *)
+PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		const char *)
+PCCARD_ACCESSOR(cis4_str,	CIS4_STR,		const char *)
 
 /* shared memory flags */
 enum {
