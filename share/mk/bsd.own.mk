@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.22 1999/04/20 14:24:52 peter Exp $
+#	$Id: bsd.own.mk,v 1.23 1999/04/23 20:53:34 peter Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -139,6 +139,13 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
+GAMEGRP?=	games
+
+KMODDIR?=	/modules
+KMODOWN?=	${BINOWN}
+KMODGRP?=	${BINGRP}
+KMODMODE?=	${BINMODE}
+
 .if ${OBJFORMAT} == aout
 LIBDIR?=	/usr/lib/aout
 .else
@@ -151,11 +158,6 @@ SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
-
-KMODDIR?=	/modules
-KMODOWN?=	${BINOWN}
-KMODGRP?=	${BINGRP}
-KMODMODE?=	${BINMODE}
 
 
 # Share files
