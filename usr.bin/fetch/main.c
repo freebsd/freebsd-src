@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.38 1997/02/22 19:54:57 peter Exp $ */
+/* $Id: main.c,v 1.39 1997/07/01 06:37:34 charnier Exp $ */
 
 #include <sys/types.h>
 
@@ -53,7 +53,7 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
 		"usage: fetch [-DHILMNPRTValmnpqrv] [-o outputfile]",
-		"             [-f file -h host [-c dir] | URL]\n");
+		"             [-f file -h host [-c dir] | URL]");
 	exit(EX_USAGE);
 }
 
