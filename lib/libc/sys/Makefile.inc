@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.45 1998/01/31 05:53:57 imp Exp $
+#	$Id: Makefile.inc,v 1.47 1998/03/09 07:22:12 jb Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -22,7 +22,7 @@
 # If using the NetBSD syscall interface add sources that convert
 # the NetBSD interface to the one FreeBSD expects:
 .if defined(NETBSD_SYSCALLS)
-SRCS+=	netbsd_getdirentries.c netbsd_stat.c
+SRCS+=	netbsd_getdirentries.c netbsd_msync.c netbsd_stat.c
 .endif
 
 # Sources common to both syscall interfaces:
