@@ -239,7 +239,7 @@ ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
 	}
 
 	if (ufs_extattr_find_attr(ump, attrname)) {
-		error = EOPNOTSUPP;
+		error = EEXIST;
 		goto free_exit;
 	}
 
@@ -261,7 +261,8 @@ ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
 
 	VOP_LEASE(backing_vnode, p, p->p_cred->pc_ucred, LEASE_WRITE);
 	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
-	error = VOP_READ(backing_vnode, &auio, 0, ump->um_extattr.uepm_ucred);
+	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
+	    ump->um_extattr.uepm_ucred);
 	VOP_UNLOCK(backing_vnode, 0, p);
 
 	if (error) {
@@ -511,12 +512,20 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	local_aio.uio_offset = base_offset;
 	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
 	
+	/*
+	 * Acquire locks.
+	 */
 	VOP_LEASE(attribute->uele_backing_vnode, p, cred, LEASE_READ);
-	vn_lock(attribute->uele_backing_vnode, LK_SHARED | LK_NOPAUSE |
-	    LK_RETRY, p);
+	/*
+	 * Don't need to get a lock on the backing file if the getattr is
+	 * being applied to the backing file, as the lock is already held.
+	 */
+	if (attribute->uele_backing_vnode != vp)
+		vn_lock(attribute->uele_backing_vnode, LK_SHARED |
+		    LK_NOPAUSE | LK_RETRY, p);
 
-	error = VOP_READ(attribute->uele_backing_vnode, &local_aio, 0,
-	    ump->um_extattr.uepm_ucred);
+	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
+	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
@@ -562,18 +571,19 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	old_size = uio->uio_resid;
 	uio->uio_resid = size;
 
-	error = VOP_READ(attribute->uele_backing_vnode, uio, 0,
-	    ump->um_extattr.uepm_ucred);
-	if (error) {
-		uio->uio_offset = 0;
+	error = VOP_READ(attribute->uele_backing_vnode, uio,
+	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
+	if (error)
 		goto vopunlock_exit;
-	}
 
-	uio->uio_offset = 0;
 	uio->uio_resid = old_size - (size - uio->uio_resid);
 
 vopunlock_exit:
-	VOP_UNLOCK(attribute->uele_backing_vnode, 0, p);
+
+	uio->uio_offset = 0;
+
+	if (attribute->uele_backing_vnode != vp)
+		VOP_UNLOCK(attribute->uele_backing_vnode, 0, p);
 
 	return (error);
 }
@@ -600,7 +610,7 @@ vop_setextattr {
 
 	ufs_extattr_uepm_lock(ump, ap->a_p);
 
-	if (ap->a_uio)
+	if (ap->a_uio != NULL)
 		error = ufs_extattr_set(ap->a_vp, ap->a_name, ap->a_uio,
 		    ap->a_cred, ap->a_p);
 	else
@@ -628,7 +638,6 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
 	off_t	base_offset;
-
 	int	error = 0;
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
@@ -679,20 +688,20 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
 
 	/*
-	 * Acquire locks
+	 * Acquire locks.
 	 */
 	VOP_LEASE(attribute->uele_backing_vnode, p, cred, LEASE_WRITE);
 
 	/*
 	 * Don't need to get a lock on the backing file if the setattr is
-	 * being applied to the backing file, as the lock is already held
+	 * being applied to the backing file, as the lock is already held.
 	 */
 	if (attribute->uele_backing_vnode != vp)
 		vn_lock(attribute->uele_backing_vnode, 
 		    LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, p);
 
-	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio, 0,
-	    ump->um_extattr.uepm_ucred);
+	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio,
+	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
@@ -706,8 +715,8 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 	 */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 	
-	error = VOP_WRITE(attribute->uele_backing_vnode, uio, IO_SYNC,
-	    ump->um_extattr.uepm_ucred);
+	error = VOP_WRITE(attribute->uele_backing_vnode, uio,
+	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
 
 vopunlock_exit:
 	uio->uio_offset = 0;
@@ -759,7 +768,7 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 	    attribute->uele_fileheader.uef_size);
 
 	/*
-	 * Read in the data header to see if the data is defined
+	 * Check to see if currently defined.
 	 */
 	bzero(&ueh, sizeof(struct ufs_extattr_header));
 
@@ -783,8 +792,8 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 		vn_lock(attribute->uele_backing_vnode,
 		    LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, p);
 
-	error = VOP_READ(attribute->uele_backing_vnode, &local_aio, 0,
-	    ump->um_extattr.uepm_ucred);
+	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
+	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
@@ -797,8 +806,12 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 	/* flag it as not in use */
 	ueh.ueh_flags = 0;
 
-	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio, 0,
-	    ump->um_extattr.uepm_ucred);
+	local_aio.uio_offset = base_offset;
+	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
+	local_aio.uio_rw = UIO_WRITE;
+
+	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio,
+	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
