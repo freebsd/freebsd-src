@@ -199,6 +199,10 @@ __ElfType(Hashelt);
 #define	ELF_TARG_MACH	EM_IA_64
 #define	ELF_TARG_VER	1
 
+/* Processor specific dynmamic section tags. */
+
+#define DT_IA64_PLT_RESERVE     0x70000000
+
 #ifdef _KERNEL
 
 /*
