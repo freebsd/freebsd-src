@@ -197,11 +197,11 @@ wi_pccard_probe(dev)
 	if (error)
 		return (error);
 
-	wi_free(dev);
-
 	/* Make sure interrupts are disabled. */
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
+
+	wi_free(dev);
 
 	return (0);
 }
