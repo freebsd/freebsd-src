@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.241 1996/10/05 06:10:58 jkh Exp $
+#	$Id: Makefile,v 1.242 1996/10/05 07:46:54 jkh Exp $
 #
 # How to roll a release:
 #
@@ -200,8 +200,7 @@ release.3:
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	cd ${.CURDIR}/sysinstall && make depend all \
-	  KERNEL_NAME=${RD}/kernels/BOOTMFS.std
+	cd ${.CURDIR}/sysinstall && make depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	for j in ${WHICH_CRUNCH} ; do \
@@ -357,7 +356,7 @@ release.7:
 #                            +-----------------------------------------+
 #
 
-release.8: write_mfs_in_kernel
+release.8: write_mfs_in_kernel dumpnlist
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -378,6 +377,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
+	./dumpnlist ${RD}/kernels/BOOTMFS.std > ${RD}/mfsfd/stand/symbols
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
@@ -505,6 +505,9 @@ fixit.flp:
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
 
+dumpnlist:	${.CURDIR}/dumpnlist.c
+	${CC} ${CFLAGS} -o dumpnlist ${.CURDIR}/dumpnlist.c
+
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
 	@echo "To make a release RELEASEDIR must be defined" && false
@@ -550,9 +553,9 @@ doKERNEL:
 #
 doMFSKERN:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
-	cd ${.CURDIR}/../sys/i386/conf && \
+	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
+	@cd ${.CURDIR}/../sys/i386/conf && \
 	  sed	-e '/SYSV/d' \
 		-e '/pty/d' \
 		-e '/PROCFS/d' \
@@ -561,22 +564,29 @@ doMFSKERN:
 		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
-	  echo 'options  "MAXCONS=4"' >> BOOTMFS
-	echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
+	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
+	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
+	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
-	rm -rf ${RD}/boot.${FSIMAGE}
-	mkdir  ${RD}/boot.${FSIMAGE}
-	mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@rm -rf ${RD}/boot.${FSIMAGE}
+	@mkdir  ${RD}/boot.${FSIMAGE}
+	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
-	mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
-	mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
-	ls -l ${RD}/boot.${FSIMAGE}/kernel
-	rm -f ${RD}/floppies/boot${FSIMAGE}.flp
+	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
+	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
+	@ls -l ${RD}/boot.${FSIMAGE}/kernel
+	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	cat /usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
 		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
+	@echo 'USERCONFIG' > startup_foo
+	@echo 'intro' >> startup_foo
+	@echo 'visual' >> startup_foo
+	dd if=startup_foo of=${RD}/floppies/boot${FSIMAGE}.flp \
+	  seek=1 bs=512 count=1 conv=sync
+	@rm -f startup_foo
 
 .include <bsd.prog.mk>
