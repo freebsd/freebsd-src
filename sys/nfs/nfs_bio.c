@@ -143,7 +143,7 @@ nfs_getpages(ap)
 			/* vm_page_zero_invalid(m, TRUE); */
 			for (i = 0; i < npages; ++i) {
 				if (i != ap->a_reqpage)
-					vnode_pager_freepage(pages[i]);
+					vm_page_free(pages[i]);
 			}
 			return(0);
 		}
@@ -177,7 +177,7 @@ nfs_getpages(ap)
 		printf("nfs_getpages: error %d\n", error);
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage)
-				vnode_pager_freepage(pages[i]);
+				vm_page_free(pages[i]);
 		}
 		return VM_PAGER_ERROR;
 	}
@@ -233,7 +233,7 @@ nfs_getpages(ap)
 					vm_page_deactivate(m);
 				vm_page_wakeup(m);
 			} else {
-				vnode_pager_freepage(m);
+				vm_page_free(m);
 			}
 		}
 	}
