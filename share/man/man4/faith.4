@@ -30,7 +30,7 @@
 .\"
 .Dd April 10, 1999
 .Dt FAITH 4
-.Os KAME
+.Os FreeBSD
 .Sh NAME
 .Nm faith
 .Nd
@@ -40,55 +40,60 @@
 .Sh DESCRIPTION
 The
 .Nm
-interface captures IPv6 TCP traffic,
-for implementing userland IPv6-to-IPv4 TCP relay
+interface captures IPv6 TCP traffic
+for implementing userland IPv6-to-IPv4 TCP relays
 like
 .Xr faithd 8 .
 .Pp
-Special action will be taken when IPv6 TCP traffic is seen on a router,
-and routing table suggests to route it to
+Special action will be taken when IPv6 TCP traffic is seen on a router
+and the routing table suggests to route it to the
 .Nm
 interface.
-In this case, the packet will be accepted by the router,
-regardless of list of IPv6 interface addresses assigned to the router.
-The packet will be captured by an IPv6 TCP socket, if it has
+In this case the packet will be accepted by the router,
+regardless of the list of IPv6 interface addresses assigned to the router.
+The packet will be captured by an IPv6 TCP socket if it has the
 .Dv IN6P_FAITH
 flag turned on and it has matching address/port pairs.
 In result,
 .Nm
-will let you capture IPv6 TCP traffic to some specific destination addresses.
+will let you divert IPv6 TCP traffic to some specific destination addresses.
 Userland programs, such as
-.Xr faithd 8
+.Xr faithd 8 ,
 can use this behavior to relay IPv6 TCP traffic to IPv4 TCP traffic.
 The program can accept some specific IPv6 TCP traffic, perform
 .Xr getsockname 3
 to get the IPv6 destination address specified by the client,
 and perform application-specific address mapping to relay IPv6 TCP to IPv4 TCP.
 .Pp
+The
 .Dv IN6P_FAITH
-flag on IPv6 TCP socket can be set by using
+flag on an IPv6 TCP socket can be set by using
 .Xr setsockopt 2 ,
-with level equals to
+with
+.Fa level
+set to
 .Dv IPPROTO_IPV6
-and optname equals to
+and
+.Fa optname
+set to
 .Dv IPv6_FAITH .
 .Pp
-To handle error reports by ICMPv6, some of ICMPv6 packets routed to
+To handle error reports by ICMPv6 some of the ICMPv6 packets routed to the
 .Nm
-interface will be delivered to IPv6 TCP, as well.
+interface will need be delivered to IPv6 TCP as well.
 .Pp
 To understand how
 .Nm
-can be used, take a look at source code of
+can be used take a look at the source code of
 .Xr faithd 8 .
 .Pp
-As
+As the
 .Nm
-interface implements potentially dangerous operation,
-great care must be taken when configuring
+interface implements potentially dangerous operations,
+great care must be taken when configuring the
 .Nm
 interface.
-To avoid possible misuse,
+To avoid possible misuse the
 .Xr sysctl 8
 variable
 .Li net.inet6.ip6.keepfaith
@@ -97,9 +102,9 @@ must be set to
 prior to the use of the interface.
 When
 .Li net.inet6.ip6.keepfaith
-is
+is set to
 .Li 0 ,
-no packet will be captured by
+no packets will be captured by the
 .Nm
 interface.
 .Pp
@@ -109,7 +114,7 @@ interface is intended to be used on routers, not on hosts.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr inet6 4 ,
-.Xr faithd 8 .
+.Xr faithd 8
 .\" .Rs
 .\" .%A	Jun-ichiro itojun Hagino
 .\" .%A	Kazu Yamamoto
@@ -118,5 +123,5 @@ interface is intended to be used on routers, not on hosts.
 .\" .Re
 .\"
 .Sh HISTORY
-The FAITH IPv6-to-IPv4 TCP relay translator was first appeared in
+The FAITH IPv6-to-IPv4 TCP relay translator first appeared in
 WIDE hydrangea IPv6 stack.
