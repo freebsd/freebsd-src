@@ -75,9 +75,10 @@ _fcntl(int fd, int cmd,...)
 			} else {
 				/*
 				 * Save the file open flags so that they can
-				 * be         checked later: 
+				 * be checked later: 
 				 */
-				_thread_fd_table[ret]->flags = _thread_fd_table[fd]->flags;
+				_thread_fd_setflags(ret,
+				    _thread_fd_getflags(fd));
 			}
 			break;
 		case F_SETFD:
@@ -88,7 +89,7 @@ _fcntl(int fd, int cmd,...)
 			ret = _thread_sys_fcntl(fd, cmd, 0);
 			break;
 		case F_GETFL:
-			ret = _thread_fd_table[fd]->flags;
+			ret = _thread_fd_getflags(fd);
 			break;
 		case F_SETFL:
 			/*
@@ -118,10 +119,10 @@ _fcntl(int fd, int cmd,...)
 			 */
 			} else if (nonblock)
 				/* A non-blocking descriptor: */
-				_thread_fd_table[fd]->flags = flags | O_NONBLOCK;
+				_thread_fd_setflags(fd, flags | O_NONBLOCK);
 			else
 				/* Save the flags: */
-				_thread_fd_table[fd]->flags = flags & ~O_NONBLOCK;
+				_thread_fd_setflags(fd, flags & ~O_NONBLOCK);
 			break;
 		default:
 			/* Might want to make va_arg use a union */

@@ -81,14 +81,14 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	}
 	
 	/* Check the descriptor access modes. */
-	type = _thread_fd_table[fd]->flags & O_ACCMODE;
+	type = _thread_fd_getflags(fd) & O_ACCMODE;
 	if (type != O_RDONLY && type != O_RDWR) {
 		/* File is not open for read. */
 		ret = -1;
 		errno = EBADF;
 		goto ERROR_2;
 	}
-	type = _thread_fd_table[s]->flags & O_ACCMODE;
+	type = _thread_fd_getflags(s) & O_ACCMODE;
 	if (type != O_WRONLY && type != O_RDWR) {
 		/* File is not open for write. */
 		ret = -1;
@@ -97,7 +97,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	}
 
 	/* Check if file operations are to block */
-	blocking = ((_thread_fd_table[s]->flags & O_NONBLOCK) == 0);
+	blocking = ((_thread_fd_getflags(s) & O_NONBLOCK) == 0);
 
 	/*
 	 * Loop while no error occurs and until the expected number of bytes are

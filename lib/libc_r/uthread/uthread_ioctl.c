@@ -42,6 +42,7 @@ int
 _ioctl(int fd, unsigned long request,...)
 {
 	int             ret;
+	int		flags;
 	int		*op;
 	va_list         ap;
 
@@ -57,8 +58,9 @@ _ioctl(int fd, unsigned long request,...)
 			 * twiddling the flag based on the request
 			 */
 			op = va_arg(ap, int *);
-			_thread_fd_table[fd]->flags &= ~O_NONBLOCK;
-			_thread_fd_table[fd]->flags |= ((*op) ? O_NONBLOCK : 0);
+			flags = _thread_fd_getflags(fd) & ~O_NONBLOCK;
+			flags |= ((*op) ? O_NONBLOCK : 0);
+			_thread_fd_setflags(fd, flags);
 			ret = 0;
 			break;
 		default:

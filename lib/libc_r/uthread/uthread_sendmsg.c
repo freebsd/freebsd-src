@@ -46,7 +46,8 @@ _sendmsg(int fd, const struct msghdr *msg, int flags)
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 		while ((ret = _thread_sys_sendmsg(fd, msg, flags)) < 0) {
-			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
+			if (!(_thread_fd_getflags(fd) & O_NONBLOCK)
+			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;
 
 				/* Set the timeout: */
