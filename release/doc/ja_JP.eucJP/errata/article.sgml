@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.98
+    Original revision: 1.1.2.100
 -->
 
 <!-- 
@@ -65,7 +65,8 @@
 <![ %release.type.release [
     &release.current;
 ]]>
-      の公開後に判明した重要な情報が書かれている errata リスト (正誤表) です。
+      の公開後に判明した重要な情報やリリース文書に間に合わなかった
+      情報が書かれている errata リスト (正誤表) です。
       これにはセキュリティ勧告および、
       システムの運用・利用に影響を与えるような関連ソフトウェア、
       関連文書の更新情報も含まれています。
@@ -130,83 +131,19 @@
 
 <![ %release.type.snapshot [
 
-    <para>kadmind(8) および k5admin にあったバッファオーバフロー問題が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink> をご覧ください。</para>
-
-    <para>&man.smrsh.8; にあった、
-      実行可能なプログラムの制限をユーザから無効にすることができるという
-      プログラム上の誤りが修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink> をご覧ください。</para>
-
-    <para>DNS リゾルバ (&man.resolver.3;) にあった、
-      アプリケーションを動作不能にする可能性のあるバッファオーバフロー問題が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink> をご覧ください。</para>
-
-    <para><application>BIND</application>
-      における複数のセキュリティ上の弱点が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink> をご覧ください。</para>
-
-    <para>&man.fpathconf.2; システムコールにあった、
-      ローカルユーザからシステムをクラッシュさせたり、
-      高い権限を不正に取得するために利用可能な、
-      ファイル記述子の漏洩問題が修正されました。
-      詳細はセキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink> をご覧ください。</para>
-
-    <para><application>CVS</application> には、CVS サーバ上で任意のコマンドが実行できるという、
-      リモートから悪用可能なセキュリティ上の弱点が存在します。
-      問題の詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSL</application> に、特定の条件下で、
-      クライアントとサーバ間で交換されるネットワークメッセージを
-      横取り・置き換えできるような強い影響力を持つ攻撃者が
-      タイミングベースの攻撃を行ない平文を得ることができる
-      ぜい弱性がありました。
-      この問題は、&os; &release.current; では
-      <application>OpenSSL</application> 0.9.7 に更新して、
-      セキュリティブランチでは
-      <application>OpenSSL</application> 0.9.6i を統合して修正されました。
-      詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
-      をご覧ください。</para>
-
-    <para><quote>syncookies</quote> 機能の実装を悪用することで、
-      この機能で使われている共有秘密鍵を復元することができる可能性があります。
-      これは TCP SYN flood を用いたサービス妨害攻撃への耐性を低下させます。
-      回避方法と解決方法は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
-      をご覧ください。</para>
-
-    <para><application>sendmail</application> のヘッダ解析時のオーバフローにより、
+    <para>古いバージョンの <application>sendmail</application> には
+      ヘッダ解析時にバッファオーバフローが発生する問題があり、
       リモートの攻撃者は、&man.sendmail.8; に
       sendmail を起動したユーザ (通常 <username>root</username>) の権限で
       任意のコードを実行させるような
       特殊な細工を施したメッセージを作成することができます。
       修正パッチの場所を含む詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      をご覧ください。</para>
-
-    <para>XDR エンコーダ / デコーダの実装に、
-      リモートからサービス妨害攻撃が可能になるような
-      不正な境界チェックを行なうコードが含まれていました。
-      バグ修正を含む詳細は、セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
-      をご覧ください。</para>
-
-    <para><application>OpenSSL</application> に
-      二つの弱点
-      (訳注: RSA のタイミング攻撃と Klima-Pokorny-Rosa 攻撃)
-      が発見されました。
-      回避方法と問題を修正するパッチについての情報は
-      セキュリティ勧告 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
-      をご覧ください。</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>
+      をご覧ください。
+      この問題は &os; &release.prev; ではベンダ提供のパッチを適用して、
+      &os; &release.current; では新しいバージョンの
+      <application>sendmail</application> を統合して修正されました。
+      しかしながら、この変更はリリース文書に記載されていないかもしれません。</para>
 
 ]]>
   </sect1>
@@ -220,48 +157,39 @@
 
 <![ %release.type.snapshot [
 
-    <para>&os; &release.prev; のリリース時点で、
-      &man.matcd.4; ドライバにライセンス上の問題が判明したため、
-      このドライバは削除されました。
-      現在この問題に取り組んでおり、&os; の将来のリリースで
-      再度このドライバが登場するかも知れません。</para>
+    <para>リリースサイクルの終盤にいくつかの問題が発見されたため、
+      ISO イメージは再度作成され、
+      FTP インストール用の &os; &release.prev;/i386 ディレクトリは再更新されました。
+      最終的な ISO イメージの &man.md5.1; チェックサムは次の通りです。</para>
 
-    <para><filename>srelease</filename> 配布物の
-      <filename>release/sysinstall</filename> ディレクトリに、
-      &man.sysinstall.8; 用のオブジェクトファイルが含まれています。
-      これらのファイルはリリース構築作業中に生成されたもので、
-      何らかの理由で削除されずに配布物中に残ってしまったと思われます。
-      ファイルそのものに害はありません。</para>
+    <programlisting>MD5 (4.8-RELEASE-i386-disc1.iso) = c4e34b6a6be5cd1977ca206bf821c7fc
+MD5 (4.8-RELEASE-i386-disc2.iso) = 93b09f97c01deead302557d7d24f87cb
+MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisting>
 
-    <para>&release.prev; のパッケージセットに含まれる
-      <filename role="package">databases/rdfdb</filename>
-      および <filename role="package">mail/ssmtp</filename>
-      は、正しくインストールすることができません。
-      Ports Collection を使って構築・インストールするようにしてください。</para>
+    <para>いくつかの文書には &os; &release.prev; のリリースが
+      2003 年 3 月であると記載されているかもしれませんが、
+      正しくは 2003 年 4 月です。</para>
 
-    <para>&release.prev; のパッケージセットに含まれる
-      <filename role="package">net/gnomeicu</filename>
-      は、<filename role="package">net/gnet</filename> との依存関係が
-      きちんと設定されていないため、正しく動作しない可能性があります。
-      <filename role="package">net/gnomeicu</filename> をインストールする前に
-      package か Ports Collection を使って
-      <filename role="package">net/gnet</filename>
-      をインストールするようにしてください。</para>
+    <para>&os; &release.prev; において &man.mly.4; デバイスで構築した
+      RAID ドライブへのインストールが再び可能になりました
+      (&os; 4.7-RELEASE ではこの機能は使えませんでした)。</para>
 
-    <para>&os; &release.prev; のリリースノートには、
-      &man.xargs.1; の <option>-J</option>
-      オプションが廃止されたと書かれています。
-      これは誤りであり、このオプションが削除される予定はありません。</para>
+    <para><application>GNOME</application> をインストールした後、
+      ターミナルのデフォルトのフォントがぐちゃぐちゃになるかもしれません。
+      もしそうなった場合は、
+      <filename role="port">x11-fonts/bitstream-vera</filename>
+      port をインストールして
+      <application>GNOME</application> を再起動してください。
+      新しいフォントの効果は自動的に反映されるはずですが、
+      反映されなければ gnome-terminal のプロファイルを編集して
+      Bitstream Vera Sans Mono フォントを選択してください。</para>
 
-    <para>&man.ftpd.8; のバーチャルホスト機能には、
-      次のようなバグが存在します。
-      <filename>/etc/ftphosts</filename> で逆引き可能な
-      IP アドレスを持つバーチャルホストを指定した場合、
-      &man.inetd.8; から起動した &man.ftpd.8; デーモンは
-      <literal>SIGSEGV</literal> (signal 11) で異常終了し、
-      スタンドアロンで実行している &man.ftpd.8;
-      は予期できない異常動作となります。
-      この問題は &os; &release.current; で修正されました。</para>
+    <para>容量の制限のために、i386 アーキテクチャの
+      起動フロッピー <filename>kern.flp</filename> (1.44MB) で利用されている
+      カーネルから &man.awi.4; ドライバが削除されました。
+      &os; &release.prev; では、このドライバのモジュールは提供されていません。
+      したがって、一般的には、&man.awi.4; ドライバを利用する
+      &os; &release.prev; のネットワークインストールはできません。</para>
 
 ]]>
   </sect1>
