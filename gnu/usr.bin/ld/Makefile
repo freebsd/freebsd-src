@@ -2,7 +2,7 @@
 #
 
 RTLD=	${.CURDIR}/../../../libexec/rtld-aout
-GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 PROG=	ld
 BINDIR= /usr/libexec/aout
