@@ -17,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #define OBJ_HEADER "obj-elf.h"
 #include "as.h"
@@ -54,9 +54,12 @@ static bfd_vma elf_s_get_size PARAMS ((symbolS *));
 static void elf_s_set_size PARAMS ((symbolS *, bfd_vma));
 static bfd_vma elf_s_get_align PARAMS ((symbolS *));
 static void elf_s_set_align PARAMS ((symbolS *, bfd_vma));
+static void elf_s_set_other PARAMS ((symbolS *, int));
 static void elf_copy_symbol_attributes PARAMS ((symbolS *, symbolS *));
 static int elf_sec_sym_ok_for_reloc PARAMS ((asection *));
 static void adjust_stab_sections PARAMS ((bfd *, asection *, PTR));
+static int elf_separate_stab_sections PARAMS ((void));
+static void elf_init_stab_section PARAMS ((segT));
 
 #ifdef NEED_ECOFF_DEBUG
 static boolean elf_get_extr PARAMS ((asymbol *, EXTR *));
@@ -72,8 +75,6 @@ static void obj_elf_weak PARAMS ((int));
 static void obj_elf_local PARAMS ((int));
 static void obj_elf_visibility PARAMS ((int));
 static void obj_elf_symver PARAMS ((int));
-static void obj_elf_vtable_inherit PARAMS ((int));
-static void obj_elf_vtable_entry PARAMS ((int));
 static void obj_elf_subsection PARAMS ((int));
 static void obj_elf_popsection PARAMS ((int));
 
@@ -95,7 +96,7 @@ static const pseudo_typeS elf_pseudo_table[] =
   {"version", obj_elf_version, 0},
   {"weak", obj_elf_weak, 0},
 
-  /* These define symbol visibility. */
+  /* These define symbol visibility.  */
   {"internal", obj_elf_visibility, STV_INTERNAL},
   {"hidden", obj_elf_visibility, STV_HIDDEN},
   {"protected", obj_elf_visibility, STV_PROTECTED},
@@ -110,10 +111,10 @@ static const pseudo_typeS elf_pseudo_table[] =
   {"subsection", obj_elf_subsection, 0},
 
   /* These are GNU extensions to aid in garbage collecting C++ vtables.  */
-  {"vtable_inherit", obj_elf_vtable_inherit, 0},
-  {"vtable_entry", obj_elf_vtable_entry, 0},
+  {"vtable_inherit", (void (*) PARAMS ((int))) &obj_elf_vtable_inherit, 0},
+  {"vtable_entry", (void (*) PARAMS ((int))) &obj_elf_vtable_entry, 0},
 
-  /* These are used for dwarf. */
+  /* These are used for dwarf.  */
   {"2byte", cons, 2},
   {"4byte", cons, 4},
   {"8byte", cons, 8},
@@ -234,6 +235,14 @@ elf_s_get_other (sym)
 }
 
 static void
+elf_s_set_other (sym, other)
+     symbolS *sym;
+     int other;
+{
+  S_SET_OTHER (sym, other);
+}
+
+static void
 elf_copy_symbol_attributes (dest, src)
      symbolS *dest, *src;
 {
@@ -249,7 +258,7 @@ elf_sec_sym_ok_for_reloc (sec)
 
 void
 elf_file_symbol (s)
-     char *s;
+     const char *s;
 {
   symbolS *sym;
 
@@ -533,7 +542,6 @@ obj_elf_visibility (visibility)
   demand_empty_rest_of_line ();
 }
 
-
 static segT previous_section;
 static int previous_subsection;
 
@@ -545,7 +553,6 @@ struct section_stack
 };
 
 static struct section_stack *section_stack;
-
 
 /* Handle the .section pseudo-op.  This code supports two different
    syntaxes.
@@ -617,8 +624,10 @@ obj_elf_change_section (name, type, attr, push)
      char *name;
      int type, attr, push;
 {
-  int new_sec;
+  asection *old_sec;
   segT sec;
+  flagword flags;
+  int i;
 
 #ifdef md_flush_pending_output
   md_flush_pending_output ();
@@ -639,48 +648,56 @@ obj_elf_change_section (name, type, attr, push)
   previous_section = now_seg;
   previous_subsection = now_subseg;
 
-  new_sec = bfd_get_section_by_name (stdoutput, name) == NULL;
+  old_sec = bfd_get_section_by_name (stdoutput, name);
   sec = subseg_new (name, 0);
 
-  if (new_sec)
-    {
-      flagword flags;
-      symbolS *secsym;
-      int i;
-
-      /* See if this is one of the special sections.  */
-      for (i = 0; special_sections[i].name != NULL; i++)
-        if (strcmp (name, special_sections[i].name) == 0)
-          {
-	    if (type == SHT_NULL)
-	      type = special_sections[i].type;
-	    else if (type != special_sections[i].type)
-	      as_warn (_("Setting incorrect section type for %s"), name);
-
-	    if ((attr &~ special_sections[i].attributes) != 0)
+  /* See if this is one of the special sections.  */
+  for (i = 0; special_sections[i].name != NULL; i++)
+    if (strcmp (name, special_sections[i].name) == 0)
+      {
+	if (type == SHT_NULL)
+	  type = special_sections[i].type;
+	else if (type != special_sections[i].type)
+	  {
+	    if (old_sec == NULL)
 	      {
-	        /* As a GNU extension, we permit a .note section to be
-		   allocatable.  If the linker sees an allocateable .note
-		   section, it will create a PT_NOTE segment in the output
-		   file.  */
-		if (strcmp (name, ".note") != 0
-		    || attr != SHF_ALLOC)
-		  as_warn (_("Setting incorrect section attributes for %s"),
-			   name);
+		as_warn (_("Setting incorrect section type for %s"), name);
 	      }
-	    attr |= special_sections[i].attributes;
-	    break;
+	    else
+	      {
+		as_warn (_("Ignoring incorrect section type for %s"), name);
+		type = special_sections[i].type;
+	      }
 	  }
+	if ((attr &~ special_sections[i].attributes) != 0
+	    && old_sec == NULL)
+	  {
+	    /* As a GNU extension, we permit a .note section to be
+	       allocatable.  If the linker sees an allocateable .note
+	       section, it will create a PT_NOTE segment in the output
+	       file.  */
+	    if (strcmp (name, ".note") != 0
+		|| attr != SHF_ALLOC)
+	      as_warn (_("Setting incorrect section attributes for %s"),
+		       name);
+	  }
+	attr |= special_sections[i].attributes;
+	break;
+      }
 
-      /* Convert ELF type and flags to BFD flags.  */
-      flags = (SEC_RELOC
-	       | ((attr & SHF_WRITE) ? 0 : SEC_READONLY)
-	       | ((attr & SHF_ALLOC) ? SEC_ALLOC : 0)
-	       | (((attr & SHF_ALLOC) && type != SHT_NOBITS) ? SEC_LOAD : 0)
-	       | ((attr & SHF_EXECINSTR) ? SEC_CODE : 0));
+  /* Convert ELF type and flags to BFD flags.  */
+  flags = (SEC_RELOC
+	   | ((attr & SHF_WRITE) ? 0 : SEC_READONLY)
+	   | ((attr & SHF_ALLOC) ? SEC_ALLOC : 0)
+	   | (((attr & SHF_ALLOC) && type != SHT_NOBITS) ? SEC_LOAD : 0)
+	   | ((attr & SHF_EXECINSTR) ? SEC_CODE : 0));
 #ifdef md_elf_section_flags
-      flags = md_elf_section_flags (flags, attr, type);
+  flags = md_elf_section_flags (flags, attr, type);
 #endif
+
+  if (old_sec == NULL)
+    {
+      symbolS *secsym;
 
       /* Prevent SEC_HAS_CONTENTS from being inadvertently set.  */
       if (type == SHT_NOBITS)
@@ -695,9 +712,19 @@ obj_elf_change_section (name, type, attr, push)
       else
         symbol_table_insert (section_symbol (sec));
     }
+  else if (attr != 0)
+    {
+      /* If section attributes are specified the second time we see a
+	 particular section, then check that they are the same as we
+	 saw the first time.  */
+      if ((old_sec->flags ^ flags)
+	  & (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
+	     | SEC_EXCLUDE | SEC_SORT_ENTRIES))
+	as_warn (_("Ignoring changed section attributes for %s"), name);
+    }
 
 #ifdef md_elf_section_change_hook
-      md_elf_section_change_hook ();
+  md_elf_section_change_hook ();
 #endif
 }
 
@@ -802,7 +829,7 @@ obj_elf_section (push)
       char mri_type;
 
 #ifdef md_flush_pending_output
-  md_flush_pending_output ();
+      md_flush_pending_output ();
 #endif
 
       previous_section = now_seg;
@@ -1054,7 +1081,7 @@ obj_elf_line (ignore)
      int ignore ATTRIBUTE_UNUSED;
 {
   /* Assume delimiter is part of expression.  BSD4.2 as fails with
-     delightful bug, so we are not being incompatible here. */
+     delightful bug, so we are not being incompatible here.  */
   new_logical_line ((char *) NULL, (int) (get_absolute_expression ()));
   demand_empty_rest_of_line ();
 }
@@ -1080,14 +1107,6 @@ obj_elf_symver (ignore)
 
   *input_line_pointer = c;
 
-  if (symbol_get_obj (sym)->versioned_name != NULL)
-    {
-      as_bad (_("multiple .symver directives for symbol `%s'"),
-	      S_GET_NAME (sym));
-      ignore_rest_of_line ();
-      return;
-    }
-
   SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
@@ -1106,16 +1125,34 @@ obj_elf_symver (ignore)
       *input_line_pointer++ = c;
     }
 
-  symbol_get_obj (sym)->versioned_name = xstrdup (name);
-
-  *input_line_pointer = c;
-
-  if (strchr (symbol_get_obj (sym)->versioned_name, ELF_VER_CHR) == NULL)
+  if (symbol_get_obj (sym)->versioned_name == NULL)
     {
-      as_bad (_("missing version name in `%s' for symbol `%s'"),
-	      symbol_get_obj (sym)->versioned_name, S_GET_NAME (sym));
-      ignore_rest_of_line ();
-      return;
+      symbol_get_obj (sym)->versioned_name = xstrdup (name);
+
+      *input_line_pointer = c;
+
+      if (strchr (symbol_get_obj (sym)->versioned_name,
+		  ELF_VER_CHR) == NULL)
+	{
+	  as_bad (_("missing version name in `%s' for symbol `%s'"),
+		  symbol_get_obj (sym)->versioned_name,
+		  S_GET_NAME (sym));
+	  ignore_rest_of_line ();
+	  return;
+	}
+    }
+  else
+    {
+      if (strcmp (symbol_get_obj (sym)->versioned_name, name))
+	{
+	  as_bad (_("multiple versions [`%s'|`%s'] for symbol `%s'"),
+		  name, symbol_get_obj (sym)->versioned_name,
+		  S_GET_NAME (sym));
+	  ignore_rest_of_line ();
+	  return;
+	}
+
+      *input_line_pointer = c;
     }
 
   demand_empty_rest_of_line ();
@@ -1125,7 +1162,7 @@ obj_elf_symver (ignore)
    to the linker the hierarchy in which a particular table resides.  The
    syntax is ".vtable_inherit CHILDNAME, PARENTNAME".  */
 
-static void
+struct fix *
 obj_elf_vtable_inherit (ignore)
      int ignore ATTRIBUTE_UNUSED;
 {
@@ -1158,7 +1195,7 @@ obj_elf_vtable_inherit (ignore)
     {
       as_bad ("expected comma after name in .vtable_inherit");
       ignore_rest_of_line ();
-      return;
+      return NULL;
     }
 
   ++input_line_pointer;
@@ -1185,19 +1222,19 @@ obj_elf_vtable_inherit (ignore)
   demand_empty_rest_of_line ();
 
   if (bad)
-    return;
+    return NULL;
 
   assert (symbol_get_value_expression (csym)->X_op == O_constant);
-  fix_new (symbol_get_frag (csym),
-	   symbol_get_value_expression (csym)->X_add_number, 0, psym, 0, 0,
-	   BFD_RELOC_VTABLE_INHERIT);
+  return fix_new (symbol_get_frag (csym),
+		  symbol_get_value_expression (csym)->X_add_number,
+		  0, psym, 0, 0, BFD_RELOC_VTABLE_INHERIT);
 }
 
 /* This handles the .vtable_entry pseudo-op, which is used to indicate
    to the linker that a vtable slot was used.  The syntax is
    ".vtable_entry tablename, offset".  */
 
-static void
+struct fix *
 obj_elf_vtable_entry (ignore)
      int ignore ATTRIBUTE_UNUSED;
 {
@@ -1219,7 +1256,7 @@ obj_elf_vtable_entry (ignore)
     {
       as_bad ("expected comma after name in .vtable_entry");
       ignore_rest_of_line ();
-      return;
+      return NULL;
     }
 
   ++input_line_pointer;
@@ -1228,10 +1265,10 @@ obj_elf_vtable_entry (ignore)
 
   offset = get_absolute_expression ();
 
-  fix_new (frag_now, frag_now_fix (), 0, sym, offset, 0,
-	   BFD_RELOC_VTABLE_ENTRY);
-
   demand_empty_rest_of_line ();
+
+  return fix_new (frag_now, frag_now_fix (), 0, sym, offset, 0,
+		  BFD_RELOC_VTABLE_ENTRY);
 }
 
 void
@@ -1277,7 +1314,7 @@ obj_elf_version (ignore)
   SKIP_WHITESPACE ();
   if (*input_line_pointer == '\"')
     {
-      ++input_line_pointer;	/* -> 1st char of string. */
+      ++input_line_pointer;	/* -> 1st char of string.  */
       name = input_line_pointer;
 
       while (is_a_char (c = next_char_of_string ()))
@@ -1370,7 +1407,7 @@ obj_elf_size (ignore)
 }
 
 /* Handle the ELF .type pseudo-op.  This sets the type of a symbol.
-   There are four syntaxes:
+   There are five syntaxes:
 
    The first (used on Solaris) is
        .type SYM,#function
@@ -1380,6 +1417,8 @@ obj_elf_size (ignore)
        .type SYM STT_FUNC
    The fourth (used on NetBSD/Arm and Linux/ARM) is
        .type SYM,%function
+   The fifth (used on SVR4/860) is
+       .type SYM,"function"
    */
 
 static void
@@ -1391,10 +1430,12 @@ obj_elf_type (ignore)
   int type;
   const char *typename;
   symbolS *sym;
+  elf_symbol_type *elfsym;
 
   name = input_line_pointer;
   c = get_symbol_end ();
   sym = symbol_find_or_make (name);
+  elfsym = (elf_symbol_type *) symbol_get_bfdsym (sym);
   *input_line_pointer = c;
 
   SKIP_WHITESPACE ();
@@ -1404,6 +1445,7 @@ obj_elf_type (ignore)
   SKIP_WHITESPACE ();
   if (   *input_line_pointer == '#'
       || *input_line_pointer == '@'
+      || *input_line_pointer == '"'
       || *input_line_pointer == '%')
     ++input_line_pointer;
 
@@ -1417,12 +1459,19 @@ obj_elf_type (ignore)
   else if (strcmp (typename, "object") == 0
 	   || strcmp (typename, "STT_OBJECT") == 0)
     type = BSF_OBJECT;
+#ifdef md_elf_symbol_type
+  else if ((type = md_elf_symbol_type (typename, sym, elfsym)) != -1)
+    ;
+#endif
   else
     as_bad (_("ignoring unrecognized symbol type \"%s\""), typename);
 
   *input_line_pointer = c;
 
-  symbol_get_bfdsym (sym)->flags |= type;
+  if (*input_line_pointer == '"')
+    ++input_line_pointer;
+
+  elfsym->symbol.flags |= type;
 
   demand_empty_rest_of_line ();
 }
@@ -1471,9 +1520,9 @@ obj_elf_init_stab_section (seg)
      UnixWare ar crashes.  */
   bfd_set_section_alignment (stdoutput, seg, 2);
 
-  /* Make space for this first symbol. */
+  /* Make space for this first symbol.  */
   p = frag_more (12);
-  /* Zero it out. */
+  /* Zero it out.  */
   memset (p, 0, 12);
   as_where (&file, (unsigned int *) NULL);
   stabstr_name = (char *) alloca (strlen (segment_name (seg)) + 4);
@@ -1605,6 +1654,11 @@ elf_frob_symbol (symp, puntp)
 
   if (sy_obj->versioned_name != NULL)
     {
+      char *p;
+
+      p = strchr (sy_obj->versioned_name, ELF_VER_CHR);
+      know (p != NULL);
+
       /* This symbol was given a new name with the .symver directive.
 
          If this is an external reference, just rename the symbol to
@@ -1618,13 +1672,9 @@ elf_frob_symbol (symp, puntp)
 
       if (! S_IS_DEFINED (symp))
 	{
-	  char *p;
-
 	  /* Verify that the name isn't using the @@ syntax--this is
              reserved for definitions of the default version to link
              against.  */
-	  p = strchr (sy_obj->versioned_name, ELF_VER_CHR);
-	  know (p != NULL);
 	  if (p[1] == ELF_VER_CHR)
 	    {
 	      as_bad (_("invalid attempt to declare external version name as default in symbol `%s'"),
@@ -1635,36 +1685,50 @@ elf_frob_symbol (symp, puntp)
 	}
       else
 	{
-	  symbolS *symp2;
+	  if (p [1] == ELF_VER_CHR && p [2] == ELF_VER_CHR)
+	    {
+	      size_t l;
 
-	  /* FIXME: Creating a new symbol here is risky.  We're in the
-             final loop over the symbol table.  We can get away with
-             it only because the symbol goes to the end of the list,
-             where the loop will still see it.  It would probably be
-             better to do this in obj_frob_file_before_adjust. */
+	      /* The @@@ syntax is a special case. It renames the
+		 symbol name to versioned_name with one `@' removed.  */
+	      l = strlen (&p[3]) + 1;
+	      memmove (&p [2], &p[3], l);
+	      S_SET_NAME (symp, sy_obj->versioned_name);
+	    }
+	  else
+	    {
+	      symbolS *symp2;
 
-	  symp2 = symbol_find_or_make (sy_obj->versioned_name);
+	      /* FIXME: Creating a new symbol here is risky.  We're
+		 in the final loop over the symbol table.  We can
+		 get away with it only because the symbol goes to
+		 the end of the list, where the loop will still see
+		 it.  It would probably be better to do this in
+		 obj_frob_file_before_adjust.  */
 
-	  /* Now we act as though we saw symp2 = sym.  */
+	      symp2 = symbol_find_or_make (sy_obj->versioned_name);
 
-	  S_SET_SEGMENT (symp2, S_GET_SEGMENT (symp));
+	      /* Now we act as though we saw symp2 = sym.  */
 
-	  /* Subtracting out the frag address here is a hack because
-             we are in the middle of the final loop.  */
-	  S_SET_VALUE (symp2,
-		       (S_GET_VALUE (symp)
-			- symbol_get_frag (symp)->fr_address));
+	      S_SET_SEGMENT (symp2, S_GET_SEGMENT (symp));
 
-	  symbol_set_frag (symp2, symbol_get_frag (symp));
+	      /* Subtracting out the frag address here is a hack
+		 because we are in the middle of the final loop.  */
+	      S_SET_VALUE (symp2,
+			   (S_GET_VALUE (symp)
+			    - symbol_get_frag (symp)->fr_address));
 
-	  /* This will copy over the size information.  */
-	  copy_symbol_attributes (symp2, symp);
+	      symbol_set_frag (symp2, symbol_get_frag (symp));
 
-	  if (S_IS_WEAK (symp))
-	    S_SET_WEAK (symp2);
+	      /* This will copy over the size information.  */
+	      copy_symbol_attributes (symp2, symp);
 
-	  if (S_IS_EXTERNAL (symp))
-	    S_SET_EXTERNAL (symp2);
+	      if (S_IS_WEAK (symp))
+		S_SET_WEAK (symp2);
+
+	      if (S_IS_EXTERNAL (symp))
+		S_SET_EXTERNAL (symp2);
+	    }
 	}
     }
 
@@ -1713,6 +1777,42 @@ elf_frob_file ()
 #ifdef elf_tc_final_processing
   elf_tc_final_processing ();
 #endif
+}
+
+/* It removes any unneeded versioned symbols from the symbol table.  */
+
+void
+elf_frob_file_before_adjust ()
+{
+  if (symbol_rootP)
+    {
+      symbolS *symp;
+
+      for (symp = symbol_rootP; symp; symp = symbol_next (symp))
+	if (symbol_get_obj (symp)->versioned_name)
+	  {
+	    if (!S_IS_DEFINED (symp))
+	      {
+		char *p;
+
+		/* The @@@ syntax is a special case. If the symbol is
+		   not defined, 2 `@'s will be removed from the
+		   versioned_name.  */
+
+		p = strchr (symbol_get_obj (symp)->versioned_name,
+			    ELF_VER_CHR);
+		know (p != NULL);
+		if (p [1] == ELF_VER_CHR && p [2] == ELF_VER_CHR)
+		  {
+		    size_t l = strlen (&p[3]) + 1;
+		    memmove (&p [1], &p[3], l);
+		  }
+		if (symbol_used_p (symp) == 0
+		    && symbol_used_in_reloc_p (symp) == 0)
+		  symbol_remove (symp, &symbol_rootP, &symbol_lastP);
+	      }
+	  }
+    }
 }
 
 /* It is required that we let write_relocs have the opportunity to
@@ -1890,18 +1990,45 @@ sco_id ()
 
 #endif /* SCO_ELF */
 
+static int
+elf_separate_stab_sections ()
+{
+#ifdef NEED_ECOFF_DEBUG
+  return (!ECOFF_DEBUGGING);
+#else
+  return 1;
+#endif
+}
+
+static void
+elf_init_stab_section (seg)
+     segT seg;
+{
+#ifdef NEED_ECOFF_DEBUG
+  if (!ECOFF_DEBUGGING)
+#endif
+    obj_elf_init_stab_section (seg);
+}
+
 const struct format_ops elf_format_ops =
 {
   bfd_target_elf_flavour,
   0,	/* dfl_leading_underscore */
   1,	/* emit_section_symbols */
+  elf_begin,
+  elf_file_symbol,
   elf_frob_symbol,
   elf_frob_file,
+  elf_frob_file_before_adjust,
   elf_frob_file_after_relocs,
   elf_s_get_size, elf_s_set_size,
   elf_s_get_align, elf_s_set_align,
   elf_s_get_other,
+  elf_s_set_other,
   0,	/* s_get_desc */
+  0,	/* s_set_desc */
+  0,	/* s_get_type */
+  0,	/* s_set_type */
   elf_copy_symbol_attributes,
 #ifdef NEED_ECOFF_DEBUG
   ecoff_generate_asm_lineno,
@@ -1910,6 +2037,8 @@ const struct format_ops elf_format_ops =
   0,	/* generate_asm_lineno */
   0,	/* process_stab */
 #endif
+  elf_separate_stab_sections,
+  elf_init_stab_section,
   elf_sec_sym_ok_for_reloc,
   elf_pop_insert,
 #ifdef NEED_ECOFF_DEBUG
@@ -1918,5 +2047,5 @@ const struct format_ops elf_format_ops =
   0,	/* ecoff_set_ext */
 #endif
   elf_obj_read_begin_hook,
-  elf_obj_symbol_new_hook,
+  elf_obj_symbol_new_hook
 };

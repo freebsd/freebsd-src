@@ -1,3 +1,12 @@
+Mon Apr  3 13:29:08 2000  Hans-Peter Nilsson  <hp@axis.com>
+
+	* aout64.h (RELOC_EXT_BITS_EXTERN_BIG): Wrap definition in #ifndef.
+	(RELOC_EXT_BITS_EXTERN_LITTLE): Ditto.
+	(RELOC_EXT_BITS_TYPE_BIG): Ditto.
+	(RELOC_EXT_BITS_TYPE_SH_BIG): Ditto.
+	(RELOC_EXT_BITS_TYPE_LITTLE): Ditto.
+	(RELOC_EXT_BITS_TYPE_SH_LITTLE): Ditto.
+
 1999-07-12  Ian Lance Taylor  <ian@zembu.com>
 
 	* aout64.h (N_SHARED_LIB): Define as 0 if TEXT_START_ADDR is

@@ -27,6 +27,8 @@ hppa*-*-mpeix*)		HDEFINES=-DHOST_HPPAMPEIX ;;
 hppa*-*-bsd*)		HDEFINES=-DHOST_HPPABSD ;;
 hppa*-*-osf*)		HDEFINES=-DHOST_HPPAOSF ;;
 
+ia64-*-linux*)		host64=true; HOST_64BIT_TYPE=long ;;
+
 i[3456]86-sequent-bsd*)	HDEFINES=-Dshared=genshared ;;
 i[3456]86-sequent-sysv4*) ;;
 i[3456]86-sequent-sysv*)	HDEFINES=-Dshared=genshared ;;
@@ -45,6 +47,10 @@ mips*-*-sysv*)		HDEFINES="-G 4" ;;
 mips*-*-riscos*)	HDEFINES="-G 4" ;;
 
 m68*-hp-hpux*)		HDEFINES=-DHOST_HP300HPUX ;;
+
+*-*-aix*)		HOST_64BIT_TYPE="long long"
+			HOST_U_64BIT_TYPE="unsigned long long"
+			;;
 
 *-*-solaris*)		HOST_64BIT_TYPE="long long"
 			HOST_U_64BIT_TYPE="unsigned long long"

@@ -64,21 +64,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ELFOSABI_LINUX  3       /* GNU/Linux */
 #define ELFOSABI_HURD   4       /* GNU/Hurd */
 #define ELFOSABI_SOLARIS 6      /* Solaris */
-#define ELFOSABI_MONTEREY 7     /* Monterey */
+#define ELFOSABI_AIX    7       /* AIX */
 #define ELFOSABI_IRIX   8       /* IRIX */
 #define ELFOSABI_FREEBSD 9      /* FreeBSD */
 #define ELFOSABI_TRU64  10      /* TRU64 UNIX */
 #define ELFOSABI_MODESTO 11     /* Novell Modesto */
 #define ELFOSABI_OPENBSD 12     /* OpenBSD */
 #define ELFOSABI_STANDALONE 255 /* Standalone (embedded) application */
-#define ELFOSABI_ARM   97		/* ARM */
+#define ELFOSABI_ARM   97	/* ARM */
 
 #define EI_ABIVERSION   8       /* ABI version */
 
 #define EI_PAD		9	/* Start of padding bytes */
 
 
-/* Values for e_type, which identifies the object file type */
+/* Values for e_type, which identifies the object file type.  */
 
 #define ET_NONE		0	/* No file type */
 #define ET_REL		1	/* Relocatable file */
@@ -90,7 +90,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ET_LOPROC	0xFF00	/* Processor-specific */
 #define ET_HIPROC	0xFFFF	/* Processor-specific */
 
-/* Values for e_machine, which identifies the architecture */
+/* Values for e_machine, which identifies the architecture.  These numbers
+   are officially assigned by registry@sco.com.  See below for a list of
+   ad-hoc numbers used during initial development.  */
 
 #define EM_NONE		0	/* No machine */
 #define EM_M32		1	/* AT&T WE 32100 */
@@ -98,7 +100,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_386		3	/* Intel 80386 */
 #define EM_68K		4	/* Motorola m68k family */
 #define EM_88K		5	/* Motorola m88k family */
-#define EM_486		6	/* Intel 80486 */
+#define EM_486		6	/* Intel 80486 *//* Reserved for future use */
 #define EM_860		7	/* Intel 80860 */
 #define EM_MIPS		8	/* MIPS R3000 (officially, big-endian only) */
 #define EM_S370		9	/* IBM System/370 */
@@ -123,7 +125,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_SH	       42	/* Hitachi SH */
 #define EM_SPARCV9     43	/* SPARC v9 64-bit */
 #define EM_TRICORE     44       /* Siemens Tricore embedded processor */
-#define EM_ARC         45       /* Argonaut RISC Core, Argonaut Technologies Inc. */
+#define EM_ARC         45       /* ARC Cores */
 #define EM_H8_300      46       /* Hitachi H8/300 */
 #define EM_H8_300H     47       /* Hitachi H8/300H */
 #define EM_H8S         48       /* Hitachi H8S */
@@ -140,6 +142,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_ME16	       59	/* Toyota ME16 processor */
 #define EM_ST100       60	/* STMicroelectronics ST100 processor */
 #define EM_TINYJ       61	/* Advanced Logic Corp. TinyJ embedded processor */
+#define EM_X86_64      62       /* Advanced Micro Devices X86-64 processor */
 
 #define EM_FX66	       66	/* Siemens FX66 microcontroller */
 #define EM_ST9PLUS     67	/* STMicroelectronics ST9+ 8/16 bit microcontroller */
@@ -149,10 +152,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_68HC08      71	/* Motorola MC68HC08 Microcontroller */
 #define EM_68HC05      72	/* Motorola MC68HC05 Microcontroller */
 #define EM_SVX         73	/* Silicon Graphics SVx */
-#define EM_ST19        74	/* STMicroelectronics ST19 8-bit microcontroller */
+#define EM_ST19        74	/* STMicroelectronics ST19 8-bit cpu */
 #define EM_VAX         75	/* Digital VAX */
-
-#define EM_PJ          99       /* picoJava */
+#define EM_CRIS	       76	/* Axis Communications 32-bit embedded processor */
+#define EM_JAVELIN     77	/* Infineon Technologies 32-bit embedded cpu */
+#define EM_FIREPATH    78	/* Element 14 64-bit DSP processor */
+#define EM_ZSP         79	/* LSI Logic's 16-bit DSP processor */
+#define EM_MMIX	       80	/* Donald Knuth's educational 64-bit processor */
+#define EM_HUANY       81	/* Harvard's machine-independent format */
+#define EM_PRISM       82	/* SiTera Prism */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -160,7 +168,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
    NOTE: Do not just increment the most recent number by one.
    Somebody else somewhere will do exactly the same thing, and you
-   will have a collision.  Instead, pick a random number.  */
+   will have a collision.  Instead, pick a random number.
+
+   Normally, each entity or maintainer responsible for a machine with an
+   unofficial e_machine number should eventually ask registry@sco.com for
+   an officially blessed number to be added to the list above.  */
+
+#define EM_PJ          99       /* picoJava */
 
 /* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_POWERPC 0x9025
@@ -204,12 +218,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* See the above comment before you add a new EM_* value here.  */
 
-/* Values for e_version */
+/* Values for e_version.  */
 
 #define EV_NONE		0		/* Invalid ELF version */
 #define EV_CURRENT	1		/* Current version */
 
-/* Values for program header, p_type field */
+/* Values for program header, p_type field.  */
 
 #define	PT_NULL		0		/* Program header table entry unused */
 #define PT_LOAD		1		/* Loadable program segment */
@@ -223,7 +237,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PT_LOPROC	0x70000000	/* Processor-specific */
 #define PT_HIPROC	0x7FFFFFFF	/* Processor-specific */
 
-/* Program segment permissions, in program header p_flags field */
+/* Program segment permissions, in program header p_flags field.  */
 
 #define PF_X		(1 << 0)	/* Segment is executable */
 #define PF_W		(1 << 1)	/* Segment is writable */
@@ -232,7 +246,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PF_MASKOS	0x0FF00000	/* New value, Oct 4, 1999 Draft */
 #define PF_MASKPROC	0xF0000000	/* Processor-specific reserved bits */
 
-/* Values for section header, sh_type field */
+/* Values for section header, sh_type field.  */
 
 #define SHT_NULL	0		/* Section header table entry unused */
 #define SHT_PROGBITS	1		/* Program specific (private) data */
@@ -247,12 +261,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SHT_SHLIB	10		/* Reserved, unspecified semantics */
 #define SHT_DYNSYM	11		/* Dynamic linking symbol table */
 
-#define SHT_INIT_ARRAY  14		/* Array of pointers to init functions */
-#define SHT_FINI_ARRAY  15		/* Array of pointers to finish functions */
-#define SHT_PREINIT_ARRAY 16		/* Array of pointers to pre-init functions */
+#define SHT_INIT_ARRAY    14		/* Array of ptrs to init functions */
+#define SHT_FINI_ARRAY    15		/* Array of ptrs to finish functions */
+#define SHT_PREINIT_ARRAY 16		/* Array of ptrs to pre-init funcs */
+#define SHT_GROUP         17		/* Section contains a section group */
+#define SHT_SYMTAB_SHNDX  18		/* Indicies for SHN_XINDEX entries */
 
-#define SHT_LOOS        0x60000000      /* Operating system specific semantics, lo */
-#define SHT_HIOS        0x6fffffff      /* Operating system specific semantics, hi */
+#define SHT_LOOS        0x60000000      /* First of OS specific semantics */
+#define SHT_HIOS        0x6fffffff      /* Last of OS specific semantics */
 
 /* The next three section types are defined by Solaris, and are named
    SHT_SUNW*.  We use them in GNU code, so we also define SHT_GNU*
@@ -271,7 +287,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* #define SHT_HIUSER	0x8FFFFFFF    *//* Application-specific semantics */
 #define SHT_HIUSER	0xFFFFFFFF	/* New value, defined in Oct 4, 1999 Draft */
 
-/* Values for section header, sh_flags field */
+/* Values for section header, sh_flags field.  */
 
 #define SHF_WRITE	(1 << 0)	/* Writable data during execution */
 #define SHF_ALLOC	(1 << 1)	/* Occupies memory during execution */
@@ -280,13 +296,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SHF_STRINGS	(1 << 5)	/* Contains null terminated character strings */
 #define SHF_INFO_LINK	(1 << 6)	/* sh_info holds section header table index */
 #define SHF_LINK_ORDER  (1 << 7)	/* Preserve section ordering when linking */
-#define SHF_OS_NONCONFORMING (1 << 8)	/* OS specifci processing required */
+#define SHF_OS_NONCONFORMING (1 << 8)	/* OS specific processing required */
+#define SHF_GROUP	(1 << 9)	/* Member of a section group */
 
 /* #define SHF_MASKOS	0x0F000000    *//* OS-specific semantics */
 #define SHF_MASKOS	0x0FF00000	/* New value, Oct 4, 1999 Draft */
 #define SHF_MASKPROC	0xF0000000	/* Processor-specific semantics */
 
-/* Values of note segment descriptor types for core files. */
+/* Values of note segment descriptor types for core files.  */
 
 #define NT_PRSTATUS	1		/* Contains copy of prstatus struct */
 #define NT_FPREGSET	2		/* Contains copy of fpregset struct */
@@ -295,7 +312,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define NT_PRXFPREG     0x46e62b7f	/* Contains a user_xfpregs_struct; */
 					/*   note name must be "LINUX".  */
 
-/* Note segments for core files on dir-style procfs systems. */
+/* Note segments for core files on dir-style procfs systems.  */
 
 #define NT_PSTATUS	10		/* Has a struct pstatus */
 #define NT_FPREGS	12		/* Has a struct fpregset */
@@ -311,7 +328,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* These three macros disassemble and assemble a symbol table st_info field,
    which contains the symbol binding and symbol type.  The STB_ and STT_
-   defines identify the binding and type. */
+   defines identify the binding and type.  */
 
 #define ELF_ST_BIND(val)		(((unsigned int)(val)) >> 4)
 #define ELF_ST_TYPE(val)		((val) & 0xF)
@@ -337,7 +354,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ELF64_ST_VISIBILITY  ELF_ST_VISIBILITY
 
 
-#define STN_UNDEF	0		/* undefined symbol index */
+#define STN_UNDEF	0		/* Undefined symbol index */
 
 #define STB_LOCAL	0		/* Symbol not visible outside obj */
 #define STB_GLOBAL	1		/* Symbol visible outside obj */
@@ -359,7 +376,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define STT_HIPROC	15		/* Application-specific semantics */
 
 /* Special section indices, which may show up in st_shndx fields, among
-   other places. */
+   other places.  */
 
 #define SHN_UNDEF	0		/* Undefined section reference */
 #define SHN_LORESERVE	0xFF00		/* Begin range of reserved indices */
@@ -367,9 +384,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SHN_HIPROC	0xFF1F		/* End range of appl-specific */
 #define SHN_LOOS        0xFF20		/* OS specific semantics, lo */
 #define SHN_HIOS        0xFF3F		/* OS specific semantics, hi */
-#define SHN_ABS		0xFFF1		/* Associated symbol is absolute */
-#define SHN_COMMON	0xFFF2		/* Associated symbol is in common */
-#define SHN_HIRESERVE	0xFFFF		/* End range of reserved indices */
+#define SHN_ABS	        0xFFF1		/* Associated symbol is absolute */
+#define SHN_COMMON      0xFFF2		/* Associated symbol is in common */
+#define SHN_XINDEX      0xFFFF		/* Section index it held elsewhere */
+#define SHN_HIRESERVE   0xFFFF		/* End range of reserved indices */
 
 /* The following constants control how a symbol may be accessed once it has
    become part of an executable or shared library.  */
@@ -378,9 +396,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define STV_INTERNAL	1		/* OS specific version of STV_HIDDEN */
 #define STV_HIDDEN	2		/* Can only be seen inside currect component */
 #define STV_PROTECTED	3		/* Treat as STB_LOCAL inside current component */
-					   
 
-/* relocation info handling macros */
+/* Relocation info handling macros.  */
 
 #define ELF32_R_SYM(i)		((i) >> 8)
 #define ELF32_R_TYPE(i)		((i) & 0xff)
@@ -390,7 +407,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ELF64_R_TYPE(i)		((i) & 0xffffffff)
 #define ELF64_R_INFO(s,t)	(((bfd_vma) (s) << 32) + (bfd_vma) (t))
 
-/* Dynamic section tags */
+/* Dynamic section tags.  */
 
 #define DT_NULL		0
 #define DT_NEEDED	1
@@ -492,7 +509,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    http://docs.sun.com:80/ab2/coll.45.13/LLM/@Ab2PageView/21165?Ab2Lang=C&Ab2Enc=iso-8859-1
 
    DTF_1_CONFEXP is the same as DTF_1_PARINIT. It is a typo. The value
-   defined here is the same as the one in <sys/link.h> on Solaris 8. */
+   defined here is the same as the one in <sys/link.h> on Solaris 8.  */
 #define DTF_1_CONFEXP	0x00000002
 
 /* Flag values used in the DT_POSFLAG_1 .dynamic entry.  */
@@ -563,19 +580,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ELF_VER_CHR	'@'
 
 /* Possible values for si_boundto.  */
+
 #define SYMINFO_BT_SELF		0xffff	/* Symbol bound to self */
 #define SYMINFO_BT_PARENT	0xfffe	/* Symbol bound to parent */
 #define SYMINFO_BT_LOWRESERVE	0xff00	/* Beginning of reserved entries */
 
 /* Possible bitmasks for si_flags.  */
+
 #define SYMINFO_FLG_DIRECT	0x0001	/* Direct bound symbol */
 #define SYMINFO_FLG_PASSTHRU	0x0002	/* Pass-thru symbol for translator */
 #define SYMINFO_FLG_COPY	0x0004	/* Symbol is a copy-reloc */
-#define SYMINFO_FLG_LAZYLOAD	0x0008	/* Symbol bound to object to be lazy
-					   loaded */
+#define SYMINFO_FLG_LAZYLOAD	0x0008	/* Symbol bound to object to be lazy loaded */
+
 /* Syminfo version values.  */
+
 #define SYMINFO_NONE		0
 #define SYMINFO_CURRENT		1
 #define SYMINFO_NUM		2
+
+/* Section Group Flags.  */
+
+#define GRP_COMDAT		0x1	/* A COMDAT group */
 
 #endif /* _ELF_COMMON_H */

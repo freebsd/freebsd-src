@@ -1,5 +1,5 @@
 /* subsegs.c - subsegments -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,9 +19,7 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/*
- * Segments & sub-segments.
- */
+/* Segments & sub-segments.  */
 
 #include "as.h"
 
@@ -37,12 +35,11 @@ static struct obstack frchains;
 segment_info_type segment_info[SEG_MAXIMUM_ORDINAL];
 
 #else
-/* Commented in "subsegs.h". */
+/* Commented in "subsegs.h".  */
 frchainS *data0_frchainP, *bss0_frchainP;
 
 #endif /* MANY_SEGMENTS */
-char const *const seg_name[] =
-{
+char const *const seg_name[] = {
   "absolute",
 #ifdef MANY_SEGMENTS
   "e0", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9",
@@ -62,7 +59,7 @@ char const *const seg_name[] =
   "transfert vector postload",
   "register",
   "",
-};				/* Used by error reporters, dumpers etc. */
+};				/* Used by error reporters, dumpers etc.  */
 #else /* BFD_ASSEMBLER */
 
 /* Gas segment information for bfd_abs_section_ptr and
@@ -103,12 +100,12 @@ subsegs_begin ()
 #endif
 
   frchain_root = NULL;
-  frchain_now = NULL;		/* Warn new_subseg() that we are booting. */
+  frchain_now = NULL;		/* Warn new_subseg() that we are booting.  */
 
   frag_now = &dummy_frag;
 
 #ifndef BFD_ASSEMBLER
-  now_subseg = 42;		/* Lie for 1st call to subseg_new. */
+  now_subseg = 42;		/* Lie for 1st call to subseg_new.  */
 #ifdef MANY_SEGMENTS
   {
     int i;
@@ -275,7 +272,7 @@ subseg_set_rest (seg, subseg)
    */
   if (!frcP
       || (frcP->frch_seg > seg
-	  || frcP->frch_subseg > subseg))	/* Kinky logic only works with 2 segments. */
+	  || frcP->frch_subseg > subseg))	/* Kinky logic only works with 2 segments.  */
     {
       /*
        * This should be the only code that creates a frchainS.
@@ -307,7 +304,7 @@ subseg_set_rest (seg, subseg)
 	  seginfo->frchainP = newP;
       }
 #endif
-      
+
       frcP = newP;
     }
   /*
@@ -567,8 +564,7 @@ section_symbol (sec)
 /* Return whether the specified segment is thought to hold text.  */
 
 #ifndef BFD_ASSEMBLER
-const char * const nontext_section_names[] =
-{
+const char * const nontext_section_names[] = {
   ".eh_frame",
   ".gcc_except_table",
 #ifdef OBJ_COFF

@@ -1,15 +1,739 @@
-2000-10-17  Philip Blundell  <pb@futuretv.com>
+2000-12-29  DJ Delorie  <dj@redhat.com>
 
-	* cp-demangle.c, dyn-string.c, cplus-dem.c: Update from trunk
-	version.
-	* testsuite/demangle-expected, testsuite/regress-demangle:
-	Likewise.
+	* fnmatch.c: Make the note about the origins of this file more
+	accurate, at least until we can sync with glibc.
+	* getopt.c: Ditto.
+	* getopt1.c: Ditto.
+	* md5.c: Ditto.
+	* obstack.c: Ditto.
 	
-	From 2000-06-04  Alex Samuel  <samuel@codesourcery.com>
+2000-12-26  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* bsearch.c: New file.
+	* configure.in (funcs): Add bsearch.
+	(AC_CHECK_FUNCS): Likewise.
+	* configure, config.in: Regenerate.
+
+2000-12-13  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* safe-ctype.c: #include "ansidecl.h".
+	* strtod.c: Likewise.
+
+2000-12-13  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* strtoul.c: Include safe-ctype.h, not ctype.h.
+
+2000-12-07  Zack Weinberg  <zack@wolery.stanford.edu>
+
+	* safe-ctype.c: New file.
+	* Makefile.in (CFILES): Add safe-ctype.c.
+	(REQUIRED_OFILES): Add safe-ctype.o.
+
+	* argv.c: Define ISBLANK and use it, not isspace.
+	* basename.c, cplus-dem.c, fnmatch.c, pexecute.c, strtod.c,
+	strtol.c, strtoul.c: Include safe-ctype.h, not ctype.h.  Use
+	uppercase ctype macros.  Don't test ISUPPER(c)/ISLOWER(c)
+	before calling TOLOWER(c)/TOUPPER(c).
+
+2000-12-07  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (distclean): When cleaning, remove testsuite.
+
+2000-12-05  Jason Merrill  <jason@redhat.com>
+
+	* cp-demangle.c (cplus_demangle_v3): Check that it's a v3 mangled
+	name before allocating the dyn_string.
+
+2000-12-04  Jason Merrill  <jason@redhat.com>
+
+	* cp-demangle.c: s/new_abi/v3/.
+	* cplus-dem.c: Likewise.
+	(current_demangling_style): Now auto_demangling.
+	(cplus_demangle): Try v3 demangling if AUTO_DEMANGLING.
+	(main): Use standard symbol chars for auto_demangling.
+
+2000-11-26  Mark Mitchell  <mark@codesourcery.com>
+
+	* hashtab.c (higher_prime_number): Use a table, rather than a
+	seive, to find the next prime.
+
+2000-11-22  H.J. Lu  <hjl@gnu.org>
+
+	* cplus-dem.c (main): Handle gnat_demangling.
+
+2000-11-22  Zack Weinberg  <zack@wolery.stanford.edu>
+
+	* aclocal.m4 (LIB_AC_PROG_CC): Moved here from configure.in.
+	(AC_DEFINE_NOAUTOHEADER): New - work around bug in autoheader.
+	* configure.in: Call AC_C_INLINE and AC_C_CONST.  Use three
+	argument form of AC_DEFINE in dummy definitions block.  Use
+	AC_DEFINE_NOAUTOHEADER for real definitions of things defined
+	in dummy block.  Preload cache variables instead of bypassing
+	tests, where possible.
+	* acconfig.h: Removed.
+
+	* xmalloc.c (xmalloc_failed): New function, does error
+	reporting on failed allocation.
+	(xmalloc, xcalloc, xrealloc): Use it.
+
+2000-11-21  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* cplus-dem.c (cplus_demangle): Fix formatting.
+	(grow_vect): Ditto.
+	(ada_demangle): Ditto.
+	(internal_cplus_demangle): Ditto.
+	(mop_up): Ditto.
+
+2000-11-21  H.J. Lu  <hjl@gnu.org>
+
+	* cplus-dem.c (main): Handle java_demangling.
+
+2000-11-19  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cplus-dem.c (grow_vect): Prototype.
+	(ada_demangle): Cast the arg of ctype macros to unsigned char.
+
+2000-11-15  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* cplus-dem.c (ada_demangle): Add back ATTRIBUTE_UNUSED for
+	parameter `option'.
+
+2000-11-15  Kenneth Block  <kenneth.block@compaq.com>
+
+	* cplus-dem.c: Eliminate use of DEFUN, it is obsolete and cannot
+	be used in GCC.
+
+2000-11-15  Kenneth Block  <kenneth.block@compaq.com>
+
+	* cplus-dem.c: Add gnat demangler.  Add java to demangle style
+	list.
+
+2000-11-04  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* hashtab.c (htab_expand): Change to return int.  Use calloc or
+ 	xcalloc depending on htab->return_allocation_failure.  Return zero
+ 	if calloc fails.
+	(htab_create): Update comment to cover memory allocation.
+	(htab_try_create): New.
+	(htab_find_slot_with_hash): Return NULL if htab_expand fails.
+  	Update comment to cover this.
+
+2000-11-03  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* hashtab.c: Change void * to PTR where necessary.
+	(htab_create, htab_expand): Correct formatting of comment before
+	function.
+
+2000-10-22  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (string_list_def): Add caret_position and comments.
+	(result_caret_pos): New macro.
+	(result_append_string): Rename to...
+	(result_add_string): ... this, and insert at caret position.
+	Rename throughout.
+	(result_append): Rename to...
+	(result_add): ... this, and insert at caret position.  Rename
+	throughout.
+	(result_append_char): Rename to...
+	(result_add_char): ... this, and insert at caret position.  Rename
+	throughout.
+	(result_append_space): Remove.
+	(string_list_new): Initialize caret position.
+	(result_add_separated_char): Use caret position.
+	(result_get_caret): New funtion.
+	(result_set_caret): Likewise.
+	(result_shift_caret): Likewise.
+	(result_previous_char_is_space): Likewise.
+	(substitution_start): Use caret position.
+	(substitution_add): Likewise.
+	(demangling_new): Initialize caret position.
+	(demangle_encoding): Use caret position.
+	(demanglin_nested_name): Put CV qualifiers after name.
+	(demangle_type_ptr): Use switch statement.  Handle pointers to
+	arrays.  Don't use result_append_space.  Use caret position.
+	(demangle_type): Emit CV qualifiers after underlying type.  Adjust
+	call to demangle_array_type.
+	(demangle_array_type): Add parameter to handle pointers to arrays.
+
+2000-10-01  Mark Mitchell  <mark@codesourcery.com>
+
+	* splay-tree.c (splay_tree_insert): Fix formatting.
+
+2000-09-16  Mark Mitchell  <mark@codesourcery.com>
+
+	* splay-tree.c (splay_tree_predecessor): Fix typo in comment.
+
+2000-09-14  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* splay-tree.c: #include <stdio.h>.
+
+2000-09-14  Hans-Peter Nilsson  <hp@axis.com>
+
+	* testsuite/demangle-expected: Add two tests for anonymous
+	namespaces.
+	* cplus-dem.c (gnu_special): Handle anonymous namespaces.
+
+2000-09-10  Mark Mitchell  <mark@codesourcery.com>
+
+	* splay-tree.c (splay_tree_predecessor): New function.
+	(splay_tree_successor): Likewise.
+
+2000-09-10  Hans-Peter Nilsson  <hp@axis.com>
+
+	* testsuite/demangle-expected: Add four tests for type_info
+	mangling.
+	* cplus-dem.c (gnu_special): Use do_type, not demangle_fund_type,
+	for a non-template non-qualified type_info function or node.
+
+2000-09-08  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c: Fix copyright banner.
+
+2000-09-07  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* md5.c: #include "ansidecl.h".
+
+2000-09-06  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (status_allocation_failed): Rearrange whitespace.
+	(demangle_type): Handle substitution candidates correctly in the
+	face of special substitutions.
+
+2000-09-05  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_encoding): Rename variable.
+	(demangle_name): Rename parameter.  Handle return type
+	suppression.
+	(demangle_nested_name): Rename parameter.
+	(demangle_prefix): Likewise.  Change return type suppression.
+	(demangle_unqualified_name): Add parameter.  Flag constructors and
+	conversion operators.
+	(demangle_special_name): Fix comment.
+	(demangle_type): Rename variable.
+	(demangle_bare_function_type): Check for missing return type and
+	parameter.
+	(demangle_class_enum_type): Rename parameter.
+	(demangle_discriminator): Fix misspelling in comment.
+
+2000-08-31  DJ Delorie  <dj@redhat.com>
+
+	* configure.in (Cygwin): special case cygwin only when we're
+	building cygwin, not when we're hosting cygwin.
+
+2000-09-04  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_template_arg): Eat an `E' after an
+	<expression>.
+
+2000-09-04  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_type_ptr): Increment position past
+	pointer and reference characters.
+
+2000-09-04  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_nv_offset): New function.
+	(demangle_v_offset): Likewise.
+	(demangle_call_offset): Likewise.
+	(demangle_special_name): Update thunk demangling to comply with
+	ABI changes.
+
+2000-09-03  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (ANONYMOUS_NAMESPACE_PREFIX): New macro.
+	(substitution_def): Remove template_parm_number.
+	(NOT_TEMPLATE_PARM): Remove.
+	(result_insert_string): New macro.
+	(result_insert): Likewise.
+	(result_insert_char): Likewise.
+	(substitution_add): Remove last parameter.  Don't store template
+	parm number.
+	(BFT_NO_RETURN_TYPE): Define as NULL.
+	(demangle_encoding): Adjust call to demangle_bare_function_type.
+	(demangle_name): Adjust substitution.  Adjust call to
+	substitution_add.
+	(demangle_prefix): Adjust call to substitution_add.
+	(demangle_identifier): Handle anonymous namespaces.
+	(demangle_operator_name): Change demangling of vendor-extended
+	operator to match ABI changes.
+	(demangle_type_ptr): Change parameters.  Make recursive.  Handle
+	substitutions here.
+	(demangle_type): Adjust calls to demangle_template_param,
+	substitution_add, and demangle_type_ptr.  Fix substitution of
+	templated types.
+	(demangle_function_type): Change parameter to a pointer.
+	(demangle_bare_function_type): Likewise.  Adjust insertion point.
+	(demangle_template_param): Remove last parameter.
+	(demangle_expr_primary): Remove unused variable.  Adjust call to
+	demangle_template_param.
+	(is_mangled_char): Accept `$' and `.'.
+	* cplus-dem.c (gnu_new_abi_symbol_characters): Add '$' and '.'.
+	* dyn-string.c (dyn_string_insert_char): New function.
+
+2000-08-31  Hans-Peter Nilsson  <hp@axis.com>
+
+	* testsuite/demangle-expected: Add nine tests for
+	underscore-after-number followed by five tests for name-signature
+	delimiter.
+
+2000-08-28  Richard Henderson  <rth@cygnus.com>
+
+	* Makefile.in (md5.o): Depend on config.h.
+
+2000-08-28  Jason Merrill  <jason@redhat.com>
+
+	* Makefile.in (REQUIRED_OFILES): Add md5.o.
+	(CFILES): Add md5.c.
+	* md5.c: New file.
+
+2000-08-27  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_name): Initialize template_p in local
+	name case.  Don't re-add substitutions as candidates.
+	(demangle_nested_name): Use <unqualified-name>.
+	(demangle_prefix): Likewise.  Don't add template names as
+	substitution candidates twice, or re-add a substitution or the
+	last prefix component.
+	(demangle_local_name): Adjust output format.
+
+2000-08-25  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (result_add_separated_char): Change parameter to
+	int.
+	(substitution_add): Don't check for duplicates.  Check if
+	previously allocated size is zero.
+	(demangle_name): Remove duplicate check for std substitution.
+	Clear template flag appropriately.
+	(demangle_prefix): Remove argument to demangle_substitution.
+	Don't check that template flag is already set.
+	(demangle_operator_name): Add pt operator.
+	(demangle_type): Don't treat r as built-in type.  Remove argument
+	to demangle_substitution.  Fix substitution candidate mechanics.
+	Handle <template-template-parm>s.  Improve comments.
+	(demangle_template_param): Don't handle template arg lists here.
+	(demangle_substitution): Remove parameter.
+	(print_usage): Remove extra fprintf option.
+
+2000-08-24  Greg McGary  <greg@mcgary.org>
+
+	* libiberty/random.c (end_ptr): Revert previous change.
+
+2000-08-24  Greg McGary  <greg@mcgary.org>
+
+	* libiberty/cplus-dem.c (cplus_demangle_opname, cplus_mangle_opname,
+	demangle_expression, demangle_function_name): Use ARRAY_SIZE.
+	* libiberty/random.c (end_ptr): Likewise.
+
+2000-08-23  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (result_close_template_list): Remove function.
+	(result_add_separated_char): New function.
+	(result_open_template_list): New macro.
+	(result_close_template_list): Likewise.
+	(demangle_prefix): Don't set template_p if the
+	prefix ends with a ctor name.
+	(demangle_type_ptr): Remove duplicate RETURN_IF_ERROR.
+	(demangle_type): Check for template args after substitution.
+	(demangle_template_args): Use result_open_template_list.
+
+2000-08-02  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* pexecute.c:  Don't use vfork.  Initialize 'pid' before retry loop.
+
+2000-07-26  Dave Pitts  <dpitts@cozx.com>
+
+	* config/mh-openedition.h: Added -DLE370 definition.
+
+2000-07-26 Mark Elbrecht <snowball3@bigfoot.com>
+
+	* pexecute.c (pexecute) [__MSDOS__]: Change __GO32__ to
+	__DJGPP__. Use P_WAIT instead of constant in the spawnv* call.
+	Cast program to 'char *' in errmsg_arg assignment.
+	(PWAIT_ERROR): Define.
+	(pwait): Use PWAIT_ERROR.  Adjust DJGPP's status code to conform
+	to DJGPP's WIF* macros.
+
+2000-07-27  RodneyBrown  <RodneyBrown@pmsc.com>
+	    Jeff Law <law@cygnus.com>
+
+	* getcwd.c: Include string.h, stdlib.h for prototypes
+
+	* Makefile.in (rename.o, waitpid.o): Depend on config.h
+	* rename.c: Include config.h, unistd.h
+	* waitpid.c: Include config.h, sys/wait.h
+
+2000-07-24  Hans-Peter Nilsson  <hp@axis.com>
+
+	* cplus-dem.c (work_stuff_copy_to_from): New.
+	(delete_non_B_K_work_stuff): New.
+	(delete_work_stuff): New.
+	(mop_up): Break out work_stuff partly destruction to
+	delete_non_B_K_work_stuff.
+	(iterate_demangle_function): New.
+	(demangle_prefix): Call iterate_demangle_function instead of
+	demangle_function_name.  Leave handling of name-signature
+	__-delimiters to iterate_demangle_function.
+	(demangle_integral_value): Strip an optional
+	following underscore cautiously.  Handle negative numbers.
+
+2000-07-24  Daniel Berlin <dberlin@redhat.com>
+
+	* cplus-dem.c (demangle_signature): Change if (GNU_DEMANGLING) to
+	if (AUTO_DEMANGLING || GNU_DEMANGLING)
+
+2000-07-21  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_ctor_dtor_name): Remove not-in-charge
+	allocating ctor mangling.
+	(demangle_array_type): Handle empty and non-constant array length.
+
+2000-07-23  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+	    Jeff Law <law@cygnus.com>
+
+	* configure.in (AC_CHECK_HEADERS): Add time.h.
+	(AC_HEADER_TIME): Add check.
+	* configure, config.in: Regenerate.
+	* getruntime.c: Portably #include <sys/time.h> and/or <time.h>.
+
+	* configure.in (AC_CHECK_HEADERS): Add limits.h.
+	* configure, config.in: Regenerate.
+	* sort.c: Portably #include <limits.h> and/or <sys/param.h>.
+	* strtol.c, strtoul.c: #include "config.h". Portably #include
+	<limits.h> and/or <sys/param.h>.
+	* Makefile.in (strtol.o, strtoul.o): Update dependencies.
+
+	* aclocal.m4 (libiberty_AC_DECLARE_ERRNO): New macro.
+	* configure.in (libiberty_AC_DECLARE_ERRNO): Add check.
+	* configure, config.in: Regenerate.
+	* pexecute.c, strtol.c, strtoul.c: Declare errno if necessary.
+
+	* cp-demangle.c, mkstemps.c: #include <sys/types.h>.
+
+2000-07-21  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (xexit.o): Add dependency for config.h in xexit.c.
+	* (vasprintf.o): Add dependency for config.h in vasprintf.c.
+
+2000-07-21  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cp-demangle.c (cp_demangle_type): Wrap in IN_LIBGCC2.
+
+	* setenv.c (setenv): Initialize variable `ep'.
+
+	* sigsetmask.c (abort): Prototype.
+
+	* vasprintf.c: Include config.h.  Check ANSI_PROTOTYPES, not
+	__STDC__ for stdarg.h include.
+	(int_vasprintf): Prototype.
+	(checkit): Prototype.  Use VPARAMS/ANSI_PROTOTYPES/VA_START in
+	definition.  Cast `global_total_width' in comparison.
+	(main): Prototype.  Return a value.
+
+	* vfork.c (fork): Prototype.
+
+	* xexit.c: Include config.h.
+
+2000-07-20  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* cplus-dem.c (demangle_fund_type): Make 'dec' an unsigned int,
+	and print it with %u.
+
+2000-07-17  Hans-Peter Nilsson  <hp@axis.com>
+
+	* testsuite/regress-demangle (failed test): Show result and
+	expected output.
+
+2000-07-07  Andrew Haley  <aph@cygnus.com>
+
+	* cplus-dem.c (main): fflush() after emitting last char before
+	waiting for input.
+
+2000-06-28  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_encoding): Accept no substitutions.
+	(demangle_name): Handle <substitution> followed by
+	<unqualified-template-name>.
+	(demangle_type): Follow special substitutions with
+	<class-enum-type>
+	(demangle_subtitution): Set template_p for special substitutions.
+	(main): Fix typos.
+
+2000-06-27  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_special_name): Swap base and derived
+	class when demangling construction vtables.
+
+2000-06-21  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c: Don't include ctype.h.
+	(IS_DIGIT): New macro.
+	(IS_ALPHA): Likewise.  Use IS_DIGIT and IS_ALPHA throughout
+	instead of isdigit and isalpanum.
+	(demangling_def): Make name and next const pointers.
+	(STATUS_ALLOCATION_FAILED): New status code.
+	(dyn_string_append_space): Handle failure in
+	dyn_string_append_char.
+	(int_to_dyn_string): Likewise.  Change return value to status_t.
+	(string_list_new): Handle failure of dyn_string_init.
+	(result_close_template_list): Change return type to status_t.
+	Handle failure in dyn_string_append.
+	(result_push): Change return value to status_t.  Handle failure in
+	string_list_new.  Handle failure of result_push throughout.
+	(substitution_add): Change return value to status_t.  Handle
+	dyn_string failures.  Handle failure of substitution_add
+	throughout.
+	(template_arg_list_new): Return NULL on allocation failure.
+	(result_append_string): Return STATUS_ALLOCATION_FAILED on error.
+	Handle error result throughout.
+	(result_append): Likewise.
+	(result_append_char): Likewise.
+	(result_append_space): Likewise.
+	(demangling_new): Make argument a const pointer.  Handle
+	allocation failures.
+	(demangle_template_args): Handle failure in template_arg_list_new
+	and result_close_template_list.
+	(demangle_discriminator): Return if int_to_dyn_string fails.
+	(cp_demangle): Likewise.
+	(cp_demangle_type): New function.
+	(cplus_demangle_new_abi): Don't call dyn_string_delete.  Abort on
+	memory allocation failure.
+	(main): Likewise.
+	* dyn-string.c (RETURN_ON_ALLOCATION_FAILURE): Define if
+	IN_LIBGCC2.
+	(dyn_string_init): Change return value to int.  Handle
+	RETURN_ON_ALLOCATION_FAILURE case.
+	(dyn_string_new): Handle RETURN_ON_ALLOCATION_FAILURE case.
+	(dyn_string_release): Delete the dyn_string.
+	(dyn_string_resize): Handle RETURN_ON_ALLOCATION_FAILURE case.
+	(dyn_string_copy): Change return type to int.
+	(dyn_string_copy_cstr): Likewise.
+	(dyn_string_prepend): Likewise.
+	(dyn_string_prepend_cstr): Likewise.
+	(dyn_string_insert): Likewise.
+	(dyn_string_insert_cstr): Likewise.
+	(dyn_string_append): Likewise.
+	(dyn_string_append_cstr): Likewise.
+	(dyn_string_append_char): Likewise.
+	(dyn_string_substring): Likewise.
+
+2000-06-09  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* cp-demangle.c (demangle_operator_name): Add spaces before
+	names beginning with a letter: delete, delete[], new, new[],
+	sizeof.
+	(demangle_special_name): Handle TF <type> and TJ <type>.
+
+Thu Jun  8 18:52:24 2000  Philippe De Muyter  <phdm@macqel.be>
+
+	* cp-demangle.c (template_arg_list_new): Revert previous PARAMS patch.
+
+Thu Jun  8 09:25:54 2000  Philippe De Muyter  <phdm@macqel.be>
+
+	* cp-demangle.c (stdio.h): File included unconditionaly.
+	(template_arg_list_new): Parameter list is PARAMS ((void)), not ().
+	* dyn-string.c (stdio.h): File included.
+	* partition.c (partition_print): No `&' needed to take the address of
+	a function.
+
+2000-06-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in (ac_libiberty_warn_cflags): Add -pedantic.
+
+	* choose-temp.c (try, choose_temp_base, make_temp_file): Constify.
+
+	* cp-demangle.c (demangle_char): Change parameter from char to int.
+	(demangle_expression, demangle_expr_primary): Remove extra
+	semi-colon in prototype.
+
+	* dyn-string.c (dyn_string_append_char): Change parameter from
+	char to int.
+
+	* memcmp.c (memcmp): Constify.
+
+	* mkstemps.c (gcc_uint64_t): Mark GNUC `long long' case with
+	__extension__.
+
+	* partition.c (elem_compare): Prototype.  Don't cast away
+	const-ness.
+
+	* setenv.c (setenv): Use braces to avoid ambiguous `else'.
+
+2000-06-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (cp-demangle.o): Depend on $(INCDIR)/demangle.h.
+
+	* cp-demangle.c: Include demangle.h.
+	(template_arg_list_new): DeANSIfy.
+	(cp_demangle): Make static and add prototype.
+	(operator_code, operators): Constify.
+	(demangle_operator_name): Likewise for variables `p1', `p2' and `p'.
+
+2000-06-05  Alex Samuel  <samuel@codesourcery.com>
+
+	* cp-demangle.c (demangle_prefix): Cast argument to isdigit to
+	unsigned char.
+	(demangle_unqualified_name): Likewise.
+	(demangle_number_literally): Likewise.
+	(demangle_type): Likewise.
+	(demangle_substitution): Likewise.
+	(is_mangled_char): Likewise, for isalnum.
+
+2000-06-04  Alex Samuel  <samuel@codesourcery.com>
+
 	* Makefile.in (CFILES): Add cp-demangle.c and dyn-string.c.
 	(REQUIRED_OFILES): Add cp-demangle.o and dyn-string.o.
 	(cp-demangle.o): New dependency.
 	(dyn-string.o): Likewise.
+
+	* dyn-string.c: Move here from gcc/dyn-string.c.  Add new functions.
+
+	* cplus-dem.c (libiberty_demanglers): Add initializer for new-ABI
+	demangler.
+	(cplus_demangle): Call cplus_demangle_new_abi if in new-ABI
+	demangling mode.
+	(gnu_new_abi_symbol_characters): New function.
+	(main): Use gnu_new_abi_symbol_characters.  * cp-demangle.c: New
+	file.
+	* cp-demangle.c: New file.
+
+Tue May 30 16:45:25 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* floatformat.c: Add name to each floatformat field.
+
+Tue May 30 15:07:52 2000  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (objalloc.o): Depend on config.h
+
+2000-05-29  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* hashtab.c, partition.c, sort.c, xmemdup.c: Include string.h
+	if HAVE_STRING_H.
+	* pexecute.c, xexit.c: Include stdlib.h if HAVE_STDLIB_H.
+	* objalloc.c: Include config.h.  Include stdlib.h and don't
+	declare malloc or free if HAVE_STDLIB_H.
+	* strerror.c, strsignal.c: Include stdlib.h if HAVE_STDLIB_H,
+	else declare malloc without prototype.  Include string.h if
+	HAVE_STRING_H, else declare memset without prototype.  Don't
+	include stddef.h.
+
+2000-05-23  Mike Stump  <mrs@wrs.com>
+
+	* Makefile.in (xmalloc.o): Add dependency for config.h, fixes make
+ 	-j3.
+
+2000-05-18  J. David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* xmalloc.c: Include config.h for HAVE_SBRK definition.
+
+2000-05-16  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+
+	* hashtab.c (hash_pointer): Delete low-order bits which are
+	probably zero, also eliminate a warning on alpha.
+
+2000-05-15  David Edelsohn  <edelsohn@gnu.org>
+
+	* Makefile.in: Change "pic" to depend on $(PICFLAG), not
+	on $(enable_shared).
+
+2000-05-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* config.table: Use mh-sparcpic for sparc*-*-*.
+
+2000-05-08  Nick Clifton  <nickc@cygnus.com>
+
+	* Makefile.in (CFILES): Add strncmp.c.
+	(NEEDED): Add strncmp.
+
+2000-05-04  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cplus-dem.c (cplus_demangle_opname, demangle_function_name):
+	Cast the arguments to `islower' to `unsigned char'.
+	(print_demangler_list): Prototype.
+
+Thu May  4 17:14:41 2000  Philippe De Muyter  <phdm@macqel.be>
+
+	* sort.c (UCHAR_MAX): Provide fallback definition.
+
+2000-04-29  Alexandre Oliva  <aoliva@cygnus.com>
+
+	* Makefile.in (maintainer-clean-subdir): Fix handling of empty
+	SUBDIRS.
+
+2000-04-28  Kenneth Block  <block@zk3.dec.com>
+	    Jason Merrill  <jason@casey.cygnus.com>
+
+	* cplus-dem.c (libiberty_demanglers): New table for demangle styles.
+	(cplus_demangle_set_style): New function for setting style.
+	(cplus_demangle_name_to_style): New function to translate name.
+
+2000-04-27  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* aclocal.m4: New file with new test libiberty_AC_FUNC_STRNCMP.
+
+	* configure.in (AC_CHECK_HEADERS): Add sys/mman.h fcntl.h.
+	(libiberty_AC_FUNC_STRNCMP): Invoke.
+
+	* strncmp.c: New file.
+
+Thu Apr 27 16:58:43 MET DST 2000  Jan Hubicka  <jh@suse.cz>
+
+	* hashtab.c (htab_expand): Add prototype.
+	(find_empty_slot_for_expand): Likewise.
+
+2000-04-24  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* hashtab.c (hash_pointer, eq_pointer): Make definition static to
+	match prototype.
+	(htab_expand): Cast the return value of xcalloc.
+
+2000-04-24  Mark Mitchell  <mark@codesourcery.com>
+
+	* hashtab.c (hash_pointer): New function.
+	(eq_pointer): Likewise.
+	(htab_hash_pointer): New variable.
+	(htab_eq_pointer): Likewise.
+
+2000-04-23  Mark Mitchell  <mark@codesourcery.com>
+
+	* sort.c (sort_pointers): Fix endianness bugs.
+
+	* sort.c: New file.
+	* Makefile.in (CFILES): Add sort.c
+	(REQUIRED_OFILES): Add sort.o.
+	(sort.o): New target.
+
+2000-04-21  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* Makefile.in (*-subdir): Revamp slightly to avoid losing on
+	4.3BSD systems.
+
+Tue Apr 18 16:23:31 2000  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* hashtab.c: Various minor cleanups.
+	(htab_find_slot_with_hash): INSERT is now enum insert_option.
+	(htab_find_slot): Likewise.
+
+2000-04-16  Dave Pitts  <dpitts@cozx.com>
+
+	* cplus-dem.c (cplus_demangle_opname): Changed to use islower.
+
+2000-04-05  Richard Henderson  <rth@cygnus.com>
+
+	* splay-tree.c (splay_tree_remove): New.
+
+2000-03-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* hashtab.c (find_empty_slot_for_expand): Use hashval_t for hash
+	codes.
+	(htab_find_with_hash): Likewise.
+	(htab_find_slot_with_hash): Likewise.
+
+2000-03-29  Zack Weinberg  <zack@wolery.cumb.org>
+
+	* hashtab.c (htab_find_with_hash): Avoid calculating hash2
+	unless it will be used.  Rearrange loop for better
+	optimization.
+	(higher_prime_number): Add static prototype.
 
 Thu Mar 16 01:33:58 2000  Jeffrey A Law  (law@cygnus.com)
 
@@ -32,7 +756,7 @@ Thu Mar 16 01:33:58 2000  Jeffrey A Law  (law@cygnus.com)
 	(REQUIRED_OFILES): Add partition.o.
 	(partition.o): New rule.
 	* partition.c: New file.
-	
+
 2000-03-09  Zack Weinberg  <zack@wolery.cumb.org>
 
 	* hashtab.c (htab_create): Set del_f.
@@ -3016,7 +3740,7 @@ Thu Feb 11 22:20:47 1993  Fred Fish  (fnf@cygnus.com)
 	* cplus-dem.c (string_prepends):  Used now, remove #if 0.
 	* cplus-dem.c (demangle_signature):  Call demangle_qualified
 	with prepending.
-	* cplus_dem.c (gnu_special):  Recognize static data members that
+	* cplus-dem.c (gnu_special):  Recognize static data members that
 	use qualified names.
 	* cplus-dem.c (demangle_qualified):  Accumulate qualifiers in a
 	temporary buffer and the prepend or append them to the result,

@@ -1,5 +1,5 @@
 /* input_file.c - Deal with Input Files -
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 98, 1999
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -57,35 +57,34 @@ static FILE *f_in;
 static char *file_name;
 
 /* Struct for saving the state of this module for file includes.  */
-struct saved_file
-  {
-    FILE *f_in;
-    char *file_name;
-    int preprocess;
-    char *app_save;
-  };
+struct saved_file {
+  FILE *f_in;
+  char *file_name;
+  int preprocess;
+  char *app_save;
+};
 
-/* These hooks accomodate most operating systems. */
+/* These hooks accomodate most operating systems.  */
 
-void 
+void
 input_file_begin ()
 {
   f_in = (FILE *) 0;
 }
 
-void 
+void
 input_file_end ()
 {
 }
 
-/* Return BUFFER_SIZE. */
-unsigned int 
+/* Return BUFFER_SIZE.  */
+unsigned int
 input_file_buffer_size ()
 {
   return (BUFFER_SIZE);
 }
 
-int 
+int
 input_file_is_open ()
 {
   return f_in != (FILE *) 0;
@@ -130,7 +129,7 @@ input_file_pop (arg)
 
 void
 input_file_open (filename, pre)
-     char *filename;		/* "" means use stdin. Must not be 0. */
+     char *filename;		/* "" means use stdin. Must not be 0.  */
      int pre;
 {
   int c;
@@ -138,16 +137,16 @@ input_file_open (filename, pre)
 
   preprocess = pre;
 
-  assert (filename != 0);	/* Filename may not be NULL. */
+  assert (filename != 0);	/* Filename may not be NULL.  */
   if (filename[0])
-    {				/* We have a file name. Suck it and see. */
+    {				/* We have a file name. Suck it and see.  */
       f_in = fopen (filename, "r");
       file_name = filename;
     }
   else
-    {				/* use stdin for the input file. */
+    {				/* use stdin for the input file.  */
       f_in = stdin;
-      file_name = _("{standard input}");	/* For error messages. */
+      file_name = _("{standard input}");	/* For error messages.  */
     }
   if (f_in == (FILE *) 0)
     {
@@ -180,7 +179,7 @@ input_file_open (filename, pre)
 }
 
 /* Close input file.  */
-void 
+void
 input_file_close ()
 {
   if (f_in != NULL)
@@ -188,7 +187,7 @@ input_file_close ()
       fclose (f_in);
     }				/* don't close a null file pointer */
   f_in = 0;
-}				/* input_file_close() */
+}
 
 /* This function is passed to do_scrub_chars.  */
 
@@ -212,9 +211,9 @@ input_file_get (buf, buflen)
 
 char *
 input_file_give_next_buffer (where)
-     char *where;		/* Where to place 1st character of new buffer. */
+     char *where;		/* Where to place 1st character of new buffer.  */
 {
-  char *return_value;		/* -> Last char of what we read, + 1. */
+  char *return_value;		/* -> Last char of what we read, + 1.  */
   register int size;
 
   if (f_in == (FILE *) 0)
@@ -245,5 +244,3 @@ input_file_give_next_buffer (where)
     }
   return (return_value);
 }
-
-/* end of input-file.c */

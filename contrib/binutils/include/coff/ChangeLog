@@ -1,3 +1,64 @@
+2001-02-17  Philip Blundell  <philb@gnu.org>
+
+	From 2001-01-23  H.J. Lu  <hjl@gnu.org>
+	* pe.h (struct external_PEI_DOS_hdr): New.
+	(struct external_PEI_IMAGE_hdr): New.
+
+2000-12-11  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (OCTETS_PER_BYTE_POWER): Change #warning to #error.
+
+2000-12-08  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (OCTETS_PER_BYTE_POWER): Change #warn to #warning.
+
+2000-06-30  DJ Delorie  <dj@cygnus.com>
+
+	* pe.h: Clarify a comment.
+
+2000-04-17  Timothy Wall  <twall@cygnus.com>
+	
+	* ti.h: Load page cleanup.
+	* intental.h: Add load page field.
+	
+Mon Apr 17 16:44:01 2000  David Mosberger  <davidm@hpl.hp.com>
+
+	* pe.h (PEP64AOUTHDR): New header for PE+.
+	(PEP64AOUTSZ): New macro.
+	(IMAGE_SUBSYSTEM_UNKNOWN): New macro.
+	(IMAGE_SUBSYSTEM_NATIVE): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_GUI): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_CUI): Ditto.
+	(IMAGE_SUBSYSTEM_POSIX_CUI): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_CE_GUI): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_APPLICATION): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER): Ditto.
+	* internal.h (PE_DEF_FILE_ALIGNMENT): Define only if not defined
+	already.
+	* ia64.h: New file.
+
+2000-04-13  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (ADDR_MASK): Don't use ul suffix on constants.
+	(PG_MASK): Ditto.
+
+2000-04-11  Timothy Wall  <twall@cygnus.com>
+
+	* ti.h: Remove load page references until load pages are
+	reimplemented. 
+	* tic54x.h: Ditto.
+	
+2000-04-07  Timothy Wall  <twall@cygnus.com>
+
+	* internal.h: Fix some comments related to TI COFF (instead of tic80).
+	* ti.h: New.
+	* tic54x.h: New.
+	
+Wed Apr  5 22:08:41 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (R_SH_LOOP_START, R_SH_LOOP_END): Define.
+
 2000-03-15  Kazu Hirata  <kazu@hxi.com>
 
 	* internal.h: Fix a typo in the comment for R_MOVL2.

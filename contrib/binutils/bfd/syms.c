@@ -1,5 +1,5 @@
 /* Generic symbol-table support for the BFD library.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -91,7 +91,6 @@ SUBSECTION
 	All storage for the symbols themselves is in an objalloc
 	connected to the BFD; it is freed when the BFD is closed.
 
-
 INODE
 Writing Symbols, Mini Symbols, Reading Symbols, Symbols
 SUBSECTION
@@ -162,8 +161,6 @@ SUBSECTION
 	<<bfd_make_empty_symbol>> which was passed in.
 
 */
-
-
 
 /*
 DOCDD
@@ -390,13 +387,11 @@ DESCRIPTION
 	Return the actual number of symbol pointers, not
 	including the NULL.
 
-
 .#define bfd_canonicalize_symtab(abfd, location) \
 .     BFD_SEND (abfd, _bfd_canonicalize_symtab,\
 .                  (abfd, location))
 
 */
-
 
 /*
 FUNCTION
@@ -474,7 +469,6 @@ bfd_print_symbol_vandf (arg, symbol)
 	       : ((type & BSF_OBJECT) ? 'O' : ' '))));
 }
 
-
 /*
 FUNCTION
 	bfd_make_empty_symbol
@@ -537,7 +531,7 @@ static CONST struct section_to_type stt[] =
 };
 
 /* Return the single-character symbol type corresponding to
-   section S, or '?' for an unknown COFF section.  
+   section S, or '?' for an unknown COFF section.
 
    Check for any leading string which matches, so .text5 returns
    't' as well as .text */
@@ -548,7 +542,7 @@ coff_section_type (s)
 {
   CONST struct section_to_type *t;
 
-  for (t = &stt[0]; t->section; t++) 
+  for (t = &stt[0]; t->section; t++)
     if (!strncmp (s, t->section, strlen (t->section)))
       return t->type;
 
@@ -631,7 +625,7 @@ bfd_decode_symclass (symbol)
 
 /*
 FUNCTION
-	bfd_is_undefined_symclass 
+	bfd_is_undefined_symclass
 
 DESCRIPTION
 	Returns non-zero if the class symbol returned by
@@ -668,12 +662,12 @@ bfd_symbol_info (symbol, ret)
      symbol_info *ret;
 {
   ret->type = bfd_decode_symclass (symbol);
-  
+
   if (bfd_is_undefined_symclass (ret->type))
     ret->value = 0;
   else
     ret->value = symbol->value + symbol->section->vma;
-  
+
   ret->name = symbol->name;
 }
 
@@ -788,8 +782,8 @@ struct indexentry
 
 static int
 cmpindexentry (a, b)
-     const PTR *a;
-     const PTR *b;
+     const PTR a;
+     const PTR b;
 {
   const struct indexentry *contestantA = (const struct indexentry *) a;
   const struct indexentry *contestantB = (const struct indexentry *) b;
@@ -1005,7 +999,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 	      if (bfd_get_32 (abfd, stab + STRDXOFF) == 0)
 		continue;
 
-	      /* if we did not see a function def, leave space for one. */
+	      /* if we did not see a function def, leave space for one.  */
 	      if (saw_fun == 0)
 		++info->indextablesize;
 
@@ -1027,7 +1021,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 
       if (saw_fun == 0)
 	++info->indextablesize;
-      
+
       if (info->indextablesize == 0)
 	return true;
       ++info->indextablesize;
@@ -1063,8 +1057,8 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 	      /* The following code creates a new indextable entry with
 	         a NULL function name if there were no N_FUNs in a file.
 	         Note that a N_SO without a file name is an EOF and
-	         there could be 2 N_SO following it with the new filename 
-	         and directory. */
+	         there could be 2 N_SO following it with the new filename
+	         and directory.  */
 	      if (saw_fun == 0)
 		{
 		  info->indextable[i].val = bfd_get_32 (abfd, last_stab + VALOFF);
@@ -1076,7 +1070,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 		  ++i;
 		}
 	      saw_fun = 0;
-	      
+
 	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
 	      if (*file_name == '\0')
 		{
@@ -1262,7 +1256,7 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 
   *pfound = true;
 
-  if (file_name[0] == '/' || directory_name == NULL)
+  if (IS_ABSOLUTE_PATH(file_name) || directory_name == NULL)
     *pfilename = file_name;
   else
     {

@@ -1,5 +1,5 @@
 /* symbols.h -
-   Copyright (C) 1987, 90, 92, 93, 94, 95, 97, 1999
+   Copyright (C) 1987, 90, 92, 93, 94, 95, 97, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -31,7 +31,7 @@
 #include "struc-symbol.h"
 #endif
 
-extern struct obstack notes;	/* eg FixS live here. */
+extern struct obstack notes;	/* eg FixS live here.  */
 
 extern struct obstack cond_obstack;	/* this is where we track .ifdef/.endif
 				       (if we do that at all).  */
@@ -201,5 +201,3 @@ void symbol_set_obj PARAMS ((symbolS *, OBJ_SYMFIELD_TYPE *));
 TC_SYMFIELD_TYPE *symbol_get_tc PARAMS ((symbolS *));
 void symbol_set_tc PARAMS ((symbolS *, TC_SYMFIELD_TYPE *));
 #endif
-
-/* end of symbols.h */

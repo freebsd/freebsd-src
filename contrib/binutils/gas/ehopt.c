@@ -1,5 +1,5 @@
 /* ehopt.c--optimize gcc exception frame information.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
 This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GAS; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA. */
+02111-1307, USA.  */
 
 #include "as.h"
 #include "subsegs.h"
@@ -31,13 +31,17 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* Try to optimize gcc 2.8 exception frame information.
 
    Exception frame information is emitted for every function in the
-   .eh_frame section.  Simple information for a function with no
-   exceptions looks like this:
+   .eh_frame or .debug_frame sections.  Simple information for a function
+   with no exceptions looks like this:
 
 __FRAME_BEGIN__:
 	.4byte	.LLCIE1	/ Length of Common Information Entry
 .LSCIE1:
+#if .eh_frame
 	.4byte	0x0	/ CIE Identifier Tag
+#elif .debug_frame
+	.4byte	0xffffffff / CIE Identifier Tag
+#endif
 	.byte	0x1	/ CIE Version
 	.byte	0x0	/ CIE Augmentation (none)
 	.byte	0x1	/ ULEB128 0x1 (CIE Code Alignment Factor)
@@ -84,30 +88,33 @@ __FRAME_BEGIN__:
    not know this value, it always uses four bytes.  We will know the
    value at the end of assembly, so we can do better.  */
 
-static int eh_frame_code_alignment PARAMS ((void));
+static int eh_frame_code_alignment PARAMS ((int));
 
 /* Get the code alignment factor from the CIE.  */
 
 static int
-eh_frame_code_alignment ()
+eh_frame_code_alignment (in_seg)
+     int in_seg;
 {
+  /* ??? Assume .eh_frame and .debug_frame have the same alignment.  */
   static int code_alignment;
-  segT current_seg;
-  subsegT current_subseg;
+
   fragS *f;
   fixS *fix;
   int offset;
+  char CIE_id;
   char augmentation[10];
   int iaug;
 
   if (code_alignment != 0)
     return code_alignment;
 
-  /* We should find the CIE at the start of the .eh_frame section.  */
+  /* Can't find the alignment if we've changed sections.  */
+  if (! in_seg)
+    return -1;
 
-  current_seg = now_seg;
-  current_subseg = now_subseg;
-  subseg_new (".eh_frame", 0);
+  /* We should find the CIE at the start of the section.  */
+
 #if defined (BFD_ASSEMBLER) || defined (MANY_SEGMENTS)
   f = seg_info (now_seg)->frchainP->frch_root;
 #else
@@ -118,11 +125,15 @@ eh_frame_code_alignment ()
 #else
   fix = *seg_fix_rootP;
 #endif
-  subseg_set (current_seg, current_subseg);
 
   /* Look through the frags of the section to find the code alignment.  */
 
-  /* First make sure that the CIE Identifier Tag is 0.  */
+  /* First make sure that the CIE Identifier Tag is 0/-1.  */
+
+  if (strcmp (segment_name (now_seg), ".debug_frame") == 0)
+    CIE_id = (char)0xff;
+  else
+    CIE_id = 0;
 
   offset = 4;
   while (f != NULL && offset >= f->fr_fix)
@@ -132,10 +143,10 @@ eh_frame_code_alignment ()
     }
   if (f == NULL
       || f->fr_fix - offset < 4
-      || f->fr_literal[offset] != 0
-      || f->fr_literal[offset + 1] != 0
-      || f->fr_literal[offset + 2] != 0
-      || f->fr_literal[offset + 3] != 0)
+      || f->fr_literal[offset] != CIE_id
+      || f->fr_literal[offset + 1] != CIE_id
+      || f->fr_literal[offset + 2] != CIE_id
+      || f->fr_literal[offset + 3] != CIE_id)
     {
       code_alignment = -1;
       return -1;
@@ -261,33 +272,42 @@ check_eh_frame (exp, pnbytes)
      expressionS *exp;
      unsigned int *pnbytes;
 {
-  static int saw_size;
-  static symbolS *size_end_sym;
-  static int saw_advance_loc4;
-  static fragS *loc4_frag;
-  static int loc4_fix;
+  struct frame_data
+  {
+    symbolS *size_end_sym;
+    fragS *loc4_frag;
+    int saw_size;
+    int saw_advance_loc4;
+    int loc4_fix;
+  };
 
-  if (saw_size
-      && S_IS_DEFINED (size_end_sym))
+  static struct frame_data eh_frame_data;
+  static struct frame_data debug_frame_data;
+  struct frame_data *d;
+
+  /* Don't optimize.  */
+  if (flag_traditional_format)
+    return 0;
+
+  /* Select the proper section data.  */
+  if (strcmp (segment_name (now_seg), ".eh_frame") == 0)
+    d = &eh_frame_data;
+  else if (strcmp (segment_name (now_seg), ".debug_frame") == 0)
+    d = &debug_frame_data;
+  else
+    return 0;
+
+  if (d->saw_size && S_IS_DEFINED (d->size_end_sym))
     {
       /* We have come to the end of the CIE or FDE.  See below where
          we set saw_size.  We must check this first because we may now
          be looking at the next size.  */
-      saw_size = 0;
-      saw_advance_loc4 = 0;
+      d->saw_size = 0;
+      d->saw_advance_loc4 = 0;
     }
 
-  if (flag_traditional_format)
-    {
-      /* Don't optimize.  */
-    }
-  else if (strcmp (segment_name (now_seg), ".eh_frame") != 0)
-    {
-      saw_size = 0;
-      saw_advance_loc4 = 0;
-    }
-  else if (! saw_size
-	   && *pnbytes == 4)
+  if (! d->saw_size
+      && *pnbytes == 4)
     {
       /* This might be the size of the CIE or FDE.  We want to know
          the size so that we don't accidentally optimize across an FDE
@@ -301,23 +321,23 @@ check_eh_frame (exp, pnbytes)
       if ((exp->X_op == O_symbol || exp->X_op == O_subtract)
 	  && ! S_IS_DEFINED (exp->X_add_symbol))
 	{
-	  saw_size = 1;
-	  size_end_sym = exp->X_add_symbol;
+	  d->saw_size = 1;
+	  d->size_end_sym = exp->X_add_symbol;
 	}
     }
-  else if (saw_size
+  else if (d->saw_size
 	   && *pnbytes == 1
 	   && exp->X_op == O_constant
 	   && exp->X_add_number == DW_CFA_advance_loc4)
     {
       /* This might be a DW_CFA_advance_loc4.  Record the frag and the
          position within the frag, so that we can change it later.  */
-      saw_advance_loc4 = 1;
+      d->saw_advance_loc4 = 1;
       frag_grow (1);
-      loc4_frag = frag_now;
-      loc4_fix = frag_now_fix ();
+      d->loc4_frag = frag_now;
+      d->loc4_fix = frag_now_fix ();
     }
-  else if (saw_advance_loc4
+  else if (d->saw_advance_loc4
 	   && *pnbytes == 4
 	   && exp->X_op == O_constant)
     {
@@ -328,9 +348,9 @@ check_eh_frame (exp, pnbytes)
          reduced to a constant.  We can do the optimization entirely
          in this function.  */
 
-      saw_advance_loc4 = 0;
+      d->saw_advance_loc4 = 0;
 
-      ca = eh_frame_code_alignment ();
+      ca = eh_frame_code_alignment (1);
       if (ca < 0)
 	{
 	  /* Don't optimize.  */
@@ -338,41 +358,40 @@ check_eh_frame (exp, pnbytes)
       else if (exp->X_add_number % ca == 0
 	       && exp->X_add_number / ca < 0x40)
 	{
-	  loc4_frag->fr_literal[loc4_fix]
+	  d->loc4_frag->fr_literal[d->loc4_fix]
 	    = DW_CFA_advance_loc | (exp->X_add_number / ca);
 	  /* No more bytes needed.  */
 	  return 1;
 	}
       else if (exp->X_add_number < 0x100)
 	{
-	  loc4_frag->fr_literal[loc4_fix] = DW_CFA_advance_loc1;
+	  d->loc4_frag->fr_literal[d->loc4_fix] = DW_CFA_advance_loc1;
 	  *pnbytes = 1;
 	}
       else if (exp->X_add_number < 0x10000)
 	{
-	  loc4_frag->fr_literal[loc4_fix] = DW_CFA_advance_loc2;
+	  d->loc4_frag->fr_literal[d->loc4_fix] = DW_CFA_advance_loc2;
 	  *pnbytes = 2;
 	}
     }
-  else if (saw_advance_loc4
+  else if (d->saw_advance_loc4
 	   && *pnbytes == 4
 	   && exp->X_op == O_subtract)
     {
-
       /* This is a case we can optimize.  The expression was not
          reduced, so we can not finish the optimization until the end
          of the assembly.  We set up a variant frag which we handle
          later.  */
 
-      saw_advance_loc4 = 0;
+      d->saw_advance_loc4 = 0;
 
       frag_var (rs_cfa, 4, 0, 0, make_expr_symbol (exp),
-		loc4_fix, (char *) loc4_frag);
+		d->loc4_fix, (char *) d->loc4_frag);
 
       return 1;
     }
   else
-    saw_advance_loc4 = 0;
+    d->saw_advance_loc4 = 0;
 
   return 0;
 }
@@ -389,7 +408,7 @@ eh_frame_estimate_size_before_relax (frag)
   offsetT diff;
   int ret;
 
-  ca = eh_frame_code_alignment ();
+  ca = eh_frame_code_alignment (0);
   diff = resolve_symbol_value (frag->fr_symbol, 0);
 
   if (ca < 0)
@@ -444,7 +463,7 @@ eh_frame_convert_frag (frag)
     {
       int ca;
 
-      ca = eh_frame_code_alignment ();
+      ca = eh_frame_code_alignment (0);
       assert (ca > 0 && diff % ca == 0 && diff / ca < 0x40);
       loc4_frag->fr_literal[loc4_fix] = DW_CFA_advance_loc | (diff / ca);
     }

@@ -35,14 +35,17 @@
 @set HPPA
 @set I370
 @set I80386
+@set I860
 @set I960
 @set M32R
+@set M68HC11
 @set M680X0
 @set MCORE
 @set MIPS
 @set PJ
 @set SH
 @set SPARC
+@set C54X
 @set V850
 @set VAX
 @set VXWORKS

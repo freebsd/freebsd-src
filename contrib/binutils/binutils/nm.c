@@ -1,5 +1,5 @@
 /* nm.c -- Describe symbol table of a rel file.
-   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -260,7 +260,7 @@ static bfd *lineno_cache_rel_bfd;
 static struct option long_options[] =
 {
   {"debug-syms", no_argument, &print_debug_syms, 1},
-  {"demangle", no_argument, &do_demangle, 1},
+  {"demangle", optional_argument, 0, 'C'},
   {"dynamic", no_argument, &dynamic, 1},
   {"extern-only", no_argument, &external_only, 1},
   {"format", required_argument, 0, 'f'},
@@ -297,7 +297,9 @@ usage (stream, status)
   -a, --debug-syms       Display debugger-only symbols\n\
   -A, --print-file-name  Print name of the input file before every symbol\n\
   -B                     Same as --format=bsd\n\
-  -C, --demangle         Decode low-level symbol names into user-level names\n\
+  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n\
+                          The STYLE, if specified, can be `auto' (the default),\n\
+                          `gnu', 'lucid', 'arm', 'hp', 'edg' or 'gnu-new-abi'\n\
       --no-demangle      Do not demangle low-level symbol names\n\
   -D, --dynamic          Display dynamic symbols instead of normal symbols\n\
       --defined-only     Display only defined symbols\n\
@@ -319,6 +321,7 @@ usage (stream, status)
       --target=BFDNAME   Specify the target object format as BFDNAME\n\
   -u, --undefined-only   Display only undefined symbols\n\
   -V, --version          Display this program's version number\n\
+  -X 32_64               (ignored)\n\
 \n"));
   list_supported_targets (program_name, stream);
   if (status == 0)
@@ -407,7 +410,8 @@ main (argc, argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "aABCDef:glnopPrst:uvV", long_options, (int *) 0)) != EOF)
+  while ((c = getopt_long (argc, argv, "aABCDef:glnopPrst:uvVX:",
+			   long_options, (int *) 0)) != EOF)
     {
       switch (c)
 	{
@@ -423,6 +427,17 @@ main (argc, argv)
 	  break;
 	case 'C':
 	  do_demangle = 1;
+	  if (optarg != NULL)
+	    {
+	      enum demangling_styles style;
+	      
+	      style = cplus_demangle_name_to_style (optarg);
+	      if (style == unknown_demangling) 
+		fatal (_("unknown demangling style `%s'"),
+		       optarg);
+	      
+	      cplus_demangle_set_style (style);
+           }
 	  break;
 	case 'D':
 	  dynamic = 1;
@@ -465,6 +480,17 @@ main (argc, argv)
 	  break;
 	case 'V':
 	  show_version = 1;
+	  break;
+	case 'X':
+	  /* Ignored for (partial) AIX compatibility.  On AIX, the
+	     argument has values 32, 64, or 32_64, and specfies that
+	     only 32-bit, only 64-bit, or both kinds of objects should
+	     be examined.  The default is 32.  So plain AIX nm on a
+	     library archive with both kinds of objects will ignore
+	     the 64-bit ones.  For GNU nm, the default is and always
+	     has been -X 32_64, and other options are not supported.  */
+	  if (strcmp (optarg, "32_64") != 0)
+	    fatal (_("Only -X 32_64 is supported"));
 	  break;
 
 	case OPTION_TARGET:	/* --target */
@@ -1447,13 +1473,11 @@ print_symbol_info_bsd (info, abfd)
 {
   if (bfd_is_undefined_symclass (info->type))
     {
-      printf ("%*s",
 #ifdef BFD64
-	      16,
+      printf ("%*s", 16, "");
 #else
-	      8,
+      printf ("%*s", 8, "");
 #endif
-	      "");
     }
   else
     print_value (info->value);

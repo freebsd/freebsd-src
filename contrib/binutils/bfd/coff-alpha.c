@@ -924,7 +924,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	     does not cause anything to happen, itself.  */
 	  rel->address += input_section->output_offset;
 	  break;
-	    
+
 	case ALPHA_R_GPDISP:
 	  /* This marks the ldah of an ldah/lda pair which loads the
 	     gp register with the difference of the gp value and the
@@ -980,7 +980,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	    rel->address += input_section->output_offset;
 	  }
 	  break;
-	  
+
 	case ALPHA_R_OP_PUSH:
 	  /* Push a value on the reloc evaluation stack.  */
 	  {
@@ -1106,7 +1106,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	    stack[tos - 1] >>= relocation;
 	  }
 	  break;
-	    
+
 	case ALPHA_R_GPVALUE:
 	  /* I really don't know if this does the right thing.  */
 	  gp = rel->addend;
@@ -1126,7 +1126,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 	  os->reloc_count++;
 	}
 
-      if (r != bfd_reloc_ok) 
+      if (r != bfd_reloc_ok)
 	{
 	  switch (r)
 	    {
@@ -1136,7 +1136,7 @@ alpha_ecoff_get_relocated_section_contents (abfd, link_info, link_order,
 		      input_bfd, input_section, rel->address, true)))
 		goto error_return;
 	      break;
-	    case bfd_reloc_dangerous: 
+	    case bfd_reloc_dangerous:
 	      if (! ((*link_info->callbacks->reloc_dangerous)
 		     (link_info, err, input_bfd, input_section,
 		      rel->address)))
@@ -1332,7 +1332,7 @@ alpha_convert_external_reloc (output_bfd, info, input_bfd, ext_rel, h)
 	    r_symndx = RELOC_SECTION_XDATA;
 	  break;
 	}
-		      
+
       if (r_symndx == -1)
 	abort ();
 
@@ -1437,7 +1437,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
      pointer.  To support large programs, we need to allow multiple
      global pointers.  This works as long as each input .lita section
      is <64KB big.  This implies that when producing relocatable
-     output, the .lita section is limited to 64KB. . */
+     output, the .lita section is limited to 64KB. .  */
 
   lita_sec = symndx_to_section[RELOC_SECTION_LITA];
   gp = _bfd_get_gp_value (output_bfd);
@@ -1619,7 +1619,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	  /* See ALPHA_R_LITERAL above for the uses of this reloc.  It
 	     does not cause anything to happen, itself.  */
 	  break;
-	    
+
 	case ALPHA_R_GPDISP:
 	  /* This marks the ldah of an ldah/lda pair which loads the
 	     gp register with the difference of the gp value and the
@@ -1679,7 +1679,7 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	    gp_usedp = true;
 	  }
 	  break;
-	  
+
 	case ALPHA_R_OP_PUSH:
 	case ALPHA_R_OP_PSUB:
 	case ALPHA_R_OP_PRSHIFT:
@@ -2008,7 +2008,6 @@ alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 /* Do final adjustments to the filehdr and the aouthdr.  This routine
    sets the dynamic bits in the file header.  */
 
-/*ARGSUSED*/
 static boolean
 alpha_adjust_headers (abfd, fhdr, ahdr)
      bfd *abfd;
@@ -2136,7 +2135,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
 
       left = size;
 
-      /* I don't know what the next eight bytes are for. */
+      /* I don't know what the next eight bytes are for.  */
       if (bfd_read (ab, 1, 8, nbfd) != 8)
 	goto error_return;
 
@@ -2201,7 +2200,7 @@ alpha_ecoff_get_elt_at_filepos (archive, filepos)
  error_return:
   if (nbfd != NULL)
     bfd_close (nbfd);
-  return NULL;  
+  return NULL;
 }
 
 /* Open the next archived file.  */
@@ -2229,7 +2228,7 @@ alpha_ecoff_openr_next_archived_file (archive, last_file)
 
       /* Pad to an even boundary...
 	 Note that last_file->origin can be odd in the case of
-	 BSD-4.4-style element with a long odd size. */
+	 BSD-4.4-style element with a long odd size.  */
       filestart = last_file->origin + size;
       filestart += filestart % 2;
     }
@@ -2266,7 +2265,7 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
     (unsigned (*) PARAMS ((bfd *,PTR,PTR))) bfd_void, /* reloc_out */
     alpha_ecoff_swap_filehdr_out, alpha_ecoff_swap_aouthdr_out,
     alpha_ecoff_swap_scnhdr_out,
-    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, FILNMLEN, true, false, 4,
+    FILHSZ, AOUTSZ, SCNHSZ, 0, 0, 0, 0, FILNMLEN, true, false, 4, false, 2,
     alpha_ecoff_swap_filehdr_in, alpha_ecoff_swap_aouthdr_in,
     alpha_ecoff_swap_scnhdr_in, NULL,
     alpha_ecoff_bad_format_hook, _bfd_ecoff_set_arch_mach_hook,
@@ -2400,6 +2399,6 @@ const bfd_target ecoffalpha_little_vec =
      BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   (PTR) &alpha_ecoff_backend_data
 };

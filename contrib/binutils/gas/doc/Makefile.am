@@ -17,6 +17,7 @@ asconfig.texi: $(CONFIG).texi
 
 CPU_DOCS = \
 	c-a29k.texi \
+	c-arc.texi \
 	c-arm.texi \
 	c-d10v.texi \
 	c-h8300.texi \
@@ -24,14 +25,17 @@ CPU_DOCS = \
 	c-hppa.texi \
 	c-i370.texi \
 	c-i386.texi \
+	c-i860.texi \
 	c-i960.texi \
 	c-m32r.texi \
+	c-m68hc11.texi \
 	c-m68k.texi \
 	c-mips.texi \
 	c-ns32k.texi \
 	c-pj.texi \
 	c-sh.texi \
 	c-sparc.texi \
+        c-tic54x.texi \
 	c-vax.texi \
 	c-v850.texi \
 	c-z8k.texi

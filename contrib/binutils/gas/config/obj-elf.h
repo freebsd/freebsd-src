@@ -6,7 +6,7 @@
 
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    GAS is distributed in the hope that it will be useful,
@@ -19,7 +19,6 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-
 /* HP PA-RISC support was contributed by the Center for Software Science
    at the University of Utah.  */
 
@@ -28,11 +27,14 @@
 
 #define OBJ_ELF 1
 
+/* Note that all macros in this file should be wrapped in #ifndef, for
+   sake of obj-multi.h which includes this file.  */
+
 #ifndef OUTPUT_FLAVOR
 #define OUTPUT_FLAVOR bfd_target_elf_flavour
 #endif
 
-#include <bfd.h>
+#include "bfd.h"
 
 #define BYTES_IN_WORD 4		/* for now */
 #include "bfd/elf-bfd.h"
@@ -40,7 +42,7 @@
 #include "targ-cpu.h"
 
 #ifdef TC_ALPHA
-#define ECOFF_DEBUGGING alpha_flag_mdebug
+#define ECOFF_DEBUGGING (alpha_flag_mdebug > 0)
 extern int alpha_flag_mdebug;
 #endif
 
@@ -83,16 +85,26 @@ struct elf_obj_sy
 
 #define OBJ_SYMFIELD_TYPE struct elf_obj_sy
 
+/* Symbol fields used by the ELF back end.  */
+#define ELF_TARGET_SYMBOL_FIELDS int local:1;
+
+/* Don't change this; change ELF_TARGET_SYMBOL_FIELDS instead.  */
+#define TARGET_SYMBOL_FIELDS ELF_TARGET_SYMBOL_FIELDS
+
+/* #include "targ-cpu.h" */
+
 #ifndef FALSE
 #define FALSE 0
 #define TRUE  !FALSE
 #endif
 
+#ifndef obj_begin
 #define obj_begin() elf_begin ()
+#endif
 extern void elf_begin PARAMS ((void));
 
 /* should be conditional on address size! */
-#define elf_symbol(asymbol) ((elf_symbol_type *)(&(asymbol)->the_bfd))
+#define elf_symbol(asymbol) ((elf_symbol_type *) (&(asymbol)->the_bfd))
 
 #ifndef S_GET_SIZE
 #define S_GET_SIZE(S) \
@@ -128,13 +140,20 @@ extern asection *gdb_section;
 #endif
 extern void elf_frob_file PARAMS ((void));
 
+#ifndef obj_frob_file_before_adjust
+#define obj_frob_file_before_adjust  elf_frob_file_before_adjust
+#endif
+extern void elf_frob_file_before_adjust PARAMS ((void));
+
 #ifndef obj_frob_file_after_relocs
 #define obj_frob_file_after_relocs  elf_frob_file_after_relocs
 #endif
 extern void elf_frob_file_after_relocs PARAMS ((void));
 
+#ifndef obj_app_file
 #define obj_app_file elf_file_symbol
-extern void elf_file_symbol PARAMS ((char *));
+#endif
+extern void elf_file_symbol PARAMS ((const char *));
 
 extern void obj_elf_section_change_hook PARAMS ((void));
 
@@ -144,6 +163,8 @@ extern void obj_elf_version PARAMS ((int));
 extern void obj_elf_common PARAMS ((int));
 extern void obj_elf_data PARAMS ((int));
 extern void obj_elf_text PARAMS ((int));
+extern struct fix *obj_elf_vtable_inherit PARAMS ((int));
+extern struct fix *obj_elf_vtable_entry PARAMS ((int));
 
 /* BFD wants to write the udata field, which is a no-no for the
    globally defined sections.  */
@@ -189,6 +210,12 @@ do								\
 while (0)
 #endif
 
+#ifndef SEPARATE_STAB_SECTIONS
+/* Avoid ifndef each separate macro setting by wrapping the whole of the
+   stab group on the assumption that whoever sets SEPARATE_STAB_SECTIONS
+   caters to ECOFF_DEBUGGING and the right setting of INIT_STAB_SECTIONS
+   and OBJ_PROCESS_STAB too, without needing the tweaks below.  */
+
 /* Stabs go in a separate section.  */
 #define SEPARATE_STAB_SECTIONS 1
 
@@ -206,13 +233,15 @@ extern void obj_elf_init_stab_section PARAMS ((segT));
 
 #undef  INIT_STAB_SECTION
 #define INIT_STAB_SECTION(seg) \
-  ((void)(ECOFF_DEBUGGING ? 0 : (obj_elf_init_stab_section (seg), 0)))
+  ((void) (ECOFF_DEBUGGING ? 0 : (obj_elf_init_stab_section (seg), 0)))
 
 #undef OBJ_PROCESS_STAB
 #define OBJ_PROCESS_STAB(seg, what, string, type, other, desc)		\
   if (ECOFF_DEBUGGING)							\
     ecoff_stab ((seg), (what), (string), (type), (other), (desc))
 #endif /* ECOFF_DEBUGGING */
+
+#endif /* SEPARATE_STAB_SECTIONS not defined.  */
 
 extern void elf_frob_symbol PARAMS ((symbolS *, int *));
 #ifndef obj_frob_symbol

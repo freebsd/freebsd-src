@@ -1,5 +1,6 @@
 /* macro.c - macro support for gas and gasp
-   Copyright (C) 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -19,7 +20,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #include "config.h"
 
@@ -172,7 +173,7 @@ buffer_and_nest (from, to, ptr, get_line)
 
   while (more)
     {
-      /* Try and find the first pseudo op on the line */
+      /* Try and find the first pseudo op on the line.  */
       int i = line_start;
 
       if (! macro_alternate && ! macro_mri)
@@ -180,26 +181,26 @@ buffer_and_nest (from, to, ptr, get_line)
 	  /* With normal syntax we can suck what we want till we get
 	     to the dot.  With the alternate, labels have to start in
 	     the first column, since we cant tell what's a label and
-	     whats a pseudoop */
+	     whats a pseudoop.  */
 
-	  /* Skip leading whitespace */
+	  /* Skip leading whitespace.  */
 	  while (i < ptr->len && ISWHITE (ptr->ptr[i]))
 	    i++;
 
-	  /* Skip over a label */
+	  /* Skip over a label.  */
 	  while (i < ptr->len
 		 && (isalnum ((unsigned char) ptr->ptr[i])
 		     || ptr->ptr[i] == '_'
 		     || ptr->ptr[i] == '$'))
 	    i++;
 
-	  /* And a colon */
+	  /* And a colon.  */
 	  if (i < ptr->len
 	      && ptr->ptr[i] == ':')
 	    i++;
 
 	}
-      /* Skip trailing whitespace */
+      /* Skip trailing whitespace.  */
       while (i < ptr->len && ISWHITE (ptr->ptr[i]))
 	i++;
 
@@ -208,24 +209,26 @@ buffer_and_nest (from, to, ptr, get_line)
 			   || macro_mri))
 	{
 	  if (ptr->ptr[i] == '.')
-	      i++;
+	    i++;
 	  if (strncasecmp (ptr->ptr + i, from, from_len) == 0
-	      && (ptr->len == (i + from_len) || ! isalnum (ptr->ptr[i + from_len])))
+	      && (ptr->len == (i + from_len)
+		  || ! isalnum (ptr->ptr[i + from_len])))
 	    depth++;
 	  if (strncasecmp (ptr->ptr + i, to, to_len) == 0
-	      && (ptr->len == (i + to_len) || ! isalnum (ptr->ptr[i + to_len])))
+	      && (ptr->len == (i + to_len)
+		  || ! isalnum (ptr->ptr[i + to_len])))
 	    {
 	      depth--;
 	      if (depth == 0)
 		{
-		  /* Reset the string to not include the ending rune */
+		  /* Reset the string to not include the ending rune.  */
 		  ptr->len = line_start;
 		  break;
 		}
 	    }
 	}
 
-      /* Add a CR to the end and keep running */
+      /* Add a CR to the end and keep running.  */
       sb_add_char (ptr, '\n');
       line_start = ptr->len;
       more = get_line (ptr);
@@ -257,7 +260,7 @@ get_token (idx, in, name)
 	  sb_add_char (name, in->ptr[idx++]);
 	}
     }
-  /* Ignore trailing & */
+  /* Ignore trailing &.  */
   if (macro_alternate && idx < in->len && in->ptr[idx] == '&')
     idx++;
   return idx;
@@ -274,7 +277,7 @@ getstring (idx, in, acc)
   idx = sb_skip_white (idx, in);
 
   while (idx < in->len
-	 && (in->ptr[idx] == '"' 
+	 && (in->ptr[idx] == '"'
 	     || (in->ptr[idx] == '<' && (macro_alternate || macro_mri))
 	     || (in->ptr[idx] == '\'' && macro_alternate)))
     {
@@ -287,7 +290,7 @@ getstring (idx, in, acc)
 	    {
 	      if (in->ptr[idx] == '!')
 		{
-		  idx++  ;
+		  idx++;
 		  sb_add_char (acc, in->ptr[idx++]);
 		}
 	      else
@@ -304,29 +307,47 @@ getstring (idx, in, acc)
       else if (in->ptr[idx] == '"' || in->ptr[idx] == '\'')
 	{
 	  char tchar = in->ptr[idx];
+	  int escaped = 0;
+
 	  idx++;
+
 	  while (idx < in->len)
 	    {
+	      if (in->ptr[idx - 1] == '\\')
+		escaped ^= 1;
+	      else
+		escaped = 0;
+
 	      if (macro_alternate && in->ptr[idx] == '!')
 		{
-		  idx++  ;
-		  sb_add_char (acc, in->ptr[idx++]);
+		  idx ++;
+
+		  sb_add_char (acc, in->ptr[idx]);
+
+		  idx ++;
+		}
+	      else if (escaped && in->ptr[idx] == tchar)
+		{
+		  sb_add_char (acc, tchar);
+		  idx ++;
 		}
 	      else
 		{
 		  if (in->ptr[idx] == tchar)
 		    {
-		      idx++;
+		      idx ++;
+
 		      if (idx >= in->len || in->ptr[idx] != tchar)
 			break;
 		    }
+
 		  sb_add_char (acc, in->ptr[idx]);
-		  idx++;
+		  idx ++;
 		}
 	    }
 	}
     }
-  
+
   return idx;
 }
 
@@ -351,7 +372,7 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 
   if (idx < in->len)
     {
-      if (in->len > 2 && in->ptr[idx+1] == '\'' && ISBASE (in->ptr[idx]))
+      if (in->len > 2 && in->ptr[idx + 1] == '\'' && ISBASE (in->ptr[idx]))
 	{
 	  while (!ISSEP (in->ptr[idx]))
 	    sb_add_char (out, in->ptr[idx++]);
@@ -362,7 +383,7 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 	{
 	  int val;
 	  char buf[20];
-	  /* Turns the next expression into a string */
+	  /* Turns the next expression into a string.  */
 	  idx = (*macro_expr) (_("% operator needs absolute expression"),
 			       idx + 1,
 			       in,
@@ -378,39 +399,39 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 	      && ! macro_strip_at
 	      && expand)
 	    {
-	      /* Keep the quotes */
-	      sb_add_char (out,  '\"');
+	      /* Keep the quotes.  */
+	      sb_add_char (out, '\"');
 
 	      idx = getstring (idx, in, out);
-	      sb_add_char (out,  '\"');
+	      sb_add_char (out, '\"');
 	    }
 	  else
 	    {
 	      idx = getstring (idx, in, out);
 	    }
 	}
-      else 
+      else
 	{
-	  while (idx < in->len 
+	  while (idx < in->len
 		 && (in->ptr[idx] == '"'
 		     || in->ptr[idx] == '\''
-		     || pretend_quoted 
+		     || pretend_quoted
 		     || (in->ptr[idx] != ' '
 			 && in->ptr[idx] != '\t'
 			 && in->ptr[idx] != ','
 			 && (in->ptr[idx] != '<'
 			     || (! macro_alternate && ! macro_mri)))))
 	    {
-	      if (in->ptr[idx] == '"' 
+	      if (in->ptr[idx] == '"'
 		  || in->ptr[idx] == '\'')
 		{
 		  char tchar = in->ptr[idx];
 		  sb_add_char (out, in->ptr[idx++]);
 		  while (idx < in->len
 			 && in->ptr[idx] != tchar)
-		    sb_add_char (out, in->ptr[idx++]);		    
+		    sb_add_char (out, in->ptr[idx++]);
 		  if (idx == in->len)
-		    return idx;	      
+		    return idx;
 		}
 	      sb_add_char (out, in->ptr[idx++]);
 	    }
@@ -449,15 +470,15 @@ do_formals (macro, idx, in)
       idx = sb_skip_white (idx, in);
       if (formal->name.len)
 	{
-	  /* This is a formal */
+	  /* This is a formal.  */
 	  if (idx < in->len && in->ptr[idx] == '=')
 	    {
-	      /* Got a default */
+	      /* Got a default.  */
 	      idx = get_any_string (idx + 1, in, &formal->def, 1, 0);
 	    }
 	}
 
-      /* Add to macro's hash table */
+      /* Add to macro's hash table.  */
       hash_jam (macro->formal_hash, sb_terminate (&formal->name), formal);
 
       formal->index = macro->formal_count;
@@ -490,7 +511,7 @@ do_formals (macro, idx, in)
 
       sb_add_string (&formal->name, name);
 
-      /* Add to macro's hash table */
+      /* Add to macro's hash table.  */
       hash_jam (macro->formal_hash, name, formal);
 
       formal->index = NARG_INDEX;
@@ -532,14 +553,14 @@ define_macro (idx, in, label, get_line, namep)
       sb_add_sb (&name, label);
       if (idx < in->len && in->ptr[idx] == '(')
 	{
-	  /* It's the label: MACRO (formals,...)  sort */
+	  /* It's the label: MACRO (formals,...)  sort  */
 	  idx = do_formals (macro, idx + 1, in);
 	  if (in->ptr[idx] != ')')
 	    return _("missing ) after formals");
 	}
       else
 	{
-	  /* It's the label: MACRO formals,...  sort */
+	  /* It's the label: MACRO formals,...  sort  */
 	  idx = do_formals (macro, idx, in);
 	}
     }
@@ -550,7 +571,7 @@ define_macro (idx, in, label, get_line, namep)
       idx = do_formals (macro, idx, in);
     }
 
-  /* and stick it in the macro hash table */
+  /* And stick it in the macro hash table.  */
   for (idx = 0; idx < name.len; idx++)
     if (isupper ((unsigned char) name.ptr[idx]))
       name.ptr[idx] = tolower (name.ptr[idx]);
@@ -627,7 +648,7 @@ sub_actual (start, in, t, formal_hash, kind, out, copyifnotthere)
     {
       sb_add_sb (out, t);
     }
-  else 
+  else
     {
       sb_add_char (out, '\\');
       sb_add_sb (out, t);
@@ -676,14 +697,14 @@ macro_expand_body (in, out, formals, formal_hash, comment_char, locals)
 	  src++;
 	  if (in->ptr[src] == comment_char && comment_char != '\0')
 	    {
-	      /* This is a comment, just drop the rest of the line */
+	      /* This is a comment, just drop the rest of the line.  */
 	      while (src < in->len
 		     && in->ptr[src] != '\n')
 		src++;
 	    }
 	  else if (in->ptr[src] == '(')
 	    {
-	      /* Sub in till the next ')' literally */
+	      /* Sub in till the next ')' literally.  */
 	      src++;
 	      while (src < in->len && in->ptr[src] != ')')
 		{
@@ -696,17 +717,17 @@ macro_expand_body (in, out, formals, formal_hash, comment_char, locals)
 	    }
 	  else if (in->ptr[src] == '@')
 	    {
-	      /* Sub in the macro invocation number */
+	      /* Sub in the macro invocation number.  */
 
 	      char buffer[10];
 	      src++;
-	      sprintf (buffer, "%05d", macro_number);
+	      sprintf (buffer, "%d", macro_number);
 	      sb_add_string (out, buffer);
 	    }
 	  else if (in->ptr[src] == '&')
 	    {
 	      /* This is a preprocessor variable name, we don't do them
-		 here */
+		 here.  */
 	      sb_add_char (out, '\\');
 	      sb_add_char (out, '&');
 	      src++;
@@ -901,10 +922,10 @@ macro_expand (idx, in, m, out, comment_char)
   const char *err;
 
   sb_new (&t);
-  
-  /* Reset any old value the actuals may have */
+
+  /* Reset any old value the actuals may have.  */
   for (f = m->formals; f; f = f->next)
-      sb_reset (&f->actual);
+    sb_reset (&f->actual);
   f = m->formals;
   while (f != NULL && f->index < 0)
     f = f->next;
@@ -930,13 +951,13 @@ macro_expand (idx, in, m, out, comment_char)
 	}
     }
 
-  /* Peel off the actuals and store them away in the hash tables' actuals */
+  /* Peel off the actuals and store them away in the hash tables' actuals.  */
   idx = sb_skip_white (idx, in);
   while (idx < in->len && in->ptr[idx] != comment_char)
     {
       int scan;
 
-      /* Look and see if it's a positional or keyword arg */
+      /* Look and see if it's a positional or keyword arg.  */
       scan = idx;
       while (scan < in->len
 	     && !ISSEP (in->ptr[scan])
@@ -950,19 +971,19 @@ macro_expand (idx, in, m, out, comment_char)
 	  /* It's OK to go from positional to keyword.  */
 
 	  /* This is a keyword arg, fetch the formal name and
-	     then the actual stuff */
+	     then the actual stuff.  */
 	  sb_reset (&t);
 	  idx = get_token (idx, in, &t);
 	  if (in->ptr[idx] != '=')
 	    return _("confusion in formal parameters");
 
-	  /* Lookup the formal in the macro's list */
+	  /* Lookup the formal in the macro's list.  */
 	  ptr = (formal_entry *) hash_find (m->formal_hash, sb_terminate (&t));
 	  if (!ptr)
 	    return _("macro formal argument does not exist");
 	  else
 	    {
-	      /* Insert this value into the right place */
+	      /* Insert this value into the right place.  */
 	      sb_reset (&ptr->actual);
 	      idx = get_any_string (idx + 1, in, &ptr->actual, 0, 0);
 	      if (ptr->actual.len > 0)
@@ -971,7 +992,7 @@ macro_expand (idx, in, m, out, comment_char)
 	}
       else
 	{
-	  /* This is a positional arg */
+	  /* This is a positional arg.  */
 	  is_positional = 1;
 	  if (is_keyword)
 	    return _("can't mix positional and keyword arguments");
@@ -1118,7 +1139,7 @@ check_macro (line, expand, comment_char, error, info)
 
   sb_kill (&line_sb);
 
-  /* export the macro information if requested */
+  /* Export the macro information if requested.  */
   if (info)
     *info = macro;
 
@@ -1163,7 +1184,7 @@ expand_irp (irpc, idx, in, out, get_line, comment_char)
   sb_new (&sub);
   if (! buffer_and_nest (mn, "ENDR", &sub, get_line))
     return _("unexpected end of file in irp or irpc");
-  
+
   sb_new (&f.name);
   sb_new (&f.def);
   sb_new (&f.actual);
