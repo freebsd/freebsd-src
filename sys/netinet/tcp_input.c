@@ -988,13 +988,24 @@ after_listen:
 					tp->snd_nxt = tp->snd_max;
 					tp->t_badrxtwin = 0;
 				}
-				if ((to.to_flags & TOF_TS) != 0)
+
+				/*
+				 * Recalculate the transmit timer / rtt.
+				 *
+				 * Some boxes send broken timestamp replies
+				 * during the SYN+ACK phase, ignore 
+				 * timestamps of 0 or we could calculate a
+				 * huge RTT and blow up the retransmit timer.
+				 */
+				if ((to.to_flags & TOF_TS) != 0 &&
+				    to.to_tsecr) {
 					tcp_xmit_timer(tp,
 					    ticks - to.to_tsecr + 1);
-				else if (tp->t_rtttime &&
-					    SEQ_GT(th->th_ack, tp->t_rtseq))
+				} else if (tp->t_rtttime &&
+					    SEQ_GT(th->th_ack, tp->t_rtseq)) {
 					tcp_xmit_timer(tp,
 							ticks - tp->t_rtttime);
+				}
 				tcp_xmit_bandwidth_limit(tp, th->th_ack);
 				acked = th->th_ack - tp->snd_una;
 				tcpstat.tcps_rcvackpack++;
@@ -1810,11 +1821,18 @@ process_ACK:
 		 * Since we now have an rtt measurement, cancel the
 		 * timer backoff (cf., Phil Karn's retransmit alg.).
 		 * Recompute the initial retransmit timer.
+		 *
+		 * Some boxes send broken timestamp replies
+		 * during the SYN+ACK phase, ignore 
+		 * timestamps of 0 or we could calculate a
+		 * huge RTT and blow up the retransmit timer.
 		 */
-		if (to.to_flags & TOF_TS)
+		if ((to.to_flags & TOF_TS) != 0 &&
+		    to.to_tsecr) {
 			tcp_xmit_timer(tp, ticks - to.to_tsecr + 1);
-		else if (tp->t_rtttime && SEQ_GT(th->th_ack, tp->t_rtseq))
+		} else if (tp->t_rtttime && SEQ_GT(th->th_ack, tp->t_rtseq)) {
 			tcp_xmit_timer(tp, ticks - tp->t_rtttime);
+		}
 		tcp_xmit_bandwidth_limit(tp, th->th_ack);
 
 		/*
