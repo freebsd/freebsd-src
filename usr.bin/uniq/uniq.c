@@ -80,7 +80,7 @@ main (argc, argv)
 	char *prevline, *thisline, *p;
 	int iflag = 0, comp;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
