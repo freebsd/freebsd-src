@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.21 1996/07/03 05:23:13 nate Exp $
+#	$Id: LINT,v 1.184.4.22 1996/07/03 05:31:39 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -835,6 +835,7 @@ controller	pci0
 device		ncr0
 device		de0
 device		fpa0
+device		fxp0
 device		meteor0
 options		PROBE_VERBOSE
 
