@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.7 1995/03/14 01:52:52 thomas Exp $
+ * $Id: if_pdq.c,v 1.1 1995/03/14 09:16:04 davidg Exp $
  *
  * $Log: if_pdq.c,v $
+ * Revision 1.1  1995/03/14  09:16:04  davidg
+ * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
+ *
+ * Submitted by:	Matt Thomas
+ *
  * Revision 1.7  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
  *
@@ -461,6 +466,7 @@ struct pci_device fpadevice = {
     pdq_pci_probe,
     pdq_pci_attach,
     &pdq_pci_count,
+    NULL
 };
 
 #if defined(__FreeBSD__)
