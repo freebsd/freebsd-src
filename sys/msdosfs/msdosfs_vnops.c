@@ -1525,7 +1525,7 @@ msdosfs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		u_int *a_cookies;
+		u_long *a_cookies;
 		int a_ncookies;
 	} */ *ap;
 {
@@ -1746,21 +1746,20 @@ out:	;
 		struct dirent* dpStart;
 		struct dirent* dpEnd;
 		struct dirent* dp;
-		u_int *cookies;
-		u_int *cookiep;
+		u_long *cookies;
+		u_long *cookiep;
 
 		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
 			panic("msdosfs_readdir: unexpected uio from NFS server");
 		dpStart = (struct dirent *)
 		     (uio->uio_iov->iov_base - (uio->uio_offset - off));
 		dpEnd = (struct dirent *) uio->uio_iov->iov_base;
-		MALLOC(cookies, u_int *, ncookies * sizeof(u_int),
-		       M_TEMP, M_WAITOK);
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
 		for (dp = dpStart, cookiep = cookies;
 		     dp < dpEnd;
 		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
 			off += dp->d_reclen;
-			*cookiep++ = (u_int) off;
+			*cookiep++ = (u_long) off;
 		}
 		*ap->a_ncookies = ncookies;
 		*ap->a_cookies = cookies;
