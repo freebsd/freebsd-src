@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE.
  *
- * $Id: pthread.h,v 1.12 1999/07/27 03:29:01 deischen Exp $
+ * $FreeBSD$
  */
 #ifndef _PTHREAD_H_
 #define _PTHREAD_H_

@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_prot.h 1.14 88/02/08 SMI
  *	from: @(#)pmap_prot.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_prot.h,v 1.4 1996/01/30 23:32:08 mpp Exp $
+ * $FreeBSD$
  */
 
 /*
