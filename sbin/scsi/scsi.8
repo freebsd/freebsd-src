@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.1,v 1.1 1993/11/18 05:05:27 rgrimes Exp $
+.\"	$Id: scsi.8,v 1.1.1.1 1995/01/24 12:07:27 dufault Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 1
@@ -147,16 +147,16 @@ can be specified as a hyphen ("-") to indicate that the
 .Fr count
 bytes of data input should be written to the standard output.
 .Sh EXAMPLES
-To verify that the device type for the disk /dev/rsd0d is 0
+To verify that the device type for the disk /dev/rsd0c is 0
 (direct access device):
 .Bd -literal -offset
-root# scsi -f /dev/rsd0d -c "12 0 0 0 64 0" -i 64 "*b3 b5"
+root# scsi -f /dev/rsd0c -c "12 0 0 0 64 0" -i 64 "*b3 b5"
 0
 .Ed
 .Pp
-To do an inquiry to /dev/rsd2d:
+To do an inquiry to /dev/rsd2c:
 .Bd -literal -offset
-root# scsi -f /dev/rsd2d -c "12 0 0 0 64 0" -i 64 "s8 z8 z16 z4"
+root# scsi -f /dev/rsd2c -c "12 0 0 0 64 0" -i 64 "s8 z8 z16 z4"
 FUJITSU M2654S-512 010P
 .Ed
 .Pp
@@ -164,13 +164,6 @@ FUJITSU M2654S-512 010P
 .Xr scsi 4 ,
 .Xr scsi 3
 .Sh BUGS
-.Pp
-.Fr out_fmt
-support for
-.Fr "-o count out_fmt arg0 ... argn"
-isn't written yet.  You have to specify out_fmt as "-" and read the
-data in from standard input.  If you want that capability
-ask dufault@hda.com.
 .Pp
 This command wasn't ready for inclusion in 2.0R and so is missing in
 that release.
@@ -182,8 +175,8 @@ The "-i" option to do an inquiry went away in 2.1.  The new facilities
 provided by "-c" supercede that.
 .Pp
 Check your permissions carefully.
-"scsi -f /dev/rsd0d -c "4 0 0 0 0 0" permits anyone who can open
-/dev/rsd0d to format the disk drive.  This must be changed to
+"scsi -f /dev/rsd0c -c "4 0 0 0 0 0" permits anyone who can open
+/dev/rsd0c to format the disk drive.  This must be changed to
 at least require write access to the drive.
 .Sh HISTORY
 The
