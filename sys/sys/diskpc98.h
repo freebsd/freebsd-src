@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.15 1995/05/16 07:52:17 davidg Exp $
+ * $Id: disklabel.h,v 1.16 1995/05/30 08:14:17 rgrimes Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -50,35 +50,10 @@
  * to leave room for a bootstrap, etc.
  */
 
-/*
- * XXX the following will go away when conversion to the slice version is
- * complete: OURPART, RAWPART, readMSPtolabel, readMBRtolabel, dkminor,
- * the DOSified readdisklabel, DOS stuff in this file.
- */
-
 /* XXX these should be defined per controller (or drive) elsewhere, not here! */
 #ifdef __i386__
 #define LABELSECTOR	1			/* sector containing label */
 #define LABELOFFSET	0			/* offset of label in sector */
-#define	OURPART		2			/* partition is 'all BSD' */
-#define	RAWPART		3			/* partition is 'all device' */
-#define readMSPtolabel readMBRtolabel
-#endif
-
-#ifndef readMSPtolabel
-#define readMSPtolabel(a,b,c,d,e)		/* zap calls if irrelevant */
-#endif
-
-#ifdef	tahoe
-#define RAWPART		0
-#endif
-
-#ifndef	RAWPART
-#define	RAWPART		2
-#endif
-
-#ifndef	OURPART
-#define	OURPART		RAWPART			/* by default it's all ours */
 #endif
 
 #ifndef	LABELSECTOR
@@ -220,11 +195,6 @@ struct disklabel {
 #define	DTYPE_HPFL		8		/* HP Fiber-link */
 #define	DTYPE_FLOPPY		10		/* floppy */
 
-/* d_subtype values: */
-#define DSTYPE_INDOSPART	0x8		/* is inside dos partition */
-#define DSTYPE_DOSPART(s)	((s) & 3)	/* dos partition number */
-#define DSTYPE_GEOMETRY		0x10		/* drive params in label */
-
 #ifdef DKTYPENAMES
 static char *dktypenames[] = {
 	"unknown",
@@ -343,7 +313,6 @@ struct partinfo {
 #define DOSPARTOFF	446
 #define NDOSPART	4
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
-#define	MBR_PTYPE_FreeBSD 0xa5	/* FreeBSD partition type */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */
@@ -357,8 +326,6 @@ struct dos_partition {
 	unsigned long	dp_start;	/* absolute starting sector number */
 	unsigned long	dp_size;	/* partition size in sectors */
 };
-
-extern struct dos_partition dos_partitions[NDOSPART];
 
 #define DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
@@ -409,7 +376,6 @@ extern struct dos_partition dos_partitions[NDOSPART];
 */
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | ((unit) << 3) | (part))
-#define	dkminor(unit, part)	dkmakeminor((unit), 0, (part))
 #define	dkmodpart(dev, part)	(((dev) & ~(dev_t)7) | (part))
 #define	dkmodslice(dev, slice)	(((dev) & ~(dev_t)0x1f0000) | ((slice) << 16))
 #define	dkpart(dev)		(minor(dev) & 7)
@@ -425,23 +391,12 @@ extern struct dos_partition dos_partitions[NDOSPART];
 
 int	bounds_check_with_label __P((struct buf *bp, struct disklabel *lp,
 				     int wlabel));
-char	*correct_readdisklabel __P((dev_t dev, d_strategy_t *strat,
-				    struct disklabel *lp));
-int	correct_writedisklabel __P((dev_t dev, d_strategy_t *strat,
-				    struct disklabel *lp));
 void	diskerr __P((struct buf *bp, char *dname, char *what, int pri,
 		     int blkdone, struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
-struct dkbad;
 char	*readdisklabel __P((dev_t dev, d_strategy_t *strat,
-			    struct disklabel *lp,
-			    struct dos_partition *dp, struct dkbad *bdp));
-#ifdef __i386__
-char	*readMBRtolabel __P((dev_t dev, d_strategy_t *strat,
-			     struct disklabel *lp, struct dos_partition *dp,
-			     int *cyl));
-#endif
+			    struct disklabel *lp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
 int	writedisklabel __P((dev_t dev, d_strategy_t *strat,
