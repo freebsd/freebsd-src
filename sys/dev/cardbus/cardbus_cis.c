@@ -41,6 +41,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+#include <sys/endian.h>
 
 #include <sys/pciio.h>
 #include <dev/pci/pcivar.h>
@@ -391,47 +392,45 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int type;
-	int reg;
+	uint8_t reg;
 	uint32_t bar;
 
-	if (cardbus_cis_debug) {
-		/* XXX print something XXX */
-	}
 	if (len != 6) {
-		printf("*** ERROR *** BAR length not 6 (%d)\n", len);
+		device_printf(cbdev, "CIS BAR length not 6 (%d)\n", len);
 		return (EINVAL);
 	}
-	/* XXX the next two lines are bogus and contain endian errors */
-	reg = *(uint16_t*)tupledata;
-	len = *(uint32_t*)(tupledata + 2);
+
+	reg = *tupledata;
+	len = le32toh(*(uint32_t*)(tupledata + 2));
 	if (reg & TPL_BAR_REG_AS) {
 		type = SYS_RES_IOPORT;
 	} else {
 		type = SYS_RES_MEMORY;
 	}
-	bar = (reg & TPL_BAR_REG_ASI_MASK) - 1;
-	if (bar < 0 || bar > 5 ||
-	    (type == SYS_RES_IOPORT && bar == 5)) {
-		device_printf(cbdev, "Invalid BAR number: %02x(%02x)\n",
-		    reg, bar);
+
+	bar = reg & TPL_BAR_REG_ASI_MASK;
+	if (bar == 0) {
+		device_printf(cbdev, "Invalid BAR type 0 in CIS\n");
+		return (EINVAL);	/* XXX Return an error? */
+	} else if (bar == 7) {
+		/* XXX Should we try to map in Option ROMs? */
 		return (0);
 	}
-	bar = CARDBUS_BASE0_REG + bar * 4;
+		
+	bar = CARDBUS_BASE0_REG + (bar - 1) * 4;
+
 	if (type == SYS_RES_MEMORY) {
 		if (bar & TPL_BAR_REG_PREFETCHABLE)
 			dinfo->mprefetchable |= BARBIT(bar);
 		if (bar & TPL_BAR_REG_BELOW1MB)
 			dinfo->mbelow1mb |= BARBIT(bar);
-	} else if (type == SYS_RES_IOPORT) {
-		if (bar & TPL_BAR_REG_BELOW1MB)
-			dinfo->ibelow1mb |= BARBIT(bar);
 	}
+
 	DEVPRINTF((cbdev, "Opening BAR: type=%s, bar=%02x, len=%04x%s%s\n",
 	    (type == SYS_RES_MEMORY) ? "MEM" : "IO", bar, len,
 	    (type == SYS_RES_MEMORY && dinfo->mprefetchable & BARBIT(bar)) ?
 	    " (Prefetchable)" : "", type == SYS_RES_MEMORY ?
-	    ((dinfo->mbelow1mb & BARBIT(bar)) ? " (Below 1Mb)" : "") :
-	    (dinfo->ibelow1mb & BARBIT(bar)) ? " (Below 1Mb)" : "" ));
+	    ((dinfo->mbelow1mb & BARBIT(bar)) ? " (Below 1Mb)" : "") : ""));
 
 	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
 
@@ -727,6 +726,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
 	if (res == NULL)
 		return (ENXIO);
+
 	do {
 		if (0 != cardbus_read_tuple(cbdev, child, res, start, &off,
 		    &tupleid, &len, tupledata)) {
