@@ -33,25 +33,23 @@
 .Nd
 Generic WD100x/IDE diskcontroller driver
 .Sh SYNOPSIS
-.sp
 .Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 vector wdintr
 .Cd "disk wd0 at wdc0 drive 0
 .Cd "disk wd1 at wdc0 drive 1
-.sp
 .Sh DESCRIPTION
 This driver provides access to disks connected to controllers that emulate
 the Western Digital WD100x series. This range of controllers includes WD1003
 type ST412 controllers, WD1007 ESDI controllers and also the generic IDE 
 controllers found on most motherboards.
-.sp
+.Pp
 Your controller documentation is usually quick to point out any WD100x 
 compatibility.
-.sp
+.Pp
 You can convey a number of hints and instructions to the driver using
 the
 .Ar flags
 parameter.
-.sp
+.Pp
 For each drive there are four bit-fields encoded in a 16 bit integer:
 .Bl -tag -width 0x0000 -offset 1c
 .It 0x8000
@@ -66,7 +64,7 @@ of cylinders to match.
 Test and use multi-sector transfer mode of this drive, max number of
 sectors attempted is (flags & 0x00ff).
 .El
-.sp
+.Pp
 The flags can be specified on the line for the drive as a 16 bit int,
 or on the controller line as a 32 bit int, where the top 16 bit is
 relevant to the highest numbered drive.
@@ -85,4 +83,6 @@ driver source
 .Xr bad144 8
 .Sh NOTES
 This controller/disk combo has no provisions for automatic bad block handling.
-You need to run bad144(8) to check for bad blocks.
+You need to run 
+.Xr bad144 8
+to check for bad blocks.

@@ -34,11 +34,10 @@
 .Nd
 PC architecture floppy disk controller driver
 .Sh SYNOPSIS
-.sp
 .Cd "controller fdc0 at isa? port" \&"IO_FD1\&" bio irq 6 drq 2 vector fdintr
 .Cd "disk fd0 at fdc0 drive 0
 .Cd "disk fd1 at fdc0 drive 1
-.sp
+.Pp
 For QIC40 and QIC80 tapedrives controlled by the floppy controller:
 .Cd "tape ft0 at fdc0 drive 2
 .Sh DESCRIPTION
