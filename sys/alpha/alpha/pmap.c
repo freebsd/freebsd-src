@@ -884,18 +884,18 @@ pmap_kremove(vm_offset_t va)
  *	Used to map a range of physical addresses into kernel
  *	virtual address space.
  *
- *	The value passed in '*virt' is a suggested virtual address for
- *	the mapping. Architectures which can support a direct-mapped
- *	physical to virtual region can return the appropriate address
- *	within that region, leaving '*virt' unchanged. Other
- *	architectures should map the pages starting at '*virt' and
- *	update '*virt' with the first usable address after the mapped
- *	region.
+ *	For now, VM is already on, we only need to map the
+ *	specified memory.
  */
 vm_offset_t
-pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
+pmap_map(vm_offset_t virt, vm_offset_t start, vm_offset_t end, int prot)
 {
-	return ALPHA_PHYS_TO_K0SEG(start);
+	while (start < end) {
+		pmap_kenter(virt, start);
+		virt += PAGE_SIZE;
+		start += PAGE_SIZE;
+	}
+	return (virt);
 }
 
 
