@@ -644,11 +644,9 @@
 
     &hwlist.fxp;
 
-    <para arch="i386,amd64">Intel 82595-based Ethernet NICs (&man.ex.4; driver)
-    </para>
+    &hwlist.ex;
 
-    <para arch="i386">Intel 82586-based Ethernet NICs (&man.ie.4; driver)
-    </para>
+    &hwlist.ie;
 
     <para arch="i386,pc98,amd64">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)</para>
 
