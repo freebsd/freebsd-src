@@ -49,8 +49,8 @@
 
 /* For NGM_KSOCKET_SETOPT and NGM_KSOCKET_GETOPT control messages */
 struct ng_ksocket_sockopt {
-	u_int32_t	level;		/* second arg of [gs]etsockopt() */
-	u_int32_t	name;		/* third arg of [gs]etsockopt() */
+	int32_t		level;		/* second arg of [gs]etsockopt() */
+	int32_t		name;		/* third arg of [gs]etsockopt() */
 	u_char		value[0];	/* fourth arg of [gs]etsockopt() */
 };
 
