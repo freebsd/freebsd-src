@@ -2251,9 +2251,10 @@ amd_init(device_t dev)
 {
 	struct amd_softc *amd = device_get_softc(dev);
 	struct resource	*iores;
-	int	i, rid = 0;
+	int	i, rid;
 	u_int	bval;
 
+	rid = PCI_BASE_ADDR0;
 	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 				   RF_ACTIVE);
 	if (iores == NULL) {
@@ -2356,7 +2357,7 @@ amd_attach(device_t dev)
 	u_int8_t	intstat;
 	struct amd_softc *amd = device_get_softc(dev);
 	int		unit = device_get_unit(dev);
-	int		rid = 0;
+	int		rid;
 	void		*ih;
 	struct resource	*irqres;
 
@@ -2370,6 +2371,7 @@ amd_attach(device_t dev)
 	intstat = amd_read8(amd, INTSTATREG);
 
 	/* After setting up the adapter, map our interrupt */
+	rid = 0;
 	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				    RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
