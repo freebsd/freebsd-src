@@ -23,6 +23,12 @@ INSTALL_PIC_ARCHIVE=	yes
 .include "${.CURDIR}/stdlib/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/rpc/Makefile.inc"
+.include "${.CURDIR}/xdr/Makefile.inc"
+.if !defined(NO_YP_LIBC)
+CFLAGS+= -DYP
+.include "${.CURDIR}/yp/Makefile.inc"
+.endif
 
 KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \
