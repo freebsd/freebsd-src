@@ -14,7 +14,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id$
+ * $Id: ipfw.c,v 1.16 1995/08/22 00:38:02 gpalmer Exp $
  *
  */
 
@@ -56,7 +56,16 @@ u_short		flags=0;			/* New entry flags 	   */
 #define IS_TO(x)	(!strcmp(x,"to"))
 #define IS_FROM(x)	(!strcmp(x,"from"))
 #define IS_VIA(x) 	(!strcmp(x,"via") || !strcmp(x,"on"))
-#define IS_TOKEN(x)	(IS_TO(x) || IS_FROM(x) || IS_VIA(x))
+#define IS_IPOPT(x)	(!strncmp(x,"ipop",4) || !strncmp(x,"opt",3))
+#define IS_TCPFLG(x)	(!strncmp(x,"tcpf",4) || !strncmp(x,"fla",3))
+#define IS_TOKEN(x)	(IS_TO(x) || IS_FROM(x) || IS_VIA(x) ||\
+				     IS_IPOPT(x) || IS_TCPFLG(x))
+
+
+#define IPO_LSRR	"ls"
+#define IPO_SSRR	"ss"
+#define IPO_RR		"rr"
+#define IPO_TS		"ts"
 
 #define P_AC		"a" /* of "accept" for policy action */
 #define P_DE		"d" /* of "deny" for policy action   */
@@ -121,12 +130,10 @@ char	proto_tab[][MAXSTR]={
 #define P_ICMP		1
 "tcp",
 #define P_TCP		2
-"syn",
-#define P_SYN		3
 "udp",
-#define P_UDP		4
+#define P_UDP		3
 ""
-#define P_NONE		5
+#define P_NONE		4
 };
 
 struct nlist nlf[]={
@@ -187,25 +194,25 @@ if (do_short)
 	if (c_t==FW) {
 		if (chain->fw_flg & IP_FW_F_ACCEPT)
 			if (chain->fw_flg & IP_FW_F_PRN)
-				printf("l");
+				printf(" l");
 			else
-				printf("a");
+				printf(" a");
 		else
 			if (chain->fw_flg & IP_FW_F_PRN)
 				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("R");
+					printf("lr");
 				else
-					printf("D");
+					printf("ld");
 			else
 				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("r");
+					printf(" r");
 				else
-					printf("d");
+					printf(" d");
 	} else {
 		if (chain->fw_flg & IP_FW_F_BIDIR)
-			printf("b");
+			printf(" b");
 		else
-			printf("s");
+			printf(" s");
 	}
 else
 	if (c_t==FW) {
@@ -238,10 +245,7 @@ if (do_short)
 			printf("I ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->fw_flg&IP_FW_F_TCPSYN)
-				printf("S ");
-			else
-				printf("T ");
+			printf("T ");
 			break;
 		case IP_FW_F_UDP:
 			printf("U ");
@@ -258,10 +262,7 @@ else
 			printf("icmp ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->fw_flg&IP_FW_F_TCPSYN)
-				printf("syn  ");
-			else
-				printf("tcp  ");
+			printf("tcp  ");
 			break;
 		case IP_FW_F_UDP:
 			printf("udp  ");
@@ -361,8 +362,52 @@ if (chain->fw_via_ip.s_addr) {
 	printf(inet_ntoa(chain->fw_via_ip));
 }
 if (do_short)
-	printf("]\n");
-else
+	printf("]");
+
+	if (chain->fw_ipopt && chain->fw_ipnopt) {
+		if (do_short) {
+			printf("[");
+			if (chain->fw_ipopt & IP_FW_IPOPT_SSRR)
+				printf("S");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_SSRR)
+				printf("s");
+			if (chain->fw_ipopt & IP_FW_IPOPT_LSRR)
+				printf("L");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_LSRR)
+				printf("l");
+			if (chain->fw_ipopt & IP_FW_IPOPT_RR)
+				printf("R");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_RR)
+				printf("r");
+			if (chain->fw_ipopt & IP_FW_IPOPT_TS)
+				printf("T");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_TS)
+				printf("t");
+			printf("]");
+		} else {
+			int 	_opt_printed = 0;
+#define PRINTOPT(x)	{if (_opt_printed) printf(",");\
+				printf(x); _opt_printed = 1;}
+
+			printf("ipopt ");
+			if (chain->fw_ipopt & IP_FW_IPOPT_SSRR)
+				PRINTOPT("ssrr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_SSRR)
+				PRINTOPT("!ssrr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_LSRR)
+				PRINTOPT("lsrr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_LSRR)
+				PRINTOPT("!lsrr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_RR)
+				PRINTOPT("rr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_RR)
+				PRINTOPT("!rr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_TS)
+				PRINTOPT("ts");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_TS)
+				PRINTOPT("!ts");
+		}
+	} 
 	printf("\n");
 }
 
@@ -656,16 +701,53 @@ int i;
 	return 0;
 }
 
+void set_entry_ipopts(str, frwl)
+	char		*str;
+	struct ip_fw	*frwl;
+{
+char		*t_str,*p_str;
+u_char		*optr;
+
+	p_str = str;
+  	while ((t_str = strtok(p_str,",")) != NULL) {
+		p_str = NULL;
+printf("tstr = %s\n", t_str);
+		if (t_str[0] == '!') {
+			optr = &(frwl->fw_ipnopt);
+			t_str ++;
+		} else
+			optr = &(frwl->fw_ipopt);
+
+		if (!strncmp(t_str, IPO_LSRR, strlen(IPO_LSRR))) 
+			*(optr) |= IP_FW_IPOPT_LSRR;
+		else
+		if (!strncmp(t_str, IPO_SSRR, strlen(IPO_SSRR)))
+			*(optr) |= IP_FW_IPOPT_SSRR;
+		else
+		if (!strncmp(t_str, IPO_RR, strlen(IPO_RR)))
+			*(optr) |= IP_FW_IPOPT_RR;
+		else
+		if (!strncmp(t_str, IPO_TS, strlen(IPO_TS)))
+			*(optr) |= IP_FW_IPOPT_TS;
+		else {
+			fprintf(stderr,"%s: bad ipoption.\n", progname);
+			exit(1);
+		}
+	}
+}
+
 
 void set_entry(av,frwl)
 char 	**av;
 struct ip_fw * frwl;
 {
 int 	ir;
-int 	got_from=0,got_to=0,got_via=0;
-#define	T_FROM	1
-#define T_TO	2
-#define T_VIA	3
+int 	got_from=0, got_to=0, got_via=0, got_ipopt=0, got_tcpflg=0;
+#define	T_FROM		1
+#define T_TO		2
+#define T_VIA		3
+#define T_IPOPT		4
+#define T_TCPFLG	5
 int	token;
 
 
@@ -676,6 +758,8 @@ int	token;
 	 */
 	frwl->fw_nsp=0;
 	frwl->fw_ndp=0;
+	frwl->fw_ipopt = 0;
+	frwl->fw_ipnopt = 0;
 	frwl->fw_via_ip.s_addr=0L;
 	frwl->fw_src.s_addr=0L;
 	frwl->fw_dst.s_addr=0L;
@@ -743,6 +827,24 @@ get_next:
 
 		got_via = 1;
 	}
+
+	if (IS_IPOPT(*av)) {
+		token = T_IPOPT;
+
+		if (got_ipopt) {
+			show_usage("Redefined 'ipoptions'.");
+			exit(1);
+		}
+		if (*(++av)==NULL) {
+			show_usage("Missing 'ipoptions' specification.");
+			exit(1);
+		}
+
+		set_entry_ipopts(*av, frwl);
+
+		got_ipopt = 1;
+	}
+
 
 	if (*(++av)==NULL) {
 		return;
@@ -1059,8 +1161,6 @@ proto_switch:
 		case P_ICMP:
 			flags|=IP_FW_F_ICMP;
 			break;
-		case P_SYN:
-			flags|=IP_FW_F_TCPSYN;
 		case P_TCP:
 			flags|=IP_FW_F_TCP;
 			ports_ok=1;
