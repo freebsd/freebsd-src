@@ -1666,10 +1666,17 @@
     <title>ISDN Interfaces</title>
     <para>AcerISDN P10 ISA PnP (experimental)</para>
     <para>Asuscom ISDNlink 128K ISA</para>
+    <para>ASUSCOM P-IN100-ST-D (and other Winbond W6692-based cards)</para>
     <para>AVM
       <itemizedlist>
         <listitem>
 	  <para>A1</para>
+	</listitem>
+        <listitem>
+	  <para>B1 ISA (tested with V2.0)</para>
+	</listitem>
+        <listitem>
+	  <para>B1 PCI (tested with V4.0)</para>
 	</listitem>
         <listitem>
 	  <para>Fritz!Card classic</para>
@@ -1679,6 +1686,9 @@
 	</listitem>
         <listitem>
 	  <para>Fritz!Card PCI</para>
+	</listitem>
+        <listitem>
+	  <para>T1</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -1694,6 +1704,7 @@
     </para>
     <para>Dr. Neuhaus Niccy Go@ and compatibles</para>
     <para>Dynalink IS64PH</para>
+    <para>Eicon Diehl DIVA 2.0 and 2.02</para>
     <para>ELSA
       <itemizedlist>
         <listitem>
