@@ -1,6 +1,6 @@
 .\" $FreeBSD$
-.\" $Id: file.man,v 1.44 2003/02/27 20:47:46 christos Exp $
-.Dd February 27, 2003
+.\" $Id: file.man,v 1.54 2003/10/27 18:09:08 christos Exp $
+.Dd October 27, 2003
 .Dt FILE 1 "Copyright but distributable"
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Nd determine file type
 .Sh SYNOPSIS
 .Nm
-.Op Fl bciknNsvzL
+.Op Fl bcikLnNprsvz
 .Op Fl f Ar namefile
 .Op Fl F Ar separator
 .Op Fl m Ar magicfiles
@@ -17,7 +17,7 @@
 .Fl C
 .Op Fl m Ar magicfile
 .Sh DESCRIPTION
-This manual page documents version 3.41 of the
+This manual page documents version 4.12 of the
 .Nm
 utility which tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
@@ -159,19 +159,19 @@ in any of the character sets listed above is simply said to be
 .Dq Li data .
 .Sh OPTIONS
 .Bl -tag -width indent
-.It Fl b
+.It Fl b , -brief
 Do not prepend filenames to output lines (brief mode).
-.It Fl c
+.It Fl c , -checking-printout
 Cause a checking printout of the parsed form of the magic file.
 This is usually used in conjunction with
 .Fl m
 to debug a new magic file before installing it.
-.It Fl C
+.It Fl C , -compile
 Write a
 .Pa magic.mgc
 output file that contains a pre-parsed version of
 file.
-.It Fl f Ar namefile
+.It Fl f , -files-from Ar namefile
 Read the names of the files to be examined from
 .Ar namefile
 (one per line)
@@ -182,10 +182,12 @@ or at least one filename argument must be present;
 to test the standard input, use
 .Dq Fl
 as a filename argument.
-.It Fl F Ar separator
-Use the specified separator character instead of
+.It Fl F , -separator Ar separator
+Use the specified string as the separator between the filename and the
+file result returned.
+Defaults to
 .Ql \&: .
-.It Fl i
+.It Fl i , -mime
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones.
 Thus it may say
@@ -200,27 +202,44 @@ file.
 (See
 .Sx FILES
 section, below).
-.It Fl k
+.It Fl k , -keep-going
 Don't stop at the first match, keep going.
-.It Fl m Ar list
+.It Fl L , -dereference
+option causes symlinks to be followed, as the like-named option in
+.Xr ls 1 .
+(on systems that support symbolic links).
+.It Fl m , -magic-file Ar list
 Specify an alternate list of files containing magic numbers.
 This can be a single file, or a colon-separated list of files.
-.It Fl n
+If a compiled magic file is found alongside, it will be used instead.
+With the
+.Fl i
+or
+.Fl -mime
+option, the program adds
+.Pa .mime
+to each file name.
+.It Fl n , -no-buffer
 Force stdout to be flushed after checking each file.
 This is only useful if checking a list of files.
 It is intended to be used by programs that want
 filetype output from a pipe.
-.It Fl N
-Don't pad output to align filenames nicely.
-.It Fl v
-Print the version of the program and exit.
-.It Fl z
-Try to look inside compressed files.
-.It Fl L
-option causes symlinks to be followed, as the like-named option in
-.Xr ls 1 .
-(on systems that support symbolic links).
-.It Fl s
+.It Fl N , -no-pad
+Don't pad filenames so that they align in the output.
+.It Fl p , -preserve-date
+On systems that support
+.Xr utime 3
+or
+.Xr utimes 2 ,
+attempt to preserve the access time of files analyzed, to pretend that
+.Nm
+never read them.
+.It Fl r , -raw
+Don't translate unprintable characters to \eooo.
+Normally
+.Nm
+translates unprintable characters to their octal representation.
+.It Fl s , -special-files
 Normally,
 .Nm
 only attempts to read and determine the type of argument files which
@@ -240,22 +259,41 @@ This option also causes
 to disregard the file size as reported by
 .Xr stat 2
 since on some systems it reports a zero size for raw disk partitions.
+.It Fl v , -version
+Print the version of the program and exit.
+.It Fl z , -uncompress
+Try to look inside compressed files.
+.It Fl -help
+Print a help message and exit.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/misc/magic.mime" -compact
 .It Pa /usr/share/misc/magic.mgc
-default compiled list of magic numbers
+Default compiled list of magic numbers
 .It Pa /usr/share/misc/magic
-default list of magic numbers
-.It Pa /usr/share/misc/magic.mime
-default list of magic numbers, used to output mime types when the
+Default list of magic numbers
+.It Pa /usr/share/misc/magic.mime.mgc
+Default compiled list of magic numbers, used to output mime types when
+the
 .Fl i
 option is specified.
+.It Pa /usr/share/misc/magic.mime
+Default list of magic numbers, used to output mime types when the
+.Fl i
+option is specified.
+.It Pa /etc/magic
+Local additions to magic wisdom.
 .El
 .Sh ENVIRONMENT
 The environment variable
 .Ev MAGIC
-can be used to set the default magic number files.
+can be used to set the default magic number file name.
+.Nm
+adds
+.Pa .mime
+and/or
+.Pa .mgc
+to the value of this variable as appropriate.
 .Sh SEE ALSO
 .Xr hexdump 1 ,
 .Xr od 1 ,
@@ -331,7 +369,7 @@ file:      ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
 $ file -s /dev/wd0{b,d}
 /dev/wd0b: data
 /dev/wd0d: x86 boot sector
-$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}	# Linux
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda:   x86 boot sector
 /dev/hda1:  Linux/i386 ext2 filesystem
 /dev/hda2:  x86 boot sector
@@ -343,22 +381,6 @@ $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}	# Linux
 /dev/hda8:  Linux/i386 swap file
 /dev/hda9:  empty
 /dev/hda10: empty
-
-$ file -s /dev/rwd0e				# BSD
-/dev/rwd0e:
-Unix Fast File system (little-endian),
-last mounted on /usr,
-last written at Mon Feb 10 13:22:40 2003,
-clean flag 2,
-number of blocks 28754208,
-number of data blocks 27812712,
-number of cylinder groups 3566,
-block size 8192,
-fragment size 1024,
-minimum percentage of free blocks 5,
-rotational delay 0ms,
-disk rotational speed 60rps,
-TIME optimization
 
 $ file -i file.c file /dev/{wd0a,hda}
 file.c:    text/x-c
@@ -518,8 +540,8 @@ they are not as good as other guesses (e.g.\&
 .Dq Li "Newsgroups:"
 versus
 .Dq Li "Return-Path:" ) .
-Still, if the others don't pan out, it should be
-possible to use the first guess.
+Still, if the others don't pan out, it should be possible to use the
+first guess.
 .Pp
 This program is slower than some vendors' file commands.
 The new support for multiple character codes makes it even slower.
