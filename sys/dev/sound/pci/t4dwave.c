@@ -37,6 +37,8 @@
 
 #define TDX_PCI_ID 	0x20001023
 #define TNX_PCI_ID 	0x20011023
+#define ALI_PCI_ID	0x545110b9
+#define SPA_PCI_ID	0x70181039
 
 #define TR_BUFFSIZE 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
@@ -156,6 +158,11 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 	int i, j, treg, trw;
 
 	switch (tr->type) {
+	case SPA_PCI_ID:
+		treg=SPA_REG_CODECRD;
+		trw=SPA_CDC_RWSTAT;
+		break;
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		treg=TDX_REG_CODECRD;
 		trw=TDX_CDC_RWSTAT;
@@ -186,6 +193,11 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 	int i, j, treg, trw;
 
 	switch (tr->type) {
+	case SPA_PCI_ID:
+		treg=SPA_REG_CODECWR;
+		trw=SPA_CDC_RWSTAT;
+		break;
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		treg=TDX_REG_CODECWR;
 		trw=TDX_CDC_RWSTAT;
@@ -330,6 +342,8 @@ tr_wrch(struct tr_chinfo *ch)
 	cr[4]=(ch->gvsel<<31) | (ch->pan<<24) | (ch->vol<<16) | (ch->ctrl<<12) | (ch->ec);
 
 	switch (tr->type) {
+	case SPA_PCI_ID:
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		ch->cso &= 0x0000ffff;
 		ch->eso &= 0x0000ffff;
@@ -374,6 +388,8 @@ tr_rdch(struct tr_chinfo *ch)
 	ch->ctrl=	(cr[4] & 0x0000f000) >> 12;
 	ch->ec=		(cr[4] & 0x00000fff);
 	switch(tr->type) {
+	case SPA_PCI_ID:
+	case ALI_PCI_ID:
 	case TDX_PCI_ID:
 		ch->cso=	(cr[0] & 0xffff0000) >> 16;
 		ch->alpha=	(cr[0] & 0x0000fff0) >> 4;
@@ -686,9 +702,18 @@ tr_intr(void *p)
 static int
 tr_init(struct tr_info *tr)
 {
-	if (tr->type == TDX_PCI_ID) {
+	switch (tr->type) {
+	case SPA_PCI_ID:
+		tr_wr(tr, SPA_REG_GPIO, 0, 4);
+		tr_wr(tr, SPA_REG_CODECST, SPA_RST_OFF, 4);
+		break;
+	case TDX_PCI_ID:
 		tr_wr(tr, TDX_REG_CODECST, TDX_CDC_ON, 4);
-	} else tr_wr(tr, TNX_REG_CODECST, TNX_CDC_ON, 4);
+		break;
+	case TNX_PCI_ID:
+		tr_wr(tr, TNX_REG_CODECST, TNX_CDC_ON, 4);
+		break;
+	}
 
 	tr_wr(tr, TR_REG_CIR, TR_CIR_MIDENA | TR_CIR_ADDRENA, 4);
 	tr->playchns = 0;
@@ -698,13 +723,19 @@ tr_init(struct tr_info *tr)
 static int
 tr_pci_probe(device_t dev)
 {
-	if (pci_get_devid(dev) == TDX_PCI_ID) {
-		device_set_desc(dev, "Trident 4DWave DX");
-		return 0;
-	}
-	if (pci_get_devid(dev) == TNX_PCI_ID) {
-		device_set_desc(dev, "Trident 4DWave NX");
-		return 0;
+	switch (pci_get_devid(dev)) {
+		case SPA_PCI_ID:
+			device_set_desc(dev, "SiS 7018");
+			return 0;
+		case ALI_PCI_ID:
+			device_set_desc(dev, "Acer Labs M5451");
+			return 0;
+		case TDX_PCI_ID:
+			device_set_desc(dev, "Trident 4DWave DX");
+			return 0;
+		case TNX_PCI_ID:
+			device_set_desc(dev, "Trident 4DWave NX");
+			return 0;
 	}
 
 	return ENXIO;
