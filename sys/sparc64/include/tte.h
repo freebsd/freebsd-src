@@ -40,17 +40,19 @@
 #define	TD_PA_SHIFT	(13)
 #define	TD_SOFT_SHIFT	(7)
 
-#define	TD_SIZE_SIZE	(2)
-#define	TD_SOFT2_SIZE	(9)
-#define	TD_DIAG_SIZE	(9)
-#define	TD_PA_SIZE	(28)
-#define	TD_SOFT_SIZE	(6)
+#define	TD_SIZE_BITS	(2)
+#define	TD_SOFT2_BITS	(9)
+#define	TD_DIAG_BITS	(9)
+#define	TD_PA_BITS	(28)
+#define	TD_SOFT_BITS	(6)
 
-#define	TD_SIZE_MASK	(((1UL << TD_SIZE_SIZE) - 1) << TD_SIZE_SHIFT)
-#define	TD_SOFT2_MASK	(((1UL << TD_SOFT2_SIZE) - 1) << TD_SOFT2_SHIFT)
-#define	TD_DIAG_MASK	(((1UL << TD_DIAG_SIZE) - 1) << TD_DIAG_SHIFT)
-#define	TD_PA_MASK	(((1UL << TD_PA_SIZE) - 1) << TD_PA_SHIFT)
-#define	TD_SOFT_MASK	(((1UL << TD_SOFT_SIZE) - 1) << TD_SOFT_SHIFT)
+#define	TD_SIZE_MASK	((1UL << TD_SIZE_BITS) - 1)
+#define	TD_SOFT2_MASK	((1UL << TD_SOFT2_BITS) - 1)
+#define	TD_DIAG_MASK	((1UL << TD_DIAG_BITS) - 1)
+#define	TD_PA_MASK	((1UL << TD_PA_BITS) - 1)
+#define	TD_SOFT_MASK	((1UL << TD_SOFT_BITS) - 1)
+
+#define	TD_SIZE_SPREAD	(3)
 
 #define	TS_EXEC		(1UL << 4)
 #define	TS_REF		(1UL << 3)
@@ -65,7 +67,7 @@
 #define	TD_4M		(3UL << TD_SIZE_SHIFT)
 #define	TD_NFO		(1UL << 60)
 #define	TD_IE		(1UL << 59)
-#define	TD_PA(pa)	((pa) & TD_PA_MASK)
+#define	TD_PA(pa)	((pa) & (TD_PA_MASK << TD_PA_SHIFT))
 #define	TD_EXEC		(TS_EXEC << TD_SOFT_SHIFT)
 #define	TD_REF		(TS_REF << TD_SOFT_SHIFT)
 #define	TD_PV		(TS_PV << TD_SOFT_SHIFT)
@@ -81,10 +83,21 @@
 
 #define	TV_VPN(va)	((va) >> PAGE_SHIFT)
 
-#define	TD_GET_SIZE(d)	(((d) >> TD_SIZE_SHIFT) & 3)
-#define	TD_GET_PA(d)	((d) & TD_PA_MASK)
-#define	TD_GET_TLB(d)	(((d) & TD_EXEC) ? (TLB_DTLB | TLB_ITLB) : TLB_DTLB)
-#define	TV_GET_VA(vpn)	((vpn) << PAGE_SHIFT)
+#define	TTE_GET_SIZE(tp) \
+	(((tp)->tte_data >> TD_SIZE_SHIFT) & TD_SIZE_MASK)
+#define	TTE_GET_PAGE_SHIFT(tp) \
+	(PAGE_SHIFT + (TTE_GET_SIZE(tp) * TD_SIZE_SPREAD))
+#define	TTE_GET_PAGE_SIZE(tp) \
+	(1 << TTE_GET_PAGE_SHIFT(tp))
+#define	TTE_GET_PAGE_MASK(tp) \
+	(TTE_GET_PAGE_SIZE(tp) - 1)
+
+#define	TTE_GET_PA(tp) \
+	((tp)->tte_data & (TD_PA_MASK << TD_PA_SHIFT))
+#define	TTE_GET_TLB(tp) \
+	(((tp)->tte_data & TD_EXEC) ? (TLB_DTLB | TLB_ITLB) : TLB_DTLB)
+#define	TTE_GET_VA(tp) \
+	((tp)->tte_vpn << PAGE_SHIFT)
 
 struct tte {
 	u_long	tte_vpn;
@@ -92,15 +105,15 @@ struct tte {
 };
 
 static __inline int
-tte_match_vpn(struct tte tte, vm_offset_t vpn)
+tte_match_vpn(struct tte *tp, vm_offset_t vpn)
 {
-	return ((tte.tte_data & TD_V) != 0 && tte.tte_vpn == vpn);
+	return ((tp->tte_data & TD_V) != 0 && tp->tte_vpn == vpn);
 }
 
 static __inline int
-tte_match(struct tte tte, vm_offset_t va)
+tte_match(struct tte *tp, vm_offset_t va)
 {
-	return (tte_match_vpn(tte, va >> PAGE_SHIFT));
+	return (tte_match_vpn(tp, va >> PAGE_SHIFT));
 }
 
 #endif /* !_MACHINE_TTE_H_ */
