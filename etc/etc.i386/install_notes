@@ -707,7 +707,7 @@ may hit Control-C at any prompt and then type `halt'.
 		After you have chosen a temporary directory,
 		you should issue the appropriate load command:
 
-			load_fd - for loading from a MS-DOS hard disk 
+			load_dos - for loading from a MS-DOS hard disk 
 				partition, or from floppies,
 			
 			load_qic_tape - for loading from QIC-02 tape, or
@@ -725,7 +725,7 @@ may hit Control-C at any prompt and then type `halt'.
 			# st -f /dev/nrst0 low_dnsty 16
 			# load_scsi_tape
 
-		If loading from floppy or hard disk, the load_fd
+		If loading from floppy or hard disk, the load_dos
 		command prompts for information, such as to which
 		floppy drive or hard disk directory to load from.
 		Additional options are available, e.g., for listing
@@ -735,7 +735,7 @@ may hit Control-C at any prompt and then type `halt'.
 		Go to the directory which contains the first
 		distribution set you wish to install.  This is
 		either the directory you specified above, if using
-		load_fd, or possibly a subdirectory of that
+		load_dos, or possibly a subdirectory of that
 		directory, if you loaded from tape.
 
 		When there, run "set_tmp_dir" again, and choose
@@ -956,7 +956,7 @@ Further Tips on Installing FreeBSD
 
 	This will cause the system to go into single-user mode, and
 	the install profile will be active (i.e., you will find the
-	commands load_fd, extract etc available to you again).
+	commands load_dos, extract etc available to you again).
 
 	If your disk has several operating systems, you may want
 	to install a boot manager such as Thomas Wolfram's os-bs
@@ -1053,4 +1053,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.12 1994/02/09 05:26:16 rgrimes Exp $
+This is $Id: install_notes,v 1.13 1994/02/22 17:11:27 rgrimes Exp $
