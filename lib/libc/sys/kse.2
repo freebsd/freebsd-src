@@ -271,7 +271,6 @@ instead, the KSE just looses the association with its mailbox and
 .Fn kse_exit
 returns normally.
 This returns the process to its original, unthreaded state.
-(This is not yet implemented.)
 .Pp
 The
 .Fn kse_release
@@ -333,35 +332,43 @@ set to
 .\"
 .Ss Signals
 .\"
-When a process has at least one KSE with an associated mailbox, then
-signals might no longer be delivered on the process stack.
-Instead, signals may be delivered via upcalls.
-Multiple signals may be delivered with one upcall.
-(This feature is not yet coded.)
 .Pp
-If there are multiple KSE groups in the process, which KSE group is
-chosen to deliver the signal is indeterminate.
+The current implementation creates a special a signal thread.
+Kernel threads (KSEs) in a process mask all signals, and only the signal
+thread waits for signals to be delivered to the process, the signal thread
+is responsible
+for dispatching signals to user threads.
+.Pp
+A downside of this is that if a multiplexed thread
+calls the execve() syscall, its signal mask and pending signals may not be
+available in the kernel. They are stored
+in userland and the kernel does not know where to get them, however POSIX
+requires them to be restored and passed them to new process.
+Just setting the mask for the thread before calling execve is only a 
+close approximation to the problem as it does not re-deliver back to the kernel
+any pending signals that the old process may have blocked, and it allows a 
+window in which new signals may be delivered to the process between the setting of the mask and the execve().
+.Pp
+For now this problem has been solved by adding a special combined
+kse_thr_interrupt()/execve() mode to the
+.Fn kse_thr_interrupt
+syscall.
+The 
+.Fn kse_thr_interrupt
+syscall has a sub command KSE_INTR_EXECVE, that allows it to accept a
+.Va kse_execv_args 
+structure, and allowing it to adjust the signals and then atomically
+convert into an execve() call.
+Additional pending signals and the correct signal mask can be passed
+to the kernel in this way. The thread library overrides the execve syscall
+and translates it into kse_intr_interrupt call, allowing a multiplexed thread
+to restore pending signals and the correct signal mask before doing the exec.
+This solution to the problem may change.
 .\"
 .Ss KSE Mailboxes
 .\"
-Each KSE has a unique mailbox for user-kernel communication:
-.Bd -literal
-/* Upcall function type */
-typedef void	kse_func_t(struct kse_mailbox *);
-
-/* KSE mailbox */
-struct kse_mailbox {
-	int			km_version;	/* Mailbox version */
-	struct kse_thr_mailbox	*km_curthread;	/* Current thread */
-	struct kse_thr_mailbox	*km_completed;	/* Completed threads */
-	sigset_t		km_sigscaught;	/* Caught signals */
-	unsigned int		km_flags;	/* KSE flags */
-	kse_func_t		*km_func;	/* UTS function */
-	stack_t			km_stack;	/* UTS context */
-	void			*km_udata;	/* For use by the UTS */
-	struct timespec		km_timeofday;	/* Time of upcall */
-};
-.Ed
+Each KSE has a unique mailbox for user-kernel communication defined in 
+sys/kse.h. Some of the fields there are:
 .Pp
 .Va km_version
 describes the version of this structure and must be equal to
@@ -460,24 +467,27 @@ each upcall.
 may contain any of the following bits OR'ed together:
 .Bl -tag -width indent
 .It \&
-(No flags are defined yet.)
+KMF_NOUPCALL
+block upcalls from happening. The thread is in some critical section.
+.It \&
+KMF_NOCOMPLETED
+.It \&
+KMF_DONE
+.It \&
+KMF_BOUND
+This thread should be considerred to be permanently bound to
+its KSE, and treated much like a non-threaded process would be.
+It is a "long term" version of KMF_NOUPCALL in some ways.
+.It \&
+KMF_WAITSIGEVENT
+Implement charactersitics needed for the signal delivery thread.
 .El
 .\"
 .Ss Thread Mailboxes
 .\"
 Each user thread must have associated with it a unique
-.Vt "struct kse_thr_mailbox" :
-.Bd -literal
-/* Thread mailbox */
-struct kse_thr_mailbox {
-	ucontext_t		tm_context;	/* User thread context */
-	unsigned int		tm_flags;	/* Thread flags */
-	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
-	void			*tm_udata;	/* For use by the UTS */
-	unsigned int		tm_uticks;	/* User time counter */
-	unsigned int		tm_sticks;	/* Kernel time counter */
-};
-.Ed
+.Vt "struct kse_thr_mailbox"
+as defined in sys/kse.h. It includes the following fields.
 .Pp
 .Va tm_udata
 is an opaque pointer ignored by the kernel.
@@ -517,7 +527,9 @@ counter is incremented.
 may contain any of the following bits OR'ed together:
 .Bl -tag -width indent
 .It \&
-(No flags are defined yet.)
+TMF_NOUPCALL
+Similar to KMF_NOUPCALL. This flag inhibits upcalling for critical sections.
+Some architectures require this to be in one place and some in the other.
 .El
 .Sh RETURN VALUES
 The
