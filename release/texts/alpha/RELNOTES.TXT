@@ -187,6 +187,12 @@ demultiplexing packets over multiple links has been added.  [MERGED]
 
 Softupdates for FFS have received some bugfixes and enhancements.
 
+The DEC3000-series support has been removed from the mfsroot floppy image
+so that it fits on a 1.44Mbyte floppy again. As DEC3000 is currently
+only usable diskless this should not cause any problems.
+
+For the same reason SLIP has been removed from the mfsroot image as well.
+
 
 1.2. SECURITY FIXES
 -------------------
