@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.449 1998/08/04 21:44:08 brian Exp $
+#	$Id: LINT,v 1.450 1998/08/05 00:54:37 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -762,6 +762,8 @@ options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
 options		SC_HISTORY_SIZE=200	# number of history buffer lines
 options		SC_DISABLE_REBOOT	# disable reboot key sequence
+# If the screen flickers badly when the mouse pointer is moved, try this.
+options		SC_BAD_FLICKER
 
 #
 # `flags' for sc0:
@@ -772,6 +774,7 @@ options		SC_DISABLE_REBOOT	# disable reboot key sequence
 #       0x08    Force detection of keyboard, else we always assume a keyboard
 #       0x10    Old-style (XT) keyboard support, useful for older ThinkPads
 #       0x20    Don't reset keyboard, useful for some newer ThinkPads
+#	0x40	Make the bell quiet if it is rung in the backgroud vty.
 
 #
 # The Numeric Processing eXtension driver.  This should be configured if
