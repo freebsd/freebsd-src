@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.yppasswdd.8,v 1.2 1996/02/24 22:10:38 wpaul Exp $
+.\"	$Id: rpc.yppasswdd.8,v 1.6 1996/06/03 23:53:21 wpaul Exp $
 .\"
 .Dd February 8, 1996
 .Dt RPC.YPPASSWDD 8
@@ -45,6 +45,7 @@
 .Op Fl f
 .Op Fl a
 .Op Fl m
+.Op Fl i
 .Op Fl v
 .Op Fl u
 .Op Fl h
@@ -233,6 +234,16 @@ duplicate or near-duplicate user entries in different domains. The server
 will abort an update request if it finds more than one user entry that
 matches its search criteria. Even so, paranoid administrators
 may wish to leave multi-domain mode disabled.
+.It Fl i
+If
+.Nm rpc.yppasswdd
+is invoked with this flag, it will perform map updates in place. This
+means that instead of just modifying the password template file and
+starting a map update, the server will modify the map databases
+directly. This is useful when the password maps are large: if, for
+example, the password database has tens of thousands of entries, it
+can take several minutes for a map update to complete. Updating the
+maps in place reduces this time to a few seconds.
 .It Fl v
 Turn on verbose logging mode. The server normally only logs messages
 using the

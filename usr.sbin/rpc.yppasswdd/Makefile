@@ -1,18 +1,20 @@
-# $Id: Makefile,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
+# $Id: Makefile,v 1.4 1996/02/18 22:06:11 wpaul Exp wpaul $
 
 PROG=	rpc.yppasswdd
-SRCS=	pw_copy.c pw_util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
-	yp_clnt.c yp_dblookup.c yp_access.c yppasswd_private_xdr.c \
-	util.c yppasswdd_server.c yppasswd_comm.c yppasswdd_main.c
+SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
+	yp_dblookup.c yp_dbwrite yp_access.c yppasswd_private_xdr.c \
+	yp_clnt.c yppasswdd_server.c yppasswd_comm.c yppasswdd_main.c
+
+RPCDIR=	${.CURDIR}/../../include/rpcsvc
 
 .PATH:	${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
-	${.CURDIR}/../../libexec/ypxfr
+	${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
 
 MAN8=	rpc.yppasswdd.8
 
-CFLAGS+= -I. -I${.CURDIR}/../../usr.sbin/vipw \
+CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \
-	 -I${.CURDIR}
+	 -I${.CURDIR} -I.
 
 LDADD+=-lrpcsvc -lcrypt
 
@@ -20,32 +22,34 @@ CLEANFILES= yppasswd_svc.c yppasswd.h \
 	    yppasswd_private_xdr.c yppasswd_private.h \
 	    yp.h yp_clnt.c
 
-RPCSRC= ${.DESTDIR}/usr/include/rpcsvc/yppasswd.x
-YP_RPCSRC= ${.DESTDIR}/usr/include/rpcsvc/yp.x
-PRIV_RPCSRC= ${.CURDIR}/yppasswd_private.x
 RPCGEN= rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yppasswdd_main.c can see it.
-yppasswd_svc.c: ${RPCSRC} yppasswd.h
+yppasswd_svc.c: yppasswd.x yppasswd.h
 	rm -f ${.TARGET}
-	${RPCGEN} -m ${RPCSRC} | \
+	${RPCGEN} -m ${RPCDIR}/yppasswd.x | \
 	sed s/"static int _rpcsvcstate"/"int _rpcsvcstate"/g > ${.TARGET}
 
-yppasswd.h: ${RPCSRC}
-	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
+yppasswd.h: yppasswd.x
+	rm -f ${.TARGET}
+	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yppasswd.x
 
-yp.h: ${YP_RPCSRC}
-	${RPCGEN} -h -o ${.TARGET} ${YP_RPCSRC}
+yp.h: yp.x
+	rm -f ${.TARGET}
+	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yp.x
 
-yp_clnt.c: ${YP_RPCSRC} yp.h
-	${RPCGEN} -DYPSERV_ONLY -l -o ${.TARGET} ${YP_RPCSRC}
+yp_clnt.c: yp.x yp.h
+	rm -f ${.TARGET}
+	${RPCGEN} -DYPSERV_ONLY -l -o ${.TARGET} ${RPCDIR}/yp.x
 
-yppasswd_private.h: ${PRIV_RPCSRC}
-	${RPCGEN} -h -o ${.TARGET} ${PRIV_RPCSRC}
+yppasswd_private.h: yppasswd_private.x
+	rm -f ${.TARGET}
+	${RPCGEN} -h -o ${.TARGET} ${.CURDIR}/yppasswd_private.x
 
-yppasswd_private_xdr.c: ${PRIV_RPCSRC} yppasswd_private.h
-	${RPCGEN} -c -o ${.TARGET} ${PRIV_RPCSRC}
+yppasswd_private_xdr.c: yppasswd_private.x yppasswd_private.h
+	rm -f ${.TARGET}
+	${RPCGEN} -c -o ${.TARGET} ${.CURDIR}/yppasswd_private.x
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
