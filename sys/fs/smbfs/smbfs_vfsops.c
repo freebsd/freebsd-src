@@ -330,18 +330,6 @@ smbfs_quotactl(mp, cmd, uid, arg, td)
 int
 smbfs_init(struct vfsconf *vfsp)
 {
-#ifndef SMP
-	int name[2];
-	int ncpu, error;
-	size_t olen, plen;
-
-	name[0] = CTL_HW;
-	name[1] = HW_NCPU;
-	error = kernel_sysctl(curthread, name, 2, &ncpu, &olen, NULL, 0, &plen);
-	if (error == 0 && ncpu > 1)
-		printf("warning: smbfs module compiled without SMP support.");
-#endif
-
 #ifdef SMBFS_USEZONE
 	smbfsmount_zone = zinit("SMBFSMOUNT", sizeof(struct smbmount), 0, 0, 1);
 #endif
