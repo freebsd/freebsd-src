@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ntfs_ihash.c,v 1.2 1999/01/02 01:17:38 semen Exp $
+ * $Id: ntfs_ihash.c,v 1.2 1999/02/19 12:31:02 semenu Exp $
  */
 
 #include <sys/param.h>

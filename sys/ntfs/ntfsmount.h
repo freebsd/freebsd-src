@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfsmount.h,v 1.7 1999/01/28 03:56:07 semen Exp $
+ *	$Id: ntfsmount.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
  */
 
 #define	NTFS_MFLAG_CASEINS	0x00000001

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.h,v 1.1 1999/02/02 01:54:54 semen Exp $
+ *	$Id: ntfs_vfsops.h,v 1.1 1999/02/19 12:31:02 semenu Exp $
  */
 #define VG_DONTLOAD	0x0001	/* Tells ntfs_vgetex to do not call */
 				/* ntfs_loadnode on ntnode, even if */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_extern.h,v 1.3 1999/01/28 03:56:06 semen Exp $
+ *	$Id: ntfs_extern.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
  */
 
 struct sockaddr;
