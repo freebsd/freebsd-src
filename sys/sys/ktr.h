@@ -156,11 +156,18 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	CTR4(m, format, p1, p2, p3, p4)	CTR(m, format, p1, p2, p3, p4)
 #define	CTR5(m, format, p1, p2, p3, p4, p5)				\
 	CTR(m, format, p1, p2, p3, p4, p5)
+#define	CTR6(m, format, p1, p2, p3, p4, p5, p6)				\
+	CTR(m, format, p1, p2, p3, p4, p5, p6)
 #else							    /* not extended */
 #define CTR5(m, format, p1, p2, p3, p4, p5) do {			\
 	if (KTR_COMPILE & (m))						\
 		ktr_tracepoint((m), format, (u_long)p1, (u_long)p2,	\
 		    (u_long)p3, (u_long)p4, (u_long)p5);		\
+	} while(0)
+#define CTR6(m, format, p1, p2, p3, p4, p5, p6) do {			\
+	if (KTR_COMPILE & (m))						\
+		ktr_tracepoint((m), format, (u_long)p1, (u_long)p2,	\
+		    (u_long)p3, (u_long)p4, (u_long)p5, (u_long)p6);	\
 	} while(0)
 #define CTR0(m, format)			CTR5(m, format, 0, 0, 0, 0, 0)
 #define CTR1(m, format, p1)		CTR5(m, format, p1, 0, 0, 0, 0)
@@ -177,6 +184,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	CTR3(m, d, p1, p2, p3)
 #define	CTR4(m, d, p1, p2, p3, p4)
 #define	CTR5(m, d, p1, p2, p3, p4, p5)
+#define	CTR6(m, d, p1, p2, p3, p4, p5, p6)
 #endif	/* KTR */
 
 #define	TR0(d)				CTR0(KTR_GEN, d)
