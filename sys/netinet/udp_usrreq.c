@@ -325,8 +325,8 @@ udp_input(m, off)
 					policyfail = 1;
 #endif
 				if (!policyfail) {
-					if ((n = m_copy(m, 0, M_COPYALL))
-					    != NULL)
+					n = m_copy(m, 0, M_COPYALL);
+					if (n != NULL)
 						udp_append(last, ip, n,
 						   iphlen +
 						   sizeof(struct udphdr));
