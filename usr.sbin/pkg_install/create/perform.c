@@ -154,7 +154,7 @@ pkg_perform(char **pkgs)
      * at the top.
      */
     if (find_plist(&plist, PLIST_NAME) == NULL)
-	add_plist_top(&plist, PLIST_NAME, basename_of(pkg));
+	add_plist_top(&plist, PLIST_NAME, basename(pkg));
 
     /*
      * We're just here for to dump out a revised plist for the FreeBSD ports
