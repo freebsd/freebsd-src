@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.9.2.8 1998/02/15 11:32:26 jkh Exp $
+.\"	$Id: sh.1,v 1.9.2.9 1998/06/30 06:42:53 charnier Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -159,7 +159,7 @@ Enable the built-in
 .Xr emacs 1
 commandline editor (disables
 .Fl V
-if it has been set).
+if it has been set). See also 'set -o emacs' (below).
 .It Fl e Li errexit
 If not interactive, exit immediately if any
 untested command fails.
@@ -910,6 +910,14 @@ command substitution, and quote removal.
 .Pp
 Next, the shell treats this as an arithmetic expression and
 substitutes the value of the expression.
+.Pp
+Alternatively, arithmetic evaluations can be performed with the
+.Xr let 1
+builtin, whose syntax is the same as that of
+.Xr expr 1 .
+.Xr Exp 1
+is an alias for
+.Xr let 1 .
 .Ss White Space Splitting (Field Splitting)
 After parameter expansion, command substitution, and
 arithmetic expansion the shell scans the results of
