@@ -209,6 +209,7 @@ struct fxp_softc {
 #define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
 #define FXP_FLAG_DEFERRED_RNR	0x0200	/* DEVICE_POLLING deferred RNR */
 #define FXP_FLAG_EXT_RFA	0x0400	/* extended RFDs for csum offload */
+#define FXP_FLAG_SAVE_BAD	0x0800	/* save bad pkts: bad size, CRC, etc */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
