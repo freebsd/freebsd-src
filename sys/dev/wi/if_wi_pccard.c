@@ -222,6 +222,7 @@ wi_pccard_attach(device_t dev)
 		return (error);
 	}
 
+#if __FreeBSD_version > 500000 
 	/*
 	 * The cute little Symbol LA4100-series CF cards need to have
 	 * code downloaded to them.
@@ -242,6 +243,7 @@ wi_pccard_attach(device_t dev)
 		return (ENXIO);
 #endif
 	}
+#endif
 
 	return (wi_generic_attach(dev));
 }
