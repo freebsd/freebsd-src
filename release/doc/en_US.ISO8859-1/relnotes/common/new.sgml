@@ -424,7 +424,17 @@
     if <literal>UseLogin yes</literal> was set, has been
     closed.  Note that the default value of this setting is
     <literal>UseLogin no</literal>.  (See security advisory
-    FreeBSD-SA-01:63.)</para>
+    <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink>.)</para>
+
+    <para>The use of an insecure temporary directory by
+    &man.pkg.add.1; could permit a local attacker to modify the
+    contents of binary packages while they were being installed.
+    This hole has been closed.  (See security advisory
+    <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink>.)</para>
+
+    <para>A race condition in &man.pw.8;, which could expose the
+    contents of <filename>/etc/master.passwd</filename>, has been
+    eliminated.  (See security advisory <ulink url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink>.)</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
