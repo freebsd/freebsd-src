@@ -65,11 +65,13 @@ struct cdev {
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
+	uid_t		si_uid;
+	gid_t		si_gid;
+	mode_t		si_mode;
 	u_int		si_drv0;
 	int		si_refcount;
 	LIST_ENTRY(cdev)	si_list;
 	LIST_ENTRY(cdev)	si_clone;
-	LIST_ENTRY(cdev)	si_hash;	/* UNUSED */
 	LIST_HEAD(,devfs_dirent)si_alist;
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
@@ -180,14 +182,12 @@ typedef int dumper_t(
  * Flags used for internal housekeeping
  */
 #define D_INIT		0x80000000	/* cdevsw initialized */
-#define D_ALLOCMAJ	0x40000000	/* major# is allocated */
 
 /*
  * Character device switch table
  */
 struct cdevsw {
 	int			d_version;
-	int			d_maj;
 	u_int			d_flags;
 	const char		*d_name;
 	d_open_t		*d_open;
@@ -247,6 +247,7 @@ struct cdevsw *dev_refthread(struct cdev *_dev);
 void	dev_relthread(struct cdev *_dev);
 int	dev_named(struct cdev *_pdev, const char *_name);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
+void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
 void	dev_rel(struct cdev *dev);
 void	dev_strategy(struct cdev *dev, struct buf *bp);
