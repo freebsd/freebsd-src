@@ -178,7 +178,10 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	if ((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
 
-	if ((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS)) != RTF_WASCLONED)
+	if (rt->rt_flags & RTPRF_OURS)
+		return;
+
+	if (!(rt->rt_flags & (RTF_WASCLONED | RTF_DYNAMIC)))
 		return;
 
 	/*
