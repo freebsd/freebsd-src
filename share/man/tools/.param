@@ -2,7 +2,7 @@ export MANDIR TMPDIR
 export DIRLST FILLST
 export LFLAG PFLAG ID
 
-MANDIR=/usr/man
+MANDIR=/usr/share/man
 TMPDIR=/tmp
 DIRLST=
 FILLST=
