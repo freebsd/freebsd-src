@@ -217,10 +217,6 @@ struct msdosfs_fileno {
 #define	fsi_size(pmp) \
 	(1024 << ((pmp)->pm_BlkPerSec >> 2))
 
-int msdosfs_init(struct vfsconf *vfsp);
-int msdosfs_uninit(struct vfsconf *vfsp);
-int msdosfs_mountroot(void);
-
 void msdosfs_fileno_init(struct mount *);
 void msdosfs_fileno_free(struct mount *);
 uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
