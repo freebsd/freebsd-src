@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.119 1999/01/30 15:38:47 kato Exp $
+ *	$Id: locore.s,v 1.120 1999/01/31 02:04:43 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -102,7 +102,7 @@ HIDENAME(tmpstk):
 	.globl	_cpu,_cpu_vendor,_cpu_id,_bootinfo
 	.globl	_cpu_high, _cpu_feature
 
-_cpu:	.long	0				/* are we 386, 386sx, or 486 */
+_cpu:		.long	0			/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
 _cpu_high:	.long	0			/* highest arg to CPUID */
 _cpu_feature:	.long	0			/* features */
@@ -113,12 +113,13 @@ _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
 
 #ifdef SMP
+		.globl	_cpu0prvpage
 cpu0pp:		.long	0			/* phys addr cpu0 private pg */
-cpu0pt:		.long	0			/* phys addr cpu0 private pt */
-
-		.globl	_cpu0prvpage,_cpu0prvpt
 _cpu0prvpage:	.long	0			/* relocated version */
-_cpu0prvpt:	.long	0			/* relocated version */
+
+		.globl	_SMPpt
+SMPptpa:	.long	0			/* phys addr SMP page table */
+_SMPpt:		.long	0			/* relocated version */
 #endif /* SMP */
 
 	.globl	_IdlePTD
@@ -370,7 +371,6 @@ begin:
 	movl	_proc0paddr,%eax
 	movl	_IdlePTD, %esi
 	movl	%esi,PCB_CR3(%eax)
-	movl	$_proc0,_curproc
 
 	movl	physfree, %esi
 	pushl	%esi				/* value of first for init386(first) */
@@ -385,7 +385,7 @@ begin:
 	pushl	$PSL_USER			/* eflags (IOPL 0, int enab) */
 	pushl	__ucodesel			/* cs */
 	pushl	$0				/* eip - filled in by execve() */
-	subl	$(12*4),%esp			/* space for rest of registers */
+	subl	$(13*4),%esp			/* space for rest of registers */
 
 	pushl	%esp				/* call main with frame pointer */
 	call	_main				/* autoconfiguration, mountroot etc */
@@ -417,11 +417,11 @@ NON_GPROF_ENTRY(prepare_usermode)
 	movl	__ucodesel,%eax
 	movl	__udatasel,%ecx
 
-#if 0
+#if 0	/* ds/es/fs are in trap frame */
 	movl	%cx,%ds
-#endif
 	movl	%cx,%es
-	movl	%ax,%fs				/* double map cs to fs */
+	movl	%cx,%fs
+#endif
 	movl	%cx,%gs				/* and ds to gs */
 	ret					/* goto user! */
 
@@ -803,11 +803,11 @@ no_kernend:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_cpu0prvpage)	/* relocated to KVM space */
 
-/* Allocate cpu0's private page table for mapping priv page, apic, etc */
+/* Allocate SMP page table page */
 	ALLOCPAGES(1)
-	movl	%esi,R(cpu0pt)
+	movl	%esi,R(SMPptpa)
 	addl	$KERNBASE, %esi
-	movl	%esi, R(_cpu0prvpt)	/* relocated to KVM space */
+	movl	%esi, R(_SMPpt)		/* relocated to KVM space */
 #endif	/* SMP */
 
 /* Map read-only from zero to the end of the kernel text section */
@@ -887,25 +887,19 @@ map_read_write:
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
 
-/* Map cpu0's private page table into global kmem FWIW */
-	movl	R(cpu0pt), %eax
+/* Map SMP page table page into global kmem FWIW */
+	movl	R(SMPptpa), %eax
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
 
-/* Map the private page into the private page table into private space */
+/* Map the private page into the SMP page table */
 	movl	R(cpu0pp), %eax
 	movl	$0, %ebx		/* pte offset = 0 */
 	movl	$1, %ecx		/* one private page coming right up */
-	fillkpt(R(cpu0pt), $PG_RW)
-
-/* Map the page table page into private space */
-	movl	R(cpu0pt), %eax
-	movl	$1, %ebx		/* pte offset = 1 */
-	movl	$1, %ecx		/* one private pt coming right up */
-	fillkpt(R(cpu0pt), $PG_RW)
+	fillkpt(R(SMPptpa), $PG_RW)
 
 /* ... and put the page table table in the pde. */
-	movl	R(cpu0pt), %eax
+	movl	R(SMPptpa), %eax
 	movl	$MPPTDI, %ebx
 	movl	$1, %ecx
 	fillkpt(R(_IdlePTD), $PG_RW)
@@ -913,21 +907,12 @@ map_read_write:
 /* Fakeup VA for the local apic to allow early traps. */
 	ALLOCPAGES(1)
 	movl	%esi, %eax
-	movl	$2, %ebx		/* pte offset = 2 */
+	movl	$(NPTEPG-1), %ebx	/* pte offset = NTEPG-1 */
 	movl	$1, %ecx		/* one private pt coming right up */
-	fillkpt(R(cpu0pt), $PG_RW)
+	fillkpt(R(SMPptpa), $PG_RW)
 
 /* Initialize mp lock to allow early traps */
 	movl	$1, R(_mp_lock)
-
-/* Initialize my_idlePTD to IdlePTD */		
-	movl	R(cpu0pp), %eax
-	movl	R(_IdlePTD), %ecx
-	movl	%ecx,GD_MY_IDLEPTD(%eax)
-/* Initialize IdlePTDS[0] */
-	addl	$KERNBASE, %ecx
-	movl	%ecx, R(CNAME(IdlePTDS))
-		
 #endif	/* SMP */
 
 /* install a pde for temporary double map of bottom of VA */

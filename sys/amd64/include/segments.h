@@ -35,11 +35,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.17 1997/08/21 06:32:49 charnier Exp $
+ *	$Id: segments.h,v 1.18 1999/01/28 11:45:49 newton Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
 #define	_MACHINE_SEGMENTS_H_
+
+#include <machine/globals.h>
 
 /*
  * 386 Segmentation Data Structures and definitions
@@ -207,19 +209,20 @@ struct region_descriptor {
 #define	GNULL_SEL	0	/* Null Descriptor */
 #define	GCODE_SEL	1	/* Kernel Code Descriptor */
 #define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GLDT_SEL	3	/* LDT - eventually one per process */
-#define	GTGATE_SEL	4	/* Process task switch gate */
-#define	GPANIC_SEL	5	/* Task state to consider panic from */
-#define	GPROC0_SEL	6	/* Task state process slot zero and up */
-#define	GUSERLDT_SEL	7	/* User LDT */
-#define GAPMCODE32_SEL	8	/* APM BIOS 32-bit interface (32bit Code) */
-#define GAPMCODE16_SEL	9	/* APM BIOS 32-bit interface (16bit Code) */
-#define GAPMDATA_SEL	10	/* APM BIOS 32-bit interface (Data) */
+#define	GPRIV_SEL	3	/* SMP Per-Processor Private Data */
+#define	GPROC0_SEL	4	/* Task state process slot zero and up */
+#define	GLDT_SEL	5	/* LDT - eventually one per process */
+#define	GUSERLDT_SEL	6	/* User LDT */
+#define	GTGATE_SEL	7	/* Process task switch gate */
+#define	GPANIC_SEL	8	/* Task state to consider panic from */
+#define GAPMCODE32_SEL	9	/* APM BIOS 32-bit interface (32bit Code) */
+#define GAPMCODE16_SEL	10	/* APM BIOS 32-bit interface (16bit Code) */
+#define GAPMDATA_SEL	11	/* APM BIOS 32-bit interface (Data) */
 
 #ifdef BDE_DEBUGGER
 #define	NGDT		18	/* some of 11-17 are reserved for debugger */
 #else
-#define NGDT 		(GAPMDATA_SEL + 1)
+#define NGDT 		12
 #endif
 
 /*
@@ -237,7 +240,9 @@ struct region_descriptor {
 #define NLDT		(LBSDICALLS_SEL + 1)
 
 #ifdef KERNEL
+#ifndef currentldt
 extern int	currentldt;
+#endif
 extern int	_default_ldt;
 extern union descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];

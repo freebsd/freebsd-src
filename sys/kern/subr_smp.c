@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.96 1999/04/11 00:43:43 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.97 1999/04/13 03:24:47 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -297,28 +297,15 @@ int     apic_id_to_logical[NAPICID];
 /* Bitmap of all available CPUs */
 u_int	all_cpus;
 
-/* AP uses this PTD during bootstrap.  Do not staticize.  */
-pd_entry_t *bootPTD;
+/* AP uses this during bootstrap.  Do not staticize.  */
+char *bootSTK;
+int boot_cpuid;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
 
-/* Virtual address of per-cpu common_tss */
-extern struct i386tss common_tss;
-#ifdef VM86
-extern struct segment_descriptor common_tssd;
-extern u_int private_tss;		/* flag indicating private tss */
-extern u_int my_tr;
-#endif /* VM86 */
-
-/* IdlePTD per cpu */
-pd_entry_t *IdlePTDS[NCPU];
-
-/* "my" private page table page, for BSP init */
-extern pt_entry_t SMP_prvpt[];
-
-/* Private page pointer to curcpu's PTD, used during BSP init */
-extern pd_entry_t *my_idlePTD;
+/* SMP page table page */
+extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[NCPU];
 
@@ -466,40 +453,41 @@ void
 init_secondary(void)
 {
 	int	gsel_tss;
-#ifndef VM86
-	u_int	my_tr;
-#endif
+	int	x, myid = boot_cpuid;
 
-	r_gdt.rd_limit = sizeof(gdt[0]) * (NGDT + NCPU) - 1;
-	r_gdt.rd_base = (int) gdt;
+	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
+	gdt_segs[GPROC0_SEL].ssd_base =
+		(int) &SMP_prvspace[myid].globaldata.gd_common_tss;
+	SMP_prvspace[myid].globaldata.gd_prvspace = &SMP_prvspace[myid];
+
+	for (x = 0; x < NGDT; x++) {
+		ssdtosd(&gdt_segs[x], &gdt[myid * NGDT + x].sd);
+	}
+
+	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
+	r_gdt.rd_base = (int) &gdt[myid * NGDT];
 	lgdt(&r_gdt);			/* does magic intra-segment return */
+
 	lidt(&r_idt);
+
 	lldt(_default_ldt);
 #ifdef USER_LDT
 	currentldt = _default_ldt;
 #endif
 
-	my_tr = NGDT + cpuid;
-	gsel_tss = GSEL(my_tr, SEL_KPL);
-	gdt[my_tr].sd.sd_type = SDT_SYS386TSS;
+	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	gdt[myid * NGDT + GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
 	common_tss.tss_esp0 = 0;	/* not used until after switch */
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 #ifdef VM86
-	common_tssd = gdt[my_tr].sd;
-	private_tss = 0;
-#endif /* VM86 */
+	common_tssd = gdt[myid * NGDT + GPROC0_SEL].sd;
+#endif
 	ltr(gsel_tss);
 
 	load_cr0(0x8005003b);		/* XXX! */
 
-	PTD[0] = 0;
 	pmap_set_opt((unsigned *)PTD);
-
-#if 0
-	putmtrr();
-	pmap_setvidram();
-#endif
 
 	invltlb();
 }
@@ -557,11 +545,6 @@ mp_enable(u_int boot_addr)
 	int     apic;
 	u_int   ux;
 #endif	/* APIC_IO */
-
-#if 0
-	getmtrr();
-	pmap_setvidram();
-#endif
 
 	POSTCODE(MP_ENABLE_POST);
 
@@ -1770,14 +1753,11 @@ extern int wait_ap(unsigned int);
 static int
 start_all_aps(u_int boot_addr)
 {
-	int     x, i;
+	int     x, i, pg;
 	u_char  mpbiosreason;
 	u_long  mpbioswarmvec;
-	pd_entry_t *newptd;
-	pt_entry_t *newpt;
 	struct globaldata *gd;
 	char *stack;
-	pd_entry_t	*myPTD;
 
 	POSTCODE(START_ALL_APS_POST);
 
@@ -1799,70 +1779,46 @@ start_all_aps(u_int boot_addr)
 	/* record BSP in CPU map */
 	all_cpus = 1;
 
+	/* set up 0 -> 4MB P==V mapping for AP boot */
+	*(int *)PTD = PG_V | PG_RW | ((uintptr_t)(void *)KPTphys & PG_FRAME);
+	invltlb();
+
 	/* start each AP */
 	for (x = 1; x <= mp_naps; ++x) {
 
 		/* This is a bit verbose, it will go away soon.  */
 
-		/* alloc new page table directory */
-		newptd = (pd_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
-
-		/* Store the virtual PTD address for this CPU */
-		IdlePTDS[x] = newptd;
-
-		/* clone currently active one (ie: IdlePTD) */
-		bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
-
-		/* set up 0 -> 4MB P==V mapping for AP boot */
-		newptd[0] = (void *)(uintptr_t)(PG_V | PG_RW |
-		    ((uintptr_t)(void *)KPTphys & PG_FRAME));
-
-		/* store PTD for this AP's boot sequence */
-		myPTD = (pd_entry_t *)vtophys(newptd);
-
-		/* alloc new page table page */
-		newpt = (pt_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
-
-		/* set the new PTD's private page to point there */
-		newptd[MPPTDI] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpt));
-
-		/* install self referential entry */
-		newptd[PTDPTDI] = (pd_entry_t)(PG_V | PG_RW | vtophys(newptd));
+		/* first page of AP's private space */
+		pg = x * i386_btop(sizeof(struct privatespace));
 
 		/* allocate a new private data page */
 		gd = (struct globaldata *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		/* wire it into the private page table page */
-		newpt[0] = (pt_entry_t)(PG_V | PG_RW | vtophys(gd));
-
-		/* wire the ptp into itself for access */
-		newpt[1] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpt));
-
-		/* copy in the pointer to the local apic */
-		newpt[2] = SMP_prvpt[2];
-
-		/* and the IO apic mapping[s] */
-		for (i = 16; i < 32; i++)
-			newpt[i] = SMP_prvpt[i];
+		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(gd));
 
 		/* allocate and set up an idle stack data page */
 		stack = (char *)kmem_alloc(kernel_map, UPAGES*PAGE_SIZE);
 		for (i = 0; i < UPAGES; i++)
-			newpt[i + 3] = (pt_entry_t)(PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
+			SMPpt[pg + 5 + i] = (pt_entry_t)
+			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
-		newpt[3 + UPAGES] = 0;		/* *prv_CMAP1 */
-		newpt[4 + UPAGES] = 0;		/* *prv_CMAP2 */
-		newpt[5 + UPAGES] = 0;		/* *prv_CMAP3 */
-		newpt[6 + UPAGES] = 0;		/* *prv_PMAP1 */
+		SMPpt[pg + 1] = 0;		/* *prv_CMAP1 */
+		SMPpt[pg + 2] = 0;		/* *prv_CMAP2 */
+		SMPpt[pg + 3] = 0;		/* *prv_CMAP3 */
+		SMPpt[pg + 4] = 0;		/* *prv_PMAP1 */
 
 		/* prime data page for it to use */
-		gd->cpuid = x;
-		gd->cpu_lockid = x << 24;
-		gd->my_idlePTD = myPTD;
-		gd->prv_CMAP1 = &newpt[3 + UPAGES];
-		gd->prv_CMAP2 = &newpt[4 + UPAGES];
-		gd->prv_CMAP3 = &newpt[5 + UPAGES];
-		gd->prv_PMAP1 = &newpt[6 + UPAGES];
+		gd->gd_cpuid = x;
+		gd->gd_cpu_lockid = x << 24;
+		gd->gd_prv_CMAP1 = &SMPpt[pg + 1];
+		gd->gd_prv_CMAP2 = &SMPpt[pg + 2];
+		gd->gd_prv_CMAP3 = &SMPpt[pg + 3];
+		gd->gd_prv_PMAP1 = &SMPpt[pg + 4];
+		gd->gd_prv_CADDR1 = SMP_prvspace[x].CPAGE1;
+		gd->gd_prv_CADDR2 = SMP_prvspace[x].CPAGE2;
+		gd->gd_prv_CADDR3 = SMP_prvspace[x].CPAGE3;
+		gd->gd_prv_PADDR1 = (unsigned *)SMP_prvspace[x].PPAGE1;
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -1872,7 +1828,9 @@ start_all_aps(u_int boot_addr)
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 #endif
 
-		bootPTD = myPTD;
+		bootSTK = &SMP_prvspace[x].idlestack[UPAGES*PAGE_SIZE];
+		boot_cpuid = x;
+
 		/* attempt to start the Application Processor */
 		CHECK_INIT(99);	/* setup checkpoints */
 		if (!start_ap(x, boot_addr)) {
@@ -1910,26 +1868,15 @@ start_all_aps(u_int boot_addr)
 	 * because the BSP is cpu#0 and the page is initially zero, and also
 	 * because we can refer to variables by name on the BSP..
 	 */
-	newptd = (pd_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
-
-	bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
-	IdlePTDS[0] = newptd;
-
-	/* Point PTD[] to this page instead of IdlePTD's physical page */
-	newptd[PTDPTDI] = (pd_entry_t)(PG_V | PG_RW | vtophys(newptd));
-
-	my_idlePTD = (pd_entry_t *)vtophys(newptd);
 
 	/* Allocate and setup BSP idle stack */
 	stack = (char *)kmem_alloc(kernel_map, UPAGES * PAGE_SIZE);
 	for (i = 0; i < UPAGES; i++)
-		SMP_prvpt[i + 3] = (pt_entry_t)(PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
+		SMPpt[5 + i] = (pt_entry_t)
+		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
+	*(int *)PTD = 0;
 	pmap_set_opt_bsp();
-
-	for (i = 0; i < mp_ncpus; i++) {
-		bcopy( (int *) PTD + KPTDI, (int *) IdlePTDS[i] + KPTDI, NKPDE * sizeof (int));
-	}
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;
@@ -2250,10 +2197,6 @@ ap_init()
 		panic("cpuid mismatch! boom!!");
 	}
 
-#if 0
-	getmtrr();
-#endif
-
 	/* Init local apic for irq's */
 	apic_initialize();
 
@@ -2267,8 +2210,6 @@ ap_init()
 		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
 		smp_active = 1;	 /* historic */
 	}
-
-	curproc = NULL;		/* make sure */
 }
 
 #ifdef BETTER_CLOCK

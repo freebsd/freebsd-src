@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.6 1998/08/18 07:47:12 msmith Exp $
+ * $Id: globaldata.h,v 1.7 1999/02/22 15:13:34 bde Exp $
  */
 
 /*
@@ -39,31 +39,33 @@
  * other processors"
  */
 struct globaldata {
-	struct proc	*curproc;
-	struct proc	*npxproc;
-	struct pcb	*curpcb;
-	struct i386tss	common_tss;
-	struct timeval	switchtime;
-	int		switchticks;
+	struct privatespace *gd_prvspace;	/* self-reference */
+	struct proc	*gd_curproc;
+	struct proc	*gd_npxproc;
+	struct pcb	*gd_curpcb;
+	struct timeval	gd_switchtime;
+	struct i386tss	gd_common_tss;
+	int		gd_switchticks;
 #ifdef VM86
-	struct segment_descriptor common_tssd;
-	u_int		private_tss;
-	u_int		my_tr;		
+	struct segment_descriptor gd_common_tssd;
 #endif
 #ifdef USER_LDT
-	int		currentldt;
+	int		gd_currentldt;
 #endif
 #ifdef SMP
-	u_int		cpuid;
-	u_int		cpu_lockid;
-	u_int		other_cpus;
-	pd_entry_t	*my_idlePTD;
-	u_int		ss_eflags;
-	pt_entry_t	*prv_CMAP1;
-	pt_entry_t	*prv_CMAP2;
-	pt_entry_t	*prv_CMAP3;
-	pt_entry_t	*prv_PMAP1;
-	int		inside_intr;
+	u_int		gd_cpuid;
+	u_int		gd_cpu_lockid;
+	u_int		gd_other_cpus;
+	int		gd_inside_intr;
+	u_int		gd_ss_eflags;
+	pt_entry_t	*gd_prv_CMAP1;
+	pt_entry_t	*gd_prv_CMAP2;
+	pt_entry_t	*gd_prv_CMAP3;
+	pt_entry_t	*gd_prv_PMAP1;
+	caddr_t		gd_prv_CADDR1;
+	caddr_t		gd_prv_CADDR2;
+	caddr_t		gd_prv_CADDR3;
+	unsigned	*gd_prv_PADDR1;
 #endif
 };
 
@@ -78,28 +80,16 @@ struct privatespace {
 	struct globaldata globaldata;
 	char		__filler0[PAGE_SIZE - sizeof(struct globaldata)];
 
-	/* page 1 - page table page */
-	pt_entry_t	prvpt[NPTEPG];
-
-	/* page 2 - local apic mapping */
-	lapic_t		lapic;
-	char		__filler1[PAGE_SIZE - sizeof(lapic_t)];
-
-	/* page 3..2+UPAGES - idle stack (UPAGES pages) */
-	char		idlestack[UPAGES * PAGE_SIZE];
-
-	/* page 3+UPAGES..6+UPAGES - CPAGE1,CPAGE2,CPAGE3,PPAGE1 */
+	/* page 1..4 - CPAGE1,CPAGE2,CPAGE3,PPAGE1 */
 	char		CPAGE1[PAGE_SIZE];
 	char		CPAGE2[PAGE_SIZE];
 	char		CPAGE3[PAGE_SIZE];
 	char		PPAGE1[PAGE_SIZE];
 
-	/* page 7+UPAGES..15 - spare, unmapped */
-	char		__filler2[(9-UPAGES) * PAGE_SIZE];
-
-	/* page 16-31 - space for IO apics */
-	char		ioapics[16 * PAGE_SIZE];
-
-	/* page 32-47 - maybe other cpu's globaldata pages? */
+	/* page 5..4+UPAGES - idle stack (UPAGES pages) */
+	char		idlestack[UPAGES * PAGE_SIZE];
 };
+
+extern struct privatespace SMP_prvspace[];
+
 #endif

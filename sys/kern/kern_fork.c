@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.58 1999/04/17 08:36:04 peter Exp $
+ * $Id: kern_fork.c,v 1.59 1999/04/24 11:25:01 dt Exp $
  */
 
 #include "opt_ktrace.h"
@@ -65,11 +65,7 @@
 #include <machine/frame.h>
 #include <sys/user.h>
 
-#ifdef SMP
-static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
-#else
 static int	fast_vfork = 1;
-#endif
 SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
 
 /*
@@ -139,22 +135,6 @@ fork1(p1, flags)
 
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
-
-#ifdef SMP
-	/*
-	 * FATAL now, we cannot have the same PTD on both cpus, the PTD
-	 * needs to move out of PTmap and be per-process, even for shared
-	 * page table processes.  Unfortunately, this means either removing
-	 * PTD[] as a fixed virtual address, or move it to the per-cpu map
-	 * area for SMP mode.  Both cases require seperate management of
-	 * the per-process-even-if-PTmap-is-shared PTD.
-	 */
-	if (flags & RFMEM) {
-		printf("shared address space fork attempted: pid: %d\n",
-		    p1->p_pid);
-		return (EOPNOTSUPP);
-	}
-#endif
 
 	/*
 	 * Here we don't create a new process, but we divorce

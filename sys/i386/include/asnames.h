@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.30 1999/02/25 12:53:34 bde Exp $
+ * $Id: asnames.h,v 1.31 1999/04/16 21:22:16 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -65,8 +65,8 @@
 #define _PTD				PTD
 #define _PTDpde				PTDpde
 #define _PTmap				PTmap
-#define _SMP_ioapic			SMP_ioapic
-#define _SMP_prvpt			SMP_prvpt
+#define _SMP_prvspace			SMP_prvspace
+#define _SMPpt				SMPpt
 #define _Xalign				Xalign
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
@@ -181,7 +181,7 @@
 #define _bootDataSeg			bootDataSeg
 #define _bootMP				bootMP
 #define _bootMP_size			bootMP_size
-#define _bootPTD			bootPTD
+#define _bootSTK			bootSTK
 #define _boot_get_mplock		boot_get_mplock
 #define _bootdev			bootdev
 #define _boothowto			boothowto
@@ -198,15 +198,12 @@
 #define _checkstate_probed_cpus		checkstate_probed_cpus
 #define _clock_lock			clock_lock
 #define _cnt				cnt
-#define _common_tss			common_tss
-#define _common_tssd			common_tssd
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
 #define _cpl				cpl
 #define _cpl_lock			cpl_lock
 #define _cpu				cpu
 #define _cpu0prvpage			cpu0prvpage
-#define _cpu0prvpt			cpu0prvpt
 #define _cpu_apic_versions		cpu_apic_versions
 #define _cpu_class			cpu_class
 #define _cpu_feature			cpu_feature
@@ -215,10 +212,6 @@
 #define _cpu_num_to_apic_id		cpu_num_to_apic_id
 #define _cpu_switch			cpu_switch
 #define _cpu_vendor			cpu_vendor
-#define _cpuid				cpuid
-#define _curpcb				curpcb
-#define _curproc			curproc
-#define _currentldt			currentldt
 #define _cypoll				cypoll
 #define _default_halt			default_halt
 #define _denormal_operand		denormal_operand
@@ -245,7 +238,7 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
-#define _getmicrouptime		getmicrouptime
+#define _getmicrouptime			getmicrouptime
 #define _idqs				idqs
 #define _ihandlers			ihandlers
 #define _imen				imen
@@ -254,7 +247,6 @@
 #define _init386			init386
 #define _init_secondary			init_secondary
 #define _initial_bioscalls		initial_bioscalls
-#define _inside_intr			inside_intr
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
 #define _intr_mask			intr_mask
@@ -280,8 +272,6 @@
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
 #define _mul64				mul64
-#define _my_idlePTD			my_idlePTD
-#define _my_tr				my_tr
 #define _net_imask			net_imask
 #define _netisr				netisr
 #define _netisrs			netisrs
@@ -292,9 +282,7 @@
 #define _npx_intrs_while_probing	npx_intrs_while_probing
 #define _npx_traps_while_probing	npx_traps_while_probing
 #define _npx_intr			npx_intr
-#define _npxproc			npxproc
 #define _npxsave			npxsave
-#define _other_cpus			other_cpus
 #define _ovbcopy_vector			ovbcopy_vector
 #define _panic				panic
 #define _pc98_system_parameter		pc98_system_parameter
@@ -307,14 +295,6 @@
 #define _probetrap			probetrap
 #define _proc0				proc0
 #define _proc0paddr			proc0paddr
-#define _prv_CMAP1			prv_CMAP1
-#define _prv_CMAP2			prv_CMAP2
-#define _prv_CMAP3			prv_CMAP3
-#define _prv_CPAGE1			prv_CPAGE1
-#define _prv_CPAGE2			prv_CPAGE2
-#define _prv_CPAGE3			prv_CPAGE3
-#define _prv_PMAP1			prv_PMAP1
-#define _prv_PPAGE1			prv_PPAGE1
 #define _qs				qs
 #define _rcpoll				rcpoll
 #define _real_2op_NaN			real_2op_NaN
@@ -354,8 +334,6 @@
 #define _swi_generic			swi_generic
 #define _swi_null			swi_null
 #define _swi_vm				swi_vm
-#define _switchticks			switchticks
-#define _switchtime			switchtime
 #define _syscall			syscall
 #define _szsigcode			szsigcode
 #define _ticks				ticks
@@ -389,5 +367,38 @@
 #define _wm_sqrt			wm_sqrt
 
 #endif /* __ELF__ */
+
+#if defined(SMP) || defined(__ELF__)
+#ifdef SMP
+#define	FS(x)	%fs:gd_ ## x
+#else
+#define	FS(x)	x
+#endif
+
+#define _common_tss			FS(common_tss)
+#define _common_tssd			FS(common_tssd)
+#define _cpuid				FS(cpuid)
+#define _cpu_lockid			FS(cpu_lockid)
+#define _curpcb				FS(curpcb)
+#define _curproc			FS(curproc)
+#define _currentldt			FS(currentldt)
+#define _inside_intr			FS(inside_intr)
+#define _npxproc			FS(npxproc)
+#define _other_cpus			FS(other_cpus)
+#define _prv_CADDR1			FS(prv_CADDR1)
+#define _prv_CADDR2			FS(prv_CADDR2)
+#define _prv_CADDR3			FS(prv_CADDR3)
+#define _prv_CMAP1			FS(prv_CMAP1)
+#define _prv_CMAP2			FS(prv_CMAP2)
+#define _prv_CMAP3			FS(prv_CMAP3)
+#define _prv_PADDR1			FS(prv_PADDR1)
+#define _prv_PMAP1			FS(prv_PMAP1)
+#define	_ss_eflags			FS(ss_eflags)
+#define _switchticks			FS(switchticks)
+#define _switchtime			FS(switchtime)
+#define	_idlestack			FS(idlestack)
+#define	_idlestack_top			FS(idlestack_top)
+
+#endif
 
 #endif /* !_MACHINE_ASNAMES_H_ */

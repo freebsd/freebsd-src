@@ -6,9 +6,7 @@
 NON_GPROF_ENTRY(linux_sigcode)
 	call	LINUX_SIGF_HANDLER(%esp)
 	leal	LINUX_SIGF_SC(%esp),%ebx	/* linux scp */
-	movl	LINUX_SC_FS(%ebx),%ecx
 	movl	LINUX_SC_GS(%ebx),%edx
-	movl	%cx,%fs
 	movl	%dx,%gs
 	push	%eax				/* fake ret addr */
 	movl	$LINUX_SYS_linux_sigreturn,%eax	/* linux_sigreturn() */
