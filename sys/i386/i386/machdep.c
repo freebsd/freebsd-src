@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128.4.1 1995/08/23 07:16:42 davidg Exp $
+ *	$Id: machdep.c,v 1.128.4.2 1995/08/24 03:48:25 davidg Exp $
  */
 
 #include "npx.h"
@@ -126,7 +126,6 @@
 #include <i386/isa/rtc.h>
 
 static void identifycpu(void);
-static void initcpu(void);
 
 char machine[] = "i386";
 char cpu_model[128];
@@ -179,7 +178,10 @@ long dumplo;
 extern int bootdev;
 int biosmem;
 
-vm_offset_t	phys_avail[6];
+vm_offset_t phys_avail[10];
+
+/* must be 2 less so 0 0 can signal end of chunks */
+#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
 int cpu_class;
 
@@ -201,7 +203,7 @@ cpu_startup()
 	register caddr_t v;
 	vm_offset_t maxaddr;
 	vm_size_t size = 0;
-	int firstaddr;
+	int firstaddr, indx;
 	vm_offset_t minaddr;
 
 	if (boothowto & RB_VERBOSE)
@@ -224,9 +226,27 @@ cpu_startup()
 	printf(version);
 	startrtclock();
 	identifycpu();
-	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
-	if (badpages)
-		printf("bad memory   = %d (%d pages)\n", ptoa(badpages), badpages);
+	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
+	/*
+	 * Display any holes after the first chunk of extended memory.
+	 */
+	if (badpages != 0) {
+		int indx = 1;
+
+		/*
+		 * XXX skip reporting ISA hole & unmanaged kernel memory
+		 */
+		if (phys_avail[0] == PAGE_SIZE)
+			indx += 2;
+
+		printf("Physical memory hole(s):\n");
+		for (; phys_avail[indx + 1] != 0; indx += 2) {
+			int size = phys_avail[indx + 1] - phys_avail[indx];
+
+			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n", phys_avail[indx],
+			    phys_avail[indx + 1] - 1, size, size / PAGE_SIZE);
+		}
+	}
 
 	/*
 	 * Quickly wire in netisrs.
@@ -356,7 +376,6 @@ again:
 
         if (boothowto & RB_CONFIG)
 		userconfig();
-	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
 
 #ifdef BOUNCE_BUFFERS
 	/*
@@ -364,11 +383,8 @@ again:
 	 */
 	vm_bounce_init();
 #endif
-
-	/*
-	 * Set up CPU-specific registers, cache, etc.
-	 */
-	initcpu();
+	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
+	    ptoa(cnt.v_free_count) / 1024);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -937,11 +953,6 @@ dumpsys()
 	}
 }
 
-static void
-initcpu()
-{
-}
-
 /*
  * Clear registers on exec
  */
@@ -1234,7 +1245,7 @@ init386(first)
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
-	int	target_page;
+	int	target_page, pa_indx;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1388,36 +1399,43 @@ init386(first)
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of of the physical address space. It should be
-	 * called something like "Maxphyspage".
+	 * highest page of of the physical address space. It
 	 */
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
 #ifdef MAXMEM
 	Maxmem = MAXMEM/4;
 #endif
-	/*
-	 * Calculate number of physical pages, but account for Maxmem
-	 *	adjustment above.
-	 */
-	physmem = pagesinbase + Maxmem - 0x100000/PAGE_SIZE;
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
 
 	/*
-	 * Do a quick, non-destructive check over extended memory to verify
-	 * what the BIOS tells us agrees with reality. Adjust down Maxmem
-	 * if we find that the page can't be correctly written to/read from.
+	 * Size up each available chunk of physical memory.
 	 */
 
-	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
-		int tmp;
+	/*
+	 * We currently don't bother testing base memory.
+	 * XXX  ...but we probably should.
+	 */
+	pa_indx = 0;
+	badpages = 0;
+	if (pagesinbase > 1) {
+		phys_avail[pa_indx++] = PAGE_SIZE;	/* skip first page of memory */
+		phys_avail[pa_indx] = ptoa(pagesinbase);/* memory up to the ISA hole */
+		physmem = pagesinbase - 1;
+	} else {
+		/* point at first chunk end */
+		pa_indx++;
+	}
+
+	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
+		int tmp, page_bad = FALSE;
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
-		*(int *)CMAP1 = PG_V | PG_KW | PG_N | ptoa(target_page);
+		*(int *)CMAP1 = PG_V | PG_KW | PG_N | target_page;
 		pmap_update();
 
 		tmp = *(int *)CADDR1;
@@ -1426,27 +1444,21 @@ init386(first)
 		 */
 		*(int *)CADDR1 = 0xaaaaaaaa;
 		if (*(int *)CADDR1 != 0xaaaaaaaa) {
-			Maxmem = target_page;
-			badpages++;
-			continue;
+			page_bad = TRUE;
 		}
 		/*
 		 * Test for alternating 0's and 1's
 		 */
 		*(int *)CADDR1 = 0x55555555;
 		if (*(int *)CADDR1 != 0x55555555) {
-			Maxmem = target_page;
-			badpages++;
-			continue;
+			page_bad = TRUE;
 		}
 		/*
 		 * Test for all 1's
 		 */
 		*(int *)CADDR1 = 0xffffffff;
 		if (*(int *)CADDR1 != 0xffffffff) {
-			Maxmem = target_page;
-			badpages++;
-			continue;
+			page_bad = TRUE;
 		}
 		/*
 		 * Test for all 0's
@@ -1456,35 +1468,65 @@ init386(first)
 			/*
 			 * test of page failed
 			 */
-			Maxmem = target_page;
-			badpages++;
-			continue;
+			page_bad = TRUE;
 		}
+		/*
+		 * Restore original value.
+		 */
 		*(int *)CADDR1 = tmp;
+
+		/*
+		 * Adjust array of valid/good pages.
+		 */
+		if (page_bad == FALSE) {
+			/*
+			 * If this good page is a continuation of the
+			 * previous set of good pages, then just increase
+			 * the end pointer. Otherwise start a new chunk.
+			 * Note that "end" points one higher than end,
+			 * making the range >= start and < end.
+			 */
+			if (phys_avail[pa_indx] == target_page) {
+				phys_avail[pa_indx] += PAGE_SIZE;
+			} else {
+				pa_indx++;
+				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
+					printf("Too many holes in the physical address space, giving up\n");
+					pa_indx--;
+					break;
+				}
+				phys_avail[pa_indx++] = target_page;	/* start */
+				phys_avail[pa_indx] = target_page + PAGE_SIZE;	/* end */
+			}
+			physmem++;
+		} else {
+			badpages++;
+			page_bad = FALSE;
+		}
 	}
-	if (badpages != 0)
-		printf("WARNING: BIOS extended memory size and reality don't agree.\n");
 
 	*(int *)CMAP1 = 0;
 	pmap_update();
 
-	avail_end = (Maxmem << PAGE_SHIFT)
-		    - i386_round_page(sizeof(struct msgbuf));
-
 	/*
-	 * Initialize pointers to the two chunks of memory; for use
-	 *	later in vm_page_startup.
+	 * XXX
+	 * The last chunk must contain at leat one page plus the message
+	 * buffer to avoid complicating other code (message buffer address
+	 * calculation, etc.).
 	 */
-	/* avail_start is initialized in pmap_bootstrap */
-	x = 0;
-	if (pagesinbase > 1) {
-		phys_avail[x++] = NBPG;		/* skip first page of memory */
-		phys_avail[x++] = pagesinbase * NBPG;	/* memory up to the ISA hole */
+	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
+	    round_page(sizeof(struct msgbuf)) >= phys_avail[pa_indx]) {
+		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
+		phys_avail[pa_indx--] = 0;
+		phys_avail[pa_indx--] = 0;
 	}
-	phys_avail[x++] = avail_start;	/* memory up to the end */
-	phys_avail[x++] = avail_end;
-	phys_avail[x++] = 0;		/* no more chunks */
-	phys_avail[x++] = 0;
+
+	Maxmem = atop(phys_avail[pa_indx]);
+
+	/* Trim off space for the message buffer. */
+	phys_avail[pa_indx] -= round_page(sizeof(struct msgbuf));
+
+	avail_end = phys_avail[pa_indx];
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
