@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.23 1996/03/15 17:08:07 fenner Exp $
+ *	$Id: in.c,v 1.24 1996/04/07 06:59:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@ static int	in_ifinit __P((struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int));
 static void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 
-static int subnetsarelocal = 1;
+static int subnetsarelocal = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW, 
 	&subnetsarelocal, 0, "");
 /*
