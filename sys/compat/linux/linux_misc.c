@@ -50,6 +50,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/time.h>
@@ -235,16 +236,15 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	unsigned long file_offset;
 	vm_offset_t buffer;
 	unsigned long bss_size;
+	char *library;
 	int error;
-	caddr_t sg;
 	int locked;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->library);
+	LCONVPATHEXIST(td, args->library, &library);
 
 #ifdef DEBUG
 	if (ldebug(uselib))
-		printf(ARGS(uselib, "%s"), args->library);
+		printf(ARGS(uselib, "%s"), library);
 #endif
 
 	a_out = NULL;
@@ -255,8 +255,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * XXX: This code should make use of vn_open(), rather than doing
 	 * all this stuff itself.
 	 */
-	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_USERSPACE, args->library, td);
+	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, library, td);
 	error = namei(&ni);
+	LFREEPATH(library);
 	if (error)
 		goto cleanup;
 
@@ -476,9 +477,7 @@ cleanup:
 int
 linux_select(struct thread *td, struct linux_select_args *args)
 {
-	struct select_args bsa;
 	struct timeval tv0, tv1, utv, *tvp;
-	caddr_t sg;
 	int error;
 
 #ifdef DEBUG
@@ -487,13 +486,6 @@ linux_select(struct thread *td, struct linux_select_args *args)
 		    (void *)args->readfds, (void *)args->writefds,
 		    (void *)args->exceptfds, (void *)args->timeout);
 #endif
-
-	error = 0;
-	bsa.nd = args->nfds;
-	bsa.in = args->readfds;
-	bsa.ou = args->writefds;
-	bsa.ex = args->exceptfds;
-	bsa.tv = (struct timeval *)args->timeout;
 
 	/*
 	 * Store current time for computation of the amount of
@@ -514,8 +506,6 @@ linux_select(struct thread *td, struct linux_select_args *args)
 			 * The timeval was invalid.  Convert it to something
 			 * valid that will act as it does under Linux.
 			 */
-			sg = stackgap_init();
-			tvp = stackgap_alloc(&sg, sizeof(utv));
 			utv.tv_sec += utv.tv_usec / 1000000;
 			utv.tv_usec %= 1000000;
 			if (utv.tv_usec < 0) {
@@ -524,14 +514,15 @@ linux_select(struct thread *td, struct linux_select_args *args)
 			}
 			if (utv.tv_sec < 0)
 				timevalclear(&utv);
-			if ((error = copyout(&utv, tvp, sizeof(utv))))
-				goto select_out;
-			bsa.tv = tvp;
 		}
 		microtime(&tv0);
-	}
+		tvp = &utv;
+	} else
+		tvp = NULL;
 
-	error = select(td, &bsa);
+	error = kern_select(td, args->nfds, args->readfds, args->writefds,
+	    args->exceptfds, tvp);
+
 #ifdef DEBUG
 	if (ldebug(select))
 		printf(LMSG("real select returns %d"), error);
@@ -729,42 +720,34 @@ struct l_utimbuf {
 int
 linux_utime(struct thread *td, struct linux_utime_args *args)
 {
-	struct utimes_args /* {
-		char	*path;
-		struct	timeval *tptr;
-	} */ bsdutimes;
 	struct timeval tv[2], *tvp;
 	struct l_utimbuf lut;
+	char *fname;
 	int error;
-	caddr_t sg;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->fname);
+	LCONVPATHEXIST(td, args->fname, &fname);
 
 #ifdef DEBUG
 	if (ldebug(utime))
-		printf(ARGS(utime, "%s, *"), args->fname);
+		printf(ARGS(utime, "%s, *"), fname);
 #endif
 
 	if (args->times) {
-		if ((error = copyin((caddr_t)args->times, &lut, sizeof lut)))
+		if ((error = copyin((caddr_t)args->times, &lut, sizeof lut))) {
+			LFREEPATH(fname);
 			return error;
+		}
 		tv[0].tv_sec = lut.l_actime;
 		tv[0].tv_usec = 0;
 		tv[1].tv_sec = lut.l_modtime;
 		tv[1].tv_usec = 0;
-		/* so that utimes can copyin */
-		tvp = (struct timeval *)stackgap_alloc(&sg, sizeof(tv));
-		if (tvp == NULL)
-			return (ENAMETOOLONG);
-		if ((error = copyout(tv, tvp, sizeof(tv))))
-			return error;
-		bsdutimes.tptr = tvp;
+		tvp = tv;
 	} else
-		bsdutimes.tptr = NULL;
+		tvp = NULL;
 
-	bsdutimes.path = args->fname;
-	return utimes(td, &bsdutimes);
+	error = kern_utimes(td, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+	LFREEPATH(fname);
+	return (error);
 }
 #endif /* __i386__ */
 
@@ -868,30 +851,23 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
 {
-	caddr_t sg;
-	struct mknod_args bsd_mknod;
-	struct mkfifo_args bsd_mkfifo;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-
-	CHECKALTCREAT(td, &sg, args->path);
+	LCONVPATHCREAT(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(mknod))
-		printf(ARGS(mknod, "%s, %d, %d"),
-		    args->path, args->mode, args->dev);
+		printf(ARGS(mknod, "%s, %d, %d"), path, args->mode, args->dev);
 #endif
 
-	if (args->mode & S_IFIFO) {
-		bsd_mkfifo.path = args->path;
-		bsd_mkfifo.mode = args->mode;
-		return mkfifo(td, &bsd_mkfifo);
-	} else {
-		bsd_mknod.path = args->path;
-		bsd_mknod.mode = args->mode;
-		bsd_mknod.dev = args->dev;
-		return mknod(td, &bsd_mknod);
-	}
+	if (args->mode & S_IFIFO)
+		error = kern_mkfifo(td, path, UIO_SYSSPACE, args->mode);
+	else
+		error = kern_mknod(td, path, UIO_SYSSPACE, args->mode,
+		    args->dev);
+	LFREEPATH(path);
+	return (error);
 }
 
 /*
@@ -1071,10 +1047,10 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 int
 linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 {
-	struct __setrlimit_args bsd;
+	struct rlimit bsd_rlim;
 	struct l_rlimit rlim;
+	u_int which;
 	int error;
-	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
 	if (ldebug(setrlimit))
@@ -1085,27 +1061,26 @@ linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
 
-	bsd.which = linux_to_bsd_resource[args->resource];
-	if (bsd.which == -1)
+	which = linux_to_bsd_resource[args->resource];
+	if (which == -1)
 		return (EINVAL);
 
 	error = copyin((caddr_t)args->rlim, &rlim, sizeof(rlim));
 	if (error)
 		return (error);
 
-	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
-	bsd.rlp->rlim_cur = (rlim_t)rlim.rlim_cur;
-	bsd.rlp->rlim_max = (rlim_t)rlim.rlim_max;
-	return (setrlimit(td, &bsd));
+	bsd_rlim.rlim_cur = (rlim_t)rlim.rlim_cur;
+	bsd_rlim.rlim_max = (rlim_t)rlim.rlim_max;
+	return (dosetrlimit(td, which, &bsd_rlim));
 }
 
 int
 linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 {
-	struct __getrlimit_args bsd;
 	struct l_rlimit rlim;
-	int error;
-	caddr_t sg = stackgap_init();
+	struct proc *p = td->td_proc;
+	struct rlimit *bsd_rlp;
+	u_int which;
 
 #ifdef DEBUG
 	if (ldebug(old_getrlimit))
@@ -1116,19 +1091,15 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
 
-	bsd.which = linux_to_bsd_resource[args->resource];
-	if (bsd.which == -1)
+	which = linux_to_bsd_resource[args->resource];
+	if (which == -1)
 		return (EINVAL);
+	bsd_rlp = &p->p_rlimit[which];
 
-	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
-	error = getrlimit(td, &bsd);
-	if (error)
-		return (error);
-
-	rlim.rlim_cur = (unsigned long)bsd.rlp->rlim_cur;
+	rlim.rlim_cur = (unsigned long)bsd_rlp->rlim_cur;
 	if (rlim.rlim_cur == ULONG_MAX)
 		rlim.rlim_cur = LONG_MAX;
-	rlim.rlim_max = (unsigned long)bsd.rlp->rlim_max;
+	rlim.rlim_max = (unsigned long)bsd_rlp->rlim_max;
 	if (rlim.rlim_max == ULONG_MAX)
 		rlim.rlim_max = LONG_MAX;
 	return (copyout(&rlim, (caddr_t)args->rlim, sizeof(rlim)));
@@ -1137,10 +1108,10 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 int
 linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 {
-	struct __getrlimit_args bsd;
 	struct l_rlimit rlim;
-	int error;
-	caddr_t sg = stackgap_init();
+	struct proc *p = td->td_proc;
+	struct rlimit *bsd_rlp;
+	u_int which;
 
 #ifdef DEBUG
 	if (ldebug(getrlimit))
@@ -1151,17 +1122,13 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
 
-	bsd.which = linux_to_bsd_resource[args->resource];
-	if (bsd.which == -1)
+	which = linux_to_bsd_resource[args->resource];
+	if (which == -1)
 		return (EINVAL);
+	bsd_rlp = &p->p_rlimit[which];
 
-	bsd.rlp = stackgap_alloc(&sg, sizeof(struct rlimit));
-	error = getrlimit(td, &bsd);
-	if (error)
-		return (error);
-
-	rlim.rlim_cur = (l_ulong)bsd.rlp->rlim_cur;
-	rlim.rlim_max = (l_ulong)bsd.rlp->rlim_max;
+	rlim.rlim_cur = (l_ulong)bsd_rlp->rlim_cur;
+	rlim.rlim_max = (l_ulong)bsd_rlp->rlim_max;
 	return (copyout(&rlim, (caddr_t)args->rlim, sizeof(rlim)));
 }
 #endif /*!__alpha__*/
