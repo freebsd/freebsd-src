@@ -2241,7 +2241,7 @@ tn(int argc, char *argv[])
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(src_addr, 0, &hints, &src_res);
-	if (error == EAI_NODATA) {
+	if (error == EAI_NONAME) {
 		hints.ai_flags = 0;
 		error = getaddrinfo(src_addr, 0, &hints, &src_res);
 	}
@@ -2950,7 +2950,7 @@ sourceroute(struct addrinfo *ai, char *arg, char **cpp, int *lenp, int *protop, 
 
 		hints.ai_flags = AI_NUMERICHOST;
 		error = getaddrinfo(cp, NULL, &hints, &res);
-		if (error == EAI_NODATA) {
+		if (error == EAI_NONAME) {
 			hints.ai_flags = 0;
 			error = getaddrinfo(cp, NULL, &hints, &res);
 		}
