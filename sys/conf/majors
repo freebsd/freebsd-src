@@ -118,7 +118,6 @@
 115	dag		University of Waikato DAG network capture boards
 117	*acd		ATAPI CDROM
 119	*ast		ATAPI tape
-120	aud		Audit Device <rwatson@FreeBSD.org>
 121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
 122	*uhid		USB HID devices <n_hibma>
 123	*fb		frame buffer
