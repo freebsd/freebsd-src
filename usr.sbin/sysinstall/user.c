@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.5 1996/12/15 11:22:37 joerg Exp $
+ * $Id: user.c,v 1.6 1997/01/03 06:32:38 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -108,7 +108,7 @@ static Layout groupLayout[] = {
 /* The user configuration menu. */
 static Layout userLayout[] = {
 #define LAYOUT_UNAME		0
-    { 3, 6, UT_NAMESIZE, UT_NAMESIZE + 4,
+    { 3, 6, UT_NAMESIZE + 4, UT_NAMESIZE,
       "Login ID:", "The login name of the new user (mandatory)",
       uname, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
