@@ -2018,6 +2018,8 @@ fill_fpregs_xmm(sv_xmm, sv_87)
 	register struct envxmm *penv_xmm = &sv_xmm->sv_env;
 	int i;
 
+	bzero(sv_87, sizeof(*sv_87));
+
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
 	penv_87->en_sw = penv_xmm->en_sw;
