@@ -142,15 +142,27 @@ execv(name, argv)
 }
 
 int
-execvp(name, argv)
+execvp(const char *name, char *const *argv)
+{
+	const char *path;
+
+	/* Get the path we're searching. */
+	if (!(path = getenv("PATH")))
+		path = _PATH_DEFPATH;
+	return(execvP(name,path,argv));
+}
+
+int
+execvP(name, path, argv)
 	const char *name;
+	const char *path;
 	char * const *argv;
 {
 	char **memp;
 	int cnt, lp, ln;
 	char *p;
 	int eacces, save_errno;
-	char *bp, *cur, *path, buf[MAXPATHLEN];
+	char *bp, *cur, buf[MAXPATHLEN];
 	struct stat sb;
 
 	eacces = 0;
@@ -158,7 +170,7 @@ execvp(name, argv)
 	/* If it's an absolute or relative path name, it's easy. */
 	if (index(name, '/')) {
 		bp = (char *)name;
-		cur = path = NULL;
+		cur = NULL;
 		goto retry;
 	}
 	bp = buf;
@@ -169,16 +181,12 @@ execvp(name, argv)
 		return (-1);
 	}
 
-	/* Get the path we're searching. */
-	if (!(path = getenv("PATH")))
-		path = _PATH_DEFPATH;
 	cur = alloca(strlen(path) + 1);
 	if (cur == NULL) {
 		errno = ENOMEM;
 		return (-1);
 	}
 	strcpy(cur, path);
-	path = cur;
 	while ( (p = strsep(&cur, ":")) ) {
 		/*
 		 * It's a SHELL path -- double, leading and trailing colons
@@ -197,7 +205,7 @@ execvp(name, argv)
 		 * the user may execute the wrong program.
 		 */
 		if (lp + ln + 2 > sizeof(buf)) {
-			(void)_write(STDERR_FILENO, "execvp: ", 8);
+			(void)_write(STDERR_FILENO, "execvP: ", 8);
 			(void)_write(STDERR_FILENO, p, lp);
 			(void)_write(STDERR_FILENO, ": path too long\n",
 			    16);
