@@ -1934,11 +1934,17 @@ ispscsicmd(xs)
 		XS_RESID(xs) = 0;
 
 		/*
-		 * Fibre Channel always requires some kind of tag, but
-		 * the firmware seems to be happy if we don't use a tag.
+		 * Fibre Channel always requires some kind of tag.
+		 * The Qlogic drivers seem be happy not to use a tag,
+		 * but this breaks for some devices (IBM drives).
 		 */
 		if (XS_CANTAG(xs)) {
 			t2reqp->req_flags = XS_KINDOF_TAG(xs);
+		} else {
+			if (XS_CDBP(xs)[0] == 0x3)	/* REQUEST SENSE */
+				t2reqp->req_flags = REQFLAG_HTAG;
+			else
+				t2reqp->req_flags = REQFLAG_OTAG;
 		}
 	} else {
 		sdparam *sdp = (sdparam *)isp->isp_param;
