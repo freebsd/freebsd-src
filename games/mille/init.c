@@ -45,6 +45,7 @@ static const char rcsid[] =
  * @(#)init.c	1.1 (Berkeley) 4/1/82
  */
 
+void
 init() {
 
 	PLAY	*pp;
@@ -88,6 +89,7 @@ init() {
 	End = 700;
 }
 
+void
 shuffle() {
 
 	int		i, r;
@@ -106,6 +108,7 @@ shuffle() {
 	Topcard = &Deck[DECK_SZ];
 }
 
+void
 newboard() {
 
 	int	i;
@@ -164,6 +167,7 @@ newboard() {
 	newscore();
 }
 
+void
 newscore() {
 
 	int		i, new;

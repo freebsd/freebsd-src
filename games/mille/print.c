@@ -48,6 +48,10 @@ static const char rcsid[] =
 # define	COMP_STRT	20
 # define	CARD_STRT	2
 
+static void show_card __P((int, int, CARD, CARD *));
+static void show_score __P((int, int, int, int *));
+
+void
 prboard() {
 
 	PLAY	*pp;
@@ -102,6 +106,7 @@ prboard() {
  * show_card:
  *	Show the given card if it is different from the last one shown
  */
+static void
 show_card(y, x, c, lc)
 int		y, x;
 CARD	c, *lc;
@@ -115,6 +120,7 @@ CARD	c, *lc;
 
 static char	Score_fmt[] = "%4d";
 
+void
 prscore(for_real)
 bool	for_real; {
 
@@ -161,6 +167,7 @@ bool	for_real; {
  *	Show a score value if it is different from the last time we
  *	showed it.
  */
+static void
 show_score(y, x, s, ls)
 int		y, x;
 int	s, *ls;
