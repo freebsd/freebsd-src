@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.5 1995/11/13 07:19:10 bde Exp $
+ *	$Id: star_saver.c,v 1.6 1995/11/14 07:35:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -95,7 +95,6 @@ star_saver_load(struct lkm_table *lkmtp, int cmd)
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = star_saver;
-	uprintf("star screen saver installed\n");
 	return 0;
 }
 
@@ -104,7 +103,6 @@ star_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
-	uprintf("star screen saver removed\n");
 	return 0;
 }
 
