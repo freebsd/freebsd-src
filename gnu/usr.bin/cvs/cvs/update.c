@@ -424,6 +424,37 @@ update_filesdone_proc (err, repository, update_dir)
 	(void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
     }
 
+#ifdef DO_LINKS
+    {
+	char lnfile[PATH_MAX];
+	FILE *links;
+
+	sprintf(lnfile, "%s/SymLinks", repository);
+	links = fopen(lnfile, "r");
+	if (links) {
+	    char from[PATH_MAX], to[PATH_MAX];
+
+	    /* Read all the link pairs from the symlinks file */
+	    while (fgets(from, PATH_MAX, links)) {
+		fgets(to, PATH_MAX, links);
+
+		/* Strip off the newlines */
+		to[strlen(to) - 1] = '\0';
+		from[strlen(from) - 1] = '\0';
+
+		/* Do it */
+		if (symlink(to, from) == -1) {
+		    error (0, errno, "Unable to create symlink `%s'", to);
+		    return 1;
+		}
+		else if (!quiet)
+		    error (0, 0, "Creating symlink %s", to);
+	    }
+	    fclose(links);
+	}
+    }
+#endif
+
     return (err);
 }
 
