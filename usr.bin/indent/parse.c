@@ -32,11 +32,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -168,7 +170,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 	    ps.p_stack[ps.tos] = stmt;
 	}
 	else
-	    diag2(1, "Statement nesting error.");
+	    diag2(1, "Statement nesting error");
 	break;
 
     case swstmt:		/* had switch (...) */

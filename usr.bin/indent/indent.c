@@ -41,11 +41,12 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -69,11 +70,12 @@ const char *out_name = "Standard Output";	/* will always point to name
 						 * of output file */
 char        bakfile[MAXPATHLEN] = "";
 
+extern int  found_err;	/* flag set in diagN() on error */
+
 int
 main(int argc, char **argv)
 {
 
-    extern int  found_err;	/* flag set in diagN() on error */
     int         dec_ind;	/* current indentation for declarations */
     int         di_stack[20];	/* a stack of structure indentation levels */
     int         flushed_nl;	/* used when buffering up comments to remember
@@ -99,15 +101,24 @@ main(int argc, char **argv)
     |		      INITIALIZATION		      |
     \*-----------------------------------------------*/
 
+    found_err = 0;
 
     ps.p_stack[0] = stmt;	/* this is the parser's stack */
     ps.last_nl = true;		/* this is true if the last thing scanned was
 				 * a newline */
     ps.last_token = semicolon;
     combuf = (char *) malloc(bufsize);
+    if (combuf == NULL)
+	err(1, NULL);
     labbuf = (char *) malloc(bufsize);
+    if (labbuf == NULL)
+	err(1, NULL);
     codebuf = (char *) malloc(bufsize);
+    if (codebuf == NULL)
+	err(1, NULL);
     tokenbuf = (char *) malloc(bufsize);
+    if (tokenbuf == NULL)
+	err(1, NULL);
     l_com = combuf + bufsize - 5;
     l_lab = labbuf + bufsize - 5;
     l_code = codebuf + bufsize - 5;
@@ -122,6 +133,8 @@ main(int argc, char **argv)
     s_token = e_token = tokenbuf + 1;
 
     in_buffer = (char *) malloc(10);
+    if (in_buffer == NULL)
+	err(1, NULL);
     in_buffer_limit = in_buffer + 8;
     buf_ptr = buf_end = in_buffer;
     line_no = 1;
@@ -133,7 +146,6 @@ main(int argc, char **argv)
     di_stack[ps.dec_nest = 0] = 0;
     ps.want_blank = ps.in_stmt = ps.ind_stmt = false;
 
-
     scase = ps.pcase = false;
     squest = 0;
     sc_end = 0;
@@ -141,8 +153,6 @@ main(int argc, char **argv)
     be_save = 0;
 
     output = 0;
-
-
 
     /*--------------------------------------------------*\
     |   		COMMAND LINE SCAN		 |
@@ -349,7 +359,7 @@ main(int argc, char **argv)
 
 			if (sc_end >= &(save_com[sc_size])) {	/* check for temp buffer
 								 * overflow */
-			    diag2(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever.");
+			    diag2(1, "Internal buffer overflow - Move big comment from right after if, while, or whatever");
 			    fflush(output);
 			    exit(1);
 			}
@@ -419,7 +429,7 @@ check_type:
 		    || s_com != e_com)	/* must dump end of line */
 		dump_line();
 	    if (ps.tos > 1)	/* check for balanced braces */
-		diag2(1, "Stuff missing from end of file.");
+		diag2(1, "Stuff missing from end of file");
 
 	    if (verbose) {
 		printf("There were %d output lines and %d comments\n",
@@ -1104,7 +1114,7 @@ check_type:
 		     */
 		    if (match_state[ifdef_level].tos >= 0
 			  && bcmp(&ps, &match_state[ifdef_level], sizeof ps))
-			diag2(0, "Syntactically inconsistent #ifdef alternatives.");
+			diag2(0, "Syntactically inconsistent #ifdef alternatives");
 #endif
 		}
 		if (blanklines_around_conditional_compilation) {
