@@ -35,17 +35,12 @@
  */
 
 #include <sys/cdefs.h>
-#ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
-#endif /* not lint */
 
-#ifndef lint
+__FBSDID("$FreeBSD$");
+
 #if 0
 static char sccsid[] = "@(#)whereis.c	8.3 (Berkeley) 5/4/95";
 #endif
-__RCSID("$NetBSD: whereis.c,v 1.11 2002/06/11 06:06:21 itojun Exp $");
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
