@@ -76,10 +76,6 @@
 
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
-/*
- * This variable is used only by gdb to work out what fields are in
- * ktr_entry.
- */
 int	ktr_cpumask = KTR_CPUMASK;
 TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW, &ktr_cpumask, 0, "");
