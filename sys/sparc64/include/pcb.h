@@ -39,7 +39,6 @@ struct pcb {
 	struct	fpstate	pcb_fpstate;
 	u_long	pcb_fp;
 	u_long	pcb_pc;
-	u_long	pcb_y;
 	caddr_t	pcb_onfault;
 	u_long	pcb_nsaved;
 	u_long	pcb_rwsp[MAXWIN];
