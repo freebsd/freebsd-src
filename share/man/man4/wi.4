@@ -242,7 +242,7 @@ Join a specific BSS network with network name
 Join a specific BSS network with WEP encryption:
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-	wepkey 0x8736639624
+	wepmode on wepkey 0x8736639624
 .Ed
 .Pp
 Join a Lucent legacy demo ad-hoc network with network name
@@ -285,7 +285,7 @@ ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 Create a host-based access point with WEP enabled (Prism only):
 .Bd -literal -offset indent
 ifconfig wi0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
-	wepkey 0x1234567890 mediaopt hostap
+	wepmode on wepkey 0x1234567890 mediaopt hostap
 .Ed
 .Pp
 Create a host-based wireless bridge to fxp0 (Prism only):
