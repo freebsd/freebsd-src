@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.7 1993/10/23 00:47:18 pk Exp $
+ *	$Id: crt0.c,v 1.8 1993/11/04 10:51:41 pk Exp $
  */
 
 
@@ -209,6 +209,7 @@ start()
 	environ = targv;
 
 #ifdef DYNAMIC
+	/* ld(1) convention: if DYNAMIC = 0 then statically linked */
 #ifdef stupid_gcc
 	if (&_DYNAMIC)
 		__do_dynamic_link();
@@ -248,12 +249,10 @@ __do_dynamic_link ()
 	int		dupzfd;
 	void		(*entry)();
 
-	/* ld(1) convention: if DYNAMIC = 0 then statically linked */
-	if (&_DYNAMIC == (struct link_dynamic *)0)
-		return;
-
+#ifdef DEBUG
 	/* Provision for alternate ld.so - security risk! */
 	if (!(ldso = _getenv("LDSO")))
+#endif
 		ldso = LDSO;
 
 	crt.crt_ldfd = open(ldso, 0, 0);

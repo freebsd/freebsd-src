@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.3 1993/11/04 01:09:08 paul Exp $
+#	$Id: Makefile,v 1.4 1993/11/07 03:05:40 paul Exp $
 
-CFLAGS+=	-DLIBC_SCCS #-DDYNAMIC
+CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
 OBJS=		crt0.o gcrt0.o
 CLEANFILES+=	gmon.o moncrt0.o core a.out
 
@@ -9,8 +9,8 @@ all: ${OBJS}
 
 crt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DCRT0 ${.ALLSRC}
-#	${LD} -x -r ${.TARGET}
-#	mv a.out ${.TARGET}
+	${LD} -x -r ${.TARGET}
+	mv a.out ${.TARGET}
 
 moncrt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DMCRT0 ${.ALLSRC} -o ${.TARGET}
