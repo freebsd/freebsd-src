@@ -39,6 +39,7 @@
 .Nd reserve a terminal
 .Sh SYNOPSIS
 .Nm lock
+.Op Fl n
 .Op Fl p
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
@@ -53,6 +54,8 @@ with the appropriate permission.
 Options:
 .Pp
 .Bl -tag -width Fl
+.It Fl n
+Don't use a timeout value.  Terminal will be locked forever.
 .It Fl p
 A password is not requested, instead the user's current login password
 is used.
