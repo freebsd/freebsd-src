@@ -64,18 +64,18 @@ cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_target.c	optional targ
 cam/scsi/scsi_targ_bh.c	optional targbh
 crypto/sha1.c		optional ipsec
-crypto/des/des_cbc.c	optional ipsec
-crypto/des/des_ecb.c	optional ipsec
-crypto/des/des_setkey.c	optional ipsec
-crypto/des/des_3cbc.c	optional ipsec
-crypto/blowfish/bf_cbc.c	optional ipsec
-crypto/blowfish/bf_cbc_m.c	optional ipsec
-crypto/blowfish/bf_enc.c	optional ipsec
-crypto/blowfish/bf_skey.c	optional ipsec
-crypto/cast128/cast128.c	optional ipsec
-crypto/cast128/cast128_cbc.c	optional ipsec
-crypto/rc5/rc5.c		optional ipsec
-crypto/rc5/rc5_cbc.c		optional ipsec
+crypto/des/des_cbc.c	optional ipsec ipsec_esp
+crypto/des/des_ecb.c	optional ipsec ipsec_esp
+crypto/des/des_setkey.c	optional ipsec ipsec_esp
+crypto/des/des_3cbc.c	optional ipsec ipsec_esp
+crypto/blowfish/bf_cbc.c	optional ipsec ipsec_esp
+crypto/blowfish/bf_cbc_m.c	optional ipsec ipsec_esp
+crypto/blowfish/bf_enc.c	optional ipsec ipsec_esp
+crypto/blowfish/bf_skey.c	optional ipsec ipsec_esp
+crypto/cast128/cast128.c	optional ipsec ipsec_esp
+crypto/cast128/cast128_cbc.c	optional ipsec ipsec_esp
+crypto/rc5/rc5.c		optional ipsec ipsec_esp
+crypto/rc5/rc5_cbc.c		optional ipsec ipsec_esp
 ddb/db_access.c		optional ddb
 ddb/db_kld.c		optional ddb
 ddb/db_aout.c		optional ddb
@@ -650,9 +650,9 @@ netinet/mlfk_ipl.c	optional ipfilter inet
 netinet6/ah_core.c	optional ipsec
 netinet6/ah_input.c	optional ipsec
 netinet6/ah_output.c	optional ipsec
-netinet6/esp_core.c	optional ipsec
-netinet6/esp_input.c	optional ipsec
-netinet6/esp_output.c	optional ipsec
+netinet6/esp_core.c	optional ipsec ipsec_esp
+netinet6/esp_input.c	optional ipsec ipsec_esp
+netinet6/esp_output.c	optional ipsec ipsec_esp
 netinet6/ipsec.c	optional ipsec
 netinet6/dest6.c	optional inet6
 netinet6/frag6.c	optional inet6
