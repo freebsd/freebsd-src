@@ -91,7 +91,7 @@ char	ackbuf[PKTSIZE];
 struct	sockaddr_in from;
 int	fromlen;
 
-void	tftp __P((struct tftphdr *, int));
+void	tftp(struct tftphdr *, int);
 
 /*
  * Null-terminated directory prefix list for absolute pathname requests and
@@ -109,17 +109,15 @@ static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
 
-static char *errtomsg __P((int));
-static void  nak __P((int));
-static void  oack __P(());
+static char *errtomsg(int);
+static void  nak(int);
+static void  oack();
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register struct tftphdr *tp;
-	register int n;
+	struct tftphdr *tp;
+	int n;
 	int ch, on;
 	struct sockaddr_in sin;
 	char *chroot_dir = NULL;
@@ -295,15 +293,15 @@ main(argc, argv)
 }
 
 struct formats;
-int	validate_access __P((char **, int));
-void	xmitfile __P((struct formats *));
-void	recvfile __P((struct formats *));
+int	validate_access(char **, int);
+void	xmitfile(struct formats *);
+void	recvfile(struct formats *);
 
 struct formats {
 	char	*f_mode;
-	int	(*f_validate) __P((char **, int));
-	void	(*f_send) __P((struct formats *));
-	void	(*f_recv) __P((struct formats *));
+	int	(*f_validate)(char **, int);
+	void	(*f_send)(struct formats *);
+	void	(*f_recv)(struct formats *);
 	int	f_convert;
 } formats[] = {
 	{ "netascii",	validate_access,	xmitfile,	recvfile, 1 },
@@ -333,13 +331,11 @@ enum opt_enum {
  * Handle initial connection protocol.
  */
 void
-tftp(tp, size)
-	struct tftphdr *tp;
-	int size;
+tftp(struct tftphdr *tp, int size)
 {
-	register char *cp;
+	char *cp;
 	int i, first = 1, has_options = 0, ecode;
-	register struct formats *pf;
+	struct formats *pf;
 	char *filename, *mode, *option, *ccp;
 
 	filename = cp = tp->th_stuff;
@@ -450,9 +446,7 @@ FILE *file;
  * given as we have no login directory.
  */
 int
-validate_access(filep, mode)
-	char **filep;
-	int mode;
+validate_access(char **filep, int mode)
 {
 	struct stat stbuf;
 	int	fd;
@@ -548,7 +542,7 @@ int	timeouts;
 jmp_buf	timeoutbuf;
 
 void
-timer()
+timer(int sig __unused)
 {
 	if (++timeouts > MAX_TIMEOUTS)
 		exit(1);
@@ -559,12 +553,11 @@ timer()
  * Send the requested file.
  */
 void
-xmitfile(pf)
-	struct formats *pf;
+xmitfile(struct formats *pf)
 {
 	struct tftphdr *dp, *r_init();
-	register struct tftphdr *ap;    /* ack packet */
-	register int size, n;
+	struct tftphdr *ap;    /* ack packet */
+	int size, n;
 	volatile unsigned short block;
 
 	signal(SIGALRM, timer);
@@ -619,7 +612,7 @@ abort:
 }
 
 void
-justquit()
+justquit(int sig __unused)
 {
 	exit(0);
 }
@@ -629,12 +622,11 @@ justquit()
  * Receive a file.
  */
 void
-recvfile(pf)
-	struct formats *pf;
+recvfile(struct formats *pf)
 {
 	struct tftphdr *dp, *w_init();
-	register struct tftphdr *ap;    /* ack buffer */
-	register int n, size;
+	struct tftphdr *ap;    /* ack buffer */
+	int n, size;
 	volatile unsigned short block;
 
 	signal(SIGALRM, timer);
@@ -720,11 +712,10 @@ struct errmsg {
 };
 
 static char *
-errtomsg(error)
-	int error;
+errtomsg(int error)
 {
 	static char buf[20];
-	register struct errmsg *pe;
+	struct errmsg *pe;
 	if (error == 0)
 		return "success";
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
@@ -741,12 +732,11 @@ errtomsg(error)
  * offset by 100.
  */
 static void
-nak(error)
-	int error;
+nak(int error)
 {
-	register struct tftphdr *tp;
+	struct tftphdr *tp;
 	int length;
-	register struct errmsg *pe;
+	struct errmsg *pe;
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)ERROR);
@@ -770,7 +760,7 @@ nak(error)
  * Send an oack packet (option acknowledgement).
  */
 static void
-oack()
+oack(void)
 {
 	struct tftphdr *tp, *ap;
 	int size, i, n;
