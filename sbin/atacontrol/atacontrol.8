@@ -52,6 +52,8 @@
 .Nm
 .Ic info
 .Ar channel
+.Nm
+.Ic list
 .Sh DESCRIPTION
 .Nm
 is a control program that provides the user access and control to the
@@ -103,10 +105,12 @@ as argument (i.e.\&
 .Dq Li XXX ) ,
 and the mode will remain unchanged.
 .It Ic info
-Show info on the device on the
+Show info about the attached devices on the
 .Ar channel ,
 currently only the device
 name and manufacture/version strings are shown.
+.It Ic list
+Show info about all attached devices on all active controllers.
 .El
 .Sh SEE ALSO
 .Xr ata 4
