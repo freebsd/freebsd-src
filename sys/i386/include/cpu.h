@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.33 1997/08/30 02:51:58 kato Exp $
+ *	$Id: cpu.h,v 1.34 1997/10/27 17:23:02 bde Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -115,16 +115,6 @@
 #define astoff()
 
 /*
- * pull in #defines for kinds of processors
- */
-#include <machine/cputypes.h>
-
-struct cpu_nameclass {
-	char *cpu_name;
-	int  cpu_class;
-};
-
-/*
  * CTL_MACHDEP definitions.
  */
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */
@@ -145,8 +135,6 @@ struct cpu_nameclass {
 
 #ifdef KERNEL
 extern char	btext[];
-extern int	cpu;
-extern int	cpu_class;
 extern char	etext[];
 extern u_char	intr_nesting_level;
 extern int	want_resched;	/* resched was called */
