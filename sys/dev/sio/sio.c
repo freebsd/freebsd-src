@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.111 1995/08/24 08:55:57 phk Exp $
+ *	$Id: sio.c,v 1.112 1995/09/19 12:37:41 phk Exp $
  */
 
 #include "sio.h"
@@ -2032,7 +2032,7 @@ siostop(tp, rw)
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (com->gone)
-		return 0;
+		return;
 	disable_intr();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
@@ -2048,7 +2048,7 @@ siostop(tp, rw)
 	}
 	enable_intr();
 	comstart(tp);
-	return 0;
+	return;
 
 	/* XXX should clear h/w fifos too. */
 }
