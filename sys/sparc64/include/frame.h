@@ -31,6 +31,7 @@
 
 #define	RW_SHIFT	7
 #define	SPOFF		2047
+#define	BIAS		SPOFF		/* XXX - open/netbsd compat */
 
 struct trapframe {
 	u_long	tf_global[8];
@@ -62,12 +63,15 @@ struct clockframe {
 };
 
 struct frame {
-	u_long	f_local[8];
-	u_long	f_in[8];
-	u_long	f_pad[8];
+	u_long	fr_local[8];
+	u_long	fr_in[8];
+	u_long	fr_pad[8];
 };
-#define	f_fp	f_in[6]
-#define	f_pc	f_in[7]
+#define	fr_arg	fr_in
+#define	fr_fp	fr_in[6]
+#define	fr_pc	fr_in[7]
+
+#define	v9next_frame(fp)	((struct frame *)(fp->fr_fp + BIAS))
 
 /*
  * Frame used for pcb_wscratch.
