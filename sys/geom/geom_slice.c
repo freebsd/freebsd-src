@@ -173,6 +173,15 @@ g_slice_start(struct bio *bp)
 			g_haveattr_off_t(bp, "GEOM::frontstuff", t);
 			return;
 		}
+		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
+			struct g_kerneldump *gkd;
+
+			gkd = (struct g_kerneldump *)bp->bio_data;
+			gkd->offset += gsp->slices[index].offset;
+			if (gkd->length > gsp->slices[index].length)
+				gkd->length = gsp->slices[index].length;
+			/* now, pass it on downwards... */
+		}
 		bp2 = g_clone_bio(bp);
 		bp2->bio_done = g_std_done;
 		g_io_request(bp2, cp);
