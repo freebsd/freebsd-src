@@ -21,7 +21,6 @@
 
 # Temporary stuff while we're still embryonic
 NO_MODULES?=	yes
-FMT=
 
 STD8X16FONT?=	iso
 
