@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.9 1997/02/15 15:41:42 jkh Exp $
+ * $Id: main.c,v 1.28.2.10 1997/02/20 16:46:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -118,32 +118,6 @@ main(int argc, char **argv)
 	    }
 	    fclose(fp);
 	}
-#if defined(LOAD_CONFIG_FILE)
-	else {
-	    /* If we have a compiled-in startup config file name on
-	       the floppy, look for it and try to load it on startup */
-	    extern char *distWanted;
-
-	    /* Tell mediaSetFloppy() to try floppy now */
-	    distWanted = LOAD_CONFIG_FILE;
-
-	    /* Try to open the floppy drive if we can do that first */
-	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
-		fp = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
-		if (fp) {
-		    msgNotify("Loading %s pre-configuration file", LOAD_CONFIG_FILE);
-		    while (fgets(buf, sizeof buf, fp)) {
-			if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
-			    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
-			    break;
-			}
-		    }
-		    fclose(fp);
-		}
-		mediaDevice->shutdown(mediaDevice);
-	    }
-	}
-#endif
     }
  
     /* Begin user dialog at outer menu */
