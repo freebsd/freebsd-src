@@ -2186,11 +2186,6 @@ ENTRY(tl0_trap)
 	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
-	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
-	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
-	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
-	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
-	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
@@ -2206,6 +2201,12 @@ ENTRY(tl0_trap)
 	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 
 	set	tl0_ret - 8, %o7
 	jmpl	%o2, %g0
@@ -2375,8 +2376,8 @@ ENTRY(tl0_ret)
 	 nop
 
 	/*
-	 * Restore the out registers from the trapframe.  These are ins
-	 * now, they will become the outs when we restore below.
+	 * Restore the out and most global registers from the trapframe.
+	 * The ins will become the outs when we restore below.
 	 */
 2:	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
@@ -2386,6 +2387,12 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O5], %i5
 	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %i6
 	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
+	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
+	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
+	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
+	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
 
 	/*
 	 * Load everything we need to restore below before disabling
@@ -2400,18 +2407,12 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l6
 
 	/*
-	 * Disable interrupts to restore the globals.  We need to restore
-	 * %g6 and %g7 which are used as global variables in the kernel.
-	 * They are not saved and restored for kernel traps, so an interrupt
-	 * at the wrong time would clobber them.
+	 * Disable interrupts to restore the special globals.  They are not
+	 * saved and restored for all kernel traps, so an interrupt at the
+	 * wrong time would clobber them.
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
-	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
-	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
-	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
-	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
 
@@ -2648,11 +2649,8 @@ ENTRY(tl1_trap)
 	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
-	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
-	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
-	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
-	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
-	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
+	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
 	mov	%l0, PCB_REG
 	mov	%l1, PCPU_REG
@@ -2666,6 +2664,12 @@ ENTRY(tl1_trap)
 	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 
 	set	tl1_ret - 8, %o7
 	jmpl	%o2, %g0
@@ -2682,19 +2686,29 @@ ENTRY(tl1_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %i6
 	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
-	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
-
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
 	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
 	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
 	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
 
-	wrpr	%g0, PSTATE_ALT, %pstate
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
+
+	set	VM_MIN_PROM_ADDRESS, %l5
+	cmp	%l1, %l5
+	bl,a,pt	%xcc, 1f
+	 nop
+
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
+	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
+
+1:	wrpr	%g0, PSTATE_ALT, %pstate
 
 	andn	%l0, TSTATE_CWP_MASK, %g1
 	mov	%l1, %g2
