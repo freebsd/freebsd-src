@@ -65,8 +65,7 @@
 .Nm
 .Fl B
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk
 .Oo Ar disktype/auto Oc
@@ -75,8 +74,7 @@
 .Fl B
 .Op Fl n
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk Ar disktype/auto
 .Oo Ar packid Oc
@@ -85,8 +83,7 @@
 .Fl B
 .Op Fl n
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk Ar protofile
 .Oo Ar disktype/auto Oc
@@ -330,8 +327,7 @@ bootblocks in the slice.
 .Nm
 .Fl B
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk
 .Oo Ar disktype Oc
@@ -349,8 +345,7 @@ This command is typically run on a slice such as
 .Fl B
 .Op Fl n
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk Ar disktype
 .Oo Ar packid Oc
@@ -372,8 +367,7 @@ disklabel that would have been written will be printed to stdout.
 .Fl B
 .Op Fl n
 .Oo
-.Fl b Ar boot1
-.Fl s Ar boot2
+.Fl b Ar boot
 .Oc
 .Ar disk Ar protofile
 .Oo Ar disktype Oc
@@ -423,12 +417,8 @@ parameters of the
 .Xr disktab 5
 entry for the disk if the disktab entry exists and includes those parameters.
 .It
-Otherwise, the default boot image names are used:
-.Pa /boot/boot1
-and
-.Pa /boot/boot2
-for the standard stage1 and stage2 boot images (details may vary
-on architectures like the Alpha, where only a single-stage boot is used).
+Otherwise, the default boot image name are used:
+.Pa /boot/boot .
 .El
 .Ss Initializing/Formatting a bootable disk from scratch
 .Pp
@@ -743,21 +733,17 @@ partition sizes.
 Install a new bootstrap on
 .Pa da0s1 .
 The boot code comes from
-.Pa /boot/boot1
-and possibly
-.Pa /boot/boot2 .
+.Pa /boot/boot .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot2 da2212
+.Dl disklabel -w -B /dev/da0s1 -b newboot da2212
 .Pp
 Install a new label and bootstrap.
 The label is derived from disktab information for
 .Dq da2212
 and installed both in-core and on-disk.
 The bootstrap code comes from the files
-.Pa /boot/newboot1
-and
-.Pa /boot/newboot2 .
+.Pa /boot/newboot
 .Pp
 .Dl dd if=/dev/zero of=/dev/da0 bs=512 count=32
 .Dl fdisk -BI da0
