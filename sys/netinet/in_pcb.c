@@ -524,6 +524,7 @@ in_pcbdetach(inp)
 {
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+	struct rtentry *rt  = inp->inp_route.ro_rt;
 
 #ifdef IPSEC
 	ipsec4_delete_pcbpolicy(inp);
@@ -534,8 +535,28 @@ in_pcbdetach(inp)
 	sofree(so);
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-	if (inp->inp_route.ro_rt)
-		rtfree(inp->inp_route.ro_rt);
+	if (rt) {
+		/* 
+		 * route deletion requires reference count to be <= zero 
+		 */
+		if ((rt->rt_flags & RTF_DELCLONE) &&
+		    (rt->rt_flags & RTF_WASCLONED)) {
+			if (--rt->rt_refcnt <= 0) {
+				rt->rt_flags &= ~RTF_UP;
+				rtrequest(RTM_DELETE, rt_key(rt),
+					  rt->rt_gateway, rt_mask(rt),
+					  rt->rt_flags, (struct rtentry **)0);
+			}
+			else
+				/* 
+				 * more than one reference, bump it up 
+				 * again.
+				 */
+				rt->rt_refcnt++;
+		}
+		else
+			rtfree(rt);
+	}
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	zfreei(ipi->ipi_zone, inp);
