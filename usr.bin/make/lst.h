@@ -112,9 +112,9 @@ void		Lst_Destroy(Lst *, FreeProc *);
  * Functions to modify a list
  */
 /* Insert an element before another */
-ReturnStatus	Lst_Insert(Lst *, LstNode *, void *);
+void		Lst_Insert(Lst *, LstNode *, void *);
 /* Insert an element after another */
-ReturnStatus	Lst_Append(Lst *, LstNode *, void *);
+void		Lst_Append(Lst *, LstNode *, void *);
 /* Place an element at the front of a lst. */
 #define	Lst_AtFront(LST, D)	(Lst_Insert((LST), Lst_First(LST), (D)))
 /* Place an element at the end of a lst. */
