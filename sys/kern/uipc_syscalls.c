@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.11 1996/01/01 10:28:21 peter Exp $
+ * $Id: uipc_syscalls.c,v 1.12 1996/01/03 21:42:21 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1018,6 +1018,7 @@ getsockopt(p, uap, retval)
 	return (error);
 }
 
+#ifdef OLD_PIPE
 /* ARGSUSED */
 int
 pipe(p, uap, retval)
@@ -1070,7 +1071,7 @@ free1:
 	(void)soclose(rso);
 	return (error);
 }
-
+#endif
 /*
  * Get socket name.
  */
