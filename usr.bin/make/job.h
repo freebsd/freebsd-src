@@ -46,17 +46,17 @@
  *	Exported from job.c for the use of remote-execution modules.
  */
 #ifndef _JOB_H_
-#define _JOB_H_
+#define	_JOB_H_
 
-#define TMPPAT	"/tmp/makeXXXXXXXXXX"
+#define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
 /*
  * The SEL_ constants determine the maximum amount of time spent in select
  * before coming out to see if a child has finished. SEL_SEC is the number of
  * seconds and SEL_USEC is the number of micro-seconds
  */
-#define SEL_SEC		0
-#define SEL_USEC	100000
+#define	SEL_SEC		0
+#define	SEL_USEC	100000
 
 
 /*-
@@ -91,7 +91,7 @@
  * parents of the node which was just remade. This takes care of the upward
  * traversal of the dependency graph.
  */
-#define JOB_BUFSIZE	1024
+#define	JOB_BUFSIZE	1024
 typedef struct Job {
     int       	pid;	    /* The child's process ID */
     char	tfile[sizeof(TMPPAT)];
@@ -105,17 +105,17 @@ typedef struct Job {
     short      	flags;	    /* Flags to control treatment of job */
 #define	JOB_IGNERR	0x001	/* Ignore non-zero exits */
 #define	JOB_SILENT	0x002	/* no output */
-#define JOB_SPECIAL	0x004	/* Target is a special one. i.e. run it locally
+#define	JOB_SPECIAL	0x004	/* Target is a special one. i.e. run it locally
 				 * if we can't export it and maxLocal is 0 */
-#define JOB_IGNDOTS	0x008  	/* Ignore "..." lines when processing
+#define	JOB_IGNDOTS	0x008  	/* Ignore "..." lines when processing
 				 * commands */
-#define JOB_REMOTE	0x010	/* Job is running remotely */
-#define JOB_FIRST	0x020	/* Job is first job for the node */
-#define JOB_REMIGRATE	0x040	/* Job needs to be remigrated */
-#define JOB_RESTART	0x080	/* Job needs to be completely restarted */
-#define JOB_RESUME	0x100	/* Job needs to be resumed b/c it stopped,
+#define	JOB_REMOTE	0x010	/* Job is running remotely */
+#define	JOB_FIRST	0x020	/* Job is first job for the node */
+#define	JOB_REMIGRATE	0x040	/* Job needs to be remigrated */
+#define	JOB_RESTART	0x080	/* Job needs to be completely restarted */
+#define	JOB_RESUME	0x100	/* Job needs to be resumed b/c it stopped,
 				 * for some reason */
-#define JOB_CONTINUING	0x200	/* We are in the process of resuming this job.
+#define	JOB_CONTINUING	0x200	/* We are in the process of resuming this job.
 				 * Used to avoid infinite recursion between
 				 * JobFinish and JobRestart */
     union {
@@ -144,12 +144,12 @@ typedef struct Job {
     }       	output;	    /* Data for tracking a shell's output */
 } Job;
 
-#define outPipe	  	output.o_pipe.op_outPipe
-#define inPipe	  	output.o_pipe.op_inPipe
-#define outBuf		output.o_pipe.op_outBuf
-#define curPos		output.o_pipe.op_curPos
-#define outFile		output.o_file.of_outFile
-#define outFd	  	output.o_file.of_outFd
+#define	outPipe	  	output.o_pipe.op_outPipe
+#define	inPipe	  	output.o_pipe.op_inPipe
+#define	outBuf		output.o_pipe.op_outBuf
+#define	curPos		output.o_pipe.op_curPos
+#define	outFile		output.o_file.of_outFile
+#define	outFd	  	output.o_file.of_outFd
 
 
 /*-

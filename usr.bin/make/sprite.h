@@ -46,7 +46,7 @@
  */
 
 #ifndef _SPRITE
-#define _SPRITE
+#define	_SPRITE
 
 /*
  * A boolean type is defined as an integer, not an enum. This allows a
@@ -55,15 +55,15 @@
 
 typedef int Boolean;
 #ifndef TRUE
-#define TRUE	1
+#define	TRUE	1
 #endif /* TRUE */
 #ifndef FALSE
-#define FALSE	0
+#define	FALSE	0
 #endif /* FALSE */
 
 typedef int  ReturnStatus;
 
-#define SUCCESS		0
-#define FAILURE		1
+#define	SUCCESS		0
+#define	FAILURE		1
 
 #endif /* _SPRITE */

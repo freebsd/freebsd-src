@@ -46,7 +46,7 @@
  */
 
 #ifndef _BUF_H
-#define _BUF_H
+#define	_BUF_H
 
 #include    "sprite.h"
 
@@ -65,7 +65,7 @@ typedef struct Buffer {
 	(void) (--(bp)->left <= 0 ? Buf_OvAddByte(bp, byte), 1 : \
 		(*(bp)->inPtr++ = (byte), *(bp)->inPtr = 0), 1)
 
-#define BUF_ERROR 256
+#define	BUF_ERROR 256
 
 void Buf_OvAddByte(Buffer, int);
 void Buf_AddBytes(Buffer, int, const Byte *);

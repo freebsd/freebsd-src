@@ -175,7 +175,7 @@ For_Eval (line)
 	buf = Buf_Init(0);
 	sub = Var_Subst(NULL, ptr, VAR_GLOBAL, FALSE);
 
-#define ADDWORD() \
+#define	ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
 	Buf_AddByte(buf, (Byte) '\0'), \
 	Lst_AtFront(forLst, (void *) Buf_GetAll(buf, &varlen)), \
