@@ -44,21 +44,20 @@
 
 #define BLOCKS	16
 
-
 struct track_info {
 	int	file;
 	char	*file_name;
 	int	file_size;
 	int	block_size;
 	int	block_type;
+	int	pregap;
 	int	addr;
-	int	gap;
 };
 static struct track_info tracks[100];
 static int fd, quiet, verbose, saved_block_size, notracks;
 
-void add_track(char *, int, int);
-void do_DAO(int);
+void add_track(char *, int, int, int);
+void do_DAO(int, int);
 void do_TAO(int, int);
 int write_file(struct track_info *);
 int roundup_blocks(struct track_info *);
@@ -71,11 +70,11 @@ main(int argc, char **argv)
 {
 	int ch, arg, addr;
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
-	int speed = 4, test_write = 0;
+	int nogap = 0, speed = 4, test_write = 0;
 	int block_size = 0, block_type = 0, cdopen = 0;
 	char *devname = "/dev/acd0c";
 
-	while ((ch = getopt(argc, argv, "def:lmpqs:tv")) != -1) {
+	while ((ch = getopt(argc, argv, "def:lmnpqs:tv")) != -1) {
 		switch (ch) {
 		case 'd':
 			dao = 1;
@@ -95,6 +94,10 @@ main(int argc, char **argv)
 
 		case 'm':
 			multi = 1;
+			break;
+
+		case 'n':
+			nogap = 1;
 			break;
 
 		case 'p':
@@ -141,11 +144,11 @@ main(int argc, char **argv)
 	err_set_exit(cleanup);
 
 	for (arg = 0; arg < argc; arg++) {
-		if (!strcmp(argv[arg], "fixate")) {
+		if (!strcasecmp(argv[arg], "fixate")) {
 			fixate = 1;
 			break;
 		}
-		if (!strcmp(argv[arg], "msinfo")) {
+		if (!strcasecmp(argv[arg], "msinfo")) {
 		        struct ioc_read_toc_single_entry entry;
 
 			bzero(&entry, sizeof(struct ioc_read_toc_single_entry));
@@ -159,10 +162,10 @@ main(int argc, char **argv)
 
 			break;
 		}
-		if (!strcmp(argv[arg], "erase") || !strcmp(argv[arg], "blank")){
+		if (!strcasecmp(argv[arg], "erase") || !strcasecmp(argv[arg], "blank")){
 		    	int error, blank, percent;
 
-			if (!strcmp(argv[arg], "erase"))
+			if (!strcasecmp(argv[arg], "erase"))
 				blank = CDR_B_ALL;
 			else
 				blank = CDR_B_MIN;
@@ -187,29 +190,36 @@ main(int argc, char **argv)
 				printf("\n");
 			continue;
 		}
-		if (!strcmp(argv[arg], "audio") || !strcmp(argv[arg], "raw")) {
+		if (!strcasecmp(argv[arg], "audio") || !strcasecmp(argv[arg], "raw")) {
 			block_type = CDR_DB_RAW;
 			block_size = 2352;
 			continue;
 		}
-		if (!strcmp(argv[arg], "data") || !strcmp(argv[arg], "mode1")) {
+		if (!strcasecmp(argv[arg], "data") || !strcasecmp(argv[arg], "mode1")) {
 			block_type = CDR_DB_ROM_MODE1;
 			block_size = 2048;
 			continue;
 		}
-		if (!strcmp(argv[arg], "mode2")) {
+		if (!strcasecmp(argv[arg], "mode2")) {
 			block_type = CDR_DB_ROM_MODE2;
 			block_size = 2336;
 			continue;
 		}
-		if (!strcmp(argv[arg], "XAmode1")) {
+		if (!strcasecmp(argv[arg], "xamode1")) {
 			block_type = CDR_DB_XA_MODE1;
 			block_size = 2048;
 			continue;
 		}
-		if (!strcmp(argv[arg], "XAmode2")) {
+		if (!strcasecmp(argv[arg], "xamode2")) {
 			block_type = CDR_DB_XA_MODE2_F2;
 			block_size = 2324;
+			continue;
+		}
+		if (!strcasecmp(argv[arg], "vcd")) {
+			block_type = CDR_DB_XA_MODE2_F2;
+			block_size = 2352;
+			dao = 1;
+			nogap = 1;
 			continue;
 		}
 		if (!block_size)
@@ -226,7 +236,7 @@ main(int argc, char **argv)
 					continue;
 				if ((eol = strchr(file_buf, '\n')))
 					*eol = NULL;
-				add_track(file_buf, block_size, block_type);
+				add_track(file_buf, block_size, block_type, nogap);
 			}
 			if (feof(fp))
 				fclose(fp);
@@ -234,7 +244,7 @@ main(int argc, char **argv)
 				err(EX_IOERR, "fgets(%s)", file_buf);
 		}
 		else
-			add_track(argv[arg], block_size, block_type);
+			add_track(argv[arg], block_size, block_type, nogap);
 	}
 	if (notracks) {
 		if (ioctl(fd, CDIOCSTART, 0) < 0)
@@ -245,7 +255,7 @@ main(int argc, char **argv)
 			cdopen = 1;
 		}
 		if (dao) 
-			do_DAO(test_write);
+			do_DAO(test_write, multi);
 		else
 			do_TAO(test_write, preemp);
 	}
@@ -269,7 +279,7 @@ main(int argc, char **argv)
 }
 
 void
-add_track(char *name, int block_size, int block_type)
+add_track(char *name, int block_size, int block_type, int nogap)
 {
 	struct stat stat;
 	int file;
@@ -292,6 +302,16 @@ add_track(char *name, int block_size, int block_type)
 	tracks[notracks].file_size = stat.st_size;
 	tracks[notracks].block_size = block_size;
 	tracks[notracks].block_type = block_type;
+
+	if (nogap && notracks)
+		tracks[notracks].pregap = 0;
+	else {
+		if (tracks[notracks - (notracks > 0)].block_type == block_type)
+			tracks[notracks].pregap = 150;
+		else
+			tracks[notracks].pregap = 255;
+	}
+
 	if (verbose) {
 		int pad = 0;
 
@@ -308,12 +328,12 @@ add_track(char *name, int block_size, int block_type)
 }
 
 void
-do_DAO(int test_write)
+do_DAO(int test_write, int multi)
 {
 	struct cdr_cuesheet sheet;
 	struct cdr_cue_entry cue[100];
+	int format = CDR_SESS_CDROM;
 	int addr, i, j = 0;
-	int last_type;
 
 	int bt2ctl[16] = { 0x0,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
 			   0x4, 0x4, 0x4, 0x4, 0x4, 0x4,  -1,  -1 };
@@ -330,27 +350,16 @@ do_DAO(int test_write)
 		(bt2df[tracks[0].block_type] & 0xf0) | 
 		(tracks[0].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
 
-	last_type = tracks[0].block_type;
-
 	for (i = 0; i < notracks; i++) {
 		if (bt2ctl[tracks[i].block_type] < 0 ||
 		    bt2df[tracks[i].block_type] < 0)
 			err(EX_IOERR, "track type not supported in DAO mode");
 
-		if (tracks[i].block_type == last_type)
-			tracks[i].gap = 150;
-		else
-			tracks[i].gap = 255;
-		last_type = tracks[i].block_type;
+		if (tracks[i].block_type >= CDR_DB_XA_MODE1)
+			format = CDR_SESS_CDROM_XA;
 
-		if (i == 0) { /* gap uses no data */
-			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type], 
-				0x01, i+1, 0x0,
-				(bt2df[tracks[i].block_type] & 0xf0) | 
-				(tracks[i].block_type < 8 ? 0x01 : 0x04), 
-				0x00, addr);
-
-			addr += tracks[i].gap;
+		if (i == 0) {
+			addr += tracks[i].pregap;
 			tracks[i].addr = addr;
 
 			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type], 
@@ -359,31 +368,33 @@ do_DAO(int test_write)
 
 		}
 		else {
-			if (tracks[i].block_type > 0x7) {
-				cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
-					0x01, i+1, 0x0,
-					(bt2df[tracks[i].block_type] & 0xf0) | 
-					(tracks[i].block_type < 8 ? 0x01 :0x04),
-					0x00, addr);
+			if (tracks[i].pregap) {
+				if (tracks[i].block_type > 0x7) {
+					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+						0x01, i+1, 0x0,
+						(bt2df[tracks[i].block_type] & 0xf0) | 
+						(tracks[i].block_type < 8 ? 0x01 :0x04),
+						0x00, addr);
+				}
+				else
+					cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
+						0x01, i+1, 0x0,
+						bt2df[tracks[i].block_type],
+						0x00, addr);
 			}
-			else
-				cue_ent(&cue[j++],bt2ctl[tracks[i].block_type], 
-					0x01, i+1, 0x0,
-					bt2df[tracks[i].block_type],
-					0x00, addr);
-
 			tracks[i].addr = tracks[i - 1].addr +
 				roundup_blocks(&tracks[i - 1]);
 
 			cue_ent(&cue[j++], bt2ctl[tracks[i].block_type],
 				0x01, i+1, 0x1, bt2df[tracks[i].block_type],
-				0x00, addr + tracks[i].gap);
+				0x00, addr + tracks[i].pregap);
 
 			if (tracks[i].block_type > 0x7)
-				addr += tracks[i].gap;
+				addr += tracks[i].pregap;
 		}
 		addr += roundup_blocks(&tracks[i]);
 	}
+
 	cue_ent(&cue[j++], bt2ctl[tracks[i - 1].block_type], 0x01, 0xaa, 0x01,
 		(bt2df[tracks[i - 1].block_type] & 0xf0) | 
 		(tracks[i - 1].block_type < 8 ? 0x01 : 0x04), 0x00, addr);
@@ -391,6 +402,8 @@ do_DAO(int test_write)
 	sheet.len = j * 8;
 	sheet.entries = cue;
 	sheet.test_write = test_write;
+	sheet.session_type = multi ? CDR_SESS_MULTI : CDR_SESS_NONE;
+	sheet.session_format = format;
 	if (verbose) {
 		u_int8_t *ptr = (u_int8_t *)sheet.entries;
 		
@@ -405,14 +418,12 @@ do_DAO(int test_write)
 	
 	if (ioctl(fd, CDRIOCSENDCUE, &sheet) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
-#if 0
-	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
-		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
-#endif
+
 	for (i = 0; i < notracks; i++) {
 		if (write_file(&tracks[i]))
 			err(EX_IOERR, "write_file");
 	}
+
 	ioctl(fd, CDRIOCFLUSH);
 }
 
@@ -456,8 +467,10 @@ write_file(struct track_info *track_info)
 	if (track_info->addr >= 0)
 		lseek(fd, track_info->addr * track_info->block_size, SEEK_SET);
 
-	fprintf(stderr, "addr = %d size = %d blocks = %d\n",
-		track_info->addr, track_info->file_size, roundup_blocks(track_info)); /* SOS */
+	if (verbose)
+		fprintf(stderr, "addr = %d size = %d blocks = %d\n",
+			track_info->addr, track_info->file_size,
+			roundup_blocks(track_info));
 
 	if (!quiet) {
 		if (track_info->file == STDIN_FILENO)
@@ -472,7 +485,8 @@ write_file(struct track_info *track_info)
 		filesize++;	/* cheat, avoid divide by zero */
 
 	while ((count = read(track_info->file, buf,
-		track_info->block_size * BLOCKS)) > 0) {	
+			     MIN((track_info->file_size - size),
+				 track_info->block_size * BLOCKS))) > 0) {	
 		int res;
 
 		if (count % track_info->block_size) {
@@ -499,6 +513,8 @@ write_file(struct track_info *track_info)
 			}
 			fprintf(stderr, " total %d KB\r", tot_size/1024);
 		}
+		if (size >= track_info->file_size)
+			break;
 	}
 
 	if (!quiet)
@@ -540,7 +556,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: %s [-delmpqtv] [-f device] [-s speed] [command]"
+	    "Usage: %s [-delmnpqtv] [-f device] [-s speed] [command]"
 	    " [command file ...]\n", getprogname());
 	exit(EX_USAGE);
 }
