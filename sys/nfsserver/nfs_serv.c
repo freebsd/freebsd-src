@@ -2221,7 +2221,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	fvp = fromnd.ni_vp;
 	nfsm_srvmtofh(tfhp);
-	nfsm_strsiz(len2, NFS_MAXNAMLEN);
+	nfsm_srvnamesiz(len2);
 	cred->cr_uid = saved_uid;
 	tond.ni_cnd.cn_cred = cred;
 	tond.ni_cnd.cn_nameiop = RENAME;
@@ -2550,7 +2550,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VATTR_NULL(vap);
 	if (v3)
 		nfsm_srvsattr(vap);
-	nfsm_strsiz(len2, NFS_MAXPATHLEN);
+	nfsm_srvpathsiz(len2);
 	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, M_WAITOK);
 	iv.iov_base = pathcp;
 	iv.iov_len = len2;
