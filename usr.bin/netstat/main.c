@@ -174,7 +174,7 @@ struct protox {
 	{ -1,		N_IPSECSTAT,	1,	0,
 	  ipsec_stats,	NULL,		"ipsec",	0},
 #endif
-	{ -1,		-1,		1,	protopr,
+	{ -1,		-1,		1,	0,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
 	{ -1,		-1,		0,	0,
 	  0,		NULL,		0 }
@@ -198,7 +198,7 @@ struct protox ip6protox[] = {
 	{ -1,		N_PIM6STAT,	1,	0,
 	  pim6_stats,	NULL,		"pim6",	0 },
 #endif
-	{ -1,		-1,		1,	protopr,
+	{ -1,		-1,		1,	0,
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
 	{ -1,		-1,		0,	0,
 	  0,		NULL,		0,	0 }
