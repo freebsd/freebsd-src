@@ -1657,7 +1657,11 @@ controller	miibus0
 # AX88140A and AX88141, the Davicom DM9100 and DM9102, the Lite-On
 # 82c168 and 82c169 PNIC, the Lite-On/Macronix LC82C115 PNIC II
 # and the Macronix 98713/98713A/98715/98715A/98725 PMAC. This driver
-# replaces the old al, ax, dm, pn and mx drivers.
+# replaces the old al, ax, dm, pn and mx drivers.  List of brands:
+# Digital DE500-BA, Kingston KNE100TX, D-Link DFE-570TX, SOHOware SFA110, 
+# SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX, 
+# LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
+# KNE110TX.
 #
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
@@ -1671,7 +1675,8 @@ controller	miibus0
 # mode seems to cause severe lockups on SMP hardware. This driver also
 # supports the Accton EN1207D `Cheetah' adapter, which uses a chip called
 # the MPX 5030/5038, which is either a RealTek in disguise or a RealTek
-# workalike.
+# workalike.  Note that the D-Link DFE-530TX+ uses the RealTek chipset
+# and is supported by this driver, not the 'vr' driver.
 #
 # The 'sf' device provides support for Adaptec Duralink PCI fast
 # ethernet adapters based on the Adaptec AIC-6915 "starfire" controller.
@@ -1711,8 +1716,8 @@ controller	miibus0
 #
 # The `vr' device provides support for various fast ethernet adapters
 # based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
-# chips, including the D-Link DFE530TX, the Hawking Technologies PN102TX,
-# and the AOpen/Acer ALN-320.
+# chips, including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
+# Technologies PN102TX, and the AOpen/Acer ALN-320.
 #
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
