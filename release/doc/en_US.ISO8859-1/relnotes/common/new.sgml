@@ -257,6 +257,9 @@
 
       <para>The cm driver now supports IPX. &merged;</para>
 
+      <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
+        SHDSL modem has been added.</para>
+
       <para>A new &man.wlan.4; module provides 802.11 link-layer support.  The
 	&man.wi.4; driver now uses this facility.</para>
 
@@ -529,6 +532,9 @@
     <para>The MAKEDEV script is now unnecessary, due to the mandatory
       presence of &man.devfs.5;, and has been removed.</para>
 
+    <para>&man.mixer.8; can now implement relative volume
+      adjustments.</para>
+
     <para>The &man.mksnap.ffs.8; program has been added to allow
       easier creation of FFS snapshots.  It is a
       SUID-<username>root</username> executable designed for use by
@@ -547,6 +553,10 @@
       <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl to
       <literal>0</literal> will make this option the
       default. &merged;</para>
+
+    <para>&man.mount.nfs.8; now supports the <option>noinet4</option>
+      and <option>noinet6</option> mount options to prevent NFS mounts
+      from using IPv4 or IPv6 respectively.</para>
 
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
@@ -614,8 +624,17 @@
       display mode that displays the network traffic going through
       active interfaces on the system.</para>
 
+    <para>The &man.usbhidaction.1; command has been added; it performs
+      actions according to its configuration in response to USB HID
+      controls.</para>
+
     <para>&man.xargs.1; now supports a <option>-P</option> option to
       execute multiple copies of the same utility in parallel.</para>
+
+    <para>&man.xargs.1; now supports a <option>-o</option> flag to
+      reopen <filename>/dev/tty</filename> for the child process
+      before executing the command.  This is useful when the child
+      process is an interactive application.</para>
 
     <para>A 1:1 threading package (where for every pthread in an
       application there is one KSE and thread) has been implemented.
