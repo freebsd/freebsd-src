@@ -1207,7 +1207,8 @@ int
 pccngetc(Dev_t dev)
 {
 	register int s;
-	static u_char *cp;
+	static u_char *cp, cbuf[4]; /* Temp buf for multi-char key sequence. */
+	register u_char c;
 
 #ifdef XSERVER
 
@@ -1233,14 +1234,21 @@ pccngetc(Dev_t dev)
 	cp = sgetc(0);
 	kbd_polling = 0;
 	splx(s);
+	c = *cp++;
+	if (c && *cp) {
+		/* Preserve the multi-char sequence for the next call. */
+		bcopy(cp, cbuf, 3); /* take care for a trailing '\0' */
+		cp = cbuf;
+	} else
+		cp = 0;
 
 #if ! (PCVT_FREEBSD >= 201)
 	/* this belongs to cons.c */
-	if (*cp == '\r')
-		*cp = '\n';
+	if (c == '\r')
+		c = '\n';
 #endif /* ! (PCVT_FREEBSD >= 201) */
 
-	return (*cp++);
+	return c;
 }
 
 #if PCVT_FREEBSD >= 200
