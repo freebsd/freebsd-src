@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_vnops.c,v 1.3 1994/08/02 07:41:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -280,9 +280,6 @@ cd9660_read(ap)
 		}
 
 		error = uiomove(bp->b_un.b_addr + on, (int)n, uio);
-		if (n + on == imp->logical_block_size ||
-		    uio->uio_offset == (off_t)ip->i_size)
-			bp->b_flags |= B_AGE;
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);

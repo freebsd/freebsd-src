@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ufs_readwrite.c,v 1.3 1994/08/02 07:55:00 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -147,9 +147,6 @@ READ(ap)
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio))
 			break;
 
-		if (S_ISREG(mode) && (xfersize + blkoffset == fs->fs_bsize ||
-		    uio->uio_offset == ip->i_size))
-			bp->b_flags |= B_AGE;
 		brelse(bp);
 	}
 	if (bp != NULL)
@@ -268,7 +265,6 @@ WRITE(ap)
 			if (doclusterwrite)
 				cluster_write(bp, ip->i_size);
 			else {
-				bp->b_flags |= B_AGE;
 				bawrite(bp);
 			}
 		else
