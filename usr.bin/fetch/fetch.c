@@ -125,16 +125,17 @@ struct xferstat {
 static void
 stat_eta(struct xferstat *xs)
 {
-	long elapsed, remaining;
+	long elapsed, received, expected, eta;
 
 	elapsed = xs->last.tv_sec - xs->start.tv_sec;
-	remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
-	if (remaining > 3600) {
-		fprintf(stderr, "%02ld:", remaining / 3600);
-		remaining %= 3600;
+	received = xs->rcvd - xs->offset;
+	expected = xs->size - xs->rcvd;
+	eta = (elapsed * expected) / received;
+	if (eta > 3600) {
+		fprintf(stderr, "%02ld:", eta / 3600);
+		eta %= 3600;
 	}
-	fprintf(stderr, "%02ld:%02ld",
-	    remaining / 60, remaining % 60);
+	fprintf(stderr, "%02ld:%02ld", eta / 60, eta % 60);
 }
 
 /*
