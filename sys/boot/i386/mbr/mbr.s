@@ -21,6 +21,7 @@
 		.set EXEC,0x600 		# Execution address
 		.set PT_OFF,0x1be		# Partition table
 		.set MAGIC,0xaa55		# Magic: bootable
+		.set FL_PACKET,0x80		# Flag: try EDD
 
 		.set NHRDRV,0x475		# Number of hard drives
 
@@ -88,10 +89,8 @@ main.5:		movw %sp,%di			# Save stack pointer
 		movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
 		movw $LOAD,%bx			# Transfer buffer
-		cmpb $0xff,%dh			# Might we need to use LBA?
-		jnz main.7			# No.
-		cmpw $0xffff,%cx		# Do we need to use LBA?
-		jnz main.7			# No.
+		testb $FL_PACKET,flags		# Try EDD?
+		jz main.7			# No.
 		pushw %cx			# Save %cx
 		pushw %bx			# Save %bx
 		movw $0x55aa,%bx		# Magic
@@ -151,7 +150,8 @@ msg_pt: 	.asciz "Invalid partition table"
 msg_rd: 	.asciz "Error loading operating system"
 msg_os: 	.asciz "Missing operating system"
 
-		.org PT_OFF
+		.org PT_OFF-1,0x90
+flags:		.byte FLAGS			# Flags
 
 partbl: 	.fill 0x10,0x4,0x0		# Partition table
 		.word MAGIC			# Magic number
