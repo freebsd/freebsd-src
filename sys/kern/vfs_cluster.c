@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.35 1996/03/02 04:40:56 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.36 1996/06/03 04:40:35 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -616,11 +616,15 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_bcount = 0;
 		bp->b_bufsize = 0;
 		bp->b_npages = 0;
+		if (tbp->b_wcred != NOCRED) {
+		    bp->b_wcred = tbp->b_wcred;
+		    crhold(bp->b_wcred);
+		}
 
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
 		(vm_offset_t) bp->b_data |= ((vm_offset_t) tbp->b_data) & PAGE_MASK;
-		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER | (tbp->b_flags & B_VMIO);
+		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER | (tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
 
@@ -632,7 +636,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 					break;
 				}
 
-				if ((tbp->b_flags & (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI)) != (B_DELWRI|B_CLUSTEROK|(bp->b_flags & B_VMIO))) {
+				if ((tbp->b_flags & (B_VMIO|B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI|B_NEEDCOMMIT)) != (B_DELWRI|B_CLUSTEROK|(bp->b_flags & (B_VMIO|B_NEEDCOMMIT)))) {
+					splx(s);
+					break;
+				}
+
+				if (tbp->b_wcred != bp->b_wcred) {
 					splx(s);
 					break;
 				}
@@ -676,6 +685,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 			(vm_page_t *) bp->b_pages, bp->b_npages);
 		totalwritten += bp->b_bufsize;
+		bp->b_dirtyoff = 0;
+		bp->b_dirtyend = bp->b_bufsize;
 		bawrite(bp);
 
 		len -= i;
