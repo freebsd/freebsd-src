@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.210 1997/04/20 16:05:33 bde Exp $
+ *  $Id: syscons.c,v 1.211 1997/04/27 09:03:10 yokota Exp $
  */
 
 #include "sc.h"
@@ -3396,12 +3396,12 @@ comp_vgaregs(u_char *buf1, u_char *buf2)
 {
     int i;
 
-    for(i = 0; i < 24; ++i) {
+    for(i = 0; i < 20; ++i) {
 	if (*buf1++ != *buf2++)
 	    return 1;
     }
-    buf1 += 2;	/* skip the cursor position register value */
-    buf2 += 2;
+    buf1 += 6;  /* skip the cursor shape and unused values */
+    buf2 += 6;
     for(i = 26; i < 64; ++i) {
 	if (*buf1++ != *buf2++)
 	    return 1;
