@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: setuid.2,v 1.9 1997/02/22 15:04:24 peter Exp $
+.\"	$Id: setuid.2,v 1.10 1997/04/01 18:58:38 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETUID 2
@@ -73,6 +73,8 @@ The
 function is permitted if the specified ID is equal to the real user ID
 .\" Comment out next line for !_POSIX_SAVED_IDS
 .\" or the saved set-user-ID
+.\" Next line is for Appendix B.4.2.2 case.
+or the effective user ID
 of the process, or if the effective user ID is that of the super user.
 .Pp
 The
@@ -95,6 +97,8 @@ The
 function is permitted if the specified ID is equal to the real group ID
 .\" Comment out next line for !_POSIX_SAVED_IDS
 .\" or the saved set-groupd-ID
+.\" Next line is for Appendix B.4.2.2 case.
+or the effective group ID
 of the process, or if the effective user ID is that of the super user.
 .Pp
 The
@@ -138,7 +142,7 @@ specification with
 .Li _POSIX_SAVED_IDS
 .\" Uncomment next line for !_POSIX_SAVED_IDS
 not
-defined.
+defined with the permitted extensions from Appendix B.4.2.2.
 The
 .Fn seteuid
 and
