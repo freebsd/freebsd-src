@@ -60,25 +60,10 @@
 
 /* External definitions for functions in inet(3), addr2ascii(3) */
 
+#include <sys/types.h>
 #include <sys/cdefs.h>
-#include <machine/endian.h>
 
 struct in_addr;
-
-#ifdef _BSD_IN_ADDR_T_
-typedef _BSD_IN_ADDR_T_ in_addr_t;
-#undef _BSD_IN_ADDR_T_
-#endif
-
-#ifdef _BSD_IN_PORT_T_
-typedef _BSD_IN_PORT_T_ in_port_t;
-#undef _BSD_IN_ADDR_T_
-#endif
-
-#ifdef _BSD_SIZE_T_
-typedef _BSD_SIZE_T_ size_t;
-#undef _BSD_SIZE_T_
-#endif
 
 /* XXX all new diversions!! argh!! */
 #define	inet_addr	__inet_addr
