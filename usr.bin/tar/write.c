@@ -75,7 +75,6 @@ struct links_cache {
 	unsigned long		  number_entries;
 	size_t			  number_buckets;
 	struct links_entry	**buckets;
-	char			  stop_allocating;
 };
 
 struct links_entry {
@@ -106,6 +105,7 @@ static void		 archive_names_from_file(struct bsdtar *bsdtar,
 static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
 			     const char *line);
 static void		 create_cleanup(struct bsdtar *);
+static void		 free_buckets(struct bsdtar *, struct links_cache *);
 static void		 free_cache(struct name_cache *cache);
 static const char *	 lookup_gname(struct bsdtar *bsdtar, gid_t gid);
 static int		 lookup_gname_helper(struct bsdtar *bsdtar,
@@ -653,7 +653,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			 * Skip this file if it's flagged "nodump" and we're
 			 * honoring that flag.
 			 */
-#ifdef HAVE_CHFLAGS
+#if defined(HAVE_CHFLAGS) && defined(UF_NODUMP)
 			if (bsdtar->option_honor_nodump &&
 			    (ftsent->fts_statp->st_flags & UF_NODUMP))
 				break;
@@ -885,32 +885,11 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 
 
 static void
-create_cleanup(struct bsdtar * bsdtar)
+create_cleanup(struct bsdtar *bsdtar)
 {
-	struct links_cache *links_cache;
-	size_t i;
-
-
 	/* Free inode->pathname map used for hardlink detection. */
 	if (bsdtar->links_cache != NULL) {
-		links_cache = bsdtar->links_cache;
-		if (links_cache->buckets != NULL) {
-			for (i = 0; i < links_cache->number_buckets; i++) {
-				while (links_cache->buckets[i] != NULL) {
-					struct links_entry *lp =
-					    links_cache->buckets[i]->next;
-					if (bsdtar->option_warn_links)
-						bsdtar_warnc(bsdtar, 0,
-						    "Missing links to %s",
-						    links_cache->buckets[i]->name);
-					if (links_cache->buckets[i]->name != NULL)
-						free(links_cache->buckets[i]->name);
-					free(links_cache->buckets[i]);
-					links_cache->buckets[i] = lp;
-				}
-			}
-			free(links_cache->buckets);
-		}
+		free_buckets(bsdtar, bsdtar->links_cache);
 		free(bsdtar->links_cache);
 		bsdtar->links_cache = NULL;
 	}
@@ -921,6 +900,30 @@ create_cleanup(struct bsdtar * bsdtar)
 	bsdtar->gname_cache = NULL;
 }
 
+
+static void
+free_buckets(struct bsdtar *bsdtar, struct links_cache *links_cache)
+{
+	size_t i;
+
+	if (links_cache->buckets == NULL)
+		return;
+
+	for (i = 0; i < links_cache->number_buckets; i++) {
+		while (links_cache->buckets[i] != NULL) {
+			struct links_entry *lp = links_cache->buckets[i]->next;
+			if (bsdtar->option_warn_links)
+				bsdtar_warnc(bsdtar, 0, "Missing links to %s",
+				    links_cache->buckets[i]->name);
+			if (links_cache->buckets[i]->name != NULL)
+				free(links_cache->buckets[i]->name);
+			free(links_cache->buckets[i]);
+			links_cache->buckets[i] = lp;
+		}
+	}
+	free(links_cache->buckets);
+	links_cache->buckets = NULL;
+}
 
 static void
 lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
@@ -951,9 +954,12 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 			links_cache->buckets[i] = NULL;
 	}
 
+	/* If the links cache overflowed and got flushed, don't bother. */
+	if (links_cache->buckets == NULL)
+		return;
+
 	/* If the links cache is getting too full, enlarge the hash table. */
-	if (links_cache->number_entries > links_cache->number_buckets * 2 &&
-	    !links_cache->stop_allocating)
+	if (links_cache->number_entries > links_cache->number_buckets * 2)
 	{
 		int count;
 
@@ -986,10 +992,10 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 			links_cache->buckets = new_buckets;
 			links_cache->number_buckets = new_size;
 		} else {
-			links_cache->stop_allocating = 1;
+			free_buckets(bsdtar, links_cache);
 			bsdtar_warnc(bsdtar, ENOMEM,
 			    "No more memory for recording hard links");
-			bsdtar_warnc(bsdtar, 0, 
+			bsdtar_warnc(bsdtar, 0,
 			    "Remaining links will be dumped as full files");
 		}
 	}
@@ -1023,17 +1029,12 @@ lookup_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 		}
 	}
 
-	if (links_cache->stop_allocating)
-		return;
-
 	/* Add this entry to the links cache. */
 	le = malloc(sizeof(struct links_entry));
 	if (le != NULL)
 		le->name = strdup(archive_entry_pathname(entry));
 	if ((le == NULL) || (le->name == NULL)) {
-		/* TODO: Just flush the entire links cache when we
-		 * run out of memory; don't hold onto anything. */
-		links_cache->stop_allocating = 1;
+		free_buckets(bsdtar, links_cache);
 		bsdtar_warnc(bsdtar, ENOMEM,
 		    "No more memory for recording hard links");
 		bsdtar_warnc(bsdtar, 0,
