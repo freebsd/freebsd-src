@@ -429,7 +429,7 @@ struct linux_sendto_args {
  * tweak endian-dependent fields in the IP packet.
  */
 static int
-linux_sendto_hdrincl(struct thread *td, caddr_t *sg, struct linux_sendto_args *linux_args)
+linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 {
 /*
  * linux_ip_copysize defines how many bytes we should copy
