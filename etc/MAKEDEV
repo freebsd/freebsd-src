@@ -883,12 +883,14 @@ pps*)
 	;;
 
 usb)
-	mknod usb$unit c 108 255
+	mknod usb$unit c 108 255 root:operator
+	chmod 0660 usb$unit
 	;;
 
 usb*)
 	unit=`expr $i : 'usb\(.*\)'`
-	mknod usb$unit c 108 $unit
+	mknod usb$unit c 108 $unit root:operator
+	chmod 0660 usb$unit
 	;;
 
 ums*)
