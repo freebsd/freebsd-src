@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 #else
 	error = getvfsbyname(SMBFS_VFSNAME, &vfc);
 	if (error) {
-		if (kldload(SMBFS_VFSNAME))
+		if (kldload(SMBFS_VFSNAME) < 0)
 			err(EX_OSERR, "kldload("SMBFS_VFSNAME")");
 		error = getvfsbyname(SMBFS_VFSNAME, &vfc);
 	}
