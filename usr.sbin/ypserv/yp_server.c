@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.3 1996/12/24 18:43:53 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.4 1997/01/07 04:10:51 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -463,6 +463,16 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	if (argp->domain == NULL || argp->map == NULL) {
 		result.ypresp_all_u.val.stat = YP_BADARGS;
 		return (&result);
+	}
+
+	/*
+	 * XXX If we hit the child limit, fail the request.
+	 * If we don't, and the map is large, we could block for
+	 * a long time in the parent.
+	 */
+	if (children >= MAX_CHILDREN) {
+		result.ypresp_all_u.val.stat = YP_YPERR;
+		return(&result);
 	}
 
 	/*
