@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cd1400.h,v 1.4 1997/02/22 09:37:59 peter Exp $
  */
 
 /*
@@ -99,6 +99,7 @@
 #define	CD1400_CCR_CMDRESET		(1<<7)	/* enables following: */
 #define	CD1400_CCR_FTF				(1<<1)	/* flush tx fifo */
 #define	CD1400_CCR_FULLRESET			(1<<0)	/* full reset */
+#define	CD1400_CCR_CHANRESET			0	/*  current channel */
 #define	CD1400_CCR_CMDCORCHG		(1<<6)	/* enables following: */
 #define	CD1400_CCR_COR3				(1<<3)	/* COR3 changed */
 #define	CD1400_CCR_COR2				(1<<2)	/* COR2 changed */
@@ -133,6 +134,10 @@
 #define	CD1400_COR2_IXANY		(1<<7)	/* implied XON mode */
 #define	CD1400_COR2_IXOFF		(1<<6)	/* in-band tx flow control */
 #define	CD1400_COR2_ETC			(1<<5)	/* embedded tx command */
+#define	CD1400_ETC_CMD				0x00	/* start an ETC */
+#define	CD1400_ETC_SENDBREAK			0x81
+#define	CD1400_ETC_INSERTDELAY			0x82
+#define	CD1400_ETC_STOPBREAK			0x83
 #define	CD1400_COR2_LLM			(1<<4)	/* local loopback mode */
 #define	CD1400_COR2_RLM			(1<<3)	/* remote loopback mode */
 #define	CD1400_COR2_RTSAO		(1<<2)	/* RTS auto output */
