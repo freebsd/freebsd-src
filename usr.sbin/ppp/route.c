@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.10 1996/12/10 17:00:39 wollman Exp $
+ * $Id: route.c,v 1.9.2.2 1996/12/23 18:13:46 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -412,7 +412,7 @@ char *name;
 #endif
       if (strcmp(ifrp->ifr_name, name) == 0) {
         IfIndex = index;
-      free(buffer);
+	free(buffer);
         return(index);
       }
       index++;
