@@ -124,6 +124,7 @@ get_string(int procfd, void *offset, int max) {
 		err(1, "fdopen");
 	buf = malloc( size = (max ? max : 64 ) );
 	len = 0;
+	buf[0] = 0;
 	fseek(p, (long)offset, SEEK_SET);
 	while ((c = fgetc(p)) != EOF) {
 		buf[len++] = c;
