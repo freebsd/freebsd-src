@@ -534,7 +534,7 @@ ufs_open(upath, f)
 			goto out;
 		if ((fs->fs_magic == FS_UFS1_MAGIC ||
 		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == numfrags(fs, sblock_try[i]))) &&
+		      fs->fs_sblockloc == sblock_try[i])) &&
 		    buf_size == SBLOCKSIZE &&
 		    fs->fs_bsize <= MAXBSIZE &&
 		    fs->fs_bsize >= sizeof(struct fs))
