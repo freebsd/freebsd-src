@@ -1,9 +1,10 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.1 1994/09/13 03:50:55 wollman Exp $
 
-SRCS+=	stdtime/asctime.c stdtime/localtime.c stdtime/strftime.c \
-	stdtime/difftime.c
-MAN5+=	tzfile.5
+.PATH:	${.CURDIR}/stdtime
 
-CFLAGS+= -DTM_GMTOFF=tm_gmtoff -DTM_ZONE=tm_zone -DSTD_INSPIRED -DPCTS
-CFLAGS+= -DHAVE_LONG_DOUBLE -DTZDIR=\"/usr/share/zoneinfo\"
+SRCS+=	asctime.c localtime.c strftime.c difftime.c
+MAN5+=	stdtime/tzfile.5
+MAN3+=	stdtime/ctime.3 stdtime/strftime.3 stdtime/time2posix.3
 
+MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
+	ctime.3 localtime.3 ctime.3 mktime.3
