@@ -45,19 +45,19 @@ ___tolower(c)
 	__ct_rune_t c;
 {
 	size_t lim;
-	_RuneRange *rr = &_CurrentRuneLocale->maplower_ext;
+	_RuneRange *rr = &_CurrentRuneLocale->__maplower_ext;
 	_RuneEntry *base, *re;
 
 	if (c < 0 || c == EOF)
 		return(c);
 
 	/* Binary search -- see bsearch.c for explanation. */
-	base = rr->ranges;
-	for (lim = rr->nranges; lim != 0; lim >>= 1) {
+	base = rr->__ranges;
+	for (lim = rr->__nranges; lim != 0; lim >>= 1) {
 		re = base + (lim >> 1);
-		if (re->min <= c && c <= re->max)
-			return (re->map + c - re->min);
-		else if (c > re->max) {
+		if (re->__min <= c && c <= re->__max)
+			return (re->__map + c - re->__min);
+		else if (c > re->__max) {
 			base = re + 1;
 			lim--;
 		}

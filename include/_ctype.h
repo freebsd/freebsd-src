@@ -190,7 +190,7 @@ static __inline int
 __maskrune(__ct_rune_t _c, unsigned long _f)
 {
 	return ((_c < 0 || _c >= _CACHED_RUNES) ? ___runetype(_c) :
-		_CurrentRuneLocale->runetype[_c]) & _f;
+		_CurrentRuneLocale->__runetype[_c]) & _f;
 }
 
 static __inline int
@@ -203,21 +203,21 @@ static __inline int
 __isctype(__ct_rune_t _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
-	       !!(_DefaultRuneLocale.runetype[_c] & _f);
+	       !!(_DefaultRuneLocale.__runetype[_c] & _f);
 }
 
 static __inline __ct_rune_t
 __toupper(__ct_rune_t _c)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? ___toupper(_c) :
-	       _CurrentRuneLocale->mapupper[_c];
+	       _CurrentRuneLocale->__mapupper[_c];
 }
 
 static __inline __ct_rune_t
 __tolower(__ct_rune_t _c)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? ___tolower(_c) :
-	       _CurrentRuneLocale->maplower[_c];
+	       _CurrentRuneLocale->__maplower[_c];
 }
 
 #else /* not using inlines */
