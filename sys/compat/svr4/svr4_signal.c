@@ -59,7 +59,8 @@ void svr4_to_bsd_sigaction(const struct svr4_sigaction *, struct sigaction *);
 void bsd_to_svr4_sigaction(const struct sigaction *, struct svr4_sigaction *);
 void svr4_sigfillset(svr4_sigset_t *);
 
-int bsd_to_svr4_sig[SVR4_SIGTBLSZ] = {
+int bsd_to_svr4_sig[SVR4_NSIG] = {
+	0,
 	SVR4_SIGHUP,
 	SVR4_SIGINT,
 	SVR4_SIGQUIT,
@@ -93,7 +94,8 @@ int bsd_to_svr4_sig[SVR4_SIGTBLSZ] = {
 	SVR4_SIGUSR2,
 };
 
-int svr4_to_bsd_sig[SVR4_SIGTBLSZ] = {
+int svr4_to_bsd_sig[SVR4_NSIG] = {
+	0,
 	SIGHUP,
 	SIGINT,
 	SIGQUIT,
@@ -134,7 +136,7 @@ svr4_sigfillset(s)
 	int i;
 
 	svr4_sigemptyset(s);
-	for (i = 0; i < SVR4_NSIG; i++) 
+	for (i = 1; i < SVR4_NSIG; i++) 
 		if (svr4_to_bsd_sig[i] != 0)
 			svr4_sigaddset(s, i);
 }
@@ -147,8 +149,8 @@ svr4_to_bsd_sigset(sss, bss)
 	int i, newsig;
 
 	SIGEMPTYSET(*bss);
-	for (i = 0; i < SVR4_NSIG; i++)
-		if (svr4_sigismember(sss, i + 1)) {
+	for (i = 1; i < SVR4_NSIG; i++)
+		if (svr4_sigismember(sss, i)) {
 			newsig = svr4_to_bsd_sig[i];
 			if (newsig)
 				SIGADDSET(*bss, newsig);
@@ -163,13 +165,9 @@ bsd_to_svr4_sigset(bss, sss)
 	int i, newsig;
 
 	svr4_sigemptyset(sss);
-	sss->bits[0] = bss->__bits[0] & ~((1U << SVR4_SIGTBLSZ) - 1);
-	sss->bits[1] = bss->__bits[1];
-	sss->bits[2] = bss->__bits[2];
-	sss->bits[3] = bss->__bits[3];
-	for (i = 1; i <= SVR4_SIGTBLSZ; i++) {
+	for (i = 1; i < SVR4_NSIG; i++) {
 		if (SIGISMEMBER(*bss, i)) {
-			newsig = bsd_to_svr4_sig[_SIG_IDX(i)];
+			newsig = bsd_to_svr4_sig[i];
 			if (newsig)
 				svr4_sigaddset(sss, newsig);
 		}
