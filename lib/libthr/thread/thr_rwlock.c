@@ -37,6 +37,11 @@
 /* maximum number of times a read lock may be obtained */
 #define	MAX_READ_LOCKS		(INT_MAX - 1)
 
+/*
+ * For distinguishing operations on read and write locks.
+ */
+enum rwlock_type {RWT_READ, RWT_WRITE};
+
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
 __weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);
@@ -47,6 +52,7 @@ __weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
 __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
 __weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 
+static int	insert_rwlock(struct pthread_rwlock *, enum rwlock_type);
 static int	rwlock_rdlock_common(pthread_rwlock_t *, int,
 		    const struct timespec *);
 static int	rwlock_wrlock_common(pthread_rwlock_t *, int,
@@ -84,12 +90,14 @@ _pthread_rwlock_init (pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr
 	/* allocate rwlock object */
 	prwlock = (pthread_rwlock_t)malloc(sizeof(struct pthread_rwlock));
 
-	if (prwlock == NULL)
-		return(ENOMEM);
+	if (prwlock == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
 
 	/* initialize the lock */
 	if ((ret = pthread_mutex_init(&prwlock->lock, NULL)) != 0)
-		goto out_mutex;
+		goto out;
 
 	/* initialize the read condition signal */
 	if ((ret = pthread_cond_init(&prwlock->read_signal, NULL)) != 0)
@@ -110,8 +118,9 @@ out_writecond:
 	pthread_cond_destroy(&prwlock->read_signal);
 out_readcond:
 	pthread_mutex_destroy(&prwlock->lock);
-out_mutex:
-	free(prwlock);
+out:
+	if (prwlock != NULL)
+		free(prwlock);
 	return(ret);
 }
 
@@ -123,9 +132,11 @@ static int
 rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
     const struct timespec *timeout)
 {
+	struct rwlock_held	*rh;
 	pthread_rwlock_t 	prwlock;
 	int			ret;
 
+	rh = NULL;
 	if (rwlock == NULL || *rwlock == NULL)
 		return(EINVAL);
 
@@ -155,6 +166,19 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 			return (EBUSY);
 		}
 
+		/*
+		 * If this lock is already held for writing we have
+		 * a deadlock situation.
+		 */
+		if (curthread->rwlockList != NULL && prwlock->state < 0) {
+			LIST_FOREACH(rh, curthread->rwlockList, rh_link) {
+				if (rh->rh_rwlock == prwlock &&
+				    rh->rh_wrcount > 0) {
+					pthread_mutex_unlock(&prwlock->lock);
+					return (EDEADLK);
+				}
+			}
+		}
 		if (timeout == NULL)
 			ret = pthread_cond_wait(&prwlock->read_signal,
 			    &prwlock->lock);
@@ -170,6 +194,11 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	}
 
 	++prwlock->state; /* indicate we are locked for reading */
+	ret = insert_rwlock(prwlock, RWT_READ);
+	if (ret != 0) {
+		pthread_mutex_unlock(&prwlock->lock);
+		return (ret);
+	}
 
 	/*
 	 * Something is really wrong if this call fails.  Returning
@@ -204,9 +233,11 @@ _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 int
 _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 {
+	struct rwlock_held	*rh;
 	pthread_rwlock_t 	prwlock;
 	int			ret;
 
+	rh = NULL;
 	if (rwlock == NULL || *rwlock == NULL)
 		return(EINVAL);
 
@@ -216,20 +247,45 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 	if ((ret = pthread_mutex_lock(&prwlock->lock)) != 0)
 		return(ret);
 
-	/* XXX - Make sure we hold a lock on this rwlock */
-
+	if (curthread->rwlockList != NULL) {
+		LIST_FOREACH(rh, curthread->rwlockList, rh_link) {
+			if (rh->rh_rwlock == prwlock)
+				break;
+		}
+	}
+	if (rh == NULL) {
+		ret = EPERM;
+		goto out;
+	}
 	if (prwlock->state > 0) {
+		rh->rh_rdcount--;
+		if (rh->rh_rdcount == 0) {
+			LIST_REMOVE(rh, rh_link);
+			free(rh);
+		}
 		if (--prwlock->state == 0 && prwlock->blocked_writers)
 			ret = pthread_cond_signal(&prwlock->write_signal);
 	} else if (prwlock->state < 0) {
+		rh->rh_wrcount--;
+		if (rh->rh_wrcount == 0) {
+			LIST_REMOVE(rh, rh_link);
+			free(rh);
+		}
 		prwlock->state = 0;
-
 		if (prwlock->blocked_writers)
 			ret = pthread_cond_signal(&prwlock->write_signal);
 		else
 			ret = pthread_cond_broadcast(&prwlock->read_signal);
+	} else {
+		/*
+		 * No thread holds this lock. We should never get here.
+		 */
+		PTHREAD_ASSERT(0, "state=0 on read-write lock held by thread");
+		ret = EPERM;
+		goto out;
 	}
 
+out:
 	/* see the comment on this in rwlock_rdlock_common */
 	pthread_mutex_unlock(&prwlock->lock);
 
@@ -263,9 +319,11 @@ static int
 rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
     const struct timespec *timeout)
 {
+	struct rwlock_held	*rh;
 	pthread_rwlock_t 	prwlock;
 	int			ret;
 
+	rh = NULL;
 	if (rwlock == NULL || *rwlock == NULL)
 		return(EINVAL);
 
@@ -288,6 +346,21 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 			return (EBUSY);
 		}
 
+		/*
+		 * If this thread already holds the lock for reading
+		 * or writing we have a deadlock situation.
+		 */
+		if (curthread->rwlockList != NULL) {
+			LIST_FOREACH(rh, curthread->rwlockList, rh_link) {
+				if (rh->rh_rwlock == prwlock &&
+				    (rh->rh_rdcount > 0 || rh->rh_wrcount > 0)) {
+					pthread_mutex_unlock(&prwlock->lock);
+					return (EDEADLK);
+					break;
+				}
+			}
+		}
+
 		++prwlock->blocked_writers;
 
 		if (timeout == NULL)
@@ -308,6 +381,11 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 
 	/* indicate we are locked for writing */
 	prwlock->state = -1;
+	ret = insert_rwlock(prwlock, RWT_WRITE);
+	if (ret != 0) {
+		pthread_mutex_unlock(&prwlock->lock);
+		return (ret);
+	}
 
 	/* see the comment on this in pthread_rwlock_rdlock */
 	pthread_mutex_unlock(&prwlock->lock);
@@ -315,3 +393,50 @@ rwlock_wrlock_common(pthread_rwlock_t *rwlock, int nonblocking,
 	return(0);
 }
 
+static int
+insert_rwlock(struct pthread_rwlock *prwlock, enum rwlock_type rwt)
+{
+	struct rwlock_held *rh;
+
+	/*
+	 * Initialize the rwlock list in the thread. Although this function
+	 * may be called for many read-write locks, the initialization
+	 * of the the head happens only once during the lifetime of
+	 * the thread.
+	 */
+	if (curthread->rwlockList == NULL) {
+		curthread->rwlockList =
+		    (struct rwlock_listhead *)malloc(sizeof(struct rwlock_listhead));
+		if (curthread->rwlockList == NULL) {
+			return (ENOMEM);
+		}
+		LIST_INIT(curthread->rwlockList);
+	}
+
+	LIST_FOREACH(rh, curthread->rwlockList, rh_link) {
+		if (rh->rh_rwlock == prwlock) {
+			if (rwt == RWT_READ)
+				rh->rh_rdcount++;
+			else if (rwt == RWT_WRITE)
+				rh->rh_wrcount++;
+			return (0);
+		}
+	}
+
+	/*
+	 * This is the first time we're holding this lock,
+	 * create a new entry.
+	 */
+	rh = (struct rwlock_held *)malloc(sizeof(struct rwlock_held));
+	if (rh == NULL)
+		return (ENOMEM);
+	rh->rh_rwlock = prwlock;
+	rh->rh_rdcount = 0;
+	rh->rh_wrcount = 0;
+	if (rwt == RWT_READ)
+		rh->rh_rdcount = 1;
+	else if (rwt == RWT_WRITE)
+		rh->rh_wrcount = 1;
+	LIST_INSERT_HEAD(curthread->rwlockList, rh, rh_link);
+	return (0);
+}
