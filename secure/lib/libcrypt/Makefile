@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1994/08/12 21:02:31 csgr Exp $
+# $Id: Makefile,v 1.5 1994/08/20 18:16:57 csgr Exp $
 #
 
 LCRYPTBASE=     libcrypt
@@ -11,6 +11,7 @@ LDCRYPTSO=      $(LDCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 
 LIB=	descrypt
 SRCS=	crypt.c
+PRECIOUSLIB=	yes
 
 #MAN3=   crypt.3
 #MLINKS= crypt.3 encrypt.3 crypt.3 setkey.3
