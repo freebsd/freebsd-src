@@ -112,61 +112,19 @@ static struct sis_type sis_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int sis_probe		(device_t);
-static int sis_attach		(device_t);
-static int sis_detach		(device_t);
+static int sis_detach(device_t);
+static void sis_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int sis_ifmedia_upd(struct ifnet *);
+static void sis_init(void *);
+static void sis_initl(struct sis_softc *);
+static void sis_intr(void *);
+static int sis_ioctl(struct ifnet *, u_long, caddr_t);
+static int sis_newbuf(struct sis_softc *, struct sis_desc *, struct mbuf *);
+static void sis_start(struct ifnet *);
+static void sis_startl(struct ifnet *);
+static void sis_stop(struct sis_softc *);
+static void sis_watchdog(struct ifnet *);
 
-static int sis_newbuf		(struct sis_softc *,
-					struct sis_desc *, struct mbuf *);
-static int sis_encap		(struct sis_softc *,
-					struct mbuf **, u_int32_t *);
-static void sis_rxeof		(struct sis_softc *);
-static void sis_rxeoc		(struct sis_softc *);
-static void sis_txeof		(struct sis_softc *);
-static void sis_intr		(void *);
-static void sis_tick		(void *);
-static void sis_start		(struct ifnet *);
-static void sis_startl		(struct ifnet *);
-static int sis_ioctl		(struct ifnet *, u_long, caddr_t);
-static void sis_init		(void *);
-static void sis_initl		(struct sis_softc *);
-static void sis_stop		(struct sis_softc *);
-static void sis_watchdog		(struct ifnet *);
-static void sis_shutdown		(device_t);
-static int sis_ifmedia_upd	(struct ifnet *);
-static void sis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-
-static u_int16_t sis_reverse	(u_int16_t);
-static void sis_delay		(struct sis_softc *);
-static void sis_eeprom_idle	(struct sis_softc *);
-static void sis_eeprom_putbyte	(struct sis_softc *, int);
-static void sis_eeprom_getword	(struct sis_softc *, int, u_int16_t *);
-static void sis_read_eeprom	(struct sis_softc *, caddr_t, int, int, int);
-#ifdef __i386__
-static void sis_read_cmos	(struct sis_softc *, device_t, caddr_t,
-							int, int);
-static void sis_read_mac	(struct sis_softc *, device_t, caddr_t);
-static device_t sis_find_bridge	(device_t);
-#endif
-
-static void sis_mii_sync	(struct sis_softc *);
-static void sis_mii_send	(struct sis_softc *, u_int32_t, int);
-static int sis_mii_readreg	(struct sis_softc *, struct sis_mii_frame *);
-static int sis_mii_writereg	(struct sis_softc *, struct sis_mii_frame *);
-static int sis_miibus_readreg	(device_t, int, int);
-static int sis_miibus_writereg	(device_t, int, int, int);
-static void sis_miibus_statchg	(device_t);
-
-static void sis_setmulti_sis	(struct sis_softc *);
-static void sis_setmulti_ns	(struct sis_softc *);
-static uint32_t sis_mchash	(struct sis_softc *, const uint8_t *);
-static void sis_reset		(struct sis_softc *);
-static int sis_list_rx_init	(struct sis_softc *);
-static int sis_list_tx_init	(struct sis_softc *);
-
-static bus_dmamap_callback_t	sis_dma_map_desc_ptr;
-static void sis_dma_map_desc_next	(void *, bus_dma_segment_t *, int, int);
-static void sis_dma_map_ring		(void *, bus_dma_segment_t *, int, int);
 #ifdef SIS_USEIOSPACE
 #define SIS_RES			SYS_RES_IOPORT
 #define SIS_RID			SIS_PCI_LOIO
