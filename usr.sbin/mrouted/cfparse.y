@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 1.3 1996/01/06 21:09:36 peter Exp $
+ * $Id: cfparse.y,v 1.3.2.1 1996/11/11 23:37:29 phk Exp $
  */
 #include <stdio.h>
 #ifdef __STDC__
@@ -347,7 +347,8 @@ interface	: ADDR		{ $$ = $1; }
 addrname	: ADDR		{ $$ = $1; }
 	| STRING		{ struct hostent *hp;
 
-				  if ((hp = gethostbyname($1)) == NULL)
+				  if ((hp = gethostbyname($1)) == NULL ||
+					hp->h_length != sizeof($$))
 				    fatal("No such host %s", $1);
 
 				  if (hp->h_addr_list[1])
