@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.9 1994/10/08 01:41:15 phk Exp $
+ * $Id: ufs_vnops.c,v 1.10 1994/10/08 06:57:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -214,6 +214,9 @@ ufs_access(ap)
 	mode_t mask, mode = ap->a_mode;
 	register gid_t *gp;
 	int i;
+#ifdef QUOTA
+	int error;
+#endif
 
 #ifdef DIAGNOSTIC
 	if (!VOP_ISLOCKED(vp)) {
