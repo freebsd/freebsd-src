@@ -91,6 +91,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
+#include <vm/swap_pager.h>
 
 #include <sys/user.h>
 
@@ -323,6 +324,45 @@ vm_proc_swapin(struct proc *p)
 	vm_page_unlock_queues();
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qenter(up, ma, UAREA_PAGES);
+}
+
+/*
+ * Swap in the UAREAs of all processes swapped out to the given device.
+ * The pages in the UAREA are marked dirty and their swap metadata is freed.
+ */
+void
+vm_proc_swapin_all(int devidx)
+{
+	struct proc *p;
+	vm_object_t object;
+	vm_page_t m;
+
+retry:
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+
+		object = p->p_upages_obj;
+		if (object != NULL &&
+		    swap_pager_isswapped(p->p_upages_obj, devidx)) {
+			sx_sunlock(&allproc_lock);
+			faultin(p);
+			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
+			vm_page_lock_queues();
+			TAILQ_FOREACH(m, &object->memq, listq)
+				vm_page_dirty(m);
+			vm_page_unlock_queues();
+			swap_pager_freespace(object, 0,
+			    object->un_pager.swp.swp_bcount);
+			goto retry;
+		}
+
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
+	}
+	sx_sunlock(&allproc_lock);
 }
 #endif
 
