@@ -72,34 +72,33 @@ struct mac_policy_ops {
 	/*
 	 * Label operations.
 	 */
-	void	(*mpo_init_bpfdesc)(struct bpf_d *, struct label *label);
-	void	(*mpo_init_cred)(struct ucred *, struct label *label);
-	void	(*mpo_init_devfsdirent)(struct devfs_dirent *,
-		    struct label *label);
-	void	(*mpo_init_ifnet)(struct ifnet *, struct label *label);
-	void	(*mpo_init_ipq)(struct ipq *ipq, struct label *label);
-	int	(*mpo_init_mbuf)(struct mbuf *, int how, struct label *label);
-	void	(*mpo_init_mount)(struct mount *, struct label *mntlabel,
-		    struct label *fslabel);
-	void	(*mpo_init_socket)(struct socket *so, struct label *label,
-		    struct label *peerlabel);
-	void	(*mpo_init_pipe)(struct pipe *pipe, struct label *label);
-	void	(*mpo_init_temp)(struct label *label);
-	void	(*mpo_init_vnode)(struct vnode *, struct label *label);
-	void	(*mpo_destroy_bpfdesc)(struct bpf_d *, struct label *label);
-	void	(*mpo_destroy_cred)(struct ucred *, struct label *label);
-	void	(*mpo_destroy_devfsdirent)(struct devfs_dirent *de,
-		    struct label *label);
-	void	(*mpo_destroy_ifnet)(struct ifnet *, struct label *label);
-	void	(*mpo_destroy_ipq)(struct ipq *ipq, struct label *label);
-	void	(*mpo_destroy_mbuf)(struct mbuf *, struct label *label);
-	void	(*mpo_destroy_mount)(struct mount *, struct label *mntlabel,
-		    struct label *fslabel);
-	void	(*mpo_destroy_socket)(struct socket *so, struct label *label,
-		    struct label *peerlabel);
-	void	(*mpo_destroy_pipe)(struct pipe *pipe, struct label *label);
-	void	(*mpo_destroy_temp)(struct label *label);
-	void	(*mpo_destroy_vnode)(struct vnode *, struct label *label);
+	void	(*mpo_init_bpfdesc_label)(struct label *label);
+	void	(*mpo_init_cred_label)(struct label *label);
+	void	(*mpo_init_devfsdirent_label)(struct label *label);
+	void	(*mpo_init_ifnet_label)(struct label *label);
+	void	(*mpo_init_ipq_label)(struct label *label);
+	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
+	void	(*mpo_init_mount_label)(struct label *label);
+	void	(*mpo_init_mount_fs_label)(struct label *label);
+	void	(*mpo_init_socket_label)(struct label *label);
+	void	(*mpo_init_socket_peer_label)(struct label *label);
+	void	(*mpo_init_pipe_label)(struct label *label);
+	void	(*mpo_init_temp_label)(struct label *label);
+	void	(*mpo_init_vnode_label)(struct label *label);
+	void	(*mpo_destroy_bpfdesc_label)(struct label *label);
+	void	(*mpo_destroy_cred_label)(struct label *label);
+	void	(*mpo_destroy_devfsdirent_label)(struct label *label);
+	void	(*mpo_destroy_ifnet_label)(struct label *label);
+	void	(*mpo_destroy_ipq_label)(struct label *label);
+	void	(*mpo_destroy_mbuf_label)(struct label *label);
+	void	(*mpo_destroy_mount_label)(struct label *label);
+	void	(*mpo_destroy_mount_fs_label)(struct label *label);
+	void	(*mpo_destroy_socket_label)(struct label *label);
+	void	(*mpo_destroy_socket_peer_label)(struct label *label);
+	void	(*mpo_destroy_pipe_label)(struct label *label);
+	void	(*mpo_destroy_temp_label)(struct label *label);
+	void	(*mpo_destroy_vnode_label)(struct label *label);
+
 	int	(*mpo_externalize)(struct label *label, struct mac *extmac);
 	int	(*mpo_internalize)(struct label *label, struct mac *extmac);
 
@@ -355,28 +354,32 @@ enum mac_op_constant {
 	MAC_DESTROY,
 	MAC_INIT,
 	MAC_SYSCALL,
-	MAC_INIT_BPFDESC,
-	MAC_INIT_CRED,
-	MAC_INIT_DEVFSDIRENT,
-	MAC_INIT_IFNET,
-	MAC_INIT_IPQ,
-	MAC_INIT_MBUF,
-	MAC_INIT_MOUNT,
-	MAC_INIT_PIPE,
-	MAC_INIT_SOCKET,
-	MAC_INIT_TEMP,
-	MAC_INIT_VNODE,
-	MAC_DESTROY_BPFDESC,
-	MAC_DESTROY_CRED,
-	MAC_DESTROY_DEVFSDIRENT,
-	MAC_DESTROY_IFNET,
-	MAC_DESTROY_IPQ,
-	MAC_DESTROY_MBUF,
-	MAC_DESTROY_MOUNT,
-	MAC_DESTROY_PIPE,
-	MAC_DESTROY_SOCKET,
-	MAC_DESTROY_TEMP,
-	MAC_DESTROY_VNODE,
+	MAC_INIT_BPFDESC_LABEL,
+	MAC_INIT_CRED_LABEL,
+	MAC_INIT_DEVFSDIRENT_LABEL,
+	MAC_INIT_IFNET_LABEL,
+	MAC_INIT_IPQ_LABEL,
+	MAC_INIT_MBUF_LABEL,
+	MAC_INIT_MOUNT_LABEL,
+	MAC_INIT_MOUNT_FS_LABEL,
+	MAC_INIT_PIPE_LABEL,
+	MAC_INIT_SOCKET_LABEL,
+	MAC_INIT_SOCKET_PEER_LABEL,
+	MAC_INIT_TEMP_LABEL,
+	MAC_INIT_VNODE_LABEL,
+	MAC_DESTROY_BPFDESC_LABEL,
+	MAC_DESTROY_CRED_LABEL,
+	MAC_DESTROY_DEVFSDIRENT_LABEL,
+	MAC_DESTROY_IFNET_LABEL,
+	MAC_DESTROY_IPQ_LABEL,
+	MAC_DESTROY_MBUF_LABEL,
+	MAC_DESTROY_MOUNT_LABEL,
+	MAC_DESTROY_MOUNT_FS_LABEL,
+	MAC_DESTROY_PIPE_LABEL,
+	MAC_DESTROY_SOCKET_LABEL,
+	MAC_DESTROY_SOCKET_PEER_LABEL,
+	MAC_DESTROY_TEMP_LABEL,
+	MAC_DESTROY_VNODE_LABEL,
 	MAC_EXTERNALIZE,
 	MAC_INTERNALIZE,
 	MAC_CREATE_DEVFS_DEVICE,
