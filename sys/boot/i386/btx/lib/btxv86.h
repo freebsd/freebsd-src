@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id:$
+ *	$Id: btxv86.h,v 1.1 1998/09/14 10:37:00 rnordier Exp $
  */
 
 #ifndef _BTXV86_H_
@@ -44,10 +44,20 @@ struct __v86 {
 };
 
 extern struct __v86 __v86;	/* V86 interface structure */
+void __v86int(void);
+
+#define v86	__v86
+#define v86int	__v86int
+
+extern u_int32_t	__base;
+extern u_int32_t	__args;
+
+#define	PTOV(pa)	(caddr_t)((pa) - __base)
+#define	VTOP(va)	(vm_offset_t)((va) + __base)
+#define	VTOPSEG(va)	(u_int16_t)(VTOP(va) >> 4)
+#define	VTOPOFF(va)	(u_int16_t)(VTOP(va) & 0xf)
 
 void __exit(int);
 void __exec(caddr_t, ...);
-
-void __v86int(void);
 
 #endif /* !_BTXV86_H_ */

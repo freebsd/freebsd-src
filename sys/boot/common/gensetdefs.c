@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: gensetdefs.c,v 1.2 1998/06/14 13:44:44 dfr Exp $
+ *      $Id: gensetdefs.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 #include <sys/types.h>
-#include <elf.h>
+#include <machine/elf.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -37,6 +37,14 @@
 
 #define HASHSIZE	1009u	/* Number of hash chains. */
 #define PREFIX		".set."	/* Section name prefix for linker sets. */
+
+#if __ELF_WORD_SIZE == 64
+# define Elf_Shdr	Elf64_Shdr
+# define Elf_Ehdr	Elf64_Ehdr
+#else
+# define Elf_Shdr	Elf32_Shdr
+# define Elf_Ehdr	Elf32_Ehdr
+#endif
 
 /* One entry in the hash table. */
 typedef struct hashent {
@@ -146,9 +154,9 @@ enter_sets(const char *filename)
 {
 	int		 i;
 	FILE		*iop;
-	Elf64_Shdr	*shdr;
+	Elf_Shdr	*shdr;
 	char		*shstr;
-	Elf64_Ehdr	 ehdr;
+	Elf_Ehdr	 ehdr;
 
 	if ((iop = fopen(filename, "rb")) == NULL) {
 		warn("%s", filename);
@@ -184,7 +192,7 @@ enter_sets(const char *filename)
 		return (-1);
 	}
 
-	shdr = NEW(Elf64_Shdr, ehdr.e_shnum);
+	shdr = NEW(Elf_Shdr, ehdr.e_shnum);
 	if (fseek(iop, ehdr.e_shoff, SEEK_SET) == -1) {
 		warn("%s", filename);
 		free(shdr);

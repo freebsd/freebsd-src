@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: panic.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From: $NetBSD: panic.c,v 1.2 1997/03/22 01:48:36 thorpej Exp $
  */
 
@@ -39,7 +39,7 @@
 #include <stand.h>
 #include <machine/stdarg.h>
 
-__dead void
+void
 panic(const char *fmt,...)
 {
 	va_list         ap;

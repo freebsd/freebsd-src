@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- *	$Id: interp_parse.c,v 1.2 1998/09/03 06:14:41 jkh Exp $
+ *	$Id: interp_parse.c,v 1.3 1998/09/04 02:43:26 msmith Exp $
  * 
  * The meat of the simple parser.
  */
@@ -22,7 +22,6 @@
 /* Forward decls */
 extern char *backslash(char *str);
 
-static void init(int *argcp, char ***argvp);
 static void clean(void);
 static int insert(int *argcp, char *buf);
 static char *variable_lookup(char *name);
