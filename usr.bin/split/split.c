@@ -52,6 +52,7 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,6 +85,8 @@ main(int argc, char **argv)
 	long scale;
 	int ch;
 	char *ep, *p;
+
+	setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "-0123456789a:b:l:p:")) != -1)
 		switch (ch) {
