@@ -1,0 +1,129 @@
+.\" Copyright (c) 2000
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dt LOCK 9
+.Os FreeBSD
+.Sh NAME
+.Nm lockinit ,
+.Nm lockmgr ,
+.Nm lockcount ,
+.Nm lockstatus
+.Nd kernel process locking
+.Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/lock.h>
+.Ft void
+.Fn lockinit "struct lock *lkp" "int prio" "char *wmesg" "int timo" "int flags"
+.Ft int
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct simplelock *interlkp" "struct proc *p"
+.Ft int
+.Fn lockcount "struct lock *lkp"
+.Ft int
+.Fn lockstatus "struct lock *lkp" "struct proc *p"
+.Sh DESCRIPTION
+.Pp
+The function
+.Fn lockinit
+is used to initialise a lock.
+It is required if locks are used.
+The function
+.Fn lockmgr
+is used to manage locks.
+The function
+.Fn lockcount
+returns the number of shared lock holders on a lock.
+The function
+.Fn lockstatus
+determines the status of a lock.
+.Pp
+The following values are defined:
+.Bl -tag -width "LK_XXXXXXXXXXXX" -compact
+.It Dv LK_SHARED
+get one of many possible shared locks.
+If a process holding an exclusive lock requests a shared lock,
+the exclusive lock(s) will be downgraded to shared locks.
+.It Dv LK_EXCLUSIVE
+stop further shared locks, when they are cleared,
+grant a pending upgrade if it exists, then grant an exclusive
+lock.
+Only one exclusive lock may exist at a time, except that
+a process holding an exclusive lock may get additional exclusive
+locks if it explicitly sets the LK_CANRECURSE flag in the lock
+request, or if the LK_CANRECUSE flag was set when the lock was
+initialized.
+.It Dv LK_UPGRADE
+the process must hold a shared lock that it wants to
+have upgraded to an exclusive lock.
+Other processes may get exclusive access to the resource between
+the time that the upgrade is requested and the time that it is
+granted.
+.It Dv LK_EXCLUPGRADE
+the process must hold a shared lock that it wants to
+have upgraded to an exclusive lock.
+If the request succeeds, no other processes will have gotten
+exclusive access to the resource between the time that the upgrade
+is requested and the time that it is granted.
+However, if another process has already requested an upgrade,
+the request will fail.
+.It Dv LK_DOWNGRADE
+the process must hold an exclusive lock that it wants
+to have downgraded to a shared lock.
+If the process holds multiple (recursive) exclusive locks,
+they will all be downgraded to shared locks.
+.It Dv LK_RELEASE
+release one instance of a lock.
+.It Dv LK_DRAIN
+wait for all activity on the lock to end, then mark it
+decommissioned.
+This feature is used before freeing a lock that is part of a
+piece of memory that is about to be freed.
+.It Dv LK_EXCLOTHER
+return for lockstatus().
+Used when another process holds the lock exclusively.
+.El
+.Sh RETURN VALUES
+Successfully obtained locks return 0.
+Locks will always succeed unless one of the following is true:
+LK_FORCEUPGRADE is requested and some other process has already
+requested a lock upgrade; returns
+.Er EBUSY .
+LK_WAIT is set and a sleep would be required; returns
+.Er EBUSY .
+LK_SLEEPFAIL is set and a sleep was done; returns
+.Er ENOLCK .
+PCATCH is set in lock priority and a signal arrives; returns
+either
+.Er EINTR
+or
+.Er ERESTART
+if system calls is to be restarted.
+Non-null lock timeout and timeout expires; returns
+.Er EWOULDBLOCK .
+A failed lock attempt always returns a non-zero error value.
+No lock is held after an error return (in particular, a failed
+LK_UPGRADE or LK_FORCEUPGRADE will have released its shared
+access lock).
