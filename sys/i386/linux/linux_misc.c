@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.7 1995/12/14 22:35:45 bde Exp $
+ *  $Id: linux_misc.c,v 1.8 1995/12/15 03:06:54 peter Exp $
  */
 
 #include <sys/param.h>
@@ -255,11 +255,11 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
      */
     switch ((int)(a_out->a_magic & 0xffff)) {
     case 0413:	/* ZMAGIC */
-	virtual_offset = 0;
+	virtual_offset = 0;	/* actually aout->a_entry */
 	file_offset = 1024;
 	break;
     case 0314:	/* QMAGIC */
-	virtual_offset = 4096;
+	virtual_offset = 0;	/* actually aout->a_entry */
 	file_offset = 0;
 	break;
     default:
@@ -311,7 +311,7 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 #ifdef DEBUG
 printf("uselib: Page aligned binary %d\n", file_offset);
 #endif
-	vmaddr = virtual_offset + round_page(a_out->a_entry);
+	vmaddr = virtual_offset + trunc_page(a_out->a_entry);
 	error = vm_mmap(&p->p_vmspace->vm_map, &vmaddr,
 			a_out->a_text + a_out->a_data,
 			VM_PROT_ALL, VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
