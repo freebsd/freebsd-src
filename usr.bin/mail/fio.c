@@ -29,13 +29,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)fio.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)fio.c	8.2 (Berkeley) 4/20/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -62,16 +60,17 @@ extern int wait_status;
  * Set up the input pointers while copying the mail file into /tmp.
  */
 void
-setptr(ibuf)
+setptr(ibuf, offset)
 	FILE *ibuf;
+	off_t offset;
 {
 	int c, count;
 	char *cp, *cp2;
 	struct message this;
 	FILE *mestmp;
-	off_t offset;
 	int maybe, inhead;
 	char linebuf[LINESIZE], pathbuf[PATHSIZE];
+	int omsgCount;
 
 	/* Get temporary file. */
 	(void)snprintf(pathbuf, sizeof(pathbuf), "%s/mail.XXXXXXXXXX", tmpdir);
@@ -79,10 +78,23 @@ setptr(ibuf)
 		err(1, "can't open %s", pathbuf);
 	(void)rm(pathbuf);
 
-	msgCount = 0;
+	if (offset == 0) {
+		 msgCount = 0;
+	} else {
+		/* Seek into the file to get to the new messages */
+		(void)fseeko(ibuf, offset, SEEK_SET);
+		/*
+		 * We need to make "offset" a pointer to the end of
+		 * the temp file that has the copy of the mail file.
+		 * If any messages have been edited, this will be
+		 * different from the offset into the mail file.
+		 */
+		(void)fseeko(otf, (off_t)0, SEEK_END);
+		offset = ftello(otf);
+	}
+	omsgCount = msgCount;
 	maybe = 1;
 	inhead = 0;
-	offset = 0;
 	this.m_flag = MUSED|MNEW;
 	this.m_size = 0;
 	this.m_lines = 0;
@@ -92,7 +104,7 @@ setptr(ibuf)
 		if (fgets(linebuf, sizeof(linebuf), ibuf) == NULL) {
 			if (append(&this, mestmp))
 				errx(1, "temporary file");
-			makemessage(mestmp);
+			makemessage(mestmp, omsgCount);
 			return;
 		}
 		count = strlen(linebuf);
@@ -126,7 +138,7 @@ setptr(ibuf)
 		} else if (inhead) {
 			for (cp = linebuf, cp2 = "status";; cp++) {
 				if ((c = *cp2++) == '\0') {
-					while (isspace(*cp++))
+					while (isspace((unsigned char)*cp++))
 						;
 					if (cp[-1] != ':')
 						break;
@@ -138,7 +150,7 @@ setptr(ibuf)
 					inhead = 0;
 					break;
 				}
-				if (*cp != c && *cp != toupper(c))
+				if (*cp != c && *cp != toupper((unsigned char)c))
 					break;
 			}
 		}
@@ -152,21 +164,25 @@ setptr(ibuf)
 /*
  * Drop the passed line onto the passed output buffer.
  * If a write error occurs, return -1, else the count of
- * characters written, including the newline.
+ * characters written, including the newline if requested.
  */
 int
-putline(obuf, linebuf)
+putline(obuf, linebuf, outlf)
 	FILE *obuf;
 	char *linebuf;
+	int outlf;
 {
 	int c;
 
 	c = strlen(linebuf);
 	(void)fwrite(linebuf, sizeof(*linebuf), c, obuf);
-	fprintf(obuf, "\n");
+	if (outlf) {
+		fprintf(obuf, "\n");
+		c++;
+	}
 	if (ferror(obuf))
 		return (-1);
-	return (c + 1);
+	return (c);
 }
 
 /*
@@ -203,8 +219,9 @@ setinput(mp)
 {
 
 	(void)fflush(otf);
-	if (fseek(itf, (long)positionof(mp->m_block, mp->m_offset), 0) < 0)
-		err(1, "fseek");
+	if (fseeko(itf,
+		   positionof(mp->m_block, mp->m_offset), SEEK_SET) < 0)
+		err(1, "fseeko");
 	return (itf);
 }
 
@@ -213,20 +230,27 @@ setinput(mp)
  * a dynamically allocated message structure.
  */
 void
-makemessage(f)
+makemessage(f, omsgCount)
 	FILE *f;
+	int omsgCount;
 {
-	int size = (msgCount + 1) * sizeof(struct message);
+	size_t size;
+	struct message *nmessage;
 
-	if (message != 0)
-		(void)free(message);
-	if ((message = malloc((unsigned)size)) == NULL)
-		err(1, "Out of memory");
-	dot = message;
-	size -= sizeof(struct message);
+	size = (msgCount + 1) * sizeof(struct message);
+	nmessage = (struct message *)realloc(message, size);
+	if (nmessage == NULL)
+		errx(1, "Insufficient memory for %d messages\n",
+		    msgCount);
+	if (omsgCount == 0 || message == NULL)
+		dot = nmessage;
+	else
+		dot = nmessage + (dot - message);
+	message = nmessage;
+	size -= (omsgCount + 1) * sizeof(struct message);
 	(void)fflush(f);
 	(void)lseek(fileno(f), (off_t)sizeof(*message), 0);
-	if (read(fileno(f), (char *)message, size) != size)
+	if (read(fileno(f), (char *)&message[omsgCount], size) != size)
 		errx(1, "Message temporary file corrupted");
 	message[msgCount].m_size = 0;
 	message[msgCount].m_lines = 0;
@@ -264,7 +288,7 @@ rm(name)
 }
 
 static int sigdepth;		/* depth of holdsigs() */
-static int omask;
+static sigset_t nset, oset;
 /*
  * Hold signals SIGHUP, SIGINT, and SIGQUIT.
  */
@@ -272,8 +296,13 @@ void
 holdsigs()
 {
 
-	if (sigdepth++ == 0)
-		omask = sigblock(sigmask(SIGHUP)|sigmask(SIGINT)|sigmask(SIGQUIT));
+	if (sigdepth++ == 0) {
+		(void)sigemptyset(&nset);
+		(void)sigaddset(&nset, SIGHUP);
+		(void)sigaddset(&nset, SIGINT);
+		(void)sigaddset(&nset, SIGQUIT);
+		(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	}
 }
 
 /*
@@ -284,7 +313,7 @@ relsesigs()
 {
 
 	if (--sigdepth == 0)
-		(void)sigsetmask(omask);
+		(void)sigprocmask(SIG_SETMASK, &oset, NULL);
 }
 
 /*
@@ -421,7 +450,7 @@ getfold(name, namelen)
 	else
 		copylen = snprintf(name, namelen, "%s/%s",
 		    homedir ? homedir : ".", folder);
-	return (copylen >= namelen ? (-1) : (0));
+	return (copylen < 0 || copylen >= namelen ? (-1) : (0));
 }
 
 /*

@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
@@ -113,11 +111,11 @@ edit1(msgvec, type)
 		sigint = signal(SIGINT, SIG_IGN);
 		fp = run_editor(setinput(mp), mp->m_size, type, readonly);
 		if (fp != NULL) {
-			(void)fseek(otf, 0L, 2);
-			size = ftell(otf);
+			(void)fseeko(otf, (off_t)0, SEEK_END);
+			size = ftello(otf);
 			mp->m_block = blockof(size);
 			mp->m_offset = boffsetof(size);
-			mp->m_size = fsize(fp);
+			mp->m_size = (long)fsize(fp);
 			mp->m_lines = 0;
 			mp->m_flag |= MODIFY;
 			rewind(fp);

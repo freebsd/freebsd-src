@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)def.h	8.2 (Berkeley) 3/21/94
+ *	@(#)def.h	8.4 (Berkeley) 4/20/95
  *
  * $FreeBSD$
  */
