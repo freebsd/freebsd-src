@@ -692,8 +692,7 @@ __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_get_acl(td, nd.ni_vp, uap->type, 
-			    uap->aclp);
+		error = vacl_get_acl(td, nd.ni_vp, uap->type, uap->aclp);
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -715,8 +714,7 @@ __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_set_acl(td, nd.ni_vp, uap->type,
-			    uap->aclp);
+		error = vacl_set_acl(td, nd.ni_vp, uap->type, uap->aclp);
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -826,8 +824,7 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_aclcheck(td, nd.ni_vp, uap->type,
-			    uap->aclp);
+		error = vacl_aclcheck(td, nd.ni_vp, uap->type, uap->aclp);
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);

@@ -199,8 +199,7 @@ quotactl(td, uap)
 	vrele(nd.ni_vp);
 	if (error)
 		return (error);
-	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid,
-	    uap->arg, td);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -538,8 +537,7 @@ chroot(td, uap)
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
 	mtx_lock(&Giant);
 	if ((error = change_dir(&nd, td)) != 0)
 		goto error;
@@ -2297,8 +2295,7 @@ fchown(td, uap)
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	error = setfown(td, (struct vnode *)fp->f_data,
-		uap->uid, uap->gid);
+	error = setfown(td, (struct vnode *)fp->f_data, uap->uid, uap->gid);
 	fdrop(fp, td);
 	return (error);
 }
@@ -3355,8 +3352,7 @@ revoke(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path,
-	    td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
