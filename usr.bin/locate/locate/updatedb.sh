@@ -26,9 +26,9 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $Id: updatedb.sh,v 1.12 1998/11/29 14:46:35 wosch Exp $
+# $Id: updatedb.sh,v 1.15 1999/05/14 18:45:18 wosch Exp $
 
-LOCATE_CONFIG="/etc/locate.rc"
+: ${LOCATE_CONFIG="/etc/locate.rc"}
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
        . $LOCATE_CONFIG
 fi
@@ -86,4 +86,3 @@ then
 		   exit 1
 	esac
 fi
-echo $?
