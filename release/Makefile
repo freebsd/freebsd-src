@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.215 1996/05/16 03:20:52 jkh Exp $
+#	$Id: Makefile,v 1.216 1996/05/29 01:35:15 jkh Exp $
 #
 # How to roll a release:
 #
@@ -276,7 +276,6 @@ release.6:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
 	mkdir -p ${RD}/dists
-	mkdir -p ${RD}/info
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -288,8 +287,6 @@ release.6:
 	done
 	( cd ${RD}/dists && \
 		if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
-	( cd ${RD}/info && \
-		if [ -d krb ] ; then mv krb/* des && rmdir krb ; fi )
 	touch release.6
 
 
@@ -318,8 +315,7 @@ release.7:
 .endif
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
-	( cd ${RD}/info/src && \
+		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
 		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
 	@echo "src distribution is finished."
@@ -448,10 +444,8 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		cd ${RD}/info && \
-		mkdir -p ${TD} && \
-		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf \
-	)
+		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
+		  ${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
