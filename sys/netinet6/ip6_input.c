@@ -1603,7 +1603,7 @@ ip6_addaux(m)
 	if (!tag) {
 		tag = m_tag_get(PACKET_TAG_IPV6_INPUT,
 				sizeof (struct ip6aux),
-				M_DONTWAIT);
+				M_NOWAIT);
 		if (tag)
 			m_tag_prepend(m, tag);
 	}
