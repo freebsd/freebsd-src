@@ -147,7 +147,7 @@ struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "traceon",	  TRACEONTYPE | NOARGS },
 	{ "traceoff",	  TRACEOFFTYPE | NOARGS },
 
-#if defined(unix) || defined(__unix__) 
+#if defined(unix) || defined(__unix__)
 	{ "unix",         SELFTYPE | NOARGS },
 #else
 #ifdef vms
@@ -261,7 +261,7 @@ main(int argc, char *argv[])
 				continue;
 			}
 			sp = -1;
-			fp = 0; 
+			fp = 0;
 			if ((inname[0] = strdup(p)) == NULL)
 				err(1, NULL);
 			inlineno[0] = 1;
@@ -337,7 +337,7 @@ macro(void)
 			p = inspect(t, token);
 			if (p != nil)
 				putback(l = gpbc());
-			if (p == nil || (l != LPAREN && 
+			if (p == nil || (l != LPAREN &&
 			    (p->type & NEEDARGS) != 0))
 				outputstr(token);
 			else {
@@ -355,13 +355,13 @@ macro(void)
 				pushs1(p->name);	/* macro name  */
 				pushs(ep);	      	/* start next..*/
 
-				if (l != LPAREN && PARLEV == 0)  {   
+				if (l != LPAREN && PARLEV == 0)  {
 				    /* no bracks  */
 					chrsave(EOS);
 
 					if ((uintptr_t)sp == STACKMAX)
 						errx(1, "internal stack overflow");
-					eval((const char **) mstack+fp+1, 2, 
+					eval((const char **) mstack+fp+1, 2,
 					    CALTYP);
 
 					ep = PREVEP;	/* flush strspace */
@@ -461,7 +461,7 @@ macro(void)
 				if ((uintptr_t)sp == STACKMAX)
 					errx(1, "internal stack overflow");
 
-				eval((const char **) mstack+fp+1, sp-fp, 
+				eval((const char **) mstack+fp+1, sp-fp,
 				    CALTYP);
 
 				ep = PREVEP;	/* flush strspace */
@@ -504,8 +504,8 @@ macro(void)
 	}
 }
 
-/* 
- * output string directly, without pushing it for reparses. 
+/*
+ * output string directly, without pushing it for reparses.
  */
 void
 outputstr(const char *s)
@@ -524,13 +524,13 @@ outputstr(const char *s)
  * combo with lookup to speed things up.
  */
 static ndptr
-inspect(int c, char *tp) 
+inspect(int c, char *tp)
 {
 	char *name = tp;
 	char *etp = tp+MAXTOK;
 	ndptr p;
 	unsigned int h;
-	
+
 	h = *tp++ = c;
 
 	while ((isalnum(c = gpbc()) || c == '_') && tp < etp)
@@ -559,9 +559,9 @@ inspect(int c, char *tp)
 }
 
 /*
- * initkwds - initialise m4 keywords as fast as possible. 
+ * initkwds - initialise m4 keywords as fast as possible.
  * This very similar to install, but without certain overheads,
- * such as calling lookup. Malloc is not used for storing the 
+ * such as calling lookup. Malloc is not used for storing the
  * keyword strings, since we simply use the static pointers
  * within keywrds block.
  */
@@ -587,7 +587,7 @@ initkwds(void)
 }
 
 /* Look up a builtin type, even if overridden by the user */
-int 
+int
 builtin_type(const char *key)
 {
 	int i;
@@ -628,20 +628,20 @@ dump_stack(struct position *t, int lev)
 			fprintf(stderr, "   ...\n");
 			break;
 		}
-		fprintf(stderr, "   %s at line %lu\n", 
+		fprintf(stderr, "   %s at line %lu\n",
 			t[i].name, t[i].line);
 	}
 }
 
 
-static void 
+static void
 enlarge_stack(void)
 {
 	STACKMAX *= 2;
 	mstack = realloc(mstack, sizeof(stae) * STACKMAX);
 	sstack = realloc(sstack, STACKMAX);
 	if (mstack == NULL || sstack == NULL)
-		errx(1, "Evaluation stack overflow (%lu)", 
+		errx(1, "Evaluation stack overflow (%lu)",
 		    (unsigned long)STACKMAX);
 }
 
