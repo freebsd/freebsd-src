@@ -11,7 +11,7 @@ the yellow pages mechanism.  File hierarchies that span more
 than one domain leads to certain problems, since the same numerical 
 UID in one domain may correspond to a different user in another domain.  
 If the system administrator is very careful to ensure that both domains 
-contain identical user ID information, The umap layer can be used to
+contain identical user ID information, the umap layer can be used to
 run between those domains without changes
 
 The umap layer is a file system layer that sits on top of the normal
@@ -104,8 +104,8 @@ The user and group mapping files should be owned by the root user, and
 should be writable only by that user.  If they are not owned by root, or
 are writable by some other user, the umap mounting command will abort.
 
-Normally, the sub-treeis grafted directly into the place in
-the file hierarchy where the it should appear to users.Using the umap
+Normally, the sub-tree is grafted directly into the place in
+the file hierarchy where the it should appear to users. Using the umap
 layer requires that the sub-tree be grafted somewhere else, and
 the umap layer be mounted in the desired position in the file hierarchy.
 Depending on the situation, the underlying sub-tree can be wherever is
