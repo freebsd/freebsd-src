@@ -97,6 +97,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
+MODULE_DEPEND(if_kue, usb, 1, 1, 1);
+
 /*
  * Various supported device vendors/products.
  */
