@@ -261,11 +261,6 @@ __MAKE_CONF?=/etc/make.conf
 
 .include <bsd.cpu.mk>
 
-.if exists(/etc/make.conf.local)
-.error Error, /etc/make.conf.local should be renamed to /etc/make.conf.
-.include </etc/make.conf.local>
-.endif
-
 # Default executable format
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
