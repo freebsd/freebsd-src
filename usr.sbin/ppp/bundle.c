@@ -30,7 +30,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <net/if_tun.h>		/* For TUNSIFMODE, TUNSLMODE & TUNSIFPID*/
+#include <net/if_tun.h>		/* For TUNS* ioctls */
 #include <arpa/inet.h>
 #include <net/route.h>
 #include <netinet/in_systm.h>
@@ -524,20 +524,36 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   if (FD_ISSET(bundle->dev.fd, fdset)) {
     struct tun_data tun;
     int n, pri;
+    char *data;
+    size_t sz;
+
+    if (bundle->dev.header) {
+      data = (char *)&tun;
+      sz = sizeof tun;
+    } else {
+      data = tun.data;
+      sz = sizeof tun.data;
+    }
 
     /* something to read from tun */
-    n = read(bundle->dev.fd, &tun, sizeof tun);
+
+    n = read(bundle->dev.fd, data, sz);
     if (n < 0) {
-      log_Printf(LogWARN, "read from %s: %s\n", TUN_NAME, strerror(errno));
+      log_Printf(LogWARN, "%s: read: %s\n", bundle->dev.Name, strerror(errno));
       return;
     }
-    n -= sizeof tun - sizeof tun.data;
-    if (n <= 0) {
-      log_Printf(LogERROR, "read from %s: Only %d bytes read ?\n", TUN_NAME, n);
-      return;
+
+    if (bundle->dev.header) {
+      n -= sz - sizeof tun.data;
+      if (n <= 0) {
+        log_Printf(LogERROR, "%s: read: Got only %d bytes of data !\n",
+                   bundle->dev.Name, n);
+        return;
+      }
+      if (ntohl(tun.family) != AF_INET)
+        /* XXX: Should be maintaining drop/family counts ! */
+        return;
     }
-    if (!tun_check_header(tun, AF_INET))
-      return;
 
     if (((struct ip *)tun.data)->ip_dst.s_addr ==
         bundle->ncp.ipcp.my_ip.s_addr) {
@@ -545,8 +561,8 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
       if (Enabled(bundle, OPT_LOOPBACK)) {
         pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
         if (pri >= 0) {
-          n += sizeof tun - sizeof tun.data;
-          write(bundle->dev.fd, &tun, n);
+          n += sz - sizeof tun.data;
+          write(bundle->dev.fd, data, n);
           log_Printf(LogDEBUG, "Looped back packet addressed to myself\n");
         }
         return;
@@ -638,7 +654,7 @@ bundle_Create(const char *prefix, int type, int unit)
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
   int kldtried;
 #endif
-#if defined(TUNSIFMODE) || defined(TUNSLMODE)
+#if defined(TUNSIFMODE) || defined(TUNSLMODE) || defined(TUNSIFHEAD)
   int iff;
 #endif
 
@@ -722,11 +738,34 @@ bundle_Create(const char *prefix, int type, int unit)
 #endif
 
 #ifdef TUNSLMODE
-  /* Make sure we're POINTOPOINT */
+  /* Make sure we're not prepending sockaddrs */
   iff = 0;
   if (ID0ioctl(bundle.dev.fd, TUNSLMODE, &iff) < 0)
     log_Printf(LogERROR, "bundle_Create: ioctl(TUNSLMODE): %s\n",
 	       strerror(errno));
+#endif
+
+#ifdef TUNSIFHEAD
+  /* We want the address family please ! */
+  iff = 1;
+  if (ID0ioctl(bundle.dev.fd, TUNSIFHEAD, &iff) < 0) {
+    log_Printf(LogERROR, "bundle_Create: ioctl(TUNSIFHEAD): %s\n",
+	       strerror(errno));
+    bundle.dev.header = 0;
+  } else
+    bundle.dev.header = 1;
+#else
+#ifdef __OpenBSD__
+  /* Always present for OpenBSD */
+  bundle.dev.header = 1;
+#else
+  /*
+   * If TUNSIFHEAD isn't available and we're not OpenBSD, assume
+   * everything's AF_INET (hopefully the tun device won't pass us
+   * anything else !).
+   */
+  bundle.dev.header = 0;
+#endif
 #endif
 
   if (!iface_SetFlags(bundle.iface, IFF_UP)) {
