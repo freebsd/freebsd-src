@@ -1,3 +1,3 @@
 # $Id$
 
-BINDIR?=	/usr/lib/compat
+LIBCOMPATDIR?=	${LIBDIR}/compat
