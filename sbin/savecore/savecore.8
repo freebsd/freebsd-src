@@ -72,7 +72,7 @@ as the kernel instead of the running kernel (as determined from
 Print out some additional debugging information.
 .It Fl z
 Compress the core dump and kernel (see
-.Xr compress 1 ) .
+.Xr gzip 1 ) .
 .El
 .Pp
 .Nm Savecore
@@ -113,8 +113,8 @@ is meant to be called near the end of the initialization file
 .Sh BUGS
 The minfree code does not consider the effect of compression.
 .Sh SEE ALSO
-.Xr compress 1 ,
 .Xr getbootfile 3 ,
+.Xr gzip 1 ,
 .Xr syslogd 8
 .Sh HISTORY
 The
