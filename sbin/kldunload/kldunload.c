@@ -76,7 +76,7 @@ main(int argc, char** argv)
 	argc--;
     }
     
-    if (argc != 0 || fileid && filename)
+    if (argc != 0 || (fileid && filename))
 	usage();
 
     if (fileid == 0 && filename == 0)

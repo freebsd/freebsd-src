@@ -27,7 +27,7 @@
 #
 
 PROG=	kldunload
-WARNS=	0
 MAN=	kldunload.8
+WARNS?=	5
 
 .include <bsd.prog.mk>
