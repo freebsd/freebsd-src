@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.21 1996/05/01 02:42:50 bde Exp $
+ * $Id: imgact_gzip.c,v 1.22 1996/05/02 10:43:16 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -69,6 +69,7 @@ exec_gzip_imgact(imgp)
 	u_char         *p = (u_char *) imgp->image_header;
 	struct imgact_gzip igz;
 	struct inflate  infl;
+	struct vmspace *vmspace;
 
 	/* If these four are not OK, it isn't a gzip file */
 	if (p[0] != 0x1f)
@@ -110,9 +111,18 @@ exec_gzip_imgact(imgp)
 			if (igz.idx >= PAGE_SIZE)
 				return ENOEXEC;
 	}
-	igz.len = igz.ip->attr->va_size;
+	igz.len = imgp->attr->va_size;
 
 	error = inflate(&infl);
+
+	if ( !error ) {
+		vmspace = imgp->proc->p_vmspace;
+		error = vm_map_protect(&vmspace->vm_map,
+			(vm_offset_t) vmspace->vm_taddr,
+			(vm_offset_t) (vmspace->vm_taddr + 
+				      (vmspace->vm_tsize << PAGE_SHIFT)) ,
+			VM_PROT_READ|VM_PROT_EXECUTE,0);
+	}
 
 	if (igz.inbuf) {
 		error2 =
@@ -217,31 +227,10 @@ do_aout_hdr(struct imgact_gzip * gz)
 
 	vmaddr = gz->virtual_offset;
 
-	error = vm_mmap(&vmspace->vm_map,	/* map */
-			&vmaddr,/* address */
-			gz->a_out.a_text,	/* size */
-			VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,	/* protection */
-			VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,
-			MAP_ANON | MAP_FIXED,	/* flags */
-			0,	/* vnode */
-			0);	/* offset */
-
-	if (error) {
-		gz->where = __LINE__;
-		return (error);
-	}
-	vmaddr = gz->virtual_offset + gz->a_out.a_text;
-
-	/*
-	 * Map data read/write (if text is 0, assume text is in data area
-	 * [Bill's screwball mode])
-	 */
-
 	error = vm_mmap(&vmspace->vm_map,
 			&vmaddr,
-			gz->a_out.a_data,
-			VM_PROT_READ | VM_PROT_WRITE | (gz->a_out.a_text ? 0 : VM_PROT_EXECUTE),
-			VM_PROT_ALL, MAP_ANON | MAP_FIXED,
+			gz->a_out.a_text + gz->a_out.a_data,
+			VM_PROT_ALL, VM_PROT_ALL, MAP_ANON | MAP_FIXED,
 			0,
 			0);
 
@@ -249,6 +238,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 		gz->where = __LINE__;
 		return (error);
 	}
+
 	if (gz->bss_size != 0) {
 		/*
 		 * Allocate demand-zeroed area for uninitialized data.
@@ -257,8 +247,12 @@ do_aout_hdr(struct imgact_gzip * gz)
 		 */
 		vmaddr = gz->virtual_offset + gz->a_out.a_text + 
 			gz->a_out.a_data;
-		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, 
-			gz->bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		error = vm_map_find(&vmspace->vm_map,
+				NULL,
+				0,
+				&vmaddr, 
+				gz->bss_size,
+				FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error) {
 			gz->where = __LINE__;
 			return (error);
