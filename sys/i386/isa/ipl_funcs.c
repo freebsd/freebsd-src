@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.16 1999/04/21 07:26:27 peter Exp $
+ *	$Id: ipl_funcs.c,v 1.17 1999/04/28 01:04:15 luoqi Exp $
  */
 
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <machine/ipl.h>
 #include <machine/globals.h>
+#include <i386/isa/intr_machdep.h>
 
 #ifndef SMP
 /*
