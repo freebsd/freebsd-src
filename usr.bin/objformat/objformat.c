@@ -51,6 +51,10 @@ main(int argc, char **argv)
 		cmd = argv[0];
 
 	if (strcmp(cmd, "objformat") == 0) {
+		if (argc != 1) {
+			fprintf(stderr, "Usage: objformat\n");
+			exit(1);
+		}
 		printf("%s\n", objformat);
 		exit(0);
 	}
