@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.76 1999/08/20 20:24:59 julian Exp $
+ * $Id: conf.h,v 1.77 1999/08/23 20:59:17 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -58,6 +58,7 @@ struct specinfo {
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
 	void 		*si_devfs;	/* save cookie for devfs operations */
+	void 		*si_bdevfs;	/* XXX block device (should go away) */
 	union {
 		struct {
 			struct tty *__sit_tty;
