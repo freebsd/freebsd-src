@@ -1597,6 +1597,17 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
 		ifp->if_flags |= IFF_UP;
 		(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, NULL);
+#ifdef INET
+		/*
+		 * Also send gratuitous ARPs to notify other nodes about
+		 * the address change.
+		 */
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr != NULL &&
+			    ifa->ifa_addr->sa_family == AF_INET)
+				arp_ifinit((struct arpcom *)ifp, ifa);
+		}
+#endif
 	}
 	return (0);
 }
