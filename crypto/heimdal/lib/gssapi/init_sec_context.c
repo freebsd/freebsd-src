@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: init_sec_context.c,v 1.29 2001/08/29 02:21:09 assar Exp $");
+RCSID("$Id: init_sec_context.c,v 1.31 2002/09/02 17:16:12 joda Exp $");
 
 /*
  * copy the addresses from `input_chan_bindings' (if any) to
@@ -366,6 +366,16 @@ init_auth
 	    return kret;
     }
 #endif
+
+    kret = krb5_auth_con_generatelocalsubkey(gssapi_krb5_context, 
+					     (*context_handle)->auth_context,
+					     &cred->session);
+    if(kret) {
+	gssapi_krb5_set_error_string ();
+	*minor_status = kret;
+	ret = GSS_S_FAILURE;
+	goto failure;
+    }
 
     kret = krb5_build_authenticator (gssapi_krb5_context,
 				     (*context_handle)->auth_context,

@@ -1,8 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.320 $)
+AC_REVISION($Revision: 1.325 $)
 AC_PREREQ(2.53)
 #test -z "$CFLAGS" && CFLAGS="-g"
 AC_INIT(Heimdal, 0.4f, heimdal-bugs@pdc.kth.se)
+AC_CONFIG_SRCDIR([kuser/kinit.c])
 AM_CONFIG_HEADER(include/config.h)
 
 dnl Checks for programs.
@@ -20,6 +21,8 @@ test "$localstatedir" = '${prefix}/var' && localstatedir='/var/heimdal'
 AC_CANONICAL_HOST
 CANONICAL_HOST=$host
 AC_SUBST(CANONICAL_HOST)
+
+AC_SYS_LARGEFILE
 
 dnl
 dnl this is needed to run the configure tests against glibc
@@ -48,21 +51,10 @@ AC_PROG_LIBTOOL
 
 AC_WFLAGS(-Wall -Wmissing-prototypes -Wpointer-arith -Wbad-function-cast -Wmissing-declarations -Wnested-externs)
 
-rk_DB
-
-dnl AC_ROKEN(10,[/usr/heimdal /usr/athena],[lib/roken],[$(top_builddir)/lib/roken/libroken.la],[-I$(top_builddir)/lib/roken -I$(top_srcdir)/lib/roken])
-
-rk_ROKEN(lib/roken)
-LIB_roken="\$(top_builddir)/lib/vers/libvers.la $LIB_roken"
-
 rk_TEST_PACKAGE(openldap,
 [#include <lber.h>
 #include <ldap.h>],
 [-lldap -llber],,,OPENLDAP)
-
-if test "$openldap_libdir"; then
-	LIB_openldap="-R $openldap_libdir $LIB_openldap"
-fi
 
 rk_TEST_PACKAGE(krb4,[#include <krb.h>],-lkrb,-ldes,/usr/athena, KRB4, krb4-config)
 
@@ -156,10 +148,6 @@ if test "$with_krb4" != "no"; then
 	LIBS="$save_LIBS"
 	CFLAGS="$save_CFLAGS"
 	LIB_kdb="-lkdb -lkrb"
-	if test "$krb4_libdir"; then
-		LIB_krb4="-R $krb4_libdir $LIB_krb4"
-		LIB_kdb="-R $krb4_libdir -L$krb4_libdir $LIB_kdb"
-	fi
 fi
 AM_CONDITIONAL(KRB4, test "$with_krb4" != "no")
 AM_CONDITIONAL(KRB5, true)
@@ -167,6 +155,8 @@ AM_CONDITIONAL(do_roken_rename, true)
 
 AC_DEFINE(KRB5, 1, [Enable Kerberos 5 support in applications.])dnl
 AC_SUBST(LIB_kdb)dnl
+
+KRB_CRYPTO
 
 AC_ARG_ENABLE(dce, 
 	AC_HELP_STRING([--enable-dce],[if you want support for DCE/DFS PAG's]))
@@ -189,9 +179,22 @@ AC_SUBST(dpagaix_cflags)
 AC_SUBST(dpagaix_ldadd)
 AC_SUBST(dpagaix_ldflags)
 
+rk_DB
+
+dnl AC_ROKEN(10,[/usr/heimdal /usr/athena],[lib/roken],[$(top_builddir)/lib/roken/libroken.la],[-I$(top_builddir)/lib/roken -I$(top_srcdir)/lib/roken])
+
+rk_ROKEN(lib/roken)
+LIB_roken="\$(top_builddir)/lib/vers/libvers.la $LIB_roken"
+
 rk_OTP
 
 AC_CHECK_OSFC2
+
+AC_ARG_ENABLE(mmap,
+	AC_HELP_STRING([--disable-mmap],[disable use of mmap]))
+if test "$enable_mmap" = "no"; then
+	AC_DEFINE(NO_MMAP, 1, [Define if you don't want to use mmap.])
+fi
 
 rk_CHECK_MAN
 
@@ -241,6 +244,7 @@ AC_CHECK_HEADERS([\
 	libutil.h				\
 	limits.h				\
 	maillock.h				\
+	netgroup.h				\
 	netinet/in6_machtypes.h			\
 	netinfo/ni.h				\
 	pthread.h				\
@@ -256,6 +260,7 @@ AC_CHECK_HEADERS([\
 	sys/file.h				\
 	sys/filio.h				\
 	sys/ioccom.h				\
+	sys/mman.h				\
 	sys/pty.h				\
 	sys/ptyio.h				\
 	sys/ptyvar.h				\
@@ -327,6 +332,8 @@ AC_CHECK_FUNCS([				\
 	yp_get_default_domain			\
 ])
 
+AC_FUNC_MMAP
+
 KRB_CAPABILITIES
 
 AC_CHECK_GETPWNAM_R_POSIX
@@ -369,8 +376,6 @@ AC_CHECK_TYPES([int8_t, int16_t, int32_t, int64_t,
 #endif
 ])
 
-KRB_CRYPTO
-
 KRB_READLINE
 
 rk_TELNET
@@ -378,7 +383,7 @@ rk_TELNET
 dnl Some operating systems already have com_err and compile_et
 CHECK_COMPILE_ET
 
-AC_AUTH_MODULES
+rk_AUTH_MODULES([sia afskauthlib])
 
 rk_DESTDIRS
 

@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kaserver.c,v 1.19 2002/04/18 16:07:39 joda Exp $");
+RCSID("$Id: kaserver.c,v 1.20 2002/09/09 14:03:02 nectar Exp $");
 
 
 #include <rx.h>
@@ -186,6 +186,8 @@ krb5_ret_xdr_data(krb5_storage *sp,
     ret = krb5_ret_int32(sp, &size);
     if(ret)
 	return ret;
+    if(size < 0)
+	return ERANGE;
     data->length = size;
     if (size) {
 	u_char foo[4];

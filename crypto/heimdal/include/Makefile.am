@@ -1,18 +1,22 @@
-# $Id: Makefile.am,v 1.32 2002/05/24 15:36:21 joda Exp $
+# $Id: Makefile.am,v 1.33 2002/09/10 19:59:25 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 SUBDIRS = kadm5
 
-noinst_PROGRAMS = bits
+noinst_PROGRAMS = bits make_crypto
 CHECK_LOCAL =
 
 INCLUDES += -DHOST=\"$(CANONICAL_HOST)\"
 
 include_HEADERS = krb5-types.h
+noinst_HEADERS = crypto-headers.h
 
 krb5-types.h: bits$(EXEEXT)
 	./bits$(EXEEXT) krb5-types.h
+
+crypto-headers.h: make_crypto$(EXEEXT)
+	./make_crypto$(EXEEXT) crypto-headers.h
 
 CLEANFILES =		\
 	asn1.h		\
@@ -20,6 +24,7 @@ CLEANFILES =		\
 	base64.h	\
 	com_err.h	\
 	com_right.h	\
+	crypto-headers.h\
 	der.h		\
 	des.h		\
 	editline.h	\
