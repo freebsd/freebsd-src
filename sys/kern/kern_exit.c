@@ -448,6 +448,7 @@ exit1(td, rv)
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
+	cpu_sched_exit(td);
 	cpu_throw();
 	panic("exit1");
 }

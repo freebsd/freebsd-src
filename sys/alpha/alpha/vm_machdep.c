@@ -248,6 +248,12 @@ cpu_exit(td)
 }
 
 void
+cpu_sched_exit(td)
+	register struct thread *td;
+{
+}
+
+void
 cpu_wait(p)
 	struct proc *p;
 {
