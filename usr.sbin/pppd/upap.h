@@ -79,15 +79,9 @@ typedef struct upap_state {
 #define UPAP_DEFTIMEOUT	3	/* Timeout (seconds) for retransmitting req */
 #define UPAP_DEFREQTIME	30	/* Time to wait for auth-req from peer */
 
-
 extern upap_state upap[];
 
-void upap_init __P((int));
 void upap_authwithpeer __P((int, char *, char *));
 void upap_authpeer __P((int));
-void upap_lowerup __P((int));
-void upap_lowerdown __P((int));
-void upap_input __P((int, u_char *, int));
-void upap_protrej __P((int));
-int  upap_printpkt __P((u_char *, int,
-			void (*) __P((void *, char *, ...)), void *));
+
+extern struct protent pap_protent;
