@@ -1132,9 +1132,13 @@ swapmode()
 			continue;
 
 		if (!totalflag)
-			(void)printf("/dev/%-6s %*d ",
-			    devname(sw[i].sw_dev, S_IFBLK),
-			    hlen, sw[i].sw_nblks / div);
+			if (sw[i].sw_dev != NODEV)
+				(void)printf("/dev/%-6s %*d ",
+					     devname(sw[i].sw_dev, S_IFBLK),
+					     hlen, sw[i].sw_nblks / div);
+			else
+				(void)printf("[NFS swap]  %*d ",
+					     hlen, sw[i].sw_nblks / div);
 
 		/* The first dmmax is never allocated to avoid trashing of
 		 * disklabels
