@@ -39,8 +39,6 @@
 #include "opt_npx.h"
 #include "opt_user_ldt.h"
 
-#include <sys/rtprio.h>
-
 #include <machine/asmacros.h>
 #include <machine/ipl.h>
 
@@ -87,17 +85,12 @@ ENTRY(cpu_switch)
 	testl	%ecx,%ecx
 	jz	sw1
 
-#ifdef SMP
 	movb	P_ONCPU(%ecx), %al		/* save "last" cpu */
 	movb	%al, P_LASTCPU(%ecx)
 	movb	$0xff, P_ONCPU(%ecx)		/* "leave" the cpu */
-#endif /* SMP */
+
 	movl	P_VMSPACE(%ecx), %edx
-#ifdef SMP
 	movl	PCPU(CPUID), %eax
-#else
-	xorl	%eax, %eax
-#endif /* SMP */
 	btrl	%eax, VM_PMAP+PM_ACTIVE(%edx)
 
 	movl	P_ADDR(%ecx),%edx
@@ -201,11 +194,7 @@ sw1b:
 	movl	%ebx,%cr3
 4:
 
-#ifdef SMP
 	movl	PCPU(CPUID), %esi
-#else
-	xorl	%esi, %esi
-#endif
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
 	btsl	%esi, _private_tss		/* mark use of private tss */
@@ -232,11 +221,7 @@ sw1b:
 	ltr	%si
 3:
 	movl	P_VMSPACE(%ecx), %ebx
-#ifdef SMP
 	movl	PCPU(CPUID), %eax
-#else
-	xorl	%eax, %eax
-#endif
 	btsl	%eax, VM_PMAP+PM_ACTIVE(%ebx)
 
 	/* restore context */
@@ -256,9 +241,10 @@ sw1b:
 	andl	$~APIC_TPR_PRIO, _lapic+LA_TPR
 #endif /** CHEAP_TPR */
 #endif /** GRAB_LOPRIO */
+#endif /* SMP */
 	movl	PCPU(CPUID),%eax
 	movb	%al, P_ONCPU(%ecx)
-#endif /* SMP */
+
 	movl	%edx, PCPU(CURPCB)
 	movl	%ecx, PCPU(CURPROC)		/* into next process */
 

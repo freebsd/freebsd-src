@@ -68,7 +68,6 @@
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
-u_char	curpriority;
 int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
@@ -76,7 +75,6 @@ int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 static struct callout schedcpu_callout;
 static struct callout roundrobin_callout;
 
-static int	curpriority_cmp __P((struct proc *p));
 static void	endtsleep __P((void *));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
@@ -100,56 +98,16 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof sched_quantum, sysctl_kern_quantum, "I", "");
 
-/*-
- * Compare priorities.  Return:
- *     <0: priority of p < current priority
- *      0: priority of p == current priority
- *     >0: priority of p > current priority
- * The priorities are the normal priorities or the normal realtime priorities
- * if p is on the same scheduler as curproc.  Otherwise the process on the
- * more realtimeish scheduler has lowest priority.  As usual, a higher
- * priority really means a lower priority.
- */
-static int
-curpriority_cmp(p)
-	struct proc *p;
-{
-	int c_class, p_class;
-
-	c_class = RTP_PRIO_BASE(curproc->p_rtprio.type);
-	p_class = RTP_PRIO_BASE(p->p_rtprio.type);
-	if (p_class != c_class)
-		return (p_class - c_class);
-	if (p_class == RTP_PRIO_NORMAL)
-		return (((int)p->p_priority - (int)curpriority) / PPQ);
-	return ((int)p->p_rtprio.prio - (int)curproc->p_rtprio.prio);
-}
-
 /*
  * Arrange to reschedule if necessary, taking the priorities and
  * schedulers into account.
  */
 void
-maybe_resched(chk)
-	struct proc *chk;
+maybe_resched(p)
+	struct proc *p;
 {
-	struct proc *p = curproc; /* XXX */
 
-	/*
-	 * XXX idle scheduler still broken because proccess stays on idle
-	 * scheduler during waits (such as when getting FS locks).  If a
-	 * standard process becomes runaway cpu-bound, the system can lockup
-	 * due to idle-scheduler processes in wakeup never getting any cpu.
-	 */
-	if (p == PCPU_GET(idleproc)) {
-#if 0
-		need_resched();
-#endif
-	} else if (chk == p) {
-		/* We may need to yield if our priority has been raised. */
-		if (curpriority_cmp(chk) > 0)
-			need_resched();
-	} else if (curpriority_cmp(chk) < 0)
+	if (p->p_pri.pri_level < curproc->p_pri.pri_level)
 		need_resched();
 }
 
@@ -325,19 +283,20 @@ schedcpu(arg)
 		p->p_cpticks = 0;
 		p->p_estcpu = decay_cpu(loadfac, p->p_estcpu);
 		resetpriority(p);
-		if (p->p_priority >= PUSER) {
+		if (p->p_pri.pri_level >= PUSER) {
 			if ((p != curproc) &&
 #ifdef SMP
 			    p->p_oncpu == 0xff && 	/* idle */
 #endif
 			    p->p_stat == SRUN &&
 			    (p->p_sflag & PS_INMEM) &&
-			    (p->p_priority / PPQ) != (p->p_usrpri / PPQ)) {
+			    (p->p_pri.pri_level / RQ_PPQ) !=
+			    (p->p_pri.pri_user / RQ_PPQ)) {
 				remrunqueue(p);
-				p->p_priority = p->p_usrpri;
+				p->p_pri.pri_level = p->p_pri.pri_user;
 				setrunqueue(p);
 			} else
-				p->p_priority = p->p_usrpri;
+				p->p_pri.pri_level = p->p_pri.pri_user;
 		}
 		mtx_unlock_spin(&sched_lock);
 		splx(s);
@@ -461,7 +420,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
-	p->p_priority = priority & PRIMASK;
+	p->p_pri.pri_level = priority & PRIMASK;
 	CTR4(KTR_PROC, "msleep: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
@@ -503,7 +462,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	        "msleep resume: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 resume:
-	curpriority = p->p_usrpri;
 	splx(s);
 	p->p_sflag &= ~PS_SINTR;
 	if (p->p_sflag & PS_TIMEOUT) {
@@ -671,7 +629,6 @@ mawait(struct mtx *mtx, int priority, int timo)
 		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 resume:
-		curpriority = p->p_usrpri;
 
 		splx(s);
 		p->p_sflag &= ~PS_SINTR;
@@ -1033,11 +990,12 @@ resetpriority(p)
 	register unsigned int newpriority;
 
 	mtx_lock_spin(&sched_lock);
-	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
+	if (p->p_pri.pri_class == PRI_TIMESHARE) {
 		newpriority = PUSER + p->p_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (p->p_nice - PRIO_MIN);
-		newpriority = min(newpriority, MAXPRI);
-		p->p_usrpri = newpriority;
+		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
+		    PRI_MAX_TIMESHARE);
+		p->p_pri.pri_user = newpriority;
 	}
 	maybe_resched(p);
 	mtx_unlock_spin(&sched_lock);
@@ -1080,8 +1038,8 @@ schedclock(p)
 	p->p_estcpu = ESTCPULIM(p->p_estcpu + 1);
 	if ((p->p_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(p);
-		if (p->p_priority >= PUSER)
-			p->p_priority = p->p_usrpri;
+		if (p->p_pri.pri_level >= PUSER)
+			p->p_pri.pri_level = p->p_pri.pri_user;
 	}
 }
 
@@ -1098,7 +1056,7 @@ yield(struct proc *p, struct yield_args *uap)
 	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
-	p->p_priority = MAXPRI;
+	p->p_pri.pri_level = PRI_MAX_TIMESHARE;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();

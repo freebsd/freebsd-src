@@ -305,8 +305,9 @@ proc0_init(void *dummy __unused)
 	p->p_sflag = PS_INMEM;
 	p->p_stat = SRUN;
 	p->p_nice = NZERO;
-	p->p_rtprio.type = RTP_PRIO_NORMAL;
-	p->p_rtprio.prio = 0;
+	p->p_pri.pri_class = PRI_TIMESHARE;
+	p->p_pri.pri_level = PVM;
+	p->p_pri.pri_user = PUSER;
 
 	p->p_peers = 0;
 	p->p_leader = p;

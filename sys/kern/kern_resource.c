@@ -264,7 +264,8 @@ rtprio(curp, uap)
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
-		return (copyout(&p->p_rtprio, uap->rtp, sizeof(struct rtprio)));
+		pri_to_rtp(&p->p_pri, &rtp);
+		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
 		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)))
 		        return (error);
@@ -287,24 +288,57 @@ rtprio(curp, uap)
 			if (rtp.type != RTP_PRIO_NORMAL)
 				return (EPERM);
 		}
-		switch (rtp.type) {
-#ifdef RTP_PRIO_FIFO
-		case RTP_PRIO_FIFO:
-#endif
-		case RTP_PRIO_REALTIME:
-		case RTP_PRIO_NORMAL:
-		case RTP_PRIO_IDLE:
-			if (rtp.prio > RTP_PRIO_MAX)
-				return (EINVAL);
-			p->p_rtprio = rtp;
+		if (rtp_to_pri(&rtp, &p->p_pri) == 0)
 			return (0);
-		default:
-			return (EINVAL);
-		}
-
+		return (EINVAL);
 	default:
 		return (EINVAL);
 	}
+}
+
+int
+rtp_to_pri(struct rtprio *rtp, struct priority *pri)
+{
+
+	if (rtp->prio > RTP_PRIO_MAX)
+		return (-1);
+	switch (RTP_PRIO_BASE(rtp->type)) {
+	case RTP_PRIO_REALTIME:
+		pri->pri_level = PRI_MIN_REALTIME + rtp->prio;
+		break;
+	case RTP_PRIO_NORMAL:
+		pri->pri_level = PRI_MIN_TIMESHARE + rtp->prio;
+		break;
+	case RTP_PRIO_IDLE:
+		pri->pri_level = PRI_MIN_IDLE + rtp->prio;
+		break;
+	default:
+		return (-1);
+	}
+	pri->pri_class = rtp->type;
+	pri->pri_native = pri->pri_level;
+	pri->pri_user = pri->pri_level;
+	return (0);
+}
+
+void
+pri_to_rtp(struct priority *pri, struct rtprio *rtp)
+{
+
+	switch (PRI_BASE(pri->pri_class)) {
+	case PRI_REALTIME:
+		rtp->prio = pri->pri_level - PRI_MIN_REALTIME;
+		break;
+	case PRI_TIMESHARE:
+		rtp->prio = pri->pri_level - PRI_MIN_TIMESHARE;
+		break;
+	case PRI_IDLE:
+		rtp->prio = pri->pri_level - PRI_MIN_IDLE;
+		break;
+	default:
+		break;
+	}
+	rtp->type = pri->pri_class;
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
