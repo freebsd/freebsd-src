@@ -1,0 +1,35 @@
+HOW TO USE THIS SYSTEM
+======================
+
+KEY             ACTION
+---             ------
+UP ARROW        Move to previous item (or up, in a text field).
+DOWN ARROW      Move to next item (or down, in a text field).
+TAB             Move to next item or group.
+RIGHT ARROW     Move to next item or group (same as TAB).
+SHIFT-TAB       Move to previous item or group.
+LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
+RETURN          Select item.
+ESC             Spawn a sub-shell for diagnostic purposes.  Exit returns.
+PAGE UP         In text boxes, scrolls up one page.
+PAGE DOWN       In text boxes, scrolls down one page.
+SPACE		In "radio" or multiple choice menus, toggle the current item.
+F1              Help (in screens that provide it).
+
+If you also see small "^(-)" or "v(+)" symbols at the edges of a menu,
+it means that there are more items above or below the current one that
+aren't being shown (due to insufficient screen space).  Using the
+up/down arrow keys will cause the menu to scroll.  When a symbols
+disappears, it means you are at the top (or bottom) of the menu.
+
+In text fields, the amount of text remaining will be displayed as a
+percentage in the lower right corner.  100% means you're at the bottom
+of the field.
+
+Selecting OK in a menu will confirm whatever action it's controlling.
+Selecting Cancel will cancel the operation and generally return you to
+the previous menu.
+
+It is also possible to select a menu item by typing the first
+character of its name, if unique.  Such "accellerator" characters will
+be specially highlighted in the item name.
