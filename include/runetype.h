@@ -48,6 +48,11 @@ typedef _BSD_WCHAR_T_	wchar_t;
 #undef  _BSD_WCHAR_T_
 #endif
 
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
 #define	_CACHED_RUNES	(1 <<8 )	/* Must be a power of 2 */
 #define	_CRMASK		(~(_CACHED_RUNES - 1))
 
@@ -71,9 +76,9 @@ typedef struct {
 	char		encoding[32];	/* ASCII name of this encoding */
 
 	rune_t		(*sgetrune)
-	    __P((const char *, unsigned int, char const **));
+	    __P((const char *, size_t, char const **));
 	int		(*sputrune)
-	    __P((rune_t, char *, unsigned int, char **));
+	    __P((rune_t, char *, size_t, char **));
 	rune_t		invalid_rune;
 
 	unsigned long	runetype[_CACHED_RUNES];
