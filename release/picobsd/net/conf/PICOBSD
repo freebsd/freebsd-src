@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.7 1999/01/18 10:17:33 abial Exp $
+#	$Id: PICOBSD,v 1.8 1999/01/19 23:12:27 abial Exp $
 #
 
 machine		"i386"
@@ -52,7 +52,7 @@ disk		wd3	at wdc1 drive 1
 
 options		ATAPI		#Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd0	#IDE CD-ROM
+device		acd0	#IDE CD-ROM
 
 # syscons is the default console driver, resembling an SCO console
 
