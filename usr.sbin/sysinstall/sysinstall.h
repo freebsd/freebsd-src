@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.52 1996/04/25 17:31:26 jkh Exp $
+ * $Id: sysinstall.h,v 1.53 1996/04/28 00:37:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -253,10 +253,6 @@ typedef int (*commandFunc)(char *key, void *data);
 #define HOSTNAME_FIELD_LEN	128
 #define IPADDR_FIELD_LEN	16
 #define EXTRAS_FIELD_LEN	128
-
-/* Verbosity levels for CPIO as expressed by cpio arguments - yuck */
-#define CPIO_VERBOSITY		(!strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "low") ? "" : \
-				 !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "medium") ? "-V" : "-v")
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {

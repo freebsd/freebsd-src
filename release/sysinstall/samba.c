@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.27 1996/04/23 01:29:24 jkh Exp $
+ * $Id: installFinal.c,v 1.28 1996/04/25 17:31:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -35,17 +35,6 @@
  */
 
 #include "sysinstall.h"
-#include <sys/disklabel.h>
-#include <sys/errno.h>
-#include <sys/ioctl.h>
-#include <sys/fcntl.h>
-#include <sys/wait.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <sys/mount.h>
-
-/* This file contains all the final configuration thingies */
 
 static DMenu MenuSamba = {
     DMENU_CHECKLIST_TYPE,
@@ -64,25 +53,6 @@ static DMenu MenuSamba = {
 
 /* These probably shouldn't be hard-coded, but making them options might prove to be even more confusing! */
 #define SMB_CONF "./smb.conf"
-
-
-/* Load gated package */
-int
-configGated(dialogMenuItem *self)
-{
-    if (package_add("gated-3.5a11") == DITEM_SUCCESS)
-	variable_set2("gated", "YES");
-    return DITEM_SUCCESS;
-}
-
-/* Load pcnfsd package */
-int
-configPCNFSD(dialogMenuItem *self)
-{
-    if (package_add("pcnfsd-93.02.16") == DITEM_SUCCESS)
-	variable_set2("pcnfsd", "YES");
-    return DITEM_SUCCESS;
-}
 
 int
 configSamba(dialogMenuItem *self)
@@ -181,33 +151,3 @@ configSamba(dialogMenuItem *self)
     return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 
-int
-configNFSServer(dialogMenuItem *self)
-{
-    char cmd[256];
-
-    /* If we're an NFS server, we need an exports file */
-    if (!file_readable("/etc/exports")) {
-	WINDOW *w = savescr();
-
-	msgConfirm("Operating as an NFS server means that you must first configure\n"
-		   "an /etc/exports file to indicate which hosts are allowed certain\n"
-		   "kinds of access to your local file systems.\n"
-		   "Press [ENTER] now to invoke an editor on /etc/exports\n");
-	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
-	vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
-	vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
-	vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
-	vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
-	vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
-	vsystem("echo '#' >> /etc/exports");
-	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
-	vsystem("echo >> /etc/exports");
-	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
-	dialog_clear();
-	systemExecute(cmd);
-	restorescr(w);
-    }
-    variable_set2("nfs_server", "YES");
-    return DITEM_SUCCESS;
-}
