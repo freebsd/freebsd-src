@@ -172,7 +172,7 @@ int main(int argc, char **argv)
     if(!*execfname) snprintf(execfname, sizeof(execfname), "%s", confname);
 
     snprintf(cachename, sizeof(cachename), "%s.cache", confname);
-    snprintf(tempfname, sizeof(tempfname), ".tmp_%sXXXXXX", confname);
+    snprintf(tempfname, sizeof(tempfname), "/tmp/crunchgen_%sXXXXXX", confname);
 
     parse_conf_file();
     if (list_mode)
