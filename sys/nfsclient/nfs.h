@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.11 1995/07/29 11:42:21 bde Exp $
+ * $Id: nfs.h,v 1.12 1995/10/29 15:32:43 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
 #define _NFS_NFS_H_
+
+#include <nfs/rpcv2.h>
 
 /*
  * Tunable constants for nfs
