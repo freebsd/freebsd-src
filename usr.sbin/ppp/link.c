@@ -67,16 +67,24 @@
 
 static void Despatch(struct bundle *, struct link *, struct mbuf *, u_short);
 
-void
+static inline void
 link_AddInOctets(struct link *l, int n)
 {
-  throughput_addin(&l->throughput, n);
+  if (l->stats.gather) {
+    throughput_addin(&l->stats.total, n);
+    if (l->stats.parent)
+      throughput_addin(l->stats.parent, n);
+  }
 }
 
-void
+static inline void
 link_AddOutOctets(struct link *l, int n)
 {
-  throughput_addout(&l->throughput, n);
+  if (l->stats.gather) {
+    throughput_addout(&l->stats.total, n);
+    if (l->stats.parent)
+      throughput_addout(l->stats.parent, n);
+  }
 }
 
 void
