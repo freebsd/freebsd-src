@@ -492,6 +492,8 @@ psmprobe(struct isa_device *dvp)
     if (unit >= NPSM)
         return (0);
 
+    psm_softc[unit] = NULL;
+
     sc =  malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
     bzero(sc, sizeof *sc);
 
@@ -728,6 +730,9 @@ psmattach(struct isa_device *dvp)
     int unit = dvp->id_unit;
     struct psm_softc *sc = psm_softc[unit];
 
+    if (sc == NULL)    /* shouldn't happen */
+	return (0);
+
     /* initial operation mode */
     sc->dflt_mode.accelfactor = sc->mode.accelfactor = PSM_ACCEL;
     sc->dflt_mode.protocol = sc->mode.protocol = MOUSE_PROTO_PS2;
@@ -771,7 +776,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 
     /* Get device data */
     sc = psm_softc[unit];
-    if ((sc->state & PSM_VALID) == 0)
+    if ((sc == NULL) || (sc->state & PSM_VALID) == 0)
 	/* the device is no longer valid/functioning */
         return (ENXIO);
 
