@@ -47,6 +47,7 @@
 #include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <sys/rman.h>
@@ -1395,19 +1396,19 @@ musycc_probe(device_t self)
 	char desc[40];
 
 	if (sizeof(struct groupr) != 1572) {
-		printf("sizeof(struct groupr) = %d, should be 1572\n",
+		printf("sizeof(struct groupr) = %zd, should be 1572\n",
 		    sizeof(struct groupr));
 		return(ENXIO);
 	}
 
 	if (sizeof(struct globalr) != 1572) {
-		printf("sizeof(struct globalr) = %d, should be 1572\n",
+		printf("sizeof(struct globalr) = %zd, should be 1572\n",
 		    sizeof(struct globalr));
 		return(ENXIO);
 	}
 
 	if (sizeof(struct mycg) > 2048) {
-		printf("sizeof(struct mycg) = %d, should be <= 2048\n",
+		printf("sizeof(struct mycg) = %zd, should be <= 2048\n",
 		    sizeof(struct mycg));
 		return(ENXIO);
 	}
@@ -1449,7 +1450,7 @@ musycc_attach(device_t self)
 		if (error != 0) 
 			printf("ng_newtype() failed %d\n", error);
 	}
-	printf("We have %d pad bytes in mycg\n", 2048 - sizeof(struct mycg));
+	printf("We have %zd pad bytes in mycg\n", 2048 - sizeof(struct mycg));
 
 	f = pci_get_function(self);
 	/* For function zero allocate a csoftc */
@@ -1501,8 +1502,8 @@ musycc_attach(device_t self)
 		return (0);
 
 	for (i = 0; i < 2; i++)
-		printf("f%d: device %p virtual %p physical %08x\n",
-		    i, csc->f[i], csc->virbase[i], csc->physbase[i]);
+		printf("f%d: device %p virtual %p physical %08jx\n",
+		    i, csc->f[i], csc->virbase[i], (uintmax_t)csc->physbase[i]);
 
 	csc->reg = (struct globalr *)csc->virbase[0];
 	csc->reg->glcd = 0x3f30;	/* XXX: designer magic */
