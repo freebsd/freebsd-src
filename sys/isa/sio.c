@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.253 1999/08/08 20:25:14 phk Exp $
+ *	$Id: sio.c,v 1.254 1999/08/09 10:34:55 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2639,13 +2639,13 @@ static void siocnclose	__P((struct siocnstate *sp, Port_t iobase));
 static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
 
-#ifdef __i386__
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
 static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
+#ifdef __i386__
 CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc, siocnputc);
 
 /* To get the GDB related variables */
@@ -2774,10 +2774,7 @@ siocnclose(sp, iobase)
 	outb(iobase + com_ier, sp->ier);
 }
 
-#ifdef __i386__
-static
-#endif
-void
+static void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
@@ -2893,8 +2890,6 @@ siocnprobe(cp)
 
 CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc);
 
-extern struct consdev *cn_tab;
-
 int
 siocnattach(port, speed)
 	int port;
@@ -2974,20 +2969,14 @@ siogdbattach(port, speed)
 
 #endif
 
-#ifdef __i386__
-static
-#endif
-void
+static void
 siocninit(cp)
 	struct consdev	*cp;
 {
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
-#ifdef __i386__
-static
-#endif
-int
+static int
 siocncheckc(dev)
 	dev_t	dev;
 {
