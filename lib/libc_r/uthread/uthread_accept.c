@@ -76,9 +76,6 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			}
 		}
 
-		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
-
 		/* Check for errors: */
 		if (ret < 0) {
 		}
@@ -90,6 +87,19 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			/* Return an error: */
 			ret = -1;
 		}
+		/* 
+                 * If the parent socket was blocking, make sure that
+                 * the new socket is also set blocking here (as the
+		 * call to _thread_fd_table_init() above will always 
+		 * set the new socket flags to non-blocking, as that 
+		 * will be the inherited state of the new socket.
+		 */
+		if((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0)
+			_thread_fd_table[ret]->flags &= ~O_NONBLOCK;
+
+		/* Unlock the file descriptor: */
+		_thread_fd_unlock(fd, FD_RDWR);
+
 	}
 	/* Return the socket file descriptor or -1 on error: */
 	return (ret);
