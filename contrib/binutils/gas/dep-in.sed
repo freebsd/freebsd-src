@@ -11,16 +11,16 @@ s!@SRCDIR@/config!$(srcdir)/config!g
 s!@SRCDIR@/\.\./opcodes!$(srcdir)/../opcodes!g
 s!@TOPDIR@/opcodes!$(srcdir)/../opcodes!g
 s!@SRCDIR@/!!g
-s! \$(INCDIR)/ansidecl\.h!!g
-s! \$(INCDIR)/fopen-same\.h!!g
 s! \$(srcdir)/config/te-generic\.h!!g
 s! \.\./bfd/bfd\.h!!g
 s! itbl-cpu\.h!!g
 s! itbl-parse\.h!!g
 
 s! \$(INCDIR)/bin-bugs\.h!!g
+s! \$(INCDIR)/ansidecl\.h!!g
 s! \$(INCDIR)/libiberty\.h!!g
 s! \$(INCDIR)/progress\.h!!g
+s! \$(INCDIR)/fopen-same\.h!!g
 s! obj-format\.h!!g
 s! targ-cpu\.h!!g
 s! targ-env\.h!!g

@@ -1,5 +1,19 @@
 -*- text -*-
 
+Changes in 2.13:
+
+Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400 and
+FR500 included.
+
+Support for DLX processor added.
+
+GASP has now been deprecated and will be removed in a future release.  Use the
+macro facilities in GAS instead.
+
+GASP now correctly parses floating point numbers. Unless the base is explicitly
+specified, they are interpreted as decimal numbers regardless of the currently
+specified base.
+
 Changes in 2.12:
 
 Support for Don Knuth's MMIX, by Hans-Peter Nilsson.

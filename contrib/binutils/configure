@@ -3,8 +3,8 @@
 ### WARNING: this file contains embedded tabs.  Do not run untabify on this file.
 
 # Configuration script
-# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999
-# Free Software Foundation, Inc.
+# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999, 2000, 2001,
+# 2002 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,6 +53,9 @@ cache_file_option=
 configdirs=
 extraconfigdirs=
 diroptions=
+enable_threads=no
+enable_shared=no
+enable_libstdcxx_v3=yes
 exec_prefix=
 exec_prefixoption=
 fatal=
@@ -86,7 +89,7 @@ subdirs=
 target_alias=NOTARGET
 target_makefile_frag=
 undefs=NOUNDEFS
-version="$Revision: 1.13 $"
+version="$Revision: 1.17 $"
 x11=default
 bindir='${exec_prefix}/bin'
 sbindir='${exec_prefix}/sbin'
@@ -149,15 +152,19 @@ NO_EDIT="This file was generated automatically by configure.  Do not edit."
 
 progname=$0
 # if PWD already has a value, it is probably wrong.
-if [ -n "$PWD" ]; then PWD=`pwd`; fi
+if [ -n "$PWD" ]; then PWD=`${PWDCMD-pwd}`; fi
 
 case "${progname}" in
-/*) ;;
+/* | [A-Za-z]:[\\/]* ) ;;
 */*) ;;
 *)
-        PATH=$PATH:${PWD=`pwd`} ; export PATH
+        PATH=$PATH:${PWD=`${PWDCMD-pwd}`} ; export PATH
         ;;
 esac
+
+# Export original configure arguments for use by sub-configures.
+TOPLEVEL_CONFIGURE_ARGUMENTS="$progname $@"
+export TOPLEVEL_CONFIGURE_ARGUMENTS
 
 # Loop over all args
 
@@ -519,7 +526,7 @@ fi
 configsub=`echo ${progname} | sed 's/configure$/config.sub/'`
 moveifchange=`echo ${progname} | sed 's/configure$/move-if-change/'`
 ## the sed command below emulates the dirname command
-topsrcdir=`cd \`echo ${progname} | sed -e 's,[^/]*$,,;s,/$,,;s,^$,.,'\`; pwd`
+topsrcdir=`cd \`echo ${progname} | sed -e 's,[^/]*$,,;s,/$,,;s,^$,.,'\`; ${PWDCMD-pwd}`
 
 
 # this is a hack.  sun4 must always be a valid host alias or this will fail.
@@ -559,8 +566,8 @@ case "${srcdir}" in
 		echo "Invalid source directory ${srcdir}" >&2
 		exit 1
 	fi
-	pwd=`pwd`
-	srcpwd=`cd ${srcdir} ; pwd`
+	pwd=`${PWDCMD-pwd}`
+	srcpwd=`cd ${srcdir} ; ${PWDCMD-pwd}`
 	if [ "${pwd}" = "${srcpwd}" ] ; then
 		srcdir=.
 	fi
@@ -572,7 +579,7 @@ case "${srcdir}" in
 ".") ;;
 *)
         if [ -f ${srcdir}/config.status ] ; then
-                echo '***' Cannot configure here in \"${PWD=`pwd`}\" when \"${srcdir}\" is currently configured. 1>&2
+                echo '***' Cannot configure here in \"${PWD=`${PWDCMD-pwd}`}\" when \"${srcdir}\" is currently configured. 1>&2
                 exit 1
         fi
 esac
@@ -656,13 +663,15 @@ case "${TMPDIR}" in
 esac
 
 # keep this filename short for &%*%$*# 14 char file names and 8+3 file names
-tmpfile=${TMPDIR}/cNf$$
+tmpdir=${TMPDIR}/cNf$$
+mkdir ${tmpdir} || exit 1
+tmpfile=${tmpdir}/cNf$$
 # Note that under many versions of sh a trap handler for 0 will *override* any
 # exit status you explicitly specify!  At this point, the only non-error exit
 # is at the end of the script; these actions are duplicated there, minus
 # the "exit 1".  Don't use "exit 0" anywhere after this without resetting the
 # trap handler, or you'll lose.
-trap "rm -f Makefile.tem ${tmpfile}.com ${tmpfile}.tgt ${tmpfile}.hst ${tmpfile}.pos; exit 1" 0 1 2 15
+trap "rm -rf Makefile.tem ${tmpdir}; exit 1" 0 1 2 15
 
 # split ${srcdir}/configure.in into common, per-host, per-target,
 # and post-target parts.  Post-target is optional.
@@ -689,7 +698,7 @@ if test -f skip-this-dir; then
 	# Perform the same cleanup as the trap handler, minus the "exit 1" of course,
 	# and reset the trap handler.
 	trap 0
-	rm -f Makefile* ${tmpfile}.com ${tmpfile}.tgt ${tmpfile}.hst ${tmpfile}.pos
+	rm -rf Makefile* ${tmpdir}
 	# Execute the final clean-up actions
 	${config_shell} skip-this-dir
 	# and stop configuring this directory.
@@ -699,7 +708,7 @@ fi
 # some sanity checks on configure.in
 case "${srctrigger}" in
 "")
-        echo '***' srctrigger not set in ${PWD=`pwd`}/configure.in.  1>&2
+        echo '***' srctrigger not set in ${PWD=`${PWDCMD-pwd}`}/configure.in.  1>&2
         exit 1
         ;;
 *) ;;
@@ -769,8 +778,8 @@ esac
 
 if [ ! -r ${srcdir}/${srctrigger} ] ; then
         case "${srcdirdefaulted}" in
-        "") echo '***' "${progname}: Can't find ${srcname} sources in ${PWD=`pwd`}/${srcdir}" 1>&2 ;;
-        *)  echo '***' "${progname}: Can't find ${srcname} sources in ${PWD=`pwd`}/. or ${PWD=`pwd`}/.." 1>&2 ;;
+        "") echo '***' "${progname}: Can't find ${srcname} sources in ${PWD=`${PWDCMD-pwd}`}/${srcdir}" 1>&2 ;;
+        *)  echo '***' "${progname}: Can't find ${srcname} sources in ${PWD=`${PWDCMD-pwd}`}/. or ${PWD=`${PWDCMD-pwd}`}/.." 1>&2 ;;
         esac
 
         echo '***' \(At least ${srctrigger} is missing.\) 1>&2
@@ -907,9 +916,9 @@ if [ "${build}" != "${host}" ]; then
   # are not the same, we set reasonable default values for the tools.
 
   tools="AR AR_FOR_TARGET AS AS_FOR_TARGET BISON CC_FOR_BUILD"
-  tools="${tools} CC_FOR_TARGET CXX_FOR_TARGET"
-  tools="${tools} DLLTOOL DLLTOOL_FOR_TARGET GCC_FOR_TARGET HOST_PREFIX"
-  tools="${tools} HOST_PREFIX_1 LD LD_FOR_TARGET LEX MAKEINFO NM"
+  tools="${tools} CC_FOR_TARGET CXX_FOR_TARGET GCJ_FOR_TARGET"
+  tools="${tools} DLLTOOL DLLTOOL_FOR_TARGET GCC_FOR_TARGET BUILD_PREFIX"
+  tools="${tools} BUILD_PREFIX_1 LD LD_FOR_TARGET LEX MAKEINFO NM"
   tools="${tools} NM_FOR_TARGET RANLIB RANLIB_FOR_TARGET"
   tools="${tools} WINDRES WINDRES_FOR_TARGET YACC"
   tools="${tools} OBJCOPY OBJDUMP"
@@ -942,11 +951,12 @@ t loop
   CC_FOR_BUILD=${CC_FOR_BUILD-gcc}
   CC_FOR_TARGET=${CC_FOR_TARGET-${target_alias}-gcc}
   CXX_FOR_TARGET=${CXX_FOR_TARGET-${target_alias}-c++}
+  GCJ_FOR_TARGET=${GCJ_FOR_TARGET-${target_alias}-gcj}
   DLLTOOL=${DLLTOOL-${host_alias}-dlltool}
   DLLTOOL_FOR_TARGET=${DLLTOOL_FOR_TARGET-${target_alias}-dlltool}
   GCC_FOR_TARGET=${GCC_FOR_TARGET-${CC_FOR_TARGET-${target_alias}-gcc}}
-  HOST_PREFIX=${build_alias}-
-  HOST_PREFIX_1=${build_alias}-
+  BUILD_PREFIX=${build_alias}-
+  BUILD_PREFIX_1=${build_alias}-
   LD=${LD-${host_alias}-ld}
   LD_FOR_TARGET=${LD_FOR_TARGET-${target_alias}-ld}
   MAKEINFO=${MAKEINFO-makeinfo}
@@ -1062,22 +1072,6 @@ export CXX
 export CFLAGS
 export CXXFLAGS
 
-# FIXME: This should be in configure.in, not configure
-case "$host" in
-	*go32*)
-	    enable_gdbtk=no ;;
-	*msdosdjgpp*)
-	    enable_gdbtk=no ;;
-esac
-
-# FIXME: This should be in configure.in, not configure
-# Determine whether gdb needs tk/tcl or not.
-if [ "$enable_gdbtk" != "no" ]; then
-	GDB_TK="all-tcl all-tk all-itcl all-tix all-libgui"
-else
-	GDB_TK=""
-fi
-
 all_build_modules=
 if test x"${build_alias}" != x"${host_alias}"
 then
@@ -1095,7 +1089,7 @@ for subdir in . ${subdirs} ; do
     case "${srcdir}" in
         ".")  # no -srcdir option.  We're building in place.
                 makesrcdir=. ;;
-        /*) # absolute path
+        /* | [A-Za-z]:[\\/]* ) # absolute path
                 makesrcdir=`echo ${srcdir}/${subdir} | sed -e 's|/\.$||'`
                 ;;
         *) # otherwise relative
@@ -1114,7 +1108,7 @@ for subdir in . ${subdirs} ; do
         if mkdir ${subdir} ; then
                 true
         else
-                echo '***' "${progname}: could not make ${PWD=`pwd`}/${subdir}" 1>&2
+                echo '***' "${progname}: could not make ${PWD=`${PWDCMD-pwd}`}/${subdir}" 1>&2
                 exit 1
         fi
     fi
@@ -1213,7 +1207,7 @@ EOF
                               sed -e "/^####/  r ${package_makefile_rules_frag}" ${srcdir}/${subdir}/${Makefile_in} > ${Makefile}.tem
                       else
                               echo '***' Expected package makefile rules fragment \"${package_makefile_rules_frag}\" 1>&2
-                              echo '***' is missing in ${PWD=`pwd`}. 1>&2
+                              echo '***' is missing in ${PWD=`${PWDCMD-pwd}`}. 1>&2
                               cp ${srcdir}/${subdir}/${Makefile_in} ${subdir}/Makefile.tem
                       fi
             esac
@@ -1249,7 +1243,7 @@ EOF
                               sed -e "/^####/  r ${host_makefile_frag}" ${Makefile} > ${subdir}/Makefile.tem
                       else
                               echo '***' Expected host makefile fragment \"${host_makefile_frag}\" 1>&2
-                              echo '***' is missing in ${PWD=`pwd`}. 1>&2
+                              echo '***' is missing in ${PWD=`${PWDCMD-pwd}`}. 1>&2
                               mv ${Makefile} ${subdir}/Makefile.tem
                       fi
             esac
@@ -1285,13 +1279,13 @@ EOF
                               sed -e "/^####/  r ${package_makefile_frag}" ${Makefile} > ${subdir}/Makefile.tem
                       else
                               echo '***' Expected package makefile fragment \"${package_makefile_rules_frag}\" 1>&2
-                              echo '***' is missing in ${PWD=`pwd`}. 1>&2
+                              echo '***' is missing in ${PWD=`${PWDCMD-pwd}`}. 1>&2
                               mv ${Makefile} ${subdir}/Makefile.tem
                       fi
             esac
             # real copy now in ${subdir}/Makefile.tem
 
-            # prepend warning about editting, and a bunch of variables.
+            # prepend warning about editing, and a bunch of variables.
             rm -f ${Makefile}
             cat > ${Makefile} <<EOF
 # ${NO_EDIT}
@@ -1321,19 +1315,19 @@ EOF
 
             case "${package_makefile_frag}" in
               "") ;;
-              /*) echo package_makefile_frag = ${package_makefile_frag} >>${Makefile} ;;
+              /* | [A-Za-z]:[\\/]* ) echo package_makefile_frag = ${package_makefile_frag} >>${Makefile} ;;
               *)  echo package_makefile_frag = ${invsubdir}${package_makefile_frag} >>${Makefile} ;;
             esac
 
             case "${target_makefile_frag}" in
               "") ;;
-              /*) echo target_makefile_frag = ${target_makefile_frag} >>${Makefile} ;;
+              /* | [A-Za-z]:[\\/]* ) echo target_makefile_frag = ${target_makefile_frag} >>${Makefile} ;;
               *)  echo target_makefile_frag = ${invsubdir}${target_makefile_frag} >>${Makefile} ;;
             esac
 
             case "${host_makefile_frag}" in
               "") ;;
-              /*) echo host_makefile_frag = ${host_makefile_frag} >>${Makefile} ;;
+              /* | [A-Za-z]:[\\/]* ) echo host_makefile_frag = ${host_makefile_frag} >>${Makefile} ;;
               *)  echo host_makefile_frag = ${invsubdir}${host_makefile_frag} >>${Makefile} ;;
             esac
 
@@ -1341,12 +1335,8 @@ EOF
                 echo site_makefile_frag = ${invsubdir}${site_makefile_frag} >>${Makefile}
             fi 
 
-	    # record if we want to build shared libs.
-	    if test -z "${enable_shared}"; then
-	        echo enable_shared = no >> ${Makefile}
-	    else
-	        echo enable_shared = ${enable_shared} >> ${Makefile}
-	    fi
+	    echo enable_shared = ${enable_shared} >> ${Makefile}
+	    echo enable_threads = ${enable_threads} >> ${Makefile}
 	    # record if we want to rumtime library stuff installed in libsubdir.
 	    if test -z "${enable_version_specific_runtime_libs}"; then
 	        echo enable_version_specific_runtime_libs = no >> ${Makefile}
@@ -1364,9 +1354,14 @@ EOF
             # remove any form feeds.
             if [ -z "${subdirs}" ]; then
                 rm -f ${subdir}/Makefile.tm2
-                sed -e "s:^SUBDIRS[ 	]*=.*$:SUBDIRS = ${configdirs}:" \
-                    -e "s:^NONSUBDIRS[ 	]*=.*$:NONSUBDIRS = ${noconfigdirs}:" \
+                sedtemp=sed.$$
+                cat >$sedtemp <<EOF
+s:^SUBDIRS[ 	]*=.*$:SUBDIRS = ${configdirs}:
+s:^NONSUBDIRS[ 	]*=.*$:NONSUBDIRS = ${noconfigdirs}:
+EOF
+                sed -f $sedtemp \
                     ${subdir}/Makefile.tem > ${subdir}/Makefile.tm2
+                rm -f $sedtemp
                 rm -f ${subdir}/Makefile.tem
                 mv ${subdir}/Makefile.tm2 ${subdir}/Makefile.tem
 	    fi
@@ -1470,7 +1465,7 @@ EOF
 
         newusing=`echo "${using}" | sed 's/and/using/'`
         using=${newusing}
-        echo "Created \"${Makefile}\" in" ${PWD=`pwd`} ${using}
+        echo "Created \"${Makefile}\" in" ${PWD=`${PWDCMD-pwd}`} ${using}
 
         . ${tmpfile}.pos
 
@@ -1536,24 +1531,20 @@ if [ -z "${norecursion}" ] && [ -n "${configdirs}" ] ; then
                                         if mkdir ./${bld_dir} ; then
                                                 true
                                         else
-                                                echo '***' "${progname}: could not make ${PWD=`pwd`}/${bld_dir}" 1>&2
+                                                echo '***' "${progname}: could not make ${PWD=`${PWDCMD-pwd}`}/${bld_dir}" 1>&2
                                                 exit 1
                                         fi
                                 fi
                                 ;;
                         esac
 
-                        POPDIR=${PWD=`pwd`}
+                        POPDIR=${PWD=`${PWDCMD-pwd}`}
                         cd ${bld_dir} 
 
 ### figure out what to do with srcdir
                         case "${srcdir}" in
                         ".") newsrcdir=${srcdir} ;; # no -srcdir option.  We're building in place.
-                        /*) # absolute path
-                                newsrcdir=${srcdir}/${cfg_dir}
-                                srcdiroption="--srcdir=${newsrcdir}"
-                                ;;
-                        ?:*) # absolute path on win32
+                        /* | [A-Za-z]:[\\/]* ) # absolute path
                                 newsrcdir=${srcdir}/${cfg_dir}
                                 srcdiroption="--srcdir=${newsrcdir}"
                                 ;;
@@ -1567,10 +1558,7 @@ if [ -z "${norecursion}" ] && [ -n "${configdirs}" ] ; then
 			case "${cache_file}" in
 			"") # empty
 				;;
-			/*) # absolute path
-				cache_file_option="--cache-file=${cache_file}"
-				;;
-			?:*) # absolute path on win32
+			/* | [A-Za-z]:[\\/]* ) # absolute path
 				cache_file_option="--cache-file=${cache_file}"
 				;;
 			*) # relative path
@@ -1583,9 +1571,8 @@ if [ -z "${norecursion}" ] && [ -n "${configdirs}" ] ; then
                                 recprog=${newsrcdir}/configure
                         elif [ -f ${newsrcdir}/configure.in ] ; then
                                 case "${progname}" in
-                                /*)     recprog=${progname} ;;
-                                ?:*)    recprog=${progname} ;;
-                                *)      recprog=../${progname} ;;
+                                /* | [A-Za-z]:[\\/]* )  recprog=${progname} ;;
+                                *)                      recprog=../${progname} ;;
                                 esac
 			else
 				eval echo No configuration information in ${cfg_dir} ${redirect}
@@ -1599,7 +1586,7 @@ if [ -z "${norecursion}" ] && [ -n "${configdirs}" ] ; then
                 	                ${srcdiroption} ${diroptions} ${program_prefixoption} ${program_suffixoption} ${program_transform_nameoption} ${site_option} ${withoptions} ${withoutoptions} ${enableoptions} ${disableoptions} ${floating_pointoption} ${cache_file_option} ${removing} ${other_options} ${redirect} ; then
 	                                true
         	                else
-					echo Configure in `pwd` failed, exiting. 1>&2
+					echo Configure in `${PWDCMD-pwd}` failed, exiting. 1>&2
                 	                exit 1
                         	fi
 			fi
@@ -1611,7 +1598,7 @@ fi
 
 # Perform the same cleanup as the trap handler, minus the "exit 1" of course,
 # and reset the trap handler.
-rm -f ${tmpfile}.com ${tmpfile}.tgt ${tmpfile}.hst ${tmpfile}.pos
+rm -rf ${tmpdir}
 trap 0
 
 exit 0

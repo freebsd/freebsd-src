@@ -247,7 +247,7 @@ s_stab_generic (what, stab_secname, stabstr_secname)
        format, probably DWARF.  */
     as_warn (_(".stab%c: description field '%x' too big, try a different debug format"),
 	     what, desc);
-    
+
   if (what == 's' || what == 'n')
     {
       if (*input_line_pointer != ',')
@@ -351,7 +351,7 @@ s_stab_generic (what, stab_secname, stabstr_secname)
       if (what == 's')
 	{
 	  /* Release the string, if nobody else has used the obstack.  */
-	  if (saved_string_obstack_end == notes.next_free) 
+	  if (saved_string_obstack_end == notes.next_free)
 	    obstack_free (&notes, string);
 	}
 
@@ -588,7 +588,7 @@ stabs_generate_asm_lineno ()
   unsigned int lineno;
   char *buf;
   char sym[30];
-  /* Remember the last file/line and avoid duplicates. */
+  /* Remember the last file/line and avoid duplicates.  */
   static unsigned int prev_lineno = -1;
   static char *prev_file = NULL;
 
@@ -601,22 +601,22 @@ stabs_generate_asm_lineno ()
 
   as_where (&file, &lineno);
 
-  /* Don't emit sequences of stabs for the same line. */
+  /* Don't emit sequences of stabs for the same line.  */
   if (prev_file == NULL)
     {
-      /* First time thru. */
+      /* First time thru.  */
       prev_file = xstrdup (file);
       prev_lineno = lineno;
     }
   else if (lineno == prev_lineno
 	   && strcmp (file, prev_file) == 0)
     {
-      /* Same file/line as last time. */
+      /* Same file/line as last time.  */
       return;
     }
   else
     {
-      /* Remember file/line for next time. */
+      /* Remember file/line for next time.  */
       prev_lineno = lineno;
       if (strcmp (file, prev_file) != 0)
 	{

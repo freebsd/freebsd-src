@@ -1,5 +1,5 @@
 /* ECOFF debugging support.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
@@ -2037,8 +2037,7 @@ get_tag (tag, sym, basic_type)
     {
       char *perm;
 
-      perm = xmalloc ((unsigned long) (strlen (tag) + 1));
-      strcpy (perm, tag);
+      perm = xstrdup (tag);
       hash_ptr = allocate_shash ();
       err = hash_insert (tag_hash, perm, (char *) hash_ptr);
       if (err)
@@ -2545,8 +2544,8 @@ ecoff_directive_def (ignore)
 	free (coff_sym_name);
       if (coff_tag != (char *) NULL)
 	free (coff_tag);
-      coff_sym_name = (char *) xmalloc ((unsigned long) (strlen (name) + 1));
-      strcpy (coff_sym_name, name);
+      
+      coff_sym_name = xstrdup (name);
       coff_type = type_info_init;
       coff_storage_class = sc_Nil;
       coff_symbol_typ = st_Nil;
@@ -2778,8 +2777,7 @@ ecoff_directive_tag (ignore)
   name = input_line_pointer;
   name_end = get_symbol_end ();
 
-  coff_tag = (char *) xmalloc ((unsigned long) (strlen (name) + 1));
-  strcpy (coff_tag, name);
+  coff_tag = xstrdup (name);
 
   *input_line_pointer = name_end;
 

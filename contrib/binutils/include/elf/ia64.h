@@ -192,7 +192,7 @@ START_RELOC_NUMBERS (elf_ia64_reloc_type)
   RELOC_NUMBER (R_IA64_TPREL64MSB, 0x96) /* @tprel(sym+add), data8 MSB */
   RELOC_NUMBER (R_IA64_TPREL64LSB, 0x97) /* @tprel(sym+add), data8 LSB */
 
-  RELOC_NUMBER (R_IA64_LTOFF_TP22, 0x9a) /* @ltoff(@tprel(s+a)), add imm22 */
+  RELOC_NUMBER (R_IA64_LTOFF_TPREL22, 0x9a) /* @ltoff(@tprel(s+a)), add imm22 */
 
   RELOC_NUMBER (R_IA64_DTPMOD64MSB, 0xa6) /* @dtpmod(sym+add), data8 MSB */
   RELOC_NUMBER (R_IA64_DTPMOD64LSB, 0xa7) /* @dtpmod(sym+add), data8 LSB */

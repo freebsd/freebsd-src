@@ -1,5 +1,5 @@
 /* Linker file opening and searching.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -132,7 +132,12 @@ ldfile_try_open_bfd (attempt, entry)
 	{
 	  if (! bfd_check_format (check, bfd_object))
 	    return true;
-	  if (bfd_arch_get_compatible (check, output_bfd) == NULL)
+
+	  if ((bfd_arch_get_compatible (check, output_bfd) == NULL)
+	      /* XCOFF archives can have 32 and 64 bit objects */
+	      && ! (bfd_get_flavour (check) == bfd_target_xcoff_flavour
+		    && bfd_get_flavour (output_bfd) == bfd_target_xcoff_flavour
+		    && bfd_check_format (entry->the_bfd, bfd_archive)))
 	    {
 	      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
 		     attempt, entry->local_sym_name);
@@ -352,7 +357,7 @@ ldfile_open_command_file (name)
 
   ldfile_input_filename = name;
   lineno = 1;
-  
+
   saved_script_handle = ldlex_input_stack;
 }
 
@@ -416,7 +421,7 @@ ldfile_add_arch (name)
 
 void
 ldfile_add_arch (in_name)
-     CONST char *in_name;
+     const char *in_name;
 {
   char *name = xstrdup (in_name);
   search_arch_type *new =
@@ -441,7 +446,7 @@ ldfile_add_arch (in_name)
 
 void
 ldfile_set_output_arch (string)
-     CONST char *string;
+     const char *string;
 {
   const bfd_arch_info_type *arch = bfd_scan_arch (string);
 

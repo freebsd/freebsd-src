@@ -1,6 +1,10 @@
 -*- text -*-
+Changes in 2.13:
 
-Changes in binutils 2.12:
+* Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
+  and FR500 included.
+
+Changes in version 2.12:
 
 * Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
 

@@ -17,6 +17,16 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-bfd_vma ppc64_elf_toc PARAMS ((bfd *));
-boolean ppc64_elf_size_stubs PARAMS ((bfd *, struct bfd_link_info *, int *));
-boolean ppc64_elf_build_stubs PARAMS ((bfd *, struct bfd_link_info *));
+boolean ppc64_elf_mark_entry_syms
+  PARAMS ((struct bfd_link_info *));
+bfd_vma ppc64_elf_toc
+  PARAMS ((bfd *));
+int ppc64_elf_setup_section_lists
+  PARAMS ((bfd *, struct bfd_link_info *));
+void ppc64_elf_next_input_section
+  PARAMS ((struct bfd_link_info *, asection *));
+boolean ppc64_elf_size_stubs
+  PARAMS ((bfd *, bfd *, struct bfd_link_info *, bfd_signed_vma,
+	   asection *(*) (const char *, asection *), void (*) (void)));
+boolean ppc64_elf_build_stubs
+  PARAMS ((struct bfd_link_info *));

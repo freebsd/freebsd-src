@@ -645,7 +645,7 @@ bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
   reloc_target_output_section = symbol->section->output_section;
 
   /* Convert input-section-relative symbol value to absolute.  */
-  if (output_bfd && howto->partial_inplace == false)
+  if (output_bfd && ! howto->partial_inplace)
     output_base = 0;
   else
     output_base = reloc_target_output_section->vma;
@@ -658,7 +658,7 @@ bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
   /* Here the variable relocation holds the final address of the
      symbol we are relocating against, plus any addend.  */
 
-  if (howto->pc_relative == true)
+  if (howto->pc_relative)
     {
       /* This is a PC relative relocation.  We want to set RELOCATION
 	 to the distance between the address of the symbol and the
@@ -691,13 +691,13 @@ bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
       relocation -=
 	input_section->output_section->vma + input_section->output_offset;
 
-      if (howto->pcrel_offset == true)
+      if (howto->pcrel_offset)
 	relocation -= reloc_entry->address;
     }
 
   if (output_bfd != (bfd *) NULL)
     {
-      if (howto->partial_inplace == false)
+      if (! howto->partial_inplace)
 	{
 	  /* This is a partial relocation, and we want to apply the relocation
 	     to the reloc entry rather than the raw data. Modify the reloc
@@ -1037,7 +1037,7 @@ bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
   reloc_target_output_section = symbol->section->output_section;
 
   /* Convert input-section-relative symbol value to absolute.  */
-  if (howto->partial_inplace == false)
+  if (! howto->partial_inplace)
     output_base = 0;
   else
     output_base = reloc_target_output_section->vma;
@@ -1050,7 +1050,7 @@ bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
   /* Here the variable relocation holds the final address of the
      symbol we are relocating against, plus any addend.  */
 
-  if (howto->pc_relative == true)
+  if (howto->pc_relative)
     {
       /* This is a PC relative relocation.  We want to set RELOCATION
 	 to the distance between the address of the symbol and the
@@ -1083,11 +1083,11 @@ bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
       relocation -=
 	input_section->output_section->vma + input_section->output_offset;
 
-      if (howto->pcrel_offset == true && howto->partial_inplace == true)
+      if (howto->pcrel_offset && howto->partial_inplace)
 	relocation -= reloc_entry->address;
     }
 
-  if (howto->partial_inplace == false)
+  if (! howto->partial_inplace)
     {
       /* This is a partial relocation, and we want to apply the relocation
 	 to the reloc entry rather than the raw data. Modify the reloc
@@ -1963,6 +1963,35 @@ ENUMDOC
   STO_ALPHA_STD_GPLOAD.
 
 ENUM
+  BFD_RELOC_ALPHA_TLSGD
+ENUMX
+  BFD_RELOC_ALPHA_TLSLDM
+ENUMX
+  BFD_RELOC_ALPHA_DTPMOD64
+ENUMX
+  BFD_RELOC_ALPHA_GOTDTPREL16
+ENUMX
+  BFD_RELOC_ALPHA_DTPREL64
+ENUMX
+  BFD_RELOC_ALPHA_DTPREL_HI16
+ENUMX
+  BFD_RELOC_ALPHA_DTPREL_LO16
+ENUMX
+  BFD_RELOC_ALPHA_DTPREL16
+ENUMX
+  BFD_RELOC_ALPHA_GOTTPREL16
+ENUMX
+  BFD_RELOC_ALPHA_TPREL64
+ENUMX
+  BFD_RELOC_ALPHA_TPREL_HI16
+ENUMX
+  BFD_RELOC_ALPHA_TPREL_LO16
+ENUMX
+  BFD_RELOC_ALPHA_TPREL16
+ENUMDOC
+  Alpha thread-local storage relocations.
+
+ENUM
   BFD_RELOC_MIPS_JMP
 ENUMDOC
   Bits 27..2 of the relocation address shifted right 2 bits;
@@ -2050,6 +2079,27 @@ ENUMX
 ENUMX
   BFD_RELOC_MIPS_JALR
 COMMENT
+ENUM
+  BFD_RELOC_FRV_LABEL16
+ENUMX
+  BFD_RELOC_FRV_LABEL24
+ENUMX
+  BFD_RELOC_FRV_LO16
+ENUMX
+  BFD_RELOC_FRV_HI16
+ENUMX
+  BFD_RELOC_FRV_GPREL12
+ENUMX
+  BFD_RELOC_FRV_GPRELU12
+ENUMX
+  BFD_RELOC_FRV_GPREL32
+ENUMX
+  BFD_RELOC_FRV_GPRELHI
+ENUMX
+  BFD_RELOC_FRV_GPRELLO
+ENUMDOC
+  Fujitsu Frv Relocations.
+COMMENT
 COMMENT
 ENUMDOC
   MIPS ELF relocations.
@@ -2072,6 +2122,30 @@ ENUMX
   BFD_RELOC_386_GOTOFF
 ENUMX
   BFD_RELOC_386_GOTPC
+ENUMX
+  BFD_RELOC_386_TLS_TPOFF
+ENUMX
+  BFD_RELOC_386_TLS_IE
+ENUMX
+  BFD_RELOC_386_TLS_GOTIE
+ENUMX
+  BFD_RELOC_386_TLS_LE
+ENUMX
+  BFD_RELOC_386_TLS_GD
+ENUMX
+  BFD_RELOC_386_TLS_LDM
+ENUMX
+  BFD_RELOC_386_TLS_LDO_32
+ENUMX
+  BFD_RELOC_386_TLS_IE_32
+ENUMX
+  BFD_RELOC_386_TLS_LE_32
+ENUMX
+  BFD_RELOC_386_TLS_DTPMOD32
+ENUMX
+  BFD_RELOC_386_TLS_DTPOFF32
+ENUMX
+  BFD_RELOC_386_TLS_TPOFF32
 ENUMDOC
   i386/elf relocations
 
@@ -2596,6 +2670,19 @@ ENUM
   BFD_RELOC_D30V_32_PCREL
 ENUMDOC
   This is a 32-bit pc-relative reloc.
+
+ENUM
+  BFD_RELOC_DLX_HI16_S
+ENUMDOC
+  DLX relocs
+ENUM
+  BFD_RELOC_DLX_LO16
+ENUMDOC
+  DLX relocs
+ENUM
+  BFD_RELOC_DLX_JMP26
+ENUMDOC
+  DLX relocs
 
 ENUM
   BFD_RELOC_M32R_24
@@ -3185,17 +3272,43 @@ ENUMX
 ENUMX
   BFD_RELOC_IA64_COPY
 ENUMX
+  BFD_RELOC_IA64_LTOFF22X
+ENUMX
+  BFD_RELOC_IA64_LDXMOV
+ENUMX
+  BFD_RELOC_IA64_TPREL14
+ENUMX
   BFD_RELOC_IA64_TPREL22
+ENUMX
+  BFD_RELOC_IA64_TPREL64I
 ENUMX
   BFD_RELOC_IA64_TPREL64MSB
 ENUMX
   BFD_RELOC_IA64_TPREL64LSB
 ENUMX
-  BFD_RELOC_IA64_LTOFF_TP22
+  BFD_RELOC_IA64_LTOFF_TPREL22
 ENUMX
-  BFD_RELOC_IA64_LTOFF22X
+  BFD_RELOC_IA64_DTPMOD64MSB
 ENUMX
-  BFD_RELOC_IA64_LDXMOV
+  BFD_RELOC_IA64_DTPMOD64LSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF_DTPMOD22
+ENUMX
+  BFD_RELOC_IA64_DTPREL14
+ENUMX
+  BFD_RELOC_IA64_DTPREL22
+ENUMX
+  BFD_RELOC_IA64_DTPREL64I
+ENUMX
+  BFD_RELOC_IA64_DTPREL32MSB
+ENUMX
+  BFD_RELOC_IA64_DTPREL32LSB
+ENUMX
+  BFD_RELOC_IA64_DTPREL64MSB
+ENUMX
+  BFD_RELOC_IA64_DTPREL64LSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF_DTPREL22
 ENUMDOC
   Intel IA64 Relocations.
 
@@ -3362,6 +3475,15 @@ ENUMX
   BFD_RELOC_XSTORMY16_FPTR16
 ENUMDOC
   Sony Xstormy16 Relocations.
+
+ENUM
+  BFD_RELOC_VAX_GLOB_DAT
+ENUMX
+  BFD_RELOC_VAX_JMP_SLOT
+ENUMX
+  BFD_RELOC_VAX_RELATIVE
+ENUMDOC
+  Relocations used by VAX ELF.
 
 ENDSENUM
   BFD_RELOC_UNUSED

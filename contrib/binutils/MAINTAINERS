@@ -33,9 +33,12 @@ readline/support/config.sub; readline/support/config.guess
 		gdb-patches@sources.redhat.com
 
 dejagnu/
-	Notify http://dejagnu.sourceforge.net/ of generic changes.
-	Generic patches to gdb-patches@sources.redhat.com;
-	Other dependents of dejagnu include sid@, binutils@, gcc@, etc.
+	Send all patches to:
+	http://www.gnu.org/software/dejagnu/
+	mail:bug-dejagnu@gnu.org
+	For changes to the local repostory, send them to
+	gdb-patches@sources.redhat.com when generic; and sid@,
+	binutils@, gcc@, etc. for sub-components.
 
 gdb/; mmalloc/; readline/; sim/; GDB's part of include/ & dejagnu/
 	gdb: http://sources.redhat.com/gdb/

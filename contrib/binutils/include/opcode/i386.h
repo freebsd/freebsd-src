@@ -121,9 +121,9 @@ static const template i386_optab[] = {
 {"movslq", 2,   0x63, X, Cpu64,  NoSuf|Modrm|Rex64,		{ Reg32|WordMem, Reg64, 0} },
 /* Intel Syntax next 5 insns */
 {"movsx",  2, 0x0fbe, X, Cpu386, b_Suf|Modrm,			{ Reg8|ByteMem, WordReg, 0} },
-{"movsx",  2, 0x0fbf, X, Cpu386, w_Suf|Modrm|IgnoreSize,	{ Reg16|ShortMem, Reg32, 0} },
+{"movsx",  2, 0x0fbf, X, Cpu386, w_Suf|Modrm,			{ Reg16|ShortMem, Reg32, 0} },
 {"movsx",  2, 0x0fbe, X, Cpu64,  b_Suf|Modrm|Rex64,		{ Reg8|ByteMem, Reg64, 0} },
-{"movsx",  2, 0x0fbf, X, Cpu64,  w_Suf|Modrm|IgnoreSize|Rex64,	{ Reg16|ShortMem, Reg64, 0} },
+{"movsx",  2, 0x0fbf, X, Cpu64,  w_Suf|Modrm|Rex64,		{ Reg16|ShortMem, Reg64, 0} },
 {"movsx",  2,   0x63, X, Cpu64,  l_Suf|Modrm|Rex64,		{ Reg32|WordMem, Reg64, 0} },
 
 /* Move with zero extend.  */
@@ -135,11 +135,11 @@ static const template i386_optab[] = {
 {"movzwq", 2, 0x0fb7, X, Cpu64,  NoSuf|Modrm|Rex64,		{ Reg16|ShortMem, Reg64, 0} },
 /* Intel Syntax next 4 insns */
 {"movzx",  2, 0x0fb6, X, Cpu386, b_Suf|Modrm,			{ Reg8|ByteMem, WordReg, 0} },
-{"movzx",  2, 0x0fb7, X, Cpu386, w_Suf|Modrm|IgnoreSize,	{ Reg16|ShortMem, Reg32, 0} },
+{"movzx",  2, 0x0fb7, X, Cpu386, w_Suf|Modrm,			{ Reg16|ShortMem, Reg32, 0} },
 /* These instructions are not particulary usefull, since the zero extend
    32->64 is implicit, but we can encode them.  */
 {"movzx",  2, 0x0fb6, X, Cpu386, b_Suf|Modrm|Rex64,		{ Reg8|ByteMem, Reg64, 0} },
-{"movzx",  2, 0x0fb7, X, Cpu386, w_Suf|Modrm|IgnoreSize|Rex64,	{ Reg16|ShortMem, Reg64, 0} },
+{"movzx",  2, 0x0fb7, X, Cpu386, w_Suf|Modrm|Rex64,		{ Reg16|ShortMem, Reg64, 0} },
 
 /* Push instructions.  */
 {"push",   1,	0x50, X, CpuNo64, wl_Suf|ShortForm|DefaultSize,	{ WordReg, 0, 0 } },

@@ -1,6 +1,6 @@
 /* Define a target vector and some small routines for a variant of a.out.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -207,7 +207,7 @@ static boolean
 MY(mkobject) (abfd)
      bfd *abfd;
 {
-  if (NAME(aout,mkobject) (abfd) == false)
+  if (! NAME(aout,mkobject) (abfd))
     return false;
 #if 0 /* Sizes get set in set_sizes callback, later, after we know
 	 the architecture and machine.  */
@@ -513,6 +513,9 @@ MY_bfd_final_link (abfd, info)
 #ifndef MY_bfd_merge_sections
 #define MY_bfd_merge_sections bfd_generic_merge_sections
 #endif
+#ifndef MY_bfd_discard_group
+#define MY_bfd_discard_group bfd_generic_discard_group
+#endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup NAME(aout,reloc_type_lookup)
 #endif
@@ -528,8 +531,14 @@ MY_bfd_final_link (abfd, info)
 #ifndef MY_bfd_link_hash_table_create
 #define MY_bfd_link_hash_table_create NAME(aout,link_hash_table_create)
 #endif
+#ifndef MY_bfd_link_hash_table_free
+#define MY_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
+#endif
 #ifndef MY_bfd_link_add_symbols
 #define MY_bfd_link_add_symbols NAME(aout,link_add_symbols)
+#endif
+#ifndef MY_bfd_link_just_syms
+#define MY_bfd_link_just_syms _bfd_generic_link_just_syms
 #endif
 #ifndef MY_bfd_link_split_section
 #define MY_bfd_link_split_section  _bfd_generic_link_split_section

@@ -1,3 +1,148 @@
+2002-09-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-09-19  Jakub Jelinek  <jakub@redhat.com>
+	* elf/i386.h (R_386_TLS_TPOFF, R_386_TLS_IE, R_386_TLS_GOTIE):
+	Define.
+
+	2002-09-19  Nathan Tallent  <eraxxon@alumni.rice.edu>
+	* dis-asm.h: Remove (errant) trailing semicolon (;) from the
+	extern "C" { } declaration.
+
+	2002-09-04  Nick Clifton  <nickc@redhat.com>
+	* dis-asm.h (print_ppc_disassembler_options): Prototype.
+
+	2002-08-06  H.J. Lu <hjl@gnu.org>
+	* bfdlink.h (bfd_link_info): Add allow_undefined_version.
+	(bfd_elf_version_expr): Add symver and script.
+
+2002-07-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf/common.h (SHT_GNU_LIBLIST, DT_GNU_PRELINKED,
+	DT_GNU_CONFLICT*, DT_GNU_LIBLIST*): Define.
+
+2002-07-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* bfdlink.h (struct bfd_sym_chain): Declare.
+	(struct bfd_link_info): Add gc_sym_list.  Formatting fixes.
+
+2002-06-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* demangle.h: #include "ansidecl.h" rather than #include <ansidecl.h>.
+	* fibheap.h: Likewise.
+	* hashtab.h: Likewise.
+	* partition.h: Likewise.
+	* sort.h: Likewise.
+	* splay-tree.h: Likewise.
+
+2002-06-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* libiberty.h (basename): Don't declare if HAVE_DECL_BASENAME.
+	* getopt.h (getopt): Don't declare if HAVE_DECL_GETOPT.
+
+2002-06-18  Dave Brolley  <brolley@redhat.com>
+
+	From Catherine Moore:
+	* dis-asm.h (print_insn_frv): New prototype.
+
+2002-06-09  Andrew Cagney  <cagney@redhat.com>
+
+	* remote-sim.h: Move to directory gdb/.
+	* callback.h: Move to directory gdb/.
+
+2002-06-07  Charles Wilson  <cwilson@ece.gatech.edu>
+
+	* bfdlink.h (struct bfd_link_info): Change type of
+	pei386_auto_import field to int so that -1 can mean enabled by
+	default and 1 can mean enabled by command line switch.
+
+2002-06-06  DJ Delorie  <dj@redhat.com>
+
+	* hashtab.h (htab): Rearrange new members for backward
+	compatibility.
+	(htab_create): Don't use a macro that requires other headers.
+
+2002-06-05  Geoffrey Keating  <geoffk@redhat.com>
+
+	* hashtab.h (htab_create): Restore prototype for backward
+	compatibility.
+	(htab_try_create): Likewise.
+
+2002-05-22  Geoffrey Keating  <geoffk@redhat.com>
+
+	* hashtab.h (struct htab): Update for change to length specifier.
+
+2002-05-10  Geoffrey Keating  <geoffk@redhat.com>
+
+	* hashtab.h (GTY): Define if undefined.
+	(htab_alloc): New typedef.
+	(htab_free): New typedef.
+	(struct htab): Support gengtype; allow user-specified memory
+	allocation.
+	(htab_create_alloc): New.
+	(htab_create): Replace with #define.
+	(htab_try_create): Delete.
+
+2002-05-31  Michal Ludvig  <mludvig@suse.cz>
+
+	* elf/dwarf2.h (DW_CFA_low_user, DW_CFA_high_user): Renamed
+	to DW_CFA_lo_user, DW_CFA_hi_user respectively.
+	
+2002-05-28  Kuang Hwa Lin <kuang@sbcglobal.net>
+
+	* dis-asm.h: Prototype print_insn_dlx.
+
+2002-05-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* sim-d10v.h: Delete file.  Moved to include/gdb/.
+
+2002-05-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf/common.h (PT_TLS, SHF_TLS, STT_TLS, DF_STATIC_TLS): Define.
+	* elf/ia64.h (R_IA64_LTOFF_TPREL22): Renamed from R_IA64_LTOFF_TP22.
+	* elf/i386.h: Add TLS relocs.
+
+2002-05-21  H.J. Lu  (hjl@gnu.org)
+
+	* bfdlink.h (bfd_link_info): Add allow_multiple_definition.
+
+2002-05-17  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* dis-asm.h (print_insn_shl, print_insn_sh64l): Remove prototype.
+
+2002-04-16  David S. Miller  <davem@redhat.com>
+
+	* xregex2.h (__restrict_arr): Define to __restrict on GCC
+	3.1 and later.  Do not redefine.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* dyn-string.h:  Also allow IN_GLIBCPP_V3 to redefine names.
+
+2002-03-10  Daniel Jacobowitz <drow@mvista.com>
+
+	* gdb: New directory.
+
+2002-03-06  Andrew Cagney  <ac131313@redhat.com>
+
+	* floatformat.h (floatformat_arm_ext): Delete declaration.
+
+2002-02-21  Jim Blandy  <jimb@redhat.com>
+
+	Allow the user to specify functions for allocating memory for
+	splay tree roots and nodes.
+	* splay-tree.h (splay_tree_allocate_fn, splay_tree_deallocate_fn):
+	New types.
+	(splay_tree): New fields: `allocate', `deallocate', and
+	`allocate_data'.
+	(splay_tree_new_with_allocator): New function declaration.
+
+2002-02-15  Alan Modra  <amodra@bigpond.net.au>
+
+	Support arbitrary length fill patterns.
+	* bfdlink.h (enum bfd_link_order_type): Remove bfd_fill_link_order.
+	(struct bfd_link_order): Remove fill.  Add data.size.
+
 2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
 
 	Contribute sh64-elf.

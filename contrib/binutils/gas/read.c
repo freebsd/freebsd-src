@@ -45,7 +45,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ecoff.h"
 
 #ifndef TC_START_LABEL
-#define TC_START_LABEL(x,y) (x==':')
+#define TC_START_LABEL(x,y) (x == ':')
 #endif
 
 /* Set by the object-format or the target.  */
@@ -1572,6 +1572,20 @@ s_data (ignore)
    .file.  */
 
 void
+s_app_file_string (file)
+     char *file;
+{
+#ifdef LISTING
+  if (listing)
+    listing_source_file (file);
+#endif
+  register_dependency (file);
+#ifdef obj_app_file
+  obj_app_file (file);
+#endif
+}
+
+void
 s_app_file (appfile)
      int appfile;
 {
@@ -1596,16 +1610,7 @@ s_app_file (appfile)
 
       demand_empty_rest_of_line ();
       if (!may_omit)
-	{
-#ifdef LISTING
-	  if (listing)
-	    listing_source_file (s);
-#endif
-	  register_dependency (s);
-#ifdef obj_app_file
-	  obj_app_file (s);
-#endif
-	}
+	s_app_file_string (s);
     }
 }
 
@@ -4559,6 +4564,15 @@ stringer (append_zero)		/* Worker to do .ascii etc statements.  */
     {
       c = ',';			/* Do loop.  */
     }
+  /* If we have been switched into the abs_section then we
+     will not have an obstack onto which we can hang strings.  */
+  if (now_seg == absolute_section)
+    {
+      as_bad (_("strings must be placed into a section"));
+      c = 0;
+      ignore_rest_of_line ();
+    }
+  
   while (c == ',' || c == '<' || c == '"')
     {
       SKIP_WHITESPACE ();

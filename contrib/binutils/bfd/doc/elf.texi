@@ -1,4 +1,6 @@
-@section ELF backends
+@section 
+ELF backends
+
 BFD support for ELF formats is being worked on.
 Currently, the best supported back ends are for sparc and i386
 (running svr4 or Solaris 2).

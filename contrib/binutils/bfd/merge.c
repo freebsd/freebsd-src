@@ -1,22 +1,22 @@
 /* SEC_MERGE support.
-   Copyright 2001 Free Software Foundation, Inc.
+   Copyright 2001, 2002 Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This file contains support for merging duplicate entities within sections,
    as used in ELF SHF_MERGE.  */
@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysdep.h"
 #include "libbfd.h"
 #include "hashtab.h"
+#include "libiberty.h"
 
 struct sec_merge_sec_info;
 
@@ -38,7 +39,8 @@ struct sec_merge_hash_entry
   /* Start of this string needs to be aligned to
      alignment octets (not 1 << align).  */
   unsigned int alignment;
-  union {
+  union
+  {
     /* Index within the merged section.  */
     bfd_size_type index;
     /* Entity size (if present in suffix hash tables).  */
@@ -144,7 +146,7 @@ sec_merge_hash_newfunc (entry, table, string)
       ret->next = NULL;
     }
 
-  return (struct bfd_hash_entry *)ret;
+  return (struct bfd_hash_entry *) ret;
 }
 
 /* Look up an entry in a section merge hash table.  */
@@ -381,14 +383,6 @@ _bfd_merge_section (abfd, psinfo, sec, psecinfo)
       return true;
     }
 
-  if (sec->output_section != NULL
-      && bfd_is_abs_section (sec->output_section))
-    {
-      /* The section is being discarded from the link, so we should
-	 just ignore it.  */
-      return true;
-    }
-
   align = bfd_get_section_alignment (sec->owner, sec);
   if ((sec->entsize < (unsigned int)(1 << align)
        && ((sec->entsize & (sec->entsize - 1))
@@ -415,15 +409,14 @@ _bfd_merge_section (abfd, psinfo, sec, psecinfo)
   if (sinfo == NULL)
     {
       /* Initialize the information we need to keep track of.  */
-      sinfo = (struct sec_merge_info *)
-	      bfd_alloc (abfd, (bfd_size_type) sizeof (struct sec_merge_info));
+      amt = sizeof (struct sec_merge_info);
+      sinfo = (struct sec_merge_info *) bfd_alloc (abfd, amt);
       if (sinfo == NULL)
 	goto error_return;
       sinfo->next = (struct sec_merge_info *) *psinfo;
       sinfo->chain = NULL;
       *psinfo = (PTR) sinfo;
-      sinfo->htab =
-	sec_merge_init (sec->entsize, (sec->flags & SEC_STRINGS));
+      sinfo->htab = sec_merge_init (sec->entsize, (sec->flags & SEC_STRINGS));
       if (sinfo->htab == NULL)
 	goto error_return;
     }
@@ -650,8 +643,10 @@ merge_strings (sinfo)
   qsort (array, (size_t) sinfo->htab->size,
 	 sizeof (struct sec_merge_hash_entry *), cmplengthentry);
 
-  last4tab = htab_create ((size_t) sinfo->htab->size * 4, NULL, last4_eq, NULL);
-  lasttab = htab_create ((size_t) sinfo->htab->size * 4, NULL, last_eq, NULL);
+  last4tab = htab_create_alloc ((size_t) sinfo->htab->size * 4, 
+				NULL, last4_eq, NULL, calloc, free);
+  lasttab = htab_create_alloc ((size_t) sinfo->htab->size * 4, 
+			       NULL, last_eq, NULL, calloc, free);
   if (lasttab == NULL || last4tab == NULL)
     goto alloc_failure;
 
@@ -839,10 +834,7 @@ _bfd_merge_sections (abfd, xsinfo, remove_hook)
 	   the hash table at all.  */
 	for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
   	  if (secinfo->first == NULL)
-	    {
-	      secinfo->sec->_cooked_size = 0;
-	      secinfo->sec->flags |= SEC_EXCLUDE;
-	    }
+	    secinfo->sec->_cooked_size = 0;
     }
 
   return true;
@@ -908,7 +900,7 @@ _bfd_merged_section_offset (output_bfd, psec, psecinfo, offset, addend)
       if (sec->entsize == 1)
 	{
 	  p = secinfo->contents + offset + addend - 1;
-	  while (*p && p >= secinfo->contents)
+	  while (p >= secinfo->contents && *p)
 	    --p;
 	  ++p;
 	}

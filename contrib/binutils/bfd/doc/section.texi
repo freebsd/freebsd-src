@@ -188,12 +188,6 @@ typedef struct sec
      standard data.  */
 #define SEC_CONSTRUCTOR 0x100
 
-  /* The section is a constructor, and should be placed at the
-     end of the text, data, or bss section(?).  */
-#define SEC_CONSTRUCTOR_TEXT 0x1100
-#define SEC_CONSTRUCTOR_DATA 0x2100
-#define SEC_CONSTRUCTOR_BSS  0x3100
-
   /* The section has contents - a data section could be
      @code{SEC_ALLOC} | @code{SEC_HAS_CONTENTS}; a debug section could be
      @code{SEC_HAS_CONTENTS}  */
@@ -213,6 +207,9 @@ typedef struct sec
      allow the back end to control what the linker does with
      sections.  */
 #define SEC_COFF_SHARED_LIBRARY 0x800
+
+  /* The section contains thread local data.  */
+#define SEC_THREAD_LOCAL 0x1000
 
   /* The section has GOT references.  This flag is only for the
      linker, and is currently only used by the elf32-hppa back end.
@@ -771,7 +768,18 @@ void _bfd_strip_section_from_output
 @end example
 @strong{Description}@*
 Remove @var{section} from the output.  If the output section
-becomes empty, remove it from the output bfd.  @var{info} may
-be NULL; if it is not, it is used to decide whether the output
-section is empty.
+becomes empty, remove it from the output bfd.
+
+This function won't actually do anything except twiddle flags
+if called too late in the linking process, when it's not safe
+to remove sections.
+
+@findex bfd_generic_discard_group
+@subsubsection @code{bfd_generic_discard_group}
+@strong{Synopsis}
+@example
+boolean bfd_generic_discard_group (bfd *abfd, asection *group);
+@end example
+@strong{Description}@*
+Remove all members of @var{group} from the output.
 

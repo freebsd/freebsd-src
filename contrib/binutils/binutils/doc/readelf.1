@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "READELF 1"
-.TH READELF 1 "2002-05-14" "binutils-2.12.1" "GNU Development Tools"
+.TH READELF 1 "2002-08-05" "binutils-2.12.91" "GNU Development Tools"
 .UC
 .SH "NAME"
 readelf \- Displays information about \s-1ELF\s0 files.
@@ -148,7 +148,7 @@ readelf [\fB\-a\fR|\fB\-\-all\fR]
         [\fB\-V\fR|\fB\-\-version\-info\fR]
         [\fB\-D\fR|\fB\-\-use\-dynamic\fR]
         [\fB\-x\fR <number>|\fB\-\-hex\-dump=\fR<number>]
-        [\fB\-w[liaprmfs]\fR|\fB\-\-debug\-dump\fR[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]]
+        [\fB\-w[liaprmfFso]\fR|\fB\-\-debug\-dump\fR[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]]
         [\fB\-histogram\fR]
         [\fB\-v\fR|\fB\-\-version\fR]
         [\fB\-W\fR|\fB\-\-wide\fR]
@@ -274,11 +274,11 @@ symbols section.
 .IX Item "--hex-dump=<number>"
 .PD
 Displays the contents of the indicated section as a hexadecimal dump.
-.IP "\fB\-w[liaprmfs]\fR" 4
-.IX Item "-w[liaprmfs]"
+.IP "\fB\-w[liaprmfFso]\fR" 4
+.IX Item "-w[liaprmfFso]"
 .PD 0
-.IP "\fB\-\-debug\-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]\fR" 4
-.IX Item "--debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]"
+.IP "\fB\-\-debug\-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]\fR" 4
+.IX Item "--debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]"
 .PD
 Displays the contents of the debug sections in the file, if any are
 present.  If one of the optional letters or words follows the switch

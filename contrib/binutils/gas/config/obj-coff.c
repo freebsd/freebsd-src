@@ -271,7 +271,7 @@ fetch_coff_debug_section ()
   static segT debug_section;
   if (!debug_section)
     {
-      CONST asymbol *s;
+      const asymbol *s;
       s = bfd_make_debug_symbol (stdoutput, (char *) 0, 0);
       assert (s != 0);
       debug_section = s->section;
@@ -568,7 +568,7 @@ obj_coff_loc (ignore)
 
     if (listing)
       {
-        lineno += coff_line_base - 1;
+	lineno += coff_line_base - 1;
 	listing_source_line (lineno);
       }
   }
@@ -711,12 +711,12 @@ obj_coff_endef (ignore)
       /* intentional fallthrough */
     case C_FCN:
       {
-	CONST char *name;
+	const char *name;
 	S_SET_SEGMENT (def_symbol_in_progress, text_section);
 
 	name = S_GET_NAME (def_symbol_in_progress);
 	if (name[0] == '.' && name[2] == 'f' && name[3] == '\0')
-  	  {
+	  {
 	    switch (name[1])
 	      {
 	      case 'b':
@@ -842,16 +842,16 @@ obj_coff_endef (ignore)
       || S_GET_SEGMENT (def_symbol_in_progress) == absolute_section
       || ! symbol_constant_p (def_symbol_in_progress)
       || (symbolP = symbol_find_base (S_GET_NAME (def_symbol_in_progress),
-                                      DO_NOT_STRIP)) == NULL
+				      DO_NOT_STRIP)) == NULL
       || SF_GET_TAG (def_symbol_in_progress) != SF_GET_TAG (symbolP))
     {
       /* If it already is at the end of the symbol list, do nothing */
       if (def_symbol_in_progress != symbol_lastP)
-        {
+	{
 	  symbol_remove (def_symbol_in_progress, &symbol_rootP, &symbol_lastP);
 	  symbol_append (def_symbol_in_progress, symbol_lastP, &symbol_rootP,
 			 &symbol_lastP);
-        }
+	}
     }
   else
     {
@@ -1397,23 +1397,24 @@ coff_frob_file_after_relocs ()
   bfd_map_over_sections (stdoutput, coff_adjust_section_syms, (char*) 0);
 }
 
-/*
- * implement the .section pseudo op:
- *	.section name {, "flags"}
- *                ^         ^
- *                |         +--- optional flags: 'b' for bss
- *                |                              'i' for info
- *                +-- section name               'l' for lib
- *                                               'n' for noload
- *                                               'o' for over
- *                                               'w' for data
- *						 'd' (apparently m88k for data)
- *                                               'x' for text
- *						 'r' for read-only data
- *						 's' for shared data (PE)
- * But if the argument is not a quoted string, treat it as a
- * subsegment number.
- */
+/* Implement the .section pseudo op:
+  	.section name {, "flags"}
+                  ^         ^
+                  |         +--- optional flags: 'b' for bss
+                  |                              'i' for info
+                  +-- section name               'l' for lib
+                                                 'n' for noload
+                                                 'o' for over
+                                                 'w' for data
+  						 'd' (apparently m88k for data)
+                                                 'x' for text
+  						 'r' for read-only data
+  						 's' for shared data (PE)
+   But if the argument is not a quoted string, treat it as a
+   subsegment number.
+
+   Note the 'a' flag is silently ignored.  This allows the same
+   .section directive to be parsed in both ELF and COFF formats.  */
 
 void
 obj_coff_section (ignore)
@@ -1466,6 +1467,7 @@ obj_coff_section (ignore)
 		case 'n': flags &=~ SEC_LOAD; flags |= SEC_NEVER_LOAD; break;
 		case 'd': flags |= SEC_DATA | SEC_LOAD; /* fall through */
 		case 'w': flags &=~ SEC_READONLY; break;
+		case 'a': break; /* For compatability with ELF.  */
 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
 		case 'r': flags |= SEC_READONLY; break;
 		case 's': flags |= SEC_SHARED; break;
@@ -1504,13 +1506,13 @@ obj_coff_section (ignore)
          sections so adjust_reloc_syms in write.c will correctly handle
          relocs which refer to non-local symbols in these sections.  */
       if (strncmp (name, ".gnu.linkonce", sizeof (".gnu.linkonce") - 1) == 0)
-        flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+	flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
 #endif
 
       if (! bfd_set_section_flags (stdoutput, sec, flags))
-        as_warn (_("error setting flags for \"%s\": %s"),
-                 bfd_section_name (stdoutput, sec),
-                 bfd_errmsg (bfd_get_error ()));
+	as_warn (_("error setting flags for \"%s\": %s"),
+		 bfd_section_name (stdoutput, sec),
+		 bfd_errmsg (bfd_get_error ()));
     }
   else if (flags != SEC_NO_FLAGS)
     {
@@ -1564,7 +1566,7 @@ coff_frob_section (sec)
       fragp = seg_info (sec)->frchainP->frch_root;
       last = seg_info (sec)->frchainP->frch_last;
       while (fragp->fr_next != last)
-        fragp = fragp->fr_next;
+	fragp = fragp->fr_next;
       last->fr_address = size;
       fragp->fr_offset += new_size - size;
     }
@@ -3420,6 +3422,19 @@ remove_subsegs ()
 unsigned long machine;
 int coff_flags;
 
+#ifndef SUB_SEGMENT_ALIGN
+#ifdef HANDLE_ALIGN
+/* The last subsegment gets an aligment corresponding to the alignment
+   of the section.  This allows proper nop-filling at the end of
+   code-bearing sections.  */
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
+  (!(FRCHAIN)->frch_next || (FRCHAIN)->frch_next->frch_seg != (SEG)	\
+   ? get_recorded_alignment (SEG) : 0)
+#else
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 1
+#endif
+#endif
+
 extern void
 write_object_file ()
 {
@@ -3443,28 +3458,27 @@ write_object_file ()
 
   string_byte_count = 4;
 
+  /* Run through all the sub-segments and align them up.  Also
+     close any open frags.  We tack a .fill onto the end of the
+     frag chain so that any .align's size can be worked by looking
+     at the next frag.  */
   for (frchain_ptr = frchain_root;
        frchain_ptr != (struct frchain *) NULL;
        frchain_ptr = frchain_ptr->frch_next)
     {
-      /* Run through all the sub-segments and align them up.  Also
-	 close any open frags.  We tack a .fill onto the end of the
-	 frag chain so that any .align's size can be worked by looking
-	 at the next frag.  */
+      int alignment;
 
       subseg_set (frchain_ptr->frch_seg, frchain_ptr->frch_subseg);
 
-#ifndef SUB_SEGMENT_ALIGN
-#define SUB_SEGMENT_ALIGN(SEG) 1
-#endif
+      alignment = SUB_SEGMENT_ALIGN (now_seg, frchain_ptr);
+
 #ifdef md_do_align
-      md_do_align (SUB_SEGMENT_ALIGN (now_seg), (char *) NULL, 0, 0,
-		   alignment_done);
+      md_do_align (alignment, (char *) NULL, 0, 0, alignment_done);
 #endif
       if (subseg_text_p (now_seg))
-	frag_align_code (SUB_SEGMENT_ALIGN (now_seg), 0);
+	frag_align_code (alignment, 0);
       else
-	frag_align (SUB_SEGMENT_ALIGN (now_seg), 0, 0);
+	frag_align (alignment, 0, 0);
 
 #ifdef md_do_align
     alignment_done:

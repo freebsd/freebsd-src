@@ -235,7 +235,7 @@ arc_elf_b22_pcrel (abfd, reloc_entry, symbol, data, input_section,
   return bfd_elf_generic_reloc (abfd, reloc_entry, symbol, data,
 				input_section, output_bfd, error_message);
 }
-  
+
 #define TARGET_LITTLE_SYM bfd_elf32_littlearc_vec
 #define TARGET_LITTLE_NAME "elf32-littlearc"
 #define TARGET_BIG_SYM bfd_elf32_bigarc_vec

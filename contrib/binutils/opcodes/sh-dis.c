@@ -24,14 +24,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sh-opc.h"
 #include "dis-asm.h"
 
-#define LITTLE_BIT 2
-
 static void print_movxy
   PARAMS ((sh_opcode_info *, int, int, fprintf_ftype, void *));
 static void print_insn_ddt PARAMS ((int, struct disassemble_info *));
 static void print_dsp_reg PARAMS ((int, fprintf_ftype, void *));
 static void print_insn_ppi PARAMS ((int, struct disassemble_info *));
-static int print_insn_shx PARAMS ((bfd_vma, struct disassemble_info *));
 
 static void
 print_movxy (op, rn, rm, fprintf_fn, stream)
@@ -286,8 +283,8 @@ print_insn_ppi (field_b, info)
   fprintf_fn (stream, ".word 0x%x", field_b);
 }
 
-static int
-print_insn_shx (memaddr, info)
+int
+print_insn_sh (memaddr, info)
      bfd_vma memaddr;
      struct disassemble_info *info;
 {
@@ -304,6 +301,12 @@ print_insn_shx (memaddr, info)
     {
     case bfd_mach_sh:
       target_arch = arch_sh1;
+      /* SH coff object files lack information about the machine type, so
+         we end up with bfd_mach_sh unless it was set explicitly (which
+	 could have happended if this is a call from gdb or the simulator.)  */
+      if (info->symbols
+	  && bfd_asymbol_flavour(*info->symbols) == bfd_target_coff_flavour)
+	target_arch = arch_sh4;
       break;
     case bfd_mach_sh2:
       target_arch = arch_sh2;
@@ -324,6 +327,11 @@ print_insn_shx (memaddr, info)
       target_arch = arch_sh4;
       break;
     case bfd_mach_sh5:
+#ifdef INCLUDE_SHMEDIA
+      status = print_insn_sh64 (memaddr, info);
+      if (status != -2)
+	return status;
+#endif
       /* When we get here for sh64, it's because we want to disassemble
 	 SHcompact, i.e. arch_sh4.  */
       target_arch = arch_sh4;
@@ -340,7 +348,7 @@ print_insn_shx (memaddr, info)
       return -1;
     }
 
-  if (info->flags & LITTLE_BIT)
+  if (info->endian == BFD_ENDIAN_LITTLE)
     {
       nibs[0] = (insn[1] >> 4) & 0xf;
       nibs[1] = insn[1] & 0xf;
@@ -371,7 +379,7 @@ print_insn_shx (memaddr, info)
 	      return -1;
 	    }
 
-	  if (info->flags & LITTLE_BIT)
+	  if (info->endian == BFD_ENDIAN_LITTLE)
 	    field_b = insn[1] << 8 | insn[0];
 	  else
 	    field_b = insn[0] << 8 | insn[1];
@@ -677,7 +685,7 @@ print_insn_shx (memaddr, info)
 	{
 	  info->flags |= 1;
 	  fprintf_fn (stream, "\t(slot ");
-	  print_insn_shx (memaddr + 2, info);
+	  print_insn_sh (memaddr + 2, info);
 	  info->flags &= ~1;
 	  fprintf_fn (stream, ")");
 	  return 4;
@@ -700,14 +708,14 @@ print_insn_shx (memaddr, info)
 
 	      if (size == 2)
 		{
-		  if ((info->flags & LITTLE_BIT) != 0)
+		  if (info->endian == BFD_ENDIAN_LITTLE)
 		    val = bfd_getl16 (bytes);
 		  else
 		    val = bfd_getb16 (bytes);
 		}
 	      else
 		{
-		  if ((info->flags & LITTLE_BIT) != 0)
+		  if (info->endian == BFD_ENDIAN_LITTLE)
 		    val = bfd_getl32 (bytes);
 		  else
 		    val = bfd_getb32 (bytes);
@@ -723,28 +731,4 @@ print_insn_shx (memaddr, info)
     }
   fprintf_fn (stream, ".word 0x%x%x%x%x", nibs[0], nibs[1], nibs[2], nibs[3]);
   return 2;
-}
-
-int
-print_insn_shl (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-{
-  int r;
-
-  info->flags = LITTLE_BIT;
-  r = print_insn_shx (memaddr, info);
-  return r;
-}
-
-int
-print_insn_sh (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-{
-  int r;
-
-  info->flags = 0;
-  r = print_insn_shx (memaddr, info);
-  return r;
 }

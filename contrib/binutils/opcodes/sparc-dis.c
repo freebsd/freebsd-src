@@ -1,6 +1,6 @@
 /* Print SPARC instructions.
    Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000 Free Software Foundation, Inc.
+   2000, 2002 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ is_delayed_branch (insn)
 
   for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
     {
-      CONST struct sparc_opcode *opcode = op->opcode;
+      const struct sparc_opcode *opcode = op->opcode;
       if ((opcode->match & insn) == opcode->match
 	  && (opcode->lose & insn) == 0)
 	return (opcode->flags & F_DELAYED);
@@ -272,7 +272,7 @@ print_insn_sparc (memaddr, info)
 
   for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
     {
-      CONST struct sparc_opcode *opcode = op->opcode;
+      const struct sparc_opcode *opcode = op->opcode;
 
       /* If the insn isn't supported by the current architecture, skip it.  */
       if (! (opcode->architecture & current_arch_mask))
@@ -312,7 +312,7 @@ print_insn_sparc (memaddr, info)
 	  (*info->fprintf_func) (stream, opcode->name);
 
 	  {
-	    register CONST char *s;
+	    register const char *s;
 
 	    if (opcode->args[0] != ',')
 	      (*info->fprintf_func) (stream, " ");

@@ -53,6 +53,8 @@ extern void syslib_default PARAMS ((char*));
 extern void hll_default PARAMS ((char*));
 extern int  ldemul_find_potential_libraries
   PARAMS ((char *, struct lang_input_statement_struct *));
+extern struct bfd_elf_version_expr *ldemul_new_vers_pattern
+  PARAMS ((struct bfd_elf_version_expr *));
 
 typedef struct ld_emulation_xfer_struct {
   /* Run before parsing the command line and script file.
@@ -138,6 +140,11 @@ typedef struct ld_emulation_xfer_struct {
      (For VMS files matching ":lib*.a" have also been scanned).  */
   int (* find_potential_libraries)
     PARAMS ((char *, struct lang_input_statement_struct *));
+
+  /* Called when adding a new version pattern.  PowerPC64-ELF uses
+     this hook to add a pattern matching ".foo" for every "foo".  */
+  struct bfd_elf_version_expr * (*new_vers_pattern)
+    PARAMS ((struct bfd_elf_version_expr *));
 
 } ld_emulation_xfer_type;
 

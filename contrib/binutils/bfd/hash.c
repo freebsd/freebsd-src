@@ -1,5 +1,5 @@
 /* hash.c -- hash table routines for BFD
-   Copyright 1993, 1994, 1995, 1997, 1999, 2001
+   Copyright 1993, 1994, 1995, 1997, 1999, 2001, 2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
 
@@ -375,8 +375,8 @@ bfd_hash_lookup (table, string, create, copy)
     {
       hash += c + (c << 17);
       hash ^= hash >> 2;
-      ++len;
     }
+  len = (s - (const unsigned char *) string) - 1;
   hash += len + (len << 17);
   hash ^= hash >> 2;
 
@@ -407,7 +407,7 @@ bfd_hash_lookup (table, string, create, copy)
 	  bfd_set_error (bfd_error_no_memory);
 	  return (struct bfd_hash_entry *) NULL;
 	}
-      strcpy (new, string);
+      memcpy (new, string, len + 1);
       string = new;
     }
   hashp->string = string;
