@@ -607,9 +607,9 @@ npxexit(td)
 		 */
 		if (masked_exceptions & 0x0d)
 			log(LOG_ERR,
-			    "pid %d (%s) exited with masked floating"
-			    " point exceptions 0x%02x\n",
-			    td->td_proc->p_pid, td->td_proc->p_comm, masked_exceptions);
+	"pid %d (%s) exited with masked floating point exceptions 0x%02x\n",
+			    td->td_proc->p_pid, td->td_proc->p_comm,
+			    masked_exceptions);
 	}
 #endif
 }
