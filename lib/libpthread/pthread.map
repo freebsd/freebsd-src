@@ -154,6 +154,7 @@ global:
 	_sem_unlink;
 	_sem_wait;
 	_sigaction;
+	_sigaltstack;
 	_sigpending;
 	_sigprocmask;
 	_sigsuspend;
@@ -308,6 +309,7 @@ global:
 	sem_unlink;
 	sem_wait;
 	sigaction;
+	sigaltstack;
 	sigpending;
 	sigprocmask;
 	sigsuspend;
