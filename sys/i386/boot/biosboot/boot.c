@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.44 1995/06/11 19:31:10 rgrimes Exp $
+ *	$Id: boot.c,v 1.45 1995/06/25 14:02:50 joerg Exp $
  */
 
 
@@ -246,7 +246,7 @@ loadprog(void)
 	/********************************************************/
 	/* Load the string table				*/
 	/********************************************************/
-	printf("+0x%x+0x%x] ", sizeof(int), i);
+       printf("+0x%x+0x%x]\n", sizeof(int), i);
 	xread((void *)addr, i);
 	addr += i;
 
