@@ -1705,7 +1705,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 		}
 		if(error) return error;
 
-		if (temp=geo->rows * geo->columns * geo->frames * 2) {
+		if ((temp=geo->rows * geo->columns * geo->frames * 2) != 0) {
 			if (geo->oformat & METEOR_GEO_RGB24) temp = temp * 2;
 
 		   	/* meteor_mem structure for SYNC Capture */

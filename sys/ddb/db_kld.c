@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_kld.c,v 1.4 1998/10/15 02:01:50 peter Exp $
+ *	$Id: db_kld.c,v 1.5 1999/01/27 19:00:49 dillon Exp $
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
 
@@ -46,20 +46,20 @@
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-db_sym_t
+c_db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t	*stab;
 	const char *	symstr;
 {
-	linker_sym_t sym;
+	c_linker_sym_t sym;
 
 	if (linker_ddb_lookup(symstr, &sym) == 0)
-	    return (db_sym_t) sym;
+	    return (c_db_sym_t) sym;
 	else
-	    return (db_sym_t) 0;
+	    return (c_db_sym_t) 0;
 }
 
-db_sym_t
+c_db_sym_t
 X_db_search_symbol(symtab, off, strategy, diffp)
 	db_symtab_t *	symtab;
 	register
@@ -67,12 +67,12 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 	db_strategy_t	strategy;
 	db_expr_t	*diffp;		/* in/out */
 {
-	linker_sym_t sym;
+	c_linker_sym_t sym;
 	long diff;
 
 	if (linker_ddb_search_symbol((caddr_t) off, &sym, &diff) == 0) {
 		*diffp = (db_expr_t) diff;
-		return (db_sym_t) sym;
+		return (c_db_sym_t) sym;
 	}
 
 	return 0;
@@ -84,11 +84,11 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 void
 X_db_symbol_values(symtab, dbsym, namep, valuep)
 	db_symtab_t	*symtab;
-	db_sym_t	dbsym;
+	c_db_sym_t	dbsym;
 	const char	**namep;
 	db_expr_t	*valuep;
 {
-	linker_sym_t sym = (linker_sym_t) dbsym;
+	c_linker_sym_t sym = (c_linker_sym_t) dbsym;
 	linker_symval_t symval;
 
 	linker_ddb_symbol_values(sym, &symval);
@@ -102,7 +102,7 @@ X_db_symbol_values(symtab, dbsym, namep, valuep)
 boolean_t
 X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	db_symtab_t *	symtab;
-	db_sym_t	cursym;
+	c_db_sym_t	cursym;
 	char 		**filename;
 	int 		*linenum;
 	db_expr_t	off;
@@ -113,7 +113,7 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 boolean_t
 X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 	db_symtab_t *	symtab;
-	db_sym_t	cursym;
+	c_db_sym_t	cursym;
 	int		*nargp;
 	char		**argnamep;
 {

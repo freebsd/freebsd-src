@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.15 1998/06/28 00:55:01 dfr Exp $
+ *	$Id: db_sym.h,v 1.16 1999/01/27 19:00:49 dillon Exp $
  */
 
 #ifndef _DDB_DB_SYM_H_
@@ -50,7 +50,9 @@ typedef struct {
  * a different one
  */
 typedef	char *		db_sym_t;	/* opaque handle on symbols */
+typedef	const char *	c_db_sym_t;	/* opaque handle on symbols */
 #define	DB_SYM_NULL	((db_sym_t)0)
+#define	C_DB_SYM_NULL	((c_db_sym_t)0)
 
 /*
  * Non-stripped symbol tables will have duplicates, for instance
@@ -70,10 +72,10 @@ typedef int		db_strategy_t;	/* search strategy */
 void		db_add_symbol_table __P((char *, char *, char *, char *));
 					/* extend the list of symbol tables */
 
-db_sym_t	db_search_symbol __P((db_addr_t, db_strategy_t, db_expr_t *));
+c_db_sym_t	db_search_symbol __P((db_addr_t, db_strategy_t, db_expr_t *));
 					/* find symbol given value */
 
-void		db_symbol_values __P((db_sym_t, const char **, db_expr_t *));
+void		db_symbol_values __P((c_db_sym_t, const char **, db_expr_t *));
 					/* return name and value of symbol */
 
 #define db_find_sym_and_offset(val,namep,offp)	\
@@ -90,19 +92,19 @@ int		db_eqname __P((char *, char *, int));
 void		db_printsym __P((db_expr_t, db_strategy_t));
 					/* print closest symbol to a value */
 
-int		db_sym_numargs __P((db_sym_t, int *, char **));
+int		db_sym_numargs __P((c_db_sym_t, int *, char **));
 
-boolean_t	X_db_line_at_pc __P((db_symtab_t *symtab, db_sym_t cursym,
+boolean_t	X_db_line_at_pc __P((db_symtab_t *symtab, c_db_sym_t cursym,
 				     char **filename, int *linenum,
 				     db_expr_t off));
-db_sym_t	X_db_lookup __P((db_symtab_t *stab, const char *symstr));
-db_sym_t	X_db_search_symbol __P((db_symtab_t *symtab, db_addr_t off,
+c_db_sym_t	X_db_lookup __P((db_symtab_t *stab, const char *symstr));
+c_db_sym_t	X_db_search_symbol __P((db_symtab_t *symtab, db_addr_t off,
 					db_strategy_t strategy,
 					db_expr_t *diffp));
-int		X_db_sym_numargs __P((db_symtab_t *, db_sym_t, int *,
+int		X_db_sym_numargs __P((db_symtab_t *, c_db_sym_t, int *,
 				      char **));
 void		X_db_symbol_values __P((db_symtab_t *symtab,
-					db_sym_t sym, const char **namep,
+					c_db_sym_t sym, const char **namep,
 					db_expr_t *valuep));
 
 #endif /* !_DDB_DB_SYM_H_ */

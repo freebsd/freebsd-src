@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.12 1999/01/25 08:42:24 dfr Exp $
+ *	$Id: link_elf.c,v 1.13 1999/01/27 21:49:56 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@ static int	link_elf_load_module(const char*, linker_file_t*);
 static int	link_elf_load_file(const char*, linker_file_t*);
 static int	link_elf_lookup_symbol(linker_file_t, const char*,
 				       c_linker_sym_t*);
-static int	link_elf_symbol_values(linker_file_t, linker_sym_t, linker_symval_t*);
+static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t, linker_symval_t*);
 static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 				       c_linker_sym_t* sym, long* diffp);
 
@@ -928,7 +928,7 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, c_linker_sym_t* sym)
 }
 
 static int
-link_elf_symbol_values(linker_file_t lf, linker_sym_t sym, linker_symval_t* symval)
+link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym, linker_symval_t* symval)
 {
 	elf_file_t ef = lf->priv;
 	Elf_Sym* es = (Elf_Sym*) sym;

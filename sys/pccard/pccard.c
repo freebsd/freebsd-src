@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.68 1999/01/19 00:18:26 peter Exp $
+ *	$Id: pccard.c,v 1.69 1999/01/27 10:10:03 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -267,7 +267,7 @@ pccard_remove_controller(struct slot_ctrl *ctrl)
 			/*
 			 * Unload the drivers attached to this slot.
 			 */
-			while (devi = slt->devices)
+			while ((devi = slt->devices) != NULL)
 				remove_device(devi);
 			/*
 			 * Disable the slot and unlink the slot from the 
@@ -817,7 +817,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
 		mp->start = (caddr_t)(void *)(uintptr_t)pccard_mem;
-		if (error = slt->ctrl->mapmem(slt, win))
+		if ((error = slt->ctrl->mapmem(slt, win)) != 0)
 			break;
 		offs = (unsigned int)uio->uio_offset & (PCCARD_MEMSIZE - 1);
 		p = pccard_kmem + offs;
@@ -867,7 +867,7 @@ crdwrite(dev_t dev, struct uio *uio, int ioflag)
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
 		mp->start = (caddr_t)(void *)(uintptr_t)pccard_mem;
-		if (error = slt->ctrl->mapmem(slt, win))
+		if ((error = slt->ctrl->mapmem(slt, win)) != 0)
 			break;
 		offs = (unsigned int)uio->uio_offset & (PCCARD_MEMSIZE - 1);
 		p = pccard_kmem + offs;

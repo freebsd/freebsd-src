@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.47 1999/01/17 20:41:02 peter Exp $
+ * $Id: cd9660_vfsops.c,v 1.48 1999/01/27 21:49:55 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -160,7 +160,7 @@ iso_mountroot(mp, p)
 	if (bootverbose)
 		printf("iso_mountroot(): using session at block %d\n",
 		       args.ssector);
-	if (error = iso_mountfs(rootvp, mp, p, &args))
+	if ((error = iso_mountfs(rootvp, mp, p, &args)) != 0)
 		return (error);
 
 	(void)cd9660_statfs(mp, &mp->mnt_stat, p);
