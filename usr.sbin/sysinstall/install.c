@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.94 1996/04/30 05:23:46 jkh Exp $
+ * $Id: install.c,v 1.95 1996/04/30 06:02:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -390,6 +390,7 @@ installNovice(dialogMenuItem *self)
 	    /* This will also set the media device, which we don't want */
 	    tcpDeviceSelect();
 	    mediaDevice = save;
+	    dialog_clear();
 	}
     }
 
