@@ -1020,13 +1020,11 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_off = ntohs(ip->ip_off);
 
 	    if (pfil_run_hooks(&inet_pfil_hook, &m0, src, PFIL_IN) != 0) {
-		EH_RESTORE(m0);		/* restore Ethernet header */
-		return m0;
-	    }
-	    if (m0 == NULL) {
-		bdg_dropped++;
+		/* NB: hook should consume packet */
 		return NULL;
 	    }
+	    if (m0 == NULL)			/* consumed by filter */
+		return m0;
 	    /*
 	     * If we get here, the firewall has passed the pkt, but the mbuf
 	     * pointer might have changed. Restore ip and the fields ntohs()'d.
