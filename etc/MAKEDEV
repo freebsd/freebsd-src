@@ -308,7 +308,7 @@ std)
 	mknod mem	c 2 0 root:kmem;	chmod 640 mem
 	mknod null	c 2 2;			chmod 666 null
 	mknod random	c 2 3;			chmod 644 random
-	ln -sf random urandom
+	mknod urandom	c 2 4;			chmod 644 urandom
 	mknod zero	c 2 12;			chmod 666 zero
 	mknod io	c 2 14;			chmod 600 io
 	mknod tty	c 1 0;			chmod 666 tty
