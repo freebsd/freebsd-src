@@ -379,6 +379,7 @@ getpw(int (*fn)(union key, struct passwd *, char *, size_t, struct passwd **),
 			free(pwd_storage);
 			if ((pwd_storage_size << 1) > PWD_STORAGE_MAX) {
 				pwd_storage = NULL;
+				errno = ERANGE;
 				return (NULL);
 			}
 			pwd_storage_size <<= 1;
@@ -387,6 +388,8 @@ getpw(int (*fn)(union key, struct passwd *, char *, size_t, struct passwd **),
 				return (NULL);
 		}
 	} while (res == NULL && rv == ERANGE);
+	if (res == NULL)
+		errno = rv;
 	return (res);
 }
 
