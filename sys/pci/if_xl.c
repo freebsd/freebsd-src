@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.57 1998/10/22 15:35:06 wpaul Exp $
+ *	$Id: if_xl.c,v 1.58 1998/10/22 16:37:55 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.57 1998/10/22 15:35:06 wpaul Exp $";
+	"$Id: if_xl.c,v 1.58 1998/10/22 16:37:55 wpaul Exp $";
 #endif
 
 /*
@@ -983,7 +983,7 @@ static void xl_getmode_mii(sc)
 		if (bootverbose)
 			printf("xl%d: forcing on autoneg support for BT4\n",
 							 sc->xl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
 #endif
 	}
