@@ -462,7 +462,9 @@ update
 .Pa /etc/resolv.conf
 automatically.  Refer to the
 .Dq enable dns
-command below for details.
+and
+.Dq resolv
+commands below for details.
 .El
 .Sh MANUAL DIALING
 In the following examples, we assume that your machine name is
@@ -1978,9 +1980,16 @@ Ask your ISP to authenticate your nameserver address(es) with the line
 .Bd -literal -offset indent
 enable dns
 .Ed
+.Pp
 Do
 .Em NOT
-do this if you are running an local DNS, as
+do this if you are running a local DNS unless you also either use
+.Dq resolv readonly ,
+or have
+.Dq resolv restore
+in
+.Pa /etc/ppp/ppp.linkdown
+as
 .Nm
 will simply circumvent its use by entering some nameserver lines in
 .Pa /etc/resolv.conf .
@@ -2775,17 +2784,21 @@ command (see
 for further details).
 .Pp
 Routes that contain the
-.Dq HISADDR
+.Dq HISADDR ,
+.Dq MYADDR ,
+.Dq DNS0 ,
 or
-.Dq MYADDR
+.Dq DNS1
 constants are considered
 .Sq sticky .
 They are stored in a list (use
 .Dq show ipcp
 to see the list), and each time the value of
-.Dv HISADDR
+.Dv HISADDR ,
+.Dv MYADDR ,
+.Dv DNS0 ,
 or
-.Dv MYADDR
+.Dv DNS1
 changes, the appropriate routing table entries are updated.  This facility
 may be disabled using
 .Dq disable sroutes .
@@ -3035,6 +3048,9 @@ This is replaced with the current process id.
 This is replaced with the username that has been authenticated with PAP or
 CHAP.  Normally, this variable is assigned only in -direct mode.  This value
 is available irrespective of whether utmp logging is enabled.
+.It Li DNS0 No " & " Li DNS1
+These are replaced with the primary and secondary nameserver IP numbers.  If
+nameservers are negotiated by IPCP, the values of these macros will change.
 .El
 .Pp
 These substitutions are also done by the
@@ -3356,6 +3372,69 @@ Renaming it to
 or
 .Sq USR
 may make the log file more readable.
+.It resolv Ar command
+This command controls
+.Nm ppp Ns No s
+manipulation of the
+.Xr resolv.conf 5
+file.  When
+.Nm
+starts up, it loads the contents of this file into memory and retains this
+image for future use.
+.Ar command
+is one of the following:
+.Bl -tag -width readonly
+.It Em readonly
+Treat
+.Pa /etc/resolv.conf
+as read only.  If
+.Dq dns
+is enabled,
+.Nm
+will still attempt to negotiate nameservers with the peer, making the results
+available via the
+.Dv DNS0
+and
+.Dv DNS1
+macros.  This is the opposite of the
+.Dq resolv writable
+command.
+.It Em reload
+Reload
+.Pa /etc/resolv.conf
+into memory.  This may be necessary if for example a DHCP client overwrote
+.Pa /etc/resolv.conf .
+.It Em restore
+Replace
+.Pa /etc/resolv.conf
+with the version originally read at startup or with the last
+.Dq resolv reload
+command.  This is sometimes a useful command to put in the
+.Pa /etc/ppp/ppp.linkdown
+file.
+.It Em rewrite
+Rewrite the
+.Pa /etc/resolv.conf
+file.  This command will work even if the
+.Dq resolv readonly
+command has been used.  It may be useful as a command in the
+.Pa /etc/ppp/ppp.linkup
+file if you wish to defer updating
+.Pa /etc/resolv.conf
+until after other commands have finished.
+.It Em writable
+Allow
+.Nm
+to update
+.Pa /etc/resolv.conf
+if
+.Dq dns
+is enabled and
+.Nm
+successfully negotiates a DNS.  This is the opposite of the
+.Dq resolv readonly
+command.
+.El
 .It save
 This option is not (yet) implemented.
 .It set Ns Xo
