@@ -1475,6 +1475,9 @@ extern image_patch_table ndis_functbl[];
 #define NDIS_TASKQUEUE	1
 #define NDIS_SWI	2
 
+#define NDIS_PSTATE_RUNNING	1
+#define NDIS_PSTATE_SLEEPING	2
+
 __BEGIN_DECLS
 extern int ndis_libinit(void);
 extern int ndis_libfini(void);
