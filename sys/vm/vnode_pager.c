@@ -60,6 +60,7 @@
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
 #include <sys/conf.h>
+#include <sys/stdint.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -717,14 +718,12 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			IDX_TO_OFF(m[i]->pindex), &runpg);
 		if (firstaddr == -1) {
 			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				/* XXX no %qd in kernel. */
-				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: 0x%lx%08lx, vnp_size: 0x%lx%08lx",
-			   	 firstaddr, (u_long)(foff >> 32),
-			   	 (u_long)(u_int32_t)foff,
-				 (u_long)(u_int32_t)
-				 (object->un_pager.vnp.vnp_size >> 32),
-				 (u_long)(u_int32_t)
-				 object->un_pager.vnp.vnp_size);
+				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %d, foff: 0x%jx%08jx, vnp_size: 0x%jx%08jx",
+				    firstaddr, (uintmax_t)(foff >> 32),
+				    (uintmax_t)foff,
+				    (uintmax_t)
+				    (object->un_pager.vnp.vnp_size >> 32),
+				    (uintmax_t)object->un_pager.vnp.vnp_size);
 			}
 			vm_page_lock_queues();
 			vm_page_free(m[i]);
