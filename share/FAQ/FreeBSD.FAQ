@@ -6,9 +6,10 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@freefall.cdrom.com>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.1 1994/09/11 10:56:02 jkh Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.2 1994/09/16 18:24:37 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
+Any entries with a <XXX> are under construction.
 
 
 Table of Contents
@@ -23,7 +24,7 @@ Table of Contents
 6 Kernel Configuration 
 7 System Administration
 8 Networking
-9 Serial Communications
+9 Serial Communications <XXX> 
 
 
 
@@ -53,10 +54,10 @@ the FreeBSD-current distribution in:
 
 0.1:  What is FreeBSD?  
 
-FreeBSD is a UN*X type operating system based on William Jolitz's port
-of U.C. Berkeley's Networking Release 2 to the i386, 386BSD.  It is no
-longer correct to say that FreeBSD is only 386BSD with the patchkit
-applied!  There have been many additions and bug fixes made throughout
+FreeBSD 2.0 is a UN*X type operating system based on U.C. Berkeley's 
+4.4BSD-lite release for the i386 platform.  It is also based indirectly
+on William Jolitz's port of U.C. Berkeley's Net/2 to the i386, 386BSD.
+There have been many additions and bug fixes made throughout
 the entire system, some of the highlights of which are:
 
    More robust and extensive PC device support
@@ -73,35 +74,7 @@ the entire system, some of the highlights of which are:
    Too many additional utilities and applications to mention
 
 
-0.2:  My friends told me that FreeBSD was illegal and I shouldn't use it.
-      Is this really true?
-
-FreeBSD versions up to and including 1.1 have included code from
-Berkeley's Net/2 distribution.  UNIX Systems Laboratories (now Novell)
-sued Berkeley claiming that Net/2 included some code that belonged to
-USL.  In February of 1994, USL and Berkeley announced a settlement in
-which neither side admitted to doing anything wrong, but UCB agreed to
-stop distributing the disputed software.
-
-Since Berkeley will no longer defend this code, we have been requested
-to stop distributing it, and will be integrating all the improvements
-we have made in the VM system and i386-specific code into Berkeley's
-4.4-Lite distribution; the result will form the basis of FreeBSD 2.0.
-We expect the integration to take place over a period of three to six
-months, during which time we will have to stop work on 1.1 and
-concentrate all our efforts on the merge, and we expect to make more 
-information available on the status of the merge effort as the situation 
-progresses.
-
-However, to answer the question, "No.  FreeBSD is not illegal."  We
-have been allowed by USL to distribute 1.1 as the last Net/2 derived
-version, after which we have committed to move to 4.4 as previously 
-stated.
-
-We expect to make more information available on the status of the
-merge effort as the situation progresses.
-
-0.3:  What are the FreeBSD mailing lists, and how can I get on them? 
+0.2:  What are the FreeBSD mailing lists, and how can I get on them? 
 
 The following mailing lists are provided for FreeBSD users and
 developers.  For more information, send to
@@ -123,7 +96,7 @@ Please see also the FreeBSD mailing list FAQ in:
 
         /usr/src/contrib/FAQ/FreeBSD.mailing-list.FAQ
 
-0.4:  What are the various FreeBSD news groups? 
+0.3:  What are the various FreeBSD news groups? 
 
 While there are no groups currently dedicated to FreeBSD, you may find
 the following groups useful.
@@ -190,7 +163,10 @@ if you have documentation for your drive, you may want to see if this
 feature has been disabled on your drive.  However, ESDI, RLL, and
 ST-506 drives normally do not do this.
 
-<XXX> 1.5:  I have 32MB of memory, should I expect any special problems?
+1.5:  I have 32MB of memory, should I expect any special problems?
+
+No.  FreeBSD 2.0 comes with bounce buffers which allows your bus
+mastering controller access to greater than 16MB.
 
 1.6:  Do I need to install the complete sources?
 
@@ -263,22 +239,22 @@ IDE and SCSI hard drives.
 
 FreeBSD supports the following SCSI controllers:
 
-Adaptec              AH-1542 Series <ISA>
-                     AH-1742 Series <EISA>
+Adaptec              AH-154x Series <ISA>
+                     AH-174x Series <EISA>
+                     AH-152x Series <ISA>
 Buslogic             BT-445 Series <VLB> (but see section 1.5)
                      BT-545 Series <ISA>
                      BT-742 Series <EISA>
                      BT-747 Series <EISA>
                      BT-964 Series <PCI>
-Future Domain        TMC-8XX/950 Series <ISA> 
+Future Domain        TMC-8xx/950 Series <ISA> 
 Generic              NCR 53C810 based controllers <PCI> 
-ProAudioSpectrum     NCR 5380 based controlers <ISA>
+ProAudioSpectrum     Zilog 5380 based controllers <ISA>
+                     SCSI-2 controllers <ISA>
 Seagate              ST-01/02 Series <ISA>
 UltraStor            UH-14f Series <ISA>
                      UH-34f Series <EISA/VLB>
 
-There is supposed to be a UltraStor 24f driver floating around, but
-we're not sure where (could someone please point us at it?).   
 
 2.3:  What CD-ROM drives are supported by FreeBSD?
 
@@ -356,6 +332,7 @@ There is support for the following cards:
 
 `ie' driver:
         AT&T EN100/StarLAN 10
+        3Com 3c507 
 
 `is' driver:
         Isolan AT 4141-0
@@ -363,8 +340,12 @@ There is support for the following cards:
 
 `ep' driver:
         3com 3c509 (*)
+
 `el' driver:
 	3com 3c501 (*)
+
+`ze' driver:
+        IBM PCMCIA credit card adapter
 
 (*)The `ep' and `el' driver is known to have some problems; see the
 /usr/src/KNOWNBUGS file for more details.
@@ -408,14 +389,6 @@ entries here for inclusion.
 <XXX> 3.1:  Where can I get Motif for FreeBSD?
 
 
-3.2:  What about other commercial quality development systems for FreeBSD?
-
-ParcPlace Systems, Inc., who currently provides their excellent
-`Object Interface & Object Builder' GUI development environment free
-of charge to Linux users, is considering the the FreeBSD platform and
-will make their intentions known fairly shortly.
-
-
 
 4 User Applications
 -------------------
@@ -440,25 +413,7 @@ options                         GPL_MATH_EMULATE
 NOTE:  You will need to remove the MATH_EMULATE option when you do this.
 
 
-4.2:  If I want something like seyon, term, Kermit, emacs or any one of
-      hundreds of popular freeware utilities, is there a good place to
-      search through first?
-
-Yes, the FreeBSD `ports collection' was put together for just that
-purpose.  It contains some of the most often requested languages,
-editors, mail and news reading programs, network software and many
-many megabytes of other types of useful goodies.  CDROM people will
-probably have the ports collection already in /usr/ports, other folks
-can get at the latest snapshot of the entire collection in:
-
-        FreeBSD.cdrom.com:pub/FreeBSD/FreeBSD-current/ports
-
-Note that this FTP server permits getting entire directories as one
-(optionally gzipped or compressed) tar file.  Read the FTP welcome
-banner carefully for details.
-
-
-4.3:  I want all this neat software, but I haven't got the space or
+4.2:  I want all this neat software, but I haven't got the space or
       CPU power to compile it all myself.  Is there any way of getting
       binaries?
 
@@ -469,7 +424,7 @@ also be installed or deinstalled again easily without having to know
 the gory details.  CDROM people will have a packages/ directory on
 their CD, others can get the currently available packages from:
 
-        FreeBSD.cdrom.com:pub/FreeBSD/packages-1.1
+        FreeBSD.cdrom.com:pub/FreeBSD/packages
 
 Note that all ports may not be available as packages, and that new
 packages are constantly being added.  It is always a good idea to
@@ -623,13 +578,7 @@ options         SYSVMSG                 # enable for messaging
 Recompile and install.
 
 
-6.4:  Are there any utilities that make configuring a kernel easier?
-
-Well, yes and no.  Look in /sys/i386/doc/options.doc for a list of kernel 
-options you can set, and what they do.
-
-
-6.5:  Will FreeBSD ever support other architectures?
+6.4:  Will FreeBSD ever support other architectures?
 
 Several different groups have expressed interest in working on
 multi-architecture support for FreeBSD.  If you are interested in
@@ -638,7 +587,7 @@ doing so, please contact the developers at
 strategy for porting.
 
 
-6.6:  I just wrote a device driver for a Foobar Systems, Inc.
+6.5:  I just wrote a device driver for a Foobar Systems, Inc.
       Integrated Adaptive Gronkulator card.  How do I get the
       appropriate major numbers assigned?
 
@@ -668,52 +617,9 @@ Use the adduser command.
      looking at /etc/printcap, but it's close to useless.  Any ideas?
 
 
-7.3:	Help!  I've lost my root password!  How do I log in now?
-	Alternatively:  I botched something bad in my root partition
-	that keeps me from booting, how do I fix it!?
-
-Follow these steps:
-
-1. First off, you need to boot the system single-user:  Do this by rebooting
-or resetting the machine, and when you come to the very first boot prompt
-(the one you probably generally just hit `return' at or wait for it to
-time-out) type:
-
-		386bsd -s
-
-This will send the `-s' flag to init(1) telling it to not bring you up all
-the way into multi-user mode.  The system should come up single-user and
-present you with a simple `#' prompt.
-
-2. Now is probably a good time to type `fsck' and make sure your filesystems
-are alright.  If problems on your root filesystem are found and fixed, I would
-recommend hitting the reset switch again and going back to step 1.  Your
-filesystems should all check fine the second time.
-
-3. At this point, your root filesystem is mounted *read only* for safety.
-If the problems you must fix are not on the root fs then I recommend that
-you simply leave it this way and fix the other problems.  If you need to
-write to the root fs (fixing passwords requires this, for one thing) and
-you're using SCSI for your root fs then type:
-
-	mount -u /dev/sd0a /
-
-If you're using IDE/ESDI for your rootfs, then instead type:
-
-	mount -u /dev/wd0a /
-
-This will remount your root filesystem read/write and allow you to make
-your changes.  Once you have done so, I recommend another reboot.  -Jordan
-
 
 8 Networking
 ------------
-
-8.1:  Where can I get information booting FreeBSD `diskless', that is
-      booting and running a FreeBSD box from a server rather than having
-      a local disk?
-
-Please read /sys/i386/netboot/netboot.doc.
 
 
 8.2:  I've heard that you can use a FreeBSD box as a dedicated network
@@ -726,7 +632,7 @@ file and recompiling.  In most cases, you will also need to run a
 routing process to tell other systems on your network about your
 router; FreeBSD comes with the standard BSD routing daemon routed(8),
 or for more complex situations you may want to try GateD (available by
-FTP from gated.Cornell.edu).
+FTP from gated.Cornell.edu) which supports FreeBSD as of 3_5Alpha7.
 
 It is our duty to warn you that, even when FreeBSD is configured in
 this way, it does not completely comply with the Internet standard
@@ -811,24 +717,10 @@ rtpqual		Tools for testing the	ftp.psc.edu:/pub/net_tools/rtpqual.c
 vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 		and nv.
 
-[Many thanks to Jim Lowe for this information] 
 
 
 9 Serial Communications
 -----------------------
-
-9.1:  When I do a set line in Kermit it locks up, what's the problem?
-
-The problem here is that FreeBSD thinks it's talking to a incoming
-modem connection, and is waiting for carrier to come up on it before
-completing the open.  To disable modem control, do an:
-
-        stty -f /dev/ttyXX clocal
-
-(Where `ttyXX' is the tty port you're using).  If you use a given port
-only for outgoing connections, you may wish to put this command in
-your /etc/rc.local to avoid having to do it every time you reboot your
-system.
 
 
 NOTE: Anyone wishing to submit a FAQ entry on how to get tip and cu working
@@ -851,6 +743,7 @@ Jordan Hubbard          - Janitorial services (I don't do windows)
 Garrett Wollman         - Networking and formatting
 Robert Oliver, Jr.      - Ideas and dumb questions (That made me think)
 Ollivier Robert         - Invaluable feedback and contributions
+Jim Lowe                - Multicast information 
 The FreeBSD Team        - Kvetching, moaning, submitting data
 
 And to any others we've forgotten, apologies and heartfelt thanks!
