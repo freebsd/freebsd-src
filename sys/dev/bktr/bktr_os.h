@@ -60,9 +60,15 @@ void            free_bktr_mem(bktr_ptr_t, bus_dmamap_t, vm_offset_t);
 /* *** Interrupt Enable/Disable *** */
 /************************************/
 #if defined(__FreeBSD__)
+#if (__FreeBSD_version >=500000)
+#define	DECLARE_INTR_MASK(s)	critical_t s
+#define DISABLE_INTR(s)		s = critical_enter()
+#define	ENABLE_INTR(s)		critical_exit(s)
+#else
 #define DECLARE_INTR_MASK(s)	intrmask_t s
 #define DISABLE_INTR(s)		s=spltty()
 #define ENABLE_INTR(s)		splx(s)
+#endif
 #else
 #define DECLARE_INTR_MASK(s)	/* no need to declare 's' */
 #define DISABLE_INTR(s)		disable_intr()
