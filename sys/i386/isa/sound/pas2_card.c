@@ -46,6 +46,8 @@ static int      pas_intr_mask = 0;
 static int      pas_irq = 0;
 
 static char     pas_model;
+static unsigned char board_rev_id;
+#define PAS_REVD_BOARD_ID 127
 static char    *pas_model_names[] =
 {"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
@@ -75,8 +77,11 @@ pas_write (unsigned char data, int ioaddr)
 void
 mix_write (unsigned char data, int ioaddr)
 {
-  outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
-  outb (0, 0x80);
+  if (board_rev_id >= PAS_REVD_BOARD_ID) {
+	outw ((ioaddr ^ translat_code) - 1, data | (data << 8));
+	outb (0, 0x80);
+  } else
+	OUTB (data, ioaddr ^ translat_code);
 }
 
 void
@@ -329,12 +334,13 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
   if (detect_pas_hw (hw_config))
     {
 
-      if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]))
+	board_rev_id = pas_read (BOARD_REV_ID);
+	if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]))
 	{
 #ifdef __FreeBSD__
-	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
+	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
 #else
-	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
+	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
 #endif
 	}
 
