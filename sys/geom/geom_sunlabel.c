@@ -147,7 +147,7 @@ g_sunlabel_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, stru
 	}
 }
 
-struct h0h0 {
+struct g_hh01 {
 	struct g_geom *gp;
 	struct g_sunlabel_softc *ms;
 	u_char *label;
@@ -157,7 +157,7 @@ struct h0h0 {
 static void
 g_sunlabel_callconfig(void *arg, int flag)
 {
-	struct h0h0 *hp;
+	struct g_hh01 *hp;
 
 	hp = arg;
 	hp->error = g_sunlabel_modify(hp->gp, hp->ms, hp->label);
@@ -174,7 +174,7 @@ g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 {
 	u_char *label;
 	int error, i;
-	struct h0h0 h0h0;
+	struct g_hh01 h0h0;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
 
@@ -232,10 +232,9 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, npart;
+	int error;
 	u_char *buf;
 	struct g_sunlabel_softc *ms;
-	off_t mediasize;
 	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "g_sunlabel_taste(%s,%s)", mp->name, pp->name);
@@ -248,14 +247,12 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		return (NULL);
 	gsp = gp->softc;
 	gp->dumpconf = g_sunlabel_dumpconf;
-	npart = 0;
 	do {
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
 		ms->sectorsize = cp->provider->sectorsize;
 		if (ms->sectorsize < 512)
 			break;
-		mediasize = cp->provider->mediasize;
 		g_topology_unlock();
 		buf = g_read_data(cp, 0, ms->sectorsize, &error);
 		g_topology_lock();
