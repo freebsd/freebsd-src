@@ -877,7 +877,6 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		}
 	}
 	if (!error)  {
-		printf("%s%d: Malloc disk\n", MD_NAME, sc->unit);
 		mdinit(sc);
 	} else
 		mddestroy(sc, NULL);
