@@ -109,3 +109,7 @@ o MP autoload throughput measurements are now based on the maximum of input
 o When only one link is open in MP mode, MP link level compression is not
   open and the peer MRU >= the peer MRRU, ppp sends outbound traffic as
   PROTO_IP traffic rather than PROTO_MP.
+o MSCHAPv2 is now accepted by default.  If you don't wish to negotiate
+  this, you must explicitly deny it.
+o MPPE is enabled and accepted by default (although deflate and predictor1
+  are preferred.
