@@ -190,7 +190,7 @@
         panics on PAE machines of certain large memory sizes has been
         corrected.</para>
 
-      <para arch="i368">Floating point emulation in the kernel has
+      <para arch="i386,pc98">Floating point emulation in the kernel has
 	been removed.</para>
 
     </sect3>
