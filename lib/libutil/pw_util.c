@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -288,7 +289,7 @@ int
 pw_edit(int notsetuid)
 {
 	struct sigaction sa, sa_int, sa_quit;
-	sigset_t sigset, oldsigset;
+	sigset_t oldsigset, sigset;
 	struct stat st1, st2;
 	const char *editor;
 	int pstat;
@@ -310,14 +311,14 @@ pw_edit(int notsetuid)
 		return (-1);
 	case 0:
 		sigaction(SIGINT, &sa_int, NULL);
-		sigaction(SIGQUIT,  &sa_quit, NULL);
+		sigaction(SIGQUIT, &sa_quit, NULL);
 		sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 		if (notsetuid) {
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, editor, tempname, NULL);
+		execlp(editor, basename(editor), tempname, NULL);
 		_exit(errno);
 	default:
 		/* parent */
@@ -325,7 +326,10 @@ pw_edit(int notsetuid)
 	}
 	for (;;) {
 		if (waitpid(editpid, &pstat, WUNTRACED) == -1) {
+			if (errno == EINTR)
+				continue;
 			unlink(tempname);
+			editpid = -1;
 			break;
 		} else if (WIFSTOPPED(pstat)) {
 			raise(WSTOPSIG(pstat));
@@ -339,7 +343,7 @@ pw_edit(int notsetuid)
 		}
 	}
 	sigaction(SIGINT, &sa_int, NULL);
-	sigaction(SIGQUIT,  &sa_quit, NULL);
+	sigaction(SIGQUIT, &sa_quit, NULL);
 	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
