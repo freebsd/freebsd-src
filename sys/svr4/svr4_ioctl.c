@@ -30,20 +30,13 @@
 
 #include <sys/param.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/mount.h>
 #include <net/if.h>
-#include <sys/malloc.h>
 
-#include <sys/sysproto.h>
 
 #include <svr4/svr4.h>
 #include <svr4/svr4_types.h>

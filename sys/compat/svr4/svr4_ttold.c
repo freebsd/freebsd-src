@@ -35,15 +35,10 @@
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl_compat.h>
-#include <sys/unistd.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
 #include <sys/socket.h>
-#include <sys/mount.h>
 #include <net/if.h>
-#include <sys/malloc.h>
 
-#include <sys/sysproto.h>
 
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_util.h>

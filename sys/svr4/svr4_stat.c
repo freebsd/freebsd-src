@@ -30,18 +30,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/unistd.h>
 
 #include <sys/time.h>
-#include <sys/ucred.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 #include <netinet/in.h>
