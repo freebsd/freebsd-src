@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.63 1999/02/03 04:21:24 semenu Exp $
+#	$Id: Makefile,v 1.64 1999/02/10 21:09:48 obrien Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -22,6 +22,7 @@ SUBDIR=	adjkerntz \
 	init \
 	ipf \
 	ipfw \
+	kget \
 	kldload \
 	kldstat \
 	kldunload \
