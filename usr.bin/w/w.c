@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.29 1998/11/09 01:19:30 steve Exp $";
+	"$Id: w.c,v 1.30 1998/12/24 18:20:58 steve Exp $";
 #endif /* not lint */
 
 /*
@@ -114,10 +114,11 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-static void	 pr_header __P((time_t *, int));
+static void	pr_header __P((time_t *, int));
 static struct stat
 		*ttystat __P((char *));
-static void	 usage __P((int));
+static void	usage __P((int));
+static int	this_is_uptime __P((const char *s));
 
 char *fmt_argv __P((char **, char *, int));	/* ../../bin/ps/fmt.c */
 
@@ -141,7 +142,7 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	/* Are we w(1) or uptime(1)? */
-	if (strstr(argv[0], "uptime")) {
+	if (this_is_uptime(argv[0]) == 0) {
 		wcmd = 0;
 		p = "";
 	} else {
@@ -494,3 +495,19 @@ usage(wcmd)
 			"usage: uptime\n");
 	exit (1);
 }
+
+static int 
+this_is_uptime(s)
+	const char *s;
+{
+	const char *u;
+
+	if ((u = strrchr(s, '/')) != NULL)
+		++u;
+	else
+		u = s;
+	if (strcmp(u, "uptime") == 0)
+		return(0);
+	return(-1);
+}
+
