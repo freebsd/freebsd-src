@@ -19,6 +19,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #ifdef STDC_HEADERS
 #include <stdlib.h>
@@ -137,8 +138,12 @@ do_system_command (command)
   else
     status = system (command);
 
-  if (status)
+  if (WIFSIGNALED(status))
     return 0;
+  else if (WEXITSTATUS(status)) {
+    gripe_system_command (status);
+    return 0;
+  }
   else
     return 1;
 }
