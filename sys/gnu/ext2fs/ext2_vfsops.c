@@ -655,7 +655,16 @@ ext2_mountfs(devvp, mp, td)
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	/*
+	 * XXX Open the device with write access even if the filesystem
+	 * is read-only: someone may remount it read-write later, and
+	 * we don't VOP_OPEN the device again in that case.
+	 */
+#ifdef notyet
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
+#else
+	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td, -1);
+#endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
@@ -735,7 +744,12 @@ ext2_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
+	/* XXX See comment at VOP_OPEN call */
+#ifdef notyet
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
+#else
+	(void)VOP_CLOSE(devvp, FREAD|FWRITE, NOCRED, td);
+#endif
 	if (ump) {
 		bsd_free(ump->um_e2fs->s_es, M_EXT2MNT);
 		bsd_free(ump->um_e2fs, M_EXT2MNT);
@@ -790,8 +804,13 @@ ext2_unmount(mp, mntflags, td)
 			ULCK_BUF(fs->s_block_bitmap[i])
 
 	ump->um_devvp->v_rdev->si_mountpoint = NULL;
+	/* XXX See comment at VOP_OPEN call */
+#ifdef notyet
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, td);
+#else
+	error = VOP_CLOSE(ump->um_devvp, FREAD|FWRITE, NOCRED, td);
+#endif
 	vrele(ump->um_devvp);
 	bsd_free(fs->s_es, M_EXT2MNT);
 	bsd_free(fs, M_EXT2MNT);
