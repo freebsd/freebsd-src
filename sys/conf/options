@@ -162,6 +162,7 @@ HZ		opt_param.h
 MAXFILES	opt_param.h
 NBUF		opt_param.h
 NMBCLUSTERS	opt_param.h
+NMBUFS		opt_param.h
 NSFBUFS		opt_param.h
 VM_BCACHE_SIZE_MAX	opt_param.h
 VM_SWZONE_SIZE_MAX	opt_param.h
