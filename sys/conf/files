@@ -213,6 +213,9 @@ miibus_if.h		optional miibus					\
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
 dev/mlx/mlx.c		optional mlx
+dev/mly/mly.c		optional mly
+dev/mly/mly_cam.c	optional mly
+dev/mly/mly_pci.c	optional mly
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
