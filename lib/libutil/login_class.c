@@ -57,6 +57,7 @@ static struct login_res {
     { "openfiles",    login_getcapnum,  RLIMIT_NOFILE   },
     { "coredumpsize", login_getcapsize, RLIMIT_CORE     },
     { "sbsize",       login_getcapsize,	RLIMIT_SBSIZE	},
+    { "vmemoryuse",   login_getcapsize,	RLIMIT_VMEM	},
     { NULL,	      0,		0 	        }
 };
 
