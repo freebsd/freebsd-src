@@ -1246,6 +1246,8 @@ nerv		1222/tcp   #SNI R&D network
 nerv		1222/udp   #SNI R&D network		     
 hermes		1248/tcp
 hermes		1248/udp
+healthd		1281/tcp   #healthd
+healthd		1281/udp   #healthd
 alta-ana-lm	1346/tcp   #Alta Analytics License Manager 
 alta-ana-lm	1346/udp   #Alta Analytics License Manager 
 bbn-mmc		1347/tcp   #multi media conferencing
