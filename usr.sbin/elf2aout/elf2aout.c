@@ -29,16 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/elf64.h>
+#include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <fcntl.h>
-
-#define	be16toh(x)	(x)
-#define	be32toh(x)	(x)
-#define	be64toh(x)	(x)
-#define	htobe32(x)	(x)
 
 struct exec {
 	u_int	a_magic;
