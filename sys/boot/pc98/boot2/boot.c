@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.19 1998/10/11 15:09:14 kato Exp $
+ *	$Id: boot.c,v 1.1 1999/02/03 08:39:08 kato Exp $
  */
 
 
@@ -373,10 +373,7 @@ readfile(char *path, char *buf, size_t nbytes)
 	buf[0] = '\0';
 	name = path;
 	openstatus = openrd();
-	if (openstatus != 0) {
-		if (openstatus > 0)
-			printf("Can't find file %s\n", name);
-	} else {
+	if (openstatus == 0) {
 		/* XXX no way to determine file size. */
 		read(buf, nbytes);
 	}
