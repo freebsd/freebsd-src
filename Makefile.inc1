@@ -378,6 +378,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 .for _kernel in ${BUILDKERNELS}
 	@echo "===> ${_kernel}"
+	mkdir -p ${KRNLOBJDIR}
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
@@ -487,7 +488,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
-    gnu/usr.bin/texinfo
+    gnu/usr.bin/gperf gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
