@@ -27,7 +27,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
-# update      - convenient way to update your source tree (eg: sup/cvs)
+# update      - convenient way to update your source tree (eg: cvsup/cvs)
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
@@ -739,7 +739,7 @@ reinstallkernel reinstallkernel.debug: ${SPECIAL_INSTALLCHECKS}
 #
 # update
 #
-# Update the source tree, by running sup and/or running cvs to update to the
+# Update the source tree, by running cvsup and/or running cvs to update to the
 # latest copy.
 #
 update:
@@ -765,7 +765,7 @@ update:
 .endif
 .if defined(CVS_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
+	@echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${CVS} -R -q update ${CVSFLAGS}
 .endif
