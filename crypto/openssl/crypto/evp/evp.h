@@ -95,6 +95,9 @@ extern "C" {
 #ifndef NO_CAST
 #include <openssl/cast.h>
 #endif
+#ifndef NO_IDEA
+#include <openssl/idea.h>
+#endif
 #ifndef NO_MDC2
 #include <openssl/mdc2.h>
 #endif
@@ -365,6 +368,9 @@ typedef struct evp_cipher_ctx_st
 			des_key_schedule ks2;/* key schedule (for ede) */
 			des_key_schedule ks3;/* key schedule (for ede3) */
 			} des_ede;
+#endif
+#ifndef NO_IDEA
+		IDEA_KEY_SCHEDULE idea_ks;/* key schedule */
 #endif
 #ifndef NO_RC2
 		RC2_KEY rc2_ks;/* key schedule */
