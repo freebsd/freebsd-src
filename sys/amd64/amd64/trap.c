@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.71 1996/01/19 03:57:42 dyson Exp $
+ *	$Id: trap.c,v 1.72 1996/02/25 03:02:46 dyson Exp $
  */
 
 /*
@@ -90,7 +90,6 @@ int (*pmath_emulate) __P((struct trapframe *));
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
-extern void linux_syscall __P((struct trapframe frame));
 
 static int trap_pfault __P((struct trapframe *, int));
 static void trap_fatal __P((struct trapframe *));
@@ -875,22 +874,26 @@ syscall(frame)
 	p->p_md.md_regs = (int *)&frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
-	/*
-	 * Need to check if this is a 32 bit or 64 bit syscall.
-	 */
-	if (code == SYS_syscall) {
+	if (p->p_sysent->sv_prepsyscall) {
+		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
+	} else {
 		/*
-		 * Code is first argument, followed by actual args.
+		 * Need to check if this is a 32 bit or 64 bit syscall.
 		 */
-		code = fuword(params);
-		params += sizeof(int);
-	} else if (code == SYS___syscall) {
-		/*
-		 * Like syscall, but code is a quad, so as to maintain
-		 * quad alignment for the rest of the arguments.
-		 */
-		code = fuword(params);
-		params += sizeof(quad_t);
+		if (code == SYS_syscall) {
+			/*
+			 * Code is first argument, followed by actual args.
+			 */
+			code = fuword(params);
+			params += sizeof(int);
+		} else if (code == SYS___syscall) {
+			/*
+			 * Like syscall, but code is a quad, so as to maintain
+			 * quad alignment for the rest of the arguments.
+			 */
+			code = fuword(params);
+			params += sizeof(quad_t);
+		}
 	}
 
  	if (p->p_sysent->sv_mask)
@@ -901,7 +904,7 @@ syscall(frame)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	if ((i = callp->sy_narg * sizeof(int)) &&
+	if (params && (i = callp->sy_narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
@@ -933,9 +936,10 @@ syscall(frame)
 
 	case ERESTART:
 		/*
-		 * Reconstruct pc, assuming lcall $X,y is 7 bytes.
+		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
+		 * int 0x80 is 2 bytes. We saved this in tf_err.
 		 */
-		frame.tf_eip -= 7;
+		frame.tf_eip -= frame.tf_err;
 		break;
 
 	case EJUSTRETURN:
@@ -966,98 +970,3 @@ bad:
 		ktrsysret(p->p_tracep, code, error, rval[0]);
 #endif
 }
-
-#if defined(COMPAT_LINUX) || defined(LINUX)
-void
-linux_syscall(frame)
-	struct trapframe frame;
-{
-	struct proc *p = curproc;
-	struct sysent *callp;
-	u_quad_t sticks;
-	int error;
-	int rval[2];
-	u_int code;
-	struct linux_syscall_args {
-		int arg1;
-		int arg2;
-		int arg3;
-		int arg4;
-		int arg5;
-	} args;
-
-	args.arg1 = frame.tf_ebx;
-	args.arg2 = frame.tf_ecx;
-	args.arg3 = frame.tf_edx;
-	args.arg4 = frame.tf_esi;
-	args.arg5 = frame.tf_edi;
-
-	sticks = p->p_sticks;
-	if (ISPL(frame.tf_cs) != SEL_UPL)
-		panic("linux syscall");
-
-	p->p_md.md_regs = (int *)&frame;
-	code = frame.tf_eax;
-
-	if (p->p_sysent->sv_mask)
-		code &= p->p_sysent->sv_mask;
-
-	if (code >= p->p_sysent->sv_size)
-		callp = &p->p_sysent->sv_table[0];
-	else
-		callp = &p->p_sysent->sv_table[code];
-
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, (int *)&args);
-#endif
-
-	rval[0] = 0;
-
-	error = (*callp->sy_call)(p, &args, rval);
-
-	switch (error) {
-
-	case 0:
-		/*
-		 * Reinitialize proc pointer `p' as it may be different
-		 * if this is a child returning from fork syscall.
-		 */
-		p = curproc;
-		frame.tf_eax = rval[0];
-		frame.tf_eflags &= ~PSL_C;
-		break;
-
-	case ERESTART:
-		/* Reconstruct pc, subtract size of int 0x80 */
-		frame.tf_eip -= 2;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize)
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		frame.tf_eax = -error;
-		frame.tf_eflags |= PSL_C;
-		break;
-	}
-
-	if (frame.tf_eflags & PSL_T) {
-		/* Traced syscall. */
-		frame.tf_eflags &= ~PSL_T;
-		trapsignal(p, SIGTRAP, 0);
-	}
-
-	userret(p, &frame, sticks);
-
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, rval[0]);
-#endif
-}
-#endif /* COMPAT_LINUX || LINUX */

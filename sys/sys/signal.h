@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id: signal.h,v 1.5 1995/10/19 19:16:00 swallace Exp $
+ * $Id: signal.h,v 1.6 1996/01/22 12:31:15 mpp Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -130,13 +130,13 @@ struct	sigaction {
 #ifndef _POSIX_SOURCE
 #define SA_ONSTACK	0x0001	/* take signal on signal stack */
 #define SA_RESTART	0x0002	/* restart system call on signal return */
-#define	SA_DISABLE	0x0004	/* disable taking signals on alternate stack */
+#define	SA_RESETHAND	0x0004	/* reset to SIG_DFL when taking signal */
+#define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
 #ifdef COMPAT_SUNOS
 #define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
 #endif
-#endif
+#endif	/* _POSIX_SOURCE */
 #define SA_NOCLDSTOP	0x0008	/* do not generate SIGCHLD on child stop */
-#define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
 
 /*
  * Flags for sigprocmask:
@@ -154,8 +154,10 @@ typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 struct	sigaltstack {
 	char	*ss_sp;			/* signal stack base */
 	int	ss_size;		/* signal stack length */
-	int	ss_flags;		/* SA_DISABLE and/or SA_ONSTACK */
+	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
 };
+#define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
+#define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
 #define	MINSIGSTKSZ	8192			/* minimum allowable stack */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 
@@ -171,6 +173,7 @@ struct	sigvec {
 
 #define SV_ONSTACK	SA_ONSTACK
 #define SV_INTERRUPT	SA_RESTART	/* same bit, opposite sense */
+#define SV_RESETHAND	SA_RESETHAND
 #define sv_onstack sv_flags	/* isn't compatibility wonderful! */
 
 /*

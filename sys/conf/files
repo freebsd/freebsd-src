@@ -47,6 +47,7 @@ kern/imgact_shell.c	standard
 kern/inflate.c		optional gzip
 kern/init_main.c	standard
 kern/init_sysent.c	standard
+kern/init_sysvec.c	standard
 kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard

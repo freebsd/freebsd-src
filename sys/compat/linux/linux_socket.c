@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.2 1995/11/22 07:43:50 bde Exp $
+ *  $Id: linux_socket.c,v 1.3 1995/12/15 03:06:57 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -41,7 +41,7 @@
 #include <netinet/in.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/sysproto.h>
+#include <i386/linux/linux_proto.h>
 
 static int
 linux_to_bsd_domain(int domain)
@@ -554,11 +554,6 @@ linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args, int *retval
     bsd_args.avalsize = linux_args.optlen;
     return getsockopt(p, &bsd_args, retval);
 }
-
-struct linux_socketcall_args {
-    int what;
-    void *args;
-};
 
 int
 linux_socketcall(struct proc *p, struct linux_socketcall_args *args,int *retval)

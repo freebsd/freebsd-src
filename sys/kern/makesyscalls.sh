@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.15 1995/10/07 06:24:07 swallace Exp $
+# $Id: makesyscalls.sh,v 1.16 1995/10/07 23:56:18 swallace Exp $
 
 set -e
 
@@ -17,7 +17,6 @@ syshide="../sys/syscall-hide.h"
 syscallprefix="SYS_"
 switchname="sysent"
 namesname="syscallnames"
-sysvec=""
 
 # tmp files:
 sysdcl="sysent.dcl"
@@ -68,7 +67,6 @@ s/\$//g
 		syscallprefix = \"$syscallprefix\"
 		switchname = \"$switchname\"
 		namesname = \"$namesname\"
-		sysvec = \"$sysvec\"
 		infile = \"$1\"
 		"'
 
@@ -353,17 +351,7 @@ s/\$//g
 		printf("\n#endif /* %s */\n", compat) > syscompatdcl
 		printf("\n#endif /* !%s */\n", sysproto_h) > syscompatdcl
 
-		printf("};\n\n") > sysent
-		if(sysvec != "")
-			printf(sysvec) > sysent;
-		else {
-			printf ("struct sysentvec aout_sysvec = {\n") > sysent
-			printf ("\tsizeof (%s) / sizeof (%s[0]),\n", \
-				switchname, switchname) > sysent
-			printf ("\t%s,\n", switchname) > sysent
-			printf ("\t0,\n\t0,\n\t0,\n\t0,\n\t0,\n\t0\n};\n") \
-				 > sysent
-		}
+		printf("};\n") > sysent
 		printf("};\n") > sysnames
 		printf("#define\t%sMAXSYSCALL\t%d\n", syscallprefix, syscall) \
 			> syshdr
