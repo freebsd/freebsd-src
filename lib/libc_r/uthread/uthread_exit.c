@@ -225,8 +225,9 @@ pthread_exit(void *status)
 		}
 
 		/* Set the return value for the joining thread: */
-		pthread->ret = _thread_run->ret;
-		pthread->error = 0;
+		pthread->join_status.ret = _thread_run->ret;
+		pthread->join_status.error = 0;
+		pthread->join_status.thread = NULL;
 
 		/* Make this thread collectable by the garbage collector. */
 		PTHREAD_ASSERT(((_thread_run->attr.flags & PTHREAD_DETACHED) ==
