@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: savecore.c,v 1.21 1998/07/28 06:38:57 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,7 +65,13 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "zopen.h"
 
+#ifdef __alpha__
+#define ok(number) ALPHA_K0SEG_TO_PHYS(number)
+#endif
+
+#ifdef __i386__
 #define ok(number) ((number) - KERNBASE)
+#endif
 
 struct nlist current_nl[] = {	/* Namelist for currently running system. */
 #define X_DUMPDEV	0
