@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: buf.c,v 1.12 1997/08/07 21:33:39 steve Exp $";
+	"$Id: buf.c,v 1.13 1997/10/08 13:46:39 eivind Exp $";
 #endif
 #endif /* not lint */
 
@@ -208,8 +208,7 @@ open_sbuf()
 	isbinary = newline_added = 0;
 	u = umask(077);
 	strcpy(sfn, "/tmp/ed.XXXXXX");
-	if (mktemp(sfn) == NULL ||
-	    (fd = open(sfn, O_RDWR|O_CREAT|O_EXCL, 0666)) == -1 ||
+	if ((fd = mkstemp(sfn)) == -1 ||
 	    (sfp = fdopen(fd, "w+")) == NULL) {
 		if (fd != -1)
 			close(fd);
