@@ -623,13 +623,11 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		    cfg->baseclass, cfg->subclass, cfg->progif, cfg->hdrtype,
 		    cfg->mfdev);
-#ifdef PCI_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
 		    cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
 		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
 		    cfg->lattimer, cfg->lattimer * 30, cfg->mingnt,
 		    cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
-#endif /* PCI_DEBUG */
 		if (cfg->intpin > 0)
 			printf("\tintpin=%c, irq=%d\n",
 			    cfg->intpin +'a' -1, cfg->intline);
