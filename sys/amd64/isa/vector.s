@@ -16,6 +16,8 @@
 #include <i386/isa/isa.h>
 #endif
 
+#include <machine/intrcnt.h>
+			
 #define FAST_INTR_HANDLER_USES_ES 1
 #ifdef FAST_INTR_HANDLER_USES_ES
 #define	ACTUALLY_PUSHED		1
@@ -43,16 +45,15 @@
  * XXX this doesn't really belong here; everything except the labels
  * for the endpointers is almost machine-independent.
  */
-#define	NR_INTRNAMES	(1 + ICU_LEN + 2 * ICU_LEN)
 
 	.globl	intrcnt, eintrcnt
 intrcnt:
-	.space	NR_INTRNAMES * 4
+	.space	INTRCNT_COUNT * 4
 eintrcnt:
 
 	.globl	intrnames, eintrnames
 intrnames:
-	.space	NR_INTRNAMES * 16
+	.space	INTRCNT_COUNT * 16
 eintrnames:
 	.text
 
