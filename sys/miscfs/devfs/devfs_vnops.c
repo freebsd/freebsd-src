@@ -1316,7 +1316,7 @@ devfs_open( struct vop_open_args *ap)
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
 			return ENXIO;
 		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE) && 
-		    vn_isdisk(vp)) {
+		    vn_isdisk(vp, NULL)) {
 			/*
 			 * When running in very secure mode, do not allow
 			 * opens for writing of any disk devices.

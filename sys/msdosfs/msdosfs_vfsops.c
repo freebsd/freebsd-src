@@ -291,9 +291,9 @@ msdosfs_mount(mp, path, data, ndp, p)
 	devvp = ndp->ni_vp;
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 
-	if (!vn_isdisk(devvp)) {
+	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);
-		return (ENOTBLK);
+		return (error);
 	}
 	/*
 	 * If mount by non-root, then verify that user has necessary

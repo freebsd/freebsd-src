@@ -220,9 +220,9 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENXIO);
 	}
-	if (!vn_isdisk(devvp)) {
+	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);
-		return (ENOTBLK);
+		return (error);
 	}
 
 	/*       
