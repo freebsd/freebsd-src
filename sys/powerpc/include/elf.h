@@ -63,6 +63,17 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
+/*
+ * Types of dynamic symbol hash table bucket and chain elements.
+ *
+ * This is inconsistent among 64 bit architectures, so a machine dependent
+ * typedef is required.
+ */
+
+typedef Elf32_Off Elf32_Hashelt;
+
+__ElfType(Hashelt);
+
 /* Values for a_type. */
 #define	AT_NULL		0	/* Terminates the vector. */
 #define	AT_IGNORE	1	/* Ignored entry. */
