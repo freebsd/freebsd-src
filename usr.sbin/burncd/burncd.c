@@ -222,7 +222,7 @@ main(int argc, char **argv)
 				!strcasecmp(argv[arg + 1], "dvd-rw")))
 				do_format(fd, force, argv[arg + 1]);
 			else
-				err(EX_NOINPUT, "format media type invalid");
+				errx(EX_NOINPUT, "format media type invalid");
 			arg++;
 			continue;
 		}
@@ -266,7 +266,7 @@ main(int argc, char **argv)
 		}
 
 		if (!block_size)
-			err(EX_NOINPUT, "no data format selected");
+			errx(EX_NOINPUT, "no data format selected");
 		if (list) {
 			char file_buf[MAXPATHLEN + 1], *eol;
 			FILE *fp;
@@ -291,7 +291,7 @@ main(int argc, char **argv)
 	}
 	if (notracks) {
 		if (dvdrw && notracks > 1)
-			err(EX_USAGE, "DVD's only have 1 track");
+			errx(EX_USAGE, "DVD's only have 1 track");
 		if (ioctl(fd, CDIOCSTART, 0) < 0)
 			err(EX_IOERR, "ioctl(CDIOCSTART)");
 		if (!cdopen) {
@@ -402,7 +402,7 @@ do_DAO(int fd, int test_write, int multi)
 	for (i = 0; i < notracks; i++) {
 		if (bt2ctl[tracks[i].block_type] < 0 ||
 		    bt2df[tracks[i].block_type] < 0)
-			err(EX_IOERR, "track type not supported in DAO mode");
+			errx(EX_IOERR, "track type not supported in DAO mode");
 
 		if (tracks[i].block_type >= CDR_DB_XA_MODE1)
 			format = CDR_SESS_CDROM_XA;
@@ -549,7 +549,7 @@ do_format(int the_fd, int force, char *type)
 		}
 	}
 	if (i == count)
-		err(EX_IOERR, "could not find a valid format capacity");
+		errx(EX_IOERR, "could not find a valid format capacity");
 
 	if (!quiet)
 		fprintf(stderr,"formatting with blocks=%u type=0x%x param=%u\n",
@@ -558,7 +558,7 @@ do_format(int the_fd, int force, char *type)
 			NTOH3B(capacities.format[i].param));
 
 	if (!force && capacities.type == 2)
-		err(EX_IOERR, "media already formatted (use -F to override)");
+		errx(EX_IOERR, "media already formatted (use -F to override)");
 
 	memset(&format_params, 0, sizeof(struct cdr_format_params));
 	format_params.fov = 1;
