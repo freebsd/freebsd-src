@@ -20,8 +20,6 @@ state == 1 { print; next; }
 }
 /^%%$/ && state == 0 {
   state = 2;
-  print "#include <stddef.h>";
-  print "#include <string.h>";
   if (struct_seen !~ /^$/) {
     print "static const struct", struct_seen, "wordlist[] = {";
   } else {
@@ -36,11 +34,11 @@ state == 1 { print; next; }
 }
 /^%%$/ && state == 2 {
   state = 3;
-  print "\t{ NULL }";
+  print "\t{ NULL, 0, 0 }";
   print "};";
   print "#define\tNWORDS\t(sizeof(wordlist)/sizeof(wordlist[0]) - 1)";
   print "static const struct map *";
-  print "in_word_set(const char *word, unsigned int len)";
+  print "in_word_set(const char *word)";
   print "{";
   print "\tconst struct", struct_seen, "*mp;";
   print "";
