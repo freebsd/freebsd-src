@@ -1,19 +1,14 @@
 # Makefile for uuto
 # $FreeBSD$
 
-BINDIR=		$(bindir)
-CLEANFILES+=	$(ONESHPROG)
-ONESHPROG=	uuto
+SCRIPTS=	uuto
 MAN=		uuto.1
+CLEANFILES+=	$(SCRIPTS)
 
-all: $(ONESHPROG)
+BINDIR=		$(bindir)
 
-$(ONESHPROG): $(ONESHPROG).in Makefile
+uuto: uuto.in
 	sed -e "s|@BINDIR@|$(bindir)|g" \
-		$(.ALLSRC:N*Makefile) > $(.TARGET)
-
-beforeinstall:
-	${INSTALL} -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
-		$(ONESHPROG) $(DESTDIR)$(BINDIR)/$(ONESHPROG)
+		$(.ALLSRC) > $(.TARGET)
 
 .include <bsd.prog.mk>

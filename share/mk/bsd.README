@@ -250,6 +250,11 @@ SUBDIR		A list of subdirectories that should be built as well.
 		Each of the targets will execute the same target in the
 		subdirectories.
 
+SCRIPTS		A list of interpreter scripts [file.{sh,csh,pl,awk,...}].
+		The installation is controlled by the SCRIPTSNAME, SCRIPTSOWN,
+		SCRIPTSGRP, SCRIPTSMODE, SCRIPTSDIR variables that can be
+		further specialized by SCRIPTS<VAR>_<script>.
+
 The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
 
