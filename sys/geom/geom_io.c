@@ -60,6 +60,8 @@ static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
 static struct g_bioq g_bio_idle;
 
+static u_int pace;
+
 #include <machine/atomic.h>
 
 static void
@@ -314,6 +316,14 @@ g_io_deliver(struct bio *bp, int error)
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 	/* finish_stats(&bp->stats); */
 
+	if (error == ENOMEM) {
+		printf("ENOMEM %p on %p(%s)\n",
+			bp, bp->bio_to, bp->bio_to->name);
+		g_io_request(bp, bp->bio_from);
+		pace++;
+		return;
+	}
+
 	bp->bio_error = error;
 
 	g_bioq_enqueue_tail(bp, &g_bio_run_up);
@@ -331,6 +341,10 @@ g_io_schedule_down(struct thread *tp __unused)
 		if (bp == NULL)
 			break;
 		bp->bio_to->geom->start(bp);
+		if (pace) {
+			pace--;
+			break;
+		}
 	}
 }
 
