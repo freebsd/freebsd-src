@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.87 1994/09/28 17:00:14 se Exp $
+#	$Id: LINT,v 1.88 1994/09/28 22:51:54 wollman Exp $
 #
 
 machine		"i386"
@@ -43,7 +43,7 @@ options		HARDFONTS		#load iso8859 fonts instead of
 
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 
-options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
+options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
 					# ^^^ NOT RECOMMENDED FOR NORMAL USE
 options		UCONSOLE		#x console support
 options		DECBIT			#here because clnp.h wanted it here
