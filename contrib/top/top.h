@@ -1,4 +1,7 @@
 /*
+ * $FreeBSD$
+ */
+/*
  *  Top - a top users display for Berkeley Unix
  *
  *  General (global) definitions
@@ -34,3 +37,6 @@ char *version_string();
 
 #define NUM_AVERAGES    3
 
+enum displaymodes { DISP_CPU = 0, DISP_IO, DISP_MAX };
+
+extern enum displaymodes displaymode;

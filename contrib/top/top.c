@@ -99,6 +99,7 @@ extern int (*proc_compares[])();
 #else
 extern int proc_compare();
 #endif
+extern int io_compare();
 time_t time();
 
 caddr_t get_process_info();
@@ -192,9 +193,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutH";
+    static char command_chars[] = "\f qh?en#sdkriIutHm";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -215,8 +216,9 @@ char *argv[];
 #define CMD_user	14
 #define CMD_selftog	15
 #define CMD_thrtog	16
+#define CMD_viewtog	17
 #ifdef ORDER
-#define CMD_order       17
+#define CMD_order       18
 #endif
 
     /* set the buffer for stdout */
@@ -272,7 +274,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "SIHbinquvs:d:U:o:t")) != EOF)
+	while ((i = getopt(ac, av, "SIHbinquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -349,6 +351,20 @@ char *argv[];
 			"%s: warning: `-q' option can only be used by root\n",
 			myname);
 		    warnings++;
+		}
+		break;
+
+	      case 'm':		/* select sort order */
+		if (strcmp(optarg, "io") == 0) {
+			displaymode = DISP_IO;
+		} else if (strcmp(optarg, "cpu") == 0) {
+			displaymode = DISP_CPU;
+		} else {
+			fprintf(stderr,
+			"%s: warning: `-m' option can only take args "
+			"'io' or 'cpu'\n",
+			myname);
+			exit(1);
 		}
 		break;
 
@@ -545,18 +561,25 @@ restart:
 
     while ((displays == -1) || (displays-- > 0))
     {
+	int (*compare)();
+
+	    
 	/* get the current stats */
 	get_system_info(&system_info);
 
+	if (displaymode == DISP_CPU) {
+#ifdef ORDER
+		compare = proc_compares[order_index];
+#else
+		compare = proc_compare;
+#endif
+	} else {
+		compare = io_compare;
+	}
+
 	/* get the current set of processes */
 	processes =
-		get_process_info(&system_info,
-				 &ps,
-#ifdef ORDER
-				 proc_compares[order_index]);
-#else
-				 proc_compare);
-#endif
+		get_process_info(&system_info, &ps, compare);
 
 	/* display the load averages */
 	(*d_loadave)(system_info.last_pid,
@@ -967,6 +990,14 @@ restart:
 				    " %sisplaying threads.",
 				    ps.thread ? "D" : "Not d");
 				putchar('\r');
+				break;
+			    case CMD_viewtog:
+				if (++displaymode == DISP_MAX)
+					displaymode = 0;
+				header_text = format_header(uname_field);
+				display_header(Yes);
+				d_header = i_header;
+				reset_display();
 				break;
 #ifdef ORDER
 			    case CMD_order:
