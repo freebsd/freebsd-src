@@ -209,7 +209,7 @@ isp_fc_runstate(struct ispsoftc *isp, int tval)
 	fcparam *fcp;
 	int *tptr;
 
-	if (IS_SCSI(isp))
+	if (IS_SCSI(isp) || isp->isp_role == ISP_ROLE_NONE)
 		return (0);
 
 	tptr = tval? &tval : NULL;
@@ -268,6 +268,8 @@ static INLINE void
 isp_get_response(struct ispsoftc *, ispstatusreq_t *, ispstatusreq_t *);
 static INLINE void
 isp_get_response_x(struct ispsoftc *, ispstatus_cont_t *, ispstatus_cont_t *);
+static INLINE void
+isp_get_rio2(struct ispsoftc *, isp_rio2_t *, isp_rio2_t *);
 static INLINE void
 isp_put_icb(struct ispsoftc *, isp_icb_t *, isp_icb_t *);
 static INLINE void
@@ -377,7 +379,7 @@ isp_copy_in_hdr(struct ispsoftc *isp, isphdr_t *hpsrc, isphdr_t *hpdst)
 static INLINE int
 isp_get_response_type(struct ispsoftc *isp, isphdr_t *hp)
 {
-	uint8_t type;
+	u_int8_t type;
 	if (ISP_IS_SBUS(isp)) {
 		ISP_IOXGET_8(isp, &hp->rqs_entry_count, type);
 	} else {
@@ -552,6 +554,22 @@ isp_get_response_x(struct ispsoftc *isp, ispstatus_cont_t *cpsrc,
 	for (i = 0; i < 60; i++) {
 		ISP_IOXGET_8(isp, &cpsrc->req_sense_data[i],
 		    cpdst->req_sense_data[i]);
+	}
+}
+
+static INLINE void
+isp_get_rio2(struct ispsoftc *isp, isp_rio2_t *r2src, isp_rio2_t *r2dst)
+{
+	int i;
+	isp_copy_in_hdr(isp, &r2src->req_header, &r2dst->req_header);
+	if (r2dst->req_header.rqs_seqno > 30)
+		r2dst->req_header.rqs_seqno = 30;
+	for (i = 0; i < r2dst->req_header.rqs_seqno; i++) {
+		ISP_IOXGET_16(isp, &r2src->req_handles[i],
+		    r2dst->req_handles[i]);
+	}
+	while (i < 30) {
+		r2dst->req_handles[i++] = 0;
 	}
 }
 
@@ -838,8 +856,11 @@ isp_put_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 	}
 	ISP_IOXPUT_32(isp, atsrc->at_datalen, &atdst->at_datalen);
 	ISP_IOXPUT_16(isp, atsrc->at_scclun, &atdst->at_scclun);
-	for (i = 0; i < 10; i++) {
-		ISP_IOXPUT_8(isp, atsrc->at_reserved2[i],
+	for (i = 0; i < 4; i++) {
+		ISP_IOXPUT_16(isp, atsrc->at_wwpn[i], &atdst->at_wwpn[i]);
+	}
+	for (i = 0; i < 6; i++) {
+		ISP_IOXPUT_16(isp, atsrc->at_reserved2[i],
 		    &atdst->at_reserved2[i]);
 	}
 	ISP_IOXPUT_16(isp, atsrc->at_oxid, &atdst->at_oxid);
@@ -865,8 +886,11 @@ isp_get_atio2(struct ispsoftc *isp, at2_entry_t *atsrc, at2_entry_t *atdst)
 	}
 	ISP_IOXGET_32(isp, &atsrc->at_datalen, atdst->at_datalen);
 	ISP_IOXGET_16(isp, &atsrc->at_scclun, atdst->at_scclun);
-	for (i = 0; i < 10; i++) {
-		ISP_IOXGET_8(isp, &atsrc->at_reserved2[i],
+	for (i = 0; i < 4; i++) {
+		ISP_IOXGET_16(isp, &atsrc->at_wwpn[i], atdst->at_wwpn[i]);
+	}
+	for (i = 0; i < 6; i++) {
+		ISP_IOXGET_16(isp, &atsrc->at_reserved2[i],
 		    atdst->at_reserved2[i]);
 	}
 	ISP_IOXGET_16(isp, &atsrc->at_oxid, atdst->at_oxid);

@@ -48,7 +48,7 @@
 					/*   c */
 					/*   d */
 #define MBOX_CHECK_FIRMWARE		0x000e
-					/*   f */
+#define	MBOX_READ_RAM_WORD_EXTENDED	0x000f
 #define MBOX_INIT_REQ_QUEUE		0x0010
 #define MBOX_INIT_RES_QUEUE		0x0011
 #define MBOX_EXECUTE_IOCB		0x0012
@@ -104,8 +104,10 @@
 #define	MBOX_EXEC_BIOS_IOCB		0x0042
 #define	MBOX_SET_FW_FEATURES		0x004a
 #define	MBOX_GET_FW_FEATURES		0x004b
-#define		FW_FEATURE_LVD_NOTIFY	0x2
 #define		FW_FEATURE_FAST_POST	0x1
+#define		FW_FEATURE_LVD_NOTIFY	0x2
+#define		FW_FEATURE_RIO_32BIT	0x4
+#define		FW_FEATURE_RIO_16BIT	0x8
 
 #define	MBOX_ENABLE_TARGET_MODE		0x0055
 #define		ENABLE_TARGET_FLAG	0x8000
@@ -641,9 +643,11 @@ typedef struct isp_icb {
 #define	ICBXOPT_RIO_OFF		0
 #define	ICBXOPT_RIO_16BIT	1
 #define	ICBXOPT_RIO_32BIT	2
-#define	ICBXOPT_RIO_16BIT_DELAY	3
-#define	ICBXOPT_RIO_32BIT_DELAY	4
+#define	ICBXOPT_RIO_16BIT_IOCB	3
+#define	ICBXOPT_RIO_32BIT_IOCB	4
 
+#define	ICBZOPT_ENA_RDXFR_RDY	0x01
+#define	ICBZOPT_ENA_OOF		(1 << 6) /* out of order frame handling */
 /* These 3 only apply to the 2300 */
 #define	ICBZOPT_RATE_ONEGB	(MBGSD_ONEGB << 14)
 #define	ICBZOPT_RATE_TWOGB	(MBGSD_TWOGB << 14)
