@@ -9,6 +9,17 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020415:
+	Many denizens of /etc were MFC'ed. While most of the changes
+	are very benign, some of them have created a bit of a stir.
+	Use the new version of mergemaster to update /etc, either by
+	updating /etc after installworld, or by doing:
+	cd /usr/src/usr.sbin/mergemaster; make all install [clean]
+	Then use the new -C option to double-check your rc.conf settings.
+	You should also double-check settings in [defaults/]rc.conf,
+	syslog.conf, newsyslog.conf, and anything else important
+	to your system.
+
 20020411:
 	New sendmail startup scripts have been installed to make it
 	easier to use alternative MTAs with FreeBSD.  The rc.conf
