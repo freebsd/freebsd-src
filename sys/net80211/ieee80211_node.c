@@ -403,6 +403,14 @@ ieee80211_end_scan(struct ifnet *ifp)
 			goto notfound;
 		}
 		ieee80211_unref_node(&selbs);
+		/*
+		 * Discard scan set; the nodes have a refcnt of zero
+		 * and have not asked the driver to setup private
+		 * node state.  Let them be repopulated on demand either
+		 * through transmission (ieee80211_find_txnode) or receipt
+		 * of a probe response (to be added).
+		 */
+		ieee80211_free_allnodes(ic);
 		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 	} else {
 		ieee80211_unref_node(&selbs);
@@ -491,21 +499,76 @@ ieee80211_dup_bss(struct ieee80211com *ic, u_int8_t *macaddr)
 	return ni;
 }
 
-struct ieee80211_node *
-ieee80211_find_node(struct ieee80211com *ic, u_int8_t *macaddr)
+static struct ieee80211_node *
+_ieee80211_find_node(struct ieee80211com *ic, u_int8_t *macaddr)
 {
 	struct ieee80211_node *ni;
 	int hash;
 
+	IEEE80211_NODE_LOCK_ASSERT(ic);
+
 	hash = IEEE80211_NODE_HASH(macaddr);
-	IEEE80211_NODE_LOCK(ic);
 	LIST_FOREACH(ni, &ic->ic_hash[hash], ni_hash) {
 		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr)) {
-			atomic_add_int(&ni->ni_refcnt, 1); /* mark referenced */
-			break;
+			atomic_add_int(&ni->ni_refcnt, 1);/* mark referenced */
+			return ni;
 		}
 	}
+	return NULL;
+}
+
+struct ieee80211_node *
+ieee80211_find_node(struct ieee80211com *ic, u_int8_t *macaddr)
+{
+	struct ieee80211_node *ni;
+
+	IEEE80211_NODE_LOCK(ic);
+	ni = _ieee80211_find_node(ic, macaddr);
 	IEEE80211_NODE_UNLOCK(ic);
+	return ni;
+}
+
+/*
+ * Return a reference to the appropriate node for sending
+ * a data frame.  This handles node discovery in adhoc networks.
+ */
+struct ieee80211_node *
+ieee80211_find_txnode(struct ieee80211com *ic, u_int8_t *macaddr)
+{
+	struct ieee80211_node *ni;
+
+	/*
+	 * The destination address should be in the node table
+	 * unless we are operating in station mode or this is a
+	 * multicast/broadcast frame.
+	 */
+	if (ic->ic_opmode == IEEE80211_M_STA || IEEE80211_IS_MULTICAST(macaddr))
+		return ic->ic_bss;
+
+	/* XXX can't hold lock across dup_bss 'cuz of recursive locking */
+	IEEE80211_NODE_LOCK(ic);
+	ni = _ieee80211_find_node(ic, macaddr);
+	IEEE80211_NODE_UNLOCK(ic);
+	if (ni == NULL &&
+	    (ic->ic_opmode == IEEE80211_M_IBSS ||
+	     ic->ic_opmode == IEEE80211_M_AHDEMO)) {
+		/*
+		 * Fake up a node; this handles node discovery in
+		 * adhoc mode.  Note that for the driver's benefit
+		 * we we treat this like an association so the driver
+		 * has an opportunity to setup it's private state.
+		 *
+		 * XXX need better way to handle this; issue probe
+		 *     request so we can deduce rate set, etc.
+		 */
+		ni = ieee80211_dup_bss(ic, macaddr);
+		if (ni != NULL) {
+			/* XXX no rate negotiation; just dup */
+			ni->ni_rates = ic->ic_bss->ni_rates;
+			if (ic->ic_newassoc)
+				(*ic->ic_newassoc)(ic, ni, 1);
+		}
+	}
 	return ni;
 }
 
@@ -522,7 +585,8 @@ ieee80211_lookup_node(struct ieee80211com *ic,
 	hash = IEEE80211_NODE_HASH(macaddr);
 	IEEE80211_NODE_LOCK(ic);
 	LIST_FOREACH(ni, &ic->ic_hash[hash], ni_hash) {
-		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr) && ni->ni_chan == chan) {
+		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr) &&
+		    ni->ni_chan == chan) {
 			atomic_add_int(&ni->ni_refcnt, 1);/* mark referenced */
 			break;
 		}
