@@ -355,6 +355,20 @@ pcic_pci_ricoh_init(device_t dev, int old)
 	}
 }
 
+static const char *
+pcic_pci_cardtype(u_int32_t stat)
+{
+	if (stat & CB_SS_NOTCARD)
+		return ("Cardtype unrecognized by bridge");
+	if ((stat & (CB_SS_16BIT | CB_SS_CB)) == (CB_SS_16BIT | CB_SS_CB))
+		return ("16-bit and 32-bit (can't happen)");
+	if (stat & CB_SS_16BIT)
+		return ("16-bit pccard");
+	if (stat & CB_SS_CB)
+		return ("32-bit cardbus");
+	return ("none (can't happen)");
+}
+
 static void
 pcic_cd_event(void *arg) 
 {
@@ -366,8 +380,8 @@ pcic_cd_event(void *arg)
 	device_printf(sc->dev, "debounced state is 0x%x\n", stat);
 	if ((stat & CB_SS_CD) == 0) {
 		if ((stat & CB_SS_16BIT) == 0)
-			device_printf(sp->sc->dev,
-			    "Unsupported card type inserted\n");
+			device_printf(sp->sc->dev, "Unsupported card: %s\n",
+			    pcic_pci_cardtype(stat));
 		else
 			pccard_event(sp->slt, card_inserted);
 	} else {
