@@ -735,13 +735,18 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		}
 	}
 	if (!sa) {
-		if (newtd != td)
-			cpu_set_upcall_kse(newtd, newku);
 		newtd->td_mailbox = mbx.km_curthread;
 		newtd->td_flags &= ~TDF_SA;
+		if (newtd != td) {
+			mtx_unlock_spin(&sched_lock);
+			cpu_set_upcall_kse(newtd, newku);
+			mtx_lock_spin(&sched_lock);
+		}
 	} else {
 		newtd->td_flags |= TDF_SA;
 	}
+	if (newtd != td)
+		setrunqueue(newtd);
 	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
@@ -1394,7 +1399,6 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
-	setrunqueue(td2);
 	return (td2);	/* bogus.. should be a void function */
 }
 
@@ -1447,6 +1451,7 @@ void
 thread_switchout(struct thread *td)
 {
 	struct kse_upcall *ku;
+	struct thread *td2;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
@@ -1471,7 +1476,8 @@ thread_switchout(struct thread *td)
 		ku->ku_owner = NULL;
 		td->td_upcall = NULL; 
 		td->td_flags &= ~TDF_CAN_UNBIND;
-		thread_schedule_upcall(td, ku);
+		td2 = thread_schedule_upcall(td, ku);
+		setrunqueue(td2);
 	}
 }
 
