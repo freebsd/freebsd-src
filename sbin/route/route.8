@@ -168,7 +168,7 @@ route to a host.
 Optionally, the
 .Ar destination
 could also be specified in the
-.Ar host Ns / Ns Ar bits
+.Ar net Ns / Ns Ar bits
 format.
 .Pp
 For example,
@@ -185,9 +185,9 @@ is interpreted as
 is interpreted as
 .Li 128.32.130.0;
 and
-.Li 192.168.0.0/16
+.Li 192.168.64/20
 is interpreted as
-.Li 192.168.0.0 Fl netmask Li 255.255.0.0 .
+.Fl net Li 192.168.64 Fl netmask Li 255.255.240.0 .
 .Pp
 A
 .Ar destination
