@@ -496,12 +496,12 @@ that is an IP fragment with a fragment offset of one.
 This is a valid packet, but it only has one use, to try to circumvent
 firewalls.
 .Pp
-If you are logged in over a network, loading the LKM version of
+If you are logged in over a network, loading the KLD version of
 .Nm
 is probably not as straightforward as you would think.
 I recommend this command line:
 .Bd -literal -offset center
-modload /lkm/ipfw_mod.o && \e
+kldload /modules/ipfw.ko && \e
 ipfw add 32000 allow all from any to any
 .Ed
 .Pp
@@ -557,6 +557,7 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Xr protocols 5 ,
 .Xr services 5 ,
 .Xr init 8 ,
+.Xr kldload 8 ,
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8
