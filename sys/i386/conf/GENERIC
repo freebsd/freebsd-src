@@ -198,7 +198,7 @@ device		an
 device		xe
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
-device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
+#device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300
 device		sn0	at isa? port 0x300 irq 10
