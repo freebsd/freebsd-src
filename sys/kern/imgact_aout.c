@@ -36,12 +36,12 @@
 #include <sys/namei.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/vnode.h>
-#include <sys/systm.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
