@@ -30,7 +30,6 @@
  */
 
 #include "opt_bus.h"
-#include "opt_pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1194,12 +1193,6 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
 	pcicfgregs *cfg = &dinfo->cfg;
-
-	/*
-	 * You can share PCI interrupts.
-	 */
-	if (type == SYS_RES_IRQ)
-		flags |= RF_SHAREABLE;
 
 	/*
 	 * Perform lazy resource allocation
