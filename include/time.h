@@ -143,7 +143,8 @@ struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
 #if __XSI_VISIBLE
-char *strptime(const char *, const char *, struct tm *);
+char *strptime(const char *__restrict, const char *__restrict,
+    struct tm *__restrict);
 #endif
 
 #if __BSD_VISIBLE

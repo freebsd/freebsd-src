@@ -517,7 +517,8 @@ label:
 
 
 char *
-strptime(const char *buf, const char *fmt, struct tm *tm)
+strptime(const char *__restrict buf, const char *__restrict fmt,
+    struct tm *__restrict tm)
 {
 	char *ret;
 
