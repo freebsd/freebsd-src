@@ -713,6 +713,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x50307256, NULL},	/* USR3050 - U.S. Robotics 56K FAX INT */
 	{0x70307256, NULL},	/* USR3070 - U.S. Robotics 56K Voice INT */
 	{0x90307256, NULL},	/* USR3090 - USR ? */
+	{0x70917256, NULL},	/* USR9170 - U.S. Robotics 56K FAX INT */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
