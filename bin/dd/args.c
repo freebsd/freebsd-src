@@ -82,8 +82,10 @@ static const struct arg {
 	{ "files",	f_files,	C_FILES, C_FILES },
 	{ "ibs",	f_ibs,		C_IBS,	 C_BS|C_IBS },
 	{ "if",		f_if,		C_IF,	 C_IF },
+	{ "iseek",	f_skip,		C_SKIP,	 C_SKIP },
 	{ "obs",	f_obs,		C_OBS,	 C_BS|C_OBS },
 	{ "of",		f_of,		C_OF,	 C_OF },
+	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
 };
