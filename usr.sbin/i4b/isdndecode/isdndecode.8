@@ -22,14 +22,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdndecode.8,v 1.5 1999/05/03 08:48:25 hm Exp $
+.\"	$Id: isdndecode.8,v 1.4 1999/08/06 14:04:46 hm Exp $
 .\"
 .\"	last edit-date: [Sun Feb 14 10:16:25 1999]
 .\"
 .\"	-hm	writing manual page
 .\"
 .Dd September 17, 1998
-.Dt isdndecode 8
+.Dt ISDNDECODE 8
+.Os
 .Sh NAME
 .Nm isdndecode
 .Nd isdn4bsd ISDN protocol decode utility
@@ -148,14 +149,12 @@ ISDN D-channel layer 2 protocol description.
 ISDN D-channel layer 3 protocol description.
 .El
 .Pp
-
 .Sh FILES
 .Bl -tag -width daddeldi -compact
 .It Pa /dev/i4btrc<n>
 The devicefile(s) used to get the decode messages for ISDN card unit <n>
 out of the kernel.
 .El
-
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -165,13 +164,10 @@ isdndecode -f /var/tmp/isdn.decode
 will start D channel tracing on passive controller 0 with all except B
 channel tracing enabled and logs everything into the output file 
 /tmp/isdn.decode.
-
 .Sh SEE ALSO
 .Xr isdnd 8
-
 .Sh BUGS
 Still one left.
-
 .Sh STANDARDS
 ITU Recommendations I.430, Q.920, Q.921, Q.930, Q.931
 .Pp
@@ -182,10 +178,9 @@ ETSI Recommendation ETS 300 179 (10/92), ETS 300 180 (10/92)
 ETSI Recommendation ETS 300 181 (04/93), ETS 300 182 (04/93)
 .Pp
 ITU Recommendation X.208, X.209
-
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-utility and this manual page was written by Hellmuth Michaelis, 
-he can be reached at hm@kts.org.
+utility and this manual page was written by
+.An Hellmuth Michaelis Aq hm@kts.org .
 

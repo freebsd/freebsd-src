@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdntelctl.8,v 1.7 1999/04/21 10:06:32 hm Exp $
+.\"	$Id: isdntelctl.8,v 1.4 1999/08/06 14:04:57 hm Exp $
 .\"
 .\"	last edit-date: [Wed Apr 21 11:27:34 1999]
 .\"
 .Dd April 21, 1999
-.Dt isdntelctl 8
+.Dt ISDNTELCTL 8
+.Os
 .Sh NAME
 .Nm isdntelctl
 .Nd control isdn4bsd telephone sound format conversion
@@ -83,12 +84,12 @@ isdntelctl -g
 .Pp
 displays the currently used sound format for device /dev/i4btel0.
 .Sh SEE ALSO
-.Xr i4btel 4
-.Xr g711conv 1
+.Xr g711conv 1 ,
+.Xr i4btel 4 ,
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8   
-.Xr isdnd.rc 5
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-utility and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@kts.org.
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org

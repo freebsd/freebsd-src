@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdndebug.8,v 1.8 1999/05/29 09:05:30 hm Exp $
+.\"	$Id: isdndebug.8,v 1.4 1999/08/06 14:04:44 hm Exp $
 .\"
 .\"	last edit-date: [Sat May 29 11:03:15 1999]
 .\"
 .Dd May, 29, 1999
-.Dt isdndebug 8
+.Dt ISDNDEBUG 8
+.Os
 .Sh NAME
 .Nm isdndebug
 .Nd display and control isdn4bsd kernel variables and statistics
@@ -94,7 +95,6 @@ Reset the Q.921 (D-channel layer 2) frame receive/transmit statistics to zero.
 .Pp
 .Sh FILES
 /dev/i4bctl
-
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -102,9 +102,8 @@ isdndebug -g
 .Ed
 .Pp
 displays the current debugging level for all ISDN layers
-
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-utility and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@kts.org.
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org .

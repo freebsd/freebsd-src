@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isic.4,v 1.23 1999/07/30 07:21:19 hm Exp $
+.\"	$Id: isic.4,v 1.4 1999/08/06 14:05:10 hm Exp $
 .\"
 .\"	last edit-date: [Fri Jul 30 09:20:24 1999]
 .\"
 .Dd July 30, 1999
-.Dt isic 4
+.Dt ISIC 4
+.Os
 .Sh NAME
 .Nm isic
 .Nd isdn4bsd Siemens ISDN Chipset device driver
@@ -396,18 +397,26 @@ for their boards, it is likely that there are many, many bugs left.
 CCITT Recommendation I.430
 
 .Sh SEE ALSO
-.Xr i4bq921 4
+.Xr i4bq921 4 ,
 .Xr i4bq931 4
 
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-driver and this manpage were written by Hellmuth Michaelis. It is based
-on earlier work of Arne Helme, Andrew Gordon and Gary Jennejohn. The author
-can be contacted at hm@kts.org.
+driver and this manpage were written by
+.An Hellmuth Michaelis .
+It is based
+on earlier work of
+.An Arne Helme ,
+.An Andrew Gordon
+and
+.An Gary Jennejohn .
+The author can be contacted at hm@kts.org.
 .Pp
-The complete porting to and maintenance of NetBSD was done by Martin Husemann.
-He can be contacted at martin@rumolt.teuto.de
+The complete porting to and maintenance of 
+.Nx
+was done by
+.An Martin Husemann Aq martin@rumolt.teuto.de
 .Pp
 The NetBSD/Amiga ISDN Blaster/Master/MasterII driver was written by
-Ignatios Souvatzis <is@netbsd.org>.
+.An Ignatios Souvatzis Aq is@netbsd.org
