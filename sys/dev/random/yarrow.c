@@ -32,17 +32,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/libkern.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/select.h>
 #include <sys/random.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
 
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 
 #include <crypto/blowfish/blowfish.h>
@@ -62,10 +61,6 @@ static void random_kthread(void *);
 /* Structure holding the entropy state */
 struct random_state random_state;
 
-/* Queue holding harvested entropy */
-TAILQ_HEAD(harvestqueue, harvest) harvestqueue,
-	initqueue = TAILQ_HEAD_INITIALIZER(harvestqueue);
-
 /* These are used to queue harvested packets of entropy. The entropy
  * buffer size is pretty arbitrary.
  */
@@ -75,16 +70,18 @@ struct harvest {
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
 	u_int pool;			/* which pool this goes into */
-	TAILQ_ENTRY(harvest) harvest;	/* link to next */
 };
+
+/* Ring buffer holding harvested entropy */
+static struct harvestring {
+	struct mtx	lockout_mtx;
+	int		head;
+	int		tail;
+	struct harvest	data[HARVEST_RING_SIZE];
+} harvestring;
 
 /* The reseed thread mutex */
 static struct mtx random_reseed_mtx;
-
-/* The entropy harvest mutex, as well as the mutex associated
- * with the msleep() call during deinit
- */
-static struct mtx random_harvest_mtx;
 
 /* <0 to end the kthread, 0 to let it run */
 static int random_kthread_control = 0;
@@ -94,15 +91,15 @@ static struct proc *random_kthread_proc;
 static void
 random_kthread(void *arg /* NOTUSED */)
 {
-	int pl, src, overthreshhold[2];
+	int pl, src, overthreshhold[2], head, newtail;
 	struct harvest *event;
 	struct source *source;
-#ifdef DEBUG1
-	int queuecount;
-#endif
 
 #ifdef DEBUG
-	printf("At %s, line %d: mtx_owned(&Giant) == %d, mtx_owned(&sched_lock) == %d\n", __FILE__, __LINE__, mtx_owned(&Giant), mtx_owned(&sched_lock));
+	mtx_enter(&Giant, MTX_DEF);
+	printf("OWNERSHIP Giant == %d sched_lock == %d\n",
+		mtx_owned(&Giant), mtx_owned(&sched_lock));
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	for (pl = 0; pl < 2; pl++)
@@ -110,47 +107,35 @@ random_kthread(void *arg /* NOTUSED */)
 
 	for (;;) {
 
-		if (TAILQ_EMPTY(&harvestqueue)) {
+		head = atomic_load_acq_int(&harvestring.head);
+		newtail = (harvestring.tail + 1) % HARVEST_RING_SIZE;
+		if (harvestring.tail == head)
+			tsleep(&harvestring.head, PUSER, "rndslp", hz/10);
 
-			/* Sleep for a second to give the system a chance */
-			mtx_enter(&Giant, MTX_DEF);
-			tsleep(&harvestqueue, PUSER, "rndslp", hz);
-			mtx_exit(&Giant, MTX_DEF);
-
-		}
 		else {
+#ifdef DEBUG1
+			mtx_enter(&Giant, MTX_DEF);
+			printf("HARVEST src=%d bits=%d/%d pool=%d count=%lld\n",
+				event->source, event->bits, event->frac,
+				event->pool, event->somecounter);
+			mtx_exit(&Giant, MTX_DEF);
+#endif
 
 			/* Suck the harvested entropy out of the queue and hash
-			 * it into the fast and slow pools.
+			 * it into the appropriate pool.
 			 */
-#ifdef DEBUG1
-			queuecount = 0;
-#endif
-			while (!TAILQ_EMPTY(&harvestqueue)) {
-#ifdef DEBUG1
-				queuecount++;
-#endif
-				mtx_enter(&random_harvest_mtx, MTX_DEF);
 
-				event = TAILQ_FIRST(&harvestqueue);
-				TAILQ_REMOVE(&harvestqueue, event, harvest);
+			event = &harvestring.data[harvestring.tail];
+			harvestring.tail = newtail;
 
-				mtx_exit(&random_harvest_mtx, MTX_DEF);
-
-				source = &random_state.pool[event->pool].source[event->source];
-				yarrow_hash_iterate(&random_state.pool[event->pool].hash,
-					event->entropy, sizeof(event->entropy));
-				yarrow_hash_iterate(&random_state.pool[event->pool].hash,
-					&event->somecounter, sizeof(event->somecounter));
-				source->frac += event->frac;
-				source->bits += event->bits + source->frac/1024;
-				source->frac %= 1024;
-				free(event, M_TEMP);
-
-			}
-#ifdef DEBUG1
-			printf("Harvested %d events\n", queuecount);
-#endif
+			source = &random_state.pool[event->pool].source[event->source];
+			yarrow_hash_iterate(&random_state.pool[event->pool].hash,
+				event->entropy, sizeof(event->entropy));
+			yarrow_hash_iterate(&random_state.pool[event->pool].hash,
+				&event->somecounter, sizeof(event->somecounter));
+			source->frac += event->frac;
+			source->bits += event->bits + source->frac/1024;
+			source->frac %= 1024;
 
 			/* Count the over-threshold sources in each pool */
 			for (pl = 0; pl < 2; pl++) {
@@ -165,7 +150,7 @@ random_kthread(void *arg /* NOTUSED */)
 			/* if any fast source over threshhold, reseed */
 			if (overthreshhold[FAST])
 				reseed(FAST);
-
+	
 			/* if enough slow sources are over threshhold, reseed */
 			if (overthreshhold[SLOW] >= random_state.slowoverthresh)
 				reseed(SLOW);
@@ -174,19 +159,10 @@ random_kthread(void *arg /* NOTUSED */)
 
 		/* Is the thread scheduled for a shutdown? */
 		if (random_kthread_control != 0) {
-			if (!TAILQ_EMPTY(&harvestqueue)) {
 #ifdef DEBUG
-				printf("Random cleaning extraneous events\n");
-#endif
-				mtx_enter(&random_harvest_mtx, MTX_DEF);
-				TAILQ_FOREACH(event, &harvestqueue, harvest) {
-					TAILQ_REMOVE(&harvestqueue, event, harvest);
-					free(event, M_TEMP);
-				}
-				mtx_exit(&random_harvest_mtx, MTX_DEF);
-			}
-#ifdef DEBUG
+			mtx_enter(&Giant, MTX_DEF);
 			printf("Random kthread setting terminate\n");
+			mtx_exit(&Giant, MTX_DEF);
 #endif
 			random_set_wakeup_exit(&random_kthread_control);
 			/* NOTREACHED */
@@ -203,7 +179,9 @@ random_init(void)
 	int error;
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random initialise\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	random_state.gengateinterval = 10;
@@ -213,11 +191,12 @@ random_init(void)
 	random_state.slowoverthresh = 2;
 	random_state.which = FAST;
 
-	harvestqueue = initqueue;
-
 	/* Initialise the mutexes */
 	mtx_init(&random_reseed_mtx, "random reseed", MTX_DEF);
-	mtx_init(&random_harvest_mtx, "random harvest", MTX_DEF);
+	mtx_init(&harvestring.lockout_mtx, "random harvest", MTX_DEF);
+
+	harvestring.head = 0;
+	harvestring.tail = 0;
 
 	/* Start the hash/reseed thread */
 	error = kthread_create(random_kthread, NULL,
@@ -229,7 +208,9 @@ random_init(void)
 	random_init_harvester(random_harvest_internal, read_random_real);
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random initalise finish\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	return 0;
@@ -239,33 +220,41 @@ void
 random_deinit(void)
 {
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random deinitalise\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	/* Deregister the randomness harvesting routine */
 	random_deinit_harvester();
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random deinitalise waiting for thread to terminate\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
-	mtx_enter(&random_harvest_mtx, MTX_DEF);
+	mtx_enter(&harvestring.lockout_mtx, MTX_DEF);
 	random_kthread_control = -1;
-	msleep((void *)&random_kthread_control, &random_harvest_mtx, PUSER,
+	msleep((void *)&random_kthread_control, &harvestring.lockout_mtx, PUSER,
 		"rndend", 0);
-	mtx_exit(&random_harvest_mtx, MTX_DEF);
+	mtx_exit(&harvestring.lockout_mtx, MTX_DEF);
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random deinitalise removing mutexes\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	/* Remove the mutexes */
 	mtx_destroy(&random_reseed_mtx);
-	mtx_destroy(&random_harvest_mtx);
+	mtx_destroy(&harvestring.lockout_mtx);
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random deinitalise finish\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 }
 
@@ -282,7 +271,9 @@ reseed(int fastslow)
 	int i, j;
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Reseed type %d\n", fastslow);
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	/* The reseed task must not be jumped on */
@@ -360,7 +351,9 @@ reseed(int fastslow)
 	mtx_exit(&random_reseed_mtx, MTX_DEF);
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Reseed finish\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	if (!random_state.seeded) {
@@ -452,8 +445,8 @@ write_random(void *buf, u_int count)
 	 */
 	count %= HARVESTSIZE;
 	if (count) {
-		random_harvest_internal(get_cyclecount(), (char *)buf + i, count,
-			0, 0, RANDOM_WRITE);
+		random_harvest_internal(get_cyclecount(), (char *)buf + i,
+			count, 0, 0, RANDOM_WRITE);
 	}
 }
 
@@ -464,7 +457,9 @@ generator_gate(void)
 	u_char temp[KEYSIZE];
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Generator gate\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 
 	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
@@ -477,7 +472,9 @@ generator_gate(void)
 	memset((void *)temp, 0, KEYSIZE);
 
 #ifdef DEBUG
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Generator gate finish\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
 }
 
@@ -489,39 +486,52 @@ static void
 random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
-	struct harvest *event;
+	struct harvest *harvest;
+	int newhead, tail;
 
 #ifdef DEBUG1
+	mtx_enter(&Giant, MTX_DEF);
 	printf("Random harvest\n");
+	mtx_exit(&Giant, MTX_DEF);
 #endif
-	event = malloc(sizeof(struct harvest), M_TEMP, M_NOWAIT);
+	if (origin < ENTROPYSOURCE) {
 
-	if (origin < ENTROPYSOURCE && event != NULL) {
+		/* Add the harvested data to the ring buffer, but
+		 * do not block.
+		 */
+		if (mtx_try_enter(&harvestring.lockout_mtx, MTX_DEF)) {
 
-		/* fast counter provides clock jitter */
-		event->somecounter = somecounter;
+			tail = atomic_load_acq_int(&harvestring.tail);
+			newhead = (harvestring.head + 1) % HARVEST_RING_SIZE;
 
-		/* the harvested entropy */
-		count = count > sizeof(event->entropy)
-			? sizeof(event->entropy)
-			: count;
-		memcpy(event->entropy, entropy, count);
+			if (newhead != tail) {
 
-		event->size = count;
-		event->bits = bits;
-		event->frac = frac;
-		event->source = origin;
+				harvest = &harvestring.data[harvestring.head];
 
-		/* protect the queue from simultaneous updates */
-		mtx_enter(&random_harvest_mtx, MTX_DEF);
+				/* toggle the pool for next insertion */
+				harvest->pool = random_state.which;
+				random_state.which = !random_state.which;
 
-		/* toggle the pool for next insertion */
-		event->pool = random_state.which;
-		random_state.which = !random_state.which;
+				/* Stuff the harvested data into the ring */
+				harvest->somecounter = somecounter;
+				count = count > HARVESTSIZE ? HARVESTSIZE : count;
+				memcpy(harvest->entropy, entropy, count);
+				harvest->size = count;
+				harvest->bits = bits;
+				harvest->frac = frac;
+				harvest->source = origin;
 
-		TAILQ_INSERT_TAIL(&harvestqueue, event, harvest);
+				/* Bump the ring counter and shake the reseed
+				 * process
+				 */
+				harvestring.head = newhead;
+				wakeup(&harvestring.head);
 
-		mtx_exit(&random_harvest_mtx, MTX_DEF);
+			}
+			mtx_exit(&harvestring.lockout_mtx, MTX_DEF);
+
+		}
+
 	}
 }
 
