@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.8 1998/10/17 09:01:13 rnordier Exp $
+ *	$Id: boot2.c,v 1.9 1998/10/17 09:16:01 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,6 @@
 
 #define ARGS		0x800
 #define NOPT		11
-#define XOPT		2
 #define BSIZEMAX	8192
 #define NDEV		5
 #define MEM_BASE	0x12
@@ -184,6 +183,8 @@ main(void)
 	    sio_flush();
 	if (!autoboot || keyhit(0x5a))
 	    getstr(cmd, sizeof(cmd));
+	else
+	    putchar('\n');
 	autoboot = helpon = 0;
 	if (parse(cmd))
 	    helpon = 1;
@@ -320,10 +321,7 @@ parse(char *arg)
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
-		if (i < XOPT)
-		    opts ^= 1 << flags[i];
-		else
-		    opts |= 1 << flags[i];
+		opts ^= 1 << flags[i];
 	    }
 	    if (opts & 1 << RBX_PROBEKBD) {
 		i = *(uint8_t *)PTOV(0x496) & 0x10;
