@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.36 1997/04/10 15:05:38 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.37 1997/08/25 20:31:00 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -133,13 +133,6 @@ DBPRINT(("lookup\n"));
 		 * allowing file to be created.
 		 */
         	if (!(flags & ISLASTCN) || !(op == CREATE || op == RENAME)) {
-
-			/*
-			 * Insert name into cache
-			 * (as non-existent) if appropriate.
-			 */
-			if ((cnp->cn_flags & MAKEENTRY) && op != CREATE)
-DBPRINT(("NOT\n"));
 			return ENOENT;
 		}
 		/*
