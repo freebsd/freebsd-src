@@ -764,8 +764,6 @@ ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
   CNet Pro110B
 
-DEC EtherWORKS III NICs (DE203, DE204, and DE205)
-DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 
 Davicom DM9100 and DM9102 PCI Fast Ethernet NICs, including the
