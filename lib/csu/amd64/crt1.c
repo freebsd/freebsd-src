@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef __GNUC__
@@ -74,7 +72,7 @@ _start(char *arguments, ...)
     argc = * (int *) (argv - 1);
     env = argv + argc + 1;
     environ = env;
-    if(argc > 0 && argv[0] != NULL) {
+    if (argc > 0 && argv[0] != NULL) {
 	char *s;
 	__progname = argv[0];
 	for (s = __progname; *s != '\0'; s++)
@@ -82,7 +80,7 @@ _start(char *arguments, ...)
 		__progname = s + 1;
     }
 
-    if(&_DYNAMIC != NULL)
+    if (&_DYNAMIC != NULL)
 	atexit(rtld_cleanup);
 
 #ifdef GCRT
@@ -101,3 +99,5 @@ __asm__(".text");
 __asm__("eprol:");
 __asm__(".previous");
 #endif
+
+__asm__(".ident\t\"$FreeBSD$\"");

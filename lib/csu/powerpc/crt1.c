@@ -86,7 +86,7 @@ _start(argc, argv, envp, obj, cleanup, ps_strings)
 
 	environ = envp;
 
-	if(argc > 0 && argv[0] != NULL) {
+	if (argc > 0 && argv[0] != NULL) {
 		char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
@@ -117,10 +117,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-/*
- * NOTE: Leave the RCS ID _after_ __start(), in case it gets placed in .text.
- */
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+__asm__(".ident\t\"$FreeBSD$\"");
