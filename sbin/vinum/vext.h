@@ -57,6 +57,7 @@ enum {
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
+#include <sys/time.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>

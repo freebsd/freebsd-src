@@ -148,7 +148,7 @@ g_clone_bio(struct bio *bp)
 
 	bp2 = g_new_bio();
 	if (bp2 != NULL) {
-		bp2->bio_linkage = bp;
+		bp2->bio_parent = bp;
 		bp2->bio_cmd = bp->bio_cmd;
 		bp2->bio_length = bp->bio_length;
 		bp2->bio_offset = bp->bio_offset;
