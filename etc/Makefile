@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117.4.8 1996/06/05 20:28:10 nate Exp $
+#	$Id: Makefile,v 1.117.4.9 1996/06/05 21:20:22 nate Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -61,7 +61,7 @@ distribution:
 		    ${DESTDIR}/root/.fvwmrc; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.Xdefaults \
 		    ${DESTDIR}/root/.Xdefaults; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.xsession \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 dot.xsession \
 		    ${DESTDIR}/root/.xsession; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
