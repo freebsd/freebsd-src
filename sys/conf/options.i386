@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.89 1998/09/25 17:34:48 peter Exp $
+#	$Id: options.i386,v 1.90 1998/10/06 13:16:17 kato Exp $
 
 DISABLE_PSE
 USER_LDT
@@ -97,7 +97,7 @@ CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
-USERCONFIG_BOOT		opt_userconfig.h
+INTRO_USERCONFIG	opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
 
