@@ -394,19 +394,10 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 	auio.uio_segflg = segflg;
 	auio.uio_rw = rw;
 	auio.uio_td = td;
-	if (rw == UIO_READ) {
-#ifdef MAC
-		error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_READ);
-		if (error == 0)
-#endif
-			error = VOP_READ(vp, &auio, ioflg, cred);
-	} else {
-#ifdef MAC
-		error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_WRITE);
-		if (error == 0)
-#endif
-			error = VOP_WRITE(vp, &auio, ioflg, cred);
-	}
+	if (rw == UIO_READ)
+		error = VOP_READ(vp, &auio, ioflg, cred);
+	 else
+		error = VOP_WRITE(vp, &auio, ioflg, cred);
 	if (aresid)
 		*aresid = auio.uio_resid;
 	else
