@@ -53,7 +53,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_softdep.c	9.21 (McKusick) 2/15/98
+ *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
  */
 
 /*
@@ -75,7 +75,6 @@
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
-/*#include <machine/pcpu.h>*/
 #include <miscfs/specfs/specdev.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/quota.h>
@@ -85,6 +84,74 @@
 #include <ufs/ffs/softdep.h>
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ufs/ufs_extern.h>
+
+/*
+ * These definitions need to be adapted to the system to which
+ * this file is being ported.
+ */
+/*
+ * malloc types defined for the softdep system.
+ */
+MALLOC_DEFINE(M_PAGEDEP, "pagedep","File page dependencies");
+MALLOC_DEFINE(M_INODEDEP, "inodedep","Inode dependencies");
+MALLOC_DEFINE(M_NEWBLK, "newblk","New block allocation");
+MALLOC_DEFINE(M_BMSAFEMAP, "bmsafemap","Block or frag allocated from cyl group map");
+MALLOC_DEFINE(M_ALLOCDIRECT, "allocdirect","Block or frag dependency for an inode");
+MALLOC_DEFINE(M_INDIRDEP, "indirdep","Indirect block dependencies");
+MALLOC_DEFINE(M_ALLOCINDIR, "allocindir","Block dependency for an indirect block");
+MALLOC_DEFINE(M_FREEFRAG, "freefrag","Previously used frag for an inode");
+MALLOC_DEFINE(M_FREEBLKS, "freeblks","Blocks freed from an inode");
+MALLOC_DEFINE(M_FREEFILE, "freefile","Inode deallocated");
+MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
+MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
+MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
+
+#define	D_PAGEDEP	0
+#define	D_INODEDEP	1
+#define	D_NEWBLK	2
+#define	D_BMSAFEMAP	3
+#define	D_ALLOCDIRECT	4
+#define	D_INDIRDEP	5
+#define	D_ALLOCINDIR	6
+#define	D_FREEFRAG	7
+#define	D_FREEBLKS	8
+#define	D_FREEFILE	9
+#define	D_DIRADD	10
+#define	D_MKDIR		11
+#define	D_DIRREM	12
+#define D_LAST		D_DIRREM
+
+/* 
+ * translate from workitem type to memory type
+ * MUST match the defines above, such that memtype[D_XXX] == M_XXX
+ */
+static struct malloc_type *memtype[] = {
+	M_PAGEDEP,
+	M_INODEDEP,
+	M_NEWBLK,
+	M_BMSAFEMAP,
+	M_ALLOCDIRECT,
+	M_INDIRDEP,
+	M_ALLOCINDIR,
+	M_FREEFRAG,
+	M_FREEBLKS,
+	M_FREEFILE,
+	M_DIRADD,
+	M_MKDIR,
+	M_DIRREM
+};
+
+#define DtoM(type) (memtype[type])
+
+/*
+ * Names of malloc types.
+ */
+#define TYPENAME(type)  \
+	((unsigned)(type) < D_LAST ? memtype[type]->ks_shortdesc : "???")
+#define CURPROC curproc
+/*
+ * End system adaptaion definitions.
+ */
 
 /*
  * Internal function prototypes.
@@ -145,65 +212,6 @@ struct bio_ops bioops = {
 };
 
 /*
- * malloc types defined for the softdep system.
- */
-MALLOC_DEFINE(M_PAGEDEP, "pagedep","File page dependencies");
-MALLOC_DEFINE(M_INODEDEP, "inodedep","Inode dependencies");
-MALLOC_DEFINE(M_NEWBLK, "newblk","New block allocation");
-MALLOC_DEFINE(M_BMSAFEMAP, "bmsafemap","Block or frag allocated from cyl group map");
-MALLOC_DEFINE(M_ALLOCDIRECT, "allocdirect","Block or frag dependency for an inode");
-MALLOC_DEFINE(M_INDIRDEP, "indirdep","Indirect block dependencies");
-MALLOC_DEFINE(M_ALLOCINDIR, "allocindir","Block dependency for an indirect block");
-MALLOC_DEFINE(M_FREEFRAG, "freefrag","Previously used frag for an inode");
-MALLOC_DEFINE(M_FREEBLKS, "freeblks","Blocks freed from an inode");
-MALLOC_DEFINE(M_FREEFILE, "freefile","Inode deallocated");
-MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
-MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
-MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
-
-#define	D_PAGEDEP	0
-#define	D_INODEDEP	1
-#define	D_NEWBLK	2
-#define	D_BMSAFEMAP	3
-#define	D_ALLOCDIRECT	4
-#define	D_INDIRDEP	5
-#define	D_ALLOCINDIR	6
-#define	D_FREEFRAG	7
-#define	D_FREEBLKS	8
-#define	D_FREEFILE	9
-#define	D_DIRADD	10
-#define	D_MKDIR		11
-#define	D_DIRREM	12
-#define D_LAST		D_DIRREM
-
-/* 
- * translate from workitem type to memory type
- * MUST match the defines above, such that memtype[D_XXX] == M_XXX
- */
-static struct malloc_type *memtype[] = {
-	M_PAGEDEP,
-	M_INODEDEP,
-	M_NEWBLK,
-	M_BMSAFEMAP,
-	M_ALLOCDIRECT,
-	M_INDIRDEP,
-	M_ALLOCINDIR,
-	M_FREEFRAG,
-	M_FREEBLKS,
-	M_FREEFILE,
-	M_DIRADD,
-	M_MKDIR,
-	M_DIRREM
-};
-
-#define DtoM(type) (memtype[type])
-
-/*
- * Names of malloc types.
- */
-#define TYPENAME(type) ((unsigned)(type) < D_LAST ? memtype[type]->ks_shortdesc : "???")
-
-/*
  * Locking primitives.
  *
  * For a uniprocessor, all we need to do is protect against disk
@@ -250,12 +258,12 @@ acquire_lock(lk)
 {
 
 	if (lk->lkt_held != -1)
-		if (lk->lkt_held == curproc->p_pid)
+		if (lk->lkt_held == CURPROC->p_pid)
 			panic("softdep_lock: locking against myself");
 		else
 			panic("softdep_lock: lock held by %d", lk->lkt_held);
 	lk->lkt_spl = splbio();
-	lk->lkt_held = curproc->p_pid;
+	lk->lkt_held = CURPROC->p_pid;
 	lockcnt++;
 }
 
@@ -276,12 +284,12 @@ acquire_lock_interlocked(lk)
 {
 
 	if (lk->lkt_held != -1)
-		if (lk->lkt_held == curproc->p_pid)
+		if (lk->lkt_held == CURPROC->p_pid)
 			panic("softdep_lock_interlocked: locking against self");
 		else
 			panic("softdep_lock_interlocked: lock held by %d",
 			    lk->lkt_held);
-	lk->lkt_held = curproc->p_pid;
+	lk->lkt_held = CURPROC->p_pid;
 	lockcnt++;
 }
 
@@ -340,7 +348,7 @@ sema_get(semap, interlock)
 		}
 		return (0);
 	}
-	semap->holder = curproc->p_pid;
+	semap->holder = CURPROC->p_pid;
 	if (interlock != NULL)
 		FREE_LOCK(interlock);
 	return (1);
@@ -351,7 +359,7 @@ sema_release(semap)
 	struct sema *semap;
 {
 
-	if (semap->value <= 0 || semap->holder != curproc->p_pid)
+	if (semap->value <= 0 || semap->holder != CURPROC->p_pid)
 		panic("sema_release: not held");
 	if (--semap->value > 0) {
 		semap->value = 0;
@@ -445,10 +453,10 @@ SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, max_limit_hit, CTLFLAG_RW, &max_limit_hit, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &rush_requests, 0, "");
 #else /* !__FreeBSD__ */
-struct ctldebug debug4 = { "max_softdeps", &max_softdeps };
-struct ctldebug debug5 = { "tickdelay", &tickdelay };
-struct ctldebug debug6 = { "max_limit_hit", &max_limit_hit };
-struct ctldebug debug7 = { "rush_requests", &rush_requests };
+struct ctldebug debug8 = { "max_softdeps", &max_softdeps };
+struct ctldebug debug9 = { "tickdelay", &tickdelay };
+struct ctldebug debug10 = { "max_limit_hit", &max_limit_hit };
+struct ctldebug debug11 = { "rush_requests", &rush_requests };
 #endif	/* !__FreeBSD__ */
 
 #endif /* DEBUG */
@@ -490,7 +498,7 @@ int
 softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
-	struct proc *p = curproc;
+	struct proc *p = CURPROC;
 	struct worklist *wk;
 	struct fs *matchfs;
 	int matchcnt;
@@ -575,7 +583,7 @@ softdep_flushfiles(oldmnt, flags, p)
 	 * Await our turn to clear out the queue.
 	 */
 	while (softdep_worklist_busy)
-		tsleep(&lbolt, PRIBIO, "sdflsh", 0);
+		tsleep(&lbolt, PRIBIO, "softflush", 0);
 	softdep_worklist_busy = 1;
 	if ((error = ffs_flushfiles(oldmnt, flags, p)) != 0) {
 		softdep_worklist_busy = 0;
@@ -633,7 +641,7 @@ checklimit(resource, islocked)
 	long *resource;
 	int islocked;
 {
-	struct proc *p = curproc;
+	struct proc *p = CURPROC;
 
 	/*
 	 * If we are under our limit, just proceed.
@@ -1677,8 +1685,6 @@ deallocate_dependencies(bp, inodedep)
 	struct pagedep *pagedep;
 	struct dirrem *dirrem;
 	struct diradd *dap;
-	long tmpsize;
-	caddr_t tmp;
 	int i;
 
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
@@ -2132,13 +2138,9 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 		mkdir2->md_list.wk_type = D_MKDIR;
 		mkdir2->md_state = MKDIR_PARENT;
 		mkdir2->md_diradd = dap;
-
 		ACQUIRE_LOCK(&lk);
 		/*
-		 * If this directory entry references a new directory, create
-		 * its two additional dependencies: its "." and ".." being
-		 * written to disk and the link count increase for its
-		 * parent directory.
+		 * Dependency on "." and ".." being written to disk.
 		 */
 		LIST_INSERT_HEAD(&mkdirlisthd, mkdir1, md_mkdirs);
 		WORKLIST_INSERT(&newdirbp->b_dep, &mkdir1->md_list);
@@ -2468,7 +2470,7 @@ static void
 handle_workitem_remove(dirrem)
 	struct dirrem *dirrem;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct proc *p = CURPROC;	/* XXX */
 	struct inodedep *inodedep;
 	struct vnode *vp;
 	struct inode *ip;
@@ -3499,7 +3501,7 @@ softdep_fsync(vp)
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
-	struct proc *p = curproc;		/* XXX */
+	struct proc *p = CURPROC;		/* XXX */
 	int error, ret, flushparent;
 	struct timeval tv;
 	ino_t parentino;
@@ -3670,13 +3672,8 @@ loop:
 			if (adp->ad_state & DEPCOMPLETE)
 				break;
 			nbp = adp->ad_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0) {
-#if 0  /* [JRE] I suspect this should be here XXX */
-				if (waitfor == MNT_NOWAIT)
-					continue;
-#endif
+			if (getdirtybuf(&nbp, waitfor) == 0)
 				break;
-			}
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
@@ -3917,7 +3914,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct mount *mp;
 	struct diraddhd *diraddhdp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct proc *p = CURPROC;	/* XXX */
 	struct inodedep *inodedep;
 	struct ufsmount *ump;
 	struct diradd *dap;
@@ -4128,3 +4125,4 @@ softdep_error(func, error)
 	log(LOG_ERR, "%s: got error %d while accessing filesystem\n",
 	    func, error);
 }
+
