@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.15 1996/03/03 01:57:44 jkh Exp $
+ *	$Id: sys_machdep.c,v 1.16 1996/06/12 05:02:53 gpalmer Exp $
  *
  */
 
@@ -64,8 +64,10 @@
 
 
 void set_user_ldt	__P((struct pcb *pcb));
+#ifdef USER_LDT
 static int i386_get_ldt	__P((struct proc *, char *, int *));
 static int i386_set_ldt	__P((struct proc *, char *, int *));
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
