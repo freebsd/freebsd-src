@@ -226,7 +226,7 @@ ether_MessageIn(struct etherdevice *dev)
   if (ret <= 0)
     return;
 
-  if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) < 0)
+  if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) <= 0)
     return;
 
   if (rep->header.version != NG_VERSION) {
@@ -507,7 +507,7 @@ ether_Create(struct physical *p)
 
     /* Get our list back */
     resp = (struct ng_mesg *)rbuf;
-    if (NgRecvMsg(dev->cs, resp, sizeof rbuf, NULL) < 0) {
+    if (NgRecvMsg(dev->cs, resp, sizeof rbuf, NULL) <= 0) {
       log_Printf(LogWARN, "Cannot get netgraph response: %s\n",
                  strerror(errno));
       return ether_Abandon(dev, p);
