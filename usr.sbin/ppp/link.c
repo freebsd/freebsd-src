@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.20 1998/05/01 19:24:59 brian Exp $
+ *  $Id: link.c,v 1.2 1998/05/21 21:46:10 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.59 1998/06/15 19:06:13 brian Exp $
+ * $Id: lcp.c,v 1.60 1998/06/25 22:33:28 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -32,6 +32,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -68,7 +69,7 @@ struct lqrreq {
   u_char type;
   u_char length;
   u_short proto;		/* Quality protocol */
-  u_long period;		/* Reporting interval */
+  u_int32_t period;		/* Reporting interval */
 };
 
 static int LcpLayerUp(struct fsm *);
@@ -135,8 +136,7 @@ lcp_ReportStatus(struct cmdargs const *arg)
   struct link *l;
   struct lcp *lcp;
 
-  if (!(l = command_ChooseLink(arg)))
-    return -1;
+  l = command_ChooseLink(arg);
   lcp = &l->lcp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
@@ -308,7 +308,7 @@ LcpSendConfigReq(struct fsm *fp)
   }
 
   if (!REJECTED(lcp, TY_MRU)) {
-    *(u_short *)o->data = htons(lcp->want_mru);
+    *(u_int16_t *)o->data = htons(lcp->want_mru);
     INC_LCP_OPT(TY_MRU, 4, o);
   }
 
@@ -318,26 +318,26 @@ LcpSendConfigReq(struct fsm *fp)
   }
 
   if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
-    *(u_short *)o->data = htons(PROTO_LQR);
-    *(u_long *)(o->data + 2) = htonl(lcp->want_lqrperiod);
+    *(u_int16_t *)o->data = htons(PROTO_LQR);
+    *(u_int32_t *)(o->data + 2) = htonl(lcp->want_lqrperiod);
     INC_LCP_OPT(TY_QUALPROTO, 8, o);
   }
 
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    *(u_short *)o->data = htons(PROTO_PAP);
+    *(u_int16_t *)o->data = htons(PROTO_PAP);
     INC_LCP_OPT(TY_AUTHPROTO, 4, o);
     break;
 
   case PROTO_CHAP:
-    *(u_short *)o->data = htons(PROTO_CHAP);
+    *(u_int16_t *)o->data = htons(PROTO_CHAP);
     o->data[2] = 0x05;
     INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
   }
 
   if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
-    *(u_short *)o->data = htons(lcp->want_mrru);
+    *(u_int16_t *)o->data = htons(lcp->want_mrru);
     INC_LCP_OPT(TY_MRRU, 4, o);
 
     if (lcp->want_shortseq && !REJECTED(lcp, TY_SHORTSEQ))
@@ -380,7 +380,7 @@ LcpLayerStart(struct fsm *fp)
   /* We're about to start up ! */
   struct lcp *lcp = fsm2lcp(fp);
 
-  log_Printf(LogLCP, "%s: LcpLayerStart\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LayerStart\n", fp->link->name);
   lcp->LcpFailedMagic = 0;
 }
 
@@ -388,7 +388,7 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  log_Printf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LayerFinish\n", fp->link->name);
 }
 
 static int
@@ -398,7 +398,7 @@ LcpLayerUp(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
 
-  log_Printf(LogLCP, "%s: LcpLayerUp\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LayerUp\n", fp->link->name);
   async_SetLinkParams(&p->async, lcp);
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
@@ -411,7 +411,7 @@ LcpLayerDown(struct fsm *fp)
   /* About to come down */
   struct physical *p = link2physical(fp->link);
 
-  log_Printf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LayerDown\n", fp->link->name);
   hdlc_StopTimer(&p->hdlc);
   lqr_StopTimer(p);
   lcp_Setup(fsm2lcp(fp), 0);
@@ -425,7 +425,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct lcp *lcp = fsm2lcp(fp);
   int type, length, sz, pos;
   u_int32_t magic, accmap;
-  u_short mtu, mru, *sp, proto;
+  u_short mtu, mru, proto;
+  u_int16_t *sp;
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
@@ -448,7 +449,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     switch (type) {
     case TY_MRRU:
       mp = &lcp->fsm.bundle->ncp.mp;
-      sp = (u_short *)(cp + 2);
+      sp = (u_int16_t *)(cp + 2);
       mru = htons(*sp);
       log_Printf(LogLCP, "%s %u\n", request, mru);
 
@@ -463,7 +464,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (mru < MIN_MRU || mru < mtu) {
             /* Push him up to MTU or MIN_MRU */
             lcp->his_mrru = mru < mtu ? mtu : MIN_MRU;
-	    *sp = htons((u_short)lcp->his_mrru);
+	    *sp = htons((u_int16_t)lcp->his_mrru);
 	    memcpy(dec->nakend, cp, 4);
 	    dec->nakend += 4;
 	  } else {
@@ -498,7 +499,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_MRU:
-      sp = (u_short *) (cp + 2);
+      sp = (u_int16_t *) (cp + 2);
       mru = htons(*sp);
       log_Printf(LogLCP, "%s %d\n", request, mru);
 
@@ -508,7 +509,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         if (mru < MIN_MRU || (!lcp->want_mrru && mru < mtu)) {
           /* Push him up to MTU or MIN_MRU */
           lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
-          *sp = htons((u_short)lcp->his_mru);
+          *sp = htons((u_int16_t)lcp->his_mru);
           memcpy(dec->nakend, cp, 4);
           dec->nakend += 4;
         } else {
@@ -551,7 +552,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_AUTHPROTO:
-      sp = (u_short *) (cp + 2);
+      sp = (u_int16_t *) (cp + 2);
       proto = ntohs(*sp);
       switch (proto) {
       case PROTO_PAP:
@@ -653,16 +654,16 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_QUALPROTO:
       req = (struct lqrreq *)cp;
-      log_Printf(LogLCP, "%s proto %x, interval %ldms\n",
-                request, ntohs(req->proto), (long)ntohl(req->period) * 10);
+      log_Printf(LogLCP, "%s proto %x, interval %lums\n",
+                request, ntohs(req->proto), (u_long)ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
 	if (ntohs(req->proto) != PROTO_LQR || !IsAccepted(lcp->cfg.lqr))
 	  goto reqreject;
 	else {
 	  lcp->his_lqrperiod = ntohl(req->period);
-	  if (lcp->his_lqrperiod < 500)
-	    lcp->his_lqrperiod = 500;
+	  if (lcp->his_lqrperiod < MIN_LQRPERIOD * 100)
+	    lcp->his_lqrperiod = MIN_LQRPERIOD * 100;
 	  req->period = htonl(lcp->his_lqrperiod);
 	  memcpy(dec->ackend, cp, length);
 	  dec->ackend += length;
@@ -829,8 +830,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
             log_Printf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
                       cp[2]);
           else
-            log_Printf(LogLCP, " ENDDISC rejected - local max length is %d\n",
-                      sizeof p->dl->peer.enddisc.address - 1);
+            log_Printf(LogLCP, " ENDDISC rejected - local max length is %ld\n",
+                      (long)(sizeof p->dl->peer.enddisc.address - 1));
 	  goto reqreject;
         }
 	break;
