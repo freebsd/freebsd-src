@@ -609,6 +609,7 @@ product EPSON 1250		0x010f	Perfection 1250U / 1250Photo scanner
 product EPSON 640U		0x010c	Perfection 640U scanner
 product EPSON 1650		0x0110	Perfection 1650 scanner
 product EPSON GT9700F		0x0112	GT-9700F scanner
+product EPSON GT9300UF		0x011b	GT-9300UF scanner
 product EPSON 1260		0x011d	Perfection 1260 scanner
 product EPSON 1660		0x011e	Perfection 1660 scanner
 
