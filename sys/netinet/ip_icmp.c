@@ -427,7 +427,7 @@ icmp_input(m, off)
 				}
 			}
 			if (rt)
-				RTFREE(rt);
+				rtfree(rt);
 		}
 
 #endif
@@ -565,7 +565,7 @@ reflect:
 		rtredirect((struct sockaddr *)&icmpsrc,
 		  (struct sockaddr *)&icmpdst,
 		  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
-		  (struct sockaddr *)&icmpgw, (struct rtentry **)0);
+		  (struct sockaddr *)&icmpgw);
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
 #ifdef IPSEC
 		key_sa_routechange((struct sockaddr *)&icmpsrc);

@@ -1160,9 +1160,8 @@ icmp6_mtudisc_update(ip6cp, validated)
 			rt->rt_rmx.rmx_mtu = mtu;
 		}
 	}
-	if (rt) { /* XXX: need braces to avoid conflict with else in RTFREE. */
-		RTFREE(rt);
-	}
+	if (rt)
+		rtfree(rt);
 }
 
 /*
@@ -2298,7 +2297,7 @@ icmp6_redirect_input(m, off)
 			    "ICMP6 redirect rejected; no route "
 			    "with inet6 gateway found for redirect dst: %s\n",
 			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
-			RTFREE(rt);
+			RTFREE_LOCKED(rt);
 			goto bad;
 		}
 
@@ -2310,7 +2309,7 @@ icmp6_redirect_input(m, off)
 				"%s\n",
 				ip6_sprintf(gw6),
 				icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
-			RTFREE(rt);
+			RTFREE_LOCKED(rt);
 			goto bad;
 		}
 	} else {
@@ -2320,7 +2319,7 @@ icmp6_redirect_input(m, off)
 			icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
 	}
-	RTFREE(rt);
+	RTFREE_LOCKED(rt);
 	rt = NULL;
     }
 	if (IN6_IS_ADDR_MULTICAST(&reddst6)) {
@@ -2395,8 +2394,7 @@ icmp6_redirect_input(m, off)
 		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
 		rtredirect((struct sockaddr *)&sdst, (struct sockaddr *)&sgw,
 			   (struct sockaddr *)NULL, RTF_GATEWAY | RTF_HOST,
-			   (struct sockaddr *)&ssrc,
-			   (struct rtentry **)NULL);
+			   (struct sockaddr *)&ssrc);
 	}
 	/* finally update cached route in each socket via pfctlinput */
     {

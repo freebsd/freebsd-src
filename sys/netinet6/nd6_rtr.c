@@ -472,7 +472,6 @@ defrouter_addreq(new)
 {
 	struct sockaddr_in6 def, mask, gate;
 	struct rtentry *newrt = NULL;
-	int s;
 
 	Bzero(&def, sizeof(def));
 	Bzero(&mask, sizeof(mask));
@@ -483,15 +482,15 @@ defrouter_addreq(new)
 	def.sin6_family = mask.sin6_family = gate.sin6_family = AF_INET6;
 	gate.sin6_addr = new->rtaddr;
 
-	s = splnet();
 	(void)rtrequest(RTM_ADD, (struct sockaddr *)&def,
 		(struct sockaddr *)&gate, (struct sockaddr *)&mask,
 		RTF_GATEWAY, &newrt);
 	if (newrt) {
+		RT_LOCK(newrt);
 		nd6_rtmsg(RTM_ADD, newrt); /* tell user process */
 		newrt->rt_refcnt--;
+		RT_UNLOCK(newrt);
 	}
-	splx(s);
 	return;
 }
 
@@ -531,13 +530,12 @@ defrouter_addifreq(ifp)
 		    "defrouter_addifreq: failed to install a route to "
 		    "interface %s (errno = %d)\n",
 		    if_name(ifp), error));
-
-		if (newrt)	/* maybe unnecessary, but do it for safety */
-			newrt->rt_refcnt--;
 	} else {
 		if (newrt) {
+			RT_LOCK(newrt);
 			nd6_rtmsg(RTM_ADD, newrt);
 			newrt->rt_refcnt--;
+			RT_UNLOCK(newrt);
 		}
 	}
 }
@@ -1500,8 +1498,11 @@ nd6_prefix_onlink(pr)
 		    ip6_sprintf(&mask6.sin6_addr), rtflags, error));
 	}
 
-	if (rt != NULL)
+	if (rt != NULL) {
+		RT_LOCK(rt);
 		rt->rt_refcnt--;
+		RT_UNLOCK(rt);
+	}
 
 	return(error);
 }

@@ -351,6 +351,7 @@ route_output(m, so)
 		saved_nrt = 0;
 		error = rtrequest1(RTM_ADD, &info, &saved_nrt);
 		if (error == 0 && saved_nrt) {
+			RT_LOCK(saved_nrt);
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
 			saved_nrt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
@@ -358,6 +359,7 @@ route_output(m, so)
 				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
 			saved_nrt->rt_refcnt--;
 			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
+			RT_UNLOCK(saved_nrt);
 		}
 		break;
 
@@ -365,6 +367,7 @@ route_output(m, so)
 		saved_nrt = 0;
 		error = rtrequest1(RTM_DELETE, &info, &saved_nrt);
 		if (error == 0) {
+			RT_LOCK(saved_nrt);
 			rt = saved_nrt;
 			goto report;
 		}
@@ -382,12 +385,14 @@ route_output(m, so)
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 		if (rt == NULL)		/* XXX looks bogus */
 			senderr(ESRCH);
+		RT_LOCK(rt);
 		rt->rt_refcnt++;
 
 		switch(rtm->rtm_type) {
 
 		case RTM_GET:
 		report:
+			RT_LOCK_ASSERT(rt);
 			info.rti_info[RTAX_DST] = rt_key(rt);
 			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
@@ -413,6 +418,7 @@ route_output(m, so)
 				struct rt_msghdr *new_rtm;
 				R_Malloc(new_rtm, struct rt_msghdr *, len);
 				if (new_rtm == 0) {
+					RT_UNLOCK(rt);
 					senderr(ENOBUFS);
 				}
 				Bcopy(rtm, new_rtm, rtm->rtm_msglen);
@@ -438,12 +444,14 @@ route_output(m, so)
 			     !sa_equal(info.rti_info[RTAX_IFA],
 				       rt->rt_ifa->ifa_addr))) {
 				if ((error = rt_getifa(&info)) != 0) {
+					RT_UNLOCK(rt);
 					senderr(error);
 				}
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL &&
 			    (error = rt_setgate(rt, rt_key(rt),
 					info.rti_info[RTAX_GATEWAY])) != 0) {
+				RT_UNLOCK(rt);
 				senderr(error);
 			}
 			if ((ifa = info.rti_ifa) != NULL) {
@@ -474,6 +482,7 @@ route_output(m, so)
 				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
 			break;
 		}
+		RT_UNLOCK(rt);
 		break;
 
 	default:

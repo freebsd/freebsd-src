@@ -707,6 +707,7 @@ skip_ipsec2:;
 			ia = ifatoia6(ro->ro_rt->rt_ifa);
 			ifp = ro->ro_rt->rt_ifp;
 			ro->ro_rt->rt_use++;
+			RT_UNLOCK(ro->ro_rt);
 		}
 
 		if ((flags & IPV6_FORWARDING) == 0)
@@ -2080,7 +2081,7 @@ ip6_setmoptions(optname, im6op, m)
 					break;
 				}
 				ifp = ro.ro_rt->rt_ifp;
-				rtfree(ro.ro_rt);
+				RTFREE(ro.ro_rt);
 			}
 		} else
 			ifp = ifnet_byindex(mreq->ipv6mr_interface);

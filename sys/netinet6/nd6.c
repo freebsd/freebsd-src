@@ -811,17 +811,18 @@ nd6_lookup(addr6, create, ifp)
 	sin6.sin6_scope_id = in6_addr2scopeid(ifp, addr6);
 #endif
 	rt = rtalloc1((struct sockaddr *)&sin6, create, 0UL);
-	if (rt && (rt->rt_flags & RTF_LLINFO) == 0) {
-		/*
-		 * This is the case for the default route.
-		 * If we want to create a neighbor cache for the address, we
-		 * should free the route for the destination and allocate an
-		 * interface route.
-		 */
-		if (create) {
-			RTFREE(rt);
+	if (rt) {
+		if ((rt->rt_flags & RTF_LLINFO) == 0 && create) {
+			/*
+			 * This is the case for the default route.
+			 * If we want to create a neighbor cache for the
+			 * address, we should free the route for the
+			 * destination and allocate an interface route.
+			 */
+			RTFREE_LOCKED(rt);
 			rt = 0;
 		}
+		RT_UNLOCK(rt);
 	}
 	if (!rt) {
 		if (create && ifp) {
@@ -1102,6 +1103,8 @@ nd6_rtrequest(req, rt, info)
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 	struct ifnet *ifp = rt->rt_ifp;
 	struct ifaddr *ifa;
+
+	RT_LOCK_ASSERT(rt);
 
 	if ((rt->rt_flags & RTF_GATEWAY))
 		return;
@@ -1889,10 +1892,10 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	 */
 	if (rt) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			if ((rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL)) !=
-				NULL)
-			{
+			rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL);
+			if (rt != NULL) {
 				rt->rt_refcnt--;
+				RT_UNLOCK(rt);
 				if (rt->rt_ifp != ifp) {
 					/* XXX: loop care? */
 					return nd6_output(ifp, origifp, m0,
@@ -1933,6 +1936,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
 				if ((rt = rt->rt_gwroute) == 0)
 					senderr(EHOSTUNREACH);
+				RT_UNLOCK(rt);
 			}
 		}
 	}

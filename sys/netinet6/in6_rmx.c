@@ -82,6 +82,7 @@
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
+#include <sys/callout.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -165,14 +166,17 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 				rt2->rt_flags & RTF_HOST &&
 				rt2->rt_gateway &&
 				rt2->rt_gateway->sa_family == AF_LINK) {
+				/* NB: must unlock to avoid recursion */
+				RT_UNLOCK(rt2);
 				rtrequest(RTM_DELETE,
 					  (struct sockaddr *)rt_key(rt2),
 					  rt2->rt_gateway,
 					  rt_mask(rt2), rt2->rt_flags, 0);
 				ret = rn_addroute(v_arg, n_arg, head,
 					treenodes);
+				RT_LOCK(rt2);
 			}
-			RTFREE(rt2);
+			RTFREE_LOCKED(rt2);
 		}
 	} else if (ret == NULL && rt->rt_flags & RTF_CLONING) {
 		struct rtentry *rt2;
@@ -198,7 +202,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			 && rt2->rt_ifp == rt->rt_ifp) {
 				ret = rt2->rt_nodes;
 			}
-			RTFREE(rt2);
+			RTFREE_LOCKED(rt2);
 		}
 	}
 	return ret;
@@ -251,6 +255,8 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
 	struct rtentry *rt = (struct rtentry *)rn;
 
+	RT_LOCK_ASSERT(rt);
+
 	if (!(rt->rt_flags & RTF_UP))
 		return;		/* prophylactic measures */
 
@@ -269,10 +275,13 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 		rt->rt_flags |= RTPRF_OURS;
 		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
 	} else {
+		/* NB: must unlock to avoid recursion */
+		RT_UNLOCK(rt);
 		rtrequest(RTM_DELETE,
 			  (struct sockaddr *)rt_key(rt),
 			  rt->rt_gateway, rt_mask(rt),
 			  rt->rt_flags, 0);
+		RT_LOCK(rt);
 	}
 }
 
@@ -331,6 +340,7 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
 static int rtq_timeout = RTQ_TIMEOUT;
+static struct callout rtq_timer;
 
 static void
 in6_rtqtimo(void *rock)
@@ -339,17 +349,14 @@ in6_rtqtimo(void *rock)
 	struct rtqk_arg arg;
 	struct timeval atv;
 	static time_t last_adjusted_timeout = 0;
-	int s;
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time_second + rtq_timeout;
 	arg.draining = arg.updating = 0;
-	s = splnet();
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-	splx(s);
 
 	/*
 	 * Attempt to be somewhat dynamic about this:
@@ -374,16 +381,14 @@ in6_rtqtimo(void *rock)
 #endif
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
-		s = splnet();
 		RADIX_NODE_HEAD_LOCK(rnh);
 		rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
 		RADIX_NODE_HEAD_UNLOCK(rnh);
-		splx(s);
 	}
 
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
-	timeout(in6_rtqtimo, rock, tvtohz(&atv));
+	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
 /*
@@ -393,6 +398,7 @@ struct mtuex_arg {
 	struct radix_node_head *rnh;
 	time_t nextstop;
 };
+static struct callout rtq_mtutimer;
 
 static int
 in6_mtuexpire(struct radix_node *rn, void *rock)
@@ -424,15 +430,12 @@ in6_mtutimo(void *rock)
 	struct radix_node_head *rnh = rock;
 	struct mtuex_arg arg;
 	struct timeval atv;
-	int s;
 
 	arg.rnh = rnh;
 	arg.nextstop = time_second + MTUTIMO_DEFAULT;
-	s = splnet();
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-	splx(s);
 
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
@@ -440,7 +443,7 @@ in6_mtutimo(void *rock)
 		printf("invalid mtu expiration time on routing table\n");
 		arg.nextstop = time_second + 30;	/* last resort */
 	}
-	timeout(in6_mtutimo, rock, tvtohz(&atv));
+	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 }
 
 #if 0
@@ -449,17 +452,15 @@ in6_rtqdrain()
 {
 	struct radix_node_head *rnh = rt_tables[AF_INET6];
 	struct rtqk_arg arg;
-	int s;
+
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = 0;
 	arg.draining = 1;
 	arg.updating = 0;
-	s = splnet();
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-	splx(s);
 }
 #endif
 
@@ -481,7 +482,9 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	rnh->rnh_close = in6_clsroute;
+	callout_init(&rtq_timer, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
+	callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
 	in6_mtutimo(rnh);	/* kick off timeout first time */
 	return 1;
 }
