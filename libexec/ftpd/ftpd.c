@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.2 1996/12/03 10:34:42 phk Exp $
+ *	$Id: ftpd.c,v 1.25.2.3 1997/01/28 07:15:44 davidg Exp $
  */
 
 #if 0
@@ -260,7 +260,7 @@ main(argc, argv, envp)
 
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "AdlDSUt:T:u:va:p:")) != EOF) {
+	while ((ch = getopt(argc, argv, "AdlDSURt:T:u:va:p:")) != EOF) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
