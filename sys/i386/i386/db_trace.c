@@ -214,7 +214,7 @@ db_nextframe(fp, ip)
 		}
 		break;
 	case INTERRUPT:
-		tf = (struct trapframe *)((int)*fp + 16);
+		tf = (struct trapframe *)((int)*fp + 12);
 		if (INKERNEL((int) tf)) {
 			eip = tf->tf_eip;
 			ebp = tf->tf_ebp;
