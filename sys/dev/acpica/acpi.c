@@ -49,7 +49,6 @@
 #include <isa/isavar.h>
 
 #include "acpi.h"
-#include <dev/acpica/acpica_support.h>
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
