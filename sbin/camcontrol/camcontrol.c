@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,23 +106,30 @@ struct camcontrol_opts {
 
 extern int optreset;
 
+#ifndef MINIMALISTIC
 static const char scsicmd_opts[] = "c:i:o:";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:O:qR:T:UW:";
+#endif
 
 struct camcontrol_opts option_table[] = {
+#ifndef MINIMALISTIC
 	{"tur", CAM_ARG_TUR, NULL},
 	{"inquiry", CAM_ARG_INQUIRY, "DSR"},
 	{"start", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_ARG_STARTSTOP, NULL},
 	{"eject", CAM_ARG_STARTSTOP | CAM_ARG_EJECT, NULL},
+#endif /* MINIMALISTIC */
 	{"rescan", CAM_ARG_RESCAN, NULL},
 	{"reset", CAM_ARG_RESET, NULL},
+#ifndef MINIMALISTIC
 	{"cmd", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"command", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"defects", CAM_ARG_READ_DEFECTS, readdefect_opts},
 	{"defectlist", CAM_ARG_READ_DEFECTS, readdefect_opts},
+#endif /* MINIMALISTIC */
 	{"devlist", CAM_ARG_DEVTREE, NULL},
+#ifndef MINIMALISTIC
 	{"periphlist", CAM_ARG_DEVLIST, NULL},
 	{"modepage", CAM_ARG_MODE_PAGE, "bdelm:P:"},
 	{"tags", CAM_ARG_TAG, "N:q"},
@@ -130,6 +137,7 @@ struct camcontrol_opts option_table[] = {
 	{"rate", CAM_ARG_RATE, negotiate_opts},
 	{"debug", CAM_ARG_DEBUG, "ITSc"},
 	{"format", CAM_ARG_FORMAT, "qwy"},
+#endif /* MINIMALISTIC */
 	{"help", CAM_ARG_USAGE, NULL},
 	{"-?", CAM_ARG_USAGE, NULL},
 	{"-h", CAM_ARG_USAGE, NULL},
@@ -147,6 +155,7 @@ int bus, target, lun;
 
 
 camcontrol_optret getoption(char *arg, cam_argmask *argnum, char **subopt);
+#ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
 static int getdevtree(void);
 static int testunitready(struct cam_device *device, int retry_count,
@@ -158,11 +167,13 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int scsixferrate(struct cam_device *device);
+#endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, int *bus, int *target, int *lun,
 		     cam_argmask *arglist);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
 static int rescan_or_reset_bus(int bus, int rescan);
 static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
+#ifndef MINIMALISTIC
 static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
 static void modepage(struct cam_device *device, int argc, char **argv,
@@ -181,6 +192,7 @@ static int ratecontrol(struct cam_device *device, int retry_count,
 		       int timeout, int argc, char **argv, char *combinedopt);
 static int scsiformat(struct cam_device *device, int argc, char **argv,
 		      char *combinedopt, int retry_count, int timeout);
+#endif /* MINIMALISTIC */
 
 camcontrol_optret
 getoption(char *arg, cam_argmask *argnum, char **subopt)
@@ -204,6 +216,7 @@ getoption(char *arg, cam_argmask *argnum, char **subopt)
 		return(CC_OR_NOT_FOUND);
 }
 
+#ifndef MINIMALISTIC
 static int
 getdevlist(struct cam_device *device)
 {
@@ -262,6 +275,7 @@ getdevlist(struct cam_device *device)
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 static int
 getdevtree(void)
@@ -312,14 +326,14 @@ getdevtree(void)
 		if ((ccb.ccb_h.status != CAM_REQ_CMP)
 		 || ((ccb.cdm.status != CAM_DEV_MATCH_LAST)
 		    && (ccb.cdm.status != CAM_DEV_MATCH_MORE))) {
-			fprintf(stderr, "got CAM error %#x, CDM error %d\n",
-				ccb.ccb_h.status, ccb.cdm.status);
+			warnx("got CAM error %#x, CDM error %d\n",
+			      ccb.ccb_h.status, ccb.cdm.status);
 			error = 1;
 			break;
 		}
 
 		for (i = 0; i < ccb.cdm.num_matches; i++) {
-			switch(ccb.cdm.matches[i].type) {
+			switch (ccb.cdm.matches[i].type) {
 			case DEV_MATCH_BUS: {
 				struct bus_match_result *bus_result;
 
@@ -426,6 +440,7 @@ getdevtree(void)
 	return(error);
 }
 
+#ifndef MINIMALISTIC
 static int
 testunitready(struct cam_device *device, int retry_count, int timeout,
 	      int quiet)
@@ -949,6 +964,7 @@ xferrate_bailout:
 
 	return(retval);
 }
+#endif /* MINIMALISTIC */
 
 /*
  * Parse out a bus, or a bus, target and lun in the following
@@ -994,18 +1010,27 @@ static int
 dorescan_or_reset(int argc, char **argv, int rescan)
 {
 	static const char *must =
-		"you must specify a bus, or a bus:target:lun to %s";
+		"you must specify \"all\", a bus, or a bus:target:lun to %s";
 	int rv, error = 0;
 	int bus = -1, target = -1, lun = -1;
+	char *tstr;
 
 	if (argc < 3) {
 		warnx(must, rescan? "rescan" : "reset");
 		return(1);
 	}
-	rv = parse_btl(argv[optind], &bus, &target, &lun, &arglist);
-	if (rv != 1 && rv != 3) {
-		warnx(must, rescan? "rescan" : "reset");
-		return(1);
+
+	tstr = argv[optind];
+	while (isspace(*tstr) && (*tstr != '\0'))
+		tstr++;
+	if (strncasecmp(tstr, "all", strlen("all")) == 0)
+		arglist |= CAM_ARG_BUS;
+	else {
+		rv = parse_btl(argv[optind], &bus, &target, &lun, &arglist);
+		if (rv != 1 && rv != 3) {
+			warnx(must, rescan? "rescan" : "reset");
+			return(1);
+		}
 	}
 
 	if ((arglist & CAM_ARG_BUS)
@@ -1021,13 +1046,12 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 static int
 rescan_or_reset_bus(int bus, int rescan)
 {
-	union ccb ccb;
-	int fd;
+	union ccb ccb, matchccb;
+	int curbus;
+	int fd, retval;
+	int bufsize;
 
-	if (bus < 0) {
-		warnx("invalid bus number %d", bus);
-		return(1);
-	}
+	retval = 0;
 
 	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
 		warnx("error opening tranport layer device %s", XPT_DEVICE);
@@ -1035,33 +1059,155 @@ rescan_or_reset_bus(int bus, int rescan)
 		return(1);
 	}
 
-	ccb.ccb_h.func_code = rescan? XPT_SCAN_BUS : XPT_RESET_BUS;
-	ccb.ccb_h.path_id = bus;
-	ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
-	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
-	ccb.crcn.flags = CAM_FLAG_NONE;
+	if (bus != -1) {
+		ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS : XPT_RESET_BUS;
+		ccb.ccb_h.path_id = bus;
+		ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
+		ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
+		ccb.crcn.flags = CAM_FLAG_NONE;
 
-	/* run this at a low priority */
-	ccb.ccb_h.pinfo.priority = 5;
+		/* run this at a low priority */
+		ccb.ccb_h.pinfo.priority = 5;
 
-	if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
-		warn("CAMIOCOMMAND ioctl failed");
+		if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
+			warn("CAMIOCOMMAND ioctl failed");
+			close(fd);
+			return(1);
+		}
+
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			fprintf(stdout, "%s of bus %d was successful\n",
+			    rescan ? "Re-scan" : "Reset", bus);
+		} else {
+			fprintf(stdout, "%s of bus %d returned error %#x\n",
+				rescan ? "Re-scan" : "Reset", bus,
+				ccb.ccb_h.status & CAM_STATUS_MASK);
+			retval = 1;
+		}
+
 		close(fd);
-		return(1);
+		return(retval);
+
 	}
 
-	close(fd);
 
-	if ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-		fprintf(stdout, "%s of bus %d was successful\n",
-		    rescan? "Re-scan" : "Reset", bus);
-		return(0);
-	} else {
-		fprintf(stdout, "%s of bus %d returned error %#x\n",
-		    rescan? "Re-scan" : "Reset", bus,
-		    ccb.ccb_h.status & CAM_STATUS_MASK);
-		return(1);
+	/*
+	 * The right way to handle this is to modify the xpt so that it can
+	 * handle a wildcarded bus in a rescan or reset CCB.  At the moment
+	 * that isn't implemented, so instead we enumerate the busses and
+	 * send the rescan or reset to those busses in the case where the
+	 * given bus is -1 (wildcard).  We don't send a rescan or reset
+	 * to the xpt bus; sending a rescan to the xpt bus is effectively a
+	 * no-op, sending a rescan to the xpt bus would result in a status of
+	 * CAM_REQ_INVALID.
+	 */
+	bzero(&(&matchccb.ccb_h)[1],
+	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
+	matchccb.ccb_h.func_code = XPT_DEV_MATCH;
+	bufsize = sizeof(struct dev_match_result) * 20;
+	matchccb.cdm.match_buf_len = bufsize;
+	matchccb.cdm.matches=(struct dev_match_result *)malloc(bufsize);
+	if (matchccb.cdm.matches == NULL) {
+		warnx("can't malloc memory for matches");
+		retval = 1;
+		goto bailout;
 	}
+	matchccb.cdm.num_matches = 0;
+
+	matchccb.cdm.num_patterns = 1;
+	matchccb.cdm.pattern_buf_len = sizeof(struct dev_match_pattern);
+
+	matchccb.cdm.patterns = (struct dev_match_pattern *)malloc(
+		matchccb.cdm.pattern_buf_len);
+	if (matchccb.cdm.patterns == NULL) {
+		warnx("can't malloc memory for patterns");
+		retval = 1;
+		goto bailout;
+	}
+	matchccb.cdm.patterns[0].type = DEV_MATCH_BUS;
+	matchccb.cdm.patterns[0].pattern.bus_pattern.flags = BUS_MATCH_ANY;
+
+	do {
+		int i;
+
+		if (ioctl(fd, CAMIOCOMMAND, &matchccb) == -1) {
+			warn("CAMIOCOMMAND ioctl failed");
+			retval = 1;
+			goto bailout;
+		}
+
+		if ((matchccb.ccb_h.status != CAM_REQ_CMP)
+		 || ((matchccb.cdm.status != CAM_DEV_MATCH_LAST)
+		   && (matchccb.cdm.status != CAM_DEV_MATCH_MORE))) {
+			warnx("got CAM error %#x, CDM error %d\n",
+			      matchccb.ccb_h.status, matchccb.cdm.status);
+			retval = 1;
+			goto bailout;
+		}
+
+		for (i = 0; i < matchccb.cdm.num_matches; i++) {
+			struct bus_match_result *bus_result;
+
+			/* This shouldn't happen. */
+			if (matchccb.cdm.matches[i].type != DEV_MATCH_BUS)
+				continue;
+
+			bus_result = &matchccb.cdm.matches[i].result.bus_result;
+
+			/*
+			 * We don't want to rescan or reset the xpt bus.
+			 * See above.
+			 */
+			if (bus_result->path_id == -1)
+				continue;
+
+			ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS :
+						       XPT_RESET_BUS;
+			ccb.ccb_h.path_id = bus_result->path_id;
+			ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
+			ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
+			ccb.crcn.flags = CAM_FLAG_NONE;
+
+			/* run this at a low priority */
+			ccb.ccb_h.pinfo.priority = 5;
+
+			if (ioctl(fd, CAMIOCOMMAND, &ccb) == -1) {
+				warn("CAMIOCOMMAND ioctl failed");
+				retval = 1;
+				goto bailout;
+			}
+
+			if ((ccb.ccb_h.status & CAM_STATUS_MASK) ==CAM_REQ_CMP){
+				fprintf(stdout, "%s of bus %d was successful\n",
+					rescan? "Re-scan" : "Reset",
+					bus_result->path_id);
+			} else {
+				/*
+				 * Don't bail out just yet, maybe the other
+				 * rescan or reset commands will complete
+				 * successfully.
+				 */
+				fprintf(stderr, "%s of bus %d returned error "
+					"%#x\n", rescan? "Re-scan" : "Reset",
+					bus_result->path_id,
+					ccb.ccb_h.status & CAM_STATUS_MASK);
+				retval = 1;
+			}
+		}
+	} while ((matchccb.ccb_h.status == CAM_REQ_CMP)
+		 && (matchccb.cdm.status == CAM_DEV_MATCH_MORE));
+
+bailout:
+
+	if (fd != -1)
+		close(fd);
+
+	if (matchccb.cdm.patterns != NULL)
+		free(matchccb.cdm.patterns);
+	if (matchccb.cdm.matches != NULL)
+		free(matchccb.cdm.matches);
+
+	return(retval);
 }
 
 static int
@@ -1153,6 +1299,7 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 	}
 }
 
+#ifndef MINIMALISTIC
 static int
 readdefects(struct cam_device *device, int argc, char **argv,
 	    char *combinedopt, int retry_count, int timeout)
@@ -1437,6 +1584,7 @@ defect_bailout:
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 #if 0
 void
@@ -1450,6 +1598,7 @@ reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 }
 #endif
 
+#ifndef MINIMALISTIC
 void
 mode_sense(struct cam_device *device, int mode_page, int page_control,
 	   int dbd, int retry_count, int timeout, u_int8_t *data, int datalen)
@@ -2994,6 +3143,7 @@ scsiformat_bailout:
 
 	return(error);
 }
+#endif /* MINIMALISTIC */
 
 void 
 usage(int verbose)
@@ -3001,14 +3151,17 @@ usage(int verbose)
 	fprintf(verbose ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
 "        camcontrol devlist    [-v]\n"
+#ifndef MINIMALISTIC
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
 "        camcontrol start      [dev_id][generic args]\n"
 "        camcontrol stop       [dev_id][generic args]\n"
 "        camcontrol eject      [dev_id][generic args]\n"
-"        camcontrol rescan     <bus[:target:lun]>\n"
-"        camcontrol reset      <bus[:target:lun]>\n"
+#endif /* MINIMALISTIC */
+"        camcontrol rescan     <all | bus[:target:lun]>\n"
+"        camcontrol reset      <all | bus[:target:lun]>\n"
+#ifndef MINIMALISTIC
 "        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
 "        camcontrol modepage   [dev_id][generic args] <-m page | -l>\n"
 "                              [-P pagectl][-e | -b][-d]\n"
@@ -3021,9 +3174,11 @@ usage(int verbose)
 "                              [-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-w][-y]\n"
+#endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
 		return;
+#ifndef MINIMALISTIC
 	fprintf(stdout,
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
@@ -3033,8 +3188,8 @@ usage(int verbose)
 "start       send a Start Unit command to the device\n"
 "stop        send a Stop Unit command to the device\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
-"rescan      rescan the given bus, or bus:target:lun\n"
-"reset       reset the given bus, or bus:target:lun\n"
+"rescan      rescan all busses, the given bus, or bus:target:lun\n"
+"reset       reset all busses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given scsi command, may need -i or -o as well\n"
@@ -3097,6 +3252,7 @@ usage(int verbose)
 "-q                be quiet, don't print status messages\n"
 "-w                don't send immediate format command\n"
 "-y                don't ask any questions\n");
+#endif /* MINIMALISTIC */
 }
 
 int 
@@ -3200,6 +3356,7 @@ main(int argc, char **argv)
 	 || ((arglist & CAM_ARG_OPT_MASK) == CAM_ARG_DEBUG))
 		devopen = 0;
 
+#ifndef MINIMALISTIC
 	if ((devopen == 1)
 	 && (argc > 2 && argv[2][0] != '-')) {
 		char name[30];
@@ -3230,6 +3387,7 @@ main(int argc, char **argv)
 			optstart++;
 		}
 	}
+#endif /* MINIMALISTIC */
 	/*
 	 * Start getopt processing at argv[2/3], since we've already
 	 * accepted argv[1..2] as the command name, and as a possible
@@ -3281,6 +3439,7 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifndef MINIMALISTIC
 	/*
 	 * For most commands we'll want to open the passthrough device
 	 * associated with the specified device.  In the case of the rescan
@@ -3301,6 +3460,7 @@ main(int argc, char **argv)
 		     == NULL)
 			errx(1,"%s", cam_errbuf);
 	}
+#endif /* MINIMALISTIC */
 
 	/*
 	 * Reset optind to 2, and reset getopt, so these routines can parse
@@ -3310,12 +3470,15 @@ main(int argc, char **argv)
 	optreset = 1;
 
 	switch(arglist & CAM_ARG_OPT_MASK) {
+#ifndef MINIMALISTIC
 		case CAM_ARG_DEVLIST:
 			error = getdevlist(cam_dev);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_DEVTREE:
 			error = getdevtree();
 			break;
+#ifndef MINIMALISTIC
 		case CAM_ARG_TUR:
 			error = testunitready(cam_dev, retry_count, timeout, 0);
 			break;
@@ -3328,12 +3491,14 @@ main(int argc, char **argv)
 					  arglist & CAM_ARG_EJECT, retry_count,
 					  timeout);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_RESCAN:
 			error = dorescan_or_reset(argc, argv, 1);
 			break;
 		case CAM_ARG_RESET:
 			error = dorescan_or_reset(argc, argv, 0);
 			break;
+#ifndef MINIMALISTIC
 		case CAM_ARG_READ_DEFECTS:
 			error = readdefects(cam_dev, argc, argv, combinedopt,
 					    retry_count, timeout);
@@ -3360,6 +3525,7 @@ main(int argc, char **argv)
 			error = scsiformat(cam_dev, argc, argv,
 					   combinedopt, retry_count, timeout);
 			break;
+#endif /* MINIMALISTIC */
 		case CAM_ARG_USAGE:
 			usage(1);
 			break;
