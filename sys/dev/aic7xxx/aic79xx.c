@@ -181,8 +181,8 @@ static void		ahd_setup_target_msgin(struct ahd_softc *ahd,
 					       struct scb *scb);
 #endif
 
-static bus_size_t	ahd_sglist_size(struct ahd_softc *ahd);
-static bus_size_t	ahd_sglist_allocsize(struct ahd_softc *ahd);
+static u_int		ahd_sglist_size(struct ahd_softc *ahd);
+static u_int		ahd_sglist_allocsize(struct ahd_softc *ahd);
 static bus_dmamap_callback_t
 			ahd_dmamap_cb; 
 static void		ahd_initialize_hscbs(struct ahd_softc *ahd);
@@ -4096,7 +4096,7 @@ ahd_setup_target_msgin(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 }
 #endif
 /**************************** Initialization **********************************/
-static bus_size_t
+static u_int
 ahd_sglist_size(struct ahd_softc *ahd)
 {
 	bus_size_t list_size;
@@ -4113,7 +4113,7 @@ ahd_sglist_size(struct ahd_softc *ahd)
  * OS will allocate full pages to us, so it doesn't make sense to request
  * less than a page.
  */
-static bus_size_t
+static u_int
 ahd_sglist_allocsize(struct ahd_softc *ahd)
 {
 	bus_size_t sg_list_increment;
@@ -4203,9 +4203,9 @@ ahd_alloc(void *platform_arg, char *name)
 	}
 #ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_MEMORY) != 0) {
-		printf("%s: scb size = 0x%x, hscb size - 0x%x\n",
-		       ahd_name(ahd), sizeof(struct scb),
-		       sizeof(struct hardware_scb));
+		printf("%s: scb size = 0x%x, hscb size = 0x%x\n",
+		       ahd_name(ahd), (u_int)sizeof(struct scb),
+		       (u_int)sizeof(struct hardware_scb));
 	}
 #endif
 	return (ahd);
