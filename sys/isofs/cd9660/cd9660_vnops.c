@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.36 1997/08/25 10:26:18 kato Exp $
+ * $Id: cd9660_vnops.c,v 1.37 1997/08/26 07:32:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,6 @@ static int cd9660_access __P((struct vop_access_args *));
 static int cd9660_getattr __P((struct vop_getattr_args *));
 static int cd9660_read __P((struct vop_read_args *));
 static int cd9660_ioctl __P((struct vop_ioctl_args *));
-static int cd9660_select __P((struct vop_select_args *));
 static int cd9660_mmap __P((struct vop_mmap_args *));
 static int cd9660_seek __P((struct vop_seek_args *));
 struct isoreaddir;
@@ -388,24 +387,6 @@ cd9660_ioctl(ap)
 {
 	printf("You did ioctl for isofs !!\n");
 	return (ENOTTY);
-}
-
-/* ARGSUSED */
-static int
-cd9660_select(ap)
-	struct vop_select_args /* {
-		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	/*
-	 * We should really check to see if I/O is possible.
-	 */
-	return (1);
 }
 
 /*
@@ -999,6 +980,7 @@ cd9660_pathconf(ap)
 #else
 #define	 cd9660_lease_check ((int (*) __P((struct vop_lease_args *)))nullop)
 #endif
+#define cd9660_poll vop_nopoll
 #define cd9660_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define cd9660_remove \
 	((int (*) __P((struct  vop_remove_args *)))eopnotsupp)
@@ -1034,6 +1016,7 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
 	{ &vop_cachedlookup_desc, (vop_t *)cd9660_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)cd9660_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)cd9660_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)cd9660_open },	/* open */
 	{ &vop_close_desc, (vop_t *)cd9660_close },	/* close */
@@ -1044,7 +1027,7 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)cd9660_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)cd9660_lease_check },/* lease */
 	{ &vop_ioctl_desc, (vop_t *)cd9660_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)cd9660_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)cd9660_poll },	/* poll */
 	{ &vop_revoke_desc, (vop_t *)cd9660_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)cd9660_mmap },	/* mmap */
 	{ &vop_fsync_desc, (vop_t *)cd9660_fsync },	/* fsync */
@@ -1070,9 +1053,12 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)cd9660_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)cd9660_blkatoff },/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)cd9660_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)cd9660_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)cd9660_truncate },/* truncate */
 	{ &vop_update_desc, (vop_t *)cd9660_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },
 	{ NULL, NULL }
 };
@@ -1087,7 +1073,9 @@ vop_t **cd9660_specop_p;
 struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)spec_close },	/* close */
@@ -1098,7 +1086,7 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_write_desc, (vop_t *)spec_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
@@ -1124,9 +1112,12 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)cd9660_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },
 	{ NULL, NULL }
 };
@@ -1138,7 +1129,9 @@ vop_t **cd9660_fifoop_p;
 struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
 	{ &vop_close_desc, (vop_t *)fifo_close },	/* close */
@@ -1149,7 +1142,7 @@ struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_write_desc, (vop_t *)fifo_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)fifo_fsync },	/* fsync */
@@ -1175,9 +1168,12 @@ struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)fifo_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)fifo_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)fifo_valloc },	/* valloc */
+/* XXX: vop_reallocpages */
 	{ &vop_vfree_desc, (vop_t *)fifo_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)cd9660_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },
 	{ NULL, NULL }
 };

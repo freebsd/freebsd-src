@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.27 1997/08/26 07:32:48 phk Exp $
+ * $Id: ffs_vnops.c,v 1.28 1997/09/02 20:06:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)ffs_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)ufs_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)ufs_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)ufs_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)ufs_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)ufs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)ufs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
@@ -118,6 +118,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_truncate_desc, (vop_t *)ffs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)ffs_update },	/* update */
 	{ &vop_getpages_desc, (vop_t *)ffs_getpages},	/* getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -128,7 +129,9 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)ufsspec_close },	/* close */
@@ -139,7 +142,7 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_write_desc, (vop_t *)ufsspec_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
@@ -170,6 +173,7 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)ffs_update },	/* update */
 	{ &vop_getpages_desc, (vop_t *)spec_getpages},	/* getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -180,7 +184,9 @@ vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
 	{ &vop_close_desc, (vop_t *)ufsfifo_close },	/* close */
@@ -191,7 +197,7 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_write_desc, (vop_t *)ufsfifo_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
@@ -221,6 +227,8 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_vfree_desc, (vop_t *)ffs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)ffs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.24 1997/09/02 20:06:09 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.25 1997/09/07 05:25:53 bde Exp $
  */
 
 /*
@@ -97,7 +97,7 @@ static int	fdesc_read __P((struct vop_read_args *ap));
 static int	fdesc_readdir __P((struct vop_readdir_args *ap));
 static int	fdesc_readlink __P((struct vop_readlink_args *ap));
 static int	fdesc_reclaim __P((struct vop_reclaim_args *ap));
-static int	fdesc_select __P((struct vop_select_args *ap));
+static int	fdesc_poll __P((struct vop_poll_args *ap));
 static int	fdesc_setattr __P((struct vop_setattr_args *ap));
 static int	fdesc_vfree __P((struct vop_vfree_args *ap));
 static int	fdesc_write __P((struct vop_write_args *ap));
@@ -774,28 +774,27 @@ fdesc_ioctl(ap)
 }
 
 static int
-fdesc_select(ap)
-	struct vop_select_args /* {
+fdesc_poll(ap)
+	struct vop_poll_args /* {
 		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
+		int  a_events;
 		struct ucred *a_cred;
 		struct proc *a_p;
 	} */ *ap;
 {
-	int error = EOPNOTSUPP;
+	int revents;
 
 	switch (VTOFDESC(ap->a_vp)->fd_type) {
 	case Fctty:
-		error = (*ctty_cdevsw.d_select)(devctty, ap->a_fflags, ap->a_p);
+		revents = (*ctty_cdevsw.d_poll)(devctty, ap->a_events, ap->a_p);
 		break;
 
 	default:
-		error = EOPNOTSUPP;
+		revents = seltrue(0, ap->a_events, ap->a_p);
 		break;
 	}
 
-	return (error);
+	return (revents);
 }
 
 static int
@@ -945,7 +944,9 @@ fdesc_badop()
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fdesc_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fdesc_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)fdesc_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)fdesc_open },		/* open */
 	{ &vop_close_desc, (vop_t *)fdesc_close },		/* close */
@@ -953,9 +954,10 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_getattr_desc, (vop_t *)fdesc_getattr },		/* getattr */
 	{ &vop_setattr_desc, (vop_t *)fdesc_setattr },		/* setattr */
 	{ &vop_read_desc, (vop_t *)fdesc_read },		/* read */
+/* XXX: vop_lease */
 	{ &vop_write_desc, (vop_t *)fdesc_write },		/* write */
 	{ &vop_ioctl_desc, (vop_t *)fdesc_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)fdesc_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)fdesc_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fdesc_revoke },		/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fdesc_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)fdesc_fsync },		/* fsync */
@@ -981,9 +983,12 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)fdesc_advlock },		/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)fdesc_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)fdesc_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)fdesc_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)fdesc_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)fdesc_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)fdesc_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id$
+ * $Id: specdev.h,v 1.11 1997/02/22 09:40:35 peter Exp $
  */
 
 /*
@@ -93,7 +93,7 @@ int	spec_read __P((struct vop_read_args *));
 int	spec_write __P((struct vop_write_args *));
 #define	spec_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	spec_ioctl __P((struct vop_ioctl_args *));
-int	spec_select __P((struct vop_select_args *));
+int	spec_poll __P((struct vop_poll_args *));
 #define	spec_revoke vop_revoke
 #define spec_mmap ((int (*) __P((struct  vop_mmap_args *)))spec_badop)
 int	spec_fsync __P((struct  vop_fsync_args *));

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.42 1997/05/17 18:32:40 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.43 1997/08/26 07:32:39 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -59,6 +59,7 @@
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/poll.h>
 #include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
 #include <sys/dirent.h>
@@ -86,7 +87,7 @@ static int msdosfs_setattr __P((struct vop_setattr_args *));
 static int msdosfs_read __P((struct vop_read_args *));
 static int msdosfs_write __P((struct vop_write_args *));
 static int msdosfs_ioctl __P((struct vop_ioctl_args *));
-static int msdosfs_select __P((struct vop_select_args *));
+static int msdosfs_poll __P((struct vop_poll_args *));
 static int msdosfs_mmap __P((struct vop_mmap_args *));
 static int msdosfs_fsync __P((struct vop_fsync_args *));
 static int msdosfs_seek __P((struct vop_seek_args *));
@@ -840,16 +841,16 @@ msdosfs_ioctl(ap)
 }
 
 static int
-msdosfs_select(ap)
-	struct vop_select_args /* {
+msdosfs_poll(ap)
+	struct vop_poll_args /* {
 		struct vnode *a_vp;
-		int a_which;
-		int a_fflags;
+		int a_events;
 		struct ucred *a_cred;
 		struct proc *a_p;
 	} */ *ap;
 {
-	return 1;		/* DOS filesystems never block? */
+	/* DOS filesystems never block? */
+	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
 static int
@@ -1990,6 +1991,7 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
 	{ &vop_cachedlookup_desc, (vop_t *)msdosfs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)msdosfs_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)msdosfs_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)msdosfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)msdosfs_close },		/* close */
@@ -1998,8 +2000,10 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)msdosfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)msdosfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)msdosfs_write },		/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)msdosfs_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)msdosfs_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)msdosfs_poll },		/* poll */
+/* XXX: vop_revoke */
 	{ &vop_mmap_desc, (vop_t *)msdosfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)msdosfs_fsync },		/* fsync */
 	{ &vop_seek_desc, (vop_t *)msdosfs_seek },		/* seek */
@@ -2022,7 +2026,14 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_islocked_desc, (vop_t *)msdosfs_islocked },	/* islocked */
 	{ &vop_pathconf_desc, (vop_t *)msdosfs_pathconf },	/* pathconf */
 	{ &vop_advlock_desc, (vop_t *)msdosfs_advlock },	/* advlock */
+/* XXX: vop_blkatoff */
+/* XXX: vop_valloc */
 	{ &vop_reallocblks_desc, (vop_t *)msdosfs_reallocblks },	/* reallocblks */
+/* XXX: vop_vfree */
+/* XXX: vop_truncate */
+/* XXX: vop_update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };

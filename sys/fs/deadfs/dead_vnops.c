@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.13 1997/02/22 09:40:13 peter Exp $
+ * $Id: dead_vnops.c,v 1.14 1997/09/02 20:06:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ static int	dead_open __P((struct vop_open_args *));
 static int	dead_read __P((struct vop_read_args *));
 static int	dead_write __P((struct vop_write_args *));
 static int	dead_ioctl __P((struct vop_ioctl_args *));
-static int	dead_select __P((struct vop_select_args *));
+#define dead_poll vop_nopoll
 #define dead_mmap ((int (*) __P((struct  vop_mmap_args *)))dead_badop)
 #define dead_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define dead_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
@@ -91,7 +91,9 @@ vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)dead_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)dead_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)dead_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)dead_open },		/* open */
 	{ &vop_close_desc, (vop_t *)dead_close },	/* close */
@@ -100,8 +102,10 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)dead_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)dead_read },		/* read */
 	{ &vop_write_desc, (vop_t *)dead_write },	/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)dead_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)dead_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)dead_poll },		/* poll */
+/* XXX: vop_revoke */
 	{ &vop_mmap_desc, (vop_t *)dead_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)dead_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)dead_seek },		/* seek */
@@ -126,9 +130,12 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)dead_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)dead_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)dead_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)dead_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)dead_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)dead_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)dead_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -242,24 +249,6 @@ dead_ioctl(ap)
 	if (!chkvnlock(ap->a_vp))
 		return (EBADF);
 	return (VCALL(ap->a_vp, VOFFSET(vop_ioctl), ap));
-}
-
-/* ARGSUSED */
-static int
-dead_select(ap)
-	struct vop_select_args /* {
-		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	/*
-	 * Let the user find out that the descriptor is gone.
-	 */
-	return (1);
 }
 
 /*
