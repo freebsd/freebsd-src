@@ -1056,6 +1056,7 @@ kern/kern_idle.c	standard
 kern/kern_intr.c	standard
 kern/kern_jail.c	standard
 kern/kern_thr.c		standard
+kern/kern_kse.c		standard
 kern/kern_kthread.c	standard
 kern/kern_ktr.c		optional ktr
 kern/kern_ktrace.c	standard
