@@ -136,8 +136,11 @@ int maxfiles;
 		maxfiles = (d); \
 	}
 
+char *memf, *nlistf;
 kvm_t *kd;
 
+static void fstat_kvm(int, int);
+static void fstat_sysctl(int, int);
 void dofiles(struct kinfo_proc *kp);
 void dommap(struct kinfo_proc *kp);
 void vtrans(struct vnode *vp, int i, int flag);
@@ -158,11 +161,7 @@ main(argc, argv)
 	char **argv;
 {
 	struct passwd *passwd;
-	struct kinfo_proc *p, *plast;
 	int arg, ch, what;
-	char *memf, *nlistf;
-	char buf[_POSIX2_LINE_MAX];
-	int cnt;
 
 	arg = 0;
 	what = KERN_PROC_ALL;
@@ -219,14 +218,44 @@ main(argc, argv)
 			exit(1);
 	}
 
-	ALLOC_OFILES(256);	/* reserve space for file pointers */
-
 	if (fsflg && !checkfile) {
 		/* -f with no files means use wd */
 		if (getfname(".") == 0)
 			exit(1);
 		checkfile = 1;
 	}
+
+	if (memf != NULL)
+		fstat_kvm(what, arg);
+	else
+		fstat_sysctl(what, arg);
+	exit(0);
+}
+
+static void
+print_header(void)
+{
+
+	if (nflg)
+		printf("%s",
+"USER     CMD          PID   FD  DEV    INUM       MODE SZ|DV R/W");
+	else
+		printf("%s",
+"USER     CMD          PID   FD MOUNT      INUM MODE         SZ|DV R/W");
+	if (checkfile && fsflg == 0)
+		printf(" NAME\n");
+	else
+		putchar('\n');
+}
+
+static void
+fstat_kvm(int what, int arg)
+{
+	struct kinfo_proc *p, *plast;
+	char buf[_POSIX2_LINE_MAX];
+	int cnt;
+
+	ALLOC_OFILES(256);	/* reserve space for file pointers */
 
 	/*
 	 * Discard setgid privileges if not the running kernel so that bad
@@ -244,17 +273,6 @@ main(argc, argv)
 #endif
 	if ((p = kvm_getprocs(kd, what, arg, &cnt)) == NULL)
 		errx(1, "%s", kvm_geterr(kd));
-	if (nflg)
-		printf("%s",
-"USER     CMD          PID   FD  DEV    INUM       MODE SZ|DV R/W");
-	else
-		printf("%s",
-"USER     CMD          PID   FD MOUNT      INUM MODE         SZ|DV R/W");
-	if (checkfile && fsflg == 0)
-		printf(" NAME\n");
-	else
-		putchar('\n');
-
 	for (plast = &p[cnt]; p < plast; ++p) {
 		if (p->ki_stat == SZOMB)
 			continue;
@@ -262,7 +280,14 @@ main(argc, argv)
 		if (mflg)
 			dommap(p);
 	}
-	exit(0);
+}
+
+static void
+fstat_sysctl(int what, int arg)
+{
+
+	/* not yet implemented */
+	fstat_kvm(what, arg);
 }
 
 const char	*Uname, *Comm;
