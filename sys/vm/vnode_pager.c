@@ -122,7 +122,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
 
-	mtx_lock(&Giant);
 	/*
 	 * Prevent race condition when allocating the object. This
 	 * can happen with NFS vnodes since the nfsnode isn't locked.
@@ -171,7 +170,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		wakeup(vp);
 	}
 	VI_UNLOCK(vp);
-	mtx_unlock(&Giant);
 	return (object);
 }
 
