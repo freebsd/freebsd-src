@@ -40,8 +40,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NLIST_H_
-#define	_NLIST_H_
+#ifndef _SYS_NLIST_AOUT_H_
+#define	_SYS_NLIST_AOUT_H_
 
 /*
  * Symbol table entries in a.out files.
@@ -112,10 +112,4 @@ struct nlist {
 
 #define	N_FORMAT	"%08x"	/* namelist value format; XXX */
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int nlist(const char *, struct nlist *);
-__END_DECLS
-
-#endif /* !_NLIST_H_ */
+#endif /* !_SYS_NLIST_AOUT_H_ */
