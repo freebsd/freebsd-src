@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.5 1999/05/06 20:15:57 ken Exp $
+ *      $Id: cam_ccb.h,v 1.6 1999/05/22 21:58:45 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -251,7 +251,7 @@ struct ccb_getdev {
 /*
  * GARBAGE COLLECT
  * Moved to ccb_getdevstats but left here for binary compatibility.
- * Remove in next rev of CAM version.
+ * Remove during next bump in CAM major version.
  */
 	int	  dev_openings;	/* Space left for more work on device*/	
 	int	  dev_active;	/* Transactions running on the device */
@@ -279,6 +279,11 @@ struct ccb_getdevstats {
 				 * CCBs held by peripheral drivers
 				 * for this device
 				 */
+	int	maxtags;	/*
+				 * Boundary conditions for number of
+				 * tagged operations
+				 */
+	int	mintags;
 	struct	timeval last_reset;	/* Time of last bus reset/loop init */
 };
 
