@@ -75,9 +75,7 @@ DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
 static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
 static void	e1000phy_status(struct mii_softc *);
 static void	e1000phy_reset(struct mii_softc *);
-static int	e1000phy_mii_phy_auto(struct mii_softc *, int);
-
-extern void	mii_phy_auto_timeout(void *);
+static int	e1000phy_mii_phy_auto(struct mii_softc *);
 
 static int e1000phy_debug = 0;
 
@@ -232,24 +230,15 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (sc->mii_flags & MIIF_DOINGAUTO) {
-				return (0);
-			}
 			e1000phy_reset(sc);
-			(void)e1000phy_mii_phy_auto(sc, 1);
+			(void)e1000phy_mii_phy_auto(sc);
 			break;
 
 		case IFM_1000_T:
-			if (sc->mii_flags & MIIF_DOINGAUTO)
-				return (0);
-
 			e1000phy_reset(sc);
 
 			/* TODO - any other way to force 1000BT? */
-			(void)e1000phy_mii_phy_auto(sc, 1);
+			(void)e1000phy_mii_phy_auto(sc);
 			break;
 
 		case IFM_100_TX:
@@ -321,9 +310,8 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		sc->mii_ticks = 0;
 		e1000phy_reset(sc);
-		if (e1000phy_mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return (0);
-		break;
+		e1000phy_mii_phy_auto(sc);
+		return (0);
 	}
 
 	/* Update the media status. */
@@ -357,8 +345,7 @@ e1000phy_status(struct mii_softc *sc)
 	if (bmcr & E1000_CR_LOOPBACK)
 		mii->mii_media_active |= IFM_LOOP;
 
-	if ((sc->mii_flags & MIIF_DOINGAUTO) &&
-	    (!(bmsr & E1000_SR_AUTO_NEG_COMPLETE) || !(ssr & E1000_SSR_LINK) ||
+	if ((!(bmsr & E1000_SR_AUTO_NEG_COMPLETE) || !(ssr & E1000_SSR_LINK) ||
 	    !(ssr & E1000_SSR_SPD_DPLX_RESOLVED))) {
 		/* Erg, still trying, I guess... */
 		mii->mii_media_active |= IFM_NONE;
@@ -390,47 +377,15 @@ e1000phy_status(struct mii_softc *sc)
 }
 
 static int
-e1000phy_mii_phy_auto(struct mii_softc *mii, int waitfor)
+e1000phy_mii_phy_auto(struct mii_softc *mii)
 {
-	int bmsr, i;
 
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		PHY_WRITE(mii, E1000_AR, E1000_AR_10T | E1000_AR_10T_FD |
-		    E1000_AR_100TX | E1000_AR_100TX_FD | 
-		    E1000_AR_PAUSE | E1000_AR_ASM_DIR);
-		PHY_WRITE(mii, E1000_1GCR, E1000_1GCR_1000T_FD);
-		PHY_WRITE(mii, E1000_CR,
-		    E1000_CR_AUTO_NEG_ENABLE | E1000_CR_RESTART_AUTO_NEG);
-	}
+	PHY_WRITE(mii, E1000_AR, E1000_AR_10T | E1000_AR_10T_FD |
+	    E1000_AR_100TX | E1000_AR_100TX_FD | 
+	    E1000_AR_PAUSE | E1000_AR_ASM_DIR);
+	PHY_WRITE(mii, E1000_1GCR, E1000_1GCR_1000T_FD);
+	PHY_WRITE(mii, E1000_CR,
+	    E1000_CR_AUTO_NEG_ENABLE | E1000_CR_RESTART_AUTO_NEG);
 
-	if (waitfor) {
-		/* Wait 500ms for it to complete. */
-		for (i = 0; i < 500; i++) {
-			bmsr =
-			    PHY_READ(mii, E1000_SR) | PHY_READ(mii, E1000_SR);
-
-			if (bmsr & E1000_SR_AUTO_NEG_COMPLETE) {
-				return (0);
-			}
-			DELAY(1000);
-		}
-
-		/*
-		 * Don't need to worry about clearing MIIF_DOINGAUTO.
-		 * If that's set, a timeout is pending, and it will
-		 * clear the flag. [do it anyway]
-		 */
-	}
-
-	/*
-	 * Just let it finish asynchronously.  This is for the benefit of
-	 * the tick handler driving autonegotiation.  Don't want 500ms
-	 * delays all the time while the system is running!
-	 */
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		mii->mii_flags |= MIIF_DOINGAUTO;
-		mii->mii_ticks = 0;
-		mii->mii_auto_ch = timeout(mii_phy_auto_timeout, mii, hz >> 1);
-	}
 	return (EJUSTRETURN);
 }

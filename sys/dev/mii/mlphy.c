@@ -238,7 +238,7 @@ mlphy_service(xsc, mii, cmd)
 				mii_phy_reset(other);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
-			(void) mii_phy_auto(sc, 1);
+			(void) mii_phy_auto(sc);
 			msc->ml_linked = 0;
 			return(0);
 			break;
@@ -346,9 +346,8 @@ mlphy_service(xsc, mii, cmd)
 			mii_phy_reset(other);
 			PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 		}
-		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return(0);
-		break;
+		mii_phy_auto(sc);
+		return(0);
 	}
 
 	/* Update the media status. */
@@ -425,7 +424,7 @@ static void mlphy_status(sc)
 		mlphy_reset(&msc->ml_mii);
 		PHY_WRITE(&msc->ml_mii, MII_BMCR, BMCR_ISO);
 		mii_phy_reset(other);
-		mii_phy_auto(other, 1);
+		mii_phy_auto(other);
 	}
 
 	return;

@@ -108,8 +108,6 @@ const struct mii_media mii_media_table[MII_NMEDIA] = {
 	  GTCR_ADV_1000TFDX },
 };
 
-void	mii_phy_auto_timeout(void *);
-
 void
 mii_phy_setmedia(struct mii_softc *sc)
 {
@@ -119,7 +117,7 @@ mii_phy_setmedia(struct mii_softc *sc)
 
 	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
 		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0)
-			(void) mii_phy_auto(sc, 1);
+			(void) mii_phy_auto(sc);
 		return;
 	}
 
@@ -156,97 +154,48 @@ mii_phy_setmedia(struct mii_softc *sc)
 }
 
 int
-mii_phy_auto(struct mii_softc *sc, int waitfor)
+mii_phy_auto(struct mii_softc *sc)
 {
-	int bmsr, i;
-
-	if ((sc->mii_flags & MIIF_DOINGAUTO) == 0) {
-		/*
-		 * Check for 1000BASE-X.  Autonegotiation is a bit
-		 * different on such devices.
-		 */
-		if (sc->mii_flags & MIIF_IS_1000X) {
-			uint16_t anar = 0;
-
-			if (sc->mii_extcapabilities & EXTSR_1000XFDX)
-				anar |= ANAR_X_FD;
-			if (sc->mii_extcapabilities & EXTSR_1000XHDX)
-				anar |= ANAR_X_HD;
-
-			if (sc->mii_flags & MIIF_DOPAUSE) {
-				/* XXX Asymmetric vs. symmetric? */
-				anar |= ANLPAR_X_PAUSE_TOWARDS;
-			}
-
-			PHY_WRITE(sc, MII_ANAR, anar);
-		} else {
-			uint16_t anar;
-
-			anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) |
-			    ANAR_CSMA;
-			if (sc->mii_flags & MIIF_DOPAUSE)
-				anar |= ANAR_FC;
-			PHY_WRITE(sc, MII_ANAR, anar);
-			if (sc->mii_flags & MIIF_HAVE_GTCR) {
-				uint16_t gtcr = 0;
-
-				if (sc->mii_extcapabilities & EXTSR_1000TFDX)
-					gtcr |= GTCR_ADV_1000TFDX;
-				if (sc->mii_extcapabilities & EXTSR_1000THDX)
-					gtcr |= GTCR_ADV_1000THDX;
-
-				PHY_WRITE(sc, MII_100T2CR, gtcr);
-			}
-		}
-		PHY_WRITE(sc, MII_BMCR, BMCR_AUTOEN | BMCR_STARTNEG);
-	}
-
-	if (waitfor) {
-		/* Wait 500ms for it to complete. */
-		for (i = 0; i < 500; i++) {
-			if ((bmsr = PHY_READ(sc, MII_BMSR)) & BMSR_ACOMP)
-				return (0);
-			DELAY(1000);
-		}
-
-		/*
-		 * Don't need to worry about clearing MIIF_DOINGAUTO.
-		 * If that's set, a timeout is pending, and it will
-		 * clear the flag.
-		 */
-		return (EIO);
-	}
 
 	/*
-	 * Just let it finish asynchronously.  This is for the benefit of
-	 * the tick handler driving autonegotiation.  Don't want 500ms
-	 * delays all the time while the system is running!
+	 * Check for 1000BASE-X.  Autonegotiation is a bit
+	 * different on such devices.
 	 */
-	if ((sc->mii_flags & MIIF_DOINGAUTO) == 0) {
-		sc->mii_flags |= MIIF_DOINGAUTO;
-		sc->mii_auto_ch = timeout(mii_phy_auto_timeout, sc, hz >> 1);
+	if (sc->mii_flags & MIIF_IS_1000X) {
+		uint16_t anar = 0;
+
+		if (sc->mii_extcapabilities & EXTSR_1000XFDX)
+			anar |= ANAR_X_FD;
+		if (sc->mii_extcapabilities & EXTSR_1000XHDX)
+			anar |= ANAR_X_HD;
+
+		if (sc->mii_flags & MIIF_DOPAUSE) {
+			/* XXX Asymmetric vs. symmetric? */
+			anar |= ANLPAR_X_PAUSE_TOWARDS;
+		}
+
+		PHY_WRITE(sc, MII_ANAR, anar);
+	} else {
+		uint16_t anar;
+
+		anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) |
+		    ANAR_CSMA;
+		if (sc->mii_flags & MIIF_DOPAUSE)
+			anar |= ANAR_FC;
+		PHY_WRITE(sc, MII_ANAR, anar);
+		if (sc->mii_flags & MIIF_HAVE_GTCR) {
+			uint16_t gtcr = 0;
+
+			if (sc->mii_extcapabilities & EXTSR_1000TFDX)
+				gtcr |= GTCR_ADV_1000TFDX;
+			if (sc->mii_extcapabilities & EXTSR_1000THDX)
+				gtcr |= GTCR_ADV_1000THDX;
+
+			PHY_WRITE(sc, MII_100T2CR, gtcr);
+		}
 	}
+	PHY_WRITE(sc, MII_BMCR, BMCR_AUTOEN | BMCR_STARTNEG);
 	return (EJUSTRETURN);
-}
-
-void
-mii_phy_auto_timeout(void *arg)
-{
-	struct mii_softc *sc = arg;
-	int s, bmsr;
-
-#if 0
-	if ((sc->mii_dev.dv_flags & DVF_ACTIVE) == 0)
-		return;
-#endif
-
-	s = splnet();
-	sc->mii_flags &= ~MIIF_DOINGAUTO;
-	bmsr = PHY_READ(sc, MII_BMSR);
-
-	/* Update the media status. */
-	(void) (*sc->mii_service)(sc, sc->mii_pdata, MII_POLLSTAT);
-	splx(s);
 }
 
 int
@@ -288,13 +237,7 @@ mii_phy_tick(struct mii_softc *sc)
 
 	sc->mii_ticks = 0;
 	mii_phy_reset(sc);
-	if (mii_phy_auto(sc, 0) == EJUSTRETURN)
-		return (EJUSTRETURN);
-
-	/*
-	 * Might need to generate a status message if autonegotiation
-	 * failed.
-	 */
+	mii_phy_auto(sc);
 	return (0);
 }
 
@@ -325,10 +268,6 @@ void
 mii_phy_down(struct mii_softc *sc)
 {
 
-	if (sc->mii_flags & MIIF_DOINGAUTO) {
-		sc->mii_flags &= ~MIIF_DOINGAUTO;
-		untimeout(mii_phy_auto_timeout, sc, sc->mii_auto_ch);
-	}
 }
 
 void
