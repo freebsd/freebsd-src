@@ -19,7 +19,6 @@ __RCSID("$NetBSD: twalk.c,v 1.1 1999/02/22 10:33:16 christos Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #define _SEARCH_PRIVATE
 #include <search.h>
 #include <stdlib.h>
