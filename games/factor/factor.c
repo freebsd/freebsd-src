@@ -157,7 +157,7 @@ main(argc, argv)
  * processing.
  *
  * Print the factors of the number, from the lowest to the highest.
- * A factor will be printed numtiple times if it divides the value
+ * A factor will be printed multiple times if it divides the value
  * multiple times.
  *
  * Factors are printed with leading tabs.
