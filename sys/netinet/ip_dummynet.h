@@ -77,6 +77,12 @@ typedef u_int64_t dn_key ;      /* sorting key */
 #define OFFSET_OF(type, field) ((int)&( ((type *)0)->field) )
 
 /*
+ * The maximum hash table size for queues.  This value must be a power
+ * of 2.
+ */
+#define DN_MAX_HASH_SIZE 65536
+
+/*
  * A heap entry is made of a key and a pointer to the actual
  * object stored in the heap.
  * The heap is an array of dn_heap_entry entries, dynamically allocated.
