@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.14 1996/10/04 08:43:36 peter Exp $
+# $Id: Makefile,v 1.15 1996/10/04 15:11:42 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -44,7 +44,7 @@ HDRS=	ACG.h AllocRing.h Binomial.h BitSet.h BitString.h Complex.h \
 	sysent.h typemacros.h
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS:S;^;${GPPDIR}/libg++/src/;} \
 		${GPPDIR}/librx/rx.h \
 		${DESTDIR}/usr/include/g++
