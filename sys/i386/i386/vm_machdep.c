@@ -248,6 +248,8 @@ void
 cpu_exit(struct thread *td)
 {
 	struct mdproc *mdp;
+	struct pcb *pcb = td->td_pcb; 
+
 
 	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
 	mdp = &td->td_proc->p_md;
