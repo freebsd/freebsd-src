@@ -1389,7 +1389,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	if (ptepa & PG_PS) {
 		pmap->pm_pdir[ptepindex] = 0;
 		ptepa = 0;
-		invltlb();
+		pmap_invalidate_all(kernel_pmap);
 	}
 
 	/*
@@ -2352,7 +2352,7 @@ retry:
 			ptepindex += 1;
 		}
 		vm_page_flag_set(p, PG_MAPPED);
-		invltlb();
+		pmap_invalidate_all(kernel_pmap);
 		return;
 	}
 
