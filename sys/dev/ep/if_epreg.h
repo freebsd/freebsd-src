@@ -88,17 +88,43 @@
  * function to verify the existence of the adapter after having sent
  * the ID_Sequence.
  *
- * There are others but only the ones we use are defined here.
- *
  **************************************************************************/
 
 #define EEPROM_NODE_ADDR_0	0x0	/* Word */
 #define EEPROM_NODE_ADDR_1	0x1	/* Word */
 #define EEPROM_NODE_ADDR_2	0x2	/* Word */
 #define EEPROM_PROD_ID		0x3	/* 0x9[0-f]50 */
+#define EEPROM_MFG_DATE         0x4     /* Manufacturing date */
+#define EEPROM_MFG_DIVSION      0x5     /* Manufacturing division */
+#define EEPROM_MFG_PRODUCT      0x6     /* Product code */
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
+#define EEPROM_OEM_ADDR0        0xa
+#define EEPROM_OEM_ADDR1        0xb
+#define EEPROM_OEM_ADDR2        0xc
+#define EEPROM_SOFTINFO         0xd
+#define EEPROM_COMPAT           0xe
+#define EEPROM_SOFTINFO2        0xf
+#define EEPROM_CAP              0x10
+# define CAP_ISA		0x2083
+# define CAP_PCMCIA		0x2082
+#define EEPROM_INT_CONFIG_0	0x12
+#define EEPROM_INT_CONFIG_1	0x13
+/* RAM Partition TX FIFO/RX FIFO */
+# define ICW1_RAM_PART_MASK	0x03
+# define ICW1_RAM_PART_35	0x00	/* 2:5 (only legal if RAM size == 000b default power-up/reset */
+# define ICW1_RAM_PART_13	0x01	/* 1:3 (only legal if RAM size == 000b) */
+# define ICW1_RAM_PART_11	0x10	/* 1:1		*/
+# define ICW1_RAM_PART_RESV	0x11	/* Reserved	*/
+/* ISA Adapter Selection */
+# define ICW1_IAS_MASK		0x0c
+# define ICW1_IAS_DIS		0x00	/* Both mechanisms disabled (default) */
+# define ICW1_IAS_ISA		0x04	/* ISA contention only */
+# define ICW1_IAS_PNP		0x08	/* ISA Plug and Play only */
+# define ICW1_IAS_BOTH		0x0c	/* Both mechanisms enabled */
+
+#define EEPROM_CHECKSUM_EL3     0x17
 
 /**************************************************************************
  *										  *
