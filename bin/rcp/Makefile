@@ -5,7 +5,7 @@ PROG=	rcp
 SRCS=	rcp.c util.c
 CFLAGS+=-Wall
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c encrypt.c
 DPADD=	${LIBKRB} ${LIBDES}
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
