@@ -190,8 +190,9 @@ process when constructing other vnode stacks.
 One of the easiest ways to construct new file system layers is to make
 a copy of the null layer, rename all files and variables, and
 then begin modifying the copy.
-.Xr Sed 1
-can be used to easily rename
+The
+.Xr sed 1
+utility can be used to easily rename
 all variables.
 .Pp
 The umap layer is an example of a layer descended from the
