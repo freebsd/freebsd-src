@@ -4695,10 +4695,10 @@ pc98_check_if_type(struct isa_device *dev, struct siodev *iod)
 		iod->irq = 4;
 
 		/* XXX check new internal port. */
-		outb(0x138, 0);
+		outb(0x13a, 0);
 		DELAY(10);
 		for (tmp = 0; tmp < 100; tmp++) {
-		    if ((inb(0x138) & 1) == 0) {
+		    if ((inb(0x13a) & 0x80) == 0) {
 			PC98SIO_baud_rate_port(if_type) = 0x13a;
 			if_8251_type[if_type].name = " (internal fast)";
 			if_8251_type[if_type].speedtab = pc98fast_speedtab;
