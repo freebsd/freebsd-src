@@ -114,10 +114,8 @@ distribution:
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-.if 0
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
-.endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
