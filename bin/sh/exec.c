@@ -104,7 +104,6 @@ STATIC void tryexec __P((char *, char **, char **));
 STATIC void execinterp __P((char **, char **));
 #endif
 STATIC void printentry __P((struct tblentry *, int));
-STATIC void clearcmdentry __P((int));
 STATIC struct tblentry *cmdlookup __P((char *, int));
 STATIC void delete_cmd_entry __P((void));
 
@@ -640,7 +639,7 @@ changepath(newval)
  * PATH which has changed.
  */
 
-STATIC void
+void
 clearcmdentry(firstchange)
 	int firstchange;
 {

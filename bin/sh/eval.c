@@ -612,12 +612,14 @@ evalcommand(cmd, flags, backcmd)
 	volatile int e;
 	char *lastarg;
 	int realstatus;
+	int do_clearcmdentry;
 #if __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &argv;
 	(void) &argc;
 	(void) &lastarg;
 	(void) &flags;
+	(void) &do_clearcmdentry;
 #endif
 
 	/* First expand the arguments. */
@@ -626,6 +628,7 @@ evalcommand(cmd, flags, backcmd)
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
 	varflag = 1;
+	do_clearcmdentry = 0;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
@@ -688,8 +691,29 @@ evalcommand(cmd, flags, backcmd)
 		 * is present
 		 */
 		for (sp = varlist.list ; sp ; sp = sp->next)
-			if (strncmp(sp->text, PATH, sizeof(PATH) - 1) == 0)
+			if (strncmp(sp->text, PATH, sizeof(PATH) - 1) == 0) {
 				path = sp->text + sizeof(PATH) - 1;
+				/* 
+				 * On `PATH=... command`, we need to make
+				 * sure that the command isn't using the
+				 * non-updated hash table of the outer PATH
+				 * setting and we need to make sure that 
+				 * the hash table isn't filled with items
+				 * from the temporary setting.
+				 *
+				 * It would be better to forbit using and 
+				 * updating the table while this command
+				 * runs, by the command finding mechanism
+				 * is heavily integrated with hash handling,
+				 * so we just delete the hash before and after
+				 * the command runs. Partly deleting like
+				 * changepatch() does doesn't seem worth the
+				 * bookinging effort, since most such runs add
+				 * diretories in front of the new PATH.
+				 */
+				clearcmdentry(0);
+				do_clearcmdentry = 1;
+			}
 
 		find_command(argv[0], &cmdentry, 1, path);
 		if (cmdentry.cmdtype == CMDUNKNOWN) {	/* command not found */
@@ -887,6 +911,8 @@ parent:	/* parent process gets here (if we forked) */
 out:
 	if (lastarg)
 		setvar("_", lastarg, 0);
+	if (do_clearcmdentry)
+		clearcmdentry(0);
 	popstackmark(&smark);
 }
 
