@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $
-$ $Id: ee.msg,v 1.2 1996/05/27 21:00:06 joerg Exp $
+$ $Id: ee.msg,v 1.7 1998/01/12 07:53:05 charnier Exp $
 $ 
 $set 1
 $quote "
@@ -109,7 +109,7 @@ $quote "
 100 "           ...recherche"
 101 "chaîne \"%s\" non trouvée"
 102 "rechercher : "
-103 "impossible d'exécuter %s\n"
+103 "impossible d'exécuter %s"
 104 "tapez entrée pour continuer "
 105 "pressez sur échap. pour annuler"
 106 "menu trop grand pour la fenêtre"

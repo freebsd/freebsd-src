@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/de_DE.ISO_8859-1/ee.msg,v 1.2 1996/05/27 20:59:53 joerg Exp $
+$ $Id: ee.msg,v 1.5 1998/01/12 07:52:06 charnier Exp $
 $ 
 $set 1
 $quote "
@@ -109,7 +109,7 @@ $quote "
 100 "           ...Suche läuft"
 101 "Zeichenfolge \"%s\" nicht gefunden"
 102 "Suchen nach: "
-103 "Kann %s nicht ausführen\n"
+103 "Kann %s nicht ausführen"
 104 "Bitte die Eingabetaste drücken "
 105 "Escape zum Beenden"
 106 "Menü ist zu groß für das Fenster"

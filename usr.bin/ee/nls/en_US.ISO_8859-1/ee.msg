@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /home/ncvs/src/usr.bin/ee/nls/en_US.ISO_8859-1/ee.msg,v 1.2 1996/05/27 21:00:00 joerg Exp $
+$ $Id: ee.msg,v 1.4 1998/01/12 07:52:15 charnier Exp $
 $ 
 $set 1
 $quote "
@@ -109,7 +109,7 @@ $quote "
 100 "           ...searching"
 101 "string \"%s\" not found"
 102 "search for: "
-103 "could not exec %s\n"
+103 "could not exec %s"
 104 "press return to continue "
 105 "press Esc to cancel"
 106 "menu too large for window"
