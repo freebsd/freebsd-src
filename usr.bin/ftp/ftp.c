@@ -134,10 +134,9 @@ hookup(host0, port)
 	}
 
 	res = res0;
-	if (res->ai_canonname)
-		hostname = res->ai_canonname;
-	else {
-		(void) strncpy(hostnamebuf, host, sizeof(hostnamebuf));
+	if (res->ai_canonname) {
+		(void) strncpy(hostnamebuf, res->ai_canonname,
+			       sizeof(hostnamebuf));
 		hostname = hostnamebuf;
 	}
 	while (1) {
