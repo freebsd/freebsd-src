@@ -272,10 +272,18 @@ cpu_boot(int howto)
 }
 
 void
-cpu_halt(void)
+cpu_halt()
 {
 
 	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+}
+
+void
+cpu_idle()
+{
+	struct ia64_pal_result res;
+
+	res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
 }
 
 void
