@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.40 1996/02/24 14:32:53 peter Exp $
+ * $Id: sysctl.h,v 1.41 1996/03/11 02:17:53 hsu Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -370,6 +370,7 @@ extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
+int kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, int *retval);
 int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval);
 /*
 int	sysctl_clockrate __P((char *, size_t*));
