@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.4 1994/08/13 03:49:38 wollman Exp $
+ *	$Id: exception.s,v 1.5 1994/09/28 03:37:49 bde Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -130,9 +130,11 @@ IDTVEC(rsvd)
 IDTVEC(fpu)
 #if NNPX > 0
 	/*
-	 * Handle like an interrupt so that we can call npxintr to clear the
-	 * error.  It would be better to handle npx interrupts as traps but
-	 * this is difficult for nested interrupts.
+	 * Handle like an interrupt (except for accounting) so that we can
+	 * call npxintr to clear the error.  It would be better to handle
+	 * npx interrupts as traps.  This used to be difficult for nested
+	 * interrupts, but now it is fairly easy - mask nested ones the
+	 * same as SWI_AST's.
 	 */
 	pushl	$0				/* dumby error code */
 	pushl	$0				/* dumby trap type */
@@ -150,6 +152,7 @@ IDTVEC(fpu)
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
 	call	_npxintr
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 #else	/* NNPX > 0 */
@@ -217,6 +220,7 @@ calltrap:
 	 */
 	pushl	%eax
 	subl	$4,%esp
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
@@ -265,6 +269,7 @@ IDTVEC(syscall)
 	 */
 	pushl	$0				/* cpl to restore */
 	subl	$4,%esp
+	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
