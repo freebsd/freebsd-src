@@ -60,11 +60,10 @@ route6_input(mp, offp, proto)
 	struct mbuf *m = *mp;
 	struct ip6_rthdr *rh;
 	int off = *offp, rhlen;
-	struct m_tag *mtag;
+	struct ip6aux *ip6a;
 
-	mtag = ip6_findaux(m);
-	if (mtag) {
-		struct ip6aux *ip6a = (struct ip6aux *)(mtag + 1);
+	ip6a = ip6_findaux(m);
+	if (ip6a) {
 		/* XXX reject home-address option before rthdr */
 		if (ip6a->ip6a_flags & IP6A_SWAP) {
 			ip6stat.ip6s_badoptions++;
