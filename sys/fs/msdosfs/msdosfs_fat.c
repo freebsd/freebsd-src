@@ -1,9 +1,9 @@
-/*	$Id: msdosfs_fat.c,v 1.15 1998/02/06 12:13:46 eivind Exp $ */
-/*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
+/*	$Id: msdosfs_fat.c,v 1.16 1998/02/09 06:09:52 eivind Exp $ */
+/*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+ * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
+ * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
  * Original code by Paul Popelka (paulp@uts.amdahl.com) (see below).
  *
@@ -56,6 +56,7 @@
 #include <sys/buf.h>
 #include <sys/mount.h>		/* to define statfs structure */
 #include <sys/vnode.h>		/* to define vattr structure */
+#include <sys/errno.h>
 
 /*
  * msdosfs include files.
@@ -78,9 +79,6 @@ static int fc_bmapcalls;		/* # of times pcbmap was called		 */
 static int fc_lmdistance[LMMAX];/* counters for how far off the last
 				 * cluster mapped entry was. */
 static int fc_largedistance;	/* off by more than LMMAX		 */
-
-/* Byte offset in FAT on filesystem pmp, cluster cn */
-#define	FATOFS(pmp, cn)	(FAT12(pmp) ? (cn) * 3 / 2 : (cn) * 2)
 
 static int	chainalloc __P((struct msdosfsmount *pmp, u_long start,
 				u_long count, u_long fillwith,
@@ -111,7 +109,8 @@ fatblock(pmp, ofs, bnp, sizep, bop)
 	bn = ofs / pmp->pm_fatblocksize * pmp->pm_fatblocksec;
 	size = min(pmp->pm_fatblocksec, pmp->pm_FATsecs - bn)
 	    * pmp->pm_BytesPerSec;
-	bn += pmp->pm_fatblk;
+	bn += pmp->pm_fatblk + pmp->pm_curfat * pmp->pm_FATsecs;
+
 	if (bnp)
 		*bnp = bn;
 	if (sizep)
@@ -139,16 +138,17 @@ fatblock(pmp, ofs, bnp, sizep, bop)
  *  If cnp is null, nothing is returned.
  */
 int
-pcbmap(dep, findcn, bnp, cnp)
+pcbmap(dep, findcn, bnp, cnp, sp)
 	struct denode *dep;
 	u_long findcn;		/* file relative cluster to get		 */
 	daddr_t *bnp;		/* returned filesys relative blk number	 */
 	u_long *cnp;		/* returned cluster number		 */
+	int *sp;		/* returned block size			 */
 {
 	int error;
 	u_long i;
 	u_long cn;
-	u_long prevcn;
+	u_long prevcn = 0; /* XXX: prevcn could be used unititialized */
 	u_long byteoffset;
 	u_long bn;
 	u_long bo;
@@ -156,7 +156,6 @@ pcbmap(dep, findcn, bnp, cnp)
 	u_long bp_bn = -1;
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long bsize;
-	int fat12 = FAT12(pmp);	/* 12 bit fat	 */
 
 	fc_bmapcalls++;
 
@@ -164,8 +163,8 @@ pcbmap(dep, findcn, bnp, cnp)
 	 * If they don't give us someplace to return a value then don't
 	 * bother doing anything.
 	 */
-	if (bnp == NULL && cnp == NULL)
-		return 0;
+	if (bnp == NULL && cnp == NULL && sp == NULL)
+		return (0);
 
 	cn = dep->de_StartCluster;
 	/*
@@ -176,22 +175,31 @@ pcbmap(dep, findcn, bnp, cnp)
 	 */
 	if (cn == MSDOSFSROOT) {
 		if (dep->de_Attributes & ATTR_DIRECTORY) {
-			if (findcn * pmp->pm_SectPerClust >= pmp->pm_rootdirsize) {
+			if (de_cn2off(pmp, findcn) >= dep->de_FileSize) {
 				if (cnp)
-					*cnp = pmp->pm_rootdirsize / pmp->pm_SectPerClust;
-				return E2BIG;
+					*cnp = de_bn2cn(pmp, pmp->pm_rootdirsize);
+				return (E2BIG);
 			}
 			if (bnp)
-				*bnp = pmp->pm_rootdirblk + (findcn * pmp->pm_SectPerClust);
+				*bnp = pmp->pm_rootdirblk + de_cn2bn(pmp, findcn);
 			if (cnp)
 				*cnp = MSDOSFSROOT;
-			return 0;
+			if (sp)
+				*sp = min(pmp->pm_bpcluster,
+				    dep->de_FileSize - de_cn2off(pmp, findcn));
+			return (0);
 		} else {		/* just an empty file */
 			if (cnp)
 				*cnp = 0;
-			return E2BIG;
+			return (E2BIG);
 		}
 	}
+
+	/*
+	 * All other files do I/O in cluster sized blocks
+	 */
+	if (sp)
+		*sp = pmp->pm_bpcluster;
 
 	/*
 	 * Rummage around in the fat cache, maybe we can avoid tromping
@@ -208,9 +216,11 @@ pcbmap(dep, findcn, bnp, cnp)
 	/*
 	 * Handle all other files or directories the normal way.
 	 */
-	prevcn = 0;
 	for (; i < findcn; i++) {
-		if (MSDOSFSEOF(cn))
+		/*
+		 * Stop with all reserved clusters, not just with EOF.
+		 */
+		if ((cn | ~pmp->pm_fatmask) >= CLUST_RSRVD)
 			goto hiteof;
 		byteoffset = FATOFS(pmp, cn);
 		fatblock(pmp, byteoffset, &bn, &bsize, &bo);
@@ -218,28 +228,32 @@ pcbmap(dep, findcn, bnp, cnp)
 			if (bp)
 				brelse(bp);
 			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-			if (error)
-				return error;
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
 			bp_bn = bn;
 		}
 		prevcn = cn;
-		cn = getushort(&bp->b_data[bo]);
-		if (fat12) {
-			if (prevcn & 1)
-				cn >>= 4;
-			cn &= 0x0fff;
-			/*
-			 * Force the special cluster numbers in the range
-			 * 0x0ff0-0x0fff to be the same as for 16 bit
-			 * cluster numbers to let the rest of msdosfs think
-			 * it is always dealing with 16 bit fats.
-			 */
-			if ((cn & 0x0ff0) == 0x0ff0)
-				cn |= 0xf000;
-		}
+		if (FAT32(pmp))
+			cn = getulong(&bp->b_data[bo]);
+		else
+			cn = getushort(&bp->b_data[bo]);
+		if (FAT12(pmp) && (prevcn & 1))
+			cn >>= 4;
+		cn &= pmp->pm_fatmask;
+
+		/*
+		 * Force the special cluster numbers
+		 * to be the same for all cluster sizes
+		 * to let the rest of msdosfs handle
+		 * all cases the same.
+		 */
+		if ((cn | ~pmp->pm_fatmask) >= CLUST_RSRVD)
+			cn |= ~pmp->pm_fatmask;
 	}
 
-	if (!MSDOSFSEOF(cn)) {
+	if (!MSDOSFSEOF(pmp, cn)) {
 		if (bp)
 			brelse(bp);
 		if (bnp)
@@ -247,7 +261,7 @@ pcbmap(dep, findcn, bnp, cnp)
 		if (cnp)
 			*cnp = cn;
 		fc_setcache(dep, FC_LASTMAP, i, cn);
-		return 0;
+		return (0);
 	}
 
 hiteof:;
@@ -257,7 +271,7 @@ hiteof:;
 		brelse(bp);
 	/* update last file cluster entry in the fat cache */
 	fc_setcache(dep, FC_LASTFC, i - 1, prevcn);
-	return E2BIG;
+	return (E2BIG);
 }
 
 /*
@@ -292,7 +306,8 @@ fc_lookup(dep, findcn, frcnp, fsrcnp)
  * Purge the fat cache in denode dep of all entries relating to file
  * relative cluster frcn and beyond.
  */
-void fc_purge(dep, frcn)
+void
+fc_purge(dep, frcn)
 	struct denode *dep;
 	u_int frcn;
 {
@@ -307,7 +322,9 @@ void fc_purge(dep, frcn)
 }
 
 /*
- * Update all copies of the fat. The first copy is updated last.
+ * Update the fat.
+ * If mirroring the fat, update all copies, with the first copy as last.
+ * Else update only the current fat (ignoring the others).
  *
  * pmp	 - msdosfsmount structure for filesystem to update
  * bp	 - addr of modified fat block
@@ -323,36 +340,80 @@ updatefats(pmp, bp, fatbn)
 	struct buf *bpn;
 
 #ifdef MSDOSFS_DEBUG
-	printf("updatefats(pmp %p, bp %p, fatbn %ld)\n", pmp, bp, fatbn);
+	printf("updatefats(pmp %p, bp %p, fatbn %lu)\n", pmp, bp, fatbn);
 #endif
 
 	/*
-	 * Now copy the block(s) of the modified fat to the other copies of
-	 * the fat and write them out.  This is faster than reading in the
-	 * other fats and then writing them back out.  This could tie up
-	 * the fat for quite a while. Preventing others from accessing it.
-	 * To prevent us from going after the fat quite so much we use
-	 * delayed writes, unless they specfied "synchronous" when the
-	 * filesystem was mounted.  If synch is asked for then use
-	 * bwrite()'s and really slow things down.
+	 * If we have an FSInfo block, update it.
 	 */
-	for (i = 1; i < pmp->pm_FATs; i++) {
-		fatbn += pmp->pm_FATsecs;
-		/* getblk() never fails */
-		bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount, 0, 0);
-		bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
-		if (pmp->pm_waitonfat)
-			bwrite(bpn);
-		else
-			bdwrite(bpn);
+	if (pmp->pm_fsinfo) {
+		u_long cn = pmp->pm_nxtfree;
+
+		if (pmp->pm_freeclustercount
+		    && (pmp->pm_inusemap[cn / N_INUSEBITS]
+			& (1 << (cn % N_INUSEBITS)))) {
+			/*
+			 * The cluster indicated in FSInfo isn't free
+			 * any longer.  Got get a new free one.
+			 */
+			for (cn = 0; cn < pmp->pm_maxcluster;)
+				if (pmp->pm_inusemap[cn / N_INUSEBITS] != (u_int)-1)
+					break;
+			pmp->pm_nxtfree = cn
+				+ ffs(pmp->pm_inusemap[cn / N_INUSEBITS]
+				      ^ (u_int)-1) - 1;
+		}
+		if (bread(pmp->pm_devvp, pmp->pm_fsinfo, 1024, NOCRED, &bpn) != 0) {
+			/*
+			 * Ignore the error, but turn off FSInfo update for the future.
+			 */
+			pmp->pm_fsinfo = 0;
+			brelse(bpn);
+		} else {
+			struct fsinfo *fp = (struct fsinfo *)bpn->b_data;
+
+			putulong(fp->fsinfree, pmp->pm_freeclustercount);
+			putulong(fp->fsinxtfree, pmp->pm_nxtfree);
+			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+				bwrite(bpn);
+			else
+				bdwrite(bpn);
+		}
 	}
+
+	if (pmp->pm_flags & MSDOSFS_FATMIRROR) {
+		/*
+		 * Now copy the block(s) of the modified fat to the other copies of
+		 * the fat and write them out.  This is faster than reading in the
+		 * other fats and then writing them back out.  This could tie up
+		 * the fat for quite a while. Preventing others from accessing it.
+		 * To prevent us from going after the fat quite so much we use
+		 * delayed writes, unless they specfied "synchronous" when the
+		 * filesystem was mounted.  If synch is asked for then use
+		 * bwrite()'s and really slow things down.
+		 */
+		for (i = 1; i < pmp->pm_FATs; i++) {
+			fatbn += pmp->pm_FATsecs;
+			/* getblk() never fails */
+			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount, 0, 0);
+			bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
+			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+				bwrite(bpn);
+			else
+				bdwrite(bpn);
+		}
+	}
+
 	/*
-	 * Write out the first fat last.
+	 * Write out the first (or current) fat last.
 	 */
-	if (pmp->pm_waitonfat)
+	if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
 		bwrite(bp);
 	else
 		bdwrite(bp);
+	/*
+	 * Maybe update fsinfo sector here?
+	 */
 }
 
 /*
@@ -379,8 +440,8 @@ usemap_alloc(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;
 {
-	pmp->pm_inusemap[cn / N_INUSEBITS]
-			 |= 1 << (cn % N_INUSEBITS);
+
+	pmp->pm_inusemap[cn / N_INUSEBITS] |= 1 << (cn % N_INUSEBITS);
 	pmp->pm_freeclustercount--;
 }
 
@@ -389,6 +450,7 @@ usemap_free(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;
 {
+
 	pmp->pm_freeclustercount++;
 	pmp->pm_inusemap[cn / N_INUSEBITS] &= ~(1 << (cn % N_INUSEBITS));
 }
@@ -402,18 +464,20 @@ clusterfree(pmp, cluster, oldcnp)
 	int error;
 	u_long oldcn;
 
+	usemap_free(pmp, cluster);
 	error = fatentry(FAT_GET_AND_SET, pmp, cluster, &oldcn, MSDOSFSFREE);
-	if (error == 0) {
-		/*
-		 * If the cluster was successfully marked free, then update
-		 * the count of free clusters, and turn off the "allocated"
-		 * bit in the "in use" cluster bit map.
-		 */
-		usemap_free(pmp, cluster);
-		if (oldcnp)
-			*oldcnp = oldcn;
+	if (error) {
+		usemap_alloc(pmp, cluster);
+		return (error);
 	}
-	return error;
+	/*
+	 * If the cluster was successfully marked free, then update
+	 * the count of free clusters, and turn off the "allocated"
+	 * bit in the "in use" cluster bit map.
+	 */
+	if (oldcnp)
+		*oldcnp = oldcn;
+	return (0);
 }
 
 /*
@@ -448,10 +512,10 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	u_long bn, bo, bsize, byteoffset;
 	struct buf *bp;
 
-	/*
-	 * printf("fatentry(func %d, pmp %08x, clust %d, oldcon %08x, newcon %d)\n",
-	 *	  function, pmp, cluster, oldcontents, newcontents);
-	 */
+#ifdef	MSDOSFS_DEBUG
+	printf("fatentry(func %d, pmp %p, clust %lu, oldcon %p, newcon %lx)\n",
+	     function, pmp, cn, oldcontents, newcontents);
+#endif
 
 #ifdef DIAGNOSTIC
 	/*
@@ -459,7 +523,7 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	 */
 	if ((function & (FAT_SET | FAT_GET)) == 0) {
 		printf("fatentry(): function code doesn't specify get or set\n");
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	/*
@@ -468,7 +532,7 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	 */
 	if ((function & FAT_GET) && oldcontents == NULL) {
 		printf("fatentry(): get function with no place to put result\n");
-		return EINVAL;
+		return (EINVAL);
 	}
 #endif
 
@@ -476,28 +540,32 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	 * Be sure the requested cluster is in the filesystem.
 	 */
 	if (cn < CLUST_FIRST || cn > pmp->pm_maxcluster)
-		return EINVAL;
+		return (EINVAL);
 
 	byteoffset = FATOFS(pmp, cn);
 	fatblock(pmp, byteoffset, &bn, &bsize, &bo);
 	error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-	if (error)
-		return error;
+	if (error) {
+		brelse(bp);
+		return (error);
+	}
 
 	if (function & FAT_GET) {
-		readcn = getushort(&bp->b_data[bo]);
-		if (FAT12(pmp)) {
-			if (cn & 1)
-				readcn >>= 4;
-			readcn &= 0x0fff;
-			/* map certain 12 bit fat entries to 16 bit */
-			if ((readcn & 0x0ff0) == 0x0ff0)
-				readcn |= 0xf000;
-		}
+		if (FAT32(pmp))
+			readcn = getulong(&bp->b_data[bo]);
+		else
+			readcn = getushort(&bp->b_data[bo]);
+		if (FAT12(pmp) & (cn & 1))
+			readcn >>= 4;
+		readcn &= pmp->pm_fatmask;
+		/* map reserved fat entries to same values for all fats */
+		if ((readcn | ~pmp->pm_fatmask) >= CLUST_RSRVD)
+			readcn |= ~pmp->pm_fatmask;
 		*oldcontents = readcn;
 	}
 	if (function & FAT_SET) {
-		if (FAT12(pmp)) {
+		switch (pmp->pm_fatmask) {
+		case FAT12_MASK:
 			readcn = getushort(&bp->b_data[bo]);
 			if (cn & 1) {
 				readcn &= 0x000f;
@@ -507,15 +575,28 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 				readcn |= newcontents & 0xfff;
 			}
 			putushort(&bp->b_data[bo], readcn);
-		} else
+			break;
+		case FAT16_MASK:
 			putushort(&bp->b_data[bo], newcontents);
+			break;
+		case FAT32_MASK:
+			/*
+			 * According to spec we have to retain the
+			 * high order bits of the fat entry.
+			 */
+			readcn = getulong(&bp->b_data[bo]);
+			readcn &= ~FAT32_MASK;
+			readcn |= newcontents & FAT32_MASK;
+			putulong(&bp->b_data[bo], readcn);
+			break;
+		}
 		updatefats(pmp, bp, bn);
 		bp = NULL;
 		pmp->pm_fmod = 1;
 	}
 	if (bp)
 		brelse(bp);
-	return 0;
+	return (0);
 }
 
 /*
@@ -538,25 +619,28 @@ fatchain(pmp, start, count, fillwith)
 	struct buf *bp;
 
 #ifdef MSDOSFS_DEBUG
-	printf("fatchain(pmp %p, start %ld, count %ld, fillwith %ld)\n",
-	       pmp, start, count, fillwith);
+	printf("fatchain(pmp %p, start %lu, count %lu, fillwith %lx)\n",
+	    pmp, start, count, fillwith);
 #endif
 	/*
 	 * Be sure the clusters are in the filesystem.
 	 */
 	if (start < CLUST_FIRST || start + count - 1 > pmp->pm_maxcluster)
-		return EINVAL;
+		return (EINVAL);
 
 	while (count > 0) {
 		byteoffset = FATOFS(pmp, start);
 		fatblock(pmp, byteoffset, &bn, &bsize, &bo);
 		error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-		if (error)
-			return error;
+		if (error) {
+			brelse(bp);
+			return (error);
+		}
 		while (count > 0) {
 			start++;
 			newc = --count > 0 ? start : fillwith;
-			if (FAT12(pmp)) {
+			switch (pmp->pm_fatmask) {
+			case FAT12_MASK:
 				readcn = getushort(&bp->b_data[bo]);
 				if (start & 1) {
 					readcn &= 0xf000;
@@ -569,9 +653,18 @@ fatchain(pmp, start, count, fillwith)
 				bo++;
 				if (!(start & 1))
 					bo++;
-			} else {
+				break;
+			case FAT16_MASK:
 				putushort(&bp->b_data[bo], newc);
 				bo += 2;
+				break;
+			case FAT32_MASK:
+				readcn = getulong(&bp->b_data[bo]);
+				readcn &= ~pmp->pm_fatmask;
+				readcn |= newc & pmp->pm_fatmask;
+				putulong(&bp->b_data[bo], readcn);
+				bo += 4;
+				break;
 			}
 			if (bo >= bsize)
 				break;
@@ -579,7 +672,7 @@ fatchain(pmp, start, count, fillwith)
 		updatefats(pmp, bp, bn);
 	}
 	pmp->pm_fmod = 1;
-	return 0;
+	return (0);
 }
 
 /*
@@ -606,11 +699,11 @@ chainlength(pmp, start, count)
 	map &= ~((1 << start) - 1);
 	if (map) {
 		len = ffs(map) - 1 - start;
-		return len > count ? count : len;
+		return (len > count ? count : len);
 	}
 	len = N_INUSEBITS - start;
 	if (len >= count)
-		return count;
+		return (count);
 	while (++idx <= max_idx) {
 		if (len >= count)
 			break;
@@ -621,7 +714,7 @@ chainlength(pmp, start, count)
 		}
 		len += N_INUSEBITS;
 	}
-	return len > count ? count : len;
+	return (len > count ? count : len);
 }
 
 /*
@@ -645,21 +738,23 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 	u_long *got;
 {
 	int error;
+	u_long cl, n;
+
+	for (cl = start, n = count; n-- > 0;)
+		usemap_alloc(pmp, cl++);
 
 	error = fatchain(pmp, start, count, fillwith);
-	if (error == 0) {
+	if (error != 0)
+		return (error);
 #ifdef MSDOSFS_DEBUG
-		printf("clusteralloc(): allocated cluster chain at %ld (%ld clusters)\n",
-		       start, count);
+	printf("clusteralloc(): allocated cluster chain at %lu (%lu clusters)\n",
+	    start, count);
 #endif
-		if (retcluster)
-			*retcluster = start;
-		if (got)
-			*got = count;
-		while (count-- > 0)
-			usemap_alloc(pmp, start++);
-	}
-	return error;
+	if (retcluster)
+		*retcluster = start;
+	if (got)
+		*got = count;
+	return (0);
 }
 
 /*
@@ -683,15 +778,16 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	u_long *got;
 {
 	u_long idx;
-	u_long len, newst, foundcn, foundl, cn, l;
+	u_long len, newst, foundl, cn, l;
+	u_long foundcn = 0; /* XXX: foundcn could be used unititialized */
 	u_int map;
 
 #ifdef MSDOSFS_DEBUG
-	printf("clusteralloc(): find %d clusters\n",count);
+	printf("clusteralloc(): find %lu clusters\n",count);
 #endif
 	if (start) {
 		if ((len = chainlength(pmp, start, count)) >= count)
-			return chainalloc(pmp, start, count, fillwith, retcluster, got);
+			return (chainalloc(pmp, start, count, fillwith, retcluster, got));
 	} else {
 		/*
 		 * This is a new file, initialize start
@@ -699,7 +795,7 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 		struct timeval tv;
 
 		microtime(&tv);
-		start = (tv.tv_usec >> 10)|tv.tv_usec;
+		start = (tv.tv_usec >> 10) | tv.tv_usec;
 		len = 0;
 	}
 
@@ -707,7 +803,7 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	 * Start at a (pseudo) random place to maximize cluster runs
 	 * under multiple writers.
 	 */
-	foundcn = newst = (start * 1103515245 + 12345) % (pmp->pm_maxcluster + 1);
+	newst = (start * 1103515245 + 12345) % (pmp->pm_maxcluster + 1);
 	foundl = 0;
 
 	for (cn = newst; cn <= pmp->pm_maxcluster;) {
@@ -717,7 +813,7 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 		if (map != (u_int)-1) {
 			cn = idx * N_INUSEBITS + ffs(map^(u_int)-1) - 1;
 			if ((l = chainlength(pmp, cn, count)) >= count)
-				return chainalloc(pmp, cn, count, fillwith, retcluster, got);
+				return (chainalloc(pmp, cn, count, fillwith, retcluster, got));
 			if (l > foundl) {
 				foundcn = cn;
 				foundl = l;
@@ -734,7 +830,7 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 		if (map != (u_int)-1) {
 			cn = idx * N_INUSEBITS + ffs(map^(u_int)-1) - 1;
 			if ((l = chainlength(pmp, cn, count)) >= count)
-				return chainalloc(pmp, cn, count, fillwith, retcluster, got);
+				return (chainalloc(pmp, cn, count, fillwith, retcluster, got));
 			if (l > foundl) {
 				foundcn = cn;
 				foundl = l;
@@ -746,12 +842,12 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	}
 
 	if (!foundl)
-		return ENOSPC;
+		return (ENOSPC);
 
 	if (len)
-		return chainalloc(pmp, start, len, fillwith, retcluster, got);
+		return (chainalloc(pmp, start, len, fillwith, retcluster, got));
 	else
-		return chainalloc(pmp, foundcn, foundl, fillwith, retcluster, got);
+		return (chainalloc(pmp, foundcn, foundl, fillwith, retcluster, got));
 }
 
 
@@ -768,7 +864,7 @@ freeclusterchain(pmp, cluster)
 	struct msdosfsmount *pmp;
 	u_long cluster;
 {
-	int error = 0;
+	int error;
 	struct buf *bp = NULL;
 	u_long bn, bo, bsize, byteoffset;
 	u_long readcn, lbn = -1;
@@ -780,13 +876,16 @@ freeclusterchain(pmp, cluster)
 			if (bp)
 				updatefats(pmp, bp, lbn);
 			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-			if (error)
-				return error;
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
 			lbn = bn;
 		}
 		usemap_free(pmp, cluster);
-		readcn = getushort(&bp->b_data[bo]);
-		if (FAT12(pmp)) {
+		switch (pmp->pm_fatmask) {
+		case FAT12_MASK:
+			readcn = getushort(&bp->b_data[bo]);
 			if (cluster & 1) {
 				cluster = readcn >> 4;
 				readcn &= 0x000f;
@@ -797,17 +896,24 @@ freeclusterchain(pmp, cluster)
 				readcn |= MSDOSFSFREE & 0xfff;
 			}
 			putushort(&bp->b_data[bo], readcn);
-			cluster &= 0x0fff;
-			if ((cluster&0x0ff0) == 0x0ff0)
-				cluster |= 0xf000;
-		} else {
-			cluster = readcn;
+			break;
+		case FAT16_MASK:
+			cluster = getushort(&bp->b_data[bo]);
 			putushort(&bp->b_data[bo], MSDOSFSFREE);
+			break;
+		case FAT32_MASK:
+			cluster = getulong(&bp->b_data[bo]);
+			putulong(&bp->b_data[bo],
+				 (MSDOSFSFREE & FAT32_MASK) | (cluster & ~FAT32_MASK));
+			break;
 		}
+		cluster &= pmp->pm_fatmask;
+		if ((cluster | ~pmp->pm_fatmask) >= CLUST_RSRVD)
+			cluster |= pmp->pm_fatmask;
 	}
 	if (bp)
 		updatefats(pmp, bp, bn);
-	return error;
+	return (0);
 }
 
 /*
@@ -821,7 +927,6 @@ fillinusemap(pmp)
 	struct buf *bp = NULL;
 	u_long cn, readcn;
 	int error;
-	int fat12 = FAT12(pmp);
 	u_long bn, bo, bsize, byteoffset;
 
 	/*
@@ -846,21 +951,24 @@ fillinusemap(pmp)
 				brelse(bp);
 			fatblock(pmp, byteoffset, &bn, &bsize, NULL);
 			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
-			if (error)
-				return error;
+			if (error) {
+				brelse(bp);
+				return (error);
+			}
 		}
-		readcn = getushort(&bp->b_data[bo]);
-		if (fat12) {
-			if (cn & 1)
-				readcn >>= 4;
-			readcn &= 0x0fff;
-		}
+		if (FAT32(pmp))
+			readcn = getulong(&bp->b_data[bo]);
+		else
+			readcn = getushort(&bp->b_data[bo]);
+		if (FAT12(pmp) && (cn & 1))
+			readcn >>= 4;
+		readcn &= pmp->pm_fatmask;
 
 		if (readcn == 0)
 			usemap_free(pmp, cn);
 	}
 	brelse(bp);
-	return 0;
+	return (0);
 }
 
 /*
@@ -886,7 +994,7 @@ extendfile(dep, count, bpp, ncp, flags)
 	u_long *ncp;
 	int flags;
 {
-	int error = 0;
+	int error;
 	u_long frcn;
 	u_long cn, got;
 	struct msdosfsmount *pmp = dep->de_pmp;
@@ -895,9 +1003,10 @@ extendfile(dep, count, bpp, ncp, flags)
 	/*
 	 * Don't try to extend the root directory
 	 */
-	if (DETOV(dep)->v_flag & VROOT) {
+	if (dep->de_StartCluster == MSDOSFSROOT
+	    && (dep->de_Attributes & ATTR_DIRECTORY)) {
 		printf("extendfile(): attempt to extend root directory\n");
-		return ENOSPC;
+		return (ENOSPC);
 	}
 
 	/*
@@ -908,21 +1017,21 @@ extendfile(dep, count, bpp, ncp, flags)
 	if (dep->de_fc[FC_LASTFC].fc_frcn == FCE_EMPTY &&
 	    dep->de_StartCluster != 0) {
 		fc_lfcempty++;
-		error = pcbmap(dep, 0xffff, 0, &cn);
+		error = pcbmap(dep, 0xffff, 0, &cn, 0);
 		/* we expect it to return E2BIG */
 		if (error != E2BIG)
-			return error;
-		error = 0;
+			return (error);
 	}
 
 	while (count > 0) {
 		/*
-		 * Allocate a new cluster chain and cat onto the end of the file.
-		 * If the file is empty we make de_StartCluster point to the new
-		 * block.  Note that de_StartCluster being 0 is sufficient to be
-		 * sure the file is empty since we exclude attempts to extend the
-		 * root directory above, and the root dir is the only file with a
-		 * startcluster of 0 that has blocks allocated (sort of).
+		 * Allocate a new cluster chain and cat onto the end of the
+		 * file.  * If the file is empty we make de_StartCluster point
+		 * to the new block.  Note that de_StartCluster being 0 is
+		 * sufficient to be sure the file is empty since we exclude
+		 * attempts to extend the root directory above, and the root
+		 * dir is the only file with a startcluster of 0 that has
+		 * blocks allocated (sort of).
 		 */
 		if (dep->de_StartCluster == 0)
 			cn = 0;
@@ -930,7 +1039,7 @@ extendfile(dep, count, bpp, ncp, flags)
 			cn = dep->de_fc[FC_LASTFC].fc_fsrcn + 1;
 		error = clusteralloc(pmp, cn, count, CLUST_EOFE, &cn, &got);
 		if (error)
-			return error;
+			return (error);
 
 		count -= got;
 
@@ -947,13 +1056,13 @@ extendfile(dep, count, bpp, ncp, flags)
 			dep->de_StartCluster = cn;
 			frcn = 0;
 		} else {
-			error = fatentry(FAT_SET, pmp, dep->de_fc[FC_LASTFC].fc_fsrcn,
+			error = fatentry(FAT_SET, pmp,
+					 dep->de_fc[FC_LASTFC].fc_fsrcn,
 					 0, cn);
 			if (error) {
 				clusterfree(pmp, cn, NULL);
-				return error;
+				return (error);
 			}
-
 			frcn = dep->de_fc[FC_LASTFC].fc_frcn + 1;
 		}
 
@@ -972,11 +1081,14 @@ extendfile(dep, count, bpp, ncp, flags)
 					bp = getblk(pmp->pm_devvp, cntobn(pmp, cn++),
 						    pmp->pm_bpcluster, 0, 0);
 				else {
-					bp = getblk(DETOV(dep), frcn++, pmp->pm_bpcluster, 0, 0);
+					bp = getblk(DETOV(dep), de_cn2bn(pmp, frcn++),
+					    pmp->pm_bpcluster, 0, 0);
 					/*
 					 * Do the bmap now, as in msdosfs_write
 					 */
-					if (pcbmap(dep, bp->b_lblkno, &bp->b_blkno, 0))
+					if (pcbmap(dep,
+					    de_bn2cn(pmp, bp->b_lblkno),
+					    &bp->b_blkno, 0, 0))
 						bp->b_blkno = -1;
 					if (bp->b_blkno == -1)
 						panic("extendfile: pcbmap");
@@ -985,13 +1097,11 @@ extendfile(dep, count, bpp, ncp, flags)
 				if (bpp) {
 					*bpp = bp;
 					bpp = NULL;
-				} else {
-					bp->b_flags |= B_AGE;
-					bawrite(bp);
-				}
+				} else
+					bdwrite(bp);
 			}
 		}
 	}
 
-	return 0;
+	return (0);
 }
