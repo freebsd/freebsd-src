@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.30 1997/08/27 06:40:34 phk Exp $
+ * $Id: malloc.c,v 1.31 1997/08/27 12:04:33 phk Exp $
  *
  */
 
@@ -140,7 +140,7 @@ struct pgfree {
 #endif
 
 #if !defined(malloc_pagesize)
-#define malloc_pagesize			(1U<<malloc_pageshift)
+#define malloc_pagesize			(1UL<<malloc_pageshift)
 #endif
 
 #if ((1<<malloc_pageshift) != malloc_pagesize)
