@@ -70,6 +70,7 @@ static int	fifo_print(struct vop_print_args *);
 static int	fifo_lookup(struct vop_lookup_args *);
 static int	fifo_open(struct vop_open_args *);
 static int	fifo_close(struct vop_close_args *);
+static int	fifo_inactive(struct vop_inactive_args *);
 static int	fifo_read(struct vop_read_args *);
 static int	fifo_write(struct vop_write_args *);
 static int	fifo_ioctl(struct vop_ioctl_args *);
@@ -97,6 +98,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
+	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
 	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
@@ -205,13 +207,28 @@ fifo_open(ap)
 		wso->so_snd.sb_lowat = PIPE_BUF;
 		rso->so_state |= SS_CANTRCVMORE;
 	}
+
+	/*
+	 * General access to fi_readers and fi_writers is protected using
+	 * the vnode lock.
+	 *
+	 * Protect the increment of fi_readers and fi_writers and the
+	 * associated calls to wakeup() with the vnode interlock in
+	 * addition to the vnode lock.  This allows the vnode lock to
+	 * be dropped for the msleep() calls below, and using the vnode
+	 * interlock as the msleep() mutex prevents the wakeup from
+	 * being missed.
+	 */
+	VI_LOCK(vp);
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
 			if (fip->fi_writers > 0) {
 				wakeup(&fip->fi_writers);
+				VI_UNLOCK(vp);
 				sowwakeup(fip->fi_writesock);
+				VI_LOCK(vp);
 			}
 		}
 	}
@@ -221,18 +238,25 @@ fifo_open(ap)
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
+				VI_UNLOCK(vp);
 				sorwakeup(fip->fi_writesock);
+				VI_LOCK(vp);
 			}
 		}
 	}
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
 		if (fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, td);
-			error = tsleep(&fip->fi_readers,
+			error = msleep(&fip->fi_readers, VI_MTX(vp),
 			    PCATCH | PSOCK, "fifoor", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-			if (error)
-				goto bad;
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+			if (error) {
+				fip->fi_readers--;
+				if (fip->fi_readers == 0)
+					socantsendmore(fip->fi_writesock);
+				return (error);
+			}
+			VI_LOCK(vp);
 			/*
 			 * We must have got woken up because we had a writer.
 			 * That (and not still having one) is the condition
@@ -243,29 +267,36 @@ fifo_open(ap)
 	if (ap->a_mode & FWRITE) {
 		if (ap->a_mode & O_NONBLOCK) {
 			if (fip->fi_readers == 0) {
-				error = ENXIO;
-				goto bad;
+				VI_UNLOCK(vp);
+				fip->fi_writers--;
+				if (fip->fi_writers == 0)
+					socantrcvmore(fip->fi_readsock);
+				return (ENXIO);
 			}
 		} else {
 			if (fip->fi_readers == 0) {
 				VOP_UNLOCK(vp, 0, td);
-				error = tsleep(&fip->fi_writers,
+				error = msleep(&fip->fi_writers, VI_MTX(vp),
 				    PCATCH | PSOCK, "fifoow", 0);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-				if (error)
-					goto bad;
+				vn_lock(vp,
+				    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+				if (error) {
+					fip->fi_writers--;
+					if (fip->fi_writers == 0)
+						socantrcvmore(fip->fi_readsock);
+					return (error);
+				}
 				/*
 				 * We must have got woken up because we had
 				 * a reader.  That (and not still having one)
 				 * is the condition that we must wait for.
 				 */
+				return (0);
 			}
 		}
 	}
+	VI_UNLOCK(vp);
 	return (0);
-bad:
-	VOP_CLOSE(vp, ap->a_mode, ap->a_cred, td);
-	return (error);
 }
 
 /*
@@ -524,9 +555,11 @@ fifo_close(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct fifoinfo *fip = vp->v_fifoinfo;
-	int error1, error2;
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = ap->a_td;
+	struct fifoinfo *fip = vp->v_fifoinfo;
+
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
@@ -538,15 +571,30 @@ fifo_close(ap)
 		if (fip->fi_writers == 0)
 			socantrcvmore(fip->fi_readsock);
 	}
-	if (vrefcnt(vp) > 1)
-		return (0);
-	error1 = soclose(fip->fi_readsock);
-	error2 = soclose(fip->fi_writesock);
-	FREE(fip, M_VNODE);
-	vp->v_fifoinfo = NULL;
-	if (error1)
-		return (error1);
-	return (error2);
+	VOP_UNLOCK(vp, 0, td);
+	return (0);
+}
+
+static int
+fifo_inactive(ap)
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct thread *a_td;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct fifoinfo *fip = vp->v_fifoinfo;
+
+	VI_LOCK(vp);
+	if (fip != NULL && vp->v_usecount == 0) {
+		vp->v_fifoinfo = NULL;
+		VI_UNLOCK(vp);
+		(void)soclose(fip->fi_readsock);
+		(void)soclose(fip->fi_writesock);
+		FREE(fip, M_VNODE);
+	}
+	VOP_UNLOCK(vp, 0, ap->a_td);
+	return (0);
 }
 
 
