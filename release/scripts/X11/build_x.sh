@@ -9,10 +9,8 @@ usage() {
 	echo
 	echo "Where <output dir> is the base directory to install X into.  This"
 	echo "script also assumes that it can checkout XFree86 into "
-	echo `dirname $0`"/XFree86, that it can get the distfiles from"
-	echo "/usr/ports/distfiles (or fetch them into that directory), and"
-	echo "that the file "`dirname $0`"/configure exists and replaces the"
-	echo "scripts/configure script used in the XFree86 port."
+	echo `dirname $0`"/XFree86 and that it can get the distfiles from"
+	echo "/usr/ports/distfiles (or fetch them into that directory)."
 	echo
 	echo "Also, this should really be run as root."
 	exit 1
