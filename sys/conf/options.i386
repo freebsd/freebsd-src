@@ -73,6 +73,8 @@ I686_CPU		opt_global.h
 
 MAXCONS			opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_CUT_SPACES2TABS	opt_syscons.h
+SC_CUT_SEPCHARS		opt_syscons.h
 SC_DEBUG_LEVEL		opt_syscons.h
 SC_DFLT_FONT		opt_syscons.h
 SC_DISABLE_DDBKEY	opt_syscons.h
