@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.82 1995/04/10 20:40:11 wollman Exp $
+ *	$Id: conf.c,v 1.83 1995/04/14 15:13:26 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -1003,6 +1003,19 @@ d_ttycv_t       rcdevtotty;
 #define rcdevtotty     nxdevtotty
 #endif
 
+#include "labpc.h"
+#if NLABPC > 0
+d_open_t     labpcopen;
+d_close_t    labpcclose;
+d_strategy_t labpcstrategy;
+d_ioctl_t    labpcioctl;
+#else
+#define	labpcopen		nxopen
+#define	labpcclose		nxclose
+#define	labpcstrategy	nxstrategy
+#define	labpcioctl		nxioctl
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -1214,6 +1227,9 @@ struct cdevsw	cdevsw[] =
 	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
 	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
 	  seltrue,	nommap,		sctargstrategy },
+	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
+	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
+	  seltrue,	nommap,		labpcstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
