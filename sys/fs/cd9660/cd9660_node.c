@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.7 1994/10/06 21:06:17 davidg Exp $
+ * $Id: cd9660_node.c,v 1.8 1995/01/16 17:03:24 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -598,7 +598,7 @@ enum ISO_FTYPE ftype;
 		
 		/* timezone offset is unreliable on some disks */
 		if (-48 <= tz && tz <= 52)
-			crtime += tz * 15 * 60;
+			crtime -= tz * 15 * 60;
 	}
 	pu->ts_sec  = crtime;
 	pu->ts_nsec = 0;
