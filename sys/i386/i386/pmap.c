@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.53 1995/03/16 18:11:28 bde Exp $
+ *	$Id: pmap.c,v 1.54 1995/03/26 23:42:07 davidg Exp $
  */
 
 /*
@@ -1794,7 +1794,7 @@ pmap_page_exists(pmap, pa)
  * note that the testbit/changebit routines are inline,
  * and a lot of things compile-time evaluate.
  */
-__inline boolean_t
+static __inline boolean_t
 pmap_testbit(pa, bit)
 	register vm_offset_t pa;
 	int bit;
