@@ -111,7 +111,7 @@ acpi_button_attach(device_t dev)
 
     if ((status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
 					   acpi_button_notify_handler, sc)) != AE_OK) {
-	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n", acpi_strerror(status));
+	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n", AcpiFormatException(status));
 	return_VALUE(ENXIO);
     }
     return_VALUE(0);

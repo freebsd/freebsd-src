@@ -197,7 +197,7 @@ acpi_identify(driver_t *driver, device_t parent)
 	acpi_EnterDebugger();
 #endif
     if ((error = AcpiInitializeSubsystem()) != AE_OK) {
-	printf("ACPI: initialisation failed: %s\n", acpi_strerror(error));
+	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
 #ifdef ENABLE_DEBUGGER
@@ -205,7 +205,7 @@ acpi_identify(driver_t *driver, device_t parent)
 	acpi_EnterDebugger();
 #endif
     if ((error = AcpiLoadTables()) != AE_OK) {
-	printf("ACPI: table load failed: %s\n", acpi_strerror(error));
+	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
     
@@ -233,7 +233,7 @@ acpi_probe(device_t dev)
     ACPI_LOCK;
 
     if ((status = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
-	device_printf(dev, "couldn't get XSDT header: %s\n", acpi_strerror(status));
+	device_printf(dev, "couldn't get XSDT header: %s\n", AcpiFormatException(status));
 	error = ENXIO;
     } else {
 	sprintf(buf, "%.6s %.8s", th.OemId, th.OemTableId);
@@ -275,21 +275,21 @@ acpi_attach(device_t dev)
 						ACPI_ADR_SPACE_SYSTEM_MEMORY,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
-	device_printf(dev, "could not initialise SystemMemory handler: %s\n", acpi_strerror(status));
+	device_printf(dev, "could not initialise SystemMemory handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
     if ((status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ACPI_ADR_SPACE_SYSTEM_IO,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
-	device_printf(dev, "could not initialise SystemIO handler: %s\n", acpi_strerror(status));
+	device_printf(dev, "could not initialise SystemIO handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
     if ((status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 						ACPI_ADR_SPACE_PCI_CONFIG,
 						ACPI_DEFAULT_HANDLER,
 						NULL, NULL)) != AE_OK) {
-	device_printf(dev, "could not initialise PciConfig handler: %s\n", acpi_strerror(status));
+	device_printf(dev, "could not initialise PciConfig handler: %s\n", AcpiFormatException(status));
 	goto out;
     }
 
@@ -307,7 +307,7 @@ acpi_attach(device_t dev)
 	acpi_EnterDebugger();
 #endif
     if ((status = AcpiEnableSubsystem(ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT)) != AE_OK) {
-	device_printf(dev, "could not enable ACPI: %s\n", acpi_strerror(status));
+	device_printf(dev, "could not enable ACPI: %s\n", AcpiFormatException(status));
 	goto out;
     }
 
@@ -690,7 +690,7 @@ acpi_shutdown_final(void *arg, int howto)
     if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
 	if ((status = AcpiEnterSleepState(acpi_off_state)) != AE_OK) {
-	    printf("ACPI power-off failed - %s\n", acpi_strerror(status));
+	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
 	} else {
 	    DELAY(1000000);
 	    printf("ACPI power-off failed - timeout\n");
@@ -1049,7 +1049,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     case ACPI_STATE_S0:	/* XXX only for testing */
 	status = AcpiEnterSleepState((UINT8)state);
 	if (status != AE_OK) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", AcpiFormatException(status));
 	}
 	break;
 
@@ -1087,7 +1087,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	} else {
 	    status = AcpiEnterSleepState((UINT8)state);
 	    if (status != AE_OK) {
-		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
+		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", AcpiFormatException(status));
 		break;
 	    }
 	    /* wait for the WAK_STS bit */

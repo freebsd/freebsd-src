@@ -513,7 +513,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 	if (AcpiGetHandle(NULL, obj->String.Pointer, &cooler) == AE_OK) {
 	    if (ACPI_FAILURE(status = acpi_pwr_switch_consumer(cooler, ACPI_STATE_D0))) {
 		device_printf(sc->tz_dev, "failed to activate %s - %s\n",
-			      obj->String.Pointer, acpi_strerror(status));
+			      obj->String.Pointer, AcpiFormatException(status));
 	    }
 	} else {
 	    device_printf(sc->tz_dev, "couldn't find %s\n", obj->String.Pointer);
@@ -683,7 +683,7 @@ acpi_tz_powerprofile(void *arg)
 	if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->tz_handle, "_SCP", &args, NULL))) {
 	    if (status != AE_NOT_FOUND)
 		device_printf(sc->tz_dev, "can't evaluate %s._SCP - %s\n", acpi_name(sc->tz_handle),
-			      acpi_strerror(status));
+			      AcpiFormatException(status));
 	    sc->tz_flags |= TZ_FLAG_NO_SCP;
 	} else {
 	    /* we have to re-evaluate the entire zone now */

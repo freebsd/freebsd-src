@@ -147,7 +147,6 @@
 #include "acpi.h"
 
 #include <dev/acpica/acpivar.h>
-#include <dev/acpica/acpi_ecreg.h>
 
 /*
  * Hooks for the ACPI CA debugging infrastructure
@@ -400,7 +399,7 @@ acpi_ec_attach(device_t dev)
      */
     DEBUG_PRINT(TRACE_RESOURCES, ("attaching GPE\n"));
     if ((Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit)) != AE_OK) {
-	device_printf(dev, "can't evaluate _GPE - %s\n", acpi_strerror(Status));
+	device_printf(dev, "can't evaluate _GPE - %s\n", AcpiFormatException(Status));
 	return_VALUE(ENXIO);
     }
 
@@ -415,7 +414,7 @@ acpi_ec_attach(device_t dev)
     if ((Status = AcpiInstallGpeHandler(sc->ec_gpebit, ACPI_EVENT_LEVEL_TRIGGERED | ACPI_EVENT_EDGE_TRIGGERED, 
 					EcGpeHandler, sc)) != AE_OK) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
-		      acpi_name(sc->ec_handle), acpi_strerror(Status));
+		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
 	return_VALUE(ENXIO);
     }
 
@@ -426,7 +425,7 @@ acpi_ec_attach(device_t dev)
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC, 
 						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
-		      acpi_name(sc->ec_handle), acpi_strerror(Status));
+		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
 	panic("very suck");
 	return_VALUE(ENXIO);
     }
@@ -470,7 +469,7 @@ EcGpeQueryHandler(void *Context)
 	 * If we failed to get anything from the EC, give up
 	 */
 	if (Status != AE_OK) {
-	    device_printf(sc->ec_dev, "GPE query failed - %s\n", acpi_strerror(Status));
+	    device_printf(sc->ec_dev, "GPE query failed - %s\n", AcpiFormatException(Status));
 	    break;
 	}
 
@@ -485,7 +484,7 @@ EcGpeQueryHandler(void *Context)
 	 */
 	if (Status != AE_OK && (Data != 0 || Status != AE_NOT_FOUND)) {
 	    device_printf(sc->ec_dev, "evaluation of GPE query method %s failed - %s\n", 
-			  qxx, acpi_strerror(Status));
+			  qxx, AcpiFormatException(Status));
 	}
     }
         /* I know I request Level trigger cleanup */

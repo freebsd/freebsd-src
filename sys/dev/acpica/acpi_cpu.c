@@ -207,7 +207,7 @@ acpi_cpu_attach(device_t dev)
     buf.Pointer = &processor;
     buf.Length = sizeof(processor);
     if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->cpu_handle, NULL, NULL, &buf))) {
-	device_printf(sc->cpu_dev, "couldn't get Processor object - %s\n", acpi_strerror(status));
+	device_printf(sc->cpu_dev, "couldn't get Processor object - %s\n", AcpiFormatException(status));
 	return_VALUE(ENXIO);
     }
     if (processor.Type != ACPI_TYPE_PROCESSOR) {
