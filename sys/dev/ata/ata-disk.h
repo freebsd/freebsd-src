@@ -65,10 +65,11 @@ struct ad_softc {
     int				num_tags;	/* number of tags supported */
     int				flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
-#define		AD_F_LBA_ENABLED	0x0002
-#define		AD_F_32B_ENABLED	0x0004
-#define		AD_F_TAG_ENABLED	0x0008
-#define		AD_F_DETACHING		0x0010
+#define		AD_F_DETACHING		0x0002
+#define		AD_F_LBA_ENABLED	0x0004
+#define		AD_F_32B_ENABLED	0x0008
+#define		AD_F_TAG_ENABLED	0x0010
+#define		AD_F_RAID_SUBDISK	0x0020
 
     struct ad_request		*tags[32];	/* tag array of requests */
     int				outstanding;	/* tags not serviced yet */
@@ -85,3 +86,5 @@ int ad_transfer(struct ad_request *);
 int ad_interrupt(struct ad_request *);
 int ad_service(struct ad_softc *, int);
 void ad_reinit(struct ad_softc *);
+void ad_print(struct ad_softc *, char *);
+

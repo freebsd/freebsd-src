@@ -37,6 +37,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
@@ -54,6 +55,11 @@ static char *atapi_skey2str(u_int8_t);
 static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 static int atapi_dma;
 TUNABLE_INT_DECL("hw.ata.atapi_dma", 0, atapi_dma);
+
+/* systcl vars */
+SYSCTL_DECL(_hw_ata);
+SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RD, &atapi_dma, 0,
+	   "ATAPI device DMA mode control");
 
 /* defines */
 #define ATAPI_MAX_RETRIES  	3
