@@ -215,8 +215,6 @@ ucom_detach(struct ucom_softc *sc)
 				      "still open, forcing close\n");
 			(*linesw[tp->t_line].l_close)(tp, 0);
 			ttyclose(tp);
-			ttwakeup(tp);
-			ttwwakeup(tp);
 		}
 	} else {
 		DPRINTF(("ucom_detach: no tty\n"));

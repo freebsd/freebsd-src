@@ -784,8 +784,6 @@ siodetach(dev)
 		device_printf(dev, "still open, forcing close\n");
 		(*linesw[com->tp->t_line].l_close)(com->tp, 0);
 		ttyclose(com->tp);
-		ttwakeup(com->tp);
-		ttwwakeup(com->tp);
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
