@@ -44,6 +44,11 @@ threading support differs according to the compiler and linker used.  Check
 the Makefile in your appropriate obj.*/libmilter build subdirectory if you
 are unsure of the local flag used.
 
+Note that since filters use threads, it may be necessary to alter per
+process limits in your filter.  For example, you might look at using
+setrlimit() to increase the number of open file descriptors if your filter
+is going to be busy.
+
 
 +----------------------------------------+
 | SPECIFYING FILTERS IN SENDMAIL CONFIGS |
@@ -416,4 +421,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.13 $, Last updated $Date: 2000/12/29 18:55:23 $
+$Revision: 8.9.2.1.2.14 $, Last updated $Date: 2001/02/21 23:08:19 $

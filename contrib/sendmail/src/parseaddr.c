@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.9 2000/10/09 03:14:48 gshapiro Exp $";
+static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.11 2001/02/14 04:07:27 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -2727,7 +2727,11 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host)
 	MapOpenErr = FALSE;
 	(void) rewrite(pvp, rsno, 0, e);
 	if (MapOpenErr)
-		usrerrenh("4.3.0", "451 Temporary failure");
+	{
+  		usrerrenh("4.3.0", "451 Temporary failure");
+		rstat = EX_TEMPFAIL;
+		goto finis;
+	}
 
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
 	    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&

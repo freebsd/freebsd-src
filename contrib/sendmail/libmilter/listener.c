@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.18 2000/12/29 19:44:28 gshapiro Exp $";
+static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.21 2001/02/14 02:20:40 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -30,16 +30,19 @@ static char id[] = "@(#)$Id: listener.c,v 8.38.2.1.2.18 2000/12/29 19:44:28 gsha
 **		conn -- connection description
 **		backlog -- listen backlog
 **		socksize -- socksize of created socket
+**		family -- family of created socket
+**		name -- name for logging
 **
 **	Returns:
 **		socket upon success, error code otherwise.
 */
 
 static socket_t
-mi_milteropen(conn, backlog, socksize, name)
+mi_milteropen(conn, backlog, socksize, family, name)
 	char *conn;
 	int backlog;
 	SOCKADDR_LEN_T *socksize;
+	int *family;
 	char *name;
 {
 	socket_t sock;
@@ -393,7 +396,7 @@ mi_milteropen(conn, backlog, socksize, name)
 		(void) close(sock);
 		return INVALID_SOCKET;
 	}
-
+	*family = addr.sa.sa_family;
 	return sock;
 }
 /*
@@ -457,6 +460,46 @@ mi_closener()
 **		MI_FAILURE -- Network initialization failed.
 */
 
+# if BROKEN_PTHREAD_SLEEP
+
+/*
+**  Solaris 2.6, perhaps others, gets an internal threads library panic
+**  when sleep() is used:
+**
+**  thread_create() failed, returned 11 (EINVAL)
+**  co_enable, thr_create() returned error = 24
+**  libthread panic: co_enable failed (PID: 17793 LWP 1)
+**  stacktrace:
+**	ef526b10
+**	ef52646c
+**	ef534cbc
+**	156a4
+**	14644
+**	1413c
+**	135e0
+**	0
+*/
+
+#  define MI_SLEEP(s)							\
+{									\
+	int rs = 0;							\
+	struct timeval st;						\
+									\
+	st.tv_sec = (s);						\
+	st.tv_usec = 0;							\
+	if (st.tv_sec > 0)						\
+		rs = select(0, NULL, NULL, NULL, &st);			\
+	if (rs != 0)							\
+	{								\
+		smi_log(SMI_LOG_ERR,					\
+			"MI_SLEEP(): select() returned non-zero result %d, errno = %d",								\
+			rs, errno);					\
+	}								\
+}
+# else /* BROKEN_PTHREAD_SLEEP */
+#  define MI_SLEEP(s)	sleep((s))
+# endif /* BROKEN_PTHREAD_SLEEP */
+
 int
 mi_listener(conn, dbg, smfi, timeout, backlog)
 	char *conn;
@@ -466,11 +509,12 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	int backlog;
 {
 	socket_t connfd = INVALID_SOCKET;
+	int family = AF_UNSPEC;
 	int sockopt = 1;
 	int r;
 	int ret = MI_SUCCESS;
-	int cnt_m = 0;
-	int cnt_t = 0;
+	int mcnt = 0;
+	int tcnt = 0;
 	sthread_t thread_id;
 	_SOCK_ADDR cliaddr;
 	SOCKADDR_LEN_T socksize;
@@ -485,7 +529,8 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			smfi->xxfi_name, conn);
 	(void) smutex_init(&L_Mutex);
 	(void) smutex_lock(&L_Mutex);
-	listenfd = mi_milteropen(conn, backlog, &socksize, smfi->xxfi_name);
+	listenfd = mi_milteropen(conn, backlog, &socksize, &family,
+				 smfi->xxfi_name);
 	if (!ValidSocket(listenfd))
 	{
 		smi_log(SMI_LOG_FATAL,
@@ -545,9 +590,28 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			break;
 		}
 
+		memset(&cliaddr, '\0', sizeof cliaddr);
 		connfd = accept(listenfd, (struct sockaddr *) &cliaddr,
 				&clilen);
 		(void) smutex_unlock(&L_Mutex);
+
+		/*
+		**  If remote side closes before
+		**  accept() finishes, sockaddr
+		**  might not be fully filled in.
+		*/
+
+		if (ValidSocket(connfd) &&
+		    (clilen == 0 ||
+# ifdef BSD4_4_SOCKADDR
+		     cliaddr.sa.sa_len == 0 ||
+# endif /* BSD4_4_SOCKADDR */
+		     cliaddr.sa.sa_family != family))
+		{
+			(void) close(connfd);
+			connfd = INVALID_SOCKET;
+			errno = EINVAL;
+		}
 
 		if (!ValidSocket(connfd))
 		{
@@ -569,15 +633,16 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			(void) close(connfd);
 			smi_log(SMI_LOG_ERR, "%s: malloc(ctx) failed",
 				smfi->xxfi_name);
-			sleep(++cnt_m);
-			if (cnt_m >= MAX_FAILS_M)
+			mcnt++;
+			MI_SLEEP(mcnt);
+			if (mcnt >= MAX_FAILS_M)
 			{
 				ret = MI_FAILURE;
 				break;
 			}
 			continue;
 		}
-		cnt_m = 0;
+		mcnt = 0;
 		memset(ctx, '\0', sizeof *ctx);
 		ctx->ctx_sd = connfd;
 		ctx->ctx_dbg = dbg;
@@ -611,17 +676,18 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			smi_log(SMI_LOG_ERR,
 				"%s: thread_create() failed: %d",
 				smfi->xxfi_name,  r);
-			sleep(++cnt_t);
+			tcnt++;
+			MI_SLEEP(tcnt);
 			(void) close(connfd);
 			free(ctx);
-			if (cnt_t >= MAX_FAILS_T)
+			if (tcnt >= MAX_FAILS_T)
 			{
 				ret = MI_FAILURE;
 				break;
 			}
 			continue;
 		}
-		cnt_t = 0;
+		tcnt = 0;
 	}
 	if (ret != MI_SUCCESS)
 		mi_stop_milters(MILTER_ABRT);
