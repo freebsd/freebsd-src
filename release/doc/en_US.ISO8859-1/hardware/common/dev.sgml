@@ -726,14 +726,14 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Promise SuperTrak ATA RAID controllers (pst
+    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
     driver)
       <itemizedlist>
 	<listitem>
 	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (mpt driver)
@@ -745,10 +745,10 @@
 	  <para>LSI 53c1020, 53c1030</para>
 	</listitem>
       </itemizedlist>
-    <para>
+    </para>
 
     <para arch="i386">PCI SCSI host adapters using the Tekram
-	TRM-S1040 SCSI chipset (trm driver)
+	TRM-S1040 SCSI chipset (&man.trm.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>Tekram DC395U/UW/F</para>
