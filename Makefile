@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.136 1997/08/18 06:44:44 peter Exp $
+#	$Id: Makefile,v 1.137 1997/08/18 06:54:18 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -40,7 +40,14 @@
 # Put initial settings here.
 SUBDIR=
 
-# We must do include and lib first so that the perl *.ph generation
+# We must do share/info early so that installation of info `dir'
+# entries works correctly.  Do it first since it is less likely to
+# grow dependencies on include and lib than vice versa.
+.if exists(share/info)
+SUBDIR+= share/info
+.endif
+
+# We must do include and lib early so that the perl *.ph generation
 # works correctly as it uses the header files installed by this.
 .if exists(include)
 SUBDIR+= include
@@ -216,8 +223,10 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/bin
 	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${OBJDIR} clean cleandepend depend && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all install clean cleandepend
+		${IBMAKE} -I${.CURDIR}/share/mk \
+			${OBJDIR} clean cleandepend depend && \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} \
+			all install clean cleandepend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
