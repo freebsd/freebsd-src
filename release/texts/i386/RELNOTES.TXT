@@ -107,6 +107,13 @@ sshd now enabled by default on new installs.
 The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
 adapters used on some laptops.
 
+killall(1) is now a C program, rather than a Perl script.  As a
+result, killall's -m option now uses the regular expression syntax of
+regex(3), rather than that of perl(1).
+
+boot98cfg(8), a PC-98 boot manager installation and configuration
+utility, has been added.
+
 
 2. Supported Configurations
 ---------------------------

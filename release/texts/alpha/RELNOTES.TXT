@@ -106,6 +106,10 @@ required for USA residents.
 
 sshd now enabled by default on new installs.
 
+killall(1) is now a C program, rather than a Perl script.  As a
+result, killall's -m option now uses the regular expression syntax of
+regex(3), rather than that of perl(1).
+
 
 2. Supported Configurations
 ---------------------------
