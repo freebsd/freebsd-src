@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.h,v 1.2 1998/04/30 07:48:02 dfr Exp $
+ *      $Id: rtld.h,v 1.3 1998/08/21 03:29:40 jb Exp $
  */
 
 #ifndef RTLD_H /* { */
@@ -109,6 +109,7 @@ typedef struct Struct_Obj_Entry {
     bool rtld;			/* True if this is the dynamic linker */
     bool textrel;		/* True if there are relocations to text seg */
     bool symbolic;		/* True if generated with "-Bsymbolic" */
+    bool traced;		/* Already printed in ldd trace output */
 
     struct link_map linkmap;	/* for GDB */
 } Obj_Entry;
