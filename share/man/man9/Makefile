@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.35 1998/03/04 10:23:48 dufault Exp $
+#	$Id: Makefile,v 1.36 1998/03/28 11:49:06 dufault Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -18,6 +18,21 @@ MAN9=	MD5.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
+
+MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
+	device_find_child.9 device_get_devclass.9 device_get_driver.9 \
+	device_get_ivars.9 device_get_softc.9 device_get_state.9 \
+	device_get_unit.9 device_probe_and_attach.9 device_set_desc.9 \
+	driver.9 \
+	devclass.9 devclass_add_driver.9 devclass_find.9 \
+	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
+	devclass_get_name.9 devclass_get_softc.9 \
+	DEVICE_ATTACH.9 DEVICE_DETACH.9 DEVICE_PROBE.9 DEVICE_SHUTDOWN.9 \
+	BUS_CREATE_INTR.9 BUS_CONNECT_INTR.9 BUS_PRINT_CHILD.9 \
+	BUS_READ_IVAR.9 \
+	bus_generic_attach.9 bus_generic_detach.9 bus_generic_map_intr.9 \
+	bus_generic_print_child.9 bus_generic_read_ivar.9 \
+	bus_generic_shutdown.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
@@ -56,5 +71,17 @@ MLINKS+=time.9 boottime.9 time.9 mono_time.9 time.9 runtime.9
 MLINKS+=timeout.9 untimeout.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
+
+MLINKS+=device_add_child.9 device_add_child_after.9
+MLINKS+=device_enable.9 device_disable.9
+MLINKS+=device_enable.9 device_is_enabled.9
+MLINKS+=device_get_state.9 device_busy.9
+MLINKS+=device_get_state.9 device_unbusy.9
+MLINKS+=device_get_state.9 device_is_alive.9
+MLINKS+=device_set_desc.9 device_get_desc.9
+MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
+MLINKS+=devclass_add_driver.9 devclass_find_driver.9
+MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
+MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 
 .include <bsd.prog.mk>
