@@ -853,14 +853,16 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	scrshot_t *ptr = (scrshot_t *)data;
 	void *outp = ptr->buf;
 
+	if (ptr->x < 0 || ptr->y < 0 || ptr->xsize < 0 || ptr->ysize < 0)
+		return EINVAL;
 	s = spltty();
 	if (ISGRAPHSC(scp)) {
 	    splx(s);
 	    return EOPNOTSUPP;
 	}
 	hist_rsz = (scp->history != NULL) ? scp->history->vtb_rows : 0;
-	if ((ptr->x + ptr->xsize) > scp->xsize ||
-	    (ptr->y + ptr->ysize) > (scp->ysize + hist_rsz)) {
+	if (((u_int)ptr->x + ptr->xsize) > scp->xsize ||
+	    ((u_int)ptr->y + ptr->ysize) > (scp->ysize + hist_rsz)) {
 	    splx(s);
 	    return EINVAL;
 	}
