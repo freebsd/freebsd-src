@@ -878,7 +878,7 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 	/*
 	 * Check our small startup cache to see if it has pages remaining.
 	 */
-	if (uma_boot_free != 0 && zone->uz_ppera == 1) {
+	if (uma_boot_free != 0 && bytes <= PAGE_SIZE) {
 		uma_slab_t tmps;
 
 		tmps = LIST_FIRST(&uma_boot_pages);
@@ -887,7 +887,7 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 		*pflag = tmps->us_flags;
 		return (tmps->us_data);
 	} else if (booted == 0) {
-		if (zone->uz_ppera > 1)
+		if (bytes > PAGE_SIZE)
 			panic("UMA: Can't allocate multiple pages before vm "
 			    "has started.\n");
 		panic("UMA: Increase UMA_BOOT_PAGES");
@@ -1656,6 +1656,7 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 {
 	uma_bucket_t bucket;
 	uma_slab_t slab;
+	int max;
 
 	/*
 	 * Try this zone's free list first so we don't allocate extra buckets.
@@ -1692,11 +1693,11 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 #endif
 	zone->uz_fills++;
 
+	max = MIN(bucket->ub_entries, zone->uz_count);
 	/* Try to keep the buckets totally full */
-	while (bucket->ub_cnt < bucket->ub_entries &&
+	while (bucket->ub_cnt < max &&
 	    (slab = uma_zone_slab(zone, flags)) != NULL) {
-		while (slab->us_freecount &&
-		    bucket->ub_cnt < bucket->ub_entries) {
+		while (slab->us_freecount && bucket->ub_cnt < max) {
 			bucket->ub_bucket[bucket->ub_cnt++] =
 			    uma_slab_alloc(zone, slab);
 		}
