@@ -6,7 +6,7 @@
 SUBDIR=	accton amd arp bootpd bootpef bootpgw bootptest chown chroot \
 	cron crunch dbsym dev_mkdb diskpart \
 	edquota inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
-	manctl mtree mrouted portmap pstat \
+	manctl mtree mrouted pkg_install portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sendmail \
 	sliplogin sysctl syslogd tcpdump traceroute trpt vidcontrol \
 	vipw xntpd ypbind yppoll ypset zic
