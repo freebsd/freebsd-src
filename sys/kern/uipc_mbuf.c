@@ -123,9 +123,9 @@ m_getm(struct mbuf *m, int len, int how, short type)
 	if (num > 0) {
 		if ((top = cur = m_getcl(how, type, 0)) == NULL)
 			goto failed;
+		top->m_len = 0;
 	}
 	num--;
-	top->m_len = 0;
 
 	for (i = 0; i < num; i++) {
 		mb = m_getcl(how, type, 0);
