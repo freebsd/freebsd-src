@@ -22,20 +22,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: cpdir.c,v 1.1.1.1.2.1 1996/12/10 00:31:53 joerg Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
 #include <sys/param.h>
-#include <errno.h>
+#include <dirent.h>
 
 #include "pwupd.h"
 
@@ -47,8 +51,7 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 	char            dst[MAXPATHLEN];
 
 	if (mkdir(dir, mode) != 0 && errno != EEXIST) {
-		sprintf(src, "mkdir(%s)", dir);
-		perror(src);
+		warn("mkdir(%s)", dir);
 	} else {
 		int             infd, outfd;
 		struct stat     st;

@@ -22,13 +22,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: pw_conf.c,v 1.1.1.1.2.1 1996/12/11 00:14:15 joerg Exp $
  */
 
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "pw.h"
 
