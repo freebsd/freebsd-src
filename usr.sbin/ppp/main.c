@@ -117,10 +117,13 @@ Cleanup(int excode)
 void
 AbortProgram(int excode)
 {
-  server_Close(SignalBundle);
+  if (SignalBundle)
+    server_Close(SignalBundle);
   log_Printf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
-  bundle_Destroy(SignalBundle);
+  if (SignalBundle) {
+    bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);
+    bundle_Destroy(SignalBundle);
+  }
   log_Close();
   exit(excode);
 }
