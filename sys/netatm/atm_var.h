@@ -59,9 +59,6 @@ extern struct sp_info	*atm_pool_head;
 extern struct stackq_entry	*atm_stackq_head;
 extern struct stackq_entry	*atm_stackq_tail;
 extern struct ifqueue	atm_intrq;
-#ifdef sgi
-extern  int		atm_intr_index;
-#endif
 extern struct atm_sock_stat	atm_sock_stat;
 extern int		atm_init;
 extern int		atm_version;
