@@ -404,7 +404,7 @@ int	 fchown(int, uid_t, gid_t);
 int	 readlink(const char *, char *, int);
 #endif
 #if __POSIX_VISIBLE >= 200112
-int	 gethostname(char *, int /* socklen_t */);
+int	 gethostname(char *, size_t);
 int	 setegid(gid_t);
 int	 seteuid(uid_t);
 #endif
