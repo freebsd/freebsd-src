@@ -130,15 +130,8 @@ struct linux_termio {
 	unsigned short c_oflag;
 	unsigned short c_cflag;
 	unsigned short c_lflag;
-#ifdef __alpha__
-	unsigned char c_cc[LINUX_NCCS];
-	unsigned char c_line;
-	unsigned int  c_ispeed;
-	unsigned int  c_ospeed;
-#else
 	unsigned char c_line;
 	unsigned char c_cc[LINUX_NCC];
-#endif
 };
 
 struct linux_termios {
@@ -146,8 +139,15 @@ struct linux_termios {
 	unsigned int c_oflag;
 	unsigned int c_cflag;
 	unsigned int c_lflag;
+#ifdef __alpha__
+	unsigned char c_cc[LINUX_NCCS];
+	unsigned char c_line;
+	unsigned int  c_ispeed;
+	unsigned int  c_ospeed;
+#else
 	unsigned char c_line;
 	unsigned char c_cc[LINUX_NCCS];
+#endif
 };
 
 struct linux_winsize {
