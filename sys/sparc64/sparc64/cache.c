@@ -155,6 +155,8 @@
 #include <sys/param.h>
 #include <sys/linker_set.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -262,7 +264,6 @@ dcache_page_inval(vm_offset_t pa)
 		return;
 	PMAP_STATS_INC(dcache_npage_inval);
 	target = pa >> (PAGE_SHIFT - DC_TAG_SHIFT);
-	critical_enter();
 	cookie = ipi_dcache_page_inval(pa);
 	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize) {
 		PMAP_STATS_INC(dcache_npage_inval_line);
@@ -276,7 +277,6 @@ dcache_page_inval(vm_offset_t pa)
 		}
 	}
 	ipi_wait(cookie);
-	critical_exit();
 }
 
 void
@@ -294,7 +294,6 @@ icache_page_inval(vm_offset_t pa)
 		return;
 	PMAP_STATS_INC(icache_npage_inval);
 	target = pa >> (PAGE_SHIFT - IC_TAG_SHIFT);
-	critical_enter();
 	cookie = ipi_icache_page_inval(pa);
 	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize) {
 		PMAP_STATS_INC(icache_npage_inval_line);
@@ -309,7 +308,6 @@ icache_page_inval(vm_offset_t pa)
 		}
 	}
 	ipi_wait(cookie);
-	critical_exit();
 }
 
 

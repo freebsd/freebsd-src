@@ -30,6 +30,8 @@
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/pcpu.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
@@ -66,7 +68,6 @@ tlb_context_demap(struct pmap *pm)
 	 * protect the target processor from entering the IPI handler with
 	 * the lock held.
 	 */
-	critical_enter();
 	cookie = ipi_tlb_context_demap(pm);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -78,7 +79,6 @@ tlb_context_demap(struct pmap *pm)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
-	critical_exit();
 }
 
 void
@@ -88,7 +88,6 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	void *cookie;
 	u_long s;
 
-	critical_enter();
 	cookie = ipi_tlb_page_demap(pm, va);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -105,7 +104,6 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
-	critical_exit();
 }
 
 void
@@ -116,7 +114,6 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	u_long flags;
 	u_long s;
 
-	critical_enter();
 	cookie = ipi_tlb_range_demap(pm, start, end);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
 		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
@@ -135,7 +132,6 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
-	critical_exit();
 }
 
 void
