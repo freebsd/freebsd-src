@@ -1,6 +1,14 @@
-/*-
- * Copyright (c) 2001 Jake Burkholder.
+/*
+ * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
+ * Copyright (c) 1994 David Greenman
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * the Systems Programming Group of the University of Utah Computer
+ * Science Department and William Jolitz of UUNET Technologies Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +18,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by the University of
+ *      California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,6 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *      from:   @(#)pmap.c      7.7 (Berkeley)  5/12/91
  * $FreeBSD$
  */
 
@@ -106,7 +122,7 @@ vm_offset_t avail_end;
 /*
  * Map of physical memory reagions.
  */
-vm_offset_t phys_avail[10];
+vm_offset_t phys_avail[128];
 
 /*
  * First and last available kernel virtual addresses.
@@ -580,6 +596,27 @@ pmap_new_proc(struct proc *p)
 }
 
 void
+pmap_dispose_proc(struct proc *p)
+{
+	vm_object_t upobj;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	for (i = 0; i < UPAGES; i++) {
+		if ((m = vm_page_lookup(upobj, i)) == NULL)
+			panic("pmap_dispose_proc: upage already missing???");
+
+		vm_page_busy(m);
+
+		pmap_kremove((vm_offset_t)p->p_addr + i * PAGE_SIZE);
+
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+}
+
+void
 pmap_page_protect(vm_page_t m, vm_prot_t prot)
 {
 
@@ -609,8 +646,8 @@ pmap_activate(struct proc *p)
 vm_offset_t
 pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 {
-	TODO;
-	return (0);
+
+	return (va);
 }
 
 void
@@ -629,7 +666,7 @@ void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	  vm_size_t len, vm_offset_t src_addr)
 {
-	TODO;
+	/* XXX */
 }
 
 void
@@ -737,7 +774,7 @@ pmap_reference(pmap_t pm)
 void
 pmap_release(pmap_t pmap)
 {
-	TODO;
+	/* XXX */
 }
 
 void
