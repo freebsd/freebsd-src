@@ -120,12 +120,12 @@
 >14	beshort		>1			%d songs,
 >16	beshort		>0			default song: %d
 
-
 # IRCAM <mpruett@sgi.com>
-0	belong		0x64a30400		IRCAM file (NeXT)
+# VAX and MIPS files are little-endian; Sun and NeXT are big-endian
+0	belong		0x64a30100		IRCAM file (VAX)
 0	belong		0x64a30200		IRCAM file (Sun)
 0	belong		0x64a30300		IRCAM file (MIPS little-endian)
-0	belong		0x0001a364		IRCAM file
+0	belong		0x64a30400		IRCAM file (NeXT)
 
 # NIST SPHERE <mpruett@sgi.com>
 0	string		NIST_1A\n\ \ \ 1024\n	NIST SPHERE file
@@ -138,3 +138,7 @@
 
 # From Felix von Leitner <leitner@fefe.de>
 0	string		OggS	Ogg-Vorbis compressed sound file
+
+# SGI SoundTrack <mpruett@sgi.com>
+0	string		_SGI_SoundTrack		SGI SoundTrack project file
+0	string		ID3	mp3 file with ID3 2.0 tag

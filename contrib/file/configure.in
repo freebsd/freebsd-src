@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(file.c)
-AM_INIT_AUTOMAKE(file, 3.33)
+AM_INIT_AUTOMAKE(file, 3.36)
 AM_CONFIG_HEADER(config.h)
 
 AC_MSG_CHECKING(for builtin ELF support)
@@ -31,6 +31,23 @@ fi], [
   AC_DEFINE(ELFCORE)
 ])
 
+AC_MSG_CHECKING(for file formats in man section 5)
+AC_ARG_ENABLE(fsect-man5,
+[  --enable-fsect-man5      enable file formats in man section 5],
+[if test "${enableval}" = yes; then
+  AC_MSG_RESULT(yes)
+  fsect=5
+else
+  AC_MSG_RESULT(no)
+  fsect=4
+fi], [
+  # disable by default
+  AC_MSG_RESULT(no)
+  fsect=4
+])
+AC_SUBST(fsect)
+AM_CONDITIONAL(FSECT5, test x$fsect = x5)
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
@@ -42,6 +59,7 @@ AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(locale.h)
+AC_CHECK_HEADERS(sys/mman.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -69,6 +87,6 @@ AC_CHECK_SIZEOF_STDC_HEADERS(uint32_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint64_t, 0)
 
 dnl Checks for functions
-AC_CHECK_FUNCS(strerror strtoul)
+AC_CHECK_FUNCS(mmap strerror strtoul)
 
 AC_OUTPUT(Makefile)

@@ -224,12 +224,16 @@
 0	string	\114\000\000\000\001\024\002\000\000\000\000\000\300\000\000\000\000\000\000\106	ms-Windows shortcut
 
 #ico files
-0	string	\000\000\001\000\001\000\040\040\020\000\000\000\000\000\350\002\000\000	Icon for ms-windows
-0	string	\000\000\001\000\004\000\040\040\020\000\000\000\000\000\350\002	Icon for ms-windows
 0	string	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for ms-windows
-0	string	\000\000\001\000\002\000\040\040\010\000\000\000\000\000\350\002	Icon for ms-windows
-0	string	\000\000\001\000\006\000\020\020\020\000\000\000\000\000\050\001	Icon for ms-windows
-0	string	\000\000\001\000\002\000\020\020\020\000\000\000\000\000\050\001	Icon for ms-windows
+
+# Windows icons (Ian Springer <ips@fpk.hp.com>)
+0	string	\000\000\001\000	ms-windows icon resource
+>4	byte	1			- 1 icon
+>4	byte	>1			- %d icons
+>>6	byte	>0			\b, %dx
+>>>7	byte	>0			\b%d
+>>8	byte	0			\b, 256-colors
+>>8	byte	>0			\b, %d-colors
 
 
 # True Type fonts currently misidentified as raw G3 data
@@ -273,10 +277,6 @@
 0	string		!<spell>	MKS Spell hash list (old format)
 0	string		!<spell2>	MKS Spell hash list
 0	string		AH		Halo(TM) bitmapped font file
-0	leshort		0x601A		Atari ST contiguous executable
->14	lelong		&gt;0		- not stripped
-0	leshort		0x601B		Atari ST non-contig executable
->14	lelong		&gt;0		- not stripped
 0	lelong		0x08086b70	TurboC BGI file
 0	lelong		0x08084b50	TurboC Font file
 

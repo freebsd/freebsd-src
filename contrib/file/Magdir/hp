@@ -249,3 +249,143 @@
 >2	beshort		0407		impure binary
 >2	beshort		0410		read-only binary
 >2	beshort		0413		demand paged binary
+#
+# From David Gero <dgero@nortelnetworks.com>
+# HP-UX 10.20 core file format from /usr/include/sys/core.h
+# Unfortunately, HP-UX uses corehead blocks without specifying the order
+# There are four we care about:
+#     CORE_KERNEL, which starts with the string "HP-UX"
+#     CORE_EXEC, which contains the name of the command
+#     CORE_PROC, which contains the signal number that caused the core dump
+#     CORE_FORMAT, which contains the version of the core file format (== 1)
+# The only observed order in real core files is KERNEL, EXEC, FORMAT, PROC
+# but we include all 6 variations of the order of the first 3, and
+# assume that PROC will always be last
+# Order 1: KERNEL, EXEC, FORMAT, PROC
+0x10		string	HP-UX
+>0		belong	2
+>>0xC		belong	0x3C
+>>>0x4C		belong	0x100
+>>>>0x58	belong	0x44
+>>>>>0xA0	belong	1
+>>>>>>0xAC	belong	4
+>>>>>>>0xB0	belong	1
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0x90	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+# Order 2: KERNEL, FORMAT, EXEC, PROC
+>>>0x4C		belong	1
+>>>>0x58	belong	4
+>>>>>0x5C	belong	1
+>>>>>>0x60	belong	0x100
+>>>>>>>0x6C	belong	0x44
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0xA4	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+# Order 3: FORMAT, KERNEL, EXEC, PROC
+0x24		string	HP-UX
+>0		belong	1
+>>0xC		belong	4
+>>>0x10		belong	1
+>>>>0x14	belong	2
+>>>>>0x20	belong	0x3C
+>>>>>>0x60	belong	0x100
+>>>>>>>0x6C	belong	0x44
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0xA4	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+# Order 4: EXEC, KERNEL, FORMAT, PROC
+0x64		string	HP-UX
+>0		belong	0x100
+>>0xC		belong	0x44
+>>>0x54		belong	2
+>>>>0x60	belong	0x3C
+>>>>>0xA0	belong	1
+>>>>>>0xAC	belong	4
+>>>>>>>0xB0	belong	1
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0x44	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+# Order 5: FORMAT, EXEC, KERNEL, PROC
+0x78		string	HP-UX
+>0		belong	1
+>>0xC		belong	4
+>>>0x10		belong	1
+>>>>0x14	belong	0x100
+>>>>>0x20	belong	0x44
+>>>>>>0x68	belong	2
+>>>>>>>0x74	belong	0x3C
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0x58	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ
+# Order 6: EXEC, FORMAT, KERNEL, PROC
+>0		belong	0x100
+>>0xC		belong	0x44
+>>>0x54		belong	1
+>>>>0x60	belong	4
+>>>>>0x64	belong	1
+>>>>>>0x68	belong	2
+>>>>>>>0x74	belong	0x2C
+>>>>>>>>0xB4	belong	4		core file
+>>>>>>>>>0x44	string	>\0		from '%s'
+>>>>>>>>>0xC4	belong	3		- received SIGQUIT
+>>>>>>>>>0xC4	belong	4		- received SIGILL
+>>>>>>>>>0xC4	belong	5		- received SIGTRAP
+>>>>>>>>>0xC4	belong	6		- received SIGABRT
+>>>>>>>>>0xC4	belong	7		- received SIGEMT
+>>>>>>>>>0xC4	belong	8		- received SIGFPE
+>>>>>>>>>0xC4	belong	10		- received SIGBUS
+>>>>>>>>>0xC4	belong	11		- received SIGSEGV
+>>>>>>>>>0xC4	belong	12		- received SIGSYS
+>>>>>>>>>0xC4	belong	33		- received SIGXCPU
+>>>>>>>>>0xC4	belong	34		- received SIGXFSZ

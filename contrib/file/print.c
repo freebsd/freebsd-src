@@ -41,7 +41,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.31 2000/08/05 17:36:49 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.33 2001/07/22 21:04:15 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -53,26 +53,38 @@ mdump(m)
 	static const char *typ[] = { "invalid", "byte", "short", "invalid",
 				     "long", "string", "date", "beshort",
 				     "belong", "bedate", "leshort", "lelong",
-				     "ledate" };
+				     "ledate", "pstring", "ldate", "beldate",
+				     "leldate" };
+	static const char optyp[] = { '@', '&', '|', '^', '+', '-', 
+				      '*', '/', '%' };
 	(void) fputc('[', stderr);
 	(void) fprintf(stderr, ">>>>>>>> %d" + 8 - (m->cont_level & 7),
 		       m->offset);
 
-	if (m->flag & INDIR)
-		(void) fprintf(stderr, "(%s,%d),",
-			       /* Note: in.type is unsigned */
-			       (m->in.type < SZOF(typ)) ? 
-					typ[m->in.type] : "*bad*",
-			       m->in.offset);
-
+	if (m->flag & INDIR) {
+		(void) fprintf(stderr, "(%s,",
+			       /* Note: type is unsigned */
+			       (m->in_type < SZOF(typ)) ? 
+					typ[m->in_type] : "*bad*");
+		if (m->in_op & OPINVERSE)
+			(void) fputc('~', stderr);
+		(void) fprintf(stderr, "%c%d),",
+			       ((m->in_op&0x7F) < SZOF(optyp)) ? 
+					optyp[m->in_op&0x7F] : '?',
+				m->in_offset);
+	}
 	(void) fprintf(stderr, " %s%s", (m->flag & UNSIGNED) ? "u" : "",
 		       /* Note: type is unsigned */
 		       (m->type < SZOF(typ)) ? typ[m->type] : "*bad*");
-	if (m->mask != ~((uint32)0)) {
-		if(STRING != m->type)
-			(void) fprintf(stderr, " & %.8x", m->mask);
+	if (m->mask_op & OPINVERSE)
+		(void) fputc('~', stderr);
+	if (m->mask) {
+		((m->mask_op&0x7F) < SZOF(optyp)) ? 
+			(void) fputc(optyp[m->mask_op&0x7F], stderr) :
+			(void) fputc('?', stderr);
+		if(STRING != m->type || PSTRING != m->type)
+			(void) fprintf(stderr, "%.8x", m->mask);
 		else {
-			(void) fputc('/', stderr); 
 			if (m->mask & STRING_IGNORE_LOWERCASE) 
 				(void) fputc(CHAR_IGNORE_LOWERCASE, stderr);
 			if (m->mask & STRING_COMPACT_BLANK) 
@@ -97,21 +109,18 @@ mdump(m)
 			(void) fprintf(stderr, "%d", m->value.l);
 			break;
 		case STRING:
+		case PSTRING:
 			showstr(stderr, m->value.s, -1);
 			break;
 		case DATE:
 		case LEDATE:
 		case BEDATE:
-			{
-				time_t t = m->value.l;
-				char *rt, *pp = ctime(&t);
-
-				if ((rt = strchr(pp, '\n')) != NULL)
-					*rt = '\0';
-				(void) fprintf(stderr, "%s,", pp);
-				if (rt)
-					*rt = '\n';
-			}
+			(void)fprintf(stderr, "%s,", fmttime(m->value.l, 1));
+			break;
+		case LDATE:
+		case LELDATE:
+		case BELDATE:
+			(void)fprintf(stderr, "%s,", fmttime(m->value.l, 0));
 			break;
 		default:
 			(void) fputs("*bad*", stderr);
@@ -122,7 +131,7 @@ mdump(m)
 }
 
 /*
- * ckfputs - futs, but with error checking
+ * ckfputs - fputs, but with error checking
  * ckfprintf - fprintf, but with error checking
  */
 void
@@ -215,4 +224,27 @@ magwarn(va_alist)
 	(void) vfprintf(stderr, f, va);
 	va_end(va);
 	fputc('\n', stderr);
+}
+
+
+char *
+fmttime(v, local)
+	long v;
+	int local;
+{
+	char *pp, *rt;
+	time_t t = (time_t)v;
+	if (local) {
+		pp = ctime(&t);
+	} else {
+		struct tm *tm;
+		if (daylight)
+			t += 3600;
+		tm = gmtime(&t);
+		pp = asctime(tm);
+	}
+
+	if ((rt = strchr(pp, '\n')) != NULL)
+		*rt = '\0';
+	return pp;
 }

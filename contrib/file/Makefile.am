@@ -3,12 +3,18 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 bin_PROGRAMS = file
 
-data_DATA = magic magic.mime
+data_DATA = magic magic.mime magic.mgc
 
 MAGIC	 = @datadir@/magic
 CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 
-man_MANS = file.1 magic.4
+if FSECT5
+man_MAGIC = magic.5
+else
+man_MAGIC = magic.4
+endif
+fsect = @fsect@
+man_MANS = file.1 $(man_MAGIC)
 
 file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 	compress.c is_tar.c readelf.c print.c \
@@ -17,7 +23,7 @@ file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 EXTRA_DIST = LEGAL.NOTICE MAINT PORTING Makefile.std magic2mime \
 	Localstuff Header $(magic_FRAGMENTS) file.man magic.man
 
-CLEANFILES = $(man_MANS) magic
+CLEANFILES = $(man_MANS) magic magic.mgc
 
 magic: Header Localstuff $(magic_FRAGMENTS)
 	cat $(srcdir)/Header $(srcdir)/Localstuff > $@
@@ -30,21 +36,24 @@ magic: Header Localstuff $(magic_FRAGMENTS)
           cat $$f; \
 	done >> $@
 
+magic.mgc: magic file
+	./file -C -m magic
+
 file.1:	Makefile file.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/file.man > $@
 
-magic.4: Makefile magic.man
+magic.${fsect}: Makefile magic.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/magic.man > $@
 
-magic_FRAGMENTS = Magdir/adventure Magdir/allegro Magdir/alliant \
+magic_FRAGMENTS = Magdir/adi Magdir/adventure Magdir/allegro Magdir/alliant \
     Magdir/alpha Magdir/amanda Magdir/amigaos Magdir/animation \
     Magdir/apl Magdir/apple Magdir/applix Magdir/archive Magdir/asterix \
     Magdir/att3b Magdir/audio Magdir/blender Magdir/blit Magdir/bsdi \
@@ -59,14 +68,14 @@ magic_FRAGMENTS = Magdir/adventure Magdir/allegro Magdir/alliant \
     Magdir/jpeg Magdir/karma Magdir/lecter Magdir/lex Magdir/lif \
     Magdir/linux Magdir/lisp Magdir/mach Magdir/macintosh Magdir/magic \
     Magdir/mail.news Magdir/maple Magdir/mathematica Magdir/mcrypt \
-    Magdir/mime Magdir/mirage Magdir/mkid Magdir/mmdf Magdir/modem \
+    Magdir/mime Magdir/mips Magdir/mirage Magdir/mkid Magdir/mmdf Magdir/modem \
     Magdir/motorola Magdir/msdos Magdir/msvc Magdir/ncr Magdir/netbsd \
     Magdir/netscape Magdir/news Magdir/octave Magdir/olf Magdir/os2 \
     Magdir/os9 Magdir/osf1 Magdir/palm Magdir/pbm Magdir/pdf Magdir/pdp \
     Magdir/pgp Magdir/pkgadd Magdir/plus5 Magdir/printer Magdir/project \
     Magdir/psdbms Magdir/pyramid Magdir/python Magdir/riff Magdir/rpm \
     Magdir/rtf Magdir/sc Magdir/sccs Magdir/sendmail Magdir/sequent \
-    Magdir/sgi Magdir/sgml Magdir/sniffer Magdir/softquad Magdir/spectrum \
+    Magdir/sgml Magdir/sketch Magdir/sniffer Magdir/softquad Magdir/spectrum \
     Magdir/sun Magdir/teapot Magdir/terminfo Magdir/tex Magdir/ti-8x \
     Magdir/timezone Magdir/troff Magdir/typeset Magdir/unknown \
     Magdir/uuencode Magdir/varied.out Magdir/vax Magdir/vicar Magdir/visx \

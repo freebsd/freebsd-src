@@ -1,6 +1,6 @@
 /*
  * file.h - definitions for file(1) program
- * @(#)$Id: file.h,v 1.34 2000/11/13 00:30:49 christos Exp $
+ * @(#)$Id: file.h,v 1.37 2001/07/22 21:04:15 christos Exp $
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -35,6 +35,10 @@
 
 typedef int int32;
 typedef unsigned int uint32;
+typedef short int16;
+typedef unsigned short uint16;
+typedef char int8;
+typedef unsigned char uint8;
 
 #ifndef HOWMANY
 # define HOWMANY 16384		/* how much of the file to look at */
@@ -43,20 +47,23 @@ typedef unsigned int uint32;
 #define MAXDESC	50		/* max leng of text description */
 #define MAXstring 32		/* max leng of "string" types */
 
+#define MAGICNO		0xF11E041C
+#define VERSIONNO	1
+
+#define CHECK	1
+#define COMPILE	2
+
 struct magic {
-	short flag;		
+	uint16 cont_level;/* level of ">" */
+	uint8 nospflag;	/* supress space character */
+	uint8 flag;
 #define INDIR	1		/* if '>(...)' appears,  */
 #define	UNSIGNED 2		/* comparison is unsigned */
-#define ADD	4		/* if '>&' appears,  */
-	short cont_level;	/* level of ">" */
-	struct {
-		unsigned char type;	/* byte short long */
-		int32 offset;	/* offset from indirection */
-	} in;
-	int32 offset;		/* offset to magic number */
-	unsigned char reln;	/* relation (0=eq, '>'=gt, etc) */
-	unsigned char type;	/* int, short, long or string. */
-	char vallen;		/* length of string value, if any */
+#define OFFADD	4		/* if '>&' appears,  */
+	uint8 reln;		/* relation (0=eq, '>'=gt, etc) */
+	uint8 vallen;		/* length of string value, if any */
+	uint8 type;		/* int, short, long or string. */
+	uint8 in_type;		/* type of indirrection */
 #define 			BYTE	1
 #define				SHORT	2
 #define				LONG	4
@@ -68,16 +75,32 @@ struct magic {
 #define				LESHORT	10
 #define				LELONG	11
 #define				LEDATE	12
+#define				PSTRING	13
+#define				LDATE	14
+#define				BELDATE	15
+#define				LELDATE	16
+	uint8 in_op;		/* operator for indirection */
+	uint8 mask_op;		/* operator for mask */
+#define				OPAND	1
+#define				OPOR	2
+#define				OPXOR	3
+#define				OPADD	4
+#define				OPMINUS	5
+#define				OPMULTIPLY	6
+#define				OPDIVIDE	7
+#define				OPMODULO	8
+#define				OPINVERSE	0x80
+	int32 offset;		/* offset to magic number */
+	int32 in_offset;	/* offset from indirection */
 	union VALUETYPE {
 		unsigned char b;
 		unsigned short h;
 		uint32 l;
 		char s[MAXstring];
 		unsigned char hs[2];	/* 2 bytes of a fixed-endian "short" */
-		unsigned char hl[4];	/* 2 bytes of a fixed-endian "long" */
+		unsigned char hl[4];	/* 4 bytes of a fixed-endian "long" */
 	} value;		/* either number or string */
 	uint32 mask;	/* mask before comparison with value */
-	char nospflag;		/* supress space character */
 	char desc[MAXDESC];	/* description */
 };
 
@@ -89,6 +112,13 @@ struct magic {
 #define CHAR_COMPACT_BLANK		'B'
 #define CHAR_COMPACT_OPTIONAL_BLANK	'b'
 
+
+/* list of magic entries */
+struct mlist {
+	struct magic *magic;		/* array of magic entries */
+	uint32 nmagic;			/* number of entries in array */
+	struct mlist *next, *prev;
+};
 
 #include <stdio.h>	/* Include that here, to make sure __P gets defined */
 #include <errno.h>
@@ -108,6 +138,7 @@ extern void  error		__P((const char *, ...));
 extern void  ckfputs		__P((const char *, FILE *));
 struct stat;
 extern int   fsmagic		__P((const char *, struct stat *));
+extern char *fmttime		__P((long, int));
 extern int   is_compress	__P((const unsigned char *, int *));
 extern int   is_tar		__P((unsigned char *, int));
 extern void  magwarn		__P((const char *, ...));
@@ -125,9 +156,7 @@ extern char *progname;		/* the program name 			*/
 extern const char *magicfile;	/* name of the magic file		*/
 extern int lineno;		/* current line number in magic file	*/
 
-extern struct magic *magic;	/* array of magic entries		*/
-extern int nmagic;		/* number of valid magic[]s 		*/
-
+extern struct mlist mlist;	/* list of arrays of magic entries	*/
 
 extern int debug;		/* enable debugging?			*/
 extern int zflag;		/* process compressed files?		*/
@@ -147,6 +176,10 @@ extern char *sys_errlist[];
 
 #ifndef HAVE_STRTOUL
 #define strtoul(a, b, c)	strtol(a, b, c)
+#endif
+
+#if defined(HAVE_MMAP) && defined(HAVE_SYS_MMAN_H) && !defined(QUICK)
+#define QUICK
 #endif
 
 #ifdef __STDC__

@@ -9,6 +9,7 @@
 0	string		'\\"		troff or preprocessor input text
 0	string		'.\\"		troff or preprocessor input text
 0	string		\\"		troff or preprocessor input text
+0	string		'''		troff or preprocessor input text
 
 # ditroff intermediate output text
 0	string		x\ T		ditroff output text

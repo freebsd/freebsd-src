@@ -69,12 +69,14 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 bin_PROGRAMS = file
 
-data_DATA = magic magic.mime
+data_DATA = magic magic.mime magic.mgc
 
 MAGIC = @datadir@/magic
 CPPFLAGS = -DMAGIC='"$(MAGIC)"'
-
-man_MANS = file.1 magic.4
+@FSECT5_TRUE@man_MAGIC = magic.5
+@FSECT5_FALSE@man_MAGIC = magic.4
+fsect = @fsect@
+man_MANS = file.1 $(man_MAGIC)
 
 file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c 	compress.c is_tar.c readelf.c print.c 	file.h names.h patchlevel.h readelf.h tar.h
 
@@ -82,9 +84,9 @@ file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c 	compress.c 
 EXTRA_DIST = LEGAL.NOTICE MAINT PORTING Makefile.std magic2mime 	Localstuff Header $(magic_FRAGMENTS) file.man magic.man
 
 
-CLEANFILES = $(man_MANS) magic
+CLEANFILES = $(man_MANS) magic magic.mgc
 
-magic_FRAGMENTS = Magdir/adventure Magdir/allegro Magdir/alliant     Magdir/alpha Magdir/amanda Magdir/amigaos Magdir/animation     Magdir/apl Magdir/apple Magdir/applix Magdir/archive Magdir/asterix     Magdir/att3b Magdir/audio Magdir/blender Magdir/blit Magdir/bsdi     Magdir/c-lang Magdir/chi Magdir/cisco Magdir/claris Magdir/clipper     Magdir/commands Magdir/compress Magdir/console Magdir/convex     Magdir/database Magdir/diamond Magdir/diff Magdir/digital     Magdir/dump Magdir/elf Magdir/encore Magdir/epoc Magdir/filesystems     Magdir/flash Magdir/fonts Magdir/frame Magdir/freebsd Magdir/fsav     Magdir/gimp Magdir/gnu Magdir/grace Magdir/hp Magdir/ibm370     Magdir/ibm6000 Magdir/iff Magdir/images Magdir/intel     Magdir/interleaf Magdir/island Magdir/ispell Magdir/java     Magdir/jpeg Magdir/karma Magdir/lecter Magdir/lex Magdir/lif     Magdir/linux Magdir/lisp Magdir/mach Magdir/macintosh Magdir/magic     Magdir/mail.news Magdir/maple Magdir/mathematica Magdir/mcrypt     Magdir/mime Magdir/mirage Magdir/mkid Magdir/mmdf Magdir/modem     Magdir/motorola Magdir/msdos Magdir/msvc Magdir/ncr Magdir/netbsd     Magdir/netscape Magdir/news Magdir/octave Magdir/olf Magdir/os2     Magdir/os9 Magdir/osf1 Magdir/palm Magdir/pbm Magdir/pdf Magdir/pdp     Magdir/pgp Magdir/pkgadd Magdir/plus5 Magdir/printer Magdir/project     Magdir/psdbms Magdir/pyramid Magdir/python Magdir/riff Magdir/rpm     Magdir/rtf Magdir/sc Magdir/sccs Magdir/sendmail Magdir/sequent     Magdir/sgi Magdir/sgml Magdir/sniffer Magdir/softquad Magdir/spectrum     Magdir/sun Magdir/teapot Magdir/terminfo Magdir/tex Magdir/ti-8x     Magdir/timezone Magdir/troff Magdir/typeset Magdir/unknown     Magdir/uuencode Magdir/varied.out Magdir/vax Magdir/vicar Magdir/visx     Magdir/vms Magdir/vmware Magdir/wordperfect Magdir/xdelta Magdir/xenix     Magdir/zilog Magdir/zyxel
+magic_FRAGMENTS = Magdir/adi Magdir/adventure Magdir/allegro Magdir/alliant     Magdir/alpha Magdir/amanda Magdir/amigaos Magdir/animation     Magdir/apl Magdir/apple Magdir/applix Magdir/archive Magdir/asterix     Magdir/att3b Magdir/audio Magdir/blender Magdir/blit Magdir/bsdi     Magdir/c-lang Magdir/chi Magdir/cisco Magdir/claris Magdir/clipper     Magdir/commands Magdir/compress Magdir/console Magdir/convex     Magdir/database Magdir/diamond Magdir/diff Magdir/digital     Magdir/dump Magdir/elf Magdir/encore Magdir/epoc Magdir/filesystems     Magdir/flash Magdir/fonts Magdir/frame Magdir/freebsd Magdir/fsav     Magdir/gimp Magdir/gnu Magdir/grace Magdir/hp Magdir/ibm370     Magdir/ibm6000 Magdir/iff Magdir/images Magdir/intel     Magdir/interleaf Magdir/island Magdir/ispell Magdir/java     Magdir/jpeg Magdir/karma Magdir/lecter Magdir/lex Magdir/lif     Magdir/linux Magdir/lisp Magdir/mach Magdir/macintosh Magdir/magic     Magdir/mail.news Magdir/maple Magdir/mathematica Magdir/mcrypt     Magdir/mime Magdir/mips Magdir/mirage Magdir/mkid Magdir/mmdf Magdir/modem     Magdir/motorola Magdir/msdos Magdir/msvc Magdir/ncr Magdir/netbsd     Magdir/netscape Magdir/news Magdir/octave Magdir/olf Magdir/os2     Magdir/os9 Magdir/osf1 Magdir/palm Magdir/pbm Magdir/pdf Magdir/pdp     Magdir/pgp Magdir/pkgadd Magdir/plus5 Magdir/printer Magdir/project     Magdir/psdbms Magdir/pyramid Magdir/python Magdir/riff Magdir/rpm     Magdir/rtf Magdir/sc Magdir/sccs Magdir/sendmail Magdir/sequent     Magdir/sgml Magdir/sketch Magdir/sniffer Magdir/softquad Magdir/spectrum     Magdir/sun Magdir/teapot Magdir/terminfo Magdir/tex Magdir/ti-8x     Magdir/timezone Magdir/troff Magdir/typeset Magdir/unknown     Magdir/uuencode Magdir/varied.out Magdir/vax Magdir/vicar Magdir/visx     Magdir/vms Magdir/vmware Magdir/wordperfect Magdir/xdelta Magdir/xenix     Magdir/zilog Magdir/zyxel
 
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -107,6 +109,7 @@ CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
 man1dir = $(mandir)/man1
 man4dir = $(mandir)/man4
+man5dir = $(mandir)/man5
 MANS = $(man_MANS)
 
 NROFF = nroff
@@ -283,12 +286,45 @@ uninstall-man4:
 	  echo " rm -f $(DESTDIR)$(man4dir)/$$inst"; \
 	  rm -f $(DESTDIR)$(man4dir)/$$inst; \
 	done
+
+install-man5:
+	$(mkinstalldirs) $(DESTDIR)$(man5dir)
+	@list='$(man5_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.5*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man5dir)/$$inst; \
+	done
+
+uninstall-man5:
+	@list='$(man5_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.5*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man5dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man5dir)/$$inst; \
+	done
 install-man: $(MANS)
 	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-man1 install-man4
+	$(MAKE) $(AM_MAKEFLAGS) install-man1 install-man4 install-man5
 uninstall-man:
 	@$(NORMAL_UNINSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1 uninstall-man4
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1 uninstall-man4 uninstall-man5
 
 install-dataDATA: $(data_DATA)
 	@$(NORMAL_INSTALL)
@@ -415,7 +451,8 @@ install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
 installdirs:
 	$(mkinstalldirs)  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1 \
-		$(DESTDIR)$(mandir)/man4 $(DESTDIR)$(datadir)
+		$(DESTDIR)$(mandir)/man4 $(DESTDIR)$(mandir)/man5 \
+		$(DESTDIR)$(datadir)
 
 
 mostlyclean-generic:
@@ -459,12 +496,12 @@ mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
 maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
 mostlyclean-compile distclean-compile clean-compile \
 maintainer-clean-compile install-man1 uninstall-man1 install-man4 \
-uninstall-man4 install-man uninstall-man uninstall-dataDATA \
-install-dataDATA tags mostlyclean-tags distclean-tags clean-tags \
-maintainer-clean-tags distdir info-am info dvi-am dvi check check-am \
-installcheck-am installcheck all-recursive-am install-exec-am \
-install-exec install-data-am install-data install-am install \
-uninstall-am uninstall all-redirect all-am all installdirs \
+uninstall-man4 install-man5 uninstall-man5 install-man uninstall-man \
+uninstall-dataDATA install-dataDATA tags mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags distdir info-am info \
+dvi-am dvi check check-am installcheck-am installcheck all-recursive-am \
+install-exec-am install-exec install-data-am install-data install-am \
+install uninstall-am uninstall all-redirect all-am all installdirs \
 mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
@@ -480,17 +517,20 @@ magic: Header Localstuff $(magic_FRAGMENTS)
           cat $$f; \
 	done >> $@
 
+magic.mgc: magic file
+	./file -C -m magic
+
 file.1:	Makefile file.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/file.man > $@
 
-magic.4: Makefile magic.man
+magic.${fsect}: Makefile magic.man
 	@rm -f $@
 	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@4@g \
+	    -e s@__FSECTION__@${fsect}@g \
 	    -e s@__VERSION__@${VERSION}@g \
 	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/magic.man > $@
 
