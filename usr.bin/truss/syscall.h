@@ -9,16 +9,17 @@
  * Ptr -- pointer to some specific structure.  Just print as hex for now.
  * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
  * Stat -- a pointer to a stat buffer.  Currently unused.
+ * Ioctl -- an ioctl command.  Woefully limited.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
  * IN (meaning that the data is passed *into* the system call).
  */
 /*
- * $Id$
+ * $Id: syscall.h,v 1.1 1997/12/06 05:23:07 sef Exp $
  */
 
-enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Quad };
+enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad };
 
 #define ARG_MASK	0xff
 #define OUT	0x100
