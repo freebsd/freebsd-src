@@ -2547,9 +2547,10 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		isp_reinit(isp);
 		break;
 	}
+	case ISPASYNC_UNHANDLED_RESPONSE:
+		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "unknown isp_async event %d", cmd);
-		rv = -1;
 		break;
 	}
 	return (rv);
