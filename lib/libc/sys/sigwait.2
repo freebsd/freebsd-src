@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd April 27, 2000
 .Dt SIGWAIT 2
 .Os
@@ -70,7 +71,9 @@ The
 system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa set
+argument
 specifies one or more invalid signal numbers.
 .El
 .Sh SEE ALSO

@@ -54,14 +54,14 @@
 .Fn munlockall "void"
 .Sh DESCRIPTION
 The
-.Nm mlockall
+.Fn mlockall
 system call locks into memory the physical pages associated with the
 address space of a process until the address space is unlocked, the
 process exits, or execs another program image.
 .Pp
 The following flags affect the behavior of
-.Nm mlockall :
-.Bl -tag -width MCL_CURRENT
+.Fn mlockall :
+.Bl -tag -width ".Dv MCL_CURRENT"
 .It Dv MCL_CURRENT
 Lock all pages currently mapped into the process's address space.
 .It Dv MCL_FUTURE
@@ -76,19 +76,19 @@ limited in how much they can lock down.
 A single process can lock the minimum of a system-wide
 .Dq wired pages
 limit and the per-process
-.Li RLIMIT_MEMLOCK
+.Dv RLIMIT_MEMLOCK
 resource limit.
 .Pp
 The
-.Nm munlockall
+.Fn munlockall
 call unlocks any locked memory regions in the process address space.
 Any regions mapped after an
-.Nm munlockall
+.Fn munlockall
 call will not be locked.
 .Sh RETURN VALUES
 A return value of 0 indicates that the call
 succeeded and all pages in the range have either been locked or unlocked.
-A return value of -1 indicates an error occurred and the locked
+A return value of \-1 indicates an error occurred and the locked
 status of all pages in the range remains unchanged.
 In this case, the global location
 .Va errno
@@ -99,7 +99,7 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
-.Ar flags
+.Fa flags
 argument is zero, or includes unimplemented flags.
 .It Bq Er ENOMEM
 Locking the indicated range would exceed either the system or per-process
