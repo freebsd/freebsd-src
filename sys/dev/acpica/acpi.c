@@ -1038,7 +1038,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 				     acpi_eventhandler_power_button_for_sleep,
 				     sc);
 	if (first_time)
-	    device_printf(sc->acpi_dev, "Power Button (fixed)");
+	    device_printf(sc->acpi_dev, "Power Button (fixed)\n");
     }
     if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
 	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, 0);
@@ -1047,7 +1047,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 				     acpi_eventhandler_sleep_button_for_sleep,
 				     sc);
 	if (first_time)
-	    device_printf(sc->acpi_dev, "Sleep Button (fixed)");
+	    device_printf(sc->acpi_dev, "Sleep Button (fixed)\n");
     }
 
     first_time = 0;
