@@ -1714,14 +1714,15 @@ ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
     ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 9);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_io2;
 
-    if (ctlr->chip->max_dma >= ATA_SA150)
+    if (ctlr->chip->max_dma >= ATA_SA150) {
 	ch->flags |= ATA_NO_SLAVE;
+	ch->reset = ata_sii_reset;
+    }
 
     ctlr->dmainit(ch);
     if (ctlr->chip->cfg2 & SIIBUG)
 	ch->dma->boundary = 8 * 1024;
 
-    ch->reset = ata_sii_reset;
 
     return 0;
 }
