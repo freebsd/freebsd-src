@@ -188,7 +188,12 @@ bincvt(char *sysfile, char *outfile, void *img, int fsize)
 		*strchr(outfile, '.') = '\0';
 
 	snprintf(sysbuf, sizeof(sysbuf),
+#ifdef __i386__
 	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
+#endif
+#ifdef __amd64__
+	    "objcopy -I binary -O elf64-x86-64 -B i386 %s %s.o\n",
+#endif
 	    tname, outfile);
 	printf("%s", sysbuf);
 	system(sysbuf);
@@ -218,11 +223,16 @@ firmcvt(char *firmfile)
 	char			*basefile, *outfile, *ptr;
 	char			sysbuf[1024];
 
-	outfile = basename(firmfile);
+	outfile = strdup(basename(firmfile));
 	basefile = strdup(outfile);
 
 	snprintf(sysbuf, sizeof(sysbuf),
+#ifdef __i386__
 	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
+#endif
+#ifdef __amd64__
+	    "objcopy -I binary -O elf64-x86-64 -B i386 %s %s.o\n",
+#endif
 	    firmfile, outfile);
 	printf("%s", sysbuf);
 	system(sysbuf);
