@@ -52,7 +52,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "getfacl [-dh] [files ...]\n");
+	fprintf(stderr, "getfacl [-dh] [file ...]\n");
 }
 
 /*

@@ -759,8 +759,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rcp [-46p] f1 f2",
-	    "       rcp [-46pr] f1 ... fn directory");
+	    "usage: rcp [-46p] file1 file2",
+	    "       rcp [-46pr] file ... directory");
 	exit(1);
 }
 

@@ -204,6 +204,7 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: mkdir [-pv] [-m mode] directory ...\n");
+	(void)fprintf(stderr,
+	    "usage: mkdir [-pv] [-m mode] directory_name ...\n");
 	exit (EX_USAGE);
 }

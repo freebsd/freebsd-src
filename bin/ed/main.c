@@ -99,7 +99,7 @@ int lineno;			/* script line number */
 const char *prompt;		/* command-line prompt */
 const char *dps = "*";		/* default command-line prompt */
 
-const char usage[] = "usage: %s [-] [-sx] [-p string] [name]\n";
+const char usage[] = "usage: %s [-] [-sx] [-p string] [file]\n";
 
 /* ed: line editor */
 int
@@ -134,7 +134,7 @@ top:
 			break;
 
 		default:
-			fprintf(stderr, usage, argv[0]);
+			fprintf(stderr, usage, red ? "red" : "ed");
 			exit(1);
 		}
 	argv += optind;
