@@ -1059,6 +1059,22 @@ crdup(cr)
 }
 
 /*
+ * Fill in a struct xucred based on a struct ucred.
+ */
+void
+cru2x(cr, xcr)
+	struct ucred *cr;
+	struct xucred *xcr;
+{
+
+	bzero(xcr, sizeof(*xcr));
+	xcr->cr_version = XUCRED_VERSION;
+	xcr->cr_uid = cr->cr_uid;
+	xcr->cr_ngroups = cr->cr_ngroups;
+	bcopy(cr->cr_groups, xcr->cr_groups, sizeof(cr->cr_groups));
+}
+
+/*
  * Get login name, if available.
  */
 #ifndef _SYS_SYSPROTO_H_
