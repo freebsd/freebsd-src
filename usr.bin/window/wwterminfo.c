@@ -64,8 +64,7 @@ wwterminfoinit()
 
 		/* make the directory */
 	(void) sprintf(wwterminfopath, "%swwinXXXXXX", _PATH_TMP);
-	mktemp(wwterminfopath);
-	if (mkdir(wwterminfopath, 0755) < 0 ||
+	if (mkdtemp(wwterminfopath) < 0 ||
 	    chmod(wwterminfopath, 00755) < 0) {
 		wwerrno = WWE_SYS;
 		return -1;

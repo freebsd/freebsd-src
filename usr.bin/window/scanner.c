@@ -44,6 +44,7 @@ static char rcsid[] = "@(#)$FreeBSD$";
 #include "token.h"
 #include "context.h"
 #include "string.h"
+#include "mystring.h"
 
 s_getc()
 {
