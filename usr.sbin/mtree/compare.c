@@ -115,6 +115,7 @@ compare(name, s, p)
 typeerr:		LABEL;
 			(void)printf("\ttype expected %s found %s\n",
 			    ftype(s->type), inotype(p->fts_statp->st_mode));
+			return (label);
 		}
 		break;
 	}
