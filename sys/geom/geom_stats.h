@@ -38,11 +38,10 @@
  * providers.  See libgeom(3) for how to get hold of these.
  */
 struct g_stat {
-	int			updating;
+	int			seq0;
 				/*
-				 * If non-zero, the structure is being
-				 * updated by the kernel and the contents
-				 * should not be used.
+				 * Sequence number, used with seq1 to determine
+				 * if snapshot is consistent.
 				 */
 
 	void			*id;
@@ -81,6 +80,8 @@ struct g_stat {
 #define G_STAT_IDX_WRITE	1
 #define G_STAT_IDX_DELETE	2
 
+	int			seq1;
+				/* See seq0 */
 };
 
 #endif /* _GEOM_GEOM_STATS_H_ */
