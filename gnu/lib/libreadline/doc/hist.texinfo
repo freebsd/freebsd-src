@@ -3,7 +3,7 @@
 @setfilename history.info
 @settitle GNU Readline Library
 @comment %**end of header (This is for running Texinfo on a region.)
-@synindex fn vr
+@synindex vr fn
 @setchapternewpage odd
 
 @ifinfo
