@@ -193,6 +193,26 @@ struct wi_counters {
 #define WI_RID_MCAST_PM_BUF	0xFC17 /* PM buffering of mcast */
 #define WI_RID_ENCRYPTION	0xFC20 /* enable/disable WEP */
 #define WI_RID_AUTHTYPE		0xFC21 /* specify authentication type */
+#define WI_RID_P2_TX_CRYPT_KEY	0xFC23
+#define WI_RID_P2_CRYPT_KEY0	0xFC24
+#define WI_RID_P2_CRYPT_KEY1	0xFC25
+#define WI_RID_MICROWAVE_OVEN	0xFC25
+#define WI_RID_P2_CRYPT_KEY2	0xFC26
+#define WI_RID_P2_CRYPT_KEY3	0xFC27
+#define WI_RID_P2_ENCRYPTION	0xFC28
+#define	 PRIVACY_INVOKED	0x01
+#define	 EXCLUDE_UNENCRYPTED	0x02
+#define	 HOST_ENCRYPT		0x10
+#define	 IV_EVERY_FRAME		0x00	/* IV = Initialization Vector */
+#define	 IV_EVERY10_FRAME	0x20	/* every 10 frame IV reuse */
+#define	 IV_EVERY50_FRAME	0x40	/* every 50 frame IV reuse */
+#define	 IV_EVERY100_FRAME	0x60	/* every 100 frame IV reuse */
+#define	 HOST_DECRYPT		0x80
+#define WI_RID_WEP_MAPTABLE	0xFC29
+#define WI_RID_AUTH_CNTL	0xFC2A
+#define WI_RID_ROAMING_MODE	0xFC2D
+#define WI_RID_BASIC_RATE	0xFCB3
+#define WI_RID_SUPPORT_RATE	0xFCB4
 
 /*
  * Network parameters, dynamic configuration entities
