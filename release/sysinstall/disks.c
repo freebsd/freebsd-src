@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.3 1995/05/06 09:34:11 jkh Exp $
+ * $Id: disks.c,v 1.4 1995/05/07 02:04:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,15 +135,22 @@ record_fbsd_chunks(struct disk **disks)
 
 	if (!disks[i]->chunks)
 	    msgFatal("No chunk list found for %s!", disks[i]->name);
-	c1 = disks[i]->chunks->part;
-	while (c1) {
-	    if (c1->type == freebsd) {
-		struct chunk *c2 = c1->part;
 
+	/* Put the freebsd chunks first */
+	for (c1 = disks[i]->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
 		fbsd_chunk_info[j].type = PART_SLICE;
 		fbsd_chunk_info[j].d = disks[i];
 		fbsd_chunk_info[j].c = c1;
 		fbsd_chunk_info[j++].p = NULL;
+	    }
+	}
+
+	/* Then buzz through and pick up the partitions */
+	for (c1 = disks[i]->chunks->part; c1; c1 = c1->next) {
+	    if (c1->type == freebsd) {
+		struct chunk *c2 = c1->part;
+
 		while (c2) {
 		    if (c2->type == part) {
 			if (c2->subtype == FS_SWAP)
@@ -157,7 +164,6 @@ record_fbsd_chunks(struct disk **disks)
 		    c2 = c2->next;
 		}
 	    }
-	    c1 = c1->next;
 	}
     }
     fbsd_chunk_info[j].d = NULL;
@@ -227,7 +233,7 @@ get_partition_type(struct chunk *c)
 static void
 print_fbsd_chunks(void)
 {
-    int i, srow, prow, pcol;
+    int i, j, srow, prow, pcol;
     int sz;
 
     attrset(A_REVERSE);
@@ -246,8 +252,9 @@ print_fbsd_chunks(void)
 	attrset(A_NORMAL);
 
 	attrset(A_UNDERLINE);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF),
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2,
 		 "Size");
+	attrset(A_NORMAL);
 
 	attrset(A_UNDERLINE);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF),
@@ -260,7 +267,7 @@ print_fbsd_chunks(void)
 
     for (i = 0; fbsd_chunk_info[i].d; i++) {
 	if (i == current_chunk)
-	    attrset(ColorDisplay ? A_BOLD : A_UNDERLINE);
+	    attrset(A_REVERSE);
 	/* Is it a slice entry displayed at the top? */
 	if (fbsd_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(fbsd_chunk_info[i].c);
@@ -293,8 +300,8 @@ print_fbsd_chunks(void)
 		mountpoint = "swap";
 		newfs = " ";
 	    }
-	    for (i = 0; i < MAX_MOUNT_NAME && mountpoint[i]; i++)
-		mvaddch(prow, pcol + PART_MOUNT_COL + i, mountpoint[i]);
+	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
+		mvaddch(prow, pcol + PART_MOUNT_COL + j, mountpoint[j]);
 	    mvprintw(prow, pcol + PART_SIZE_COL, "%4dMB",
 		     fbsd_chunk_info[i].c->size ?
 		     fbsd_chunk_info[i].c->size / 2048 : 0);
@@ -309,16 +316,14 @@ print_fbsd_chunks(void)
 static void
 print_command_summary()
 {
-    int attrs = ColorDisplay ? A_BOLD : A_UNDERLINE;
-
     mvprintw(19, 0,
 	     "The following commands are valid here (upper or lower case):");
     mvprintw(20, 0, "C = Create FreeBSD Partition      D = Delete Partition");
     mvprintw(21, 0, "M = Mount Partition (no newfs)    ESC = Proceed to summary screen");
     mvprintw(22, 0, "The default target will be displayed in ");
 
-    attrset(attrs);
-    addstr(ColorDisplay ? "bold" : "underline");
+    attrset(A_REVERSE);
+    addstr("reverse video");
     attrset(A_NORMAL);
     move(0, 0);
 }
