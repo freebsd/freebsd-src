@@ -38,10 +38,14 @@ struct disk {
 	u_char		*bootmenu;
 	size_t		bootmenu_size;
 #else
+#if !defined(__ia64__)
 	u_char		*bootmgr;
 	size_t		bootmgr_size;
 #endif
+#endif
+#if !defined(__ia64__)
 	u_char		*boot1;
+#endif
 #if defined(__i386__)		/* the i386 needs extra help... */
 	u_char		*boot2;
 #endif
