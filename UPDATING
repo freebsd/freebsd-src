@@ -82,6 +82,9 @@ the common items quick how-tos, followed by entries for versions of
 	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
 	and /etc/mail) and read /etc/mail/README for more details.
 
+20020129:
+	FreeBSD 4.5-RELEASE.
+
 20020105:
 	The locale names have been renamed in -stable to match
 	-current:
