@@ -43,12 +43,14 @@
 .Fl c
 .Nm
 .Op Fl fkvz
-.Op Fl N Ar system
-.Ar directory
+.Op Ar directory Op Ar device ...
 .Sh DESCRIPTION
 .Nm Savecore
-copies the currently running kernel and its associated core dump into
+copies a core dump into
 .Fa directory ,
+or the current working directory if no
+.Fa directory
+argument is given,
 and enters a reboot message and information about the core dump into
 the system log.
 .Pp
@@ -59,15 +61,9 @@ Clear the dump, so that future invocations of
 .Nm
 will ignore it.
 .It Fl f
-Force a dump to be taken even if the dump doesn't appear correct or there
-is insufficient disk space.
+Force a dump to be taken even if the dump was cleared.
 .It Fl k
 Do not clear the dump after saving it.
-.It Fl N
-Use
-.Ar system
-as the kernel instead of the running kernel (as determined from
-.Xr getbootfile 3 ) .
 .It Fl v
 Print out some additional debugging information.
 .It Fl z
@@ -76,12 +72,17 @@ Compress the core dump and kernel (see
 .El
 .Pp
 .Nm Savecore
-checks the core dump in various ways to make sure that it is current and
-that it corresponds to the currently running system.
+looks for dumps on each device specified by the
+.Ar device
+argument(s), or on each device in
+.Pa /etc/fstab
+marked as "dump" or "swap".
+.Nm Savecore
+checks the core dump in various ways to make sure that it is complete.
 If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
-and the system in
-.Ar directory Ns Pa /kernel.#
+and information about the core in
+.Ar directory Ns Pa /info.#
 The ``#'' is the number from the first line of the file
 .Ar directory Ns Pa /bounds ,
 and it is incremented and stored back into the file each time
@@ -111,7 +112,7 @@ is meant to be called near the end of the initialization file
 (see
 .Xr rc 8 ) .
 .Sh BUGS
-The minfree code does not consider the effect of compression.
+The minfree code does not consider the effect of compression or sparse files.
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr getbootfile 3 ,
