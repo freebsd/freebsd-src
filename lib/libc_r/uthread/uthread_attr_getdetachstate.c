@@ -36,7 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-int pthread_attr_getdetachstate(pthread_attr_t *attr, int *detachstate)
+int
+pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 {
 	int	ret;
 
