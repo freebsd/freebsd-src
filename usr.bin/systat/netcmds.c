@@ -39,11 +39,11 @@ static char sccsid[] = "@(#)netcmds.c	8.1 (Berkeley) 6/6/93";
  * Common network command support routines.
  */
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/queue.h>
 
 #include <net/route.h>
 #include <netinet/in.h>
