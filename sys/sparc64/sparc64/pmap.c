@@ -1101,7 +1101,7 @@ pmap_pinit(pmap_t pm)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		vm_page_flag_clear(m, PG_MAPPED | PG_BUSY);
+		vm_page_flag_clear(m, PG_BUSY);
 		m->valid = VM_PAGE_BITS_ALL;
 
 		ma[i] = m;
@@ -1186,7 +1186,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		if ((tp->tte_data & TD_REF) != 0)
 			vm_page_flag_set(m, PG_REFERENCED);
 		if (STAILQ_EMPTY(&m->md.tte_list))
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 		pm->pm_stats.resident_count--;
 	}
 	pmap_cache_remove(m, va);
@@ -1254,7 +1254,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_cache_remove(m, va);
 		TTE_ZERO(tp);
 	}
-	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 int
