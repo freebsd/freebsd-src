@@ -37,8 +37,8 @@ First, make sure you have
 
 pseudo-device   sl      2
 
-in your kernel's config file.  It is included in the GENERICAH and
-GENERICBT kernels, so this won't be a problem unless you deleted it.
+in your kernel's config file.  It is included in the GENERIC, GENERICAH
+and GENERICBT kernels, so this won't be a problem unless you deleted it.
 
 Things you have to do only once:
 
