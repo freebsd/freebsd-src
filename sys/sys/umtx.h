@@ -46,7 +46,7 @@ struct umtx {
 /* op code for _umtx_op */
 #define UMTX_OP_LOCK		0
 #define UMTX_OP_UNLOCK		1
-#define UMTX_OP_UNLOCK_AND_WAIT	2
+#define UMTX_OP_WAIT		2
 #define UMTX_OP_WAKE		3
 
 #ifndef _KERNEL
@@ -118,29 +118,27 @@ umtx_unlock(struct umtx *umtx, long id)
 /* Unlock umtx and wait on a user address. */
 
 static __inline int
-umtx_wait(struct umtx *umtx, long id, void *uaddr)
+umtx_wait(struct umtx *umtx, long id)
 {
-	if (_umtx_op(umtx, UMTX_OP_UNLOCK_AND_WAIT, id, uaddr, 0) == -1)
+	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, 0) == -1)
 		return (errno);
 	return (0);
 }
 
 static __inline int
-umtx_timedwait(struct umtx *umtx, long id, void *uaddr,
-	const struct timespec *abstime)
+umtx_timedwait(struct umtx *umtx, long id, const struct timespec *abstime)
 {
-	if (_umtx_op(umtx, UMTX_OP_UNLOCK_AND_WAIT, id, uaddr,
-		(void *)abstime) == -1)
+	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)abstime) == -1)
 		return (errno);
 	return (0);
 }
 
 /* Wake threads waiting on a user address. */
 static __inline int
-umtx_wake(void *uaddr, int nr_wakeup)
+umtx_wake(struct umtx *umtx, int nr_wakeup)
 {
 	/* return how many threads were woke up, -1 if error */
-	return _umtx_op(0, UMTX_OP_WAKE, nr_wakeup, uaddr, 0);
+	return _umtx_op(umtx, UMTX_OP_WAKE, nr_wakeup, 0, 0);
 }
 
 #endif /* !_KERNEL */
