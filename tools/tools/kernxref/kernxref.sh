@@ -12,7 +12,7 @@
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
 
-COMPILEDIR=/sys/compile
+COMPILEDIR=/sys/i386/compile
 KERNELNAME=LINT
 
 cd ${COMPILEDIR}/${KERNELNAME}
@@ -38,7 +38,7 @@ NF > 1	{
 	nm[$3]++
 	if ($2 == "U") {
 		ref[$3]=ref[$3]" "$1
-	} else if ($2 == "T" || $2 == "D" || $2 == "A") {
+	} else if ($2 == "T" || $2 == "D" || $2 == "A" || $2 == "R") {
 		if (def[$3] != "")
 			def[$3]=def[$3]" "$1
 		else
