@@ -56,19 +56,15 @@ MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
 static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct kevent *ulistp, const struct timespec *timeout,
 		    struct thread *td);
-static int 	kqueue_read(struct file *fp, struct uio *uio,
-		    struct ucred *active_cred, int flags, struct thread *td);
-static int	kqueue_write(struct file *fp, struct uio *uio,
-		    struct ucred *active_cred, int flags, struct thread *td);
-static int	kqueue_ioctl(struct file *fp, u_long com, void *data,
-		    struct ucred *active_cred, struct thread *td);
-static int 	kqueue_poll(struct file *fp, int events,
-		    struct ucred *active_cred, struct thread *td);
-static int 	kqueue_kqfilter(struct file *fp, struct knote *kn);
-static int 	kqueue_stat(struct file *fp, struct stat *st,
-		    struct ucred *active_cred, struct thread *td);
-static int 	kqueue_close(struct file *fp, struct thread *td);
 static void 	kqueue_wakeup(struct kqueue *kq);
+
+static fo_rdwr_t kqueue_read;
+static fo_rdwr_t kqueue_write;
+static fo_ioctl_t kqueue_ioctl;
+static fo_poll_t kqueue_poll;
+static fo_kqfilter_t kqueue_kqfilter;
+static fo_stat_t kqueue_stat;
+static fo_close_t kqueue_close;
 
 static struct fileops kqueueops = {
 	kqueue_read,

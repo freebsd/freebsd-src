@@ -103,16 +103,6 @@ enum dup_type { DUP_VARIABLE, DUP_FIXED };
 
 static int do_dup(struct thread *td, enum dup_type type, int old, int new,
     register_t *retval);
-static int badfo_readwrite(struct file *fp, struct uio *uio,
-    struct ucred *active_cred, int flags, struct thread *td);
-static int badfo_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td);
-static int badfo_poll(struct file *fp, int events,
-    struct ucred *active_cred, struct thread *td);
-static int badfo_kqfilter(struct file *fp, struct knote *kn);
-static int badfo_stat(struct file *fp, struct stat *sb,
-    struct ucred *active_cred, struct thread *td);
-static int badfo_close(struct file *fp, struct thread *td);
 
 /*
  * Descriptor management.
@@ -2173,6 +2163,13 @@ fildesc_drvinit(void *unused)
 			    "fd/%d", fd);
 	}
 }
+
+static fo_rdwr_t badfo_readwrite;
+static fo_ioctl_t badfo_ioctl;
+static fo_poll_t badfo_poll;
+static fo_kqfilter_t badfo_kqfilter;
+static fo_stat_t badfo_stat;
+static fo_close_t badfo_close;
 
 struct fileops badfileops = {
 	badfo_readwrite,

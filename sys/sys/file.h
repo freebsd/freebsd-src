@@ -64,6 +64,32 @@ struct socket;
 
 #ifdef _KERNEL
 
+struct file;
+struct ucred;
+
+typedef int fo_rdwr_t(struct file *fp, struct uio *uio,
+		    struct ucred *active_cred, int flags,
+		    struct thread *td);
+#define	FOF_OFFSET	1	/* Use the offset in uio argument */
+typedef	int fo_ioctl_t(struct file *fp, u_long com, void *data,
+		    struct ucred *active_cred, struct thread *td);
+typedef	int fo_poll_t(struct file *fp, int events,
+		    struct ucred *active_cred, struct thread *td);
+typedef	int fo_kqfilter_t(struct file *fp, struct knote *kn);
+typedef	int fo_stat_t(struct file *fp, struct stat *sb,
+		    struct ucred *active_cred, struct thread *td);
+typedef	int fo_close_t(struct file *fp, struct thread *td);
+
+struct fileops {
+	fo_rdwr_t	*fo_read;
+	fo_rdwr_t	*fo_write;
+	fo_ioctl_t	*fo_ioctl;
+	fo_poll_t	*fo_poll;
+	fo_kqfilter_t	*fo_kqfilter;
+	fo_stat_t	*fo_stat;
+	fo_close_t	*fo_close;
+};
+
 /*
  * Kernel descriptor table.
  * One entry for each open kernel vnode and socket.
@@ -81,23 +107,7 @@ struct file {
 	int	f_count;	/* (f) reference count */
 	int	f_msgcount;	/* (f) references from message queue */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
-	struct fileops {
-		int	(*fo_read)(struct file *fp, struct uio *uio,
-			    struct ucred *active_cred, int flags,
-			    struct thread *td);
-		int	(*fo_write)(struct file *fp, struct uio *uio,
-			    struct ucred *active_cred, int flags,
-			    struct thread *td);
-#define	FOF_OFFSET	1
-		int	(*fo_ioctl)(struct file *fp, u_long com, void *data,
-			    struct ucred *active_cred, struct thread *td);
-		int	(*fo_poll)(struct file *fp, int events,
-			    struct ucred *active_cred, struct thread *td);
-		int	(*fo_kqfilter)(struct file *fp, struct knote *kn);
-		int	(*fo_stat)(struct file *fp, struct stat *sb,
-			    struct ucred *active_cred, struct thread *td);
-		int	(*fo_close)(struct file *fp, struct thread *td);
-	} *f_ops;
+	struct fileops *f_ops;	/* File operations */
 	int	f_seqcount;	/*
 				 * count of sequential accesses -- cleared
 				 * by most seek operations.
@@ -177,18 +187,13 @@ void fputsock(struct socket *sp);
 		FILE_UNLOCK(fp);					\
 	} while (0)
 
-static __inline int fo_read(struct file *fp, struct uio *uio,
-    struct ucred *active_cred, int flags, struct thread *td);
-static __inline int fo_write(struct file *fp, struct uio *uio,
-    struct ucred *active_cred, int flags, struct thread *td);
-static __inline int fo_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td);
-static __inline int fo_poll(struct file *fp, int events,
-    struct ucred *active_cred, struct thread *td);
-static __inline int fo_stat(struct file *fp, struct stat *sb,
-    struct ucred *active_cred, struct thread *td);
-static __inline int fo_close(struct file *fp, struct thread *td);
-static __inline int fo_kqfilter(struct file *fp, struct knote *kn);
+static __inline fo_rdwr_t fo_read;
+static __inline fo_rdwr_t fo_write;
+static __inline fo_ioctl_t fo_ioctl;
+static __inline fo_poll_t fo_poll;
+static __inline fo_kqfilter_t fo_kqfilter;
+static __inline fo_stat_t fo_stat;
+static __inline fo_close_t fo_close;
 struct proc;
 
 static __inline int
@@ -208,8 +213,8 @@ fo_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *active_cred;
-	struct thread *td;
 	int flags;
+	struct thread *td;
 {
 
 	return ((*fp->f_ops->fo_write)(fp, uio, active_cred, flags, td));
