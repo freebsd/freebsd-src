@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.49 1999/01/14 05:48:46 jdp Exp $
+ * $Id: kernel.h,v 1.50 1999/01/28 00:57:54 dillon Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -176,19 +176,40 @@ typedef enum sysinit_elem_type {
 /*
  * A system initialization call instance
  *
- * The subsystem
+ * At the moment there is one instance of sysinit.  We probably do not
+ * want two which is why this code is if'd out, but we definitely want
+ * to discern SYSINIT's which take non-constant data pointers and
+ * SYSINIT's which take constant data pointers,
  */
 struct sysinit {
 	unsigned int	subsystem;		/* subsystem identifier*/
 	unsigned int	order;			/* init order within subsystem*/
-	void		(*func) __P((const void *));	/* init function*/
+	void		(*func) __P((void *));	/* function		*/
 	void		*udata;			/* multiplexer/argument */
 	si_elem_t	type;			/* sysinit_elem_type*/
 };
 
+#if 0
+
+struct c_sysinit {
+	unsigned int	subsystem;		/* subsystem identifier*/
+	unsigned int	order;			/* init order within subsystem*/
+	void		(*func) __P((const void *)); /* function 	*/
+	const void	*udata;			/* multiplexer/argument */
+	si_elem_t	type;			/* sysinit_elem_type*/
+};
+
+#endif
+
 
 /*
  * Default: no special processing
+ *
+ * The C_ version of SYSINIT is for data pointers to const
+ * data ( and functions taking data pointers to const data ).
+ * At the moment it is no different from SYSINIT and thus
+ * still results in warnings.
+ *
  */
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_init = {	\
@@ -199,6 +220,10 @@ struct sysinit {
 		SI_TYPE_DEFAULT					\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
+
+#define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
+	SYSINIT(uniquifier, subsystem, order, func, ident)
+
 /*
  * Called on module unload: no special processing
  */
@@ -206,11 +231,14 @@ struct sysinit {
 	static struct sysinit uniquifier ## _sys_uninit = {	\
 		subsystem,					\
 		order,						\
-		func,						\
+		func, 						\
 		ident,						\
 		SI_TYPE_DEFAULT					\
 	};							\
 	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
+
+#define	C_SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
+	SYSUNINIT(uniquifier, subsystem, order, func, ident)
 
 /*
  * Call 'fork()' before calling '(*func)(ident)';
@@ -220,7 +248,7 @@ struct sysinit {
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
 		order,						\
-		func,						\
+		func, 						\
 		ident,						\
 		SI_TYPE_KTHREAD					\
 	};							\
@@ -232,7 +260,7 @@ struct sysinit {
 		order,						\
 		func,						\
 		ident,						\
-		SI_TYPE_KPROCESS					\
+		SI_TYPE_KPROCESS				\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
