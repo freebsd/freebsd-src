@@ -51,9 +51,9 @@ typedef struct varent {
 } VARENT;
 
 typedef struct var {
-	char	*name;		/* name(s) of variable */
-	char	*header;	/* default header */
-	char	*alias;		/* aliases */
+	const char *name;	/* name(s) of variable */
+	const char *header;	/* default header */
+	const char *alias;	/* aliases */
 #define	COMM	0x01		/* needs exec arguments and environment (XXX) */
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
 #define	USER	0x04		/* needs user structure */
@@ -69,10 +69,9 @@ typedef struct var {
 	 * to the generic output routine pvar (which prints simple elements
 	 * from the well known kinfo_proc structure).
 	 */
-	int	off;		/* offset in structure */
+	off_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
-	char	*fmt;		/* printf format */
-	char	*time;		/* time format */
+	const char *fmt;	/* printf format */
 	short	dwidth;		/* dynamic printing width */
 	/*
 	 * glue to link selected fields together

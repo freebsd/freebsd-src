@@ -35,6 +35,5 @@
  * $FreeBSD$
  */
 
-void lomac_start(void);
 void lomac_stop(void);
 int get_lattr(int);
