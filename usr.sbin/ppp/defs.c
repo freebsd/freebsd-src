@@ -313,10 +313,9 @@ MakeArgs(char *script, char **pvect, int maxargs, int flags)
       script = findblank(script, flags);
       if (script == NULL)
         return -1;
-      else if (!(flags & PARSE_NOHASH) && *script == '#') {
+      else if (!(flags & PARSE_NOHASH) && *script == '#')
         *script = '\0';
-        nargs--;
-      } else if (*script)
+      else if (*script)
         *script++ = '\0';
     }
   }
