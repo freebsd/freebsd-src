@@ -2265,7 +2265,9 @@ vm_map_copy_entry(
 			}
 
 			vm_object_reference(src_object);
+			vm_object_lock(src_object);
 			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
+			vm_object_unlock(src_object);
 			dst_entry->object.vm_object = src_object;
 			src_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
@@ -2355,7 +2357,9 @@ vmspace_fork(struct vmspace *vm1)
 				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
 			}
+			vm_object_lock(object);
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
+			vm_object_unlock(object);
 
 			/*
 			 * Clone the entry, referencing the shared object.
