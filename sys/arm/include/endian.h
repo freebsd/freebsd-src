@@ -43,7 +43,11 @@
 #define _BIG_ENDIAN     4321    /* MSB first: 68000, ibm, net */
 #define _PDP_ENDIAN     3412    /* LSB first in word, MSW first in long */
 
+#ifdef __ARMEB__
+#define _BYTE_ORDER	_BIG_ENDIAN
+#else
 #define	_BYTE_ORDER	_LITTLE_ENDIAN
+#endif /* __ARMEB__ */
 
 #if __BSD_VISIBLE
 #define LITTLE_ENDIAN   _LITTLE_ENDIAN
@@ -52,12 +56,21 @@
 #define BYTE_ORDER      _BYTE_ORDER
 #endif
 
+#ifdef __ARMEB__
+#define _QUAD_HIGHWORD 0
+#define _QUAD_LOWWORD 1
+#define __ntohl(x)	((__uint32_t)(x))
+#define __ntohs(x)	((__uint16_t)(x))
+#define __htonl(x)	((__uint32_t)(x))
+#define __htons(x)	((__uint16_t)(x))
+#else
 #define _QUAD_HIGHWORD  1
 #define _QUAD_LOWWORD 0
 #define __ntohl(x)        (__bswap32(x))
 #define __ntohs(x)        (__bswap16(x))
 #define __htonl(x)        (__bswap32(x))
 #define __htons(x)        (__bswap16(x))
+#endif /* __ARMEB__ */
 
 static __inline __uint64_t
 __bswap64(__uint64_t _x)
