@@ -155,7 +155,7 @@ int bsd_to_svr4_errno[ELAST+1] = {
 };
 
 
-static int 	svr4_fixup(long **stack_base, struct image_params *imgp);
+static int 	svr4_fixup(register_t **stack_base, struct image_params *imgp);
 
 extern struct sysent svr4_sysent[];
 #undef szsigcode
@@ -183,8 +183,8 @@ struct sysentvec svr4_sysvec = {
 };
 
 Elf32_Brandinfo svr4_brand = {
-  "SVR4",
-  "/compat/svr4",
+  ELFOSABI_SOLARIS,		/* XXX  Or should we use ELFOSABI_SYSV here?  */
+  svr4_emul_path,
   "/lib/libc.so.1",
   &svr4_sysvec
 };
@@ -192,10 +192,10 @@ Elf32_Brandinfo svr4_brand = {
 const char      svr4_emul_path[] = "/compat/svr4";
 
 static int
-svr4_fixup(long **stack_base, struct image_params *imgp)
+svr4_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
-	long *pos;
+	register_t *pos;
              
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
     

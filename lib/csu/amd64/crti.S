@@ -25,6 +25,20 @@
  * $FreeBSD$
  */
 
+	/* See http://www.netbsd.org/Documentation/kernel/elf-notes.html for
+	   details on the ELF .note section as we are using it. */
+	.section .note.ABI-tag, "a"
+	.align	4
+	.long	1f - 0f		# name length
+	.long	3f - 2f		# data length
+	.long	1		# note type
+0: 	.asciz	"FreeBSD"	# vendor name
+1:	.align	4
+2:	.long	500000		# data - ABI tag
+				#   (from __FreeBSD_version (param.h))
+3:	.align	4		# pad out section
+
+
 	.section .init,"ax",@progbits
 	.align	4
 	.globl	_init
