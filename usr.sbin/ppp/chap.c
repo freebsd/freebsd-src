@@ -49,9 +49,9 @@
 #include "timer.h"
 #include "fsm.h"
 #include "proto.h"
-#include "lcp.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "auth.h"
 #include "async.h"
 #include "throughput.h"
@@ -254,7 +254,9 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       }
       for (fd = getdtablesize(); fd > STDERR_FILENO; fd--)
         fcntl(fd, F_SETFD, 1);
+#ifndef NOSUID
       setuid(ID0realuid());
+#endif
       command_Expand(nargv, argc, (char const *const *)argv,
                      chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);
@@ -682,12 +684,13 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
     switch (chap->auth.in.hdr.code) {
       case CHAP_CHALLENGE:
-        if (*bundle->cfg.auth.key == '!')
+        if (*bundle->cfg.auth.key == '!' && bundle->cfg.auth.key[1] != '!')
           chap_StartChild(chap, bundle->cfg.auth.key + 1,
                           bundle->cfg.auth.name);
         else
-          chap_Respond(chap, bundle->cfg.auth.name,
-                       bundle->cfg.auth.key, p->link.lcp.his_authtype
+          chap_Respond(chap, bundle->cfg.auth.name, bundle->cfg.auth.key +
+                       (*bundle->cfg.auth.key == '!' ? 1 : 0),
+                       p->link.lcp.his_authtype
 #ifdef HAVE_DES
                        , lanman
 #endif

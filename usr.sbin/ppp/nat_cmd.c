@@ -423,7 +423,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     case PKT_ALIAS_IGNORED:
       if (log_IsKept(LogTCPIP)) {
         log_Printf(LogTCPIP, "NAT engine ignored data:\n");
-        PacketCheck(bundle, MBUF_CTOP(bp), bp->m_len, NULL);
+        PacketCheck(bundle, MBUF_CTOP(bp), bp->m_len, NULL, NULL, NULL);
       }
       break;
 

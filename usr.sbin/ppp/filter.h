@@ -75,6 +75,7 @@ struct filterent {
   struct in_range f_dst;	/* Destination address and mask */
   u_short f_srcport;		/* Source port, compared with f_srcop */
   u_short f_dstport;		/* Destination port, compared with f_dstop */
+  unsigned timeout;		/* Keep alive value for passed packet */
 };
 
 #define	MAXFILTERS	40	/* in each filter set */

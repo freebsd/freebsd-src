@@ -43,12 +43,12 @@
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
-#include "lcp.h"
 #include "throughput.h"
 #include "proto.h"
 #include "descriptor.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "ccp.h"
 #include "async.h"
 #include "link.h"
@@ -182,6 +182,7 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 " REQ%s, %u Term REQ%s\n", lcp->cfg.fsm.timeout,
                 lcp->cfg.fsm.maxreq, lcp->cfg.fsm.maxreq == 1 ? "" : "s",
                 lcp->cfg.fsm.maxtrm, lcp->cfg.fsm.maxtrm == 1 ? "" : "s");
+  prompt_Printf(arg->prompt, "    Ident: %s\n", lcp->cfg.ident);
   prompt_Printf(arg->prompt, "\n Negotiation:\n");
   prompt_Printf(arg->prompt, "           ACFCOMP =   %s\n",
                 command_ShowNegval(lcp->cfg.acfcomp));
@@ -247,6 +248,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
   lcp->cfg.lqr = NEG_ACCEPTED;
   lcp->cfg.pap = NEG_ACCEPTED;
   lcp->cfg.protocomp = NEG_ENABLED|NEG_ACCEPTED;
+  *lcp->cfg.ident = '\0';
 
   lcp_Setup(lcp, lcp->cfg.openmode);
 }
@@ -451,6 +453,40 @@ lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
              MB_LCPOUT);
 }
 
+int
+lcp_SendIdentification(struct lcp *lcp)
+{
+  static u_char id;		/* Use a private id */
+  u_char msg[DEF_MRU - 3];
+  const char *argv[2];
+  char *exp[2];
+
+  if (*lcp->cfg.ident == '\0')
+    return 0;
+
+  argv[0] = lcp->cfg.ident;
+  argv[1] = NULL;
+
+  command_Expand(exp, 1, argv, lcp->fsm.bundle, 1, getpid());
+
+  ua_htonl(&lcp->want_magic, msg);
+  strncpy(msg + 4, exp[0], sizeof msg - 5);
+  msg[sizeof msg - 1] = '\0';
+
+  log_Printf(LogLCP, "Sending ident magic %08x text %s\n", lcp->want_magic,
+             msg + 4);
+  fsm_Output(&lcp->fsm, CODE_IDENT, id++, msg, 4 + strlen(msg + 4), MB_LCPOUT);
+
+  free(exp[0]);
+  return 1;
+}
+
+void
+lcp_RecvIdentification(struct lcp *lcp, char *data)
+{
+  log_Printf(LogLCP, "Received ident: %s\n", data);
+}
+
 static void
 LcpSentTerminateReq(struct fsm *fp)
 {
@@ -499,6 +535,8 @@ LcpLayerUp(struct fsm *fp)
   lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
   fp->more.reqs = fp->more.naks = fp->more.rejs = lcp->cfg.fsm.maxreq * 3;
+
+  lcp_SendIdentification(lcp);
 
   return 1;
 }

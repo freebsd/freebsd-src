@@ -201,7 +201,9 @@ AllowUsers(struct cmdargs const *arg)
   int f;
   struct passwd *pwd;
 
-  userok = 0;
+  if (userok == -1)
+    userok = 0;
+
   pwd = getpwuid(ID0realuid());
   if (pwd != NULL)
     for (f = arg->argn; f < arg->argc; f++)
@@ -422,14 +424,18 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
    * functions.  arg->bundle will be set to NULL for these commands !
    */
   int def, how, rs;
+  int defuserok;
 
   def = !strcmp(name, "default");
   how = ID0realuid() == 0 ? SYSTEM_EXISTS : SYSTEM_VALIDATE;
-  userok = 0;
+  userok = -1;
   modeok = 1;
   modereq = mode;
 
   rs = ReadSystem(NULL, "default", CONFFILE, prompt, NULL, how);
+
+  defuserok = userok;
+  userok = -1;
 
   if (!def) {
     if (rs == -1)
@@ -444,6 +450,9 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
     if (rs == -2)
       return _PATH_PPP "/" CONFFILE ": File not found";
   }
+
+  if (userok == -1)
+    userok = defuserok;
 
   if (how == SYSTEM_EXISTS)
     userok = modeok = 1;

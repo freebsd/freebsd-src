@@ -33,11 +33,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifdef __OpenBSD__
-#include <util.h>
-#else
-#include <libutil.h>
-#endif
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,12 +56,12 @@
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "ipcp.h"
 #ifndef NONAT
 #include "nat_cmd.h"
@@ -153,7 +148,7 @@
 #define NEG_SHORTSEQ	52
 #define NEG_VJCOMP	53
 
-const char Version[] = "2.26";
+const char Version[] = "2.27";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -239,6 +234,31 @@ HelpCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
 
   return 0;
+}
+
+static int
+IdentCommand(struct cmdargs const *arg)
+{
+  int f, pos;
+
+  *arg->cx->physical->link.lcp.cfg.ident = '\0';
+
+  for (pos = 0, f = arg->argn; f < arg->argc; f++)
+    pos += snprintf(arg->cx->physical->link.lcp.cfg.ident + pos,
+                    sizeof arg->cx->physical->link.lcp.cfg.ident - pos, "%s%s",
+                    f == arg->argn ? "" : " ", arg->argv[f]);
+
+  return 0;
+}
+
+static int
+SendIdentification(struct cmdargs const *arg)
+{
+  if (arg->cx->state < DATALINK_LCP) {
+    log_Printf(LogWARN, "sendident: link has not reached LCP\n");
+    return 2;
+  }
+  return lcp_SendIdentification(&arg->cx->physical->link.lcp) ? 0 : 1;
 }
 
 static int
@@ -441,6 +461,8 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                        inet_ntoa(bundle->ncp.ipcp.ns.dns[0]));
     nargv[arg] = subst(nargv[arg], "DNS1",
                        inet_ntoa(bundle->ncp.ipcp.ns.dns[1]));
+    nargv[arg] = subst(nargv[arg], "VERSION", Version);
+    nargv[arg] = subst(nargv[arg], "COMPILATIONDATE", __DATE__);
   }
   nargv[arg] = NULL;
 }
@@ -497,7 +519,9 @@ ShellCommand(struct cmdargs const *arg, int bg)
     for (i = getdtablesize(); i > STDERR_FILENO; i--)
       fcntl(i, F_SETFD, 1);
 
+#ifndef NOSUID
     setuid(ID0realuid());
+#endif
     if (arg->argc > arg->argn) {
       /* substitute pseudo args */
       char *argv[MAXARGS];
@@ -681,6 +705,8 @@ static struct cmdtab const Commands[] = {
   "Generate a down event", "down [ccp|lcp]"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
+  {"ident", NULL, IdentCommand, LOCAL_AUTH | LOCAL_CX,
+  "Set the link identity", "ident text..."},
   {"iface", "interface", RunListCommand, LOCAL_AUTH,
   "interface control", "iface option ...", IfaceCommands},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
@@ -705,6 +731,8 @@ static struct cmdtab const Commands[] = {
   "Manipulate resolv.conf", "resolv readonly|reload|restore|rewrite|writable"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
+  {"sendident", NULL, SendIdentification, LOCAL_AUTH | LOCAL_CX,
+  "Transmit the link identity", "sendident"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set parameters", "set[up] var value"},
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
@@ -2437,11 +2465,14 @@ NegotiateSet(struct cmdargs const *arg)
 }
 
 static struct cmdtab const NegotiateCommands[] = {
+  {"filter-decapsulation", NULL, OptSet, LOCAL_AUTH,
+  "filter on PPPoUDP payloads", "disable|enable",
+  (const void *)OPT_FILTERDECAP},
   {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check FSM reply ids",
   "disable|enable", (const void *)OPT_IDCHECK},
   {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
-   "retain interface addresses", "disable|enable",
-   (const void *)OPT_IFACEALIAS},
+  "retain interface addresses", "disable|enable",
+  (const void *)OPT_IFACEALIAS},
   {"keep-session", NULL, OptSet, LOCAL_AUTH, "Retain device session leader",
   "disable|enable", (const void *)OPT_KEEPSESSION},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
@@ -2565,7 +2596,7 @@ ClearCommand(struct cmdargs const *arg)
       log_Printf(LogWARN, "A link must be specified for ``clear physical''\n");
       return 1;
     }
-    t = &cx->physical->link.throughput;
+    t = &cx->physical->link.stats.total;
   } else if (strcasecmp(arg->argv[arg->argn], "ipcp") == 0)
     t = &arg->bundle->ncp.ipcp.throughput;
   else
@@ -2593,6 +2624,16 @@ static int
 RunListCommand(struct cmdargs const *arg)
 {
   const char *cmd = arg->argc ? arg->argv[arg->argc - 1] : "???";
+
+#ifndef NONAT
+  if (arg->cmd->args == NatCommands &&
+      tolower(*arg->argv[arg->argn - 1]) == 'a') {
+    if (arg->prompt)
+      prompt_Printf(arg->prompt, "The alias command is depricated\n");
+    else
+      log_Printf(LogWARN, "The alias command is depricated\n");
+  }
+#endif
 
   if (arg->argc > arg->argn)
     FindExec(arg->bundle, arg->cmd->args, arg->argc, arg->argn, arg->argv,
@@ -2697,7 +2738,7 @@ SetProcTitle(struct cmdargs const *arg)
   int len, remaining, f, argc = arg->argc - arg->argn;
 
   if (arg->argc == arg->argn) {
-    ID0setproctitle(NULL);
+    SetTitle(NULL);
     return 0;
   }
 
@@ -2723,7 +2764,7 @@ SetProcTitle(struct cmdargs const *arg)
   }
   *ptr = '\0';
 
-  ID0setproctitle(title);
+  SetTitle(title);
 
   return 0;
 }

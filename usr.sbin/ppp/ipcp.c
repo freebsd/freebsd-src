@@ -59,12 +59,12 @@
 #include "timer.h"
 #include "fsm.h"
 #include "proto.h"
-#include "lcp.h"
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -923,8 +923,6 @@ void
 ipcp_CleanInterface(struct ipcp *ipcp)
 {
   struct iface *iface = ipcp->fsm.bundle->iface;
-
-  route_Clean(ipcp->fsm.bundle, ipcp->route);
 
   if (iface->in_addrs && (Enabled(ipcp->fsm.bundle, OPT_PROXY) ||
                           Enabled(ipcp->fsm.bundle, OPT_PROXYALL))) {

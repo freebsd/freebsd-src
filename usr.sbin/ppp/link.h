@@ -41,7 +41,11 @@ struct link {
   int type;                               /* _LINK type */
   const char *name;                       /* Points to datalink::name */
   int len;                                /* full size of parent struct */
-  struct pppThroughput throughput;        /* Link throughput statistics */
+  struct {
+    unsigned gather : 1;                  /* Gather statistics ourself ? */
+    struct pppThroughput total;           /* Link throughput statistics */
+    struct pppThroughput *parent;         /* MP link throughput statistics */
+  } stats;
   struct mqueue Queue[2];                 /* Our output queue of mbufs */
 
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
@@ -56,9 +60,6 @@ struct link {
 
 #define LINK_QUEUES(link) (sizeof (link)->Queue / sizeof (link)->Queue[0])
 #define LINK_HIGHQ(link) ((link)->Queue + LINK_QUEUES(link) - 1)
-
-extern void link_AddInOctets(struct link *, int);
-extern void link_AddOutOctets(struct link *, int);
 
 extern void link_SequenceQueue(struct link *);
 extern void link_DeleteQueue(struct link *);
