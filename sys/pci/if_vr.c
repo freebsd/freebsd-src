@@ -203,7 +203,7 @@ static driver_t vr_driver = {
 static devclass_t vr_devclass;
 
 DRIVER_MODULE(if_vr, pci, vr_driver, vr_devclass, 0, 0);
-DRIVER_MODULE(miibus, vr, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, if_vr, miibus_driver, miibus_devclass, 0, 0);
 
 #define VR_SETBIT(sc, reg, x)				\
 	CSR_WRITE_1(sc, reg,				\
