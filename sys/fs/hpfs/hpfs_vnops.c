@@ -46,7 +46,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
