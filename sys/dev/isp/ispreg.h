@@ -1,5 +1,5 @@
-/* $Id: ispreg.h,v 1.4 1998/12/28 19:22:27 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: ispreg.h,v 1.5 1999/01/30 07:29:00 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
@@ -650,13 +650,7 @@
 #define	ISP2100_NVRAM_SIZE	256
 /* ISP_NVRAM_VERSION is in same overall place */
 #define	ISP2100_NVRAM_RISCVER(c)		(c)[6]
-#define	ISP2100_NVRAM_ENABLE_HARDLOOPID(c)	ISPBSMX(c, 8, 0, 0x01)
-#define	ISP2100_NVRAM_ENABLE_FAIRNESS(c)	ISPBSMX(c, 8, 1, 0x01)
-#define	ISP2100_NVRAM_ENABLE_FULLDUPLEX(c)	ISPBSMX(c, 8, 2, 0x01)
-#define	ISP2100_NVRAM_ENABLE_FAST_POSTING(c)	ISPBSMX(c, 8, 3, 0x01)
-#define	ISP2100_NVRAM_ENABLE_TARGET_MODE(c)	ISPBSMX(c, 8, 4, 0x01)
-#define	ISP2100_NVRAM_ENABLE_INITIATOR_MODE(c)	ISPBSMX(c, 8, 5, 0x01)
-#define	ISP2100_NVRAM_QFRZ(c)			ISPBSMX(c, 8, 6, 0x01)
+#define	ISP2100_NVRAM_OPTIONS(c)		(c)[8]
 #define	ISP2100_NVRAM_MAXFRAMELENGTH(c)		(((c)[10]) | ((c)[11] << 8))
 #define	ISP2100_NVRAM_MAXIOCBALLOCATION(c)	(((c)[12]) | ((c)[13] << 8))
 #define	ISP2100_NVRAM_EXECUTION_THROTTLE(c)	(((c)[14]) | ((c)[15] << 8))
@@ -674,6 +668,7 @@
 		(((u_int64_t)(c)[25]) <<  0))
 #define	ISP2100_NVRAM_HARDLOOPID(c)		(c)[26]
 
+#define	ISP2100_NVRAM_HBA_OPTIONS(c)		(c)[70]
 #define	ISP2100_NVRAM_HBA_DISABLE(c)		ISPBSMX(c, 70, 0, 0x01)
 #define	ISP2100_NVRAM_BIOS_DISABLE(c)		ISPBSMX(c, 70, 1, 0x01)
 #define	ISP2100_NVRAM_LUN_DISABLE(c)		ISPBSMX(c, 70, 2, 0x01)
@@ -690,6 +685,7 @@
 		(((u_int64_t)(c)[77]) << 16) | \
 		(((u_int64_t)(c)[78]) <<  8) | \
 		(((u_int64_t)(c)[79]) <<  0))
+
 #define	ISP2100_NVRAM_BOOT_LUN(c)		(c)[80]
 
 #endif	/* _ISPREG_H */
