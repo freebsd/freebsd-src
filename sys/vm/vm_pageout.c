@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.75 1996/05/29 06:33:30 dyson Exp $
+ * $Id: vm_pageout.c,v 1.76 1996/05/31 00:38:04 dyson Exp $
  */
 
 /*
@@ -416,6 +416,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	rcount = object->resident_page_count;
 	p = TAILQ_FIRST(&object->memq);
 	while (p && (rcount-- > 0)) {
+		int refcount;
 		next = TAILQ_NEXT(p, listq);
 		cnt.v_pdpages++;
 		if (p->wire_count != 0 ||
@@ -426,13 +427,27 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 			p = next;
 			continue;
 		}
+
+		refcount = 0;
+		if ((p->flags & PG_REFERENCED) == 0) {
+			refcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
+			if (refcount) {
+				p->flags |= PG_REFERENCED;
+			}
+		} else {
+			pmap_clear_reference(VM_PAGE_TO_PHYS(p));
+		}
+
+		if ((p->queue != PQ_ACTIVE) && (p->flags & PG_REFERENCED)) {
+			vm_page_activate(p);
+		}
+
 		/*
 		 * if a page is active, not wired and is in the processes
 		 * pmap, then deactivate the page.
 		 */
 		if (p->queue == PQ_ACTIVE) {
-			if (!pmap_is_referenced(VM_PAGE_TO_PHYS(p)) &&
-			    (p->flags & PG_REFERENCED) == 0) {
+			if ((p->flags & PG_REFERENCED) == 0) {
 				vm_page_protect(p, VM_PROT_NONE);
 				if (!map_remove_only)
 					vm_page_deactivate(p);
@@ -448,12 +463,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 					}
 				}
 			} else {
-				/*
-				 * Move the page to the bottom of the queue.
-				 */
-				pmap_clear_reference(VM_PAGE_TO_PHYS(p));
 				p->flags &= ~PG_REFERENCED;
-
 				s = splvm();
 				TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
@@ -576,14 +586,15 @@ rescan0:
 			continue;
 		}
 
-		if (((m->flags & PG_REFERENCED) == 0) &&
-		    pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-			m->flags |= PG_REFERENCED;
-		}
 		if (m->object->ref_count == 0) {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		} else if (((m->flags & PG_REFERENCED) == 0) &&
+			pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
+			vm_page_activate(m);
+			continue;
 		}
+
 		if ((m->flags & PG_REFERENCED) != 0) {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
@@ -596,6 +607,7 @@ rescan0:
 		} else if (m->dirty != 0) {
 			m->dirty = VM_PAGE_BITS_ALL;
 		}
+
 		if (m->valid == 0) {
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
@@ -706,9 +718,12 @@ rescan0:
 		page_shortage += addl_page_shortage;
 	}
 
+
+rescan1:
 	pcount = cnt.v_active_count;
 	m = TAILQ_FIRST(&vm_page_queue_active);
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
+		int refcount;
 
 		if (m->queue != PQ_ACTIVE) {
 #if defined(DIAGNOSTIC)
@@ -721,7 +736,7 @@ rescan0:
 			else
 				printf("object type: %d\n", m->object->type);
 #endif
-			break;
+			goto rescan1;
 		}
 
 		next = TAILQ_NEXT(m, pageq);
@@ -745,33 +760,31 @@ rescan0:
 		 * page for eligbility...
 		 */
 		cnt.v_pdpages++;
-		if ((m->flags & PG_REFERENCED) == 0) {
-			if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-				pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-				m->flags |= PG_REFERENCED;
+
+		refcount = 0;
+		if (m->object->ref_count != 0) {
+			if (m->flags & PG_REFERENCED) {
+				refcount += 1;
 			}
-		} else {
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			refcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
 		}
-		if ( (m->object->ref_count != 0) &&
-			 (m->flags & PG_REFERENCED) ) {
-			m->flags &= ~PG_REFERENCED;
+
+		m->flags &= ~PG_REFERENCED;
+
+		if (refcount && m->object->ref_count != 0) {
 			s = splvm();
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 			splx(s);
 		} else {
-			m->flags &= ~PG_REFERENCED;
-			if (page_shortage > 0) {
-				--page_shortage;
-				if (m->dirty == 0)
-					vm_page_test_dirty(m);
-				if (m->dirty == 0) {
-					vm_page_cache(m);
-				} else {
-					vm_page_protect(m, VM_PROT_NONE);
-					vm_page_deactivate(m);
-				}
+			--page_shortage;
+			vm_page_protect(m, VM_PROT_NONE);
+			if (m->dirty == 0)
+				vm_page_test_dirty(m);
+			if ((m->object->ref_count == 0) && (m->dirty == 0)) {
+				vm_page_cache(m);
+			} else {
+				vm_page_deactivate(m);
 			}
 		}
 		m = next;
