@@ -422,7 +422,7 @@ fixhead(hp, tolist)
 	hp->h_to = NULL;
 	hp->h_cc = NULL;
 	hp->h_bcc = NULL;
-	for (np = tolist; np != NULL; np = np->n_flink)
+	for (np = tolist; np != NULL; np = np->n_flink) {
 		/* Don't copy deleted addresses to the header */
 		if (np->n_type & GDEL)
 			continue;
@@ -435,6 +435,7 @@ fixhead(hp, tolist)
 		else if ((np->n_type & GMASK) == GBCC)
 			hp->h_bcc =
 			    cat(hp->h_bcc, nalloc(np->n_name, np->n_type));
+	}
 }
 
 /*
