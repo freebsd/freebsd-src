@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.14 1996/07/31 06:47:05 pst Exp $
+#	$Id: security,v 1.15 1996/10/12 04:51:09 nate Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -68,7 +68,7 @@ if ipfw -a l 2>/dev/null | egrep "deny|reject" > $TMP; then
 	fi
 fi
 
-# show denied packets
+# show kernel log messages
 if dmesg 2>/dev/null > $TMP; then
 	if [ ! -f $LOG/dmesg.today ] ; then
 		separator
