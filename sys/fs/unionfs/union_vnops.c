@@ -80,7 +80,6 @@ static vop_fsync_t	union_fsync;
 static vop_getacl_t	union_getacl;
 static vop_getattr_t	union_getattr;
 static vop_getextattr_t	union_getextattr;
-static vop_getvobject_t	union_getvobject;
 static vop_inactive_t	union_inactive;
 static vop_ioctl_t	union_ioctl;
 static vop_lease_t	union_lease;
@@ -1701,27 +1700,8 @@ union_destroyvobject(ap)
 		struct vnode *vp;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
 
-	vp->v_object = NULL;
 	return (0);
-}
-
-/*
- * Get VM object from the upper or lower vp
- */
-static int
-union_getvobject(ap)
-	struct vop_getvobject_args /* {
-		struct vnode *vp;
-		struct vm_object **objpp;
-	} */ *ap;
-{
-	struct vnode *ovp = OTHERVP(ap->a_vp);
-
-	if (ovp == NULL)
-		return EINVAL;
-	return (VOP_GETVOBJECT(ovp, ap->a_objpp));
 }
 
 static int
@@ -2042,7 +2022,6 @@ struct vop_vector union_vnodeops = {
 	.vop_getacl =		union_getacl,
 	.vop_getattr =		union_getattr,
 	.vop_getextattr =	union_getextattr,
-	.vop_getvobject =	union_getvobject,
 	.vop_getwritemount =	union_getwritemount,
 	.vop_inactive =		union_inactive,
 	.vop_ioctl =		union_ioctl,

@@ -764,16 +764,6 @@ null_destroyvobject(struct vop_destroyvobject_args *ap)
 	return (0);
 }
 
-static int
-null_getvobject(struct vop_getvobject_args *ap)
-{
-	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
-
-	if (lvp == NULL)
-		return EINVAL;
-	return (VOP_GETVOBJECT(lvp, ap->a_objpp));
-}
-
 /*
  * Global vfs data structures
  */
@@ -785,7 +775,6 @@ struct vop_vector null_vnodeops = {
 	.vop_close =		null_close,
 	.vop_destroyvobject =	null_destroyvobject,
 	.vop_getattr =		null_getattr,
-	.vop_getvobject =	null_getvobject,
 	.vop_getwritemount =	vop_stdgetwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		null_islocked,
