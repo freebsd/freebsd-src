@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id$ */
+/* $Id: ppp_tty.c,v 1.2 1995/10/31 20:24:14 peter Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -212,7 +212,7 @@ pppopen(dev, tp)
 {
     struct proc *p = curproc;		/* XXX */
     register struct ppp_softc *sc;
-    int error, s, i;
+    int error, s;
 
     if (error = suser(p->p_ucred, &p->p_acflag))
 	return (error);
@@ -281,7 +281,6 @@ pppclose(tp, flag)
     int flag;
 {
     register struct ppp_softc *sc;
-    struct mbuf *m;
     int s;
 
     s = spltty();		/* also netisr's, including NETISR_PPP */
