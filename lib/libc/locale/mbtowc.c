@@ -34,31 +34,12 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)ansi.c	8.1 (Berkeley) 6/27/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
-#include <limits.h>
 #include <stddef.h>
 #include <rune.h>
-
-int
-mblen(s, n)
-	const char *s;
-	size_t n;
-{
-	char const *e;
-
-	if (s == 0 || *s == 0)
-		return (0);	/* No support for state dependent encodings. */
-
-	if (sgetrune(s, n, &e) == _INVALID_RUNE)
-		return (s - e);
-	return (e - s);
-}
 
 int
 mbtowc(pwc, s, n)
@@ -77,77 +58,4 @@ mbtowc(pwc, s, n)
 	if (pwc)
 		*pwc = r;
 	return (e - s);
-}
-
-int
-wctomb(s, wchar)
-	char *s;
-	wchar_t wchar;
-{
-	char *e;
-
-	if (s == 0)
-		return (0);	/* No support for state dependent encodings. */
-
-	if (wchar == 0) {
-		*s = 0;
-		return (1);
-	}
-
-	sputrune(wchar, s, MB_CUR_MAX, &e);
-	return (e ? e - s : -1);
-}
-
-size_t
-mbstowcs(pwcs, s, n)
-	wchar_t *pwcs;
-	const char *s;
-	size_t n;
-{
-	char const *e;
-	int cnt = 0;
-
-	if (!pwcs || !s)
-		return (-1);
-
-	while (n-- > 0) {
-		*pwcs = sgetrune(s, MB_LEN_MAX, &e);
-		if (*pwcs == _INVALID_RUNE)
-			return (-1);
-		if (*pwcs++ == 0)
-			break;
-		s = e;
-		++cnt;
-	}
-	return (cnt);
-}
-
-size_t
-wcstombs(s, pwcs, n)
-	char *s;
-	const wchar_t *pwcs;
-	size_t n;
-{
-	char *e;
-	int cnt, nb;
-
-	if (!pwcs || !s || n > INT_MAX)
-		return (-1);
-
-	nb = n;
-	cnt = 0;
-	while (nb > 0) {
-		if (*pwcs == 0) {
-			*s = 0;
-			break;
-		}
-		if (!sputrune(*pwcs++, s, nb, &e))
-			return (-1);		/* encoding error */
-		if (!e)			/* too long */
-			return (cnt);
-		cnt += e - s;
-		nb -= e - s;
-		s = e;
-	}
-	return (cnt);
 }
