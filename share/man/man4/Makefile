@@ -65,6 +65,7 @@ MAN=	aac.4 \
 	kld.4 \
 	kue.4 \
 	ktr.4 \
+	lge.4 \
 	lo.4 \
 	lp.4 \
 	lpbb.4 \

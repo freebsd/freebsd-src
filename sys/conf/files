@@ -363,6 +363,7 @@ dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/isp/isp_pci.c	optional isp
 dev/ispfw/ispfw.c	optional ispfw
+dev/lge/if_lge.c	optional lge
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	optional lnc
 dev/lnc/if_lnc_isa.c	optional lnc isa

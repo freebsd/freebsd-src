@@ -1633,6 +1633,9 @@ device		miibus
 #       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
+# lge:	Support for PCI gigabit ethernet adapters based on the Level 1
+#	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
+#	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
 #	SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante FriendlyNet
@@ -1806,6 +1809,7 @@ device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
+device		lge
 device		nge
 device		sk
 device		ti
