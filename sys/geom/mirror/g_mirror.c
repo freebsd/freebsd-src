@@ -754,6 +754,30 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	g_topology_unlock();
 }
 
+/*
+ * Return 1 if we should check if mirror is idling.
+ */
+static int
+g_mirror_check_idle(struct g_mirror_softc *sc)
+{
+	struct g_mirror_disk *disk;
+
+	if (sc->sc_idle)
+		return (0);
+	if (sc->sc_provider != NULL && sc->sc_provider->acw == 0)
+		return (0);
+	/*
+	 * Check if there are no in-flight requests.
+	 */
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
+			continue;
+		if (disk->d_consumer->index > 0)
+			return (0);
+	}
+	return (1);
+}
+
 static __inline int
 bintime_cmp(struct bintime *bt1, struct bintime *bt2)
 {
@@ -1506,18 +1530,7 @@ g_mirror_worker(void *arg)
 			goto sleep;
 		}
 		if (bp == NULL) {
-#define	G_MIRROR_IS_IDLE(sc)	((sc)->sc_idle ||			\
-				 ((sc)->sc_provider != NULL &&		\
-				  (sc)->sc_provider->acw == 0))
-			if (G_MIRROR_IS_IDLE(sc)) {
-				/*
-				 * If we're already in idle state, sleep without
-				 * a timeout.
-				 */
-				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "m:w1", 0);
-				G_MIRROR_DEBUG(5, "%s: I'm here 3.", __func__);
-			} else {
+			if (g_mirror_check_idle(sc)) {
 				u_int idletime;
 
 				idletime = g_mirror_idletime;
@@ -1525,15 +1538,19 @@ g_mirror_worker(void *arg)
 					idletime = 1;
 				idletime *= hz;
 				if (msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
-				    "m:w2", idletime) == EWOULDBLOCK) {
-					G_MIRROR_DEBUG(5, "%s: I'm here 4.",
+				    "m:w1", idletime) == EWOULDBLOCK) {
+					G_MIRROR_DEBUG(5, "%s: I'm here 3.",
 					    __func__);
 					/*
-					 * No I/O requests in 5 seconds, so mark
-					 * components as clean.
+					 * No I/O requests in 'idletime' seconds,
+					 * so mark components as clean.
 					 */
 					g_mirror_idle(sc);
 				}
+				G_MIRROR_DEBUG(5, "%s: I'm here 4.", __func__);
+			} else {
+				MSLEEP(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
+				    "m:w2", 0);
 				G_MIRROR_DEBUG(5, "%s: I'm here 5.", __func__);
 			}
 			continue;
