@@ -3,8 +3,8 @@
 LIB=	termcap
 SHLIB_MAJOR= 2
 SHLIB_MINOR= 1
-CFLAGS+=-DCM_N -DCM_GT -DCM_B -DCM_D
-SRCS=   termcap.c tgoto.c tputs.c tparm.c
+CFLAGS+=-DCM_N -DCM_GT -DCM_B -DCM_D -I${.CURDIR}
+SRCS=   termcap.c tgoto.c tputs.c tparm.c tospeed.c
 
 MAN3=	termcap.3
 MLINKS=	termcap.3 tgetent.3 termcap.3 tgetflag.3 termcap.3 tgetnum.3 \
@@ -21,7 +21,7 @@ LINKS+=	${LIBDIR}/libtermcap_p.a ${LIBDIR}/libtermlib_p.a
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s termcap.h ${DESTDIR}/usr/include/termcap.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 termcap.h \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 termcap.h \
 	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

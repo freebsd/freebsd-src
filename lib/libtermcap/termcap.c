@@ -43,7 +43,12 @@ static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <termios.h>
+#include "termcap.h"
 #include "pathnames.h"
+
+extern void __set_ospeed(speed_t speed);
 
 /*
  * termcap - routines for dealing with the terminal capability data base
@@ -65,8 +70,7 @@ static	char *tbuf;	/* termcap buffer */
  * Get an entry for terminal name in buffer bp from the termcap file.
  */
 int
-tgetent(bp, name)
-	char *bp, *name;
+tgetent(char *bp, const char *name)
 {
 	register char *p;
 	register char *cp;
@@ -78,6 +82,7 @@ tgetent(bp, name)
 	char  *pathvec[PVECSIZ];	/* to point to names in pathbuf */
 	char **pvec;			/* holds usable tail of path vector */
 	char  *termpath;
+	struct termios tty;
 
 	dummy = NULL;
 	fname = pathvec;
@@ -130,7 +135,7 @@ tgetent(bp, name)
 		if (cgetset(cp) < 0)
 			return(-2);
 
-	i = cgetent(&dummy, pathvec, name);
+	i = cgetent(&dummy, pathvec, (char *)name);
 
 	if (i == 0) {
 		char *pd, *ps, *tok, *s, *tcs;
@@ -180,6 +185,12 @@ tgetent(bp, name)
 		}
 	}
 done:
+	if (   i == 0
+	    && (   tcgetattr(STDERR_FILENO, &tty) != -1
+		|| tcgetattr(STDOUT_FILENO, &tty) != -1
+	       )
+	   )
+		__set_ospeed(cfgetospeed(&tty));
 	if (dummy)
 		free(dummy);
 	/* no tc reference loop return code in libterm XXX */
@@ -197,12 +208,11 @@ done:
  * Note that we handle octal numbers beginning with 0.
  */
 int
-tgetnum(id)
-	char *id;
+tgetnum(const char *id)
 {
 	long num;
 
-	if (cgetnum(tbuf, id, &num) == 0)
+	if (cgetnum(tbuf, (char *)id, &num) == 0)
 		return(num);
 	else
 		return(-1);
@@ -215,10 +225,9 @@ tgetnum(id)
  * not given.
  */
 int
-tgetflag(id)
-	char *id;
+tgetflag(const char *id)
 {
-	return(cgetcap(tbuf, id, ':') != NULL);
+	return(cgetcap(tbuf, (char *)id, ':') != NULL);
 }
 
 /*
@@ -230,8 +239,7 @@ tgetflag(id)
  * No checking on area overflow.
  */
 char *
-tgetstr(id, area)
-	char *id, **area;
+tgetstr(const char *id, char **area)
 {
 	char ids[3];
 	char *s;
