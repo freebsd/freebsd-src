@@ -59,7 +59,7 @@ void	 logname(KINFO *, VARENT *);
 void	 longtname(KINFO *, VARENT *);
 void	 lstarted(KINFO *, VARENT *);
 void	 maxrss(KINFO *, VARENT *);
-void	 mtxname(KINFO *, VARENT *);
+void	 lockname(KINFO *, VARENT *);
 void	 mwchan(KINFO *, VARENT *);
 void	 pagein(KINFO *, VARENT *);
 void	 parsefmt(const char *);

@@ -114,7 +114,7 @@ static char up_header[] =
 
 char *state_abbrev[] =
 {
-    "", "START", "RUN\0\0\0", "SLEEP", "STOP", "ZOMB", "WAIT", "MUTEX"
+    "", "START", "RUN\0\0\0", "SLEEP", "STOP", "ZOMB", "WAIT", "LOCK"
 };
 
 
@@ -143,7 +143,7 @@ static long cp_diff[CPUSTATES];
 int process_states[8];
 char *procstatenames[] = {
     "", " starting, ", " running, ", " sleeping, ", " stopped, ",
-    " zombie, ", " waiting, ", " mutex, ",
+    " zombie, ", " waiting, ", " lock, ",
     NULL
 };
 
@@ -533,9 +533,9 @@ char *(*get_userid)();
 	    else
 		strcpy(status, "RUN");
 	    break;
-	case SMTX:
-	    if (pp->ki_kiflag & KI_MTXBLOCK) {
-		sprintf(status, "*%.6s", pp->ki_mtxname);
+	case SLOCK:
+	    if (pp->ki_kiflag & KI_LOCKBLOCK) {
+		sprintf(status, "*%.6s", pp->ki_lockname);
 	        break;
 	    }
 	    /* fall through */
