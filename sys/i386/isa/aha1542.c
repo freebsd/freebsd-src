@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.27 1994/05/25 08:57:57 rgrimes Exp $
+ *      $Id: aha1542.c,v 1.28 1994/08/13 03:49:52 wollman Exp $
  */
 
 /*
@@ -912,11 +912,14 @@ aha_init(unit)
 	/*
 	 * If we are a 1542C or 1542CF disable the extended bios so that the
 	 * mailbox interface is unlocked.
+	 * This is also true for the 1542B Version 3.20. First Adaptec
+	 * board that supports >1Gb drives.
 	 * No need to check the extended bios flags as some of the
 	 * extensions that cause us problems are not flagged in that byte.
 	 */
 	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
-			(inquire.boardid == 0x45)) {
+		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
+		&& inquire.revision_1 == 0x31 && inquire.revision_2 == 0x34)) {
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
