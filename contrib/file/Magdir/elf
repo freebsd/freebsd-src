@@ -104,6 +104,7 @@
 >>18	leshort		53		Motorola M68HC12,
 >>18	leshort		62		AMD x86-64,
 >>18	leshort		75		Digital VAX,
+>>18	leshort		88		Renesas M32R,
 >>18	leshort		97		NatSemi 32k,
 >>18	leshort		0x9026		Alpha (unofficial),
 >>20	lelong		0		invalid version
@@ -192,6 +193,7 @@
 >>18	beshort		53		Motorola M68HC12,
 >>18	beshort		73		Cray NV1,
 >>18	beshort		75		Digital VAX,
+>>18	beshort		88		Renesas M32R,
 >>18	beshort		97		NatSemi 32k,
 >>18	beshort		0x9026		Alpha (unofficial),
 >>18	beshort		0xa390		IBM S/390 (obsolete),
