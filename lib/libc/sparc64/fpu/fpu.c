@@ -241,7 +241,7 @@ fetch_reg(struct utrapframe *uf, int reg)
 		 * the frame.
 		 */
 		frm = (struct frame *)(uf->uf_out[6] + SPOFF);
-		return (frm->f_local[reg - IREG_L0]);
+		return (frm->fr_local[reg - IREG_L0]);
 	}
 	__fpu_panic("fetch_reg: bogus register");
 }

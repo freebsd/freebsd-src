@@ -45,12 +45,14 @@
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
-	u_long	r_global[8];
-	u_long	r_out[8];
 	u_long	r_tstate;
 	u_long	r_pc;
 	u_long	r_npc;
 	u_int	r_y;
+	u_long	r_global[8];
+	u_long	r_out[8];
+	u_long	r_local[8];
+	u_long	r_in[8];
 };
 
 /*

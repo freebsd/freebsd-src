@@ -33,6 +33,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/instr.h>
 
@@ -69,7 +70,7 @@ emul_fetch_reg(struct trapframe *tf, int reg, u_long *val)
 		 * The in registers are immediately after the locals in
 		 * the frame.
 		 */
-		offs = offsetof(struct frame, f_local[reg - IREG_L0]);
+		offs = offsetof(struct frame, fr_local[reg - IREG_L0]);
 		return (copyin((void *)(tf->tf_sp + SPOFF + offs), val,
 		    sizeof(*val)));
 	}
@@ -93,7 +94,7 @@ emul_store_reg(struct trapframe *tf, int reg, u_long val)
 		 * The in registers are immediately after the locals in
 		 * the frame.
 		 */
-		offs = offsetof(struct frame, f_local[reg - IREG_L0]);
+		offs = offsetof(struct frame, fr_local[reg - IREG_L0]);
 		return (copyout(&val, (void *)(tf->tf_sp + SPOFF + offs),
 		    sizeof(val)));
 	}
