@@ -513,7 +513,7 @@ npxexit(p)
 		u_int	masked_exceptions;
 
 		masked_exceptions = PCPU_GET(curpcb)->pcb_savefpu.sv_env.en_cw
-		    &PCPU_GET(curpcb)->pcb_savefpu.sv_env.en_sw & 0x7f;
+		    & PCPU_GET(curpcb)->pcb_savefpu.sv_env.en_sw & 0x7f;
 		/*
 		 * Log exceptions that would have trapped with the old
 		 * control word (overflow, divide by 0, and invalid operand).
