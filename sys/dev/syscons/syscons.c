@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.54 1994/09/15 07:26:40 sos Exp $
+ *	$Id: syscons.c,v 1.55 1994/09/24 21:29:38 ache Exp $
  */
 
 #include "sc.h"
@@ -68,7 +68,7 @@
 #define NCONS 12
 #endif
 
-#if !defined(NO_HARDFONTS)
+#if defined(HARDFONTS)
 #include <i386/isa/iso8859.font>
 #endif
 
@@ -357,10 +357,11 @@ pcattach(struct isa_device *dev)
 	else
 		printf("\n");
 	if (crtc_vga) {
-#if !defined(NO_HARDFONTS)
+#if defined(HARDFONTS)
 		font_8 = font_8x8;
 		font_14 = font_8x14;
 		font_16 = font_8x16;
+		fonts_loaded = FONT_8_LOADED|FONT_14_LOADED|FONT_16_LOADED;
 		copy_font(LOAD, 1, 8, font_8);
 		copy_font(LOAD, 2, 14, font_14);
 		copy_font(LOAD, 0, 16, font_16);
@@ -368,11 +369,9 @@ pcattach(struct isa_device *dev)
 		font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
 		font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
 		font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
-		copy_font(SAVE, 1, 8, font_8);
-		copy_font(SAVE, 2, 14, font_14);
 		copy_font(SAVE, 0, 16, font_16);
+		fonts_loaded = FONT_16_LOADED;
 #endif
-		fonts_loaded = FONT_8_LOADED|FONT_14_LOADED|FONT_16_LOADED;
 		save_palette();
 	}
 	for (i = 0; i < NCONS; i++) {
@@ -762,9 +761,12 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		case KD_TEXT:	/* switch to TEXT (known) mode */
 				/* restore fonts & palette ! */
 			if (crtc_vga) {
-				copy_font(LOAD, 0, 16, font_16);
-				copy_font(LOAD, 1, 8, font_8);
-				copy_font(LOAD, 2, 14, font_14);
+				if (fonts_loaded & FONT_16_LOADED)
+					copy_font(LOAD, 0, 16, font_16);
+				if (fonts_loaded & FONT_8_LOADED)
+					copy_font(LOAD, 1, 8, font_8);
+				if (fonts_loaded & FONT_14_LOADED)
+					copy_font(LOAD, 2, 14, font_14);
 				load_palette();
 			}
 			/* FALL THROUGH */
@@ -994,9 +996,12 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	 	fp = (struct trapframe *)p->p_md.md_regs;
 	 	fp->tf_eflags &= ~PSL_IOPL;
 		if (crtc_vga) {
-			copy_font(LOAD, 0, 16, font_16);
-			copy_font(LOAD, 1, 8, font_8);
-			copy_font(LOAD, 2, 14, font_14);
+			if (fonts_loaded & FONT_16_LOADED)
+				copy_font(LOAD, 0, 16, font_16);
+			if (fonts_loaded & FONT_8_LOADED)
+				copy_font(LOAD, 1, 8, font_8);
+			if (fonts_loaded & FONT_14_LOADED)
+				copy_font(LOAD, 2, 14, font_14);
 			load_palette();
 		}
 		scp->status &= ~UNKNOWN_MODE;
@@ -1443,9 +1448,12 @@ exchange_scr(void)
 	bcopy(new_scp->scr_buf, Crtat, new_scp->xsize * new_scp->ysize * 2);
 	update_leds(new_scp->status);
 	if ((old_scp->status & UNKNOWN_MODE) && crtc_vga) {
-		copy_font(LOAD, 0, 16, font_16);
-		copy_font(LOAD, 1, 8, font_8);
-		copy_font(LOAD, 2, 14, font_14);
+		if (fonts_loaded & FONT_16_LOADED)
+			copy_font(LOAD, 0, 16, font_16);
+		if (fonts_loaded & FONT_8_LOADED)
+			copy_font(LOAD, 1, 8, font_8);
+		if (fonts_loaded & FONT_14_LOADED)
+			copy_font(LOAD, 2, 14, font_14);
 		load_palette();
 	}
 	if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
