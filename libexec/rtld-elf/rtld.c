@@ -137,6 +137,7 @@ void r_debug_state(struct r_debug*, struct link_map*);
 static char *error_message;	/* Message for dlerror(), or NULL */
 struct r_debug r_debug;		/* for GDB; */
 static bool libmap_disable;	/* Disable libmap */
+static char *libmap_override;	/* Maps to use in addition to libmap.conf */
 static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
@@ -289,6 +290,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (trust) {
 	ld_debug = getenv(LD_ "DEBUG");
 	libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
+	libmap_override = getenv(LD_ "LIBMAP");
 	ld_library_path = getenv(LD_ "LIBRARY_PATH");
 	ld_preload = getenv(LD_ "PRELOAD");
     }
@@ -363,7 +365,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_shndx = SHN_UNDEF;
 
     if (!libmap_disable)
-        libmap_disable = (bool)lm_init();
+        libmap_disable = (bool)lm_init(libmap_override);
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
