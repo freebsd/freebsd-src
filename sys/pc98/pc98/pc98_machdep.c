@@ -147,6 +147,7 @@ pc98_getmemsize(unsigned *base, unsigned *ext, unsigned *under16)
 	if (over16 > 0) {
 		*ext = (16 + over16) * 1024;
 	}
+	*ext -= 1024;	/* subtract base memory space */
 }
 
 /*
