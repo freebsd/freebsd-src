@@ -118,7 +118,7 @@ static int sis_detach		(device_t);
 static int sis_newbuf		(struct sis_softc *,
 					struct sis_desc *, struct mbuf *);
 static int sis_encap		(struct sis_softc *,
-					struct mbuf *, u_int32_t *);
+					struct mbuf **, u_int32_t *);
 static void sis_rxeof		(struct sis_softc *);
 static void sis_rxeoc		(struct sis_softc *);
 static void sis_txeof		(struct sis_softc *);
@@ -1895,7 +1895,7 @@ done:
 static int
 sis_encap(sc, m_head, txidx)
 	struct sis_softc	*sc;
-	struct mbuf		*m_head;
+	struct mbuf		**m_head;
 	u_int32_t		*txidx;
 {
 	struct sis_desc		*f = NULL;
@@ -1915,15 +1915,15 @@ sis_encap(sc, m_head, txidx)
 	 * do not use up the entire list, even if they would fit.
 	 */
 
-	for (m = m_head; m != NULL; m = m->m_next)
+	for (m = *m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
 	if ((chainlen > SIS_TX_LIST_CNT / 4) ||
 	    ((SIS_TX_LIST_CNT - (chainlen + sc->sis_cdata.sis_tx_cnt)) < 2)) {
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_DONTWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
-		m_head = m;
+		*m_head = m;
 	}
 	
 	/*
@@ -1931,10 +1931,9 @@ sis_encap(sc, m_head, txidx)
 	 * the fragment pointers. Stop when we run out
  	 * of fragments or hit the end of the mbuf chain.
 	 */
-	m = m_head;
 	cur = frag = *txidx;
 
-	for (m = m_head; m != NULL; m = m->m_next) {
+	for (m = *m_head; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
 			if ((SIS_TX_LIST_CNT -
 			    (sc->sis_cdata.sis_tx_cnt + cnt)) < 2)
@@ -1958,7 +1957,7 @@ sis_encap(sc, m_head, txidx)
 	if (m != NULL)
 		return(ENOBUFS);
 
-	sc->sis_ldata.sis_tx_list[cur].sis_mbuf = m_head;
+	sc->sis_ldata.sis_tx_list[cur].sis_mbuf = *m_head;
 	sc->sis_ldata.sis_tx_list[cur].sis_ctl &= ~SIS_CMDSTS_MORE;
 	sc->sis_ldata.sis_tx_list[*txidx].sis_ctl |= SIS_CMDSTS_OWN;
 	sc->sis_cdata.sis_tx_cnt += cnt;
@@ -2002,7 +2001,7 @@ sis_start(ifp)
 		if (m_head == NULL)
 			break;
 
-		if (sis_encap(sc, m_head, &idx)) {
+		if (sis_encap(sc, &m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
