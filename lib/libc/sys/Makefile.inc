@@ -91,9 +91,10 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/ktrace.2 sys/link.2 sys/listen.2 sys/lseek.2 sys/mkdir.2 \
 	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/mlock.2 \
 	sys/mmap.2 sys/mount.2 sys/mprotect.2 sys/msync.2 sys/munmap.2 \
-	sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 sys/profil.2 \
-	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
-	sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 sys/select.2 \
+	sys/ptrace.2 sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 \
+	sys/profil.2 sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 \
+	sys/recv.2 sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 \
+	sys/select.2 \
 	sys/semctl.2 sys/semget.2 sys/semop.2 \
 	sys/send.2 sys/setgroups.2 \
 	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 \
