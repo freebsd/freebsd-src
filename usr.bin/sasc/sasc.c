@@ -85,7 +85,7 @@ main(int argc, char **argv)
 
   if (argc == 0) usage();
 
-  while( (c = getopt(argc, argv, "sqf:b:r:w:h:t:")) != FAIL)
+  while( (c = getopt(argc, argv, "sqf:b:r:w:h:t:")) != -1)
     {
       switch(c) {
       case 'f': file = optarg; break;
