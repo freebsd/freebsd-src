@@ -103,10 +103,14 @@ talk()
 			 * We can't make the tty non_blocking, because
 			 * curses's output routines would screw up
 			 */
+			int i;
 			ioctl(0, FIONREAD, (struct sgttyb *) &nb);
 			nb = read(0, buf, nb);
 			display(&my_win, buf, nb);
 			/* might lose data here because sockt is non-blocking */
+			for (i = 0; i < nb; ++i)
+				if (buf[i] == '\r')
+					buf[i] = '\n';
 			write(sockt, buf, nb);
 		}
 	}
