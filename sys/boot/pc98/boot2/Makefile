@@ -9,7 +9,7 @@ SRCS+=	probe_keyboard.c io.c disk.c sys.c
 BINDIR=		/boot
 BINMODE=	444
 CFLAGS=		-Os -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-		-mno-486 -mrtd \
+		-mpreferred-stack-boundary=2 -mrtd \
 		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
