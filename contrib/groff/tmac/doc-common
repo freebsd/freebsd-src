@@ -157,9 +157,9 @@
 .	ds cH \\$2
 .\" .	if "\\$3"" \{\
 .		if \\$2>=1 .if \\$2<=8 \{\
-.			ds vT UNIX Reference Manual
-.			if \\$2>1 .if \\$2<6 .ds vT UNIX Programmer's Manual
-.			if "\\$2"8" .ds vT UNIX System Manager's Manual
+.			ds vT FreeBSD Reference Manual
+.			if \\$2>1 .if \\$2<6 .ds vT FreeBSD Programmer's Manual
+.			if "\\$2"8" .ds vT FreeBSD System Manager's Manual
 .			nr sN \\$2
 .		\}
 .		if "\\$2"unass"  .ds vT DRAFT
@@ -168,17 +168,17 @@
 .\" .	\}
 .\}
 .if !"\\$3"" \{\
-.	if "\\$3"USD"   .ds vT UNIX User's Supplementary Documents
-.	if "\\$3"PS1"   .ds vT UNIX Programmers's Supplementary Documents
-.	if "\\$3"AMD"   .ds vT UNIX Ancestral Manual Documents
-.	if "\\$3"SMM"   .ds vT UNIX System Manager's Manual
-.	if "\\$3"URM"   .ds vT UNIX Reference Manual
-.	if "\\$3"PRM"   .ds vT UNIX Programmers's Manual
-.	if "\\$3"IND"   .ds vT UNIX Manual Master Index
-.\" .	if "\\$3"CON"   .ds vT UNIX Contributed Software Manual
-.\" .	if "\\$3"IMP"	.ds vT UNIX Implementation Notes
-.\" .	if "\\$3"HOW"	.ds vT UNIX How Pocket Manual
-.	if "\\$3"LOCAL" .ds vT UNIX Local Manual
+.	if "\\$3"USD"   .ds vT FreeBSD User's Supplementary Documents
+.	if "\\$3"PS1"   .ds vT FreeBSD Programmers's Supplementary Documents
+.	if "\\$3"AMD"   .ds vT FreeBSD Ancestral Manual Documents
+.	if "\\$3"SMM"   .ds vT FreeBSD System Manager's Manual
+.	if "\\$3"URM"   .ds vT FreeBSD Reference Manual
+.	if "\\$3"PRM"   .ds vT FreeBSD Programmers's Manual
+.	if "\\$3"IND"   .ds vT FreeBSD Manual Master Index
+.\" .	if "\\$3"CON"   .ds vT FreeBSD Contributed Software Manual
+.\" .	if "\\$3"IMP"	.ds vT FreeBSD Implementation Notes
+.\" .	if "\\$3"HOW"	.ds vT FreeBSD How Pocket Manual
+.	if "\\$3"LOCAL" .ds vT FreeBSD Local Manual
 .	if "\\$3"tahoe" .as vT \ (Tahoe Architecture)
 .	if "\\$3"vax" .as vT \ (VAX Architecture)
 .	if "\\$3"hp300" .as vT \ (HP300 Architecture)
@@ -193,7 +193,7 @@
 .de Os
 .ds oS Null
 .if "\\$1"" \{\
-.	ds oS BSD Experimental
+.	ds oS BSD
 .\}
 .if "\\$2"" \{\
 .	ds aa Non-Null
@@ -220,7 +220,15 @@
 .	if "\\$2"4.3R" .ds oS 4.3-Reno Berkeley Distribution
 .	if "\\$2"4.3t" .ds oS 4.3-Tahoe Berkeley Distribution
 .	if "\\$2"4.3r" .ds oS 4.3-Reno Berkeley Distribution
-.	if "\\$2"4.4"  .ds oS BSD Experimental
+.	if "\\$2"4.4"  .ds oS 4.4BSD
+.\}
+.if "\\$1"FreeBSD" \{\
+.	if "\\$2"2"      .ds oS FreeBSD 2.0
+.	if "\\$2"2.0"    .ds oS FreeBSD 2.0
+.	if "\\$2"2.0.5"  .ds oS FreeBSD 2.0.5
+.	if "\\$2"2.1"    .ds oS FreeBSD 2.1
+.	if "\\$2"2.1.5"  .ds oS FreeBSD 2.1.5
+.	if "\\$2"2.2"    .ds oS FreeBSD 2.2
 .\}
 .if "\\*(oS"Null" .ds oS \0\\$1
 .if "\\*(aa"Non-Null" .as oS \0\\$2
