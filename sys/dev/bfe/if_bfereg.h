@@ -445,8 +445,9 @@
 #define BFE_AND(sc, name, val)                                              \
 	CSR_WRITE_4(sc, name, CSR_READ_4(sc, name) & val)
 
-#define BFE_LOCK(scp)       mtx_lock(&sc->bfe_mtx)
-#define BFE_UNLOCK(scp)     mtx_unlock(&sc->bfe_mtx)
+#define BFE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bfe_mtx, MA_OWNED)
+#define BFE_LOCK(_sc)		mtx_lock(&(_sc)->bfe_mtx)
+#define BFE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bfe_mtx)
 
 #define BFE_INC(x, y)       (x) = ((x) == ((y)-1)) ? 0 : (x)+1
 
