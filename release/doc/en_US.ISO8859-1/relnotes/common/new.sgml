@@ -161,7 +161,13 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para>A snapshot of <application>netcat</application> from OpenBSD
+	as of 4 February 2005 has been added.</para>
+
+      <para>The timezone database has been updated from
+	<application>tzdata2004e</application> to
+	<application>tzdata2004g</application>.</para>
+
     </sect3>
   </sect2>
 
