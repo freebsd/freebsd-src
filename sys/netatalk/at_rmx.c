@@ -33,18 +33,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/mbuf.h>
-#include <sys/syslog.h>
 
-#include <net/if.h>
 #include <net/route.h>
-
-#include <netatalk/at.h>
-#include <netatalk/at_extern.h>
 
 static char hexbuf[256];
 
