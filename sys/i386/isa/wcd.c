@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.58 1998/09/08 20:57:47 sos Exp $
+ * $Id: wcd.c,v 1.59 1998/09/15 08:15:29 gibbs Exp $
  */
 
 #include "wdc.h"
@@ -456,9 +456,9 @@ void wcd_describe (struct wcd *t)
 	printf ("wcd%d: ", t->lun);
 	if (t->cap.cur_speed != t->cap.max_speed)
 		printf ("%d/", t->cap.cur_speed * 1000 / 1024);
-	printf ("%dKb/sec", t->cap.max_speed * 1000 / 1024);
+	printf ("%dKB/sec", t->cap.max_speed * 1000 / 1024);
 	if (t->cap.buf_size)
-		printf (", %dKb cache", t->cap.buf_size);
+		printf (", %dKB cache", t->cap.buf_size);
 
 	if (t->cap.audio_play)
 		printf (", audio play");
