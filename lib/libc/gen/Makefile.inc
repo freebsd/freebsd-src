@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
+.PATH: ${.CURDIR}/${MACHINE_ARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	alarm.c arc4random.c assert.c basename.c check_utility_compat.c \
@@ -32,11 +32,10 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	valloc.c vis.c wait.c wait3.c waitpid.c
 
 # machine-dependent gen sources
-.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc)
-.include "${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc"
+.if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
+.include "${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc"
 .endif
 
-.if ${LIB} == "c"
 MAN+=	alarm.3 arc4random.3 \
 	basename.3 check_utility_compat.3 clock.3 \
 	confstr.3 ctermid.3 daemon.3 \
@@ -132,4 +131,3 @@ MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
-.endif

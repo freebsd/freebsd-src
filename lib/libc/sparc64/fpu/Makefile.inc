@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../libc/sparc64/fpu
+.PATH: ${.CURDIR}/sparc64/fpu
 
 CFLAGS+= -I${.CURDIR}/sparc64/sys
 

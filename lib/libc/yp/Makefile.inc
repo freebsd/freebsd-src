@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # yp sources
-.PATH: ${.CURDIR}/../libc/yp
+.PATH: ${.CURDIR}/yp
 
 SRCS+=	xdryp.c yp.h yp_xdr.c yplib.c
 CLEANFILES+=	yp.h yp_xdr.c
