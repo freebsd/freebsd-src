@@ -1,0 +1,5 @@
+# fstab for diskless machine.  Root is already mounted, as is swap.
+#
+209.157.86.2:/usr		/usr		nfs	ro 0 0
+209.157.86.2:/var		/var		nfs	ro 0 0
+proc                            /proc           procfs  rw 0 0
