@@ -141,7 +141,8 @@ main(int argc, char *argv[])
 	}
 
 	checkdot(argv);
-	checkslash(argv);
+	if (getenv("POSIXLY_CORRECT") == NULL)
+		checkslash(argv);
 	uid = geteuid();
 
 	if (*argv) {
