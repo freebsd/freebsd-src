@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.56 1999/08/06 20:04:00 brian Exp $
+#	$Id: Makefile,v 1.57 1999/08/08 17:35:35 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -21,8 +21,8 @@ MAN8=	ppp.8
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
-.if defined(NOALIAS)
-CFLAGS+=-DNOALIAS
+.if defined(NONAT) || defined(NOALIAS)
+CFLAGS+=-DNONAT
 .else
 .if !defined(RELEASE_CRUNCH)
 SRCS+=	alias_cmd.c
@@ -58,7 +58,7 @@ SRCS+=	i4b.c
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-CFLAGS+=-DNOALIAS -DNORADIUS -DNOI4B
+CFLAGS+=-DNONAT -DNORADIUS -DNOI4B
 OBJS+=	alias_cmd.o chap_ms.o radius.o
 chap_ms.o alias_cmd.o radius.o:
 	>null_${.PREFIX}.c
