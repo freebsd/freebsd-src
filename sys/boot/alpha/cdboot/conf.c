@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $FreeBSD$
  * From: $NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $
  */
 
