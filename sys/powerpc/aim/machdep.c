@@ -609,6 +609,12 @@ cpu_halt(void)
 	OF_exit();
 }
 
+void
+cpu_idle(void)
+{
+	/* Insert code to halt (until next interrupt) for the idle loop */
+}
+
 /*
  * Set set up registers on exec.
  */
