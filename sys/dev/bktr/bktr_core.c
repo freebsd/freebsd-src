@@ -14,7 +14,6 @@
       Enjoy,
       Amancio
 
-   $Id$
  */
 
 /*
@@ -104,10 +103,16 @@
 			   and last but not least with the Intel Smart
 			   Video Recorder.
 
-1.4		3/9/97	   Merged code to support tuners on STB and WinCast
+1.4		3/9/97	   fsmp@freefall.org
+			   Merged code to support tuners on STB and WinCast
 			   cards.
 			   Modifications to the contrast and chroma ioctls.
 			   Textual cleanup.
+
+1.5             3/15/97    fsmp@freefall.org
+                	   new bt848 specific versions of hue/bright/
+                           contrast/satu/satv.
+                           Amancio's patch to fix "screen freeze" problem.
 */
 
 #include "bktr.h"
@@ -199,6 +204,7 @@ options	DEFAULT_TUNERTYPE=2	# TUNERTYPE_CABLEIRC
  * tuner specific functions
  */
 static int	tv_channel __P(( bktr_reg_t* bktr, int channel ));
+static int	tv_freq __P(( bktr_reg_t* bktr, int frequency ));
 static int	tuner_status __P(( bktr_reg_t* bktr ));
 
 
@@ -327,7 +333,7 @@ bktr_intr( void *arg )
 	}
 
 	/* if risc was disabled re-start process again */
-	if (!(bktr_status & (1 << 27)) || ((bktr_status & 0xfe000) != 0) ) {
+	if (!(bktr_status & (1 << 27)) || ((bktr_status & 0xff000) != 0) ) {
 
 		btl_reg = (u_long *) &bt848[BKTR_INT_STAT];
 		*btl_reg = *btl_reg;
@@ -347,6 +353,7 @@ bktr_intr( void *arg )
 
 		btl_reg = (u_long *) &bt848[BKTR_INT_MASK];
 		*btl_reg =   1 << 23 |	1 << 11 |  2 | 1;
+ 	        bt848[BKTR_CAP_CTL]  = bktr->bktr_cap_ctl;
 
 		return;
 	}
@@ -900,19 +907,22 @@ build_dma_prog( bktr_reg_t * bktr, char i_flag)
 	/* capture control */
 	switch (i_flag) {
 	case 1:
+ 	        bktr->bktr_cap_ctl  = 0x11;
 		bt848[BKTR_CAP_CTL] = 0x11;
 		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
 		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
 		interlace = 1;
 		break;
 	 case 2:
+ 	        bktr->bktr_cap_ctl  = 0x12;
 		bt848[BKTR_CAP_CTL] = 0x12;
 		bt848[BKTR_E_VSCALE_HI] &= ~0x20;
 		bt848[BKTR_O_VSCALE_HI] &= ~0x20;
 		interlace = 1;
 		break;
 	 default:
-		bt848[0xdc] = 0x13;
+ 	        bktr->bktr_cap_ctl  = 0x13;
+		bt848[BKTR_CAP_CTL] = 0x13;
 		bt848[BKTR_E_VSCALE_HI] |= 0x20;
 		bt848[BKTR_O_VSCALE_HI] |= 0x20;
 		interlace = 2;
@@ -1439,6 +1449,16 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		*(unsigned long *)arg = temp & 0xff;
 		break;
 
+	case TVTUNER_SETFREQ:
+		temp = tv_freq( bktr, (int)*(unsigned long *)arg );
+		if ( temp < 0 ) return EIO;
+		*(unsigned long *)arg = temp;
+		break;
+
+	case TVTUNER_GETFREQ:
+		*(unsigned long *)arg = bktr->tuner.frequency;
+		break;
+
 	case METEORSTATUS:	/* get 7196 status */
 		c_temp = bt848[0];
 		temp = 0;
@@ -1571,7 +1591,7 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		break;
 
 	case METEORSBRIG:	/* set brightness */
-		bt848[BKTR_BRIGHT] =  *(u_char *)arg & 0xff; 
+		bt848[BKTR_BRIGHT] =  *(u_char *)arg & 0xff;
 		break;
 
 	case METEORGBRIG:	/* get brightness */
@@ -1579,39 +1599,21 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		break;
 
 	case METEORSCSAT:	/* set chroma saturation */
-#if defined( OLD_METEORSCSAT )
-		s_temp =  *(u_short *)arg ;
-		s_temp = s_temp << 1;
-
-		bt848[BKTR_SAT_U_LO] =	s_temp;
-		bt848[BKTR_SAT_V_LO] =	s_temp;
-		s_temp = s_temp >> 8;
-
-		bt848[BKTR_E_CONTROL] &= ~0x3;
-		bt848[BKTR_O_CONTROL] &= ~0x3;
-		bt848[BKTR_E_CONTROL] |= s_temp & 0x3;
-		bt848[BKTR_O_CONTROL] |= s_temp & 0x3;
-		break;
-#endif /* OLD_METEORSCSAT */
 		temp = (int)*(u_char *)arg;
 
 		bt848[BKTR_SAT_U_LO] = bt848[BKTR_SAT_V_LO] =
 			(temp << 1) & 0xff;
 
-		bt848[BKTR_E_CONTROL] &= ~0x3;		/* clear U/V MSBs */
-		bt848[BKTR_O_CONTROL] &= ~0x3;		/* clear U/V MSBs */
+		bt848[BKTR_E_CONTROL] &= ~0x3;	/* clear U/V MSBs */
+		bt848[BKTR_O_CONTROL] &= ~0x3;	/* clear U/V MSBs */
 
 		if ( temp & 0x80 ) {
-		    bt848[BKTR_E_CONTROL] |= 0x3;	/*  */
-		    bt848[BKTR_O_CONTROL] |= 0x3;
+			bt848[BKTR_E_CONTROL] |= 0x3;
+			bt848[BKTR_O_CONTROL] |= 0x3;
 		}
 		break;
 
 	case METEORGCSAT:	/* get chroma saturation */
-#if defined( OLD_METEORGCSAT )
-		*(u_short *)arg = (bt848[BKTR_E_CONTROL] << 8) &  0x10 | bt848[BKTR_SAT_U_LO];
-		break;
-#endif /* OLD_METEORGCSAT */
 		temp = (bt848[BKTR_SAT_V_LO] >> 1) & 0xff;
 		if ( bt848[BKTR_E_CONTROL] & 0x01 )
 			temp |= 0x80;
@@ -1629,13 +1631,120 @@ bktr_ioctl( dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr )
 		break;
 
 	case METEORGCONT:	/* get contrast */
-#if defined( OLD_METEORGCONT )
-		*(u_short *)arg = bt848[BKTR_CONTRAST_LO] | ((bt848[BKTR_O_CONTROL] & 4) << 2);
-		break;
-#endif /* OLD_METEORGCONT */
 		temp = (int)bt848[BKTR_CONTRAST_LO] & 0xff;
 		temp |= ((int)bt848[BKTR_O_CONTROL] & 0x04) << 6;
 		*(u_char *)arg = (u_char)((temp >> 1) & 0xff);
+		break;
+
+	/* hue is a 2's compliment number, -90' to +89.3' in 0.7' steps */
+	case BT848_SHUE:	/* set hue */
+		bt848[BKTR_HUE] = (u_char)(*(int*)arg & 0xff);
+		break;
+
+	case BT848_GHUE:	/* get hue */
+		*(int*)arg = bt848[BKTR_HUE] & 0xff;
+		break;
+
+	/* brightness is a 2's compliment #, -50 to +%49.6% in 0.39% steps */
+	case BT848_SBRIG:	/* set brightness */
+		bt848[BKTR_BRIGHT] = (u_char)(*(int *)arg & 0xff);
+		break;
+
+	case BT848_GBRIG:	/* get brightness */
+		*(int *)arg = bt848[BKTR_BRIGHT] & 0xff;
+		break;
+
+	/*  */
+	case BT848_SCSAT:	/* set chroma saturation */
+		tmp_int = *(int*)arg;
+
+		temp = bt848[BKTR_E_CONTROL] & 0xfc;
+		temp1 = bt848[BKTR_O_CONTROL] & 0xfc;
+		if ( tmp_int & 0x100 ) {
+			temp |= 0x03;
+			temp1 |= 0x03;
+		}
+
+		bt848[BKTR_SAT_U_LO] = (u_char)(tmp_int & 0xff);
+		bt848[BKTR_SAT_V_LO] = (u_char)(tmp_int & 0xff);
+		bt848[BKTR_E_CONTROL] = temp;
+		bt848[BKTR_O_CONTROL] = temp1;
+		break;
+
+	case BT848_GCSAT:	/* get chroma saturation */
+		tmp_int = (int)bt848[BKTR_SAT_V_LO] & 0xff;
+		if ( bt848[BKTR_E_CONTROL] & 0x01 )
+			tmp_int |= 0x0100;
+		*(int*)arg = tmp_int;
+		break;
+
+	/*  */
+	case BT848_SVSAT:	/* set chroma V saturation */
+		tmp_int = *(int*)arg;
+
+		temp = bt848[BKTR_E_CONTROL] & 0xfe;
+		temp1 = bt848[BKTR_O_CONTROL] & 0xfe;
+		if ( tmp_int & 0x100 ) {
+			temp |= 0x01;
+			temp1 |= 0x01;
+		}
+
+		bt848[BKTR_SAT_V_LO] = (u_char)(tmp_int & 0xff);
+		bt848[BKTR_E_CONTROL] = temp;
+		bt848[BKTR_O_CONTROL] = temp1;
+		break;
+
+	case BT848_GVSAT:	/* get chroma V saturation */
+		tmp_int = (int)bt848[BKTR_SAT_V_LO] & 0xff;
+		if ( bt848[BKTR_E_CONTROL] & 0x01 )
+			tmp_int |= 0x0100;
+		*(int*)arg = tmp_int;
+		break;
+
+	/*  */
+	case BT848_SUSAT:	/* set chroma U saturation */
+		tmp_int = *(int*)arg;
+
+		temp = bt848[BKTR_E_CONTROL] & 0xfd;
+		temp1 = bt848[BKTR_O_CONTROL] & 0xfd;
+		if ( tmp_int & 0x100 ) {
+			temp |= 0x02;
+			temp1 |= 0x02;
+		}
+
+		bt848[BKTR_SAT_U_LO] = (u_char)(tmp_int & 0xff);
+		bt848[BKTR_E_CONTROL] = temp;
+		bt848[BKTR_O_CONTROL] = temp1;
+		break;
+
+	case BT848_GUSAT:	/* get chroma U saturation */
+		tmp_int = (int)bt848[BKTR_SAT_U_LO] & 0xff;
+		if ( bt848[BKTR_E_CONTROL] & 0x02 )
+			tmp_int |= 0x0100;
+		*(int*)arg = tmp_int;
+		break;
+
+	/*  */
+	case BT848_SCONT:	/* set contrast */
+		tmp_int = *(int*)arg;
+
+		temp = bt848[BKTR_E_CONTROL] & 0xfb;
+		temp1 = bt848[BKTR_O_CONTROL] & 0xfb;
+		if ( tmp_int & 0x100 ) {
+			temp |= 0x04;
+			temp1 |= 0x04;
+		}
+
+		bt848[BKTR_CONTRAST_LO] = (u_char)(tmp_int & 0xff);
+		bt848[BKTR_E_CONTROL] = temp;
+		bt848[BKTR_O_CONTROL] = temp1;
+		break;
+
+	case BT848_GCONT:	/* get contrast */
+		tmp_int = (int)bt848[BKTR_CONTRAST_LO] & 0xff;
+		if ( bt848[BKTR_E_CONTROL] & 0x04 )
+			tmp_int |= 0x0100;
+		*(int*)arg = tmp_int;
 		break;
 
 	case METEORSSIGNAL:
@@ -1974,7 +2083,11 @@ bktr_mmap( dev_t dev, int offset, int nprot )
  * bit 1: RSB = 1		62.5kHz
  * bit 0: OS = 0		normal operation
  */
+#if defined( TEMIC_TUNER )
+#define TSA5522_CONTROL		0xce
+#else
 #define TSA5522_CONTROL		0x8e
+#endif
 
 #if defined( TEMIC_TUNER )
 
@@ -1995,7 +2108,13 @@ bktr_mmap( dev_t dev, int offset, int nprot )
 #endif /* XXXXXX_TUNER */
 
 /* scaling factor for frequencies expressed as ints */
+#define TEST_A
+
+#if defined( TEST_A )
+#define FREQFACTOR		16
+#else
 #define FREQFACTOR		100
+#endif
 
 
 /******************************* i2c primitives ******************************/
@@ -2143,7 +2262,7 @@ i2cAck( i2c_regptr_t bti2c )
  * read a byte from the I2C bus
  */
 static int
-i2cRead( i2c_regptr_t bti2c )
+i2cRead( i2c_regptr_t bti2c, int ack )
 {
 	int x;
 	int byte;
@@ -2159,7 +2278,8 @@ i2cRead( i2c_regptr_t bti2c )
 		DataHi_ClockLo( bti2c, SDELAY );	/* release clock */
 	}
 
-	i2cGrantAck( bti2c );			/* Grant ACK */
+	if ( ack )
+		i2cGrantAck( bti2c );			/* Grant ACK */
 
 	return byte;
 }
@@ -2212,12 +2332,18 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 	 * N = 16 * { fRF(pc) + fIF(pc) }
 	 * where:
 	 *  pc is picture carrier, fRF & fIF are in mHz
-	 *
+	 */
+#if defined( TEST_A )
+	/*
+	 * frequency is mHz * 16, eg. 55.25 mHz * 16 == 884
+	 */
+	N = (frequency + 732 /* 45.75 * 16 */);
+#else
+	/*
 	 * frequency is mHz to 2 decimal places, ie. 5525 == 55.25 mHz,
-	 *  dont want to do float in a driver!
 	 */
 	N = 16 * ((frequency + IF_FREQUENCY) / FREQFACTOR);
-
+#endif
 	/* get the i2c register address */
 	bti2c = I2C_REGADDR();
 
@@ -2241,6 +2367,8 @@ tv_freq( bktr_reg_t* bktr, int frequency )
 
 	i2cStop( bti2c );
 	enable_intr();
+
+	bktr->tuner.frequency = frequency;
 
 	return 0;
 }
@@ -2274,20 +2402,32 @@ frequency_nabcst( int channel )
 
 	/* channels 14 thru 83 */
 	if ( channel >= 14 )
+#if defined( TEST_A )
+		return 7540 + ((channel-14) * 96 );
+#else
 		return 47125 + ((channel-14) * 600 );
-
+#endif
 	/* channels 7 thru 13 */
 	if ( channel >= 7 )
+#if defined( TEST_A )
+		return 2804 + ((channel-7) * 96 );
+#else
 		return 17525 + ((channel-7) * 600 );
-
+#endif
 	/* channels 5 thru 6 */
 	if ( channel >= 5 )
+#if defined( TEST_A )
+		return 1236 + ((channel-5) * 96 );
+#else
 		return 7725 + ((channel-5) * 600 );
-
+#endif
 	/* channels 2 thru 4 */
 	if ( channel >= 2 )
+#if defined( TEST_A )
+		return 884 + ((channel-2) * 96 );
+#else
 		return 5525 + ((channel-2) * 600 );
-
+#endif
 	/* legal channels are 2 thru 83 */
 	return -1;
 }
@@ -2388,7 +2528,6 @@ tv_channel( bktr_reg_t* bktr, int channel )
 		return -1;
 
 	/* OK to update records */
-	bktr->tuner.frequency = frequency;
 	bktr->tuner.channel = channel;
 
 	return channel;
@@ -2411,7 +2550,7 @@ tuner_status( bktr_reg_t* bktr )
 	disable_intr();
 	i2cStart( bti2c, TSA5522_RADDR );
 
-	status = i2cRead( bti2c );
+	status = i2cRead( bti2c, 0 );	/* no ACK */
 
 	i2cStop( bti2c );
 	enable_intr();
