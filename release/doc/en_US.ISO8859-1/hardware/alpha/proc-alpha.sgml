@@ -1355,7 +1355,7 @@ cpu	EV4</programlisting>
       <para>Symbios 53C825[a] will also work as boot adapter. Diamond 
       FirePort, although based on Symbios chips, is not bootable by the 
       PC164SX SRM. PC164SX is reported to boot fine with Symbios825, 
-      Symbios875 and Symbios876 based cards. In addition, Adaptec 
+      Symbios875, Symbios895 and Symbios876 based cards. In addition, Adaptec 
       2940U and 2940UW are reported to work for booting (verified on 
       SRM V5.7-1). Adaptec 2930U2 and 2940U2[W] do not work.</para>
 
@@ -1364,6 +1364,17 @@ cpu	EV4</programlisting>
 
       <para>In summary: this family of machines is <quote>blessed</quote> with a 
       challenging compatibility as far as SCSI adapters go.</para>
+
+      <para>On 164SX you can have a maximum of 1 Gbyte of RAM. 4 regular
+      256MB PC133 ECC DIMMs are reported to work just fine. Whether 512MB
+      DIMMs will also work is currently unknown.</para>
+
+      <para>PCI bridge chips are sometimes not appreciated by the 164SX, 
+      they cause SRM errors and kernel panics in those cases. This seems
+      to depend on the fact if the card is recognised, and therefore
+      correctly initialised, by the SRM console. The 164SX' onboard 
+      IDE interface is quite slow, a Promise card gives a 3-4 times 
+      speed improvement.</para>
 
       <para>On PC164 the SRM sometimes seems to loose its variable settings. 
       <quote>For PC164, current superstition says that, to avoid losing settings,
