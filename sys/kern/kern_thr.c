@@ -130,6 +130,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 
 	/* Initialize our td. */
 	td0 = thread_alloc();
+	td0->td_tid = thread_new_tid();
 
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't have to
