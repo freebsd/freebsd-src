@@ -40,7 +40,6 @@
 #include <stand.h>
 
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 
 #include <machine/stdarg.h>
 #include <machine/prom.h>

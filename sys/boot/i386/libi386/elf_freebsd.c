@@ -28,7 +28,6 @@
 
 #include <sys/param.h>
 #include <sys/exec.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
 #include <string.h>
 #include <machine/bootinfo.h>

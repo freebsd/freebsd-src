@@ -28,7 +28,6 @@
 
 #include <stand.h>
 #include <string.h>
-#include <sys/reboot.h>
 
 #include "bootstrap.h"
 

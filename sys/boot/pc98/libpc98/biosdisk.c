@@ -39,9 +39,8 @@
 #include <stand.h>
 
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/diskpc98.h>
-#include <sys/reboot.h>
+#include <machine/bootinfo.h>
 
 #include <stdarg.h>
 

@@ -33,7 +33,6 @@
 
 #include "boot.h"
 #include <sys/dirent.h>
-#include <sys/reboot.h>
 
 #if 0
 /* #define BUFSIZE 4096 */

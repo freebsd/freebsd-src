@@ -29,7 +29,6 @@
 #include <stand.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/reboot.h>
 #include <sys/linker.h>
 #include <machine/elf.h>
 #include <machine/prom.h>
