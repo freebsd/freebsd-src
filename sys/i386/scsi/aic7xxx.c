@@ -2946,6 +2946,7 @@ ahc_search_qinfo(ahc, target, channel, tag, flags, xs_error, requeue)
 	struct	 scb *scbp;
 	STAILQ_HEAD(, scb) removed_scbs;
 
+	found = 0;
 	for (i = 0; i < (queued - found); i++) {
 		saved_queue[i] = ahc_inb(ahc, QINFIFO);
 		scbp = ahc->scb_data->scbarray[saved_queue[i]];
