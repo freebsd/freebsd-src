@@ -29,9 +29,11 @@
  * not protected against the fact that the bits can be wrong in two
  * directions.  If we only cared about monosity two reads would be enough.
  *
- * $FreeBSD$
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* #include "opt_bus.h" */
 
