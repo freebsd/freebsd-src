@@ -831,7 +831,7 @@ ncprange_ntoa(const struct ncprange *range)
         if (strcmp(res + len - 2, ".0"))
           break;
       snprintf(res + len, sizeof res - len, "&0x%08lx",
-               ntohl(range->ncprange_ip4mask.s_addr));
+               (unsigned long)ntohl(range->ncprange_ip4mask.s_addr));
     } else if (range->ncprange_ip4width < 32)
       snprintf(res + len, sizeof res - len, "/%d", range->ncprange_ip4width);
 
