@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: stlload.c,v 1.7 1997/10/20 12:51:29 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -426,11 +426,9 @@ int download()
 void main(int argc, char *argv[])
 {
 	struct stat	statinfo;
-	int		optind, c;
+	int		c;
 
-	optind = 0;
-
-	while ((c = getopt(argc, argv, "hvVRB:i:b:d:t:r:")) != -1) {
+	while ((c = getopt(argc, argv, "hvVRB:i:b:c:t:r:")) != -1) {
 		switch (c) {
 		case 'V':
 			printf("stlload version %s\n", version);
@@ -454,7 +452,7 @@ void main(int argc, char *argv[])
 		case 'b':
 			brdnr = atoi(optarg);
 			break;
-		case 'd':
+		case 'c':
 			memdevice = optarg;
 			break;
 		case 't':
