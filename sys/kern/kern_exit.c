@@ -778,6 +778,6 @@ rm_at_exit(function)
 			free(ep, M_ATEXIT);
 			return (1);
 		}
-	}	
+	}
 	return (0);
 }
