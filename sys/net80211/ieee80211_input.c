@@ -85,17 +85,26 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 	struct ether_header *eh;
 	struct mbuf *m1;
 	int len;
-	u_int8_t dir, subtype;
+	u_int8_t dir, type, subtype;
 	u_int8_t *bssid;
 	u_int16_t rxseq;
 
 	KASSERT(ni != NULL, ("null node"));
 
-	/* trim CRC here for WEP can find its own CRC at the end of packet. */
+	/* trim CRC here so WEP can find its own CRC at the end of packet. */
 	if (m->m_flags & M_HASFCS) {
 		m_adj(m, -IEEE80211_CRC_LEN);
 		m->m_flags &= ~M_HASFCS;
 	}
+	KASSERT(m->m_pkthdr.len >= sizeof(struct ieee80211_frame_min),
+		("frame length too short: %u", m->m_pkthdr.len));
+
+	/*
+	 * In monitor mode, send everything directly to bpf.
+	 * XXX may want to include the CRC
+	 */
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		goto out;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
@@ -108,7 +117,16 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 	}
 
 	dir = wh->i_fc[1] & IEEE80211_FC1_DIR_MASK;
-
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	/*
+	 * NB: We are not yet prepared to handle control frames,
+	 *     but permitting drivers to send them to us allows
+	 *     them to go through bpf tapping at the 802.11 layer.
+	 */
+	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame)) {
+		/* XXX statistic */
+		goto out;		/* XXX */
+	}
 	if (ic->ic_state != IEEE80211_S_SCAN) {
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
@@ -136,7 +154,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 			}
 			break;
 		case IEEE80211_M_MONITOR:
-			/* NB: this should collect everything */
 			goto out;
 		default:
 			/* XXX catch bad values */
@@ -156,7 +173,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 		ni->ni_inact = 0;
 	}
 
-	switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
+	switch (type) {
 	case IEEE80211_FC0_TYPE_DATA:
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
@@ -316,8 +333,9 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 		return;
 
 	case IEEE80211_FC0_TYPE_CTL:
+		goto out;
 	default:
-		IEEE80211_DPRINTF(("%s: bad type %x\n", __func__, wh->i_fc[0]));
+		IEEE80211_DPRINTF(("%s: bad type %x\n", __func__, type));
 		/* should not come here */
 		break;
 	}
