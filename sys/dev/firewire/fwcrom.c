@@ -434,7 +434,7 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 	tl->spec_type = 0;
 	tl->lang_id = 0;
 	p = (u_int32_t *) buf;
-	for (i = 0; i < howmany(len, sizeof(u_int32_t)) / 4; i ++)
+	for (i = 0; i < howmany(len, sizeof(u_int32_t)); i ++)
 		tl->text[i] = ntohl(*p++);
 	return (crom_add_chunk(src, parent, chunk, CROM_TEXTLEAF));
 }
@@ -456,8 +456,9 @@ crom_load(struct crom_src *src, u_int32_t *buf, int maxlen)
 {
 	struct crom_chunk *chunk, *parent;
 	struct csrhdr *hdr;
-#if 0
+#ifdef _KERNEL
 	u_int32_t *ptr;
+	int i;
 #endif
 	int count, offset;
 	int len;
@@ -494,9 +495,9 @@ crom_load(struct crom_src *src, u_int32_t *buf, int maxlen)
 	}
 	hdr = (struct csrhdr *)buf;
 	hdr->crc_len = count - 1;
-	hdr->crc = crom_crc(buf + 1, hdr->crc_len);
+	hdr->crc = crom_crc(&buf[1], hdr->crc_len);
 
-#if 0
+#ifdef _KERNEL
 	/* byte swap */
 	ptr = buf;
 	for (i = 0; i < count; i ++) {
