@@ -6,8 +6,8 @@
 #
 
 # FreeBSD Mailing lists aliases
-# alias freebsd-bugs freebsd-bugs@freebsd.org
-# alias freebsd-questions freebsd-questions@freebsd.org
+# alias freebsd-bugs freebsd-bugs@FreeBSD.org
+# alias freebsd-questions freebsd-questions@FreeBSD.org
 
 # an alias for your good friends
 # alias bicycle  christoph gerhardt velophil zentralrad
