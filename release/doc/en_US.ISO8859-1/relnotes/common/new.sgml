@@ -593,7 +593,10 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
-      updated from 2.6.2 to 2.10.
+      updated from 2.6.2 to 2.10.  More information about
+      running <application>GNOME</application> on &os; can be found on
+      the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
+      Web page.
 
       <note>
 	<para>Users of older versions of the
@@ -610,15 +613,24 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
 	  script to properly upgrade to
 	  <application>GNOME</application> 2.10.</para>
-
-	<para>For casual users of the various
-	  <application>GNOME</application> libraries,
-	  &man.portupgrade.1; should be sufficient.</para> </note>
+	</note>
       </para>
 
     <para>The supported version of the <application>KDE</application>
       desktop environment has been updated from 3.3.0 to
-      3.3.2.</para>
+      3.4.0.  More information regarding running
+      <application>KDE</application> on &os; can be found on the
+      <ulink url="http://freebsd.kde.org/">KDE on FreeBSD</ulink> Web
+      page.
+
+      <note>
+	<para>Users of older versions of
+	  <application>KDE</application> should follow the upgrading
+	  procedure documented on the 
+	  <ulink url="http://freebsd.kde.org/">KDE on FreeBSD</ulink> Web
+	  page or in <filename>ports/UPDATING</filename>.</para>
+	</note>
+      </para>
 
     <para>The supported version of <application>Xorg</application> has
       been updated from 6.7.0 to 6.8.2.</para>
