@@ -1,7 +1,7 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/24/93
 
 PROG=	tcpslice
-CFLAGS+=-Wall
+CFLAGS+=-Wall -I.
 MAN1=	tcpslice.1
 SRCS=	version.c tcpslice.c gwtm2secs.c search.c util.c
 CLEANFILES+=	version.c version.h
