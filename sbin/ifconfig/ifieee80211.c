@@ -750,6 +750,8 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 				printie(" WPA", vp, 2+vp[1], maxcols);
 			else if (iswmeoui(vp))
 				printie(" WME", vp, 2+vp[1], maxcols);
+			else if (isatherosoui(vp))
+				printie(" ATH", vp, 2+vp[1], maxcols);
 			else
 				printie(" VEN", vp, 2+vp[1], maxcols);
 			break;
