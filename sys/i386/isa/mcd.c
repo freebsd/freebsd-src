@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.60 1996/01/30 10:31:06 ache Exp $
+ *	$Id: mcd.c,v 1.61 1996/01/30 12:07:06 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1431,14 +1431,13 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 	struct mcd_data *cd = mcd_data + unit;
 	struct cd_toc_entry entries[MCD_MAXTOCS];
 	struct ioc_toc_header th;
-	int rc, n, trk, len = te->data_len;
+	int rc, n, trk, len;
 
-	if (   len < sizeof(entries[0])
-	    || (len % sizeof(entries[0])) != 0
+	if (   te->data_len < sizeof(entries[0])
+	    || (te->data_len % sizeof(entries[0])) != 0
+	    || te->address_format != CD_MSF_FORMAT
+	    && te->address_format != CD_LBA_FORMAT
 	   )
-		return EINVAL;
-	if (te->address_format != CD_MSF_FORMAT &&
-	    te->address_format != CD_LBA_FORMAT)
 		return EINVAL;
 
 	/* Copy the toc header */
@@ -1452,6 +1451,13 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 	else if (trk == MCD_LASTPLUS1)
 		trk = th.ending_track + 1;
 	else if (trk < th.starting_track || trk > th.ending_track + 1)
+		return EINVAL;
+
+	len = ((th.ending_track + 1 - trk) + 1) *
+		sizeof(entries[0]);
+	if (te->data_len < len)
+		len = te->data_len;
+	if (len > sizeof(entries))
 		return EINVAL;
 
 	/* Make sure we have a valid toc */
