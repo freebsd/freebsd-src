@@ -1220,7 +1220,7 @@ bdginit(void)
 
     bdgtakeifaces_ptr();		/* XXX does this do anything? */
 
-    callout_init(&bdg_callout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+    callout_init(&bdg_callout, NET_CALLOUT_MPSAFE);
     bdg_timeout(0);
     return 0 ;
 }
