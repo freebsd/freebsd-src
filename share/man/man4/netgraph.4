@@ -143,6 +143,10 @@ A hook can be set into a state where incoming packets are always queued
 by the input queuing system, rather than being delivered directly. This
 is used when the two joined nodes need to be decoupled, e.g. if they are
 running at different processor priority levels. (spl)
+.It
+A hook may supply over-riding receive data and receive message functions
+which should be used for data and messages received through that hook
+in preference to the general node-wide methods.
 .El
 .Pp
 A node may decide to assign special meaning to some hooks. 
@@ -341,21 +345,27 @@ may effect a total shutdown for the node.
 .It Shutdown of a node
 This method allows a node to clean up
 and to ensure that any actions that need to be performed
-at this time are taken. The method must call the generic (i.e., superclass)
-node destructor to get rid of the generic components of the node.
+at this time are taken. The method is called by the generic (i.e., superclass)
+node destructor which will get rid of the generic components of the node.
 Some nodes (usually associated with a piece of hardware) may be
 .Em persistent
 in that a shutdown breaks all edges and resets the node,
-but doesn't remove it, in which case the generic destructor is not called.
+but doesn't remove it. In this case the shutdown method should not
+free it's resources, but rather, clean up and then clear the
+.Em NG_INVALID
+flag to signal the generic code that the shutdown is aborted. In
+the case where the shutdown is started by the node itself due to hardware
+removal or unloading, (via ng_rmnode_self()) it should set the
+.Em NG_REALLY_DIE
+flag to signal to it's own shutdown method that it is not to persist.
 .El
 .Sh Sending and Receiving Data
 Two other methods are also supported by all nodes:
 .Bl -tag -width xxx
 .It Receive data message
 A
-.Em Netgraph queueable reqest item
-(usually refered to as an 
-.Em item
+.Em Netgraph queueable reqest item ,usually refered to as an 
+.Em item ,
 is recieved by the function.
 The item contains a pointer to an mbuf and metadata about the packet.
 .Pp
@@ -427,6 +437,13 @@ presently used in frame-relay to indicate that management packets
 should be queued for transmission
 at a higher priority than data packets. This is required for
 conformance with Frame Relay standards.
+.Pp
+The node may elect to nominate a different receive data function
+for data received on a particular hook, to simplify coding. It uses
+the 
+.Fn NG_HOOK_SET_RCVDATA "hook, fn"
+macro to do this. The function receives the same arguments in every way
+other than it will receive all (and only) packets from that hook.
 .It Receive control message
 This method is called when a control message is addressed to the node.
 As with the received data, an
@@ -470,6 +487,13 @@ If the message was delivered via a specific hook, that hook will
 also be made known, which allows the use of such things as flow-control
 messages, and status change messages, where the node may want to forward
 the message out another hook to that on which it arrived.
+.Pp
+The node may elect to nominate a different receive message function
+for messages received on a particular hook, to simplify coding. It uses
+the 
+.Fn NG_HOOK_SET_RCVMSG "hook, fn"
+macro to do this. The function receives the same arguments in every way
+other than it will receive all (and only) messages from that hook.
 .El
 .Pp
 Much use has been made of reference counts, so that nodes being
@@ -732,6 +756,18 @@ and
 increment and decrement the hook reference count accordingly.
 After decrement you should always assume the hook has been freed
 unless you have another reference still valid.
+.Pp
+.It
+Over-ride receive functions.
+.Pp
+The
+.Fn NG_HOOK_SET_RCVDATA "hook, fn"
+and
+.Fn NG_HOOK_SET_RCVMSG "hook, fn"
+macros can be used to set over-ride methods that will be used in preference
+to the generic receive data and reveive message functions. To unset these
+use the macros to set them to NULL. They will only be used for data and
+messages received on the hook on which they are set.
 .El
 .Pp
 The maintenance of the names, reference counts, and linked list
