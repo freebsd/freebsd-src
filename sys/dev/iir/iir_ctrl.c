@@ -47,7 +47,7 @@
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <sys/disklabel.h>
+#include <sys/ioccom.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
