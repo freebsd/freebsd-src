@@ -257,7 +257,7 @@ int vfs_badlock_panic = 1;
 int vfs_badlock_mutex = 1;
 
 static void
-vfs_badlock(char *msg, char *str, struct vnode *vp)
+vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 {
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, vp, msg);
@@ -266,28 +266,28 @@ vfs_badlock(char *msg, char *str, struct vnode *vp)
 }
 
 void
-assert_vi_unlocked(struct vnode *vp, char *str)
+assert_vi_unlocked(struct vnode *vp, const char *str)
 { 
 	if (vfs_badlock_mutex && mtx_owned(VI_MTX(vp)))
 		vfs_badlock("interlock is locked but should not be", str, vp);
 }
 
 void
-assert_vi_locked(struct vnode *vp, char *str)
+assert_vi_locked(struct vnode *vp, const char *str)
 {
 	if (vfs_badlock_mutex && !mtx_owned(VI_MTX(vp)))
 		vfs_badlock("interlock is not locked but should be", str, vp);
 }
 
 void
-assert_vop_locked(struct vnode *vp, char *str)
+assert_vop_locked(struct vnode *vp, const char *str)
 {
 	if (vp && !IGNORE_LOCK(vp) && !VOP_ISLOCKED(vp, NULL))
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
 void
-assert_vop_unlocked(struct vnode *vp, char *str)
+assert_vop_unlocked(struct vnode *vp, const char *str)
 {
 	if (vp && !IGNORE_LOCK(vp) &&
 	    VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE)
@@ -295,7 +295,7 @@ assert_vop_unlocked(struct vnode *vp, char *str)
 }
 
 void
-assert_vop_elocked(struct vnode *vp, char *str)
+assert_vop_elocked(struct vnode *vp, const char *str)
 {
 	if (vp && !IGNORE_LOCK(vp) &&
 	    VOP_ISLOCKED(vp, curthread) != LK_EXCLUSIVE)
@@ -303,7 +303,7 @@ assert_vop_elocked(struct vnode *vp, char *str)
 }
 
 void
-assert_vop_elocked_other(struct vnode *vp, char *str)
+assert_vop_elocked_other(struct vnode *vp, const char *str)
 {
 	if (vp && !IGNORE_LOCK(vp) &&
 	    VOP_ISLOCKED(vp, curthread) != LK_EXCLOTHER)
@@ -312,7 +312,7 @@ assert_vop_elocked_other(struct vnode *vp, char *str)
 }
 
 void
-assert_vop_slocked(struct vnode *vp, char *str)
+assert_vop_slocked(struct vnode *vp, const char *str)
 {
 	if (vp && !IGNORE_LOCK(vp) &&
 	    VOP_ISLOCKED(vp, curthread) != LK_SHARED)
