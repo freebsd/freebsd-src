@@ -95,10 +95,10 @@
 /* 
  * Wrappers for bus-space actions
  */
-#define TWE_CONTROL(sc, val)		bus_space_write_4(sc->twe_btag, sc->twe_bhandle, 0x0, (u_int32_t)val)
-#define TWE_STATUS(sc)			(u_int32_t)bus_space_read_4(sc->twe_btag, sc->twe_bhandle, 0x4)
-#define TWE_COMMAND_QUEUE(sc, val)	bus_space_write_4(sc->twe_btag, sc->twe_bhandle, 0x8, (u_int32_t)val)
-#define TWE_RESPONSE_QUEUE(sc)		(TWE_Response_Queue)bus_space_read_4(sc->twe_btag, sc->twe_bhandle, 0xc)
+#define TWE_CONTROL(sc, val)		bus_space_write_4((sc)->twe_btag, (sc)->twe_bhandle, 0x0, (u_int32_t)val)
+#define TWE_STATUS(sc)			(u_int32_t)bus_space_read_4((sc)->twe_btag, (sc)->twe_bhandle, 0x4)
+#define TWE_COMMAND_QUEUE(sc, val)	bus_space_write_4((sc)->twe_btag, (sc)->twe_bhandle, 0x8, (u_int32_t)val)
+#define TWE_RESPONSE_QUEUE(sc)		(TWE_Response_Queue)bus_space_read_4((sc)->twe_btag, (sc)->twe_bhandle, 0xc)
 
 /*
  * FreeBSD-specific softc elements

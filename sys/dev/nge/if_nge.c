@@ -238,10 +238,10 @@ DRIVER_MODULE(miibus, nge, miibus_driver, miibus_devclass, 0, 0);
 		CSR_READ_4(sc, reg) & ~(x))
 
 #define SIO_SET(x)					\
-	CSR_WRITE_4(sc, NGE_MEAR, CSR_READ_4(sc, NGE_MEAR) | x)
+	CSR_WRITE_4(sc, NGE_MEAR, CSR_READ_4(sc, NGE_MEAR) | (x))
 
 #define SIO_CLR(x)					\
-	CSR_WRITE_4(sc, NGE_MEAR, CSR_READ_4(sc, NGE_MEAR) & ~x)
+	CSR_WRITE_4(sc, NGE_MEAR, CSR_READ_4(sc, NGE_MEAR) & ~(x))
 
 static void
 nge_delay(sc)

@@ -53,22 +53,24 @@ struct mtx { int filler; };
 
 /* CSR_WRITE_8 assumes the register is in low/high order */
 #define CSR_WRITE_8(gx, reg, val) do { \
-	bus_space_write_4(gx->gx_btag, gx->gx_bhandle, reg, val & 0xffffffff); \
-	bus_space_write_4(gx->gx_btag, gx->gx_bhandle, reg + 4, val >> 32); \
+	bus_space_write_4((gx)->gx_btag, (gx)->gx_bhandle, \
+	    reg, (val) & 0xffffffff); \
+	bus_space_write_4((gx)->gx_btag, (gx)->gx_bhandle, \
+	    (reg) + 4, (val) >> 32); \
 } while (0)
 #define CSR_WRITE_4(gx, reg, val) \
-	bus_space_write_4(gx->gx_btag, gx->gx_bhandle, reg, val)
+	bus_space_write_4((gx)->gx_btag, (gx)->gx_bhandle, reg, val)
 #define CSR_WRITE_2(gx, reg, val) \
-	bus_space_write_2(gx->gx_btag, gx->gx_bhandle, reg, val)
+	bus_space_write_2((gx)->gx_btag, (gx)->gx_bhandle, reg, val)
 #define CSR_WRITE_1(gx, reg, val) \
-	bus_space_write_1(gx->gx_btag, gx->gx_bhandle, reg, val)
+	bus_space_write_1((gx)->gx_btag, (gx)->gx_bhandle, reg, val)
 
 #define CSR_READ_4(gx, reg) \
-	bus_space_read_4(gx->gx_btag, gx->gx_bhandle, reg)
+	bus_space_read_4((gx)->gx_btag, (gx)->gx_bhandle, reg)
 #define CSR_READ_2(gx, reg) \
-	bus_space_read_2(gx->gx_btag, gx->gx_bhandle, reg)
+	bus_space_read_2((gx)->gx_btag, (gx)->gx_bhandle, reg)
 #define CSR_READ_1(gx, reg) \
-	bus_space_read_1(gx->gx_btag, gx->gx_bhandle, reg)
+	bus_space_read_1((gx)->gx_btag, (gx)->gx_bhandle, reg)
 
 #define GX_SETBIT(gx, reg, x) \
 	CSR_WRITE_4(gx, reg, (CSR_READ_4(gx, reg) | (x)))

@@ -1635,9 +1635,9 @@ struct scfg {
 
 static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 #define	SAFT_BAIL(r, x, k, l)	\
-	if (r >= x) { \
+	if ((r) >= (x)) { \
 		SES_LOG(ssc, safte_2little, x, __LINE__);\
-		SES_FREE(k, l); \
+		SES_FREE((k), (l)); \
 		return (EIO); \
 	}
 

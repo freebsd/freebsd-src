@@ -563,7 +563,7 @@ sosend(so, addr, uio, top, control, flags, td)
 		td->td_proc->p_stats->p_ru.ru_msgsnd++;
 	if (control)
 		clen = control->m_len;
-#define	snderr(errno)	{ error = errno; splx(s); goto release; }
+#define	snderr(errno)	{ error = (errno); splx(s); goto release; }
 
 restart:
 	error = sblock(&so->so_snd, SBLOCKWAIT(flags));
