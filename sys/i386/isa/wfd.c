@@ -124,9 +124,6 @@ struct cappage {
     u_char          reserved30[2];
 };
 
-/* misuse a flag to identify format operation */
-#define B_FORMAT B_XXX
-
 struct wfd {
 	struct atapi *ata;              /* Controller structure */
 	int unit;                       /* IDE bus drive unit */
