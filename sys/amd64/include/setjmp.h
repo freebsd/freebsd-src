@@ -37,7 +37,7 @@
 
 #include <sys/cdefs.h>
 
-#define	_JBLEN	22		/* Size of the jmp_buf on x86. */
+#define	_JBLEN	12		/* Size of the jmp_buf on AMD64. */
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
@@ -45,9 +45,9 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef	struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef	struct _sigjmp_buf { long _sjb[_JBLEN]; } sigjmp_buf[1];
 #endif
 
-typedef	struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef	struct _jmp_buf { long _jb[_JBLEN]; } jmp_buf[1];
 
 #endif /* !_MACHINE_SETJMP_H_ */
