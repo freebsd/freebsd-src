@@ -1,0 +1,33 @@
+$Id: nslookup.help,v 4.9.1.3 1993/12/06 00:43:17 vixie Exp $
+
+Commands: 	(identifiers are shown in uppercase, [] means optional)
+NAME		- print info about the host/domain NAME using default server
+NAME1 NAME2	- as above, but use NAME2 as server
+help or ?	- print info on common commands; see nslookup(1) for details
+set OPTION	- set an option
+    all		- print options, current server and host
+    [no]debug	- print debugging information
+    [no]d2	- print exhaustive debugging information
+    [no]defname	- append domain name to each query 
+    [no]recurse	- ask for recursive answer to query
+    [no]vc	- always use a virtual circuit
+    domain=NAME	- set default domain name to NAME
+    srchlist=N1[/N2/.../N6] - set domain to N1 and search list to N1,N2, etc.
+    root=NAME	- set root server to NAME
+    retry=X	- set number of retries to X
+    timeout=X	- set initial time-out interval to X seconds
+    querytype=X	- set query type, e.g., A,ANY,CNAME,HINFO,MX,NS,PTR,SOA,TXT,WKS
+    type=X	- synonym for querytype
+    class=X	- set query class to one of IN (Internet), CHAOS, HESIOD or ANY
+server NAME	- set default server to NAME, using current default server
+lserver NAME	- set default server to NAME, using initial server
+finger [USER]	- finger the optional NAME at the current default host
+root		- set current default server to the root
+ls [opt] DOMAIN [> FILE] - list addresses in DOMAIN (optional: output to FILE)
+    -a 		-  list canonical names and aliases
+    -h 		-  list HINFO (CPU type and operating system)
+    -s 		-  list well-known services
+    -d 		-  list all records
+    -t TYPE 	-  list records of the given type (e.g., A,CNAME,MX, etc.)
+view FILE	- sort an 'ls' output file and view it with more
+exit		- exit the program, ^D also exits
