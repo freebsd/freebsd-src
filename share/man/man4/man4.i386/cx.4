@@ -77,16 +77,6 @@ has channels 0, 8, 12, 13, 14, 15.
 The channels which have the RS-232 interface can be used
 both in synchronous and asynchronous modes (software selectable
 by cxconfig utility) and hence are called ``universal'' channels.
-.Pp
-The special device files,
-.Pa /dev/* ,
-for the adapter Cronyx-Sigma
-are created by th
-.Xr MAKEDEV 8
-An example:
-.Bd -literal
-cd /dev
-sh MAKEDEV cronyx ttyx0 ttyx1 ttyy0
 .Ed
 .Sh "Asynchronous driver"
 The asynchronous channel device files have the names:
