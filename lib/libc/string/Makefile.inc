@@ -26,14 +26,16 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 .endif
 
 MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \
-	memcmp.3 memcpy.3 memmove.3 memset.3 rindex.3 strcasecmp.3 strcat.3 \
+	memcmp.3 memcpy.3 memmove.3 memset.3 strcasecmp.3 strcat.3 \
 	strchr.3 strcmp.3 strcoll.3 strcpy.3 strcspn.3 strdup.3 strerror.3 \
-	string.3 strlcpy.3 strlen.3 strmode.3 strpbrk.3 strrchr.3 strsep.3 \
+	string.3 strlcpy.3 strlen.3 strmode.3 strpbrk.3 strsep.3 \
 	strspn.3 strstr.3 strtok.3 strxfrm.3 swab.3 wcscoll.3 wcstok.3 \
 	wcswidth.3 wcsxfrm.3 wmemchr.3
 
+MLINKS+=index.3 rindex.3
 MLINKS+=strcasecmp.3 strncasecmp.3
 MLINKS+=strcat.3 strncat.3
+MLINKS+=strchr.3 strrchr.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 stpcpy.3
 MLINKS+=strcpy.3 strncpy.3
