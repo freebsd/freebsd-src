@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: clean,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+#	$Id: clean,v 1.2 1998/09/03 10:40:27 abial Exp $
 #
 set -e
 
@@ -21,6 +21,7 @@ fi
 rm -f kernel kernel.kz fs.PICOBSD picobsd.bin *.o *core *.db
 rm -f picobsd.bin
 cd ..
+rm -f custom
 for j in $list
 do
 	echo "===================== $0 $j started ======================"

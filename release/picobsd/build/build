@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.2 1998/09/03 10:40:27 abial Exp $
+#	$Id: build,v 1.3 1998/09/04 08:08:05 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
@@ -61,6 +61,10 @@ if [ "${TYPE}" = "router" ]
 then
 	suffix="-R"
 fi
+if [ "${TYPE}" = "custom" ]
+then
+	suffix="-C"
+fi
 
 clear
 echo "-> Building with following parameters:"
@@ -104,6 +108,26 @@ do
 	echo "==================== ${i} completed ====================="
 	fi
 done
+}
+
+# Ask for, and set the custom config directory
+
+set_custom() {
+	clear
+	echo "                   Custom directory setup"
+	echo ""
+	echo "Please enter the full path to the directory containing your"
+	echo "custom setup."
+	echo "This directory tree must be laid out exactly like the standard"
+	echo "ones. (E.g. you can type in /home/abial/work/custom, which"
+	echo "should contain conf/, crunch1/, floppy.tree/, lang/, mfs.tree/)."
+	echo ""
+	read -p "Enter the custom directory: " CUST_DIR
+	if [ "X${CUST_DIR}" = "X" ]
+	then
+		echo "-> Error. Custom directory cannot be null!"
+		exit 1
+	fi
 }
 
 # Set the LANGUAGE variable
@@ -158,6 +182,9 @@ set_dflt_size() {
 	elif [ "X${TYPE}" = "Xisp" ]
 	then
 		SIZE=$ISP_DFLT_SIZE
+	elif [ "X${TYPE}" = "Xcustom" ]
+	then
+		SIZE=$DIAL_DFLT_SIZE
 	else
 		echo "Unknown type of setup: \"${TYPE}\". Aborting..."
 		exit 10
@@ -205,7 +232,13 @@ set_type() {
 	echo " and ../isp respectively - the contents of the floppy is constructed"
 	echo " basing on the Makefiles and scripts in them."
 	echo ""
-	echo " E.g. if you define TYPE=dial, you'll end up having a floppy which is"
+	echo " You can also type in 'custom', and you'll be asked to enter the"
+	echo " full path to directory tree, where you stored your custom"
+	echo " configuration, laid out exactly like the standard ones. (E.g."
+	echo " you can type in /home/abial/work/custom, which should contain"
+	echo " conf/, crunch1/, floppy.tree/, lang/, mfs.tree/)."
+	echo ""
+	echo " If you define TYPE=dial, you'll end up having a floppy which is"
 	echo " suitable for dialup access and not much else. If you define TYPE=net,"
 	echo " you'll have a small router-fixit-like floppy, which lacks most"
 	echo " interactive tools. TYPE=isp gives you a dialin server floppy."
@@ -218,6 +251,11 @@ set_type() {
 	if [ "X${TYPE}" = "Xrouter" ]
 	then
 		INIT=oinit
+	fi
+	if [ "X${TYPE}" = "Xcustom" ]
+	then
+		set_custom
+		(cd ..; ln -sf ${CUST_DIR} custom)
 	fi
 	if [ "X${TYPE}" = "Xdial" -a "X${INIT}" = "X" ]
 	then
