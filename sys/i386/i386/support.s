@@ -1584,6 +1584,7 @@ ENTRY(lgdt)
 	movl	(%esp),%eax
 	pushl	%eax
 	movl	$KCSEL,4(%esp)
+	MEXITCOUNT
 	lret
 
 /* ssdtosd(*ssdp,*sdp) */
