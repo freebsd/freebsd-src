@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)slave.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: slave.c,v 1.3 1997/10/22 06:19:48 charnier Exp $";
+	"$Id: slave.c,v 1.4 1997/10/29 07:32:29 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"
@@ -49,7 +49,7 @@ extern int justquit;
 
 extern u_short sequence;
 
-static char master_name[MAXHOSTNAMELEN+1];
+static char master_name[MAXHOSTNAMELEN];
 static struct netinfo *old_slavenet;
 static int old_status;
 
