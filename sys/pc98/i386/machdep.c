@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.105.2.4 1999/04/14 04:55:24 jdp Exp $
+ *	$Id: machdep.c,v 1.105.2.5 1999/04/18 14:58:01 kato Exp $
  */
 
 #include "apm.h"
@@ -444,6 +444,8 @@ again:
 	 */
 	SLIST_INIT(&callfree);
 	for (i = 0; i < ncallout; i++) {
+		callout_init(&callout[i]);
+		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
 		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
 	}
 
