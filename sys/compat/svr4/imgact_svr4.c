@@ -233,5 +233,5 @@ exec_svr4_imgact(imgp)
  * correct directive to use.  Do not staticize; used by Linux LKM.
  */
 const struct execsw svr4_execsw = { exec_svr4_imgact, "svr4 ELF" };
-TEXT_SET(execsw_set, svr4_execsw);
+EXEC_SET(execsw_set, svr4_execsw);
 
