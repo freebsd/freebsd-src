@@ -57,7 +57,32 @@ ACPI_SERIAL_DECL(pci_link, "ACPI PCI link");
  * An ACPI PCI link device may contain multiple links.  Each link has its
  * own ACPI resource.  _PRT entries specify which link is being used via
  * the Source Index.
+ *
+ * XXX: A note about Source Indices and DPFs:  Currently we assume that
+ * the DPF start and end tags are not counted towards the index that
+ * Source Index corresponds to.  Also, we assume that when DPFs are in use
+ * they various sets overlap in terms of Indices.  Here's an example
+ * resource list indicating these assumptions:
+ *
+ * Resource		Index
+ * --------		-----
+ * I/O Port		0
+ * Start DPF		-
+ * IRQ			1
+ * MemIO		2
+ * Start DPF		-
+ * IRQ			1
+ * MemIO		2
+ * End DPF		-
+ * DMA Channel		3
+ *
+ * The XXX is because I'm not sure if this is a valid assumption to make.
  */
+
+/* States during DPF processing. */
+#define	DPF_OUTSIDE	0
+#define	DPF_FIRST	1
+#define	DPF_IGNORE	2
 
 struct link;
 
@@ -80,9 +105,16 @@ struct link {
 	ACPI_RESOURCE l_prs_template;
 };
 
+struct link_count_request {
+	int	in_dpf;
+	int	count;
+};
+
 struct link_res_request {
 	struct acpi_pci_link_softc *sc;
-	int	count;
+	int	in_dpf;
+	int	res_index;
+	int	link_index;
 };
 
 MALLOC_DEFINE(M_PCI_LINK, "PCI Link", "ACPI PCI Link structures");
@@ -133,13 +165,36 @@ acpi_pci_link_probe(device_t dev)
 static ACPI_STATUS
 acpi_count_irq_resources(ACPI_RESOURCE *res, void *context)
 {
-	int *count;
+	struct link_count_request *req;
 
-	count = (int *)context;
+	req = (struct link_count_request *)context;
 	switch (res->Id) {
+	case ACPI_RSTYPE_START_DPF:
+		switch (req->in_dpf) {
+		case DPF_OUTSIDE:
+			/* We've started the first DPF. */
+			req->in_dpf = DPF_FIRST;
+			break;
+		case DPF_FIRST:
+			/* We've started the second DPF. */
+			req->in_dpf = DPF_IGNORE;
+			break;
+		}
+		break;
+	case ACPI_RSTYPE_END_DPF:
+		/* We are finished with DPF parsing. */
+		KASSERT(req->in_dpf != DPF_OUTSIDE,
+		    ("%s: end dpf when not parsing a dpf", __func__));
+		req->in_dpf = DPF_OUTSIDE;
+		break;
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
-		(*count)++;
+		/*
+		 * Don't count resources if we are in a DPF set that we are
+		 * ignoring.
+		 */
+		if (req->in_dpf != DPF_IGNORE)
+			req->count++;
 	}
 	return (AE_OK);
 }
@@ -153,12 +208,34 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
 	switch (res->Id) {
+	case ACPI_RSTYPE_START_DPF:
+		switch (req->in_dpf) {
+		case DPF_OUTSIDE:
+			/* We've started the first DPF. */
+			req->in_dpf = DPF_FIRST;
+			break;
+		case DPF_FIRST:
+			/* We've started the second DPF. */
+			panic(
+		"%s: Multiple dependent functions within a current resource",
+			    __func__);
+			break;
+		}
+		break;
+	case ACPI_RSTYPE_END_DPF:
+		/* We are finished with DPF parsing. */
+		KASSERT(req->in_dpf != DPF_OUTSIDE,
+		    ("%s: end dpf when not parsing a dpf", __func__));
+		req->in_dpf = DPF_OUTSIDE;
+		break;
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
-		KASSERT(req->count < req->sc->pl_num_links,
-			("link_add_crs: array boundary violation"));
-		link = &req->sc->pl_links[req->count];
-		req->count++;
+		KASSERT(req->link_index < req->sc->pl_num_links,
+		    ("%s: array boundary violation", __func__));
+		link = &req->sc->pl_links[req->link_index];
+		link->l_res_index = req->res_index;
+		req->link_index++;
+		req->res_index++;
 		if (res->Id == ACPI_RSTYPE_IRQ) {
 			if (res->Data.Irq.NumberOfInterrupts > 0) {
 				KASSERT(res->Data.Irq.NumberOfInterrupts == 1,
@@ -177,6 +254,8 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 		if (link->l_irq == 0)
 			link->l_irq = PCI_INVALID_IRQ;
 		break;
+	default:
+		req->res_index++;
 	}
 	return (AE_OK);
 }
@@ -195,12 +274,37 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 	ACPI_SERIAL_ASSERT(pci_link);
 	req = (struct link_res_request *)context;
 	switch (res->Id) {
+	case ACPI_RSTYPE_START_DPF:
+		switch (req->in_dpf) {
+		case DPF_OUTSIDE:
+			/* We've started the first DPF. */
+			req->in_dpf = DPF_FIRST;
+			break;
+		case DPF_FIRST:
+			/* We've started the second DPF. */
+			req->in_dpf = DPF_IGNORE;
+			break;
+		}
+		break;
+	case ACPI_RSTYPE_END_DPF:
+		/* We are finished with DPF parsing. */
+		KASSERT(req->in_dpf != DPF_OUTSIDE,
+		    ("%s: end dpf when not parsing a dpf", __func__));
+		req->in_dpf = DPF_OUTSIDE;
+		break;
 	case ACPI_RSTYPE_IRQ:
 	case ACPI_RSTYPE_EXT_IRQ:
-		KASSERT(req->count < req->sc->pl_num_links,
-			("link_add_prs: array boundary violation"));
-		link = &req->sc->pl_links[req->count];
-		req->count++;
+		/*
+		 * Don't parse resources if we are in a DPF set that we are
+		 * ignoring.
+		 */
+		if (req->in_dpf == DPF_IGNORE)
+			break;
+		
+		KASSERT(req->link_index < req->sc->pl_num_links,
+		    ("%s: array boundary violation", __func__));
+		link = &req->sc->pl_links[req->link_index];
+		req->link_index++;
 
 		/*
 		 * Stash a copy of the resource for later use when doing
@@ -288,10 +392,10 @@ static int
 acpi_pci_link_attach(device_t dev)
 {
 	struct acpi_pci_link_softc *sc;
-	struct link_res_request req;
+	struct link_count_request creq;
+	struct link_res_request rreq;
 	ACPI_STATUS status;
 	int i;
-	int prslinks;
 
 	sc = device_get_softc(dev);
 	ACPI_SERIAL_BEGIN(pci_link);
@@ -300,25 +404,15 @@ acpi_pci_link_attach(device_t dev)
 	 * Count the number of current resources so we know how big of
 	 * a link array to allocate.
 	 */
+	creq.in_dpf = DPF_OUTSIDE;
+	creq.count = 0;
 	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
-	    acpi_count_irq_resources, &sc->pl_num_links);
+	    acpi_count_irq_resources, &creq);
 	if (ACPI_FAILURE(status))
-		return (ENXIO);
-	if (sc->pl_num_links == 0)
+		return (ENXIO);	
+	if (creq.count == 0)
 		return (0);
-
-	/*
-	 * Try to make the number of resources sufficiently large
-	 * for traversal of both _PRS and _CRS.
-	 *
-	 * XXX Temporary fix for out-of-bounds access in prs_add_links().
-	 * We really need to handle these in separate arrays.  -- njl
-	 */
-	prslinks = 0;
-	status = AcpiWalkResources(acpi_get_handle(dev), "_PRS",
-	    acpi_count_irq_resources, &prslinks);
-	if (prslinks > sc->pl_num_links)
-		sc->pl_num_links = prslinks;
+	sc->pl_num_links = creq.count;
 	sc->pl_links = malloc(sizeof(struct link) * sc->pl_num_links,
 	    M_PCI_LINK, M_WAITOK | M_ZERO);
 
@@ -326,19 +420,22 @@ acpi_pci_link_attach(device_t dev)
 	for (i = 0; i < sc->pl_num_links; i++) {
 		sc->pl_links[i].l_irq = PCI_INVALID_IRQ;
 		sc->pl_links[i].l_bios_irq = PCI_INVALID_IRQ;
-		sc->pl_links[i].l_res_index = i;
 		sc->pl_links[i].l_sc = sc;
 		sc->pl_links[i].l_isa_irq = 0;
 	}
-	req.count = 0;
-	req.sc = sc;
+	rreq.in_dpf = DPF_OUTSIDE;
+	rreq.link_index = 0;
+	rreq.res_index = 0;
+	rreq.sc = sc;
 	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
-	    link_add_crs, &req);
+	    link_add_crs, &rreq);
 	if (ACPI_FAILURE(status))
 		goto fail;
-	req.count = 0;
+	rreq.in_dpf = DPF_OUTSIDE;
+	rreq.link_index = 0;
+	rreq.res_index = 0;
 	status = AcpiWalkResources(acpi_get_handle(dev), "_PRS",
-	    link_add_prs, &req);
+	    link_add_prs, &rreq);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
 		goto fail;
 	if (bootverbose) {
@@ -432,20 +529,36 @@ acpi_pci_link_search_irq(int bus, int device, int pin)
 	return (PCI_INVALID_IRQ);
 }
 
+/*
+ * Find the link structure that corresponds to the resource index passed in
+ * via 'source_index'.
+ */
+static struct link *
+acpi_pci_link_lookup(device_t dev, int source_index)
+{
+	struct acpi_pci_link_softc *sc;
+	int i;
+
+	ACPI_SERIAL_ASSERT(pci_link);
+	sc = device_get_softc(dev);
+	for (i = 0; i < sc->pl_num_links; i++)
+		if (sc->pl_links[i].l_res_index == source_index)
+			return (&sc->pl_links[i]);
+	return (NULL);
+}
+
 void
 acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 	int pin)
 {
-	struct acpi_pci_link_softc *sc;
 	struct link *link;
 	uint8_t bios_irq;
 
 	/* Bump the reference count. */
 	ACPI_SERIAL_BEGIN(pci_link);
-	sc = device_get_softc(dev);
-	KASSERT(index >= 0 && index < sc->pl_num_links,
-	    ("%s: invalid index %d", __func__, index));
-	link = &sc->pl_links[index];
+	link = acpi_pci_link_lookup(dev, index);
+	if (link == NULL)
+		panic("%s: apparently invalid index %d", __func__, index);
 	link->l_references++;
 	if (link->l_routed)
 		pci_link_interrupt_weights[link->l_irq]++;
@@ -486,7 +599,7 @@ acpi_pci_link_route_irqs(device_t dev)
 	ACPI_BUFFER crsbuf, srsbuf;
 	ACPI_STATUS status;
 	struct link *link;
-	int i;
+	int i, in_dpf;
 
 	/* Fetch the _CRS. */
 	ACPI_SERIAL_ASSERT(pci_link);
@@ -508,20 +621,48 @@ acpi_pci_link_route_irqs(device_t dev)
 	srsbuf.Pointer = NULL;
 	link = sc->pl_links;
 	i = 0;
+	in_dpf = DPF_OUTSIDE;
 	resource = (ACPI_RESOURCE *)crsbuf.Pointer;
 	end = (ACPI_RESOURCE *)((char *)crsbuf.Pointer + crsbuf.Length);
 	for (;;) {
 		switch (resource->Id) {
+		case ACPI_RSTYPE_START_DPF:
+			switch (in_dpf) {
+			case DPF_OUTSIDE:
+				/* We've started the first DPF. */
+				in_dpf = DPF_FIRST;
+				break;
+			case DPF_FIRST:
+				/* We've started the second DPF. */
+				panic(
+		"%s: Multiple dependent functions within a current resource",
+				    __func__);
+				break;
+			}
+			resptr = NULL;
+			break;
+		case ACPI_RSTYPE_END_DPF:
+			/* We are finished with DPF parsing. */
+			KASSERT(in_dpf != DPF_OUTSIDE,
+			    ("%s: end dpf when not parsing a dpf", __func__));
+			in_dpf = DPF_OUTSIDE;
+			resptr = NULL;
+			break;
 		case ACPI_RSTYPE_IRQ:
 			MPASS(i < sc->pl_num_links);
 			MPASS(link->l_prs_template.Id == ACPI_RSTYPE_IRQ);
 			newres = link->l_prs_template;
 			resptr = &newres;
 			resptr->Data.Irq.NumberOfInterrupts = 1;
-			if (PCI_INTERRUPT_VALID(link->l_irq))
+			if (PCI_INTERRUPT_VALID(link->l_irq)) {
+				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
+		("%s: can't put non-ISA IRQ %d in legacy IRQ resource type",
+				    __func__, link->l_irq));
 				resptr->Data.Irq.Interrupts[0] = link->l_irq;
-			else
+			} else
 				resptr->Data.Irq.Interrupts[0] = 0;
+			link++;
+			i++;
 			break;
 		case ACPI_RSTYPE_EXT_IRQ:
 			MPASS(i < sc->pl_num_links);
@@ -534,24 +675,27 @@ acpi_pci_link_route_irqs(device_t dev)
 				    link->l_irq;
 			else
 				resource->Data.ExtendedIrq.Interrupts[0] = 0;
+			link++;
+			i++;
 			break;
 		default:
 			resptr = resource;
 		}
-		status = acpi_AppendBufferResource(&srsbuf, resptr);
-		if (ACPI_FAILURE(status)) {
-			device_printf(dev, "Unable to build reousrces: %s\n",
-			    AcpiFormatException(status));
-			if (srsbuf.Pointer != NULL)
-				AcpiOsFree(srsbuf.Pointer);
-			AcpiOsFree(crsbuf.Pointer);
-			return (status);
+		if (resptr != NULL) {
+			status = acpi_AppendBufferResource(&srsbuf, resptr);
+			if (ACPI_FAILURE(status)) {
+				device_printf(dev,
+				    "Unable to build reousrces: %s\n",
+				    AcpiFormatException(status));
+				if (srsbuf.Pointer != NULL)
+					AcpiOsFree(srsbuf.Pointer);
+				AcpiOsFree(crsbuf.Pointer);
+				return (status);
+			}
 		}
 		if (resource->Id == ACPI_RSTYPE_END_TAG)
 			break;
 		resource = ACPI_NEXT_RESOURCE(resource);
-		link++;
-		i++;
 		if (resource >= end)
 			break;
 	}
@@ -577,21 +721,28 @@ acpi_pci_link_route_irqs(device_t dev)
 	for (;;) {
 		if (resource->Id == ACPI_RSTYPE_END_TAG)
 			break;
-		MPASS(i < sc->pl_num_links);
-		if (link->l_routed || !PCI_INTERRUPT_VALID(link->l_irq))
-			continue;
 		switch (resource->Id) {
 		case ACPI_RSTYPE_IRQ:
 		case ACPI_RSTYPE_EXT_IRQ:
-			link->l_routed = 1;
-			acpi_config_intr(dev, resource);
-			pci_link_interrupt_weights[link->l_irq] +=
-			    link->l_references;
+			MPASS(i < sc->pl_num_links);
+
+			/*
+			 * Only configure the interrupt and update the
+			 * weights if this link has a valid IRQ and was
+			 * previously unrouted.
+			 */
+			if (!link->l_routed &&
+			    PCI_INTERRUPT_VALID(link->l_irq)) {
+				link->l_routed = 1;
+				acpi_config_intr(dev, resource);
+				pci_link_interrupt_weights[link->l_irq] +=
+				    link->l_references;
+			}
+			link++;
+			i++;
 			break;
 		}
 		resource = ACPI_NEXT_RESOURCE(resource);
-		link++;
-		i++;
 		if (resource >= end)
 			break;
 	}
@@ -702,14 +853,12 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 int
 acpi_pci_link_route_interrupt(device_t dev, int index)
 {
-	struct acpi_pci_link_softc *sc;
 	struct link *link;
 
-	ACPI_SERIAL_BEGIN(pci_link);
-	sc = device_get_softc(dev);
-	KASSERT(index >= 0 && index < sc->pl_num_links,
-	    ("%s: invalid index %d", __func__, index));
-	link = &sc->pl_links[index];
+	ACPI_SERIAL_BEGIN(pci_link);	
+	link = acpi_pci_link_lookup(dev, index);
+	if (link == NULL)
+		panic("%s: apparently invalid index %d", __func__, index);
 
 	/*
 	 * If this link device is already routed to an interrupt, just return
