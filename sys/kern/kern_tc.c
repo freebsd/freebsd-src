@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.69 1998/05/19 18:54:38 phk Exp $
+ * $Id: kern_clock.c,v 1.70 1998/05/28 09:30:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -498,7 +498,7 @@ static __inline unsigned
 tco_getdelta(struct timecounter *tc)
 {
 
-	return ((tc->get_timecount() - tc->offset_count) & tc->counter_mask);
+	return ((tc->get_timecount(tc) - tc->offset_count) & tc->counter_mask);
 }
 
 /*
@@ -647,7 +647,7 @@ init_timecounter(struct timecounter *tc)
 
 	tc->adjustment = 0;
 	tco_setscales(tc);
-	tc->offset_count = tc->get_timecount();
+	tc->offset_count = tc->get_timecount(tc);
 	tc[0].tweak = &tc[0];
 	tc[2] = tc[1] = tc[0];
 	tc[1].other = &tc[2];
@@ -661,7 +661,7 @@ init_timecounter(struct timecounter *tc)
 	 */
 	nanotime(&ts0);
 	for (i = 0; i < 256; i ++) 
-		tc->get_timecount();
+		tc->get_timecount(tc);
 	nanotime(&ts1);
 	ts1.tv_sec -= ts0.tv_sec;
 	tc->cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
@@ -671,7 +671,7 @@ init_timecounter(struct timecounter *tc)
 		    tc->name, tc->frequency, tc->cost);
 
 	/* XXX: For now always start using the counter. */
-	tc->offset_count = tc->get_timecount();
+	tc->offset_count = tc->get_timecount(tc);
 	nanotime(&ts1);
 	tc->offset_nano = (u_int64_t)ts1.tv_nsec << 32;
 	tc->offset_micro = ts1.tv_nsec / 1000;
@@ -714,7 +714,7 @@ switch_timecounter(struct timecounter *newtc)
 	newtc->offset_sec = ts.tv_sec;
 	newtc->offset_nano = (u_int64_t)ts.tv_nsec << 32;
 	newtc->offset_micro = ts.tv_nsec / 1000;
-	newtc->offset_count = newtc->get_timecount();
+	newtc->offset_count = newtc->get_timecount(newtc);
 	timecounter = newtc;
 	splx(s);
 }
@@ -805,7 +805,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
  */
 
 static unsigned 
-dummy_get_timecount(void)
+dummy_get_timecount(void *tc)
 {
 	static unsigned now;
 	return (++now);
