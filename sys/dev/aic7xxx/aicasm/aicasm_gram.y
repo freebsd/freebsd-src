@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#25 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#26 $
  *
  * $FreeBSD$
  */
@@ -1249,8 +1249,8 @@ code:
 			 * that can't know the immediate's value and
 			 * otherwise compensate, still work.
 			 */
-			make_expression(&immed, 0xff);
-			format_1_instr(AIC_OP_AND, &$2, &immed, &allzeros, $5);
+			make_expression(&immed, 1);
+			format_1_instr(AIC_OP_BMOV, &$2, &immed, &allzeros, $5);
 		} else {
 			format_1_instr(AIC_OP_OR, &$2, &$4, &allzeros, $5);
 		}
