@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.1.1.1 1995/01/20 04:13:07 jkh Exp $
+# $Id: Makefile,v 1.2 1995/02/21 10:46:25 olah Exp $
 
 LIB=    pcap
 
@@ -15,7 +15,7 @@ CFLAGS+=-DFDDI -I. -I${.CURDIR}
 MAN3=	pcap.3
 
 beforeinstall:
-	-cmp -s ${.CURDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h.h || \
+	-cmp -s ${.CURDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
 	  ( $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/pcap.h ${DESTDIR}/usr/include; )
 	-cmp -s ${.CURDIR}/pcap-namedb.h ${DESTDIR}/usr/include/pcap-namedb.h || \
