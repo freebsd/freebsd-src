@@ -25,7 +25,6 @@
  * $FreeBSD$
  */
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -232,9 +231,11 @@ openpic_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct	openpic_softc *sc;
+	u_long	start;
 	int	error;
 
 	sc = device_get_softc(dev);
+	start = rman_get_start(res);
 
 	if (res == NULL) {
 		device_printf(dev, "null interrupt resource from %s\n",
@@ -242,7 +243,7 @@ openpic_setup_intr(device_t dev, device_t child, struct resource *res,
 		return (EINVAL);
 	}
 
-	if ((res->r_flags & RF_SHAREABLE) == 0)
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	/*
@@ -252,13 +253,13 @@ openpic_setup_intr(device_t dev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), res->r_start, intr,
-	    arg, flags, cookiep);
+	error = inthand_add(device_get_nameunit(child), start, intr, arg,
+	    flags, cookiep);
 
 	if (sc->sc_hwprobed)
-		openpic_enable_irq(sc, res->r_start, IST_LEVEL);
+		openpic_enable_irq(sc, start, IST_LEVEL);
 	else
-		sc->sc_irqrsv[res->r_start] = 1;
+		sc->sc_irqrsv[start] = 1;
 
 	return (error);
 }
@@ -273,7 +274,7 @@ openpic_teardown_intr(device_t dev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_remove(res->r_start, ih);
+	error = inthand_remove(rman_get_start(res), ih);
 
 	return (error);
 }
