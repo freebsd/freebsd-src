@@ -1,9 +1,7 @@
 /* $FreeBSD$ */
-/*      BSDI dptsig.h,v 1.7 1998/06/03 19:15:00 karels Exp      */
-
 /*
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
- * Copyright (c) 2000 Adaptec Corporation.
+ * Copyright (c) 2000-2001 Adaptec Corporation.
  * All rights reserved.
  *
  * Redistribution and use in source form, with or without modification, are
@@ -111,12 +109,14 @@ typedef unsigned long sigLONG;
 #define PROC_486        0x08    /* Intel 80486 */
 #define PROC_PENTIUM    0x10    /* Intel 586 aka P5 aka Pentium */
 #define PROC_SEXIUM     0x20    /* Intel 686 aka P6 aka Pentium Pro or MMX */
+#define PROC_ITANIUM    0x40    /* Intel Itanium 64 bit */
 
 /* PROC_i960: */
 #define PROC_960RX      0x01    /* Intel 80960RP/RD */
 #define PROC_960HX      0x02    /* Intel 80960HA/HD/HT */
 #define PROC_960RN      0x03    /* Intel 80960RN/RM */
 #define PROC_960RS      0x04    /* Intel 80960RS */
+#define PROC_80303      0x05    /* Intel 80303 (ZION) */
 
 /* PROC_MOTOROLA: */
 #define PROC_68000      0x01    /* Motorola 68000 */
@@ -153,6 +153,7 @@ typedef unsigned long sigLONG;
 #define FT_LIBRARY      14      /* Storage Manager Real-Mode Calls */
 #define FT_RESOURCE     15      /* Storage Manager Resource File */
 #define FT_MODEM_DB     16      /* Storage Manager Modem Database */
+#define FT_DMI          17      /* DMI component interface */
 
 /* Filetype flags - sigBYTE dsFiletypeFlags;    FLAG BITS */
 /* ------------------------------------------------------------------ */
@@ -210,6 +211,7 @@ typedef unsigned long sigLONG;
 #define OS_PLAN9                0x08000000 /* ATT Plan 9                        */
 #define OS_TSX                  0x10000000 /* SNH TSX-32                        */
 #define OS_WINDOWS_98   0x20000000 /* Microsoft Windows '98     */
+#define OS_NW5x                 0x40000000 /* Novell Netware 5x */
 
 #define OS_OTHER        0x80000000 /* Other                             */
 
@@ -296,18 +298,26 @@ typedef unsigned long sigLONG;
 /* Requirements - sigWORD dsFirmware;         FLAG BITS                 */
 /* ------------------------------------------------------------------   */
 #define dsFirmware dsApplication
-#define FW_DNLDSIZE0      0x0000    /* 0..2 DownLoader Size - NONE      */
-#define FW_DNLDSIZE16     0x0001    /* 0..2 DownLoader Size 16K         */
-#define FW_DNLDSIZE32     0x0002    /* 0..2 DownLoader Size 32K         */
-#define FW_DNLDSIZE64     0x0004    /* 0..2 DownLoader Size 64K         */
+#define FW_DNLDSIZE16_OLD       0x0000    /* 0..3 DownLoader Size 16K - TO SUPPORT OLD IMAGES */
+#define FW_DNLDSIZE16k    0x0000    /* 0..3 DownLoader Size 16k             */
+#define FW_DNLDSIZE16     0x0001    /* 0..3 DownLoader Size 16K         */
+#define FW_DNLDSIZE32     0x0002    /* 0..3 DownLoader Size 32K         */
+#define FW_DNLDSIZE64     0x0004    /* 0..3 DownLoader Size 64K         */
+#define FW_DNLDSIZE0      0x000f    /* 0..3 DownLoader Size 0K - NONE   */
+#define FW_DNLDSIZE_NONE        0x000F    /* 0..3 DownLoader Size - NONE      */
 
-#define FW_LOAD_BTM       0x2000        /* 13 Load Offset (1=Btm, 0=Top)    */
-#define FW_LOAD_TOP       0x0000        /* 13 Load Offset (1=Btm, 0=Top)    */
-#define FW_SIG_VERSION1   0x0000        /* 15..14 Version Bits 0=Ver1       */
+                /* Code Offset is position of the code within the ROM CODE Segment */
+#define FW_DNLDR_TOP      0x0000        /* 12 DownLoader Position (0=Top, 1=Bottom) */
+#define FW_DNLDR_BTM      0x1000        /* 12 DownLoader Position (0=Top, 1=Bottom) Dominator */
+
+#define FW_LOAD_BTM               0x0000        /* 13 Code Offset (0=Btm, 1=Top) MIPS   */
+#define FW_LOAD_TOP               0x2000        /* 13 Code Offset (0=Btm, 1=Top) i960   */
+
+#define FW_SIG_VERSION1   0x0000    /* 15..14 Version Bits 0=Ver1               */
+#define FW_SIG_VERSION2   0x4000        /* 15..14 Version Bits 1=Ver2       */
 
 /*
-                                0..2  Downloader Size (Value * 16K)
-                                3
+                                0..3   Downloader Size (Value * 16K)
 
                                 4
                                 5
@@ -319,10 +329,53 @@ typedef unsigned long sigLONG;
                                 10
                                 11
 
-                                12
-                                13              Load Offset (1=BTM  0=TOP)
+                                12              Downloader Position (0=Top of Image  1= Bottom of Image (Dominator) )
+                                13              Load Offset (0=BTM (MIPS) -- 1=TOP (960) )
                                 14..15  F/W Sig Version (0=Ver1)
 */
+
+/* ------------------------------------------------------------------   */
+/* Sub System Vendor IDs - The PCI Sub system and vendor IDs for each   */
+/* Adaptec Raid controller                                              */
+/* ------------------------------------------------------------------   */
+#define PM1554U2_SUB_ID          0xC0011044
+#define PM1654U2_SUB_ID          0xC0021044
+#define PM1564U3_1_SUB_ID    0xC0031044
+#define PM1564U3_2_SUB_ID    0xC0041044
+#define PM1554U2_NOACPI_SUB_ID      0xC0051044
+#define PM2554U2_SUB_ID      0xC00A1044
+#define PM2654U2_SUB_ID      0xC00B1044
+#define PM2664U3_1_SUB_ID    0xC00C1044
+#define PM2664U3_2_SUB_ID    0xC00D1044
+#define PM2554U2_NOACPI_SUB_ID      0xC00E1044
+#define PM2654U2_NOACPI_SUB_ID      0xC00F1044
+#define PM3754U2_SUB_ID      0xC0141044
+#define PM3755U2B_SUB_ID     0xC0151044
+#define PM3755F_SUB_ID       0xC0161044
+#define PM3757U2_1_SUB_ID    0xC01E1044
+#define PM3757U2_2_SUB_ID    0xC01F1044
+#define PM3767U3_2_SUB_ID    0xC0201044
+#define PM3767U3_4_SUB_ID    0xC0211044
+#define PM2865U3_1_SUB_ID    0xC0281044
+#define PM2865U3_2_SUB_ID    0xC0291044
+#define PM2865F_SUB_ID       0xC02A1044
+#define ADPT2000S_1_SUB_ID       0xC03C1044
+#define ADPT2000S_2_SUB_ID       0xC03D1044
+#define ADPT2000F_SUB_ID         0xC03E1044
+#define ADPT3000S_1_SUB_ID       0xC0461044
+#define ADPT3000S_2_SUB_ID       0xC0471044
+#define ADPT3000F_SUB_ID         0xC0481044
+#define ADPT5000S_1_SUB_ID       0xC0501044
+#define ADPT5000S_2_SUB_ID       0xC0511044
+#define ADPT5000F_SUB_ID         0xC0521044
+#define ADPT1000UDMA_SUB_ID      0xC05A1044
+#define ADPT1000UDMA_DAC_SUB_ID  0xC05B1044
+#define ADPTI2O_DEVICE_ID        0xa501
+#define ADPTDOMINATOR_DEVICE_ID  0xa511
+#define ADPTDOMINATOR_SUB_ID_START   0xC0321044
+#define ADPTDOMINATOR_SUB_ID_END     0xC03b1044
+
+
 
 /* ------------------------------------------------------------------   */
 /* ------------------------------------------------------------------   */
