@@ -285,7 +285,7 @@ product KAWATSU MH4000P		0x0003	MiniHub 4000P
 /* Kodak products */
 product KODAK DC260		0x0110	Digital Science DC260
 product KODAK DC265		0x0111	Digital Science DC265
-product KODAK DC290		0x0111	Digital Science DC290
+product KODAK DC290		0x0112	Digital Science DC290
 product KODAK DC240		0x0120	Digital Science DC240
 product KODAK DC280		0x0130	Digital Science DC280
 
