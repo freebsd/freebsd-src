@@ -175,7 +175,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 				if (mode == UPD_DELETE)
 					rc = pwdb(NULL);
 				else
-					rc = pwdb("-u", user, NULL);
+					rc = pwdb("-u", pwd->pw_name, NULL);
 			}
 		}
 	}
