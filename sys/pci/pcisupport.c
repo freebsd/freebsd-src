@@ -1037,6 +1037,10 @@ chip_match(device_t dev)
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
 
+	/* Sony -- vendor 0x104d */
+	case 0x8009104d:
+		return ("Sony CXD1847A FireWire Host Controller");
+
 	/* SiS -- vendor 0x1039 */
 	case 0x04961039:
 		return ("SiS 85c496");
