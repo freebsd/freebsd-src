@@ -62,6 +62,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/4/95";
 
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
+int	uflag = 0;
 int	dokerberos = 0;
 char	command = '\0';
 long	dumpnum = 1;
@@ -98,9 +99,9 @@ main(argc, argv)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define	optlist "b:cdf:hikmNRrs:tvxy"
+#define	optlist "b:cdf:hikmNRrs:tuvxy"
 #else
-#define	optlist "b:cdf:himNRrs:tvxy"
+#define	optlist "b:cdf:himNRrs:tuvxy"
 #endif
 	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
@@ -154,6 +155,9 @@ main(argc, argv)
 				errx(1, "illegal dump number -- %s", optarg);
 			if (dumpnum <= 0)
 				errx(1, "dump number must be greater than 0");
+			break;
+		case 'u':
+			uflag = 1;
 			break;
 		case 'v':
 			vflag = 1;
@@ -289,11 +293,11 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
-	  "restore -i [-chkmvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -r [-ckvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -R [-ckvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -x [-chkmvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
-	  "restore -t [-chkvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
+	  "restore -i [-chkmuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -r [-ckuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -R [-ckuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -x [-chkmuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
+	  "restore -t [-chkuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
 	done(1);
 }
 
