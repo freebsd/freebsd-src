@@ -275,7 +275,6 @@ static struct ng_type ngtypestruct = {
 	NULL,
 	musycc_connect,
 	musycc_rcvdata,
-	musycc_rcvdata,
 	musycc_disconnect,
 	NULL
 };
@@ -665,7 +664,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 					md->m = m2;
 					md->data = vtophys(m2->m_data);
 					/* Pass the received mbuf upwards. */
-					ng_queue_data(sch->hook, m, NULL);
+					NG_SEND_DATA_ONLY(error, sch->hook, m);
 				} else {
 					/*
 				         * We didn't get a mbuf cluster,
@@ -1031,7 +1030,8 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 }
 
 static int
-musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, meta_p *ret_meta)
+musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 
 	struct softc *sc;
@@ -1211,6 +1211,7 @@ musycc_connect(hook_p hook)
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
 	sc->reg->srd = sc->last = 0x0820 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
+	hook->peer->flags |= HK_QUEUE;
 
 	return (0);
 }
