@@ -129,7 +129,7 @@ int	daemon_mode;
 int	data;
 int	logged_in;
 struct	passwd *pw;
-int	debug;
+int	ftpdebug;
 int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
@@ -261,7 +261,7 @@ static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
 static void	 reapchild __P((int));
-static void      logxfer __P((char *, long, long));
+static void      logxfer __P((char *, off_t, time_t));
 
 static char *
 curdir()
@@ -313,7 +313,7 @@ main(argc, argv, envp)
 			break;
 
 		case 'd':
-			debug++;
+			ftpdebug++;
 			break;
 
 		case 'E':
@@ -376,7 +376,7 @@ main(argc, argv, envp)
 			break;
 
 		case 'v':
-			debug = 1;
+			ftpdebug = 1;
 			break;
 
 		case '4':
@@ -625,7 +625,7 @@ main(argc, argv, envp)
 	}
 #ifndef VIRTUAL_HOSTING
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
@@ -640,7 +640,7 @@ lostconn(signo)
 	int signo;
 {
 
-	if (debug)
+	if (ftpdebug)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(1);
 }
@@ -675,7 +675,7 @@ inithosts()
 		line[0] = '\0';
 	if ((hrp = malloc(sizeof(struct ftphost))) == NULL ||
 	    (hrp->hostname = strdup(line)) == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	hrp->hostinfo = NULL;
 
 	memset(&hints, 0, sizeof(hints));
@@ -1387,33 +1387,30 @@ skip:
 			free(ident);
 		ident = strdup(passwd);
 		if (ident == NULL)
-			fatal("Ran out of memory.");
+			fatalerror("Ran out of memory.");
 
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING
 		if (thishost != firsthost)
 			snprintf(proctitle, sizeof(proctitle),
-				 "%s: anonymous(%s)/%.*s", remotehost, hostname,
-				 (int)(sizeof(proctitle) - sizeof(remotehost) -
-				 sizeof(": anonymous/")), passwd);
+				 "%s: anonymous(%s)/%s", remotehost, hostname,
+				 passwd);
 		else
 #endif
 			snprintf(proctitle, sizeof(proctitle),
-				 "%s: anonymous/%.*s", remotehost,
-				 (int)(sizeof(proctitle) - sizeof(remotehost) -
-				 sizeof(": anonymous/")), passwd);
+				 "%s: anonymous/%s", remotehost, passwd);
 		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
 			syslog(LOG_INFO, "ANONYMOUS FTP LOGIN FROM %s, %s",
 			    remotehost, passwd);
 	} else {
-	    if (dochroot)
-		reply(230, "User %s logged in, access restrictions apply.", 
-			pw->pw_name);
-	    else
-		reply(230, "User %s logged in.", pw->pw_name);
+		if (dochroot)
+			reply(230, "User %s logged in, "
+				   "access restrictions apply.", pw->pw_name);
+		else
+			reply(230, "User %s logged in.", pw->pw_name);
 
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
@@ -1552,7 +1549,7 @@ store(name, mode, unique)
 			 * because we are changing from reading to
 			 * writing.
 			 */
-			if (fseek(fout, 0L, L_INCR) < 0) {
+			if (fseeko(fout, (off_t)0, SEEK_CUR) < 0) {
 				perror_reply(550, name);
 				goto done;
 			}
@@ -2127,7 +2124,7 @@ epsvonly:;
 }
 
 void
-fatal(s)
+fatalerror(s)
 	char *s;
 {
 
@@ -2157,7 +2154,7 @@ reply(n, fmt, va_alist)
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
-	if (debug) {
+	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d ", n);
 		vsyslog(LOG_DEBUG, fmt, ap);
 	}
@@ -2183,7 +2180,7 @@ lreply(n, fmt, va_alist)
 	(void)vprintf(fmt, ap);
 	(void)printf("\r\n");
 	(void)fflush(stdout);
-	if (debug) {
+	if (ftpdebug) {
 		syslog(LOG_DEBUG, "<--- %d- ", n);
 		vsyslog(LOG_DEBUG, fmt, ap);
 	}
@@ -2881,8 +2878,8 @@ setproctitle(fmt, va_alist)
 static void
 logxfer(name, size, start)
 	char *name;
-	long size;
-	long start;
+	off_t size;
+	time_t start;
 {
 	char buf[1024];
 	char path[MAXPATHLEN + 1];
@@ -2890,9 +2887,10 @@ logxfer(name, size, start)
 
 	if (statfd >= 0 && getwd(path) != NULL) {
 		time(&now);
-		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%ld!%ld\n",
+		snprintf(buf, sizeof(buf), "%.20s!%s!%s!%s/%s!%qd!%ld\n",
 			ctime(&now)+4, ident, remotehost,
-			path, name, size, now - start + (now == start));
+			path, name, (long long)size,
+			(long)(now - start + (now == start)));
 		write(statfd, buf, strlen(buf));
 	}
 }

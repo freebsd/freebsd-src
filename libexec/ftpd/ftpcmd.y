@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <md5.h>
 
 #include "extern.h"
 
@@ -79,7 +80,7 @@ extern 	int paranoid;
 extern	int logging;
 extern	int type;
 extern	int form;
-extern	int debug;
+extern	int ftpdebug;
 extern	int timeout;
 extern	int maxtimeout;
 extern  int pdata;
@@ -101,7 +102,7 @@ static	int cmd_form;
 static	int cmd_bytesz;
 static	int state;
 char	cbuf[512];
-char	*fromname;
+char	*fromname = (char *) 0;
 
 extern int epsvall;
 
@@ -128,7 +129,7 @@ extern int epsvall;
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
 	LPRT	LPSV	EPRT	EPSV
 
-	UMASK	IDLE	CHMOD
+	UMASK	IDLE	CHMOD	MDFIVE
 
 	LEXERR
 
@@ -150,6 +151,8 @@ cmd_list
 	: /* empty */
 	| cmd_list cmd
 		{
+			if (fromname)
+				free(fromname);
 			fromname = (char *) 0;
 			restart_point = (off_t) 0;
 		}
@@ -166,6 +169,10 @@ cmd
 		{
 			pass($3);
 			free($3);
+		}
+	| PASS CRLF
+		{
+			pass("");
 		}
 	| PORT check_login SP host_port CRLF
 		{
@@ -229,10 +236,10 @@ cmd
 
 			memset(&data_dest, 0, sizeof(data_dest));
 			tmp = strdup($4);
-			if (debug)
+			if (ftpdebug)
 				syslog(LOG_DEBUG, "%s", tmp);
 			if (!tmp) {
-				fatal("not enough core");
+				fatalerror("not enough core");
 				/*NOTREACHED*/
 			}
 			p = tmp;
@@ -252,7 +259,7 @@ cmd
 				}
 				*q++ = '\0';
 				result[i] = p;
-				if (debug)
+				if (ftpdebug)
 					syslog(LOG_DEBUG, "%d: %s", i, p);
 				p = q;
 			}
@@ -308,7 +315,8 @@ cmd
 			if (port_check_v6("EPRT") == 1)
 				goto eprt_done;
 #endif
-		eprt_done:;
+		eprt_done:
+			free($4);
 		}
 	| PASV check_login CRLF
 		{
@@ -554,6 +562,7 @@ cmd
 					help(sitetab, (char *) 0);
 			} else
 				help(cmdtab, $3);
+			free($3);
 		}
 	| NOOP CRLF
 		{
@@ -590,6 +599,21 @@ cmd
 	| SITE SP HELP SP STRING CRLF
 		{
 			help(sitetab, $5);
+			free($5);
+		}
+	| SITE SP MDFIVE check_login SP pathname CRLF
+		{
+			char p[64], *q;
+
+			if ($4) {
+				q = MD5File($6, p);
+				if (q != NULL)
+					reply(200, "MD5(%s) = %s", $6, p);
+				else
+					perror_reply(550, $6);
+			}
+			if ($6)
+				free($6);
 		}
 	| SITE SP UMASK check_login CRLF
 		{
@@ -736,19 +760,24 @@ cmd
 rcmd
 	: RNFR check_login_ro SP pathname CRLF
 		{
-			char *renamefrom();
-
 			restart_point = (off_t) 0;
 			if ($2 && $4) {
-				fromname = renamefrom($4);
-				if (fromname == (char *) 0 && $4) {
+				if (fromname)
+					free(fromname);
+				fromname = (char *) 0;
+				if (renamefrom($4))
+					fromname = $4;
+				else
 					free($4);
-				}
+			} else if ($4) {
+				free($4);
 			}
 		}
 	| REST check_login SP byte_size CRLF
 		{
 			if ($2) {
+				if (fromname)
+					free(fromname);
 				fromname = (char *) 0;
 				restart_point = $4;  /* XXX $4 is only "int" */
 				reply(350, "Restarting at %qd. %s",
@@ -1025,7 +1054,7 @@ check_login_ro
 #define	STR1	2	/* expect SP followed by STRING */
 #define	STR2	3	/* expect STRING */
 #define	OSTR	4	/* optional SP then STRING */
-#define	ZSTR1	5	/* SP then optional STRING */
+#define	ZSTR1	5	/* optional SP then optional STRING */
 #define	ZSTR2	6	/* optional STRING after SP */
 #define	SITECMD	7	/* SITE command */
 #define	NSTR	8	/* Number followed by a string */
@@ -1042,7 +1071,7 @@ struct tab {
 
 struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "USER", USER, STR1, 1,	"<sp> username" },
-	{ "PASS", PASS, ZSTR1, 1,	"<sp> password" },
+	{ "PASS", PASS, ZSTR1, 1,	"[<sp> [password]]" },
 	{ "ACCT", ACCT, STR1, 0,	"(specify account)" },
 	{ "SMNT", SMNT, ARGS, 0,	"(structure mount)" },
 	{ "REIN", REIN, ARGS, 0,	"(reinitialize server state)" },
@@ -1096,6 +1125,7 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 };
 
 struct tab sitetab[] = {
+	{ "MD5", MDFIVE, STR1, 1,	"[ <sp> file-name ]" },
 	{ "UMASK", UMASK, ARGS, 1,	"[ <sp> umask ]" },
 	{ "IDLE", IDLE, ARGS, 1,	"[ <sp> maximum-idle-time ]" },
 	{ "CHMOD", CHMOD, NSTR, 1,	"<sp> mode <sp> file-name" },
@@ -1146,7 +1176,7 @@ getline(s, n, iop)
 		*cs++ = tmpline[c];
 		if (tmpline[c] == '\n') {
 			*cs++ = '\0';
-			if (debug)
+			if (ftpdebug)
 				syslog(LOG_DEBUG, "command: %s", s);
 			tmpline[0] = '\0';
 			return(s);
@@ -1186,7 +1216,7 @@ getline(s, n, iop)
 	if (c == EOF && cs == s)
 		return (NULL);
 	*cs++ = '\0';
-	if (debug) {
+	if (ftpdebug) {
 		if (!guest && strncasecmp("pass ", s, 5) == 0) {
 			/* Don't syslog passwords */
 			syslog(LOG_DEBUG, "command: %.5s ???", s);
@@ -1294,6 +1324,7 @@ yylex()
 			state = CMD;
 			break;
 
+		case ZSTR1:
 		case OSTR:
 			if (cbuf[cpos] == '\n') {
 				state = CMD;
@@ -1302,7 +1333,6 @@ yylex()
 			/* FALLTHROUGH */
 
 		case STR1:
-		case ZSTR1:
 		dostr1:
 			if (cbuf[cpos] == ' ') {
 				cpos++;
@@ -1433,7 +1463,7 @@ yylex()
 			break;
 
 		default:
-			fatal("Unknown state in scanner.");
+			fatalerror("Unknown state in scanner.");
 		}
 		state = CMD;
 		return (LEXERR);
@@ -1459,7 +1489,7 @@ copy(s)
 
 	p = malloc((unsigned) strlen(s) + 1);
 	if (p == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	(void) strcpy(p, s);
 	return (p);
 }
