@@ -192,8 +192,8 @@ main(int argc, char *argv[])
 			perror("extattrctl enable");
 			return (-1);
 		}
-		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[4],
-		    namespace, argv[5]);
+		error = extattrctl(argv[2], UFS_EXTATTR_CMD_ENABLE, argv[5],
+		    namespace, argv[4]);
 		if (error) {
 			perror("extattrctl enable");
 			return (-1);
@@ -208,7 +208,7 @@ main(int argc, char *argv[])
 			return (-1);
 		}
 		error = extattrctl(argv[2], UFS_EXTATTR_CMD_DISABLE, NULL,
-		    namespace, argv[5]);
+		    namespace, argv[4]);
 		if (error) {
 			perror("extattrctl disable");
 			return (-1);
