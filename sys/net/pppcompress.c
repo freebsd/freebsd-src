@@ -44,7 +44,7 @@
  * so that the entire packet being decompressed doesn't have
  * to be in contiguous memory (just the compressed header).
  *
- *	$Id: pppcompress.c,v 1.4 1995/05/30 08:08:17 rgrimes Exp $
+ *	$Id: pppcompress.c,v 1.4.4.1 1996/04/11 06:51:52 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -476,7 +476,7 @@ sl_uncompress_tcp_part(bufp, buflen, total_len, type, comp)
 		 * we don't overflow the space we have available for it.
 		 */
 		hlen = ip->ip_hl << 2;
-		if (hlen + sizeof(struct tcphdr) > len)
+		if (hlen + sizeof(struct tcphdr) > buflen)
 			goto bad;
 		hlen += ((struct tcphdr *)&((char *)ip)[hlen])->th_off << 2;
 		if (hlen > MAX_HDR)
