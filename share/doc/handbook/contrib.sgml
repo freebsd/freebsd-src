@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.82 1996/05/13 02:04:39 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.83 1996/05/13 09:31:34 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -46,6 +46,11 @@
       &lt;wilko@yedi.iaf.nl&gt;, for providing us with a Wangtek and
       an Archive QIC-02 tape drive, in order to give us the hardware
       to improve the <tt>wt</tt> driver.
+
+      Thanks go to Ernst Winter &lt;ewinter@lobo.muc.de&gt;, for
+      contributing a 2.88 MB floppy drive to the project.  Hopefully,
+      this will increase the pressure for rewriting the floppy disk
+      driver. ;-)
 
       Also see <ref id="donors" name="the donor's gallery"> for
       a list of people who have donated funding or services to the FreeBSD
