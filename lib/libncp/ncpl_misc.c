@@ -131,16 +131,20 @@ NWGetObjectConnectionNumbers(NWCONN_HANDLE connHandle,
 		pnuint16 pNumConns, pnuint16 pConnHandleList,
 		nuint16 maxConns) 
 {
-	int error, i;
+	int error, i, n;
+	nuint32 lastconn;
 	DECLARE_RQ;
-	ncp_init_request_s(conn, 21);
+
+	lastconn = 0;
+	ncp_init_request_s(conn, 27);
+	ncp_add_dword_lh(conn, lastconn);
 	ncp_add_word_hl(conn, objType);
 	ncp_add_pstring(conn, pObjName);
 	if ((error = ncp_request(connHandle, 23, conn)) != 0) return error;
-	i = ncp_reply_byte(conn,0);
-	*pNumConns = i;
-	for (i = min(i, maxConns); i; i--) {
-		pConnHandleList[i-1] = ncp_reply_byte(conn, i);
+	n = min(ncp_reply_byte(conn, 0), maxConns);
+	*pNumConns = n;
+	for (i = 0; i < n ; i++) {
+		*pConnHandleList++ = ncp_reply_dword_lh(conn, i * 4 + 1);
 	}
 	return 0;
 }
