@@ -855,8 +855,6 @@
         vi
             catalog
             ..
-            tcl
-            ..
         ..
         zoneinfo
             Africa
