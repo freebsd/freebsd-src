@@ -695,7 +695,6 @@ options 	NFSCLIENT		#Network File System
 options 	NFSSERVER		#Network File System
 
 # The rest are optional:
-#options 	NFS_NOSERVER		#Disable the NFS-server code.
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
