@@ -259,7 +259,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		return;
 	case XPT_RESET_BUS:
-		if (!(sc->quirks & AAC_QUIRK_CAM_NORESET)) {
+		if (!(sc->flags & AAC_FLAGS_CAM_NORESET)) {
 			ccb->ccb_h.status = aac_cam_reset_bus(sim, ccb);
 		} else {
 			ccb->ccb_h.status = CAM_REQ_CMP;
@@ -366,7 +366,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_DEV:
-		if (!(sc->quirks & AAC_QUIRK_CAM_NORESET)) {
+		if (!(sc->flags & AAC_FLAGS_CAM_NORESET)) {
 			srb->function = AAC_SRB_FUNC_RESET_DEVICE;
 			break;
 		} else {
@@ -476,7 +476,7 @@ aac_cam_complete(struct aac_command *cm)
 				 */
 				if ((device == T_DIRECT) ||
 				    (device == T_PROCESSOR) ||
-				    (sc->quirks & AAC_QUIRK_CAM_PASSONLY))
+				    (sc->flags & AAC_FLAGS_CAM_PASSONLY))
 					ccb->csio.data_ptr[0] =
 					    ((device & 0xe0) | T_NODEVICE);
 			}

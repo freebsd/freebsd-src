@@ -105,7 +105,7 @@ static void	aac_fa_clear_istatus(struct aac_softc *sc, int mask);
 static void	aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
-static int	aac_fa_get_mailboxstatus(struct aac_softc *sc);
+static int	aac_fa_get_mailbox(struct aac_softc *sc, int mb);
 static void	aac_fa_set_interrupts(struct aac_softc *sc, int enable);
 
 struct aac_interface aac_fa_interface = {
@@ -114,7 +114,7 @@ struct aac_interface aac_fa_interface = {
 	aac_fa_get_istatus,
 	aac_fa_clear_istatus,
 	aac_fa_set_mailbox,
-	aac_fa_get_mailboxstatus,
+	aac_fa_get_mailbox,
 	aac_fa_set_interrupts
 };
 
@@ -126,7 +126,7 @@ static void	aac_sa_clear_istatus(struct aac_softc *sc, int mask);
 static void	aac_sa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
-static int	aac_sa_get_mailboxstatus(struct aac_softc *sc);
+static int	aac_sa_get_mailbox(struct aac_softc *sc, int mb);
 static void	aac_sa_set_interrupts(struct aac_softc *sc, int enable);
 
 struct aac_interface aac_sa_interface = {
@@ -135,7 +135,7 @@ struct aac_interface aac_sa_interface = {
 	aac_sa_get_istatus,
 	aac_sa_clear_istatus,
 	aac_sa_set_mailbox,
-	aac_sa_get_mailboxstatus,
+	aac_sa_get_mailbox,
 	aac_sa_set_interrupts
 };
 
@@ -147,7 +147,7 @@ static void	aac_rx_clear_istatus(struct aac_softc *sc, int mask);
 static void	aac_rx_set_mailbox(struct aac_softc *sc, u_int32_t command,
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
-static int	aac_rx_get_mailboxstatus(struct aac_softc *sc);
+static int	aac_rx_get_mailbox(struct aac_softc *sc, int mb);
 static void	aac_rx_set_interrupts(struct aac_softc *sc, int enable);
 
 struct aac_interface aac_rx_interface = {
@@ -156,7 +156,7 @@ struct aac_interface aac_rx_interface = {
 	aac_rx_get_istatus,
 	aac_rx_clear_istatus,
 	aac_rx_set_mailbox,
-	aac_rx_get_mailboxstatus,
+	aac_rx_get_mailbox,
 	aac_rx_set_interrupts
 };
 
@@ -288,7 +288,7 @@ aac_attach(struct aac_softc *sc)
 			      "shutdown event registration failed\n");
 
 	/* Register with CAM for the non-DASD devices */
-	if (!(sc->quirks & AAC_QUIRK_NOCAM)) {
+	if ((sc->flags & AAC_FLAGS_ENABLE_CAM) != 0) {
 		TAILQ_INIT(&sc->aac_sim_tqh);
 		aac_get_bus_info(sc);
 	}
@@ -1104,12 +1104,14 @@ aac_alloc_commands(struct aac_softc *sc)
 	uint32_t fibphys;
 	int i, error;
  
-	debug_called(1);
+	debug_called(2);
 
-	if (sc->total_fibs + AAC_FIB_COUNT > AAC_MAX_FIBS)
+	if (sc->total_fibs + AAC_FIB_COUNT > sc->aac_max_fibs)
 		return (ENOMEM);
 
 	fm = malloc(sizeof(struct aac_fibmap), M_AACBUF, M_NOWAIT|M_ZERO);
+	if (fm == NULL)
+		return (ENOMEM);
 
 	/* allocate the FIBs in DMAable memory and load them */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&fm->aac_fibs,
@@ -1144,6 +1146,7 @@ aac_alloc_commands(struct aac_softc *sc)
 
 	if (i > 0) {
 		TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
+		debug(1, "total_fibs= %d\n", sc->total_fibs);
 		return (0);
 	} 
 
@@ -1292,18 +1295,18 @@ aac_common_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	sc->aac_common_busaddr = segs[0].ds_addr;
 }
 
-/*
- * Retrieve the firmware version numbers.  Dell PERC2/QC cards with
- * firmware version 1.x are not compatible with this driver.
- */
 static int
 aac_check_firmware(struct aac_softc *sc)
 {
-	u_int32_t major, minor;
+	u_int32_t major, minor, options;
 
 	debug_called(1);
 
-	if (sc->quirks & AAC_QUIRK_PERC2QC) {
+	/*
+	 * Retrieve the firmware version numbers.  Dell PERC2/QC cards with
+	 * firmware version 1.x are not compatible with this driver.
+	 */
+	if (sc->flags & AAC_FLAGS_PERC2QC) {
 		if (aac_sync_command(sc, AAC_MONKER_GETKERNVER, 0, 0, 0, 0,
 				     NULL)) {
 			device_printf(sc->aac_dev,
@@ -1312,8 +1315,8 @@ aac_check_firmware(struct aac_softc *sc)
 		}
 
 		/* These numbers are stored as ASCII! */
-		major = (AAC_GETREG4(sc, AAC_SA_MAILBOX + 4) & 0xff) - 0x30;
-		minor = (AAC_GETREG4(sc, AAC_SA_MAILBOX + 8) & 0xff) - 0x30;
+		major = (AAC_GET_MAILBOX(sc, 1) & 0xff) - 0x30;
+		minor = (AAC_GET_MAILBOX(sc, 2) & 0xff) - 0x30;
 		if (major == 1) {
 			device_printf(sc->aac_dev,
 			    "Firmware version %d.%d is not supported.\n",
@@ -1321,6 +1324,35 @@ aac_check_firmware(struct aac_softc *sc)
 			return (EINVAL);
 		}
 	}
+
+	/*
+	 * Retrieve the capabilities/supported options word so we know what
+	 * work-arounds to enable.
+	 */
+	if (aac_sync_command(sc, AAC_MONKER_GETINFO, 0, 0, 0, 0, NULL)) {
+		device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
+		return (EIO);
+	}
+	options = AAC_GET_MAILBOX(sc, 1);
+	sc->supported_options = options;
+
+	if ((options & AAC_SUPPORTED_4GB_WINDOW) != 0 &&
+	    (sc->flags & AAC_FLAGS_NO4GB) == 0)
+		sc->flags |= AAC_FLAGS_4GB_WINDOW;
+	if (options & AAC_SUPPORTED_NONDASD)
+		sc->flags |= AAC_FLAGS_ENABLE_CAM;
+#if 0
+	if (options & AAC_SUPPORTED_SGMAP_HOST64 && sizeof(bus_addr_t) > 4) {
+		device_printf(sc->aac_dev, "Enabling 64-bit address support\n");
+		sc->flags |= AAC_FLAGS_SG_64BIT;
+	}
+#endif
+
+	/* Check for broken hardware that does a lower number of commands */
+	if ((sc->flags & AAC_FLAGS_256FIBS) == 0)
+		sc->aac_max_fibs = AAC_MAX_FIBS;
+	else
+		sc->aac_max_fibs = 256;
 
 	return (0);
 }
@@ -1332,6 +1364,7 @@ aac_init(struct aac_softc *sc)
 	time_t then;
 	u_int32_t code;
 	u_int8_t *qaddr;
+	int error;
 
 	debug_called(1);
 
@@ -1358,27 +1391,70 @@ aac_init(struct aac_softc *sc)
 		}
 	} while (!(code & AAC_UP_AND_RUNNING));
 
+	error = ENOMEM;
+	/*
+	 * Create DMA tag for mapping buffers into controller-addressable space.
+	 */
+	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
+			       1, 0, 			/* algnmnt, boundary */
+			       (sc->flags & AAC_FLAGS_SG_64BIT) ?
+			       BUS_SPACE_MAXADDR :
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       MAXBSIZE,		/* maxsize */
+			       AAC_MAXSGENTRIES,	/* nsegments */
+			       MAXBSIZE,		/* maxsegsize */
+			       BUS_DMA_ALLOCNOW,	/* flags */
+			       &sc->aac_buffer_dmat)) {
+		device_printf(sc->aac_dev, "can't allocate buffer DMA tag\n");
+		goto out;
+	}
+
+	/*
+	 * Create DMA tag for mapping FIBs into controller-addressable space..
+	 */
+	if (bus_dma_tag_create(sc->aac_parent_dmat,	/* parent */
+			       1, 0, 			/* algnmnt, boundary */
+			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
+			       BUS_SPACE_MAXADDR_32BIT :
+			       0x7fffffff,		/* lowaddr */
+			       BUS_SPACE_MAXADDR, 	/* highaddr */
+			       NULL, NULL, 		/* filter, filterarg */
+			       AAC_FIB_COUNT *
+			       sizeof(struct aac_fib),  /* maxsize */
+			       1,			/* nsegments */
+			       AAC_FIB_COUNT *
+			       sizeof(struct aac_fib),	/* maxsegsize */
+			       BUS_DMA_ALLOCNOW,	/* flags */
+			       &sc->aac_fib_dmat)) {
+		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
+		goto out;
+	}
+
 	/*
 	 * Create DMA tag for the common structure and allocate it.
 	 */
 	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
 			       1, 0,			/* algnmnt, boundary */
-			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       (sc->flags & AAC_FLAGS_4GB_WINDOW) ?
+			       BUS_SPACE_MAXADDR_32BIT :
+			       0x7fffffff,		/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       8192 + sizeof(struct aac_common), /* maxsize */
 			       1,			/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       0,			/* flags */
+			       BUS_DMA_ALLOCNOW,	/* flags */
 			       &sc->aac_common_dmat)) {
 		device_printf(sc->aac_dev,
 			      "can't allocate common structure DMA tag\n");
-		return(ENOMEM);
+		goto out;
 	}
 	if (bus_dmamem_alloc(sc->aac_common_dmat, (void **)&sc->aac_common,
 			     BUS_DMA_NOWAIT, &sc->aac_common_dmamap)) {
 		device_printf(sc->aac_dev, "can't allocate common structure\n");
-		return(ENOMEM);
+		goto out;
 	}
 
 	/*
@@ -1406,7 +1482,7 @@ aac_init(struct aac_softc *sc)
 			break;
 	}
 	if (sc->total_fibs == 0)
-		return (ENOMEM);
+		goto out;
 	
 	/*
 	 * Fill in the init structure.  This tells the adapter about the
@@ -1520,10 +1596,13 @@ aac_init(struct aac_softc *sc)
 			     NULL)) {
 		device_printf(sc->aac_dev,
 			      "error establishing init structure\n");
-		return(EIO);
+		error = EIO;
+		goto out;
 	}
 
-	return(0);
+	error = 0;
+out:
+	return(error);
 }
 
 /*
@@ -1552,7 +1631,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 	then = time_second;
 	do {
 		if (time_second > (then + AAC_IMMEDIATE_TIMEOUT)) {
-			debug(2, "timed out");
+			debug(1, "timed out");
 			return(EIO);
 		}
 	} while (!(AAC_GET_ISTATUS(sc) & AAC_DB_SYNC_COMMAND));
@@ -1561,7 +1640,7 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 	AAC_CLEAR_ISTATUS(sc, AAC_DB_SYNC_COMMAND);
 
 	/* get the command status */
-	status = AAC_GET_MAILBOXSTATUS(sc);
+	status = AAC_GET_MAILBOX(sc, 0);
 	if (sp != NULL)
 		*sp = status;
 	return(0);
@@ -2023,29 +2102,29 @@ aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
  * Fetch the immediate command status word
  */
 static int
-aac_sa_get_mailboxstatus(struct aac_softc *sc)
+aac_sa_get_mailbox(struct aac_softc *sc, int mb)
 {
 	debug_called(4);
 
-	return(AAC_GETREG4(sc, AAC_SA_MAILBOX));
+	return(AAC_GETREG4(sc, AAC_SA_MAILBOX + (mb * 4)));
 }
 
 static int
-aac_rx_get_mailboxstatus(struct aac_softc *sc)
+aac_rx_get_mailbox(struct aac_softc *sc, int mb)
 {
 	debug_called(4);
 
-	return(AAC_GETREG4(sc, AAC_RX_MAILBOX));
+	return(AAC_GETREG4(sc, AAC_RX_MAILBOX + (mb * 4)));
 }
 
 static int
-aac_fa_get_mailboxstatus(struct aac_softc *sc)
+aac_fa_get_mailbox(struct aac_softc *sc, int mb)
 {
 	int val;
 
 	debug_called(4);
 
-	val = AAC_GETREG4(sc, AAC_FA_MAILBOX);
+	val = AAC_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
 	return (val);
 }
 
@@ -2113,7 +2192,7 @@ aac_describe_controller(struct aac_softc *sc)
 		aac_release_sync_fib(sc);
 		return;
 	}
-	info = (struct aac_adapter_info *)&fib->data[0];
+	info = (struct aac_adapter_info *)&fib->data[0];   
 
 	device_printf(sc->aac_dev, "%s %dMHz, %dMB cache memory, %s\n", 
 		      aac_describe_code(aac_cpu_variant, info->CpuVariant),
@@ -2131,6 +2210,25 @@ aac_describe_controller(struct aac_softc *sc)
 		      (u_int32_t)(info->SerialNumber & 0xffffff));
 
 	aac_release_sync_fib(sc);
+
+	if (1 || bootverbose) {
+		device_printf(sc->aac_dev, "Supported Options=%b\n",
+			      sc->supported_options,
+			      "\20"
+			      "\1SNAPSHOT"
+			      "\2CLUSTERS"
+			      "\3WCACHE"
+			      "\4DATA64"
+			      "\5HOSTTIME"
+			      "\6RAID50"
+			      "\7WINDOW4GB"
+			      "\10SCSIUPGD"
+			      "\11SOFTERR"
+			      "\12NORECOND"
+			      "\13SGMAP64"
+			      "\14ALARM"
+			      "\15NONDASD");
+	}
 }
 
 /*
