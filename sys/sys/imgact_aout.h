@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id: imgact_aout.h,v 1.2 1994/12/30 08:06:19 bde Exp $
+ *	$Id: imgact_aout.h,v 1.3 1995/05/30 08:14:25 rgrimes Exp $
  */
 
 #ifndef	_IMGACT_AOUT_H_
@@ -108,7 +108,7 @@
  */
 
 struct exec {
-     unsigned long  a_midmag;   /* htonl(flags<<26 | mid<<16 | magic) */
+     unsigned long	a_midmag;	/* flags<<26 | mid<<16 | magic */
      unsigned long	a_text;		/* text segment size */
      unsigned long	a_data;		/* initialized data size */
      unsigned long	a_bss;		/* uninitialized data size */
