@@ -312,6 +312,106 @@ c_exec(argvp, isok)
 	*argvp = argv + 1;
 	return (new);
 }
+ 
+/*
+ * -execdir utility [arg ... ] ; functions --
+ *
+ *	True if the executed utility returns a zero value as exit status.
+ *	The end of the primary expression is delimited by a semicolon.  If
+ *	"{}" occurs anywhere, it gets replaced by the unqualified pathname.
+ *	The current directory for the execution of utility is the same as
+ *	the directory where the file lives.
+ */
+int
+f_execdir(plan, entry)
+	register PLAN *plan;
+	FTSENT *entry;
+{
+	extern int dotfd;
+	register int cnt;
+	pid_t pid;
+	int status;
+	char *file;
+
+	/* XXX - if file/dir ends in '/' this will not work -- can it? */
+	if ((file = strrchr(entry->fts_path, '/')))
+	    file++;
+	else
+	    file = entry->fts_path;
+
+	for (cnt = 0; plan->e_argv[cnt]; ++cnt)
+		if (plan->e_len[cnt])
+			brace_subst(plan->e_orig[cnt], &plan->e_argv[cnt],
+			    file, plan->e_len[cnt]);
+
+	/* don't mix output of command with find output */
+	fflush(stdout);
+	fflush(stderr);
+
+	switch (pid = vfork()) {
+	case -1:
+		err(1, "fork");
+		/* NOTREACHED */
+	case 0:
+		execvp(plan->e_argv[0], plan->e_argv);
+		warn("%s", plan->e_argv[0]);
+		_exit(1);
+	}
+	pid = waitpid(pid, &status, 0);
+	return (pid != -1 && WIFEXITED(status) && !WEXITSTATUS(status));
+}
+ 
+/*
+ * c_execdir --
+ *	build three parallel arrays, one with pointers to the strings passed
+ *	on the command line, one with (possibly duplicated) pointers to the
+ *	argv array, and one with integer values that are lengths of the
+ *	strings, but also flags meaning that the string has to be massaged.
+ */
+PLAN *
+c_execdir(argvp)
+	char ***argvp;
+{
+	PLAN *new;			/* node returned */
+	register int cnt;
+	register char **argv, **ap, *p;
+
+	ftsoptions &= ~FTS_NOSTAT;
+	isoutput = 1;
+    
+	new = palloc(N_EXECDIR, f_execdir);
+
+	for (ap = argv = *argvp;; ++ap) {
+		if (!*ap)
+			errx(1,
+			    "-execdir: no terminating \";\"");
+		if (**ap == ';')
+			break;
+	}
+
+	cnt = ap - *argvp + 1;
+	new->e_argv = (char **)emalloc((u_int)cnt * sizeof(char *));
+	new->e_orig = (char **)emalloc((u_int)cnt * sizeof(char *));
+	new->e_len = (int *)emalloc((u_int)cnt * sizeof(int));
+
+	for (argv = *argvp, cnt = 0; argv < ap; ++argv, ++cnt) {
+		new->e_orig[cnt] = *argv;
+		for (p = *argv; *p; ++p)
+			if (p[0] == '{' && p[1] == '}') {
+				new->e_argv[cnt] = emalloc((u_int)MAXPATHLEN);
+				new->e_len[cnt] = MAXPATHLEN;
+				break;
+			}
+		if (!*p) {
+			new->e_argv[cnt] = *argv;
+			new->e_len[cnt] = 0;
+		}
+	}
+	new->e_argv[cnt] = new->e_orig[cnt] = NULL;
+
+	*argvp = argv + 1;
+	return (new);
+}
 
 /*
  * -follow functions --
