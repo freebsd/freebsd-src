@@ -439,7 +439,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	vmf.vmf_ecx = STATE_MOST;
 	vmf.vmf_edx = code;	/* STATE_SAVE/STATE_LOAD */
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_bx);
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
