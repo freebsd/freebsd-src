@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.2 1996/11/12 09:09:36 phk Exp $
+#	$Id: files.pc98,v 1.9.2.3 1996/12/04 16:00:26 phk Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -38,6 +38,7 @@ i386/apm/apm_setup.s		optional	apm
 #i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
+i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
