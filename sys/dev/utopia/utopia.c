@@ -158,12 +158,14 @@ utopia_check_carrier(struct utopia *utp, u_int carr_ok)
 		utp->carrier = UTP_CARR_OK;
 		if (old != UTP_CARR_OK) {
 			if_printf(&utp->ifatm->ifnet, "carrier detected\n");
+			ATMEV_SEND_IFSTATE_CHANGED(utp->ifatm, 1);
 		}
 	} else {
 		/* no carrier */
 		utp->carrier = UTP_CARR_LOST;
 		if (old == UTP_CARR_OK) {
 			if_printf(&utp->ifatm->ifnet, "carrier lost\n");
+			ATMEV_SEND_IFSTATE_CHANGED(utp->ifatm, 0);
 		}
 	}
 }
@@ -1433,6 +1435,14 @@ utopia_attach(struct utopia *utp, struct ifatm *ifatm, struct ifmedia *media,
 	if (SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "phy_stats",
 	    CTLFLAG_RW | CTLTYPE_OPAQUE, utp, 0, utopia_sysctl_stats, "S",
 	    "phy statistics") == NULL)
+		return (-1);
+
+	if (SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "phy_state",
+	    CTLFLAG_RD, &utp->state, 0, "phy state") == NULL)
+		return (-1);
+
+	if (SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "phy_carrier",
+	    CTLFLAG_RD, &utp->carrier, 0, "phy carrier") == NULL)
 		return (-1);
 
 	UTP_WLOCK_LIST();
