@@ -116,9 +116,9 @@ LIB2ADDEH = unwind-ia64.c unwind-sjlj.c
 
 .if ${TARGET_ARCH} == "powerpc"
 #	from config/rs6000/t-ppccomm
-LIB2FUNCS_EXTRA = tramp.S
+LIB2FUNCS_EXTRA = tramp.asm
 # This one can't end up in shared libgcc
-LIB2FUNCS_STATIC_EXTRA = eabi.S
+LIB2FUNCS_STATIC_EXTRA = eabi.asm
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
 OBJS+=	dp-bit.o fp-bit.o
