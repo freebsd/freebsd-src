@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -28,6 +29,11 @@
 
 char *tempname, *passfile;
 extern int *allow_chfn, *allow_chsh;
+extern int pid;
+extern int     pw_copy __P((int, int, struct passwd *));
+extern int     pw_lock __P((void));
+extern int     pw_mkdb __P((void));
+extern int     pw_tmp __P((void));
 
 #define xprt_addr(xprt)	(svc_getcaller(xprt)->sin_addr)
 #define xprt_port(xprt)	ntohs(svc_getcaller(xprt)->sin_port)
@@ -48,6 +54,11 @@ validate_string(char *str)
 static int
 validate_args(struct xpasswd *pw)
 {
+    if (pw->pw_name[0] == '-' || pw->pw_name[0] == '+') {
+	syslog(LOG_ALERT, "attempt to modify NIS passwd entry \"%s\"",
+			pw->pw_name);
+    }
+
     return validate_string(pw->pw_passwd)
        &&  validate_string(pw->pw_shell)
        &&  validate_string(pw->pw_gecos);
@@ -64,7 +75,9 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
     int		chsh = 0, chfn = 0;
     static int	res;
     char	logbuf[255];
-    int		pfd, tfd, c;
+    int		pfd, tfd;
+    char	*passfile_hold;
+    char	template[] = "/tmp/yppwtmp.XXXXX";
 
     newpw = &yppw->newpw;
     res = 1;
@@ -80,10 +93,6 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
         		    "Possible spoof attempt?" );
         return &res;
     }
-
-    pw_init();
-    pfd = pw_lock();
-    tfd = pw_tmp();
 
     /* Check if the user exists
      */
@@ -104,6 +113,7 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
 
    /* set the new passwd, shell, and full name
     */
+    pw->pw_change = 0;
     pw->pw_passwd = newpw->pw_passwd;
 
     if (allow_chsh) {
@@ -116,40 +126,70 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
 	pw->pw_gecos = newpw->pw_gecos;
     }
 
-    pw->pw_change = 0;
-    pw_copy(pfd, tfd, pw);
+    /*
+     * Bail if locking the password file or temp file creation fails.
+     * (These operations should log their own failure messages if need be,
+     * so we don't have to log their failures here.)
+     */
+    if ((pfd = pw_lock()) < 0)
+		return &res;
+    if ((tfd = pw_tmp()) < 0)
+		return &res;
+
+    /* Placeholder in case we need to put the old password file back. */
+    passfile_hold = mktemp((char *)&template);
+
+    /*
+     * Copy the password file to the temp file,
+     * inserting new passwd entry along the way.
+     */
+    if (pw_copy(pfd, tfd, pw) < 0) {
+	syslog(LOG_ERR, "%s > %s: copy failed. Cleaning up.",
+						tempname, passfile);
+	unlink(tempname);
+	return (&res);
+    }
+
+    rename(passfile, passfile_hold);
     if (strcmp(passfile, _PATH_MASTERPASSWD)) {
-	    close(pfd);
-	    close(tfd);
-	    rename(tempname,passfile);
+	    rename(tempname, passfile);
 	}
 	else
-	if (pw_mkdb()) {
-	    syslog ( LOG_WARNING, "%s failed to rebuild password database", logbuf );
+	if (pw_mkdb() < 0) {
+	    syslog (LOG_WARNING, "%s failed to rebuild password database", logbuf );
 	    return(&res);
     	    }
 
     /* Fork off process to rebuild NIS passwd.* maps. If the fork
      * fails, restore old passwd file and return an error.
      */
-    if ((c = fork()) < 0) {
+    if ((pid = fork()) < 0) {
     	syslog( LOG_ERR, "%s failed", logbuf );
     	syslog( LOG_ERR, "Couldn't fork map update process: %m" );
+	unlink(passfile);
+	rename(passfile_hold, passfile);
+	if (!strcmp(passfile, _PATH_MASTERPASSWD))
+	    if (pw_mkdb()) {
+		syslog (LOG_WARNING, "%s failed to rebuild password database", logbuf );
+		return(&res);
+	    }
+
     	return (&res);
     }
-    if (c == 0) {
-    	execlp(MAP_UPDATE_PATH, MAP_UPDATE, NULL);
+    if (pid == 0) {
+	unlink(passfile_hold);
+    	execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile, NULL);
     	syslog( LOG_ERR, "Error: couldn't exec map update process: %m" );
     	exit(1);
     }
 
-    syslog ( LOG_INFO, "%s successful. Password changed.", logbuf );
+    syslog (LOG_INFO, "%s successful. Password changed.", logbuf );
     if (chsh || chfn) {
     	syslog ( LOG_INFO, "Shell %schanged (%s), GECOS %schanged (%s).",
     			chsh? "" : "un", newpw->pw_shell,
     			chfn? "" : "un", newpw->pw_gecos );
     }
-    res = 0;
 
+    res = 0;
     return (&res);
 }

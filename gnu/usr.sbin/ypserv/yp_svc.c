@@ -325,11 +325,12 @@ int main(int argc, char **argv)
     sigaction(SIGPIPE, NULL, &sa);
     sa.sa_handler = SIG_IGN;
     sa.sa_flags |= SA_RESTART;
+    sigemptyset(&sa.sa_mask);
     sigaction(SIGPIPE, &sa, NULL);
     sigaction(SIGCHLD, NULL, &sa);
     sa.sa_flags |= SA_RESTART;
     sa.sa_handler = reapchild;
-    sa.sa_mask = sigmask(SIGCHLD);
+    sigemptyset(&sa.sa_mask);
     sigaction(SIGCHLD, &sa, NULL);
 
     (void) pmap_unset(YPPROG, YPVERS);
