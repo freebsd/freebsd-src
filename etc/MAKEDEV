@@ -1678,7 +1678,7 @@ i4btrc*)
 aac*)
 	unit=`expr $i : 'aac\(.*\)'`
 	mknod aac$unit c 150 `unit2minor $unit`
-	ln -s aac$unit afa$unit
+	ln -sf aac$unit afa$unit
 	;;
 
 mlx*)
