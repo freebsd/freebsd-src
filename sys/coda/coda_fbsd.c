@@ -110,7 +110,6 @@ coda_fbsd_getpages(v)
 	void *v;
 {
     struct vop_getpages_args *ap = v;
-    int ret = 0;
 
 #if	1
 	return vop_stdgetpages(ap);
