@@ -49,7 +49,7 @@ wakeup_16:
 	movw	$PAGE_SIZE,%sp
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
-	cmp	$1,reset_video
+	cmp	$0,reset_video
 	je	wakeup_16_gdt
 	lcall	$0xc000,$3
 
