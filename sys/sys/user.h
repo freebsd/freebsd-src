@@ -143,7 +143,8 @@ struct kinfo_proc {
 	char	ki_sparestrings[102];	/* spare string space */
 	struct	rtprio ki_rtprio;	/* Realtime priority */
 	struct	rusage ki_rusage;	/* process rusage statistics */
-	long	ki_spare[25];		/* spare constants */
+	long	ki_sflag;		/* PS_* flags */
+	long	ki_spare[24];		/* spare constants */
 };
 void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
 

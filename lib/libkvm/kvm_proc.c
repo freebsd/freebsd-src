@@ -182,7 +182,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_sigignore = procsig.ps_sigignore;
 			kp->ki_sigcatch = procsig.ps_sigcatch;
 		}
-		if ((proc.p_flag & P_INMEM) && proc.p_stats != NULL) {
+		if ((proc.p_sflag & PS_INMEM) && proc.p_stats != NULL) {
 			if (KREAD(kd, (u_long)proc.p_stats, &pstats)) {
 				_kvm_err(kd, kd->program,
 				    "can't read stats at %x", proc.p_stats);
@@ -311,6 +311,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		kp->ki_slptime = proc.p_slptime;
 		kp->ki_swtime = proc.p_swtime;
 		kp->ki_flag = proc.p_flag;
+		kp->ki_sflag = proc.p_sflag;
 		kp->ki_wchan = proc.p_wchan;
 		kp->ki_traceflag = proc.p_traceflag;
 		kp->ki_priority = proc.p_priority;
