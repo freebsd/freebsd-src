@@ -43,6 +43,13 @@
 #define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
 void generic_bcopy(const void *s, void *d, size_t c);
 void generic_bzero(void *d, size_t c);
+#elif __amd64__
+#define bcopy_io(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
+#define bcopy_toio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
+#define bcopy_fromio(s, d, c)	bcopy((void *)(s), (void *)(d), (c))
+#define bzero_io(d, c)		bzero((void *)(d), (c))
+#define fill_io(p, d, c)	fill((p), (void *)(d), (c))
+#define fillw_io(p, d, c)	fillw((p), (void *)(d), (c))
 #elif __ia64__
 #include <machine/bus.h>
 #define	bcopy_fromio(s, d, c)	\
@@ -69,7 +76,7 @@ fillw(int val, uint16_t *buf, size_t size)
 	while (size--)
 		*buf++ = val;
 }
-#else /* !__i386__ && !__ia64__ */
+#else /* !__i386__ && !__ia64__ && !__amd64__ */
 #define bcopy_io(s, d, c)	memcpy_io((d), (s), (c))
 #define bcopy_toio(s, d, c)	memcpy_toio((d), (void *)(s), (c))
 #define bcopy_fromio(s, d, c)	memcpy_fromio((void *)(d), (s), (c))
