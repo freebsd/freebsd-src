@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.38 1997/04/13 05:39:42 jkh Exp $
+ * $Id: config.c,v 1.51.2.39 1997/04/19 23:26:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -504,19 +504,7 @@ configXFree86(dialogMenuItem *self)
     else {
 	int i;
 
-	dialog_clear_norefresh();
-	msgNotify("Running AcceleratedX 3.1 installation procedure, please wait.");
-	if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
-	    msgConfirm("Installation procedure failed, error code %d!  Please report\n"
-		       "error to Walnut Creek CDROM tech support (either send email\n"
-		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	dialog_clear();
-	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
 	if (directory_exists("/dist/CDE") && !msgYesNo("Would you like to install the CDE desktop package now?")) {
-	    int i;
-
 	    dialog_clear_norefresh();
 	    msgNotify("Running CDE installation - please wait (this may take awhile!).");
 	    dialog_clear();
@@ -529,6 +517,17 @@ configXFree86(dialogMenuItem *self)
 			   "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
 	    }
 	}
+
+	dialog_clear_norefresh();
+	msgNotify("Running AcceleratedX 3.1 installation procedure, please wait.");
+	if ((i = vsystem("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall"))) {
+	    msgConfirm("Installation procedure failed, error code %d!  Please report\n"
+		       "error to Walnut Creek CDROM tech support (either send email\n"
+		       "to support@cdrom.com or call +1 510 603 1234).  Thank you!", i);
+	    return DITEM_FAILURE | DITEM_RESTORE;
+	}
+	dialog_clear();
+	systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xsetup");
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
 
