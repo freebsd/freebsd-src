@@ -48,9 +48,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +65,19 @@ char *tabs[] = { "", "\t", "\t\t" };
 FILE   *file __P((char *));
 void	show __P((FILE *, char *, char *));
 static void	usage __P((void));
+
+int stricoll(char *s1, char *s2)
+{
+	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+
+	for (p = line1; *s1; s1++)
+		*p++ = toupper((unsigned char)*s1);
+	*p = '\0';
+	for (p = line2; *s2; s2++)
+		*p++ = toupper((unsigned char)*s2);
+	*p = '\0';
+	return strcoll(s1, s2);
+}
 
 int
 main(argc, argv)
@@ -77,6 +92,8 @@ main(argc, argv)
 
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "-123i")) != -1)
 		switch(ch) {
@@ -139,9 +156,9 @@ done:	argc -= optind;
 
 		/* lines are the same */
 		if(iflag)
-			comp = strcasecmp(line1, line2);
+			comp = stricoll(line1, line2);
 		else
-			comp = strcmp(line1, line2);
+			comp = strcoll(line1, line2);
 
 		if (!comp) {
 			read1 = read2 = 1;
