@@ -49,7 +49,7 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft FILE *
-.Fn fopen "const char *path" "const char *mode"
+.Fn fopen "const char * restrict path" "const char * restrict mode"
 .Ft FILE *
 .Fn fdopen "int fildes" "const char *mode"
 .Ft FILE *

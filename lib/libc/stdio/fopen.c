@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
 
 FILE *
 fopen(file, mode)
-	const char *file;
-	const char *mode;
+	const char * __restrict file;
+	const char * __restrict mode;
 {
 	FILE *fp;
 	int f;

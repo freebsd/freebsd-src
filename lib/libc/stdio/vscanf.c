@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 int
 vscanf(fmt, ap)
-	const char *fmt;
+	const char * __restrict fmt;
 	__va_list ap;
 {
 	int retval;
