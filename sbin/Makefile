@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.53 1998/09/05 07:35:19 jb Exp $
+#	$Id: Makefile,v 1.54 1998/09/05 08:29:05 jb Exp $
 
 # XXX MISSING:		icheck ncheck
 
 SUBDIR= badsect \
+	camcontrol \
 	ccdconfig \
 	clri \
 	disklabel \
@@ -50,7 +51,6 @@ SUBDIR= badsect \
 	route \
 	routed \
 	savecore \
-	scsiformat \
 	shutdown \
 	slattach \
 	startslip \
@@ -64,8 +64,7 @@ SUBDIR+= ${MACHINE_ARCH}
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=adjkerntz \
-	scsi
+SUBDIR+=adjkerntz
 .endif
 
 .include <bsd.subdir.mk>
