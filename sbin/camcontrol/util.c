@@ -43,10 +43,8 @@
  * Taken from the original scsi(8) program.
  * from: scsi.c,v 1.17 1998/01/12 07:57:57 charnier Exp $";
  */
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/stdint.h>
 #include <sys/types.h>
