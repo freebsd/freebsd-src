@@ -127,6 +127,8 @@ static __inline void
 unlock_map(struct faultstate *fs)
 {
 	if (fs->lookup_still_valid) {
+		if (fs->lookup_still_valid == 2)
+			vm_map_lock_downgrade(fs->map);
 		vm_map_lookup_done(fs->map, fs->entry);
 		fs->lookup_still_valid = FALSE;
 	}
@@ -282,7 +284,7 @@ RetryFault:;
 			fs.first_pindex, fs.first_pindex + 1);
 	}
 
-	fs.lookup_still_valid = TRUE;
+	fs.lookup_still_valid = 1;
 
 	if (wired)
 		fault_type = prot;
@@ -657,10 +659,10 @@ readrest:
 				 * grab the lock if we need to
 				 */
 				(fs.lookup_still_valid ||
-				 lockmgr(&fs.map->lock, LK_EXCLUSIVE|LK_NOWAIT, (void *)0, curthread) == 0)
+				 vm_map_try_lock(fs.map) == 0)
 			    ) {
-				
-				fs.lookup_still_valid = 1;
+				if (fs.lookup_still_valid == 0)
+					fs.lookup_still_valid = 2;
 				/*
 				 * get rid of the unnecessary page
 				 */
@@ -764,7 +766,7 @@ readrest:
 			unlock_and_deallocate(&fs);
 			return (result);
 		}
-		fs.lookup_still_valid = TRUE;
+		fs.lookup_still_valid = 1;
 
 		if ((retry_object != fs.first_object) ||
 		    (retry_pindex != fs.first_pindex)) {

@@ -547,9 +547,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 	int nothingwired;
 
 	GIANT_REQUIRED;
-	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curthread)) {
+	if (vm_map_try_lock(map))
 		return;
-	}
 
 	bigobj = NULL;
 	nothingwired = TRUE;
