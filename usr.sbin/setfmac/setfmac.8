@@ -39,13 +39,12 @@
 .Nm setfmac
 .Op Fl hR
 .Ar label
-.Op Ar file ...
+.Ar
 .Nm setfsmac
 .Op Fl ehvx
 .Op Fl f Ar specfile
 .Op Fl s Ar specfile
-.Ar path
-.Op Ar file ...
+.Ar
 .Sh DESCRIPTION
 The
 .Nm setfmac
@@ -89,17 +88,23 @@ than the file that the link points to.
 Add the specification in
 .Ar specfile ,
 but assume that the specification format is that used in the port
-of SELinux to FreeBSD as SEBSD.
+of
+.Tn SELinux
+to
+.Fx ,
+.Tn SEBSD.
 At most one of the specifications will be applied to each file traversed per
 .Fl f Ar specfile
 given.
 The prefix
-.Dq sebsd/
+.Dq Li sebsd/
 will automatically be prepended to the labels in this file, and labels
 matching
-.Dq <<none>>
+.Dq Li <<none>>
 will be explicitly not relabeled.
-This permits SEBSD to re-use existing SELinux policy specification files
+This permits SEBSD to re-use existing
+.Tn SELinux
+policy specification files
 unmodified.
 .It Fl v
 Increase the degree of verbosity.
