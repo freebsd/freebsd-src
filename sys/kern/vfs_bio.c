@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.196 1999/01/22 08:59:05 dg Exp $
+ * $Id: vfs_bio.c,v 1.197 1999/01/23 06:36:15 dillon Exp $
  */
 
 /*
@@ -1482,7 +1482,10 @@ loop:
 		 * check the cases and then turn the clearing part of this
 		 * code into a panic.
 		 */
-		if ((bp->b_flags & (B_VMIO|B_CACHE)) == (B_VMIO|B_CACHE)) {
+		if (
+		    (bp->b_flags & (B_VMIO|B_CACHE)) == (B_VMIO|B_CACHE) &&
+		    (bp->b_vp->v_tag != VT_NFS || bp->b_validend <= 0)
+		) {
 			int checksize = bp->b_bufsize;
 			int poffset = bp->b_offset & PAGE_MASK;
 			int resid;
