@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.18 1995/01/14 07:51:07 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.19 1995/01/14 22:14:54 wollman Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -212,7 +212,7 @@ llib-l${LIB}.ln: ${SRCS}
 	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
 
 .if !target(clean)
-clean:
+clean:	_LIBSUBDIR
 	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
 	rm -f lib${LIB}.a llib-l${LIB}.ln
 	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
@@ -221,7 +221,7 @@ clean:
 .endif
 
 .if !target(cleandir)
-cleandir:
+cleandir:	_LIBSUBDIR
 	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
 	rm -f lib${LIB}.a llib-l${LIB}.ln
 	rm -f ${.CURDIR}/tags .depend
@@ -284,7 +284,7 @@ realinstall: beforeinstall
 	done; true
 .endif
 
-install: afterinstall
+install: afterinstall _LIBSUBDIR
 .if !defined(NOMAN)
 afterinstall: realinstall maninstall
 .else
@@ -294,7 +294,7 @@ afterinstall: realinstall
 
 DISTRIBUTION?=	bin
 .if !target(distribute)
-distribute:
+distribute:	_LIBSUBDIR
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
@@ -316,9 +316,9 @@ maninstall:
 
 .if !target(obj)
 .if defined(NOOBJ)
-obj:
+obj:	_LIBSUBDIR
 .else
-obj:
+obj:	_LIBSUBDIR
 	@cd ${.CURDIR}; rm -rf obj; \
 	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
 	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
