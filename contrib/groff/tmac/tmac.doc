@@ -2254,6 +2254,7 @@
 .nr v1 0
 .nr tY 1
 .\" NS Xr macro - cross reference (man page only)
+.\" NS jM local register
 .de Xr
 .if \\n(aC==0 \{\
 .	ie \\n(.$==0 .tm Usage: .Xr manpage_name [section#] \\*(Pu (#\\n(.c)
@@ -2264,21 +2265,20 @@
 .\}
 .if \\n(aC>\\n(aP \{\
 .	nr aP \\n(aP+1
-.	ie \\n(C\\n(aP==1 .tm Usage: .Xr manpage_name [section#] \\*(Pu (#\\n(.c)
+.	ie !\\n(C\\n(aP==2 .tm Usage: .Xr manpage_name [section#] \\*(Pu (#\\n(.c)
 .	el \{\
-.		ie \\n(C\\n(aP>2 .y\\n(C\\n(aP
-.		el \{\
-.			as b1 \&\\*(xR\\*(A\\n(aP\fP\s0
-.			nr aP \\n(aP+1
-.			if \\n(aC>=\\n(aP \{\
-.				if \\n(C\\n(aP==2 \{\
-.					as b1 \&(\\*(A\\n(aP)
-.					nr aP \\n(aP+1
-.				\}
+.		ds A\\n(aP \\*(xR\\*(A\\n(aP\fP\s0
+.		if \\n(aC>\\n(aP \{\
+.			nr jM \\n(aP+1
+.			if \\n(C\\n(jM==2 \{\
+.				ds A\\n(jM \\*(lp\\*(A\\n(jM\\*(rp
+.				ds S\\n(aP
 .			\}
-.			ie \\n(aC>=\\n(aP .c\\n(C\\n(aP
-.			el .aZ
+.			rr jM
 .		\}
+.		nr cF \\n(.f
+.		nr cZ \\n(.s
+.		nR
 .       \}
 .\}
 ..
