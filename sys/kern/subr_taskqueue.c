@@ -33,7 +33,6 @@
 #include <sys/kernel.h>
 #include <sys/taskqueue.h>
 #include <sys/interrupt.h>
-#include <sys/ipl.h>
 #include <sys/malloc.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
