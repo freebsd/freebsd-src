@@ -40,7 +40,7 @@ CRT=		start.o
 STRIP=
 BINDIR?=	/boot
 
-all: ${BASE} ${.OBJDIR}/loader.4th
+all: ${BASE}
 
 vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -58,10 +58,6 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o setdef0.o 
 CLEANFILES+=	${BASE}.help
 ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
-
-CLEANFILES+=	${.OBJDIR}/loader.4th
-${.OBJDIR}/loader.4th:  ${.CURDIR}/../../forth/loader.4th
-	grep -v 'dict' ${.ALLSRC} > ${.TARGET}
 
 beforeinstall:
 .if exists(${DESTDIR}/boot/${BASE})
@@ -81,7 +77,7 @@ beforeinstall:
 		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
 .endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/loader.4th ${DESTDIR}/boot
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
