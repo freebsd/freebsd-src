@@ -54,6 +54,7 @@ ciss	i386,amd64
 cm	i386
 cp	i386,pc98
 ct	pc98
+cue	i386,pc98,amd64
 cx	i386
 dc	i386,pc98,alpha,sparc64,amd64
 de	i386,pc98,alpha,amd64
@@ -64,6 +65,7 @@ ida	i386
 iir	i386,amd64
 ips	i386,amd64
 ixgb	i386,amd64
+kue	i386,pc98,amd64
 lge	i386,pc98,amd64
 mlx	i386,alpha,amd64
 mly	i386,amd64
