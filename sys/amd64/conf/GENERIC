@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.28 1995/01/26 05:04:34 ache Exp $
+#	$Id: GENERIC,v 1.29 1995/01/27 07:48:58 phk Exp $
 #
 
 machine		"i386"
@@ -65,6 +65,8 @@ device		cd0	#Only need one of these, the code dynamically grows
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
+
+device		scd0	at isa? port 0x230 bio
 
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
