@@ -135,6 +135,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	td->td_critnest = 0;
 	td->td_kse      = NULL;
+	cpu_thread_link(td);
 }
 
 /* 
