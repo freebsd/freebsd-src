@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.9 1994/08/22 10:46:37 jkh Exp $
+# $Id: bsd.port.mk,v 1.10 1994/08/22 11:20:06 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -154,10 +154,15 @@ ${CONFIGURE_COOKIE}:
 
 .if !target(bundle)
 bundle:
+	@echo "===>  Bundling for ${DISTNAME}"
 	@if [ ! -f ${EXTRACT_COOKIE} ]; then \
-	   echo "There doesn't appear to be a properly extracted"; \
-	   echo "distribution for ${DISTNAME}. Skipping.."; \
+	   echo ">> There doesn't appear to be a properly extracted"; \
+	   echo ">> distribution for ${DISTNAME}. Skipping.."; \
 	   exit 0; \
+	fi
+	@if [ -f ${CONFIGURE_COOKIE} ]; then \
+	   echo ">> WARNING:  This source has been configured and may be"; \
+	   echo ">> produce a tainted distfile!"; \
 	fi
 	${BUNDLE_CMD} ${BUNDLE_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} \
 		${DISTNAME}
@@ -175,10 +180,10 @@ ${EXTRACT_COOKIE}:
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
 	@if [ ! -f ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} ]; then \
-	   echo "Sorry, can't find: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}"; \
-	   echo "Please obtain this file from:"; \
-	   echo "	${HOME_LOCATION}"; \
-	   echo "before proceeding."; \
+	   echo ">> Sorry, can't find: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}"; \
+	   echo ">> Please obtain this file from:"; \
+	   echo ">>	${HOME_LOCATION}"; \
+	   echo ">>before proceeding."; \
 	   exit 1; \
 	fi
 	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}
