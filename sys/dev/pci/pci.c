@@ -849,7 +849,7 @@ pci_ata_maps(device_t pcib, device_t bus, device_t dev, int b,
 	     int s, int f, struct resource_list *rl)
 {
 	int rid, type, progif;
-#if 1
+#if 0
 	/* if this device supports PCI native addressing use it */
 	progif = pci_read_config(dev, PCIR_PROGIF, 1);
 	if ((progif & 0x8a) == 0x8a) {
