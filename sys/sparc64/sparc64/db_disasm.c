@@ -40,8 +40,6 @@
 #include <machine/db_machdep.h>
 #include <machine/instr.h>
 
-#define	abs(v)	((v) > 0 ? (v) : -(v))
-
 #define SIGN(v)			(((v)<0)?"-":"")
 
 /*
