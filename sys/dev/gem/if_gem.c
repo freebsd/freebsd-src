@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 2001 Eduardo Horvath.
  * Copyright (c) 2001-2003 Thomas Moestl
  * All rights reserved.
@@ -25,9 +25,10 @@
  * SUCH DAMAGE.
  *
  *	from: NetBSD: gem.c,v 1.21 2002/06/01 23:50:58 lukem Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Driver for Sun GEM ethernet controllers.

@@ -24,11 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  *
  * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
  *                             <mdodd@FreeBSD.org>
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Intel EtherExpress Pro/10, Pro/10+ Ethernet driver

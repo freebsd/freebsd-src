@@ -1,4 +1,7 @@
 /* daemon.c: kernel part of Vinum daemon */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -35,7 +38,6 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumdaemon.c,v 1.8 2000/01/03 05:22:03 grog Exp grog $
- * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

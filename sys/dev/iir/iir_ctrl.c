@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  *       Copyright (c) 2000-01 Intel Corporation
  *       All Rights Reserved
@@ -38,6 +37,8 @@
  */
 
 #ident "$Id: iir_ctrl.c 1.2 2001/07/18 11:17:22 achim Exp $"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

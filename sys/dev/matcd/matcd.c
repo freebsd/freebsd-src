@@ -489,7 +489,6 @@ End of Edit History
 		 		Version_d[ c](d)_dd-mmm-yyyy	*/
 static char	MATCDVERSION[]="Version  3(42) 10-May-2003";
 
-/* $FreeBSD$
 */
 
 
@@ -530,6 +529,9 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995,2002,2
 #define	MATCDREADRAW	0x0002
 
 /*	Flags in the if_state array */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	BUSBUSY	0x01			/*<18>Bus is already busy*/
 

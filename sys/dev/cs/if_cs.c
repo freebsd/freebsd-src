@@ -26,8 +26,10 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- * $FreeBSD$
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997

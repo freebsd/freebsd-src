@@ -1,5 +1,7 @@
-/*	$FreeBSD$ */
 /*	$NetBSD: rf_raid0.c,v 1.4 2000/01/07 03:41:02 oster Exp $	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

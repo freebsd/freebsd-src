@@ -24,9 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Id: pdq.c,v 1.32 1997/06/05 01:56:35 thomas Exp
- * $FreeBSD$
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * DEC PDQ FDDI Controller O/S independent code

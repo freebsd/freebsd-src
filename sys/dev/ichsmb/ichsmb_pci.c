@@ -1,9 +1,10 @@
-
-/*
+/*-
  * ichsmb_pci.c
  *
+ * Author: Archie Cobbs <archie@freebsd.org>
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
+ * Author: Archie Cobbs <archie@freebsd.org>
  * 
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
@@ -33,11 +34,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
- *
- * Author: Archie Cobbs <archie@freebsd.org>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Support for the SMBus controller logical device which is part of the

@@ -2,6 +2,7 @@
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
+ * Author: Hartmut Brandt <harti@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,16 +24,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * Author: Hartmut Brandt <harti@freebsd.org>
- *
- * ForeHE driver.
- *
- * Interrupt handler.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+/*
+ * ForeHE driver.
+ *
+ * Interrupt handler.
+ */
 
 #include "opt_inet.h"
 #include "opt_natm.h"

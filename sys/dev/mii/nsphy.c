@@ -37,6 +37,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
  *

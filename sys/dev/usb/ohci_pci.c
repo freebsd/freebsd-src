@@ -1,6 +1,4 @@
-/*	$FreeBSD$ */
-
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,6 +35,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * USB Open Host Controller driver.
  *
@@ -47,7 +48,6 @@
  * PCI probes and OHCI specific code. This was done to facilitate the
  * sharing of code between *BSD's
  */
-
 
 #include "opt_bus.h"
 

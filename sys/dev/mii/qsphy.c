@@ -1,4 +1,7 @@
 /*	OpenBSD: qsphy.c,v 1.6 2000/08/26 20:04:18 nate Exp */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*	NetBSD: qsphy.c,v 1.19 2000/02/02 23:34:57 thorpej Exp 	*/
 
 /*-

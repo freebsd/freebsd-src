@@ -34,6 +34,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC
  */

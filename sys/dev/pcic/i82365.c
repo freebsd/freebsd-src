@@ -1,6 +1,8 @@
 /*	$NetBSD: i82365.c,v 1.25 1999/10/15 06:07:27 haya Exp $	*/
-/* $FreeBSD$ */
 
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *

@@ -1,5 +1,7 @@
-/*	$FreeBSD$ */
 /*	$NetBSD: rf_cvscan.c,v 1.5 1999/08/13 03:41:53 oster Exp $	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

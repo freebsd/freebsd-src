@@ -1,9 +1,11 @@
 /*	$NetBSD: uscanner.c,v 1.30 2002/07/11 21:14:36 augustss Exp$	*/
-/*	$FreeBSD$	*/
 
 /* Also already merged from NetBSD:
  *	$NetBSD: uscanner.c,v 1.33 2002/09/23 05:51:24 simonb Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

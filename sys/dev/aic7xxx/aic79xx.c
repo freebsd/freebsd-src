@@ -38,9 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#202 $
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef __linux__
 #include "aic79xx_osm.h"

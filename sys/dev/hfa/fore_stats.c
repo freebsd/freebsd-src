@@ -1,9 +1,7 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
- *
  *
  * This Host ATM Research Platform ("HARP") file (the "Software") is
  * made available by Network Computing Services, Inc. ("NetworkCS")
@@ -22,10 +20,10 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FORE Systems 200-Series Adapter Support

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -34,6 +33,9 @@
  * (qlogicisp.c) and Dave Miller's SBus version of same (qlogicisp.c). Some
  * ideas dredged from the Solaris driver.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Include header file appropriate for platform we're building on.

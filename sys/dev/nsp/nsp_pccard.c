@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NecBSD: nsp_pisa.c,v 1.4 1999/04/15 01:35:54 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 
@@ -34,6 +33,9 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

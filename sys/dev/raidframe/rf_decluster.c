@@ -1,5 +1,7 @@
-/*	$FreeBSD$ */
 /*	$NetBSD: rf_decluster.c,v 1.6 2001/01/26 04:40:03 oster Exp $	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

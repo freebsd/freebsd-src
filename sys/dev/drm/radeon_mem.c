@@ -28,8 +28,10 @@
  * Authors:
  *    Keith Whitwell <keith@tungstengraphics.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"

@@ -27,9 +27,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  * from kbdio.c,v 1.13 1998/09/25 11:55:46 yokota Exp
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_kbd.h"
 

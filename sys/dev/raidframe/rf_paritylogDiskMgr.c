@@ -1,5 +1,7 @@
-/*	$FreeBSD$ */
 /*	$NetBSD: rf_paritylogDiskMgr.c,v 1.10 2000/01/15 01:57:57 oster Exp $	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.

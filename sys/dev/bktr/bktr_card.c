@@ -1,20 +1,4 @@
-/* $FreeBSD$ */
-
-/*
- * This is part of the Driver for Video Capture Cards (Frame grabbers)
- * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
- * chipset.
- * Copyright Roger Hardiman and Amancio Hasty.
- *
- * bktr_card : This deals with identifying TV cards.
- *               trying to find the card make and model of card.
- *               trying to find the type of tuner fitted.
- *               reading the configuration EEPROM.
- *               locating i2c devices.
- *
- */
-
-/*
+/*-
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -45,6 +29,22 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
+ * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
+ * chipset.
+ * Copyright Roger Hardiman and Amancio Hasty.
+ *
+ * bktr_card : This deals with identifying TV cards.
+ *               trying to find the card make and model of card.
+ *               trying to find the type of tuner fitted.
+ *               reading the configuration EEPROM.
+ *               locating i2c devices.
  */
 
 #include "opt_bktr.h"		/* Include any kernel config options */

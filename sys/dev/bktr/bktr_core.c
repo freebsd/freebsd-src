@@ -1,32 +1,4 @@
-/* $FreeBSD$ */
-
-/*
- * This is part of the Driver for Video Capture Cards (Frame grabbers)
- * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
- * chipset.
- * Copyright Roger Hardiman and Amancio Hasty.
- *
- * bktr_core : This deals with the Bt848/849/878/879 PCI Frame Grabber,
- *               Handles all the open, close, ioctl and read userland calls.
- *               Sets the Bt848 registers and generates RISC pograms.
- *               Controls the i2c bus and GPIO interface.
- *               Contains the interface to the kernel.
- *               (eg probe/attach and open/close/ioctl)
- *
- */
-
- /*
-   The Brooktree BT848 Driver driver is based upon Mark Tinguely and
-   Jim Lowe's driver for the Matrox Meteor PCI card . The 
-   Philips SAA 7116 and SAA 7196 are very different chipsets than
-   the BT848.
-
-   The original copyright notice by Mark and Jim is included mostly
-   to honor their fantastic work in the Matrox Meteor driver!
-
- */
-
-/*
+/*-
  * 1. Redistributions of source code must retain the 
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -58,11 +30,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-
-
-
-/*
+/*-
  * 1. Redistributions of source code must retain the 
  * Copyright (c) 1995 Mark Tinguely and Jim Lowe
  * All rights reserved.
@@ -92,6 +60,33 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
+ * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
+ * chipset.
+ * Copyright Roger Hardiman and Amancio Hasty.
+ *
+ * bktr_core : This deals with the Bt848/849/878/879 PCI Frame Grabber,
+ *               Handles all the open, close, ioctl and read userland calls.
+ *               Sets the Bt848 registers and generates RISC pograms.
+ *               Controls the i2c bus and GPIO interface.
+ *               Contains the interface to the kernel.
+ *               (eg probe/attach and open/close/ioctl)
+ */
+
+ /*
+   The Brooktree BT848 Driver driver is based upon Mark Tinguely and
+   Jim Lowe's driver for the Matrox Meteor PCI card . The 
+   Philips SAA 7116 and SAA 7196 are very different chipsets than
+   the BT848.
+
+   The original copyright notice by Mark and Jim is included mostly
+   to honor their fantastic work in the Matrox Meteor driver!
  */
 
 #include "opt_bktr.h"		/* Include any kernel config options */

@@ -23,10 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  *      From NetBSD: if_de.c,v 1.56.2.1 1997/10/27 02:13:25 thorpej Exp
  *	$Id: if_lmc.c,v 1.9 1999/02/19 15:08:42 explorer Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef COMPILING_LINT
 #warning "The lmc driver is broken and is not compiled with LINT"

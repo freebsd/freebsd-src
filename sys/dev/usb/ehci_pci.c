@@ -1,6 +1,4 @@
-/*	$FreeBSD$ */
-
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,6 +35,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * USB Enhanced Host Controller Driver, a.k.a. USB 2.0 controller.
  *
@@ -44,14 +45,12 @@
  * http://developer.intel.com/technology/usb/download/ehci-r10.pdf
  * and the USB 2.0 spec at
  * http://www.usb.org/developers/docs/usb_20.zip
- *
  */
 
 /* The low level controller code for EHCI has been split into
  * PCI probes and EHCI specific code. This was done to facilitate the
  * sharing of code between *BSD's
  */
-
 
 #include "opt_bus.h"
 

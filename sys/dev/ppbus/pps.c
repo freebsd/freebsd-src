@@ -6,7 +6,6 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -14,6 +13,9 @@
  * The echo output pin is pin#14
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -27,6 +27,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * dpt_scsi.c: SCSI dependant code for the DPT driver
  *

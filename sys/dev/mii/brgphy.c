@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * Driver for the Broadcom BCR5400 1000baseTX PHY. Speed is always
  * 1000mbps; all we need to negotiate here is full or half duplex.

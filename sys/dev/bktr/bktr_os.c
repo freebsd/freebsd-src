@@ -1,20 +1,4 @@
-/* $FreeBSD$ */
-
-/*
- * This is part of the Driver for Video Capture Cards (Frame grabbers)
- * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
- * chipset.
- * Copyright Roger Hardiman and Amancio Hasty.
- *
- * bktr_os : This has all the Operating System dependant code,
- *             probe/attach and open/close/ioctl/read/mmap
- *             memory allocation
- *             PCI bus interfacing
- *             
- *
- */
-
-/*
+/*-
  * 1. Redistributions of source code must retain the 
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -47,6 +31,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
+ * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
+ * chipset.
+ * Copyright Roger Hardiman and Amancio Hasty.
+ *
+ * bktr_os : This has all the Operating System dependant code,
+ *             probe/attach and open/close/ioctl/read/mmap
+ *             memory allocation
+ *             PCI bus interfacing
+ */
 
 #include "opt_bktr.h"		/* include any kernel config options */
 

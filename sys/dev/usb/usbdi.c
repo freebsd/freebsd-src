@@ -1,10 +1,12 @@
 /*	$NetBSD: usbdi.c,v 1.100 2002/05/19 06:24:33 augustss Exp $	*/
-/*	$FreeBSD$	*/
 
 /* Also already have from NetBSD:
  *	$NetBSD: usbdi.c,v 1.102 2002/07/11 21:14:35 augustss Exp $
  *	$NetBSD: usbdi.c,v 1.103 2002/09/27 15:37:38 provos Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
