@@ -108,7 +108,9 @@ vm_contig_launder(int queue)
 			} else if (object->type == OBJT_SWAP ||
 				   object->type == OBJT_DEFAULT) {
 				m_tmp = m;
+				vm_page_lock_queues();
 				vm_pageout_flush(&m_tmp, 1, 0);
+				vm_page_unlock_queues();
 				return (TRUE);
 			}
 		} else if (m->busy == 0 && m->hold_count == 0) {
