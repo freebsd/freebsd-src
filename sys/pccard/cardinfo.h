@@ -133,16 +133,23 @@ struct io_desc {
 /*
  *	Device descriptor for allocation of driver.
  */
+#define DEV_MISC_LEN	36
+#define DEV_MAX_CIS_LEN	40
 struct dev_desc {
-	char	name[16];	/* Driver name */
-	int	unit;		/* Driver unit number */
-	unsigned long mem;	/* Memory address of driver */
-	int	memsize;	/* Memory size (if used) */
-	int	iobase;		/* base of I/O ports */
-	int	iosize;		/* Length of I/O ports */
-	int	irqmask;	/* Interrupt number(s) to allocate */
-	int	flags;		/* Device flags */
-	u_char	misc[128];	/* For any random info */
+	char		name[16];	/* Driver name */
+	int		unit;		/* Driver unit number */
+	unsigned long	mem;		/* Memory address of driver */
+	int		memsize;	/* Memory size (if used) */
+	int		iobase;		/* base of I/O ports */
+	int		iosize;		/* Length of I/O ports */
+	int		irqmask;	/* Interrupt number(s) to allocate */
+	int		flags;		/* Device flags */
+	uint8_t		misc[DEV_MISC_LEN]; /* For any random info */
+	uint8_t		manufstr[DEV_MAX_CIS_LEN];
+	uint8_t		versstr[DEV_MAX_CIS_LEN];
+	uint32_t	manufacturer;	/* Manufacturer ID */
+	uint32_t	product;	/* Product ID */
+	uint32_t	prodext;	/* Product ID (extended) */
 };
 #define DEV_DESC_HAS_SIZE 1
 
@@ -155,20 +162,20 @@ struct pcic_reg {
  *	Slot information. Used to read current status of slot.
  */
 struct slotstate {
-	enum cardstate state;		/* Current state of slot */
-	enum cardstate laststate;	/* Previous state of slot */
-	int	maxmem;			/* Max allowed memory windows */
-	int	maxio;			/* Max allowed I/O windows */
-	int	irqs;			/* Bitmap of IRQs allowed */
-	int	flags;			/* Capability flags */
+	enum cardstate	state;		/* Current state of slot */
+	enum cardstate	laststate;	/* Previous state of slot */
+	int		maxmem;		/* Max allowed memory windows */
+	int		maxio;		/* Max allowed I/O windows */
+	int		irqs;		/* Bitmap of IRQs allowed */
+	int		flags;		/* Capability flags */
 };
 
 /*
  *	The power values are in volts * 10, e.g. 5V is 50, 3.3V is 33.
  */
 struct power {
-	int	vcc;
-	int	vpp;
+	int		vcc;
+	int		vpp;
 };
 
 /*

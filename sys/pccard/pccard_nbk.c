@@ -86,8 +86,13 @@ devclass_t	pccard_devclass;
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
+#ifdef UNSAFE
 static u_long mem_start = IOM_BEGIN;
 static u_long mem_end = IOM_END;
+#else
+static u_long mem_start = 0xd0000;
+static u_long mem_end = 0xeffff;
+#endif
 
 SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
     &mem_start, 0, "");
@@ -114,7 +119,7 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 static int
 pccard_probe(device_t dev)
 {
-	device_set_desc(dev, "PC Card bus (classic)");
+	device_set_desc(dev, "PC Card 16-bit bus (classic)");
 	return (0);
 }
 
@@ -308,6 +313,15 @@ pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case PCCARD_IVAR_ETHADDR:
 		bcopy(devi->misc, result, ETHER_ADDR_LEN);
 		return (0);
+	case PCCARD_IVAR_VENDOR:
+		*(u_int32_t *) result = devi->manufacturer;
+		return (0);
+	case PCCARD_IVAR_PRODUCT:
+		*(u_int32_t *) result = devi->product;
+		return (0);
+	case PCCARD_IVAR_PRODEXT:
+		*(u_int16_t *) result = devi->prodext;
+		return (0);
 	}
 	return (ENOENT);
 }
@@ -374,9 +388,10 @@ pccard_deactivate_function(device_t bus, device_t child)
 	return (0);
 }
 
-const struct pccard_product *
-pccard_product_lookup(device_t dev, const struct pccard_product *tab,
-    size_t ent_size, pccard_product_match_fn matchfn)
+static const struct pccard_product *
+pccard_do_product_lookup(device_t bus, device_t dev,
+		      const struct pccard_product *tab,
+		      size_t ent_size, pccard_product_match_fn matchfn)
 {
 	return (NULL);
 }
@@ -415,6 +430,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
+	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 #endif
 	{ 0, 0 }
 };

@@ -224,6 +224,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	devi->running = 1;
 	devi->slt = slt;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
+	strcpy(devi->manufstr, desc->manufstr);
+	strcpy(devi->versstr, desc->versstr);
+	devi->manufacturer = desc->manufacturer;
+	devi->product = desc->product;
+	devi->prodext = desc->prodext;
 	resource_list_init(&devi->resources);
 	child = device_add_child(pccarddev, devi->name, desc->unit);
 	if (child == NULL) {
@@ -552,7 +557,6 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 		break;
 	/*
 	 * Set the memory window to be used for the read/write interface.
-	 * Not available on the alpha.
 	 */
 	case PIOCRWMEM:
 		if (*(unsigned long *)data == 0) {

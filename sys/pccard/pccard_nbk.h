@@ -28,6 +28,8 @@
 #ifndef PCCARD_PCCARD_NBK_H
 #define PCCARD_PCCARD_NBK_H
 
+SYSCTL_DECL(_machdep_pccard);
+
 struct pccard_device;
 extern devclass_t pccard_devclass;
 

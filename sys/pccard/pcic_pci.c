@@ -65,7 +65,8 @@ static int pcic_ignore_function_1 = 0;
 TUNABLE_INT("hw.pcic.ignore_function_1", &pcic_ignore_function_1);
 SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
     &pcic_ignore_function_1, 0,
-    "When set, driver ignores pci function 1 of the bridge");
+    "When set, driver ignores pci function 1 of the bridge.  This option\n\
+is obsolete and will be deleted before FreeBSD 4.8.");
 
 /*
  * The following should be a hint, so we can do it on a per device
@@ -76,22 +77,39 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
 static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
 SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD, &pcic_intr_path, 0,
-    "Which path to send the interrupts over.");
+    "Which path to send the interrupts over.  Normally interrupts for\n\
+cardbus bridges are routed over the PCI bus (2).  However, some laptops\n\
+will hang when using PCI interrupts due to bugs in this code.  Those\n\
+bugs can be worked around by forcings ISA interrupts (1).");
 
 static int pcic_init_routing = 0;
 TUNABLE_INT("hw.pcic.init_routing", &pcic_init_routing);
 SYSCTL_INT(_hw_pcic, OID_AUTO, init_routing, CTLFLAG_RD,
     &pcic_init_routing, 0,
     "Force the interrupt routing to be initialized on those bridges where\n\
-doing so will cause probelms.  Often when no interrupts appear to be routed\n\
-setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
-always require this, while builtin bridges need it less often");
+doing so will cause probelms.  This is very rare and generally is not\n\
+needed.  The default of 0 is almost always appropriate.  Only set to 1 if\n\
+instructed to do so for debugging.  Only TI bridges are affected by this\n\
+option, and what the code does is of dubious value.  This option is obsolete\n\
+and will be deleted before FreeBSD 4.8.");
 
 static int pcic_ignore_pci = 0;
 TUNABLE_INT("hw.pcic.ignore_pci", &pcic_ignore_pci);
 SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_pci, CTLFLAG_RD,
     &pcic_ignore_pci, 0,
-    "When set, driver ignores pci cardbus bridges it would otherwise claim.");
+    "When set, driver ignores pci cardbus bridges it would otherwise claim.\n\
+Generally speaking, this option is not needed for anything other than as an\n\
+aid in debugging.");
+
+static int pcic_pd6729_intr_path = (int)pcic_iw_isa;
+TUNABLE_INT("hw.pcic.pd6729_intr_path", &pcic_pd6729_intr_path);
+SYSCTL_INT(_hw_pcic, OID_AUTO, pd6729_intr_path, CTLFLAG_RD,
+    &pcic_pd6729_intr_path, 0,
+  "Determine the interrupt path or method for Cirrus Logic PD6729 and\n\
+similar I/O space based pcmcia bridge.  Chips on a PCI expansion card need\n\
+a value of 2, while chips installed in a laptop need a value of 1 (which is\n\
+also the default).  This is similar to hw.pcic.intr_path, but separate so\n\
+that it can default to ISA when intr_path defaults to PCI.");
 
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_way_t pcic_pci_gen_func;
@@ -192,6 +210,9 @@ static struct pcic_chip pcic_pci_generic_chip = {
 	pcic_pci_cardbus_init
 };
 
+/* Chipset specific flags */
+#define TI_NO_MFUNC	0x10000
+
 struct pcic_pci_table
 {
 	u_int32_t	devid;
@@ -200,134 +221,101 @@ struct pcic_pci_table
 	u_int32_t	flags;
 	struct pcic_chip *chip;
 } pcic_pci_devs[] = {
-	{ PCI_DEVICE_ID_OMEGA_82C094,
-	  "Omega 82C094G",
+	{ PCIC_ID_OMEGA_82C094, "Omega 82C094G",
 	  PCIC_I82365, PCIC_DF_POWER, &pcic_pci_pd67xx_chip },
-	{ PCI_DEVICE_ID_PCIC_CLPD6729,
-	  "Cirrus Logic PD6729/6730 PC-Card Controller",
+	{ PCIC_ID_CLPD6729, "Cirrus Logic PD6729/6730 PCI-PCMCIA Bridge",
 	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
-	{ PCI_DEVICE_ID_PCIC_CLPD6832,
-	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
+	{ PCIC_ID_CLPD6832, "Cirrus Logic PD6832 PCI-CardBus Bridge",
 	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_CLPD6833,
-	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
+	{ PCIC_ID_CLPD6833, "Cirrus Logic PD6833 PCI-CardBus Bridge",
 	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_CLPD6834,
-	  "Cirrus Logic PD6834 PCI-CardBus Bridge",
+	{ PCIC_ID_CLPD6834, "Cirrus Logic PD6834 PCI-CardBus Bridge",
 	  PCIC_PD673X, PCIC_CARDBUS_POWER, &pcic_pci_pd68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6729,
-	  "O2micro OZ6729 PC-Card Bridge",
+	{ PCIC_ID_OZ6729, "O2micro OZ6729 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6730,
-	  "O2micro OZ6730 PC-Card Bridge",
+	{ PCIC_ID_OZ6730, "O2micro OZ6730 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6832,
-	  "O2micro 6832/6833 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6832, "O2micro 6832/6833 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6860,
-	  "O2micro 6836/6860 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6860, "O2micro 6836/6860 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6872,
-	  "O2micro 6812/6872 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6872, "O2micro 6812/6872 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6912,
-	  "O2micro 6912 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6912, "O2micro 6912 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6922,
-	  "O2micro 6922 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6922, "O2micro 6922 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_PCIC_OZ6933,
-	  "O2micro 6933 PCI-Cardbus Bridge",
+	{ PCIC_ID_OZ6933, "O2micro 6933 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
-	{ PCI_DEVICE_ID_RICOH_RL5C465,
-	  "Ricoh RL5C465 PCI-CardBus Bridge",
+	{ PCIC_ID_RICOH_RL5C465, "Ricoh RL5C465 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
-	{ PCI_DEVICE_ID_RICOH_RL5C475,
-	  "Ricoh RL5C475 PCI-CardBus Bridge",
+	{ PCIC_ID_RICOH_RL5C475, "Ricoh RL5C475 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
-	{ PCI_DEVICE_ID_RICOH_RL5C476,
-	  "Ricoh RL5C476 PCI-CardBus Bridge",
+	{ PCIC_ID_RICOH_RL5C476, "Ricoh RL5C476 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
-	{ PCI_DEVICE_ID_RICOH_RL5C477,
-	  "Ricoh RL5C477 PCI-CardBus Bridge",
+	{ PCIC_ID_RICOH_RL5C477, "Ricoh RL5C477 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
-	{ PCI_DEVICE_ID_RICOH_RL5C478,
-	  "Ricoh RL5C478 PCI-CardBus Bridge",
+	{ PCIC_ID_RICOH_RL5C478, "Ricoh RL5C478 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1031,
-	  "TI PCI-1031 PCI-PCMCIA Bridge",
+	{ PCIC_ID_TI1031, "TI PCI-1031 PCI-PCMCIA Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1130,
-	  "TI PCI-1130 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1130, "TI PCI-1130 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1131,
-	  "TI PCI-1131 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1131, "TI PCI-1131 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1210,
-	  "TI PCI-1210 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1210, "TI PCI-1210 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1211,
-	  "TI PCI-1211 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1211, "TI PCI-1211 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1220,
-	  "TI PCI-1220 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1220, "TI PCI-1220 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1221,
-	  "TI PCI-1221 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1221, "TI PCI-1221 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1225,
-	  "TI PCI-1225 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1225, "TI PCI-1225 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1250,
-	  "TI PCI-1250 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1250, "TI PCI-1250 PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER | TI_NO_MFUNC,
+	  &pcic_pci_ti12xx_chip },
+	{ PCIC_ID_TI1251, "TI PCI-1251 PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER | TI_NO_MFUNC,
+	  &pcic_pci_ti12xx_chip },
+	{ PCIC_ID_TI1251B, "TI PCI-1251B PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER | TI_NO_MFUNC,
+	  &pcic_pci_ti12xx_chip },
+	{ PCIC_ID_TI1260, "TI PCI-1260 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1251,
-	  "TI PCI-1251 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1260B, "TI PCI-1260B PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1251B,
-	  "TI PCI-1251B PCI-CardBus Bridge",
+	{ PCIC_ID_TI1410, "TI PCI-1410 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1260,
-	  "TI PCI-1260 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1420, "TI PCI-1420 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1260B,
-	  "TI PCI-1260B PCI-CardBus Bridge",
+	{ PCIC_ID_TI1421, "TI PCI-1421 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1410,
-	  "TI PCI-1410 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1450, "TI PCI-1450 PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER | TI_NO_MFUNC,
+	  &pcic_pci_ti12xx_chip },
+	{ PCIC_ID_TI1451, "TI PCI-1451 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1420,
-	  "TI PCI-1420 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1510, "TI PCI-1510 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1421,
-	  "TI PCI-1421 PCI-CardBus Bridge",
+	{ PCIC_ID_TI1520, "TI PCI-1520 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1450,
-	  "TI PCI-1450 PCI-CardBus Bridge",
+	{ PCIC_ID_TI4410, "TI PCI-4410 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI1451,
-	  "TI PCI-1451 PCI-CardBus Bridge",
+	{ PCIC_ID_TI4450, "TI PCI-4450 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI4410,
-	  "TI PCI-4410 PCI-CardBus Bridge",
+	{ PCIC_ID_TI4451, "TI PCI-4451 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI4450,
-	  "TI PCI-4450 PCI-CardBus Bridge",
+	{ PCIC_ID_TI4510, "TI PCI-4510 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_PCIC_TI4451,
-	  "TI PCI-4451 PCI-CardBus Bridge",
-	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti12xx_chip },
-	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95,
-	  "Toshiba ToPIC95 PCI-CardBus Bridge",
+	{ PCIC_ID_TOPIC95, "Toshiba ToPIC95 PCI-CardBus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
-	{ PCI_DEVICE_ID_TOSHIBA_TOPIC95B,
-	  "Toshiba ToPIC95B PCI-CardBus Bridge",
+	{ PCIC_ID_TOPIC95B, "Toshiba ToPIC95B PCI-CardBus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
-	{ PCI_DEVICE_ID_TOSHIBA_TOPIC97,
-	  "Toshiba ToPIC97 PCI-CardBus Bridge",
+	{ PCIC_ID_TOPIC97, "Toshiba ToPIC97 PCI-CardBus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
-	{ PCI_DEVICE_ID_TOSHIBA_TOPIC100,
-	  "Toshiba ToPIC100 PCI-CardBus Bridge",
+	{ PCIC_ID_TOPIC100, "Toshiba ToPIC100 PCI-CardBus Bridge",
 	  PCIC_I82365, PCIC_CARDBUS_POWER, &pcic_pci_topic_chip },
 	{ 0, NULL, 0, 0, NULL }
 };
@@ -454,15 +442,25 @@ pcic_pci_oz68xx_init(device_t dev)
 
 /*
  * The Cirrus Logic PD6729/30.  These are weird beasts, so be careful.
+ * They are ISA parts glued to the PCI bus and do not follow the yenta
+ * specification for cardbus bridges.  They seem to be similar to the
+ * intel parts that were also cloned by o2micro and maybe others, but
+ * they are so much more common that the author doesn't have experience
+ * with them to know for sure.
  */
 static int
 pcic_pci_pd67xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
-	 * We're only supporting ISA interrupts, so do nothing for the
-	 * moment.
+	 * For pci interrupts, we need to set bit 3 of extension register
+	 * 3 to 1.  For ISA interrupts, we need to clear it.
 	 */
-	/* XXX */
+	sp->putb(sp, PCIC_EXT_IND, PCIC_EXTCTRL1);
+	if (way == pcic_iw_pci)
+		pcic_setb(sp, PCIC_EXTENDED, PCIC_EC1_CARD_IRQ_INV);
+	else
+		pcic_clrb(sp, PCIC_EXTENDED, PCIC_EC1_CARD_IRQ_INV);
+
 	return (0);
 }
 
@@ -470,10 +468,15 @@ static int
 pcic_pci_pd67xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	/*
-	 * We're only supporting ISA interrupts, so do nothing for the
-	 * moment.
+	 * For pci interrupts, we need to set bit 4 of extension register
+	 * 3 to 1.  For ISA interrupts, we need to clear it.
 	 */
-	/* XXX */
+	sp->putb(sp, PCIC_EXT_IND, PCIC_EXTCTRL1);
+	if (way == pcic_iw_pci)
+		pcic_setb(sp, PCIC_EXTENDED, PCIC_EC1_CSC_IRQ_INV);
+	else
+		pcic_clrb(sp, PCIC_EXTENDED, PCIC_EC1_CSC_IRQ_INV);
+
 	return (0);
 }
 
@@ -484,7 +487,7 @@ pcic_pci_pd67xx_init(device_t dev)
 	struct pcic_softc *sc = device_get_softc(dev);
 
 	if (sc->csc_route == pcic_iw_pci || sc->func_route == pcic_iw_pci)
-		device_printf(dev, "CL-PD67xx broken for PCI routing.\n");
+		device_printf(dev, "PD67xx maybe broken for PCI routing.\n");
 }
 
 /*
@@ -518,7 +521,7 @@ pcic_pci_pd68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 	 *
 	 * I'm assuming that the CLPD6834 does things like the '33
 	 */
-	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6832) {
+	if (device_id == PCIC_ID_CLPD6832) {
 		bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 		if (way == pcic_iw_pci)
 			bcr &= ~CLPD6832_BCR_MGMT_IRQ_ENA;
@@ -526,7 +529,7 @@ pcic_pci_pd68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 			bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
 		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 	}
-	if (device_id != PCI_DEVICE_ID_PCIC_CLPD6832) {
+	if (device_id != PCIC_ID_CLPD6832) {
 		cm1 = pci_read_config(dev, CLPD6833_CFG_MISC_1, 4);
 		if (way == pcic_iw_pci)
 			cm1 &= ~CLPD6833_CM1_MGMT_EXCA_ENA;
@@ -579,8 +582,8 @@ pcic_pci_ricoh_init(device_t dev)
 	u_int32_t	device_id = pci_get_devid(dev);
 
 	switch (device_id) {
-	case PCI_DEVICE_ID_RICOH_RL5C465:
-	case PCI_DEVICE_ID_RICOH_RL5C466:
+	case PCIC_ID_RICOH_RL5C465:
+	case PCIC_ID_RICOH_RL5C466:
 		/*
 		 * Ricoh chips have a legacy bridge enable different than most
 		 * Code cribbed from NEWBUS's bridge code since I can't find a
@@ -666,6 +669,67 @@ pcic_pci_ti113x_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 static int
 pcic_pci_ti12xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+	u_int32_t	syscntl, devcntl, cardcntl, mfunc;
+	device_t	dev = sp->sc->dev;
+
+	syscntl  = pci_read_config(dev, TI113X_PCI_SYSTEM_CONTROL, 4);
+	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
+	cardcntl = pci_read_config(dev, TI113X_PCI_CARD_CONTROL,   1);
+
+	/*
+	 * Special code for the Orinoco cards (and a few others).  They
+	 * seem to need this special code to make them work only over pci
+	 * interrupts.  Sadly, doing this code also causes problems for
+	 * many laptops, so we have to make it controlled by a tunable.
+	 * Actually, experience has shown that this rarely, if ever,
+	 * helps.
+	 */
+	if (way == pcic_iw_pci) {
+		/*
+		 * pcic_init_routing seems to do nothing useful towards
+		 * fixing the hang problems.  I plan on removing it in
+		 * 4.8 or so.
+		 */
+		if (pcic_init_routing) {
+			devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
+			pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL,
+			    devcntl, 1);
+			syscntl |= TI113X_SYSCNTL_INTRTIE;
+		}
+		/* 
+		 * I'm not sure that this helps/hurts things at all and
+		 * plan on removing it in the 4.8 time frame unless someone
+		 * can show that it really helps.
+		 */
+		syscntl &= ~TI113X_SYSCNTL_SMIENB;
+		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
+
+		/*
+		 * Some PCI add-in cards don't have good EEPROMs on them,
+		 * so they get this MUX register wrong.  The MUX register
+		 * defaults to 0, which is usually wrong for this register,
+		 * so we initialize it to make sense.
+		 *
+		 * We don't bother to turn it off in the ISA case since it
+		 * is an initialization issue.
+		 *
+		 * A few weird TI bridges don't have MFUNC, so filter
+		 * those out too.
+		 */
+		if ((sp->sc->flags & TI_NO_MFUNC) == 0) {
+			mfunc  = pci_read_config(dev, TI12XX_PCI_MFUNC, 4);
+			if (mfunc == 0) {
+				mfunc = (mfunc & ~TI12XX_MFUNC_PIN0) |
+				    TI12XX_MFUNC_PIN0_INTA;
+				if ((syscntl & TI113X_SYSCNTL_INTRTIE) == 0)
+					mfunc = (mfunc & ~TI12XX_MFUNC_PIN1) |
+					    TI12XX_MFUNC_PIN1_INTB;
+				pci_write_config(dev, TI12XX_PCI_MFUNC, mfunc,
+				    4);
+			}
+		}
+		
+	}
 	return (pcic_pci_gen_func(sp, way));
 }
 
@@ -694,10 +758,9 @@ pcic_pci_ti_init(device_t dev)
 {
 	u_int32_t	syscntl, diagctl, devcntl, cardcntl;
 	u_int32_t	device_id = pci_get_devid(dev);
-	struct pcic_softc *sc = device_get_softc(dev);
-	int	 	ti113x = (device_id == PCI_DEVICE_ID_PCIC_TI1031) ||
-	    (device_id == PCI_DEVICE_ID_PCIC_TI1130) ||
-	    (device_id == PCI_DEVICE_ID_PCIC_TI1131);
+	int	 	ti113x = (device_id == PCIC_ID_TI1031) ||
+	    (device_id == PCIC_ID_TI1130) ||
+	    (device_id == PCIC_ID_TI1131);
 
 	syscntl  = pci_read_config(dev, TI113X_PCI_SYSTEM_CONTROL, 4);
 	devcntl  = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
@@ -729,27 +792,9 @@ pcic_pci_ti_init(device_t dev)
 		 * register doesn't exist on the 1130 (and likely the 1131,
 		 * but without a datasheet it is impossible to know).
 		 * Some 12xx chips may not have it, but setting it is
-		 * believed to be harmless.
+		 * believed to be harmless on those models.
 		 */
 		pci_write_config(dev, TI12XX_PCI_MULTIMEDIA_CONTROL, 0, 4);
-	}
-	/*
-	 * Special code for the Orinoco cards (and a few others).  They
-	 * seem to need this special code to make them work only over pci
-	 * interrupts.  Sadly, doing this code also causes problems for
-	 * many laptops, so we have to make it controlled by a tunable.
-	 */
-	if (sc->func_route == pcic_iw_pci) {
-		if (pcic_init_routing) {
-			devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
-			pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL,
-			    devcntl, 1);
-			devcntl = pci_read_config(dev,
-			    TI113X_PCI_DEVICE_CONTROL, 1);
-			syscntl |= TI113X_SYSCNTL_INTRTIE;
-		}
-		syscntl &= ~TI113X_SYSCNTL_SMIENB;
-		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
 	if (cardcntl & TI113X_CARDCNTL_RING_ENA)
 		printf("[ring enable]");
@@ -803,8 +848,7 @@ pcic_pci_topic_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 	u_int32_t device_id;
 
 	device_id = pci_get_devid(dev);
-	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
-	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+	if (device_id == PCIC_ID_TOPIC100 || device_id == PCIC_ID_TOPIC97) {
 		scr = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
 		if (way == pcic_iw_pci)
 			scr |= TOPIC97_SLOT_CTRL_PCIINT;
@@ -828,16 +872,14 @@ pcic_pci_topic_init(device_t dev)
 	reg |= (TOPIC_SLOT_CTRL_SLOTON | TOPIC_SLOT_CTRL_SLOTEN | 
 	    TOPIC_SLOT_CTRL_ID_LOCK | TOPIC_SLOT_CTRL_CARDBUS);
 	reg &= ~TOPIC_SLOT_CTRL_SWDETECT;
-	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
-	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+	if (device_id == PCIC_ID_TOPIC100 || device_id == PCIC_ID_TOPIC97) {
 		reg |= TOPIC97_SLOT_CTRL_PCIINT;
 		reg &= ~(TOPIC97_SLOT_CTRL_STSIRQP | TOPIC97_SLOT_CTRL_IRQP);
 	}
 	pci_write_config(dev, TOPIC_SLOT_CTRL, reg, 4);
 	pcic_pci_cardbus_init(dev);
 
-	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
-	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+	if (device_id == PCIC_ID_TOPIC100 || device_id == PCIC_ID_TOPIC97) {
 		/*
 		 * We need to enable voltage sense and 3V cards explicitly
 		 * in the bridge.  The datasheets I have for both the
@@ -882,10 +924,9 @@ pcic_pci_cardbus_init(device_t dev)
 	pci_write_config(dev, CB_PCI_IOLIMIT1, 0, 4);
 
 	/*
-	 * Force the function interrupts to be pulse rather than
-	 * edge triggered.
+	 * Tell the chip to do its routing thing.
 	 */
-	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
+	sc->chip->func_intr_way(&sc->slots[0], sc->func_route);
 	sc->chip->csc_intr_way(&sc->slots[0], sc->csc_route);
 
 	return;
@@ -1053,18 +1094,24 @@ pcic_pci_probe(device_t dev)
 	 * We only need to route interrupts when we're doing pci
 	 * parallel interrupt routing.
 	 *
-	 * Note: The CLPD6729 is a special case.  See its init function
-	 * for an explaination of ISA vs PCI interrupts. XXX Might be other
-	 * special cases as well.
+	 * We use two different variables for the memory based and I/O
+	 * based cards, so the check here is a little more complex than
+	 * one would otherwise hope.
+	 *
+	 * XXX The bus code for PCI really should do this for us.
 	 */
-	if (pcic_intr_path == pcic_iw_pci && 
-	    device_id != PCI_DEVICE_ID_PCIC_CLPD6729) {
+	if ((pcic_intr_path == pcic_iw_pci && 
+	    device_id != PCIC_ID_CLPD6729) ||
+	  (pcic_pd6729_intr_path == pcic_iw_pci &&
+	    device_id == PCIC_ID_CLPD6729)) {
 		rid = 0;
 #ifdef __i386__
 		/*
 		 * IRQ 0 is invalid on x86, but not other platforms.
 		 * If we have irq 0, then write 255 to force a new, non-
-		 * bogus one to be assigned.
+		 * bogus one to be assigned.  I think that in -current
+		 * the code in this ifdef may be obsolete with the new
+		 * invalid mapping that we're doing in the pci layer -- imp
 		 */
 		if (pci_get_irq(dev) == 0) {
 			pci_set_irq(dev, 255);
@@ -1092,12 +1139,6 @@ pcic_pci_shutdown(device_t dev)
 
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sp = &sc->slots[0];
-
-	/*
-	 * Make the chips use ISA again.
-	 */
-	sc->chip->func_intr_way(&sc->slots[0], pcic_iw_isa);
-	sc->chip->csc_intr_way(&sc->slots[0], pcic_iw_isa);
 
 	/*
 	 * Turn off the power to the slot in an attempt to
@@ -1150,9 +1191,8 @@ pcic_pci_print_config(device_t dev)
 }
 
 /*
- * General PCI based card dispatch routine.  Right now
- * it only understands the Ricoh, CL-PD6832 and TI parts.  It does
- * try to do generic things with other parts.
+ * Generic pci interrupt attach routine.  It tries to understand all parts,
+ * and do sane things for those parts it does not understand.
  */
 static int
 pcic_pci_attach(device_t dev)
@@ -1190,6 +1230,7 @@ pcic_pci_attach(device_t dev)
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->iores == NULL)
 			return (ENOMEM);
+
 		sc->flags = PCIC_PD_POWER;
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		for (i = 0; i < 2; i++) {
@@ -1204,17 +1245,17 @@ pcic_pci_attach(device_t dev)
 			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}
-		/*
-		 * We only support isa at this time.  These cards can be
-		 * wired up as either ISA cards *OR* PCI cards (well, weird
-		 * hybrids are possible, but not seen in the wild).  Since it
-		 * is an either or thing, we assume ISA since all laptops that
-		 * we supported in 4.3 and earlier work.
-		 */ 
-		sc->csc_route = pcic_iw_isa;
-		sc->func_route = pcic_iw_isa;
+		sc->csc_route = sc->func_route = pcic_pd6729_intr_path;
 		if (itm)
 			sc->flags = itm->flags;
+		/*
+		 * We have to use the ISA interrupt routine for status
+		 * changes since we don't have any "yenta" pci registers.
+		 * We have to do this even when we're using pci type
+		 * interrupts because on these cards the interrupts are
+		 * cleared in the same way that the ISA cards clear them.
+		 */
+		intr = pcic_isa_intr;
 	} else {
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
@@ -1237,6 +1278,8 @@ pcic_pci_attach(device_t dev)
 			sp->revision = 0;
 			sc->flags = PCIC_CARDBUS_POWER;
 		}
+		/* All memory mapped cardbus bridges have these registers */
+		sc->flags |= PCIC_YENTA_HIGH_MEMORY;
 		sp->slt = (struct slot *) 1;
 		sc->csc_route = pcic_intr_path;
 		sc->func_route = pcic_intr_path;
@@ -1259,7 +1302,8 @@ pcic_pci_attach(device_t dev)
 			device_printf(dev,
 			    "No PCI interrupt routed, trying ISA.\n");
 		} else {
-			intr = pcic_pci_intr;
+			if (intr == NULL)
+				intr = pcic_pci_intr;
 			irq = rman_get_start(r);
 		}
 	}
@@ -1277,7 +1321,8 @@ pcic_pci_attach(device_t dev)
 			}
 			device_printf(dev,
 			    "Management interrupt on ISA IRQ %ld\n", irq);
-			intr = pcic_isa_intr;
+			if (intr == NULL)
+				intr = pcic_isa_intr;
 		} else {
 			sc->slot_poll = pcic_timeout;
 			sc->timeout_ch = timeout(sc->slot_poll, sc, hz/2);
@@ -1360,13 +1405,30 @@ pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
 	/*
 	 * If we're doing ISA interrupt routing, then just go to the
 	 * generic ISA routine.  Also, irq 0 means turn off the interrupts
-	 * at the bridge.  We do this by making the interrupts edge
-	 * triggered rather then level.
+	 * at the bridge.
 	 */
 	if (sp->sc->func_route == pcic_iw_isa || irq == 0)
 		return (pcic_isa_mapirq(sp, irq));
 
-	return (sp->sc->chip->func_intr_way(sp, pcic_iw_pci));
+	/*
+	 * Ohterwise we're doing PCI interrupts.  For those cardbus bridges
+	 * that follow yenta (and the one pcmcia bridge that does), we don't
+	 * do a thing to get the IRQ mapped into the system.  However,
+	 * for other controllers that are PCI, but not yetna compliant, we
+	 * need to do some special mapping.
+	 */
+	if (sp->controller == PCIC_PD6729) {
+		/*
+		 * INTA - 3
+		 * INTB - 4
+		 * INTC - 5
+		 * INTD - 7
+		 */
+		sp->putb(sp, PCIC_INT_GEN,	/* Assume INTA# */
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | 3);
+		return (0);
+	}
+	return (0);
 }
 
 static void
@@ -1375,9 +1437,24 @@ pcic_pci_func_intr(void *arg)
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t stat;
+	int doit = 0;
 
-	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	if ((stat & CB_SS_CD) == 0 && sc->func_intr != 0)
+	/*
+	 * The 6729 controller is a weird one, and we have to use
+	 * the ISA registers to check to see if the card is there.
+	 * Otherwise we look at the PCI state register to find out
+	 * if the card is there.
+	 */ 
+	if (sp->controller == PCIC_PD6729) {
+		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD)
+			doit = 1;
+	}
+	else {
+		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+		if ((stat & CB_SS_CD) == 0 && sc->func_intr != 0)
+			doit = 1;
+	}
+	if (doit && sc->func_intr != NULL)
 		sc->func_intr(sc->func_arg);
 }
 	
