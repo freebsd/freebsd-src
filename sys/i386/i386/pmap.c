@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.58.4.1 1995/09/12 05:36:42 davidg Exp $
+ *	$Id: pmap.c,v 1.58.4.2 1996/04/24 05:58:06 davidg Exp $
  */
 
 /*
@@ -908,7 +908,6 @@ pmap_remove(pmap, sva, eva)
 	vm_offset_t pdnxt;
 	vm_offset_t ptpaddr;
 	vm_offset_t sindex, eindex;
-	vm_page_t mpte;
 
 	if (pmap == NULL)
 		return;
@@ -946,11 +945,6 @@ pmap_remove(pmap, sva, eva)
 		 */
 		if (ptpaddr == 0)
 			continue;
-
-		/*
-		 * get the vm_page_t for the page table page
-		 */
-		mpte = PHYS_TO_VM_PAGE(ptpaddr);
 
 		/*
 		 * Limit our scan to either the end of the va represented
@@ -1060,10 +1054,12 @@ pmap_protect(pmap, sva, eva, prot)
 {
 	register pt_entry_t *pte;
 	register vm_offset_t va;
-	int i386prot;
-	register pt_entry_t *ptp;
-	int evap = i386_btop(eva);
-	int anyvalid = 0;;
+	register pt_entry_t *ptbase;
+	vm_offset_t pdnxt;
+	vm_offset_t ptpaddr;
+	vm_offset_t sindex, eindex;
+	int anychanged;
+
 
 	if (pmap == NULL)
 		return;
@@ -1075,64 +1071,49 @@ pmap_protect(pmap, sva, eva, prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	ptp = get_ptbase(pmap);
+	anychanged = 0;
 
-	va = sva;
-	while (va < eva) {
-		int found = 0;
-		int svap;
-		vm_offset_t nscan;
+	ptbase = get_ptbase(pmap);
+
+	sindex = i386_btop(sva);
+	eindex = i386_btop(eva);
+
+	for (; sindex < eindex; sindex = pdnxt) {
+		int pprot;
+		int pbits;
+
+		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		ptpaddr = (vm_offset_t) *pmap_pde(pmap, i386_ptob(sindex));
 
 		/*
-		 * Page table page is not allocated. Skip it, we don't want to
-		 * force allocation of unnecessary PTE pages just to set the
-		 * protection.
+		 * Weed out invalid mappings. Note: we assume that the page
+		 * directory table is always allocated, and in kernel virtual.
 		 */
-		if (!*pmap_pde(pmap, va)) {
-			/* XXX: avoid address wrap around */
-	nextpde:
-			if (va >= i386_trunc_pdr((vm_offset_t) - 1))
-				break;
-			va = i386_round_pdr(va + PAGE_SIZE);
+		if (ptpaddr == 0)
 			continue;
+
+		if (pdnxt > eindex) {
+			pdnxt = eindex;
 		}
-		pte = ptp + i386_btop(va);
 
-		if (*pte == 0) {
-			/*
-			 * scan for a non-empty pte
-			 */
-			svap = pte - ptp;
-			nscan = ((svap + NPTEPG) & ~(NPTEPG - 1)) - svap;
-
-			if (nscan + svap > evap)
-				nscan = evap - svap;
-
-			found = 0;
-			if (nscan)
-				asm("xorl %%eax,%%eax;cld;repe;scasl;jz 1f;incl %%eax;1:;" :
-				    "=D"(pte), "=a"(found) : "c"(nscan), "0"(pte) : "cx");
-
-			if (!found)
-				goto nextpde;
-
-			pte -= 1;
-			svap = pte - ptp;
-
-			va = i386_ptob(svap);
+		for (; sindex != pdnxt; sindex++) {
+			if (ptbase[sindex] == 0)
+				continue;
+			pte = ptbase + sindex;
+			pbits = *(int *)pte;
+			if (pbits & PG_RW) {
+				if (pbits & PG_M) {
+					vm_page_t m;
+					vm_offset_t pa = pbits & PG_FRAME;
+					m = PHYS_TO_VM_PAGE(pa);
+					m->dirty = VM_PAGE_BITS_ALL;
+				}
+				*(int *)pte &= ~(PG_M|PG_RW);
+				anychanged=1;
+			}
 		}
-		anyvalid++;
-
-		i386prot = pte_prot(pmap, prot);
-		if (va < UPT_MAX_ADDRESS) {
-			i386prot |= PG_u;
-			if (va >= UPT_MIN_ADDRESS)
-				i386prot |= PG_RW;
-		}
-		pmap_pte_set_prot(pte, i386prot);
-		va += PAGE_SIZE;
 	}
-	if (anyvalid)
+	if (anychanged)
 		pmap_update();
 }
 
