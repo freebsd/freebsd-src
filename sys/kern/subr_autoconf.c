@@ -66,15 +66,16 @@ static void
 run_interrupt_driven_config_hooks(dummy)
 	void *dummy;
 {
-	struct intr_config_hook *hook, *next;
+	struct intr_config_hook *hook_entry, *next_entry;
 
-	for (hook = intr_config_hook_list.tqh_first; hook != NULL;
-	     hook = next) {
-		next = hook->ich_links.tqe_next;
-		(*hook->ich_func)(hook->ich_arg);
+	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
+	     hook_entry != NULL;
+	     hook_entry = next_entry) {
+		next_entry = TAILQ_NEXT(hook_entry, ich_links);
+		(*hook_entry->ich_func)(hook_entry->ich_arg);
 	}
 
-	while (intr_config_hook_list.tqh_first != NULL) {
+	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
 		tsleep(&intr_config_hook_list, PCONFIG, "conifhk", 0);
 	}
 }
@@ -92,8 +93,9 @@ config_intrhook_establish(hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	for (hook_entry = intr_config_hook_list.tqh_first; hook_entry != NULL;
-	     hook_entry = hook_entry->ich_links.tqe_next)
+	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
+	     hook_entry != NULL;
+	     hook_entry = TAILQ_NEXT(hook_entry, ich_links))
 		if (hook_entry == hook)
 			break;
 	if (hook_entry != NULL) {
@@ -114,8 +116,9 @@ config_intrhook_disestablish(hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	for (hook_entry = intr_config_hook_list.tqh_first; hook_entry != NULL;
-	     hook_entry = hook_entry->ich_links.tqe_next)
+	for (hook_entry = TAILQ_FIRST(&intr_config_hook_list);
+	     hook_entry != NULL;
+	     hook_entry = TAILQ_NEXT(hook_entry, ich_links))
 		if (hook_entry == hook)
 			break;
 	if (hook_entry == NULL)
