@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <amd64/ia32/ia32_util.h>
-#include <amd64/ia32/ia32_proto.h>
-#include <amd64/ia32/ia32_signal.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/ia32/ia32_signal.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
@@ -264,7 +264,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = IA32_PS_STRINGS - sz_freebsd4_ia32_sigcode;
+	regs->tf_rip = FREEBSD32_PS_STRINGS - sz_freebsd4_ia32_sigcode;
 	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -380,7 +380,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = IA32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = FREEBSD32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -406,10 +406,10 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * MPSAFE
  */
 int
-freebsd4_ia32_sigreturn(td, uap)
+freebsd4_freebsd32_sigreturn(td, uap)
 	struct thread *td;
-	struct freebsd4_ia32_sigreturn_args /* {
-		const struct freebsd4_ucontext *sigcntxp;
+	struct freebsd4_freebsd32_sigreturn_args /* {
+		const struct freebsd4_freebsd32_ucontext *sigcntxp;
 	} */ *uap;
 {
 	struct ia32_ucontext4 uc;
@@ -438,7 +438,7 @@ freebsd4_ia32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("freebsd4_ia32_sigreturn: eflags = 0x%x\n", eflags);
+		printf("freebsd4_freebsd32_sigreturn: eflags = 0x%x\n", eflags);
 		return (EINVAL);
 	}
 
@@ -483,10 +483,10 @@ freebsd4_ia32_sigreturn(td, uap)
  * MPSAFE
  */
 int
-ia32_sigreturn(td, uap)
+freebsd32_sigreturn(td, uap)
 	struct thread *td;
-	struct ia32_sigreturn_args /* {
-		const struct ia32_ucontext *sigcntxp;
+	struct freebsd32_sigreturn_args /* {
+		const struct freebsd32_ucontext *sigcntxp;
 	} */ *uap;
 {
 	struct ia32_ucontext uc;
@@ -515,7 +515,7 @@ ia32_sigreturn(td, uap)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 	if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
-		printf("ia32_sigreturn: eflags = 0x%x\n", eflags);
+		printf("freebsd32_sigreturn: eflags = 0x%x\n", eflags);
 		return (EINVAL);
 	}
 
