@@ -318,7 +318,7 @@ chn_rdfeed(struct pcm_channel *c)
 		c->xruns++;
 	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
-	amt -= sndbuf_getready(b);
+	amt = sndbuf_getready(b);
 	if (amt > 0)
 		chn_rddump(c, amt);
 
