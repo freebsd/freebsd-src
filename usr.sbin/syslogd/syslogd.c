@@ -1116,7 +1116,8 @@ fprintlog(f, flags, msg)
 		break;
 	}
 	f->f_prevcount = 0;
-	free(wmsg);
+	if (msg)
+		free(wmsg);
 }
 
 /*
