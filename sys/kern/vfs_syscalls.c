@@ -36,8 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.43 1995/12/11 04:56:11 dyson Exp $
+ * $Id: vfs_syscalls.c,v 1.44 1995/12/17 21:23:22 phk Exp $
  */
+
+/*
+ * XXX - The following is required because of some magic done 
+ * in getdirentries() below which is only done if the translucent
+ * filesystem `UNION' is compiled into the kernel.  This is broken,
+ * but I don't have time to study the code deeply enough to understand
+ * what's going on and determine an appropriate fix.  -GAW
+ */
+#include "opt_staticfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
