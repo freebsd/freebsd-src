@@ -57,8 +57,10 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"fwcontrol [-g gap_count] [-o node] [-b pri_req] [-c node]"
-			" [-r] [-t] [-d node] [-l file] [-R file] [-S file]\n"
+		"fwcontrol [-u bus_num] [-rt] [-g gap_count] [-o node] "
+		    "[-b pri_req] [-c node] [-d node] [-l file] "
+		    "[-R file] [-S file]\n"
+		"\t-u: specify bus number\n"
 		"\t-g: broadcast gap_count by phy_config packet\n"
 		"\t-o: send link-on packet to the node\n"
 		"\t-s: write RESET_START register on the node\n"
@@ -421,70 +423,105 @@ show_topology_map(int fd)
 	free(tmap);
 }
 
+static void
+open_dev(int *fd, char *devbase)
+{
+	char devname[256];
+	int i;
+
+	if (*fd < 0) {
+		for (i = 0; i < 4; i++) {
+			snprintf(devname, sizeof(devname), "%s.%d", devbase, i);
+			if ((*fd = open(devname, O_RDWR)) >= 0)
+				break;
+		}
+		if (*fd < 0)
+			err(1, "open");
+
+	}
+}
+
 int
 main(int argc, char **argv)
 {
-	char devname[256];
 	u_int32_t crom_buf[1024/4];
+	char devbase[1024] = "/dev/fw0";
 	int fd, i, tmp, ch, len=1024;
 
-	for (i = 0; i < 4; i++) {
-		snprintf(devname, sizeof(devname), "/dev/fw%d", i);
-		if ((fd = open(devname, O_RDWR)) >= 0)
-			break;
-	}
-	if (fd < 0)
-		err(1, "open");
+	fd = -1;
 
 	if (argc < 2) {
+		open_dev(&fd, devbase);
 		list_dev(fd);
 	}
 
-	while ((ch = getopt(argc, argv, "g:o:s:b:rtc:d:l:R:S:")) != -1)
+	while ((ch = getopt(argc, argv, "g:o:s:b:rtc:d:l:u:R:S:")) != -1)
 		switch(ch) {
-		case 'g':
-			tmp = strtol(optarg, NULL, 0);
-			send_phy_config(fd, -1, tmp);
-			break;
-		case 'o':
-			tmp = strtol(optarg, NULL, 0);
-			send_link_on(fd, tmp);
-			break;
-		case 's':
-			tmp = strtol(optarg, NULL, 0);
-			reset_start(fd, tmp);
-			break;
 		case 'b':
 			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
 			set_pri_req(fd, tmp);
-			break;
-		case 'r':
-			if(ioctl(fd, FW_IBUSRST, &tmp) < 0)
-                       		err(1, "ioctl");
-			break;
-		case 't':
-			show_topology_map(fd);
 			break;
 		case 'c':
 			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
 			get_crom(fd, tmp, crom_buf, len);
 			show_crom(crom_buf);
 			break;
 		case 'd':
 			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
 			get_crom(fd, tmp, crom_buf, len);
 			dump_crom(crom_buf);
+			break;
+		case 'g':
+			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
+			send_phy_config(fd, -1, tmp);
 			break;
 		case 'l':
 			load_crom(optarg, crom_buf);
 			show_crom(crom_buf);
 			break;
+		case 'o':
+			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
+			send_link_on(fd, tmp);
+			break;
+		case 'r':
+			open_dev(&fd, devbase);
+			if(ioctl(fd, FW_IBUSRST, &tmp) < 0)
+                       		err(1, "ioctl");
+			break;
+		case 's':
+			tmp = strtol(optarg, NULL, 0);
+			open_dev(&fd, devbase);
+			reset_start(fd, tmp);
+			break;
+		case 't':
+			open_dev(&fd, devbase);
+			show_topology_map(fd);
+			break;
+		case 'u':
+			tmp = strtol(optarg, NULL, 0);
+			snprintf(devbase, sizeof(devbase), "/dev/fw%d",  tmp);
+			if (fd > 0) {
+				close(fd);
+				fd = -1;
+			}
+			if (argc == optind) {
+				open_dev(&fd, devbase);
+				list_dev(fd);
+			}
+			break;
 #define TAG	(1<<6)
 #define CHANNEL	63
 		case 'R':
+			open_dev(&fd, devbase);
 			dvrecv(fd, optarg, TAG | CHANNEL, -1);
 			break;
 		case 'S':
+			open_dev(&fd, devbase);
 			dvsend(fd, optarg, TAG | CHANNEL, -1);
 			break;
 		default:
