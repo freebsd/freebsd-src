@@ -557,12 +557,9 @@ start:
 		kq->kq_state |= KQ_SLEEP;
 		error = tsleep(kq, PSOCK | PCATCH, "kqread", timeout);
 		splx(s);
-		if (error == 0)
+		if (error == 0 || error == ERESTART)
 			goto retry;
-		/* don't restart after signals... */
-		if (error == ERESTART)
-			error = EINTR;
-		else if (error == EWOULDBLOCK)
+		if (error == EWOULDBLOCK)
 			error = 0;
 		goto done;
 	}
