@@ -52,7 +52,7 @@ extern struct	msgbuf *msgbufp;
 void	msgbufinit	__P((void *ptr, size_t size));
 
 #if !defined(MSGBUF_SIZE)
-#define	MSGBUF_SIZE	8192
+#define	MSGBUF_SIZE	32768
 #endif
 
 #endif
