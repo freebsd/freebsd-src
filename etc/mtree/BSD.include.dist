@@ -82,6 +82,10 @@
         ..
         gate
         ..
+        nop
+        ..
+        stripe
+        ..
     ..
     gnu
         posix
