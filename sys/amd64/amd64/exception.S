@@ -227,8 +227,8 @@ IDTVEC(fast_syscall)
 	swapgs
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	common_tss+COMMON_TSS_RSP0,%rsp
-	/* Now emulate a trapframe. Ugh. */
-	subq	$TF_SIZE,%rsp
+	/* Now emulate a trapframe. Make the 8 byte alignment odd for call. */
+	subq	$TF_SIZE+8,%rsp
 	/* defer TF_RSP till we have a spare register */
 	movq	%r11,TF_RFLAGS(%rsp)
 	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
