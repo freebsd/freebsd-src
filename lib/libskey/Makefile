@@ -15,10 +15,8 @@ CFLAGS+=-W -Wall
 CFLAGS+=-Werror
 .endif
 
-.if ${OBJFORMAT} == elf
 DPADD+= ${LIBCRYPT} ${LIBMD}
 LDADD+=	-lcrypt -lmd
-.endif
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/skey.h \
