@@ -189,7 +189,7 @@ pkg_do(char *pkg)
 	     * compress an average of 75%, so multiply by 4 for good measure.
 	     */
 
-	    if (!inPlace && min_free(playpen) < sb.st_size * 4) {
+	    if (!extract && !inPlace && min_free(playpen) < sb.st_size * 4) {
 		warnx("projected size of %qd exceeds available free space.\n"
 "Please set your PKG_TMPDIR variable to point to a location with more\n"
 		       "free space and try again", (long long)sb.st_size * 4);
@@ -202,8 +202,9 @@ pkg_do(char *pkg)
 	    if (inPlace && Fake)
 		goto success;
 
-	    /* Finally unpack the whole mess */
-	    if (unpack(pkg_fullname, NULL)) {
+	    /* Finally unpack the whole mess.  If extract is null we
+	       already + did so so don't bother doing it again. */
+	    if (extract && unpack(pkg_fullname, NULL)) {
 		warnx("unable to extract `%s'!", pkg_fullname);
 		goto bomb;
 	    }
