@@ -44,6 +44,7 @@
 #ifdef _KERNEL
 #include "opt_vinum.h"
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
