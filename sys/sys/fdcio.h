@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id: ioctl_fd.h,v 1.5 1994/09/17 16:55:59 davidg Exp $
+ * $Id: ioctl_fd.h,v 1.6 1994/09/25 18:41:21 joerg Exp $
  */
 
 #ifndef _IOCTL_FD_H
@@ -101,6 +101,8 @@ struct fd_type {
 
 #define FD_GOPTS  _IOR('F', 64, int) /* drive options, see below */
 #define FD_SOPTS  _IOW('F', 65, int)
+
+#define FD_DEBUG  _IOW('F', 66, int)
 
 #define FDOPT_NORETRY 0x0001	/* no retries on failure (cleared on close) */
 
