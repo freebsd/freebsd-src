@@ -38,7 +38,7 @@ proc do_file {file} {
 	close $f
 }
 
-set fi [open {|find /usr/src/sys/. -type f -name *.c -print | xargs grep VNODEOP_SET} ]
+set fi [open "|find [glob /usr/src/sys/*fs /usr/src/sys/gnu/*fs] /usr/src/sys/kern -type f -name *.c -print | xargs grep VNODEOP_SET" ]
 while {[gets $fi a] >= 0} {
 	puts stderr $a
 	if {[regexp {#define} $a]} continue
@@ -84,6 +84,25 @@ puts "<TR>"
 	}
 puts "</TR>"
 
+set fnames(vop_defaultop) *
+set fnames(vop_nolock) nl
+set fnames(vop_noislocked) ni
+set fnames(vop_nounlock) nu
+set fnames(vop_stdlock) sl
+set fnames(vop_stdislocked) si
+set fnames(vop_stdunlock) su
+set fnames(vop_einval) I
+set fnames(vop_enotty) T
+set fnames(vop_null) -
+set fnames(vop_eopnotsupp) S
+set fnames(ufs_missingop) M
+set fnames(vop_nopoll) np
+set fnames(vop_nostrategy) ns
+set fnames(vop_revoke) vr
+set fnames(vfs_cache_lookup) cl
+set fnames(vop_stdpathconf) pc
+set fnames(vop_stdbwrite) bw
+
 set fn 0
 set nop(aa) 0
 unset nop(aa)
@@ -98,30 +117,21 @@ foreach i $tbn {
 		}
 		set t $op([list $i $j])
 	
-		switch -regexp $t {
-			{nullop} {set t N}
-			{.*badf$} {set t E}
-			{.*badop$} {set t B}
-			{^ufs_missingop$} {set t M}
-			{^lease_check$} {set t lc}
-			{^vop_nopoll$} {set t np}
-			{^vop_nostrategy$} {set t ns}
-			{^vop_revoke$} {set t vr}
-			{^vop_nolock$} {set t nl}
-			{^vop_nounlock$} {set t nu}
-			{^vn_bwrite$} {set t bw}
-			{^vfs_cache_lookup$} {set t cl}
-			{^vop_noislocked$} {set t ni}
-			{default} {
-				if {![info exists nop($t)]} {
-					incr fn
-					set nop($t) $fn
-					set nfn($fn) $t
-				}
-				set t "<FONT SIZE=-2>$nop($t)</FONT>"
+		set c "#00ddd0"
+		if {[info exists fnames($t)]} {
+			set t $fnames($t)
+		} else {
+			if {![info exists nop($t)]} {
+				incr fn
+				set nop($t) $fn
+				set nfn($fn) $t
+				set use($fn) 0
 			}
+			incr use($nop($t))
+			set t "<FONT SIZE=-1>$nop($t)</FONT>"
+			set c "#00ffd0"
 		}
-		puts "<TD>$t</TD>"
+		puts "<TD BGCOLOR=\"$c\">$t</TD>"
 	}
 	set j vop_default
 	if {![info exists op([list $i $j])]} {
@@ -134,31 +144,23 @@ foreach i $tbn {
 }
 puts "</TABLE>"
 puts "<HR>"
-puts {<PRE>
-B  *badop
-N  nullop
-E  *badf
-M  ufs_missingop
-lc lease_check
-np vop_nopoll
-ns vop_nostrategy
-vr vop_revoke
-nm vop_nolock
-nu vop_nounlock
-ni vop_noislocked
-bw vn_bwrite
-cl vfs_cache_lookup
+puts {<PRE>}
+foreach i [lsort [array names fnames]] {
+	puts [format "%-2s %s" $fnames($i)  $i]
+}
+puts {
 </PRE>
 }
 puts "<HR>"
 puts "<HR>"
 puts {<TABLE BORDER NOSAVE>}
-set m 10
+set m 8
 for {set i 1} {$i <= $fn} {incr i $m} {
 	puts "<TR>"
 	for {set j 0} {$j < $m} {incr j} {
 		set k [expr $i + $j]
 		if {$k <= $fn} {
+			#puts "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)/$use($k)</FONT></TD>"
 			puts "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)</FONT></TD>"
 		}
 	}
