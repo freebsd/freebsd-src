@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.52 1996/07/12 15:24:49 jkh Exp $
+ * $Id: label.c,v 1.53 1996/07/14 01:54:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -313,7 +313,7 @@ get_partition_type(void)
 {
     char selection[20];
     int i;
-    WINDOW *w = savescr();
+    WINDOW *save = savescr();
 
     static unsigned char *fs_types[] = {
 	"FS",
@@ -321,11 +321,12 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
+    dialog_clear();
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
-    restorescr(w);
+    restorescr(save);
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -468,7 +469,6 @@ diskLabel(char *str)
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
-    WINDOW *w;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -480,7 +480,6 @@ diskLabel(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
-    w = savescr();
     dialog_clear(); clear();
     while (labeling) {
 	print_label_chunks();
@@ -501,6 +500,7 @@ diskLabel(char *str)
 	key = toupper(getch());
 	switch (key) {
 	    int i;
+	    static char _msg[40];
 
 	case '\014':	/* ^L */
 	    continue;
@@ -544,91 +544,93 @@ diskLabel(char *str)
 		break;
 	    }
 	    sz = space_free(label_chunk_info[here].c);
-	    if (sz <= FS_MIN_SIZE) {
+	    if (sz <= FS_MIN_SIZE)
 		msg = "Not enough free space to create a new partition in the slice";
-		break;
-	    }
 	    else {
 		struct chunk *tmp;
 		int mib[2];
 		int physmem;
 		size_t size, swsize;
 		char *cp;
+		Chunk *rootdev, *swapdev, *usrdev, *vardev;
 
-		cp = variable_get(VAR_ROOT_SIZE);
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					(cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS, 
-					CHUNK_IS_ROOT);
-	    
-		if (!tmp) {
-		    msgConfirm("Unable to create the root partition. Too big?");
-		    break;
-		}
-		tmp->private_data = new_part("/", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-	    
-		cp = variable_get(VAR_SWAP_SIZE);
-		if (cp)
-		    swsize = atoi(cp) * ONE_MEG;
-		else {
-		    mib[0] = CTL_HW;
-		    mib[1] = HW_PHYSMEM;
-		    size = sizeof physmem;
-		    sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
-		    swsize = 16 * ONE_MEG + (physmem * 2 / 512);
-		}
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					swsize,
-					part, FS_SWAP, 0);
-		if (!tmp) {
-		    msgConfirm("Unable to create the swap partition. Too big?");
-		    break;
-		}
-	    
-		tmp->private_data = 0;
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-	    
-		cp = variable_get(VAR_VAR_SIZE);
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					(cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
-		if (!tmp) {
-		    msgConfirm("Less than %dMB free for /var - you will need to\n"
-			       "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
-		    break;
-		}
-		tmp->private_data = new_part("/var", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-		
-		cp = variable_get(VAR_USR_SIZE);
-		if (cp)
-		    sz = atoi(cp) * ONE_MEG;
-		else
-		    sz = space_free(label_chunk_info[here].c);
-		if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-		    msgConfirm("Less than %dMB free for /usr - you will need to\n"
-			       "partition your disk manually with a custom install!", USR_MIN_SIZE);
-		    break;
+		(void)checkLabels(&rootdev, &swapdev, &usrdev, &vardev);
+		if (!rootdev) {
+		    cp = variable_get(VAR_ROOT_SIZE);
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS,  CHUNK_IS_ROOT);
+		    if (!tmp) {
+			msgConfirm("Unable to create the root partition. Too big?");
+			break;
+		    }
+		    tmp->private_data = new_part("/", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
 		}
 
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					sz, part, FS_BSDFFS, 0);
-		if (!tmp) {
-		    msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
-			       "You will need to partition your disk manually with a custom install!");
-		    break;
+		if (!swapdev) {
+		    cp = variable_get(VAR_SWAP_SIZE);
+		    if (cp)
+			swsize = atoi(cp) * ONE_MEG;
+		    else {
+			mib[0] = CTL_HW;
+			mib[1] = HW_PHYSMEM;
+			size = sizeof physmem;
+			sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
+			swsize = 16 * ONE_MEG + (physmem * 2 / 512);
+		    }
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    swsize, part, FS_SWAP, 0);
+		    if (!tmp) {
+			msgConfirm("Unable to create the swap partition. Too big?");
+			break;
+		    }
+		    tmp->private_data = 0;
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
+		}
+
+		if (!vardev) {
+		    cp = variable_get(VAR_VAR_SIZE);
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
+		    if (!tmp) {
+			msgConfirm("Less than %dMB free for /var - you will need to\n"
+				   "partition your disk manually with a custom install!",
+				   (cp ? atoi(cp) : VAR_MIN_SIZE));
+			break;
+		    }
+		    tmp->private_data = new_part("/var", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
+		}
+
+		if (!usrdev) {
+		    cp = variable_get(VAR_USR_SIZE);
+		    if (cp)
+			sz = atoi(cp) * ONE_MEG;
+		    else
+			sz = space_free(label_chunk_info[here].c);
+		    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
+			msgConfirm("Less than %dMB free for /usr - you will need to\n"
+				   "partition your disk manually with a custom install!", USR_MIN_SIZE);
+			break;
+		    }
+
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					    label_chunk_info[here].c,
+					    sz, part, FS_BSDFFS, 0);
+		    if (!tmp) {
+			msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
+				   "You will need to partition your disk manually with a custom install!");
+			break;
+		    }
+		    tmp->private_data = new_part("/usr", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
 		}
 		/* At this point, we're reasonably "labelled" */
 		variable_set2(DISK_LABELLED, "yes");
-		tmp->private_data = new_part("/usr", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
 	    }
 	    break;
 	    
@@ -863,10 +865,10 @@ diskLabel(char *str)
 
 	default:
 	    beep();
-	    msg = "Type F1 or ? for help";
+	    sprintf(_msg, "Invalid key %d - Type F1 or ? for help", key);
+	    msg = _msg;
 	    break;
 	}
     }
-    restorescr(w);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
