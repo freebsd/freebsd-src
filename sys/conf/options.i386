@@ -162,6 +162,7 @@ IPR_LOG			opt_i4b.h
 # Device options
 DEV_APIC		opt_apic.h
 DEV_NPX			opt_npx.h
+ASR_COMPAT		opt_asr.h
 
 # agp options
 AGP_AMD64_GART		opt_agp.h

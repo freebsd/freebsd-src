@@ -1070,3 +1070,7 @@ options 	VM_KMEM_SIZE_SCALE
 
 # The I/O device
 device		io
+
+# asr old ioctls support, needed by raidutils
+
+options		ASR_COMPAT

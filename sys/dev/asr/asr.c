@@ -137,7 +137,15 @@
 #include <vm/pmap.h>
 
 #if defined(__i386__)
+#include "opt_asr.h"
 #include <i386/include/cputypes.h>
+
+#ifndef BURN_BRIDGES
+#if defined(ASR_COMPAT)
+#define ASR_IOCTL_COMPAT
+#endif /* ASR_COMPAT */
+#endif /* !BURN_BRIDGES */
+
 #elif defined(__alpha__)
 #include <alpha/include/pmap.h>
 #endif
@@ -240,6 +248,10 @@ debug_asr_dump_ccb(union ccb *ccb)
 #define debug_usr_cmd_printf(fmt,args...)
 #define debug_usr_cmd_dump_message(message)
 #endif /* DEBUG_ASR_USR_CMD */
+
+#ifdef ASR_IOCTL_COMPAT
+#define	dsDescription_size 46	/* Snug as a bug in a rug */
+#endif /* ASR_IOCTL_COMPAT */
 
 #include "dev/asr/dptsig.h"
 
@@ -3496,11 +3508,25 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 {
 	Asr_softc_t	*sc = dev->si_drv1;
 	int		i, error = 0;
+#ifdef ASR_IOCTL_COMPAT
+	int		j;
+#endif /* ASR_IOCTL_COMPAT */
 
 	if (sc != NULL)
 	switch(cmd) {
 
 	case DPT_SIGNATURE:
+#ifdef ASR_IOCTL_COMPAT
+#if (dsDescription_size != 50)
+	case DPT_SIGNATURE + ((50 - dsDescription_size) << 16):
+#endif
+		if (cmd & 0xFFFF0000) {
+			bcopy(&ASR_sig, data, sizeof(dpt_sig_S));
+			return (0);
+		}
+	/* Traditional version of the ioctl interface */
+	case DPT_SIGNATURE & 0x0000FFFF:
+#endif
 		return (copyout((caddr_t)(&ASR_sig), *((caddr_t *)data),
 				sizeof(dpt_sig_S)));
 
@@ -3537,6 +3563,11 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #define	FLG_OSD_I2O	  0x0004
 		CtlrInfo.hbaFlags = FLG_OSD_PCI_VALID|FLG_OSD_DMA|FLG_OSD_I2O;
 		CtlrInfo.Interrupt = sc->ha_irq;
+#ifdef ASR_IOCTL_COMPAT
+		if (cmd & 0xffff0000)
+			bcopy(&CtlrInfo, data, sizeof(CtlrInfo));
+		else
+#endif /* ASR_IOCTL_COMPAT */
 		error = copyout(&CtlrInfo, *(caddr_t *)data, sizeof(CtlrInfo));
 	}	return (error);
 
@@ -3544,6 +3575,32 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	case DPT_SYSINFO & 0x0000FFFF:
 	case DPT_SYSINFO: {
 		sysInfo_S	Info;
+#ifdef ASR_IOCTL_COMPAT
+		char	      * cp;
+		/* Kernel Specific ptok `hack' */
+#define		ptok(a) ((char *)(uintptr_t)(a) + KERNBASE)
+
+		bzero(&Info, sizeof(Info));
+
+		/* Appears I am the only person in the Kernel doing this */
+		outb (0x70, 0x12);
+		i = inb(0x71);
+		j = i >> 4;
+		if (i == 0x0f) {
+			outb (0x70, 0x19);
+			j = inb (0x71);
+		}
+		Info.drive0CMOS = j;
+
+		j = i & 0x0f;
+		if (i == 0x0f) {
+			outb (0x70, 0x1a);
+			j = inb (0x71);
+		}
+		Info.drive1CMOS = j;
+
+		Info.numDrives = *((char *)ptok(0x475));
+#endif /* ASR_IOCTL_COMPAT */
 
 		bzero(&Info, sizeof(Info));
 
@@ -3571,15 +3628,77 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		Info.busType = SI_PCI_BUS;
 		Info.flags = SI_OSversionValid|SI_BusTypeValid|SI_NO_SmartROM;
 
+#ifdef ASR_IOCTL_COMPAT
+		Info.flags |= SI_CMOS_Valid | SI_NumDrivesValid;
+		/* Go Out And Look For I2O SmartROM */
+		for(j = 0xC8000; j < 0xE0000; j += 2048) {
+			int k;
+
+			cp = ptok(j);
+			if (*((unsigned short *)cp) != 0xAA55) {
+				continue;
+			}
+			j += (cp[2] * 512) - 2048;
+			if ((*((u_long *)(cp + 6))
+			  != ('S' + (' ' * 256) + (' ' * 65536L)))
+			 || (*((u_long *)(cp + 10))
+			  != ('I' + ('2' * 256) + ('0' * 65536L)))) {
+				continue;
+			}
+			cp += 0x24;
+			for (k = 0; k < 64; ++k) {
+				if (*((unsigned short *)cp)
+				 == (' ' + ('v' * 256))) {
+					break;
+				}
+			}
+			if (k < 64) {
+				Info.smartROMMajorVersion
+				    = *((unsigned char *)(cp += 4)) - '0';
+				Info.smartROMMinorVersion
+				    = *((unsigned char *)(cp += 2));
+				Info.smartROMRevision
+				    = *((unsigned char *)(++cp));
+				Info.flags |= SI_SmartROMverValid;
+				Info.flags &= ~SI_NO_SmartROM;
+				break;
+			}
+		}
+		/* Get The Conventional Memory Size From CMOS */
+		outb (0x70, 0x16);
+		j = inb (0x71);
+		j <<= 8;
+		outb (0x70, 0x15);
+		j |= inb(0x71);
+		Info.conventionalMemSize = j;
+
+		/* Get The Extended Memory Found At Power On From CMOS */
+		outb (0x70, 0x31);
+		j = inb (0x71);
+		j <<= 8;
+		outb (0x70, 0x30);
+		j |= inb(0x71);
+		Info.extendedMemSize = j;
+		Info.flags |= SI_MemorySizeValid;
+
+		/* Copy Out The Info Structure To The User */
+		if (cmd & 0xFFFF0000)
+			bcopy(&Info, data, sizeof(Info));
+		else
+#endif /* ASR_IOCTL_COMPAT */
 		error = copyout(&Info, *(caddr_t *)data, sizeof(Info));
 		return (error); }
 
 		/* Get The BlinkLED State */
 	case DPT_BLINKLED:
 		i = ASR_getBlinkLedCode (sc);
-		if (i == -1) {
+		if (i == -1)
 			i = 0;
-		}
+#ifdef ASR_IOCTL_COMPAT
+		if (cmd & 0xffff0000)
+			bcopy(&i, data, sizeof(i));
+		else
+#endif /* ASR_IOCTL_COMPAT */
 		error = copyout(&i, *(caddr_t *)data, sizeof(i));
 		break;
 
