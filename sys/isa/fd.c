@@ -19,7 +19,7 @@
  *  dufault@hda.com (Peter Dufault)
  *
  * Copyright (c) 2001 Joerg Wunsch,
- *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
+ *  joerg_wunsch@uriah.heep.sax.de (Joerg Wunsch)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
