@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.36 1998/06/03 22:07:26 jb Exp $
+#	$Id: sys.mk,v 1.37 1998/06/05 18:38:55 dt Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -243,11 +243,11 @@ HTAGSFLAGS=
 
 .endif
 
-.include <bsd.own.mk>
-
 .if exists(/etc/make.conf)
 .include </etc/make.conf>
 .endif
+
+.include <bsd.own.mk>
 
 # Architectures that use NetBSD syscalls:
 .if ${MACHINE_ARCH} == "alpha"
