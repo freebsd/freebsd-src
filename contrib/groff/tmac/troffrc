@@ -12,14 +12,21 @@
 .do ds troffrc!X100-12 tmac.X
 .do ds troffrc!ascii tmac.tty
 .do ds troffrc!latin1 tmac.tty
+.do ds troffrc!koi8-r tmac.tty
 .do ds troffrc!lj4 tmac.lj4
 .do if d troffrc!\*[.T] \
 .	do mso \*[troffrc!\*[.T]]
 .do rm troffrc!ps troffrc!Xps troffrc!dvi troffrc!X75 troffrc!X75-12 \
 troffrc!X100 troffrc!X100-12 troffrc!lj4
 .do tr \[char160]
-.\" Set the hyphenation language to `us'.
-.do hla us
+.\" Set the hyphenation language to `us' unless we're using koi8-r (russian)
 .\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
+.ie "\*[.T]"koi8-r" \{\
+.do hla us-ru
+.do hpf hyphen.us-ru
+.   \}
+.el \{\
+.do hla us
 .do hpf hyphen.us
+.   \}
 .\" Don't let blank lines creep in here.
