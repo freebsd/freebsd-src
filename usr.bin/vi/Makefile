@@ -46,7 +46,8 @@ MAN1=	${SRCDIR}/docs/USD.doc/vi.man/vi.1
 MLINKS+=vi.1 ex.1 vi.1 view.1
 MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 
-CATALOGS= dutch english french german polish ru_SU.KOI8-R spanish swedish
+CATALOGS= dutch english french german polish ru_SU.KOI8-R spanish swedish \
+          uk_UA.KOI8-U
 NLLINKS= nl_NL
 ENLINKS= en_AU en_CA en_GB en_US
 FRLINKS= fr_BE fr_CA fr_CH fr_FR
