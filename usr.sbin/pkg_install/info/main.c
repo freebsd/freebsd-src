@@ -179,7 +179,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfikorRpLqImv] [-e package] [-l prefix]",
+	"usage: pkg_info [-cdDfiIkLmopqrRsv] [-e package] [-l prefix]",
 	"                [-t template] [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);
