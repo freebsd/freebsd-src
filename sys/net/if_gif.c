@@ -107,14 +107,14 @@ static int gif_encapcheck __P((const struct mbuf *, int, int, void *));
 extern  struct domain inetdomain;
 struct protosw in_gif_protosw =
 { SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in_gif_input,	rip_output,	0,		rip_ctloutput,
+  in_gif_input,	(pr_output_t*)rip_output, 0,		rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
 };
 #endif
 #ifdef INET6
-extern  struct domain6 inet6domain;
+extern  struct domain inet6domain;
 struct ip6protosw in6_gif_protosw =
 { SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
   in6_gif_input, rip6_output,	0,		rip6_ctloutput,
@@ -348,8 +348,7 @@ gif_encapcheck(m, off, proto, arg)
 		return 0;
 	}
 
-	/* LINTED const cast */
-	m_copydata((struct mbuf *)m, 0, sizeof(ip), (caddr_t)&ip);
+	m_copydata(m, 0, sizeof(ip), (caddr_t)&ip);
 
 	switch (ip.ip_v) {
 #ifdef INET
@@ -608,6 +607,9 @@ gif_ioctl(ifp, cmd, data)
 				&(((struct if_laddrreq *)data)->addr);
 			dst = (struct sockaddr *)
 				&(((struct if_laddrreq *)data)->dstaddr);
+		default:
+			error = EADDRNOTAVAIL;
+			goto bad;
 		}
 
 		/* sa_family must be equal */
