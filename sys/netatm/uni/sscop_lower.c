@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_lower.c,v 1.6 1998/04/07 23:21:28 mks Exp $
+ *	@(#) $Id: sscop_lower.c,v 1.1 1998/09/15 08:23:07 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop_lower.c,v 1.6 1998/04/07 23:21:28 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop_lower.c,v 1.1 1998/09/15 08:23:07 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -124,8 +124,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 	void		(*func) __P((struct sscop *, int, int));
 	int		val;
 
-	ATM_DEBUG5("sscop_lower: cmd=0x%x, sop=0x%x, state=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, (int)sop, sop->so_state, arg1, arg2);
+	ATM_DEBUG5("sscop_lower: cmd=0x%x, sop=%p, state=%d, arg1=0x%x, arg2=0x%x\n",
+		cmd, sop, sop->so_state, arg1, arg2);
 
 	/*
 	 * Validate stack command
@@ -136,8 +136,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 	    ((stab = (sop->so_vers == SSCOP_VERS_QSAAL ? 
 			sscop_qsaal_aatab[val] : 
 			sscop_q2110_aatab[val])) == NULL)) {
-		log(LOG_ERR, "sscop_lower: unknown cmd 0x%x, sop=0x%x\n",
-			cmd, (int)sop);
+		log(LOG_ERR, "sscop_lower: unknown cmd 0x%x, sop=%p\n",
+			cmd, sop);
 		return;
 	}
 
@@ -145,8 +145,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 	 * Validate sscop state
 	 */
 	if (sop->so_state > SOS_MAXSTATE) {
-		log(LOG_ERR, "sscop_lower: invalid state sop=0x%x, state=%d\n",
-			(int)sop, sop->so_state);
+		log(LOG_ERR, "sscop_lower: invalid state sop=%p, state=%d\n",
+			sop, sop->so_state);
 		/*
 		 * Release possible buffer
 		 */
@@ -163,8 +163,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 	func = stab[sop->so_state];
 	if (func == NULL) {
 		log(LOG_ERR, 
-			"sscop_lower: invalid cmd/state: sop=0x%x, cmd=0x%x, state=%d\n",
-			(int)sop, cmd, sop->so_state);
+			"sscop_lower: invalid cmd/state: sop=%p, cmd=0x%x, state=%d\n",
+			sop, cmd, sop->so_state);
 		/*
 		 * Release possible buffer
 		 */

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni_lower.c,v 1.6 1998/04/07 23:23:26 mks Exp $
+ *	@(#) $Id: sscf_uni_lower.c,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscf_uni_lower.c,v 1.6 1998/04/07 23:23:26 mks Exp $";
+static char *RCSid = "@(#) $Id: sscf_uni_lower.c,v 1.1 1998/09/15 08:23:06 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -92,8 +92,8 @@ sscf_uni_lower(cmd, tok, arg1, arg2)
 	enum sscop_vers	vers;
 	int		err;
 
-	ATM_DEBUG5("sscf_uni_lower: cmd=0x%x, uvp=0x%x, ustate=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, (int)uvp, uvp->uv_ustate, arg1, arg2);
+	ATM_DEBUG5("sscf_uni_lower: cmd=0x%x, uvp=%p, ustate=%d, arg1=0x%x, arg2=0x%x\n",
+		cmd, uvp, uvp->uv_ustate, arg1, arg2);
 
 	switch (cmd) {
 
@@ -370,8 +370,8 @@ sscf_uni_lower(cmd, tok, arg1, arg2)
 		break;
 
 	default:
-		log(LOG_ERR, "sscf_uni_lower: unknown cmd 0x%x, uvp=0x%x\n",
-			cmd, (int)uvp);
+		log(LOG_ERR, "sscf_uni_lower: unknown cmd 0x%x, uvp=%p\n",
+			cmd, uvp);
 	}
 
 	return;

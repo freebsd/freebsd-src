@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_receive.c,v 1.13 1998/08/07 22:14:13 mks Exp $
+ *	@(#) $Id: eni_receive.c,v 1.1 1998/09/15 08:22:53 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: eni_receive.c,v 1.13 1998/08/07 22:14:13 mks Exp $";
+static char *RCSid = "@(#) $Id: eni_receive.c,v 1.1 1998/09/15 08:22:53 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -852,7 +852,7 @@ eni_recv_stack ( tok, m )
 	if ( !m ) {
 #ifdef	DO_LOG
 		log ( LOG_ERR,
-			"eni_recv_stack: NULL buffer, tok = 0x%x\n", tok );
+			"eni_recv_stack: NULL buffer, tok = %p\n", tok );
 #endif
 		return;
 	}

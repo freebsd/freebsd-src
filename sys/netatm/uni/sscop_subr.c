@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_subr.c,v 1.7 1998/08/26 23:29:19 mks Exp $
+ *	@(#) $Id: sscop_subr.c,v 1.1 1998/09/15 08:23:08 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop_subr.c,v 1.7 1998/08/26 23:29:19 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop_subr.c,v 1.1 1998/09/15 08:23:08 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -364,8 +364,8 @@ sscop_rexmit_unlink(sop, php)
 			sop->so_rexmit_tl = curr;
 	} else {
 		log(LOG_ERR,
-			"sscop_rexmit_unlink: Not found - sop=0x%x, php=0x%x\n",
-			(int)sop, (int)php);
+			"sscop_rexmit_unlink: Not found - sop=%p, php=%p\n",
+			sop, php);
 #ifdef DIAGNOSTIC
 		panic("sscop_rexmit_unlink: Not found");
 #endif

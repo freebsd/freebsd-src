@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop.c,v 1.6 1998/03/24 21:10:43 mks Exp $
+ *	@(#) $Id: sscop.c,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop.c,v 1.6 1998/03/24 21:10:43 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop.c,v 1.1 1998/09/15 08:23:06 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -238,7 +238,7 @@ sscop_inst(ssp, cvp)
 	struct sscop	*sop;
 	int		err;
 
-	ATM_DEBUG2("sscop_inst: ssp=0x%x, cvp=0x%x\n", ssp, cvp);
+	ATM_DEBUG2("sscop_inst: ssp=%p, cvp=%p\n", ssp, cvp);
 
 	/*
 	 * Validate lower SAP
