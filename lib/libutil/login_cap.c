@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.12 1997/05/10 18:55:37 davidn Exp $
+ *	$Id: login_cap.c,v 1.12.2.1 1997/05/11 08:06:10 davidn Exp $
  */
 
 #include <stdio.h>
@@ -557,8 +557,10 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 	    break;
 	case 'w': case 'W':	/* weeks */
 	    mult = 60L * 60L * 24L * 7L;
+	    break;
 	case 'y': case 'Y':	/* 365-day years */
 	    mult = 60L * 60L * 24L * 365L;
+	    break;
 	default:
 	    goto invalid;
 	}
