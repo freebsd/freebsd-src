@@ -18,9 +18,8 @@ set `df /` ; dev="/dev/$8"
 echo "Reading /etc from ${dev}..."
 mount -o rdonly ${dev} /mnt
 cd /mnt/etc ; cp -Rp . /etc/
-cp -Rp /mnt/root /
 cd /etc
-gzip -d *.gz
+gzip -df *.gz
 pwd_mkdb -p ./master.passwd
 umount /mnt
 echo "Ok. (Now you can remove ${dev} if you like)"
