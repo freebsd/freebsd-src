@@ -125,6 +125,9 @@ struct slot {
 	struct power	pwr;		/* Power values */
 	struct slot_ctrl *ctrl;		/* Per-controller data */
 	void		*cdata;		/* Controller specific data */
+#ifdef DEVFS
+	void		*devfs_token;
+#endif /* DEVFS*/
 };
 
 enum card_event { card_removed, card_inserted };
