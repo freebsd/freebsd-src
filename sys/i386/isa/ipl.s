@@ -80,6 +80,7 @@ doreti_ast:
 	pushl	%esp			/* pass a pointer to the trapframe */
 	call	ast
 	add	$4,%esp
+	jmp	doreti_ast
 
 	/*
 	 * doreti_exit:	pop registers, iret.
