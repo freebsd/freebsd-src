@@ -203,7 +203,7 @@ ia64_vector_table:
 	;;
 	cmp.eq	p1,p2=7,r17		// RR7->p1, RR6->p2
 	;;
-(p1)	movl	r17=PTE_P+PTE_MA_WC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
+(p1)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
 (p2)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
@@ -226,7 +226,7 @@ ia64_vector_table:
 	;;
 	cmp.eq	p1,p2=7,r17		// RR7->p1, RR6->p2
 	;;
-(p1)	movl	r17=PTE_P+PTE_MA_WC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
+(p1)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
 (p2)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
