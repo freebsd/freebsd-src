@@ -102,12 +102,11 @@
 #	ctx*    Cortex-I video acquisition card
 #	meteor*	Matrox Meteor video acquisition card (pci)
 #	bktr*	Bt848 based video acquisition card (pci)
-#	qcam*	Connectix QuickCam(tm) parallel port camera
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.153 1998/02/13 22:40:32 pst Exp $
+#	$Id: MAKEDEV,v 1.154 1998/02/17 15:28:29 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1057,12 +1056,6 @@ ctx?)
 	unit=`expr $i : 'ctx\(.*\)'`
 	mknod ctx$unit c 40 $unit
 	chmod 444 ctx$unit
-	;;
-
-qcam?)
-	unit=`expr $i : 'qcam\(.*\)'`
-	mknod qcam$unit c 73 $unit
-	chmod 444 qcam$unit
 	;;
 
 meteor?)
