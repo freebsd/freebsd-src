@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.9 1995/05/08 02:08:33 phk Exp $
+ * $Id: write_disk.c,v 1.10 1995/05/18 22:25:37 phk Exp $
  *
  */
 
@@ -198,7 +198,7 @@ Write_Disk(struct disk *d1)
 	}
 	if (!j)
 		for(i=0;i<NDOSPART;i++)
-			if (dp[j].dp_typ == 0xa5)
+			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 	
 	mbr = read_block(fd,0);
