@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.13 1995/05/06 03:28:30 phk Exp $
+ * $Id: libdisk.h,v 1.14 1995/05/08 02:08:30 phk Exp $
  *
  */
 
@@ -197,6 +197,13 @@ u_long
 Prev_Track_Aligned(struct disk *d, u_long offset);
 	/* Check if offset is aligned on a track according to the
 	 * bios geometry
+	 */
+
+struct chunk *
+Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e type, int subtype, u_long flags);
+	/* This one creates a partition inside the given parent of the given
+	 * size, and returns a pointer to it.  The first unused chunk big
+	 * enough is used.
 	 */
 
 /* 
