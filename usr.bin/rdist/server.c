@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)server.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id: server.c,v 1.7 1998/04/06 06:18:32 charnier Exp $";
+	"$Id: server.c,v 1.8 1998/04/20 06:20:24 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/wait.h>
@@ -473,7 +473,7 @@ sendf(rname, opts)
 		(void) write(rem, buf, strlen(buf));
 		if (response() < 0)
 			return;
-		sizerr = (readlink(target, buf, BUFSIZ) != stb.st_size);
+		sizerr = (readlink(target, buf, BUFSIZ - 1) != stb.st_size);
 		(void) write(rem, buf, stb.st_size);
 		if (debug)
 			printf("readlink = %.*s\n", (int)stb.st_size, buf);
@@ -870,7 +870,7 @@ recvf(cmd, type)
 		if (opts & COMPARE) {
 			char tbuf[BUFSIZ];
 
-			if ((i = readlink(target, tbuf, BUFSIZ)) >= 0 &&
+			if ((i = readlink(target, tbuf, BUFSIZ - 1)) >= 0 &&
 			    i == size && strncmp(buf, tbuf, size) == 0) {
 				(void) unlink(new);
 				ack();
