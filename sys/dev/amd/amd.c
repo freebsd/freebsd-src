@@ -55,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 
 #include <vm/vm.h>

@@ -182,7 +182,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <miscfs/nullfs/null.h>
 
 static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */

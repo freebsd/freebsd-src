@@ -178,7 +178,6 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/clock.h>

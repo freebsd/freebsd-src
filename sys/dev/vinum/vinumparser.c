@@ -72,7 +72,6 @@
 #include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 
 #include <dev/vinum/vinumvar.h>
 #include <dev/vinum/vinumkw.h>

@@ -82,7 +82,6 @@
 #include <sys/bus.h>
 #endif
 
-#include <sys/buf.h>
 #include <sys/proc.h>
 
 #include <pci/pcireg.h>
