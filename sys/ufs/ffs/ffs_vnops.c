@@ -90,6 +90,7 @@ static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag,
 static int	ffsext_strategy(struct vop_strategy_args *);
 static int	ffs_closeextattr(struct vop_closeextattr_args *);
 static int	ffs_getextattr(struct vop_getextattr_args *);
+static int	ffs_listextattr(struct vop_listextattr_args *);
 static int	ffs_openextattr(struct vop_openextattr_args *);
 static int	ffs_setextattr(struct vop_setextattr_args *);
 
@@ -105,6 +106,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
@@ -120,6 +122,7 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
@@ -135,6 +138,7 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
@@ -1467,6 +1471,68 @@ vop_getextattr {
 {
 	struct inode *ip;
 	struct fs *fs;
+	u_char *eae, *p;
+	unsigned easize;
+	int error, ealen, stand_alone;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, IREAD);
+	if (error)
+		return (error);
+
+	if (ip->i_ea_area == NULL) {
+		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+		if (error)
+			return (error);
+		stand_alone = 1;
+	} else {
+		stand_alone = 0;
+	}
+	eae = ip->i_ea_area;
+	easize = ip->i_ea_len;
+
+	ealen = ffs_findextattr(eae, easize, ap->a_attrnamespace, ap->a_name,
+	    NULL, &p);
+	if (ealen >= 0) {
+		error = 0;
+		if (ap->a_size != NULL)
+			*ap->a_size = ealen;
+		else if (ap->a_uio != NULL)
+			error = uiomove(p, ealen, ap->a_uio);
+	} else
+		error = ENOATTR;
+	if (stand_alone)
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+	return(error);
+}
+
+/*
+ * Vnode operation to retrieve extended attributes on a vnode.
+ */
+static int
+ffs_listextattr(struct vop_listextattr_args *ap)
+/*
+vop_listextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	INOUT struct uio *a_uio;
+	OUT size_t *a_size;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	struct inode *ip;
+	struct fs *fs;
 	u_char *eae, *p, *pe, *pn;
 	unsigned easize;
 	uint32_t ul;
@@ -1496,38 +1562,25 @@ vop_getextattr {
 	}
 	eae = ip->i_ea_area;
 	easize = ip->i_ea_len;
-	if (strlen(ap->a_name) > 0) {
-		ealen = ffs_findextattr(eae, easize,
-		    ap->a_attrnamespace, ap->a_name, NULL, &p);
-		if (ealen >= 0) {
-			error = 0;
-			if (ap->a_size != NULL)
-				*ap->a_size = ealen;
-			else if (ap->a_uio != NULL)
-				error = uiomove(p, ealen, ap->a_uio);
-		} else {
-			error = ENOATTR;
-		}
-	} else {
-		error = 0;
-		if (ap->a_size != NULL)
-			*ap->a_size = 0;
-		pe = eae + easize;
-		for(p = eae; error == 0 && p < pe; p = pn) {
-			bcopy(p, &ul, sizeof(ul));
-			pn = p + ul;
-			if (pn > pe)
-				break;
-			p += sizeof(ul);
-			if (*p++ != ap->a_attrnamespace)
-				continue;
-			p++;	/* pad2 */
-			ealen = *p;
-			if (ap->a_size != NULL) {
-				*ap->a_size += ealen + 1;
-			} else if (ap->a_uio != NULL) {
-				error = uiomove(p, ealen + 1, ap->a_uio);
-			}
+
+	error = 0;
+	if (ap->a_size != NULL)
+		*ap->a_size = 0;
+	pe = eae + easize;
+	for(p = eae; error == 0 && p < pe; p = pn) {
+		bcopy(p, &ul, sizeof(ul));
+		pn = p + ul;
+		if (pn > pe)
+			break;
+		p += sizeof(ul);
+		if (*p++ != ap->a_attrnamespace)
+			continue;
+		p++;	/* pad2 */
+		ealen = *p;
+		if (ap->a_size != NULL) {
+			*ap->a_size += ealen + 1;
+		} else if (ap->a_uio != NULL) {
+			error = uiomove(p, ealen + 1, ap->a_uio);
 		}
 	}
 	if (stand_alone)
@@ -1566,6 +1619,9 @@ vop_setextattr {
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
+
+	if (strlen(ap->a_name) == 0)
+		return (EINVAL);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IWRITE);
