@@ -67,8 +67,8 @@ typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
-typedef	const char *	c_caddr_t;	/* core address, pointer to const */
-typedef	volatile char *	v_caddr_t;	/* core address, pointer to volatile */
+typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
+typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
