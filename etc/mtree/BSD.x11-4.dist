@@ -303,6 +303,8 @@
             ..
         ..
     ..
+    libdata
+    ..
     libexec
     ..
     man
