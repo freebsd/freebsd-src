@@ -24,18 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * Code cleanup, bug-fix and extension
- * by Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/ioctl.h>
-
 #include <pccard/cardinfo.h>
 
 int
