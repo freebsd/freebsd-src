@@ -1290,16 +1290,19 @@ tcp6_ctlinput(cmd, sa, d)
  * between seeding of isn_secret.  This is normally set to zero,
  * as reseeding should not be necessary.
  *
+ * Locking of the global variables isn_secret, isn_last_reseed, isn_offset,
+ * isn_offset_old, and isn_ctx is performed using the TCP pcbinfo lock.  In
+ * general, this means holding an exclusive (write) lock.
  */
 
 #define ISN_BYTES_PER_SECOND 1048576
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
-u_char isn_secret[32];
-int isn_last_reseed;
-u_int32_t isn_offset, isn_offset_old;
-MD5_CTX isn_ctx;
+static u_char isn_secret[32];
+static int isn_last_reseed;
+static u_int32_t isn_offset, isn_offset_old;
+static MD5_CTX isn_ctx;
 
 tcp_seq
 tcp_new_isn(tp)
@@ -1307,6 +1310,8 @@ tcp_new_isn(tp)
 {
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
+
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	/* Seed if this is the first use, reseed if requested. */
 	if ((isn_last_reseed == 0) || ((tcp_isn_reseed_interval > 0) &&
@@ -1354,6 +1359,7 @@ tcp_isn_tick(xtp)
 {
 	u_int32_t projected_offset;
 
+	INP_INFO_WLOCK(&tcbinfo);
 	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / hz;
 
 	if (projected_offset > isn_offset)
@@ -1361,6 +1367,7 @@ tcp_isn_tick(xtp)
 
 	isn_offset_old = isn_offset;
 	callout_reset(&isn_callout, 1, tcp_isn_tick, NULL);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
 /*
