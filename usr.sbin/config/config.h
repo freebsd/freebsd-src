@@ -54,6 +54,11 @@ struct file_list {
 	char	*f_warn;		/* warning message */
 };
 
+struct files_name {
+	char *f_name;
+	STAILQ_ENTRY(files_name) f_next;
+};
+
 /*
  * Types.
  */
@@ -155,6 +160,8 @@ extern int	yyline;
 extern const	char *yyfile;
 
 extern STAILQ_HEAD(file_list_head, file_list) ftab;
+
+extern STAILQ_HEAD(files_name_head, files_name) fntab;
 
 extern int	profiling;
 extern int	debugging;

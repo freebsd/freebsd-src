@@ -145,7 +145,9 @@ main(int argc, char **argv)
 		errx(2, "%s isn't a directory", p);
 
 	STAILQ_INIT(&dtab);
+	STAILQ_INIT(&fntab);
 	SLIST_INIT(&cputype);
+	STAILQ_INIT(&ftab);
 	yyfile = *argv;
 	if (yyparse())
 		exit(3);
