@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.22 1998/09/30 20:54:34 jkh Exp $
+ * $Id: uc_main.c,v 1.23 1998/10/06 07:41:49 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -106,7 +106,7 @@ uc_open(char *name){
 
 	kern->nl = nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
 	bzero(nl, (size + 1) * sizeof(struct nlist));
-	for (i = 0; i < size; i++) {
+	for (i = 0; i <= size; i++) {
 	    char *cp, name[255];
 	    int c1;
 	    unsigned int uc1;
