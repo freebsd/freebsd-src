@@ -214,7 +214,9 @@ acpi_video_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
-	if (acpi_video_sysctl_tree == NULL && acpi_sc != NULL) {
+	if (acpi_sc == NULL)
+		return (ENXIO);
+	if (acpi_video_sysctl_tree == NULL) {
 		acpi_video_sysctl_tree = SYSCTL_ADD_NODE(&acpi_video_sysctl_ctx,
 				    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
 				    OID_AUTO, "video", CTLFLAG_RD, 0,
@@ -275,7 +277,7 @@ acpi_video_notify_handler(ACPI_HANDLE handle __unused, UINT32 notify,
     void *context)
 {
 	struct acpi_video_softc *sc;
-	struct acpi_video_output *vo;
+	struct acpi_video_output *vo, *vo_tmp;
 	ACPI_HANDLE lasthand = NULL;
 	UINT32 dcs, dss, dss_p = 0;
 
@@ -303,7 +305,7 @@ acpi_video_notify_handler(ACPI_HANDLE handle __unused, UINT32 notify,
 		STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next)
 			vo->handle = NULL;
 		acpi_video_bind_outputs(sc);
-		STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next) {
+		STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vo_tmp) {
 			if (vo->handle == NULL) {
 				STAILQ_REMOVE(&sc->vid_outputs, vo,
 					      acpi_video_output, vo_next);
@@ -689,29 +691,28 @@ struct enum_callback_arg {
 	void (*callback)(ACPI_HANDLE, UINT32, void *);
 	void *context;
 	ACPI_OBJECT *dod_pkg;
+	int count;
 };
 
 static ACPI_STATUS
 vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
-		      void *context, void **retp)
+		      void *context, void **retp __unused)
 {
 	ACPI_STATUS status;
-	ACPI_OBJECT *tmp;
-	UINT32 adr;
+	UINT32 adr, val;
 	struct enum_callback_arg *argset;
 	size_t i;
 
 	argset = context;
 	status = acpi_GetInteger(handle, "_ADR", &adr);
-	if (ACPI_SUCCESS(status)) {
-		for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
-			tmp = &argset->dod_pkg->Package.Elements[i];
-			if (tmp != NULL && tmp->Type == ACPI_TYPE_INTEGER &&
-			    (tmp->Integer.Value & DOD_DEVID_MASK) == adr) {
-				argset->callback(handle, tmp->Integer.Value,
-						 argset->context);
-				(**(int**)retp)++;
-			}
+	if (ACPI_FAILURE(status))
+		return (AE_OK);
+
+	for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
+		if (acpi_PkgInt32(argset->dod_pkg, i, &val) == 0 &&
+		    (val & DOD_DEVID_MASK) == adr) {
+			argset->callback(handle, val, argset->context);
+			argset->count++;
 		}
 	}
 
@@ -725,8 +726,6 @@ vid_enum_outputs(ACPI_HANDLE handle,
 	ACPI_STATUS status;
 	ACPI_BUFFER dod_buf;
 	ACPI_OBJECT *res;
-	int num = 0;
-	void *pnum;
 	struct enum_callback_arg argset;
 
 	dod_buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -736,34 +735,33 @@ vid_enum_outputs(ACPI_HANDLE handle,
 		if (status != AE_NOT_FOUND)
 			printf("can't evaluate %s._DOD - %s\n",
 			       acpi_name(handle), AcpiFormatException(status));
-		num = -1;
+		argset.count = -1;
 		goto out;
 	}
 	res = (ACPI_OBJECT *)dod_buf.Pointer;
-	if (res == NULL || res->Type != ACPI_TYPE_PACKAGE) {
+	if (!ACPI_PKG_VALID(res, 1)) {
 		printf("evaluation of %s._DOD makes no sense\n",
 		       acpi_name(handle));
-		num = -1;
+		argset.count = -1;
 		goto out;
 	}
 	if (callback == NULL) {
-		num = res->Package.Count;
+		argset.count = res->Package.Count;
 		goto out;
 	}
 	argset.callback = callback;
 	argset.context  = context;
 	argset.dod_pkg  = res;
-	pnum = &num;
+	argset.count    = 0;
 	status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, handle, 1,
-				   vid_enum_outputs_subr, &argset,
-				   &pnum);
+	    vid_enum_outputs_subr, &argset, NULL);
 	if (ACPI_FAILURE(status))
 		printf("failed walking down %s - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
 out:
 	if (dod_buf.Pointer != NULL)
 		AcpiOsFree(dod_buf.Pointer);
-	return (num);
+	return (argset.count);
 }
 
 static int
@@ -771,7 +769,7 @@ vo_query_brightness_levels(ACPI_HANDLE handle, int **levelp)
 {
 	ACPI_STATUS status;
 	ACPI_BUFFER bcl_buf;
-	ACPI_OBJECT *res, *tmp;
+	ACPI_OBJECT *res;
 	int num = 0, i, n, *levels;
 
 	bcl_buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -785,8 +783,7 @@ vo_query_brightness_levels(ACPI_HANDLE handle, int **levelp)
 		goto out;
 	}
 	res = (ACPI_OBJECT *)bcl_buf.Pointer;
-	if (res == NULL || res->Type != ACPI_TYPE_PACKAGE ||
-	    res->Package.Count < 2) {
+	if (!ACPI_PKG_VALID(res, 2)) {
 		printf("evaluation of %s._BCL makes no sense\n",
 		       acpi_name(handle));
 		num = -1;
@@ -795,16 +792,14 @@ vo_query_brightness_levels(ACPI_HANDLE handle, int **levelp)
 	num = res->Package.Count;
 	if (levelp == NULL)
 		goto out;
-	levels = AcpiOsAllocate(num * sizeof *levels);
+	levels = AcpiOsAllocate(num * sizeof(*levels));
 	if (levels == NULL) {
 		num = -1;
 		goto out;
 	}
-	for (i = 0, n = 0; i < num; i++) {
-		tmp = &res->Package.Elements[i];
-		if (tmp != NULL && tmp->Type == ACPI_TYPE_INTEGER)
-			levels[n++] = tmp->Integer.Value;
-	}
+	for (i = 0, n = 0; i < num; i++)
+		if (acpi_PkgInt32(res, i, &levels[n]) == 0)
+			n++;
 	if (n < 2) {
 		num = -1;
 		AcpiOsFree(levels);
