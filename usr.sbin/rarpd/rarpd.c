@@ -27,7 +27,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rarpd.c,v 1.18 1998/01/16 17:38:54 bde Exp $";
+	"$Id: rarpd.c,v 1.19 1998/04/02 13:20:15 roberto Exp $";
 #endif /* not lint */
 
 /*
@@ -400,7 +400,7 @@ init(target)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: rarpd [-afnv] [interface]\n");
+	(void)fprintf(stderr, "usage: rarpd [-afsv] [interface]\n");
 	exit(1);
 }
 
