@@ -19,7 +19,7 @@ PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c rtsock.c
 
 CFLAGS+=-DINET6 -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DSMALL
-WARNS=	0
+WARNS?=	0
 
 NOMAN=	yes
 

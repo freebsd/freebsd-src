@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	sysctl
-WARNS=	0
+WARNS?=	0
 MAN=	sysctl.8
 
 .include <bsd.prog.mk>
