@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.3 1997/08/18 07:16:00 charnier Exp $";
+	"$Id: cmds.c,v 1.4 1997/08/22 22:14:15 imp Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -787,7 +787,7 @@ setscript()
 void
 chdirectory()
 {
-	char dirname[MAXPATHLEN];
+	char dirname[PATH_MAX];
 	register char *cp = dirname;
 
 	if (prompt("[cd] ", dirname, sizeof(dirname))) {
