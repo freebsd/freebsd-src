@@ -203,7 +203,8 @@ isp_reset(isp)
 	DISABLE_INTS(isp);
 
 	/*
-	 * Put the board into PAUSE mode (so we can read the SXP registers).
+	 * Put the board into PAUSE mode (so we can read the SXP registers
+	 * or write FPM/FBM registers).
 	 */
 	ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
 
@@ -218,6 +219,14 @@ isp_reset(isp)
 		default:
 			break;
 		}
+		/*
+		 * While we're paused, reset the FPM module and FBM fifos.
+		 */
+		ISP_WRITE(isp, BIU2100_CSR, BIU2100_FPM0_REGS);
+		ISP_WRITE(isp, FPM_DIAG_CONFIG, FPM_SOFT_RESET);
+		ISP_WRITE(isp, BIU2100_CSR, BIU2100_FB_REGS);
+		ISP_WRITE(isp, FBM_CMD, FBMCMD_FIFO_RESET_ALL);
+		ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
 	} else if (IS_1240(isp)) {
 		sdparam *sdp = isp->isp_param;
 		revname = "1240";
@@ -461,6 +470,8 @@ again:
 	 */
 	ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
 	USEC_DELAY(100);
+	/* Clear semaphore register (just to be sure) */
+	ISP_WRITE(isp, BIU_SEMA, 0);
 
 	/*
 	 * Establish some initial burst rate stuff.
@@ -498,6 +509,9 @@ again:
 #endif
 	} else {
 		ISP_WRITE(isp, RISC_MTR2100, 0x1212);
+		if (IS_2200(isp)) {
+			ISP_WRITE(isp, HCCR, HCCR_2X00_DISABLE_PARITY_PAUSE);
+		}
 	}
 
 	ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE); /* release paused processor */
@@ -729,12 +743,10 @@ isp_init(isp)
 	if (IS_DUALBUS(isp)) {
 		isp_setdfltparm(isp, 1);
 	}
-	if ((isp->isp_confopts & ISP_CFG_NOINIT) == 0) {
-		if (IS_FC(isp)) {
-			isp_fibre_init(isp);
-		} else {
-			isp_scsi_init(isp);
-		}
+	if (IS_FC(isp)) {
+		isp_fibre_init(isp);
+	} else {
+		isp_scsi_init(isp);
 	}
 }
 
@@ -749,6 +761,13 @@ isp_scsi_init(isp)
 	sdp_chan1 = sdp_chan0;
 	if (IS_DUALBUS(isp)) {
 		sdp_chan1++;
+	}
+
+	/*
+	 * If we have no role (neither target nor initiator), return.
+	 */
+	if (isp->isp_role == ISP_ROLE_NONE) {
+		return;
 	}
 
 	/* First do overall per-card settings. */
@@ -1012,6 +1031,20 @@ isp_fibre_init(isp)
 
 	fcp = isp->isp_param;
 
+	/*
+	 * Do this *before* initializing the firmware.
+	 */
+	isp_mark_getpdb_all(isp);
+	fcp->isp_fwstate = FW_CONFIG_WAIT;
+	fcp->isp_loopstate = LOOP_NIL;
+
+	/*
+	 * If we have no role (neither target nor initiator), return.
+	 */
+	if (isp->isp_role == ISP_ROLE_NONE) {
+		return;
+	}
+
 	loopid = DEFAULT_LOOPID(isp);
 	icbp = (isp_icb_t *) fcp->isp_scratch;
 	MEMZERO(icbp, sizeof (*icbp));
@@ -1051,6 +1084,19 @@ isp_fibre_init(isp)
 	 * Node Name && Port Names to be distinct.
 	 */
 
+	
+	/*
+	 * Make sure that target role reflects into fwoptions.
+	 */
+	if (isp->isp_role & ISP_ROLE_TARGET) {
+		fcp->isp_fwoptions |= ICBOPT_TGT_ENABLE;
+	} else {
+		fcp->isp_fwoptions &= ~ICBOPT_TGT_ENABLE;
+	}
+
+	/*
+	 * Propagate all of this into the ICB structure.
+	 */
 	icbp->icb_fwoptions = fcp->isp_fwoptions;
 	icbp->icb_maxfrmlen = fcp->isp_maxfrmlen;
 	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN ||
@@ -1127,13 +1173,10 @@ isp_fibre_init(isp)
 	    "isp_fibre_init: fwoptions 0x%x", fcp->isp_fwoptions);
 	ISP_SWIZZLE_ICB(isp, icbp);
 
-	/*
-	 * Do this *before* initializing the firmware.
-	 */
-	isp_mark_getpdb_all(isp);
-	fcp->isp_fwstate = FW_CONFIG_WAIT;
-	fcp->isp_loopstate = LOOP_NIL;
 
+	/*
+	 * Init the firmware
+	 */
 	mbs.param[0] = MBOX_INIT_FIRMWARE;
 	mbs.param[1] = 0;
 	mbs.param[2] = DMA_MSW(fcp->isp_scdma);
@@ -1170,7 +1213,7 @@ isp_mark_getpdb_all(isp)
 	fcparam *fcp = (fcparam *) isp->isp_param;
 	int i;
 	for (i = 0; i < MAX_FC_TARG; i++) {
-		fcp->portdb[i].valid = 0;
+		fcp->portdb[i].valid = fcp->portdb[i].fabric_dev = 0;
 	}
 }
 
@@ -1353,6 +1396,7 @@ isp_fclink_test(isp, usdelay)
 	fcp->isp_onfabric = 0;
 	if (fcp->isp_topo != TOPO_N_PORT &&
 	    isp_getpdb(isp, FL_PORT_ID, &pdb) == 0) {
+		int loopid = FL_PORT_ID;
 		struct lportdb *lp;
 		if (IS_2100(isp)) {
 			fcp->isp_topo = TOPO_FL_PORT;
@@ -1363,7 +1407,7 @@ isp_fclink_test(isp, usdelay)
 		/*
 		 * Save the Fabric controller's port database entry.
 		 */
-		lp = &fcp->portdb[FL_PORT_ID];
+		lp = &fcp->portdb[loopid];
 		lp->node_wwn =
 		    (((u_int64_t)pdb.pdb_nodename[0]) << 56) |
 		    (((u_int64_t)pdb.pdb_nodename[1]) << 48) |
@@ -1387,6 +1431,7 @@ isp_fclink_test(isp, usdelay)
 		lp->portid = BITS2WORD(pdb.pdb_portid_bits);
 		lp->loopid = pdb.pdb_loopid;
 		lp->loggedin = lp->valid = 1;
+		(void) isp_async(isp, ISPASYNC_LOGGED_INOUT, &loopid);
 		isp_register_fc4_type(isp);
 	} else
 #endif
@@ -1480,6 +1525,12 @@ isp_pdb_sync(isp, target)
 	}
 
 	/*
+	 * make sure the temp port database is clean...
+	 */
+	MEMZERO((void *)fcp->tport, sizeof (fcp->tport));
+	tport = fcp->tport;
+
+	/*
 	 * Run through the local loop ports and get port database info
 	 * for each loop ID.
 	 *
@@ -1487,13 +1538,6 @@ isp_pdb_sync(isp, target)
 	 * the wrong database entity- if that happens, just restart (up to
 	 * FL_PORT_ID times).
 	 */
-	tport = fcp->tport;
-
-	/*
-	 * make sure the temp port database is clean...
-	 */
-	MEMZERO((void *) tport, sizeof (tport));
-
 	for (lim = loopid = 0; loopid < prange; loopid++) {
 		lp = &tport[loopid];
 		lp->node_wwn = isp_get_portname(isp, loopid, 1);
@@ -1583,7 +1627,7 @@ isp_pdb_sync(isp, target)
 	/*
 	 * Mark all of the permanent local loop database entries as invalid.
 	 */
-	for (loopid = 0; loopid < FL_PORT_ID; loopid++) {
+	for (loopid = 0; loopid < prange; loopid++) {
 		fcp->portdb[loopid].valid = 0;
 	}
 
@@ -1717,8 +1761,9 @@ isp_pdb_sync(isp, target)
 	 * notify the outer layers that they're gone.
 	 */
 	for (lp = fcp->portdb; lp < &fcp->portdb[prange]; lp++) {
-		if (lp->valid || lp->port_wwn == 0)
+		if (lp->valid || lp->port_wwn == 0) {
 			continue;
+		}
 
 		/*
 		 * Tell the outside world we've gone away.
@@ -1730,10 +1775,23 @@ isp_pdb_sync(isp, target)
 
 #ifdef	ISP2100_FABRIC
 	/*
+	 * Find all Fabric Entities that didn't make it from one scan to the
+	 * next and let the world know they went away..
+	 */
+	for (lp = &fcp->portdb[frange]; lp < &fcp->portdb[MAX_FC_TARG]; lp++) {
+		if (lp->was_fabric_dev && lp->fabric_dev == 0) {
+			loopid = lp - fcp->portdb;
+			(void) isp_async(isp, ISPASYNC_LOGGED_INOUT, &loopid);
+			MEMZERO((void *) lp, sizeof (*lp));
+			continue;
+		}
+		lp->was_fabric_dev = lp->fabric_dev;
+	}
+
+	/*
 	 * Now log in any fabric devices
 	 */
-	for (lp = &fcp->portdb[frange];
-	     lp < &fcp->portdb[MAX_FC_TARG]; lp++) {
+	for (lp = &fcp->portdb[frange]; lp < &fcp->portdb[MAX_FC_TARG]; lp++) {
 		u_int32_t portid;
 		mbreg_t mbs;
 
@@ -1806,21 +1864,25 @@ isp_pdb_sync(isp, target)
 		 * Force a logout if we were logged in.
 		 */
 		if (lp->loggedin) {
-			mbs.param[0] = MBOX_FABRIC_LOGOUT;
-			mbs.param[1] = lp->loopid << 8;
-			mbs.param[2] = 0;
-			mbs.param[3] = 0;
-			isp_mboxcmd(isp, &mbs, MBLOGNONE);
+			if (isp_getpdb(isp, lp->loopid, &pdb) == 0) {
+				mbs.param[0] = MBOX_FABRIC_LOGOUT;
+				mbs.param[1] = lp->loopid << 8;
+				mbs.param[2] = 0;
+				mbs.param[3] = 0;
+				isp_mboxcmd(isp, &mbs, MBLOGNONE);
+				lp->loggedin = 0;
+				isp_prt(isp, ISP_LOGINFO, plogout,
+				    (int) (lp - fcp->portdb), lp->loopid,
+				    lp->portid);
+			}
 			lp->loggedin = 0;
-			isp_prt(isp, ISP_LOGINFO, plogout,
-			    (int) (lp - fcp->portdb), lp->loopid, lp->portid);
 		}
 
 		/*
 		 * And log in....
 		 */
 		loopid = lp - fcp->portdb;
-		lp->loopid = 0;
+		lp->loopid = FL_PORT_ID;
 		do {
 			mbs.param[0] = MBOX_FABRIC_LOGIN;
 			mbs.param[1] = loopid << 8;
@@ -1868,14 +1930,15 @@ isp_pdb_sync(isp, target)
 				loopid = MAX_FC_TARG;
 				break;
 			}
-		} while (lp->loopid == 0 && loopid < MAX_FC_TARG);
+		} while (lp->loopid == FL_PORT_ID && loopid < MAX_FC_TARG);
 
 		/*
 		 * If we get here and we haven't set a Loop ID,
 		 * we failed to log into this device.
 		 */
 
-		if (lp->loopid == 0) {
+		if (lp->loopid == FL_PORT_ID) {
+			lp->loopid = 0;
 			continue;
 		}
 
@@ -1954,17 +2017,21 @@ isp_scan_fabric(isp)
 	struct ispsoftc *isp;
 {
 	fcparam *fcp = isp->isp_param;
-	u_int32_t portid, first_nz_portid;
+	u_int32_t portid, first_portid;
 	sns_screq_t *reqp;
 	sns_scrsp_t *resp;
 	mbreg_t mbs;
-	int hicap;
+	int hicap, first_portid_seen;
 
 	reqp = (sns_screq_t *) fcp->isp_scratch;
 	resp = (sns_scrsp_t *) (&((char *)fcp->isp_scratch)[0x100]);
-	first_nz_portid = portid = fcp->isp_portid;
+	/*
+	 * Since Port IDs are 24 bits, we can check against having seen
+	 * anything yet with this value.
+	 */
+	first_portid = portid = fcp->isp_portid;
 
-	for (hicap = 0; hicap < 1024; hicap++) {
+	for (first_portid_seen = hicap = 0; hicap < 1024; hicap++) {
 		MEMZERO((void *) reqp, SNS_GAN_REQ_SIZE);
 		reqp->snscb_rblen = SNS_GAN_RESP_SIZE >> 1;
 		reqp->snscb_addr[RQRSP_ADDR0015] =
@@ -1993,10 +2060,7 @@ isp_scan_fabric(isp)
 		if (isp_async(isp, ISPASYNC_FABRIC_DEV, resp)) {
 			return (-1);
 		}
-		if (first_nz_portid == 0 && portid) {
-			first_nz_portid = portid;
-		}
-		if (first_nz_portid == portid) {
+		if (first_portid == portid) {
 			return (0);
 		}
 	}
@@ -2035,7 +2099,7 @@ isp_register_fc4_type(struct ispsoftc *isp)
 	mbs.param[7] = 0;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
-		isp_prt(isp, ISP_LOGINFO, "Register FC4 types succeeded");
+		isp_prt(isp, ISP_LOGDEBUG0, "Register FC4 types succeeded");
 	}
 }
 #endif
@@ -2060,6 +2124,19 @@ isp_start(xs)
 
 	XS_INITERR(xs);
 	isp = XS_ISP(xs);
+
+
+	/*
+	 * Check to make sure we're supporting initiator role.
+	 */
+	if ((isp->isp_role & ISP_ROLE_INITIATOR) == 0) {
+		XS_SETERR(xs, HBA_SELTIMEOUT);
+		return (CMD_COMPLETE);
+	}
+
+	/*
+	 * Now make sure we're running.
+	 */
 
 	if (isp->isp_state != ISP_RUNSTATE) {
 		isp_prt(isp, ISP_LOGERR, "Adapter not at RUNSTATE");
@@ -2329,8 +2406,9 @@ isp_start(xs)
 	}
 	XS_SETERR(xs, HBA_NOERROR);
 	isp_prt(isp, ISP_LOGDEBUG2,
-	    "START cmd for %d.%d.%d cmd 0x%x datalen %d",
-	    XS_CHANNEL(xs), target, XS_LUN(xs), XS_CDBP(xs)[0], XS_XFRLEN(xs));
+	    "START cmd for %d.%d.%d cmd 0x%x datalen %ld",
+	    XS_CHANNEL(xs), target, XS_LUN(xs), XS_CDBP(xs)[0],
+	    (long) XS_XFRLEN(xs));
 	ISP_ADD_REQUEST(isp, iptr);
 	isp->isp_nactive++;
 	if (isp->isp_sendmarker)
@@ -2459,39 +2537,17 @@ isp_control(isp, ctl, arg)
 	case ISPCTL_TOGGLE_TMODE:
 	{
 		int ena = *(int *)arg;
+
+		/*
+		 * We don't check/set against role here- that's the
+		 * responsibility for the outer layer to coordinate.
+		 */
 		if (IS_SCSI(isp)) {
 			mbs.param[0] = MBOX_ENABLE_TARGET_MODE;
 			mbs.param[1] = (ena)? ENABLE_TARGET_FLAG : 0;
 			isp_mboxcmd(isp, &mbs, MBLOGALL);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 				break;
-			}
-		} else {
-			fcparam *fcp = isp->isp_param;
-			/*
-			 * We assume somebody has quiesced this bus.
-			 */
-			if (ena) {
-				if (fcp->isp_fwoptions & ICBOPT_TGT_ENABLE) {
-					return (0);
-				}
-				fcp->isp_fwoptions |= ICBOPT_TGT_ENABLE;
-			} else {
-				if (!(fcp->isp_fwoptions & ICBOPT_TGT_ENABLE)) {
-					return (0);
-				}
-				fcp->isp_fwoptions &= ~ICBOPT_TGT_ENABLE;
-			}
-			isp->isp_state = ISP_NILSTATE;
-			isp_reset(isp);
-			if (isp->isp_state != ISP_RESETSTATE) {
-				break;
-			}
-			isp_init(isp);
-			if ((isp->isp_confopts & ISP_CFG_NOINIT) == 0) {
-				if (isp->isp_state == ISP_INITSTATE) {
-					isp->isp_state = ISP_RUNSTATE;
-				}
 			}
 		}
 		return (0);
@@ -2808,8 +2864,9 @@ isp_intr(arg)
 					XS_SAVE_SENSE(xs, sp);
 				}
 			}
-			isp_prt(isp, ISP_LOGDEBUG2, "asked for %d got resid %d",
-				XS_XFRLEN(xs), sp->req_resid);
+			isp_prt(isp, ISP_LOGDEBUG2,
+			   "asked for %ld got resid %ld", (long) XS_XFRLEN(xs),
+			   (long) sp->req_resid);
 			break;
 		case RQSTYPE_REQUEST:
 			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
@@ -4059,6 +4116,8 @@ isp_mboxcmd(isp, mbp, logmask)
 		}
 		isp->isp_mboxtmp[box] = mbp->param[box] = 0;
 	}
+
+	isp->isp_lastmbxcmd = opcode;
 
 	/*
 	 * We assume that we can't overwrite a previous command.
