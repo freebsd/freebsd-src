@@ -120,7 +120,6 @@
 #define VAR_GEOMETRY			"geometry"
 #define VAR_HOSTNAME			"hostname"
 #define VAR_IFCONFIG			"ifconfig_"
-#define VAR_INTERFACES			"network_interfaces"
 #define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
