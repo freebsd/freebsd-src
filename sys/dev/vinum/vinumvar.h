@@ -119,8 +119,20 @@ enum constants {
 /* extract device type */
 #define DEVTYPE(x) ((x >> VINUM_TYPE_SHIFT) & 7)
 
-    VINUM_SUPERDEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
-    VINUM_DAEMON_DEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE),	/* daemon superdevice number */
+/*
+ * This mess is used to catch people who compile
+ * a debug vinum(8) and non-debug kernel module,
+ * or the other way round.
+ */
+
+#ifdef VINUMDEBUG
+    VINUM_SUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+    VINUM_WRONGSUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* non-debug superdevice number */
+#else
+    VINUM_SUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
+    VINUM_WRONGSUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* debug superdevice number */
+#endif
+    VINUM_DAEMON_DEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE),	/* daemon superdevice number */
 
 /*
  * the number of object entries to cater for initially, and also the
@@ -186,7 +198,18 @@ struct devcode {
 
 #define VINUM_DIR   "/dev/vinum"
 #define VINUM_RDIR   "/dev/rvinum"
+
+/*
+ * These definitions help catch
+ * userland/kernel mismatches.
+ */
+#if VINUMDEBUG
+#define VINUM_WRONGSUPERDEV_NAME VINUM_DIR"/control"	    /* normal super device */
+#define VINUM_SUPERDEV_NAME VINUM_DIR"/Control"		    /* debug super device */
+#else
+#define VINUM_WRONGSUPERDEV_NAME VINUM_DIR"/Control"	    /* debug super device */
 #define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
+#endif
 #define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
@@ -210,7 +233,7 @@ enum objflags {
     VF_CONFIG_INCOMPLETE = 0x1000,			    /* haven't finished changing the config */
     VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
     VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
-    VF_DISKCONFIG = 0x8000,				    /* we're reading the config from disk */
+    /* 0x8000 going begging */
     VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
     VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
     VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
@@ -543,6 +566,7 @@ enum debugflags {
     DEBUG_REVIVECONFLICT = 16,				    /* print info about revive conflicts */
     DEBUG_EOFINFO = 32,					    /* print info about EOF detection */
     DEBUG_MEMFREE = 64,					    /* keep info about Frees */
+    DEBUG_BIGDRIVE = 128,				    /* pretend our drives are 100 times the size */
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
 };
 
