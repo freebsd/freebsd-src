@@ -5,10 +5,6 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
-This is for the 4.3 release branch.  All entries since 4.3 are an
-itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p9
-
 20010709:
 	The PAM libraries have had an API upgrade that is beyond
 	the ability of the shared library major number to handle.
