@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.44 2001/09/15 16:16:28 yamt Exp $	*/
+/*	$NetBSD: uhid.c,v 1.45 2001/10/26 17:58:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -248,7 +248,7 @@ USB_ATTACH(uhid)
 		}
 	} else {
 		desc = NULL;
-		err = usbd_alloc_report_desc(uaa->iface, &desc, &size,M_USBDEV);
+		err = usbd_read_report_desc(uaa->iface, &desc, &size,M_USBDEV);
 	}
 
 	if (err) {
