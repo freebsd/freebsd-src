@@ -72,6 +72,9 @@
 /* The number of bytes in a uint64_t.  */
 #define SIZEOF_UINT64_T 8
 
+/* Define if you have the getopt_long function.  */
+#define HAVE_GETOPT_LONG 1
+
 /* Define if you have the mkstemp function.  */
 #define HAVE_MKSTEMP 1
 
@@ -88,7 +91,10 @@
 #define HAVE_FCNTL_H 1
 
 /* Define if you have the <getopt.h> header file.  */
-/* #undef HAVE_GETOPT_H */
+#define HAVE_GETOPT_H
+
+/* Define if you have the <inttypes.h> header file.  */
+#define HAVE_INTTYPES_H
 
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
@@ -117,7 +123,7 @@
 #define PACKAGE "file"
 
 /* Version number of package */
-#define VERSION "3.39"
+#define VERSION "3.40"
 
 /* HAVE_TM_ZONE */
 #define HAVE_TM_ZONE 1
