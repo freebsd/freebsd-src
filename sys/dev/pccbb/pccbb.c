@@ -1162,10 +1162,10 @@ cbb_intr(void *arg)
  	 */
 	if (sc->flags & CBB_CARD_OK) {
 		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
-			if ((ih->flags & INTR_MPSAFE) != 0)
+			if ((ih->flags & INTR_MPSAFE) == 0)
 				mtx_lock(&Giant);
 			(*ih->intr)(ih->arg);
-			if ((ih->flags & INTR_MPSAFE) != 0)
+			if ((ih->flags & INTR_MPSAFE) == 0)
 				mtx_unlock(&Giant);
 		}
 	}
