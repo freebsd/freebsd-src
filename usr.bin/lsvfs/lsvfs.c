@@ -3,14 +3,15 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id$
+ * $Id: lsvfs.c,v 1.7 1997/02/22 19:55:59 peter Exp $
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <stdio.h>
+
 #include <err.h>
+#include <stdio.h>
+#include <string.h>
 
 #define FMT "%-32.32s %5d %5d %s\n"
 #define HDRFMT "%-32.32s %5.5s %5.5s %s\n"
@@ -58,7 +59,8 @@ fmt_flags(int flags)
   /*
    * NB: if you add new flags, don't forget to add them here vvvvvv too.
    */
-  static char buf[sizeof "static, network, read-only, synthetic, loopback"];
+  static char buf[sizeof
+    "static, network, read-only, synthetic, loopback, unicode"];
   int comma = 0;
 
   buf[0] = '\0';
@@ -88,6 +90,10 @@ fmt_flags(int flags)
     strcat(buf, "loopback");
   }
 
+  if(flags & VFCF_UNICODE) {
+    if(comma++) strcat(buf, ", ");
+    strcat(buf, "unicode");
+  }
+
   return buf;
 }
-
