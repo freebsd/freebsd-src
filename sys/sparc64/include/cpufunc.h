@@ -224,9 +224,4 @@ ffs(int mask)
 #undef LDNC_GEN
 #undef STNC_GEN
 
-void	cpu_critical_enter(void);
-void	cpu_critical_exit(void);
-void	cpu_critical_fork_exit(void);
-void	cpu_thread_link(struct thread *td);
-
 #endif /* !_MACHINE_CPUFUNC_H_ */
