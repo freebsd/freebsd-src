@@ -38,12 +38,15 @@
 #if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/signal.h>
+
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
@@ -51,12 +54,14 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "archive.h"
+#include "extern.h"
 #include "pathnames.h"
 
 extern char *archive;			/* archive name */
-char *tname = "temporary file";		/* temporary file "name" */
 
-void error( char * );
+void error(char *);
 
 int
 tmp(void)
@@ -87,8 +92,7 @@ badfmt(void)
 }
 
 void
-error(name)
-	char *name;
+error(char *name)
 {
 	err(1, "%s", name);
 }
