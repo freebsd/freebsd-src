@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.12 1995/02/14 19:22:28 sos Exp $
+ *	$Id: kern_exec.c,v 1.13 1995/02/20 22:23:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -223,7 +223,7 @@ interpret:
 	if (p->p_sysent->sv_fixup)
 		(*p->p_sysent->sv_fixup)(&stack_base, iparams);
 	else
-		*(--stack_base) = iparams->argc;
+		suword(--stack_base, iparams->argc);
 
 	/* close files on exec */
 	fdcloseexec(p);
@@ -469,35 +469,44 @@ exec_copyout_strings(iparams)
 	envc = iparams->envc;
 
 	/*
-	 * Fill in "ps_strings" struct for ps, w, etc.
+	 * Copy out strings - arguments and environment.
 	 */
-	arginfo->ps_argvstr = destp;
-	arginfo->ps_nargvstr = argc;
+	copyout(stringp, destp, ARG_MAX - iparams->stringspace);
 
 	/*
-	 * Copy the arg strings and fill in vector table as we go.
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	suword(&arginfo->ps_argvstr, (int)destp);
+	suword(&arginfo->ps_nargvstr, argc);
+
+	/*
+	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		*(vectp++) = destp;
-		while ((*destp++ = *stringp++));
+		suword(vectp++, (int)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
 	}
 
 	/* a null vector table pointer seperates the argp's from the envp's */
-	*(vectp++) = NULL;
+	suword(vectp++, NULL);
 
-	arginfo->ps_envstr = destp;
-	arginfo->ps_nenvstr = envc;
+	suword(&arginfo->ps_envstr, (int)destp);
+	suword(&arginfo->ps_nenvstr, envc);
 
 	/*
-	 * Copy the env strings and fill in vector table as we go.
+	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		*(vectp++) = destp;
-		while ((*destp++ = *stringp++));
+		suword(vectp++, (int)destp);
+		while (*stringp++ != 0)
+			destp++;
+		destp++;
 	}
 
 	/* end of vector table is a null pointer */
-	*vectp = NULL;
+	suword(vectp, NULL);
 
 	return (stack_base);
 }
