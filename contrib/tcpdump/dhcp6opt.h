@@ -1,3 +1,4 @@
+/* @(#) $Header: /tcpdump/master/tcpdump/dhcp6opt.h,v 1.3 2000/12/17 23:07:49 guy Exp $ (LBL) */
 /*
  * Copyright (C) 1998 and 1999 WIDE Project.
  * All rights reserved.
@@ -72,9 +73,9 @@ struct dhcp6_opt {
 extern struct dhcp6_opt *dh6o_pad;
 extern struct dhcp6_opt *dh6o_end;
 extern int dhcp6_param[];
-extern void dhcp6opttab_init __P((void));
-extern struct dhcp6_opt *dhcp6opttab_byname __P((char *));
-extern struct dhcp6_opt *dhcp6opttab_bycode __P((u_int));
+extern void dhcp6opttab_init (void);
+extern struct dhcp6_opt *dhcp6opttab_byname (char *);
+extern struct dhcp6_opt *dhcp6opttab_bycode (u_int);
 #endif
 
 #endif /*__DHCP6OPT_H_DEFINED*/

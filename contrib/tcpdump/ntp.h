@@ -1,4 +1,4 @@
-/* $Header: /tcpdump/master/tcpdump/ntp.h,v 1.3.1.1 1999/10/07 23:47:11 mcr Exp $ */
+/* $Header: /tcpdump/master/tcpdump/ntp.h,v 1.4 2000/10/03 02:54:57 itojun Exp $ */
 
 /*
  * Based on ntp.h from the U of MD implementation
@@ -33,8 +33,8 @@ struct l_fixedpt {
 };
 
 struct s_fixedpt {
-	u_short int_part;
-	u_short fraction;
+	u_int16_t int_part;
+	u_int16_t fraction;
 };
 
 /*  =================  Table 3.3. Packet Variables   ================= */

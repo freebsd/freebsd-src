@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.51 1999/11/21 09:36:48 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atalk.c,v 1.64 2000/10/30 06:22:14 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,24 +34,12 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/if_ether.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>		/* for MAXHOSTNAMELEN on some platforms */
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -71,13 +59,13 @@ static struct tok type2str[] = {
 };
 
 struct aarp {
-	u_short htype, ptype;
-	u_char	halen, palen;
-	u_short op;
-	u_char	hsaddr[6];
-	u_char	psaddr[4];
-	u_char	hdaddr[6];
-	u_char	pdaddr[4];
+	u_int16_t	htype, ptype;
+	u_int8_t	halen, palen;
+	u_int16_t	op;
+	u_int8_t	hsaddr[6];
+	u_int8_t	psaddr[4];
+	u_int8_t	hdaddr[6];
+	u_int8_t	pdaddr[4];
 };
 
 static char tstr[] = "[|atalk]";
@@ -96,10 +84,10 @@ static void ddp_print(const u_char *, u_int, int, u_short, u_char, u_char);
 static const char *ddpskt_string(int);
 
 /*
- * Print AppleTalk Datagram Delivery Protocol packets.
+ * Print AppleTalk LLAP packets.
  */
 void
-atalk_print(register const u_char *bp, u_int length)
+llap_print(register const u_char *bp, u_int length)
 {
 	register const struct LAP *lp;
 	register const struct atDDP *dp;
@@ -156,6 +144,33 @@ atalk_print(register const u_char *bp, u_int length)
 	}
 }
 
+/*
+ * Print EtherTalk/TokenTalk packets (or FDDITalk, or whatever it's called
+ * when it runs over FDDI; yes, I've seen FDDI captures with AppleTalk
+ * packets in them).
+ */
+void
+atalk_print(register const u_char *bp, u_int length)
+{
+	register const struct atDDP *dp;
+	u_short snet;
+
+	if (length < ddpSize) {
+	  (void)printf(" [|ddp %d]", length);
+	  return;
+	}
+	dp = (const struct atDDP *)bp;
+	snet = EXTRACT_16BITS(&dp->srcNet);
+	printf("%s.%s", ataddr_string(snet, dp->srcNode),
+	       ddpskt_string(dp->srcSkt));
+	printf(" > %s.%s:",
+	       ataddr_string(EXTRACT_16BITS(&dp->dstNet), dp->dstNode),
+	       ddpskt_string(dp->dstSkt));
+	bp += ddpSize;
+	length -= ddpSize;
+	ddp_print(bp, length, dp->type, snet, dp->srcNode, dp->srcSkt);
+}
+
 /* XXX should probably pass in the snap header and do checks like arp_print() */
 void
 aarp_print(register const u_char *bp, u_int length)
@@ -166,9 +181,9 @@ aarp_print(register const u_char *bp, u_int length)
 
 	printf("aarp ");
 	ap = (const struct aarp *)bp;
-	if (ap->htype == 1 && ap->ptype == ETHERTYPE_ATALK &&
+	if (ntohs(ap->htype) == 1 && ntohs(ap->ptype) == ETHERTYPE_ATALK &&
 	    ap->halen == 6 && ap->palen == 4 )
-		switch (ap->op) {
+		switch (ntohs(ap->op)) {
 
 		case 1:				/* request */
 			(void)printf("who-has %s tell %s",
@@ -185,10 +200,14 @@ aarp_print(register const u_char *bp, u_int length)
 			    AT(pdaddr), AT(psaddr));
 			return;
 		}
-	(void)printf("len %d op %d htype %d ptype %#x halen %d palen %d",
-	    length, ap->op, ap->htype, ap->ptype, ap->halen, ap->palen );
+	(void)printf("len %u op %u htype %u ptype %#x halen %u palen %u",
+	    length, ntohs(ap->op), ntohs(ap->htype), ntohs(ap->ptype),
+	    ap->halen, ap->palen);
 }
 
+/*
+ * Print AppleTalk Datagram Delivery Protocol packets.
+ */
 static void
 ddp_print(register const u_char *bp, register u_int length, register int t,
 	  register u_short snet, register u_char snode, u_char skt)
@@ -491,7 +510,7 @@ ataddr_string(u_short atnet, u_char athost)
 {
 	register struct hnamemem *tp, *tp2;
 	register int i = (atnet << 8) | athost;
-	char nambuf[256];
+	char nambuf[MAXHOSTNAMELEN + 20];
 	static int first = 1;
 	FILE *fp;
 
@@ -507,11 +526,11 @@ ataddr_string(u_short atnet, u_char athost)
 		while (fgets(line, sizeof(line), fp)) {
 			if (line[0] == '\n' || line[0] == 0 || line[0] == '#')
 				continue;
-			if (sscanf(line, "%d.%d.%d %s", &i1, &i2, &i3,
+			if (sscanf(line, "%d.%d.%d %256s", &i1, &i2, &i3,
 				     nambuf) == 4)
 				/* got a hostname. */
 				i3 |= ((i1 << 8) | i2) << 8;
-			else if (sscanf(line, "%d.%d %s", &i1, &i2,
+			else if (sscanf(line, "%d.%d %256s", &i1, &i2,
 					nambuf) == 3)
 				/* got a net name */
 				i3 = (((i1 << 8) | i2) << 8) | 255;
@@ -538,7 +557,8 @@ ataddr_string(u_short atnet, u_char athost)
 		if (tp2->addr == i) {
 			tp->addr = (atnet << 8) | athost;
 			tp->nxt = newhnamemem();
-			(void)sprintf(nambuf, "%s.%d", tp2->name, athost);
+			(void)snprintf(nambuf, sizeof(nambuf), "%s.%d",
+			    tp2->name, athost);
 			tp->name = savestr(nambuf);
 			return (tp->name);
 		}
@@ -546,10 +566,11 @@ ataddr_string(u_short atnet, u_char athost)
 	tp->addr = (atnet << 8) | athost;
 	tp->nxt = newhnamemem();
 	if (athost != 255)
-		(void)sprintf(nambuf, "%d.%d.%d",
+		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d.%d",
 		    atnet >> 8, atnet & 0xff, athost);
 	else
-		(void)sprintf(nambuf, "%d.%d", atnet >> 8, atnet & 0xff);
+		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet >> 8,
+		    atnet & 0xff);
 	tp->name = savestr(nambuf);
 
 	return (tp->name);
@@ -569,7 +590,7 @@ ddpskt_string(register int skt)
 	static char buf[8];
 
 	if (nflag) {
-		(void)sprintf(buf, "%d", skt);
+		(void)snprintf(buf, sizeof(buf), "%d", skt);
 		return (buf);
 	}
 	return (tok2str(skt2str, "%d", skt));
