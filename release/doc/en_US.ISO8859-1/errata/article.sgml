@@ -147,7 +147,7 @@
       included in the &release.prev; package set may not run
       correctly, due to a missing dependency on the <filename
       role="package">net/gnet</filename> package.  To work around this
-      problem, install <filename role="package">net/net</filename> either
+      problem, install <filename role="package">net/gnet</filename> either
       from a package or the Ports Collection, preferably before
       installing <filename role="package">net/gnomeicu</filename>.</para>
 
