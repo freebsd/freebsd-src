@@ -435,7 +435,6 @@ iso88025_input(ifp, th, m)
 	     (bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t) th->iso88025_dhost,
 	     ISO88025_ADDR_LEN) != 0))
 		goto dropanyway;
-	}
 
 	/*
 	 * Set mbuf flags for bcast/mcast.
