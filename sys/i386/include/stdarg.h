@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: stdarg.h,v 1.5 1994/08/02 07:39:09 davidg Exp $
  */
 
 #ifndef _STDARG_H_
@@ -39,11 +39,16 @@
 
 typedef char *va_list;
 
+#ifdef __GNUC__
+#define va_start(AP, LASTARG) 						\
+ (AP = ((va_list) __builtin_next_arg (LASTARG)))
+#else
 #define	__va_promote(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 
 #define	va_start(ap, last) \
-	(ap = ((char *)&(last) + __va_promote(last)))
+	(ap = ((va_list)&(last) + __va_promote(last)))
+#endif
 
 #ifdef KERNEL
 #define	va_arg(ap, type) \
