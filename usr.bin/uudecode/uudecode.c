@@ -154,8 +154,8 @@ int
 decode2(int flag)
 {
 	struct passwd *pw;
-	register int n;
-	register char ch, *p;
+	int n;
+	char ch, *p;
 	int base64, n1;
 	char buf[MAXPATHLEN+1];
 	char buffn[MAXPATHLEN+1]; /* file name buffer */
