@@ -60,6 +60,9 @@
 /*XXX*/
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#ifdef INET6
+#include <machine/clock.h> /* XXX: temporal workaround for fxp issue */
+#endif
 #endif
 
 /*
@@ -972,6 +975,7 @@ ifioctl(so, cmd, data, p)
 
 		if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
+			DELAY(100);/* XXX: temporal workaround for fxp issue*/
 			if (ifp->if_flags & IFF_UP) {
 				int s = splimp();
 				in6_if_up(ifp);
