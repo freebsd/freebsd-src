@@ -27,7 +27,6 @@ LDADD+= -Wl,--version-script=${.CURDIR}/pthread.map
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
-AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
