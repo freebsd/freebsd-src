@@ -31,7 +31,7 @@ SUBDIR=	adjkerntz \
 	gbde \
 	geom \
 	ggate \
-	${_gpt} \
+	gpt \
 	growfs \
 	gvinum \
 	ifconfig \
@@ -141,10 +141,6 @@ _fdisk=		fdisk
 .if ${MACHINE_ARCH} == "ia64"
 _fdisk=		fdisk
 _mca=		mca
-.endif
-
-.if ${MACHINE_ARCH} != "sparc64"
-_gpt=		gpt
 .endif
 
 .include <bsd.subdir.mk>
