@@ -137,6 +137,16 @@ gdb_cpu_setreg(int regnum, register_t val)
 }
 
 int
+gdb_cpu_signal(int vector, int dummy __unused)
+{
+
+	if (vector == IA64_VEC_BREAK || vector == IA64_VEC_SINGLE_STEP_TRAP)
+		return (SIGTRAP);
+	/* Add 100 so GDB won't translate the vector into signal names. */
+	return (vector + 100);
+}
+
+int
 gdb_cpu_query(void)
 {
 #if 0
