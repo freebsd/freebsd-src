@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.38 1997/04/22 17:38:01 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.39 1997/05/03 13:42:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,7 @@
 #include <nfs/nfsdiskless.h>
 #include <nfs/nqnfs.h>
 
-extern int	nfs_mountroot __P((void));
+extern int	nfs_mountroot __P((struct mount *mp));
 
 extern int	nfs_ticks;
 
@@ -326,9 +326,10 @@ nfs_fsinfo(nmp, vp, cred, p)
  * - build the rootfs mount point and call mountnfs() to do the rest.
  */
 int
-nfs_mountroot()
+nfs_mountroot(mp)
+	struct mount *mp;
 {
-	struct mount *mp, *swap_mp;
+	struct mount  *swap_mp;
 	struct nfs_diskless *nd = &nfs_diskless;
 	struct socket *so;
 	struct vnode *vp;
@@ -405,6 +406,28 @@ nfs_mountroot()
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
 
+	/*
+	 * Create the rootfs mount point.
+	 */
+	nd->root_args.fh = nd->root_fh;
+	/*
+	 * If using nfsv3_diskless, replace NFSX_V2FH with nd->root_fhsize.
+	 */
+	nd->root_args.fhsize = NFSX_V2FH;
+	l = ntohl(nd->root_saddr.sin_addr.s_addr);
+	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
+		(l >> 24) & 0xff, (l >> 16) & 0xff,
+		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
+	printf("NFS ROOT: %s\n",buf);
+	if (error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
+	    &nd->root_saddr, &nd->root_args, p, &vp, &mp)) {
+		if (swap_mp) {
+			mp->mnt_vfc->vfc_refcount--;
+			free(swap_mp, M_MOUNT);
+		}
+		return (error);
+	}
+
 	swap_mp = NULL;
 	if (nd->swap_nblks) {
 
@@ -444,31 +467,6 @@ nfs_mountroot()
 		swaponvp(p, vp, NODEV, nd->swap_nblks);
 	}
 
-	/*
-	 * Create the rootfs mount point.
-	 */
-	nd->root_args.fh = nd->root_fh;
-	/*
-	 * If using nfsv3_diskless, replace NFSX_V2FH with nd->root_fhsize.
-	 */
-	nd->root_args.fhsize = NFSX_V2FH;
-	l = ntohl(nd->root_saddr.sin_addr.s_addr);
-	sprintf(buf,"%ld.%ld.%ld.%ld:%s",
-		(l >> 24) & 0xff, (l >> 16) & 0xff,
-		(l >>  8) & 0xff, (l >>  0) & 0xff,nd->root_hostnam);
-	printf("NFS ROOT: %s\n",buf);
-	if (error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
-	    &nd->root_saddr, &nd->root_args, p, &vp, &mp)) {
-		if (swap_mp) {
-			mp->mnt_vfc->vfc_refcount--;
-			free(swap_mp, M_MOUNT);
-		}
-		return (error);
-	}
-
-	simple_lock(&mountlist_slock);
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	simple_unlock(&mountlist_slock);
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	rootvp = vp;
@@ -506,10 +504,13 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	struct mbuf *m;
 	int error;
 
-	if (error = vfs_rootmountalloc("nfs", path, &mp)) {
+	mp = *mpp;
+
+	if (!mp && ( error = vfs_rootmountalloc("nfs", path, &mp))) {
 		printf("nfs_mountroot: NFS not configured");
 		return (error);
 	}
+
 	mp->mnt_flag = mountflag;
 	MGET(m, MT_SONAME, M_WAITOK);
 	bcopy((caddr_t)sin, mtod(m, caddr_t), sin->sin_len);
@@ -578,7 +579,7 @@ nfs_mount(mp, path, data, ndp, p)
 	u_char nfh[NFSX_V3FHMAX];
 
 	if (path == NULL) {
-		nfs_mountroot();
+		nfs_mountroot(mp);
 		return (0);
 	}
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
