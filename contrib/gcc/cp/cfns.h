@@ -1,6 +1,5 @@
-/* C code produced by gperf version 2.7.2 */
-/* Command-line: gperf -o -C -E -k '1-6,$' -j1 -D -N libc_name_p /FBSD/src/gnu/usr.bin/cc/cc1plus/../../../../contrib/gcc/cp/cfns.gperf  */
-/* $FreeBSD$ */
+/* C code produced by gperf version 2.7 */
+/* Command-line: gperf -o -C -E -k 1-6,$ -j1 -D -N libc_name_p ../../../egcs-CVS20000404/gcc/cp/cfns.gperf  */
 #ifdef __GNUC__
 __inline
 #endif
@@ -13,10 +12,6 @@ const char * libc_name_p PARAMS ((const char *, unsigned int));
 
 #ifdef __GNUC__
 __inline
-#else
-#ifdef __cplusplus
-inline
-#endif
 #endif
 static unsigned int
 hash (str, len)
