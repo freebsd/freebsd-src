@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)fopen.c	8.1 (Berkeley) 6/4/93";
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
+
 #include "local.h"
 
 FILE *
@@ -52,8 +53,8 @@ fopen(file, mode)
 	const char *file;
 	const char *mode;
 {
-	register FILE *fp;
-	register int f;
+	FILE *fp;
+	int f;
 	int flags, oflags;
 
 	if ((flags = __sflags(mode, &oflags)) == 0)
@@ -71,7 +72,6 @@ fopen(file, mode)
 	fp->_write = __swrite;
 	fp->_seek = __sseek;
 	fp->_close = __sclose;
-
 	/*
 	 * When opening in append mode, even though we use O_APPEND,
 	 * we need to seek to the end so that ftell() gets the right
