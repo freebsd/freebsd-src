@@ -1216,7 +1216,6 @@ bpfattach(ifp, dlt, hdrlen)
 	if (bp == 0)
 		panic("bpfattach");
 
-	bp->bif_dlist = 0;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 	mtx_init(&bp->bif_mtx, "bpf interface lock", MTX_DEF);
