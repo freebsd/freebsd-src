@@ -484,7 +484,7 @@ ccdinit(ccd, cpaths, p)
 	 */
 	ccg->ccg_secsize = maxsecsize;
 	ccg->ccg_ntracks = 1;
-	ccg->ccg_nsectors = 1024 * (1024 / ccg->ccg_secsize);
+	ccg->ccg_nsectors = 1024 * 1024 / ccg->ccg_secsize;
 	ccg->ccg_ncylinders = cs->sc_size / ccg->ccg_nsectors;
 
 	/*
