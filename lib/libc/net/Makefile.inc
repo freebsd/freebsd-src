@@ -30,7 +30,8 @@ CFLAGS+=-DINET6
 MAN3+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 if_indextoname.3 \
-	inet.3 linkaddr.3 rcmd.3 resolver.3
+	inet.3 inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
+	rcmd.3 resolver.3
 # not installed: iso_addr.3 ns.3
 
 MLINKS+=addr2ascii.3 ascii2addr.3
@@ -56,6 +57,18 @@ MLINKS+=inet.3 addr.3 inet.3 inet_addr.3 inet.3 inet_aton.3 \
 	inet.3 ntoa.3
 MLINKS+=if_indextoname.3 if_nametoindex.3 if_indextoname.3 if_nameindex.3 \
 	if_indextoname.3 if_freenameindex.3
+MLINKS+=inet6_option_space.3 inet6_option_alloc.3 \
+	inet6_option_space.3 inet6_option_append.3 \
+	inet6_option_space.3 inet6_option_find.3 \
+	inet6_option_space.3 inet6_option_init.3 \
+	inet6_option_space.3 inet6_option_next.3 \
+	inet6_rthdr_space.3 inet6_rthdr_add.3 \
+	inet6_rthdr_space.3 inet6_rthdr_getaddr.3 \
+	inet6_rthdr_space.3 inet6_rthdr_getflags.3 \
+	inet6_rthdr_space.3 inet6_rthdr_init.3 \
+	inet6_rthdr_space.3 inet6_rthdr_lasthop.3 \
+	inet6_rthdr_space.3 inet6_rthdr_reverse.3 \
+	inet6_rthdr_space.3 inet6_rthdr_segments.3
 MLINKS+=linkaddr.3 link_addr.3 linkaddr.3 link_ntoa.3 
 #MLINKS+=ns.3 ns_addr.3 ns.3 ns_ntoa.3
 MLINKS+=rcmd.3 iruserok.3 rcmd.3 rresvport.3 rcmd.3 ruserok.3 \
