@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pty.c,v 1.7 1997/08/13 20:42:18 steve Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -47,7 +47,6 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
