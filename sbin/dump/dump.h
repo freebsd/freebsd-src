@@ -125,7 +125,7 @@ void	writerec(char *dp, int isspcl);
 
 void	Exit(int status) __dead2;
 void	dumpabort(int signo);
-void	getfstab(void);
+void	dump_getfstab(void);
 
 char	*rawname(char *cp);
 union	dinode *getino(ino_t inum, int *mode);

@@ -304,7 +304,7 @@ main(int argc, char *argv[])
 	if (signal(SIGINT, interrupt) == SIG_IGN)
 		signal(SIGINT, SIG_IGN);
 
-	getfstab();		/* /etc/fstab snarfed */
+	dump_getfstab();	/* /etc/fstab snarfed */
 	/*
 	 *	disk can be either the full special file name,
 	 *	the suffix of the special file name,
