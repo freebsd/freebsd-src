@@ -1586,6 +1586,11 @@ NdisMFreeSharedMemory(adapter, len, cached, vaddr, paddr)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	sh = prev = sc->ndis_shlist;
 
+	/* Sanity check: is list empty? */
+
+	if (sh == NULL)
+		return;
+
 	while (sh) {
 		if (sh->ndis_saddr == vaddr)
 			break;
