@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	vmstat
-NO_WERROR=yes
 MAN=	vmstat.8
 BINGRP=	kmem
 BINMODE=2555

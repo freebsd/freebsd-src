@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	ypmatch
-NO_WERROR=yes
 
 .include <bsd.prog.mk>

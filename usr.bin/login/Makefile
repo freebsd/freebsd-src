@@ -6,8 +6,6 @@ SRCS=	login.c login_fbtab.c
 MAN=	login.1 login.access.5
 
 CFLAGS+=-DLOGALL
-WARNS?=	4
-NO_WERROR=
 
 DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
 LDADD=	-lutil -lcrypt ${MINUSLPAM}
