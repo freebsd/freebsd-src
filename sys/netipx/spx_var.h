@@ -33,7 +33,7 @@
  *
  *	@(#)spx_var.h
  *
- * $Id: spx_var.h,v 1.6 1997/02/22 09:42:00 peter Exp $
+ * $Id: spx_var.h,v 1.7 1997/05/10 09:58:58 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_VAR_H_
@@ -118,4 +118,4 @@ struct	spx_istat {
 #define	SSEQ_GT(a,b)	(((short)((a)-(b))) > 0)
 #define	SSEQ_GEQ(a,b)	(((short)((a)-(b))) >= 0)
 
-#endif /* _NETIPX_SPX_VAR_H_ */
+#endif /* !_NETIPX_SPX_VAR_H_ */

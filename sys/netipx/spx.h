@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.11 1997/05/01 06:21:30 jhay Exp $
+ * $Id: spx.h,v 1.12 1997/05/10 09:58:56 jhay Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -168,6 +168,7 @@ struct spxpcb {
 #define	sotospxpcb(so)	(ipxtospxpcb(sotoipxpcb(so)))
 
 #ifdef KERNEL
+
 extern struct pr_usrreqs spx_usrreqs;
 extern struct pr_usrreqs spx_usrreq_sps;
 
@@ -181,4 +182,4 @@ void	spx_slowtimo __P((void));
 
 #endif /* KERNEL */
 
-#endif /* _NETIPX_SPX_H_ */
+#endif /* !_NETIPX_SPX_H_ */

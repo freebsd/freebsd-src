@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_if.h
  *
- * $Id: ipx_if.h,v 1.7 1997/02/22 09:41:53 peter Exp $
+ * $Id: ipx_if.h,v 1.8 1997/05/10 09:58:51 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_IF_H_
@@ -94,4 +94,4 @@ extern struct	ipx_ifaddr *ipx_ifaddr;
 struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
 #endif /* KERNEL */
 
-#endif /* _NETIPX_IPX_IF_H_ */
+#endif /* !_NETIPX_IPX_IF_H_ */

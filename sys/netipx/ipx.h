@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.11 1997/05/01 06:21:27 jhay Exp $
+ * $Id: ipx.h,v 1.12 1997/05/10 09:58:49 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -68,11 +68,11 @@
 #define IPXPORT_NETBIOS		0x0455	/* NW NetBIOS */
 #define IPXPORT_DIAGS		0x0456	/* NW Diagnostics */
 /*
- * Ports < IPXPORT_RESERVED are reserved for priveleged
+ * Ports < IPXPORT_RESERVED are reserved for privileged
  */
 #define IPXPORT_RESERVED	0x4000
 /*
- * Ports > IPXPORT_WELLKNOWN are reserved for priveleged
+ * Ports > IPXPORT_WELLKNOWN are reserved for privileged
  * processes (e.g. root).
  */
 #define IPXPORT_WELLKNOWN	0x6000
@@ -168,4 +168,4 @@ struct	ipx_addr ipx_addr __P((const char *));
 char	*ipx_ntoa __P((struct ipx_addr));
 __END_DECLS
 
-#endif /* _NETIPX_IPX_H_ */
+#endif /* !_NETIPX_IPX_H_ */

@@ -33,38 +33,10 @@
  *
  *	@(#)ipx_tun.c
  *
- * $Id: ipx_tun.c,v 1.6 1997/02/22 09:41:57 peter Exp $
+ * $Id: ipx_tun.c,v 1.7 1997/03/24 11:33:34 bde Exp $
  */
 
 /*
  * Software interface driver for encapsulating IP in IPX.
+ * XXX not implemented.
  */
-
-#ifdef IPTUNNEL
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/sockio.h>
-#include <sys/protosw.h>
-
-#include <net/if.h>
-#include <net/netisr.h>
-#include <net/route.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-
-#include <machine/mtpr.h>
-
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-
-#endif

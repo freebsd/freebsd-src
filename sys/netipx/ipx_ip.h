@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.9 1997/05/01 06:21:28 jhay Exp $
+ * $Id: ipx_ip.h,v 1.10 1997/05/10 09:58:53 jhay Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_
@@ -57,4 +57,4 @@ int	ipxip_route __P((struct socket *so, struct mbuf *m, struct proc *p));
 
 #endif /* KERNEL */
 
-#endif /* _NETIPX_IPXIP_H_ */
+#endif /* !_NETIPX_IPXIP_H_ */
