@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.30 1998/12/24 18:20:58 steve Exp $";
+	"$Id: w.c,v 1.31 1998/12/24 23:27:33 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -97,7 +97,7 @@ int		argwidth;	/* width of tty */
 int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
 int		dflag;		/* true if -d flag: output debug info */
-int		sortidle;	/* sort bu idle time */
+int		sortidle;	/* sort by idle time */
 char	       *sel_user;	/* login of particular user selected */
 char		domain[MAXHOSTNAMELEN];
 
@@ -287,7 +287,7 @@ main(argc, argv)
 				 */
 				dkp = ep->dkp;
 				ep->dkp = kp;
-				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[ 0])) = dkp;
+				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[0])) = dkp;
 			}
 		}
 	}
@@ -352,7 +352,8 @@ main(argc, argv)
 			}
 			p = hp->h_name;
 		}
-		if (nflag && *p && strcmp(p, "-") && inet_addr(p) == INADDR_NONE) {
+		if (nflag && *p && strcmp(p, "-") &&
+		    inet_addr(p) == INADDR_NONE) {
 			hp = gethostbyname(p);
 
 			if (hp != NULL) {
@@ -367,8 +368,8 @@ main(argc, argv)
 			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
 			p = buf;
 		}
-		if( dflag) {
-			for( dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[ 0]))) {
+		if (dflag) {
+			for (dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[0]))) {
 				char *p;
 				p = fmt_argv(kvm_getargv(kd, dkp, argwidth),
 					    dkp->kp_proc.p_comm, MAXCOMLEN);
@@ -385,10 +386,8 @@ main(argc, argv)
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    UT_HOSTSIZE, UT_HOSTSIZE, *p ? p : "-");
 		pr_attime(&ep->utmp.ut_time, &now);
-		longidle=pr_idle(ep->idle);
-		if (longidle)
-			argwidth--;
-		(void)printf("%.*s\n", argwidth, ep->args);
+		longidle = pr_idle(ep->idle);
+		(void)printf("%.*s\n", argwidth - longidle, ep->args);
 	}
 	exit(0);
 }
