@@ -12,10 +12,9 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../i386/conf/NOTES file. 
+# device lines is also present in the ../../conf/NOTES and NOTES files. 
 # If you are in doubt as to the purpose or necessity of a line, check first 
-# in NOTES. Please note that this is the i386 NOTES, but it still contains
-# valuable info for sparc64 too.
+# in NOTES.
 #
 # For hardware specific information check HARDWARE.TXT
 #
@@ -88,7 +87,6 @@ device		atapicd			# ATAPI CDROM drives
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-#device		esp		# 53C94 & friends, not CAM-ified
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 #device		ncr		# NCR/Symbios Logic
@@ -108,31 +106,29 @@ device		pass		# Passthrough device (direct SCSI access)
 #device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-#device		atkbdc	1	# At keyboard controller
-#device		atkbd		# at keyboard
-#device		psm		# psm mouse
+#device		atkbdc	1	# AT keyboard controller
+#device		atkbd		# AT keyboard
+#device		psm		# PS/2 mouse
 
-#device		vga		# VGA screen
+#device		vga		# VGA video card driver
 
-# splash screen/screen saver
-#device		splash
+#device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
 #device		sc	1
 
-# the most basic console driver is the OpenBoot firmware
-device		ofw_console
+device		ofw_console	# OpenBoot firmware console device
 
 # Builtin hardware
-device		genclock	# generic clock interface
-device		eeprom		# eeprom (really an ebus driver for the mk48txx)
+device		genclock	# Generic clock interface
+device		eeprom		# eeprom (really an ebus driver for the MK48Txx)
 device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 
 # Serial (COM) ports
 #device		sio		# 8250, 16[45]50 based serial ports
 #device		se		# Siemens SAB82532 based serial ports
 
-## Parallel port
+# Parallel port
 #device		ppc
 #device		ppbus		# Parallel port bus (required)
 #device		lpt		# Printer
@@ -142,7 +138,7 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
  
 # PCI Ethernet NICs.
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
-#device		le		# Lance
+#device		lnc		# NE2100, NE32-VL Lance Ethernet cards
 #device		txp		# 3Com 3cR990 (``Typhoon'')
 #device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 

@@ -12,8 +12,9 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the NOTES configuration file. If you are
-# in doubt as to the purpose or necessity of a line, check first in NOTES.
+# device lines is also present in the ../../conf/NOTES and NOTES files. 
+# If you are in doubt as to the purpose or necessity of a line, check first 
+# in NOTES.
 #
 # $FreeBSD$
 
@@ -124,14 +125,13 @@ device		mlx		# Mylex DAC960 family
 device		twe		# 3ware ATA RAID
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc	1	# At keyboard controller
-device		atkbd		# at keyboard
-device		psm		# psm mouse
+device		atkbdc	1	# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
 
-device		vga		# VGA screen
+device		vga		# VGA video card driver
 
-# splash screen/screen saver
-device		splash
+device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
 device		sc	1
