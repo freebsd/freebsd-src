@@ -55,7 +55,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <struct.h>
 #include <unistd.h>
 #include <utmp.h>
 #include "pathnames.h"
@@ -171,15 +170,14 @@ main(argc, argv)
 			ab.ac_comm[1] = '\0';
 		} else
 			for (p = &ab.ac_comm[0];
-			    p < &ab.ac_comm[fldsiz(acct, ac_comm)] && *p; ++p)
+			    p < &ab.ac_comm[AC_COMM_LEN] && *p; ++p)
 				if (!isprint(*p))
 					*p = '?';
 		if (*argv && !requested(argv, &ab))
 			continue;
 
 		(void)printf("%-*.*s %-7s %-*s %-*s ",
-			     fldsiz(acct, ac_comm),
-			     fldsiz(acct, ac_comm), ab.ac_comm,
+			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
 			     flagbits(ab.ac_flag),
 			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
 			     UT_LINESIZE, getdev(ab.ac_tty));
@@ -271,7 +269,7 @@ requested(argv, acp)
 			return (1);
 		if ((p = getdev(acp->ac_tty)) && !strcmp(p, *argv))
 			return (1);
-		if (!strncmp(acp->ac_comm, *argv, fldsiz(acct, ac_comm)))
+		if (!strncmp(acp->ac_comm, *argv, AC_COMM_LEN))
 			return (1);
 	} while (*++argv);
 	return (0);
