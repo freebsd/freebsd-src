@@ -139,7 +139,7 @@ char **argv;
 				hent = gethostbyname(optarg);
 				if (hent == NULL)
 					errx(1, "host %s unknown", optarg);
-				bcopy(&hent->h_addr_list[0], &sin.sin_addr,
+				bcopy(hent->h_addr_list[0], &sin.sin_addr,
 					sizeof sin.sin_addr);
 			}
 			break;
