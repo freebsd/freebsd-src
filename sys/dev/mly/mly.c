@@ -1927,7 +1927,7 @@ mly_cam_attach(struct mly_softc *sc)
      * If physical channel registration has been requested, register these first.
      * Note that we enable tagged command queueing for physical channels.
      */
-    if (getenv("hw.mly.register_physical_channels") != NULL) {
+    if (testenv("hw.mly.register_physical_channels")) {
 	chn = 0;
 	for (i = 0; i < sc->mly_controllerinfo->physical_channels_present; i++, chn++) {
 

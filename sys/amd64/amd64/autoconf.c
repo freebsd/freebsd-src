@@ -242,6 +242,7 @@ inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
 {
 	u_int32_t	a[4];
 	char		*cp;
+	int		count;
 
 	bzero(sa, sizeof(*sa));
 	sa->sin_len = sizeof(*sa);
@@ -249,7 +250,9 @@ inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
 
 	if ((cp = getenv(ev)) == NULL)
 		return(1);
-	if (sscanf(cp, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]) != 4)
+	count = sscanf(cp, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]);
+	freeenv(cp);
+	if (count != 4)
 		return(1);
 	/* XXX is this ordering correct? */
 	sa->sin_addr.s_addr = (a[3] << 24) + (a[2] << 16) + (a[1] << 8) + a[0];
@@ -261,6 +264,7 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 {
 	char		*cp;
 	u_int32_t	a[6];
+	int		count;
 
 	bzero(sa, sizeof(*sa));
 	sa->sdl_len = sizeof(*sa);
@@ -269,7 +273,10 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 	sa->sdl_alen = ETHER_ADDR_LEN;
 	if ((cp = getenv(ev)) == NULL)
 		return(1);
-	if (sscanf(cp, "%x:%x:%x:%x:%x:%x", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]) != 6)
+	count = sscanf(cp, "%x:%x:%x:%x:%x:%x",
+	    &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]);
+	freeenv(cp);
+	if (count != 6)
 		return(1);
 	sa->sdl_data[0] = a[0];
 	sa->sdl_data[1] = a[1];
@@ -286,20 +293,30 @@ decode_nfshandle(char *ev, u_char *fh)
 	u_char	*cp;
 	int	len, val;
 
-	if (((cp = getenv(ev)) == NULL) || (strlen(cp) < 2) || (*cp != 'X'))
+	if ((cp = getenv(ev)) == NULL)
 		return(0);
+	if ((strlen(cp) < 2) || (*cp != 'X')) {
+		freeenv(cp);
+		return (0);
+	}
 	len = 0;
 	cp++;
 	for (;;) {
-		if (*cp == 'X')
+		if (*cp == 'X') {
+			freeenv(cp);
 			return(len);
-		if ((sscanf(cp, "%2x", &val) != 1) || (val > 0xff))
+		}
+		if ((sscanf(cp, "%2x", &val) != 1) || (val > 0xff)) {
+			freeenv(cp);
 			return(0);
+		}
 		*(fh++) = val;
 		len++;
 		cp += 2;
-		if (len > NFSX_V2FH)
+		if (len > NFSX_V2FH) {
+		    freeenv(cp);
 		    return(0);
+		}
 	}
 }
 
@@ -382,8 +399,10 @@ match_done:
 		printf("PXE: no NFS handle\n");
 		return;
 	}
-	if ((cp = getenv("boot.nfsroot.path")) != NULL)
+	if ((cp = getenv("boot.nfsroot.path")) != NULL) {
 		strncpy(nd->root_hostnam, cp, MNAMELEN - 1);
+		freeenv(cp);
+	}
 
 	nfs_diskless_valid = 1;
 }

@@ -210,7 +210,7 @@ acpi_identify(driver_t *driver, device_t parent)
     int				error;
     caddr_t			acpi_dsdt, p;
 #ifdef ENABLE_DEBUGGER
-    char			*debugpoint = getenv("debug.acpi.debugger");
+    char			*debugpoint;
 #endif
 
     ACPI_FUNCTION_TRACE(__func__);
@@ -240,16 +240,24 @@ acpi_identify(driver_t *driver, device_t parent)
      * Start up the ACPI CA subsystem.
      */
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "init"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "init"))
+	    acpi_EnterDebugger();
+        freeenv(debugpoint);
+    }
 #endif
     if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
 	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "tables"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "tables"))
+	    acpi_EnterDebugger();
+        freeenv(debugpoint);
+    }
 #endif
 
     if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) != NULL) {
@@ -319,7 +327,7 @@ acpi_attach(device_t dev)
     UINT32		flags;
     
 #ifdef ENABLE_DEBUGGER
-    char		*debugpoint = getenv("debug.acpi.debugger");
+    char		*debugpoint;
 #endif
 
     ACPI_FUNCTION_TRACE(__func__);
@@ -329,8 +337,12 @@ acpi_attach(device_t dev)
     sc->acpi_dev = dev;
 
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "spaces"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "spaces"))
+	    acpi_EnterDebugger();
+        freeenv(debugpoint);
+    }
 #endif
 
     /*
@@ -372,11 +384,15 @@ acpi_attach(device_t dev)
      *     child devices, but on many systems it works here.
      */
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "enable"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "enable"))
+	    acpi_EnterDebugger();
+        freeenv(debugpoint);
+    }
 #endif
     flags = 0;
-    if (getenv("debug.acpi.avoid") != NULL)
+    if (testenv("debug.acpi.avoid"))
 	flags = ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT;
     if (ACPI_FAILURE(status = AcpiEnableSubsystem(flags))) {
 	device_printf(dev, "could not enable ACPI: %s\n", AcpiFormatException(status));
@@ -433,8 +449,12 @@ acpi_attach(device_t dev)
      * Scan the namespace and attach/initialise children.
      */
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "probe"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "probe"))
+	    acpi_EnterDebugger();
+	freeenv(debugpoint);
+    }
 #endif
     if (!acpi_disabled("bus"))
 	acpi_probe_children(dev);
@@ -466,8 +486,12 @@ acpi_attach(device_t dev)
     sc->acpi_dev_t->si_drv1 = sc;
 
 #ifdef ENABLE_DEBUGGER
-    if (debugpoint && !strcmp(debugpoint, "running"))
-	acpi_EnterDebugger();
+    debugpoint = getenv("debug.acpi.debugger");
+    if (debugpoint) {
+	if (!strcmp(debugpoint, "running"))
+	    acpi_EnterDebugger();
+	freeenv(debugpoint);
+    }
 #endif
 
 #if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
@@ -1550,10 +1574,13 @@ acpi_avoid(ACPI_HANDLE handle)
 	len = 0;
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
-	if (!strncmp(cp, np, len))
+	if (!strncmp(cp, np, len)) {
+	    freeenv(cp);
 	    return(1);
+	}
 	cp += len;
     }
+    freeenv(cp);
     return(0);
 }
 
@@ -1568,8 +1595,10 @@ acpi_disabled(char *subsys)
 
     if ((cp = getenv("debug.acpi.disable")) == NULL)
 	return(0);
-    if (!strcmp(cp, "all"))
+    if (!strcmp(cp, "all")) {
+	freeenv(cp);
 	return(1);
+    }
 
     /* scan the disable list checking for a match */
     for (;;) {
@@ -1580,10 +1609,13 @@ acpi_disabled(char *subsys)
 	len = 0;
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
-	if (!strncmp(cp, subsys, len))
+	if (!strncmp(cp, subsys, len)) {
+	    freeenv(cp);
 	    return(1);
+	}
 	cp += len;
     }
+    freeenv(cp);
     return(0);
 }
 
@@ -1875,13 +1907,12 @@ acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)
 static void
 acpi_set_debugging(void *junk)
 {
-    char	*cp;
 
     AcpiDbgLayer = 0;
     AcpiDbgLevel = 0;
-    if ((cp = getenv("debug.acpi.layer")) != NULL)
+    if (testenv("debug.acpi.layer"))
 	acpi_parse_debug(cp, &dbg_layer[0], &AcpiDbgLayer);
-    if ((cp = getenv("debug.acpi.level")) != NULL)
+    if (testenv("debug.acpi.level"))
 	acpi_parse_debug(cp, &dbg_level[0], &AcpiDbgLevel);
 
     printf("ACPI debug layer 0x%x  debug level 0x%x\n", AcpiDbgLayer, AcpiDbgLevel);

@@ -12,7 +12,8 @@ HDRS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	dirent.h \
 	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h \
-	hesiod.h histedit.h ieeefp.h ifaddrs.h inttypes.h iso646.h langinfo.h \
+	hesiod.h histedit.h ieeefp.h ifaddrs.h inttypes.h iso646.h kenv.h \
+	langinfo.h \
 	libgen.h limits.h link.h locale.h malloc.h memory.h monetary.h mpool.h \
 	ndbm.h netconfig.h netdb.h nl_types.h nlist.h nsswitch.h objformat.h \
 	paths.h pthread.h pthread_np.h pwd.h \

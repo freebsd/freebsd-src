@@ -110,6 +110,8 @@ bios32_init(void *junk)
 		if (!bios32_SDlookup(&PCIbios) && bootverbose)
 		    printf("pcibios: PCI BIOS entry at 0x%x+0x%x\n", PCIbios.base, PCIbios.entry);
 	    }
+	    if (p != NULL)
+		    freeenv(p);
 	} else {
 	    printf("bios32: Bad BIOS32 Service Directory\n");
 	}
@@ -145,6 +147,8 @@ bios32_init(void *junk)
 	    printf("pnpbios: Bad PnP BIOS data checksum\n");
 	}
     }
+    if (p != NULL)
+	    freeenv(p);
     if (bootverbose) {
 	    /* look for other know signatures */
 	    printf("Other BIOS signatures found:\n");
