@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id$
+ * $Id: variable_load.c,v 1.1 1997/03/19 10:09:28 jkh Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -41,46 +41,33 @@
 int
 variableLoad(dialogMenuItem * self)
 {
-    extern char    *distWanted;
     int             what = DITEM_RESTORE;
-    char           *cp, *old;
     char            buf[BUFSIZ];
+    extern char    *distWanted;
+    char           *cp;
     FILE           *fp;
 
     mediaClose();
     dialog_clear_norefresh();
 
-    if ((cp = variable_get(VAR_INSTALL_CFG)) != NULL) {
-	old = strdup(cp);
-	cp = variable_get_value(VAR_INSTALL_CFG,
-				"Specify the name of a configuration file\n"
-				"residing on a MSDOS or UFS floppy.\n\n"
-				"(default: %s)");
-	if (!cp) {
-	    free(old);
-	    return DITEM_FAILURE | what;
-	}
-	if (!*cp)
-	    variable_set2(VAR_INSTALL_CFG, cp);
-
-	free(old);
-
-    } else {
-	cp = variable_get_value(VAR_INSTALL_CFG,
-				"Specify the name of a configuration file\n"
-				"residing on a MSDOS or UFS floppy.");
-	if (!cp || !*cp) {
-	    variable_unset(VAR_INSTALL_CFG);
-	    return DITEM_FAILURE | what;
-	}
+    cp = variable_get_value(VAR_INSTALL_CFG,
+			    "Specify the name of a configuration file\n"
+			    "residing on a MSDOS or UFS floppy.");
+    if (!cp || !*cp) {
+	variable_unset(VAR_INSTALL_CFG);
+	return DITEM_FAILURE | what;
     }
 
     distWanted = cp = variable_get(VAR_INSTALL_CFG);
 
     /* Try to open the floppy drive if we can do that first */
-    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE ||
-	mediaDevice->init(mediaDevice)) {
-	msgConfirm("Unable to access floppy.");
+    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
+	msgConfirm("Unable to set media device to floppy.");
+	return DITEM_FAILURE | what;
+    }
+
+    if (!mediaDevice->init(mediaDevice)) {
+	msgConfirm("Unable to mount floppy filesystem.");
 	return DITEM_FAILURE | what;
     }
 
