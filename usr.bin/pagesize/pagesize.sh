@@ -32,9 +32,9 @@
 # SUCH DAMAGE.
 #
 #	@(#)pagesize.sh	8.1 (Berkeley) 4/3/94
+#	$Id: pagesize.sh,v 1.2 1996/11/05 07:17:33 wosch Exp $
 #
 
-PATH=/bin:/usr/bin:/usr/sbin
-export PATH
+PATH=/bin:/usr/bin:/sbin:/usr/sbin; export PATH
 
-sysctl -n hw.pagesize
+exec sysctl -n hw.pagesize
