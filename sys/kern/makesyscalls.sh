@@ -290,8 +290,6 @@ s/\$//g
 		    (!lkmnosys || funcname != "lkmnosys")) {
 			printf("%s\t%s __P((struct proc *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
-			if (funcname == "exit")
-				printf(" __dead2") > sysdcl
 			printf(";\n") > sysdcl
 		}
 		if (funcname == "nosys")
