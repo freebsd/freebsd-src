@@ -1,5 +1,8 @@
-$Id: README.de,v 1.3 1994/10/12 11:19:36 se Exp $
+$Id: README.de,v 1.4 1994/10/29 13:13:39 jkh Exp $
 
+THIS FILE IS SERIOUSLY OUT OF DATE AND NO LONGER REFLECTS
+REALITY.  THE ULTIMATE REFERENCE IS THE SOURCE CODE ITSELF.
+				rgrimes@FreeBSD.org
 ----------------
 
 The enclosed driver should be considered as beta-test software.  It
@@ -8,13 +11,13 @@ This driver is in no way supported by Digital Equipment.  See the
 disclaimers in the sources for more.
 
 This driver the DEC DE435 PCI NIC.  It should also work with other PCI
-boards that use the DC21040-AA chip (also known as TULIP).  This
-driver requires the DC21040-AA to be pass 2.3 or later.  If you are
+boards that use the 21040-AA chip (also known as TULIP).  This
+driver requires the 21040-AA to be pass 2.3 or later.  If you are
 using a eariler pass chip, you may encounter undetected transmit
-corruptions.  This driver also requires that DC21040-AA use a serial
-Ethernet address ROM as described in the DC21040 specification.
+corruptions.  This driver also requires that 21040-AA use a serial
+Ethernet address ROM as described in the 21040 specification.
 
-The DEC DE425 EISA NIC based on the DC21040-AA is not support at
+The DEC DE425 EISA NIC based on the 21040-AA is not support at
 this time.  A future update will include support for it.
 
 The driver includes full support for both BPF and IP Multicast.
@@ -37,10 +40,10 @@ Now you are ready to rebuild your kernel, reboot, and see if the
 driver can configure your board.  When the system boots, you will
 hopefully something close to:
 
-	de0 <digital dc21040 ethernet> int a irq 9 on pci0:7
+	de0 <digital 21040 ethernet> int a irq 9 on pci0:7
 	    reg20: virtual=0xf290a000 physical=0xc0001000
 	de0: enabling Thinwire/AUI port
-	de0: DC21040 [10Mb/s] pass 2.3 ethernet address 08:00:2b:e2:1e:09
+	de0: 21040 [10Mb/s] pass 2.3 ethernet address 08:00:2b:e2:1e:09
 	bpf: de0 attached
 
 in the startup log.  If so, the board configured properly and
