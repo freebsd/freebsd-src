@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.23 1999/01/06 20:03:11 n_hibma Exp $
+ * $Id: queue.h,v 1.24 1999/01/07 22:27:53 n_hibma Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -215,11 +215,6 @@ struct {								\
 #define STAILQ_REMOVE_HEAD(head, field) do {				\
 	if (((head)->stqh_first =					\
 	     (head)->stqh_first->field.stqe_next) == NULL)		\
-		(head)->stqh_last = &(head)->stqh_first;		\
-} while (0)
-
-#define STAILQ_REMOVE_HEAD_UNTIL(head, elm, field) do {			\
-	if (((head)->stqh_first = (elm)->field.stqe_next) == NULL)	\
 		(head)->stqh_last = &(head)->stqh_first;		\
 } while (0)
 

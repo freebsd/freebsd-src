@@ -261,7 +261,11 @@ usbd_alloc_request()
 
 	reqh = SIMPLEQ_FIRST(&usbd_free_requests);
 	if (reqh)
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, next);
+#endif
 	else
 		reqh = malloc(sizeof(*reqh), M_USB, M_NOWAIT);
 	if (!reqh)
@@ -918,7 +922,11 @@ usbd_ar_pipe(pipe)
 		reqh = SIMPLEQ_FIRST(&pipe->queue);
 		if (reqh == 0)
 			break;
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+#endif
 		reqh->status = USBD_CANCELLED;
 		if (reqh->callback)
 			reqh->callback(reqh, reqh->priv, reqh->status);
@@ -926,7 +934,11 @@ usbd_ar_pipe(pipe)
 #else
 	while ((reqh = SIMPLEQ_FIRST(&pipe->queue))) {
 		pipe->methods->abort(reqh);
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+#endif
 	}
 #endif
 	return (USBD_NORMAL_COMPLETION);
