@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nlist.c,v 1.3 1994/10/02 08:19:11 davidg Exp $
+ *	$Id: nlist.c,v 1.4 1994/10/02 08:33:29 davidg Exp $
  */
 
 #ifndef lint
@@ -111,6 +111,7 @@ donlist()
 		eval = rval = 1;
 	}
 	mempages -= tmp;
+	mempages /= PAGE_SIZE;
 #else
 	if (kread(X_ECMX, mempages)) {
 		warnx("ecmx: %s", kvm_geterr(kd));
