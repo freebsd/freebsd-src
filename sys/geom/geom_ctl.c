@@ -59,104 +59,22 @@
 #include <geom/geom_ctl.h>
 #include <geom/geom_ext.h>
 
-
-static g_access_t g_ctl_access;
-static g_start_t g_ctl_start;
-static void g_ctl_init(void);
 static d_ioctl_t g_ctl_ioctl;
 
-struct g_class g_ctl_class = {
-	"GEOMCTL",
-	NULL,
-	NULL,
-	G_CLASS_INITIALIZER
+static struct cdevsw g_ctl_cdevsw = {
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	g_ctl_ioctl,
+	.d_name =	"g_ctl",
 };
 
-DECLARE_GEOM_CLASS_INIT(g_ctl_class, g_ctl, g_ctl_init);
-
-/*
- * We cannot do create our geom.ctl geom/provider in g_ctl_init() because
- * the event thread has to finish adding our class first and that doesn't
- * happen until later.  We know however, that the events are processed in
- * FIFO order, so scheduling g_ctl_init2() with g_call_me() is safe.
- */
-
-static void
-g_ctl_init2(void *p __unused)
-{
-	struct g_geom *gp;
-	struct g_provider *pp;
-
-	g_topology_assert();
-	gp = g_new_geomf(&g_ctl_class, "geom.ctl");
-	gp->start = g_ctl_start;
-	gp->access = g_ctl_access;
-	pp = g_new_providerf(gp, "%s", gp->name);
-	pp->sectorsize = 512;
-	g_error_provider(pp, 0);
-}
-
-static void
+void
 g_ctl_init(void)
 {
-	mtx_unlock(&Giant);
-	g_add_class(&g_ctl_class);
-	g_call_me(g_ctl_init2, NULL);
-	mtx_lock(&Giant);
+
+	make_dev(&g_ctl_cdevsw, 0,
+	    UID_ROOT, GID_OPERATOR, 0640, PATH_GEOM_CTL);
 }
-
-/*
- * We allow any kind of access.  Access control is handled at the devfs
- * level.
- */
-
-static int
-g_ctl_access(struct g_provider *pp, int r, int w, int e)
-{
-	int error;
-
-	g_trace(G_T_ACCESS, "g_ctl_access(%s, %d, %d, %d)",
-	    pp->name, r, w, e);
-
-	g_topology_assert();
-	error = 0;
-	return (error);
-}
-
-static void
-g_ctl_start(struct bio *bp)
-{
-	struct g_ioctl *gio;
-	int error;
-
-	switch(bp->bio_cmd) {
-	case BIO_DELETE:
-	case BIO_READ:
-	case BIO_WRITE:
-		error = EOPNOTSUPP;
-		break;
-	case BIO_GETATTR:
-	case BIO_SETATTR:
-		if (strcmp(bp->bio_attribute, "GEOM::ioctl") ||
-		    bp->bio_length != sizeof *gio) {
-			error = EOPNOTSUPP;
-			break;
-		}
-		gio = (struct g_ioctl *)bp->bio_data;
-		gio->func = g_ctl_ioctl;
-		error = EDIRIOCTL;
-		break;
-	default:
-		error = EOPNOTSUPP;
-		break;
-	}
-	g_io_deliver(bp, error);
-	return;
-}
-
-/*
- * All the stuff above is really just needed to get to the stuff below
- */
 
 static int
 g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
@@ -371,7 +289,10 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 	error = geom_ctl_copyin(req);
 	if (error)
 		return (error);
+	req->reqt = &gcrt[i];
+	g_stall_events();
 	geom_ctl_dump(req);
+	g_release_events();
 	return (0);
 }
 
@@ -380,11 +301,13 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error;
 
-	DROP_GIANT();
-	g_topology_lock();
 	switch(cmd) {
 	case GEOMCONFIGGEOM:
+		DROP_GIANT();
+		g_topology_lock();
 		error = g_ctl_ioctl_configgeom(dev, cmd, data, fflag, td);
+		g_topology_unlock();
+		PICKUP_GIANT();
 		break;
 	case GEOM_CTL:
 		error = g_ctl_ioctl_ctl(dev, cmd, data, fflag, td);
@@ -393,8 +316,6 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		error = ENOTTY;
 		break;
 	}
-	g_topology_unlock();
-	PICKUP_GIANT();
 	return (error);
 
 }
