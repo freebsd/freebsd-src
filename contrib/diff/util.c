@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 #include "diff.h"
 
 #ifndef PR_PROGRAM
@@ -481,9 +483,6 @@ print_1_line (line_flag, line)
     }
 
   output_1_line (text, limit, flag_format, line_flag);
-
-  if ((!line_flag || line_flag[0]) && limit[-1] != '\n')
-    fprintf (out, "\n\\ No newline at end of file\n");
 }
 
 /* Output a line from TEXT up to LIMIT.  Without -t, output verbatim.
