@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.fonts,v 1.2 1995/04/05 08:02:24 jkh Exp $
+# $Id: INDEX.fonts,v 1.3 1996/07/25 14:06:37 wosch Exp $
 #
 # database for vidfont(8) 
 #
@@ -155,6 +155,9 @@ iso-thin-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16 (fine)
 iso-8x8.fnt:en:ISO-8859-1 West European, 8x8
 iso-8x8.fnt:de:ISO-8859-1 Westeuropa, 8x8
 iso-8x8.fnt:fr:ISO-8859-1 Est européen, 8x8
+
+iso-8859-2-8x16.fnt:en:ISO-8859-2 Central European, 8x16
+iso-8859-2-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
