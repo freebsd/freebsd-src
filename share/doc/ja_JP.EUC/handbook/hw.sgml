@@ -1,6 +1,6 @@
-<!-- $Id: hw.sgml,v 1.10 1997/02/25 04:55:57 hanai Exp $ -->
+<!-- $Id: hw.sgml,v 1.11 1997/03/03 04:46:59 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.64 -->
+<!-- Original revision: 1.65 -->
 
 <!--
 <!DOCTYPE chapt PUBLIC "-//FreeBSD//DTD linuxdoc//EN"> -->
@@ -411,7 +411,7 @@ name="FreeBSD POWERED hardwares">
   <sect2><heading>* 486 クラス</heading>
   <sect2><heading>* 386 クラス</heading>
   <sect2><heading>286 クラス</heading>
-    <p>残念ながら, FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
+    <p>FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
        ルスペックの UNIXをこのようなハードウェアで動かすことはほとんど
        不可能でしょう.
 
