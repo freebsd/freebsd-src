@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.93 1996/06/14 11:01:27 asami Exp $
+ * $Id: vfs_bio.c,v 1.94 1996/06/30 05:17:08 davidg Exp $
  */
 
 /*
@@ -1133,7 +1133,7 @@ allocbuf(struct buf * bp, int size)
 				if (newbsize) {
 					bp->b_bcount = size;
 				} else {
-					free(bp->b_data, M_TEMP);
+					free(bp->b_data, M_BIOBUF);
 					bufspace -= bp->b_bufsize;
 					bufmallocspace -= bp->b_bufsize;
 					bp->b_data = (caddr_t) buffers_kva + (bp - buf) * MAXBSIZE;
@@ -1156,7 +1156,7 @@ allocbuf(struct buf * bp, int size)
 				(bp->b_bufsize == 0) &&
 				(mbsize <= PAGE_SIZE/2)) {
 
-				bp->b_data = malloc(mbsize, M_TEMP, M_WAITOK);
+				bp->b_data = malloc(mbsize, M_BIOBUF, M_WAITOK);
 				bp->b_bufsize = mbsize;
 				bp->b_bcount = size;
 				bp->b_flags |= B_MALLOC;
@@ -1186,7 +1186,7 @@ allocbuf(struct buf * bp, int size)
 			    (vm_offset_t) bp->b_data + newbsize);
 			if (origbuf) {
 				bcopy(origbuf, bp->b_data, origbufsize);
-				free(origbuf, M_TEMP);
+				free(origbuf, M_BIOBUF);
 			}
 		}
 	} else {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.13 1996/05/02 14:21:02 phk Exp $
+ * $Id: malloc.h,v 1.14 1996/06/14 17:22:18 wollman Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -126,7 +126,9 @@
 #define M_PKTCLASS	79	/* structures used in packet classifier */
 #define	M_SYSCTL	80	/* sysctl internal magic */
 #define	M_SECA		81	/* security associations, key management */
-#define	M_LAST		82	/* Must be last type + 1 */
+#define	M_BIOBUF	82	/* BIO buffer */
+#define	M_KTRACE	83	/* KTRACE */
+#define	M_LAST		84	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -208,6 +210,8 @@
 	"PktClass",	/* 79 M_PKTCLASS */ \
 	"sysctl",	/* 80 M_SYSCTL */ \
 	"key mgmt",	/* 81 M_SECA */ \
+	"BIO buffer",	/* 82 M_BIOBUF */ \
+	"KTRACE",	/* 83 M_KTRACE */ \
 }
 
 struct kmemstats {
