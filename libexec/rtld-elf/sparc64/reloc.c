@@ -261,8 +261,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
 	if (cache == MAP_FAILED)
 		cache = NULL;
-	if (cache != NULL)
-		memset(cache, 0, obj->nchains * sizeof(SymCache));
 
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
