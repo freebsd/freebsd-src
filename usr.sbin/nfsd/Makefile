@@ -4,6 +4,6 @@
 PROG=	nfsd
 MAN=	nfsd.8
 
-WARNS?=	0
+WARNS?=	6
 
 .include <bsd.prog.mk>
