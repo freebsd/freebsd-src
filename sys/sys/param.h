@@ -187,10 +187,10 @@
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
+#ifdef _KERNEL
 /*
  * Basic byte order function prototypes for non-inline functions.
  */
-#ifdef _KERNEL
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
 __BEGIN_DECLS
@@ -208,41 +208,6 @@ __END_DECLS
 #define	ntohl(x)	__ntohl(x)
 #define	ntohs(x)	__ntohs(x)
 #endif /* !_BYTEORDER_FUNC_DEFINED */
-
-#define	bswap16(x)	__bswap16(x)
-#define	bswap32(x)	__bswap32(x)
-#define	bswap64(x)	__bswap64(x)
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define	htobe16(x)	bswap16((x))
-#define	htobe32(x)	bswap32((x))
-#define	htobe64(x)	bswap64((x))
-#define	htole16(x)	((__uint16_t)(x))
-#define	htole32(x)	((__uint32_t)(x))
-#define	htole64(x)	((__uint64_t)(x))
-
-#define	be16toh(x)	bswap16((x))
-#define	be32toh(x)	bswap32((x))
-#define	be64toh(x)	bswap64((x))
-#define	le16toh(x)	((__uint16_t)(x))
-#define	le32toh(x)	((__uint32_t)(x))
-#define	le64toh(x)	((__uint64_t)(x))
-#else /* BYTE_ORDER != LITTLE_ENDIAN */
-#define	htobe16(x)	((__uint16_t)(x))
-#define	htobe32(x)	((__uint32_t)(x))
-#define	htobe64(x)	((__uint64_t)(x))
-#define	htole16(x)	bswap16((x))
-#define	htole32(x)	bswap32((x))
-#define	htole64(x)	bswap64((x))
-
-#define	be16toh(x)	((__uint16_t)(x))
-#define	be32toh(x)	((__uint32_t)(x))
-#define	be64toh(x)	((__uint64_t)(x))
-#define	le16toh(x)	bswap16((x))
-#define	le32toh(x)	bswap32((x))
-#define	le64toh(x)	bswap64((x))
-#endif /* BYTE_ORDER */
-
 #endif /* _KERNEL */
 
 /*

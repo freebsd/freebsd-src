@@ -31,8 +31,8 @@
 #define	ISP_PLATFORM_VERSION_MINOR	9
 
 #include <sys/param.h>
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
