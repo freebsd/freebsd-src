@@ -131,6 +131,9 @@ When used with the
 flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
 file for the filesystem.
+.It noasync
+Metadata I/O should be done synchronously, while data I/O should be done
+asynchronously.  This is the default.
 .It noatime
 Do not update the file access time when reading from a file. This option
 is useful on filesystems where there are large numbers of files and
