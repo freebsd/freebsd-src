@@ -33,11 +33,12 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: lock.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: lock.c,v 1.3 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
 
 /* Lock routines.  Currently, we lock either an individual volume
  * or the global configuration.  I don't think tsleep and

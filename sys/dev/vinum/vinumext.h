@@ -33,14 +33,14 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: vinumext.h,v 1.4 1998/12/28 04:56:24 peter Exp $
  */
 
 /* vinumext.h: external definitions */
 
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 extern debug;						    /* debug flags */
 #endif
 
@@ -136,7 +136,7 @@ int launch_requests(struct request *rq, int reviveok);
 /* XXX Do we need this? */
 int vinumpart(dev_t);
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
 /* Memory allocation and request tracing */
 void vinum_meminfo(caddr_t data);
 int vinum_mallocinfo(caddr_t data);

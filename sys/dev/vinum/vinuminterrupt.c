@@ -35,12 +35,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: interrupt.c,v 1.3 1998/11/03 06:37:57 grog Exp $
+ * $Id: interrupt.c,v 1.5 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
@@ -71,7 +72,7 @@ complete_rqe(struct buf *bp)
     rq = rqg->rq;					    /* and the complete request */
     ubp = rq->bp;					    /* user buffer */
 
-#ifdef DEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_iodone, rqe, ubp);
 #endif
@@ -107,7 +108,7 @@ complete_rqe(struct buf *bp)
     if (rqg->active == 0)				    /* request group finished, */
 	rq->active--;					    /* one less */
     if (rq->active == 0) {				    /* request finished, */
-#if DEBUG
+#if VINUMDEBUG
 	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
 		Debugger("resid");
