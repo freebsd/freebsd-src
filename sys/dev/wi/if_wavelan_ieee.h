@@ -50,6 +50,7 @@
 #ifndef SIOCGWAVELAN
 #define SIOCGWAVELAN	SIOCGIFGENERIC
 #endif
+#define WI_RID_MONITOR_MODE	0x0500
 
 /*
  * Technically I don't think there's a limit to a record
@@ -112,6 +113,13 @@ struct wi_80211_hdr {
 #define WI_STYPE_MGMT_DISAS	0x00A0	/* disassociation */
 #define WI_STYPE_MGMT_AUTH	0x00B0	/* authentication */
 #define WI_STYPE_MGMT_DEAUTH	0x00C0	/* deauthentication */
+
+#define WI_STYPE_CTL_PSPOLL     0x00A0
+#define WI_STYPE_CTL_RTS        0x00B0
+#define WI_STYPE_CTL_CTS        0x00C0
+#define WI_STYPE_CTL_ACK        0x00D0
+#define WI_STYPE_CTL_CFEND      0x00E0
+#define WI_STYPE_CTL_CFENDACK   0x00F0
 
 struct wi_mgmt_hdr {
 	u_int16_t		frame_ctl;
@@ -209,7 +217,7 @@ struct wi_counters {
 #define	 IV_EVERY100_FRAME	0x60	/* every 100 frame IV reuse */
 #define	 HOST_DECRYPT		0x80
 #define WI_RID_WEP_MAPTABLE	0xFC29
-#define WI_RID_AUTH_CNTL	0xFC2A
+#define WI_RID_CNFAUTHMODE	0xFC2A
 #define WI_RID_ROAMING_MODE	0xFC2D
 #define WI_RID_BASIC_RATE	0xFCB3
 #define WI_RID_SUPPORT_RATE	0xFCB4
@@ -221,7 +229,11 @@ struct wi_counters {
 #define WI_RID_CREATE_IBSS	0xFC81 /* create IBSS */
 #define WI_RID_FRAG_THRESH	0xFC82 /* frag len, unicast msg xmit */
 #define WI_RID_RTS_THRESH	0xFC83 /* frame len for RTS/CTS handshake */
-#define WI_RID_TX_RATE		0xFC84 /* data rate for message xmit */
+#define WI_RID_TX_RATE		0xFC84 /* data rate for message xmit
+ 					* 0 == Fixed 1mbps
+ 					* 1 == Fixed 2mbps
+ 					* 2 == auto fallback
+					*/
 #define WI_RID_PROMISC		0xFC85 /* enable promisc mode */
 #define WI_RID_FRAG_THRESH0	0xFC90
 #define WI_RID_FRAG_THRESH1	0xFC91

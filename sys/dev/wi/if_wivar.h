@@ -136,6 +136,7 @@ struct wi_softc	{
 	u_int16_t		wi_pm_enabled;
 	u_int16_t		wi_mor_enabled;
 	u_int16_t		wi_max_sleep;
+	u_int16_t		wi_supprates;
 	u_int16_t		wi_authtype;
 	u_int16_t		wi_roaming;
 
@@ -148,12 +149,17 @@ struct wi_softc	{
 	struct wi_counters	wi_stats;
 	int			wi_has_wep;
 	int			wi_use_wep;
+	int			wi_authmode;
 	int			wi_tx_key;
 	struct wi_ltv_keys	wi_keys;
 #ifdef WICACHE
 	int			wi_sigitems;
 	struct wi_sigcache	wi_sigcache[MAXWICACHE];
 	int			wi_nextitem;
+#endif
+#ifdef WI_HOSTAP
+	struct wihap_info	wi_hostap_info;
+	u_int32_t		wi_icv;
 #endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
@@ -193,3 +199,4 @@ void wi_shutdown(device_t);
 int wi_alloc(device_t, int);
 void wi_free(device_t);
 extern devclass_t wi_devclass;
+int wi_mgmt_xmit(struct wi_softc *, caddr_t, int);

@@ -497,9 +497,11 @@ struct wi_ltv_pcf {
  *	(Only PRISM2; not 802.11 compliant mode, testing use only)
  * 6 == HOST AP (Only PRISM2)
  */
+#define WI_PORTTYPE_IBSS	0x0
 #define WI_PORTTYPE_BSS		0x1
 #define WI_PORTTYPE_WDS		0x2
 #define WI_PORTTYPE_ADHOC	0x3
+#define WI_PORTTYPE_AP		0x6
 
 /*
  * Mac addresses. (0xFC01, 0xFC08)
@@ -539,6 +541,14 @@ struct wi_ltv_mcast {
 };
 
 /*
+ * supported rates. (0xFCB4)
+ */
+#define WI_SUPPRATES_1M		0x0001
+#define WI_SUPPRATES_2M		0x0002
+#define WI_SUPPRATES_5M		0x0004
+#define WI_SUPPRATES_11M	0x0008
+
+/*
  * Information frame types.
  */
 #define WI_INFO_NOTIFY		0xF000	/* Handover address */
@@ -556,7 +566,8 @@ struct wi_frame {
 	u_int16_t		wi_rsvd1;	/* 0x04 */
 	u_int16_t		wi_q_info;	/* 0x06 */
 	u_int16_t		wi_rsvd2;	/* 0x08 */
-	u_int16_t		wi_rsvd3;	/* 0x0A */
+	u_int8_t		wi_tx_rtry;	/* 0x0A */
+	u_int8_t		wi_tx_rate;	/* 0x0B */
 	u_int16_t		wi_tx_ctl;	/* 0x0C */
 	u_int16_t		wi_frame_ctl;	/* 0x0E */
 	u_int16_t		wi_id;		/* 0x10 */
@@ -576,6 +587,7 @@ struct wi_frame {
 #define WI_802_3_OFFSET		0x2E
 #define WI_802_11_OFFSET	0x44
 #define WI_802_11_OFFSET_RAW	0x3C
+#define WI_802_11_OFFSET_HDR    0x0E
 
 #define WI_STAT_BADCRC		0x0001
 #define WI_STAT_UNDECRYPTABLE	0x0002
@@ -584,10 +596,12 @@ struct wi_frame {
 #define WI_STAT_1042		0x2000	/* RFC1042 encoded */
 #define WI_STAT_TUNNEL		0x4000	/* Bridge-tunnel encoded */
 #define WI_STAT_WMP_MSG		0x6000	/* WaveLAN-II management protocol */
+#define WI_STAT_MGMT		0x8000	/* 802.11b management frames */
 #define WI_RXSTAT_MSG_TYPE	0xE000
 
 #define WI_ENC_TX_802_3		0x00
 #define WI_ENC_TX_802_11	0x11
+#define WI_ENC_TX_MGMT		0x08
 #define WI_ENC_TX_E_II		0x0E
 
 #define WI_ENC_TX_1042		0x00
@@ -595,6 +609,9 @@ struct wi_frame {
 
 #define WI_TXCNTL_MACPORT	0x00FF
 #define WI_TXCNTL_STRUCTTYPE	0xFF00
+#define WI_TXCNTL_TX_EX		0x0004
+#define WI_TXCNTL_TX_OK		0x0002
+#define WI_TXCNTL_NOCRYPT	0x0080
 
 /*
  * SNAP (sub-network access protocol) constants for transmission
@@ -608,3 +625,4 @@ struct wi_frame {
 #define WI_SNAP_WORD0		(WI_SNAP_K1 | (WI_SNAP_K1 << 8))
 #define WI_SNAP_WORD1		(WI_SNAP_K2 | (WI_SNAP_CONTROL << 8))
 #define WI_SNAPHDR_LEN		0x6
+#define WI_FCS_LEN		0x4
