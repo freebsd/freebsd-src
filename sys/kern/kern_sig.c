@@ -256,6 +256,8 @@ sig_ffs(sigset_t *set)
  * sigaction
  * freebsd4_sigaction
  * osigaction
+ *
+ * MPSAFE
  */
 int
 kern_sigaction(td, sig, act, oact, flags)
@@ -271,6 +273,7 @@ kern_sigaction(td, sig, act, oact, flags)
 	if (!_SIG_VALID(sig))
 		return (EINVAL);
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	if (oact) {
@@ -296,6 +299,7 @@ kern_sigaction(td, sig, act, oact, flags)
 		if ((sig == SIGKILL || sig == SIGSTOP) &&
 		    act->sa_handler != SIG_DFL) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&Giant);
 			return (EINVAL);
 		}
 
@@ -400,6 +404,7 @@ kern_sigaction(td, sig, act, oact, flags)
 #endif
 	}
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -429,12 +434,9 @@ sigaction(td, uap)
 		if (error)
 			return (error);
 	}
-	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
-	mtx_unlock(&Giant);
-	if (oactp && !error) {
+	if (oactp && !error)
 		error = copyout(oactp, uap->oact, sizeof(oact));
-	}
 	return (error);
 }
 
@@ -511,9 +513,7 @@ osigaction(td, uap)
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
 	}
-	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
-	mtx_unlock(&Giant);
 	if (osap && !error) {
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
@@ -966,9 +966,7 @@ osigvec(td, uap)
 		nsap->sa_flags |= SA_USERTRAMP;
 #endif
 	}
-	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
-	mtx_unlock(&Giant);
 	if (osap && !error) {
 		vec.sv_handler = osap->sa_handler;
 		SIG2OSIG(osap->sa_mask, vec.sv_mask);
