@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.12 1998/05/10 20:24:52 jb Exp $
+# $Id: Makefile.alpha,v 1.13 1998/05/12 21:04:53 jb Exp $
 #
 # NOTE:
 #
@@ -223,7 +223,6 @@ dirs_clean:
 .for d in ${DIRS}
 	cd ${.CURDIR}/$d && ${XMAKE} ${CLEANDIR} ${OBJDIR}
 .endfor
-
 
 #
 # ------------------------------------------------------------------------
@@ -502,7 +501,8 @@ build-tools:
 	gnu/usr.bin/grep	\
 	gnu/usr.bin/gzip	\
 	gnu/usr.bin/sort	\
-	gnu/usr.bin/texinfo
+	gnu/usr.bin/texinfo	\
+	gnu/usr.bin/perl/perl
 	@echo "---------------------------"
 	@echo "Making ${.CURDIR}/$d"
 	@cd ${.CURDIR}/$d && ${MAKE} ${CLEANDIR} ${OBJDIR} && \
