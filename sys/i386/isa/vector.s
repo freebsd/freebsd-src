@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id$
+ *	$Id: vector.s,v 1.4 1993/10/16 13:46:28 rgrimes Exp $
  */
 
 #include "i386/isa/icu.h"
@@ -351,8 +351,8 @@ _eintrnames:
 	.asciz	"splx"
 	.asciz	"splx!0"
 	.asciz	"unpend_V"
-	.asciz	"spl29"		/* spl29-spl31 are spares */
-	.asciz	"spl30"
+	.asciz	"netisr_x25"
+	.asciz	"netisr_hdlc"
 	.asciz	"spl31"
 /*
  * now the mask names
