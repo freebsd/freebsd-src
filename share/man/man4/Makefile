@@ -93,6 +93,7 @@ MAN=	aac.4 \
 	mly.4 \
 	mouse.4 \
 	mtio.4 \
+	my.4 \
 	natm.4 \
 	ncr.4 \
 	netgraph.4 \
