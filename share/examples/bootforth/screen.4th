@@ -1,5 +1,5 @@
 \ Screen manipulation related words.
-\ $Id$
+\ $FreeBSD$
 
 marker task-screen.4th
 

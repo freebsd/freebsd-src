@@ -1,4 +1,4 @@
-# $Id: ppp.linkdown.span-isp.working,v 1.1 1999/06/09 12:32:49 brian Exp $
+# $FreeBSD$
 
 # This is a working example of ppp.linkdown.span-isp that uses ppp connections
 # to the same machine through 3 null-modem serial cables.

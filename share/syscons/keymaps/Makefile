@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.33.2.3 1999/07/07 13:24:27 yokota Exp $
+# $FreeBSD$
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd be.iso.acc.kbd

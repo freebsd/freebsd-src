@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.81 1999/01/22 12:41:27 jdp Exp $
+# $FreeBSD$
 
 .if !target(__initialized__)
 __initialized__:

@@ -568,5 +568,5 @@ main(argc, argv)
 	exit(0);
 }
 
-	@(#) $Id: atm-sockets.txt,v 1.1 1998/09/15 08:22:49 phk Exp $
+	@(#) $FreeBSD$
 

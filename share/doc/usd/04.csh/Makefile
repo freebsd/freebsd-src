@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.3 1997/02/22 13:06:16 peter Exp $
+# $FreeBSD$
 
 VOLUME=	usd/04.csh
 SRCS=	tabs csh.1 csh.2 csh.3 csh.4 csh.a csh.g

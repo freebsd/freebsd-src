@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.41 1998/08/29 01:30:13 dillon Exp $
+# $FreeBSD$
 
 unix		?=	We run FreeBSD, not UNIX.
 

@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.20 1998/10/19 20:09:17 imp Exp $
+# $FreeBSD$
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.

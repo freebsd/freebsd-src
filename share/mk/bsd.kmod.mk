@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.57 1998/11/05 04:01:55 peter Exp $
+# $FreeBSD$
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #

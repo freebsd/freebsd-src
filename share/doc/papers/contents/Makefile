@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 VOLUME=	papers
 DOC=	contents

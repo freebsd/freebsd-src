@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.29 1998/09/07 05:55:02 jb Exp $
+# $FreeBSD$
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links.

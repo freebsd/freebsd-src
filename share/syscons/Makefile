@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SUBDIR= fonts keymaps scrnmaps
 
