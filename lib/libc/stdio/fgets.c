@@ -54,7 +54,7 @@ static char sccsid[] = "@(#)fgets.c	8.2 (Berkeley) 12/22/93";
 char *
 fgets(buf, n, fp)
 	char *buf;
-	register size_t n;
+	register int n;
 	register FILE *fp;
 {
 	register size_t len;
