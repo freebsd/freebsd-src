@@ -392,6 +392,7 @@ MAIN:{
 	'__MAKE_CONF'		=> "/dev/null",
 	'MAKEOBJDIRPREFIX'	=> "$sandbox/obj",
 
+	'TARGET'		=> $machine,
 	'TARGET_ARCH'		=> $arch,
 	'TARGET_MACHINE'	=> $machine,
 
@@ -402,6 +403,7 @@ MAIN:{
 
 	'MAKE_KERBEROS4'	=> "YES",
 	'MAKE_KERBEROS5'	=> "YES",
+	'BOOT2_UFS'		=> "UFS1_ONLY",
     );
 
     # Build the world
