@@ -829,12 +829,15 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.cfg.idle.min_timeout = 0;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
-  bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_SROUTES | OPT_TCPMSSFIXUP |
-                   OPT_THROUGHPUT | OPT_UTMP;
+  bundle.cfg.optmask = (1ull << OPT_IDCHECK) | (1ull << OPT_LOOPBACK) |
+                       (1ull << OPT_SROUTES) | (1ull << OPT_TCPMSSFIXUP) |
+                       (1ull << OPT_THROUGHPUT) | (1ull << OPT_UTMP) |
+                       (1ull << OPT_NAS_IP_ADDRESS) |
+                       (1ull << OPT_NAS_IDENTIFIER);
 #ifndef NOINET6
-  bundle.cfg.opt |= OPT_IPCP;
+  opt_enable(&bundle, OPT_IPCP);
   if (probe.ipv6_available)
-    bundle.cfg.opt |= OPT_IPV6CP;
+    opt_enable(&bundle, OPT_IPV6CP);
 #endif
   *bundle.cfg.label = '\0';
   bundle.cfg.ifqueue = DEF_IFQUEUE;
@@ -870,7 +873,7 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.filter.alive.name = "ALIVE";
   bundle.filter.alive.logok = 1;
   {
-    int	i;
+    int i;
     for (i = 0; i < MAXFILTERS; i++) {
         bundle.filter.in.rule[i].f_action = A_NONE;
         bundle.filter.out.rule[i].f_action = A_NONE;
@@ -1050,9 +1053,9 @@ bundle_ShowLinks(struct cmdargs const *arg)
 }
 
 static const char *
-optval(struct bundle *bundle, int bit)
+optval(struct bundle *bundle, int opt)
 {
-  return (bundle->cfg.opt & bit) ? "enabled" : "disabled";
+  return Enabled(bundle, opt) ? "enabled" : "disabled";
 }
 
 int
@@ -1142,6 +1145,10 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_THROUGHPUT));
   prompt_Printf(arg->prompt, " Utmp Logging:      %s\n",
                 optval(arg->bundle, OPT_UTMP));
+  prompt_Printf(arg->prompt, " NAS-IP-Address:    %-20.20s",
+                optval(arg->bundle, OPT_NAS_IP_ADDRESS));
+  prompt_Printf(arg->prompt, " NAS-Identifier:    %s\n",
+                optval(arg->bundle, OPT_NAS_IDENTIFIER));
 
   return 0;
 }

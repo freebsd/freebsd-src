@@ -3067,6 +3067,49 @@ the other end.
 It is convenient to have this option enabled when
 the interface is also the default route as it avoids the necessity
 of a loopback route.
+.It NAS-IP-Address
+Default: Enabled.
+This option controls whether
+.Nm
+sends the
+.Dq NAS-IP-Address
+attribute to the RADIUS server when RADIUS is in use
+.Pq see Dq set radius .
+.Pp
+Note, at least one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+must be enabled.
+.Pp
+Versions of
+.Nm
+prior to version 3.4.1 did not send the
+.Dq NAS-IP-Address
+atribute as it was reported to break the Radiator RADIUS server.
+As the latest rfc (2865) no longer hints that only one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+should be sent (as rfc 2138 did),
+.Nm
+now sends both and leaves it up to the administrator that chooses to use
+bad RADIUS implementations to
+.Dq disable NAS-IP-Address .
+.It NAS-Identifier
+Default: Enabled.
+This option controls whether
+.Nm
+sends the
+.Dq NAS-Identifier
+attribute to the RADIUS server when RADIUS is in use
+.Pq see Dq set radius .
+.Pp
+Note, at least one of
+.Dq NAS-IP-Address
+and
+.Dq NAS-Identifier
+must be enabled.
 .It passwdauth
 Default: Disabled.
 Enabling this option will tell the PAP authentication
