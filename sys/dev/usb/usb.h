@@ -64,6 +64,10 @@ MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 #endif /* __FreeBSD__ */
 
+/* these three defines are used by usbd to autoload the usb kld */
+#define USB_KLD		"usb"
+#define USB_OHCI	"ohci/usb"
+#define USB_UHCI	"uhci/usb"
 
 #define USB_MAX_DEVICES 128
 #define USB_START_ADDR 0
