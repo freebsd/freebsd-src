@@ -153,9 +153,9 @@ devstat_getnumdevs(kvm_t *kd)
 		if (sysctlbyname("kern.devstat.numdevs", &numdevs,
 				 &numdevsize, NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				"%s: error getting number of devices\n"
-				"%s: %s", func_name, func_name, 
-				strerror(errno));
+				 "%s: error getting number of devices\n"
+				 "%s: %s", func_name, func_name, 
+				 strerror(errno));
 			return(-1);
 		} else
 			return(numdevs);
@@ -190,8 +190,8 @@ devstat_getgeneration(kvm_t *kd)
 		if (sysctlbyname("kern.devstat.generation", &generation, 
 				 &gensize, NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				"%s: error getting devstat generation\n%s: %s",
-				func_name, func_name, strerror(errno));
+				 "%s: error getting devstat generation\n%s: %s",
+				 func_name, func_name, strerror(errno));
 			return(-1);
 		} else
 			return(generation);
@@ -225,8 +225,8 @@ devstat_getversion(kvm_t *kd)
 		if (sysctlbyname("kern.devstat.version", &version, &versize,
 				 NULL, 0) == -1) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				"%s: error getting devstat version\n%s: %s",
-				func_name, func_name, strerror(errno));
+				 "%s: error getting devstat version\n%s: %s",
+				 func_name, func_name, strerror(errno));
 			return(-1);
 		} else
 			return(version);
@@ -264,24 +264,26 @@ devstat_checkversion(kvm_t *kd)
 			buflen = 0;
 
 		res = snprintf(devstat_errbuf + buflen,
-		    DEVSTAT_ERRBUF_SIZE - buflen,
-		    "%s%s: userland devstat version %d is not "
-		    "the same as the kernel\n%s: devstat version %d\n",
-		    version == -1 ? "\n" : "", func_name, DEVSTAT_VERSION,
-		    func_name, version);
+			       DEVSTAT_ERRBUF_SIZE - buflen,
+			       "%s%s: userland devstat version %d is not "
+			       "the same as the kernel\n%s: devstat "
+			       "version %d\n", version == -1 ? "\n" : "",
+			       func_name, DEVSTAT_VERSION, func_name, version);
 
 		if (res < 0)
 			devstat_errbuf[buflen] = '\0';
 
 		buflen = strlen(devstat_errbuf);
-                if (version < DEVSTAT_VERSION)
+		if (version < DEVSTAT_VERSION)
 			res = snprintf(devstat_errbuf + buflen,
-			    DEVSTAT_ERRBUF_SIZE - buflen,
-			    "%s: libdevstat newer than kernel\n", func_name);
-                else
+				       DEVSTAT_ERRBUF_SIZE - buflen,
+				       "%s: libdevstat newer than kernel\n",
+				       func_name);
+		else
 			res = snprintf(devstat_errbuf + buflen,
-			    DEVSTAT_ERRBUF_SIZE - buflen,
-			    "%s: kernel newer than libdevstat\n", func_name);
+				       DEVSTAT_ERRBUF_SIZE - buflen,
+				       "%s: kernel newer than libdevstat\n",
+				       func_name);
 
 		if (res < 0)
 			devstat_errbuf[buflen] = '\0';
@@ -316,7 +318,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 
 	if (dinfo == NULL) {
 		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-			"%s: stats->dinfo was NULL", func_name);
+			 "%s: stats->dinfo was NULL", func_name);
 		return(-1);
 	}
 
@@ -379,17 +381,17 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 				if ((error = sysctlbyname("kern.devstat.all", 
 				    dinfo->mem_ptr, &dssize, NULL, 0)) == -1) {
 					snprintf(devstat_errbuf,
-						sizeof(devstat_errbuf),
-					    	"%s: error getting device "
-					    	"stats\n%s: %s", func_name,
-					    	func_name, strerror(errno));
+						 sizeof(devstat_errbuf),
+					    	 "%s: error getting device "
+					    	 "stats\n%s: %s", func_name,
+					    	 func_name, strerror(errno));
 					return(-1);
 				}
 			} else {
 				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-					"%s: error getting device stats\n"
-					"%s: %s", func_name, func_name,
-					strerror(errno));
+					 "%s: error getting device stats\n"
+					 "%s: %s", func_name, func_name,
+					 strerror(errno));
 				return(-1);
 			}
 		} 
@@ -619,8 +621,8 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 		char tmpstr[80];
 
 		snprintf(tmpstr, sizeof(tmpstr), "%s%d",
-			(*dev_select)[i].device_name,
-			(*dev_select)[i].unit_number);
+			 (*dev_select)[i].device_name,
+			 (*dev_select)[i].unit_number);
 		for (j = 0; j < num_dev_selections; j++) {
 			if (strcmp(tmpstr, dev_selections[j]) == 0) {
 				/*
@@ -1064,10 +1066,10 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 				if (((*matches)[*num_matches].match_fields &
 				    match_table[j].match_field) != 0) {
 					snprintf(devstat_errbuf,
-						sizeof(devstat_errbuf),
-						"%s: cannot have more than "
-						"one match item in a single "
-						"category", func_name);
+						 sizeof(devstat_errbuf),
+						 "%s: cannot have more than "
+						 "one match item in a single "
+						 "category", func_name);
 					return(-1);
 				}
 				/*
@@ -1090,8 +1092,8 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 		 */
 		if ((*matches)[*num_matches].num_match_categories != (i + 1)) {
 			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
-				"%s: unknown match item \"%s\"", func_name,
-				tstr[i]);
+				 "%s: unknown match item \"%s\"", func_name,
+				 tstr[i]);
 			return(-1);
 		}
 	}
