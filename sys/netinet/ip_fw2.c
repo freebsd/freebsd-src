@@ -1653,8 +1653,8 @@ check_body:
 					match = check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
 						    proto, oif,
-						    src_ip, src_port,
-						    dst_ip, dst_port);
+						    dst_ip, dst_port,
+						    src_ip, src_port);
 				break;
 
 			case O_RECV:
