@@ -410,12 +410,13 @@ void dialog_clear_norefresh(void)
 {
     attr_clear(stdscr, LINES, COLS, screen_attr);
     touchwin(stdscr);
+    wnoutrefresh(stdscr);
 }
 
 void dialog_clear(void)
 {
     dialog_clear_norefresh();
-    refresh();
+    doupdate();
 }
 
 void dialog_update(void)
