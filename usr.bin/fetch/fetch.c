@@ -72,21 +72,21 @@ int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
 off_t	 S_size;        /*    -S: require size to match */
 int	 s_flag;        /*    -s: show size, don't fetch */
-u_int	 T_secs = 120;	/*    -T: transfer timeout in seconds */
+long	 T_secs = 120;	/*    -T: transfer timeout in seconds */
 int	 t_flag;	/*!   -t: workaround TCP bug */
 int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
 int	 v_tty;		/*        stdout is a tty */
 pid_t	 pgrp;		/*        our process group */
-u_int	 w_secs;	/*    -w: retry delay */
+long	 w_secs;	/*    -w: retry delay */
 int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
 int	 sigalrm;	/* SIGALRM received */
 int	 siginfo;	/* SIGINFO received */
 int	 sigint;	/* SIGINT received */
 
-u_int	 ftp_timeout;	/* default timeout for FTP transfers */
-u_int	 http_timeout;	/* default timeout for HTTP transfers */
+long	 ftp_timeout;	/* default timeout for FTP transfers */
+long	 http_timeout;	/* default timeout for HTTP transfers */
 u_char	*buf;		/* transfer buffer */
 
 
@@ -480,15 +480,13 @@ fetch(char *URL, const char *path)
 				++slash;
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
+			if (tmppath != NULL) {
+				mkstemps(tmppath, strlen(slash) + 1);
+				of = fopen(tmppath, "w");
+			}
 		}
-		
-		if (tmppath != NULL) {
-			mkstemps(tmppath, strlen(slash) + 1);
-			of = fopen(tmppath, "w");
-		} else {
+		if (of == NULL)
 			of = fopen(path, "w");
-		}
-		
 		if (of == NULL) {
 			warn("%s: open()", path);
 			goto failure;
@@ -627,22 +625,6 @@ usage(void)
 }
 
 
-#define PARSENUM(NAME, TYPE)				\
-static int						\
-NAME(const char *s, TYPE *v)				\
-{							\
-        *v = 0;						\
-	for (*v = 0; *s; s++)				\
-		if (isdigit(*s))			\
-			*v = *v * 10 + *s - '0';	\
-		else					\
-			return -1;			\
-	return 0;					\
-}
-
-PARSENUM(parseint, u_int);
-PARSENUM(parseoff, off_t);
-
 /*
  * Entry point
  */
@@ -652,7 +634,7 @@ main(int argc, char *argv[])
 	struct stat sb;
 	struct sigaction sa;
 	const char *p, *s;
-	char *q;
+	char *end, *q;
 	int c, e, r;
 
 	while ((c = getopt(argc, argv,
@@ -674,7 +656,8 @@ main(int argc, char *argv[])
 			a_flag = 1;
 			break;
 		case 'B':
-			if (parseoff(optarg, &B_size) == -1)
+			B_size = (off_t)strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid buffer size (%s)", optarg);
 			break;
 		case 'b':
@@ -734,14 +717,16 @@ main(int argc, char *argv[])
 			r_flag = 1;
 			break;
 		case 'S':
-			if (parseoff(optarg, &S_size) == -1)
+			S_size = (off_t)strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid size (%s)", optarg);
 			break;
 		case 's':
 			s_flag = 1;
 			break;
-		case 'T':
-			if (parseint(optarg, &T_secs) == -1)
+		case 'T':	
+			T_secs = strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid timeout (%s)", optarg);
 			break;
 		case 't':
@@ -756,7 +741,8 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			a_flag = 1;
-			if (parseint(optarg, &w_secs) == -1)
+			w_secs = strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid delay (%s)", optarg);
 			break;
 		default:
@@ -794,14 +780,16 @@ main(int argc, char *argv[])
 
 	/* timeouts */
 	if ((s = getenv("FTP_TIMEOUT")) != NULL) {
-		if (parseint(s, &ftp_timeout) == -1) {
+		ftp_timeout = strtol(s, &end, 10);
+		if (*optarg == '\0' || *end != '\0' || ftp_timeout < 0) {
 			warnx("FTP_TIMEOUT (%s) is not a positive integer",
 			    optarg);
 			ftp_timeout = 0;
 		}
 	}
 	if ((s = getenv("HTTP_TIMEOUT")) != NULL) {
-		if (parseint(s, &http_timeout) == -1) {
+		http_timeout = strtol(s, &end, 10);
+		if (*optarg == '\0' || *end != '\0' || http_timeout < 0) {
 			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
 			    optarg);
 			http_timeout = 0;
@@ -886,7 +874,7 @@ main(int argc, char *argv[])
 			    && fetchLastErrCode != FETCH_RESOLV
 			    && fetchLastErrCode != FETCH_UNKNOWN)) {
 				if (w_secs && v_level)
-					fprintf(stderr, "Waiting %d seconds "
+					fprintf(stderr, "Waiting %ld seconds "
 					    "before retrying\n", w_secs);
 				if (w_secs)
 					sleep(w_secs);
