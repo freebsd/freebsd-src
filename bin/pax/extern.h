@@ -155,6 +155,7 @@ int set_crc(ARCHD *, int);
 int ftree_start(void);
 int ftree_add(char *, int);
 void ftree_sel(ARCHD *);
+void ftree_notsel(void);
 void ftree_chk(void);
 int next_file(ARCHD *);
 

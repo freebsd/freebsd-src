@@ -400,8 +400,10 @@ wr_archive(ARCHD *arcn, int is_app)
 		/*
 		 * check if this file meets user specified options match.
 		 */
-		if (sel_chk(arcn) != 0)
+		if (sel_chk(arcn) != 0) {
+			ftree_notsel();
 			continue;
+		}
 		fd = -1;
 		if (uflag) {
 			/*
@@ -785,8 +787,10 @@ copy(void)
 		/*
 		 * check if this file meets user specified options
 		 */
-		if (sel_chk(arcn) != 0)
+		if (sel_chk(arcn) != 0) {
+			ftree_notsel();
 			continue;
+		}
 
 		/*
 		 * if there is already a file in the destination directory with

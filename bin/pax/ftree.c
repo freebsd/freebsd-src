@@ -214,6 +214,18 @@ ftree_sel(ARCHD *arcn)
 }
 
 /*
+ * ftree_notsel()
+ *	this entry has not been selected by pax.
+ */
+
+void
+ftree_notsel()
+{
+	if (ftent != NULL)
+		(void)fts_set(ftsp, ftent, FTS_SKIP);
+}
+
+/*
  * ftree_chk()
  *	called at end on pax execution. Prints all those file args that did not
  *	have a selected member (reference count still 0)
