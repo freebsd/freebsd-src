@@ -160,6 +160,19 @@ extern void	isa_dma_release __P((int chan));
 extern int	isa_dmastatus __P((int chan));
 extern int	isa_dmastop __P((int chan));
 
+#ifdef PC98
+#include <machine/bus.h>
+
+/*
+ * Allocate discontinuous resources for ISA bus.
+ */
+struct resource *
+isa_alloc_resourcev(device_t child, int type, int *rid,
+		    bus_addr_t *res, bus_size_t count, u_int flags);
+int
+isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count);
+#endif
+
 #endif /* _KERNEL */
 
 #endif /* !_ISA_ISAVAR_H_ */
