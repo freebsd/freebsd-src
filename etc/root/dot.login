@@ -1,9 +1,9 @@
-#	$Id:$
+#	$Id: dot.login,v 1.17 1998/09/13 23:05:47 brian Exp $
 #
 # csh .login file
 #
 
-set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/bin /usr/X11R6/bin $HOME/bin)
+set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin /usr/X11R6/bin $HOME/bin)
 setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
 
 # Interviews settings

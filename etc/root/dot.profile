@@ -1,6 +1,6 @@
-#	$Id: dot.profile,v 1.17 1998/08/31 10:53:06 jkoshy Exp $
+#	$Id: dot.profile,v 1.18 1999/04/27 11:55:02 jkh Exp $
 #
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/X11R6/bin
 export PATH
 HOME=/root
 export HOME
