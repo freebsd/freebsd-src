@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.214 1998/09/04 21:19:37 jb Exp $
+#	$Id: Makefile,v 1.215 1998/09/07 18:10:26 ache Exp $
 #
 # The user-driven targets are:
 #
@@ -15,6 +15,8 @@
 #                       a.out to elf format (see below).
 # aout-to-elf-install - Install everything built by aout-to-elf-build (see
 #                       below).
+# move-aout-libs      - Move the a.out libraries into an aout sub-directory
+#                       of each elf library sub-directory.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the 
@@ -90,9 +92,9 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-TGTS =	all buildworld clean cleandepend cleanobj depend distribute \
-	everything hierarchy includes installmost install installworld \
-	most obj update world afterdistribute
+TGTS =	afterdistribute all buildworld clean cleandepend cleanobj depend \
+	distribute everything includes installmost install installworld \
+	most obj rerelease update world
 
 #
 # Handle the user-driven targets, using the source relative mk files.
@@ -122,7 +124,8 @@ test	:
 # Define the upgrade targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-UPGRADE =	aout-to-elf aout-to-elf-build aout-to-elf-install
+UPGRADE =	aout-to-elf aout-to-elf-build aout-to-elf-install \
+		move-aout-libs
 
 #
 # Handle the upgrade targets, using the source relative mk files.
