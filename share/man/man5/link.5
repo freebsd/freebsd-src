@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: link.5,v 1.3 1996/01/20 07:29:06 mpp Exp $
+.\"	$Id: link.5,v 1.4 1996/01/30 13:51:35 mpp Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -56,7 +56,7 @@ The collection of data structures described here will be referred to as the
 .Em Run-time Relocation Section (RRS)
 and is embedded in the standard text and data segments of the dynamically
 linked program or shared object image as the existing
-.Xr a.out
+.Xr a.out 5
 format offers no room for it elsewhere.
 .Pp
 Several utilities cooperate to ensure that the task of getting a program
@@ -118,7 +118,11 @@ struct	_dynamic {
 .Bl -tag -width d_version
 .It Fa d_version
 This field provides for different versions of the dynamic linking
-implementation. The current version numbers understood by ld and ld.so are
+implementation. The current version numbers understood by
+.Xr ld 1
+and 
+.Xr ld.so 1
+are
 .Em LD_VERSION_SUN (3),
 which is used by the SunOS 4.x releases, and
 .Em LD_VERSION_BSD (8),
@@ -160,7 +164,7 @@ struct section_dispatch_table {
 .Bl -tag -width sdt_filler1
 .It Fa sdt_loaded
 A pointer to the first link map loaded (see below). This field is set by
-.Xr ld.so.
+.Nm ld.so
 .It Fa sdt_sods
 The start of a (linked) list of shared object descriptors needed by
 .Em this
@@ -231,7 +235,9 @@ The offset in the text segment of a string describing this link object.
 .It Fa sod_library
 If set,
 .Fa sod_name
-specifies a library that is to be searched for by ld.so. The path name
+specifies a library that is to be searched for by 
+.Nm ld.so .
+The path name
 is obtained by searching a set of directories
 .Po
 see also
@@ -316,7 +322,7 @@ struct nzlist {
 .It Fa nlist
 .Po
 see
-.Xr nlist 5
+.Xr nlist 3
 .Pc .
 .It Fa nz_size
 The size of the data represented by this symbol.
@@ -372,7 +378,8 @@ The symbol description.
 .It Fa rt_next
 Virtual address of next rt_symbol.
 .It Fa rt_link
-Next in hash bucket. Used by internally by ld.so.
+Next in hash bucket. Used by internally by
+.Nm ld.so .
 .It Fa rt_srcaddr
 Location of the source of initialized data within a shared object.
 .It Fa rt_smp
@@ -429,9 +436,11 @@ may be interested in.
 .Pp
 The
 .Em ld_entry
-structure defines a set of service routines within ld.so. See
-.Xr libdl.a
-for more information.
+structure defines a set of service routines within
+.Nm ld.so .
+.\" See
+.\" .Xr libdl.a
+.\" for more information.
 .Bd -literal -offset indent
 struct ld_entry {
 	void	*(*dlopen)(char *, int);
@@ -443,7 +452,8 @@ struct ld_entry {
 
 The
 .Fa crt_ldso
-structure defines the interface between the start-up code in crt0 and ld.so.
+structure defines the interface between the start-up code in crt0 and
+.Nm ld.so .
 .Bd -literal -offset indent
 struct crt_ldso {
 	int		crt_ba;
@@ -463,13 +473,16 @@ struct crt_ldso {
 .Ed
 .Bl -tag -width crt_dzfd
 .It Fa crt_ba
-The virtual address at which ld.so was loaded by crt0.
+The virtual address at which
+.Nm ld.so
+was loaded by crt0.
 .It Fa crt_dzfd
 On SunOS systems, this field contains an open file descriptor to
-.Dq /dev/zero
+.Dq Pa /dev/zero
 used to get demand paged zeroed pages. On FreeBSD systems it contains -1.
 .It Fa crt_ldfd
-Contains an open file descriptor that was used by crt0 to load ld.so.
+Contains an open file descriptor that was used by crt0 to load
+.Nm ld.so .
 .It Fa crt_dp
 A pointer to main's
 .Fa _dynamic
@@ -492,8 +505,10 @@ The
 and
 .Fa hints_bucket
 structures define the layout of the library hints, normally found in
-.Dq /var/run/ld.so.hints,
-which is used by ld.so to quickly locate the shared object images in the
+.Dq Pa /var/run/ld.so.hints ,
+which is used by 
+.Nm ld.so
+to quickly locate the shared object images in the
 filesystem.
 The organization of the hints file is not unlike that of an
 .Dq a.out

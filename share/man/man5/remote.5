@@ -46,7 +46,7 @@ file which
 is structured somewhat like the
 .Xr termcap 5
 file.  Each line in the file provides a description for a single
-.Xr system .
+.Em system .
 Fields are separated by a colon (``:'').
 Lines ending in a \e character with an immediately following newline are
 continued on the next line.
@@ -59,17 +59,17 @@ name followed by a `#' sign indicates a following numeric value.
 .Pp
 Entries named ``tip*'' and ``cu*''
 are used as default entries by 
-.Xr tip ,
+.Xr tip 1 ,
 and the
-.Xr cu
+.Xr cu 1
 interface to 
-.Xr tip ,
+.Nm tip ,
 as follows.  When
-.Xr tip
+.Nm tip
 is invoked with only a phone number, it looks for an entry
 of the form ``tip300'', where 300 is the baud rate with
 which the connection is to be made.  When the
-.Xr cu
+.Nm cu
 interface is used, entries of the form ``cu300'' are used.
 .Sh CAPABILITIES
 Capabilities are either strings (str), numbers (num), or boolean
@@ -122,7 +122,7 @@ The default is
 .Dv NULL . 
 `~' escapes are only
 recognized by
-.Xr tip
+.Nm tip
 after one of the characters in `el',
 or after a carriage-return.
 .It Cm \&fs
@@ -145,7 +145,7 @@ Output end-of-file string.
 The default is
 .Dv NULL . 
 When 
-.Xr tip
+.Nm tip
 is transferring a file, this
 string is sent at end-of-file.
 .It Cm \&pa
@@ -160,7 +160,7 @@ is even parity.
 Telephone number(s) for this host.
 If the telephone number field contains
 an @ sign, 
-.Xr tip
+.Nm tip
 searches the file
 .Pa /etc/phones
 file for a list of telephone numbers;

@@ -54,7 +54,8 @@ The size of the block units used by several commands, most notably
 .Xr du 1
 and
 .Xr ls 1 .
-BLOCKSIZE may be specified in units of a byte by specifying a number, 
+.Ev BLOCKSIZE 
+may be specified in units of a byte by specifying a number, 
 in units of a kilobyte by specifying a number followed by ``K'' or
 ``k'', in units of a megabyte by specifying a number followed by ``M''
 or ``m'' and in units of a gigabyte by specifying a number followed
@@ -72,9 +73,9 @@ A user's login directory, set by
 from the password file
 .Xr passwd  5  .
 .It Ev LANG
-This variable configure all programs which use
+This variable configures all programs which use
 .Xr setlocale 3
-to specified locale.
+to use the specified locale.
 .It Ev PATH
 The sequence of directories, separated by colons, searched by
 .Xr csh  1  ,
@@ -82,7 +83,8 @@ The sequence of directories, separated by colons, searched by
 .Xr system  3  ,
 .Xr execvp  3 ,
 etc, when looking for an executable file.
-PATH is set to ``/usr/bin:/bin'' initially by
+.Ev PATH 
+is set to ``/usr/bin:/bin'' initially by
 .Xr login  1  .
 .It Ev PRINTER
 The name of the default printer to be used by
@@ -103,7 +105,9 @@ which may exploit special terminal capabilities.  See
 .Pq Xr termcap 5
 for a list of terminal types.
 .It Ev TERMCAP
-The string describing the terminal in TERM, or, if
+The string describing the terminal in
+.Ev TERM , 
+or, if
 it begins with a '/', the name of the termcap file.
 See
 .Ev TERMPATH
@@ -134,7 +138,7 @@ Setting this variable will make them use another directory.
 .It Ev TZ
 The timezone to use when displaying dates.
 The normal format is a pathname relative to
-.Dq /usr/share/zoneinfo .
+.Dq Pa /usr/share/zoneinfo .
 For example, the command
 .Dq env TZ=US/Pacific date
 displays the current time in California.

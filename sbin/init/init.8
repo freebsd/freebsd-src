@@ -133,14 +133,14 @@ processes for the terminal ports found in the file
 reads this file, and executes the command found in the second field.
 This command is usually
 .Xr getty 8 ;
-.Xr getty
+.Nm getty
 opens and initializes the tty line
 and
 executes the
-.Xr login
+.Xr login 1
 program.
 The
-.Xr login
+.Nm login
 program, when a valid user logs in,
 executes a shell for that user.  When this shell
 dies, either because the user logged out
@@ -151,18 +151,18 @@ program wakes up, deletes the user
 from the
 .Xr utmp 5
 file of current users and records the logout in the
-.Xr wtmp
+.Xr wtmp 5
 file.
 The cycle is
 then restarted by
 .Nm init
 executing a new
-.Xr getty
+.Nm getty
 for the line.
 .Pp
 Line status (on, off, secure, getty, or window information)
 may be changed in the
-.Xr ttys
+.Xr ttys 5
 file without a reboot by sending the signal
 .Dv SIGHUP
 to
@@ -172,19 +172,19 @@ with the command
 On receipt of this signal,
 .Nm init
 re-reads the
-.Xr ttys
+.Xr ttys 5
 file.
 When a line is turned off in
-.Xr ttys ,
+.Xr ttys 5 ,
 .Nm init
 will send a SIGHUP signal to the controlling process
 for the session associated with the line.
 For any lines that were previously turned off in the
-.Xr ttys
+.Xr ttys 5
 file and are now on,
 .Nm init
 executes a new
-.Xr getty
+.Nm getty
 to enable a new login.
 If the getty or window field for a line is changed,
 the change takes effect at the end of the current
@@ -192,14 +192,14 @@ login session (e.g., the next time
 .Nm init
 starts a process on the line).
 If a line is commented out or deleted from
-.Xr ttys ,
+.Xr ttys 5 ,
 .Nm init
 will not do anything at all to that line.
 However, it will complain that the relationship between lines
 in the
-.Xr ttys
+.Xr ttys 5
 file and records in the
-.Xr utmp
+.Xr utmp 5
 file is out of sync,
 so this practice is not recommended.
 .Pp
@@ -211,13 +211,13 @@ signal, for example,
 .Dq Li "kill \-TERM 1" .
 If there are processes outstanding that are deadlocked (because of
 hardware or software failure),
-.Xr init
+.Nm init
 will not wait for them all to die (which might take forever), but
 will time out after 30 seconds and print a warning message.
 .Pp
 .Nm Init
 will cease creating new
-.Xr getty Ns 's
+.Nm getty Ns 's
 and allow the system to slowly die away, if it is sent a terminal stop
 .Pq Dv TSTP
 signal, i.e.
@@ -243,7 +243,7 @@ The role of
 is so critical that if it dies, the system will reboot itself
 automatically.
 If, at bootstrap time, the
-.Xr init
+.Nm init
 process cannot be located, the system will panic with the message
 ``panic: "init died (signal %d, exit %d)''.
 .Sh DIAGNOSTICS
@@ -268,7 +268,7 @@ a persistent device error condition.
 System console device.
 .It Pa /dev/tty*
 Terminal ports found in
-.Xr ttys .
+.Xr ttys 5 .
 .It Pa /var/run/utmp
 Record of Current users on the system.
 .It Pa /var/log/wtmp
