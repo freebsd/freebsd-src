@@ -317,7 +317,6 @@ _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
-_ray=		ray
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
@@ -379,6 +378,7 @@ _sppp=		sppp
 
 .if ${MACHINE_ARCH} == "amd64"
 _aac=		aac
+#_acpi=		acpi		# doesn't work on amd64 yet
 _agp=		agp
 _ciss=		ciss
 _drm=		drm
@@ -404,6 +404,7 @@ _twa=		twa
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
 #	nsp oltr pecoff s3 sbni stg vesa
+# acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
 _ar=		ar
 _arcnet=	arcnet
@@ -423,7 +424,6 @@ _hfa=		hfa
 _iir=		iir
 _mly=		mly
 _pccard=	pccard
-_ray=		ray
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
