@@ -38,7 +38,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.16.2.2 1999/05/22 13:03:28 rnordier Exp $
+.\" $Id: boot_i386.8,v 1.16.2.3 1999/06/26 22:09:21 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -194,9 +194,16 @@ you can use the
 option to force the kernel to use the serial port as its 
 console device.  Alternatively, if you boot from the serial port, 
 you can use this option to force the kernel to use the internal display 
-as the console instead.  This option has no effect if the kernel was
-compiled with
-.Em options COMCONSOLE .
+as the console instead.  
+The serial port driver
+.Xr sio 4
+has a flag to override this option.
+If that flag is set, the serial port will always be used as the console,
+regardless of the
+.Fl h
+option described here.  See the man page for
+.Xr sio 4 
+for more details.
 .It Fl P
 probe the keyboard.  If no keyboard is found, the
 .Fl D
