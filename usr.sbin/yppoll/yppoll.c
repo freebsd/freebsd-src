@@ -29,24 +29,28 @@
  */
 
 #ifndef lint
-static char rcsid[] = "yppoll.c,v 1.2 1993/08/02 17:57:20 mycroft Exp";
+static const char rcsid[] =
+	"$Id: yppoll.c,v 1.3 1997/10/27 12:30:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\typpoll [-h host] [-d domainname] mapname\n");
+	fprintf(stderr, "usage: yppoll [-h host] [-d domainname] mapname\n");
 	exit(1);
 }
 
@@ -58,8 +62,6 @@ char **argv;
         char *hostname = "localhost";
         char *inmap, *master;
         int order;
-	extern char *optarg;
-	extern int optind;
 	int c, r;
 
         yp_get_default_domain(&domainname);
@@ -83,18 +85,13 @@ char **argv;
 	inmap = argv[optind];
 
 	r = yp_order(domainname, inmap, &order);
-        if (r != 0) {
-		fprintf(stderr, "No such map %s. Reason: %s\n",
-			inmap, yperr_string(r));
-                exit(1);
-	}
-        printf("Map %s has order number %d. %s", inmap, order, ctime((time_t *)&order));
+        if (r != 0)
+		errx(1, "no such map %s. Reason: %s", inmap, yperr_string(r));
+        printf("Map %s has order number %d. %s", inmap, order,
+			ctime((time_t *)&order));
 	r = yp_master(domainname, inmap, &master);
-        if (r != 0) {
-		fprintf(stderr, "No such map %s. Reason: %s\n",
-			inmap, yperr_string(r));
-                exit(1);
-	}
+        if (r != 0)
+		errx(1, "no such map %s. Reason: %s", inmap, yperr_string(r));
         printf("The master server is %s.\n", master);
 
         exit(0);
