@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dumpcis.c,v 1.5.2.1 1997/10/08 07:33:23 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -37,7 +37,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 #include "readcis.h"
 
