@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.4 1994/02/25 21:46:07 phk Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5 1995/05/30 05:02:35 rgrimes Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.5  1995/05/30  05:02:35  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.4  1994/02/25  21:46:07  phk
  * added the -C/-check again.
  *
@@ -355,12 +358,12 @@ intuit_diff_type()
 	    else
 		filearg[0] = savestr(newname);
 	}
+	else if (indname)
+	    filearg[0] = savestr(indname);
 	else if (oldname)
 	    filearg[0] = savestr(oldname);
 	else if (newname)
 	    filearg[0] = savestr(newname);
-	else if (indname)
-	    filearg[0] = savestr(indname);
     }
     if (bestguess) {
 	free(bestguess);
