@@ -272,9 +272,33 @@ options 	USER_LDT		#allow user-level control of i386 ldt
 # Definition-style interprocess communication, in the form of shared
 # memory, semaphores, and message queues, respectively.
 #
-options 	SYSVSHM
-options 	SYSVSEM
-options 	SYSVMSG
+# System V shared memory and tunable parameters
+options 	SYSVSHM		# include support for shared memory
+options 	SHMMAXPGS=1025	# max amount of shared memory pages (4k on i386)
+options 	SHMALL=1025	# max amount of shared memory (bytes)
+options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
+				# max shared memory segment size (bytes)
+options 	SHMMIN=2	# min shared memory segment size (bytes)
+options 	SHMMNI=33	# max number of shared memory identifiers
+options 	SHMSEG=9	# max shared memory segments per process
+
+# System V semaphores and tunable parameters
+options 	SYSVSEM		# include support for semaphores
+options 	SEMMAP=31	# amount of entries in semaphore map
+options 	SEMMNI=11	# number of semaphore identifiers in the system
+options 	SEMMNS=61	# number of semaphores in the system
+options 	SEMMNU=31	# number of undo structures in the system
+options 	SEMMSL=61	# max number of semaphores per id
+options 	SEMOPM=101	# max number of operations per semop call
+options 	SEMUME=11	# max number of undo entries per process
+
+# System V message queues and tunable parameters
+options 	SYSVMSG		# include support for message queues
+options 	MSGMNB=2049	# max characters per message
+options 	MSGMNI=41	# max number of message queue identifiers
+options 	MSGSEG=2049	# max number of message segments in the system
+options 	MSGSSZ=16	# size of a message segment MUST be power of 2
+options 	MSGTQL=41	# max amount of messages in the system
 
 
 #####################################################################
@@ -2415,11 +2439,6 @@ options 	KBD_RESETDELAY=201
 options 	KEY
 options 	LOCKF_DEBUG
 options 	LOUTB
-options 	MSGMNB=2049
-options 	MSGMNI=41
-options 	MSGSEG=2049
-options 	MSGSSZ=16
-options 	MSGTQL=41
 options 	NBUF=512
 options 	NETATALKDEBUG
 options 	NMBCLUSTERS=1024
@@ -2435,19 +2454,6 @@ options 	SCSI_NCR_MAX_WIDE=1
 options 	SCSI_NCR_MYADDR=7
 options 	SC_DEBUG_LEVEL
 options 	SC_RENDER_DEBUG
-options 	SEMMAP=31
-options 	SEMMNI=11
-options 	SEMMNS=61
-options 	SEMMNU=31
-options 	SEMMSL=61
-options 	SEMOPM=101
-options 	SEMUME=11
-options 	SHMALL=1025
-options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
-options 	SHMMAXPGS=1025
-options 	SHMMIN=2
-options 	SHMMNI=33
-options 	SHMSEG=9
 options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SIMPLELOCK_DEBUG
 options 	SI_DEBUG
