@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.3 1993/10/10 02:09:44 rgrimes Exp $
+ *	$Id: genassym.c,v 1.4 1993/10/12 15:33:18 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -141,7 +141,6 @@ main()
 	printf("#define\tPCB_LDT %d\n", &pcb->pcb_tss.tss_ldt);
 	printf("#define\tPCB_USERLDT %d\n", &pcb->pcb_ldt);
 	printf("#define\tPCB_IOOPT %d\n", &pcb->pcb_tss.tss_ioopt);
-	printf("#define\tNKMEMCLUSTERS %d\n", NKMEMCLUSTERS);
 	printf("#define\tU_PROF %d\n", &up->u_stats.p_prof);
 	printf("#define\tU_PROFSCALE %d\n", &up->u_stats.p_prof.pr_scale);
 	printf("#define\tPR_BASE %d\n", &uprof->pr_base);

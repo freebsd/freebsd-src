@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.6 1993/10/10 06:07:57 rgrimes Exp $
+ *	$Id: locore.s,v 1.7 1993/10/13 07:11:11 rgrimes Exp $
  */
 
 
@@ -121,9 +121,9 @@
 	.globl	_PTmap,_PTD,_PTDpde,_Sysmap
 	.set	_PTmap,PTDPTDI << PDRSHIFT
 	.set	_PTD,_PTmap + (PTDPTDI * NBPG)
-	.set	_PTDpde,_PTD + (PTDPTDI * 4)		/* XXX 4=sizeof pte */
+	.set	_PTDpde,_PTD + (PTDPTDI * 4)		/* XXX 4=sizeof pde */
 
-	.set	_Sysmap,0xFDFF8000
+	.set	_Sysmap,_PTmap + (KPTDI * NBPG)
 
 /*
  * APTmap, APTD is the alternate recursive pagemap.
@@ -132,7 +132,7 @@
 	.globl	_APTmap,_APTD,_APTDpde
 	.set	_APTmap,APTDPTDI << PDRSHIFT
 	.set	_APTD,_APTmap + (APTDPTDI * NBPG)
-	.set	_APTDpde,_PTD + (APTDPTDI * 4)		/* XXX 4=sizeof pte */
+	.set	_APTDpde,_PTD + (APTDPTDI * 4)		/* XXX 4=sizeof pde */
 
 /*
  * Access to each processes kernel stack is via a region of
@@ -240,37 +240,6 @@ ENTRY(btext)
 	 */
 	movl	$tmpstk-KERNBASE,%esp	/* bootstrap stack end location */
 
-#ifdef garbage
-	/* count up memory */
-
-	xorl	%eax,%eax		/* start with base memory at 0x0 */
-	#movl	$0xA0000/NBPG,%ecx	/* look every 4K up to 640K */
-	movl	$0xA0,%ecx		/* look every 4K up to 640K */
-1:	movl	(%eax),%ebx		/* save location to check */
-	movl	$0xa55a5aa5,(%eax)	/* write test pattern */
-	/* flush stupid cache here! (with bcopy(0,0,512*1024) ) */
-	cmpl	$0xa55a5aa5,(%eax)	/* does not check yet for rollover */
-	jne	2f
-	movl	%ebx,(%eax)		/* restore memory */
-	addl	$NBPG,%eax
-	loop	1b
-2:	shrl	$12,%eax
-	movl	%eax,_Maxmem-KERNBASE
-
-	movl	$0x100000,%eax		/* next, talley remaining memory */
-	#movl	$((0xFFF000-0x100000)/NBPG),%ecx
-	movl	$(0xFFF-0x100),%ecx
-1:	movl	(%eax),%ebx		/* save location to check */
-	movl	$0xa55a5aa5,(%eax)	/* write test pattern */
-	cmpl	$0xa55a5aa5,(%eax)	/* does not check yet for rollover */
-	jne	2f
-	movl	%ebx,(%eax)		/* restore memory */
-	addl	$NBPG,%eax
-	loop	1b
-2:	shrl	$12,%eax
-	movl	%eax,_Maxmem-KERNBASE
-#endif
-
 /*
  * Virtual address space of kernel:
  *
@@ -293,6 +262,27 @@ ENTRY(btext)
 	cld
 	rep
 	stosb
+
+/*
+ * If we are loaded at 0x0 check to see if we have space for the
+ * page tables pages after the kernel and before the 640K ISA memory
+ * hole.  If we do not have space relocate the page table pages and
+ * the kernel stack to start at 1MB.  The value that ends up in esi
+ * is used by the rest of locore to build the tables.  Locore adjusts
+ * esi each time it allocates a structure and then passes the final
+ * value to init386(first) as the value first.  esi should ALWAYS
+ * be page aligned!!
+ */
+	movl	%esi,%ecx	/* Get current first availiable address */
+	cmpl	$0x100000,%ecx	/* Lets see if we are already above 1MB */
+	jge	1f		/* yep, don't need to check for room */
+	addl	$(NKPDE + 4) * NBPG,%ecx	/* XXX the 4 is for kstack */
+				/* space for kstack, PTD and PTE's */
+	cmpl	$(640*1024),%ecx
+				/* see if it fits in low memory */
+	jle	1f		/* yep, don't need to relocate it */
+	movl	$0x100000,%esi	/* won't fit, so start it at 1MB */
+1:
 
 /* physical address of Idle Address space */
 	movl	%esi,_IdlePTD-KERNBASE
@@ -456,9 +446,6 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	movl	_proc0paddr,%eax
 	movl	%esi,PCB_CR3(%eax)
 
-	lea	7*NBPG(%esi),%esi	/* skip past stack. */
-	pushl	%esi
-
 	/* relocate debugger gdt entries */
 
 	movl	$_gdt+8*9,%eax		/* adjust slots 9-17 */
@@ -473,6 +460,13 @@ reloc_gdt:
 	int	$3
 1:
 
+	/*
+	 * Skip over the page tables and the kernel stack
+	 * XXX 4 is kstack size
+	 */
+	lea	(NKPDE + 4) * NBPG(%esi),%esi
+
+	pushl	%esi			/* value of first for init386(first) */
 	call	_init386		/* wire 386 chip for unix operation */
 
 	movl	$0,_PTD
@@ -1663,7 +1657,7 @@ ENTRY(swtch)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 
-#ifdef NPX
+#if NNPX > 0
 	/* have we used fp, and need a save? */
 	mov	_curproc,%eax
 	cmp	%eax,_npxproc
@@ -1675,7 +1669,7 @@ ENTRY(swtch)
 	popl	%eax
 	popl	%ecx
 1:
-#endif
+#endif	/* NNPX > 0 */
 
 	movl	_CMAP2,%eax		/* save temporary map PTE */
 	movl	%eax,PCB_CMAP2(%ecx)	/* in our context */
@@ -1810,7 +1804,7 @@ ENTRY(savectx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 
-#ifdef NPX
+#if NNPX > 0
 	/*
 	 * If npxproc == NULL, then the npx h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
@@ -1846,7 +1840,7 @@ ENTRY(savectx)
 	addl	$12,%esp
 	popl	%ecx
 1:
-#endif
+#endif	/* NNPX > 0 */
 
 	movl	_CMAP2,%edx		/* save temporary map PTE */
 	movl	%edx,PCB_CMAP2(%ecx)	/* in our context */
@@ -1975,7 +1969,7 @@ IDTVEC(page)
 IDTVEC(rsvd)
 	pushl $0; TRAP(T_RESERVED)
 IDTVEC(fpu)
-#ifdef NPX
+#if NNPX > 0
 	/*
 	 * Handle like an interrupt so that we can call npxintr to clear the
 	 * error.  It would be better to handle npx interrupts as traps but
@@ -1997,9 +1991,9 @@ IDTVEC(fpu)
 	incl	_cnt+V_TRAP
 	call	_npxintr
 	jmp	doreti
-#else
+#else	/* NNPX > 0 */
 	pushl $0; TRAP(T_ARITHTRAP)
-#endif
+#endif	/* NNPX > 0 */
 	/* 17 - 31 reserved for future exp */
 IDTVEC(rsvd0)
 	pushl $0; TRAP(17)
