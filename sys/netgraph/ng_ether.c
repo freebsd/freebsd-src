@@ -67,18 +67,7 @@
 #define IFP2AC(IFP)  ((struct arpcom *)IFP)
 #define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
 
-/* Per-node private data */
-struct private {
-	struct ifnet	*ifp;		/* associated interface */
-	hook_p		upper;		/* upper hook connection */
-	hook_p		lower;		/* lower OR orphan hook connection */
-	u_char		lowerOrphan;	/* whether lower is lower or orphan */
-	u_char		autoSrcAddr;	/* always overwrite source address */
-	u_char		promisc;	/* promiscuous mode enabled */
-	u_long		hwassist;	/* hardware checksum capabilities */
-	u_int		flags;		/* flags e.g. really die */
-};
-typedef struct private *priv_p;
+typedef struct ng_ether_private *priv_p;
 
 /* Hook pointers used by if_ethersubr.c to callback to netgraph */
 extern	void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
