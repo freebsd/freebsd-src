@@ -211,6 +211,14 @@
 #define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #endif
 
+#ifndef	__FBSDID
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#define	__FBSDID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
+#else
+#define	__FBSDID(s)
+#endif
+#endif
+
 #ifndef	__RCSID_SOURCE
 #define	__RCSID_SOURCE(s)	__IDSTRING(__CONCAT(__rcsid_source_,__LINE__),s)
 #endif
