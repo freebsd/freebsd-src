@@ -41,6 +41,12 @@ This list is not guaranteed to be complete.
   characters then no header check is done even if one is configured for
   the header.
 
+* Header lines which are too long will be split incorrectly.
+
+  Header lines which are longer than 2045 characters will be split
+  but some characters might be lost.  Fix: obey RFC (2)822 and do not
+  send lines that are longer than 1000 characters.
+
 * Sender addresses whose domain part cause a temporary A record lookup
   failure but have a valid MX record will be temporarily rejected in
   the default configuration.  Solution: fix the DNS at the sender side.
@@ -241,4 +247,4 @@ Kresolve sequence dnsmx canon
   be used if set instead of LOCAL_RELAY ($R).  This will be fixed in a
   future version.
 
-$Revision: 8.56 $, Last updated $Date: 2002/12/18 22:39:06 $
+$Revision: 8.57 $, Last updated $Date: 2004/12/02 23:39:01 $

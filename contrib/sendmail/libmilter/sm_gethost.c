@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001, 2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,12 +9,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sm_gethost.c,v 8.26 2001/09/11 04:04:45 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sm_gethost.c,v 8.27 2004/08/20 21:12:37 ca Exp $")
 
 #include <sendmail.h>
 #if NETINET || NETINET6
 # include <arpa/inet.h>
 #endif /* NETINET || NETINET6 */
+#include "libmilter.h"
 
 /*
 **  MI_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
@@ -28,6 +29,8 @@ SM_RCSID("@(#)$Id: sm_gethost.c,v 8.26 2001/09/11 04:04:45 gshapiro Exp $")
 */
 
 #if NETINET6 && NEEDSGETIPNODE
+
+static struct hostent *getipnodebyname __P((char *, int, int, int *));
 
 # ifndef AI_ADDRCONFIG
 #  define AI_ADDRCONFIG	0	/* dummy */

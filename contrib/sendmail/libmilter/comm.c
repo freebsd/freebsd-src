@@ -9,12 +9,13 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.65 2004/07/07 21:41:30 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.66 2004/08/20 20:38:35 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
 #include <sys/uio.h>
 
+static ssize_t	retry_writev __P((socket_t, struct iovec *, int, struct timeval *));
 static size_t Maxdatasize = MILTER_MAX_DATA_SIZE;
 
 #if _FFR_MAXDATASIZE

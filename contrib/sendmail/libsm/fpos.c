@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fpos.c,v 1.37 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: fpos.c,v 1.38 2004/08/03 20:17:38 ca Exp $")
 #include <errno.h>
 #include <setjmp.h>
 #include <sys/time.h>
@@ -24,6 +24,7 @@ SM_RCSID("@(#)$Id: fpos.c,v 1.37 2001/09/11 04:04:48 gshapiro Exp $")
 #include <sm/assert.h>
 #include "local.h"
 
+static void	tellalrm __P((int));
 static jmp_buf TellTimeOut;
 
 /*

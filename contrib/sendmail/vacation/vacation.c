@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.141 2002/11/01 16:49:40 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.142 2004/11/02 18:25:33 ca Exp $")
 
 
 #include <ctype.h>
@@ -78,6 +78,7 @@ ALIAS *Names = NULL;
 SMDB_DATABASE *Db;
 
 char From[MAXLINE];
+bool CloseMBDB = false;
 
 #if defined(__hpux) || defined(__osf__)
 # ifndef SM_CONF_SYSLOG_INT
@@ -100,17 +101,27 @@ static void eatmsg __P((void));
 static void listdb __P((void));
 
 /* exit after reading input */
-#define EXITIT(excode) \
-{ \
-	eatmsg(); \
-	return excode; \
+#define EXITIT(excode)			\
+{					\
+	eatmsg();			\
+	if (CloseMBDB)			\
+	{				\
+		sm_mbdb_terminate();	\
+		CloseMBDB = false;	\
+	}				\
+	return excode;			\
 }
 
-#define EXITM(excode) \
-{ \
-	if (!initdb && !list) \
-		eatmsg(); \
-	exit(excode); \
+#define EXITM(excode)			\
+{					\
+	if (!initdb && !list)		\
+		eatmsg();		\
+	if (CloseMBDB)			\
+	{				\
+		sm_mbdb_terminate();	\
+		CloseMBDB = false;	\
+	}				\
+	exit(excode);			\
 }
 
 int
@@ -330,6 +341,7 @@ main(argc, argv)
 			       sm_strexit(err));
 			EXITM(err);
 		}
+		CloseMBDB = true;
 		err = sm_mbdb_lookup(*argv, &user);
 		if (err == EX_NOUSER)
 		{
