@@ -2143,8 +2143,10 @@ bge_tick(xsc)
 
 	bge_stats_update(sc);
 	sc->bge_stat_ch = timeout(bge_tick, sc, hz);
-	if (sc->bge_link)
+	if (sc->bge_link) {
+		splx(s);
 		return;
+	}
 
 	if (sc->bge_tbi) {
 		ifm = &sc->bge_ifmedia;
@@ -2156,6 +2158,7 @@ bge_tick(xsc)
 			if (ifp->if_snd.ifq_head != NULL)
 				bge_start(ifp);
 		}
+		splx(s);
 		return;
 	}
 
