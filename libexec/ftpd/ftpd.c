@@ -1635,7 +1635,14 @@ retrieve(cmd, name)
 			goto done;
 		}
 		if (!S_ISREG(st.st_mode)) {
-			if (guest) {
+			/*
+			 * Never sending a raw directory is a workaround
+			 * for buggy clients that will attempt to RETR
+			 * a directory before listing it, e.g., Mozilla.
+			 * Preventing a guest from getting irregular files
+			 * is a simple security measure.
+			 */
+			if (S_ISDIR(st.st_mode) || guest) {
 				reply(550, "%s: not a plain file.", name);
 				goto done;
 			}
@@ -2461,6 +2468,10 @@ delete(name)
 		}
 		goto done;
 	}
+	if (guest && noguestmod) {
+		reply(550, "Operation not permitted");
+		return;
+	}
 	if (unlink(name) < 0) {
 		perror_reply(550, name);
 		return;
@@ -2532,9 +2543,13 @@ renamefrom(name)
 {
 	struct stat st;
 
+	if (guest && noguestmod) {
+		reply(550, "Operation not permitted");
+		return (NULL);
+	}
 	if (lstat(name, &st) < 0) {
 		perror_reply(550, name);
-		return ((char *)0);
+		return (NULL);
 	}
 	reply(350, "File exists, ready for destination name");
 	return (name);
