@@ -336,6 +336,7 @@ nopgrp:
 			kp->ki_swtime = proc.p_swtime;
 			kp->ki_flag = proc.p_flag;
 			kp->ki_sflag = proc.p_sflag;
+			kp->ki_nice = proc.p_nice;
 			kp->ki_traceflag = proc.p_traceflag;
 			if (proc.p_state == PRS_NORMAL) { 
 				if (TD_ON_RUNQ(&mtd) ||
@@ -370,7 +371,6 @@ nopgrp:
 				kp->ki_slptime = mkg.kg_slptime;
 				kp->ki_pri.pri_class = mkg.kg_pri_class;
 				kp->ki_pri.pri_user = mkg.kg_user_pri;
-				kp->ki_nice = mkg.kg_nice;
 				kp->ki_estcpu = mkg.kg_estcpu;
 
 				/* Stuff from the kse */
