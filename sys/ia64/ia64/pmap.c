@@ -473,7 +473,7 @@ pmap_bootstrap()
 	 * the pv allocator. We need to have enough to cover mapping
 	 * the kmem_alloc region used to allocate the initial_pvs in
 	 * pmap_init. In general, the size of this region is
-	 * appoximately (# physical pages) * (size of pv entry).
+	 * approximately (# physical pages) * (size of pv entry).
 	 */
 	pvbootmax = ((physmem * sizeof(struct pv_entry)) >> PAGE_SHIFT) + 128;
 	pvbootentries = (struct pv_entry *)
