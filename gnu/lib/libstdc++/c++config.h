@@ -104,7 +104,7 @@ libstdc++-v3/include/bits/c++config before full recompilation of the library.
 #define _GLIBCPP_USE_C99 1
 
 // Define if code specialized for wchar_t should be used.
-/* #undef _GLIBCPP_USE_WCHAR_T */
+#define _GLIBCPP_USE_WCHAR_T 1
 
 // Define if using setrlimit to limit memory usage during 'make check'.
 /* #undef _GLIBCPP_MEM_LIMITS */
