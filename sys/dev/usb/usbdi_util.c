@@ -222,6 +222,25 @@ usbd_set_port_feature(usbd_device_handle dev, int port, int sel)
 	return (usbd_do_request(dev, &req, 0));
 }
 
+usbd_status
+usbd_get_protocol(usbd_interface_handle iface, u_int8_t *report)
+{
+	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
+	usbd_device_handle dev;
+	usb_device_request_t req;
+
+	DPRINTFN(4, ("usbd_get_protocol: iface=%p, endpt=%d\n",
+		     iface, id->bInterfaceNumber));
+	if (id == NULL)
+		return (USBD_IOERROR);
+	usbd_interface2device_handle(iface, &dev);
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	req.bRequest = UR_GET_PROTOCOL;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, id->bInterfaceNumber);
+	USETW(req.wLength, 1);
+	return (usbd_do_request(dev, &req, report));
+}
 
 usbd_status
 usbd_set_protocol(usbd_interface_handle iface, int report)
@@ -291,8 +310,8 @@ usbd_get_report(usbd_interface_handle iface, int type, int id, void *data,
 	usbd_device_handle dev;
 	usb_device_request_t req;
 
-	DPRINTFN(4, ("usbd_set_report: len=%d\n", len));
-	if (id == 0)
+	DPRINTFN(4, ("usbd_get_report: len=%d\n", len));
+	if (ifd == NULL)
 		return (USBD_IOERROR);
 	usbd_interface2device_handle(iface, &dev);
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
@@ -346,7 +365,7 @@ usbd_get_hid_descriptor(usbd_interface_handle ifc)
 	char *p, *end;
 
 	if (idesc == NULL)
-		return (0);
+		return (NULL);
 	usbd_interface2device_handle(ifc, &dev);
 	cdesc = usbd_get_config_descriptor(dev);
 
@@ -360,7 +379,7 @@ usbd_get_hid_descriptor(usbd_interface_handle ifc)
 		if (hd->bDescriptorType == UDESC_INTERFACE)
 			break;
 	}
-	return (0);
+	return (NULL);
 }
 
 usbd_status
@@ -432,7 +451,7 @@ usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 		splx(s);
 		return (err);
 	}
-	error = tsleep(xfer, PZERO | PCATCH, lbl, 0);
+	error = tsleep((caddr_t)xfer, PZERO | PCATCH, lbl, 0);
 	splx(s);
 	if (error) {
 		DPRINTF(("usbd_bulk_transfer: tsleep=%d\n", error));
@@ -505,4 +524,21 @@ usb_detach_wakeup(device_ptr_t dv)
 {
 	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVPTRNAME(dv)));
 	wakeup(dv);
+}
+
+const usb_descriptor_t *
+usb_find_desc(usbd_device_handle dev, int type, int subtype)
+{
+	usbd_desc_iter_t iter;
+	const usb_descriptor_t *desc;
+
+	usb_desc_iter_init(dev, &iter);
+	for (;;) {
+		desc = usb_desc_iter_next(&iter);
+		if (!desc || (desc->bDescriptorType == type &&
+			      (subtype == USBD_SUBTYPE_ANY ||
+			       subtype == desc->bDescriptorSubtype)))
+			break;
+	}
+	return desc;
 }

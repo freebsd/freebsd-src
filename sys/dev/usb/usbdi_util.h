@@ -54,6 +54,7 @@ usbd_status	usbd_set_port_feature(usbd_device_handle dev, int, int);
 usbd_status	usbd_clear_port_feature(usbd_device_handle, int, int);
 usbd_status	usbd_get_device_status(usbd_device_handle, usb_status_t *);
 usbd_status	usbd_get_hub_status(usbd_device_handle, usb_hub_status_t *);
+usbd_status	usbd_get_protocol(usbd_interface_handle dev, u_int8_t *report);
 usbd_status	usbd_set_protocol(usbd_interface_handle dev, int report);
 usbd_status	usbd_get_report_descriptor(usbd_device_handle dev, int ifcno,
 					   int size, void *d);
@@ -87,4 +88,8 @@ usbd_status usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 
 void usb_detach_wait(device_ptr_t);
 void usb_detach_wakeup(device_ptr_t);
+
+const usb_descriptor_t *usb_find_desc(usbd_device_handle dev, int type,
+				      int subtype);
+#define USBD_SUBTYPE_ANY (~0)
 
