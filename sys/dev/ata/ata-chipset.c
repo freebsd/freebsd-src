@@ -90,10 +90,10 @@ static void ata_promise_tx2_intr(void *);
 static void ata_promise_mio_intr(void *);
 static void ata_promise_setmode(struct ata_device *, int);
 static void ata_promise_new_dmainit(struct ata_channel *);
-static int ata_promise_new_dmastart(struct ata_channel *, caddr_t, int32_t,int);
+static int ata_promise_new_dmastart(struct ata_channel *);
 static int ata_promise_new_dmastop(struct ata_channel *);
 static void ata_promise_mio_dmainit(struct ata_channel *);
-static int ata_promise_mio_dmastart(struct ata_channel *, caddr_t, int32_t,int);
+static int ata_promise_mio_dmastart(struct ata_channel *);
 static int ata_promise_mio_dmastop(struct ata_channel *);
 static int ata_serverworks_chipinit(device_t);
 static void ata_serverworks_setmode(struct ata_device *, int);
@@ -1360,27 +1360,25 @@ ata_promise_new_dmainit(struct ata_channel *ch)
 }
 
 static int
-ata_promise_new_dmastart(struct ata_channel *ch,
-			 caddr_t data, int32_t count, int dir)
+ata_promise_new_dmastart(struct ata_channel *ch)
 {
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
-    int error;
 
-    if ((error = ata_dmastart(ch, data, count, dir)))
-	return error;
     if (ch->flags & ATA_48BIT_ACTIVE) {
 	ATA_OUTB(ctlr->r_io1, 0x11,
 		 ATA_INB(ctlr->r_io1, 0x11) | (ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_io1, 0x20,
-		 (dir ? 0x05000000 : 0x06000000) | (count >> 1));
+		 ((ch->dma->flags & ATA_DMA_READ) ? 0x05000000 : 0x06000000) |
+		 (ch->dma->cur_iosize >> 1));
     }
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) |
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
-		 (dir ? ATA_BMCMD_WRITE_READ : 0) | ATA_BMCMD_START_STOP);
-    return error;
+		 ((ch->dma->flags & ATA_DMA_READ) ? ATA_BMCMD_WRITE_READ : 0) |
+		 ATA_BMCMD_START_STOP);
+    return 0;
 }
 
 static int
@@ -1399,7 +1397,6 @@ ata_promise_new_dmastop(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
-    ata_dmastop(ch);
     return error;
 }
 
@@ -1414,19 +1411,13 @@ ata_promise_mio_dmainit(struct ata_channel *ch)
 }
 
 static int
-ata_promise_mio_dmastart(struct ata_channel *ch,
-			 caddr_t data, int32_t count, int dir)
+ata_promise_mio_dmastart(struct ata_channel *ch)
 {
-    int error;
-
-    if ((error = ata_dmastart(ch, data, count, dir)))
-	return error;
-
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
     ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
 		 (ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x000000c0) |
-		 ((dir) ? 0x00000080 : 0x000000c0));
-    return error;
+		 ((ch->dma->flags & ATA_DMA_READ) ? 0x00000080 : 0x000000c0));
+    return 0;
 }
 
 static int
@@ -1434,7 +1425,7 @@ ata_promise_mio_dmastop(struct ata_channel *ch)
 {
     ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
 		 ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x00000080);
-    return ata_dmastop(ch);
+    return 0;
 }
 
 /*

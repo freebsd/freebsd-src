@@ -111,10 +111,11 @@ ata_transaction(struct ata_request *request)
 
     /* ATA DMA data transfer commands */
     case ATA_R_DMA:
-	/* check sanity and setup DMA engine */
-	if (request->device->channel->dma->setup(request->device,
-						 request->data,
-						 request->bytecount)) {
+	/* check sanity, setup SG list and DMA engine */
+	if (request->device->channel->dma->load(request->device,
+						request->data,
+						request->bytecount,
+						request->flags & ATA_R_READ)) {
 	    ata_prtdev(request->device, "setting up DMA failed\n");
 	    request->result = EIO;
 	    break;
@@ -130,10 +131,7 @@ ata_transaction(struct ata_request *request)
 	}
 
 	/* start DMA engine */
-	if (request->device->channel->dma->start(request->device->channel,
-						 request->data,
-						 request->bytecount,
-						 request->flags & ATA_R_READ)) {
+	if (request->device->channel->dma->start(request->device->channel)) {
 	    ata_prtdev(request->device, "error starting DMA\n");
 	    request->result = EIO;
 	    break;
@@ -208,10 +206,11 @@ ata_transaction(struct ata_request *request)
 	    break;
 	}
 
-	/* check sanity and setup DMA engine */
-	if (request->device->channel->dma->setup(request->device,
-						 request->data,
-						 request->bytecount)) {
+	/* check sanity, setup SG list and DMA engine */
+	if (request->device->channel->dma->load(request->device,
+						request->data,
+						request->bytecount,
+						request->flags & ATA_R_READ)) {
 	    ata_prtdev(request->device, "setting up DMA failed\n");
 	    request->result = EIO;
 	    break;
@@ -253,10 +252,7 @@ ata_transaction(struct ata_request *request)
 			   ATA_PROTO_ATAPI_12 ? 6 : 8);
 
 	/* start DMA engine */
-	if (request->device->channel->dma->start(request->device->channel,
-						 request->data,
-						 request->bytecount,
-						 request->flags & ATA_R_READ)) {
+	if (request->device->channel->dma->start(request->device->channel)) {
 	    request->result = EIO;
 	    break;
 	}
@@ -373,6 +369,9 @@ ata_interrupt(void *data)
 	else
 	    request->donecount = request->bytecount;
 
+	/* release SG list etc */
+	ch->dma->unload(ch);
+
 	/* done with HW */
 	break;
 
@@ -458,6 +457,7 @@ ata_interrupt(void *data)
 	    ata_prtdev(request->device, "unknown transfer phase\n");
 	    request->status = ATA_S_ERROR;
 	}
+
 	/* done with HW */
 	break;
 
@@ -474,6 +474,9 @@ ata_interrupt(void *data)
 	    request->status |= ATA_S_ERROR;
 	else
 	    request->donecount = request->bytecount;
+ 
+	/* release SG list etc */
+	ch->dma->unload(ch);
 
 	/* done with HW */
 	break;
@@ -481,7 +484,7 @@ ata_interrupt(void *data)
 
     ata_finish(request);
 
-    /* unlock the ATA HW for new work */
+    /* unlock the ATA channel for new work */
     ch->running = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
