@@ -10,4 +10,8 @@ SUBDIR= colldef dict examples isdn man me misc mk mklocale skel \
 SUBDIR+= doc
 .endif
 
+.if !defined(NO_SENDMAIL)
+SUBDIR+= sendmail
+.endif
+
 .include <bsd.subdir.mk>
