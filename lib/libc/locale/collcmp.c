@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: collcmp.c,v 1.5 1996/08/14 19:47:02 ache Exp $
  */
 
 #include <ctype.h>
@@ -31,10 +31,16 @@
 #include <limits.h>
 #include <locale.h>
 
+/*
+ * Compare two characters converting collate information
+ * into ASCII-compatible range, it allows to handle
+ * "[a-z]"-type ranges with national characters.
+ */
+
 int collate_range_cmp (c1, c2)
 	int c1, c2;
 {
-	int as1, as2, al1, al2;
+	int as1, as2, al1, al2, ret;
 	static char s1[2], s2[2];
 
 	c1 &= UCHAR_MAX;
@@ -65,5 +71,7 @@ int collate_range_cmp (c1, c2)
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return strcoll(s1, s2);
+	if ((ret = strcoll(s1, s2)) != 0)
+		return (ret);
+	return (c1 - c2);
 }
