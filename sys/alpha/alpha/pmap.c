@@ -1309,10 +1309,7 @@ pmap_pinit(pmap)
 	 * allocate the page directory page
 	 */
 	lev1pg = vm_page_grab(pmap->pm_pteobj, NUSERLEV3MAPS + NUSERLEV2MAPS,
-			      VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-	lev1pg->wire_count = 1;
-	++cnt.v_wire_count;
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 
 	vm_page_flag_clear(lev1pg, PG_BUSY);
 	lev1pg->valid = VM_PAGE_BITS_ALL;
