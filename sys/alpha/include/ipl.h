@@ -32,6 +32,7 @@
 
 #include <machine/cpu.h> 	/* for pal inlines */
 
+#ifdef SMP
 /*
  * Interprocessor interrupts for SMP.
  */
@@ -46,5 +47,6 @@ void smp_ipi_all(u_int64_t ipi);
 void smp_ipi_all_but_self(u_int64_t ipi);
 void smp_ipi_self(u_int64_t ipi);
 void smp_handle_ipi(struct trapframe *frame);
+#endif
 
 #endif /* !_MACHINE_IPL_H_ */
