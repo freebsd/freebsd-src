@@ -135,11 +135,11 @@
   130   '!'    '1'    nop    nop    177    161    nop    nop     O
   131   '"'    '2'    nul    nul    178    192    128    128     O
   132   '''    '3'    nop    nop    179    163    nop    nop     O
-  133   ';'    '4'    nop    nop    180    164    nop    nop     O
+  133   '*'    '4'    nop    nop    180    164    nop    nop     O
   134   ':'    '5'    nop    nop    181    165    nop    nop     O
   135   ','    '6'    rs     rs     182    222    158    158     O
   136   '.'    '7'    nop    nop    183    166    nop    nop     O
-  137   '*'    '8'    nop    nop    184    170    nop    nop     O
+  137   ';'    '8'    nop    nop    184    170    nop    nop     O
   138   '('    '9'    nop    nop    185    168    nop    nop     O
   139   ')'    '0'    nop    nop    176    169    nop    nop     O
   140   '-'    '_'    ns     ns     173    223    159    159     O
