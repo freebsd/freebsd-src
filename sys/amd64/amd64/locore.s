@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.40 1994/10/25 18:22:32 bde Exp $
+ *	$Id: locore.s,v 1.41 1994/10/26 21:52:25 bde Exp $
  */
 
 /*
@@ -108,7 +108,14 @@
 	.globl	tmpstk
 	.space	0x1000		/* space for tmpstk - temporary stack */
 tmpstk:
-	.long	0		/* for debugging tmpstk stack underflow */
+/*
+ * Dummy frame at top of tmpstk to help debuggers print a nice stack trace.
+ */
+	.long	tmpstk+8	/* caller's %ebp */
+	.long	_cpu_switch	/* caller */
+	.long	0		/* %ebp == 0 should terminate trace */
+	.long	_mvesp		/* in case %ebp == 0 doesn't work ... */
+	.long	0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555
 
 	.globl	_boothowto,_bootdev
 
