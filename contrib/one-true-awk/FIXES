@@ -25,6 +25,12 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Dec 13, 2002:
+	for the moment, the internationalization changes of nov 29 are
+	rolled back -- programs like x = 1.2 don't work in some locales,
+	because the parser is expecting x = 1,2.  until i understand this
+	better, this will have to wait.
+
 Nov 29, 2002:
 	modified b.c (with tiny changes in main and run) to support
 	locales, using strcoll and iswhatever tests for posix character
