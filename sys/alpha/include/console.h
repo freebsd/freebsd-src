@@ -1,20 +1,30 @@
-/*
- *  Copyright (C) 1992, 1993, 1994 Søren Schmidt
+/*-
+ * Copyright (c) 1991-1994 Søren Schmidt
+ * All rights reserved.
  *
- *  This program is free software; you may redistribute it and/or 
- *  modify it, provided that it retain the above copyright notice 
- *  and the following disclaimer.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software withough specific prior written permission
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	Søren Schmidt 		Email:	sos@login.dkuug.dk
- *	Tritonvej 36		UUCP:	...uunet!dkuug!login!sos
- *	DK9210 Aalborg SO	Phone:  +45 9814 8076
- *
- *	from:@(#)console.h	1.1 940105
- *	$Id: console.h,v 1.1 1994/07/03 20:49:53 sos Exp $
+ *	$Id$
  */
 
 #ifndef	_CONSOLE_H_
@@ -227,5 +237,74 @@ typedef struct ssaver ssaver_t;
 #define KB_ACK		0xFA		/* kbd acknowledge answer 	*/
 #define KB_RESEND	0xFE		/* kbd resend cmd answer      	*/
 #define KB_RESET	0xFF		/* kbd reset 			*/
+
+/* video mode definitions */
+#define M_B40x25	0	/* black & white 40 columns */
+#define M_C40x25	1	/* color 40 columns */
+#define M_B80x25	2	/* black & white 80 columns */
+#define M_C80x25	3	/* color 80 columns */
+#define M_BG320		4	/* black & white graphics 320x200 */
+#define M_CG320		5	/* color graphics 320x200 */
+#define M_BG640		6	/* black & white graphics 640x200 hi-res */
+#define M_EGAMONO80x25  7       /* ega-mono 80x25 */
+#define M_CG320_D	13	/* ega mode D */
+#define M_CG640_E	14	/* ega mode E */
+#define M_EGAMONOAPA	15	/* ega mode F */
+#define M_CG640x350	16	/* ega mode 10 */
+#define M_ENHMONOAPA2	17	/* ega mode F with extended memory */
+#define M_ENH_CG640	18	/* ega mode 10* */
+#define M_ENH_B40x25    19      /* ega enhanced black & white 40 columns */
+#define M_ENH_C40x25    20      /* ega enhanced color 40 columns */
+#define M_ENH_B80x25    21      /* ega enhanced black & white 80 columns */
+#define M_ENH_C80x25    22      /* ega enhanced color 80 columns */
+#define M_VGA_C40x25	23	/* vga 8x16 font on color */
+#define M_VGA_C80x25	24	/* vga 8x16 font on color */
+#define M_VGA_C80x50	30	/* vga 8x8 font on color */
+#define M_VGA_M80x25	25	/* vga 8x16 font on mono */
+#define M_VGA_M80x50	31	/* vga 8x8 font on color */
+#define M_VGA11		26	/* vga 640x480 2 colors */
+#define M_BG640x480	26
+#define M_VGA12		27	/* vga 640x480 16 colors */
+#define M_CG640x480	27
+#define M_VGA13		28	/* vga 640x200 256 colors */
+#define M_VGA_CG320	28
+#define M_ENH_B80x43	0x70	/* ega black & white 80x43 */
+#define M_ENH_C80x43	0x71	/* ega color 80x43 */
+#define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
+#define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
+#define M_MCA_MODE	0xff	/* monochrome adapter mode */
+
+#define SW_B40x25 	_IO('S', M_B40x25)
+#define SW_C40x25  	_IO('S', M_C40x25)
+#define SW_B80x25  	_IO('S', M_B80x25)
+#define SW_C80x25  	_IO('S', M_C80x25)
+#define SW_BG320   	_IO('S', M_BG320)
+#define SW_CG320   	_IO('S', M_CG320)
+#define SW_BG640   	_IO('S', M_BG640)
+#define SW_EGAMONO80x25 _IO('S', M_EGAMONO80x25)
+#define SW_CG320_D    	_IO('S', M_CG320_D)
+#define SW_CG640_E    	_IO('S', M_CG640_E)
+#define SW_EGAMONOAPA 	_IO('S', M_EGAMONOAPA)
+#define SW_CG640x350  	_IO('S', M_CG640x350)
+#define SW_ENH_MONOAPA2 _IO('S', M_ENHMONOAPA2)
+#define SW_ENH_CG640  	_IO('S', M_ENH_CG640)
+#define SW_ENH_B40x25  	_IO('S', M_ENH_B40x25)
+#define SW_ENH_C40x25  	_IO('S', M_ENH_C40x25)
+#define SW_ENH_B80x25  	_IO('S', M_ENH_B80x25)
+#define SW_ENH_C80x25  	_IO('S', M_ENH_C80x25)
+#define SW_ENH_B80x43  	_IO('S', M_ENH_B80x43)
+#define SW_ENH_C80x43  	_IO('S', M_ENH_C80x43)
+#define SW_MCAMODE    	_IO('S', M_MCA_MODE)
+#define SW_VGA_C40x25	_IO('S', M_VGA_C40x25)
+#define SW_VGA_C80x25	_IO('S', M_VGA_C80x25)
+#define SW_VGA_C80x50	_IO('S', M_VGA_C80x50)
+#define SW_VGA_M80x25	_IO('S', M_VGA_M80x25)
+#define SW_VGA_M80x50	_IO('S', M_VGA_M80x50)
+#define SW_VGA11	_IO('S', M_VGA11)
+#define SW_BG640x480	_IO('S', M_VGA11)
+#define SW_VGA12	_IO('S', M_VGA12)
+#define SW_CG640x480	_IO('S', M_VGA12)
+#define SW_VGA13	_IO('S', M_VGA13)
+#define SW_VGA_CG320	_IO('S', M_VGA13)
 
 #endif
