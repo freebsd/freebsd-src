@@ -4515,9 +4515,18 @@ siogdbattach(port, speed)
 	int			s;
 	u_char			cfcr;
 	struct siocnstate	sp;
+	int			unit = 1;	/* XXX !!! */
 
 	siogdbiobase = port;
 	gdbdefaultrate = speed;
+
+	printf("sio%d: gdb debugging port\n", unit);
+	siogdbunit = unit;
+#if DDB > 0
+	gdbdev = makedev(CDEV_MAJOR, unit);
+	gdb_getc = siocngetc;
+	gdb_putc = siocnputc;
+#endif
 
 	s = spltty();
 
