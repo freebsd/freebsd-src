@@ -80,7 +80,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
-#include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>

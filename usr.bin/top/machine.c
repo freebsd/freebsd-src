@@ -37,7 +37,6 @@
 #include <pwd.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
-#include <sys/dkstat.h>
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/proc.h>
