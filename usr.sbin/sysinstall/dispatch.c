@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.21 1997/08/11 13:08:18 jkh Exp $
+ * $Id: dispatch.c,v 1.22 1997/09/08 11:09:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,10 +36,14 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <errno.h>
+#include <sys/signal.h>
+#include <sys/fcntl.h>
 
-static int _shutdown(dialogMenuItem *unused);
-static int _systemExecute(dialogMenuItem *unused);
-static int _loadConfig(dialogMenuItem *unused);
+#include "list.h"
+
+static int dispatch_shutdown(dialogMenuItem *unused);
+static int dispatch_systemExecute(dialogMenuItem *unused);
 
 static struct _word {
     char *name;
@@ -83,7 +87,7 @@ static struct _word {
     { "installFixitFloppy",	installFixitFloppy	},
     { "installFilesystems",	installFilesystems	},
     { "installVarDefaults",	installVarDefaults	},
-    { "loadConfig",		_loadConfig		},
+    { "loadConfig",		dispatch_load_file	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
@@ -101,10 +105,82 @@ static struct _word {
     { "packageAdd",		packageAdd		},
     { "addGroup",		userAddGroup		},
     { "addUser",		userAddUser		},
-    { "shutdown",		_shutdown 		},
-    { "system",			_systemExecute 		},
+    { "shutdown",		dispatch_shutdown 	},
+    { "system",			dispatch_systemExecute	},
     { NULL, NULL },
 };
+
+/*
+ * Helper routines for buffering data.
+ *
+ * We read an entire configuration into memory before executing it
+ * so that we are truely standalone and can do things like nuke the
+ * file or disk we're working on.
+ */
+
+typedef struct command_buffer_ {
+    qelement	queue;
+    char *	string;
+} command_buffer;
+
+static void
+dispatch_free_command(command_buffer *item)
+{
+    REMQUE(item);
+    free(item->string);
+    free(item);
+}
+
+static void
+dispatch_free_all(qelement *head)
+{
+    command_buffer *item;
+
+    while (!EMPTYQUE(*head)) {
+	item = (command_buffer *) head->q_forw;
+	dispatch_free_command(item);
+    }
+}
+
+static command_buffer *
+dispatch_add_command(qelement *head, char *string)
+{
+    command_buffer *new;
+
+    new = malloc(sizeof(command_buffer));
+
+    if (!new)
+	return NULL;
+
+    new->string = strdup(string);
+    INSQUEUE(new, head->q_back);
+
+    return new;
+}
+
+/*
+ * Command processing
+ */
+
+/* Just convenience */
+static int
+dispatch_shutdown(dialogMenuItem *unused)
+{
+    systemShutdown(0);
+    return DITEM_FAILURE;
+}
+
+static int
+dispatch_systemExecute(dialogMenuItem *unused)
+{
+    char *cmd = variable_get("command");
+
+    if (cmd)
+	return systemExecute(cmd) ? DITEM_FAILURE : DITEM_SUCCESS;
+    else
+	msgDebug("_systemExecute: No command passed in `command' variable.\n");
+    return DITEM_FAILURE;
+}
 
 static int
 call_possible_resword(char *name, dialogMenuItem *value, int *status)
@@ -120,55 +196,6 @@ call_possible_resword(char *name, dialogMenuItem *value, int *status)
 	}
     }
     return rval;
-}
-
-/* Just convenience */
-static int
-_shutdown(dialogMenuItem *unused)
-{
-    systemShutdown(0);
-    return DITEM_FAILURE;
-}
-
-static int
-_systemExecute(dialogMenuItem *unused)
-{
-    char *cmd = variable_get("command");
-
-    if (cmd)
-	return systemExecute(cmd) ? DITEM_FAILURE : DITEM_SUCCESS;
-    else
-	msgDebug("_systemExecute: No command passed in `command' variable.\n");
-    return DITEM_FAILURE;
-}
-
-static int
-_loadConfig(dialogMenuItem *unused)
-{
-    FILE *fp;
-    char *cp, buf[BUFSIZ];
-    int i = DITEM_SUCCESS;
-
-    cp = variable_get("file");
-    if ((!cp || (fp = fopen(cp, "r")) == NULL) &&
-	(fp = fopen("install.cfg", "r")) == NULL &&
-	(fp = fopen("/stand/install.cfg", "r")) == NULL &&
-	(fp = fopen("/tmp/install.cfg", "r")) == NULL) {
-	msgConfirm("Unable to locate an install.cfg file in $CWD, /stand or /tmp.");
-	i =  DITEM_FAILURE;
-    }
-    else {
-    	variable_set2(VAR_NONINTERACTIVE, "YES");
-    	while (fgets(buf, sizeof buf, fp)) {
-	    if ((i = DITEM_STATUS(dispatchCommand(buf))) != DITEM_SUCCESS) {
-		msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
-		break;
-	    }
-	}
-    }
-    fclose(fp);
-    variable_unset(VAR_NONINTERACTIVE);
-    return i;
 }
 
 /* For a given string, call it or spit out an undefined command diagnostic */
@@ -194,7 +221,8 @@ dispatchCommand(char *str)
 	i = DITEM_SUCCESS;
     }
     else {
-	/* A command might be a pathname if it's encoded in argv[0], which we also support */
+	/* A command might be a pathname if it's encoded in argv[0], which
+	   we also support */
 	if ((cp = rindex(str, '/')) != NULL)
 	    str = cp + 1;
 	if (isDebug())
@@ -206,3 +234,172 @@ dispatchCommand(char *str)
     }
     return i;
 }
+
+
+/*
+ * File processing
+ */
+
+static qelement *
+dispatch_load_fp(FILE *fp)
+{
+    qelement *head;
+    char buf[BUFSIZ], *cp;
+
+    head = malloc(sizeof(qelement));
+
+    if (!head)
+	return NULL;
+
+    INITQUE(*head);
+
+    while (fgets(buf, sizeof buf, fp)) {
+
+	if ((cp = strchr(buf, '\n')) != NULL)
+	    *cp = '\0';
+	if (*buf == '\0' || *buf == '#')
+	    continue;
+
+	if (!dispatch_add_command(head, buf))
+	    return NULL;
+    }
+
+    return head;
+}
+
+static int
+dispatch_execute(qelement *head)
+{
+    int result = DITEM_SUCCESS;
+    command_buffer *item;
+
+    if (!head)
+	return result | DITEM_FAILURE;
+
+    /* Hint to others that we're running from a script, should they care */
+    variable_set2(VAR_NONINTERACTIVE, "YES");
+
+    while (!EMPTYQUE(*head)) {
+	item = (command_buffer *) head->q_forw;
+	
+	if (DITEM_STATUS(dispatchCommand(item->string)) != DITEM_SUCCESS) {
+	    /*
+	     * Allow a user to prefix a command with "noError" to cause
+	     * us to ignore any errors for that one command.
+	     */
+	    if (variable_get(VAR_NO_ERROR))
+		variable_unset(VAR_NO_ERROR);
+	    else {
+		msgConfirm("Command `%s' failed - rest of script aborted.\n",
+			   item->string);
+		result |= DITEM_FAILURE;
+		break;
+	    }
+	}
+	dispatch_free_command(item);
+    }
+
+    dispatch_free_all(head);
+
+    variable_unset(VAR_NONINTERACTIVE);
+
+    return result;
+}
+
+int
+dispatch_load_file_int(int quiet)
+{
+    FILE *fp;
+    char *cp;
+    int  i;
+    qelement *list;
+
+    static const char *names[] = {
+	"install.cfg",
+	"/stand/install.cfg",
+	"/tmp/install.cfg",
+	NULL
+    };
+
+    fp = NULL;
+    cp = variable_get(VAR_CONFIG_FILE);
+    if (!cp) {
+	for (i = 0; names[i]; i++)
+	    if ((fp = fopen(names[i], "r")) != NULL)
+		break;
+    } else
+	fp = fopen(cp, "r");
+
+    if (!fp) {
+	if (!quiet)
+	    msgConfirm("Unable to open %s: %s", cp, strerror(errno));
+	return DITEM_FAILURE;
+    }
+
+    list = dispatch_load_fp(fp);
+    fclose(fp);
+
+    return dispatch_execute(list);
+}
+
+int
+dispatch_load_file(dialogMenuItem *self)
+{
+    return dispatch_load_file_int(FALSE);
+}
+
+int
+dispatch_load_floppy(dialogMenuItem *self)
+{
+    int             what = DITEM_RESTORE | DITEM_SUCCESS;
+    extern char    *distWanted;
+    char           *cp;
+    FILE           *fp;
+    qelement	   *list;
+
+    mediaClose();
+    dialog_clear_norefresh();
+
+    cp = variable_get_value(VAR_INSTALL_CFG,
+			    "Specify the name of a configuration file\n"
+			    "residing on a MSDOS or UFS floppy.");
+    if (!cp || !*cp) {
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	return what;
+    }
+
+    distWanted = cp;
+    /* Try to open the floppy drive */
+    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
+	msgConfirm("Unable to set media device to floppy.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    if (!mediaDevice->init(mediaDevice)) {
+	msgConfirm("Unable to mount floppy filesystem.");
+	what |= DITEM_FAILURE;
+	mediaClose();
+	return what;
+    }
+
+    fp = mediaDevice->get(mediaDevice, cp, TRUE);
+    if (fp) {
+	list = dispatch_load_fp(fp);
+	fclose(fp);
+	mediaClose();
+
+	what |= dispatch_execute(list);
+    }
+    else {
+	msgConfirm("Configuration file '%s' not found.", cp);
+	variable_unset(VAR_INSTALL_CFG);
+	what |= DITEM_FAILURE;
+	mediaClose();
+    }
+
+    return what;
+}
+
