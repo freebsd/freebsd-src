@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.1 1997/05/21 23:07:28 jdp Exp $
+ *      $Id: elf.h,v 1.2 1997/08/30 18:59:48 peter Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -34,6 +34,9 @@
  */
 
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
+
+#define __ELF_WORD_SIZE	32	/* Used by <sys/elf_generic.h> */
+#include <sys/elf_generic.h>
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
@@ -50,6 +53,8 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
 } Elf32_Auxinfo;
+
+__ElfType(Auxinfo);
 
 /* Values for a_type. */
 #define AT_NULL		0	/* Terminates the vector. */
