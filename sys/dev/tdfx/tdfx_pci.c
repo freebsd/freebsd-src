@@ -754,7 +754,7 @@ tdfx_do_query(u_int cmd, struct tdfx_pio_data *piod)
 			printf("Bad Sub-cmd: 0x%x\n", _IOC_NR(cmd));
 #endif
 			return -EINVAL;
-	};
+	}
 }
 
 static int
@@ -770,7 +770,7 @@ tdfx_do_pio(u_int cmd, struct tdfx_pio_data *piod)
 			break;
 		default:
 			return -EINVAL;
-	};
+	}
 }
 
 /* Calls to ioctl(2) eventually end up here. Unhandled ioctls return an ENXIO,
