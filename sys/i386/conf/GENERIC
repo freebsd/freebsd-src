@@ -104,10 +104,12 @@ device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
+device		ch		# SCSI media changers
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
+device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
