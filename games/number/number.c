@@ -56,7 +56,7 @@ static const char rcsid[] =
 
 #define	MAXNUM		65		/* Biggest number we handle. */
 
-static char	*name1[] = {
+static const char	*name1[] = {
 	"",		"one",		"two",		"three",
 	"four",		"five",		"six",		"seven",
 	"eight",	"nine",		"ten",		"eleven",
@@ -133,6 +133,7 @@ convert(line)
 	int flen, len, rval;
 	char *p, *fraction;
 
+	flen = NULL;
 	fraction = NULL;
 	for (p = line; *p != '\0' && *p != '\n'; ++p) {
 		if (isblank(*p)) {
@@ -163,7 +164,7 @@ badnum:			errx(1, "illegal number: %s", line);
 	*p = '\0';
 
 	if ((len = strlen(line)) > MAXNUM ||
-	    fraction != NULL && (flen = strlen(fraction)) > MAXNUM)
+	    (fraction != NULL && ((flen = strlen(fraction)) > MAXNUM)))
 		errx(1, "number too large, max %d digits.", MAXNUM);
 
 	if (*line == '-') {
