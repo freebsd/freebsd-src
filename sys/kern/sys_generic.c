@@ -232,29 +232,28 @@ readv(td, uap)
 	struct iovec *iov;
 	struct iovec *needfree;
 	struct iovec aiov[UIO_SMALLIOV];
-	long i, cnt, error = 0;
+	long i, cnt;
+	int error;
 	u_int iovlen;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 	struct uio ktruio;
 #endif
-	mtx_lock(&Giant);
 
 	if ((error = fget_read(td, uap->fd, &fp)) != 0)
-		goto done2;
+		return (error);
+	needfree = NULL;
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
 		if (uap->iovcnt > UIO_MAXIOV) {
 			error = EINVAL;
-			goto done2;
+			goto done;
 		}
 		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
-	} else {
+	} else
 		iov = aiov;
-		needfree = NULL;
-	}
 	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovcnt;
 	auio.uio_rw = UIO_READ;
@@ -305,8 +304,6 @@ done:
 	fdrop(fp, td);
 	if (needfree)
 		FREE(needfree, M_IOV);
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
