@@ -48,15 +48,6 @@ static const char rcsid[] =
 #include "telnetd.h"
 #include "pathnames.h"
 
-#if	defined(_SC_CRAY_SECURE_SYS) && !defined(SCM_SECURITY)
-/*
- * UNICOS 6.0/6.1 do not have SCM_SECURITY defined, so we can
- * use it to tell us to turn off all the socket security code,
- * since that is only used in UNICOS 7.0 and later.
- */
-# undef _SC_CRAY_SECURE_SYS
-#endif
-
 #include <err.h>
 #include <arpa/inet.h>
 
@@ -64,30 +55,6 @@ static const char rcsid[] =
 #include <libutil.h>
 #include <paths.h>
 #include <utmp.h>
-
-#if	defined(_SC_CRAY_SECURE_SYS)
-#include <sys/sysv.h>
-#include <sys/secdev.h>
-# ifdef SO_SEC_MULTI		/* 8.0 code */
-#include <sys/secparm.h>
-#include <sys/usrv.h>
-# endif /* SO_SEC_MULTI */
-
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
-int	secflag;
-char	tty_dev[16];
-struct	secdev dv;
-struct	sysv sysv;
-# ifdef SO_SEC_MULTI		/* 8.0 code */
-struct	socksec ss;
-# else /* SO_SEC_MULTI */	/* 7.0 code */
-struct	socket_security ss;
-# endif /* SO_SEC_MULTI */
-#endif	/* _SC_CRAY_SECURE_SYS */
 
 #if	defined(AUTHENTICATION)
 #include <libtelnet/auth.h>
@@ -144,11 +111,6 @@ void startslave(char *host, int autologin, char *autoname);
 
 int	hostinfo = 1;			/* do we print login banner? */
 
-#ifdef	CRAY
-extern int      newmap; /* nonzero if \n maps to ^M^J */
-int	lowpty = 0, highpty;	/* low, high pty numbers */
-#endif /* CRAY */
-
 int debug = 0;
 int keepalive = 1;
 char *altlogin;
@@ -178,14 +140,8 @@ char valid_opts[] = {
 #ifdef	ENCRYPTION
 	'e', ':',
 #endif
-#if	defined(CRAY) && defined(NEWINIT)
-	'I', ':',
-#endif
 #ifdef	LINEMODE
 	'l',
-#endif
-#ifdef CRAY
-	'r', ':',
 #endif
 #ifdef	SecurID
 	's',
@@ -228,14 +184,6 @@ main(argc, argv)
 	 */
 
 	linemode=1;	/*Default to mode that works on bulk of clients*/
-
-#ifdef CRAY
-	/*
-	 * Get number of pty's before trying to process options,
-	 * which may include changing pty range.
-	 */
-	highpty = getnpty();
-#endif /* CRAY */
 
 	while ((ch = getopt(argc, argv, valid_opts)) != -1) {
 		switch(ch) {
@@ -320,15 +268,6 @@ main(argc, argv)
 			hostinfo = 0;
 			break;
 
-#if	defined(CRAY) && defined(NEWINIT)
-		case 'I':
-		    {
-			extern char *gen_id;
-			gen_id = optarg;
-			break;
-		    }
-#endif	/* defined(CRAY) && defined(NEWINIT) */
-
 #ifdef	LINEMODE
 		case 'l':
 			alwayslinemode = 1;
@@ -350,34 +289,6 @@ main(argc, argv)
 		case 'p':
 			altlogin = optarg;
 			break;
-
-#ifdef CRAY
-		case 'r':
-		    {
-			char *strchr();
-			char *c;
-
-			/*
-			 * Allow the specification of alterations
-			 * to the pty search range.  It is legal to
-			 * specify only one, and not change the
-			 * other from its default.
-			 */
-			c = strchr(optarg, '-');
-			if (c) {
-				*c++ = '\0';
-				highpty = atoi(c);
-			}
-			if (*optarg != '\0')
-				lowpty = atoi(optarg);
-			if ((lowpty > highpty) || (lowpty < 0) ||
-							(highpty > 32767)) {
-				usage();
-				/* NOT REACHED */
-			}
-			break;
-		    }
-#endif	/* CRAY */
 
 #ifdef	SecurID
 		case 's':
@@ -489,60 +400,6 @@ main(argc, argv)
 		/* NOT REACHED */
 	}
 
-#if	defined(_SC_CRAY_SECURE_SYS)
-	secflag = sysconf(_SC_CRAY_SECURE_SYS);
-
-	/*
-	 *	Get socket's security label
-	 */
-	if (secflag)  {
-		int szss = sizeof(ss);
-#ifdef SO_SEC_MULTI			/* 8.0 code */
-		int sock_multi;
-		int szi = sizeof(int);
-#endif /* SO_SEC_MULTI */
-
-		memset((char *)&dv, 0, sizeof(dv));
-
-		if (getsysv(&sysv, sizeof(struct sysv)) != 0)
-			err(1, "getsysv");
-
-		/*
-		 *	Get socket security label and set device values
-		 *	   {security label to be set on ttyp device}
-		 */
-#ifdef SO_SEC_MULTI			/* 8.0 code */
-		if ((getsockopt(0, SOL_SOCKET, SO_SECURITY,
-			       (char *)&ss, &szss) < 0) ||
-		    (getsockopt(0, SOL_SOCKET, SO_SEC_MULTI,
-				(char *)&sock_multi, &szi) < 0)) {
-			err(1, "getsockopt");
-		} else {
-			dv.dv_actlvl = ss.ss_actlabel.lt_level;
-			dv.dv_actcmp = ss.ss_actlabel.lt_compart;
-			if (!sock_multi) {
-				dv.dv_minlvl = dv.dv_maxlvl = dv.dv_actlvl;
-				dv.dv_valcmp = dv.dv_actcmp;
-			} else {
-				dv.dv_minlvl = ss.ss_minlabel.lt_level;
-				dv.dv_maxlvl = ss.ss_maxlabel.lt_level;
-				dv.dv_valcmp = ss.ss_maxlabel.lt_compart;
-			}
-			dv.dv_devflg = 0;
-		}
-#else /* SO_SEC_MULTI */		/* 7.0 code */
-		if (getsockopt(0, SOL_SOCKET, SO_SECURITY,
-				(char *)&ss, &szss) >= 0) {
-			dv.dv_actlvl = ss.ss_slevel;
-			dv.dv_actcmp = ss.ss_compart;
-			dv.dv_minlvl = ss.ss_minlvl;
-			dv.dv_maxlvl = ss.ss_maxlvl;
-			dv.dv_valcmp = ss.ss_maxcmp;
-		}
-#endif /* SO_SEC_MULTI */
-	}
-#endif	/* _SC_CRAY_SECURE_SYS */
-
 	openlog("telnetd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 	fromlen = sizeof (from);
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
@@ -595,9 +452,6 @@ usage()
 	fprintf(stderr, " [-edebug]");
 #endif
 	fprintf(stderr, " [-h]");
-#if	defined(CRAY) && defined(NEWINIT)
-	fprintf(stderr, " [-Iinitid]");
-#endif
 #if	defined(LINEMODE) && defined(KLUDGELINEMODE)
 	fprintf(stderr, " [-k]");
 #endif
@@ -605,9 +459,6 @@ usage()
 	fprintf(stderr, " [-l]");
 #endif
 	fprintf(stderr, " [-n]");
-#ifdef	CRAY
-	fprintf(stderr, " [-r[lowpty]-[highpty]]");
-#endif
 	fprintf(stderr, "\n\t");
 #ifdef	SecurID
 	fprintf(stderr, " [-s]");
@@ -861,22 +712,6 @@ doit(who)
 	}
 #endif
 
-#if	defined(_SC_CRAY_SECURE_SYS)
-	/*
-	 *	set ttyp line security label
-	 */
-	if (secflag) {
-		char slave_dev[16];
-
-		sprintf(tty_dev, "%spty/%03d", _PATH_DEV, ptynum);
-		if (setdevs(tty_dev, &dv) < 0)
-		 	fatal(net, "cannot set pty security");
-		sprintf(slave_dev, "%sp%03d", _PATH_TTY, ptynum);
-		if (setdevs(slave_dev, &dv) < 0)
-		 	fatal(net, "cannot set tty security");
-	}
-#endif	/* _SC_CRAY_SECURE_SYS */
-
 	/* get name of connected client */
 	if (realhostname_sa(remote_hostname, sizeof(remote_hostname) - 1,
 	    who, who->sa_len) == HOSTNAME_INVALIDADDR && registerd_host_only)
@@ -907,34 +742,10 @@ doit(who)
 	level = getterminaltype(user_name);
 	setenv("TERM", terminaltype ? terminaltype : "network", 1);
 
-#if	defined(_SC_CRAY_SECURE_SYS)
-	if (secflag) {
-		if (setulvl(dv.dv_actlvl) < 0)
-			fatal(net,"cannot setulvl()");
-		if (setucmp(dv.dv_actcmp) < 0)
-			fatal(net, "cannot setucmp()");
-	}
-#endif	/* _SC_CRAY_SECURE_SYS */
-
 	telnet(net, pty, remote_hostname);	/* begin server process */
 
 	/*NOTREACHED*/
 }  /* end of doit */
-
-#if	defined(CRAY2) && defined(UNICOS5) && defined(UNICOS50)
-	int
-Xterm_output(ibufp, obuf, icountp, ocount)
-	char **ibufp, *obuf;
-	int *icountp, ocount;
-{
-	int ret;
-	ret = term_output(*ibufp, obuf, *icountp, ocount);
-	*ibufp += *icountp;
-	*icountp = 0;
-	return(ret);
-}
-#define	term_output	Xterm_output
-#endif	/* defined(CRAY2) && defined(UNICOS5) && defined(UNICOS50) */
 
 /*
  * Main loop.  Select from pty and network, and
@@ -1076,9 +887,6 @@ telnet(f, p, host)
 
 	(void) ioctl(f, FIONBIO, (char *)&on);
 	(void) ioctl(p, FIONBIO, (char *)&on);
-#if	defined(CRAY2) && defined(UNICOS5)
-	init_termdriver(f, p, interrupt, sendbrk);
-#endif
 
 #if	defined(SO_OOBINLINE)
 	(void) setsockopt(net, SOL_SOCKET, SO_OOBINLINE,
@@ -1098,21 +906,6 @@ telnet(f, p, host)
 
 	(void) signal(SIGCHLD, cleanup);
 
-#if	defined(CRAY2) && defined(UNICOS5)
-	/*
-	 * Cray-2 will send a signal when pty modes are changed by slave
-	 * side.  Set up signal handler now.
-	 */
-	if ((int)signal(SIGUSR1, termstat) < 0)
-		warn("signal");
-	else if (ioctl(p, TCSIGME, (char *)SIGUSR1) < 0)
-		warn("ioctl:TCSIGME");
-	/*
-	 * Make processing loop check terminal characteristics early on.
-	 */
-	termstat();
-#endif
-
 #ifdef  TIOCNOTTY
 	{
 		register int t;
@@ -1124,11 +917,6 @@ telnet(f, p, host)
 	}
 #endif
 
-#if	defined(CRAY) && defined(NEWINIT) && defined(TIOCSCTTY)
-	(void) setsid();
-	ioctl(p, TIOCSCTTY, 0);
-#endif
-
 	/*
 	 * Show banner that getty never gave.
 	 *
@@ -1136,11 +924,6 @@ telnet(f, p, host)
 	 * gets carriage return null processing, etc., just like all
 	 * other pty --> client data.
 	 */
-
-#if	!defined(CRAY) || !defined(NEWINIT)
-	if (getenv("USER"))
-		hostinfo = 0;
-#endif
 
 	if (getent(defent, "default") == 1) {
 		char *Getstr();
@@ -1190,10 +973,6 @@ telnet(f, p, host)
 		if (ncc < 0 && pcc < 0)
 			break;
 
-#if	defined(CRAY2) && defined(UNICOS5)
-		if (needtermstat)
-			_termstat();
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 		FD_ZERO(&ibits);
 		FD_ZERO(&obits);
 		FD_ZERO(&xbits);
@@ -1329,7 +1108,6 @@ telnet(f, p, host)
 			} else {
 				if (pcc <= 0)
 					break;
-#if	!defined(CRAY2) || !defined(UNICOS5)
 #ifdef	LINEMODE
 				/*
 				 * If ioctl from pty, pass it through net
@@ -1375,16 +1153,6 @@ telnet(f, p, host)
 				}
 				pcc--;
 				ptyip = ptyibuf+1;
-#else	/* defined(CRAY2) && defined(UNICOS5) */
-				if (!uselinemode) {
-					unpcc = pcc;
-					unptyip = ptyibuf;
-					pcc = term_output(&unptyip, ptyibuf2,
-								&unpcc, BUFSIZ);
-					ptyip = ptyibuf2;
-				} else
-					ptyip = ptyibuf;
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 			}
 		}
 
@@ -1394,11 +1162,6 @@ telnet(f, p, host)
 			c = *ptyip++ & 0377, pcc--;
 			if (c == IAC)
 				output_data("%c", c);
-#if	defined(CRAY2) && defined(UNICOS5)
-			else if (c == '\n' &&
-				     my_state_is_wont(TELOPT_BINARY) && newmap)
-				output_data("\r");
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 			output_data("%c", c);
 			if ((c == '\r') && (my_state_is_wont(TELOPT_BINARY))) {
 				if (pcc > 0 && ((*ptyip & 0377) == '\n')) {
@@ -1408,17 +1171,6 @@ telnet(f, p, host)
 					output_data("%c", '\0');
 			}
 		}
-#if	defined(CRAY2) && defined(UNICOS5)
-		/*
-		 * If chars were left over from the terminal driver,
-		 * note their existence.
-		 */
-		if (!uselinemode && unpcc) {
-			pcc = unpcc;
-			unpcc = 0;
-			ptyip = unptyip;
-		}
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 		if (FD_ISSET(f, &obits) && (nfrontp - nbackp) > 0)
 			netflush();

@@ -63,7 +63,7 @@ static const char rcsid[] =
 #include "externs.h"
 #include "types.h"
 
-#if	defined(CRAY) || (defined(USE_TERMIO) && !defined(SYSV_TERMIO))
+#if	defined(USE_TERMIO) && !defined(SYSV_TERMIO)
 #define	SIG_FUNC_RET	void
 #else
 #define	SIG_FUNC_RET	int
