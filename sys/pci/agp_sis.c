@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#ifndef PC98
-#include "opt_agp.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -108,14 +105,7 @@ agp_sis_match(device_t dev)
 		return ("SiS 746 host to AGP bridge");
 	case 0x07601039:
 		return ("SiS 760 host to AGP bridge");
-#if defined(__amd64__) || defined(AGP_AMD64_GART)
-	case 0x10221039:	/* AMD64 */
-		return NULL;
-#endif
 	};
-
-	if (pci_get_vendor(dev) == 0x1039)
-		return ("SIS Generic host to PCI bridge");
 
 	return NULL;
 }
