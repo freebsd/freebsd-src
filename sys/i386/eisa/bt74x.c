@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.3 1996/01/29 03:13:18 gibbs Exp $
+ *	$Id: bt74x.c,v 1.4 1996/01/31 18:02:18 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -150,8 +150,6 @@ bt_eisa_probe(void)
 		u_char ioconf;
 		u_long port;
 		int irq;
-
-		eisa_registerdev(e_dev, &bt_eisa_driver, &kdc_eisa_bt);
 
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE); 
 		if(e_dev->id == EISA_DEVICE_ID_AMI_4801) {
@@ -291,6 +289,8 @@ bt_eisa_probe(void)
 
 		}
 		eisa_add_intr(e_dev, irq);
+
+		eisa_registerdev(e_dev, &bt_eisa_driver, &kdc_eisa_bt);
 
 		count++;
 	}
