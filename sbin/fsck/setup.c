@@ -200,6 +200,8 @@ setup(dev)
 	} else {
 		sblock.fs_qbmask = ~sblock.fs_bmask;
 		sblock.fs_qfmask = ~sblock.fs_fmask;
+		/* This should match the kernel limit in ffs_oldfscompat(). */
+		sblock.fs_maxfilesize = (u_int64_t)1 << 39;
 		newinofmt = 0;
 	}
 	/*
