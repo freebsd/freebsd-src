@@ -166,7 +166,7 @@ struct pagerops *pagertab[] = {
 	&deadpagerops		/* OBJT_DEAD */
 };
 
-int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
+static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
 /*
  * Kernel address space for mapping pages.
