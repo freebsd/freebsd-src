@@ -281,7 +281,9 @@ rlines(fp, off, sbp)
 	}
 
 	/* XXX: FIXME - mmap() not support files over 2Gb */
-	if (size > INT_MAX) {
+	/* Large file processing require alternative implementation */
+	/* for now print nice error diagnostic at least */
+	if (size > SSIZE_MAX) {
 		errno = EFBIG;
 		ierr();
 		exit(1);
