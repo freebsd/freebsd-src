@@ -146,6 +146,7 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 #include "errno.h"
+#include <ctype.h>
 #ifdef Bad_float_h
 #undef __STDC__
 #ifdef IEEE_MC68k
@@ -1212,14 +1213,9 @@ strtod
 		case 0:
 			s = s00;
 			goto ret;
-		case '\t':
-		case '\n':
-		case '\v':
-		case '\f':
-		case '\r':
-		case ' ':
-			continue;
 		default:
+			if (isspace((unsigned char)*s))
+				continue;
 			goto break2;
 	}
  break2:
