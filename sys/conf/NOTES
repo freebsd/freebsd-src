@@ -1139,6 +1139,7 @@ options 	TDFX_LINUX		# Enable Linuxulator support
 # ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
+# ahd: Adaptec 29320/39320 Controllers.
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
 # amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
 #      such as the Tekram DC-390(T).
@@ -1176,6 +1177,7 @@ device		aic
 hint.aic.0.at="isa"
 device		ahb
 device		ahc
+device		ahd
 device		amd
 device		isp
 hint.isp.0.disable="1"
@@ -1222,6 +1224,13 @@ options 	AHC_DUMP_EEPROM
 
 # Bitmap of units to enable targetmode operations.
 options 	AHC_TMODE_ENABLE
+
+# Compile in aic79xx debugging code.
+options		AHD_DEBUG
+
+# Aic79xx driver debugging options.   
+# See sys/dev/aic79xx/aic79xx.h
+options		AHD_DEBUG_OPTS=0xFFFFFFFF
 
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
