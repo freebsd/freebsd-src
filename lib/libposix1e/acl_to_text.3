@@ -46,12 +46,12 @@ into a NULL terminated character string.  If the pointer
 is not NULL, then the function shall return the length of the string (not
 including the NULL terminator) in the location pointed to by
 .Va len_p .
-Teh format of the text string returned by
+The format of the text string returned by
 .Fn acl_to_text
 shall be the POSIX.1e long ACL form.
 
 This function allocates any memory necessary to contain the string and
-returns a pointer to the string.  The caller should free any releaseable
+returns a pointer to the string.  The caller should free any releasable
 memory, when the new string is no longer required, by calling
 .Xr acl_free 3
 with the
@@ -100,9 +100,11 @@ of the draft continues on the cross-platform POSIX.1e implementation
 mailing list.  To join this list, see the FreeBSD POSIX.1e implementation
 page for more information.
 .Sh HISTORY
-POSIX.1e support was introduced in FreeBSD 4.0, and development continues.
+POSIX.1e support was introduced in
+.Fx 4.0 ,
+and development continues.
 .Sh AUTHORS
-Robert N M Watson
+.An Robert N M Watson
 .Sh BUGS
 These features are not yet fully implemented.  In particular, the shipped
 version of UFS/FFS does not support storage of additional security labels,
