@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,22 +30,20 @@
 
 /* structure describing an ATA disk */
 struct ad_softc {  
-    struct ata_device		*device;	/* ptr to device softc */
-    int				lun;		/* logical unit number */
-    u_int64_t			total_secs;	/* total # of sectors (LBA) */
-    u_int8_t			heads;
-    u_int8_t			sectors;
-    u_int32_t			transfersize;	/* size of each transfer */
-    int				num_tags;	/* number of tags supported */
-    int				max_iosize;	/* max transfer HW supports */
-    int				flags;		/* drive flags */
-#define		AD_F_LABELLING		0x0001		
-#define		AD_F_CHS_USED		0x0002
-#define		AD_F_32B_ENABLED	0x0004
-#define		AD_F_TAG_ENABLED	0x0008
-#define		AD_F_RAID_SUBDISK	0x0010
+    u_int64_t                   total_secs;     /* total # of sectors (LBA) */
+    u_int8_t                    heads;
+    u_int8_t                    sectors;
+    u_int32_t                   transfersize;   /* size of each transfer */
+    int                         num_tags;       /* number of tags supported */
+    int                         flags;          /* drive flags */
+#define         AD_F_LABELLING          0x0001          
+#define         AD_F_CHS_USED           0x0002
+#define         AD_F_32B_ENABLED        0x0004
+#define         AD_F_TAG_ENABLED        0x0008
+#define         AD_F_RAID_SUBDISK       0x0010
 
-    struct mtx			queue_mtx;	/* bio queue lock */
-    struct bio_queue_head	queue;		/* head of request queue */
-    struct disk			*disk;		/* disklabel/slice stuff */
+    struct disk                 *disk;          /* disklabel/slice stuff */
 };
+
+extern devclass_t ad_devclass;
+

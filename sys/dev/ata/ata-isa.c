@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,26 +49,14 @@ __FBSDID("$FreeBSD$");
 
 /* local vars */
 static struct isa_pnp_id ata_ids[] = {
-    {0x0006d041,	"Generic ESDI/IDE/ATA controller"},	/* PNP0600 */
-    {0x0106d041,	"Plus Hardcard II"},			/* PNP0601 */
-    {0x0206d041,	"Plus Hardcard IIXL/EZ"},		/* PNP0602 */
-    {0x0306d041,	"Generic ATA"},				/* PNP0603 */
+    {0x0006d041,        "Generic ESDI/IDE/ATA controller"},     /* PNP0600 */
+    {0x0106d041,        "Plus Hardcard II"},                    /* PNP0601 */
+    {0x0206d041,        "Plus Hardcard IIXL/EZ"},               /* PNP0602 */
+    {0x0306d041,        "Generic ATA"},                         /* PNP0603 */
 								/* PNP0680 */
-    {0x8006d041,	"Standard bus mastering IDE hard disk controller"},
+    {0x8006d041,        "Standard bus mastering IDE hard disk controller"},
     {0}
 };
-
-static int
-ata_isa_locknoop(struct ata_channel *ch, int type)
-{
-    return ch->unit;
-}
-
-static void
-ata_isa_setmode(struct ata_device *atadev, int mode)
-{
-    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
-}
 
 static int
 ata_isa_probe(device_t dev)
@@ -115,18 +103,16 @@ ata_isa_probe(device_t dev)
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
-    ch->locking = ata_isa_locknoop;
-    ch->device[MASTER].setmode = ata_isa_setmode;
-    ch->device[SLAVE].setmode = ata_isa_setmode;
     ata_generic_hw(ch);
     return ata_probe(dev);
 }
 
 static device_method_t ata_isa_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,	ata_isa_probe),
-    DEVMETHOD(device_attach,	ata_attach),
-    DEVMETHOD(device_resume,	ata_resume),
+    DEVMETHOD(device_probe,     ata_isa_probe),
+    DEVMETHOD(device_attach,    ata_attach),
+    DEVMETHOD(device_suspend,   ata_suspend),
+    DEVMETHOD(device_resume,    ata_resume),
     { 0, 0 }
 };
 
@@ -137,3 +123,4 @@ static driver_t ata_isa_driver = {
 };
 
 DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
+MODULE_DEPEND(ata, ata, 1, 1, 1);

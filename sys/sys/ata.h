@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2004 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2005 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 struct ata_params {
 /*000*/ u_int16_t	config;		/* configuration info */
 #define ATA_PROTO_MASK			0x8003
-#define ATA_PROTO_ATA			0x0002
+#define ATA_PROTO_ATA			0x0000
 #define ATA_PROTO_ATAPI_12		0x8000
 #define ATA_PROTO_ATAPI_16		0x8001
 #define ATA_ATAPI_TYPE_MASK		0x1f00
@@ -82,7 +82,11 @@ struct ata_params {
 #define ATA_FLAG_64_70			0x0002	/* words 64-70 valid */
 #define ATA_FLAG_88			0x0004	/* word 88 valid */
 
-/*054*/	u_int16_t	obsolete54[5];
+/*054*/	u_int16_t	current_cylinders;
+/*055*/	u_int16_t	current_heads;
+/*056*/	u_int16_t	current_sectors;
+/*057*/	u_int16_t	current_size_1;
+/*058*/	u_int16_t	current_size_2;
 /*059*/	u_int16_t	multi;
 #define	ATA_MULTI_VALID			0x0100
 
@@ -155,7 +159,7 @@ struct ata_params {
 #define ATA_SUPPORT_FLUSHCACHE48	0x2000
 
 /*084/087*/ u_int16_t	extension;
-	} support, enabled;
+	} __packed support, enabled;
 
 /*088*/	u_int16_t	udmamodes;		/* UltraDMA modes */
 /*089*/	u_int16_t	erase_time;
@@ -182,11 +186,11 @@ struct ata_params {
 /*128*/	u_int16_t	security_status;
 	u_int16_t	reserved129[31];
 /*160*/	u_int16_t	cfa_powermode1;
-	u_int16_t	reserved161[14];
+	u_int16_t	reserved161[15];
 /*176*/	u_int16_t	media_serial[30];
 	u_int16_t	reserved206[49];
 /*255*/	u_int16_t	integrity;
-};
+} __packed;
 
 /* ATA transfer modes */
 #define ATA_MODE_MASK		0x0f
@@ -368,9 +372,14 @@ struct ata_cmd {
 
 	struct raid_setup {
 	    int			type;
-#define	AR_RAID0			1
-#define	AR_RAID1			2
-#define	AR_SPAN				4
+#define AR_JBOD 	              	0x01
+#define AR_SPAN        		       	0x02
+#define AR_RAID0       		       	0x04
+#define AR_RAID1       		       	0x08
+#define AR_RAID01      		       	0x10
+#define AR_RAID3       	 	      	0x20
+#define AR_RAID4       	       		0x40
+#define AR_RAID5              		0x80
 
 	    int			total_disks;
 	    int			disks[16];
