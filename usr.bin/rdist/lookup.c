@@ -141,7 +141,8 @@ lookup(name, action, value)
 			continue;
 		if (action != LOOKUP) {
 			if (action != INSERT || s->s_type != CONST) {
-				(void)sprintf(buf, "%s redefined", name);
+				(void)snprintf(buf, sizeof(buf),
+				    "%s redefined", name);
 				yyerror(buf);
 			}
 		}
@@ -149,7 +150,7 @@ lookup(name, action, value)
 	}
 
 	if (action == LOOKUP) {
-		(void)sprintf(buf, "%s undefined", name);
+		(void)snprintf(buf, sizeof(buf), "%s undefined", name);
 		yyerror(buf);
 		return(NULL);
 	}
