@@ -2,9 +2,11 @@
  * Device probe and attach routines for the following
  * Advanced Systems Inc. SCSI controllers:
  *
- *	ABP940UW - Bus-Master PCI Ultra-Wide (240 CDB)
+ *	ABP[3]940UW - Bus-Master PCI Ultra-Wide (253 CDB)
+ *	ABP950UW    - Dual Channel Bus-Master PCI Ultra-Wide (253 CDB/Channel)
+ *	ABP3940U2W  - Bus-Master PCI LVD/Ultra2-Wide (253 CDB)
  *
- * Copyright (c) 1998 Justin Gibbs.
+ * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,7 +14,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
@@ -34,9 +36,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -48,91 +55,202 @@
 #include <dev/advansys/adwlib.h>
 #include <dev/advansys/adwmcode.h>
 
-#define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
-#define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
+#define ADW_PCI_IOBASE	PCI_MAP_REG_START	/* I/O Address */
+#define ADW_PCI_MEMBASE	PCI_MAP_REG_START + 4	/* Mem I/O Address */
 
-#define	PCI_DEVICE_ID_ADVANSYS_3550	0x230010CD
+#define	PCI_ID_ADVANSYS_3550		0x230010CD00000000ull
+#define	PCI_ID_ADVANSYS_38C0800_REV1	0x250010CD00000000ull
+#define	PCI_ID_ADVANSYS_38C1600_REV1	0x270010CD00000000ull
+#define PCI_ID_ALL_MASK             	0xFFFFFFFFFFFFFFFFull
+#define PCI_ID_DEV_VENDOR_MASK      	0xFFFFFFFF00000000ull
+
+struct adw_pci_identity;
+typedef int (adw_device_setup_t)(device_t, struct adw_pci_identity *,
+				 struct adw_softc *adw);
+
+struct adw_pci_identity {
+	u_int64_t		 full_id;
+	u_int64_t		 id_mask;
+	char			*name;
+	adw_device_setup_t	*setup;
+	const struct adw_mcode	*mcode_data;
+	const struct adw_eeprom	*default_eeprom;
+};
+
+static adw_device_setup_t adw_asc3550_setup;
+static adw_device_setup_t adw_asc38C0800_setup;
+#ifdef NOTYET
+static adw_device_setup_t adw_asc38C1600_setup;
+#endif
+
+struct adw_pci_identity adw_pci_ident_table[] =
+{
+	/* asc3550 based controllers */
+	{
+		PCI_ID_ADVANSYS_3550,
+		PCI_ID_DEV_VENDOR_MASK,
+		"AdvanSys 3550 Ultra SCSI Adapter",
+		adw_asc3550_setup,
+		&adw_asc3550_mcode_data,
+		&adw_asc3550_default_eeprom
+	},
+	/* asc38C0800 based controllers */
+	{
+		PCI_ID_ADVANSYS_38C0800_REV1,
+		PCI_ID_DEV_VENDOR_MASK,
+		"AdvanSys 38C0800 Ultra2 SCSI Adapter",
+		adw_asc38C0800_setup,
+		&adw_asc38C0800_mcode_data,
+		&adw_asc38C0800_default_eeprom
+	},
+#if NOTYET
+	/* XXX Disabled until I have hardware to test with */
+	/* asc38C1600 based controllers */
+	{
+		PCI_ID_ADVANSYS_38C1600_REV1,
+		PCI_ID_DEV_VENDOR_MASK,
+		"AdvanSys 38C1600 Ultra160 SCSI Adapter",
+		adw_asc38C1600_setup,
+		NULL, /* None provided by vendor thus far */
+		NULL  /* None provided by vendor thus far */
+	}
+#endif
+};
+
+static const int adw_num_pci_devs =
+	sizeof(adw_pci_ident_table) / sizeof(*adw_pci_ident_table);
 
 #define ADW_PCI_MAX_DMA_ADDR    (0xFFFFFFFFUL)
 #define ADW_PCI_MAX_DMA_COUNT   (0xFFFFFFFFUL)
 
-static const char* adwpciprobe(pcici_t tag, pcidi_t type);
-static void adwpciattach(pcici_t config_id, int unit);
+static int adw_pci_probe(device_t dev);
+static int adw_pci_attach(device_t dev);
 
-static struct  pci_device adw_pci_driver = {
-	"adw",
-        adwpciprobe,
-        adwpciattach,
-        &adw_unit,
-	NULL
+static device_method_t adw_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		adw_pci_probe),
+	DEVMETHOD(device_attach,	adw_pci_attach),
+	{ 0, 0 }
 };
 
-COMPAT_PCI_DRIVER (adw_pci, adw_pci_driver);
+static driver_t adw_pci_driver = {
+        "adw",
+        adw_pci_methods,
+        sizeof(struct adw_softc)
+}; 
 
-static const char*
-adwpciprobe(pcici_t tag, pcidi_t type)
+static devclass_t adw_devclass;
+
+DRIVER_MODULE(adw, pci, adw_pci_driver, adw_devclass, 0, 0);
+
+static __inline u_int64_t
+adw_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 {
-	switch (type) {
-	case PCI_DEVICE_ID_ADVANSYS_3550:
-		return ("AdvanSys ASC3550 SCSI controller");
-	default:
-		break;
+	u_int64_t id;
+
+	id = subvendor
+	   | (subdevice << 16)
+	   | ((u_int64_t)vendor << 32)
+	   | ((u_int64_t)device << 48);
+
+        return (id);
+}
+
+static struct adw_pci_identity *
+adw_find_pci_device(device_t dev)
+{
+	u_int64_t  full_id;
+	struct     adw_pci_identity *entry;
+	u_int      i;
+
+	full_id = adw_compose_id(pci_get_device(dev),
+				 pci_get_vendor(dev),
+				 pci_get_subdevice(dev),
+				 pci_get_subvendor(dev));
+
+	for (i = 0; i < adw_num_pci_devs; i++) {
+		entry = &adw_pci_ident_table[i];
+		if (entry->full_id == (full_id & entry->id_mask))
+			return (entry);
 	}
 	return (NULL);
 }
 
-static void
-adwpciattach(pcici_t config_id, int unit)
+static int
+adw_pci_probe(device_t dev)
 {
-	u_int32_t	   id;
-	u_int32_t	   command;
-	vm_offset_t	   vaddr;
-#ifdef ADW_ALLOW_MEMIO
-	vm_offset_t	   paddr;
-#endif
-	u_int16_t	   io_port;
-	bus_space_tag_t    tag;
-	bus_space_handle_t bsh;
-	struct adw_softc  *adw;
-	int		   error;
+	struct	adw_pci_identity *entry;
+
+	entry = adw_find_pci_device(dev);
+	if (entry != NULL) {
+		device_set_desc(dev, entry->name);
+		return (0);
+	}
+	return (ENXIO);
+}
+
+static int
+adw_pci_attach(device_t dev)
+{
+	struct		adw_softc *adw;
+	struct		adw_pci_identity *entry;
+	u_int32_t	command;
+	struct		resource *regs;
+	int		regs_type;
+	int		regs_id;
+	int		error;
+	int		zero;
  
-	/*
-	 * Determine the chip version.
-	 */
-	id = pci_cfgread(config_id, PCI_ID_REG, /*bytes*/4);
-	command = pci_cfgread(config_id, PCIR_COMMAND, /*bytes*/1);
-
-	/*
-	 * These cards do not allow memory mapped accesses, so we must
-	 * ensure that I/O accesses are available or we won't be able
-	 * to talk to them.
-	 */
-	vaddr = 0;
+	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
+	entry = adw_find_pci_device(dev);
+	if (entry == NULL)
+		return (ENXIO);
+	regs = NULL;
+	regs_type = 0;
+	regs_id = 0;
 #ifdef ADW_ALLOW_MEMIO
-	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
-	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
+	 if ((command & PCIM_CMD_MEMEN) != 0)
+		regs_type = SYS_RES_MEMORY;
+		regs_id = ADW_PCI_MEMBASE;
+		regs = bus_alloc_resource(dev, regs_type,
+					  &regs_id, 0, ~0, 1, RF_ACTIVE);
+	}
 #endif
-		if ((command & PCI_COMMAND_IO_ENABLE) == 0
-		 || (pci_map_port(config_id, PCI_BASEADR0, &io_port)) == 0)
-			return;
-
-	/* XXX Should be passed in by parent bus */
-	/* XXX Why isn't the 0x10 offset incorporated into the reg defs? */
-	if (vaddr != 0) {
-		tag = I386_BUS_SPACE_MEM;
-		bsh = vaddr;
-	} else {
-		tag = I386_BUS_SPACE_IO;
-		bsh = io_port;
+	if (regs == NULL && (command & PCI_COMMAND_IO_ENABLE) != 0) {
+		regs_type = SYS_RES_IOPORT;
+		regs_id = ADW_PCI_IOBASE;
+		regs = bus_alloc_resource(dev, regs_type,
+					  &regs_id, 0, ~0, 1, RF_ACTIVE);
 	}
 
+	if (regs == NULL) {
+		device_printf(dev, "can't allocate register resources\n");
+		return (ENOMEM);
+	}
 
-	if (adw_find_signature(tag, bsh) == 0)
-		return;
-
-	adw = adw_alloc(unit, tag, bsh);
+	adw = adw_alloc(dev, regs, regs_type, regs_id);
 	if (adw == NULL)
-		return;
+		return(ENOMEM);
+
+	/*
+	 * Now that we have access to our registers, just verify that
+	 * this really is an AdvanSys device.
+	 */
+	if (adw_find_signature(adw) == 0) {
+		adw_free(adw);
+		return (ENXIO);
+	}
+
+	adw_reset_chip(adw);
+
+	error = entry->setup(dev, entry, adw);
+
+	if (error != 0)
+		return (error);
+
+	/* Ensure busmastering is enabled */
+	command |= PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -153,14 +271,15 @@ adwpciattach(pcici_t config_id, int unit)
 		printf("%s: Could not allocate DMA tag - error %d\n",
 		       adw_name(adw), error);
 		adw_free(adw);
-		return;
+		return (error);
 	}
 
 	adw->init_level++;
 
-	if (adw_init(adw) != 0) {
+	error = adw_init(adw);
+	if (error != 0) {
 		adw_free(adw);
-		return;
+		return (error);
 	}
 
 	/*
@@ -174,10 +293,99 @@ adwpciattach(pcici_t config_id, int unit)
 				  adw_lram_read_16(adw, ADW_MC_CONTROL_FLAG)
 				  | ADW_MC_CONTROL_IGN_PERR);
 
-	if ((pci_map_int(config_id, adw_intr, (void *)adw, &cam_imask)) == 0) {
+	zero = 0;
+	adw->irq_res_type = SYS_RES_IRQ;
+	adw->irq = bus_alloc_resource(dev, adw->irq_res_type, &zero,
+				      0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (adw->irq == NULL) {
 		adw_free(adw);
-		return;
+		return (ENOMEM);
 	}
-	
-	adw_attach(adw);
+
+	error = adw_attach(adw);
+	if (error != 0)
+		adw_free(adw);
+	return (error);
 }
+
+static int
+adw_generic_setup(device_t dev, struct adw_pci_identity *entry,
+		  struct adw_softc *adw)
+{
+	adw->channel = pci_get_function(dev) == 1 ? 'B' : 'A';
+	adw->chip = ADW_CHIP_NONE;
+	adw->features = ADW_FENONE;
+	adw->flags = ADW_FNONE;
+	adw->mcode_data = entry->mcode_data;
+	adw->default_eeprom = entry->default_eeprom;
+	return (0);
+}
+
+static int
+adw_asc3550_setup(device_t dev, struct adw_pci_identity *entry,
+		  struct adw_softc *adw)
+{
+	int error;
+
+	error = adw_generic_setup(dev, entry, adw);
+	if (error != 0)
+		return (error);
+	adw->chip = ADW_CHIP_ASC3550;
+	adw->features = ADW_ASC3550_FE;
+	adw->memsize = ADW_3550_MEMSIZE;
+	/*
+	 * For ASC-3550, setting the START_CTL_EMFU [3:2] bits
+	 * sets a FIFO threshold of 128 bytes. This register is
+	 * only accessible to the host.
+	 */
+	adw_outb(adw, ADW_DMA_CFG0,
+		 ADW_DMA_CFG0_START_CTL_EM_FU|ADW_DMA_CFG0_READ_CMD_MRM);
+	adw_outb(adw, ADW_MEM_CFG,
+		 adw_inb(adw, ADW_MEM_CFG) | ADW_MEM_CFG_RAM_SZ_8KB);
+	return (0);
+}
+
+static int
+adw_asc38C0800_setup(device_t dev, struct adw_pci_identity *entry,
+		     struct adw_softc *adw)
+{
+	int error;
+
+	error = adw_generic_setup(dev, entry, adw);
+	if (error != 0)
+		return (error);
+	/*
+	 * For ASC-38C0800, set FIFO_THRESH_80B [6:4] bits and
+	 * START_CTL_TH [3:2] bits for the default FIFO threshold.
+	 *
+	 * Note: ASC-38C0800 FIFO threshold has been changed to 256 bytes.
+	 *
+	 * For DMA Errata #4 set the BC_THRESH_ENB bit.
+	 */
+	adw_outb(adw, ADW_DMA_CFG0,
+		 ADW_DMA_CFG0_BC_THRESH_ENB|ADW_DMA_CFG0_FIFO_THRESH_80B
+		|ADW_DMA_CFG0_START_CTL_TH|ADW_DMA_CFG0_READ_CMD_MRM);
+	adw_outb(adw, ADW_MEM_CFG,
+		 adw_inb(adw, ADW_MEM_CFG) | ADW_MEM_CFG_RAM_SZ_16KB);
+	adw->chip = ADW_CHIP_ASC38C0800;
+	adw->features = ADW_ASC38C0800_FE;
+	adw->memsize = ADW_38C0800_MEMSIZE;
+	return (error);
+}
+
+#ifdef NOTYET
+static int
+adw_asc38C1600_setup(device_t dev, struct adw_pci_identity *entry,
+		     struct adw_softc *adw)
+{
+	int error;
+
+	error = adw_generic_setup(dev, entry, adw);
+	if (error != 0)
+		return (error);
+	adw->chip = ADW_CHIP_ASC38C1600;
+	adw->features = ADW_ASC38C1600_FE;
+	adw->memsize = ADW_38C1600_MEMSIZE;
+	return (error);
+}
+#endif

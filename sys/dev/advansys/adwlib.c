@@ -2,7 +2,7 @@
  * Low level routines for Second Generation
  * Advanced Systems Inc. SCSI controllers chips
  *
- * Copyright (c) 1998 Justin Gibbs.
+ * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -46,6 +46,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
@@ -57,46 +58,105 @@
 
 #include <dev/advansys/adwlib.h>
 
-struct adw_eeprom adw_default_eeprom = {
-	ADW_EEPROM_BIOS_ENABLE,	/* cfg_lsw */
-	0x0000,			/* cfg_msw */
-	0xFFFF,			/* disc_enable */
-	0xFFFF,			/* wdtr_able */
-	0xFFFF,			/* sdtr_able */
-	0xFFFF,			/* start_motor */
-	0xFFFF,			/* tagqng_able */
-	0xFFFF,			/* bios_scan */
-	0,			/* scam_tolerant */
-	7,			/* adapter_scsi_id */
-	0,			/* bios_boot_delay */
-	3,			/* scsi_reset_delay */
-	0,			/* bios_id_lun */
-	0,			/* termination */
-	0,			/* reserved1 */
-	{			/* Bios Ctrl */
-	  1, 1, 1, 1, 1,
-	  1, 1, 1, 1, 1,
-	},
-	0xFFFF,			/* ultra_able */
-	0,			/* reserved2 */
-	ADW_DEF_MAX_HOST_QNG,	/* max_host_qng */
-	ADW_DEF_MAX_DVC_QNG,	/* max_dvc_qng */
-	0,			/* dvc_cntl */
-	0,			/* bug_fix */
-	{ 0, 0, 0 },		/* serial_number */
-	0,			/* check_sum */
-	{			/* oem_name[16] */
+const struct adw_eeprom adw_asc3550_default_eeprom =
+{
+	ADW_EEPROM_BIOS_ENABLE,		/* cfg_lsw */
+	0x0000,				/* cfg_msw */
+	0xFFFF,				/* disc_enable */
+	0xFFFF,				/* wdtr_able */
+	{ 0xFFFF },			/* sdtr_able */
+	0xFFFF,				/* start_motor */
+	0xFFFF,				/* tagqng_able */
+	0xFFFF,				/* bios_scan */
+	0,				/* scam_tolerant */
+	7,				/* adapter_scsi_id */
+	0,				/* bios_boot_delay */
+	3,				/* scsi_reset_delay */
+	0,				/* bios_id_lun */
+	0,				/* termination */
+	0,				/* reserved1 */
+	0xFFE7,				/* bios_ctrl */
+	{ 0xFFFF },			/* ultra_able */   
+	{ 0 },				/* reserved2 */
+	ADW_DEF_MAX_HOST_QNG,		/* max_host_qng */
+	ADW_DEF_MAX_DVC_QNG,		/* max_dvc_qng */
+	0,				/* dvc_cntl */
+	{ 0 },				/* bug_fix */
+	{ 0, 0, 0 },			/* serial_number */
+	0,				/* check_sum */
+	{				/* oem_name[16] */
 	  0, 0, 0, 0, 0, 0, 0, 0,
 	  0, 0, 0, 0, 0, 0, 0, 0
 	},
-	0,			/* dvc_err_code */
-	0,			/* adv_err_code */
-	0,			/* adv_err_addr */
-	0,			/* saved_dvc_err_code */
-	0,			/* saved_adv_err_code */
-	0,			/* saved_adv_err_addr */
-	0			/* num_of_err */
+	0,				/* dvc_err_code */
+	0,				/* adv_err_code */
+	0,				/* adv_err_addr */
+	0,				/* saved_dvc_err_code */
+	0,				/* saved_adv_err_code */
+	0				/* saved_adv_err_addr */
 };
+
+const struct adw_eeprom adw_asc38C0800_default_eeprom =
+{
+	ADW_EEPROM_BIOS_ENABLE,		/* 00 cfg_lsw */
+	0x0000,				/* 01 cfg_msw */
+	0xFFFF,				/* 02 disc_enable */
+	0xFFFF,				/* 03 wdtr_able */
+	{ 0x4444 },			/* 04 sdtr_speed1 */
+	0xFFFF,				/* 05 start_motor */
+	0xFFFF,				/* 06 tagqng_able */
+	0xFFFF,				/* 07 bios_scan */
+	0,				/* 08 scam_tolerant */
+	7,				/* 09 adapter_scsi_id */
+	0,				/*    bios_boot_delay */
+	3,				/* 10 scsi_reset_delay */
+	0,				/*    bios_id_lun */
+	0,				/* 11 termination_se */
+	0,				/*    termination_lvd */
+	0xFFE7,				/* 12 bios_ctrl */
+	{ 0x4444 },			/* 13 sdtr_speed2 */
+	{ 0x4444 },			/* 14 sdtr_speed3 */
+	ADW_DEF_MAX_HOST_QNG,		/* 15 max_host_qng */
+	ADW_DEF_MAX_DVC_QNG,		/*    max_dvc_qng */
+	0,				/* 16 dvc_cntl */
+	{ 0x4444 } ,			/* 17 sdtr_speed4 */
+	{ 0, 0, 0 },			/* 18-20 serial_number */
+	0,				/* 21 check_sum */
+	{				/* 22-29 oem_name[16] */
+	  0, 0, 0, 0, 0, 0, 0, 0,
+	  0, 0, 0, 0, 0, 0, 0, 0
+	},
+	0,				/* 30 dvc_err_code */
+	0,				/* 31 adv_err_code */
+	0,				/* 32 adv_err_addr */
+	0,				/* 33 saved_dvc_err_code */
+	0,				/* 34 saved_adv_err_code */
+	0,				/* 35 saved_adv_err_addr */
+	{				/* 36 - 55 reserved */
+	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	},
+	0,				/* 56 cisptr_lsw */
+	0,				/* 57 cisprt_msw */
+					/* 58-59 sub-id */
+	(PCI_ID_ADVANSYS_38C0800_REV1 & PCI_ID_DEV_VENDOR_MASK) >> 32,
+};
+
+#define ADW_MC_SDTR_OFFSET_ULTRA2_DT	0
+#define ADW_MC_SDTR_OFFSET_ULTRA2	1
+#define ADW_MC_SDTR_OFFSET_ULTRA	2
+const struct adw_syncrate adw_syncrates[] =
+{
+	/*   mc_sdtr		  period      rate */
+	{ ADW_MC_SDTR_80,	    9,	     "80.0"  },
+	{ ADW_MC_SDTR_40,	    10,	     "40.0"  },
+	{ ADW_MC_SDTR_20,	    12,	     "20.0"  },
+	{ ADW_MC_SDTR_10,	    25,	     "10.0"  },
+	{ ADW_MC_SDTR_5,	    50,	     "5.0"   },
+	{ ADW_MC_SDTR_ASYNC,	    0,	     "async" }
+};
+
+const int adw_num_syncrates = sizeof(adw_syncrates) / sizeof(adw_syncrates[0]);
 
 static u_int16_t	adw_eeprom_read_16(struct adw_softc *adw, int addr);
 static void		adw_eeprom_write_16(struct adw_softc *adw, int addr,
@@ -104,10 +164,10 @@ static void		adw_eeprom_write_16(struct adw_softc *adw, int addr,
 static void		adw_eeprom_wait(struct adw_softc *adw);
 
 int
-adw_find_signature(bus_space_tag_t tag, bus_space_handle_t bsh)
+adw_find_signature(struct adw_softc *adw)
 {
-	if (bus_space_read_1(tag, bsh, ADW_SIGNATURE_BYTE) == ADW_CHIP_ID_BYTE
-	 && bus_space_read_2(tag, bsh, ADW_SIGNATURE_WORD) == ADW_CHIP_ID_WORD)
+	if (adw_inb(adw, ADW_SIGNATURE_BYTE) == ADW_CHIP_ID_BYTE
+	 && adw_inw(adw, ADW_SIGNATURE_WORD) == ADW_CHIP_ID_WORD)
 		return (1);
 	return (0);
 }
@@ -119,24 +179,14 @@ void
 adw_reset_chip(struct adw_softc *adw)
 {
 	adw_outw(adw, ADW_CTRL_REG, ADW_CTRL_REG_CMD_RESET);
-	DELAY(100);
+	DELAY(1000 * 100);
 	adw_outw(adw, ADW_CTRL_REG, ADW_CTRL_REG_CMD_WR_IO_REG);
 
 	/*
 	 * Initialize Chip registers.
 	 */
-	adw_outb(adw, ADW_MEM_CFG,
-		 adw_inb(adw, ADW_MEM_CFG) | ADW_MEM_CFG_RAM_SZ_8KB);
-
 	adw_outw(adw, ADW_SCSI_CFG1,
 		 adw_inw(adw, ADW_SCSI_CFG1) & ~ADW_SCSI_CFG1_BIG_ENDIAN);
-
-	/*
-	 * Setting the START_CTL_EM_FU 3:2 bits sets a FIFO threshold
-	 * of 128 bytes. This register is only accessible to the host.
-	 */
-	adw_outb(adw, ADW_DMA_CFG0,
-		 ADW_DMA_CFG0_START_CTL_EM_FU|ADW_DMA_CFG0_READ_CMD_MRM);
 }
 
 /*
@@ -256,13 +306,17 @@ adw_eeprom_write(struct adw_softc *adw, struct adw_eeprom *eep_buf)
 int
 adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 {
-	u_int8_t   biosmem[ADW_MC_BIOSLEN];
-	u_int16_t *mcodebuf;
-	u_int	   addr;
-	u_int	   end_addr;
-	u_int	   checksum;
-	u_int	   scsicfg1;
-	u_int	   i;
+	u_int8_t	    biosmem[ADW_MC_BIOSLEN];
+	const u_int16_t    *word_table;
+	const u_int8_t     *byte_codes;
+	const u_int8_t     *byte_codes_end;
+	u_int		    bios_sig;
+	u_int		    bytes_downloaded;
+	u_int		    addr;
+	u_int		    end_addr;
+	u_int		    checksum;
+	u_int		    scsicfg1;
+	u_int		    tid;
 
 	/*
 	 * Save the RISC memory BIOS region before writing the microcode.
@@ -273,19 +327,114 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 		biosmem[addr] = adw_lram_read_8(adw, ADW_MC_BIOSMEM + addr);
 
 	/*
-	 * Load the Microcode.  Casting here was less work than
-	 * reformatting the supplied microcode into an array of
-	 * 16bit values...
+	 * Save current per TID negotiated values if the BIOS has been
+	 * loaded (BIOS signature is present).  These will be used if
+	 * we cannot get information from the EEPROM.
 	 */
-	mcodebuf = (u_int16_t *)adw_mcode;
+	addr = ADW_MC_BIOS_SIGNATURE - ADW_MC_BIOSMEM;
+	bios_sig = biosmem[addr]
+		 | (biosmem[addr + 1] << 8);
+	if (bios_sig == 0x55AA
+	 && (adw->flags & ADW_EEPROM_FAILED) != 0) {
+		u_int major_ver;
+		u_int minor_ver;
+		u_int sdtr_able;
+
+		addr = ADW_MC_BIOS_VERSION - ADW_MC_BIOSMEM;
+		minor_ver = biosmem[addr + 1] & 0xF;
+		major_ver = (biosmem[addr + 1] >> 4) & 0xF;
+		if ((adw->chip == ADW_CHIP_ASC3550)
+		 && (major_ver <= 3
+		  || (major_ver == 3 && minor_ver == 1))) {
+			/*
+			 * BIOS 3.1 and earlier location of
+			 * 'wdtr_able' variable.
+			 */
+			adw->user_wdtr =
+			    adw_lram_read_16(adw, ADW_MC_WDTR_ABLE_BIOS_31);
+		} else {
+			adw->user_wdtr =
+			    adw_lram_read_16(adw, ADW_MC_WDTR_ABLE);
+		}
+		sdtr_able = adw_lram_read_16(adw, ADW_MC_SDTR_ABLE);
+		for (tid = 0; tid < ADW_MAX_TID; tid++) {
+			u_int tid_mask;
+			u_int mc_sdtr;
+
+			tid_mask = 0x1 << tid;
+			if ((sdtr_able & tid_mask) == 0)
+				mc_sdtr = ADW_MC_SDTR_ASYNC;
+			else if ((adw->features & ADW_DT) != 0)
+				mc_sdtr = ADW_MC_SDTR_80;
+			else if ((adw->features & ADW_ULTRA2) != 0)
+				mc_sdtr = ADW_MC_SDTR_40;
+			else
+				mc_sdtr = ADW_MC_SDTR_20;
+			adw_set_user_sdtr(adw, tid, mc_sdtr);
+		}
+		adw->user_tagenb = adw_lram_read_16(adw, ADW_MC_TAGQNG_ABLE);
+	}
+
+	/*
+	 * Load the Microcode.
+	 *
+	 * Assume the following compressed format of the microcode buffer:
+	 *
+	 *	253 word (506 byte) table indexed by byte code followed
+	 *	by the following byte codes:
+	 *
+	 *	1-Byte Code:
+	 *		00: Emit word 0 in table.
+	 *		01: Emit word 1 in table.
+	 *		.
+	 *		FD: Emit word 253 in table.
+	 *
+	 *	Multi-Byte Code:
+	 *		FD RESEVED
+	 *
+	 *		FE WW WW: (3 byte code)
+	 *			Word to emit is the next word WW WW.
+	 *		FF BB WW WW: (4 byte code)
+	 *			Emit BB count times next word WW WW.
+	 *
+	 */
+	bytes_downloaded = 0;
+	word_table = (const u_int16_t *)adw->mcode_data->mcode_buf;
+	byte_codes = (const u_int8_t *)&word_table[253];
+	byte_codes_end = adw->mcode_data->mcode_buf
+		       + adw->mcode_data->mcode_size;
 	adw_outw(adw, ADW_RAM_ADDR, 0);
-	for (addr = 0; addr < adw_mcode_size/2; addr++)
-		adw_outw(adw, ADW_RAM_DATA, mcodebuf[addr]);
+	while (byte_codes < byte_codes_end) {
+		if (*byte_codes == 0xFF) {
+			u_int16_t value;
+
+			value = byte_codes[2]
+			      | byte_codes[3] << 8;
+			adw_set_multi_2(adw, ADW_RAM_DATA,
+					value, byte_codes[1]);
+			bytes_downloaded += byte_codes[1];
+			byte_codes += 4;
+		} else if (*byte_codes == 0xFE) {
+			u_int16_t value;
+
+			value = byte_codes[1]
+			      | byte_codes[2] << 8;
+			adw_outw(adw, ADW_RAM_DATA, value);
+			bytes_downloaded++;
+			byte_codes += 3;
+		} else {
+			adw_outw(adw, ADW_RAM_DATA, word_table[*byte_codes]);
+			bytes_downloaded++;
+			byte_codes++;
+		}
+	}
+	/* Convert from words to bytes */
+	bytes_downloaded *= 2;
 
 	/*
 	 * Clear the rest of LRAM.
 	 */
-	for (; addr < ADW_CONDOR_MEMSIZE/2; addr++)
+	for (addr = bytes_downloaded; addr < adw->memsize; addr += 2)
 		adw_outw(adw, ADW_RAM_DATA, 0);
 
 	/*
@@ -293,12 +442,12 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	 */
 	checksum = 0;
 	adw_outw(adw, ADW_RAM_ADDR, 0);
-	for (addr = 0; addr < adw_mcode_size/2; addr++)
+	for (addr = 0; addr < bytes_downloaded; addr += 2)
 		checksum += adw_inw(adw, ADW_RAM_DATA);
 
-	if (checksum != adw_mcode_chksum) {
+	if (checksum != adw->mcode_data->mcode_chksum) {
 		printf("%s: Firmware load failed!\n", adw_name(adw));
-		return (-1);
+		return (EIO);
 	}
 
 	/*
@@ -311,27 +460,36 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	 * Calculate and write the microcode code checksum to
 	 * the microcode code checksum location.
 	 */
-	addr = adw_lram_read_16(adw, ADW_MC_CODE_BEGIN_ADDR) / 2;
-	end_addr = adw_lram_read_16(adw, ADW_MC_CODE_END_ADDR) / 2;
+	addr = adw_lram_read_16(adw, ADW_MC_CODE_BEGIN_ADDR);
+	end_addr = adw_lram_read_16(adw, ADW_MC_CODE_END_ADDR);
 	checksum = 0;
-	for (; addr < end_addr; addr++)
-		checksum += mcodebuf[addr];
+	adw_outw(adw, ADW_RAM_ADDR, addr);
+	for (; addr < end_addr; addr += 2)
+		checksum += adw_inw(adw, ADW_RAM_DATA);
 	adw_lram_write_16(adw, ADW_MC_CODE_CHK_SUM, checksum);
 
 	/*
-	 * Initialize microcode operating variables
+	 * Tell the microcode what kind of chip it's running on.
 	 */
-	adw_lram_write_16(adw, ADW_MC_ADAPTER_SCSI_ID, adw->initiator_id);
+	adw_lram_write_16(adw, ADW_MC_CHIP_TYPE, adw->chip);
 
 	/*
 	 * Leave WDTR and SDTR negotiation disabled until the XPT has
-	 * informed us of device capabilities, but do set the ultra mask
-	 * in case we receive an SDTR request from the target before we
-	 * negotiate.  We turn on tagged queuing at the microcode level
-	 * for all devices, and modulate this on a per command basis.
+	 * informed us of device capabilities, but do set the desired
+	 * user rates in case we receive an SDTR request from the target
+	 * before we negotiate.  We turn on tagged queuing at the microcode
+	 * level for all devices, and modulate this on a per command basis.
 	 */
-	adw_lram_write_16(adw, ADW_MC_ULTRA_ABLE, adw->user_ultra);
+	adw_lram_write_16(adw, ADW_MC_SDTR_SPEED1, adw->user_sdtr[0]);
+	adw_lram_write_16(adw, ADW_MC_SDTR_SPEED2, adw->user_sdtr[1]);
+	adw_lram_write_16(adw, ADW_MC_SDTR_SPEED3, adw->user_sdtr[2]);
+	adw_lram_write_16(adw, ADW_MC_SDTR_SPEED4, adw->user_sdtr[3]);
 	adw_lram_write_16(adw, ADW_MC_DISC_ENABLE, adw->user_discenb);
+	for (tid = 0; tid < ADW_MAX_TID; tid++) {
+		/* Cam limits the maximum number of commands for us */
+		adw_lram_write_8(adw, ADW_MC_NUMBER_OF_MAX_CMD + tid,
+				 adw->max_acbs);
+	}
 	adw_lram_write_16(adw, ADW_MC_TAGQNG_ABLE, ~0);
 
 	/*
@@ -343,7 +501,14 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	adw_lram_write_16(adw, ADW_MC_DEFAULT_SCSI_CFG0,
 			  ADW_SCSI_CFG0_PARITY_EN|ADW_SCSI_CFG0_SEL_TMO_LONG|
 			  ADW_SCSI_CFG0_OUR_ID_EN|adw->initiator_id);
-  
+
+	/*
+	 * Tell the MC about the memory size that
+	 * was setup by the probe code.
+	 */
+	adw_lram_write_16(adw, ADW_MC_DEFAULT_MEM_CFG,
+			  adw_inb(adw, ADW_MEM_CFG) & ADW_MEM_CFG_RAM_SZ_MASK);
+
 	/*
 	 * Determine SCSI_CFG1 Microcode Default Value.
 	 *
@@ -353,17 +518,6 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	scsicfg1 = adw_inw(adw, ADW_SCSI_CFG1);
 
 	/*
-	 * If all three connectors are in use, return an error.
-	 */
-	if ((scsicfg1 & ADW_SCSI_CFG1_ILLEGAL_CABLE_CONF_A_MASK) == 0
-	 || (scsicfg1 & ADW_SCSI_CFG1_ILLEGAL_CABLE_CONF_B_MASK) == 0) {
-		printf("%s: Illegal Cable Config!\n", adw_name(adw));
-		printf("%s: Only Two Ports may be used at a time!\n",
-		       adw_name(adw));
-		return (-1);
-	}
-
-	/*
 	 * If the internal narrow cable is reversed all of the SCSI_CTRL
 	 * register signals will be set. Check for and return an error if
 	 * this condition is found.
@@ -371,69 +525,137 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	if ((adw_inw(adw, ADW_SCSI_CTRL) & 0x3F07) == 0x3F07) {
 		printf("%s: Illegal Cable Config!\n", adw_name(adw));
 		printf("%s: Internal cable is reversed!\n", adw_name(adw));
-	        return (-1);
+		return (EIO);
 	}
 
 	/*
 	 * If this is a differential board and a single-ended device
 	 * is attached to one of the connectors, return an error.
 	 */
-	if ((scsicfg1 & ADW_SCSI_CFG1_DIFF_MODE) != 0
-	 && (scsicfg1 & ADW_SCSI_CFG1_DIFF_SENSE) == 0) {
-		printf("%s: A Single Ended Device is attached to our "
-		       "differential bus!\n", adw_name(adw));
-	        return (-1);
+	if ((adw->features & ADW_ULTRA) != 0)  {
+		if ((scsicfg1 & ADW_SCSI_CFG1_DIFF_MODE) != 0
+		 && (scsicfg1 & ADW_SCSI_CFG1_DIFF_SENSE) == 0) {
+			printf("%s: A Single Ended Device is attached to our "
+			       "differential bus!\n", adw_name(adw));
+		        return (EIO);
+		}
+	} else {
+		if ((scsicfg1 & ADW2_SCSI_CFG1_DEV_DETECT_HVD) != 0) {
+			printf("%s: A High Voltage Differential Device "
+			       "is attached to this controller.\n",
+			       adw_name(adw));
+			printf("%s: HVD devices are not supported.\n",
+			       adw_name(adw));
+		        return (EIO);
+		}
 	}
 
 	/*
 	 * Perform automatic termination control if desired.
 	 */
-	if (term_scsicfg1 == 0) {
-        	switch(scsicfg1 & ADW_SCSI_CFG1_CABLE_DETECT) {
-		case (ADW_SCSI_CFG1_INT16_MASK|ADW_SCSI_CFG1_INT8_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|
-		      ADW_SCSI_CFG1_INT8_MASK|ADW_SCSI_CFG1_EXT8_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|
-		      ADW_SCSI_CFG1_INT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|
-		      ADW_SCSI_CFG1_EXT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-		case (ADW_SCSI_CFG1_INT8_MASK|
-		      ADW_SCSI_CFG1_EXT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|ADW_SCSI_CFG1_INT8_MASK|
-		      ADW_SCSI_CFG1_EXT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-			/* Two out of three cables missing.  Both on. */
-			term_scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_L
-				      |  ADW_SCSI_CFG1_TERM_CTL_H;
-			break;
-		case (ADW_SCSI_CFG1_INT16_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|ADW_SCSI_CFG1_EXT8_MASK):
-		case (ADW_SCSI_CFG1_INT16_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-		case (ADW_SCSI_CFG1_INT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-		case (ADW_SCSI_CFG1_EXT8_MASK|ADW_SCSI_CFG1_EXT16_MASK):
-			/* No two 16bit cables present.  High on. */
+	if ((adw->features & ADW_ULTRA2) != 0) {
+		u_int cable_det;
+
+		/*
+		 * Ultra2 Chips require termination disabled to
+		 * detect cable presence.
+		 */
+		adw_outw(adw, ADW_SCSI_CFG1,
+			 scsicfg1 | ADW2_SCSI_CFG1_DIS_TERM_DRV);
+		cable_det = adw_inw(adw, ADW_SCSI_CFG1);
+		adw_outw(adw, ADW_SCSI_CFG1, scsicfg1);
+
+		/* SE Termination first if auto-term has been specified */
+		if ((term_scsicfg1 & ADW_SCSI_CFG1_TERM_CTL_MASK) == 0) {
+
+			/*
+			 * For all SE cable configurations, high byte
+			 * termination is enabled.
+			 */
 			term_scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_H;
-			break;
-		case (ADW_SCSI_CFG1_INT8_MASK):
-		case (ADW_SCSI_CFG1_INT8_MASK|ADW_SCSI_CFG1_EXT8_MASK):
-			/* Wide -> Wide or Narrow -> Wide. Both off */
-			break;
+			if ((cable_det & ADW_SCSI_CFG1_INT8_MASK) != 0
+			 || (cable_det & ADW_SCSI_CFG1_INT16_MASK) != 0) {
+				/*
+				 * If either cable is not present, the
+				 * low byte must be terminated as well.
+				 */
+				term_scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_L;
+			}
+		}
+
+		/* LVD auto-term */
+		if ((term_scsicfg1 & ADW2_SCSI_CFG1_TERM_CTL_LVD) == 0
+		 && (term_scsicfg1 & ADW2_SCSI_CFG1_DIS_TERM_DRV) == 0) {
+			/*
+			 * If both cables are installed, termination
+			 * is disabled.  Otherwise it is enabled.
+			 */
+			if ((cable_det & ADW2_SCSI_CFG1_EXTLVD_MASK) != 0
+			 || (cable_det & ADW2_SCSI_CFG1_INTLVD_MASK) != 0) {
+
+				term_scsicfg1 |= ADW2_SCSI_CFG1_TERM_CTL_LVD;
+			}
+		}
+		term_scsicfg1 &= ~ADW2_SCSI_CFG1_DIS_TERM_DRV;
+	} else {
+		/* Ultra Controller Termination */
+		if ((term_scsicfg1 & ADW_SCSI_CFG1_TERM_CTL_MASK) == 0) {
+			int cable_count;
+			int wide_cable_count;
+
+			cable_count = 0;
+			wide_cable_count = 0;
+			if ((scsicfg1 & ADW_SCSI_CFG1_INT16_MASK) == 0) {
+				cable_count++;
+				wide_cable_count++;
+			}
+			if ((scsicfg1 & ADW_SCSI_CFG1_INT8_MASK) == 0)
+				cable_count++;
+
+			/* There is only one external port */
+			if ((scsicfg1 & ADW_SCSI_CFG1_EXT16_MASK) == 0) {
+				cable_count++;
+				wide_cable_count++;
+			} else if ((scsicfg1 & ADW_SCSI_CFG1_EXT8_MASK) == 0)
+				cable_count++;
+
+			if (cable_count == 3) {
+				printf("%s: Illegal Cable Config!\n",
+				       adw_name(adw));
+				printf("%s: Only Two Ports may be used at "
+				       "a time!\n", adw_name(adw));
+			} else if (cable_count <= 1) {
+				/*
+				 * At least two out of three cables missing.
+				 * Terminate both bytes.
+				 */
+				term_scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_H
+					      |  ADW_SCSI_CFG1_TERM_CTL_L;
+			} else if (wide_cable_count <= 1) {
+				/* No two 16bit cables present.  High on. */
+				term_scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_H;
+			}
 		}
         }
 
 	/* Tell the user about our decission */
 	switch (term_scsicfg1 & ADW_SCSI_CFG1_TERM_CTL_MASK) {
 	case ADW_SCSI_CFG1_TERM_CTL_MASK:
-		printf("High & Low Termination Enabled, ");
+		printf("High & Low SE Term Enabled, ");
 		break;
 	case ADW_SCSI_CFG1_TERM_CTL_H:
-		printf("High Termination Enabled, ");
+		printf("High SE Termination Enabled, ");
 		break;
 	case ADW_SCSI_CFG1_TERM_CTL_L:
-		printf("Low Termination Enabled, ");
+		printf("Low SE Term Enabled, ");
 		break;
 	default:
 		break;
 	}
+
+	if ((adw->features & ADW_ULTRA2) != 0
+	 && (term_scsicfg1 & ADW2_SCSI_CFG1_TERM_CTL_LVD) != 0)
+		printf("LVD Term Enabled, ");
 
 	/*
 	 * Invert the TERM_CTL_H and TERM_CTL_L bits and then
@@ -441,21 +663,30 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	 * referenced, because the hardware internally inverts
 	 * the Termination High and Low bits if TERM_POL is set.
 	 */
-	term_scsicfg1 = ~term_scsicfg1 & ADW_SCSI_CFG1_TERM_CTL_MASK;
-	scsicfg1 &= ~ADW_SCSI_CFG1_TERM_CTL_MASK;
-	scsicfg1 |= term_scsicfg1 | ADW_SCSI_CFG1_TERM_CTL_MANUAL;
+	if ((adw->features & ADW_ULTRA2) != 0) {
+		term_scsicfg1 = ~term_scsicfg1;
+		term_scsicfg1 &= ADW_SCSI_CFG1_TERM_CTL_MASK
+			      |  ADW2_SCSI_CFG1_TERM_CTL_LVD;
+		scsicfg1 &= ~(ADW_SCSI_CFG1_TERM_CTL_MASK
+			     |ADW2_SCSI_CFG1_TERM_CTL_LVD
+			     |ADW_SCSI_CFG1_BIG_ENDIAN
+			     |ADW_SCSI_CFG1_TERM_POL
+			     |ADW2_SCSI_CFG1_DEV_DETECT);
+		scsicfg1 |= term_scsicfg1;
+	} else {
+		term_scsicfg1 = ~term_scsicfg1 & ADW_SCSI_CFG1_TERM_CTL_MASK;
+		scsicfg1 &= ~ADW_SCSI_CFG1_TERM_CTL_MASK;
+		scsicfg1 |= term_scsicfg1 | ADW_SCSI_CFG1_TERM_CTL_MANUAL;
+		scsicfg1 |= ADW_SCSI_CFG1_FLTR_DISABLE;
+	}
 
 	/*
 	 * Set SCSI_CFG1 Microcode Default Value
 	 *
-	 * Set filter value and possibly modified termination control
-	 * bits in the Microcode SCSI_CFG1 Register Value.
-	 *
 	 * The microcode will set the SCSI_CFG1 register using this value
 	 * after it is started below.
 	 */
-	adw_lram_write_16(adw, ADW_MC_DEFAULT_SCSI_CFG1,
-			  scsicfg1 | ADW_SCSI_CFG1_FLTR_11_TO_20NS);
+	adw_lram_write_16(adw, ADW_MC_DEFAULT_SCSI_CFG1, scsicfg1);
 
 	/*
 	 * Only accept selections on our initiator target id.
@@ -465,42 +696,24 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 			  (0x01 << adw->initiator_id));
 
 	/*
-	 * Link all the RISC Queue Lists together in a doubly-linked
-	 * NULL terminated list.
-	 *
-	 * Skip the NULL (0) queue which is not used.
+	 * Tell the microcode where it can find our
+	 * Initiator Command Queue (ICQ).  It is
+	 * currently empty hence the "stopper" address.
 	 */
-	for (i = 1, addr = ADW_MC_RISC_Q_LIST_BASE + ADW_MC_RISC_Q_LIST_SIZE;
-	     i < ADW_MC_RISC_Q_TOTAL_CNT;
-	     i++, addr += ADW_MC_RISC_Q_LIST_SIZE) {
-
-	        /*
-		 * Set the current RISC Queue List's
-		 * RQL_FWD and RQL_BWD pointers in a
-		 * one word write and set the state
-		 * (RQL_STATE) to free.
-		 */
-		adw_lram_write_16(adw, addr, ((i + 1) | ((i - 1) << 8)));
-		adw_lram_write_8(adw, addr + RQL_STATE, ADW_MC_QS_FREE);
-	}
+	adw->commandq = adw->free_carriers;
+	adw->free_carriers = carrierbotov(adw, adw->commandq->next_ba);
+	adw->commandq->next_ba = ADW_CQ_STOPPER;
+	adw_lram_write_32(adw, ADW_MC_ICQ, adw->commandq->carr_ba);
 
 	/*
-	 * Set the Host and RISC Queue List pointers.
-	 *
-	 * Both sets of pointers are initialized with the same values:
-	 * ADW_MC_RISC_Q_FIRST(0x01) and ADW_MC_RISC_Q_LAST (0xFF).
+	 * Tell the microcode where it can find our
+	 * Initiator Response Queue (IRQ).  It too
+	 * is currently empty.
 	 */
-	adw_lram_write_8(adw, ADW_MC_HOST_NEXT_READY, ADW_MC_RISC_Q_FIRST);
-	adw_lram_write_8(adw, ADW_MC_HOST_NEXT_DONE, ADW_MC_RISC_Q_LAST);
-
-	adw_lram_write_8(adw, ADW_MC_RISC_NEXT_READY, ADW_MC_RISC_Q_FIRST);
-	adw_lram_write_8(adw, ADW_MC_RISC_NEXT_DONE, ADW_MC_RISC_Q_LAST);
-
-	/*
-	 * Set up the last RISC Queue List (255) with a NULL forward pointer.
-	 */
-	adw_lram_write_16(adw, addr, (ADW_MC_NULL_Q + ((i - 1) << 8)));
-	adw_lram_write_8(adw, addr + RQL_STATE, ADW_MC_QS_FREE);
+	adw->responseq = adw->free_carriers;
+	adw->free_carriers = carrierbotov(adw, adw->responseq->next_ba);
+	adw->responseq->next_ba = ADW_CQ_STOPPER;
+	adw_lram_write_32(adw, ADW_MC_IRQ, adw->responseq->carr_ba);
 
 	adw_outb(adw, ADW_INTR_ENABLES,
 		 ADW_INTR_ENABLE_HOST_INTR|ADW_INTR_ENABLE_GLOBAL_INTR);
@@ -508,6 +721,100 @@ adw_init_chip(struct adw_softc *adw, u_int term_scsicfg1)
 	adw_outw(adw, ADW_PC, adw_lram_read_16(adw, ADW_MC_CODE_BEGIN_ADDR));
 
 	return (0);
+}
+
+void
+adw_set_user_sdtr(struct adw_softc *adw, u_int tid, u_int mc_sdtr)
+{
+	adw->user_sdtr[ADW_TARGET_GROUP(tid)] &= ~ADW_TARGET_GROUP_MASK(tid);
+	adw->user_sdtr[ADW_TARGET_GROUP(tid)] |=
+	    mc_sdtr << ADW_TARGET_GROUP_SHIFT(tid);
+}
+
+u_int
+adw_get_user_sdtr(struct adw_softc *adw, u_int tid)
+{
+	u_int mc_sdtr;
+
+	mc_sdtr = adw->user_sdtr[ADW_TARGET_GROUP(tid)];
+	mc_sdtr &= ADW_TARGET_GROUP_MASK(tid);
+	mc_sdtr >>= ADW_TARGET_GROUP_SHIFT(tid);
+	return (mc_sdtr);
+}
+
+void
+adw_set_chip_sdtr(struct adw_softc *adw, u_int tid, u_int sdtr)
+{
+	u_int mc_sdtr_offset;
+	u_int mc_sdtr;
+
+	mc_sdtr_offset = ADW_MC_SDTR_SPEED1;
+	mc_sdtr_offset += ADW_TARGET_GROUP(tid) * 2;
+	mc_sdtr = adw_lram_read_16(adw, mc_sdtr_offset);
+	mc_sdtr &= ~ADW_TARGET_GROUP_MASK(tid);
+	mc_sdtr |= sdtr << ADW_TARGET_GROUP_SHIFT(tid);
+	adw_lram_write_16(adw, mc_sdtr_offset, mc_sdtr);
+}
+
+u_int
+adw_get_chip_sdtr(struct adw_softc *adw, u_int tid)
+{
+	u_int mc_sdtr_offset;
+	u_int mc_sdtr;
+
+	mc_sdtr_offset = ADW_MC_SDTR_SPEED1;
+	mc_sdtr_offset += ADW_TARGET_GROUP(tid) * 2;
+	mc_sdtr = adw_lram_read_16(adw, mc_sdtr_offset);
+	mc_sdtr &= ADW_TARGET_GROUP_MASK(tid);
+	mc_sdtr >>= ADW_TARGET_GROUP_SHIFT(tid);
+	return (mc_sdtr);
+}
+
+u_int
+adw_find_sdtr(struct adw_softc *adw, u_int period)
+{
+	int i;
+
+	i = 0;
+	if ((adw->features & ADW_DT) == 0)
+		i = ADW_MC_SDTR_OFFSET_ULTRA2;
+	if ((adw->features & ADW_ULTRA2) == 0)
+		i = ADW_MC_SDTR_OFFSET_ULTRA;
+	if (period == 0)
+		return ADW_MC_SDTR_ASYNC;
+
+	for (; i < adw_num_syncrates; i++) {
+		if (period <= adw_syncrates[i].period)
+			return (adw_syncrates[i].mc_sdtr);
+	}	
+	return ADW_MC_SDTR_ASYNC;
+}
+
+u_int
+adw_find_period(struct adw_softc *adw, u_int mc_sdtr)
+{
+	int i;
+
+	for (i = 0; i < adw_num_syncrates; i++) {
+		if (mc_sdtr == adw_syncrates[i].mc_sdtr)
+			break;
+	}	
+	return (adw_syncrates[i].period);
+}
+
+u_int
+adw_hshk_cfg_period_factor(u_int tinfo)
+{
+	tinfo &= ADW_HSHK_CFG_RATE_MASK;
+	tinfo >>= ADW_HSHK_CFG_RATE_SHIFT;
+	if (tinfo == 0x11)
+		/* 80MHz/DT */
+		return (9);
+	else if (tinfo == 0x10)
+		/* 40MHz */
+		return (10);
+	else
+		return (((tinfo * 25) + 50) / 4);
 }
 
 /*
@@ -534,8 +841,13 @@ adw_idle_cmd_send(struct adw_softc *adw, adw_idle_cmd_t cmd, u_int parameter)
 	 * followed, the microcode may process the idle command before the
 	 * parameters have been written to LRAM.
 	 */
-	adw_lram_write_16(adw, ADW_MC_IDLE_PARA_STAT, parameter);
+	adw_lram_write_16(adw, ADW_MC_IDLE_CMD_PARAMETER, parameter);
     	adw_lram_write_16(adw, ADW_MC_IDLE_CMD, cmd);
+
+	/*
+	 * Tickle the RISC to tell it to process the idle command.
+	 */
+	adw_tickle_risc(adw, ADW_TICKLE_B);
 	splx(s);
 }
 
@@ -550,15 +862,16 @@ adw_idle_cmd_wait(struct adw_softc *adw)
 	/* Wait for up to 10 seconds for the command to complete */
 	timeout = 10000;
 	while (--timeout) {
-       		if (adw->idle_command_cmp != 0)
+		s = splcam();
+		status = adw_lram_read_16(adw, ADW_MC_IDLE_CMD_STATUS);
+		splx(s);
+       		if (status != 0)
 			break;
 		DELAY(1000);
 	}
 
 	if (timeout == 0)
 		panic("%s: Idle Command Timed Out!\n", adw_name(adw));
-	s = splcam();
-	status = adw_lram_read_16(adw, ADW_MC_IDLE_PARA_STAT);
-	splx(s);
+	adw->idle_cmd = ADW_IDLE_CMD_COMPLETED;
 	return (status);
 }
