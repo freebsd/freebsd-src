@@ -237,9 +237,7 @@ spec_open(ap)
 		return (error);
 
 	if (dsw->d_flags & D_TTY) {
-		if (!dev->si_tty) {
-			printf("Warning:%s: no si_tty\n", devtoname(dev));
-		} else {
+		if (dev->si_tty) {
 			struct tty *tp;
 			tp = dev->si_tty;
 			if (!tp->t_stop) {
