@@ -362,7 +362,7 @@ vnstrategy(struct buf *bp)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->b_bcount;
 		auio.uio_procp = curproc;
-		if (!VOP_ISLOCKED(vn->sc_vp)) {
+		if (!VOP_ISLOCKED(vn->sc_vp, NULL)) {
 			isvplocked = 1;
 			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		}

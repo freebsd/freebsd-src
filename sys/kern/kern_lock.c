@@ -511,15 +511,19 @@ lockinit(lkp, prio, wmesg, timo, flags)
  * Determine the status of a lock.
  */
 int
-lockstatus(lkp)
+lockstatus(lkp, p)
 	struct lock *lkp;
+	struct proc *p;
 {
 	int lock_type = 0;
 
 	simple_lock(&lkp->lk_interlock);
-	if (lkp->lk_exclusivecount != 0)
-		lock_type = LK_EXCLUSIVE;
-	else if (lkp->lk_sharecount != 0)
+	if (lkp->lk_exclusivecount != 0) {
+		if (p == NULL || lkp->lk_lockholder == p->p_pid)
+			lock_type = LK_EXCLUSIVE;
+		else
+			lock_type = LK_EXCLOTHER;
+	} else if (lkp->lk_sharecount != 0)
 		lock_type = LK_SHARED;
 	simple_unlock(&lkp->lk_interlock);
 	return (lock_type);

@@ -421,15 +421,56 @@ struct vop_generic_args {
 				 || (vp)->v_tag == VT_MSDOSFS	\
 				 || (vp)->v_tag == VT_DEVFS)
 
-#define ASSERT_VOP_LOCKED(vp, str)				\
-    if ((vp) && IS_LOCKING_VFS(vp) && !VOP_ISLOCKED(vp)) {	\
-	panic("%s: %p is not locked but should be", str, vp);	\
-    }
+#define ASSERT_VOP_LOCKED(vp, str)					\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (_vp && IS_LOCKING_VFS(_vp) && !VOP_ISLOCKED(_vp, NULL))	\
+		panic("%s: %p is not locked but should be", str, _vp);	\
+} while (0)
 
-#define ASSERT_VOP_UNLOCKED(vp, str)				\
-    if ((vp) && IS_LOCKING_VFS(vp) && VOP_ISLOCKED(vp)) {	\
-	panic("%s: %p is locked but shouldn't be", str, vp);	\
-    }
+#define ASSERT_VOP_UNLOCKED(vp, str)					\
+do {									\
+	struct vnode *_vp = (vp);					\
+	int lockstate;							\
+									\
+	if (_vp && IS_LOCKING_VFS(_vp)) {				\
+		lockstate = VOP_ISLOCKED(_vp, curproc);			\
+		if (lockstate == LK_EXCLUSIVE)				\
+			panic("%s: %p is locked but should not be",	\
+			    str, _vp);					\
+	}								\
+} while (0)
+
+#define ASSERT_VOP_ELOCKED(vp, str)					\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (_vp && IS_LOCKING_VFS(_vp) &&				\
+	    VOP_ISLOCKED(_vp, curproc) != LK_EXCLUSIVE)			\
+		panic("%s: %p is not exclusive locked but should be",	\
+		    str, _vp);						\
+} while (0)
+
+#define ASSERT_VOP_ELOCKED_OTHER(vp, str)				\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (_vp && IS_LOCKING_VFS(_vp) &&				\
+	    VOP_ISLOCKED(_vp, curproc) != LK_EXCLOTHER)			\
+		panic("%s: %p is not exclusive locked by another proc",	\
+		    str, _vp);						\
+} while (0)
+
+#define ASSERT_VOP_SLOCKED(vp, str)					\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (_vp && IS_LOCKING_VFS(_vp) &&				\
+	    VOP_ISLOCKED(_vp, NULL) != LK_SHARED)			\
+		panic("%s: %p is not locked shared but should be",	\
+		    str, _vp);						\
+} while (0)
 
 #else
 

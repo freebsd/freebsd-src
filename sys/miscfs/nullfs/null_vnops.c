@@ -372,13 +372,13 @@ null_lookup(ap)
 	vp = *ap->a_vpp;
 	if (dvp == vp)
 		return (error);
-	if (!VOP_ISLOCKED(dvp)) {
+	if (!VOP_ISLOCKED(dvp, NULL)) {
 		unlockargs.a_vp = dvp;
 		unlockargs.a_flags = 0;
 		unlockargs.a_p = p;
 		vop_nounlock(&unlockargs);
 	}
-	if (vp != NULLVP && VOP_ISLOCKED(vp)) {
+	if (vp != NULLVP && VOP_ISLOCKED(vp, NULL)) {
 		lockargs.a_vp = vp;
 		lockargs.a_flags = LK_SHARED;
 		lockargs.a_p = p;

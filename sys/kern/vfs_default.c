@@ -255,6 +255,7 @@ int
 vop_stdislocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct lock *l;
@@ -262,7 +263,7 @@ vop_stdislocked(ap)
 	if ((l = (struct lock *)ap->a_vp->v_data) == NULL)
 		return 0;
 
-	return (lockstatus(l));
+	return (lockstatus(l, ap->a_p));
 }
 
 /*
@@ -484,13 +485,14 @@ int
 vop_noislocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
 	if (vp->v_vnlock == NULL)
 		return (0);
-	return (lockstatus(vp->v_vnlock));
+	return (lockstatus(vp->v_vnlock, ap->a_p));
 }
 
 /* 

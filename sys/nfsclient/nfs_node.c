@@ -380,6 +380,7 @@ int
 nfs_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	return VTONFS(ap->a_vp)->n_flag & NLOCKED ? 1 : 0;
