@@ -159,6 +159,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		newipsecstat.ips_out_bundlesa++;
 		return ipsec4_process_packet(m, isr->next, 0, 0);
 	}
+	key_sa_recordxfer(sav, m);		/* record data transfer */
 
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
