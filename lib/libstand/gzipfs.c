@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zipfs.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+ *	$Id: zipfs.c,v 1.2 1998/09/18 22:58:01 msmith Exp $
  *
  */
 
@@ -59,11 +59,13 @@ struct fs_ops zipfs_fsops = {
     zf_stat
 };
 
+#if 0
 void *
 calloc(int items, size_t size)
 {
     return(malloc(items * size));
 }
+#endif
 
 static int
 zf_fill(struct z_file *zf)
@@ -175,7 +177,7 @@ zf_open(const char *fname, struct open_file *f)
 	return(ENOENT);
 
     /* Construct new name */
-    zfname = malloc(strlen(fname) + 3);
+    zfname = malloc(strlen(fname) + 4);
     sprintf(zfname, "%s.gz", fname);
 
     /* Try to open the compressed datafile */

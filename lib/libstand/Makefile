@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1998/08/20 08:23:12 msmith Exp $
+# $Id: Makefile,v 1.3 1998/09/15 02:30:22 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -13,16 +13,17 @@ NOPIC=		YES
 MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
-CFLAGS+=	-Wall
+CFLAGS+=	-Wall -g
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	__main.c alloc.c bcd.c bswap.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
-	twiddle.c
+SRCS+=	__main.c bcd.c bswap.c environment.c getopt.c gets.c globals.c \
+	pager.c printf.c strdup.c strerror.c strtol.c random.c sbrk.c \
+	twiddle.c zalloc.c zalloc_malloc.c
+
 
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string

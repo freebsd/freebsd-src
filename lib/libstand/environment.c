@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: environment.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
  *
  */
 
@@ -70,7 +70,6 @@ env_setenv(const char *name, int flags, void *value, ev_sethook_t sethook,
     struct env_var	*ev, *curr, *last;
 
     if ((ev = env_getenv(name)) != NULL) {
-
 	/*
 	 * If there's a set hook, let it do the work (unless we are working
 	 * for one already.
@@ -78,12 +77,45 @@ env_setenv(const char *name, int flags, void *value, ev_sethook_t sethook,
 	if ((ev->ev_sethook != NULL) && !(flags & EV_NOHOOK))
 	    return(ev->ev_sethook(ev, flags, value));
     } else {
+
+	/*
+	 * New variable; create and sort into list
+	 */
 	ev = malloc(sizeof(struct env_var));
 	ev->ev_name = strdup(name);
 	ev->ev_value = NULL;
 	/* hooks can only be set when the variable is instantiated */
 	ev->ev_sethook = sethook;
 	ev->ev_unsethook = unsethook;
+
+	/* Sort into list */
+	ev->ev_prev = NULL;
+	ev->ev_next = NULL;
+	/* Search for the record to insert before */
+	for (last = NULL, curr = environ; 
+	     curr != NULL; 
+	     last = curr, curr = curr->ev_next) {
+
+	    if (strcmp(ev->ev_name, curr->ev_name) < 0) {
+		if (curr->ev_prev) {
+		    curr->ev_prev->ev_next = ev;
+		} else {
+		    environ = ev;
+		}
+		ev->ev_next = curr;
+		ev->ev_prev = curr->ev_prev;
+		curr->ev_prev = ev;
+		break;
+	    }
+	}
+	if (curr == NULL) {
+	    if (last == NULL) {
+		environ = ev;
+	    } else {
+		last->ev_next = ev;
+		ev->ev_prev = last;
+	    }
+	}
     }
     
     /* If there is data in the variable, discard it */
@@ -100,35 +132,6 @@ env_setenv(const char *name, int flags, void *value, ev_sethook_t sethook,
     /* Keep the flag components that are relevant */
     ev->ev_flags = flags & (EV_DYNAMIC);
 
-    /* Sort into list */
-    ev->ev_prev = NULL;
-    ev->ev_next = NULL;
-    
-    /* Search for the record to insert before */
-    for (last = NULL, curr = environ; 
-	 curr != NULL; 
-	 last = curr, curr = curr->ev_next) {
-
-	if (strcmp(ev->ev_name, curr->ev_name) < 0) {
-	    if (curr->ev_prev) {
-		curr->ev_prev->ev_next = ev;
-	    } else {
-		environ = ev;
-	    }
-	    ev->ev_next = curr;
-	    ev->ev_prev = curr->ev_prev;
-	    curr->ev_prev = ev;
-	    break;
-	}
-    }
-    if (curr == NULL) {
-	if (last == NULL) {
-	    environ = ev;
-	} else {
-	    last->ev_next = ev;
-	    ev->ev_prev = last;
-	}
-    }
     return(0);
 }
 
@@ -158,11 +161,15 @@ setenv(const char *name, char *value, int overwrite)
 int
 putenv(const char *string)
 {
-    char	*value;
+    char	*value, *copy;
+    int		result;
 
-    if ((value = strchr(string, '=')) != NULL)
+    copy = strdup(string);
+    if ((value = strchr(copy, '=')) != NULL)
 	*(value++) = 0;
-    return(setenv(string, value, 1));
+    result = setenv(copy, value, 1);
+    free(copy);
+    return(result);
 }
 
 int

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.3 1998/09/18 22:58:00 msmith Exp $
+ *	$Id: stand.h,v 1.4 1998/09/18 23:00:57 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -65,6 +65,9 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/stat.h>
+
+#define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args)
+#define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args); getchar();}
 
 #ifndef NULL
 #define	NULL	0
@@ -168,10 +171,18 @@ extern struct open_file files[];
 #define toupper(c)	((c) - 'a' + 'A')
 #define tolower(c)	((c) - 'A' + 'a')
 
-extern void	setheap(void *, void *);
-extern void	*malloc(size_t);
-extern void	free(void *);
-extern char	*sbrk(int junk);
+/* sbrk emulation */
+extern void	setheap(void *base, void *top);
+extern char	*sbrk(int incr);
+
+/* Matt Dillon's zalloc/zmalloc */
+extern void	*malloc(size_t bytes);
+extern void	free(void *ptr);
+/*#define free(p)	{CHK("free %p", p); free(p);} */ /* use for catching guard violations */
+extern void	*calloc(size_t n1, size_t n2);
+extern void	*realloc(void *ptr, size_t size);
+extern void	*reallocf(void *ptr, size_t size);
+extern void	mallocstats(void);
 
 /* disklabel support (undocumented, may be junk) */
 struct		disklabel;
