@@ -84,6 +84,7 @@ struct pv_entry {
 };
 
 void	pmap_bootstrap(vm_offset_t ekva);
+void	pmap_context_rollover(void);
 vm_offset_t pmap_kextract(vm_offset_t va);
 void	pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags);
 void	pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl);

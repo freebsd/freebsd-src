@@ -96,6 +96,7 @@
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/tick.h>
+#include <machine/tlb.h>
 #include <machine/tstate.h>
 #include <machine/ver.h>
 
@@ -296,6 +297,9 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
 	pc->pc_mid = mid;
+	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
+	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
+	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
 
 	/*
 	 * Initialize global registers.
