@@ -889,8 +889,8 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
  */
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, bus_dma_segment_t sgs[], void *buf,
-    bus_size_t buflen, struct thread *td, int flags, int *segp, int align)
+    bus_dmamap_t map, void *buf, bus_size_t buflen, struct thread *td,
+    int flags, int *segp, int align)
 {
 	bus_addr_t amask, dvmaddr;
 	bus_size_t sgsize, esize;
@@ -947,8 +947,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		 */
 		if (!firstpg) {
 			esize = ulmin(sgsize,
-			    dt->dt_maxsegsz - sgs[sgcnt].ds_len);
-			sgs[sgcnt].ds_len += esize;
+			    dt->dt_maxsegsz - dt->dt_segments[sgcnt].ds_len);
+			dt->dt_segments[sgcnt].ds_len += esize;
 			sgsize -= esize;
 			dvmaddr += esize;
 		}
@@ -965,8 +965,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 			 * that such tags have maxsegsize >= maxsize.
 			 */
 			esize = ulmin(sgsize, dt->dt_maxsegsz);
-			sgs[sgcnt].ds_addr = dvmaddr;
-			sgs[sgcnt].ds_len = esize;
+			dt->dt_segments[sgcnt].ds_addr = dvmaddr;
+			dt->dt_segments[sgcnt].ds_len = esize;
 			sgsize -= esize;
 			dvmaddr += esize;
 		}
@@ -983,11 +983,6 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
     int flags)
 {
 	struct iommu_state *is = dt->dt_cookie;
-#ifdef __GNUC__
-	bus_dma_segment_t sgs[dt->dt_nsegments];
-#else
-	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
-#endif
 	int error, seg = -1;
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
@@ -1006,7 +1001,7 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	iommu_map_remq(is, map);
 	IS_UNLOCK(is);
 
-	error = iommu_dvmamap_load_buffer(dt, is, map, sgs, buf, buflen, NULL,
+	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen, NULL,
 	    flags, &seg, 1);
 
 	IS_LOCK(is);
@@ -1014,11 +1009,11 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	if (error != 0) {
 		iommu_dvmamap_vunload(is, map);
 		IS_UNLOCK(is);
-		(*cb)(cba, sgs, 0, error);
+		(*cb)(cba, dt->dt_segments, 0, error);
 	} else {
 		IS_UNLOCK(is);
 		map->dm_flags |= DMF_LOADED;
-		(*cb)(cba, sgs, seg + 1, 0);
+		(*cb)(cba, dt->dt_segments, seg + 1, 0);
 	}
 
 	return (error);
@@ -1029,11 +1024,6 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
     bus_dmamap_callback2_t *cb, void *cba, int flags)
 {
 	struct iommu_state *is = dt->dt_cookie;
-#ifdef __GNUC__
-	bus_dma_segment_t sgs[dt->dt_nsegments];
-#else
-	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
-#endif
 	struct mbuf *m;
 	int error = 0, first = 1, nsegs = -1;
 
@@ -1054,7 +1044,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len == 0)
 				continue;
-			error = iommu_dvmamap_load_buffer(dt, is, map, sgs,
+			error = iommu_dvmamap_load_buffer(dt, is, map,
 			    m->m_data, m->m_len, NULL, flags, &nsegs, first);
 			first = 0;
 		}
@@ -1067,11 +1057,11 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 		iommu_dvmamap_vunload(is, map);
 		IS_UNLOCK(is);
 		/* force "no valid mappings" in callback */
-		(*cb)(cba, sgs, 0, 0, error);
+		(*cb)(cba, dt->dt_segments, 0, 0, error);
 	} else {
 		IS_UNLOCK(is);
 		map->dm_flags |= DMF_LOADED;
-		(*cb)(cba, sgs, nsegs + 1, m0->m_pkthdr.len, 0);
+		(*cb)(cba, dt->dt_segments, nsegs + 1, m0->m_pkthdr.len, 0);
 	}
 	return (error);
 }
@@ -1081,11 +1071,6 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *cb,  void *cba, int flags)
 {
 	struct iommu_state *is = dt->dt_cookie;
-#ifdef __GNUC__
-	bus_dma_segment_t sgs[dt->dt_nsegments];
-#else
-	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
-#endif
 	struct iovec *iov;
 	struct thread *td = NULL;
 	bus_size_t minlen, resid;
@@ -1120,7 +1105,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 		if (minlen == 0)
 			continue;
 
-		error = iommu_dvmamap_load_buffer(dt, is, map, sgs,
+		error = iommu_dvmamap_load_buffer(dt, is, map,
 		    iov[i].iov_base, minlen, td, flags, &nsegs, first);
 		first = 0;
 
@@ -1133,11 +1118,11 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 		iommu_dvmamap_vunload(is, map);
 		IS_UNLOCK(is);
 		/* force "no valid mappings" in callback */
-		(*cb)(cba, sgs, 0, 0, error);
+		(*cb)(cba, dt->dt_segments, 0, 0, error);
 	} else {
 		IS_UNLOCK(is);
 		map->dm_flags |= DMF_LOADED;
-		(*cb)(cba, sgs, nsegs + 1, uio->uio_resid, 0);
+		(*cb)(cba, dt->dt_segments, nsegs + 1, uio->uio_resid, 0);
 	}
 	return (error);
 }
