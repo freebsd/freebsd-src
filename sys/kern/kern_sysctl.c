@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.4 1994/08/08 00:30:03 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.5 1994/08/08 15:40:58 wollman Exp $
  */
 
 /*
@@ -179,7 +179,7 @@ int hostnamelen;
 char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
 long hostid;
-int securelevel;
+int securelevel = -1;
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 
