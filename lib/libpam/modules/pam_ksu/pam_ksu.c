@@ -254,3 +254,5 @@ get_su_principal(krb5_context context, const char *target_user, const char *curr
 	*su_principal = default_principal;
 	return (0);
 }
+
+PAM_MODULE_ENTRY("pam_ksu");
