@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.155 1998/09/14 09:14:46 sos Exp $
+#	$Id: rc,v 1.156 1998/09/16 05:42:37 jdp Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -84,7 +84,7 @@ fi
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/rc.conf ]; then
-    . /etc/rc.conf
+	. /etc/rc.conf
 fi
 
 # If old file exists, whine until they fix it.
@@ -96,23 +96,23 @@ fi
 adjkerntz -i
 
 clean_var() {
-  if [ ! -f /var/run/clean_var ]; then
-    rm -rf /var/run/*
-    rm -f /var/spool/lock/*
-    rm -rf /var/spool/uucp/.Temp/*
-    # Keep a copy of the boot messages around
-    dmesg >/var/run/dmesg.boot
-    # And an initial utmp file
-    (cd /var/run && cp /dev/null utmp && chmod 644 utmp; )
-    touch /var/run/clean_var
-  fi
+	if [ ! -f /var/run/clean_var ]; then
+		rm -rf /var/run/*
+		rm -f /var/spool/lock/*
+		rm -rf /var/spool/uucp/.Temp/*
+		# Keep a copy of the boot messages around
+		dmesg >/var/run/dmesg.boot
+		# And an initial utmp file
+		(cd /var/run && cp /dev/null utmp && chmod 644 utmp; )
+		>/var/run/clean_var
+	fi
 }
 
 if [ -d /var/run -a -d /var/spool/lock -a -d /var/spool/uucp/.Temp ]; then
-  # network_pass1() *may* end up writing stuff to /var - we don't want to
-  # remove it immediately afterwards - *nor* to we want to fail to clean
-  # an nfs-mounted /var.
-  clean_var
+	# network_pass1() *may* end up writing stuff to /var - we don't want to
+	# remove it immediately afterwards - *nor* to we want to fail to clean
+	# an nfs-mounted /var.
+	clean_var
 fi
 
 # Add additional swapfile, if configured.
@@ -164,7 +164,7 @@ if [ "X${clear_tmp_enable}" = X"YES" ]; then
 	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
 	# (not needed with mfs /tmp, but doesn't hurt there...)
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-	    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+		find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
 
 fi
 
@@ -207,7 +207,7 @@ if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} -a -d /var/crash ]; then
 fi
 
 if [ -n "$network_pass1_done" ]; then
-    network_pass2
+	network_pass2
 fi
 
 # Check the quotas (must be after ypbind if using NIS)
@@ -219,7 +219,7 @@ if [ "X${check_quotas}" = X"YES" ]; then
 fi
 
 if [ -n "$network_pass2_done" ]; then
-    network_pass3
+	network_pass3
 fi
 
 
