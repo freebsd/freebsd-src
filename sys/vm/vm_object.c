@@ -61,13 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.92 1997/05/29 02:57:22 peter Exp $
+ * $Id: vm_object.c,v 1.93 1997/06/22 03:00:24 dyson Exp $
  */
 
 /*
  *	Virtual memory object module.
  */
-#include "opt_smp_privpages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1455,10 +1454,6 @@ vm_object_in_map( object)
 		return 1;
 	if( _vm_object_in_map( u_map, object, 0))
 		return 1;
-#if defined(SMP) && defined(SMP_PRIVPAGES)
-	if( _vm_object_in_map( ppage_map, object, 0))
-		return 1;
-#endif
 	return 0;
 }
 
