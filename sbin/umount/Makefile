@@ -1,6 +1,13 @@
-#	@(#)Makefile	8.2 (Berkeley) 2/20/94
+#	@(#)Makefile	8.4 (Berkeley) 6/22/95
 
 PROG=	umount
+SRCS=	umount.c vfslist.c
 MAN8=	umount.8
+
+MOUNT=	${.CURDIR}/../mount
+CFLAGS+= -I${MOUNT}
+.PATH:	${MOUNT}
+
+CFLAGS+= -D_NEW_VFSCONF
 
 .include <bsd.prog.mk>
