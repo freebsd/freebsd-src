@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.123 2002/05/19 06:24:31 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.124 2002/05/26 03:10:02 minoura Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1152,6 +1152,7 @@ ohci_intr1(ohci_softc_t *sc)
 			intrs |= OREAD4(sc, OHCI_INTERRUPT_STATUS);
 			done &= ~OHCI_DONE_INTRS;
 		}
+		sc->sc_hcca->hcca_done_head = 0;
 	} else
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS);
 
@@ -1182,7 +1183,6 @@ ohci_intr1(ohci_softc_t *sc)
 	}
 	if (eintrs & OHCI_WDH) {
 		ohci_add_done(sc, done &~ OHCI_DONE_INTRS);
-		sc->sc_hcca->hcca_done_head = 0;
 		usb_schedsoftintr(&sc->sc_bus);
 		eintrs &= ~OHCI_WDH;
 	}
