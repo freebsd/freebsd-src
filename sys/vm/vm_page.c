@@ -1285,7 +1285,7 @@ vm_page_unwire(vm_page_t m, int activate)
 	int s;
 
 	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
