@@ -1040,6 +1040,8 @@ pgsignal(pgrp, sig, checkctty)
  * Send a signal caused by a trap to the current process.
  * If it will be caught immediately, deliver it with correct code.
  * Otherwise, post it normally.
+ *
+ * MPSAFE
  */
 void
 trapsignal(p, sig, code)
@@ -1049,6 +1051,7 @@ trapsignal(p, sig, code)
 {
 	register struct sigacts *ps = p->p_sigacts;
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(p->p_sigcatch, sig) &&
 	    !SIGISMEMBER(p->p_sigmask, sig)) {
@@ -1081,6 +1084,7 @@ trapsignal(p, sig, code)
 		psignal(p, sig);
 	}
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 }
 
 /*

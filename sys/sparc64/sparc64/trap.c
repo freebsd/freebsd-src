@@ -221,13 +221,10 @@ trap(struct trapframe *tf)
 	panic("trap: %s", trap_msg[type & ~T_KERNEL]);
 
 trapsig:
-	mtx_lock(&Giant);
 	/* Translate fault for emulators. */
 	if (p->p_sysent->sv_transtrap != NULL)
 		sig = (p->p_sysent->sv_transtrap)(sig, type);
-
 	trapsignal(p, sig, ucode);
-	mtx_unlock(&Giant);
 user:
 	userret(p, tf, sticks);
 	if (mtx_owned(&Giant))
@@ -395,12 +392,10 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
-		 * The prep code is not MP aware.
+		 * The prep code is MP aware.
 		 */
 #if 0
-		mtx_lock(&Giant);
 		(*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params);
-		mtx_unlock(&Giant);
 #endif	
 	} else 	if (code == SYS_syscall || code == SYS___syscall) {
 		code = tf->tf_out[reg++];
@@ -444,8 +439,6 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 	 * we are ktracing
 	 */
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
 #endif
@@ -498,16 +491,15 @@ bad:
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
 #endif
 
 	/*
-	 * Release Giant if we had to get it
+	 * Release Giant if we had to get it.  Don't use mtx_owned(),
+	 * we want to catch broken syscalls.
 	 */
-	if (mtx_owned(&Giant))
+	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
 
 	/*
