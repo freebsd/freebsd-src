@@ -263,7 +263,7 @@ ypxfr_match(char *server, char *domain, char *map, char *key,
 	CLIENT *clnt;
 	static char buf[YPMAXRECORD + 2];
 
-	bzero((char *)buf, sizeof(buf));
+	bzero(buf, sizeof(buf));
 
 	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL) {
 		yp_error("failed to create UDP handle: %s",
@@ -286,11 +286,11 @@ ypxfr_match(char *server, char *domain, char *map, char *key,
 	clnt_destroy(clnt);
 
 	if (ypval->stat != YP_TRUE) {
-		xdr_free(xdr_ypresp_val, (char *)ypval);
+		xdr_free((xdrproc_t)xdr_ypresp_val, ypval);
 		return(0);
 	}
 
-	xdr_free(xdr_ypresp_val, (char *)ypval);
+	xdr_free((xdrproc_t)xdr_ypresp_val, ypval);
 
 	return(1);
 }

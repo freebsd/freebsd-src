@@ -508,7 +508,7 @@ yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
 	}
 
 	/* Cleared for takeoff: set everything in motion. */
-	if (yp_push(&server, yppush_mapname, yppush_transid))
+	if (yp_push(server, yppush_mapname, yppush_transid))
 		return(yp_errno);
 
 	/* Bump the job counter and transaction ID. */

@@ -77,12 +77,12 @@ static SVCXPRT *makefd_xprt(int, u_int, u_int);
 static bool_t rendezvous_request(SVCXPRT *, struct rpc_msg *);
 static enum xprt_stat rendezvous_stat(SVCXPRT *);
 static void svc_vc_destroy(SVCXPRT *);
-static int read_vc(caddr_t, caddr_t, int);
-static int write_vc(caddr_t, caddr_t, int);
+static int read_vc(void *, void *, int);
+static int write_vc(void *, void *, int);
 static enum xprt_stat svc_vc_stat(SVCXPRT *);
 static bool_t svc_vc_recv(SVCXPRT *, struct rpc_msg *);
-static bool_t svc_vc_getargs(SVCXPRT *, xdrproc_t, caddr_t);
-static bool_t svc_vc_freeargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_vc_getargs(SVCXPRT *, xdrproc_t, void *);
+static bool_t svc_vc_freeargs(SVCXPRT *, xdrproc_t, void *);
 static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *);
 static void svc_vc_rendezvous_ops(SVCXPRT *);
 static void svc_vc_ops(SVCXPRT *);
@@ -145,7 +145,7 @@ svc_vc_create(fd, sendsize, recvsize)
 		goto cleanup_svc_vc_create;
 	}
 	xprt->xp_tp = NULL;
-	xprt->xp_p1 = (caddr_t)(void *)r;
+	xprt->xp_p1 = r;
 	xprt->xp_p2 = NULL;
 	xprt->xp_p3 = NULL;
 	xprt->xp_verf = _null_auth;
@@ -265,8 +265,8 @@ makefd_xprt(fd, sendsize, recvsize)
 	}
 	cd->strm_stat = XPRT_IDLE;
 	xdrrec_create(&(cd->xdrs), sendsize, recvsize,
-	    (caddr_t)(void *)xprt, read_vc, write_vc);
-	xprt->xp_p1 = (caddr_t)(void *)cd;
+	    xprt, read_vc, write_vc);
+	xprt->xp_p1 = cd;
 	xprt->xp_verf.oa_base = cd->verf_body;
 	svc_vc_ops(xprt);  /* truely deals with calls */
 	xprt->xp_port = 0;  /* this is a connection, not a rendezvouser */
@@ -389,8 +389,8 @@ svc_vc_control(xprt, rq, in)
  */
 static int
 read_vc(xprtp, buf, len)
-	caddr_t xprtp;
-	caddr_t buf;
+	void *xprtp;
+	void *buf;
 	int len;
 {
 	SVCXPRT *xprt;
@@ -400,7 +400,7 @@ read_vc(xprtp, buf, len)
 	struct sockaddr *sa;
 	struct cmessage *cm;
 
-	xprt = (SVCXPRT *)(void *)xprtp;
+	xprt = (SVCXPRT *)xprtp;
 	assert(xprt != NULL);
 
 	sock = xprt->xp_fd;
@@ -447,15 +447,15 @@ fatal_err:
  */
 static int
 write_vc(xprtp, buf, len)
-	caddr_t xprtp;
-	caddr_t buf;
+	void *xprtp;
+	void *buf;
 	int len;
 {
 	SVCXPRT *xprt;
 	int i, cnt;
 	struct sockaddr *sa;
 
-	xprt = (SVCXPRT *)(void *)xprtp;
+	xprt = (SVCXPRT *)xprtp;
 	assert(xprt != NULL);
 	
 	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
@@ -527,7 +527,7 @@ static bool_t
 svc_vc_getargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
-	caddr_t args_ptr;
+	void *args_ptr;
 {
 
 	assert(xprt != NULL);
@@ -540,7 +540,7 @@ static bool_t
 svc_vc_freeargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
-	caddr_t args_ptr;
+	void *args_ptr;
 {
 	XDR *xdrs;
 
@@ -613,11 +613,11 @@ svc_vc_rendezvous_ops(xprt)
 		ops.xp_recv = rendezvous_request;
 		ops.xp_stat = rendezvous_stat;
 		ops.xp_getargs =
-		    (bool_t (*)(SVCXPRT *, xdrproc_t, caddr_t))abort;
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort;
 		ops.xp_reply =
 		    (bool_t (*)(SVCXPRT *, struct rpc_msg *))abort;
 		ops.xp_freeargs =
-		    (bool_t (*)(SVCXPRT *, xdrproc_t, caddr_t))abort,
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort,
 		ops.xp_destroy = svc_vc_destroy;
 		ops2.xp_control = svc_vc_control;
 	}
@@ -687,7 +687,7 @@ __msgwrite(sock, buf, cnt)
 	msg.msg_iovlen = 1;
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
-	msg.msg_control = (caddr_t)&cm;
+	msg.msg_control = &cm;
 	msg.msg_controllen = sizeof(struct cmessage);
 	msg.msg_flags = 0;
 

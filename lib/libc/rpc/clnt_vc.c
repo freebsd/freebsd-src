@@ -87,17 +87,17 @@ struct cmessage {
         struct cmsgcred cmcred;
 };
 
-static enum clnt_stat clnt_vc_call(CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
-    xdrproc_t, caddr_t, struct timeval);
+static enum clnt_stat clnt_vc_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
+    xdrproc_t, void *, struct timeval);
 static void clnt_vc_geterr(CLIENT *, struct rpc_err *);
-static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, caddr_t);
+static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_vc_abort(CLIENT *);
 static bool_t clnt_vc_control(CLIENT *, u_int, char *);
 static void clnt_vc_destroy(CLIENT *);
 static struct clnt_ops *clnt_vc_ops(void);
 static bool_t time_not_ok(struct timeval *);
-static int read_vc(caddr_t, caddr_t, int);
-static int write_vc(caddr_t, caddr_t, int);
+static int read_vc(void *, void *, int);
+static int write_vc(void *, void *, int);
 static int __msgwrite(int, void *, size_t);
 static int __msgread(int, void *, size_t);
 
@@ -304,10 +304,10 @@ err:
 		if (ct) {
 			if (ct->ct_addr.len)
 				mem_free(ct->ct_addr.buf, ct->ct_addr.len);
-			mem_free((caddr_t)ct, sizeof (struct ct_data));
+			mem_free(ct, sizeof (struct ct_data));
 		}
 		if (cl)
-			mem_free((caddr_t)cl, sizeof (CLIENT));
+			mem_free(cl, sizeof (CLIENT));
 	}
 	return ((CLIENT *)NULL);
 }
@@ -317,9 +317,9 @@ clnt_vc_call(cl, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
 	CLIENT *cl;
 	rpcproc_t proc;
 	xdrproc_t xdr_args;
-	caddr_t args_ptr;
+	void *args_ptr;
 	xdrproc_t xdr_results;
-	caddr_t results_ptr;
+	void *results_ptr;
 	struct timeval timeout;
 {
 	struct ct_data *ct = (struct ct_data *) cl->cl_private;
@@ -457,7 +457,7 @@ static bool_t
 clnt_vc_freeres(cl, xdr_res, res_ptr)
 	CLIENT *cl;
 	xdrproc_t xdr_res;
-	caddr_t res_ptr;
+	void *res_ptr;
 {
 	struct ct_data *ct;
 	XDR *xdrs;
@@ -660,13 +660,13 @@ clnt_vc_destroy(cl)
  */
 static int
 read_vc(ctp, buf, len)
-	caddr_t ctp;
-	caddr_t buf;
+	void *ctp;
+	void *buf;
 	int len;
 {
 	struct sockaddr sa;
 	socklen_t sal;
-	struct ct_data *ct = (struct ct_data *)(void *)ctp;
+	struct ct_data *ct = (struct ct_data *)ctp;
 	struct pollfd fd;
 	int milliseconds = (int)((ct->ct_wait.tv_sec * 1000) +
 	    (ct->ct_wait.tv_usec / 1000));
@@ -717,13 +717,13 @@ read_vc(ctp, buf, len)
 
 static int
 write_vc(ctp, buf, len)
-	caddr_t ctp;
-	caddr_t buf;
+	void *ctp;
+	void *buf;
 	int len;
 {
 	struct sockaddr sa;
 	socklen_t sal;
-	struct ct_data *ct = (struct ct_data *)(void *)ctp;
+	struct ct_data *ct = (struct ct_data *)ctp;
 	int i, cnt;
 
 	sal = sizeof(sa);

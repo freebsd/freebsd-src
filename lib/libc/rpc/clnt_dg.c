@@ -68,10 +68,10 @@ __FBSDID("$FreeBSD$");
 
 static struct clnt_ops *clnt_dg_ops(void);
 static bool_t time_not_ok(struct timeval *);
-static enum clnt_stat clnt_dg_call(CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
-	    xdrproc_t, caddr_t, struct timeval);
+static enum clnt_stat clnt_dg_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
+	    xdrproc_t, void *, struct timeval);
 static void clnt_dg_geterr(CLIENT *, struct rpc_err *);
-static bool_t clnt_dg_freeres(CLIENT *, xdrproc_t, caddr_t);
+static bool_t clnt_dg_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_dg_abort(CLIENT *);
 static bool_t clnt_dg_control(CLIENT *, u_int, char *);
 static void clnt_dg_destroy(CLIENT *);
@@ -294,9 +294,9 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	CLIENT	*cl;			/* client handle */
 	rpcproc_t	proc;		/* procedure number */
 	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
+	void		*argsp;		/* pointer to args */
 	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
+	void		*resultsp;	/* pointer to results */
 	struct timeval	utimeout;	/* seconds to wait before giving up */
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
@@ -594,7 +594,7 @@ static bool_t
 clnt_dg_freeres(cl, xdr_res, res_ptr)
 	CLIENT *cl;
 	xdrproc_t xdr_res;
-	caddr_t res_ptr;
+	void *res_ptr;
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	XDR *xdrs = &(cu->cu_outxdrs);

@@ -101,7 +101,7 @@ main(int argc, char *argv[])
                 (void)pmap_unset(WALLPROG, WALLVERS);
                 if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
                         err(1, "socket");
-                bzero((char *)&sa, sizeof sa);
+                bzero(&sa, sizeof sa);
                 if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0)
                         err(1, "bind");
 
@@ -184,7 +184,7 @@ wallprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		(void)svc_sendreply(transp, xdr_void, (char *)NULL);
+		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, NULL);
 		goto leave;
 
 	case WALLPROC_WALL:
@@ -197,16 +197,17 @@ wallprog_1(struct svc_req *rqstp, SVCXPRT *transp)
 		svcerr_noproc(transp);
 		goto leave;
 	}
-	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
+	bzero(&argument, sizeof(argument));
+	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
 	result = (*local)(&argument, rqstp);
-	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
+	if (result != NULL &&
+	    !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument)) {
+	if (!svc_freeargs(transp, (xdrproc_t)xdr_argument, &argument)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}

@@ -633,83 +633,83 @@ keyprogram(rqstp, transp)
 		netobj  key_get_conv_2_arg;
 	} argument;
 	char *result;
-	bool_t(*xdr_argument)(), (*xdr_result)();
+	xdrproc_t xdr_argument, xdr_result;
 	char *(*local) ();
 	uid_t uid = -1;
 	int check_auth;
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		svc_sendreply(transp, xdr_void, (char *)NULL);
+		svc_sendreply(transp, (xdrproc_t)xdr_void, NULL);
 		return;
 
 	case KEY_SET:
-		xdr_argument = xdr_keybuf;
-		xdr_result = xdr_int;
+		xdr_argument = (xdrproc_t)xdr_keybuf;
+		xdr_result = (xdrproc_t)xdr_int;
 		local = (char *(*)()) key_set_1_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_ENCRYPT:
-		xdr_argument = xdr_cryptkeyarg;
-		xdr_result = xdr_cryptkeyres;
+		xdr_argument = (xdrproc_t)xdr_cryptkeyarg;
+		xdr_result = (xdrproc_t)xdr_cryptkeyres;
 		local = (char *(*)()) key_encrypt_1_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_DECRYPT:
-		xdr_argument = xdr_cryptkeyarg;
-		xdr_result = xdr_cryptkeyres;
+		xdr_argument = (xdrproc_t)xdr_cryptkeyarg;
+		xdr_result = (xdrproc_t)xdr_cryptkeyres;
 		local = (char *(*)()) key_decrypt_1_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_GEN:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_des_block;
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_des_block;
 		local = (char *(*)()) key_gen_1_svc_prog;
 		check_auth = 0;
 		break;
 
 	case KEY_GETCRED:
-		xdr_argument = xdr_netnamestr;
-		xdr_result = xdr_getcredres;
+		xdr_argument = (xdrproc_t)xdr_netnamestr;
+		xdr_result = (xdrproc_t)xdr_getcredres;
 		local = (char *(*)()) key_getcred_1_svc_prog;
 		check_auth = 0;
 		break;
 
 	case KEY_ENCRYPT_PK:
-		xdr_argument = xdr_cryptkeyarg2;
-		xdr_result = xdr_cryptkeyres;
+		xdr_argument = (xdrproc_t)xdr_cryptkeyarg2;
+		xdr_result = (xdrproc_t)xdr_cryptkeyres;
 		local = (char *(*)()) key_encrypt_pk_2_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_DECRYPT_PK:
-		xdr_argument = xdr_cryptkeyarg2;
-		xdr_result = xdr_cryptkeyres;
+		xdr_argument = (xdrproc_t)xdr_cryptkeyarg2;
+		xdr_result = (xdrproc_t)xdr_cryptkeyres;
 		local = (char *(*)()) key_decrypt_pk_2_svc_prog;
 		check_auth = 1;
 		break;
 
 
 	case KEY_NET_PUT:
-		xdr_argument = xdr_key_netstarg;
-		xdr_result = xdr_keystatus;
+		xdr_argument = (xdrproc_t)xdr_key_netstarg;
+		xdr_result = (xdrproc_t)xdr_keystatus;
 		local = (char *(*)()) key_net_put_2_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_NET_GET:
 		xdr_argument = (xdrproc_t) xdr_void;
-		xdr_result = xdr_key_netstres;
+		xdr_result = (xdrproc_t)xdr_key_netstres;
 		local = (char *(*)()) key_net_get_2_svc_prog;
 		check_auth = 1;
 		break;
 
 	case KEY_GET_CONV:
 		xdr_argument = (xdrproc_t) xdr_keybuf;
-		xdr_result = xdr_cryptkeyres;
+		xdr_result = (xdrproc_t)xdr_cryptkeyres;
 		local = (char *(*)()) key_get_conv_2_svc_prog;
 		check_auth = 1;
 		break;
@@ -738,18 +738,18 @@ keyprogram(rqstp, transp)
 		uid = ((struct authsys_parms *)rqstp->rq_clntcred)->aup_uid;
 	}
 
-	memset((char *) &argument, 0, sizeof (argument));
-	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
+	memset(&argument, 0, sizeof (argument));
+	if (!svc_getargs(transp, xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		return;
 	}
 	result = (*local) (uid, &argument);
-	if (!svc_sendreply(transp, xdr_result, (char *) result)) {
+	if (!svc_sendreply(transp, xdr_result, result)) {
 		if (debugging)
 			(void) fprintf(stderr, "unable to reply\n");
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument)) {
+	if (!svc_freeargs(transp, xdr_argument, &argument)) {
 		if (debugging)
 			(void) fprintf(stderr,
 			"unable to free arguments\n");
