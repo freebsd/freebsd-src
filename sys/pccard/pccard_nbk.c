@@ -183,21 +183,21 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
 	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (rid < 0)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IOPORT && rid >= PCCARD_NPORT)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_MEMORY && rid >= PCCARD_NMEM)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IRQ && rid >= PCCARD_NIRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_DRQ && rid >= PCCARD_NDRQ)
-		return EINVAL;
+		return (EINVAL);
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -210,14 +210,14 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 
 	rle = resource_list_find(rl, type, rid);
 	if (!rle)
-		return ENOENT;
+		return (ENOENT);
 	
 	if (startp)
 		*startp = rle->start;
 	if (countp)
 		*countp = rle->count;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -252,26 +252,26 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
 			if (*rid < 0)
-				return 0;
+				return (NULL);
 			switch (type) {
 			case SYS_RES_IRQ:
 				if (*rid >= PCCARD_NIRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_DRQ:
 				if (*rid >= PCCARD_NDRQ)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_MEMORY:
 				if (*rid >= PCCARD_NMEM)
-					return 0;
+					return (NULL);
 				break;
 			case SYS_RES_IOPORT:
 				if (*rid >= PCCARD_NPORT)
-					return 0;
+					return (NULL);
 				break;
 			default:
-				return 0;
+				return (NULL);
 			}
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
@@ -287,7 +287,7 @@ pccard_release_resource(device_t bus, device_t child, int type, int rid,
 {
 	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
 	struct resource_list *rl = &devi->resources;
-	return resource_list_release(rl, bus, child, type, rid, r);
+	return (resource_list_release(rl, bus, child, type, rid, r));
 }
 
 static int
@@ -298,41 +298,41 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	switch (which) {
 	case PCCARD_IVAR_ETHADDR:
 		bcopy(devi->misc, result, ETHER_ADDR_LEN);
-		return 0;
+		return (0);
 	}
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
 pccard_set_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long value)
 {
-	return CARD_SET_RES_FLAGS(device_get_parent(bus), child, restype,
-	    rid, value);
+	return (CARD_SET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value));
 }
 
 static int
 pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
     u_long *value)
 {
-	return CARD_GET_RES_FLAGS(device_get_parent(bus), child, restype,
-	    rid, value);
+	return (CARD_GET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value));
 }
 
 static int
 pccard_set_memory_offset(device_t bus, device_t child, int rid, 
     u_int32_t offset, u_int32_t *deltap)
 {
-	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset, deltap);
+	return (CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset, deltap));
 }
 
 static int
 pccard_get_memory_offset(device_t bus, device_t child, int rid, 
     u_int32_t *offset)
 {
-	return CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
-	    offset);
+	return (CARD_GET_MEMORY_OFFSET(device_get_parent(bus), child, rid,
+	    offset));
 }
 
 static int
@@ -360,7 +360,7 @@ const struct pccard_product *
 pccard_product_lookup(device_t dev, const struct pccard_product *tab,
     size_t ent_size, pccard_product_match_fn matchfn)
 {
-	return NULL;
+	return (NULL);
 }
 
 static device_method_t pccard_methods[] = {
