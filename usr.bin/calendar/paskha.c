@@ -50,7 +50,7 @@ int R;  /*year*/
 	c = R % 7;
 	d = (19*a + x) % 30;
 	e = (2*b + 4*c + 6*d + y) % 7;
-	return ((cumdays[2/*feb*/] + 22/*mar*/) + (d + e));
+	return (((cumdays[3] + 1) + 22) + (d + e));
 }
 
 /* return year day for Orthodox Easter depending days */
