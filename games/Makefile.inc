@@ -4,9 +4,9 @@
 BINDIR?=	/usr/games
 
 .if defined(HIDEGAME)
-GBINDIR:=	${BINDIR}
+ORIGBINDIR:=	${BINDIR}
 BINDIR:=	${BINDIR}/hide
-GBINGRP:=	${BINGRP}
+ORIGBINGRP:=	${BINGRP}
 BINGRP=		games
 BINMODE=	550
 .endif
