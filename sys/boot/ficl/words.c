@@ -4256,7 +4256,7 @@ static void pfopen(FICL_VM *pVM)
 #endif
     (void)stackPopINT(pVM->pStack); /* don't need count value */
     p = stackPopPtr(pVM->pStack);
-    fd = open(p, O_RDONLY);
+    fd = open(p, O_RDWR);
     stackPushINT(pVM->pStack, fd);
     return;
 }
@@ -4300,6 +4300,45 @@ static void pfread(FICL_VM *pVM)
     return;
 }
 
+/*          fwrite - write file contents
+ *
+ * fwrite  ( fd buf nbytes  -- nwritten )
+ */
+static void pfwrite(FICL_VM *pVM)
+{
+    int     fd, len;
+    char *buf;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    len = stackPopINT(pVM->pStack); /* get number of bytes to write */
+    buf = stackPopPtr(pVM->pStack); /* get buffer */
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (len > 0 && buf && fd != -1)
+      stackPushINT(pVM->pStack, write(fd, buf, len));
+    else
+      stackPushINT(pVM->pStack, -1);
+    return;
+}
+/*          flseek - seek to file offset
+ *
+ * flseek  ( fd offset whence  -- whence )
+ */
+static void pflseek(FICL_VM *pVM)
+{
+    int     fd, whence, offset;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    whence = stackPopINT(pVM->pStack); /* get whence */
+    offset = stackPopINT(pVM->pStack); /* get offset */
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (whence >= 0 && whence <= 2 && offset >= 0 && fd != -1)
+      stackPushINT(pVM->pStack, lseek(fd, offset, whence));
+    else
+      stackPushINT(pVM->pStack, -1);
+    return;
+}
 /*          fload - interpret file contents
  *
  * fload  ( fd -- )
@@ -4808,6 +4847,8 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
     dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
     dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
+    dictAppendWord(dp, "fwrite",    pfwrite,	    FW_DEFAULT);
+    dictAppendWord(dp, "flseek",    pflseek,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
