@@ -50,10 +50,11 @@ initialize(startup)
 	puts("Admiral D.W. Riggle\n");
 	srand(getpid());
 	getutmp(uname);
+	if (startup)
+		location = dayfile;
 	wiz = wizard(uname);
 	wordinit();
 	if (startup) {
-		location = dayfile;
 		direction = NORTH;
 		time = 0;
 		snooze = CYCLE * 1.5;
@@ -117,13 +118,15 @@ checkout(uname)
 		if (strcmp(*ptr, uname) == 0) {
 			printf("You are the Poor anti-wizard %s.  Good Luck!\n",
 				uname);
-			CUMBER = 3;
-			WEIGHT = 9;	/* that'll get him! */
-			clock = 10;
-			setbit(location[7].objects, WOODSMAN);	/* viper room */
-			setbit(location[20].objects, WOODSMAN);	/* laser " */
-			setbit(location[13].objects, DARK);	/* amulet " */
-			setbit(location[8].objects, ELF);	/* closet */
+			if (location != NULL) {
+				CUMBER = 3;
+				WEIGHT = 9;     /* that'll get him! */
+				clock = 10;
+				setbit(location[7].objects, WOODSMAN);  /* viper room */
+				setbit(location[20].objects, WOODSMAN); /* laser " */
+				setbit(location[13].objects, DARK);     /* amulet " */
+				setbit(location[8].objects, ELF);       /* closet */
+			}
 			return 0;	/* anything else, Chris? */
 		}
 	return 0;
