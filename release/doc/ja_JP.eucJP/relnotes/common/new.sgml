@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.244
+    Original revision: 1.247
 -->
 
 <articleinfo>
@@ -532,6 +532,9 @@
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています. &merged;</para>
 
+      <para>&man.dc.4; ドライバは, Xircom 3201 と Conexant
+	LANfinity RS7112 チップベースの NIC に対応しました.</para>
+
       <para>&man.de.4; ドライバは, 21143 において受信ユニットに
 	優先度を与えるのではなく, 受信/送信ユニット間で
 	ラウンドロビン調停を行なうようになりました.
@@ -970,7 +973,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &merged;</para>
 
       <para>&man.ata.4; ドライバは Hardware Notes にも載っているように
-	様々な SiS チップセットに対応しました.</para>
+	様々な SiS チップセットに対応しました. &merged;</para>
 
       <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
@@ -1310,6 +1313,9 @@ hw.pcic.irq="0"</programlisting>
           ネットワークインターフェイスの設定や制御の際に
           &man.spppcontrol.8; ではなく &man.ispppcontrol.8;
           を<emphasis>使わなければならなく</emphasis>なっています.</para>
+
+	<para>&man.ifpi.4; ドライバは AVM Fritz!Card PCI version 2
+	  コントローラに対応しました.</para>
 
 	<para>Cologne Chip Designs HFC デバイスを
           <application>isdn4bsd</application> に対応させる
@@ -1683,6 +1689,15 @@ hw.pcic.irq="0"</programlisting>
       デフォルトでは <literal>UseLogin no</literal> という
       設定になっています.
       (セキュリティ勧告 FreeBSD-SA-01:63 参照). &merged;</para>
+
+    <para>&man.pkg.add.1; において, バイナリパッケージがインストールされる
+      際にローカル上の攻撃者が中身を変更できるような一時ディレクトリの
+      使い方が修正されました.
+      (セキュリティ勧告 FreeBSD-SA-01:64 参照). &merged;</para>
+
+    <para><filename>/etc/master.passwd</filename> の中身が
+      見えてしまう &man.pw.8; の競合条件が修正されました
+      (セキュリティ勧告 FreeBSD-SA-02:02 参照). &merged;</para>
   </sect2>
 
   <sect2 id="userland">
