@@ -129,10 +129,6 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	}
 	pp = PHYS_TO_VM_PAGE(pa);
 
-	sf = sf_buf_alloc();
-	sf->m = pp;
-	pmap_qenter(sf->kva, &pp, 1);
-
 	/* 
 	 * set up COW
 	 */
@@ -144,6 +140,13 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 */
 	vm_page_wire(pp);
 	vm_page_unlock_queues();
+
+	/*
+	 * Allocate an sf buf
+	 */
+	sf = sf_buf_alloc();
+	sf->m = pp;
+	pmap_qenter(sf->kva, &pp, 1);
 
 	/* 
 	 * attach to mbuf
