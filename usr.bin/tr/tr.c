@@ -212,6 +212,7 @@ main(argc, argv)
 	if (!next(&s2))
 		errx(1, "empty string2");
 
+	ch = s2.lastch;
 	/* If string2 runs out of characters, use the last one specified. */
 	if (sflag)
 		while (next(&s1)) {
