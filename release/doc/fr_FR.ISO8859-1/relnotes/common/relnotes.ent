@@ -11,6 +11,11 @@
 <!-- The marker for MFCs. -->
 <!ENTITY merged "[MERGED]">
 
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+ 
+
+
 <!-- Files to be included -->
 
 <!ENTITY art SYSTEM "../common/new.sgml">
