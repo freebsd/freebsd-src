@@ -832,20 +832,15 @@ msdosfs_vptofh(vp, fhp)
 }
 
 static struct vfsops msdosfs_vfsops = {
-	msdosfs_mount,
-	vfs_stdstart,
-	msdosfs_unmount,
-	msdosfs_root,
-	vfs_stdquotactl,
-	msdosfs_statfs,
-	msdosfs_sync,
-	vfs_stdvget,
-	msdosfs_fhtovp,
-	vfs_stdcheckexp,
-	msdosfs_vptofh,
-	msdosfs_init,
-	msdosfs_uninit,
-	vfs_stdextattrctl,
+	.vfs_fhtovp =		msdosfs_fhtovp,
+	.vfs_init =		msdosfs_init,
+	.vfs_mount =		msdosfs_mount,
+	.vfs_root =		msdosfs_root,
+	.vfs_statfs =		msdosfs_statfs,
+	.vfs_sync =		msdosfs_sync,
+	.vfs_uninit =		msdosfs_uninit,
+	.vfs_unmount =		msdosfs_unmount,
+	.vfs_vptofh =		msdosfs_vptofh,
 };
 
 VFS_SET(msdosfs_vfsops, msdosfs, 0);

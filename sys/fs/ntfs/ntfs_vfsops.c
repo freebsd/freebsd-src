@@ -64,18 +64,18 @@ MALLOC_DEFINE(M_NTFSDIR,"NTFS dir",  "NTFS dir buffer");
 
 struct sockaddr;
 
-static int	ntfs_root(struct mount *, struct vnode **);
-static int	ntfs_statfs(struct mount *, struct statfs *, struct thread *);
-static int	ntfs_unmount(struct mount *, int, struct thread *);
-static int	ntfs_vget(struct mount *mp, ino_t ino, int lkflags,
-			       struct vnode **vpp);
 static int	ntfs_mountfs(register struct vnode *, struct mount *, 
 				  struct ntfs_args *, struct thread *);
-static int	ntfs_vptofh(struct vnode *, struct fid *);
-static int	ntfs_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int	ntfs_mount(struct mount *, char *, caddr_t,
-				struct nameidata *, struct thread *);
-static int	ntfs_init(struct vfsconf *);
+
+static vfs_init_t       ntfs_init;
+static vfs_uninit_t     ntfs_uninit;
+static vfs_vget_t       ntfs_vget;
+static vfs_fhtovp_t     ntfs_fhtovp;
+static vfs_mount_t      ntfs_mount;
+static vfs_root_t       ntfs_root;
+static vfs_statfs_t     ntfs_statfs;
+static vfs_unmount_t    ntfs_unmount;
+static vfs_vptofh_t     ntfs_vptofh;
 
 static int
 ntfs_init (
@@ -775,19 +775,14 @@ ntfs_vget(
 }
 
 static struct vfsops ntfs_vfsops = {
-	ntfs_mount,
-	vfs_stdstart,
-	ntfs_unmount,
-	ntfs_root,
-	vfs_stdquotactl,
-	ntfs_statfs,
-	vfs_stdnosync,
-	ntfs_vget,
-	ntfs_fhtovp,
-	vfs_stdcheckexp,
-	ntfs_vptofh,
-	ntfs_init,
-	ntfs_uninit,
-	vfs_stdextattrctl,
+	.vfs_fhtovp =	ntfs_fhtovp,
+	.vfs_init =	ntfs_init,
+	.vfs_mount =	ntfs_mount,
+	.vfs_root =	ntfs_root,
+	.vfs_statfs =	ntfs_statfs,
+	.vfs_uninit =	ntfs_uninit,
+	.vfs_unmount =	ntfs_unmount,
+	.vfs_vget =	ntfs_vget,
+	.vfs_vptofh =	ntfs_vptofh,
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);

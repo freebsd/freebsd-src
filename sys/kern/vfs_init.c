@@ -374,6 +374,8 @@ vfs_register(struct vfsconf *vfc)
 	struct sysctl_oid *oidp;
 	struct vfsconf *vfsp;
 
+	struct vfsops *vfsops;
+	
 	vfsp = NULL;
 	if (vfsconf)
 		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
@@ -404,6 +406,65 @@ vfs_register(struct vfsconf *vfc)
 			sysctl_register_oid(oidp);
 		}
 
+	/*
+	 * Initialise unused ``struct vfsops'' fields, to use
+	 * the vfs_std*() functions.  Note, we need the mount
+	 * and unmount operations, at the least.  The check
+	 * for vfsops available is just a debugging aid.
+	 */
+	KASSERT(vfc->vfc_vfsops != NULL,
+	    ("Filesystem %s has no vfsops", vfc->vfc_name));
+	/*
+	 * Check the mount and unmount operations.
+	 */
+	vfsops = vfc->vfc_vfsops;
+	KASSERT(vfsops->vfs_mount != NULL || vfsops->vfs_nmount != NULL,
+	    ("Filesystem %s has no (n)mount op", vfc->vfc_name));
+	KASSERT(vfsops->vfs_unmount != NULL,
+	    ("Filesystem %s has no unmount op", vfc->vfc_name));
+
+	if (vfsops->vfs_start == NULL)
+		/* make a file system operational */ 
+		vfsops->vfs_start =	vfs_stdstart;
+	if (vfsops->vfs_root == NULL)
+		/* return file system's root vnode */
+		vfsops->vfs_root =	vfs_stdroot;
+	if (vfsops->vfs_quotactl == NULL)
+		/* quota control */
+		vfsops->vfs_quotactl =	vfs_stdquotactl;
+	if (vfsops->vfs_statfs == NULL)
+		/* return file system's status */
+		vfsops->vfs_statfs =	vfs_stdstatfs;
+	if (vfsops->vfs_sync == NULL)
+		/*
+		 * flush unwritten data (nosync)
+		 * file systems can use vfs_stdsync
+		 * explicitly by setting it in the
+		 * vfsop vector.
+		 */
+		vfsops->vfs_sync =	vfs_stdnosync;
+	if (vfsops->vfs_vget == NULL)
+		/* convert an inode number to a vnode */
+		vfsops->vfs_vget =	vfs_stdvget;
+	if (vfsops->vfs_fhtovp == NULL)
+		/* turn an NFS file handle into a vnode */
+		vfsops->vfs_fhtovp =	vfs_stdfhtovp;
+	if (vfsops->vfs_checkexp == NULL)
+		/* check if file system is exported */
+		vfsops->vfs_checkexp =	vfs_stdcheckexp;
+	if (vfsops->vfs_vptofh == NULL)
+		/* turn a vnode into an NFS file handle */
+		vfsops->vfs_vptofh =	vfs_stdvptofh;
+	if (vfsops->vfs_init == NULL)
+		/* file system specific initialisation */
+		vfsops->vfs_init =	vfs_stdinit;
+	if (vfsops->vfs_uninit == NULL)
+		/* file system specific uninitialisation */
+		vfsops->vfs_uninit =	vfs_stduninit;
+	if (vfsops->vfs_extattrctl == NULL)
+		/* extended attribute control */
+		vfsops->vfs_extattrctl = vfs_stdextattrctl;
+	
 	/*
 	 * Call init function for this VFS...
 	 */
