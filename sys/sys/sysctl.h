@@ -95,6 +95,12 @@ struct ctlname {
  */ 
 #define OID_AUTO	(-1)
 
+/*
+ * The starting number for dynamically-assigned entries.  WARNING!
+ * ALL static sysctl entries should have numbers LESS than this!
+ */
+#define CTL_AUTO_START	0x100
+
 #ifdef _KERNEL
 #define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
 	struct sysctl_req *req
