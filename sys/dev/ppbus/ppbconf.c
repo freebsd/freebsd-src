@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu
+ * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.8 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: ppbconf.c,v 1.9 1998/12/07 21:58:16 archie Exp $
  *
  */
 #include <sys/param.h>
@@ -36,6 +36,8 @@
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
+
+#include "opt_ppb_1284.h"
 
 LIST_HEAD(, ppb_data)	ppbdata;	/* list of existing ppbus */
 
@@ -80,15 +82,30 @@ ppb_alloc_bus(void)
 	return(ppb);
 }
 
+#define PPB_PNP_PRINTER		0
+#define PPB_PNP_MODEM		1
+#define PPB_PNP_NET		2
+#define PPB_PNP_HDC		3
+#define PPB_PNP_PCMCIA		4
+#define PPB_PNP_MEDIA		5
+#define PPB_PNP_FDC		6
+#define PPB_PNP_PORTS		7
+#define PPB_PNP_SCANNER		8
+#define PPB_PNP_DIGICAM		9
+
+#ifndef DONTPROBE_1284
+
 static char *pnp_tokens[] = {
 	"PRINTER", "MODEM", "NET", "HDC", "PCMCIA", "MEDIA",
 	"FDC", "PORTS", "SCANNER", "DIGICAM", "", NULL };
 
+#if 0
 static char *pnp_classes[] = {
 	"printer", "modem", "network device",
 	"hard disk", "PCMCIA", "multimedia device",
 	"floppy disk", "ports", "scanner",
 	"digital camera", "unknown device", NULL };
+#endif
 
 /*
  * search_token()
@@ -134,75 +151,40 @@ search_token(char *str, int slen, char *token)
  * Returns the class id. of the peripherial, -1 otherwise
  */
 static int
-ppb_pnp_detect(struct ppb_data *ppb)
+ppb_pnp_detect(struct ppb_data *ppb, struct ppb_device *pnpdev)
 {
-	char *token, *q, *class = 0;
+	char *token, *class = 0;
 	int i, len, error;
 	int class_id = -1;
 	char str[PPB_PnP_STRING_SIZE+1];
-	struct ppb_device pnpdev;	/* temporary device to perform I/O */
 
-	/* initialize the pnpdev structure for future use */
-	bzero(&pnpdev, sizeof(pnpdev));
-
-	pnpdev.ppb = ppb;
-
-	if (bootverbose)
-		printf("ppb: <PnP> probing devices on ppbus %d...\n",
+	printf("Probing for PnP devices on ppbus%d:\n",
 			ppb->ppb_link->adapter_unit);
-
-	if (ppb_request_bus(&pnpdev, PPB_DONTWAIT)) {
-		if (bootverbose)
-			printf("ppb: <PnP> cannot allocate ppbus!\n");
-		return (-1);
-	}
-
-	if ((error = ppb_1284_negociate(&pnpdev, NIBBLE_1284_REQUEST_ID))) {
-		if (bootverbose)
-			printf("ppb: <PnP> ppb_1284_negociate()=%d\n", error);
-
-		goto end_detect;
-	}
 	
-	len = 0;
-	for (q=str; !(ppb_rstr(&pnpdev) & PERROR); q++) {
-		if ((error = nibble_1284_inbyte(&pnpdev, q))) {
-			if (bootverbose) {
-				*q = '\0';
-				printf("ppb: <PnP> len=%d, %s\n", len, str);
-				printf("ppb: <PnP> nibble_1284_inbyte()=%d\n",
-					error);
-			}
-			goto end_detect;
-		}
+	if ((error = ppb_1284_read_id(pnpdev, PPB_NIBBLE, str,
+					PPB_PnP_STRING_SIZE, &len)))
+		goto end_detect;
 
-		if (len++ >= PPB_PnP_STRING_SIZE) {
-			printf("ppb: <PnP> not space left!\n");
-			goto end_detect;
-		}
-	}
-	*q = '\0';
-
-	nibble_1284_sync(&pnpdev);
-
-	if (bootverbose) {
-		printf("ppb: <PnP> %d characters: ", len);
-		for (i = 0; i < len; i++)
-			printf("0x%x ", str[i]);
-		printf("\n");
-	}
+#ifdef DEBUG_1284
+	printf("ppb: <PnP> %d characters: ", len);
+	for (i = 0; i < len; i++)
+		printf("%c(0x%x) ", str[i], str[i]);
+	printf("\n");
+#endif
 
 	/* replace ';' characters by '\0' */
 	for (i = 0; i < len; i++)
 		str[i] = (str[i] == ';') ? '\0' : str[i];
 
-	if ((token = search_token(str, len, "MFG")) != NULL)
+	if ((token = search_token(str, len, "MFG")) != NULL ||
+		(token = search_token(str, len, "MANUFACTURER")) != NULL)
 		printf("ppbus%d: <%s", ppb->ppb_link->adapter_unit,
 			search_token(token, UNKNOWN_LENGTH, ":") + 1);
 	else
 		printf("ppbus%d: <unknown", ppb->ppb_link->adapter_unit);
 
-	if ((token = search_token(str, len, "MDL")) != NULL)
+	if ((token = search_token(str, len, "MDL")) != NULL ||
+		(token = search_token(str, len, "MODEL")) != NULL)
 		printf(" %s",
 			search_token(token, UNKNOWN_LENGTH, ":") + 1);
 	else
@@ -223,7 +205,8 @@ ppb_pnp_detect(struct ppb_data *ppb)
 		printf(" %s", class);
 	}
 
-	if ((token = search_token(str, len, "CMD")) != NULL)
+	if ((token = search_token(str, len, "CMD")) != NULL ||
+		(token = search_token(str, len, "COMMAND")) != NULL)
 		printf(" %s",
 			search_token(token, UNKNOWN_LENGTH, ":") + 1);
 
@@ -241,12 +224,115 @@ ppb_pnp_detect(struct ppb_data *ppb)
 	class_id = PPB_PnP_UNKNOWN;
 
 end_detect:
-	if ((error = ppb_1284_terminate(&pnpdev, VALID_STATE)) && bootverbose)
-		printf("ppb: ppb_1284_terminate()=%d\n", error);
-
-	ppb_release_bus(&pnpdev);
 	return (class_id);
 }
+
+/*
+ * ppb_scan_bus()
+ *
+ * Scan the ppbus for IEEE1284 compliant devices
+ */
+static int
+ppb_scan_bus(struct ppb_data *ppb)
+{
+	struct ppb_device pnpdev;	/* temporary device to perform I/O */
+	int error = 0;
+
+	/* initialize the pnpdev structure for future use */
+	bzero(&pnpdev, sizeof(pnpdev));
+	pnpdev.ppb = ppb;
+
+	if ((error = ppb_request_bus(&pnpdev, PPB_DONTWAIT))) {
+		if (bootverbose)
+			printf("ppb: cannot allocate ppbus!\n");
+
+		return (error);
+	}
+
+	/* try all IEEE1284 modes, for one device only
+	 * 
+	 * XXX We should implement the IEEE1284.3 standard to detect
+	 * daisy chained devices
+	 */
+
+	error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, PPB_REQUEST_ID);
+
+	if ((ppb->state == PPB_ERROR) && (ppb->error == PPB_NOT_IEEE1284))
+		goto end_scan;
+
+	ppb_1284_terminate(&pnpdev);
+
+	printf("ppc%d: IEEE1284 device found ", ppb->ppb_link->adapter_unit);
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, 0))) {
+		printf("/NIBBLE");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2, 0))) {
+		printf("/PS2");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, 0))) {
+		printf("/ECP");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, PPB_USE_RLE))) {
+		printf("/ECP_RLE");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_EPP, 0))) {
+		printf("/EPP");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+#if 0
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, PPB_REQUEST_ID))) {
+		printf("/NIBBLE_ID");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2, PPB_REQUEST_ID))) {
+		printf("/PS2_ID");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, PPB_REQUEST_ID))) {
+		printf("/ECP_ID");
+		ppb_1284_terminate(&pnpdev);
+	}
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
+					PPB_REQUEST_ID | PPB_USE_RLE))) {
+		printf("/ECP_RLE_ID");
+		ppb_1284_terminate(&pnpdev);
+	}
+#endif
+
+	if (!(error = ppb_1284_negociate(&pnpdev, PPB_COMPATIBLE,
+				PPB_EXTENSIBILITY_LINK))) {
+                printf("/Extensibility Link");
+		ppb_1284_terminate(&pnpdev);
+        }
+
+	printf(" in FORWARD_IDLE state\n");
+
+	/* detect PnP devices */
+	ppb->class_id = ppb_pnp_detect(ppb, &pnpdev);
+
+	ppb_release_bus(&pnpdev);
+
+	return (0);
+
+end_scan:
+	ppb_release_bus(&pnpdev);
+	return (error);
+}
+
+#endif /* !DONTPROBE_1284 */
 
 /*
  * ppb_attachdevs()
@@ -263,11 +349,10 @@ ppb_attachdevs(struct ppb_data *ppb)
 	LIST_INIT(&ppb->ppb_devs);	/* initialise device/driver list */
 	p_drvpp = (struct ppb_driver **)ppbdriver_set.ls_items;
 
-/* XXX wait for ieee1284 good support */
-#if 0
-	/* detect PnP devices */
-	ppb->class_id = ppb_pnp_detect(ppb);
-#endif
+#ifndef DONTPROBE_1284
+	/* detect IEEE1284 compliant devices */
+	ppb_scan_bus(ppb);
+#endif /* !DONTPROBE_1284 */
 	
 	/*
 	 * Blindly try all probes here.  Later we should look at
