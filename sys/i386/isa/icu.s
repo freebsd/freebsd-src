@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.22 1995/04/01 04:56:32 ache Exp $
+ *	$Id: icu.s,v 1.23 1995/07/05 14:35:34 bde Exp $
  */
 
 /*
@@ -154,13 +154,6 @@ doreti_unpend:
 	jae	doreti_swi
 	cli
 	movl	%eax,_cpl
-#if NAPM > 0 && defined(APM_SLOWSTART)
-	movl	_apm_slowstart_stat, %eax
-	orl	%eax, %eax
-	jz	1:
-	call	_apm_idle_cpu
-1:
-#endif 
 	MEXITCOUNT
 	jmp	%edx
 
