@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.54 1999/02/12 00:52:29 brian Exp $
+ *	$Id: chat.c,v 1.55 1999/05/08 11:06:18 brian Exp $
  */
 
 #include <sys/param.h>
@@ -213,6 +213,10 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       /* We leave room for a potential HDLC header in the target string */
       ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
 
+      /*
+       * Now read our string.  If it's not a special string, we unset
+       * ``special'' to break out of the loop.
+       */
       if (gotabort) {
         if (c->abort.num < MAXABORTS) {
           int len, i;
@@ -490,6 +494,10 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
 
     if (physical_IsSync(c->physical)) {
+      /*
+       * XXX: Fix me
+       * This data should be stuffed down through the link layers
+       */
       /* There's always room for the HDLC header */
       c->argptr -= 2;
       c->arglen += 2;
@@ -579,29 +587,25 @@ chat_Destroy(struct chat *c)
  *  \U  Auth User
  */
 static char *
-ExpandString(struct chat *c, const char *str, char *result, int reslen,
-                  int sendmode)
+ExpandString(struct chat *c, const char *str, char *result, int reslen, int cr)
 {
-  int addcr = 0;
+  int len;
 
   result[--reslen] = '\0';
-  if (sendmode)
-    addcr = 1;
   while (*str && reslen > 0) {
     switch (*str) {
     case '\\':
       str++;
       switch (*str) {
       case 'c':
-	if (sendmode)
-	  addcr = 0;
+	cr = 0;
 	break;
       case 'd':		/* Delay 2 seconds */
         chat_Pause(c, 2 * SECTICKS);
 	break;
       case 'p':
         chat_Pause(c, SECTICKS / 4);
-	break;			/* Pause 0.25 sec */
+	break;		/* Delay 0.25 seconds */
       case 'n':
 	*result++ = '\n';
 	reslen--;
@@ -620,20 +624,23 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	break;
       case 'P':
 	strncpy(result, c->physical->dl->bundle->cfg.auth.key, reslen);
-	reslen -= strlen(result);
-	result += strlen(result);
+        len = strlen(result);
+	reslen -= len;
+	result += len;
 	break;
       case 'T':
         if (c->phone) {
           strncpy(result, c->phone, reslen);
-          reslen -= strlen(result);
-          result += strlen(result);
+          len = strlen(result);
+          reslen -= len;
+          result += len;
         }
 	break;
       case 'U':
 	strncpy(result, c->physical->dl->bundle->cfg.auth.name, reslen);
-	reslen -= strlen(result);
-	result += strlen(result);
+        len = strlen(result);
+	reslen -= len;
+	result += len;
 	break;
       default:
 	reslen--;
@@ -657,7 +664,7 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
     }
   }
   if (--reslen > 0) {
-    if (addcr)
+    if (cr)
       *result++ = '\r';
   }
   if (--reslen > 0)
