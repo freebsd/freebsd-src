@@ -1300,7 +1300,7 @@ extern int devtab_count;
 struct config_device *devtab = config_devtab;
 
 static int
-resource_new_name(char *name, int unit)
+resource_new_name(const char *name, int unit)
 {
 	struct config_device *new;
 
@@ -1324,7 +1324,7 @@ resource_new_name(char *name, int unit)
 }
 
 static int
-resource_new_resname(int j, char *resname, resource_type type)
+resource_new_resname(int j, const char *resname, resource_type type)
 {
 	struct config_resource *new;
 	int i;
@@ -1351,7 +1351,7 @@ resource_new_resname(int j, char *resname, resource_type type)
 }
 
 static int
-resource_match_string(int i, char *resname, char *value)
+resource_match_string(int i, const char *resname, const char *value)
 {
 	int j;
 	struct config_resource *res;
@@ -1366,7 +1366,7 @@ resource_match_string(int i, char *resname, char *value)
 }
 
 static int
-resource_find(const char *name, int unit, char *resname, 
+resource_find(const char *name, int unit, const char *resname, 
 	      struct config_resource **result)
 {
 	int i, j;
@@ -1405,7 +1405,7 @@ resource_find(const char *name, int unit, char *resname,
 }
 
 int
-resource_int_value(const char *name, int unit, char *resname, int *result)
+resource_int_value(const char *name, int unit, const char *resname, int *result)
 {
 	int error;
 	struct config_resource *res;
@@ -1419,7 +1419,8 @@ resource_int_value(const char *name, int unit, char *resname, int *result)
 }
 
 int
-resource_long_value(const char *name, int unit, char *resname, long *result)
+resource_long_value(const char *name, int unit, const char *resname,
+		    long *result)
 {
 	int error;
 	struct config_resource *res;
@@ -1433,7 +1434,8 @@ resource_long_value(const char *name, int unit, char *resname, long *result)
 }
 
 int
-resource_string_value(const char *name, int unit, char *resname, char **result)
+resource_string_value(const char *name, int unit, const char *resname,
+		      char **result)
 {
 	int error;
 	struct config_resource *res;
@@ -1447,7 +1449,7 @@ resource_string_value(const char *name, int unit, char *resname, char **result)
 }
 
 int
-resource_query_string(int i, char *resname, char *value)
+resource_query_string(int i, const char *resname, const char *value)
 {
 	if (i < 0)
 		i = 0;
@@ -1460,7 +1462,7 @@ resource_query_string(int i, char *resname, char *value)
 }
 
 int
-resource_locate(int i, char *resname)
+resource_locate(int i, const char *resname)
 {
 	if (i < 0)
 		i = 0;
@@ -1491,8 +1493,8 @@ resource_query_unit(int i)
 }
 
 static int
-resource_create(char *name, int unit, char *resname, resource_type type,
-		struct config_resource **result)
+resource_create(const char *name, int unit, const char *resname,
+		resource_type type, struct config_resource **result)
 {
 	int i, j;
 	struct config_resource *res = NULL;
@@ -1524,7 +1526,7 @@ resource_create(char *name, int unit, char *resname, resource_type type,
 }
 
 int
-resource_set_int(char *name, int unit, char *resname, int value)
+resource_set_int(const char *name, int unit, const char *resname, int value)
 {
 	int error;
 	struct config_resource *res;
@@ -1539,7 +1541,7 @@ resource_set_int(char *name, int unit, char *resname, int value)
 }
 
 int
-resource_set_long(char *name, int unit, char *resname, long value)
+resource_set_long(const char *name, int unit, const char *resname, long value)
 {
 	int error;
 	struct config_resource *res;
@@ -1554,7 +1556,8 @@ resource_set_long(char *name, int unit, char *resname, long value)
 }
 
 int
-resource_set_string(char *name, int unit, char *resname, char *value)
+resource_set_string(const char *name, int unit, const char *resname,
+		    const char *value)
 {
 	int error;
 	struct config_resource *res;
