@@ -158,6 +158,7 @@ typedef struct mousemode {
 #define MOUSE_PROTO_X10MOUSEREM	13	/* X10 MouseRemote, 3 bytes */
 #define MOUSE_PROTO_KIDSPAD	14	/* Genius Kidspad */
 #define MOUSE_PROTO_VERSAPAD	15	/* Interlink VersaPad, 6 bytes */
+#define	MOUSE_PROTO_JOGDIAL	16	/* Vaio's JogDial */
 
 #define MOUSE_RES_UNKNOWN	(-1)
 #define MOUSE_RES_DEFAULT	0

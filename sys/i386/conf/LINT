@@ -1609,6 +1609,7 @@ device		pca0 at isa? port IO_TIMER1
 # rp: Comtrol Rocketport(ISA) - single card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
+# spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (ISA and PCI), EasyConnection 8/64 PCI
 # stli: Stallion EasyConnection 8/64 ISA/EISA, ONboard, Brumby (intelligent)
 # nmdm: nullmodem terminal driver (see nmdm(4))
@@ -1709,6 +1710,7 @@ device		rp0	at isa? port 0x280
 device		tw0	at isa? port 0x380 irq 11
 device		si0	at isa? iomem 0xd0000 irq 12
 device		asc0	at isa? port IO_ASC1 drq 3 irq 10
+device		spic0	at isa? irq 0 port 0x10a0
 device		stl0	at isa? port 0x2a0 irq 10
 device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
