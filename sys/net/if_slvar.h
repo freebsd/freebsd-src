@@ -69,6 +69,7 @@ struct sl_softc {
 	struct	callout_handle	sc_kahandle;
 	struct	slcompress sc_comp;	/* tcp compression data */
 	LIST_ENTRY(sl_softc) sl_next;
+	u_char *bpfbuf;			/* hing buffer for bpf here */
 };
 
 /* internal flags */
