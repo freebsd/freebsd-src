@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.17 1994/09/03 22:47:02 csgr Exp $
+ *	$Id: lpt.c,v 1.18 1994/09/15 02:37:11 phk Exp $
  */
 
 /*
@@ -155,6 +155,7 @@
 #endif
 
 #define LPHDR		2	/* We send 0x08, 0x00 in front of packet */
+
 #endif /* INET */
 
 /* BIOS printer list - used by BIOS probe*/
@@ -197,7 +198,7 @@ struct lpt_softc {
 
 #ifdef INET
 	struct  ifnet	sc_if;
-	u_char		sc_ifbuf[LPMTU+LPHDR];
+	u_char		*sc_ifbuf;
 	int		sc_iferrs;
 #endif /* ENDIF */
 
@@ -234,14 +235,14 @@ void		lptintr (int unit);
 
 #ifdef INET
 /* Tables for the lp# interface */
-static unsigned char txmith[1024];
+static u_char *txmith;
 #define txmitl (txmith+256)
 #define trecvh (txmith+512)
 #define trecvl (txmith+768)
 
 /* Functions for the lp# interface */
 static void lpattach(struct lpt_softc *,int);
-static void lpinittables();
+static int lpinittables();
 static int lpioctl(struct ifnet *, int, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
@@ -808,16 +809,21 @@ lpattach(struct	lpt_softc *sc,int unit)
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
-	printf("lp%d: TCP/IP interface, MTU=%d.\n",unit,LPMTU);
+	printf("lp%d: TCP/IP interface\n",unit);
 }
 /*
  * We don't want to calculate these nasties in our tight loop, so we 
  * precalculate them when we initialize.
  */
-static void
+static int
 lpinittables()
 {
     int i;
+
+    if(!txmith)
+	txmith = malloc(1024,M_DEVBUF,M_NOWAIT);
+    if(!txmith)
+	return 1;
 
     for(i=0;i<256;i++) {
 	txmith[i] = ((i & 0x80) >> 3) | ((i & 0x70) >> 4) | 0x08;
@@ -825,6 +831,7 @@ lpinittables()
 	trecvh[i] = ((~i) & 0x80) | ((i & 0x38) << 1);
 	trecvl[i] = (((~i) & 0x80) >> 4) | ((i & 0x38) >> 3);
     }
+    return 0;
 }
 
 /*
@@ -834,59 +841,59 @@ lpinittables()
 static int
 lpioctl(struct ifnet *ifp, int cmd, caddr_t data)
 {
-        struct proc *p = curproc;
-	struct lpt_softc *sc = lpt_sc + ifp->if_unit;
-	struct ifaddr *ifa = (struct ifaddr *)data;
-	struct ifreq *ifr = (struct ifreq *)data; 
+    struct proc *p = curproc;
+    struct lpt_softc *sc = lpt_sc + ifp->if_unit;
+    struct ifaddr *ifa = (struct ifaddr *)data;
+    struct ifreq *ifr = (struct ifreq *)data; 
+    u_char *ptr;
 
-	int error = 0;
+    switch (cmd) {
 
-	switch (cmd) {
-
-	case SIOCSIFFLAGS:
-		if (((ifp->if_flags & IFF_UP) == 0) &&
-		    (ifp->if_flags & IFF_RUNNING)) {
-			outb(sc->sc_port+2, 0x00);
-		        ifp->if_flags &= ~IFF_RUNNING;
-		}
-		if (((ifp->if_flags & IFF_UP)) &&
-		    ((ifp->if_flags & IFF_RUNNING) == 0)) {
-			lpinittables();
-			outb(sc->sc_port+2, 0x10);
-		        ifp->if_flags |= IFF_RUNNING;
-		}
-		break;
-
-	case SIOCAIFADDR:
-	case SIOCSIFADDR:
-		if (ifa->ifa_addr->sa_family != AF_INET)
-		    error = EAFNOSUPPORT;
-		lpinittables();
-		outb(sc->sc_port+2, 0x10);
-		ifp->if_flags |= IFF_RUNNING | IFF_UP;
-		break;
-	case SIOCSIFDSTADDR:
-		if (ifa->ifa_addr->sa_family != AF_INET)
-		    error = EAFNOSUPPORT;
-		break;
-
-        case SIOCSIFMTU:
-        	if ((error = suser(p->p_ucred, &p->p_acflag)))
-            	    return (error);
-		if(ifr->ifr_metric > LPMTU)
-			error = EINVAL;
-        	sc->sc_if.if_mtu = ifr->ifr_metric; 
-		break;
-
-        case SIOCGIFMTU:
-	        ifr->ifr_metric = sc->sc_if.if_mtu;
-		break;
-
-	default:
-		lprintf("LP:ioctl%x\n",cmd);
-		error = EINVAL;
+    case SIOCSIFDSTADDR:
+    case SIOCAIFADDR:
+    case SIOCSIFADDR:
+	if (ifa->ifa_addr->sa_family != AF_INET)
+	    return EAFNOSUPPORT;
+	ifp->if_flags |= IFF_UP;
+	/* FALLTHROUGH */
+    case SIOCSIFFLAGS:
+	if ((!(ifp->if_flags & IFF_UP)) && (ifp->if_flags & IFF_RUNNING)) {
+	    outb(sc->sc_port+2, 0x00);
+	    ifp->if_flags &= ~IFF_RUNNING;
+	    break;
 	}
-	return (error);
+	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
+	    if(lpinittables())
+		return ENOBUFS;
+	    sc->sc_ifbuf = malloc(ifr->ifr_metric+LPHDR,M_DEVBUF,M_NOWAIT);
+	    if(!sc->sc_ifbuf)
+		return ENOBUFS;
+
+	    outb(sc->sc_port+2, 0x10);
+	    ifp->if_flags |= IFF_RUNNING;
+	}
+	break;
+
+    case SIOCSIFMTU:
+	ptr = sc->sc_ifbuf;
+	sc->sc_ifbuf = malloc(ifr->ifr_metric+LPHDR,M_DEVBUF,M_NOWAIT);
+	if(!sc->sc_ifbuf) {
+	    sc->sc_ifbuf = ptr;
+	    return ENOBUFS;
+	} 
+	free(ptr,M_DEVBUF);
+	sc->sc_if.if_mtu = ifr->ifr_metric; 
+	break;
+
+    case SIOCGIFMTU:
+	ifr->ifr_metric = sc->sc_if.if_mtu;
+	break;
+
+    default:
+	lprintf("LP:ioctl%x\n",cmd);
+	return EINVAL;
+    }
+    return 0;
 }
 
 static void
@@ -894,13 +901,16 @@ lpintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
 	int len,s,j;
-        register const int port = sc->sc_port+1;
+        const int port = sc->sc_port+1;
+	u_char *bp;
 
 	s = splimp();
 	while((inb(port)&0x40)) {
 	    {
 	    u_long c, cl;
-	    for(len=0;len<LPMTU+LPHDR;) {
+	    len = sc->sc_if.if_mtu + LPHDR;
+	    bp = sc->sc_ifbuf;
+	    while(len--) {
 	    __asm __volatile("
 		inb  %%dx,%%al
 		movzbl %%al,%0
@@ -922,7 +932,7 @@ lpintr(int unit)
 		outb %%al,%%dx
 		incl %%edx
 		" : "=b" (c) : "d" (port) : "a");
-		sc->sc_ifbuf[len++] = trecvh[cl] | trecvl[c];
+		*bp++= trecvh[cl] | trecvl[c];
 		{
 	        j = LPMAXSPIN2;
 		while(!((cl=inb(port)) & 0x40)) {
@@ -934,6 +944,7 @@ lpintr(int unit)
 	    }
 	    }
 	end:
+	    len = bp - sc->sc_ifbuf;
 	    if(len <= LPHDR)
 		goto err;
 
@@ -948,8 +959,8 @@ lpintr(int unit)
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
 	    {
-	    u_char *p = sc->sc_ifbuf+LPHDR;
 	    struct mbuf *top, *m, *m2;
+	    bp = sc->sc_ifbuf+LPHDR;
 	    MGETHDR(m, M_DONTWAIT, MT_DATA);
 	    top = m;
 	    m->m_len=0;
@@ -964,10 +975,10 @@ lpintr(int unit)
 		m->m_len=0;
 		m2->m_next = m;
 		j = min(len,M_TRAILINGSPACE(m));
-		bcopy(p, mtod(m, caddr_t), j);
+		bcopy(bp, mtod(m, caddr_t), j);
 		m->m_len=j;
 		len -= j;
-		p += j;
+		bp += j;
 		}
 	    IF_ENQUEUE(&ipintrq, top);
 	    schednetisr(NETISR_IP);
