@@ -89,6 +89,7 @@ watch_onoff (argc, argv)
 
 	if (local)
 	    send_arg ("-l");
+	send_arg ("--");
 	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server (turning_on ? "watch-on\012" : "watch-off\012", 0);
@@ -102,8 +103,8 @@ watch_onoff (argc, argv)
 
     err = start_recursion (onoff_fileproc, onoff_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			   argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-			   0);
+			   argc, argv, local, W_LOCAL, 0, LOCK_NONE,
+			   (char *)NULL, 0);
 
     Lock_Cleanup ();
     return err;
@@ -1125,6 +1126,7 @@ editors (argc, argv)
 
 	if (local)
 	    send_arg ("-l");
+	send_arg ("--");
 	send_files (argc, argv, local, 0, SEND_NO_CONTENTS);
 	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("editors\012", 0);

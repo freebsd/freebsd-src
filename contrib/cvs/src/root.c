@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1992, Mark D. Baushke
+ * Copyright (c) 2002, Derek R. Price
  *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -208,18 +209,7 @@ root_allow_add (arg)
 	    printf ("E Fatal server error, aborting.\n\
 error ENOMEM Virtual memory exhausted.\n");
 
-	    /* I'm doing this manually rather than via error_exit ()
-	       because I'm not sure whether we want to call server_cleanup.
-	       Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	    /* Hook for OS-specific behavior, for example socket
-	       subsystems on NT and OS2 or dealing with windows
-	       and arguments on Mac.  */
-	    SYSTEM_CLEANUP ();
-#endif
-
-	    exit (EXIT_FAILURE);
+	    error_exit ();
 	}
     }
     p = malloc (strlen (arg) + 1);
@@ -270,22 +260,11 @@ error 0 Server configuration missing --allow-root in inetd.conf\n");
 /* This global variable holds the global -d option.  It is NULL if -d
    was not used, which means that we must get the CVSroot information
    from the CVSROOT environment variable or from a CVS/Root file.  */
-
 char *CVSroot_cmdline;
 
 
 
-/* Parse a CVSROOT variable into its constituent parts -- method,
- * username, hostname, directory.  The prototypical CVSROOT variable
- * looks like:
- *
- * :method:user@host:path
- *
- * Some methods may omit fields; local, for example, doesn't need user
- * and host.
- *
- * Returns pointer to new cvsroot_t on success, NULL on failure. */
-
+/* FIXME - Deglobalize this. */
 cvsroot_t *current_parsed_root = NULL;
 
 
@@ -347,7 +326,27 @@ free_cvsroot_t (root)
 
 
 /*
- * parse a CVSROOT string to allocate and return a new cvsroot_t structure
+ * Parse a CVSROOT string to allocate and return a new cvsroot_t structure.
+ * Valid specifications are:
+ *
+ *	:(gserver|kserver|pserver):[[user][:password]@]host[:[port]]/path
+ *	[:(ext|server):][[user]@]host[:]/path
+ *	[:local:[e:]]/path
+ *	:fork:/path
+ *
+ * INPUTS
+ *	root_in		C String containing the CVSROOT to be parsed.
+ *
+ * RETURNS
+ *	A pointer to a newly allocated cvsroot_t structure upon success and
+ *	NULL upon failure.  The caller is responsible for disposing of
+ *	new structures with a call to free_cvsroot_t().
+ *
+ * NOTES
+ * 	This would have been a lot easier to write in Perl.
+ *
+ * SEE ALSO
+ * 	free_cvsroot_t()
  */
 cvsroot_t *
 parse_cvsroot (root_in)
@@ -388,7 +387,6 @@ parse_cvsroot (root_in)
 	if (! (p = strchr (method, ':')))
 	{
 	    error (0, 0, "No closing `:' on method in CVSROOT.");
-	    free (cvsroot_save);
 	    goto error_exit;
 	}
 	*p = '\0';
@@ -413,22 +411,16 @@ parse_cvsroot (root_in)
 	else
 	{
 	    error (0, 0, "Unknown method (`%s') in CVSROOT.", method);
-	    free (cvsroot_save);
 	    goto error_exit;
 	}
     }
     else
     {
-	/* If the method isn't specified, assume
-	   SERVER_METHOD/EXT_METHOD if the string looks like a relative path or
-	   LOCAL_METHOD otherwise.  */
+	/* If the method isn't specified, assume EXT_METHOD if the string looks
+	   like a relative path and LOCAL_METHOD otherwise.  */
 
 	newroot->method = ((*cvsroot_copy != '/' && strchr (cvsroot_copy, '/'))
-/*#ifdef RSH_NOT_TRANSPARENT
-			  ? server_method
-#else*/
 			  ? ext_method
-/*#endif*/
 			  : local_method);
     }
 
@@ -450,7 +442,6 @@ parse_cvsroot (root_in)
 	    error (0, 0, "CVSROOT requires a path spec:");
 	    error (0, 0, ":(gserver|kserver|pserver):[[user][:password]@]host[:[port]]/path");
 	    error (0, 0, "[:(ext|server):][[user]@]host[:]/path");
-	    free (cvsroot_save);
 	    goto error_exit;
 	}
 	firstslash = p;		/* == NULL if '/' not in string */
@@ -467,6 +458,7 @@ parse_cvsroot (root_in)
 		newroot->password = xstrdup (++q);
 		/* Don't check for *newroot->password == '\0' since
 		 * a user could conceivably wish to specify a blank password
+		 *
 		 * (newroot->password == NULL means to use the
 		 * password from .cvspass)
 		 */
@@ -499,7 +491,6 @@ parse_cvsroot (root_in)
 			error (0, 0, "CVSROOT may only specify a positive, non-zero, integer port (not `%s').",
 				p);
 			error (0, 0, "Perhaps you entered a relative pathname?");
-			free (cvsroot_save);
 			goto error_exit;
 		    }
 		}
@@ -508,7 +499,6 @@ parse_cvsroot (root_in)
 		    error (0, 0, "CVSROOT may only specify a positive, non-zero, integer port (not `%s').",
 			    p);
 		    error (0, 0, "Perhaps you entered a relative pathname?");
-		    free (cvsroot_save);
 		    goto error_exit;
 		}
 	    }
@@ -528,7 +518,6 @@ parse_cvsroot (root_in)
 
     /* parse the path for all methods */
     newroot->directory = xstrdup(cvsroot_copy);
-    free (cvsroot_save);
 
     /*
      * Do various sanity checks.
@@ -663,9 +652,11 @@ parse_cvsroot (root_in)
     }
     
     /* Hooray!  We finally parsed it! */
+    free (cvsroot_save);
     return newroot;
 
 error_exit:
+    free (cvsroot_save);
     free_cvsroot_t (newroot);
     return NULL;
 }
@@ -799,3 +790,5 @@ main (argc, argv)
    /* NOTREACHED */
 }
 #endif
+/* vim:tabstop=8:shiftwidth=4
+ */

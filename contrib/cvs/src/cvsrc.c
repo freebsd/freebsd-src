@@ -73,10 +73,7 @@ read_cvsrc (argc, argv, cmdname)
     if (!homedir)
 	return;
 
-    homeinit = (char *) xmalloc (strlen (homedir) + strlen (cvsrc) + 10);
-    strcpy (homeinit, homedir);
-    strcat (homeinit, "/");
-    strcat (homeinit, cvsrc);
+    homeinit = strcat_filename_onto_homedir (homedir, cvsrc);
 
     /* if it can't be read, there's no point to continuing */
 

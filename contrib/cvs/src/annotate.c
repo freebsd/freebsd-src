@@ -110,6 +110,7 @@ annotate (argc, argv)
 	option_with_arg ("-r", tag);
 	if (date)
 	    client_senddate (date);
+	send_arg ("--");
 	if (is_rannotate)
 	{
 	    int i;
@@ -247,7 +248,7 @@ rannotate_proc (argc, argv, xwhere, mwhere, mfile, shorten, local, mname, msg)
 
     err = start_recursion (annotate_fileproc, (FILESDONEPROC) NULL,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			   argc - 1, argv + 1, local, which, 0, 1,
+			   argc - 1, argv + 1, local, which, 0, LOCK_READ,
 			   where, 1);
     return err;
 }

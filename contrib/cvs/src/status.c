@@ -77,6 +77,7 @@ cvsstatus (argc, argv)
 	    send_arg("-v");
 	if (local)
 	    send_arg("-l");
+	send_arg ("--");
 
 	/* For a while, we tried setting SEND_NO_CONTENTS here so this
 	   could be a fast operation.  That prevents the
@@ -106,7 +107,7 @@ cvsstatus (argc, argv)
     err = start_recursion (status_fileproc, (FILESDONEPROC) NULL,
 			   status_dirproc, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv, local,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   W_LOCAL, 0, LOCK_READ, (char *) NULL, 1);
 
     return (err);
 }

@@ -1,3 +1,24 @@
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* system.h: Use HAVE_STRUCT_STAT_ST_BLKSIZE instead of the
+	obsolete HAVE_ST_BLKSIZE.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
+2002-04-28  Derek Price  <oberon@umich.edu>
+
+	* diff.c: Use the system fnmatch.h when present.
+
 2001-09-04  Derek Price  <dprice@collab.net>
 
 	* Makefile.in: Regenerated with automake 1.5.

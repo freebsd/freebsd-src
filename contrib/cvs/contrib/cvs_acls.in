@@ -19,7 +19,16 @@
 #
 # 2. Install this file as /usr/local/bin/cvs_acls and make it executable.
 #
-# 3. Create a file named $CVSROOT/CVSROOT/avail.
+# 3. Create a file named CVSROOT/avail and optionally add it to
+#    CVSROOT/checkoutlist and check it in.  See the CVS manual's
+#    administrative files section about checkoutlist.  Typically:
+#
+#    $ cvs checkout CVSROOT
+#    $ cd CVSROOT
+#    [ create the avail file ]
+#    [ add avail to checkoutlist ]
+#    $ cvs add avail
+#    $ cvs commit -m 'Added avail for use with cvs_acls.' avail checkoutlist
 #
 # ==== FORMAT OF THE avail FILE:
 #

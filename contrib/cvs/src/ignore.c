@@ -89,8 +89,7 @@ ign_setup ()
        .cvsignore is).  */
     if (home_dir)
     {
-	char *file = xmalloc (strlen (home_dir) + sizeof (CVSDOTIGNORE) + 10);
-	(void) sprintf (file, "%s/%s", home_dir, CVSDOTIGNORE);
+	char *file = strcat_filename_onto_homedir (home_dir, CVSDOTIGNORE);
 	ign_add_file (file, 0);
 	free (file);
     }
