@@ -1265,7 +1265,7 @@ sosetopt(so, sopt)
 	u_long  val;
 #ifdef MAC
 	struct mac extmac;
-#endif /* MAC */
+#endif
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1400,9 +1400,9 @@ sosetopt(so, sopt)
 			error = mac_setsockopt_label_set(
 			    sopt->sopt_td->td_ucred, so, &extmac);
 
-#else /* MAC */
+#else
 			error = EOPNOTSUPP;
-#endif /* MAC */
+#endif
 			break;
 		default:
 			error = ENOPROTOOPT;
@@ -1462,7 +1462,7 @@ sogetopt(so, sopt)
 #endif
 #ifdef MAC
 	struct mac extmac;
-#endif /* MAC */
+#endif
 
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
@@ -1551,9 +1551,9 @@ integer:
 			if (error)
 				return (error);
 			error = sooptcopyout(sopt, &extmac, sizeof extmac);
-#else /* MAC */
+#else
 			error = EOPNOTSUPP;
-#endif /* MAC */
+#endif
 			break;
 		case SO_PEERLABEL:
 #ifdef MAC
@@ -1562,9 +1562,9 @@ integer:
 			if (error)
 				return (error);
 			error = sooptcopyout(sopt, &extmac, sizeof extmac);
-#else /* MAC */
+#else
 			error = EOPNOTSUPP;
-#endif /* MAC */
+#endif
 			break;
 		default:
 			error = ENOPROTOOPT;
