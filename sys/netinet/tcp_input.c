@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25.4.5 1996/09/19 08:18:28 pst Exp $
+ *	$Id: tcp_input.c,v 1.25.4.6 1996/09/19 09:54:15 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
+#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -380,11 +381,65 @@ findpcb:
 #endif
 		if (so->so_options & SO_ACCEPTCONN) {
 			register struct tcpcb *tp0 = tp;
-			so = sonewconn(so, 0);
-			if (so == 0) {
-				tcpstat.tcps_listendrop++;
+			struct socket *so2;
+			if ((tiflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
+				/*
+				 * Note: dropwithreset makes sure we don't
+				 * send a RST in response to a RST.
+				 */
+				if (tiflags & TH_ACK) {
+					tcpstat.tcps_badsyn++;
+					goto dropwithreset;
+				}
 				goto drop;
 			}
+			so2 = sonewconn(so, 0);
+			if (so2 == 0) {
+				unsigned int i, j, qlen;
+
+				static int rnd;
+				static long old_mono_secs;
+				static unsigned int cur_cnt, old_cnt;
+
+				tcpstat.tcps_listendrop++;
+
+				/*
+				 * Keep a decaying average of the number
+				 * of overruns we've been getting.
+				 */
+				if ((i = (mono_time.tv_sec -
+					  old_mono_secs)) != 0) {
+					old_mono_secs = mono_time.tv_sec;
+					old_cnt = cur_cnt / i;
+					cur_cnt = 0;
+				}
+
+				so2 = so->so_q0;
+				if (so2 == 0)
+					goto drop;
+
+				/*
+				 * If we've been getting a lot of hits,
+				 * random drop an incomplete connection
+				 * from the queue, otherwise, fall through
+				 * so we head-drop from the queue.
+				 */
+				qlen = so->so_q0len;
+				if (++cur_cnt > qlen || old_cnt > qlen) {
+					rnd = (314159 * rnd + 66329) & 0xffff;
+					j = ((qlen + 1) * rnd) >> 16;
+
+					while (j-- && so2)
+						so2 = so2->so_q0;
+				}
+				if (so2) {
+					tcp_drop(sototcpcb(so2), ETIMEDOUT);
+					so2 = sonewconn(so, 0);
+				}
+				if (!so2)
+					goto drop;
+			}
+			so = so2;
 			/*
 			 * This is ugly, but ....
 			 *
@@ -710,6 +765,8 @@ findpcb:
 		}
 
 	/*
+	 * If the state is SYN_RECEIVED:
+	 *	do just the ack and RST checks from SYN_SENT state.
 	 * If the state is SYN_SENT:
 	 *	if seg contains an ACK, but not for our SYN, drop the input.
 	 *	if seg contains a RST, then drop the connection.
@@ -721,6 +778,7 @@ findpcb:
 	 *	arrange for segment to be acked (eventually)
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
+	case TCPS_SYN_RECEIVED:
 	case TCPS_SYN_SENT:
 		if ((taop = tcp_gettaocache(inp)) == NULL) {
 			taop = &tao_noncached;
@@ -748,6 +806,8 @@ findpcb:
 				tp = tcp_drop(tp, ECONNREFUSED);
 			goto drop;
 		}
+		if (tp->t_state == TCPS_SYN_RECEIVED)
+			break;
 		if ((tiflags & TH_SYN) == 0)
 			goto drop;
 		tp->snd_wnd = ti->ti_win;	/* initial send window */
