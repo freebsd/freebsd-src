@@ -87,6 +87,7 @@
 #include <sys/socket.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 
 #include <dev/usb/usb.h>
@@ -107,6 +108,8 @@
 #define DPRINTF(x)	if (udbpdebug) logprintf x
 #define DPRINTFN(n,x)	if (udbpdebug>(n)) logprintf x
 int	udbpdebug = 9;
+SYSCTL_INT(_debug_usb, OID_AUTO, udbp, CTLFLAG_RW,
+	   &udbpdebug, 0, "udbp debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

@@ -67,6 +67,7 @@
 #endif
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -79,6 +80,8 @@
 #define DPRINTF(x)	if (uriodebug) logprintf x
 #define DPRINTFN(n,x)	if (uriodebug>(n)) logprintf x
 int	uriodebug = 100;
+SYSCTL_INT(_debug_usb, OID_AUTO, urio, CTLFLAG_RW,
+	   &uriodebug, 0, "urio debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
