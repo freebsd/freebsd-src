@@ -20,8 +20,7 @@ CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN5=		rndc.conf.5
-MAN8=		rndc.8
+MAN=		rndc.8 rndc.conf.5
 
 MANFILTER=	sed -e "s@/etc/rndc\.conf@/etc/namedb/rndc.conf@g" \
 		-e "s@/etc/rndc\.key@/etc/namedb/rndc.key@g"
