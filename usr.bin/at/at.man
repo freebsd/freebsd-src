@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.8 1998/06/04 21:05:53 steve Exp $
+.\" $Id: at.man,v 1.9 1999/02/15 08:34:06 fenner Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os FreeBSD 2.1
@@ -235,14 +235,14 @@ Allow permission control
 Deny permission control
 .It Pa _ATJOB_DIR/_LOCKFILE
 Job-creation lock file.
-.Sh SEE ALSO
-.Xr cron 8 ,
-.Xr nice 1 ,
-.Xr umask 2 ,
-.Xr sh 1 ,
-.Xr sendmail 8 ,
-.Xr atrun 8 .
 .El
+.Sh SEE ALSO
+.Xr nice 1 ,
+.Xr sh 1 ,
+.Xr umask 2 ,
+.Xr atrun 8 ,
+.Xr cron 8 ,
+.Xr sendmail 8
 .Sh BUGS
 .Pp
 If the file
