@@ -73,21 +73,29 @@ nfs_nhinit()
 
 /*
  * Compute an entry in the NFS hash table structure
+ *
+ * Hash based on: http://www.isthe.com/chongo/tech/comp/fnv/
+ * by Glenn Fowler, Phong Vo and Landon Curt Noll
+ * aka the "Fowler / Noll / Vo Hash" (FNV)
  */
+#define FNV_32_PRIME ((u_int32_t) 0x01000193UL)
+#define FNV1_32_INIT ((u_int32_t) 33554467UL)
 u_long
 nfs_hash(fhp, fhsize)
-	register nfsfh_t *fhp;
+	nfsfh_t *fhp;
 	int fhsize;
 {
-	register u_char *fhpp;
-	register u_long fhsum;
-	register int i;
+	u_char *fhpp;
+	u_int32_t hval;
+	int i;
 
 	fhpp = &fhp->fh_bytes[0];
-	fhsum = 0;
-	for (i = 0; i < fhsize; i++)
-		fhsum += *fhpp++;
-	return (fhsum);
+	hval = FNV1_32_INIT;
+	for (i = 0; i < fhsize; i++) {
+		hval *= FNV_32_PRIME;
+		hval ^= (u_int32_t)*fhpp++;
+	}
+	return (hval);
 }
 
 /*
