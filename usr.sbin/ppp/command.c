@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.165 1998/08/29 23:02:42 brian Exp $
+ * $Id: command.c,v 1.166 1998/09/17 00:45:26 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -131,7 +131,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/29 23:02:42 $";
+const char VersionDate[] = "$Date: 1998/09/17 00:45:26 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -203,7 +203,9 @@ HelpCommand(struct cmdargs const *arg)
     if (cmd->name && (cmd->lauth & arg->prompt->auth)) {
       cx = showcx(cmd);
       cxlen = cmax - strlen(cmd->name);
-      prompt_Printf(arg->prompt, " %s%-*.*s: %-*.*s",
+      if (n % cols != 0)
+        prompt_Printf(arg->prompt, " ");
+      prompt_Printf(arg->prompt, "%s%-*.*s: %-*.*s",
               cmd->name, cxlen, cxlen, cx, dmax, dmax, cmd->helpmes);
       if (++n % cols == 0)
         prompt_Printf(arg->prompt, "\n");
