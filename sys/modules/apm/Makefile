@@ -3,7 +3,7 @@
 .if ${MACHINE} == "pc98"
 .PATH: ${.CURDIR}/../../pc98/apm
 .else
-.PATH: ${.CURDIR}/../../i386/apm
+.PATH: ${.CURDIR}/../../i386/bios
 .endif
 
 KMOD=	apm

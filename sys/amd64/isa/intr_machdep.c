@@ -83,7 +83,7 @@
 #endif
 
 #ifdef DEV_MCA
-#include <i386/isa/mca_machdep.h>
+#include <i386/bios/mca_machdep.h>
 #endif
 
 /*

@@ -46,7 +46,7 @@
 #include <machine/bus.h>
 #include <pc98/apm/apm.h>
 #else
-#include <i386/apm/apm.h>
+#include <i386/bios/apm.h>
 #endif
 
 extern int apm_display(int newstate);

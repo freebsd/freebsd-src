@@ -47,7 +47,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <i386/apm/apm.h>
+#include <i386/bios/apm.h>
 
 /* Used by the apm_saver screen saver module */
 int apm_display(int newstate);
