@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.10 1995/06/11 19:31:31 rgrimes Exp $
+ *	$Id: aic7xxx.h,v 1.11 1995/07/04 21:14:45 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -73,14 +73,15 @@ struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
 /*1*/   u_char control;
 #define	SCB_NEEDWDTR 0x80			/* Initiate Wide Negotiation */
-#define SCB_NEEDSDTR 0x40			/* Initiate Sync Negotiation */
+#define SCB_DISCENB  0x40			/* Disconnection Enable */
 #define	SCB_TE	     0x20			/* Tag enable */
+#define SCB_NEEDSDTR 0x10			/* Initiate Sync Negotiation */
 #define	SCB_NEEDDMA  0x08			/* Refresh SCB from host ram */
-#define	SCB_DIS 0x04
-#define	SCB_TAG_TYPE 0x3
-#define		SIMPLE_QUEUE 0x0
-#define		HEAD_QUEUE 0x1
-#define		OR_QUEUE 0x2
+#define	SCB_DIS	     0x04
+#define	SCB_TAG_TYPE 0x03
+#define		SIMPLE_QUEUE	0x00
+#define		HEAD_QUEUE	0x01
+#define		OR_QUEUE	0x02
 /*2*/	u_char target_channel_lun;		/* 4/1/3 bits */
 /*3*/	u_char SG_segment_count;
 /*7*/	physaddr SG_list_pointer	__attribute__ ((packed));
@@ -90,9 +91,9 @@ struct scb {
 /*15*/	u_char target_status;
 /*18*/	u_char residual_data_count[3];
 /*19*/	u_char residual_SG_segment_count;
-#define	SCB_DOWN_SIZE 26		/* amount to actually download */
 /*23*/	physaddr data			 __attribute__ ((packed));
 /*26*/  u_char datalen[3];
+#define	SCB_DOWN_SIZE 26		/* amount to actually download */
 #define SCB_UP_SIZE 26			/*
 					 * amount we need to upload to perform
 					 * a request sense.
