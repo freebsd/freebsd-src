@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.2 1995/04/27 18:03:53 jkh Exp $
+ * $Id: variable.c,v 1.1 1995/05/01 21:56:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,6 +61,7 @@ variable_set(char *var)
     newvar->next = VarHead;
     VarHead = newvar;
     setenv(newvar->name, newvar->value, 1);
+    msgInfo("Set %s to %s", newvar->name, newvar->value);
 }
 
 void
@@ -77,4 +78,5 @@ variable_set2(char *var, char *value)
     newvar->next = VarHead;
     VarHead = newvar;
     setenv(newvar->name, newvar->value, 1);
+    msgInfo("Set %s to %s", newvar->name, newvar->value);
 }

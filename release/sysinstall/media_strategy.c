@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.1 1995/05/17 14:39:53 jkh Exp $
+ * $Id: media_strategy.c,v 1.2 1995/05/20 03:49:09 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,6 +130,24 @@ mediaGetFloppy(char *dist)
 
 void
 mediaCloseFloppy(Device *dev)
+{
+    return;
+}
+
+Boolean
+mediaInitDOS(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetDOS(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseDOS(Device *dev)
 {
     return;
 }

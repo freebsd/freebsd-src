@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.9 1995/05/19 02:09:02 jkh Exp $
+ * $Id: label.c,v 1.10 1995/05/19 02:19:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,7 +279,6 @@ print_label_chunks(void)
 {
     int i, j, srow, prow, pcol;
     int sz;
-    int label_attr;
 
     clear();
     attrset(A_REVERSE);

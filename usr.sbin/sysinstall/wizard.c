@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.2 1995/05/16 02:53:31 jkh Exp $
+ * $Id: wizard.c,v 1.3 1995/05/17 14:40:00 jkh Exp $
  *
  */
 
@@ -81,7 +81,7 @@ scan_block(int fd, daddr_t block)
 }
 
 void
-Scan_Disk(struct disk *d)
+Scan_Disk(Disk *d)
 {
     char device[64];
     u_long l;
@@ -115,9 +115,9 @@ Scan_Disk(struct disk *d)
 }
 
 void
-slice_wizard(struct disk *d)
+slice_wizard(Disk *d)
 {
-    struct disk *db;
+    Disk *db;
     char myprompt[BUFSIZ];
     char input[BUFSIZ];
     char *p,*q=0;
