@@ -22,6 +22,121 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.20	24/07/2001 - Released
+
+adjust NAT hashing to give a better spread across the table
+
+show icmp code/type names in output, where known
+
+fix bug in altering cached interface names in state when resync'ing
+
+fix bug in real audio proxy that caused crashs
+ 
+fix compiling using sunos4 cc
+
+patch from casper to address weird exit problem for ipstat in top mode
+
+patch from Greg Woods to produce names for icmp types/unreach codes,
+where they are known
+
+fix bug where ipfr_fastroute() would use a mblk and it would also get
+freed later.
+
+don't match fragments which would cause 64k length to be exceeded
+
+ftp proxy fix for port numbers being setup for pasv ftp with state/nat 
+
+change hashing for NAT to include both IP#'s and ports.
+
+Solaris fixes for IPv6
+
+fix compiling iplang bits, under Solaris, for ipsend
+
+3.4.19	29/06/2001 - Released
+
+fix to support suspend/resume on solaris8 as well as ipv6
+
+include group/group-head in match of filter rules
+
+fix endian problem reading snoop files
+
+make all licence comments point to the one place
+
+fix ftp proxy to only advance state if a reply is received in response to
+a recognised command
+
+3.4.18	05/06/2001 - Released
+
+fix up parsing of "from ! host" where '!' is separate
+
+disable hardware checksums for NetBSD
+
+put ipftest temporary files in . rather than /tmp
+
+modify ftp proxy to be more intelligent about moving between states
+and recognise new authentication commands
+
+allow state/nat table sizes to be externally influenced
+
+print out host mapping table for NAT with ipnat -l
+
+fix handling of hardware checksum'ing on Solaris
+
+fixup makefiles for Solaris
+
+update regression tests
+
+fix surrender of SPL's for failure cases
+
+include patches for OpenBSD's new timeout mechanism
+
+default ipl_unreach to ICMP_UNREACH_FILTER_PROHIB if defined, else make it
+ICMP_UNREACH_FILTER
+
+fix up handling of packets matching auth rules and interaction with state
+
+add -q command line option to ipfstat on Solaris to list bound interfaces
+
+add command line option to ipfstat/ipnat to select different core image
+
+don't use ncurses on Solaris for STATETOP
+
+fix includes to get FreeBSD version
+
+do not byte swap ip_id
+
+fix handling success for packets matching the auth rule
+
+don't double-count short packets
+
+add ICMP router discovery message size recognition
+
+fix packet length calculation for IPv6
+
+set CPUDIR when for install-sunos5 make target
+
+SUNWspro -xF causes Solaris 2.5.1 kernel to crash
+
+3.4.17	06/04/2001 - Released
+
+fix fragment#0 handling bug where they could get in via cache information
+created by state table entries
+
+use ire_walk to look for ire cache entries with link layer headers cached 
+
+deal with bad SPL assumptions for log reading on BSD
+
+fix ftp proxy to allow logins with passwords
+
+some auth rule patches, fixing byte endian problems and returning as an error
+
+support LOG_SECURITY, where available, in ipmon
+
+don't return an error for packets which match auth rules
+
+introduce fr_icmpacktimeout to timeout entries once an ICMP reply has
+been seen separately to when created
+
 3.4.16	15/01/2001 - Released
 
 fix race condition in flushing of state entries that are timing out

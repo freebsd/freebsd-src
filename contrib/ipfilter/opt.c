@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +25,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)opt.c	1.8 4/10/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: opt.c,v 2.2 2000/03/13 22:10:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: opt.c,v 2.2.2.1 2001/06/26 10:43:20 darrenr Exp $";
 #endif
 
 extern	int	opts;

@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * Added redirect stuff and a variety of bug fixes. (mcn@EnGarde.com)
  */
@@ -57,7 +55,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.5 2000/12/02 00:15:04 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.9 2001/07/18 15:06:33 darrenr Exp $";
 #endif
 
 
@@ -110,10 +108,10 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-	char	*file = NULL;
 	int	fd = -1, opts = 0, c, mode = O_RDWR;
+	char	*file = NULL, *core = NULL;
 
-	while ((c = getopt(argc, argv, "CdFf:hlnrsv")) != -1)
+	while ((c = getopt(argc, argv, "CdFf:hlM:nrsv")) != -1)
 		switch (c)
 		{
 		case 'C' :
@@ -135,6 +133,9 @@ char *argv[];
 			opts |= OPT_LIST;
 			mode = O_RDONLY;
 			break;
+		case 'M' :
+			core = optarg;
+			break;
 		case 'n' :
 			opts |= OPT_NODO;
 			mode = O_RDONLY;
@@ -152,6 +153,13 @@ char *argv[];
 		default :
 			usage(argv[0]);
 		}
+
+	if (core != NULL) {
+		if (openkmem(core) == -1)
+			exit(1);
+		(void) setgid(getgid());
+		(void) setuid(getuid());
+	}
 
 	gethostname(thishost, sizeof(thishost));
 	thishost[sizeof(thishost) - 1] = '\0';
@@ -292,8 +300,10 @@ ipnat_t *ipnat;
 void dostats(fd, opts)
 int fd, opts;
 {
+	hostmap_t hm, *hmp, **maptable;
 	natstat_t ns, *nsp = &ns;
 	nat_t **nt[2], *np, nat;
+	u_int hv, hv1, hv2;
 	ipnat_t	ipn;
 
 	bzero((char *)&ns, sizeof(ns));
@@ -353,15 +363,21 @@ int fd, opts;
 				printf("\n\tage %lu use %hu sumd %s/",
 					nat.nat_age, nat.nat_use,
 					getsumd(nat.nat_sumd[0]));
+				hv1 = NAT_HASH_FN(nat.nat_inip.s_addr,
+						  nat.nat_inport,
+						  0xffffffff),
+				hv1 = NAT_HASH_FN(nat.nat_oip.s_addr,
+						  hv1 + nat.nat_oport,
+						  NAT_TABLE_SZ),
+				hv2 = NAT_HASH_FN(nat.nat_outip.s_addr,
+						  nat.nat_outport,
+						  0xffffffff),
+				hv2 = NAT_HASH_FN(nat.nat_oip.s_addr,
+						  hv2 + nat.nat_oport,
+						  NAT_TABLE_SZ),
 				printf("%s pr %u bkt %d/%d flags %x ",
 					getsumd(nat.nat_sumd[1]), nat.nat_p,
-					(int)NAT_HASH_FN(nat.nat_inip.s_addr,
-							 nat.nat_inport,
-							 NAT_TABLE_SZ),
-					(int)NAT_HASH_FN(nat.nat_outip.s_addr,
-							 nat.nat_outport,
-							 NAT_TABLE_SZ),
-					nat.nat_flags);
+					hv1, hv2, nat.nat_flags);
 #ifdef	USE_QUAD_T
 				printf("bytes %qu pkts %qu",
 					(unsigned long long)nat.nat_bytes,
@@ -379,6 +395,38 @@ int fd, opts;
 				printaps(nat.nat_aps, opts);
 		}
 
+		if (opts & OPT_VERBOSE) {
+			printf("\nList of active host mappings:\n");
+		
+			maptable = (hostmap_t **)malloc(sizeof(hostmap_t *) *
+							ns.ns_hostmap_sz);
+			if (kmemcpy((char *)maptable, (u_long)ns.ns_maptable,
+				    sizeof(hostmap_t *) * ns.ns_hostmap_sz)) {
+				perror("kmemcpy (maptable)");
+				return;
+			}
+
+			for (hv = 0; hv < ns.ns_hostmap_sz; hv++) {
+				hmp = maptable[hv];
+
+				while(hmp) {
+
+					if (kmemcpy((char *)&hm, (u_long)hmp,
+						    sizeof(hostmap_t))) {
+						perror("kmemcpy (hostmap)");
+						return;
+					}
+	
+					printf("%s -> ",
+					       inet_ntoa(hm.hm_realip));
+					printf("%s ", inet_ntoa(hm.hm_mapip));
+					printf("(use = %d hv = %u)\n",
+					       hm.hm_ref, hv);
+					hmp = hm.hm_next;
+				}
+			}
+			free(maptable);
+		}
 		free(nt[0]);
 	}
 }
