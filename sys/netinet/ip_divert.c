@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.7 1998/05/28 06:28:49 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.8 1998/06/05 21:38:06 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -179,7 +179,6 @@ div_input(struct mbuf *m, int hlen)
 	divsrc.sin_addr.s_addr = 0;
 	if (hlen) {
 		struct ifaddr *ifa;
-		char	name[32];
 
 #ifdef DIAGNOSTIC
 		/* Sanity check */
@@ -201,6 +200,10 @@ div_input(struct mbuf *m, int hlen)
 			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
 			break;
 		}
+	}
+	if (m->m_pkthdr.rcvif) {
+		char	name[32];
+		
 		/*
 		 * Hide the actual interface name in there in the 
 		 * sin_zero array. XXX This needs to be moved to a
@@ -284,6 +287,25 @@ div_output(so, m, addr, control)
 	}
 #endif /* IPFW_DIVERT_RESTART */
 
+	if (sin) {
+		int	len = 0;
+		char	*c = sin->sin_zero;
+
+		sin->sin_port = 0;
+		/*
+		 * Find receive interface with the given name or IP address.
+		 * The name is user supplied data so don't trust it's size or 
+		 * that it is zero terminated. The name has priority.
+		 * We are presently assuming that the sockaddr_in 
+		 * has not been replaced by a sockaddr_div, so we limit it
+		 * to 16 bytes in total. the name is stuffed (if it exists)
+		 * in the sin_zero[] field.
+		 */
+		while (*c++ && (len++ < sizeof(sin->sin_zero)));
+		if ((len > 0) && (len < sizeof(sin->sin_zero)))
+			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
+	}
+
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
 		/* Don't allow both user specified and setsockopt options,
@@ -304,30 +326,10 @@ div_output(so, m, addr, control)
 			(so->so_options & SO_DONTROUTE) |
 			IP_ALLOWBROADCAST | IP_RAWOUTPUT, inp->inp_moptions);
 	} else {
-		struct	ifnet *ifp = NULL;
 		struct	ifaddr *ifa;
-		int	len = 0;
-		char	*c = sin->sin_zero;
 
-		sin->sin_port = 0;
-
-		/*
-		 * Find receive interface with the given name or IP address.
-		 * The name is user supplied data so don't trust it's size or 
-		 * that it is zero terminated. The name has priority.
-		 * We are presently assuming that the sockaddr_in 
-		 * has not been replaced by a sockaddr_div, so we limit it
-		 * to 16 bytes in total. the name is stuffed (if it exists)
-		 * in the sin_zero[] field.
-		 */
-		while (*c++ && (len++ < sizeof(sin->sin_zero)));
-		if ((len > 0) && (len < sizeof(sin->sin_zero)))
-			ifp = ifunit(sin->sin_zero);
-
-		/* If no luck with the name. check by IP address.  */
-		if (ifp) {
-			m->m_pkthdr.rcvif = ifp;
-		} else {
+		/* If no luck with the name above, check by IP address.  */
+		if (m->m_pkthdr.rcvif == NULL) {
 			if (!(ifa = ifa_ifwithaddr((struct sockaddr *) sin))) {
 				error = EADDRNOTAVAIL;
 				goto cantsend;
