@@ -2763,10 +2763,15 @@ static void dc_init(xsc)
 
 	(void)splx(s);
 
-	if (sc->dc_flags & DC_21143_NWAY)
-		sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
-	else
-		sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+	/* Don't start the ticker if this is a homePNA link. */
+	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_homePNA)
+		sc->dc_link = 1;
+	else {
+		if (sc->dc_flags & DC_21143_NWAY)
+			sc->dc_stat_ch = timeout(dc_tick, sc, hz/10);
+		else
+			sc->dc_stat_ch = timeout(dc_tick, sc, hz);
+	}
 
 #ifdef __alpha__
         if(sc->dc_srm_media) {
