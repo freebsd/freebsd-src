@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.14 1995/11/13 07:18:09 bde Exp $
+ * $Id: kernel.h,v 1.15 1995/11/14 07:35:56 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -80,6 +80,8 @@ extern long timedelta;
  * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
  */
 #define MAKE_SET(set, sym, type) \
+	static void *const __set_##set##_sym_##sym = \
+		(&__set_##set##_sym_##sym, &sym, 0); \
 	asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
 #define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
