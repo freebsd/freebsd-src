@@ -69,20 +69,12 @@ Each atomic operation operates on a specific type.
 The type to use is indicated in the function name.
 The available types that can be used are:
 .Bl -tag -offset indent -width short
-.It char
-unsigned character
-.It short
-unsigned short integer
 .It int
 unsigned integer
 .It long
 unsigned long integer
 .It ptr
 unsigned integer the size of a pointer
-.It 8
-unsigned 8-bit integer
-.It 16
-unsigned 16-bit integer
 .It 32
 unsigned 32-bit integer
 .It 64
@@ -91,6 +83,21 @@ unsigned 64-bit integer
 .Pp
 For example, the function to atomically add two integers is called
 .Fn atomic_add_int .
+.Pp
+Certain architectures also provide operations for types smaller than int.
+.Bl -tag -offset indent -width short
+.It char
+unsigned character
+.It short
+unsigned short integer
+.It 8
+unsigned 8-bit integer
+.It 16
+unsigned 16-bit integer
+.El
+.Pp
+These must not be used in MI code because the instructions to implement them
+efficiently may not be available.
 .Ss Memory Barriers
 Memory barriers are used to guarantee the order the order of data accesses in
 two ways.
