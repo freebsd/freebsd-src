@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.13 1998/08/04 14:10:30 des Exp $
+ * $Id: machine.c,v 1.14 1998/08/12 09:58:15 wosch Exp $
  */
 
 
@@ -1084,8 +1084,13 @@ swapmode(retavail, retfree)
 		 * Don't report statistics for partitions which have not
 		 * yet been activated via swapon(8).
 		 */
+		if (!(sw[i].sw_flags & SW_FREED))
+			continue;
 
-		xsize = sw[i].sw_nblks;
+		/* The first dmmax is never allocated to avoid trashing of
+		 * disklabels
+		 */
+		xsize = sw[i].sw_nblks - dmmax;
 		xfree = perdev[i];
 		used = xsize - xfree;
 		npfree++;
