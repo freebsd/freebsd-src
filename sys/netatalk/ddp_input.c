@@ -79,7 +79,7 @@ at1intr(struct mbuf *m)
 }
 
 static void
-ddp_input( m, ifp, elh, phase )
+ddp_input(m, ifp, elh, phase)
     struct mbuf		*m;
     struct ifnet	*ifp;
     struct elaphdr	*elh;
@@ -93,9 +93,9 @@ ddp_input( m, ifp, elh, phase )
     int			dlen, mlen;
     u_short		cksum = 0;
 
-    bzero( (caddr_t)&from, sizeof( struct sockaddr_at ));
-    bzero( (caddr_t)&to, sizeof( struct sockaddr_at ));
-    if ( elh ) {
+    bzero((caddr_t)&from, sizeof(struct sockaddr_at));
+    bzero((caddr_t)&to, sizeof(struct sockaddr_at));
+    if (elh) {
 	/*
 	 * Extract the information in the short header.
 	 * netowrk information is defaulted to ATADDR_ANYNET
@@ -104,15 +104,15 @@ ddp_input( m, ifp, elh, phase )
 	 */
 	ddpstat.ddps_short++;
 
-	if ( m->m_len < sizeof( struct ddpshdr ) &&
-		(( m = m_pullup( m, sizeof( struct ddpshdr ))) == NULL )) {
+	if (m->m_len < sizeof(struct ddpshdr) &&
+		((m = m_pullup(m, sizeof(struct ddpshdr))) == NULL)) {
 	    ddpstat.ddps_tooshort++;
 	    return;
 	}
 
-	dsh = mtod( m, struct ddpshdr *);
-	bcopy( (caddr_t)dsh, (caddr_t)&ddps, sizeof( struct ddpshdr ));
-	ddps.dsh_bytes = ntohl( ddps.dsh_bytes );
+	dsh = mtod(m, struct ddpshdr *);
+	bcopy((caddr_t)dsh, (caddr_t)&ddps, sizeof(struct ddpshdr));
+	ddps.dsh_bytes = ntohl(ddps.dsh_bytes);
 	dlen = ddps.dsh_len;
 
 	to.sat_addr.s_net = ATADDR_ANYNET;
@@ -126,10 +126,10 @@ ddp_input( m, ifp, elh, phase )
 	 * Make sure that we point to the phase1 ifaddr info 
 	 * and that it's valid for this packet.
 	 */
-	for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-	    if ( (aa->aa_ifp == ifp)
-	    && ( (aa->aa_flags & AFA_PHASE2) == 0)
-	    && ( (to.sat_addr.s_node == AA_SAT( aa )->sat_addr.s_node)
+	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	    if ((aa->aa_ifp == ifp)
+	    && ((aa->aa_flags & AFA_PHASE2) == 0)
+	    && ((to.sat_addr.s_node == AA_SAT(aa)->sat_addr.s_node)
 	      || (to.sat_addr.s_node == ATADDR_BCAST))) {
 		break;
 	    }
@@ -137,8 +137,8 @@ ddp_input( m, ifp, elh, phase )
 	/* 
 	 * maybe we got a broadcast not meant for us.. ditch it.
 	 */
-	if ( aa == NULL ) {
-	    m_freem( m );
+	if (aa == NULL) {
+	    m_freem(m);
 	    return;
 	}
     } else {
@@ -150,18 +150,18 @@ ddp_input( m, ifp, elh, phase )
 	 */
 	ddpstat.ddps_long++;
 
-	if ( m->m_len < sizeof( struct ddpehdr ) &&
-		(( m = m_pullup( m, sizeof( struct ddpehdr ))) == NULL )) {
+	if (m->m_len < sizeof(struct ddpehdr) &&
+		((m = m_pullup(m, sizeof(struct ddpehdr))) == NULL)) {
 	    ddpstat.ddps_tooshort++;
 	    return;
 	}
 
-	deh = mtod( m, struct ddpehdr *);
-	bcopy( (caddr_t)deh, (caddr_t)&ddpe, sizeof( struct ddpehdr ));
-	ddpe.deh_bytes = ntohl( ddpe.deh_bytes );
+	deh = mtod(m, struct ddpehdr *);
+	bcopy((caddr_t)deh, (caddr_t)&ddpe, sizeof(struct ddpehdr));
+	ddpe.deh_bytes = ntohl(ddpe.deh_bytes);
 	dlen = ddpe.deh_len;
 
-	if (( cksum = ddpe.deh_sum ) == 0 ) {
+	if ((cksum = ddpe.deh_sum) == 0) {
 	    ddpstat.ddps_nosum++;
 	}
 
@@ -172,7 +172,7 @@ ddp_input( m, ifp, elh, phase )
 	to.sat_addr.s_node = ddpe.deh_dnode;
 	to.sat_port = ddpe.deh_dport;
 
-	if ( to.sat_addr.s_net == ATADDR_ANYNET ) {
+	if (to.sat_addr.s_net == ATADDR_ANYNET) {
 	    /*
 	     * The TO address doesn't specify a net,
 	     * So by definition it's for this net.
@@ -185,15 +185,15 @@ ddp_input( m, ifp, elh, phase )
 	     * this node number will match (which may NOT be what we want,
 	     * but it's probably safe in 99.999% of cases.
 	     */
-	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-		if ( phase == 1 && ( aa->aa_flags & AFA_PHASE2 )) {
+	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+		if (phase == 1 && (aa->aa_flags & AFA_PHASE2)) {
 		    continue;
 		}
-		if ( phase == 2 && ( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
+		if (phase == 2 && (aa->aa_flags & AFA_PHASE2) == 0) {
 		    continue;
 		}
-		if ( (aa->aa_ifp == ifp)
-		&& ( (to.sat_addr.s_node == AA_SAT( aa )->sat_addr.s_node)
+		if ((aa->aa_ifp == ifp)
+		&& ((to.sat_addr.s_node == AA_SAT(aa)->sat_addr.s_node)
 		  || (to.sat_addr.s_node == ATADDR_BCAST)
 		  || (ifp->if_flags & IFF_LOOPBACK))) {
 		    break;
@@ -204,13 +204,13 @@ ddp_input( m, ifp, elh, phase )
 	     * A destination network was given. We just try to find 
 	     * which ifaddr info matches it.
 	     */
-	    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
+	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
 		/*
 		 * This is a kludge. Accept packets that are
 		 * for any router on a local netrange.
 		 */
-		if ( to.sat_addr.s_net == aa->aa_firstnet &&
-			to.sat_addr.s_node == 0 ) {
+		if (to.sat_addr.s_net == aa->aa_firstnet &&
+			to.sat_addr.s_node == 0) {
 		    break;
 		}
 		/*
@@ -219,10 +219,10 @@ ddp_input( m, ifp, elh, phase )
 		 * Startup packets are always implicitly allowed on to
 		 * the next test.
 		 */
-		if ((( ntohs( to.sat_addr.s_net ) < ntohs( aa->aa_firstnet ))
-		    || (ntohs( to.sat_addr.s_net ) > ntohs( aa->aa_lastnet )))
-		 && (( ntohs( to.sat_addr.s_net ) < 0xff00)
-		    || (ntohs( to.sat_addr.s_net ) > 0xfffe ))) {
+		if (((ntohs(to.sat_addr.s_net) < ntohs(aa->aa_firstnet))
+		    || (ntohs(to.sat_addr.s_net) > ntohs(aa->aa_lastnet)))
+		 && ((ntohs(to.sat_addr.s_net) < 0xff00)
+		    || (ntohs(to.sat_addr.s_net) > 0xfffe))) {
 		    continue;
 		}
 
@@ -231,8 +231,8 @@ ddp_input( m, ifp, elh, phase )
 		 * in the node address. This can have if the interface
 		 * is in promiscuous mode for example.
 		 */
-		if (( to.sat_addr.s_node != AA_SAT( aa )->sat_addr.s_node)
-		&& (to.sat_addr.s_node != ATADDR_BCAST) ) {
+		if ((to.sat_addr.s_node != AA_SAT(aa)->sat_addr.s_node)
+		&& (to.sat_addr.s_node != ATADDR_BCAST)) {
 		    continue;
 		}
 		break;
@@ -246,13 +246,13 @@ ddp_input( m, ifp, elh, phase )
      * possibly on a different media.
      */
     mlen = m->m_pkthdr.len;
-    if ( mlen < dlen ) {
+    if (mlen < dlen) {
 	ddpstat.ddps_toosmall++;
-	m_freem( m );
+	m_freem(m);
 	return;
     }
-    if ( mlen > dlen ) {
-	m_adj( m, dlen - mlen );
+    if (mlen > dlen) {
+	m_adj(m, dlen - mlen);
     }
 
     /*
@@ -262,24 +262,24 @@ ddp_input( m, ifp, elh, phase )
      * As we are not really a router this is a bit cheeky, but it may be
      * useful some day.
      */
-    if ( (aa == NULL)
-    || ( (to.sat_addr.s_node == ATADDR_BCAST)
+    if ((aa == NULL)
+    || ((to.sat_addr.s_node == ATADDR_BCAST)
       && (aa->aa_ifp != ifp)
-      && (( ifp->if_flags & IFF_LOOPBACK ) == 0 ))) {
+      && ((ifp->if_flags & IFF_LOOPBACK) == 0))) {
 	/* 
 	 * If we've explicitly disabled it, don't route anything
 	 */
-	if ( ddp_forward == 0 ) {
-	    m_freem( m );
+	if (ddp_forward == 0) {
+	    m_freem(m);
 	    return;
 	}
 	/* 
 	 * If the cached forwarding route is still valid, use it.
 	 */
-	if ( forwro.ro_rt
-	&& ( satosat(&forwro.ro_dst)->sat_addr.s_net != to.sat_addr.s_net
-	  || satosat(&forwro.ro_dst)->sat_addr.s_node != to.sat_addr.s_node )) {
-	    RTFREE( forwro.ro_rt );
+	if (forwro.ro_rt
+	&& (satosat(&forwro.ro_dst)->sat_addr.s_net != to.sat_addr.s_net
+	  || satosat(&forwro.ro_dst)->sat_addr.s_node != to.sat_addr.s_node)) {
+	    RTFREE(forwro.ro_rt);
 	    forwro.ro_rt = NULL;
 	}
 
@@ -288,8 +288,8 @@ ddp_input( m, ifp, elh, phase )
 	 * Then get a new route.
 	 * XXX this could cause a 'route leak'. check this!
 	 */
-	if ( forwro.ro_rt == NULL || forwro.ro_rt->rt_ifp == NULL ) {
-	    forwro.ro_dst.sa_len = sizeof( struct sockaddr_at );
+	if (forwro.ro_rt == NULL || forwro.ro_rt->rt_ifp == NULL) {
+	    forwro.ro_dst.sa_len = sizeof(struct sockaddr_at);
 	    forwro.ro_dst.sa_family = AF_APPLETALK;
 	    satosat(&forwro.ro_dst)->sat_addr.s_net = to.sat_addr.s_net;
 	    satosat(&forwro.ro_dst)->sat_addr.s_node = to.sat_addr.s_node;
@@ -300,9 +300,9 @@ ddp_input( m, ifp, elh, phase )
 	 * If it's not going to get there on this hop, and it's
 	 * already done too many hops, then throw it away.
 	 */
-	if ( (to.sat_addr.s_net != satosat( &forwro.ro_dst )->sat_addr.s_net)
-	&& (ddpe.deh_hops == DDP_MAXHOPS) ) {
-	    m_freem( m );
+	if ((to.sat_addr.s_net != satosat(&forwro.ro_dst)->sat_addr.s_net)
+	&& (ddpe.deh_hops == DDP_MAXHOPS)) {
+	    m_freem(m);
 	    return;
 	}
 
@@ -311,10 +311,10 @@ ddp_input( m, ifp, elh, phase )
 	 * to forward the packet, which this would not effect.
 	 * Don't allow packets to cross from one interface to another however.
 	 */
-	if ( ddp_firewall
-	&& ( (forwro.ro_rt == NULL)
+	if (ddp_firewall
+	&& ((forwro.ro_rt == NULL)
 	  || (forwro.ro_rt->rt_ifp != ifp))) {
-	    m_freem( m );
+	    m_freem(m);
 	    return;
 	}
 
@@ -325,9 +325,9 @@ ddp_input( m, ifp, elh, phase )
 	 * XXX what about promiscuous mode, etc...
 	 */
 	ddpe.deh_hops++;
-	ddpe.deh_bytes = htonl( ddpe.deh_bytes );
-	bcopy( (caddr_t)&ddpe, (caddr_t)deh, sizeof( u_short )); /* XXX deh? */
-	if ( ddp_route( m, &forwro )) {
+	ddpe.deh_bytes = htonl(ddpe.deh_bytes);
+	bcopy((caddr_t)&ddpe, (caddr_t)deh, sizeof(u_short)); /* XXX deh? */
+	if (ddp_route(m, &forwro)) {
 	    ddpstat.ddps_cantforward++;
 	} else {
 	    ddpstat.ddps_forward++;
@@ -338,36 +338,36 @@ ddp_input( m, ifp, elh, phase )
     /*
      * It was for us, and we have an ifaddr to use with it.
      */
-    from.sat_len = sizeof( struct sockaddr_at );
+    from.sat_len = sizeof(struct sockaddr_at);
     from.sat_family = AF_APPLETALK;
 
     /* 
      * We are no longer interested in the link layer.
      * so cut it off.
      */
-    if ( elh ) {
-	m_adj( m, sizeof( struct ddpshdr ));
+    if (elh) {
+	m_adj(m, sizeof(struct ddpshdr));
     } else {
-	if ( ddp_cksum && cksum && cksum != at_cksum( m, sizeof( int ))) {
+	if (ddp_cksum && cksum && cksum != at_cksum(m, sizeof(int))) {
 	    ddpstat.ddps_badsum++;
-	    m_freem( m );
+	    m_freem(m);
 	    return;
 	}
-	m_adj( m, sizeof( struct ddpehdr ));
+	m_adj(m, sizeof(struct ddpehdr));
     }
 
     /* 
      * Search for ddp protocol control blocks that match these
      * addresses. 
      */
-    if (( ddp = ddp_search( &from, &to, aa )) == NULL ) {
-	m_freem( m );
+    if ((ddp = ddp_search(&from, &to, aa)) == NULL) {
+	m_freem(m);
 	return;
     }
 
 #ifdef MAC
     if (mac_check_socket_deliver(ddp->ddp_socket, m) != 0) {
-	m_freem( m );
+	m_freem(m);
 	return;
     }
 #endif
@@ -375,19 +375,19 @@ ddp_input( m, ifp, elh, phase )
     /* 
      * If we found one, deliver th epacket to the socket
      */
-    if ( sbappendaddr( &ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
-	    m, NULL ) == 0 ) {
+    if (sbappendaddr(&ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
+	    m, NULL) == 0) {
 	/* 
 	 * If the socket is full (or similar error) dump the packet.
 	 */
 	ddpstat.ddps_nosockspace++;
-	m_freem( m );
+	m_freem(m);
 	return;
     }
     /*
      * And wake up whatever might be waiting for it
      */
-    sorwakeup( ddp->ddp_socket );
+    sorwakeup(ddp->ddp_socket);
 }
 
 #if 0
@@ -400,27 +400,27 @@ around the kernel :) */
 char	hexdig[] = "0123456789ABCDEF";
 
 static void
-bprint( char *data, int len )
+bprint(char *data, int len)
 {
     char	xout[ BPXLEN ], aout[ BPALEN ];
     int		i = 0;
 
-    bzero( xout, BPXLEN );
-    bzero( aout, BPALEN );
+    bzero(xout, BPXLEN);
+    bzero(aout, BPALEN);
 
-    for ( ;; ) {
-	if ( len < 1 ) {
-	    if ( i != 0 ) {
-		printf( "%s\t%s\n", xout, aout );
+    for (;;) {
+	if (len < 1) {
+	    if (i != 0) {
+		printf("%s\t%s\n", xout, aout);
 	    }
-	    printf( "%s\n", "(end)" );
+	    printf("%s\n", "(end)");
 	    break;
 	}
 
-	xout[ (i*3) ] = hexdig[ ( *data & 0xf0 ) >> 4 ];
+	xout[ (i*3) ] = hexdig[ (*data & 0xf0) >> 4 ];
 	xout[ (i*3) + 1 ] = hexdig[ *data & 0x0f ];
 
-	if ( (u_char)*data < 0x7f && (u_char)*data > 0x20 ) {
+	if ((u_char)*data < 0x7f && (u_char)*data > 0x20) {
 	    aout[ i ] = *data;
 	} else {
 	    aout[ i ] = '.';
@@ -432,10 +432,10 @@ bprint( char *data, int len )
 	len--;
 	data++;
 
-	if ( i > BPALEN - 2 ) {
-	    printf( "%s\t%s\n", xout, aout );
-	    bzero( xout, BPXLEN );
-	    bzero( aout, BPALEN );
+	if (i > BPALEN - 2) {
+	    printf("%s\t%s\n", xout, aout);
+	    bzero(xout, BPXLEN);
+	    bzero(aout, BPALEN);
 	    i = 0;
 	    continue;
 	}
@@ -443,10 +443,10 @@ bprint( char *data, int len )
 }
 
 static void
-m_printm( struct mbuf *m )
+m_printm(struct mbuf *m)
 {
-    for (; m; m = m->m_next ) {
-	bprint( mtod( m, char * ), m->m_len );
+    for (; m; m = m->m_next) {
+	bprint(mtod(m, char *), m->m_len);
     }
 }
 #endif
