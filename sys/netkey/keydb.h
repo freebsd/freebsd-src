@@ -150,8 +150,7 @@ extern struct secashead *keydb_newsecashead(void);
 extern void keydb_delsecashead(struct secashead *);
 /* secasvar */
 extern struct secasvar *keydb_newsecasvar(void);
-extern void keydb_refsecasvar(struct secasvar *);
-extern void keydb_freesecasvar(struct secasvar *);
+extern void keydb_delsecasvar(struct secasvar *);
 /* secreplay */
 extern struct secreplay *keydb_newsecreplay(size_t);
 extern void keydb_delsecreplay(struct secreplay *);
