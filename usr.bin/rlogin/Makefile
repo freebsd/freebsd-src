@@ -10,13 +10,13 @@ INSTALLFLAGS=-fschg
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c encrypt.c
-DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
+DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd
-LDADD=	-lutil -lkrb -ldes -lcrypt
+LDADD=	-lutil -lkrb -ldes -lcrypt -lcom_err
 DISTRIBUTION=	krb
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
