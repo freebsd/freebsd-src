@@ -2,12 +2,14 @@
 
 srcdirs /usr/src/bin /usr/src/sbin /usr/src/release /usr/src/usr.bin
 srcdirs /usr/src/gnu/usr.bin /usr/src/usr.sbin /usr/src/sbin/i386
+srcdirs /usr/src/usr.sbin/pccard
 
-progs sh find sed test
+progs sh find sed test rm
 progs pwd ppp
 progs sysinstall newfs minigzip cpio fsck ifconfig route slattach
 progs mount_nfs
 progs dhclient arp hostname
+progs pccardc pccardd wicontrol
 ln minigzip gzip
 ln minigzip gunzip
 ln minigzip zcat
