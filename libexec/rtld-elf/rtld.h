@@ -70,6 +70,10 @@ typedef struct Struct_Needed_Entry {
  *
  * Items marked with "(%)" are dynamically allocated, and must be freed
  * when the structure is destroyed.
+ *
+ * CAUTION: It appears that the JDK port peeks into these structures.
+ * It looks at "next" and "mapbase" at least.  Don't add new members
+ * near the front, until this can be straightened out.
  */
 typedef struct Struct_Obj_Entry {
     /*
@@ -80,12 +84,7 @@ typedef struct Struct_Obj_Entry {
     Elf_Word version;		/* Version number of struct format */
 
     struct Struct_Obj_Entry *next;
-    Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
-    Objlist dagmembers;		/* DAG has these members (%) */
     char *path;			/* Pathname of underlying file (%) */
-    dev_t dev;			/* Object's filesystem's device */
-    ino_t ino;			/* Object's inode number */
-    unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
     int refcount;
     int dl_refcount;		/* Number of times loaded by dlopen */
 
@@ -133,6 +132,11 @@ typedef struct Struct_Obj_Entry {
     bool traced;		/* Already printed in ldd trace output */
 
     struct link_map linkmap;	/* for GDB */
+    Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
+    Objlist dagmembers;		/* DAG has these members (%) */
+    dev_t dev;			/* Object's filesystem's device */
+    ino_t ino;			/* Object's inode number */
+    unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a
