@@ -757,8 +757,12 @@ network_pass3() {
 
 					case "${amd_flags}" in
 					'')
-						echo ''
+						if [ -r /etc/amd.conf ]; then
+							amd &
+						else
+							echo ''
 			echo 'Warning: amd will not load without arguments'
+						fi
 						;;
 					*)
 						amd -p ${amd_flags} \
