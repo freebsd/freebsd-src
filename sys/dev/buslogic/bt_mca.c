@@ -223,7 +223,7 @@ bt_mca_attach (device_t dev)
 			       /*filter*/btvlbouncefilter,
 			       /*filterarg*/bt,
 			       /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*nsegments*/BUS_SPACE_UNRESTRICTED,
+			       /*nsegments*/~0,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &bt->parent_dmat) != 0) {
 		bt_mca_release_resources(dev);
