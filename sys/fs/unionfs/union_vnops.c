@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.19 1997/02/22 09:40:42 peter Exp $
+ * $Id: union_vnops.c,v 1.20 1997/03/23 03:37:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -917,17 +917,28 @@ union_fsync(ap)
 	int error = 0;
 	struct proc *p = ap->a_p;
 	struct vnode *targetvp = OTHERVP(ap->a_vp);
+	struct union_node *un;
+	int isupperlocked = 0;
 
 	if (targetvp != NULLVP) {
 		int dolock = (targetvp == LOWERVP(ap->a_vp));
 
+		un = VTOUNION(ap->a_vp);
 		if (dolock)
 			vn_lock(targetvp, LK_EXCLUSIVE | LK_RETRY, p);
-		else
-			FIXUP(VTOUNION(ap->a_vp), p);
+		else if ((un->un_flags & UN_ULOCK) == 0 &&
+				 VOP_ISLOCKED(targetvp) == 0) {
+			isupperlocked = 1;
+			vn_lock(targetvp, LK_EXCLUSIVE | LK_RETRY, p);
+			un->un_flags |= UN_ULOCK;
+		}
 		error = VOP_FSYNC(targetvp, ap->a_cred, ap->a_waitfor, p);
 		if (dolock)
 			VOP_UNLOCK(targetvp, 0, p);
+		else if (isupperlocked) {
+			VOP_UNLOCK(targetvp, 0, p);
+			un->un_flags &= ~UN_ULOCK;
+		}
 	}
 
 	return (error);
