@@ -3245,7 +3245,7 @@ isp_parse_async(isp, mbox)
 
 	case ASYNC_TIMEOUT_RESET:
 		isp_prt(isp, ISP_LOGWARN,
-		    "timeout initiated SCSI bus reset of bus %d\n", bus);
+		    "timeout initiated SCSI bus reset of bus %d", bus);
 		isp->isp_sendmarker |= (1 << bus);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
@@ -4884,7 +4884,7 @@ isp_reinit(isp)
 	struct ispsoftc *isp;
 {
 	XS_T *xs;
-	u_int32_t handle;
+	u_int16_t handle;
 
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
