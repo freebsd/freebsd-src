@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -80,26 +81,47 @@ struct uufsd disk;
 
 int	dumpfs(const char *);
 int	dumpcg(void);
+int	marshal(const char *);
 void	pbits(void *, int);
+void	ufserr(const char *);
 void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
 {
-	int eval;
+	const char *name;
+	int ch, domarshal, eval;
 
-	eval = 0;
+	domarshal = eval = 0;
 
-	while (getopt(argc, argv, "") != -1)
-		usage();
+	while ((ch = getopt(argc, argv, "m")) != -1) {
+		switch (ch) {
+		case 'm':
+			domarshal = 1;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1)
 		usage();
 
-	while (*argv != NULL)
-		eval |= dumpfs(*argv++);
+	while ((name = *argv++) != NULL) {
+		if (ufs_disk_fillout(&disk, name) == -1) {
+			ufserr(name);
+			eval |= 1;
+			continue;
+		}
+		if (domarshal)
+			eval |= marshal(name);
+		else
+			eval |= dumpfs(name);
+		ufs_disk_close(&disk);
+	}
 	exit(eval);
 }
 
@@ -109,9 +131,6 @@ dumpfs(const char *name)
 	time_t time;
 	int64_t fssize;
 	int i;
-
-	if (ufs_disk_fillout(&disk, name) == -1)
-			goto err;
 
 	switch (disk.d_ufs) {
 	case 2:
@@ -231,14 +250,9 @@ dumpfs(const char *name)
 		if (i == -1 || dumpcg())
 			goto err;
 	}
-	ufs_disk_close(&disk);
 	return (0);
 
-err:	if (disk.d_error != NULL)
-		warnx("%s: %s", name, disk.d_error);
-	else if (errno)
-		warn("%s", name);
-	ufs_disk_close(&disk);
+err:	ufserr(name);
 	return (1);
 }
 
@@ -302,6 +316,50 @@ dumpcg(void)
 	return (0);
 }
 
+int
+marshal(const char *name)
+{
+	struct fs *fs;
+
+	fs = &disk.d_fs;
+
+	printf("# newfs command for %s (%s)\n", name, disk.d_name);
+	printf("newfs ");
+	printf("-O %d ", disk.d_ufs);
+	if (fs->fs_flags & FS_DOSOFTDEP)
+		printf("-U ");
+	printf("-a %d ", fs->fs_maxcontig);
+	printf("-b %d ", fs->fs_bsize);
+	/* -c is dumb */
+	printf("-d %d ", fs->fs_maxbsize);
+	printf("-e %d ", fs->fs_maxbpg);
+	printf("-f %d ", fs->fs_fsize);
+	printf("-g %d ", fs->fs_avgfilesize);
+	printf("-h %d ", fs->fs_avgfpdir);
+	/* -i is dumb */
+	/* -j..l unimplemented */
+	printf("-m %d ", fs->fs_minfree);
+	/* -n unimplemented */
+	printf("-o ");
+	switch (fs->fs_optim) {
+	case FS_OPTSPACE:
+		printf("space ");
+		break;
+	case FS_OPTTIME:
+		printf("time ");
+		break;
+	default:
+		printf("unknown ");
+		break;
+	}
+	/* -p..r unimplemented */
+	printf("-s %jd ", (intmax_t)fs->fs_size);
+	printf("%s ", disk.d_name);
+	printf("\n");
+
+	return 0;
+}
+
 void
 pbits(void *vp, int max)
 {
@@ -325,8 +383,17 @@ pbits(void *vp, int max)
 }
 
 void
+ufserr(const char *name)
+{
+	if (disk.d_error != NULL)
+		warnx("%s: %s", name, disk.d_error);
+	else if (errno)
+		warn("%s", name);
+}
+
+void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dumpfs filesys | device\n");
+	(void)fprintf(stderr, "usage: dumpfs [-m] filesys | device\n");
 	exit(1);
 }
