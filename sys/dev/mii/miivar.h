@@ -156,6 +156,15 @@ struct mii_attach_args {
 typedef struct mii_attach_args mii_attach_args_t;
 
 /*
+ * Used to match a PHY.
+ */
+struct mii_phydesc {
+	u_int32_t mpd_oui;		/* the PHY's OUI */
+	u_int32_t mpd_model;		/* the PHY's model */
+	const char *mpd_name;		/* the PHY's name */
+};
+
+/*
  * An array of these structures map MII media types to BMCR/ANAR settings.
  */
 struct mii_media {
@@ -209,6 +218,8 @@ void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
+
+const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd);
 
 void	ukphy_status(struct mii_softc *);
 #endif /* _KERNEL */
