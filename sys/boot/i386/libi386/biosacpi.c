@@ -31,6 +31,7 @@
 #include <bootstrap.h>
 
 #include "acfreebsd.h"
+#include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
 #include "actypes.h"
 #include "actbl.h"
