@@ -1,8 +1,6 @@
-.\" Copyright (c) 1990, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
+.\" All rights reserved.
 .\"
-.\" This code is derived from software contributed to Berkeley by
-.\" Chris Torek.
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,18 +9,11 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -31,42 +22,50 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)div.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
 .Dd November 14, 2001
-.Dt DIV 3
+.Dt LLDIV 3
 .Os
 .Sh NAME
-.Nm div
-.Nd return quotient and remainder from division
+.Nm lldiv
+.Nd returns quotient and remainder
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
-.Ft div_t
-.Fn div "int num" "int denom"
+.Ft "lldiv_t"
+.Fn llabs "long long numer" "long long denom"
 .Sh DESCRIPTION
 The
-.Fn div
-function
-computes the value
-.Fa num/denom
-and returns the quotient and remainder in a structure named
-.Fa div_t
-that contains two
-.Em int
-members named
-.Fa quot
-and
-.Fa rem .
+.Fn lldiv
+function computes the value of
+.Fa numer
+divided by
+.Fa denom
+and returns the stored result in the form of the lldiv_t type.
+.Pp
+The lldiv_t type is defined as:
+.Pp
+.Bd -literal -offset indent -compact
+typedef struct {
+	long long quot; /* Quotient. */
+	long long rem;  /* Remainder. */
+} lldiv_t;
+.Ed
+.Pp
 .Sh SEE ALSO
+.Xr div 3 ,
 .Xr imaxdiv 3 ,
 .Xr ldiv 3 ,
-.Xr lldiv 3
+.Xr math 3
 .Sh STANDARDS
 The
-.Fn div
-function
-conforms to
+.Fn lldiv
+function conforms to
 .St -isoC-99 .
+.Sh HISTORY
+The
+.Fn lldiv
+function first appeared in
+.Fx 5.0 .

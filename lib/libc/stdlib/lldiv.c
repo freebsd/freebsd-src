@@ -22,33 +22,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _INTTYPES_H_
-#define	_INTTYPES_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <machine/_inttypes.h>
-#include <sys/stdint.h>
+#include <stdlib.h>
 
-#ifdef	_BSD_WCHAR_T_
-typedef	_BSD_WCHAR_T_	wchar_t;
-#undef	_BSD_WCHAR_T_
-#endif
+/* See comments in div.c for implementation details. */
+lldiv_t
+lldiv(long long numer, long long denom)
+{
+	lldiv_t retval;
 
-typedef struct {
-	intmax_t	quot;		/* Quotient. */
-	intmax_t	rem;		/* Remainder. */
-} imaxdiv_t;
-
-intmax_t	imaxabs(intmax_t) __pure2;
-imaxdiv_t	imaxdiv(intmax_t, intmax_t) __pure2;
-
-/* XXX: The following functions are missing the restrict type qualifier. */
-intmax_t	strtoimax(const char *, char **, int);
-uintmax_t	strtoumax(const char *, char **, int);
-intmax_t	wcstoimax(const wchar_t *, wchar_t **, int);
-uintmax_t	wcstoumax(const wchar_t *, wchar_t **, int);
-
-#endif /* !_INTTYPES_H_ */
+	retval.quot = numer / denom;
+	retval.rem = numer % denom;
+	if (numer >= 0 && retval.rem < 0) {
+		retval.quot++;
+		retval.rem -= denom;
+	}
+	return (retval);
+}
