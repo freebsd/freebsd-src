@@ -45,9 +45,9 @@
 #include "opt_init_path.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mount.h>

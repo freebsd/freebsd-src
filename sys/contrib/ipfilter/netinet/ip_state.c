@@ -7,6 +7,9 @@
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#if (__FreeBSD_version >= 500028)
+#include <sys/queue.h>
+#endif
 #include <sys/file.h>
 #if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
     defined(_KERNEL)

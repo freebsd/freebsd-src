@@ -41,6 +41,8 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/poll.h>
 #if __FreeBSD_version >= 500005
