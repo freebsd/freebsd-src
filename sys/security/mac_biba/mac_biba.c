@@ -84,6 +84,7 @@ SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
 static int	mac_biba_enabled = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_biba_enabled, 0, "Enforce MAC/Biba policy");
+TUNABLE_INT("security.mac.biba.enabled", &mac_biba_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
