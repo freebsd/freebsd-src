@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.11 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: vpo.c,v 1.11.2.1 1999/05/07 00:43:38 ken Exp $
  *
  */
 
@@ -357,12 +357,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_CALC_GEOMETRY:
 	{
 		struct	  ccb_calc_geometry *ccg;
-		u_int32_t size_mb;
 		u_int32_t secs_per_cylinder;
 
 		ccg = &ccb->ccg;
-		size_mb = ccg->volume_size
-			/ ((1024L * 1024L) / ccg->block_size);
 
 #ifdef VP0_DEBUG
 		printf("vpo%d: XPT_CALC_GEOMETRY (%d, %d) request\n",
