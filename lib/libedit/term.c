@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -146,7 +148,11 @@ private struct termcapstr {
     {	"RI",	"cursor right multiple"	 	},
 #define T_UP	35
     {	"UP",	"cursor up multiple"		},
-#define T_str	36
+#define T_kh	36
+    {	"kh",	"sends cursor home"		},
+#define T_at7	37
+    {	"@7",	"sends cursor end"		},
+#define T_str	38
     {	NULL,   NULL			 	}
 };
 
@@ -234,8 +240,8 @@ term_init(el)
 {
     el->el_term.t_buf = (char *)  el_malloc(TC_BUFSIZE);
     el->el_term.t_cap = (char *)  el_malloc(TC_BUFSIZE);
-    el->el_term.t_fkey = (fkey_t *) el_malloc(4 * sizeof(fkey_t));
-    (void) memset(el->el_term.t_fkey, 0, 4 * sizeof(fkey_t));
+    el->el_term.t_fkey = (fkey_t *) el_malloc(A_K_NKEYS * sizeof(fkey_t));
+    (void) memset(el->el_term.t_fkey, 0, A_K_NKEYS * sizeof(fkey_t));
     el->el_term.t_loc = 0;
     el->el_term.t_str = (char **) el_malloc(T_str * sizeof(char*));
     (void) memset(el->el_term.t_str, 0, T_str * sizeof(char*));
@@ -898,6 +904,15 @@ term_init_arrow(el)
     arrow[A_K_RT].fun.cmd = ED_NEXT_CHAR;
     arrow[A_K_RT].type    = XK_CMD;
 
+    arrow[A_K_HO].name    = "home";
+    arrow[A_K_HO].key     = T_kh;
+    arrow[A_K_HO].fun.cmd = ED_MOVE_TO_BEG;
+    arrow[A_K_HO].type    = XK_CMD;
+
+    arrow[A_K_EN].name    = "end";
+    arrow[A_K_EN].key     = T_at7;
+    arrow[A_K_EN].fun.cmd = ED_MOVE_TO_END;
+    arrow[A_K_EN].type    = XK_CMD;
 }
 
 
@@ -913,6 +928,8 @@ term_reset_arrow(el)
     static char strB[] = {033, '[', 'B', '\0'};
     static char strC[] = {033, '[', 'C', '\0'};
     static char strD[] = {033, '[', 'D', '\0'};
+    static char str1[] = {033, '[', '1', '~', '\0'};
+    static char str4[] = {033, '[', '4', '~', '\0'};
     static char stOA[] = {033, 'O', 'A', '\0'};
     static char stOB[] = {033, 'O', 'B', '\0'};
     static char stOC[] = {033, 'O', 'C', '\0'};
@@ -922,6 +939,8 @@ term_reset_arrow(el)
     key_add(el, strB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
     key_add(el, strC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
     key_add(el, strD, &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+    key_add(el, str1, &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+    key_add(el, str4, &arrow[A_K_EN].fun, arrow[A_K_EN].type);
     key_add(el, stOA, &arrow[A_K_UP].fun, arrow[A_K_UP].type);
     key_add(el, stOB, &arrow[A_K_DN].fun, arrow[A_K_DN].type);
     key_add(el, stOC, &arrow[A_K_RT].fun, arrow[A_K_RT].type);
@@ -932,6 +951,8 @@ term_reset_arrow(el)
 	key_add(el, &strB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
 	key_add(el, &strC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
 	key_add(el, &strD[1], &arrow[A_K_LT].fun, arrow[A_K_LT].type);
+	key_add(el, &str1[1], &arrow[A_K_HO].fun, arrow[A_K_HO].type);
+	key_add(el, &str4[1], &arrow[A_K_EN].fun, arrow[A_K_EN].type);
 	key_add(el, &stOA[1], &arrow[A_K_UP].fun, arrow[A_K_UP].type);
 	key_add(el, &stOB[1], &arrow[A_K_DN].fun, arrow[A_K_DN].type);
 	key_add(el, &stOC[1], &arrow[A_K_RT].fun, arrow[A_K_RT].type);
@@ -1022,7 +1043,7 @@ term_bind_arrow(el)
 
     term_reset_arrow(el);
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < A_K_NKEYS; i++) {
 	p = el->el_term.t_str[arrow[i].key];
 	if (p && *p) {
 	    j = (unsigned char) *p;
