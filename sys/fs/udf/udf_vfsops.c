@@ -486,7 +486,7 @@ bail:
 		brelse(bp);
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(cp->geom, ENXIO);
+	g_vfs_close(cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	return error;
@@ -515,7 +515,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 #endif
 	}
 
-	g_wither_geom_close(udfmp->im_cp->geom, ENXIO);
+	g_vfs_close(udfmp->im_cp, td);
 	vrele(udfmp->im_devvp);
 
 	if (udfmp->s_table != NULL)

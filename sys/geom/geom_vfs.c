@@ -150,3 +150,14 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 
 	return (error);
 }
+
+void
+g_vfs_close(struct g_consumer *cp, struct thread *td)
+{
+	struct g_geom *gp;
+
+	g_topology_assert();
+
+	gp = cp->geom;
+	g_wither_geom_close(gp, ENXIO);
+}

@@ -441,7 +441,7 @@ out:
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(cp->geom, ENXIO);
+	g_vfs_close(cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	
@@ -489,7 +489,7 @@ ntfs_unmount(
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(ntmp->ntm_cp->geom, ENXIO);
+	g_vfs_close(ntmp->ntm_cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 
