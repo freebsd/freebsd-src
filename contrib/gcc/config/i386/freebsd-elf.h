@@ -164,7 +164,7 @@ Boston, MA 02111-1307, USA.  */
  */
 #define LIB_SPEC \
   "%{!shared: %{mieee-fp:-lieee} %{p:-lgmon} %{pg:-lgmon} \
-     %{!ggdb:-lc} %{ggdb:-lg}}"
+     %{!ggdb:%{{!pthread:-lc}%{pthread:-lc_r}}} %{ggdb:-lg}}"
 #else
 #define LIB_SPEC \
   "%{!shared: \
