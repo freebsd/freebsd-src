@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.23 1999/01/15 16:56:22 wollman Exp $
+ *	$Id: http.c,v 1.24 1999/01/15 17:10:31 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -165,7 +165,7 @@ http_parse(struct fetch_state *fs, const char *u)
 	strncat(hostname, p, q - p);
 	p = slash;
 
-	if (colon && colon + 1 != slash) {
+	if (q == colon && colon + 1 != slash) {
 		unsigned long ul;
 		char *ep;
 
