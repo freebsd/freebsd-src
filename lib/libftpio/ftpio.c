@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.15 1996/10/10 08:34:27 jkh Exp $
+ * $Id: ftpio.c,v 1.16 1996/11/14 05:05:26 ache Exp $
  *
  */
 
@@ -540,21 +540,17 @@ static int
 ftp_close(FTP_t ftp)
 {
     int i;
-    static int recursive = 0;
 
-    if (!recursive && ftp->con_state == isopen) {
+    if (ftp->con_state == isopen) {
+	ftp->con_state = quit;
 	/* Debug("ftp_pkg: in ftp_close(), sending QUIT"); */
-	recursive = 1;
 	i = cmd(ftp, "QUIT");
 	close(ftp->fd_ctrl);
 	ftp->fd_ctrl = -1;
-	ftp->con_state = init;
 	if (check_code(ftp, i, FTP_QUIT_HAPPY)) {
-	    recursive = 0;
 	    ftp->errno = i;
 	    return FAILURE;
 	}
-	recursive = 0;
 	/* Debug("ftp_pkg: ftp_close() - proper shutdown"); */
 	return SUCCESS;
     }
@@ -580,7 +576,7 @@ cmd(FTP_t ftp, const char *fmt, ...)
     (void)vsnprintf(p, sizeof p, fmt, ap);
     va_end(ap);
 
-    if (ftp->con_state != isopen)
+    if (ftp->con_state == init)
 	return botch("cmd", "open");
 
     strcat(p, "\r\n");
