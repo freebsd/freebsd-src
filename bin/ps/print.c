@@ -487,8 +487,7 @@ vsize(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*d", v->width,
-	    (k->ki_p->ki_size/1024));
+	(void)printf("%*lu", v->width, (u_long)(k->ki_p->ki_size / 1024));
 }
 
 void
