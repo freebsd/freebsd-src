@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1998/11/05 08:39:42 jkh Exp $
+# $Id: Makefile,v 1.7 1999/01/18 19:05:26 msmith Exp $
 #
 LIB=			ficl
 NOPROFILE=		yes
@@ -9,12 +9,12 @@ SRCS=			${BASE_SRCS} softcore.c
 CLEANFILES=		softcore.c testmain
 
 # Standard softwords
-SOFTWORDS=	softcore.fr jhlocal.fr marker.fr
+SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr
 # Optional OO extension softwords
 #SOFTWORDS+=	oo.fr classes.fr
 
 .PATH:		${.CURDIR}/softwords
-CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR} -DFICL_TRACE
 
 softcore.c:	${SOFTWORDS} softcore.awk
 	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} | awk -f softcore.awk) > ${.TARGET}
