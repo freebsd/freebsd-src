@@ -613,7 +613,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
-	mtx_init(&node->nd_input_queue.q_mtx, "netgraph node mutex", 0);
+	mtx_init(&node->nd_input_queue.q_mtx, "netgraph node mutex", MTX_SPIN);
 	node->nd_input_queue.queue = NULL;
 	node->nd_input_queue.last = &node->nd_input_queue.queue;
 	node->nd_input_queue.q_flags = 0;
