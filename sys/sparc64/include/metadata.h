@@ -32,5 +32,15 @@
 #define	MODINFOMD_ENVP		0x1001
 #define	MODINFOMD_HOWTO		0x1002
 #define	MODINFOMD_KERNEND	0x1003
+#define	MODINFOMD_DTLB_SLOTS	0x1004
+#define	MODINFOMD_ITLB_SLOTS	0x1005
+#define	MODINFOMD_DTLB		0x1006
+#define	MODINFOMD_ITLB		0x1007
+
+#define	MD_FETCH(mdp, info, type) ({ \
+	type *__p; \
+	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
+	__p ? *__p : 0; \
+})
 
 #endif /* !_MACHINE_METADATA_H_ */
