@@ -176,6 +176,11 @@
 	fast recovery with NewReno enabled, has been
 	fixed.</para>
 
+      <para>The IP fragment reassembly code behaves more gracefully
+	when receiving a large number of packet fragments (it is
+	designed to be more resistant to fragment-based denial of
+	service attacks).</para>
+
     </sect3>
 
     <sect3>
@@ -189,7 +194,9 @@
         &man.atapicam.4;.</para>
 
       <para arch="i386,pc98">The &man.matcd.4; driver has been removed
-        due to licensing issues.  (This removal actually occurred in
+        due to concerns over its licensing terms.  These
+        issues are being addressed and this driver may reappear in a
+        future release of &os;.  (This removal actually occurred in
         &release.prev;, but was not mentioned in the release
         notes.)</para>
 
@@ -387,7 +394,7 @@
       <para>All of the <application>bzip2</application> suite of
         applications is now installed in the base system (in
         particular, <command>bzip2recover</command> is now built and
-        installed.</para>
+        installed).</para>
 
       <para><application>CVS</application> has been updated to
 	1.11.5.</para>
