@@ -92,6 +92,9 @@ static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+
 /* local vars */
 static devclass_t ata_devclass;
 static devclass_t ata_pci_devclass;

@@ -38,6 +38,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <dev/ata/ata-all.h>
@@ -53,6 +54,13 @@ static char *atapi_skey2str(u_int8_t);
 
 /* internal vars */
 static MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
+static int atapi_dma;
+TUNABLE_INT_DECL("hw.ata.atapi_dma", 0, atapi_dma);
+
+/* systcl vars */
+SYSCTL_DECL(_hw_ata);
+SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RD, &atapi_dma, 0,
+	   "ATAPI device DMA mode control");
 
 /* defines */
 #define ATAPI_MAX_RETRIES  	3
@@ -75,8 +83,7 @@ atapi_attach(struct ata_softc *scp, int device)
 		   ata_pmode(ATP_PARAM), ata_wmode(ATP_PARAM),
 		   ata_umode(ATP_PARAM), ATP_PARAM->dmaflag);
 
-#ifdef ATA_ENABLE_ATAPI_DMA
-    if (!(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
+    if (atapi_dma && !(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
 	ata_dmainit(atp->controller, atp->unit,
 		    (ata_pmode(ATP_PARAM) < 0) ? 
 		    (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
@@ -85,7 +92,6 @@ atapi_attach(struct ata_softc *scp, int device)
 		    ata_umode(ATP_PARAM));
     }
     else
-#endif
 	/* set PIO mode */
 	ata_dmainit(atp->controller, atp->unit,
 		    ata_pmode(ATP_PARAM)<0 ? 0 : ata_pmode(ATP_PARAM), -1, -1);

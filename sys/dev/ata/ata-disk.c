@@ -40,6 +40,7 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cons.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -99,6 +100,19 @@ static int ad_version(u_int16_t);
 /* internal vars */
 static u_int32_t adp_lun_map = 0;
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
+static int ata_dma, ata_wc, ata_tags; 
+TUNABLE_INT_DECL("hw.ata.ata_dma", 1, ata_dma);
+TUNABLE_INT_DECL("hw.ata.wc", 0, ata_wc);
+TUNABLE_INT_DECL("hw.ata.tags", 0, ata_tags);
+
+/* sysctl vars */
+SYSCTL_DECL(_hw_ata);
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RD, &ata_dma, 0,
+	   "ATA disk DMA mode control");
+SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RD, &ata_wc, 0,
+	   "ATA disk write caching");
+SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
+	   "ATA disk tagged queuing support");
 
 /* defines */
 #define	AD_MAX_RETRIES	3
@@ -152,21 +166,27 @@ ad_attach(struct ata_softc *scp, int device)
 		    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
 	printf("ad%d: enabling readahead cache failed\n", adp->lun);
 
-#if defined(ATA_ENABLE_WC) || defined(ATA_ENABLE_TAGS)
-    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-		    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
-	printf("ad%d: enabling write cache failed\n", adp->lun);
-#else
-    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
-		    0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
-	printf("ad%d: disabling write cache failed\n", adp->lun);
-#endif
-    /* use DMA if drive & controller supports it */
-    ata_dmainit(adp->controller, adp->unit,
-    		ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    /* enable write cacheing if allowed and not default on device */
+    if (ata_wc || ata_tags) {
+	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
+	ata_printf(scp, device, "enabling write cache failed\n");
+    }
+    else {
+	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			0, 0, 0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
+	ata_printf(scp, device, "disabling write cache failed\n");
+    }
 
-    /* use tagged queueing if supported */
-    if (ad_tagsupported(adp)) {
+    /* use DMA if allowed and if drive/controller supports it */
+    if (ata_dma)
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), 
+		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    else
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
+ 
+    /* use tagged queueing if allowed and supported */
+    if (ata_tags && ad_tagsupported(adp)) {
 	adp->num_tags = AD_PARAM->queuelen;
 	adp->flags |= AD_F_TAG_ENABLED;
 	adp->controller->flags |= ATA_QUEUED;
@@ -604,7 +624,8 @@ ad_interrupt(struct ad_request *request)
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
 	adp->controller->error = inb(adp->controller->ioaddr + ATA_ERROR);
 	diskerr(request->bp,
-		(adp->controller->error & ATA_E_ICRC) ? "UDMA ICRC" : "hard",
+		(adp->controller->error & ATA_E_ICRC) ?
+		    "UDMA ICRC error" : "hard error",
 		LOG_PRINTF, request->blockaddr + (request->donecount/DEV_BSIZE),
 		&adp->disk.d_label);
 
@@ -837,7 +858,6 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 static int
 ad_tagsupported(struct ad_softc *adp)
 {
-#ifdef ATA_ENABLE_TAGS
     const char *drives[] = {"IBM-DPTA", "IBM-DTLA", NULL};
     int i = 0;
 
@@ -853,7 +873,6 @@ ad_tagsupported(struct ad_softc *adp)
 	    i++;
 	}
     }
-#endif
     return 0;
 }
 
