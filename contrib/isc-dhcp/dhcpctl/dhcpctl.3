@@ -2,9 +2,29 @@
 .\"
 .\" Project:      DHCP
 .\" File:         dhcpctl.3
-.\" RCSId:        $Id: dhcpctl.3,v 1.3.2.1 2001/06/26 18:35:35 mellon Exp $
+.\" RCSId:        $Id: dhcpctl.3,v 1.3.2.4 2004/06/10 17:59:23 dhankins Exp $
 .\" 
-.\"     Copyright (C) 2000  Nominum, Inc.
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 2000-2003 by Internet Software Consortium
+.\" Copyright (c) 2000 Nominum, Inc.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"   Internet Systems Consortium, Inc.
+.\"   950 Charter Street
+.\"   Redwood City, CA 94063
+.\"   <info@isc.org>
+.\"   http://www.isc.org/
 .\"     
 .\" Description:	dhcpctl man page.
 .\" 
@@ -24,7 +44,6 @@
 .\"
 .Sh SYNOPSIS
 .Fd #include <dhcpctl/dhcpctl.h>
-.Fd
 .Ft dhcpctl_status
 .Fo dhcpctl_initialize
 .Fa void
@@ -460,11 +479,8 @@ int main (int argc, char **argv) {
 }
 .Ed
 .Sh SEE ALSO
-.SH SEE ALSO
 omapi(3), omshell(3), dhcpd(8), dhclient(8), dhcpd.conf(5), dhclient.conf(5).
-.SH AUTHOR
-.B dhcpctl
-was written by Ted Lemon of Nominum, Inc.  Information about Nominum
-and support contracts for DHCP and BIND can be found at
-.B http://www.nominum.com.   This preliminary documentation was
-written by James Brister of Nominum, Inc.
+.Sh AUTHOR
+.Em dhcpctl
+was written by Ted Lemon of Nominum, Inc.
+This preliminary documentation was written by James Brister of Nominum, Inc.
