@@ -80,7 +80,7 @@ struct kern_devconf kdc_pcic[PCIC_MAX_SLOTS] = {
 static void		pcicintr	__P((int unit));
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
-static void		pcic_reset __P((struct slot *));
+static timeout_t 	pcic_reset;
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
@@ -199,7 +199,7 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 	 */
 	case LKM_E_UNLOAD:
 		printf("Unloading PCIC driver\n");
-		err = pcic_unload();
+		err = pcic_unload(lkmtp, cmd);
 		break;		/* Success*/
 
 	default:	/* we only understand load/unload*/
@@ -214,8 +214,8 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
  * External entry point; should generally match name of .o file.  The
  * arguments are always the same for all loaded modules.  The "load",
  * "unload", and "stat" functions in "DISPATCH" will be called under
- * their respective circumstances unless their value is "nosys".  If
- * called, they are called with the same arguments (cmd is included to
+ * their respective circumstances unless their value is "lkm_nullcmd".
+ * If called, they are called with the same arguments (cmd is included to
  * allow the use of a single function, ver is included for version
  * matching between modules and the kernel loader for the modules).
  *
@@ -232,7 +232,7 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 int
 pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp,cmd,ver,pcic_handle,pcic_handle,nosys)
+	DISPATCH(lkmtp,cmd,ver,pcic_handle,pcic_handle,lkm_nullcmd);
 }
 
 /*
@@ -240,7 +240,7 @@ pcic_mod(struct lkm_table *lkmtp, int cmd, int ver)
  *	Disables interrupts and resets PCIC.
  */
 static int
-pcic_unload()
+pcic_unload(struct lkm_table *lkmtp, int cmd)
 {
 	int	slot;
 	struct pcic_slot *sp = pcic_slots;
@@ -688,8 +688,9 @@ pcic_mapirq (struct slot *slotp, int irq)
  */
 
 static void
-pcic_reset(struct slot *slotp)
+pcic_reset(void *chan)
 {
+	struct slot *slotp = chan;
 	struct pcic_slot *sp = slotp->cdata;
 
 	switch (slotp->insert_seq) {
