@@ -254,6 +254,8 @@ smb_maperror(int eclass, int eno)
 			return ENOTEMPTY;
 		    case 183:
 			return EEXIST;
+		    case ERRquota:
+			return EDQUOT;
 		}
 		break;
 	    case ERRSRV:
@@ -261,6 +263,7 @@ smb_maperror(int eclass, int eno)
 		    case ERRerror:
 			return EINVAL;
 		    case ERRbadpw:
+		    case ERRpasswordExpired:
 			return EAUTH;
 		    case ERRaccess:
 			return EACCES;
@@ -271,8 +274,12 @@ smb_maperror(int eclass, int eno)
 			return EAUTH;
 		    case 3:		/* reserved and returned */
 			return EIO;
-		    case 2239:		/* NT: account exists but disabled */
+		    case ERRaccountExpired:
+		    case ERRbadClient:
+		    case ERRbadLogonTime:
 			return EPERM;
+		    case ERRnosupport:
+			return EBADRPC;
 		}
 		break;
 	    case ERRHRD:
