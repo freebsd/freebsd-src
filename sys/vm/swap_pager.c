@@ -491,14 +491,18 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 				OFF_TO_IDX(offset + PAGE_MASK + size));
 			object->handle = handle;
 
+			VM_OBJECT_LOCK(object);
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
+			VM_OBJECT_UNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 	} else {
 		object = vm_object_allocate(OBJT_DEFAULT,
 			OFF_TO_IDX(offset + PAGE_MASK + size));
 
+		VM_OBJECT_LOCK(object);
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
+		VM_OBJECT_UNLOCK(object);
 	}
 	mtx_unlock(&Giant);
 	return (object);
@@ -722,6 +726,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 	vm_pindex_t beg = start;	/* save start index */
 
 	s = splvm();
+	VM_OBJECT_LOCK(object);
 	while (size) {
 		if (n == 0) {
 			n = BLIST_MAX_ALLOC;
@@ -729,6 +734,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 				n >>= 1;
 				if (n == 0) {
 					swp_pager_meta_free(object, beg, start - beg);
+					VM_OBJECT_UNLOCK(object);
 					splx(s);
 					return (-1);
 				}
@@ -741,6 +747,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 		--n;
 	}
 	swp_pager_meta_free(object, start, n);
+	VM_OBJECT_UNLOCK(object);
 	splx(s);
 	return (0);
 }
@@ -830,8 +837,11 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 			    SWM_POP
 			);
 
-			if (srcaddr != SWAPBLK_NONE)
+			if (srcaddr != SWAPBLK_NONE) {
+				VM_OBJECT_LOCK(dstobject);
 				swp_pager_meta_build(dstobject, i, srcaddr);
+				VM_OBJECT_UNLOCK(dstobject);
+			}
 		} else {
 			/*
 			 * Destination has valid swapblk or it is represented
@@ -849,7 +859,9 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	 * double-remove the object from the swap queues.
 	 */
 	if (destroysource) {
+		VM_OBJECT_LOCK(srcobject);
 		swp_pager_meta_free_all(srcobject);
+		VM_OBJECT_UNLOCK(srcobject);
 		/*
 		 * Reverting the type is not necessary, the caller is going
 		 * to destroy srcobject directly, but I'm doing it here
@@ -880,6 +892,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
 	daddr_t blk0;
 	int s;
 
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
@@ -954,6 +967,7 @@ static void
 swap_pager_unswapped(vm_page_t m)
 {
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -1187,7 +1201,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		    m[0]->object
 		);
 	}
-	VM_OBJECT_UNLOCK(object);
+
 	/*
 	 * Step 1
 	 *
@@ -1197,6 +1211,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 */
 	if (object->type != OBJT_SWAP)
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
+	VM_OBJECT_UNLOCK(object);
 
 	if (curproc != pageproc)
 		sync = TRUE;
@@ -1298,6 +1313,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
+		VM_OBJECT_LOCK(object);
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
 
@@ -1314,6 +1330,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			vm_page_unlock_queues();
 			bp->b_pages[j] = mreq;
 		}
+		VM_OBJECT_UNLOCK(object);
 		bp->b_npages = n;
 		/*
 		 * Must set dirty range for NFS to work.
@@ -1775,6 +1792,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	int idx;
 
 	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * Convert default object to swap object if necessary
 	 */
@@ -1815,7 +1833,9 @@ retry:
 
 		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
 		if (swap == NULL) {
+			VM_OBJECT_UNLOCK(object);
 			VM_WAIT;
+			VM_OBJECT_LOCK(object);
 			goto retry;
 		}
 
@@ -1864,7 +1884,7 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
 	GIANT_REQUIRED;
-
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -1911,7 +1931,7 @@ swp_pager_meta_free_all(vm_object_t object)
 	daddr_t index = 0;
 
 	GIANT_REQUIRED;
-	
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_SWAP)
 		return;
 
