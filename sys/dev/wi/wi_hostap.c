@@ -99,8 +99,8 @@ static void wihap_deauth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
     caddr_t pkt, int len);
 static void wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
     caddr_t pkt, int len);
-static void wihap_sta_disassoc(struct wi_softc *sc,
-    struct wihap_sta_info *sta, u_int16_t reason);
+static void wihap_sta_disassoc(struct wi_softc *sc, u_int8_t sta_addr[],
+    u_int16_t reason);
 static void wihap_disassoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
     caddr_t pkt, int len);
 
@@ -226,14 +226,13 @@ wihap_init(struct wi_softc *sc)
  *	Send a disassociation frame to a specified station.
  */
 static void
-wihap_sta_disassoc(struct wi_softc *sc,
-    struct wihap_sta_info *sta, u_int16_t reason)
+wihap_sta_disassoc(struct wi_softc *sc, u_int8_t sta_addr[], u_int16_t reason)
 {
 	struct wi_80211_hdr	*resp_hdr;
 	caddr_t			pkt;
 
 	if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-		printf("Sending disassoc to sta %6D\n", sta->addr, ":");
+ 		printf("Sending disassoc to sta %6D\n", sta_addr, ":");
 
 	/* Send disassoc packet. */
 	resp_hdr = (struct wi_80211_hdr *) sc->wi_txbuf;
@@ -241,7 +240,7 @@ wihap_sta_disassoc(struct wi_softc *sc,
 	resp_hdr->frame_ctl = WI_FTYPE_MGMT | WI_STYPE_MGMT_DISAS;
 	pkt = sc->wi_txbuf + sizeof(struct wi_80211_hdr);
 
-	bcopy(sta->addr, resp_hdr->addr1, ETHER_ADDR_LEN);
+	bcopy(sta_addr, resp_hdr->addr1, ETHER_ADDR_LEN);
 	bcopy(sc->arpcom.ac_enaddr, resp_hdr->addr2, ETHER_ADDR_LEN);
 	bcopy(sc->arpcom.ac_enaddr, resp_hdr->addr3, ETHER_ADDR_LEN);
 
@@ -255,8 +254,7 @@ wihap_sta_disassoc(struct wi_softc *sc,
  *	Send a deauthentication message to a specified station.
  */
 static void
-wihap_sta_deauth(struct wi_softc *sc, u_int8_t sta_addr[],
-    u_int16_t reason)
+wihap_sta_deauth(struct wi_softc *sc, u_int8_t sta_addr[], u_int16_t reason)
 {
 	struct wi_80211_hdr	*resp_hdr;
 	caddr_t			pkt;
@@ -308,7 +306,7 @@ wihap_shutdown(struct wi_softc *sc)
 		if (!sc->wi_gone) {
 			/* Disassociate station. */
 			if (sta->flags & WI_SIFLAGS_ASSOC)
-				wihap_sta_disassoc(sc, sta,
+				wihap_sta_disassoc(sc, sta->addr,
 				    IEEE80211_REASON_ASSOC_LEAVE);
 			/* Deauth station. */
 			if (sta->flags & WI_SIFLAGS_AUTHEN)
@@ -360,7 +358,8 @@ wihap_sta_timeout(void *v)
 			    sta->addr, ":");
 
 		/* Disassoc station. */
-		wihap_sta_disassoc(sc, sta, IEEE80211_REASON_ASSOC_EXPIRE);
+		wihap_sta_disassoc(sc, sta->addr,
+		    IEEE80211_REASON_ASSOC_EXPIRE);
 		sta->flags &= ~WI_SIFLAGS_ASSOC;
 
 		sta->tmo = timeout(wihap_sta_timeout, sta,
@@ -654,19 +653,15 @@ fail:
 	bcopy(rxfrm->wi_addr2, resp_hdr->addr1, ETHER_ADDR_LEN);
 	bcopy(sc->arpcom.ac_enaddr, resp_hdr->addr2, ETHER_ADDR_LEN);
 	bcopy(sc->arpcom.ac_enaddr, resp_hdr->addr3, ETHER_ADDR_LEN);
-
 	pkt = &sc->wi_txbuf[sizeof(struct wi_80211_hdr)];
 	put_hword(&pkt, algo);
 	put_hword(&pkt, seq);
 	put_hword(&pkt, status);
-	if (challenge_len>0)
+	if (challenge_len > 0)
 		put_tlv(&pkt, IEEE80211_ELEMID_CHALLENGE,
 		    challenge, challenge_len);
-
-	wi_mgmt_xmit(sc, sc->wi_txbuf, 6 + sizeof(struct wi_80211_hdr) +
-	    (challenge_len > 0 ? challenge_len + 2 : 0) );
+	wi_mgmt_xmit(sc, sc->wi_txbuf, (char *) pkt - (char *) sc->wi_txbuf);
 }
-
 
 /* wihap_assoc_req()
  *
@@ -1089,6 +1084,8 @@ wihap_data_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 		if (ifp->if_flags & IFF_DEBUG)
 			printf("wihap_data_input: dropping unassoc src %6D\n",
 			    rxfrm->wi_addr2, ":");
+ 		wihap_sta_disassoc(sc, rxfrm->wi_addr2,
+ 		    IEEE80211_REASON_ASSOC_LEAVE);
 		splx(s);
 		m_freem(m);
 		return(1);
@@ -1159,7 +1156,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 		else {
 			/* Disassociate station. */
 			if (sta->flags & WI_SIFLAGS_ASSOC)
-				wihap_sta_disassoc(sc, sta,
+				wihap_sta_disassoc(sc, sta->addr,
 				    IEEE80211_REASON_ASSOC_LEAVE);
 			/* Deauth station. */
 			if (sta->flags & WI_SIFLAGS_AUTHEN)
