@@ -50,6 +50,8 @@ typedef enum {
 	Pproc,		/* a process-specific sub-directory */
 	Pexe,		/* the executable file */
 	Pmem,		/* the process's memory image */
+	Pprocstat,	/* the process's status */
+	Pprocstatus,	/* the process's status (again) */
 	Pmeminfo,	/* memory system statistics */
 	Pcpuinfo,	/* CPU model, speed and features */
 	Pstat,	        /* kernel/system statistics */
@@ -128,6 +130,8 @@ int linprocfs_docpuinfo __P((struct proc *, struct proc *, struct pfsnode *pfsp,
 int linprocfs_dostat __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int linprocfs_douptime __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int linprocfs_doversion __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int linprocfs_doprocstat __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int linprocfs_doprocstatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /* functions to check whether or not files should be displayed */
 int linprocfs_validfile __P((struct proc *));
