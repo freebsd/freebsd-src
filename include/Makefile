@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.90 1999/01/14 05:53:54 jdp Exp $
+#	$Id: Makefile,v 1.91 1999/01/14 19:52:38 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -36,7 +36,7 @@ MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 PFILES=	mqueue.h sched.h semaphore.h \
 		# aio.h
 
-LFILES=	errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
+LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
 
 LDIRS=	cam msdosfs net netatalk netatm netinet netipx netkey netns nfs \
 	pccard posix4 sys vm
