@@ -161,22 +161,23 @@ void
 tprintf(struct proc *p, int pri, const char *fmt, ...)
 {
 	struct tty *tp = NULL;
-	int flags = 0, shld = 0;
+	int flags = 0;
 	va_list ap;
 	struct putchar_arg pca;
 	int retval;
+	struct session *sess = NULL;
 
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
 		PROC_LOCK(p);
 		if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
-			SESS_LOCK(p->p_session);
-			SESSHOLD(p->p_session);
-			tp = p->p_session->s_ttyp;
-			SESS_UNLOCK(p->p_session);
+			sess = p->p_session;
+			SESS_LOCK(sess);
 			PROC_UNLOCK(p);
-			shld++;
+			SESSHOLD(sess);
+			tp = sess->s_ttyp;
+			SESS_UNLOCK(sess);
 			if (ttycheckoutq(tp, 0))
 				flags |= TOTTY;
 			else
@@ -190,12 +191,10 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-	if (shld) {
-		PROC_LOCK(p);
-		SESS_LOCK(p->p_session);
-		SESSRELE(p->p_session);
-		SESS_UNLOCK(p->p_session);
-		PROC_UNLOCK(p);
+	if (sess != NULL) {
+		SESS_LOCK(sess);
+		SESSRELE(sess);
+		SESS_UNLOCK(sess);
 	}
 	msgbuftrigger = 1;
 }
