@@ -42,7 +42,6 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <pci/pcivar.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif
