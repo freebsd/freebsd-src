@@ -37,7 +37,8 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 		libdisk.3 MakeDev.3 \
 		libdisk.3 MakeDevDisk.3 \
 		libdisk.3 ShowChunkFlags.3 \
-		libdisk.3 ChunkCanBeRoot.3
+		libdisk.3 ChunkCanBeRoot.3 \
+		libdisk.3 slice_type_name.3
 
 .include <bsd.lib.mk>
 

@@ -86,6 +86,11 @@ struct chunk {
 extern const char *chunk_n[];
 extern const u_char boot1[], boot2[];
 
+const char *
+slice_type_name( int type, int subtype );
+/* "chunk_n" for subtypes too
+ */
+
 struct disk *
 Open_Disk(const char *devname);
 /* Will open the named disk, and return populated tree.
