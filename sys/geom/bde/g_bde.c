@@ -226,7 +226,6 @@ g_bde_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	int error;
 	struct g_bde_softc *sc;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_destroy_geom(%s, %s)", mp->name, gp->name);
@@ -244,8 +243,7 @@ g_bde_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	KASSERT(cp != NULL, ("NULL consumer"));
 	sc->dead = 1;
 	wakeup(sc);
-	error = g_access(cp, -1, -1, -1);
-	KASSERT(error == 0, ("error on close"));
+	g_access(cp, -1, -1, -1);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	while (sc->dead != 2 && !LIST_EMPTY(&pp->consumers))
