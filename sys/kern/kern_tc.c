@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.64 1998/04/04 18:46:09 phk Exp $
+ * $Id: kern_clock.c,v 1.65 1998/04/05 11:49:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -182,10 +182,10 @@ hardclock(frame)
 		 */
 		pstats = p->p_stats;
 		if (CLKF_USERMODE(frame) &&
-		    timerisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
 			psignal(p, SIGVTALRM);
-		if (timerisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
 		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
 			psignal(p, SIGPROF);
 	}

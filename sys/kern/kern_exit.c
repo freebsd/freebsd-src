@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.64 1997/12/16 17:40:14 eivind Exp $
+ * $Id: kern_exit.c,v 1.65 1998/01/22 17:29:45 dyson Exp $
  */
 
 #include "opt_compat.h"
@@ -182,7 +182,7 @@ exit1(p, rv)
 	p->p_flag |= P_WEXIT;
 	p->p_sigignore = ~0;
 	p->p_siglist = 0;
-	if (timerisset(&p->p_realtimer.it_value))
+	if (timevalisset(&p->p_realtimer.it_value))
 		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
 
 	/*
