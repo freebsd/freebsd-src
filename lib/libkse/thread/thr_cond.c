@@ -38,7 +38,6 @@
 #include "thr_private.h"
 
 #define	THR_IN_CONDQ(thr)	(((thr)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
-#define	THR_IN_CONDQ(thr)	(((thr)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
 #define	THR_CONDQ_SET(thr)	(thr)->sflags |= THR_FLAGS_IN_SYNCQ
 #define	THR_CONDQ_CLEAR(thr)	(thr)->sflags &= ~THR_FLAGS_IN_SYNCQ
 
