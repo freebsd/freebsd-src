@@ -905,7 +905,7 @@ find_core_target ()
   for (t = target_structs; t < target_structs + target_struct_size;
        ++t)
     {
-      if ((*t)->to_stratum == core_stratum)
+      if ((*t)->to_stratum == (kernel_debugging ? kcore_stratum : core_stratum))
 	{
 	  runable = *t;
 	  ++count;

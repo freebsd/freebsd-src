@@ -67,15 +67,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 static void
 fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
-     char *core_reg_sect;
-     unsigned core_reg_size;
-     int which;
-     unsigned reg_addr;
+	char *core_reg_sect;
+	unsigned core_reg_size;
+	int which;
+	CORE_ADDR reg_addr;
 {
   register int regno;
-  register unsigned int addr;
+  register CORE_ADDR addr;
   int bad_reg = -1;
-  register reg_ptr = -reg_addr;		/* Original u.u_ar0 is -reg_addr. */
+  register CORE_ADDR reg_ptr = -reg_addr; /* Original u.u_ar0 is -reg_addr. */
   int numregs = ARCH_NUM_REGS;
 
   /* If u.u_ar0 was an absolute address in the core file, relativize it now,
@@ -84,7 +84,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      CORE_REGISTER_ADDR to offset to the other registers.  If this is a modern
      core file without a upage, reg_ptr will be zero and this is all a big
      NOP.  */
-  if (reg_ptr > (int) core_reg_size)
+  if (reg_ptr > core_reg_size)
     reg_ptr -= KERNEL_U_ADDR;
 
   for (regno = 0; regno < numregs; regno++)
@@ -114,7 +114,7 @@ register_addr (regno, blockend)
      int regno;
      int blockend;
 {
-  int addr;
+  CORE_ADDR addr;
 
   if (regno < 0 || regno >= ARCH_NUM_REGS)
     error ("Invalid register number %d.", regno);

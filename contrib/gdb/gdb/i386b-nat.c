@@ -72,13 +72,32 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, ignore)
 
 #include <machine/reg.h>
 
+/* Some systems don't provide all the registers on a trap.  Use SS as a
+   default if so.  */
+
+#ifndef tDS
+#define tDS tSS
+#endif
+#ifndef tES
+#define tES tSS
+#endif
+#ifndef tFS
+#define tFS tSS
+#endif
+#ifndef tGS
+#define tGS tSS
+#endif
+
+/* These tables map between the registers on a trap frame, and the register
+   order used by the rest of GDB.  */
 /* this table must line up with REGISTER_NAMES in tm-i386.h */
 /* symbols like 'tEAX' come from <machine/reg.h> */
 static int tregmap[] = 
 {
   tEAX, tECX, tEDX, tEBX,
   tESP, tEBP, tESI, tEDI,
-  tEIP, tEFLAGS, tCS, tSS
+  tEIP, tEFLAGS, tCS, tSS,
+  tDS, tES, tFS, tGS
 };
 
 #ifdef sEAX
@@ -97,7 +116,8 @@ static int sregmap[] =
 {
   tEAX, tECX, tEDX, tEBX,
   tESP, tEBP, tESI, tEDI,
-  tEIP, tEFLAGS, tCS, tSS
+  tEIP, tEFLAGS, tCS, tSS,
+  tDS, tES, tFS, tGS
 };
 #endif /* No sEAX */
 
@@ -125,6 +145,7 @@ i386_register_u_addr (blockend, regnum)
 #endif /* !FETCH_INFERIOR_REGISTERS */
 
 #ifdef FLOAT_INFO
+#include "expression.h"
 #include "language.h"			/* for local_hex_string */
 #include "floatformat.h"
 
@@ -195,7 +216,7 @@ print_387_status (status, ep)
     }
   
   print_387_control_word ((unsigned int)ep->control);
-  printf_unfiltered ("last exception: ");
+  printf_unfiltered ("last instruction: ");
   printf_unfiltered ("opcode %s; ", local_hex_string(ep->opcode));
   printf_unfiltered ("pc %s:", local_hex_string(ep->code_seg));
   printf_unfiltered ("%s; ", local_hex_string(ep->eip));
@@ -227,6 +248,7 @@ print_387_status (status, ep)
     }
 }
 
+void
 i386_float_info ()
 {
   struct user u; /* just for address computations */
@@ -271,9 +293,15 @@ i386_float_info ()
       skip = 0;
 #endif
     }
-  
+
+#ifdef	__FreeBSD__
+  fpstatep = (struct fpstate *)(buf + skip);
+  print_387_status (fpstatep->sv_ex_sw, (struct env387 *)fpstatep);
+#else
   print_387_status (0, (struct env387 *)buf);
+#endif
 }
+#endif /* FLOAT_INFO */
 
 int
 kernel_u_size ()
@@ -281,4 +309,16 @@ kernel_u_size ()
   return (sizeof (struct user));
 }
 
-#endif
+#ifdef	SETUP_ARBITRARY_FRAME
+#include "frame.h"
+struct frame_info *
+setup_arbitrary_frame (argc, argv)
+	int argc;
+	CORE_ADDR *argv;
+{
+    if (argc != 2)
+	error ("i386 frame specifications require two arguments: sp and pc");
+
+    return create_new_frame (argv[0], argv[1]);
+}
+#endif	/* SETUP_ARBITRARY_FRAME */
