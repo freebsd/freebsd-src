@@ -1,11 +1,10 @@
 #
-#	$Id: Makefile,v 1.32 1995/01/03 22:03:25 nate Exp $
+#	$Id: Makefile,v 1.33 1995/01/11 11:52:50 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
 #	-DMAKE_LOCAL to add ./local to the SUBDIR list
 #	-DMAKE_PORTS to add ./ports to the SUBDIR list
-# XXX1	-DMAKE_KERBEROS to build KerberosIV
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
@@ -14,11 +13,6 @@
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
-#
-#
-# XXX1	The kerberos IV off the 4.4-Lite tape (src/kerberosIV)
-#	will not build successfully yet.  MAKE_KERBEROS should not be
-#	defined.
 
 # Put initial settings here.
 SUBDIR=
@@ -45,9 +39,6 @@ SUBDIR+= include
 .endif
 .if exists(lib)
 SUBDIR+= lib
-.endif
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
-SUBDIR+= kerberosIV
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 SUBDIR+= eBones
@@ -216,9 +207,6 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
-	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
-.endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
 .endif
@@ -272,16 +260,6 @@ libraries:
 .endif
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS)
-	cd ${.CURDIR}/kerberosIV/acl && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/kerberosIV/des && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/kerberosIV/kdb && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/kerberosIV/krb && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/des && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
