@@ -113,15 +113,17 @@
 #define UPAGES	3		/* pages of u-area */
 
 /*
- * Ceiling on amount of swblock kva space.
+ * Ceiling on amount of swblock kva space, can be changed via
+ * kern.maxswzone /boot/loader.conf variable.
  */
 #ifndef VM_SWZONE_SIZE_MAX
-#define VM_SWZONE_SIZE_MAX	(70 * 1024 * 1024)
+#define VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
 #endif
 
 /*
  * Ceiling on size of buffer cache (really only effects write queueing,
- * the VM page cache is not effected).
+ * the VM page cache is not effected), can be changed via
+ * kern.maxbcache /boot/loader.conf variable.
  */
 #ifndef VM_BCACHE_SIZE_MAX
 #define VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
