@@ -889,6 +889,12 @@ acpi_shutdown_final(void *arg, int howto)
 
     if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
+	status = AcpiEnterSleepStatePrep(acpi_off_state);
+	if (status != AE_OK) {
+	    printf("AcpiEnterSleepStatePrep failed - %s\n",
+		   AcpiFormatException(status));
+	    return;
+	}
 	if ((status = AcpiEnterSleepState(acpi_off_state)) != AE_OK) {
 	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
 	} else {
@@ -1340,6 +1346,14 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    DEVICE_RESUME(root_bus);
 	    return_ACPI_STATUS(AE_ERROR);
 	}
+
+	status = AcpiEnterSleepStatePrep(state);
+	if (status != AE_OK) {
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepStatePrep failed - %s\n",
+			  AcpiFormatException(status));
+	    break;
+	}
+
 	sc->acpi_sstate = state;
 
 	if (state != ACPI_STATE_S1) {
