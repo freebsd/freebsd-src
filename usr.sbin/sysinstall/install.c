@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.72 1995/09/18 16:52:27 peter Exp $
+ * $Id: install.c,v 1.73 1995/12/07 10:33:52 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -115,6 +115,8 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
     swapdev = NULL;
     /* Now check for swap devices */
     for (i = 0; devs[i]; i++) {
+	if (!devs[i]->enabled)
+	    continue;
 	disk = (Disk *)devs[i]->private;
 	msgDebug("Scanning disk %s for swap partitions\n", disk->name);
 	if (!disk->chunks)
