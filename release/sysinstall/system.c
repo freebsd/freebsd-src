@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.41 1995/05/29 02:13:31 phk Exp $
+ * $Id: system.c,v 1.42 1995/05/29 11:01:39 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -217,7 +217,7 @@ systemHelpFile(char *file, char *buf)
 	    strcpy(oldfile, buf);
 	    return buf;
 	}
-    }	
+    }
     /* Fall back to normal imperialistic mode :-) */
     cp = "en_US.ISO8859-1";
     snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);

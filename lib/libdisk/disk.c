@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.17 1995/05/06 03:28:29 phk Exp $
+ * $Id: disk.c,v 1.18 1995/05/08 02:08:28 phk Exp $
  *
  */
 
@@ -24,7 +24,7 @@
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
-#define DOSPTYP_ONTRACK         84      
+#define DOSPTYP_ONTRACK         84
 
 char *chunk_n[] = {
 	"whole",
@@ -99,7 +99,7 @@ Int_Open_Disk(char *name, u_long size)
 			d->flags |= DISK_ON_TRACK;
 			offset = 63;
 		}
-			
+
 	}
 	free(p);
 
@@ -140,7 +140,7 @@ Int_Open_Disk(char *name, u_long size)
 			default:
 				ce = unknown;
 				break;
-		}	
+		}
 		if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
 			ds.dss_slices[i].ds_size, sname,ce,subtype,flags))
 			warn("failed to add chunk for slice %d",i - 1);
@@ -166,7 +166,7 @@ Int_Open_Disk(char *name, u_long size)
 			continue;
 		}
 		close(j);
-		
+
 		for(j=0; j <= dl.d_npartitions; j++) {
 			if (j == RAW_PART)
 				continue;
@@ -273,7 +273,7 @@ Disk_Names()
 
     disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
-    k = 0;	
+    k = 0;
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < 10; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
@@ -298,7 +298,7 @@ void
 Set_Boot_Mgr(struct disk *d, u_char *b)
 {
 	if (d->bootmgr)
-		free(d->bootmgr);	
+		free(d->bootmgr);
 	if (!b) {
 		d->bootmgr = 0;
 	} else {
@@ -311,11 +311,11 @@ Set_Boot_Mgr(struct disk *d, u_char *b)
 void
 Set_Boot_Blocks(struct disk *d, u_char *b1, u_char *b2)
 {
-	if (d->boot1) free(d->boot1);	
+	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
 	if(!d->boot1) err(1,"malloc failed");
 	memcpy(d->boot1,b1,512);
-	if (d->boot2) free(d->boot2);	
+	if (d->boot2) free(d->boot2);
 	d->boot2 = malloc(15*512);
 	if(!d->boot2) err(1,"malloc failed");
 	memcpy(d->boot2,b2,15*512);

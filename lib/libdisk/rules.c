@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.8 1995/05/06 03:28:31 phk Exp $
+ * $Id: rules.c,v 1.9 1995/05/08 01:34:31 phk Exp $
  *
  */
 
@@ -100,7 +100,7 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 	"Too many active children of 'whole'");
 }
 
-/* 
+/*
  * Rule#1:
  *	All children of 'whole' and 'extended'  must be track-aligned.
  *	Exception: the end can be unaligned if it matches the end of 'whole'
@@ -130,7 +130,7 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
-/* 
+/*
  * Rule#2:
  *	Max one 'fat' as child of 'whole'
  */
@@ -153,7 +153,7 @@ Rule_002(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
-/* 
+/*
  * Rule#3:
  *	Max one extended as child of 'whole'
  */
@@ -176,7 +176,7 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
-/* 
+/*
  * Rule#4:
  *	Max seven 'part' as children of 'freebsd'
  *	Max one FS_SWAP child per 'freebsd'

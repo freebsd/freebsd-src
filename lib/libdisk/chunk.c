@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.12 1995/05/11 05:22:49 phk Exp $
+ * $Id: chunk.c,v 1.13 1995/05/25 06:14:47 phk Exp $
  *
  */
 
@@ -74,7 +74,7 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 void
 Free_Chunk(struct chunk *c1)
 {
-	if(!c1) return;	
+	if(!c1) return;
 	if(c1->private && c1->private_free)
 		(*c1->private_free)(c1->private);
 	if(c1->part)
@@ -202,7 +202,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 		c2->type = unused;
 		c1->flags = flags;
 		c1->subtype = subtype;
-		return 0; 
+		return 0;
 	}
 	if (type == freebsd)
 		subtype = 0xa5;
@@ -221,12 +221,12 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 		if (c2->type != unused)
 			continue;
 		if(Chunk_Inside(c2,&ct)) {
-			if (type != freebsd) 
+			if (type != freebsd)
 				goto doit;
-			if (!(flags & CHUNK_ALIGN)) 
+			if (!(flags & CHUNK_ALIGN))
 				goto doit;
-			if (offset == d->chunks->offset 
-			   && end == d->chunks->end) 
+			if (offset == d->chunks->offset
+			   && end == d->chunks->end)
 				goto doit;
 
 			/* Round down to prev cylinder */
@@ -239,7 +239,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 			/* Keep one track clear in front of parent */
 			if (offset == c1->offset)
 				offset = Next_Track_Aligned(d,offset+1);
-			
+
 			/* Work on the (end+1) */
 			size += offset;
 			/* Round up to cylinder */
@@ -249,7 +249,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 				size = c2->end+1;
 			/* Round down to cylinder */
 			size = Prev_Cyl_Aligned(d,size);
-		
+
 			/* Convert back to size */
 			size -= offset;
 
@@ -271,7 +271,7 @@ Print_Chunk(struct chunk *c1,int offset)
 	putchar('>');
 	for(;i<10;i++) putchar(' ');
 	printf("%p %8ld %8lu %8lu %-8s %-8s 0x%02x ",
-		c1, c1->offset, c1->size, c1->end, c1->name, 
+		c1, c1->offset, c1->size, c1->end, c1->name,
 		chunk_n[c1->type],c1->subtype);
 	if (c1->flags & CHUNK_ALIGN) putchar('=');
 	if (c1->flags & CHUNK_PAST_1024) putchar('>');
@@ -309,7 +309,7 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 	struct chunk *c1=0,*c2,*c3;
 	chunk_e type = c->type;
 
-	if(type == whole) 
+	if(type == whole)
 		return 1;
 	if(!c1 && (type == freebsd || type == fat || type == unknown))
 		c1 = Find_Mother_Chunk(d->chunks,c->offset,c->end,extended);
@@ -334,7 +334,7 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 		}
 	}
 	return 1;
-    scan:	
+    scan:
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type != unused)
 			continue;
@@ -370,7 +370,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 		c3->next = 0;
 		Free_Chunk(c3);
 		return 1;
-	}	
+	}
 	c3 = c1->part;
 	if(!c3)
 		return 0;
@@ -386,7 +386,7 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 	}
 	if(c3->type == unused) {
 		c2 = new_chunk();
-		if (!c2) err(1,"malloc failed");	
+		if (!c2) err(1,"malloc failed");
 		*c2 = *c1;
 		c1->next = c2;
 		c1->disk = d;
