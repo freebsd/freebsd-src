@@ -27,20 +27,20 @@ that specifies a peak cell rate.
 All other UBR traffic goes into the lower queue.
 .Pp
 The following sysctls are recognized by the driver:
-.Bl -tag -width XXX
-.It Cm hw.idt.log_bufstat
+.Bl -tag -width indent
+.It Va hw.idt.log_bufstat
 Print statistics about buffer use to the system log periodically.
-.It Cm hw.idt.log_vcs
+.It Va hw.idt.log_vcs
 Print information about VC opens, closes, and other events to the system log.
-.It Cm hw.idt.bufs_large
+.It Va hw.idt.bufs_large
 Set or print the maximum size of the 2KB buffer queue.
-.It Cm hw.idt.bufs_small
+.It Va hw.idt.bufs_small
 Set or print the maximum size of the mbuf queue.
-.It Cm hw.idt.cur_large
+.It Va hw.idt.cur_large
 Print the current size of the 2KB buffer queue.
-.It Cm hw.idt.cur_small
+.It Va hw.idt.cur_small
 Print the current size of the mbuf queue.
-.It Cm hw.idt.qptr_hold
+.It Va hw.idt.qptr_hold
 Optimize the TX queue buffer for lowest overhead.
 .El
 .Sh SEE ALSO
@@ -49,11 +49,12 @@ Optimize the TX queue buffer for lowest overhead.
 .Xr ifconfig 8 ,
 .Xr route 8
 .Sh AUTHORS
+.An -nosplit
 .An Richard Hodges ,
 based on the original driver for
 .Fx 2.2
 by
-.An Mark Tinguely.
+.An Mark Tinguely .
 .An Bruce M. Simpson
 wrote this manual page and backported the driver to
 .Fx 4.9 .
