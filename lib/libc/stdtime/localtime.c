@@ -1103,7 +1103,7 @@ const time_t * const	timep;
 
 	pthread_mutex_lock(&localtime_mutex);
 	if (localtime_key < 0) {
-		if (pthread_keycreate(&localtime_key, free) < 0) {
+		if (pthread_key_create(&localtime_key, free) < 0) {
 			pthread_mutex_unlock(&localtime_mutex);
 			return(NULL);
 		}
@@ -1187,7 +1187,7 @@ const time_t * const	timep;
 
 	pthread_mutex_lock(&gmtime_mutex);
 	if (gmtime_key < 0) {
-		if (pthread_keycreate(&gmtime_key, free) < 0) {
+		if (pthread_key_create(&gmtime_key, free) < 0) {
 			pthread_mutex_unlock(&gmtime_mutex);
 			return(NULL);
 		}
