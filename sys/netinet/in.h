@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.15 1996/02/22 21:32:17 peter Exp $
+ * $Id: in.h,v 1.16 1996/03/14 16:59:18 fenner Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -310,7 +310,13 @@ int	 in_canforward __P((struct in_addr));
 int	 in_cksum __P((struct mbuf *, int));
 int	 in_localaddr __P((struct in_addr));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
-#endif
+
+/* Firewall hooks */
+struct ip;
+typedef  int ip_fw_chk_t __P((struct ip**, int, struct ifnet*, int, struct mbuf**));
+typedef  int ip_fw_ctl_t __P((int, struct mbuf**));
+extern ip_fw_chk_t *ip_fw_chk_ptr;
+extern ip_fw_ctl_t *ip_fw_ctl_ptr;
+#endif /* KERNEL */
 
 #endif
-

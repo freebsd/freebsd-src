@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.38 1996/02/24 13:38:28 phk Exp $
+ * $Id: ip_input.c,v 1.39 1996/03/25 17:41:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -59,8 +59,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
-
-#include <netinet/ip_fw.h>
 
 #include <sys/socketvar.h>
 int rsvp_on = 0;
@@ -105,23 +103,9 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 	&ip_mtu, 0, "");
 #endif
 
-/*
- * The dummy IP-firewall function, and the pointer we access it through
- */
-static int 
-dummy_ip_fw_chk(m, ip, rif, dir)
-	struct mbuf *m;
-	struct ip *ip;
-	struct ifnet *rif;
-	int dir;
-{
-	return 1;
-}
-
-int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, int dir) = 
-	dummy_ip_fw_chk;
-
-int (*ip_fw_ctl_ptr)(int, struct mbuf **);
+/* Firewall hooks */
+ip_fw_chk_t *ip_fw_chk_ptr;
+ip_fw_ctl_t *ip_fw_ctl_ptr;
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -187,9 +171,9 @@ static struct	route ipforward_rt;
 void
 ip_input(struct mbuf *m)
 {
-	register struct ip *ip;
-	register struct ipq *fp;
-	register struct in_ifaddr *ia;
+	struct ip *ip;
+	struct ipq *fp;
+	struct in_ifaddr *ia;
 	int hlen;
 
 #ifdef	DIAGNOSTIC
@@ -269,8 +253,9 @@ ip_input(struct mbuf *m)
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-	if (!(*ip_fw_chk_ptr)(m,ip,m->m_pkthdr.rcvif,0)) 
-	       return;
+	if (ip_fw_chk_ptr &&
+	    !(*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m))
+		goto bad;
 
 	/*
 	 * Process options and, if not destined for us,
