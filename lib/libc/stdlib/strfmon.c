@@ -113,7 +113,6 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			*currency_symbol;
 
 	char		*tmpptr;	/* temporary vars */
-	int		*ntmp;
 	int		sverrno;
 
         va_start(ap, format);
