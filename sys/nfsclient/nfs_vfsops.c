@@ -103,7 +103,7 @@ SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
 static int	nfs_iosize(struct nfsmount *nmp);
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
-		    struct sockaddr *, char *, char *, struct vnode **,
+		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
@@ -162,7 +162,7 @@ SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
 
 
 void		nfsargs_ntoh(struct nfs_args *);
-static int	nfs_mountdiskless(char *, char *, int,
+static int	nfs_mountdiskless(char *, int,
 		    struct sockaddr_in *, struct nfs_args *,
 		    struct thread *, struct vnode **, struct mount *);
 static void	nfs_convert_diskless(void);
@@ -477,7 +477,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		(l >> 24) & 0xff, (l >> 16) & 0xff,
 		(l >>  8) & 0xff, (l >>  0) & 0xff, nd->root_hostnam);
 	printf("NFS ROOT: %s\n", buf);
-	if ((error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
+	if ((error = nfs_mountdiskless(buf, MNT_RDONLY,
 	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
 		return (error);
 	}
@@ -500,7 +500,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
  * Internal version of mount system call for diskless setup.
  */
 static int
-nfs_mountdiskless(char *path, char *which, int mountflag,
+nfs_mountdiskless(char *path, int mountflag,
     struct sockaddr_in *sin, struct nfs_args *args, struct thread *td,
     struct vnode **vpp, struct mount *mp)
 {
@@ -510,13 +510,11 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
-	if ((error = mountnfs(args, mp, nam, which, path, vpp,
+	if ((error = mountnfs(args, mp, nam, path, vpp,
 	    td->td_ucred)) != 0) {
-		printf("nfs_mountroot: mount %s on %s: %d\n", path, which,
-		    error);
+		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
-	(void) copystr(which, mp->mnt_stat.f_mntonname, MNAMELEN - 1, 0);
 	return (0);
 }
 
@@ -686,8 +684,6 @@ nfs_mount(struct mount *mp, struct thread *td)
 	char hst[MNAMELEN];
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
-	char *path = "XXX: foo";
-
 
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts))
 		return (EINVAL);
@@ -744,7 +740,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	if (error)
 		return (error);
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
 	return (error);
 }
 
@@ -781,7 +777,7 @@ nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *pth, char *hst, struct vnode **vpp, struct ucred *cred)
+    char *hst, struct vnode **vpp, struct ucred *cred)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -838,7 +834,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_fhsize = argp->fhsize;
 	bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
 	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
 	nmp->nm_nam = nam;
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
