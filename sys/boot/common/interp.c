@@ -48,6 +48,42 @@ extern FICL_VM *bf_vm;
 
 static void	prompt(void);
 
+#ifndef BOOT_FORTH
+static int	perform(int argc, char *argv[]);
+
+/*
+ * Perform the command
+ */
+int
+perform(int argc, char *argv[])
+{
+    int				result;
+    struct bootblk_command	**cmdp;
+    bootblk_cmd_t		*cmd;
+
+    if (argc < 1)
+	return(CMD_OK);
+
+    /* set return defaults; a successful command will override these */
+    command_errmsg = command_errbuf;
+    strcpy(command_errbuf, "no error message");
+    cmd = NULL;
+    result = CMD_ERROR;
+
+    /* search the command set for the command */
+    SET_FOREACH(cmdp, Xcommand_set) {
+	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
+	    cmd = (*cmdp)->c_fn;
+    }
+    if (cmd != NULL) {
+	result = (cmd)(argc, argv);
+    } else {
+	command_errmsg = "unknown command";
+    }
+    RETURN(result);
+}
+#endif	/* ! BOOT_FORTH */
+
 /*
  * Interactive mode
  */
