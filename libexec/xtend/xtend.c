@@ -75,22 +75,20 @@ volatile sig_atomic_t hup_flag;		/* received SIGHUP flag */
 volatile sig_atomic_t term_flag;	/* received SIGTERM flag */
 volatile sig_atomic_t pipe_flag;	/* received SIGPIPE flag */
 
-void checkpoint_status __P((void));
-void dohup __P((void));
-void dopipe __P((void));
-void doterm __P((void));
-void initstatus __P((void));
-void logpacket __P((unsigned char *));
-void onhup __P((int));
-void onpipe __P((int));
-void onterm __P((int));
-void processpacket __P((unsigned char *));
-int user_command __P((void));
+void checkpoint_status(void);
+void dohup(void);
+void dopipe(void);
+void doterm(void);
+void initstatus(void);
+void logpacket(unsigned char *);
+void onhup(int);
+void onpipe(int);
+void onterm(int);
+void processpacket(unsigned char *);
+int user_command(void);
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
   const char *twpath = TWPATH;
   const char *sockpath = SOCKPATH;
@@ -322,7 +320,8 @@ char *argv[];
   /* Not reached */
 }
 
-char *thedate(void)
+char *
+thedate(void)
 {
   char *cp, *cp1;
   time_t tod;
@@ -334,19 +333,22 @@ char *thedate(void)
   return(cp);
 }
 
-void onhup(int signo)
+void
+onhup(int signo)
 {
 
   hup_flag = 1;
 }
 
-void onterm(int signo)
+void
+onterm(int signo)
 {
 
   term_flag = 1;
 }
 
-void onpipe(int signo)
+void
+onpipe(int signo)
 {
 
  pipe_flag = 1;
@@ -356,7 +358,8 @@ void onpipe(int signo)
  * When SIGHUP received, close and reopen the Log file
  */
 
-void dohup(void)
+void
+dohup(void)
 {
   char logpath[MAXPATHLEN+1];
 
@@ -376,7 +379,8 @@ void dohup(void)
  * When SIGTERM received, just exit normally
  */
 
-void doterm(void)
+void
+doterm(void)
 {
   fprintf(Log, "%s:  SIGTERM received, shutting down\n", thedate());
   fclose(Log);
@@ -388,7 +392,8 @@ void doterm(void)
  * When SIGPIPE received, reset user connection
  */
 
-void dopipe(void)
+void
+dopipe(void)
 {
   fprintf(Log, "%s:  SIGPIPE received, resetting user connection\n",
 	  thedate());

@@ -59,8 +59,7 @@ char *X10cmdnames[] = {
  */
 
 void
-logpacket(p)
-unsigned char *p;
+logpacket(unsigned char *p)
 {
   fprintf(Log, "%s:  %s %s ", thedate(),
 	  X10housenames[p[1]], X10cmdnames[p[2]]);
@@ -77,8 +76,7 @@ unsigned char *p;
  */
 
 void
-processpacket(p)
-unsigned char *p;
+processpacket(unsigned char *p)
 {
   int i, j, h, k;
   STATUS *s;

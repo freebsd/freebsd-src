@@ -42,14 +42,14 @@ static const char rcsid[] =
 #include "xten.h"
 #include "paths.h"
 
-void printstatus __P((FILE *, STATUS *));
+void printstatus(FILE *, STATUS *);
 
 /*
  * Initialize the status table from the status files
  */
 
 void
-initstatus()
+initstatus(void)
 {
   if(lseek(status, 0, SEEK_SET) != 0) {
     fprintf(Log, "%s:  Seek error on status file\n", thedate());
@@ -67,7 +67,7 @@ initstatus()
  */
 
 void
-checkpoint_status()
+checkpoint_status(void)
 {
   int h, i, k, offset;
 
@@ -108,7 +108,8 @@ checkpoint_status()
 
 int client;
 
-void clientgone()
+void
+clientgone(void)
 {
     fprintf(Log, "%s:  Deleting monitor table entry %d, client gone\n", thedate(), client);
     fclose(Monitor[client].user);
