@@ -125,10 +125,10 @@ midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len, int *lenw, midi_callbac
 			*lenw += lwrt;
 			len -= lwrt;
 			data += lwrt;
-
-			if (cb != NULL)
-				(*cb)(d, reason);
 		}
+
+		if (cb != NULL)
+			(*cb)(d, reason);
 
 		/* Have we got still more data to write? */
 		if (len > 0) {

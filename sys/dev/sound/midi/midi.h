@@ -45,6 +45,7 @@
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <sys/kernel.h> /* for DATA_SET */
 
@@ -98,14 +99,14 @@ struct _mididev_info {
 	 * the first part of the descriptor is filled up from a
 	 * template.
 	 */
-	char name[64];
+	char		name[64];
 
-	int type;
+	int		type;
 
-	d_open_t *open;
-	d_close_t *close;
-	d_ioctl_t *ioctl;
-	midi_callback_t *callback;
+	d_open_t	*open;
+	d_close_t	*close;
+	d_ioctl_t	*ioctl;
+	midi_callback_t	*callback;
 
 	/*
 	 * combinations of the following flags are used as second argument in
@@ -137,20 +138,23 @@ struct _mididev_info {
 	 * not in the common structure.
 	 */
 
-	int unit; /* unit number of the device */
-	void *softc; /* softc for the device */
-	device_t dev; /* device_t for the device */
+	int		unit;	/* unit number of the device */
+	int		midiunit;	/* unit number for midi devices */
+	int		synthunit;	/* unit number for synth devices */
+	int		mdtype;	/* MDT_MIDI or MDT_SYNTH */
+	void		*softc;	/* softc for the device */
+	device_t	dev;	/* device_t for the device */
 
-	int bd_id ;     /* used to hold board-id info, eg. sb version,
-			 * mss codec type, etc. etc.
-			 */
+	int		bd_id;	/* used to hold board-id info, eg. sb version,
+				 * mss codec type, etc. etc.
+				 */
 
-	struct mtx flagqueue_mtx; /* Mutex to protect flags and queues */
+	struct mtx	flagqueue_mtx;	/* Mutex to protect flags and queues */
 
 	/* Queues */
-	midi_dbuf midi_dbuf_in; /* midi input event/message queue */
-	midi_dbuf midi_dbuf_out; /* midi output event/message queue */
-	midi_dbuf midi_dbuf_passthru; /* midi passthru event/message queue */
+	midi_dbuf	midi_dbuf_in;		/* midi input event/message queue */
+	midi_dbuf	midi_dbuf_out;		/* midi output event/message queue */
+	midi_dbuf	midi_dbuf_passthru;	/* midi passthru event/message queue */
 
         /*
          * these parameters describe the operation of the board.
@@ -158,8 +162,8 @@ struct _mididev_info {
          */
 
 	/* Flags */
-	volatile u_long  flags ;     /* 32 bits, used for various purposes. */
-	int fflags; /* file flag */
+	volatile u_long	flags;	/* 32 bits, used for various purposes. */
+	int		fflags;	/* file flag */
 
 	/*
 	 * we have separate flags for read and write, although in some
@@ -210,29 +214,29 @@ struct _mididev_info {
 	 */
 #define MIDI_F_INIT              0x4000  /* changed parameters. need init */
 
-	int     play_blocksize, rec_blocksize;  /* blocksize for io and dma ops */
+	int		play_blocksize, rec_blocksize;	/* blocksize for io and dma ops */
 
 #define mwsel midi_dbuf_out.sel
 #define mrsel midi_dbuf_in.sel
-	u_long	interrupts;	/* counter of interrupts */
-	u_long	magic;
+	u_long		nterrupts;	/* counter of interrupts */
+	u_long		magic;
 #define	MAGIC(unit) ( 0xa4d10de0 + unit )
-	void    *device_data ;	/* just in case it is needed...*/
+	void		*device_data ;	/* just in case it is needed...*/
 
-	midi_intr_t	*intr;	/* interrupt handler of the upper layer (ie sequencer) */
+	midi_intr_t	*intr;		/* interrupt handler of the upper layer (ie sequencer) */
 	void		*intrarg;	/* argument to interrupt handler */
 
 	/* The following is the interface from a midi sequencer to a midi device. */
-	synthdev_info synth;
+	synthdev_info	synth;
 
 	/* This is the status message to display via /dev/midistat */
-	char midistat[128];
+	char		midistat[128];
 
 	/* The tailq entry of the next midi device. */
-	TAILQ_ENTRY(_mididev_info) md_link;
+	TAILQ_ENTRY(_mididev_info)	md_link;
 
 	/* The tailq entry of the next midi device opened by a sequencer. */
-	TAILQ_ENTRY(_mididev_info) md_linkseq;
+	TAILQ_ENTRY(_mididev_info)	md_linkseq;
 } ;
 
 /*
@@ -267,17 +271,7 @@ struct _mididev_info {
  */
 #define MIDI_BUFFSIZE (1024) /* XXX */
 
-/*
- * some macros for debugging purposes
- * DDB/DEB to enable/disable debugging stuff
- * BVDDB   to enable debugging when bootverbose
- */
-#define DDB(x)	x	/* XXX */
-#define BVDDB(x) if (bootverbose) x
-
-#ifndef DEB
-#define DEB(x)
-#endif
+#ifdef _KERNEL
 
 /* This is the generic midi drvier initializer. */
 	int midiinit(mididev_info *d, device_t dev);
@@ -285,8 +279,12 @@ struct _mididev_info {
 /* This provides an access to the mididev_info. */
 	mididev_info *get_mididev_info(dev_t i_dev, int *unit);
 	mididev_info *get_mididev_info_unit(int unit);
+	mididev_info *get_mididev_midi_unit(int unit);
+	mididev_info *get_mididev_synth_unit(int unit);
 	mididev_info *create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf);
 	int mididev_info_number(void);
+	int mididev_midi_number(void);
+	int mididev_synth_number(void);
 #define MDT_MIDI	(0)
 #define MDT_SYNTH	(1)
 
@@ -299,10 +297,32 @@ struct _mididev_info {
 	d_poll_t midi_poll;
 
 /* Common interrupt handler */
-void midi_intr(mididev_info *);
+void	midi_intr(mididev_info *);
 
 /* Sync output */
-int midi_sync(mididev_info *);
+int	midi_sync(mididev_info *);
+
+struct _midi_cmdtab {
+	int	cmd;
+	char *	name;
+};
+typedef struct _midi_cmdtab	midi_cmdtab;
+
+char	*midi_cmdname(int cmd, midi_cmdtab *tab);
+
+SYSCTL_DECL(_hw_midi);
+
+extern int	midi_debug;
+#define MIDI_DEBUG(x)			\
+	do {				\
+		if (midi_debug) {	\
+			(x);		\
+		}			\
+	} while(0)
+
+extern midi_cmdtab	cmdtab_midiioctl[];
+
+#endif /* _KERNEL */
 
 /*
  * Minor numbers for the midi driver.
