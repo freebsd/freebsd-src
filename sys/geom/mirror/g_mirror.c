@@ -896,8 +896,7 @@ g_mirror_sync_one(struct g_mirror_disk *disk)
 	bp->bio_parent = NULL;
 	bp->bio_cmd = BIO_READ;
 	bp->bio_offset = disk->d_sync.ds_offset;
-	bp->bio_length = MIN(G_MIRROR_SYNC_BLOCK_SIZE,
-	    sc->sc_mediasize - bp->bio_offset);
+	bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
 	bp->bio_cflags = 0;
 	bp->bio_done = g_mirror_sync_done;
 	bp->bio_data = disk->d_sync.ds_data;
@@ -980,8 +979,7 @@ g_mirror_sync_request(struct bio *bp)
 			g_mirror_event_send(disk, G_MIRROR_DISK_STATE_ACTIVE,
 			    G_MIRROR_EVENT_DONTWAIT);
 			return;
-		} else if (sync->ds_offset_done %
-		    (G_MIRROR_SYNC_BLOCK_SIZE * 100) == 0) {
+		} else if (sync->ds_offset_done % (MAXPHYS * 100) == 0) {
 			/*
 			 * Update offset_done on every 100 blocks.
 			 * XXX: This should be configurable.
@@ -1236,8 +1234,7 @@ g_mirror_register_request(struct bio *bp)
 				    (bp->bio_offset < sync->ds_resync ||
 				     sync->ds_resync == -1)) {
 					sync->ds_resync = bp->bio_offset -
-					    (bp->bio_offset %
-					    G_MIRROR_SYNC_BLOCK_SIZE);
+					    (bp->bio_offset % MAXPHYS);
 				}
 				break;
 			default:
@@ -1574,8 +1571,7 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	error = g_access(disk->d_sync.ds_consumer, 1, 0, 0);
 	KASSERT(error == 0, ("Cannot open %s (error=%d).",
 	    disk->d_softc->sc_name, error));
-	disk->d_sync.ds_data = malloc(G_MIRROR_SYNC_BLOCK_SIZE, M_MIRROR,
-	    M_WAITOK);
+	disk->d_sync.ds_data = malloc(MAXPHYS, M_MIRROR, M_WAITOK);
 	sc->sc_sync.ds_ndisks++;
 }
 
