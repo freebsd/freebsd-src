@@ -1388,14 +1388,6 @@ device		amr		# AMI MegaRAID
 device		twe		# 3ware ATA RAID
 
 #
-# 3ware 9000 series PATA/SATA RAID controller driver and options.
-# The driver is implemented as a SIM, and so, needs the CAM infrastructure.
-#
-options		TWA_DEBUG		# 0-10; 10 prints the most messages.
-options		TWA_FLASH_FIRMWARE	# firmware image bundled when defined.
-device		twa			# 3ware 9000 series PATA/SATA RAID
-
-#
 # The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
 # devices. You only need one "device ata" for it to find all
 # PCI and PC Card ATA/ATAPI devices on modern machines.
