@@ -480,6 +480,8 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		ssize = read(s, &buf[size], (size_t)onreadlen);
 		if (ssize == -1)
 			iderror(0, 0, s, errno);
+		else if (ssize == 0)
+			break;
 		bufsiz -= ssize;
 		size += ssize;
  	}
