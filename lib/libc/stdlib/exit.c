@@ -42,6 +42,15 @@ static char sccsid[] = "@(#)exit.c	8.1 (Berkeley) 6/4/93";
 void (*__cleanup)();
 
 /*
+ * This variable is zero until a process has created a thread.
+ * It is used to avoid calling locking functions in libc when they
+ * are not required. By default, libc is intended to be(come)
+ * thread-safe, but without a (significant) penalty to non-threaded
+ * processes.
+ */
+int	__isthreaded	= 0;
+
+/*
  * Exit, flushing stdio buffers if necessary.
  */
 void
