@@ -466,7 +466,17 @@ archive_write_pax_header(struct archive *a,
 		if (rdevmajor >= (1 << 18)) {
 			add_pax_attr_int(&(pax->pax_header), "SCHILY.devmajor",
 			    rdevmajor);
-			archive_entry_set_rdevmajor(entry_main, (1 << 18) - 1);
+			/*
+			 * Non-strict formatting below means we don't
+			 * have to truncate here.  Not truncating improves
+			 * the chance that some more modern tar archivers
+			 * (such as GNU tar 1.13) can restore the full
+			 * value even if they don't understand the pax
+			 * extended attributes.  See my rant below about
+			 * file size fields for additional details.
+			 */
+			/* archive_entry_set_rdevmajor(entry_main,
+			   rdevmajor & ((1 << 18) - 1)); */
 			need_extension = 1;
 		}
 
@@ -477,7 +487,9 @@ archive_write_pax_header(struct archive *a,
 		if (rdevminor >= (1 << 18)) {
 			add_pax_attr_int(&(pax->pax_header), "SCHILY.devminor",
 			    rdevminor);
-			archive_entry_set_rdevminor(entry_main, (1 << 18) - 1);
+			/* Truncation is not necessary here, either. */
+			/* archive_entry_set_rdevminor(entry_main,
+			   rdevminor & ((1 << 18) - 1)); */
 			need_extension = 1;
 		}
 	}
@@ -513,7 +525,7 @@ archive_write_pax_header(struct archive *a,
 	 * The following items are handled differently in "pax
 	 * restricted" format.  In particular, in "pax restricted"
 	 * format they won't be added unless need_extension is
-	 * already set (we're already generated an extended header, so
+	 * already set (we're already generating an extended header, so
 	 * may as well include these).
 	 */
 	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
