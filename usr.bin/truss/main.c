@@ -4,7 +4,7 @@
  * do a lot of the work :).
  */
 /*
- * $Id: main.c,v 1.1 1997/12/06 05:23:03 sef Exp $
+ * $Id: main.c,v 1.2 1997/12/06 14:39:30 peter Exp $
  */
 
 #include <stdio.h>
@@ -50,6 +50,7 @@ struct ex_types {
   void (*exit_syscall)(int, int);
 } ex_types[] = {
   { "FreeBSD a.out", i386_syscall_entry, i386_syscall_exit },
+  { "FreeBSD ELF", i386_syscall_entry, i386_syscall_exit },
   { "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
   { 0, 0, 0 },
 };
@@ -73,7 +74,7 @@ set_etype() {
   } else {
     int len = read(fd, progtype, sizeof(progtype));
     progtype[len-1] = '\0';
-    close(etype);
+    close(fd);
   }
 
   for (funcs = ex_types; funcs->type; funcs++)
