@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.16 1997/06/09 01:20:19 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.17 1997/06/12 07:35:09 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -152,7 +152,7 @@ tcpOpenDialog(Device *devp)
     WINDOW              *ds_win, *save = NULL;
     ComposeObj          *obj = NULL;
     int                 n = 0, cancel = FALSE;
-    int			max, ret;
+    int			max, ret = DITEM_SUCCESS;
     char                *tmp;
     char		title[80];
 
