@@ -904,16 +904,15 @@ in6_ifdetach(ifp)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = in6addr_linklocal_allnodes;
 	sin6.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+	/* XXX grab lock first to avoid LOR */
+	RADIX_NODE_HEAD_LOCK(rt_tables[AF_INET6]);
 	rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
 	if (rt) {
-		if (rt->rt_ifp == ifp) {
-			RT_UNLOCK(rt);
-			rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
-			    rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
-			RTFREE(rt);
-		} else
-			rtfree(rt);
+		if (rt->rt_ifp == ifp)
+			rtexpunge(rt);
+		RTFREE_LOCKED(rt);
 	}
+	RADIX_NODE_HEAD_UNLOCK(rt_tables[AF_INET6]);
 }
 
 void

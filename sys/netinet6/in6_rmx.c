@@ -167,17 +167,12 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 				rt2->rt_flags & RTF_HOST &&
 				rt2->rt_gateway &&
 				rt2->rt_gateway->sa_family == AF_LINK) {
-				/* NB: must unlock to avoid recursion */
-				RT_UNLOCK(rt2);
-				rtrequest(RTM_DELETE,
-					  (struct sockaddr *)rt_key(rt2),
-					  rt2->rt_gateway,
-					  rt_mask(rt2), rt2->rt_flags, 0);
+				rtexpunge(rt2);
+				RTFREE_LOCKED(rt2);
 				ret = rn_addroute(v_arg, n_arg, head,
 					treenodes);
-				RT_LOCK(rt2);
-			}
-			RTFREE_LOCKED(rt2);
+			} else
+				RTFREE_LOCKED(rt2);
 		}
 	} else if (ret == NULL && rt->rt_flags & RTF_CLONING) {
 		struct rtentry *rt2;
@@ -276,13 +271,7 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 		rt->rt_flags |= RTPRF_OURS;
 		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
 	} else {
-		/* NB: must unlock to avoid recursion */
-		RT_UNLOCK(rt);
-		rtrequest(RTM_DELETE,
-			  (struct sockaddr *)rt_key(rt),
-			  rt->rt_gateway, rt_mask(rt),
-			  rt->rt_flags, 0);
-		RT_LOCK(rt);
+		rtexpunge(rt);
 	}
 }
 
