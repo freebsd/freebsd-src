@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.3 1998/04/06 09:12:37 brian Exp $
+ * $Id: timer.c,v 1.27.2.4 1998/04/07 00:54:22 brian Exp $
  *
  *  TODO:
  */
@@ -137,7 +137,7 @@ StopTimerNoBlock(struct pppTimer * tp)
     if (t->next)
       t->next->rest += tp->rest;
   } else
-    LogPrintf(LogERROR, "Oops, timer not found!!\n");
+    LogPrintf(LogERROR, "Oops, %s timer not found!!\n", tp->name);
 
   tp->next = NULL;
   tp->state = TIMER_STOPPED;

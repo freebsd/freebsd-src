@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.49 1998/04/16 22:11:46 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.50 1998/04/16 23:06:53 brian Exp $
  */
 
 #include <sys/types.h>
@@ -746,25 +746,6 @@ failed:
   LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, dst.s_addr, gateway.s_addr);
   close(s);
-}
-
-void
-bundle_LinkLost(struct bundle *bundle, struct physical *p, int staydown)
-{
-  /*
-   * Locate the appropriate datalink, and Down it.
-   *
-   * The LayerFinish() called from the datalinks LCP will 
-   * potentially Down our NCPs (if it's the last link).
-   *
-   * The LinkClosed() called when the datalink is finally in
-   * the CLOSED state MAY cause the entire datalink to be deleted
-   * and MAY cause a program exit.
-   */
-
-  if (p->type == PHYS_STDIN || bundle->CleaningUp)
-    staydown = 1;
-  datalink_Down(p->dl, staydown);
 }
 
 void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.49 1998/04/10 23:51:30 brian Exp $
+ * $Id: modem.c,v 1.77.2.50 1998/04/16 00:26:09 brian Exp $
  *
  *  TODO:
  */
@@ -79,7 +79,6 @@
 #endif
 #endif
 
-static void modem_Hangup(struct physical *, int);
 static void modem_DescriptorWrite(struct descriptor *, struct bundle *,
                                   const fd_set *);
 static void modem_DescriptorRead(struct descriptor *, struct bundle *,
@@ -287,8 +286,7 @@ modem_Timeout(void *data)
     if (to->modem->fd >= 0) {
       if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-        modem_Hangup(to->modem, 0);
-        bundle_LinkLost(to->bundle, to->modem, 0);
+        datalink_Down(to->modem->dl, 0);
 	return;
       }
     } else
@@ -303,8 +301,8 @@ modem_Timeout(void *data)
 	 */
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
-        modem_Hangup(to->modem, 0);
-        bundle_LinkLost(to->bundle, to->modem, 0);
+        LogPrintf(LogPHASE, "%s: Carrier lost\n", to->modem->link.name);
+        datalink_Down(to->modem->dl, 0);
       }
     }
     else
@@ -520,22 +518,18 @@ modem_Open(struct physical *modem, struct bundle *bundle)
     strncpy(tmpDeviceList, modem->cfg.devlist, sizeof tmpDeviceList - 1);
     tmpDeviceList[sizeof tmpDeviceList - 1] = '\0';
 
-    for(tmpDevice=strtok(tmpDeviceList, ", "); tmpDevice && (modem->fd < 0);
+    for(tmpDevice=strtok(tmpDeviceList, ", "); tmpDevice && modem->fd < 0;
 	tmpDevice=strtok(NULL,", ")) {
       modem_SetDevice(modem, tmpDevice);
 
       if (*modem->name.full == '/') {
-	if (modem_lock(modem, bundle->unit) == -1)
-	  modem->fd = -1;
-	else {
+	if (modem_lock(modem, bundle->unit) != -1) {
 	  modem->fd = ID0open(modem->name.full, O_RDWR | O_NONBLOCK);
 	  if (modem->fd < 0) {
 	    LogPrintf(LogERROR, "modem_Open failed: %s: %s\n", modem->name.full,
 		      strerror(errno));
 	    modem_Unlock(modem);
-	    modem->fd = -1;
-	  }
-	  else {
+	  } else {
 	    modem_Found(modem, bundle);
 	    LogPrintf(LogDEBUG, "modem_Open: Modem is %s\n", modem->name.full);
 	  }
@@ -712,22 +706,10 @@ modem_PhysicalClose(struct physical *modem)
   LogPrintf(LogDEBUG, "modem_PhysicalClose\n");
   close(modem->fd);
   modem->fd = -1;
+  StopTimer(&modem->link.Timer);
+  bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
+  throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, "Modem");
-}
-
-static int force_hack;
-
-static void
-modem_Hangup(struct physical *modem, int dedicated_force)
-{
-  /* We're about to close (pre hangup script) */
-
-  force_hack = dedicated_force;
-  if (modem->fd >= 0) {
-    StopTimer(&modem->link.Timer);
-    throughput_stop(&modem->link.throughput);
-    bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
-  }
 }
 
 void
@@ -757,9 +739,6 @@ modem_Close(struct physical *modem)
 
   LogPrintf(LogDEBUG, "Close modem\n");
 
-  if (modem->link.Timer.load)
-    modem_Hangup(modem, force_hack);
-
   if (!isatty(modem->fd)) {
     modem_PhysicalClose(modem);
     *modem->name.full = '\0';
@@ -768,18 +747,9 @@ modem_Close(struct physical *modem)
   }
 
   if (modem->fd >= 0) {
-    if (force_hack || modem->type != PHYS_DEDICATED) {
-      tcflush(modem->fd, TCIOFLUSH);
-      modem_Unraw(modem);
-      modem_LogicalClose(modem);
-    } else {
-      /*
-       * If we are working as dedicated mode, never close it until we are
-       * directed to quit program.
-       */
-      modem->mbits |= TIOCM_DTR;
-      ioctl(modem->fd, TIOCMSET, &modem->mbits);
-    }
+    tcflush(modem->fd, TCIOFLUSH);
+    modem_Unraw(modem);
+    modem_LogicalClose(modem);
   }
 }
 
@@ -827,8 +797,7 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
       if (errno != EAGAIN) {
 	LogPrintf(LogERROR, "modem write (%d): %s\n", modem->fd,
 		  strerror(errno));
-        modem_Hangup(modem, 0);
-        bundle_LinkLost(bundle, modem, 0);
+        datalink_Down(modem->dl, 0);
       }
     }
   }
@@ -929,10 +898,9 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     nointr_usleep(10000);
 
   n = Physical_Read(p, rbuff, sizeof rbuff);
-  if (p->type == PHYS_STDIN && n <= 0) {
-    modem_Hangup(p, 0);
-    bundle_LinkLost(bundle, p, 1);
-  } else
+  if (p->type == PHYS_STDIN && n <= 0)
+    datalink_Down(p->dl, 0);
+  else
     LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
   if (p->link.lcp.fsm.state <= ST_CLOSED) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.37 1998/04/14 23:17:04 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.38 1998/04/16 00:25:56 brian Exp $
  */
 
 #include <sys/types.h>
@@ -67,6 +67,7 @@
 #include "datalink.h"
 
 static const char *datalink_State(struct datalink *);
+static void datalink_LoginDone(struct datalink *);
 
 static void
 datalink_OpenTimeout(void *v)
@@ -102,6 +103,13 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
 static void
 datalink_HangupDone(struct datalink *dl)
 {
+  if (dl->physical->type == PHYS_DEDICATED && !dl->bundle->CleaningUp &&
+      Physical_GetFD(dl->physical) != -1) {
+    /* Don't close our modem if the link is dedicated */
+    datalink_LoginDone(dl);
+    return;
+  }
+
   modem_Close(dl->physical);
   dl->phone.chosen = "N/A";
 
@@ -167,8 +175,12 @@ datalink_LoginDone(struct datalink *dl)
       dl->state = DATALINK_HANGUP;
       modem_Offline(dl->physical);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
-    } else
+    } else {
+      if (dl->physical->type == PHYS_DEDICATED)
+        /* force a redial timeout */
+        modem_Close(dl->physical);
       datalink_HangupDone(dl);
+    }
   } else {
     dl->dial_tries = -1;
 
