@@ -122,7 +122,7 @@
 #include "actbl.h"
 
 
-/*
+ /*
  * Global interfaces
  */
 
@@ -139,6 +139,10 @@ AcpiTerminate (
     void);
 
 ACPI_STATUS
+AcpiSubsystemStatus (
+    void);
+
+ACPI_STATUS
 AcpiEnable (
     void);
 
@@ -147,13 +151,12 @@ AcpiDisable (
     void);
 
 ACPI_STATUS
-AcpiGetSystemInfo(
+AcpiGetSystemInfo (
     ACPI_BUFFER             *RetBuffer);
 
-ACPI_STATUS
+const char *
 AcpiFormatException (
-    ACPI_STATUS             Exception,
-    ACPI_BUFFER             *OutBuffer);
+    ACPI_STATUS             Exception);
 
 
 /*
@@ -179,11 +182,12 @@ AcpiFree (
 
 ACPI_STATUS
 AcpiFindRootPointer (
+    UINT32                  Flags,
     ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
 
 ACPI_STATUS
 AcpiLoadTables (
-    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress);
+    void);
 
 ACPI_STATUS
 AcpiLoadTable (
