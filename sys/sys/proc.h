@@ -36,23 +36,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.35 1997/04/07 09:35:15 peter Exp $
+ * $Id: proc.h,v 1.36 1997/04/26 11:46:21 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
 #define	_SYS_PROC_H_
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
+#if defined(KERNEL) && defined(SMP)
+#include <machine/smp.h>		/* cpunumber() */
+#endif
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #include <sys/queue.h>
 #include <sys/param.h>
-
-#ifdef KERNEL
-#include "opt_smp.h"
-#include <machine/smp.h>
-#endif
 
 /*
  * One structure allocated per session.
@@ -274,6 +272,7 @@ extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
 #ifdef SMP
+extern struct proc *SMPcurproc[];		/* Current running proc. */
 #define	curproc	(SMPcurproc[cpunumber()])
 #else /* !SMP */
 extern struct proc *curproc;		/* Current running proc. */
