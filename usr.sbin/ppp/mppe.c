@@ -369,40 +369,41 @@ MPPEDispOpts(struct lcp_opt *o)
   static char buf[70];
   u_int32_t val;
   char ch;
-  int len;
+  int len, n;
 
   ua_ntohl(o->data, &val);
-  snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val);
-  len = strlen(buf);
+  len = 0;
+  if ((n = snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val)) > 0)
+    len += n;
   if (!(val & MPPE_OPT_BITMASK)) {
-    snprintf(buf + len, sizeof buf - len, "(0");
-    len++;
+    if ((n = snprintf(buf + len, sizeof buf - len, "(0")) > 0)
+      len += n;
   } else {
     ch = '(';
     if (val & MPPE_OPT_128BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c128", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c128", ch)) > 0)
+        len += n;
       ch = '/';
     }
     if (val & MPPE_OPT_56BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c56", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c56", ch)) > 0)
+        len += n;
       ch = '/';
     }
     if (val & MPPE_OPT_40BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c40", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c40", ch)) > 0)
+        len += n;
       ch = '/';
     }
   }
 
-  snprintf(buf + len, sizeof buf - len, " bits, state%s",
-           (val & MPPE_OPT_STATELESS) ? "less" : "ful");
-  len += strlen(buf + len);
+  if ((n = snprintf(buf + len, sizeof buf - len, " bits, state%s",
+                    (val & MPPE_OPT_STATELESS) ? "less" : "ful")) > 0)
+    len += n;
 
   if (val & MPPE_OPT_COMPRESSED) {
-    snprintf(buf + len, sizeof buf - len, ", compressed");
-    len += strlen(buf + len);
+    if ((n = snprintf(buf + len, sizeof buf - len, ", compressed")) > 0)
+      len += n;
   }
 
   snprintf(buf + len, sizeof buf - len, ")");
