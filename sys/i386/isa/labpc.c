@@ -289,7 +289,7 @@ static	d_ioctl_t	labpcioctl;
 static	d_strategy_t	labpcstrategy;
 
 #define CDEV_MAJOR 66
-struct cdevsw labpc_cdevsw = 
+static struct cdevsw labpc_cdevsw = 
 	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
 	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
 	  seltrue,	nommap,		labpcstrategy, "labpc",	NULL,	-1 };

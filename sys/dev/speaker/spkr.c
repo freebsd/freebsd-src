@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.20 1995/11/29 14:39:59 julian Exp $
+ *    $Id: spkr.c,v 1.21 1995/12/08 11:15:21 julian Exp $
  */
 
 #include "speaker.h"
@@ -37,7 +37,7 @@ static	d_write_t	spkrwrite;
 static	d_ioctl_t	spkrioctl;
 
 #define CDEV_MAJOR 26
-struct cdevsw spkr_cdevsw = 
+static struct cdevsw spkr_cdevsw = 
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
 	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
 	  seltrue,	nommap,		NULL,	"spkr",	NULL,	-1 };

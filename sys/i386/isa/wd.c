@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.96 1995/12/07 12:46:12 davidg Exp $
+ *	$Id: wd.c,v 1.97 1995/12/08 11:15:43 julian Exp $
  */
 
 /* TODO:
@@ -311,11 +311,11 @@ static	d_strategy_t	wdstrategy;
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
 extern	struct cdevsw wd_cdevsw;
-struct bdevsw wd_bdevsw = 
+static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
 
-struct cdevsw wd_cdevsw = 
+static struct cdevsw wd_cdevsw = 
 	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
 	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
 	  seltrue,	nommap,		wdstrategy,	"wd",

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.36 1995/11/29 14:39:24 julian Exp $
+ *	$Id: cons.c,v 1.37 1995/12/08 11:13:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ static	d_ioctl_t	cnioctl;
 static	d_select_t	cnselect;
 
 #define CDEV_MAJOR 0
-struct cdevsw cn_cdevsw = 
+static struct cdevsw cn_cdevsw = 
 	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
 	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
 	  cnselect,	nommap,		NULL,	"console",	NULL,	-1 };

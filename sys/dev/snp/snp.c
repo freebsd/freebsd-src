@@ -44,7 +44,7 @@ static	d_ioctl_t	snpioctl;
 static	d_select_t	snpselect;
 
 #define CDEV_MAJOR 53
-struct cdevsw snp_cdevsw = 
+static struct cdevsw snp_cdevsw = 
 	{ snpopen,	snpclose,	snpread,	snpwrite,	/*53*/
 	  snpioctl,	nostop,		nullreset,	nodevtotty,/* snoop */
 	  snpselect,	nommap,		NULL,	"snp",	NULL,	-1 };

@@ -102,7 +102,7 @@ static	d_ioctl_t	crdioctl;
 static	d_select_t	crdselect;
 
 #define CDEV_MAJOR 50
-struct cdevsw crd_cdevsw = 
+static struct cdevsw crd_cdevsw = 
 	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
 	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
 	  crdselect,	nommap,		NULL,	"crd",	NULL,	-1 };

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.51 1995/11/29 14:39:46 julian Exp $
+ *	$Id: mcd.c,v 1.52 1995/12/08 11:14:34 julian Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -222,11 +222,11 @@ static	d_strategy_t	mcdstrategy;
 #define CDEV_MAJOR 29
 #define BDEV_MAJOR 7
 extern	struct cdevsw mcd_cdevsw;
-struct bdevsw mcd_bdevsw = 
+static struct bdevsw mcd_bdevsw = 
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  nxdump,	mcdsize,	0,	"mcd",	&mcd_cdevsw,	-1 };
 
-struct cdevsw mcd_cdevsw = 
+static struct cdevsw mcd_cdevsw = 
 	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
 	  mcdioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		mcdstrategy,	"mcd",

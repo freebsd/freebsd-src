@@ -102,11 +102,11 @@ static	d_strategy_t	vnstrategy;
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
 extern	struct cdevsw vn_cdevsw;
-struct bdevsw vn_bdevsw = 
+static struct bdevsw vn_bdevsw = 
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
 	  vndump,	vnsize,		0,	"vn",	&vn_cdevsw,	-1 };
 
-struct cdevsw vn_cdevsw = 
+static struct cdevsw vn_cdevsw = 
 	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
 	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
 	  seltrue,	nommap,		vnstrategy,	"vn",

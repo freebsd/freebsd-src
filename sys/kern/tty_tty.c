@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.7 1995/11/29 14:40:38 julian Exp $
+ * $Id: tty_tty.c,v 1.8 1995/12/08 11:17:17 julian Exp $
  */
 
 /*
@@ -57,6 +57,7 @@ static	d_ioctl_t	cttyioctl;
 static	d_select_t	cttyselect;
 
 #define CDEV_MAJOR 1
+/* Don't make static, fdesc_vnops uses this. */
 struct cdevsw ctty_cdevsw = 
 	{ cttyopen,	nullclose,	cttyread,	cttywrite,	/*1*/
 	  cttyioctl,	nullstop,	nullreset,	nodevtotty,/* tty */

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.18 1995/12/06 23:51:53 bde Exp $
+ * $Id: bpf.c,v 1.19 1995/12/08 11:18:01 julian Exp $
  */
 
 #include "bpfilter.h"
@@ -150,7 +150,7 @@ static	d_ioctl_t	bpfioctl;
 static	d_select_t	bpfselect;
 
 #define CDEV_MAJOR 23
-struct cdevsw bpf_cdevsw = 
+static struct cdevsw bpf_cdevsw = 
  	{ bpfopen,	bpfclose,	bpfread,	bpfwrite,	/*23*/
  	  bpfioctl,	nostop,		nullreset,	nodevtotty,/* bpf */
  	  bpfselect,	nommap,		NULL,	"bpf",	NULL,	-1 };

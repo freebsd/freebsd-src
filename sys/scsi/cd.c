@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.47 1995/11/29 14:40:51 julian Exp $
+ *      $Id: cd.c,v 1.48 1995/12/08 11:18:38 julian Exp $
  */
 
 #define SPLCD splbio
@@ -70,11 +70,11 @@ static	d_strategy_t	cdstrategy;
 #define CDEV_MAJOR 15
 #define BDEV_MAJOR 6
 extern	struct	cdevsw	cd_cdevsw;
-struct bdevsw cd_bdevsw = 
+static struct bdevsw cd_bdevsw = 
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
 	  nxdump,	cdsize,		0,	"cd",	&cd_cdevsw,	-1 };
 
-struct cdevsw cd_cdevsw = 
+static struct cdevsw cd_cdevsw = 
 	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
 	  cdioctl,	nostop,		nullreset,	nodevtotty,/* cd */
 	  seltrue,	nommap,		cdstrategy,	"cd",

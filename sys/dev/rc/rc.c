@@ -109,7 +109,7 @@ static	d_stop_t	rcstop;
 static	d_ttycv_t	rcdevtotty;
 
 #define CDEV_MAJOR 63
-struct cdevsw rc_cdevsw = 
+static struct cdevsw rc_cdevsw = 
 	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
 	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
 	  ttselect,	nommap,		NULL,	"rc",	NULL,	-1 };
