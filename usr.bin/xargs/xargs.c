@@ -395,7 +395,6 @@ addch:		if (p < ebp) {
 		*p++ = ch;
 		break;
 	}
-	return;
 }
 
 /*
