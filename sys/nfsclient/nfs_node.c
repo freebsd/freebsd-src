@@ -161,6 +161,16 @@ nfs_nhinit(void)
 }
 
 /*
+ * Release hash table resources
+ */
+void
+nfs_nhuninit(void)
+{
+	hashdestroy(nfsnodehashtbl, M_NFSHASH, nfsnodehash);
+	uma_zdestroy(nfsnode_zone);
+}
+
+/*
  * Look up a vnode/nfsnode by file handle.
  * Callers must check for mount points!!
  * In all cases, a pointer to a
