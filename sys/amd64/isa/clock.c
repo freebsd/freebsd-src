@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.7 1994/04/21 14:19:16 sos Exp $
+ *	$Id: clock.c,v 1.6 1994/02/06 22:48:13 davidg Exp $
  */
 
 /*
@@ -59,57 +59,78 @@
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
 
 void hardclock();
-static void findcpuspeed(void);
-
-static char timer0_in_use = 0, timer2_in_use = 0;
-static int timer0_rate = 100;	/* XXX should be hz */
-static void (*timer_func)() = hardclock;
-static unsigned int prescale = 0;
-static unsigned int hardclock_prescale;
-static int beeping;
-unsigned int delaycount;	/* calibrated loop variable (1 millisecond) */
+static 	int beeping;
+int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
+u_int 	timer0_prescale;
+static 	char timer0_state = 0, timer2_state = 0;
+static 	char timer0_reprogram = 0;
+static 	void (*timer_func)() = hardclock;
+static 	void (*new_function)();
+static 	u_int new_rate;
+static 	u_int hardclock_divisor;
 
 
 void
 timerintr(struct intrframe frame)
 {
 	timer_func(frame);
-	if (timer0_in_use)
-		if (prescale++ >= hardclock_prescale) {
+	switch (timer0_state) {
+	case 0:
+		break;
+	case 1:
+		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
 			hardclock(frame);
-			prescale = 0;
+			timer0_prescale = 0;
 		}
+		break;
+	case 2:
+		disable_intr();
+		outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
+		outb(TIMER_CNTR0, TIMER_DIV(new_rate)%256);
+		outb(TIMER_CNTR0, TIMER_DIV(new_rate)/256);
+		enable_intr();
+		timer0_divisor = TIMER_DIV(new_rate);
+		timer0_prescale = 0;
+		timer_func = new_function;
+		timer0_state = 1;
+		break;
+	case 3:
+		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
+			hardclock(frame);
+			disable_intr();
+			outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
+			outb(TIMER_CNTR0, TIMER_DIV(hz)%256);
+			outb(TIMER_CNTR0, TIMER_DIV(hz)/256);
+			enable_intr();
+			timer0_divisor = TIMER_DIV(hz);
+			timer0_prescale = 0;
+			timer_func = hardclock;;
+			timer0_state = 0;
+		}
+		break;
+	}
 }
 
 
 int
 acquire_timer0(int rate, void (*function)() )
 {
-#ifndef INACCURATE_MICROTIME_IS_OK
-	return -1;
-#else
-	if (timer0_in_use) 	/*  XXX || (rate < 20000 && rate % hz)) */
+	if (timer0_state || !function) 	
 		return -1;
-	timer0_in_use = 1;
-	timer0_rate = rate;
-	prescale = 0;
-	hardclock_prescale = rate/hz;
-	outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
-	outb(TIMER_CNTR0, TIMER_DIV(rate)%256);
-	outb(TIMER_CNTR0, TIMER_DIV(rate)/256);
-	if (function)
-		timer_func = function;
+
+	new_function = function;
+	new_rate = rate;
+	timer0_state = 2;
 	return 0;
-#endif
 }
 
 
 int
 acquire_timer2(int mode)
 {
-	if (timer2_in_use) 	
+	if (timer2_state) 	
 		return -1;
-	timer2_in_use = 1;
+	timer2_state = 1;
 	outb(TIMER_MODE, TIMER_SEL2 | (mode &0x3f));
 	return 0;
 }
@@ -118,14 +139,9 @@ acquire_timer2(int mode)
 int
 release_timer0()
 {
-	if (!timer0_in_use)
+	if (!timer0_state)
 		return -1;
-	timer0_in_use = 0;
-	timer0_rate = hz;
-	outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
-	outb(TIMER_CNTR0, TIMER_DIV(hz)%256);
-	outb(TIMER_CNTR0, TIMER_DIV(hz)/256);
-	timer_func = hardclock;
+	timer0_state = 3;
 	return 0;
 }
 
@@ -133,9 +149,9 @@ release_timer0()
 int
 release_timer2()
 {
-	if (!timer2_in_use)
+	if (!timer2_state)
 		return -1;
-	timer2_in_use = 0;
+	timer2_state = 0;
 	outb(TIMER_MODE, TIMER_SEL2|TIMER_SQWAVE|TIMER_16BIT);
 	return 0;
 }
@@ -147,7 +163,6 @@ getit()
 	int high, low;
 
 	disable_intr();
-
 	/* select timer0 and latch counter value */
 	outb(TIMER_MODE, TIMER_SEL0);
 	low = inb(TIMER_CNTR0);
@@ -201,14 +216,13 @@ DELAY(int n)
 		     + usec * ((TIMER_FREQ % 1000000) / 1000) / 1000
 		     + usec * (TIMER_FREQ % 1000) / 1000000;
 
-	counter_limit = TIMER_FREQ/timer0_rate;
 	while (ticks_left > 0) {
 		tick = getit(0, 0);
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
 		if (tick > prev_tick)
-			ticks_left -= prev_tick - (tick - counter_limit);
+			ticks_left -= prev_tick - (tick - timer0_divisor);
 		else
 			ticks_left -= prev_tick - tick;
 		prev_tick = tick;
@@ -222,7 +236,7 @@ DELAY(int n)
 
 
 static void
-sysbeepstop() /* SOS XXX dummy is not needed */
+sysbeepstop()
 {
 	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
 	release_timer2();
@@ -236,8 +250,10 @@ sysbeep(int pitch, int period)
 
 	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT)) 
 		return -1;
+	disable_intr();
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
+	enable_intr();
 	if (!beeping) {
 	outb(IO_PPI, inb(IO_PPI) | 3);	/* enable counter2 output to speaker */
 		beeping = period;
@@ -252,15 +268,13 @@ startrtclock()
 {
 	int s;
 
-	findcpuspeed();		/* use the clock (while it's free)
-					to find the cpu speed */
 	/* initialize 8253 clock */
 	outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
 
 	/* Correct rounding will buy us a better precision in timekeeping */
 	outb (IO_TIMER1, TIMER_DIV(hz)%256);
 	outb (IO_TIMER1, TIMER_DIV(hz)/256);
-	timer0_rate = hz;
+	timer0_divisor = hardclock_divisor = TIMER_DIV(hz);
 
 	/* initialize brain-dead battery powered clock */
 	outb (IO_RTC, RTC_STATUSA);
@@ -271,30 +285,6 @@ startrtclock()
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
-}
-
-
-#define FIRST_GUESS	0x2000
-static void
-findcpuspeed()
-{
-	unsigned char low;
-	unsigned int remainder;
-
-	/* Put counter in count down mode */
-	outb(TIMER_MODE, TIMER_16BIT|TIMER_RATEGEN);
-	outb(IO_TIMER1, 0xff);
-	outb(IO_TIMER1, 0xff);
-	delaycount = FIRST_GUESS;
-	spinwait(1);
-	/* Read the value left in the counter */
-	low 	= inb(IO_TIMER1);	/* least siginifcant */
-	remainder = inb(IO_TIMER1);	/* most significant */
-	remainder = (remainder<<8) + low ;
-	/* Formula for delaycount is :
-	 *  (loopcount * timer clock speed)/ (counter ticks * 1000)
-	 */
-	delaycount = (FIRST_GUESS * (TIMER_FREQ/1000)) / (0xffff-remainder);
 }
 
 
@@ -368,7 +358,7 @@ inittodr(time_t base)
 	if (sec < 1970)
 		sec += 100;
 
-	leap = !(sec % 4); sec = ytos(sec); /* year    */
+	leap = !(sec % 4); sec = ytos(sec); 			/* year    */
 	yd = mtos(bcd(rtcin(RTC_MONTH)),leap); sec+=yd;		/* month   */
 	t = (bcd(rtcin(RTC_DAY))-1) * 24*60*60; sec+=t; yd+=t;	/* date    */
 	day_week = rtcin(RTC_WDAY);				/* day     */
