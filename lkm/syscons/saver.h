@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: saver.h,v 1.9 1997/07/15 14:48:11 yokota Exp $
+ *  $Id: saver.h,v 1.4.2.1 1997/09/02 10:36:40 yokota Exp $
  */
 
 #include <machine/apm_bios.h>
@@ -36,7 +36,7 @@
 extern scr_stat	*cur_console;
 extern u_short	*Crtat;
 extern u_int	crtc_addr;
-extern char	crtc_vga;
+extern char	crtc_type;
 extern char	scr_map[];
 extern int	scrn_blanked;
 extern int	fonts_loaded;
