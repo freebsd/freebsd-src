@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.43 2002/11/09 18:06:11 ue Exp $
-	basiert auf: 1.114
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.45 2002/11/20 19:29:00 ue Exp $
+	basiert auf: 1.115
 -->
 
 <sect1>
@@ -1027,7 +1027,7 @@
 
     <para arch="i386">Die folgenden Treiber wurden zwar vom alten
       SCSI-Treibermodell unterst&uuml;tzt, wurden aber noch nicht
-      f&uuml;r das neue CAM-System umgeschrieben:
+      f&uuml;r das neue &man.cam.4;-System umgeschrieben:
       <itemizedlist>
         <listitem arch="i386">
           <para>NCR5380/NCR53400 (<quote>ProAudio Spectrum</quote>)
@@ -2404,8 +2404,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (sn
-      Treiber)</para>
+    <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT
+      (&man.sn.4; Treiber)</para>
 
     <para arch="i386">Netzwerkkarten mit Xircom X3201 (Cardbus), dazu
       geh&ouml;ren auch:
@@ -2889,7 +2889,7 @@
     </para>
 
     <para arch="i386,pc98">802.11 Karten mit AMD Am79C930 und Harris
-      (Intersil) (awi Treiber)
+      (Intersil) (&man.awi.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>BayStack 650 und 660</para>
