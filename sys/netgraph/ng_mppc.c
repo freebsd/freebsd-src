@@ -483,7 +483,7 @@ ng_mppc_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		outlen = MPPC_MAX_BLOWUP(inlen);
 	else
 		outlen = MPPC_HDRLEN + inlen;
-	MALLOC(outbuf, u_char *, outlen, M_NETGRAPH, M_WAITOK);
+	MALLOC(outbuf, u_char *, outlen, M_NETGRAPH, M_NOWAIT);
 	if (outbuf == NULL) {
 		FREE(inbuf, M_NETGRAPH);
 		return (ENOMEM);
