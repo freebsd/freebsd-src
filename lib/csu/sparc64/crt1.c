@@ -114,15 +114,11 @@ _start(char **ap,
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
-#if 0
 	atexit(_fini);
-#endif
 #ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
-#if 0
 	_init();
-#endif
 	exit( main(argc, argv, env) );
 }
 
