@@ -50,6 +50,8 @@
 /*#include <netncp/ncp_cfg.h>*/
 #include "ncp_mod.h"
 
+extern char *__progname;
+
 int sysentoffset;
 
 void
@@ -437,6 +439,7 @@ void
 ncp_error(char *fmt, int error,...) {
 	va_list ap;
 
+	fprintf(stderr, "%s: ", __progname);
 	va_start(ap, error);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);

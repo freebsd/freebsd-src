@@ -280,12 +280,12 @@ sap_find_nearest(int server_type, struct sockaddr_ipx *daddr, char *server_name)
 	packets = 5;
 	do {
 		len = sap_recv(sock, data, sizeof(data), 0, 1);
-		if (len < 66) {
-			packets++;
-			continue;
-		}
-	} while (ntohs(reply->operation) != IPX_SAP_NEAREST_RESPONSE &&
-		 packets > 0);
+		if (len >= 66 && 
+		    ntohs(reply->operation) == IPX_SAP_NEAREST_RESPONSE)
+			break;
+		if (len < 0)
+			packets--;
+	} while (packets > 0);
 
 	if (packets == 0) {
 		close(sock);
