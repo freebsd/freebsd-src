@@ -276,8 +276,10 @@ ssh_connect(char **host, struct sockaddr_storage * hostaddr,
 			}
 		}
 		if (ai) {
+#if 0
 			if (ai->ai_canonname != NULL)
 				*host = xstrdup(ai->ai_canonname);
+#endif
 			break;	/* Successful connection. */
 		}
 

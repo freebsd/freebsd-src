@@ -680,7 +680,7 @@ parse_flag:
 			break;
 
 		case sConnectionsPerPeriod:
-			fatal("ConnectionsPerPeriod has been deprecated.");
+			error("ConnectionsPerPeriod has been deprecated!");
 			break;
 
 		case sSubsystem:
