@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	getfacl
-SRCS=	getfacl.c
 LDADD=	-lposix1e
-CFLAGS+=	-g -Wall
+DPADD=	${LIBPOSIX1E}
 
 .include <bsd.prog.mk>
