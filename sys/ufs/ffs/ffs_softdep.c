@@ -5699,9 +5699,9 @@ clear_inodedeps(td)
 	for (ino = firstino; ino <= lastino; ino++) {
 		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
 			continue;
-		FREE_LOCK(&lk);
 		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 			continue;
+		FREE_LOCK(&lk);
 		if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);
