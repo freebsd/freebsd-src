@@ -63,6 +63,10 @@ __FBSDID("$FreeBSD$");
 
 __stdcall static uint32_t ntoskrnl_unicode_equal(ndis_unicode_string *,
 	ndis_unicode_string *, uint32_t);
+__stdcall static void ntoskrnl_unicode_copy(ndis_unicode_string *,
+	ndis_unicode_string *);
+__stdcall static uint32_t ntoskrnl_unicode_to_ansi(ndis_ansi_string *,
+	ndis_unicode_string *, uint8_t);
 __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
 __stdcall static uint32_t ntoskrnl_iofcalldriver(void *, void *);
@@ -142,8 +146,8 @@ ntoskrnl_unicode_equal(str1, str2, casesensitive)
 	ndis_unicode_string	*str2;
 	uint32_t		casesensitive;
 {
-	char		*astr1 = NULL, *astr2 = NULL;
-	int		rval = 1;
+	char			*astr1 = NULL, *astr2 = NULL;
+	int			rval = 1;
 
 	ndis_unicode_to_ascii(str1->nus_buf, str2->nus_len, &astr1);
 	ndis_unicode_to_ascii(str2->nus_buf, str2->nus_len, &astr2);
@@ -159,6 +163,42 @@ ntoskrnl_unicode_equal(str1, str2, casesensitive)
 	free(astr2, M_DEVBUF);
 
 	return(rval);
+}
+
+__stdcall static void
+ntoskrnl_unicode_copy(dest, src)
+	ndis_unicode_string	*dest;
+	ndis_unicode_string	*src;
+{
+
+	if (dest->nus_maxlen >= src->nus_len)
+		dest->nus_len = src->nus_len;
+	else
+		dest->nus_len = dest->nus_maxlen;
+	memcpy(dest->nus_buf, src->nus_buf, dest->nus_len);
+	return;
+}
+
+__stdcall static uint32_t
+ntoskrnl_unicode_to_ansi(dest, src, allocate)
+	ndis_ansi_string	*dest;
+	ndis_unicode_string	*src;
+	uint8_t			allocate;
+{
+	char			*astr = NULL;
+
+	if (allocate) {
+		ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr);
+		dest->nas_buf = astr;
+		dest->nas_len = dest->nas_maxlen = strlen(astr);
+	} else {
+		dest->nas_len = src->nus_len / 2; /* XXX */
+		if (dest->nas_maxlen < dest->nas_len)
+			dest->nas_len = dest->nas_maxlen;
+		ndis_unicode_to_ascii(src->nus_buf, dest->nas_len * 2,
+		    &dest->nas_buf);
+	}
+	return (NDIS_STATUS_SUCCESS);
 }
 
 __stdcall static void *
@@ -523,6 +563,8 @@ dummy()
 
 image_patch_table ntoskrnl_functbl[] = {
 	{ "RtlEqualUnicodeString",	(FUNC)ntoskrnl_unicode_equal },
+	{ "RtlCopyUnicodeString",	(FUNC)ntoskrnl_unicode_copy },
+	{ "RtlUnicodeStringToAnsiString", (FUNC)ntoskrnl_unicode_to_ansi },
 	{ "sprintf",			(FUNC)sprintf },
 	{ "DbgPrint",			(FUNC)printf },
 	{ "strncmp",			(FUNC)strncmp },

@@ -225,6 +225,7 @@ __stdcall static ndis_list_entry *ndis_insert_tail(ndis_list_entry *,
 __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
 __stdcall static void ndis_time(uint64_t *);
+__stdcall static void ndis_uptime(uint32_t *);
 __stdcall static void ndis_init_string(ndis_unicode_string **, char *);
 __stdcall static void ndis_init_ansi_string(ndis_ansi_string *, char *);
 __stdcall static void ndis_free_string(ndis_unicode_string *);
@@ -236,6 +237,11 @@ __stdcall static void ndis_firstbuf(ndis_packet *, ndis_buffer **,
 	void **, uint32_t *, uint32_t *);
 __stdcall static void ndis_firstbuf_safe(ndis_packet *, ndis_buffer **,
 	void **, uint32_t *, uint32_t *, uint32_t);
+__stdcall static void ndis_open_file(ndis_status *, ndis_handle *, uint32_t *,
+	ndis_unicode_string *, ndis_physaddr);
+__stdcall static void ndis_map_file(ndis_status *, void **, ndis_handle);
+__stdcall static void ndis_unmap_file(ndis_handle);
+__stdcall static void ndis_close_file(ndis_handle);
 __stdcall static void dummy(void);
 
 
@@ -2075,10 +2081,23 @@ ndis_time(tval)
 	uint64_t		*tval;
 {
 	struct timespec		ts;
+
 	nanotime(&ts);
-	*tval = (ts.tv_nsec / 100) + (ts.tv_nsec * 10000000);
-	*tval += 11644473600;
-	return;
+	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
+	    11644473600;
+}
+
+/*
+ * Return the number of milliseconds since the system booted.
+ */
+__stdcall static void
+ndis_uptime(tval)
+	uint32_t		*tval;
+{
+	struct timespec		ts;
+
+	nanouptime(&ts);
+	*tval = ts.tv_nsec / 1000000 + ts.tv_sec * 1000;
 }
 
 __stdcall static void
@@ -2189,6 +2208,50 @@ ndis_firstbuf_safe(packet, buf, firstva, firstlen, totlen, prio)
 	ndis_firstbuf(packet, buf, firstva, firstlen, totlen);
 }
 
+/* can also return NDIS_STATUS_RESOURCES/NDIS_STATUS_ERROR_READING_FILE */
+__stdcall static void
+ndis_open_file(status, filehandle, filelength, filename, highestaddr)
+	ndis_status		*status;
+	ndis_handle		*filehandle;
+	uint32_t		*filelength;
+	ndis_unicode_string	*filename;
+	ndis_physaddr		highestaddr;
+{
+	char			*afilename = NULL;
+
+	ndis_unicode_to_ascii(filename->nus_buf, filename->nus_len, &afilename);
+	printf("ndis_open_file(\"%s\", %ju)\n", afilename,
+	    highestaddr.np_quad);
+	free(afilename, M_DEVBUF);
+	*status = NDIS_STATUS_FILE_NOT_FOUND;
+	return;
+}
+
+__stdcall static void
+ndis_map_file(status, mappedbuffer, filehandle)
+	ndis_status		*status;
+	void			**mappedbuffer;
+	ndis_handle		filehandle;
+{
+
+	*status = NDIS_STATUS_ALREADY_MAPPED;
+	return;
+}
+
+__stdcall static void
+ndis_unmap_file(filehandle)
+	ndis_handle		filehandle;
+{
+	return;
+}
+
+__stdcall static void
+ndis_close_file(filehandle)
+	ndis_handle		filehandle;
+{
+	return;
+}
+
 __stdcall static void
 dummy()
 {
@@ -2212,6 +2275,7 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisInitializeString",	(FUNC)ndis_init_string },	
 	{ "NdisFreeString",		(FUNC)ndis_free_string },	
 	{ "NdisGetCurrentSystemTime",	(FUNC)ndis_time },
+	{ "NdisGetSystemUpTime",	(FUNC)ndis_uptime },
 	{ "NdisMSynchronizeWithInterrupt", (FUNC)ndis_sync_with_intr },
 	{ "NdisMAllocateSharedMemoryAsync", (FUNC)ndis_alloc_sharedmem_async },
 	{ "NdisInterlockedInsertHeadList", (FUNC)ndis_insert_head },
@@ -2285,6 +2349,10 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisUnchainBufferAtFront",	(FUNC)ndis_unchain_headbuf },
 	{ "NdisReadPcmciaAttributeMemory", (FUNC)ndis_read_pccard_amem },
 	{ "NdisWritePcmciaAttributeMemory", (FUNC)ndis_write_pccard_amem },
+	{ "NdisOpenFile",		(FUNC)ndis_open_file },
+	{ "NdisMapFile",		(FUNC)ndis_map_file },
+	{ "NdisUnmapFile",		(FUNC)ndis_unmap_file },
+	{ "NdisCloseFile",		(FUNC)ndis_close_file },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
