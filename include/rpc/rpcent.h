@@ -53,17 +53,17 @@ struct rpcent {
 };
 
 __BEGIN_DECLS
-extern struct rpcent *getrpcbyname_r __P((const char *, struct rpcent *,
-					  char *, int));
-extern struct rpcent *getrpcbynumber_r __P((int, struct rpcent *, char *, int));
-extern struct rpcent *getrpcent_r __P((struct rpcent *, char *, int));
+extern struct rpcent *getrpcbyname_r(const char *, struct rpcent *,
+				     char *, int);
+extern struct rpcent *getrpcbynumber_r(int, struct rpcent *, char *, int);
+extern struct rpcent *getrpcent_r(struct rpcent *, char *, int);
 
 /* Old interfaces that return a pointer to a static area;  MT-unsafe */
-extern struct rpcent *getrpcbyname	__P((char *));
-extern struct rpcent *getrpcbynumber	__P((int));
-extern struct rpcent *getrpcent		__P((void));
-extern void setrpcent __P((int));
-extern void endrpcent __P((void));
+extern struct rpcent *getrpcbyname(char *);
+extern struct rpcent *getrpcbynumber(int);
+extern struct rpcent *getrpcent(void);
+extern void setrpcent(int);
+extern void endrpcent(void);
 __END_DECLS
 
 #endif /* !_RPC_CENT_H */

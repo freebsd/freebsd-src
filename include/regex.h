@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)regex.h	8.2 (Berkeley) 1/3/94
+ * $FreeBSD$
  */
 
 #ifndef _REGEX_H_
@@ -96,11 +97,10 @@ typedef struct {
 #define	REG_BACKR	02000	/* force use of backref code */
 
 __BEGIN_DECLS
-int	regcomp __P((regex_t *, const char *, int));
-size_t	regerror __P((int, const regex_t *, char *, size_t));
-int	regexec __P((const regex_t *,
-	    const char *, size_t, regmatch_t [], int));
-void	regfree __P((regex_t *));
+int	regcomp(regex_t *, const char *, int);
+size_t	regerror(int, const regex_t *, char *, size_t);
+int	regexec(const regex_t *, const char *, size_t, regmatch_t [], int);
+void	regfree(regex_t *);
 __END_DECLS
 
 #endif /* !_REGEX_H_ */

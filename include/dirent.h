@@ -87,20 +87,20 @@ typedef struct _dirdesc {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-DIR *opendir __P((const char *));
-struct dirent *readdir __P((DIR *));
-void rewinddir __P((DIR *));
-int closedir __P((DIR *));
+DIR *opendir(const char *);
+struct dirent *readdir(DIR *);
+void rewinddir(DIR *);
+int closedir(DIR *);
 #ifndef _POSIX_SOURCE
-DIR *__opendir2 __P((const char *, int));
-long telldir __P((DIR *));
-void seekdir __P((DIR *, long));
-int scandir __P((const char *, struct dirent ***,
-    int (*)(struct dirent *), int (*)(const void *, const void *)));
-int alphasort __P((const void *, const void *));
-int getdents __P((int, char *, int));
-int getdirentries __P((int, char *, int, long *));
-int readdir_r __P((DIR *, struct dirent *, struct dirent **));
+DIR *__opendir2(const char *, int);
+long telldir(DIR *);
+void seekdir(DIR *, long);
+int scandir(const char *, struct dirent ***,
+    int (*)(struct dirent *), int (*)(const void *, const void *));
+int alphasort(const void *, const void *);
+int getdents(int, char *, int);
+int getdirentries(int, char *, int, long *);
+int readdir_r(DIR *, struct dirent *, struct dirent **);
 #endif /* not POSIX */
 __END_DECLS
 

@@ -196,14 +196,13 @@ struct so_debug {
  * to crt0.
  */
 struct ld_entry {
-	void	*(*dlopen) __P((const char *, int));	/* NONE */
-	int	(*dlclose) __P((void *));		/* NONE */
-	void	*(*dlsym) __P((void *, const char *));	/* NONE */
-	const char *(*dlerror) __P((void));		/* NONE */
-	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
-	void	*(*dlsym3) __P((void *, const char *, void *)); /* HAS_DLSYM3 */
-	int	 (*dladdr) __P((const void *,
-			        struct dl_info *));	/* HAS_DLADDR */
+	void	*(*dlopen)(const char *, int);	/* NONE */
+	int	(*dlclose)(void *);		/* NONE */
+	void	*(*dlsym)(void *, const char *);	/* NONE */
+	const char *(*dlerror)(void);		/* NONE */
+	void	(*dlexit)(void);			/* HAS_DLEXIT */
+	void	*(*dlsym3)(void *, const char *, void *); /* HAS_DLSYM3 */
+	int	 (*dladdr)(const void *, struct dl_info *); /* HAS_DLADDR */
 };
 
 /*

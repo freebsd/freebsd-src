@@ -48,23 +48,23 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void	err __P((int, const char *, ...)) __dead2 __printf0like(2, 3);
-void	verr __P((int, const char *, _BSD_VA_LIST_)) __dead2
+void	err(int, const char *, ...) __dead2 __printf0like(2, 3);
+void	verr(int, const char *, _BSD_VA_LIST_) __dead2
 	    __printf0like(2, 0);
-void	errc __P((int, int, const char *, ...)) __dead2 __printf0like(3, 4);
-void	verrc __P((int, int, const char *, _BSD_VA_LIST_)) __dead2
+void	errc(int, int, const char *, ...) __dead2 __printf0like(3, 4);
+void	verrc(int, int, const char *, _BSD_VA_LIST_) __dead2
 	    __printf0like(3, 0);
-void	errx __P((int, const char *, ...)) __dead2 __printf0like(2, 3);
-void	verrx __P((int, const char *, _BSD_VA_LIST_)) __dead2
+void	errx(int, const char *, ...) __dead2 __printf0like(2, 3);
+void	verrx(int, const char *, _BSD_VA_LIST_) __dead2
 	    __printf0like(2, 0);
-void	warn __P((const char *, ...)) __printf0like(1, 2);
-void	vwarn __P((const char *, _BSD_VA_LIST_)) __printf0like(1, 0);
-void	warnc __P((int, const char *, ...)) __printf0like(2, 3);
-void	vwarnc __P((int, const char *, _BSD_VA_LIST_)) __printf0like(2, 0);
-void	warnx __P((const char *, ...)) __printflike(1, 2);
-void	vwarnx __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
-void	err_set_file __P((void *));
-void	err_set_exit __P((void (*)(int)));
+void	warn(const char *, ...) __printf0like(1, 2);
+void	vwarn(const char *, _BSD_VA_LIST_) __printf0like(1, 0);
+void	warnc(int, const char *, ...) __printf0like(2, 3);
+void	vwarnc(int, const char *, _BSD_VA_LIST_) __printf0like(2, 0);
+void	warnx(const char *, ...) __printflike(1, 2);
+void	vwarnx(const char *, _BSD_VA_LIST_) __printflike(1, 0);
+void	err_set_file(void *);
+void	err_set_exit(void (*)(int));
 __END_DECLS
 
 #endif /* !_ERR_H_ */

@@ -178,19 +178,19 @@ struct __res_state_ext {
 typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error }
 	res_sendhookact;
 
-typedef res_sendhookact (*res_send_qhook)__P((struct sockaddr_in * const *ns,
-					      const u_char **query,
-					      int *querylen,
-					      u_char *ans,
-					      int anssiz,
-					      int *resplen));
+typedef res_sendhookact (*res_send_qhook)(struct sockaddr_in * const *ns,
+					  const u_char **query,
+					  int *querylen,
+					  u_char *ans,
+					  int anssiz,
+					  int *resplen);
 
-typedef res_sendhookact (*res_send_rhook)__P((const struct sockaddr_in *ns,
-					      const u_char *query,
-					      int querylen,
-					      u_char *ans,
-					      int anssiz,
-					      int *resplen));
+typedef res_sendhookact (*res_send_rhook)(const struct sockaddr_in *ns,
+					  const u_char *query,
+					  int querylen,
+					  u_char *ans,
+					  int anssiz,
+					  int *resplen);
 
 struct res_sym {
 	int	number;		/* Identifying number, like T_MX */
@@ -257,63 +257,62 @@ extern const struct res_sym __p_type_syms[];
 #define	res_freeupdrec	__res_freeupdrec
 
 __BEGIN_DECLS
-int		res_hnok __P((const char *));
-int		res_ownok __P((const char *));
-int		res_mailok __P((const char *));
-int		res_dnok __P((const char *));
-int		sym_ston __P((const struct res_sym *, const char *, int *));
-const char *	sym_ntos __P((const struct res_sym *, int, int *));
-const char *	sym_ntop __P((const struct res_sym *, int, int *));
-int		b64_ntop __P((u_char const *, size_t, char *, size_t));
-int		b64_pton __P((char const *, u_char *, size_t));
-int		loc_aton __P((const char *, u_char *));
-const char *	loc_ntoa __P((const u_char *, char *));
-int		dn_skipname __P((const u_char *, const u_char *));
-void		fp_resstat __P((struct __res_state *, FILE *));
-void		fp_query __P((const u_char *, FILE *));
-void		fp_nquery __P((const u_char *, int, FILE *));
-const char *	hostalias __P((const char *));
-void		putlong __P((u_int32_t, u_char *));
-void		putshort __P((u_int16_t, u_char *));
-const char *	p_class __P((int));
-const char *	p_time __P((u_int32_t));
-const char *	p_type __P((int));
-void		p_query __P((const u_char *));
-const u_char *	p_cdnname __P((const u_char *, const u_char *, int, FILE *));
-const u_char *	p_cdname __P((const u_char *, const u_char *, FILE *));
-const u_char *	p_fqnname __P((const u_char *, const u_char *,
-			       int, char *, int));
-const u_char *	p_fqname __P((const u_char *, const u_char *, FILE *));
-const char *	p_option __P((u_long));
-char *		p_secstodate __P((u_long));
-int		dn_count_labels __P((const char *));
-int		dn_comp __P((const char *, u_char *, int,
-			     u_char **, u_char **));
-int		dn_expand __P((const u_char *, const u_char *, const u_char *,
-			       char *, int));
-int		res_init __P((void));
-u_int		res_randomid __P((void));
-int		res_query __P((const char *, int, int, u_char *, int));
-int		res_search __P((const char *, int, int, u_char *, int));
-int		res_querydomain __P((const char *, const char *, int, int,
-				     u_char *, int));
-int		res_mkquery __P((int, const char *, int, int, const u_char *,
-				 int, const u_char *, u_char *, int));
-int		res_send __P((const u_char *, int, u_char *, int));
-int		res_isourserver __P((const struct sockaddr_in *));
-int		res_nameinquery __P((const char *, int, int,
-				     const u_char *, const u_char *));
-int		res_queriesmatch __P((const u_char *, const u_char *,
-				      const u_char *, const u_char *));
-void		res_close __P((void));
-int		res_opt __P((int, u_char *, int, int));
-const char *	p_section __P((int, int));
+int		res_hnok(const char *);
+int		res_ownok(const char *);
+int		res_mailok(const char *);
+int		res_dnok(const char *);
+int		sym_ston(const struct res_sym *, const char *, int *);
+const char *	sym_ntos(const struct res_sym *, int, int *);
+const char *	sym_ntop(const struct res_sym *, int, int *);
+int		b64_ntop(u_char const *, size_t, char *, size_t);
+int		b64_pton(char const *, u_char *, size_t);
+int		loc_aton(const char *, u_char *);
+const char *	loc_ntoa(const u_char *, char *);
+int		dn_skipname(const u_char *, const u_char *);
+void		fp_resstat(struct __res_state *, FILE *);
+void		fp_query(const u_char *, FILE *);
+void		fp_nquery(const u_char *, int, FILE *);
+const char *	hostalias(const char *);
+void		putlong(u_int32_t, u_char *);
+void		putshort(u_int16_t, u_char *);
+const char *	p_class(int);
+const char *	p_time(u_int32_t);
+const char *	p_type(int);
+void		p_query(const u_char *);
+const u_char *	p_cdnname(const u_char *, const u_char *, int, FILE *);
+const u_char *	p_cdname(const u_char *, const u_char *, FILE *);
+const u_char *	p_fqnname(const u_char *, const u_char *,
+			  int, char *, int);
+const u_char *	p_fqname(const u_char *, const u_char *, FILE *);
+const char *	p_option(u_long);
+char *		p_secstodate(u_long);
+int		dn_count_labels(const char *);
+int		dn_comp(const char *, u_char *, int, u_char **, u_char **);
+int		dn_expand(const u_char *, const u_char *, const u_char *,
+			  char *, int);
+int		res_init(void);
+u_int		res_randomid(void);
+int		res_query(const char *, int, int, u_char *, int);
+int		res_search(const char *, int, int, u_char *, int);
+int		res_querydomain(const char *, const char *, int, int,
+				u_char *, int);
+int		res_mkquery(int, const char *, int, int, const u_char *,
+			    int, const u_char *, u_char *, int);
+int		res_send(const u_char *, int, u_char *, int);
+int		res_isourserver(const struct sockaddr_in *);
+int		res_nameinquery(const char *, int, int,
+				const u_char *, const u_char *);
+int		res_queriesmatch(const u_char *, const u_char *,
+				 const u_char *, const u_char *);
+void		res_close(void);
+int		res_opt(int, u_char *, int, int);
+const char *	p_section(int, int);
 /* XXX The following depend on the ns_updrec typedef in arpa/nameser.h */
 #ifdef _ARPA_NAMESER_H_
-int		res_update __P((ns_updrec *));
-int		res_mkupdate __P((ns_updrec *, u_char *, int));
-ns_updrec *	res_mkupdrec __P((int, const char *, u_int, u_int, u_long));
-void		res_freeupdrec __P((ns_updrec *));
+int		res_update(ns_updrec *);
+int		res_mkupdate(ns_updrec *, u_char *, int);
+ns_updrec *	res_mkupdrec(int, const char *, u_int, u_int, u_long);
+void		res_freeupdrec(ns_updrec *);
 #endif
 __END_DECLS
 

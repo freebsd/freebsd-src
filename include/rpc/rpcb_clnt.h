@@ -62,24 +62,24 @@
 #include <rpc/rpcb_prot.h>
 
 __BEGIN_DECLS
-extern bool_t rpcb_set __P((const rpcprog_t, const rpcvers_t,
-			    const struct netconfig  *, const struct netbuf *));
-extern bool_t rpcb_unset __P((const rpcprog_t, const rpcvers_t,
-			      const struct netconfig *));
-extern rpcblist	*rpcb_getmaps __P((const struct netconfig *, const char *));
-extern enum clnt_stat rpcb_rmtcall __P((const struct netconfig *,
-					const char *, const rpcprog_t,
-					const rpcvers_t, const rpcproc_t,
-					const xdrproc_t, const caddr_t,
-					const xdrproc_t, const caddr_t,
-					const struct timeval,
-					const struct netbuf *));
-extern bool_t rpcb_getaddr __P((const rpcprog_t, const rpcvers_t,
-				const struct netconfig *, struct netbuf *,
-				const  char *));
-extern bool_t rpcb_gettime __P((const char *, time_t *));
-extern char *rpcb_taddr2uaddr __P((struct netconfig *, struct netbuf *));
-extern struct netbuf *rpcb_uaddr2taddr __P((struct netconfig *, char *));
+extern bool_t rpcb_set(const rpcprog_t, const rpcvers_t,
+		       const struct netconfig  *, const struct netbuf *);
+extern bool_t rpcb_unset(const rpcprog_t, const rpcvers_t,
+			 const struct netconfig *);
+extern rpcblist	*rpcb_getmaps(const struct netconfig *, const char *);
+extern enum clnt_stat rpcb_rmtcall(const struct netconfig *,
+				   const char *, const rpcprog_t,
+				   const rpcvers_t, const rpcproc_t,
+				   const xdrproc_t, const caddr_t,
+				   const xdrproc_t, const caddr_t,
+				   const struct timeval,
+				   const struct netbuf *);
+extern bool_t rpcb_getaddr(const rpcprog_t, const rpcvers_t,
+			   const struct netconfig *, struct netbuf *,
+			   const  char *);
+extern bool_t rpcb_gettime(const char *, time_t *);
+extern char *rpcb_taddr2uaddr(struct netconfig *, struct netbuf *);
+extern struct netbuf *rpcb_uaddr2taddr(struct netconfig *, char *);
 __END_DECLS
 
 #endif	/* !_RPC_RPCB_CLNT_H */
