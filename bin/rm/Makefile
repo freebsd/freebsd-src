@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rm
-SRCS=   rm.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
