@@ -300,7 +300,7 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			unsigned int size1 = phys_avail[indx + 1] - phys_avail[indx];
 
 			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
