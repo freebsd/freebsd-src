@@ -307,6 +307,7 @@ int		clearentry(struct inodesc *);
 void		direrror(ino_t ino, const char *errmesg);
 int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
+int		eascan(struct inodesc *, struct ufs2_dinode *dp);
 void		ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void		ffs_fragacct(struct fs *, int, int32_t [], int);
 int		ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
