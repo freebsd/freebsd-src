@@ -1,6 +1,8 @@
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
    rights reserved.
