@@ -31,24 +31,24 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
-#include <locale.h>
 #include <sys/types.h>
 
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,7 +102,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int ch, cnt, lastch, *p;
+	int ch, cnt, lastch, *p;
 	int cflag, dflag, sflag, isstring2;
 
 	(void) setlocale(LC_CTYPE, "");
@@ -250,7 +250,7 @@ setup(string, arg, str, cflag)
 	STR *str;
 	int cflag;
 {
-	register int cnt, *p;
+	int cnt, *p;
 
 	str->str = arg;
 	bzero(string, NCHARS * sizeof(int));
