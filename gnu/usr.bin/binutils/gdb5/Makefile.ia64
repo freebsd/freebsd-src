@@ -1,0 +1,8 @@
+#
+# $FreeBSD$
+#
+
+XSRCS+= freebsd-nat.c ia64-tdep.c kvm-fbsd.c
+LDADD+= -lkvm
+
+.PATH: ${.CURDIR}/ia64
