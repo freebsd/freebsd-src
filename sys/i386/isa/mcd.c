@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.69 1996/02/03 00:06:49 ache Exp $
+ *	$Id: mcd.c,v 1.70 1996/02/03 14:33:56 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -634,7 +634,9 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 	case CDIOCSTART:
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
-		return EINVAL;
+		if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
+			return EIO;
+		return 0;
 	case CDIOCSTOP:
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
