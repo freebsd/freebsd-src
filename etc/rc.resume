@@ -32,7 +32,7 @@
 if [ -r /var/run/rc.suspend.pid ]; then
 	kill -9 `cat /var/run/rc.suspend.pid`
 	rm -f /var/run/rc.suspend.pid
-	echo rc.suspend is killed
+	echo 'rc.suspend is killed'
 fi
 
 # Turns on a power supply of a card in the slot inactivated.
