@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.158 1999/03/07 20:27:45 ghelmer Exp $
+.\" $Id: ppp.8,v 1.159 1999/03/17 00:25:43 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -835,11 +835,18 @@ mode, the dialing action is performed any time the line is found
 to be down.
 If the connect fails, the default behaviour is to wait 30 seconds
 and then attempt to connect when another outgoing packet is detected.
-This behaviour can be changed with
+This behaviour can be changed using the
+.Dq set redial
+command:
 .Pp
-.Dl set redial Ar secs[+inc[-max]][.next] Op Ar attempts
+.No set redial Ar secs Ns Xo
+.Oo + Ns Ar inc Ns
+.Op - Ns Ar max Ns
+.Oc Op . Ns Ar next
+.Op Ar attempts
+.Xc
 .Pp
-.Bl -tag -width XXXXXXXX -compact
+.Bl -tag -width attempts -compact
 .It Ar secs
 is the number of seconds to wait before attempting
 to connect again. If the argument is the literal string
@@ -1133,16 +1140,18 @@ to the relevant section of
 You must then configure the
 .Pa /etc/ppp/ppp.secret
 file.  This file contains one line per possible client, each line
-containing up to four fields:
+containing up to five fields:
 .Bd -literal -offset indent
-name key [hisaddr [label]]
+.Ar name Ar key Xo
+.Op Ar hisaddr Op Ar label Op Ar callback-number
+.Xc
 .Ed
 .Pp
 The
 .Ar name
 and
 .Ar key
-specify the client as expected.  If
+specify the client username and password.  If
 .Ar key
 is
 .Dq \&*
@@ -1152,7 +1161,7 @@ will look up the password database
 .Pq Xr passwd 5
 when authenticating.  If the client does not offer a suitable
 response based on any
-.Ar name No / Ar key
+.Ar name Ns No / Ns Ar key
 combination in
 .Pa ppp.secret ,
 authentication fails.
@@ -1173,6 +1182,22 @@ This will change the subsequent parsing of the
 and
 .Pa ppp.linkdown
 files.
+.Pp
+If authentication is successful and
+.Ar callback-number
+is specified and
+.Dq set callback
+has been used in
+.Pa ppp.conf ,
+the client will be called back on the given number.  If CBCP is being used,
+.Ar callback-number
+may also contain a list of numbers or a
+.Dq \&* ,
+as if passed to the
+.Dq set cbcp
+command.  The value will be used in
+.Nm ppp Ns No s
+subsequent CBCP phase.
 .Sh PPP OVER TCP (a.k.a Tunnelling)
 Instead of running
 .Nm
@@ -1517,7 +1542,14 @@ To control this IPCP behaviour, this implementation has the
 .Dq set ifaddr
 command for defining the local and remote IP address:
 .Bd -literal -offset indent
-set ifaddr [src_addr [dst_addr [netmask [trigger_addr]]]]
+.No set ifaddr Oo Ar src_addr Ns
+.Op / Ns Ar \&nn
+.Oo Ar dst_addr Ns Op / Ns Ar \&nn
+.Oo Ar netmask
+.Op Ar trigger_addr
+.Oc
+.Oc
+.Oc
 .Ed
 .Pp
 where,
@@ -1612,7 +1644,11 @@ dialing and redialing separated by either a pipe
 or a colon
 .Pq Dq \&: :
 .Bd -literal -offset indent
-set phone "111[|222]...[:333[|444]...]...
+.No set phone Ar telno Ns Xo
+.Oo \&| Ns Ar backupnumber
+.Oc Ns ... Ns Oo : Ns Ar nextnumber
+.Oc Ns ...
+.Xc
 .Ed
 .Pp
 Numbers after the first in a pipe-separated list are only used if the
@@ -3717,8 +3753,13 @@ unless the IP address is 0.0.0.0 in which case it defaults to
 .Pp
 .Ar Hisaddr
 may also be specified as a range of IP numbers in the format
-.Pp
-.Dl a.b.c.d[-d.e.f.g][,h.i.j.k[-l,m,n,o]]...
+.Bd -literal -offset indent
+.Ar \&IP Ns Oo \&- Ns Ar \&IP Ns Xo
+.Oc Oo , Ns Ar \&IP Ns
+.Op \&- Ns Ar \&IP Ns
+.Oc No ...
+.Xc
+.Ed
 .Pp
 for example:
 .Pp
