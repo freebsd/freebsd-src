@@ -1,13 +1,13 @@
-# $Id: bsd.info.mk,v 1.12 1995/02/25 20:51:11 phk Exp $
+# $Id: bsd.info.mk,v 1.13 1995/03/10 08:54:42 rgrimes Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
 MAKEINFO?=	makeinfo
-MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
+MAKEINFOFLAGS?=	--no-split # simplify some things, e.g., compression
 
 .MAIN: all
 
-.SUFFIXES: .info .texi .texinfo
+.SUFFIXES: .gz .info .texi .texinfo
 .texi.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
 .texinfo.info:
@@ -15,7 +15,20 @@ MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
 
 .PATH: ${.CURDIR}
 
-all: ${INFO:S/$/.info/g}
+.if !defined(NOINFOCOMPRESS)
+IFILES=	${INFO:S/$/.info.gz/g}
+all: ${IFILES}
+.else
+IFILES=	${INFO:S/$/.info/g}
+all: ${IFILES}
+.endif
+
+GZIP?=	gzip
+
+.for x in ${INFO:S/$/.info/g}
+${x:S/$/.gz/}:	${x}
+	${GZIP} -c ${.ALLSRC} > ${.TARGET}
+.endfor
 
 # The default is "info" and it can never be "bin"
 DISTRIBUTION?=	info
@@ -68,7 +81,7 @@ install:
                 true ; \
         fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${INFO:S/$/.info*/g} ${DESTDIR}${BINDIR}
+		${IFILES} ${DESTDIR}${BINDIR}
 
 .if !target(maninstall)
 maninstall:
