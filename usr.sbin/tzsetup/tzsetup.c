@@ -121,7 +121,7 @@ continent_country_menu(dialogMenuItem *continent)
 
 	menulen = contp->nitems < 16 ? contp->nitems : 16;
 	rv = dialog_menu(title, (isocean ? "Select an island or group"
-                                 : "Select a country"), -1, -1, menulen,
+                                 : "Select a country or region"), -1, -1, menulen,
 			 -contp->nitems, contp->menu, 0, &contp->ch,
 			 &contp->sc);
 	if (rv == 0)
