@@ -981,6 +981,7 @@ product IOMEGA ZIP250		0x0030	Zip 250
 
 /* JVC products */
 product JVC GR_DX95		0x000a	GR-DX95
+product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH\" PHONE AH-J3001V/J3002V
