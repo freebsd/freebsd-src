@@ -844,26 +844,30 @@ execute_command(char *cmd)
 void
 process_event_queue(int fd)
 {
-	struct usb_event event;
+	struct usb_event events;
 	int error;
 	int len;
 	action_match_t action_match;
+	int i;
+	struct usb_event the_event;
+	struct usb_device_info* devinfo;
+	struct usb_device_info* the_devinfo;
 
 	for (;;) {
-		len = read(fd, &event, sizeof(event));
+		len = read(fd, &events, sizeof(events));
 		if (len == -1) {
 			if (errno == EWOULDBLOCK) {
 				/* no more events */
 				break;
 			} else {
 				fprintf(stderr,"%s: Could not read event, %s\n",
-					__progname, strerror(errno));
+						__progname, strerror(errno));
 				exit(1);
 			}
 		}
 		if (len == 0)
 			break;
-		if (len != sizeof(event)) {
+		if (len != sizeof(events)) {
 			fprintf(stderr, "partial read on %s\n", USBDEV);
 			exit(1);
 		}
@@ -871,57 +875,73 @@ process_event_queue(int fd)
 		/* we seem to have gotten a valid event */
 
 		if (verbose)
-			print_event(&event);
+			print_event(&events);
 
-		/* handle the event appropriately */
-		switch (event.ue_type) {
-		case USB_EVENT_CTRLR_ATTACH:
-			if (verbose)
-				printf("USB_EVENT_CTRLR_ATTACH\n");
-			break;
-		case USB_EVENT_CTRLR_DETACH:
-			if (verbose)
-				printf("USB_EVENT_CTRLR_DETACH\n");
-			break;
-		case USB_EVENT_DEVICE_ATTACH:
-		case USB_EVENT_DEVICE_DETACH:
-			if (find_action(&event.u.ue_device, &action_match) == 0)
-				/* nothing found */
+		devinfo = &events.u.ue_device;
+		for (i = 0; i < USB_MAX_DEVNAMES; i++) {
+			if (devinfo->udi_devnames[i][0] == '\0')
 				break;
 
-			if (verbose >= 2)
-				print_action(action_match.action, 0);
+			memcpy(&the_event, &events, sizeof(the_event));
+			the_devinfo = &the_event.u.ue_device;
+			if (i > 0)
+				memcpy(the_devinfo->udi_devnames[0], the_devinfo->udi_devnames[i], USB_MAX_DEVNAMELEN);
+			the_devinfo->udi_devnames[1][0] = '\0';
 
-			if (action_match.devname) {
-				if (verbose >= 2)
-					printf("%s: Setting DEVNAME='%s'\n",
-						__progname, action_match.devname);
-
-				error = setenv("DEVNAME", action_match.devname, 1);
-				if (error)
-					fprintf(stderr, "%s: setenv(\"DEVNAME\", \"%s\",1) failed, %s\n",
-						__progname, action_match.devname, strerror(errno));
+			if (verbose >=2) {
+				printf("  === match attempt: %s\n", the_devinfo->udi_devnames[0]);
 			}
 
-			if (USB_EVENT_IS_ATTACH(event.ue_type) &&
-			    action_match.action->attach) 
-				execute_command(action_match.action->attach);
-			if (USB_EVENT_IS_DETACH(event.ue_type) &&
-			    action_match.action->detach)
-				execute_command(action_match.action->detach);
-			break;
-		case USB_EVENT_DRIVER_ATTACH:
-			if (verbose)
-				printf("USB_EVENT_DRIVER_ATTACH\n");
-			break;
-		case USB_EVENT_DRIVER_DETACH:
-			if (verbose)
-				printf("USB_EVENT_DRIVER_DETACH\n");
-			break;
-		default:
-			printf("Unknown USB event %d\n", event.ue_type);
+			/* handle the event appropriately */
+			switch (the_event.ue_type) {
+			case USB_EVENT_CTRLR_ATTACH:
+				if (verbose)
+					printf("USB_EVENT_CTRLR_ATTACH\n");
+				break;
+			case USB_EVENT_CTRLR_DETACH:
+				if (verbose)
+					printf("USB_EVENT_CTRLR_DETACH\n");
+				break;
+			case USB_EVENT_DEVICE_ATTACH:
+			case USB_EVENT_DEVICE_DETACH:
+				if (find_action(&the_event.u.ue_device, &action_match) == 0)
+					/* nothing found */
+					break;
+
+				if (verbose >= 2)
+					print_action(action_match.action, 0);
+
+				if (action_match.devname) {
+					if (verbose >= 2)
+						printf("%s: Setting DEVNAME='%s'\n",
+							   __progname, action_match.devname);
+
+					error = setenv("DEVNAME", action_match.devname, 1);
+					if (error)
+						fprintf(stderr, "%s: setenv(\"DEVNAME\", \"%s\",1) failed, %s\n",
+								__progname, action_match.devname, strerror(errno));
+				}
+
+				if (USB_EVENT_IS_ATTACH(the_event.ue_type) &&
+					action_match.action->attach) 
+					execute_command(action_match.action->attach);
+				if (USB_EVENT_IS_DETACH(the_event.ue_type) &&
+					action_match.action->detach)
+					execute_command(action_match.action->detach);
+				break;
+			case USB_EVENT_DRIVER_ATTACH:
+				if (verbose)
+					printf("USB_EVENT_DRIVER_ATTACH\n");
+				break;
+			case USB_EVENT_DRIVER_DETACH:
+				if (verbose)
+					printf("USB_EVENT_DRIVER_DETACH\n");
+				break;
+			default:
+				printf("Unknown USB event %d\n", the_event.ue_type);
+			}
 		}
-	}	
+	}
 }
 
 
