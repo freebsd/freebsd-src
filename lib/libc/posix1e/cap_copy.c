@@ -41,7 +41,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-int
+ssize_t
 cap_copy_ext(void *ext_p, cap_t cap, ssize_t size)
 {
 	if (size < 0) {
@@ -73,7 +73,7 @@ cap_copy_int(const void *ext_p)
 	return (c);
 }
 	    
-int
+ssize_t
 cap_size(cap_t cap)
 {
 	(void)cap; /* silence warning */
