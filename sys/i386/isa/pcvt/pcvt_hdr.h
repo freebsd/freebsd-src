@@ -578,7 +578,7 @@ struct sixels {
 };
 
 struct udkentry {
-	u_char	first[MAXUDKEYS];	/* index to first char */
+	u_short	first[MAXUDKEYS];	/* index to first char */
 	u_char	length[MAXUDKEYS];	/* length of this entry */
 };
 
@@ -655,7 +655,7 @@ typedef struct video_state {
 	u_char	lnm;			/* Line Feed/New Line Mode */
 	u_char	dcs_state;		/* dcs escape sequence state machine */
 	u_char	udk_def[MAXUDKDEF]; 	/* new definitions for vt220 FKeys */
-	u_char	udk_defi;		/* index for FKey definitions */
+	u_short	udk_defi;		/* index for FKey definitions */
 	u_char	udk_deflow;		/* low or high nibble in sequence */
 	u_char	udk_fnckey;		/* function key to assign to */
 	u_char	dld_dscs[DSCS_LENGTH];	/* designate soft character set id */
@@ -680,7 +680,7 @@ typedef struct video_state {
 	u_short **Gs;			/* ptr to cur. G2/G3 conversion table*/
 	u_char	udkbuf[MAXUDKDEF];	/* buffer for user defined keys */
 	struct udkentry ukt;		/* index & length for each udk */
-	u_char	udkff;			/* index into buffer first free entry*/
+	u_short	udkff;			/* index into buffer first free entry*/
 	struct rgb palette[NVGAPEL];	/* saved VGA DAC palette */
 	u_char	wd132col;		/* we are on a wd vga and in 132 col */
 	u_char	scroll_lock; 		/* scroll lock active */
