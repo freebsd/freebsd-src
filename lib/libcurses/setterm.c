@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)setterm.c	8.3 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)setterm.c	8.7 (Berkeley) 7/27/94";
 #endif /* not lint */
 
-#include <sys/ioctl.h>
+#include <sys/ioctl.h>		/* TIOCGWINSZ on old systems. */
 
-#include <curses.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include "curses.h"
 
 static void zap __P((void));
 
@@ -152,8 +154,11 @@ setterm(type)
 	aoftspace = tspace;
 	ttytype = longname(genbuf, __ttytype);
 
-	if ((!AL && !al) || (!DL && !dl))
-		__noqch = 1;
+	/* If no scrolling commands, no quick change. */
+	__noqch =
+	    (CS == NULL || HO == NULL ||
+	    SF == NULL && sf == NULL || SR == NULL && sr == NULL) &&
+	    (AL == NULL && al == NULL || DL == NULL && dl == NULL);
 
 	return (unknown ? ERR : OK);
 }
