@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isahint.c,v 1.1 1999/05/14 11:22:33 dfr Exp $
+ *	$Id: isahint.c,v 1.2 1999/05/22 15:18:26 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -39,7 +39,7 @@ isahint_add_device(device_t parent, const char *name, int unit)
 {
 	device_t	child;
 	int		sensitive, start, count, t;
-	static	device_t last_sensitive;
+	int		order;
 
 	/* device-specific flag overrides any wildcard */
 	sensitive = 0;
@@ -47,13 +47,13 @@ isahint_add_device(device_t parent, const char *name, int unit)
 		resource_int_value(name, -1, "sensitive", &sensitive);
 
 	if (sensitive)
-		child = BUS_ADD_CHILD(parent, last_sensitive, name, unit);
+		order = ISA_ORDER_SENSITIVE;
 	else
-		child = BUS_ADD_CHILD(parent, 0, name, unit);
+		order = ISA_ORDER_SPECULATIVE;
+
+	child = BUS_ADD_CHILD(parent, order, name, unit);
 	if (child == 0)
 		return;
-	else if (sensitive)
-		last_sensitive = child;
 
 	start = 0;
 	count = 0;

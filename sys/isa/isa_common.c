@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isa_common.c,v 1.1 1999/05/22 15:18:23 dfr Exp $
  */
 /*
  * Modifications for Intel architecture by Garrett A. Wollman.
@@ -109,7 +109,7 @@ isa_attach(device_t dev)
  * Add a new child with default ivars.
  */
 static device_t
-isa_add_child(device_t dev, device_t place, const char *name, int unit)
+isa_add_child(device_t dev, int order, const char *name, int unit)
 {
 	struct	isa_device *idev;
 
@@ -121,10 +121,7 @@ isa_add_child(device_t dev, device_t place, const char *name, int unit)
 	resource_list_init(&idev->id_resources);
 	idev->id_flags = 0;
 
-	if (place)
-		return device_add_child_after(dev, place, name, unit, idev);
-	else
-		return device_add_child(dev, name, unit, idev);
+	return device_add_child_ordered(dev, order, name, unit, idev);
 }
 
 static void

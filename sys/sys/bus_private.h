@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.7 1999/05/10 17:06:11 dfr Exp $
+ *	$Id: bus_private.h,v 1.8 1999/05/14 09:13:39 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -127,16 +127,18 @@ struct device {
     char*		desc;	/* driver specific description */
     int			busy;	/* count of calls to device_busy() */
     device_state_t	state;
-    int			flags;
-#ifdef DEVICE_SYSCTLS
-    struct sysctl_oid	oid[4];
-    struct sysctl_oid_list oidlist[1];
-#endif
+    u_short		flags;
 #define DF_ENABLED	1	/* device should be probed/attached */
 #define DF_FIXEDCLASS	2	/* devclass specified at create time */
 #define DF_WILDCARD	4	/* unit was originally wildcard */
 #define DF_DESCMALLOCED	8	/* description was malloced */
 #define DF_QUIET	16	/* don't print verbose attach message */
+    u_char		order;	/* order from device_add_child_ordered() */
+    u_char		pad;
+#ifdef DEVICE_SYSCTLS
+    struct sysctl_oid	oid[4];
+    struct sysctl_oid_list oidlist[1];
+#endif
     void		*ivars;
     void		*softc;
 };
