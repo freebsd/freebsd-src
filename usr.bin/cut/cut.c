@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
@@ -55,7 +56,8 @@ __FBSDID("$FreeBSD$");
 
 int	bflag;
 int	cflag;
-char	dchar;
+wchar_t	dchar;
+char	dcharmb[MB_LEN_MAX + 1];
 int	dflag;
 int	fflag;
 int	nflag;
@@ -75,11 +77,13 @@ main(int argc, char *argv[])
 	FILE *fp;
 	int (*fcn)(FILE *, const char *);
 	int ch, rval;
+	size_t n;
 
 	setlocale(LC_ALL, "");
 
 	fcn = NULL;
 	dchar = '\t';			/* default delimiter is \t */
+	strcpy(dcharmb, "\t");
 
 	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
 		switch(ch) {
@@ -92,7 +96,10 @@ main(int argc, char *argv[])
 			cflag = 1;
 			break;
 		case 'd':
-			dchar = *optarg;
+			n = mbrtowc(&dchar, optarg, MB_LEN_MAX, NULL);
+			if (dchar == '\0' || n != strlen(optarg))
+				errx(1, "bad delimiter");
+			strcpy(dcharmb, optarg);
 			dflag = 1;
 			break;
 		case 'f':
@@ -357,13 +364,15 @@ out:
 }
 
 int
-f_cut(FILE *fp, const char *fname __unused)
+f_cut(FILE *fp, const char *fname)
 {
-	int ch, field, isdelim;
-	char *pos, *p, sep;
+	wchar_t ch;
+	int field, i, isdelim;
+	char *pos, *p;
+	wchar_t sep;
 	int output;
 	char *lbuf, *mlbuf;
-	size_t lbuflen;
+	size_t clen, lbuflen;
 
 	mlbuf = NULL;
 	for (sep = dchar; (lbuf = fgetln(fp, &lbuflen)) != NULL;) {
@@ -378,8 +387,15 @@ f_cut(FILE *fp, const char *fname __unused)
 			lbuf = mlbuf;
 		}
 		output = 0;
-		for (isdelim = 0, p = lbuf;; ++p) {
-			ch = *p;
+		for (isdelim = 0, p = lbuf;; p += clen) {
+			clen = mbrtowc(&ch, p, lbuf + lbuflen - p, NULL);
+			if (clen == (size_t)-1 || clen == (size_t)-2) {
+				warnc(EILSEQ, "%s", fname);
+				free(mlbuf);
+				return (1);
+			}
+			if (clen == 0)
+				clen = 1;
 			/* this should work if newline is delimiter */
 			if (ch == sep)
 				isdelim = 1;
@@ -394,14 +410,25 @@ f_cut(FILE *fp, const char *fname __unused)
 
 		pos = positions + 1;
 		for (field = maxval, p = lbuf; field; --field, ++pos) {
-			if (*pos) {
-				if (output++)
-					(void)putchar(sep);
-				while ((ch = *p++) != '\n' && ch != sep)
-					(void)putchar(ch);
-			} else {
-				while ((ch = *p++) != '\n' && ch != sep)
-					continue;
+			if (*pos && output++)
+				for (i = 0; dcharmb[i] != '\0'; i++)
+					putchar(dcharmb[i]);
+			for (;;) {
+				clen = mbrtowc(&ch, p, lbuf + lbuflen - p,
+				    NULL);
+				if (clen == (size_t)-1 || clen == (size_t)-2) {
+					warnc(EILSEQ, "%s", fname);
+					free(mlbuf);
+					return (1);
+				}
+				if (clen == 0)
+					clen = 1;
+				p += clen;
+				if (ch == '\n' || ch == sep)
+					break;
+				if (*pos)
+					for (i = 0; i < (int)clen; i++)
+						putchar(p[i - clen]);
 			}
 			if (ch == '\n')
 				break;
@@ -409,7 +436,8 @@ f_cut(FILE *fp, const char *fname __unused)
 		if (ch != '\n') {
 			if (autostop) {
 				if (output)
-					(void)putchar(sep);
+					for (i = 0; dcharmb[i] != '\0'; i++)
+						putchar(dcharmb[i]);
 				for (; (ch = *p) != '\n'; ++p)
 					(void)putchar(ch);
 			} else
@@ -417,8 +445,7 @@ f_cut(FILE *fp, const char *fname __unused)
 		}
 		(void)putchar('\n');
 	}
-	if (mlbuf != NULL)
-		free(mlbuf);
+	free(mlbuf);
 	return (0);
 }
 
