@@ -5,6 +5,29 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000513:
+	The ethernet drivers were all updated to clean up the BPF handling.
+
+2000510:
+	The problems with boot blocks on the alphas have been corrected.
+	This will require some care in updating alphas.  A new libstand
+	is requires for the boot blocks to build properly.
+
+20000502:
+	Modules have been disconnected from the buildworld tree and 
+	connected to the kernel building instead.
+
+20000503:
+	Recompile all kld modules.  Proper version dependency info
+	is now available.
+
+2000427:
+	You may need to build gperf
+		cd /usr/src/gnu/usr.bin/gperf &&make depend all install
+	when upgrading from 4.0 -> current.  The build system now uses
+	an option only in -current.
+
+
 20000417:
 	The method that we brand ELF binaries has changed to be more
 	acceptible to the binutils maintainers.  You will need to
