@@ -745,7 +745,7 @@ static struct khash {
 #define	    KS_DELETED	0x100		/* already deleted */
 	time_t	k_keep;
 #define	    K_KEEP_LIM	30
-	time_t	k_redirect_time;
+	time_t	k_redirect_time;	/* when redirected route 1st seen */
 } *khash_bins[KHASH_SIZE];
 
 
@@ -831,8 +831,7 @@ rtm_add(struct rt_msghdr *rtm,
 	} else if (INFO_MASK(info) != 0) {
 		mask = ntohl(S_ADDR(INFO_MASK(info)));
 	} else {
-		msglog("ignore %s without mask",
-		       rtm_type_name(rtm->rtm_type));
+		msglog("ignore %s without mask", rtm_type_name(rtm->rtm_type));
 		return;
 	}
 
@@ -859,20 +858,32 @@ rtm_add(struct rt_msghdr *rtm,
 		k->k_state |= KS_STATIC;
 
 	if (0 != (rtm->rtm_flags & (RTF_DYNAMIC | RTF_MODIFIED))) {
-		if (supplier) {
+		if (INFO_AUTHOR(info) != 0
+		    && INFO_AUTHOR(info)->sa_family == AF_INET)
+			ifp = iflookup(S_ADDR(INFO_AUTHOR(info)));
+		else
+			ifp = 0;
+		if (supplier
+		    && (ifp == 0 || !(ifp->int_state & IS_REDIRECT_OK))) {
 			/* Routers are not supposed to listen to redirects,
-			 * so delete it.
+			 * so delete it if it came via an unknown interface
+			 * or the interface does not have special permission.
 			 */
 			k->k_state &= ~KS_DYNAMIC;
 			k->k_state |= KS_DELETE;
 			LIM_SEC(need_kern, 0);
-			trace_act("mark redirected %s --> %s for deletion"
-				  " since this is a router",
+			trace_act("mark for deletion redirected %s --> %s"
+				  " via %s",
 				  addrname(k->k_dst, k->k_mask, 0),
-				  naddr_ntoa(k->k_gate));
+				  naddr_ntoa(k->k_gate),
+				  ifp ? ifp->int_name : "unknown interface");
 		} else {
 			k->k_state |= KS_DYNAMIC;
 			k->k_redirect_time = now.tv_sec;
+			trace_act("accept redirected %s --> %s via %s",
+				  addrname(k->k_dst, k->k_mask, 0),
+				  naddr_ntoa(k->k_gate),
+				  ifp ? ifp->int_name : "unknown interface");
 		}
 		return;
 	}
@@ -892,17 +903,10 @@ rtm_add(struct rt_msghdr *rtm,
 	 * Find the interface toward the gateway.
 	 */
 	ifp = iflookup(k->k_gate);
-	if (ifp == 0) {
-		/* if there is no known interface,
-		 * maybe there is a new interface
-		 */
-		ifinit();
-		ifp = iflookup(k->k_gate);
-		if (ifp == 0)
-			msglog("static route %s --> %s impossibly lacks ifp",
-			       addrname(S_ADDR(INFO_DST(info)), mask, 0),
-			       naddr_ntoa(k->k_gate));
-	}
+	if (ifp == 0)
+		msglog("static route %s --> %s impossibly lacks ifp",
+		       addrname(S_ADDR(INFO_DST(info)), mask, 0),
+		       naddr_ntoa(k->k_gate));
 
 	kern_check_static(k, ifp);
 }
@@ -916,8 +920,8 @@ rtm_lose(struct rt_msghdr *rtm,
 {
 	if (INFO_GATE(info) == 0
 	    || INFO_GATE(info)->sa_family != AF_INET) {
-		msglog("ignore %s without gateway",
-		       rtm_type_name(rtm->rtm_type));
+		trace_act("ignore %s without gateway",
+			  rtm_type_name(rtm->rtm_type));
 		return;
 	}
 
