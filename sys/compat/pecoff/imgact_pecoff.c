@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_pecoff.h"
 
+#define	uarea_pages	1
+
 #define PECOFF_PE_SIGNATURE "PE\0\0"
 static int      pecoff_fixup(register_t **, struct image_params *);
 static int 
@@ -189,9 +191,8 @@ pecoff_coredump(register struct thread * td, register struct vnode * vp,
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);
-	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	fill_user(p, (struct user *)tempuser);
 	PROC_UNLOCK(p);
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
 	bcopy(td->td_frame,
 	    tempuser + ctob(uarea_pages) +
 	    ((caddr_t)td->td_frame - (caddr_t)td->td_kstack),
