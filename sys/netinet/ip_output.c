@@ -676,7 +676,7 @@ spd_done:
 		if (in_localip(ip->ip_dst)) {
 			m->m_flags |= M_FASTFWD_OURS;
 			if (m->m_pkthdr.rcvif == NULL)
-				m->m_pkthdr.rcvif = ifunit("lo0");
+				m->m_pkthdr.rcvif = loif;
 			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 				m->m_pkthdr.csum_flags |=
 				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
@@ -695,7 +695,7 @@ spd_done:
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
-			m->m_pkthdr.rcvif = ifunit("lo0");
+			m->m_pkthdr.rcvif = loif;
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			m->m_pkthdr.csum_flags |=
 			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
