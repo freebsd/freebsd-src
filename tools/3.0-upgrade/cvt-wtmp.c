@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: cvt-wtmp.c,v 1.1 1996/12/16 16:12:35 joerg Exp $
  *
  */
 
@@ -63,7 +63,7 @@ struct outmp {
 };
 
 void	usage(void);
-void	convert(const char *, int);
+void	convert(const char *, int, int);
 
 /*
  * NB: We cannot convert lastlog yet, but we don't need either.
@@ -72,19 +72,23 @@ void	convert(const char *, int);
 void
 usage(void)
 {
-  errx(EX_USAGE, "usage: cvt-wtmp [-n] /var/log/wtmp*");
+  errx(EX_USAGE, "usage: cvt-wtmp [-f] [-n] /var/log/wtmp*");
 }
 
 
 int
 main(int argc, char **argv)
 {
-  int errs, i, nflag, rv;
+  int errs, i, nflag, forceflag, rv;
 
-  errs = nflag = 0;
-  while ((i = getopt(argc, argv, "n")) != EOF)
+  errs = nflag = forceflag = 0;
+  while ((i = getopt(argc, argv, "fn")) != EOF)
     switch (i)
       {
+      case 'f':
+	forceflag++;
+	break;
+
       case 'n':
 	nflag++;
 	break;
@@ -99,25 +103,26 @@ main(int argc, char **argv)
     usage();
 
   for (;argc > 0; argc--, argv++)
-    convert(*argv, nflag);
+    convert(*argv, nflag, forceflag);
 
   return 0;
 }
 
 void
-convert(const char *name, int nflag)
+convert(const char *name, int nflag, int forceflag)
 {
   struct stat sb;
   struct timeval tv[2];
   char xname[1024], yname[1024];
   unsigned char buf[128];	/* large enough to hold one wtmp record */
   int fd1, fd2;
-  size_t off;
+  size_t off, shouldbe;
   int old, new;
   time_t now, early, *t;
   struct tm tm;
   struct utmp u;
   struct outmp *ou;
+  enum { OLD, NEW } which = OLD; /* what we're defaulting to */
 
   if (stat(name, &sb) == -1)
     {
@@ -166,9 +171,30 @@ convert(const char *name, int nflag)
 	  /* unreasonable, collect another entry */
 	  if (off > sizeof buf)
 	    {
-	      (void) unlink(xname);
-	      errx(EX_UNAVAILABLE, "I can't seem to make sense out of file \"%s\"",
-		   name);
+	      if (!forceflag)
+		{
+	      	  (void) unlink(xname);
+		  errx(EX_UNAVAILABLE, "I can't seem to make sense out of file \"%s\",\n"
+		       "Could have forced using -f.",
+		     name);
+		}
+	      else
+		{
+		  warnx("Record # %d in file \"%s\" seems bogus\n"
+			"(time: %d, previous time: %d, now: %d),\n"
+			"continuing anyway.",
+			old + new + 1, name, *t, early, now);
+		  if (which == NEW)
+		    {
+		      (void)lseek(fd2, sizeof(struct utmp) - sizeof buf, SEEK_CUR);
+		      goto write_new;
+		    }
+		  else
+		    {
+		      (void)lseek(fd2, sizeof(struct outmp) - sizeof buf, SEEK_CUR);
+		      goto write_old;
+		    }
+		}
 	    }
 	  continue;
 	}
@@ -176,6 +202,8 @@ convert(const char *name, int nflag)
       if (off == sizeof(struct utmp))
 	{
 	  /* new wtmp record */
+	  which = NEW;
+	write_new:
 	  new++;
 	  if (!nflag)
 	    {
@@ -186,6 +214,8 @@ convert(const char *name, int nflag)
       else if (off == sizeof(struct outmp))
 	{
 	  /* old fart */
+	  which = OLD;
+	write_old:
 	  old++;
 	  if (!nflag)
 	    {
@@ -201,9 +231,26 @@ convert(const char *name, int nflag)
 	}
       else
 	{
-	  warnx("Illegal record in file \"%s\", ignoring.", name);
-	  off = 0;
-	  continue;
+	  if (!forceflag)
+	    {
+	      warnx("Illegal record in file \"%s\", ignoring.", name);
+	      off = 0;
+	      continue;
+	    }
+	  else
+	    {
+	      warnx("Illegal record in file \"%s\", considering it %s one.",
+		    name, (which == OLD? "an old": "a new"));
+	      shouldbe = (which == OLD? sizeof(struct outmp): sizeof(struct utmp));
+	      if (off < shouldbe)
+		(void)read(fd2, &buf[off], shouldbe - off);
+	      else
+		(void)lseek(fd2, shouldbe - off, SEEK_CUR);
+	      if (which == OLD)
+		goto write_old;
+	      else
+		goto write_new;
+	    }
 	}
       off = 0;
       /*
