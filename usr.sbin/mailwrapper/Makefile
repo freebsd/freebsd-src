@@ -11,7 +11,7 @@ SYMLINKS= 	${BINDIR}/mailwrapper /usr/sbin/sendmail  \
 		${BINDIR}/mailwrapper /usr/bin/mailq
 
 afterinstall:
-	@if [ ! -f /etc/mail/mailer.conf ]; then \
+	@if [ ! -f ${DESTDIR}/etc/mail/mailer.conf ]; then \
 		${INSTALL} -c -o root -g wheel -m 644 \
 		    ${.CURDIR}/../../etc/mail/mailer.conf ${DESTDIR}/etc/mail; \
 	fi
