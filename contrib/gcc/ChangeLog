@@ -1,3 +1,118 @@
+Sat Jun 29 12:33:39 1996  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* Version 2.7.2.1 released.
+
+Tue Jun 11 20:18:03 1996  Per Bothner <bothner@cygnus.com>
+
+	* fix-header.c (read_scna_file):  Invoke FIXPROTO_INIT if defined.
+	* alpha.h (FIXPROTO_INIT):  Define new macro.
+
+Fri May 10 18:35:00 1996  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
+
+	* loop.c (maybe_eliminate_biv_1): Disable all but two cases
+	of biv elimination with givs and restrict those two cases to
+	an ADD_VAL that is an address.
+
+Mon Apr 22 16:50:19 1996  Jeremy Bettis  <jeremy@hksys.com>
+
+	* objc/hash.c (hash_value_for_key): Prevent endless loop when 0 was
+	stored in a hashtable.
+
+Wed Apr 17 17:53:23 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* rs6000.c (expand_block_move_mem): Copy RTX_UNCHANGING_P.
+	(expand_block_move): Copy dest/src to registers using
+	copy_addr_to_reg, call expand_block_move_mem to copy all of the
+	bits.
+
+Mon Apr  8 13:46:28 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* rs6000.c (output_{prolog,epilog}): For V.4/eabi systems, change
+	prologue and epilogue so that accesses beyond the current stack
+	pointer are not done like they are for AIX.
+
+Fri Mar 26 05:43:06 1996  Torbjorn Granlund  <tege@noisy.matematik.su.se>
+
+	* vax.md (insv matcher): Call CC_STATUS_INIT.
+	* vax.h (NOTICE_UPDATE_CC): Handle ZERO_EXTRACT destination.
+
+Sat Mar 23 18:25:39 1996  J"orn Rennecke (amylaar@meolyon.hanse.de)
+
+	* c-typeck.c (set_init_index): Check for use outside an array
+	initializer.
+
+Sat Mar 23 09:21:40 1996  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc/sparc.h (CONDITIONAL_REGISTER_USAGE): Don't unfix %g[234]
+	if fixed with -ffixed-.
+
+Wed Mar 13 20:36:10 1996  Jim Wilson  <wilson@chestnut.cygnus.com>
+
+	* mips.c (mips_expand_prologue): Change TYPE_NEEDS_CONSTRUCTING to
+	TREE_ADDRESSABLE;
+	* pa.h (ASM_DECLARE_FUNCTION_NAME): Likewise.
+
+Tue Mar 12 14:36:02 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* lex.c (real_yylex): Warn about using the `namespace' keyword.
+
+Tue Feb 27 08:18:12 1996  Richard Earnshaw (rearnsha@armltd.co.uk)
+
+	* arm.md (mov{si,sf,df}cc and matchers): All conditional move
+	patterns must have a mode.
+
+Mon Feb 19 07:35:07 1996  Torbjorn Granlund  <tege@tmg.se>
+
+        * rs6000.md (not:SI with assign and compare): Fix typo.
+
+Wed Jan 24 18:00:12 1996  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* alpha.c (alpha_write_verstamp): Only emit MS_STAMP and LS_STAMP,
+	not the extra numbers.
+
+Wed Jan 17 21:22:40 1996  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* cp/decl2.c (grokfield): Call cplus_decl_attributes with the attrlist.
+	Pass a null tree to grokdeclarator for its ATTRLIST arg, since it's
+	only ever used for functions in it.
+
+Tue Jan 16 06:01:28 1996  Thomas Graichen  <graichen@omega.physik.fu-berlin.de>
+
+	* i386/freebsd.h (ASM_WEAKEN_LABEL): Deleted; not supported.
+
+Sun Jan  7 17:11:11 1996  David Edelsohn  <edelsohn@mhpcc.edu>
+
+	* collect2.c (scan_libraries): Correct Import File ID interpretation.
+
+Thu Dec 28 22:24:53 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* rs6000.md (common mode functions): Add condition reg clobbers.
+
+Tue Dec 19 15:08:31 1995  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* collect2.c: Remove auto_export functionality.
+
+Mon Dec 18 18:40:34 1995  Jim Wilson  <wilson@chestnut.cygnus.com>
+
+        * svr4.h (ASM_IDENTIFY_GCC): Don't output stab here.
+	(ASM_IDENTIFY_GCC_AFTER_SOURCE): Output stab here instead of
+	above.
+
+Sat Dec 16 07:03:33 1995  Philippe De Muyter (phdm@info.ucl.ac.be)
+
+	* stor-layout.c (layout_record): When PCC_BITFIELD_TYPE_MATTERS,
+	compute bitpos using field_size % type_align instead of field_size.
+
+Fri Dec 15 18:41:50 1995  Philippe De Muyter (phdm@info.ucl.ac.be)
+
+	* fixincludes (sys/wait.h):  Add forward declaration of struct rusage
+	on AIX 3.2.5.
+
+Sat Dec  9 18:05:03 1995  Jim Wilson  <wilson@cygnus.com>
+
+	* expr.c (expand_expr, case INDIRECT_REF): Correct typo in May 8
+	change.
+
 Sun Nov 26 14:47:42 1995  Richard Kenner  <kenner@mole.gnu.ai.mit.edu>
 
 	* Version 2.7.2 released.
