@@ -188,6 +188,21 @@
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
+    <para arch="i386,amd64,ia64">The default <varname>HZ</varname>
+      parameter (which controls various kernel timers) has been
+      increased from <literal>100</literal> to <literal>1000</literal>
+      on the i386 and ia64.  It has been reduced from
+      <literal>1024</literal> to <literal>1000</literal> on the amd64
+      to reduce synchronization effects with other system
+      clocks.</para>
+
+    <para>The maximum length of shell commands has changed from 128
+      bytes to <varname>PAGE_SIZE</varname>.  By default, this value
+      is either 4KB (i386, pc98, amd64, and powerpc) or 8KB (sparc64
+      and ia64).  As a result, compatibility modules need to be
+      rebuilt to stay synchronized with data structure changes in the
+      kernel.</para>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -506,7 +521,7 @@
       &man.tar.1; command that uses it) now has support for reading ISO
       images (with optional RockRidge extensions) and ZIP archives
       (with <literal>deflate</literal> and <literal>none</literal>
-      compression).</para>
+      compression). &merged;</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -620,6 +635,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <para><application>GNU readline</application> has been updated from
       version 4.3 to version 5.0.</para>
 
+    <para><application>Heimdal</application> has been updated from
+      0.6.1 to 0.6.3.</para>
+
     <para><application>lukemftp</application> has been updated from a
       26 April 2004 snapshot from OpenBSD's sources to a snapshot as
       of 19 February 2005.</para>
@@ -633,6 +651,9 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
     <para><application>OpenSSH</application> has been updated from 3.8p1
       to 3.9p1.</para>
+
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7d to 0.9.7e.</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
