@@ -112,7 +112,7 @@ char *	word		__P((char *));
 int	getasciilabel	__P((FILE *, struct disklabel *));
 int	checklabel	__P((struct disklabel *));
 void	setbootflag	__P((struct disklabel *));
-void	Warning		(char *, ...);
+void	Warning		(char *, ...) __printflike(1, 2);
 void	usage		__P((void));
 struct disklabel * getvirginlabel __P((void));
 

@@ -245,7 +245,7 @@ int mountdlockfd;
 
 #ifdef DEBUG
 int debug = 1;
-void	SYSLOG __P((int, const char *, ...));
+void	SYSLOG __P((int, const char *, ...)) __printflike(2, 3);
 #define syslog SYSLOG
 #else
 int debug = 0;
