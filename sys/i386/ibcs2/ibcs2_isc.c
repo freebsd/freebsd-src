@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_isc.c,v 1.1 1994/10/14 08:53:05 sos Exp $
+ *	$Id: ibcs2_isc.c,v 1.2 1995/02/03 21:31:32 bde Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -115,17 +115,17 @@ ibcs2_cisc(struct proc *p, void *args, int *retval)
 			*retval = (OPEN_MAX);
 			break;
 		case 5:		/* _SC_JOB_CONTROL */
-#ifdef _POSIX_JOB_CONTORL
-			*retval = _POSIX_JOB_CONTORL;
+#ifdef _POSIX_JOB_CONTROL
+			*retval = (1);
 #else
-			*retval = (0);
+			*retval = (-1);
 #endif
 			break;
 		case 6:		/* _SC_SAVED_IDS */
 #ifdef _POSIX_SAVED_IDS
-			*retval = (_POSIX_SAVED_IDS);
+			*retval = (1);
 #else
-			*retval = (0);
+			*retval = (-1);
 #endif
 			break;
 		case 7:		/* _SC_VERSION */
