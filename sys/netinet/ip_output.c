@@ -637,7 +637,7 @@ skip_ipsec:
 			tdbi = (struct tdb_ident *)(mtag + 1);
 			if (tdbi->spi == sp->req->sav->spi &&
 			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &sp->spidx.dst,
+			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
 				 sizeof (union sockaddr_union)) == 0) {
 				/*
 				 * No IPsec processing is needed, free
