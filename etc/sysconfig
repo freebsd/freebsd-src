@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.47 1996/06/23 20:54:26 ache Exp $
+#	$Id: sysconfig,v 1.48 1996/08/21 23:15:37 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -48,13 +48,14 @@ saver=NO
 
 # Set to
 # {microsoft|mousesystems|mmseries|logitech|busmouse|mouseman|ps/2|mmhittab}
-# to activate mouse cursor support (or NO for none)
+# to activate system mouse cursor support (or NO for none)
+# Use 'vidcontrol -m on' command to activate it on particular screen
 mousedtype=NO
 
 ############## Next block activated only if mousetype != NO ################
 
 # Set to your mouse port (required)
-mousedport=/dev/cuaa0
+mousedport=/dev/mouse
 
 # Moused options:
 # -s: 9600 baud mouse
