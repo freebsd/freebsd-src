@@ -27,13 +27,7 @@ MDASM=
 MIASM=
 NOASM=
 
-#
-# If there is a machine dependent makefile, use it:
-#
-.if exists(${.CURDIR}/${MACHINE_ARCH}/Makefile.inc)
 .include "${.CURDIR}/${MACHINE_ARCH}/Makefile.inc"
-.endif
-
 .include "${.CURDIR}/db/Makefile.inc"
 .include "${.CURDIR}/compat-43/Makefile.inc"
 .include "${.CURDIR}/gdtoa/Makefile.inc"
