@@ -134,6 +134,7 @@
 
 #ifdef ACPI_DEBUG
 #define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
+#define ACPI_DISASSEMBLER
 #endif
 
 #ifdef _KERNEL
