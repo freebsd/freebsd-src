@@ -144,11 +144,11 @@ static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static int send_signal(const struct conf_entry *ent);
-static time_t parse8601(char *s, char *errline);
 static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
+static time_t parse8601(char *s, char *errline);
 static time_t parseDWM(char *s, char *errline);
 
 /*
@@ -1548,91 +1548,6 @@ isnumberstr(const char *string)
 	return (1);
 }
 
-/*
- * Parse a limited subset of ISO 8601. The specific format is as follows:
- *
- * [CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
- *
- * We don't accept a timezone specification; missing fields (including timezone)
- * are defaulted to the current date but time zero.
- */
-static time_t
-parse8601(char *s, char *errline)
-{
-	char *t;
-	time_t tsecs;
-	struct tm tm, *tmp;
-	u_long ul;
-
-	tmp = localtime(&timenow);
-	tm = *tmp;
-
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
-
-	ul = strtoul(s, &t, 10);
-	if (*t != '\0' && *t != 'T')
-		return (-1);
-
-	/*
-	 * Now t points either to the end of the string (if no time was
-	 * provided) or to the letter `T' which separates date and time in
-	 * ISO 8601.  The pointer arithmetic is the same for either case.
-	 */
-	switch (t - s) {
-	case 8:
-		tm.tm_year = ((ul / 1000000) - 19) * 100;
-		ul = ul % 1000000;
-	case 6:
-		tm.tm_year -= tm.tm_year % 100;
-		tm.tm_year += ul / 10000;
-		ul = ul % 10000;
-	case 4:
-		tm.tm_mon = (ul / 100) - 1;
-		ul = ul % 100;
-	case 2:
-		tm.tm_mday = ul;
-	case 0:
-		break;
-	default:
-		return (-1);
-	}
-
-	/* sanity check */
-	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
-	    || tm.tm_mday < 1 || tm.tm_mday > 31)
-		return (-1);
-
-	if (*t != '\0') {
-		s = ++t;
-		ul = strtoul(s, &t, 10);
-		if (*t != '\0' && !isspace(*t))
-			return (-1);
-
-		switch (t - s) {
-		case 6:
-			tm.tm_sec = ul % 100;
-			ul /= 100;
-		case 4:
-			tm.tm_min = ul % 100;
-			ul /= 100;
-		case 2:
-			tm.tm_hour = ul;
-		case 0:
-			break;
-		default:
-			return (-1);
-		}
-
-		/* sanity check */
-		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
-		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
-			return (-1);
-	}
-	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);
-	return (tsecs);
-}
-
 /* physically move file */
 static void
 movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
@@ -1803,6 +1718,91 @@ createlog(const struct conf_entry *ent)
 
 	if (fd >= 0)
 		close(fd);
+}
+
+/*-
+ * Parse a limited subset of ISO 8601. The specific format is as follows:
+ *
+ * [CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
+ *
+ * We don't accept a timezone specification; missing fields (including timezone)
+ * are defaulted to the current date but time zero.
+ */
+static time_t
+parse8601(char *s, char *errline)
+{
+	char *t;
+	time_t tsecs;
+	struct tm tm, *tmp;
+	u_long ul;
+
+	tmp = localtime(&timenow);
+	tm = *tmp;
+
+	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+
+	ul = strtoul(s, &t, 10);
+	if (*t != '\0' && *t != 'T')
+		return (-1);
+
+	/*
+	 * Now t points either to the end of the string (if no time was
+	 * provided) or to the letter `T' which separates date and time in
+	 * ISO 8601.  The pointer arithmetic is the same for either case.
+	 */
+	switch (t - s) {
+	case 8:
+		tm.tm_year = ((ul / 1000000) - 19) * 100;
+		ul = ul % 1000000;
+	case 6:
+		tm.tm_year -= tm.tm_year % 100;
+		tm.tm_year += ul / 10000;
+		ul = ul % 10000;
+	case 4:
+		tm.tm_mon = (ul / 100) - 1;
+		ul = ul % 100;
+	case 2:
+		tm.tm_mday = ul;
+	case 0:
+		break;
+	default:
+		return (-1);
+	}
+
+	/* sanity check */
+	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
+	    || tm.tm_mday < 1 || tm.tm_mday > 31)
+		return (-1);
+
+	if (*t != '\0') {
+		s = ++t;
+		ul = strtoul(s, &t, 10);
+		if (*t != '\0' && !isspace(*t))
+			return (-1);
+
+		switch (t - s) {
+		case 6:
+			tm.tm_sec = ul % 100;
+			ul /= 100;
+		case 4:
+			tm.tm_min = ul % 100;
+			ul /= 100;
+		case 2:
+			tm.tm_hour = ul;
+		case 0:
+			break;
+		default:
+			return (-1);
+		}
+
+		/* sanity check */
+		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
+		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
+			return (-1);
+	}
+	if ((tsecs = mktime(&tm)) == -1)
+		errx(1, "nonexistent time:\n%s", errline);
+	return (tsecs);
 }
 
 /*-
