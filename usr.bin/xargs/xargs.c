@@ -526,10 +526,13 @@ exec:
 	case -1:
 		err(1, "vfork");
 	case 0:
+		close(0);
 		if (oflag) {
-			close(0);
 			if (open("/dev/tty", O_RDONLY) == -1)
-				err(1, "open");
+				err(1, "open /dev/tty");
+		} else {
+			if (open("/dev/null", O_RDONLY) == -1)
+				err(1, "open /dev/null");
 		}
 		execvp(argv[0], argv);
 		childerr = errno;
