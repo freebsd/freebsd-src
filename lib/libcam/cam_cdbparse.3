@@ -444,9 +444,9 @@ function.
 .It Fa val
 is a void pointer to the value being passed into the function.
 .It Fa count
-is the number of arguments being passed into the
+is the size of the value being passed into the
 .Fn arg_put
-function.  At present this will only be set to 1.
+function.  The argument format determines the unit of measure.
 .It Fa name
 This is a text description of the field, if one was provided in the
 .Fa fmt .
