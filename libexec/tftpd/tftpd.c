@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <arpa/tftp.h>
@@ -130,6 +131,8 @@ main(int argc, char *argv[])
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
 	const char *chuser = "nobody";
+
+	tzset();			/* syslog in localtime */
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 	while ((ch = getopt(argc, argv, "cClns:u:Uw")) != -1) {
