@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.25 1995/09/09 18:10:35 davidg Exp $
+ * $Id: vm_glue.c,v 1.26 1995/09/17 01:46:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -323,25 +323,33 @@ faultin(p)
 
 	if ((p->p_flag & P_INMEM) == 0) {
 		vm_map_t map;
+		int error;
 
 		++p->p_lock;
 
 		map = &p->p_vmspace->vm_map;
 		/* force the page table encompassing the kernel stack (upages) */
 		ptaddr = trunc_page((u_int) vtopte(kstack));
-		vm_map_pageable(map, ptaddr, ptaddr + NBPG, FALSE);
+		error = vm_map_pageable(map, ptaddr, ptaddr + NBPG, FALSE);
+		if (error)
+			panic("faultin: wire of PT failed. error=%d", error);
 
 		/* wire in the UPAGES */
-		vm_map_pageable(map, (vm_offset_t) kstack,
+		error = vm_map_pageable(map, (vm_offset_t) kstack,
 		    (vm_offset_t) kstack + UPAGES * NBPG, FALSE);
+		if (error)
+			panic("faultin: wire of UPAGES failed. error=%d", error);
 
 		/* and map them nicely into the kernel pmap */
 		for (i = 0; i < UPAGES; i++) {
 			vm_offset_t off = i * NBPG;
 			vm_offset_t pa = (vm_offset_t)
-			pmap_extract(&p->p_vmspace->vm_pmap,
-			    (vm_offset_t) kstack + off);
+				pmap_extract(&p->p_vmspace->vm_pmap,
+				    (vm_offset_t) kstack + off);
 
+			if (pa == 0) 
+				panic("faultin: missing page for UPAGES\n");
+				
 			pmap_enter(vm_map_pmap(u_map),
 			    ((vm_offset_t) p->p_addr) + off,
 			    pa, VM_PROT_READ | VM_PROT_WRITE, 1);
@@ -461,7 +469,8 @@ retry:
 			 * do not swapout a process waiting on a critical
 			 * event of some kind
 			 */
-			if ((p->p_priority & 0x7f) < PSOCK)
+			if (((p->p_priority & 0x7f) < PSOCK) ||
+				(p->p_slptime <= 4))
 				continue;
 
 			vm_map_reference(&p->p_vmspace->vm_map);
@@ -478,13 +487,10 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			if (p->p_slptime > 4) {
-				swapout(p);
-				vm_map_deallocate(&p->p_vmspace->vm_map);
-				didswap++;
-				goto retry;
-			}
+			swapout(p);
 			vm_map_deallocate(&p->p_vmspace->vm_map);
+			didswap++;
+			goto retry;
 		}
 	}
 	/*
@@ -511,11 +517,11 @@ swapout(p)
 
 	(void) splhigh();
 	p->p_flag &= ~P_INMEM;
+	p->p_flag |= P_SWAPPING;
 	if (p->p_stat == SRUN)
 		remrq(p);
 	(void) spl0();
 
-	p->p_flag |= P_SWAPPING;
 	/*
 	 * let the upages be paged
 	 */
