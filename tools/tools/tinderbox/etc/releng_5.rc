@@ -6,4 +6,4 @@
 
 branches	= RELENG_5_2
 platforms	= alpha, amd64, i386/i386, i386/pc98, ia64, sparc64
-recipient	= current@freebsd.org,%%arch%%@freebsd.org
+recipient	= %%sender%%,current@freebsd.org,%%arch%%@freebsd.org
