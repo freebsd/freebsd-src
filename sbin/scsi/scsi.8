@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.13 1997/12/19 14:14:26 brian Exp $
+.\"	$Id: scsi.8,v 1.14 1997/12/29 15:17:57 brian Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -244,16 +244,15 @@ bytes of data input should be written to the standard output.
 To verify that the device type for the disk
 .Pa /dev/rsd0c
 is 0 (direct access device):
-.Bd -literal
-root# scsi -f /dev/rsd0c -c "12 0 0 0 40 0" -i 64 "*b3 b5"
-0
+.Bd -literal -offset indent
+root# scsi -f /dev/rsd0c -c "12 0 0 0 40 0" -i 64 "*b3 b5" 0
 .Ed
 .Pp
 To do an inquiry to
 .Pa /dev/rsd2c :
-.Bd -literal
-root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 "s8 z8 z16 z4"
-FUJITSU M2654S-512 010P
+.Bd -literal -offset indent
+root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 \e
+"s8 z8 z16 z4" FUJITSU M2654S-512 010P
 .Ed
 .Pp
 To edit mode page 1 (the Read-Write Error Recovery Page)
@@ -261,8 +260,13 @@ on
 .Pa /dev/rsd2c ,
 and store it permanently on the
 drive:
-.Bd -literal
+.Bd -literal -offset indent
 root# scsi -f /dev/rsd2c -m 1 -e -P 3
+.Ed
+.Pp
+To simply re-probe the first scsi bus:
+.Bd -literal -offset indent
+root# scsi -f /dev/ssc -p
 .Ed
 .Pp
 .Sh ENVIRONMENT
@@ -288,7 +292,8 @@ The
 variable determines the editor to use for the mode editor.
 .Sh SEE ALSO
 .Xr scsi 3 ,
-.Xr scsi 4
+.Xr scsi 4 ,
+.Xr ssc 4
 .Sh BUGS
 .Pp
 Some devices respond to an inquiry for all LUNS.  This will cause them
