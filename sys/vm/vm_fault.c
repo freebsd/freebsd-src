@@ -642,16 +642,16 @@ readrest:
 			fs.m->valid = VM_PAGE_BITS_ALL;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
-			if (fs.object != fs.first_object) {
-				VM_OBJECT_LOCK(fs.object);
-				vm_object_pip_wakeup(fs.object);
-				VM_OBJECT_UNLOCK(fs.object);
-			}
-			KASSERT(fs.object != next_object, ("object loop %p", next_object));
-			fs.object = next_object;
+			KASSERT(fs.object != next_object,
+			    ("object loop %p", next_object));
+			VM_OBJECT_LOCK(next_object);
+			vm_object_pip_add(next_object, 1);
+			VM_OBJECT_UNLOCK(next_object);
 			VM_OBJECT_LOCK(fs.object);
-			vm_object_pip_add(fs.object, 1);
+			if (fs.object != fs.first_object)
+				vm_object_pip_wakeup(fs.object);
 			VM_OBJECT_UNLOCK(fs.object);
+			fs.object = next_object;
 		}
 	}
 
