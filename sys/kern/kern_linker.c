@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.27 1999/02/20 21:22:00 dfr Exp $
+ *	$Id: kern_linker.c,v 1.28 1999/03/07 16:06:41 dfr Exp $
  */
 
 #include "opt_ddb.h"
@@ -383,7 +383,7 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
 	filename = pathname;
 
     KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
-    lockmgr(&lock, LK_EXCLUSIVE|LK_RETRY, 0, curproc);
+    lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
     namelen = strlen(filename) + 1;
     lf = malloc(sizeof(struct linker_file) + namelen, M_LINKER, M_WAITOK);
     if (!lf)
@@ -419,7 +419,7 @@ linker_file_unload(linker_file_t file)
     int i;
 
     KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
-    lockmgr(&lock, LK_EXCLUSIVE|LK_RETRY, 0, curproc);
+    lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
     if (file->refs == 1) {
 	KLD_DPF(FILE, ("linker_file_unload: file is unloading, informing modules\n"));
 	/*
