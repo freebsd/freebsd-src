@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.44 1996/04/06 09:24:48 mpp Exp $
+#	$Id: netstart,v 1.45 1996/10/27 06:30:43 peter Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -60,6 +60,11 @@ for ifn in ${network_interfaces}; do
 			break;
 		fi
 	done
+	# Do ipx address if specified
+	eval ifconfig_args=\$ifconfig_${ifn}_ipx
+	if [ -n "${ifconfig_args}" ]; then
+		ifconfig ${ifn} ${ifconfig_args}
+	fi
 	ifconfig ${ifn}
 done
 
@@ -84,5 +89,15 @@ fi
 if [ "x$router" != "xNO" ] ; then
 	echo -n starting routing daemon:
 	echo -n " ${router}";	${router} ${routerflags}
+	echo '.'
+fi
+
+if [ "x$ipxgateway" != "xNO" ]; then
+	echo 'configuring host as an ipx gateway.'
+	sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
+fi
+
+if [ "x$ipxrouted" != "xNO" ] ; then
+	echo -n "starting IPXrouted";	IPXrouted ${ipxrouted}
 	echo '.'
 fi
