@@ -1,1 +1,0 @@
-gawk: arrayparm.awk:18: fatal: attempt to use array `foo' in a scalar context
