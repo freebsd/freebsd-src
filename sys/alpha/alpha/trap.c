@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.15 1999/06/08 16:42:17 dt Exp $ */
+/* $Id: trap.c,v 1.16 1999/06/10 20:40:58 dt Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -30,6 +30,7 @@
 
 /* #include "opt_fix_unaligned_vax_fp.h" */
 #include "opt_ddb.h"
+#include "opt_ktrace.h"
 #include "opt_simos.h"
 
 #include <sys/param.h>
@@ -58,6 +59,11 @@
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
+
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -657,7 +663,7 @@ syscall(code, framep)
 	userret(p, framep->tf_regs[FRAME_PC], sticks);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, rval[0]);
+		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 #endif
 
 	/*
