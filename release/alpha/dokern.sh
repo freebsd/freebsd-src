@@ -6,6 +6,8 @@
 sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
+	-e '/DEC_AXPPCI_33/d' \
+	-e '/DEC_EB64PLUS/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
@@ -22,15 +24,26 @@ sed	\
  	-e '/WITNESS/d' \
 	-e '/atapist/d' \
 	-e '/	ncr/d' \
+	-e '/	sa/d' \
 	-e '/pass/d' \
+	-e '/	amr/d' \
 	-e '/splash/d' \
 	-e '/	apm/d' \
 	-e '/pmtimer/d' \
 	-e '/pcm/d' \
+	-e '/ppc/d' \
+	-e '/ppbus/d' \
+	-e '/plip/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
 	-e '/vpo/d' \
 	-e '/	le	/d' \
+	-e '/	xv	/d' \
+	-e '/	pcn	/d' \
+	-e '/	sf	/d' \
+	-e '/	sis	/d' \
+	-e '/	ste	/d' \
+	-e '/	wb	/d' \
 	-e '/random/d' \
 	-e '/gzip/d' \
 	-e '/	sl	/d' \
