@@ -611,38 +611,23 @@ ata_intr(void *data)
 	    return;
 	break;
 #endif
-    case ATA_WAIT_INTR:
-    case ATA_WAIT_INTR | ATA_CONTROL:
-	wakeup((caddr_t)ch);
-	break;
-
-    case ATA_WAIT_READY:
-    case ATA_WAIT_READY | ATA_CONTROL:
-	break;
-
-    case ATA_IDLE:
-	if (ch->flags & ATA_QUEUED) {
-	    ch->active = ATA_ACTIVE;
-	    if (ata_service(ch) == ATA_OP_CONTINUES)
-		return;
-	}
-	/* FALLTHROUGH */
-
     default:
-#ifdef ATA_DEBUG
-    {
-	static int intr_count = 0;
+	if (ch->active & ATA_WAIT_INTR)
+	    wakeup((caddr_t)ch);
+    }
 
-	if (intr_count++ < 10)
-	    ata_printf(ch, -1, "unwanted interrupt #%d active=%02x s=%02x\n",
-		       intr_count, ch->active, ch->status);
-    }
-#endif
-	break;
-    }
-    ch->active &= ATA_CONTROL;
-    if (ch->active & ATA_CONTROL)
+    if (ch->active & ATA_CONTROL) {
+	ATA_FORCELOCK_CH(ch, ATA_CONTROL);
 	return;
+    }
+
+    if ((ch->flags & ATA_QUEUED) &&
+	ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_SERVICE) { 
+	ATA_FORCELOCK_CH(ch, ATA_ACTIVE);
+	if (ata_service(ch) == ATA_OP_CONTINUES)
+	    return;
+    }
+    ATA_UNLOCK_CH(ch);
     ch->running = NULL;
     ata_start(ch);
     return;
@@ -700,8 +685,8 @@ ata_start(struct ata_channel *ch)
 	}
     }
 #endif
-    splx(s);
     ATA_UNLOCK_CH(ch);
+    splx(s);
 }
 
 void
@@ -843,12 +828,10 @@ ata_reinit(struct ata_channel *ch)
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
     ch->running = NULL;
     devices = ch->devices;
-    ata_printf(ch, -1, "resetting devices .. ");
+    ata_printf(ch, -1, "resetting devices ..\n");
     ata_reset(ch);
 
     if ((misdev = devices & ~ch->devices)) {
-	if (misdev)
-	    printf("\n");
 #ifdef DEV_ATADISK
 	if (misdev & ATA_ATA_MASTER && ch->device[MASTER].driver)
 	    ad_detach(&ch->device[MASTER], 0);
@@ -886,8 +869,6 @@ ata_reinit(struct ata_channel *ch)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY))
 		newdev &= ~ATA_ATAPI_SLAVE;
     }
-    if (!misdev && newdev)
-	printf("\n");
 #ifdef DEV_ATADISK
     if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
 	ad_attach(&ch->device[MASTER]);
