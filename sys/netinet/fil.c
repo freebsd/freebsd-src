@@ -825,12 +825,14 @@ int out;
 # endif
 #endif /* _KERNEL */
 	
+#ifndef __FreeBSD__
 	/*
 	 * Be careful here: ip_id is in network byte order when called
 	 * from ip_output()
 	 */
 	if ((out) && (v == 4))
 		ip->ip_id = ntohs(ip->ip_id);
+#endif
 
 	changed = 0;
 	fin->fin_v = v;
@@ -1037,8 +1039,10 @@ logit:
 	}
 #endif /* IPFILTER_LOG */
 
+#ifndef __FreeBSD__	
 	if ((out) && (v == 4))
 		ip->ip_id = htons(ip->ip_id);
+#endif
 
 #ifdef	_KERNEL
 	/*
