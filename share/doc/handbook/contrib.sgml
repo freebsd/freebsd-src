@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.88 1996/05/29 16:32:26 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.89 1996/05/29 17:16:24 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -162,6 +162,7 @@
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
+	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@netland.inka.de&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
@@ -246,6 +247,7 @@
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
