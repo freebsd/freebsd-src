@@ -2263,11 +2263,11 @@ static int
 isp_scan_fabric(struct ispsoftc *isp)
 {
 	fcparam *fcp = isp->isp_param;
-	u_int32_t portid, first_portid;
+	u_int32_t portid, first_portid, last_portid;
 	sns_screq_t *reqp;
 	sns_scrsp_t *resp;
 	mbreg_t mbs;
-	int hicap, first_portid_seen;
+	int hicap, first_portid_seen, last_port_same;
 
 	if (fcp->isp_onfabric == 0) {
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
@@ -2280,6 +2280,8 @@ isp_scan_fabric(struct ispsoftc *isp)
 	 * Since Port IDs are 24 bits, we can check against having seen
 	 * anything yet with this value.
 	 */
+	last_port_same = 0;
+	last_portid = 0xffffffff;	/* not a port */
 	first_portid = portid = fcp->isp_portid;
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
 
@@ -2358,9 +2360,20 @@ isp_scan_fabric(struct ispsoftc *isp)
 			fcp->isp_loopstate = LOOP_FSCAN_DONE;
 			return (0);
 		}
+		if (portid == last_portid) {
+			if (last_port_same++ > 20) {
+				isp_prt(isp, ISP_LOGWARN,
+				    "tangled fabric database detected");
+				break;
+			}
+		} else {
+			last_portid = portid;
+		}
 	}
 
-	isp_prt(isp, ISP_LOGWARN, "broken fabric nameserver...*wheeze*...");
+	if (hicap >= 65535) {
+		isp_prt(isp, ISP_LOGWARN, "fabric too big (> 65535)");
+	}
 
 	/*
 	 * We either have a broken name server or a huge fabric if we get here.
