@@ -35,17 +35,22 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/signal.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 extern char *archive;			/* archive name */
@@ -105,6 +110,5 @@ void
 error(name)
 	char *name;
 {
-	(void)fprintf(stderr, "ranlib: %s: %s\n", name, strerror(errno));
-	exit(1);
+	err(1, "%s", name);
 }

@@ -35,24 +35,29 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ranlib.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <archive.h>
+#include <unistd.h>
+#include "archive.h"
 
 extern int build __P(( void ));
 extern int touch __P(( void ));
-void usage __P((void));
+static void usage __P((void));
 
 CHDR chdr;
 u_int options;				/* UNUSED -- keep open_archive happy */
@@ -87,8 +92,8 @@ main(argc, argv)
 	exit(eval);
 }
 
-void
-usage(void)
+static void
+usage()
 {
 	(void)fprintf(stderr, "usage: ranlib [-t] archive ...\n");
 	exit(1);
