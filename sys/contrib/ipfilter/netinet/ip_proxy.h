@@ -96,7 +96,7 @@ typedef	struct	aproxy	{
 typedef struct  ftpside {
 	char	*ftps_rptr;
 	char	*ftps_wptr;
-	u_32_t	ftps_seq;
+	u_32_t	ftps_seq[2];
 	u_32_t	ftps_len;
 	int	ftps_junk;
 	int	ftps_cmds;
