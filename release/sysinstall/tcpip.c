@@ -467,6 +467,11 @@ tcpOpenDialog(Device *devp)
     /* Now do all the screen I/O */
     dialog_clear_norefresh();
 
+    /* Modify the help line for PLIP config */
+    if (!strncmp(devp->name, "lp", 2))
+	layout[LAYOUT_EXTRAS].help = 
+         "For PLIP configuration, you must enter the peer's IP address here.";
+
     /* We need a curses window */
     tmp = " Network Configuration ";
     if (ipv6addr[0])
