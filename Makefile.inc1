@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.43 1998/11/18 01:59:39 jdp Exp $
+#	$Id: Makefile.inc1,v 1.44 1998/11/20 02:03:52 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -761,9 +761,6 @@ _linux=		lkm/linux
 .if ${MACHINE_ARCH} == i386
 _kldlinux=	sys/modules/linux
 .endif
-.if ${OBJFORMAT} == "aout"
-_netboot=	sys/${MACHINE}/boot/netboot
-.endif
 
 BTMAKEFLAGS=	${MK_FLAGS} -D_BUILD_TOOLS
 
@@ -860,8 +857,7 @@ build-tools:
 		lib/libmytinfo		\
 		${_linux}		\
 		${_kldlinux}		\
-		${_scrnmaps}		\
-		${_netboot}
+		${_scrnmaps}
 	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
 .endfor
 	cd ${.CURDIR}/usr.bin/tn3270/tools; ${MAKE} ${BTMAKEFLAGS} all
