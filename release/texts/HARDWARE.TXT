@@ -119,6 +119,7 @@ ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL,
 					 some PCnet-PCI cards)
+nge0	dyn	dyn	n/a	dyn	NatSemi DP83820 gigabit ethernet
 pcn0	dyn	dyn	n/a	dyn	AMD PCnet/FAST, PCnet/FAST+, 
 					PCnet/FAST III, PCnet/PRO, PCnet/Home,
 					and HomePNA cards
@@ -126,7 +127,9 @@ rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 Fast Ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 Fast Ethernet
 sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 Fast Ethernet
 sn0     0x300   10      n/a     n/a	SMC 91xx Ethernet
+sk0     dyn     dyn     n/a     dyn     SysKonnect gigabit ethernet
 ste0    dyn     dyn     n/a     dyn     Sundance ST201 Fast Ethernet
+ti0     dyn     dyn     n/a     dyn     Alteon Tigon 1 & 2 gigabit ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' Fast Ethernet
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
@@ -541,7 +544,7 @@ The following CD-ROM type systems are supported at this time:
 (acd)   ATAPI IDE interface
 
 Unmaintained drivers, they might or might not work for your hardware:
-
+NatSemi DP83820 gigabit ethernet
 (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 4.2.    Network cards
@@ -622,6 +625,13 @@ Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast Ethernet NICs
 National Semiconductor DP83815 Fast Ethernet NICs including the following:
     NetGear FA311-TX
     NetGear FA312-TX
+
+National Semiconductor DP83820 and DP83821 Gigabit Ethernet NICs including
+the following:
+    D-Link DGE-500T
+    SMC EZ Card 1000 (SMC9462TX)
+    Asante FriendlyNet GigaNIC 1000TA and 1000TPC
+    Addtron AEG320T
 
 Sundance Technologies ST201 PCI Fast Ethernet NICs including
 the following:
