@@ -691,6 +691,10 @@ uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
 			return (EIO);
 		break;
 
+	case USB_GET_REPORT_ID:
+		*(int *)addr = 0;	/* XXX: we only support reportid 0? */
+		break;
+
 	default:
 		return (EINVAL);
 	}
