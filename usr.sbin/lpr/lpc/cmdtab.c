@@ -48,6 +48,7 @@ static const char rcsid[] =
  * lpc -- command tables
  */
 char	aborthelp[] =	"terminate a spooling daemon immediately and disable printing";
+char	botmqhelp[] =	"move job(s) to the bottom of printer queue";
 char	cleanhelp[] =	"remove cruft files from a queue";
 char	enablehelp[] =	"turn a spooling queue on";
 char	disablehelp[] =	"turn a spooling queue off";
@@ -61,7 +62,7 @@ char	starthelp[] =	"enable printing and start a spooling daemon";
 char	statushelp[] =	"show status of daemon and queue";
 char	stophelp[] =	"stop a spooling daemon after current job completes and disable printing";
 char	tcleanhelp[] =	"test to see what files a clean cmd would remove";
-char	topqhelp[] =	"put job at top of printer queue";
+char	topqhelp[] =	"move job(s) to the top of printer queue";
 char	uphelp[] =	"enable everything and restart spooling daemon";
 
 /* Use some abbreviations so entries won't need to wrap */
@@ -70,6 +71,7 @@ char	uphelp[] =	"enable everything and restart spooling daemon";
 
 struct cmd cmdtab[] = {
 	{ "abort",	aborthelp,	PR,	0,		abort_q },
+	{ "bottomq",	botmqhelp,	PR,	bottomq_cmd,	0 },
 	{ "clean",	cleanhelp,	PR,	clean_gi,	clean_q },
 	{ "enable",	enablehelp,	PR,	0,		enable_q },
 	{ "exit",	quithelp,	0,	quit,		0 },
@@ -83,9 +85,10 @@ struct cmd cmdtab[] = {
 	{ "setstatus",	setstatushelp,	PR|M,	setstatus_gi,	setstatus_q },
 	{ "stop",	stophelp,	PR,	0,		stop_q },
 	{ "tclean",	tcleanhelp,	0,	tclean_gi,	clean_q },
-	{ "topq",	topqhelp,	PR,	topq,		0 },
+	{ "topq",	topqhelp,	PR,	topq_cmd,	0 },
 	{ "up",		uphelp,		PR,	0,		up_q },
 	{ "?",		helphelp,	0,	help,		0 },
+	{ "xtopq",	topqhelp,	PR,	topq,		0 },
 	{ 0, 0, 0, 0, 0},
 };
 
