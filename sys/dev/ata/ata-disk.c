@@ -25,13 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.16 1999/08/10 21:59:57 sos Exp $
+ *	$Id: ata-disk.c,v 1.17 1999/08/14 11:40:33 phk Exp $
  */
 
 #include "ata.h"
 #include "atadisk.h"
-#include "opt_devfs.h"
-
 #if NATA > 0 && NATADISK > 0
 
 #include <sys/param.h>
@@ -47,9 +45,6 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
@@ -236,18 +231,10 @@ ad_attach(void *notused)
 				  DEVSTAT_NO_ORDERED_TAGS,
                                   DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 				  0x180);
-#ifdef DEVFS
-    		adp->cdevs_token = devfs_add_devswf(&ad_cdevsw, 
-						    dkmakeminor(adp->lun, 0, 0),
-						    DV_CHR, 
-						    UID_ROOT, GID_OPERATOR,
-						    0640, "rad%d", adp->lun);
-    		adp->bdevs_token = devfs_add_devswf(&ad_cdevsw,
-					 	    dkmakeminor(adp->lun, 0, 0),
-						    DV_BLK, 
-						    UID_ROOT, GID_OPERATOR,
-						    0640, "ad%d", adp->lun);
-#endif
+    		make_dev(&ad_cdevsw, dkmakeminor(adp->lun, 0, 0),
+		    UID_ROOT, GID_OPERATOR, 0640, "rad%d", adp->lun);
+    		make_dev(&ad_cdevsw, dkmakeminor(adp->lun, 0, 0),
+		    UID_ROOT, GID_OPERATOR, 0640, "ad%d", adp->lun);
 		bufq_init(&adp->queue);
 	        adtab[adnlun++] = adp;
             }

@@ -48,7 +48,7 @@
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
  *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
- *	$Id: lpt.c,v 1.5 1999/05/31 11:24:56 phk Exp $
+ *	$Id: lpt.c,v 1.6 1999/06/03 22:03:35 peter Exp $
  */
 
 /*
@@ -63,7 +63,6 @@
 
 
 #ifdef KERNEL
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,9 +71,6 @@
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/malloc.h>
 
 #include <machine/clock.h>
@@ -136,10 +132,6 @@ struct lpt_data {
 #define LP_ENABLE_EXT	0x10	/* we shall use advanced mode when possible */
 	u_char	sc_backoff ;	/* time to call lptout() again */
 
-#ifdef DEVFS
-	void	*devfs_token;
-	void	*devfs_token_ctl;
-#endif
 };
 
 static int	nlpt = 0;
@@ -438,15 +430,10 @@ lptattach(struct ppb_device *dev)
 
 	lpt_release_ppbus(sc);
 
-#ifdef DEVFS
-	sc->devfs_token = devfs_add_devswf(&lpt_cdevsw,
-		dev->id_unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", dev->id_unit);
-	sc->devfs_token_ctl = devfs_add_devswf(&lpt_cdevsw,
-		dev->id_unit | LP_BYPASS, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", dev->id_unit);
-#endif
-
+	make_dev(&lpt_cdevsw, dev->id_unit,
+	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", dev->id_unit);
+	make_dev(&lpt_cdevsw, dev->id_unit | LP_BYPASS,
+	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", dev->id_unit);
 	return (1);
 }
 

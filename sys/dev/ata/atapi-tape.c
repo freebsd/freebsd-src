@@ -25,12 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.10 1999/05/31 11:24:30 phk Exp $
+ *	$Id: atapi-tape.c,v 1.11 1999/06/25 09:03:06 sos Exp $
  */
 
 #include "ata.h"
 #include "atapist.h"
-#include "opt_devfs.h"
 
 #if NATA > 0 && NATAPIST > 0
 
@@ -43,9 +42,6 @@
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <machine/clock.h>
 #include <pci/pcivar.h>
 #include <dev/ata/ata-all.h>
@@ -136,11 +132,8 @@ astattach(struct atapi_softc *atp)
                       DEVSTAT_NO_ORDERED_TAGS,
                       DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
                       0x170);
-#ifdef DEVFS
-    stp->cdevs_token = devfs_add_devswf(&ast_cdevsw, dkmakeminor(stp->lun, 0,0),
-					DV_CHR, UID_ROOT, GID_OPERATOR, 0640, 
-					"rast%d", stp->lun);
-#endif
+    make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0,0),
+	UID_ROOT, GID_OPERATOR, 0640, "rast%d", stp->lun);
     return 0;
 }
 

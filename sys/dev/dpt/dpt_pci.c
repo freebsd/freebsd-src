@@ -32,9 +32,8 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$Id: dpt_pci.c,v 1.13 1999/05/09 17:06:44 peter Exp $"
+#ident "$Id: dpt_pci.c,v 1.14 1999/08/16 01:52:20 gibbs Exp $"
 
-#include "opt_devfs.h"
 #include "opt_dpt.h"
 
 #include <sys/param.h>

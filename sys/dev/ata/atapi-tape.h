@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.h,v 1.3 1999/03/07 21:49:14 sos Exp $
+ *	$Id: atapi-tape.h,v 1.4 1999/06/25 09:03:07 sos Exp $
  */
 
 /* MODE SENSE parameter header */
@@ -86,8 +86,4 @@ struct ast_softc {
     struct ast_header		header;       	/* MODE SENSE param header */
     struct ast_cappage 		cap;         	/* capabilities page info */
     struct devstat		stats;		/* devstat entry */
-#ifdef  DEVFS
-    void    			*cdevs_token;
-    void    			*bdevs_token;
-#endif
 };

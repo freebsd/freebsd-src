@@ -147,7 +147,6 @@
 
 #include "meteor.h"
 
-#include "opt_devfs.h"
 #include "opt_meteor.h"
 
 #include <sys/param.h>
@@ -156,9 +155,6 @@
 #include <sys/kernel.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 #include <sys/uio.h>
 
 #if defined(METEOR_FreeBSD_210)
@@ -1126,10 +1122,7 @@ met_attach(pcici_t tag, int unit)
 
     	mtr->flags |= METEOR_INITALIZED | METEOR_AUTOMODE | METEOR_DEV0 |
 		   METEOR_RGB16;
-#ifdef DEVFS
-	mtr->devfs_token = devfs_add_devswf(&meteor_cdevsw, unit,
-						DV_CHR, 0, 0, 0644, "meteor");
-#endif
+	make_dev(&meteor_cdevsw, unit, 0, 0, 0644, "meteor");
 }
 
 #define UNIT(x)	((x) & 0x07)

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.6 1999/05/20 09:12:03 sos Exp $
+ *	$Id: ata-disk.h,v 1.7 1999/06/25 09:03:00 sos Exp $
  */
 
 /* ATA device parameter information */
@@ -140,10 +140,6 @@ struct ad_softc {
 
     struct buf_queue_head 	queue;		/* head of request queue */
     struct devstat 		stats;		/* devstat entry */
-#ifdef DEVFS
-    void			*cdevs_token;
-    void			*bdevs_token;
-#endif
 };
 
 struct ad_request {

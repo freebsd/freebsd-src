@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: fb.c,v 1.6 1999/06/22 14:13:22 yokota Exp $
+ * $Id: fb.c,v 1.7 1999/07/04 14:58:15 phk Exp $
  */
 
 #include "fb.h"
@@ -408,8 +408,6 @@ fb_attach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 	adp->va_minor = minor(dev);
 	vidcdevsw[adp->va_index] = cdevsw;
 	splx(s);
-
-	/* XXX: DEVFS? */
 
 	printf("fb%d at %s%d\n", adp->va_index, adp->va_name, adp->va_unit);
 	return 0;

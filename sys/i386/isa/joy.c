@@ -29,16 +29,10 @@
 #include "joy.h"
 
 #if NJOY > 0
-
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/uio.h>
 
 #include <machine/clock.h>
@@ -75,9 +69,6 @@ static struct {
     int port;
     int x_off[2], y_off[2];
     int timeout[2];
-#ifdef	DEVFS
-    void	*devfs_token;
-#endif
 } joy[NJOY];
 
 
@@ -141,11 +132,7 @@ joyattach (struct isa_device *dev)
     joy[unit].port = dev->id_iobase;
     joy[unit].timeout[0] = joy[unit].timeout[1] = 0;
     printf("joy%d: joystick\n", unit);
-#ifdef	DEVFS
-    joy[dev->id_unit].devfs_token = 
-		devfs_add_devswf(&joy_cdevsw, 0, DV_CHR, 0, 0, 
-				 0600, "joy%d", unit);
-#endif
+    make_dev(&joy_cdevsw, 0, 0, 0, 0600, "joy%d", unit);
     return 1;
 }
 

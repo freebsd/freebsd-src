@@ -12,7 +12,7 @@
  *
  * Snoop stuff.
  *
- *	$Id$
+ *	$Id: tty_snoop.c,v 1.40 1999/06/17 23:42:44 gpalmer Exp $
  */
 
 #include "snp.h"
@@ -20,8 +20,6 @@
 #if NSNP > 0
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
@@ -34,9 +32,6 @@
 #include <sys/conf.h>
 #include <sys/poll.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/snoop.h>
 #include <sys/vnode.h>
 
@@ -521,31 +516,17 @@ snppoll(dev, events, p)
 	return (revents);
 }
 
-#ifdef DEVFS
-static	void	*snp_devfs_token[NSNP];
-#endif
-static	int	snp_devsw_installed;
-
 static void snp_drvinit __P((void *unused));
+
 static void
 snp_drvinit(unused)
 	void *unused;
 {
-#ifdef DEVFS
 	int	i;
-#endif
 
-	if( ! snp_devsw_installed ) {
-		cdevsw_add(&snp_cdevsw);
-		snp_devsw_installed = 1;
-#ifdef DEVFS
-		for ( i = 0 ; i < NSNP ; i++) {
-			snp_devfs_token[i] =
-				devfs_add_devswf(&snp_cdevsw, i, DV_CHR, 0, 0, 
-						0600, "snp%d", i);
-		}
-#endif
-    	}
+	cdevsw_add(&snp_cdevsw);
+	for ( i = 0 ; i < NSNP ; i++) 
+		make_dev(&snp_cdevsw, i, 0, 0, 0600, "snp%d", i);
 }
 
 SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)

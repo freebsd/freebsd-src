@@ -51,7 +51,6 @@
 error "Can only have 1 spigot configured."
 #endif
 
-#include	"opt_devfs.h"
 #include	"opt_spigot.h"
 
 #include	<sys/param.h>
@@ -61,9 +60,6 @@ error "Can only have 1 spigot configured."
 #include	<sys/proc.h>
 #include	<sys/signalvar.h>
 #include	<sys/mman.h>
-#ifdef DEVFS
-#include	<sys/devfsext.h>
-#endif /* DEVFS */
 
 #include	<machine/frame.h>
 #include	<machine/md_var.h>
@@ -78,9 +74,6 @@ static struct spigot_softc {
 	struct proc	*p;
 	u_long		signal_num;
 	u_short		irq;
-#ifdef	DEVFS
-	void	*devfs_token;
-#endif
 } spigot_softc[NSPIGOT];
 
 /* flags in softc */
@@ -159,12 +152,7 @@ spigot_attach(struct isa_device *devp)
 	devp->id_ointr = spigintr;
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
-#ifdef DEVFS
-	ss->devfs_token = 
-		devfs_add_devswf(&spigot_cdevsw, unit, DV_CHR, 0, 0, 0644,
-				 "spigot%d", unit);
-#endif
-
+	make_dev(&spigot_cdevsw, unit, 0, 0, 0644, "spigot%d", unit);
 	return 1;
 }
 

@@ -30,11 +30,10 @@
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
  *
- * $Id: streams.c,v 1.8 1999/08/01 12:51:06 newton Exp $
+ * $Id: streams.c,v 1.9 1999/08/04 18:53:37 green Exp $
  */
 
 #include "streams.h"		/* generated file.. defines NSTREAMS */
-#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>		/* SYSINIT stuff */
@@ -53,9 +52,6 @@
 #include <netinet/in.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>	/* DEVFS defintitions */
-#endif /* DEVFS */
 
 #include <sys/sysproto.h>
 
@@ -129,22 +125,6 @@ static struct cdevsw streams_cdevsw = {
  
 struct streams_softc {
 	struct isa_device *dev;
-#ifdef DEVFS
-  /*
-   * If this ever becomes an LKM we'll want this crud so we can deallocate
-   * devfs entries when the module is unloaded
-   */
-	void *devfs_ptm;
-        void *devfs_arp;
-        void *devfs_icmp;
-        void *devfs_ip;
-        void *devfs_tcp;
-        void *devfs_udp;
-        void *devfs_rawip;
-        void *devfs_unix_dgram;
-        void *devfs_unix_stream;
-        void *devfs_unix_ord_stream;
-#endif
 } ;
 
 #define UNIT(dev) minor(dev)	/* assume one minor number per unit */
