@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.15 1997/06/30 02:57:40 jkh Exp $";
+static const char rcsid[] =
+	"$Id: extract.c,v 1.16 1997/07/01 06:13:35 jkh Exp $";
 #endif
 
 /*
@@ -22,6 +23,7 @@ static const char *rcsid = "$Id: extract.c,v 1.15 1997/06/30 02:57:40 jkh Exp $"
  *
  */
 
+#include <err.h>
 #include "lib.h"
 #include "add.h"
 
@@ -35,7 +37,8 @@ static const char *rcsid = "$Id: extract.c,v 1.15 1997/06/30 02:57:40 jkh Exp $"
 		    strcat(where_args, "|tar xf - -C "); \
 		    strcat(where_args, todir); \
 		    if (system(where_args)) \
-			barf("can not invoke %d byte tar pipeline: %s", strlen(where_args), where_args); \
+	cleanup(0), errx(2, "can not invoke %d byte tar pipeline: %s", \
+				strlen(where_args), where_args); \
 		    strcpy(where_args, STARTSTRING); \
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
@@ -59,7 +62,7 @@ rollback(char *name, char *home, PackingList start, PackingList stop)
 		(void)chflags(try, 0);
 		(void)unlink(try);
 		if (rename(bup, try))
-		    whinge("rollback: unable to rename %s back to %s.", bup, try);
+		    warnx("rollback: unable to rename %s back to %s", bup, try);
 	    }
 	}
 	else if (q->type == PLIST_CWD) {
@@ -83,10 +86,10 @@ extract_plist(char *home, Package *pkg)
     maxargs = sysconf(_SC_ARG_MAX) / 2;	/* Just use half the argument space */
     where_args = alloca(maxargs);
     if (!where_args)
-	barf("can't get argument list space");
+	cleanup(0), errx(2, "can't get argument list space");
     perm_args = alloca(maxargs);
     if (!perm_args)
-	barf("can't get argument list space");
+	cleanup(0), errx(2, "can't get argument list space");
 
     strcpy(where_args, STARTSTRING);
     where_count = sizeof(STARTSTRING)-1;
@@ -129,7 +132,9 @@ extract_plist(char *home, Package *pkg)
 
 			if (make_preserve_name(pf, FILENAME_MAX, PkgName, try)) {
 			    if (rename(try, pf)) {
-				whinge("Unable to back up %s to %s, aborting pkg_add", try, pf);
+				warnx(
+				"unable to back up %s to %s, aborting pkg_add",
+				try, pf);
 				rollback(PkgName, home, pkg->head, p);
 				return;
 			    }
@@ -143,7 +148,7 @@ extract_plist(char *home, Package *pkg)
 		    }
 		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "%s ", p->name);
 		    if (add_count > maxargs - perm_count)
-			barf("oops, miscounted strings!");
+			cleanup(0), errx(2, "oops, miscounted strings!");
 		    perm_count += add_count;
 		}
 		else {
@@ -157,13 +162,13 @@ extract_plist(char *home, Package *pkg)
 		    }
 		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " %s", p->name);
 		    if (add_count > maxargs - where_count)
-			barf("oops, miscounted strings!");
+			cleanup(0), errx(2, "oops, miscounted strings!");
 		    where_count += add_count;
 		    add_count = snprintf(&perm_args[perm_count],
 					 maxargs - perm_count,
 					 "%s ", p->name);
 		    if (add_count > maxargs - perm_count)
-			barf("oops, miscounted strings!");
+			cleanup(0), errx(2, "oops, miscounted strings!");
 		    perm_count += add_count;
 		}
 	    }
@@ -175,7 +180,8 @@ extract_plist(char *home, Package *pkg)
 	    PUSHOUT(Directory);
 	    if (strcmp(p->name, ".")) {
 		if (!Fake && make_hierarchy(p->name) == FAIL)
-		    barf("Unable make directory '%s'.", p->name);
+		    cleanup(0), errx(2, "unable to make directory '%s'",
+					p->name);
 		Directory = p->name;
 	    }
 	    else
@@ -184,13 +190,14 @@ extract_plist(char *home, Package *pkg)
 
 	case PLIST_CMD:
 	    if (last_file == NULL)
-		barf("No last file specified for '%s' command.", p->name);
+		cleanup(0), errx(2, "no last file specified for '%s' command",
+					p->name);
 	    format_cmd(cmd, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
 	    if (Verbose)
 		printf("extract: execute '%s'\n", cmd);
 	    if (!Fake && system(cmd))
-		whinge("Command '%s' failed.", cmd);
+		warnx("command '%s' failed", cmd);
 	    break;
 
 	case PLIST_CHMOD:

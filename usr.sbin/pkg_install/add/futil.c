@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char rcsid[] =
+	"$Id: futil.c,v 1.6 1997/02/22 16:09:17 peter Exp $";
 #endif
 
 /*
@@ -22,6 +23,7 @@ static const char *rcsid = "$Id$";
  *
  */
 
+#include <err.h>
 #include "lib.h"
 #include "add.h"
 
@@ -73,22 +75,19 @@ apply_perms(char *dir, char *arg)
 
     if (Mode)
 	if (vsystem("cd %s && chmod -R %s %s", cd_to, Mode, arg))
-	    whinge("Couldn't change modes of '%s' to '%s'.",
-		   arg, Mode);
+	    warnx("couldn't change modes of '%s' to '%s'", arg, Mode);
     if (Owner && Group) {
 	if (vsystem("cd %s && chown -R %s.%s %s", cd_to, Owner, Group, arg))
-	    whinge("Couldn't change owner/group of '%s' to '%s.%s'.",
+	    warnx("couldn't change owner/group of '%s' to '%s.%s'",
 		   arg, Owner, Group);
 	return;
     }
     if (Owner) {
 	if (vsystem("cd %s && chown -R %s %s", cd_to, Owner, arg))
-	    whinge("Couldn't change owner of '%s' to '%s'.",
-		   arg, Owner);
+	    warnx("couldn't change owner of '%s' to '%s'", arg, Owner);
 	return;
     } else if (Group)
 	if (vsystem("cd %s && chgrp -R %s %s", cd_to, Group, arg))
-	    whinge("Couldn't change group of '%s' to '%s'.",
-		   arg, Group);
+	    warnx("couldn't change group of '%s' to '%s'", arg, Group);
 }
 

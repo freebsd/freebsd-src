@@ -21,7 +21,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm pkg_add
-.Nd a utility for installing software package distributions.
+.Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
 .Op Fl vInfRMS
@@ -64,36 +64,31 @@ command to examine the package file.
 .Ef
 
 .Sh OPTIONS
-The following command line arguments are supported.
+The following command line arguments are supported:
 .Bl -tag -width indent
 .It Ar pkg-name [... pkg-name]
 The named packages are installed.  A package name of - will cause
 .Nm
 to read from stdin.
 .It Fl v
-Turns on verbose output.
-.Em "Optional."
+Turn on verbose output.
 .It Fl I
 If an installation script exists for a given package, do not execute it.
-.Em "Optional."
 .It Fl n
 Don't actually install a package, just report the steps that
 would be taken if it was.
-.Em "Optional."
 .It Fl R
 Do not record the installation of a package.  This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
-.Em "Optional."
 .It Fl f
-Forces installation to proceed even if prerequisite packages are not
+Force installation to proceed even if prerequisite packages are not
 installed or the requirements script fails.  Although
 .Nm
 will still try to find and auto-install missing prerequisite packages,
 a failure to find one will not be fatal.
-.Em "Optional."
 .It Fl p Ar prefix
-Sets
+Set
 .Ar prefix
 as the directory in which to extract files from a package.
 If a package has set its default directory, it will be overridden
@@ -114,7 +109,6 @@ modes (see the
 and
 .Fl S
 options).
-.Em "Optional."
 .It Fl t Ar template
 Use
 .Ar template
@@ -136,7 +130,6 @@ You can get a performance boost by setting the staging area
 to reside on the same disk partition as target directories for package
 file installation; often this is
 .Pa /usr .
-.Em "Optional."
 .It Fl M
 Run in
 .Cm MASTER
@@ -199,7 +192,7 @@ passive mode
 .Ef
 ftp.
 .Sh TECHNICAL DETAILS
-.Nm
+.Nm Pkg_add
 is fairly simple.  It extracts each package's "packing list"
 into a special staging directory in /tmp (or $PKG_TMPDIR if set), parses it,
 and then runs through the following sequence to fully extract the contents:
@@ -222,7 +215,8 @@ directives which control how the package is added to the system.
 At the time of this writing, the only currently implemented option is
 .Cm @option extract-in-place
 which will cause the package to be extracted directly into its
-prefix directory without moving through a staging area in /tmp.
+prefix directory without moving through a staging area in
+.Pa /tmp .
 .It
 If
 .Cm @option extract-in-place

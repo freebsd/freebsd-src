@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.27 1997/02/22 16:09:47 peter Exp $";
+static const char rcsid[] =
+	"$Id: file.c,v 1.28 1997/07/01 06:13:50 jkh Exp $";
 #endif
 
 /*
@@ -23,6 +24,7 @@ static const char *rcsid = "$Id: file.c,v 1.27 1997/02/22 16:09:47 peter Exp $";
  */
 
 #include "lib.h"
+#include <err.h>
 #include <ftpio.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -220,13 +222,13 @@ fileGetURL(char *base, char *spec)
 	strcpy(fname, spec);
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
-	whinge("URL `%s' has bad host part!", fname);
+	warnx("URL `%s' has bad host part!", fname);
 	return NULL;
     }
 
     cp = fileURLFilename(fname, file, FILENAME_MAX);
     if (!*cp) {
-	whinge("URL `%s' has bad filename part!", fname);
+	warnx("URL `%s' has bad filename part!", fname);
 	return NULL;
     }
 
@@ -236,7 +238,7 @@ fileGetURL(char *base, char *spec)
     /* Make up a convincing "password" */
     pw = getpwuid(getuid());
     if (!pw) {
-	whinge("Can't get user name for ID %d\n.", getuid());
+	warnx("can't get user name for ID %d", getuid());
 	strcpy(pword, "joe@");
     }
     else {
@@ -325,14 +327,15 @@ fileGetContents(char *fname)
     int fd;
 
     if (stat(fname, &sb) == FAIL)
-	barf("Can't stat '%s'.", fname);
+	cleanup(0), errx(2, "can't stat '%s'", fname);
 
     contents = (char *)malloc(sb.st_size + 1);
     fd = open(fname, O_RDONLY, 0);
     if (fd == FAIL)
-	barf("Unable to open '%s' for reading.", fname);
+	cleanup(0), errx(2, "unable to open '%s' for reading", fname);
     if (read(fd, contents, sb.st_size) != sb.st_size)
-	barf("Short read on '%s' - did not get %qd bytes.", fname, sb.st_size);
+	cleanup(0), errx(2, "short read on '%s' - did not get %qd bytes",
+			fname, sb.st_size);
     close(fd);
     contents[sb.st_size] = '\0';
     return contents;
@@ -381,12 +384,13 @@ write_file(char *name, char *str)
 
     fp = fopen(name, "w");
     if (!fp)
-	barf("Cannot fopen '%s' for writing.", name);
+	cleanup(0), errx(2, "cannot fopen '%s' for writing", name);
     len = strlen(str);
     if (fwrite(str, 1, len, fp) != len)
-	barf("Short fwrite on '%s', tried to write %d bytes.", name, len);
+	cleanup(0), errx(2, "short fwrite on '%s', tried to write %d bytes",
+			name, len);
     if (fclose(fp))
-	barf("failure to fclose '%s'.", name);
+	cleanup(0), errx(2, "failure to fclose '%s'", name);
 }
 
 void
@@ -399,7 +403,7 @@ copy_file(char *dir, char *fname, char *to)
     else
 	snprintf(cmd, FILENAME_MAX, "cp -p -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
-	barf("Could not perform '%s'", cmd);
+	cleanup(0), errx(2, "could not perform '%s'", cmd);
 }
 
 void
@@ -412,7 +416,7 @@ move_file(char *dir, char *fname, char *to)
     else
 	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
-	barf("Could not perform '%s'", cmd);
+	cleanup(0), errx(2, "could not perform '%s'", cmd);
 }
 
 /*
@@ -442,7 +446,7 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
     printf("Using '%s' to copy trees.\n", cmd);
 #endif
     if (system(cmd))
-	barf("copy_file: Could not perform '%s'", cmd);
+	cleanup(0), errx(2, "copy_file: could not perform '%s'", cmd);
 }
 
 /* Unpack a tar file */
@@ -468,7 +472,7 @@ unpack(char *pkg, char *flist)
 	strcpy(args, "z");
     strcat(args, "xpf");
     if (vsystem("tar %s %s %s", args, pkg, flist ? flist : "")) {
-	whinge("Tar extract of %s failed!", pkg);
+	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }
     return 0;
