@@ -1,8 +1,9 @@
-#	@(#)Makefile	8.5 (Berkeley) 3/27/94
+#	@(#)Makefile	8.6 (Berkeley) 5/8/95
 
 PROG=	mount
-SRCS=	mount.c mount_ufs.c getmntopts.c
+SRCS=	mount.c mount_ufs.c getmntopts.c vfslist.c
 MAN8=	mount.8
 # We do NOT install the getmntopts.3 man page.
+CFLAGS+=	-D_NEW_VFSCONF
 
 .include <bsd.prog.mk>
