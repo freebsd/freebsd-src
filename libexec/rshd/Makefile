@@ -5,14 +5,7 @@ PROG=	rshd
 SRCS=	rshd.c
 MAN8=	rshd.8
 
-.if defined(NOPAM)
-CFLAGS+= -DNO_PAM
-.else
-#CFLAGS+= -DCRYPT -DNO_PAM
-SRCS+=	auth_pam.c
-DPADD+= ${LIBPAM}
-LDADD+= ${MINUSLPAM}
-.endif
+#CFLAGS+= -DCRYPT
 
 # For login_cap handling
 CFLAGS+=-DLOGIN_CAP -Wall
@@ -23,5 +16,3 @@ LDADD+= -lutil
 CFLAGS+= -DINET6
 
 .include <bsd.prog.mk>
-
-.PATH:	${.CURDIR}/../rlogind

@@ -80,10 +80,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pathnames.h"
 
-#ifndef NO_PAM
-#include <security/pam_appl.h>
-#include <security/pam_misc.h>
-#endif
 
 #ifndef TIOCPKT_WINDOW
 #define TIOCPKT_WINDOW 0x80
@@ -131,9 +127,6 @@ void	setup_term __P((int));
 int	do_krb_login __P((struct sockaddr_in *));
 void	usage __P((void));
 
-#ifndef NO_PAM
-extern int auth_pam __P((char *));
-#endif
 
 int
 main(argc, argv)
@@ -570,28 +563,11 @@ int
 do_rlogin(dest)
 	union sockunion *dest;
 {
-#ifndef NO_PAM
-	int retval;
-#endif
 
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
 	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type too long");
 
-#ifndef  NO_PAM
-	retval = auth_pam(lusername);
- 
-	if (retval) {
-		if (retval == -1) {
-			syslog(LOG_ERR, "PAM authentication failed");
-		}  
-		else {
-			syslog(LOG_ERR,
-				"User %s failed PAM authentication", lusername);
-			exit(1);
-		}
-	}
-#endif
 	pwd = getpwnam(lusername);
 	if (pwd == NULL)
 		return (-1);
