@@ -1,4 +1,4 @@
-/*	$NetBSD: cmds.c,v 1.98 2002/06/05 10:20:46 lukem Exp $	*/
+/*	$NetBSD: cmds.c,v 1.100 2002/11/30 03:10:55 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
@@ -102,11 +102,36 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
+#else
+__RCSID("$NetBSD: cmds.c,v 1.100 2002/11/30 03:10:55 lukem Exp $");
+#endif
+#endif /* not lint */
+
 /*
  * FTP User Program -- Command Routines.
  */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <arpa/ftp.h>
 
-#include "lukemftp.h"
+#include <ctype.h>
+#include <err.h>
+#include <glob.h>
+#include <limits.h>
+#include <netdb.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <libutil.h>
 
 #include "ftp_var.h"
 #include "version.h"
@@ -1008,7 +1033,7 @@ setgate(int argc, char *argv[])
 			gatemode = 0;
 		else {
 			if (argc == 3)
-				gateport = strdup(argv[2]);
+				gateport = xstrdup(argv[2]);
 			(void)strlcpy(gsbuf, argv[1], sizeof(gsbuf));
 			gateserver = gsbuf;
 			gatemode = 1;

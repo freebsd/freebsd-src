@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.82 2002/06/05 13:51:54 lukem Exp $	*/
+/*	$NetBSD: main.c,v 1.84 2003/05/14 14:31:00 wiz Exp $	*/
 
 /*-
  * Copyright (c) 1996-2002 The NetBSD Foundation, Inc.
@@ -98,11 +98,36 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+__COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n");
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
+#else
+__RCSID("$NetBSD: main.c,v 1.84 2003/05/14 14:31:00 wiz Exp $");
+#endif
+#endif /* not lint */
+
 /*
  * FTP User Program -- Command Interface.
  */
+#include <sys/types.h>
+#include <sys/socket.h>
 
-#include "lukemftp.h"
+#include <err.h>
+#include <errno.h>
+#include <netdb.h>
+#include <paths.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <locale.h>
 
 #define	GLOBAL		/* force GLOBAL decls in ftp_var.h to be declared */
 #include "ftp_var.h"
@@ -123,9 +148,7 @@ main(int argc, char *argv[])
 	char *cp, *ep, *anonuser, *anonpass, *upload_path;
 	int dumbterm, s, len, isupload;
 
-#if 0			/* XXX */
 	setlocale(LC_ALL, "");
-#endif
 	setprogname(argv[0]);
 
 	ftpport = "ftp";
@@ -258,7 +281,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "46AadefginN:o:pP:r:RtT:u:vV")) != -1) {
+	while ((ch = getopt(argc, argv, "46AadefginN:o:pP:q:r:RtT:u:vV")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -328,6 +351,12 @@ main(int argc, char *argv[])
 
 		case 'P':
 			ftpport = optarg;
+			break;
+
+		case 'q':
+			quit_time = strtol(optarg, &ep, 10);
+			if (quit_time < 1 || *ep != '\0')
+				errx(1, "bad quit value: %s", optarg);
 			break;
 
 		case 'r':
@@ -1003,6 +1032,6 @@ usage(void)
 "           [-T dir,max[,inc][[user@]host [port]]] [host:path[/]]\n"
 "           [file:///file] [ftp://[user[:pass]@]host[:port]/path[/]]\n"
 "           [http://[user[:pass]@]host[:port]/path] [...]\n"
-"       %s -u url file [...]\n", progname, progname);
+"       %s -u URL file [...]\n", progname, progname);
 	exit(1);
 }

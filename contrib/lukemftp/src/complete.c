@@ -36,11 +36,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+__RCSID("$NetBSD: complete.c,v 1.38 2000/05/01 10:35:17 lukem Exp $");
+#endif /* not lint */
+
 /*
  * FTP user program - command and file completion routines
  */
 
-#include "lukemftp.h"
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "ftp_var.h"
 
