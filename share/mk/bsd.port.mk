@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.10 1996/06/26 21:15:29 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.165.2.11 1996/11/13 11:42:57 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -825,9 +825,9 @@ do-build:
 .if !target(do-install)
 do-install:
 	@if [ `/bin/sh -c umask` != 0022 ]; then \
-		${ECHO_MSG} "===> Warning: your umask is \"`/bin/sh -c umask`"\".; \
-		${ECHO_MSG} "     If this is not desired, set it to an appropriate value"; \
-		${ECHO_MSG} "     and install this port again by \`\`make reinstall''."; \
+		${ECHO_MSG} "===>  Warning: your umask is \"`/bin/sh -c umask`"\".; \
+		${ECHO_MSG} "      If this is not desired, set it to an appropriate value"; \
+		${ECHO_MSG} "      and install this port again by \`\`make reinstall''."; \
 	fi
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
@@ -938,8 +938,9 @@ _PORT_USE: .USE
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
 .if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===>   Compressing the manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
-	${GZIP_CMD} ${MANPREFIX}/${manpage}
+	@${GZIP_CMD} ${MANPREFIX}/${manpage}
 .endfor
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
@@ -1446,9 +1447,9 @@ fake-pkg:
 			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
 		fi; \
 	else \
-		${ECHO_MSG} "===> ${PKGNAME} is already installed - perhaps an older version?"; \
-		${ECHO_MSG} "     If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
-		${ECHO_MSG} "     this port again by \`\`make reinstall'' to upgrade it properly."; \
+		${ECHO_MSG} "===>  ${PKGNAME} is already installed - perhaps an older version?"; \
+		${ECHO_MSG} "      If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
+		${ECHO_MSG} "      this port again by \`\`make reinstall'' to upgrade it properly."; \
 	fi
 .endif
 
