@@ -42,29 +42,33 @@ static pid_t ehs_pid;
 static int
 intr_continue(dialogMenuItem *self)
 {
-	return DITEM_LEAVE_MENU;
+    return DITEM_LEAVE_MENU;
 }
 
 static int
 intr_reboot(dialogMenuItem *self)
 {
-	systemShutdown(-1);
-	/* NOTREACHED */
-	return 0;
+    systemShutdown(-1);
+    /* NOTREACHED */
+    return 0;
 }
 
 static int
 intr_restart(dialogMenuItem *self)
 {
-	execl(StartName, StartName, NULL);
-	/* NOTREACHED */
-	return -1;
+    int ret;
+
+    free_variables();
+    ret = execl(StartName, StartName, (char *)NULL);
+    msgDebug("execl failed (%s)\n", strerror(errno));
+    /* NOTREACHED */
+    return -1;
 }
 
 static dialogMenuItem intrmenu[] = {
-	{ "Abort",   "Abort the installation", NULL, intr_reboot },
-	{ "Restart", "Restart the installation program", NULL, intr_restart },
-	{ "Continue", "Continue the installation", NULL, intr_continue },
+    { "Abort",   "Abort the installation", NULL, intr_reboot },
+    { "Restart", "Restart the installation program", NULL, intr_restart },
+    { "Continue", "Continue the installation", NULL, intr_continue },
 };
 
 
@@ -83,6 +87,19 @@ handle_intr(int sig)
 		     "Do you want to abort the installation?",
 		     -1, -1, 3, -3, intrmenu, NULL, NULL, NULL);
     restorescr(save);
+}
+
+/*
+ * Harvest children if we are init.
+ */
+static void
+reap_children(int sig)
+{
+    int errbak = errno;
+
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+	;
+    errno = errbak;
 }
 
 /* Expand a file into a convenient location, nuking it each time */
@@ -109,7 +126,8 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
-    int i, boothowto;
+    size_t i;
+    int boothowto;
     sigset_t signalset;
 
     signal(SIGINT, SIG_IGN);
@@ -166,6 +184,7 @@ systemInitialize(int argc, char **argv)
 	i = 0;
 	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
 #endif
+	signal(SIGCHLD, reap_children);
     }
     else {
 	char hname[256];
