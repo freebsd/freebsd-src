@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.14 1998/09/23 06:05:28 markm Exp $
+# $Id: Makefile,v 1.15 1998/10/11 18:13:42 markm Exp $
 #
 
 PROG=	perl
@@ -150,5 +150,11 @@ install:
 	cd ${.OBJDIR}/lib ;\
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		*.3.gz ${DESTDIR}/usr/share/perl/man/man3
+	cd ${.OBJDIR} ;\
+	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		*.h ${DESTDIR}/usr/libdata/perl/5.00502/mach/CORE
+	cd ${.OBJDIR} ;\
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		Config.pm ${DESTDIR}/usr/libdata/perl/5.00502/mach
 
 .PATH:	${PERL5SRC}
