@@ -70,7 +70,6 @@ vop_t **mfs_vnodeop_p;
 static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) mfs_badop },
 	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) vop_defaultop },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },

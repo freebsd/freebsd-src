@@ -748,7 +748,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			 * believe there is a slight chance that a delayed
 			 * write will occur while sleeping just above, so
 			 * check for it.  Note that vfs_bio_awrite expects
-			 * buffers to reside on a queue, while VOP_BWRITE and
+			 * buffers to reside on a queue, while BUF_WRITE and
 			 * brelse do not.
 			 */
 			if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
