@@ -331,12 +331,6 @@ static int	numCommands;
 #define	JOB_STOPPED	3	/* The job is stopped */
 
 /*
- * tfile is used to build temp file names to store shell commands to
- * execute.
- */
-static char	tfile[sizeof(TMPPAT)];
-
-/*
  * Descriptions for various shells.
  */
 static const struct CShell shells[] = {
@@ -1482,6 +1476,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	Boolean	noExec;		/* Set true if we decide not to run the job */
 	int	tfd;		/* File descriptor for temp file */
 	LstNode	*ln;
+	char	tfile[sizeof(TMPPAT)];
 
 	if (interrupted) {
 		JobPassSig(interrupted);
