@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.8 1997/04/09 05:39:32 mpp Exp $
+.\" $Id: sleep.9,v 1.9 1997/04/11 17:49:56 bde Exp $
 .\" "
 .Dd April 3, 1996
 .Os
@@ -38,7 +38,7 @@
 .Fd #include <sys/systm.h>
 .Fd #include <sys/proc.h>
 .Ft int
-.Fn tsleep "void *ident" "int priority" "char *wmesg" "int timo"
+.Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
 .Ft void
 .Fn wakeup "void *ident"
 .Ft void
