@@ -45,9 +45,9 @@ struct udf_mnt {
 	int			bsize;
 	int			bshift;
 	int			bmask;
-	u_int32_t		part_start;
-	u_int32_t		part_len;
-	u_int64_t		root_id;
+	uint32_t		part_start;
+	uint32_t		part_len;
+	uint64_t		root_id;
 	struct vnode		*root_vp;
 	struct long_ad		root_icb;
 	TAILQ_HEAD(, udf_node)	udf_tqh;
@@ -108,7 +108,7 @@ int udf_allocv(struct mount *, struct vnode **, struct thread *);
 int udf_hashlookup(struct udf_mnt *, ino_t, int, struct vnode **);
 int udf_hashins(struct udf_node *);
 int udf_hashrem(struct udf_node *);
-int udf_checktag(struct desc_tag *, u_int16_t);
+int udf_checktag(struct desc_tag *, uint16_t);
 int udf_vget(struct mount *, ino_t, int, struct vnode **);
 
 extern uma_zone_t udf_zone_trans;
