@@ -40,7 +40,7 @@
 .Dt PKILL 1
 .Os
 .Sh NAME
-.Nm pkill
+.Nm pgrep , pkill
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
@@ -55,9 +55,9 @@
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
-.Op Ar pattern Op ...
+.Ar pattern ...
 .Nm pkill
-.Op Fl signal
+.Op Fl Ar signal
 .Op Fl fnvx
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -68,7 +68,7 @@
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
-.Op Ar pattern Op ...
+.Ar pattern ...
 .Sh DESCRIPTION
 The
 .Nm pgrep
@@ -82,7 +82,7 @@ command searches the process table on the running system and signals all
 processes that match the criteria given on the command line.
 .Pp
 The following options are available:
-.Bl -tag -width xxxxxxxx
+.Bl -tag -width ".Fl d Ar delim"
 .It Fl G Ar gid
 Restrict matches to processes with a real group ID in the comma-separated
 list
@@ -145,10 +145,12 @@ Restrict matches to processes associated with a terminal in the
 comma-separated list
 .Ar tty .
 Terminal names may be of the form
-.Sq ttyxx
+.Pa tty Ns Ar xx
 or the shortened form
-.Sq xx .
-A single dash (`-') matches processes not associated with a terminal.
+.Ar xx .
+A single dash
+.Pq Ql -
+matches processes not associated with a terminal.
 .It Fl u Ar euid
 Restrict matches to processes with an effective user ID in the
 comma-separated list
@@ -161,9 +163,10 @@ Require an exact match of the process name, or argument list if
 .Fl f
 is given.
 The default is to match any substring.
-.It Fl signal
+.It Fl Ns Ar signal
 A non-negative decimal number or symbolic signal name specifying the signal
-to be sent instead of the default TERM.
+to be sent instead of the default
+.Dv TERM .
 This option is valid only when given as the first argument to
 .Nm pkill .
 .El
@@ -175,11 +178,13 @@ or
 process will never consider itself nor system processes (kernel threads) as
 a potential match.
 .Sh EXIT STATUS
+The
 .Nm pgrep
 and
 .Nm pkill
+utilities
 return one of the following values upon exit:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It 0
 One or more processes were matched.
 .It 1
@@ -195,12 +200,14 @@ An internal error occurred.
 .Xr ps 1 ,
 .Xr kill 2 ,
 .Xr sigaction 2 ,
-.Xr re_format 7 ,
-.Xr signal 7
+.Xr re_format 7
+.\" Xr signal 7
 .Sh HISTORY
+The
 .Nm pkill
 and
 .Nm pgrep
+utilities
 first appeared in
 .Nx 1.6 .
 They are modelled after utilities of the same name that appeared in Sun
@@ -209,4 +216,4 @@ They made their first appearance in
 .Fx 5.3 .
 .Sh AUTHORS
 .An Andrew Doran
-.Aq ad@NetBSD.org .
+.Aq ad@NetBSD.org
