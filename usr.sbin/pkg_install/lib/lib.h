@@ -171,7 +171,7 @@ void		move_file(const char *, const char *, const char *);
 void		copy_hierarchy(const char *, const char *, Boolean);
 int		delete_hierarchy(const char *, Boolean, Boolean);
 int		unpack(const char *, const char *);
-void		format_cmd(char *, const char *, const char *, const char *);
+void		format_cmd(char *, int, const char *, const char *, const char *);
 
 /* Msg */
 void		upchuck(const char *);
