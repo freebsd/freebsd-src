@@ -60,6 +60,7 @@ Linux	0.99p14	OK	93.11.30  Christian Kuhtz <chk@data-hh.Hanse.DE>
 Linux	1.0	OK	94.03.19  Shayne Smith <snsmith@rastus.brisnet.org.au>
 Linux	1.2.13	OK	95.11.02  Sven Neuhaus <sven@ping.de>
 Linux	2.0.17	OK	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+Linux	2.1.109	OK	98.07.21  John Kennedy <jk@csuchico.edu>
 
 BSD/386	1.0	OK	93.11.13  Tony Sanders
 
@@ -81,6 +82,7 @@ Solaris	2.5.1	OK	96.11.29  Gregory Neil Shapiro <gshapiro@wpi.edu>
 
 Linux	1.2.13	FAIL	95.11.02  Sven Neuhaus <sven@ping.de>
 Linux	2.0.17	FAIL	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+Linux	2.1.109	FAIL	98.07.21  John Kennedy <jk@csuchico.edu>
 
 AIX	4.1	OK	96.10.21  Hakan Lindholm <hakan@af.lu.se>
 

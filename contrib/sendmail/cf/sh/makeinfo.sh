@@ -10,7 +10,7 @@
 # the sendmail distribution.
 #
 #
-#	@(#)makeinfo.sh	8.11 (Berkeley) 5/19/98
+#	@(#)makeinfo.sh	8.11 (Berkeley) 5/19/1998
 #
 
 usewhoami=0

@@ -1,4 +1,4 @@
-#	@(#)Titan	8.5	(Berkeley)	3/12/98
+#	@(#)Titan	8.5	(Berkeley)	3/12/1998
 define(`confCC', `cc -43')
 define(`confBEFORE', `stddef.h stdlib.h')
 define(`confMAPDEF', `-DNDBM')

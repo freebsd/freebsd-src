@@ -17,7 +17,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)praliases.c	8.17 (Berkeley) 6/25/98";
+static char sccsid[] = "@(#)praliases.c	8.21 (Berkeley) 12/27/1998";
 #endif /* not lint */
 
 #if !defined(NDBM) && !defined(NEWDB)
@@ -32,6 +32,7 @@ static char sccsid[] = "@(#)praliases.c	8.17 (Berkeley) 6/25/98";
 # define NOT_SENDMAIL
 #endif
 #include <sendmail.h>
+#include <pathnames.h>
 #ifdef NEWDB
 # include <db.h>
 # ifndef DB_VERSION_MAJOR
@@ -50,6 +51,11 @@ static char sccsid[] = "@(#)praliases.c	8.17 (Berkeley) 6/25/98";
 extern char	*strerror __P((int));
 #endif
 
+static void praliases __P((char *, int, char **));
+#ifdef NDBM
+static void praliases_dbm __P((char *, int, char **));
+#endif
+
 int
 main(argc, argv)
 	int argc;
@@ -57,32 +63,148 @@ main(argc, argv)
 {
 	extern char *optarg;
 	extern int optind;
-#ifdef NDBM
-	DBM *dbp;
-	datum content, key;
+	char *cfile;
+#if _FFR_GRAB_ALIASFILE_OPTION
+	char *filename = NULL;
+#else
+	char *filename = "/etc/aliases";
 #endif
-	char *filename;
+	FILE *cfp;
 	int ch;
-#ifdef NEWDB
-	DB *db;
-	DBT newdbkey, newdbcontent;
-	char buf[MAXNAME];
-#endif
+	char afilebuf[MAXLINE];
+	char buf[MAXLINE];
 
-	filename = "/etc/aliases";
+	cfile = _PATH_SENDMAILCF;
+#if _FFR_GRAB_ALIASFILE_OPTION
+	while ((ch = getopt(argc, argv, "C:f:")) != EOF)
+#else
 	while ((ch = getopt(argc, argv, "f:")) != EOF)
-		switch((char)ch) {
+#endif
+	{
+		switch ((char)ch) {
+		case 'C':
+			cfile = optarg;
+			break;
 		case 'f':
 			filename = optarg;
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: praliases [-f file]\n");
+			(void)fprintf(stderr,
+#if _FFR_GRAB_ALIASFILE_OPTION
+				"usage: praliases [-C cffile] [-f aliasfile]\n");
+#else
+				"usage: praliases [-f aliasfile]\n");
+#endif
 			exit(EX_USAGE);
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
+	if (filename != NULL)
+	{
+		praliases(filename, argc, argv);
+		exit(EX_OK);
+	}
+
+	if ((cfp = fopen(cfile, "r")) == NULL)
+	{
+		fprintf(stderr, "praliases: ");
+		perror(cfile);
+		exit(EX_NOINPUT);
+	}
+
+	while (fgets(buf, sizeof(buf), cfp) != NULL)
+	{
+		register char *b, *p;
+
+		b = buf;
+		switch (*b++)
+		{
+		  case 'O':		/* option -- see if alias file */
+			if (strncasecmp(b, " AliasFile", 10) == 0 &&
+			    !(isascii(b[10]) && isalnum(b[10])))
+			{
+				/* new form -- find value */
+				b = strchr(b, '=');
+				if (b == NULL)
+					continue;
+				while (isascii(*++b) && isspace(*b))
+					continue;
+			}
+			else if (*b++ != 'A')
+			{
+				/* something else boring */
+				continue;
+			}
+
+			/* this is the A or AliasFile option -- save it */
+			if (strlen(b) >= sizeof afilebuf)
+			{
+				fprintf(stderr,
+					"AliasFile filename too long: %.30s...\n",
+					b);
+				(void) fclose(cfp);
+				exit(EX_CONFIG);
+			}
+			strcpy(afilebuf, b);
+			b = afilebuf;
+
+			for (p = b; p != NULL; )
+			{
+				while (isascii(*p) && isspace(*p))
+					p++;
+				if (*p == '\0')
+					break;
+				b = p;
+
+				p = strpbrk(p, " ,/");
+				/* find end of spec */
+				if (p != NULL)
+					p = strpbrk(p, ",\n");
+				if (p != NULL)
+					*p++ = '\0';
+
+				praliases(b, argc, argv);
+			}
+
+		  default:
+			continue;
+		}
+	}
+	(void) fclose(cfp);
+	exit(EX_OK);
+}
+
+static void
+praliases(filename, argc, argv)
+	char *filename;
+	int  argc;
+	char **argv;
+{
+#ifdef NEWDB
+	DB *db;
+	DBT newdbkey, newdbcontent;
+	char buf[MAXNAME];
+#endif
+	char *class;
+
+	class = strchr(filename, ':');
+	if (class != NULL)
+	{
+		if (strncasecmp(filename, "dbm:", 4) == 0)
+		{
+#ifdef NDBM
+			praliases_dbm(class + 1, argc, argv);
+			return;
+#else
+			fprintf(stderr, "class dbm not available\n");
+			exit(EX_DATAERR);
+#endif
+		}
+		filename = class + 1;
+	}
 #ifdef NEWDB
 	if (strlen(filename) + 4 >= sizeof buf)
 	{
@@ -99,7 +221,8 @@ main(argc, argv)
 # endif
 	if (db != NULL)
 	{
-		if (!argc) {
+		if (!argc)
+		{
 # if DB_VERSION_MAJOR > 1
 			DBC *dbc;
 # endif
@@ -109,7 +232,11 @@ main(argc, argv)
 # if DB_VERSION_MAJOR < 2
 			while(!db->seq(db, &newdbkey, &newdbcontent, R_NEXT))
 # else
+#  if DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >=6
+			if ((errno = db->cursor(db, NULL, &dbc, 0)) == 0)
+#  else
 			if ((errno = db->cursor(db, NULL, &dbc)) == 0)
+#  endif
 			{
 				while ((errno = dbc->c_get(dbc, &newdbkey,
 							   &newdbcontent,
@@ -128,11 +255,13 @@ main(argc, argv)
 				fprintf(stderr,
 					"praliases: %s: Could not set cursor: %s\n",
 					buf, strerror(errno));
+				errno = db->close(db, 0);
 				exit(EX_DATAERR);
 			}
 # endif
 		}
-		else for (; *argv; ++argv) {
+		else for (; *argv; ++argv)
+		{
 			bzero(&newdbkey, sizeof newdbkey);
 			bzero(&newdbcontent, sizeof newdbcontent);
 			newdbkey.data = *argv;
@@ -156,39 +285,71 @@ main(argc, argv)
 		errno = db->close(db, 0);
 # endif
 	}
-	else {
+	else
+	{
 #endif
 #ifdef NDBM
-		if ((dbp = dbm_open(filename, O_RDONLY, 0)) == NULL) {
-			(void)fprintf(stderr,
-			    "praliases: %s: %s\n", filename, strerror(errno));
-			exit(EX_OSFILE);
-		}
-		if (!argc)
-			for (key = dbm_firstkey(dbp);
-			    key.dptr != NULL; key = dbm_nextkey(dbp)) {
-				content = dbm_fetch(dbp, key);
-				(void)printf("%.*s:%.*s\n",
-					(int) key.dsize, key.dptr,
-					(int) content.dsize, content.dptr);
-			}
-		else for (; *argv; ++argv) {
-			key.dptr = *argv;
-			key.dsize = strlen(*argv) + 1;
-			content = dbm_fetch(dbp, key);
-			if (!content.dptr)
-				(void)printf("%s: No such key\n", key.dptr);
-			else
-				(void)printf("%s:%.*s\n", key.dptr,
-					(int) content.dsize, content.dptr);
-		}
-		dbm_close(dbp);
+		praliases_dbm(filename, argc, argv);
 #endif
 #ifdef NEWDB
 	}
 #endif
-	exit(EX_OK);
 }
+
+#ifdef NDBM
+static void
+praliases_dbm(filename, argc, argv)
+	char *filename;
+	int  argc;
+	char **argv;
+{
+	DBM *dbp;
+	datum content, key;
+
+	if ((dbp = dbm_open(filename, O_RDONLY, 0)) == NULL)
+	{
+		(void)fprintf(stderr,
+		    "praliases: %s: %s\n", filename, strerror(errno));
+		exit(EX_OSFILE);
+	}
+	if (!argc)
+	{
+		for (key = dbm_firstkey(dbp);
+		    key.dptr != NULL; key = dbm_nextkey(dbp))
+		{
+			content = dbm_fetch(dbp, key);
+			(void)printf("%.*s:%.*s\n",
+				(int) key.dsize, key.dptr,
+				(int) content.dsize, content.dptr);
+		}
+	}
+	else
+	{
+		for (; *argv; ++argv)
+		{
+			/*
+			**  Use the sendmail adaptive algorithm of trying
+			**  the key first without, then if needed with,
+			**  the terminating NULL byte.
+			*/
+			key.dptr = *argv;
+			key.dsize = strlen(*argv);
+			content = dbm_fetch(dbp, key);
+			if (content.dptr == NULL)
+			{
+				key.dsize++;
+				content = dbm_fetch(dbp, key);
+			}
+			if (content.dptr != NULL)
+				(void)printf("%s:%.*s\n", key.dptr,
+					(int) content.dsize, content.dptr);
+			else
+				(void)printf("%s: No such key\n", key.dptr);
+		}
+	}
+	dbm_close(dbp);
+}
+#endif
 
 #if !HASSTRERROR
 

@@ -8,7 +8,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)pathnames.h	8.5 (Berkeley) 5/19/98
+ *	@(#)pathnames.h	8.5 (Berkeley) 5/19/1998
  */
 #include <paths.h>
 

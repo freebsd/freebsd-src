@@ -9,7 +9,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	@(#)sendmail.hf	8.16 (Berkeley) 5/19/98
+cpyr	@(#)sendmail.hf	8.18 (Berkeley) 11/19/1998
 cpyr
 smtp	Topics:
 smtp		HELO	EHLO	MAIL	RCPT	DATA
@@ -117,3 +117,8 @@ dsn		ORCPT	Original recipient.
 -bt	/map mapname key :look up `key' in the indicated `mapname'.
 -bt	rules addr	 :run the indicated address through the named rules.
 -bt			  Rules can be a comma separated list of rules.
+control	Help for smcontrol:
+control	help		This message.
+control	restart		Restart sendmail.
+control	shutdown	Shutdown sendmail.
+control	status		Show sendmail status.

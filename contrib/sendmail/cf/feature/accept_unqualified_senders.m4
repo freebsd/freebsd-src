@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)accept_unqualified_senders.m4	8.3 (Berkeley) 5/19/98')
+VERSIONID(`@(#)accept_unqualified_senders.m4	8.3 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_ACCEPT_UNQUALIFIED_SENDERS_', 1)

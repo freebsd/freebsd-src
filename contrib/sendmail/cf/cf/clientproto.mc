@@ -27,7 +27,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)clientproto.mc	8.12 (Berkeley) 5/19/98')
+VERSIONID(`@(#)clientproto.mc	8.12 (Berkeley) 5/19/1998')
 
 OSTYPE(unknown)
 FEATURE(nullclient, mailhost.$m)

@@ -1,4 +1,4 @@
-#	@(#)HP-UX.10.x	8.10	(Berkeley)	3/21/98
+#	@(#)HP-UX.10.x	8.10	(Berkeley)	3/21/1998
 define(`confCC', `cc -Aa -D_HPUX_SOURCE')
 define(`confMAPDEF', `-DNDBM -DNIS -DMAP_REGEX')
 define(`confENVDEF', `-DV4FS ')

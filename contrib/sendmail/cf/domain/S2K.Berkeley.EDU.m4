@@ -11,6 +11,6 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)S2K.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)S2K.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/1998')
 DOMAIN(CS.Berkeley.EDU)dnl
 MASQUERADE_AS(postgres.Berkeley.EDU)dnl

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.82 (Berkeley) 6/15/98";
+static char sccsid[] = "@(#)mci.c	8.83 (Berkeley) 10/13/1998";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -503,7 +503,7 @@ mci_dump_all(logit)
 		mci_dump(MciCache[i], logit);
 }
 /*
-** MCI_LOCK_HOST -- Lock host while sending.
+**  MCI_LOCK_HOST -- Lock host while sending.
 **
 **	If we are contacting a host, we'll need to
 **	update the status information in the host status
@@ -643,7 +643,7 @@ mci_unlock_host(mci)
 	errno = saveErrno;
 }
 /*
-** MCI_LOAD_PERSISTENT -- load persistent host info
+**  MCI_LOAD_PERSISTENT -- load persistent host info
 **
 **	Load information about host that is kept
 **	in common for all running sendmails.
@@ -1016,8 +1016,8 @@ mci_traverse_persistent(action, pathname)
 		*hostptr = '\0';
 
 		/*
-		** Do something with the file containing the persistent
-		** information.
+		**  Do something with the file containing the persistent
+		**  information.
 		*/
 		ret = (*action)(pathname, host);
 	}
@@ -1167,7 +1167,7 @@ mci_purge_persistent(pathname, hostname)
 	return 0;
 }
 /*
-** MCI_GENERATE_PERSISTENT_PATH -- generate path from hostname
+**  MCI_GENERATE_PERSISTENT_PATH -- generate path from hostname
 **
 **	Given `host', convert from a.b.c to $QueueDir/.hoststat/c./b./a,
 **	putting the result into `path'.  if `createflag' is set, intervening

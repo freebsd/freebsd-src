@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)stickyhost.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)stickyhost.m4	8.6 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_STICKY_LOCAL_DOMAIN_', 1)

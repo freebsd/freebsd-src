@@ -1,4 +1,4 @@
-#	@(#)dcosx.1.x.NILE	8.3	(Berkeley)	2/8/98
+#	@(#)dcosx.1.x.NILE	8.3	(Berkeley)	2/8/1998
 define(`confENVDEF', `-D__svr4__ -DDCOSx ')
 define(`confLIBS', `-lsocket -lnsl -lelf')
 define(`confHFDIR', `/usr/share/lib/mail')

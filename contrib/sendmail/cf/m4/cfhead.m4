@@ -105,7 +105,7 @@ define(`_OPTINS', `ifdef(`$1', `$2$1$3')')
 m4wrap(`include(_CF_DIR_`m4/proto.m4')')
 
 # set up default values for options
-define(`ALIAS_FILE', `/etc/aliases')
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/aliases'))
 define(`confMAILER_NAME', ``MAILER-DAEMON'')
 define(`confFROM_LINE', `From $g  $d')
 define(`confOPERATORS', `.:%@!^/[]+')
@@ -133,10 +133,10 @@ define(`confSAFE_QUEUE', `True')
 define(`confTO_QUEUERETURN', `5d')
 define(`confTO_QUEUEWARN', `4h')
 define(`confTIME_ZONE', `USE_SYSTEM')
-define(`confCW_FILE', `/etc/sendmail.cw')
+define(`confCW_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/local-host-names', `/etc/sendmail.cw'))
 define(`confMIME_FORMAT_ERRORS', `True')
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward')
 define(`confCR_FILE', `-o /etc/mail/relay-domains')
 
 divert(0)dnl
-VERSIONID(`@(#)cfhead.m4	8.22 (Berkeley) 5/19/98')
+VERSIONID(`@(#)cfhead.m4	8.23 (Berkeley) 10/6/1998')

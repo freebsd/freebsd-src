@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.20	(Berkeley)	6/4/98
+#	@(#)Makefile.m4	8.21	(Berkeley)	7/12/1998
 #
 
 # C compiler
@@ -41,7 +41,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of makemap binary (usually /usr/sbin or /usr/etc)
-BINDIR=	${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
+SBINDIR=${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -95,7 +95,7 @@ makemap.${MAN8SRC}: makemap.8
 install: install-makemap install-docs
 
 install-makemap: makemap
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} makemap ${BINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} makemap ${SBINDIR}
 
 install-docs: makemap.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

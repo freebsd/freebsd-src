@@ -13,7 +13,7 @@
 # include "sendmail.h"
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.92 (Berkeley) 6/5/98";
+static char sccsid[] = "@(#)alias.c	8.96 (Berkeley) 12/18/1998";
 #endif /* not lint */
 
 
@@ -382,7 +382,7 @@ aliaswait(map, ext, isopen)
 		/* database is out of date */
 		if (AutoRebuild && stb.st_ino != 0 &&
 		    (stb.st_uid == geteuid() ||
-		     (geteuid() == 0 && stb.st_uid == TrustedFileUid)))
+		     (geteuid() == 0 && stb.st_uid == TrustedUid)))
 		{
 			bool oldSuprErrs;
 
@@ -510,6 +510,7 @@ rebuildaliases(map, automatic)
 				username());
 		}
 		map->map_mflags |= MF_OPEN|MF_WRITABLE;
+		map->map_pid = getpid();
 		readaliases(map, af, !automatic, TRUE);
 		success = TRUE;
 	}

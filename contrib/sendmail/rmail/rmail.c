@@ -16,7 +16,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rmail.c	8.17 (Berkeley) 5/19/98";
+static char sccsid[] = "@(#)rmail.c	8.18 (Berkeley) 10/23/1998";
 #endif /* not lint */
 
 /*
@@ -136,10 +136,10 @@ main(argc, argv)
 	extern int errno, optind;
 	FILE *fp;
 	struct stat sb;
-	size_t fplen, fptlen, len;
+	size_t fplen = 0, fptlen = 0, len;
 	off_t offset;
 	int ch, debug, i, pdes[2], pid, status;
-	char *addrp, *domain, *p, *t;
+	char *addrp = NULL, *domain, *p, *t;
 	char *from_path, *from_sys, *from_user;
 	char *args[100], buf[2048], lbuf[2048];
 

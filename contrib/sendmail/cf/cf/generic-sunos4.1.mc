@@ -19,7 +19,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)generic-sunos4.1.mc	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)generic-sunos4.1.mc	8.8 (Berkeley) 5/19/1998')
 OSTYPE(sunos4.1)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

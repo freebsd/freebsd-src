@@ -12,7 +12,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)nullrelay.m4	8.19 (Berkeley) 5/19/98')
+VERSIONID(`@(#)nullrelay.m4	8.19 (Berkeley) 5/19/1998')
 
 #
 #  This configuration applies only to relay-only hosts.  They send

@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.13	(Berkeley)	6/4/98
+#	@(#)Makefile.m4	8.14	(Berkeley)	7/12/1998
 #
 
 # C compiler
@@ -32,7 +32,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of smrsh binary (usually /usr/libexec or /usr/etc)
-BINDIR=	${DESTDIR}ifdef(`confEBINDIR', `confEBINDIR', `/usr/libexec')
+EBINDIR=${DESTDIR}ifdef(`confEBINDIR', `confEBINDIR', `/usr/libexec')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -81,7 +81,7 @@ smrsh.${MAN8SRC}: smrsh.8
 install: install-smrsh install-docs
 
 install-smrsh: smrsh
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} smrsh ${BINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} smrsh ${EBINDIR}
 
 install-docs: smrsh.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

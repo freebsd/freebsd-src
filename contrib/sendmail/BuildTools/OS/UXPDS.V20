@@ -1,4 +1,4 @@
-#	@(#)UXPDS.V20	8.8	(Berkeley)	3/12/98
+#	@(#)UXPDS.V20	8.8	(Berkeley)	3/12/1998
 define(`confCC', `/usr/ccs/bin/cc')
 define(`confBEFORE', `netinet/ip_var.h')
 define(`confMAPDEF', `-DNDBM -DNIS')

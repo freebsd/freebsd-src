@@ -12,7 +12,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)genericstable.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)genericstable.m4	8.8 (Berkeley) 10/6/1998')
 divert(-1)
 
-define(`GENERICS_TABLE', ifelse(_ARG_, `', DATABASE_MAP_TYPE` -o /etc/genericstable', `_ARG_'))dnl
+define(`GENERICS_TABLE', ifelse(_ARG_, `',
+				ifdef(`_USE_ETC_MAIL_',
+				      DATABASE_MAP_TYPE` -o /etc/mail/genericstable',
+				      DATABASE_MAP_TYPE` -o /etc/genericstable'),
+				`_ARG_'))dnl

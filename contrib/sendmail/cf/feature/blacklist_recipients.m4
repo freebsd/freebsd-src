@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)blacklist_recipients.m4	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)blacklist_recipients.m4	8.9 (Berkeley) 5/19/1998')
 divert(-1)
 
 ifdef(`ACCESS_TABLE',

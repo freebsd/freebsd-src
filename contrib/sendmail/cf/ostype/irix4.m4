@@ -12,9 +12,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)irix4.m4	8.13 (Berkeley) 5/19/98')
+VERSIONID(`@(#)irix4.m4	8.14 (Berkeley) 10/6/1998')
 ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', Ehm9)')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
-define(`ALIAS_FILE', /usr/lib/aliases)dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/aliases'))dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/lib/sendmail.st'))')dnl
 define(`confEBINDIR', `/usr/lib')dnl

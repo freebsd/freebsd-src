@@ -7,7 +7,7 @@
 # the sendmail distribution.
 #
 #
-#       @(#)find_m4.sh	8.4 (Berkeley) 5/19/98
+#       @(#)find_m4.sh	8.4 (Berkeley) 5/19/1998
 #
 
 # Try to find a working M4 program.

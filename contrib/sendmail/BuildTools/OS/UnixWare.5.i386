@@ -1,0 +1,18 @@
+#	@(#)UnixWare.5.i386	8.2	(Berkeley)	10/15/1998
+#
+# System V Rel 5.x (a.k.a Unixware7 w/o BSD-Compatiblity Libs ie. native)
+#	Contributed by Paul Gampe <paulg@apnic.net>
+#
+define(`confCC', `/usr/ccs/bin/cc')
+define(`confMAPDEF', `-DNDBM -DMAP_REGEX')
+define(`confENVDEF', `-D__svr5__')
+define(`confLIBS', `-lsocket -lnsl -lelf')
+define(`confSHELL', `/usr/bin/sh')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/etc/mail')
+define(`confUBINDIR', `/etc/mail')
+define(`confEBINDIR', `/usr/lib')
+define(`confSBINGRP', `mail')
+define(`confSTDIR', `/etc/mail')
+define(`confHFDIR', `/etc/mail')
+define(`confINSTALL', `/usr/ucb/install')

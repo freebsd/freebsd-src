@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)relay_based_on_MX.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)relay_based_on_MX.m4	8.7 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_RELAY_MX_SERVED_', 1)

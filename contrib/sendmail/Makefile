@@ -1,4 +1,4 @@
-#       @(#)Makefile.dist	8.2 (Berkeley) 2/17/98
+#       @(#)Makefile.dist	8.2 (Berkeley) 2/17/1998
 
 SHELL= /bin/sh
 SUBDIRS= src mail.local mailstats makemap praliases rmail smrsh

@@ -1,4 +1,4 @@
-#	@(#)LUNA	8.8	(Berkeley)	3/12/98
+#	@(#)LUNA	8.8	(Berkeley)	3/12/1998
 define(`confBEFORE', `dirent.h stddef.h stdlib.h unistd.h limits.h time.h sys/time.h')
 define(`confMAPDEF', `-DNDBM')
 define(`confMBINDIR', `/usr/lib')

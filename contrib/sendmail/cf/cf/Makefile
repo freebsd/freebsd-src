@@ -1,7 +1,7 @@
 #
 #  Makefile for configuration files.
 #
-#	@(#)Makefile	8.17 (Berkeley) 4/2/98
+#	@(#)Makefile	8.17 (Berkeley) 4/2/1998
 #
 
 #

@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)unknown.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)unknown.m4	8.6 (Berkeley) 5/19/1998')
 errprint(`*** ERROR: You have not specified a valid operating system type.')
 errprint(`	Use the OSTYPE macro to select a valid system type.  This')
 errprint(`	is necessary in order to get the proper pathnames and flags')

@@ -1,4 +1,4 @@
-#	@(#)BSD43	8.5	(Berkeley)	3/12/98
+#	@(#)BSD43	8.5	(Berkeley)	3/12/1998
 define(`confBEFORE', `unistd.h stddef.h stdlib.h dirent.h sys/time.h')
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-DoldBSD43 ')
