@@ -192,7 +192,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	}
 
 	for (i = 0; phys_avail[i + 1]; i += 2) {
-		int size = phys_avail[i + 1] - phys_avail[i];
+		vm_size_t size = phys_avail[i + 1] - phys_avail[i];
 
 		if (size > biggestsize) {
 			biggestone = i;
