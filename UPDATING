@@ -17,6 +17,36 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040710:
+	__FreeBSD_version bumped to 502122.
+
+20040710:
+	The console initialization on Alpha has been reworked and is now
+	identical to other platforms. This means that the hardcoding of
+	the serial console and the debug port has been removed. As such,
+	hints are now required for the sio(4) driver to become a console
+	or debug port. The NO_SIO option has been decommissioned because
+	of this.
+
+20040710:
+	A revamp of the debugging code in the kernel with some visible
+	changes beyond just the debugging experience:
+	o  The DDB option is now specific to the DDB debugger backend
+	   and should not be used any more for conditional compilation
+	   of debugging code for when debugging is enabled. Use the KDB
+	   option for this.
+	o  The WITNESS_DDB, DDB_TRACE and DDB_UNATTENDED options have
+	   been renamed to WITNESS_KDB, KDB_TRACE and KDB_UNATTENDED
+	   respectively. This is in line with the first bullet.
+	o  The remote GDB support has been untangled from DDB and needs
+	   to be enabled seperately now. Use the GDB option for this.
+	o  The GDB_REMOTE_CHAT option has been removed. Support for this
+	   homegrown feature is discontinued. The GDB remote protocol
+	   supports console output and it makes sense to use that. 
+	o  The DDB_NOKLDSYM option has been removed. The DDB debugger
+	   now supports both direct symbol table lookups as well as KLD
+	   symbol lookups through the linker.
+
 20040708:
 	Bluetooth code has been marked as non-i386 specific.
 	__FreeBSD_version has been bumped to 502121 to mark this change.
