@@ -28,8 +28,8 @@ Europe:
 	Sweden:
 		ftp://ftp.sunet.se/pub/unix/admin/am-utils
 		Maintainer: archive@ftp.sunet.se
-	Sweden:
-		ftp://ftp.matematik.su.se/pub/mirrors/shekel.mcl.cs.columbia.edu/pub/am-utils
+	Sweden (Stockholm University, Math Depat):
+		ftp://mirror.matematik.su.se/pub/am-utils
 		Maintainer: leifj@matematik.su.se
 	UK:
 		ftp://sunsite.org.uk/packages/am-utils

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: map.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
+ * $Id: map.c,v 1.5 1999/08/22 05:12:51 ezk Exp $
  *
  */
 
@@ -615,7 +615,7 @@ root_fh(char *dir)
       long pid = getppid();
       ((struct am_fh *) &nfh)->fhh_pid = pid;
 #ifdef DEBUG
-      dlog("root_fh substitutes pid %d", pid);
+      dlog("root_fh substitutes pid %ld", (long) pid);
 #endif /* DEBUG */
     }
     return &nfh;
@@ -913,7 +913,7 @@ free_map_if_success(int rc, int term, voidp closure)
 #endif /* DEBUG */
     amd_stats.d_uerr++;
   } else if (rc) {
-    if (rc == EBUSY) {
+    if (mf->mf_ops == &amfs_program_ops || rc == EBUSY) {
       plog(XLOG_STATS, "\"%s\" on %s still active", mp->am_path, mf->mf_mount);
     } else {
       errno = rc;		/* XXX */
@@ -1093,7 +1093,7 @@ timeout_mp(voidp v)
   if ((int) amd_state >= (int) Finishing)
     t = now + 1;
 #ifdef DEBUG
-  dlog("Next mount timeout in %ds", t - now);
+  dlog("Next mount timeout in %lds", (long) (t - now));
 #endif /* DEBUG */
 
   timeout_mp_id = timeout(t - now, timeout_mp, 0);

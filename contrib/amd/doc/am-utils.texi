@@ -1,6 +1,6 @@
 \input texinfo          @c -*-texinfo-*-
 @c
-@c Copyright (c) 1997-1998 Erez Zadok
+@c Copyright (c) 1997-1999 Erez Zadok
 @c Copyright (c) 1989 Jan-Simon Pendry
 @c Copyright (c) 1989 Imperial College of Science, Technology & Medicine
 @c Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
 @c
 @c      %W% (Berkeley) %G%
 @c
-@c $Id: am-utils.texi,v 1.2 1998/12/27 06:25:16 ezk Exp $
+@c $Id: am-utils.texi,v 1.10 1999/09/08 23:36:49 ezk Exp $
 @c
 @setfilename am-utils.info
 
@@ -49,6 +49,9 @@
 * Am-utils: (am-utils).          The Amd automounter suite of utilities
 @end direntry
 
+@settitle
+@setchapternewpage odd
+
 @titlepage
 @title Am-utils (4.4BSD Automounter Utilities)
 @subtitle For version @value{VERSION}, @value{UPDATED}
@@ -57,7 +60,7 @@
 (Originally by Jan-Simon Pendry and Nick Williams)
 
 @page
-Copyright @copyright{} 1997-1998 Erez Zadok
+Copyright @copyright{} 1997-1999 Erez Zadok
 @*
 Copyright @copyright{} 1989 Jan-Simon Pendry
 @*
@@ -212,7 +215,7 @@ of the BSD network version 2 distribution
 Revision 6.0 was made independently by @email{ezk@@cs.columbia.edu,Erez
 Zadok} at the @uref{http://www.cs.columbia.edu/,Computer Science
 Department} of @uref{http://www.columbia.edu/,Columbia University}, as
-part of his @uref{http://www.cs.columbia.edu/~ezk/research/tp/thesis_proposal.html,PhD thesis work}. @xref{History} for more details.
+part of his @uref{http://www.cs.columbia.edu/~ezk/research/tp/thesis_proposal.html,PhD thesis work}. @xref{History}, for more details.
 
 @unnumberedsec Bug Reports
 @cindex Bug reports
@@ -702,6 +705,10 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
+@item @b{alphaev5-unknown-linux-gnu-rh5.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
 @item @b{hppa1.0-hp-hpux11.00}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab no    @tab yes  @tab ?
@@ -712,7 +719,7 @@ features.
 
 @item @b{hppa1.1-hp-hpux10.20}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
+@tab yes     @tab yes   @tab yes  @tab no    @tab no   @tab ?
 
 @item @b{hppa1.1-hp-hpux9.01}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
@@ -736,15 +743,19 @@ features.
 
 @item @b{i386-pc-bsdi3.0}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
+@tab yes     @tab yes   @tab yes  @tab yes   @tab no   @tab ?
 
 @item @b{i386-pc-bsdi3.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab no   @tab ?
+@tab yes     @tab yes   @tab yes  @tab yes   @tab no   @tab ?
 
 @item @b{i386-pc-bsdi4.0}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
-@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{i386-pc-bsdi4.0.1}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
 @item @b{i386-pc-solaris2.5.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
@@ -782,6 +793,22 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
+@item @b{i386-unknown-freebsdelf3.0}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{i386-unknown-freebsdelf3.1}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{i386-unknown-freebsdelf3.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
+@item @b{i386-unknown-freebsdelf4.0}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
 @item @b{i386-unknown-netbsd1.2.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
@@ -802,6 +829,10 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
+@item @b{i386-unknown-netbsd1.4}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
 @item @b{i386-unknown-openbsd2.1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
@@ -818,11 +849,23 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
 
+@item @b{i386-unknown-openbsd2.5}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab yes   @tab yes  @tab ?
+
 @item @b{i486-ncr-sysv4.3.03}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab ?    @tab yes   @tab yes  @tab ?
 
+@item @b{i486-pc-linux-gnu-rh6.0}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
 @item @b{i486-pc-linux-gnulibc1}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{i486-pc-linux-gnulibc1-rh4.2}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
@@ -834,11 +877,36 @@ features.
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
+@item @b{i586-pc-linux-gnu-rh5.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{i586-pc-linux-gnu-rh6.0}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
 @item @b{i586-pc-linux-gnulibc1}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
+@item @b{i586-pc-linux-gnulibc1-rh4.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+
 @item @b{i686-pc-linux-gnu}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{i686-pc-linux-gnu-rh5.2}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{i686-pc-linux-gnu-rh6.0}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
+
+@item @b{i686-pc-linux-gnulibc}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
@@ -893,6 +961,10 @@ features.
 @item @b{powerpc-ibm-aix4.3.1.0}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
 @tab yes     @tab yes   @tab ?    @tab yes   @tab ?    @tab ?
+
+@item @b{powerpc-unknown-linux-gnu}
+@c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
+@tab yes     @tab yes   @tab yes  @tab n/a   @tab yes  @tab ?
 
 @item @b{rs6000-ibm-aix3.2}
 @c {Config}  {Compile}  {Amd}     {NFS V.3}  {Shlib}   {Hlfsd}
@@ -1573,6 +1645,7 @@ These are the selectors currently implemented.
 * exists Selector Function::
 * false Selector Function::
 * netgrp Selector Function::
+* netgrpd Selector Function::
 * in_network Selector Function::
 * true Selector Function::
 @end menu
@@ -1851,7 +1924,7 @@ evaluates to true.  Otherwise it evaluates to false.
 Always evaluates to false.  @i{ARG} is ignored.
 
 @c ----------------------------------------------------------------
-@node netgrp Selector Function, in_network Selector Function, false Selector Function, Selectors
+@node netgrp Selector Function, netgrpd Selector Function, false Selector Function, Selectors
 @comment  node-name,  next,  previous,  up
 @subsubsection netgrp Selector Function
 @cindex netgrp Selector Function
@@ -1860,9 +1933,9 @@ Always evaluates to false.  @i{ARG} is ignored.
 @cindex Mount selector; netgrp
 @cindex Selector; netgrp
 
-If the current host as determined by the value of @code{$@{host@}} is a
-member of the netgroup @i{ARG}, this selector evaluates to true.
-Otherwise it evaluates to false.
+If the current host as determined by the value of @code{$@{host@}}
+(e.g., short host name) is a member of the netgroup @i{ARG}, this
+selector evaluates to true.  Otherwise it evaluates to false.
 
 For example, suppose you have a netgroup @samp{ppp-hosts}, and for
 reasons of performance, these have a local @file{/home} partition, while
@@ -1875,7 +1948,26 @@ home/*  netgrp(ppp-hosts);type:=link;fs:=/local/$@{key@} \
 @end example
 
 @c ----------------------------------------------------------------
-@node in_network Selector Function, true Selector Function, netgrp Selector Function, Selectors
+@node netgrpd Selector Function, in_network Selector Function, netgrp Selector Function, Selectors
+@comment  node-name,  next,  previous,  up
+@subsubsection netgrpd Selector Function
+@cindex netgrpd Selector Function
+@cindex netgrpd, boolean mount selector
+@cindex !netgrpd, boolean mount selector
+@cindex Mount selector; netgrpd
+@cindex Selector; netgrpd
+
+If the current host as determined by the value of @code{$@{hostd@}} is a
+member of the netgroup @i{ARG}, this selector evaluates to true.
+Otherwise it evaluates to false.
+
+The @samp{netgrpd} function uses fully-qualified host names
+(@code{$@{hostd@}}) to match netgroup names, while the @samp{netgrp}
+function (@pxref{netgrp Selector Function}) uses short host names
+(@code{$@{host@}}).
+
+@c ----------------------------------------------------------------
+@node in_network Selector Function, true Selector Function, netgrpd Selector Function, Selectors
 @comment  node-name,  next,  previous,  up
 @subsubsection in_network Selector Function
 @cindex in_network Selector Function
@@ -1951,10 +2043,14 @@ The following options apply to more than one filesystem type.
 
 This option adds additional options to default options normally
 specified in the @samp{/defaults} entry or the defaults of the key entry
-being processed (@xref{opts Option}).  Normally when you specify
+being processed (@pxref{opts Option}).  Normally when you specify
 @samp{opts} in both the @samp{/defaults} and the map entry, the latter
-overrides the former completely.  But with @samp{addopts} it will
-append the options and override any conflicting ones.
+overrides the former completely.  But with @samp{addopts} it will append
+the options and override any conflicting ones.
+
+@samp{addopts} also overrides the value of the @samp{remopts} option
+(@pxref{remopts Option}), which unless specified defaults to the value
+of @samp{opts}.
 
 Options which start with @samp{no} will override those with the same
 name that do not start with @samp{no} and vice verse.  Special handling
@@ -2109,11 +2205,22 @@ Allow local special devices on this filesystem.
 
 @item dumbtimr
 @cindex Mount flags; dumbtimr
-(XXX: a dumb timer?)
+Turn off the dynamic retransmit timeout estimator.  This may be useful
+for UDP mounts that exhibit high retry rates, since it is possible that
+the dynamically estimated timeout interval is too short.
+
+@item extatt
+@cindex Mount flags; extatt
+Enable extended attributes in ISO-9660 file systems.
 
 @item fsid
 @cindex Mount flags; fsid
 Set ID of filesystem.
+
+@item gens
+@cindex Mount flags; gens
+Enable generations in ISO-9660 file systems.  Generations allow you to
+see all versions of a given file.
 
 @item grpid
 @cindex Mount flags; grpid
@@ -2143,7 +2250,9 @@ Turn off the attribute cache.
 
 @item noauto
 @cindex Mount flags; noauto
-(XXX: No automatic what?)
+This option is used by the mount command in @samp{/etc/fstab} or
+@samp{/etc/vfstab} and means not to mount this file system when mount -a
+is used.
 
 @item nocache
 @cindex Mount flags; nocache
@@ -2172,6 +2281,11 @@ Don't allow local special devices on this filesystem.
 @item noint
 @cindex Mount flags; noint
 Do not allow keyboard interrupts for this mount
+
+@item norrip
+@cindex Mount flags; norrip
+Turn off using of the Rock Ridge Interchange Protocol (RRIP) extensions
+to ISO-9660.
 
 @item nosub
 @cindex Mount flags; nosub
@@ -2665,7 +2779,7 @@ Print version information on standard error and then exit.  The output
 is of the form:
 
 @example
-Copyright (c) 1997-1998 Erez Zadok
+Copyright (c) 1997-1999 Erez Zadok
 Copyright (c) 1990 Jan-Simon Pendry
 Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 Copyright (c) 1990 The Regents of the University of California.
@@ -3297,11 +3411,12 @@ The following option must be specified:
 the block special device to be mounted.
 @end table
 
-A cdfs entry might be:
+Some operating systems will fail to mount read-only CDs unless the
+@samp{ro} option is specified.  A cdfs entry might be:
 
 @example
 cdfs      os==sunos4;type:=cdfs;dev:=/dev/sr0 \
-          os==sunos5;type:=cdfs;dev:=/dev/dsk/c0t6d0s2
+          os==sunos5;addopts:=ro;type:=cdfs;dev:=/dev/dsk/c0t6d0s2
 @end example
 
 @c ----------------------------------------------------------------
@@ -3730,7 +3845,7 @@ dylan/dk5    type:=ufs;dev:=/dev/dsk/5s0
 The @dfn{direct} (@samp{type:=direct}) filesystem is almost identical to the automount
 filesystem.  Instead of appearing to be a directory of mount points, it
 appears as a symbolic link to a mounted filesystem.  The mount is done
-at the time the link is accessed.  @xref{Automount Filesystem} for a
+at the time the link is accessed.  @xref{Automount Filesystem}, for a
 list of required options.
 
 Direct automount points are created by specifying the @samp{direct}
@@ -6789,7 +6904,7 @@ accessible.
 
 @end table
 
-For discussion on other files used by @i{Hlfsd}, see @ref{lostaltmail} and
+For discussion on other files used by @i{Hlfsd}, see @xref{lostaltmail}, and
 @ref{lostaltmail.conf-sample}.
 
 @c ################################################################
@@ -6806,6 +6921,7 @@ am-utils, and get installed.
 * amd.conf-sample::   
 * amd2ldif::          
 * amd2sun::           
+* automount2amd::           
 * ctl-amd::           
 * ctl-hlfsd::         
 * expn::              
@@ -6851,7 +6967,7 @@ amd2ldif @i{mapname} @i{base} < @i{amd.mapfile} > @i{mapfile.ldif}
 @end example
 
 @c ----------------------------------------------------------------
-@node amd2sun, ctl-amd, amd2ldif, Assorted Tools
+@node amd2sun, automount2amd, amd2ldif, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section amd2sun
 @pindex amd2sun
@@ -6864,7 +6980,57 @@ amd2sun < @i{amd.mapfile} > @i{auto_mapfile}
 @end example
 
 @c ----------------------------------------------------------------
-@node ctl-amd, ctl-hlfsd, amd2sun, Assorted Tools
+@node automount2amd, ctl-amd, amd2sun, Assorted Tools
+@comment  node-name,  next,  previous,  up
+@section automount2amd
+@pindex automount2amd
+
+A script to convert old Sun Automounter maps to @i{Amd} maps.
+
+Say you have the Sun automount file @i{auto.foo}, with these two lines:
+@example
+home                  earth:/home
+moon  -ro,intr        server:/proj/images
+@end example
+Running
+@example
+automount2amd auto.foo > amd.foo
+@end example
+
+will produce the @i{Amd} map @i{amd.foo} with this content:
+
+@example
+# generated by automount2amd on Sat Aug 14 17:59:32 US/Eastern 1999
+
+/defaults \\
+  type:=nfs;opts:=rw,grpid,nosuid,utimeout=600
+
+home \
+  host==earth;type:=link;fs:=/home \\
+  rhost:=earth;rfs:=/home
+
+moon \
+  -addopts:=ro,intr \\
+  host==server;type:=link;fs:=/proj/images \\
+  rhost:=server;rfs:=/proj/images
+@end example
+
+This perl script will use the following @i{/default} entry
+@example
+type:=nfs;opts:=rw,grpid,nosuid,utimeout=600
+@end example
+If you wish to override that, define the @b{$DEFAULTS} environment
+variable, or modify the script.
+
+If you wish to generate Amd maps using the @i{hostd} (@pxref{hostd
+Selector Variable}) @i{Amd} map syntax, then define the environment
+variable @b{$DOMAIN} or modify the script.
+
+Note that automount2amd does not understand newer Sun Automount map
+syntax, those used by autofs.
+
+@c ----------------------------------------------------------------
+@node ctl-amd, ctl-hlfsd, automount2amd, Assorted Tools
 @comment  node-name,  next,  previous,  up
 @section ctl-amd
 @pindex ctl-amd
@@ -6881,7 +7047,7 @@ Stop the running @i{Amd} (if any), safely wait for it to terminate, and
 then start a new process --- only if the previous one died cleanly.
 @end table
 
-@xref{Run-time Administration} for more details.
+@xref{Run-time Administration}, for more details.
 
 @c ----------------------------------------------------------------
 @node ctl-hlfsd, expn, ctl-amd, Assorted Tools
@@ -6903,7 +7069,7 @@ terminate, and then start a new process --- only if the previous one
 died cleanly.
 @end table
 
-@xref{Hlfsd} for more details.
+@xref{Hlfsd}, for more details.
 
 @c ----------------------------------------------------------------
 @node expn, fix-amd-map, ctl-hlfsd, Assorted Tools
@@ -6994,7 +7160,7 @@ lostaltmail
 @end example
 
 This script needs a configuration file @samp{lostaltmail.conf} set up
-with the right parameters to properly work.  @xref{Hlfsd} for more
+with the right parameters to properly work.  @xref{Hlfsd}, for more
 details.
 
 @c ----------------------------------------------------------------
@@ -7621,7 +7787,7 @@ in @dfn{italic} are replaced by an appropriate string.  Variables,
 output.
 
 Log messages are either sent directly to a file,
-or logged via the @b{syslog}(3) mechanism.  @xref{log_file Parameter}
+or logged via the @b{syslog}(3) mechanism.  @xref{log_file Parameter}.
 In either case, entries in the file are of the form:
 @example
 @i{date-string}  @i{hostname} @t{amd[}@i{pid}@t{]}  @i{message}
@@ -7890,5 +8056,7 @@ All other registered trademarks are owned by their respective owners.
 @c LocalWords:  moisil FSinfo Libtool Unmounting sublink fileservers NullProc
 @c LocalWords:  gethostname mount's unmounts linkx remounts unmounting UAs SA's
 @c LocalWords:  mountpoint mountpoints unescaped UIDs util's overlayed uref EFS
-@c LocalWords:  serv maxgroups nfsl cachedir copt cfsadmin efs addopts fg
-@c LocalWords:  nointr
+@c LocalWords:  serv maxgroups nfsl cachedir copt cfsadmin efs addopts fg ROMs
+@c LocalWords:  nointr extatt setchapternewpage columnfractions alphaev gnulibc
+@c LocalWords:  freebsdelf gnuoldld ifhtml defperm nodefperm norrip RRIP rrip
+@c LocalWords:  noversion attr XXXXXX netgrpd

@@ -12,6 +12,17 @@ the ctime(3) call.
 However, on Friday, September 18th 1998, Matthew Crosby <mcrosby@ms.com>
 reported that they evaluated 6.0a16 and found it to be compliant.
 
+On March 26, 1999, Paul Balyoz <pbalyoz@sedona.ch.intel.com> submitted a
+patch to lostaltmail which makes it print Y2K compliant dates.  He used a
+code scanner and manually "eyeballed" the code and could not find any more
+problems.  Paul's patch is included in am-utils-6.0.1s7 and newer versions.
+Paul also said that other 2-digit years used in am-utils are "harmless."
+
+
+NOTE: NONE OF THE PERSONS MENTIONED HERE, AUTHOR INCLUDED, ARE WILLING TO
+CERTIFY AM-UTILS AS Y2K COMPLIANT.  USE AT YOUR OWN RISK.
+
+---
 Erez Zadok.
 Maintainer, am-utils package and AMD-DEV list.
 Email: amd-dev-owner@majordomo.cs.columbia.edu
