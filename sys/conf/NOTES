@@ -2274,6 +2274,12 @@ device		uvscom
 # and the SMC 2202USB. Also works with the ADMtek AN986 Pegasus
 # eval board.
 device		aue
+
+# ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
+# LinkSys USB200M and various other adapters.
+
+device		axe
+
 #
 # CATC USB-EL1201A USB ethernet. Supports the CATC Netmate
 # and Netmate II, and the Belkin F5U111.
