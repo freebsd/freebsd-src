@@ -95,6 +95,8 @@
 
 /* end of driver specific options */
 
+#define PSM_DRIVER_NAME		"psm"
+
 /* input queue */
 #define PSM_BUFSIZE		960
 #define PSM_SMALLBUFSIZE	240
@@ -311,7 +313,7 @@ static device_method_t psm_methods[] = {
 };
 
 static driver_t psm_driver = {
-    "psm",
+    PSM_DRIVER_NAME,
     psm_methods,
     sizeof(struct psm_softc),
 };
@@ -327,7 +329,7 @@ static struct cdevsw psm_cdevsw = {
 	/* poll */	psmpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
-	/* name */	"psm",
+	/* name */	PSM_DRIVER_NAME,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
@@ -780,7 +782,7 @@ psmidentify(driver_t *driver, device_t parent)
 {
 
     /* always add at least one child */
-    BUS_ADD_CHILD(parent, KBDC_RID_AUX, driver->name, 0);
+    BUS_ADD_CHILD(parent, KBDC_RID_AUX, driver->name, device_get_unit(parent));
 }
 
 #define endprobe(v)	{   if (bootverbose) 				\
@@ -2798,6 +2800,7 @@ static driver_t psmcpnp_driver = {
 static struct isa_pnp_id psmcpnp_ids[] = {
 	{ 0x130fd041, "PS/2 mouse port" },		/* PNP0F13 */
 	{ 0x1303d041, "PS/2 port" },			/* PNP0313, XXX */
+	{ 0x80374d24, "IBM PS/2 mouse port" },		/* IBM3780, ThinkPad */
 	{ 0 }
 };
 
@@ -2806,12 +2809,28 @@ create_a_copy(device_t atkbdc, device_t me)
 {
 	device_t psm;
 	u_long irq;
+	char *name;
+	int unit;
 
+	name = PSM_DRIVER_NAME;
+	unit = device_get_unit(atkbdc);
+
+	/*
+	 * The PnP BIOS and ACPI are supposed to assign an IRQ (12)
+	 * to the PS/2 mouse device node. But, some buggy PnP BIOS
+	 * declares the PS/2 mouse device node without the IRQ!
+	 * If this happens, we shall refer to device hints.
+	 * If we still don't find it there, use a hardcoded value... XXX
+	 */
 	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
-	if (irq <= 0)
-		return ENXIO;	/* shouldn't happen */
+	if (irq <= 0) {
+		if (resource_long_value(name, unit, "irq", &irq) != 0)
+			irq = 12;	/* XXX */
+		device_printf(me, "irq resource info is missing; "
+			      "assuming irq %ld\n", irq);
+	}
 
-	psm = BUS_ADD_CHILD(atkbdc, 1, "psm", 0);
+	psm = BUS_ADD_CHILD(atkbdc, KBDC_RID_AUX, name, unit);
 	if (psm == NULL)
 		return ENXIO;
 
@@ -2831,27 +2850,31 @@ psmcpnp_probe(device_t dev)
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids))
 		return ENXIO;
 
-	/*
-	 * If we find an atkbdc device on the same bus,
-	 * create our copy there.
-	 */
+	/* If we don't find an atkbdc device on the same bus, quit. */
 	atkbdc = device_find_child(device_get_parent(dev), ATKBDC_DRIVER_NAME,
 				   device_get_unit(dev));
 	if (atkbdc == NULL)
 		return ENXIO;
 
-	if (device_get_state(atkbdc) == DS_ATTACHED)
-		create_a_copy(atkbdc, dev);
-
 	/* keep quiet */
 	if (!bootverbose)
 		device_quiet(dev);
+
 	return 0;
 }
 
 static int
 psmcpnp_attach(device_t dev)
 {
+	device_t atkbdc;
+
+	 /* create our copy under the keyboard controller on the same bus. */
+	atkbdc = device_find_child(device_get_parent(dev), ATKBDC_DRIVER_NAME,
+				   device_get_unit(dev));
+	if (atkbdc == NULL)
+		return ENXIO;
+	if (device_get_state(atkbdc) == DS_ATTACHED)
+		create_a_copy(atkbdc, dev);
 
 	return 0;
 }
