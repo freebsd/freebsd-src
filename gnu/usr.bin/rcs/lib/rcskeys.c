@@ -29,6 +29,16 @@ Report problems and direct all questions to:
 
 /*
  * $Log: rcskeys.c,v $
+ * Revision 1.6  1995/10/28  21:49:45  peter
+ * First part of import conflict merge from rcs-5.7 import.
+ *
+ * All those $Log$ entries, combined with the whitespace changes are a real
+ * pain.
+ *
+ * I'm committing this now, before it's completely finished to get it compiling
+ * and working again ASAP.  Some of the FreeBSD specific features are not working
+ * in this commit yet (mainly rlog stuff and $FreeBSD$ support)
+ *
  * Revision 5.4  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -64,17 +74,25 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 5.4 1995/06/16 06:19:24 eggert Exp $")
+libId(keysId, "$Id: rcskeys.c,v 1.6 1995/10/28 21:49:45 peter Exp $")
 
 
 char const *const Keyword[] = {
     /* This must be in the same order as rcsbase.h's enum markers type. */
 	0,
 	AUTHOR, DATE, HEADER, IDH,
-	LOCKER, LOG, NAME, RCSFILE, REVISION, SOURCE, STATE
+	LOCKER, LOG, NAME, RCSFILE, REVISION, SOURCE, STATE,
+	FREEBSD
 };
 
+/* Expand all keywords by default */
 
+static int ExpandKeyword[] = {
+	false,
+	true, true, true, true,
+	true, true, true, true, true, true, true,
+	false
+};
 
 	enum markers
 trymatch(string)
@@ -87,6 +105,8 @@ trymatch(string)
         register int j;
 	register char const *p, *s;
 	for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  ) {
+		if (!ExpandKeyword[j])
+			continue;
 		/* try next keyword */
 		p = Keyword[j];
 		s = string;
@@ -104,3 +124,33 @@ trymatch(string)
         return(Nomatch);
 }
 
+setIncExc(arg)
+	char *arg;
+/* Sets up the ExpandKeyword table according to command-line flags */
+{
+	char *key;
+	int include = 0, j;
+
+	arg += 2;
+	switch (*arg++) {
+	    case 'e':
+		include = false;
+		break;
+	    case 'i':
+		include = true;
+		break;
+	    default:
+		return(false);
+	}
+	if (include)
+		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
+			ExpandKeyword[j] = false;
+	key = strtok(arg, ",");
+	while (key) {
+		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
+			if (!strcmp(key, Keyword[j]))
+				ExpandKeyword[j] = include;
+		key = strtok(NULL, ",");
+	}
+	return(true);
+}
