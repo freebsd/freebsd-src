@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sem.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: sem.c,v 1.8 1998/05/06 06:51:00 charnier Exp $";
+	"$Id: sem.c,v 1.9 1999/04/25 21:13:32 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -472,7 +472,7 @@ int i;
  * If more than one word is generated, then update the command vector.
  *
  * This is done differently in all the shells:
- * 1. in the bourne shell and ksh globbing is not performed
+ * 1. in the Bourne shell and ksh globbing is not performed
  * 2. Bash/csh say ambiguous
  * 3. zsh does i/o to/from all the files
  * 4. itcsh concatenates the words.

@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)test.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: test.c,v 1.19 1998/05/18 06:51:59 charnier Exp $";
+	"$Id: test.c,v 1.20 1998/09/07 16:59:05 cracauer Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ main(argc, argv)
 	fs.name = NULL;
 
 	/*
-	 * Test(1) implements an inherently ambiguous grammer.  In order to
+	 * Test(1) implements an inherently ambiguous grammar.  In order to
 	 * assure some degree of consistency, we special case the POSIX 1003.2
 	 * requirements to assure correct evaluation for POSIX scripts.  The
 	 * following special cases comply with POSIX P1003.2/D11.2 Section

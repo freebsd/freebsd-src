@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.22 1998/07/29 00:46:09 hoek Exp $";
+	"$Id: ls.c,v 1.23 1998/08/02 22:47:11 hoek Exp $";
 #endif
 #endif /* not lint */
 
@@ -407,7 +407,7 @@ display(p, list)
 	 * directory p has no children, or that fts_children() returned an
 	 * error.  We ignore the error case since it will be replicated
 	 * on the next call to fts_read() on the post-order visit to the
-	 * directory p, and will be signalled in traverse().
+	 * directory p, and will be signaled in traverse().
 	 */
 	if (list == NULL)
 		return;

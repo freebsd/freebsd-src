@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)cache.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: cache.h,v 1.4 1997/02/22 14:04:22 peter Exp $
  */
 
 /*
@@ -43,7 +43,7 @@
  * caches. Traditional passwd/group cache routines perform quite poorly with
  * archives. The chances of hitting a valid lookup with an archive is quite a
  * bit worse than with files already resident on the file system. These misses
- * create a MAJOR performance cost. To adress this problem, these routines
+ * create a MAJOR performance cost. To address this problem, these routines
  * cache both hits and misses.
  *
  * NOTE:  name lengths must be as large as those stored in ANY PROTOCOL and

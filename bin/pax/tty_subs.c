@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)tty_subs.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tty_subs.c,v 1.9 1998/05/15 06:27:48 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -68,7 +68,7 @@ static FILE *ttyinf = NULL;		/* input pointing at control tty */
 
 /*
  * tty_init()
- *	try to open the controlling termina (if any) for this process. if the
+ *	try to open the controlling terminal (if any) for this process. if the
  *	open fails, future ops that require user input will get an EOF
  */
 

@@ -30,7 +30,7 @@
 static char * const rcsid = "@(#)undo.c,v 1.1 1994/02/01 00:34:44 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: undo.c,v 1.6 1997/02/22 14:03:20 peter Exp $";
+	"$Id: undo.c,v 1.7 1997/08/07 21:33:47 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -42,7 +42,7 @@ undo_t *ustack = NULL;				/* undo stack */
 long usize = 0;					/* stack size variable */
 long u_p = 0;					/* undo stack pointer */
 
-/* push_undo_stack: return pointer to intialized undo node */
+/* push_undo_stack: return pointer to initialized undo node */
 undo_t *
 push_undo_stack(type, from, to)
 	int type;
