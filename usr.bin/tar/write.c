@@ -934,21 +934,31 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 /*
  * Lookup gid from gname and uid from uname.
  *
- * TODO: Cache gname/uname lookups to improve performance on
- * large extracts.
  */
 const char *
 lookup_uname(struct bsdtar *bsdtar, uid_t uid)
 {
 	struct passwd		*pwent;
+	int slot;
 
-	(void)bsdtar; /* UNUSED */
+	slot = uid % bsdtar_hash_size;
+	if (bsdtar->uname_lookup[slot].uname != NULL) {
+		if (bsdtar->uname_lookup[slot].uid == uid)
+			return (bsdtar->uname_lookup[slot].uname);
+
+		free(bsdtar->uname_lookup[slot].uname);
+		bsdtar->uname_lookup[slot].uname = NULL;
+	}
 
 	pwent = getpwuid(uid);
-	if (pwent)
-		return (pwent->pw_name);
-	if (errno)
-		bsdtar_warnc(errno, "getpwuid(%d) failed", uid);
+	if (pwent == NULL) {
+		if (errno)
+			bsdtar_warnc(errno, "getpwuid(%d) failed", uid);
+		return (NULL);
+	} else if (pwent->pw_name != NULL && pwent->pw_name[0] != '\0') {
+		bsdtar->uname_lookup[slot].uname = strdup(pwent->pw_name);
+		bsdtar->uname_lookup[slot].uid = uid;
+	}
 	return (NULL);
 }
 
@@ -956,13 +966,26 @@ const char *
 lookup_gname(struct bsdtar *bsdtar, gid_t gid)
 {
 	struct group		*grent;
+	int slot;
 
-	(void)bsdtar; /* UNUSED */
+	slot = gid % bsdtar_hash_size;
+	if (bsdtar->gname_lookup[slot].gname != NULL) {
+		if (bsdtar->gname_lookup[slot].gid == gid)
+			return (bsdtar->gname_lookup[slot].gname);
+
+		free(bsdtar->gname_lookup[slot].gname);
+		bsdtar->gname_lookup[slot].gname = NULL;
+	}
+
 	grent = getgrgid(gid);
-	if (grent)
-		return (grent->gr_name);
-	if (errno)
-		bsdtar_warnc(errno, "getgrgid(%d) failed", gid);
+	if (grent == NULL) {
+		if (errno)
+			bsdtar_warnc(errno, "getgrgid(%d) failed", gid);
+		return (NULL);
+	} else if (grent->gr_name != NULL && grent->gr_name[0] != '\0') {
+		bsdtar->gname_lookup[slot].gname = strdup(grent->gr_name);
+		bsdtar->gname_lookup[slot].gid = gid;
+	}
 	return (NULL);
 }
 
