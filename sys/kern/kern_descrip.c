@@ -1528,9 +1528,7 @@ fdcheckstd(td)
 		if (fdp->fd_ofiles[i] != NULL)
 			continue;
 		if (devnull < 0) {
-			FILEDESC_LOCK(fdp);
 			error = falloc(td, &fp, &fd);
-			FILEDESC_UNLOCK(fdp);
 			if (error != 0)
 				break;
 			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
