@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh-keygen.c,v 1.25 2000/05/08 18:23:07 markus Exp $");
+RCSID("$Id: ssh-keygen.c,v 1.26 2000/05/30 17:32:06 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -516,7 +516,7 @@ main(int ac, char **av)
 	extern int optind;
 	extern char *optarg;
 
-	OpenSSL_add_all_algorithms();
+	SSLeay_add_all_algorithms();
 
 	/* we need this for the home * directory.  */
 	pw = getpwuid(getuid());
