@@ -1118,12 +1118,12 @@ controller	amr0		# AMI MegaRAID
 # such as:
 #
 #controller	wdc2	at isa? port 0 irq ? flags 0xa0ffa0ff
-#disk		wd4	at wdc2 drive 0
-#disk		wd5	at wdc2 drive 1
+#device		wd4	at wdc2 drive 0
+#device		wd5	at wdc2 drive 1
 #
 #controller	wdc3	at isa? port 0 irq ? flags 0xa0ffa0ff
-#disk		wd6	at wdc3 drive 0
-#disk		wd7	at wdc3 drive 1
+#device		wd6	at wdc3 drive 0
+#device		wd7	at wdc3 drive 1
 #
 # Note that the above config would be useful for a Promise card, when used
 # on a MB that already has a PIIX controller.  Note the bogus irq and port
