@@ -250,9 +250,11 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	case BIO_SETATTR:
 		/* XXX: Should ideally check for (cp->ace == 0) */
 		if ((cp->acw == 0)) {
+#ifdef DIAGNOSTIC
 			printf("setattr on %s mode (%d,%d,%d)\n",
 				cp->provider->name,
 				cp->acr, cp->acw, cp->ace);
+#endif
 			g_io_deliver(bp, EPERM);
 			return;
 		}
