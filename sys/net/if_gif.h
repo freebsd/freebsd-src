@@ -69,7 +69,6 @@ struct gif_softc {
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
 	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
-	int		called;		/* anti foot-shooter */
 	LIST_ENTRY(gif_softc) gif_link; /* all gif's are linked */
 };
 
