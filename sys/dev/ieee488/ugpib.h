@@ -91,6 +91,9 @@
 #define BIN	(1 << 12)
 
 /* Bus commands */
+#define GTL	0x01		/* Go To Local				*/
+#define SDC	0x04		/* Selected Device Clear		*/
+#define GET	0x08		/* Group Execute Trigger		*/
 #define LAD	0x20		/* Listen address			*/
 #define UNL	0x3F		/* Unlisten				*/
 #define TAD	0x40		/* Talk address				*/
@@ -121,7 +124,7 @@ int ibllo(int handle);
 int ibln(int handle, int padval, int sadval, short *listenflag);
 int ibloc(int handle);
 int ibonl(int handle, int v);
-int ibpad(int handle, int v);
+int ibpad(int handle, int pad);
 int ibpct(int handle);
 int ibpoke(int handle, int option, int value);
 int ibppc(int handle, int v);
@@ -133,7 +136,7 @@ int ibrpp(int handle, char *ppr);
 int ibrsc(int handle, int v);
 int ibrsp(int handle, char *spr);
 int ibrsv(int handle, int v);
-int ibsad(int handle, int v);
+int ibsad(int handle, int sad);
 int ibsgnl(int handle, int v);
 int ibsic(int handle);
 int ibsre(int handle, int v);

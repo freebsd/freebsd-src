@@ -50,7 +50,7 @@ struct upd7210 {
 	bus_space_handle_t	reg_handle[8];
 	bus_space_tag_t		reg_tag[8];
 	u_int			reg_offset[8];
-	u_int			dmachan;
+	int			dmachan;
 
 	/* private stuff */
 	struct mtx		mutex;
