@@ -54,5 +54,5 @@ _sigpending(sigset_t * set)
 	return (ret);
 }
 
-__weak_reference(_sigpending, sigpending);
+__strong_reference(_sigpending, sigpending);
 #endif

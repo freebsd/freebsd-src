@@ -47,5 +47,5 @@ _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
 	return ret;
 }
 
-__weak_reference(_aio_suspend, aio_suspend);
+__strong_reference(_aio_suspend, aio_suspend);
 #endif

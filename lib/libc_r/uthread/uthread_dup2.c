@@ -84,5 +84,5 @@ _dup2(int fd, int newfd)
 	return (ret);
 }
 
-__weak_reference(_dup2, dup2);
+__strong_reference(_dup2, dup2);
 #endif

@@ -48,5 +48,5 @@ _flock(int fd, int operation)
 	return (ret);
 }
 
-__weak_reference(_flock, flock);
+__strong_reference(_flock, flock);
 #endif

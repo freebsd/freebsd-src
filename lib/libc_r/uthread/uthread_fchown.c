@@ -50,5 +50,5 @@ _fchown(int fd, uid_t owner, gid_t group)
 	return (ret);
 }
 
-__weak_reference(_fchown, fchown);
+__strong_reference(_fchown, fchown);
 #endif
