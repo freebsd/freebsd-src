@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.31 1998/06/12 02:48:47 julian Exp $
+ *	$Id: ip_divert.c,v 1.32 1998/07/02 05:49:07 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -241,9 +241,6 @@ div_input(struct mbuf *m, int hlen)
  * If no address specified, or address is 0.0.0.0, send to ip_output();
  * otherwise, send to ip_input() and mark as having been received on
  * the interface with that address.
- *
- * If no address specified, or dest port is 0, allow packet to divert
- * back to this socket; otherwise, don't.
  */
 static int
 div_output(so, m, addr, control)
