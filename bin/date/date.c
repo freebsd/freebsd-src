@@ -83,6 +83,7 @@ main(argc, argv)
 	int jflag, nflag;
 	char *format, buf[1024];
 	char *endptr, *fmt;
+	char *tmp;
 	int set_timezone;
 	struct vary *v;
 	const struct vary *badv;
@@ -114,7 +115,8 @@ main(argc, argv)
 			break;
 		case 'r':		/* user specified seconds */
 			rflag = 1;
-			if (sscanf(optarg,"%li",&tval) != 1)
+			tval = strtoq(optarg, &tmp, 0);
+			if (*tmp != 0)
 				usage();
 			break;
 		case 't':		/* minutes west of UTC */
