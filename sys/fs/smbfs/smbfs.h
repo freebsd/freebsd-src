@@ -49,7 +49,7 @@
 #define	SMBFS_MAXPATHCOMP	256	/* maximum number of path components */
 
 
-/* Layout of the mount control block for a netware filesystem. */
+/* Layout of the mount control block for an smb file system. */
 struct smbfs_args {
 	int		version;
 	int		dev;
