@@ -354,6 +354,7 @@ The FreeBSD Core Team
         John Dyson <dyson@FreeBSD.org>
         Jordan K. Hubbard <jkh@FreeBSD.org>
         Justin Gibbs <gibbs@FreeBSD.org>
+        Peter Wemm <peter@FreeBSD.org>
         Poul-Henning Kamp <phk@FreeBSD.org>
         Rich Murphey <rich@FreeBSD.org>
         Satoshi Asami <asami@FreeBSD.org>
@@ -389,4 +390,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.7 1995/11/04 08:48:15 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.8 1995/11/04 09:33:17 jkh Exp $

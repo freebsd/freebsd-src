@@ -87,9 +87,8 @@ XFree86 3.1.2) to operate.
 
 2.1     Before installing from CDROM:
 
-If your CDROM is of an unsupported type, such as an IDE CDROM, then
-please skip to section 2.3 which describes how to install from a DOS
-partition.
+If your CDROM is of an unsupported type, then please skip to section
+2.3 which describes how to install from a DOS partition.
 
 There is not a lot of preparatory work that needs to be done to
 successfully install from one of Walnut Creek's FreeBSD CDROMs (other
