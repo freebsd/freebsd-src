@@ -1,7 +1,7 @@
 /* makeinfo.h -- declarations for Makeinfo.
-   $Id: makeinfo.h,v 1.25 1999/09/18 18:09:22 karl Exp $
+   $Id: makeinfo.h,v 1.31 2001/09/11 16:37:51 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99, 2000, 01 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,6 +116,15 @@ DECLARE (int, multitable_active, 0);
 /* Nonzero means that we're generating HTML. */
 DECLARE (int, html, 0);
 
+/* Nonzero means that we're generating XML. */
+DECLARE (int, xml, 0);
+
+/* Nonzero means that we're generating DocBook. */
+DECLARE (int, docbook, 0);
+
+/* Nonzero means true 8-bit output for Info and plain text.  */
+DECLARE (int, enable_encoding, 0);
+
 /* Nonzero means escape characters in HTML output. */
 DECLARE (int, escape_html, 1);
 extern char *escape_string (); /* do HTML escapes */
@@ -135,6 +144,9 @@ DECLARE (char *, current_node, NULL);
 /* Command name in the process of being hacked. */
 DECLARE (char *, command, NULL);
 
+/* @documentdescription ... @end documentdescription. */
+DECLARE (char *, document_description, NULL);
+
 /* Nonzero if the last character inserted has the syntax class of NEWLINE. */
 DECLARE (int, last_char_was_newline, 1);
 
@@ -144,6 +156,7 @@ DECLARE (char *, input_text, (char *)NULL);
 DECLARE (int, input_text_length, 0);
 DECLARE (int, input_text_offset, 0);
 DECLARE (int, line_number, 0);
+DECLARE (char *, toplevel_output_filename, NULL);
 #define curchar() input_text[input_text_offset]
 
 /* A colon separated list of directories to search for files included
@@ -180,6 +193,9 @@ DECLARE (int, verbose_mode, 0);
 
 /* Nonzero means prefix each @chapter, ... with a number like 1. (--number-sections) */
 DECLARE (int, number_sections, 0);
+
+/* Nonzero means split size.  When zero, DEFAULT_SPLIT_SIZE is used. */
+DECLARE (int, split_size, 0);
 
 /* Nonzero means expand node names and references while validating.
    This will avoid errors when the Texinfo document uses features
@@ -225,6 +241,8 @@ DECLARE (int, expensive_validation, 0);
 
 #define COMMAND_PREFIX '@'
 
+#define END_VERBATIM "end verbatim"
+
 /* Stuff for splitting large files. */
 #define SPLIT_SIZE_THRESHOLD 70000  /* What's good enough for Stallman... */
 #define DEFAULT_SPLIT_SIZE 50000    /* Is probably good enough for me. */
@@ -255,6 +273,5 @@ DECLARE (int, splitting, 1);    /* Defaults to true for now. */
    else zero. */
 #define looking_at(string) \
   (strncmp (input_text + input_text_offset, string, strlen (string)) == 0)
-
 
 #endif /* not MAKEINFO_H */
