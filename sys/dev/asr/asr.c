@@ -355,6 +355,7 @@ typedef struct Asr_softc {
 
 	/* Links into other parents and HBAs */
 	struct Asr_softc      * ha_next;       /* HBA list */
+	dev_t			ha_devt;
 } Asr_softc_t;
 
 static Asr_softc_t * Asr_softc;
@@ -367,7 +368,6 @@ static Asr_softc_t * Asr_softc;
 static int	asr_probe(device_t tag);
 static int	asr_attach(device_t tag);
 
-static Asr_softc_t *ASR_get_sc(dev_t dev);
 static int	asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag,
 			  struct thread *td);
 static int	asr_open(dev_t dev, int32_t flags, int32_t ifmt,
@@ -2230,7 +2230,7 @@ asr_pci_map_int(device_t tag, Asr_softc_t *sc)
 static int
 asr_attach(device_t tag)
 {
-	Asr_softc_t		 *sc;
+	Asr_softc_t		 *sc, **ha;
 	struct scsi_inquiry_data *iq;
 	int			 unit = device_get_unit(tag);
 
@@ -2250,12 +2250,8 @@ asr_attach(device_t tag)
 	 */
 	LIST_INIT(&(sc->ha_ccb));
 	/* Link us into the HA list */
-	{
-		Asr_softc_t **ha;
-
-		for (ha = &Asr_softc; *ha; ha = &((*ha)->ha_next));
+	for (ha = &Asr_softc; *ha; ha = &((*ha)->ha_next));
 		*(ha) = sc;
-	}
 	{
 		PI2O_EXEC_STATUS_GET_REPLY status;
 		int size;
@@ -2540,8 +2536,9 @@ asr_attach(device_t tag)
 	/*
 	 *	Generate the device node information
 	 */
-	(void)make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
-	    "rasr%d", unit);
+	sc->ha_devt = make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
+			       "rasr%d", unit);
+	sc->ha_devt->si_drv1 = sc;
 	return(0);
 } /* asr_attach */
 
@@ -2966,18 +2963,6 @@ typedef U32   DPT_RTN_T;
 
 #define	asr_unit(dev)	  minor(dev)
 
-static __inline Asr_softc_t *
-ASR_get_sc(dev_t dev)
-{
-	int		unit = asr_unit(dev);
-	Asr_softc_t	*sc = Asr_softc;
-
-	while (sc && sc->ha_sim[0] && (cam_sim_unit(sc->ha_sim[0]) != unit)) {
-		sc = sc->ha_next;
-	}
-	return (sc);
-} /* ASR_get_sc */
-
 static u_int8_t ASR_ctlr_held;
 
 static int
@@ -2986,7 +2971,7 @@ asr_open(dev_t dev, int32_t flags, int32_t ifmt, struct thread *td)
 	int		 s;
 	int		 error;
 
-	if (ASR_get_sc (dev) == NULL) {
+	if (dev->si_drv1 == NULL) {
 		return (ENODEV);
 	}
 	s = splcam ();
@@ -3479,7 +3464,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 static int
 asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	Asr_softc_t	*sc = ASR_get_sc(dev);
+	Asr_softc_t	*sc = dev->si_drv1;
 	int		i, j;
 	int		error = 0;
 
