@@ -81,18 +81,6 @@ the field width or precision is an asterisk
 .Ql *
 instead of a digit string).  Also, any text other than the format specifiers
 is completely ignored.
-.Pp
-Note that the formats may be quite different as long as they accept the
-same parameters.  For example,
-.Qq Li "%p %o %30s %#llx %-10.*e %n"
-is compatible with
-.Qq Li "This number %lu %d%% and string %s has %qd numbers and %.*g floats (%n)" .
-However,
-.Qq Li %o
-is not equivalent to
-.Qq Li %lx
-because
-the first requires an integer and the second requires a long.
 .Sh RETURN VALUES
 If
 .Fa fmt_suspect
@@ -104,5 +92,17 @@ will return
 .Fa fmt_suspect .
 Otherwise, it will return
 .Fa fmt_default .
+.Sh SECURITY CONSIDERATIONS
+Note that the formats may be quite different as long as they accept the
+same parameters.  For example,
+.Qq Li "%p %o %30s %#llx %-10.*e %n"
+is compatible with
+.Qq Li "This number %lu %d%% and string %s has %qd numbers and %.*g floats (%n)" .
+However,
+.Qq Li %o
+is not equivalent to
+.Qq Li %lx
+because
+the first requires an integer and the second requires a long.
 .Sh SEE ALSO
 .Xr printf 3
