@@ -1,9 +1,8 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $Id: de_DE.ISO_8859-1.src,v 1.6 1999/02/13 14:15:25 ache Exp $
+# $Id: de_DE.ISO_8859-1.src,v 1.4.2.2 1999/04/22 08:34:03 foxfair Exp $
 #
 charmap map.ISO_8859-1
-substitute <ss> with "ss"
 order \
 # controls
 	<NU>;...;<US>;<PA>;...;<AC>;\
@@ -30,7 +29,7 @@ order \
 	b;(c,<c,>);d;(e,<e'>,<e!>,<e/>>,<e:>);\
 	f;g;h;(i,<i'>,<i!>,<i/>>,<i:>);\
 	j;...;m;(n,<n?>);(o,<o'>,<o!>,<o/>>,<o:>,<o?>,<o//>);\
-	p;...;t;(u,<u'>,<u!>,<u/>>,<u:>);\
+	p;...;r;s;(<ss>,ss);t;(u,<u'>,<u!>,<u/>>,<u:>);\
 	v;w;x;(y,<y'>,<y:>);z;\
 	<d->;<th>;\
 #
