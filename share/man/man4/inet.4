@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: inet.4,v 1.2 1995/02/15 03:30:51 wollman Exp $
 .\"
 .Dd February 14, 1995
 .Dt INET 4
@@ -228,6 +228,9 @@ Integer: default time-to-live
 to use for outgoing 
 .Tn IP
 packets.
+.It Dv IPCTL_SOURCEROUTE
+.Pq ip.sourceroute
+Boolean: enable/disable forwarding of source-routed IP packets (default false).
 .It Dv IPCTL_RTEXPIRE
 .Pq ip.rtexpire
 Integer: lifetime in seconds of protocol-cloned
