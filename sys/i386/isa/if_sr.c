@@ -51,12 +51,6 @@
 #include "opt_netgraph.h"
 #ifdef NETGRAPH
 #include <i386/isa/if_sr.h>
-#else	/* NETGRAPH */
-#ifdef notyet
-#include "fr.h"
-#else
-#define NFR	0
-#endif
 #endif	/* NETGRAPH */
 
 #ifndef NETGRAPH
@@ -178,12 +172,6 @@ struct sr_softc {
 	int	unit;		/* With regard to all sr devices */
 	int	subunit;	/* With regard to this card */
 
-#ifndef NETGRAPH
-	int	attached;	/* attached to FR or PPP */
-	int	protocol;	/* FR or PPP */
-#define	N2_USE_FRP	2	/* Frame Relay Protocol */
-#define	N2_USE_PPP	1	/* Point-to-Point Protocol */
-#endif /* NETGRAPH */
 	struct	buf_block {
 		u_int	txdesc;	/* DPRAM offset */
 		u_int	txstart;/* DPRAM offset */
@@ -266,7 +254,7 @@ static int sr_irqtable[16] = {
 static int	srprobe(struct isa_device *id);
 static int	srattach_isa(struct isa_device *id);
 
-struct	isa_driver srdriver = {srprobe, srattach_isa, "src"};
+struct	isa_driver srdriver = {srprobe, srattach_isa, "sr"};
 
 /*
  * Baud Rate table for Sync Mode.
@@ -362,16 +350,7 @@ static u_int	src_get16_mem(u_int base, u_int off);
 static void	src_put8_mem(u_int base, u_int off, u_int val);
 static void	src_put16_mem(u_int base, u_int off, u_int val);
 
-#ifndef NETGRAPH
-#if NFR > 0
-extern void	fr_detach(struct ifnet *);
-extern int	fr_attach(struct ifnet *);
-extern int	fr_ioctl(struct ifnet *, int, caddr_t);
-extern void	fr_flush(struct ifnet *);
-extern int	fr_input(struct ifnet *, struct mbuf *);
-extern struct	mbuf *fr_dequeue(struct ifnet *);
-#endif
-#else
+#ifdef NETGRAPH
 static	void	ngsr_watchdog_frame(void * arg);
 static	void	ngsr_init(void* ignored);
 
@@ -935,23 +914,8 @@ srattach(struct sr_hardc *hc)
 		ifp->if_start = srstart;
 		ifp->if_watchdog = srwatchdog;
 
-		/*
-		 * Despite the fact that we want to allow both PPP *and*
-		 * Frame Relay access to a channel, due to the architecture
-		 * of the system, we'll have to do the attach here.
-		 *
-		 * At some point I'll defer the attach to the "up" call and
-		 * have the attach/detach performed when the interface is
-		 * up/downed...
-		 */
-		sc->attached = 0;
-		sc->protocol = N2_USE_PPP;	/* default protocol */
-
-#if	0
 		sc->ifsppp.pp_flags = PP_KEEPALIVE;
 		sppp_attach((struct ifnet *)&sc->ifsppp);
-#endif
-
 		if_attach(ifp);
 
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
@@ -1222,16 +1186,7 @@ top_srstart:
 	 * from...
 	 */
 #ifndef NETGRAPH
-	switch (sc->protocol) {
-#if NFR > 0
-	case N2_USE_FRP:
-		mtx = fr_dequeue(ifp);
-		break;
-#endif
-	case N2_USE_PPP:
-	default:
-		mtx = sppp_dequeue(ifp);
-	}
+	mtx = sppp_dequeue(ifp);
 #else /* NETGRAPH */
 	IF_DEQUEUE(&sc->xmitq_hipri, mtx);
 	if (mtx == NULL) {
@@ -1341,16 +1296,7 @@ top_srstart:
 		 * We'll pull the next message to be sent (if any)
 		 */
 #ifndef NETGRAPH
-		switch (sc->protocol) {
-#if NFR > 0
-		case N2_USE_FRP:
-			mtx = fr_dequeue(ifp);
-			break;
-#endif
-		case N2_USE_PPP:
-		default:
-			mtx = sppp_dequeue(ifp);
-		}
+		mtx = sppp_dequeue(ifp);
 #else /* NETGRAPH */
 		IF_DEQUEUE(&sc->xmitq_hipri, mtx);
 		if (mtx == NULL) {
@@ -1423,68 +1369,7 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	was_up = ifp->if_flags & IFF_RUNNING;
 
-	if (cmd == SIOCSIFFLAGS) {
-		/*
-		 * First, handle an apparent protocol switch
-		 */
-#if NFR > 0
-		if (was_up == 0)/* can only happen if DOWN */
-			if (ifp->if_flags & IFF_LINK1)
-				sc->protocol = N2_USE_FRP;
-			else
-				sc->protocol = N2_USE_PPP;
-#else
-		sc->protocol = N2_USE_PPP;
-		ifp->if_flags &= ~IFF_LINK1;
-#endif
-
-	}
-	/*
-	 * Next, we'll allow the network service layer we've called process
-	 * the ioctl...
-	 */
-	if ((sc->attached != 0)
-	    && (sc->attached != sc->protocol)) {
-		switch (sc->attached) {
-#if NFR > 0
-		case N2_USE_FRP:
-			fr_detach(ifp);
-			break;
-#endif
-		case N2_USE_PPP:
-		default:
-			sppp_detach(ifp);
-			sc->ifsppp.pp_flags &= ~PP_KEEPALIVE;
-		}
-
-		sc->attached = 0;
-	}
-	if (sc->attached == 0) {
-		switch (sc->protocol) {
-#if NFR > 0
-		case N2_USE_FRP:
-			fr_attach(&sc->ifsppp.pp_if);
-			break;
-#endif
-		case N2_USE_PPP:
-		default:
-			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
-			sppp_attach(&sc->ifsppp.pp_if);
-
-		}
-
-		sc->attached = sc->protocol;
-	}
-	switch (sc->protocol) {
-#if NFR > 0
-	case N2_USE_FRP:
-		error = fr_ioctl(ifp, cmd, data);
-		break;
-#endif
-	case N2_USE_PPP:
-	default:
-		error = sppp_ioctl(ifp, cmd, data);
-	}
+	error = sppp_ioctl(ifp, cmd, data);
 
 #if BUGGY > 1
 	printf("sr%d: ioctl: ifsppp.pp_flags = %08x, if_flags %08x.\n",
@@ -1534,48 +1419,15 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * XXX Clear the IFF_UP flag so that the link will only go
 		 * up after sppp lcp and ipcp negotiation.
 		 */
-		ifp->if_flags &= ~IFF_UP;
+		/* ifp->if_flags &= ~IFF_UP; */
 	} else if (was_up && !should_be_up) {
 		/*
 		 * Interface should be down -- stop it.
 		 */
 		sr_down(sc);
-		switch (sc->protocol) {
-#if NFR > 0
-		case N2_USE_FRP:
-			fr_flush(ifp);
-			break;
-#endif
-		case N2_USE_PPP:
-		default:
-			sppp_flush(ifp);
-		}
+		sppp_flush(ifp);
 	}
 	splx(s);
-
-#if BUGGY > 2
-	if (bug_splats[sc->unit]++ < 2) {
-		printf("sr(%d).if_addrlist = %08x\n",
-		       sc->unit, ifp->if_addrlist);
-		printf("sr(%d).if_bpf = %08x\n",
-		       sc->unit, ifp->if_bpf);
-		printf("sr(%d).if_init = %08x\n",
-		       sc->unit, ifp->if_init);
-		printf("sr(%d).if_output = %08x\n",
-		       sc->unit, ifp->if_output);
-		printf("sr(%d).if_start = %08x\n",
-		       sc->unit, ifp->if_start);
-		printf("sr(%d).if_done = %08x\n",
-		       sc->unit, ifp->if_done);
-		printf("sr(%d).if_ioctl = %08x\n",
-		       sc->unit, ifp->if_ioctl);
-		printf("sr(%d).if_reset = %08x\n",
-		       sc->unit, ifp->if_reset);
-		printf("sr(%d).if_watchdog = %08x\n",
-		       sc->unit, ifp->if_watchdog);
-	}
-#endif
-
 	return 0;
 }
 #endif /* NETGRAPH */
@@ -1666,29 +1518,6 @@ sr_up(struct sr_softc *sc)
 	printf("sr_up(sc=%08x)\n", sc);
 #endif
 
-#ifndef NETGRAPH
-	/*
-	 * This section should really do the attach to the appropriate
-	 * system service, be it frame relay or PPP...
-	 */
-	if (sc->attached == 0) {
-		switch (sc->protocol) {
-#if NFR > 0
-		case N2_USE_FRP:
-			fr_attach(&sc->ifsppp.pp_if);
-			break;
-#endif
-		case N2_USE_PPP:
-		default:
-			sc->ifsppp.pp_flags |= PP_KEEPALIVE;
-			sppp_attach(&sc->ifsppp.pp_if);
-	
-	}
-
-		sc->attached = sc->protocol;
-	}
-
-#endif /* NETGRAPH */
 	/*
 	 * Enable transmitter and receiver. Raise DTR and RTS. Enable
 	 * interrupts.
@@ -1810,25 +1639,6 @@ sr_down(struct sr_softc *sc)
 		SRC_PUT8(hc->sca_base, sca->ier1,
 			 SRC_GET8(hc->sca_base, sca->ier1) & ~0xF0);
 	}
-
-#ifndef NETGRAPH
-	/*
-	 * This section does the detach from the currently configured net
-	 * service, be it frame relay or PPP...
-	 */
-	switch (sc->protocol) {
-#if NFR > 0
-	case N2_USE_FRP:
-		fr_detach(&sc->ifsppp.pp_if);
-		break;
-#endif
-	case N2_USE_PPP:
-	default:
-		sppp_detach(&sc->ifsppp.pp_if);
-	}
-
-	sc->attached = 0;
-#endif /* NETGRAPH */
 }
 
 /*
@@ -2694,21 +2504,7 @@ sr_get_packets(struct sr_softc *sc)
 				       bp[4], bp[5], bp[6]);
 			}
 #endif
-			/*
-			 * Pass off the message to PPP, connecting it it to
-			 * the system...
-			 */
-			switch (sc->protocol) {
-#if NFR > 0
-			case N2_USE_FRP:
-				fr_input(ifp, m);
-				break;
-#endif
-			case N2_USE_PPP:
-			default:
-				sppp_input(ifp, m);
-			}
-
+			sppp_input(ifp, m);
 			ifp->if_ipackets++;
 
 #else	/* NETGRAPH */
@@ -3161,9 +2957,6 @@ sr_modemck(void *arg)
 
 		for (mch = 0; mch < hc->numports; mch++) {
 			sc = &hc->sc[mch];
-
-			if (sc->attached == 0)
-				continue;
 
 			ifp = &sc->ifsppp.pp_if;
 
