@@ -318,7 +318,8 @@ i4biprattach()
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
+		if(!mtx_initialized(&sc->sc_fastq.ifq_mtx))
+			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
 #endif		
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;

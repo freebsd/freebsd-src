@@ -581,11 +581,15 @@ avma1pp2_attach_avma1pp(device_t dev)
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 	/* Init the channel mutexes */
 	chan = &sc->sc_chan[HSCX_CH_A];
-	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
-	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
+	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
 	chan = &sc->sc_chan[HSCX_CH_B];
-	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
-	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
+	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp2_rx", MTX_DEF);
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp2_tx", MTX_DEF);
 #endif
 
 	/* init the "HSCX" */

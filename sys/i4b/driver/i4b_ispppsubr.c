@@ -955,8 +955,10 @@ isppp_attach(struct ifnet *ifp)
 	sp->pp_cpq.ifq_maxlen = 20;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
-	mtx_init(&sp->pp_fastq.ifq_mtx, "i4b_isppp_fastq", MTX_DEF);
-	mtx_init(&sp->pp_cpq.ifq_mtx, "i4b_isppp_cpq", MTX_DEF);
+	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
+		mtx_init(&sp->pp_fastq.ifq_mtx, "i4b_isppp_fastq", MTX_DEF);
+	if(!mtx_initialized(&sp->pp_cpq.ifq_mtx))
+		mtx_init(&sp->pp_cpq.ifq_mtx, "i4b_isppp_cpq", MTX_DEF);
 #endif
 
 	sp->pp_loopcnt = 0;
