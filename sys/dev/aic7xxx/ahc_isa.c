@@ -137,7 +137,6 @@ ahc_isa_probe(device_t dev)
 	int	  error;
 	int	  zero;
 
-	iobase = isa_get_port(dev);
 	error = ENODEV;
 	zero = 0;
 	regs = NULL;
@@ -145,10 +144,11 @@ ahc_isa_probe(device_t dev)
 
 	regs = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &zero, RF_ACTIVE);
 	if (regs == NULL) {
-		device_printf(dev, "ioport 0x%x alloc failed\n", iobase);
+		device_printf(dev, "No resources alloated.\n");
 		return (ENOMEM);
 	}
 
+	iobase = rman_get_start(regs);
 	tag = rman_get_bustag(regs);
 	bsh = rman_get_bushandle(regs);
 
