@@ -349,12 +349,14 @@ AcpiRemoveGpeHandler (
 ACPI_STATUS
 AcpiEnableEvent (
     UINT32                  AcpiEvent,
-    UINT32                  Type);
+    UINT32                  Type,
+    UINT32                  Flags);
 
 ACPI_STATUS
 AcpiDisableEvent (
     UINT32                  AcpiEvent,
-    UINT32                  Type);
+    UINT32                  Type,
+    UINT32                  Flags);
 
 ACPI_STATUS
 AcpiClearEvent (
