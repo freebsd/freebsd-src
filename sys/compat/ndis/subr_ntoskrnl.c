@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/module.h>
 
 #include <machine/atomic.h>
 #include <machine/clock.h>
@@ -81,8 +82,18 @@ __stdcall static ndis_status RtlUnicodeStringToAnsiString(ndis_ansi_string *,
 	ndis_unicode_string *, uint8_t);
 __stdcall static ndis_status RtlAnsiStringToUnicodeString(ndis_unicode_string *,
 	ndis_ansi_string *, uint8_t);
-__stdcall static void *IoBuildSynchronousFsdRequest(uint32_t, void *,
-	void *, uint32_t, uint32_t *, void *, void *);
+__stdcall static irp *IoBuildSynchronousFsdRequest(uint32_t, device_object *,
+	 void *, uint32_t, uint64_t *, nt_kevent *, io_status_block *);
+__stdcall static irp *IoBuildAsynchronousFsdRequest(uint32_t,
+	device_object *, void *, uint32_t, uint64_t *, io_status_block *);
+__stdcall static irp *IoBuildDeviceIoControlRequest(uint32_t,
+	device_object *, void *, uint32_t, void *, uint32_t,
+	uint8_t, nt_kevent *, io_status_block *);
+__stdcall static irp *IoAllocateIrp(uint8_t, uint8_t);
+__stdcall static void IoReuseIrp(irp *, uint32_t);
+__stdcall static void IoFreeIrp(irp *);
+__stdcall static void IoInitializeIrp(irp *, uint16_t, uint8_t);
+__stdcall static irp *IoMakeAssociatedIrp(irp *, uint8_t);
 __stdcall static uint32_t KeWaitForMultipleObjects(uint32_t,
 	nt_dispatch_header **, uint32_t, uint32_t, uint32_t, uint8_t,
 	int64_t *, wait_block *);
@@ -105,8 +116,6 @@ __stdcall static uint64_t _aulldiv(uint64_t, uint64_t);
 __stdcall static uint64_t _aullrem(uint64_t, uint64_t);
 __regparm static uint64_t _aullshr(uint64_t, uint8_t);
 __regparm static uint64_t _aullshl(uint64_t, uint8_t);
-__stdcall static void *ntoskrnl_allocfunc(uint32_t, size_t, uint32_t);
-__stdcall static void ntoskrnl_freefunc(void *);
 static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
 static slist_entry *ntoskrnl_popsl(slist_header *);
 __stdcall static void ExInitializePagedLookasideList(paged_lookaside_list *,
@@ -203,16 +212,16 @@ RtlEqualUnicodeString(str1, str2, caseinsensitive)
 {
 	int			i;
 
-	if (str1->nus_len != str2->nus_len)
+	if (str1->us_len != str2->us_len)
 		return(FALSE);
 
-	for (i = 0; i < str1->nus_len; i++) {
+	for (i = 0; i < str1->us_len; i++) {
 		if (caseinsensitive == TRUE) {
-			if (toupper((char)(str1->nus_buf[i] & 0xFF)) !=
-			    toupper((char)(str2->nus_buf[i] & 0xFF)))
+			if (toupper((char)(str1->us_buf[i] & 0xFF)) !=
+			    toupper((char)(str2->us_buf[i] & 0xFF)))
 				return(FALSE);
 		} else {
-			if (str1->nus_buf[i] != str2->nus_buf[i])
+			if (str1->us_buf[i] != str2->us_buf[i])
 				return(FALSE);
 		}
 	}
@@ -226,11 +235,11 @@ RtlCopyUnicodeString(dest, src)
 	ndis_unicode_string	*src;
 {
 
-	if (dest->nus_maxlen >= src->nus_len)
-		dest->nus_len = src->nus_len;
+	if (dest->us_maxlen >= src->us_len)
+		dest->us_len = src->us_len;
 	else
-		dest->nus_len = dest->nus_maxlen;
-	memcpy(dest->nus_buf, src->nus_buf, dest->nus_len);
+		dest->us_len = dest->us_maxlen;
+	memcpy(dest->us_buf, src->us_buf, dest->us_len);
 	return;
 }
 
@@ -246,15 +255,15 @@ RtlUnicodeStringToAnsiString(dest, src, allocate)
 		return(NDIS_STATUS_FAILURE);
 
 	if (allocate == TRUE) {
-		if (ndis_unicode_to_ascii(src->nus_buf, src->nus_len, &astr))
+		if (ndis_unicode_to_ascii(src->us_buf, src->us_len, &astr))
 			return(NDIS_STATUS_FAILURE);
 		dest->nas_buf = astr;
 		dest->nas_len = dest->nas_maxlen = strlen(astr);
 	} else {
-		dest->nas_len = src->nus_len / 2; /* XXX */
+		dest->nas_len = src->us_len / 2; /* XXX */
 		if (dest->nas_maxlen < dest->nas_len)
 			dest->nas_len = dest->nas_maxlen;
-		ndis_unicode_to_ascii(src->nus_buf, dest->nas_len * 2,
+		ndis_unicode_to_ascii(src->us_buf, dest->nas_len * 2,
 		    &dest->nas_buf);
 	}
 	return (NDIS_STATUS_SUCCESS);
@@ -274,39 +283,478 @@ RtlAnsiStringToUnicodeString(dest, src, allocate)
 	if (allocate == TRUE) {
 		if (ndis_ascii_to_unicode(src->nas_buf, &ustr))
 			return(NDIS_STATUS_FAILURE);
-		dest->nus_buf = ustr;
-		dest->nus_len = dest->nus_maxlen = strlen(src->nas_buf) * 2;
+		dest->us_buf = ustr;
+		dest->us_len = dest->us_maxlen = strlen(src->nas_buf) * 2;
 	} else {
-		dest->nus_len = src->nas_len * 2; /* XXX */
-		if (dest->nus_maxlen < dest->nus_len)
-			dest->nus_len = dest->nus_maxlen;
-		ndis_ascii_to_unicode(src->nas_buf, &dest->nus_buf);
+		dest->us_len = src->nas_len * 2; /* XXX */
+		if (dest->us_maxlen < dest->us_len)
+			dest->us_len = dest->us_maxlen;
+		ndis_ascii_to_unicode(src->nas_buf, &dest->us_buf);
 	}
 	return (NDIS_STATUS_SUCCESS);
 }
 
-__stdcall static void *
+__stdcall void *
+ExAllocatePoolWithTag(pooltype, len, tag)
+	uint32_t		pooltype;
+	size_t			len;
+	uint32_t		tag;
+{
+	void			*buf;
+
+	buf = malloc(len, M_DEVBUF, M_NOWAIT);
+	if (buf == NULL)
+		return(NULL);
+	return(buf);
+}
+
+__stdcall void
+ExFreePool(buf)
+	void			*buf;
+{
+	free(buf, M_DEVBUF);
+	return;
+}
+
+__stdcall uint32_t
+IoAllocateDriverObjectExtension(drv, clid, extlen, ext)
+	driver_object		*drv;
+	void			*clid;
+	uint32_t		extlen;
+	void			**ext;
+{
+	custom_extension	*ce;
+
+	ce = ExAllocatePoolWithTag(NonPagedPool, sizeof(custom_extension)
+	    + extlen, 0);
+
+	if (ce == NULL)
+		return(STATUS_INSUFFICIENT_RESOURCES);
+
+	ce->ce_clid = clid;
+	INSERT_LIST_TAIL((&drv->dro_driverext->dre_usrext), (&ce->ce_list));
+
+	*ext = (void *)(ce + 1);
+
+	return(STATUS_SUCCESS);
+}
+
+__stdcall void *
+IoGetDriverObjectExtension(drv, clid)
+	driver_object		*drv;
+	void			*clid;
+{
+	list_entry		*e;
+	custom_extension	*ce;
+
+	e = drv->dro_driverext->dre_usrext.nle_flink;
+	while (e != &drv->dro_driverext->dre_usrext) {
+		ce = (custom_extension *)e;
+		if (ce->ce_clid == clid)
+			return((void *)(ce + 1));
+		e = e->nle_flink;
+	}
+
+	return(NULL);
+}
+
+
+__stdcall uint32_t
+IoCreateDevice(drv, devextlen, devname, devtype, devchars, exclusive, newdev)
+	driver_object		*drv;
+	uint32_t		devextlen;
+	unicode_string		*devname;
+	uint32_t		devtype;
+	uint32_t		devchars;
+	uint8_t			exclusive;
+	device_object		**newdev;
+{
+	device_object		*dev;
+
+	dev = ExAllocatePoolWithTag(NonPagedPool, sizeof(device_object), 0);
+	if (dev == NULL)
+		return(STATUS_INSUFFICIENT_RESOURCES);
+
+	dev->do_type = devtype;
+	dev->do_drvobj = drv;
+	dev->do_currirp = NULL;
+	dev->do_flags = 0;
+
+	if (devextlen) {
+		dev->do_devext = ExAllocatePoolWithTag(NonPagedPool,
+		    devextlen, 0);
+
+		if (dev->do_devext == NULL) {
+			ExFreePool(dev);
+			return(STATUS_INSUFFICIENT_RESOURCES);
+		}
+	} else
+		dev->do_devext = NULL;
+
+	dev->do_size = sizeof(device_object) + devextlen;
+	dev->do_refcnt = 1;
+	dev->do_attacheddev = NULL;
+	dev->do_nextdev = NULL;
+	dev->do_devtype = devtype;
+	dev->do_stacksize = 1;
+	dev->do_alignreq = 1;
+	dev->do_characteristics = devchars;
+	dev->do_iotimer = NULL;
+	KeInitializeEvent(&dev->do_devlock, EVENT_TYPE_SYNC, TRUE);
+
+	/*
+	 * Vpd is used for disk/tape devices,
+	 * but we don't support those. (Yet.)
+	 */
+	dev->do_vpb = NULL;
+
+	dev->do_devobj_ext = ExAllocatePoolWithTag(NonPagedPool,
+	    sizeof(devobj_extension), 0);
+
+	if (dev->do_devobj_ext == NULL) {
+		if (dev->do_devext != NULL)
+			ExFreePool(dev->do_devext);
+		ExFreePool(dev);
+		return(STATUS_INSUFFICIENT_RESOURCES);
+	}
+
+	dev->do_devobj_ext->dve_type = 0;
+	dev->do_devobj_ext->dve_size = sizeof(devobj_extension);
+	dev->do_devobj_ext->dve_devobj = dev;
+
+	/*
+	 * Attach this device to the driver object's list
+	 * of devices. Note: this is not the same as attaching
+	 * the device to the device stack. The driver's AddDevice
+	 * routine must explicitly call IoAddDeviceToDeviceStack()
+	 * to do that.
+	 */
+
+	if (drv->dro_devobj == NULL) {
+		drv->dro_devobj = dev;
+		dev->do_nextdev = NULL;
+	} else {
+		dev->do_nextdev = drv->dro_devobj;
+		drv->dro_devobj = dev;
+	}
+
+	*newdev = dev;
+
+	return(STATUS_SUCCESS);
+}
+
+__stdcall void
+IoDeleteDevice(dev)
+	device_object		*dev;
+{
+	device_object		*prev;
+
+	if (dev == NULL)
+		return;
+
+	if (dev->do_devobj_ext != NULL)
+		ExFreePool(dev->do_devobj_ext);
+
+	if (dev->do_devext != NULL)
+		ExFreePool(dev->do_devext);
+
+	/* Unlink the device from the driver's device list. */
+
+	prev = dev->do_drvobj->dro_devobj;
+	if (prev == dev)
+		dev->do_drvobj->dro_devobj = dev->do_nextdev;
+	else {
+		while (prev->do_nextdev != dev)
+			prev = prev->do_nextdev;
+		prev->do_nextdev = dev->do_nextdev;
+	}
+
+	ExFreePool(dev);
+
+	return;
+}
+
+__stdcall device_object *
+IoGetAttachedDevice(dev)
+	device_object		*dev;
+{
+	device_object		*d;
+
+	if (dev == NULL)
+		return (NULL);
+
+	d = dev;
+
+	while (d->do_attacheddev != NULL)
+		d = d->do_attacheddev;
+
+	return (d);
+}
+
+__stdcall static irp *
 IoBuildSynchronousFsdRequest(func, dobj, buf, len, off, event, status)
 	uint32_t		func;
-	void			*dobj;
+	device_object		*dobj;
 	void			*buf;
 	uint32_t		len;
-	uint32_t		*off;
-	void			*event;
-	void			*status;
+	uint64_t		*off;
+	nt_kevent		*event;
+	io_status_block		*status;
 {
 	return(NULL);
 }
-	
+
+__stdcall static irp *
+IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status)
+	uint32_t		func;
+	device_object		*dobj;
+	void			*buf;
+	uint32_t		len;
+	uint64_t		*off;
+	io_status_block		*status;
+{
+	return(NULL);
+}
+
+__stdcall static irp *
+IoBuildDeviceIoControlRequest(iocode, dobj, ibuf, ilen, obuf, olen,
+    isinternal, event, status)
+	uint32_t		iocode;
+	device_object		*dobj;
+	void			*ibuf;
+	uint32_t		ilen;
+	void			*obuf;
+	uint32_t		olen;
+	uint8_t			isinternal;
+	nt_kevent		*event;
+	io_status_block		*status;
+{
+	return (NULL);
+}
+
+__stdcall static irp *
+IoAllocateIrp(stsize, chargequota)
+	uint8_t			stsize;
+	uint8_t			chargequota;
+{
+	irp			*i;
+
+	i = ExAllocatePoolWithTag(NonPagedPool, IoSizeOfIrp(stsize), 0);
+	if (i == NULL)
+		return (NULL);
+
+	IoInitializeIrp(i, IoSizeOfIrp(stsize), stsize);
+
+	return (NULL);
+}
+
+__stdcall static irp *
+IoMakeAssociatedIrp(ip, stsize)
+	irp			*ip;
+	uint8_t			stsize;
+{
+	irp			*associrp;
+
+	associrp = IoAllocateIrp(stsize, FALSE);
+	if (associrp == NULL)
+		return(NULL);
+
+	mtx_lock(&ntoskrnl_dispatchlock);
+	associrp->irp_flags |= IRP_ASSOCIATED_IRP;
+	associrp->irp_tail.irp_overlay.irp_thread =
+	    ip->irp_tail.irp_overlay.irp_thread;
+	associrp->irp_assoc.irp_master = ip;
+	mtx_unlock(&ntoskrnl_dispatchlock);
+
+	return(associrp);
+}
+
+__stdcall static void
+IoFreeIrp(ip)
+	irp			*ip;
+{
+	ExFreePool(ip);
+	return;
+}
+
+__stdcall static void
+IoInitializeIrp(io, psize, ssize)
+	irp			*io;
+	uint16_t		psize;
+	uint8_t			ssize;
+{
+	bzero((char *)io, sizeof(irp));
+	io->irp_size = psize;
+	io->irp_stackcnt = ssize;
+	io->irp_currentstackloc = ssize;
+	INIT_LIST_HEAD(&io->irp_thlist);
+	io->irp_tail.irp_overlay.irp_csl =
+	    (io_stack_location *)(io + 1) + ssize;
+
+	return;
+}
+
+__stdcall static void
+IoReuseIrp(ip, status)
+	irp			*ip;
+	uint32_t		status;
+{
+	uint8_t			allocflags;
+
+	allocflags = ip->irp_allocflags;
+	IoInitializeIrp(ip, ip->irp_size, ip->irp_stackcnt);
+	ip->irp_iostat.isb_status = status;
+	ip->irp_allocflags = allocflags;
+
+	return;
+}
+
 __fastcall uint32_t
 IofCallDriver(REGARGS2(device_object *dobj, irp *ip))
 {
-	return(0);
+	driver_object		*drvobj;
+	io_stack_location	*sl;
+	uint32_t		status;
+	driver_dispatch		disp;
+
+	drvobj = dobj->do_drvobj;
+
+	if (ip->irp_currentstackloc <= 0)
+		panic("IoCallDriver(): out of stack locations");
+
+	IoSetNextIrpStackLocation(ip);
+	sl = IoGetCurrentIrpStackLocation(ip);
+
+	sl->isl_devobj = dobj;
+
+	disp = drvobj->dro_dispatch[sl->isl_major];
+	status = disp(dobj, ip);
+
+	return(status);
 }
 
 __fastcall void
 IofCompleteRequest(REGARGS2(irp *ip, uint8_t prioboost))
 {
+	uint32_t		i;
+	uint32_t		status;
+	device_object		*dobj;
+	io_stack_location	*sl;
+	completion_func		cf;
+
+	ip->irp_pendingreturned =
+	    IoGetCurrentIrpStackLocation(ip)->isl_ctl & SL_PENDING_RETURNED;
+	sl = (io_stack_location *)(ip + 1);
+
+	for (i = ip->irp_currentstackloc; i < (uint32_t)ip->irp_stackcnt; i++) {
+		if (ip->irp_currentstackloc < ip->irp_stackcnt - 1) {
+			IoSkipCurrentIrpStackLocation(ip);
+			dobj = IoGetCurrentIrpStackLocation(ip)->isl_devobj;
+		} else
+			dobj = NULL;
+
+		if (sl[i].isl_completionfunc != NULL &&
+		    ((ip->irp_iostat.isb_status == STATUS_SUCCESS &&
+		    sl->isl_ctl & SL_INVOKE_ON_SUCCESS) ||
+		    (ip->irp_iostat.isb_status != STATUS_SUCCESS &&
+		    sl->isl_ctl & SL_INVOKE_ON_ERROR) ||
+		    (ip->irp_cancel == TRUE &&
+		    sl->isl_ctl & SL_INVOKE_ON_CANCEL))) {
+			cf = sl->isl_completionfunc;
+			status = cf(dobj, ip, sl->isl_completionctx);
+			if (status == STATUS_MORE_PROCESSING_REQUIRED)
+				return;
+		}
+
+		if (IoGetCurrentIrpStackLocation(ip)->isl_ctl &
+		    SL_PENDING_RETURNED)
+			ip->irp_pendingreturned = TRUE;
+	}
+
+	/* Handle any associated IRPs. */
+
+	if (ip->irp_flags & IRP_ASSOCIATED_IRP) {
+		uint32_t		masterirpcnt;
+		irp			*masterirp;
+		mdl			*m;
+
+		masterirp = ip->irp_assoc.irp_master;
+		masterirpcnt = FASTCALL1(InterlockedDecrement,
+		    masterirp->irp_assoc.irp_irpcnt);
+
+		while ((m = ip->irp_mdl) != NULL) {
+			ip->irp_mdl = m->mdl_next;
+			IoFreeMdl(m);
+		}
+		IoFreeIrp(ip);
+		if (masterirpcnt == 0)
+			IoCompleteRequest(masterirp, IO_NO_INCREMENT);
+		return;
+	}
+
+	/* With any luck, these conditions will never arise. */
+
+	if (ip->irp_flags & (IRP_PAGING_IO|IRP_CLOSE_OPERATION)) {
+		if (ip->irp_usriostat != NULL)
+			*ip->irp_usriostat = ip->irp_iostat;
+		if (ip->irp_usrevent != NULL)
+			KeSetEvent(ip->irp_usrevent, prioboost, FALSE);
+		if (ip->irp_flags & IRP_PAGING_IO) {
+			if (ip->irp_mdl != NULL)
+				IoFreeMdl(ip->irp_mdl);
+			IoFreeIrp(ip);
+		}
+	}
+
+	return;
+}
+
+__stdcall device_object *
+IoAttachDeviceToDeviceStack(src, dst)
+	device_object		*src;
+	device_object		*dst;
+{
+	device_object		*attached;
+
+	mtx_lock(&ntoskrnl_dispatchlock);
+
+	attached = IoGetAttachedDevice(dst);
+	attached->do_attacheddev = src;
+	src->do_attacheddev = NULL;
+	src->do_stacksize = attached->do_stacksize + 1;
+
+	mtx_unlock(&ntoskrnl_dispatchlock);
+
+	return(attached);
+}
+
+__stdcall void
+IoDetachDevice(topdev)
+	device_object		*topdev;
+{
+	device_object		*tail;
+
+	mtx_lock(&ntoskrnl_dispatchlock);
+
+	/* First, break the chain. */
+	tail = topdev->do_attacheddev;
+	if (tail == NULL) {
+		mtx_unlock(&ntoskrnl_dispatchlock);
+		return;
+	}
+	topdev->do_attacheddev = tail->do_attacheddev;
+	topdev->do_refcnt--;
+
+	/* Now reduce the stacksize count for the tail objects. */
+
+	tail = topdev->do_attacheddev;
+	while (tail != NULL) {
+		tail->do_stacksize--;
+		tail = tail->do_attacheddev;
+	}
+
+	mtx_unlock(&ntoskrnl_dispatchlock);
+
 	return;
 }
 
@@ -830,23 +1278,6 @@ ntoskrnl_popsl(head)
 	return(first);
 }
 
-__stdcall static void *
-ntoskrnl_allocfunc(pooltype, size, tag)
-	uint32_t		pooltype;
-	size_t			size;
-	uint32_t		tag;
-{
-	return(malloc(size, M_DEVBUF, M_NOWAIT));
-}
-
-__stdcall static void
-ntoskrnl_freefunc(buf)
-	void			*buf;
-{
-	free(buf, M_DEVBUF);
-	return;
-}
-
 __stdcall static void
 ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
     flags, size, tag, depth)
@@ -866,12 +1297,12 @@ ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ntoskrnl_allocfunc;
+		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ntoskrnl_freefunc;
+		lookaside->nll_l.gl_freefunc = ExFreePool;
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
@@ -916,12 +1347,12 @@ ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ntoskrnl_allocfunc;
+		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ntoskrnl_freefunc;
+		lookaside->nll_l.gl_freefunc = ExFreePool;
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
@@ -1057,7 +1488,8 @@ IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
 {
 	mdl			*m;
 
-	m = malloc(MmSizeOfMdl(vaddr, len), M_DEVBUF, M_NOWAIT|M_ZERO);
+	m = ExAllocatePoolWithTag(NonPagedPool,
+	    MmSizeOfMdl(vaddr, len), 0);
 
 	if (m == NULL)
 		return (NULL);
@@ -1235,14 +1667,14 @@ RtlInitUnicodeString(dst, src)
 	if (u == NULL)
 		return;
 	if (src == NULL) {
-		u->nus_len = u->nus_maxlen = 0;
-		u->nus_buf = NULL;
+		u->us_len = u->us_maxlen = 0;
+		u->us_buf = NULL;
 	} else {
 		i = 0;
 		while(src[i] != 0)
 			i++;
-		u->nus_buf = src;
-		u->nus_len = u->nus_maxlen = i * 2;
+		u->us_buf = src;
+		u->us_len = u->us_maxlen = i * 2;
 	}
 
 	return;
@@ -1259,8 +1691,8 @@ RtlUnicodeStringToInteger(ustr, base, val)
 	char			abuf[64];
 	char			*astr;
 
-	uchr = ustr->nus_buf;
-	len = ustr->nus_len;
+	uchr = ustr->us_buf;
+	len = ustr->us_len;
 	bzero(abuf, sizeof(abuf));
 
 	if ((char)((*uchr) & 0xFF) == '-') {
@@ -1306,10 +1738,10 @@ __stdcall static void
 RtlFreeUnicodeString(ustr)
 	ndis_unicode_string	*ustr;
 {
-	if (ustr->nus_buf == NULL)
+	if (ustr->us_buf == NULL)
 		return;
-	free(ustr->nus_buf, M_DEVBUF);
-	ustr->nus_buf = NULL;
+	free(ustr->us_buf, M_DEVBUF);
+	ustr->us_buf = NULL;
 	return;
 }
 
@@ -1374,15 +1806,16 @@ IoGetDeviceProperty(devobj, regprop, buflen, prop, reslen)
 	void			*prop;
 	uint32_t		*reslen;
 {
-	ndis_miniport_block	*block;
+	driver_object		*drv;
+	uint16_t		**name;
 
-	block = devobj->do_rsvd;
+	drv = devobj->do_drvobj;
 
 	switch (regprop) {
 	case DEVPROP_DRIVER_KEYNAME:
-		ndis_ascii_to_unicode(__DECONST(char *,
-		    device_get_nameunit(block->nmb_dev)), (uint16_t **)&prop);
-		*reslen = strlen(device_get_nameunit(block->nmb_dev)) * 2;
+		name = prop;
+		*name = drv->dro_drivername.us_buf;
+		*reslen = drv->dro_drivername.us_len;
 		break;
 	default:
 		return(STATUS_INVALID_PARAMETER_2);
@@ -1746,11 +2179,17 @@ KeInitializeDpc(dpc, dpcfunc, dpcctx)
 	void			*dpcfunc;
 	void			*dpcctx;
 {
+	uint8_t			irql;
+
 	if (dpc == NULL)
 		return;
 
+	KeInitializeSpinLock(&dpc->k_lock);
+
+	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_deferedfunc = dpcfunc;
 	dpc->k_deferredctx = dpcctx;
+	KeReleaseSpinLock(&dpc->k_lock, irql);
 
 	return;
 }
@@ -1761,8 +2200,13 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	void			*sysarg1;
 	void			*sysarg2;
 {
+	uint8_t			irql;
+
+	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_sysarg1 = sysarg1;
 	dpc->k_sysarg2 = sysarg2;
+	KeReleaseSpinLock(&dpc->k_lock, irql);
+
 	if (ndis_sched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
 		return(FALSE);
 
@@ -1896,9 +2340,23 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(memcpy),
 	IMPORT_FUNC_MAP(memmove, memset),
 	IMPORT_FUNC(memset),
+	IMPORT_FUNC(IoAllocateDriverObjectExtension),
+	IMPORT_FUNC(IoGetDriverObjectExtension),
 	IMPORT_FUNC(IofCallDriver),
 	IMPORT_FUNC(IofCompleteRequest),
+	IMPORT_FUNC(IoCreateDevice),
+	IMPORT_FUNC(IoDeleteDevice),
+	IMPORT_FUNC(IoGetAttachedDevice),
+	IMPORT_FUNC(IoAttachDeviceToDeviceStack),
+	IMPORT_FUNC(IoDetachDevice),
 	IMPORT_FUNC(IoBuildSynchronousFsdRequest),
+	IMPORT_FUNC(IoBuildAsynchronousFsdRequest),
+	IMPORT_FUNC(IoBuildDeviceIoControlRequest),
+	IMPORT_FUNC(IoAllocateIrp),
+	IMPORT_FUNC(IoReuseIrp),
+	IMPORT_FUNC(IoMakeAssociatedIrp),
+	IMPORT_FUNC(IoFreeIrp),
+	IMPORT_FUNC(IoInitializeIrp),
 	IMPORT_FUNC(KeWaitForSingleObject),
 	IMPORT_FUNC(KeWaitForMultipleObjects),
 	IMPORT_FUNC(_allmul),
