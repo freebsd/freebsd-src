@@ -35,7 +35,7 @@
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $Id: makedevops.pl,v 1.7 1999/05/10 17:06:13 dfr Exp $
+# $Id: makedevops.pl,v 1.8 1999/05/10 17:45:49 n_hibma Exp $
 
 #
 # Script to produce device front-end sugar.
@@ -296,7 +296,7 @@ foreach $src ( @filenames ) {
          #
          $line =~ s/^\s+//;            # remove leading ...
          $line =~ s/\s+$//;            # ... and trailing whitespace
-         $line =~ s/\s+/ /;            # remove double spaces
+         $line =~ s/\s+/ /g;           # remove double spaces
 
          @arguments = split m/\s*;\s*/, $line;
          @varnames = ();               # list of varnames
@@ -324,7 +324,7 @@ foreach $src ( @filenames ) {
          $arguments = join(", ", @arguments);
          $varnames = join(", ", @varnames);
 
-	 $default = "0" if $default eq "";
+         $default = "0" if $default eq "";
 
          if ( $hfile ) {
             # the method description 
