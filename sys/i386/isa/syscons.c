@@ -1761,10 +1761,10 @@ draw_cursor(scr_stat *scp, int show)
 	    if ((cursor_image & 0x7000) == 0x7000) {
 		cursor_image &= 0x8fff;
 		if(!(cursor_image & 0x0700))
-		    cursor_image |= 0x0f00;
+		    cursor_image |= 0x0700;
 	    } else {
 		cursor_image |= 0x7000;
-		if ((cursor_image & 0x0f00) == 0x0f00)
+		if ((cursor_image & 0x0700) == 0x0700)
 		    cursor_image &= 0xf0ff;
 	    }
 	}
@@ -1798,11 +1798,16 @@ outloop:
 	len--;
     }
     else if (PRINTABLE(*ptr)) {     /* Print only printables */
+ 	int cnt = len <= (scp->xsize-scp->xpos) ? len : (scp->xsize-scp->xpos);
+ 	u_short cur_attr = scp->term.cur_attr;
+ 	u_short *cursor_pos = scp->cursor_pos;
 	do {
-	    *scp->cursor_pos++ = (scp->term.cur_attr | scr_map[*ptr++]);
-	    scp->xpos++;
-	    len--;
-	} while (len && PRINTABLE(*ptr) && (scp->xpos < scp->xsize));
+	    *cursor_pos++ = (scr_map[*ptr++] | cur_attr);
+	    cnt--;
+	} while (cnt && PRINTABLE(*ptr));
+	len -= (cursor_pos - scp->cursor_pos);
+	scp->xpos += (cursor_pos - scp->cursor_pos);
+	scp->cursor_pos = cursor_pos;
 	if (scp->xpos >= scp->xsize) {
 	    scp->xpos = 0;
 	    scp->ypos++;
