@@ -1366,8 +1366,8 @@ cdstrategy(struct bio *bp)
 	part = dkpart(bp->bio_dev);
 	periph = cam_extend_get(cdperiphs, unit);
 	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdstrategy\n"));
@@ -1386,8 +1386,8 @@ cdstrategy(struct bio *bp)
 	 */
 	if ((softc->flags & CD_FLAG_INVALID)) {
 		splx(s);
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 
 	/*
@@ -1406,14 +1406,6 @@ cdstrategy(struct bio *bp)
 	else
 		cdschedule(periph, /* priority */ 1);
 
-	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
 	return;
 }
 
