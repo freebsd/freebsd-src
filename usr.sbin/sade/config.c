@@ -492,14 +492,15 @@ configSecurityFascist(dialogMenuItem *self)
     variable_set2("kern_securelevel", "2", 1);
     /* More fascist stuff should go here */
 
-    msgConfirm("High security settings have been selected.\n\n"
-	"This means that most \"popular\" network services and\n"
-	"mechanisms like inetd(8) have been DISABLED by default.\n\n"
-	"PLEASE NOTE that this still does not save you from having\n"
-	"to properly secure your system in other ways or exercise\n"
-	"due diligence in your administration, this simply picks\n"
-	"a more secure set of out-of-box defaults to start with.\n\n"
-	"To change any of these settings later, edit /etc/rc.conf");
+    if (self)
+	msgConfirm("High security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been DISABLED by default.\n\n"
+	    "PLEASE NOTE that this still does not save you from having\n"
+	    "to properly secure your system in other ways or exercise\n"
+	    "due diligence in your administration, this simply picks\n"
+	    "a more secure set of out-of-box defaults to start with.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
 
     restorescr(w);
     return DITEM_SUCCESS;
@@ -519,14 +520,15 @@ configSecurityModerate(dialogMenuItem *self)
     variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
 
-    msgConfirm("Moderate security settings have been selected.\n\n"
-	"This means that most \"popular\" network services and\n"
-	"mechanisms like inetd(8) have been enabled by default\n"
-	"for a comfortable user experience but with possible\n"
-	"trade-offs in system security.  If this bothers you and\n"
-	"you know exactly what you are doing, select the high\n"
-	"high security profile instead.\n\n"
-	"To change any of these settings later, edit /etc/rc.conf");
+    if (self)
+	msgConfirm("Moderate security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been enabled by default\n"
+	    "for a comfortable user experience but with possible\n"
+	    "trade-offs in system security.  If this bothers you and\n"
+	    "you know exactly what you are doing, select the high\n"
+	    "high security profile instead.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
 
     restorescr(w);
     return DITEM_SUCCESS;
@@ -542,14 +544,15 @@ configSecurityLiberal(dialogMenuItem *self)
     variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
 
-    msgConfirm("Liberal security settings have been selected.\n\n"
-	"This means that most \"popular\" network services and\n"
-	"mechanisms like inetd(8) have been enabled by default\n"
-	"for the most comfortable user experience but with possible\n"
-	"trade-offs in system security.  If this bothers you, select\n"
-	"the medium security profile or, if you know exactly what you\n"
-	"are doing, the high security profile instead.\n\n"
-	"To change any of these settings later, edit /etc/rc.conf");
+    if (self)
+	msgConfirm("Liberal security settings have been selected.\n\n"
+	    "This means that most \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been enabled by default\n"
+	    "for the most comfortable user experience but with possible\n"
+	    "trade-offs in system security.  If this bothers you, select\n"
+	    "the medium security profile or, if you know exactly what you\n"
+	    "are doing, the high security profile instead.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
 
     restorescr(w);
     return DITEM_SUCCESS;
