@@ -631,6 +631,12 @@
 434	MSTD	BSD	{ int _umtx_lock(struct umtx *umtx); }
 435	MSTD	BSD	{ int _umtx_unlock(struct umtx *umtx); }
 436	MSTD	BSD	{ int jail_attach(int jid); }
+437	STD	BSD	{ ssize_t extattr_list_fd(int fd, int attrnamespace, \
+			    void *data, size_t nbytes); }
+438	STD	BSD	{ ssize_t extattr_list_file(const char *path, \
+			    int attrnamespace, void *data, size_t nbytes); }
+439	STD	BSD	{ ssize_t extattr_list_link(const char *path, \
+			    int attrnamespace, void *data, size_t nbytes); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
