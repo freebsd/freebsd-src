@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.144 1998/03/19 18:46:58 dyson Exp $
+ * $Id: vfs_subr.c,v 1.145 1998/03/19 22:48:16 dyson Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/socket.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
