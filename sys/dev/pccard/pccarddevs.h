@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.60 2003/07/19 05:49:17 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.61 2003/07/26 17:45:45 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
+/* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
@@ -56,6 +56,7 @@
 #define	PCMCIA_VENDOR_NEWMEDIA	0x0057	/* New Media Corporation */
 #define	PCMCIA_VENDOR_INTEL	0x0089	/* Intel */
 #define	PCMCIA_VENDOR_IBM	0x00a4	/* IBM Corporation */
+#define	PCMCIA_VENDOR_SHARP	0x00b0	/* Sharp Corporation */
 #define	PCMCIA_VENDOR_3COM	0x0101	/* 3Com Corporation */
 #define	PCMCIA_VENDOR_MEGAHERTZ	0x0102	/* Megahertz Corporation */
 #define	PCMCIA_VENDOR_SOCKET	0x0104	/* Socket Communications */
@@ -649,6 +650,11 @@
 #define	PCMCIA_PRODUCT_SANDISK_SDCFB	0x0401
 #define	PCMCIA_STR_SANDISK_SDCFB	"Sandisk CompactFlash Card"
 
+/* Sharp Products */
+#define	PCMCIA_CIS_SHARP_PALDIO611S	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_SHARP_PALDIO611S	0x0000
+#define	PCMCIA_STR_SHARP_PALDIO611S	"PALDIO 611S PC CARD"
+
 /* Siemens */
 #define	PCMCIA_CIS_SIEMENS_SS1021	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_SIEMENS_SS1021	0x0002
@@ -690,6 +696,9 @@
 #define	PCMCIA_CIS_SOCKET_LP_ETHER_CF	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_SOCKET_LP_ETHER_CF	0x0075
 #define	PCMCIA_STR_SOCKET_LP_ETHER_CF	"Socket Communications LP-E CF"
+#define	PCMCIA_CIS_SOCKET_LP_ETH_10_100_CF	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_SOCKET_LP_ETH_10_100_CF	0x0145
+#define	PCMCIA_STR_SOCKET_LP_ETH_10_100_CF	"Socket Communications 10/100 Ethernet"
 
 /* Symbol */
 #define	PCMCIA_CIS_SYMBOL_LA4100	{ NULL, NULL, NULL, NULL }
