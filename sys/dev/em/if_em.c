@@ -532,8 +532,8 @@ em_start(struct ifnet *ifp)
        * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
        * that this frame is available to transmit.
        */
-      E1000_WRITE_REG(&adapter->shared, TDT, (((u_int32_t) adapter->next_avail_tx_desc -
-                             (u_int32_t) adapter->first_tx_desc) >> 4));
+      E1000_WRITE_REG(&adapter->shared, TDT, (((uintptr_t) adapter->next_avail_tx_desc -
+                             (uintptr_t) adapter->first_tx_desc) >> 4));
    } /* end of while loop */
 
    splx(s);
@@ -1716,8 +1716,8 @@ em_initialize_receive_unit(struct adapter * adapter)
    /* Setup the HW Rx Head and Tail Descriptor Pointers */
    E1000_WRITE_REG(&adapter->shared, RDH, 0);
    E1000_WRITE_REG(&adapter->shared, RDT,
-               (((u_int32_t) adapter->last_rx_desc -
-                 (u_int32_t) adapter->first_rx_desc) >> 4));
+               (((uintptr_t) adapter->last_rx_desc -
+                 (uintptr_t) adapter->first_rx_desc) >> 4));
    
    /* Setup the Receive Control Register */
    reg_rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
