@@ -63,6 +63,7 @@ struct acpi_batteries {
 static TAILQ_HEAD(,acpi_batteries) acpi_batteries;
 static int			acpi_batteries_initted = 0;
 static int			acpi_batteries_units = 0;
+static int			acpi_battery_info_expire = 5;
 static struct acpi_battinfo	acpi_battery_battinfo;
 
 int
@@ -121,6 +122,13 @@ acpi_battery_get_battinfo(int unit, struct acpi_battinfo *battinfo)
 	}
 out:
 	return (error);
+}
+
+int
+acpi_battery_get_info_expire(void)
+{
+
+	return (acpi_battery_info_expire);
 }
 
 static int
@@ -219,6 +227,10 @@ acpi_battery_init(void)
 	SYSCTL_ADD_INT(&sc->acpi_battery_sysctl_ctx,
 		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
 		OID_AUTO, "units", CTLFLAG_RD, &acpi_batteries_units, 0, "");
+	SYSCTL_ADD_INT(&sc->acpi_battery_sysctl_ctx,
+		SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
+		OID_AUTO, "info_expire", CTLFLAG_RD | CTLFLAG_RW,
+		&acpi_battery_info_expire, 0, "");
 
 	return (error);
 }
