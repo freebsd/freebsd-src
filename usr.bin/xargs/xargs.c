@@ -454,10 +454,10 @@ prerun(int argc, char **argv)
 	free(tmp2);
 
 	/*
-	 * Free the input line buffer, and create a new dummy.
+	 * Free the input line buffer, if we have one.
 	 */
-	free(inpline);
-	inpline = strdup("");
+	if (inpline != NULL)
+		free(inpline);
 }
 
 static void
