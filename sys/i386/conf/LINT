@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.110 1994/11/27 14:59:54 ats Exp $
+#	$Id: LINT,v 1.111 1994/12/03 00:17:54 wollman Exp $
 #
 
 #
@@ -30,6 +30,14 @@ ident		LINT
 # internal system tables by a complicated formula defined in param.c.
 #
 maxusers	10
+
+#
+# Under some circumstances it is necessary to make the default max
+# number of proccesses per user and open files per user more than the
+# defaults on bootup.  (an example is a large news server in which
+# the uid, news, can sometimes need > 100 simultaneous processes running)
+options		"CHILD_MAX=128"
+options		"OPEN_MAX=128"
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
