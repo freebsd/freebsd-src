@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.1 1997/08/19 20:26:01 smp Exp smp $
+ *	$Id: trap.c,v 1.106 1997/08/20 05:25:48 fsmp Exp $
  */
 
 /*
@@ -206,7 +206,7 @@ trap(frame)
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
-        if (CS_SECURE(frame.tf_cs) || (frame.tf_eflags & PSL_VM)) {
+        if ((ISPL(frame.tf_cs) == SEL_UPL) || (frame.tf_eflags & PSL_VM)) {
 		/* user trap */
 
 		sticks = p->p_sticks;
@@ -722,7 +722,7 @@ trap_fatal(frame)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
 			type, trap_msg[type],
         		frame->tf_eflags & PSL_VM ? "vm86" :
-			CS_SECURE(frame->tf_cs) ? "user" : "kernel");
+			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	printf("cpuid = %d\n", cpuid);
 #endif
@@ -735,7 +735,7 @@ trap_fatal(frame)
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",
 	       frame->tf_cs & 0xffff, frame->tf_eip);
-        if (CS_SECURE(frame->tf_cs) || (frame->tf_eflags & PSL_VM)) {
+        if ((ISPL(frame->tf_cs) == SEL_UPL) || (frame->tf_eflags & PSL_VM)) {
 		ss = frame->tf_ss & 0xffff;
 		esp = frame->tf_esp;
 	} else {
@@ -893,7 +893,7 @@ syscall(frame)
 	u_int code;
 
 	sticks = p->p_sticks;
-	if (!CS_SECURE(frame.tf_cs))
+	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("syscall");
 
 	p->p_md.md_regs = &frame;
