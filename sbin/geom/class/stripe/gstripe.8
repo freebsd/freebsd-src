@@ -78,7 +78,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used for setting up stripe on two or more disks.
+utility is used for setting up a stripe on two or more disks.
 The striped device can be configured using two different methods:
 .Dq manual
 or
@@ -118,7 +118,7 @@ The kernel module
 .Pa geom_stripe.ko
 will be loaded if it is not loaded already.
 .It Cm stop
-Turn off existing striped device by its
+Turn off an existing striped device by its
 .Ar name .
 This command does not touch on-disk metadata!
 .It Cm destroy
@@ -166,7 +166,7 @@ The default value is shown next to each variable.
 Debug level of the
 .Nm STRIPE
 GEOM class.
-This can be set to a number between 0 and 3, both included.
+This can be set to a number between 0 and 3 inclusive.
 If set to 0 minimal debug information is printed, and if set to 3 the
 maximum amount of debug information in printed.
 .It Va kern.geom.stripe.fast : No 1
@@ -178,7 +178,7 @@ Compared to
 .Dq "economic mode"
 .Dq "fast mode"
 uses more memory, but it is much faster for smaller stripe sizes.
-If enough memory cannot be allocated
+If enough memory cannot be allocated,
 .Nm STRIPE
 will fall back to
 .Dq "economic mode" .
@@ -191,15 +191,15 @@ This
 variable is read-only and can only be set as a tunable in
 .Xr loader.conf 5 .
 .It Va kern.geom.stripe.fast_failed
-How many times
+A count of how many times
 .Dq "fast mode"
-failed because of insufficient amount of memory.
-If this value is big, you should considern increasing
+has failed due to an insufficient amount of memory.
+If this value is large, you should consider increasing the
 .Va kern.geom.stripe.maxmem
 value.
 .El
 .Sh EXAMPLES
-The following example shows how to set up striped device from four disks with a
+The following example shows how to set up a striped device from four disks with a
 4 KB stripe size for automatic configuration,
 create a file system on it,
 and mount it:
