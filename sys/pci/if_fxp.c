@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.55 1998/08/04 08:53:12 dg Exp $
+ *	$Id: if_fxp.c,v 1.56 1998/10/10 19:26:40 dg Exp $
  */
 
 /*
@@ -641,6 +641,7 @@ fxp_attach_common(sc, enaddr)
 	    M_DEVBUF, M_NOWAIT);
 	if (sc->cbl_base == NULL)
 		goto fail;
+	bzero(sc->cbl_base, sizeof(struct fxp_cb_tx) * FXP_NTXCB);
 
 	sc->fxp_stats = malloc(sizeof(struct fxp_stats), M_DEVBUF, M_NOWAIT);
 	if (sc->fxp_stats == NULL)
