@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.99 1996/08/30 22:35:30 peter Exp $
+#	$Id: Makefile,v 1.100 1996/09/10 04:21:36 jfieber Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -122,6 +122,9 @@ MK_FLAGS=	-DNOMAN -DNOPROFILE
 # >> Beware, it overwrites the local build environment! <<
 #
 world:
+	@echo "--------------------------------------------------------------"
+	@echo "make world started on `date`"
+	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'pre-world' target"
@@ -508,6 +511,8 @@ build-tools:
 	cd ${.CURDIR}/share/sgml && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/usr.sbin/zic && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/groff && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 .include <bsd.subdir.mk>
