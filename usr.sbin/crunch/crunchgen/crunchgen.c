@@ -636,7 +636,7 @@ void fillin_program(prog_t *p)
 	if (!p->objs && p->srcdir && is_nonempty_file(path))
 		fillin_program_objs(p, path);
 
-	if (!p->srcdir && verbose)
+	if (!p->srcdir && !p->objdir && verbose)
 		warnx("%s: %s: %s",
 		    "warning: could not find source directory",
 		    infilename, p->name);
@@ -644,7 +644,7 @@ void fillin_program(prog_t *p)
 		warnx("%s: %s: warning: could not find any .o files",
 		    infilename, p->name);
 
-	if (!p->srcdir || !p->objs)
+	if ((!p->srcdir || !p->objdir) && !p->objs)
 		p->goterror = 1;
 }
 
@@ -962,17 +962,17 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 
 	fprintf(outmk, "\n# -------- %s\n\n", p->name);
 
+	fprintf(outmk, "%s_OBJDIR=", p->ident);
+	if (p->objdir)
+		fprintf(outmk, "%s", p->objdir);
+	else
+		fprintf(outmk, "$(MAKEOBJDIRPREFIX)/$(%s_REALSRCDIR)\n",
+		    p->ident);
+	fprintf(outmk, "\n");
+
 	if (p->srcdir && p->objs) {
 		fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
 		fprintf(outmk, "%s_REALSRCDIR=%s\n", p->ident, p->realsrcdir);
-
-		fprintf(outmk, "%s_OBJDIR=", p->ident);
-		if (p->objdir)
-			fprintf(outmk, "%s", p->objdir);
-		else
-			fprintf(outmk, "$(MAKEOBJDIRPREFIX)/$(%s_REALSRCDIR)\n",
-			    p->ident);
-		fprintf(outmk, "\n");
 
 		fprintf(outmk, "%s_OBJS=", p->ident);
 		output_strlst(outmk, p->objs);
