@@ -73,49 +73,49 @@ struct slot_ctrl {
  *	with the mainline PC-CARD code. These drivers are
  *	then available for linking to the devices.
  */
-struct pccard_dev;
+struct pccard_devinfo;
 
-struct pccard_drv {
-	char	*name;				/* Driver name */
-	int (*handler)(struct pccard_dev *);	/* Interrupt handler */
-	void (*unload)(struct pccard_dev *);	/* Disable driver */
-	void (*suspend)(struct pccard_dev *);	/* Suspend driver */
-	int (*init)(struct pccard_dev *, int);	/* init device */
-	int	attr;				/* driver attributes */
-	unsigned int *imask;			/* Interrupt mask ptr */
+struct pccard_device {
+	char	*name;					/* Driver name */
+	int (*enable)(struct pccard_devinfo *);		/* init/enable driver */
+	void (*disable)(struct pccard_devinfo *);	/* disable driver */
+	int (*handler)(struct pccard_devinfo *);	/* interrupt handler */
+	int	attr;					/* driver attributes */
+	unsigned int *imask;				/* Interrupt mask ptr */
 
-	struct pccard_drv *next;
+	struct pccard_device *next;
 };
 
 /*
  *	Device structure for cards. Each card may have one
- *	or more drivers attached to it; each driver is assumed
+ *	or more pccard drivers attached to it; each driver is assumed
  *	to require at most one interrupt handler, one I/O block
  *	and one memory block. This structure is used to link the different
  *	devices together.
  */
-struct pccard_dev {
-	struct pccard_dev *next;	/* List of drivers */
+struct pccard_devinfo {
+	struct pccard_device *drv;
 	struct isa_device isahd;	/* Device details */
-	struct pccard_drv *drv;
+#if 0
 	void *arg;			/* Device argument */
-	struct slot *sp;		/* Back pointer to slot */
+#endif
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
+	struct slot *slt;		/* Back pointer to slot */
+
+	struct pccard_devinfo *next;	/* List of drivers */
 };
 
 /*
  *	Per-slot structure.
  */
 struct slot {
-	struct slot *next;		/* Master list */
-	int slot;			/* Slot number */
+	int slotnum;			/* Slot number */
 	int flags;			/* Slot flags (see below) */
 	int rwmem;			/* Read/write flags */
-	int ex_sel;			/* PID for select */
 	int irq;			/* IRQ allocated (0 = none) */
 	int irqref;			/* Reference count of driver IRQs */
-	struct pccard_dev *devices;	/* List of drivers attached */
+	struct pccard_devinfo *devices;	/* List of drivers attached */
 	/*
 	 *	flags.
 	 */
@@ -132,10 +132,12 @@ struct slot {
 #ifdef DEVFS
 	void		*devfs_token;
 #endif /* DEVFS*/
+
+	struct slot *next;		/* Master list */
 };
 
 enum card_event { card_removed, card_inserted };
 
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
-void		pccard_event(struct slot *, enum card_event);
-void		pccard_remove_controller(struct slot_ctrl *);
+void		 pccard_event(struct slot *, enum card_event);
+void		 pccard_remove_controller(struct slot_ctrl *);

@@ -37,8 +37,11 @@
 #include <sys/exec.h>
 #include <sys/lkm.h>
 
+#include <sys/select.h>
 #include <pccard/card.h>
+#include <pccard/driver.h>
 #include <pccard/slot.h>
+
 
 /*
  *	This defines the lkm_misc module use by modload
@@ -47,19 +50,21 @@
  MOD_MISC( "skel")
 
 
-static int skelintr(struct pccard_dev *);	/* Interrupt handler */
-static void skelunload(struct pccard_dev *);	/* Disable driver */
-static void skelsuspend(struct pccard_dev *);	/* Suspend driver */
-static int skelinit(struct pccard_dev *, int);	/* init device */
+static int skelinit(struct pccard_devinfo *);		/* init device */
+static void skelunload(struct pccard_devinfo *);	/* Disable driver */
+static int skelintr(struct pccard_devinfo *);		/* Interrupt handler */
 
-static struct pccard_drv skel_info =
-	{
+static struct pccard_device skel_info = {
 	"skel",
-	skelintr,
-	skelunload,
-	skelsuspend,
 	skelinit,
-	};
+	skelunload,
+	skelintr,
+	0,			/* Attributes - presently unused */
+	&net_imask		/* Interrupt mask for device */
+};
+
+DATA_SET(pccarddrv_set, skel_info);
+
 static int opened;	/* Rather minimal device state... */
 	
 /*
@@ -138,50 +143,35 @@ int			ver;
  *	Skeleton driver entry points for PCCARD configuration.
  */
 /*
+ *	Initialize the device.
+ */
+static int
+skelinit(struct pccard_devinfo *devi)
+{
+	if ((1 << devi->unit) & opened)
+		return(EBUSY);
+	opened |= 1 << devi->unit;
+	printf("skel%d: init\n", devi->unit);
+	printf("iomem = 0x%x, iobase = 0x%x\n", devi->memory, devi->ioaddr);
+	return(0);
+}
+/*
  *	The device entry is being removed. Shut it down,
  *	and turn off interrupts etc. Not called unless
  *	the device was successfully installed.
  */
 static void
-skelunload(struct pccard_dev *dp)
+skelunload(struct pccard_devinfo *devi)
 {
-	printf("skel%d: unload\n", dp->unit);
-	opened &= ~(1 << dp->unit);
-}
-/*
- * Called when a power down is wanted. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * skelinit with first=0.
- */
-static void
-skelsuspend(struct pccard_dev *dp)
-{
-	printf("skel%d: suspending\n", dp->unit);
-}
-/*
- *	Initialize the device.
- *	if first is set, then initially check for
- *	the device's existence before initialising it.
- *	Once initialised, the device table may be set up.
- */
-static int
-skelinit(struct pccard_dev *dp, int first)
-{
-	if (first && ((1 << dp->unit)&opened))
-		return(EBUSY);
-	if (first)
-		opened |= 1 << dp->unit;
-	printf("skel%d: init, first = %d\n", dp->unit, first);
-	printf("iomem = 0x%x, iobase = 0x%x\n", dp->memory, dp->ioaddr);
-	return(0);
+	printf("skel%d: unload\n", devi->unit);
+	opened &= ~(1 << devi->unit);
 }
 /*
  *	Interrupt handler.
  *	Returns true if the interrupt is for us.
  */
 static int
-skelintr(struct pccard_dev *dp)
+skelintr(struct pccard_devinfo *devi)
 {
 	return(0);
 }

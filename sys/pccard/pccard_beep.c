@@ -19,9 +19,6 @@
 #define	PCCARD_BEEP_PITCH2	3200
 #define	PCCARD_BEEP_DURATION2	40
 
-static struct callout_handle beeptimeout_ch
-    = CALLOUT_HANDLE_INITIALIZER(&beeptimeout_ch);
-
 static enum beepstate allow_beep = BEEP_OFF;
 
 /*
@@ -31,7 +28,7 @@ static enum beepstate allow_beep = BEEP_OFF;
 static void enable_beep(void *dummy)
 {
 	/* Should never be needed */
-	untimeout(enable_beep, (void *)NULL, beeptimeout_ch);
+	untimeout(enable_beep, (void *)NULL);
 
 	allow_beep = 1;
 }
@@ -41,7 +38,7 @@ void pccard_insert_beep(void)
 	if (allow_beep == BEEP_ON) {
 		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
 		allow_beep = 0;
-		beeptimeout_ch = timeout(enable_beep, (void *)NULL, hz / 5);
+		timeout(enable_beep, (void *)NULL, hz / 5);
 	}
 }
 
@@ -50,7 +47,7 @@ void pccard_remove_beep(void)
 	if (allow_beep == BEEP_ON) {
 		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
 		allow_beep = 0;
-		beeptimeout_ch = timeout(enable_beep, (void *)NULL, hz / 5);
+		timeout(enable_beep, (void *)NULL, hz / 5);
 	}
 }
 
