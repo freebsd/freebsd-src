@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 3, 2000
+.Dd November 3, 2000
 .Dt SCHEDULER 9
 .Os
 .Sh NAME
@@ -65,7 +65,7 @@
 .Fn updatepri "struct proc *p"
 .Sh DESCRIPTION
 Each process has three different priorities stored in
-.Li struct proc :
+.Vt "struct proc" :
 .Va p_usrpri ,
 .Va p_nativepri ,
 and
@@ -73,14 +73,14 @@ and
 .Pp
 The
 .Va p_usrpri
-member is the user priority of the process calcuated from a process'
+member is the user priority of the process calculated from a process'
 estimated CPU time and nice level.
 .Pp
 The
 .Va p_nativepri
 member is the saved priority used by
 .Fn propagate_priority .
-When a process obtains a mutex, it's priority is saved in
+When a process obtains a mutex, its priority is saved in
 .Va p_nativepri .
 While it holds the mutex, the process's priority may be bumped by another
 process that blocks on the mutex.
@@ -110,7 +110,7 @@ then
 will return zero.
 The cached priority of the currently running process is updated when a process
 resumes from
-.Xr tsleep 9 .
+.Xr tsleep 9
 or returns to userland in
 .Fn userret
 and is stored in the private variable
@@ -130,10 +130,10 @@ is called to force a reschedule on the next return to userland.
 The
 .Fn propagate_priority
 looks at the process that owns the mutex
-.Ar p
+.Fa p
 is blocked on.
 That process's priority is bumped to the priority of
-.Ar p
+.Fa p
 if needed.
 If the process is currently running, then the function returns.
 If the process is on a
@@ -148,7 +148,7 @@ Then, the function repeats the procedure using the process that owns the
 mutex just encountered.
 Note that an process's priorities are only bumped to the priority of the
 original process
-.Ar p ,
+.Fa p ,
 not to the priority of the previously encountered process.
 .Pp
 The
@@ -197,7 +197,7 @@ function is called by
 .Fn statclock
 to adjust the priority of the currently running process.
 It updates the process's estimated CPU time and then adjusts the priority via
-.Fn reset_priority .
+.Fn resetpriority .
 .Pp
 The
 .Fn schedcpu
@@ -223,7 +223,7 @@ Once all process priorities have been updated,
 calls
 .Fn vmmeter
 to update various other statistics including the load average.
-Finally, it schedules itselt to run again in
+Finally, it schedules itself to run again in
 .Va hz
 clock ticks.
 .Pp
@@ -261,7 +261,7 @@ variable really should be per-CPU.
 In addition,
 .Fn maybe_resched
 should compare the priority of
-.Ar chk
+.Fa chk
 with that of each CPU, and then send an IPI to the processor with the lowest
 priority to trigger a reschedule if needed.
 .Pp

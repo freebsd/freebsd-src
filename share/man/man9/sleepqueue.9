@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 3, 2000
+.Dd November 3, 2000
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ If the process is not awakened soon enough, then
 is called with
 .Fa arg
 pointing to the
-.Li struct proc
+.Vt "struct proc"
 of the process that timed out.
 .Fn endtsleep
 undoes the sleep and makes the process runnable if it is in the
