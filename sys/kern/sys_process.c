@@ -670,7 +670,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			if (req == PT_DETACH) {
 				struct thread *td3;
 				FOREACH_THREAD_IN_PROC(p, td3)
-					td->td_flags &= ~TDF_DBSUSPEND; 
+					td3->td_flags &= ~TDF_DBSUSPEND; 
 			}
 			/*
 			 * unsuspend all threads, to not let a thread run,
