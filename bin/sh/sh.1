@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.9.2.3 1997/08/25 21:22:27 jkh Exp $
+.\"	$Id: sh.1,v 1.9.2.4 1997/09/14 13:07:41 jkh Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -453,6 +453,10 @@ error, or a false indication.  The man page for each command
 should indicate the various exit codes and what they mean.
 Additionally, the builtin commands return exit codes, as does
 an executed shell function.
+.Pp
+If a command is terminated by a signal, its exit status is 128 plus
+the signal number.  Signal numbers are defined in the header file
+.Aq Pa sys/signal.h .
 .Ss Complex Commands
 Complex commands are combinations of simple commands
 with control operators or reserved words, together creating a larger complex
