@@ -274,12 +274,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_stopDmaReceive)((_ah)))
 #define	ath_hal_dumpstate(_ah) \
 	((*(_ah)->ah_dumpState)((_ah)))
-#define	ath_hal_dumpeeprom(_ah) \
-	((*(_ah)->ah_dumpEeprom)((_ah)))
-#define	ath_hal_dumprfgain(_ah) \
-	((*(_ah)->ah_dumpRfGain)((_ah)))
-#define	ath_hal_dumpani(_ah) \
-	((*(_ah)->ah_dumpAni)((_ah)))
+#define	ath_hal_getdiagstate(_ah, _id, _data, _size) \
+	((*(_ah)->ah_getDiagState)((_ah), (_id), (_data), (_size)))
 #define	ath_hal_setuptxqueue(_ah, _type, _irq) \
 	((*(_ah)->ah_setupTxQueue)((_ah), (_type), (_irq)))
 #define	ath_hal_resettxqueue(_ah, _q) \
@@ -299,8 +295,8 @@ void	ath_intr(void *);
 		(_flen), (_hlen), (_rate), (_antmode)))
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
-#define	ath_hal_rxprocdesc(_ah, _ds) \
-	((*(_ah)->ah_procRxDesc)((_ah), (_ds)))
+#define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext) \
+	((*(_ah)->ah_procRxDesc)((_ah), (_ds), (_dspa), (_dsnext)))
 #define	ath_hal_setuptxdesc(_ah, _ds, _plen, _hlen, _atype, _txpow, \
 		_txr0, _txtr0, _keyix, _ant, _flags, \
 		_rtsrate, _rtsdura) \
