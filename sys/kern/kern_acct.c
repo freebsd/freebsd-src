@@ -37,11 +37,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.7 1995/07/23 23:02:20 mpp Exp $
+ *	$Id: kern_acct.c,v 1.8 1995/10/29 15:30:56 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -91,10 +92,12 @@ int	acctchkfreq = 15;	/* frequency (in seconds) to check space */
  * Accounting system call.  Written based on the specification and
  * previous implementation done by Mark Tinguely.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct acct_args {
 	char	*path;
 };
 
+#endif
 int
 acct(p, uap, retval)
 	struct proc *p;

@@ -28,11 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.24 1995/10/21 08:38:11 davidg Exp $
+ *	$Id: kern_exec.c,v 1.25 1995/11/06 12:52:32 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -62,11 +63,13 @@ static int exec_check_permissions(struct image_params *);
  */
 const struct execsw **execsw = (const struct execsw **)&execsw_set.ls_items[0];
 
+#ifndef _SYS_SYSPROTO_H_
 struct execve_args {
         char    *fname; 
         char    **argv;
         char    **envv; 
 };
+#endif
 
 /*
  * execve() system call.

@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.14 1995/10/10 08:08:54 swallace Exp $
+ * $Id: sys_generic.c,v 1.15 1995/11/11 06:57:34 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
@@ -63,11 +64,13 @@ int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
 /*
  * Read system call.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct read_args {
 	int	fd;
 	char	*buf;
 	u_int	nbyte;
 };
+#endif
 /* ARGSUSED */
 int
 read(p, uap, retval)
@@ -124,11 +127,13 @@ read(p, uap, retval)
 /*
  * Scatter read system call.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct readv_args {
 	int	fd;
 	struct	iovec *iovp;
 	u_int	iovcnt;
 };
+#endif
 int
 readv(p, uap, retval)
 	struct proc *p;
@@ -211,11 +216,13 @@ done:
 /*
  * Write system call
  */
+#ifndef _SYS_SYSPROTO_H_
 struct write_args {
 	int	fd;
 	char	*buf;
 	u_int	nbyte;
 };
+#endif
 int
 write(p, uap, retval)
 	struct proc *p;
@@ -271,11 +278,13 @@ write(p, uap, retval)
 /*
  * Gather write system call
  */
+#ifndef _SYS_SYSPROTO_H_
 struct writev_args {
 	int	fd;
 	struct	iovec *iovp;
 	u_int	iovcnt;
 };
+#endif
 int
 writev(p, uap, retval)
 	struct proc *p;
@@ -361,11 +370,13 @@ done:
 /*
  * Ioctl system call
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {
 	int	fd;
 	int	com;
 	caddr_t	data;
 };
+#endif
 /* ARGSUSED */
 int
 ioctl(p, uap, retval)
@@ -500,11 +511,13 @@ int	selwait, nselcoll;
 /*
  * Select system call.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct select_args {
 	u_int	nd;
 	fd_set	*in, *ou, *ex;
 	struct	timeval *tv;
 };
+#endif
 int
 select(p, uap, retval)
 	register struct proc *p;

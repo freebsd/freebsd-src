@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.35 1995/11/10 16:22:41 phk Exp $
+ * $Id: kern_sysctl.c,v 1.36 1995/11/11 00:09:21 bde Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -438,6 +439,7 @@ found:
 	return (i);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct sysctl_args {
 	int	*name;
 	u_int	namelen;
@@ -446,6 +448,7 @@ struct sysctl_args {
 	void	*new;
 	size_t	newlen;
 };
+#endif
 
 int
 __sysctl(p, uap, retval)
@@ -1185,12 +1188,14 @@ struct {
  */
 char bsdi_strings[80];	/* It had better be less than this! */
 
+#ifndef _SYS_SYSPROTO_H_
 struct getkerninfo_args {
 	int	op;
 	char	*where;
 	int	*size;
 	int	arg;
 };
+#endif
 
 int
 ogetkerninfo(p, uap, retval)

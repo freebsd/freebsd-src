@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.9 1995/06/26 07:48:50 bde Exp $
+ * $Id: kern_time.c,v 1.10 1995/06/29 07:07:00 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/sysproto.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -56,10 +57,12 @@ struct timezone tz;
  * timers when they expire.
  */
 
+#ifndef _SYS_SYSPROTO_H_
 struct gettimeofday_args {
 	struct	timeval *tp;
 	struct	timezone *tzp;
 };
+#endif
 /* ARGSUSED */
 int
 gettimeofday(p, uap, retval)
@@ -82,10 +85,12 @@ gettimeofday(p, uap, retval)
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct settimeofday_args {
 	struct	timeval *tv;
 	struct	timezone *tzp;
 };
+#endif
 /* ARGSUSED */
 int
 settimeofday(p, uap, retval)
@@ -132,10 +137,12 @@ int	tickdelta;			/* current clock skew, us. per tick */
 long	timedelta;			/* unapplied time correction, us. */
 long	bigadj = 1000000;		/* use 10x skew above bigadj us. */
 
+#ifndef _SYS_SYSPROTO_H_
 struct adjtime_args {
 	struct timeval *delta;
 	struct timeval *olddelta;
 };
+#endif
 /* ARGSUSED */
 int
 adjtime(p, uap, retval)
@@ -211,10 +218,12 @@ adjtime(p, uap, retval)
  * real time timers .it_interval.  Rather, we compute the next time in
  * absolute time the timer should go off.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getitimer_args {
 	u_int	which;
 	struct	itimerval *itv;
 };
+#endif
 /* ARGSUSED */
 int
 getitimer(p, uap, retval)
@@ -249,10 +258,12 @@ getitimer(p, uap, retval)
 	    sizeof (struct itimerval)));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setitimer_args {
 	u_int	which;
 	struct	itimerval *itv, *oitv;
 };
+#endif
 /* ARGSUSED */
 int
 setitimer(p, uap, retval)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.14 1995/11/04 10:50:55 davidg Exp $
+ * $Id: kern_prot.c,v 1.15 1995/11/11 06:53:08 bde Exp $
  */
 
 /*
@@ -46,15 +46,18 @@
 #include <sys/param.h>
 #include <sys/acct.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ucred.h>
 #include <sys/proc.h>
 #include <sys/timeb.h>
 #include <sys/times.h>
 #include <sys/malloc.h>
 
+#ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -71,9 +74,11 @@ getpid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getppid_args {
         int     dummy;
 };
+#endif
 /* ARGSUSED */
 int
 getppid(p, uap, retval)
@@ -87,9 +92,11 @@ getppid(p, uap, retval)
 }
 
 /* Get process group ID; note that POSIX getpgrp takes no parameter */
+#ifndef _SYS_SYSPROTO_H_
 struct getpgrp_args {
         int     dummy;
 };
+#endif
 
 int
 getpgrp(p, uap, retval)
@@ -102,9 +109,11 @@ getpgrp(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getuid_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -121,9 +130,11 @@ getuid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct geteuid_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -137,9 +148,11 @@ geteuid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getgid_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -161,9 +174,11 @@ getgid(p, uap, retval)
  * via getgroups.  This syscall exists because it is somewhat painful to do
  * correctly in a library function.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getegid_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -177,10 +192,12 @@ getegid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getgroups_args {
 	u_int	gidsetsize;
 	gid_t	*gidset;
 };
+#endif
 int
 getgroups(p, uap, retval)
 	struct proc *p;
@@ -205,9 +222,11 @@ getgroups(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setsid_args {
         int     dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -239,10 +258,12 @@ setsid(p, uap, retval)
  * 	there must exist some pid in same session having pgid (EPERM)
  * pid must not be session leader (EPERM)
  */
+#ifndef _SYS_SYSPROTO_H_
 struct setpgid_args {
 	int	pid;	/* target process id */
 	int	pgid;	/* target pgrp id */
 };
+#endif
 /* ARGSUSED */
 int
 setpgid(curp, uap, retval)
@@ -273,9 +294,11 @@ setpgid(curp, uap, retval)
 	return (enterpgrp(targp, uap->pgid, 0));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setuid_args {
 	uid_t	uid;
 };
+#endif
 /* ARGSUSED */
 int
 setuid(p, uap, retval)
@@ -310,9 +333,11 @@ setuid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct seteuid_args {
 	uid_t	euid;
 };
+#endif
 /* ARGSUSED */
 int
 seteuid(p, uap, retval)
@@ -338,9 +363,11 @@ seteuid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setgid_args {
 	gid_t	gid;
 };
+#endif
 /* ARGSUSED */
 int
 setgid(p, uap, retval)
@@ -366,9 +393,11 @@ setgid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setegid_args {
 	gid_t	egid;
 };
+#endif
 /* ARGSUSED */
 int
 setegid(p, uap, retval)
@@ -390,10 +419,12 @@ setegid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setgroups_args {
 	u_int	gidsetsize;
 	gid_t	*gidset;
 };
+#endif
 /* ARGSUSED */
 int
 setgroups(p, uap, retval)
@@ -419,10 +450,12 @@ setgroups(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setreuid_args {
 	uid_t	ruid;
 	uid_t	euid;
 };
+#endif
 /* ARGSUSED */
 int
 setreuid(p, uap, retval)
@@ -455,10 +488,12 @@ setreuid(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setregid_args {
 	gid_t	rgid;
 	gid_t	egid;
 };
+#endif
 /* ARGSUSED */
 int
 setregid(p, uap, retval)
@@ -591,10 +626,12 @@ crdup(cr)
 /*
  * Get login name, if available.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getlogin_args {
 	char	*namebuf;
 	u_int	namelen;
 };
+#endif
 /* ARGSUSED */
 int
 getlogin(p, uap, retval)
@@ -612,9 +649,11 @@ getlogin(p, uap, retval)
 /*
  * Set login name.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct setlogin_args {
 	char	*namebuf;
 };
+#endif
 /* ARGSUSED */
 int
 setlogin(p, uap, retval)

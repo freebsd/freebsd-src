@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.11 1995/07/29 11:43:08 bde Exp $
+ * $Id: lfs_syscalls.c,v 1.12 1995/09/04 00:21:02 dyson Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
@@ -81,11 +82,13 @@ int lfs_fastvget __P((struct mount *, ino_t, daddr_t, struct vnode **,
  *  0 on success
  * -1/errno is return on error.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lfs_markv_args {
 	fsid_t *fsidp;		/* file system */
 	BLOCK_INFO *blkiov;	/* block array */
 	int blkcnt;		/* count of block array entries */
 };
+#endif
 int
 lfs_markv(p, uap, retval)
 	struct proc *p;
@@ -257,11 +260,13 @@ err1:
  *  0 on success
  * -1/errno is return on error.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lfs_bmapv_args {
 	fsid_t *fsidp;		/* file system */
 	BLOCK_INFO *blkiov;	/* block array */
 	int blkcnt;		/* count of block array entries */
 };
+#endif
 int
 lfs_bmapv(p, uap, retval)
 	struct proc *p;
@@ -317,10 +322,12 @@ lfs_bmapv(p, uap, retval)
  *  0 on success
  * -1/errno is return on error.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lfs_segclean_args {
 	fsid_t *fsidp;		/* file system */
 	u_long segment;		/* segment number */
 };
+#endif
 int
 lfs_segclean(p, uap, retval)
 	struct proc *p;
@@ -378,10 +385,12 @@ lfs_segclean(p, uap, retval)
  *  1 on timeout
  * -1/errno is return on error.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct lfs_segwait_args {
 	fsid_t *fsidp;		/* file system */
 	struct timeval *tv;	/* timeout */
 };
+#endif
 int
 lfs_segwait(p, uap, retval)
 	struct proc *p;

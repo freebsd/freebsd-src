@@ -28,11 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.13 1995/05/12 21:39:48 davidg Exp $
+ *	$Id: sys_process.c,v 1.14 1995/05/30 08:05:58 rgrimes Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
@@ -186,12 +187,14 @@ pwrite (struct proc *procp, unsigned int addr, unsigned int datum) {
 /*
  * Process debugging system call.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ptrace_args {
 	int	req;
 	pid_t	pid;
 	caddr_t	addr;
 	int	data;
 };
+#endif
 
 int
 ptrace(curp, uap, retval)
