@@ -432,12 +432,14 @@ devclass_get_softc(devclass_t dc, int unit)
 {
     device_t dev;
 
-    if (unit < 0 || unit >= dc->maxunit)
-	return NULL;
-    dev = dc->devices[unit];
-    if (!dev || dev->state < DS_ATTACHED)
-	return NULL;
-    return dev->softc;
+    dev = devclass_get_device(dc, unit);
+    if (!dev)
+	return (NULL);
+
+    if (device_get_state(dev) < DS_ATTACHED)
+	return (NULL);
+
+    return (device_get_softc(dev));
 }
 
 int
