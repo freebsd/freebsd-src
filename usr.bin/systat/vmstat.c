@@ -798,7 +798,7 @@ getinfo(ls)
 	last.dinfo = cur.dinfo;
 	cur.dinfo = tmp_dinfo;
 
-	last.busy_time = cur.busy_time;
+	last.snap_time = cur.snap_time;
 	switch (devstat_getdevs(NULL, &cur)) {
 	case -1:
 		errx(1, "%s", devstat_errbuf);
@@ -852,12 +852,19 @@ dinfo(dn, lc, now, then)
 
 	di = dev_select[dn].position;
 
-	elapsed_time = devstat_compute_etime(now->busy_time,
-	    then ? then->busy_time : now->dinfo->devices[di].dev_creation_time);
-
-	device_busy =  devstat_compute_etime(now->dinfo->devices[di].busy_time,
-	    then ? then->dinfo->devices[di].busy_time :
-	    now->dinfo->devices[di].dev_creation_time);
+	if (then != NULL) {
+		/* Calculate relative to previous sample */
+		elapsed_time = now->snap_time - then->snap_time;
+		device_busy = devstat_compute_etime(
+		    &now->dinfo->devices[di].busy_time,
+		    &then->dinfo->devices[di].busy_time);
+	} else {
+		/* Calculate relative to device creation */
+	        elapsed_time = now->snap_time - devstat_compute_etime(
+		    &now->dinfo->devices[di].creation_time, NULL);
+		device_busy = devstat_compute_etime(
+		    &now->dinfo->devices[di].busy_time, NULL);
+	}
 
 	if (devstat_compute_statistics(&now->dinfo->devices[di], then ?
 	    &then->dinfo->devices[di] : NULL, elapsed_time,
@@ -866,11 +873,6 @@ dinfo(dn, lc, now, then)
 	    DSM_NONE) != 0)
 		errx(1, "%s", devstat_errbuf);
 
-	if ((device_busy == 0) && (transfers_per_second > 5))
-		/* the device has been 100% busy, fake it because
-		 * as long as the device is 100% busy the busy_time
-		 * field in the devstat struct is not updated */
-		device_busy = elapsed_time;
 	if (device_busy > elapsed_time)
 		/* this normally happens after one or more periods
 		 * where the device has been 100% busy, correct it */

@@ -3,7 +3,8 @@
 MAINTAINER=ken@FreeBSD.ORG
 
 LIB=	devstat
-SHLIB_MAJOR= 3
+# Bump DEVSTAT_USER_API_VER in devstat.h every time this is incremented.
+SHLIB_MAJOR= 4
 SRCS=	devstat.c
 INCS=	devstat.h
 
