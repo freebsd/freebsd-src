@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.88 1998/09/15 22:05:37 gibbs Exp $
+ * $Id: pci.c,v 1.89 1998/09/16 08:28:11 dfr Exp $
  *
  */
 
@@ -148,9 +148,10 @@ pci_maprange(unsigned mapreg)
 static pcimap *
 pci_readmaps(pcicfgregs *cfg, int maxmaps)
 {
-	int i;
+	int i, j = 0;
 	pcimap *map;
 	int map64 = 0;
+	int reg = PCIR_MAPS;
 
 	for (i = 0; i < maxmaps; i++) {
 		int reg = PCIR_MAPS + i*4;
@@ -160,40 +161,47 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 		base = pci_cfgread(cfg, reg, 4);
 		ln2range = pci_maprange(base);
 
-		if (base == 0 || ln2range == 0)
-			maxmaps = i;
-		else if (ln2range > 32)
-			i++;
+		if (base == 0 || ln2range == 0 || base == 0xffffffff)
+			continue; /* skip invalid entry */
+		else {
+			j++;
+			if (ln2range > 32) {
+				i++;
+				j++;
+			}
+		}
 	}
 
-	map = malloc(maxmaps * sizeof (pcimap), M_DEVBUF, M_WAITOK);
+	map = malloc(j * sizeof (pcimap), M_DEVBUF, M_WAITOK);
 	if (map != NULL) {
-		bzero(map, sizeof(pcimap) * maxmaps);
+		bzero(map, sizeof(pcimap) * j);
+		cfg->nummaps = j;
 
-		for (i = 0; i < maxmaps; i++) {
-			int reg = PCIR_MAPS + i*4;
+		for (i = 0, j = 0; i < maxmaps; i++, reg += 4) {
 			u_int32_t base;
 			u_int32_t testval;
 
 			base = pci_cfgread(cfg, reg, 4);
 
 			if (map64 == 0) {
+				if (base == 0 || base == 0xffffffff)
+					continue; /* skip invalid entry */
 				pci_cfgwrite(cfg, reg, 0xffffffff, 4);
 				testval = pci_cfgread(cfg, reg, 4);
 				pci_cfgwrite(cfg, reg, base, 4);
 
-				map[i].base     = pci_mapbase(base);
-				map[i].type     = pci_maptype(base);
-				map[i].ln2size  = pci_mapsize(testval);
-				map[i].ln2range = pci_maprange(testval);
-				map64 = map[i].ln2range == 64;
+				map[j].base     = pci_mapbase(base);
+				map[j].type     = pci_maptype(base);
+				map[j].ln2size  = pci_mapsize(testval);
+				map[j].ln2range = pci_maprange(testval);
+				map64 = map[j].ln2range == 64;
 			} else {
 				/* only fill in base, other fields are 0 */
-				map[i].base     = base;
+				map[j].base     = base;
 				map64 = 0;
 			}
+			j++;
 		}
-		cfg->nummaps = maxmaps;
 	}
 	return (map);
 }
