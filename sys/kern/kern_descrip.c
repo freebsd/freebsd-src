@@ -1464,19 +1464,11 @@ ffind_hold(td, fd)
 	struct thread *td;
 	int fd;
 {
-	struct filedesc *fdp;
 	struct file *fp;
 
-	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
-		return (NULL);
-	FILEDESC_LOCK(fdp);
-	if (fd < 0 || fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    fp->f_ops == &badfileops)
-		fp = NULL;
-	else
-		fhold(fp);
-	FILEDESC_UNLOCK(fdp);
+	fp = ffind_lock(td, fd);
+	if (fp != NULL)
+		FILE_UNLOCK(fp);
 	return (fp);
 }
 
