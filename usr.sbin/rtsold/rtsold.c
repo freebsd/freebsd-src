@@ -331,7 +331,7 @@ ifconfig(char *ifname)
 	}
 	if (find_ifinfo(sdl->sdl_index)) {
 		warnmsg(LOG_ERR, __FUNCTION__,
-			"interface %s was already cofigured", ifname);
+			"interface %s was already configured", ifname);
 		free(sdl);
 		return(-1);
 	}
