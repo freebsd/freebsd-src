@@ -576,10 +576,10 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	 * available for general use.
 	 */
 #ifdef APIC_IO
-	if (pnp_eisaformat(pd->devid) == "PNP0000")	/* ISA PIC */
+	if (!strcmp(pnp_eisaformat(pd->devid), "PNP0000"))	/* ISA PIC */
 	    continue;
 #else
-	if (pnp_eisaformat(pd->devid) == "PNP0003")	/* APIC */
+	if (!strcmp(pnp_eisaformat(pd->devid), "PNP0003"))	/* APIC */
 	    continue;
 #endif	
 	
