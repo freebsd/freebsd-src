@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 #include <glob.h>
 #include <grp.h>
 #include <paths.h>
@@ -112,7 +113,7 @@ int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 				/*    the run command). */
 char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
-const char *conf = _PATH_CONF;	/* Configuration file to use */
+const char *conf;		/* Configuration file to use */
 time_t timenow;
 
 #define MIN_PID         5
@@ -120,7 +121,9 @@ time_t timenow;
 char hostname[MAXHOSTNAMELEN];	/* hostname */
 char daytime[16];		/* timenow in human readable form */
 
-static struct conf_entry *parse_file(char **files);
+static struct conf_entry *get_worklist(char **files);
+static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
+		struct conf_entry **defconf_p);
 static char *sob(char *p);
 static char *son(char *p);
 static char *missing_field(char *p, char *errline);
@@ -163,14 +166,19 @@ main(int argc, char **argv)
 	int i;
 
 	PRS(argc, argv);
+	argc -= optind;
+	argv += optind;
+
 	if (needroot && getuid() && geteuid())
 		errx(1, "must have root privs");
-	p = q = parse_file(argv + optind);
+	p = q = get_worklist(argv);
 
 	while (p) {
 		if ((p->flags & CE_GLOB) == 0) {
 			do_entry(p);
 		} else {
+			if (verbose > 2)
+				printf("\t+ Processing pattern %s\n", p->log);
 			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
 				warn("can't expand pattern: %s", p->log);
 			} else {
@@ -181,6 +189,8 @@ main(int argc, char **argv)
 				}
 				globfree(&pglob);
 				p->log = savglob;
+				if (verbose > 2)
+					printf("\t+ Done with pattern\n");
 			}
 		}
 		p = p->next;
@@ -438,30 +448,181 @@ usage(void)
 }
 
 /*
- * Parse a configuration file and return a linked list of all the logs to
- * process
+ * Parse a configuration file and return a linked list of all the logs
+ * which should be processed.
  */
 static struct conf_entry *
-parse_file(char **files)
+get_worklist(char **files)
 {
 	FILE *f;
+	const char *fname;
+	char **given;
+	struct conf_entry *defconf, *dupent, *ent, *firstnew;
+	struct conf_entry *newlist, *worklist;
+	int gmatch;
+
+	defconf = worklist = NULL;
+
+	fname = conf;
+	if (fname == NULL)
+		fname = _PATH_CONF;
+
+	if (strcmp(fname, "-") != 0)
+		f = fopen(fname, "r");
+	else {
+		f = stdin;
+		fname = "<stdin>";
+	}
+	if (!f)
+		err(1, "%s", conf);
+
+	parse_file(f, fname, &worklist, &defconf);
+	(void) fclose(f);
+
+	/*
+	 * All config-file information has been read in and turned into
+	 * a worklist.  If there were no specific files given on the run
+	 * command, then the work of this routine is done.
+	 */
+	if (*files == NULL) {
+		if (defconf != NULL)
+			free_entry(defconf);
+		return (worklist);
+		/* NOTREACHED */
+	}
+
+	/*
+	 * If newsyslog was given a specific list of files to process,
+	 * it may be that some of those files were not listed in any
+	 * config file.  Those unlisted files should get the default
+	 * rotation action.  First, create the default-rotation action
+	 * if none was found in a system config file.
+	 */
+	if (defconf == NULL) {
+		defconf = init_entry(DEFAULT_MARKER, NULL);
+		defconf->numlogs = 3;
+		defconf->size = 50;
+		defconf->permissions = S_IRUSR|S_IWUSR;
+	}
+
+	/*
+	 * If newsyslog was run with a list of specific filenames,
+	 * then create a new worklist which has only those files in
+	 * it, picking up the rotation-rules for those files from
+	 * the original worklist.
+	 *
+	 * XXX - Note that this will copy multiple rules for a single
+	 *	logfile, if multiple entries are an exact match for
+	 *	that file.  That matches the historic behavior, but do
+	 *	we want to continue to allow it?  If so, it should
+	 *	probably be handled more intelligently.
+	 */
+	firstnew = newlist = NULL;
+	for (given = files; *given; ++given) {
+		gmatch = 0;
+		/*
+		 * First try to find exact-matches for this given file.
+		 */
+		for (ent = worklist; ent; ent = ent->next) {
+			if ((ent->flags & CE_GLOB) != 0)
+				continue;
+			if (strcmp(ent->log, *given) == 0) {
+				gmatch++;
+				dupent = init_entry(*given, ent);
+				if (!firstnew)
+					firstnew = dupent;
+				else
+					newlist->next = dupent;
+				newlist = dupent;
+			}
+		}
+		if (gmatch) {
+			if (verbose > 2)
+				printf("\t+ Matched entry %s\n", *given);
+			continue;
+		}
+
+		/*
+		 * There was no exact-match for this given file, so look
+		 * for a "glob" entry which does match.
+		 */
+		for (ent = worklist; ent; ent = ent->next) {
+			if ((ent->flags & CE_GLOB) == 0)
+				continue;
+			if (fnmatch(ent->log, *given, FNM_PATHNAME) == 0) {
+				gmatch++;
+				dupent = init_entry(*given, ent);
+				if (!firstnew)
+					firstnew = dupent;
+				else
+					newlist->next = dupent;
+				newlist = dupent;
+				/* This work entry is *not* a glob! */
+				dupent->flags &= ~CE_GLOB;
+				/* Only allow a match to one glob-entry */
+				break;
+			}
+		}
+		if (gmatch) {
+			if (verbose > 2)
+				printf("\t+ Matched %s via %s\n", *given,
+				    ent->log);
+			continue;
+		}
+
+		/*
+		 * This given file was not found in any config file, so
+		 * add a worklist item based on the default entry.
+		 */
+		if (verbose > 2)
+			printf("\t+ No entry matched %s  (will use %s)\n",
+			    *given, DEFAULT_MARKER);
+		dupent = init_entry(*given, defconf);
+		if (!firstnew)
+			firstnew = dupent;
+		else
+			newlist->next = dupent;
+		/* Mark that it was *not* found in a config file */
+		dupent->def_cfg = 1;
+		newlist = dupent;
+	}
+
+	/*
+	 * Free all the entries in the original work list, and then
+	 * return the new work list.
+	 */
+	while (worklist) {
+		ent = worklist->next;
+		free_entry(worklist);
+		worklist = ent;
+	}
+
+	free_entry(defconf);
+	return (newlist);
+}
+
+/*
+ * Parse a configuration file and update a linked list of all the logs to
+ * process.
+ */
+static void
+parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
+    struct conf_entry **defconf_p)
+{
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
-	char **given;
-	struct conf_entry *defconf, *first, *working, *worklist;
+	struct conf_entry *working, *worklist;
 	struct passwd *pass;
 	struct group *grp;
 	int eol;
 
-	defconf = first = working = worklist = NULL;
+	/*
+	 * XXX - for now, assume that only one config file will be read,
+	 *	ie, this routine is only called one time.
+	 */
+	worklist = NULL;
 
-	if (strcmp(conf, "-"))
-		f = fopen(conf, "r");
-	else
-		f = stdin;
-	if (!f)
-		err(1, "%s", conf);
-	while (fgets(line, BUFSIZ, f)) {
+	while (fgets(line, BUFSIZ, cf)) {
 		if ((line[0] == '\n') || (line[0] == '#') ||
 		    (strlen(line) == 0))
 			continue;
@@ -485,51 +646,22 @@ parse_file(char **files)
 			    errline);
 		*parse = '\0';
 
-		/*
-		 * If newsyslog was run with a list of specific filenames,
-		 * then this line of the config file should be skipped if
-		 * it is NOT one of those given files (except that we do
-		 * want any line that defines the <default> action).
-		 *
-		 * XXX - note that CE_GLOB processing is *NOT* done when
-		 *       trying to match a filename given on the command!
-		 */
-		if (*files) {
-			if (strcasecmp(DEFAULT_MARKER, q) != 0) {
-				for (given = files; *given; ++given) {
-					if (strcmp(*given, q) == 0)
-						break;
-				}
-				if (!*given)
-					continue;
-			}
-			if (verbose > 2)
-				printf("\t+ Matched entry %s\n", q);
-		} else {
-			/*
-			 * If no files were specified on the command line,
-			 * then we can skip any line which defines the
-			 * default action.
-			 */
-			if (strcasecmp(DEFAULT_MARKER, q) == 0) {
-				if (verbose > 2)
-					printf("\t+ Ignoring entry for %s\n",
-					    q);
-				continue;
-			}
-		}
-
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
-			if (defconf != NULL) {
+			if (defconf_p == NULL) {
+				warnx("Ignoring entry for %s in %s!", q,
+				    cfname);
+				free_entry(working);
+				continue;
+			} else if (*defconf_p != NULL) {
 				warnx("Ignoring duplicate entry for %s!", q);
 				free_entry(working);
 				continue;
 			}
-			defconf = working;
+			*defconf_p = working;
 		} else {
-			if (!first)
-				first = working;
+			if (!*work_p)
+				*work_p = working;
 			else
 				worklist->next = working;
 			worklist = working;
@@ -769,58 +901,6 @@ parse_file(char **files)
 		free(errline);
 		errline = NULL;
 	}
-	(void) fclose(f);
-
-	/*
-	 * The entire config file has been processed.  If there were
-	 * no specific files given on the run command, then the work
-	 * of this routine is done.
-	 */
-	if (*files == NULL)
-		return (first);
-
-	/*
-	 * If the program was given a specific list of files to process,
-	 * it may be that some of those files were not listed in the
-	 * config file.  Those unlisted files should get the default
-	 * rotation action.  First, create the default-rotation action
-	 * if none was found in the config file.
-	 */
-	if (defconf == NULL) {
-		working = init_entry(DEFAULT_MARKER, NULL);
-		working->numlogs = 3;
-		working->size = 50;
-		working->permissions = S_IRUSR|S_IWUSR;
-		defconf = working;
-	}
-
-	for (given = files; *given; ++given) {
-		for (working = first; working; working = working->next) {
-			if (strcmp(*given, working->log) == 0)
-				break;
-		}
-		if (working != NULL)
-			continue;
-		if (verbose > 2)
-			printf("\t+ No entry for %s  (will use %s)\n",
-			    *given, DEFAULT_MARKER);
-		/*
-		 * This given file was not found in the config file.
-		 * Add another item on to our work list, based on the
-		 * default entry.
-		 */
-		working = init_entry(*given, defconf);
-		if (!first)
-			first = working;
-		else
-			worklist->next = working;
-		/* This is a file that was *not* found in config file */
-		working->def_cfg = 1;
-		worklist = working;
-	}
-
-	free_entry(defconf);
-	return (first);
 }
 
 static char *
