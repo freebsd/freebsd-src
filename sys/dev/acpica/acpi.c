@@ -509,10 +509,10 @@ acpi_attach(device_t dev)
 	&sc->acpi_disable_on_poweroff, 0, "ACPI subsystem disable on poweroff");
 
     /*
-     * Default to 5 seconds before sleeping to give some machines time to
+     * Default to 1 second before sleeping to give some machines time to
      * stabilize.
      */
-    sc->acpi_sleep_delay = 5;
+    sc->acpi_sleep_delay = 1;
     sc->acpi_disable_on_poweroff = 0;
     if (bootverbose)
 	sc->acpi_verbose = 1;
