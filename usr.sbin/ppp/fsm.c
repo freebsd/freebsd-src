@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.37 1998/09/04 18:25:59 brian Exp $
+ * $Id: fsm.c,v 1.38 1999/01/28 01:56:31 brian Exp $
  *
  *  TODO:
  */
@@ -59,7 +59,7 @@
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);
-static void FsmInitRestartCounter(struct fsm *);
+static void FsmInitRestartCounter(struct fsm *, int);
 
 typedef void (recvfn)(struct fsm *, struct fsmheader *, struct mbuf *);
 static recvfn FsmRecvConfigReq, FsmRecvConfigAck, FsmRecvConfigNak,
@@ -129,7 +129,7 @@ StoppedTimeout(void *v)
 
 void
 fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
-         int maxcode, int maxcfg, int LogLevel, struct bundle *bundle,
+         int maxcode, int LogLevel, struct bundle *bundle,
          struct link *l, const struct fsm_parent *parent,
          struct fsm_callbacks *fn, const char *timer_names[3])
 {
@@ -140,7 +140,7 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
   fp->state = fp->min_code > CODE_TERMACK ? ST_OPENED : ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
-  fp->maxconfig = maxcfg;
+  fp->more.reqs = fp->more.naks = fp->more.rejs = 1;
   memset(&fp->FsmTimer, '\0', sizeof fp->FsmTimer);
   memset(&fp->OpenTimer, '\0', sizeof fp->OpenTimer);
   memset(&fp->StoppedTimer, '\0', sizeof fp->StoppedTimer);
@@ -229,7 +229,7 @@ FsmOpenNow(void *v)
       (*fp->fn->LayerStart)(fp);
       (*fp->parent->LayerStart)(fp->parent->object, fp);
     }
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
   }
@@ -283,7 +283,7 @@ fsm_Up(struct fsm * fp)
     NewState(fp, ST_CLOSED);
     break;
   case ST_STARTING:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
     break;
@@ -342,7 +342,7 @@ fsm_Close(struct fsm *fp)
     break;
   case ST_OPENED:
     (*fp->fn->LayerDown)(fp);
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_TRM_TIMER);
     FsmSendTerminateReq(fp);
     NewState(fp, ST_CLOSING);
     (*fp->parent->LayerDown)(fp->parent->object, fp);
@@ -350,7 +350,7 @@ fsm_Close(struct fsm *fp)
   case ST_REQSENT:
   case ST_ACKRCVD:
   case ST_ACKSENT:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_TRM_TIMER);
     FsmSendTerminateReq(fp);
     NewState(fp, ST_CLOSING);
     break;
@@ -363,11 +363,13 @@ fsm_Close(struct fsm *fp)
 static void
 FsmSendConfigReq(struct fsm * fp)
 {
-  if (--fp->maxconfig > 0) {
+  if (fp->more.reqs-- > 0 && fp->restart-- > 0) {
     (*fp->fn->SendConfigReq)(fp);
-    timer_Start(&fp->FsmTimer);	/* Start restart timer */
-    fp->restart--;		/* Decrement restart counter */
+    timer_Start(&fp->FsmTimer);		/* Start restart timer */
   } else {
+    if (fp->more.reqs < 0)
+      log_Printf(LogPHASE, "%s: Too many %s REQs sent - abandoning "
+                 "negotiation\n", fp->link->name, fp->name);
     fsm_Close(fp);
   }
 }
@@ -429,12 +431,12 @@ FsmTimeout(void *v)
 }
 
 static void
-FsmInitRestartCounter(struct fsm * fp)
+FsmInitRestartCounter(struct fsm *fp, int what)
 {
   timer_Stop(&fp->FsmTimer);
   fp->FsmTimer.func = FsmTimeout;
-  fp->FsmTimer.arg = (void *) fp;
-  (*fp->fn->InitRestartCounter)(fp);
+  fp->FsmTimer.arg = (void *)fp;
+  (*fp->fn->InitRestartCounter)(fp, what);
 }
 
 /*
@@ -510,7 +512,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 
   switch (fp->state) {
   case ST_STOPPED:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     /* Fall through */
 
   case ST_OPENED:
@@ -526,8 +528,17 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     fsm_Output(fp, CODE_CONFIGACK, lhp->id, dec.ack, dec.ackend - dec.ack);
 
   switch (fp->state) {
-  case ST_OPENED:
   case ST_STOPPED:
+      /*
+       * According to the RFC (1661) state transition table, a TLS isn't
+       * required for a RCR when state == ST_STOPPED, but the RFC
+       * must be wrong as TLS hasn't yet been called (since the last TLF)
+       */
+    (*fp->fn->LayerStart)(fp);
+    (*fp->parent->LayerStart)(fp->parent->object, fp);
+    /* Fall through */
+
+  case ST_OPENED:
     if (ackaction)
       NewState(fp, ST_ACKSENT);
     else
@@ -544,7 +555,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
         (*fp->parent->LayerUp)(fp->parent->object, fp);
       else {
         (*fp->fn->LayerDown)(fp);
-        FsmInitRestartCounter(fp);
+        FsmInitRestartCounter(fp, FSM_TRM_TIMER);
         FsmSendTerminateReq(fp);
         NewState(fp, ST_CLOSING);
       }
@@ -556,6 +567,19 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     break;
   }
   mbuf_Free(bp);
+
+  if (dec.rejend != dec.rej && --fp->more.rejs <= 0) {
+    log_Printf(LogPHASE, "%s: Too many %s REJs sent - abandoning negotiation\n",
+               fp->link->name, fp->name);
+    fsm_Close(fp);
+  }
+
+  if (dec.nakend != dec.nak && --fp->more.naks <= 0) {
+    fsm_Close(fp);
+    log_Printf(LogPHASE, "%s: Too many %s NAKs sent - abandoning negotiation\n",
+               fp->link->name, fp->name);
+    fsm_Close(fp);
+  }
 }
 
 static void
@@ -571,7 +595,7 @@ FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_STOPPING:
     break;
   case ST_REQSENT:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     NewState(fp, ST_ACKRCVD);
     break;
   case ST_ACKRCVD:
@@ -579,13 +603,13 @@ FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     NewState(fp, ST_REQSENT);
     break;
   case ST_ACKSENT:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     NewState(fp, ST_OPENED);
     if ((*fp->fn->LayerUp)(fp))
       (*fp->parent->LayerUp)(fp->parent->object, fp);
     else {
       (*fp->fn->LayerDown)(fp);
-      FsmInitRestartCounter(fp);
+      FsmInitRestartCounter(fp, FSM_TRM_TIMER);
       FsmSendTerminateReq(fp);
       NewState(fp, ST_CLOSING);
     }
@@ -645,7 +669,7 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_REQSENT:
   case ST_ACKSENT:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
@@ -688,11 +712,12 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_OPENED:
     (*fp->fn->LayerDown)(fp);
     (*fp->fn->SendTerminateAck)(fp, lhp->id);
-    FsmInitRestartCounter(fp);
-    timer_Start(&fp->FsmTimer);	/* Start restart timer */
+    FsmInitRestartCounter(fp, FSM_TRM_TIMER);
+    timer_Start(&fp->FsmTimer);			/* Start restart timer */
     fp->restart = 0;
     NewState(fp, ST_STOPPING);
     (*fp->parent->LayerDown)(fp->parent->object, fp);
+    /* A delayed ST_STOPPED is now scheduled */
     break;
   }
   mbuf_Free(bp);
@@ -771,7 +796,7 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   switch (fp->state) {
   case ST_REQSENT:
   case ST_ACKSENT:
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     FsmSendConfigReq(fp);
     break;
   case ST_OPENED:
@@ -999,7 +1024,7 @@ fsm_Reopen(struct fsm *fp)
 {
   if (fp->state == ST_OPENED) {
     (*fp->fn->LayerDown)(fp);
-    FsmInitRestartCounter(fp);
+    FsmInitRestartCounter(fp, FSM_REQ_TIMER);
     FsmSendConfigReq(fp);
     NewState(fp, ST_REQSENT);
     (*fp->parent->LayerDown)(fp->parent->object, fp);
@@ -1009,6 +1034,9 @@ fsm_Reopen(struct fsm *fp)
 void
 fsm2initial(struct fsm *fp)
 {
+  timer_Stop(&fp->FsmTimer);
+  timer_Stop(&fp->OpenTimer);
+  timer_Stop(&fp->StoppedTimer);
   if (fp->state == ST_STOPPED)
     fsm_Close(fp);
   if (fp->state > ST_INITIAL)
