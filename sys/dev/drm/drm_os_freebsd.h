@@ -49,7 +49,7 @@
 #endif
 
 #ifdef __i386__
-#define __REALLY_HAVE_MTRR	(__HAVE_MTRR)
+#define __REALLY_HAVE_MTRR	(__HAVE_MTRR) && (__FreeBSD_version >= 500000)
 #else
 #define __REALLY_HAVE_MTRR	0
 #endif
@@ -249,16 +249,23 @@ typedef u_int8_t u8;
 #if __FreeBSD_version < 500000
 /* The extra atomic functions from 5.0 haven't been merged to 4.x */
 static __inline int
-atomic_cmpset_int(volatile int *dst, int old, int new)
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 {
-	int s = splhigh();
-	if (*dst==old) {
-		*dst = new;
-		splx(s);
-		return 1;
-	}
-	splx(s);
-	return 0;
+	int res = exp;
+
+	__asm __volatile (
+	"	lock ;			"
+	"	cmpxchgl %1,%2 ;	"
+	"       setz	%%al ;		"
+	"	movzbl	%%al,%0 ;	"
+	"1:				"
+	"# atomic_cmpset_int"
+	: "+a" (res)			/* 0 (result) */
+	: "r" (src),			/* 1 */
+	  "m" (*(dst))			/* 2 */
+	: "memory");				 
+
+	return (res);
 }
 #endif
 
