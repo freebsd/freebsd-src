@@ -92,7 +92,9 @@ extern char STR_SIEN[];
 "	call	mtx_enter_hard;"					\
 "	addl	$8,%%esp;"						\
 "	jmp	1f;"							\
-"2:	lock; orl $" _V(MTX_RECURSE) ",%1;"				\
+"2:"									\
+"	" MPLOCKED ""							\
+"	orl $" _V(MTX_RECURSE) ",%1;"					\
 "	incl	%2;"							\
 "1:"									\
 "# getlock_sleep"							\
@@ -119,7 +121,7 @@ extern char STR_SIEN[];
 "	pushl	%4;"							\
 "	pushl	%5;"							\
 "	call	mtx_enter_hard;" /* mtx_enter_hard(mtxp, type, oflags) */ \
-"	addl	$0xc,%%esp;"						\
+"	addl	$12,%%esp;"						\
 "	jmp	1f;"							\
 "2:	popl	%2;"				/* save flags */	\
 "1:"									\
@@ -260,6 +262,12 @@ extern char STR_SIEN[];
 
 #if defined(I386_CPU)
 
+#define	MTX_ENTER(reg, lck)						\
+	pushf;								\
+	cli;								\
+	movl	reg,lck+MTX_LOCK;					\
+	popl	lck+MTX_SAVEINTR
+
 #define	MTX_EXIT(lck, reg)						\
 	pushl	lck+MTX_SAVEINTR;					\
 	movl	$ MTX_UNOWNED,lck+MTX_LOCK;				\
@@ -268,8 +276,8 @@ extern char STR_SIEN[];
 #else	/* I386_CPU */
 
 #define MTX_ENTER(reg, lck)						\
-	pushf								\
-	cli								\
+	pushf;								\
+	cli;								\
 9:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
@@ -286,35 +294,35 @@ extern char STR_SIEN[];
 	popf
 
 #define MTX_ENTER_WITH_RECURSION(reg, lck)				\
-	pushf								\
-	cli								\
+	pushf;								\
+	cli;								\
 	movl	lck+MTX_LOCK,%eax;					\
 	cmpl	_curproc,%eax;						\
-	jne	9f;							\
-	incw	lck+MTX_RECURS;						\
+	jne	7f;							\
+	incl	lck+MTX_RECURSE;					\
 	jmp	8f;							\
-9:	movl	$ MTX_UNOWNED,%eax;					\
+7:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;      				\
 	jnz	9b;							\
 	popl	lck+MTX_SAVEINTR;					\
-	jmp	10f;							\
+	jmp	9f;							\
 8:	add	$4,%esp;						\
-10:
+9:
 
 #define	MTX_EXIT_WITH_RECURSION(lck,reg)				\
 	movl	lck+MTX_RECURSE,%eax;					\
 	decl	%eax;							\
-	js	9f;							\
+	js	8f;							\
 	movl	%eax,lck+MTX_RECURSE;					\
-	jmp	8f;							\
-9:	pushl	lck+MTX_SAVEINTR;					\
+	jmp	9f;							\
+8:	pushl	lck+MTX_SAVEINTR;					\
 	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
-	popf								\
-8:
+	popf;								\
+9:
 
 #endif	/* I386_CPU */
 #endif	/* !LOCORE */
