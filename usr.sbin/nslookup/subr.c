@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: subr.c,v 8.2 1994/12/15 06:27:07 vixie Exp $";
+static char rcsid[] = "$Id: subr.c,v 8.3 1995/08/21 01:27:27 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -177,11 +177,21 @@ Malloc(size)
     }
 #endif
 #else
+#ifdef POSIX_SIGNALS
+    { sigset_t sset;
+      sigemptyset(&sset);
+      sigaddset(&sset,SIGINT);
+      sigprocmask(SIG_BLOCK,&sset,NULL);
+      ptr = malloc((unsigned) size);
+      sigprocmask(SIG_UNBLOCK,&sset,NULL);
+    }
+#else
     { int saveMask;
       saveMask = sigblock(sigmask(SIGINT));
       ptr = malloc((unsigned) size);
       (void) sigsetmask(saveMask);
     }
+#endif
 #endif
     if (ptr == NULL) {
 	fflush(stdout);
