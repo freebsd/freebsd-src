@@ -627,10 +627,10 @@ make_dinode(ino, dip, nblocks, saddr, lfsp)
 	dip->di_blocks = nblocks << lfsp->lfs_fsbtodb;
 
 	dip->di_size = (nblocks << lfsp->lfs_bshift);
-	dip->di_atime.ts_sec = dip->di_mtime.ts_sec =
-	    dip->di_ctime.ts_sec = lfsp->lfs_tstamp;
-	dip->di_atime.ts_nsec = dip->di_mtime.ts_nsec =
-	    dip->di_ctime.ts_nsec = 0;
+	dip->di_atime.tv_sec = dip->di_mtime.tv_sec =
+	    dip->di_ctime.tv_sec = lfsp->lfs_tstamp;
+	dip->di_atime.tv_nsec = dip->di_mtime.tv_nsec =
+	    dip->di_ctime.tv_nsec = 0;
 	dip->di_inumber = ino;
 
 #define	SEGERR \
