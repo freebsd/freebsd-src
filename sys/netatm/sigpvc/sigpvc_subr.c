@@ -36,24 +36,17 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/time.h>
+#include <sys/systm.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
 #include <netatm/atm_sys.h>
-#include <netatm/atm_sap.h>
 #include <netatm/atm_cm.h>
 #include <netatm/atm_if.h>
 #include <netatm/atm_vc.h>
 #include <netatm/atm_sigmgr.h>
-#include <netatm/atm_stack.h>
-#include <netatm/atm_pcb.h>
-#include <netatm/atm_var.h>
 
 #include <netatm/sigpvc/sigpvc_var.h>
 
