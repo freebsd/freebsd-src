@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.44 1998/03/08 09:59:10 julian Exp $
+ * $Id: ffs_vnops.c,v 1.45 1998/03/19 22:49:44 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -214,19 +214,24 @@ loop2:
 	splx(s);
 
 	if (ap->a_waitfor == MNT_WAIT) {
+
 		s = splbio();
-		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 4, "ffsfsn", 0);
+		if (!DOINGSOFTDEP(vp)) {
+			while (vp->v_numoutput) {
+				vp->v_flag |= VBWAIT;
+				(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 4, "ffsfsn", 0);
+			}
+		} else {
+			/* 
+			 * Ensure that any filesystem metatdata associated
+			 * with the vnode has been written.
+			 */
+			if ((error = softdep_sync_metadata(ap)) != 0) {
+				splx(s);
+				return (error);
+			}
 		}
-		/* 
-		 * Ensure that any filesystem metatdata associated
-		 * with the vnode has been written.
-		 */
-		splx(s);
-		if ((error = softdep_sync_metadata(ap)) != 0)
-			return (error);
-		s = splbio();
+
 		if (vp->v_dirtyblkhd.lh_first) {
 			/*
 			 * Block devices associated with filesystems may
