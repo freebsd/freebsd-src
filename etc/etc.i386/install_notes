@@ -188,7 +188,7 @@ AHA-174x SCSI Cntlr.	automagically configured [kcopy-ah-floppy]
 BT742 SCSI Cntlr.	0x330	12		 [kcopy-bt-floppy]
 
 UHA-14f	SCSI Cntlr. or
-UHA-34f SCSI Cntlr.	0x330	11	5        [kcopy-bt-floppy]
+UHA-34f SCSI Cntlr.	0x330	14	5        [kcopy-bt-floppy]
 
 SCSI Disks	sd[0-2]	automagically configured
 
@@ -845,4 +845,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id$
+This is $Id: install_notes,v 1.1 1993/09/08 22:27:59 rgrimes Exp $
