@@ -94,6 +94,24 @@ MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
 
 static	ng_ID_t nextID = 1;
 
+#ifdef INVARIANTS
+#define CHECK_DATA_MBUF(m)	do {					\
+		struct mbuf *n;						\
+		int total;						\
+									\
+		if (((m)->m_flags & M_PKTHDR) == 0)			\
+			panic("%s: !PKTHDR", __FUNCTION__);		\
+		for (total = 0, n = (m); n != NULL; n = n->m_next)	\
+			total += n->m_len;				\
+		if ((m)->m_pkthdr.len != total) {			\
+			panic("%s: %d != %d",				\
+			    __FUNCTION__, (m)->m_pkthdr.len, total);	\
+		}							\
+	} while (0)
+#else
+#define CHECK_DATA_MBUF(m)
+#endif
+
 
 /************************************************************************
 			Node routines
@@ -271,12 +289,8 @@ ng_wait_node(node_p node, char *msg)
 		TRAP_ERROR;
 		error = ENXIO;
 	} else {
-#ifdef DIAGNOSTIC
-		if (node->refs == 1) {
-			panic(__FUNCTION__);
-			error = ENXIO;
-		}
-#endif
+		KASSERT(node->refs > 1,
+		    ("%s: refs=%d", __FUNCTION__, node->refs));
 		node->flags |= NG_BUSY;
 	}
 	splx(s);
@@ -1274,10 +1288,7 @@ ng_send_data(hook_p hook, struct mbuf *m, meta_p meta)
 	int (*rcvdata)(hook_p, struct mbuf *, meta_p);
 	int error;
 
-#ifdef DIAGNOSTIC
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic(__FUNCTION__);
-#endif
+	CHECK_DATA_MBUF(m);
 	if (hook && (hook->flags & HK_INVALID) == 0) {
 		rcvdata = hook->peer->node->type->rcvdata;
 		if (rcvdata != NULL)
@@ -1304,10 +1315,7 @@ ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta)
 	int (*rcvdataq)(hook_p, struct mbuf *, meta_p);
 	int error;
 
-#ifdef DIAGNOSTIC
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic(__FUNCTION__);
-#endif
+	CHECK_DATA_MBUF(m);
 	if (hook && (hook->flags & HK_INVALID) == 0) {
 		rcvdataq = hook->peer->node->type->rcvdataq;
 		if (rcvdataq != NULL)
