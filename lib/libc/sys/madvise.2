@@ -121,7 +121,7 @@ For more information see the MAP_NOSYNC section of
 .It Dv MADV_AUTOSYNC
 Undoes the effects of MADV_NOSYNC for any future pages dirtied within the
 address range.  The effect on pages already dirtied is indeterminate - they
-may or may not be reverted.  You can guarentee reversion by using the
+may or may not be reverted.  You can guarantee reversion by using the
 .Xr msync 2
 or
 .Xr fsync 2

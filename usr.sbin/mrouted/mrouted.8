@@ -166,7 +166,7 @@ as a low value can keep the kernel cache small at the cost of "thrashing"
 the cache for periodic senders, but high values can cause the kernel
 cache to grow unacceptably large.  The default is 300 seconds (5 minutes).
 .It prune_lifetime Ar secs
-Sepcifies, in seconds, the average lifetime of prunes that are sent towards
+Specifies, in seconds, the average lifetime of prunes that are sent towards
 parents.  The actual lifetimes will be randomized in the range
 [.5\fIsecs\fP,1.5\fIsecs\fP].  The default is 7200 (2 hours).  Smaller values
 cause less state to be kept both at this router and the parent, at the

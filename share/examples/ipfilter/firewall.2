@@ -23,7 +23,7 @@ block in log quick on ppp0 proto icmp from any to any icmp-type redir
 block in log quick on ppp0 proto tcp/udp all with short
 block in log quick on ppp0 from any to any with ipopts
 #
-#  Block any IP spoofing atempts.  (Packets "from" our network
+#  Block any IP spoofing attempts.  (Packets "from" our network
 #  shouldn't be coming in from outside).
 #
 block in log quick on ppp0 from 192.168.4.0/24 to any
