@@ -64,9 +64,9 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 # /usr/include/paths.h as well!  You were warned!
 #
 CRUNCH_SRCDIRS+= bin
-CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df domainname echo 	\
+CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
-	 realpath rm rmdir setfacl sh sleep stty sync test
+	 realpath rm rmdir setfacl sh stty sync test
 CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
 .if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 CRUNCH_LIBS+= -lcrypto
@@ -98,20 +98,20 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # WARNING: Changing this list may require adjusting
 # /usr/include/paths.h as well!  You were warned!
 #
-# Note that mdmfs and shutdown have their own private 'pathnames.h'
+# Note that mdmfs have their own private 'pathnames.h'
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atm adjkerntz atacontrol badsect bsdlabel camcontrol \
-	ccdconfig clri comcontrol conscontrol devfs dmesg dump		\
+CRUNCH_PROGS_sbin= atm atacontrol badsect bsdlabel camcontrol 		\
+	ccdconfig clri devfs dmesg dump					\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde growfs ifconfig ilmid init ip6fw 			\
-	ipfw kldconfig kldload kldstat kldunload ldconfig 		\
+	fsirand gbde ifconfig ilmid init ip6fw 				\
+	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
-	mount_std mount_udf mount_umapfs mount_unionfs natd newfs	\
-	newfs_msdos nfsiod nos-tun ping ping6 quotacheck raidctl reboot	\
-	restore rcorder route routed rtquery rtsol savecore shutdown	\
+	mount_std mount_udf mount_umapfs mount_unionfs newfs		\
+	newfs_msdos nos-tun ping ping6 raidctl reboot			\
+	restore rcorder route routed rtquery rtsol savecore 		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount vinum
 
 .if !defined(NO_IPFILTER)
@@ -171,8 +171,6 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 # 
 CRUNCH_SRCDIRS+= usr.bin
 CRUNCH_SRCDIRS+= gnu/usr.bin
-
-CRUNCH_PROGS_usr.bin+= wall
 
 CRUNCH_PROGS_gnu/usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
