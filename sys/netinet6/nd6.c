@@ -65,7 +65,6 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/in6_prefix.h>
 #include <netinet/icmp6.h>
 
 #include <net/net_osdep.h>
@@ -1407,26 +1406,6 @@ nd6_ioctl(cmd, data, ifp)
 			i++;
 			pr = pr->ndpr_next;
 		}
-	      {
-		struct rr_prefix *rpp;
-
-		for (rpp = LIST_FIRST(&rr_prefix); rpp;
-		     rpp = LIST_NEXT(rpp, rp_entry)) {
-			if (i >= PRLSTSIZ)
-				break;
-			(void)in6_embedscope(&oprl->prefix[i].prefix,
-			    &pr->ndpr_prefix, NULL, NULL);
-			oprl->prefix[i].raflags = rpp->rp_raf;
-			oprl->prefix[i].prefixlen = rpp->rp_plen;
-			oprl->prefix[i].vltime = rpp->rp_vltime;
-			oprl->prefix[i].pltime = rpp->rp_pltime;
-			oprl->prefix[i].if_index = rpp->rp_ifp->if_index;
-			oprl->prefix[i].expire = rpp->rp_expire;
-			oprl->prefix[i].advrtrs = 0;
-			oprl->prefix[i].origin = rpp->rp_origin;
-			i++;
-		}
-	      }
 		splx(s);
 
 		break;
