@@ -37,13 +37,15 @@
 
 /* NOTE: pcb_ufp must be aligned on a 64 byte boundary. */
 struct pcb {
-	uint32_t pcb_ufp[64];
-	u_long	pcb_sp;
-	u_long	pcb_pc;
-	u_long	pcb_flags;
-	u_long	pcb_nsaved;
-	u_long	pcb_rwsp[MAXWIN];
 	struct	rwindow pcb_rw[MAXWIN];
+	uint32_t pcb_kfp[64];
+	uint32_t pcb_ufp[64];
+	uint64_t pcb_rwsp[MAXWIN];
+	uint64_t pcb_flags;
+	uint64_t pcb_nsaved;
+	uint64_t pcb_pc;
+	uint64_t pcb_sp;
+	uint64_t pcb_pad[4];
 } __aligned(64);
 
 #ifdef _KERNEL
