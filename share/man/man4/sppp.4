@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sppp.4,v 1.2 1997/09/29 10:10:21 wosch Exp $
+.\" $Id: sppp.4,v 1.3 1997/10/11 11:27:25 joerg Exp $
 .\"
 .Dd May 19, 1997
 .Dt SPPP 4
@@ -118,6 +118,14 @@ caller, or on the remote address supplied by this side.  Due to the
 way the IPCP option negotiation works, this address is being supplied
 late during the negotiation, which might cause the remote peer to make
 wrong assumptions.
+.Pp
+In a similar spirit the remote address can be set to the magical
+value 0.0.0.1 which means that we don't care what address the remote
+side will use, as long as it is not 0.0.0.0.
+This is useful if your ISP has several dial-in
+servers.  You can of course
+.Ic route add something or other 0.0.0.1
+and it will do exactly what you would want it to.
 .Pp
 The PAP and CHAP authentication protocols as described in RFC 1334,
 and RFC 1994 resp., are also implemented.  Their parameters are being
