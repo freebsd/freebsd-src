@@ -315,7 +315,6 @@ mf_fgets(sp, spflag)
 		firstfile = 1;
 	}
 
-	sp->len = 0;
 	for (;;) {
 		if (f != NULL && (c = getc(f)) != EOF) {
 			(void)ungetc(c, f);
@@ -323,6 +322,7 @@ mf_fgets(sp, spflag)
 		}
 		/* If we are here then either eof or no files are open yet */
 		if (f == stdin) {
+			sp->len = 0;
 			lastline = 1;
 			return (0);
 		}
@@ -334,6 +334,7 @@ mf_fgets(sp, spflag)
 		} else
 			firstfile = 0;
 		if (files == NULL) {
+			sp->len = 0;
 			lastline = 1;
 			return (0);
 		}
