@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 5.2.2.1 1992/02/09 15:08:18 jsp beta $
+ * $Id: amq_subr.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 /*
@@ -303,6 +303,7 @@ bool_t
 xdr_amq_mount_tree_node(XDR *xdrs, amq_mount_tree *objp)
 {
   am_node *mp = (am_node *) objp;
+  long mtime;
 
   if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_info)) {
     return (FALSE);
@@ -316,7 +317,8 @@ xdr_amq_mount_tree_node(XDR *xdrs, amq_mount_tree *objp)
   if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_ops->fs_type)) {
     return (FALSE);
   }
-  if (!xdr_long(xdrs, (long *) &mp->am_stats.s_mtime)) {
+  mtime = mp->am_stats.s_mtime;
+  if (!xdr_long(xdrs, &mtime)) {
     return (FALSE);
   }
   if (!xdr_u_short(xdrs, &mp->am_stats.s_uid)) {
