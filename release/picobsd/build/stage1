@@ -212,7 +212,7 @@ cp kernel.gz /mnt/kernel.gz || fail $? kernel_compress
 
 gzip -9cv ${MFS_NAME} > /mnt/${MFS_NAME}.gz || fail $? mfs_compress
 
-if [ -d /mnt/boot/defaults ] ; then
+if [ ! -d /mnt/boot/defaults ] ; then
     mkdir -p /mnt/boot/defaults
 fi
 cp /boot/loader .
