@@ -902,7 +902,7 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	root = pi->pi_root;
 
-	/* /proc/* */
+	/* /proc/... */
 	pfs_create_file(root, "cmdline", &linprocfs_docmdline,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
@@ -930,12 +930,12 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "version", &linprocfs_doversion,
 	    NULL, NULL, PFS_RD);
 
-	/* /proc/net/* */
+	/* /proc/net/... */
 	dir = pfs_create_dir(root, "net", NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,
 	    NULL, NULL, PFS_RD);
 
-	/* /proc/<pid>/* */
+	/* /proc/<pid>/... */
 	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
 	    NULL, NULL, PFS_RD);
