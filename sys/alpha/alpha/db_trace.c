@@ -112,7 +112,7 @@ void db_md_list_watchpoints(void);
  * Decode the function prologue for the function we're in, and note
  * which registers are stored where, and how large the stack frame is.
  */
-static void
+static int
 decode_prologue(db_addr_t callpc, db_addr_t func,
     struct prologue_info *pi)
 {
@@ -127,6 +127,7 @@ decode_prologue(db_addr_t callpc, db_addr_t func,
 do {									\
 	if (pi->pi_frame_size != 0) {					\
 		db_printf("frame size botch: adjust register offsets?\n"); \
+		return (1);						\
 	}								\
 } while (0)
 
@@ -143,9 +144,11 @@ do {									\
 			 */
 			signed_immediate = (long)ins.mem_format.displacement;
 #if 1
-			if (signed_immediate > 0)
+			if (signed_immediate > 0) {
 				db_printf("prologue botch: displacement %ld\n",
 				    signed_immediate);
+				return (1);
+			}
 #endif
 			CHECK_FRAMESIZE;
 			pi->pi_frame_size += -signed_immediate;
@@ -169,6 +172,7 @@ do {									\
 			pi->pi_reg_offset[ins.mem_format.rd] = signed_immediate;
 		}
 	}
+	return (0);
 }
 
 static int
@@ -363,7 +367,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		 *
 		 * XXX How does this interact w/ alloca()?!
 		 */
-		decode_prologue(callpc, symval, &pi);
+		if (decode_prologue(callpc, symval, &pi))
+			return;
 		if ((pi.pi_regmask & (1 << 26)) == 0) {
 			/*
 			 * No saved RA found.  We might have RA from
