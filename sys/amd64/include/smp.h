@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.29 1997/04/26 08:11:50 peter Exp $
+ * $Id: smp.h,v 1.1 1997/04/26 11:45:44 peter Exp $
  *
  */
 
@@ -16,7 +16,6 @@
 #ifdef KERNEL
 
 #include "opt_smp.h"
-#include "opt_smp_invltlb.h"	/* aiee! (for cpufunc.h!) */
 
 #if defined(SMP) && !defined(NCPU)
 # define NCPU			2
@@ -73,10 +72,7 @@ int	apic_trigger		__P((int, int));
 int	apic_polarity		__P((int, int));
 void	configure_local_apic	__P((void));
 void	init_secondary		__P((void));
-#ifdef SMP_INVLTLB
-void	ipi_invltlb		__P((void));
 void	smp_invltlb		__P((void));
-#endif
 
 /* global data in mpapic.c */
 extern volatile u_int*		apic_base;
@@ -105,7 +101,7 @@ void	u_sleep			__P((int));
 
 /* global data in init_smp.c */
 extern int			smp_active;
-extern int			invldebug;
+extern int			invltlb_ok;
 
 /* in pmap.c FIXME: belongs in pmap.h??? */
 void	pmap_bootstrap_apics	__P((void));
