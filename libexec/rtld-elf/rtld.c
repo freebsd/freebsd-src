@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.4 1999/04/07 05:12:41 jdp Exp $
+ *      $Id: rtld.c,v 1.13.2.5 1999/04/28 00:54:55 jdp Exp $
  */
 
 /*
@@ -97,23 +97,6 @@ void xprintf(const char *, ...);
 static const char *basename(const char *);
 #endif
 
-/* Assembly language entry point for lazy binding. */
-extern void _rtld_bind_start(void);
-
-/*
- * Assembly language macro for getting the GOT pointer.
- */
-#ifdef __i386__
-#define get_got_address()				\
-    ({ Elf_Addr *thegot;				\
-       __asm__("movl %%ebx,%0" : "=rm"(thegot));	\
-       thegot; })
-#elif __alpha__
-#define get_got_address()	NULL
-#else
-#error "This file only supports the i386 and alpha architectures"
-#endif
-
 /*
  * Data declarations.
  */
@@ -138,7 +121,7 @@ static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 #define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
 
 extern Elf_Dyn _DYNAMIC;
-
+#pragma weak _DYNAMIC
 
 /*
  * These are the functions the dynamic linker exports to application
@@ -234,6 +217,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	debug = 1;
     dbg("%s is initialized, base address = %p", __progname,
 	(caddr_t) aux_info[AT_BASE]->a_un.a_ptr);
+    dbg("RTLD dynamic = %p", obj_rtld.dynamic);
+    dbg("RTLD pltgot  = %p", obj_rtld.pltgot);
 
     /*
      * Load the main program, or process its program header if it is
@@ -482,8 +467,7 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	case DT_NEEDED:
-	    assert(!obj->rtld);
-	    {
+	    if (!obj->rtld) {
 		Needed_Entry *nep = NEW(Needed_Entry);
 		nep->name = dynp->d_un.d_val;
 		nep->obj = NULL;
@@ -495,7 +479,7 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	case DT_PLTGOT:
-	    obj->got = (Elf_Addr *) (obj->relocbase + dynp->d_un.d_ptr);
+	    obj->pltgot = (Elf_Addr *) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
 	case DT_TEXTREL:
@@ -832,30 +816,24 @@ init_rtld(caddr_t mapbase)
     obj_rtld.path = "/usr/libexec/ld-elf.so.1";
     obj_rtld.rtld = true;
     obj_rtld.mapbase = mapbase;
+#ifdef PIC
     obj_rtld.relocbase = mapbase;
-    obj_rtld.got = get_got_address();
-#ifdef	__alpha__
-    obj_rtld.dynamic = (const Elf_Dyn *) &_DYNAMIC;
-#else
-    obj_rtld.dynamic = (const Elf_Dyn *) (obj_rtld.mapbase + obj_rtld.got[0]);
 #endif
+    if (&_DYNAMIC != 0) {
+	obj_rtld.dynamic = rtld_dynamic(&obj_rtld);
+	digest_dynamic(&obj_rtld);
+	assert(obj_rtld.needed == NULL);
+	assert(!obj_rtld.textrel);
 
-    digest_dynamic(&obj_rtld);
-#ifdef __alpha__
-/* XXX XXX XXX */
-obj_rtld.got = NULL;
-#endif
-    assert(obj_rtld.needed == NULL);
-    assert(!obj_rtld.textrel);
+	/*
+	 * Temporarily put the dynamic linker entry into the object list, so
+	 * that symbols can be found.
+	 */
+	obj_list = &obj_rtld;
+	obj_tail = &obj_rtld.next;
 
-    /*
-     * Temporarily put the dynamic linker entry into the object list, so
-     * that symbols can be found.
-     */
-    obj_list = &obj_rtld;
-    obj_tail = &obj_rtld.next;
-
-    relocate_objects(&obj_rtld, true);
+	relocate_objects(&obj_rtld, true);
+    }
 
     /* Make the object list empty again. */
     obj_list = NULL;
@@ -1065,19 +1043,8 @@ relocate_objects(Obj_Entry *first, bool bind_now)
 	obj->magic = RTLD_MAGIC;
 	obj->version = RTLD_VERSION;
 
-	/* Set the special GOT entries. */
-	if (obj->got) {
-#ifdef __i386__
-	    obj->got[1] = (Elf_Addr) obj;
-	    obj->got[2] = (Elf_Addr) &_rtld_bind_start;
-#endif
-#ifdef __alpha__
-	    /* This function will be called to perform the relocation.  */
-	    obj->got[2] = (Elf_Addr) &_rtld_bind_start;
-	    /* Identify this shared object */
-	    obj->got[3] = (Elf_Addr) obj;
-#endif
-	}
+	/* Set the special PLT or GOT entries. */
+	init_pltgot(obj);
     }
 
     return 0;
@@ -1395,25 +1362,26 @@ const Elf_Sym *
 symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
   bool in_plt)
 {
-    unsigned long symnum = obj->buckets[hash % obj->nbuckets];
+    if (obj->buckets != NULL) {
+	unsigned long symnum = obj->buckets[hash % obj->nbuckets];
 
-    while (symnum != STN_UNDEF) {
-	const Elf_Sym *symp;
-	const char *strp;
+	while (symnum != STN_UNDEF) {
+	    const Elf_Sym *symp;
+	    const char *strp;
 
-	assert(symnum < obj->nchains);
-	symp = obj->symtab + symnum;
-	assert(symp->st_name != 0);
-	strp = obj->strtab + symp->st_name;
+	    assert(symnum < obj->nchains);
+	    symp = obj->symtab + symnum;
+	    assert(symp->st_name != 0);
+	    strp = obj->strtab + symp->st_name;
 
-	if (strcmp(name, strp) == 0)
-	    return symp->st_shndx != SHN_UNDEF ||
-	      (!in_plt && symp->st_value != 0 &&
-	      ELF_ST_TYPE(symp->st_info) == STT_FUNC) ? symp : NULL;
+	    if (strcmp(name, strp) == 0)
+		return symp->st_shndx != SHN_UNDEF ||
+		  (!in_plt && symp->st_value != 0 &&
+		  ELF_ST_TYPE(symp->st_info) == STT_FUNC) ? symp : NULL;
 
-	symnum = obj->chains[symnum];
+	    symnum = obj->chains[symnum];
+	}
     }
-
     return NULL;
 }
 
