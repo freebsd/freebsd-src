@@ -17,7 +17,6 @@ start_precmd="ypserv_precmd"
 case `${CMD_OSTYPE}` in
 FreeBSD)
 	rcvar="nis_server_enable"
-	required_vars="portmap_enable"
 	command_args="${nis_server_flags}"
 	;;
 NetBSD)
@@ -28,6 +27,16 @@ esac
 
 ypserv_precmd()
 {
+        case `${CMD_OSTYPE}` in
+        FreeBSD)
+		if ! checkyesno rpcbind_enable  && \
+		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+		then
+			force_depend rpcbind || return 1
+		fi
+		;;
+	esac
+
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then
 		warn "domainname(1) is not set."

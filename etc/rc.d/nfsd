@@ -17,7 +17,6 @@ command="/usr/sbin/${name}"
 case `${CMD_OSTYPE}` in
 FreeBSD)
 	command_args="${nfs_server_flags}"
-	required_vars="portmap_enable"
 	start_precmd="nfsd_precmd"
 	;;
 NetBSD)
@@ -30,6 +29,18 @@ nfsd_precmd()
 {
 	if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
 		force_depend nfsserver || return 1
+	fi
+
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+
+	if ! checkyesno mountd_enable  && \
+	    ! /etc/rc.d/mountd forcestatus 1>/dev/null 2>&1
+	then
+		force_depend mountd || return 1
 	fi
 
 	if checkyesno nfs_reserved_port_only ; then
