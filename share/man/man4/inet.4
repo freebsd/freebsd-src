@@ -203,12 +203,13 @@ which themselves cache a long-lasting reference to route for a destination
 will trigger the mechanism; whereas raw
 .Tn IP
 packets, whether locally-generated or forwarded, will not.
-.Sh MIB VARIABLES
+.Ss MIB Variables
 A number of variables are implemented in the net.inet branch of the
 .Xr sysctl 3
-MIB.  In addition to the variables supported by the transport
-protocols (for which see the respective manual pages), the following
-general variables are defined:
+MIB.
+In addition to the variables supported by the transport protocols
+(for which the respective manual pages may be consulted),
+the following general variables are defined:
 .Bl -tag -width IPCTL_FASTFORWARDING
 .It Dv IPCTL_FORWARDING
 .Pq ip.forwarding
