@@ -36,7 +36,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2002
+.Dd December 19, 2002
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -115,7 +115,7 @@ leaves
 unchanged and returns
 .Er EINVAL .
 Error numbers recognized by this implementation fall in
-the range 0 \(<
+the range 0 <
 .Fa errnum
 <
 .Fa sys_nerr .
@@ -150,6 +150,17 @@ should be used instead.
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr psignal 3
+.Sh STANDARDS
+The
+.Fn perror
+and
+.Fn strerror
+functions conform to
+.St -isoC-99 .
+The
+.Fn strerror_r
+function conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn strerror
@@ -173,14 +184,6 @@ The return type for
 .Fn strerror
 is missing a type-qualifier; it should actually be
 .Vt const char * .
-.Pp
-The
-.Fn perror
-function is implemented in terms of
-.Fn strerror ,
-hence it uses the same static buffer.
-This behaviour is forbidden by
-.St -isoC-99 .
 .Pp
 Programs that use the deprecated
 .Va sys_errlist
