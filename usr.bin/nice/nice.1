@@ -73,6 +73,13 @@ Negative numbers are expressed as
 The returned exit status is the exit value from the
 command executed by
 .Nm nice .
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility. Consult
+the
+.Xr builtin 1
+manual page.
 .Sh EXAMPLES
 .Pp
 $ nice -5 date
@@ -89,6 +96,7 @@ Execute command
 at priority -19 assuming the priority of the
 shell is 0 and you are the super-user.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr csh 1 ,
 .Xr idprio 1 ,
 .Xr rtprio 1 ,
@@ -100,21 +108,3 @@ A
 .Nm
 command appeared in
 .At v6 .
-.Sh BUGS
-.Nm Nice
-is particular to
-.Xr sh  1  .
-If you use
-.Xr csh  1  ,
-then commands executed with ``&'' are automatically immune to hangup
-signals while in the background.
-.Pp
-.Nm Nice
-is built into
-.Xr csh  1
-with a slightly different syntax than described here.  The form
-.Ql nice +10
-nices to positive nice, and
-.Ql nice \-10
-can be used
-by the super-user to give a process more of the processor.

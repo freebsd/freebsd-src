@@ -143,13 +143,12 @@ The login class also controls the maximum and current process resource
 limits granted to a login, process priorities and many other aspects of
 a user's login environment.
 .Pp
-The standard shells,
-.Xr csh 1
-and
-.Xr sh 1 ,
-do not fork before executing the
+Some shells may provide a builtin
 .Nm
-utility.
+command which is similar or identical to this utility. Consult
+the
+.Xr builtin 1
+manual page.
 .Sh FILES
 .Bl -tag -width /var/mail/userXXX -compact
 .It Pa /etc/fbtab
@@ -180,7 +179,9 @@ makes login quieter
 configure authentication services
 .El
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr chpass 1 ,
+.Xr csh 1 ,
 .Xr passwd 1 ,
 .Xr rlogin 1 ,
 .Xr skey 1 ,

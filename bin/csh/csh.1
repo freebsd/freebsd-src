@@ -322,7 +322,9 @@ be set. It is an artifact from a
 implementation
 of the
 tty driver that allows generation of interrupt characters from
-the keyboard to tell jobs to stop.  See stty(1) for details
+the keyboard to tell jobs to stop.  See
+.Xr stty 1
+for details
 on setting options in the new tty driver.
 .Ss Status reporting
 This shell learns immediately whenever a process changes state.
@@ -1487,7 +1489,7 @@ entry in the stack.
 The members of the directory stack are numbered from the top starting at 0.
 .Pp
 .It Ic printf Ar format-string values
-Invokes a built-in version of 
+Invokes a builtin version of 
 .Ic printf 
 after evaluating the 
 .Ar format-string 
@@ -2134,9 +2136,17 @@ To detect looping, the shell restricts the number of
 .Ic alias
 substitutions on a single line to 20.
 .Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr echo 1 ,
+.Xr kill 1 ,
+.Xr login 1 ,
+.Xr nice 1 ,
+.Xr nohup 1 ,
 .Xr printf 1 ,
 .Xr sh 1 ,
 .Xr su 1 ,
+.Xr time 1 ,
+.Xr which 1 ,
 .Xr access 2 ,
 .Xr execve 2 ,
 .Xr fork 2 ,
@@ -2194,7 +2204,7 @@ shell procedures should be provided instead of aliases.
 Commands within loops, prompted for by `?', are not placed on the
 .Ic history
 list.
-Control structure should be parsed instead of being recognized as built-in
+Control structure should be parsed instead of being recognized as builtin
 commands.  This would allow control commands to be placed anywhere,
 to be combined with `\&|', and to be used with `&' and `;' metasyntax.
 .Pp
