@@ -32,7 +32,7 @@
 .\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2005
+.Dd January 9, 2005
 .Dt TELNETD 8
 .Os
 .Sh NAME
@@ -251,6 +251,13 @@ Specify an alternate
 command to run to complete the login.  The alternate command must
 understand the same command arguments as the standard login.
 .It Fl S Ar tos
+Sets the IP type-of-service (TOS) option for the telnet
+connection to the value
+.Ar tos ,
+which can be a numeric TOS value or, on systems that support it, a symbolic
+TOS name found in the
+.Pa /etc/iptos
+file.
 .It Fl u Ar len
 This option is used to specify the size of the field
 in the
