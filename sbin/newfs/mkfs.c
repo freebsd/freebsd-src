@@ -451,7 +451,14 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	if (!Nflag)
 		sbwrite(&disk, 0);
-	sblock.fs_magic = FS_UFS2_MAGIC;
+	if (Eflag == 1) {
+		printf("** Exiting on Eflag 1\n");
+		exit(0);
+	}
+	if (Eflag == 2)
+		printf("** Leaving BAD MAGIC on Eflag 2\n");
+	else
+		sblock.fs_magic = FS_UFS2_MAGIC;
 
 	/*
 	 * Now build the cylinders group blocks and
@@ -506,6 +513,10 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_cstotal.cs_nbfree = sblock.fs_cstotal.cs_nbfree;
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
+	}
+	if (Eflag == 3) {
+		printf("** Exiting on Eflag 3\n");
+		exit(0);
 	}
 	if (!Nflag)
 		sbwrite(&disk, 0);
