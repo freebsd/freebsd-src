@@ -29,15 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-	"$Id: qsort.c,v 1.2 1995/12/26 13:24:47 bde Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <stdlib.h>
 
