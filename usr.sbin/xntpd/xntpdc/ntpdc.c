@@ -914,6 +914,7 @@ docmd(cmdline)
 	} else {
 		jump = 1;
 		(xcmd->handler)(&pcmd, current_output);
+		jump = 0;
 		if (i) (void) fclose(current_output);
 	}
 }
