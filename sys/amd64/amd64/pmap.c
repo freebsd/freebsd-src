@@ -592,6 +592,13 @@ pmap_TLB_invalidate_all(pmap_t pmap)
 #endif
 }
 
+/*
+ * Return an address which is the base of the Virtual mapping of
+ * all the PTEs for the given pmap. Note this doesn't say that
+ * all the PTEs will be present or that the pages there are valid.
+ * The PTEs are made available by the recursive mapping trick.
+ * It will map in the alternate PTE space if needed.
+ */
 static unsigned *
 get_ptbase(pmap)
 	pmap_t pmap;
