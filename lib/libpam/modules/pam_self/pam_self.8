@@ -61,8 +61,8 @@ It also provides a null function for session management.
 .Ss Self Authentication Module
 The Self authentication component
 .Pq Fn pam_sm_authenticate ,
-returns success if and only if the source and target user names are
-identical.
+returns success if and only if the target user's user ID is identical
+with the current real user ID.
 .Pp
 The following options may be passed to the authentication module:
 .Bl -tag -width ".Cm no_warn"
