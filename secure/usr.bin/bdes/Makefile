@@ -2,15 +2,7 @@
 # $FreeBSD$
 
 PROG=	bdes
-SRCS=	bdes.c
-
-.if exists(${.OBJDIR}/../../lib/libcipher)
-LDFLAGS+= -L${.OBJDIR}/../../lib/libcipher
-.else
-LDFLAGS+= -L${.CURDIR}/../../lib/libcipher
-.endif
-
-LDADD+= -lcipher
-DPADD+= libcipher.a
+DPADD=	${LIBCIPHER}
+LDADD=	-lcipher
 
 .include <bsd.prog.mk>
