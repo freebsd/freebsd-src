@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.12 1995/12/02 17:10:37 bde Exp $
+ * $Id: subr_prof.c,v 1.13 1995/12/06 23:37:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -235,7 +235,7 @@ addupc_intr(p, pc, ticks)
  * Much like before, but we can afford to take faults here.  If the
  * update fails, we simply turn off profiling.
  */
-void
+static void
 addupc_task(p, pc, ticks)
 	register struct proc *p;
 	register u_long pc;

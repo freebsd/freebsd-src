@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.72 1995/12/07 12:46:57 davidg Exp $
+ * $Id: tty.c,v 1.73 1995/12/13 15:13:11 julian Exp $
  */
 
 /*-
@@ -106,6 +106,7 @@ static void	ttyretype __P((struct tty *tp));
 static void	ttyrub __P((int c, struct tty *tp));
 static void	ttyrubo __P((struct tty *tp, int cnt));
 static void	ttyunblock __P((struct tty *tp));
+static int	ttywflush __P((struct tty *tp));
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -133,7 +134,7 @@ static void	ttyunblock __P((struct tty *tp));
 #define	TB	TAB
 #define	VT	VTAB
 
-char const char_type[] = {
+static char const char_type[] = {
 	E|CC, O|CC, O|CC, E|CC, O|CC, E|CC, E|CC, O|CC,	/* nul - bel */
 	O|BS, E|TB, E|NL, O|CC, E|VT, O|CR, O|CC, E|CC, /* bs - si */
 	O|CC, E|CC, E|CC, O|CC, E|CC, O|CC, O|CC, E|CC, /* dle - etb */
@@ -1126,7 +1127,7 @@ ttywait(tp)
 /*
  * Flush if successfully wait.
  */
-int
+static int
 ttywflush(tp)
 	struct tty *tp;
 {
@@ -1248,26 +1249,6 @@ ttyunblock(tp)
 	    putc(tp->t_cc[VSTART], &tp->t_outq) != 0)
 		SET(tp->t_state, TS_TBLOCK);	/* try again later */
 	ttstart(tp);
-}
-
-void
-ttrstrt(tp_arg)
-	void *tp_arg;
-{
-	struct tty *tp;
-	int s;
-
-#ifdef DIAGNOSTIC
-	if (tp_arg == NULL)
-		panic("ttrstrt");
-#endif
-	tp = tp_arg;
-	s = spltty();
-
-	CLR(tp->t_state, TS_TIMEOUT);
-	ttstart(tp);
-
-	splx(s);
 }
 
 int
@@ -2310,6 +2291,7 @@ ttysleep(tp, chan, pri, wmesg, timo)
 	return (tp->t_gen == gen ? 0 : ERESTART);
 }
 
+#ifdef notyet
 /*
  * XXX this is usable not useful or used.  Most tty drivers have
  * ifdefs for using ttymalloc() but assume a different interface.
@@ -2327,6 +2309,7 @@ ttymalloc()
         bzero(tp, sizeof *tp);
         return (tp);
 }
+#endif
 
 #if 0 /* XXX not yet usable: session leader holds a ref (see kern_exit.c). */
 /*

@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.9 1995/09/09 18:10:07 davidg Exp $ */
+/*	$Id: sysv_sem.c,v 1.10 1995/10/21 19:49:59 bde Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -26,24 +26,26 @@ static int semget __P((struct proc *p, struct semget_args *uap, int *retval));
 struct semop_args;
 static int semop __P((struct proc *p, struct semop_args *uap, int *retval));
 struct semconfig_args;
-static int semconfig __P((struct proc *p, struct semconfig_args *uap, int *retval));
+static int semconfig __P((struct proc *p, struct semconfig_args *uap, 
+		int *retval));
 
-struct sem_undo *semu_alloc __P((struct proc *p));
-int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, int semid, int semnum, int adjval));
-void semundo_clear __P((int semid, int semnum));
-void semexit __P((struct proc *p));
+static struct sem_undo *semu_alloc __P((struct proc *p));
+static int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, 
+		int semid, int semnum, int adjval));
+static void semundo_clear __P((int semid, int semnum));
+static void semexit __P((struct proc *p));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
-sy_call_t *semcalls[] = {
+static sy_call_t *semcalls[] = {
 	(sy_call_t *)semctl, (sy_call_t *)semget,
 	(sy_call_t *)semop, (sy_call_t *)semconfig
 };
 
-int	semtot = 0;
+static int	semtot = 0;
 struct semid_ds *sema;		/* semaphore id pool */
 struct sem *sem;		/* semaphore pool */
-struct map *semmap;		/* semaphore allocation map */
-struct sem_undo *semu_list; 	/* list of active undo structures */
+static struct map *semmap;		/* semaphore allocation map */
+static struct sem_undo *semu_list; 	/* list of active undo structures */
 int	*semu;			/* undo structure pool */
 
 static struct proc *semlock_holder = NULL;
@@ -148,7 +150,7 @@ semconfig(p, uap, retval)
  * (returns ptr to structure or NULL if no more room)
  */
 
-struct sem_undo *
+static struct sem_undo *
 semu_alloc(p)
 	struct proc *p;
 {
@@ -218,7 +220,7 @@ semu_alloc(p)
  * Adjust a particular entry for a particular proc
  */
 
-int
+static int
 semundo_adjust(p, supptr, semid, semnum, adjval)
 	register struct proc *p;
 	struct sem_undo **supptr;
@@ -285,7 +287,7 @@ semundo_adjust(p, supptr, semid, semnum, adjval)
 	return(0);
 }
 
-void
+static void
 semundo_clear(semid, semnum)
 	int semid, semnum;
 {
@@ -863,7 +865,7 @@ done:
  * Go through the undo structures for this process and apply the adjustments to
  * semaphores.
  */
-void
+static void
 semexit(p)
 	struct proc *p;
 {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.17 1995/08/07 08:40:49 davidg Exp $
+ * $Id: subr_prf.c,v 1.18 1995/08/24 12:54:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -68,13 +68,13 @@
 
 struct	tty *constty;			/* pointer to console "window" tty */
 
-void	(*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
+static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 
-void  logpri __P((int level));
+static void  logpri __P((int level));
 static void  putchar __P((int ch, int flags, struct tty *tp));
 static char *ksprintn __P((u_long num, int base, int *len));
 
-int consintr = 1;			/* Ok to handle console interrupts? */
+static int consintr = 1;		/* Ok to handle console interrupts? */
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -262,7 +262,7 @@ log(level, fmt, va_alist)
 	logwakeup();
 }
 
-void
+static void
 logpri(level)
 	int level;
 {

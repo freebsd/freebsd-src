@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.10 1995/07/29 11:42:46 bde Exp $
+ * $Id: mbuf.h,v 1.11 1995/11/21 12:55:12 bde Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -373,7 +373,6 @@ int	m_clalloc __P((int, int));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
-void	m_reclaim __P((void));
 struct	mbuf *m_get __P((int, int));
 struct	mbuf *m_gethdr __P((int, int));
 struct	mbuf *m_getclr __P((int, int));

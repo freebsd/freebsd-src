@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.21 1995/12/08 11:16:59 julian Exp $
+ * $Id: kern_descrip.c,v 1.22 1995/12/08 23:21:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ static struct cdevsw fildesc_cdevsw =
 	  noioc,	nostop,		nullreset,	nodevtotty,/*fd(!=Fd)*/
 	  noselect,	nommap,		nostrat };
 
-int finishdup(struct filedesc *fdp, int old, int new, int *retval);
+static int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*
  * Descriptor management.
  */
@@ -336,7 +336,7 @@ fcntl(p, uap, retval)
 /*
  * Common code for dup, dup2, and fcntl(F_DUPFD).
  */
-int
+static int
 finishdup(fdp, old, new, retval)
 	register struct filedesc *fdp;
 	register int old, new, *retval;
@@ -522,7 +522,8 @@ fpathconf(p, uap, retval)
 /*
  * Allocate a file descriptor for the process.
  */
-int fdexpand;
+static int fdexpand;
+SYSCTL_INT(_debug, OID_AUTO, fdexpand, CTLFLAG_RD, &fdexpand, 0, "");
 
 int
 fdalloc(p, want, result)

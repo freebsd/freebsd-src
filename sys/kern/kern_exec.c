@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.28 1995/12/07 12:46:40 davidg Exp $
+ *	$Id: kern_exec.c,v 1.29 1995/12/09 04:29:11 peter Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
 
 #include <machine/reg.h>
 
-int *exec_copyout_strings __P((struct image_params *));
+static int *exec_copyout_strings __P((struct image_params *));
 
 static int exec_check_permissions(struct image_params *);
 
@@ -67,7 +67,8 @@ static int exec_check_permissions(struct image_params *);
  * execsw_set is constructed for us by the linker.  Each of the items
  * is a pointer to a `const struct execsw', hence the double pointer here.
  */
-const struct execsw **execsw = (const struct execsw **)&execsw_set.ls_items[0];
+static const struct execsw **execsw = 
+	(const struct execsw **)&execsw_set.ls_items[0];
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {

@@ -70,7 +70,6 @@ struct snoop {
 
 #ifdef KERNEL
 /* XXX several wrong storage classes and types here. */
-int	snp_detach __P((struct snoop *snp));
 int	snpdown __P((struct snoop *snp));
 int	snpin __P((struct snoop *snp, char *buf, int n));
 int	snpinc __P((struct snoop *snp, char c));

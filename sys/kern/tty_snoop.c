@@ -22,9 +22,7 @@
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>	/* Oooh..We need O/NTTYDISC	 */
 #include <sys/proc.h>
-#define TTYDEFCHARS
 #include <sys/tty.h>
-#undef  TTYDEFCHARS
 #include <sys/file.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -57,6 +55,7 @@ static struct cdevsw snp_cdevsw =
 static struct snoop snoopsw[NSNP];
 
 static struct tty	*devtotty __P((dev_t dev));
+static int		snp_detach __P((struct snoop *snp));
 
 static struct tty *
 devtotty (dev)
@@ -320,7 +319,7 @@ snpopen(dev, flag, mode, p)
 }
 
 
-int
+static int
 snp_detach(snp)
 	struct snoop   *snp;
 {
