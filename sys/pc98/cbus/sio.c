@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.44 1997/12/06 13:24:54 bde Exp $
+ *	$Id: sio.c,v 1.45 1997/12/16 17:40:39 eivind Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2585,10 +2585,10 @@ comparam(tp, t)
 	s = spltty();
 #ifdef PC98
 	if(IS_8251(com->pc98_if_type)){
-		if(divisor == 0){
-			com_int_TxRx_disable( com );
+		if(divisor == 0)
 			com_tiocm_bic( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
-		}
+		else
+			com_tiocm_bis( com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE );
 	} else {
 #endif
 	if (divisor == 0)
@@ -2880,6 +2880,7 @@ comstart(tp)
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+		ttwwakeup(tp);
 #ifdef PC98
 /*		if(IS_8251(com->pc98_if_type))
 			com_int_Tx_enable(com); */
@@ -3361,10 +3362,11 @@ void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
+	speed_t			boot_speed;
+	u_char			cfcr;
 	struct isa_device	*dvp;
 	int			s;
 	struct siocnstate	sp;
-	speed_t			boot_speed;
 
 	/*
 	 * Find our first enabled console, if any.  If it is a high-level
@@ -3392,6 +3394,24 @@ siocnprobe(cp)
 				if (boot_speed)
 					comdefaultrate = boot_speed;
 			}
+
+			/*
+			 * Initialize the divisor latch.  We can't rely on
+			 * siocnopen() to do this the first time, since it 
+			 * avoids writing to the latch if the latch appears
+			 * to have the correct value.  Also, if we didn't
+			 * just read the speed from the hardware, then we
+			 * need to set the speed in hardware so that
+			 * switching it later is null.
+			 */
+			cfcr = inb(siocniobase + com_cfcr);
+			outb(siocniobase + com_cfcr, CFCR_DLAB | cfcr);
+			outb(siocniobase + com_dlbl,
+			     COMBRD(comdefaultrate) & 0xff);
+			outb(siocniobase + com_dlbh,
+			     (u_int) COMBRD(comdefaultrate) >> 8);
+			outb(siocniobase + com_cfcr, cfcr);
+
 			siocnopen(&sp);
 			splx(s);
 			if (!COM_LLCONSOLE(dvp)) {
