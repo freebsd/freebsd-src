@@ -41,9 +41,9 @@ void	ufs_sync_acl_from_inode(struct inode *ip, struct acl *acl);
 void	ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
 	    mode_t preserve_mask);
 
-int	ufs_getacl __P((struct vop_getacl_args *));
-int	ufs_setacl __P((struct vop_setacl_args *));
-int	ufs_aclcheck __P((struct vop_aclcheck_args *));
+int	ufs_getacl(struct vop_getacl_args *);
+int	ufs_setacl(struct vop_setacl_args *);
+int	ufs_aclcheck(struct vop_aclcheck_args *);
 
 #endif /* !_KERNEL */
 

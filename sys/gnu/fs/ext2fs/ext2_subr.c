@@ -60,7 +60,7 @@
 #include "opt_ddb.h"
 
 #ifdef DDB
-void	ext2_checkoverlap __P((struct buf *, struct inode *));
+void	ext2_checkoverlap(struct buf *, struct inode *);
 #endif
 
 /*

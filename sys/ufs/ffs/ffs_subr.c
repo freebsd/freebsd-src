@@ -54,7 +54,7 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #ifdef DDB
-void	ffs_checkoverlap __P((struct buf *, struct inode *));
+void	ffs_checkoverlap(struct buf *, struct inode *);
 #endif
 
 /*

@@ -69,19 +69,19 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
-static int ext2_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-static int ext2_flushfiles __P((struct mount *mp, int flags, struct thread *td));
-static int ext2_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct thread *));
-static int ext2_mountfs __P((struct vnode *, struct mount *, struct thread *));
-static int ext2_reload __P((struct mount *mountp, struct ucred *cred,
-			struct thread *td));
-static int ext2_sbupdate __P((struct ufsmount *, int));
-static int ext2_statfs __P((struct mount *, struct statfs *, struct thread *));
-static int ext2_sync __P((struct mount *, int, struct ucred *, struct thread *));
-static int ext2_unmount __P((struct mount *, int, struct thread *));
-static int ext2_vget __P((struct mount *, ino_t, int, struct vnode **));
-static int ext2_vptofh __P((struct vnode *, struct fid *));
+static int ext2_fhtovp(struct mount *, struct fid *, struct vnode **);
+static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
+static int ext2_mount(struct mount *,
+	    char *, caddr_t, struct nameidata *, struct thread *);
+static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
+static int ext2_reload(struct mount *mountp, struct ucred *cred,
+			struct thread *td);
+static int ext2_sbupdate(struct ufsmount *, int);
+static int ext2_statfs(struct mount *, struct statfs *, struct thread *);
+static int ext2_sync(struct mount *, int, struct ucred *, struct thread *);
+static int ext2_unmount(struct mount *, int, struct thread *);
+static int ext2_vget(struct mount *, ino_t, int, struct vnode **);
+static int ext2_vptofh(struct vnode *, struct fid *);
 
 static MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
 
@@ -108,14 +108,14 @@ VFS_SET(ext2fs_vfsops, ext2fs, 0);
 
 static int ext2fs_inode_hash_lock;
 
-static int	ext2_check_sb_compat __P((struct ext2_super_block *es,
-					  dev_t dev, int ronly));
-static int	compute_sb_data __P((struct vnode * devvp,
+static int	ext2_check_sb_compat(struct ext2_super_block *es,
+					  dev_t dev, int ronly);
+static int	compute_sb_data(struct vnode * devvp,
 				     struct ext2_super_block * es,
-				     struct ext2_sb_info * fs));
+				     struct ext2_sb_info * fs);
 
 #ifdef notyet
-static int ext2_mountroot __P((void));
+static int ext2_mountroot(void);
 
 /*
  * Called by main() when ext2fs is going to be mounted as root.

@@ -60,8 +60,8 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-static int ffs_indirtrunc __P((struct inode *, ufs_daddr_t, ufs_daddr_t,
-	    ufs_daddr_t, int, long *));
+static int ffs_indirtrunc(struct inode *, ufs_daddr_t, ufs_daddr_t,
+	    ufs_daddr_t, int, long *);
 
 /*
  * Update the access, modified, and inode change times as specified by the

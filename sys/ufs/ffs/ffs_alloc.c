@@ -58,25 +58,23 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-typedef ufs_daddr_t allocfcn_t __P((struct inode *ip, int cg, ufs_daddr_t bpref,
-				  int size));
+typedef ufs_daddr_t allocfcn_t(struct inode *ip, int cg, ufs_daddr_t bpref,
+				  int size);
 
-static ufs_daddr_t ffs_alloccg __P((struct inode *, int, ufs_daddr_t, int));
+static ufs_daddr_t ffs_alloccg(struct inode *, int, ufs_daddr_t, int);
 static ufs_daddr_t
-	      ffs_alloccgblk __P((struct inode *, struct buf *, ufs_daddr_t));
+	      ffs_alloccgblk(struct inode *, struct buf *, ufs_daddr_t);
 #ifdef DIAGNOSTIC
-static int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
+static int	ffs_checkblk(struct inode *, ufs_daddr_t, long);
 #endif
-static ufs_daddr_t ffs_clusteralloc __P((struct inode *, int, ufs_daddr_t,
-	    int));
-static ino_t	ffs_dirpref __P((struct inode *));
-static ufs_daddr_t ffs_fragextend __P((struct inode *, int, long, int, int));
-static void	ffs_fserr __P((struct fs *, ino_t, char *));
+static ufs_daddr_t ffs_clusteralloc(struct inode *, int, ufs_daddr_t, int);
+static ino_t	ffs_dirpref(struct inode *);
+static ufs_daddr_t ffs_fragextend(struct inode *, int, long, int, int);
+static void	ffs_fserr(struct fs *, ino_t, char *);
 static u_long	ffs_hashalloc
-		    __P((struct inode *, int, long, int, allocfcn_t *));
-static ino_t	ffs_nodealloccg __P((struct inode *, int, ufs_daddr_t, int));
-static ufs_daddr_t ffs_mapsearch __P((struct fs *, struct cg *, ufs_daddr_t,
-	    int));
+		(struct inode *, int, long, int, allocfcn_t *);
+static ino_t	ffs_nodealloccg(struct inode *, int, ufs_daddr_t, int);
+static ufs_daddr_t ffs_mapsearch(struct fs *, struct cg *, ufs_daddr_t, int);
 
 /*
  * Allocate a block in the file system.
@@ -1893,7 +1891,7 @@ ffs_fserr(fs, inum, cp)
  *	flags set (second parameter +1) or cleared (second parameter -1).
  */
 
-static int sysctl_ffs_fsck __P((SYSCTL_HANDLER_ARGS));
+static int sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt, CTLFLAG_WR|CTLTYPE_STRUCT,
 	0, 0, sysctl_ffs_fsck, "S,fsck", "Adjust Inode Reference Count");

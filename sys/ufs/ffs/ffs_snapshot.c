@@ -60,21 +60,21 @@
 #define KERNCRED thread0.td_ucred
 #define DEBUG 1
 
-static int cgaccount __P((int, struct vnode *, struct buf *, int));
-static int expunge __P((struct vnode *, struct inode *, struct fs *,
-    int (*) __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *, struct fs *,
-    ufs_daddr_t, int)), int));
-static int indiracct __P((struct vnode *, struct vnode *, int, ufs_daddr_t,
-    int, int, int, int, struct fs *, int (*) __P((struct vnode *,
-    ufs_daddr_t *, ufs_daddr_t *, struct fs *, ufs_daddr_t, int)), int));
-static int fullacct __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int));
-static int snapacct __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int));
-static int mapacct __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int));
-static int ffs_copyonwrite __P((struct vnode *, struct buf *));
-static int readblock __P((struct buf *, daddr_t));
+static int cgaccount(int, struct vnode *, struct buf *, int);
+static int expunge(struct vnode *, struct inode *, struct fs *,
+    int (*)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *, struct fs *,
+    ufs_daddr_t, int), int);
+static int indiracct(struct vnode *, struct vnode *, int, ufs_daddr_t,
+    int, int, int, int, struct fs *, int (*)(struct vnode *,
+    ufs_daddr_t *, ufs_daddr_t *, struct fs *, ufs_daddr_t, int), int);
+static int fullacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
+    struct fs *, ufs_daddr_t, int);
+static int snapacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
+    struct fs *, ufs_daddr_t, int);
+static int mapacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
+    struct fs *, ufs_daddr_t, int);
+static int ffs_copyonwrite(struct vnode *, struct buf *);
+static int readblock(struct buf *, daddr_t);
 
 /*
  * To ensure the consistency of snapshots across crashes, we must
@@ -614,8 +614,8 @@ expunge(snapvp, cancelip, fs, acctfunc, expungetype)
 	struct vnode *snapvp;
 	struct inode *cancelip;
 	struct fs *fs;
-	int (*acctfunc) __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-	    struct fs *, ufs_daddr_t, int));
+	int (*acctfunc)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
+	    struct fs *, ufs_daddr_t, int);
 	int expungetype;
 {
 	int i, len, error, numblks, blksperindir;
@@ -698,8 +698,8 @@ indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir, fs,
 	int remblks;
 	int blksperindir;
 	struct fs *fs;
-	int (*acctfunc) __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-	    struct fs *, ufs_daddr_t, int));
+	int (*acctfunc)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
+	    struct fs *, ufs_daddr_t, int);
 	int expungetype;
 {
 	int subblksperindir, error, last, num, i;
