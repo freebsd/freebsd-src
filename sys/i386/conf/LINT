@@ -2370,13 +2370,13 @@ options 	NSFBUFS=1024
 
 # Set the size of the buffer cache KVM reservation, in buffers.  This is
 # scaled by approximately 16384 bytes.  The system will auto-size the buffer
-# cache if this option is not specified or set to 0.
+# cache if this option is not specified.
 #
 options 	NBUF=512
 
 # Set the size of the mbuf KVM reservation, in clusters.  This is scaled
 # by approximately 2048 bytes.  The system will auto-size the mbuf area
-# if this options is not specified or set to 0.
+# if this options is not specified.
 #
 options 	NMBCLUSTERS=1024
 
