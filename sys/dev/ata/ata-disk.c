@@ -40,6 +40,7 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
+#include <sys/cons.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
@@ -327,6 +328,7 @@ addump(dev_t dev)
     if (!adp)
 	return ENXIO;
 
+    ata_reinit(adp->controller);
     adp->flags &= ~AD_F_DMA_ENABLED;
 
     while (count > 0) {
@@ -346,6 +348,8 @@ addump(dev_t dev)
 
 	while (request.bytecount > 0) {
 	    ad_transfer(&request);
+	    if (request.flags & AR_F_ERROR)
+		return EIO;
 	    request.donecount += request.currentsize;
 	    DELAY(20);
 	}
@@ -361,10 +365,12 @@ addump(dev_t dev)
 	blkno += howmany(PAGE_SIZE, secsize);
 	count -= howmany(PAGE_SIZE, secsize);
 	addr += PAGE_SIZE;
+	if (cncheckc() != -1)
+	    return EINTR;
     }
 
     if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
-	printf("ad_dump: timeout waiting for final ready\n");
+	printf("addump: timeout waiting for final ready\n");
 
     return 0;
 }
