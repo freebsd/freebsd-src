@@ -1344,12 +1344,15 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			break;
 		case SYS_RES_IOPORT:
 		case SYS_RES_MEMORY:
-			/*
-			 * Enable the I/O mode.  We should also be allocating
-			 * resources too. XXX
-			 */
-			if (PCI_ENABLE_IO(dev, child, type))
-				return (NULL);
+			if (*rid < PCIR_MAPS + 4*cfg->nummaps) {
+				/*
+				 * Enable the I/O mode.  We should
+				 * also be allocating resources
+				 * too. XXX
+				 */
+				if (PCI_ENABLE_IO(dev, child, type))
+					return (NULL);
+			}
 			break;
 		}
 	}
