@@ -1087,7 +1087,11 @@ doMFSKERN:
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
+.if defined(FDSIZE) && ${FDSIZE} == "SMALL"
+	@echo "load -t mfs_root /mfsroot-small" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+.else
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+.endif
 .if ${TARGET_ARCH} != "ia64"
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
