@@ -59,7 +59,7 @@ static char sccsid[] = "@(#)worms.c	8.1 (Berkeley) 5/31/93";
  *
  */
 #include <sys/types.h>
-
+#include <sgtty.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -198,6 +198,8 @@ main(argc, argv)
 	char *AL, *BC, *CM, *EI, *HO, *IC, *IM, *IP, *SR;
 	char *field, tcb[100], *mp;
 	long random();
+	struct sgttyb tt;
+	extern short ospeed;
 
 	length = 16;
 	number = 3;
@@ -246,6 +248,8 @@ main(argc, argv)
 		exit(1);
 	}
 	tcp = tcb;
+	if (gtty(1, &tt) == 0)
+		ospeed = tt.sg_ospeed;
 	if (!(CM = tgetstr("cm", &tcp))) {
 		(void)fprintf(stderr,
 		    "worms: terminal incapable of cursor motion.\n");
