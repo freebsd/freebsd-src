@@ -77,7 +77,7 @@ command.
 The shell
 implements a language that has flow control constructs,
 a macro facility that provides a variety of features in
-addition to data storage, along with builtin history and line
+addition to data storage, along with built-in history and line
 editing capabilities.  It incorporates many features to
 aid interactive use and has the advantage that the interpretative
 language is common to both interactive and non-interactive
@@ -164,9 +164,9 @@ the long name for an option may be specified as an argument to the
 .Fl /+o
 option of the
 .Ic set
-builtin command
+built-in command
 (described later in the section called
-.Sx Builtin Commands ) .
+.Sx Built-in Commands ) .
 Introducing an option with a dash
 .Pq Li -
 enables the option,
@@ -196,7 +196,7 @@ completion.
 Do not overwrite existing files with
 .Dq Li > .
 .It Fl E Li emacs
-Enable the builtin
+Enable the built-in
 .Xr emacs 1
 command line editor (disables the
 .Fl V
@@ -265,7 +265,7 @@ Write a message to standard error when attempting
 to expand a variable that is not set, and if the
 shell is not interactive, exit immediately.
 .It Fl V Li vi
-Enable the builtin
+Enable the built-in
 .Xr vi 1
 command line editor (disables
 .Fl E
@@ -294,7 +294,7 @@ option takes as its only argument the long name of an option
 to be enabled or disabled.
 For example, the following two invocations of
 .Nm
-both enable the builtin
+both enable the built-in
 .Xr emacs 1
 command line editor:
 .Bd -literal -offset indent
@@ -373,7 +373,7 @@ after a control operator.  The following are reserved words:
 .Ss Aliases
 An alias is a name and corresponding value set using the
 .Ic alias
-builtin command.  Whenever a reserved word may occur (see above),
+built-in command.  Whenever a reserved word may occur (see above),
 and after checking for reserved words, the shell
 checks the word to see if it matches an alias.
 If it does, it replaces it in the input stream with its value.
@@ -494,7 +494,7 @@ then leading tabs
 in the here-doc-text are stripped.
 .Ss Search and Execution
 There are three types of commands: shell functions,
-builtin commands, and normal programs.
+built-in commands, and normal programs.
 The command is searched for (by name) in that order.
 The three types of commands are all executed in a different way.
 .Pp
@@ -510,12 +510,12 @@ The positional parameters are restored to their original values
 when the command completes.
 This all occurs within the current shell.
 .Pp
-Shell builtin commands are executed internally to the shell, without
+Shell built-in commands are executed internally to the shell, without
 spawning a new process.
 .Pp
 Otherwise, if the command name does not match a function
-or builtin command, the command is searched for as a normal
-program in the filesystem (as described in the next section).
+or built-in command, the command is searched for as a normal
+program in the file system (as described in the next section).
 When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the program.
 If the program is not a normal executable file
@@ -544,7 +544,7 @@ as a
 .Ss Path Search
 When locating a command, the shell first looks to see if
 it has a shell function by that name.  Then it looks for a
-builtin command by that name.  If a builtin command is not found,
+built-in command by that name.  If a built-in command is not found,
 one of two things happen:
 .Bl -enum
 .It
@@ -568,7 +568,7 @@ of other shell commands.  The paradigm is that a command exits
 with zero for normal or success, and non-zero for failure,
 error, or a false indication.  The man page for each command
 should indicate the various exit codes and what they mean.
-Additionally, the builtin commands return exit codes, as does
+Additionally, the built-in commands return exit codes, as does
 an executed shell function.
 .Pp
 If a command is terminated by a signal, its exit status is 128 plus
@@ -648,7 +648,7 @@ Note that unlike some other shells,
 executes each process in the pipeline as a child of the
 .Nm
 process.
-Shell builtin commands are the exception to this rule.
+Shell built-in commands are the exception to this rule.
 They are executed in the current shell, although they do not affect its
 environment when used in pipelines.
 .Ss Background Commands (&)
@@ -672,7 +672,7 @@ and optionally terminated by one of these three characters.
 The commands in a
 list are executed in the order they are written.
 If command is followed by an ampersand, the shell starts the
-command and immediately proceed onto the next command;
+command and immediately proceeds onto the next command;
 otherwise it waits for the command to terminate before
 proceeding to the next one.
 .Ss Short-Circuit List Operators
@@ -760,7 +760,7 @@ loops.
 The
 .Ic continue
 command continues with the next iteration of the innermost loop.
-These are implemented as builtin commands.
+These are implemented as built-in commands.
 .Pp
 The syntax of the
 .Ic case
@@ -789,7 +789,7 @@ or
 .Ed
 .Pp
 The first form executes the commands in a subshell.
-Note that builtin commands thus executed do not affect the current shell.
+Note that built-in commands thus executed do not affect the current shell.
 The second form does not fork another shell,
 so it is slightly more efficient.
 Grouping commands together this way allows the user to
@@ -825,7 +825,7 @@ and the syntax is:
 .Pp
 The
 .Ic local
-command is implemented as a builtin command.
+command is implemented as a built-in command.
 .Pp
 When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
@@ -868,7 +868,7 @@ command is
 It terminates the currently executing function.
 The
 .Ic return
-command is implemented as a builtin command.
+command is implemented as a built-in command.
 .Ss Variables and Parameters
 The shell maintains a set of parameters.  A parameter
 denoted by a name is called a variable.  When starting up,
@@ -888,7 +888,7 @@ A positional parameter is a parameter denoted by a number greater than zero.
 The shell sets these initially to the values of its command line
 arguments that follow the name of the shell script.  The
 .Ic set
-builtin command can also be used to set or reset them.
+built-in command can also be used to set or reset them.
 .Ss Special Parameters
 A special parameter is a parameter denoted by one of the following
 special characters.  The value of the parameter is listed
@@ -934,7 +934,7 @@ Expands to the exit status of the most recent pipeline.
 .It Li -
 (hyphen) Expands to the current option flags (the single-letter
 option names concatenated into a string) as specified on
-invocation, by the set builtin command, or implicitly
+invocation, by the set built-in command, or implicitly
 by the shell.
 .It Li $
 Expands to the process ID of the invoked shell.  A subshell
@@ -1229,11 +1229,11 @@ if any).
 To include a
 .Dq Li - ,
 make it the first or last character listed.
-.Ss Builtin Commands
+.Ss Built-in Commands
 This section lists the commands which
-are builtin because they need to perform some operation
+are built-in because they need to perform some operation
 that cannot be performed by a separate process.  In addition to
-these, builtin versions of the
+these, built-in versions of the
 .Xr printf 1
 and
 .Xr test 1
@@ -1267,7 +1267,7 @@ is specified, the value of the alias
 is printed.
 With no arguments, the
 .Ic alias
-builtin command prints the names and values of all defined aliases
+built-in command prints the names and values of all defined aliases
 (see
 .Ic unalias ) .
 Alias values are written with appropriate quoting so that they are
@@ -1277,10 +1277,10 @@ Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
 .It Ic command Ar cmd Op Ar arg ...
-Execute the specified builtin command,
+Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
-with the same name as a builtin command.
+with the same name as a built-in command.
 .It Ic cd Oo Fl LP Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
@@ -1333,7 +1333,7 @@ This is the default.
 .It Ic chdir
 A synonym for the
 .Ic cd
-builtin command.
+built-in command.
 .It Xo
 .Ic echo
 .Op Fl e | Fl n
@@ -1406,7 +1406,7 @@ Unless
 .Ar command
 is omitted,
 the shell process is replaced with the specified program
-(which must be a real program, not a shell builtin command or function).
+(which must be a real program, not a shell built-in command or function).
 Any redirections on the
 .Ic exec
 command are marked as permanent,
@@ -1448,7 +1448,7 @@ lines, suitable for re-input to the shell.
 .It Ic fc Fl s Oo Ar old Ns = Ns Ar new Oc Op Ar first
 The
 .Ic fc
-builtin command lists, or edits and re-executes,
+built-in command lists, or edits and re-executes,
 commands previously entered to an interactive shell.
 .Bl -tag -width indent
 .It Fl e Ar editor
@@ -1612,13 +1612,13 @@ If the
 .Fl s
 option is specified, only the PID's of the jobs are printed, one per line.
 .It Ic pwd Op Fl LP
-Print the path of the current directory.  The builtin command may
+Print the path of the current directory.  The built-in command may
 differ from the program of the same name because the
-builtin command remembers what the current directory
+built-in command remembers what the current directory
 is rather than recomputing it each time.  This makes
 it faster.  However, if the current directory is
 renamed,
-the builtin version of
+the built-in version of
 .Xr pwd 1
 will continue to print the old name for the directory.
 .Pp
@@ -1739,7 +1739,7 @@ which is equivalent to executing the command
 .Dq Li shift $# .
 The
 .Dq Fl -
-flag may be ommitted when specifying arguments to be used
+flag may be omitted when specifying arguments to be used
 as positional replacement parameters.
 This is not recommended,
 because the first argument may begin with a dash
@@ -1796,7 +1796,7 @@ Interpret each
 .Ar name
 as a command and print the resolution of the command search.
 Possible resolutions are:
-shell keyword, alias, shell builtin command, command, tracked alias
+shell keyword, alias, shell built-in command, command, tracked alias
 and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases
@@ -1908,7 +1908,7 @@ and the command history
 (see
 .Ic fc
 in
-.Sx Builtin Commands )
+.Sx Built-in Commands )
 can be edited using vi-mode command line editing.
 This mode uses commands similar
 to a subset of those described in the vi man page.
