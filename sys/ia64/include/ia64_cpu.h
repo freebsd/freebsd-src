@@ -446,6 +446,18 @@ ia64_set_rr(u_int64_t rrbase, u_int64_t v)
 	__asm __volatile("mov rr[%0]=%1" :: "r"(rrbase), "r"(v) : "memory");
 }
 
+/*
+ * Read a CPUID register.
+ */
+static __inline u_int64_t
+ia64_get_cpuid(int i)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=cpuid[%1]"
+			 : "=r" (result) : "r"(i));
+	return result;
+}
+
 #endif
 
 #endif /* _MACHINE_IA64_CPU_H_ */
