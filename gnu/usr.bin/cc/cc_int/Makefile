@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1999/03/05 04:55:03 obrien Exp $
+# $Id: Makefile,v 1.16 1999/04/04 16:36:34 obrien Exp $
 #
 .include "../Makefile.inc"
 
@@ -14,11 +14,16 @@ SRCS=	c-common.c c-pragma.c \
 	integrate.c jump.c local-alloc.c loop.c obstack.c optabs.c \
 	print-rtl.c print-tree.c real.c recog.c reg-stack.c regclass.c \
 	reload.c reload1.c reorg.c rtl.c rtlanal.c \
-	sched.c sdbout.c stmt.c stor-layout.c stupid.c \
+	sdbout.c stmt.c stor-layout.c stupid.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dwarf2out.c dyn-string.c except.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
 	${OUT_FILE}
+.if defined(USE_EGCS_HAIFA) && ${USE_EGCS_HAIFA} == 1
+SRCS+=	haifa-sched.c
+.else
+SRCS+=	sched.c
+.endif
 
 CFLAGS+=	-DTARGET_NAME=\"${MACHINE_ARCH}-unknown-freebsd\"
 
