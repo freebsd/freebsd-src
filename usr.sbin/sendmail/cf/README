@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.122 (Berkeley) 7/6/97
+		@(#)README	8.124 (Berkeley) 9/23/97
 
 
 This document describes the sendmail configuration files being used
@@ -657,7 +657,7 @@ genericstable	This feature will cause certain addresses originating in the
 		The key for this table is either the full address or the
 		unqualified username (the former is tried first); the
 		value is the new user address.  If the new user address does
-		not include a domain, $j is used.  Note that the address must
+		not include a domain, $j is used.  Note that the address
 		being looked up must be fully qualified.  For local mail, it
 		is necessary to use FEATURE(always_add_domain) for the
 		addresses to be qualified.
@@ -1335,10 +1335,10 @@ confCF_VERSION		$Z macro	If defined, this is appended to the
 confFROM_HEADER		From:		[$?x$x <$g>$|$g$.] The format of an 
 					internally generated From: address.
 confRECEIVED_HEADER	Received:
-		[$?sfrom $s .$?_($?s$|from $.$_)
+		[$?sfrom $s $.$?_($?s$|from $.$_)
 			$.by $j ($v/$Z)$?r with $r$. id $i$?u
-			for $u$.;
-			$b]
+			for $u; $|;
+			$.$b]
 					The format of the Received: header
 					in messages passed through this host.
 					It is unwise to try to change this.

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.328 (Berkeley) 8/3/97
+ *	@(#)conf.h	8.335 (Berkeley) 10/24/97
  */
 
 /*
@@ -294,7 +294,9 @@ typedef int		pid_t;
   define BSD_REMAP_SIGNAL_TO_SIGVEC
     RTisms needed above */
 /* make this sendmail in a completely different place */
-# define _PATH_VENDORCF		"/usr/local/newmail/sendmail.cf"
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/usr/local/newmail/sendmail.cf"
+# endif
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/usr/local/newmail/sendmail.pid"
 # endif
@@ -348,6 +350,7 @@ typedef int		pid_t;
 # ifdef IRIX6
 #  define LA_TYPE	LA_IRIX6	/* figure out at run time */
 #  define SAFENFSPATHCONF 0	/* pathconf(2) lies on NFS filesystems */
+#  define SYSLOG_BUFSIZE 512
 # else
 #  define LA_TYPE	LA_INT
 
@@ -382,7 +385,6 @@ typedef int		pid_t;
 # include <sys/time.h>
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASUNAME	1	/* use System V uname(2) system call */
-# define HASGETUSERSHELL 1	/* DOES have getusershell(3) call in libc */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define IP_SRCROUTE	1	/* can check IP source routing */
 # define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
@@ -438,6 +440,7 @@ typedef int		pid_t;
 
 # else
 			/* SunOS 4.0.3 or 4.1.x */
+#  define HASGETUSERSHELL 1	/* DOES have getusershell(3) call in libc */
 #  define HASSETREUID	1	/* has setreuid(2) call */
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
@@ -903,6 +906,7 @@ extern int		errno;
 #if _SCO_DS >= 1
 # include <paths.h>
 # define _SCO_unix_4_2
+# define SIOCGIFNUM_IS_BROKEN 1	/* SIOCGIFNUM returns bogus value */
 # define HASSNPRINTF	1	/* has snprintf(3) call */
 # define HASFCHMOD	1	/* has fchmod(2) call */
 # define HASSETRLIMIT	1	/* has setrlimit(2) call */
@@ -1188,6 +1192,7 @@ extern void		*malloc();
 #  define LA_TYPE	LA_PROCSTR
 # endif
 # define SFS_TYPE	SFS_VFS		/* use <sys/vfs.h> statfs() impl */
+# define SPT_PADCHAR	'\0'		/* pad process title with nulls */
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 # endif
@@ -1224,6 +1229,7 @@ extern void		*malloc();
 # define BSD			/* has BSD routines */
 # define HASSETRLIMIT	0	/* ... but not setrlimit(2) */
 # define BROKEN_RES_SEARCH 1	/* res_search(unknown) returns h_errno=0 */
+# define BOGUS_O_EXCL	1	/* exclusive open follows symlinks */
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
@@ -1836,6 +1842,15 @@ typedef struct msgb		mblk_t;
 # undef offsetof	/* avoid stddefs.h and sys/sysmacros.h conflict */
 #endif
 
+/*
+**  Siemens Nixdorf Informationssysteme AG SINIX 
+**
+**	Contributed by Gerald Rinske <Gerald.Rinske@mch.sni.de>
+**	of Siemens Business Services VAS.
+*/
+#ifdef _sinix_
+# define SYSLOG_BUFSIZE		1024
+#endif
 
 /**********************************************************************
 **  End of Per-Operating System defines
