@@ -255,7 +255,9 @@ cpu_fork(td1, p2, flags)
 	 * will return to exception_restore().  Note that the
 	 * child process doesn't stay in the kernel for long!
 	 *
-	 * XXX what is this +/- 16 stuff here?
+	 * The extra 16 bytes subtracted from sp is part of the ia64
+	 * ABI - a function can assume that the 16 bytes above sp are
+	 * available as scratch space.
 	 */
 	td2->td_pcb->pcb_sp = (u_int64_t)p2tf - 16;	
 	td2->td_pcb->pcb_r4 = (u_int64_t)fork_return;
