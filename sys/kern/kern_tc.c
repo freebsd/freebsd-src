@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.18 1995/11/08 08:45:58 phk Exp $
+ * $Id: kern_clock.c,v 1.19 1995/11/12 19:51:48 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -75,13 +75,8 @@
 #include <sys/gmon.h>
 #endif
 
-/*
- * System initialization
- */
-
-static void initclocks __P((void *udata));
+static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
-
 
 /* Does anybody else really care about these? */
 struct callout *callfree, *callout, calltodo;
@@ -393,8 +388,8 @@ hardupdate(offset)
  */
 /* ARGSUSED*/
 static void
-initclocks(udata)
-	void *udata;		/* not used*/
+initclocks(dummy)
+	void *dummy;
 {
 	register int i;
 

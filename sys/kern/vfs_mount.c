@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.9 1995/09/09 18:10:15 davidg Exp $
+ * $Id: vfs_conf.c,v 1.10 1995/10/29 15:31:25 phk Exp $
  */
 
 /*
@@ -98,7 +98,7 @@ struct vfsops	*mountrootvfsops;
  */
 int
 vfs_mountroot(data)
-	void *data;	/* file system function table*/
+	void			*data;
 {
 	struct mount		*mp;
 	u_int			size;
@@ -167,8 +167,3 @@ error_1:	/* lock error*/
 success:
 	return( err);
 }
-
-
-/*
- * EOF -- This file has not been truncated.
- */

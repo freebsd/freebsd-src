@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.8 1995/08/28 09:19:23 julian Exp $
+ * $Id: vm_init.c,v 1.9 1995/09/09 18:10:36 davidg Exp $
  */
 
 /*
@@ -93,8 +93,8 @@ SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL)
 
 /* ARGSUSED*/
 static void
-vm_mem_init(udata)
-	void *udata;		/* not used*/
+vm_mem_init(dummy)
+	void *dummy;
 {
 	/*
 	 * Initializes resident memory structures. From here on, all physical
