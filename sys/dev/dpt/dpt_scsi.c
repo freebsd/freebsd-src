@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.29 1998/01/21 04:32:08 ShimonR Exp $"
+#ident "$Id: dpt_scsi.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -196,20 +196,20 @@ dpt_user_cmd(dpt_softc_t * dpt, eata_pt_t * user_cmd,
 	     caddr_t cmdarg, int minor_no);
 void            dpt_detect_cache(dpt_softc_t * dpt);
 void            dpt_shutdown(int howto, void *dpt);
-void            hex_dump(u_int8_t * data, int length, char *name, int no);
+static void     hex_dump(u_int8_t * data, int length, char *name, int no);
 char           *i2bin(unsigned int no, int length);
 dpt_conf_t     *
 dpt_get_conf(dpt_softc_t * dpt, u_int8_t page, u_int8_t target,
 	     u_int8_t size, int extent);
-dpt_inq_t      *dpt_get_board_data(dpt_softc_t * dpt, u_int32_t target_id);
+static dpt_inq_t *dpt_get_board_data(dpt_softc_t * dpt, u_int32_t target_id);
 int             dpt_setup(dpt_softc_t * dpt, dpt_conf_t * conf);
 int             dpt_attach(dpt_softc_t * dpt);
-int32_t         dpt_scsi_cmd(struct scsi_xfer * xs);
-void            dptminphys(struct buf * bp);
-void            dpt_sintr(void);
+static int32_t  dpt_scsi_cmd(struct scsi_xfer * xs);
+static void     dptminphys(struct buf * bp);
+static void     dpt_sintr(void);
 void            dpt_intr(void *arg);
-char           *scsi_cmd_name(u_int8_t cmd);
-dpt_rb_t 
+static char    *scsi_cmd_name(u_int8_t cmd);
+static dpt_rb_t 
 dpt_register_buffer(int unit,
 		    u_int8_t channel,
 		    u_int8_t target,
@@ -219,7 +219,7 @@ dpt_register_buffer(int unit,
 		    u_int16_t offset,
 		    dpt_rec_buff callback,
 		    dpt_rb_op_t op);
-int 
+static int 
 dpt_send_buffer(int unit,
 		u_int8_t channel,
 		u_int8_t target,
@@ -489,7 +489,7 @@ dpt_set_target(int redo, dpt_softc_t * dpt,
                  of receipt of buffers.
  */
 
-int
+static int
 dpt_send_buffer(int unit,
 		u_int8_t channel,
 		u_int8_t target,
@@ -638,7 +638,7 @@ dpt_target_done(dpt_softc_t * dpt, int bus, dpt_ccb_t * ccb)
  * by the target mode code.
  */
 
-dpt_rb_t
+static dpt_rb_t
 dpt_register_buffer(int unit,
 		    u_int8_t channel,
 		    u_int8_t target,
@@ -1358,7 +1358,7 @@ dpt_setup(dpt_softc_t * dpt, dpt_conf_t * conf)
  * This function (and its like) assumes it is only running during system
  * initialization!
  */
-dpt_inq_t      *
+static dpt_inq_t *
 dpt_get_board_data(dpt_softc_t * dpt, u_int32_t target_id)
 {
 	/* get_conf returns 512 bytes, most of which are zeros... */
@@ -1816,7 +1816,7 @@ dpt_scatter_gather(dpt_softc_t * dpt, dpt_ccb_t * ccb, u_int32_t data_length,
  * submit it to the HBA. Otherwise we return SUCCESSFULLY_QUEUED.
  */
 
-int32_t
+static int32_t
 dpt_scsi_cmd(struct scsi_xfer * xs)
 {
 	dpt_softc_t    *dpt;
@@ -2156,7 +2156,7 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
  * dpt_min_segs, which is the SMALLEST number, from the ``weakest'' HBA found.
  */
 
-void
+static void
 dptminphys(struct buf * bp)
 {
 	/**
@@ -2525,7 +2525,7 @@ dpt_intr(void *arg)
  * This command rns at splSOFTcam.  Remember that.
  */
 
-void
+static void
 dpt_sintr(void)
 {
 	dpt_softc_t    *dpt;
@@ -3357,7 +3357,7 @@ checkit:
 /**
  * This function dumps bytes to the screen in hex format.
  */
-void
+static void
 hex_dump(u_int8_t * data, int length, char *name, int no)
 {
 	int             line, column, ndx;
@@ -3497,7 +3497,7 @@ i2bin(unsigned int no, int length)
  * and [SCSI III documentation section].
  */
 
-char           *
+static char *
 scsi_cmd_name(u_int8_t cmd)
 {
 	switch (cmd) {
