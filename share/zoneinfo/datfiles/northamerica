@@ -1,0 +1,321 @@
+# @(#)northamerica	4.8
+
+###############################################################################
+
+# United States
+
+# From Arthur David Olson:
+# US Daylight Saving Time ended on the last Sunday of *October* in 1974.
+# See, for example, the front page of the Saturday, October 26, 1974
+# and Sunday, October 27, 1974 editions of the Washington Post.
+
+# From seismo!munnari!kre:
+# I recall also being told by someone once that Canada didn't have
+# the DST variations in 74/75 that the US did, but I am not nearly
+# sure enough of this to add anything.
+
+# From Arthur David Olson:
+# The above has been confirmed by Bob Devine; we'll go with it here.
+
+# From Arthur David Olson:
+# Before the Uniform Time Act of 1966 took effect in 1967, observance of
+# Daylight Saving Time in the US was by local option, except during wartime.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	US	1918	1919	-	Mar	lastSun	2:00	1:00	D
+Rule	US	1918	1919	-	Oct	lastSun	2:00	0	S
+Rule	US	1942	only	-	Feb	9	2:00	1:00	W # War
+Rule	US	1945	only	-	Sep	30	2:00	0	S
+Rule	US	1967	max	-	Oct	lastSun	2:00	0	S
+Rule	US	1967	1973	-	Apr	lastSun	2:00	1:00	D
+Rule	US	1974	only	-	Jan	6	2:00	1:00	D
+Rule	US	1975	only	-	Feb	23	2:00	1:00	D
+Rule	US	1976	1986	-	Apr	lastSun	2:00	1:00	D
+Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+
+# From Bob Devine (January 28, 1988):
+# ...Alaska (and Hawaii) had the timezone names changed in 1967.
+#    old                         new
+#    Pacific Standard Time(PST)  -same-
+#    Yukon Standard Time(YST)    -same-
+#    Central Alaska S.T. (CAT)   Alaska-Hawaii St[an]dard Time (AHST)
+#    Nome Standard Time (NT)     Bering Standard Time (BST)
+# 
+# ...Alaska's timezone lines were redrawn in 1983 to give only 2 tz.
+#    The YST zone now covers nearly all of the state, AHST just part
+#    of the Aleutian islands.   No DST.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# USA  EASTERN       5 H  BEHIND UTC    NEW YORK, WASHINGTON
+# USA  EASTERN       4 H  BEHIND UTC    APR 3 - OCT 30
+# USA  CENTRAL       6 H  BEHIND UTC    CHICAGO, HOUSTON
+# USA  CENTRAL       5 H  BEHIND UTC    APR 3 - OCT 30
+# USA  MOUNTAIN      7 H  BEHIND UTC    DENVER
+# USA  MOUNTAIN      6 H  BEHIND UTC    APR 3 - OCT 30
+# USA  PACIFIC       8 H  BEHIND UTC    L.A., SAN FRANCISCO
+# USA  PACIFIC       7 H  BEHIND UTC    APR 3 - OCT 30
+# USA  ALASKA STD    9 H  BEHIND UTC    MOST OF ALASKA     (AKST)
+# USA  ALASKA STD    8 H  BEHIND UTC    APR 3 - OCT 30 (AKDT)
+# USA  ALEUTIAN     10 H  BEHIND UTC    ISLANDS WEST OF 170W
+# USA  - " -         9 H  BEHIND UTC    APR 3 - OCT 30
+# USA  HAWAII       10 H  BEHIND UTC
+# USA  BERING       11 H  BEHIND UTC    SAMOA, MIDWAY
+
+# From Arthur David Olson (January 21, 1989):
+# The above dates are for 1988.
+# Note the "AKST" and "AKDT" abbreviations, the claim that there's
+# no DST in Samoa, and the claim that there is DST in Alaska and the
+# Aleutians.
+
+# From Arthur David Olson (February 13, 1988):
+# Legal standard time zone names, from United States Code (1982 Edition and
+# Supplement III), Title 15, Chapter 6, Section 260 and forward.  First, names
+# up to April 1, 1967 (when most provisions of the Uniform Time Act of 1966
+# took effect), as explained in sections 263 and 261:
+#	(none)
+#	United States standard eastern time
+#	United States standard mountain time
+#	United States standard central time
+#	United States standard Pacific time
+#	(none)
+#	United States standard Alaska time
+#	(none)
+# Next, names from April 1, 1967 until November 30, 1983 (the date for
+# public law 98-181):
+#	Atlantic standard time
+#	eastern standard time
+#	central standard time
+#	mountain standard time
+#	Pacific standard time
+#	Yukon standard time
+#	Alaska-Hawaii standard time
+#	Bering standard time
+# And after November 30, 1983:
+#	Atlantic standard time
+#	eastern standard time
+#	central standard time
+#	mountain standard time
+#	Pacific standard time
+#	Alaska standard time
+#	Hawaii-Aleutian standard time
+#	Samoa standard time
+# The law doesn't give abbreviations.
+
+# Easy stuff first--including Alaska, where we ignore history (since we
+# can't tell if we should give Yukon time or Alaska-Hawaii time for "old"
+# times).
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	US/Eastern	-5:00	US		E%sT
+Zone	US/Central	-6:00	US		C%sT
+Zone	US/Mountain	-7:00	US		M%sT
+Zone	US/Pacific	-8:00	US		P%sT
+Zone	US/Alaska	-9:00	US		AK%sT	# Abbreviation per USNO
+
+# Mainland US areas that are always Standard as of 1986.
+
+Zone	US/East-Indiana	-5:00	US		E%sT	1946
+			-5:00	-		EST	# Always EST as of 1986
+Zone	US/Arizona	-7:00	US		M%sT	1946
+			-7:00	-		MST	# Always MST as of 1986
+
+# From Arthur David Olson (February 13, 1988):
+# However. . .a writer from the Inter Tribal Council of Arizona, Inc.,
+# notes in private correspondence dated 12/28/87 that "Presently, only the
+# Navajo Nation participates in the Daylight Saving Time policy, due to its
+# large size and location in three states."  (The "only" means that other
+# tribal nations don't use DST.)
+
+Link	US/Mountain	Navajo
+
+# From Bob Devine (January 28, 1988):
+# Michigan didn't observe DST from 1968 to 1973.
+
+Zone	US/Michigan	-5:00	US		E%sT	1968
+			-5:00	-		EST	1973
+			-5:00	US		E%sT
+
+# Samoa just changes names.  No DST, per Naval Observatory.
+
+Zone	US/Samoa	-11:00	-		NST	1967 Apr 1  # N=Nome
+			-11:00	-		BST	1983 Nov 30 # B=Bering
+			-11:00	-		SST		    # S=Samoa
+
+# Aleutian has a name change.  DST, per Naval Observatory.
+
+Zone	US/Aleutian	-10:00	US		AH%sT	1983 Nov 30
+			-10:00	US		HA%sT
+
+# From Arthur David Olson:
+# And then there's Hawaii.
+# DST was observed for one day in 1933;
+# Standard time was change by half an hour in 1947;
+# it's always standard as of 1986.
+
+Zone	US/Hawaii	-10:30	US	H%sT	1933 Apr 30 2:00
+			-10:30	1:00	HDT	1933 May 1 2:00
+			-10:30	US	H%sT	1947 Jun 8 2:00
+			-10:00	-	HST
+
+# Old names, for S5 users
+
+# Link	LINK-FROM	LINK-TO
+# Link	US/Eastern	EST5EDT
+# Link	US/Central	CST6CDT
+# Link	US/Mountain	MST7MDT
+# Link	US/Pacific	PST8PDT
+# Link	US/East-Indiana	EST
+# Link	US/Arizona	MST
+# Link	US/Hawaii	HST
+
+################################################################################
+
+# Canada
+
+# Canada is reportedly lots easier than the US--leastways since 1951.
+# I don't know what they did before then.
+# 4.3BSD claims that it's perfectly regular.
+# According to a posting in "comp.bugs.misc", "comp.unix.wizards", etc.
+# on February 8, 1987, by Dave Sherman of the Law Society of Upper Canada,
+# "...Canada (well, Ontario and at least some of the other provinces) are
+# adopting the new daylight savings time rules...".  We assume all of
+# Canada is doing so.
+
+# From Bob Devine (January 28, 1988):
+# All of Canada did have DST from your first rule except Saskatchewan.
+# Which parts did not observe DST is hard to pinpoint but most of the
+# province follows the rules.
+# NOTE: those that didn't have DST for that rule, also
+# probably did not have it for several years previous.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# CANADA   NEW FDL    3.5H BEHIND UTC    ST.JOHN'S
+# CANADA   NEW FDL    1.5H BEHIND UTC    APR 3 - OCT 29
+# CANADA   ATLANTIC   4 H  BEHIND UTC    HALIFAX
+# CANADA   ATLANTIC   3 H  BEHIND UTC    APR 3 - OCT 29
+# CANADA   EASTERN    5 H  BEHIND UTC    TORONTO, MONTREAL, OTTAWA
+# CANADA   EASTERN    4 H  BEHIND UTC    APR 3 - OCT 29
+# CANADA   CENTRAL    6 H  BEHIND UTC    REGINA, WINNIPEG
+# CANADA   CENTRAL    5 H  BEHIND UTC    APR 3 - OCT 29
+# CANADA   MOUNTAIN   7 H  BEHIND UTC    CALGARY, EDMONTON
+# CANADA   MOUNTAIN   6 H  BEHIND UTC    APR 3 - OCT 29
+# CANADA   PACIFIC    8 H  BEHIND UTC    VANCOUVER
+# CANADA   PACIFIC    7 H  BEHIND UTC    APR 3 - OCT 29
+# CANADA   YUKON      SAME AS PACIFIC    DAWSON
+
+# From Arthur David Olson (January 21, 1989):
+# April 3 fell on a Sunday in 1988; October 29 fell on a Sunday in 1989.  Ahem.
+# Note claim that there's double DST in Newfoundland and that Yukon should
+# be same as Pacific.  Stick with rules posted in 1988 until more authoritative
+# information is available.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Canada	1969	max	-	Oct	lastSun	2:00	0	S
+Rule	Canada	1969	1986	-	Apr	lastSun	2:00	1:00	D
+Rule	Canada	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+# Bob Devine says that DST *is* observed in Newfoundland
+Zone	Canada/Newfoundland	-3:30	Canada		N%sT
+Zone	Canada/Atlantic		-4:00	Canada		A%sT
+Zone	Canada/Eastern		-5:00	Canada		E%sT
+Zone	Canada/Central		-6:00	Canada		C%sT
+Zone	Canada/East-Saskatchewan	-6:00	-	CST # No DST as of 1987
+Zone	Canada/Mountain		-7:00	Canada		M%sT
+Zone	Canada/Pacific		-8:00	Canada		P%sT
+Zone	Canada/Yukon		-9:00	Canada		Y%sT
+
+###############################################################################
+
+# Mexico
+
+# From Guy Harris:
+# Rules are from the Official Airline Guide, Worldwide Edition, for 1987.
+# Rules prior to 1987 are unknown.
+# The comments in the OAG say "Only Ensenada, Mexicale, San Felipe and Tijuana
+# observe DST."  This is presumably Baja California Norte, above 28th parallel,
+# as listed there; Mexico/BajaSur is for "Baja California Sur and N. Pacific
+# Coast (States of Sinaloa and Sonora)."
+
+# From Bob Devine (January 28, 1988):
+# The Federal District (where Mexico City is) has observed [DST] several
+# times but not recently.
+# 
+# I don't where to drawn the line in the North Baja area.  28th latitude
+# sounds good -- but it may be higher (how far [d]o radio stations from
+# San Diego affect culture?).
+# 
+# The dates of DST probably go back to 1981.  The rules are the same as
+# US's.  This is going to be a headache for US presidential electi[o]n years!
+
+# From Arthur David Olson (February 13, 1988)
+# Since the 1981 starting date is only "probable," we'll keep the 1987
+# starting date below.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# MEXICO BAJA CAL N   7 H  BEHIND UTC    BAJA CALIFORNIA SUR AND
+# MEXICO BAJA CAL N                      N. PACIFIC COAST (STATES
+# MEXICO BAJA CAL N                      OF SINALOA AND SONORA)
+# MEXICO BAJA CAL N   8 H  BEHIND UTC    ABOVE 28TH PARALLAL APR 3
+# MEXICO BAJA CAL N                      - OCT 29
+# MEXICO BAJA CAL N   7 H  BEHIND UTC    ABOVE 28TH PARALLAL APR 3
+# MEXICO BAJA CAL N                      - 0CT 29
+# MEXICO              6 H  BEHIND UTC    STATES OF DURANGO,
+# MEXICO                                 COAHUILA, NUEVO LEON,
+# MEXICO                                 TAMAULIPAS
+# MEXICO              5 H  BEHIND UTC    STATES OF DURANGO,
+# MEXICO                                 COAHUILA, NUEVO LEON,
+# MEXICO                                 TAMAULIPAS  APR 3 - OCT 29
+# MEXICO              6 H  BEHIND UTC    GENERAL MEXICO, STATES OF
+# MEXICO                                 CAMPECHE, QUINTANA ROO AND
+# MEXICO                                 YUCATAN
+
+# From Arthur David Olson (January 21, 1989):
+# April 3 fell on a Sunday in 1988; October 29 fell on a Sunday in 1989.  Ahem.
+# USNO claims there should be four Mexican zones rather than three:
+# a zone that's GMT-8 with DST; a zone that's always GMT-7;
+# a zone that's GMT-6 with DST; and a zone that's always GMT-6.
+# Wait for more authoritative information before changing.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Mexico	1987	max	-	Oct	lastSun	2:00	0	S
+Rule	Mexico	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Mexico/BajaNorte	-8:00	Mexico		P%sT
+Zone	Mexico/BajaSur		-7:00	-		MST
+Zone	Mexico/General		-6:00	-		CST
+
+###############################################################################
+
+# Jamaica
+
+# From Bob Devine (January 28, 1988):
+# Follows US rules.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# JAMAICA             5 H  BEHIND UTC
+
+Link	US/Eastern	Jamaica
+
+###############################################################################
+
+# Cuba
+
+# From Bob Devine (January 28, 1988):
+# . . .DST is from 2nd Sunday in May to 2nd Sunday in October since 1981.
+# Change at midnight.  In 1979 & 1980, started at 3rd Sunday in March
+# (I think).
+
+# From U. S. Naval Observatory (January 19, 1989):
+# CUBA                5 H  BEHIND UTC
+# CUBA                4 H  BEHIND UTC    MAR 20 - OCT 8
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Cuba	1979	1980	-	Mar	Sun>=15	0:00	1:00	D
+Rule	Cuba	1979	1980	-	Oct	Sun>=8	0:00	0	S
+Rule	Cuba	1981	max	-	May	Sun>=8	0:00	1:00	D
+Rule	Cuba	1981	max	-	Oct	Sun>=8	0:00	0	S
+
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT
+Zone	Cuba			-5:00	Cuba		C%sT
