@@ -121,7 +121,7 @@ struct slot {
 #define PCCARD_DEVICE2SOFTC(d)	((struct slot *) device_get_softc(d))
 #define PCCARD_DEV2SOFTC(d)	((struct slot *) (d)->si_drv1)
 
-enum card_event { card_removed, card_inserted };
+enum card_event { card_removed, card_inserted, card_deactivated };
 
 struct slot	*pccard_init_slot(device_t, struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
