@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/memrange.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -78,7 +78,6 @@ mem_range_AP_init(void)
 	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
 		mem_range_softc.mr_op->initAP(&mem_range_softc);
 }
-
 
 /* ARGSUSED */
 int
