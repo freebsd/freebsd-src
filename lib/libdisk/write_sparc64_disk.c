@@ -36,6 +36,15 @@ Write_Disk(const struct disk *d1)
 	char device[64];
 	int fd;
 
+	strcpy(device,_PATH_DEV);
+	strcat(device,d1->name);
+
+	fd = open(device,O_RDWR);
+	if (fd < 0) {
+		warn("open(%s) failed", device);
+		return (1);
+	}
+
 	sl = calloc(sizeof *sl, 1);
 	c = d1->chunks;
 	c2 = c->part;
@@ -70,6 +79,10 @@ Write_Disk(const struct disk *d1)
 		i = *p - 'a';
 		sl->sl_part[i].sdkp_cyloffset = c1->offset / secpercyl;
 		sl->sl_part[i].sdkp_nsectors = c1->size;
+		for (i = 1; i < 16; i++) {
+			write_block(fd, c1->offset + i, d1->boot1 + (i * 512),
+			    512);
+		}
 	}
 
 	/*
@@ -87,19 +100,7 @@ Write_Disk(const struct disk *d1)
 		cksum ^= *sp1++;
 	sl->sl_cksum = cksum;
 
-	strcpy(device,_PATH_DEV);
-        strcat(device,d1->name);
-
-        fd = open(device,O_RDWR);
-        if (fd < 0) {
-                warn("open(%s) failed", device);
-                return (1);
-        }
-
 	write_block(fd, 0, sl, sizeof *sl);
-
-	for (i = 1; i < 16; i++)
-		write_block(fd, i, d1->boot1 + (i * 512), 512);
 
 	close(fd);
 	return 0;
