@@ -1342,6 +1342,8 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Conexant LANfinity RS7112 (MiniPCI) (&man.dc.4; driver)</para>
+
     <para arch="i386">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
     (&man.fe.4; driver)
       <itemizedlist>
