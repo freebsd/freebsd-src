@@ -30,17 +30,19 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/imgact_elf.h>
 
-int usage();
+int usage(void);
 
+int
 main(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind;
 
-	char type[10] = "FreeBSD";
+	const char *type = "FreeBSD";
+	int retval = 0;
 	int ch, change = 0, verbose = 0;
 
 	while ((ch = getopt(argc, argv, "t:v")) != EOF)
@@ -50,7 +52,7 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			change = 1;
-			strcpy(type, optarg);
+			type = optarg;
 			break;
 		default:
 			usage();
@@ -68,17 +70,20 @@ main(int argc, char **argv)
 
 		if ((fd = open(argv[0], O_RDWR, 0)) < 0) {
 			fprintf(stderr, "No such file %s.\n", argv[0]);
+			retval = 1;
 			goto fail;
 			
 		}
 		if (read(fd, buffer, EI_NINDENT) < EI_NINDENT) {
 			fprintf(stderr, "File '%s' too short.\n", argv[0]);
+			retval = 1;
 			goto fail;
 		}
 		if (buffer[0] != ELFMAG0 || buffer[1] != ELFMAG1 ||
 		    buffer[2] != ELFMAG2 || buffer[3] != ELFMAG3) {
 			fprintf(stderr, "File '%s' is not ELF format.\n",
 				argv[0]);
+			retval = 1;
 			goto fail;
 		}		
 		if (!change) {
@@ -97,6 +102,7 @@ main(int argc, char **argv)
 			lseek(fd, 0, SEEK_SET);
 			if (write(fd, buffer, EI_NINDENT) != EI_NINDENT) {
 				fprintf(stderr, "Error writing %s\n", argv[0]);
+			retval = 1;
 				goto fail;
 			}
 		}
@@ -104,10 +110,13 @@ fail:
 		argc--;
 		argv++;
 	}
+
+	return retval;
 }
 
 int
-usage()
+usage(void)
 {
 	fprintf(stderr, "Usage: brandelf [-t string] file ...\n");
+	exit(1);
 }
