@@ -388,14 +388,14 @@ Defaults to on.
 Integer: default interval between
 .Tn IPv6
 router renumbering prefix babysitting, in seconds.
-.It Dv IPV6CTL_MAPPED_ADDR
-.Pq ip6.mapped_addr
-Boolean: enable/disable use of
+.It Dv IPV6CTL_V6ONLY
+.Pq ip6.v6only
+Boolean: enable/disable the prohibited use of
 .Tn IPv4
 mapped address on
 .Dv AF_INET6
 sockets.
-Defaults to on.
+Defaults to off.
 .It Dv IPV6CTL_RTEXPIRE
 .Pq ip6.rtexpire
 Integer: lifetime in seconds of protocol-cloned
