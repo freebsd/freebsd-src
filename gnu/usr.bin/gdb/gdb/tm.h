@@ -25,8 +25,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* 386BSD cannot handle the segment registers. */
 /* BSDI can't handle them either.  */
+/* FreeBSD cannot handle %fs or %gs.  */
 #undef NUM_REGS
+#ifdef __FreeBSD__
+#define NUM_REGS 14
+#else
 #define NUM_REGS 10
+#endif
 
 /* On 386 bsd, sigtramp is above the user stack and immediately below
    the user area. Using constants here allows for cross debugging.
