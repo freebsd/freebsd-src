@@ -133,7 +133,7 @@ void	mac_init_bpfdesc(struct bpf_d *);
 void	mac_init_cred(struct ucred *);
 void	mac_init_devfsdirent(struct devfs_dirent *);
 void	mac_init_ifnet(struct ifnet *);
-void	mac_init_ipq(struct ipq *);
+int	mac_init_ipq(struct ipq *, int flag);
 int	mac_init_socket(struct socket *, int flag);
 void	mac_init_pipe(struct pipe *);
 int	mac_init_mbuf(struct mbuf *m, int flag);

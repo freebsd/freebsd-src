@@ -242,12 +242,13 @@ mac_test_init_ifnet_label(struct label *label)
 	atomic_add_int(&init_count_ifnet, 1);
 }
 
-static void
-mac_test_init_ipq_label(struct label *label)
+static int
+mac_test_init_ipq_label(struct label *label, int flag)
 {
 
 	SLOT(label) = IPQMAGIC;
 	atomic_add_int(&init_count_ipq, 1);
+	return (0);
 }
 
 static int
