@@ -62,9 +62,15 @@ typedef union modspecific {
 
 #ifdef _KERNEL
 
+#define MODULE_METADATA(uniquifier, type, data, cval)
+
+#define MODULE_DEPEND(mod, dep, min, pref, max)
+
 #define DECLARE_MODULE(name, data, sub, order) \
     SYSINIT(name##module, sub, order, module_register_init, &data) \
     struct __hack
+
+#define MODULE_VERSION(mod, ver)
 
 void module_register_init(const void *data);
 struct linker_file;
