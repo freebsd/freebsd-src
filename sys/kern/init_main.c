@@ -43,6 +43,7 @@
  */
 
 #include "opt_init_path.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -50,6 +51,7 @@
 #include <sys/filedesc.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -362,6 +364,9 @@ KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
+#ifdef MAC
+	mac_create_proc0(p->p_ucred);
+#endif
 	td->td_ucred = crhold(p->p_ucred);
 
 	/* Create procsig. */
@@ -657,6 +662,9 @@ create_init(const void *udata __unused)
 	initproc->p_flag |= P_SYSTEM;
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
+#ifdef MAC
+	mac_create_proc1(newcred);
+#endif
 	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);
 	crfree(oldcred);
