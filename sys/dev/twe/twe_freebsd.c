@@ -159,7 +159,8 @@ twe_probe(device_t dev)
     debug_called(4);
 
     if ((pci_get_vendor(dev) == TWE_VENDOR_ID) &&
-	(pci_get_device(dev) == TWE_DEVICE_ID)) {
+	((pci_get_device(dev) == TWE_DEVICE_ID) || 
+	 (pci_get_device(dev) == TWE_DEVICE_ID_ASIC))) {
 	device_set_desc(dev, TWE_DEVICE_NAME);
 #ifdef TWE_OVERRIDE
 	return(0);
