@@ -1,13 +1,11 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.3 1997/12/02 20:46:18 wollman Exp $
+#	$Id: Makefile,v 1.4 1997/12/16 17:53:39 bde Exp $
 
 PROG=	pac
 CFLAGS+=-I${.CURDIR}/../common_source
 MAN8=	pac.8
-SRCS=	pac.c
 .PATH:	${.CURDIR}/../common_source
-DPADD=	${.OBJDIR}/../common_source/liblpr.a
-LDADD=	-L${.OBJDIR}/../common_source -llpr
+DPADD=	${LIBLPR}
+LDADD=	${LIBLPR}
 
-.include "../../Makefile.inc"
 .include <bsd.prog.mk>
