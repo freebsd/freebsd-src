@@ -243,6 +243,8 @@ int	cap_equal_np(cap_t, cap_t);
 /* Is the first cap set a subset of the second? */
 int	cap_subset_np(cap_t, cap_t);
 
+#define	CAP_MAX_BUF_LEN		1024	/* Maximum cap text buffer length */
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_CAPABILITY_H */
