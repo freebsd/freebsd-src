@@ -142,10 +142,11 @@ Execute
 .I command
 as part of the unpacking process.  If
 .I command
-contains a `%s' sequence somewhere in it, it will be expanded to
-the name of the last filename extracted.  In practice, such
-weird things should be unnecessary in all but the most extenuating
-circumstances, but it's there should you need it nonetheless.
+contains a `%s/%s' sequence somewhere in it, it will be expanded to
+the name of the current directory and last filename extracted.  In
+practice, such weird things should be unnecessary in all but the most
+extenuating circumstances, but it's there should you need it
+nonetheless.
 .TP
 .BI "@mode\ " mode
 Sets default permission for all subsequently extracted files to
