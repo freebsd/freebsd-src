@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.14 1998/02/03 21:51:56 bde Exp $
+ * $Id: nfsm_subs.h,v 1.15 1998/03/30 09:54:41 phk Exp $
  */
 
 
@@ -434,12 +434,9 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			nfsm_dissect(tl, u_long *, 2 * NFSX_UNSIGNED); \
 			fxdr_nfsv3time(tl, &(a)->va_atime); \
 			break; \
-		case NFSV3SATTRTIME_TOSERVER: { \
-			struct timeval tv; \
-			getmicrotime(&tv); \
-			(a)->va_atime.tv_sec = tv.tv_sec; \
-			(a)->va_atime.tv_nsec = tv.tv_usec * 1000; \
-			break; } \
+		case NFSV3SATTRTIME_TOSERVER: \
+			getnanotime(&(a)->va_atime); \
+			break; \
 		}; \
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED); \
 		switch (fxdr_unsigned(int, *tl)) { \
@@ -447,12 +444,9 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			nfsm_dissect(tl, u_long *, 2 * NFSX_UNSIGNED); \
 			fxdr_nfsv3time(tl, &(a)->va_mtime); \
 			break; \
-		case NFSV3SATTRTIME_TOSERVER: { \
-			struct timeval tv; \
-			getmicrotime(&tv); \
-			(a)->va_mtime.tv_sec = tv.tv_sec; \
-			(a)->va_mtime.tv_nsec = tv.tv_usec * 1000; \
-			break; } \
+		case NFSV3SATTRTIME_TOSERVER: \
+			getnanotime(&(a)->va_mtime); \
+			break; \
 		}; }
 
 #endif
