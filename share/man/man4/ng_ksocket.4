@@ -53,16 +53,17 @@ it appear as a Netgraph node.  The
 node type is the reverse of the socket node type (see
 .Xr ng_socket 8 "):"
 whereas the socket node type enables the user-level manipulation (via
-a socket) of a kernel-level entity (the associated Netgraph node), the
+a socket) of what is normally a kernel-level entity (the associated
+Netgraph node), the
 .Nm ksocket
 node type enables the kernel-level manipulation (via a Netgraph node) of
-a user-level entity (the associated socket).
+what is normally a user-level entity (the associated socket).
 .Pp
 A
 .Nm ksocket
 node allows at most one hook connection.  Connecting to the node is
 equivalent to opening the associated socket.  The name given to the hook
-determines what kind of socket the node will act like (see below).
+determines what kind of socket the node will open (see below).
 When the hook is disconnected and/or the node is shutdown, the
 associated socket is closed.
 .Sh HOOKS
@@ -93,7 +94,7 @@ socket address parameter should be supplied as an argument.
 .It Dv NGM_KSOCKET_LISTEN
 This functions exactly like the
 .Xr listen 2
-system call.  The backlog paramter (a single
+system call.  The backlog paramter (a single 32 bit
 .Dv int )
 should be supplied as an argument.
 .It Dv NGM_KSOCKET_CONNECT
@@ -101,19 +102,68 @@ This functions exactly like the
 .Xr connect 2
 system call.  The
 .Dv "struct sockaddr"
-socket address parameter should be supplied as an argument.
+destination address parameter should be supplied as an argument.
 .It Dv NGM_KSOCKET_ACCEPT
 Currently unimplemented.
 .It Dv NGM_KSOCKET_GETNAME
-Currently unimplemented.
+Equivalent to the
+.Xr getname 2
+system call.  The name is returned as a
+.Dv "struct sockaddr"
+in the arguments field of the reply.
 .It Dv NGM_KSOCKET_GETPEERNAME
-Currently unimplemented.
+Equivalent to the
+.Xr getpeername 2
+system call.  The name is returned as a
+.Dv "struct sockaddr"
+in the arguments field of the reply.
 .It Dv NGM_KSOCKET_SETOPT
-Currently unimplemented.
+Equivalent to the
+.Xr setsockopt 2
+system call, except that the option name, level, and value are passed in a
+.Dv "struct ng_ksocket_sockopt" .
 .It Dv NGM_KSOCKET_GETOPT
-Currently unimplemented.
+Equivalent to the
+.Xr getsockopt 2
+system call, except that the option is passed in a
+.Dv "struct ng_ksocket_sockopt" .
+When sending this command, the
+.Dv value
+field should be empty; upon return, it will contain the
+retrieved value.
 .El
 .Pp
+.Sh ASCII FORM CONTROL MESSAGES
+For control messages that pass a
+.Dv "struct sockaddr"
+in the argument field, the normal ASCII equivalent of the C structure
+is an acceptable form.  For the
+.Dv PF_INET
+and
+.Dv PF_LOCAL
+address families, a more convenient form is also used, which is
+the protocol family name, followed by a slash, followed by the actual
+address.  For
+.Dv PF_INET ,
+the address is an IP address followed by an optional colon and port number.
+For
+.Dv PF_LOCAL ,
+the address is the pathname as a doubly quoted string.
+.Pp
+Examples:
+.Bl -tag -width XXXXXXXXXX
+.It Dv PF_LOCAL
+inet/192.168.1.1:1234
+.It Dv PF_INET
+local/"/tmp/foo.socket"
+.It Other
+.Dv "{ family=16 len=16 data=[ 0x70 0x00 0x01 0x23 ] }"
+.El
+.Pp
+For control messages that pass a
+.Dv "struct ng_ksocket_sockopt" ,
+the normal ASCII form for that structure is used.  In the future, more
+convenient encoding of the more common socket options may be supported.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
