@@ -180,7 +180,8 @@ fdesc_lookup(ap)
 	int error;
 	struct vnode *fvp;
 
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME) {
+	if ((cnp->cn_flags & ISLASTCN) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
 		error = EROFS;
 		goto bad;
 	}
