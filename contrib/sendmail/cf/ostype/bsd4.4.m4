@@ -13,9 +13,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bsd4.4.m4	8.9 (Berkeley) 5/19/98')
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /usr/share/misc/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/log/sendmail.st)')dnl
+VERSIONID(`@(#)bsd4.4.m4	8.10 (Berkeley) 10/6/1998')
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/share/misc/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/log/sendmail.st'))')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/libexec/mail.local)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail $u')')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -z -a$g $h!rmail ($u)')')dnl

@@ -8,9 +8,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     @(#)sendmail.8	8.19 (Berkeley) 5/19/98
+.\"     @(#)sendmail.8	8.20 (Berkeley) 8/2/1998
 .\"
-.Dd May 19, 1998
+.Dd August 2, 1998
 .Dt SENDMAIL 8
 .Os BSD 4
 .Sh NAME
@@ -277,6 +277,9 @@ Log all traffic in and out of mailers in the indicated log file.
 This should only be used as a last resort
 for debugging mailer bugs.
 It will log a lot of data very quickly.
+.It Fl -
+Stop processing command flags and use the rest of the arguments
+as addresses.
 .El
 .Ss Options
 There are also a number of processing options that may be set.
