@@ -78,7 +78,7 @@
 struct swblock {
 	struct swblock	*swb_hnext;
 	vm_object_t	swb_object;
-	int		swb_index;
+	vm_pindex_t	swb_index;
 	int		swb_count;
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
@@ -96,6 +96,7 @@ void swap_pager_copy __P((vm_object_t, vm_object_t, vm_pindex_t, int));
 void swap_pager_freespace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_dmzspace __P((vm_object_t, vm_pindex_t, vm_size_t));
 void swap_pager_swap_init __P((void));
+int swap_pager_reserve __P((vm_object_t, vm_pindex_t, vm_size_t));
 
 /*
  * newswap functions
