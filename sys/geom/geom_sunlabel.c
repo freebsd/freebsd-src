@@ -59,7 +59,9 @@
 #define SUNLABEL_CLASS_NAME "SUN"
 
 struct g_sunlabel_softc {
-	int foo;
+	int nheads;
+	int nsects;
+	int nalt;
 };
 
 static int
@@ -78,8 +80,16 @@ g_sunlabel_start(struct bio *bp)
 static void
 g_sunlabel_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
+	struct g_slicer *gsp;
+	struct g_sunlabel_softc *ms;
 
+	gsp = gp->softc;
+	ms = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	if (indent == NULL) {
+		sbuf_printf(sb, " sc %u hd %u alt %u",
+		    ms->nsects, ms->nheads, ms->nalt);
+	}
 }
 
 static struct g_geom *
@@ -151,8 +161,11 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("v_head %d\n", g_dec_be2(buf + 436));
 			printf("v_sec %d\n", g_dec_be2(buf + 438));
 		}
+		ms->nalt = g_dec_be2(buf + 434);
+		ms->nheads = g_dec_be2(buf + 436);
+		ms->nsects = g_dec_be2(buf + 438);
 
-		csize = g_dec_be2(buf + 436) * g_dec_be2(buf + 438);
+		csize = ms->nheads * ms->nsects;
 
 		for (i = 0; i < 8; i++) {
 			v = g_dec_be4(buf + 444 + i * 8);
