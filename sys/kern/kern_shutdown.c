@@ -257,6 +257,8 @@ boot(howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
+			if (iter > 5 && bioops.io_sync)
+				(*bioops.io_sync)(NULL);
 			sync(&proc0, NULL);
 			DELAY(50000 * iter);
 		}
@@ -277,8 +279,8 @@ boot(howto)
 				nbusy++;
 #if defined(SHOW_BUSYBUFS) || defined(DIAGNOSTIC)
 				printf(
-			    "%d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
-				    nbusy, devtoname(bp->b_dev),
+			    "%p %d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
+				    bp, nbusy, devtoname(bp->b_dev),
 				    bp->b_flags, (long)bp->b_blkno,
 				    (long)bp->b_lblkno);
 #endif
