@@ -46,7 +46,7 @@
 .Op Cm create
 .Op Ar address_family
 .Oo
-.Ar address Ns Op Cm / Ns Ar prefixlength
+.Ar address
 .Op Ar dest_address
 .Oc
 .Op Ar parameters
@@ -100,6 +100,15 @@ It is also possible to use the CIDR notation (also known as the
 slash notation) to include the netmask.
 That is, one can specify an address like
 .Li 192.168.0.1/16 .
+.Pp
+For
+.Dq inet6
+family, it is also possible to specify the prefix length using the slash
+notation, like
+.Li ::1/128 .
+See the
+.Cm prefixlen
+parameter below for more information.
 .\" For the Xerox Network Systems(tm) family,
 .\" addresses are
 .\" .Ar net:a.b.c.d.e.f ,
@@ -413,6 +422,11 @@ The
 must be integer, and for syntactical reason it must be between 0 to 128.
 It is almost always 64 under the current IPv6 assignment rule.
 If the parameter is omitted, 64 is used.
+.Pp
+The prefix can also be specified using the slash notation after the address.
+See the
+.Ar address
+option above for more information.
 .\" see
 .\" Xr eon 5 .
 .\" .It Cm nsellength Ar n
