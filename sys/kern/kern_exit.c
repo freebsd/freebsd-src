@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.79 1999/04/28 01:04:26 luoqi Exp $
+ * $Id: kern_exit.c,v 1.80 1999/04/28 11:36:52 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -143,21 +143,10 @@ exit1(p, rv)
 			kill(p, &killArgs);
 			nq = q;
 			q = q->p_peers;
-			/*
-			 * orphan the threads so we don't mess up
-			 * when they call exit
-			 */
-			nq->p_peers = 0;
-			nq->p_leader = nq;
 		}
-
-	/* otherwise are we a peer? */
-	} else if(p->p_peers) {
-		q = p->p_leader;
-		while(q->p_peers != p)
-			q = q->p_peers;
-		q->p_peers = p->p_peers;
-	}
+		while (p->p_peers) 
+		  tsleep((caddr_t)p, PWAIT, "exit1", 0);
+	} 
 
 #ifdef PGINPROF
 	vmsizmon();
@@ -199,6 +188,14 @@ exit1(p, rv)
 	 * This may block!
 	 */
 	fdfree(p);
+
+	if(p->p_leader->p_peers) {
+		q = p->p_leader;
+		while(q->p_peers != p)
+			q = q->p_peers;
+		q->p_peers = p->p_peers;
+		wakeup((caddr_t)p->p_leader);
+	}
 
 	/*
 	 * XXX Shutdown SYSV semaphores
