@@ -1301,7 +1301,7 @@ mn_attach (device_t self)
 	u = pci_read_config(self, PCIR_COMMAND, 1);
 	printf("%x\n", u);
 
-	ver = pci_read_config(self, PCI_CLASS_REG, 4);
+	ver = pci_get_revid(self);
 
 	sc->m32x = (struct m32xreg *) sc->m0v;
 	sc->f54w = (struct f54wreg *) sc->m1v;
@@ -1313,12 +1313,12 @@ mn_attach (device_t self)
 		return (0);
 
 	printf("mn%d: Munich32X", sc->unit);
-	switch (ver & 0xff) {
+	switch (ver) {
 	case 0x13:
 		printf(" Rev 2.2");
 		break;
 	default:
-		printf(" Rev 0x%x\n", ver & 0xff);
+		printf(" Rev 0x%x\n", ver);
 	}
 	printf(", Falc54");
 	switch (sc->f54r->vstr) {
