@@ -38,6 +38,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	have all your ports/packages rebuilt before removing the old
 	libraries.
 
+	As a temporary measure, if you do not have any 4.X executables,
+	you can add the following lines to /etc/libmap.conf to force
+	5.X executables to use the new libraries:
+
+		libhistory.so.4		libhistory.so.5
+		libm.so.2		libm.so.3
+		libopie.so.2		libopie.so.3
+		libpcap.so.2		libpcap.so.3
+		libreadline.so.4	libreadline.so.5
+
 20040929:
 	The pfil API has gained an additional argument to pass an inpcb.
 	You should rebuild all pfil consuming modules: ipfw, ipfilter
