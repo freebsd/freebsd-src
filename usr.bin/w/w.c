@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.23 1997/09/12 02:26:12 ache Exp $";
+	"$Id: w.c,v 1.24 1997/10/13 15:17:03 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -245,7 +245,7 @@ main(argc, argv)
 		if (wcmd == 0)
 			exit (0);
 
-#define HEADER	"USER             TTY FROM              LOGIN@  IDLE WHAT\n"
+#define HEADER	"USER             TTY      FROM              LOGIN@  IDLE WHAT\n"
 #define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
 		(void)printf(HEADER);
 	}
@@ -371,8 +371,9 @@ main(argc, argv)
 				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, p);
 			}
 		}
-		(void)printf("%-*.*s %-3.3s %-*.*s ",
+		(void)printf("%-*.*s %-*.*s %-*.*s ",
 		    UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
+		    UT_LINESIZE, UT_LINESIZE,
 		    strncmp(ep->utmp.ut_line, "tty", 3) &&
 		    strncmp(ep->utmp.ut_line, "cua", 3) ?
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
