@@ -691,11 +691,7 @@ execve(td, uap)
 	} */ *uap;
 {
 
-#ifdef MAC
 	return (kern_execve(td, uap->fname, uap->argv, uap->envv, NULL));
-#else
-	return (ENOSYS);
-#endif
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -721,8 +717,12 @@ __mac_execve(td, uap)
 	} */ *uap;
 {
 
+#ifdef MAC
 	return (kern_execve(td, uap->fname, uap->argv, uap->envv,
 	    uap->mac_p));
+#else
+	return (ENOSYS);
+#endif
 }
 
 int
