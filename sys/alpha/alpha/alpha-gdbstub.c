@@ -153,18 +153,18 @@ strcpy (char *dst, const char *src)
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-  if (gdbdev == NODEV)
+  if (gdb_arg == NULL)
 	return 0;
-  (*gdb_putc)(gdbdev, c);
+  (*gdb_putc)(gdb_arg, c);
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-  if (gdbdev == NODEV)
+  if (gdb_arg == NULL)
 	return -1;
-  return (*gdb_getc)(gdbdev);
+  return (*gdb_getc)(gdb_arg);
 }
 
 static const char hexchars[]="0123456789abcdef";
@@ -625,7 +625,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
   while (1)
     {
-      if (gdbdev == NODEV)	/* somebody's removed it */
+      if (gdb_arg == NULL)	/* somebody's removed it */
 	return;			/* get out of here */
       remcomOutBuffer[0] = 0;
 
