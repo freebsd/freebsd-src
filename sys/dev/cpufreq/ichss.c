@@ -166,7 +166,11 @@ ichss_pci_probe(device_t dev)
 	if (devclass_get_device(ichss_devclass, 0))
 		return (ENXIO);
 
-	/* Add a child under the CPU parent. */
+	/*
+	 * Add a child under the CPU parent.  It appears that ICH SpeedStep
+	 * only requires a single CPU to set the value (since the chipset
+	 * is shared by all CPUs.)  Thus, we only add a child to cpu 0.
+	 */
 	parent = devclass_get_device(devclass_find("cpu"), 0);
 	KASSERT(parent != NULL, ("cpu parent is NULL"));
 	child = BUS_ADD_CHILD(parent, 0, "ichss", 0);
