@@ -885,14 +885,6 @@ main(int argc, char **argv)
 	if (DEBUG(GRAPH2))
 		Targ_PrintGraph(2);
 
-	Suff_End();
-        Targ_End();
-	Arch_End();
-	str_end();
-	Var_End();
-	Parse_End();
-	Dir_End();
-
 	if (queryFlag && outOfDate)
 		return (1);
 	else

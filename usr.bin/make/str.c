@@ -60,24 +60,6 @@ str_init(void)
     argv[0] = Var_Value(".MAKE", VAR_GLOBAL, &p1);
 }
 
-
-/*
- * str_end --
- *	Cleanup the strings package
- *
- */
-void
-str_end(void)
-{
-    if (argv) {
-	if (argv[0])
-	    free(argv[0]);
-	free(argv);
-    }
-    if (buffer)
-	free(buffer);
-}
-
 /*-
  * str_concat --
  *	concatenate the two strings, inserting a space or slash between them.
