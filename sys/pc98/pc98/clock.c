@@ -994,6 +994,7 @@ cpu_initclocks()
 		       "routing 8254 via 8259 and IOAPIC #0 intpin 0\n");
 #endif
 	
+	init_TSC_tc();
 }
 
 #ifdef APIC_IO
