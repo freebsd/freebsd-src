@@ -30,7 +30,7 @@ do
 		echo "$prog: option $1 requires an argument" >&2
 		exit 1
 		;;
-	-[iStp]|-[mrno]*)
+	-i|-S|-[mrno]*)
 		opts="$opts $1";
 		;;
 
