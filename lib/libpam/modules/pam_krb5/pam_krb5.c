@@ -247,7 +247,7 @@ static struct opttab other_options[] = {
  * authentication management
  */
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -258,8 +258,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct options options;
 	struct passwd *pwd;
 	int retval;
-	const char *sourceuser, *user, *pass;
-	char *principal, *princ_name, *service, *cache_name, luser[32];	
+	const char *sourceuser, *user, *pass, *service;
+	char *principal, *princ_name, *cache_name, luser[32];	
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -708,7 +708,7 @@ cleanup3:
  * account management
  */
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
@@ -773,7 +773,7 @@ cleanup:
  * logging only
  */
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -785,7 +785,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -896,7 +896,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("New passwords are the same");
 
 	/* Change it */
-	krbret = krb5_change_password(pam_context, &creds, (char *)pass,
+	krbret = krb5_change_password(pam_context, &creds, pass,
 	    &result_code, &result_code_string, &result_string);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_change_password(): %s",
@@ -959,7 +959,8 @@ verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
 	krb5_keyblock *keyblock;
 	krb5_data packet;
 	krb5_auth_context auth_context;
-	char phost[BUFSIZ], *services[3], **service;
+	char phost[BUFSIZ];
+	const char *services[3], **service;
 
 	packet.data = 0;
 
@@ -1047,7 +1048,7 @@ cleanup:
 
 /* Free the memory for cache_name. Called by pam_end() */
 static void
-cleanup_cache(pam_handle_t *pamh, void *data, int pam_end_status)
+cleanup_cache(pam_handle_t *pamh __unused, void *data, int pam_end_status __unused)
 {
 	krb5_context pam_context;
 	krb5_ccache ccache;
@@ -1074,13 +1075,13 @@ cleanup_cache(pam_handle_t *pamh, void *data, int pam_end_status)
 
 #ifdef COMPAT_HEIMDAL
 static const char *
-compat_princ_component(krb5_context context, krb5_principal princ, int n)
+compat_princ_component(krb5_context context __unused, krb5_principal princ, int n)
 {
 	return princ->name.name_string.val[n];
 }
 
 static void
-compat_free_data_contents(krb5_context context, krb5_data * data)
+compat_free_data_contents(krb5_context context __unused, krb5_data * data)
 {
 	krb5_xfree(data->data);
 }
