@@ -1,4 +1,4 @@
-# @(#)asia	7.11
+# @(#)asia	7.13
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -48,12 +48,12 @@
 #	8:00	PST PDT	Philippines*
 #	8:00	SGT	Singapore
 #	8:00	UST UDT	Ulan Bator*
-#	9:00	JST	Japan
+#	9:00	JST JDT	Japan
 #	9:00	KST KDT	Korea
 #	9:00	MLT	Moluccas*
 #	9:30	CST	Australian Central Standard Time
 #
-# See the `europe' file for Russia in Asia.
+# See the `europe' file for Russia and Turkey in Asia.
 #
 # See the `africa' file for Zone naming conventions.
 
@@ -306,6 +306,11 @@ Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 # ZONE-DESCR Asia Cyprus Cyprus All points
 
 # Georgia
+# From Paul Eggert <eggert@twinsun.com> (1994-11-19):
+# Today's _Economist_ (p 60) reports that Georgia moved its clocks forward
+# an hour recently, due to a law proposed by Zurab Murvanidze,
+# an MP who went on a hunger strike for 11 days to force discussion about it!
+# Alas, we have no details.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			2:59	-	LST	1924 May  2
@@ -496,7 +501,14 @@ Rule	Zion	1993	only	-	Sep	 5	0:00	0:00	S
 Rule    Zion    1994    only    -       Apr      1      0:00    1:00    D
 Rule    Zion    1994    only    -       Aug     28      0:00    0:00    S
 Rule    Zion    1995    only    -       Mar     31      0:00    1:00    D
-Rule    Zion    1995    only    -       Aug     27      0:00    0:00    S
+# On 1995-03-13 Ephraim Silverberg corrected the next line from Aug 27 to Sep 3.
+Rule    Zion    1995    only    -       Sep      3      0:00    0:00    S
+
+# From Ephraim Silverberg (1995-03-13):
+# The Spokeswoman's office confirmed that there are not yet any dates
+# for the timezone conversion for the years 1996 and beyond yet
+# and this is one of the things the newly-appointed Minister of Interior
+# will have to decide sometime this year.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tel_Aviv	2:19:04 -	LMT	1880
@@ -511,20 +523,44 @@ Zone	Asia/Tel_Aviv	2:19:04 -	LMT	1880
 
 # `9:00' and `JST' is from Guy Harris.
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
-# Shanks says that the far southern Ryukyu Is (Nansei-Shoto) are 8:00,
-# but we don't have a good location name for them;
-# we don't even know the name of the principal town.
-# There is no information for Marcus.
-# Other Japanese possessions are probably like Asia/Tokyo.
+# From Paul Eggert <eggert@twinsun.com> (1995-03-06):
+# Today's _Asahi Evening News_ (page 4) reports that Japan had
+# daylight saving between 1948 and 1951, but ``the system was discontinued
+# because the public believed it would lead to longer working hours.''
+# Shanks writes that daylight saving in Japan during those years was as follows:
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+#Rule	Japan	1948	only	-	May	Sun>=1	2:00	1:00	D
+#Rule	Japan	1948	1951	-	Sep	Sat>=8	2:00	0	S
+#Rule	Japan	1949	only	-	Apr	Sun>=1	2:00	1:00	D
+#Rule	Japan	1950	1951	-	May	Sun>=1	2:00	1:00	D
+# but the only locations using it were US military bases.
+# We go with Shanks and omit daylight saving in those years for Asia/Tokyo.
+#
+# The same news article also reports that Japan is likely to go on DST in 1996
+# as follows, where I've guessed the AT and LETTER/S columns:
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+#Rule	Japan	1996	max	-	Apr	Sun>=1	2:00	1:00	D
+#Rule	Japan	1996	max	-	Oct	lastSun	2:00	0	S
 
 # From Shanks (1991):
 # Japan switched from the Japanese calendar on 1893 Jan 1.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tokyo	9:19:04	-	LMT	1896
 			9:00	-	JST
+# If Japan adopts DST in 1996, replace the above line with the following lines:
+#			9:00	-	JST	1996
+#			9:00	Japan	J%sT
+# and uncomment the two `Rule' lines commented out above.
+
+# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# Shanks says that the far southern Ryukyu Is (Nansei-Shoto) are 8:00,
+# but we don't have a good location name for them;
+# we don't even know the name of the principal town.
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #Zone Asia/South_Ryukyu	8:14:44	-	LMT	1896	# Amitori
 #			8:00	-	CST
+# There is no information for Marcus.
+# Other Japanese possessions are probably like Asia/Tokyo.
 
 # ZONE-DESCR Asia Tokyo Japan All points
 
@@ -566,6 +602,14 @@ Zone	Asia/Alma-Ata	5:07:48 -	LMT	1924 May  2
 
 # ZONE-DESCR Asia Alma-Ata Kazakhstan All points
 
+# Kirgizstan
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
+			5:00	-	TSK	1957 Mar
+			6:00	Russia	TS%s
+
+# ZONE-DESCR Asia Bishkek Kirgizstan All points
+
 ###############################################################################
 
 # Korea
@@ -604,21 +648,12 @@ Zone	Asia/Pyongyang	8:23:00 -	LMT	1890
 
 ###############################################################################
 
-
 # Kuwait
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Kuwait	3:11:56 -	LMT	1950
 			3:00	-	AST
 
 # ZONE-DESCR Asia Kuwait Kuwait All points
-
-# Kyrgyzstan
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Frunze	4:58:24 -	LMT	1924 May  2
-			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s
-
-# ZONE-DESCR Asia Frunze Kyrgyzstan All points
 
 # Laos
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
