@@ -29,11 +29,20 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: xten.c,v 1.3 1997/10/27 12:27:21 charnier Exp $";
+#endif /* not lint */
+
 /*
  * Xten - user command interface to X-10 daemon
  */
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -59,6 +68,10 @@ char *X10cmdnames[] = {
   NULL
 };
 
+int find __P((char *, char *[]));
+static void usage __P((void));
+
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -71,24 +84,16 @@ char *argv[];
   int interactive = 0;
 
   if(argc == 2 && !strcmp(argv[1], "-")) interactive++;
-  else if(argc < 3) {
-    fprintf(stderr, "Usage: %s house key[:cnt] [ [house] key[:cnt] ... ]\n", argv[0]);
-    exit(1);
-  }
-  if((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-    fprintf(stderr, "%s:  Can't create socket\n", argv[0]);
-    exit(1);
-  }
+  else if(argc < 3)
+    usage();
+  if((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    errx(1, "can't create socket");
   strcpy(sa.sun_path, sockpath);
   sa.sun_family = AF_UNIX;
-  if(connect(sock, (struct sockaddr *)(&sa), strlen(sa.sun_path) + 2) < 0) {
-    fprintf(stderr, "%s:  Can't connect to X-10 daemon\n", argv[0]);
-    exit(1);
-  }
-  if((daemon = fdopen(sock, "w+")) == NULL) {
-    fprintf(stderr, "%s:  Can't attach stream to socket\n", argv[0]);
-    exit(1);
-  }
+  if(connect(sock, (struct sockaddr *)(&sa), strlen(sa.sun_path) + 2) < 0)
+    errx(1, "can't connect to X-10 daemon");
+  if((daemon = fdopen(sock, "w+")) == NULL)
+    errx(1, "can't attach stream to socket");
   /*
    * If interactive, copy standard input to daemon and report results
    * on standard output.
@@ -110,10 +115,8 @@ char *argv[];
    * Otherwise, interpret arguments and issue commands to daemon,
    * handling retries in case of errors.
    */
-  if((h = find(argv[1], X10housenames)) < 0) {
-    fprintf(stderr, "Invalid house code: %s\n", argv[1]);
-    exit(1);
-  }
+  if((h = find(argv[1], X10housenames)) < 0)
+    errx(1, "invalid house code: %s", argv[1]);
   argv++;
   argv++;
   while(argc >= 3) {
@@ -129,7 +132,7 @@ char *argv[];
     else c = 2;
     *cp = '\0';
     if((k = find(argv[0], X10cmdnames)) < 0) {
-      fprintf(stderr, "Invalid key/unit code: %s\n", argv[0]);
+      warnx("invalid key/unit code: %s", argv[0]);
       error++;
     }
     error = 0;
@@ -142,7 +145,7 @@ char *argv[];
       usleep(200000);
     }
     if(error == RETRIES) {
-      fprintf(stderr, "Command failed: send %s %s %d\n",
+      warnx("command failed: send %s %s %d",
 	      X10housenames[h], X10cmdnames[k], c);
     }
     argc--;
@@ -153,6 +156,15 @@ char *argv[];
   exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: xten house key[:cnt] [[house] key[:cnt] ...]\n");
+	exit(1);
+}
+
+int
 find(s, tab)
 char *s;
 char *tab[];
