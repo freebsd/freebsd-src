@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm.h	8.1 (Berkeley) 6/2/93
- *	$Id: kvm.h,v 1.8 1999/01/27 11:29:15 bde Exp $
+ *	$Id: kvm.h,v 1.9 1999/04/09 15:06:56 bde Exp $
  */
 
 #ifndef _KVM_H_
