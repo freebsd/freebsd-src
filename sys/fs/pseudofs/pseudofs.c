@@ -305,7 +305,7 @@ pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return a root vnode
  */
 int
-pfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
+pfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct pfs_info *pi;
 

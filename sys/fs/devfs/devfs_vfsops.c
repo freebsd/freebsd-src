@@ -96,7 +96,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 	fmp->dm_basedir = fmp->dm_rootdir;
 	devfs_rules_newmount(fmp, td);
 
-	error = devfs_root(mp, &rvp, td);
+	error = devfs_root(mp, LK_EXCLUSIVE, &rvp, td);
 	if (error) {
 		lockdestroy(&fmp->dm_lock);
 		FREE(fmp, M_DEVFS);
@@ -136,8 +136,9 @@ devfs_unmount(mp, mntflags, td)
 /* Return locked reference to root.  */
 
 static int
-devfs_root(mp, vpp, td)
+devfs_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {

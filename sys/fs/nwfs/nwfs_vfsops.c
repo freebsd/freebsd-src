@@ -228,7 +228,7 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
 	/* protect against invalid mount points */
 	nmp->m.mount_point[sizeof(nmp->m.mount_point)-1] = '\0';
 	vfs_getnewfsid(mp);
-	error = nwfs_root(mp, &vp, td);
+	error = nwfs_root(mp, LK_EXCLUSIVE, &vp, td);
 	if (error)
 		goto bad;
 	/*
@@ -277,7 +277,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 /*  Return locked vnode to root of a filesystem */
 static int
-nwfs_root(struct mount *mp, struct vnode **vpp, struct thread *td) {
+nwfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td) {
 	struct vnode *vp;
 	struct nwmount *nmp;
 	struct nwnode *np;
