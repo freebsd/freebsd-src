@@ -275,6 +275,10 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
     char reply[32];
     int error;
 
+    if (! isatty (STDIN_FILENO)) {
+	fprintf (stderr, "Please enter this command from a tty device\n");
+	return;
+    }
     printf(" WARNING!  This command will completely wipe out your vinum configuration.\n"
 	" All data will be lost.  If you really want to do this, enter the text\n\n"
 	" NO FUTURE\n"
@@ -544,6 +548,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 
 	    if ((((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
 		 || ((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
+	    &&((stat->device_type & DEVSTAT_TYPE_IF_MASK) != DEVSTAT_TYPE_IF_OTHER) /* and not md */
 	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "%s%s%d", _PATH_DEV, stat->device_name, stat->unit_number);
