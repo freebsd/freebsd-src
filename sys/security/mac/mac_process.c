@@ -222,10 +222,10 @@ mac_thread_userret(struct thread *td)
  * deltas.  This function allows that processing to take place.
  */
 void
-mac_create_cred(struct ucred *parent_cred, struct ucred *child_cred)
+mac_copy_cred(struct ucred *src, struct ucred *dest)
 {
 
-	MAC_PERFORM(create_cred, parent_cred, child_cred);
+	MAC_PERFORM(copy_cred_label, src->cr_label, dest->cr_label);
 }
 
 int

@@ -1328,18 +1328,6 @@ mac_biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  * Labeling event operations: processes.
  */
 static void
-mac_biba_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-	struct mac_biba *source, *dest;
-
-	source = SLOT(cred_parent->cr_label);
-	dest = SLOT(cred_child->cr_label);
-
-	mac_biba_copy_single(source, dest);
-	mac_biba_copy_range(source, dest);
-}
-
-static void
 mac_biba_create_proc0(struct ucred *cred)
 {
 	struct mac_biba *dest;
@@ -2668,6 +2656,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_destroy_socket_label = mac_biba_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_biba_destroy_label,
 	.mpo_destroy_vnode_label = mac_biba_destroy_label,
+	.mpo_copy_cred_label = mac_biba_copy_label,
 	.mpo_copy_mbuf_label = mac_biba_copy_label,
 	.mpo_copy_pipe_label = mac_biba_copy_label,
 	.mpo_copy_socket_label = mac_biba_copy_label,
@@ -2719,7 +2708,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_relabel_ifnet = mac_biba_relabel_ifnet,
 	.mpo_update_ipq = mac_biba_update_ipq,
 	.mpo_inpcb_sosetlabel = mac_biba_inpcb_sosetlabel,
-	.mpo_create_cred = mac_biba_create_cred,
 	.mpo_create_proc0 = mac_biba_create_proc0,
 	.mpo_create_proc1 = mac_biba_create_proc1,
 	.mpo_relabel_cred = mac_biba_relabel_cred,

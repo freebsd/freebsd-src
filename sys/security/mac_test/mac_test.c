@@ -591,6 +591,14 @@ mac_test_destroy_vnode_label(struct label *label)
 }
 
 static void
+mac_test_copy_cred_label(struct label *src, struct label *dest)
+{
+
+	ASSERT_CRED_LABEL(src);
+	ASSERT_CRED_LABEL(dest);
+}
+
+static void
 mac_test_copy_mbuf_label(struct label *src, struct label *dest)
 {
 
@@ -1020,14 +1028,6 @@ mac_test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 /*
  * Labeling event operations: processes.
  */
-static void
-mac_test_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-
-	ASSERT_CRED_LABEL(cred_parent->cr_label);
-	ASSERT_CRED_LABEL(cred_child->cr_label);
-}
-
 static void
 mac_test_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *filelabel,
@@ -1879,6 +1879,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_socket_label = mac_test_destroy_socket_label,
 	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
 	.mpo_destroy_vnode_label = mac_test_destroy_vnode_label,
+	.mpo_copy_cred_label = mac_test_copy_cred_label,
 	.mpo_copy_mbuf_label = mac_test_copy_mbuf_label,
 	.mpo_copy_pipe_label = mac_test_copy_pipe_label,
 	.mpo_copy_socket_label = mac_test_copy_socket_label,
@@ -1932,7 +1933,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_relabel_ifnet = mac_test_relabel_ifnet,
 	.mpo_update_ipq = mac_test_update_ipq,
 	.mpo_inpcb_sosetlabel = mac_test_inpcb_sosetlabel,
-	.mpo_create_cred = mac_test_create_cred,
 	.mpo_execve_transition = mac_test_execve_transition,
 	.mpo_execve_will_transition = mac_test_execve_will_transition,
 	.mpo_create_proc0 = mac_test_create_proc0,

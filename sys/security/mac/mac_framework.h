@@ -229,7 +229,7 @@ void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
 /*
  * Labeling event operations: processes.
  */
-void	mac_create_cred(struct ucred *cred_parent, struct ucred *cred_child);
+void	mac_copy_cred(struct ucred *cr1, struct ucred *cr2);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
 void	mac_execve_transition(struct ucred *old, struct ucred *new,
