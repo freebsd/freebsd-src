@@ -335,7 +335,7 @@ schedcpu(arg)
 			    p->p_oncpu == 0xff && 	/* idle */
 #endif
 			    p->p_stat == SRUN &&
-			    (p->p_flag & P_INMEM) &&
+			    (p->p_sflag & PS_INMEM) &&
 			    (p->p_priority / PPQ) != (p->p_usrpri / PPQ)) {
 				remrunqueue(p);
 				p->p_priority = p->p_usrpri;
@@ -484,7 +484,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		CTR4(KTR_PROC,
 		        "msleep caught: proc %p (pid %d, %s), schedlock %p",
 			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
-		p->p_flag |= P_SINTR;
+		p->p_sflag |= PS_SINTR;
 		mtx_exit(&sched_lock, MTX_SPIN);
 		if ((sig = CURSIG(p))) {
 			mtx_enter(&sched_lock, MTX_SPIN);
@@ -494,7 +494,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 			goto resume;
 		}
 		mtx_enter(&sched_lock, MTX_SPIN);
-		if (p->p_wchan == 0) {
+		if (p->p_wchan == NULL) {
 			catch = 0;
 			goto resume;
 		}
@@ -509,9 +509,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 resume:
 	curpriority = p->p_usrpri;
 	splx(s);
-	p->p_flag &= ~P_SINTR;
-	if (p->p_flag & P_TIMEOUT) {
-		p->p_flag &= ~P_TIMEOUT;
+	p->p_sflag &= ~PS_SINTR;
+	if (p->p_sflag & PS_TIMEOUT) {
+		p->p_sflag &= ~PS_TIMEOUT;
 		if (sig == 0) {
 #ifdef KTRACE
 			if (KTRPOINT(p, KTR_CSW))
@@ -656,7 +656,7 @@ mawait(struct mtx *mtx, int priority, int timo)
 		catch = priority & PCATCH;
 
 		if (catch) {
-			p->p_flag |= P_SINTR;
+			p->p_sflag |= PS_SINTR;
 			mtx_exit(&sched_lock, MTX_SPIN);
 			if ((sig = CURSIG(p))) {
 				mtx_enter(&sched_lock, MTX_SPIN);
@@ -678,9 +678,9 @@ resume:
 		curpriority = p->p_usrpri;
 
 		splx(s);
-		p->p_flag &= ~P_SINTR;
-		if (p->p_flag & P_TIMEOUT) {
-			p->p_flag &= ~P_TIMEOUT;
+		p->p_sflag &= ~PS_SINTR;
+		if (p->p_sflag & PS_TIMEOUT) {
+			p->p_sflag &= ~PS_TIMEOUT;
 			if (sig == 0) {
 #ifdef KTRACE
 				if (KTRPOINT(p, KTR_CSW))
@@ -767,7 +767,7 @@ endtsleep(arg)
 			setrunnable(p);
 		else
 			unsleep(p);
-		p->p_flag |= P_TIMEOUT;
+		p->p_sflag |= PS_TIMEOUT;
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
@@ -786,7 +786,7 @@ unsleep(p)
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_wchan) {
 		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_slpq);
-		p->p_wchan = 0;
+		p->p_wchan = NULL;
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
@@ -810,7 +810,7 @@ restart:
 	TAILQ_FOREACH(p, qp, p_slpq) {
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_slpq);
-			p->p_wchan = 0;
+			p->p_wchan = NULL;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR4(KTR_PROC,
@@ -820,11 +820,11 @@ restart:
 					updatepri(p);
 				p->p_slptime = 0;
 				p->p_stat = SRUN;
-				if (p->p_flag & P_INMEM) {
+				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(p);
 					maybe_resched(p);
 				} else {
-					p->p_flag |= P_SWAPINREQ;
+					p->p_sflag |= PS_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
@@ -856,7 +856,7 @@ wakeup_one(ident)
 	TAILQ_FOREACH(p, qp, p_slpq) {
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_slpq);
-			p->p_wchan = 0;
+			p->p_wchan = NULL;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				CTR4(KTR_PROC,
@@ -866,12 +866,12 @@ wakeup_one(ident)
 					updatepri(p);
 				p->p_slptime = 0;
 				p->p_stat = SRUN;
-				if (p->p_flag & P_INMEM) {
+				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(p);
 					maybe_resched(p);
 					break;
 				} else {
-					p->p_flag |= P_SWAPINREQ;
+					p->p_sflag |= PS_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
@@ -891,8 +891,8 @@ mi_switch()
 {
 	struct timeval new_switchtime;
 	register struct proc *p = curproc;	/* XXX */
-#if	0
-	struct rlimit *rlim;
+#if 0
+	register struct rlimit *rlim;
 #endif
 	int x;
 
@@ -915,7 +915,7 @@ mi_switch()
 	 */
 	x = splstatclock();
 
-	mtx_assert(&sched_lock, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 
 #ifdef SIMPLELOCK_DEBUG
 	if (p->p_simple_locks)
@@ -951,9 +951,13 @@ mi_switch()
 	    p->p_runtime > p->p_limit->p_cpulimit) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			killproc(p, "exceeded maximum CPU limit");
+			mtx_enter(&sched_lock, MTX_SPIN);
 		} else {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			psignal(p, SIGXCPU);
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (rlim->rlim_cur < rlim->rlim_max) {
 				/* XXX: we should make a private copy */
 				rlim->rlim_cur += 5;
@@ -1000,7 +1004,7 @@ setrunnable(p)
 		panic("setrunnable");
 	case SSTOP:
 	case SSLEEP:			/* e.g. when sending signals */
-		if (p->p_flag & P_CVWAITQ)
+		if (p->p_sflag & PS_CVWAITQ)
 			cv_waitq_remove(p);
 		else
 			unsleep(p);
@@ -1010,14 +1014,14 @@ setrunnable(p)
 		break;
 	}
 	p->p_stat = SRUN;
-	if (p->p_flag & P_INMEM)
+	if (p->p_sflag & PS_INMEM)
 		setrunqueue(p);
 	splx(s);
 	if (p->p_slptime > 1)
 		updatepri(p);
 	p->p_slptime = 0;
-	if ((p->p_flag & P_INMEM) == 0) {
-		p->p_flag |= P_SWAPINREQ;
+	if ((p->p_sflag & PS_INMEM) == 0) {
+		p->p_sflag |= PS_SWAPINREQ;
 		wakeup((caddr_t)&proc0);
 	}
 	else
