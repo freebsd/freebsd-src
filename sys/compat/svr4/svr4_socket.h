@@ -27,6 +27,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 #ifndef _SVR4_SOCKET_H_
@@ -46,7 +48,7 @@ struct svr4_sockaddr_in {
 };
 
 struct sockaddr_un *svr4_find_socket __P((struct proc *, struct file *,
-    dev_t, ino_t));
+    udev_t, ino_t));
 void svr4_delete_socket __P((struct proc *, struct file *));
 int svr4_add_socket __P((struct proc *, const char *, struct stat *));
 

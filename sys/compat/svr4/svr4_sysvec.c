@@ -1,3 +1,35 @@
+/*
+ * Copyright (c) 1998 Mark Newton
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Christos Zoulas.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
+ */
+
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
 
@@ -131,7 +163,7 @@ int bsd_to_svr4_errno[ELAST+1] = {
 };
 
 
-static int svr4_fixup(long **stack_base, struct image_params *imgp);
+static int 	svr4_fixup(long **stack_base, struct image_params *imgp);
 
 extern struct sysent svr4_sysent[];
 #undef szsigcode
@@ -153,8 +185,9 @@ struct sysentvec svr4_sysvec = {
   svr4_sendsig,
   svr4_sigcode,
   &svr4_szsigcode,
-  0,
-  "SVR4"
+  NULL,
+  "SVR4",
+  elf_coredump
 };
 
 Elf32_Brandinfo svr4_brand = {
@@ -333,11 +366,6 @@ done:
 		vrele(ndroot.ni_vp);
 	return error;
 }
-
-/*
- * XXX: wrong, for the same reason described in linux_sysvec.c
- */
-static int svr4_elf_modevent __P((module_t mod, int type, void *data));
 
 static int
 svr4_elf_modevent(module_t mod, int type, void *data)
