@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.1.2.2 1998/07/20 21:00:02 msmith Exp $
+ * $Id: if_cs.c,v 1.1.2.3 1998/08/13 20:31:56 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -45,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -95,10 +96,6 @@
 #define CS_DMA_BUFFER_SIZE 16384
 #endif
 
-#ifndef CS_WAIT_NEXT_PACKET
-#define	CS_WAIT_NEXT_PACKET 570
-#endif
-
 /*
  * cs_softc: per line info and status
  */
@@ -128,8 +125,11 @@ static struct cs_softc {
 
 static u_long	cs_unit = NCS;
 
-static int      cs_attach               __P((struct cs_softc *, int, int));
-static int      cs_attach_isa           __P((struct isa_device *));
+static int	cs_recv_delay = 570;
+SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "");
+
+static int	cs_attach		__P((struct cs_softc *, int, int));
+static int	cs_attach_isa		__P((struct isa_device *));
 static void	cs_init			__P((void *));
 static int	cs_ioctl		__P((struct ifnet *, int, caddr_t));
 static int	cs_probe		__P((struct isa_device *));
@@ -821,7 +821,7 @@ cs_get_packet(struct cs_softc *sc)
 		ifp->if_ipackets++;
 
 		if (length==ETHER_MAX_LEN-ETHER_CRC_LEN)
-                        DELAY( CS_WAIT_NEXT_PACKET );
+                        DELAY( cs_recv_delay );
 	} else {
 		m_freem(m);
 	}
@@ -1242,9 +1242,10 @@ cs_mediaset(struct cs_softc *sc, int media)
 
 	switch (IFM_SUBTYPE(media)) {
 	case IFM_AUTO:
-		if (error=enable_tp(sc))
-       		if (error=enable_bnc(sc))
-		    error=enable_aui(sc);
+		if ((error=enable_tp(sc))==0)
+			error = cs_duplex_auto(sc);
+		else if (error=enable_bnc(sc))
+			error = enable_aui(sc);
 		break;
 	case IFM_10_T:
 		if (error=enable_tp(sc))
