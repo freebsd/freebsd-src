@@ -875,7 +875,7 @@ selecthost(union sockunion *su)
 	    for (hi = hrp->hostinfo; hi != NULL; hi = hi->ai_next) {
 		if (memcmp(su, hi->ai_addr, hi->ai_addrlen) == 0) {
 			thishost = hrp;
-			break;
+			goto found;
 		}
 #ifdef INET6
 		/* XXX IPv4 mapped IPv6 addr consideraton */
@@ -884,12 +884,13 @@ selecthost(union sockunion *su)
 			    &((struct sockaddr_in *)hi->ai_addr)->sin_addr,
 			    sizeof(struct in_addr)) == 0)) {
 			thishost = hrp;
-			break;
+			goto found;
 		}
 #endif
 	    }
 	    hrp = hrp->next;
 	}
+found:
 	su->su_port = port;
 	/* setup static variables as appropriate */
 	hostname = thishost->hostname;
