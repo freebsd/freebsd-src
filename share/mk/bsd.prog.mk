@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.78 1998/09/07 05:55:02 jb Exp $
+#	$Id: bsd.prog.mk,v 1.79 1998/10/18 09:35:17 obrien Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -7,9 +7,6 @@ __initialized__:
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 .endif
-
-# Default executable format
-OBJFORMAT?=	aout
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 

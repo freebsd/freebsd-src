@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.80 1998/10/19 20:09:17 imp Exp $
+#	$Id: bsd.lib.mk,v 1.81 1998/11/18 00:48:11 jdp Exp $
 #
 
 .if !target(__initialized__)
@@ -7,13 +7,6 @@ __initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
-.endif
-
-# Default executable format
-.if ${MACHINE_ARCH} == "i386"
-OBJFORMAT?=	aout
-.else
-OBJFORMAT?=	elf
 .endif
 
 .if exists(${.CURDIR}/shlib_version)
