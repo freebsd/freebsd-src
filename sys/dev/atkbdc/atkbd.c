@@ -123,19 +123,30 @@ atkbd_timeout(void *arg)
 	keyboard_t *kbd;
 	int s;
 
-	/* The following comments are extracted from syscons.c (1.287) */
-	/* 
+	/*
+	 * The original text of the following comments are extracted 
+	 * from syscons.c (1.287)
+	 * 
 	 * With release 2.1 of the Xaccel server, the keyboard is left
 	 * hanging pretty often. Apparently an interrupt from the
 	 * keyboard is lost, and I don't know why (yet).
-	 * This ugly hack calls scintr if input is ready for the keyboard
-	 * and conveniently hides the problem.			XXX
+	 * This ugly hack calls the low-level interrupt routine if input
+	 * is ready for the keyboard and conveniently hides the problem. XXX
+	 *
+	 * Try removing anything stuck in the keyboard controller; whether
+	 * it's a keyboard scan code or mouse data. The low-level
+	 * interrupt routine doesn't read the mouse data directly, 
+	 * but the keyboard controller driver will, as a side effect.
 	 */
 	/*
-	 * Try removing anything stuck in the keyboard controller; whether
-	 * it's a keyboard scan code or mouse data. `scintr()' doesn't
-	 * read the mouse data directly, but `kbdio' routines will, as a
-	 * side effect.
+	 * And here is bde's original comment about this:
+	 *
+	 * This is necessary to handle edge triggered interrupts - if we
+	 * returned when our IRQ is high due to unserviced input, then there
+	 * would be no more keyboard IRQs until the keyboard is reset by
+	 * external powers.
+	 *
+	 * The keyboard apparently unwedges the irq in most cases.
 	 */
 	s = spltty();
 	kbd = (keyboard_t *)arg;
@@ -152,9 +163,6 @@ atkbd_timeout(void *arg)
 	splx(s);
 	timeout(atkbd_timeout, arg, hz/10);
 }
-
-/* cdev driver functions */
-
 
 /* LOW-LEVEL */
 
