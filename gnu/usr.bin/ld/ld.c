@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.19 1994/01/19 15:00:27 davidg Exp $
+ *	$Id: ld.c,v 1.20 1994/02/13 20:41:28 jkh Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -347,7 +347,6 @@ main(argc, argv)
 	 * and initialize the text size accordingly. This depends on the kind
 	 * of system and on the output format selected.
 	 */
-
 	if (magic == ZMAGIC || magic == QMAGIC)
 		page_align_segments = 1;
 
@@ -755,10 +754,16 @@ decode_option(swt, arg)
 	case 'z':
 		magic = ZMAGIC;
 		oldmagic = 0;
+#ifdef __FreeBSD__
+		netzmagic = 1;
+#endif
 		return;
 
 	case 'Z':
 		magic = oldmagic = ZMAGIC;
+#ifdef __FreeBSD__
+		netzmagic = 0;
+#endif
 		return;
 
 	default:
