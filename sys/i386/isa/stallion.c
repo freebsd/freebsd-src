@@ -2341,6 +2341,14 @@ static int stl_initech(stlbrd_t *brdp)
 		status = inb(ioaddr + ECH_PNLSTATUS);
 		if ((status & ECH_PNLIDMASK) != nxtid)
 			break;
+		if (brdp->brdtype == BRD_ECH || brdp->brdtype == BRD_ECHMC) {
+			if (ioaddr >= (brdp->ioaddr2 + 0x20)) {
+				printf("STALLION: too many ports attached "
+					"to board %d, remove last module\n",
+					brdp->brdnr);
+				break;
+			}
+		}
 		panelp = (stlpanel_t *) malloc(sizeof(stlpanel_t), M_TTYS,
 			M_NOWAIT);
 		if (panelp == (stlpanel_t *) NULL) {
@@ -2392,14 +2400,6 @@ static int stl_initech(stlbrd_t *brdp)
 		ioaddr += EREG_BANKSIZE;
 		brdp->nrports += panelp->nrports;
 		brdp->panels[panelnr++] = panelp;
-		if ((brdp->brdtype == BRD_ECH) || (brdp->brdtype == BRD_ECHMC)){
-			if (ioaddr >= (brdp->ioaddr2 + 0x20)) {
-				printf("STALLION: too many ports attached "
-					"to board %d, remove last module\n",
-					brdp->brdnr);
-				break;
-			}
-		}
 	}
 
 	brdp->nrpanels = panelnr;
