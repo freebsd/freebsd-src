@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.5 1994/04/05 14:05:38 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.6 1994/04/16 21:50:53 jkh Exp $";
 #endif
 
 /*
@@ -27,6 +27,7 @@ char	*Contents	= NULL;
 char	*Require	= NULL;
 char	*PlayPen	= NULL;
 char	*ExcludeFrom	= NULL;
+int	Dereference	= 0;
 
 int
 main(int argc, char **argv)
@@ -87,6 +88,9 @@ main(int argc, char **argv)
 	    break;
 
 	case 'h':
+	    Dereference = 1;
+	    break;
+
 	case '?':
 	default:
 	    usage(prog_name, NULL);
@@ -134,6 +138,7 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-c [-]file Get one-line comment from file (-or arg)\n");
     fprintf(stderr, "-d [-]file Get description from file (-or arg)\n");
     fprintf(stderr, "-f file    get list of files from file (- for stdin)\n");
+    fprintf(stderr, "-h         follow symbolic links\n");
     fprintf(stderr, "-i script  install script\n");
     fprintf(stderr, "-p arg     install prefix will be arg\n");
     fprintf(stderr, "-k script  de-install script\n");
