@@ -246,6 +246,7 @@ cpu_exit(p)
 {
 	alpha_fpstate_drop(p);
 
+	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	mtx_unlock_flags(&Giant, MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
@@ -258,8 +259,8 @@ cpu_exit(p)
 	 */
 	p->p_stat = SZOMB;
 
-	mp_fixme("assumption: p_pptr won't change at this time");
 	wakeup(p->p_pptr);
+	PROC_UNLOCK_NOSWITCH(p);
 
 	cnt.v_swtch++;
 	cpu_switch();
