@@ -434,7 +434,7 @@ buildkernel:
 .if defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean
-.else`
+.else
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
 .endif
