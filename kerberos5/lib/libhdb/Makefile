@@ -19,6 +19,8 @@ GEN=	asn1_Key.x asn1_Event.x asn1_HDBFlags.x asn1_hdb_entry.x asn1_Salt.x
 .PATH:	${KRB5DIR}/lib/asn1
 .PATH:	${KRB5DIR}/lib/roken
 
+build-tools:	make-print-version asn1_compile
+
 .for I in ${GEN}
 ${I:S/.x/.c/}:  ${I}
 	cmp -s ${.OODATE} ${.TARGET} 2> /dev/null || cp ${.OODATE} ${.TARGET}
@@ -51,7 +53,7 @@ print_version.h: make-print-version
 	./make-print-version print_version.h
 
 make-print-version: make-print-version.c
-	${CC} ${CFLAGS} -o ${.TARGET} ${.OODATE}
+	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
 
 CLEANFILES+=	${GEN} asn1_compile lex.o parse.o parse.c parse.h \
 		hdb_asn1.h make-print-version print_version.h print_version.o

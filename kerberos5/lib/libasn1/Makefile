@@ -27,10 +27,14 @@ GEN=	asn1_APOptions.x asn1_AP_REP.x asn1_AP_REQ.x asn1_AS_REP.x \
 	asn1_TGS_REQ.x asn1_Ticket.x asn1_TicketFlags.x \
 	asn1_TransitedEncoding.x
 
+INCLUDES=asn1.h asn1_err.h 
+
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/asn1
 .PATH:		${KRB5DIR}/lib/roken
+
+build-tools:	make-print-version asn1_compile
 
 beforedepend all: roken.h
 
@@ -68,7 +72,7 @@ print_version.h: make-print-version
 	./make-print-version print_version.h
 
 make-print-version: make-print-version.c
-	${CC} ${CFLAGS} -o ${.TARGET} ${.OODATE}
+	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
 
 CLEANFILES+=	${GEN} asn1_compile lex.o parse.o parse.c parse.h \
 		hdb_asn1.h make-print-version print_version.h print_version.o
