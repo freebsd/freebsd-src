@@ -276,13 +276,13 @@ kmem_setup()
 	}
 
 	kmem = Open(_PATH_KMEM, O_RDONLY);
-	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
+	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, SEEK_SET);
 	(void)Read(kmem, &kdumplo, sizeof(kdumplo));
 	dumplo = (off_t)kdumplo * DEV_BSIZE;
 	if (verbose)
 		(void)printf("dumplo = %lld (%ld * %d)\n",
 		    (long long)dumplo, kdumplo, DEV_BSIZE);
-	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
+	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, SEEK_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
 	find_dev(dumpdev);
 	dumpfd = Open(ddname, O_RDWR);
@@ -305,7 +305,7 @@ check_kmem()
 	char core_vers[1024], *p;
 
 	DumpRead(dumpfd, core_vers, sizeof(core_vers),
-	    (off_t)(dumplo + ok(dump_nl[X_VERSION].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_VERSION].n_value), SEEK_SET);
 	core_vers[sizeof(core_vers) - 1] = '\0';
 	p = strchr(core_vers, '\n');
 	if (p)
@@ -315,10 +315,10 @@ check_kmem()
 		    "warning: %s version mismatch:\n\t\"%s\"\nand\t\"%s\"\n",
 		    getbootfile(), vers, core_vers);
 	DumpRead(dumpfd, &panicstr, sizeof(panicstr),
-	    (off_t)(dumplo + ok(dump_nl[X_PANICSTR].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_PANICSTR].n_value), SEEK_SET);
 	if (panicstr) {
 		DumpRead(dumpfd, panic_mesg, sizeof(panic_mesg),
-		    (off_t)(dumplo + ok(panicstr)), L_SET);
+		    dumplo + ok(panicstr), SEEK_SET);
 	}
 }
 
@@ -332,7 +332,7 @@ clear_dump()
 
 	newdumpmag = 0;
 	DumpWrite(dumpfd, &newdumpmag, sizeof(newdumpmag),
-	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_DUMPMAG].n_value), SEEK_SET);
 	close(dumpfd);
 }
 
@@ -346,7 +346,7 @@ dump_exists()
 	u_long newdumpmag;
 
 	DumpRead(dumpfd, &newdumpmag, sizeof(newdumpmag),
-	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_DUMPMAG].n_value), SEEK_SET);
 	if (newdumpmag != dumpmag) {
 		if (verbose)
 			syslog(LOG_WARNING, "magic number mismatch (%x != %x)",
@@ -410,7 +410,7 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 	(void)umask(oumask);
 
 	/* Seek to the start of the core. */
-	Lseek(dumpfd, (off_t)dumplo, L_SET);
+	Lseek(dumpfd, dumplo, SEEK_SET);
 
 	/* Copy the core file. */
 	syslog(LOG_NOTICE, "writing %score to %s",
@@ -578,7 +578,7 @@ get_crashtime()
 	time_t dumptime;			/* Time the dump was taken. */
 
 	DumpRead(dumpfd, &dumptime, sizeof(dumptime),
-	    (off_t)(dumplo + ok(dump_nl[X_TIME].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_TIME].n_value), SEEK_SET);
 	if (dumptime == 0) {
 		if (verbose)
 			syslog(LOG_ERR, "dump time is zero");
@@ -603,7 +603,7 @@ get_dumpsize()
 
 	/* Read the dump size. */
 	DumpRead(dumpfd, &kdumpsize, sizeof(kdumpsize),
-	    (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
+	    dumplo + ok(dump_nl[X_DUMPSIZE].n_value), SEEK_SET);
 	dumpsize = (off_t)kdumpsize * getpagesize();
 }
 
@@ -667,7 +667,8 @@ Open(name, rw)
 {
 	int fd;
 
-	if ((fd = open(name, rw, 0)) < 0) {
+	fd = open(name, rw, 0);
+	if (fd < 0) {
 		syslog(LOG_ERR, "%s: %m", name);
 		exit(1);
 	}
@@ -717,8 +718,8 @@ DumpWrite(fd, bp, size, off, flag)
 	off_t pos;
 	int i, j;
 	
-	if (flag != L_SET) {
-		syslog(LOG_ERR, "lseek: not LSET");
+	if (flag != SEEK_SET) {
+		syslog(LOG_ERR, "lseek: not SEEK_SET");
 		exit(2);
 	}
 	q = bp;
@@ -750,8 +751,8 @@ DumpRead(fd, bp, size, off, flag)
 	off_t pos;
 	int i, j;
 	
-	if (flag != L_SET) {
-		syslog(LOG_ERR, "lseek: not LSET");
+	if (flag != SEEK_SET) {
+		syslog(LOG_ERR, "lseek: not SEEK_SET");
 		exit(2);
 	}
 	q = bp;
@@ -778,7 +779,8 @@ Write(fd, bp, size)
 {
 	int n;
 
-	if ((n = write(fd, bp, size)) < size) {
+	n = write(fd, bp, size);
+	if (n < size) {
 		syslog(LOG_ERR, "write: %m");
 		exit(1);
 	}
