@@ -16,7 +16,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.56 1999/05/04 13:51:56 ghelmer Exp $
+#	$Id: services,v 1.57 1999/06/30 06:11:14 jkh Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1662,8 +1662,12 @@ pciarray	1552/tcp
 pciarray	1552/udp
 issd		1600/tcp
 issd		1600/udp
-radius		1645/udp   #RADIUS authentication protocol
-radacct		1646/udp   #RADIUS accounting protocol
+# IMPORTANT NOTE: Ports 1645/1646 are the traditional radius ports used by
+# many vendors without obtaining official IANA assignment.  The official
+# assignment is now ports 1812/1813 and users are encouraged to migrate
+# when possible to these new ports.
+#radius		1645/udp   #RADIUS authentication protocol (old)
+#radacct	1646/udp   #RADIUS accounting protocol (old)
 nkd		1650/tcp
 nkd		1650/udp
 shiva_confsrvr	1651/tcp
@@ -1695,6 +1699,9 @@ netview-aix-11	1671/udp
 netview-aix-12	1672/tcp
 netview-aix-12	1672/udp
 pptp		1723/tcp   #Point-to-point tunnelling protocol
+# IMPORTANT NOTE: See comments for ports 1645/1646 when using older equipment
+#radius		1812/udp   #RADIUS authentication protocol (IANA sanctioned)
+#radacct	1813/udp   #RADIUS accounting protocol (IANA sanctioned)
 licensedaemon	1986/tcp   #cisco license management
 licensedaemon	1986/udp   #cisco license management
 tr-rsrb-p1	1987/tcp   #cisco RSRB Priority 1 port
