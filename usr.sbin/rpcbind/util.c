@@ -58,6 +58,13 @@
 
 #include "rpcbind.h"
 
+#define	SA2SIN(sa)	((struct sockaddr_in *)(sa))
+#define	SA2SINADDR(sa)	(SA2SIN(sa)->sin_addr)
+#ifdef INET6
+#define	SA2SIN6(sa)	((struct sockaddr_in6 *)(sa))
+#define	SA2SIN6ADDR(sa)	(SA2SIN6(sa)->sin6_addr)
+#endif
+
 static struct sockaddr_in *local_in4;
 #ifdef INET6
 static struct sockaddr_in6 *local_in6;
@@ -107,198 +114,175 @@ in6_fillscopeid(struct sockaddr_in6 *sin6)
 }
 #endif
 
+/*
+ * Find a server address that can be used by `caller' to contact
+ * the local service specified by `serv_uaddr'. If `clnt_uaddr' is
+ * non-NULL, it is used instead of `caller' as a hint suggesting
+ * the best address (e.g. the `r_addr' field of an rpc, which
+ * contains the rpcbind server address that the caller used).
+ *
+ * Returns the best server address as a malloc'd "universal address"
+ * string which should be freed by the caller. On error, returns NULL.
+ */
 char *
 addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 	  char *netid)
 {
-	struct ifaddrs *ifap, *ifp, *bestif;
-#ifdef INET6
-	struct sockaddr_in6 *servsin6, *sin6mask, *clntsin6, *ifsin6, *realsin6;
-	struct sockaddr_in6 *newsin6;
-#endif
-	struct sockaddr_in *servsin, *sinmask, *clntsin, *newsin, *ifsin;
-	struct netbuf *serv_nbp, *clnt_nbp = NULL, tbuf;
-	struct sockaddr *serv_sa;
-	struct sockaddr *clnt_sa;
+	struct ifaddrs *ifap, *ifp = NULL, *bestif;
+	struct netbuf *serv_nbp = NULL, *hint_nbp = NULL, tbuf;
+	struct sockaddr *caller_sa, *hint_sa, *ifsa, *ifmasksa, *serv_sa;
 	struct sockaddr_storage ss;
 	struct netconfig *nconf;
-	struct sockaddr *clnt = caller->buf;
+	char *caller_uaddr = NULL, *hint_uaddr = NULL;
 	char *ret = NULL;
 
 #ifdef ND_DEBUG
 	if (debugging)
 		fprintf(stderr, "addrmerge(caller, %s, %s, %s\n", serv_uaddr,
-		    clnt_uaddr, netid);
+		    clnt_uaddr == NULL ? "NULL" : clnt_uaddr, netid);
 #endif
-	nconf = getnetconfigent(netid);
-	if (nconf == NULL)
-		return NULL;
+	caller_sa = caller->buf;
+	if ((nconf = rpcbind_get_conf(netid)) == NULL)
+		goto freeit;
+	if ((caller_uaddr = taddr2uaddr(nconf, caller)) == NULL)
+		goto freeit;
 
 	/*
-	 * Local merge, just return a duplicate.
+	 * Use `clnt_uaddr' as the hint if non-NULL, but ignore it if its
+	 * address family is different from that of the caller.
 	 */
-	if (clnt_uaddr != NULL && strncmp(clnt_uaddr, "0.0.0.0.", 8) == 0)
-		return strdup(clnt_uaddr);
-
-	serv_nbp = uaddr2taddr(nconf, serv_uaddr);
-	if (serv_nbp == NULL)
-		return NULL;
-
-	serv_sa = (struct sockaddr *)serv_nbp->buf;
+	hint_sa = NULL;
 	if (clnt_uaddr != NULL) {
-		clnt_nbp = uaddr2taddr(nconf, clnt_uaddr);
-		if (clnt_nbp == NULL) {
-			free(serv_nbp);
-			return NULL;
-		}
-		clnt_sa = (struct sockaddr *)clnt_nbp->buf;
-		if (clnt_sa->sa_family == AF_LOCAL) {
-			free(serv_nbp);
-			free(clnt_nbp);
-			free(clnt_sa);
-			return strdup(clnt_uaddr);
-		}
-	} else {
-		clnt_sa = (struct sockaddr *)
-		    malloc(sizeof (struct sockaddr_storage));
-		memcpy(clnt_sa, clnt, clnt->sa_len);
+		hint_uaddr = clnt_uaddr;
+		if ((hint_nbp = uaddr2taddr(nconf, clnt_uaddr)) == NULL)
+			goto freeit;
+		hint_sa = hint_nbp->buf;
+	}
+	if (hint_sa == NULL || hint_sa->sa_family != caller_sa->sa_family) {
+		hint_uaddr = caller_uaddr;
+		hint_sa = caller->buf;
 	}
 
-	if (getifaddrs(&ifp) < 0) {
-		free(serv_nbp);
-		free(clnt_sa);
-		if (clnt_nbp != NULL)
-			free(clnt_nbp);
-		return 0;
+#ifdef ND_DEBUG
+	if (debugging)
+		fprintf(stderr, "addrmerge: hint %s\n", hint_uaddr);
+#endif
+	/* Local caller, just return the server address. */
+	if (strncmp(caller_uaddr, "0.0.0.0.", 8) == 0 ||
+	    strncmp(caller_uaddr, "::.", 3) == 0 || caller_uaddr[0] == '/') {
+		ret = strdup(serv_uaddr);
+		goto freeit;
 	}
+
+	if (getifaddrs(&ifp) < 0)
+		goto freeit;
 
 	/*
 	 * Loop through all interfaces. For each interface, see if the
 	 * network portion of its address is equal to that of the client.
 	 * If so, we have found the interface that we want to use.
 	 */
+	bestif = NULL;
 	for (ifap = ifp; ifap != NULL; ifap = ifap->ifa_next) {
-		if (ifap->ifa_addr->sa_family != clnt->sa_family ||
+		ifsa = ifap->ifa_addr;
+		ifmasksa = ifap->ifa_netmask;
+
+		if (ifsa == NULL || ifsa->sa_family != hint_sa->sa_family ||
 		    !(ifap->ifa_flags & IFF_UP))
 			continue;
 
-		switch (clnt->sa_family) {
+		switch (hint_sa->sa_family) {
 		case AF_INET:
 			/*
-			 * realsin: address that recvfrom gave us.
-			 * ifsin: address of interface being examined.
-			 * clntsin: address that client want us to contact
-			 *           it on
-			 * servsin: local address of RPC service.
-			 * sinmask: netmask of this interface
-			 * newsin: initially a copy of clntsin, eventually
-			 *         the merged address
+			 * If the hint address matches this interface
+			 * address/netmask, then we're done.
 			 */
-			servsin = (struct sockaddr_in *)serv_sa;
-			clntsin = (struct sockaddr_in *)clnt_sa;
-			sinmask = (struct sockaddr_in *)ifap->ifa_netmask;
-			newsin = (struct sockaddr_in *)&ss;
-			ifsin = (struct sockaddr_in *)ifap->ifa_addr;
-			if (!bitmaskcmp(&ifsin->sin_addr, &clntsin->sin_addr,
-			    &sinmask->sin_addr, sizeof (struct in_addr))) {
+			if (!bitmaskcmp(&SA2SINADDR(ifsa),
+			    &SA2SINADDR(hint_sa), &SA2SINADDR(ifmasksa),
+			    sizeof(struct in_addr))) {
+				bestif = ifap;
 				goto found;
 			}
 			break;
 #ifdef INET6
 		case AF_INET6:
 			/*
-			 * realsin6: address that recvfrom gave us.
-			 * ifsin6: address of interface being examined.
-			 * clntsin6: address that client want us to contact
-			 *           it on
-			 * servsin6: local address of RPC service.
-			 * sin6mask: netmask of this interface
-			 * newsin6: initially a copy of clntsin, eventually
-			 *          the merged address
-			 *
-			 * For v6 link local addresses, if the client contacted
-			 * us via a link-local address, and wants us to reply
-			 * to one, use the scope id to see which one.
+			 * For v6 link local addresses, if the caller is on
+			 * a link-local address then use the scope id to see
+			 * which one.
 			 */
-			realsin6 = (struct sockaddr_in6 *)clnt;
-			ifsin6 = (struct sockaddr_in6 *)ifap->ifa_addr;
-			in6_fillscopeid(ifsin6);
-			clntsin6 = (struct sockaddr_in6 *)clnt_sa;
-			servsin6 = (struct sockaddr_in6 *)serv_sa;
-			sin6mask = (struct sockaddr_in6 *)ifap->ifa_netmask;
-			newsin6 = (struct sockaddr_in6 *)&ss;
-			if (IN6_IS_ADDR_LINKLOCAL(&ifsin6->sin6_addr) &&
-			    IN6_IS_ADDR_LINKLOCAL(&realsin6->sin6_addr) &&
-			    IN6_IS_ADDR_LINKLOCAL(&clntsin6->sin6_addr)) {
-				if (ifsin6->sin6_scope_id !=
-				    realsin6->sin6_scope_id)
-					continue;
+			in6_fillscopeid(SA2SIN6(ifsa));
+			if (IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(ifsa)) &&
+			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(caller_sa)) &&
+			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(hint_sa))) {
+				if (SA2SIN6(ifsa)->sin6_scope_id ==
+				    SA2SIN6(caller_sa)->sin6_scope_id) {
+					bestif = ifap;
+					goto found;
+				}
+			} else if (!bitmaskcmp(&SA2SIN6ADDR(ifsa),
+			    &SA2SIN6ADDR(hint_sa), &SA2SIN6ADDR(ifmasksa),
+			    sizeof(struct in6_addr))) {
+				bestif = ifap;
 				goto found;
 			}
-			if (!bitmaskcmp(&ifsin6->sin6_addr,
-			    &clntsin6->sin6_addr, &sin6mask->sin6_addr,
-			    sizeof (struct in6_addr)))
-				goto found;
 			break;
 #endif
 		default:
-			goto freeit;
-		}
-	}
-	/*
-	 * Didn't find anything. Get the first possibly useful interface,
-	 * preferring "normal" interfaces to point-to-point and loopback
-	 * ones.
-	 */
-	bestif = NULL;
-	for (ifap = ifp; ifap != NULL; ifap = ifap->ifa_next) {
-		if (ifap->ifa_addr->sa_family != clnt->sa_family ||
-		    !(ifap->ifa_flags & IFF_UP))
 			continue;
-		if (!(ifap->ifa_flags & IFF_LOOPBACK) &&
-		    !(ifap->ifa_flags & IFF_POINTOPOINT)) {
-			bestif = ifap;
-			break;
 		}
-		if (bestif == NULL)
-			bestif = ifap;
-		else if ((bestif->ifa_flags & IFF_LOOPBACK) &&
-		    !(ifap->ifa_flags & IFF_LOOPBACK))
+
+		/*
+		 * Remember the first possibly useful interface, preferring
+		 * "normal" to point-to-point and loopback ones.
+		 */
+		if (bestif == NULL ||
+		    (!(ifap->ifa_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) &&
+		    (bestif->ifa_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))))
 			bestif = ifap;
 	}
-	ifap = bestif;
+	if (bestif == NULL)
+		goto freeit;
+
 found:
-	switch (clnt->sa_family) {
+	/*
+	 * Construct the new address using the the address from
+	 * `bestif', and the port number from `serv_uaddr'.
+	 */
+	serv_nbp = uaddr2taddr(nconf, serv_uaddr);
+	if (serv_nbp == NULL)
+		goto freeit;
+	serv_sa = serv_nbp->buf;
+
+	memcpy(&ss, bestif->ifa_addr, bestif->ifa_addr->sa_len);
+	switch (ss.ss_family) {
 	case AF_INET:
-		memcpy(newsin, ifap->ifa_addr, clnt_sa->sa_len);
-		newsin->sin_port = servsin->sin_port;
-		tbuf.len = clnt_sa->sa_len;
-		tbuf.maxlen = sizeof (struct sockaddr_storage);
-		tbuf.buf = newsin;
-		break;				
+		SA2SIN(&ss)->sin_port = SA2SIN(serv_sa)->sin_port;
+		break;
 #ifdef INET6
 	case AF_INET6:
-		memcpy(newsin6, ifsin6, clnt_sa->sa_len);
-		newsin6->sin6_port = servsin6->sin6_port;
-		tbuf.maxlen = sizeof (struct sockaddr_storage);
-		tbuf.len = clnt_sa->sa_len;
-		tbuf.buf = newsin6;
+		SA2SIN6(&ss)->sin6_port = SA2SIN6(serv_sa)->sin6_port;
 		break;
 #endif
-	default:
-		goto freeit;
 	}
-	if (ifap != NULL)
-		ret = taddr2uaddr(nconf, &tbuf);
+	tbuf.len = ss.ss_len;
+	tbuf.maxlen = sizeof(ss);
+	tbuf.buf = &ss;
+	ret = taddr2uaddr(nconf, &tbuf);
+
 freeit:
-	freenetconfigent(nconf);
-	free(serv_sa);
-	free(serv_nbp);
-	if (clnt_sa != NULL)
-		free(clnt_sa);
-	if (clnt_nbp != NULL)
-		free(clnt_nbp);
-	freeifaddrs(ifp);
+	if (caller_uaddr != NULL)
+		free(caller_uaddr);
+	if (hint_nbp != NULL) {
+		free(hint_nbp->buf);
+		free(hint_nbp);
+	}
+	if (serv_nbp != NULL) {
+		free(serv_nbp->buf);
+		free(serv_nbp);
+	}
+	if (ifp != NULL)
+		freeifaddrs(ifp);
 
 #ifdef ND_DEBUG
 	if (debugging)
