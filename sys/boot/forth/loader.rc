@@ -1,0 +1,10 @@
+\ Loader.rc
+\
+\ Includes additional commands
+include /boot/loader.4th
+
+\ Reads and processes loader.rc
+start
+
+\ Unless set otherwise, autoboot is automatic at this point
+
