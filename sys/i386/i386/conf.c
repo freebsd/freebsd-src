@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: conf.c,v 1.9 1993/10/09 23:56:53 rgrimes Exp $
  */
 
 #include "param.h"
@@ -100,6 +100,20 @@ int	/*cddump(),*/cdsize();
 #define	cdioctl		enxio
 #define	cddump		enxio
 #define	cdsize		NULL
+#endif
+
+#include "mcd.h"
+#if NMCD > 0
+int	mcdopen(),mcdclose(),mcdstrategy(),mcdioctl();
+int	/*mcddump(),*/mcdsize();
+#define	mcddump		enxio
+#else
+#define	mcdopen		enxio
+#define	mcdclose	enxio
+#define	mcdstrategy	enxio
+#define	mcdioctl	enxio
+#define	mcddump		enxio
+#define	mcdsize		NULL
 #endif
 
 #include "ch.h"
@@ -170,6 +184,8 @@ struct bdevsw	bdevsw[] =
 	  stdump,	stsize,		NULL },
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
 	  cddump,	cdsize,		NULL },
+	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
+	  mcddump,	mcdsize,	NULL },
 /*
  * If you need a bdev major number, please contact the 386bsd patchkit
  * coordinator by sending mail to "patches@cs.montana.edu". 
@@ -425,6 +441,9 @@ struct cdevsw	cdevsw[] =
 	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
 	  sioioctl,	siostop,	sioreset,	sio_tty, /* sio */
 	  sioselect,	enodev,		NULL },
+	{ mcdopen,	mcdclose,	rawread,	enodev,		/*29*/
+	  mcdioctl,	enodev,		nullop,		NULL,	/* mitsumi cd */
+	  seltrue,	enodev,		mcdstrategy },
 /*
  * If you need a cdev major number, please contact the 386bsd patchkit 
  * coordinator by sending mail to "patches@cs.montana.edu".
