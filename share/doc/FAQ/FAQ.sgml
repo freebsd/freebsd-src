@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.44 1997/04/10 12:06:53 asami Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.45 1997/04/20 11:53:53 pds Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-Last updated: <date>$Date: 1997/04/10 12:06:53 $</date>
+Last updated: <date>$Date: 1997/04/20 11:53:53 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1311,7 +1311,7 @@ options   PSM_CHECKSYNC      #checks the header byte for sync.
       <sect1>
         <heading>How about tape changers?</heading>
 
-          FreeBSD 2.2 supports SCSI changers using the <tt/ch/ device and the
+          <p>FreeBSD 2.2 supports SCSI changers using the <tt/ch/ device and the
           <tt/chio/ command.  The details of how you actually control the
           changer can be found in the <tt/chio(1)/ man page.
 
@@ -1912,7 +1912,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
       <sect1>
         <heading>Why are login names <bf/still/ resticted to 8 characters</heading>
 
-        You'd think it'd be easy enough to change <bf/UT_NAMESIZE/ and rebuild
+        <p>You'd think it'd be easy enough to change <bf/UT_NAMESIZE/ and rebuild
         the whole world, and everything would just work. Unfortunately there's
         scads of applications and utilities (including system tools) that have
         hard-coded small numbers (not always "8" or "9", but oddball ones
@@ -2746,7 +2746,7 @@ disk        fd1   at fdc0 drive 1
           option.
 
           <tt>
-            options "MAXMEM=<n>"
+            options "MAXMEM=&lt;n>"
           </tt>
 
           Where <tt/n/ is your memory in Kilobytes. For a 128 MB machine,
@@ -2763,7 +2763,7 @@ disk        fd1   at fdc0 drive 1
           the amount of VM available for mbuf clusters by adding:
 
           <tt>
-            options "NMBCLUSTERS=<n>"
+            options "NMBCLUSTERS=&lt;n>"
           </tt>
 
           to your kernel config file, where &lt;n&gt; is a number in the
