@@ -1,0 +1,5 @@
+pass in from localhost to localhost with short
+block in from any to any with ipopts
+pass in from any to any with opt nop,rr,zsu
+pass in from any to any with opt nop,rr,zsu not opt ssrr,lsrr
+pass in from localhost to localhost with not frag

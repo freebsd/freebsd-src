@@ -1,0 +1,567 @@
+#
+# NOTE: Quite a few patches and suggestions come from other sources, to whom
+#       I'm greatly indebted, even if no names are mentioned.
+#
+# Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
+# loan of a machine to work on a Solaris 2.x port of this software.
+#
+3.1.7		8/2/97 - Released
+
+Macros used for ntohs/htons supplied with gcc don't always work very well
+when the assignment is the same variable being converted.
+
+Filter matching doesn't not match rule which checks tcp flags on packets
+which are fragments - David Wilson
+
+3.1.7beta	30/1/97 - Released
+
+Fix up NAT bugs introduced in last major change (now tested), including
+nat_delete(), nat_lookupredir(), checksum changes, etc.
+
+3.1.7alpha	30/1/97 - Released
+
+Many changes to NAT code, including contributions from Laurent Joncheray
+<lpj@ans.net>
+
+Use "NO_SLEEP" when allocating memory under SunOS.
+
+Make kernel printf's nicer for BSD/SunOS4
+
+Always do a checksum for packets being filtered going out and being
+processed by fastroute.
+
+Leave kernel to play with cdevsw on *BSD systems with LKM's.
+
+ipnat.1 man page fixes.
+
+3.1.6		21/1/97 - Released
+
+Allow NAT to work on BSD systems in conjunction with "pass .. to ifname"
+
+Memory leak introduced in 3.1.3 in NAT lists, clearing of NAT table tried
+to free memory twice.
+
+NAT recalculates IP header checksum based on difference between IP#'s and
+port numbers - should be just IP#'s (Solaris2 only)
+
+3.1.5		13/1/97 - Released
+
+fixed setting of NAT timeouts and use different timeouts for concurrent
+TCP sessions using the same IP# mapping (when port mapping isn't used)
+
+multiple loading/unloading of LKM's doesn't clean up cdevsw properly for
+*BSD systems.
+
+3.1.4		10/1/97	- Released
+
+add command line options -C and -F to ipnat to flush NAT list and table
+
+ipnat -l loops on output - Neil Readwin (nreadwin@nysales.micrognosis.com)
+
+NetBSD/FreeBSD kernel malloc changes - Daniel Carosone
+
+3.1.3		10/1/97 - Released
+
+NAT chains not constructed correctly in hash tables - Antony Y.R Lu
+(antony@hawk.ee.ncku.edu.tw)
+
+Updated INSTALL.NetBSD, INSTALL.FreeBSD and INSTALL.Sol2
+
+man page update (ipf.5) from Daniel Carosone (dan@geek.com.au)
+
+ICMP header checksum update now included in NAT.
+
+Solaris2 needs to modify IP header checksums in ip_natin and ip_natout.
+
+3.1.2		4/12/96 - Released
+
+ipmon doesn't use syslog all the time when given -s option
+
+fixed mclput panic in ip_input.c and replace ntohs() with NTOHS() macro
+
+check the results of hostname resolution in ipnat
+
+"make *install" fixed for subdirectories.
+
+problems with "ARCH:=" and gnu make resolved
+
+parser reports an error for lines with whitespaces only rather than skipping
+them. D.Carosone@abm.com.au (Daniel Carosone)
+
+patches for integration into NetBSD-current (post 1.2).
+
+add an option to allow non-IP packets going up/down the stream on Solaris2
+to be dropped. John Bass.
+
+3.1.2beta	21/11/96 - Released
+
+make ipsend compile on Linux 2.0.24
+
+changes to TCP kept state algorithm, making it watch state on TCP
+connections in both directions.  Also use the same algorithm for NAT TCP.
+
+-Wall cleanup - Bernd Ernesti
+
+added "or-block" for "pass .. log or-block" after a suggestion from
+David Oppenheim (davido@optimation.com.au)
+
+added subdirectories for building IP Filter in SunOS5/BSD for different
+cpu architecures
+
+Solaris2 fixes to logging and pre-filtering packet processing - 3.1.1p2
+
+mbuf logging not using mtod(), remove iplbusy - 3.1.1p1		1/11/96
+
+3.1.1		28/10/96 - Released
+
+Installation script fixes and deinstall scripts for IP Filter on:
+SunOS4/FreeBSD/NetBSD
+
+Man page fixes - Paul Dubois (dubois@primate.wisc.edu)
+
+Fix use of SOLARIS macro in ipmon, rewrote ipllog() (again!)
+
+parsing isn't completely case insensitive - David Wilson
+(davidw@optimation.com.au)
+
+Release ipl_mutex across uiomove() calls
+
+print entire rule entries out for "ipf -z" when zero'ing per-rule stats.
+
+ipfstat returns same output for "hits" in "ipfstat -aio" - Terletsky Slavik
+(ts@polynet.lviv.ua)
+
+New algorithm for setting timeouts for TCP connection (more closely follow
+TCP FSM) - Pradeep Krishnan (pkrishna@netcom.com)
+
+Track both window sizes for TCP connections through "keep state".
+
+Solaris2 doesn't like _KERNEL defined in stdargs.h - Jos van Wezel
+(wezel@bio.vu.nl)
+
+3.1.1-beta2	6/10/96 - Released
+
+Solaris2 fastroute/dup-to/to now works
+
+ipmon `record' reading rewritten
+
+Added post-NetBSD1.2 packet filter patches - Mathew Green (mrg@eterna.com.au)
+
+Attempt to use in_proto.c.diff, not "..diffs" for SunOS4 - David Wilson
+(davidw@optimation.com.au)
+
+Michael Ryan (mike@NetworX.ie) reports the following:
+* The Trumpet WinSock under Windows always sends its SYN packet with an ACK
+  value of 1, unlike any other implementation I've seen, which would set it
+  to zero.  The "keep state" feature of IP Filter doesn't work when receiving
+  non-zero ACK values on new connection requests.
+* */Makefile install rule doesn't install all the binaries/man pages
+* Make ipnat use "tcp/udp" instead of "tcpudp"
+* Print out "tcp/udp" properly
+* ipnat "portmap tcp" matches "portmap udp" when adding/removing
+* NAT dest. ip# increased by one on mask of 0xffffffff when it shouldn't
+
+3.1.1-beta	1/9/96 - Released
+
+add better detection of TCP connections closing to TCP state monitoring.
+
+fr_addstate() not called correctly for fragments.  "keep state" and
+"keep frag" code don't work together 100% - Songqing Cai
+(songqing_cai@sterling.com)
+
+call to fr_addstate() incorrect for adding state in combination with keeping
+fragment information - Songqing Cai (songqing_cai@sterling.com)
+
+KFREE() passed fp (incorrect) and not fr (correct) in ip_frag.c - John Hood
+(cgull@smoke.marlboro.vt.us)
+
+make ipf parser recognise '\\' as a `continued line' marker - Dima Ruban
+(dima@best.net)
+
+3.1.1-alpha	23/8/96 - Released
+
+kernel panic's when ICMP packets go through NAT code
+
+stats aren't zero'd properly with ipf -Z
+
+ipnat doesn't show port numbers correctly all the time and also add the
+protocol (tcp/udp/tcpudp) to rdr output - Carson Gaspar (carson@lehman.com)
+
+fast checksum fixing not 100% - backout patch - Bill Dorsey (dorsey@lila.com)
+
+NetBSD-1.2 patches from - VaX#n8 <vax@linkdead.paranoia.com>
+
+Usage() call error in fils.c - Ajay Shekhawat (ajay@cedar.buffalo.edu)
+
+ip_optcopy() staticly defined in ip_output.c in SunOS4 - Nick Hall
+(nrh@tardis.ed.ac.uk)
+
+3.1.0		7/7/96 - Released
+
+Reformatted ipnat output to be compatible with it's input, so that
+"ipnat -l | ipnat -rf -" is possible.
+
+3.1.0beta	30/6/96 - Released
+
+NetBSD-1.2 patches from Greg Woods (woods@most.weird.com)
+
+kernel module must not be installed stripped (Solaris2), as created by
+"make package" for Solaris2 - Peter Heimann
+(peter@i3.informatik.rwth-aachen.de)
+
+3.1.0alpha	5/6/96 - Released
+
+include examples in package for solaris2
+
+patches for removing an extra ip header checksum (FreeBSD/NetBSD/SunOS)
+
+removed trailing space from printouts of rules in ipf.
+
+ipresend supports the same range of inputs that ipftest does.
+
+sending a duplicate copy of a packet to another network devices is now
+supported. ("dup-to")
+
+sending a packet to an arbitary interface is now supported, irrespective
+of its actual route, with no ttl decrement.  Can also be routed without
+the ttl being decremented. ("to" and "fastroute").
+
+"call" option added to support calling a generic function if a packet is
+matched.
+
+show all (upto 4) recorded bytes from the interface name in logging from
+ipmon.
+
+support for using unix file permissions for read/write access on the device
+is now in place.
+
+recursive mutex in nat_new() for Solaris 2.x - Per L. Hagen <per@stibo.dk>
+
+ipftest doesn't call initparse() for THISHOST - Catherine Allen
+(cla@connect.com.au)
+
+Man page corrections from Rex Bona (rex@pengo.comsmiths.com.au)
+
+3.0.4		10/4/96 - Released
+
+looop in `parsing' IP packets with optlen 0 for ip options.
+
+rule number not initialized and resulted in unexpected results for state
+maching.
+
+option parsing and printing bugs - Pradeep Krishnan
+
+3.0.4beta	25/3/96	- Released
+
+wouldn't parse "keep flags keep state" correctly.
+
+SunOS4.1.x ip_input.c doesn't recognise all 1s broadcast address - Nigel Verdon
+
+patches for BSDI's BSD/OS 2.1 and libpcap reader on little endian systems
+from Thorsten Lockert <tholo@tetherless.com>
+
+b* functions in fil.c on Solaris 2.4
+
+3.0.3	17/3/96 - Released
+
+added patches to support IP Filter initialisation when compiled into the
+kernel.
+
+added -x option to ipmon to display hex dumps of logged packets.
+
+added -H option to ipftest to allow ascii-hex formatted input to specify
+arbitary IP packets.
+
+Sending TCP RSTs as a response now work for Solaris2 x86
+
+add patches to make IP Filter compile into NetBSD kernels properly.
+
+patch to stop SunOS 4.1.x kernels panicing with "data traps".
+
+ipfboot script unloads and reloads ipf module on Solaris2 if it is already
+loaded into the kernel.
+
+Installation of IP Filter as a Solaris2 package is now supported.
+
+Man pages for ipnat.4, ipnat.5 added.
+
+added some more regression tests and fixed up IP Filter to pass the new tests
+(previous versions failed some of the tests in set 12).
+
+IP option filter processing has changed so that saying "with opt lsrr" will
+check only for that one, but not mask out other options, so a packet with
+strict source routing, along with loose source routing will match all of
+"with opt lsrr", "with opt ssrr" and "with opt lsrr,ssrr".
+
+IPL_NAME needed in ipnat.c - Kelly (kelly@count04.mry.scruznet.com)
+
+patches for clean NetBSD compilation from Bernd Ernesti (bernd@arresum.inka.de)
+
+make install is incorrect - Julian Briggs (julian@lightwork.co.uk)
+
+strtol() returns 0x7fffffff for all negative numbers,
+printfr() generates incorrect output for "opt sec-class *",
+handling of "not opt xxx opt yyy" incorrect.
+- Minh Tonthat (minht@sbei.com)/Pradeep Krishnan (pradeepk@sbei.com)
+
+m_pullup() called only for input and not output; caused problems
+with filtering icmp - Nigel Verdon (verdenn@gb.swissbank.com)
+
+parsing problem for "port 1" and NetBSD patches incorrect -
+Andreas Gustafsson (gson@guava.araneus.fi)
+
+3.0.2	4/2/96 - Released
+
+Corrected bug where NAT recalculates checksums for fragments.
+
+make NAT recalculate UDP checksums (rather than setting them to 0),
+if they're non-zero.
+
+DNS patches - Real Page (Real.Page@Matrox.com)
+
+alteration of checksum recalculations in NAT code and addition of
+redirection with NAT - Mike Neuman
+
+core dump, if tcp/udp is used with a port number and not service name,
+in ipf - Mike Neuman (mcn@engarde.com)
+
+initparse() call, missing to prime "<thishost>" hook - Craig Bishop
+
+3.0.1	14/1/96 - Released
+
+miscellaneous patches for Solaris2
+
+3.0	14/1/96	- Released
+
+Patch included for FDDI, from Richard Ohnemus
+(Richard_Ohnemus@dallas.csd.sterling.com)
+
+Code cleanup for release.
+
+3.0beta4 10/1/96
+
+recursive mutex in ipfr_slowtimer fixed, reported by Craig Bishop
+
+recursive mutex in sending TCP RSTs fixed, reported by Tony Becker
+
+3.0beta3 9/1/96
+
+FIxup for Solaris2.5 install and interface name bug in ipftest from
+Julian Briggs (julian@lightwork.co.uk)
+
+Byte order patches for ipmon from Tony Becker (tony@mcrsys.com)
+
+3.0beta2 7/1/96
+
+Added the (somewhat warped) IP accounting as it exists in ipfw on FreeBSD.
+Note, this isn't really what one would call IP account, when compared to
+process accounting, sigh.
+
+Split up ipresend into iptest/ipresend/ipsend
+
+Added another m_pullup() inside fr_check() for BSD style kernels and
+added some checks to ipllog() to not log more than is present (for short
+packets).
+
+Fixed bug where failed hostname/netname resolution goes undetecte and
+becomes 0.0.0.0 (any) (reported Guido van Rooij)
+
+3.0beta	11/11/95	- Released
+
+Rewrote the way rule testing is done, reducing the number of files needed and
+generated.
+
+SIOCIPFFL was incorrectly affected by IPFILTER_LOG (Mathew Green)
+
+Patches from Guido van Rooij to fix sending back TCP RSTs on Net-2/Net-3
+BSD based Unixes (panic'd)
+
+Patches for FreeBSD/i86 ipmon from Riku Kalinen <riku@tequila.nixu.fi>
+(I think someone else already told me about these but they got lost :-/)
+
+Changed Makefile structure to build object files for different operating
+systems in separate directories by default.
+
+BSDI has ef0 for first ethernet interface
+
+Allow for a "not" operator before optional keywords.
+
+The "rule number" was being incorrectly incremented every time it went through
+the loop rather than when it matched a rule.
+
+2.8.2	24/10/95	- Released
+
+Fixed up problems with "textip" for doing lots of testing.
+
+Fixed bug in detection of "short" tcp/ip packets (all reported as being short).
+
+Solaris 2.4 port now works 100%.
+
+Man page errors reported and fixed.
+
+Removed duplicate entry in etc/services for login on port 49 (Craig Bishop).
+
+Fixed ipmon output to put a space after the log-letter.
+
+Patch from Guido van Rooij to fix parsing problem.
+
+2.8.1	15/10/95	- Released
+
+Added ttl and tos filtering.
+
+Patches for fixing up compilation and port problems (little endian)
+from Guido van Rooij <guido@IAEhv.nl>.
+
+Man page problems reported and fixed by Carson Gaspar <carson@lehman.com>.
+
+ipsend doesn't compile properly on Solaris2.4
+
+Lots of work done for Solaris2.4 to make it MT/MP safe and work.
+
+2.8	15/9/95		- Released
+
+ipmon can now send messages to syslogd (-s) and use names instead of
+numbers (-N).
+
+IP packets are now "compiled" into a structure only containing filterable
+bits.
+
+Added regression testing in the test/ subdirectory, using a new option
+(-b) with the ipftest program.
+
+Added "nomatch" return to filter results.  These are counted and show
+up in reports from ipfstat.
+
+Moved filter code out of ip_fil.c and into fil.c - there is now only one
+instance of it in the package.
+
+Added Solaris 2.4 support.
+
+Added IPSO basic security option filtering.
+
+Added name support for filtering on all 19 named IP options.
+
+Patches from Ivan Brawley to log packet contents as well as packet headers.
+
+Update for sun/conf.c.diff from Ivan Brawley <ibrawley@awadi.com.AU>
+
+Added patches for FreeBSD 1, and added two new switches (-E, -D) to ipf,
+along with a new ioctl, SIOCFRENB.
+From: Dieter Dworkin Muller <dworkin@village.org>
+
+2.7.3	31/7.95		- Released
+
+Didn't compile cleanly without IPFILTER_LOG defined (Mathew Green).
+
+ipftest now deals with tcpdump3 binary output files (from libpcap) with -P.
+
+Brought ipftest program upto date with actual filter code.
+
+Filter would cause a match to occur when it wasn't meant to if the packet
+had short headers and was missing portions that should have been there.
+Err, it would rightly not match on them, but their absence caused a match
+when it shouldn't have been.
+
+2.7.2	26/7/95		- Released
+
+Problem with filtering just SYN flagged packets reported by
+Dieter Dworkin Muller <dworkin@village.org>.  To solve this
+problem, added support for masking TCP flags for comparison "flags X/Y".
+
+2.7.1	9/7/95		- Released
+
+Added ip_dirbroadcast support for Sun ip_input.c
+
+Fixed up the install scripts for FreeBSD/NetBSD to recognise where they are
+better.
+
+2.7	7/7/95		- Released
+
+Added "return-rst" to return TCP RST's to TCP packets.
+
+Actually ported it to FreeBSD-i386 2.0.0, so it works there properly now.
+
+Added insertion of filter rules.  Use "@<#>" at the beginning of a filter
+to insert a rule at row #.
+
+Filter keeps track of how many times each rule is matched.
+
+Changed compile time things to match kernel option (IPFILTER_LKM &
+IPFILTER_LOG).
+
+Updated ip_input.c and ip_output.c with paches for 3.5 Multicast IP.
+(No change required for 3.6)
+
+Now includes TCP fragments which start inside the TCP header as being short.
+Added counting the number of times each rule is matched.
+
+
+2.6	11/5/95		- Released
+
+Added -n option to ipf: when supplied, no changes are made to the kernel.
+
+Added installation scripts for SunOS 4.1.x and NetBSD/FreeBSD/BSDI.
+
+Rewrote filtering to use a more generic mask & match procedure for
+checking if a packet matches a rule.
+
+2.5.2	27/4/95		- Released
+
+"tcp/udp" and a non-initialised pointer caused the "proto" to become
+a `random' value; added "ip#/dotted.mask" notation to the BNF.
+From Adam W. Feigin  <feigin@iis.ee.ethz.ch>
+
+2.5.1	22/3/95		- Released
+
+"tcp/udp" had a strange effect (undesired) on getserv*() functions,
+causing protocol/service lookups to fail.  Reported by Matthew Green.
+
+2.5	17/3/95		- Released
+
+Added a new keyword "all" to BNF and parsing of tcpdump/etherfind/snoop
+output through the ipftest program.  Suggestions from:
+Michael Ciavarella (mikec@phyto.apana.org.au)
+
+Conflicts occur when "general" filter rules are used for ports and the
+lack of a "proto" when used with "port" matches other packets when only
+TCP/UDP are implied.
+Reported Matthew Green (mrg@fulcom.com.au);
+reported & fixed 6-8/3/95
+
+Added filtering of short TCP packets using "with short" 28/2/95
+(These can possibly slip by checks for the various flags).  Short UDP
+or ICMP are dropped to the floor and logged.
+
+Added filtering of fragmented packets using "with frag" 24/2/95
+
+Port to NetBSD-current completed 20/2/95, using LKM.
+
+Added logging of the rule # which caused the logging to happen and the
+interface on which the packet is currently as suggested by
+Andreas Greulich (greulich@math-stat.unibe.ch) 10/2/95
+
+2.4	9/2/95		- Released
+Fixed saving of IP headers in ICMP packets.
+
+2.3	29/1/95
+Added ipf -F [in|out|all] to flush filter rule sets (SIOCIPFFL).
+Fixed iplread() and iplsave() with help from Marc Huber.
+
+2.2	7/1/95		- Released
+Added code from Marc Huber <huber@fzi.de> to allow it to allocate
+its own major char number dynamically when modload'ing.  Fixed up
+use of <, >, <=, >= and >< for ports.
+
+2.1	21/12/94	- Released
+repackaged to include the correct ip_output.c and ip_input.c *goof*
+
+2.0	18/12/94	- Released
+added code to check for port ranges - complete.
+rewrote to work as a loadable kernel module - complete.
+
+1.1
+added code for ouput filtering as well as input filtering and added support for logging to a simple character device of packet headers.
+
+1.0	22/04/93	- Released
+First release cut.
+

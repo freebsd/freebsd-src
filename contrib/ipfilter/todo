@@ -1,0 +1,19 @@
+* automatically use the interface's IP# for NAT rather than any specific IP#
+
+* use fr_tcpstate() with NAT code for increased NAT usage security or even
+  fr_checkstate()
+
+* use minor devices for controlling access to alternate parts of IP Filter
+  such as filtering, accounting, state, NAT, etc.
+
+* see if the Solaris2 and dynamic plumb/unplumb problem is solvable
+
+time permitting:
+
+* load balancing across interfaces
+
+* record buffering for TCP/UDP
+
+* modular application proxying
+
+* invesitgate making logging better

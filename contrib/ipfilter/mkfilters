@@ -1,0 +1,65 @@
+#!/usr/local/bin/perl
+# for best results, bring up all your interfaces before running this
+open(I, "ifconfig -a|") || die $!;
+while (<I>) {
+	chop;
+	if (/^[a-zA-Z]+\d+:/) {
+		($iface = $_) =~ s/^([a-zA-Z]+\d+).*/$1/;
+		$ifaces{$iface} = $iface;
+		next;
+	}
+	if (/inet/) {
+		if (/\-\-\>/) { # PPP, (SLIP?)
+			($inet{$iface} = $_) =~ s/.*inet ([^ ]+) \-\-\> ([^ ]+).*/$1/;
+			($ppp{$iface} = $_) =~ s/.*inet ([^ ]+) \-\-\> ([^ ]+).*/$2/;
+		} else {
+			($inet{$iface} = $_) =~ s/.*inet ([^ ]+).*/$1/;
+		}
+	}
+	if (/netmask/) {
+		($mask = $_) =~ s/.*netmask ([^ ]+).*/$1/;
+		$mask =~ s/^/0x/ if ($mask =~ /^[0-9a-f]*$/);
+		$netmask{$iface} = $mask;
+	}
+	if (/broadcast/) {
+		($bcast{$iface} = $_) =~ s/.*broadcast ([^ ]+).*/$1/;
+	}
+}
+foreach $i (keys %ifaces) {
+	$net{$i} = $inet{$i}."/".$netmask{$i} if (defined($inet{$i}));
+}
+#
+# print out route suggestions
+#
+print "#\n";
+print "# The following routes should be configured, if not already:\n";
+print "#\n";
+foreach $i (keys %ifaces) {
+	next if (($i =~ /lo/) || !defined($net{$i}) || defined($ppp{$i}));
+	print "# route add $inet{$i} localhost 0\n";
+}
+print "#\n";
+
+#
+# print out some generic filters which people should use somewhere near the top
+#
+print "block in log quick from any to any with ipopts\n";
+print "block in log quick proto tcp from any to any with short\n";
+
+foreach $i (keys %ifaces) {
+	if (!defined($inet{$i})) {
+		next;
+	}
+	if ($i !~ /lo/) {
+		print "block in on $i from 127.0.0.0/8 to any\n";
+		print "block out on $i from 127.0.0.0/8 to any\n";
+		print "block out on $i from any to 127.0.0.0/8\n";
+		print "block in on $i from $inet{$i}/32 to any\n";
+		print "block out on $i from any to $inet{$i}/32\n";
+		foreach $j (keys %ifaces) {
+			if ($i ne $j && $j !~ /^lo/ && defined($net{$j})) {
+				print "block in on $i from $net{$j} to any\n";
+			}
+		}
+	}
+}
