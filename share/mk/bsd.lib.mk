@@ -204,7 +204,7 @@ lib${LIB}_pic.a: ${SOBJS}
 	${RANLIB} ${.TARGET}
 .endif
 
-.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
+.if defined(WANT_LINT) && !defined(NOLINT) && defined(LIB) && !empty(LIB)
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
@@ -273,7 +273,7 @@ _libinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
-.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
+.if defined(WANT_LINT) && !defined(NOLINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
@@ -292,7 +292,7 @@ realinstall: _maninstall
 
 .if !target(lint)
 lint: ${SRCS:M*.c}
-	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
+	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
 .if !defined(NOMAN)

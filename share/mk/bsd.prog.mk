@@ -3,7 +3,7 @@
 
 .include <bsd.init.mk>
 
-.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S .asm
+.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
 
@@ -157,9 +157,9 @@ realinstall: _maninstall
 .endif
 
 .if !target(lint)
-lint: ${SRCS}
+lint: ${SRCS:M*.c}
 .if defined(PROG)
-	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC} | more 2>&1
+	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 .endif
 
