@@ -112,7 +112,7 @@ static void trace_loaded_objects(Obj_Entry *obj);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 
-void r_debug_state(void);
+void r_debug_state(struct r_debug*, struct link_map*);
 void xprintf(const char *, ...);
 
 /*
@@ -144,7 +144,7 @@ static LockInfo lockinfo;
 
 static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
-#define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
+#define GDB_STATE(s,m)	r_debug.r_state = s; r_debug_state(&r_debug,m);
 
 extern Elf_Dyn _DYNAMIC;
 #pragma weak _DYNAMIC
@@ -392,7 +392,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     objlist_init(&initlist);
     initlist_add_objects(obj_list, preload_tail, &initlist);
 
-    r_debug_state();		/* say hello to gdb! */
+    r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
     objlist_call_init(&initlist);
     wlock_acquire();
@@ -1498,9 +1498,9 @@ dlclose(void *handle)
 	objlist_remove_unref(&list_fini);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
-	GDB_STATE(RT_DELETE);
+	GDB_STATE(RT_DELETE,&root->linkmap);
 	unload_object(root);
-	GDB_STATE(RT_CONSISTENT);
+	GDB_STATE(RT_CONSISTENT,NULL);
     }
     wlock_release();
     return 0;
@@ -1546,7 +1546,7 @@ dlopen(const char *name, int mode)
     objlist_init(&initlist);
 
     wlock_acquire();
-    GDB_STATE(RT_ADD);
+    GDB_STATE(RT_ADD,NULL);
 
     old_obj_tail = obj_tail;
     obj = NULL;
@@ -1581,7 +1581,7 @@ dlopen(const char *name, int mode)
 	}
     }
 
-    GDB_STATE(RT_CONSISTENT);
+    GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     /* Call the init functions with no locks held. */
     wlock_release();
@@ -1766,9 +1766,19 @@ linkmap_delete(Obj_Entry *obj)
 
 /*
  * Function for the debugger to set a breakpoint on to gain control.
+ *
+ * The two parameters allow the debugger to easily find and determine
+ * what the runtime loader is doing and to whom it is doing it.
+ *
+ * When the loadhook trap is hit (r_debug_state, set at program
+ * initialization), the arguments can be found on the stack:
+ *
+ *  +8   struct link_map *m
+ *  +4   struct r_debug  *rd
+ *  +0   RetAddr
  */
 void
-r_debug_state(void)
+r_debug_state(struct r_debug* rd, struct link_map *m)
 {
 }
 
