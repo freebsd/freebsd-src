@@ -405,7 +405,7 @@
     changed.</para>
 
     <para><filename>libfetch</filename> now has support for a
-    <varname>HTTP_USER_AGENT</varname> environment variable.</para>
+    <envar>HTTP_USER_AGENT</envar> environment variable.</para>
 
     <para>The &man.getprogname.3; and &man.setprogname.3; library
     functions have been added to manipulate the name of the current
@@ -529,7 +529,7 @@
       <para><application>file</application> has been updated to 3.36.</para>
 
       <para>&man.gcc.1; now supports the environment variable
-      <varname>GCC_OPTIONS</varname>, which can hold a set of default
+      <envar>GCC_OPTIONS</envar>, which can hold a set of default
       options for <application>GCC</application>.</para>
 
       <para><application>GNATS</application> has been updated to
