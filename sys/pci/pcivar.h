@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.32 1999/05/18 20:48:38 peter Exp $
+ * $Id: pcivar.h,v 1.33 1999/05/20 15:33:33 gallatin Exp $
  *
  */
 
@@ -185,6 +185,9 @@ vm_offset_t pci_cvt_to_dense (vm_offset_t);
 vm_offset_t pci_cvt_to_bwx (vm_offset_t);
 #endif /* __alpha__ */
 
+/* low level devlist operations for the 2.2 compatibility code in pci.c */
+pcicfgregs * pci_devlist_get_parent(pcicfgregs *cfg);
+
 #ifdef _SYS_BUS_H_
 
 #include "pci_if.h"
@@ -324,6 +327,9 @@ int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
 int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
+
+pcici_t pci_get_parent_from_tag(pcici_t tag);
+int     pci_get_bus_from_tag(pcici_t tag);
 
 struct module;
 int compat_pci_handler (struct module *, int, void *);
