@@ -224,6 +224,18 @@ static int *st_unit_list;
 static size_t st_unit_max = 0;
 
 static int
+slisunitfree(int unit)
+{
+	struct sl_softc *nc;
+
+	LIST_FOREACH(nc, &sl_list, sl_next) {
+		if (nc->sc_if.if_dunit == unit)
+			return (0);
+	}
+	return (1);
+}
+
+static int
 slisstatic(unit)
 	int unit;
 {
@@ -260,7 +272,7 @@ slmarkstatic(unit)
 static struct sl_softc *
 slcreate()
 {
-	struct sl_softc *sc, *nc;
+	struct sl_softc *sc;
 	int unit;
 	struct mbuf *m;
 
@@ -310,10 +322,8 @@ slcreate()
 	for (unit=0; ; unit++) {
 		if (slisstatic(unit))
 			continue;
-		LIST_FOREACH(nc, &sl_list, sl_next) {
-			if (nc->sc_if.if_dunit == unit)
-				continue;
-		}
+		if (!slisunitfree(unit))
+			continue;
 		break;
 	}
 	if_initname(&sc->sc_if, "sl", unit);
@@ -443,7 +453,7 @@ sltioctl(tp, cmd, data, flag, td)
 	int flag;
 	struct thread *td;
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc;
+	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 	int s, unit, wasup;
 
 	s = splimp();
@@ -459,12 +469,8 @@ sltioctl(tp, cmd, data, flag, td)
 			return (ENXIO);
 		}
 		if (sc->sc_if.if_dunit != unit) {
-			LIST_FOREACH(nc, &sl_list, sl_next) {
-				if (nc->sc_if.if_dunit == *(u_int *)data) {
-						splx(s);
-						return (ENXIO);
-				}
-			}
+			if (!slisunitfree(unit))
+				return (ENXIO);
 
 			wasup = sc->sc_if.if_flags & IFF_UP;
 			bpfdetach(&sc->sc_if);
