@@ -116,3 +116,4 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 		}
 	}
 }
+

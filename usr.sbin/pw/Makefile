@@ -8,7 +8,7 @@ SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \
 MAN5=	pw.conf.5
 MAN8=	pw.8
 	
-CFLAGS+= -Wall
+CFLAGS+= -Wall $(CDB)
 LDADD=	-lcrypt
 DPADD=	${LIBCRYPT}
 
