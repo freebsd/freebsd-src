@@ -145,7 +145,7 @@ struct highpoint_raid_conf {
     u_int8_t		dummy_2;
     u_int8_t		name_2[15];
     int8_t		filler3[8];
-} __attribute__((packed));
+} __packed;
 
 
 #define PR_LBA(adp) \
@@ -180,7 +180,7 @@ struct promise_raid_conf {
 	u_int8_t	disk_number;
 	u_int8_t	channel;
 	u_int8_t	device;
-	u_int64_t	magic_0 __attribute__((packed));
+	u_int64_t	magic_0 __packed;
 	u_int32_t	disk_offset;		/* 0x210 */
 	u_int32_t	disk_sectors;
 	u_int32_t	rebuild_lba;
@@ -209,18 +209,18 @@ struct promise_raid_conf {
 	u_int16_t	cylinders;
 	u_int8_t	heads;
 	u_int8_t	sectors;
-	int64_t		magic_1 __attribute__((packed));
+	int64_t		magic_1 __packed;
 	struct {				/* 0x240 */
 	    u_int8_t	flags;
 	    u_int8_t	dummy_0;
 	    u_int8_t	channel;
 	    u_int8_t	device;
-	    u_int64_t	magic_0 __attribute__((packed));
+	    u_int64_t	magic_0 __packed;
 	} disk[8];
     } raid;
     int32_t		filler2[346];
     u_int32_t		checksum;
-} __attribute__((packed));
+} __packed;
 
 int ata_raiddisk_probe(struct ad_softc *);
 int ata_raiddisk_attach(struct ad_softc *);

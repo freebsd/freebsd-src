@@ -68,7 +68,7 @@ struct ciss_header
 #define CISS_HDR_HOST_TAG_ERROR	(1<<1)
     u_int32_t	host_tag_zeroes;	/* tag is 64 bits, but interface only supports 32 */
     union ciss_device_address address;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_cdb
 {
@@ -89,13 +89,13 @@ struct ciss_cdb
     u_int16_t	timeout;		/* seconds */
 #define CISS_CDB_BUFFER_SIZE	16
     u_int8_t	cdb[CISS_CDB_BUFFER_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_error_info_pointer
 {
     u_int64_t	error_info_address;	/* points to ciss_error_info structure */
     u_int32_t	error_info_length;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_error_info
 {
@@ -131,16 +131,16 @@ struct ciss_error_info
 	    u_int8_t	res1[3];
 	    u_int8_t	type;
 	    u_int32_t	error_info;
-	} common_info __attribute__ ((packed));
+	} common_info __packed;
 	struct {
 	    u_int8_t	res1[2];
 	    u_int8_t	offense_size;
 	    u_int8_t	offense_offset;
 	    u_int32_t	offense_value;
-	} invalid_command __attribute__ ((packed));
+	} invalid_command __packed;
     } additional_error_info;
     u_int8_t	sense_info[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_sg_entry
 {
@@ -149,7 +149,7 @@ struct ciss_sg_entry
     u_int32_t	length;
     u_int32_t	:31;
     u_int32_t	extension:1;		/* address points to another s/g chain */
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_command
 {
@@ -157,7 +157,7 @@ struct ciss_command
     struct ciss_cdb			cdb;
     struct ciss_error_info_pointer	error_info;
     struct ciss_sg_entry		sg[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define CISS_OPCODE_REPORT_LOGICAL_LUNS		0xc2
 #define CISS_OPCODE_REPORT_PHYSICAL_LUNS	0xc3
@@ -167,7 +167,7 @@ struct ciss_lun_report
     u_int32_t	list_size;		/* big-endian */
     u_int32_t	:32;
     union ciss_device_address lun[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_report_cdb 
 {
@@ -176,7 +176,7 @@ struct ciss_report_cdb
     u_int32_t	length;			/* big-endian */
     u_int8_t	:8;
     u_int8_t	control;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Note that it's not clear whether we have to set the detail field to
@@ -210,7 +210,7 @@ struct ciss_message_cdb
     u_int16_t	:16;
     u_int32_t	abort_tag;					/* XXX endianness? */
     u_int8_t	reserved[8];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * CISS vendor-specific commands/messages.
@@ -240,7 +240,7 @@ struct ciss_notify_cdb
     u_int32_t	length;			/* must be 512, little-endian */
 #define CISS_NOTIFY_DATA_SIZE	512
     u_int8_t	control;
-} __attribute__ ((packed));
+} __packed;
 
 #define CISS_NOTIFY_NOTIFIER		0
 #define CISS_NOTIFY_NOTIFIER_STATUS		0
@@ -289,19 +289,19 @@ struct ciss_notify_drive
     u_int8_t	spare_drive_flag;
     u_int8_t	big_physical_drive_number;
     u_int8_t	enclosure_bay_number;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify_locator
 {
     u_int16_t	port;
     u_int16_t	id;
     u_int16_t	box;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify_redundant_controller
 {
     u_int16_t	slot;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify_logical_status
 {
@@ -309,7 +309,7 @@ struct ciss_notify_logical_status
     u_int8_t	previous_state;
     u_int8_t	new_state;
     u_int8_t	spare_state;
-} __attribute__ ((packed));
+} __packed;
  
 struct ciss_notify_rebuild_aborted
 {
@@ -318,7 +318,7 @@ struct ciss_notify_rebuild_aborted
     u_int8_t	error_drive;
     u_int8_t	big_replacement_drive;
     u_int8_t	big_error_drive;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify_io_error 
 {
@@ -329,12 +329,12 @@ struct ciss_notify_io_error
     u_int8_t	failure_bus;
     u_int8_t	failure_drive;
     u_int64_t	big_lba;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify_consistency_completed
 {
     u_int16_t	logical_drive;
-} __attribute__ ((packed));
+} __packed;
 
 struct ciss_notify 
 {
@@ -361,7 +361,7 @@ struct ciss_notify
     u_int16_t	pre_power_up_time;
     union ciss_device_address	device;
     /* XXX pads to 512 bytes */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * CISS config table, which describes the controller's 
@@ -397,7 +397,7 @@ struct ciss_config_table
 #define CISS_DRIVER_HOST_IS_ALPHA		(1<<4)
     char	server_name[16];
     u_int32_t	heartbeat;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * In a flagrant violation of what CISS seems to be meant to be about,
@@ -463,7 +463,7 @@ struct ciss_bmic_cdb {
     u_int8_t	bmic_opcode;
     u_int16_t	size;			/* big-endian */
     u_int8_t	res2;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * BMIC command command/return structures.
@@ -484,7 +484,7 @@ struct ciss_bmic_id_ldrive {
     u_int32_t	logical_drive_identifier;
     char	logical_drive_label[64];
 #endif
-} __attribute__ ((packed));
+} __packed;
 
 /* CISS_BMIC_ID_LSTATUS */
 struct ciss_bmic_id_lstatus {
@@ -529,7 +529,7 @@ struct ciss_bmic_id_lstatus {
     u_int8_t	spare_to_replace_map[CISS_BIG_MAP_ENTRIES];
     u_int8_t	replaced_marked_ok_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	drive_rebuilding;
-} __attribute__ ((packed));
+} __packed;
 
 /* CISS_BMIC_ID_CTLR */
 struct ciss_bmic_id_table {
@@ -558,7 +558,7 @@ struct ciss_bmic_id_table {
     u_int8_t	big_drive_present_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	big_external_drive_present_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	big_non_disk_map[CISS_BIG_MAP_ENTRIES / 8];
-} __attribute__ ((packed));
+} __packed;
 
 /* CISS_BMIC_ID_PDRIVE */
 struct ciss_bmic_id_pdrive {
@@ -596,7 +596,7 @@ struct ciss_bmic_id_pdrive {
     char	connector[2];
     u_int8_t	res5;
     u_int8_t	bay;
-} __attribute__ ((packed));
+} __packed;
 
 /* CISS_BMIC_BLINK_PDRIVE */
 /* CISS_BMIC_SENSE_BLINK_PDRIVE */
@@ -607,7 +607,7 @@ struct ciss_bmic_blink_pdrive {
 #define CISS_BMIC_BLINK_ALL	1
 #define CISS_BMIC_BLINK_TIMED	2
     u_int8_t	res2[248];
-} __attribute__ ((packed));
+} __packed;
 
 /* CISS_BMIC_FLUSH_CACHE */
 struct ciss_bmic_flush_cache {
@@ -615,7 +615,7 @@ struct ciss_bmic_flush_cache {
 #define CISS_BMIC_FLUSH_AND_ENABLE	0
 #define CISS_BMIC_FLUSH_AND_DISABLE	1
     u_int8_t	res1[510];
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef _KERNEL
 /*

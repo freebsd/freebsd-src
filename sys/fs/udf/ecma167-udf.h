@@ -55,25 +55,25 @@ struct desc_tag {
 	uint16_t	desc_crc;
 	uint16_t	desc_crc_len;
 	uint32_t	tag_loc;
-} __attribute__ ((packed));
+} __packed;
 
 /* Recorded Address [4/7.1] */
 struct lb_addr {
 	uint32_t	lb_num;
 	uint16_t	part_num;
-} __attribute__ ((packed));
+} __packed;
 
 /* Extent Descriptor [3/7.1] */
 struct extent_ad {
 	uint32_t	len;
 	uint32_t	loc;
-} __attribute__ ((packed));
+} __packed;
 
 /* Short Allocation Descriptor [4/14.14.1] */
 struct short_ad {
 	uint32_t	len;
 	uint32_t	pos;
-} __attribute__ ((packed));
+} __packed;
 
 /* Long Allocation Descriptor [4/14.14.2] */
 struct long_ad {
@@ -81,7 +81,7 @@ struct long_ad {
 	struct lb_addr	loc;
 	uint16_t	ad_flags;
 	uint32_t	ad_id;
-} __attribute__ ((packed));
+} __packed;
 
 /* Extended Allocation Descriptor [4/14.14.3] */
 struct ext_ad {
@@ -90,7 +90,7 @@ struct ext_ad {
 	uint32_t	inf_len;
 	struct lb_addr	ex_loc;
 	uint8_t		reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 union icb {
 	struct short_ad	s_ad;
@@ -102,7 +102,7 @@ union icb {
 struct charspec {
 	uint8_t		type;
 	uint8_t		inf[63];
-} __attribute__ ((packed));
+} __packed;
 
 /* Timestamp [1/7.3] */
 struct timestamp {
@@ -116,7 +116,7 @@ struct timestamp {
 	uint8_t		centisec;
 	uint8_t		hund_usec;
 	uint8_t		usec;
-} __attribute__ ((packed));
+} __packed;
 
 /* Entity Identifier [1/7.4] */
 #define	UDF_REGID_ID_SIZE	23
@@ -124,7 +124,7 @@ struct regid {
 	uint8_t		flags;
 	uint8_t		id[UDF_REGID_ID_SIZE];
 	uint8_t		id_suffix[8];
-} __attribute__ ((packed));
+} __packed;
 
 /* ICB Tag [4/14.6] */
 struct icb_tag {
@@ -136,7 +136,7 @@ struct icb_tag {
 	uint8_t		file_type;
 	struct lb_addr	parent_icb;
 	uint16_t	flags;
-} __attribute__ ((packed));
+} __packed;
 #define	UDF_ICB_TAG_FLAGS_SETUID	0x40
 #define	UDF_ICB_TAG_FLAGS_SETGID	0x80
 #define	UDF_ICB_TAG_FLAGS_STICKY	0x100
@@ -146,14 +146,14 @@ struct anchor_vdp {
 	struct desc_tag		tag;
 	struct extent_ad	main_vds_ex;
 	struct extent_ad	reserve_vds_ex;
-} __attribute__ ((packed));
+} __packed;
 
 /* Volume Descriptor Pointer [3/10.3] */
 struct vol_desc_ptr {
 	struct desc_tag		tag;
 	uint32_t		vds_number;
 	struct extent_ad	next_vds_ex;
-} __attribute__ ((packed));
+} __packed;
 
 /* Primary Volume Descriptor [3/10.1] */
 struct pri_vol_desc {
@@ -179,7 +179,7 @@ struct pri_vol_desc {
 	uint32_t		prev_vds_lov;
 	uint16_t		flags;
 	uint8_t			reserved[22];
-} __attribute__ ((packed));
+} __packed;
 
 /* Logical Volume Descriptor [3/10.6] */
 struct logvol_desc {
@@ -199,7 +199,7 @@ struct logvol_desc {
 	uint8_t			imp_use[128];
 	struct extent_ad	integrity_seq_id;
 	uint8_t			maps[1];
-} __attribute__ ((packed));
+} __packed;
 
 #define	UDF_PMAP_SIZE	64
 
@@ -209,14 +209,14 @@ struct part_map_1 {
 	uint8_t			len;
 	uint16_t		vol_seq_num;
 	uint16_t		part_num;
-} __attribute__ ((packed));
+} __packed;
 
 /* Type 2 Partition Map [3/10.7.3] */
 struct part_map_2 {
 	uint8_t			type;
 	uint8_t			len;
 	uint8_t			part_id[62];
-} __attribute__ ((packed));
+} __packed;
 
 /* Virtual Partition Map [UDF 2.01/2.2.8] */
 struct part_map_virt {
@@ -227,7 +227,7 @@ struct part_map_virt {
 	uint16_t		vol_seq_num;
 	uint16_t		part_num;
 	uint8_t			reserved1[24];
-} __attribute__ ((packed));
+} __packed;
 
 /* Sparable Partition Map [UDF 2.01/2.2.9] */
 struct part_map_spare {
@@ -242,7 +242,7 @@ struct part_map_spare {
 	uint8_t			reserved1;
 	uint32_t		st_size;
 	uint32_t		st_loc[1];
-} __attribute__ ((packed));
+} __packed;
 
 union udf_pmap {
 	uint8_t			data[UDF_PMAP_SIZE];
@@ -256,7 +256,7 @@ union udf_pmap {
 struct spare_map_entry {
 	uint32_t		org;
 	uint32_t		map;
-} __attribute__ ((packed));
+} __packed;
 
 /* Sparing Table [UDF 2.01/2.2.11] */
 struct udf_sparing_table {
@@ -266,7 +266,7 @@ struct udf_sparing_table {
 	uint8_t			reserved[2];
 	uint32_t		seq_num;
 	struct spare_map_entry	entries[1];
-} __attribute__ ((packed));
+} __packed;
 
 /* Partition Descriptor [3/10.5] */
 struct part_desc {
@@ -282,7 +282,7 @@ struct part_desc {
 	struct regid	imp_id;
 	uint8_t		imp_use[128];
 	uint8_t		reserved[156];
-} __attribute__ ((packed));
+} __packed;
 
 /* File Set Descriptor [4/14.1] */
 struct fileset_desc {
@@ -305,7 +305,7 @@ struct fileset_desc {
 	struct long_ad		next_ex;
 	struct long_ad		streamdir_icb;
 	uint8_t			reserved[32];
-} __attribute__ ((packed));
+} __packed;
 
 /* File Identifier Descriptor [4/14.4] */
 struct fileid_desc {
@@ -316,7 +316,7 @@ struct fileid_desc {
 	struct long_ad	icb;
 	uint16_t	l_iu;	/* Length of implementaion use area */
 	uint8_t		data[1];
-} __attribute__ ((packed));
+} __packed;
 #define	UDF_FID_SIZE	38
 #define	UDF_FILE_CHAR_VIS	(1 << 0) /* Visible */
 #define	UDF_FILE_CHAR_DIR	(1 << 1) /* Directory */
@@ -347,7 +347,7 @@ struct file_entry {
 	uint32_t		l_ea;	/* Length of extended attribute area */
 	uint32_t		l_ad;	/* Length of allocation descriptors */
 	uint8_t			data[1];
-} __attribute ((packed));
+} __packed;
 #define	UDF_FENTRY_SIZE	176
 #define	UDF_FENTRY_PERM_USER_MASK	0x07
 #define	UDF_FENTRY_PERM_GRP_MASK	0xE0

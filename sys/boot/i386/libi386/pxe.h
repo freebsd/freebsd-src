@@ -44,11 +44,11 @@
  * out why PXE was mis-reading structures I was passing it (at least
  * from my point of view)
  *
- * Solution: use gcc's '__attribute__ ((packed))' to correctly align
+ * Solution: use gcc's '__packed' to correctly align
  * structures passed into PXE
  * Question: does this really work for PXE's expected ABI?
  */
-#define	PACKED		__attribute__ ((packed))
+#define	PACKED		__packed
 
 #define	S_SIZE(s)	s, sizeof(s) - 1
 

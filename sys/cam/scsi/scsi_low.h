@@ -361,7 +361,7 @@ struct lun_info {
 		u_int8_t sd_len;
 		u_int8_t sd_sp2[2];
 		u_int8_t sd_support;
-	} __attribute__((packed)) li_inq;
+	} __packed li_inq;
 
 	/* modeq buffer */
 	struct scsi_low_mode_sense_data {
@@ -373,7 +373,7 @@ struct lun_info {
 			u_int8_t cmp_qc;
 			u_int8_t cmp_eca;
 			u_int8_t cmp_spare[3];
-		} __attribute__((packed)) sms_cmp;	
+		} __packed sms_cmp;	
 	
 	} li_sms;	
 };
