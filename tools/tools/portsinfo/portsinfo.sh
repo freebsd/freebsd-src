@@ -3,7 +3,7 @@
 #
 # portsinfo - Generate list of new ports for last two weeks.
 #
-# $Id: portsinfo,v 1.9 1997/07/26 10:00:06 wosch Exp $
+# $Id: portsinfo.sh,v 1.3 1997/09/29 18:16:38 wosch Exp $
 
 PATH=/bin:/usr/bin:/usr/local/bin:$PATH; export PATH
 
@@ -70,7 +70,7 @@ EOF
 
 lynx -nolist -dump -reload -nostatus "$url$time2" |
     grep -v "Description :" |
-perl -ne 's/\[INLINE\]\s*//g; print if (/Main/ .. /XXXXYYYYZZZZ/)' |      
+perl -ne 's/\[INLINE\]\s*//g; print if (/Category/ .. /XXXXYYYYZZZZ/)' |      
 perl -ne 'if (/^\s*Category/) {
                 print; for(1..50) {print "="}; print "\n";
           } else { print}'
