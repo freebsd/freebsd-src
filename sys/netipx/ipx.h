@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.9 1997/02/22 09:41:52 peter Exp $
+ * $Id: ipx.h,v 1.10 1997/04/05 20:05:07 jhay Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -181,10 +181,10 @@ struct socket;
 void	ipx_abort __P((struct ipxpcb *ipxp));
 u_short	ipx_cksum __P((struct mbuf *m, int len));
 int	ipx_control __P((struct socket *so, int cmd, caddr_t data,
-			 struct ifnet *ifp));
+			 struct ifnet *ifp, struct proc *p));
 void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	ipx_ctloutput __P((int req, struct socket *so, int level, int name,
-			   struct mbuf **value));
+			   struct mbuf **value, struct proc *p));
 int	ipx_do_route __P((struct ipx_addr *src, struct route *ro));
 void	ipx_drop __P((struct ipxpcb *ipxp, int errno));
 void	ipx_forward __P((struct mbuf *m));

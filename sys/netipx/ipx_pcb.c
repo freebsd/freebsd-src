@@ -33,17 +33,18 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id$
+ * $Id: ipx_pcb.c,v 1.7 1997/02/22 09:41:56 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -55,9 +56,10 @@
 struct	ipx_addr zeroipx_addr;
 
 int
-ipx_pcballoc(so, head)
+ipx_pcballoc(so, head, p)
 	struct socket *so;
 	struct ipxpcb *head;
+	struct proc *p;
 {
 	struct mbuf *m;
 	register struct ipxpcb *ipxp;
@@ -73,9 +75,10 @@ ipx_pcballoc(so, head)
 }
 	
 int
-ipx_pcbbind(ipxp, nam)
+ipx_pcbbind(ipxp, nam, p)
 	register struct ipxpcb *ipxp;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	register struct sockaddr_ipx *sipx;
 	u_short lport = 0;
@@ -98,10 +101,11 @@ ipx_pcbbind(ipxp, nam)
 	lport = sipx->sipx_port;
 	if (lport) {
 		u_short aport = ntohs(lport);
+		int error;
 
 		if (aport < IPXPORT_MAX &&
-		    (ipxp->ipxp_socket->so_state & SS_PRIV) == 0)
-			return (EACCES);
+		    p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+			return (error);
 		if (ipx_pcblookup(&zeroipx_addr, lport, 0))
 			return (EADDRINUSE);
 	}
@@ -124,9 +128,10 @@ noname:
  * then pick one.
  */
 int
-ipx_pcbconnect(ipxp, nam)
+ipx_pcbconnect(ipxp, nam, p)
 	struct ipxpcb *ipxp;
 	struct mbuf *nam;
+	struct proc *p;
 {
 	struct ipx_ifaddr *ia;
 	register struct sockaddr_ipx *sipx = mtod(nam, struct sockaddr_ipx *);
@@ -215,7 +220,7 @@ ipx_pcbconnect(ipxp, nam)
 		return (EADDRINUSE);
 	if (ipx_nullhost(ipxp->ipxp_laddr)) {
 		if (ipxp->ipxp_lport == 0)
-			(void) ipx_pcbbind(ipxp, (struct mbuf *)0);
+			(void) ipx_pcbbind(ipxp, (struct mbuf *)0, p);
 		ipxp->ipxp_laddr.x_host = ipx_thishost;
 	}
 	ipxp->ipxp_faddr = sipx->sipx_addr;
