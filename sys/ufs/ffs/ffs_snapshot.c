@@ -1400,7 +1400,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		if (size == fs->fs_bsize) {
 #ifdef DEBUG
 			if (snapdebug)
-				printf("%s %d lbn %lld from inum %d\n",
+				printf("%s %d lbn %jd from inum %d\n",
 				    "Grabonremove: snapino", ip->i_number,
 				    (intmax_t)lbn, inum);
 #endif
@@ -1437,7 +1437,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		}
 #ifdef DEBUG
 		if (snapdebug)
-			printf("%s%d lbn %lld %s %d size %ld to blkno %lld\n",
+			printf("%s%d lbn %jd %s %d size %ld to blkno %jd\n",
 			    "Copyonremove: snapino ", ip->i_number,
 			    (intmax_t)lbn, "for inum", inum, size,
 			    (intmax_t)cbp->b_blkno);
@@ -1653,13 +1653,13 @@ retry:
 		}
 #ifdef DEBUG
 		if (snapdebug) {
-			printf("Copyonwrite: snapino %d lbn %lld for ",
+			printf("Copyonwrite: snapino %d lbn %jd for ",
 			    ip->i_number, (intmax_t)lbn);
 			if (bp->b_vp == devvp)
 				printf("fs metadata");
 			else
 				printf("inum %d", VTOI(bp->b_vp)->i_number);
-			printf(" lblkno %lld to blkno %lld\n",
+			printf(" lblkno %jd to blkno %jd\n",
 			    (intmax_t)bp->b_lblkno, (intmax_t)cbp->b_blkno);
 		}
 #endif

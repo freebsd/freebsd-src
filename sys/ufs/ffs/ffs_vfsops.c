@@ -204,7 +204,7 @@ ffs_mount(mp, path, data, ndp, td)
 			}
 			if (fs->fs_pendingblocks != 0 ||
 			    fs->fs_pendinginodes != 0) {
-				printf("%s: %s: blocks %lld files %d\n",
+				printf("%s: %s: blocks %jd files %d\n",
 				    fs->fs_fsmnt, "update error",
 				    (intmax_t)fs->fs_pendingblocks,
 				    fs->fs_pendinginodes);
@@ -447,7 +447,7 @@ ffs_reload(mp, cred, td)
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	ffs_oldfscompat_read(fs, VFSTOUFS(mp), sblockloc);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
-		printf("%s: reload pending error: blocks %lld files %d\n",
+		printf("%s: reload pending error: blocks %jd files %d\n",
 		    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
 		    fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
@@ -658,7 +658,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		}
 		if ((fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) &&
 		    (mp->mnt_flag & MNT_FORCE)) {
-			printf("%s: lost blocks %lld files %d\n", fs->fs_fsmnt,
+			printf("%s: lost blocks %jd files %d\n", fs->fs_fsmnt,
 			    (intmax_t)fs->fs_pendingblocks,
 			    fs->fs_pendinginodes);
 			fs->fs_pendingblocks = 0;
@@ -666,7 +666,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		}
 	}
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
-		printf("%s: mount pending error: blocks %lld files %d\n",
+		printf("%s: mount pending error: blocks %jd files %d\n",
 		    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
 		    fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
@@ -933,7 +933,7 @@ ffs_unmount(mp, mntflags, td)
 	}
 	fs = ump->um_fs;
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
-		printf("%s: unmount pending error: blocks %lld files %d\n",
+		printf("%s: unmount pending error: blocks %jd files %d\n",
 		    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
 		    fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
