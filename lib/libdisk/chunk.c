@@ -18,12 +18,22 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include "libdisk.h"
 
-#define new_chunk() memset(malloc(sizeof(struct chunk)), 0, sizeof(struct chunk))
+static struct chunk *
+new_chunk(void)
+{
+	struct chunk *c;
+
+	c = malloc(sizeof *c);
+	if (c == NULL)
+		err(1, "malloc");
+	memset(c, 0, sizeof *c);
+	return (c);
+}
 
 /* Is c2 completely inside c1 ? */
 
 static int
-Chunk_Inside(struct chunk *c1, struct chunk *c2)
+Chunk_Inside(const struct chunk *c1, const struct chunk *c2)
 {
 	/* if c1 ends before c2 do */
 	if (c1->end < c2->end)
@@ -34,7 +44,7 @@ Chunk_Inside(struct chunk *c1, struct chunk *c2)
 	return 1;
 }
 
-struct chunk *
+static struct chunk *
 Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 {
 	struct chunk *c1,*c2,ct;
@@ -92,7 +102,7 @@ Free_Chunk(struct chunk *c1)
 }
 
 struct chunk *
-Clone_Chunk(struct chunk *c1)
+Clone_Chunk(const struct chunk *c1)
 {
 	struct chunk *c2;
 
@@ -112,7 +122,7 @@ Clone_Chunk(struct chunk *c1)
 	return c2;
 }
 
-int
+static int
 #ifdef PC98
 Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 	chunk_e type, int subtype, u_long flags, const char *sname)

@@ -400,7 +400,7 @@ assignToSlice(void *arg, XMLToken t, u_int *slice, u_int64_t v)
  * Callback to collect disk-related data.
  */
 static int
-assignToDisk(void *arg, XMLToken t, u_int *slice, u_int64_t v)
+assignToDisk(void *arg, XMLToken t, const u_int *slice, u_int64_t v)
 {
 	struct disklabel *dl = (struct disklabel *) arg;
 
@@ -471,7 +471,6 @@ Int_Open_Disk(const char *name, u_long size)
 	struct dos_partition *dp;
 	void *p;
 #endif
-	u_long offset = 0;
 #ifdef HAVE_GEOM
 	char *confxml = NULL;
 	size_t xmlsize;
@@ -612,12 +611,6 @@ Int_Open_Disk(const char *name, u_long size)
 		    continue;
 		if (!Read_Int32(&dp->dp_size))
 		    continue;
-
-		if (dp->dp_typ == DOSPTYP_ONTRACK) {
-			d->flags |= DISK_ON_TRACK;
-			offset = 63;
-		}
-
 	}
 	free(p);
 #endif
@@ -632,9 +625,9 @@ Int_Open_Disk(const char *name, u_long size)
 		d->bios_cyl = size / (dl.d_ntracks * dl.d_nsectors);
 
 #ifdef PC98
-	if (Add_Chunk(d, -offset, size, name, whole, 0, 0, "-"))
+	if (Add_Chunk(d, 0, size, name, whole, 0, 0, "-"))
 #else
-	if (Add_Chunk(d, -offset, size, name, whole, 0, 0))
+	if (Add_Chunk(d, 0, size, name, whole, 0, 0))
 #endif
 		DPRINT(("Failed to add 'whole' chunk"));
 
@@ -662,7 +655,6 @@ Int_Open_Disk(const char *name, u_long size)
 
 		if (! ds.dss_slices[i].ds_size)
 			continue;
-		ds.dss_slices[i].ds_offset -= offset;
 		snprintf(sname, sizeof(sname), "%ss%d", name, i - 1);
 #ifdef PC98
 		subtype = ds.dss_slices[i].ds_type |
@@ -849,7 +841,6 @@ void
 Debug_Disk(struct disk *d)
 {
 	printf("Debug_Disk(%s)", d->name);
-	printf("  flags=%lx", d->flags);
 #if 0
 	printf("  real_geom=%lu/%lu/%lu", d->real_cyl, d->real_hd, d->real_sect);
 #endif
@@ -885,49 +876,6 @@ Free_Disk(struct disk *d)
 	if(d->boot2) free(d->boot2);
 #endif
 	free(d);
-}
-
-struct disk *
-Clone_Disk(struct disk *d)
-{
-	struct disk *d2;
-
-	d2 = (struct disk*) malloc(sizeof *d2);
-	if(!d2) return NULL;
-	*d2 = *d;
-	d2->name = strdup(d2->name);
-	d2->chunks = Clone_Chunk(d2->chunks);
-#ifdef PC98
-	if(d2->bootipl) {
-		d2->bootipl = malloc(d2->bootipl_size);
-		memcpy(d2->bootipl, d->bootipl, d2->bootipl_size);
-	}
-	if(d2->bootmenu) {
-		d2->bootmenu = malloc(d2->bootmenu_size);
-		memcpy(d2->bootmenu, d->bootmenu, d2->bootmenu_size);
-	}
-#else
-	if(d2->bootmgr) {
-		d2->bootmgr = malloc(d2->bootmgr_size);
-		memcpy(d2->bootmgr, d->bootmgr, d2->bootmgr_size);
-	}
-#endif
-#if defined(__i386__)
-	if(d2->boot1) {
-		d2->boot1 = malloc(512);
-		memcpy(d2->boot1, d->boot1, 512);
-	}
-	if(d2->boot2) {
-		d2->boot2 = malloc(512 * 15);
-		memcpy(d2->boot2, d->boot2, 512 * 15);
-	}
-#elif defined(__alpha__)
-	if(d2->boot1) {
-		d2->boot1 = malloc(512 * 15);
-		memcpy(d2->boot1, d->boot1, 512 * 15);
-	}
-#endif
-	return d2;
 }
 
 #if 0
