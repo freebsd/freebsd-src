@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 static void	list_item_verbose(struct bsdtar *, struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
+static int	security_problem(struct bsdtar *, struct archive_entry *);
 
 void
 tar_mode_t(struct bsdtar *bsdtar)
@@ -68,7 +69,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	struct archive		 *a;
 	struct archive_entry	 *entry;
 	int			  format;
-	const char		 *name;
 	int			  r;
 
         while (*bsdtar->argv) {
@@ -123,12 +123,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (excluded(bsdtar, archive_entry_pathname(entry)))
 			continue;
 
-		name = archive_entry_pathname(entry);
-		if (name[0] == '/'  && !bsdtar->option_absolute_paths) {
-			name++;
-			archive_entry_set_pathname(entry, name);
-		}
-
 		if (mode == 't') {
 			if (bsdtar->verbose < 2)
 				safe_fprintf(stdout, "%s",
@@ -154,6 +148,9 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		} else {
 			if (bsdtar->option_interactive &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
+				continue;
+
+			if (security_problem(bsdtar, entry))
 				continue;
 
 			/*
@@ -286,4 +283,40 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 		    archive_entry_hardlink(entry));
 	else if (S_ISLNK(st->st_mode)) /* Symbolic link */
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
+}
+
+/*
+ * Check for a variety of security issues.  Fix what we can here,
+ * generate warnings as appropriate, return non-zero to prevent
+ * this entry from being extracted.
+ */
+int
+security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
+{
+	const char *name, *p;
+
+	/* Strip leading '/' unless -P is specified. */
+	name = archive_entry_pathname(entry);
+	if (name[0] == '/'  && !bsdtar->option_absolute_paths) {
+		/* XXX gtar generates a warning the first time this happens. */
+		name++;
+		archive_entry_set_pathname(entry, name);
+	}
+
+	/* Reject any archive entry with '..' as a path element. */
+	p = name;
+	while (p != NULL && p[0] != '\0') {
+		if (p[0] == '.' && p[1] == '.' &&
+		    (p[2] == '\0' || p[2] == '/')) {
+			bsdtar_warnc(0,"pathname contains ..; skipping %s",
+			    name);
+			return (1);
+		}
+		while (*p != '/' && *p != '\0')
+			p++;
+		if (*p != '\0')
+			p++;
+	}
+
+	return (0);
 }
