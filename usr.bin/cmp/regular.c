@@ -51,15 +51,18 @@ static const char sccsid[] = "@(#)regular.c	8.3 (Berkeley) 4/2/94";
 
 #include "extern.h"
 
+static u_char *remmap __P((u_char *, int, off_t));
+#define MMAP_CHUNK (8*1024*1024)
+
 #define ROUNDPAGE(i) ((i) & ~pagemask)
 
 void
 c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	int fd1, fd2;
-	char *file1, *file2;
+	const char *file1, *file2;
 	off_t skip1, len1, skip2, len2;
 {
-	u_char ch, *p1, *p2;
+	u_char ch, *p1, *p2, *m1, *m2, *e1, *e2;
 	off_t byte, length, line;
 	int dfound;
 	off_t pagemask, off1, off2;
@@ -81,23 +84,25 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	off2 = ROUNDPAGE(skip2);
 
 	length = MIN(len1, len2);
-	if (length > SIZE_T_MAX)
-		return (c_special(fd1, file1, skip1, fd2, file2, skip2));
 
-	if ((p1 = (u_char *)mmap(NULL, (size_t)len1 + skip1 % pagesize,
-	    PROT_READ, MAP_SHARED, fd1, off1)) == (u_char *)MAP_FAILED)
-		err(ERR_EXIT, "%s", file1);
+	if ((m1 = remmap(NULL, fd1, off1)) == NULL) {
+		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		return;
+	}
 
-	madvise(p1, len1 + skip1 % pagesize, MADV_SEQUENTIAL);
-	if ((p2 = (u_char *)mmap(NULL, (size_t)len2 + skip2 % pagesize,
-	    PROT_READ, MAP_SHARED, fd2, off2)) == (u_char *)MAP_FAILED)
-		err(ERR_EXIT, "%s", file2);
-	madvise(p2, len2 + skip2 % pagesize, MADV_SEQUENTIAL);
+	if ((m2 = remmap(NULL, fd2, off2)) == NULL) {
+		munmap(m1, MMAP_CHUNK);
+		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		return;
+	}
 
 	dfound = 0;
-	p1 += skip1 - off1;
-	p2 += skip2 - off2;
-	for (byte = line = 1; length--; ++p1, ++p2, ++byte) {
+	e1 = m1 + MMAP_CHUNK;
+	e2 = m2 + MMAP_CHUNK;
+	p1 = m1 + (skip1 - off1);
+	p2 = m2 + (skip2 - off2);
+
+	for (byte = line = 1; length--; ++byte) {
 		if ((ch = *p1) != *p2) {
 			if (xflag) {
 				dfound = 1;
@@ -111,10 +116,43 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 		}
 		if (ch == '\n')
 			++line;
+		if (++p1 == e1) {
+			off1 += MMAP_CHUNK;
+			if ((p1 = m1 = remmap(m1, fd1, off1)) == NULL) {
+				munmap(m2, MMAP_CHUNK);
+				err(ERR_EXIT, "remmap %s", file1);
+			}
+			e1 = m1 + MMAP_CHUNK;
+		}
+		if (++p2 == e2) {
+			off2 += MMAP_CHUNK;
+			if ((p2 = m2 = remmap(m2, fd2, off2)) == NULL) {
+				munmap(m1, MMAP_CHUNK);
+				err(ERR_EXIT, "remmap %s", file2);
+			}
+			e2 = m2 + MMAP_CHUNK;
+		}
 	}
+	munmap(m1, MMAP_CHUNK);
+	munmap(m2, MMAP_CHUNK);
 
 	if (len1 != len2)
 		eofmsg (len1 > len2 ? file2 : file1);
 	if (dfound)
 		exit(DIFF_EXIT);
+}
+
+static u_char *
+remmap(mem, fd, offset)
+	u_char  *mem;
+	int     fd;
+	off_t   offset;
+{
+	if (mem != NULL)
+		munmap(mem, MMAP_CHUNK);
+	mem = mmap(NULL, MMAP_CHUNK, PROT_READ, MAP_SHARED, fd, offset);
+	if (mem == MAP_FAILED)
+		return (NULL);
+	madvise(mem, MMAP_CHUNK, MADV_SEQUENTIAL);
+	return (mem);
 }
