@@ -28,11 +28,12 @@
 static char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: popen.c,v 1.5 1997/09/15 06:39:07 charnier Exp $";
 #endif /* not lint */
 
 #include "cron.h"
 #include <sys/signal.h>
+#include <fcntl.h>
 
 
 #define MAX_ARGS 100
@@ -105,6 +106,9 @@ cron_popen(program, type)
 		/* NOTREACHED */
 	case 0:				/* child */
 		if (*type == 'r') {
+			/* Do not share our parent's stdin */
+			(void)close(0);
+			(void)open("/dev/null", O_RDWR);
 			if (pdes[1] != 1) {
 				dup2(pdes[1], 1);
 				dup2(pdes[1], 2);	/* stderr, too! */
@@ -116,6 +120,11 @@ cron_popen(program, type)
 				dup2(pdes[0], 0);
 				(void)close(pdes[0]);
 			}
+			/* Hack: stdout gets revoked */
+			(void)close(1);
+			(void)open("/dev/null", O_RDWR);
+			(void)close(2);
+			(void)open("/dev/null", O_RDWR);
 			(void)close(pdes[1]);
 		}
 #if WANT_GLOBBING
