@@ -14,6 +14,7 @@ LOCALES=	de_DE.DIS_8859-15 \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
+		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
 		sv_SE.DIS_8859-15 \
 		sv_SE.ISO_8859-1
@@ -39,7 +40,6 @@ DELINKS = de_AT de_CH
 .src.out:
 	colldef -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
 
-.if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
 
 de_DE.DIS_8859-15.out:  map.DIS_8859-15
@@ -90,6 +90,5 @@ afterinstall:
 	ln -fs ../de_DE.DIS_8859-15/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.DIS_8859-15/LC_COLLATE
 .endfor
-.endif
 
 .include <bsd.prog.mk>
