@@ -34,7 +34,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.17 1999/04/14 14:26:36 bde Exp $
+ *	$Id: intr_machdep.c,v 1.18 1999/04/16 21:22:22 peter Exp $
+ */
+/*
+ * This file contains an aggregated module marked:
+ * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
+ * All rights reserved.
+ * See the notice for details.
  */
 
 #include "opt_auto_eoi.h"
@@ -45,9 +51,14 @@
 #endif
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
+#include <sys/interrupt.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#include <sys/bus.h> 
+
 #if defined(APIC_IO)
 #include <machine/smp.h>
 #include <machine/smptests.h>			/** FAST_HI */
@@ -62,6 +73,7 @@
 #endif
 #include <i386/isa/icu.h>
 
+#include <isa/isavar.h>
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
 #ifdef APIC_IO
@@ -300,7 +312,8 @@ update_intr_masks(void)
 		if (intr==ICU_SLAVEID) continue;	/* ignore 8259 SLAVE output */
 #endif /* APIC_IO */
 		maskptr = intr_mptr[intr];
-		if (!maskptr) continue;
+		if (!maskptr)
+			continue;
 		*maskptr |= 1 << intr;
 		mask = *maskptr;
 		if (mask != intr_mask[intr]) {
@@ -316,48 +329,11 @@ update_intr_masks(void)
 	return (n);
 }
 
-static const char *
-isa_get_nameunit(int id)
-{
-	static char buf[32];
-	struct isa_device *dp;
-
-	if (id == -1)
-		return ("pci");		/* XXX may also be eisa */
-	if (id == 0)
-		return ("clk0");	/* XXX may also be sloppy driver */
-	if (id == 1)
-		return ("rtc0");
-#if 0
-	for (dp = isa_devtab_bio; dp->id_driver != NULL; dp++)
-		if (dp->id_id == id)
-			goto found_device;
-	for (dp = isa_devtab_cam; dp->id_driver != NULL; dp++)
-		if (dp->id_id == id)
-			goto found_device;
-	for (dp = isa_devtab_net; dp->id_driver != NULL; dp++)
-		if (dp->id_id == id)
-			goto found_device;
-	for (dp = isa_devtab_null; dp->id_driver != NULL; dp++)
-		if (dp->id_id == id)
-			goto found_device;
-	for (dp = isa_devtab_tty; dp->id_driver != NULL; dp++)
-		if (dp->id_id == id)
-			goto found_device;
-#endif
-	return "???";
-
-found_device:
-	snprintf(buf, sizeof(buf), "%s%d", dp->id_driver->name, dp->id_unit);
-	return (buf);
-}
-
-void
-update_intrname(int intr, int device_id)
+static void
+update_intrname(int intr, char *name)
 {
 	char buf[32];
 	char *cp;
-	const char *name;
 	int name_index, off, strayintr;
 
 	/*
@@ -371,7 +347,8 @@ update_intrname(int intr, int device_id)
 			    strayintr) + 1;
 	}
 
-	name = isa_get_nameunit(device_id);
+	if (name == NULL)
+		name = "???";
 	if (snprintf(buf, sizeof(buf), "%s irq%d", name, intr) >= sizeof(buf))
 		goto use_bitbucket;
 
@@ -515,4 +492,411 @@ icu_unset(intr, handler)
 	MPINTR_UNLOCK();
 	write_eflags(ef);
 	return (0);
+}
+
+/* The following notice applies beyond this point in the file */
+
+/*
+ * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id: kern_intr.c,v 1.21 1998/11/10 09:16:29 peter Exp $
+ *
+ */
+
+typedef struct intrec {
+	intrmask_t	mask;
+	inthand2_t	*handler;
+	void		*argument;
+	struct intrec	*next;
+	char		*name;
+	int		intr;
+	intrmask_t	*maskptr;
+	int		flags;
+} intrec;
+
+static intrec *intreclist_head[ICU_LEN];
+
+typedef struct isarec {
+	int		id_unit;
+	ointhand2_t	*id_handler;
+} isarec;
+
+static isarec *isareclist[ICU_LEN];
+
+/*
+ * The interrupt multiplexer calls each of the handlers in turn,
+ * and applies the associated interrupt mask to "cpl", which is
+ * defined as a ".long" in /sys/i386/isa/ipl.s
+ */
+
+static void
+intr_mux(void *arg)
+{
+	intrec *p = arg;
+	int oldspl;
+
+	while (p != NULL) {
+		oldspl = splq(p->mask);
+		p->handler(p->argument);
+		splx(oldspl);
+		p = p->next;
+	}
+}
+
+static void
+isa_intr_wrap(void *cookie)
+{
+	isarec *irec = (isarec *)cookie;
+
+	irec->id_handler(irec->id_unit);
+}
+
+static intrec*
+find_idesc(unsigned *maskptr, int irq)
+{
+	intrec *p = intreclist_head[irq];
+
+	while (p && p->maskptr != maskptr)
+		p = p->next;
+
+	return (p);
+}
+
+static intrec**
+find_pred(intrec *idesc, int irq)
+{
+	intrec **pp = &intreclist_head[irq];
+	intrec *p = *pp;
+
+	while (p != idesc) {
+		if (p == NULL)
+			return (NULL);
+		pp = &p->next;
+		p = *pp;
+	}
+	return (pp);
+}
+
+/*
+ * Both the low level handler and the shared interrupt multiplexer
+ * block out further interrupts as set in the handlers "mask", while
+ * the handler is running. In fact *maskptr should be used for this
+ * purpose, but since this requires one more pointer dereference on
+ * each interrupt, we rather bother update "mask" whenever *maskptr
+ * changes. The function "update_masks" should be called **after**
+ * all manipulation of the linked list of interrupt handlers hung
+ * off of intrdec_head[irq] is complete, since the chain of handlers
+ * will both determine the *maskptr values and the instances of mask
+ * that are fixed. This function should be called with the irq for
+ * which a new handler has been add blocked, since the masks may not
+ * yet know about the use of this irq for a device of a certain class.
+ */
+
+static void
+update_mux_masks(void)
+{
+	int irq;
+	for (irq = 0; irq < ICU_LEN; irq++) {
+		intrec *idesc = intreclist_head[irq];
+		while (idesc != NULL) {
+			if (idesc->maskptr != NULL) {
+				/* our copy of *maskptr may be stale, refresh */
+				idesc->mask = *idesc->maskptr;
+			}
+			idesc = idesc->next;
+		}
+	}
+}
+
+static void
+update_masks(intrmask_t *maskptr, int irq)
+{
+	intrmask_t mask = 1 << irq;
+
+	if (maskptr == NULL)
+		return;
+
+	if (find_idesc(maskptr, irq) == NULL) {
+		/* no reference to this maskptr was found in this irq's chain */
+		if ((*maskptr & mask) == 0)
+			return;
+		/* the irq was included in the classes mask, remove it */
+		INTRUNMASK(*maskptr, mask);
+	} else {
+		/* a reference to this maskptr was found in this irq's chain */
+		if ((*maskptr & mask) != 0)
+			return;
+		/* put the irq into the classes mask */
+		INTRMASK(*maskptr, mask);
+	}
+	/* we need to update all values in the intr_mask[irq] array */
+	update_intr_masks();
+	/* update mask in chains of the interrupt multiplex handler as well */
+	update_mux_masks();
+}
+
+/*
+ * Add interrupt handler to linked list hung off of intreclist_head[irq]
+ * and install shared interrupt multiplex handler, if necessary
+ */
+
+static int
+add_intrdesc(intrec *idesc)
+{
+	int irq = idesc->intr;
+
+	intrec *head = intreclist_head[irq];
+
+	if (head == NULL) {
+		/* first handler for this irq, just install it */
+		if (icu_setup(irq, idesc->handler, idesc->argument, 
+			      idesc->maskptr, idesc->flags) != 0)
+			return (-1);
+
+		update_intrname(irq, idesc->name);
+		/* keep reference */
+		intreclist_head[irq] = idesc;
+	} else {
+		if ((idesc->flags & INTR_EXCL) != 0
+		    || (head->flags & INTR_EXCL) != 0) {
+			/*
+			 * can't append new handler, if either list head or
+			 * new handler do not allow interrupts to be shared
+			 */
+			if (bootverbose)
+				printf("\tdevice combination doesn't support "
+				       "shared irq%d\n", irq);
+			return (-1);
+		}
+		if (head->next == NULL) {
+			/*
+			 * second handler for this irq, replace device driver's
+			 * handler by shared interrupt multiplexer function
+			 */
+			icu_unset(irq, head->handler);
+			if (icu_setup(irq, intr_mux, head, 0, 0) != 0)
+				return (-1);
+			if (bootverbose)
+				printf("\tusing shared irq%d.\n", irq);
+			update_intrname(irq, "mux");
+		}
+		/* just append to the end of the chain */
+		while (head->next != NULL)
+			head = head->next;
+		head->next = idesc;
+	}
+	update_masks(idesc->maskptr, irq);
+	return (0);
+}
+
+/*
+ * Create and activate an interrupt handler descriptor data structure.
+ *
+ * The dev_instance pointer is required for resource management, and will
+ * only be passed through to resource_claim().
+ *
+ * There will be functions that derive a driver and unit name from a
+ * dev_instance variable, and those functions will be used to maintain the
+ * interrupt counter label array referenced by systat and vmstat to report
+ * device interrupt rates (->update_intrlabels).
+ *
+ * Add the interrupt handler descriptor data structure created by an
+ * earlier call of create_intr() to the linked list for its irq and
+ * adjust the interrupt masks if necessary.
+ */
+
+intrec *
+inthand_add(const char *name, int irq, inthand2_t handler, void *arg,
+	     intrmask_t *maskptr, int flags)
+{
+	intrec *idesc;
+	int errcode = -1;
+	intrmask_t oldspl;
+
+	if (ICU_LEN > 8 * sizeof *maskptr) {
+		printf("create_intr: ICU_LEN of %d too high for %d bit intrmask\n",
+		       ICU_LEN, 8 * sizeof *maskptr);
+		return (NULL);
+	}
+	if ((unsigned)irq >= ICU_LEN) {
+		printf("create_intr: requested irq%d too high, limit is %d\n",
+		       irq, ICU_LEN -1);
+		return (NULL);
+	}
+
+	idesc = malloc(sizeof *idesc, M_DEVBUF, M_WAITOK);
+	if (idesc == NULL)
+		return NULL;
+	bzero(idesc, sizeof *idesc);
+
+	if (name == NULL)
+		name = "???";
+	idesc->name     = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
+	if (idesc->name == NULL) {
+		free(idesc, M_DEVBUF);
+		return NULL;
+	}
+	strcpy(idesc->name, name);
+
+	idesc->handler  = handler;
+	idesc->argument = arg;
+	idesc->maskptr  = maskptr;
+	idesc->intr     = irq;
+	idesc->flags    = flags;
+
+	/* block this irq */
+	oldspl = splq(1 << irq);
+
+	/* add irq to class selected by maskptr */
+	errcode = add_intrdesc(idesc);
+	splx(oldspl);
+
+	if (errcode != 0) {
+		if (bootverbose)
+			printf("\tintr_connect(irq%d) failed, result=%d\n", 
+			       irq, errcode);
+		free(idesc->name, M_DEVBUF);
+		free(idesc, M_DEVBUF);
+		idesc = NULL;
+	}
+
+	return (idesc);
+}
+
+/*
+ * Deactivate and remove the interrupt handler descriptor data connected
+ * created by an earlier call of intr_connect() from the linked list and
+ * adjust theinterrupt masks if necessary.
+ *
+ * Return the memory held by the interrupt handler descriptor data structure
+ * to the system. Make sure, the handler is not actively used anymore, before.
+ */
+
+int
+inthand_remove(intrec *idesc)
+{
+	intrec **hook, *head;
+	int irq;
+	int errcode = 0;
+	intrmask_t oldspl;
+
+	if (idesc == NULL)
+		return (-1);
+
+	irq = idesc->intr;
+
+	/* find pointer that keeps the reference to this interrupt descriptor */
+	hook = find_pred(idesc, irq);
+	if (hook == NULL)
+		return (-1);
+
+	/* make copy of original list head, the line after may overwrite it */
+	head = intreclist_head[irq];
+
+	/* unlink: make predecessor point to idesc->next instead of to idesc */
+	*hook = idesc->next;
+
+	/* now check whether the element we removed was the list head */
+	if (idesc == head) {
+
+		oldspl = splq(1 << irq);
+
+		/* we want to remove the list head, which was known to intr_mux */
+		icu_unset(irq, intr_mux);
+
+		/* check whether the new list head is the only element on list */
+		head = intreclist_head[irq];
+		if (head != NULL) {
+			if (head->next != NULL) {
+				/* install the multiplex handler with new list head as argument */
+				errcode = icu_setup(irq, intr_mux, head, 0, 0);
+				if (errcode == 0)
+					update_intrname(irq, NULL);
+			} else {
+				/* install the one remaining handler for this irq */
+				errcode = icu_setup(irq, head->handler,
+						    head->argument,
+						    head->maskptr, head->flags);
+				if (errcode == 0)
+					update_intrname(irq, head->name);
+			}
+		}
+		splx(oldspl);
+	}
+	update_masks(idesc->maskptr, irq);
+
+	free(idesc, M_DEVBUF);
+	return (0);
+}
+
+/*
+ * Emulate the register_intr() call previously defined as low level function.
+ * That function (now icu_setup()) may no longer be directly called, since 
+ * a conflict between an ISA and PCI interrupt might go by unnocticed, else.
+ */
+
+int
+register_intr(int intr, int device_id, u_int flags,
+	      ointhand2_t handler, u_int *maskptr, int unit)
+{
+	intrec *idesc;
+	isarec *irec;
+
+	irec = malloc(sizeof *irec, M_DEVBUF, M_WAITOK);
+	if (irec == NULL)
+		return NULL;
+	bzero(irec, sizeof *irec);
+	irec->id_unit = device_id;
+	irec->id_handler = handler;
+
+	flags |= INTR_EXCL;
+	idesc = inthand_add("old", intr, isa_intr_wrap, irec, maskptr, flags);
+	if (idesc == NULL) {
+		free(irec, M_DEVBUF);
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * Emulate the old unregister_intr() low level function. 
+ * Make sure there is just one interrupt, that it was 
+ * registered as non-shared, and that the handlers match.
+ */
+
+int
+unregister_intr(int intr, ointhand2_t handler)
+{
+	intrec *p = intreclist_head[intr];
+
+	if (p != NULL && (p->flags & INTR_EXCL) != 0 &&
+	    p->handler == isa_intr_wrap && isareclist[intr] != NULL &&
+	    isareclist[intr]->id_handler == handler) {
+		free(isareclist[intr], M_DEVBUF);
+		isareclist[intr] = NULL;
+		return (inthand_remove(p));
+	}
+	return (EINVAL);
 }

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.2 1999/04/18 14:30:55 kato Exp $
+ *	$Id: nexus.c,v 1.3 1999/04/19 08:04:19 peter Exp $
  */
 
 /*
@@ -305,6 +305,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	intrmask_t	*mask;
 	driver_t	*driver;
 	int	error, icflags;
+	char	name[32];
 
 	if (child)
 		device_printf(child, "interrupting at irq %d\n",
@@ -348,11 +349,11 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	*cookiep = intr_create((void *)(intptr_t)-1, irq->r_start, ihand, arg,
+	snprintf(name, sizeof(name), "%s%d", device_get_name(child),
+		 device_get_unit(child));
+	*cookiep = inthand_add(name, irq->r_start, ihand, arg,
 			    mask, icflags);
-	if (*cookiep)
-		error = intr_connect(*cookiep);
-	else
+	if (*cookiep == NULL)
 		error = EINVAL;	/* XXX ??? */
 
 	return (error);
@@ -361,7 +362,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
-	return (intr_destroy(ih));
+	return (inthand_remove(ih));
 }
 
 static devclass_t	pcib_devclass;

@@ -23,22 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: interrupt.h,v 1.6 1997/07/09 18:08:15 ache Exp $
+ * $Id: interrupt.h,v 1.7 1998/08/11 15:08:13 bde Exp $
  */
 
-/* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
-#define	INTR_FAST		0x00000001 /* fast interrupt handler */
-#define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+#ifndef _SYS_INTERRUPT_H_
+#define _SYS_INTERRUPT_H_
 
 typedef void swihand_t __P((void));
-
-struct intrec *intr_create(void *dev_instance, int irq, inthand2_t handler,
-			   void *arg, intrmask_t *maskptr, int flags);
-
-int intr_destroy(struct intrec *idesc);
-
-int intr_connect(struct intrec *idesc);
-int intr_disconnect(struct intrec *idesc);
 
 void	register_swi __P((int intr, swihand_t *handler));
 void	swi_dispatcher __P((int intr));
@@ -46,12 +37,6 @@ swihand_t swi_generic;
 swihand_t swi_null;
 void	unregister_swi __P((int intr, swihand_t *handler));
 
-/* XXX emulate old interface for now ... */
-int register_intr __P((int intr, int device_id, u_int flags,
-		       inthand2_t *handler, u_int *maskptr, int unit));
-int unregister_intr(int intr, inthand2_t handler);
+extern swihand_t *ihandlers[];
 
-#ifdef NHWI
-/* XXX type change in middle; MI code uses only the top NSWI entries. */
-extern swihand_t *ihandlers[NHWI + NSWI];
 #endif

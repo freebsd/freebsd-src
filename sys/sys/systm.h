@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.86 1999/03/05 19:27:22 bde Exp $
+ * $Id: systm.h,v 1.87 1999/03/11 15:09:40 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -220,9 +220,6 @@ intrmask_t	splclock __P((void));
 intrmask_t	splhigh __P((void));
 intrmask_t	splimp __P((void));
 intrmask_t	splnet __P((void));
-#ifdef SMP
-intrmask_t	splq __P((intrmask_t mask));
-#endif
 intrmask_t	splsoftcam __P((void));
 intrmask_t	splsoftcambio __P((void));
 intrmask_t	splsoftcamnet __P((void));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.9 1999/01/23 16:53:27 dfr Exp $
+ *	$Id: isa.c,v 1.10 1999/04/16 21:21:37 peter Exp $
  */
 
 #include <sys/param.h>
@@ -202,7 +202,7 @@ isa_intr_disable(int irq)
 	splx(s);
 }
 
-int
+intrmask_t
 isa_irq_pending(void)
 {
 	u_char irr1;
@@ -213,7 +213,7 @@ isa_irq_pending(void)
 	return ((irr2 << 8) | irr1);
 }
 
-int
+intrmask_t
 isa_irq_mask(void)
 {
 	u_char irr1;
