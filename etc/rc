@@ -71,6 +71,13 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+feed_dev_random() {
+	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
+		echo "Using ${1} as an entropy file"
+		cat "${1}" | dd of=/dev/random bs=8k 2>/dev/null
+	fi
+}
+
 chkdepend() {
 	svc=$1
 	svc_var=$2
@@ -100,15 +107,15 @@ chkdepend NFS nfs_server_enable portmap portmap_enable
 chkdepend NIS nis_server_enable portmap portmap_enable
 chkdepend NIS nis_client_enable portmap portmap_enable
 
-# First pass at entropy recovery so the rebooting /dev/random can reseed.
+# First pass at reseeding /dev/random.
 #
-feed_dev_random() {
-	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
-		echo "Using ${1} as an entropy file"
-		cat ${1} > /dev/random 2> /dev/random &&
-		entropy_reseeded=yes
-	fi
-}
+# XXX temporary until we can get the entropy
+# harvesting rate up
+# Entropy below is not great,
+# but better than nothing.
+( ps -efauxww; sysctl -a; date; df -ib; dmesg; ps -efauxww; ) \
+    | dd of=/dev/random bs=8k 2>/dev/null
+cat /bin/ls | dd of=/dev/random bs=8k 2>/dev/null
 
 case ${entropy_file} in
 [Nn][Oo] | '')
@@ -116,21 +123,6 @@ case ${entropy_file} in
 *)
 	if [ -w /dev/random ]; then
 		feed_dev_random "${entropy_file}"
-	fi
-	;;
-esac
-
-case ${entropy_dir} in
-[Nn][Oo])
-	;;
-*)
-	entropy_dir=${entropy_dir:-/.entropy}
-	if [ -d "${entropy_dir}" ]; then
-		if [ -w /dev/random ]; then
-			for seedfile in ${entropy_dir}/*; do
-				feed_dev_random "${seedfile}"
-			done
-		fi
 	fi
 	;;
 esac
@@ -224,44 +216,31 @@ if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 		sh ${diskless_mount}
 fi
 
-# Second attempt at reseeding, if needed.
-#
-case ${entropy_reseeded} in
-yes)
+# Reseed /dev/random with previously stored entropy.
+case ${entropy_dir} in
+[Nn][Oo])
 	;;
 *)
-	case ${entropy_file} in
-	[Nn][Oo] | '')
-		;;
-	*)
+	entropy_dir=${entropy_dir:-/var/db/entropy}
+	if [ -d "${entropy_dir}" ]; then
 		if [ -w /dev/random ]; then
-			if [ -f "${entropy_file}" -a -r "${entropy_file}" -a \
-			    -s "${entropy_file}" ]; then
-				feed_dev_random "${entropy_file}"
-			elif [ "${entropy_file}" != /var/db/entropy -a \
-			    -f /var/db/entropy -a -r /var/db/entropy -a \
-			    -s /var/db/entropy ]; then
-				feed_dev_random /var/db/entropy 
-			else
-    echo "Can't use ${entropy_file} as an entropy file, trying other sources"
-				# XXX temporary until we can get the entropy
-				# harvesting rate up
-				# Entropy below is not great,
-				# but better than nothing.
-				(ps -gauxwww; sysctl -a;
-				    dmesg) | /bin/dd of=/dev/random bs=8k 2>/dev/null
-				( for i in /etc /var/run ; do
-					cd $i ; ls -al ; cat *
-				done ) | /bin/dd of=/dev/random bs=8k 2>/dev/null
-			fi
+			for seedfile in ${entropy_dir}/*; do
+				feed_dev_random "${seedfile}"
+			done
 		fi
-		;;
-	esac
+	fi
 	;;
 esac
 
-# Remove these to prevent problems on future reboots
-rm -f "${entropy_file}" /var/db/entropy
+case ${entropy_file} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -w /dev/random ]; then
+		feed_dev_random "${entropy_file}"
+	fi
+	;;
+esac
 
 adjkerntz -i
 
