@@ -413,7 +413,7 @@ kvm_getprocs(kd, op, arg, cnt)
 			    kd->procbase->ki_structsize);
 			return (0);
 		}
-		nprocs = size / kd->procbase->ki_structsize;
+		nprocs = size == 0 ? 0 : size / kd->procbase->ki_structsize;
 	} else {
 		struct nlist nl[4], *p;
 
