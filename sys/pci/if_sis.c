@@ -1787,6 +1787,9 @@ static void sis_stop(sc)
 	ifp->if_timer = 0;
 
 	untimeout(sis_tick, sc, sc->sis_stat_ch);
+
+	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+
 	CSR_WRITE_4(sc, SIS_IER, 0);
 	CSR_WRITE_4(sc, SIS_IMR, 0);
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);
@@ -1820,8 +1823,6 @@ static void sis_stop(sc)
 
 	bzero((char *)&sc->sis_ldata->sis_tx_list,
 		sizeof(sc->sis_ldata->sis_tx_list));
-
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
 }
