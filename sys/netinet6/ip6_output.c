@@ -530,12 +530,8 @@ skip_ipsec2:;
 		 * if an interface is specified from an upper layer,
 		 * ifp must point it.
 		 */
-		if (ro->ro_rt == 0) {
-			if (ro == &ip6route)	/* xxx kazu */
-				rtalloc((struct route *)ro);
-			else
-				rtcalloc((struct route *)ro);
-		}
+		if (ro->ro_rt == 0)
+			rtalloc((struct route *)ro);
 		if (ro->ro_rt == 0) {
 			ip6stat.ip6s_noroute++;
 			error = EHOSTUNREACH;
@@ -705,7 +701,7 @@ skip_ipsec2:;
 			sin6_fin->sin6_len = sizeof(struct sockaddr_in6);
 			sin6_fin->sin6_addr = finaldst;
 
-			rtcalloc((struct route *)ro_pmtu);
+			rtalloc((struct route *)ro_pmtu);
 		}
 	}
 	if (ro_pmtu->ro_rt != NULL) {

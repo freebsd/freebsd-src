@@ -103,16 +103,6 @@ rtalloc_ign(ro, ignore)
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
 }
 
-/* for INET6 */
-void
-rtcalloc(ro)
-	register struct route *ro;
-{
-	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
-		return;				 /* XXX */
-	ro->ro_rt = rtalloc1(&ro->ro_dst, RTF_CLONING, 0UL);
-}
-
 /*
  * Look up the route that matches the address given
  * Or, at least try.. Create a cloned route if needed.
