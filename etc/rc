@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.100 1996/10/08 20:00:44 peter Exp $
+#	$Id: rc,v 1.101 1996/10/08 20:02:57 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -207,12 +207,16 @@ if [ -x /usr/sbin/portmap ]; then
 fi
 
 # Start ypserv if we're an NIS server.
-# Run yppasswdd only on the NIS master server
+# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
 if [ "X${nis_serverflags}" != X"NO" ]; then
 	echo -n ' ypserv'; ypserv ${nis_serverflags}
 
+	if [ "X${ypxfrdflags}" != X"NO" ]; then
+		echo -n ' rpc.ypxfrd'; rpc.ypxfrd ${ypxfrdflags}
+	fi
+
 	if [ "X${yppasswddflags}" != X"NO" ]; then
-		echo -n ' yppasswdd'; rpc.yppasswdd ${yppasswddflags}
+		echo -n ' rpc.yppasswdd'; rpc.yppasswdd ${yppasswddflags}
 	fi
 fi
 
