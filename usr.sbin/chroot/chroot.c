@@ -76,7 +76,7 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (chdir(argv[0]) || chroot("."))
+	if (chdir(argv[0]) == -1 || chroot(".") == -1)
 		err(1, "%s", argv[0]);
 
 	if (argv[1]) {
