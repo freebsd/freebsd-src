@@ -44,15 +44,10 @@
 .Nd initiate I/O on raw devices
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
+.Fd #include <sys/systm.h>
 .Fd #include <sys/buf.h>
 .Ft int
-.Fo physio
-.Fa "void (*strategy)(struct buf *)"
-.Fa "struct buf *bp"
-.Fa "dev_t dev"
-.Fa "int flags"
-.Fa "u_int (*minphys)(struct buf *)"
-.Fa "struct uio *uio"
+.Fn physio "dev_t dev" "struct uio *uio" "int ioflag"
 .Fc
 .Sh DESCRIPTION
 The
