@@ -335,13 +335,15 @@ MakeDev(struct chunk *c1, const char *path)
     if (slice > 32)
 	return 0;
     if ((pwd = getpwnam("root")) == NULL) {
-	msgDebug("MakeDev: Unable to lookup user \"root\".\n");
+	if (isDebug())
+	    msgDebug("MakeDev: Unable to lookup user \"root\", using 0.\n");
 	owner = 0;
     } else {
 	owner = pwd->pw_uid;
     }
     if ((grp = getgrnam("operator")) == NULL) {
-	msgDebug("MakeDev: Unable to lookup group \"operator\".\n");
+	if (isDebug())
+	    msgDebug("MakeDev: Unable to lookup group \"operator\", using 5.\n");
 	group = 5;
     } else {
 	group = grp->gr_gid;
