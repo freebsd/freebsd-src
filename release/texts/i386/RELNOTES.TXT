@@ -82,6 +82,9 @@ when they are mmap(2)ed.
 1.3. USERLAND CHANGES
 ---------------------
 
+mtree(8) now includes support for a file listing pathnames to be excluded
+when creating and verifying prototypes.  This makes it easier to use
+mtree as a part of an intrusion-detection system.  [MERGED]
 
 
 2. Supported Configurations
