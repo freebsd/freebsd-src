@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -41,9 +43,8 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)basename.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
+#include <libgen.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 void usage __P((void));
@@ -53,7 +54,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char *p;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -68,65 +68,7 @@ main(argc, argv)
 	if (argc != 1 && argc != 2)
 		usage();
 
-	/*
-	 * (1) If string is // it is implementation defined whether steps (2)
-	 *     through (5) are skipped or processed.
-	 *
-	 * (2) If string consists entirely of slash characters, string shall
-	 *     be set to a single slash character.  In this case, skip steps
-	 *     (3) through (5).
-	 */
-	for (p = *argv;; ++p) {
-		if (!*p) {
-			if (p > *argv)
-				(void)printf("/\n");
-			else
-				(void)printf("\n");
-			exit(0);
-		}
-		if (*p != '/')
-			break;
-	}
-
-	/*
-	 * (3) If there are any trailing slash characters in string, they
-	 *     shall be removed.
-	 */
-	for (; *p; ++p)
-		continue;
-	while (*--p == '/')
-		continue;
-	*++p = '\0';
-
-	/*
-	 * (4) If there are any slash characters remaining in string, the
-	 *     prefix of string up to an including the last slash character
-	 *     in string shall be removed.
-	 */
-	while (--p >= *argv)
-		if (*p == '/')
-			break;
-	++p;
-
-	/*
-	 * (5) If the suffix operand is present, is not identical to the
-	 *     characters remaining in string, and is identical to a suffix
-	 *     of the characters remaining in string, the suffix suffix
-	 *     shall be removed from string.
-	 */
-	if (*++argv) {
-		int suffixlen, stringlen, off;
-
-		suffixlen = strlen(*argv);
-		stringlen = strlen(p);
-
-		if (suffixlen < stringlen) {
-			off = stringlen - suffixlen;
-			if (!strcmp(p + off, *argv))
-				p[off] = '\0';
-		}
-	}
-	(void)printf("%s\n", p);
+	(void)printf("%s\n", basename(*argv));
 	exit(0);
 }
 
