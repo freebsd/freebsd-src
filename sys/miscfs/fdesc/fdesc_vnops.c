@@ -401,7 +401,7 @@ fdesc_setattr(ap)
 		return (EBADF);
 
 	/*
-	 * Can setattr the underlying vnode, but not sockets!
+	 * Do not allow anybody to actually setattr anything.
 	 */
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
