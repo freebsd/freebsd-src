@@ -107,7 +107,8 @@ of the bitmap must be
 supplied in 
 .Em pnm
 mode since the driver must know at what time the
-'end-of-file' shall be reached.
+.Sq end-of-file
+shall be reached.
 With this feature you are able to
 directly copy the scanner output into a pbm file with
 .Xr cat .
@@ -310,7 +311,7 @@ dd if=/dev/gsc0 of=rawfile bs=(width/8) count=(height)
 cat /dev/gsc0p > pbmfile
 .Ed
 .Sh DIAGNOSTICS
-.Bl -tag
+.Bl -tag -width Cd
 .It GSCDEBUG
 When you define this name as an `option' in the kernel configuration
 you can get debug output if you access the driver with a minor number

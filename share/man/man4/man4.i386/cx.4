@@ -23,6 +23,7 @@ by software at adapter initialization.  Legal values are:
 3, 5, 7, 10, 11, 12, 15
 .It DMA
 5, 6, 7
+.El
 .Sh DESCRIPTION
 The Cronyx-Sigma driver supports the adapters of models 100,
 400, 500, 401, 404, 410, 440, 703, 801, 810, 840. Different models have
@@ -78,7 +79,7 @@ An example:
 .Bd -literal
 cd /dev
 sh MAKEDEV cronyx ttyx0 ttyx1 ttyy0
-.El
+.Ed
 .Sh "Asynchronous driver"
 The asynchronous channel device files have the names:
 .Pa /dev/ttyx# 

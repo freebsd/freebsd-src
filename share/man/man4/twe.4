@@ -63,6 +63,7 @@ This process is retried several times.
 Several attempts to reset and initialise the controller have failed;
 initialisation has failed
 and the driver will not attach to this controller.
+.El
 .Ss Driver initialisation/shutdown phase
 .Bl -diag
 .It twe%d: register window not available
@@ -88,6 +89,7 @@ Fetching the list of attached units failed; initialisation has failed.
 Creation of the disk devices failed, either due to communications
 problems with the adapter or due to resource shortage;
 attachment of one or more units may have been aborted.
+.El
 .Ss Operational phase
 .Bl -diag
 .It twe%d: command completed - %s
@@ -189,6 +191,7 @@ No further I/O will be handled.
 .Pp
 The controller was successfully reset,
 and outstanding commands were restarted.
+.El
 .Sh BUGS
 The controller cannot handle I/O transfers
 that are not aligned to a 512-byte boundary.

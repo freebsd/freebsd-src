@@ -87,7 +87,7 @@ makefiles for things other than builds.
 .It Ar CFLAGS
 (str) Controls the compiler setting when compiling C code.
 Optimization levels above
-.Op -O ( -O2 , ...)
+.Op -O ( -O2 , ...\& )
 are not supported. BDECFLAGS
 is provided as a set of gcc settings suggested by Bruce Evans
 for developing and testing changes. They can be used by:
@@ -184,9 +184,8 @@ set to 0.
 .It Ar COPTFLAGS
 (str) Controls the compiler settings when building the
 kernel. Optimization levels above
-.Op -O 
-.Op -O2 ,
-...) are not supported.
+.Op -O ( -O2 , ...\& )
+are not supported.
 .It Ar NO_KERNELCONFIG
 (bool) Set this to skip running
 .Xr config 8
@@ -475,6 +474,7 @@ need to can attemp to comply with U.S. export regulations.
 .It Ar X11BASE
 (str) Should be set to where the X11 distribution has been
 installed if it is installed anywhere other than /usr/X11R6.
+.El
 .Sh FILES
 .Bl -tag -width /etc/defaults/make.conf -compact
 .It Pa /etc/defaults/make.conf
@@ -484,6 +484,7 @@ installed if it is installed anywhere other than /usr/X11R6.
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/ports/Mk/bsd.port.mk
 .It Pa /usr/ports/Mk/bsd.sites.mk
+.El
 .Sh SEE ALSO
 .Xr gcc 1 ,
 .Xr install 1 ,
@@ -502,7 +503,7 @@ file appeared sometime before
 .Sh BUGS
 This manual page may occasionally be out of date with respect to
 the options currently available for use in
-.Nm make.conf .
+.Nm .
 Please check the
 .Pa /etc/defaults/make.conf
 file for the latest options which are available.

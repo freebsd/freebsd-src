@@ -42,12 +42,12 @@ Packets are sent to a pipe using the command
 .Bd -literal
     ipfw add pipe NNN ....
 .Ed
-
+.Pp
 and pipes are configured as follows:
 .Bd -literal
     ipfw pipe NNN config bw B delay D queue Q plr P
 .Ed
-
+.Pp
 where the bandwidth B can be expressed in bit/s, Kbit/s, Mbit/s,
 Bytes/s, KBytes/s, MBytes/s , delay in milliseconds, queue size in
 packets or Bytes, plr is the fraction of packets randomly dropped.
@@ -75,8 +75,6 @@ link would be the following:
    ipfw pipe 1 config bw 1Mbit/s delay 80ms
    ipfw pipe 2 config bw 128Kbit/s delay 300ms
 .Ed
-
-.Pp
 .Sh OPERATION
 The
 .Nm ipfw
@@ -104,7 +102,7 @@ thus controlled by the kernel option
 .Bd -literal
     options HZ
 .Ed
-
+.Pp
 whose default value (100) means a granularity of 10ms.
 For an accurate simulation of high data rates it might be necessary to
 reduce the timer granularity to 1ms or less.
@@ -114,7 +112,6 @@ time to output packets.
 So, reducing the granularity too much might
 actually cause ticks to be missed thus reducing the accuracy of
 operation.
-
 .Sh KERNEL OPTIONS
 The following options in the kernel configuration file are related
 to
@@ -134,13 +131,11 @@ Generally, the following options are required:
   options IPFIREWALL
   options DUMMYNET
 .Ed
-
+.Pp
 additionally, one may want to increase the number
 of mbuf clusters (used to store network packets) according to the
 sum of the bandwidth-delay products and queue sizes of all configured
 pipes.
-
-
 .Sh SYSCTL VARIABLES
 .Pp
 .Ql net.inet.ip.fw.one_pass

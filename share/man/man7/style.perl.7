@@ -32,7 +32,7 @@
 .Nd "FreeBSD Perl source file style guide"
 .Sh DESCRIPTION
 This file specifies the preferred style for perl scripts in the
-.Tn FreeBSD
+.Fx
 source tree.
 .Bd -literal -offset 0i
  #
@@ -221,13 +221,12 @@ where appropriate.
 Use
 .Fa unless
 instead of
-.Fa if (! ... )
+.Fa if (! ...\& )
 where it improves readability.
 .Pp
 Where it doesn't conflict with this guide read
 .Xr perlstyle 1
 and adopt Larry Wall's style recommendations.
-
 .Sh SEE ALSO
 .Xr perlsec 1 ,
 .Xr perlstyle 1 ,
@@ -236,4 +235,4 @@ and adopt Larry Wall's style recommendations.
 This man page is largely based on the
 .Xr style 9
 man-page in
-.Tn FreeBSD .
+.Fx .
