@@ -50,6 +50,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,7 +109,10 @@ main(argc, argv)
 			if (build(*argv, omode))
 				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
-			warn("%s", *argv);
+			if (errno == ENOTDIR || errno == ENOENT)
+				warn("%s", dirname(*argv));
+			else
+				warn("%s", *argv);
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
