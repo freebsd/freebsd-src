@@ -40,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "cpufreq_if.h"
 #include <machine/md_var.h>
 
+#include <contrib/dev/acpica/acpi.h>
+#include <dev/acpica/acpivar.h>
+#include "acpi_if.h"
+
 /* Status/control registers (from the IA-32 System Programming Guide). */
 #define MSR_PERF_STATUS		0x198
 #define MSR_PERF_CTL		0x199
@@ -532,6 +536,7 @@ static cpu_info ESTprocs[] = {
 };
 
 static void	est_identify(driver_t *driver, device_t parent);
+static int	est_features(driver_t *driver, u_int *features);
 static int	est_probe(device_t parent);
 static int	est_attach(device_t parent);
 static int	est_detach(device_t parent);
@@ -557,6 +562,10 @@ static device_method_t est_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	est_get),
 	DEVMETHOD(cpufreq_drv_type,	est_type),
 	DEVMETHOD(cpufreq_drv_settings,	est_settings),
+
+	/* ACPI interface */
+	DEVMETHOD(acpi_get_features,	est_features),
+
 	{0, 0}
 };
 
@@ -569,9 +578,19 @@ static driver_t est_driver = {
 static devclass_t est_devclass;
 DRIVER_MODULE(est, cpu, est_driver, est_devclass, 0, 0);
 
+static int
+est_features(driver_t *driver, u_int *features)
+{
+
+	/* Notify the ACPI CPU that we support direct access to MSRs */
+	*features = ACPI_CAP_PERF_MSRS;
+	return (0);
+}
+
 static void
 est_identify(driver_t *driver, device_t parent)
 {
+	device_t child;
 	u_int p[4];
 
 	/* Make sure we're not being doubly invoked. */
@@ -591,7 +610,8 @@ est_identify(driver_t *driver, device_t parent)
 	 * We add a child for each CPU since settings must be performed
 	 * on each CPU in the SMP case.
 	 */
-	if (BUS_ADD_CHILD(parent, 0, "est", -1) == NULL)
+	child = BUS_ADD_CHILD(parent, 0, "est", -1);
+	if (child == NULL)
 		device_printf(parent, "add est child failed\n");
 }
 
