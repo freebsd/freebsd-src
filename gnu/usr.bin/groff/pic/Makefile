@@ -12,6 +12,5 @@ CLEANFILES+=	pic.cc pic.tab.h ${MANDEPEND}
 
 beforedepend: pic.cc
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

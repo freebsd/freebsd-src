@@ -10,6 +10,5 @@ DPADD+=		${LIBBIB} ${LIBGROFF} ${LIBMATH}
 MANDEPEND=	refer.1
 CLEANFILES+=	label.cc label.tab.h ${MANDEPEND}
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

@@ -9,6 +9,5 @@ DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBMATH}
 MANDEPEND=	grops.1
 CLEANFILES+=	${MANDEPEND}
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
