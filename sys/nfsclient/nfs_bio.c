@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.72 1999/06/05 05:25:37 peter Exp $
+ * $Id: nfs_bio.c,v 1.73 1999/06/16 23:27:46 mckusick Exp $
  */
 
 
@@ -1194,6 +1194,7 @@ again:
 			}
 		}
 
+		BUF_KERNPROC(bp);
 		TAILQ_INSERT_TAIL(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen++;
 		return (0);

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.109 1999/05/06 20:00:34 phk Exp $
+ *	$Id: vnode_pager.c,v 1.110 1999/05/15 23:42:39 dt Exp $
  */
 
 /*
@@ -407,7 +407,7 @@ vnode_pager_input_smlfs(object, m)
 			bp = getpbuf(&vnode_pbuf_freecnt);
 
 			/* build a minimal buffer header */
-			bp->b_flags = B_BUSY | B_READ | B_CALL;
+			bp->b_flags = B_READ | B_CALL;
 			bp->b_iodone = vnode_pager_iodone;
 			bp->b_rcred = bp->b_wcred = curproc->p_ucred;
 			if (bp->b_rcred != NOCRED)
@@ -722,7 +722,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	pmap_qenter(kva, m, count);
 
 	/* build a minimal buffer header */
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_flags = B_READ | B_CALL;
 	bp->b_iodone = vnode_pager_iodone;
 	/* B_PHYS is not set, but it is nice to fill this in */
 	bp->b_rcred = bp->b_wcred = curproc->p_ucred;

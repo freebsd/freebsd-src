@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.68 1999/05/06 20:00:32 phk Exp $
+ * $Id: buf.h,v 1.69 1999/05/07 07:03:45 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
 
 #include <sys/queue.h>
+#include <sys/lock.h>
 
 struct buf;
 struct mount;
@@ -101,6 +102,7 @@ struct buf {
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_usecount;	/* buffer use count */
 	unsigned char b_xflags;		/* extra flags */
+	struct lock b_lock;		/* Buffer lock */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_bcount;		/* Valid bytes in buffer. */
@@ -186,7 +188,7 @@ struct buf {
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
 #define	B_BAD		0x00000008	/* Bad block revectoring in progress. */
-#define	B_BUSY		0x00000010	/* I/O in progress. */
+#define	B_UNUSED1	0x00000010	/* Old B_BUSY */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
@@ -205,7 +207,7 @@ struct buf {
 #define	B_READ		0x00100000	/* Read buffer. */
 #define	B_DIRTY		0x00200000	/* Needs writing later. */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
-#define	B_WANTED	0x00800000	/* Process wants this buffer. */
+#define	B_WANT		0x00800000	/* Used by vm_pager.c */
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
@@ -217,10 +219,10 @@ struct buf {
 #define B_AUTOCHAINDONE	0x80000000	/* Available flag */
 
 #define PRINT_BUF_FLAGS "\20\40autochain\37cluster\36vmio\35ram\34ordered" \
-	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26dirty" \
+	"\33paging\32xxx\31writeinprog\30want\27relbuf\26dirty" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
 	"\17locked\16inval\15scanned\14error\13eintr\12done\11freebuf" \
-	"\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age"
+	"\10delwri\7call\6cache\4bad\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.
@@ -229,6 +231,84 @@ struct buf {
 #define	B_VNCLEAN	0x02		/* On vnode clean list */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
+
+/*
+ * Buffer locking
+ */
+struct simplelock buftimelock;		/* Interlock on setting prio and timo */
+extern char *buf_wmesg;			/* Default buffer lock message */
+#define BUF_WMESG "bufwait"
+#include <sys/proc.h>			/* XXX for curproc */
+/*
+ * Initialize a lock.
+ */
+#define BUF_LOCKINIT(bp) \
+	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, 0)
+/*
+ *
+ * Get a lock sleeping non-interruptably until it becomes available.
+ */
+static __inline int BUF_LOCK __P((struct buf *, int));
+static __inline int
+BUF_LOCK (struct buf *bp, int locktype)
+{
+
+	simple_lock(&buftimelock);
+	bp->b_lock.lk_wmesg = buf_wmesg;
+	bp->b_lock.lk_prio = PRIBIO + 4;
+	bp->b_lock.lk_timo = 0;
+	return (lockmgr(&(bp)->b_lock, locktype, &buftimelock, curproc));
+}
+/*
+ * Get a lock sleeping with specified interruptably and timeout.
+ */
+static __inline int BUF_TIMELOCK __P((struct buf *, int, char *, int, int));
+static __inline int
+BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
+{
+
+	simple_lock(&buftimelock);
+	bp->b_lock.lk_wmesg = wmesg;
+	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
+	bp->b_lock.lk_timo = timo;
+	return (lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curproc));
+}
+/*
+ * Release a lock. Only the acquiring process may free the lock unless
+ * it has been handed off to biodone.
+ */
+#define BUF_UNLOCK(bp) \
+	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curproc)
+/*
+ * Free a buffer lock.
+ */
+#define BUF_LOCKFREE(bp) 			\
+	if (BUF_REFCNT(bp) > 0)			\
+		panic("free locked buf")
+/*
+ * When initiating asynchronous I/O, change ownership of the lock to the
+ * kernel. Once done, the lock may legally released by biodone. The
+ * original owning process can no longer acquire it recursively, but must
+ * wait until the I/O is completed and the lock has been freed by biodone.
+ */
+static __inline void BUF_KERNPROC __P((struct buf *));
+static __inline void
+BUF_KERNPROC(struct buf *bp)
+{
+	struct buf *nbp;
+
+	if (bp->b_flags & B_ASYNC)
+		bp->b_lock.lk_lockholder = LK_KERNPROC;
+	for (nbp = TAILQ_FIRST(&bp->b_cluster.cluster_head);
+	     nbp; nbp = TAILQ_NEXT(&nbp->b_cluster, cluster_entry))
+		if (nbp->b_flags & B_ASYNC)
+			nbp->b_lock.lk_lockholder = LK_KERNPROC;
+}
+/*
+ * Find out the number of references to a lock.
+ */
+#define BUF_REFCNT(bp) \
+	lockcount(&(bp)->b_lock)
 
 struct buf_queue_head {
 	TAILQ_HEAD(buf_queue, buf) queue;

@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
- *	$Id: ffs_softdep.c,v 1.30 1999/06/15 23:37:29 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.31 1999/06/16 23:27:55 mckusick Exp $
  */
 
 /*
@@ -1530,6 +1530,8 @@ setup_allocindir_phase2(bp, ip, aip)
 		}
 		newindirdep->ir_savebp =
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
+		newindirdep->ir_savebp->b_flags |= B_ASYNC;
+		BUF_KERNPROC(newindirdep->ir_savebp);
 		bcopy(bp->b_data, newindirdep->ir_savebp->b_data, bp->b_bcount);
 	}
 }
@@ -3698,7 +3700,7 @@ softdep_fsync_mountdev(vp)
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
-		if (bp->b_flags & B_BUSY)
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("softdep_fsync_mountdev: not dirty");
@@ -3707,10 +3709,11 @@ softdep_fsync_mountdev(vp)
 		 * dependencies.
 		 */
 		if ((wk = LIST_FIRST(&bp->b_dep)) == NULL ||
-		    wk->wk_type != D_BMSAFEMAP)
+		    wk->wk_type != D_BMSAFEMAP) {
+			BUF_UNLOCK(bp);
 			continue;
+		}
 		bremfree(bp);
-		bp->b_flags |= B_BUSY;
 		FREE_LOCK(&lk);
 		(void) bawrite(bp);
 		ACQUIRE_LOCK(&lk);
@@ -4414,19 +4417,20 @@ getdirtybuf(bpp, waitfor)
 	for (;;) {
 		if ((bp = *bpp) == NULL)
 			return (0);
-		if ((bp->b_flags & B_BUSY) == 0)
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) == 0)
 			break;
 		if (waitfor != MNT_WAIT)
 			return (0);
-		bp->b_flags |= B_WANTED;
 		FREE_LOCK_INTERLOCKED(&lk);
-		tsleep((caddr_t)bp, PRIBIO + 1, "sdsdty", 0);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL) != ENOLCK)
+			panic("getdirtybuf: inconsistent lock");
 		ACQUIRE_LOCK_INTERLOCKED(&lk);
 	}
-	if ((bp->b_flags & B_DELWRI) == 0)
+	if ((bp->b_flags & B_DELWRI) == 0) {
+		BUF_UNLOCK(bp);
 		return (0);
+	}
 	bremfree(bp);
-	bp->b_flags |= B_BUSY;
 	return (1);
 }
 

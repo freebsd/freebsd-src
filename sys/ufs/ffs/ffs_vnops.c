@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.56 1999/05/14 01:26:05 mckusick Exp $
+ * $Id: ffs_vnops.c,v 1.57 1999/06/18 05:49:46 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -159,8 +159,9 @@ loop:
 		 * or if it's already scheduled, skip to the next 
 		 * buffer
 		 */
-		if ((bp->b_flags & (B_BUSY | B_SCANNED)) ||
-		    ((skipmeta == 1) && (bp->b_lblkno < 0)))
+		if ((bp->b_flags & B_SCANNED) ||
+		    ((skipmeta == 1) && (bp->b_lblkno < 0)) ||
+		    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
@@ -181,17 +182,16 @@ loop:
 			if (passes > 0 || (ap->a_waitfor != MNT_WAIT)) {
 				if ((bp->b_flags & B_CLUSTEROK) &&
 				    ap->a_waitfor != MNT_WAIT) {
+					BUF_UNLOCK(bp);
 					(void) vfs_bio_awrite(bp);
 				} else {
 					bremfree(bp);
-					bp->b_flags |= B_BUSY;
 					splx(s);
 					(void) bawrite(bp);
 					s = splbio();
 				}
 			} else {
 				bremfree(bp);
-				bp->b_flags |= B_BUSY;
 				splx(s);
 				if ((error = bwrite(bp)) != 0)
 					return (error);
@@ -203,11 +203,12 @@ loop:
 			 * off the file, then throw it away.
 			 */
 			bremfree(bp);
-			bp->b_flags |= B_BUSY | B_INVAL | B_NOCACHE;
+			bp->b_flags |= B_INVAL | B_NOCACHE;
 			splx(s);
 			brelse(bp);
 			s = splbio();
 		} else {
+			BUF_UNLOCK(bp);
 			vfs_bio_awrite(bp);
 		}
 		/*

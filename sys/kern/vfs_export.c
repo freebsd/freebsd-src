@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.201 1999/06/15 23:37:25 mckusick Exp $
+ * $Id: vfs_subr.c,v 1.202 1999/06/16 23:27:32 mckusick Exp $
  */
 
 /*
@@ -128,9 +128,9 @@ static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 time_t syncdelay = 30;		/* max time to delay syncing data */
 time_t filedelay = 30;		/* time to delay syncing files */
 SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0, "");
-time_t dirdelay = 15;		/* time to delay syncing directories */
+time_t dirdelay = 29;		/* time to delay syncing directories */
 SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
-time_t metadelay = 10;		/* time to delay syncing metadata */
+time_t metadelay = 28;		/* time to delay syncing metadata */
 SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
 static int rushjob;			/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
@@ -622,16 +622,14 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 
 		for (bp = blist; bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if (bp->b_flags & B_BUSY) {
-				bp->b_flags |= B_WANTED;
-				error = tsleep((caddr_t) bp,
-				    slpflag | (PRIBIO + 4), "vinvalbuf",
-				    slptimeo);
-				if (error) {
-					splx(s);
-					return (error);
-				}
-				break;
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+				error = BUF_TIMELOCK(bp,
+				    LK_EXCLUSIVE | LK_SLEEPFAIL,
+				    "vinvalbuf", slpflag, slptimeo);
+				if (error == ENOLCK)
+					break;
+				splx(s);
+				return (error);
 			}
 			/*
 			 * XXX Since there are no node locks for NFS, I
@@ -646,21 +644,21 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 
 				if (bp->b_vp == vp) {
 					if (bp->b_flags & B_CLUSTEROK) {
+						BUF_UNLOCK(bp);
 						vfs_bio_awrite(bp);
 					} else {
 						bremfree(bp);
-						bp->b_flags |= (B_BUSY | B_ASYNC);
+						bp->b_flags |= B_ASYNC;
 						VOP_BWRITE(bp->b_vp, bp);
 					}
 				} else {
 					bremfree(bp);
-					bp->b_flags |= B_BUSY;
 					(void) VOP_BWRITE(bp->b_vp, bp);
 				}
 				break;
 			}
 			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF | B_BUSY);
+			bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 		}
@@ -720,13 +718,12 @@ restart:
 		for (bp = TAILQ_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bp->b_lblkno >= trunclbn) {
-				if (bp->b_flags & B_BUSY) {
-					bp->b_flags |= B_WANTED;
-					tsleep(bp, PRIBIO + 4, "vtrb1", 0);
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
 					goto restart;
 				} else {
 					bremfree(bp);
-					bp->b_flags |= (B_BUSY | B_INVAL | B_RELBUF);
+					bp->b_flags |= (B_INVAL | B_RELBUF);
 					bp->b_flags &= ~B_ASYNC;
 					brelse(bp);
 					anyfreed = 1;
@@ -742,13 +739,12 @@ restart:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bp->b_lblkno >= trunclbn) {
-				if (bp->b_flags & B_BUSY) {
-					bp->b_flags |= B_WANTED;
-					tsleep(bp, PRIBIO + 4, "vtrb2", 0);
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
 					goto restart;
 				} else {
 					bremfree(bp);
-					bp->b_flags |= (B_BUSY | B_INVAL | B_RELBUF);
+					bp->b_flags |= (B_INVAL | B_RELBUF);
 					bp->b_flags &= ~B_ASYNC;
 					brelse(bp);
 					anyfreed = 1;
@@ -767,12 +763,11 @@ restartsync:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
-				if (bp->b_flags & B_BUSY) {
-					bp->b_flags |= B_WANTED;
-					tsleep(bp, PRIBIO, "vtrb3", 0);
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+					BUF_LOCK(bp, LK_EXCLUSIVE|LK_SLEEPFAIL);
+					goto restart;
 				} else {
 					bremfree(bp);
-					bp->b_flags |= B_BUSY;
 					if (bp->b_vp == vp) {
 						bp->b_flags |= B_ASYNC;
 					} else {

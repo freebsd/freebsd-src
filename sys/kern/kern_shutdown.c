@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.51 1999/05/08 06:39:38 phk Exp $
+ * $Id: kern_shutdown.c,v 1.52 1999/05/12 22:30:46 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -212,8 +212,8 @@ boot(howto)
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL))
-						== B_BUSY) {
+				if ((bp->b_flags & B_INVAL) == 0 &&
+				    BUF_REFCNT(bp) > 0) {
 					nbusy++;
 				} else if ((bp->b_flags & (B_DELWRI | B_INVAL))
 						== B_DELWRI) {
@@ -233,10 +233,11 @@ boot(howto)
 		 */
 		nbusy = 0;
 		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) ||
-			    ((bp->b_flags & (B_DELWRI | B_INVAL))== B_DELWRI)) {
-				if(bp->b_dev == NODEV)
-					CIRCLEQ_REMOVE(&mountlist, bp->b_vp->v_mount, mnt_list);
+			if (((bp->b_flags&B_INVAL) == 0 && BUF_REFCNT(bp)) ||
+			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI)) {
+				if (bp->b_dev == NODEV)
+					CIRCLEQ_REMOVE(&mountlist,
+					    bp->b_vp->v_mount, mnt_list);
 				else
 					nbusy++;
 			}
@@ -252,8 +253,8 @@ boot(howto)
 #ifdef SHOW_BUSYBUFS
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL))
-						== B_BUSY) {
+				if ((bp->b_flags & B_INVAL) == 0 &&
+				    BUF_REFCNT(bp) > 0) {
 					nbusy++;
 					printf(
 			"%d: dev:%08lx, flags:%08lx, blkno:%ld, lblkno:%ld\n",

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.214 1999/06/16 23:27:31 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.215 1999/06/22 01:39:53 mckusick Exp $
  */
 
 /*
@@ -139,6 +139,7 @@ SYSCTL_INT(_vfs, OID_AUTO, kvafreespace, CTLFLAG_RD,
 
 static LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
 struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
+char *buf_wmesg = BUF_WMESG;
 
 extern int vm_swap_size;
 
@@ -250,6 +251,7 @@ bufinit()
 
 	TAILQ_INIT(&bswlist);
 	LIST_INIT(&invalhash);
+	simple_lock_init(&buftimelock);
 
 	/* first, make a null hash table */
 	for (i = 0; i < BUFHSZ; i++)
@@ -270,6 +272,7 @@ bufinit()
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
+		BUF_LOCKINIT(bp);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
@@ -359,7 +362,14 @@ bremfree(struct buf * bp)
 		if (bp->b_qindex == QUEUE_EMPTY) {
 			kvafreespace -= bp->b_kvasize;
 		}
-		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
+		if (BUF_REFCNT(bp) == 1)
+			TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
+		else if (BUF_REFCNT(bp) == 0)
+			panic("bremfree: not locked");
+		else
+			/* Temporary panic to verify exclusive locking */
+			/* This panic goes away when we allow shared refs */
+			panic("bremfree: multiple refs");
 		bp->b_qindex = QUEUE_NONE;
 		runningbufspace += bp->b_bufsize;
 	} else {
@@ -471,6 +481,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 				rabp->b_rcred = cred;
 			}
 			vfs_busy_pages(rabp, 0);
+			BUF_KERNPROC(bp);
 			VOP_STRATEGY(vp, rabp);
 		} else {
 			brelse(rabp);
@@ -509,7 +520,7 @@ bwrite(struct buf * bp)
 	oldflags = bp->b_flags;
 
 #if !defined(MAX_PERF)
-	if ((bp->b_flags & B_BUSY) == 0)
+	if (BUF_REFCNT(bp) == 0)
 		panic("bwrite: buffer is not busy???");
 #endif
 	s = splbio();
@@ -523,6 +534,7 @@ bwrite(struct buf * bp)
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
+	BUF_KERNPROC(bp);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
@@ -567,9 +579,8 @@ bdwrite(struct buf * bp)
 	struct vnode *vp;
 
 #if !defined(MAX_PERF)
-	if ((bp->b_flags & B_BUSY) == 0) {
+	if (BUF_REFCNT(bp) == 0)
 		panic("bdwrite: buffer is not busy");
-	}
 #endif
 
 	if (bp->b_flags & B_INVAL) {
@@ -883,6 +894,16 @@ brelse(struct buf * bp)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 #endif
+	if (BUF_REFCNT(bp) > 1) {
+		/* Temporary panic to verify exclusive locking */
+		/* This panic goes away when we allow shared refs */
+		panic("brelse: multiple refs");
+		/* do not release to free list */
+		BUF_UNLOCK(bp);
+		splx(s);
+		return;
+	}
+
 	/* enqueue */
 
 	/* buffers with no memory */
@@ -948,14 +969,9 @@ brelse(struct buf * bp)
 	if (bp->b_bufsize)
 		bufspacewakeup();
 
-	if (bp->b_flags & B_WANTED) {
-		bp->b_flags &= ~(B_WANTED | B_AGE);
-		wakeup(bp);
-	} 
-
 	/* unlock */
-	bp->b_flags &= ~(B_ORDERED | B_WANTED | B_BUSY |
-		B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	BUF_UNLOCK(bp);
+	bp->b_flags &= ~(B_ORDERED | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
 }
 
@@ -981,6 +997,13 @@ bqrelse(struct buf * bp)
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bqrelse: free buffer onto another queue???");
 #endif
+	if (BUF_REFCNT(bp) > 1) {
+		/* do not release to free list */
+		panic("bqrelse: multiple refs");
+		BUF_UNLOCK(bp);
+		splx(s);
+		return;
+	}
 	if (bp->b_flags & B_LOCKED) {
 		bp->b_flags &= ~B_ERROR;
 		bp->b_qindex = QUEUE_LOCKED;
@@ -1005,15 +1028,9 @@ bqrelse(struct buf * bp)
 	if (bp->b_bufsize)
 		bufspacewakeup();
 
-	/* anyone need this block? */
-	if (bp->b_flags & B_WANTED) {
-		bp->b_flags &= ~(B_WANTED | B_AGE);
-		wakeup(bp);
-	} 
-
 	/* unlock */
-	bp->b_flags &= ~(B_ORDERED | B_WANTED | B_BUSY |
-		B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	BUF_UNLOCK(bp);
+	bp->b_flags &= ~(B_ORDERED | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
 }
 
@@ -1124,7 +1141,8 @@ vfs_bio_awrite(struct buf * bp)
 
 		for (i = 1; i < maxcl; i++) {
 			if ((bpa = gbincore(vp, lblkno + i)) &&
-			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
+			    BUF_REFCNT(bpa) == 0 &&
+			    ((bpa->b_flags & (B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
 			    (B_DELWRI | B_CLUSTEROK)) &&
 			    (bpa->b_bufsize == size)) {
 				if ((bpa->b_blkno == bpa->b_lblkno) ||
@@ -1145,8 +1163,9 @@ vfs_bio_awrite(struct buf * bp)
 		}
 	}
 
+	BUF_LOCK(bp, LK_EXCLUSIVE);
 	bremfree(bp);
-	bp->b_flags |= B_BUSY | B_ASYNC;
+	bp->b_flags |= B_ASYNC;
 
 	splx(s);
 	/*
@@ -1281,7 +1300,7 @@ restart:
 		/*
 		 * Sanity Checks
 		 */
-		KASSERT(!(bp->b_flags & B_BUSY), ("getnewbuf: busy buffer %p on free list", bp));
+		KASSERT(BUF_REFCNT(bp) == 0, ("getnewbuf: busy buffer %p on free list", bp));
 		KASSERT(bp->b_qindex == qindex, ("getnewbuf: inconsistant queue %d bp %p", qindex, bp));
 
 		/*
@@ -1374,8 +1393,9 @@ restart:
 		 * remains valid only for QUEUE_EMPTY bp's.
 		 */
 
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+			panic("getnewbuf: locked buf");
 		bremfree(bp);
-		bp->b_flags |= B_BUSY;
 
 		if (qindex == QUEUE_LRU || qindex == QUEUE_AGE) {
 			if (bp->b_flags & B_VMIO) {
@@ -1384,11 +1404,6 @@ restart:
 			}
 			if (bp->b_vp)
 				brelvp(bp);
-		}
-
-		if (bp->b_flags & B_WANTED) {
-			bp->b_flags &= ~B_WANTED;
-			wakeup(bp);
 		}
 
 		/*
@@ -1416,7 +1431,7 @@ restart:
 		if (bp->b_bufsize)
 			allocbuf(bp, 0);
 
-		bp->b_flags = B_BUSY;
+		bp->b_flags = 0;
 		bp->b_dev = NODEV;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
@@ -1644,8 +1659,9 @@ flushbufqueues(void)
 		 */
 		if ((bp->b_flags & B_DELWRI) != 0) {
 			if (bp->b_flags & B_INVAL) {
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
+					panic("flushbufqueues: locked buf");
 				bremfree(bp);
-				bp->b_flags |= B_BUSY;
 				brelse(bp);
 			} else {
 				vfs_bio_awrite(bp);
@@ -1872,30 +1888,25 @@ loop:
 		 * Buffer is in-core
 		 */
 
-		if (bp->b_flags & B_BUSY) {
-			bp->b_flags |= B_WANTED;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
 			if (bp->b_usecount < BUF_MAXUSE)
 				++bp->b_usecount;
-
-			if (!tsleep(bp,
-				(PRIBIO + 4) | slpflag, "getblk", slptimeo)) {
+			if (BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL,
+			    "getblk", slpflag, slptimeo) == ENOLCK)
 				goto loop;
-			}
-
 			splx(s);
 			return (struct buf *) NULL;
 		}
 
 		/*
-		 * Busy the buffer.  B_CACHE is cleared if the buffer is 
+		 * The buffer is locked.  B_CACHE is cleared if the buffer is 
 		 * invalid.  Ohterwise, for a non-VMIO buffer, B_CACHE is set
 		 * and for a VMIO buffer B_CACHE is adjusted according to the
 		 * backing VM cache.
 		 */
-		bp->b_flags |= B_BUSY;
 		if (bp->b_flags & B_INVAL)
 			bp->b_flags &= ~B_CACHE;
-		else if ((bp->b_flags & (B_VMIO|B_INVAL)) == 0)
+		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
 		bremfree(bp);
 
@@ -1965,9 +1976,8 @@ loop:
 	} else {
 		/*
 		 * Buffer is not in-core, create new buffer.  The buffer
-		 * returned by getnewbuf() is marked B_BUSY.  Note that the
-		 * returned buffer is also considered valid ( not marked
-		 * B_INVAL ).
+		 * returned by getnewbuf() is locked.  Note that the returned
+		 * buffer is also considered valid (not marked B_INVAL).
 		 */
 		int bsize, maxsize, vmio;
 		off_t offset;
@@ -2088,7 +2098,7 @@ allocbuf(struct buf *bp, int size)
 	int i;
 
 #if !defined(MAX_PERF)
-	if (!(bp->b_flags & B_BUSY))
+	if (BUF_REFCNT(bp) == 0)
 		panic("allocbuf: buffer not busy");
 
 	if (bp->b_kvasize < size)
@@ -2376,7 +2386,7 @@ allocbuf(struct buf *bp, int size)
  *	biowait:
  *
  *	Wait for buffer I/O completion, returning error status.  The buffer
- *	is left B_BUSY|B_DONE on return.  B_EINTR is converted into a EINTR
+ *	is left locked and B_DONE on return.  B_EINTR is converted into a EINTR
  *	error and cleared.
  */
 int
@@ -2432,7 +2442,7 @@ biodone(register struct buf * bp)
 
 	s = splbio();
 
-	KASSERT((bp->b_flags & B_BUSY), ("biodone: bp %p not busy", bp));
+	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy", bp));
 	KASSERT(!(bp->b_flags & B_DONE), ("biodone: bp %p already done", bp));
 
 	bp->b_flags |= B_DONE;
@@ -2583,8 +2593,8 @@ biodone(register struct buf * bp)
 	}
 	/*
 	 * For asynchronous completions, release the buffer now. The brelse
-	 * checks for B_WANTED and will do the wakeup there if necessary - so
-	 * no need to do a wakeup here in the async case.
+	 * will do a wakeup there if necessary - so no need to do a wakeup
+	 * here in the async case. The sync case always needs to do a wakeup.
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
@@ -2593,7 +2603,6 @@ biodone(register struct buf * bp)
 		else
 			bqrelse(bp);
 	} else {
-		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
 	}
 	splx(s);
