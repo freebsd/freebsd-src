@@ -317,7 +317,9 @@ By default, it is not possible to write to the disk label area at the beginning
 of a disk.  The disk driver arranges for
 .Xr write 2
 and similar system calls
-to return EROFS on any attempt to do so.  If you need
+to return
+.Er EROFS
+on any attempt to do so.  If you need
 to write to this area (for example, to obliterate the label), use the form
 .Pp
 .Nm
