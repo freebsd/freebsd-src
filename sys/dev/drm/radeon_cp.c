@@ -857,25 +857,23 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 
 	/* Initialize the memory controller */
 	RADEON_WRITE( RADEON_MC_FB_LOCATION,
-		      (dev_priv->agp_vm_start - 1) & 0xffff0000 );
-
-	if ( !dev_priv->is_pci ) {
-		RADEON_WRITE( RADEON_MC_AGP_LOCATION,
-			      (((dev_priv->agp_vm_start - 1 +
-				 dev_priv->agp_size) & 0xffff0000) |
-			       (dev_priv->agp_vm_start >> 16)) );
-	}
+		      (dev_priv->gart_vm_start - 1) & 0xffff0000 );
 
 #if __REALLY_HAVE_AGP
-	if ( !dev_priv->is_pci )
+	if ( !dev_priv->is_pci ) {
+		RADEON_WRITE( RADEON_MC_AGP_LOCATION,
+			      (((dev_priv->gart_vm_start - 1 +
+				 dev_priv->gart_size) & 0xffff0000) |
+			       (dev_priv->gart_vm_start >> 16)) );
+
 		ring_start = (dev_priv->cp_ring->offset
 			      - dev->agp->base
-			      + dev_priv->agp_vm_start);
-       else
+			      + dev_priv->gart_vm_start);
+       } else
 #endif
 		ring_start = (dev_priv->cp_ring->offset
 			      - dev->sg->handle
-			      + dev_priv->agp_vm_start);
+			      + dev_priv->gart_vm_start);
 
 	RADEON_WRITE( RADEON_CP_RB_BASE, ring_start );
 
@@ -893,7 +891,7 @@ static void radeon_cp_init_ring_buffer( drm_device_t *dev,
 		RADEON_WRITE( RADEON_CP_RB_RPTR_ADDR,
 			      dev_priv->ring_rptr->offset
 			      - dev->agp->base
-			      + dev_priv->agp_vm_start);
+			      + dev_priv->gart_vm_start);
 	} else
 #endif
 	{
@@ -991,11 +989,11 @@ static void radeon_set_pcigart( drm_radeon_private_t *dev_priv, int on )
 
 		/* set address range for PCI address translate
 		 */
-		RADEON_WRITE( RADEON_AIC_LO_ADDR, dev_priv->agp_vm_start );
-		RADEON_WRITE( RADEON_AIC_HI_ADDR, dev_priv->agp_vm_start
-						  + dev_priv->agp_size - 1);
+		RADEON_WRITE( RADEON_AIC_LO_ADDR, dev_priv->gart_vm_start );
+		RADEON_WRITE( RADEON_AIC_HI_ADDR, dev_priv->gart_vm_start
+						  + dev_priv->gart_size - 1);
 
-		/* Turn off AGP aperture -- is this required for PCIGART?
+		/* Turn off AGP aperture -- is this required for PCI GART?
 		 */
 		RADEON_WRITE( RADEON_MC_AGP_LOCATION, 0xffffffc0 ); /* ?? */
 		RADEON_WRITE( RADEON_AGP_COMMAND, 0 ); /* clear AGP_COMMAND */
@@ -1119,7 +1117,7 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 	dev_priv->ring_offset = init->ring_offset;
 	dev_priv->ring_rptr_offset = init->ring_rptr_offset;
 	dev_priv->buffers_offset = init->buffers_offset;
-	dev_priv->agp_textures_offset = init->agp_textures_offset;
+	dev_priv->gart_textures_offset = init->gart_textures_offset;
 	
 	if(!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
@@ -1164,11 +1162,10 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 		return DRM_ERR(EINVAL);
 	}
 
-	if ( !dev_priv->is_pci ) {
-		DRM_FIND_MAP( dev_priv->agp_textures,
-			      init->agp_textures_offset );
-		if(!dev_priv->agp_textures) {
-			DRM_ERROR("could not find agp texture region!\n");
+	if ( init->gart_textures_offset ) {
+		DRM_FIND_MAP( dev_priv->gart_textures, init->gart_textures_offset );
+		if ( !dev_priv->gart_textures ) {
+			DRM_ERROR("could not find GART texture region!\n");
 			dev->dev_private = (void *)dev_priv;
 			radeon_do_cleanup_cp(dev);
 			return DRM_ERR(EINVAL);
@@ -1210,25 +1207,25 @@ static int radeon_do_init_cp( drm_device_t *dev, drm_radeon_init_t *init )
 	}
 
 
-	dev_priv->agp_size = init->agp_size;
-	dev_priv->agp_vm_start = RADEON_READ( RADEON_CONFIG_APER_SIZE );
+	dev_priv->gart_size = init->gart_size;
+	dev_priv->gart_vm_start = RADEON_READ( RADEON_CONFIG_APER_SIZE );
 #if __REALLY_HAVE_AGP
 	if ( !dev_priv->is_pci )
-		dev_priv->agp_buffers_offset = (dev_priv->buffers->offset
+		dev_priv->gart_buffers_offset = (dev_priv->buffers->offset
 						- dev->agp->base
-						+ dev_priv->agp_vm_start);
+						+ dev_priv->gart_vm_start);
 	else
 #endif
-		dev_priv->agp_buffers_offset = (dev_priv->buffers->offset
+		dev_priv->gart_buffers_offset = (dev_priv->buffers->offset
 						- dev->sg->handle
-						+ dev_priv->agp_vm_start);
+						+ dev_priv->gart_vm_start);
 
-	DRM_DEBUG( "dev_priv->agp_size %d\n",
-		   dev_priv->agp_size );
-	DRM_DEBUG( "dev_priv->agp_vm_start 0x%x\n",
-		   dev_priv->agp_vm_start );
-	DRM_DEBUG( "dev_priv->agp_buffers_offset 0x%lx\n",
-		   dev_priv->agp_buffers_offset );
+	DRM_DEBUG( "dev_priv->gart_size %d\n",
+		   dev_priv->gart_size );
+	DRM_DEBUG( "dev_priv->gart_vm_start 0x%x\n",
+		   dev_priv->gart_vm_start );
+	DRM_DEBUG( "dev_priv->gart_buffers_offset 0x%lx\n",
+		   dev_priv->gart_buffers_offset );
 
 	dev_priv->ring.start = (u32 *)dev_priv->cp_ring->handle;
 	dev_priv->ring.end = ((u32 *)dev_priv->cp_ring->handle
@@ -1465,7 +1462,7 @@ void radeon_do_release( drm_device_t *dev )
 		RADEON_WRITE( RADEON_GEN_INT_CNTL, 0 );
 
 		/* Free memory heap structures */
-		radeon_mem_takedown( &(dev_priv->agp_heap) );
+		radeon_mem_takedown( &(dev_priv->gart_heap) );
 		radeon_mem_takedown( &(dev_priv->fb_heap) );
 
 		/* deallocate kernel resources */
