@@ -64,10 +64,24 @@ struct snptty {
 #define ST_MAXTYPE	2
 };
 
+/*
+ * Theese are snoop io controls
+ * SNPSTTY accepts 'struct snptty' as input.
+ * If ever type or  unit set to -1,snoop device
+ * detached from it's current tty.
+ */
+
 #define SNPSTTY       _IOW('T', 90, struct snptty)
 #define SNPGTTY       _IOR('T', 89, struct snptty)
 
-
+/*
+ * Theese values would be returned by FIONREAD ioctl
+ * instead of number of characters in buffer in case
+ * of specific errors.
+ */
+#define SNP_OFLOW		-1
+#define SNP_TTYCLOSE		-2
+#define SNP_DETACH		-3
 
 #endif
 
