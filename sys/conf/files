@@ -578,6 +578,7 @@ nfs/krpc_subr.c		optional bootp
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pcic.c		optional pcic device-driver
+pci/amd.c		optional amd device-driver
 pci/pcic_p.c		optional pcic device-driver
 pci/adv_pci.c		optional adv device-driver
 pci/adw_pci.c		optional adw device-driver
