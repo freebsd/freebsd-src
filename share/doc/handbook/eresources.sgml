@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.5 1995/06/30 17:37:36 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.6 1995/07/08 17:26:10 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -85,7 +85,7 @@ freebsd-admin            Administrative issues
 freebsd-arch             Architecture and design discussions
 freebsd-core             FreeBSD core team
 freebsd-install          Installation development
-freebsd-users-groups     Users group coordination
+freebsd-user-groups      User group coordination
 </verb>
 
 <bf>CVS lists:</bf> The following lists are for people seeing the log messages
@@ -255,13 +255,12 @@ for FreeBSD.
 FreeBSD computer security issues (DES, Kerberos, known security holes and
 fixes, etc).
 
-<tag/FREEBSD-USERS-GROUPS/ <em>User Group Coordination List</em><newline>
+<tag/FREEBSD-USER-GROUPS/ <em>User Group Coordination List</em><newline>
 This is the mailing list for the coordinators from each of the 
 local area Users Groups to dicuss matters with each other and a 
 designated individual from the Core Team.  This mail list should
 be limited to meeting synopsis and coordination of projects that span
 User Groups.
-
 
 </descrip>
 
