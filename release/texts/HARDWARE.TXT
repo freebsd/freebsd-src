@@ -68,10 +68,7 @@ ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0*   340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
-amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
 dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
-nca0*   1f88    10      dyn     dyn     ProAudioSpectrum cards
-sea0*   dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
