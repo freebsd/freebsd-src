@@ -32,34 +32,55 @@
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
+#define	FUNCTION_ALIGNMENT 32
 #define	_MCOUNT_DECL	void mcount
-
-#define FUNCTION_ALIGNMENT 32
+#define	MCOUNT
 
 typedef u_long	fptrdiff_t;
-typedef u_long	uintfptr_t;
-
-#define	MCOUNT \
-void \
-_mcount() \
-{ \
-}
 
 #ifdef _KERNEL
-#define MCOUNT_ENTER(s)
-#define MCOUNT_EXIT(s)
-#define	MCOUNT_DECL(s)
+
+#include <machine/cpufunc.h>
+
+#define	MCOUNT_DECL(s)	register_t s;
+#define	MCOUNT_ENTER(s)	s = rdpr(pil); wrpr(pil, 0, 14)
+#define	MCOUNT_EXIT(s)	wrpr(pil, 0, s)
+
 #ifdef GUPROF
+
+#define	CALIB_SCALE	1000
+#define	KCOUNT(p,index) \
+	((p)->kcount[(index) / (HISTFRACTION * sizeof(HISTCOUNTER))])
+#define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
+
 struct gmonparam;
 
+extern	int cputime_bias;
+
+int	cputime(void);
 void	nullfunc_loop_profiled(void);
 void	nullfunc_profiled(void);
 void	startguprof(struct gmonparam *p);
 void	stopguprof(struct gmonparam *p);
-#else
+
+#else /* GUPROF */
+
 #define startguprof(p)
 #define stopguprof(p)
+
 #endif /* GUPROF */
-#endif
+
+void	empty_loop(void);
+void	kmupetext(uintfptr_t nhighpc);
+void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
+void	mexitcount(uintfptr_t selfpc);
+void	nullfunc(void);
+void	nullfunc_loop(void);
+
+#else /* _KERNEL */
+
+typedef u_long	uintfptr_t;
+
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_PROFILE_H_ */
