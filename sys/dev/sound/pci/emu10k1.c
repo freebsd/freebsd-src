@@ -40,7 +40,7 @@
 /* -------------------------------------------------------------------- */
 
 #define EMU10K1_PCI_ID 	0x00021102
-#define EMU_BUFFSIZE	16384
+#define EMU_BUFFSIZE	4096
 #undef EMUDEBUG
 
 struct emu_memblk {
@@ -58,11 +58,11 @@ struct emu_mem {
 
 struct emu_voice {
 	int vnum;
-	int b16:1, stereo:1, busy:1, running:1, master:1;
+	int b16:1, stereo:1, busy:1, running:1, ismaster:1, istracker:1;
 	int speed;
-	int start, end;
+	int start, end, vol;
 	u_int32_t buf;
-	struct emu_voice *slave;
+	struct emu_voice *slave, *tracker;
 	pcm_channel *channel;
 };
 
@@ -71,7 +71,7 @@ struct sc_info;
 /* channel registers */
 struct sc_chinfo {
 	int spd, dir, fmt;
-	struct emu_voice *master, *slave;
+	struct emu_voice *master, *slave, *tracker;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	struct sc_info *parent;
@@ -366,7 +366,7 @@ emu_valloc(struct sc_info *sc)
 }
 
 static int
-emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
+emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s, struct emu_voice *t,
 	  u_int32_t sz, pcm_channel *c)
 {
 	void *buf;
@@ -376,14 +376,17 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 		return -1;
 	m->start = emu_memstart(sc, buf) * EMUPAGESIZE;
 	m->end = m->start + sz;
-	m->channel = c;
+	m->channel = NULL;
 	m->speed = 0;
 	m->b16 = 0;
 	m->stereo = 0;
 	m->running = 0;
-	m->master = 1;
+	m->ismaster = 1;
+	m->istracker = 0;
+	m->vol = 0xff;
 	m->buf = vtophys(buf);
 	m->slave = s;
+	m->tracker = t;
 	if (s != NULL) {
 		s->start = m->start;
 		s->end = m->end;
@@ -392,9 +395,27 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 		s->b16 = 0;
 		s->stereo = 0;
 		s->running = 0;
-		s->master = 0;
+		s->ismaster = 0;
+		s->istracker = 0;
+		s->vol = m->vol;
 		s->buf = m->buf;
 		s->slave = NULL;
+		s->tracker = NULL;
+	}
+	if (t != NULL) {
+		t->start = m->start;
+		t->end = t->start + sz / 2;
+		t->channel = c;
+		t->speed = 0;
+		t->b16 = 0;
+		t->stereo = 0;
+		t->running = 0;
+		t->ismaster = 0;
+		t->istracker = 1;
+		t->vol = 0;
+		t->buf = m->buf;
+		t->slave = NULL;
+		t->tracker = NULL;
 	}
 	if (c != NULL) {
 		c->buffer.buf = buf;
@@ -415,27 +436,33 @@ emu_vsetup(struct sc_chinfo *ch)
 			v->slave->b16 = v->b16;
 			v->slave->stereo = v->stereo;
 		}
+		if (v->tracker != NULL) {
+			v->tracker->b16 = v->b16;
+			v->tracker->stereo = v->stereo;
+		}
 	}
 	if (ch->spd) {
 		v->speed = ch->spd;
 		if (v->slave != NULL)
 			v->slave->speed = v->speed;
+		if (v->tracker != NULL)
+			v->tracker->speed = v->speed;
 	}
 }
 
 static void
 emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 {
-	int s, l, r, p;
+	int s, l, r, p, x;
 	u_int32_t sa, ea, start = 0, val = 0, v2 = 0, sample, silent_page, i;
 
 	s = (v->stereo? 1 : 0) + (v->b16? 1 : 0);
 	sa = v->start >> s;
 	ea = v->end >> s;
-	l = r = 255;
+	l = r = x = v->vol;
 	if (v->stereo) {
-		l = v->master? l : 0;
-		r = v->master? 0 : r;
+		l = v->ismaster? l : 0;
+		r = v->ismaster? 0 : r;
 	}
 	p = emu_rate_to_pitch(v->speed) >> 8;
 	sample = v->b16? 0 : 0x80808080;
@@ -445,8 +472,8 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, CVCF, CVCF_CURRENTFILTER_MASK);
 	emu_wrptr(sc, v->vnum, FXRT, 0xd01c0000);
 
-	emu_wrptr(sc, v->vnum, PTRX, (0xff << 8) | r);
-	if (v->master) {
+	emu_wrptr(sc, v->vnum, PTRX, (x << 8) | r);
+	if (v->ismaster) {
 		val = 0x20;
 		if (v->stereo) {
 			val <<= 1;
@@ -495,12 +522,11 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, Z1, 0);
 	emu_wrptr(sc, v->vnum, Z2, 0);
 
-	silent_page = ((u_int32_t)vtophys(sc->mem.silent_page) << 1) | MAP_PTI_MASK;
 	silent_page = ((u_int32_t)v->buf << 1) | (v->start / EMUPAGESIZE);
 	emu_wrptr(sc, v->vnum, MAPA, silent_page);
 	emu_wrptr(sc, v->vnum, MAPB, silent_page);
 
-	if (v->master)
+	if (v->ismaster)
 		emu_wrptr(sc, v->vnum, CCR, val);
 
 	for (i = CD0; i < CDF; i++)
@@ -519,6 +545,11 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, ENVVAL, 0xbfff);
 	emu_wrptr(sc, v->vnum, ENVVOL, 0xbfff);
 	emu_wrptr(sc, v->vnum, IFATN, IFATN_FILTERCUTOFF_MASK);
+
+	if (v->slave != NULL)
+		emu_vwrite(sc, v->slave);
+	if (v->tracker != NULL)
+		emu_vwrite(sc, v->tracker);
 }
 
 #define IP_TO_CP(ip) ((ip == 0) ? 0 : (((0x00001000uL | (ip & 0x00000FFFL)) << (((ip >> 12) & 0x000FL) + 4)) & 0xFFFF0000uL))
@@ -533,8 +564,7 @@ emu_vtrigger(struct sc_info *sc, struct emu_voice *v, int go)
 		emu_wrptr(sc, v->vnum, VTFT, 0xffff);
 		emu_wrptr(sc, v->vnum, CVCF, 0xffff);
 		emu_enastop(sc, v->vnum, 0);
-		if (v->master)
-			emu_enaint(sc, v->vnum, 1);
+		emu_enaint(sc, v->vnum, v->istracker);
 		emu_wrptr(sc, v->vnum, DCYSUSV, ENV_ON | 0x00007f7f);
 	} else {
 		emu_wrptr(sc, v->vnum, IFATN, 0xffff);
@@ -543,6 +573,10 @@ emu_vtrigger(struct sc_info *sc, struct emu_voice *v, int go)
 		emu_wrptr(sc, v->vnum, CPF_CURRENTPITCH, 0);
 		emu_enaint(sc, v->vnum, 0);
 	}
+	if (v->slave != NULL)
+		emu_vtrigger(sc, v->slave, go);
+	if (v->tracker != NULL)
+		emu_vtrigger(sc, v->tracker, go);
 }
 
 static int
@@ -550,7 +584,7 @@ emu_vpos(struct sc_info *sc, struct emu_voice *v)
 {
 	int s;
 	s = (v->b16? 1 : 0) + (v->stereo? 1 : 0);
-	return ((emu_rdptr(sc, v->vnum, CCCA) >> s) - v->start);
+	return ((emu_rdptr(sc, v->vnum, CCCA_CURRADDR) >> s) - v->start);
 }
 
 #ifdef EMUDEBUG
@@ -592,7 +626,8 @@ emuchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->channel = c;
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
-	if (emu_vinit(sc, ch->master, ch->slave, EMU_BUFFSIZE, ch->channel))
+	ch->tracker = emu_valloc(sc);
+	if (emu_vinit(sc, ch->master, ch->slave, ch->tracker, EMU_BUFFSIZE, ch->channel))
 		return NULL;
 	else
 		return ch;
@@ -641,7 +676,6 @@ emuchan_trigger(void *data, int go)
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch);
 		emu_vwrite(sc, ch->master);
-       		emu_vwrite(sc, ch->slave);
 #ifdef EMUDEBUG
 		printf("start [%d bit, %s, %d hz]\n",
 			ch->master->b16? 16 : 8,
@@ -652,7 +686,6 @@ emuchan_trigger(void *data, int go)
 #endif
 	}
 	emu_vtrigger(sc, ch->master, (go == PCMTRIG_START)? 1 : 0);
-	emu_vtrigger(sc, ch->slave, (go == PCMTRIG_START)? 1 : 0);
 	return 0;
 }
 
@@ -688,6 +721,8 @@ emu_intr(void *p)
 			if (emu_testint(sc, i)) {
 				if (sc->voice[i].channel)
 					chn_intr(sc->voice[i].channel);
+				else
+					device_printf(sc->dev, "bad irq voice %d\n", i);
 				emu_clrint(sc, i);
 			}
 		}
