@@ -314,7 +314,7 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 	else
 		printf("FALSE}\n");
 	printf("\tPCI Vendor ID=0x%04x\n", hpetp->block_pcivendor);
-	printf("\tMinimul Tick=%d\n", hpetp->clock_tick);
+	printf("\tMinimal Tick=%d\n", hpetp->clock_tick);
 	printf(END_COMMENT);
 }
 
