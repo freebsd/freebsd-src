@@ -1,4 +1,4 @@
-.Dd April 7, 1993
+.Dd January 8, 1995
 .Dt SCREEN 4
 .Os FreeBSD
 .Sh NAME
@@ -30,9 +30,6 @@ selected as the current virtual console, and given exclusive use of
 the keyboard and display. This switch sequence can be changed via
 the keyboard mapping ioctl call (see keyboard.4)
 .Pp
-The number of virtual consoles is changeable in the system config 
-file, and need recompilation of the kernel to take any effect. The
-default is 12.
 
 The console allows entering values that are not physically
 present on the keyboard via a special keysequence.
@@ -40,6 +37,9 @@ To use this facility press and hold down ALT,
 then enter a decimal number from 0-255 via the numerical keypad, then
 release ALT. The entered value is then used as the ASCII value for one
 character. This way it is possible to enter any ASCII value.
+The console driver also includes a history function. It is activatet by
+pressing the scroll-lock key. This holds the display, and enables the cursor
+arrows for scrolling up and down through the last scrolled out lines.
 
 The console understands a subset of the ANSI x3.64 character 
 sequences. For compatibility with the old pccons, the PC3 character
@@ -121,8 +121,8 @@ SGR	E[nm	Set character attributes:		--
 			picth is in units of 840 nS, 
 			duration is units of 0,1 S.
 
---	E[=s:eC	Set cursor start and end scanline,	--
-			start on line s, end on line e.
+--	E[=tC	Set cursor type, 1 selects a blinking   --
+			cursor, 0 a steady cursor.
 
 --	E[=nA	Set the border color to color n
 		(see table) (if supported by HW)
@@ -153,5 +153,4 @@ note: the first E in the sequences stands for ESC (0x1b)
 .Ed
 .Pp
 .Sh AUTHOR
- Søren Schmidt 
- Email: (sos@login.dkuug.dk -or- sos@kmd-ac.dk)
+ Søren Schmidt (sos@FreeBSD.org)

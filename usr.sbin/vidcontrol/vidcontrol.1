@@ -30,10 +30,12 @@ screensaver type and timeout.
 A new video mode is selected by specifying its name as an argument to
 .B vidcontrol
 eg. "
-.B vidcontrol 80x25 
+.B vidcontrol VGA_80x25 
 ". 
 
-The modes currently supported: 80x25 and 80x50 text.
+The modes currently supported: VGA_40x25, VGA_80x25, VGA_80x50, EGA_80x25, EGA_80x43.
+On some laptops the modes VGA_80x30 and VGA_80x60 can be used.
+The graphic mode VGA_320x200 can also be chosen.
 
 The colors used when displaying text can be changed by specifying the 
 foreground color (eg. "
@@ -63,13 +65,8 @@ Set border color to
 .B color 
 (only supported on VGA hardware):
 .TP
-.BI "\-c\ " start.end
-Change the cursor apperance. The cursor is changed to a shape that starts
-on scanline 
-.B start
-and ends on scanline 
-.B end
-.
+.BI "\-c\ " blink | noblink
+Change the cursor apperance. The cursor is either blinking or nonblinking.
 .TP
 .BI "\-d\ "
 Print out current screen output map.
@@ -112,7 +109,6 @@ Report when found.
 .BR kbdcontrol(1) ,
 .BR keyboard (4) ,
 .BR screen (4) ,
-.BR /sys/i386/conf/GENERICAH
 .SH AUTHORS
-Søren Schmidt (sos@login.dkuug.dk)
+Søren Schmidt (sos@FreeBSD.org)
 
