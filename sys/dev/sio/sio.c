@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.52 1994/09/13 03:30:31 phk Exp $
+ *	$Id: sio.c,v 1.53 1994/09/21 19:39:25 davidg Exp $
  */
 
 #include "sio.h"
@@ -57,6 +57,8 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+
+#include <machine/clock.h>
 
 #include <i386/isa/icu.h>	/* XXX just to get at `imen' */
 #include <i386/isa/isa.h>
@@ -102,8 +104,8 @@ termioschars(t)
 #define	COM_NOTAST4(dev)	((dev)->id_flags & 0x04)
 #endif /* COM_MULTIPORT */
 
-#define	COM_NOFIFO(dev)	((dev)->id_flags & 0x02)
-#define	COM_VERBOSE(dev) ((dev)->id_flags & 0x80)
+#define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
+#define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
 
@@ -172,6 +174,8 @@ struct com_s {
 #ifdef COM_MULTIPORT
 	bool_t	multiport;	/* is this unit part of a multiport device? */
 #endif /* COM_MULTIPORT */
+	bool_t	no_irq;		/* nonzero if irq is not attached */
+	bool_t	poll;		/* nonzero if polling is required */
 	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	tx_fifo_size;
 	u_int	wopeners;	/* # processes waiting for DCD in open() */
@@ -211,10 +215,8 @@ struct com_s {
 	struct termios	lt_in;	/* should be in struct tty */
 	struct termios	lt_out;
 
-#ifdef TIOCTIMESTAMP
 	bool_t	do_timestamp;
 	struct timeval	timestamp;
-#endif
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -286,9 +288,7 @@ static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
-#ifdef TIOCTIMESTAMP
 static  struct timeval	intr_timestamp;
-#endif
 
 struct isa_driver	siodriver = {
 	sioprobe, sioattach, "sio"
@@ -371,9 +371,9 @@ sioprobe(dev)
 	}
 
 	/*
-	 * If the port is on a multiport card and has a master port,
-	 * initialize the common interrupt control register in the
-	 * master and prepare to leave MCR_IENABLE clear in the mcr.
+	 * If the device is on a multiport card and has an AST/4
+	 * compatible interrupt control register, initialize this
+	 * register and prepare to leave MCR_IENABLE clear in the mcr.
 	 * Otherwise, prepare to set MCR_IENABLE in the mcr.
 	 * Point idev to the device struct giving the correct id_irq.
 	 * This is the struct for the master device if there is one.
@@ -385,26 +385,19 @@ sioprobe(dev)
 		idev = find_isadev(isa_devtab_tty, &siodriver,
 				   COM_MPMASTER(dev));
 		if (idev == NULL) {
-			printf("sio%d: master device %d not found\n",
-			       dev->id_unit, COM_MPMASTER(dev));
-			return (0);
-		}
-		if (idev->id_irq == 0) {
-			printf("sio%d: master device %d irq not configured\n",
+			printf("sio%d: master device %d not configured\n",
 			       dev->id_unit, COM_MPMASTER(dev));
 			return (0);
 		}
 		if (!COM_NOTAST4(dev)) {
-			outb(idev->id_iobase + com_scr,	0x80);
+			outb(idev->id_iobase + com_scr,
+			     idev->id_irq ? 0x80 : 0);
 			mcr_image = 0;
 		}
 	}
-	else
 #endif /* COM_MULTIPORT */
-	if (idev->id_irq == 0) {
-		printf("sio%d: irq not configured\n", dev->id_unit);
-		return (0);
-	}
+	if (idev->id_irq == 0)
+		mcr_image = 0;
 
 	bzero(failures, sizeof failures);
 	iobase = dev->id_iobase;
@@ -472,7 +465,7 @@ sioprobe(dev)
 	 * it's unlikely to do more than allow the null byte out.
 	 */
 	outb(iobase + com_data, 0);
-	DELAY((2 + 1) * 9600 / 10);
+	DELAY((1 + 2) * 9600 / 10);
 
 	/*
 	 * Turn off loopback mode so that the interrupt gate works again
@@ -497,7 +490,8 @@ sioprobe(dev)
 	if (idev->id_irq != 0)
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
-	failures[5] = isa_irq_pending(idev) ? 1	: 0;
+	if (idev->id_irq != 0)
+		failures[5] = isa_irq_pending(idev) ? 1	: 0;
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
@@ -512,7 +506,8 @@ sioprobe(dev)
 	outb(iobase + com_ier, 0);
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
-	failures[8] = isa_irq_pending(idev) ? 1	: 0;
+	if (idev->id_irq != 0)
+		failures[8] = isa_irq_pending(idev) ? 1	: 0;
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	outb(IO_ICU1 + 1, imen);	/* XXX */
@@ -554,13 +549,15 @@ sioattach(isdp)
 	 *	  data port is not hidden when we enable interrupts.
 	 *	o ier = 0.
 	 *	  Interrupts are only enabled when the line is open.
-	 *	o mcr = MCR_IENABLE, or 0 if the port has a master port.
+	 *	o mcr = MCR_IENABLE, or 0 if the port has AST/4 compatible
+	 *	  interrupt control register or the config specifies no irq.
 	 *	  Keeping MCR_DTR and MCR_RTS off might stop the external
 	 *	  device from sending before we are ready.
 	 */
 	bzero(com, sizeof *com);
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
+	com->no_irq = isdp->id_irq == 0;
 	com->tx_fifo_size = 1;
 	com->iptr = com->ibuf = com->ibuf1;
 	com->ibufend = com->ibuf1 + RS_IBUFSIZE;
@@ -656,6 +653,8 @@ determined_type: ;
 		if (unit == COM_MPMASTER(isdp))
 			printf(" master");
 		printf(")");
+		com->no_irq = find_isadev(isa_devtab_tty, &siodriver,
+					  COM_MPMASTER(isdp))->id_irq == 0;
 	 }
 #endif /* COM_MULTIPORT */
 	printf("\n");
@@ -665,7 +664,7 @@ determined_type: ;
 		if (unit == comconsole)
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
-			int divisor;
+			int	divisor;
 
 			/*
 			 * XXX now unfinished and broken.  Need to do
@@ -783,6 +782,7 @@ open_top:
 				? com->it_out : com->it_in;
 		commctl(com, MCR_DTR | MCR_RTS, DMSET);
 		com->ftl_max = com->ftl_init;
+		com->poll = com->no_irq;
 		++com->wopeners;
 		error = comparam(tp, &tp->t_termios);
 		--com->wopeners;
@@ -794,12 +794,30 @@ open_top:
 		ttsetwater(tp);
 		iobase = com->iobase;
 		if (com->hasfifo) {
-			/* Drain fifo. */
-			outb(iobase + com_fifo,
-			     FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST
-			     | com->ftl);
-			DELAY(100);
+			/*
+			 * (Re)enable and drain fifos.
+			 *
+			 * Certain SMC chips cause problems if the fifos
+			 * are enabled while input is ready.  Turn off the
+			 * fifo if necessary to clear the input.  We test
+			 * the input ready bit after enabling the fifos
+			 * since we've already enabled them in comparam()
+			 * and to handle races between enabling and fresh
+			 * input.
+			 */
+			while (TRUE) {
+				outb(iobase + com_fifo,
+				     FIFO_RCV_RST | FIFO_XMT_RST
+				     | FIFO_ENABLE | com->ftl);
+				DELAY(100);
+				if (!(inb(com->line_status_port) & LSR_RXRDY))
+					break;
+				outb(iobase + com_fifo, 0);
+				DELAY(100);
+				(void) inb(com->data_port);
+			}
 		}
+
 		disable_intr();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
@@ -878,9 +896,8 @@ comhardclose(com)
 	unit = DEV_TO_UNIT(com->tp->t_dev);
 	iobase = com->iobase;
 	s = spltty();
-#ifdef TIOCTIMESTAMP
+	com->poll = FALSE;
 	com->do_timestamp = 0;
-#endif
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #ifdef KGDB
 	/* do not disable interrupts or hang up if debugging */
@@ -968,16 +985,14 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-#ifdef TIOCTIMESTAMP
 /* Interrupt routine for timekeeping purposes */
 void
 siointrts(unit)
-	int unit;
+	int	unit;
 {
 	microtime(&intr_timestamp);
 	siointr(unit);
 }
-#endif
 
 void
 siointr(unit)
@@ -1020,11 +1035,9 @@ siointr1(com)
 	u_char	*ioptr;
 	u_char	recv_data;
 
-#ifdef TIOCTIMESTAMP
 	if (com->do_timestamp)
 		/* XXX a little bloat here... */
 		com->timestamp = intr_timestamp;
-#endif
 	while (TRUE) {
 		line_status = inb(com->line_status_port);
 
@@ -1233,7 +1246,7 @@ sioioctl(dev, cmd, data, flag, p)
 	}
 	tp = com->tp;
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int cc;
+		int	cc;
 		struct termios *dt = (struct termios *)data;
 		struct termios *lt = mynor & CALLOUT_MASK
 				     ? &com->lt_out : &com->lt_in;
@@ -1318,12 +1331,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCMGDTRWAIT:
 		*(int *)data = com->dtr_wait;
 		break;
-#ifdef TIOCTIMESTAMP
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
 		break;
-#endif
 	default:
 		splx(s);
 		return (ENOTTY);
@@ -1364,8 +1375,27 @@ repeat:
 		if (com == NULL)
 			continue;
 		tp = com->tp;
-		if (tp == NULL)
+		if (tp == NULL) {
+			/*
+			 * XXX forget any events related to closed devices
+			 * (actually never opened devices) so that we don't
+			 * loop.
+			 */
+			disable_intr();
+			incc = com->iptr - com->ibuf;
+			com->iptr = com->ibuf;
+			if (com->state & CS_CHECKMSR) {
+				incc += LOTS_OF_EVENTS;
+				com->state &= ~CS_CHECKMSR;
+			}
+			com_events -= incc;
+			enable_intr();
+			if (incc != 0)
+				log(LOG_DEBUG,
+				    "sio%d: %d events for device with no tp\n",
+				    unit, incc);
 			continue;
+		}
 
 		/* switch the role of the low-level input buffers */
 		if (com->iptr == (ibuf = com->ibuf)) {
@@ -1445,7 +1475,7 @@ repeat:
 				if (delta == 0 || !(tp->t_state & TS_ISOPEN))
 					continue;
 				total = com->error_counts[errnum] += delta;
-					log(LOG_WARNING,
+					log(LOG_ERR,
 					"sio%d: %u more %s%s (total %lu)\n",
 					    unit, delta, error_desc[errnum],
 					    delta == 1 ? "" : "s", total);
@@ -1461,7 +1491,7 @@ repeat:
 					com->ftl -= FIFO_TRIGGER_DELTA;
 					outb(com->iobase + com_fifo,
 					     FIFO_ENABLE | com->ftl);
-					log(LOG_WARNING,
+					log(LOG_DEBUG,
 				"sio%d: reduced fifo trigger level to %d\n",
 					    unit,
 					    ftl_in_bytes[com->ftl
@@ -1815,7 +1845,7 @@ comwakeup(chan)
 {
 	int	unit;
 
-	timeout(comwakeup, (void *)NULL, hz / 100);
+	timeout(comwakeup, (caddr_t)NULL, hz > 200 ? hz / 200 : 1);
 
 	if (com_events != 0) {
 		int	s;
@@ -1826,11 +1856,13 @@ comwakeup(chan)
 	}
 
 	/* recover from lost output interrupts */
+	/* poll any lines that don't use interrupts */
 	for (unit = 0; unit < NSIO; ++unit) {
 		struct com_s	*com;
 
 		com = com_addr(unit);
-		if (com != NULL && com->state >= (CS_BUSY | CS_TTGO)) {
+		if (com != NULL
+		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
 			disable_intr();
 			siointr1(com);
 			enable_intr();
@@ -1898,7 +1930,12 @@ siocnopen(sp)
 	outb(iobase + com_dlbh, (u_int) divisor >> 8);
 	outb(iobase + com_cfcr, CFCR_8BITS);
 	sp->mcr = inb(iobase + com_mcr);
-	outb(iobase + com_mcr, MCR_DTR | MCR_RTS);
+	/*
+	 * We don't want interrupts, but must be careful not to "disable"
+	 * them by clearing the MCR_IENABLE bit, since that might cause
+	 * an interrupt by floating the IRQ line.
+	 */
+	outb(iobase + com_mcr, (sp->mcr & MCR_IENABLE) | MCR_DTR | MCR_RTS);
 }
 
 static void
@@ -1917,7 +1954,7 @@ siocnclose(sp)
 	outb(iobase + com_dlbh, sp->dlbh);
 	outb(iobase + com_cfcr, sp->cfcr);
 	/*
-	 * XXX damp oscllations of MCR_DTR and MCR_RTS by not restoring them.
+	 * XXX damp oscillations of MCR_DTR and MCR_RTS by not restoring them.
 	 */
 	outb(iobase + com_mcr, sp->mcr | MCR_DTR | MCR_RTS);
 	outb(iobase + com_ier, sp->ier);
