@@ -47,47 +47,78 @@ network_pass1() {
 
 	# Establish ipfilter ruleset as early as possible (best in
 	# addition to IPFILTER_DEFAULT_BLOCK in the kernel config file)
-	#
-	if /sbin/ipfstat -i > /dev/null 2>&1; then
-		ipfilter_in_kernel=1
-	else
-		ipfilter_in_kernel=0
-	fi
 
-	case "${ipfilter_enable}" in
+	# check whether ipfilter and/or ipnat is enabled
+	ipfilter_active="NO"
+	case ${ipfilter_enable} in
 	[Yy][Ee][Ss])
-		if [ "${ipfilter_in_kernel}" -eq 0 ] && kldload ipl; then
-			ipfilter_in_kernel=1
-			echo "Kernel ipfilter module loaded."
-		elif [ "${ipfilter_in_kernel}" -eq 0 ]; then
-			echo "Warning: ipfilter kernel module failed to load."
+		ipfilter_active="YES"
+		;;
+	esac
+	case ${ipnat_enable} in
+	[Yy][Ee][Ss])
+		ipfilter_active="YES"
+		;;
+	esac
+	case ${ipfilter_active} in
+	[Yy][Ee][Ss])
+		# load ipfilter kernel module if needed
+		if ! sysctl net.inet.ipf.fr_pass > /dev/null 2>&1; then
+			if kldload ipl; then
+				echo 'IP-filter module loaded.'
+			else
+				echo 'Warning: IP-filter module failed to load.'
+				# avoid further errors
+				ipmon_enable="NO"
+				ipfilter_enable="NO"
+				ipnat_enable="NO"
+				ipfs_enable="NO"
+			fi
 		fi
-
-		if [ -r "${ipfilter_rules}" ]; then
-			echo -n ' ipfilter';
-			${ipfilter_program:-/sbin/ipf -Fa -f} \
-			    "${ipfilter_rules}" ${ipfilter_flags}
-			case "${ipmon_enable}" in
-			[Yy][Ee][Ss])
-				echo -n ' ipmon'
-				${ipmon_program:-/sbin/ipmon} ${ipmon_flags}
-				;;
-			esac
-			case "${ipnat_enable}" in
-			[Yy][Ee][Ss])
-				if [ -r "${ipnat_rules}" ]; then
-					echo -n ' ipnat';
-				eval ${ipnat_program:-/sbin/ipnat -CF -f} \
-					"${ipnat_rules}" ${ipnat_flags}
-				else
-					echo -n ' NO IPNAT RULES'
-				fi
-				;;
-			esac
-		else
-			ipfilter_enable="NO"
-			echo -n ' NO IPF RULES'
-		fi
+		# start ipmon before loading any rules
+		case "${ipmon_enable}" in
+		[Yy][Ee][Ss])
+			echo -n ' ipmon'
+			${ipmon_program:-/sbin/ipmon} ${ipmon_flags}
+			;;
+		esac
+		case "${ipfilter_enable}" in
+		[Yy][Ee][Ss])
+			if [ -r "${ipfilter_rules}" ]; then
+				echo -n ' ipfilter'
+				${ipfilter_program:-/sbin/ipf} -Fa -f \
+				    "${ipfilter_rules}" ${ipfilter_flags}
+			else
+				ipfilter_enable="NO"
+				echo -n ' NO IPF RULES'
+			fi
+			;;
+		esac
+		case "${ipnat_enable}" in
+		[Yy][Ee][Ss])
+			if [ -r "${ipnat_rules}" ]; then
+				echo -n ' ipnat'
+				eval ${ipnat_program:-/sbin/ipnat} -CF -f \
+				    "${ipnat_rules}" ${ipnat_flags}
+			else
+				ipnat_enable="NO"
+				echo -n ' NO IPNAT RULES'
+			fi
+			;;
+		esac
+		# restore filter/NAT state tables after loading the rules
+		case "${ipfs_enable}" in
+		[Yy][Ee][Ss])
+			if [ -r "/var/db/ipf/ipstate.ipf" ]; then
+				echo -n ' ipfs'
+				${ipfs_program:-/sbin/ipfs} -R ${ipfs_flags}
+				# remove files to avoid reloading old state
+				# after an ungraceful shutdown
+				rm -f /var/db/ipf/ipstate.ipf
+				rm -f /var/db/ipf/ipnat.ipf
+			fi
+			;;
+		esac
 		;;
 	esac
 
@@ -247,6 +278,15 @@ network_pass1() {
 		su -m ${ppp_user} -c "exec ${ppp_command}"
 		;;
 	esac
+
+	# Re-Sync ipfilter so it picks up any new network interfaces
+	#
+	case ${ipfilter_active} in
+	[Yy][Ee][Ss])
+		${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
+		;;
+	esac
+	unset ipfilter_active
 
 	# Initialize IP filtering using ipfw
 	#

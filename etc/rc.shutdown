@@ -92,5 +92,16 @@ esac
 
 # Insert other shutdown procedures here
 
+# Saving firewall state tables should be done last
+echo -n 'Saving firewall state tables:'
+
+# Save IP-filter state tables
+case ${ipfs_enable} in
+[Yy][Ee][Ss])
+	echo -n ' ipfs'
+	${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
+	;;
+esac
+
 echo '.'
 exit 0
