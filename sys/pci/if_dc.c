@@ -191,6 +191,8 @@ static struct dc_type dc_devs[] = {
 static int dc_probe		__P((device_t));
 static int dc_attach		__P((device_t));
 static int dc_detach		__P((device_t));
+static int dc_suspend		__P((device_t));
+static int dc_resume		__P((device_t));
 static void dc_acpi		__P((device_t));
 static struct dc_type *dc_devtype	__P((device_t));
 static int dc_newbuf		__P((struct dc_softc *, int, struct mbuf *));
@@ -268,6 +270,8 @@ static device_method_t dc_methods[] = {
 	DEVMETHOD(device_probe,		dc_probe),
 	DEVMETHOD(device_attach,	dc_attach),
 	DEVMETHOD(device_detach,	dc_detach),
+	DEVMETHOD(device_suspend,	dc_suspend),
+	DEVMETHOD(device_resume,	dc_resume),
 	DEVMETHOD(device_shutdown,	dc_shutdown),
 
 	/* bus interface */
@@ -2740,6 +2744,11 @@ static void dc_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+
+	if (sc->suspended) {
+		return;
+	}
+
 	ifp = &sc->arpcom.ac_if;
 
 #ifdef DEVICE_POLLING
@@ -3369,4 +3378,77 @@ static void dc_shutdown(dev)
 	dc_stop(sc);
 
 	return;
+}
+
+/*
+ * Device suspend routine.  Stop the interface and save some PCI
+ * settings in case the BIOS doesn't restore them properly on
+ * resume.
+ */
+static int dc_suspend(dev)
+	device_t		dev;
+{
+	register int		i;
+	int			s;
+	struct dc_softc		*sc;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+
+	dc_stop(sc);
+
+	for (i = 0; i < 5; i++)
+		sc->saved_maps[i] = pci_read_config(dev, PCIR_MAPS + i * 4, 4);
+	sc->saved_biosaddr = pci_read_config(dev, PCIR_BIOS, 4);
+	sc->saved_intline = pci_read_config(dev, PCIR_INTLINE, 1);
+	sc->saved_cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	sc->saved_lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
+
+	sc->suspended = 1;
+
+	splx(s);
+	return (0);
+}
+
+/*
+ * Device resume routine.  Restore some PCI settings in case the BIOS
+ * doesn't, re-enable busmastering, and restart the interface if
+ * appropriate.
+ */
+static int dc_resume(dev)
+	device_t		dev;
+{
+	register int		i;
+	int			s;
+	struct dc_softc		*sc;
+	struct ifnet		*ifp;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	dc_acpi(dev);
+
+	/* better way to do this? */
+	for (i = 0; i < 5; i++)
+		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
+	pci_write_config(dev, PCIR_BIOS, sc->saved_biosaddr, 4);
+	pci_write_config(dev, PCIR_INTLINE, sc->saved_intline, 1);
+	pci_write_config(dev, PCIR_CACHELNSZ, sc->saved_cachelnsz, 1);
+	pci_write_config(dev, PCIR_LATTIMER, sc->saved_lattimer, 1);
+
+	/* reenable busmastering */
+	pci_enable_busmaster(dev);
+	pci_enable_io(dev, DC_RES);
+
+        /* reinitialize interface if necessary */
+        if (ifp->if_flags & IFF_UP)
+                dc_init(sc);
+
+	sc->suspended = 0;
+
+	splx(s);
+	return (0);
 }
