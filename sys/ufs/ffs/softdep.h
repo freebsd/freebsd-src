@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)softdep.h	9.6 (McKusick) 2/25/99
- *	$Id: softdep.h,v 1.5 1999/03/02 00:19:47 mckusick Exp $
+ *	$Id: softdep.h,v 1.4.2.1 1999/05/12 02:13:04 dg Exp $
  */
 
 #include <sys/queue.h>
