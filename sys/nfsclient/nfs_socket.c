@@ -176,8 +176,8 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	nmp->nm_soflags = so->so_proto->pr_flags;
 
 	opt = 1;
-	(void)kern_setsockopt(so, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	(void)kern_setsockopt(so, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+	(void)so_setsockopt(so, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	(void)so_setsockopt(so, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
 	/*
 	 * Some servers require that the client port be a reserved port number.
