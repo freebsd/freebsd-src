@@ -146,8 +146,9 @@ typedef struct ehci_softc {
 
 	usb_callout_t sc_tmo_pcd;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	device_ptr_t sc_child;		/* /dev/usb# device */
-
+#endif
 	char sc_dying;
 } ehci_softc_t;
 
