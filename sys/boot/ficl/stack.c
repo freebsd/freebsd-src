@@ -6,6 +6,8 @@
 ** 
 *******************************************************************/
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdlib.h>
 #else
@@ -200,12 +202,12 @@ void *stackPopPtr(FICL_STACK *pStack)
     return (*--pStack->sp).p;
 }
 
-UNS32 stackPopUNS32(FICL_STACK *pStack)
+FICL_UNS stackPopUNS(FICL_STACK *pStack)
 {
     return (*--pStack->sp).u;
 }
 
-INT32 stackPopINT32(FICL_STACK *pStack)
+FICL_INT stackPopINT(FICL_STACK *pStack)
 {
     return (*--pStack->sp).i;
 }
@@ -226,12 +228,12 @@ void stackPushPtr(FICL_STACK *pStack, void *ptr)
     *pStack->sp++ = LVALUEtoCELL(ptr);
 }
 
-void stackPushUNS32(FICL_STACK *pStack, UNS32 u)
+void stackPushUNS(FICL_STACK *pStack, FICL_UNS u)
 {
     *pStack->sp++ = LVALUEtoCELL(u);
 }
 
-void stackPushINT32(FICL_STACK *pStack, INT32 i)
+void stackPushINT(FICL_STACK *pStack, FICL_INT i)
 {
     *pStack->sp++ = LVALUEtoCELL(i);
 }

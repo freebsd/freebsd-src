@@ -13,6 +13,8 @@
 ** of the interp.
 */
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdlib.h>
 #include <stdio.h>
@@ -47,11 +49,9 @@ FICL_VM *vmCreate(FICL_VM *pVM, unsigned nPStack, unsigned nRStack)
     if (pVM == NULL)
     {
         pVM = (FICL_VM *)ficlMalloc(sizeof (FICL_VM));
-        pVM->pStack = NULL;
-        pVM->rStack = NULL;
-        pVM->link   = NULL;
+        assert (pVM);
+        memset(pVM, 0, sizeof (FICL_VM));
     }
-    assert (pVM);
 
     if (pVM->pStack)
         stackDelete(pVM->pStack);
@@ -87,7 +87,10 @@ void vmDelete (FICL_VM *pVM)
 
 /**************************************************************************
                         v m E x e c u t e
-** 
+** Sets up the specified word to be run by the inner interpreter.
+** Executes the word's code part immediately, but in the case of
+** colon definition, the definition itself needs the inner interp
+** to complete. This does not happen until control reaches ficlExec
 **************************************************************************/
 void vmExecute(FICL_VM *pVM, FICL_WORD *pWord)
 {
@@ -96,6 +99,24 @@ void vmExecute(FICL_VM *pVM, FICL_WORD *pWord)
     return;
 }
 
+
+/**************************************************************************
+                        v m I n n e r L o o p
+** the mysterious inner interpreter...
+** This loop is the address interpreter that makes colon definitions
+** work. Upon entry, it assumes that the IP points to an entry in 
+** a definition (the body of a colon word). It runs one word at a time
+** until something does vmThrow. The catcher for this is expected to exist
+** in the calling code.
+** vmThrow gets you out of this loop with a longjmp()
+** Visual C++ 5 chokes on this loop in Release mode. Aargh.
+**************************************************************************/
+#if INLINE_INNER_LOOP == 0
+void vmInnerLoop(FICL_VM *pVM)
+{
+    M_INNER_LOOP(pVM);
+}
+#endif
 
 /**************************************************************************
                         v m G e t S t r i n g
@@ -151,22 +172,23 @@ STRINGINFO vmGetWord(FICL_VM *pVM)
 **************************************************************************/
 STRINGINFO vmGetWord0(FICL_VM *pVM)
 {
-    char *pSrc  = vmGetInBuf(pVM);
+    char *pSrc      = vmGetInBuf(pVM);
+    char *pEnd      = vmGetInBufEnd(pVM);
     STRINGINFO si;
     UNS32 count = 0;
     char ch;
 
-    pSrc = skipSpace(pSrc,pVM->tib.end);
+    pSrc = skipSpace(pSrc, pEnd);
     SI_SETPTR(si, pSrc);
 
-    for (ch = *pSrc; (pVM->tib.end != pSrc) && (ch != '\0') && !isspace(ch); ch = *++pSrc)
+    for (ch = *pSrc; (pEnd != pSrc) && !isspace(ch); ch = *++pSrc)
     {
         count++;
     }
 
     SI_SETLEN(si, count);
 
-    if ((pVM->tib.end != pSrc) && isspace(ch))    /* skip one trailing delimiter */
+    if ((pEnd != pSrc) && isspace(ch))    /* skip one trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
@@ -210,16 +232,16 @@ STRINGINFO vmParseString(FICL_VM *pVM, char delim)
 {
     STRINGINFO si;
     char *pSrc      = vmGetInBuf(pVM);
-    char ch; 
+    char *pEnd      = vmGetInBufEnd(pVM);
+    char ch;
 
-    while ((pVM->tib.end != pSrc) && (*pSrc == delim))  /* skip lead delimiters */
+    while ((pSrc != pEnd) && (*pSrc == delim))  /* skip lead delimiters */
         pSrc++;
 
     SI_SETPTR(si, pSrc);    /* mark start of text */
 
-    for (ch = *pSrc; (pVM->tib.end != pSrc)
-		  && (ch != delim)
-                  && (ch != '\0') 
+    for (ch = *pSrc; (pSrc != pEnd)
+                  && (ch != delim)
                   && (ch != '\r') 
                   && (ch != '\n'); ch = *++pSrc)
     {
@@ -229,7 +251,7 @@ STRINGINFO vmParseString(FICL_VM *pVM, char delim)
                             /* set length of result */
     SI_SETLEN(si, pSrc - SI_PTR(si));
 
-    if ((pVM->tib.end != pSrc) && (*pSrc == delim))     /* gobble trailing delimiter */
+    if ((pSrc != pEnd) && (*pSrc == delim))     /* gobble trailing delimiter */
         pSrc++;
 
     vmUpdateTib(pVM, pSrc);
@@ -264,7 +286,7 @@ void vmPushIP(FICL_VM *pVM, IPTYPE newIP)
                         v m P u s h T i b
 ** Binds the specified input string to the VM and clears >IN (the index)
 **************************************************************************/
-void vmPushTib(FICL_VM *pVM, char *text, INT32 size, TIB *pSaveTib)
+void vmPushTib(FICL_VM *pVM, char *text, FICL_INT nChars, TIB *pSaveTib)
 {
     if (pSaveTib)
     {
@@ -272,7 +294,7 @@ void vmPushTib(FICL_VM *pVM, char *text, INT32 size, TIB *pSaveTib)
     }
 
     pVM->tib.cp = text;
-    pVM->tib.end = text + size;
+    pVM->tib.end = text + nChars;
     pVM->tib.index = 0;
 }
 
@@ -361,7 +383,8 @@ void vmTextOut(FICL_VM *pVM, char *text, int fNewline)
 **************************************************************************/
 void vmThrow(FICL_VM *pVM, int except)
 {
-    longjmp(*(pVM->pState), except);
+    if (pVM->pState)
+        longjmp(*(pVM->pState), except);
 }
 
 
@@ -433,32 +456,65 @@ char digit_to_char(int value)
 
 
 /**************************************************************************
+                        i s P o w e r O f T w o
+** Tests whether supplied argument is an integer power of 2 (2**n)
+** where 32 > n > 1, and returns n if so. Otherwise returns zero.
+**************************************************************************/
+int isPowerOfTwo(FICL_UNS u)
+{
+    int i = 1;
+    FICL_UNS t = 2;
+
+    for (; ((t <= u) && (t != 0)); i++, t <<= 1)
+    {
+        if (u == t)
+            return i;
+    }
+
+    return 0;
+}
+
+
+/**************************************************************************
                         l t o a
 ** 
 **************************************************************************/
-char *ltoa( INT32 value, char *string, int radix )
+char *ltoa( FICL_INT value, char *string, int radix )
 {                               /* convert long to string, any base */
     char *cp = string;
     int sign = ((radix == 10) && (value < 0));
-    UNSQR result;
-    UNS64 v;
+    int pwr;
 
     assert(radix > 1);
     assert(radix < 37);
     assert(string);
+
+    pwr = isPowerOfTwo((FICL_UNS)radix);
 
     if (sign)
         value = -value;
 
     if (value == 0)
         *cp++ = '0';
+    else if (pwr != 0)
+    {
+        FICL_UNS v = (FICL_UNS) value;
+        FICL_UNS mask = (FICL_UNS) ~(-1 << pwr);
+        while (v)
+        {
+            *cp++ = digits[v & mask];
+            v >>= pwr;
+        }
+    }
     else
     {
+        UNSQR result;
+        DPUNS v;
         v.hi = 0;
-        v.lo = (UNS32)value;
+        v.lo = (FICL_UNS)value;
         while (v.lo)
         {
-            result = ficlLongDiv(v, (UNS32)radix);
+            result = ficlLongDiv(v, (FICL_UNS)radix);
             *cp++ = digits[result.rem];
             v.lo = result.quot;
         }
@@ -477,10 +533,10 @@ char *ltoa( INT32 value, char *string, int radix )
                         u l t o a
 ** 
 **************************************************************************/
-char *ultoa(UNS32 value, char *string, int radix )
+char *ultoa(FICL_UNS value, char *string, int radix )
 {                               /* convert long to string, any base */
     char *cp = string;
-    UNS64 ud;
+    DPUNS ud;
     UNSQR result;
 
     assert(radix > 1);
@@ -554,8 +610,8 @@ int strincmp(char *cp1, char *cp2, FICL_COUNT count)
                         s k i p S p a c e
 ** Given a string pointer, returns a pointer to the first non-space
 ** char of the string, or to the NULL terminator if no such char found.
-** If the pointer reaches "end" first, stop there. If you don't want
-** that, pass NULL.
+** If the pointer reaches "end" first, stop there. Pass NULL to 
+** suppress this behavior.
 **************************************************************************/
 char *skipSpace(char *cp, char *end)
 {

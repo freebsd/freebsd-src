@@ -9,7 +9,8 @@ SRCS=			${BASE_SRCS} softcore.c
 CLEANFILES=		softcore.c testmain
 
 # Standard softwords
-SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr
+SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
+		ifbrack.fr
 # Optional OO extension softwords
 #SOFTWORDS+=	oo.fr classes.fr
 
