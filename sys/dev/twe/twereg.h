@@ -99,6 +99,7 @@
 #define TWE_DEVICE_NAME			"3ware Storage Controller"
 #define TWE_VENDOR_ID			0x13C1
 #define TWE_DEVICE_ID			0x1000
+#define TWE_DEVICE_ID_ASIC		0x1001
 
 /* command packet opcodes */
 #define TWE_OP_NOP			0x00
