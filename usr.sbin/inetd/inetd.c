@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.36 1998/07/22 14:24:12 phk Exp $";
+	"$Id: inetd.c,v 1.37 1998/07/23 20:05:02 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -492,11 +492,11 @@ main(argc, argv, envp)
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
-				(void)gettimeofday(&sep->se_time, NULL);
+				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
 			    else if (sep->se_count >= toomany) {
 				struct timeval now;
 
-				(void)gettimeofday(&now, NULL);
+				(void)gettimeofday(&now, (struct timezone *)NULL);
 				if (now.tv_sec - sep->se_time.tv_sec >
 				    CNT_INTVL) {
 					sep->se_time = now;
@@ -1641,7 +1641,7 @@ machtime()
 {
 	struct timeval tv;
 
-	if (gettimeofday(&tv, NULL) < 0) {
+	if (gettimeofday(&tv, (struct timezone *)NULL) < 0) {
 		if (debug)
 			warnx("unable to get time of day");
 		return (0L);
