@@ -735,12 +735,16 @@ ses_log(struct ses_softc *ssc, const char *fmt, ...)
  * handle that too.
  */
 
+#define	SAFTE_START	44
+#define	SAFTE_END	50
+#define	SAFTE_LEN	SAFTE_END-SAFTE_START
+
 static enctyp
 ses_type(void *buf, int buflen)
 {
 	unsigned char *iqd = buf;
 
-	if (buflen < 32)
+	if (buflen < 8+SEN_ID_LEN)
 		return (SES_NONE);
 
 	if ((iqd[0] & 0x1f) == T_ENCLOSURE) {
@@ -763,14 +767,16 @@ ses_type(void *buf, int buflen)
 	}
 #endif
 
-	if (buflen < 47) {
+	/*
+	 * The comparison is short for a reason-
+	 * some vendors were chopping it short.
+	 */
+
+	if (buflen < SAFTE_END - 2) {
 		return (SES_NONE);
 	}
-	/*
-	 * The comparison is short for a reason- some vendors were chopping
-	 * it short.
-	 */
-	if (STRNCMP((char *)&iqd[44], "SAF-TE", 4) == 0) {
+
+	if (STRNCMP((char *)&iqd[SAFTE_START], "SAF-TE", SAFTE_LEN - 2) == 0) {
 		return (SES_SAFT);
 	}
 	return (SES_NONE);
@@ -1101,12 +1107,12 @@ ses_getconfig(ses_softc_t *ssc)
 	amt = SCSZ - amt;
 
 	if (ses_cfghdr((uint8_t *) sdata, amt, &cf)) {
-		SES_LOG(ssc, "Unable to parse SES Config Header");
+		SES_LOG(ssc, "Unable to parse SES Config Header\n");
 		SES_FREE(sdata, SCSZ);
 		return (EIO);
 	}
 	if (amt < SES_ENCHDR_MINLEN) {
-		SES_LOG(ssc, "runt enclosure length (%d)", amt);
+		SES_LOG(ssc, "runt enclosure length (%d)\n", amt);
 		SES_FREE(sdata, SCSZ);
 		return (EIO);
 	}
@@ -1126,7 +1132,7 @@ ses_getconfig(ses_softc_t *ssc)
 	for (ntype = i = 0; i < maxima; i++) {
 		MEMZERO((caddr_t)cdp, sizeof (*cdp));
 		if (ses_enchdr((uint8_t *) sdata, amt, i, &hd)) {
-			SES_LOG(ssc, "Cannot Extract Enclosure Header %d", i);
+			SES_LOG(ssc, "Cannot Extract Enclosure Header %d\n", i);
 			SES_FREE(sdata, SCSZ);
 			return (EIO);
 		}
