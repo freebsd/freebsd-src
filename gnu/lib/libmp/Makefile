@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.10 1997/02/22 15:43:00 peter Exp $
 #
 
 LIB=	mp
@@ -45,11 +45,7 @@ CLEANFILES+=	sysdep.h asm-syntax.h
 # .PATH:s
 #
 mpz:
-.if exists(${.OBJDIR})
-	mkdir ${.OBJDIR}/$@
-.else
-	mkdir ${.CURDIR}/$@
-.endif
+	mkdir ${.TARGET}
 
 CLEANDIRS+=	 ${.OBJDIR}/mpz ${.CURDIR}/mpz
 
