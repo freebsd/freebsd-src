@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.15 1995/06/04 05:20:24 jkh Exp $
+ * $Id: dist.c,v 1.35.2.16 1995/06/04 05:24:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -334,7 +334,7 @@ distExtract(char *parent, Distribution *me)
 	    char prompt[80];
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
-	    fd = (*mediaDevice->get)(buf);
+	    fd = (*mediaDevice->get)(mediaDevice, buf);
 	    if (fd < 0) {
 		dialog_clear();
 		msgConfirm("failed to retreive piece file %s after retries!\nAborting the transfer", buf);
