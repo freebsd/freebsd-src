@@ -1,6 +1,6 @@
 diff -c -r -N /usr/local/src/nvi-1.79/build/Makefile.in ./build/Makefile.in
 *** /usr/local/src/nvi-1.79/build/Makefile.in	Wed Oct 23 22:43:38 1996
---- ./build/Makefile.in	Wed Apr 16 21:20:09 1997
+--- ./build/Makefile.in	Fri Aug 14 01:41:14 1998
 ***************
 *** 3,9 ****
   srcdir=	@srcdir@/..
@@ -20,7 +20,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/build/Makefile.in ./build/Makefile.in
   PERLLIB=@vi_cv_perllib@
 diff -c -r -N /usr/local/src/nvi-1.79/common/main.c ./common/main.c
 *** /usr/local/src/nvi-1.79/common/main.c	Sat Oct 12 07:28:28 1996
---- ./common/main.c	Wed Apr 16 21:20:09 1997
+--- ./common/main.c	Fri Aug 14 01:41:14 1998
 ***************
 *** 64,69 ****
 --- 64,72 ----
@@ -84,7 +84,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/common/main.c ./common/main.c
   	*oargp = -1;			/* Options initialization. */
 diff -c -r -N /usr/local/src/nvi-1.79/common/options.c ./common/options.c
 *** /usr/local/src/nvi-1.79/common/options.c	Tue Oct 15 03:56:29 1996
---- ./common/options.c	Wed Apr 16 21:20:09 1997
+--- ./common/options.c	Fri Aug 14 01:41:14 1998
 ***************
 *** 80,85 ****
 --- 80,89 ----
@@ -112,7 +112,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/common/options.c ./common/options.c
   	{"li",		O_LINES},		/*   4.4BSD */
 diff -c -r -N /usr/local/src/nvi-1.79/docs/USD.doc/vi.man/vi.1 ./docs/USD.doc/vi.man/vi.1
 *** /usr/local/src/nvi-1.79/docs/USD.doc/vi.man/vi.1	Fri Oct 11 10:34:05 1996
---- ./docs/USD.doc/vi.man/vi.1	Wed Apr 16 21:20:09 1997
+--- ./docs/USD.doc/vi.man/vi.1	Fri Aug 14 01:41:14 1998
 ***************
 *** 17,23 ****
   .SH SYNOPSIS
@@ -213,7 +213,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/docs/USD.doc/vi.man/vi.1 ./docs/USD.doc/vi
   Set the spacing between hardware tab settings.
 diff -c -r -N /usr/local/src/nvi-1.79/ex/ex.h ./ex/ex.h
 *** /usr/local/src/nvi-1.79/ex/ex.h	Tue Aug 13 09:24:00 1996
---- ./ex/ex.h	Wed Apr 16 21:20:09 1997
+--- ./ex/ex.h	Fri Aug 14 01:41:14 1998
 ***************
 *** 152,157 ****
 --- 152,160 ----
@@ -228,7 +228,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex.h ./ex/ex.h
   
 diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_cmd.c ./ex/ex_cmd.c
 *** /usr/local/src/nvi-1.79/ex/ex_cmd.c	Wed Oct 23 22:31:01 1996
---- ./ex/ex_cmd.c	Wed Apr 16 21:20:09 1997
+--- ./ex/ex_cmd.c	Fri Aug 14 01:41:14 1998
 ***************
 *** 302,307 ****
 --- 302,314 ----
@@ -239,7 +239,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_cmd.c ./ex/ex_cmd.c
 + /* C_RTAG */
 + 	{"rtag",	ex_rtag_push,	E_NEWSCREEN,
 + 	    "!w1o",
-+ 	    "[Rr]ta[g][!] [string]",
++ 	    "rta[g][!] [string]",
 + 	    "edit the file containing the tag"},
 + #endif
   /*
@@ -247,7 +247,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_cmd.c ./ex/ex_cmd.c
    * Adding new commands starting with 's' may break the substitute command code
 diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
 *** /usr/local/src/nvi-1.79/ex/ex_tag.c	Mon Sep 16 05:02:43 1996
---- ./ex/ex_tag.c	Wed Apr 16 21:20:09 1997
+--- ./ex/ex_tag.c	Fri Aug 14 01:53:35 1998
 ***************
 *** 46,51 ****
 --- 46,55 ----
@@ -255,7 +255,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
   static void	 ctag_file __P((SCR *, TAGF *, char *, char **, size_t *));
   static int	 ctag_search __P((SCR *, char *, size_t, char *));
 + #ifdef GTAGS
-+ static int	 getentry __P((char *, char *, char *, char *));
++ static int	 getentry __P((char *, char **, char **, char **));
 + static TAGQ	*gtag_slist __P((SCR *, char *, int));
 + #endif
   static int	 ctag_sfile __P((SCR *, TAGF *, TAGQ *, char *));
@@ -306,7 +306,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
   
 ***************
 *** 969,974 ****
---- 998,1116 ----
+--- 998,1126 ----
   	return (0);
   }
   
@@ -325,30 +325,40 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
 +  */
 + static int
 + getentry(buf, tag, file, line)
-+ 	char *buf, *tag, *file, *line;
++ 	char *buf, **tag, **file, **line;
 + {
-+ 	char *p;
++ 	char *p = buf;
 + 
-+ 	p = tag;
-+ 	while (*buf && !isspace(*buf))		/* tag name */
-+ 		*p++ = *buf++;
-+ 	*p = 0;
-+ 	while (*buf && isspace(*buf))		/* skip blanks */
-+ 		buf++;
-+ 	p = line;
-+ 	while (*buf && !isspace(*buf))		/* line no */
-+ 		*p++ = *buf++;
-+ 	*p = 0;
-+ 	while (*buf && isspace(*buf))		/* skip blanks */
-+ 		buf++;
-+ 	p = file;
-+ 	while (*buf && !isspace(*buf))		/* file name */
-+ 		*p++ = *buf++;
++ 	for (*tag = p; *p && !isspace(*p); p++)		/* tag name */
++ 		;
++ 	if (*p == 0)
++ 		goto err;
++ 	*p++ = 0;
++ 	for (; *p && isspace(*p); p++)			/* (skip blanks) */
++ 		;
++ 	if (*p == 0)
++ 		goto err;
++ 	*line = p;					/* line no */
++ 	for (*line = p; *p && !isspace(*p); p++)
++ 		;
++ 	if (*p == 0)
++ 		goto err;
++ 	*p++ = 0;
++ 	for (; *p && isspace(*p); p++)			/* (skip blanks) */
++ 		;
++ 	if (*p == 0)
++ 		goto err;
++ 	*file = p;					/* file name */
++ 	for (*file = p; *p && !isspace(*p); p++)
++ 		;
++ 	if (*p == 0)
++ 		goto err;
 + 	*p = 0;
 + 
 + 	/* value check */
-+ 	if (strlen(tag) && strlen(line) && strlen(file) && atoi(line) > 0)
++ 	if (strlen(*tag) && strlen(*line) && strlen(*file) && atoi(*line) > 0)
 + 		return 1;	/* OK */
++ err:
 + 	return 0;		/* ERROR */
 + }
 + 
@@ -368,9 +378,9 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
 + 	size_t len;
 + 	int echk;
 + 	TAG *tp;
-+ 	static char name[80], file[200], line[10];
-+ 	char command[200];
-+ 	char buf[BUFSIZ+1];
++ 	char *name, *file, *line;
++ 	char command[BUFSIZ];
++ 	char buf[BUFSIZ];
 + 	FILE *fp;
 + 
 + 	/* Allocate and initialize the tag queue structure. */
@@ -384,7 +394,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
 + 	 * Find the tag, only display missing file messages once, and
 + 	 * then only if we didn't find the tag.
 + 	 */
-+ 	sprintf(command, "global -%s '%s'", ref ? "rx" : "x", tag);
++ 	snprintf(command, sizeof(command), "global -%s '%s' 2>/dev/null", ref ? "rx" : "x", tag);
 + 	if (fp = popen(command, "r")) {
 + 		while (fgets(buf, sizeof(buf), fp)) {
 + 			if (buf[strlen(buf)-1] == '\n')		/* chop(buf) */
@@ -392,7 +402,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
 + 			else
 + 				while (fgetc(fp) != '\n')
 + 					;
-+ 			if (getentry(buf, name, file, line) == 0) {
++ 			if (getentry(buf, &name, &file, &line) == 0) {
 + 				echk = 1;
 + 				F_SET(tfp, TAGF_ERR);
 + 				break;
@@ -428,7 +438,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/ex/ex_tag.c ./ex/ex_tag.c
    *	Search the list of tags files for a tag, and return tag queue.
 diff -c -r -N /usr/local/src/nvi-1.79/include/ex_def.h ./include/ex_def.h
 *** /usr/local/src/nvi-1.79/include/ex_def.h	Wed Oct 23 22:53:09 1996
---- ./include/ex_def.h	Wed Apr 16 21:20:09 1997
+--- ./include/ex_def.h	Fri Aug 14 01:41:14 1998
 ***************
 *** 47,78 ****
   #define C_RECOVER 46
@@ -499,7 +509,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/include/ex_def.h ./include/ex_def.h
 ! #define C_SUBTILDE 78
 diff -c -r -N /usr/local/src/nvi-1.79/include/ex_extern.h ./include/ex_extern.h
 *** /usr/local/src/nvi-1.79/include/ex_extern.h	Wed Oct 23 22:53:10 1996
---- ./include/ex_extern.h	Wed Apr 16 21:20:09 1997
+--- ./include/ex_extern.h	Fri Aug 14 01:41:14 1998
 ***************
 *** 89,94 ****
 --- 89,95 ----
@@ -512,7 +522,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/include/ex_extern.h ./include/ex_extern.h
   int ex_tag_prev __P((SCR *, EXCMD *));
 diff -c -r -N /usr/local/src/nvi-1.79/include/options_def.h ./include/options_def.h
 *** /usr/local/src/nvi-1.79/include/options_def.h	Wed Oct 23 22:53:10 1996
---- ./include/options_def.h	Wed Apr 16 21:20:09 1997
+--- ./include/options_def.h	Fri Aug 14 01:41:14 1998
 ***************
 *** 16,79 ****
   #define O_EXTENDED 15
@@ -647,7 +657,7 @@ diff -c -r -N /usr/local/src/nvi-1.79/include/options_def.h ./include/options_de
 ! #define O_OPTIONCOUNT 79
 diff -c -r -N /usr/local/src/nvi-1.79/vi/v_ex.c ./vi/v_ex.c
 *** /usr/local/src/nvi-1.79/vi/v_ex.c	Mon Sep 16 05:03:02 1996
---- ./vi/v_ex.c	Wed Apr 16 21:20:09 1997
+--- ./vi/v_ex.c	Fri Aug 14 01:41:14 1998
 ***************
 *** 226,231 ****
 --- 226,236 ----
