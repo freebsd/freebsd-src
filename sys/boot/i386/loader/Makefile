@@ -41,7 +41,7 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
-.include	<${.CURDIR}/../../common/Makefile.inc>
+.include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
@@ -108,8 +108,6 @@ FILESDIR_loader.conf=	/boot/defaults
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=	${.CURDIR}/loader.rc
 .endif
-
-.include <${.CURDIR}/../Makefile.inc>
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
