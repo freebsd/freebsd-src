@@ -1,4 +1,4 @@
-#	$Id: README,v 1.11 1998/05/20 09:19:50 wosch Exp $
+#	$Id: README,v 1.12 1998/09/09 05:48:51 jb Exp $
 
 This directory is for tools.
 
@@ -7,15 +7,15 @@ other categories.
 
 Please make a subdir per program, and add a brief description to this file.
 
+epfe 		extract printing filter examples from printing.sgml
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
-kernxref	Shellscript to cross reference symbols in the LINT kernel.
-epfe 		extract printing filter examples from printing.sgml
-tcl_bmake	generates a bmake Makefile for src/lib/libtcl
+html-mv         Rename HTML generated filenames to human readable filenames.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
-scsi-defects	Get at the primary or grown defect list of a SCSI disk.
-portsinfo 	Generate list of new ports for last two weeks.
-html-mv         Rename HTML generated filenames to human readable filenames.
+kernxref	Shellscript to cross reference symbols in the LINT kernel.
 mid	 	Create a Message-ID database for mailing lists.
+portsinfo 	Generate list of new ports for last two weeks.
+scsi-defects	Get at the primary or grown defect list of a SCSI disk.
+tcl_bmake	generates a bmake Makefile for src/lib/libtcl
 upgrade         Scripts used for upgrading an installed system.
