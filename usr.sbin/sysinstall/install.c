@@ -814,9 +814,6 @@ installConfigure(void)
 int
 installFixupBase(dialogMenuItem *self)
 {
-    Device **devs;
-    char *cp;
-    int i;
     FILE *fp;
     int kstat = 1;
 
