@@ -143,6 +143,13 @@ to indicate that execution is to pick up where it left off.
 .Fa data
 provides a signal number to be delivered to the traced process as it
 resumes execution, or 0 if no signal is to be sent.
+.It Dv PT_STEP
+The traced process is single stepped one instruction.
+The
+.Fa addr 
+and
+.Fa data
+fields are not used.
 .It Dv PT_KILL
 The traced process terminates, as if
 .Dv PT_CONTINUE
@@ -306,7 +313,9 @@ above.
 .Xr execve 2 ,
 .Xr sigaction 2 ,
 .Xr wait 2 ,
-.Xr execv 3
+.Xr execv 3 ,
+.Xr i386_clr_watch 3 ,
+.Xr i386_set_watch 3
 .Sh HISTORY
 A
 .Fn ptrace
