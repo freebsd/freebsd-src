@@ -121,6 +121,11 @@ updated to make this change as seamless as possible.
 A filesystem snapshot capability has been added to FFS.  Details can
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
+Softupdates for FFS have received some bug fixes and enhancements.
+
+A bug in FFS that could cause superblock corruption on very large
+filesystems has been corrected. [MERGED]
+
 The ng_mppc(4) and ng_bridge(4) node types have been added to the
 netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
 Miscellaneous bug fixes and enhancements have also been made. [MERGED]
@@ -204,8 +209,6 @@ Privacy (WEP) encryption, settable via ancontrol(8). [MERGED]
 A new netgraph node type ng_one2many(4) for multiplexing and
 demultiplexing packets over multiple links has been added.  [MERGED]
 
-Softupdates for FFS have received some bug fixes and enhancements.
-
 The DEC3000-series support has been removed from the mfsroot floppy image
 so that it fits on a 1.44Mbyte floppy again. As DEC3000 is currently
 only usable diskless this should not cause any problems.
@@ -274,9 +277,6 @@ to a SCSI card driven by 'isp' has been fixed. [MERGED]
 
 Condition variables have now been implemented in the FreeBSD kernel.
 See condvar(9) for more details.
-
-A bug in FFS that could cause superblock corruption on very large
-filesystems has been corrected. [MERGED]
 
 The "make buildkernel" target now gets the name of the
 configuration(s) to build from the KERNCONF variable, not KERNEL.  It
@@ -640,6 +640,10 @@ reflects the percentage of network mbufs used. [MERGED]
 mergemaster(8) has gained some new features, has been cleaned up
 somewhat, and is now more cross-platform friendly.
 
+mergemaster(8) now sources an /etc/mergemaster.rc file and also
+prompts the user to run recommended commands (such as "newaliases") as
+needed. [MERGED]
+
 The compiler chain now uses the FSF-supplied C/C++ runtime
 initialization code.  This change brings about better compatibility
 with code generated from the various egcs and gcc ports, as well as
@@ -686,10 +690,6 @@ groff(1) and its related utilities have been updated to FSF version
 A number of cleanups and enhancements have been applied to the PCI
 subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
 database, which can be used by pciconf(8).
-
-growfs(8), a utility for growing FFS filesystems, has been added.
-ffsinfo(8), a utility for dump all the meta-information of an existing
-filesystem, has also been added.
 
 indent(1) has gained some new formatting options. [MERGED]
 
@@ -903,10 +903,6 @@ in the order specified on the command line.  This improves the
 functioning of "pkg_add -r". [MERGED]
 
 "lprm -" now works for remote printer queues. [MERGED]
-
-mergemaster(8) now sources an /etc/mergemaster.rc file and also
-prompts the user to run recommended commands (such as "newaliases") as
-needed. [MERGED]
 
 ftpd(8) now supports a -r flag for read-only mode and a -E flag to
 disable EPSV.  It also has some fixes to reduce information leakage
