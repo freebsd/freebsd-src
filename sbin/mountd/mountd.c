@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.20 1997/04/23 11:03:10 msmith Exp $";
+	"$Id: mountd.c,v 1.21 1997/04/30 18:40:12 pst Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -115,6 +115,7 @@ struct exportlist {
 	int		ex_flag;
 	fsid_t		ex_fs;
 	char		*ex_fsdir;
+	char		*ex_indexfile;
 };
 /* ex_flag bits */
 #define	EX_LINKED	0x1
@@ -1339,6 +1340,13 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			opt_flags |= OP_NET;
 		} else if (!strcmp(cpopt, "alldirs")) {
 			opt_flags |= OP_ALLDIRS;
+		} else if (!strcmp(cpopt, "public")) {
+			*exflagsp |= MNT_EXPUBLIC;
+		} else if (!strcmp(cpopt, "webnfs")) {
+			*exflagsp |= (MNT_EXPUBLIC|MNT_EXRDONLY|MNT_EXPORTANON);
+			opt_flags |= OP_MAPALL;
+		} else if (cpoptarg && !strcmp(cpopt, "index")) {
+			ep->ex_indexfile = strdup(cpoptarg);
 #ifdef ISO
 		} else if (cpoptarg && !strcmp(cpopt, "iso")) {
 			if (get_isoaddr(cpoptarg, grp)) {
@@ -1474,6 +1482,8 @@ free_exp(ep)
 	}
 	if (ep->ex_fsdir)
 		free(ep->ex_fsdir);
+	if (ep->ex_indexfile)
+		free(ep->ex_indexfile);
 	free_dir(ep->ex_dirl);
 	free((caddr_t)ep);
 }
@@ -1582,6 +1592,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	args.ua.fspec = 0;
 	args.ua.export.ex_flags = exflags;
 	args.ua.export.ex_anon = *anoncrp;
+	args.ua.export.ex_indexfile = ep->ex_indexfile;
 	memset(&sin, 0, sizeof(sin));
 	memset(&imask, 0, sizeof(imask));
 	sin.sin_family = AF_INET;
