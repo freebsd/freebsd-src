@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.22 1995/01/09 16:05:33 davidg Exp $
+ * $Id: swap_pager.c,v 1.23 1995/01/10 07:32:43 davidg Exp $
  */
 
 /*
@@ -894,6 +894,7 @@ swap_pager_input(swp, m, count, reqpage)
 	vm_offset_t paging_offset;
 	vm_object_t object;
 	int reqaddr[count];
+	int sequential;
 
 	int first, last;
 	int failed;
@@ -901,6 +902,7 @@ swap_pager_input(swp, m, count, reqpage)
 
 	object = m[reqpage]->object;
 	paging_offset = object->paging_offset;
+	sequential = (m[reqpage]->offset == (object->last_read + PAGE_SIZE));
 	/*
 	 * First determine if the page exists in the pager if this is a sync
 	 * read.  This quickly handles cases where we are following shadow
@@ -947,7 +949,7 @@ swap_pager_input(swp, m, count, reqpage)
 	failed = 0;
 	first = 0;
 	for (i = reqpage - 1; i >= 0; --i) {
-		if (failed || (reqaddr[i] == SWB_EMPTY) ||
+		if (sequential || failed || (reqaddr[i] == SWB_EMPTY) ||
 		    (swb[i]->swb_valid & (1 << off[i])) == 0 ||
 		    (reqaddr[i] != (reqaddr[reqpage] + (i - reqpage) * btodb(PAGE_SIZE))) ||
 		    ((reqaddr[i] / dmmax) != reqdskregion)) {
@@ -1105,6 +1107,7 @@ swap_pager_input(swp, m, count, reqpage)
 	pmap_qremove(kva, count);
 
 	if (spc) {
+		m[reqpage]->object->last_read = m[reqpage]->offset;
 		if (bp->b_flags & B_WANTED)
 			wakeup((caddr_t) bp);
 		/*
@@ -1141,9 +1144,11 @@ swap_pager_input(swp, m, count, reqpage)
 					 * results, it is best to deactivate
 					 * the readahead pages.
 					 */
-					if ((i == reqpage - 1) || (i == reqpage + 1))
+/*
+					if (sequential || (i == reqpage - 1) || (i == reqpage + 1))
 						vm_page_activate(m[i]);
 					else
+*/
 						vm_page_deactivate(m[i]);
 
 					/*
@@ -1155,6 +1160,9 @@ swap_pager_input(swp, m, count, reqpage)
 					PAGE_WAKEUP(m[i]);
 				}
 			}
+
+			m[reqpage]->object->last_read = m[count-1]->offset;
+
 			/*
 			 * If we're out of swap space, then attempt to free
 			 * some whenever pages are brought in. We must clear
