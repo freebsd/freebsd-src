@@ -444,7 +444,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		ithd->it_disable(ithd->it_vector);
 	}
-	error = ithread_schedule(ithd, !cold);
+	error = ithread_schedule(ithd, 0);	/* XXX:no preemption for now */
 	KASSERT(error == 0, ("got an impossible stray interrupt"));
 }
 
