@@ -1400,6 +1400,10 @@ pcn_stop(sc)
 	ifp->if_timer = 0;
 
 	untimeout(pcn_tick, sc, sc->pcn_stat_ch);
+
+	/* Turn off interrupts */
+	PCN_CSR_CLRBIT(sc, PCN_CSR_CSR, PCN_CSR_INTEN);
+	/* Stop adapter */
 	PCN_CSR_SETBIT(sc, PCN_CSR_CSR, PCN_CSR_STOP);
 	sc->pcn_link = 0;
 
