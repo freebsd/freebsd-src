@@ -34,6 +34,7 @@
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
 .\"
+.\" $FreeBSD$
 .Dd April 1, 1994
 .Dt UNIFDEF 1
 .Os BSD 4.3
@@ -75,7 +76,7 @@ Available options:
 .It Fl D Ns Ar sym
 .It Fl U Ns Ar sym
 Specify which symbols to define or undefine.
-and the lines inside those ifdefs will be copied to the output or removed as
+The lines inside those ifdefs will be copied to the output or removed as
 appropriate.
 The ifdef, ifndef, else, and endif lines associated with
 .Ar sym
