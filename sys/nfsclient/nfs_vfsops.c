@@ -980,10 +980,10 @@ loop:
 			goto loop;
 		vnp = TAILQ_NEXT(vp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
+		VI_LOCK(vp);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 		    waitfor == MNT_LAZY) {
-			mtx_unlock(&vp->v_interlock);
+			VI_UNLOCK(vp);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
