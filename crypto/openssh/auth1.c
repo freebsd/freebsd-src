@@ -20,6 +20,12 @@ RCSID("$OpenBSD: auth1.c,v 1.2 2000/04/29 18:11:52 markus Exp $");
 #include "auth.h"
 #include "session.h"
 
+#ifdef KRB5
+extern krb5_context ssh_context;
+krb5_principal tkt_client = NULL;    /* Principal from the received ticket. 
+Also is used as an indication of succesful krb5 authentization. */
+#endif
+
 /* import */
 extern ServerOptions options;
 extern char *forced_command;
@@ -412,11 +418,8 @@ do_authloop(struct passwd * pw)
 			  krb5_data tgt;
 			  tgt.data = packet_get_string(&tgt.length);
 			  
-			  if (!auth_krb5_tgt(pw->pw_name, &tgt, tkt_client)) {
+			  if (!auth_krb5_tgt(pw->pw_name, &tgt, tkt_client))
 			    verbose ("Kerberos V5 TGT refused for %.100s", pw->pw_name);
-			    xfree(tgt.data);
-			    goto fail;
-			  }
 			  xfree(tgt.data);
 			      
 			  break;
