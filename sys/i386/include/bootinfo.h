@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bootinfo.h,v 1.7 1997/02/22 09:33:57 peter Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
@@ -55,7 +55,8 @@ struct bootinfo {
 	unsigned long		bi_bios_geom[N_BIOS_GEOM];
 	unsigned int		bi_size;
 	unsigned char		bi_memsizes_valid;
-	unsigned char		bi_pad[3];
+	unsigned char		bi_pad[1];
+	unsigned short		bi_vesa;
 	unsigned long		bi_basemem;
 	unsigned long		bi_extmem;
 	unsigned long		bi_symtab;

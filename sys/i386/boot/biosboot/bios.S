@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.10 1997/05/16 10:39:59 bde Exp $
+ *	$Id: bios.S,v 1.11 1997/07/12 10:23:15 joerg Exp $
  */
 
 /*
@@ -476,3 +476,31 @@ xdone:
 	pop	%ebx
 	pop	%ebp
 	ret
+
+#ifdef VESA_SUPPORT
+ENTRY(vesa_mode)
+	push	%ebp
+	mov	%esp, %ebp
+	push	%ebx
+	push	%esi
+	push    %edi
+
+	movw	0x8(%ebp), %bx
+
+	call	EXT(prot_to_real)
+
+	data32
+	mov	$0x4f02, %eax
+	sti
+	int	$0x10
+	cli
+
+	data32
+	call	EXT(real_to_prot)
+
+	pop	%edi
+	pop	%esi
+	pop	%ebx
+	pop	%ebp
+	ret
+#endif
