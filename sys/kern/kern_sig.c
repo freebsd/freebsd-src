@@ -1047,7 +1047,7 @@ psignal(p, sig)
 	register struct proc *p;
 	register int sig;
 {
-	register int s, prop;
+	register int prop;
 	register sig_t action;
 
 	if (sig > _SIG_MAXSIG || sig <= 0) {
@@ -1055,6 +1055,7 @@ psignal(p, sig)
 		panic("psignal signal number");
 	}
 
+	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
 
 	prop = sigprop(sig);
@@ -1074,8 +1075,10 @@ psignal(p, sig)
 		 * and if it is set to SIG_IGN,
 		 * action will be SIG_DFL here.)
 		 */
-		if (SIGISMEMBER(p->p_sigignore, sig) || (p->p_flag & P_WEXIT))
+		if (SIGISMEMBER(p->p_sigignore, sig) || (p->p_flag & P_WEXIT)) {
+			PROC_UNLOCK(p);
 			return;
+		}
 		if (SIGISMEMBER(p->p_sigmask, sig))
 			action = SIG_HOLD;
 		else if (SIGISMEMBER(p->p_sigcatch, sig))
@@ -1084,9 +1087,11 @@ psignal(p, sig)
 			action = SIG_DFL;
 	}
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_nice > NZERO && action == SIG_DFL && (prop & SA_KILL) &&
 	    (p->p_flag & P_TRACED) == 0)
 		p->p_nice = NZERO;
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	if (prop & SA_CONT)
 		SIG_STOPSIGMASK(p->p_siglist);
@@ -1099,8 +1104,10 @@ psignal(p, sig)
 		 * and don't clear any pending SIGCONT.
 		 */
 		if (prop & SA_TTYSTOP && p->p_pgrp->pg_jobc == 0 &&
-		    action == SIG_DFL)
+		    action == SIG_DFL) {
+			PROC_UNLOCK(p);
 		        return;
+		}
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
@@ -1112,9 +1119,9 @@ psignal(p, sig)
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
 		mtx_exit(&sched_lock, MTX_SPIN);
+		PROC_UNLOCK(p);
 		return;
 	}
-	s = splhigh();
 	switch (p->p_stat) {
 
 	case SSLEEP:
@@ -1124,7 +1131,7 @@ psignal(p, sig)
 		 * be noticed when the process returns through
 		 * trap() or syscall().
 		 */
-		if ((p->p_flag & P_SINTR) == 0) {
+		if ((p->p_sflag & PS_SINTR) == 0) {
 			mtx_exit(&sched_lock, MTX_SPIN);
 			goto out;
 		}
@@ -1162,26 +1169,26 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
+			PROC_UNLOCK(p);
 			PROCTREE_LOCK(PT_SHARED);
 			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			PROCTREE_LOCK(PT_RELEASE);
+			PROC_LOCK(p);
 			goto out;
 		} else
 			goto runfast;
 		/* NOTREACHED */
 
 	case SSTOP:
+		mtx_exit(&sched_lock, MTX_SPIN);
 		/*
 		 * If traced process is already stopped,
 		 * then no further action is necessary.
 		 */
-		if (p->p_flag & P_TRACED) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+		if (p->p_flag & P_TRACED)
 			goto out;
-		}
-		mtx_exit(&sched_lock, MTX_SPIN);
 
 		/*
 		 * Kill signal always sets processes running.
@@ -1205,7 +1212,7 @@ psignal(p, sig)
 			if (action == SIG_CATCH)
 				goto runfast;
 			mtx_enter(&sched_lock, MTX_SPIN);
-			if (p->p_wchan == 0)
+			if (p->p_wchan == NULL)
 				goto run;
 			p->p_stat = SSLEEP;
 			mtx_exit(&sched_lock, MTX_SPIN);
@@ -1228,8 +1235,8 @@ psignal(p, sig)
 		 * the process runnable, leave it stopped.
 		 */
 		mtx_enter(&sched_lock, MTX_SPIN);
-		if (p->p_wchan && p->p_flag & P_SINTR) {
-			if (p->p_flag & P_CVWAITQ)
+		if (p->p_wchan && p->p_sflag & PS_SINTR) {
+			if (p->p_sflag & PS_CVWAITQ)
 				cv_waitq_remove(p);
 			else
 				unsleep(p);
@@ -1274,7 +1281,7 @@ run:
 out:
 	/* If we jump here, sched_lock should not be owned. */
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	splx(s);
+	PROC_UNLOCK(p);
 }
 
 /*
