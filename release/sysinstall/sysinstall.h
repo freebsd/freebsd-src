@@ -371,6 +371,7 @@ extern int	configFstab(void);
 extern void	configSysconfig(char *config);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
+extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
 extern int	configXFree86(dialogMenuItem *self);
