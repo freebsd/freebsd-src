@@ -112,7 +112,7 @@ main(argc, argv)
 				errno = 0;
 				depth = atoi(optarg);
 				if (errno == ERANGE || depth < 0) {
-					(void) fprintf(stderr, "Invalid argument to option d: %s", optarg);
+					(void) fprintf(stderr, "Invalid argument to option d: %s\n", optarg);
 					usage();
 				}
 				break;
@@ -120,7 +120,6 @@ main(argc, argv)
 				cflag = 1;
 				break;
 			case '?':
-			case 'h':
 			default:
 				usage();
 		}
