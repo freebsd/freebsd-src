@@ -2083,7 +2083,10 @@ DMenu MenuSecurity = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "System Security Options Menu",
     "This menu allows you to configure aspects of the operating systme\n"
-    "policy.\n",
+    "policy.  If configured improperly, these settings may result in\n"
+    "substantially impaired system operation.  Please read the system\n"
+    "documentation carefully before modifying these settings.  Many\n"
+    "settings will take affect only following a system reboot.",
     "Configure system security options",
     NULL,
     { { "X Exit",      "Exit this menu (returning to previous)",
@@ -2092,6 +2095,8 @@ DMenu MenuSecurity = {
 	NULL, configSecurityProfile },
       { " LOMAC",         "Use Low Watermark Mandatory Access Control at boot",
 	dmenuVarCheck,  dmenuToggleVariable, NULL, "lomac_enable=YES" },
+      { " NFS port",	"Require that the NFS clients used reserved ports",
+	dmenuVarCheck,  dmenuToggleVariable, NULL, "nfs_reserved_port_only=YES" },
       { NULL } },
 };
 
