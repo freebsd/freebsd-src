@@ -424,5 +424,4 @@ static driver_t pccard_driver = {
 
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, mecia, pccard_driver, pccard_devclass, 0, 0);
-DRIVER_MODULE(pccard, tcic, pccard_driver, pccard_devclass, 0, 0);
 MODULE_VERSION(pccard, 1);
