@@ -128,7 +128,15 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
 	restore_intr(saveintr);
-	getnanotime(&entry->ktr_tv);
+	if (ktr_mask & KTR_LOCK)
+		/*
+		 * We can't use nanotime with KTR_LOCK, it would cause
+		 * endless recursion, at least under the Intel
+		 * architecture.
+		 */		   
+		getnanotime(&entry->ktr_tv);
+	else
+		nanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
 	strncpy(entry->ktr_filename, filename, KTRFILENAMESIZE - 1);
 	entry->ktr_filename[KTRFILENAMESIZE - 1] = '\0';
