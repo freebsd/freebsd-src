@@ -33,6 +33,65 @@
 #ifndef _ENDIAN_H_
 #define	_ENDIAN_H_
 
-#define	BYTE_ORDER	_LITTLE_ENDIAN
+#include <sys/_types.h>
 
+/*
+ * Definitions for byte order, according to byte significance from low
+ * address to high.
+ */
+#define _LITTLE_ENDIAN  1234    /* LSB first: i386, vax */
+#define _BIG_ENDIAN     4321    /* MSB first: 68000, ibm, net */
+#define _PDP_ENDIAN     3412    /* LSB first in word, MSW first in long */
+
+#define	_BYTE_ORDER	_LITTLE_ENDIAN
+
+#if __BSD_VISIBLE
+#define LITTLE_ENDIAN   _LITTLE_ENDIAN
+#define BIG_ENDIAN      _BIG_ENDIAN
+#define PDP_ENDIAN      _PDP_ENDIAN
+#define BYTE_ORDER      _BYTE_ORDER
+#endif
+
+#define _QUAD_HIGHWORD  1
+#define _QUAD_LOWWORD 0
+#define __ntohl(x)        (__bswap32(x))
+#define __ntohs(x)        (__bswap16(x))
+#define __htonl(x)        (__bswap16(x))
+#define __htons(x)        (__bswap32(x))
+
+static __inline __uint64_t
+__bswap64(__uint64_t _x)
+{
+
+	return ((_x >> 56) | ((_x >> 40) & 0xff00) | ((_x >> 24) & 0xff0000) |
+	    ((_x >> 8) & 0xff000000) | ((_x << 8) & ((__uint64_t)0xff << 32)) |
+	    ((_x << 24) & ((__uint64_t)0xff << 40)) | 
+	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
+}
+
+static __inline __uint32_t
+__bswap32(__uint32_t v)
+{
+	__uint32_t t1;
+
+	t1 = v ^ ((v << 16) | (v >> 16));
+	t1 &= 0xff00ffffU;
+	v = (v >> 8) | (v << 24);
+	v ^= (t1 >> 8);
+	
+	return (v);
+ }
+
+static __inline __uint16_t
+__bswap16(__uint32_t v)
+{
+	__asm __volatile(
+	    "mov    %0, %1, ror #8\n"
+	    "orr    %0, %0, %0, lsr #16\n"
+	    "bic    %0, %0, %0, lsl #16"
+	    : "=r" (v)
+	    : "0" (v));
+	
+	return (v);
+}		
 #endif /* !_ENDIAN_H_ */
