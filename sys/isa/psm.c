@@ -19,10 +19,7 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-
 /*
  *  Ported to 386bsd Oct 17, 1992
  *  Sandi Donno, Computer Science, University of Cape Town, South Africa
@@ -60,6 +57,9 @@
  *    Improved sync check logic.
  *    Vendor specific support routines.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_psm.h"
 
