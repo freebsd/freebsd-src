@@ -125,7 +125,8 @@ static int	allfields;	/* present all fields in edit */
 static char const *xxboot;	/* primary boot */
 
 static off_t mbroffset;
-static int labeloffset = LABELOFFSET + LABELSECTOR * DEV_BSIZE;
+static int labelsoffset = LABELSECTOR;
+static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
 static int alphacksum =
 #if defined(__alpha__)
@@ -161,14 +162,17 @@ main(int argc, char *argv[])
 				break;
 			case 'm':
 				if (!strcmp(optarg, "i386")) {
-					labeloffset = 512;
+					labelsoffset = 1;
+					labeloffset = 0;
 					bbsize = 8192;
 					alphacksum = 0;
 				} else if (!strcmp(optarg, "pc98")) {
-					labeloffset = 512;
+					labelsoffset = 1;
+					labeloffset = 0;
 					bbsize = 8192;
 					alphacksum = 0;
 				} else if (!strcmp(optarg, "alpha")) {
+					labelsoffset = 0;
 					labeloffset = 64;
 					bbsize = 8192;
 					alphacksum = 1;
@@ -349,7 +353,8 @@ writelabel(void)
 	for (i = 0; i < lab.d_npartitions; i++)
 		if (lab.d_partitions[i].p_size)
 			lab.d_partitions[i].p_offset += mbroffset;
-	bsd_disklabel_le_enc(bootarea + labeloffset, lp);
+	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
+	    lp);
 	if (alphacksum) {
 		/* Generate the bootblock checksum for the SRM console.  */
 		for (p = (uint64_t *)bootarea, i = 0, sum = 0; i < 63; i++)
@@ -363,7 +368,8 @@ writelabel(void)
 		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "BSD");
 		gctl_ro_param(grq, "geom", -1, dkname);
-		gctl_ro_param(grq, "label", 148+16*8, bootarea + labeloffset);
+		gctl_ro_param(grq, "label", 148+16*8, 
+			bootarea + labeloffset + labelsoffset * secsize);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL) {
 			warnx("%s", errstr);
@@ -411,11 +417,18 @@ readlabel(int flag)
 	f = open(specname, O_RDONLY);
 	if (f < 0)
 		err(1, specname);
+	/* New world order */
+	if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
+	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
+		err(4, "cannot get disk geometry");
+	}
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	if (read(f, bootarea, BBSIZE) != BBSIZE)
 		err(4, "%s read", specname);
 	close (f);
-	error = bsd_disklabel_le_dec(bootarea + labeloffset, &lab, MAXPARTITIONS);
+	error = bsd_disklabel_le_dec(
+	    bootarea + (labeloffset + labelsoffset * secsize),
+	    &lab, MAXPARTITIONS);
 	if (flag && error)
 		errx(1, "%s: no valid label found", specname);
 
