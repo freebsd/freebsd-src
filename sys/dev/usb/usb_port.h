@@ -177,6 +177,9 @@ typedef struct proc *usb_proc_ptr;
 #define kthread_create1		kthread_create
 #define kthread_create		kthread_create_deferred
 
+#define	config_pending_incr()
+#define	config_pending_decr()
+
 #define	usbpoll			usbselect
 #define	uhidpoll		uhidselect
 #define	ugenpoll		ugenselect
@@ -302,6 +305,9 @@ typedef struct thread *usb_proc_ptr;
 #define bswap32(x)		swap32(x)
 #define kthread_create1(f, s, p, a0, a1) \
 		kthread_create((f), (s), (p), RFHIGHPID, (a0), (a1))
+
+#define	config_pending_incr()
+#define	config_pending_decr()
 
 #define usb_timeout(f, d, t, h) ((h) = timeout((f), (d), (t)))
 #define usb_untimeout(f, d, h) untimeout((f), (d), (h))

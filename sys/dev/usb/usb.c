@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.33 1999/11/22 21:57:09 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.37 2000/01/24 18:35:51 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -222,6 +222,10 @@ USB_ATTACH(usb)
 	}
 	printf("\n");
 
+	/* Make sure not to use tsleep() if we are cold booting. */
+	if (cold)
+		sc->sc_bus->use_polling++;
+
 	err = usbd_new_device(USBDEV(sc->sc_dev), sc->sc_bus, 0, 0, 0,
 		  &sc->sc_port);
 	if (!err) {
@@ -239,18 +243,22 @@ USB_ATTACH(usb)
 		 * until the USB event thread is running, which means that
 		 * the keyboard will not work until after cold boot.
 		 */
-		if (cold) {
-			sc->sc_bus->use_polling++;
+#if defined(__FreeBSD__)
+		if (cold)
+#else
+		if (cold && (sc->sc_dev.dv_cfdata->cf_flags & 1))
+#endif
 			dev->hub->explore(sc->sc_bus->root_hub);
-			sc->sc_bus->use_polling--;
-		}
 #endif
 	} else {
 		printf("%s: root hub problem, error=%d\n", 
 		       USBDEVNAME(sc->sc_dev), err); 
 		sc->sc_dying = 1;
 	}
+	if (cold)
+		sc->sc_bus->use_polling--;
 
+	config_pending_incr();
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	kthread_create(usb_create_event_thread, sc);
 #endif
@@ -290,6 +298,7 @@ usb_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
 	int to;
+	int first = 1;
 
 #ifdef __FreeBSD__
 	mtx_lock(&Giant);
@@ -302,6 +311,10 @@ usb_event_thread(void *arg)
 		if (usb_noexplore < 2)
 #endif
 		usb_discover(sc);
+		if (first) {
+			config_pending_decr();
+			first = 0;
+		}
 		to = hz * 60;
 #ifdef USB_DEBUG
 		if (usb_noexplore)
