@@ -115,7 +115,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 # /usr/games added for fortune which depend on strfile and caesar.
-STRICTTMPPATH=	${WORLDTMP}/sbin:${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
 #
@@ -203,7 +203,9 @@ buildworld:
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
 .else
-	rm -rf ${WORLDTMP}/usr/bin
+	for dir in bin games include lib sbin; do \
+		rm -rf ${WORLDTMP}/usr/$$dir; \
+	done
 	rm -f ${WORLDTMP}/sys
 .endif
 .for _dir in ${USRDIRS}
@@ -218,10 +220,6 @@ buildworld:
 	@echo ">>> stage 1: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
-.if !empty(.MAKEFLAGS:M-j)
-	# Work-around for broken sh(1) hashing.
-	-hash -r
-.endif
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -444,7 +442,7 @@ _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 .endif
 
 cross-tools:
-.for _tool in ${_aout_tools} ${_elf2exe} usr.bin/gensetdefs \
+.for _tool in ${_aout_tools} ${_elf2exe} usr.bin/genassym usr.bin/gensetdefs \
     gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
