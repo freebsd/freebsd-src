@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <utmp.h>
 
+#include "lomac.h"
 #include "ps.h"
 
 #define SEP ", \t"		/* username separators */
