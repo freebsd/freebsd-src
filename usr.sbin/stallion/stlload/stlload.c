@@ -198,6 +198,7 @@ int download()
 		printf("Stoping any current slave\n");
 	if (ioctl(memfd, STL_BSTOP, 0) < 0) {
 		warn("ioctl(STL_BSTOP)");
+		printf(" (Perhaps you're trying to download firmare to a PCI card that\n doesn't require this?)\n");
 		return(-1);
 	}
 
