@@ -151,15 +151,22 @@ _name_	=	_value_
 label:	ASCIZ msg;				\
 	.text;
 
+
 /*
  * System call glue.
  */
-#define	SYSCALLNUM(name)			\
-	SYS_ ## name
+#define	SYSCALLNUM(name)	SYS_ ## name
 
-#define	CALLSYS_NOERROR(name)			\
-	mov	r15=SYSCALLNUM(name);		\
-	break	0x100000 ;;
+#define	CALLSYS_NOERROR(name)					\
+{	.mmi ;							\
+	alloc		r9 = ar.pfs, 0, 0, 8, 0 ;		\
+	mov		r31 = ar.k5 ;				\
+	mov		r10 = b0 ;; }				\
+{	.mib ;							\
+	mov		r8 = SYSCALLNUM(name) ;			\
+	mov		b7 = r31 ; 				\
+	br.call.sptk	b0 = b7 ;; }
+
 
 /*
  * WEAK_ALIAS: create a weak alias (ELF only).

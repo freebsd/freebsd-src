@@ -32,6 +32,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+INCLUDES+= -I$S/contrib/ia64/libuwx/src
+
 CFLAGS+= -mconstant-gp
 
 ASM_CFLAGS= -x assembler-with-cpp -Wa,-x -DLOCORE ${CFLAGS}

@@ -26,13 +26,25 @@
  * $FreeBSD$
  */
 
-int ia64_add_unwind_table(vm_offset_t, vm_offset_t, vm_offset_t);
-void ia64_delete_unwind_table(vm_offset_t);
+#ifndef _MACHINE_UNWIND_H_
+#define	_MACHINE_UNWIND_H_
 
-struct ia64_unwind_state *ia64_create_unwind_state(struct trapframe *framep);
-void ia64_free_unwind_state(struct ia64_unwind_state *us);
-u_int64_t ia64_unwind_state_get_ip(struct ia64_unwind_state *us);
-u_int64_t ia64_unwind_state_get_sp(struct ia64_unwind_state *us);
-u_int64_t ia64_unwind_state_get_cfm(struct ia64_unwind_state *us);
-u_int64_t *ia64_unwind_state_get_bsp(struct ia64_unwind_state *us);
-int ia64_unwind_state_previous_frame(struct ia64_unwind_state *us);
+struct uwx_env;
+
+struct unw_regstate {
+	struct trapframe *frame;
+	struct uwx_env	*env;
+	uint64_t	keyval[8];
+};
+
+int unw_create(struct unw_regstate *s, struct trapframe *tf);
+int unw_step(struct unw_regstate *s);
+
+int unw_get_bsp(struct unw_regstate *s, uint64_t *r);
+int unw_get_cfm(struct unw_regstate *s, uint64_t *r);
+int unw_get_ip(struct unw_regstate *s, uint64_t *r);
+
+int unw_table_add(uint64_t, uint64_t, uint64_t);
+void unw_table_remove(uint64_t);
+
+#endif /* _MACHINE_UNWIND_H_ */

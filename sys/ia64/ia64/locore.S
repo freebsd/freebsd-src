@@ -25,32 +25,6 @@
  *
  * $FreeBSD$
  */
-/*
- * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
- * All rights reserved.
- *
- * Author: Chris G. Demetriou
- *
- * Permission to use, copy, modify and distribute this software and
- * its documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
- * software, derivative works or modified versions, and any portions
- * thereof, and that both notices appear in supporting documentation.
- *
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
- * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- *
- * Carnegie Mellon requests users of this software to return to
- *
- *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
- *  School of Computer Science
- *  Carnegie Mellon University
- *  Pittsburgh PA 15213-3890
- *
- * any improvements or extensions that they make and grant Carnegie the
- * rights to redistribute these changes.
- */
 
 #include <machine/asm.h>
 #include <machine/ia64_cpu.h>
@@ -77,22 +51,33 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
  * register r8.
  */
 ENTRY(__start, 1)
+{	.mlx
 	mov	ar.rsc=0
 	movl	r16=ia64_vector_table	// set up IVT early
 	;;
+}
+{	.mlx
 	mov	cr.iva=r16
 	movl	r16=kstack
 	;;
+}
+{	.mmi
 	srlz.i
 	;;
+	ssm	IA64_PSR_DFH
 	mov	r17=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;;
+}
+{	.mlx
 	add	sp=r16,r17		// proc0's stack
 	movl	gp=__gp			// find kernel globals
 	;;
+}
+{	.mlx
 	mov	ar.bspstore=r16		// switch backing store
 	movl	r16=pa_bootinfo
 	;;
+}
 	st8	[r16]=r8		// save the PA of the bootinfo block
 	loadrs				// invalidate regs
 	;;
@@ -117,7 +102,7 @@ ENTRY(__start, 1)
 	;;
 	ld8	out0=[out0]
 	;; 
-	add	r16=PCB_RP,out0		// return to mi_startup_trampoline
+	add	r16=PCB_SPECIAL_RP,out0	// return to mi_startup_trampoline
 	movl	r17=mi_startup_trampoline
 	;;
 	st8	[r16]=r17
@@ -133,13 +118,66 @@ ENTRY(mi_startup_trampoline, 0)
 	.prologue
 	.save	rp,r0
 	.body
-	
+
 	br.call.sptk.many rp=mi_startup
 
 	// Should never happen
 1:	br.cond.sptk.few 1b
 
 END(mi_startup_trampoline)
+
+/*
+ * fork_trampoline()
+ *
+ * Arrange for a function to be invoked neatly, after a cpu_switch().
+ *
+ * Invokes fork_exit() passing in three arguments: a callout function, an
+ * argument to the callout, and a trapframe pointer.  For child processes
+ * returning from fork(2), the argument is a pointer to the child process.
+ *
+ * The callout function and its argument is in the trapframe in scratch
+ * registers r2 and r3.
+ */
+ENTRY(fork_trampoline, 0)
+	.prologue
+	.save	rp,r0
+	.body
+{	.mmi
+	alloc		r14=ar.pfs,0,0,3,0
+	add		r15=32+SIZEOF_SPECIAL+8,sp
+	add		r16=32+SIZEOF_SPECIAL+16,sp
+	;;
+}
+{	.mmi
+	ld8		out0=[r15]
+	ld8		out1=[r16]
+	nop		0
+}
+{	.mfb
+	add		out2=16,sp
+	nop		0
+	br.call.sptk	rp=fork_exit
+	;;
+}
+	// If we get back here, it means we're a user space process that's
+	// the immediate result of fork(2).
+	.global		enter_userland
+	.type		enter_userland, @function
+enter_userland:
+{	.mmi
+	add		r14=24,sp
+	;;
+	ld8		r14=[r14]
+	nop		0
+	;;
+}
+{	.mbb
+	cmp.eq		p6,p7=r0,r14
+(p6)	br.sptk		exception_restore
+(p7)	br.sptk		epc_syscall_return
+	;;
+}
+END(fork_trampoline)
 
 #ifdef SMP
 /*
@@ -198,7 +236,7 @@ ENTRY(os_boot_rendez,0)
 	;;
 1:	mov	r16 = ip
 	add	r17 = 2f-1b, r17
-	movl	r18 = (IA64_PSR_AC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
+	movl	r18 = (IA64_PSR_AC|IA64_PSR_BN|IA64_PSR_DFH|IA64_PSR_DT|IA64_PSR_IC|IA64_PSR_IT|IA64_PSR_RT)
 	;;
 	add	r17 = r17, r16
 	mov	cr.ipsr = r18
@@ -209,141 +247,53 @@ ENTRY(os_boot_rendez,0)
 	rfi
 
 	.align	32
-2:	movl	r16 = ia64_vector_table			// set up IVT early
+2:
+{	.mlx
+	mov	ar.rsc = 0
+	movl	r16 = ia64_vector_table			// set up IVT early
 	;;
+}
+{	.mlx
 	mov	cr.iva = r16
+	movl	r16 = ap_stack
 	;;
+}
+{	.mmi
 	srlz.i
 	;;
-	movl	r16 = ap_stack
-	movl	r17 = ap_pcpu
-	mov	ar.rsc = 0
-	movl	gp = __gp
-	;;
 	ld8	r16 = [r16]
-	ld8	r17 = [r17]
 	mov	r18 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;;
-	add	sp = r18, r16
+}
+{	.mlx
 	mov	ar.bspstore = r16
-	mov	ar.k4 = r17
-	mov	r13 = r17	/* gas doesn't know tp as an alias for r13 */
+	movl	gp = __gp
 	;;
+}
+{	.mmi
 	loadrs
-	movl	r16 = ia64_pal_base
 	;;
+	alloc	r17 = ar.pfs, 0, 0, 0, 0
+	add	sp = r18, r16
+	;;
+}
+{	.mfb
 	mov	ar.rsc = 3
-	ld8	r16 = [r16]
-	;;
-	cmp.eq	p1, p0 = 0, r16
-(p1)	br.cond.spnt	1f
-	;;
-	mov	r18 = 28<<2
-	movl	r17 = 7<<61
-	;;
-	mov	cr.itir = r18
-	or	r17 = r17, r16
-	mov	r16 = (PTE_P|PTE_MA_WB|PTE_A|PTE_D|PTE_PL_KERN|PTE_AR_RWX)
-	;;
-	mov	cr.ifa = r17
-	extr.u  r18 = r17, 12, 38
-	;;
-	srlz.i
-	shl	r18 = r18, 12
-	;;
-	add	r17 = 1, r0
-	or	r16 = r16, r18
-	;;
-	itr.i	itr[r17] = r16
-	;;
-	srlz.i
-	;;
-1:	alloc	r16 = ar.pfs, 0, 0, 0, 0
-	;;
+	nop	0
 	br.call.sptk.few rp = ia64_ap_startup
+	;;
+}
 	/* NOT REACHED */
-9:	br	9b
+9:
+{	.mfb
+	nop	0
+	nop	0
+	br.sptk	9b
+	;;
+}
 END(os_boot_rendez)
 
 #endif /* !SMP */
-
-/**************************************************************************/
-
-/*
- * Signal "trampoline" code. Invoked from RTE setup by sendsig().
- *
- * On entry, registers look like:
- *
- *      r14	signal number
- *      r15	pointer to siginfo_t
- *	r16	pointer to signal context frame (scp)
- *      r17	address of handler function descriptor
- *	r18	address of new backing store (if any)
- *      sp+16	pointer to sigframe
- */
-
-ENTRY(sigcode,0)
-	ld8	r8=[r17],8		// function address
-	;;
-	ld8	gp=[r17]		// function's gp value
-	mov	b6=r8			// transfer to a branch register
-	cover
-	;;
-	add	r8=UC_MCONTEXT_MC_AR_BSP,r16 // address or mc_ar_bsp
-	mov	r9=ar.bsp		// save ar.bsp
-	;;
-	st8	[r8]=r9
-	cmp.eq	p1,p2=r0,r18		// check for new bs
-(p1)	br.cond.sptk.few 1f		// branch if not switching
-	flushrs				// flush out to old bs
-	mov	ar.rsc=0		// switch off RSE
-	add	r8=UC_MCONTEXT_MC_AR_RNAT,r16 // address of mc_ar_rnat
-	;;
-	mov	r9=ar.rnat		// value of ar.rnat after flush
-	mov	ar.bspstore=r18		// point at new bs
-	;;
-	st8	[r8]=r9			// remember ar.rnat
-	mov	ar.rsc=15		// XXX bogus value - check
-	invala
-	;; 
-1:	alloc	r5=ar.pfs,0,0,3,0	// register frame for call
-	;;
-	mov	out0=r14		// signal number
-	mov	out1=r15		// siginfo
-	mov	out2=r16		// ucontext
-	mov	r4=r16			// save from call
-	br.call.sptk.few rp=b6		// call the signal handler
-	;; 
-	alloc	r14=ar.pfs,0,0,0,0	// discard call frame
-	;; 
-	flushrs
-	;; 
-(p1)	br.cond.sptk.few 2f		// note: p1 is preserved
-	mov	ar.rsc=0
-	add	r8=UC_MCONTEXT_MC_AR_RNAT,r4 // address of mc_ar_rnat
-	;;
-	ld8	r9=[r8]
-	;; 
-	add	r8=UC_MCONTEXT_MC_AR_BSP,r4 // address of mc_ar_bsp
-	;;
-	ld8	r10=[r8]
-	;;
-	mov	ar.bspstore=r10
-	;;
-	mov	ar.rnat=r9
-	mov	ar.rsc=15
-	;; 
-2:	CALLSYS_NOERROR(sigreturn)	// call sigreturn()
-	alloc	r14=ar.pfs,0,0,1,0 ;;
-	mov	out0=ret0		// if that failed, get error code
-	CALLSYS_NOERROR(exit)		// and call exit() with it.
-XENTRY(esigcode)
-	END(sigcode)
-
-	.data
-	EXPORT(szsigcode)
-	.quad	esigcode-sigcode
-	.text
 
 /*
  * Create a default interrupt name table. The first entry (vector 0) is

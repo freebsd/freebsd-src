@@ -152,6 +152,9 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	} else if (vector == ipi_vector[IPI_AST]) {
 		asts[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
+	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
+		if (PCPU_GET(fpcurthread) != NULL)
+			ia64_highfp_save(PCPU_GET(fpcurthread));
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		rdvs[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));

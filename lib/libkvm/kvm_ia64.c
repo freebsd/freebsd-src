@@ -148,7 +148,7 @@ _kvm_initvtop(kvm_t *kd)
 	 * addresses/values.
 	 */
 
-	nlist[0].n_name = "kptdir";
+	nlist[0].n_name = "ia64_kptdir";
 	nlist[1].n_name = 0;
 
 	if (kvm_nlist(kd, nlist) != 0) {

@@ -18,6 +18,19 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
+contrib/ia64/libuwx/src/uwx_bstream.c		standard
+contrib/ia64/libuwx/src/uwx_context.c		standard
+contrib/ia64/libuwx/src/uwx_env.c		standard
+contrib/ia64/libuwx/src/uwx_scoreboard.c	standard
+#contrib/ia64/libuwx/src/uwx_self.c		standard
+#contrib/ia64/libuwx/src/uwx_self_context.s	standard
+contrib/ia64/libuwx/src/uwx_step.c		standard
+contrib/ia64/libuwx/src/uwx_str.c		standard
+contrib/ia64/libuwx/src/uwx_swap.c		standard
+contrib/ia64/libuwx/src/uwx_trace.c		standard
+#contrib/ia64/libuwx/src/uwx_ttrace.c		standard
+contrib/ia64/libuwx/src/uwx_uinfo.c		standard
+contrib/ia64/libuwx/src/uwx_utable.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto
 crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
 crypto/des/des_enc.c		optional	crypto
@@ -62,6 +75,7 @@ ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
 ia64/ia64/clock_if.m		standard
+ia64/ia64/context.s		standard
 ia64/ia64/critical.c		standard
 ia64/ia64/db_disasm.c		optional	ddb
 ia64/ia64/db_interface.c	optional	ddb
@@ -88,8 +102,8 @@ ia64/ia64/setjmp.s		standard
 ia64/ia64/ssc.c			optional	ski
 ia64/ia64/sscdisk.c		optional	ski
 ia64/ia64/support.s		standard
-ia64/ia64/swtch.s		standard
 ia64/ia64/sys_machdep.c		standard
+ia64/ia64/syscall.s		standard
 ia64/ia64/trap.c		standard
 ia64/ia64/unaligned.c		standard
 ia64/ia64/unwind.c		standard

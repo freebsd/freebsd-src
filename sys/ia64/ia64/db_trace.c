@@ -31,7 +31,6 @@
 #include <machine/inst.h>
 #include <machine/db_machdep.h>
 #include <machine/unwind.h>
-#include <machine/rse.h>
 #include <machine/vmparam.h>
 
 #include <ddb/ddb.h>
@@ -45,74 +44,61 @@ int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void db_md_list_watchpoints(void);
 
-extern char ia64_vector_table[], do_syscall[], do_syscall_end[];
-
 void
-db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
+db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
-	struct ia64_unwind_state *us;
+	struct unw_regstate rs;
+	const char *name;
+	db_expr_t offset;
+	uint64_t bsp, cfm, ip, pfs, reg;
+	c_db_sym_t sym;
+	int args, error, i;
 
-	if (count == -1)
-		count = 65535;
+	error = unw_create(&rs, &ddb_regs);
+	while (!error && count--) {
+		error = unw_get_cfm(&rs, &cfm);
+		if (!error)
+			error = unw_get_bsp(&rs, &bsp);
+		if (!error)
+			error = unw_get_ip(&rs, &ip);
+		if (error)
+			break;
 
-	if (!have_addr) {
-		us = ia64_create_unwind_state(&ddb_regs);
-	} else {
-		return;		/* XXX */
-	}
+		args = (cfm >> 7) & 0x7f;
+		if (args > 8)
+			args = 8;
 
-	if (!us) {
-		db_printf("db_stack_trace_cmd: can't create unwind state\n");
-		return;
-	}
-
-	while (count--) {
-		const char *	name;
-		db_expr_t	ip;
-		db_expr_t	offset;
-		c_db_sym_t	sym;
-		int		cfm, sof, sol, nargs, i;
-		u_int64_t	*bsp;
-		u_int64_t	*p, reg;
-
-		ip = ia64_unwind_state_get_ip(us);
-		cfm = ia64_unwind_state_get_cfm(us);
-		bsp = ia64_unwind_state_get_bsp(us);
-		sof = cfm & 0x7f;
-		sol = (cfm >> 7) & 0x7f;
+		error = unw_step(&rs);
+		if (!error) {
+			error = unw_get_cfm(&rs, &pfs);
+			if (!error) {
+				i = (pfs & 0x7f) - ((pfs >> 7) & 0x7f);
+				if (args > i)
+					args = i;
+			}
+		}
 
 		sym = db_search_symbol(ip, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
-
 		db_printf("%s(", name);
-
-		nargs = sof - sol;
-		if (nargs > 8)
-			nargs = 8;
-		if (bsp >= (u_int64_t *)IA64_RR_BASE(5)) {
-			for (i = 0; i < nargs; i++) {
-				p = ia64_rse_register_address(bsp, 32 + i);
-				db_read_bytes((vm_offset_t) p, sizeof(reg),
-					      (caddr_t) &reg);
+		if (bsp >= IA64_RR_BASE(5)) {
+			for (i = 0; i < args; i++) {
+				if ((bsp & 0x1ff) == 0x1f8)
+					bsp += 8;
+				db_read_bytes(bsp, sizeof(reg), (void*)&reg);
 				if (i > 0)
 					db_printf(", ");
 				db_printf("0x%lx", reg);
+				bsp += 8;
 			}
-		}
+		} else
+			db_printf("...");
 		db_printf(") at ");
 
 		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
-
-		if (ia64_unwind_state_previous_frame(us))
-			break;
-
-		ip = ia64_unwind_state_get_ip(us);
-		if (!ip)
-			break;
 	}
-
-	ia64_free_unwind_state(us);
 }
 
 void
@@ -143,4 +129,3 @@ db_md_list_watchpoints()
 {
 	return;
 }
-
