@@ -48,7 +48,6 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>
-#include <ufs/ufs/ufsmount.h>
 
 static void	create_termcap(void);
 static void	fixit_common(void);
