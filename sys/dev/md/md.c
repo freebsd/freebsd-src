@@ -828,6 +828,7 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		}
 	}
 	if (error)  {
+		uma_zdestroy(sc->uma);
 		mddestroy(sc, NULL);
 		return (error);
 	}
