@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 135 $
+ *              $Revision: 139 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -580,7 +580,7 @@ AcpiPsParseLoop (
                 Status = AcpiPsNextParseState (WalkState, Op, Status);
             }
 
-            AcpiPsPopScope (ParserState, &Op, 
+            AcpiPsPopScope (ParserState, &Op,
                 &WalkState->ArgTypes, &WalkState->ArgCount);
             ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped scope, Op=%p\n", Op));
         }
@@ -604,7 +604,7 @@ AcpiPsParseLoop (
         {
             /* Get the next opcode from the AML stream */
 
-            WalkState->AmlOffset = ACPI_PTR_DIFF (ParserState->Aml, 
+            WalkState->AmlOffset = ACPI_PTR_DIFF (ParserState->Aml,
                                                   ParserState->AmlStart);
             WalkState->Opcode    = AcpiPsPeekOpcode (ParserState);
 
@@ -835,7 +835,7 @@ AcpiPsParseLoop (
 
                 /* Op is not a constant or string, append each argument */
 
-                while (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) && 
+                while (GET_CURRENT_ARG_TYPE (WalkState->ArgTypes) &&
                         !WalkState->ArgCount)
                 {
                     WalkState->AmlOffset = ACPI_PTR_DIFF (ParserState->Aml,
@@ -922,7 +922,7 @@ AcpiPsParseLoop (
         {
             /* There are arguments (complex ones), push Op and prepare for argument */
 
-            Status = AcpiPsPushScope (ParserState, Op, 
+            Status = AcpiPsPushScope (ParserState, Op,
                         WalkState->ArgTypes, WalkState->ArgCount);
             if (ACPI_FAILURE (Status))
             {
@@ -1013,7 +1013,7 @@ CloseThisOp:
 
         case AE_CTRL_END:
 
-            AcpiPsPopScope (ParserState, &Op, 
+            AcpiPsPopScope (ParserState, &Op,
                 &WalkState->ArgTypes, &WalkState->ArgCount);
 
             if (Op)
@@ -1039,7 +1039,7 @@ CloseThisOp:
 
             while (!Op || (Op->Common.AmlOpcode != AML_WHILE_OP))
             {
-                AcpiPsPopScope (ParserState, &Op, 
+                AcpiPsPopScope (ParserState, &Op,
                     &WalkState->ArgTypes, &WalkState->ArgCount);
             }
 
@@ -1070,7 +1070,7 @@ CloseThisOp:
                 {
                     AcpiPsCompleteThisOp (WalkState, Op);
                 }
-                AcpiPsPopScope (ParserState, &Op, 
+                AcpiPsPopScope (ParserState, &Op,
                     &WalkState->ArgTypes, &WalkState->ArgCount);
 
             } while (Op);
@@ -1086,7 +1086,7 @@ CloseThisOp:
                 {
                     AcpiPsCompleteThisOp (WalkState, Op);
                 }
-                AcpiPsPopScope (ParserState, &Op, 
+                AcpiPsPopScope (ParserState, &Op,
                     &WalkState->ArgTypes, &WalkState->ArgCount);
 
             } while (Op);
@@ -1098,7 +1098,7 @@ CloseThisOp:
 #if 0
             if (Op == NULL)
             {
-                AcpiPsPopScope (ParserState, &Op, 
+                AcpiPsPopScope (ParserState, &Op,
                     &WalkState->ArgTypes, &WalkState->ArgCount);
             }
 #endif
@@ -1111,7 +1111,7 @@ CloseThisOp:
 
         if (AcpiPsHasCompletedScope (ParserState))
         {
-            AcpiPsPopScope (ParserState, &Op, 
+            AcpiPsPopScope (ParserState, &Op,
                 &WalkState->ArgTypes, &WalkState->ArgCount);
             ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped scope, Op=%p\n", Op));
         }
@@ -1160,7 +1160,7 @@ CloseThisOp:
                             AcpiPsCompleteThisOp (WalkState, Op);
                         }
 
-                        AcpiPsPopScope (ParserState, &Op, 
+                        AcpiPsPopScope (ParserState, &Op,
                             &WalkState->ArgTypes, &WalkState->ArgCount);
 
                     } while (Op);
@@ -1178,7 +1178,7 @@ CloseThisOp:
             AcpiPsCompleteThisOp (WalkState, Op);
         }
 
-        AcpiPsPopScope (ParserState, &Op, &WalkState->ArgTypes, 
+        AcpiPsPopScope (ParserState, &Op, &WalkState->ArgTypes,
             &WalkState->ArgCount);
 
     } while (Op);
@@ -1212,9 +1212,6 @@ AcpiPsParseAml (
     ACPI_THREAD_STATE       *Thread;
     ACPI_THREAD_STATE       *PrevWalkList = AcpiGbl_CurrentWalkList;
     ACPI_WALK_STATE         *PreviousWalkState;
-    ACPI_OPERAND_OBJECT     **CallerReturnDesc = WalkState->CallerReturnDesc;
-    ACPI_OPERAND_OBJECT     *EffectiveReturnDesc = NULL;
-
 
 
     ACPI_FUNCTION_TRACE ("PsParseAml");
@@ -1259,7 +1256,7 @@ AcpiPsParseAml (
         }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-            "Completed one call to walk loop, %s State=%p\n", 
+            "Completed one call to walk loop, %s State=%p\n",
             AcpiFormatException (Status), WalkState));
 
         if (Status == AE_CTRL_TRANSFER)
@@ -1283,23 +1280,13 @@ AcpiPsParseAml (
         }
         else if (Status != AE_OK)
         {
-            ACPI_REPORT_ERROR (("Method execution failed, %s\n", 
-                AcpiFormatException (Status)));
-            ACPI_DUMP_PATHNAME (WalkState->MethodNode, "Method pathname: ",
-                ACPI_LV_ERROR, _COMPONENT);
+            ACPI_REPORT_METHOD_ERROR ("Method execution failed",
+                WalkState->MethodNode, NULL, Status);
         }
 
         /* We are done with this walk, move on to the parent if any */
 
         WalkState = AcpiDsPopWalkState (Thread);
-        /* Save the last effective return value */
-
-        if (CallerReturnDesc && WalkState->ReturnDesc)
-        {
-            AcpiUtRemoveReference (EffectiveReturnDesc);
-            EffectiveReturnDesc = WalkState->ReturnDesc;
-            AcpiUtAddReference (EffectiveReturnDesc);
-        }
 
         /* Reset the current scope to the beginning of scope stack */
 
@@ -1342,7 +1329,7 @@ AcpiPsParseAml (
                  * If the method return value is not used by the parent,
                  * The object is deleted
                  */
-                Status = AcpiDsRestartControlMethod (WalkState, 
+                Status = AcpiDsRestartControlMethod (WalkState,
                             PreviousWalkState->ReturnDesc);
                 if (ACPI_SUCCESS (Status))
                 {
@@ -1363,17 +1350,6 @@ AcpiPsParseAml (
          */
         else if (PreviousWalkState->CallerReturnDesc)
         {
-            /*
-             * Some AML code expects return value w/o ReturnOp.
-             * Return the saved effective return value instead.
-             */
-
-            if (PreviousWalkState->ReturnDesc == NULL && EffectiveReturnDesc != NULL)
-            {
-                PreviousWalkState->ReturnDesc = EffectiveReturnDesc;
-                AcpiUtAddReference (PreviousWalkState->ReturnDesc);
-            }
-
             *(PreviousWalkState->CallerReturnDesc) = PreviousWalkState->ReturnDesc; /* NULL if no return value */
         }
         else if (PreviousWalkState->ReturnDesc)
@@ -1388,7 +1364,6 @@ AcpiPsParseAml (
 
     /* Normal exit */
 
-    AcpiUtRemoveReference (EffectiveReturnDesc);
     AcpiExReleaseAllMutexes (Thread);
     AcpiUtDeleteGenericState (ACPI_CAST_PTR (ACPI_GENERIC_STATE, Thread));
     AcpiGbl_CurrentWalkList = PrevWalkList;
