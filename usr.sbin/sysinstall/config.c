@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.112 1998/09/30 11:49:34 jkh Exp $
+ * $Id: config.c,v 1.113 1998/09/30 12:33:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -577,7 +577,10 @@ skip:
     if (!fp)
 	return;
     /* Add an entry for localhost */
-    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
+    if (dp)
+	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
+    else
+	fprintf(fp, "127.0.0.1\t\tlocalhost\n");
     /* Now the host entries, if applicable */
     if (cp && cp[0] != '0' && hp) {
 	char cp2[255];
