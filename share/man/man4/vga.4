@@ -71,27 +71,27 @@ option (see below) must be defined in the kernel configuration file.
 .Pp
 The
 .Nm vesa
-module can be dynamically loaded into the kernel using 
+module can be dynamically loaded into the kernel using
 .Xr kldload 8 .
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
-The following kernel configuration options 
-.Pq see Xr config 8 
+The following kernel configuration options
+.Pq see Xr config 8
 can be used to control the
 .Nm
 driver.
 These options provide compatibility with certain VGA cards.
 .Bl -tag -width MOUSE
 .It Dv VGA_ALT_SEQACCESS
-You may want to try this option if the mouse pointer is not drawn correctly 
-or the font does not seem to be loaded properly on the VGA card. 
+You may want to try this option if the mouse pointer is not drawn correctly
+or the font does not seem to be loaded properly on the VGA card.
 However, it may cause flicker on some systems.
 .It Dv VGA_SLOW_IOACCESS
 Older VGA cards may require this option for proper operation.
 It makes the driver perform byte-wide I/O to VGA registers and
 slow down a little.
 .It Dv VGA_WIDTH90
-This option enables 90 column modes: 90x25, 90x30, 90x43, 90x50, 90x60.  
+This option enables 90 column modes: 90x25, 90x30, 90x43, 90x50, 90x60.
 These modes are not always supported by the video card and the display.
 It is highly likely that LCD display cannot work with these modes.
 .El
@@ -100,7 +100,7 @@ The following options add optional features to the driver.
 .Bl -tag -width MOUSE
 .It Dv VESA
 Add VESA BIOS support to the driver.
-If the VGA card has the VESA BIOS extension 1.2 or later, 
+If the VGA card has the VESA BIOS extension 1.2 or later,
 this option will utilize the VESA BIOS service to switch to high
 resolution modes.
 .It Dv VESA_DEBUG=N
@@ -172,7 +172,7 @@ The
 .Nm
 driver was written by
 .An S\(/oren Schmidt Aq sos@FreeBSD.org
-and 
+and
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
 This manual page was written by
 .An Kazutaka Yokota .

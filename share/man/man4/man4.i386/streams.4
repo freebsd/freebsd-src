@@ -47,27 +47,27 @@ for userland applications.
 .Pp
 Internally,
 .Nm
-provides STREAMS handles by using socket creation kernel routines, and 
+provides STREAMS handles by using socket creation kernel routines, and
 adding state-tracking information to the socket to permit manipulation
 by STREAMS emulation code in
 .Xr svr4 4 .
-Hence, opening a stream device produces a result similar to what would be 
+Hence, opening a stream device produces a result similar to what would be
 obtained by calling
 .Xr socket 2 .
 .Pp
 Applications should never use this interface directly:  STREAMS
 emulation is only provided as a service to support ABI requirements in
-the SVR4 environment which 
+the SVR4 environment which
 .Xr svr4 4
-needs to present to client binaries.  
+needs to present to client binaries.
 .Sh BUGS
 This whole interface is a crude hack to produce STREAMS semantics
-through emulation over sockes.  
+through emulation over sockes.
 .Pp
-Programmers who hope to be able to use this interface to provide 
+Programmers who hope to be able to use this interface to provide
 SVR4 STREAMS services to BSD applications will be sorely disappointed.
 .Sh SEE ALSO
-.Xr svr4 4 
+.Xr svr4 4
 .Sh HISTORY
 System V Release 4 ABI support first appeared in
 .Fx 4.0 .

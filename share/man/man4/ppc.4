@@ -42,21 +42,21 @@ driver provides low level support to various parallel port chipsets for the
 .Xr ppbus 4
 system.
 .Pp
-During the probe phase, 
+During the probe phase,
 .Nm
 detects parallel port chipsets and initializes
 private data according to their operating mode: COMPATIBLE,
-NIBBLE, PS/2, EPP, ECP and other mixed modes. 
-If a mode is provided at startup through the 
+NIBBLE, PS/2, EPP, ECP and other mixed modes.
+If a mode is provided at startup through the
 .Va flags
-variable of the boot 
-interface, the operating mode of the chipset is forced according to 
+variable of the boot
+interface, the operating mode of the chipset is forced according to
 .Va flags
 and the hardware supported modes.
 .Pp
-During the attach phase, 
+During the attach phase,
 .Nm
-allocates a ppbus structure, initializes it and calls the ppbus 
+allocates a ppbus structure, initializes it and calls the ppbus
 attach function.
 .Ss Supported flags
 .Bl -item -offset indent
@@ -82,7 +82,7 @@ bit 7: disable FIFO detection
 .El
 .Ss Supported chipsets
 Some parallel port chipsets are explicitly supported:
-detection and initialisation code has been written according to 
+detection and initialisation code has been written according to
 their datasheets.
 .Bl -bullet -offset indent
 .It
@@ -97,14 +97,14 @@ SMC-like chipsets with mixed modes (see
 .El
 .Ss Adding support to a new chipset
 You may want to add support for the newest chipset your motherboard was
-sold with. 
-For the ISA bus, just retrieve the specs of the chipset and write the 
+sold with.
+For the ISA bus, just retrieve the specs of the chipset and write the
 corresponding
 .Fn ppc_mychipset_detect ""
 function.
 Then add an entry to the general purpose
 .Fn ppc_detect ""
-function. 
+function.
 .Pp
 Your
 .Fn ppc_mychipset_detect ""

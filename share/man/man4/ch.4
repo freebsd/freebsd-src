@@ -36,7 +36,7 @@
 .Sh DESCRIPTION
 The
 .Xr ch
-driver provides support for a 
+driver provides support for a
 .Em SCSI
 media changer.
 It allows many slots of media to be multiplexed between
@@ -47,18 +47,18 @@ the media.
 A SCSI adapter must also be separately configured into the system
 before a SCSI changer can be configured.
 .Pp
-As the SCSI adapter is probed during boot, the 
+As the SCSI adapter is probed during boot, the
 .Em SCSI
 bus is scanned for devices.
 Any devices found which answer as 'Changer'
-type devices will be 'attached' to the 
+type devices will be 'attached' to the
 .Nm
 driver.
 In
 .Fx
 releases prior to 2.1, the first found will be attached as
 .Em ch0
-and the next, 
+and the next,
 .Em ch1
 etc.
 Beginning in 2.1 it is possible to specify what ch unit a device should
@@ -90,7 +90,7 @@ Import/export element (portal).
 Data transfer element (drive).
 .El
 .Pp
-The following 
+The following
 .Xr ioctl 2
 calls apply to the changer.
 They are defined
@@ -174,7 +174,7 @@ ioctl to query the jukebox' status.
 Perform the \fBINITIALIZE ELEMENT STATUS\fR call on the media changer
 device.  This forces the media changer to update its internal status
 information with respect to loaded media.  It also scans any barcode
-labels provided that it has a label reader.  The 
+labels provided that it has a label reader.  The
 .Nm
 driver's status is not affected by this call.
 .It Dv CHIOGSTATUS
@@ -188,12 +188,12 @@ With each call to
 .Dv CHIOGSTATUS
 , the status of one or more elements of one type may be queried.
 .Pp
-The application passes a changer_element_status_request structure to the 
+The application passes a changer_element_status_request structure to the
 .Nm
 driver which contains the following fields:
 .Bd -literal -offset indent
 u_int                          cesr_element_type;
-u_int                          cesr_element_base; 
+u_int                          cesr_element_base;
 u_int                          cesr_element_count;
 u_int                          cesr_flags;
 struct changer_element_status *cesr_element_status;
@@ -204,7 +204,7 @@ base address and number of elements for which information is to be
 returned in the array of changer_element_status structures pointed to
 by the cesr_element_status field.  The application must allocate enough
 memory for cesr_element_count status structures (see below).
-The cesr_flags can optionally be set to 
+The cesr_flags can optionally be set to
 .Dv CESR_VOLTAGS
 to indicate that volume tag (bar code) information is to be read from
 the jukebox and returned.
@@ -260,7 +260,7 @@ The element supports medium import.
 Note that not all flags are valid for all element types.
 .El
 .Sh NOTES
-This version of the 
+This version of the
 .Nm
 driver has been tested with a DEC TZ875 (5 slot, one DLT drive) and a
 and a Breece Hill Q47 (60 slot, four DLT drives, barcode reader).
@@ -275,16 +275,16 @@ element handling, multiple picker operation and other things.
 .An -nosplit
 The
 .Nm
-driver was written by 
+driver was written by
 .An Jason R. Thorpe Aq thorpej@and.com
 for And Communications,
 .Pa http://www.and.com/ .
-It was added to the system by 
+It was added to the system by
 .An Stefan Grefen Aq grefen@goofy.zdv.uni-mainz.de
 who apparently had such a device.
 It was ported to CAM by
 .An Kenneth Merry Aq ken@FreeBSD.org .
-It was updated to support volume tags by 
+It was updated to support volume tags by
 .An Hans Huebner Aq hans@artcom.de .
 .Sh FILES
 .Bl -tag -width /dev/ch[0-9] -compact

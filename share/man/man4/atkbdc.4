@@ -47,7 +47,7 @@ This controller is required for the keyboard driver
 and the PS/2 pointing device driver
 .Nm psm .
 .Pp
-There can be only one 
+There can be only one
 .Nm
 device configured in the system.
 .Sh DRIVER CONFIGURATION
@@ -55,7 +55,7 @@ device configured in the system.
 The following kernel configuration options can be used to control the
 .Nm
 driver.
-They may be set in the kernel configuration file 
+They may be set in the kernel configuration file
 .Pq see Xr config 8 .
 .Bl -tag -width MOUSE
 .It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
@@ -76,16 +76,16 @@ wait before eventually giving up -- the driver will wait
 *
 .Fa Y
 msecs at most.
-If the drivers seem unable to detect 
+If the drivers seem unable to detect
 devices, you may want to increase these values.
 The default values are
-200 msec for 
+200 msec for
 .Fa X
 and 5
 for
 .Fa Y .
 .It Em KBDIO_DEBUG=N
-Sets the debug level to 
+Sets the debug level to
 .Fa N .
 The default value is zero, which suppresses all debugging output.
 .El

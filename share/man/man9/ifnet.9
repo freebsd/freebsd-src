@@ -12,7 +12,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -127,7 +127,7 @@ in the
 and
 .Li ifmultiaddr
 structures in
-.Aq Pa net/if.h 
+.Aq Pa net/if.h
 and
 .Aq Pa net/if_var.h
 and the functions named above and defined in
@@ -310,7 +310,7 @@ The output queue.  (Manipulated by driver.)
 .\".Pq Li "struct ifqueue *"
 .\"A pointer to the input queue for devices which do not support polling
 .\"well.  See the
-.\".Sx Polling 
+.\".Sx Polling
 .\"section, below.  (Initialized by driver.)
 .El
 .Pp
@@ -481,7 +481,7 @@ placement of data in
 .Li mbuf Ns s
 to attempt to ensure that there is always
 sufficient space to prepend a link-layer header without allocating an
-additional 
+additional
 .Li mbuf .
 .\" (See
 .\" .Xr mbuf 9 . )
@@ -732,7 +732,7 @@ A reference count of requests for this particular membership.
 Link the specified interface
 .Ar ifp
 into the list of network interfaces.  Also initialize the list of
-addresses on that interface, and create a link-layer 
+addresses on that interface, and create a link-layer
 .Li ifaddr
 structure to be the first element in that list.  (A pointer to
 this address structure is saved in the global array
@@ -757,7 +757,7 @@ routing socket.
 .It Fn ifpromisc
 Add or remove a promiscuous reference to
 .Ar ifp .
-If 
+If
 .Ar pswitch
 is true, add a reference;
 if it is false, remove a reference.  On reference count transitions
@@ -773,7 +773,7 @@ but for the all-multicasts
 .Pq Dv IFF_ALLMULTI
 flag instead of the promiscuous flag.
 .It Fn ifunit
-Return an 
+Return an
 .Li ifnet
 pointer for the interface named
 .Ar name .
@@ -781,7 +781,7 @@ pointer for the interface named
 Process the ioctl request
 .Ar cmd ,
 issued on socket
-.Ar so 
+.Ar so
 by process
 .Ar p ,
 with data parameter

@@ -158,13 +158,13 @@ and
 The first is the number of clients within the kernel which are
 using this vnode.  This count is maintained by
 .Xr vref 9 ,
-.Xr vrele 9 
+.Xr vrele 9
 and
 .Xr vput 9 .
 The second is the number of clients within the kernel who veto
 the recycling of this vnode.  This count is
 maintained by
-.Xr vhold 9 
+.Xr vhold 9
 and
 .Xr vdrop 9 .
 When both the
@@ -175,7 +175,7 @@ of a vnode reaches zero then the vnode will be put on the freelist
 and may be reused for another file, possibly in another filesystem.
 The transition to and from the freelist is handled by
 .Xr getnewvnode 9 ,
-.Xr vfree 9 
+.Xr vfree 9
 and
 .Xr vbusy 9 .
 The third is a count of the number of clients which are writing into
@@ -240,7 +240,7 @@ A FIFO (named pipe).  Advisory locking won't work on this.
 An old style bad sector map
 .El
 .Sh NOTES
-VFIFO uses the "struct fileops" from 
+VFIFO uses the "struct fileops" from
 .Pa /sys/kern/sys_pipe.c .
 VSOCK uses the "struct fileops" from
 .Pa /sys/kern/sys_socket.c .

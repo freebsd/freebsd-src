@@ -36,7 +36,7 @@
 .Dt ROUTE 4
 .Os
 .Sh NAME
-.Nm route 
+.Nm route
 .Nd kernel packet forwarding database
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -86,7 +86,7 @@ is requested to address the packet to the gateway listed in the routing entry
 (i.e. the packet is forwarded).
 .Pp
 When routing a packet,
-the kernel will attempt to find 
+the kernel will attempt to find
 the most specific route matching the destination.
 (If there are two different mask and value-under-the-mask pairs
 that match, the more specific is the one with more bits in the mask.
@@ -168,14 +168,14 @@ at the
 .Dv SOL_SOCKET
 level is to be turned off.
 A process may ignore all messages from the routing socket
-by doing a 
+by doing a
 .Xr shutdown 2
 system call for further input.
 .Pp
 If a route is in use when it is deleted,
 the routing entry will be marked down and removed from the routing table,
 but the resources associated with it will not
-be reclaimed until all references to it are released. 
+be reclaimed until all references to it are released.
 User processes can obtain information about the routing
 entry to a specific destination by using a
 .Dv RTM_GET

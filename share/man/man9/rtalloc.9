@@ -12,7 +12,7 @@
 .\" no representations about the suitability of this software for any
 .\" purpose.  It is provided "as is" without express or implied
 .\" warranty.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
 .\" ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
 .\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -99,8 +99,8 @@ Thus, this function can only be used for address families which are
 smaller than the default
 .Dq Li "struct sockaddr" .
 Before calling
-.Fn rtalloc 
-for the first time, callers should ensure that unused bits of the 
+.Fn rtalloc
+for the first time, callers should ensure that unused bits of the
 structure are set to zero.  On subsequent calls,
 .Fn rtalloc
 returns without performing a lookup if
@@ -121,7 +121,7 @@ and
 .Dv RTF_PRCLONING
 flags are undesired.  The
 .Ar ro
-argument is the same as 
+argument is the same as
 .Fn rtalloc ,
 but there is additionally a
 .Ar flags
@@ -199,5 +199,5 @@ and the
 .Fn rtalloc_ign
 function and the
 .Ar flags
-argument to 
+argument to
 .Fn rtalloc1 .

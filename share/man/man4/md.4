@@ -29,14 +29,14 @@ devices with
 .Cm malloc
 backing must share the malloc-per-bucket-quota.
 The exact size of this quota varies, in particular with the amount
-of RAM in the 
+of RAM in the
 system.
 The exact value can be determined with
 .Xr vmstat 8 .
 .It Cm preload
-A file loaded by 
+A file loaded by
 .Xr loader 8
-with type 
+with type
 .Sq md_image
 is used for backing store.
 For backwards compatibility the type

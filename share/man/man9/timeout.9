@@ -95,7 +95,7 @@ The return value from
 .Fn timeout
 is a
 .Ft struct callout_handle
-which can be used in conjunction with the 
+which can be used in conjunction with the
 .Fn untimeout
 function to request that a scheduled timeout be canceled.
 .Pp
@@ -156,10 +156,10 @@ Thus they are protected from re-entrancy.
 .Pp
 The functions
 .Fn callout_init ,
-.Fn callout_stop 
+.Fn callout_stop
 and
 .Fn callout_reset
-are low-level routines for clients who wish to allocate their own 
+are low-level routines for clients who wish to allocate their own
 callout structures.
 .Pp
 The function
@@ -187,7 +187,7 @@ The function
 first calls
 .Fn callout_stop
 to disestablish the callout, and then establishes a new callout in the
-same manner as 
+same manner as
 .Fn timeout .
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
@@ -206,7 +206,7 @@ was published by
 and
 .An A. Lauck
 in the paper
-.%T "Hashed and Hierarchical Timing Wheels: Data Structures for the Efficient Implementation of a Timer Facility" 
+.%T "Hashed and Hierarchical Timing Wheels: Data Structures for the Efficient Implementation of a Timer Facility"
 in the
 .%B "Proceedings of the 11th ACM Annual Symposium on Operating Systems Principles" .
 The current implementation replaces the long standing BSD linked list

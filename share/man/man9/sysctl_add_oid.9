@@ -308,7 +308,7 @@ This format is used as a hint by
 to apply proper data formatting for display purposes.
 Currently used format names are:
 .Dq N
-for node, 
+for node,
 .Dq A
 for
 .Li "char *" ,
@@ -463,12 +463,12 @@ int a_int;
 char *string = "dynamic sysctl";
  ...
 
-root1 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(/* tree top */), 
+root1 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(/* tree top */),
 	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new top level tree");
 oidp = SYSCTL_ADD_INT( NULL, SYSCTL_CHILDREN(root1),
 	OID_AUTO, "newint", CTLFLAG_RW, &a_int, 0, "new int leaf");
  ...
-root2 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(_debug), 
+root2 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(_debug),
 	OID_AUTO, "newtree", CTLFLAG_RW, 0, "new tree under debug");
 oidp = SYSCTL_ADD_STRING( NULL, SYSCTL_CHILDREN(root2),
 	OID_AUTO, "newstring", CTLFLAG_RD, string, 0, "new string leaf");

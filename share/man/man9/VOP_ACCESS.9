@@ -124,7 +124,7 @@ vop_access(struct vnode *vp, int mode, struct ucred *cred, struct proc *p)
 		mask |= S_IWGRP;
 	    return (((mode of vp) & mask) == mask ? 0 : EACCES);
 	}
-    
+
     /* Otherwise, check everyone else. */
     if (mode & VEXEC)
 	mask |= S_IXOTH;
