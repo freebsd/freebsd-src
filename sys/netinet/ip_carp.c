@@ -1844,9 +1844,8 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 				cif = (struct carp_if *)sc->sc_carpdev->if_carp;
 				TAILQ_FOREACH(vr, &cif->vhif_vrs, sc_list)
 					if (vr != sc &&
-					    vr->sc_vhid == carpr.carpr_vhid) {
-						return EINVAL;
-					}
+					    vr->sc_vhid == carpr.carpr_vhid)
+						return EEXIST;
 			}
 			sc->sc_vhid = carpr.carpr_vhid;
 			sc->sc_ac.ac_enaddr[0] = 0;
