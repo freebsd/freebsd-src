@@ -48,6 +48,7 @@
 #define MLX_CMD_STARTCHANNEL	0x12
 #define MLX_CMD_READ_CONFIG	0x4e
 #define MLX_CMD_DIRECT_CDB	0x04
+#define MLX_CMD_DEVICE_STATE	0x50
 
 #ifdef _KERNEL
 
@@ -481,6 +482,16 @@ struct mlx_dcdb
     u_int8_t	dcdb_sense[64];
     u_int8_t	dcdb_status;
     u_int8_t	res1;
+} __attribute__ ((packed));
+
+struct mlx_bbtable_entry 
+{
+    u_int32_t	bbt_block_number;
+    u_int8_t	bbt_extent;
+    u_int8_t	res1;
+    u_int8_t	bbt_entry_type;
+    u_int8_t	bbt_system_drive:5;
+    u_int8_t	res2:3;
 } __attribute__ ((packed));
 
 #ifdef _KERNEL
