@@ -72,22 +72,22 @@ as a macro
 .Xr cc 1
 option
 .Fl D Ns Dv NDEBUG ) .
-.Sh DIAGNOSTICS
-The following diagnostic message is written to
-.Em stderr
-if
-.Ar expression
-is false:
+.Sh EXAMPLES
+The assertion:
 .Bd -literal -offset indent
-"assertion (%s) failed: function %s(), file %s:%d\en", \e
-		    "expression", __func__, __FILE__, __LINE__);
+assert(1 == 0);
+.Ed
+.Pp
+generates a diagnostic message similar to the following:
+.Bd -literal -offset indent
+assertion (1 == 0) failed: function main(), file assertion.c:100
 .Ed
 .Sh SEE ALSO
 .Xr abort 3
 .Sh STANDARDS
 The
 .Fn assert
-macro confirms to
+macro conforms to
 .St -isoC-99 .
 .Sh HISTORY
 An
