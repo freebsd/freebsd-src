@@ -39,7 +39,7 @@ static void
 isahint_add_device(device_t parent, const char *name, int unit)
 {
 	device_t	child;
-	int		sensitive, start, count, t;
+	int		sensitive, start, count;
 	int		order;
 
 	/* device-specific flag overrides any wildcard */
@@ -75,9 +75,6 @@ isahint_add_device(device_t parent, const char *name, int unit)
 
 	if (resource_int_value(name, unit, "drq", &start) == 0 && start >= 0)
 		bus_set_resource(child, SYS_RES_DRQ, 0, start, 1);
-
-	if (resource_int_value(name, unit, "flags", &t) == 0)
-		device_set_flags(child, t);
 
 	if (resource_disabled(name, unit))
 		device_disable(child);
