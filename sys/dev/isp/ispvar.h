@@ -540,7 +540,8 @@ typedef struct ispsoftc {
 #define	ISP_HA_SCSI_1240	0x8
 #define	ISP_HA_SCSI_1080	0x9
 #define	ISP_HA_SCSI_1280	0xa
-#define	ISP_HA_SCSI_12160	0xb
+#define	ISP_HA_SCSI_10160	0xb
+#define	ISP_HA_SCSI_12160	0xc
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
@@ -551,12 +552,14 @@ typedef struct ispsoftc {
 #define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
 #define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
 #define	IS_1280(isp)	(isp->isp_type == ISP_HA_SCSI_1280)
+#define	IS_10160(isp)	(isp->isp_type == ISP_HA_SCSI_10160)
 #define	IS_12160(isp)	(isp->isp_type == ISP_HA_SCSI_12160)
 
 #define	IS_12X0(isp)	(IS_1240(isp) || IS_1280(isp))
+#define	IS_1X160(isp)	(IS_10160(isp) || IS_12160(isp))
 #define	IS_DUALBUS(isp)	(IS_12X0(isp) || IS_12160(isp))
-#define	IS_ULTRA2(isp)	(IS_1080(isp) || IS_1280(isp) || IS_12160(isp))
-#define	IS_ULTRA3(isp)	(IS_12160(isp))
+#define	IS_ULTRA2(isp)	(IS_1080(isp) || IS_1280(isp) || IS_1X160(isp))
+#define	IS_ULTRA3(isp)	(IS_1X160(isp))
 
 #define	IS_FC(isp)	((isp)->isp_type & ISP_HA_FC)
 #define	IS_2100(isp)	((isp)->isp_type == ISP_HA_FC_2100)
