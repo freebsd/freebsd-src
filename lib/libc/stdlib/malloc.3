@@ -75,7 +75,9 @@ bytes in length (see
 the returned memory will be page boundary aligned as well.
 If
 .Fn malloc
-fails, a NULL pointer is returned.
+fails, a
+.Dv NULL
+pointer is returned.
 .Pp
 Note that
 .Fn malloc
@@ -109,13 +111,17 @@ The contents of the memory are unchanged up to the lesser of the new and
 old sizes.
 If the new size is larger,
 the value of the newly allocated portion of the memory is undefined.
-If the requested memory cannot be allocated, NULL is returned and
+If the requested memory cannot be allocated,
+.Dv NULL
+is returned and
 the memory referenced by
 .Fa ptr
 is valid and unchanged.
 If
 .Fa ptr
-is NULL, the
+is
+.Dv NULL ,
+the
 .Fn realloc
 function behaves identically to
 .Fn malloc
@@ -137,7 +143,9 @@ function causes the allocated memory referenced by
 to be made available for future allocations.
 If
 .Fa ptr
-is NULL, no action occurs.
+is
+.Dv NULL ,
+no action occurs.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
 routines, various flags will be set or reset, which affect the
@@ -197,7 +205,9 @@ entries for
 for all operations.
 Consult the source for details on this option.
 .It V
-Attempting to allocate zero bytes will return a NULL pointer instead of
+Attempting to allocate zero bytes will return a
+.Dv NULL
+pointer instead of
 a valid pointer.
 (The default behavior is to make a minimal allocation and return a 
 pointer to it.)
@@ -268,7 +278,9 @@ The
 and
 .Fn calloc
 functions return a pointer to the allocated memory if successful; otherwise
-a NULL pointer is returned and
+a
+.Dv NULL
+pointer is returned and
 .Va errno
 is set to
 .Er ENOMEM .
@@ -280,7 +292,9 @@ and
 functions return a pointer, possibly identical to
 .Fa ptr ,
 to the allocated memory
-if successful; otherwise a NULL pointer is returned, in which case the
+if successful; otherwise a
+.Dv NULL
+pointer is returned, in which case the
 memory referenced by
 .Fa ptr
 is still available and intact.
@@ -464,5 +478,7 @@ function first appeared in
 The messages printed in case of problems provide no detail about the
 actual values.
 .Pp
-It can be argued that returning a null pointer when asked to
+It can be argued that returning a
+.Dv NULL
+pointer when asked to
 allocate zero bytes is a silly response to a silly question.
