@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.23 1995/07/13 08:48:26 davidg Exp $
+ * $Id: vm_map.c,v 1.24 1995/08/26 23:18:38 bde Exp $
  */
 
 /*
@@ -325,7 +325,7 @@ vm_map_entry_create(map)
 			if (m) {
 				int newentries;
 
-				newentries = (NBPG / sizeof(struct vm_map_entry));
+				newentries = (PAGE_SIZE / sizeof(struct vm_map_entry));
 				vm_page_wire(m);
 				m->flags &= ~PG_BUSY;
 				m->valid = VM_PAGE_BITS_ALL;
@@ -334,7 +334,7 @@ vm_map_entry_create(map)
 				m->flags |= PG_WRITEABLE|PG_MAPPED;
 
 				entry = (vm_map_entry_t) mapvm;
-				mapvm += NBPG;
+				mapvm += PAGE_SIZE;
 				--mapvmpgcnt;
 
 				for (i = 0; i < newentries; i++) {
