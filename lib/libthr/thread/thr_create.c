@@ -185,10 +185,12 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	 * Create the thread.
 	 *
 	 */
-	if (pattr->suspend == PTHREAD_FLAGS_SUSPENDED)
+	if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
+		new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
 		flags = THR_SUSPENDED;
-	else
+	} else {
 		flags = 0;
+	}
 
 	ret = thr_create(&new_thread->ctx, &new_thread->thr_id, flags);
 	    
