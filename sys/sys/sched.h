@@ -62,4 +62,18 @@ void	sched_add(struct kse *ke);
 void	sched_rem(struct kse *ke);
 struct kse *sched_choose(void);
 
+/*
+ * These procedures tell the process data structure allocation code how
+ * many bytes to actually allocate.
+ */
+int	sched_sizeof_kse(void);
+int	sched_sizeof_ksegrp(void);
+int	sched_sizeof_proc(void);
+int	sched_sizeof_thread(void);
+
+extern struct ke_sched *kse0_sched;
+extern struct kg_sched *ksegrp0_sched;
+extern struct p_sched *proc0_sched;
+extern struct td_sched *thread0_sched;
+
 #endif /* !_SYS_SCHED_H_ */
