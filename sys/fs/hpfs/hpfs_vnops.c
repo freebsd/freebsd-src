@@ -628,7 +628,7 @@ hpfs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct hpfsnode *hp = VTOHP(vp);
 
-	printf("ino 0x%x\n", hp->h_no);
+	printf("\tino 0x%x\n", hp->h_no);
 	return (0);
 }
 

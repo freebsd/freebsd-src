@@ -1797,7 +1797,7 @@ msdosfs_print(ap)
 {
 	struct denode *dep = VTODE(ap->a_vp);
 
-	printf("startcluster %lu, dircluster %lu, diroffset %lu, ",
+	printf("\tstartcluster %lu, dircluster %lu, diroffset %lu, ",
 	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
 	printf("on dev (%d, %d)\n", major(dep->de_dev), minor(dep->de_dev));
 	return (0);

@@ -73,7 +73,6 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) dead_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
 	{ &vop_poll_desc,		(vop_t *) dead_poll },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_read_desc,		(vop_t *) dead_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
 	{ &vop_readlink_desc,		(vop_t *) vop_ebadf },

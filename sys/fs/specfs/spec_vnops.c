@@ -534,7 +534,7 @@ spec_strategy(ap)
 	static int once;
 
 	if (!once) {
-		vprint("\nVOP_STRATEGY on VCHR\n", ap->a_vp);
+		vprint("VOP_STRATEGY on VCHR", ap->a_vp);
 		backtrace();
 		once++;
 	}
@@ -667,8 +667,7 @@ spec_print(ap)
 	} */ *ap;
 {
 
-	printf("tag %s, dev %s\n", ap->a_vp->v_tag,
-	       devtoname(ap->a_vp->v_rdev));
+	printf("\tdev %s\n", devtoname(ap->a_vp->v_rdev));
 	return (0);
 }
 

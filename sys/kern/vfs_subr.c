@@ -2864,10 +2864,8 @@ vprint(label, vp)
 		printf(" flags (%s),", &buf[1]);
 	lockmgr_printinfo(vp->v_vnlock);
 	printf("\n");
-	if (vp->v_data != NULL) {
-		printf("\t");
+	if (vp->v_data != NULL)
 		VOP_PRINT(vp);
-	}
 }
 
 #ifdef DDB
@@ -2892,7 +2890,7 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 		mtx_lock(&mntvnode_mtx);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (VOP_ISLOCKED(vp, NULL))
-				vprint((char *)0, vp);
+				vprint(NULL, vp);
 		}
 		mtx_unlock(&mntvnode_mtx);
 		mtx_lock(&mountlist_mtx);
@@ -3392,7 +3390,6 @@ vn_pollgone(vp)
 static int	sync_fsync(struct  vop_fsync_args *);
 static int	sync_inactive(struct  vop_inactive_args *);
 static int	sync_reclaim(struct  vop_reclaim_args *);
-static int	sync_print(struct vop_print_args *);
 
 static vop_t **sync_vnodeop_p;
 static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
@@ -3403,7 +3400,6 @@ static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,	(vop_t *) sync_reclaim },	/* reclaim */
 	{ &vop_lock_desc,	(vop_t *) vop_stdlock },	/* lock */
 	{ &vop_unlock_desc,	(vop_t *) vop_stdunlock },	/* unlock */
-	{ &vop_print_desc,	(vop_t *) sync_print },		/* print */
 	{ &vop_islocked_desc,	(vop_t *) vop_stdislocked },	/* islocked */
 	{ NULL, NULL }
 };
@@ -3424,7 +3420,7 @@ vfs_allocate_syncvnode(mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode("vfs", mp, sync_vnodeop_p, &vp)) != 0) {
+	if ((error = getnewvnode("syncer", mp, sync_vnodeop_p, &vp)) != 0) {
 		mp->mnt_syncer = NULL;
 		return (error);
 	}
@@ -3548,24 +3544,6 @@ sync_reclaim(ap)
 	VI_UNLOCK(vp);
 	splx(s);
 
-	return (0);
-}
-
-/*
- * Print out a syncer vnode.
- */
-static int
-sync_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	printf("syncer vnode");
-	if (vp->v_vnlock != NULL)
-		lockmgr_printinfo(vp->v_vnlock);
-	printf("\n");
 	return (0);
 }
 

@@ -1984,7 +1984,7 @@ ufs_print(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	printf("ino %lu, on dev %s (%d, %d)", (u_long)ip->i_number,
+	printf("\tino %lu, on dev %s (%d, %d)", (u_long)ip->i_number,
 	    devtoname(ip->i_dev), major(ip->i_dev), minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);

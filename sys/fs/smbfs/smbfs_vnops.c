@@ -846,7 +846,7 @@ int smbfs_print (ap)
 		printf("no smbnode data\n");
 		return (0);
 	}
-	printf("name = %s, parent = %p, opencount = %d\n", np->n_name,
+	printf("\tname = %s, parent = %p, opencount = %d\n", np->n_name,
 	    np->n_parent ? np->n_parent : NULL, np->n_opencount);
 	return (0);
 }
