@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -87,7 +88,7 @@ void	 die __P((int));
 void	 display __P((int));
 int	 dkinit __P((void));
 int	 dkcmd __P((char *, char *));
-void	 error __P((const char *fmt, ...));
+void	 error __P((const char *fmt, ...)) __printflike(1, 2);
 void	 fetchicmp __P((void));
 void	 fetchip __P((void));
 void	 fetchiostat __P((void));
