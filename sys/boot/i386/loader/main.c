@@ -144,6 +144,8 @@ main(void)
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
     
+    bios_getsmap();
+
     archsw.arch_autoload = i386_autoload;
     archsw.arch_getdev = i386_getdev;
     archsw.arch_copyin = i386_copyin;

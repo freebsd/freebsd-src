@@ -35,130 +35,7 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-static struct bootinfo	bi;
-
-/*
- * Return a 'boothowto' value corresponding to the kernel arguments in
- * (kargs) and any relevant environment variables.
- */
-static struct 
-{
-    const char	*ev;
-    int		mask;
-} howto_names[] = {
-    {"boot_askname",	RB_ASKNAME},
-    {"boot_cdrom",	RB_CDROM},
-    {"boot_userconfig",	RB_CONFIG},
-    {"boot_ddb",	RB_KDB},
-    {"boot_gdb",	RB_GDB},
-    {"boot_single",	RB_SINGLE},
-    {"boot_verbose",	RB_VERBOSE},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_serial",	RB_SERIAL},
-    {NULL,	0}
-};
-
-vm_offset_t	bi_copymodules(vm_offset_t addr);
-
-int
-bi_getboothowto(char *kargs)
-{
-    char	*cp;
-    int		howto;
-    int		active;
-    int		i;
-    
-    /* Parse kargs */
-    howto = 0;
-    if (kargs  != NULL) {
-	cp = kargs;
-	active = 0;
-	while (*cp != 0) {
-	    if (!active && (*cp == '-')) {
-		active = 1;
-	    } else if (active)
-		switch (*cp) {
-		case 'a':
-		    howto |= RB_ASKNAME;
-		    break;
-		case 'c':
-		    howto |= RB_CONFIG;
-		    break;
-		case 'C':
-		    howto |= RB_CDROM;
-		    break;
-		case 'd':
-		    howto |= RB_KDB;
-		    break;
-		case 'D':
-		    howto |= RB_MULTIPLE;
-		    break;
-		case 'm':
-		    howto |= RB_MUTE;
-		    break;
-		case 'g':
-		    howto |= RB_GDB;
-		    break;
-		case 'h':
-		    howto |= RB_SERIAL;
-		    break;
-		case 'p':
-		    howto |= RB_PAUSE;
-		    break;
-		case 'r':
-		    howto |= RB_DFLTROOT;
-		    break;
-		case 's':
-		    howto |= RB_SINGLE;
-		    break;
-		case 'v':
-		    howto |= RB_VERBOSE;
-		    break;
-		default:
-		    active = 0;
-		    break;
-		}
-	    cp++;
-	}
-    }
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
-    if (!strcmp(getenv("console"), "comconsole"))
-	howto |= RB_SERIAL;
-    if (!strcmp(getenv("console"), "nullconsole"))
-	howto |= RB_MUTE;
-    return(howto);
-}
-
-/*
- * Copy the environment into the load area starting at (addr).
- * Each variable is formatted as <name>=<value>, with a single nul
- * separating each variable, and a double nul terminating the environment.
- */
-vm_offset_t
-bi_copyenv(vm_offset_t addr)
-{
-    struct env_var	*ep;
-    
-    /* traverse the environment */
-    for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	i386_copyin(ep->ev_name, addr, strlen(ep->ev_name));
-	addr += strlen(ep->ev_name);
-	i386_copyin("=", addr, 1);
-	addr++;
-	if (ep->ev_value != NULL) {
-	    i386_copyin(ep->ev_value, addr, strlen(ep->ev_value));
-	    addr += strlen(ep->ev_value);
-	}
-	i386_copyin("", addr, 1);
-	addr++;
-    }
-    i386_copyin("", addr, 1);
-    addr++;
-    return(addr);
-}
+static struct bootinfo  bi;
 
 /*
  * Copy module-related data into the load area, where it can be
@@ -176,65 +53,71 @@ bi_copyenv(vm_offset_t addr)
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
-#define COPY32(v, a) {				\
+#define COPY32(v, a, c) {			\
     u_int32_t	x = (v);			\
-    i386_copyin(&x, a, sizeof(x));		\
+    if (c)					\
+	i386_copyin(&x, a, sizeof(x));		\
     a += sizeof(x);				\
 }
 
-#define MOD_STR(t, a, s) {			\
-    COPY32(t, a);				\
-    COPY32(strlen(s) + 1, a);			\
-    i386_copyin(s, a, strlen(s) + 1);		\
+#define MOD_STR(t, a, s, c) {			\
+    COPY32(t, a, c);				\
+    COPY32(strlen(s) + 1, a, c);		\
+    if (c)					\
+	i386_copyin(s, a, strlen(s) + 1);	\
     a += roundup(strlen(s) + 1, sizeof(u_long));\
 }
 
-#define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
-#define MOD_TYPE(a, s)	MOD_STR(MODINFO_TYPE, a, s)
-#define MOD_ARGS(a, s)	MOD_STR(MODINFO_ARGS, a, s)
+#define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
+#define MOD_TYPE(a, s, c)	MOD_STR(MODINFO_TYPE, a, s, c)
+#define MOD_ARGS(a, s, c)	MOD_STR(MODINFO_ARGS, a, s, c)
 
-#define MOD_VAR(t, a, s) {			\
-    COPY32(t, a);				\
-    COPY32(sizeof(s), a);			\
-    i386_copyin(&s, a, sizeof(s));		\
+#define MOD_VAR(t, a, s, c) {			\
+    COPY32(t, a, c);				\
+    COPY32(sizeof(s), a, c);			\
+    if (c)					\
+	i386_copyin(&s, a, sizeof(s));		\
     a += roundup(sizeof(s), sizeof(u_long));	\
 }
 
-#define MOD_ADDR(a, s)	MOD_VAR(MODINFO_ADDR, a, s)
-#define MOD_SIZE(a, s)	MOD_VAR(MODINFO_SIZE, a, s)
+#define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
+#define MOD_SIZE(a, s, c)	MOD_VAR(MODINFO_SIZE, a, s, c)
 
-#define MOD_METADATA(a, mm) {			\
-    COPY32(MODINFO_METADATA | mm->md_type, a);	\
-    COPY32(mm->md_size, a);			\
-    i386_copyin(mm->md_data, a, mm->md_size);	\
+#define MOD_METADATA(a, mm, c) {		\
+    COPY32(MODINFO_METADATA | mm->md_type, a, c); \
+    COPY32(mm->md_size, a, c);			\
+    if (c)					\
+	i386_copyin(mm->md_data, a, mm->md_size); \
     a += roundup(mm->md_size, sizeof(u_long));\
 }
 
-#define MOD_END(a) {				\
-    COPY32(MODINFO_END, a);			\
-    COPY32(0, a);				\
+#define MOD_END(a, c) {				\
+    COPY32(MODINFO_END, a, c);			\
+    COPY32(0, a, c);				\
 }
 
-vm_offset_t
-bi_copymodules(vm_offset_t addr)
+static vm_offset_t
+bi_copymodules32(vm_offset_t addr)
 {
     struct preloaded_file	*fp;
     struct file_metadata	*md;
+    int				c;
 
+    c = addr != 0;
     /* start with the first module on the list, should be the kernel */
     for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
 
-	MOD_NAME(addr, fp->f_name);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type);
+	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
+	MOD_TYPE(addr, fp->f_type, c);
 	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args);
-	MOD_ADDR(addr, fp->f_addr);
-	MOD_SIZE(addr, fp->f_size);
+	    MOD_ARGS(addr, fp->f_args, c);
+	MOD_ADDR(addr, fp->f_addr, c);
+	MOD_SIZE(addr, fp->f_size, c);
 	for (md = fp->f_metadata; md != NULL; md = md->md_next)
 	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md);
+		MOD_METADATA(addr, md, c);
     }
-    MOD_END(addr);
+    MOD_END(addr, c);
     return(addr);
 }
 
@@ -248,18 +131,22 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
+bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t *modulep, vm_offset_t *kernendp)
 {
-    struct preloaded_file	*xp;
+    struct preloaded_file	*xp, *kfp;
     struct i386_devdesc		*rootdev;
+    struct file_metadata	*md;
     vm_offset_t			addr;
+    vm_offset_t			kernend;
+    vm_offset_t			envp;
+    vm_offset_t			size;
+    vm_offset_t			ssym, esym;
     char			*rootdevname;
-    int				bootdevnr, i;
-    u_int			pad;
+    int				bootdevnr, i, howto;
     char			*kernelname;
     const char			*kernelpath;
 
-    *howtop = bi_getboothowto(args);
+    howto = bi_getboothowto(args);
 
     /* 
      * Allow the environment variable 'rootdev' to override the supplied device 
@@ -305,9 +192,60 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	return (EINVAL);
     }
     free(rootdev);
-    *bootdevp = bootdevnr;
+
+    /* find the last module in the chain */
+    addr = 0;
+    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+	if (addr < (xp->f_addr + xp->f_size))
+	    addr = xp->f_addr + xp->f_size;
+    }
+    /* pad to a page boundary */
+    addr = roundup(addr, PAGE_SIZE);
+
+    /* copy our environment */
+    envp = addr;
+    addr = bi_copyenv(addr);
+
+    /* pad to a page boundary */
+    addr = roundup(addr, PAGE_SIZE);
+
+    kfp = file_findfile(NULL, "elf64 kernel");
+    if (kfp == NULL)
+      kfp = file_findfile(NULL, "elf32 kernel");
+    if (kfp == NULL)
+	panic("can't find kernel file");
+    kernend = 0;	/* fill it in later */
+    file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
+    file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+    file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+    bios_addsmapdata(kfp);
+
+    /* Figure out the size and location of the metadata */
+    *modulep = addr;
+    size = bi_copymodules32(0);
+    kernend = roundup(addr + size, PAGE_SIZE);
+    *kernendp = kernend;
+
+    /* patch MODINFOMD_KERNEND */
+    md = file_findmetadata(kfp, MODINFOMD_KERNEND);
+    bcopy(&kernend, md->md_data, sizeof kernend);
+
+    /* copy module list and metadata */
+    (void)bi_copymodules32(addr);
+
+    ssym = esym = 0;
+    md = file_findmetadata(kfp, MODINFOMD_SSYM);
+    if (md != NULL)
+	ssym = *((vm_offset_t *)&(md->md_data));
+    md = file_findmetadata(kfp, MODINFOMD_ESYM);
+    if (md != NULL)
+	esym = *((vm_offset_t *)&(md->md_data));
+    if (ssym == 0 || esym == 0)
+	ssym = esym = 0;		/* sanity */
 
     /* legacy bootinfo structure */
+    kernelname = getenv("kernelname");
+    i386_getdev(NULL, kernelname, &kernelpath);
     bi.bi_version = BOOTINFO_VERSION;
     bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
     bi.bi_nfs_diskless = 0;		/* struct nfs_diskless * */
@@ -318,45 +256,16 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     bi.bi_memsizes_valid = 1;
     bi.bi_basemem = bios_basemem / 1024;
     bi.bi_extmem = bios_extmem / 1024;
-
-    /* find the last module in the chain */
-    addr = 0;
-    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-	if (addr < (xp->f_addr + xp->f_size))
-	    addr = xp->f_addr + xp->f_size;
-    }
-    /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
-
-    /* copy our environment */
-    bi.bi_envp = addr;
-    addr = bi_copyenv(addr);
-
-    /* pad to a page boundary */
-    pad = (u_int)addr & PAGE_MASK;
-    if (pad != 0) {
-	pad = PAGE_SIZE - pad;
-	addr += pad;
-    }
-    /* copy module list and metadata */
-    bi.bi_modulep = addr;
-    addr = bi_copymodules(addr);
-
-    /* all done copying stuff in, save end of loaded object space */
-    bi.bi_kernend = addr;
-
-    *howtop |= RB_BOOTINFO;		/* it's there now */
-
-    /*
-     * Get the kernel name, strip off any device prefix.
-     */
-    kernelname = getenv("kernelname");
-    i386_getdev(NULL, kernelname, &kernelpath);
+    bi.bi_envp = envp;
+    bi.bi_modulep = *modulep;
+    bi.bi_kernend = kernend;
     bi.bi_kernelname = VTOP(kernelpath);
+    bi.bi_symtab = ssym;       /* XXX this is only the primary kernel symtab */
+    bi.bi_esymtab = esym;
+
+    /* legacy boot arguments */
+    *howtop = howto | RB_BOOTINFO;
+    *bootdevp = bootdevnr;
     *bip = VTOP(&bi);
 
     return(0);

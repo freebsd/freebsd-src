@@ -38,9 +38,9 @@
 #include "libi386.h"
 #include "btxv86.h"
 
-static int	elf_exec(struct preloaded_file *amp);
+static int	elf32_exec(struct preloaded_file *amp);
 
-struct file_format i386_elf = { elf_loadfile, elf_exec };
+struct file_format i386_elf = { elf32_loadfile, elf32_exec };
 
 /*
  * There is an a.out kernel and one or more a.out modules loaded.  
@@ -48,41 +48,28 @@ struct file_format i386_elf = { elf_loadfile, elf_exec };
  * preparations as are required, and do so.
  */
 static int
-elf_exec(struct preloaded_file *fp)
+elf32_exec(struct preloaded_file *fp)
 {
     struct file_metadata	*md;
     Elf_Ehdr 			*ehdr;
-    vm_offset_t			entry, bootinfop;
+    vm_offset_t			entry, bootinfop, modulep, kernend;
     int				boothowto, err, bootdev;
-    struct bootinfo		*bi;
-    vm_offset_t			ssym, esym;
 
     if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
-    if ((err = bi_load(fp->f_args, &boothowto, &bootdev, &bootinfop)) != 0)
+    err = bi_load32(fp->f_args, &boothowto, &bootdev, &bootinfop, &modulep, &kernend);
+    if (err != 0)
 	return(err);
     entry = ehdr->e_entry & 0xffffff;
-
-    ssym = esym = 0;
-    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
-	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
-	esym = *((vm_offset_t *)&(md->md_data));
-    if (ssym == 0 || esym == 0)
-	ssym = esym = 0;		/* sanity */
-    bi = (struct bootinfo *)PTOV(bootinfop);
-    bi->bi_symtab = ssym;	/* XXX this is only the primary kernel symtab */
-    bi->bi_esymtab = esym;
-
 
 #ifdef DEBUG
     printf("Start @ 0x%lx ...\n", entry);
 #endif
 
     dev_cleanup();
-    __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
+    __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop, modulep, kernend);
 
     panic("exec returned");
 }
