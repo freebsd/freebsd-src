@@ -56,13 +56,11 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id$
+ *      $Id: poly_tan.c,v 1.8 1997/02/22 09:29:19 peter Exp $
  *
  */
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/reg_constant.h>
-#include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/control_w.h>
 
 

@@ -56,20 +56,21 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id$
+ *    $Id: fpu_etc.c,v 1.6 1997/02/22 09:29:06 peter Exp $
  *
  */
 
 #include <sys/param.h>
+#ifdef DEBUG
+#include <sys/systm.h>		/* for printf() in EXCEPTION() */
+#endif
 #include <sys/proc.h>
-#include <machine/cpu.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/fpu_system.h>
 #include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/status_w.h>
-#include <gnu/i386/fpemul/reg_constant.h>
 
 
 static void

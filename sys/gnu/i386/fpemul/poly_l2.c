@@ -56,14 +56,12 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: poly_l2.c,v 1.8 1997/02/22 09:29:17 peter Exp $
  *
  */
 
 
-#include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/reg_constant.h>
-#include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/control_w.h>
 
 
