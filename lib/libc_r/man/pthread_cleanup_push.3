@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Fd #include <pthread.h>
 .Ft void
-.Fn pthread_cleanup_push "void *(*cleanup_routine)(void *)" "void *arg"
+.Fn pthread_cleanup_push "void (*cleanup_routine)(void *)" "void *arg"
 .Sh DESCRIPTION
 The
 .Fn pthread_cleanup_push
