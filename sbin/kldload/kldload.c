@@ -47,8 +47,12 @@ int
 main(int argc, char** argv)
 {
     int c;
-    int verbose = 0;
+    int errors;
     int fileid;
+    int verbose;
+
+    errors = 0;
+    verbose = 0;
 
     while ((c = getopt(argc, argv, "v")) != -1)
 	switch (c) {
@@ -61,15 +65,19 @@ main(int argc, char** argv)
     argc -= optind;
     argv += optind;
 
-    if (argc != 1)
+    if (argc == 0)
 	usage();
 
-    fileid = kldload(argv[0]);
-    if (fileid < 0)
-	err(1, "can't load %s", argv[0]);
-    else
-	if (verbose)
-	    printf("Loaded %s, id=%d\n", argv[0], fileid);
+    while (argc-- != 0) {
+	fileid = kldload(argv[0]);
+	if (fileid < 0) {
+	    warn("can't load %s", argv[0]);
+	    errors++;
+	} else
+	    if (verbose)
+		printf("Loaded %s, id=%d\n", argv[0], fileid);
+	argv++;
+    }
 
-    return 0;
+    return errors ? 1 : 0;
 }
