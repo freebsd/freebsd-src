@@ -1395,7 +1395,7 @@ sccnprobe(struct consdev *cp)
 	return;
 
     /* initialize required fields */
-    cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLECTL);
+    sprintf(cp->cn_name, "consolectl");
 #endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
 
 #if __alpha__
@@ -1475,7 +1475,7 @@ sccnattach(void)
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
-    consdev.cn_dev = makedev(CDEV_MAJOR, 0);
+    sprintf(consdev.cn_name, "ttyv%r", 0);
     cnadd(&consdev);
 }
 
