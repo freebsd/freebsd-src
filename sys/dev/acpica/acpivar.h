@@ -72,7 +72,7 @@ struct acpi_softc {
     bus_dma_tag_t	acpi_waketag;
     bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
-    vm_offset_t		acpi_wakephys;
+    vm_paddr_t		acpi_wakephys;
 
     struct sysctl_ctx_list	 acpi_battery_sysctl_ctx;
     struct sysctl_oid		*acpi_battery_sysctl_tree;
