@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.2 1994/08/02 07:48:42 davidg Exp $
+ * $Id: ip_mroute.h,v 1.3 1994/08/21 05:27:32 paul Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -48,23 +48,24 @@
  *
  * Written by David Waitzman, BBN Labs, August 1988.
  * Modified by Steve Deering, Stanford, February 1989.
+ * Modified by Ajit Thyagarajan, PARC, August 1993.
+ * Modified by Ajit Thyagarajan, PARC, August 1994.
  *
- * MROUTING 1.0
+ * MROUTING 1.5
  */
 
 
 /*
  * DVMRP-specific setsockopt commands.
  */
-#define	DVMRP_INIT	100
-#define	DVMRP_DONE	101
-#define	DVMRP_ADD_VIF	102
-#define	DVMRP_DEL_VIF	103
-#define	DVMRP_ADD_LGRP	104
-#define	DVMRP_DEL_LGRP	105
-#define	DVMRP_ADD_MRT	106
-#define	DVMRP_DEL_MRT	107
+#define	DVMRP_INIT	100	/* initialize forwarder */
+#define	DVMRP_DONE	101	/* shut down forwarder */
+#define	DVMRP_ADD_VIF	102	/* create virtual interface */
+#define	DVMRP_DEL_VIF	103	/* delete virtual interface */
+#define DVMRP_ADD_MFC	104	/* insert forwarding cache entry */
+#define DVMRP_DEL_MFC	105	/* delete forwarding cache entry */
 
+#define GET_TIME(t)	microtime(&t)
 
 /*
  * Types and macros for handling bitmaps with one bit per virtual interface.
@@ -82,97 +83,172 @@ typedef u_short vifi_t;		/* type of a vif index */
 
 
 /*
- * Agument structure for DVMRP_ADD_VIF.
+ * Argument structure for DVMRP_ADD_VIF.
  * (DVMRP_DEL_VIF takes a single vifi_t argument.)
  */
 struct vifctl {
 	vifi_t	    vifc_vifi;	    	/* the index of the vif to be added */
 	u_char	    vifc_flags;     	/* VIFF_ flags defined below */
 	u_char	    vifc_threshold; 	/* min ttl required to forward on vif */
+	u_int	vifc_rate_limit; /* max tate */
 	struct	in_addr vifc_lcl_addr;	/* local interface address */
 	struct	in_addr vifc_rmt_addr;	/* remote address (tunnels only) */
 };
 
 #define	VIFF_TUNNEL	0x1		/* vif represents a tunnel end-point */
-
-
-/*
- * Argument structure for DVMRP_ADD_LGRP and DVMRP_DEL_LGRP.
- */
-struct lgrplctl {
-	vifi_t	lgc_vifi;
-	struct	in_addr lgc_gaddr;
-};
-
+#define VIFF_SRCRT	0x2	/* tunnel uses IP source routing */
 
 /*
- * Argument structure for DVMRP_ADD_MRT.
- * (DVMRP_DEL_MRT takes a single struct in_addr argument, containing origin.)
+ * Argument structure for DVMRP_ADD_MFC
+ * (mfcc_tos to be added at a future point)
  */
-struct mrtctl {
-	struct	in_addr mrtc_origin;	/* subnet origin of multicasts */
-	struct	in_addr mrtc_originmask; /* subnet mask for origin */
-	vifi_t	mrtc_parent;    	/* incoming vif */
-	vifbitmap_t mrtc_children;	/* outgoing children vifs */
-	vifbitmap_t mrtc_leaves;	/* subset of outgoing children vifs */
-};
-
-
-#ifdef KERNEL
-
-/*
- * The kernel's virtual-interface structure.
- */
-struct vif {
-	u_char	v_flags;		/* VIFF_ flags defined above */
-	u_char	v_threshold;		/* min ttl required to forward on vif */
-	struct	in_addr v_lcl_addr;	/* local interface address */
-	struct	in_addr v_rmt_addr;	/* remote address (tunnels only) */
-	struct	ifnet  *v_ifp;		/* pointer to interface */
-	struct	in_addr *v_lcl_grps;	/* list of local grps (phyints only) */
-	int	v_lcl_grps_max;		/* malloc'ed number of v_lcl_grps */
-	int	v_lcl_grps_n;		/* used number of v_lcl_grps */
-	u_long	v_cached_group;		/* last grp looked-up (phyints only) */
-	int	v_cached_result;	/* last look-up result (phyints only) */
+struct mfcctl {
+    struct in_addr  mfcc_origin;		/* subnet origin of mcasts   */
+    struct in_addr  mfcc_mcastgrp; 		/* multicast group associated*/
+    struct in_addr  mfcc_originmask;		/* subnet mask for origin    */
+    vifi_t	    mfcc_parent;   		/* incoming vif              */
+    u_char	    mfcc_ttls[MAXVIFS]; 	/* forwarding ttls on vifs   */
 };
 
 /*
- * The kernel's multicast route structure.
+ * Argument structure for DVMRP_DEL_MFC
  */
-struct mrt {
-	struct	in_addr mrt_origin;	/* subnet origin of multicasts */
-	struct	in_addr mrt_originmask;	/* subnet mask for origin */
-	vifi_t	mrt_parent;    		/* incoming vif */
-	vifbitmap_t mrt_children;	/* outgoing children vifs */
-	vifbitmap_t mrt_leaves;		/* subset of outgoing children vifs */
-	struct	mrt *mrt_next;		/* forward link */
+struct delmfcctl {
+    struct in_addr  mfcc_origin;    /* subnet origin of multicasts      */
+    struct in_addr  mfcc_mcastgrp;  /* multicast group assoc. w/ origin */
 };
 
+/*
+ * Argument structure used by RSVP daemon to get vif information
+ */
+struct vif_req {
+    u_char         v_flags;         /* VIFF_ flags defined above           */
+    u_char         v_threshold;     /* min ttl required to forward on vif  */
+    struct in_addr v_lcl_addr;      /* local interface address             */
+    struct in_addr v_rmt_addr; 
+    char           v_if_name[IFNAMSIZ];  /* if name */
+};
 
-#define	MRTHASHSIZ	64
-#if (MRTHASHSIZ & (MRTHASHSIZ - 1)) == 0	  /* from sys:route.h */
-#define	MRTHASHMOD(h)	((h) & (MRTHASHSIZ - 1))
-#else
-#define	MRTHASHMOD(h)	((h) % MRTHASHSIZ)
-#endif
+struct vif_conf {
+    u_int          vifc_len;
+    u_int          vifc_num;
+    struct vif_req *vifc_req;
+};
 
 /*
  * The kernel's multicast routing statistics.
  */
 struct mrtstat {
-	u_long	mrts_mrt_lookups;	/* # multicast route lookups */
-	u_long	mrts_mrt_misses;	/* # multicast route cache misses */
-	u_long	mrts_grp_lookups;	/* # group address lookups */
-	u_long	mrts_grp_misses;	/* # group address cache misses */
-	u_long	mrts_no_route;		/* no route for packet's origin */
-	u_long	mrts_bad_tunnel;	/* malformed tunnel options */
-	u_long	mrts_cant_tunnel;	/* no room for tunnel options */
+    u_long	mrts_mfc_lookups;	/* # forw. cache hash table hits   */
+    u_long	mrts_mfc_misses;	/* # forw. cache hash table misses */
+    u_long	mrts_upcalls;		/* # calls to mrouted              */
+    u_long	mrts_no_route;		/* no route for packet's origin    */
+    u_long	mrts_bad_tunnel;	/* malformed tunnel options        */
+    u_long	mrts_cant_tunnel;	/* no room for tunnel options      */
+    u_long	mrts_wrong_if;		/* arrived on wrong interface	   */
+    u_long	mrts_upq_ovflw;		/* upcall Q overflow		   */
+    u_long	mrts_cache_cleanups;	/* # entries with no upcalls 	   */
+    u_long  	mrts_drop_sel;     	/* pkts dropped selectively        */
+    u_long  	mrts_q_overflow;    	/* pkts dropped - Q overflow       */
+    u_long  	mrts_pkt2large;     	/* pkts dropped - size > BKT SIZE  */
 };
 
+/*
+ * Argument structure used by mrouted to get src-grp pkt counts
+ */
+struct sioc_sg_req {
+    struct in_addr src;
+    struct in_addr grp;
+    u_long count;
+};
+
+/*
+ * Argument structure used by mrouted to get vif pkt counts
+ */
+struct sioc_vif_req {
+    vifi_t vifi;
+    u_long icount;
+    u_long ocount;
+};
+    
+
+#ifdef KERNEL
+
+struct vif {
+    u_char   		v_flags;     	/* VIFF_ flags defined above         */
+    u_char   		v_threshold;	/* min ttl required to forward on vif*/
+    u_int      		v_rate_limit; 	/* max rate			     */
+    struct tbf 	       *v_tbf;       	/* token bucket structure at intf.   */
+    struct in_addr 	v_lcl_addr;   	/* local interface address           */
+    struct in_addr 	v_rmt_addr;   	/* remote address (tunnels only)     */
+    struct ifnet       *v_ifp;	     	/* pointer to interface              */
+    u_long		v_pkt_in;	/* # pkts in on interface            */
+    u_long		v_pkt_out;	/* # pkts out on interface           */
+};
+
+/*
+ * The kernel's multicast forwarding cache entry structure 
+ * (A field for the type of service (mfc_tos) is to be added 
+ * at a future point)
+ */
+struct mfc {
+    struct in_addr  mfc_origin;	 		/* subnet origin of mcasts   */
+    struct in_addr  mfc_mcastgrp;  		/* multicast group associated*/
+    struct in_addr  mfc_originmask;		/* subnet mask for origin    */
+    vifi_t	    mfc_parent; 		/* incoming vif              */
+    u_char	    mfc_ttls[MAXVIFS]; 		/* forwarding ttls on vifs   */
+    u_long	    mfc_pkt_cnt;		/* pkt count for src-grp     */
+};
+
+/*
+ * Argument structure used for pkt info. while upcall is made
+ */
+struct rtdetq {
+    struct mbuf 	*m;
+    struct ifnet	*ifp;
+    u_long		tunnel_src;
+    struct ip_moptions *imo;
+};
+
+#define MFCTBLSIZ	256
+#if (MFCTBLSIZ & (MFCTBLSIZ - 1)) == 0	  /* from sys:route.h */
+#define MFCHASHMOD(h)	((h) & (MFCTBLSIZ - 1))
+#else
+#define MFCHASHMOD(h)	((h) % MFCTBLSIZ)
+#endif
+
+#define MAX_UPQ	4		/* max. no of pkts in upcall Q */
+
+/*
+ * Token Bucket filter code 
+ */
+#define MAX_BKT_SIZE    10000             /* 10K bytes size 		*/
+#define MAXQSIZE        10                /* max # of pkts in queue 	*/
+
+/*
+ * queue structure at each vif
+ */
+struct pkt_queue 
+{
+    u_long pkt_len;               /* length of packet in queue 	*/
+    struct mbuf *pkt_m;           /* pointer to packet mbuf	*/
+    struct ip  *pkt_ip;           /* pointer to ip header	*/
+    struct ip_moptions *pkt_imo; /* IP multicast options assoc. with pkt */
+};
+
+/*
+ * the token bucket filter at each vif
+ */
+struct tbf
+{
+    u_long last_pkt_t;	/* arr. time of last pkt 	*/
+    u_long n_tok;      	/* no of tokens in bucket 	*/
+    u_long q_len;    	/* length of queue at this vif	*/
+};
 
 int	ip_mrouter_cmd __P((int, struct socket *, struct mbuf *));
 int	ip_mrouter_done __P((void));
 
 #endif /* KERNEL */
 
-#endif
+#endif /* _NETINET_IP_MROUTE_H_ */

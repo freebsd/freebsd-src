@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * $Id: route.c,v 1.3 1994/08/02 07:46:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -273,7 +273,12 @@ rtioctl(req, data, p)
 	caddr_t data;
 	struct proc *p;
 {
+#ifdef MULTICAST
+	/* Multicast goop, grrr... */
+	return mrt_ioctl(cmd, data, p);
+#else
 	return (EOPNOTSUPP);
+#endif
 }
 
 struct ifaddr *

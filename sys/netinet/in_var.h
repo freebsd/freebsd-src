@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.4 1994/08/18 22:35:29 wollman Exp $
+ * $Id: in_var.h,v 1.5 1994/08/21 05:27:30 paul Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -115,6 +115,18 @@ extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 #endif
 
 /*
+ * This information should be part of the ifnet structure but we don't wish
+ * to change that - as it might break a number of things
+ */
+
+struct router_info {
+	struct ifnet *ifp;
+	int    type; /* type of router which is querier on this interface */
+	int    time; /* # of slow timeouts since last old query */
+	struct router_info *next;
+};
+
+/*
  * Internet multicast address structure.  There is one of these for each IP
  * multicast group to which this host belongs on a given network interface.
  * They are kept in a linked list, rooted in the interface's in_ifaddr
@@ -127,6 +139,8 @@ struct in_multi {
 	u_int	inm_refcount;		/* no. membership claims by sockets */
 	u_int	inm_timer;		/* IGMP membership report timer */
 	struct	in_multi *inm_next;	/* ptr to next multicast address */
+	u_int	inm_state;		/*  state of the membership */
+	struct	router_info *inm_rti;	/* router info*/
 };
 
 #ifdef KERNEL
