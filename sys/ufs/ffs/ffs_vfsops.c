@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.45 1997/02/22 09:47:08 peter Exp $
+ * $Id: ffs_vfsops.c,v 1.46 1997/03/09 06:00:44 mpp Exp $
  */
 
 #include "opt_quota.h"
@@ -520,7 +520,7 @@ ffs_mountfs(devvp, mp, p)
 
 	bp = NULL;
 	ump = NULL;
-	if (error = bread(devvp, (ufs_daddr_t)(SBOFF/size), SBSIZE, cred, &bp))
+	if (error = bread(devvp, SBLOCK, SBSIZE, cred, &bp))
 		goto out;
 	fs = (struct fs *)bp->b_data;
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
