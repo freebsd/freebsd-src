@@ -682,6 +682,10 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
+# Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+device		pbio
+hint.pbio.0.at="isa"
+hint.pbio.0.port="0x360"
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
