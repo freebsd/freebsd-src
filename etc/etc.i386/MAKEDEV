@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.74 1995/02/27 18:54:27 ache Exp $
+#	$Id: MAKEDEV,v 1.75 1995/03/02 04:11:47 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -306,92 +306,78 @@ ft*)
 	umask 77
 	;;
 
-
-sd*|vn*|wd*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
+# Individual slices.
+sd*s*|vn*s*|wd*s*)
+	umask 37
 	case $i in
-	sd*) name=sd; blk=4;  chr=13;;
-	wd*) name=wd; blk=0;  chr=3;;
-	vn*) name=vn; blk=15; chr=43;;
+	sd*s*) name=sd; blk=4;  chr=13;;
+	wd*s*) name=wd; blk=0;  chr=3;;
+	vn*s*) name=vn; blk=15; chr=43;;
 	esac
-	rm -f $name$unit? r$name$unit?
+	unit=`expr $i : '..\([0-9]*\)s'`
+	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
+	part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
 	case $unit in
-	0|1|2|3|4|5|6)
-		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
-		mknod ${name}${unit}b	b $blk `expr $unit '*' 8 + 1`
-		mknod ${name}${unit}c	b $blk `expr $unit '*' 8 + 2`
-		mknod ${name}${unit}d	b $blk `expr $unit '*' 8 + 3`
-		mknod ${name}${unit}e	b $blk `expr $unit '*' 8 + 4`
-		mknod ${name}${unit}f	b $blk `expr $unit '*' 8 + 5`
-		mknod ${name}${unit}g	b $blk `expr $unit '*' 8 + 6`
-		mknod ${name}${unit}h	b $blk `expr $unit '*' 8 + 7`
-		case $i in
-		wd*)
-		mknod ${name}${unit}i	b $blk `expr $unit '*' 8 + 64`
-		mknod ${name}${unit}j	b $blk `expr $unit '*' 8 + 65`
-		mknod ${name}${unit}k	b $blk `expr $unit '*' 8 + 66`
-		mknod ${name}${unit}l	b $blk `expr $unit '*' 8 + 67`
-		mknod ${name}${unit}m	b $blk `expr $unit '*' 8 + 68`
+	[0-9]|[1-2][0-9]|30|31)
+		case $slice in
+		[0-9]|[1-2][0-9]|30)
+			oldslice=$slice
+			slice=$(($slice+1))
+			slicename=`dkitos $slice`
+			rm -f  $name$unit$slicename* r$name$unit$slicename*
+			minor=`dkminor 0 $unit $slice $dkrawpart`
+			mknod  $name$unit$slicename b $blk $minor
+			mknod r$name$unit$slicename c $chr $minor
+			case $part in
+			[a-h])
+				case $oldslice in
+				0) slice=$oldslice ;;
+				esac
+				for part in 0 1 2 3 4 5 6 7
+				do
+					minor=`dkminor 0 $unit $slice $part`
+					partname=`dkitop $part`
+					mknod  $name$unit$slicename$partname \
+					      b $blk $minor
+					mknod r$name$unit$slicename$partname \
+					      c $chr $minor
+				done
+				;;
+			"")
+				;;
+			*)
+				echo bad partition for disk in: $i
+				;;
+			esac
+			chgrp operator $name$unit$slicename* \
+				      r$name$unit$slicename*
+			;;
+		*)
+			echo bad slice for disk in: $i
+			;;
 		esac
-		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
-		mknod r${name}${unit}b	c $chr `expr $unit '*' 8 + 1`
-		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
-		mknod r${name}${unit}d	c $chr `expr $unit '*' 8 + 3`
-		mknod r${name}${unit}e	c $chr `expr $unit '*' 8 + 4`
-		mknod r${name}${unit}f	c $chr `expr $unit '*' 8 + 5`
-		mknod r${name}${unit}g	c $chr `expr $unit '*' 8 + 6`
-		mknod r${name}${unit}h	c $chr `expr $unit '*' 8 + 7`
-		case $i in
-		wd*)
-		mknod r${name}${unit}i	c $chr `expr $unit '*' 8 + 64`
-		mknod r${name}${unit}j	c $chr `expr $unit '*' 8 + 65`
-		mknod r${name}${unit}k	c $chr `expr $unit '*' 8 + 66`
-		mknod r${name}${unit}l	c $chr `expr $unit '*' 8 + 67`
-		mknod r${name}${unit}m	c $chr `expr $unit '*' 8 + 68`
-		esac
-		chgrp operator ${name}${unit}[a-m] r${name}${unit}[a-m]
-		chmod 640 ${name}${unit}[a-m] r${name}${unit}[a-m]
 		;;
 	*)
-		echo bad unit for disk in: $i
+		echo bad unit for disk in: $i "(unit=$unit, slice=$slice, part=$part)"
 		;;
 	esac
 	umask 77
 	;;
 
-# Sliced disks.
-ssd*|svn*|swd*)
+sd*|vn*|wd*)
 	umask 37
 	case $i in
-	ssd*) name=sd; blk=4;  chr=13;;
-	swd*) name=wd; blk=0;  chr=3;;
-	svn*) name=vn; blk=15; chr=43;;
+	sd*) name=sd; blk=4;  chr=13;;
+	wd*) name=wd; blk=0;  chr=3;;
+	vn*) name=vn; blk=15; chr=43;;
 	esac
-	unit=`expr $i : '...\(.*\)'`
-	rm -f $name$unit* r$name$unit*
+	unit=`expr $i : '..\(.*\)'`
 	case $unit in
-	0|1|2|3|4|5|6)
-		for slice in $dkcompatslice
+	[0-9]|[1-2][0-9]|30|31)
+		for slicepartname in s0h s1 s2 s3 s4
 		do
-			for part in 0 1 2 3 4 5 6 7
-			do
-				minor=`dkminor 0 $unit $slice $part`
-				slicename=`dkitos $slice`
-				partname=`dkitop $part`
-				mknod  ${name}${unit}${slicename}${partname} \
-				      b $blk $minor
-				mknod r${name}${unit}${slicename}${partname} \
-				      c $chr $minor
-			done
+			sh MAKEDEV $name$unit$slicepartname
 		done
-		for slice in $dkrawslice 2 3 4 5
-		do
-			minor=`dkminor 0 $unit $slice $dkrawpart`
-			slicename=`dkitos $slice`
-			mknod  ${name}${unit}${slicename} b $blk $minor
-			mknod r${name}${unit}${slicename} c $chr $minor
-		done
-		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
 	*)
 		echo bad unit for disk in: $i
