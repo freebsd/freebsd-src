@@ -650,8 +650,6 @@ mdnew(int unit)
 	}
 	if (unit == -1)
 		unit = max + 1;
-	if (unit > 255)
-		return (NULL);
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
