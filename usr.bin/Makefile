@@ -231,7 +231,7 @@ _truss=		truss
 .endif
 
 .if !defined(NOATM)
-#_atm=		atm
+_atm=		atm
 .endif
 
 .if !defined(NO_BIND) && !defined(NO_BIND_UTILS)
