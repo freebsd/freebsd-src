@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.13 1997/06/09 03:27:14 brian Exp $
+ * $Id: ccp.c,v 1.14 1997/08/20 23:47:40 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -34,9 +34,9 @@
 struct ccpstate CcpInfo;
 
 static void CcpSendConfigReq(struct fsm *);
-static void CcpSendTerminateReq(struct fsm *fp);
-static void CcpSendTerminateAck(struct fsm *fp);
-static void CcpDecodeConfig(u_char *cp, int flen, int mode);
+static void CcpSendTerminateReq(struct fsm * fp);
+static void CcpSendTerminateAck(struct fsm * fp);
+static void CcpDecodeConfig(u_char * cp, int flen, int mode);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
@@ -53,8 +53,8 @@ struct fsm CcpFsm = {
   ST_INITIAL,
   0, 0, 0,
   0,
-  { 0, 0, 0, NULL, NULL, NULL },
-  { 0, 0, 0, NULL, NULL, NULL },
+  {0, 0, 0, NULL, NULL, NULL},
+  {0, 0, 0, NULL, NULL, NULL},
   LogCCP,
 
   CcpLayerUp,
@@ -69,12 +69,12 @@ struct fsm CcpFsm = {
 };
 
 static char const *cftypes[] = {
-/*  0 */  "OUI",    "PRED1", "PRED2", "PUDDLE",
-/*  4 */  "???",    "???",   "???",   "???",
-/*  8 */  "???",    "???",   "???",   "???",
-/* 12 */  "???",    "???",   "???",   "???",
-/* 16 */  "HWPPC",  "STAC",  "MSPPC", "GAND",
-/* 20 */  "V42BIS", "BSD",
+   /*  0 */ "OUI", "PRED1", "PRED2", "PUDDLE",
+   /*  4 */ "???", "???", "???", "???",
+   /*  8 */ "???", "???", "???", "???",
+   /* 12 */ "???", "???", "???", "???",
+   /* 16 */ "HWPPC", "STAC", "MSPPC", "GAND",
+   /* 20 */ "V42BIS", "BSD",
 };
 
 int
@@ -106,16 +106,14 @@ CcpInit()
 }
 
 static void
-CcpInitRestartCounter(fp)
-struct fsm *fp;
+CcpInitRestartCounter(struct fsm * fp)
 {
   fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
 
 static void
-CcpSendConfigReq(fp)
-struct fsm *fp;
+CcpSendConfigReq(struct fsm * fp)
 {
   u_char *cp;
   struct ccpstate *icp = &CcpInfo;
@@ -123,59 +121,53 @@ struct fsm *fp;
   cp = ReqBuff;
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
   if (icp->want_proto && !REJECTED(icp, TY_PRED1)) {
-    *cp++ = TY_PRED1; *cp++ = 2;
+    *cp++ = TY_PRED1;
+    *cp++ = 2;
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
 
 void
-CcpSendResetReq(fp)
-struct fsm *fp;
+CcpSendResetReq(struct fsm * fp)
 {
-  Pred1Init(1);		/* Initialize Input part */
+  Pred1Init(1);			/* Initialize Input part */
   LogPrintf(LogCCP, "CcpSendResetReq\n");
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
 static void
-CcpSendTerminateReq(fp)
-struct fsm *fp;
+CcpSendTerminateReq(struct fsm * fp)
 {
   /* XXX: No code yet */
 }
 
 static void
-CcpSendTerminateAck(fp)
-struct fsm *fp;
+CcpSendTerminateAck(struct fsm * fp)
 {
   LogPrintf(LogCCP, "CcpSendTerminateAck\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
 void
-CcpRecvResetReq(fp)
-struct fsm *fp;
+CcpRecvResetReq(struct fsm * fp)
 {
-  Pred1Init(2);		/* Initialize Output part */
+  Pred1Init(2);			/* Initialize Output part */
 }
 
 static void
-CcpLayerStart(fp)
-struct fsm *fp;
+CcpLayerStart(struct fsm * fp)
 {
   LogPrintf(LogCCP, "CcpLayerStart.\n");
 }
 
 static void
-CcpLayerFinish(fp)
-struct fsm *fp;
+CcpLayerFinish(struct fsm * fp)
 {
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
 }
 
 static void
-CcpLayerDown(fp)
-struct fsm *fp;
+CcpLayerDown(struct fsm * fp)
 {
   LogPrintf(LogCCP, "CcpLayerDown.\n");
 }
@@ -184,13 +176,12 @@ struct fsm *fp;
  *  Called when CCP has reached to OPEN state
  */
 static void
-CcpLayerUp(fp)
-struct fsm *fp;
+CcpLayerUp(struct fsm * fp)
 {
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
   LogPrintf(LogCCP, "myproto = %d, hisproto = %d\n",
-	CcpInfo.want_proto, CcpInfo.his_proto);
-  Pred1Init(3);		/* Initialize Input and Output */
+	    CcpInfo.want_proto, CcpInfo.his_proto);
+  Pred1Init(3);			/* Initialize Input and Output */
 }
 
 void
@@ -208,10 +199,7 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(cp, plen, mode)
-u_char *cp;
-int plen;
-int mode;
+CcpDecodeConfig(u_char * cp, int plen, int mode)
 {
   int type, length;
   char tbuff[100];
@@ -265,7 +253,7 @@ int mode;
 }
 
 void
-CcpInput(struct mbuf *bp)
+CcpInput(struct mbuf * bp)
 {
   if (phase == PHASE_NETWORK)
     FsmInput(&CcpFsm, bp);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.6 1997/02/22 16:10:24 peter Exp $
+ * $Id: lcp.h,v 1.7 1997/06/09 03:27:25 brian Exp $
  *
  *	TODO:
  */
@@ -24,24 +24,24 @@
 #define _LPC_H_
 
 struct lcpstate {
-  u_long  his_mru;
-  u_long  his_accmap;
-  u_long  his_magic;
-  u_long  his_lqrperiod;
-  u_char  his_protocomp;
-  u_char  his_acfcomp;
+  u_long his_mru;
+  u_long his_accmap;
+  u_long his_magic;
+  u_long his_lqrperiod;
+  u_char his_protocomp;
+  u_char his_acfcomp;
   u_short his_auth;
 
-  u_long  want_mru;
-  u_long  want_accmap;
-  u_long  want_magic;
-  u_long  want_lqrperiod;
-  u_char  want_protocomp;
-  u_char  want_acfcomp;
+  u_long want_mru;
+  u_long want_accmap;
+  u_long want_magic;
+  u_long want_lqrperiod;
+  u_char want_protocomp;
+  u_char want_acfcomp;
   u_short want_auth;
 
-  u_long  his_reject;		/* Request codes rejected by peer */
-  u_long  my_reject;		/* Request codes I have rejected */
+  u_long his_reject;		/* Request codes rejected by peer */
+  u_long my_reject;		/* Request codes I have rejected */
 
   u_short auth_iwait;
   u_short auth_ineed;
@@ -66,10 +66,10 @@ struct lcpstate {
 #define	TY_COMPFRAME	15	/* Compound-Frames */
 
 struct lqrreq {
-  u_char  type;
-  u_char  length;
+  u_char type;
+  u_char length;
   u_short proto;		/* Quality protocol */
-  u_long  period;		/* Reporting interval */
+  u_long period;		/* Reporting interval */
 };
 
 extern struct lcpstate LcpInfo;
@@ -80,4 +80,5 @@ extern void LcpSendProtoRej(u_char *, int);
 extern void LcpOpen(int mode);
 extern void LcpClose(void);
 extern void LcpDown(void);
+
 #endif
