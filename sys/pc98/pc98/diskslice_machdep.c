@@ -1,3 +1,4 @@
+#ifdef NO_GEOM
 /*-
  * Copyright (c) 1994 Bruce D. Evans.
  * All rights reserved.
@@ -400,3 +401,4 @@ mbr_setslice(sname, lp, sp, dp, br_offset)
 #endif
 	return (0);
 }
+#endif
