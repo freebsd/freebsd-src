@@ -8,6 +8,11 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20030825:
+	Due to some inadvertant bugs that crept in during the PAE import,
+	-STABLE may be a bit unstable at this time.  If you have a well
+	running system, it is recommended that you hold off on updating
+	to 4.8-stable for another few days.
 
 20030806:
 	All current USB quirks in da(4) have been deprecated and will be
