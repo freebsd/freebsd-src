@@ -443,8 +443,13 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 
 	/*
 	 * If the gateway field is filled in, set it as the default route.
+	 * Note that pxeboot will set a default route of 0 if the route
+	 * is not set by the DHCP server.  Check also for a value of 0
+	 * to avoid panicking inappropriately in that situation.
 	 */
-	if (nd->mygateway.sin_len != 0) {
+	printf("gateway: %d bytes\n", nd->mygateway.sin_len);
+	if (nd->mygateway.sin_len != 0 &&
+	    nd->mygateway.sin_addr.s_addr != 0) {
 		struct sockaddr_in mask, sin;
 
 		bzero((caddr_t)&mask, sizeof(mask));
