@@ -109,12 +109,24 @@ struct fileops {
 
 struct file {
 	LIST_ENTRY(file) f_list;/* (fl) list of active files */
-	short	f_gcflag;	/* used by thread doing fd garbage collection */
 	short	f_type;		/* descriptor type */
-	int	f_count;	/* (f) reference count */
-	int	f_msgcount;	/* (f) references from message queue */
-	struct	ucred *f_cred;	/* credentials associated with descriptor */
+	void	*f_data;	/* file descriptor specific data */
+	u_int	f_flag;		/* see fcntl.h */
+	struct mtx	*f_mtxp;	/* mutex to protect data */
 	struct fileops *f_ops;	/* File operations */
+	struct	ucred *f_cred;	/* credentials associated with descriptor */
+	int	f_count;	/* (f) reference count */
+
+	/* DFLAG_SEEKABLE specific fields */
+	off_t	f_offset;
+
+	/* DTYPE_SOCKET specific fields */
+	short	f_gcflag;	/* used by thread doing fd garbage collection */
+#define	FMARK		0x1	/* mark during gc() */
+#define	FDEFER		0x2	/* defer for next gc pass */
+	int	f_msgcount;	/* (f) references from message queue */
+
+	/* DTYPE_VNODE specific fields */
 	int	f_seqcount;	/*
 				 * count of sequential accesses -- cleared
 				 * by most seek operations.
@@ -122,10 +134,6 @@ struct file {
 	off_t	f_nextoff;	/*
 				 * offset of next expected read or write
 				 */
-	off_t	f_offset;
-	void	*f_data;	/* file descriptor specific data */
-	u_int	f_flag;		/* see fcntl.h */
-	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
 
 #endif /* _KERNEL */
