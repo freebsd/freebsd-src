@@ -1,4 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+= -Wall -static
-BINDIR?= /usr/sbin
+CFLAGS+=	-Wall
+NOSHARED?=	YES
+
+.include "../Makefile.inc"

@@ -9,7 +9,6 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/amd
 
 PROG=		amd
-MAN8=		amd.8
 
 SRCS=		conf_parse.y conf_tok.l
 SRCS+=		am_ops.c amd.c amfs_auto.c amfs_direct.c amfs_error.c

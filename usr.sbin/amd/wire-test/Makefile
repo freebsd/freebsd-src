@@ -9,9 +9,6 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/wire-test
 
 PROG=		wire-test
-MAN8=		wire-test.8
-
-SRCS=		wire-test.c
 
 DPADD+=		${LIBAMU}
 LDADD+=		${LIBAMU}
