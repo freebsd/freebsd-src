@@ -85,17 +85,18 @@ You must not depend on the value you gave it earlier.
 and
 .Fa end
 are the start/end addresses of the resource.
-If you specify values of 0 for
+If you specify values of 0ul for
 .Fa start
-and ~0 for
+and ~0ul for
 .Fa end
 and 1 for
 .Fa count ,
 the default values for the bus are calculated.
 .It
 .Fa count
-is the size of the resource, e.g. the size of an I/O port (often
-1, but some devices override this).
+is the size of the resource.
+For example, the size of an I/O port is usually 1 byte (but some devices
+override this).
 If you specified the default values for
 .Fa start
 and
@@ -104,7 +105,7 @@ then the default value of the bus is used if
 .Fa count
 is smaller than the default value and
 .Fa count
-is used, if it is bigger as the default value.
+is used, if it is bigger than the default value.
 .It
 .Fa flags
 sets the flags for the resource.
@@ -118,10 +119,14 @@ The resource still needs to be activated with
 activate resource atomically.
 .It Dv RF_SHAREABLE
 resource permits contemporaneous sharing.
-Should always be set unless you know, that the resource cannot be shared.
-It is the bus-code's task to filter out the flag if the bus doesn't
-support sharing, which is, for example, the case for pccard/cardbus,
-which can or cannot share devices, depending on the bus.
+It should always be set unless you know that the resource cannot be shared.
+It is the bus driver's task to filter out the flag if the bus doesn't
+support sharing.
+For example,
+.Xr pccard 4
+cannot share IRQs while
+.Xr cardbus 4
+can.
 .It Dv RF_TIMESHARE
 resource permits time-division sharing.
 .El
@@ -131,7 +136,7 @@ A pointer to
 .Va struct res
 is returned on success, a null pointer otherwise.
 .Sh EXAMPLES
-This is some example code.
+This is some example code that allocates a 32-bit I/O port and an IRQ.
 The values of
 .Va portid
 and
@@ -144,7 +149,7 @@ should be saved in the softc of the device after these calls.
 	portid = 0;
 	irqid = 0;
 	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid,
-			0ul, ~0ul, 32, RF_ACTIVE);
+			0ul, ~0ul, 4, RF_ACTIVE);
 	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
 			0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
 .Ed
