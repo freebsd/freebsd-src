@@ -656,8 +656,16 @@ main(int argc, char **argv)
 	while (1) {
 		np = pcap_dispatch(hpcap, PCAP_NUM_PKTS,
 		    dump_packet, (u_char *)dpcap);
-		if (np < 0)
+		if (np < 0) {
+#ifdef __FreeBSD__
+			if (errno == ENXIO) {
+				logmsg(LOG_ERR,
+				    "Device not/no longer configured");
+				break;
+			}
+#endif
 			logmsg(LOG_NOTICE, "%s", pcap_geterr(hpcap));
+		}
 
 		if (gotsig_close)
 			break;
