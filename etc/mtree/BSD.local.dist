@@ -63,7 +63,7 @@
         ..
         catn
         ..
-        de_DE.ISO_8859-1        uname=root
+        de.ISO8859-1        uname=root
             cat1
             ..
             cat2
