@@ -40,9 +40,7 @@ inthand_t
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
 	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
 	IDTVEC(invlrng),	/* TLB shootdowns - page range */
-	IDTVEC(hardclock),	/* Forward hardclock() */
-	IDTVEC(statclock),	/* Forward statclock() */
-	IDTVEC(cpuast),		/* Additional software trap on other cpu */ 
+	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
@@ -54,9 +52,8 @@ void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 void	ipi_self(u_int ipi);
 void	forward_statclock(void);
-void	forwarded_statclock(struct clockframe frame);
 void	forward_hardclock(void);
-void	forwarded_hardclock(struct clockframe frame);
+void 	ipi_bitmap_handler(struct clockframe frame);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	mp_topology(void);
