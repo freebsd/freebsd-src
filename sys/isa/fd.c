@@ -214,10 +214,6 @@ static devclass_t fd_devclass;
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-/* needed for ft driver, thus exported */
-int in_fdc(struct fdc_data *);
-int out_fdc(struct fdc_data *, int);
-
 /* internal functions */
 static	void fdc_intr(void *);
 static void set_motor(struct fdc_data *, int, int);
@@ -228,6 +224,7 @@ static timeout_t fd_motor_on;
 static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
+static int out_fdc(struct fdc_data *, int);
 static void fdstart(struct fdc_data *);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
@@ -1306,25 +1303,6 @@ fdc_reset(fdc_p fdc)
 /****************************************************************************/
 /*                             fdc in/out                                   */
 /****************************************************************************/
-int
-in_fdc(struct fdc_data *fdc)
-{
-	int i, j = 100000;
-	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
-		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
-	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
-#ifdef	FDC_DEBUG
-	i = fddata_rd(fdc);
-	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
-	return(i);
-#else	/* !FDC_DEBUG */
-	return fddata_rd(fdc);
-#endif	/* FDC_DEBUG */
-}
-
 /*
  * FDC IO functions, take care of the main status register, timeout
  * in case the desired status bits are never set.
@@ -1365,7 +1343,7 @@ fd_in(struct fdc_data *fdc, int *ptr)
 #endif	/* FDC_DEBUG */
 }
 
-int
+static int
 out_fdc(struct fdc_data *fdc, int x)
 {
 	int i, j, step;
