@@ -331,7 +331,7 @@ configfile(void)
 		err(2, "%s", p);
 	fprintf(fo, "#include \"opt_config.h\"\n");
 	fprintf(fo, "#ifdef INCLUDE_CONFIG_FILE \n");
-	fprintf(fo, "static const char config[] = \"\\\n");
+	fprintf(fo, "const char config[] = \"\\\n");
 	fprintf(fo, "START CONFIG FILE %s\\n\\\n___", PREFIX);
 	while (EOF != (i=getc(fi))) {
 		if (i == '\n') {
