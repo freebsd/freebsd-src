@@ -40,7 +40,7 @@
  *	net.link.ether.bridge.config
  * containing a list of interfaces each optionally followed by
  * a colon and the cluster it belongs to (1 is the default).
- * Separators can be * spaces, commas or tabs, e.g.
+ * Separators can be spaces, commas or tabs, e.g.
  *	net.link.ether.bridge.config="fxp0:2 fxp1:2 dc0 dc1:1"
  * Optionally bridged packets can be passed through the firewall,
  * this is controlled by the variable
