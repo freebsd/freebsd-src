@@ -77,7 +77,12 @@ structure.  It allows the user to retrieve information on all
 .Tn PCI
 devices in the system, or on
 .Tn PCI
-devices matching patterns supplied by the user.
+devices matching patterns supplied by the user.  The call may set
+.Va errno
+to any value specified in either
+.Xr copyin 9
+or
+.Xr copyout 9 .
 The
 .Va pci_conf_io
 structure consists of a number of fields:
@@ -215,9 +220,13 @@ remaining devices in the device list that possibly match his criteria.  It
 is possible for this status to be returned, even when none of the remaining
 devices in the list would match the user's criteria.
 .It PCI_GETCONF_ERROR
-This indicates a general error while servicing the user's request.  A more
-specific indication of the problem may or may not be printed in the kernel
-message buffer (and by implication, the system console).
+This indicates a general error while servicing the user's request.  If the
+.Va pat_buf_len
+is not equal to
+.Va num_patterns
+times
+.Va sizeof(struct pci_match_conf) , errno
+will be set to EINVAL.
 .El
 .El
 .It PCIOCREAD
@@ -235,7 +244,7 @@ structure consists of the following fields:
 A
 .Va pcisel
 structure which specifies the bus, slot and function the user would like to
-query.
+query.  If the specific bus is not found, errno will be set to ENODEV and -1 returned from the ioctl.
 .It pi_reg
 The
 .Tn PCI
@@ -243,7 +252,7 @@ configuration register the user would like to access.
 .It pi_width
 The width, in bytes, of the data the user would like to read.  This value
 may be either 1, 2, or 4.  3-byte reads and reads larger than 4 bytes are
-not supported.
+not supported.  If an invalid width is passed, errno will be set to EINVAL.
 .It pi_data
 The data returned by the kernel.
 .El
