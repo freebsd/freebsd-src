@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.13 1997/07/22 18:31:51 smp Exp smp $
+ * $Id: smp.h,v 1.14 1997/07/23 05:41:55 smp Exp smp $
  *
  */
 
@@ -74,6 +74,12 @@ void	apic_eoi		__P((void));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
 void	write_io_apic_mask24	__P((int, u_int));
+
+#include <machine/param.h>
+void	s_lock_init		__P((struct simplelock *));
+void	s_lock			__P((__volatile struct simplelock *));
+int	s_lock_try		__P((__volatile struct simplelock *));
+void	s_unlock		__P((__volatile struct simplelock *));
 
 /* global data in mp_machdep.c */
 extern int			mp_ncpus;
