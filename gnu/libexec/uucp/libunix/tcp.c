@@ -63,7 +63,7 @@ const char tcp_rcsid[] = "$FreeBSD$";
    interface.  */
 
 /* The normal "uucp" port number.  */
-#define IUUCP_PORT (540)
+#define IUUCP_PORT "540"
 
 /* Local functions.  */
 static void utcp_free P((struct sconnection *qconn));
@@ -78,7 +78,9 @@ static boolean ftcp_dial P((struct sconnection *qconn, pointer puuconf,
 			    const char *zphone,
 			    struct uuconf_dialer *qdialer,
 			    enum tdialerfound *ptdialer));
-static int itcp_port_number P((const char *zport));
+static int itcp_getaddrinfo P((const char *zhost, const char *zport,
+			       const struct addrinfo *hints,
+			       struct addrinfo **res));
 
 /* The command table for a TCP connection.  */
 static const struct sconncmds stcpcmds =
@@ -131,34 +133,13 @@ utcp_free (qconn)
 {
   xfree (qconn->psysdep);
 }
-
-/* Open a TCP connection.  If the fwait argument is TRUE, we are
-   running as a server.  Otherwise we are just trying to reach another
-   system.  */
 
 static boolean
-ftcp_open (qconn, ibaud, fwait)
-     struct sconnection *qconn;
-     long ibaud;
-     boolean fwait;
+utcp_init (qsysdep)
+    struct ssysdep_conn *qsysdep;
 {
-  struct ssysdep_conn *qsysdep;
-  struct sockaddr_in s;
-  const char *zport;
-  uid_t ieuid;
-  boolean fswap;
-
-  ulog_device ("TCP");
-
-  qsysdep = (struct ssysdep_conn *) qconn->psysdep;
-
-  qsysdep->o = socket (AF_INET, SOCK_STREAM, 0);
-  if (qsysdep->o < 0)
-    {
-      ulog (LOG_ERROR, "socket: %s", strerror (errno));
-      return FALSE;
-    }
-
+  if (!qsysdep)
+    return FALSE;
   if (fcntl (qsysdep->o, F_SETFD,
 	     fcntl (qsysdep->o, F_GETFD, 0) | FD_CLOEXEC) < 0)
     {
@@ -176,6 +157,32 @@ ftcp_open (qconn, ibaud, fwait)
       qsysdep->o = -1;
       return FALSE;
     }
+}
+
+/* Open a TCP connection.  If the fwait argument is TRUE, we are
+   running as a server.  Otherwise we are just trying to reach another
+   system.  */
+
+static boolean
+ftcp_open (qconn, ibaud, fwait)
+     struct sconnection *qconn;
+     long ibaud;
+     boolean fwait;
+{
+  struct ssysdep_conn *qsysdep;
+  struct addrinfo hints, *res, *res0;
+  struct sockaddr_storage s;
+  const char *zport;
+  int zfamily;
+  uid_t ieuid;
+  boolean fswap;
+  int err;
+
+  ulog_device ("TCP");
+
+  qsysdep = (struct ssysdep_conn *) qconn->psysdep;
+
+  qsysdep->o = -1;
 
   /* We save our process ID in the qconn structure.  This is checked
      in ftcp_close.  */
@@ -190,11 +197,68 @@ ftcp_open (qconn, ibaud, fwait)
      From this point on if the server gets an error we exit; we only
      return if we have received a connection.  It would be more robust
      to respawn the server if it fails; someday.  */
-  bzero ((pointer) &s, sizeof s);
-  s.sin_family = AF_INET;
   zport = qconn->qport->uuconf_u.uuconf_stcp.uuconf_zport;
-  s.sin_port = itcp_port_number (zport);
-  s.sin_addr.s_addr = htonl (INADDR_ANY);
+  zfamily = qconn->qport->uuconf_u.uuconf_stcp.uuconf_zfamily;
+  memset (&hints, 0, sizeof(hints));
+  hints.ai_family = zfamily;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+  if ((err = itcp_getaddrinfo (NULL, zport, &hints, &res0)) != 0)
+    {
+      ulog (LOG_ERROR, "getaddrinfo (NULL, %s): %s",
+	    zport, gai_strerror (err));
+      return FALSE;
+    }
+#if HAVE_GETADDRINFO
+  if (zfamily == PF_UNSPEC)
+    {
+      for (res = res0; res; res = res->ai_next)
+	{
+	  if (res->ai_family == AF_INET6)
+	    {
+	      qsysdep->o = socket (res->ai_family, res->ai_socktype,
+				   res->ai_protocol);
+	      if (qsysdep->o >= 0)
+		break;
+	    }
+	}
+    }
+#endif
+  if (qsysdep->o < 0)
+    {
+      for (res = res0; res; res = res->ai_next)
+	{
+	  qsysdep->o = socket (res->ai_family, res->ai_socktype,
+			       res->ai_protocol);
+	  if (qsysdep->o >= 0)
+	    break;
+	}
+      if (qsysdep->o < 0)
+	{
+	  freeaddrinfo (res);
+	  ulog (LOG_ERROR, "socket: %s", strerror (errno));
+	  return FALSE;
+	}
+    }
+#ifdef IPV6_BINDV6ONLY
+  if (res->ai_family == AF_INET6)
+    {
+      int flag = (zfamily == PF_UNSPEC) ? 0 : 1;
+
+      if (setsockopt (qsysdep->o, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+		      (char *)&flag, sizeof (flag)) < 0)
+	{
+	  freeaddrinfo (res);
+	  ulog (LOG_FATAL, "setsockopt: %s", strerror (errno));
+	  return FALSE;
+	}
+    }
+#endif
+  if (!utcp_init (qsysdep))
+    {
+      freeaddrinfo (res);
+      return FALSE;
+    }
 
   /* Swap to our real user ID when doing the bind call.  This will
      permit the server to use privileged TCP ports when invoked by
@@ -208,16 +272,19 @@ ftcp_open (qconn, ibaud, fwait)
 	{
 	  (void) close (qsysdep->o);
 	  qsysdep->o = -1;
+	  freeaddrinfo (res);
 	  return FALSE;
 	}
     }
 
-  if (bind (qsysdep->o, (struct sockaddr *) &s, sizeof s) < 0)
+  if (bind (qsysdep->o, res->ai_addr, res->ai_addrlen) < 0)
     {
+      freeaddrinfo (res);
       if (fswap)
 	(void) fsuucp_perms ((long) ieuid);
       ulog (LOG_FATAL, "bind: %s", strerror (errno));
     }
+  freeaddrinfo (res);
 
   /* Now swap back to the uucp user ID.  */
   if (fswap)
@@ -333,8 +400,8 @@ ftcp_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialer)
 {
   struct ssysdep_conn *qsysdep;
   const char *zhost;
-  struct hostent *q;
-  struct sockaddr_in s;
+  struct addrinfo hints, *res, *res0;
+  int err, connected = FALSE;
   const char *zport;
   char **pzdialer;
 
@@ -354,37 +421,38 @@ ftcp_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialer)
     }
 
   errno = 0;
-  q = gethostbyname ((char *) zhost);
-  if (q != NULL)
-    {
-      s.sin_family = q->h_addrtype;
-      memcpy (&s.sin_addr.s_addr, q->h_addr, (size_t) q->h_length);
-    }
-  else
-    {
-      if (errno != 0)
-	{
-	  ulog (LOG_ERROR, "gethostbyname (%s): %s", zhost, strerror (errno));
-	  return FALSE;
-	}
-
-      s.sin_family = AF_INET;
-      s.sin_addr.s_addr = inet_addr ((char *) zhost);
-      if ((long) s.sin_addr.s_addr == (long) -1)
-	{
-	  ulog (LOG_ERROR, "%s: unknown host name", zhost);
-	  return FALSE;
-	}
-    }
-
   zport = qconn->qport->uuconf_u.uuconf_stcp.uuconf_zport;
-  s.sin_port = itcp_port_number (zport);
+  memset (&hints, 0, sizeof(hints));
+  hints.ai_family = qconn->qport->uuconf_u.uuconf_stcp.uuconf_zfamily;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = 0;
+  if ((err = itcp_getaddrinfo (zhost, zport, &hints, &res0)) != 0)
+    {
+      ulog (LOG_ERROR, "getaddrinfo (%s, %s): %s",
+	    zhost, zport, gai_strerror (err));
+      return FALSE;
+    }
 
-  if (connect (qsysdep->o, (struct sockaddr *) &s, sizeof s) < 0)
+  for (res = res0; res; res = res->ai_next)
+    {
+      qsysdep->o = socket (res->ai_family, res->ai_socktype, res->ai_protocol);
+      if (qsysdep->o < 0)
+	continue;
+      if (connect (qsysdep->o, res->ai_addr, res->ai_addrlen) >= 0)
+        {
+	  connected = TRUE;
+	  break;
+	}
+      close (qsysdep->o);
+    }
+  freeaddrinfo (res0);
+  if (!connected)
     {
       ulog (LOG_ERROR, "connect: %s", strerror (errno));
       return FALSE;
     }
+  if (!utcp_init (qsysdep))
+    return FALSE;
 
   /* Handle the dialer sequence, if any.  */
   pzdialer = qconn->qport->uuconf_u.uuconf_stcp.uuconf_pzdialer;
@@ -398,47 +466,18 @@ ftcp_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialer)
   return TRUE;
 }
 
-/* Get the port number given a name.  The argument will almost always
-   be "uucp" so we cache that value.  The return value is always in
-   network byte order.  This returns -1 on error.  */
-
 static int
-itcp_port_number (zname)
-     const char *zname;
+itcp_getaddrinfo (zhost, zport, hints, res)
+     const char *zhost, *zport;
+     const struct addrinfo *hints;
+     struct addrinfo **res;
 {
-  boolean fuucp;
-  static int iuucp;
-  int i;
-  char *zend;
-  struct servent *q;
+  int err;
 
-  fuucp = strcmp (zname, "uucp") == 0;
-  if (fuucp && iuucp != 0)
-    return iuucp;
-
-  /* Try it as a number first.  */
-  i = strtol ((char *) zname, &zend, 10);
-  if (i != 0 && *zend == '\0')
-    return htons (i);
-
-  q = getservbyname ((char *) zname, (char *) "tcp");
-  if (q == NULL)
-    {
-      /* We know that the "uucp" service should be 540, even if isn't
-	 in /etc/services.  */
-      if (fuucp)
-	{
-	  iuucp = htons (IUUCP_PORT);
-	  return iuucp;
-	}
-      ulog (LOG_ERROR, "getservbyname (%s): %s", zname, strerror (errno));
-      return -1;
-    }
-
-  if (fuucp)
-    iuucp = q->s_port;
-
-  return q->s_port;
+  if ((err = getaddrinfo (zhost, zport, hints, res)) != EAI_SERVICE ||
+      strcmp(zport, "uucp") != 0)
+    return err;
+  return getaddrinfo (zhost, IUUCP_PORT, hints, res);
 }
 
 #endif /* HAVE_TCP */
