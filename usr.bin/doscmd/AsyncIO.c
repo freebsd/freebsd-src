@@ -268,7 +268,8 @@ if (0)
 				/*
 				 * STEP 3: Call the handler
 				 */
-				(*handlers[fd].func)(handlers[fd].arg, &sf->sf_sc);
+				(*handlers[fd].func)(handlers[fd].arg, 
+				    &sf->sf_siginfo.si_sc);
 
 				/*
 				 * STEP 4: Just turn SIGIO off.  No check.
