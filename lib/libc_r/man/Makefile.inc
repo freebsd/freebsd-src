@@ -6,6 +6,7 @@
 
 MAN+=	pthread_attr.3 \
 	pthread_attr_get_np.3 \
+	pthread_attr_setcreatesuspend_np.3 \
 	pthread_cancel.3 \
 	pthread_cleanup_pop.3 \
 	pthread_cleanup_push.3 \
@@ -25,13 +26,18 @@ MAN+=	pthread_attr.3 \
 	pthread_key_create.3 \
 	pthread_key_delete.3 \
 	pthread_kill.3 \
+	pthread_main_np.3 \
+	pthread_multi_np.3 \
 	pthread_mutexattr.3 \
+	pthread_mutexattr_getkind_np.3 \
 	pthread_mutex_destroy.3 \
 	pthread_mutex_init.3 \
 	pthread_mutex_lock.3 \
 	pthread_mutex_trylock.3 \
 	pthread_mutex_unlock.3 \
 	pthread_once.3 \
+	pthread_resume_all_np.3 \
+	pthread_resume_np.3 \
 	pthread_rwlock_destroy.3 \
 	pthread_rwlock_init.3 \
 	pthread_rwlock_rdlock.3 \
@@ -43,8 +49,12 @@ MAN+=	pthread_attr.3 \
 	pthread_rwlockattr_setpshared.3 \
 	pthread_schedparam.3 \
 	pthread_self.3 \
+	pthread_set_name_np.3 \
 	pthread_setspecific.3 \
 	pthread_sigmask.3 \
+	pthread_suspend_all_np.3 \
+	pthread_suspend_np.3 \
+	pthread_switch_add_np.3 \
 	pthread_testcancel.3 \
 	sem_destroy.3 \
 	sem_getvalue.3 \
@@ -77,6 +87,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_setstacksize.3 \
 	pthread_condattr.3 pthread_condattr_init.3 \
 	pthread_condattr.3 pthread_condattr_destroy.3 \
+	pthread_multi_np.3 pthread_single_np.3 \
 	pthread_mutexattr.3 pthread_mutexattr_init.3 \
 	pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 	pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
@@ -85,10 +96,12 @@ MLINKS+= \
 	pthread_mutexattr.3 pthread_mutexattr_setprioceiling.3 \
 	pthread_mutexattr.3 pthread_mutexattr_setprotocol.3 \
 	pthread_mutexattr.3 pthread_mutexattr_settype.3 \
+	pthread_mutexattr_getkind_np.3 pthread_mutexattr_setkind_np.3 \
 	pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3 \
 	pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3 \
 	pthread_schedparam.3 pthread_getschedparam.3 \
 	pthread_schedparam.3 pthread_setschedparam.3 \
+	pthread_switch_add_np.3 pthread_switch_delete_np.3 \
 	pthread_testcancel.3 pthread_setcancelstate.3 \
 	pthread_testcancel.3 pthread_setcanceltype.3 \
 	sem_open.3 sem_close.3 \
