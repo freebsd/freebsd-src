@@ -1,4 +1,5 @@
-/*-
+/* -*- Fundamental -*- keep Emacs from f***ing up the formatting */
+/*
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -31,10 +32,11 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.9 1995/10/13 19:53:25 wollman Exp $
+ *	$Id: microtime.s,v 1.10 1995/10/14 04:53:49 bde Exp $
  */
 
 #include <machine/asmacros.h>
+#include <machine/clock.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -43,7 +45,7 @@
 ENTRY(microtime)
 
 #ifdef I586_CPU
-	movl	_pentium_mhz, %ecx
+	movl	_i586_ctr_rate, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
 #else
@@ -180,6 +182,8 @@ pentium_microtime:
 	.byte	0x0f, 0x31	# RDTSC
 	subl	_i586_ctr_bias, %eax
 	sbbl	_i586_ctr_bias+4, %edx
+	shldl	$I586_CTR_RATE_SHIFT, %eax, %edx	# magic suggested by
+	shll	$I586_CTR_RATE_SHIFT, %eax		# math_emulate.c
 	divl	%ecx		# get value in usec
 	jmp	common_microtime
 #endif

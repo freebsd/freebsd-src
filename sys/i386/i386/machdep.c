@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.151 1995/11/14 09:52:25 phk Exp $
+ *	$Id: machdep.c,v 1.152 1995/11/20 12:41:24 phk Exp $
  */
 
 #include "npx.h"
@@ -493,7 +493,6 @@ identifycpu()
 #if defined(I586_CPU)
 	if(cpu_class == CPUCLASS_586) {
 		calibrate_cyclecounter();
-		printf("%d-MHz ", pentium_mhz);
 	}
 #endif
 #if defined(I486_CPU) || defined(I586_CPU)
@@ -513,7 +512,7 @@ identifycpu()
 				strcat(cpu_model, "i486 ");
 #if defined(I586_CPU)
 			} else if ((cpu_id & 0xf00) == 0x500) {
-				strcat(cpu_model, "Pentium ");
+				strcat(cpu_model, "Pentium"); /* nb no space */
 #endif
 			} else {
 				strcat(cpu_model, "unknown ");
@@ -539,22 +538,14 @@ identifycpu()
 				strcat(cpu_model, "DX4"); break;
 #if defined(I586_CPU)
 			case 0x510:
-				if (pentium_mhz == 60) {
-					strcat(cpu_model, "510\\60");
-				} else if (pentium_mhz == 66) {
-					strcat(cpu_model, "567\\66");
-				} else {
-					strcat(cpu_model,"510\\60 or 567\\66");
-				}
-				break;
 			case 0x520:
-				if (pentium_mhz == 90) {
-					strcat(cpu_model, "735\\90");
-				} else if (pentium_mhz == 100) {
-					strcat(cpu_model, "815\\100");
-				} else {
-					strcat(cpu_model,"735\\90 or 815\\100");
-				}
+				/*
+				 * We used to do all sorts of nonsense here
+				 * to print out iCOMP numbers.  Since these
+				 * are meaningless except to Intel
+				 * marketroids, there seems to be little
+				 * sense in doing so.
+				 */
 				break;
 #endif
 			}
@@ -578,7 +569,10 @@ identifycpu()
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
-		printf("Pentium");
+		printf("%d.%02d-MHz ",
+		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
+		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
+		printf("586");
 		break;
 #endif
 	default:
