@@ -42,6 +42,8 @@ static const char rcsid[] =
 /*
 **  ASSORTED UTILITY ROUTINES
 */
+#include <stdio.h>
+#include <varargs.h>
 
 /*
 **  BLOCK MOVE
@@ -141,14 +143,19 @@ char	*s;
 **  SYSTEM ERROR
 */
 
-syserr(p0, p1, p2, p3, p4, p5)
+syserr(fmt, va_alist)
+const char *fmt;
+va_dcl
 {
+	va_list		ap;
 	extern int	errno;
 
+	va_start(ap);
 	printf("\n\07TREK SYSERR: ");
-	printf(p0, p1, p2, p3, p4, p5);
+	vfprintf(stdout, fmt, ap);
 	printf("\n");
 	if (errno)
 		printf("\tsystem error %d\n", errno);
+	va_end(ap);
 	exit(1);
 }
