@@ -26,6 +26,7 @@ LIBS=	\
 	pam_cleartext_pass_ok.so \
 	pam_deny.so \
 	pam_opie.so \
+	pam_opieaccess.so \
 	pam_permit.so \
 	pam_radius.so \
 	pam_skey.so \
