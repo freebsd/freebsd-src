@@ -290,7 +290,7 @@ ntfs_mount (
 
 	devvp = ndp->ni_vp;
 
-	if (vn_isdisk(devvp)) {
+	if (!vn_isdisk(devvp)) {
 		err = ENOTBLK;
 		goto error_2;
 	}
