@@ -453,9 +453,9 @@ static int check_revocation(X509_STORE_CTX *ctx)
 	if (!(ctx->flags & X509_V_FLAG_CRL_CHECK))
 		return 1;
 	if (ctx->flags & X509_V_FLAG_CRL_CHECK_ALL)
-		last = 0;
-	else
 		last = sk_X509_num(ctx->chain) - 1;
+	else
+		last = 0;
 	for(i = 0; i <= last; i++)
 		{
 		ctx->error_depth = i;
@@ -674,7 +674,7 @@ static int internal_verify(X509_STORE_CTX *ctx)
 				ok=(*cb)(0,ctx);
 				if (!ok) goto end;
 				}
-			if (X509_verify(xs,pkey) <= 0)
+			else if (X509_verify(xs,pkey) <= 0)
 				/* XXX  For the final trusted self-signed cert,
 				 * this is a waste of time.  That check should
 				 * optional so that e.g. 'openssl x509' can be

@@ -2,6 +2,92 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.7b and 0.9.7c  [30 Sep 2003]
+
+  *) Fix various bugs revealed by running the NISCC test suite:
+
+     Stop out of bounds reads in the ASN1 code when presented with
+     invalid tags (CAN-2003-0543 and CAN-2003-0544).
+     
+     Free up ASN1_TYPE correctly if ANY type is invalid (CAN-2003-0545).
+
+     If verify callback ignores invalid public key errors don't try to check
+     certificate signature with the NULL public key.
+
+     [Steve Henson]
+
+  *) New -ignore_err option in ocsp application to stop the server
+     exiting on the first error in a request.
+     [Steve Henson]
+
+  *) In ssl3_accept() (ssl/s3_srvr.c) only accept a client certificate
+     if the server requested one: as stated in TLS 1.0 and SSL 3.0
+     specifications.
+     [Steve Henson]
+
+  *) In ssl3_get_client_hello() (ssl/s3_srvr.c), tolerate additional
+     extra data after the compression methods not only for TLS 1.0
+     but also for SSL 3.0 (as required by the specification).
+     [Bodo Moeller; problem pointed out by Matthias Loepfe]
+
+  *) Change X509_certificate_type() to mark the key as exported/exportable
+     when it's 512 *bits* long, not 512 bytes.
+     [Richard Levitte]
+
+  *) Change AES_cbc_encrypt() so it outputs exact multiple of
+     blocks during encryption.
+     [Richard Levitte]
+
+  *) Various fixes to base64 BIO and non blocking I/O. On write 
+     flushes were not handled properly if the BIO retried. On read
+     data was not being buffered properly and had various logic bugs.
+     This also affects blocking I/O when the data being decoded is a
+     certain size.
+     [Steve Henson]
+
+  *) Various S/MIME bugfixes and compatibility changes:
+     output correct application/pkcs7 MIME type if
+     PKCS7_NOOLDMIMETYPE is set. Tolerate some broken signatures.
+     Output CR+LF for EOL if PKCS7_CRLFEOL is set (this makes opening
+     of files as .eml work). Correctly handle very long lines in MIME
+     parser.
+     [Steve Henson]
+
+ Changes between 0.9.7a and 0.9.7b  [10 Apr 2003]
+
+  *) Countermeasure against the Klima-Pokorny-Rosa extension of
+     Bleichbacher's attack on PKCS #1 v1.5 padding: treat
+     a protocol version number mismatch like a decryption error
+     in ssl3_get_client_key_exchange (ssl/s3_srvr.c).
+     [Bodo Moeller]
+
+  *) Turn on RSA blinding by default in the default implementation
+     to avoid a timing attack. Applications that don't want it can call
+     RSA_blinding_off() or use the new flag RSA_FLAG_NO_BLINDING.
+     They would be ill-advised to do so in most cases.
+     [Ben Laurie, Steve Henson, Geoff Thorpe, Bodo Moeller]
+
+  *) Change RSA blinding code so that it works when the PRNG is not
+     seeded (in this case, the secret RSA exponent is abused as
+     an unpredictable seed -- if it is not unpredictable, there
+     is no point in blinding anyway).  Make RSA blinding thread-safe
+     by remembering the creator's thread ID in rsa->blinding and
+     having all other threads use local one-time blinding factors
+     (this requires more computation than sharing rsa->blinding, but
+     avoids excessive locking; and if an RSA object is not shared
+     between threads, blinding will still be very fast).
+     [Bodo Moeller]
+
+  *) Fixed a typo bug that would cause ENGINE_set_default() to set an
+     ENGINE as defaults for all supported algorithms irrespective of
+     the 'flags' parameter. 'flags' is now honoured, so applications
+     should make sure they are passing it correctly.
+     [Geoff Thorpe]
+
+  *) Target "mingw" now allows native Windows code to be generated in
+     the Cygwin environment as well as with the MinGW compiler.
+     [Ulf Moeller] 
+
  Changes between 0.9.7 and 0.9.7a  [19 Feb 2003]
 
   *) In ssl3_get_record (ssl/s3_pkt.c), minimize information leaked
@@ -84,6 +170,9 @@
      [Richard Levitte & Kris Kennaway <kris@obsecurity.org>]
 
  Changes between 0.9.6h and 0.9.7  [31 Dec 2002]
+
+  [NB: OpenSSL 0.9.6i and later 0.9.6 patch levels were released after
+  OpenSSL 0.9.7.]
 
   *) Fix session ID handling in SSLv2 client code: the SERVER FINISHED
      code (06) was taken as the first octet of the session ID and the last
@@ -1902,6 +1991,57 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Clean old EAY MD5 hack from e_os.h.
      [Richard Levitte]
+
+ Changes between 0.9.6j and 0.9.6k  [30 Sep 2003]
+
+  *) Fix various bugs revealed by running the NISCC test suite:
+
+     Stop out of bounds reads in the ASN1 code when presented with
+     invalid tags (CAN-2003-0543 and CAN-2003-0544).
+     
+     If verify callback ignores invalid public key errors don't try to check
+     certificate signature with the NULL public key.
+
+     [Steve Henson]
+
+  *) In ssl3_accept() (ssl/s3_srvr.c) only accept a client certificate
+     if the server requested one: as stated in TLS 1.0 and SSL 3.0
+     specifications.
+     [Steve Henson]
+
+  *) In ssl3_get_client_hello() (ssl/s3_srvr.c), tolerate additional
+     extra data after the compression methods not only for TLS 1.0
+     but also for SSL 3.0 (as required by the specification).
+     [Bodo Moeller; problem pointed out by Matthias Loepfe]
+
+  *) Change X509_certificate_type() to mark the key as exported/exportable
+     when it's 512 *bits* long, not 512 bytes.
+     [Richard Levitte]
+
+ Changes between 0.9.6i and 0.9.6j  [10 Apr 2003]
+
+  *) Countermeasure against the Klima-Pokorny-Rosa extension of
+     Bleichbacher's attack on PKCS #1 v1.5 padding: treat
+     a protocol version number mismatch like a decryption error
+     in ssl3_get_client_key_exchange (ssl/s3_srvr.c).
+     [Bodo Moeller]
+
+  *) Turn on RSA blinding by default in the default implementation
+     to avoid a timing attack. Applications that don't want it can call
+     RSA_blinding_off() or use the new flag RSA_FLAG_NO_BLINDING.
+     They would be ill-advised to do so in most cases.
+     [Ben Laurie, Steve Henson, Geoff Thorpe, Bodo Moeller]
+
+  *) Change RSA blinding code so that it works when the PRNG is not
+     seeded (in this case, the secret RSA exponent is abused as
+     an unpredictable seed -- if it is not unpredictable, there
+     is no point in blinding anyway).  Make RSA blinding thread-safe
+     by remembering the creator's thread ID in rsa->blinding and
+     having all other threads use local one-time blinding factors
+     (this requires more computation than sharing rsa->blinding, but
+     avoids excessive locking; and if an RSA object is not shared
+     between threads, blinding will still be very fast).
+     [Bodo Moeller]
 
  Changes between 0.9.6h and 0.9.6i  [19 Feb 2003]
 
