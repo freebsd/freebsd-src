@@ -214,23 +214,6 @@ typedef struct IOAPIC ioapic_t;
  * various code 'logical' values
  */
 
-/* default level for TPR */
-#define LOPRIO_LEVEL		0x00000010	/* TPR of CPU accepting INTs */
-
-#ifdef GRAB_LOPRIO
-#define ALLHWI_LEVEL		0x00000000	/* TPR of CPU grabbing INTs */
-#endif /** GRAB_LOPRIO */
-
-/*
- * XXX This code assummes that the reserved field of the
- *      local APIC TPR can be written with all 0s.
- *     This saves quite a few memory accesses.
- *     If the silicon ever changes then things will break!
- *     It affects mplock.s, swtch.s, and possibly other files.
- */
-#define CHEAP_TPR
-
-
 /******************************************************************************
  * LOCAL APIC defines
  */
