@@ -26,7 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 14, 2003
+.Dd February 15, 2000
 .Dt SEM_INIT 3
 .Os
 .Sh NAME
@@ -47,9 +47,8 @@ to have the value
 .Fa value .
 A non-zero value for
 .Fa pshared
-specifies a shared semaphore that can be used by any process
-that can access
-.Fa sem .
+specifies a shared semaphore that can be used by multiple processes, which this
+implementation is not capable of.
 .Pp
 Following a successful call to
 .Fn sem_init ,
@@ -74,10 +73,8 @@ will fail if:
 exceeds SEM_VALUE_MAX.
 .It Bq Er ENOSPC
 Memory allocation error.
-.It Bq Er ENFILE
-The system limit on semaphores
-.Pq Dv SEM_NSEMS_MAX
-has been reached.
+.It Bq Er EPERM
+Unable to initialize a shared semaphore.
 .El
 .Sh SEE ALSO
 .Xr sem_destroy 3 ,
@@ -89,3 +86,14 @@ has been reached.
 .Fn sem_init
 conforms to
 .St -p1003.1-96 .
+.Pp
+This implementation does not support shared semaphores, and reports this fact
+by setting
+.Va errno
+to
+.Er EPERM .
+This is perhaps a stretch of the intention of POSIX, but is
+compliant, with the caveat that
+.Fn sem_init
+always reports a permissions error when an attempt to create a shared semaphore
+is made.
