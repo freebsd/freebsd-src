@@ -806,9 +806,10 @@ pci_add_resources(device_t pcib, device_t dev)
 		 * have.
 		 */
 		irq = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
-		if (PCI_INTERRUPT_VALID(irq))
+		if (PCI_INTERRUPT_VALID(irq)) {
+			pci_write_config(dev, PCIR_INTLINE, irq, 1);
 			cfg->intline = irq;
-		else
+		} else
 #endif
 			irq = cfg->intline;
 		resource_list_add(rl, SYS_RES_IRQ, 0, irq, irq, 1);
