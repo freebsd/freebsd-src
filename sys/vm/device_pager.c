@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/mman.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -62,14 +63,17 @@ static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
+/* protect against object creation */
+static struct sx dev_pager_sx;
+/* protect list manipulation */
+static struct mtx dev_pager_mtx;
+
 
 static vm_zone_t fakepg_zone;
 static struct vm_zone fakepg_zone_store;
 
 static vm_page_t dev_pager_getfake __P((vm_offset_t));
 static void dev_pager_putfake __P((vm_page_t));
-
-static int dev_pager_alloc_lock, dev_pager_alloc_lock_want;
 
 struct pagerops devicepagerops = {
 	dev_pager_init,
@@ -85,6 +89,8 @@ static void
 dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
+	sx_init(&dev_pager_sx, "dev_pager create");
+	mtx_init(&dev_pager_mtx, "dev_pager list", MTX_DEF);
 	fakepg_zone = &fakepg_zone_store;
 	zinitna(fakepg_zone, NULL, "DP fakepg", sizeof(struct vm_page), 0, 0, 2);
 }
@@ -130,12 +136,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	/*
 	 * Lock to prevent object creation race condition.
 	 */
-	while (dev_pager_alloc_lock) {
-		dev_pager_alloc_lock_want++;
-		tsleep(&dev_pager_alloc_lock, PVM, "dvpall", 0);
-		dev_pager_alloc_lock_want--;
-	}
-	dev_pager_alloc_lock = 1;
+	sx_xlock(&dev_pager_sx);
 
 	/*
 	 * Look up pager, creating as necessary.
@@ -149,7 +150,9 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 			OFF_TO_IDX(foff + size));
 		object->handle = handle;
 		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
+		mtx_lock(&dev_pager_mtx);
 		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
+		mtx_unlock(&dev_pager_mtx);
 	} else {
 		/*
 		 * Gain a reference to the object.
@@ -159,9 +162,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 			object->size = OFF_TO_IDX(foff + size);
 	}
 
-	dev_pager_alloc_lock = 0;
-	if (dev_pager_alloc_lock_want)
-		wakeup(&dev_pager_alloc_lock);
+	sx_xunlock(&dev_pager_sx);
 
 	return (object);
 }
@@ -172,7 +173,9 @@ dev_pager_dealloc(object)
 {
 	vm_page_t m;
 
+	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
+	mtx_unlock(&dev_pager_mtx);
 	/*
 	 * Free up our fake pages.
 	 */
