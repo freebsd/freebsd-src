@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: ktrace.c,v 1.5 1996/06/30 09:40:44 joerg Exp $";
+	"$Id: ktrace.c,v 1.6 1996/09/19 19:50:13 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -72,6 +72,7 @@ main(argc, argv)
 	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
 	char *tracefile;
 	mode_t omask;
+	struct stat sb;
 
 	clear = NOTSET;
 	append = ops = pidset = inherit = 0;
@@ -140,9 +141,19 @@ main(argc, argv)
 	}
 
 	omask = umask(S_IRWXG|S_IRWXO);
-	if ((fd = open(tracefile, O_CREAT | O_WRONLY | (append ? 0 : O_TRUNC),
-	    DEFFILEMODE)) < 0)
-		err(1, tracefile);
+	if (append) {
+		if ((fd = open(tracefile, O_CREAT | O_WRONLY, DEFFILEMODE)) < 0)
+			err(1, tracefile);
+		if (fstat(fd, &sb) != 0 || sb.st_uid != getuid())
+			errx(1, "Refuse to append to %s not owned by you.",
+			    tracefile);
+	} else {
+		if (unlink(tracefile) == -1 && errno != ENOENT)
+			err(1, "unlink %s", tracefile);
+		if ((fd = open(tracefile, O_CREAT | O_EXCL | O_WRONLY,
+		    DEFFILEMODE)) < 0)
+			err(1, tracefile);
+	}
 	(void)umask(omask);
 	(void)close(fd);
 
