@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: quotacheck.c,v 1.5.2.1 1997/06/18 06:17:16 charnier Exp $
+ *	$Id: quotacheck.c,v 1.5.2.2 1997/06/30 11:16:18 charnier Exp $
  */
 
 #ifndef lint
@@ -138,7 +138,7 @@ main(argc, argv)
 	char ch, *name;
 
 	errs = maxrun = 0;
-	while ((ch = getopt(argc, argv, "aguvl:")) != EOF) {
+	while ((ch = getopt(argc, argv, "aguvl:")) != -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;
