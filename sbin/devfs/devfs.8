@@ -146,8 +146,8 @@ Rules have two parts: the conditions and the actions.
 The conditions determine which DEVFS nodes the rule matches
 and the actions determine what should be done when a rule matches a node.
 For example, a rule can be written that sets the GID to
-.Dq Li games
-for all devices with major number 53.
+.Dq Li operator
+for all devices of type tape.
 If the first token of a rule specification is a single dash
 .Pq Sq Fl ,
 rules are read from the standard input and the rest of the specification
@@ -157,9 +157,6 @@ The following conditions are recognized.
 Conditions are ANDed together when matching a device;
 if OR is desired, multiple rules can be written.
 .Bl -tag -offset indent
-.It Cm major Ar majdev
-Matches any node with a major number equal to
-.Ar majdev .
 .It Cm path Ar pattern
 Matches any node with a path that matches
 .Ar pattern ,
