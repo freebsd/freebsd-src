@@ -661,7 +661,7 @@ dadump(dev_t dev)
 	blkcnt = howmany(PAGE_SIZE, secsize);
 
 	while (num > 0) {
-		caddr_t va;
+		caddr_t va = NULL;
 
 		if ((num / blkcnt) < dumppages)
 			dumppages = num / blkcnt;
