@@ -381,6 +381,8 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
 		"\t\t%lu data packet%s (%lu byte%s)\n");
 	p2(tcps_sndrexmitpack, tcps_sndrexmitbyte,
 		"\t\t%lu data packet%s (%lu byte%s) retransmitted\n");
+	p(tcps_sndrexmitbad,
+		"\t\t%lu data packet%s unnecessarily retransmitted\n");
 	p(tcps_mturesent, "\t\t%lu resend%s initiated by MTU discovery\n");
 	p2a(tcps_sndacks, tcps_delack,
 		"\t\t%lu ack-only packet%s (%lu delayed)\n");

@@ -310,6 +310,7 @@ struct	tcpstat {
 	u_long	tcps_sndbyte;		/* data bytes sent */
 	u_long	tcps_sndrexmitpack;	/* data packets retransmitted */
 	u_long	tcps_sndrexmitbyte;	/* data bytes retransmitted */
+	u_long	tcps_sndrexmitbad;	/* unnecessary packet retransmissions */
 	u_long	tcps_sndacks;		/* ack-only packets sent */
 	u_long	tcps_sndprobe;		/* window probes sent */
 	u_long	tcps_sndurg;		/* packets sent with URG only */
