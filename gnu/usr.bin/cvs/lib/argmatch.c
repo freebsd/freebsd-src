@@ -42,9 +42,9 @@ argmatch (arg, optlist)
   int arglen;			/* Length of ARG. */
   int matchind = -1;		/* Index of first nonexact match. */
   int ambiguous = 0;		/* If nonzero, multiple nonexact match(es). */
-
+  
   arglen = strlen (arg);
-
+  
   /* Test all elements for either exact match or abbreviated matches.  */
   for (i = 0; optlist[i]; i++)
     {

@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Patch
- *
+ * 
  * Create a Larry Wall format "patch" file between a previous release and the
  * current head of a module, or between two releases.  Can specify the
  * release as either a date or a revision number.

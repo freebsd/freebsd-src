@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Various useful functions for the CVS support code.
  */
 
@@ -394,7 +394,7 @@ unlink_file (f)
 
 /*
  * Compare "file1" to "file2". Return non-zero if they don't compare exactly.
- *
+ * 
  * mallocs a buffer large enough to hold the entire file and does two reads to
  * load the buffer and calls memcmp to do the cmp. This is reasonable, since
  * source files are typically not too large.
@@ -535,10 +535,10 @@ getcaller ()
  * arguments.  The options to run_setup are essentially like printf(). The
  * arguments will be parsed into whitespace separated words and added to the
  * global run_argv list.
- *
+ * 
  * Then, optionally call run_arg() for each additional argument that you'd like
  * to pass to the executed program.
- *
+ * 
  * Finally, call run_exec() to execute the program with the specified arguments.
  * The execvp() syscall will be used, so that the PATH is searched correctly.
  * File redirections can be performed in the call to run_exec().
@@ -550,10 +550,10 @@ static int run_argc_allocated;
 
 /* VARARGS */
 #if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
-void
+void 
 run_setup (char *fmt,...)
 #else
-void
+void 
 run_setup (fmt, va_alist)
     char *fmt;
     va_dcl
@@ -603,10 +603,10 @@ run_arg (s)
 
 /* VARARGS */
 #if defined (HAVE_VPRINTF) && (defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__))
-void
+void 
 run_args (char *fmt,...)
 #else
-void
+void 
 run_args (fmt, va_alist)
     char *fmt;
     va_dcl
@@ -950,7 +950,7 @@ gca (rev1, rev2)
 	int i;
 	char c[2];
 	char *s[2];
-
+	
 	for (i = 0; i < 2; ++i)
 	{
 	    /* swap out the dot */
@@ -958,10 +958,10 @@ gca (rev1, rev2)
 	    if (s[i] != NULL) {
 		c[i] = *s[i];
 	    }
-
+	    
 	    /* read an int */
 	    j[i] = atoi (p[i]);
-
+	    
 	    /* swap back the dot... */
 	    if (s[i] != NULL) {
 		*s[i] = c[i];
@@ -972,9 +972,9 @@ gca (rev1, rev2)
 		/* or mark us at the end */
 		p[i] = NULL;
 	    }
-
+	    
 	}
-
+	
 	/* use the lowest. */
 	(void) sprintf (gca + strlen (gca), "%d.",
 			j[0] < j[1] ? j[0] : j[1]);
@@ -1009,11 +1009,11 @@ gca (rev1, rev2)
 	{
 	    /* we have a minor number.  use it.  */
 	    q = gca + strlen (gca);
-
+	    
 	    *q++ = '.';
 	    for ( ; *s != '.' && *s != '\0'; )
 		*q++ = *s++;
-
+	    
 	    *q = '\0';
 	}
     }
@@ -1021,7 +1021,7 @@ gca (rev1, rev2)
     {
 	/* if we have an even number of dots, then we have a branch.
 	   remove the last number in order to make it a revision.  */
-
+	
 	char *s;
 
 	s = strrchr(gca, '.');

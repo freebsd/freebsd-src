@@ -1,32 +1,32 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * "update" updates the version in the present directory with respect to the RCS
  * repository.  The present version must have been created by "checkout". The
  * user can keep up-to-date by calling "update" whenever he feels like it.
- *
+ * 
  * The present version can be committed by "commit", but this keeps the version
  * in tact.
- *
+ * 
  * Arguments following the options are taken to be file names to be updated,
  * rather than updating the entire directory.
- *
+ * 
  * Modified or non-existent RCS files are checked out and reported as U
  * <user_file>
- *
+ * 
  * Modified user files are reported as M <user_file>.  If both the RCS file and
  * the user file have been modified, the user file is replaced by the result
  * of rcsmerge, and a backup file is written for the user in .#file.version.
  * If this throws up irreconcilable differences, the file is reported as C
  * <user_file>, and as M <user_file> otherwise.
- *
+ * 
  * Files added but not yet committed are reported as A <user_file>. Files
  * removed but not yet committed are reported as R <user_file>.
- *
+ * 
  * If the current directory contains subdirectories that hold concurrent
  * versions, these are updated too.  If the -d option was specified, new
  * directories added to the repository are automatically created and updated
@@ -287,7 +287,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
  * set to the path relative to where we started (for pretty printing).
  * repository is the repository. entries and srcfiles are the pre-parsed
  * entries and source control files.
- *
+ * 
  * This routine decides what needs to be done for each file and does the
  * appropriate magic for checkout
  */
@@ -311,7 +311,7 @@ update_file_proc (file, update_dir, repository, entries, srcfiles)
 	/*
 	 * We just return success without doing anything if any of the really
 	 * funky cases occur
-	 *
+	 * 
 	 * If there is still a valid RCS file, do a regular checkout type
 	 * operation
 	 */
@@ -1021,7 +1021,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 	    return;
 	}
     }
-
+	
     /* skip joining identical revs or if the file is not present */
     if (vers->vn_user == NULL ||
 	strcmp (rev2, vers->vn_user) == 0) /* no merge necessary */
@@ -1036,7 +1036,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 	/* if the first rev is missing, then it is implied to be the
 	   greatest common ancestor of both the join rev, and the
 	   checked out rev. */
-
+	
 	tst = vers->vn_user;
 	if (*tst == '!')
 	{
@@ -1108,7 +1108,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 			   "cannot find revision %s in file %s", join_rev2, file);
 		return;
 	    }
-
+	    
 	    baserev = RCS_getversion (vers->srcfile, join_rev1, date_rev1, 1);
 	    if (baserev == NULL)
 	    {
@@ -1118,7 +1118,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 		free (rev);
 		return;
 	    }
-
+	    
 	    /*
 	     * nothing to do if:
 	     *	second revision matches our BASE revision (vn_user) &&
@@ -1130,7 +1130,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 		/* might be the same branch.  take a real look */
 		char *dot = strrchr (baserev, '.');
 		int len = (dot - baserev) + 1;
-
+		
 		if (strncmp (baserev, rev, len) == 0)
 		    return;
 	    }
@@ -1145,12 +1145,12 @@ join_file (file, srcfiles, vers, update_dir, entries)
 		free (rev);
 		return;
 	    }
-
+	    
 	    baserev = RCS_whatbranch (file, join_rev1, srcfiles);
 	    if (baserev)
 	    {
 		char *cp;
-
+		
 		/* we get a branch -- turn it into a revision, or NULL if trunk */
 		if ((cp = strrchr (baserev, '.')) == NULL)
 		{
@@ -1172,7 +1172,7 @@ join_file (file, srcfiles, vers, update_dir, entries)
 #endif
 
     /* OK, so we have two revisions; continue on */
-
+    
     /*
      * The users currently modified file is moved to a backup file name
      * ".#filename.version", so that it will stay around for a few days
@@ -1273,7 +1273,7 @@ ignore_files (ilist, update_dir)
 #ifdef DT_DIR
 		dp->d_type != DT_UNKNOWN ||
 #endif
-		lstat(file, &sb) != -1)
+		lstat(file, &sb) != -1) 
 	{
 
 	    if (
@@ -1291,7 +1291,7 @@ ignore_files (ilist, update_dir)
 #ifdef S_ISLNK
 	    else if (
 #ifdef DT_DIR
-		dp->d_type == DT_LNK || dp->d_type == DT_UNKNOWN &&
+		dp->d_type == DT_LNK || dp->d_type == DT_UNKNOWN && 
 #endif
 		S_ISLNK(sb.st_mode))
 	    {
@@ -1299,7 +1299,7 @@ ignore_files (ilist, update_dir)
 	    }
 #endif
     	}
-
+	
 	if (ign_name (file))
 	    continue;
 	(void) write_letter (file, '?', xdir);

@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Commit Files
- *
+ * 
  * "commit" commits the present version to the RCS repository, AFTER
  * having done a test on conflicts.
  *
  * The call is: cvs commit [options] files...
- *
+ * 
  */
 
 #include "cvs.h"
@@ -26,7 +26,7 @@ static int check_fileproc PROTO((char *file, char *update_dir, char *repository,
 			   List * entries, List * srcfiles));
 static int check_filesdoneproc PROTO((int err, char *repos, char *update_dir));
 static int checkaddfile PROTO((char *file, char *repository, char *tag,
-			 List *srcfiles));
+			 List *srcfiles)); 
 static Dtype commit_direntproc PROTO((char *dir, char *repos, char *update_dir));
 static int commit_dirleaveproc PROTO((char *dir, int err, char *update_dir));
 static int commit_fileproc PROTO((char *file, char *update_dir, char *repository,
@@ -488,7 +488,7 @@ check_fileproc (file, update_dir, repository, entries, srcfiles)
 		run_arg (RCS_MERGE_PAT);
 		run_arg (file);
 		retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
-
+		    
 		if (retcode == -1)
 		{
 		    if (update_dir[0] == '\0')
@@ -679,7 +679,7 @@ precommit_proc (repository, filter)
     if (filter[0] == '/')
     {
     	char *s, *cp;
-
+	
 	s = xstrdup (filter);
 	for (cp = s; *cp; cp++)
 	    if (isspace (*cp))
@@ -1039,7 +1039,7 @@ remove_file (file, repository, tag, message, entries, srcfiles)
     else
     {
 	/* this was the head; really move it into the Attic */
-	tmp = xmalloc(strlen(repository) +
+	tmp = xmalloc(strlen(repository) + 
 		      sizeof('/') +
 		      sizeof(CVSATTIC) +
 		      sizeof('/') +
@@ -1050,7 +1050,7 @@ remove_file (file, repository, tag, message, entries, srcfiles)
 	(void) mkdir (tmp, 0777);
 	(void) umask (omask);
 	(void) sprintf (tmp, "%s/%s/%s%s", repository, CVSATTIC, file, RCSEXT);
-
+	
 
 	if ((strcmp (rcs, tmp) == 0 || rename (rcs, tmp) != -1) ||
 	    (!isreadable (rcs) && isreadable (tmp)))
@@ -1253,7 +1253,7 @@ lock_RCS (user, rcs, rev, repository)
      * For a specified, numeric revision of the form "1" or "1.1", (or when
      * no revision is specified ""), definitely move the branch to the trunk
      * before locking the RCS file.
-     *
+     * 
      * The assumption is that if there is more than one revision on the trunk,
      * the head points to the trunk, not a branch... and as such, it's not
      * necessary to move the head in this case.

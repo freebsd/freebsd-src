@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Tag
- *
+ * 
  * Add or delete a symbolic name to an RCS file, or a collection of RCS files.
  * Uses the checked out revision in the current directory.
  */
@@ -133,7 +133,7 @@ tag_fileproc (file, update_dir, repository, entries, srcfiles)
 	 * If -d is specified, "force_tag_match" is set, so that this call to
 	 * Version_Number() will return a NULL version string if the symbolic
 	 * tag does not exist in the RCS file.
-	 *
+	 * 
 	 * This is done here because it's MUCH faster than just blindly calling
 	 * "rcs" to remove the tag... trust me.
 	 */
@@ -218,7 +218,7 @@ tag_fileproc (file, update_dir, repository, entries, srcfiles)
        int isbranch = RCS_isbranch (file, symtag, srcfiles);
 
        /*
-	* if versions the same and neither old or new are branches don't have
+	* if versions the same and neither old or new are branches don't have 
 	* to do anything
 	*/
        if (strcmp (version, oversion) == 0 && !branch_mode && !isbranch)
@@ -227,16 +227,16 @@ tag_fileproc (file, update_dir, repository, entries, srcfiles)
 	  freevers_ts (&vers);
 	  return (0);
        }
-
+       
        if (!force_tag_move) {		/* we're NOT going to move the tag */
 	  if (update_dir[0])
 	     (void) printf ("W %s/%s", update_dir, file);
 	  else
 	     (void) printf ("W %s", file);
 
-	  (void) printf (" : %s already exists on %s %s",
+	  (void) printf (" : %s already exists on %s %s", 
 			 symtag, isbranch ? "branch" : "version", oversion);
-	  (void) printf (" : NOT MOVING tag to %s %s\n",
+	  (void) printf (" : NOT MOVING tag to %s %s\n", 
 			 branch_mode ? "branch" : "version", rev);
 	  free (oversion);
 	  freevers_ts (&vers);

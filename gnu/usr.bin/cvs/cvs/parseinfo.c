@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
  */
@@ -15,7 +15,7 @@ USE(rcsid)
 
 /*
  * Parse the INFOFILE file for the specified REPOSITORY.  Invoke CALLPROC for
- * each line in the file that matches the REPOSITORY.
+ * each line in the file that matches the REPOSITORY.  
  * Return 0 for success, -1 if there was not an INFOFILE, and >0 for failure.
  */
 int

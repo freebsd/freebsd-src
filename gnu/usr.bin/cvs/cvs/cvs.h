@@ -46,7 +46,7 @@ char *alloca ();
 #if __GNUC__ == 2
 #define USE(var) static char sizeof##var = sizeof(sizeof##var) + sizeof(var);
 #else
-#define USE(var)
+#define USE(var) 
 #endif
 
 
@@ -54,7 +54,7 @@ char *alloca ();
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+#endif 
 
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -111,10 +111,10 @@ extern int errno;
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Definitions for the CVS Administrative directory and the files it contains.
  * Here as #define's to make changing the names a simple task.
  */
@@ -213,7 +213,7 @@ extern int errno;
 /*
  * If the beginning of the Repository matches the following string, strip it
  * so that the output to the logfile does not contain a full pathname.
- *
+ * 
  * If the CVSROOT environment variable is set, it overrides this define.
  */
 #define	REPOS_STRIP	"/master/"
@@ -258,7 +258,7 @@ typedef enum classify_type Ctype;
 /*
  * a struct vers_ts contains all the information about a file including the
  * user and rcs file names, and the version checked out and the head.
- *
+ * 
  * this is usually obtained from a call to Version_TS which takes a tag argument
  * for the RCS file if desired
  */
@@ -266,15 +266,15 @@ struct vers_ts
 {
     char *vn_user;			/* rcs version user file derives from
 					 * it can have the following special
-					 * values:
-					 *    empty = no user file
+					 * values: 
+					 *    empty = no user file	
 					 *    0 = user file is new
 					 *    -vers = user file to be removed */
     char *vn_rcs;			/* the version for the rcs file
 					 * (tag version?) 	 */
     char *ts_user;			/* the timestamp for the user file */
     char *ts_rcs;			/* the user timestamp from entries */
-    char *options;			/* opts from Entries file
+    char *options;			/* opts from Entries file 
 					 * (keyword expansion)	 */
     char *ts_conflict;			/* Holds time_stamp of conflict */
     char *tag;				/* tag stored in the Entries file */

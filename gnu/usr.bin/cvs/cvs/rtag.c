@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Rtag
- *
+ * 
  * Add or delete a symbolic name to an RCS file, or a collection of RCS files.
  * Uses the modules database, if necessary.
  */
@@ -50,7 +50,7 @@ static char *rtag_usage[] =
     "\t-d\tDelete the given Tag.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
     "\t-[rD]\tExisting tag or Date.\n",
-    "\t-F\tMove tag if it already exists\n",
+    "\t-F\tMove tag if it already exists\n",	
     NULL
 };
 
@@ -135,7 +135,7 @@ rtag (argc, argv)
     for (i = 0; i < argc; i++)
     {
 	/* XXX last arg should be repository, but doesn't make sense here */
-	history_write ('T', (delete ? "D" : (numtag ? numtag :
+	history_write ('T', (delete ? "D" : (numtag ? numtag : 
 		       (date ? date : "A"))), symtag, argv[i], "");
 	err += do_module (db, argv[i], TAG, delete ? "Untagging" : "Tagging",
 			  rtag_proc, (char *) NULL, 0, 0, run_module_prog,
@@ -304,7 +304,7 @@ rtag_fileproc (file, update_dir, repository, entries, srcfiles)
     else
     {
        char *oversion;
-
+       
        /*
 	* As an enhancement for the case where a tag is being re-applied to
 	* a large body of a module, make one extra call to Version_Number to
@@ -330,16 +330,16 @@ rtag_fileproc (file, update_dir, repository, entries, srcfiles)
 	     free (version);
 	     return (0);
 	  }
-
+	  
 	  if (!force_tag_move) {	/* we're NOT going to move the tag */
 	     if (update_dir[0])
 		(void) printf ("W %s/%s", update_dir, file);
 	     else
 		(void) printf ("W %s", file);
-
-	     (void) printf (" : %s already exists on %s %s",
+	     
+	     (void) printf (" : %s already exists on %s %s", 
 			    symtag, isbranch ? "branch" : "version", oversion);
-	     (void) printf (" : NOT MOVING tag to %s %s\n",
+	     (void) printf (" : NOT MOVING tag to %s %s\n", 
 			    branch_mode ? "branch" : "version", rev);
 	     free (oversion);
 	     free (version);
@@ -366,10 +366,10 @@ rtag_fileproc (file, update_dir, repository, entries, srcfiles)
  * If -d is specified, "force_tag_match" is set, so that this call to
  * Version_Number() will return a NULL version string if the symbolic
  * tag does not exist in the RCS file.
- *
+ * 
  * If the -r flag was used, numtag is set, and we only delete the
  * symtag from files that have numtag.
- *
+ * 
  * This is done here because it's MUCH faster than just blindly calling
  * "rcs" to remove the tag... trust me.
  */
