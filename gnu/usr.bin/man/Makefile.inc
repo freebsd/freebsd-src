@@ -11,7 +11,9 @@ troff=			/usr/bin/groff -man
 nroff=                  /usr/bin/groff -Wall -mtty-char -man
 apropos=		/usr/bin/apropos
 whatis=			/usr/bin/whatis
-neqn=                   /usr/bin/eqn -Tascii
+eqn=                    /usr/bin/eqn
+# -Tascii or localized encoding added automatically
+neqn=                   /usr/bin/eqn
 tbl=			/usr/bin/tbl
 col=			/usr/bin/col
 vgrind=			/usr/bin/vgrind
