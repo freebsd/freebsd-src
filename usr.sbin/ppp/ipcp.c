@@ -29,6 +29,7 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <net/route.h>
 #include <netdb.h>
 #include <sys/un.h>
@@ -989,6 +990,12 @@ ipcp_InterfaceUp(struct ipcp *ipcp)
 {
   if (ipcp_SetIPaddress(ipcp->fsm.bundle, ipcp->my_ip, ipcp->peer_ip, 0) < 0) {
     log_Printf(LogERROR, "ipcp_InterfaceUp: unable to set ip address\n");
+    return 0;
+  }
+
+  if (!iface_SetFlags(ipcp->fsm.bundle->iface->name, IFF_UP)) {
+    log_Printf(LogERROR, "ipcp_InterfaceUp: Can't set the IFF_UP flag on %s\n",
+               ipcp->fsm.bundle->iface->name);
     return 0;
   }
 
