@@ -403,6 +403,7 @@ ath_intr(void *arg)
 		ath_hal_dumpstate(ah);
 	}
 #endif /* AR_DEBUG */
+	status &= sc->sc_imask;			/* discard unasked for bits */
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
@@ -1519,7 +1520,7 @@ ath_rx_proc(void *arg, int npending)
 		}
 
 		len = ds->ds_rxstat.rs_datalen;
-		if (len < sizeof(struct ieee80211_frame)) {
+		if (len < IEEE80211_MIN_LEN) {
 			DPRINTF(("ath_rx_proc: short packet %d\n", len));
 			sc->sc_stats.ast_rx_tooshort++;
 			goto rx_next;
@@ -1527,18 +1528,6 @@ ath_rx_proc(void *arg, int npending)
 
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, 
 		    BUS_DMASYNC_POSTREAD);
-
-		wh = mtod(m, struct ieee80211_frame *);
-		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		    IEEE80211_FC0_TYPE_CTL &&
-		    ic->ic_opmode != IEEE80211_M_MONITOR) {
-			/*
-			 * Discard control frame when not in monitor mode.
-			 */
-			DPRINTF(("ath_rx_proc: control frame\n"));
-			sc->sc_stats.ast_rx_ctl++;
-			goto rx_next;
-		}
 
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		bf->bf_m = NULL;
@@ -1570,6 +1559,7 @@ ath_rx_proc(void *arg, int npending)
 		}
 
 		m_adj(m, -IEEE80211_CRC_LEN);
+		wh = mtod(m, struct ieee80211_frame *);
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
 			/*
 			 * WEP is decrypted by hardware. Clear WEP bit
