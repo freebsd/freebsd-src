@@ -34,47 +34,47 @@
 
 struct intrhand {
 	void(*func)(void*arg);
-	void* arg;
+	void	*arg;
 	STAILQ_ENTRY(intrhand) entries;
 };
 
 struct pccbb_socketreg {
-	u_int32_t socket_event;
-	u_int32_t socket_mask;
-	u_int32_t socket_state;
-	u_int32_t socket_force;
-	u_int32_t socket_control;
-	u_int32_t socket_power;
+	u_int32_t	socket_event;
+	u_int32_t	socket_mask;
+	u_int32_t	socket_state;
+	u_int32_t	socket_force;
+	u_int32_t	socket_control;
+	u_int32_t	socket_power;
 };
 
 struct pccbb_reslist {
 	SLIST_ENTRY(pccbb_reslist) entries;
-	int type;
-	int rid;
+	int	type;
+	int	rid;
 	u_int32_t start;
 	u_int32_t end;
 	device_t odev;
 	int win;
 };
 
-#define PCCBB_AUTO_OPEN_SMALLHOLE 0x100
+#define	PCCBB_AUTO_OPEN_SMALLHOLE 0x100
 
 struct pccbb_softc {
-	device_t sc_dev;
-	struct resource *sc_base_res;
-	struct resource *sc_irq_res;
-	void *sc_intrhand;
-	struct pccbb_socketreg *sc_socketreg;
-	u_int8_t sc_secbus;
-	u_int8_t sc_subbus;
-	struct mtx sc_mtx;
-	u_int32_t sc_flags;
-#define PCCBB_PCIC_IO_RELOC	0x01
-#define PCCBB_PCIC_MEM_32	0x02
+	device_t	sc_dev;
+	struct		resource *sc_base_res;
+	struct		resource *sc_irq_res;
+	void		*sc_intrhand;
+	struct		pccbb_socketreg *sc_socketreg;
+	u_int8_t	sc_secbus;
+	u_int8_t	sc_subbus;
+	struct		mtx sc_mtx;
+	u_int32_t	sc_flags;
+#define	PCCBB_PCIC_IO_RELOC	0x01
+#define	PCCBB_PCIC_MEM_32	0x02
 #define	PCCBB_16BIT_CARD	0x02000000
 #define	PCCBB_KTHREAD_RUNNING	0x04000000
 #define	PCCBB_KTHREAD_DONE	0x08000000
-	int sc_chipset;		/* chipset id */
+	int		sc_chipset;		/* chipset id */
 #define	CB_UNKNOWN	0		/* NOT Cardbus-PCI bridge */
 #define	CB_TI113X	1		/* TI PCI1130/1131 */
 #define	CB_TI12XX	2		/* TI PCI1250/1220 */
@@ -83,46 +83,46 @@ struct pccbb_softc {
 #define	CB_TOPIC95	5		/* Toshiba ToPIC95 */
 #define	CB_TOPIC95B	6		/* Toshiba ToPIC95B */
 #define	CB_TOPIC97	7		/* Toshiba ToPIC97/100 */
-#define CB_CIRRUS	8		/* Cirrus Logic CLPD683x */
+#define	CB_CIRRUS	8		/* Cirrus Logic CLPD683x */
 	SLIST_HEAD(, pccbb_reslist) rl;
 
-	device_t sc_cbdev;
-	device_t sc_pccarddev;
+	device_t	sc_cbdev;
+	device_t	sc_pccarddev;
 
 	/* PC Card stuff */
-	int memalloc;
-	struct pccard_mem_handle mem[PCIC_MEM_WINS];
-	int ioalloc;
-	struct pccard_io_handle io[PCIC_IO_WINS];
+	int		memalloc;
+	struct		pccard_mem_handle mem[PCIC_MEM_WINS];
+	int		ioalloc;
+	struct		pccard_io_handle io[PCIC_IO_WINS];
 
 	/* kthread staff */
-	struct proc *event_thread;
+	struct		proc *event_thread;
 };
 
 /* result of detect_card */
-#define CARD_UKN_CARD	0x00
-#define CARD_5V_CARD	0x01
-#define CARD_3V_CARD	0x02
-#define CARD_XV_CARD	0x04
-#define CARD_YV_CARD	0x08
+#define	CARD_UKN_CARD	0x00
+#define	CARD_5V_CARD	0x01
+#define	CARD_3V_CARD	0x02
+#define	CARD_XV_CARD	0x04
+#define	CARD_YV_CARD	0x08
 
 /* for power_socket */
-#define CARD_VCC_UC	0x0000
-#define CARD_VCC_3V	0x0001
-#define CARD_VCC_XV	0x0002
-#define CARD_VCC_YV	0x0003
-#define CARD_VCC_0V	0x0004
-#define CARD_VCC_5V	0x0005
-#define CARD_VCCMASK	0x000f
-#define CARD_VPP_UC	0x0000
-#define CARD_VPP_VCC	0x0010
-#define CARD_VPP_12V	0x0030
-#define CARD_VPP_0V	0x0040
-#define CARD_VPPMASK	0x00f0
+#define	CARD_VCC_UC	0x0000
+#define	CARD_VCC_3V	0x0001
+#define	CARD_VCC_XV	0x0002
+#define	CARD_VCC_YV	0x0003
+#define	CARD_VCC_0V	0x0004
+#define	CARD_VCC_5V	0x0005
+#define	CARD_VCCMASK	0x000f
+#define	CARD_VPP_UC	0x0000
+#define	CARD_VPP_VCC	0x0010
+#define	CARD_VPP_12V	0x0030
+#define	CARD_VPP_0V	0x0040
+#define	CARD_VPPMASK	0x00f0
 
 /* XXX: rman is dumb */
-#define CARDBUS_SYS_RES_MEMORY_START    0x44000000
-#define CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
-#define CARDBUS_SYS_RES_IOPORT_START    0x3000
-#define CARDBUS_SYS_RES_IOPORT_END      0xEFFF
+#define	CARDBUS_SYS_RES_MEMORY_START    0x44000000
+#define	CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
+#define	CARDBUS_SYS_RES_IOPORT_START    0x3000
+#define	CARDBUS_SYS_RES_IOPORT_END      0xEFFF
 
