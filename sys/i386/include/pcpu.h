@@ -31,24 +31,6 @@
 
 #ifdef _KERNEL
 
-#ifndef	__GNUC__
-
-#ifndef	lint
-#error	gcc or lint is required to use this file
-#else /* lint */
-#define	__PCPU_PTR(name)
-#define	__PCPU_GET(name)
-#define	__PCPU_SET(name, val)
-#define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
-#define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
-#define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
-#define	PCPU_MD_FIELDS		\
-	int foo;		\
-	char bar
-#endif /* lint */
-
-#else	/* __GNUC__ */
-
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -69,6 +51,16 @@
 	u_int32_t pc_ipending;	/* pending slow interrupts */		\
 	u_int32_t pc_fpending;	/* pending fast interrupts */		\
 	u_int32_t pc_spending 	/* pending soft interrupts */
+
+#if defined(lint)
+ 
+extern struct pcpu *pcpup;
+ 
+#define PCPU_GET(member)        (pcpup->pc_ ## member)
+#define PCPU_PTR(member)        (&pcpup->pc_ ## member)
+#define PCPU_SET(member,value)  (pcpup->pc_ ## member = (value))
+ 
+#elif defined(__GNUC__)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
@@ -160,7 +152,9 @@
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
-#endif	/* __GNUC__ */
+#else
+#error gcc or lint is required to use this file
+#endif
 
 #endif	/* _KERNEL */
 
