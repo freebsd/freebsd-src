@@ -42,13 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
 #else
 static const char rcsid[] =
-	"$Id: csh.c,v 1.9 1997/08/07 21:42:03 steve Exp $";
+	"$Id: csh.c,v 1.10 1997/08/08 00:49:25 steve Exp $";
 #endif
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pwd.h>
@@ -232,7 +233,7 @@ main(argc, argv)
      */
     set(STRstatus, Strsave(STR0));
 
-    if ((tcp = getenv("HOME")) != NULL)
+    if ((tcp = getenv("HOME")) != NULL && strlen(tcp) < MAXPATHLEN)
 	cp = SAVE(tcp);
     else
 	cp = NULL;
