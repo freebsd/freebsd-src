@@ -107,17 +107,23 @@ vm_page_zero_idle_wakeup(void)
 static void
 vm_pagezero(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
+	struct proc *p;
 	struct rtprio rtp;
 	int pages = 0;
 	int pri;
 
+	td = curthread;
+	p = td->td_proc;
 	rtp.prio = RTP_PRIO_MAX;
 	rtp.type = RTP_PRIO_IDLE;
 	mtx_lock_spin(&sched_lock);
 	rtp_to_pri(&rtp, td->td_ksegrp);
 	pri = td->td_priority;
 	mtx_unlock_spin(&sched_lock);
+	PROC_LOCK(p);
+	p->p_flag |= P_NOLOAD;
+	PROC_UNLOCK(p);
 
 	for (;;) {
 		if (vm_page_zero_check()) {
