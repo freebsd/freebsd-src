@@ -49,7 +49,7 @@ struct dom_binding {};
 char *ypxfrerr_string(code)
 	ypxfrstat code;
 {
-	switch(code) {
+	switch (code) {
 	case YPXFR_SUCC:
 		return ("Map successfully transferred");
 		break;
@@ -194,7 +194,7 @@ failed"));
 		return((char *)&mastername);
 	}
 }
-		
+
 unsigned long ypxfr_get_order(domain, map, source, yplib)
 	char *domain;
 	char *map;

@@ -181,10 +181,10 @@ void yp_flush_all()
 {
 	register struct circleq_entry *qptr;
 
-	while(qhead.cqh_first != (void *)&qhead) {
+	while (qhead.cqh_first != (void *)&qhead) {
 		qptr = qhead.cqh_first; /* save this */
 		CIRCLEQ_REMOVE(&qhead, qhead.cqh_first, links);
-		yp_free_qent(qptr); 
+		yp_free_qent(qptr);
 	}
 	numdbs = 0;
 
@@ -417,7 +417,7 @@ again:
 	dbp = dbopen(buf,O_RDONLY, PERM_SECURE, DB_HASH, NULL);
 
 	if (dbp == NULL) {
-		switch(errno) {
+		switch (errno) {
 #ifdef DB_CACHE
 		case ENFILE:
 			/*
@@ -451,7 +451,7 @@ again:
  *                 to match against.
  *
  * - yp_first_record(): retrieve first key/data base in a database.
- * 
+ *
  * - yp_next_record(): retrieve key/data pair that sequentially follows
  *                   the supplied key value in the database.
  */
@@ -544,7 +544,7 @@ int yp_first_record(dbp,key,data,allow)
 #endif
 		if (rval == 1)
 			return(YP_NOKEY);
-		else 
+		else
 			return(YP_BADDB);
 	}
 
@@ -625,7 +625,7 @@ int yp_next_record(dbp,key,data,all,allow)
 					return(YP_NOKEY);
 				}
 
-#ifdef DB_CACHE					
+#ifdef DB_CACHE
 		}
 #endif
 	}

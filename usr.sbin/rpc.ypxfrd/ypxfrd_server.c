@@ -58,7 +58,7 @@ xdr_my_xfr(register XDR *xdrs, xfr *objp)
 {
 	unsigned char buf[XFRBLOCKSIZE];
 
-	while(1) {
+	while (1) {
 		if ((objp->xfr_u.xfrblock_buf.xfrblock_buf_len =
 		    read(fp, &buf, XFRBLOCKSIZE)) != -1) {
 			objp->ok = TRUE;

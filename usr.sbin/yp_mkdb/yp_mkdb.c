@@ -88,7 +88,7 @@ static void unwind(map)
 		err(1, "open_db(%s) failed", map);
 
 	key.data = NULL;
-	while(yp_next_record(dbp, &key, &data, 1, 1) == YP_TRUE)
+	while (yp_next_record(dbp, &key, &data, 1, 1) == YP_TRUE)
 		printf("%.*s %.*s\n", key.size,key.data,data.size,data.data);
 
 	(void)(dbp->close)(dbp);
@@ -119,7 +119,7 @@ int main (argc, argv)
 	char hname[MAXHOSTNAMELEN + 2];
 
 	while ((ch = getopt(argc, argv, "uhcbsfd:i:o:m:")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'f':
 			filter_plusminus++;
 			break;
@@ -250,7 +250,7 @@ int main (argc, argv)
 		yp_put_record(dbp, &key, &data, 0);
 	}
 
-	while(fgets((char *)&buf, sizeof(buf), ifp)) {
+	while (fgets((char *)&buf, sizeof(buf), ifp)) {
 		char *sep = NULL;
 		int rval;
 
@@ -259,7 +259,7 @@ int main (argc, argv)
 			*sep = '\0';
 
 		/* handle backslash line continuations */
-		while(buf[strlen(buf) - 1] == '\\') {
+		while (buf[strlen(buf) - 1] == '\\') {
 			fgets((char *)&buf[strlen(buf) - 1],
 					sizeof(buf) - strlen(buf), ifp);
 			if ((sep = strchr(buf, '\n')))
@@ -312,7 +312,7 @@ int main (argc, argv)
 		data.size = strlen(datbuf);
 
 		if ((rval = yp_put_record(dbp, &key, &data, 0)) != YP_TRUE) {
-			switch(rval) {
+			switch (rval) {
 			case YP_FALSE:
 				warnx("duplicate key '%s' - skipping", keybuf);
 				break;

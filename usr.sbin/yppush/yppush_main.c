@@ -91,7 +91,7 @@ struct jobs *yppush_joblist;	/* Linked list of running jobs. */
 static char *yppusherr_string(err)
 	int err;
 {
-	switch(err) {
+	switch (err) {
 	case YPPUSH_TIMEDOUT: return("transfer or callback timed out");
 	case YPPUSH_YPSERV:   return("failed to contact ypserv");
 	case YPPUSH_NOHOST:   return("no such host");
@@ -111,7 +111,7 @@ static int yppush_show_status(status, tid)
 
 	job = yppush_joblist;
 
-	while(job) {
+	while (job) {
 		if (job->tid == tid)
 			break;
 		job = job->next;
@@ -129,14 +129,14 @@ static int yppush_show_status(status, tid)
 		 	job->map, job->server, status == YPPUSH_SUCC ?
 		 	"succeeded" : "failed");
 		yp_error("status returned by ypxfr: %s", status > YPPUSH_AGE ?
-			yppusherr_string(status) : 
+			yppusherr_string(status) :
 			ypxfrerr_string(status));
 	}
 
 	job->polled = 1;
 
 	svc_unregister(job->prognum, 1);
-	
+
 	yppush_running_jobs--;
 	return(0);
 }
@@ -149,7 +149,7 @@ static void yppush_exit(now)
 	int still_pending = 1;
 
 	/* Let all the information trickle in. */
-	while(!now && still_pending) {
+	while (!now && still_pending) {
 		jptr = yppush_joblist;
 		still_pending = 0;
 		while (jptr) {
@@ -188,7 +188,7 @@ static void yppush_exit(now)
 
 	/* All stats collected and reported -- kill all the stragglers. */
 	jptr = yppush_joblist;
-	while(jptr) {
+	while (jptr) {
 		if (!jptr->polled)
 			yp_error("warning: exiting with transfer \
 to %s (transid = %lu) still pending", jptr->server, jptr->tid);
@@ -226,8 +226,8 @@ static void yppush_svc_run()
 {
 #ifdef FD_SETSIZE
 	fd_set readfds;
-#else 
-	int readfds; 
+#else
+	int readfds;
 #endif /* def FD_SETSIZE */
 	struct timeval timeout;
 
@@ -295,7 +295,7 @@ yppushproc_xfrresp_1_svc(yppushresp_xfr *argp, struct svc_req *rqstp)
 
 /*
  * Transmit a YPPROC_XFR request to ypserv.
- */   
+ */
 static int yppush_send_xfr(job)
 	struct jobs *job;
 {
@@ -340,7 +340,7 @@ static int yppush_send_xfr(job)
 	if ((clnt = clnt_create(job->server, YPPROG, YPVERS, "udp")) == NULL) {
 		yp_error("%s: %s",job->server,clnt_spcreateerror("couldn't \
 create udp handle to NIS server"));
-		switch(rpc_createerr.cf_stat) {
+		switch (rpc_createerr.cf_stat) {
 			case RPC_UNKNOWNHOST:
 				job->stat = YPPUSH_NOHOST;
 				break;
@@ -546,7 +546,7 @@ main(argc,argv)
 	struct sigaction sa;
 
 	while ((ch = getopt(argc, argv, "d:j:p:h:t:v")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'd':
 			yppush_domain = optarg;
 			break;
@@ -664,7 +664,7 @@ main(argc,argv)
 	 * kick off the transfers by hand.
 	 */
 		tmp = yppush_hostlist;
-		while(tmp) {
+		while (tmp) {
 			yppush_foreach(YP_TRUE, NULL, 0, tmp->name,
 							strlen(tmp->name));
 			tmp = tmp->next;

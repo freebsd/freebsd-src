@@ -61,17 +61,17 @@
 
 struct ypall_callback {
 	/* return non-0 to stop getting called */
-	int (*foreach) __P((unsigned long, char *, int, char *, int, void *));
+	int (*foreach)(unsigned long, char *, int, char *, int, void *);
 	char *data;		/* opaque pointer for use of callback fn */
 };
 
 struct dom_binding;
 
 __BEGIN_DECLS
-int	yp_bind		__P((char *dom));
-int	_yp_dobind	__P((char *dom, struct dom_binding **ypdb));
-void	yp_unbind	__P((char *dom));
-int	yp_get_default_domain __P((char **domp));
+int	yp_bind(char *dom);
+int	_yp_dobind(char *dom, struct dom_binding **ypdb);
+void	yp_unbind(char *dom);
+int	yp_get_default_domain(char **domp);
 int	yp_match 	__P((char *indomain, char *inmap,
 			    const char *inkey, int inkeylen, char **outval,
 			    int *outvallen));
@@ -81,13 +81,13 @@ int	yp_first 	__P((char *indomain, char *inmap,
 int	yp_next		__P((char *indomain, char *inmap,
 			    char *inkey, int inkeylen, char **outkey,
 			    int *outkeylen, char **outval, int *outvallen));
-int	yp_master	__P((char *indomain, char *inmap, char **outname));
-int	yp_order	__P((char *indomain, char *inmap, int *outorder));
+int	yp_master(char *indomain, char *inmap, char **outname);
+int	yp_order(char *indomain, char *inmap, int *outorder);
 int	yp_all		__P((char *indomain, char *inmap,
 			    struct ypall_callback *incallback));
-char *	yperr_string	__P((int incode));
-char *	ypbinderr_string __P((int incode));
-int	ypprot_err	__P((unsigned int incode));
+char *	yperr_string(int incode);
+char *	ypbinderr_string(int incode);
+int	ypprot_err(unsigned int incode);
 __END_DECLS
 
 #endif /* _RPCSVC_YPCLNT_H_ */

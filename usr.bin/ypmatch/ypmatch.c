@@ -81,10 +81,10 @@ char **argv;
 
 	notrans = key = 0;
 
-	while( (c=getopt(argc, argv, "xd:kt")) != -1)
-		switch(c) {
+	while ((c = getopt(argc, argv, "xd:kt")) != -1)
+		switch (c) {
 		case 'x':
-			for(i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i = 0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 				printf("Use \"%s\" for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
@@ -102,24 +102,24 @@ char **argv;
 			usage();
 		}
 
-	if( (argc-optind) < 2 )
+	if ((argc-optind) < 2)
 		usage();
 
 	if (!domainname)
 		yp_get_default_domain(&domainname);
 
 	inmap = argv[argc-1];
-	for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
-		if( strcmp(inmap, ypaliases[i].alias) == 0)
+	for (i = 0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+		if (strcmp(inmap, ypaliases[i].alias) == 0)
 			inmap = ypaliases[i].name;
-	for(; optind < argc-1; optind++) {
+	for (; optind < argc-1; optind++) {
 		inkey = argv[optind];
 
 		r = yp_match(domainname, inmap, inkey,
 			strlen(inkey), &outbuf, &outbuflen);
-		switch(r) {
+		switch (r) {
 		case 0:
-			if(key)
+			if (key)
 				printf("%s ", inkey);
 			printf("%*.*s\n", outbuflen, outbuflen, outbuf);
 			break;

@@ -78,7 +78,7 @@ static char PKFILE[] = "/etc/publickey";
 #endif	/* YP */
 
 #ifdef YP
-static int _openchild __P(( char *, FILE **, FILE ** ));
+static int _openchild(char *, FILE **, FILE **);
 
 /*
  * Determine if requester is allowed to update the given map,
@@ -247,7 +247,7 @@ basename(path)
 extern char *malloc();
 #endif
 
-static int match __P(( char * , char * ));
+static int match(char *, char *);
 
 /*
  * Determine if requester is allowed to update the given map,

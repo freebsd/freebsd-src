@@ -27,6 +27,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifdef YP
@@ -48,7 +50,7 @@
 #include <err.h>
 #include "yppasswd_private.h"
 
-extern char *getnewpasswd __P(( struct passwd * , int ));
+extern char *getnewpasswd(struct passwd *, int);
 
 int
 yp_passwd(char *user)
@@ -126,7 +128,7 @@ for other users");
 
 	/* Get old password */
 
-	if(pw->pw_passwd[0] && !suser_override) {
+	if (pw->pw_passwd[0] && !suser_override) {
 		yppasswd.oldpass = strdup(getpass("Old Password: "));
 		if (strcmp(crypt(yppasswd.oldpass, pw->pw_passwd),
 							pw->pw_passwd)) {
@@ -177,7 +179,7 @@ for other users");
 	clnt_destroy(clnt);
 
 	if (err.re_status != RPC_SUCCESS || status == NULL || *status) {
-		errx(1, "failed to change NIS password: %s", 
+		errx(1, "failed to change NIS password: %s",
 			clnt_sperrno(err.re_status));
 	}
 

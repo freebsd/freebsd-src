@@ -95,18 +95,18 @@ extern bool_t xdr_domainname(), xdr_ypbind_resp();
 extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
 extern bool_t xdr_ypbind_setdom();
 
-void	checkwork __P((void));
-void	*ypbindproc_null_2_yp __P((SVCXPRT *, void *, CLIENT *));
-void	*ypbindproc_setdom_2_yp __P((SVCXPRT *, struct ypbind_setdom *, CLIENT *));
-void	rpc_received __P((char *, struct sockaddr_in *, int ));
-void	broadcast __P((struct _dom_binding *));
-int	ping __P((struct _dom_binding *));
-int	tell_parent __P((char *, struct sockaddr_in *));
-void	handle_children __P(( struct _dom_binding * ));
-void	reaper __P((int));
-void	terminate __P((int));
-void	yp_restricted_mode __P((char *));
-int	verify __P((struct in_addr));
+void	checkwork(void);
+void	*ypbindproc_null_2_yp(SVCXPRT *, void *, CLIENT *);
+void	*ypbindproc_setdom_2_yp(SVCXPRT *, struct ypbind_setdom *, CLIENT *);
+void	rpc_received(char *, struct sockaddr_in *, int);
+void	broadcast(struct _dom_binding *);
+int	ping(struct _dom_binding *);
+int	tell_parent(char *, struct sockaddr_in *);
+void	handle_children(struct _dom_binding *);
+void	reaper(int);
+void	terminate(int);
+void	yp_restricted_mode(char *);
+int	verify(struct in_addr);
 
 char *domain_name;
 struct _dom_binding *ypbindlist;
@@ -187,28 +187,28 @@ rejecting.", *argp);
 		return(&res);
 	}
 
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
-		if( strcmp(ypdb->dom_domain, *argp) == 0)
+	for (ypdb = ypbindlist; ypdb; ypdb = ypdb->dom_pnext) {
+		if (strcmp(ypdb->dom_domain, *argp) == 0)
 			break;
 		}
 
-	if(ypdb==NULL) {
+	if (ypdb == NULL) {
 		if (yp_restricted) {
 			syslog(LOG_NOTICE, "Running in restricted mode -- request to bind domain \"%s\" rejected.\n", *argp);
-			return &res;
+			return (&res);
 		}
 
 		if (domains >= MAX_DOMAINS) {
 			syslog(LOG_WARNING, "domain limit (%d) exceeded",
 							MAX_DOMAINS);
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
-			return &res;
+			return (&res);
 		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %m");
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
-			return &res;
+			return (&res);
 		}
 		bzero((char *)ypdb, sizeof *ypdb);
 		strncpy(ypdb->dom_domain, *argp, sizeof ypdb->dom_domain);
@@ -225,7 +225,7 @@ rejecting.", *argp);
 	}
 
 	if (ping(ypdb)) {
-		return &res;
+		return (&res);
 	}
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
@@ -237,7 +237,7 @@ rejecting.", *argp);
 	/*printf("domain %s at %s/%d\n", ypdb->dom_domain,
 		inet_ntoa(ypdb->dom_server_addr.sin_addr),
 		ntohs(ypdb->dom_server_addr.sin_port));*/
-	return &res;
+	return (&res);
 }
 
 void *
@@ -256,9 +256,9 @@ rejecting.", argp->ypsetdom_domain);
 	}
 	fromsin = svc_getcaller(transp);
 
-	switch(ypsetmode) {
+	switch (ypsetmode) {
 	case YPSET_LOCAL:
-		if( fromsin->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
+		if (fromsin->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
 			svcerr_noprog(transp);
 			return(NULL);
 		}
@@ -271,12 +271,12 @@ rejecting.", argp->ypsetdom_domain);
 		return(NULL);
 	}
 
-	if(ntohs(fromsin->sin_port) >= IPPORT_RESERVED) {
+	if (ntohs(fromsin->sin_port) >= IPPORT_RESERVED) {
 		svcerr_noprog(transp);
 		return(NULL);
 	}
 
-	if(argp->ypsetdom_vers != YPVERS) {
+	if (argp->ypsetdom_vers != YPVERS) {
 		svcerr_noprog(transp);
 		return(NULL);
 	}
@@ -318,10 +318,10 @@ register SVCXPRT *transp;
 		break;
 
 	case YPBINDPROC_SETDOM:
-		switch(rqstp->rq_cred.oa_flavor) {
+		switch (rqstp->rq_cred.oa_flavor) {
 		case AUTH_UNIX:
 			creds = (struct authunix_parms *)rqstp->rq_clntcred;
-			if( creds->aup_uid != 0) {
+			if (creds->aup_uid != 0) {
 				svcerr_auth(transp, AUTH_BADCRED);
 				return;
 			}
@@ -358,7 +358,7 @@ int sig;
 {
 	int st;
 
-	while(wait3(&st, WNOHANG, NULL) > 0)
+	while (wait3(&st, WNOHANG, NULL) > 0)
 		children--;
 }
 
@@ -371,7 +371,7 @@ int sig;
 	if (ppid != getpid())
 		exit(0);
 
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
+	for (ypdb = ypbindlist; ypdb; ypdb = ypdb->dom_pnext) {
 		close(ypdb->dom_lockfd);
 		if (ypdb->dom_broadcast_pid)
 			kill(ypdb->dom_broadcast_pid, SIGINT);
@@ -400,16 +400,16 @@ char **argv;
 	if ((yplockfd = (open(YPBINDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)
 		err(1, "%s", YPBINDLOCK);
 
-	if(flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
+	if (flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
 		errx(1, "another ypbind is already running. Aborting");
 
 	/* XXX domainname will be overriden if we use restricted mode */
 	yp_get_default_domain(&domain_name);
-	if( domain_name[0] == '\0')
+	if (domain_name[0] == '\0')
 		errx(1, "domainname not set. Aborting");
 
-	for(i=1; i<argc; i++) {
-		if( strcmp("-ypset", argv[i]) == 0)
+	for (i = 1; i<argc; i++) {
+		if (strcmp("-ypset", argv[i]) == 0)
 			ypsetmode = YPSET_ALL;
 		else if (strcmp("-ypsetme", argv[i]) == 0)
 		        ypsetmode = YPSET_LOCAL;
@@ -478,13 +478,13 @@ char **argv;
 	/* Kick off the default domain */
 	broadcast(ypbindlist);
 
-	while(1) {
+	while (1) {
 		fdsr = svc_fdset;
 
 		tv.tv_sec = 60;
 		tv.tv_usec = 0;
 
-		switch(select(_rpc_dtablesize(), &fdsr, NULL, NULL, &tv)) {
+		switch (select(_rpc_dtablesize(), &fdsr, NULL, NULL, &tv)) {
 		case 0:
 			checkwork();
 			break;
@@ -493,7 +493,7 @@ char **argv;
 				syslog(LOG_WARNING, "select: %m");
 			break;
 		default:
-			for(ypdb=ypbindlist; ypdb; ypdb=next) {
+			for (ypdb = ypbindlist; ypdb; ypdb = next) {
 				next = ypdb->dom_pnext;
 				if (READFD > 0 && FD_ISSET(READFD, &fdsr)) {
 					handle_children(ypdb);
@@ -515,7 +515,7 @@ checkwork()
 {
 	struct _dom_binding *ypdb;
 
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
+	for (ypdb = ypbindlist; ypdb; ypdb = ypdb->dom_pnext)
 		ping(ypdb);
 }
 
@@ -553,12 +553,12 @@ struct _dom_binding *ypdb;
 	if (d > 0 && a > 0)
 		rpc_received((char *)&buf, &addr, 0);
 	else {
-		for(y=ypbindlist; y; y=y->dom_pnext) {
+		for (y = ypbindlist; y; y = y->dom_pnext) {
 			if (y == ypdb)
 				break;
 			prev = y;
 		}
-		switch(ypdb->dom_default) {
+		switch (ypdb->dom_default) {
 		case 0:
 			if (prev == NULL)
 				ypbindlist = y->dom_pnext;
@@ -631,17 +631,17 @@ struct sockaddr_in *addr;
 		bzero((char *)addr, sizeof(struct sockaddr_in));
 		if (tell_parent(broad_domain->dom_domain, addr))
 			syslog(LOG_WARNING, "lost connection to parent");
-		return TRUE;
+		return (TRUE);
 	}
 
 	if (yp_restricted && verify(addr->sin_addr)) {
 		retries++;
 		syslog(LOG_NOTICE, "NIS server at %s not in restricted mode access list -- rejecting.\n",inet_ntoa(addr->sin_addr));
-		return FALSE;
+		return (FALSE);
 	} else {
 		if (tell_parent(broad_domain->dom_domain, addr))
 			syslog(LOG_WARNING, "lost connection to parent");
-		return TRUE;
+		return (TRUE);
 	}
 }
 
@@ -677,7 +677,7 @@ struct _dom_binding *ypdb;
 	broad_domain = ypdb;
 	flock(ypdb->dom_lockfd, LOCK_UN);
 
-	switch((ypdb->dom_broadcast_pid = fork())) {
+	switch ((ypdb->dom_broadcast_pid = fork())) {
 	case 0:
 		close(READFD);
 		signal(SIGCHLD, SIG_DFL);
@@ -696,7 +696,7 @@ struct _dom_binding *ypdb;
 	}
 
 	/* Release all locks before doing anything else. */
-	while(ypbindlist) {
+	while (ypbindlist) {
 		close(ypbindlist->dom_lockfd);
 		ypbindlist = ypbindlist->dom_pnext;
 	}
@@ -831,11 +831,11 @@ int force;
 	/*printf("returned from %s/%d about %s\n", inet_ntoa(raddrp->sin_addr),
 	       ntohs(raddrp->sin_port), dom);*/
 
-	if(dom==NULL)
+	if (dom == NULL)
 		return;
 
-	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
-		if( strcmp(ypdb->dom_domain, dom) == 0)
+	for (ypdb = ypbindlist; ypdb; ypdb = ypdb->dom_pnext) {
+		if (strcmp(ypdb->dom_domain, dom) == 0)
 			break;
 		prev = ypdb;
 	}
@@ -863,7 +863,7 @@ int force;
 	}
 
 	if (raddrp->sin_addr.s_addr == (long)0) {
-		switch(ypdb->dom_default) {
+		switch (ypdb->dom_default) {
 		case 0:
 			if (prev == NULL)
 				ypbindlist = ypdb->dom_pnext;
@@ -886,7 +886,7 @@ int force;
 		}
 	}
 
-	if(ypdb==NULL) {
+	if (ypdb == NULL) {
 		if (force == 0)
 			return;
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
@@ -914,21 +914,21 @@ int force;
 	ypdb->dom_alive = 1;
 	ypdb->dom_broadcast_pid = 0;
 
-	if(ypdb->dom_lockfd != -1)
+	if (ypdb->dom_lockfd != -1)
 		close(ypdb->dom_lockfd);
 
 	sprintf(path, "%s/%s.%ld", BINDINGDIR,
 		ypdb->dom_domain, ypdb->dom_vers);
 #ifdef O_SHLOCK
-	if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1) {
+	if ((fd = open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1)
+		if ((fd = open(path, O_CREAT|O_SHLOCK|O_RDWR|O_TRUNC, 0644)) == -1)
 			return;
 	}
 #else
-	if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1) {
+	if ((fd = open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1) {
 		(void)mkdir(BINDINGDIR, 0755);
-		if( (fd=open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1)
+		if ((fd = open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) == -1)
 			return;
 	}
 	flock(fd, LOCK_SH);
@@ -950,7 +950,7 @@ int force;
 	*(u_int32_t *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr.s_addr;
 	*(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
 
-	if( writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
+	if (writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
 		syslog(LOG_WARNING, "write: %m");
 		close(ypdb->dom_lockfd);
 		ypdb->dom_lockfd = -1;
@@ -1004,7 +1004,7 @@ char *args;
 
 	/* ypset and ypsetme not allowed with restricted mode */
 	ypsetmode = YPSET_NO;
-	
+
 	yp_restricted = i;
 	return;
 }

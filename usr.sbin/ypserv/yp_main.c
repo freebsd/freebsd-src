@@ -76,9 +76,9 @@ static int _rpcfdtype;
 #define	_SERVED 1
 #define	_SERVING 2
 
-extern void ypprog_1 __P((struct svc_req *, register SVCXPRT *));
-extern void ypprog_2 __P((struct svc_req *, register SVCXPRT *));
-extern int _rpc_dtablesize __P((void));
+extern void ypprog_1(struct svc_req *, register SVCXPRT *);
+extern void ypprog_2(struct svc_req *, register SVCXPRT *);
+extern int _rpc_dtablesize(void);
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
@@ -235,7 +235,7 @@ main(argc, argv)
 	int ch;
 
 	while ((ch = getopt(argc, argv, "hdnp:")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'd':
 			debug = ypdb_debug = 1;
 			break;
