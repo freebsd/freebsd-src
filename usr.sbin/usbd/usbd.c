@@ -702,7 +702,12 @@ find_action(struct usb_device_info *devinfo, action_match_t *action_match)
 		    (action->devname == WILDCARD_STRING ||
 		     (match = match_devname(action, devinfo)) != -1)) {
 			/* found match !*/
-			if (match != -1)
+
+			/* Find a devname for pretty printing. Either
+			 * the matched one or otherwise, if there is only
+			 * one devname for that device, use that.
+			 */
+			if (match >= 0)
 				devname = devinfo->devnames[match];
 			else if (devinfo->devnames[0][0] != '\0' &&
 				 devinfo->devnames[1][0] == '\0')
