@@ -1140,7 +1140,7 @@ static char *
 modifier_C(const char mod[], char value[], Var *v, VarParser *vp, size_t *consumed)
 {
 	VarREPattern	patt;
-	int		delim;
+	char		delim;
 	char		*re;
 	const char	*cur;
 	int		error;
@@ -1327,11 +1327,11 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 					 * This can either be a bogus modifier or a
 					 * System-V substitution command.
 					 */
-					VarPattern	pattern;
+					VarPattern	patt;
 					Boolean		eqFound;
 					int		cnt;
 
-					pattern.flags = 0;
+					patt.flags = 0;
 					eqFound = FALSE;
 					/*
 					 * First we make a pass through the string
@@ -1353,8 +1353,6 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 							cp++;
 					}
 					if (*cp == endc && eqFound) {
-						int	delim;
-
 						/*
 						 * Now we break this sucker into the
 						 * lhs and rhs. We must null
@@ -1362,26 +1360,25 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 						 */
 						cp = tstr;
 
-						delim = '=';
-						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
+						patt.lhs = VarGetPattern(vp, &cp, '=', &patt.flags, &patt.leftLen, NULL);
+						if (patt.lhs == NULL) {
 							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
-							if (delim != '\0')
+							if ('=' != '\0')
 								Fatal("Unclosed substitution for %s (%c missing)",
-								    v->name, delim);
+								    v->name, '=');
 							return (var_Error);
 						}
-						delim = endc;
 
-						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
-						if (pattern.rhs == NULL) {
+						patt.rhs = VarGetPattern(vp, &cp, endc, NULL, &patt.rightLen, &patt);
+						if (patt.rhs == NULL) {
 							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
-							if (delim != '\0')
+							if (endc != '\0')
 								Fatal("Unclosed substitution for %s (%c missing)",
-								    v->name, delim);
+								    v->name, endc);
 							return (var_Error);
 						}
 						/*
@@ -1390,11 +1387,10 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 						 * is anchored at the end.
 						 */
 						--cp;
-						delim = '\0';
-						newStr = VarModify(value, VarSYSVMatch, &pattern);
+						newStr = VarModify(value, VarSYSVMatch, &patt);
 
-						free(pattern.lhs);
-						free(pattern.rhs);
+						free(patt.lhs);
+						free(patt.rhs);
 
 						tstr = (endc == ':') ? (cp + 1) : cp;
 					} else
@@ -1437,11 +1433,11 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 					 * This can either be a bogus modifier or a
 					 * System-V substitution command.
 					 */
-					VarPattern	pattern;
+					VarPattern	patt;
 					Boolean		eqFound;
 					int		cnt;
 
-					pattern.flags = 0;
+					patt.flags = 0;
 					eqFound = FALSE;
 					/*
 					 * First we make a pass through the string
@@ -1463,8 +1459,6 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 							cp++;
 					}
 					if (*cp == endc && eqFound) {
-						int	delim;
-
 						/*
 						 * Now we break this sucker into the
 						 * lhs and rhs. We must null
@@ -1472,26 +1466,25 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 						 */
 						cp = tstr;
 
-						delim = '=';
-						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
+						patt.lhs = VarGetPattern(vp, &cp, '=', &patt.flags, &patt.leftLen, NULL);
+						if (patt.lhs == NULL) {
 							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
-							if (delim != '\0')
+							if ('=' != '\0')
 								Fatal("Unclosed substitution for %s (%c missing)",
-								    v->name, delim);
+								    v->name, '=');
 							return (var_Error);
 						}
-						delim = endc;
 
-						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
-						if (pattern.rhs == NULL) {
+						patt.rhs = VarGetPattern(vp, &cp, endc, NULL, &patt.rightLen, &patt);
+						if (patt.rhs == NULL) {
 							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
-							if (delim != '\0')
+							if (endc != '\0')
 								Fatal("Unclosed substitution for %s (%c missing)",
-								    v->name, delim);
+								    v->name, endc);
 							return (var_Error);
 						}
 						/*
@@ -1500,11 +1493,10 @@ ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, si
 						 * is anchored at the end.
 						 */
 						--cp;
-						delim = '\0';
-						newStr = VarModify(value, VarSYSVMatch, &pattern);
+						newStr = VarModify(value, VarSYSVMatch, &patt);
 
-						free(pattern.lhs);
-						free(pattern.rhs);
+						free(patt.lhs);
+						free(patt.rhs);
 
 						tstr = (endc == ':') ? (cp + 1) : cp;
 					} else
@@ -1800,7 +1792,8 @@ VarParseLong(VarParser *vp, size_t *consumed, Boolean *freePtr)
 			return (result);
 
 		} else if (*vp->ptr == ':') {
-			*consumed += 1;
+			*consumed += 1;	/* consume '$' */
+			*consumed += 1;	/* consume paren or brace */
 			result = ParseRestModifier(vp, startc, endc, buf, consumed, freePtr);
 			Buf_Destroy(buf, TRUE);
 			return (result);
@@ -1920,7 +1913,6 @@ VarParse(VarParser *vp, size_t *consumed, Boolean *freeResult)
 		*consumed += vp->ptr - vp->input;
 
 	} else if (vp->ptr[0] == OPEN_PAREN || vp->ptr[0] == OPEN_BRACE) {
-		*consumed += 1;	/* consume '$' */
 		/* multi letter variable name */
 		value = VarParseLong(vp, consumed, freeResult);
 
