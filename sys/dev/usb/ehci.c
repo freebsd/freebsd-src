@@ -451,9 +451,8 @@ ehci_init(ehci_softc_t *sc)
 			    EHCI_LINK_QH);
 		}
 		sqh->qh.qh_endp = htole32(EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH));
-		sqh->qh.qh_link = EHCI_NULL;
+		sqh->qh.qh_endphub = htole32(EHCI_QH_SET_MULT(1));
 		sqh->qh.qh_curqtd = EHCI_NULL;
-		sqh->next = NULL;
 		sqh->qh.qh_qtd.qtd_next = EHCI_NULL;
 		sqh->qh.qh_qtd.qtd_altnext = EHCI_NULL;
 		sqh->qh.qh_qtd.qtd_status = htole32(EHCI_QTD_HALTED);
@@ -1408,14 +1407,13 @@ ehci_open(usbd_pipe_handle pipe)
 	case USB_SPEED_HIGH: speed = EHCI_QH_SPEED_HIGH; break;
 	default: panic("ehci_open: bad device speed %d", dev->speed);
 	}
-	if (speed != EHCI_QH_SPEED_HIGH) {
+	if (speed != EHCI_QH_SPEED_HIGH && xfertype == UE_ISOCHRONOUS) {
 		printf("%s: *** WARNING: opening low/full speed device, this "
 		       "does not work yet.\n",
 		       USBDEVNAME(sc->sc_bus.bdev));
 		DPRINTFN(1,("ehci_open: hshubaddr=%d hshubport=%d\n",
 			    hshubaddr, hshubport));
-		if (xfertype != UE_CONTROL)
-			return USBD_INVAL;
+		return USBD_INVAL;
 	}
 
 	naks = 8;		/* XXX */
