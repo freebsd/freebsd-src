@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.3 1998/10/15 17:46:26 ken Exp $
+ *      $Id: scsi_pass.c,v 1.4 1998/10/22 22:16:56 ken Exp $
  */
 
 #include <sys/param.h>
@@ -399,26 +399,39 @@ passopen(dev_t dev, int flags, int fmt, struct proc *p)
 		splx(s);
 		return(ENXIO);
 	}
-	splx(s);
+
+	/*
+	 * Don't allow access when we're running at a high securelvel.
+	 */
+	if (securelevel > 1) {
+		splx(s);
+		return(EPERM);
+	}
 
 	/*
 	 * Only allow read-write access.
 	 */
-	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0))
+	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0)) {
+		splx(s);
 		return(EPERM);
+	}
 
 	/*
 	 * We don't allow nonblocking access.
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
-		printf("%s%d: can't do nonblocking accesss\n",
-			periph->periph_name,
-			periph->unit_number);
-		return(ENODEV);
+		xpt_print_path(periph->path);
+		printf("can't do nonblocking accesss\n");
+		splx(s);
+		return(EINVAL);
 	}
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
+		splx(s);
 		return (error);
+	}
+
+	splx(s);
 
 	if ((softc->flags & PASS_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)

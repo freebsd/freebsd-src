@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.4 1998/10/15 17:46:26 ken Exp $
+ *      $Id: scsi_ch.c,v 1.5 1998/10/22 22:16:56 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -458,11 +458,14 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 		splx(s);
 		return(ENXIO);
 	}
+
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
+		splx(s);
+		return (error);
+	}
+	
 	splx(s);
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
-		return (error);
-	
 	if ((softc->flags & CH_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 			return(ENXIO);
