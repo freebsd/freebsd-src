@@ -49,6 +49,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 acl.9 extattr.9 kobj.9 taskqueue.9 accept_filter.9 \
 	sbuf.9 \
+	zone.9 \
 	sysctl_add_oid.9 sysctl_ctx_init.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
@@ -210,5 +211,11 @@ MLINKS+=sbuf.9 sbuf_finish.9
 MLINKS+=sbuf.9 sbuf_data.9
 MLINKS+=sbuf.9 sbuf_len.9
 MLINKS+=sbuf.9 sbuf_delete.9
+
+MLINKS+=zone.9 zalloc.9
+MLINKS+=zone.9 zfree.9
+MLINKS+=zone.9 zinit.9
+MLINKS+=zone.9 zinitna.9
+MLINKS+=zone.9 zbootinit.9
 
 .include <bsd.prog.mk>
