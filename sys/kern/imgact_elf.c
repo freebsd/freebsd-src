@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.33 1998/09/15 22:07:20 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.35 1998/09/16 02:04:05 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -565,10 +565,9 @@ exec_elf_imgact(struct image_params *imgp)
                                         imgp->proc->p_sysent =
                                                 elf_brand_list[i]->sysvec;
                                         strcpy(path, elf_brand_list[i]->emul_path);
-                                        strcat(path, elf_brand_list[i]->interp_path);
+                                        strcat(path, interp);
                                         UPRINTF("interpreter=<%s> %s\n",
-                                                elf_brand_list[i]->interp_path,
-                                                elf_brand_list[i]->emul_path);
+                                                interp, elf_brand_list[i]->emul_path);
                                         break;
                                 }
                         }
@@ -587,10 +586,9 @@ exec_elf_imgact(struct image_params *imgp)
 					imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
 					if (interp) {
 						strcpy(path, elf_brand_list[i]->emul_path);
-						strcat(path, elf_brand_list[i]->interp_path);
+						strcat(path, interp);
 						UPRINTF("interpreter=<%s> %s\n",
-						elf_brand_list[i]->interp_path,
-						elf_brand_list[i]->emul_path);
+							interp, elf_brand_list[i]->emul_path);
 					}
 					break;
 				}
@@ -607,10 +605,9 @@ exec_elf_imgact(struct image_params *imgp)
 		imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
 		if (interp) {
 			strcpy(path, elf_brand_list[i]->emul_path);
-			strcat(path, elf_brand_list[i]->interp_path);
+			strcat(path, interp);
 			UPRINTF("interpreter=<%s> %s\n",
-				elf_brand_list[i]->interp_path,
-				elf_brand_list[i]->emul_path);
+				interp, elf_brand_list[i]->emul_path);
 		}
 #endif
 	}
@@ -1057,4 +1054,3 @@ elf_putnote(void *dst, size_t *off, const char *name, int type,
  */
 static const struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
 TEXT_SET(execsw_set, elf_execsw);
-
