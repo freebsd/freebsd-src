@@ -115,15 +115,18 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	    return ENODEV;
 	devminor = ((unit & 31) << 3)			    /* unit */
 	    +(dname[2] - 'a')				    /* partition */
-	    +((dname[1] - '0' + 1) << 16)		    /* slice */
+	    +((dname[1] - '0' + 1) << 16) /* slice */
 	    +((unit & ~31) << 16);			    /* high-order unit bits */
     } else {						    /* compatibility partition */
 	if ((*dname < 'a') || (*dname > 'h'))		    /* or invalid partition */
 	    return ENODEV;
 	devminor = (*dname - 'a')			    /* partition */
-            +((unit & 31) << 3)				    /* unit */
+	    +((unit & 31) << 3)				    /* unit */
 	    +((unit & ~31) << 16);			    /* high-order unit bits */
     }
+
+    if ((unit & 7) == 2)				    /* partition c */
+	return ENOTTY;					    /* not buying that */
 
     drive->dev = makedev(devmajor, devminor);		    /* find the device */
     if (drive->dev == NULL)				    /* didn't find anything */
@@ -411,8 +414,8 @@ check_drive(char *devicename)
     if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
 	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
 	    if ((i != driveno)				    /* not this drive */
-		&&(DRIVE[i].state != drive_unallocated)	    /* and it's allocated */
-		&&(strcmp(DRIVE[i].label.name,
+&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
+	    &&(strcmp(DRIVE[i].label.name,
 			DRIVE[driveno].label.name) == 0)) { /* and it has the same name */
 		struct drive *mydrive = &DRIVE[i];
 
@@ -843,7 +846,8 @@ vinum_scandisk(char *devicename[], int drives)
 			slice,
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
-		    if (drive->lasterror != 0)		    /* didn't work, */
+		    if ((drive->lasterror != 0)		    /* didn't work, */
+		        ||(drive->state != drive_up))
 			free_drive(drive);		    /* get rid of it */
 		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
 			log(LOG_WARNING,
