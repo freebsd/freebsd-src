@@ -559,7 +559,7 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 				(sizeof(struct twa_command_packet)),/* maxsize */
 				TWA_MAX_SG_ELEMENTS,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-				BUS_DMA_ALLOCNOW,	/* flags */
+				0,			/* flags */
 				NULL,			/* lockfunc */
 				NULL,			/* lockfuncarg */
 				&sc->twa_parent_tag	/* tag */)) {
@@ -613,7 +613,7 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 				TWA_MAX_IO_SIZE,	/* maxsize */
 				TWA_MAX_SG_ELEMENTS,	/* nsegments */
 				TWA_MAX_IO_SIZE,	/* maxsegsize */
-				BUS_DMA_WAITOK,		/* flags */
+				BUS_DMA_ALLOCNOW,	/* flags */
 				busdma_lock_mutex,	/* lockfunc */
 				&Giant,			/* lockfuncarg */
 				&sc->twa_buf_tag	/* tag */)) {
