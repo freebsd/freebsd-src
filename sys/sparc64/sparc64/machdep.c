@@ -67,6 +67,7 @@
 #include <machine/pstate.h>
 #include <machine/reg.h>
 #include <machine/tick.h>
+#include <machine/tstate.h>
 
 typedef int ofw_vec_t(void *);
 
@@ -83,6 +84,8 @@ struct mtx Giant;
 struct mtx sched_lock;
 
 struct globaldata __globaldata;
+#define	GLOBALSTACK_SZ	128
+u_long __globalstack[GLOBALSTACK_SZ];
 /*
  * This needs not be aligned as the other user areas, provided that process 0
  * does not have an fp state (which it doesn't normally).
@@ -334,10 +337,15 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 * Put the globaldata pointer in the alternate and interrupt %g7 also.
 	 * globaldata is tied to %g7. We could therefore also use assignments to
 	 * globaldata here.
+	 * The alternate %g6 additionally points to a small per-cpu stack that
+	 * is used to temporarily store global registers in special spill
+	 * handlers.
 	 */
 	ps = rdpr(pstate);
 	wrpr(pstate, ps, PSTATE_AG);
 	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
+	__asm __volatile("mov %0, %%g6" : :
+	    "r" (&__globalstack[GLOBALSTACK_SZ - 1]));
 	wrpr(pstate, ps, PSTATE_IG);
 	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
 	wrpr(pstate, ps, 0);
@@ -394,7 +402,9 @@ cpu_halt(void)
 int
 ptrace_set_pc(struct proc *p, u_long addr)
 {
-	TODO;
+
+	p->p_frame->tf_tpc = addr;
+	p->p_frame->tf_tnpc = addr + 4;
 	return (0);
 }
 
@@ -408,23 +418,44 @@ ptrace_single_step(struct proc *p)
 void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
-	struct frame *fp;
 	struct pcb *pcb;
+	struct wsframe *fp;
 
+	/* Round the stack down to a multiple of 16 bytes. */
+	stack = ((stack) / 16) * 16;
 	pcb = &p->p_addr->u_pcb;
-	/* The inital window for the process. */
-	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
+	/* XXX: honor the real number of windows... */
+	bzero(pcb->pcb_wscratch, sizeof(pcb->pcb_wscratch));
+	/* The inital window for the process (%cw = 0). */
+	fp = &pcb->pcb_wscratch[0];
+	pcb->pcb_cwp = 1;
+	pcb->pcb_ws_inuse = 1;
+	pcb->pcb_inwinop = 0;
 	/* Make sure the frames that are frobbed are actually flushed. */
 	__asm __volatile("flushw");
 	mtx_lock_spin(&sched_lock);
-	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
-	fp_init_pcb(pcb);
+	fp_init_proc(pcb);
 	/* Setup state in the trap frame. */
-	p->p_frame->tf_tstate = 0;
+	p->p_frame->tf_tstate = TSTATE_IE;
 	p->p_frame->tf_tpc = entry;
 	p->p_frame->tf_tnpc = entry + 4;
-	/* Set up user stack. */
-	fp->f_fp = stack - SPOFF;
+	p->p_frame->tf_pil = 0;
+	/*
+	 * Set up the registers for the user.
+	 * The SCD (2.4.1) mandates:
+	 * - the initial %fp should be 0
+	 * - the initial %sp should point to the top frame, which should be
+	 *   16-byte-aligned
+	 * - %g1, if != 0, passes a function pointer which should be registered
+	 *   with atexit().
+	 */
+	bzero(p->p_frame->tf_out, sizeof(p->p_frame->tf_out));
+	bzero(p->p_frame->tf_global, sizeof(p->p_frame->tf_global));
+	p->p_frame->tf_out[6] = stack - SPOFF - sizeof(struct frame);
+	wr(y, 0, 0);
+	/* shouldn't be needed */
+	fp->wsf_sp = stack - SPOFF - sizeof(struct frame);
+	fp->wsf_inuse = 1;
 	mtx_unlock_spin(&sched_lock);
 }
 
