@@ -459,7 +459,7 @@ tunoutput(
 		return (EHOSTDOWN);
 	}
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if ((ifp->if_flags & IFF_UP) != IFF_UP) {
 		m_freem (m0);
 		return (EHOSTDOWN);
 	}
@@ -712,7 +712,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+	if ((ifp->if_flags & IFF_UP) != IFF_UP)
 		/* ignore silently */
 		return (0);
 
