@@ -38,8 +38,6 @@
 #ifndef _LIBC_PRIVATE_H_
 #define _LIBC_PRIVATE_H_
 
-#include <spinlock.h>
-
 /*
  * This global flag is non-zero when a process has created one
  * or more threads. It is used to avoid calling locking functions
@@ -126,6 +124,6 @@ extern const char *__progname;
  * This is the lock to make malloc() thread-safe.  It is externalized
  * so that thread libraries can protect malloc across fork().
  */
-extern spinlock_t *__malloc_lock;
+extern struct _spinlock *__malloc_lock;
 
 #endif /* _LIBC_PRIVATE_H_ */

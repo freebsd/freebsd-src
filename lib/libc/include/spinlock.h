@@ -43,12 +43,13 @@
 /*
  * Lock structure with room for debugging information.
  */
-typedef struct {
+struct _spinlock {
 	volatile long	access_lock;
 	volatile long	lock_owner;
 	volatile char	*fname;
 	volatile int	lineno;
-} spinlock_t;
+};
+typedef struct _spinlock spinlock_t;
 
 #define	_SPINLOCK_INITIALIZER	{ 0, 0, 0, 0 }
 
