@@ -160,7 +160,7 @@ long	 random __P((void));
 char	*realpath __P((const char *, char resolved_path[]));
 char	*setstate __P((char *));
 void	 srandom __P((unsigned long));
-int	 srandomdev __P((void));
+void	 srandomdev __P((void));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
 long long
