@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.26 1998/12/08 13:00:48 cracauer Exp $
+.\" $Id: fetch.1,v 1.27 1999/01/15 16:56:22 wollman Exp $
 .Dd January 15, 1999
 .Dt FETCH 1
 .Os FreeBSD 3.1
@@ -151,6 +151,12 @@ URL's, a username and password may be specified, using the syntax
 If the path is to be absolute, as opposed to relative to the user's
 home directory, it must start with %2F, as in
 .Li ftp://root:mypass@localhost/%2Fetc/passwd .
+.Nm Fetch
+condenses multiple slashes in an
+.Tn ftp
+URL into a single slash; literal multiple slashes translate to an
+.Tn ftp
+protocol error.
 .Sh PROXY SERVERS
 Many sites use application gateways (``proxy servers'') in their
 firewalls in order to allow communication across the firewall using a
@@ -325,6 +331,27 @@ connection.
 .%T "Hypertext Transfer Protocol \-\- HTTP/1.1"
 .%O RFC 2068
 .%D January 1997
+.Re
+.Rs
+.%A T. Berners-Lee
+.%A L. Masinter
+.%A M. McCahill
+.%T "Uniform Resource Locators (URL)"
+.%O RFC 1738
+.%D December 1994
+.Re
+.Rs
+.%A J. Postel
+.%A J.K. Reynolds
+.%T "File Transfer Protocol"
+.%O RFC 959 / STD 9
+.%D October 1985
+.Re
+.Rs
+.%A M.R. Horton
+.%T "Standard for interchange of USENET messages."
+.%O RFC 850
+.%D June 1983
 .Re
 .Sh HISTORY
 The 
