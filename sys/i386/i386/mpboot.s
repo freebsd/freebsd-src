@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_pmap.h"
+
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/apic.h>
 #include <machine/specialreg.h>
