@@ -49,11 +49,11 @@
 #include <sys/taskqueue.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include "ng_bluetooth.h"
-#include "ng_hci.h"
-#include "ng_l2cap.h"
-#include "ng_btsocket.h"
-#include "ng_btsocket_l2cap.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_l2cap.h>
+#include <netgraph/bluetooth/include/ng_btsocket.h>
+#include <netgraph/bluetooth/include/ng_btsocket_l2cap.h>
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
