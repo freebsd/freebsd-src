@@ -321,13 +321,10 @@ sigbus(struct sigframe *sf)
 	resettrace(REGS);
 
     if ((R_EFLAGS & (PSL_VIP | PSL_VIF)) == (PSL_VIP | PSL_VIF)) {
-        if (n_pending < 1) {
-            fatal("Pending interrupts out of sync\n");
-            exit(1);
-        }
         resume_interrupt();
         goto out;
     }
+    
 /*    printf("%p\n", addr); fflush(stdout); */
     debug (D_TRAPS2, "%04x:%04x [%02x %02x %02x] ", R_CS, R_IP, 
         (int)addr[0], (int)addr[1], (int)addr[2]);
@@ -516,7 +513,7 @@ sigbus(struct sigframe *sf)
 
 out:
     	if (tmode)
-	    tracetrap(REGS);
+	    tracetrap(REGS);	    
 }
 #endif /* USE_VM86 */
 
@@ -601,11 +598,9 @@ sigalrm(struct sigframe *sf)
     if (tmode)
 	resettrace(REGS);
 
-/*     debug(D_ALWAYS,"tick %d", update_counter); */
     update_counter = 0;			/* remember we've updated */
     video_update((regcontext_t *)&REGS->sc);
-    hardint(0x08);
-/*    debug(D_ALWAYS,"\n"); */
+    hardint(0x00);
 
     if (tmode)
 	tracetrap(REGS);
