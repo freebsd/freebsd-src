@@ -160,7 +160,7 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 	  (inc)->inc_fport ^ (inc)->inc_lport) & mask)
 
 #define ENDPTS_EQ(a, b) (						\
-	(a)->ie_fport == (a)->ie_fport &&				\
+	(a)->ie_fport == (b)->ie_fport &&				\
 	(a)->ie_lport == (b)->ie_lport &&				\
 	(a)->ie_faddr.s_addr == (b)->ie_faddr.s_addr &&			\
 	(a)->ie_laddr.s_addr == (b)->ie_laddr.s_addr			\
