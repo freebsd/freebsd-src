@@ -107,6 +107,8 @@ static void       startup __P((void));
 static void       chkhost __P((struct sockaddr_in *));
 static int	  ckqueue __P((char *));
 
+uid_t	uid, euid;
+
 int
 main(argc, argv)
 	int argc;
@@ -118,9 +120,17 @@ main(argc, argv)
 	struct sockaddr_in sin, frominet;
 	int omask, lfd;
 
+	euid = geteuid();	/* these shouldn't be different */
+	uid = getuid();
 	options = 0;
 	gethostname(host, sizeof(host));
-	name = argv[0];
+
+	name = "lpd";
+
+	if (euid != 0) {
+		fprintf(stderr,"lpd: must run as root\n");
+		exit(1);
+	}
 
 	while (--argc > 0) {
 		argv++;
@@ -531,11 +541,6 @@ chkhost(f)
 	register FILE *hostf;
 	int first = 1;
 	int good = 0;
-
-	f->sin_port = ntohs(f->sin_port);
-	if (f->sin_family != AF_INET || f->sin_port >= IPPORT_RESERVED ||
-	    f->sin_port == htons(20))
-		fatal("Malformed from address");
 
 	/* Need real hostname for temporary filenames */
 	hp = gethostbyaddr((char *)&f->sin_addr,

@@ -109,6 +109,8 @@ char	*from = host;	/* client's machine name */
 int	remote;		/* true if sending files to a remote host */
 char	*printcapdb[2] = { _PATH_PRINTCAP, 0 };
 
+extern uid_t	uid, euid;
+
 static int compar __P((const void *, const void *));
 
 /*
@@ -155,7 +157,9 @@ getport(rhost, rport)
 	 * Try connecting to the server.
 	 */
 retry:
+	seteuid(euid);
 	s = rresvport(&lport);
+	seteuid(uid);
 	if (s < 0)
 		return(-1);
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
@@ -222,14 +226,16 @@ getq(namelist)
 	DIR *dirp;
 	int arraysz;
 
+	seteuid(euid);
 	if ((dirp = opendir(SD)) == NULL)
 		return(-1);
 	if (fstat(dirp->dd_fd, &stbuf) < 0)
 		goto errdone;
+	seteuid(uid);
 
 	/*
 	 * Estimate the array size by taking the size of the directory file
-	 * and dividing it by a multiple of the minimum size entry.
+	 * and dividing it by a multiple of the minimum size entry. 
 	 */
 	arraysz = (stbuf.st_size / 24);
 	queue = (struct queue **)malloc(arraysz * sizeof(struct queue *));
@@ -240,8 +246,10 @@ getq(namelist)
 	while ((d = readdir(dirp)) != NULL) {
 		if (d->d_name[0] != 'c' || d->d_name[1] != 'f')
 			continue;	/* daemon control files only */
+		seteuid(euid);
 		if (stat(d->d_name, &stbuf) < 0)
 			continue;	/* Doesn't exist */
+		seteuid(uid);
 		q = (struct queue *)malloc(sizeof(time_t)+strlen(d->d_name)+1);
 		if (q == NULL)
 			goto errdone;

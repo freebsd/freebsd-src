@@ -71,6 +71,8 @@ static int	 sort;		/* Sort by cost */
 static char	*sumfile;	/* summary file */
 static int	 summarize;	/* Compress accounting file */
 
+uid_t	uid, euid;
+
 /*
  * Grossness follows:
  *  Names to be accumulated are hashed into the following
@@ -106,6 +108,8 @@ main(argc, argv)
 	register FILE *acct;
 	register char *cp;
 
+	euid = geteuid();	/* these aren't used in pac(1) */
+	uid = getuid();
 	while (--argc) {
 		cp = *++argv;
 		if (*cp++ == '-') {
