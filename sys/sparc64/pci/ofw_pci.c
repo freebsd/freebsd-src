@@ -50,6 +50,12 @@
 
 #include "pcib_if.h"
 
+u_int8_t pci_bus_cnt;
+phandle_t *pci_bus_map;
+int pci_bus_map_sz;
+
+#define	PCI_BUS_MAP_INC	10
+
 u_int32_t
 ofw_pci_route_intr(phandle_t node)
 {
@@ -61,24 +67,72 @@ ofw_pci_route_intr(phandle_t node)
 	return (rv);
 }
 
+u_int8_t
+ofw_pci_alloc_busno(phandle_t node)
+{
+	phandle_t *om;
+	int osz;
+	u_int8_t n;
+
+	n = pci_bus_cnt++;
+	/* Establish a mapping between bus numbers and device nodes. */
+	if (n >= pci_bus_map_sz) {
+		osz = pci_bus_map_sz;
+		om = pci_bus_map;
+		pci_bus_map_sz = n + PCI_BUS_MAP_INC;
+		pci_bus_map = malloc(sizeof(*pci_bus_map) * pci_bus_map_sz,
+		    M_DEVBUF, M_WAITOK | M_ZERO);
+		if (om != NULL) {
+			bcopy(om, pci_bus_map, sizeof(*om) * osz);
+			free(om, M_DEVBUF);
+		}
+	}
+	pci_bus_map[n] = node;
+	return (n);
+}
+
+/*
+ * Initialize bridge bus numbers for bridges that implement the primary,
+ * secondary and subordinate bus number registers.
+ */
+void
+ofw_pci_binit(device_t busdev, struct ofw_pci_bdesc *obd)
+{
+
+#ifdef OFW_PCI_DEBUG
+	printf("PCI-PCI bridge at %u/%u/%u: setting bus #s to %u/%u/%u\n",
+	    obd->obd_bus, obd->obd_slot, obd->obd_func, obd->obd_bus,
+	    obd->obd_secbus, obd->obd_subbus);
+#endif /* OFW_PCI_DEBUG */
+	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
+	    PCIR_PRIBUS_1, obd->obd_bus, 1);
+	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
+	    PCIR_SECBUS_1, obd->obd_secbus, 1);
+	PCIB_WRITE_CONFIG(busdev, obd->obd_bus, obd->obd_slot, obd->obd_func,
+	    PCIR_SUBBUS_1, obd->obd_subbus, 1);
+}
+
 #define	OFW_PCI_PCIBUS	"pci"
 /*
  * Walk the PCI bus hierarchy, starting with the root PCI bus and descending
- * through bridges, and initialize the interrupt line configuration registers
- * of attached devices using firmware information.
+ * through bridges, and initialize the interrupt line and latency timer
+ * configuration registers of attached devices using firmware information,
+ * as well as the the bus numbers and ranges of the bridges.
  */
 void
-ofw_pci_init_intr(device_t dev, phandle_t bus)
+ofw_pci_init(device_t dev, phandle_t bushdl, struct ofw_pci_bdesc *obd)
 {
 	struct ofw_pci_register pcir;
+	struct ofw_pci_bdesc subobd, *tobd;
 	phandle_t node;
 	char type[32];
-	int intr;
-	int freemap;
+	int intr, freemap;
+	u_int slot, busno, func, sub, lat;
 
-	if ((node = OF_child(bus)) == 0)
+	if ((node = OF_child(bushdl)) == 0)
 		return;
 	freemap = 0;
+	busno = obd->obd_secbus;
 	do {
 		if (node == -1)
 			panic("ofw_pci_init_intr: OF_child failed");
@@ -86,60 +140,88 @@ ofw_pci_init_intr(device_t dev, phandle_t bus)
 			type[0] = '\0';
 		else
 			type[sizeof(type) - 1] = '\0';
+		if (OF_getprop(node, "reg", &pcir, sizeof(pcir)) == -1)
+			panic("ofw_pci_route_intr: OF_getprop failed");
+		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
+		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 		if (strcmp(type, OFW_PCI_PCIBUS) == 0) {
 			/*
-			 * This is a pci-pci bridge, recurse to initialize the
-			 * child bus. The hierarchy is usually at most 2 levels
-			 * deep, so recursion is feasible.
+			 * This is a pci-pci bridge, initalize the bus number and
+			 * recurse to initialize the child bus. The hierarchy is
+			 * usually at most 2 levels deep, so recursion is
+			 * feasible.
 			 */
+			subobd.obd_bus = busno;
+			subobd.obd_slot = slot;
+			subobd.obd_func = func;
+			sub = ofw_pci_alloc_busno(node);
+			subobd.obd_secbus = subobd.obd_subbus = sub;
+			/* Assume this bridge is mostly standard conforming. */
+			subobd.obd_init = ofw_pci_binit;
+			subobd.obd_super = obd;
+			/*
+			 * Need to change all subordinate bus registers of the
+			 * bridges above this one now so that configuration
+			 * transactions will get through.
+			 */
+			for (tobd = obd; tobd != NULL; tobd = tobd->obd_super) {
+				tobd->obd_subbus = sub;
+				tobd->obd_init(dev, tobd);
+			}
+			subobd.obd_init(dev, &subobd);
 #ifdef OFW_PCI_DEBUG
 			device_printf(dev, "%s: descending to "
 			    "subordinate PCI bus\n", __func__);
-#endif
-			ofw_pci_init_intr(dev, node);
+#endif /* OFW_PCI_DEBUG */
+			ofw_pci_init(dev, node, &subobd);
 		} else {
-			if (OF_getprop(node, "reg", &pcir, sizeof(pcir)) == -1)
-				panic("ofw_pci_route_intr: OF_getprop failed");
+			/*
+			 * Initialize the latency timer register for
+			 * busmaster devices to work properly. This is another
+			 * task which the firmware does not always perform.
+			 * The Min_Gnt register can be used to compute it's
+			 * recommended value: it contains the desired latency
+			 * in units of 1/4 us. To calculate the correct latency
+			 * timer value, a bus clock of 33 and no wait states
+			 * should be assumed.
+			 */
+			lat = PCIB_READ_CONFIG(dev, busno, slot, func,
+			    PCIR_MINGNT, 1) * 33 / 4;
+			if (lat != 0) {
+#ifdef OFW_PCI_DEBUG
+				printf("device %d/%d/%d: latency timer %d -> "
+				    "%d\n", busno, slot, func,
+				    PCIB_READ_CONFIG(dev, busno, slot, func,
+					PCIR_LATTIMER, 1), lat);
+#endif /* OFW_PCI_DEBUG */
+				PCIB_WRITE_CONFIG(dev, busno, slot, func,
+				    PCIR_LATTIMER, imin(lat, 255), 1);
+			}
 
+			/* Initialize the intline registers. */
 			if ((intr = ofw_pci_route_intr(node)) != 255) {
 #ifdef OFW_PCI_DEBUG
 				device_printf(dev, "%s: mapping intr for "
 				    "%d/%d/%d to %d (preset was %d)\n",
-				    __func__,
-				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
-				    intr,
-				    (int)PCIB_READ_CONFIG(dev,
-					OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-					OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-					OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
-					PCIR_INTLINE, 1));
+				    __func__, busno, slot, func, intr,
+				    (int)PCIB_READ_CONFIG(dev, busno, slot,
+					func, PCIR_INTLINE, 1));
 #endif /* OFW_PCI_DEBUG */
-				PCIB_WRITE_CONFIG(dev,
-				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
+				PCIB_WRITE_CONFIG(dev, busno, slot, func,
 				    PCIR_INTLINE, intr, 1);
 			} else {
 #ifdef OFW_PCI_DEBUG
 				device_printf(dev, "%s: no interrupt "
 				    "mapping found for %d/%d/%d (preset %d)\n",
-				    __func__,
-				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
-				    (int)PCIB_READ_CONFIG(dev,
-					OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-					OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-					OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
-					PCIR_INTLINE, 1));
+				    __func__, busno, slot, func,
+				    (int)PCIB_READ_CONFIG(dev, busno, slot,
+					func, PCIR_INTLINE, 1));
 #endif /* OFW_PCI_DEBUG */
-				/* The firmware initializes to 0 instead 255 */
-				PCIB_WRITE_CONFIG(dev,
-				    OFW_PCI_PHYS_HI_BUS(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi),
-				    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi),
+				/*
+				 * The firmware initializes to 0 instead of
+				 * 255.
+				 */
+				PCIB_WRITE_CONFIG(dev, busno, slot, func,
 				    PCIR_INTLINE, 255, 1);
 			}
 		}
@@ -149,34 +231,17 @@ ofw_pci_init_intr(device_t dev, phandle_t bus)
 phandle_t
 ofw_pci_find_node(int bus, int slot, int func)
 {
-	phandle_t node, bnode, parent;
+	phandle_t node, bnode;
 	struct ofw_pci_register pcir;
-	int br[2];
-	char name[16];
 
-	/* 1. Try to find the bus in question. */
-	bnode = 0;
-	name[sizeof(name) - 1] = '\0';
-	parent = OF_peer(0);
-	node = OF_child(parent);
-	while (node != 0 && node != -1) {
-		if (OF_getprop(node, "name", name, sizeof(name) - 1) != -1 &&
-		    strcmp(name, "pci") == 0 &&
-		    OF_getprop(node, "bus-range", br, sizeof(br)) != -1) {
-			/* Found the bus? */
-			if (bus == br[0]) {
-				bnode = node;
-				break;
-			}
-			/* Need to descend? */
-			if (bus > br[0] && bus <= br[1]) {
-				parent = node;
-				node = OF_child(node);
-				continue;
-			}
-		}
-		node = OF_peer(node);
-	}
+	/*
+	 * Retrieve the bus node from the mapping that was created on
+	 * initialization. The bus numbers the firmware uses cannot be trusted,
+	 * so they might have needed to be changed and this is necessary.
+	 */
+	if (bus >= pci_bus_map_sz)
+		return (0);
+	bnode = pci_bus_map[bus];
 	if (bnode == 0)
 		return (0);
 	for (node = OF_child(bnode); node != 0 && node != -1;
@@ -184,11 +249,8 @@ ofw_pci_find_node(int bus, int slot, int func)
 		if (OF_getprop(node, "reg", &pcir, sizeof(pcir)) == -1)
 			continue;
 		if (OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi) == slot &&
-		    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi) == func) {
-			if (OFW_PCI_PHYS_HI_BUS(pcir.phys_hi) != bus)
-				panic("ofw_pci_find_node: bus number mismatch");
+		    OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi) == func)
 			return (node);
-		}
 	}
 	return (0);
 }

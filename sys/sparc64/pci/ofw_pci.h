@@ -56,8 +56,23 @@ struct ofw_pci_imap_msk {
 	u_int32_t	intr;
 };
 
+struct ofw_pci_bdesc;
+typedef void ofw_pci_binit_t(device_t, struct ofw_pci_bdesc *);
+
+struct ofw_pci_bdesc {
+	u_int	obd_bus;
+	u_int	obd_slot;
+	u_int	obd_func;
+	u_int	obd_secbus;
+	u_int	obd_subbus;
+	ofw_pci_binit_t	*obd_init;
+	struct ofw_pci_bdesc	*obd_super;
+};
+
 u_int32_t ofw_pci_route_intr(phandle_t);
-void ofw_pci_init_intr(device_t, phandle_t);
+u_int8_t ofw_pci_alloc_busno(phandle_t);
+ofw_pci_binit_t ofw_pci_binit;
+void ofw_pci_init(device_t, phandle_t, struct ofw_pci_bdesc *);
 phandle_t ofw_pci_find_node(int, int, int);
 phandle_t ofw_pci_node(device_t);
 
