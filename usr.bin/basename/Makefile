@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	basename
-WARNS?=	2
 MLINKS=	basename.1 dirname.1
 
 .include <bsd.prog.mk>

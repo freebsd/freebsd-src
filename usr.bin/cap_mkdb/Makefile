@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	cap_mkdb
-WARNS?=	2
 
 .include <bsd.prog.mk>

@@ -2,7 +2,6 @@
 
 PROG=	colldef
 SRCS=	parse.y scan.l y.tab.h
-WARNS?=	2
 NO_WERROR=yes
 LFLAGS=	-8 -i
 CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../lib/libc/locale
