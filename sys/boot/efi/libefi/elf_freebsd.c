@@ -217,23 +217,6 @@ elf_exec(struct preloaded_file *fp)
 			 :: "r"(0), "r"(*(u_int64_t*)&pte));
 	__asm __volatile("srlz.i;;");
 
-	bzero(&pte, sizeof(pte));
-	pte.pte_p = 1;
-	pte.pte_ma = PTE_MA_UC;
-	pte.pte_a = 1;
-	pte.pte_d = 1;
-	pte.pte_pl = PTE_PL_KERN;
-	pte.pte_ar = PTE_AR_RWX;
-	pte.pte_ppn = 0xffffc000000 >> 12;
-
-	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PHYS_TO_RR6(0xffffc000000)));
-	__asm __volatile("mov cr.itir=%0" :: "r"(26 << 2));
-	//__asm __volatile("ptr.d %0,%1" :: "r"(IA64_PHYS_TO_RR6(0xffffc000000)), "r"(26<<2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.d dtr[%0]=%1;;"
-			 :: "r"(1), "r"(*(u_int64_t*)&pte));
-	__asm __volatile("srlz.i;;");
-
 	enter_kernel(hdr->e_entry, bi);
 
 	restore_ic(psr);
