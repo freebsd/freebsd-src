@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (C) 1992, 1993 Soeren Schmidt.
@@ -33,10 +35,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Thu Apr  6 10:07:45 1995]
- *
  */
 
 /*---------------------------------------------------------------------------*
@@ -44,26 +42,9 @@
  *	pcvt_ext.c	VT220 Driver Extended Support Routines
  *	------------------------------------------------------
  *
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-hm	applied Onno van der Linden's patch for Cirrus BIOS upgrade
- *	-hm	pcvt_x_hook has to care about fkey labels now
- *	-hm	changed some bcopyb's to bcopy's
- *	-hm	TS_INDEX -> TS_DATA for cirrus (mail from Onno/Charles)
- *	-jw	removed kbc_8042(), and replaced by kbd_emulate_pc()
- *	-hm	X server patch from John Kohl <jtk@kolvir.blrc.ma.us>
- *	-hm	applying Joerg's patch for FreeBSD 2.0
- *	-hm	enable 132 col support for Trident TVGA8900CL
- *	-hm	applying patch from Joerg fixing Crtat bug
- *	-hm	removed PCVT_FAKE_SYSCONS10
- *	-hm	fastscroll/Crtat bugfix from Lon Willett
- *	-hm	bell patch from Thomas Eberhardt for NetBSD
- *	-hm	multiple X server bugfixes from Lon Willett
- *	-hm	patch from John Kohl fixing tsleep bug in usl_vt_ioctl()
- *	-hm	bugfix: clear 25th line when switching to a force 24 lines vt
- *	-jw	add some forward declarations
- *	-hm	fixing MDA re-init when leaving X
- *	-hm	patch from John Kohl fixing potential divide by 0 problem
+ * 	Last Edit-Date: [Mon Dec 27 14:05:16 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -2370,6 +2351,7 @@ vgapage(int new_screen)
 	/* fallback to VT_AUTO if controlling processes died */
 	if(vsp->proc && vsp->proc != pfind(vsp->pid))
 		set_auto_mode(vsp);
+
 	if(vs[new_screen].proc
 	   && vs[new_screen].proc != pfind(vs[new_screen].pid))
 		set_auto_mode(&vs[new_screen]);
@@ -2409,16 +2391,19 @@ vgapage(int new_screen)
 			      vs[new_screen].vt_status & VT_GRAFX);
 
 		x = spltty();
+
 		if(old_vsp->vt_status & VT_WAIT_ACT)
 		{
 			old_vsp->vt_status &= ~VT_WAIT_ACT;
 			wakeup((caddr_t)&old_vsp->smode);
 		}
+
 		if(vsp->vt_status & VT_WAIT_ACT)
 		{
 			vsp->vt_status &= ~VT_WAIT_ACT;
 			wakeup((caddr_t)&vsp->smode);
 		}
+
 		splx(x);
 
 		if(vsp->smode.mode == VT_PROCESS)
@@ -2432,6 +2417,7 @@ vgapage(int new_screen)
 		{
 			/* we are committed */
 			vt_switch_pending = 0;
+
 #if PCVT_FREEBSD > 206
 			/*
 			 * XXX: If pcvt is acting as the systems console,

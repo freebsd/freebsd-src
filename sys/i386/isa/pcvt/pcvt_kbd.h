@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Holger Veit.
@@ -36,18 +38,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Mon Apr 19 17:14:46 1999]
- *
  */
 
 /*---------------------------------------------------------------------------*
  *
  *	pcvt_kbd.h	VT220 Driver Keyboard Interface Header
  *	------------------------------------------------------
- *	-hm	split off from pcvt_kbd.c
- *	-hm	patch from Lon Willett to fix mapping of Control-R scancode
+ *
+ *	Last Edit-Date: [Tue Dec 28 08:13:32 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -364,138 +364,138 @@ static Keycap_def	key2ascii[] =
 
 /*      type   index   unshift        shift           ctrl         */
 /*      ---------------------------------------------------------- */
-/*  0*/ KBD_NONE,  I, {S,C "df"},    {S,C ""},      {S,C ""},
-/*  1*/ KBD_ASCII, I, {S,C "`"},     {S,C "~"},     {S,C "`"},
-/*  2*/ KBD_ASCII, I, {S,C "1"},     {S,C "!"},     {S,C "1"},
-/*  3*/ KBD_ASCII, I, {S,C "2"},     {S,C "@"},     {S,C "\000"},
-/*  4*/ KBD_ASCII, I, {S,C "3"},     {S,C "#"},     {S,C "3"},
-/*  5*/ KBD_ASCII, I, {S,C "4"},     {S,C "$"},     {S,C "4"},
-/*  6*/ KBD_ASCII, I, {S,C "5"},     {S,C "%"},     {S,C "5"},
-/*  7*/ KBD_ASCII, I, {S,C "6"},     {S,C "^"},     {S,C "\036"},
-/*  8*/ KBD_ASCII, I, {S,C "7"},     {S,C "&"},     {S,C "7"},
-/*  9*/ KBD_ASCII, I, {S,C "8"},     {S,C "*"},     {S,C "8"},
-/* 10*/ KBD_ASCII, I, {S,C "9"},     {S,C "("},     {S,C "9"},
-/* 11*/ KBD_ASCII, I, {S,C "0"},     {S,C ")"},     {S,C "0"},
-/* 12*/ KBD_ASCII, I, {S,C "-"},     {S,C "_"},     {S,C "\037"},
-/* 13*/ KBD_ASCII, I, {S,C "="},     {S,C "+"},     {S,C "="},
-/* 14*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 15*/ KBD_ASCII, I, {S,C "\177"},  {S,C "\010"},  {S,C "\177"}, /* BS */
-/* 16*/ KBD_ASCII, I, {S,C "\t"},    {S,C "\t"},    {S,C "\t"},   /* TAB */
-/* 17*/ KBD_ASCII, I, {S,C "q"},     {S,C "Q"},     {S,C "\021"},
-/* 18*/ KBD_ASCII, I, {S,C "w"},     {S,C "W"},     {S,C "\027"},
-/* 19*/ KBD_ASCII, I, {S,C "e"},     {S,C "E"},     {S,C "\005"},
-/* 20*/ KBD_ASCII, I, {S,C "r"},     {S,C "R"},     {S,C "\022"},
-/* 21*/ KBD_ASCII, I, {S,C "t"},     {S,C "T"},     {S,C "\024"},
-/* 22*/ KBD_ASCII, I, {S,C "y"},     {S,C "Y"},     {S,C "\031"},
-/* 23*/ KBD_ASCII, I, {S,C "u"},     {S,C "U"},     {S,C "\025"},
-/* 24*/ KBD_ASCII, I, {S,C "i"},     {S,C "I"},     {S,C "\011"},
-/* 25*/ KBD_ASCII, I, {S,C "o"},     {S,C "O"},     {S,C "\017"},
-/* 26*/ KBD_ASCII, I, {S,C "p"},     {S,C "P"},     {S,C "\020"},
-/* 27*/ KBD_ASCII, I, {S,C "["},     {S,C "{"},     {S,C "\033"},
-/* 28*/ KBD_ASCII, I, {S,C "]"},     {S,C "}"},     {S,C "\035"},
-/* 29*/ KBD_ASCII, I, {S,C "\\"},    {S,C "|"},     {S,C "\034"},
-/* 30*/ KBD_CAPS,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 31*/ KBD_ASCII, I, {S,C "a"},     {S,C "A"},     {S,C "\001"},
-/* 32*/ KBD_ASCII, I, {S,C "s"},     {S,C "S"},     {S,C "\023"},
-/* 33*/ KBD_ASCII, I, {S,C "d"},     {S,C "D"},     {S,C "\004"},
-/* 34*/ KBD_ASCII, I, {S,C "f"},     {S,C "F"},     {S,C "\006"},
-/* 35*/ KBD_ASCII, I, {S,C "g"},     {S,C "G"},     {S,C "\007"},
-/* 36*/ KBD_ASCII, I, {S,C "h"},     {S,C "H"},     {S,C "\010"},
-/* 37*/ KBD_ASCII, I, {S,C "j"},     {S,C "J"},     {S,C "\n"},
-/* 38*/ KBD_ASCII, I, {S,C "k"},     {S,C "K"},     {S,C "\013"},
-/* 39*/ KBD_ASCII, I, {S,C "l"},     {S,C "L"},     {S,C "\014"},
-/* 40*/ KBD_ASCII, I, {S,C ";"},     {S,C ":"},     {S,C ";"},
-/* 41*/ KBD_ASCII, I, {S,C "'"},     {S,C "\""},    {S,C "'"},
-/* 42*/ KBD_ASCII, I, {S,C "\\"},    {S,C "|"},     {S,C "\034"}, /* special */
-/* 43*/ KBD_RETURN,I, {S,C "\r"},    {S,C "\r"},    {S,C "\r"},    /* RETURN */
-/* 44*/ KBD_SHIFT, I, {S,C ""},      {S,C ""},      {S,C ""},  /* SHIFT left */
-/* 45*/ KBD_ASCII, I, {S,C "<"},     {S,C ">"},     {S,C ""},
-/* 46*/ KBD_ASCII, I, {S,C "z"},     {S,C "Z"},     {S,C "\032"},
-/* 47*/ KBD_ASCII, I, {S,C "x"},     {S,C "X"},     {S,C "\030"},
-/* 48*/ KBD_ASCII, I, {S,C "c"},     {S,C "C"},     {S,C "\003"},
-/* 49*/ KBD_ASCII, I, {S,C "v"},     {S,C "V"},     {S,C "\026"},
-/* 50*/ KBD_ASCII, I, {S,C "b"},     {S,C "B"},     {S,C "\002"},
-/* 51*/ KBD_ASCII, I, {S,C "n"},     {S,C "N"},     {S,C "\016"},
-/* 52*/ KBD_ASCII, I, {S,C "m"},     {S,C "M"},     {S,C "\r"},
-/* 53*/ KBD_ASCII, I, {S,C ","},     {S,C "<"},     {S,C ","},
-/* 54*/ KBD_ASCII, I, {S,C "."},     {S,C ">"},     {S,C "."},
-/* 55*/ KBD_ASCII, I, {S,C "/"},     {S,C "?"},     {S,C "/"},
-/* 56*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 57*/ KBD_SHIFT, I, {S,C ""},      {S,C ""},      {S,C ""}, /* SHIFT right */
-/* 58*/ KBD_CTL,   I, {S,C ""},      {S,C ""},      {S,C ""},    /* CTL left */
-/* 59*/ KBD_ASCII, I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 60*/ KBD_META,  I, {S,C ""},      {S,C ""},      {S,C ""},    /* ALT left */
+/*  0*/ {KBD_NONE,  I, {S,{C "df"}},    {S,{C ""}},      {S,{C ""}}},
+/*  1*/ {KBD_ASCII, I, {S,{C "`"}},     {S,{C "~"}},     {S,{C "`"}}},
+/*  2*/ {KBD_ASCII, I, {S,{C "1"}},     {S,{C "!"}},     {S,{C "1"}}},
+/*  3*/ {KBD_ASCII, I, {S,{C "2"}},     {S,{C "@"}},     {S,{C "\000"}}},
+/*  4*/ {KBD_ASCII, I, {S,{C "3"}},     {S,{C "#"}},     {S,{C "3"}}},
+/*  5*/ {KBD_ASCII, I, {S,{C "4"}},     {S,{C "$"}},     {S,{C "4"}}},
+/*  6*/ {KBD_ASCII, I, {S,{C "5"}},     {S,{C "%"}},     {S,{C "5"}}},
+/*  7*/ {KBD_ASCII, I, {S,{C "6"}},     {S,{C "^"}},     {S,{C "\036"}}},
+/*  8*/ {KBD_ASCII, I, {S,{C "7"}},     {S,{C "&"}},     {S,{C "7"}}},
+/*  9*/ {KBD_ASCII, I, {S,{C "8"}},     {S,{C "*"}},     {S,{C "8"}}},
+/* 10*/ {KBD_ASCII, I, {S,{C "9"}},     {S,{C "("}},     {S,{C "9"}}},
+/* 11*/ {KBD_ASCII, I, {S,{C "0"}},     {S,{C ")"}},     {S,{C "0"}}},
+/* 12*/ {KBD_ASCII, I, {S,{C "-"}},     {S,{C "_"}},     {S,{C "\037"}}},
+/* 13*/ {KBD_ASCII, I, {S,{C "="}},     {S,{C "+"}},     {S,{C "="}}},
+/* 14*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 15*/ {KBD_ASCII, I, {S,{C "\177"}},  {S,{C "\010"}},  {S,{C "\177"}}}, /* BS */
+/* 16*/ {KBD_ASCII, I, {S,{C "\t"}},    {S,{C "\t"}},    {S,{C "\t"}}},   /* TAB */
+/* 17*/ {KBD_ASCII, I, {S,{C "q"}},     {S,{C "Q"}},     {S,{C "\021"}}},
+/* 18*/ {KBD_ASCII, I, {S,{C "w"}},     {S,{C "W"}},     {S,{C "\027"}}},
+/* 19*/ {KBD_ASCII, I, {S,{C "e"}},     {S,{C "E"}},     {S,{C "\005"}}},
+/* 20*/ {KBD_ASCII, I, {S,{C "r"}},     {S,{C "R"}},     {S,{C "\022"}}},
+/* 21*/ {KBD_ASCII, I, {S,{C "t"}},     {S,{C "T"}},     {S,{C "\024"}}},
+/* 22*/ {KBD_ASCII, I, {S,{C "y"}},     {S,{C "Y"}},     {S,{C "\031"}}},
+/* 23*/ {KBD_ASCII, I, {S,{C "u"}},     {S,{C "U"}},     {S,{C "\025"}}},
+/* 24*/ {KBD_ASCII, I, {S,{C "i"}},     {S,{C "I"}},     {S,{C "\011"}}},
+/* 25*/ {KBD_ASCII, I, {S,{C "o"}},     {S,{C "O"}},     {S,{C "\017"}}},
+/* 26*/ {KBD_ASCII, I, {S,{C "p"}},     {S,{C "P"}},     {S,{C "\020"}}},
+/* 27*/ {KBD_ASCII, I, {S,{C "["}},     {S,{C "{"}},     {S,{C "\033"}}},
+/* 28*/ {KBD_ASCII, I, {S,{C "]"}},     {S,{C "}"}},     {S,{C "\035"}}},
+/* 29*/ {KBD_ASCII, I, {S,{C "\\"}},    {S,{C "|"}},     {S,{C "\034"}}},
+/* 30*/ {KBD_CAPS,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 31*/ {KBD_ASCII, I, {S,{C "a"}},     {S,{C "A"}},     {S,{C "\001"}}},
+/* 32*/ {KBD_ASCII, I, {S,{C "s"}},     {S,{C "S"}},     {S,{C "\023"}}},
+/* 33*/ {KBD_ASCII, I, {S,{C "d"}},     {S,{C "D"}},     {S,{C "\004"}}},
+/* 34*/ {KBD_ASCII, I, {S,{C "f"}},     {S,{C "F"}},     {S,{C "\006"}}},
+/* 35*/ {KBD_ASCII, I, {S,{C "g"}},     {S,{C "G"}},     {S,{C "\007"}}},
+/* 36*/ {KBD_ASCII, I, {S,{C "h"}},     {S,{C "H"}},     {S,{C "\010"}}},
+/* 37*/ {KBD_ASCII, I, {S,{C "j"}},     {S,{C "J"}},     {S,{C "\n"}}},
+/* 38*/ {KBD_ASCII, I, {S,{C "k"}},     {S,{C "K"}},     {S,{C "\013"}}},
+/* 39*/ {KBD_ASCII, I, {S,{C "l"}},     {S,{C "L"}},     {S,{C "\014"}}},
+/* 40*/ {KBD_ASCII, I, {S,{C ";"}},     {S,{C ":"}},     {S,{C ";"}}},
+/* 41*/ {KBD_ASCII, I, {S,{C "'"}},     {S,{C "\""}},    {S,{C "'"}}},
+/* 42*/ {KBD_ASCII, I, {S,{C "\\"}},    {S,{C "|"}},     {S,{C "\034"}}}, /* special */
+/* 43*/ {KBD_RETURN,I, {S,{C "\r"}},    {S,{C "\r"}},    {S,{C "\r"}}},   /* RETURN */
+/* 44*/ {KBD_SHIFT, I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* SHIFT left */
+/* 45*/ {KBD_ASCII, I, {S,{C "<"}},     {S,{C ">"}},     {S,{C ""}}},
+/* 46*/ {KBD_ASCII, I, {S,{C "z"}},     {S,{C "Z"}},     {S,{C "\032"}}},
+/* 47*/ {KBD_ASCII, I, {S,{C "x"}},     {S,{C "X"}},     {S,{C "\030"}}},
+/* 48*/ {KBD_ASCII, I, {S,{C "c"}},     {S,{C "C"}},     {S,{C "\003"}}},
+/* 49*/ {KBD_ASCII, I, {S,{C "v"}},     {S,{C "V"}},     {S,{C "\026"}}},
+/* 50*/ {KBD_ASCII, I, {S,{C "b"}},     {S,{C "B"}},     {S,{C "\002"}}},
+/* 51*/ {KBD_ASCII, I, {S,{C "n"}},     {S,{C "N"}},     {S,{C "\016"}}},
+/* 52*/ {KBD_ASCII, I, {S,{C "m"}},     {S,{C "M"}},     {S,{C "\r"}}},
+/* 53*/ {KBD_ASCII, I, {S,{C ","}},     {S,{C "<"}},     {S,{C ","}}},
+/* 54*/ {KBD_ASCII, I, {S,{C "."}},     {S,{C ">"}},     {S,{C "."}}},
+/* 55*/ {KBD_ASCII, I, {S,{C "/"}},     {S,{C "?"}},     {S,{C "/"}}},
+/* 56*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 57*/ {KBD_SHIFT, I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* SHIFT right */
+/* 58*/ {KBD_CTL,   I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* CTL left */
+/* 59*/ {KBD_ASCII, I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 60*/ {KBD_META,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* ALT left */
 #if !PCVT_NULLCHARS
-/* 61*/ KBD_ASCII, I, {S,C " "},     {S,C " "},     {S,C " "},      /* SPACE */
+/* 61*/ {KBD_ASCII, I, {S,{C " "}},     {S,{C " "}},     {S,{C " "}}},    /* SPACE */
 #else
-/* 61*/ KBD_ASCII, I, {S,C " "},     {S,C " "},     {S,C "\000"},   /* SPACE */
+/* 61*/ {KBD_ASCII, I, {S,{C " "}},     {S,{C " "}},     {S,{C "\000"}}}, /* SPACE */
 #endif /* PCVT_NULLCHARS */
-/* 62*/ KBD_META,  I, {S,C ""},      {S,C ""},      {S,C ""},   /* ALT right */
-/* 63*/ KBD_ASCII, I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 64*/ KBD_CTL,   I, {S,C ""},      {S,C ""},      {S,C ""},   /* CTL right */
-/* 65*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 66*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 67*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 68*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 69*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 70*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 71*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 72*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 73*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 74*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 75*/ KBD_FUNC,  I, {S,C "\033[2~"},{S,C "\033[2~"},{S,C "\033[2~"},/* INS */
-/* 76*/ KBD_FUNC,  I, {S,C "\033[3~"},{S,C "\033[3~"},{S,C "\033[3~"},/* DEL */
-/* 77*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 78*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 79*/ KBD_CURSOR,I, {S,C "\033[D"},{S,C "\033OD"},{S,C "\033[D"}, /* CU <- */
-/* 80*/ KBD_FUNC,  I, {S,C "\033[1~"},{S,C "\033[1~"},{S,C "\033[1~"},/* HOME = FIND*/
-/* 81*/ KBD_FUNC,  I, {S,C "\033[4~"},{S,C "\033[4~"},{S,C "\033[4~"},/* END = SELECT */
-/* 82*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 83*/ KBD_CURSOR,I, {S,C "\033[A"},{S,C "\033OA"},{S,C "\033[A"}, /* CU ^ */
-/* 84*/ KBD_CURSOR,I, {S,C "\033[B"},{S,C "\033OB"},{S,C "\033[B"}, /* CU v */
-/* 85*/ KBD_FUNC,  I, {S,C "\033[5~"},{S,C "\033[5~"},{S,C "\033[5~"},/*PG UP*/
-/* 86*/ KBD_FUNC,  I, {S,C "\033[6~"},{S,C "\033[6~"},{S,C "\033[6~"},/*PG DN*/
-/* 87*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 88*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 89*/ KBD_CURSOR,I, {S,C "\033[C"},{S,C "\033OC"},{S,C "\033[C"}, /* CU -> */
-/* 90*/ KBD_NUM,   I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 91*/ KBD_KP,    I, {S,C "7"},     {S,C "\033Ow"},{S,C "7"},
-/* 92*/ KBD_KP,    I, {S,C "4"},     {S,C "\033Ot"},{S,C "4"},
-/* 93*/ KBD_KP,    I, {S,C "1"},     {S,C "\033Oq"},{S,C "1"},
-/* 94*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/* 95*/ KBD_KP,    I, {S,C "/"},     {S,C "/"},     {S,C "/"},
-/* 96*/ KBD_KP,    I, {S,C "8"},     {S,C "\033Ox"},{S,C "8"},
-/* 97*/ KBD_KP,    I, {S,C "5"},     {S,C "\033Ou"},{S,C "5"},
-/* 98*/ KBD_KP,    I, {S,C "2"},     {S,C "\033Or"},{S,C "2"},
-/* 99*/ KBD_KP,    I, {S,C "0"},     {S,C "\033Op"},{S,C "0"},
-/*100*/ KBD_KP,    I, {S,C "*"},     {S,C "*"},     {S,C "*"},
-/*101*/ KBD_KP,    I, {S,C "9"},     {S,C "\033Oy"},{S,C "9"},
-/*102*/ KBD_KP,    I, {S,C "6"},     {S,C "\033Ov"},{S,C "6"},
-/*103*/ KBD_KP,    I, {S,C "3"},     {S,C "\033Os"},{S,C "3"},
-/*104*/ KBD_KP,    I, {S,C "."},     {S,C "\033On"},{S,C "."},
-/*105*/ KBD_KP,    I, {S,C "-"},     {S,C "\033Om"},{S,C "-"},
-/*106*/ KBD_KP,    I, {S,C "+"},     {S,C "+"},     {S,C "+"},
-/*107*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/*108*/ KBD_RETURN,I, {S,C "\r"},    {S,C "\033OM"},{S,C "\r"},  /* KP ENTER */
-/*109*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/*110*/ KBD_ASCII, I, {S,C "\033"},  {S,C "\033"},  {S,C "\033"},
-/*111*/ KBD_NONE,  I, {S,C ""},      {S,C ""},      {S,C ""},
-/*112*/ KBD_FUNC,  I, {F,V fkey1},   {F,V sfkey1},  {F,V cfkey1},  /* F1 */
-/*113*/ KBD_FUNC,  I, {F,V fkey2},   {F,V sfkey2},  {F,V cfkey2},  /* F2 */
-/*114*/ KBD_FUNC,  I, {F,V fkey3},   {F,V sfkey3},  {F,V cfkey3},  /* F3 */
-/*115*/ KBD_FUNC,  I, {F,V fkey4},   {F,V sfkey4},  {F,V cfkey4},  /* F4 */
-/*116*/ KBD_FUNC,  I, {F,V fkey5},   {F,V sfkey5},  {F,V cfkey5},  /* F5 */
-/*117*/ KBD_FUNC,  I, {F,V fkey6},   {F,V sfkey6},  {F,V cfkey6},  /* F6 */
-/*118*/ KBD_FUNC,  I, {F,V fkey7},   {F,V sfkey7},  {F,V cfkey7},  /* F7 */
-/*119*/ KBD_FUNC,  I, {F,V fkey8},   {F,V sfkey8},  {F,V cfkey8},  /* F8 */
-/*120*/ KBD_FUNC,  I, {F,V fkey9},   {F,V sfkey9},  {F,V cfkey9},  /* F9 */
-/*121*/ KBD_FUNC,  I, {F,V fkey10},  {F,V sfkey10}, {F,V cfkey10}, /* F10 */
-/*122*/ KBD_FUNC,  I, {F,V fkey11},  {F,V sfkey11}, {F,V cfkey11}, /* F11 */
-/*123*/ KBD_FUNC,  I, {F,V fkey12},  {F,V sfkey12}, {F,V cfkey12}, /* F12 */
-/*124*/ KBD_KP,    I, {S,C ""},      {S,C ""},      {S,C ""},
-/*125*/ KBD_SCROLL,I, {S,C ""},      {S,C ""},      {S,C ""},
-/*126*/ KBD_BREAK, I, {S,C ""},      {S,C ""},      {S,C ""},
-/*127*/ KBD_FUNC,  I, {S,C ""},      {S,C ""},      {S,C ""},      /* SysRq */
+/* 62*/ {KBD_META,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* ALT right */
+/* 63*/ {KBD_ASCII, I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 64*/ {KBD_CTL,   I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},     /* CTL right */
+/* 65*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 66*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 67*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 68*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 69*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 70*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 71*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 72*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 73*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 74*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 75*/ {KBD_FUNC,  I, {S,{C "\033[2~"}},{S,{C "\033[2~"}},{S,{C "\033[2~"}}},/* INS */
+/* 76*/ {KBD_FUNC,  I, {S,{C "\033[3~"}},{S,{C "\033[3~"}},{S,{C "\033[3~"}}},/* DEL */
+/* 77*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 78*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 79*/ {KBD_CURSOR,I, {S,{C "\033[D"}},{S,{C "\033OD"}},{S,{C "\033[D"}}},   /* CU <- */
+/* 80*/ {KBD_FUNC,  I, {S,{C "\033[1~"}},{S,{C "\033[1~"}},{S,{C "\033[1~"}}},/* HOME = FIND*/
+/* 81*/ {KBD_FUNC,  I, {S,{C "\033[4~"}},{S,{C "\033[4~"}},{S,{C "\033[4~"}}},/* END = SELECT */
+/* 82*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 83*/ {KBD_CURSOR,I, {S,{C "\033[A"}},{S,{C "\033OA"}},{S,{C "\033[A"}}},   /* CU ^ */
+/* 84*/ {KBD_CURSOR,I, {S,{C "\033[B"}},{S,{C "\033OB"}},{S,{C "\033[B"}}},   /* CU v */
+/* 85*/ {KBD_FUNC,  I, {S,{C "\033[5~"}},{S,{C "\033[5~"}},{S,{C "\033[5~"}}},/*PG UP*/
+/* 86*/ {KBD_FUNC,  I, {S,{C "\033[6~"}},{S,{C "\033[6~"}},{S,{C "\033[6~"}}},/*PG DN*/
+/* 87*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 88*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 89*/ {KBD_CURSOR,I, {S,{C "\033[C"}},{S,{C "\033OC"}},{S,{C "\033[C"}}},   /* CU -> */
+/* 90*/ {KBD_NUM,   I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 91*/ {KBD_KP,    I, {S,{C "7"}},     {S,{C "\033Ow"}},{S,{C "7"}}},
+/* 92*/ {KBD_KP,    I, {S,{C "4"}},     {S,{C "\033Ot"}},{S,{C "4"}}},
+/* 93*/ {KBD_KP,    I, {S,{C "1"}},     {S,{C "\033Oq"}},{S,{C "1"}}},
+/* 94*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/* 95*/ {KBD_KP,    I, {S,{C "/"}},     {S,{C "/"}},     {S,{C "/"}}},
+/* 96*/ {KBD_KP,    I, {S,{C "8"}},     {S,{C "\033Ox"}},{S,{C "8"}}},
+/* 97*/ {KBD_KP,    I, {S,{C "5"}},     {S,{C "\033Ou"}},{S,{C "5"}}},
+/* 98*/ {KBD_KP,    I, {S,{C "2"}},     {S,{C "\033Or"}},{S,{C "2"}}},
+/* 99*/ {KBD_KP,    I, {S,{C "0"}},     {S,{C "\033Op"}},{S,{C "0"}}},
+/*100*/ {KBD_KP,    I, {S,{C "*"}},     {S,{C "*"}},     {S,{C "*"}}},
+/*101*/ {KBD_KP,    I, {S,{C "9"}},     {S,{C "\033Oy"}},{S,{C "9"}}},
+/*102*/ {KBD_KP,    I, {S,{C "6"}},     {S,{C "\033Ov"}},{S,{C "6"}}},
+/*103*/ {KBD_KP,    I, {S,{C "3"}},     {S,{C "\033Os"}},{S,{C "3"}}},
+/*104*/ {KBD_KP,    I, {S,{C "."}},     {S,{C "\033On"}},{S,{C "."}}},
+/*105*/ {KBD_KP,    I, {S,{C "-"}},     {S,{C "\033Om"}},{S,{C "-"}}},
+/*106*/ {KBD_KP,    I, {S,{C "+"}},     {S,{C "+"}},     {S,{C "+"}}},
+/*107*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*108*/ {KBD_RETURN,I, {S,{C "\r"}},    {S,{C "\033OM"}},{S,{C "\r"}}},    /* KP ENTER */
+/*109*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*110*/ {KBD_ASCII, I, {S,{C "\033"}},  {S,{C "\033"}},  {S,{C "\033"}}},
+/*111*/ {KBD_NONE,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*112*/ {KBD_FUNC,  I, {F,{V fkey1}},   {F,{V sfkey1}},  {F,{V cfkey1}}},  /* F1 */
+/*113*/ {KBD_FUNC,  I, {F,{V fkey2}},   {F,{V sfkey2}},  {F,{V cfkey2}}},  /* F2 */
+/*114*/ {KBD_FUNC,  I, {F,{V fkey3}},   {F,{V sfkey3}},  {F,{V cfkey3}}},  /* F3 */
+/*115*/ {KBD_FUNC,  I, {F,{V fkey4}},   {F,{V sfkey4}},  {F,{V cfkey4}}},  /* F4 */
+/*116*/ {KBD_FUNC,  I, {F,{V fkey5}},   {F,{V sfkey5}},  {F,{V cfkey5}}},  /* F5 */
+/*117*/ {KBD_FUNC,  I, {F,{V fkey6}},   {F,{V sfkey6}},  {F,{V cfkey6}}},  /* F6 */
+/*118*/ {KBD_FUNC,  I, {F,{V fkey7}},   {F,{V sfkey7}},  {F,{V cfkey7}}},  /* F7 */
+/*119*/ {KBD_FUNC,  I, {F,{V fkey8}},   {F,{V sfkey8}},  {F,{V cfkey8}}},  /* F8 */
+/*120*/ {KBD_FUNC,  I, {F,{V fkey9}},   {F,{V sfkey9}},  {F,{V cfkey9}}},  /* F9 */
+/*121*/ {KBD_FUNC,  I, {F,{V fkey10}},  {F,{V sfkey10}}, {F,{V cfkey10}}}, /* F10 */
+/*122*/ {KBD_FUNC,  I, {F,{V fkey11}},  {F,{V sfkey11}}, {F,{V cfkey11}}}, /* F11 */
+/*123*/ {KBD_FUNC,  I, {F,{V fkey12}},  {F,{V sfkey12}}, {F,{V cfkey12}}}, /* F12 */
+/*124*/ {KBD_KP,    I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*125*/ {KBD_SCROLL,I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*126*/ {KBD_BREAK, I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},
+/*127*/ {KBD_FUNC,  I, {S,{C ""}},      {S,{C ""}},      {S,{C ""}}},      /* SysRq */
 
 #undef C
 #undef V
