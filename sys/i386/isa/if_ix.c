@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.19 1996/02/06 18:50:46 wollman Exp $
+ *	$Id: if_ix.c,v 1.20 1996/06/12 05:03:41 gpalmer Exp $
  */
 
 #include "ix.h"
@@ -44,6 +44,7 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
