@@ -45,7 +45,7 @@
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
 #define	IPI_STOP	PIL_STOP
 
-#define	IPI_RETRIES	100
+#define	IPI_RETRIES	5000
 
 struct cpu_start_args {
 	u_int	csa_count;
