@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.4 1993/10/12 15:33:18 rgrimes Exp $
+ *	$Id: genassym.c,v 1.5 1993/10/15 10:34:17 rgrimes Exp $
  */
 
 #include "sys/param.h"
@@ -96,10 +96,14 @@ main()
 	printf("#define\tCLSIZE %d\n", CLSIZE);
 	printf("#define\tNBPG %d\n", NBPG);
 	printf("#define\tNPTEPG %d\n", NPTEPG);
+	printf("#define\tPDESIZE %d\n", PDESIZE);
+	printf("#define\tPTESIZE %d\n", PTESIZE);
 	printf("#define\tNKPDE %d\n", NKPDE);
-	printf("#define\tKPTDI %d\n", KPTDI);
-	printf("#define\tPTDPTDI %d\n", PTDPTDI);
-	printf("#define\tAPTDPTDI %d\n", APTDPTDI);
+	printf("#define\tKPTDI 0x%x\n", KPTDI);
+	printf("#define\tKSTKPTDI 0x%x\n", KSTKPTDI);
+	printf("#define\tKSTKPTEOFF 0x%x\n", KSTKPTEOFF);
+	printf("#define\tPTDPTDI 0x%x\n", PTDPTDI);
+	printf("#define\tAPTDPTDI 0x%x\n", APTDPTDI);
 	printf("#define\tPGSHIFT %d\n", PGSHIFT);
 	printf("#define\tPDRSHIFT %d\n", PDRSHIFT);
 	printf("#define\tSYSPTSIZE %d\n", SYSPTSIZE);
@@ -108,9 +112,8 @@ main()
 #ifdef SYSVSHM
 	printf("#define\tSHMMAXPGS %d\n", SHMMAXPGS);
 #endif
-	printf("#define\tUSRSTACK %d\n", USRSTACK);
-	printf("#define\tKERNBASE %d\n", KERNBASE);
-	printf("#define\tKERNSIZE %d\n", KERNSIZE);
+	printf("#define\tUSRSTACK 0x%x\n", USRSTACK);
+	printf("#define\tKERNBASE 0x%x\n", KERNBASE);
 	printf("#define\tMSGBUFPTECNT %d\n", btoc(sizeof (struct msgbuf)));
 	printf("#define\tNMBCLUSTERS %d\n", NMBCLUSTERS);
 	printf("#define\tMCLBYTES %d\n", MCLBYTES);
