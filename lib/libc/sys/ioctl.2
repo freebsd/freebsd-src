@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/ioctl.h>
 .Ft int
-.Fn ioctl "int d" "unsigned long request" "char *argp"
+.Fn ioctl "int d" "unsigned long request" "..."
 .Sh DESCRIPTION
 The
 .Fn ioctl
@@ -53,6 +53,19 @@ requests.
 The argument
 .Fa d
 must be an open file descriptor.
+.Pp
+The third argument to
+.Nm
+is traditionally named
+.Ar "char *argp" .
+Most uses of 
+.Nm
+in
+.Fx 3.0
+however, require the third argument to be a 
+.Ar caddr_t
+or an
+.Ar int .
 .Pp
 An  ioctl
 .Fa request
