@@ -2,7 +2,6 @@
 
 PROG=	morse
 NOMAN=	noman
-HIDEGAME=hidegame
 CFLAGS += -DSPEAKER=\"/dev/speaker\"
 
 .include <bsd.prog.mk>
