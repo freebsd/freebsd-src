@@ -126,9 +126,8 @@ pkg_do(char *pkg)
     int i, len;
     /* support for separate pre/post install scripts */
     int new_m = 0;
-    char pre_script[FILENAME_MAX] = DEINSTALL_FNAME;
-    char post_script[FILENAME_MAX];
-    char pre_arg[FILENAME_MAX], post_arg[FILENAME_MAX];
+    const char *pre_script = DEINSTALL_FNAME;
+    const char *post_script, *pre_arg, *post_arg;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
 
@@ -224,18 +223,17 @@ pkg_do(char *pkg)
 
     if (fexists(POST_DEINSTALL_FNAME)) {
 	new_m = 1;
-	sprintf(post_script, "%s", POST_DEINSTALL_FNAME);
-	pre_arg[0] = '\0';
-	post_arg[0] = '\0';
+	post_script = POST_DEINSTALL_FNAME;
+	pre_arg = post_arg = "";
+    } else if (fexists(DEINSTALL_FNAME)) {
+	post_script = DEINSTALL_FNAME;
+	pre_arg = "DEINSTALL";
+	post_arg = "POST-DEINSTALL";
     } else {
-	if (fexists(DEINSTALL_FNAME)) {
-	    sprintf(post_script, "%s", DEINSTALL_FNAME);
-	    sprintf(pre_arg, "DEINSTALL");
-	    sprintf(post_arg, "POST-DEINSTALL");
-	}
+	post_script = pre_arg = post_arg = NULL;
     }
 
-    if (!NoDeInstall && fexists(pre_script)) {
+    if (!NoDeInstall && pre_script != NULL && fexists(pre_script)) {
 	if (Fake)
 	    printf("Would execute de-install script at this point.\n");
 	else {
@@ -268,7 +266,7 @@ pkg_do(char *pkg)
  	return 1;
     }
 
-    if (!NoDeInstall && fexists(post_script)) {
+    if (!NoDeInstall && post_script != NULL && fexists(post_script)) {
  	if (Fake)
  	    printf("Would execute post-deinstall script at this point.\n");
  	else {
