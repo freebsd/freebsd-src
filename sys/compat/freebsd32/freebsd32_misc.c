@@ -75,11 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <amd64/ia32/ia32_util.h>
-#include <amd64/ia32/ia32.h>
-#include <amd64/ia32/ia32_proto.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_proto.h>
 
-static const char ia32_emul_path[] = "/compat/ia32";
+extern const char freebsd32_emul_path[];
+
 /*
  * [ taken from the linux emulator ]
  * Search an alternate path before passing pathname arguments on
@@ -90,7 +91,7 @@ static const char ia32_emul_path[] = "/compat/ia32";
  * be in exists.
  */
 int
-ia32_emul_find(td, sgp, prefix, path, pbuf, cflag)
+freebsd32_emul_find(td, sgp, prefix, path, pbuf, cflag)
 	struct thread	*td;
 	caddr_t		*sgp;		/* Pointer to stackgap memory */
 	const char	*prefix;
@@ -163,15 +164,15 @@ ia32_emul_find(td, sgp, prefix, path, pbuf, cflag)
 		}
 
 		/*
-		 * We now compare the vnode of the ia32_root to the one
+		 * We now compare the vnode of the freebsd32_root to the one
 		 * vnode asked. If they resolve to be the same, then we
 		 * ignore the match so that the real root gets used.
 		 * This avoids the problem of traversing "../.." to find the
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, ia32_emul_path,
-		    td);
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE,
+		    freebsd32_emul_path, td);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
@@ -220,7 +221,7 @@ bad:
 }
 
 int
-ia32_open(struct thread *td, struct ia32_open_args *uap)
+freebsd32_open(struct thread *td, struct freebsd32_open_args *uap)
 {
 	caddr_t sg;
 
@@ -231,7 +232,7 @@ ia32_open(struct thread *td, struct ia32_open_args *uap)
 }
 
 int
-ia32_wait4(struct thread *td, struct ia32_wait4_args *uap)
+freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -297,7 +298,7 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 }
 
 int
-ia32_getfsstat(struct thread *td, struct ia32_getfsstat_args *uap)
+freebsd32_getfsstat(struct thread *td, struct freebsd32_getfsstat_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -330,7 +331,7 @@ ia32_getfsstat(struct thread *td, struct ia32_getfsstat_args *uap)
 }
 
 int
-ia32_access(struct thread *td, struct ia32_access_args *uap)
+freebsd32_access(struct thread *td, struct freebsd32_access_args *uap)
 {
 	caddr_t sg;
 
@@ -341,7 +342,7 @@ ia32_access(struct thread *td, struct ia32_access_args *uap)
 }
 
 int
-ia32_chflags(struct thread *td, struct ia32_chflags_args *uap)
+freebsd32_chflags(struct thread *td, struct freebsd32_chflags_args *uap)
 {
 	caddr_t sg;
 
@@ -358,7 +359,8 @@ struct sigaltstack32 {
 };
 
 int
-ia32_sigaltstack(struct thread *td, struct ia32_sigaltstack_args *uap)
+freebsd32_sigaltstack(struct thread *td,
+		      struct freebsd32_sigaltstack_args *uap)
 {
 	struct sigaltstack32 s32;
 	struct sigaltstack ss, oss, *ssp;
@@ -385,7 +387,7 @@ ia32_sigaltstack(struct thread *td, struct ia32_sigaltstack_args *uap)
 }
 
 int
-ia32_execve(struct thread *td, struct ia32_execve_args *uap)
+freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -442,8 +444,8 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 
 #ifdef __ia64__
 static int
-ia32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
-		  int prot, int fd, off_t pos)
+freebsd32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
+		       int prot, int fd, off_t pos)
 {
 	vm_map_t map;
 	vm_map_entry_t entry;
@@ -490,7 +492,7 @@ ia32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 #endif
 
 int
-ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
+freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 {
 	struct mmap_args ap;
 	vm_offset_t addr = (vm_offset_t) uap->addr;
@@ -514,15 +516,16 @@ ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 		end = addr + len;
 
 		if (start != trunc_page(start)) {
-			error = ia32_mmap_partial(td, start, round_page(start),
-						  prot, fd, pos);
+			error = freebsd32_mmap_partial(td, start,
+						       round_page(start), prot,
+						       fd, pos);
 			if (fd != -1)
 				pos += round_page(start) - start;
 			start = round_page(start);
 		}
 		if (end != round_page(end)) {
 			vm_offset_t t = trunc_page(end);
-			error = ia32_mmap_partial(td, t, end,
+			error = freebsd32_mmap_partial(td, t, end,
 						  prot, fd,
 						  pos + t - start);
 			end = trunc_page(end);
@@ -589,7 +592,7 @@ struct itimerval32 {
 };
 
 int
-ia32_setitimer(struct thread *td, struct ia32_setitimer_args *uap)
+freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -631,7 +634,7 @@ ia32_setitimer(struct thread *td, struct ia32_setitimer_args *uap)
 }
 
 int
-ia32_select(struct thread *td, struct ia32_select_args *uap)
+freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -668,7 +671,7 @@ struct kevent32 {
 };
 
 int
-ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
+freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -700,9 +703,11 @@ ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
 			return (error);
 	}
 	if (uap->changelist) {
-		a.changelist = (struct kevent *)stackgap_alloc(&sg, uap->nchanges * sizeof(struct kevent));
+		a.changelist = (struct kevent *)stackgap_alloc(&sg,
+		    uap->nchanges * sizeof(struct kevent));
 		for (i = 0; i < uap->nchanges; i++) {
-			error = copyin(&uap->changelist[i], &ks32, sizeof(ks32));
+			error = copyin(&uap->changelist[i], &ks32,
+			    sizeof(ks32));
 			if (error)
 				return (error);
 			ks = (struct kevent *)(uintptr_t)&a.changelist[i];
@@ -715,7 +720,8 @@ ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
 		}
 	}
 	if (uap->eventlist) {
-		a.eventlist = stackgap_alloc(&sg, uap->nevents * sizeof(struct kevent));
+		a.eventlist = stackgap_alloc(&sg,
+		    uap->nevents * sizeof(struct kevent));
 	}
 	error = kevent(td, &a);
 	if (uap->eventlist && error > 0) {
@@ -727,7 +733,8 @@ ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
 			CP(*ks, ks32, fflags);
 			CP(*ks, ks32, data);
 			PTROUT_CP(*ks, ks32, udata);
-			error = copyout(&ks32, &uap->eventlist[i], sizeof(ks32));
+			error = copyout(&ks32, &uap->eventlist[i],
+			    sizeof(ks32));
 			if (error)
 				return (error);
 		}
@@ -736,7 +743,8 @@ ia32_kevent(struct thread *td, struct ia32_kevent_args *uap)
 }
 
 int
-ia32_gettimeofday(struct thread *td, struct ia32_gettimeofday_args *uap)
+freebsd32_gettimeofday(struct thread *td,
+		       struct freebsd32_gettimeofday_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -766,7 +774,7 @@ ia32_gettimeofday(struct thread *td, struct ia32_gettimeofday_args *uap)
 }
 
 int
-ia32_getrusage(struct thread *td, struct ia32_getrusage_args *uap)
+freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -814,7 +822,7 @@ struct iovec32 {
 #define	STACKGAPLEN	400
 
 int
-ia32_readv(struct thread *td, struct ia32_readv_args *uap)
+freebsd32_readv(struct thread *td, struct freebsd32_readv_args *uap)
 {
 	int error, osize, nsize, i;
 	caddr_t sg;
@@ -860,7 +868,7 @@ punt:
 }
 
 int
-ia32_writev(struct thread *td, struct ia32_writev_args *uap)
+freebsd32_writev(struct thread *td, struct freebsd32_writev_args *uap)
 {
 	int error, i, nsize, osize;
 	caddr_t sg;
@@ -906,7 +914,8 @@ punt:
 }
 
 int
-ia32_settimeofday(struct thread *td, struct ia32_settimeofday_args *uap)
+freebsd32_settimeofday(struct thread *td,
+		       struct freebsd32_settimeofday_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -931,7 +940,7 @@ ia32_settimeofday(struct thread *td, struct ia32_settimeofday_args *uap)
 }
 
 int
-ia32_utimes(struct thread *td, struct ia32_utimes_args *uap)
+freebsd32_utimes(struct thread *td, struct freebsd32_utimes_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -958,7 +967,7 @@ ia32_utimes(struct thread *td, struct ia32_utimes_args *uap)
 }
 
 int
-ia32_adjtime(struct thread *td, struct ia32_adjtime_args *uap)
+freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1000,7 +1009,7 @@ ia32_adjtime(struct thread *td, struct ia32_adjtime_args *uap)
 }
 
 int
-ia32_statfs(struct thread *td, struct ia32_statfs_args *uap)
+freebsd32_statfs(struct thread *td, struct freebsd32_statfs_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1027,7 +1036,7 @@ ia32_statfs(struct thread *td, struct ia32_statfs_args *uap)
 }
 
 int
-ia32_fstatfs(struct thread *td, struct ia32_fstatfs_args *uap)
+freebsd32_fstatfs(struct thread *td, struct freebsd32_fstatfs_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1054,7 +1063,7 @@ ia32_fstatfs(struct thread *td, struct ia32_fstatfs_args *uap)
 }
 
 int
-ia32_semsys(struct thread *td, struct ia32_semsys_args *uap)
+freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 {
 	/*
 	 * Vector through to semsys if it is loaded.
@@ -1063,7 +1072,7 @@ ia32_semsys(struct thread *td, struct ia32_semsys_args *uap)
 }
 
 int
-ia32_msgsys(struct thread *td, struct ia32_msgsys_args *uap)
+freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 {
 	/*
 	 * Vector through to msgsys if it is loaded.
@@ -1072,7 +1081,7 @@ ia32_msgsys(struct thread *td, struct ia32_msgsys_args *uap)
 }
 
 int
-ia32_shmsys(struct thread *td, struct ia32_shmsys_args *uap)
+freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 {
 	/*
 	 * Vector through to shmsys if it is loaded.
@@ -1081,41 +1090,38 @@ ia32_shmsys(struct thread *td, struct ia32_shmsys_args *uap)
 }
 
 int
-ia32_pread(struct thread *td, struct ia32_pread_args *uap)
+freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 {
 	struct pread_args ap;
 
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
 	return (pread(td, &ap));
 }
 
 int
-ia32_pwrite(struct thread *td, struct ia32_pwrite_args *uap)
+freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 {
 	struct pwrite_args ap;
 
 	ap.fd = uap->fd;
 	ap.buf = uap->buf;
 	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
 	return (pwrite(td, &ap));
 }
 
 int
-ia32_lseek(struct thread *td, struct ia32_lseek_args *uap)
+freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 {
 	int error;
 	struct lseek_args ap;
 	off_t pos;
 
 	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
 	ap.whence = uap->whence;
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
@@ -1126,38 +1132,35 @@ ia32_lseek(struct thread *td, struct ia32_lseek_args *uap)
 }
 
 int
-ia32_truncate(struct thread *td, struct ia32_truncate_args *uap)
+freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 {
 	struct truncate_args ap;
 
 	ap.path = uap->path;
-	ap.length = (uap->lengthlo
-			      | ((off_t)uap->lengthhi << 32));
+	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
 	return (truncate(td, &ap));
 }
 
 int
-ia32_ftruncate(struct thread *td, struct ia32_ftruncate_args *uap)
+freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 {
 	struct ftruncate_args ap;
 
 	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo
-			      | ((off_t)uap->lengthhi << 32));
+	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
 	return (ftruncate(td, &ap));
 }
 
 #ifdef COMPAT_FREEBSD4
 int
-freebsd4_ia32_sendfile(struct thread *td,
-    struct freebsd4_ia32_sendfile_args *uap)
+freebsd4_freebsd32_sendfile(struct thread *td,
+    struct freebsd4_freebsd32_sendfile_args *uap)
 {
 	struct freebsd4_sendfile_args ap;
 
 	ap.fd = uap->fd;
 	ap.s = uap->s;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
 	ap.nbytes = uap->nbytes;	/* XXX check */
 	ap.hdtr = uap->hdtr;		/* XXX check */
 	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
@@ -1167,14 +1170,13 @@ freebsd4_ia32_sendfile(struct thread *td,
 #endif
 
 int
-ia32_sendfile(struct thread *td, struct ia32_sendfile_args *uap)
+freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 {
 	struct sendfile_args ap;
 
 	ap.fd = uap->fd;
 	ap.s = uap->s;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
 	ap.nbytes = uap->nbytes;	/* XXX check */
 	ap.hdtr = uap->hdtr;		/* XXX check */
 	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
@@ -1221,7 +1223,7 @@ copy_stat( struct stat *in, struct stat32 *out)
 }
 
 int
-ia32_stat(struct thread *td, struct ia32_stat_args *uap)
+freebsd32_stat(struct thread *td, struct freebsd32_stat_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1248,7 +1250,7 @@ ia32_stat(struct thread *td, struct ia32_stat_args *uap)
 }
 
 int
-ia32_fstat(struct thread *td, struct ia32_fstat_args *uap)
+freebsd32_fstat(struct thread *td, struct freebsd32_fstat_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1275,7 +1277,7 @@ ia32_fstat(struct thread *td, struct ia32_fstat_args *uap)
 }
 
 int
-ia32_lstat(struct thread *td, struct ia32_lstat_args *uap)
+freebsd32_lstat(struct thread *td, struct freebsd32_lstat_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -1305,7 +1307,7 @@ ia32_lstat(struct thread *td, struct ia32_lstat_args *uap)
  * MPSAFE
  */
 int
-ia32_sysctl(struct thread *td, struct ia32_sysctl_args *uap)
+freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 {
 	int error, name[CTL_MAXNAME];
 	size_t j, oldlen;
@@ -1343,7 +1345,7 @@ struct sigaction32 {
 };
 
 int
-ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
+freebsd32_sigaction(struct thread *td, struct freebsd32_sigaction_args *uap)
 {
 	struct sigaction32 s32;
 	struct sigaction sa, osa, *sap;
@@ -1371,7 +1373,8 @@ ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
 
 #ifdef COMPAT_FREEBSD4
 int
-freebsd4_ia32_sigaction(struct thread *td, struct freebsd4_ia32_sigaction_args *uap)
+freebsd4_freebsd32_sigaction(struct thread *td,
+			     struct freebsd4_freebsd32_sigaction_args *uap)
 {
 	struct sigaction32 s32;
 	struct sigaction sa, osa, *sap;
@@ -1401,7 +1404,7 @@ freebsd4_ia32_sigaction(struct thread *td, struct freebsd4_ia32_sigaction_args *
 #if 0
 
 int
-ia32_xxx(struct thread *td, struct ia32_xxx_args *uap)
+freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 {
 	int error;
 	caddr_t sg;
