@@ -3,7 +3,7 @@
  *	The Regents of the University of California.  All rights reserved.
  *
  * sendfile(2) and related extensions:
- * Copyright (c) 1998, David Greenman. All rights reserved. 
+ * Copyright (c) 1998, David Greenman. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
-  
+
 static int accept1(struct thread *td, struct accept_args *uap, int compat);
 static int do_sendfile(struct thread *td, struct sendfile_args *uap, int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
@@ -128,8 +128,9 @@ socket(td, uap)
 			fdunused(fdp, fd);
 			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
-		} else
+		} else {
 			FILEDESC_UNLOCK(fdp);
+		}
 	} else {
 		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
@@ -347,8 +348,8 @@ accept1(td, uap, compat)
 	if (error) {
 		/*
 		 * return a namelen of zero for older code which might
-	 	 * ignore the return value from accept.
-		 */	
+		 * ignore the return value from accept.
+		 */
 		if (uap->name != NULL) {
 			namelen = 0;
 			(void) copyout(&namelen,
@@ -589,8 +590,9 @@ free4:
 		fdunused(fdp, sv[1]);
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp2, td);
-	} else
+	} else {
 		FILEDESC_UNLOCK(fdp);
+	}
 	fdrop(fp2, td);
 free3:
 	FILEDESC_LOCK(fdp);
@@ -599,8 +601,9 @@ free3:
 		fdunused(fdp, sv[0]);
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp1, td);
-	} else
+	} else {
 		FILEDESC_UNLOCK(fdp);
+	}
 	fdrop(fp1, td);
 free2:
 	(void)soclose(so2);
@@ -629,8 +632,9 @@ sendit(td, s, mp, flags)
 			goto bad;
 		}
 		mp->msg_name = to;
-	} else
+	} else {
 		to = NULL;
+	}
 
 	if (mp->msg_control) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
@@ -1048,13 +1052,13 @@ recvit(td, s, mp, namelenp)
 		while (m && len > 0) {
 			unsigned int tocopy;
 
-			if (len >= m->m_len) 
+			if (len >= m->m_len)
 				tocopy = m->m_len;
 			else {
 				mp->msg_flags |= MSG_CTRUNC;
 				tocopy = len;
 			}
-		
+
 			if ((error = copyout(mtod(m, caddr_t),
 					ctlbuf, tocopy)) != 0)
 				goto out;
@@ -1385,7 +1389,7 @@ done2:
 }
 
 /*
- * getsockname1() - Get socket name. 
+ * getsockname1() - Get socket name.
  *
  * MPSAFE
  */
@@ -1759,7 +1763,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		vm_offset_t pgoff;
 
 		pindex = OFF_TO_IDX(off);
-		VM_OBJECT_LOCK(obj);  
+		VM_OBJECT_LOCK(obj);
 retry_lookup:
 		/*
 		 * Calculate the amount to transfer. Not to exceed a page,
@@ -1788,9 +1792,9 @@ retry_lookup:
 			sbunlock(&so->so_snd);
 			goto done;
 		}
-		VM_OBJECT_LOCK(obj);  
+		VM_OBJECT_LOCK(obj);
 		/*
-		 * Attempt to look up the page.  
+		 * Attempt to look up the page.
 		 *
 		 *	Allocate if not found
 		 *
@@ -1804,7 +1808,7 @@ retry_lookup:
 			if (pg == NULL) {
 				VM_OBJECT_UNLOCK(obj);
 				VM_WAIT;
-				VM_OBJECT_LOCK(obj);  
+				VM_OBJECT_LOCK(obj);
 				goto retry_lookup;
 			}
 			vm_page_lock_queues();
@@ -1814,7 +1818,7 @@ retry_lookup:
 			if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
 				goto retry_lookup;
 			/*
-		 	 * Wire the page so it does not get ripped out from
+			 * Wire the page so it does not get ripped out from
 			 * under us.
 			 */
 			vm_page_wire(pg);
@@ -1828,7 +1832,7 @@ retry_lookup:
 			int bsize, resid;
 
 			/*
-			 * Ensure that our page is still around when the I/O 
+			 * Ensure that our page is still around when the I/O
 			 * completes.
 			 */
 			vm_page_io_start(pg);
@@ -1851,7 +1855,7 @@ retry_lookup:
 			    td->td_ucred, NOCRED, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
 			if (error)
-				VM_OBJECT_LOCK(obj);  
+				VM_OBJECT_LOCK(obj);
 			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
@@ -1873,8 +1877,9 @@ retry_lookup:
 				goto done;
 			}
 			mbstat.sf_iocnt++;
-		} else
+		} else {
 			VM_OBJECT_UNLOCK(obj);
+		}
 		vm_page_unlock_queues();
 
 		/*
