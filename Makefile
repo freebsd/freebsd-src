@@ -87,9 +87,22 @@ BINMAKE= \
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
 
 #
+# Make sure we have an up-to-date make(1). Only world and buildworld
+# should do this as those are the initial targets used for upgrades.
+# The user can define ALWAYS_CHECK_MAKE to have this check performed
+# for all targets.
+#
+.if defined(ALWAYS_CHECK_MAKE)
+${TGTS} ${BITGTS}: upgrade_checks
+.else
+buildworld: upgrade_checks
+.endif
+
+#
 # Handle the user-driven targets, using the source relative mk files.
 #
-${TGTS} ${BITGTS}: upgrade_checks
+
+${TGTS} ${BITGTS}:
 	@cd ${.CURDIR}; \
 		${_MAKE} ${.TARGET}
 
