@@ -194,7 +194,9 @@ ubsec_probe(device_t dev)
 	     pci_get_device(dev) == PCI_PRODUCT_BLUESTEEL_5601))
 		return (0);
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
-	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805 ||
+	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5801 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5802 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5820 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5821 ||
 	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5822 ||
@@ -211,6 +213,8 @@ ubsec_partname(struct ubsec_softc *sc)
 	switch (pci_get_vendor(sc->sc_dev)) {
 	case PCI_VENDOR_BROADCOM:
 		switch (pci_get_device(sc->sc_dev)) {
+		case PCI_PRODUCT_BROADCOM_5801:	return "Broadcom 5801";
+		case PCI_PRODUCT_BROADCOM_5802:	return "Broadcom 5802";
 		case PCI_PRODUCT_BROADCOM_5805:	return "Broadcom 5805";
 		case PCI_PRODUCT_BROADCOM_5820:	return "Broadcom 5820";
 		case PCI_PRODUCT_BROADCOM_5821:	return "Broadcom 5821";
@@ -256,7 +260,8 @@ ubsec_attach(device_t dev)
 		sc->sc_flags |= UBS_FLAGS_KEY | UBS_FLAGS_RNG;
 
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
-	    pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805)
+	    (pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5802 ||
+	     pci_get_device(dev) == PCI_PRODUCT_BROADCOM_5805))
 		sc->sc_flags |= UBS_FLAGS_KEY | UBS_FLAGS_RNG;
 
 	if (pci_get_vendor(dev) == PCI_VENDOR_BROADCOM &&
