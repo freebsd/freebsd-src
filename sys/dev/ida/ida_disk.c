@@ -177,6 +177,7 @@ idad_attach(device_t dev)
 
 	drv = (struct idad_softc *)device_get_softc(dev);
 	parent = device_get_parent(dev);
+	drv->dev = dev;
 	drv->controller = (struct ida_softc *)device_get_softc(parent);
 	drv->unit = device_get_unit(dev);
 	drv->drive = drv->controller->num_drives;
