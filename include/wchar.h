@@ -73,21 +73,9 @@
 #define NULL	0
 #endif
 
-#ifndef	__cplusplus
-#ifdef	_BSD_WCHAR_T_
-typedef	_BSD_WCHAR_T_	wchar_t;
-#undef	_BSD_WCHAR_T_
-#endif
-#endif
-
 #ifdef	_BSD_MBSTATE_T_
 typedef	_BSD_MBSTATE_T_	mbstate_t;
 #undef	_BSD_MBSTATE_T_
-#endif
-
-#ifdef	_BSD_WINT_T_
-typedef	_BSD_WINT_T_	wint_t;
-#undef	_BSD_WINT_T_
 #endif
 
 #ifdef	_BSD_SIZE_T_
@@ -95,9 +83,21 @@ typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
+#ifndef	__cplusplus
+#ifdef	_BSD_WCHAR_T_
+typedef	_BSD_WCHAR_T_	wchar_t;
+#undef	_BSD_WCHAR_T_
+#endif
+#endif
+
 #ifndef _WCTYPE_T
-typedef unsigned long	wctype_t;
-#define _WCTYPE_T
+typedef	unsigned long	wctype_t;
+#define	_WCTYPE_T
+#endif
+
+#ifdef	_BSD_WINT_T_
+typedef	_BSD_WINT_T_	wint_t;
+#undef	_BSD_WINT_T_
 #endif
 
 #ifndef WEOF
