@@ -1,11 +1,13 @@
 #
-# $Id: Makefile,v 1.5 1998/09/23 06:05:28 markm Exp $
+# $Id: Makefile,v 1.6 1998/09/26 16:17:05 markm Exp $
 #
 
 PROG=	miniperl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	miniperlmain.c config.h
+# Miniperl _must_ be static!!
+NOSHARED= yes
 DPADD=	${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	-lperl -lm -lcrypt
 
