@@ -582,6 +582,10 @@
 	  controllers</para>
 	</listitem>
 	<listitem>
+	  <para>QLogic 2300 and QLogic 2312 2-Gigabit Fibre Channel SCSI
+	  controllers</para>
+	</listitem>
+	<listitem>
 	  <para>Performance Technology SBS440 ISP1000 variants</para>
 	</listitem>
 	<listitem>
