@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
-.\"	$Id: group.5,v 1.11 1997/03/12 13:46:15 mpp Exp $
+.\"	$Id: group.5,v 1.12 1997/03/12 14:05:28 mpp Exp $
 .\"
 .Dd September 29, 1994
 .Dt GROUP 5
@@ -60,7 +60,7 @@ Group members.
 .El
 .Pp
 Lines whose first non-whitespace character is a pound-sign (#)
-are comments, and are ignored. Blank lines which consist 
+are comments, and are ignored. Blank lines that consist 
 only of spaces, tabs or newlines are also ignored.
 .Pp
 The
@@ -129,16 +129,16 @@ Thus, the group name returned by
 is not guaranteed to have a valid forward mapping.
 .Sh LIMITS
 There are various limitations which are explained in
-the function where they occurs; see section
+the function where they occur; see section
 .Sx SEE ALSO .
 
 In older implementations, 
 a group cannot have more than 200 members. The maximum line length of
 .Pa /etc/group
 is 1024 characters. Longer lines will be skipped.
-This limitations disappeared in
+This limitation disappeared in
 .Fx 3.0 .
-Older binaries which are statically linked, depend on old
+Older binaries that are statically linked, depend on old
 shared libraries, or non-FreeBSD binaries in compatibility mode
 may still have this limits.
 .Sh FILES

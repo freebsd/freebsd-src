@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: fstab.5,v 1.7 1997/03/07 03:28:01 jmg Exp $
+.\"	$Id: fstab.5,v 1.8 1998/02/26 02:17:42 jkh Exp $
 .\"
 .Dd June 5, 1993
 .Dt FSTAB 5
@@ -200,7 +200,7 @@ of 2.
 Filesystems within a drive will be checked sequentially,
 but filesystems on different drives will be checked at the
 same time to utilize parallelism available in the hardware.
-If the sixth field is not present or zero,
+If the sixth field is not present or is zero,
 a value of zero is returned and
 .Xr fsck 8
 will assume that the filesystem does not need to be checked.
