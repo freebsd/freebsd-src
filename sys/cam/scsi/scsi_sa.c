@@ -3,7 +3,7 @@
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *
- * Copyright (c) 1997 Justin T. Gibbs
+ * Copyright (c) 1999, 2000 Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *
- * Substantial subsequent modifications
- * Copyright (c) 1999 Matthew Jacob
- *  NASA Ames Research Center,
- *  Feral Software
  */
 
 #include <sys/param.h>
