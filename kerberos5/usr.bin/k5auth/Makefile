@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kauth
+PROG=		k5auth
 SRCS=		kauth.c rkinit.c encdata.c marshall.c roken.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \

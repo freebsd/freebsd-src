@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kpasswd
+PROG=		k5passwd
 SRCS=		kpasswd.c krb5_err.h heim_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/asn1 \
@@ -21,3 +21,6 @@ DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
 .include <bsd.prog.mk>
 
 .PATH:	${KRB5DIR}/kpasswd
+
+k5passwd.1:	kpasswd.1
+	ln -sf ${.OODATE} ${.TARGET}

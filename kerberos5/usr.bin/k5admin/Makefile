@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kadmin
+PROG=		k5admin
 SRCS=		kadmin.c ank.c cpw.c del.c del_enctype.c get.c rename.c util.c \
 		ext.c mod.c init.c dump.c load.c random_password.c \
 		krb5_err.h heim_err.h hdb_err.h \

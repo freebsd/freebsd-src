@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kdestroy
+PROG=		k5destroy
 SRCS=		kdestroy.c krb5_err.h heim_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
@@ -22,3 +22,6 @@ DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 .include <bsd.prog.mk>
 
 .PATH:	${KRB5DIR}/kuser
+
+k5destroy.1:	kdestroy.1
+	ln -sf ${.OODATE} ${.TARGET}
