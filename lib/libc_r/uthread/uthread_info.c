@@ -60,9 +60,11 @@ static const struct s_thread_info thread_info[] = {
 	{PS_WAIT_WAIT	, "Waiting process"},
 	{PS_SIGSUSPEND	, "Suspended, waiting for a signal"},
 	{PS_SIGWAIT	, "Waiting for a signal"},
+	{PS_SPINBLOCK	, "Waiting for a spinlock"},
 	{PS_JOIN	, "Waiting to join"},
 	{PS_SUSPENDED	, "Suspended"},
 	{PS_DEAD	, "Dead"},
+	{PS_DEADLOCK	, "Deadlocked"},
 	{PS_STATE_MAX	, "Not a real state!"}
 };
 
@@ -75,6 +77,7 @@ _thread_dump_info(void)
 	int             j;
 	pthread_t       pthread;
 	char		tmpfile[128];
+	pq_list_t	*pq_list;
 
 	for (i = 0; i < 100000; i++) { 
 		snprintf(tmpfile, sizeof(tmpfile), "/tmp/uthread.dump.%u.%i",
@@ -116,7 +119,7 @@ _thread_dump_info(void)
 			snprintf(s, sizeof(s),
 			    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
 			    pthread, (pthread->name == NULL) ?
-			    "":pthread->name, pthread->pthread_priority,
+			    "":pthread->name, pthread->base_priority,
 			    thread_info[j].name,
 			    pthread->fname,pthread->lineno);
 			_thread_sys_write(fd, s, strlen(s));
@@ -167,6 +170,50 @@ _thread_dump_info(void)
 			}
 		}
 
+		/* Output a header for ready threads: */
+		strcpy(s, "\n\n=============\nREADY THREADS\n\n");
+		_thread_sys_write(fd, s, strlen(s));
+
+		/* Enter a loop to report each thread in the ready queue: */
+		TAILQ_FOREACH (pq_list, &_readyq.pq_queue, pl_link) {
+			TAILQ_FOREACH(pthread, &pq_list->pl_head, pqe) {
+				/* Find the state: */
+				for (j = 0; j < (sizeof(thread_info) /
+				    sizeof(struct s_thread_info)) - 1; j++)
+					if (thread_info[j].state == pthread->state)
+						break;
+				/* Output a record for the current thread: */
+				snprintf(s, sizeof(s),
+				    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+				    pthread, (pthread->name == NULL) ?
+				    "":pthread->name, pthread->base_priority,
+				    thread_info[j].name,
+				    pthread->fname,pthread->lineno);
+				_thread_sys_write(fd, s, strlen(s));
+			}
+		}
+
+		/* Output a header for waiting threads: */
+		strcpy(s, "\n\n=============\nWAITING THREADS\n\n");
+		_thread_sys_write(fd, s, strlen(s));
+
+		/* Enter a loop to report each thread in the waiting queue: */
+		TAILQ_FOREACH (pthread, &_waitingq, pqe) {
+			/* Find the state: */
+			for (j = 0; j < (sizeof(thread_info) /
+			    sizeof(struct s_thread_info)) - 1; j++)
+				if (thread_info[j].state == pthread->state)
+					break;
+			/* Output a record for the current thread: */
+			snprintf(s, sizeof(s),
+			    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+			    pthread, (pthread->name == NULL) ?
+			    "":pthread->name, pthread->base_priority,
+			    thread_info[j].name,
+			    pthread->fname,pthread->lineno);
+			_thread_sys_write(fd, s, strlen(s));
+		}
+
 		/* Check if there are no dead threads: */
 		if (_thread_dead == NULL) {
 			/* Output a record: */
@@ -186,7 +233,7 @@ _thread_dump_info(void)
 				/* Output a record for the current thread: */
 				snprintf(s, sizeof(s),
 				    "Thread %p prio %3d [%s:%d]\n",
-				    pthread, pthread->pthread_priority,
+				    pthread, pthread->base_priority,
 				    pthread->fname,pthread->lineno);
 				_thread_sys_write(fd, s, strlen(s));
 			}

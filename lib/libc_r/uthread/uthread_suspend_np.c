@@ -51,8 +51,21 @@ pthread_suspend_np(pthread_t thread)
 			thread->interrupted = 1;
 		}
 
+		/*
+		 * Guard against preemption by a scheduling signal.
+		 * A change of thread state modifies the waiting
+		 * and priority queues.
+		 */
+		_thread_kern_sched_defer();
+
 		/* Suspend the thread. */
 		PTHREAD_NEW_STATE(thread,PS_SUSPENDED);
+
+		/*
+		 * Reenable preemption and yield if a scheduling signal
+		 * occurred while in the critical region.
+		 */
+		_thread_kern_sched_undefer();
 	}
 	return(ret);
 }

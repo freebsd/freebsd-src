@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -147,6 +147,11 @@ _thread_init(void)
 		/* Abort this application: */
 		PANIC("Cannot get kernel write pipe flags");
 	}
+	/* Initialize the ready queue: */
+	else if (_pq_init(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_MAX_PRIORITY) != 0) {
+		/* Abort this application: */
+		PANIC("Cannot allocate priority ready queue.");
+	}
 	/* Allocate memory for the thread structure of the initial thread: */
 	else if ((_thread_initial = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
 		/*
@@ -157,10 +162,25 @@ _thread_init(void)
 	} else {
 		/* Zero the global kernel thread structure: */
 		memset(&_thread_kern_thread, 0, sizeof(struct pthread));
+		_thread_kern_thread.flags = PTHREAD_FLAGS_PRIVATE;
 		memset(_thread_initial, 0, sizeof(struct pthread));
 
+		/* Initialize the waiting queue: */
+		TAILQ_INIT(&_waitingq);
+
+		/* Initialize the scheduling switch hook routine: */
+		_sched_switch_hook = NULL;
+
+		/*
+		 * Write a magic value to the thread structure
+		 * to help identify valid ones:
+		 */
+		_thread_initial->magic = PTHREAD_MAGIC;
+
 		/* Default the priority of the initial thread: */
-		_thread_initial->pthread_priority = PTHREAD_DEFAULT_PRIORITY;
+		_thread_initial->base_priority = PTHREAD_DEFAULT_PRIORITY;
+		_thread_initial->active_priority = PTHREAD_DEFAULT_PRIORITY;
+		_thread_initial->inherited_priority = 0;
 
 		/* Initialise the state of the initial thread: */
 		_thread_initial->state = PS_RUNNING;
@@ -168,8 +188,13 @@ _thread_init(void)
 		/* Initialise the queue: */
 		_thread_queue_init(&(_thread_initial->join_queue));
 
+		/* Initialize the owned mutex queue and count: */
+		TAILQ_INIT(&(_thread_initial->mutexq));
+		_thread_initial->priority_mutex_count = 0;
+
 		/* Initialise the rest of the fields: */
-		_thread_initial->magic = PTHREAD_MAGIC;
+		_thread_initial->sched_defer_count = 0;
+		_thread_initial->yield_on_sched_undefer = 0;
 		_thread_initial->specific_data = NULL;
 		_thread_initial->cleanup = NULL;
 		_thread_initial->queue = NULL;
@@ -207,9 +232,9 @@ _thread_init(void)
 		 * signals that the user-thread kernel needs. Actually
 		 * SIGINFO isn't really needed, but it is nice to have.
 		 */
-		if (_thread_sys_sigaction(SIGVTALRM, &act, NULL) != 0 ||
-		    _thread_sys_sigaction(SIGINFO  , &act, NULL) != 0 ||
-		    _thread_sys_sigaction(SIGCHLD  , &act, NULL) != 0) {
+		if (_thread_sys_sigaction(_SCHED_SIGNAL, &act, NULL) != 0 ||
+		    _thread_sys_sigaction(SIGINFO,       &act, NULL) != 0 ||
+		    _thread_sys_sigaction(SIGCHLD,       &act, NULL) != 0) {
 			/*
 			 * Abort this process if signal initialisation fails: 
 			 */
@@ -256,6 +281,8 @@ _thread_init(void)
 	if (pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
 	    pthread_cond_init(&_gc_cond,NULL) != 0)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
+
+	gettimeofday(&kern_inc_prio_time, NULL);
 
 	return;
 }

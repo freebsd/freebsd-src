@@ -56,7 +56,7 @@ sigwait(const sigset_t * set, int *sig)
 	 */
 	sigdelset(&act.sa_mask, SIGKILL);
 	sigdelset(&act.sa_mask, SIGSTOP);
-	sigdelset(&act.sa_mask, SIGVTALRM);
+	sigdelset(&act.sa_mask, _SCHED_SIGNAL);
 	sigdelset(&act.sa_mask, SIGCHLD);
 	sigdelset(&act.sa_mask, SIGINFO);
 

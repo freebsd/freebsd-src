@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.8 1998/06/09 23:16:53 jb Exp $
+ * $Id: uthread_fd.c,v 1.10 1999/03/23 05:07:55 jb Exp $
  *
  */
 #include <errno.h>
@@ -199,7 +199,7 @@ _thread_fd_unlock(int fd, int lock_type)
 				} else {
 					/*
 					 * Set the state of the new owner of
-					 * the thread to  running: 
+					 * the thread to running: 
 					 */
 					PTHREAD_NEW_STATE(_thread_fd_table[fd]->r_owner,PS_RUNNING);
 

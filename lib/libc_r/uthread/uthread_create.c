@@ -99,12 +99,6 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			new_thread->magic = PTHREAD_MAGIC;
 
-			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
-				PTHREAD_NEW_STATE(new_thread,PS_SUSPENDED);
-			} else {
-				PTHREAD_NEW_STATE(new_thread,PS_RUNNING);
-			}
-
 			/* Initialise the thread for signals: */
 			new_thread->sigmask = _thread_run->sigmask;
 
@@ -162,20 +156,25 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
 				/* Copy the scheduling attributes: */
-				new_thread->pthread_priority = _thread_run->pthread_priority;
-				new_thread->attr.prio = _thread_run->pthread_priority;
-				new_thread->attr.schedparam_policy = _thread_run->attr.schedparam_policy;
+				new_thread->base_priority = _thread_run->base_priority;
+				new_thread->attr.prio = _thread_run->base_priority;
+				new_thread->attr.sched_policy = _thread_run->attr.sched_policy;
 			} else {
 				/*
 				 * Use just the thread priority, leaving the
 				 * other scheduling attributes as their
 				 * default values: 
 				 */
-				new_thread->pthread_priority = new_thread->attr.prio;
+				new_thread->base_priority = new_thread->attr.prio;
 			}
+			new_thread->active_priority = new_thread->base_priority;
+			new_thread->inherited_priority = 0;
 
 			/* Initialise the join queue for the new thread: */
 			_thread_queue_init(&(new_thread->join_queue));
+
+			/* Initialize the mutex queue: */
+			TAILQ_INIT(&new_thread->mutexq);
 
 			/* Initialise hooks in the thread structure: */
 			new_thread->specific_data = NULL;
@@ -199,6 +198,27 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* Unlock the thread list: */
 			_unlock_thread_list();
+
+			/*
+			 * Guard against preemption by a scheduling signal.
+			 * A change of thread state modifies the waiting
+			 * and priority queues.
+			 */
+			_thread_kern_sched_defer();
+
+			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
+				new_thread->state = PS_SUSPENDED;
+				PTHREAD_WAITQ_INSERT(new_thread);
+			} else {
+				new_thread->state = PS_RUNNING;
+				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
+			}
+
+			/*
+			 * Reenable preemption and yield if a scheduling
+			 * signal occurred while in the critical region.
+			 */
+			_thread_kern_sched_undefer();
 
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
