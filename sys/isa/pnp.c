@@ -793,7 +793,7 @@ pnp_identify(driver_t *driver, device_t parent)
 	/* Try various READ_DATA ports from 0x203-0x3ff */
 	for (pnp_rd_port = 0x80; (pnp_rd_port < 0xff); pnp_rd_port += 0x10) {
 		if (bootverbose)
-			printf("Trying Read_Port at %x\n",
+			printf("pnp_identify: Trying Read_Port at %x\n",
 			    (pnp_rd_port << 2) | 0x3);
 
 		num_pnp_devs = pnp_isolation_protocol(parent);
