@@ -804,7 +804,14 @@ ifinit(void)
 		}
 
 		if (ifs.int_if_flags & IFF_LOOPBACK) {
-			ifs.int_state |= IS_PASSIVE | IS_NO_RIP | IS_NO_RDISC;
+			ifs.int_state |= IS_NO_RIP | IS_NO_RDISC;
+			if (ifs.int_addr == htonl(INADDR_LOOPBACK)) {
+				printf("loop %x\n", ifs.int_addr);
+				ifs.int_state |= IS_PASSIVE;
+			} else {
+				printf("alias %x\n", ifs.int_addr);
+			}
+			
 			ifs.int_dstaddr = ifs.int_addr;
 			ifs.int_mask = HOST_MASK;
 			ifs.int_ripv1_mask = HOST_MASK;
@@ -1090,8 +1097,7 @@ ifinit(void)
 			continue;
 		}
 
-		if (0 == (ifs.int_if_flags & (IFF_POINTOPOINT | IFF_BROADCAST))
-		    && !(ifs.int_state & IS_PASSIVE)) {
+		if (0 == (ifs.int_if_flags & (IFF_POINTOPOINT | IFF_BROADCAST | IFF_LOOPBACK))) {
 			trace_act("%s is neither broadcast, point-to-point,"
 				  " nor loopback",
 				  ifs.int_name);
