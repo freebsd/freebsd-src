@@ -1397,15 +1397,12 @@ skip:
 #ifdef VIRTUAL_HOSTING
 		if (thishost != firsthost)
 			snprintf(proctitle, sizeof(proctitle),
-				 "%s: anonymous(%s)/%.*s", remotehost, hostname,
-				 (int)(sizeof(proctitle) - sizeof(remotehost) -
-				 sizeof(": anonymous/")), passwd);
+				 "%s: anonymous(%s)/%s", remotehost, hostname,
+				 passwd);
 		else
 #endif
 			snprintf(proctitle, sizeof(proctitle),
-				 "%s: anonymous/%.*s", remotehost,
-				 (int)(sizeof(proctitle) - sizeof(remotehost) -
-				 sizeof(": anonymous/")), passwd);
+				 "%s: anonymous/%s", remotehost, passwd);
 		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
