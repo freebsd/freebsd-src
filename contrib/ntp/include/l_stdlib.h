@@ -57,6 +57,10 @@ extern	int	cfsetospeed	P((struct termios *, speed_t));
 
 extern	char *	getpass		P((const char *));
 
+#ifdef DECL_HSTRERROR_0
+extern	const char * hstrerror	P((int));
+#endif
+
 #ifdef DECL_INET_NTOA_0
 struct in_addr;
 extern	char *	inet_ntoa	P((struct in_addr));
@@ -134,6 +138,11 @@ extern	int	setpriority	P((int, id_t, int));
 #ifdef DECL_SIGVEC_0
 struct sigvec;
 extern	int	sigvec		P((int, struct sigvec *, struct sigvec *));
+#endif
+
+#ifndef HAVE_SNPRINTF
+/* PRINTFLIKE3 */
+extern	int	snprintf	P((char *, size_t, const char *, ...));
 #endif
 
 #ifdef DECL_SRAND48_0

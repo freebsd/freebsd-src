@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <stdlib.h>
 #ifdef HAVE_SYS_SYSSGI_H
 # include <sys/syssgi.h>
 #endif
@@ -43,11 +44,11 @@ main(
 	)
 {
 	char *rem;
-	int c, incremental = 0, ntpunits = 0;
+	int incremental = 0, ntpunits = 0;
 	long timetrim;
-	double value, strtod();
+	double value;
 	
-	while (--argc && **++argv == '-' && isalpha(argv[0][1])) {
+	while (--argc && **++argv == '-' && isalpha((int)argv[0][1])) {
 		switch (argv[0][1]) {
 		    case 'i':
 			incremental++;
@@ -68,7 +69,7 @@ main(
 
 	if (argc == 0) {
 		if (ntpunits)
-		    fprintf(stdout, "%0.5lf\n", SGITONTP(timetrim));
+		    fprintf(stdout, "%0.5f\n", SGITONTP(timetrim));
 		else
 		    fprintf(stdout, "%ld\n", timetrim);
 	} else if (argc != 1) {
@@ -91,5 +92,6 @@ main(
 			exit(2);
 		}
 	}
+	return 0;
 }
 #endif

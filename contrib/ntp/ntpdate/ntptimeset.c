@@ -121,9 +121,17 @@
 # include <config.h>
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
+#include "ntp_fp.h"
+#include "ntp.h"
+#include "ntp_io.h"
+#include "iosignal.h"
+#include "ntp_unixtime.h"
+#include "ntpdate.h"
+#include "ntp_string.h"
+#include "ntp_syslog.h"
+#include "ntp_select.h"
+#include "ntp_stdlib.h"
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -136,7 +144,7 @@
 # include <sys/signal.h>
 # include <sys/ioctl.h>
 #endif /* SYS_WINNT */
-#include <sys/time.h>
+
 #ifdef HAVE_SYS_RESOURCE_H
 # include <sys/resource.h>
 #endif /* HAVE_SYS_RESOURCE_H */
@@ -147,21 +155,6 @@
 # include "timers.h"
 #endif
 
-
-#if defined(SYS_HPUX)
-# include <utmp.h>
-#endif
-
-#include "ntp_fp.h"
-#include "ntp.h"
-#include "ntp_io.h"
-#include "iosignal.h"
-#include "ntp_unixtime.h"
-#include "ntpdate.h"
-#include "ntp_string.h"
-#include "ntp_syslog.h"
-#include "ntp_select.h"
-#include "ntp_stdlib.h"
 #include "recvbuff.h"
 
 #ifdef SYS_WINNT
@@ -308,7 +301,6 @@ u_long finish_time = 0;
 
 
 int	ntptimesetmain	P((int argc, char *argv[]));
-extern	void	loadservers	P((char *cfgpath));
 static	void	analysis	P((int final));
 static	int	have_enough	P((void));
 static	void	transmit	P((register struct server *server));
@@ -892,7 +884,7 @@ transmit(
 	if (sys_authenticate) {
 		int len;
 
-		xpkt.keyid1 = htonl(sys_authkey);
+		xpkt.exten[0] = htonl(sys_authkey);
 		get_systime(&server->xmt);
 		L_ADDUF(&server->xmt, sys_authdelay);
 		HTONL_FP(&server->xmt, &xpkt.xmt);
@@ -1013,7 +1005,7 @@ receive(
 
 	if ((PKT_MODE(rpkt->li_vn_mode) != MODE_SERVER
 	    && PKT_MODE(rpkt->li_vn_mode) != MODE_PASSIVE)
-	    || rpkt->stratum > NTP_MAXSTRATUM) {
+	    || rpkt->stratum >=STRATUM_UNSPEC) {
 		if (debug > 1)
 			printf("receive: mode %d stratum %d\n",
 			    PKT_MODE(rpkt->li_vn_mode), rpkt->stratum);
@@ -1051,11 +1043,11 @@ receive(
 
 		if (debug > 3)
 			printf("receive: rpkt keyid=%ld sys_authkey=%ld decrypt=%ld\n",
-			   (long int)ntohl(rpkt->keyid1), (long int)sys_authkey,
+			   (long int)ntohl(rpkt->exten[0]), (long int)sys_authkey,
 			   (long int)authdecrypt(sys_authkey, (u_int32 *)rpkt,
 				LEN_PKT_NOMAC, (int)(rbufp->recv_length - LEN_PKT_NOMAC)));
 
-		if (has_mac && ntohl(rpkt->keyid1) == sys_authkey &&
+		if (has_mac && ntohl(rpkt->exten[0]) == sys_authkey &&
 			authdecrypt(sys_authkey, (u_int32 *)rpkt, LEN_PKT_NOMAC,
 			(int)(rbufp->recv_length - LEN_PKT_NOMAC)))
 			is_authentic = 1;
@@ -1977,7 +1969,7 @@ sendpkt(
 	}
 
 
-	cc = sendto(fd, (char *)pkt, len, 0, (struct sockaddr *)dest,
+	cc = sendto(fd, (char *)pkt, (size_t)len, 0, (struct sockaddr *)dest,
 	    sizeof(struct sockaddr_in));
 #ifndef SYS_WINNT
 	if (cc == -1) {

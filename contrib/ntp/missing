@@ -1,6 +1,6 @@
 #! /bin/sh
 # Common stub for a few missing GNU programs while installing.
-# Copyright (C) 1996, 1997, 1999 Free Software Foundation, Inc.
+# Copyright 1996, 1997, 1999, 2000 Free Software Foundation, Inc.
 # Originally by Fran,cois Pinard <pinard@iro.umontreal.ca>, 1996.
 
 # This program is free software; you can redistribute it and/or modify
@@ -57,6 +57,7 @@ Supported PROGRAM values:
   automake     touch all \`Makefile.in' files
   bison        create \`y.tab.[ch]', if possible, from existing .[ch]
   flex         create \`lex.yy.c', if possible, from existing .c
+  help2man     touch the output file
   lex          create \`lex.yy.c', if possible, from existing .c
   makeinfo     touch the output file
   tar          try tar, gnutar, gtar, then tar without non-portable flags
@@ -64,7 +65,7 @@ Supported PROGRAM values:
     ;;
 
   -v|--v|--ve|--ver|--vers|--versi|--versio|--version)
-    echo "missing 0.2 - GNU automake"
+    echo "missing 0.3 - GNU automake"
     ;;
 
   -*)
@@ -171,6 +172,26 @@ WARNING: \`$1' is missing on your system.  You should only need it if
     fi
     if [ ! -f lex.yy.c ]; then
 	echo 'main() { return 0; }' >lex.yy.c
+    fi
+    ;;
+
+  help2man)
+    echo 1>&2 "\
+WARNING: \`$1' is missing on your system.  You should only need it if
+	 you modified a dependency of a manual page.  You may need the
+	 \`Help2man' package in order for those modifications to take
+	 effect.  You can get \`Help2man' from any GNU archive site."
+
+    file=`echo "$*" | sed -n 's/.*-o \([^ ]*\).*/\1/p'`
+    if test -z "$file"; then
+	file=`echo "$*" | sed -n 's/.*--output=\([^ ]*\).*/\1/p'`
+    fi
+    if [ -f "$file" ]; then
+	touch $file
+    else
+	test -z "$file" || exec >$file
+	echo ".ab help2man is required to generate this page"
+	exit 1
     fi
     ;;
 

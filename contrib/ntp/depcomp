@@ -1,7 +1,7 @@
 #! /bin/sh
 
 # depcomp - compile a program generating dependencies as side-effects
-# Copyright (C) 1999 Free Software Foundation, Inc.
+# Copyright 1999, 2000 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,6 +48,18 @@ if test "$depmode" = dashXmstdout; then
 fi
 
 case "$depmode" in
+gcc3)
+## gcc 3 implements dependency tracking that does exactly what
+## we want.  Yay!
+  if "$@" -MT "$object" -MF "$tmpdepfile" -MD -MP; then :
+  else
+    stat=$?
+    rm -f "$tmpdepfile"
+    exit $stat
+  fi
+  mv "$tmpdepfile" "$depfile"
+  ;;
+
 gcc)
 ## There are various ways to get dependency output from gcc.  Here's
 ## why we pick this rather obscure method:
@@ -67,9 +79,12 @@ gcc)
     rm -f "$tmpdepfile"
     exit $stat
   fi
-  rm -f "$depfile" 
+  rm -f "$depfile"
   echo "$object : \\" > "$depfile"
-  sed 's/^[^:]*: / /' < "$tmpdepfile" >> "$depfile"
+  alpha=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+## The second -e expression handles DOS-style file names with drive letters.
+  sed -e 's/^[^:]*: / /' \
+      -e 's/^['$alpha']:\/[^:]*: / /' < "$tmpdepfile" >> "$depfile"
 ## This next piece of magic avoids the `deleted header file' problem.
 ## The problem is that when a header file which appears in a .P file
 ## is deleted, the dependency causes make to die (because there is
@@ -94,41 +109,84 @@ hp)
   exit 1
   ;;
 
-dashmd)
-  # The Java front end to gcc doesn't run cpp, so we can't use the -Wp
-  # trick.  Instead we must use -M and then rename the resulting .d
-  # file.  This is also the case for older versions of gcc, which
-  # don't implement -Wp.
-  if "$@" -MD; then :
-  else
-    stat=$?
-    rm -f FIXME
-    exit $stat
-  fi
-  FIXME: rewrite the file
-  ;;
-
 sgi)
   if test "$libtool" = yes; then
-    "$@" "-Wc,-MDupdate,$tmpdepfile"
+    "$@" "-Wp,-MDupdate,$tmpdepfile"
   else
     "$@" -MDupdate "$tmpdepfile"
   fi
   stat=$?
   if test $stat -eq 0; then :
   else
-    stat=$?
     rm -f "$tmpdepfile"
     exit $stat
   fi
-  rm -f "$depfile" 
-  echo "$object : \\" > "$depfile"
-  sed 's/^[^:]*: / /' < "$tmpdepfile" >> "$depfile"
-  tr ' ' '
+  rm -f "$depfile"
+
+  if test -f "$tmpdepfile"; then  # yes, the sourcefile depend on other files
+    echo "$object : \\" > "$depfile"
+
+    # Clip off the initial element (the dependent). Don't try to be
+    # clever and replace this with sed code, as IRIX sed won't handle
+    # lines with more than a fixed number of characters (4096 in
+    # IRIX 6.2 sed, 8192 in IRIX 6.5).
+    tr ' ' '
+' < "$tmpdepfile" | sed 's/^[^\.]*\.o://' | tr '
+' ' ' >> $depfile
+
+    tr ' ' '
 ' < "$tmpdepfile" | \
 ## Some versions of the HPUX 10.20 sed can't process this invocation
 ## correctly.  Breaking it into two sed invocations is a workaround.
-    sed -e 's/^\\$//' -e '/^$/d' -e '/:$/d' | sed -e 's/$/ :/' >> "$depfile"
+      sed -e 's/^\\$//' -e '/^$/d' -e '/:$/d' | sed -e 's/$/ :/' >> "$depfile"
+  else
+    # The sourcefile does not contain any dependencies, so just
+    # store a dummy comment line, to avoid errors with the Makefile
+    # "include basename.Plo" scheme.
+    echo "#dummy" > "$depfile"
+  fi
+  rm -f "$tmpdepfile"
+  ;;
+
+aix)
+  # The C for AIX Compiler uses -M and outputs the dependencies
+  # in a .u file.
+  tmpdepfile=`echo "$object" | sed 's/\(.*\)\..*$/\1.u/'`
+  if test "$libtool" = yes; then
+    "$@" -Wc,-M
+  else
+    "$@" -M
+  fi
+
+  stat=$?
+  if test $stat -eq 0; then :
+  else
+    rm -f "$tmpdepfile"
+    exit $stat
+  fi
+
+  if test -f "$tmpdepfile"; then
+    echo "$object : \\" > "$depfile"
+
+    # Clip off the initial element (the dependent). Don't try to be
+    # clever and replace this with sed code, as IRIX sed won't handle
+    # lines with more than a fixed number of characters (4096 in
+    # IRIX 6.2 sed, 8192 in IRIX 6.5).
+    tr ' ' '
+' < "$tmpdepfile" | sed 's/^[^\.]*\.o://' | tr '
+' ' ' >> $depfile
+
+    tr ' ' '
+' < "$tmpdepfile" | \
+## Some versions of the HPUX 10.20 sed can't process this invocation
+## correctly.  Breaking it into two sed invocations is a workaround.
+      sed -e 's/^\\$//' -e '/^$/d' -e '/:$/d' | sed -e 's/$/ :/' >> "$depfile"
+  else
+    # The sourcefile does not contain any dependencies, so just
+    # store a dummy comment line, to avoid errors with the Makefile
+    # "include basename.Plo" scheme.
+    echo "#dummy" > "$depfile"
+  fi
   rm -f "$tmpdepfile"
   ;;
 
@@ -166,7 +224,7 @@ dashmstdout)
   stat=$?
   wait "$proc"
   if test "$stat" != 0; then exit $stat; fi
-  rm -f "$depfile" 
+  rm -f "$depfile"
   cat < "$tmpdepfile" > "$depfile"
   tr ' ' '
 ' < "$tmpdepfile" | \
@@ -210,7 +268,7 @@ makedepend)
   stat=$?
   wait "$proc"
   if test "$stat" != 0; then exit $stat; fi
-  rm -f "$depfile" 
+  rm -f "$depfile"
   cat < "$tmpdepfile" > "$depfile"
   tail +3 "$tmpdepfile" | tr ' ' '
 ' | \
@@ -229,7 +287,7 @@ cpp)
     *" --mode=compile "*)
       for arg
       do # cycle over the arguments
-        case "$arg" in
+        case $arg in
 	"--mode=compile")
 	  # insert --quiet before "--mode=compile"
 	  set fnord "$@" --quiet
@@ -243,7 +301,8 @@ cpp)
       ;;
     esac
     "$@" -E |
-    sed -n '/^# [0-9][0-9]* "\([^"]*\)"/ s::'"$object"'\: \1:p' > "$tmpdepfile"
+    sed -n '/^# [0-9][0-9]* "\([^"]*\)".*/ s:: \1 \\:p' |
+    sed '$ s: \\$::' > "$tmpdepfile"
   ) &
   proc=$!
   "$@"
@@ -251,8 +310,47 @@ cpp)
   wait "$proc"
   if test "$stat" != 0; then exit $stat; fi
   rm -f "$depfile"
-  cat < "$tmpdepfile" > "$depfile"
-  sed < "$tmpdepfile" -e 's/^[^:]*: //' -e 's/$/ :/' >> "$depfile"
+  echo "$object : \\" > "$depfile"
+  cat < "$tmpdepfile" >> "$depfile"
+  sed < "$tmpdepfile" '/^$/d;s/^ //;s/ \\$//;s/$/ :/' >> "$depfile"
+  rm -f "$tmpdepfile"
+  ;;
+
+msvisualcpp)
+  # Important note: in order to support this mode, a compiler *must*
+  # always write the proprocessed file to stdout, regardless of -o,
+  # because we must use -o when running libtool.
+  ( IFS=" "
+    case " $* " in
+    *" --mode=compile "*)
+      for arg
+      do # cycle over the arguments
+        case $arg in
+	"--mode=compile")
+	  # insert --quiet before "--mode=compile"
+	  set fnord "$@" --quiet
+	  shift # fnord
+	  ;;
+	esac
+	set fnord "$@" "$arg"
+	shift # fnord
+	shift # "$arg"
+      done
+      ;;
+    esac
+    "$@" -E |
+    sed -n '/^#line [0-9][0-9]* "\([^"]*\)"/ s::echo "`cygpath -u \\"\1\\"`":p' | sort | uniq > "$tmpdepfile"
+  ) &
+  proc=$!
+  "$@"
+  stat=$?
+  wait "$proc"
+  if test "$stat" != 0; then exit $stat; fi
+  rm -f "$depfile"
+  echo "$object : \\" > "$depfile"
+  . "$tmpdepfile" | sed 's% %\\ %g' | sed -n '/^\(.*\)$/ s::	\1 \\:p' >> "$depfile"
+  echo "	" >> "$depfile"
+  . "$tmpdepfile" | sed 's% %\\ %g' | sed -n '/^\(.*\)$/ s::\1\::p' >> "$depfile"
   rm -f "$tmpdepfile"
   ;;
 

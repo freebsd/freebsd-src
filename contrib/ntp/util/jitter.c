@@ -6,8 +6,9 @@
  * analysis. From this you can determine the jitter and if the clock ever
  * runs backwards.
  */
-#include <sys/time.h>
+
 #include <stdio.h>
+#include <sys/time.h>
 
 #define NBUF 20002
 

@@ -7,15 +7,19 @@
 # include <config.h>
 #endif
 
+#include "ntp_machine.h"
+#include "ntpd.h"
+#include "ntp_io.h"
+#include "iosignal.h"
+#include "ntp_refclock.h"
+#include "ntp_if.h"
+#include "ntp_stdlib.h"
+
 #include <stdio.h>
 #include <signal.h>
-#include <sys/types.h>
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif /* HAVE_SYS_PARAM_H */
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
@@ -36,14 +40,6 @@
 #if _BSDI_VERSION >= 199510
 # include <ifaddrs.h>
 #endif
-
-#include "ntp_machine.h"
-#include "ntpd.h"
-#include "ntp_io.h"
-#include "iosignal.h"
-#include "ntp_refclock.h"
-#include "ntp_if.h"
-#include "ntp_stdlib.h"
 
 #if defined(VMS)		/* most likely UCX-specific */
 
@@ -116,10 +112,10 @@ u_long io_timereset;		/* time counters were reset */
 /*
  * Interface stuff
  */
-struct interface *any_interface;	/* pointer to default interface */
-struct interface *loopback_interface;	/* point to loopback interface */
-static	struct interface inter_list[MAXINTERFACES];
-static	int ninterfaces;
+struct interface *any_interface;	/* default interface */
+struct interface *loopback_interface;	/* loopback interface */
+struct interface inter_list[MAXINTERFACES];
+int ninterfaces;
 
 #ifdef REFCLOCK
 /*
@@ -241,6 +237,7 @@ create_sockets(
 	inter_list[0].sent = 0;
 	inter_list[0].notsent = 0;
 	inter_list[0].flags = INT_BROADCAST;
+	any_interface = &inter_list[0];
 
 #if _BSDI_VERSION >= 199510
 #if 	_BSDI_VERSION >= 199701
@@ -274,46 +271,32 @@ create_sockets(
 		if ((ifap->ifa_flags & IFF_UP) == 0)
 		    continue;
 
-		if (ifap->ifa_flags & IFF_LOOPBACK)
-		{
+		if (ifap->ifa_flags & IFF_LOOPBACK) {
 			sin = (struct sockaddr_in *)ifap->ifa_addr;
 			if (ntohl(sin->sin_addr.s_addr) != 0x7f000001)
-			{
 				continue;
-			}
 		}
-
 		inter_list[i].flags = 0;
 		if (ifap->ifa_flags & IFF_BROADCAST)
-		    inter_list[i].flags |= INT_BROADCAST;
-
-		(void)strcpy(inter_list[i].name, ifap->ifa_name);
-
+			inter_list[i].flags |= INT_BROADCAST;
+		strcpy(inter_list[i].name, ifap->ifa_name);
 		sin = (struct sockaddr_in *)ifap->ifa_addr;
 		inter_list[i].sin = *sin;
 		inter_list[i].sin.sin_port = port;
-
-		if (ifap->ifa_flags & IFF_LOOPBACK)
-		{
+		if (ifap->ifa_flags & IFF_LOOPBACK) {
 			inter_list[i].flags = INT_LOOPBACK;
 			if (loopback_interface == NULL
 			    || ntohl(sin->sin_addr.s_addr) != 0x7f000001)
 			    loopback_interface = &inter_list[i];
 		}
-
-		if (inter_list[i].flags & INT_BROADCAST)
-		{
+		if (inter_list[i].flags & INT_BROADCAST) {
 			sin = (struct sockaddr_in *)ifap->ifa_broadaddr;
 			inter_list[i].bcast = *sin;
 			inter_list[i].bcast.sin_port = port;
 		}
-
-		if (ifap->ifa_flags & (IFF_LOOPBACK|IFF_POINTOPOINT))
-		{
+		if (ifap->ifa_flags & (IFF_LOOPBACK|IFF_POINTOPOINT)) {
 			inter_list[i].mask.sin_addr.s_addr = 0xffffffff;
-		}
-		else
-		{
+		} else {
 			sin = (struct sockaddr_in *)ifap->ifa_netmask;
 			inter_list[i].mask = *sin;
 		}
@@ -614,9 +597,8 @@ create_sockets(
 	maxactivefd = 0;
 	FD_ZERO(&activefds);
 	for (i = 0; i < ninterfaces; i++) {
-		inter_list[i].fd =
-		    open_socket(&inter_list[i].sin,
-				inter_list[i].flags & INT_BROADCAST, 0);
+		inter_list[i].fd = open_socket(&inter_list[i].sin,
+		    inter_list[i].flags & INT_BROADCAST, 0);
 	}
 
 	/*
@@ -653,12 +635,10 @@ create_sockets(
 	 */
 	resmask.sin_addr.s_addr = ~ (u_int32)0;
 	for (i = 1; i < ninterfaces; i++)
-	    hack_restrict(RESTRICT_FLAGS, &inter_list[i].sin, &resmask,
-			  RESM_NTPONLY|RESM_INTERFACE, RES_IGNORE);
-
-	any_interface = &inter_list[0];
+		hack_restrict(RESTRICT_FLAGS, &inter_list[i].sin, &resmask,
+		    RESM_NTPONLY|RESM_INTERFACE, RES_IGNORE);
 #ifdef DEBUG
-	if (debug > 2) {
+	if (debug > 1) {
 		printf("create_sockets: ninterfaces=%d\n", ninterfaces);
 		for (i = 0; i < ninterfaces; i++) {
 			printf("interface %d:  fd=%d,  bfd=%d,  name=%.8s,  flags=0x%x\n",
@@ -694,17 +674,19 @@ io_setbclient(void)
 {
 	int i;
 
-	for (i = 1; i < ninterfaces; i++)
-	{
+	for (i = 1; i < ninterfaces; i++) {
 		if (!(inter_list[i].flags & INT_BROADCAST))
-		    continue;
+			continue;
+
 		if (inter_list[i].flags & INT_BCASTOPEN)
-		    continue;
+			continue;
+
 #ifdef	SYS_SOLARIS
 		inter_list[i].bcast.sin_addr.s_addr = htonl(INADDR_ANY);
 #endif
 #ifdef OPEN_BCAST_SOCKET /* Was: !SYS_DOMAINOS && !SYS_LINUX */
-		inter_list[i].bfd = open_socket(&inter_list[i].bcast, INT_BROADCAST, 1);
+		inter_list[i].bfd = open_socket(&inter_list[i].bcast,
+		    INT_BROADCAST, 1);
 		inter_list[i].flags |= INT_BCASTOPEN;
 #endif
 	}
@@ -728,50 +710,47 @@ io_multicast_add(
 	struct sockaddr_in *sinp;
 
 	iaddr.s_addr = addr;
-
-	if (!IN_CLASSD(haddr))
-	{
+	if (!IN_CLASSD(haddr)) {
 		msyslog(LOG_ERR,
-			"cannot add multicast address %s as it is not class D",
+		    "multicast address %s not class D",
 			inet_ntoa(iaddr));
 		return;
 	}
-
-	for (i = 0; i < ninterfaces; i++)
-	{
+	for (i = 0; i < ninterfaces; i++) {
 		/* Already have this address */
-		if (inter_list[i].sin.sin_addr.s_addr == addr) return;
+		if (inter_list[i].sin.sin_addr.s_addr == addr)
+			return;
 		/* found a free slot */
 		if (inter_list[i].sin.sin_addr.s_addr == 0 &&
 		    inter_list[i].fd <= 0 && inter_list[i].bfd <= 0 &&
-		    inter_list[i].flags == 0) break;
+		    inter_list[i].flags == 0)
+		break;
 	}
 	sinp = &(inter_list[i].sin);
-
 	memset((char *)&mreq, 0, sizeof(mreq));
 	memset((char *)&inter_list[i], 0, sizeof inter_list[0]);
 	sinp->sin_family = AF_INET;
 	sinp->sin_addr = iaddr;
 	sinp->sin_port = htons(123);
 
+	/*
+	 * Try opening a socket for the specified class D address. This
+	 * works under SunOS 4.x, but not OSF1 .. :-(
+	 */
 	s = open_socket(sinp, 0, 1);
-	/* Try opening a socket for the specified class D address */
-	/* This works under SunOS 4.x, but not OSF1 .. :-( */
-	if (s < 0)
-	{
+	if (s < 0) {
 		memset((char *)&inter_list[i], 0, sizeof inter_list[0]);
 		i = 0;
 		/* HACK ! -- stuff in an address */
 		inter_list[i].bcast.sin_addr.s_addr = addr;
-		msyslog(LOG_ERR, "...multicast address %s using wildcard socket",
-			inet_ntoa(iaddr));
-	}
-	else
-	{
+		msyslog(LOG_ERR,
+		    "...multicast address %s using wildcard socket",
+		    inet_ntoa(iaddr));
+	} else {
 		inter_list[i].fd = s;
 		inter_list[i].bfd = -1;
 		(void) strncpy(inter_list[i].name, "multicast",
-			       sizeof(inter_list[i].name));
+		    sizeof(inter_list[i].name));
 		inter_list[i].mask.sin_addr.s_addr = htonl(~(u_int32)0);
 	}
 
@@ -781,19 +760,21 @@ io_multicast_add(
 	mreq.imr_multiaddr = iaddr;
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 	if (setsockopt(inter_list[i].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-		       (char *)&mreq, sizeof(mreq)) == -1)
-	    msyslog(LOG_ERR,
+	    (char *)&mreq, sizeof(mreq)) == -1)
+		msyslog(LOG_ERR,
 		    "setsockopt IP_ADD_MEMBERSHIP fails: %m for %x / %x (%s)",
-		    mreq.imr_multiaddr.s_addr, mreq.imr_interface.s_addr,
-		    inet_ntoa(iaddr));
+		    mreq.imr_multiaddr.s_addr,
+		    mreq.imr_interface.s_addr, inet_ntoa(iaddr));
 	inter_list[i].flags |= INT_MULTICAST;
-	if (i >= ninterfaces) ninterfaces = i+1;
+	if (i >= ninterfaces)
+	    ninterfaces = i+1;
 #else /* MCAST */
 	struct in_addr iaddr;
 
 	iaddr.s_addr = addr;
-	msyslog(LOG_ERR, "cannot add multicast address %s as no MCAST support",
-		inet_ntoa(iaddr));
+	msyslog(LOG_ERR,
+	    "cannot add multicast address %s as no MCAST support",
+	    inet_ntoa(iaddr));
 #endif /* MCAST */
 }
 
@@ -886,8 +867,11 @@ open_socket(
 	int turn_off_reuse
 	)
 {
-	int fd, tos;
+	int fd;
 	int on = 1, off = 0;
+#if defined(IPTOS_LOWDELAY) && defined(IPPROTO_IP) && defined(IP_TOS)
+	int tos;
+#endif /* IPTOS_LOWDELAY && IPPROTO_IP && IP_TOS */
 
 	/* create a datagram (UDP) socket */
 	if (  (fd = socket(AF_INET, SOCK_DGRAM, 0))
@@ -1071,12 +1055,11 @@ close_socket(
 	(void) closesocket(fd);
 	FD_CLR( (u_int) fd, &activefds);
 
-	if (fd >= maxactivefd)
-	{
+	if (fd >= maxactivefd) {
 		newmax = 0;
 		for (i = 0; i < maxactivefd; i++)
-		    if (FD_ISSET(i, &activefds))
-			newmax = i;
+			if (FD_ISSET(i, &activefds))
+				newmax = i;
 		maxactivefd = newmax;
 	}
 }
@@ -1096,42 +1079,13 @@ close_file(
 	(void) close(fd);
 	FD_CLR( (u_int) fd, &activefds);
 
-	if (fd >= maxactivefd)
-	{
+	if (fd >= maxactivefd) {
 		newmax = 0;
 		for (i = 0; i < maxactivefd; i++)
-		    if (FD_ISSET(i, &activefds))
-			newmax = i;
+			if (FD_ISSET(i, &activefds))
+				newmax = i;
 		maxactivefd = newmax;
 	}
-}
-
-
-/*
- * findbcastinter - find broadcast interface corresponding to address
- */
-struct interface *
-findbcastinter(
-	struct sockaddr_in *addr
-	)
-{
-#if defined(SIOCGIFCONF) || defined(SYS_WINNT)
-	register int i;
-	register u_int32 netnum;
-
-	netnum = NSRCADR(addr);
-	for (i = 1; i < ninterfaces; i++)
-	{
-		if (!(inter_list[i].flags & INT_BROADCAST))
-		    continue;
-		if (NSRCADR(&inter_list[i].bcast) == netnum)
-		    return &inter_list[i];
-		if ((NSRCADR(&inter_list[i].sin) & NSRCADR(&inter_list[i].mask))
-		    == (netnum & NSRCADR(&inter_list[i].mask)))
-		    return &inter_list[i];
-	}
-#endif /* SIOCGIFCONF */
-	return any_interface;
 }
 
 
@@ -1172,13 +1126,6 @@ sendpkt(
 #else
 #define badaddrs ((struct cache *)0)		/* Only used in empty loops! */
 #endif
-
-	/*
-	 * check if the source address is a multicast address - replace
-	 * interface with any-interface if so.
-	 */
-	if (IN_MULTICAST(ntohl(inter->sin.sin_addr.s_addr)))
-	    inter = any_interface;
 #ifdef DEBUG
 	if (debug > 1)
 	    printf("%ssendpkt(fd=%d dst=%s, src=%s, ttl=%d, len=%d)\n",
@@ -1188,18 +1135,20 @@ sendpkt(
 #endif
 
 #ifdef MCAST
-	/* for the moment we use the bcast option to set multicast ttl */
-	if (ttl >= 0 && ttl != inter->last_ttl)
-	{
+	/*
+	 * for the moment we use the bcast option to set multicast ttl
+	 */
+	if (ttl > 0 && ttl != inter->last_ttl) {
 		char mttl = ttl;
 
-		/* set the multicast ttl for outgoing packets */
+		/*
+		 * set the multicast ttl for outgoing packets
+		 */
 		if (setsockopt(inter->fd, IPPROTO_IP, IP_MULTICAST_TTL,
-			       &mttl, sizeof(mttl)) == -1)
-		{
+		    &mttl, sizeof(mttl)) == -1)
 			msyslog(LOG_ERR, "setsockopt IP_MULTICAST_TTL fails: %m");
-		}
-		else inter->last_ttl = ttl;
+		else
+			inter->last_ttl = ttl;
 	}
 #endif /* MCAST */
 
@@ -1212,7 +1161,7 @@ sendpkt(
         err = io_completion_port_sendto(inter, pkt, len, dest);
 	if (err != ERROR_SUCCESS)
 #else
-	cc = sendto(inter->fd, (char *)pkt, len, 0, (struct sockaddr *)dest,
+	cc = sendto(inter->fd, (char *)pkt, (size_t)len, 0, (struct sockaddr *)dest,
 		    sizeof(struct sockaddr_in));
 	if (cc == -1)
 #endif
@@ -1480,7 +1429,8 @@ input_handler(
 	}
 	else if (rb->recv_length < 0)
 	{
-		msyslog(LOG_ERR, "recvfrom() fd=%d: %m", fd);
+		msyslog(LOG_ERR, "recvfrom(%s) fd=%d: %m",
+			inet_ntoa(rb->recv_srcadr.sin_addr), fd);
 #ifdef DEBUG
 		if (debug)
 		    printf("input_handler: fd=%d dropped (bad recvfrom)\n", fd);
@@ -1490,8 +1440,8 @@ input_handler(
 	}
 #ifdef DEBUG
 	if (debug > 2)
-	    printf("input_handler: fd=%d length %d from %08lx %s\n",
-		   fd, rb->recv_length,
+	    printf("input_handler: if=%d fd=%d length %d from %08lx %s\n",
+		   i, fd, rb->recv_length,
 		   (u_long)ntohl(rb->recv_srcadr.sin_addr.s_addr) &
 		   0x00000000ffffffff,
 		   inet_ntoa(rb->recv_srcadr.sin_addr));
@@ -1580,27 +1530,85 @@ input_handler(
 #endif
 
 /*
- * findinterface - utility used by other modules to find an interface
- *		   given an address.
+ * findinterface - find interface corresponding to address
  */
 struct interface *
 findinterface(
 	struct sockaddr_in *addr
 	)
 {
-	register int i;
-	register u_int32 saddr;
+	int s, rtn, i;
+	struct sockaddr_in saddr;
+	int saddrlen = sizeof(saddr);
+	u_int32 xaddr;
 
 	/*
-	 * Just match the address portion.
+	 * This is considerably hoke. We open a socket, connect to it
+	 * and slap a getsockname() on it. If anything breaks, as it
+	 * probably will in some j-random knockoff, we just return the
+	 * wildcard interface.
 	 */
-	saddr = addr->sin_addr.s_addr;
-	for (i = 0; i < ninterfaces; i++)
-	{
-		if (inter_list[i].sin.sin_addr.s_addr == saddr)
-		    return &inter_list[i];
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = addr->sin_addr.s_addr;
+	saddr.sin_port = htons(2000);
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0)
+		return (any_interface);
+	
+	rtn = connect(s, (struct sockaddr *)&saddr, sizeof(saddr));
+	if (rtn < 0)
+		return (any_interface);
+
+	rtn = getsockname(s, (struct sockaddr *)&saddr, &saddrlen);
+	if (rtn < 0)
+		return (any_interface);
+
+	close(s);
+	xaddr = NSRCADR(&saddr);
+	for (i = 1; i < ninterfaces; i++) {
+
+		/*
+		 * We match the unicast address only.
+		 */
+		if (NSRCADR(&inter_list[i].sin) == xaddr)
+			return (&inter_list[i]);
 	}
-	return (struct interface *)0;
+	return (any_interface);
+}
+
+
+/*
+ * findbcastinter - find broadcast interface corresponding to address
+ */
+struct interface *
+findbcastinter(
+	struct sockaddr_in *addr
+	)
+{
+#if defined(SIOCGIFCONF) || defined(SYS_WINNT)
+	register int i;
+	register u_int32 xaddr;
+
+	xaddr = NSRCADR(addr);
+	for (i = 1; i < ninterfaces; i++) {
+
+		/*
+		 * We match only those interfaces marked as
+		 * broadcastable and either the explicit broadcast
+		 * address or the network portion of the IP address.
+		 * Sloppy.
+		 */
+		if (!(inter_list[i].flags & INT_BROADCAST))
+			continue;
+		if (NSRCADR(&inter_list[i].bcast) == xaddr)
+			return (&inter_list[i]);
+		if ((NSRCADR(&inter_list[i].sin) &
+		    NSRCADR(&inter_list[i].mask)) == (xaddr &
+		    NSRCADR(&inter_list[i].mask)))
+			return (&inter_list[i]);
+	}
+#endif /* SIOCGIFCONF */
+	return (any_interface);
 }
 
 

@@ -16,19 +16,18 @@
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_GPSVME) 
-#include <stdio.h>
-#include <syslog.h>
-#include <ctype.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/time.h>
 
-#include "gps.h"
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <syslog.h>
+#include <ctype.h>
+
+#include "gps.h"
 #include "/etc/conf/h/io.h"
 
 /* GLOBAL STUFF BY RES */

@@ -37,16 +37,15 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_JUPITER) && defined(PPS)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
 #include "ntp_calendar.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 #include "jupiter.h"
 
@@ -681,7 +680,7 @@ jupiter_process(register struct peer *peer)
 	 */
 	for (i = 0; i < NSAMPLES; i++)
 		off[i] = up->filter[i];
-	qsort((char *)off, NSAMPLES, sizeof(l_fp), jupiter_cmpl_fp);
+	qsort((char *)off, (size_t)NSAMPLES, sizeof(l_fp), jupiter_cmpl_fp);
 
 	/*
 	 * Reject the furthest from the median of NSAMPLES samples until

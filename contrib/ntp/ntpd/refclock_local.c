@@ -8,13 +8,13 @@
 #endif
 
 #ifdef REFCLOCK
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
 
 #include "ntpd.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 #ifdef KERNEL_PLL
 #include "ntp_syscall.h"
@@ -34,7 +34,7 @@
  * particular server's clock as the clock of last resort when all other
  * normal synchronization sources have gone away. This is especially
  * useful if that server has an ovenized oscillator. For this you would
- * configure this driver at a higher stratum (say 3 or 4) to prevent the
+ * configure this driver at a higher stratum (say 5) to prevent the
  * server's stratum from falling below that.
  *
  * A third application for this driver is when an external discipline
@@ -69,7 +69,7 @@
  *
  * Fudge Factors
  *
- * The stratum for this driver set at 3 by default, but it can be changed
+ * The stratum for this driver set at 5 by default, but it can be changed
  * by the fudge command and/or the ntpdc utility. The reference ID is
  * "LCL" by default, but can be changed using the same mechanism. *NEVER*
  * configure this driver to operate at a stratum which might possibly
@@ -96,7 +96,7 @@
 #define REFID		"LCL\0" /* reference ID */
 #define DESCRIPTION "Undisciplined local clock" /* WRU */
 
-#define STRATUM 	3	/* default stratum */
+#define STRATUM 	5	/* default stratum */
 #define DISPERSION	.01	/* default dispersion (10 ms) */
 
 /*
@@ -213,7 +213,7 @@ local_poll(
 	refclock_process_offset(pp, pp->lastrec, pp->lastrec, pp->fudgetime1);
 	pp->leap = LEAP_NOWARNING;
 	pp->disp = DISPERSION;
-	pp->variance = 0;
+	pp->jitter = 0;
 #if defined(KERNEL_PLL) && defined(STA_CLK)
 
 	/*
@@ -246,7 +246,7 @@ local_poll(
 				pp->leap = LEAP_NOTINSYNC;
 			}
 			pp->disp = ntv.maxerror / 1e6;
-			pp->variance = SQUARE(ntv.esterror / 1e6);
+			pp->jitter = SQUARE(ntv.esterror / 1e6);
 		}
 	} else {
 		ext_enable = 0;

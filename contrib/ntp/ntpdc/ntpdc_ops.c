@@ -7,9 +7,13 @@
 #endif
 
 #include <stdio.h>
+
+#include "ntpdc.h"
+#include "ntp_control.h"
+#include "ntp_refclock.h"
+#include "ntp_stdlib.h"
+
 #include <ctype.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #ifdef HAVE_SYS_TIMEX_H
 # include <sys/timex.h>
 #endif
@@ -17,11 +21,6 @@
 #if !defined(__bsdi__) && !defined(apollo)
 #include <netinet/in.h>
 #endif
-
-#include "ntpdc.h"
-#include "ntp_control.h"
-#include "ntp_refclock.h"
-#include "ntp_stdlib.h"
 
 #include <arpa/inet.h>
 
@@ -143,12 +142,12 @@ struct xcmd opcmds[] = {
 	  "display the server's restrict list" },
 	{ "restrict",	new_restrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
 	  { "address", "mask",
-	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer",
+	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer|version|kod",
 	    "..." },
 	  "create restrict entry/add flags to entry" },
 	{ "unrestrict", unrestrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
 	  { "address", "mask",
-	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer",
+	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer|version|kod",
 	    "..." },
 	  "remove flags from a restrict entry" },
 	{ "delrestrict", delrestrict,	{ ADD, ADD, OPT|NTP_STR, NO },
@@ -470,8 +469,8 @@ printpeer(
 		       pp->ppoll, pp->hpoll, (u_long)pp->keyid, pp->version, ntohs(pp->associd));
 
 	(void) fprintf(fp,
-		       "valid %d, reach %03o, unreach %d, flash 0x%04x, ",
-		       pp->valid, pp->reach, pp->unreach, pp->flash2);
+		       "reach %03o, unreach %d, flash 0x%04x, ",
+		       pp->reach, pp->unreach, pp->flash2);
 
 	(void) fprintf(fp, "boffset %s, ttl/mode %d\n",
 		       fptoa(NTOHS_FP(pp->estbdelay), 5), pp->ttl);
@@ -863,7 +862,7 @@ sysstats(
 		       (u_long)ntohl(ss->newversionpkt));
 	(void) fprintf(fp, "unknown version number: %ld\n",
 		       (u_long)ntohl(ss->unknownversion));
-	(void) fprintf(fp, "bad packet length:      %ld\n",
+	(void) fprintf(fp, "bad packet format:      %ld\n",
 		       (u_long)ntohl(ss->badlength));
 	(void) fprintf(fp, "packets processed:      %ld\n",
 		       (u_long)ntohl(ss->processed));
@@ -872,7 +871,7 @@ sysstats(
 	if (itemsize != sizeof(struct info_sys_stats))
 	    return;
 	
-	(void) fprintf(fp, "limitation rejects:     %ld\n",
+	(void) fprintf(fp, "packets rejected:       %ld\n",
 		       (u_long)ntohl(ss->limitrejected));
 }
 
@@ -1257,8 +1256,8 @@ doset(
 	sys.flags = 0;
 	res = 0;
 	for (items = 0; items < pcmd->nargs; items++) {
-		if (STREQ(pcmd->argval[items].string, "auth"))
-		    sys.flags |= SYS_FLAG_AUTHENTICATE;
+		if (STREQ(pcmd->argval[items].string, "pps"))
+		    sys.flags |= SYS_FLAG_PPS;
 		else if (STREQ(pcmd->argval[items].string, "bclient"))
 		    sys.flags |= SYS_FLAG_BCLIENT;
 		else if (STREQ(pcmd->argval[items].string, "monitor"))
@@ -1306,6 +1305,9 @@ static struct resflags resflags[] = {
 	{ "notrap",	RES_NOTRAP },
 	{ "lptrap",	RES_LPTRAP },
 	{ "limited",	RES_LIMITED },
+	{ "version",	RES_VERSION },
+	{ "kod",	RES_DEMOBILIZE },
+
 	{ "",		0 }
 };
 

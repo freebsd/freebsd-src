@@ -1,20 +1,20 @@
 /*
  * refclock_hpgps - clock driver for HP 58503A GPS receiver
  */
+
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_HPGPS)
-
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
 
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /* Version 0.1 April  1, 1995  
  *         0.2 April 25, 1995

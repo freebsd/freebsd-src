@@ -6,9 +6,20 @@
 # include <config.h>
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
+#ifdef HAVE_NETINFO
+#include <netinfo/ni.h>
 #endif
+
+#include "ntp_fp.h"
+#include "ntp.h"
+#include "ntp_io.h"
+#include "ntp_unixtime.h"
+#include "ntpdate.h"
+#include "ntp_string.h"
+#include "ntp_syslog.h"
+#include "ntp_select.h"
+#include "ntp_stdlib.h"
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -17,14 +28,15 @@
 #include <signal.h>
 #include <ctype.h>
 #ifdef HAVE_POLL_H
-#include <poll.h>
+# include <poll.h>
 #endif
 #ifndef SYS_WINNT
 # include <netdb.h>
 # include <sys/signal.h>
-# include <sys/ioctl.h>
+# ifdef HAVE_SYS_IOCTL_H
+#  include <sys/ioctl.h>
+# endif
 #endif /* SYS_WINNT */
-#include <sys/time.h>
 #ifdef HAVE_SYS_RESOURCE_H
 # include <sys/resource.h>
 #endif /* HAVE_SYS_RESOURCE_H */
@@ -40,24 +52,6 @@ struct timeval timeout = {0,0};
 struct timeval timeout = {60,0};
 #endif
 
-
-#if defined(SYS_HPUX)
-# include <utmp.h>
-#endif
-
-#ifdef HAVE_NETINFO
-#include <netinfo/ni.h>
-#endif
-
-#include "ntp_fp.h"
-#include "ntp.h"
-#include "ntp_io.h"
-#include "ntp_unixtime.h"
-#include "ntpdate.h"
-#include "ntp_string.h"
-#include "ntp_syslog.h"
-#include "ntp_select.h"
-#include "ntp_stdlib.h"
 #include "recvbuff.h"
 
 #ifdef SYS_WINNT
@@ -471,7 +465,7 @@ ntpdatemain (
 	 * Add servers we are going to be polling
 	 */
 #ifdef HAVE_NETINFO
-	inetinfoservers = getnetinfoservers();
+	netinfoservers = getnetinfoservers();
 #endif
 
 	for ( ; ntp_optind < argc; ntp_optind++)
@@ -505,9 +499,10 @@ ntpdatemain (
 	if (sys_authenticate) {
 		init_auth();
 		if (!authreadkeys(key_file)) {
-			msyslog(LOG_ERR, "no key file, exitting");
+			msyslog(LOG_ERR, "no key file <%s>, exiting", key_file);
 			exit(1);
 		}
+		authtrust(sys_authkey, 1);
 		if (!authistrusted(sys_authkey)) {
 			char buf[10];
 
@@ -702,7 +697,7 @@ transmit(
 	if (sys_authenticate) {
 		int len;
 
-		xpkt.keyid1 = htonl(sys_authkey);
+		xpkt.exten[0] = htonl(sys_authkey);
 		get_systime(&server->xmt);
 		L_ADDUF(&server->xmt, sys_authdelay);
 		HTONL_FP(&server->xmt, &xpkt.xmt);
@@ -772,7 +767,7 @@ receive(
 
 	if ((PKT_MODE(rpkt->li_vn_mode) != MODE_SERVER
 		 && PKT_MODE(rpkt->li_vn_mode) != MODE_PASSIVE)
-		|| rpkt->stratum > NTP_MAXSTRATUM) {
+		|| rpkt->stratum >= STRATUM_UNSPEC) {
 		if (debug)
 			printf("receive: mode %d stratum %d\n",
 			   PKT_MODE(rpkt->li_vn_mode), rpkt->stratum);
@@ -810,11 +805,11 @@ receive(
 
 		if (debug > 3)
 			printf("receive: rpkt keyid=%ld sys_authkey=%ld decrypt=%ld\n",
-			   (long int)ntohl(rpkt->keyid1), (long int)sys_authkey,
+			   (long int)ntohl(rpkt->exten[0]), (long int)sys_authkey,
 			   (long int)authdecrypt(sys_authkey, (u_int32 *)rpkt,
 				LEN_PKT_NOMAC, (int)(rbufp->recv_length - LEN_PKT_NOMAC)));
 
-		if (has_mac && ntohl(rpkt->keyid1) == sys_authkey &&
+		if (has_mac && ntohl(rpkt->exten[0]) == sys_authkey &&
 			authdecrypt(sys_authkey, (u_int32 *)rpkt, LEN_PKT_NOMAC,
 			(int)(rbufp->recv_length - LEN_PKT_NOMAC)))
 			is_authentic = 1;
@@ -1372,6 +1367,11 @@ timer(void)
 }
 
 
+/*
+ * The code duplication in the following subroutine sucks, but
+ * we need to appease ansi2knr.
+ */
+
 #ifndef SYS_WINNT
 /*
  * alarming - record the occurance of an alarm interrupt
@@ -1380,13 +1380,16 @@ static RETSIGTYPE
 alarming(
 	int sig
 	)
-#else
-void CALLBACK 
-alarming(UINT uTimerID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
-#endif /* SYS_WINNT */
 {
 	alarm_flag++;
 }
+#else
+void CALLBACK 
+alarming(UINT uTimerID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
+{
+	alarm_flag++;
+}
+#endif /* SYS_WINNT */
 
 
 /*
@@ -1651,7 +1654,7 @@ sendpkt(
 	DWORD err;
 #endif /* SYS_WINNT */
 
-	cc = sendto(fd, (char *)pkt, len, 0, (struct sockaddr *)dest,
+	cc = sendto(fd, (char *)pkt, (size_t)len, 0, (struct sockaddr *)dest,
 			sizeof(struct sockaddr_in));
 #ifndef SYS_WINNT
 	if (cc == -1) {

@@ -7,19 +7,19 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_IRIG)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#include <math.h>
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif /* HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#include <math.h>
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
+
 #include "audio.h"
 
 /*
@@ -140,6 +140,7 @@
 /*
  * Interface definitions
  */
+#define	DEVICE_AUDIO	"/dev/audio" /* audio device name */
 #define	PRECISION	(-17)	/* precision assumed (about 10 us) */
 #define	REFID		"IRIG"	/* reference ID */
 #define	DESCRIPTION	"Generic IRIG Audio Driver" /* WRU */
@@ -310,7 +311,7 @@ irig_start(
 	/*
 	 * Open audio device
 	 */
-	fd = audio_init();
+	fd = audio_init(DEVICE_AUDIO);
 	if (fd < 0)
 		return (0);
 #ifdef DEBUG

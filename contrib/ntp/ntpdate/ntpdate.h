@@ -4,6 +4,8 @@
 
 #include "ntp_malloc.h"
 
+extern void	loadservers	P((char *cfgpath));
+
 /*
  * The server structure is a much simplified version of the
  * peer structure, for ntpdate's use.  Since we always send
@@ -60,6 +62,8 @@ struct server {
  * following defines what is "close".
  */
 #define	NTPDATE_THRESHOLD	(FP_SECOND >> 1)	/* 1/2 second */
+
+#define NTP_MAXAGE	86400	/* one day in seconds */
 
 /*
  * When doing adjustments, ntpdate actually overadjusts (currently

@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -31,8 +32,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -48,7 +47,7 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -57,24 +56,30 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+
+@SET_MAKE@
 AMDEP = @AMDEP@
 AMTAR = @AMTAR@
+AUTOKEY = @AUTOKEY@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DCFD = @DCFD@
 DEPDIR = @DEPDIR@
+EF_LIBS = @EF_LIBS@
+EF_PROGS = @EF_PROGS@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -86,16 +91,27 @@ MAKE_LIBPARSE = @MAKE_LIBPARSE@
 MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
 MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
 MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
+MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OPENSSL = @OPENSSL@
+OPENSSL_INC = @OPENSSL_INC@
+OPENSSL_LIB = @OPENSSL_LIB@
 PACKAGE = @PACKAGE@
+PATH_PERL = @PATH_PERL@
 PATH_SH = @PATH_SH@
 PROPDELAY = @PROPDELAY@
 RANLIB = @RANLIB@
+RSADIR = @RSADIR@
+RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
+RSASRCS = @RSASRCS@
+STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+_am_include = @_am_include@
 install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
@@ -103,9 +119,14 @@ install_sh = @install_sh@
 
 AUTOMAKE_OPTIONS = ../util/ansi2knr
 bin_PROGRAMS = ntpd
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/librsaref
 # LDADD might need RESLIB and ADJLIB
 LDADD = version.o @LIBPARSE@ ../libntp/libntp.a @LIBRSAREF@
+# ntpd may need:
+# log10                               refclock_wwv.o
+# sqrt                                ntp_control.o
+# floor                               refclock_wwv.o
+# which are (usually) provided by -lm.
 ntpd_LDADD = $(LDADD) -lm
 DISTCLEANFILES = .version version.c
 #EXTRA_DIST = ntpd.mak
@@ -114,13 +135,16 @@ ETAGS_ARGS = Makefile.am
 check_PROGRAMS = @MAKE_CHECK_Y2K@
 EXTRA_PROGRAMS = check_y2k
 
-ntpd_SOURCES = jupiter.h map_vme.c ntp_config.c ntp_control.c ntp_filegen.c \
+ntpd_SOURCES = cmd_args.c jupiter.h map_vme.c ntp_config.c ntp_control.c \
+	ntp_crypto.c ntp_filegen.c \
 	ntp_intres.c ntp_io.c ntp_loopfilter.c ntp_monitor.c ntp_peer.c \
-	ntp_proto.c ntp_refclock.c ntp_request.c ntp_restrict.c ntp_timer.c \
+	ntp_proto.c ntp_refclock.c ntp_request.c ntp_resolver.c \
+	ntp_restrict.c ntp_timer.c \
 	ntp_util.c ntpd.c refclock_acts.c refclock_arbiter.c refclock_arc.c \
 	refclock_as2201.c refclock_atom.c refclock_bancomm.c \
 	refclock_chronolog.c refclock_chu.c refclock_conf.c refclock_datum.c \
 	refclock_dumbclock.c refclock_fg.c refclock_gpsvme.c refclock_heath.c \
+	refclock_hopfser.c refclock_hopfpci.c \
 	refclock_hpgps.c refclock_irig.c refclock_jupiter.c refclock_leitch.c \
 	refclock_local.c refclock_msfees.c refclock_mx4200.c refclock_nmea.c \
 	refclock_oncore.c refclock_palisade.c refclock_palisade.h \
@@ -128,153 +152,147 @@ ntpd_SOURCES = jupiter.h map_vme.c ntp_config.c ntp_control.c ntp_filegen.c \
 	refclock_shm.c refclock_tpro.c refclock_trak.c refclock_true.c \
 	refclock_ulink.c refclock_usno.c refclock_wwv.c refclock_wwvb.c
 
+EXEEXT =
+OBJEXT = o
 subdir = ntpd
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
-CONFIG_CLEAN_FILES = 
-PROGRAMS =  $(bin_PROGRAMS)
+CONFIG_HEADER = $(top_builddir)/config.h
+CONFIG_CLEAN_FILES =
+EXTRA_PROGRAMS = check_y2k$(EXEEXT)
+bin_PROGRAMS = ntpd$(EXEEXT)
+check_PROGRAMS = @MAKE_CHECK_Y2K@
+PROGRAMS = $(bin_PROGRAMS)
 
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I..
+DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
 CPPFLAGS = @CPPFLAGS@
 LIBS = @LIBS@
 ANSI2KNR = ../util/ansi2knr
 check_y2k_SOURCES = check_y2k.c
-check_y2k_OBJECTS =  check_y2k$U.o
+check_y2k_OBJECTS = check_y2k$U.$(OBJEXT)
 check_y2k_LDADD = $(LDADD)
-check_y2k_DEPENDENCIES =  version.o ../libntp/libntp.a
+check_y2k_DEPENDENCIES = version.o ../libntp/libntp.a
 check_y2k_LDFLAGS = 
-am_ntpd_OBJECTS =  map_vme$U.o ntp_config$U.o ntp_control$U.o \
-ntp_filegen$U.o ntp_intres$U.o ntp_io$U.o ntp_loopfilter$U.o \
-ntp_monitor$U.o ntp_peer$U.o ntp_proto$U.o ntp_refclock$U.o \
-ntp_request$U.o ntp_restrict$U.o ntp_timer$U.o ntp_util$U.o ntpd$U.o \
-refclock_acts$U.o refclock_arbiter$U.o refclock_arc$U.o \
-refclock_as2201$U.o refclock_atom$U.o refclock_bancomm$U.o \
-refclock_chronolog$U.o refclock_chu$U.o refclock_conf$U.o \
-refclock_datum$U.o refclock_dumbclock$U.o refclock_fg$U.o \
-refclock_gpsvme$U.o refclock_heath$U.o refclock_hpgps$U.o \
-refclock_irig$U.o refclock_jupiter$U.o refclock_leitch$U.o \
-refclock_local$U.o refclock_msfees$U.o refclock_mx4200$U.o \
-refclock_nmea$U.o refclock_oncore$U.o refclock_palisade$U.o \
-refclock_parse$U.o refclock_pcf$U.o refclock_pst$U.o \
-refclock_ptbacts$U.o refclock_shm$U.o refclock_tpro$U.o \
-refclock_trak$U.o refclock_true$U.o refclock_ulink$U.o \
-refclock_usno$U.o refclock_wwv$U.o refclock_wwvb$U.o
-ntpd_OBJECTS =  $(am_ntpd_OBJECTS)
-ntpd_DEPENDENCIES =  version.o ../libntp/libntp.a
+am_ntpd_OBJECTS = cmd_args$U.$(OBJEXT) map_vme$U.$(OBJEXT) \
+ntp_config$U.$(OBJEXT) ntp_control$U.$(OBJEXT) ntp_crypto$U.$(OBJEXT) \
+ntp_filegen$U.$(OBJEXT) ntp_intres$U.$(OBJEXT) ntp_io$U.$(OBJEXT) \
+ntp_loopfilter$U.$(OBJEXT) ntp_monitor$U.$(OBJEXT) ntp_peer$U.$(OBJEXT) \
+ntp_proto$U.$(OBJEXT) ntp_refclock$U.$(OBJEXT) ntp_request$U.$(OBJEXT) \
+ntp_resolver$U.$(OBJEXT) ntp_restrict$U.$(OBJEXT) ntp_timer$U.$(OBJEXT) \
+ntp_util$U.$(OBJEXT) ntpd$U.$(OBJEXT) refclock_acts$U.$(OBJEXT) \
+refclock_arbiter$U.$(OBJEXT) refclock_arc$U.$(OBJEXT) \
+refclock_as2201$U.$(OBJEXT) refclock_atom$U.$(OBJEXT) \
+refclock_bancomm$U.$(OBJEXT) refclock_chronolog$U.$(OBJEXT) \
+refclock_chu$U.$(OBJEXT) refclock_conf$U.$(OBJEXT) \
+refclock_datum$U.$(OBJEXT) refclock_dumbclock$U.$(OBJEXT) \
+refclock_fg$U.$(OBJEXT) refclock_gpsvme$U.$(OBJEXT) \
+refclock_heath$U.$(OBJEXT) refclock_hopfser$U.$(OBJEXT) \
+refclock_hopfpci$U.$(OBJEXT) refclock_hpgps$U.$(OBJEXT) \
+refclock_irig$U.$(OBJEXT) refclock_jupiter$U.$(OBJEXT) \
+refclock_leitch$U.$(OBJEXT) refclock_local$U.$(OBJEXT) \
+refclock_msfees$U.$(OBJEXT) refclock_mx4200$U.$(OBJEXT) \
+refclock_nmea$U.$(OBJEXT) refclock_oncore$U.$(OBJEXT) \
+refclock_palisade$U.$(OBJEXT) refclock_parse$U.$(OBJEXT) \
+refclock_pcf$U.$(OBJEXT) refclock_pst$U.$(OBJEXT) \
+refclock_ptbacts$U.$(OBJEXT) refclock_shm$U.$(OBJEXT) \
+refclock_tpro$U.$(OBJEXT) refclock_trak$U.$(OBJEXT) \
+refclock_true$U.$(OBJEXT) refclock_ulink$U.$(OBJEXT) \
+refclock_usno$U.$(OBJEXT) refclock_wwv$U.$(OBJEXT) \
+refclock_wwvb$U.$(OBJEXT)
+ntpd_OBJECTS = $(am_ntpd_OBJECTS)
+ntpd_DEPENDENCIES = version.o ../libntp/libntp.a
 ntpd_LDFLAGS = 
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  check_y2k.c $(ntpd_SOURCES)
-DIST_COMMON =  Makefile.am Makefile.in
-
-
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-
-GZIP_ENV = --best
+DIST_SOURCES = check_y2k.c $(ntpd_SOURCES)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
-DEP_FILES =  @AMDEP@ $(DEPDIR)/check_y2k$U.Po $(DEPDIR)/map_vme$U.Po \
-$(DEPDIR)/ntp_config$U.Po $(DEPDIR)/ntp_control$U.Po \
-$(DEPDIR)/ntp_filegen$U.Po $(DEPDIR)/ntp_intres$U.Po \
-$(DEPDIR)/ntp_io$U.Po $(DEPDIR)/ntp_loopfilter$U.Po \
-$(DEPDIR)/ntp_monitor$U.Po $(DEPDIR)/ntp_peer$U.Po \
-$(DEPDIR)/ntp_proto$U.Po $(DEPDIR)/ntp_refclock$U.Po \
-$(DEPDIR)/ntp_request$U.Po $(DEPDIR)/ntp_restrict$U.Po \
-$(DEPDIR)/ntp_timer$U.Po $(DEPDIR)/ntp_util$U.Po $(DEPDIR)/ntpd$U.Po \
-$(DEPDIR)/refclock_acts$U.Po $(DEPDIR)/refclock_arbiter$U.Po \
-$(DEPDIR)/refclock_arc$U.Po $(DEPDIR)/refclock_as2201$U.Po \
-$(DEPDIR)/refclock_atom$U.Po $(DEPDIR)/refclock_bancomm$U.Po \
-$(DEPDIR)/refclock_chronolog$U.Po $(DEPDIR)/refclock_chu$U.Po \
-$(DEPDIR)/refclock_conf$U.Po $(DEPDIR)/refclock_datum$U.Po \
-$(DEPDIR)/refclock_dumbclock$U.Po $(DEPDIR)/refclock_fg$U.Po \
-$(DEPDIR)/refclock_gpsvme$U.Po $(DEPDIR)/refclock_heath$U.Po \
-$(DEPDIR)/refclock_hpgps$U.Po $(DEPDIR)/refclock_irig$U.Po \
-$(DEPDIR)/refclock_jupiter$U.Po $(DEPDIR)/refclock_leitch$U.Po \
-$(DEPDIR)/refclock_local$U.Po $(DEPDIR)/refclock_msfees$U.Po \
-$(DEPDIR)/refclock_mx4200$U.Po $(DEPDIR)/refclock_nmea$U.Po \
-$(DEPDIR)/refclock_oncore$U.Po $(DEPDIR)/refclock_palisade$U.Po \
-$(DEPDIR)/refclock_parse$U.Po $(DEPDIR)/refclock_pcf$U.Po \
-$(DEPDIR)/refclock_pst$U.Po $(DEPDIR)/refclock_ptbacts$U.Po \
-$(DEPDIR)/refclock_shm$U.Po $(DEPDIR)/refclock_tpro$U.Po \
-$(DEPDIR)/refclock_trak$U.Po $(DEPDIR)/refclock_true$U.Po \
-$(DEPDIR)/refclock_ulink$U.Po $(DEPDIR)/refclock_usno$U.Po \
-$(DEPDIR)/refclock_wwv$U.Po $(DEPDIR)/refclock_wwvb$U.Po
+@AMDEP@DEP_FILES = $(DEPDIR)/check_y2k$U.Po $(DEPDIR)/cmd_args$U.Po \
+@AMDEP@ $(DEPDIR)/map_vme$U.Po $(DEPDIR)/ntp_config$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_control$U.Po $(DEPDIR)/ntp_crypto$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_filegen$U.Po $(DEPDIR)/ntp_intres$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_io$U.Po $(DEPDIR)/ntp_loopfilter$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_monitor$U.Po $(DEPDIR)/ntp_peer$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_proto$U.Po $(DEPDIR)/ntp_refclock$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_request$U.Po $(DEPDIR)/ntp_resolver$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_restrict$U.Po $(DEPDIR)/ntp_timer$U.Po \
+@AMDEP@ $(DEPDIR)/ntp_util$U.Po $(DEPDIR)/ntpd$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_acts$U.Po $(DEPDIR)/refclock_arbiter$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_arc$U.Po $(DEPDIR)/refclock_as2201$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_atom$U.Po $(DEPDIR)/refclock_bancomm$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_chronolog$U.Po $(DEPDIR)/refclock_chu$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_conf$U.Po $(DEPDIR)/refclock_datum$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_dumbclock$U.Po $(DEPDIR)/refclock_fg$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_gpsvme$U.Po $(DEPDIR)/refclock_heath$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_hopfpci$U.Po $(DEPDIR)/refclock_hopfser$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_hpgps$U.Po $(DEPDIR)/refclock_irig$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_jupiter$U.Po $(DEPDIR)/refclock_leitch$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_local$U.Po $(DEPDIR)/refclock_msfees$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_mx4200$U.Po $(DEPDIR)/refclock_nmea$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_oncore$U.Po $(DEPDIR)/refclock_palisade$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_parse$U.Po $(DEPDIR)/refclock_pcf$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_pst$U.Po $(DEPDIR)/refclock_ptbacts$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_shm$U.Po $(DEPDIR)/refclock_tpro$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_trak$U.Po $(DEPDIR)/refclock_true$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_ulink$U.Po $(DEPDIR)/refclock_usno$U.Po \
+@AMDEP@ $(DEPDIR)/refclock_wwv$U.Po $(DEPDIR)/refclock_wwvb$U.Po
+DIST_COMMON = Makefile.am Makefile.in
+
 SOURCES = check_y2k.c $(ntpd_SOURCES)
-OBJECTS = check_y2k$U.o $(am_ntpd_OBJECTS)
+OBJECTS = check_y2k$U.$(OBJEXT) $(am_ntpd_OBJECTS)
 
-all: all-redirect
+all: all-am
+
 .SUFFIXES:
-.SUFFIXES: .c .h .o
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu ntpd/Makefile
+.SUFFIXES: .c .h .o .obj
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  ntpd/Makefile
 
-
-mostlyclean-binPROGRAMS:
-
-clean-binPROGRAMS:
-	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
-
-distclean-binPROGRAMS:
-
-maintainer-clean-binPROGRAMS:
-
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	@list='$(bin_PROGRAMS)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
-	    echo "  $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
-	     $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
+	    f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$f"; \
+	   $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/$$f; \
 	  else :; fi; \
 	done
 
 uninstall-binPROGRAMS:
 	@$(NORMAL_UNINSTALL)
 	@list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
 	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
 	  rm -f $(DESTDIR)$(bindir)/$$f; \
 	done
 
-mostlyclean-checkPROGRAMS:
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 
 clean-checkPROGRAMS:
 	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
 
-distclean-checkPROGRAMS:
-
-maintainer-clean-checkPROGRAMS:
-
 mostlyclean-compile:
-	-rm -f *.o core *.core
-
-clean-compile:
+	-rm -f *.$(OBJEXT) core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
-
-maintainer-clean-compile:
-../util/ansi2knr: ../util/ansi2knr.o
+../util/ansi2knr: ../util/ansi2knr.$(OBJEXT)
 	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr
 
-../util/ansi2knr.o:
-	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.o
+../util/ansi2knr.$(OBJEXT):
+	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.$(OBJEXT)
 
 
 mostlyclean-kr:
 	-rm -f *_.c
-
-clean-kr:
-
-distclean-kr:
-
-maintainer-clean-kr:
 
 check_y2k: $(check_y2k_OBJECTS) $(check_y2k_DEPENDENCIES)
 	@rm -f check_y2k
@@ -285,12 +303,16 @@ ntpd: $(ntpd_OBJECTS) $(ntpd_DEPENDENCIES)
 	$(LINK) $(ntpd_LDFLAGS) $(ntpd_OBJECTS) $(ntpd_LDADD) $(LIBS)
 check_y2k_.c: check_y2k.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/check_y2k.c; then echo $(srcdir)/check_y2k.c; else echo check_y2k.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > check_y2k_.c
+cmd_args_.c: cmd_args.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/cmd_args.c; then echo $(srcdir)/cmd_args.c; else echo cmd_args.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > cmd_args_.c
 map_vme_.c: map_vme.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/map_vme.c; then echo $(srcdir)/map_vme.c; else echo map_vme.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > map_vme_.c
 ntp_config_.c: ntp_config.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_config.c; then echo $(srcdir)/ntp_config.c; else echo ntp_config.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_config_.c
 ntp_control_.c: ntp_control.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_control.c; then echo $(srcdir)/ntp_control.c; else echo ntp_control.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_control_.c
+ntp_crypto_.c: ntp_crypto.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_crypto.c; then echo $(srcdir)/ntp_crypto.c; else echo ntp_crypto.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_crypto_.c
 ntp_filegen_.c: ntp_filegen.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_filegen.c; then echo $(srcdir)/ntp_filegen.c; else echo ntp_filegen.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_filegen_.c
 ntp_intres_.c: ntp_intres.c $(ANSI2KNR)
@@ -309,6 +331,8 @@ ntp_refclock_.c: ntp_refclock.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_refclock.c; then echo $(srcdir)/ntp_refclock.c; else echo ntp_refclock.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_refclock_.c
 ntp_request_.c: ntp_request.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_request.c; then echo $(srcdir)/ntp_request.c; else echo ntp_request.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_request_.c
+ntp_resolver_.c: ntp_resolver.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_resolver.c; then echo $(srcdir)/ntp_resolver.c; else echo ntp_resolver.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_resolver_.c
 ntp_restrict_.c: ntp_restrict.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ntp_restrict.c; then echo $(srcdir)/ntp_restrict.c; else echo ntp_restrict.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ntp_restrict_.c
 ntp_timer_.c: ntp_timer.c $(ANSI2KNR)
@@ -345,6 +369,10 @@ refclock_gpsvme_.c: refclock_gpsvme.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_gpsvme.c; then echo $(srcdir)/refclock_gpsvme.c; else echo refclock_gpsvme.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_gpsvme_.c
 refclock_heath_.c: refclock_heath.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_heath.c; then echo $(srcdir)/refclock_heath.c; else echo refclock_heath.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_heath_.c
+refclock_hopfpci_.c: refclock_hopfpci.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_hopfpci.c; then echo $(srcdir)/refclock_hopfpci.c; else echo refclock_hopfpci.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_hopfpci_.c
+refclock_hopfser_.c: refclock_hopfser.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_hopfser.c; then echo $(srcdir)/refclock_hopfser.c; else echo refclock_hopfser.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_hopfser_.c
 refclock_hpgps_.c: refclock_hpgps.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_hpgps.c; then echo $(srcdir)/refclock_hpgps.c; else echo refclock_hpgps.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_hpgps_.c
 refclock_irig_.c: refclock_irig.c $(ANSI2KNR)
@@ -389,20 +417,32 @@ refclock_wwv_.c: refclock_wwv.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_wwv.c; then echo $(srcdir)/refclock_wwv.c; else echo refclock_wwv.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_wwv_.c
 refclock_wwvb_.c: refclock_wwvb.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refclock_wwvb.c; then echo $(srcdir)/refclock_wwvb.c; else echo refclock_wwvb.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refclock_wwvb_.c
-check_y2k_.o map_vme_.o ntp_config_.o ntp_control_.o ntp_filegen_.o \
-ntp_intres_.o ntp_io_.o ntp_loopfilter_.o ntp_monitor_.o ntp_peer_.o \
-ntp_proto_.o ntp_refclock_.o ntp_request_.o ntp_restrict_.o \
-ntp_timer_.o ntp_util_.o ntpd_.o refclock_acts_.o refclock_arbiter_.o \
-refclock_arc_.o refclock_as2201_.o refclock_atom_.o refclock_bancomm_.o \
-refclock_chronolog_.o refclock_chu_.o refclock_conf_.o \
-refclock_datum_.o refclock_dumbclock_.o refclock_fg_.o \
-refclock_gpsvme_.o refclock_heath_.o refclock_hpgps_.o refclock_irig_.o \
-refclock_jupiter_.o refclock_leitch_.o refclock_local_.o \
-refclock_msfees_.o refclock_mx4200_.o refclock_nmea_.o \
-refclock_oncore_.o refclock_palisade_.o refclock_parse_.o \
-refclock_pcf_.o refclock_pst_.o refclock_ptbacts_.o refclock_shm_.o \
-refclock_tpro_.o refclock_trak_.o refclock_true_.o refclock_ulink_.o \
-refclock_usno_.o refclock_wwv_.o refclock_wwvb_.o : $(ANSI2KNR)
+check_y2k_.$(OBJEXT) cmd_args_.$(OBJEXT) map_vme_.$(OBJEXT) \
+ntp_config_.$(OBJEXT) ntp_control_.$(OBJEXT) ntp_crypto_.$(OBJEXT) \
+ntp_filegen_.$(OBJEXT) ntp_intres_.$(OBJEXT) ntp_io_.$(OBJEXT) \
+ntp_loopfilter_.$(OBJEXT) ntp_monitor_.$(OBJEXT) ntp_peer_.$(OBJEXT) \
+ntp_proto_.$(OBJEXT) ntp_refclock_.$(OBJEXT) ntp_request_.$(OBJEXT) \
+ntp_resolver_.$(OBJEXT) ntp_restrict_.$(OBJEXT) ntp_timer_.$(OBJEXT) \
+ntp_util_.$(OBJEXT) ntpd_.$(OBJEXT) refclock_acts_.$(OBJEXT) \
+refclock_arbiter_.$(OBJEXT) refclock_arc_.$(OBJEXT) \
+refclock_as2201_.$(OBJEXT) refclock_atom_.$(OBJEXT) \
+refclock_bancomm_.$(OBJEXT) refclock_chronolog_.$(OBJEXT) \
+refclock_chu_.$(OBJEXT) refclock_conf_.$(OBJEXT) \
+refclock_datum_.$(OBJEXT) refclock_dumbclock_.$(OBJEXT) \
+refclock_fg_.$(OBJEXT) refclock_gpsvme_.$(OBJEXT) \
+refclock_heath_.$(OBJEXT) refclock_hopfpci_.$(OBJEXT) \
+refclock_hopfser_.$(OBJEXT) refclock_hpgps_.$(OBJEXT) \
+refclock_irig_.$(OBJEXT) refclock_jupiter_.$(OBJEXT) \
+refclock_leitch_.$(OBJEXT) refclock_local_.$(OBJEXT) \
+refclock_msfees_.$(OBJEXT) refclock_mx4200_.$(OBJEXT) \
+refclock_nmea_.$(OBJEXT) refclock_oncore_.$(OBJEXT) \
+refclock_palisade_.$(OBJEXT) refclock_parse_.$(OBJEXT) \
+refclock_pcf_.$(OBJEXT) refclock_pst_.$(OBJEXT) \
+refclock_ptbacts_.$(OBJEXT) refclock_shm_.$(OBJEXT) \
+refclock_tpro_.$(OBJEXT) refclock_trak_.$(OBJEXT) \
+refclock_true_.$(OBJEXT) refclock_ulink_.$(OBJEXT) \
+refclock_usno_.$(OBJEXT) refclock_wwv_.$(OBJEXT) \
+refclock_wwvb_.$(OBJEXT) : $(ANSI2KNR)
 
 tags: TAGS
 
@@ -413,9 +453,9 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	  done | \
 	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -428,91 +468,75 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
-mostlyclean-tags:
-
-clean-tags:
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
 
 distclean-tags:
 	-rm -f TAGS ID
 
-maintainer-clean-tags:
-
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
-
-distdir: $(DISTFILES)
-	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
-	  if test -d $$d/$$file; then \
-	    cp -pR $$d/$$file $(distdir); \
-	  else \
-	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
-	  fi; \
-	done
-
-@AMDEP@include $(DEPDIR)/check_y2k$U.Po
-@AMDEP@include $(DEPDIR)/map_vme$U.Po
-@AMDEP@include $(DEPDIR)/ntp_config$U.Po
-@AMDEP@include $(DEPDIR)/ntp_control$U.Po
-@AMDEP@include $(DEPDIR)/ntp_filegen$U.Po
-@AMDEP@include $(DEPDIR)/ntp_intres$U.Po
-@AMDEP@include $(DEPDIR)/ntp_io$U.Po
-@AMDEP@include $(DEPDIR)/ntp_loopfilter$U.Po
-@AMDEP@include $(DEPDIR)/ntp_monitor$U.Po
-@AMDEP@include $(DEPDIR)/ntp_peer$U.Po
-@AMDEP@include $(DEPDIR)/ntp_proto$U.Po
-@AMDEP@include $(DEPDIR)/ntp_refclock$U.Po
-@AMDEP@include $(DEPDIR)/ntp_request$U.Po
-@AMDEP@include $(DEPDIR)/ntp_restrict$U.Po
-@AMDEP@include $(DEPDIR)/ntp_timer$U.Po
-@AMDEP@include $(DEPDIR)/ntp_util$U.Po
-@AMDEP@include $(DEPDIR)/ntpd$U.Po
-@AMDEP@include $(DEPDIR)/refclock_acts$U.Po
-@AMDEP@include $(DEPDIR)/refclock_arbiter$U.Po
-@AMDEP@include $(DEPDIR)/refclock_arc$U.Po
-@AMDEP@include $(DEPDIR)/refclock_as2201$U.Po
-@AMDEP@include $(DEPDIR)/refclock_atom$U.Po
-@AMDEP@include $(DEPDIR)/refclock_bancomm$U.Po
-@AMDEP@include $(DEPDIR)/refclock_chronolog$U.Po
-@AMDEP@include $(DEPDIR)/refclock_chu$U.Po
-@AMDEP@include $(DEPDIR)/refclock_conf$U.Po
-@AMDEP@include $(DEPDIR)/refclock_datum$U.Po
-@AMDEP@include $(DEPDIR)/refclock_dumbclock$U.Po
-@AMDEP@include $(DEPDIR)/refclock_fg$U.Po
-@AMDEP@include $(DEPDIR)/refclock_gpsvme$U.Po
-@AMDEP@include $(DEPDIR)/refclock_heath$U.Po
-@AMDEP@include $(DEPDIR)/refclock_hpgps$U.Po
-@AMDEP@include $(DEPDIR)/refclock_irig$U.Po
-@AMDEP@include $(DEPDIR)/refclock_jupiter$U.Po
-@AMDEP@include $(DEPDIR)/refclock_leitch$U.Po
-@AMDEP@include $(DEPDIR)/refclock_local$U.Po
-@AMDEP@include $(DEPDIR)/refclock_msfees$U.Po
-@AMDEP@include $(DEPDIR)/refclock_mx4200$U.Po
-@AMDEP@include $(DEPDIR)/refclock_nmea$U.Po
-@AMDEP@include $(DEPDIR)/refclock_oncore$U.Po
-@AMDEP@include $(DEPDIR)/refclock_palisade$U.Po
-@AMDEP@include $(DEPDIR)/refclock_parse$U.Po
-@AMDEP@include $(DEPDIR)/refclock_pcf$U.Po
-@AMDEP@include $(DEPDIR)/refclock_pst$U.Po
-@AMDEP@include $(DEPDIR)/refclock_ptbacts$U.Po
-@AMDEP@include $(DEPDIR)/refclock_shm$U.Po
-@AMDEP@include $(DEPDIR)/refclock_tpro$U.Po
-@AMDEP@include $(DEPDIR)/refclock_trak$U.Po
-@AMDEP@include $(DEPDIR)/refclock_true$U.Po
-@AMDEP@include $(DEPDIR)/refclock_ulink$U.Po
-@AMDEP@include $(DEPDIR)/refclock_usno$U.Po
-@AMDEP@include $(DEPDIR)/refclock_wwv$U.Po
-@AMDEP@include $(DEPDIR)/refclock_wwvb$U.Po
-
-mostlyclean-depend:
-
-clean-depend:
+@AMDEP@@_am_include@ $(DEPDIR)/check_y2k$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/cmd_args$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/map_vme$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_config$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_control$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_crypto$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_filegen$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_intres$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_io$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_loopfilter$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_monitor$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_peer$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_proto$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_refclock$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_request$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_resolver$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_restrict$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_timer$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntp_util$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ntpd$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_acts$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_arbiter$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_arc$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_as2201$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_atom$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_bancomm$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_chronolog$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_chu$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_conf$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_datum$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_dumbclock$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_fg$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_gpsvme$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_heath$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_hopfpci$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_hopfser$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_hpgps$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_irig$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_jupiter$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_leitch$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_local$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_msfees$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_mx4200$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_nmea$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_oncore$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_palisade$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_parse$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_pcf$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_pst$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_ptbacts$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_shm$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_tpro$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_trak$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_true$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_ulink$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_usno$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_wwv$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refclock_wwvb$U.Po
 
 distclean-depend:
 	-rm -rf $(DEPDIR)
-
-maintainer-clean-depend:
 
 @AMDEP@CCDEPMODE = @CCDEPMODE@
 
@@ -520,36 +544,54 @@ maintainer-clean-depend:
 @AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
 @AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ $<
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
 
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
+.c.obj:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `cygpath -w $<`
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
 check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-install-exec-am: install-binPROGRAMS
-install-exec: install-exec-am
+all-am: Makefile $(PROGRAMS)
 
-install-data-am:
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+
+install: install-am
+install-exec: install-exec-am
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am: uninstall-binPROGRAMS
-uninstall: uninstall-am
-all-am: Makefile $(PROGRAMS)
-all-redirect: all-am
-install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
-	$(mkinstalldirs)  $(DESTDIR)$(bindir)
 
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
 
 mostlyclean-generic:
 
@@ -561,51 +603,61 @@ distclean-generic:
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f Makefile.in
-mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-checkPROGRAMS \
-		mostlyclean-compile mostlyclean-kr mostlyclean-tags \
-		mostlyclean-depend mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-binPROGRAMS clean-checkPROGRAMS clean-compile clean-kr \
-		clean-tags clean-depend clean-generic mostlyclean-am
-
 clean: clean-am
 
-distclean-am:  distclean-binPROGRAMS distclean-checkPROGRAMS \
-		distclean-compile distclean-kr distclean-tags \
-		distclean-depend distclean-generic clean-am
+clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
+	mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-binPROGRAMS \
-		maintainer-clean-checkPROGRAMS maintainer-clean-compile \
-		maintainer-clean-kr maintainer-clean-tags \
-		maintainer-clean-depend maintainer-clean-generic \
-		distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-compile distclean-depend \
+	distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am: install-binPROGRAMS
+
+install-info:
+
+install-man:
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
-maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
-mostlyclean-checkPROGRAMS distclean-checkPROGRAMS clean-checkPROGRAMS \
-maintainer-clean-checkPROGRAMS mostlyclean-compile distclean-compile \
-clean-compile maintainer-clean-compile mostlyclean-kr distclean-kr \
-clean-kr maintainer-clean-kr tags mostlyclean-tags distclean-tags \
-clean-tags maintainer-clean-tags distdir mostlyclean-depend \
-distclean-depend clean-depend maintainer-clean-depend info-am info \
-dvi-am dvi check-local check check-am installcheck-am installcheck \
-install-exec-am install-exec install-data-am install-data install-am \
-install uninstall-am uninstall all-redirect all-am all install-strip \
-installdirs mostlyclean-generic distclean-generic clean-generic \
-maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
+
+uninstall-am: uninstall-binPROGRAMS
+
+.PHONY: all all-am check check-am check-local clean clean-binPROGRAMS \
+	clean-checkPROGRAMS clean-generic distclean distclean-compile \
+	distclean-depend distclean-generic distclean-tags distdir dvi \
+	dvi-am info info-am install install-am install-binPROGRAMS \
+	install-data install-data-am install-exec install-exec-am \
+	install-info install-man install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-kr tags uninstall uninstall-am \
+	uninstall-binPROGRAMS
 
 
 check-local: @MAKE_CHECK_Y2K@
-	[ -z "@MAKE_CHECK_Y2K@" ] || ./@MAKE_CHECK_Y2K@
+	test -z "@MAKE_CHECK_Y2K@" || ./@MAKE_CHECK_Y2K@
 
 $(PROGRAMS): $(LDADD)
 

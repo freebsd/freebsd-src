@@ -7,20 +7,19 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_WWV)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#include <math.h>
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif /* HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 #include "audio.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#include <math.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
 
 #define ICOM 	1		/* undefine to suppress ICOM code */
 
@@ -64,6 +63,7 @@
 /*
  * Interface definitions
  */
+#define	DEVICE_AUDIO	"/dev/audio" /* audio device name */
 #define	PRECISION	(-10)	/* precision assumed (about 1 ms) */
 #define	REFID		"NONE"	/* reference ID */
 #define	DESCRIPTION	"WWV/H Audio Demodulator/Decoder" /* WRU */
@@ -646,7 +646,7 @@ wwv_start(
 	/*
 	 * Open audio device
 	 */
-	fd = audio_init();
+	fd = audio_init(DEVICE_AUDIO);
 	if (fd < 0)
 		return (0);
 #ifdef DEBUG
@@ -739,8 +739,8 @@ wwv_start(
 	if (debug > 1)
 		temp = P_TRACE;
 #endif
-	if (peer->ttl != 0) {
-		if (peer->ttl & 0x80)
+	if (peer->ttlmax != 0) {
+		if (peer->ttlmax & 0x80)
 			up->fd_icom = icom_init("/dev/icom", B1200,
 			    temp);
 		else
@@ -1443,8 +1443,8 @@ wwv_qrz(
 		sp->select &= ~JITRNG;
 		if (abs(sp->jitter) > AWND * MS)
 			sp->select |= JITRNG;
-		sp->sigmax = sqrt(sp->sigmax);
-		sp->noise = sqrt(sp->noise);
+		sp->sigmax = SQRT(sp->sigmax);
+		sp->noise = SQRT(sp->noise);
 		if (up->status & MSYNC) {
 
 			/*
@@ -1769,9 +1769,9 @@ wwv_epoch(
 	cp = &up->mitig[up->achan];
 	if (up->rphase == 800 * MS) {
 		sp = &cp->wwv;
-		sp->synamp = sqrt(sp->amp);
+		sp->synamp = SQRT(sp->amp);
 		sp = &cp->wwvh;
-		sp->synamp = sqrt(sp->amp);
+		sp->synamp = SQRT(sp->amp);
 	}
 
 	if (up->rsec == 0) {
@@ -1787,7 +1787,7 @@ wwv_epoch(
 				up->noiamp += (up->irig - up->noiamp) /
 				    (MINAVG << up->avgint);
 			else
-				cp->noiamp += (sqrt(up->irig *
+				cp->noiamp += (SQRT(up->irig *
 				    up->irig + up->qrig * up->qrig) -
 				    cp->noiamp) / 8;
 
@@ -1817,7 +1817,7 @@ wwv_epoch(
 						up->datapt += 80;
 				}
 			} else {
-				up->sigamp = sqrt(up->irig * up->irig +
+				up->sigamp = SQRT(up->irig * up->irig +
 				    up->qrig * up->qrig);
 				up->datsnr = wwv_snr(up->sigamp,
 				    cp->noiamp);
@@ -2586,7 +2586,8 @@ wwv_newchan(
 		up->sptr = sp;
 		up->status |= sp->select & (SELV | SELH);
 		memcpy((char *)&pp->refid, sp->refid, 4);
-		memcpy((char *)&peer->refid, sp->refid, 4);
+		if (peer->stratum <= 1)
+			memcpy((char *)&peer->refid, sp->refid, 4);
 		wwv_qsy(peer, up->dchan);
 	}
 }
@@ -2614,7 +2615,7 @@ wwv_qsy(
 	up->mitig[up->achan].gain = up->gain;
 #ifdef ICOM
 	if (up->fd_icom > 0)
-		rval = icom_freq(up->fd_icom, peer->ttl & 0x7f,
+		rval = icom_freq(up->fd_icom, peer->ttlmax & 0x7f,
 		    qsy[chan]);
 #endif /* ICOM */
 	up->achan = chan;
@@ -2645,7 +2646,10 @@ wwv_qsy(
  * agc	audio gain (0-255)
  * iden	station identifier (station and frequency)
  * comp	minute sync compare counter
- * errs	bit errors in last minute * freq	frequency offset (PPM) * avgt	averaging time (s) */
+ * errs	bit errors in last minute
+ * freq	frequency offset (PPM)
+ * avgt	averaging time (s)
+ */
 static int
 timecode(
 	struct wwvunit *up,	/* driver structure pointer */

@@ -303,10 +303,13 @@ Also note h<cr> command which starts a resync to MSF signal.
 */
 
 
+#include "ntpd.h"
+#include "ntp_io.h"
+#include "ntp_refclock.h"
+#include "ntp_stdlib.h"
 
 #include <stdio.h>
 #include <ctype.h>
-#include <sys/time.h>
 
 #if defined(HAVE_BSD_TTYS)
 #include <sgtty.h>
@@ -319,11 +322,6 @@ Also note h<cr> command which starts a resync to MSF signal.
 #if defined(HAVE_TERMIOS)
 #include <termios.h>
 #endif
-
-#include "ntpd.h"
-#include "ntp_io.h"
-#include "ntp_refclock.h"
-#include "ntp_stdlib.h"
 
 /*
  * This driver supports the ARCRON MSF Radio Controlled Clock

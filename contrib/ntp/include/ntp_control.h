@@ -9,7 +9,7 @@ struct ntp_control {
 	u_char r_m_e_op;		/* response, more, error, opcode */
 	u_short sequence;		/* sequence number of request */
 	u_short status;			/* status word for association */
-	u_short associd;		/* association ID */
+	associd_t associd;		/* association ID */
 	u_short offset;			/* offset of this batch of data */
 	u_short count;			/* count of data in this packet */
 	u_char data[(480 + MAX_MAC_LEN)]; /* data + auth */
@@ -157,14 +157,26 @@ struct ntp_control {
 #define CS_STATE	10
 #define	CS_OFFSET	11
 #define	CS_DRIFT	12
-#define	CS_COMPLIANCE	13
+#define CS_JITTER	13
 #define	CS_CLOCK	14
 #define	CS_PROCESSOR	15
 #define	CS_SYSTEM	16
-#define	CS_STABIL	17
-#define CS_VARLIST	18
-
+#define CS_VERSION	17
+#define	CS_STABIL	18
+#define CS_VARLIST	19
+#ifdef PUBKEY
+#define CS_FLAGS	20
+#define CS_HOST		21
+#define CS_PUBLIC	22
+#define	CS_CERTIF	23
+#define CS_DHPARAMS	24
+#define	CS_REVTIME	25
+#define CS_LEAPTAB	26
+#define CS_TAI		27
+#define	CS_MAXCODE	CS_TAI
+#else
 #define	CS_MAXCODE	CS_VARLIST
+#endif /* PUBKEY */
 
 /*
  * Peer variables we understand
@@ -204,10 +216,23 @@ struct ntp_control {
 #define	CP_SENT		33
 #define	CP_FILTERROR	34
 #define	CP_FLASH	35
-#define CP_DISP		36
-#define CP_VARLIST	37
-
+#define CP_TTL		36
+#define CP_TTLMAX	37
+#define CP_VARLIST	38
+#ifdef PUBKEY
+#define CP_FLAGS	39
+#define CP_HOST		40
+#define CP_PUBLIC	41
+#define	CP_CERTIF	42
+#define	CP_SESKEY	43
+#define	CP_SASKEY	44
+#define	CP_INITSEQ	45
+#define	CP_INITKEY	46
+#define	CP_INITTSP	47
+#define	CP_MAXCODE	CP_INITTSP
+#else
 #define	CP_MAXCODE	CP_VARLIST
+#endif /* PUBKEY */
 
 /*
  * Clock variables we understand

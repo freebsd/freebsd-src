@@ -36,6 +36,11 @@ ntp_gettime(
 	ntv->time = tntx.time;
 	ntv->maxerror = tntx.maxerror;
 	ntv->esterror = tntx.esterror;
+#ifdef NTP_API
+# if NTP_API > 3
+	ntv->tai = tntx.tai;
+# endif
+#endif
 	return(result);
 }
 # else /* !HAVE__ADJTIMEX */

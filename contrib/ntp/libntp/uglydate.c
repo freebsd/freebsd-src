@@ -8,9 +8,7 @@
 #include "ntp_unixtime.h"
 #include "lib_strbuf.h"
 #include "ntp_stdlib.h"
-#ifndef TM_IN_SYS_TIME
-#include <time.h>
-#endif
+
 
 char *
 uglydate(

@@ -8,16 +8,14 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_SPECTRACOM)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#include <time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /*
  * This driver supports the Spectracom Model 8170 and Netclock/2 WWVB
@@ -187,9 +185,9 @@ wwvb_start(
 	 * Initialize miscellaneous variables
 	 */
 	peer->precision = PRECISION;
-	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
+	peer->burst = NSTAGE;
 	return (1);
 }
 
@@ -233,6 +231,7 @@ wwvb_receive(
 	char	qualchar;	/* quality indicator */
 	char	leapchar;	/* leap indicator */
 	char	dstchar;	/* daylight/standard indicator */
+	char	tmpchar;	/* trashbin */
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp
@@ -287,16 +286,15 @@ wwvb_receive(
 		 * Timecode format 0: "I  ddd hh:mm:ss DTZ=nn"
 		 */
 		if (sscanf(pp->a_lastcode,
-		    "%c %3d %2d:%2d:%2d %cTZ=%2d",
+		    "%c %3d %2d:%2d:%2d%c%cTZ=%2d",
 		    &syncchar, &pp->day, &pp->hour, &pp->minute,
-		    &pp->second, &dstchar, &tz) == 7)
+		    &pp->second, &tmpchar, &dstchar, &tz) == 8)
 			break;
 
 		case LENWWVB2:
 
 		/*
-		 * Timecode format 2: "IQyy ddd hh:mm:ss.mmm LD"
-		 */
+		 * Timecode format 2: "IQyy ddd hh:mm:ss.mmm LD" */
 		if (sscanf(pp->a_lastcode,
 		    "%c%c %2d %3d %2d:%2d:%2d.%3d %c",
 		    &syncchar, &qualchar, &pp->year, &pp->day,

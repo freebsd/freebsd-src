@@ -14,18 +14,15 @@
 #include <config.h>
 #endif
 
-#ifdef MD5
 #include <stdio.h>
 
 #include "ntp_types.h"
-#include "ntp_fp.h"
 #include "ntp_string.h"
 #include "global.h"
 #include "md5.h"
 #include "ntp_stdlib.h"
 
 #define BLOCK_OCTETS	16	/* message digest size */
-#define NTP_MAXKEY	65535	/* max identifier from ntp.h */
 
 
 /*
@@ -85,48 +82,3 @@ MD5authdecrypt(
 	return (!memcmp((char *)digest, (char *)pkt + length + 4,
 		BLOCK_OCTETS));
 }
-
-
-/*
- * session_key - generate session key from supplied plaintext.
- *
- * Returns hashed session key for validation.
- */
-u_long
-session_key(
-	u_int32 srcadr, 	/* source address */
-	u_int32 dstadr, 	/* destination address */
-	u_long keyno,		/* key identifier */
-	u_long lifetime 	/* key lifetime */
-	)
-{
-	MD5_CTX ctx;
-	u_int32 header[3];
-	u_long keyid;
-	u_char digest[BLOCK_OCTETS];
-
-	/*
-	 * Generate the session key and retrieve the hash for later. If
-	 * the lifetime is greater than zero, call the key trusted.
-	 */
-	header[0] = htonl(srcadr);
-	header[1] = htonl(dstadr);
-	header[2] = htonl(keyno);
-	MD5Init(&ctx);
-	MD5Update(&ctx, (u_char *)header, sizeof(header));
-	MD5Final(digest, &ctx);
-	memcpy(&keyid, digest, 4);
-	if (lifetime != 0) {
-		MD5auth_setkey(keyno, digest, BLOCK_OCTETS);
-		authtrust(keyno, (int)lifetime);
-	}
-#ifdef DEBUG
-	if (debug > 1)
-		printf(
-			"session_key: from %s to %s keyid %08lx hash %08lx life %ld\n",
-			numtoa(htonl(srcadr)), numtoa(htonl(dstadr)), keyno,
-			keyid, lifetime);
-#endif
-	return (keyid);
-}
-#endif /* MD5 */

@@ -1,99 +1,100 @@
-<HTML><HEAD><TITLE>
-Quick Start
-</TITLE></HEAD><BODY><H3>
-Quick Start
-</H3>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>Quick Start</title>
+</head>
+<body>
+<h3>Quick Start</h3>
 
-<img align=left src=pic/panda.gif>FAX test image for SATNET (1979).
+<img align="left" src="pic/panda.gif" alt="gif">FAX test image for
+SATNET (1979). 
 
 <p>The baby panda was scanned at University College London and used
 as a FAX test image for a demonstration of the DARPA Atlantic
-SATNET Program and the first transatlantic Internet connection in 1978.
-The computing system used for that demonstration was called the <A
-HREF="http://www.eecis.udel.edu/~mills/database/papers/fuzz.ps">Fuzzball
-</A>. As it happened, this was also the first Internet multimedia
-presentation and the first to use NTP in regular operation. The image
-was widely copied and used for testing purpose throughout much of the
-1980s.
-<br clear=left>
+SATNET Program and the first transatlantic Internet connection in
+1978. The computing system used for that demonstration was called
+the <a href=
+"http://www.eecis.udel.edu/~mills/database/papers/fuzz.ps">
+Fuzzball</a> . As it happened, this was also the first Internet
+multimedia presentation and the first to use NTP in regular
+operation. The image was widely copied and used for testing purpose
+throughout much of the 1980s.<br clear="left">
+</p>
 
-<H4>Introduction</H4>
+<hr>
+<p>For the rank amateur the sheer volume of the documentation
+collection must be intimidating. However, it doesn't take much to
+fly the <tt>ntpd</tt> daemon with a simple configuration where a
+workstation needs to synchronize to some server elsewhere in the
+Internet. The first thing that needs to be done is to build the
+distribution for the particular workstation and install in the
+usual place. The <a href="build.htm">Building and Installing the
+Distribution</a> page describes how to do this.</p>
 
-<p>This page describes what to expect when the NTP daemon <tt>ntpd</tt>
-is started for the first time. The discussion presumes the programs in
-this distribution have been compiled and installed as described in the
-<a href=build.htm>Building and Installing the Distribution</a> page.
+<p>While it is possible that certain configurations do not need a
+configuration file, most do require one. Strictly speaking, the
+file need only contain one line specifying a remote server, for
+instance</p>
 
-<p>When the daemon is started, whether for the first or subsequent
-times, a number of roundtrip samples are required to accumulate reliable
-measurements of network path delay and clock offset relative to the
-server. Normally, this takes about four minutes, after which the local
-clock is synchronized to the server. The daemon behavior at startup
-depends on whether a drift file <tt>ntp.drift</tt> exists. This file
-contains the latest estimate of local clock frequency error. When the
-daemon is started for the first time, it is created after about one hour
-of operation and updated once each hour after that. When the daemon is
-started and the file does not exist, the daemon enters a special mode
-designed to quickly adapt to the particular system clock oscillator time
-and frequency error. This takes approximately 15 minutes, after which
-the time and frequency are set to nominal values and the daemon enters
-normal mode, where the time and frequency are continuously tracked
-relative to the server.
+<p><tt>server foo.bar.com</tt></p>
 
-<p>As a practical matter, once the local clock has been set, it very
-rarely strays more than 128 ms relative to the server, even under
-extreme cases of network path congestion and jitter. Sometimes, in
-particular when the daemon is first started, the relative clock offset
-exceeds 128 ms. In such cases the normal behavior of the daemon is to
-set the clock directly, rather than rely on gradual corrections. This
-may cause the clock to be set backwards, if the local clock time is more
-than 128 s in the future relative to the server. In some applications,
-this behavior may be unacceptable. If the <tt>-x</tt> option is included
-on the command line that starts the daemon, the clock will never be
-stepped and only slew corrections will be used.
+<p>Choosing an appropriate remote server is somewhat of a black
+art, but a suboptimal choice is seldom a problem. Links to public
+time servers operated by National Institutes of Science and
+Technology (NIST), US Naval Observatory (USNO), Canadian Metrology
+Centre (CMC) and many others are given in the home page of this
+document collection. The lists are sorted by country and, in the
+case of the US, by state. Usually, the best choice is the nearest
+in geographical terms, but the terms of engagement specified in
+each list entry should be carefully respected.</p>
 
-<p>The issues should be carefully explored before deciding to use the
-<tt>-x</tt> option. The maximum slew rate possible is limited to 500
-parts-per-million (PPM) as a consequence of the correctness principles
-on which the NTP protocol and algorithm design are based. As a result,
-the local clock can take a long time to converge to an acceptable
-offset, about 2000 s for each second the clock is outside the acceptable
-range. During this interval the local clock will not be consistent with
-any other network clock and the system cannot be used for distributed
-applications that require correctly synchronized network time.
+<p>During operation <tt>ntpd</tt> measures and corrects for
+incidental clock frequency error and writes the current value to a
+file if enabled. If the <tt>ntpd</tt> is stopped and restarted, it
+initializes the frequency from this file. In this way the
+potentially lengthy interval to relearn the frequency error is
+avoided. Thus, for most applications an additional line should be
+added to the file of the form</p>
 
-<p>There may be an occasional outlyer, where an individual measurement
-exceeds 128 ms. When the frequency of occurrence of these outlyers is
-low, the measurement is discarded and operation continues with the next
-one. However, if the outlyers persist for an interval longer than about
-15 minutes, the next value is believed and the clock stepped or slewed
-as determined by the <tt>-x</tt> option. The usual reason for this
-behavior is when a leap second has occurred, but the reference clock
-receiver has not synchronized to it. When leap second support is
-implemented in the kernel, the kernel implements it as directed by the
-NTP daemon. If this happens and the reference clock source
-resynchronizes correctly within 15 minutes, the transient misbehavior of
-the source is transparent.
+<p><tt>driftfile /etc/ntp.drift</tt></p>
 
-<p>It has been observed that, as the result of extreme network
-congestion, the roundtrip delays can exceed three seconds and the
-synchronization distance, which is equal to one-half the roundtrip delay
-plus the error budget terms, can become very large. When the
-synchronization distance exceeds one second, the offset measurement is
-discarded. If this condition persists for several poll intervals, the
-server may be declared unreachable. Sometimes the large jitter results
-in  large frequency errors which result in straying outside the
-acceptable offset range and an eventual step or slew time correction. If
-following such a correction the frequency error is so large that the
-first sample is outside the acceptable range, the daemon enters the same
-state as when the <tt>ntp.drift</tt> file is not present. The intent of
-this behavior is to quickly correct the frequency and restore operation
-to the normal tracking mode. In the most extreme cases
-(<tt>time.ien.it</tt> comes to mind), there may be occasional step/slew
-corrections and subsequent frequency corrections. It helps in these
-cases to use burst mode when configuring the server.
+<p>That's all there is to it, unless some problem in network
+connectivity or local operating system configuration occurs. The
+most common problem is some firewall between the workstation and
+server. System administrators should understand NTP uses UDP port
+123 as both the source and destination port and that NTP does not
+involve any operating system interaction other than to set the
+system clock. While almost all modern Unix systems have included
+NTP and UDP port 123 defined in the services file, this should be
+checked if <tt>ntpd</tt> fails to come up at all.</p>
 
-<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
-href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
-</address></a></body></html>
+<p>The best way to confirm NTP is working is using the <a href=
+"ntpq.htm"><tt>ntpq</tt></a> utility, although the <a href=
+"ntpdc.htm"><tt>ntpdc</tt></a> utility may be useful in extreme
+cases. See the documentation pages for further information. In the
+most extreme cases the <tt>-d</tt> option on the <tt>ntpd</tt>
+command line results in a blow-by-blow trace of the daemon
+operations. While the trace output can be cryptic, to say the
+least, it gives a general idea of what the program is doing and, in
+particular, details the arriving and departing packets and detected
+errors, if present.</p>
+
+<p>Sometimes the <tt>ntpd</tt>. behavior may seem to violate the
+Principle of Least Astonishment, but there are good reasons for
+this. See the <a href="ntpd.htm">Network Time Protocol (NTP)
+daemon</a> page for revealing insights. See this page and its
+dependencies for additional configuration and control options. The
+<a href="notes.htm">Notes on Configuring NTP and Setting up a NTP
+Subnet</a> page contains an extended discussion of these
+options.</p>
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
 

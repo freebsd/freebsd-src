@@ -8,10 +8,6 @@
 #include "lib_strbuf.h"
 #include "ntp_stdlib.h"
 
-#ifndef TM_IN_SYS_TIME
-#include <time.h>
-#endif
-
 static const char *months[] = {
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"

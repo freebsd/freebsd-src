@@ -5,23 +5,25 @@
 # include <config.h>
 #endif
 
-#include <stdio.h>
-#include <sys/types.h>
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif /* HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
+#include "ntp_tty.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
 
 #ifdef REFCLOCK
 
 #ifdef TTYCLK
 # ifdef HAVE_SYS_CLKDEFS_H
 #  include <sys/clkdefs.h>
+#  include <stropts.h>
 # endif
 # ifdef HAVE_SYS_SIO_H
 #  include <sys/sio.h>
@@ -32,15 +34,9 @@
 #include <sys/ppsclock.h>
 #endif /* HAVE_PPSCLOCK_H */
 
-#ifdef HAVE_PPSAPI
-# ifdef HAVE_TIMEPPS_H
-#  include <timepps.h>
-# else
-#  ifdef HAVE_SYS_TIMEPPS_H
-#   include <sys/timepps.h>
-#  endif
-# endif
-#endif /* HAVE_PPSAPI */
+#ifdef KERNEL_PLL
+#include "ntp_syscall.h"
+#endif /* KERNEL_PLL */
 
 /*
  * Reference clock support is provided here by maintaining the fiction
@@ -72,24 +68,12 @@
  * refclockproc structure pointer from the table typeunit[type][unit].
  * This interface is strongly discouraged and may be abandoned in
  * future.
- *
- * The routines include support for the 1-pps signal provided by some
- * radios and connected via a level converted described in the gadget
- * directory. The signal is captured using a serial port and one of
- * three STREAMS modules described in the refclock_atom.c file. For the
- * highest precision, the signal is captured using the carrier-detect
- * line of a serial port and either the ppsclock or ppsapi streams
- * module or some devilish ioctl() folks keep slipping in as a patch. Be
- * advised ALL support for other than the duly standardized ppsapi
- * interface will eventually be withdrawn.
  */
 #define MAXUNIT 	4	/* max units */
-
-#if defined(PPS) || defined(HAVE_PPSAPI)
-int fdpps;			/* pps file descriptor */
-#endif /* PPS HAVE_PPSAPI */
-
 #define FUDGEFAC	.1	/* fudge correction factor */
+
+int fdpps;			/* pps file descriptor */
+int cal_enable;			/* enable refclock calibrate */
 
 /*
  * Type/unit peer index. Used to find the peer structure for control and
@@ -107,11 +91,6 @@ static int refclock_cmpl_fp P((const void *, const void *));
 static int refclock_cmpl_fp P((const double *, const double *));
 #endif /* QSORT_USES_VOID_P */
 static int refclock_sample P((struct refclockproc *));
-
-#ifdef HAVE_PPSAPI
-extern int pps_assert;		/* capture edge 1:assert, 0:clear */
-extern int pps_hardpps;		/* PPS kernel 1:on, 0:off */
-#endif /* HAVE_PPSAPI */
 
 /*
  * refclock_report - note the occurance of an event
@@ -222,7 +201,6 @@ refclock_newpeer(
 			clktype);
 		return (0);
 	}
-	refclock_unpeer(peer);
 
 	/*
 	 * Allocate and initialize interface structure
@@ -247,14 +225,6 @@ refclock_newpeer(
 	pp->timestarted = current_time;
 
 	/*
-	 * If the interface has been set to any_interface, set it to the
-	 * loopback address if we have one. This is so that peers which
-	 * are unreachable are easy to see in the peer display.
-	 */
-	if (peer->dstadr == any_interface && loopback_interface != 0)
-		peer->dstadr = loopback_interface;
-
-	/*
 	 * Set peer.pmode based on the hmode. For appearances only.
 	 */
 	switch (peer->hmode) {
@@ -273,7 +243,7 @@ refclock_newpeer(
 	 * can be wiggled, then finish up for consistency.
 	 */
 	if (!((refclock_conf[clktype]->clock_start)(unit, peer))) {
-		free(pp);
+		refclock_unpeer(peer);
 		return (0);
 	}
 	peer->hpoll = peer->minpoll;
@@ -354,25 +324,21 @@ refclock_transmit(
 		 * network code.
 		 */
 		oreach = peer->reach;
-		if (oreach & 0x01)
-			peer->valid++;
-		if (oreach & 0x80)
-			peer->valid--;
-				peer->reach <<= 1;
-		if (peer->reach == 0) {
-			if (oreach != 0) {
+		peer->reach <<= 1;
+		if (!peer->reach) {
+			if (oreach) {
 				report_event(EVNT_UNREACH, peer);
 				peer->timereachable = current_time;
 				peer_clear(peer);
 			}
 		} else {
-			if ((oreach & 0x03) == 0) {
+			if (!(oreach & 0x03)) {
 				clock_filter(peer, 0., 0., MAXDISPERSE);
 				clock_select();
 			}
-			if (peer->valid <= 2) {
+			if (!(oreach & 0x0f)) {
 				hpoll--;
-			} else if (peer->valid > NTP_SHIFT - 2)
+			} else if ((oreach & 0x0f) == 0x0f)
 				hpoll++;
 			if (peer->flags & FLAG_BURST)
 				peer->burst = NSTAGE;
@@ -383,7 +349,6 @@ refclock_transmit(
 	if (refclock_conf[clktype]->clock_poll != noentry)
 		(refclock_conf[clktype]->clock_poll)(unit, peer);
 	peer->outdate = next;
-	poll_update(peer, hpoll);
 	if (peer->burst > 0)
 		peer->burst--;
 	poll_update(peer, hpoll);
@@ -428,7 +393,9 @@ refclock_cmpl_fp(
 /*
  * refclock_process_offset - update median filter
  *
- * This routine uses the given offset and timestamps to construct a new entry in the median filter circular buffer. Samples that overflow the filter are quietly discarded.
+ * This routine uses the given offset and timestamps to construct a new
+ * entry in the median filter circular buffer. Samples that overflow the
+ * filter are quietly discarded.
  */
 void
 refclock_process_offset(
@@ -442,7 +409,6 @@ refclock_process_offset(
 
 	pp->lastref = offset;
 	pp->lastrec = lastrec;
-	pp->variance = 0;
 	L_SUB(&offset, &lastrec);
 	LFPTOD(&offset, doffset);
 	SAMPLE(doffset + fudge);
@@ -490,18 +456,18 @@ refclock_process(
  *
  * This routine implements a recursive median filter to suppress spikes
  * in the data, as well as determine a performance statistic. It
- * calculates the mean offset and mean-square variance. A time
- * adjustment fudgetime1 can be added to the final offset to compensate
- * for various systematic errors. The routine returns the number of
- * samples processed, which could be 0.
+ * calculates the mean offset and jitter (squares). A time adjustment
+ * fudgetime1 can be added to the final offset to compensate for various
+ * systematic errors. The routine returns the number of samples
+ * processed, which could be zero.
  */
 static int
 refclock_sample(
 	struct refclockproc *pp
 	)
 {
-	int i, j, k, n;
-	double offset, disp;
+	int i, j, k, m, n;
+	double offset;
 	double off[MAXSTAGE];
 
 	/*
@@ -514,15 +480,15 @@ refclock_sample(
 	while (pp->codeproc != pp->coderecv)
 		off[n++] = pp->filter[pp->codeproc++ % MAXSTAGE];
 	if (n > 1)
-		qsort((char *)off, n, sizeof(double), refclock_cmpl_fp);
+		qsort((char *)off, (size_t)n, sizeof(double), refclock_cmpl_fp);
 
 	/*
 	 * Reject the furthest from the median of the samples until
 	 * approximately 60 percent of the samples remain.
 	 */
 	i = 0; j = n;
-	k = n - (n * 2) / NSTAGE;
-	while ((j - i) > k) {
+	m = n - (n * 2) / NSTAGE;
+	while ((j - i) > m) {
 		offset = off[(j + i) / 2];
 		if (off[j - 1] - offset < offset - off[i])
 			i++;	/* reject low end */
@@ -531,21 +497,21 @@ refclock_sample(
 	}
 
 	/*
-	 * Determine the offset and variance.
+	 * Determine the offset and jitter.
 	 */
-	offset = disp = 0;
-	for (; i < j; i++) {
-		offset += off[i];
-		disp += SQUARE(off[i]);
-	}
-	offset /= k;
-	pp->offset = offset;
-	pp->variance += disp / k - SQUARE(offset);
+	offset = 0;
+	for (k = i; k < j; k++)
+		offset += off[k];
+	pp->offset = offset / m;
+	if (m > 1)
+		pp->jitter = SQUARE(off[i] - off[j - 1]);
+	else
+		pp->jitter = 0;
 #ifdef DEBUG
 	if (debug)
 		printf(
-		    "refclock_sample: n %d offset %.6f disp %.6f std %.6f\n",
-		    n, pp->offset, pp->disp, SQRT(pp->variance));
+		    "refclock_sample: n %d offset %.6f disp %.6f jitter %.6f\n",
+		    n, pp->offset, pp->disp, SQRT(pp->jitter));
 #endif
 	return (n);
 }
@@ -587,21 +553,29 @@ refclock_receive(
 		refclock_report(peer, CEVNT_FAULT);
 		return;
 	}
-	if (peer->reach == 0)
+	if (!peer->reach)
 		report_event(EVNT_REACH, peer);
 	peer->reach |= 1;
 	peer->reftime = peer->org = pp->lastrec;
-	peer->rootdispersion = pp->disp + SQRT(pp->variance);
+	peer->rootdispersion = pp->disp + SQRT(pp->jitter);
 	get_systime(&peer->rec);
 	if (!refclock_sample(pp))
 		return;
-	clock_filter(peer, pp->offset, 0., 0.);
+	clock_filter(peer, pp->offset, 0., pp->jitter);
 	clock_select();
 	record_peer_stats(&peer->srcadr, ctlpeerstatus(peer),
-	    peer->offset, peer->delay, CLOCK_PHI * (current_time -
-	    peer->epoch), SQRT(peer->variance));
-	if (pps_control && pp->sloppyclockflag & CLK_FLAG1)
-		pp->fudgetime1 -= pp->offset * FUDGEFAC;
+	    peer->offset, peer->delay, clock_phi * (current_time -
+	    peer->epoch), SQRT(peer->jitter));
+	if (cal_enable && last_offset < MINDISPERSE) {
+#ifdef KERNEL_PLL
+		if (peer != sys_peer || pll_status & STA_PPSTIME)
+#else
+		if (peer != sys_peer)
+#endif /* KERNEL_PLL */
+			pp->fudgetime1 -= pp->offset * FUDGEFAC;
+		else
+			pp->fudgetime1 -= pp->fudgetime1 * FUDGEFAC;
+	}
 }
 
 /*
@@ -619,21 +593,13 @@ refclock_gtlin(
 	struct recvbuf *rbufp,	/* receive buffer pointer */
 	char *lineptr,		/* current line pointer */
 	int bmax,		/* remaining characters in line */
-	l_fp *tsptr 	/* pointer to timestamp returned */
+	l_fp *tsptr		/* pointer to timestamp returned */
 	)
 {
 	char *dpt, *dpend, *dp;
 	int i;
 	l_fp trtmp, tstmp;
 	char c;
-#ifdef TIOCDCDTIMESTAMP
-	struct timeval dcd_time;
-#endif /* TIOCDCDTIMESTAMP */
-#ifdef HAVE_PPSAPI
-	pps_info_t pi;
-	struct timespec timeout, *tsp;
-	double a;
-#endif /* HAVE_PPSAPI */
 
 	/*
 	 * Check for the presence of a timestamp left by the tty_clock
@@ -646,58 +612,6 @@ refclock_gtlin(
 	dpend = dpt + rbufp->recv_length;
 	trtmp = rbufp->recv_time;
 
-#ifdef HAVE_PPSAPI
-	timeout.tv_sec = 0;
-	timeout.tv_nsec = 0;
-	if ((rbufp->fd == fdpps) &&
-	    (time_pps_fetch(fdpps, PPS_TSFMT_TSPEC, &pi, &timeout) >= 0)) {
-		if(pps_assert)
-			tsp = &pi.assert_timestamp;
-		else
-			tsp = &pi.clear_timestamp;
-		a = tsp->tv_nsec;
-		a /= 1e9;
-		tstmp.l_uf =  a * 4294967296.0;
-		tstmp.l_ui = tsp->tv_sec;
-		tstmp.l_ui += JAN_1970;
-		L_SUB(&trtmp, &tstmp);
-		if (trtmp.l_ui == 0) {
-#ifdef DEBUG
-			if (debug > 1) {
-				printf(
-				    "refclock_gtlin: fd %d time_pps_fetch %s",
-				    fdpps, lfptoa(&tstmp, 6));
-				printf(" sigio %s\n", lfptoa(&trtmp, 6));
-			}
-#endif
-			trtmp = tstmp;
-			goto gotit;
-		} else
-			trtmp = rbufp->recv_time;
-	}
-#endif /* HAVE_PPSAPI */
-#ifdef TIOCDCDTIMESTAMP
-	if(ioctl(rbufp->fd, TIOCDCDTIMESTAMP, &dcd_time) != -1) {
-		TVTOTS(&dcd_time, &tstmp);
-		tstmp.l_ui += JAN_1970;
-		L_SUB(&trtmp, &tstmp);
-		if (trtmp.l_ui == 0) {
-#ifdef DEBUG
-			if (debug > 1) {
-				printf(
-				    "refclock_gtlin: fd %d DCDTIMESTAMP %s",
-				    rbufp->fd, lfptoa(&tstmp, 6));
-				printf(" sigio %s\n", lfptoa(&trtmp, 6));
-			}
-#endif
-			trtmp = tstmp;
-			goto gotit;
-		} else
-			trtmp = rbufp->recv_time;
-	}
-	else
-	/* XXX fallback to old method if kernel refuses TIOCDCDTIMESTAMP */
-#endif  /* TIOCDCDTIMESTAMP */
 	if (dpend >= dpt + 8) {
 		if (buftvtots(dpend - 8, &tstmp)) {
 			L_SUB(&trtmp, &tstmp);
@@ -719,9 +633,6 @@ refclock_gtlin(
 		}
 	}
 
-#if defined(HAVE_PPSAPI) || defined(TIOCDCDTIMESTAMP)
-gotit:
-#endif
 	/*
 	 * Edit timecode to remove control chars. Don't monkey with the
 	 * line buffer if the input buffer contains no ASCII printing
@@ -767,34 +678,40 @@ refclock_open(
 {
 	int fd, i;
 	int flags;
-#ifdef HAVE_TERMIOS
-	struct termios ttyb, *ttyp;
-#endif /* HAVE_TERMIOS */
-#ifdef HAVE_SYSV_TTYS
-	struct termio ttyb, *ttyp;
-#endif /* HAVE_SYSV_TTYS */
-#ifdef HAVE_BSD_TTYS
-	struct sgttyb ttyb, *ttyp;
-#endif /* HAVE_BSD_TTYS */
+	TTY ttyb, *ttyp;
 #ifdef TIOCMGET
 	u_long ltemp;
 #endif /* TIOCMGET */
+	int omode;
 
 	/*
 	 * Open serial port and set default options
 	 */
 	flags = lflags;
-	if (strcmp(dev, pps_device) == 0)
-		flags |= LDISC_PPS;
+
+	omode = O_RDWR;
 #ifdef O_NONBLOCK
-	fd = open(dev, O_RDWR | O_NONBLOCK, 0777);
-#else
-	fd = open(dev, O_RDWR, 0777);
-#endif /* O_NONBLOCK */
-	if (fd == -1) {
+	omode |= O_NONBLOCK;
+#endif
+#ifdef O_NOCTTY
+	omode |= O_NOCTTY;
+#endif
+
+	fd = open(dev, omode, 0777);
+
+	if (fd < 0) {
 		msyslog(LOG_ERR, "refclock_open: %s: %m", dev);
 		return (0);
 	}
+
+	/*
+	 * This little jewel lights up the PPS file descriptor if the
+	 * device name matches the name in the pps line in the
+	 * configuration file. This is so the atom driver can glom onto
+	 * the right device. Very silly.
+	 */
+	if (strcmp(dev, pps_device) == 0)
+		fdpps = fd;
 
 	/*
 	 * The following sections initialize the serial line port in
@@ -958,9 +875,8 @@ refclock_open(
  * This routine attempts to hide the internal, system-specific details
  * of serial ports. It can handle POSIX (termios), SYSV (termio) and BSD
  * (sgtty) interfaces with varying degrees of success. The routine sets
- * up optional features such as tty_clk, ppsclock and ppsapi, as well as
- * their many other variants. The routine returns 1 if success and 0 if
- * failure.
+ * up optional features such as tty_clk. The routine returns 1 if
+ * success and 0 if failure.
  */
 int
 refclock_ioctl(
@@ -973,45 +889,13 @@ refclock_ioctl(
 #if defined(HAVE_TERMIOS) || defined(HAVE_SYSV_TTYS) || defined(HAVE_BSD_TTYS)
 
 #ifdef TTYCLK
-#ifdef HAVE_TERMIOS
-	struct termios ttyb, *ttyp;
-#endif /* HAVE_TERMIOS */
-#ifdef HAVE_SYSV_TTYS
-	struct termio ttyb, *ttyp;
-#endif /* HAVE_SYSV_TTYS */
-#ifdef HAVE_BSD_TTYS
-	struct sgttyb ttyb, *ttyp;
-#endif /* HAVE_BSD_TTYS */
+	TTY ttyb, *ttyp;
 #endif /* TTYCLK */
 
 #ifdef DEBUG
 	if (debug)
 		printf("refclock_ioctl: fd %d flags 0x%x\n", fd, flags);
 #endif
-
-	/*
-	 * The following sections select optional features, such as
-	 * modem control, PPS capture and so forth. Some require
-	 * specific operating system support in the form of STREAMS
-	 * modules, which can be loaded and unloaded at run time without
-	 * rebooting the kernel. The STREAMS modules require System
-	 * V STREAMS support. The checking frenzy is attenuated here,
-	 * since the device is already open.
-	 *
-	 * Note that the tty_clk and ppsclock modules are optional; if
-	 * configured and unavailable, the dang thing still works, but
-	 * the accuracy improvement using them will not be available.
-	 * The only known implmentations of these moldules are specific
-	 * to SunOS 4.x. Use the ppsclock module ONLY with Sun baseboard
-	 * ttya or ttyb. Using it with the SPIF multipexor crashes the
-	 * kernel.
-	 *
-	 * The preferred way to capture PPS timestamps is using the
-	 * ppsapi interface, which is machine independent. The SunOS 4.x
-	 * and Digital Unix 4.x interfaces use STREAMS modules and
-	 * support both the ppsapi specification and ppsclock
-	 * functionality, but other systems may vary widely.
-	 */
 	if (flags == 0)
 		return (1);
 #if !(defined(HAVE_TERMIOS) || defined(HAVE_BSD_TTYS))
@@ -1061,104 +945,6 @@ refclock_ioctl(
 		}
 	}
 #endif /* TTYCLK */
-
-#if defined(PPS) && !defined(HAVE_PPSAPI)
-	/*
-	 * The PPS option provides timestamping at the driver level.
-	 * It uses a 1-pps signal and level converter (gadget box) and
-	 * requires the ppsclock streams module and System V STREAMS
-	 * support. This option has been superseded by the ppsapi
-	 * option and may be withdrawn in future.
-	 */
-	if (flags & LDISC_PPS) {
-		int rval = 0;
-#ifdef HAVE_TIOCSPPS		/* Solaris */
-		int one = 1;
-#endif /* HAVE_TIOCSPPS */
-
-		if (fdpps > 0) {
-			msyslog(LOG_ERR,
-				"refclock_ioctl: PPS already configured");
-			return (0);
-		}
-#ifdef HAVE_TIOCSPPS		/* Solaris */
-		if (ioctl(fd, TIOCSPPS, &one) < 0) {
-			msyslog(LOG_NOTICE,
-				"refclock_ioctl: TIOCSPPS failed: %m");
-			return (0);
-		}
-		if (debug)
-			printf("refclock_ioctl: fd %d TIOCSPPS %d\n",
-			    fd, rval);
-#else
-		if (ioctl(fd, I_PUSH, "ppsclock") < 0) {
-			msyslog(LOG_NOTICE,
-				"refclock_ioctl: I_PUSH ppsclock failed: %m");
-			return (0);
-		}
-		if (debug)
-			printf("refclock_ioctl: fd %d ppsclock %d\n",
-			    fd, rval);
-#endif /* not HAVE_TIOCSPPS */
-		fdpps = fd;
-	}
-#endif /* PPS HAVE_PPSAPI */
-
-#ifdef HAVE_PPSAPI
-	/*
-	 * The PPSAPI option provides timestamping at the driver level.
-	 * It uses a 1-pps signal and level converter (gadget box) and
-	 * requires ppsapi compiled into the kernel on non STREAMS
-	 * systems. This is the preferred way to capture PPS timestamps
-	 * and is expected to become an IETF cross-platform standard.
-	 */
-	if (flags & (LDISC_PPS | LDISC_CLKPPS)) {
-		pps_params_t pp;
-		int mode, temp;
-		pps_handle_t handle;
-
-		memset((char *)&pp, 0, sizeof(pp));
-		if (fdpps > 0) {
-			msyslog(LOG_ERR,
-			    "refclock_ioctl: ppsapi already configured");
-			return (0);
-		}
-		if (time_pps_create(fd, &handle) < 0) {
-			msyslog(LOG_ERR,
-			    "refclock_ioctl: time_pps_create failed: %m");
-			return (0);
-		}
-		if (time_pps_getcap(handle, &mode) < 0) {
-			msyslog(LOG_ERR,
-			    "refclock_ioctl: time_pps_getcap failed: %m");
-			return (0);
-		}
-		pp.mode = mode & PPS_CAPTUREBOTH;
-		if (time_pps_setparams(handle, &pp) < 0) {
-			msyslog(LOG_ERR,
-			    "refclock_ioctl: time_pps_setparams failed: %m");
-			return (0);
-		}
-		if (!pps_hardpps)
-			temp = 0;
-		else if (pps_assert)
-			temp = mode & PPS_CAPTUREASSERT;
-		else
-			temp = mode & PPS_CAPTURECLEAR;
-		if (time_pps_kcbind(handle, PPS_KC_HARDPPS, temp,
-		    PPS_TSFMT_TSPEC) < 0) {
-			msyslog(LOG_ERR,
-			    "refclock_ioctl: time_pps_kcbind failed: %m");
-			return (0);
-		}
-		(void)time_pps_getparams(handle, &pp);
-		fdpps = (int)handle;
-		if (debug)
-			printf(
-			    "refclock_ioctl: fd %d ppsapi vers %d mode 0x%x cap 0x%x\n",
-			    fdpps, pp.api_version, pp.mode, mode);
-	}
-#endif /* HAVE_PPSAPI */
 #endif /* HAVE_TERMIOS || HAVE_SYSV_TTYS || HAVE_BSD_TTYS */
 #endif /* SYS_VXWORKS SYS_WINNT */
 	return (1);
@@ -1195,6 +981,8 @@ refclock_control(
 	if (clktype >= num_refclock_conf || unit >= MAXUNIT)
 		return;
 	if (!(peer = typeunit[clktype][unit]))
+		return;
+	if (peer->procptr == NULL)
 		return;
 	pp = peer->procptr;
 

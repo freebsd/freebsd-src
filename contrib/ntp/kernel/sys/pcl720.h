@@ -61,7 +61,7 @@ static void pcl720_outb(int addr, unsigned char x) {
 	})
 
 #define	pcl720_read(Base,Cntr) \
-	({	register unsigned int	b = Base, c = Cntr, v; \
+	({	register unsigned int	b = Base, v; \
 		i8253_ctrl ctrl; \
 		\
 		ctrl.s.rl = i8253_latch; \

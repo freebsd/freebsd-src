@@ -2,13 +2,13 @@
  * systime -- routines to fiddle a UNIX clock.
  */
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#include "ntp_proto.h"		/* for MAX_FREQ */
+#include "ntp_machine.h"
+#include "ntp_fp.h"
+#include "ntp_syslog.h"
+#include "ntp_unixtime.h"
+#include "ntp_stdlib.h"
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif
@@ -19,15 +19,7 @@
 # include <utmpx.h>
 #endif /* HAVE_UTMPX_H */
 
-#include "ntp_machine.h"
-#include "ntp_fp.h"
-#include "ntp_syslog.h"
-#include "ntp_unixtime.h"
-#include "ntp_stdlib.h"
-
 int	systime_10ms_ticks = 0;	/* adj sysclock in 10ms increments */
-
-#define MAXFREQ 500e-6
 
 /*
  * These routines (init_systime, get_systime, step_systime, adj_systime)
@@ -36,7 +28,6 @@ int	systime_10ms_ticks = 0;	/* adj sysclock in 10ms increments */
  * clock.
  */
 double sys_residual = 0;	/* residual from previous adjustment */
-double sys_maxfreq = MAXFREQ;	/* max frequency correction */
 
 
 /*
@@ -140,8 +131,8 @@ adj_systime(
 		}
 	} else 
 #endif
-		if (dtemp > sys_maxfreq)
-			dtemp = sys_maxfreq;
+		if (dtemp > NTP_MAXFREQ)
+			dtemp = NTP_MAXFREQ;
 
 	dtemp = dtemp * 1e6 + .5;
 
@@ -159,7 +150,8 @@ adj_systime(
 	/* casey - we need a posix type thang here */
 	if (adjtime(&adjtv, &oadjtv) < 0)
 	{
-		msyslog(LOG_ERR, "Can't adjust time: %m");
+		msyslog(LOG_ERR, "Can't adjust time (%ld sec, %ld usec): %m",
+			(long)adjtv.tv_sec, (long)adjtv.tv_usec);
 		return 0;
 	} 
 	else {
