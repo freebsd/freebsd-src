@@ -102,19 +102,15 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
  * Tcp output routine: figure out what should be sent and send it.
  */
 int
-tcp_output(tp)
-	register struct tcpcb *tp;
+tcp_output(struct tcpcb *tp)
 {
-	register struct socket *so = tp->t_inpcb->inp_socket;
-	register long len, win;
+	struct socket *so = tp->t_inpcb->inp_socket;
+	long len, win;
 	int off, flags, error;
-	register struct mbuf *m;
+	struct mbuf *m;
 	struct ip *ip = NULL;
-	register struct ipovly *ipov = NULL;
-#ifdef INET6
-	struct ip6_hdr *ip6 = NULL;
-#endif /* INET6 */
-	register struct tcphdr *th;
+	struct ipovly *ipov = NULL;
+	struct tcphdr *th;
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
@@ -124,10 +120,9 @@ tcp_output(tp)
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 #ifdef INET6
+	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
-#endif
 
-#ifdef INET6
 	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
 #endif
 
@@ -147,19 +142,16 @@ tcp_output(tp)
 		 * Set the slow-start flight size depending on whether
 		 * this is a local network or not.
 		 */      
-		if (
+		int ss = ss_fltsz;
 #ifdef INET6
-		    (isipv6 && in6_localaddr(&tp->t_inpcb->in6p_faddr)) ||
-		    (!isipv6 &&
-#endif
-		     in_localaddr(tp->t_inpcb->inp_faddr)
-#ifdef INET6
-		     )
-#endif
-		    )
-			tp->snd_cwnd = tp->t_maxseg * ss_fltsz_local;
-		else     
-			tp->snd_cwnd = tp->t_maxseg * ss_fltsz;
+		if (isipv6) {
+			if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
+				ss = ss_fltsz_local;
+		} else
+#endif /* INET6 */
+		if (in_localaddr(tp->t_inpcb->inp_faddr))
+			ss = ss_fltsz_local;
+		tp->snd_cwnd = tp->t_maxseg * ss;
 	}
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {
@@ -524,14 +516,11 @@ send:
 		ipoptlen = ip6_optlen(tp->t_inpcb);
 	else
 #endif
-      {
-	if (tp->t_inpcb->inp_options) {
+	if (tp->t_inpcb->inp_options)
 		ipoptlen = tp->t_inpcb->inp_options->m_len -
 				offsetof(struct ipoption, ipopt_list);
-	} else {
+	else
 		ipoptlen = 0;
-	}
-      }
 #ifdef IPSEC
 	ipoptlen += ipsec_hdrsiz_tcp(tp);
 #endif
@@ -554,11 +543,10 @@ send:
 /*#ifdef DIAGNOSTIC*/
 #ifdef INET6
  	if (max_linkhdr + hdrlen > MCLBYTES)
-		panic("tcphdr too big");
 #else
  	if (max_linkhdr + hdrlen > MHLEN)
-		panic("tcphdr too big");
 #endif
+		panic("tcphdr too big");
 /*#endif*/
 
 	/*
