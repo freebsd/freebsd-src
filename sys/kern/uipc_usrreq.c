@@ -850,7 +850,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
 	     unp = LIST_NEXT(unp, unp_link)) {
 		if (unp->unp_gencnt <= gencnt) {
-			if (cr_cansee(req->p->p_ucred,
+			if (cr_cansee(req->td->td_proc->p_ucred,
 			    unp->unp_socket->so_cred))
 				continue;
 			unp_list[i++] = unp;

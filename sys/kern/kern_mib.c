@@ -155,12 +155,12 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	if (jailed(req->p->p_ucred)) {
+	if (jailed(req->td->td_proc->p_ucred)) {
 		if (!jail_set_hostname_allowed && req->newptr)
 			return(EPERM);
 		error = sysctl_handle_string(oidp, 
-		    req->p->p_ucred->cr_prison->pr_host,
-		    sizeof req->p->p_ucred->cr_prison->pr_host, req);
+		    req->td->td_proc->p_ucred->cr_prison->pr_host,
+		    sizeof req->td->td_proc->p_ucred->cr_prison->pr_host, req);
 	} else
 		error = sysctl_handle_string(oidp, 
 		    hostname, sizeof hostname, req);
@@ -186,7 +186,7 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 	struct prison *pr;
 	int error, level;
 
-	pr = req->p->p_ucred->cr_prison;
+	pr = req->td->td_proc->p_ucred->cr_prison;
 
 	/*
 	 * If the process is in jail, return the maximum of the global and

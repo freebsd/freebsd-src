@@ -111,7 +111,7 @@ struct ctlname {
  * so that we can use the interface from the kernel or from user-space.
  */
 struct sysctl_req {
-	struct proc	*p;		/* used for access checking */
+	struct thread	*td;		/* used for access checking */
 	int		lock;
 	void		*oldptr;
 	size_t		oldlen;
