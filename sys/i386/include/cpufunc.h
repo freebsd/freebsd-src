@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.59 1996/09/29 18:35:07 bde Exp $
+ *	$Id: cpufunc.h,v 1.59.2.1 1997/06/20 10:27:42 kato Exp $
  */
 
 /*
@@ -264,7 +264,7 @@ outl(u_int port, u_long data)
 }
 
 static __inline void
-outsb(u_int port, void *addr, size_t cnt)
+outsb(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsb"
 			 : : "d" (port), "S" (addr), "c" (cnt)
@@ -272,7 +272,7 @@ outsb(u_int port, void *addr, size_t cnt)
 }
 
 static __inline void
-outsw(u_int port, void *addr, size_t cnt)
+outsw(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsw"
 			 : : "d" (port), "S" (addr), "c" (cnt)
@@ -280,7 +280,7 @@ outsw(u_int port, void *addr, size_t cnt)
 }
 
 static __inline void
-outsl(u_int port, void *addr, size_t cnt)
+outsl(u_int port, const void *addr, size_t cnt)
 {
 	__asm __volatile("cld; rep; outsl"
 			 : : "d" (port), "S" (addr), "c" (cnt)

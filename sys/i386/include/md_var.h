@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.10.2.2 1997/09/13 16:19:06 joerg Exp $
+ *	$Id: md_var.h,v 1.10.2.3 1998/03/06 23:44:45 julian Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -46,12 +46,10 @@ extern	char	cpu_vendor[];
 extern	char	etext[];
 extern	char	kstack[];
 extern	void	(*netisrs[32]) __P((void));
-#ifdef DPTOPT
-extern	void	(*dptisrs[32]) __P((void));
-#endif /* DPTOPT */
 extern	int	nfs_diskless_valid;
 extern	char	sigcode[];
 extern	int	szsigcode;
+extern	int	busdma_swi_pending;
 
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
@@ -73,9 +71,11 @@ int	is_physical_memory __P((vm_offset_t addr));
 u_long	kvtop __P((void *addr));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));
+void	swi_vm __P((void));
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
+void	busdma_swi __P((void));
 
 #ifdef PC98
 extern int need_pre_dma_flush;

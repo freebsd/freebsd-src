@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.15 1996/07/01 20:16:10 bde Exp $
+ *	$Id: spl.h,v 1.15.2.1 1998/03/06 23:44:48 julian Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -44,12 +44,10 @@
  * may be dispatched when a nested h/w interrupt handler returns.
  */
 #define	SWI_TTY		(NHWI + 0)
-#ifndef DPTOPT
 #define	SWI_NET		(NHWI + 1)
-#else
-#define	SWI_DPT		(NHWI + 1)
-#define	SWI_NET		(NHWI + 2)
-#endif /* DPTOPT */
+#define	SWI_CAMNET	(NHWI + 2)
+#define	SWI_CAMBIO	(NHWI + 3)
+#define	SWI_VM		(NHWI + 4)
 #define	SWI_CLOCK	30
 #define	SWI_AST		31
 
@@ -57,10 +55,10 @@
  * Corresponding interrupt-pending bits for ipending.
  */
 #define	SWI_TTY_PENDING		(1 << SWI_TTY)
-#ifdef DPTOPT
-#define	SWI_DPT_PENDING       	(1 << SWI_DPT)
-#endif /* DPTOPT */
 #define	SWI_NET_PENDING		(1 << SWI_NET)
+#define	SWI_CAMNET_PENDING	(1 << SWI_CAMNET)
+#define	SWI_CAMBIO_PENDING	(1 << SWI_CAMBIO)
+#define	SWI_VM_PENDING		(1 << SWI_VM)
 #define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
 #define	SWI_AST_PENDING		(1 << SWI_AST)
 
@@ -77,10 +75,10 @@
  * spltty() apparently only needs to mask soft net interrupts).
  */
 #define	SWI_TTY_MASK	(SWI_TTY_PENDING | SWI_CLOCK_MASK | SWI_NET_MASK)
-#ifdef DPTOPT
-#define	SWI_DPT_MASK	(SWI_DPT_PENDING | SWI_CLOCK_MASK)
-#endif /* DPTOPT */
 #define	SWI_NET_MASK	(SWI_NET_PENDING | SWI_CLOCK_MASK)
+#define	SWI_CAMNET_MASK	(SWI_CAMNET_PENDING | SWI_CLOCK_MASK)
+#define	SWI_CAMBIO_MASK	(SWI_CAMBIO_PENDING | SWI_CLOCK_MASK)
+#define	SWI_VM_MASK	(SWI_VM_PENDING | SWI_CLOCK_MASK)
 #define	SWI_CLOCK_MASK	(SWI_CLOCK_PENDING | SWI_AST_MASK)
 #define	SWI_AST_MASK	SWI_AST_PENDING
 #define	SWI_MASK	(~HWI_MASK)
@@ -93,9 +91,7 @@
  * volatile.
  */
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
-#ifdef DPTOPT
-extern	unsigned dpt_imask;	/* group of interrupts masked with spldpt() */
-#endif /* DPTOPT */
+extern	unsigned cam_imask;	/* group of interrupts masked with splcam() */
 extern	unsigned cpl;		/* current priority level mask */
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
@@ -111,16 +107,16 @@ extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 #define	setsoftast()	setbits(&ipending, SWI_AST_PENDING)
 #define	setsoftclock()	setbits(&ipending, SWI_CLOCK_PENDING)
 #define	setsoftnet()	setbits(&ipending, SWI_NET_PENDING)
-#ifdef DPTOPT
-#define	setsoftdpt()	setbits(&ipending, SWI_DPT_PENDING)
-#endif /* DPTOPT */
 #define	setsofttty()	setbits(&ipending, SWI_TTY_PENDING)
+#define	setsoftcamnet()	setbits(&ipending, SWI_CAMNET_PENDING)
+#define	setsoftcambio()	setbits(&ipending, SWI_CAMBIO_PENDING)
+#define	setsoftvm()	setbits(&ipending, SWI_VM_PENDING)
 
-#define	schedsofttty()	setbits(&idelayed, SWI_TTY_PENDING)
-#define	schedsoftnet()	setbits(&idelayed, SWI_NET_PENDING)
-#ifdef DPTOPT
-#define	schedsofdpt() 	setbits(&idelayed, SWI_DPT_PENDING)
-#endif /* DPTOPT */
+#define	schedsofttty()		setbits(&idelayed, SWI_TTY_PENDING)
+#define	schedsoftnet()		setbits(&idelayed, SWI_NET_PENDING)
+#define	schedsoftcamnet()	setbits(&idelayed, SWI_CAMNET_PENDING)
+#define	schedsoftcambio()	setbits(&idelayed, SWI_CAMBIO_PENDING)
+#define	schedsoftvm()		setbits(&idelayed, SWI_VM_PENDING)
 
 #define	softclockpending()	(ipending & SWI_CLOCK_PENDING)
 
@@ -144,14 +140,16 @@ GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
 GENSPL(splimp, cpl |= net_imask)
 GENSPL(splnet, cpl |= SWI_NET_MASK)
-#ifdef DPTOPT
-GENSPL(spldpt, cpl |= SWI_DPT_MASK | bio_imask)
-#endif /* DPTOPT */
+GENSPL(splcam, cpl |= cam_imask)
+GENSPL(splsoftcam, cpl |= SWI_CAMBIO_MASK | SWI_CAMNET_MASK)
+GENSPL(splsoftcambio, cpl |= SWI_CAMBIO_MASK) 
+GENSPL(splsoftcamnet, cpl |= SWI_CAMNET_MASK)
 GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
 GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
 GENSPL(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
 
 static __inline void
 spl0(void)
