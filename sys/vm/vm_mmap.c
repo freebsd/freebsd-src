@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.53.2.2 1997/03/25 04:54:29 dyson Exp $
+ * $Id: vm_mmap.c,v 1.53.2.3 1998/03/12 19:36:50 guido Exp $
  */
 
 /*
@@ -57,6 +57,7 @@
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/conf.h>
+#include <sys/stat.h>
 #include <sys/vmmeter.h>
 
 #include <miscfs/specfs/specdev.h>
@@ -275,12 +276,26 @@ mmap(p, uap, retval)
 			 * we're at securelevel < 1, to allow the XIG X server
 			 * to continue to work.
 			 */
-			if (((flags & MAP_SHARED) != 0 ||
-				(vp->v_type == VCHR && disablexworkaround)) &&
-				(fp->f_flag & FWRITE) == 0 && (prot & PROT_WRITE) != 0)
-				return (EACCES);
-			else
+
+			if ((flags & MAP_SHARED) != 0 ||
+			    (vp->v_type == VCHR && disablexworkaround)) {
+				if ((fp->f_flag & FWRITE) != 0) {
+					struct vattr va;
+
+					if ((error =
+					    VOP_GETATTR(vp, &va,
+						        p->p_ucred, p)))
+						return (error);
+					if ((va.va_flags &
+					    (IMMUTABLE|APPEND)) == 0)
+						maxprot |= VM_PROT_WRITE;
+					else if (prot & PROT_WRITE)
+						return (EPERM);
+				} else if ((prot & PROT_WRITE) != 0)
+					return (EACCES);
+			} else
 				maxprot |= VM_PROT_WRITE;
+
 			handle = (caddr_t) vp;
 		}
 	}
