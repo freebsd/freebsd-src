@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.23 1996/09/19 18:07:20 peter Exp $ */
+/* $Id: main.c,v 1.24 1996/10/06 00:44:24 jmz Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -472,7 +472,6 @@ parse (char *s)
 	    warnx("no filename??");
 	    usage();
 	}
-	ftp = 1;
     }
     else if (strncasecmp (s, "http://", 7) == 0) {
 	/* http://host.name/file/name */
@@ -495,13 +494,17 @@ parse (char *s)
 	return;
     }
     else {
-	/* assume /host.name:/file/name */
+	/* assume host.name:/file/name */
 	p = strchr (s, ':');
 	if (!p) {
-	    warnx ("no filename??");
-	    usage ();
+	    /* assume /file/name */
+	    host = NULL;
+	    ftp = http = 0;
+	    file_to_get = s;
+	    return;
 	}
     }
+    ftp = 1;
     *p++ = 0;
     host = s;
     s = strrchr (p, '/');
