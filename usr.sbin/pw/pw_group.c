@@ -320,7 +320,7 @@ print_group(struct group * grp, int pretty)
 	} else {
 		int             i;
 
-		printf("Group Name: %-10s   #%lu\n"
+		printf("Group Name: %-15s   #%lu\n"
 		       "   Members: ",
 		       grp->gr_name, (long) grp->gr_gid);
 		for (i = 0; grp->gr_mem[i]; i++)
