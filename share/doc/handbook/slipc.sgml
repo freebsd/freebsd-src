@@ -1,4 +1,4 @@
-<!-- $Id: slipc.sgml,v 1.4 1995/10/07 04:31:59 jfieber Exp $ -->
+<!-- $Id: slipc.sgml,v 1.1.1.1.4.3 1995/10/12 03:16:35 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a SLIP client<label id="slipc"></heading>
@@ -11,8 +11,8 @@ address changes each time you dial up), you probably need to do
 something much fancier.
 
 <!--
-This is just "what I did, and it worked for me".  I'm sharing this
-just for your reference, I'm no expert in SLIP nor networking so your
+This is just "what I did, and it worked for me".  I am sharing this
+just for your reference, I am no expert in SLIP nor networking so your
 mileage may vary.
 -->
 
@@ -27,13 +27,13 @@ Make sure you have
 pseudo-device   sl      1
 </verb>
 in your kernel's config file.  It is included in the GENERIC kernel,
-so this won't be a problem unless you deleted it.
+so this will not be a problem unless you deleted it.
 
 <sect1><heading>Things you have to do only once</heading>
 
 <p><enum>
 <item>Add your home machine, the gateway and nameservers to your
-    /etc/hosts file.  Mine looks like this:
+    <tt>/etc/hosts</tt> file.  Mine looks like this:
 <verb>
 127.0.0.1               localhost loghost
 136.152.64.181          silvia.HIP.Berkeley.EDU silvia.HIP silvia
@@ -43,12 +43,12 @@ so this won't be a problem unless you deleted it.
 128.32.136.12           ns2.Berkeley.edu ns2
 </verb>
     By the way, silvia is the name of the car that I had when I was
-    back in Japan (it's called 2?0SX here in U.S.).
+    back in Japan (it is called 2?0SX here in U.S.).
 
-<item>Make sure you have "hosts" before "bind" in your /etc/host.conf.
+<item>Make sure you have "hosts" before "bind" in your <tt>/etc/host.conf</tt>.
     Otherwise, funny things may happen.
 
-<item>Edit the file /etc/sysconfig.
+<item>Edit the file <tt>/etc/sysconfig</tt>.
 <enum>
 <item>Set your hostname by editing the line that says:
 <verb>
@@ -81,7 +81,7 @@ defaultrouter=slip-gateway
 </verb>
 </enum>
 
-<item>Make a file /etc/resolv.conf which contains:
+<item>Make a file <tt>/etc/resolv.conf</tt> which contains:
 <verb>
 domain HIP.Berkeley.EDU
 nameserver 128.32.136.9
@@ -91,8 +91,8 @@ nameserver 128.32.136.12
     actual domain names and addresses depend on your environment.
 
 <item>Set the password for root and toor (and any other accounts that
-    doesn't have a password).  Use passwd, don't edit the passwd or
-    passwd.master files!
+    does not have a password).  Use passwd, do not edit the <tt>/etc/passwd</tt>
+    or <tt>/etc/master.passwd</tt> files!
 
 <item>Reboot your machine and make sure it comes up with the correct
     hostname.
@@ -123,8 +123,8 @@ output ***\x0d, echo \x0aCONNECTED\x0a
     yours).  Then you can just type "slip" from the kermit prompt to
     get connected.
 
-    Note: leaving your password in plain text anywhere in the
-    filesystem is generally a BAD idea.  Do it at your own risk.  I'm
+    <bf>Note</bf>: leaving your password in plain text anywhere in the
+    filesystem is generally a BAD idea.  Do it at your own risk.  I am
     just too lazy.
 
 <item>Leave the kermit there (you can suspend it by "z") and as root,
@@ -133,7 +133,7 @@ output ***\x0d, echo \x0aCONNECTED\x0a
 slattach -h -c -s 115200 /dev/modem
 </verb>
     if you are able to "ping" hosts on the other side of the router,
-    you are connected! If it doesn't work, you might want to try "-a"
+    you are connected! If it does not work, you might want to try "-a"
     instead of "-c" as an argument to slattach.
 </enum>
 
@@ -144,7 +144,7 @@ slattach -h -c -s 115200 /dev/modem
     and exit from it ("q").
 
     The slattach man page says you have to use "ifconfig sl0 down" to
-    mark the interface down, but this doesn't seem to make any
+    mark the interface down, but this does not seem to make any
     difference for me.  ("ifconfig sl0" reports the same thing.)
 
     Some times, your modem might refuse to drop the carrier (mine
@@ -153,7 +153,7 @@ slattach -h -c -s 115200 /dev/modem
 
 <sect1><heading>Troubleshooting</heading>
 
-<p>If it doesn't work, feel free to ask me.  The things that people
+<p>If it does not work, feel free to ask me.  The things that people
 tripped over so far:
 <itemize>
 <item>Not using "-c" or "-a" in slattach (I have no idea why this can be
@@ -170,8 +170,8 @@ sl0: flags=10<POINTOPOINT>
         inet 136.152.64.181 --> 136.152.64.1 netmask ffffff00
 </verb>
 
-<item>Also, "netstat -r" will give the routing table, in case you get the
-"no route to host" messages from ping.  Mine looks like:
+<item>Also, <tt>netstat -r</tt> will give the routing table, in case you get
+the "no route to host" messages from ping.  Mine looks like:
 <verb>
 silvia# netstat -r
 Routing tables

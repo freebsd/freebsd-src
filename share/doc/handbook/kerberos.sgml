@@ -1,9 +1,9 @@
-<!-- $Id: kerberos.sgml,v 1.5 1995/09/27 00:46:21 jmz Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.2.4.2 1995/10/12 03:16:05 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
 
-<p><em>Contributed by &a.mark; (based on contribution by &a.md;).</em>
+<p><em>Contributed by &a.markm; (based on contribution by &a.md;).</em>
 
     Kerberos is a network add-on system/protocol that allows users to
     authenticate themselves through the services of a secure server.
@@ -30,7 +30,7 @@
  <heading>Creating the initial database</heading>
 
  <p>This is done on the Kerberos server only. First make sure that your
-    don't have any old Kerberos databases around. You should change to the
+    do not have any old Kerberos databases around. You should change to the
     directory <tt>/etc/kerberosIV</tt> and check that only the following
     files are present:
 
@@ -98,7 +98,7 @@ ARC.NASA.GOV trident.arc.nasa.gov
     realm. The rest of the lines show how to default systems of a
     particular subdomain to a named realm.
 
-    Now we're ready to create the database. This only needs to run on
+    Now we are ready to create the database. This only needs to run on
     the Kerberos server (or Key Distribution Centre). Issue the
     <tt>kdb_init</tt> command to do this:
 

@@ -1,4 +1,4 @@
-<!-- $Id: esdi.sgml,v 1.2 1995/10/07 04:31:20 jfieber Exp $ -->
+<!-- $Id: esdi.sgml,v 1.2.2.1 1996/01/31 14:32:18 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -21,7 +21,7 @@
       </abstract>
 -->
 
-    <sect><heading>ESDI hard disks and FreeBSD<label id="esdi"></heading>
+    <sect1><heading>Using ESDI hard disks<label id="esdi"></heading>
 
       <p><em>Copyright &copy; 1995, &a.wilko;.<newline>24 September 1995.</em>
 
@@ -40,15 +40,15 @@
 
 	Capacities of the drives are boosted by putting more sectors
 	on each track. Typical is 35 sectors per track, high capacity
-	drives I've seen were up to 54 sectors/track.
+	drives I have seen were up to 54 sectors/track.
 
 	Although ESDI has been largely obsoleted by IDE and SCSI interfaces,
 	the availability of free or cheap surplus drives makes them 
 	ideal for low (or now) budget systems.
 
-    <sect1><heading>Concepts of ESDI</heading>
+    <sect2><heading>Concepts of ESDI</heading>
       <p>
-      <sect2><heading>Physical connections</heading>
+      <sect3><heading>Physical connections</heading>
         <p>
 	The ESDI interface uses two cables connected to each drive. 
 	One cable is a 34 pin flat cable edge connector that carries
@@ -59,7 +59,7 @@
 
 	The second cable is a a 20 pin flat cable edge connector that
 	carries the data to and from the drive. This cable is radially
-	connected, so each drive has it's own direct connection to the
+	connected, so each drive has its own direct connection to the
 	controller.
 
 	To the best of my knowledge PC ESDI controllers are limited
@@ -67,7 +67,7 @@
 	compatibility feature(?) left over from the WD1003 standard
 	that reserves only a single bit for device addressing.
 
-      <sect2><heading>Device addressing</heading>
+      <sect3><heading>Device addressing</heading>
         <p>
 	On each command cable a maximum of 7 devices and 1 controller
 	can be present. To enable the controller to uniquely 
@@ -76,11 +76,11 @@
 
 	On PC type controllers the first drive is set to address 0, 
 	the second disk to address 1. <it>Always make sure</it> you
-	set each disk to an unique address! So, on a PC with it's
+	set each disk to an unique address! So, on a PC with its
 	two drives/controller maximum the first drive is drive 0, the
 	second is drive 1.
 
-      <sect2><heading>Termination</heading>
+      <sect3><heading>Termination</heading>
 	<p>
 	The daisy chained command cable (the 34 pin cable remember?)
 	needs to be terminated at the last drive on the chain.
@@ -90,12 +90,12 @@
 
 	So, one and <it>only</it> one drive, the one at 
 	the farthest end of the command
-	cable has it's terminator installed/enabled. The controller
+	cable has its terminator installed/enabled. The controller
 	automatically terminates the other end of the cable. 
 	Please note that this implies that the controller must be 
 	at one end of the cable and <it>not</it> in the middle.
 
-    <sect1><heading>Using ESDI disks with FreeBSD</heading>
+    <sect2><heading>Using ESDI disks with FreeBSD</heading>
       <p>
         Why is ESDI such a pain to get working in the first place?
       
@@ -109,7 +109,7 @@
 	The following sections try to list all the pitfalls and 
 	solutions.
 
-      <sect2><heading>ESDI speed variants</heading>
+      <sect3><heading>ESDI speed variants</heading>
 	<p>
 	As briefly mentioned before, ESDI comes in two speed flavors.
 	The older drives and controllers use a 10 Mbits/second
@@ -120,7 +120,7 @@
 	As always, consult your controller <it>and</it> drive 
 	documentation to see if things match.
 
-      <sect2><heading>Stay on track</heading>
+      <sect3><heading>Stay on track</heading>
 	<p>
 	Mainstream ESDI drives use 34 to 36 sectors per track. 
 	Most (older) controllers cannot handle more than this 
@@ -139,7 +139,7 @@
 	or might not work. Give it a try or get another more
 	capable controller.
 
-      <sect2><heading>Hard or soft sectoring</heading>
+      <sect3><heading>Hard or soft sectoring</heading>
 	<p>
 	Most ESDI drives allow hard or soft sectoring to be 
 	selected using a jumper. Hard sectoring means that the
@@ -167,7 +167,7 @@
 	FreeBSD because you need to re-run the low-level format
 	after each change.
 
-      <sect2><heading>Low level formatting</heading>
+      <sect3><heading>Low level formatting</heading>
 	<p>
 	ESDI drives need to be low level formatted before they
 	are usable. A reformat is needed whenever you figgle
@@ -191,7 +191,7 @@
 	and more importantly causes you grief with bad144
 	(see the section on bad144).
 	
-      <sect2><heading>Translations</heading>
+      <sect3><heading>Translations</heading>
 	<p>
 	Translations, although not exclusively a ESDI-only problem, 
 	might give you real trouble.
@@ -219,8 +219,8 @@
 	The result is that the number of cylinders is reduced to
 	something below 1024 and is therefore usable by the system
 	without problems.
-	It is noteworthy to know that FreeBSD after it's kernel has
-	started no longer uses the BIOS. More on this later.
+	It is noteworthy to know that FreeBSD does not use the
+	BIOS after its kernel has started.  More on this later.
 
 	A second reason for translations is the fact that most
 	older system BIOSes could only handle drives with 17 sectors
@@ -232,7 +232,7 @@
 	keep in mind that if you have multiple operating systems on the
 	same disk, all must use the same translation</em>
 
-	While on the subject of translations, I've seen one controller
+	While on the subject of translations, I have seen one controller
 	type (but there are probably more like this) offer the option
 	to logically split a drive in multiple partitions as a BIOS
 	option. I had select 1 drive == 1 partition because this
@@ -240,7 +240,7 @@
 	read the info and presented itself to the system based on
 	the info from the disk.
 
-      <sect2><heading>Spare sectoring</heading>
+      <sect3><heading>Spare sectoring</heading>
         <p>
 	Most ESDI controllers offer the possibility to remap bad sectors.
 	During/after the low-level format of the disk bad sectors are
@@ -265,7 +265,7 @@
 	whatever it may be called by the controller manufacturer when you
 	want to use the disk for FreeBSD.</em>
 	
-      <sect2><heading>Bad block handling</heading>
+      <sect3><heading>Bad block handling</heading>
 	<p>
 	The preceding section leaves us with a problem. The controller's
 	bad block handling is not usable and still FreeBSD's filesystems
@@ -276,8 +276,8 @@
 	these bad blocks, it writes a table with the offending block
 	numbers to the end of the FreeBSD slice. 
 
-	When the disk is in operation, the diskaccesses are checked 
-	against the table read from the disk. Whenever a blocknumber
+	When the disk is in operation, the disk accesses are checked 
+	against the table read from the disk. Whenever a block number
 	is requested that is in the bad144 list, a replacement block
 	(also from the end of the FreeBSD slice) is used.
 	In this way, the bad144 replacement scheme presents 'perfect'
@@ -303,7 +303,7 @@
 	rather the entire <em>slice</em> that contains the root filesystem.
 
 
-      <sect2><heading>Kernel configuration</heading>
+      <sect3><heading>Kernel configuration</heading>
         <p>
 	ESDI disks are handled by the same <it>wd</it>driver as
 	IDE and ST412 MFM disks. The <it>wd</it> driver should work
@@ -332,13 +332,13 @@ disk            wd3     at wdc1 drive 1
 </verb></tscreen>
 
 <!--
-      <sect2><heading>Tuning your ESDI kernel setup</heading>
+      <sect3><heading>Tuning your ESDI kernel setup</heading>
         <p>
 -->
 
-    <sect1><heading>Particulars on ESDI hardware</heading>
+    <sect2><heading>Particulars on ESDI hardware</heading>
       <p>
-	<sect2><heading>Adaptec 2320 controllers</heading>
+	<sect3><heading>Adaptec 2320 controllers</heading>
 	<p>
 	I successfully installed FreeBSD onto a ESDI disk controlled by a
 	ACB-2320. No other operating system was present on the disk.
@@ -352,7 +352,7 @@ disk            wd3     at wdc1 drive 1
 
 	Before using NEFMT.EXE I tried to format the disk using the
 	ACB-2320 BIOS builtin formatter. This proved to be a show stopper,
-	because it didn't give me an option to disable spare sectoring.
+	because it did not give me an option to disable spare sectoring.
 	With spare sectoring enabled the FreeBSD installation
 	process broke down on the bad144 run.
 
@@ -370,7 +370,7 @@ disk            wd3     at wdc1 drive 1
 	All variations should be capable of using 1:1 interleaving. Use 1:1,
 	FreeBSD is fast enough to handle it.
 
-    	<sect2><heading>Western Digital WD1007 controllers</heading>
+    	<sect3><heading>Western Digital WD1007 controllers</heading>
 	<p>
 	I successfully installed FreeBSD onto a ESDI disk controlled by a
         WD1007 controller. To be precise, it was a WD1007-WA2. Other
@@ -382,7 +382,7 @@ disk            wd3     at wdc1 drive 1
 	WDFMT.EXE from www.wdc.com Running this formatted my drive
 	just fine. 
 	
-	<sect2><heading>Ultrastor U14F controllers</heading>
+	<sect3><heading>Ultrastor U14F controllers</heading>
 	<p>
 	According to multiple reports from the net, Ultrastor ESDI 
 	boards work OK with FreeBSD. I lack any further info on
@@ -390,11 +390,11 @@ disk            wd3     at wdc1 drive 1
 	
 <!--
 
-    <sect1><heading>Tracking down problems</heading>
+    <sect2><heading>Tracking down problems</heading>
       <p>
 -->
 
-    <sect1><heading>Further reading<label id="esdi:further-reading"></>
+    <sect2><heading>Further reading<label id="esdi:further-reading"></>
       <p>
         If you intend to do some serious ESDI hacking, you might want to
         have the official standard at hand:
@@ -414,7 +414,7 @@ disk            wd3     at wdc1 drive 1
 	For info on Western Digital controllers see <htmlurl
         url="http://www.wdc.com/">.
 
-    <sect1>Thanks to...
+    <sect2>Thanks to...
 	<p>
 	Andrew Gordon for sending me an Adaptec 2320 controller and ESDI disk 
 	for testing.

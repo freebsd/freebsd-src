@@ -1,4 +1,4 @@
-<!-- $Id: dma.sgml,v 1.1.2.2 1995/11/01 16:40:14 jfieber Exp $ -->
+<!-- $Id: dma.sgml,v 1.1.2.3 1996/01/31 14:32:16 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -156,7 +156,7 @@
 	If a peripheral wants to generate an interrupt when the
 	transfer of a buffer is complete, it can test for its
 	-DACK signal and the EOP signal both being asserted at
-	the same time.  When that happens, it means the DMA won't
+	the same time.  When that happens, it means the DMA will not
 	transfer any more information for that peripheral without
 	intervention by the CPU.  The peripheral can then assert
 	one of the interrupt signals to get the processors'
@@ -223,7 +223,7 @@
 	PC-compatible DMA cannot access locations above 16Meg.
 
 	To get around this restriction, operating systems will
-	reserve a buffer in an area below 16Meg that also doesn't
+	reserve a buffer in an area below 16Meg that also does not
 	span a physical 64K boundary.  Then the DMA will be
 	programmed to read data to that buffer.  Once the DMA has
 	moved the data into this buffer, the operating system

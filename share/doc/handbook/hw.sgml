@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.6.2.1 1995/10/12 03:16:02 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.6.2.2 1996/01/31 14:32:20 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -25,12 +25,190 @@
     experience of hardware that does or does not work with
     FreeBSD, please let us know by sending email to
     <tt>doc@freebsd.org</tt>.  Questions about supported hardware
-    should be directed to <tt>questions@freebsd.org</tt> (see
+    should be directed to the &a.questions (see
     <ref id="eresources:mail" name="Mailing Lists"> for more
     information).  When submitting information or asking a
     question, please remember to specify exactly what version of
     FreeBSD you are using and include as many details of your
     hardware as possible.
+
+
+<sect><heading>FreeBSD on Laptop computers</heading>
+
+<p>Because laptop computers operate under a unique set of constraints,
+   they often behave differently or require more specialized knowledge
+   than their desktop and deskside PC siblings.  This section attempts to
+   list the most useful (and current) laptop specific information on the
+   net.
+
+<itemize>
+  <item>Tatsumi Hosokawa's <htmlurl
+    url="http://www.mt.cs.keio.ac.jp/person/hosokawa/freebsd-pcmcia/"
+    name="PCCARD driver"> page.
+
+    <p><htmlurl url="mailto:hosokawa@mt.cs.keio.ac.jp"
+    name="Tatsumi Hosokawa"> and the BSD Nomads have created a
+    complete subsystem for dealing with PCCARD (PCMCIA) peripherals,
+    from modems to ethernet cards to SCSI adaptors.  Much of this work
+    is now part of FreeBSD <htmlurl url="current.html" name="2.2-current">,
+    though more up-to-date experimental code snapshots may be found on
+    this page.
+  </item>
+
+  <item>Here is <htmlurl url="mailto:edwin.kremer@cs.ruu.nl"
+    name="Edwin Kremer's"> report on using FreeBSD with his 
+  <htmlurl url="http://www.cs.ruu.nl/people/edwin/FreeBSD/"
+    name="Toshiba Satellite Pro 410CDT Notebook">.
+
+  <item>FreeBSD on the <htmlurl url="http://www.kfu.com/~nsayer/zenith/"
+    name="Zenith Z-NoteFlex Laptop">
+
+    <p>Nick tells us about life with what he deems to be the ideal laptop
+    for FreeBSD.
+  </item>
+</itemize>
+</sect>
+
+<sect><heading>Sample Configurations<label id="hw:configs"></heading>
+<p>The following list of sample hardware configurations by no means
+constitutes an endorsement of a given hardware vendor or product by
+<em>The FreeBSD Project</em>.  This information is provided only as a public
+service and merely catalogs some of the experiences that various individuals
+have had with different hardware combinations.  Your mileage may vary.
+Slippery when wet.  Beware of dog.
+
+ <sect1><heading>Jordan's Picks</heading>
+    <p>I have had fairly good luck building workstation and server
+    configurations with the following components.  I cannot guarantee that
+    you will too, nor that any of the companies here will remain "best buys"
+    forever.  I will try, when I can, to keep this list up-to-date but
+    cannot obviously guarantee that it will be at any given time.
+
+  <sect2><heading>Motherboards</heading>
+    <p>The <htmlurl url="http://asustek.asus.com.tw/" name="ASUS">
+    <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
+     name="P55TP4XE">
+    motherboard appears to be a good choice for mid-to-high range Pentium
+    server and workstation systems.  If you are really looking for performance,
+    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it is worth
+    the extra cost.  If you are looking for a 486 class motherboard, you might
+    also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering.
+
+    NOTE:  The Intel <htmlurl url="http://asustek.asus.com.tw/Products/TB/triton-intro.html" name="Triton"> chipset based motherboards do not offer memory
+    parity logic, making it almost impossible to detect when a memory error
+    has occurred.  Those wishing to build highly fault-tolerant systems may
+    therefore want to wait for Intel's newest generation of motherboards
+    based on the Orion chipset or investigate ASUS's SiS chipset based
+    motherboard, the <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55sp4.txt" name="P55SP4">.  I have no personal experience with this
+    motherboard and have heard mixed reports - some say it is a fine MB, others
+    say that it is measurably slower than the Triton.  The only undisputed
+    advantage it offers is being available <em>now</em>. 
+
+  <sect2><heading>Disk Controllers</heading>
+    <p>This one is a bit trickier, and while I used to recommend the
+    <htmlurl url="http://www.buslogic.com" name="Buslogic"> controllers
+    unilaterally for everything from ISA to PCI, now I tend to lean
+    towards the <htmlurl url="http://www.adaptec.com" name="Adaptec">
+    1542CF for ISA, Buslogic Bt747c for EISA and Adaptec 2940 for PCI.
+
+  <sect2><heading>Disk drives</heading>
+    <p>In this particular game of Russian roulette, I will make few specific
+    recommendations except to say "SCSI over IDE whenever you can afford it."
+    Even in small desktop configurations, SCSI often makes more sense since it
+    allows you to easily migrate drives from server to desktop as falling drive
+    prices make it economical to do so.  If you have more than one machine
+    to administer then think of it not simply as storage, think of it as a
+    food chain!
+
+    <p>I do not currently see SCSI WIDE drives as a necessary expense unless
+    you are putting together an NFS or NEWS server that will be doing a lot
+    of multiuser disk I/O.  
+
+  <sect2><heading>CDROM drives</heading>
+    <p>My SCSI preferences extend to SCSI CDROM drives as well, and the
+    <htmlurl url="http://www.toshiba.com" name="Toshiba"> XM-3501B (now
+    released in a caddy-less model called the XM-5401B) drive has always
+    performed well for me.  Generally speaking, most SCSI CDROM drives I have 
+    seen have been of pretty solid construction (probably because they do not
+    occupy the lower end of the market, due to their higher price) and you
+    probably will not go wrong with an HP or NEC SCSI CDROM drive either.
+
+  <sect2><heading>Tape drives</heading>
+   <p>I've had pretty good luck with both
+   <htmlurl url="http://www.Exabyte.COM:80/Products/8mm/8505XL/Rfeatures.html"
+   name="8mm drives"> from <htmlurl url="http://www.exabyte.com"
+   name="Exabyte"> and 
+   <htmlurl url="http://www-dmo.external.hp.com:80/tape/_cpb0001.htm" 
+   name="4mm (DAT)"> drives from <htmlurl url="http://www.hp.com" name="HP">.
+   
+   <p>For backup purposes, I would have to give the higher recommendation to the
+   Exabyte due to the more robust nature (and higher storage capacity) of
+   8mm tape.
+
+  <sect2><heading>Video Cards</heading>
+    <p>If you can also afford to buy a commercial X server for US&dollar;99 from
+    <htmlurl url="http://www.xinside.com/" name="X Inside"> then I
+    can heartily recommend the <htmlurl url="http://www.matrox.com/"
+    name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
+    name="Millenium"> card.  If free X servers are more to your
+    liking, you certainly cannot go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards - their S3 Vision 868 and 968 based cards 
+    (the 9FX series) are pretty fast cards as well, and are supported by
+    <htmlurl url="http://www.xfree86.org" name="XFree86">'s S3 server.
+
+  <sect2><heading>Monitors</heading>
+    <p>I have had very good luck with the <htmlurl url="http://cons3.sel.sony.com/SEL/ccpg/display/ms17se2.html"
+    name="Sony Multiscan 17SE monitors">, as have I with 
+    the Viewsonic offering in the same (trinitron) tube.  For larger than
+    17", all I can recommend at the time of this writing is to not spend
+    any less than U.S. &dollar;2,500 for a 21" monitor if that is what you really
+    need.  There are good monitors available in the >=20" range and there
+    are also cheap monitors in the >=20" range.  Unfortunately, none are
+    both cheap and good!
+
+  <sect2><heading>Networking</heading>
+    <p>I can recommend the <htmlurl url="http://www.smc.com/" name="SMC">
+    Ultra 16 controller for any ISA application and the SMC EtherPower
+    or Compex ENET32 cards for any serious PCI based networking.  Both of
+    the PCI cards are based around DEC's DC21041 Ethernet controller
+    chip and other cards using it, such as the Zynx ZX342 or DEC DE435,
+    will generally work as well.
+
+   <sect2><heading>Serial</heading>
+    <p>If you are looking for high-speed serial networking solutions, then
+    <htmlurl url="http://www.dgii.com/" name="Digi International">
+    makes the <htmlurl url="http://www.dgii.com/prodprofiles/profiles-prices/digiprofiles/digispecs/sync570.html" name="SYNC/570"> series, with drivers now in
+    FreeBSD-current. <htmlurl url="http://www.etinc.com"
+    name="Emerging Technologies"> also manufactures a board with T1/E1
+    capabilities, using software they provide.
+
+    <p>Multiport card options are somewhat more numerous, though it has to be
+    said that FreeBSD's support for <htmlurl url="http://www.cyclades.com/"
+    name="Cyclades">'s products is probably the tightest, primarily as a result
+    of that company's committment to making sure that we are adequately supplied
+    with evaluation boards and technical specs.  I have heard that the Cyclom-16Ye
+    offers the best price/performance, though I have not checked the prices lately.
+    Other multiport cards I have heard good things about are the BOCA and AST
+    cards, and <htmlurl url="http://www.stallion.com/" name="Stallion
+    Technologies"> apparently offers an unofficial driver for their 
+    cards at <htmlurl url="ftp://ftp.stallion.com/drivers/unsupported/freebsd/stalbsd-0.0.4.tar.gz" name="this"> location.
+
+   <sect2><heading>Audio</heading>
+    <p>I currently use the <htmlurl url="http://www.gravis.com/" name="Gravis">
+    Ultrasound MAX due to its high sound quality and full-duplex audio
+    capabilities (dual DMA channels).  Support for Windows NT and OS/2 is
+    fairly anemic, however, so I am not sure that I can recommend it as an
+    all-around card for a machine that will be running both FreeBSD and NT
+    or OS/2.  In such a scenario, I might recommend the <htmlurl url="http://www.creaf.com/" name="Creative Labs"> AWE32 instead.
+
+   <sect2><heading>Video</heading>
+   <p>For video capture, there is really only once choice - the
+   <htmlurl url="http://www.matrox.com/" name="Matrox">
+   <htmlurl url="http://www.matrox.com/imgweb/meteor.htm" name="Meteor">
+   card.  FreeBSD also supports the older video spigot card from
+   Creative Labs, but those are getting somewhat difficult to find
+   and the Meteor is a more current generation frame-grabber with
+   a higher-speed PCI interface.  I use one for broadcasting video
+   on the MBONE and it works quite well!
 
 <sect><heading>Core/Processing<label id="hw:core"></heading>
 
@@ -42,9 +220,10 @@
 
 	  <p><em>Contributed by &a.rgrimes;.<newline>25 April 1995.</em></p>
 
-	  <p>Of the Intel PCI chip sets the following is a list
-	    of brokenness from worst to best and a short
-	    description of brokenness.</p>
+	  <p>Of the Intel PCI chip sets, the following list describes
+	    various types of known-brokenness and the degree of
+            breakage, listed from worst to best.
+	    </p>
 
 	  <p><descrip>
 
@@ -83,8 +262,8 @@
 		parity checking.  Workaround for parity issue.
 		Wait for Triton-II.
 
-	      <tag>Triton-II:</tag> Unknown, not yet shipping.
-
+	      <tag>Triton-II:</tag> No known problems.  This chipset
+		appears to be a winner for everyone so far.
 	    </descrip>
 	  </p>
 
@@ -98,200 +277,9 @@
 <sect1><heading>* Sound cards</heading>
 <sect1><heading>Serial ports and multiport cards</heading>
 
-	<p>The <tt>sio</tt> driver provides support for NS8250-,
-	  NS16450-, NS16550 and NS16550A-based EIA RS-232C (CCITT
-	  V.24) communications interfaces.  Several multiport
-	  cards are supported as well.  See the <tt>sio(4)</tt>
-	  manual page for detailed technical documentation.
-
-<sect2><heading>Digiboard PC/8</heading>
-
-	  <p><em>Contributed by &a.awebster;.<newline>26 August
-	      1995.</em>
-
-	    Here is a config snippet from a machine with
-	    digiboard PC/8 with 16550.  It has 8 modems connected
-	    to these 8 lines, and they work just great.  Do not
-	    forget to add <tt>options "COM_MULTIPORT"</tt> or it
-	    will not work very well!
-
-<tscreen><verb>
-device          sio4    at isa? port 0x100 tty flags 0xb05
-device          sio5    at isa? port 0x108 tty flags 0xb05
-device          sio6    at isa? port 0x110 tty flags 0xb05
-device          sio7    at isa? port 0x118 tty flags 0xb05
-device          sio8    at isa? port 0x120 tty flags 0xb05
-device          sio9    at isa? port 0x128 tty flags 0xb05
-device          sio10   at isa? port 0x130 tty flags 0xb05
-device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
-</verb></tscreen>
-
-	  The trick in setting this up is that the MSB of the
-	  flags represent the last SIO port, in this case 11 so
-	  flags are 0xb05.
-
-<sect2><heading>Boca 16</heading>
-
-	  <p><em>Contributed by &a.whiteside;.<newline>26 August
-	      1995.</em>
-
-	    The procedures to make a Boca 16 pord board with
-	    FreeBSD are pretty straightforward, but you will need
-	    a couple things to make it work:
-
-	    <enum>
-	      <item>You either need the kernel sources installed
-		so you can recompile the necessary options or
-		you will need someone else to compile it for you.
-		The 2.0.5 default kernel does <bf>not</bf> come with
-		multiport support enabled and you will need to add
-		a device entry for each port anyways.
-	      </item>
-	      <item>Two, you will need to know the interrupt and IO
-		setting for your Boca Board so you can set these
-		options properly in the kernel.</item>
-	    </enum>
-
-	    One important note - the actual UART chips for the
-	    Boca 16 are in the connector box, not on the internal
-	    board itself. So if you have it unplugged, probes of
-	    those ports will fail. I have never tested booting with
-	    the box unplugged and plugging it back in, and I
-	    suggest you do not either.
-
-	    If you do not already have a custom kernel
-	    configuration file set up, refer to <ref
-	    id="kernelconfig" name="Kernel Configuration"> for
-	    general procedures.  The following are the specifics
-	    for the Boca 16 board and assume you are using the
-	    kernel name MYKERNEL and editing with vi.
-
-	    <enum>
-		<item>Add the line 
-<tscreen><verb>
-options "COM_MULTIPORT"
-</verb></tscreen>
-to the config file.
-</item>
-
-	      <item>Where the current <tt>device sio
-		<em>xxx</em></tt> lines are, you will need to add
-		16 more devices.  <em>Only the last device
-		includes the interrupt vector for the
-		board</em>. (See the <tt>sio(4)</tt> manual page
-		for detail as to why.) 
-
-		The following example is for a Boca Board with an
-		interrupt of 3, and a base IO address 100h.  The
-		IO address for Each port is +8 hexadecimal from
-		the previous port, thus the 100h, 108h, 110h...
-		addresses.
-
-<tscreen><verb>
-device sio1 at isa? port 0x100 tty flags 0x1005
-device sio2 at isa? port 0x108 tty flags 0x1005
-device sio3 at isa? port 0x110 tty flags 0x1005
-device sio4 at isa? port 0x118 tty flags 0x1005
-[...]
-device sio15 at isa? port 0x170 tty flags 0x1005
-device sio16 at isa? port 0x178 tty flags 0x1005 irq 3 vector siointr
-</verb></tscreen>
-
-		The flags entry <em>must</em> be changed from
-		this example unless you are using the exact same
-		sio assignments. Flags are set according to
-		0x<em>MYY</em> where <em>M</em> indicates the
-		minor number of the master port (the last port on
-		a Boca 16) and <em>YY</em> indicates if FIFO is
-		enabled or disabled(enabled), IRQ sharing is
-		used(yes) and if there is an AST/4 compatible IRQ
-		control register(no).
-
-		In this example,
-<tscreen><verb>
-flags 0x1005
-</verb></tscreen>
-
-		indicates that the master port is sio16. If I
-		added another board and assigned sio17 through
-		sio28, the flags for all 16 ports on
-		<em>that</em> board would be 0x1C05, where 1C
-		indicates the minor number of the master port.
-		Do not change the 05 setting.</item>
-
-	      <item>Save and complete the kernel configuration,
-		recompile, install and reboot.
-
-		Presuming you have successfully installed the
-		recompiled kernel and have it set to the correct
-		address and IRQ, your boot message should
-		indicate the successful probe of the Boca ports
-		as follows: (obviously the sio numbers, IO and
-		IRQ could be different)
-
-<tscreen><verb>
-sio1 at 0x100-0x107 flags 0x1005 on isa
-sio1: type 16550A (multiport)
-sio2 at 0x108-0x10f flags 0x1005 on isa
-sio2: type 16550A (multiport)
-sio3 at 0x110-0x117 flags 0x1005 on isa
-sio3: type 16550A (multiport)
-sio4 at 0x118-0x11f flags 0x1005 on isa
-sio4: type 16550A (multiport)
-sio5 at 0x120-0x127 flags 0x1005 on isa
-sio5: type 16550A (multiport)
-sio6 at 0x128-0x12f flags 0x1005 on isa
-sio6: type 16550A (multiport)
-sio7 at 0x130-0x137 flags 0x1005 on isa
-sio7: type 16550A (multiport)
-sio8 at 0x138-0x13f flags 0x1005 on isa
-sio8: type 16550A (multiport)
-sio9 at 0x140-0x147 flags 0x1005 on isa
-sio9: type 16550A (multiport)
-sio10 at 0x148-0x14f flags 0x1005 on isa
-sio10: type 16550A (multiport)
-sio11 at 0x150-0x157 flags 0x1005 on isa
-sio11: type 16550A (multiport)
-sio12 at 0x158-0x15f flags 0x1005 on isa
-sio12: type 16550A (multiport)
-sio13 at 0x160-0x167 flags 0x1005 on isa
-sio13: type 16550A (multiport)
-sio14 at 0x168-0x16f flags 0x1005 on isa
-sio14: type 16550A (multiport)
-sio15 at 0x170-0x177 flags 0x1005 on isa
-sio15: type 16550A (multiport)
-sio16 at 0x178-0x17f irq 3 flags 0x1005 on isa
-sio16: type 16550A (multiport master)
-</verb></tscreen>
-
-		If the messages go by too fast to see, <tt>dmesg
-		  &gt; more</tt> will show you the boot
-		messages.</item>
-
-	      <item>Next, appropriate entries in <tt>/dev</tt> for the devices
-		must be made using the <tt>/dev/MAKEDEV</tt>
-		script.  After becoming root:
-<tscreen>
-# cd /dev<newline>
-# ./MAKEDEV tty1<newline>
-# ./MAKEDEV cua1<newline>
-<em>(everything in between)</em><newline>
-# ./MAKEDEV ttyg<newline>
-# ./MAKEDEV cuag
-</tscreen>
-
-		If you do not want or need callout devices for some
-		reason, you can dispense with making the <tt>cua*</tt>
-		devices.</item>
-
-	      <item>If you want a quick and sloppy way to make
-		sure the devices are working, you can simply plug
-		a modem into each port and (as root) <tt>echo at
-		&gt; ttyd*</tt> for each device you have
-		made. You <em>should</em> see the RX lights flash
-		for each working port.</item>
-	    </enum>
-
+	&uart;
+	&sio;
+	&cy;
 
 <sect1><heading>* Parallel ports</heading>
 <sect1><heading>* Modems</heading>
@@ -300,8 +288,9 @@ sio16: type 16550A (multiport master)
 <sect1><heading>* Mice</heading>
 <sect1><heading>* Other</heading>
 
-<sect><heading>* Storage Devices<label id="hw:storage"></heading>
-
+<sect><heading>Storage Devices<label id="hw:storage"></heading>
+&esdi;
+&scsi;
 <sect1><heading>* Disk/tape controllers</heading>
   <sect2><heading>* SCSI</heading>
   <sect2><heading>* IDE</heading>
@@ -312,8 +301,4 @@ sio16: type 16550A (multiport master)
 <sect1><heading>* Other</heading>
 
 <sect><heading>* Other<label id="hw:other"></heading>
-
 <sect1><heading>* PCMCIA</heading>
-	  
-
-

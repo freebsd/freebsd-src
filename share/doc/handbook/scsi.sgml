@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.1.1.1.4.3 1995/10/30 15:23:57 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1.4.4 1996/01/31 14:32:29 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -13,7 +13,7 @@
       </abstract>
       
 -->
-    <sect><heading>SCSI<label id="scsi"></heading>
+    <sect1><heading>What is SCSI?<label id="scsi"></heading>
 
       <p><em>Copyright &copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
 
@@ -42,8 +42,8 @@
 
         The SCSI bus is a parallel bus, which comes in a number of
         variants.  The oldest and most used is an 8 bit wide bus, with
-        single-ended signals, carried on 50 wires.  (If you don't know what
-        single-ended means, don't worry, that is what this document is all
+        single-ended signals, carried on 50 wires.  (If you do not know what
+        single-ended means, do not worry, that is what this document is all
         about.)  Modern designs also use 16 bit wide buses, with
         differential signals.  This allows transfer speeds of
         20Mbytes/second, on cables lengths of up to 25 meters. SCSI-2
@@ -67,29 +67,29 @@
 	Elaborate caching schemes, automatic bad block replacement etc
 	are all made possible by this 'intelligent device' approach.
 
-        On a SCSI bus, each possible pair of devices can communicate. If
+        On a SCSI bus, each possible pair of devices can communicate. Whether
         their function allows this is another matter, but the standard does
         not restrict it. To avoid signal contention, the 2 devices have to
         arbitrate for the bus before using it.
 
         The philosophy of SCSI is to have a standard that allows
         older-standard devices to work with newer-standard ones.  So, an
-        old SCSI-1 device should normally work on a SCSI-2 bus.  Normally,
-        because it is not absolutely sure that the implementation of an old
-        device follows the (old) standard closely enough to be acceptable
-        on a new bus.  Modern devices are usually more well-behaved,
-        because the standardization has become more strict and is better
-        adhered to by the device manufacturers.  Generally speaking, the
-        chances of getting a working set of devices on a single bus is
-        better when all the devices are SCSI-2 or newer.  This does not
-        imply that you have to dump all your old stuff when you get that
-        shiny 2Gb disk: I own a system on which a pre-SCSI-1 disk, a SCSI-2
-        QIC tape unit, a SCSI-1 helical scan tape unit and 2 SCSI-1 disks
-        work together quite happily.
+        old SCSI-1 device should normally work on a SCSI-2 bus.  I say
+	Normally, because it is not absolutely sure that the implementation
+	of an old device follows the (old) standard closely enough to be
+	acceptable on a new bus.  Modern devices are usually more
+	well-behaved, because the standardization has become more strict
+	and is better adhered to by the device manufacturers. 
+	Generally speaking, the chances of getting a working set of
+	devices on a single bus is better when all the devices are SCSI-2
+	or newer.  This does not imply that you have to dump all your old
+	stuff when you get that shiny 2Gb disk: I own a system on which a
+	pre-SCSI-1 disk, a SCSI-2 QIC tape unit, a SCSI-1 helical scan
+	tape unit and 2 SCSI-1 disks work together quite happily.
 
-    <sect1><heading>Components of SCSI</heading>
+    <sect2><heading>Components of SCSI</heading>
       <p>
-<!--      <sect2><heading>A <it>smart</it> interface</heading>
+<!--      <sect3><heading>A <it>smart</it> interface</heading>
         <p> -->
           As said before, SCSI devices are smart.  The idea is to put the
           knowledge about intimate hardware details onto the SCSI device
@@ -104,7 +104,7 @@
 	  there is no longer a need to change (and qualify!) drivers for 
 	  every odd new device that is introduced.
 
-<!--      <sect2><heading>Do's and don't's on interconnections</heading>
+<!--      <sect3><heading>Do's and don't's on interconnections</heading>
         <p> -->
           For cabling and connectors there is a golden rule: get good
           stuff. With bus speeds going up all the time you will save
@@ -112,9 +112,9 @@
 
           So, gold plated connectors, shielded cabling, sturdy connector
           hoods with strain reliefs etc are the way to go. Second golden
-          rule: don't use cables longer than necessary. I once spent 3 days
+          rule: do no use cables longer than necessary. I once spent 3 days
           hunting down a problem with a flaky machine only to discover that
-          shortening the SCSI bus with 1 meter solved the problem.  And the
+          shortening the SCSI bus by 1 meter solved the problem.  And the
           original bus length was well within the SCSI specification.
 
       <sect2><heading>SCSI bus types</heading>
@@ -196,12 +196,12 @@
             A differential SCSI bus has a maximum length of 25
             meters. Quite a difference from the 3 meters for a single-ended
             fast-SCSI bus. The idea behind differential signals is that
-            each bus signal has it's own return wire. So, each signal is
+            each bus signal has its own return wire. So, each signal is
             carried on a (preferably twisted) pair of wires. The voltage
             difference between these two wires determines whether the
             signal is asserted or de-asserted. To a certain extent the
             voltage difference between ground and the signal wire pair is
-            not relevant (don't try 10 kVolts though..).
+            not relevant (do not try 10 kVolts though..).
             
             It is beyond the scope of this document to explain why this
             differential idea is so much better. Just accept that
@@ -217,7 +217,7 @@
 	    AH1740 as a single ended board, whereas the AH1744 was differential.
 	    The software interface to the host is identical for both.
 
-        <sect2><heading>Terminators</heading>
+        <sect3><heading>Terminators</heading>
           <p>
             Terminators in SCSI terminology are resistor networks that are
             used to get a correct impedance matching.  Impedance matching
@@ -225,26 +225,26 @@
             reflections or ringing.  If you once made a long distance
             telephone call on a bad line you probably know what reflections
             are.  With 20Mbytes/sec traveling over your SCSI bus, you
-            don't want signals echoing back.
+            do not want signals echoing back.
 
             Terminators come in various incarnations, with more or less
             sophisticated designs.  Of course, there are internal and
             external variants.  Almost every SCSI device comes with a
             number of sockets in which a number of resistor networks can
             (must be!) installed.  If you remove terminators from a device,
-            carefully stock 'm. You will need them when you ever decide to
+            carefully store them. You will need them when you ever decide to
             reconfigure your SCSI bus.  There is enough variation in even
             these simple tiny things to make finding the exact replacement
             a frustrating business.  There are also SCSI devices that have
             a single jumper to enable or disable a built-in terminator.
             There are special terminators you can stick onto a flat cable
-            bus.  Others look like external connectors, so a connector hood
+            bus.  Others look like external connectors, or a connector hood
             without a cable.  So, lots of choice as you can see.
 
             There is much debate going on if and when you should switch
             from simple resistor (passive) terminators to active
-            terminators. Active terminators contain more or less elaborate
-            circuits to give more clean bus signals. The general consensus
+            terminators. Active terminators contain slightly more elaborate
+            circuit to give cleaner bus signals. The general consensus
             seems to be that the usefulness of active termination increases
             when you have long buses and/or fast devices. If you ever have
 	    problems with your SCSI buses you might consider trying an
@@ -278,13 +278,13 @@
             for the internal flat cable connectors. This makes
             reconfiguration much easier.
         
-        <sect2><heading>Terminator power</heading>
+        <sect3><heading>Terminator power</heading>
           <p>
             The terminators discussed in the previous chapter need power to
             operate properly.  On the SCSI bus, a line is dedicated to this
             purpose.  So, simple huh?
 
-            Not so. Each device can provide it's own terminator power to
+            Not so. Each device can provide its own terminator power to
             the terminator sockets it has on-device. But if you have
             external terminators, or when the device supplying the
             terminator power to the SCSI bus line is switched off you are
@@ -307,8 +307,8 @@
             certainly will. Clever external terminators sometimes have a 
 	    LED indication that shows whether terminator power is present.
 
-            In newer designs auto-restoring fuses are used who 'reset'
-            themselves after some time.
+            In newer designs auto-restoring fuses that 'reset'
+            themselves after some time are sometimes used.
 
             On modern devices, sometimes integrated terminators are
             used. These things are special purpose integrated circuits that
@@ -318,7 +318,7 @@
             configurable, using some sort of setup tool. Consult you
 	    documentation!
 
-        <sect2><heading>Device addressing</heading>
+        <sect3><heading>Device addressing</heading>
           <p>
             Because the SCSI bus is, ehh, a bus there must be a way to
             distinguish or address the different devices connected to it.
@@ -350,7 +350,7 @@
             tape changer. In this way, the host system can address each of
             the parts of the tape unit as desired.
 
-        <sect2><heading>Bus layout</heading>
+        <sect3><heading>Bus layout</heading>
           <p>
             SCSI buses are linear. So, not shaped like Y-junctions, star
             topologies, cobwebs or whatever else people might want to
@@ -359,22 +359,22 @@
             You might notice that the terminator issue discussed earlier
             becomes rather hairy if your bus is not linear..
 
-            The electrical characteristics, it's noise margins and
+            The electrical characteristics, its noise margins and
             ultimately the reliability of it all are tightly related to
             linear bus rule.
 
             <bf>Stick to the linear bus rule!</bf>
 
-    <sect1><heading>Using SCSI with FreeBSD</heading>
+    <sect2><heading>Using SCSI with FreeBSD</heading>
       <p>
-      <sect2><heading>About translations, BIOSes and magic...</heading>
+      <sect3><heading>About translations, BIOSes and magic...</heading>
         <p>
           As stated before, you should first make sure that you have a
           electrically sound bus.
 
           When you want to use a SCSI disk on your PC as boot disk, you
           must aware of some quirks related to PC BIOSes. The PC BIOS in
-          it's first incarnation used a low level physical interface to the
+          its first incarnation used a low level physical interface to the
           hard disk. So, you had to tell the BIOS (using a setup tool or a
           BIOS built-in setup) how your disk physically looked like. This
           involved stating number of heads, number of cylinders, number of
@@ -384,10 +384,11 @@
           One might be inclined to think that since SCSI disks are smart
           you can forget about this. Alas, the arcane setup issue is still
           present today. The system BIOS needs to know how to access your
-          SCSI disk with the head/cyl/sector method.
+          SCSI disk with the head/cyl/sector method in order to load the
+	  FreeBSD kernel during boot.
 
           The SCSI host adapter or SCSI controller you have put in your
-          AT/EISA/PCI/whatever bus to connect your disk therefore has it's
+          AT/EISA/PCI/whatever bus to connect your disk therefore has its
           own on-board BIOS. During system startup, the SCSI BIOS takes over
           the hard disk interface routines from the system BIOS. To fool the
           system BIOS, the system setup is normally set to No hard disk
@@ -397,13 +398,13 @@
           <bf>translated</bf> drive. This means that a fake drive table is
           constructed that allows the PC to boot the drive.  This
           translation is often (but not always) done using a pseudo drive
-          with 32 heads and 64 sectors per track. By varying the number of
+          with 64 heads and 32 sectors per track. By varying the number of
           cylinders, the SCSI BIOS adapts to the actual drive size. It is
           useful to note that 32 * 64 / 2 = the size of your drive in
           megabytes. The division by 2 is to get from disk blocks that are
           normally 512 bytes in size to Kbytes.
 
-          Right.. All is well now?! No, it isn't. The system BIOS has
+          Right.. All is well now?! No, it is not. The system BIOS has
           another quirk you might run into. The number of cylinders of a
           bootable hard disk cannot be greater than 1024. Using the
           translation above, this is a show-stopper for disks greater than
@@ -417,25 +418,32 @@
           jumper or software setup selection, to switch the translation the
           SCSI BIOS uses.
 
-          It is very important that <bf>all</bf> operating systems on the disk use
-          the <bf>same translation</bf> to get the right idea about where to find
-          the relevant partitions. So, when installing FreeBSD you must
-          answer any questions about heads/cylinders etc using the
-          translated values your host adapter uses.
+          It is very important that <bf>all</bf> operating systems on the
+	  disk use the <bf>same translation</bf> to get the right idea about
+	  where to find the relevant partitions. So, when installing
+	  FreeBSD you must answer any questions about heads/cylinders
+	  etc using the translated values your host adapter uses.
 
-	  Failing to observe the translation issue might be un-bootable systems or
-	  operating systems overwriting each others partitions. Using fdisk
-	  you should be able to see all partitions.
+	  Failing to observe the translation issue might lead to
+	  un-bootable systems or operating systems overwriting each
+	  others partitions. Using fdisk you should be able to see
+	  all partitions.
 
-          As promised earlier: what is this talk about 'lying' devices? As
-          you might already know, the FreeBSD kernel reports the geometry
+          You might have heard some talk of 'lying' devices?
+	  Older FreeBSD kernels used to report the geometry
           of SCSI disks when booting. An example from one of my systems:
 
           <verb>
-Feb  9 19:33:46 yedi /386bsd: aha0 targ 0 lun 0: <MICROP  1588-15MB1057404HSP4>
-Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
- 53 sec, bytes/sec 512
+	aha0 targ 0 lun 0: <MICROP  1588-15MB1057404HSP4>
+	sd0: 636MB (1303250 total sec), 1632 cyl, 15 head, 53 sec, bytes/sec 512
           </verb>
+          Newer kernels usually do not report this information.. e.g.
+	  <verb>
+	 (bt0:0:0): "SEAGATE ST41651 7574" type 0 fixed SCSI 2
+	 sd0(bt0:0:0): Direct-Access 1350MB (2766300 512 byte sectors)
+	  </verb>
+
+	  Why has this changed?
 
           This info is retrieved from the SCSI disk itself. Newer disks
           often use a technique called zone bit recording. The idea is that
@@ -444,15 +452,19 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
           have more tracks on outer cylinders than on the inner cylinders
           and, last but not least, have more capacity. You can imagine that
           the value reported by the drive when inquiring about the geometry
-          now becomes fake.
+          now becomes suspect at best, and nearly always misleading. When
+	  asked for a geometry , it is nearly always better to supply the
+	  geometry used by the BIOS, or <em>if the BIOS is never going to know
+	  about this disk</em>, (e.g. it is not a booting disk) to supply a
+	  fictitious geometry that is convenient.
 
-      <sect2><heading>SCSI subsystem design</heading>
+      <sect3><heading>SCSI subsystem design</heading>
         <p>
           FreeBSD uses a layered SCSI subsystem. For each different
           controller card a device driver is written. This driver
           knows all the intimate details about the hardware it
           controls. The driver has a interface to the upper layers of the
-          SCSI subsystem through which it receives it's commands and
+          SCSI subsystem through which it receives its commands and
           reports back any status.
 
           On top of the card drivers there are a number of more generic
@@ -466,7 +478,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
           banging and more high level stuff. Adding support for another
           piece of hardware is a much more manageable problem.
         
-      <sect2><heading>Kernel configuration</heading>
+      <sect3><heading>Kernel configuration</heading>
         <p>
           Dependent on your hardware, the kernel configuration file must
           contain one or more lines describing your host adapter(s). 
@@ -533,8 +545,20 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  <em>only</em> attach them when they match the target ID and
 	  LUN specified on the corresponding bus. 
 
-	  So, if you had a SCSI tape at target ID 2 it would not be
-	  configured, but it will attach when it is at target ID 6.
+	  Wired down devices get 'first shot' at the unit numbers
+	  so the first non 'wired down' device, is allocated the unit number 
+	  one greater than the highest 'wired down' unit number 
+	  for that kind of device.
+	  So, if you had a SCSI tape at target ID 2 it would be
+	  configured as st2, as the tape at target ID 6 is wired down
+	  to unit number 1. Note that <em>wired down devices need not
+	  be found</em>
+	  to get their unit number. The unit number for a wired down device
+	  is reserved for that device, even if it is turned off at boot
+	  time. This allows the device to be turned on and brought
+	  on-line at a later time, without rebooting. Notice that a device's
+	  unit number has <em>no</em> relationship with its target ID on 
+	  the SCSI bus.
 
 	  Below is another example of a kernel config file as used by
 	  FreeBSD version < 2.0.5. The difference with the first example is
@@ -545,7 +569,7 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  the first SCSI disk it finds to sd0, the second disk to sd1
 	  etc. If you ever removed or added a disk, all other devices
 	  of the same type (disk in this case) would 'move around'.
-	  This implies you have to change /etc/fstab each time.
+	  This implies you have to change <tt>/etc/fstab</tt> each time.
 
 	  Although the old style still works, you 
 	  are <em>strongly</em> recommended to use this new feature.
@@ -555,45 +579,46 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  pre-FreeBSD2.0.5.R system check this out.
 
           <verb>
-controller      ahb0    at isa? bio irq 11 vector ahbintr	&lsqb;driver for Adaptec 174x&rsqb;
-controller      aha0    at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr &lsqb;for Adaptec 154x&rsqb;
-controller      sea0    at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr &lsqb;for Seagate
-ST01/02&rsqb;
+&lsqb;driver for Adaptec 174x&rsqb;
+controller      ahb0    at isa? bio irq 11 vector ahbintr
+&lsqb;for Adaptec 154x&rsqb;
+controller      aha0    at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+&lsqb;for Seagate ST01/02&rsqb;
+controller      sea0    at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 controller      scbus0
 
 device          sd0	&lsqb;support for 4 SCSI harddisks, sd0 up sd3&rsqb;
-device          sd1
-device          sd2
-device          sd3
 
 device          st0	&lsqb;support for 2 SCSI tapes&rsqb;
-device          st1
 
-device          cd0     #Only need one of these, the code dynamically grows &lsqb;for the cdrom&rsqb;
+&lsqb;for the cdrom&rsqb;
+device          cd0     #Only need one of these, the code dynamically grows
           </verb>
 
-          Both examples support 4 SCSI disks. If during boot more
+	
+          Both examples support SCSI disks. If during boot more
           devices of a specific type (e.g. sd disks) are found than are
-          configured in the booting kernel, the system will complain.  You
-          will have to build and boot a new kernel (after adapting the kernel
-          configuration file) before you can use all of the devices. It
-          does not hurt to have 'extra' devices in the kernel, the example
-          above will work fine when you have only 2 SCSI disks.
+          configured in the booting kernel, the system will simply allocate
+	  more devices, incrementing the unit number starting at the last
+	  number 'wired down'. If there are no 'wired down' devices
+	  then counting starts at unit 0.
 
           Use <tt>man 4 scsi</tt> to check for the latest info on the SCSI
           subsystem. For more detailed info on host adapter drivers use eg
           <tt>man 4 aha</tt> for info on the Adaptec 154x driver.
 
-      <sect2><heading>Tuning your SCSI kernel setup</heading>
+      <sect3><heading>Tuning your SCSI kernel setup</heading>
         <p>
           Experience has shown that some devices are slow to respond to INQUIRY 
-	  commands after a SCSI bus reset. An INQUIRY command is sent by the kernel
-	  on boot to see what kind of device (disk, tape, cdrom etc) is connected
-	  to a specific target ID. This process is called device probing by the way.
+	  commands after a SCSI bus reset (which happens at Boot time).
+	  An INQUIRY command is sent by the kernel on boot to see what
+	  kind of device (disk, tape, cdrom etc) is connected to a
+	  specific target ID. This process is called device probing by the way.
 
-	  To work around this problem, FreeBSD allows a tunable delay time before
-	  the SCSI devices are probed following a SCSI bus reset. You can set this
-          delay time in your kernel configuration file using a line like:
+	  To work around this problem, FreeBSD allows a tunable delay time
+	  before the SCSI devices are probed following a SCSI bus reset.
+	  You can set this delay time in your kernel configuration file
+	  using a line like:
 
 	  <verb>
 options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
@@ -604,7 +629,7 @@ options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
 	  with device recognition. If this helps, tune it back until it just stays
 	  working.
 
-      <sect2><heading>Rogue SCSI devices</heading>
+      <sect3><heading>Rogue SCSI devices</heading>
         <p>  
 	  Although the SCSI standard tries to be complete and concise, it is
 	  a complex standard and implementing things correctly is no easy task.
@@ -627,7 +652,7 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
 	  all LUNs on a certain target ID, even if they are actually only one
 	  device. It is easy to see that the kernel might be fooled into 
 	  believing that there are 8 LUNs at that particular target ID. The
-	  confusion this causes is left as an exercise to the user.
+	  confusion this causes is left as an exercise to the reader.
 
 	  The SCSI subsystem of FreeBSD recognizes devices with bad habits by
 	  looking at the INQUIRY response they send when probed. Because the
@@ -640,7 +665,7 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
           to connect your bogus Mumbletech SCSI cdrom you might be the one
 	  that has to define which workaround is needed.
 
-      <sect2><heading>Busmaster host adapters</heading>
+      <sect3><heading>Busmaster host adapters</heading>
         <p>
 	  Most, but not all, SCSI host adapters are bus mastering controllers.
 	  This means that they can do I/O on their own without putting load onto
@@ -671,7 +696,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
 	  Check the man pages for the host adapter that you use. Or better
 	  still, use the ultimate documentation (read: driver source).
 
-    <sect1><heading>Tracking down problems</heading>
+    <sect2><heading>Tracking down problems</heading>
       <p>
         The following list is an attempt to give a guideline for the most
         common SCSI problems and their solutions. It is by no means
@@ -688,16 +713,27 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
           <item>
             Check if no double target IDs are used.
           <item>
-            Check if at least one device provides terminator power to the bus.
-          <item>
             Check if all devices to be used are powered up. 
           <item>
             Make a minimal bus config with as little devices as possible.
           <item>
             If possible, configure your host adapter to use slow bus speeds.
+          <item>
+            If you can compile a kernel, make one with the SCSIDEBUG option,
+	    and try accessing the device with debugging turned on for
+	    that device. If your device does not even probe at startup,
+	    you may have to define the address of the device that
+	    is failing, and the desired debug level in
+	    <tt>/sys/scsi/scsidebug.h</tt>.
+	    If it probes but just does not work, you can use the
+	    <tt>scsi(8)</tt> command to dynamically set a debug level to
+	    it in a running kernel (if SCSIDEBUG is defined).
+	    This will give you COPIOUS debugging output with which to confuse
+	    the gurus. see <tt>man 4 scsi</tt> for more exact information.
+	    Also look at <tt>man 8 scsi</tt>.
         </itemize>
 
-    <sect1><heading>Further reading<label id="scsi:further-reading"></heading>
+    <sect2><heading>Further reading<label id="scsi:further-reading"></heading>
       <p>
         If you intend to do some serious SCSI hacking, you might want to
         have the official standard at hand:

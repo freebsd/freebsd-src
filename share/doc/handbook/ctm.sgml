@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.1.1.1.4.3 1995/10/18 04:36:18 jfieber Exp $
+# $Id: ctm.sgml,v 1.1.1.1.4.4 1996/01/31 14:32:13 mpp Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -52,7 +52,7 @@
         current <tt/CTM/ sources directly from:
 
         <url
-          url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/usr.sbin/ctm">
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/usr.sbin/ctm">
 
         The ``deltas'' you feed <tt/CTM/ can be had two ways, FTP or e-mail.
         If you have general FTP access to the Internet then the following
@@ -66,7 +66,7 @@
         If you only have access to electronic mail or are otherwise blocked
         from using FTP then you may wish to get your deltas via email:
 
-        Send email to <tt/&lt;majordomo@freebsd.org&gt;/ to subscribe to
+        Send email to &a.majordomo to subscribe to
         the list ``ctm-src-cur''.  (If you do not know how to subscribe
         yourself using majordomo, send a message first containing the
         word ``help'' - it will send you back usage instructions.)
@@ -79,10 +79,10 @@
         details.
 
         <bf/NOTE/: No matter what method you use to get the <tt/CTM/
-        deltas, you should subscribe to the <tt/ctm-announce@freebsd.org/
+        deltas, you should subscribe to the <tt/ctm-announce@FreeBSD.ORG/
         mailing list.  In the future, this will be the only place where
         announcements concerning the operations of the <tt/CTM/ system will be
-        posted.  Send an email to <tt/majordomo@freebsd.org/ with a single
+        posted.  Send an email to &a.majordomo with a single
         line of ``<tt/subscribe ctm-announce/'' to get added to the list.
 
     <sect1><heading>Starting off with <tt/CTM/ for the first time</heading>
@@ -97,7 +97,7 @@
         Megabytes of <tt/gzip/'ed data is common for a base delta.
 
         If you do have the 2.0-RELEASE <tt/srcdist/, you can instead
-        retrieve the <tt/src-cur.0372R20.gz/ file, it's only 4Mb and it
+        retrieve the <tt/src-cur.0372R20.gz/ file, it is only 4Mb and it
         will take you to current from the 2.0-RELEASE sources.
 
         Once you've picked a base delta to start from, you will also need
@@ -110,11 +110,11 @@
           ctm -v -v /where/you/store/your/deltas/src-cur.*
         </verb>
         <tt/CTM/ understands deltas which have been put through <tt/gzip/,
-        so you don't need to gunzip them first, this saves disk space.
+        so you do not need to gunzip them first, this saves disk space.
 
         Unless it feels very secure about the entire process, <tt/CTM/ will
         not touch your tree.  To verify a delta you can also use the
-        ``<tt/-c/'' flag and <tt/CTM/ won't actually touch your tree; it will
+        ``<tt/-c/'' flag and <tt/CTM/ will not actually touch your tree; it will
 	merely verify the integrity of the delta and see if it would apply
         cleanly to your current tree.
 
@@ -122,13 +122,13 @@
         for more details.
 
         I would also be very happy if somebody could help with the ``user
-        interface'' portions, as I have realized that I can't make up my
+        interface'' portions, as I have realized that I cannot make up my
         mind on what options should do what, how and when...
 
         That's really all there is to it.  Every time you get a new delta,
         just run it through <tt/CTM/ to keep your sources up to date.
 
-        Don't remove the deltas if they are hard to download again.  You
+        Do not remove the deltas if they are hard to download again.  You
         just might want to keep them around in case something bad happens.
         Even if you only have floppy disks, consider using <tt/fdwrite/ to
         make a copy.
@@ -157,7 +157,7 @@
         </itemize>
 
         The bad news is that I am very busy, so any help in doing this will
-        be most welcome.  And don't forget to tell me what you want also...
+        be most welcome.  And do not forget to tell me what you want also...
 
     <sect1><heading>Miscellaneous stuff</heading>
       <p>
@@ -174,7 +174,7 @@
 
         There is a sequence of deltas for the <tt/ports/ collection too,
         but interest has not been all that high yet.  Tell me if you want
-        an email list for that too and we'll consider setting it up.
+        an email list for that too and we will consider setting it up.
 
         If you have commit privileges or are similarly authorized by the
         FreeBSD core team, you can also get access to the CVS repository
@@ -187,7 +187,7 @@
         <descrip>
           <tag/Bruce Evans/
             for his pointed pen and invaluable comments.
-          <tag/Soren Schmidt/
+          <tag/S&oslash;ren Schmidt/
             for patience.
           <tag/Stephen McKay/
             wrote <tt/ctm_&lsqb;rs&rsqb;mail/, much appreciated.

@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.4 1995/09/27 00:46:14 jmz Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.1.1.1.4.2 1995/10/12 03:15:45 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -9,8 +9,8 @@
 	they are notorious for not illustrating how to put the
 	pieces together to make the whole operating system run
 	smoothly.  For this, there is no substitute for a good
-	book on Unix system administration, and a good users'
-	manual.  
+	book on Unix system administration and a good users'
+	manual.
 
       <sect>
 	<heading>Users' guides</heading>
@@ -92,8 +92,8 @@
 		<newline>ISBN 0-201-51459-1</item>
 
 	    <item>Harbison, Samuel P. and Steele, Guy
-		L. Jr. <em>C: A Reference Manual</em>.  3rd ed. Prentice
-		Hall, 1991.  <newline>ISBN 0-13-110933-2</item>
+		L. Jr. <em>C: A Reference Manual</em>.  4rd ed. Prentice
+		Hall, 1995.  <newline>ISBN 0-13-326224-3</item>
 
 	    <item>Jolitz, William.  "Porting UNIX to the
 	      386". <em>Dr. Dobb's Journal</em>.  January

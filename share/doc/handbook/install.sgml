@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.9.2.5 1995/10/30 17:48:19 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.9.2.6 1996/01/31 14:32:21 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -14,12 +14,12 @@
       anonymous ftp or NFS.  
 
       Regardless of the installation media you choose, you can
-      get started by downleading the <bf>installation disk</bf>
+      get started by downloading the <bf>installation disk</bf>
       as described below.  Booting your computer with disk will
       provide important information about compatibility between
       FreeBSD and your hardware which could dictate which
       installation options are possible.  It can also provide
-      early clues to compatibilty problems that could prevent
+      early clues to compatibility problems that could prevent
       FreeBSD running on your system at all.  If you plan on
       installing via anonymous FTP, then this installation disk
       is all you need to download.
@@ -35,13 +35,13 @@
 	  configurations"> section of this installation guide to
 	be sure that your hardware is supported by FreeBSD.  It
 	  may be helpful to make a list of any special cards you
-	  have installed, such as SCSI controllers, etherernet
+	  have installed, such as SCSI controllers, Ethernet
 	  adapters or sound cards.  This list should include
 	  relevant configuration parameters such as interrupts
 	  (IRQ) and IO port addresses. </item>
 
       <item>Download the <url
-	  url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1-RELEASE/floppies/boot.flp"
+	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/floppies/boot.flp"
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
@@ -53,7 +53,7 @@
 	<itemize>
 	  <item>If you are using MS-DOS download 
 	    <url 
-url="ftp://ftp.freebsd.org/pub/FreeBSD/tools/dos-tools/rawrite.exe"
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/dos-tools/rawrite.exe"
 	      name="rawrite.exe">, then run it:
 <tscreen><verb>
 C:\> rawrite
@@ -181,6 +181,7 @@ Boot:
 	    <item>Adaptec 274x/284x/2940/3940
               (Narrow/Wide/Twin)
 	      series EISA/VLB/PCI SCSI controllers
+	    <item>Adaptec AIC7850 on-board SCSI controllers
 	    <item>Adaptec
 	      <!-- AIC-6260 and - actually not working, joerg -->
 	      AIC-6360 based boards,
@@ -200,18 +201,18 @@ Boot:
 	      more details.
 
 	    <item>Buslogic 545S &amp; 545c
-		<bf>Note:</bf> that Buslogic was formerly known as "Bustec".
+		<bf>Note:</bf> that Buslogic was formerly known as "Bustek".
 	    <item>Buslogic 445S/445c VLB SCSI controller
-	    <item>Buslogic 742A, 747S, 747c EISA SCSI controller.
+	    <item>Buslogic 742A/747S/747c EISA SCSI controller.
 	    <item>Buslogic 946c PCI SCSI controller
 	    <item>Buslogic 956c PCI SCSI controller
 
-	    <item>NCR 53C810 and 53C825 PCI SCSI controller.
+            <item>NCR 53C810/53C815/53C825/53C860/53C875 PCI SCSI controller.
 	    <item>NCR5380/NCR53400 (``ProAudio Spectrum'') SCSI controller. 
 
 	    <item>DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-	    <item>UltraStor 14F, 24F and 34F SCSI controllers.
+	    <item>UltraStor 14F/24F/34F SCSI controllers.
 
 	    <item>Seagate ST01/02 SCSI controllers.
 
@@ -254,12 +255,31 @@ Boot:
 
 	    <item>DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 	    <item>DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
-	    <item>DEC DC21140 based NICs (SMC???? DE???)
+	    <item>DEC DC21040/DC21041/DC21140 based NICs:
+		<itemize>
+		<item>ASUS		PCI-L101-TB
+		<item>Accton		ENI1203
+		<item>Cogent		EM960PCI
+		<item>Compex 		CPXPCI/32C
+		<item>D-Link		DE-530
+		<item>DEC		DE435
+		<item>Danpex		EN-9400P3
+		<item>JCIS		Condor JC1260
+		<item>Linksys		EtherPCI
+		<item>Mylex		LNP101
+		<item>SMC		EtherPower 10/100 (Model 9332)
+		<item>SMC		EtherPower (Model 8432)
+		<item>Zynx		ZX342
+		</itemize>
 	    <item>DEC FDDI (DEFPA/DEFEA) NICs
 
 	    <item>Fujitsu FMV-181 and FMV-182
 
+	    <item>Fujitsu MB86960A/MB86965A
+
 	    <item>Intel EtherExpress
+
+	    <item>Intel EtherExpress Pro/100B 100Mbit.
 
 	    <item>Isolan AT 4141-0 (16 bit)
 	    <item>Isolink 4110     (8 bit)
@@ -276,6 +296,8 @@ Boot:
 
 	    <item>3Com 3C509, 3C579, 3C589 (PCMCIA) Etherlink III
 
+	    <item>3Com 3C590, 3C595 Etherlink III
+
 	    <item>Toshiba ethernet cards
 
 	    <item>PCMCIA ethernet cards from IBM and National
@@ -284,7 +306,8 @@ Boot:
 
         <p><em>Note:</em> FreeBSD does not currently support
           PnP (plug-n-play) features present on some ethernet
-          cards.  If your card has PnP, it should be disabled.
+          cards.  If your card has PnP and is giving you problems,
+          try disabling its PnP features.
 
       <sect1><heading>Miscellaneous devices</heading>
 
@@ -304,16 +327,15 @@ Boot:
 
 	    <item>SDL Communications Riscom/8 Serial Board.
 
+	    <item>Digiboard Sync/570i high-speed sync serial card.
+
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
-	      ProAudioSpectrum, Gravis UltraSound and Roland
-	      MPU-401 sound cards.
+	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
+	      and Roland MPU-401 sound cards.
 
 	  </itemize>
 
-	  FreeBSD currently does not support IBM's microchannel
-	  (MCA) bus, but support is apparently close to
-	  materializing.  Details will be posted as the situation
-	  develops.
+	  FreeBSD does not currently support IBM's microchannel (MCA) bus.
 
     <sect><heading>Preparing for the installation</heading>
 
@@ -323,18 +345,18 @@ Boot:
 
       <sect1><heading>Before installing from CDROM</heading>
 
-	<p>If your CDROM is of an unsupported type, such as an
-	  IDE CDROM, then please skip to <ref id="install:msdos" 
-          name="MS-DOS Preparation">.
+	<p>If your CDROM is of an unsupported type, then please
+	  skip to <ref id="install:msdos" name="MS-DOS Preparation">.
 
-	  There is not a lot of preparatory work that needs to be
-	  done to successfully install from one of Walnut Creek's
-	  FreeBSD CDROMs (other CDROM distributions may work as
-	  well, we simply cannot say as we have no hand or say in
-	  their creation).  You can either boot into the CD
-	  installation directly from DOS using Walnut Creek's
-	  supplied ``install.bat'' batch file or you can make a
-	  boot floppy with the ``makeflp.bat'' command.
+	  There is not a lot of preparatory work that needs to be done to
+	  successfully install from one of Walnut Creek's FreeBSD CDROMs (other
+	  CDROM distributions may work as well, though we cannot say for certain
+	  as we have no hand or say in how they are created).  You can either
+	  boot into the CD installation directly from DOS using Walnut Creek's
+	  supplied ``install.bat'' batch file or you can make a boot floppy with
+	  the ``makeflp.bat'' command.  [NOTE:  If you are running
+	  FreeBSD 2.1-RELEASE and have an IDE CDROM, use the
+	  inst&lowbar;ide.bat or atapiflp.bat batch files instead].
 
 	  For the easiest interface of all (from DOS), type
 	  ``view''.  This will bring up a DOS menu utility that
@@ -349,27 +371,12 @@ Boot:
 	  menu and load the entire distribution from CDROM.  No
 	  other types of installation media should be required.
 
-	  After your system is fully installed and you have
-	  rebooted from the hard disk, you should find the CD
-	  mounted on the directory <bf>/cdrom</bf>.  A utility
-	  called `lndir' comes with the XFree86 distribution
-	  which you may also find useful: It allows you to create
-	  "link tree" directories to things on Read-Only media
-	  like CDROM.  One example might be something like this:
+	  After your system is fully installed and you have rebooted
+	  from the hard disk, you can mount the cdrom at any time by
+	  typing: <tt>mount /cdrom</tt>
 
-<tscreen><verb>
-mkdir /usr/ports
-lndir /cdrom/ports /usr/ports
-</verb></tscreen>
-
-	  Which would allow you to then ``cd /usr/ports; make''
-	  and get all the sources from the CD, but yet create all
-	  the intermediate files in <bf>/usr/ports</bf>, which is
-	  presumably on a more writable media.
-
-	  This is, in fact, what the Ports entry in the
-	  Configuration menu does at installation time if you
-	  select it.
+	  Before removing the CD again, also note that it is necessary to first
+	  type: <tt>umount /cdrom</tt>.  Do not just remove it from the drive!
 
 	  <quote><bf>Special note:</bf> Before invoking the
 	    installation, be sure that the CDROM is in the drive
@@ -377,9 +384,8 @@ lndir /cdrom/ports /usr/ports
 	    true if you wish the CDROM to be added to the default
 	    system configuration automatically during the install
 	    (whether or not you actually use it as the
-	    installation media). <!-- XXX This will be fixed for
-	    2.1, but for now this simple work-around will ensure
-	    that your CDROM is detected properly. --></quote>
+	    installation media).
+	  </quote>
 
 	  Finally, if you would like people to be able to FTP
 	  install FreeBSD directly from the CDROM in your
@@ -392,49 +398,67 @@ lndir /cdrom/ports /usr/ports
 ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 </verb></tscreen>
 
-	  No further work is necessary.  The other installers
-	  will now be able to chose a Media type of FTP and type
+	  Anyone with network connectivity to your machine (and permission
+	  to log into it) can now chose a Media type of FTP and type
 	  in: <tt>ftp://<em>your machine</em></tt> after picking ``Other''
 	  in the ftp sites menu.
 
       <sect1><heading>Before installing from Floppy</heading>
 
 	<p>If you must install from floppy disks, either due to
-	  unsupported hardware or just because you enjoy doing
+	  unsupported hardware or simply because you enjoy doing
 	  things the hard way, you must first prepare some
 	  floppies for the install.
 
-	  The first floppy you will need is ``floppies/root.flp'',
-	  which is somewhat special in that it is not a DOS
-	  filesystem floppy at all, but rather an ``image''
-	  floppy (it is actually a gzip'd cpio file).  You can use
-	  the rawrite.exe program to do this under DOS, or dd to
-	  do it on a UNIX Workstation.  See <ref id="install"
-	  name="the beginning of this guide"> for examples. of
-	  how to create the boot floppy.  Once this floppy is
-	  made, go on to make the distribution set floppies:
 
-	  You will need, at minimum, as many 1.44MB or 1.2MB
-	  floppies as it takes to hold all files in the bin
-	  (binary distribution) directory.  These floppies
-	  <em>must</em> be formatted using MS-DOS, using the
-	  FORMAT command in MS-DOS or the File Manager format
-	  command in Microsoft Windows(tm).  Do <em>not</em>
-	  trust Factory Preformatted floppies.  Format them again
-	  yourself, just to make sure.
+	  The first floppy that you will need in addition to the boot.flp 
+	  image is ``floppies/root.flp'', which is somewhat special in that 
+	  it is not a DOS filesystem floppy at all, but rather a floppy "image" 
+	  (it's actually a gzip'd cpio file).  You can create this floppy in 
+	  the same way that you created the boot floppy <ref id="install"
+	    name="the beginning of this guide">.  Once this floppy is
+	  made, you can go on to make the distribution set floppies
+	  using ordinary DOS or UFS (if you are preparing the floppies on
+	  another FreeBSD machine) formatted diskettes.
 
-	  Many problems reported by our users in the past have
-	  resulted from the use of improperly formatted media, so
-	  we simply take special care to mention it here!
+	  You will need, at minimum, as many 1.44MB or 1.2MB floppies as
+	  it takes to hold all files in the bin (binary distribution)
+	  directory.  If you are preparing these floppies under DOS, then
+	  THESE floppies *must* be formatted using the MS-DOS FORMAT
+	  command.  If you are using Windows, use the Windows File
+	  Manager format command.
 
-	  After you have DOS formatted the floppies, you will
-	  need to copy the files onto them.  The distribution
-	  files are split into chunks conveniently sized so that
-	  5 of them will fit on a conventional 1.44MB floppy.  Go
-	  through all your floppies, packing as many files as
-	  will fit on each one, until you have got all the
-	  distributions you want packed up in this fashion.  Each
-	  distribution should go into a subdirectory on the
+	  Do <em>not</em> trust Factory Preformatted floppies!  Format
+	  them again yourself, just to make sure.  Many problems
+	  reported by our users in the past have resulted from the use
+	  of improperly formatted media, which is why I am taking such
+	  special care to mention it here!
+
+	  If you are creating the floppies from another FreeBSD machine,
+	  a format is still not a bad idea though you do nott need to put
+	  a DOS filesystem on each floppy.  You can use the `disklabel'
+	  and `newfs' commands to put a UFS filesystem on them instead,
+	  as the following sequence of commands (for a 3.5" 1.44MB floppy
+	  disk) illustrates:
+
+<tscreen><verb>
+        fdformat -f 1440 fd0.1440
+        disklabel -w -r fd0.1440 floppy3
+        newfs -t 2 -u 18 -l 1 -i 65536 /dev/rfd0
+        
+(Use "fd0.1200" and "floppy5" for 5.25" 1.2MB disks).
+</verb></tscreen>
+
+	  Then you can mount and write to them like any other file
+	  system.
+
+	  After you have formatted the floppies, you will need to copy
+	  the files onto them.  The distribution files are split into
+	  chunks conveniently sized so that 5 of them will fit on a
+	  conventional 1.44MB floppy.  Go through all your floppies,
+	  packing as many files as will fit on each one, until you have
+	  got all the distributions you want packed up in this fashion.
+	  Each distribution should go into a subdirectory on the
 	  floppy, e.g.: <bf>a:&bsol;bin&bsol;bin.aa</bf>,
 	  <bf>a:&bsol;bin&bsol;bin.ab</bf>, and so on.
 
@@ -554,7 +578,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 	  PCMCIA ethernet cards, also be sure that it is plugged
 	  in <em>before</em> the laptop is powered on!  FreeBSD
 	  does not, unfortunately, currently support hot
-	  insertion of PCMCIA cards.
+	  insertion of PCMCIA cards during installation.
 
 	  You will also need to know your IP address on the
 	  network, the netmask value for your address class,
@@ -621,7 +645,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 	    of a name server:
 
 <tscreen><verb>
-ftp://192.216.222.4/pub/FreeBSD/2.1-RELEASE
+ftp://192.216.222.4/pub/FreeBSD/2.1.0-RELEASE
 </verb></tscreen>
         
 	    There are two FTP installation modes you can use:
@@ -644,9 +668,9 @@ ftp://192.216.222.4/pub/FreeBSD/2.1-RELEASE
 
 	    </descrip>
 
-	    <quote><bf>Note:</bf> ACTIVE AND PASSIVE MODES ARE
-	      NOT THE SAME AS A `PROXY' CONNECTION, WHERE A PROXY
-	      FTP SERVER IS LISTENING ON A DIFFERENT PORT!</quote>
+	    <quote><bf>Note:</bf> Active and passive modes are
+	      not the same as a `proxy' connection, where a proxy
+	      ftp server is listening on a different port!</quote>
 
 	    In such instances, you should specify the URL as something like:
 <tscreen><verb>
@@ -674,8 +698,8 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	documentation you should need to be able to navigate
 	through an installation and if it does not then we would
 	like to know what you found most confusing.  Send your
-	comments to <htmlurl url="mailto:doc@freebsd.org"
-	name="doc@freebsd.org">.  It is the objective of the
+	comments to the &a.doc;.
+	It is the objective of the
 	FreeBSD installation program (sysinstall) to be
 	self-documenting enough that painful ``step-by-step''
 	guides are no longer necessary.  It may take us a little
@@ -701,15 +725,16 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	  <item>Select the Options item and set any special
 	    preferences you may have.
 
-	  <item>Select a Custom or Express install, depending on
-	    whether or not you would like the installation to give
-	    you a high degree of control over each step of the
-	    installation or simply lead you through it, choosing
-	    reasonable defaults when possible.  See details on
-	    both installation types below.
+	  <item>Select a Novice, Custom or Express install, depending on
+	    whether or not you would like the installation to help
+	    you through a typical installation, give you a high degree of
+	    control over each step of the installation or simply whizz
+	    through it (using reasonable defaults when possible) as fast
+	    as possible.  If you've never used FreeBSD before then the
+	    Novice installation method is most recommended.
 
-	  <item>The Configure menu choice allows you to further
-	    configure your FreeBSD installation by giving you
+	  <item>The final configuration menu choice allows you to
+	    further configure your FreeBSD installation by giving you
 	    menu-driven access to various system defaults.  Some
 	    items, like networking, may be especially important
 	    if you did a CDROM/Tape/Floppy installation and have
@@ -718,82 +743,6 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	    here will allow FreeBSD to come up on the network
 	    when you first reboot from the hard disk.
 	</enum>
-
-      <sect1><heading>Express installation</heading>
-
-	<p>The express installation is not too much different than
-	  the Custom one except that it leads you through the
-	  required stages in the proper order and presents you
-	  with various helpful prompts along the way.
-
-	  <enum>
-	    <item>The first step is the `Partition Editor', which
-	      allows you to chose how your drives will be used
-	      for FreeBSD.  If you are dedicating an entire drive
-	      to FreeBSD, the `A' command is probably all you
-	      need to type here.
-
-	    <item>Next, with the `Label Editor', you can specify
-	      how the space in any allocated FreeBSD partitions
-	      should be used by FreeBSD, or where to mount a
-	      non-FreeBSD partition (such as DOS).  If you want
-	      the standard layout, simply type `A' here.
-
-	    <item>Next, the `Distributions' menu allows you to
-	      specify which parts of FreeBSD you wish to load.  A
-	      good choice is ``User'' for a small system or
-	      ``Developer'' for someone wanting a bit more out of
-	      FreeBSD.  If none of the existing collections sound
-	      applicable, select Custom.
-
-	    <item>Next, the `Media' menu allows you to specify
-	      what kind of media you wish to install from.  If a
-	      desired media choice is found and configured
-	      automatically then this menu will simply return,
-	      otherwise you will be asked for additional details on
-	      the media device type.
-
-	    <item>Finally, you will be prompted to commit all of
-	      these actions at once (nothing has been written to
-	      your disk so far, nor will it until you give the
-	      final confirmation).  All new or changed partition
-	      information will be written out, file systems will
-	      be created and/or non-destructively labeled
-	      (depending on how you set their newfs flags in the
-	      Label Editor) and all selected distributions will
-	      be extracted.
-	  </enum>
-
-	  At this point, you are generally done with the
-	  sysinstall utility and can select the final `Quit'.  If
-	  you are running it as an installer (e.g., before the
-	  system is all the way up) then the system will now
-	  reboot after you press return one last time.  If you
-	  selected the boot manager option, you will see a small
-	  boot menu with an `F?' prompt.  Press the function key
-	  for BSD (it will be shown) and you should boot up into
-	  FreeBSD off the hard disk.
-
-	  If this fails to happen for some reason, see the Q&amp;A
-	  section of the Hardware Guide for possible clues!
-
-      <sect1><heading>Custom installation</heading>
-
-	<p>You can do anything you like in this menu without
-	  altering your system <em>except</em> for ``Commit'',
-	  which will perform any requests to alter your system
-	  you may have made.  Some of the menu options will also
-	  have direct `Write' commands available for committing an
-	  operation immediately, but they should only be used if
-	  you are absolutely sure it is necessary.  It is generally
-	  better to make your changes and then commit them all at
-	  once so that you are left with the option of changing
-	  your mind up to the very last minute.
-
-	  If you are confused at any point, the F1 key usually
-	  pulls up the right information for the screen you are
-	  in.
-
 
     <sect><heading>MS-DOS user's Questions and Answers</heading>
 
@@ -838,27 +787,30 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	between MS-DOS and FreeBSD.
 
 
-<!-- XXX  Status???
 	<bf>Can I mount my MS-DOS extended partitions?</bf>
 
-	This feature is not in FreeBSD 2.0.5 but should be in 2.1.
-	We have laid all the groundwork for making this happen, now
-	we just need to do the last 1 percent of the work involved.
--->
+	Yes. DOS extended partitions are mapped in at the end of the other
+	``slices'' in FreeBSD, e.g. your D: drive might be /dev/sd0s5,
+	your E: drive /dev/sd0s6, and so on. This example assumes, of
+	course, that your extended partition is on SCSI drive 0. For IDE drives,
+	substitute ``wd'' for ``sd'' appropriately. You otherwise mount extended
+	partitions exactly like you would mount any other DOS drive, e.g.:
+
+<tscreen><verb>
+mount -t msdos /dev/sd0s5 /dos_d
+</verb></tscreen>
 
 	<bf>Can I run MS-DOS binaries under FreeBSD?</bf>
 
 	Not yet!  We would like to add support for this someday, but
-	are still lacking anyone to actually do the work.
-	Ongoing work with Linux's DOSEMU utility may bring this
-	much closer to being a reality sometime soon.  Send mail
-	to hackers@freebsd.org if you're interested in joining
+	are still lacking anyone to actually do the work.  BSDI has
+	also donated their DOS emulator to the BSD world and this is slowly
+	being ported to FreeBSD-current.
+
+	Send mail to the &a.emulation if you're interested in joining
 	this effort!
 
-	However, there is a nice application available in the
-	<ref id="ports" name="The Ports Collection"> called pcemu,
-	that allows you to run many basic MS-DOS text-mode binaries
+	In the interim, there is a nice application available in the
+	<ref id="ports" name="The Ports Collection"> called pcemu
+	which allows you to run many basic MS-DOS text-mode binaries
 	by entirely emulating an 8088 CPU.
-
-
-

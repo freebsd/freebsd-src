@@ -1,4 +1,4 @@
-<!-- $Id: nfs.sgml,v 1.3 1995/09/27 00:46:23 jmz Exp $ -->
+<!-- $Id: nfs.sgml,v 1.1.1.1.4.2 1995/10/12 03:16:20 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>NFS<label id="nfs"></heading>
@@ -24,11 +24,18 @@ situation cannot be resolved.
 Though the "correct" solution is to get a higher performance and capacity
 Ethernet adapter for the FreeBSD system, there is a simple workaround that
 will allow satisfactory operation.  If the FreeBSD system is the SERVER,
-include the option "wsize=1024" on the mount from the client.  If the
+include the option "-w=1024" on the mount from the client.  If the
 FreeBSD system is the CLIENT, then mount the NFS file system with the
-option "rsize=1024".  These options may be specified using the fourth
+option "-r=1024".  These options may be specified using the fourth
 field of the fstab entry on the client for automatic mounts, or by using
 the "-o" parameter of the mount command for manual mounts.
+
+It should be noted that there is a different problem,
+sometimes mistaken for this one,
+when the NFS servers and clients are on different networks.
+If that is the case, make CERTAIN that your routers are routing the
+necessary UDP information, or you will not get anywhere, no matter
+what else you are doing.
 
 In the following examples, "fastws" is the host (interface) name of a
 high-performance workstation, and "freebox" is the host (interface) name of
@@ -39,16 +46,16 @@ system.  In all cases, note that additional options, such as "hard" or
 "soft" and "bg" may be desirable in your application.
 
 Examples for the FreeBSD system ("freebox") as the client:
-    in /etc/fstab on freebox:
-fastws:/sharedfs /project nfs rw,rsize=1024 0 0
+    in <tt>/etc/fstab</tt> on freebox:
+fastws:/sharedfs /project nfs rw,-r=1024 0 0
     as a manual mount command on freebox:
-mount -t nfs -o rsize=1024 fastws:/sharedfs /project
+mount -t nfs -o -r=1024 fastws:/sharedfs /project
 
 Examples for the FreeBSD system as the server:
-    in /etc/fstab on fastws:
-freebox:/sharedfs /project nfs rw,wsize=1024 0 0
+    in <tt>/etc/fstab</tt> on fastws:
+freebox:/sharedfs /project nfs rw,-w=1024 0 0
     as a manual mount command on fastws:
-mount -t nfs -o wsize=1024 freebox:/sharedfs /project
+mount -t nfs -o -w=1024 freebox:/sharedfs /project
 
 Nearly any 16-bit Ethernet adapter will allow operation without the above
 restrictions on the read or write size.
