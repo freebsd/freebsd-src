@@ -341,7 +341,14 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	}
 	brelse(bp);
 	if (flags & BA_CLRBUF) {
-		error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+		int seqcount = (flags & BA_SEQMASK) >> BA_SEQSHIFT;
+		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			error = cluster_read(vp, ip->i_size, lbn,
+			    (int)fs->fs_bsize, NOCRED,
+			    MAXBSIZE, seqcount, &nbp);
+		} else {
+			error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+		}
 		if (error) {
 			brelse(nbp);
 			goto fail;
@@ -788,8 +795,21 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		return (0);
 	}
 	brelse(bp);
+	/*
+	 * If requested clear invalid portions of the buffer.  If we
+	 * have to do a read-before-write (typical if BA_CLRBUF is set),
+	 * try to do some read-ahead in the sequential case to reduce
+	 * the number of I/O transactions.
+	 */
 	if (flags & BA_CLRBUF) {
-		error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+		int seqcount = (flags & BA_SEQMASK) >> BA_SEQSHIFT;
+		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			error = cluster_read(vp, ip->i_size, lbn,
+			    (int)fs->fs_bsize, NOCRED,
+			    MAXBSIZE, seqcount, &nbp);
+		} else {
+			error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+		}
 		if (error) {
 			brelse(nbp);
 			goto fail;
