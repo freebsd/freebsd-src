@@ -82,7 +82,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-a] [-v] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
+	    "usage: %s [-afqv] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
 	    "\t[kernel [core]]\n", getprogname());
 	exit(1);
 }
@@ -243,7 +243,7 @@ main(int argc, char *argv[])
 	struct stat st;
 	struct captured_main_args args;
 	char *s;
-	int ch;
+	int a, ch, quiet;
 
 	dumpnr = -1;
 
@@ -252,7 +252,24 @@ main(int argc, char *argv[])
 	if (s != NULL)
 		strlcpy(crashdir, s, sizeof(crashdir));
 
-	while ((ch = getopt(argc, argv, "ac:d:n:r:v")) != -1) {
+	/* Convert long options into short options. */
+	for (a = 1; a < argc; a++) {
+		s = argv[a];
+		if (s[0] == '-') {
+			s++;
+			/* Long options take either 1 or 2 dashes. */
+			if (s[0] == '-')
+				s++;
+			if (strcmp(s, "quiet") == 0)
+				argv[a] = "-q";
+			else if (strcmp(s, "fullname") == 0)
+				argv[a] = "-f";
+		}
+	}
+
+	quiet = 0;
+
+	while ((ch = getopt(argc, argv, "ac:d:fn:qr:v")) != -1) {
 		switch (ch) {
 		case 'a':
 			annotation_level++;
@@ -269,6 +286,9 @@ main(int argc, char *argv[])
 		case 'd':	/* lookup dumps in given directory. */
 			strlcpy(crashdir, optarg, sizeof(crashdir));
 			break;
+		case 'f':
+			annotation_level = 1;
+			break;
 		case 'n':	/* use dump with given number. */
 			dumpnr = strtol(optarg, &s, 0);
 			if (dumpnr < 0 || *s != '\0') {
@@ -277,6 +297,9 @@ main(int argc, char *argv[])
 				usage();
 				/* NOTREACHED */
 			}
+			break;
+		case 'q':
+			quiet = 1;
 			break;
 		case 'r':	/* use given device for remote session. */
 			if (remote != NULL) {
@@ -390,9 +413,15 @@ main(int argc, char *argv[])
 		kgdb_thr_init();
 	}
 
+	/* The libgdb code uses optind too. Reset it... */
+	optind = 0;
+
 	memset (&args, 0, sizeof args);
-	args.argc = 1;
 	args.argv = argv;
+	args.argc = 1 + quiet;
+	if (quiet)
+		argv[1] = "-q";
+	argv[args.argc] = NULL;
 	args.use_windows = 0;
 	args.interpreter_p = "kgdb";
 
