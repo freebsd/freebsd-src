@@ -32,6 +32,20 @@
 #
 # The ordering is alphabetical by page name, as it appears in the SCSI spec.
 
+# 'i' is a byte-sized integral types, followed by a field width of 
+#  1 through 4 (1 to 4 bytes).
+#
+# 'b' is a bit-sized integral type
+# 't' is a bitfield type- followed by a bit field width
+#
+# 'c' values are character arrays
+# 'z' values are null-padded strings
+#
+#
+# '*' suppresses assignment (for 'seeking').
+# Bitfields are MSB to LSB.
+
+
 # ALL DEVICE TYPES
 
 0x0a "Control Mode Page" {
@@ -226,7 +240,8 @@
 	{Output Port 3 Volume} i1
 }
 
-0x10 {
+# SEQUENTIAL ACCESS DEVICES
+0x10 "Device Configuration Page" {
 	{Reserved} *t1
 	{Change Active Partition} t1
 	{Change Active Format} t1
@@ -249,7 +264,23 @@
 	{Reserved} *t3
 	{Buffer Size at Early-Warning} i3
 	{Select Data Compression Algorithm} i1
-	{Reserved} *i1
+	{Reserved} *t5
+	{SCSI-3 Associated Write Protect} t1
+	{SCSI-3 Persistent Write Protect} t1
+	{SCSI-3 Permanent Write Protect} t1
+}
+
+0x0f "Data Compression Page" {
+	{Reserved} *t1
+	{Data Compression Enabled} t1
+	{Date Compression Capable} t1
+	{Reserved} *t6
+	{Data Decompression Capable} t1
+	{Data Decompression Report on Exception} t2
+	{Reserved} *t5
+	{Compression Algorithm} i4
+	{Decompression Algorithm} i4
+	{Reserved} *i4
 }
 
 0x00 "Vendor-Specific";
