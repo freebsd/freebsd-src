@@ -28,6 +28,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\"	$Id$
+.\"
 .Dd December 16, 1996
 .Dt MOUSED 8
 .Os FreeBSD
@@ -88,10 +90,20 @@ PS/2 mouse
 MM HitTablet
 .El
 .El
+.Sh EXAMPLE
+.Pp
+.Dl moused -t microsoft -p /dev/mouse 
+.Dl vidcontrol -m on
+.Pp
+Start the mouse daemon on the serial device 
+.Pa /dev/mouse
+for a microsoft mouse and enable the mousepointer.
 .Sh SEE ALSO
+.Xr vidcontrol 1 ,
 .Xr keyboard 4 ,
 .Xr pcvt 4 ,
-.Xr screen 4
+.Xr screen 4 ,
+.Xr sysmouse 4
 .Sh AUTHORS
 The
 .Nm
