@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -56,7 +57,7 @@ static struct	ipx_addr zeroipx_addr;
 int
 ipx_pcballoc(so, head, td)
 	struct socket *so;
-	struct ipxpcb *head;
+	struct ipxpcbhead *head;
 	struct thread *td;
 {
 	register struct ipxpcb *ipxp;
@@ -67,7 +68,7 @@ ipx_pcballoc(so, head, td)
 	ipxp->ipxp_socket = so;
 	if (ipxcksum)
 		ipxp->ipxp_flags |= IPXP_CHECKSUM;
-	insque(ipxp, head);
+	LIST_INSERT_HEAD(head, ipxp, ipxp_list);
 	so->so_pcb = (caddr_t)ipxp;
 	return (0);
 }
@@ -274,7 +275,7 @@ ipx_pcbdetach(ipxp)
 	sotryfree(so);
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		rtfree(ipxp->ipxp_route.ro_rt);
-	remque(ipxp);
+	LIST_REMOVE(ipxp, ipxp_list);
 	FREE(ipxp, M_PCB);
 }
 
@@ -319,7 +320,7 @@ ipx_pcblookup(faddr, lport, wildp)
 	u_short fport;
 
 	fport = faddr->x_port;
-	for (ipxp = (&ipxpcb)->ipxp_next; ipxp != (&ipxpcb); ipxp = ipxp->ipxp_next) {
+	LIST_FOREACH(ipxp, &ipxpcb_list, ipxp_list) {
 		if (ipxp->ipxp_lport != lport)
 			continue;
 		wildcard = 0;
