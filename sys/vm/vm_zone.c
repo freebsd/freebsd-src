@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 John S. Dyson
+ * Copyright (c) 1997, 1998 John S. Dyson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.19 1998/02/23 07:42:35 dyson Exp $
+ * $Id: vm_zone.c,v 1.20 1998/04/15 17:47:40 bde Exp $
  */
 
 #include <sys/param.h>
