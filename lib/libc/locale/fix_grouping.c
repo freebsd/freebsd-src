@@ -63,7 +63,10 @@ __fix_locale_grouping_str(const char *str) {
 			return nogrouping;
 		}
 
-		for (n = 0; isdigit((unsigned char)*src); src++) {
+		/* assume all numbers <= 99 */
+		n = *src - '0';
+		if (isdigit((unsigned char)*(src+1))) {
+			src++;
 			n *= 10;
 			n += *src - '0';
 		}
