@@ -31,9 +31,14 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)tahoe.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include	"gprof.h"
 

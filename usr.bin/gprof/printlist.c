@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)printlist.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -61,6 +62,7 @@ struct stringlist	*elist = &ehead;
 struct stringlist	Ehead = { 0 , 0 };
 struct stringlist	*Elist = &Ehead;
 
+void
 addlist( listp , funcname )
     struct stringlist	*listp;
     char		*funcname;
@@ -68,10 +70,8 @@ addlist( listp , funcname )
     struct stringlist	*slp;
 
     slp = (struct stringlist *) malloc( sizeof(struct stringlist));
-    if ( slp == (struct stringlist *) 0 ) {
-	warnx("ran out room for printlist");
-	done();
-    }
+    if ( slp == (struct stringlist *) 0 )
+	errx( 1 , "no room for printlist");
     slp -> next = listp -> next;
     slp -> string = funcname;
     listp -> next = slp;
@@ -80,7 +80,7 @@ addlist( listp , funcname )
 bool
 onlist( listp , funcname )
     struct stringlist	*listp;
-    char		*funcname;
+    const char		*funcname;
 {
     struct stringlist	*slp;
 

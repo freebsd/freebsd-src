@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)printgprof.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "gprof.h"
 #include "pathnames.h"
 
+void
 printprof()
 {
     register nltype	*np;
@@ -56,9 +58,8 @@ printprof()
 	 *	Sort the symbol table in by time
 	 */
     sortednlp = (nltype **) calloc( nname , sizeof(nltype *) );
-    if ( sortednlp == (nltype **) 0 ) {
-	fprintf( stderr , "[printprof] ran out of memory for time sorting\n" );
-    }
+    if ( sortednlp == (nltype **) 0 )
+	errx( 1 , "[printprof] ran out of memory for time sorting" );
     for ( index = 0 ; index < nname ; index += 1 ) {
 	sortednlp[ index ] = &nl[ index ];
     }
@@ -71,6 +72,7 @@ printprof()
     free( sortednlp );
 }
 
+int
 timecmp( npp1 , npp2 )
     nltype **npp1, **npp2;
 {
@@ -93,6 +95,7 @@ timecmp( npp1 , npp2 )
     /*
      *	header for flatprofline
      */
+void
 flatprofheader()
 {
 
@@ -107,7 +110,7 @@ flatprofheader()
     } else {
 	printf( " no time accumulated\n\n" );
 	    /*
-	     *	this doesn't hurt sinc eall the numerators will be zero.
+	     *	this doesn't hurt since all the numerators will be zero.
 	     */
 	totime = 1.0;
     }
@@ -120,6 +123,7 @@ flatprofheader()
 	    "name" );
 }
 
+void
 flatprofline( np )
     register nltype	*np;
 {
@@ -154,6 +158,7 @@ flatprofline( np )
     printf( "\n" );
 }
 
+void
 gprofheader()
 {
 
@@ -182,6 +187,7 @@ gprofheader()
     printf( "\n" );
 }
 
+void
 gprofline( np )
     register nltype	*np;
 {
@@ -207,6 +213,7 @@ gprofline( np )
     printf( "\n" );
 }
 
+void
 printgprof(timesortnlp)
     nltype	**timesortnlp;
 {
@@ -289,6 +296,7 @@ totalcmp( npp1 , npp2 )
     return strcmp( np1 -> name , np2 -> name );
 }
 
+void
 printparents( childp )
     nltype	*childp;
 {
@@ -333,6 +341,7 @@ printparents( childp )
     }
 }
 
+void
 printchildren( parentp )
     nltype	*parentp;
 {
@@ -366,6 +375,7 @@ printchildren( parentp )
     }
 }
 
+void
 printname( selfp )
     nltype	*selfp;
 {
@@ -393,6 +403,7 @@ printname( selfp )
     }
 }
 
+void
 sortchildren( parentp )
     nltype	*parentp;
 {
@@ -433,6 +444,7 @@ sortchildren( parentp )
     parentp -> children = sorted.arc_childlist;
 }
 
+void
 sortparents( childp )
     nltype	*childp;
 {
@@ -476,6 +488,7 @@ sortparents( childp )
     /*
      *	print a cycle header
      */
+void
 printcycle( cyclep )
     nltype	*cyclep;
 {
@@ -500,6 +513,7 @@ printcycle( cyclep )
     /*
      *	print the members of a cycle
      */
+void
 printmembers( cyclep )
     nltype	*cyclep;
 {
@@ -524,6 +538,7 @@ printmembers( cyclep )
     /*
      *	sort members of a cycle
      */
+void
 sortmembers( cyclep )
     nltype	*cyclep;
 {
@@ -666,6 +681,7 @@ arccmp( thisp , thatp )
     }
 }
 
+void
 printblurb( blurbname )
     char	*blurbname;
 {
@@ -674,7 +690,7 @@ printblurb( blurbname )
 
     blurbfile = fopen( blurbname , "r" );
     if ( blurbfile == NULL ) {
-	perror( blurbname );
+	warn( "%s" , blurbname );
 	return;
     }
     while ( ( input = getc( blurbfile ) ) != EOF ) {
@@ -690,6 +706,7 @@ namecmp( npp1 , npp2 )
     return( strcmp( (*npp1) -> name , (*npp2) -> name ) );
 }
 
+void
 printindex()
 {
     nltype		**namesortnlp;
@@ -698,13 +715,12 @@ printindex()
     char		peterbuffer[ BUFSIZ ];
 
 	/*
-	 *	Now, sort regular function name alphbetically
+	 *	Now, sort regular function name alphabetically
 	 *	to create an index.
 	 */
     namesortnlp = (nltype **) calloc( nname + ncycle , sizeof(nltype *) );
-    if ( namesortnlp == (nltype **) 0 ) {
-	warnx("ran out of memory for sorting");
-    }
+    if ( namesortnlp == (nltype **) 0 )
+	errx( 1 , "ran out of memory for sorting");
     for ( index = 0 , nnames = 0 ; index < nname ; index++ ) {
 	if ( zflag == 0 && nl[index].ncall == 0 && nl[index].time == 0 )
 		continue;

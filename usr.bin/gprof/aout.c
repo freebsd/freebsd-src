@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <a.out.h>
+#include <err.h>
 
 #include "gprof.h"
 
@@ -71,10 +72,8 @@ aout_getnfile(const char *filename, char ***defaultEs)
     int		valcmp();
 
     nfile = fopen( filename ,"r");
-    if (nfile == NULL) {
-	perror( filename );
-	done();
-    }
+    if (nfile == NULL)
+	err( 1 , "%s", filename );
     fread(&xbuf, 1, sizeof(xbuf), nfile);
     if (N_BADMAG(xbuf)) {
 	fclose(nfile);
@@ -102,19 +101,13 @@ getstrtab(FILE *nfile, const char *filename)
 {
 
     fseek(nfile, (long)(N_SYMOFF(xbuf) + xbuf.a_syms), 0);
-    if (fread(&ssiz, sizeof (ssiz), 1, nfile) == 0) {
-	warnx("%s: no string table (old format?)" , filename );
-	done();
-    }
+    if (fread(&ssiz, sizeof (ssiz), 1, nfile) == 0)
+	errx( 1 , "%s: no string table (old format?)" , filename );
     strtab = calloc(ssiz, 1);
-    if (strtab == NULL) {
-	warnx("%s: no room for %d bytes of string table", filename , ssiz);
-	done();
-    }
-    if (fread(strtab+sizeof(ssiz), ssiz-sizeof(ssiz), 1, nfile) != 1) {
-	warnx("%s: error reading string table", filename );
-	done();
-    }
+    if (strtab == NULL)
+	errx( 1 , "%s: no room for %ld bytes of string table", filename , ssiz);
+    if (fread(strtab+sizeof(ssiz), ssiz-sizeof(ssiz), 1, nfile) != 1)
+	errx( 1 , "%s: error reading string table" , filename );
 }
 
     /*
@@ -137,16 +130,13 @@ getsymtab(FILE *nfile, const char *filename)
 	}
 	nname++;
     }
-    if (nname == 0) {
-	warnx("%s: no symbols", filename );
-	done();
-    }
+    if (nname == 0)
+	errx( 1 , "%s: no symbols" , filename );
     askfor = nname + 1;
     nl = (nltype *) calloc( askfor , sizeof(nltype) );
-    if (nl == 0) {
-	warnx("no room for %d bytes of symbol table", askfor * sizeof(nltype) );
-	done();
-    }
+    if (nl == 0)
+	errx( 1 , "no room for %d bytes of symbol table" ,
+		askfor * sizeof(nltype) );
 
     /* pass2 - read symbols */
     fseek(nfile, (long)N_SYMOFF(xbuf), 0);
@@ -189,7 +179,7 @@ gettextspace(FILE *nfile)
     }
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
-	warnx("ran out room for %d bytes of text space: can't do -c" ,
+	warnx("no room for %lu bytes of text space: can't do -c" ,
 		  xbuf.a_text );
 	return;
     }
@@ -235,7 +225,7 @@ funcsymbol(struct nlist *nlistp)
 		return TRUE;
     }
 #endif
-    while ( c = *name++ ) {
+    while ( (c = *name++) ) {
 	if ( c == '.' ) {
 	    return FALSE;
 	}
