@@ -46,14 +46,8 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "libc_private.h"
 
-/*
- * putc has traditionally been a macro in <stdio.h>.  That is no
- * longer true because POSIX requires it to be thread-safe.  POSIX
- * does define putc_unlocked() which is defined as a macro and is
- * probably what you want to use instead.
- *
- * #undef putc
- */
+#undef putc
+
 int
 putc(c, fp)
 	int c;
