@@ -109,18 +109,18 @@ MAIN:{
 		    my @stat = stat("$log.brief");
 		    my $class = success("$log.brief") ? "ok" : "fail";
 		    $links .= "<span class=\"$class\">" .
-			strftime("%Y-%m-%d %H:%M", gmtime($stat[9])) .
+			strftime("%Y-%m-%d&nbsp;%H:%M", gmtime($stat[9])) .
 			"</span><br />";
-		    my $size = sprintf("[%.1f kB]", $stat[7] / 1024);
+		    my $size = sprintf("[%.1f&nbsp;kB]", $stat[7] / 1024);
 		    $links .= " <span class=\"tiny\">" .
-			"<a href=\"$log.brief\">summary $size</a>" .
+			"<a href=\"$log.brief\">summary&nbsp;$size</a>" .
 			"</span><br />";
 		}
 		if (-f "$log.full") {
 		    my @stat = stat("$log.full");
-		    my $size = sprintf("[%.1f MB]", $stat[7] / 1048576);
+		    my $size = sprintf("[%.1f&nbsp;MB]", $stat[7] / 1048576);
 		    $links .= " <span class=\"tiny\">" .
-			"<a href=\"$log.full\">full log $size</a>" .
+			"<a href=\"$log.full\">full&nbsp;log&nbsp;$size</a>" .
 			"</span><br />";
 		}
 		if ($links eq "") {
