@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.32 1998/09/14 08:32:20 dfr Exp $";
+	"$Id: print.c,v 1.33 1998/11/25 09:34:00 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -216,7 +216,7 @@ state(k, ve)
 		*cp++ = 'E';
 	if (flag & P_PPWAIT)
 		*cp++ = 'V';
-	if (flag & (P_SYSTEM | P_NOSWAP | P_PHYSIO))
+	if ((flag & P_SYSTEM) || p->p_lock > 0)
 		*cp++ = 'L';
 	if (KI_EPROC(k)->e_flag & EPROC_SLEADER)
 		*cp++ = 's';
@@ -406,7 +406,9 @@ wchan(k, ve)
 		(void)printf("%-*s", v->width, "-");
 }
 
+#ifndef pgtok
 #define pgtok(a)        (((a)*getpagesize())/1024)
+#endif
 
 void
 vsize(k, ve)
