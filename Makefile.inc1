@@ -590,6 +590,7 @@ includes:
 	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
