@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.2 1994/09/24 02:53:59 davidg Exp $
+ *	$Id: exec.c,v 1.3 1995/05/30 00:06:32 rgrimes Exp $
  */
 
 #ifndef lint
@@ -656,7 +656,7 @@ tellmewhat(lex)
     register struct biltins *bptr;
     register struct wordent *sp = lex->next;
     bool    aliased = 0;
-    Char   *s0, *s1, *s2;
+    Char   *s0, *s1, *s2, *cmd;
     Char    qc;
 
     if (adrof1(sp->word, &aliases)) {
@@ -703,6 +703,8 @@ tellmewhat(lex)
 	}
     }
 
+    sp->word = cmd = globone(sp->word, G_IGNORE);
+
     if ((i = iscommand(strip(sp->word))) != 0) {
 	register Char **pv;
 	register struct varent *v;
@@ -717,10 +719,14 @@ tellmewhat(lex)
 	while (--i)
 	    pv++;
 	if (pv[0][0] == 0 || eq(pv[0], STRdot)) {
-	    sp->word = Strspl(STRdotsl, sp->word);
-	    prlex(cshout, lex);
-	    xfree((ptr_t) sp->word);
+	    if (!slash) {
+		sp->word = Strspl(STRdotsl, sp->word);
+		prlex(cshout, lex);
+		xfree((ptr_t) sp->word);
+	    } else
+		prlex(cshout, lex);
 	    sp->word = s0;	/* we save and then restore this */
+	    xfree((ptr_t) cmd);
 	    return;
 	}
 	s1 = Strspl(*pv, STRslash);
@@ -734,5 +740,6 @@ tellmewhat(lex)
 	    prlex(cshout, lex);
 	(void) fprintf(csherr, "%s: Command not found.\n", vis_str(sp->word));
     }
+    xfree((ptr_t) cmd);
     sp->word = s0;		/* we save and then restore this */
 }
