@@ -47,21 +47,3 @@ diff -u -r1.1.1.6 sysv4.h
  
  /* Yes!  We are ELF.  */
  #define	TARGET_OBJECT_FORMAT OBJECT_ELF
-Index: gnu/usr.bin/cc/cc_int/Makefile
-===================================================================
-RCS file: /usr/home/ncvs/src/gnu/usr.bin/cc/cc_int/Makefile,v
-retrieving revision 1.34
-diff -u -r1.34 Makefile
---- gnu/usr.bin/cc/cc_int/Makefile	11 Jul 2003 05:37:23 -0000	1.34
-+++ gnu/usr.bin/cc/cc_int/Makefile	15 Jul 2003 21:26:53 -0000
-@@ -27,6 +27,10 @@
- 	attribs.c cselib.c debug.c rtl-error.c tree-dump.c tree-inline.c
- 
- SRCS+=	${GCC_CPU}.c
-+.if exists(${GCC_CPU}-c.c)
-+SRCS+=	${GCC_CPU}-c.c
-+.endif
-+
- 
- SRCS+=	bb-reorder.c conflict.c ggc-common.c \
- 	ggc-page.c ifcvt.c lists.c predict.c regrename.c resource.c sibcall.c \
