@@ -45,25 +45,27 @@
 .Op Oo Fl g Oc Ar pgrp ...
 .Op Oo Fl u Oc Ar user ...
 .Sh DESCRIPTION
-.Nm Renice
-alters the
+The
+.Nm
+utility alters the
 scheduling priority of one or more running processes.
 The following
 .Ar who
 parameters are interpreted as process ID's, process group
 ID's, user ID's or user names.
-.Nm Renice Ns 'ing
-a process group causes all processes in the process group
+The
+.Nm Ns 'ing
+of a process group causes all processes in the process group
 to have their scheduling priority altered.
-.Nm Renice Ns 'ing
-a user causes all processes owned by the user to have
+The
+.Nm Ns 'ing
+of a user causes all processes owned by the user to have
 their scheduling priority altered.
 By default, the processes to be affected are specified by
 their process ID's.
 .Pp
-Options supported by
-.Nm :
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl g
 Force
 .Ar who
@@ -77,7 +79,7 @@ Force the
 .Ar who
 parameters to be interpreted as user names or user ID's.
 .It Fl p
-Resets the
+Reset the
 .Ar who
 interpretation to be (the default) process ID's.
 .El
@@ -126,7 +128,7 @@ utility conforms to
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.0 .
 .Sh BUGS
 Non super-users cannot increase scheduling priorities of their own processes,

@@ -12,8 +12,9 @@
 .Nm
 .Fl u Ar username
 .Sh DESCRIPTION
-.Nm Newkey
-is normally run by the network administrator on the
+The
+.Nm
+utility is normally run by the network administrator on the
 Network Interface Service
 (\s-1NIS\s0)
 master machine in order to establish public keys for
@@ -23,8 +24,9 @@ RPC
 or secure
 NFS\s0.
 .Pp
-.Nm Newkey
-will prompt for the login password of the given username and then
+The
+.Nm
+utility will prompt for the login password of the given username and then
 create a new public/secret key pair in
 .Pa /etc/publickey
 encrypted with the login password of the given user.
