@@ -944,7 +944,7 @@ attach_ms_sound (long mem_start, struct address_info *hw_config)
 
   OUTB (bits | dma_bits[hw_config->dma], config_port);	/* Write IRQ+DMA setup */
 
-  ad1848_init ("MS Sound System", hw_config->io_base + 4,
+  ad1848_init ("mss0: <MS Sound System>", hw_config->io_base + 4,
 	       hw_config->irq,
 	       hw_config->dma,
 	       hw_config->dma);

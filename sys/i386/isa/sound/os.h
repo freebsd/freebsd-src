@@ -44,21 +44,20 @@
  * Insert here the includes required by your kernel.
  */
 
-#include "param.h"
-#include "systm.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "proc.h"
-#include "user.h"
-#include "conf.h"
-#include "file.h"
-#include "uio.h"
-#include "kernel.h"
-#include "syslog.h"
-#include "errno.h"
-#include "malloc.h"
-#include "buf.h"
-#include "i386/isa/isa_device.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/conf.h>
+#include <sys/file.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/syslog.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/buf.h>
+#include <i386/isa/isa_device.h>
+#include <machine/cpufunc.h>
 
 /*
  * Rest of the file is compiled only if the driver is really required.

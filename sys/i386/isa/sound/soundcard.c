@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.21 1995/02/13 22:49:06 jkh Exp $
+ * $Id: soundcard.c,v 1.23 1995/03/05 04:01:29 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -65,6 +65,18 @@ int             sndread (int dev, struct uio *uio);
 int             sndwrite (int dev, struct uio *uio);
 int             sndselect (int dev, int rw, struct proc *p);
 static void	sound_mem_init(void);
+
+struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
+struct isa_driver sbdriver	= {sndprobe, sndattach, "sb"};
+struct isa_driver sbxvidriver	= {sndprobe, sndattach, "sbxvi"};
+struct isa_driver sbmididriver	= {sndprobe, sndattach, "sbmidi"};
+struct isa_driver pasdriver	= {sndprobe, sndattach, "pas"};
+struct isa_driver mpudriver	= {sndprobe, sndattach, "mpu"};
+struct isa_driver gusdriver	= {sndprobe, sndattach, "gus"};
+struct isa_driver gusxvidriver	= {sndprobe, sndattach, "gusxvi"};
+struct isa_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
+struct isa_driver uartdriver	= {sndprobe, sndattach, "uart"};
+struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
 
 unsigned
 long
@@ -192,38 +204,74 @@ ipri_to_irq (unsigned short ipri)
   return -1;			/* Invalid argument */
 }
 
+static int
+driver_to_voxunit(struct isa_driver *driver)
+{
+  /* converts a sound driver pointer into the equivalent
+     VoxWare device unit number */
+  if(driver == &opldriver)
+    return(SNDCARD_ADLIB);
+  else if(driver == &sbdriver)
+    return(SNDCARD_SB);
+  else if(driver == &pasdriver)
+    return(SNDCARD_PAS);
+  else if(driver == &gusdriver)
+    return(SNDCARD_GUS);
+  else if(driver == &mpudriver)
+    return(SNDCARD_MPU401);
+  else if(driver == &sbxvidriver)
+    return(SNDCARD_SB16);
+  else if(driver == &sbmididriver)
+    return(SNDCARD_SB16MIDI);
+  else if(driver == &uartdriver)
+    return(SNDCARD_UART6850);
+  else if(driver == &gusdriver)
+    return(SNDCARD_GUS16);
+  else if(driver == &mssdriver)
+    return(SNDCARD_MSS);
+  else
+    return(0);
+}
+
 int
 sndprobe (struct isa_device *dev)
 {
   struct address_info hw_config;
+  int unit;
 
+  unit = driver_to_voxunit(dev->id_driver);
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
   
-  return sndtable_probe (dev->id_unit, &hw_config);
+  if(unit)
+    return sndtable_probe (unit, &hw_config);
+  else
+    return 0;
 }
 
 int
 sndattach (struct isa_device *dev)
 {
-  int             i;
+  int             i, unit;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   static int 	  generic_midi_initialized = 0; 
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 
+  unit = driver_to_voxunit(dev->id_driver);
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
 
-  if (dev->id_unit)		/* Card init */
-    if (!sndtable_init_card (dev->id_unit, &hw_config))
-      {
-	printf (" <Driver not configured>");
-	return FALSE;
-      }
+  if(!unit)
+    return FALSE;
+  if (!sndtable_init_card (unit, &hw_config))
+    {
+      printf (" <Driver not configured>");
+      return FALSE;
+    }
 
   /*
    * Init the high level sound driver
@@ -248,17 +296,21 @@ sndattach (struct isa_device *dev)
   soundcard_configured = 1;
 #endif
 
+#ifndef EXCLUDE_MIDI
   if (num_midis && !midi_initialized)
     {
       midi_initialized = 1;
       mem_start = MIDIbuf_init (mem_start);
     }
+#endif
 
+#ifndef EXCLUDE_SEQUENCER
   if ((num_midis + num_synths) && !seq_initialized)
     {
       seq_initialized = 1;
       mem_start = sequencer_init (mem_start);
     }
+#endif
 
   return TRUE;
 }
@@ -272,6 +324,7 @@ tenmicrosec (void)
     inb (0x80);
 }
 
+#ifndef EXCLUDE_SEQUENCER
 void
 request_sound_timer (int count)
 {
@@ -305,6 +358,7 @@ sound_stop_timer (void)
     untimeout ((timeout_func_t)sequencer_timer, 0);
   timer_running = 0;
 }
+#endif
 
 #ifndef EXCLUDE_AUDIO
 static void
@@ -364,9 +418,6 @@ sound_mem_init (void)
 }
 
 #endif
-
-struct isa_driver snddriver =
-{sndprobe, sndattach, "snd"};
 
 int
 snd_ioctl_return (int *addr, int value)
