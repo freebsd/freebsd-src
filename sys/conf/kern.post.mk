@@ -221,7 +221,7 @@ majors.c: $S/conf/majors $S/conf/majors.awk
 	${AWK} -f $S/conf/majors.awk $S/conf/majors > ${.TARGET}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
-	sh $S/conf/newvers.sh ${KERN_IDENT}
+	MAKE=${MAKE} sh $S/conf/newvers.sh ${KERN_IDENT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
