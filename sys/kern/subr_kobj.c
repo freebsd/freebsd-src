@@ -174,7 +174,7 @@ kobj_init(kobj_t obj, kobj_class_t cls)
 		kobj_class_compile(cls);
 
 	obj->ops = cls->ops;
-	cls->instances++;
+	cls->refs++;
 }
 
 void
@@ -187,8 +187,8 @@ kobj_delete(kobj_t obj, struct malloc_type *mtype)
 	 * after its last instance is deleted. As an optimisation, we
 	 * should defer this for a short while to avoid thrashing.
 	 */
-	cls->instances--;
-	if (!cls->instances)
+	cls->refs--;
+	if (!cls->refs)
 		kobj_class_free(cls);
 
 	obj->ops = 0;
