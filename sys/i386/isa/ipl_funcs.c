@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.3 1997/08/24 00:05:18 fsmp Exp $
+ *	$Id: ipl_funcs.c,v 1.7 1997/08/24 20:18:28 smp Exp smp $
  */
 
 #include <sys/types.h>
@@ -98,6 +98,7 @@ splx(unsigned ipl)
 
 #include <machine/param.h>
 #include <machine/smp.h>
+extern int bspEarly; /* XXX */
 
 #if defined(REAL_IFCPL)
 
@@ -146,6 +147,7 @@ softclockpending(void)
 }
 
 
+#ifdef notneeded
 #define	GENSPL(name, set_cpl)			\
 unsigned name(void)				\
 {						\
@@ -159,38 +161,39 @@ unsigned name(void)				\
 						\
 	return (x);				\
 }
+#endif /* notneeded */
 
 /*
- * This version has to check for smp_active,
+ * This version has to check for bsp_apic_ready,
  * as calling simple_lock() (ie ss_lock) before then deadlocks the system.
+ * A sample count of GENSPLR calls before bsp_apic_ready was set: 2193
  */
-#define	GENSPL2(name, set_cpl)			\
+#define	GENSPLR(name, set_cpl)			\
 unsigned name(void)				\
 {						\
 	unsigned x;				\
 						\
-	if (smp_active)				\
+	if (bsp_apic_ready)			\
 		IFCPL_LOCK();			\
 	x = cpl;				\
 	/* XXX test cil */			\
 	set_cpl;				\
-	if (smp_active)				\
+	if (bsp_apic_ready)			\
 		IFCPL_UNLOCK();			\
 						\
 	return (x);				\
 }
 
-GENSPL2(splbio, cpl |= bio_imask)
-GENSPL2(splclock, cpl = HWI_MASK | SWI_MASK)
-GENSPL2(splimp, cpl |= net_imask)
-GENSPL2(splnet, cpl |= SWI_NET_MASK)
-GENSPL2(splsoftclock, cpl = SWI_CLOCK_MASK)
-GENSPL2(splsofttty, cpl |= SWI_TTY_MASK)
-GENSPL2(splstatclock, cpl |= stat_imask)
-GENSPL2(splvm, cpl |= net_imask | bio_imask)
-
-GENSPL2(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPL2(spltty, cpl |= tty_imask)
+GENSPLR(splbio, cpl |= bio_imask)
+GENSPLR(splclock, cpl = HWI_MASK | SWI_MASK)
+GENSPLR(splhigh, cpl = HWI_MASK | SWI_MASK)
+GENSPLR(splimp, cpl |= net_imask)
+GENSPLR(splnet, cpl |= SWI_NET_MASK)
+GENSPLR(splsoftclock, cpl = SWI_CLOCK_MASK)
+GENSPLR(splsofttty, cpl |= SWI_TTY_MASK)
+GENSPLR(splstatclock, cpl |= stat_imask)
+GENSPLR(spltty, cpl |= tty_imask)
+GENSPLR(splvm, cpl |= net_imask | bio_imask)
 
 
 void
@@ -211,18 +214,18 @@ spl0(void)
 void
 splx(unsigned ipl)
 {
-	if (smp_active)
+	if (bsp_apic_ready)
 		IFCPL_LOCK();
 
 	/* XXX test cil */
 	cpl = ipl;
 	if (ipending & ~ipl) {
-		if (smp_active)
+		if (bsp_apic_ready)
 			IFCPL_UNLOCK();
 		splz();
 	}
 	else
-		if (smp_active)
+		if (bsp_apic_ready)
 			IFCPL_UNLOCK();
 }
 
