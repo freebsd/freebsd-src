@@ -94,6 +94,7 @@ typedef enum {
  * Structures to handle elegantly the different forms of #if's. The
  * last two fields are stored in condInvert and condDefProc, respectively.
  */
+static void CondPushBack __P((Token));
 static int CondGetArg __P((char **, char **, char *, Boolean));
 static Boolean CondDoDefined __P((int, char *));
 static int CondStrMatch __P((ClientData, ClientData));
@@ -110,18 +111,19 @@ static struct If {
     char	*form;	      /* Form of if */
     int		formlen;      /* Length of form */
     Boolean	doNot;	      /* TRUE if default function should be negated */
-    Boolean	(*defProc)(); /* Default function to apply */
+    Boolean	(*defProc) __P((int, char *)); /* Default function to apply */
 } ifs[] = {
     { "ifdef",	  5,	  FALSE,  CondDoDefined },
     { "ifndef",	  6,	  TRUE,	  CondDoDefined },
     { "ifmake",	  6,	  FALSE,  CondDoMake },
     { "ifnmake",  7,	  TRUE,	  CondDoMake },
     { "if",	  2,	  FALSE,  CondDoDefined },
-    { (char *)0,  0,	  FALSE,  (Boolean (*)())0 }
+    { NULL,	  0,	  FALSE,  NULL }
 };
 
 static Boolean	  condInvert;	    	/* Invert the default function */
-static Boolean	  (*condDefProc)(); 	/* Default function to apply */
+static Boolean	  (*condDefProc)	/* Default function to apply */
+		    __P((int, char *));
 static char 	  *condExpr;	    	/* The expression to parse */
 static Token	  condPushBack=None;	/* Single push-back token used in
 					 * parsing */
@@ -758,7 +760,7 @@ error:
 		break;
 	    }
 	    default: {
-		Boolean (*evalProc)();
+		Boolean (*evalProc) __P((int, char *));
 		Boolean invert = FALSE;
 		char	*arg;
 		int	arglen;

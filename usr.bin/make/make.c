@@ -207,7 +207,7 @@ Make_OODate (gn)
 	    printf(".JOIN node...");
 	}
 	oodate = gn->childMade;
-    } else if (gn->type & (OP_FORCE|OP_EXEC)) {
+    } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
 	 * A node which is the object of the force (!) operator or which has
 	 * the .EXEC attribute is always considered out-of-date.
@@ -215,6 +215,8 @@ Make_OODate (gn)
 	if (DEBUG(MAKE)) {
 	    if (gn->type & OP_FORCE) {
 		printf("! operator...");
+	    } else if (gn->type & OP_PHONY) {
+		printf(".PHONY node...");
 	    } else {
 		printf(".EXEC node...");
 	    }
@@ -570,9 +572,16 @@ MakeAddAllSrc (cgnp, pgnp)
     GNode	*pgn = (GNode *) pgnp;
     if ((cgn->type & (OP_EXEC|OP_USE|OP_INVISIBLE)) == 0) {
 	char *child;
-	char *p1;
+	char *p1 = NULL;
 
-	child = Var_Value(TARGET, cgn, &p1);
+	if (OP_NOP(cgn->type)) {
+	    /*
+	     * this node is only source; use the specific pathname for it
+	     */
+	    child = cgn->path ? cgn->path : cgn->name;
+	}
+	else
+	    child = Var_Value(TARGET, cgn, &p1);
 	Var_Append (ALLSRC, child, pgn);
 	if (pgn->type & OP_JOIN) {
 	    if (cgn->made == MADE) {

@@ -90,7 +90,6 @@ static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
-#include <sys/wait.h>
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
@@ -162,16 +161,20 @@ typedef enum {
     NotParallel,    /* .NOTPARALELL */
     Null,   	    /* .NULL */
     Order,  	    /* .ORDER */
+    Parallel,	    /* .PARALLEL */
     ExPath,	    /* .PATH */
+    Phony,	    /* .PHONY */
     Precious,	    /* .PRECIOUS */
     ExShell,	    /* .SHELL */
     Silent,	    /* .SILENT */
     SingleShell,    /* .SINGLESHELL */
     Suffixes,	    /* .SUFFIXES */
+    Wait,	    /* .WAIT */
     Attribute	    /* Generic attribute */
 } ParseSpecial;
 
 static ParseSpecial specType;
+static int waiting;
 
 /*
  * Predecessor node for handling .ORDER. Initialized to NILGNODE when .ORDER
@@ -207,10 +210,13 @@ static struct {
 { ".MFLAGS",	  MFlags,   	0 },
 { ".NOTMAIN",	  Attribute,   	OP_NOTMAIN },
 { ".NOTPARALLEL", NotParallel,	0 },
+{ ".NO_PARALLEL", NotParallel,	0 },
 { ".NULL",  	  Null,	    	0 },
 { ".OPTIONAL",	  Attribute,   	OP_OPTIONAL },
 { ".ORDER", 	  Order,    	0 },
+{ ".PARALLEL",	  Parallel,	0 },
 { ".PATH",	  ExPath,	0 },
+{ ".PHONY",	  Phony,	OP_PHONY },
 { ".PRECIOUS",	  Precious, 	OP_PRECIOUS },
 { ".RECURSIVE",	  Attribute,	OP_MAKE },
 { ".SHELL", 	  ExShell,    	0 },
@@ -218,12 +224,14 @@ static struct {
 { ".SINGLESHELL", SingleShell,	0 },
 { ".SUFFIXES",	  Suffixes, 	0 },
 { ".USE",   	  Attribute,   	OP_USE },
+{ ".WAIT",	  Wait, 	0 },
 };
 
 static int ParseFindKeyword __P((char *));
 static int ParseLinkSrc __P((ClientData, ClientData));
 static int ParseDoOp __P((ClientData, ClientData));
-static void ParseDoSrc __P((int, char *));
+static int ParseAddDep __P((ClientData, ClientData));
+static void ParseDoSrc __P((int, char *, Lst));
 static int ParseFindMain __P((ClientData, ClientData));
 static int ParseAddDir __P((ClientData, ClientData));
 static int ParseClearPath __P((ClientData, ClientData));
@@ -437,6 +445,45 @@ ParseDoOp (gnp, opp)
 
 /*-
  *---------------------------------------------------------------------
+ * ParseAddDep  --
+ *	Check if the pair of GNodes given needs to be synchronized.
+ *	This has to be when two nodes are on different sides of a
+ *	.WAIT directive.
+ *
+ * Results:
+ *	Returns 1 if the two targets need to be ordered, 0 otherwise.
+ *	If it returns 1, the search can stop
+ *
+ * Side Effects:
+ *	A dependency can be added between the two nodes.
+ *
+ *---------------------------------------------------------------------
+ */
+int
+ParseAddDep(pp, sp)
+    ClientData pp;
+    ClientData sp;
+{
+    GNode *p = (GNode *) pp;
+    GNode *s = (GNode *) sp;
+
+    if (p->order < s->order) {
+	/*
+	 * XXX: This can cause loops, and loops can cause unmade targets,
+	 * but checking is tedious, and the debugging output can show the
+	 * problem
+	 */
+	(void)Lst_AtEnd(p->successors, (ClientData)s);
+	(void)Lst_AtEnd(s->preds, (ClientData)p);
+	return 0;
+    }
+    else
+	return 1;
+}
+
+
+/*-
+ *---------------------------------------------------------------------
  * ParseDoSrc  --
  *	Given the name of a source, figure out if it is an attribute
  *	and apply it to the targets if it is. Else decide if there is
@@ -453,23 +500,30 @@ ParseDoOp (gnp, opp)
  *---------------------------------------------------------------------
  */
 static void
-ParseDoSrc (tOp, src)
+ParseDoSrc (tOp, src, allsrc)
     int		tOp;	/* operator (if any) from special targets */
     char	*src;	/* name of the source to handle */
+    Lst		allsrc;	/* List of all sources to wait for */
 {
-    int		op;	/* operator (if any) from special source */
-    GNode	*gn;
+    GNode	*gn = NULL;
 
-    op = 0;
     if (*src == '.' && isupper (src[1])) {
 	int keywd = ParseFindKeyword(src);
 	if (keywd != -1) {
-	    op = parseKeywords[keywd].op;
+	    int op = parseKeywords[keywd].op;
+	    if (op != 0) {
+		Lst_ForEach (targets, ParseDoOp, (ClientData)&op);
+		return;
+	    }
+	    if (parseKeywords[keywd].spec == Wait) {
+		waiting++;
+		return;
+	    }
 	}
     }
-    if (op != 0) {
-	Lst_ForEach (targets, ParseDoOp, (ClientData)&op);
-    } else if (specType == Main) {
+
+    switch (specType) {
+    case Main:
 	/*
 	 * If we have noted the existence of a .MAIN, it means we need
 	 * to add the sources of said target to the list of things
@@ -478,13 +532,15 @@ ParseDoSrc (tOp, src)
 	 * invoked if the user didn't specify a target on the command
 	 * line. This is to allow #ifmake's to succeed, or something...
 	 */
-	(void) Lst_AtEnd (create, (ClientData)strdup(src));
+	(void) Lst_AtEnd (create, (ClientData)estrdup(src));
 	/*
 	 * Add the name to the .TARGETS variable as well, so the user cna
 	 * employ that, if desired.
 	 */
 	Var_Append(".TARGETS", src, VAR_GLOBAL);
-    } else if (specType == Order) {
+	return;
+
+    case Order:
 	/*
 	 * Create proper predecessor/successor links between the previous
 	 * source and the current one.
@@ -498,7 +554,9 @@ ParseDoSrc (tOp, src)
 	 * The current source now becomes the predecessor for the next one.
 	 */
 	predecessor = gn;
-    } else {
+	break;
+
+    default:
 	/*
 	 * If the source is not an attribute, we need to find/create
 	 * a node for it. After that we can apply any operator to it
@@ -529,6 +587,13 @@ ParseDoSrc (tOp, src)
 		}
 	    }
 	}
+	break;
+    }
+
+    gn->order = waiting;
+    (void)Lst_AtEnd(allsrc, (ClientData)gn);
+    if (waiting) {
+	Lst_ForEach(allsrc, ParseAddDep, (ClientData)gn);
     }
 }
 
@@ -651,16 +716,20 @@ ParseDoDependency (line)
     Lst    	    paths;   	/* List of search paths to alter when parsing
 				 * a list of .PATH targets */
     int	    	    tOp;    	/* operator from special target */
-    Lst	    	    sources;	/* list of source names after expansion */
+    Lst	    	    sources;	/* list of archive source names after
+				 * expansion */
     Lst 	    curTargs;	/* list of target names to be found and added
 				 * to the targets list */
+    Lst		    curSrcs;	/* list of sources in order */
 
     tOp = 0;
 
     specType = Not;
+    waiting = 0;
     paths = (Lst)NULL;
 
     curTargs = Lst_Init(FALSE);
+    curSrcs = Lst_Init(FALSE);
 
     do {
 	for (cp = line;
@@ -757,6 +826,7 @@ ParseDoDependency (line)
 		 *	    	    	life easier later, when we'll
 		 *	    	    	use Make_HandleUse to actually
 		 *	    	    	apply the .DEFAULT commands.
+		 *	.PHONY		The list of targets
 		 *	.BEGIN
 		 *	.END
 		 *	.INTERRUPT  	Are not to be considered the
@@ -1100,7 +1170,7 @@ ParseDoDependency (line)
 
 		while (!Lst_IsEmpty (sources)) {
 		    gn = (GNode *) Lst_DeQueue (sources);
-		    ParseDoSrc (tOp, gn->name);
+		    ParseDoSrc (tOp, gn->name, curSrcs);
 		}
 		Lst_Destroy (sources, NOFREE);
 		cp = line;
@@ -1110,7 +1180,7 @@ ParseDoDependency (line)
 		    cp += 1;
 		}
 
-		ParseDoSrc (tOp, line);
+		ParseDoSrc (tOp, line, curSrcs);
 	    }
 	    while (*cp && isspace (*cp)) {
 		cp++;
@@ -1129,6 +1199,10 @@ ParseDoDependency (line)
 	Lst_ForEach (targets, ParseFindMain, (ClientData)0);
     }
 
+    /*
+     * Finally, destroy the list of sources
+     */
+    Lst_Destroy(curSrcs, NOFREE);
 }
 
 /*-
@@ -1153,60 +1227,80 @@ Parse_IsVar (line)
 {
     register Boolean wasSpace = FALSE;	/* set TRUE if found a space */
     register Boolean haveName = FALSE;	/* Set TRUE if have a variable name */
+    int level = 0;
+#define ISEQOPERATOR(c) \
+	(((c) == '+') || ((c) == ':') || ((c) == '?') || ((c) == '!'))
 
     /*
      * Skip to variable name
      */
-    while ((*line == ' ') || (*line == '\t')) {
-	line++;
-    }
+    for (;(*line == ' ') || (*line == '\t'); line++)
+	continue;
 
-    while (*line != '=') {
-	if (*line == '\0') {
+    for (; *line != '=' || level != 0; line++)
+	switch (*line) {
+	case '\0':
 	    /*
 	     * end-of-line -- can't be a variable assignment.
 	     */
-	    return (FALSE);
-	} else if ((*line == ' ') || (*line == '\t')) {
+	    return FALSE;
+
+	case ' ':
+	case '\t':
 	    /*
 	     * there can be as much white space as desired so long as there is
 	     * only one word before the operator
 	     */
 	    wasSpace = TRUE;
-	} else if (wasSpace && haveName) {
-	    /*
-	     * Stop when an = operator is found.
-	     */
-	    if ((*line == '+') || (*line == ':') || (*line == '?') ||
-		(*line == '!')) {
-		break;
+	    break;
+
+	case '(':
+	case '{':
+	    level++;
+	    break;
+
+	case '}':
+	case ')':
+	    level--;
+	    break;
+
+	default:
+	    if (wasSpace && haveName) {
+		    if (ISEQOPERATOR(*line)) {
+			/*
+			 * We must have a finished word
+			 */
+			if (level != 0)
+			    return FALSE;
+
+			/*
+			 * When an = operator [+?!:] is found, the next
+			 * character must be an = or it ain't a valid
+			 * assignment.
+			 */
+			if (line[1] == '=')
+			    return haveName;
+#ifdef SUNSHCMD
+			/*
+			 * This is a shell command
+			 */
+			if (strncmp(line, ":sh", 3) == 0)
+			    return haveName;
+#endif
+		    }
+		    /*
+		     * This is the start of another word, so not assignment.
+		     */
+		    return FALSE;
 	    }
-
-	    /*
-	     * This is the start of another word, so not assignment.
-	     */
-	    return (FALSE);
-	} else {
-	    haveName = TRUE;
-	    wasSpace = FALSE;
+	    else {
+		haveName = TRUE;
+		wasSpace = FALSE;
+	    }
+	    break;
 	}
-	line++;
-    }
 
-    /*
-     * A final check: if we stopped on a +, ?, ! or :, the next character must
-     * be an = or it ain't a valid assignment
-     */
-    if (((*line == '+') ||
-	 (*line == '?') ||
-	 (*line == ':') ||
-	 (*line == '!')) &&
-	(line[1] != '='))
-    {
-	return (FALSE);
-    } else {
-	return (haveName);
-    }
+    return haveName;
 }
 
 /*-
@@ -1300,6 +1394,17 @@ Parse_DoVar (line, ctxt)
 	    break;
 
 	default:
+#ifdef SUNSHCMD
+	    while (*opc != ':')
+		if (--opc < line)
+		    break;
+
+	    if (strncmp(opc, ":sh", 3) == 0) {
+		type = VAR_SHELL;
+		*opc = '\0';
+		break;
+	    }
+#endif
 	    type = VAR_NORMAL;
 	    break;
     }
@@ -1331,156 +1436,37 @@ Parse_DoVar (line, ctxt)
 	Var_Set(line, cp, ctxt);
 	free(cp);
     } else if (type == VAR_SHELL) {
-	char	*args[4];   	/* Args for invoking the shell */
-	int 	fds[2];	    	/* Pipe streams */
-	int 	cpid;	    	/* Child PID */
-	int 	pid;	    	/* PID from wait() */
-	Boolean	freeCmd;    	/* TRUE if the command needs to be freed, i.e.
-				 * if any variable expansion was performed */
+	Boolean	freeCmd = FALSE; /* TRUE if the command needs to be freed, i.e.
+				  * if any variable expansion was performed */
+	char *res, *err;
 
-	/*
-	 * Avoid clobbered variable warnings by forcing the compiler
-	 * to ``unregister'' variables
-	 */
-#if __GNUC__
-	(void) &freeCmd;
-#endif
-
-	/*
-	 * Set up arguments for shell
-	 */
-	args[0] = "sh";
-	args[1] = "-c";
-	if (strchr(cp, '$') != (char *)NULL) {
+	if (strchr(cp, '$') != NULL) {
 	    /*
 	     * There's a dollar sign in the command, so perform variable
 	     * expansion on the whole thing. The resulting string will need
 	     * freeing when we're done, so set freeCmd to TRUE.
 	     */
-	    args[2] = Var_Subst(NULL, cp, VAR_CMD, TRUE);
+	    cp = Var_Subst(NULL, cp, VAR_CMD, TRUE);
 	    freeCmd = TRUE;
-	} else {
-	    args[2] = cp;
-	    freeCmd = FALSE;
 	}
-	args[3] = (char *)NULL;
 
-	/*
-	 * Open a pipe for fetching its output
-	 */
-	pipe(fds);
+	res = Cmd_Exec(cp, &err);
+	Var_Set(line, res, ctxt);
+	free(res);
 
-	/*
-	 * Fork
-	 */
-	cpid = vfork();
-	if (cpid == 0) {
-	    /*
-	     * Close input side of pipe
-	     */
-	    close(fds[0]);
+	if (err)
+	    Parse_Error(PARSE_WARNING, err, cp);
 
-	    /*
-	     * Duplicate the output stream to the shell's output, then
-	     * shut the extra thing down. Note we don't fetch the error
-	     * stream...why not? Why?
-	     */
-	    dup2(fds[1], 1);
-	    close(fds[1]);
-
-	    execv("/bin/sh", args);
-	    _exit(1);
-	} else if (cpid < 0) {
-	    /*
-	     * Couldn't fork -- tell the user and make the variable null
-	     */
-	    Parse_Error(PARSE_WARNING, "Couldn't exec \"%s\"", cp);
-	    Var_Set(line, "", ctxt);
-	} else {
-	    int	status;
-	    int cc;
-	    Buffer buf;
-	    char *res;
-
-	    /*
-	     * No need for the writing half
-	     */
-	    close(fds[1]);
-
-	    buf = Buf_Init (MAKE_BSIZE);
-
-	    do {
-		char   result[BUFSIZ];
-		cc = read(fds[0], result, sizeof(result));
-		if (cc > 0)
-		    Buf_AddBytes(buf, cc, (Byte *) result);
-	    }
-	    while (cc > 0 || (cc == -1 && errno == EINTR));
-
-	    /*
-	     * Close the input side of the pipe.
-	     */
-	    close(fds[0]);
-
-	    /*
-	     * Wait for the process to exit.
-	     */
-	    while(((pid = wait(&status)) != cpid) && (pid >= 0))
-		continue;
-
-	    if (cc == -1) {
-		/*
-		 * Couldn't read all of the child's output -- tell the user
-		 * but still use whatever we read.  Null output isn't an
-		 * error unless there was an error reading it.
-		 */
-		Parse_Error(PARSE_WARNING, "Couldn't read shell's output");
-	    }
-
-	    res = (char *)Buf_GetAll (buf, &cc);
-	    Buf_Destroy (buf, FALSE);
-
-	    if (status) {
-		/*
-		 * Child returned an error -- tell the user but still use
-		 * the result.
-		 */
-		Parse_Error(PARSE_WARNING, "\"%s\" returned non-zero", cp);
-	    }
-
-	    /*
-	     * Null-terminate the result, convert newlines to spaces and
-	     * install it in the variable.
-	     */
-	    res[cc] = '\0';
-	    cp = &res[cc] - 1;
-
-	    if (*cp == '\n') {
-		/*
-		 * A final newline is just stripped
-		 */
-		*cp-- = '\0';
-	    }
-	    while (cp >= res) {
-		if (*cp == '\n') {
-		    *cp = ' ';
-		}
-		cp--;
-	    }
-	    Var_Set(line, res, ctxt);
-	    free(res);
-
-	}
-	if (freeCmd) {
-	    free(args[2]);
-	}
+	if (freeCmd)
+	    free(cp);
     } else {
 	/*
 	 * Normal assignment -- just do it.
 	 */
-	Var_Set (line, cp, ctxt);
+	Var_Set(line, cp, ctxt);
     }
 }
+
 
 /*-
  * ParseAddCmd  --
@@ -1639,17 +1625,20 @@ ParseDoInclude (file)
 	 * leading path components and call Dir_FindFile to see if
 	 * we can locate the beast.
 	 */
-	char	  *prefEnd;
+	char	  *prefEnd, *Fname;
 
-	prefEnd = strrchr (fname, '/');
+	/* Make a temporary copy of this, to be safe. */
+	Fname = estrdup(fname);
+
+	prefEnd = strrchr (Fname, '/');
 	if (prefEnd != (char *)NULL) {
 	    char  	*newName;
 
 	    *prefEnd = '\0';
 	    if (file[0] == '/')
-		newName = strdup(file);
+		newName = estrdup(file);
 	    else
-		newName = str_concat (fname, file, STR_ADDSLASH);
+		newName = str_concat (Fname, file, STR_ADDSLASH);
 	    fullname = Dir_FindFile (newName, parseIncPath);
 	    if (fullname == (char *)NULL) {
 		fullname = Dir_FindFile(newName, dirSearchPath);
@@ -1659,6 +1648,7 @@ ParseDoInclude (file)
 	} else {
 	    fullname = (char *)NULL;
 	}
+	free (Fname);
     } else {
 	fullname = (char *)NULL;
     }
@@ -1763,7 +1753,7 @@ Parse_FromString(str)
     curPTR = (PTR *) emalloc (sizeof (PTR));
     curPTR->str = curPTR->ptr = str;
     lineno = 0;
-    fname = strdup(fname);
+    fname = estrdup(fname);
 }
 
 
@@ -2189,7 +2179,11 @@ test_char:
 		break;
 	    case '#':
 		if (!ignComment) {
-		    if (compatMake && (lastc != '\\')) {
+		    if (
+#if 0
+		    compatMake &&
+#endif
+		    (lastc != '\\')) {
 			/*
 			 * If the character is a hash mark and it isn't escaped
 			 * (or we're being compatible), the thing is a comment.
@@ -2247,7 +2241,7 @@ test_char:
 	while (*ep)
 	    ++ep;
 	while (ep > line + 1 && (ep[-1] == ' ' || ep[-1] == '\t')) {
-	    if (ep[-2] == '\\')
+	    if (ep > line + 1 && ep[-2] == '\\')
 		break;
 	    --ep;
 	}
@@ -2421,13 +2415,13 @@ Parse_File(name, stream)
 			continue;
 		    } else {
 			Parse_Error (PARSE_FATAL,
-				     "Unassociated shell command \"%.20s\"",
+				     "Unassociated shell command \"%s\"",
 				     cp);
 		    }
 		}
 #ifdef SYSVINCLUDE
 	    } else if (strncmp (line, "include", 7) == 0 &&
-		       isspace(line[7]) &&
+		       isspace((unsigned char) line[7]) &&
 		       strchr(line, ':') == NULL) {
 		/*
 		 * It's an S3/S5-style "include".
@@ -2536,30 +2530,11 @@ Parse_File(name, stream)
 void
 Parse_Init ()
 {
-	char *cp = NULL, *start;
-					/* avoid faults on read-only strings */
-	static char syspath[] = _PATH_DEFSYSPATH;
-
     mainNode = NILGNODE;
     parseIncPath = Lst_Init (FALSE);
     sysIncPath = Lst_Init (FALSE);
     includes = Lst_Init (FALSE);
     targCmds = Lst_Init (FALSE);
-
-    /*
-     * Add the directories from the DEFSYSPATH (more than one may be given
-     * as dir1:...:dirn) to the system include path.
-     */
-    for (start = syspath; *start != '\0'; start = cp) {
-	for (cp = start; *cp != '\0' && *cp != ':'; cp++)
-	    continue;
-	if (*cp == '\0') {
-	    Dir_AddDir(sysIncPath, start);
-	} else {
-	    *cp++ = '\0';
-	    Dir_AddDir(sysIncPath, start);
-	}
-    }
 }
 
 void

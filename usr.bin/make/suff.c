@@ -95,7 +95,6 @@ static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #include	  "make.h"
 #include	  "hash.h"
 #include	  "dir.h"
-#include    	  "bit.h"
 
 static Lst       sufflist;	/* Lst of suffixes */
 static Lst	 suffClean;	/* Lst of suffixes to be cleaned */
@@ -159,6 +158,7 @@ static int SuffSuffIsSuffixP __P((ClientData, ClientData));
 static int SuffSuffHasNameP __P((ClientData, ClientData));
 static int SuffSuffIsPrefix __P((ClientData, ClientData));
 static int SuffGNHasNameP __P((ClientData, ClientData));
+static void SuffUnRef __P((ClientData, ClientData));
 static void SuffFree __P((ClientData));
 static void SuffInsert __P((Lst, Suff *));
 static void SuffRemove __P((Lst, Suff *));
@@ -796,7 +796,7 @@ Suff_AddSuffix (str)
     if (ln == NILLNODE) {
 	s = (Suff *) emalloc (sizeof (Suff));
 
-	s->name =   	strdup (str);
+	s->name =   	estrdup (str);
 	s->nameLen = 	strlen (s->name);
 	s->searchPath = Lst_Init (FALSE);
 	s->children = 	Lst_Init (FALSE);
@@ -1003,7 +1003,7 @@ SuffAddSrc (sp, lsp)
 	 * that...
 	 */
 	s2 = (Src *) emalloc (sizeof (Src));
-	s2->file =  	strdup(targ->pref);
+	s2->file =  	estrdup(targ->pref);
 	s2->pref =  	targ->pref;
 	s2->parent = 	targ;
 	s2->node =  	NILGNODE;
@@ -1266,7 +1266,7 @@ SuffFindCmds (targ, slst)
 		     * again (ick)), and return the new structure.
 		     */
 		    ret = (Src *)emalloc (sizeof (Src));
-		    ret->file = strdup(s->name);
+		    ret->file = estrdup(s->name);
 		    ret->pref = targ->pref;
 		    ret->suff = suff;
 		    suff->refCount++;
@@ -1841,7 +1841,8 @@ SuffFindNormalDeps(gn, slst)
      * children, then look for any overriding transformations they imply.
      * Should we find one, we discard the one we found before.
      */
-    while(ln != NILLNODE) {
+
+    while (ln != NILLNODE) {
 	/*
 	 * Look for next possible suffix...
 	 */
@@ -1855,7 +1856,7 @@ SuffFindNormalDeps(gn, slst)
 	     * Allocate a Src structure to which things can be transformed
 	     */
 	    targ = (Src *)emalloc(sizeof (Src));
-	    targ->file = strdup(gn->name);
+	    targ->file = estrdup(gn->name);
 	    targ->suff = (Suff *)Lst_Datum(ln);
 	    targ->suff->refCount++;
 	    targ->node = gn;
@@ -1900,13 +1901,13 @@ SuffFindNormalDeps(gn, slst)
 	}
 
 	targ = (Src *)emalloc(sizeof (Src));
-	targ->file = strdup(gn->name);
+	targ->file = estrdup(gn->name);
 	targ->suff = suffNull;
 	targ->suff->refCount++;
 	targ->node = gn;
 	targ->parent = (Src *)NULL;
 	targ->children = 0;
-	targ->pref = strdup(sopref);
+	targ->pref = estrdup(sopref);
 #ifdef DEBUG_SRC
 	targ->cp = Lst_Init(FALSE);
 #endif
@@ -1916,7 +1917,7 @@ SuffFindNormalDeps(gn, slst)
 	 * or dependencies defined for this gnode
 	 */
 	if (Lst_IsEmpty(gn->commands) && Lst_IsEmpty(gn->children))
-  	    SuffAddLevel(srcs, targ);
+	    SuffAddLevel(srcs, targ);
 	else {
 	    if (DEBUG(SUFF))
 		printf("not ");
@@ -1988,6 +1989,7 @@ sfnd_abort:
 				    (targ == NULL ? dirSearchPath :
 				     targ->suff->searchPath));
 	    if (gn->path != NULL) {
+		char *ptr;
 		Var_Set(TARGET, gn->path, gn);
 
 		if (targ != NULL) {
@@ -1995,7 +1997,7 @@ sfnd_abort:
 		     * Suffix known for the thing -- trim the suffix off
 		     * the path to form the proper .PREFIX variable.
 		     */
-		    int		len = strlen(gn->path);
+		    int		savep = strlen(gn->path) - targ->suff->nameLen;
 		    char	savec;
 
 		    if (gn->suffix)
@@ -2003,12 +2005,17 @@ sfnd_abort:
 		    gn->suffix = targ->suff;
 		    gn->suffix->refCount++;
 
-		    savec = gn->path[len-targ->suff->nameLen];
-		    gn->path[len-targ->suff->nameLen] = '\0';
+		    savec = gn->path[savep];
+		    gn->path[savep] = '\0';
 
-		    Var_Set(PREFIX, gn->path, gn);
+		    if ((ptr = strrchr(gn->path, '/')) != NULL)
+			ptr++;
+		    else
+			ptr = gn->path;
 
-		    gn->path[len-targ->suff->nameLen] = savec;
+		    Var_Set(PREFIX, ptr, gn);
+
+		    gn->path[savep] = savec;
 		} else {
 		    /*
 		     * The .PREFIX gets the full path if the target has
@@ -2018,7 +2025,12 @@ sfnd_abort:
 			gn->suffix->refCount--;
 		    gn->suffix = NULL;
 
-		    Var_Set(PREFIX, gn->path, gn);
+		    if ((ptr = strrchr(gn->path, '/')) != NULL)
+			ptr++;
+		    else
+			ptr = gn->path;
+
+		    Var_Set(PREFIX, ptr, gn);
 		}
 	    }
 	} else {
@@ -2034,7 +2046,7 @@ sfnd_abort:
 		gn->suffix->refCount++;
 	    if (gn->path != NULL)
 		free(gn->path);
-	    gn->path = strdup(gn->name);
+	    gn->path = estrdup(gn->name);
 	}
 
 	goto sfnd_return;
@@ -2135,7 +2147,7 @@ sfnd_abort:
      */
     if (gn->path)
 	free(gn->path);
-    gn->path = strdup(gn->name);
+    gn->path = estrdup(gn->name);
 
     /*
      * Nuke the transformation path and the Src structures left over in the
@@ -2316,7 +2328,7 @@ Suff_Init ()
      */
     emptySuff = suffNull = (Suff *) emalloc (sizeof (Suff));
 
-    suffNull->name =   	    strdup ("");
+    suffNull->name =   	    estrdup ("");
     suffNull->nameLen =     0;
     suffNull->searchPath =  Lst_Init (FALSE);
     Dir_Concat(suffNull->searchPath, dirSearchPath);
