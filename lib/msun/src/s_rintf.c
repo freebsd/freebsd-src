@@ -14,16 +14,22 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_rintf.c,v 1.1.1.1 1994/08/19 09:39:58 jkh Exp $";
+static char rcsid[] = "$Id: s_rintf.c,v 1.2 1995/05/30 05:50:21 rgrimes Exp $";
 #endif
 
 #include "math.h"
 #include "math_private.h"
 
+/*
+ * TWO23 is double instead of float to avoid a bug in gcc.  Without
+ * this, gcc thinks that TWO23[sx]+x and w-TWO23[sx] already have float
+ * precision and doesn't clip them to float precision when they are
+ * assigned and returned.
+ */
 #ifdef __STDC__
-static const float
+static const double
 #else
-static float
+static double
 #endif
 TWO23[2]={
   8.3886080000e+06, /* 0x4b000000 */
