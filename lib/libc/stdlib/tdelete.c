@@ -25,16 +25,20 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 
-/* delete node with given key */
+/*
+ * delete node with given key
+ *
+ * vkey:   key to be deleted
+ * vrootp: address of the root of the tree
+ * compar: function to carry out node comparisons
+ */
 void *
-tdelete(vkey, vrootp, compar)
-	const void *vkey;	/* key to be deleted */
-	void      **vrootp;	/* address of the root of tree */
-	int       (*compar)(const void *, const void *);
+tdelete(const void *__restrict vkey, void **__restrict vrootp,
+    int (*compar)(const void *, const void *))
 {
 	node_t **rootp = (node_t **)vrootp;
 	node_t *p, *q, *r;
-	int  cmp;
+	int cmp;
 
 	if (rootp == NULL || (p = *rootp) == NULL)
 		return NULL;
