@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.8 1995/08/29 03:09:05 bde Exp $
+ * $Id: subr_prof.c,v 1.9 1995/09/09 18:10:05 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <vm/vm.h>
@@ -147,12 +148,14 @@ sysctl_doprof(name, namelen, oldp, oldlenp, newp, newlen)
  * The scale factor is a fixed point number with 16 bits of fraction, so that
  * 1.0 is represented as 0x10000.  A scale factor of 0 turns off profiling.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct profil_args {
 	caddr_t	samples;
 	u_int	size;
 	u_int	offset;
 	u_int	scale;
 };
+#endif
 /* ARGSUSED */
 int
 profil(p, uap, retval)

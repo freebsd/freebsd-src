@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.11 1995/10/08 00:06:00 swallace Exp $
+ * $Id: kern_descrip.c,v 1.12 1995/10/21 08:38:09 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -65,9 +66,11 @@ int nfiles;		/* actual number of open files */
 /*
  * System calls on descriptors.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct getdtablesize_args {
 	int	dummy;
 };
+#endif
 /* ARGSUSED */
 int
 getdtablesize(p, uap, retval)
@@ -83,10 +86,12 @@ getdtablesize(p, uap, retval)
 /*
  * Duplicate a file descriptor to a particular value.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct dup2_args {
 	u_int	from;
 	u_int	to;
 };
+#endif
 /* ARGSUSED */
 int
 dup2(p, uap, retval)
@@ -126,9 +131,11 @@ dup2(p, uap, retval)
 /*
  * Duplicate a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct dup_args {
 	u_int	fd;
 };
+#endif
 /* ARGSUSED */
 int
 dup(p, uap, retval)
@@ -160,11 +167,13 @@ dup(p, uap, retval)
 /*
  * The file control system call.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fcntl_args {
 	int	fd;
 	int	cmd;
 	int	arg;
 };
+#endif
 /* ARGSUSED */
 int
 fcntl(p, uap, retval)
@@ -328,9 +337,11 @@ finishdup(fdp, old, new, retval)
 /*
  * Close a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct close_args {
         int     fd;
 };
+#endif
 /* ARGSUSED */
 int
 close(p, uap, retval)
@@ -362,10 +373,12 @@ close(p, uap, retval)
 /*
  * Return status information about a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ofstat_args {
 	int	fd;
 	struct	ostat *sb;
 };
+#endif
 /* ARGSUSED */
 int
 ofstat(p, uap, retval)
@@ -406,10 +419,12 @@ ofstat(p, uap, retval)
 /*
  * Return status information about a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fstat_args {
 	int	fd;
 	struct	stat *sb;
 };
+#endif
 /* ARGSUSED */
 int
 fstat(p, uap, retval)
@@ -447,10 +462,12 @@ fstat(p, uap, retval)
 /*
  * Return pathconf information about a file descriptor.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct fpathconf_args {
 	int	fd;
 	int	name;
 };
+#endif
 /* ARGSUSED */
 int
 fpathconf(p, uap, retval)
@@ -812,10 +829,12 @@ closef(fp, p)
  * Just attempt to get a record lock of the requested type on
  * the entire file (l_whence = SEEK_SET, l_start = 0, l_len = 0).
  */
+#ifndef _SYS_SYSPROTO_H_
 struct flock_args {
 	int	fd;
 	int	how;
 };
+#endif
 /* ARGSUSED */
 int
 flock(p, uap, retval)

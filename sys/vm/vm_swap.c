@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.22 1995/07/13 08:48:45 davidg Exp $
+ * $Id: vm_swap.c,v 1.23 1995/07/29 11:44:31 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
@@ -123,9 +124,11 @@ swstrategy(bp)
  * which must be in the swdevsw.  Return EBUSY
  * if already swapping on this device.
  */
+#ifndef _SYS_SYSPROTO_H_
 struct swapon_args {
 	char *name;
 };
+#endif
 
 /* ARGSUSED */
 int

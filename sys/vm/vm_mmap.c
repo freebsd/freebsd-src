@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.27 1995/10/21 17:42:28 dyson Exp $
+ * $Id: vm_mmap.c,v 1.28 1995/10/23 03:49:37 dyson Exp $
  */
 
 /*
@@ -47,6 +47,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/resourcevar.h>
 #include <sys/proc.h>
@@ -64,9 +65,11 @@
 
 void pmap_object_init_pt();
 
+#ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
 	int incr;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -80,9 +83,11 @@ sbrk(p, uap, retval)
 	return (EOPNOTSUPP);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct sstk_args {
 	int incr;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -97,9 +102,11 @@ sstk(p, uap, retval)
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#ifndef _SYS_SYSPROTO_H_
 struct getpagesize_args {
 	int dummy;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -114,6 +121,7 @@ ogetpagesize(p, uap, retval)
 }
 #endif				/* COMPAT_43 || COMPAT_SUNOS */
 
+#ifndef _SYS_SYSPROTO_H_
 struct mmap_args {
 	caddr_t addr;
 	size_t len;
@@ -123,6 +131,7 @@ struct mmap_args {
 	long pad;
 	off_t pos;
 };
+#endif
 
 int
 mmap(p, uap, retval)
@@ -232,6 +241,7 @@ mmap(p, uap, retval)
 }
 
 #ifdef COMPAT_43
+#ifndef _SYS_SYSPROTO_H_
 struct ommap_args {
 	caddr_t addr;
 	int len;
@@ -240,6 +250,7 @@ struct ommap_args {
 	int fd;
 	long pos;
 };
+#endif
 int
 ommap(p, uap, retval)
 	struct proc *p;
@@ -287,11 +298,13 @@ ommap(p, uap, retval)
 #endif				/* COMPAT_43 */
 
 
+#ifndef _SYS_SYSPROTO_H_
 struct msync_args {
 	caddr_t addr;
 	int len;
 	int flags;
 };
+#endif
 int
 msync(p, uap, retval)
 	struct proc *p;
@@ -352,10 +365,12 @@ msync(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct munmap_args {
 	caddr_t addr;
 	int len;
 };
+#endif
 int
 munmap(p, uap, retval)
 	register struct proc *p;
@@ -406,11 +421,13 @@ munmapfd(p, fd)
 	p->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct mprotect_args {
 	caddr_t addr;
 	int len;
 	int prot;
 };
+#endif
 int
 mprotect(p, uap, retval)
 	struct proc *p;
@@ -437,11 +454,13 @@ mprotect(p, uap, retval)
 	return (EINVAL);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct madvise_args {
 	caddr_t addr;
 	int len;
 	int behav;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -455,11 +474,13 @@ madvise(p, uap, retval)
 	return (EOPNOTSUPP);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct mincore_args {
 	caddr_t addr;
 	int len;
 	char *vec;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -495,10 +516,12 @@ mincore(p, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct mlock_args {
 	caddr_t addr;
 	size_t len;
 };
+#endif
 int
 mlock(p, uap, retval)
 	struct proc *p;
@@ -529,10 +552,12 @@ mlock(p, uap, retval)
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct munlock_args {
 	caddr_t addr;
 	size_t len;
 };
+#endif
 int
 munlock(p, uap, retval)
 	struct proc *p;

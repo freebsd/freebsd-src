@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.15 1995/11/09 20:22:12 phk Exp $
+ * $Id: kern_xxx.c,v 1.16 1995/11/11 01:04:42 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -55,9 +56,11 @@ extern const struct linker_set cleanup_set;
 static const cleanup_func_t *cleanups =
         (const cleanup_func_t *)&cleanup_set.ls_items[0];
 
+#ifndef _SYS_SYSPROTO_H_
 struct reboot_args {
 	int	opt;
 };
+#endif
 /* ARGSUSED */
 int
 reboot(p, uap, retval)
@@ -83,10 +86,12 @@ reboot(p, uap, retval)
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 
+#ifndef _SYS_SYSPROTO_H_
 struct gethostname_args {
 	char	*hostname;
 	u_int	len;
 };
+#endif
 /* ARGSUSED */
 int
 ogethostname(p, uap, retval)
@@ -102,10 +107,12 @@ ogethostname(p, uap, retval)
 		1, 0, 0, 0));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct sethostname_args {
 	char	*hostname;
 	u_int	len;
 };
+#endif
 /* ARGSUSED */
 int
 osethostname(p, uap, retval)
@@ -124,9 +131,11 @@ osethostname(p, uap, retval)
 		uap->hostname, uap->len, 0));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct ogethostid_args {
 	int	dummy;
 };
+#endif
 /* ARGSUSED */
 int
 ogethostid(p, uap, retval)
@@ -141,9 +150,11 @@ ogethostid(p, uap, retval)
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
 #ifdef COMPAT_43
+#ifndef _SYS_SYSPROTO_H_
 struct osethostid_args {
 	long	hostid;
 };
+#endif
 /* ARGSUSED */
 int
 osethostid(p, uap, retval)
@@ -184,9 +195,11 @@ shutdown_nice(void)
 }
 
 
+#ifndef _SYS_SYSPROTO_H_
 struct uname_args {
         struct utsname  *name;
 };
+#endif
 
 /* ARGSUSED */
 int
@@ -253,11 +266,13 @@ uname(p, uap, retval)
 	return 0;
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getdomainname_args {
         char    *domainname;
         u_int   len;
 };
 
+#endif
 /* ARGSUSED */
 int
 getdomainname(p, uap, retval)
@@ -270,10 +285,12 @@ getdomainname(p, uap, retval)
 	return (copyout((caddr_t)domainname, (caddr_t)uap->domainname, uap->len));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setdomainname_args {
         char    *domainname;
         u_int   len;
 };
+#endif
 
 /* ARGSUSED */
 int
