@@ -38,6 +38,6 @@
  */
 
 #ifdef _KERNEL
-void gre_input __P((struct mbuf *, ...));
-void gre_mobile_input __P((struct mbuf *, ...));
+void gre_input(struct mbuf *, ...);
+void gre_mobile_input(struct mbuf *, ...);
 #endif /* _KERNEL */
