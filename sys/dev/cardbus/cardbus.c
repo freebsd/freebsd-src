@@ -946,6 +946,17 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
 	cfg = &dinfo->pci.cfg;
 
 	switch (which) {
+	case PCI_IVAR_ETHADDR:
+		/*
+		 * The generic accessor doesn't deal with failure, so
+		 * we set the return value, then return an error.
+		 */
+		if (dinfo->fepresent & (1<<TPL_FUNCE_LAN_NID) == 0) {
+			*((u_int8_t **) result) = NULL;
+			return (EINVAL);
+		}
+		*((u_int8_t **) result) = dinfo->funce.lan.nid;
+		break;
 	case PCI_IVAR_SUBVENDOR:
 		*result = cfg->subvendor;
 		break;
@@ -1004,6 +1015,7 @@ cardbus_write_ivar(device_t cbdev, device_t child, int which, uintptr_t value)
 	cfg = &dinfo->pci.cfg;
 
 	switch (which) {
+	case PCI_IVAR_ETHADDR:
 	case PCI_IVAR_SUBVENDOR:
 	case PCI_IVAR_SUBDEVICE:
 	case PCI_IVAR_VENDOR:
