@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.3 1998/05/01 08:39:27 dfr Exp $
+ *      $Id: reloc.c,v 1.1 1998/09/04 19:03:57 dfr Exp $
  */
 
 /*
@@ -105,6 +105,16 @@ do_copy_relocations(Obj_Entry *dstobj)
     }
 
     return 0;
+}
+
+/* Initialize the special GOT entries. */
+void
+init_pltgot(Obj_Entry *obj)
+{
+    if (obj->pltgot != NULL) {
+	obj->pltgot[1] = (Elf_Addr) obj;
+	obj->pltgot[2] = (Elf_Addr) &_rtld_bind_start;
+    }
 }
 
 /* Process the non-PLT relocations. */
