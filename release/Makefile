@@ -335,7 +335,7 @@ rerelease release:
 .if defined(ALLLANG) && ${ALLLANG} != "NO" && ${ALLLANG} != "no"
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .else
-	echo "export DOC_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
+	echo "export DOC_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
