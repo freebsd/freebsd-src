@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.44 1996/03/28 14:28:14 scrappy Exp $
+ *	$Id: cons.c,v 1.45 1996/03/28 15:03:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@
 
 #include <machine/cpu.h>
 #include <machine/cons.h>
-#include <machine/stdarg.h>
 
 /* XXX this should be config(8)ed. */
 #include "sc.h"
