@@ -8,7 +8,6 @@ PROG=	m4
 CFLAGS+=-DEXTENDED
 
 SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c
-WARNS?=	2
 MAN=	m4.1
 
 .include <bsd.prog.mk>
