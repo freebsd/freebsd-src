@@ -35,7 +35,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)rex.x 1.3 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rex.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$FreeBSD$";
+%static char rcsid[] = "$Id$";
 %#endif /* not lint */
 #endif
 

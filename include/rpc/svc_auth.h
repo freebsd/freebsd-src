@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*

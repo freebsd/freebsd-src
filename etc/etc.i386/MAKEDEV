@@ -102,7 +102,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$FreeBSD$
+#	$Id$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

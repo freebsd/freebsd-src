@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $Id$
 
 # Change some defaults for serial devices.
 # Standard defaults are:
