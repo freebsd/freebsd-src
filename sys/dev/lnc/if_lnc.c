@@ -79,6 +79,7 @@
 #include <sys/errno.h>
 #include <sys/ioccom.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -141,14 +142,14 @@ static struct mbuf *mbuf_packet __P((struct lnc_softc *sc, int start_of_packet, 
 static void lnc_rint __P((struct lnc_softc *sc));
 static void lnc_tint __P((struct lnc_softc *sc));
 static int lnc_probe __P((struct isa_device *isa_dev));
-static int ne2100_probe __P((struct isa_device *isa_dev));
-static int bicc_probe __P((struct isa_device *isa_dev));
+static int ne2100_probe __P((struct lnc_softc *sc, unsigned iobase));
+static int bicc_probe __P((struct lnc_softc *sc, unsigned iobase));
 static int dec_macaddr_extract __P((u_char ring[], struct lnc_softc *sc));
-static int depca_probe __P((struct isa_device *isa_dev));
-static int lance_probe __P((int unit));
-static int pcnet_probe __P((int unit));
-static int lnc_attach __P((struct lnc_softc *sc, int unit));
-static int lnc_attach_isa __P((struct isa_device *isa_dev));
+static int depca_probe __P((struct lnc_softc *sc, unsigned iobase));
+static int lance_probe __P((struct lnc_softc *sc));
+static int pcnet_probe __P((struct lnc_softc *sc));
+static int lnc_attach_sc __P((struct lnc_softc *sc, int unit));
+static int lnc_attach __P((struct isa_device *isa_dev));
 static void lnc_init __P((struct lnc_softc *sc));
 static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static struct mbuf *chain_to_cluster __P((struct mbuf *m));
@@ -165,7 +166,7 @@ void *lnc_attach_ne2100_pci __P((int unit, unsigned iobase));
 #endif
 void lncintr_sc __P((struct lnc_softc *sc));
 
-struct isa_driver lncdriver = {lnc_probe, lnc_attach_isa, "lnc"};
+struct isa_driver lncdriver = {lnc_probe, lnc_attach, "lnc"};
 
 static struct kern_devconf kdc_lnc = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -493,7 +494,6 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 static inline void
 lnc_rint(struct lnc_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	struct mbuf *head;
@@ -513,13 +513,15 @@ lnc_rint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if ((sc->recv_ring + sc->recv_next)->md->md1 & OWN) {
+		int unit = sc->arpcom.ac_if.if_unit;
 		log(LOG_ERR, "lnc%d: Receive interrupt with buffer still owned by controller -- Resetting\n", unit);
-		lnc_reset(unit);
+		lnc_reset(sc);
 		return;
 	}
 	if (!((sc->recv_ring + sc->recv_next)->md->md1 & STP)) {
+		int unit = sc->arpcom.ac_if.if_unit;
 		log(LOG_ERR, "lnc%d: Receive interrupt but not start of packet -- Resetting\n", unit);
-		lnc_reset(unit);
+		lnc_reset(sc);
 		return;
 	}
 #endif
@@ -549,6 +551,7 @@ lnc_rint(struct lnc_softc *sc)
 			} while (!(flags & (STP | OWN | ENP | MDERR)));
 
 			if (flags & STP) {
+				int unit = sc->arpcom.ac_if.if_unit;
 				log(LOG_ERR, "lnc%d: Start of packet found before end of previous in receive ring -- Resetting\n", unit);
 				lnc_reset(sc);
 				return;
@@ -562,6 +565,7 @@ lnc_rint(struct lnc_softc *sc)
 					sc->recv_next = start_of_packet;
 					break;
 				} else {
+					int unit = sc->arpcom.ac_if.if_unit;
 					log(LOG_ERR, "lnc%d: End of received packet not found-- Resetting\n", unit);
 					lnc_reset(sc);
 					return;
@@ -576,6 +580,7 @@ lnc_rint(struct lnc_softc *sc)
 		next = sc->recv_ring + sc->recv_next;
 
 		if (flags & MDERR) {
+			int unit = sc->arpcom.ac_if.if_unit;
 			if (flags & RBUFF) {
 				LNCSTATS(rbuff)
 				log(LOG_ERR, "lnc%d: Receive buffer error\n", unit);
@@ -663,6 +668,7 @@ lnc_rint(struct lnc_softc *sc)
 				}
 
 			} else {
+				int unit = sc->arpcom.ac_if.if_unit;
 				log(LOG_ERR,"lnc%d: Packet dropped, no mbufs\n",unit);
 				LNCSTATS(drop_packet)
 			}
@@ -683,7 +689,6 @@ lnc_rint(struct lnc_softc *sc)
 static inline void
 lnc_tint(struct lnc_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 	struct host_ring_entry *next, *start;
 	int start_of_packet;
 	int lookahead;
@@ -705,8 +710,9 @@ lnc_tint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if ((sc->trans_ring + sc->trans_next)->md->md1 & OWN) {
+		int unit = sc->arpcom.ac_if.if_unit;
 		log(LOG_ERR, "lnc%d: Transmit interrupt with buffer still owned by controller -- Resetting\n", unit);
-		lnc_reset(unit);
+		lnc_reset(sc);
 		return;
 	}
 #endif
@@ -734,8 +740,9 @@ lnc_tint(struct lnc_softc *sc)
 
 #ifdef DIAGNOSTIC
 	if (!(next->md->md1 & STP)) {
+		int unit = sc->arpcom.ac_if.if_unit;
 		log(LOG_ERR, "lnc%d: Transmit interrupt but not start of packet -- Resetting\n", unit);
-		lnc_reset(unit);
+		lnc_reset(sc);
 		return;
 	}
 #endif
@@ -751,6 +758,7 @@ lnc_tint(struct lnc_softc *sc)
 			} while (!(next->md->md1 & (STP | OWN | ENP | MDERR)));
 
 			if (next->md->md1 & STP) {
+				int unit = sc->arpcom.ac_if.if_unit;
 				log(LOG_ERR, "lnc%d: Start of packet found before end of previous in transmit ring -- Resetting\n", unit);
 				lnc_reset(sc);
 				return;
@@ -764,6 +772,7 @@ lnc_tint(struct lnc_softc *sc)
 					sc->trans_next = start_of_packet;
 					break;
 				} else {
+					int unit = sc->arpcom.ac_if.if_unit;
 					log(LOG_ERR, "lnc%d: End of transmitted packet not found -- Resetting\n", unit);
 					lnc_reset(sc);
 					return;
@@ -775,6 +784,8 @@ lnc_tint(struct lnc_softc *sc)
 		 * error occurred.
 		 */
 		if (next->md->md1 & MDERR) {
+
+			int unit = sc->arpcom.ac_if.if_unit;
 
 			LNCSTATS(terr)
 				sc->arpcom.ac_if.if_oerrors++;
@@ -919,6 +930,9 @@ static int
 lnc_probe(struct isa_device * isa_dev)
 {
 	int nports;
+	int unit = isa_dev->id_unit;
+	struct lnc_softc *sc = &lnc_softc[unit];
+	unsigned iobase = isa_dev->id_iobase;
 
 #ifdef DIAGNOSTIC
 	int vsw;
@@ -926,13 +940,11 @@ lnc_probe(struct isa_device * isa_dev)
 	printf("Vendor Specific Word = %x\n", vsw);
 #endif
 
-
-	if (nports = bicc_probe(isa_dev))
-		return (nports);
-	if (nports = ne2100_probe(isa_dev))
-		return (nports);
-	if (nports = depca_probe(isa_dev))
-		return (nports);
+	nports = bicc_probe(sc, iobase);
+	if (nports == 0)
+		nports = ne2100_probe(sc, iobase);
+	if (nports == 0)
+		nports = depca_probe(sc, iobase);
 
 	/*
 	 * Register device even though probe has
@@ -940,19 +952,18 @@ lnc_probe(struct isa_device * isa_dev)
 	 */
 
 	lnc_registerdev(isa_dev);
-	return (0);
+	return (nports);
 }
 
 static int
-ne2100_probe(struct isa_device * isa_dev)
+ne2100_probe(struct lnc_softc *sc, unsigned iobase)
 {
-	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
 	int i;
 
-	sc->rap = isa_dev->id_iobase + PCNET_RAP;
-	sc->rdp = isa_dev->id_iobase + PCNET_RDP;
+	sc->rap = iobase + PCNET_RAP;
+	sc->rdp = iobase + PCNET_RDP;
 
-	if (sc->nic.ic = pcnet_probe(isa_dev->id_unit)) {
+	if ((sc->nic.ic = pcnet_probe(sc))) {
 		sc->nic.ident = NE2100;
 		sc->nic.mem_mode = DMA_FIXED;
 
@@ -962,8 +973,7 @@ ne2100_probe(struct isa_device * isa_dev)
 
 		/* Extract MAC address from PROM */
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = inb(isa_dev->id_iobase + i);
-		lnc_registerdev(isa_dev);
+			sc->arpcom.ac_enaddr[i] = inb(iobase + i);
 		return (NE2100_IOSIZE);
 	} else {
 		return (0);
@@ -971,10 +981,9 @@ ne2100_probe(struct isa_device * isa_dev)
 }
 
 static int
-bicc_probe(struct isa_device * isa_dev)
+bicc_probe(struct lnc_softc *sc, unsigned iobase)
 {
-struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
-int i;
+	int i;
 
 	/*
 	 * There isn't any way to determine if a NIC is a BICC. Basically, if
@@ -983,12 +992,12 @@ int i;
 	 *
 	 */
 
-	sc->rap = isa_dev->id_iobase + BICC_RAP;
-	sc->rdp = isa_dev->id_iobase + BICC_RDP;
+	sc->rap = iobase + BICC_RAP;
+	sc->rdp = iobase + BICC_RDP;
 
 	/* I think all these cards us the Am7990 */
 
-	if (sc->nic.ic = lance_probe(isa_dev->id_unit)) {
+	if ((sc->nic.ic = lance_probe(sc))) {
 		sc->nic.ident = BICC;
 		sc->nic.mem_mode = DMA_FIXED;
 
@@ -998,9 +1007,8 @@ int i;
 
 		/* Extract MAC address from PROM */
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = inb(isa_dev->id_iobase + (i * 2));
+			sc->arpcom.ac_enaddr[i] = inb(iobase + (i * 2));
 
-		lnc_registerdev(isa_dev);
 		return (BICC_IOSIZE);
 	} else {
 		return (0);
@@ -1040,24 +1048,22 @@ dec_macaddr_extract(u_char ring[], struct lnc_softc * sc)
 }
 
 static int
-depca_probe(struct isa_device * isa_dev)
+depca_probe(struct lnc_softc *sc, unsigned iobase)
 {
 	int i;
-	struct lnc_softc *sc = &lnc_softc[isa_dev->id_unit];
 	unsigned char maddr_ring[DEPCA_ADDR_ROM_SIZE];
 
-	sc->rap = isa_dev->id_iobase + DEPCA_RAP;
-	sc->rdp = isa_dev->id_iobase + DEPCA_RDP;
+	sc->rap = iobase + DEPCA_RAP;
+	sc->rdp = iobase + DEPCA_RDP;
 
-	if (sc->nic.ic = lance_probe(isa_dev->id_unit)) {
+	if ((sc->nic.ic = lance_probe(sc))) {
 		sc->nic.ident = DEPCA;
 		sc->nic.mem_mode = SHMEM;
 
 		/* Extract MAC address from PROM */
 		for (i = 0; i < DEPCA_ADDR_ROM_SIZE; i++)
-			maddr_ring[i] = inb(isa_dev->id_iobase + DEPCA_ADP);
+			maddr_ring[i] = inb(iobase + DEPCA_ADP);
 		if (dec_macaddr_extract(maddr_ring, sc)) {
-			lnc_registerdev(isa_dev);
 			return (DEPCA_IOSIZE);
 		}
 	}
@@ -1065,10 +1071,8 @@ depca_probe(struct isa_device * isa_dev)
 }
 
 static int
-lance_probe(int unit)
+lance_probe(struct lnc_softc *sc)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
-
 	write_csr(sc, CSR0, STOP);
 
 	if ((inw(sc->rdp) & STOP) && !(read_csr(sc, CSR3))) {
@@ -1087,10 +1091,8 @@ lance_probe(int unit)
 }
 
 static int
-pcnet_probe(int unit)
+pcnet_probe(struct lnc_softc *sc)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
-
 	u_long chip_id;
 	int type;
 
@@ -1100,7 +1102,7 @@ pcnet_probe(int unit)
 	 * though so the probe is just a matter of reading it.
 	 */
 
-	if (type = lance_probe(unit)) {
+	if ((type = lance_probe(sc))) {
 
 		chip_id = read_csr(sc, CSR89);
 		chip_id <<= 16;
@@ -1115,6 +1117,9 @@ pcnet_probe(int unit)
 			case Am79C965:
 				return (PCnet_32);
 			case Am79C970:
+			    /*
+			     * do NOT try to ISA attach the PCI version
+			     */
 				return (0);
 			default:
 				break;
@@ -1125,7 +1130,7 @@ pcnet_probe(int unit)
 }
 
 static int
-lnc_attach(struct lnc_softc *sc, int unit)
+lnc_attach_sc(struct lnc_softc *sc, int unit)
 {
 	int lnc_mem_size;
 
@@ -1214,12 +1219,12 @@ lnc_attach(struct lnc_softc *sc, int unit)
 }
 
 static int
-lnc_attach_isa(struct isa_device * isa_dev)
+lnc_attach(struct isa_device * isa_dev)
 {
 	int unit = isa_dev->id_unit;
 	struct lnc_softc *sc = &lnc_softc[unit];
 
-	int result = lnc_attach (sc, unit);
+	int result = lnc_attach_sc (sc, unit);
 	if (result == 0)
 		return (0);
 	/*
@@ -1240,35 +1245,14 @@ lnc_attach_ne2100_pci(int unit, unsigned iobase)
 {
 	struct lnc_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
-	if (!sc)
-		return sc;
+	if (sc) {
+		bzero (sc, sizeof *sc);
 
-	bzero (sc, sizeof *sc);
-
-	/*
-	 * Copied from ne2100_probe()
-	 */
-	sc->rap = iobase + PCNET_RAP;
-	sc->rdp = iobase + PCNET_RDP;
-
-	sc->nic.ic = PCnet_PCI;
-	sc->nic.ident = NE2100;
-	sc->nic.mem_mode = DMA_FIXED;
-
-	/* XXX - For now just use the defines */
-	sc->nrdre = NRDRE;
-	sc->ntdre = NTDRE;
-
-	/* Extract MAC address from PROM */
-	{
-		int i;
-		for (i = 0; i < ETHER_ADDR_LEN; i++)
-			sc->arpcom.ac_enaddr[i] = inb(iobase + i);
-	}
-
-	if (lnc_attach(sc, unit) == 0) {
-		free(sc, M_DEVBUF);
-		return NULL;
+		if ((ne2100_probe(sc, iobase) == 0) 
+		    || (lnc_attach_sc(sc, unit) == 0)) {
+			free(sc, M_DEVBUF);
+			sc = NULL;
+		}
 	}
 	return sc;
 }
@@ -1845,11 +1829,11 @@ lnc_watchdog(struct ifnet *ifp)
 
 #ifdef DEBUG
 static void
-lnc_dump_state(	struct lnc_softc *sc)
+lnc_dump_state(struct lnc_softc *sc)
 {
 	int             i;
 
-	printf("\nDriver/NIC [%d] state dump\n", unit);
+	printf("\nDriver/NIC [%d] state dump\n", sc->arpcom.ac_if.if_unit);
 	printf("Memory access mode: %b\n", sc->nic.mem_mode, MEM_MODES);
 	printf("Host memory\n");
 	printf("-----------\n");
@@ -1889,7 +1873,7 @@ lnc_dump_state(	struct lnc_softc *sc)
 		    ((sc->trans_ring + i)->md->md1 >> 8), TRANS_MD1,
 		    ((sc->trans_ring + i)->md->md3 >> 10), TRANS_MD3);
 	printf("\nnext_to_send = %x\n", sc->next_to_send);
-	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n", read_csr(unit, CSR0), CSR0_FLAGS, read_csr(unit, CSR1), read_csr(unit, CSR2), read_csr(unit, CSR3));
+	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n", read_csr(sc, CSR0), CSR0_FLAGS, read_csr(sc, CSR1), read_csr(sc, CSR2), read_csr(sc, CSR3));
 	/* Set RAP back to CSR0 */
 	outw(sc->rap, CSR0);
 }
