@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
 #else
 static const char rcsid[] =
-	"$Id: chown.c,v 1.7 1997/08/24 02:10:29 steve Exp $";
+	"$Id: chown.c,v 1.8 1997/09/04 11:55:45 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -133,16 +133,16 @@ main(argc, argv)
 
 	uid = gid = -1;
 	if (ischown) {
-#ifdef SUPPORT_DOT
-		if ((cp = strchr(*argv, '.')) != NULL) {
-			*cp++ = '\0';
-			a_gid(cp);
-		} else
-#endif
 		if ((cp = strchr(*argv, ':')) != NULL) {
 			*cp++ = '\0';
 			a_gid(cp);
 		}
+#ifdef SUPPORT_DOT
+		else if ((cp = strchr(*argv, '.')) != NULL) {
+			*cp++ = '\0';
+			a_gid(cp);
+		}
+#endif
 		a_uid(*argv);
 	} else
 		a_gid(*argv);
