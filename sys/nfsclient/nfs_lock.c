@@ -60,6 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs_lock.h>
 #include <nfsclient/nlminfo.h>
 
+#define NFSOWNER_1ST_LEVEL_START	1	       /* initial entries */
+#define NFSOWNER_2ND_LEVEL	      256		/* some power of 2 */
+
+#define NFSOWNER(tbl, i)	\
+		(tbl)[(i) / NFSOWNER_2ND_LEVEL][(i) % NFSOWNER_2ND_LEVEL]
+
 /*
  * XXX
  * We have to let the process know if the call succeeded.  I'm using an extra
@@ -123,6 +129,11 @@ nfs_dolock(struct vop_advlock_args *ap)
 	msg.lm_fl = *fl;
 	msg.lm_wait = ap->a_flags & F_WAIT;
 	msg.lm_getlk = ap->a_op == F_GETLK;
+	/*
+	 * XXX: the lm_cred assignment below directly exports a ucred
+	 * structure to userland.  This is probably wrong, and should at
+	 * least be xucred.
+	 */
 	bcopy(VFSTONFS(vp->v_mount)->nm_nam, &msg.lm_addr,
 		min(sizeof msg.lm_addr, VFSTONFS(vp->v_mount)->nm_nam->sa_len));
 	msg.lm_fh_len = NFS_ISV3(vp) ? VTONFS(vp)->n_fhsize : NFSX_V2FH;
@@ -181,8 +192,8 @@ nfs_dolock(struct vop_advlock_args *ap)
 		 * on a local network).  XXX Probably should use a back-off
 		 * scheme.
 		 */
-		error = tsleep(p->p_nlminfo, PCATCH | PUSER, "lockd", 20*hz);
-		if (error != 0) {
+		if ((error = tsleep((void *)p->p_nlminfo,
+					PCATCH | PUSER, "lockd", 20*hz)) != 0) {
 			if (error == EWOULDBLOCK) {
 				/*
 				 * We timed out, so we rewrite the request
@@ -207,9 +218,10 @@ nfs_dolock(struct vop_advlock_args *ap)
 		break;
 	}
 
-	error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td);
-	/* prefer any previous 'error' to our vn_close 'error1'. */
-	return (error != 0 ? error : error1);
+	if ((error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td)) && error == 0)
+		return (error1);
+
+	return (error);
 }
 
 /*
@@ -258,7 +270,7 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	targetp->p_nlminfo->set_getlk_pid = ansp->la_set_getlk_pid;
 	targetp->p_nlminfo->getlk_pid = ansp->la_getlk_pid;
 
-	wakeup(targetp->p_nlminfo);
+	(void)wakeup((void *)targetp->p_nlminfo);
 
 	PROC_UNLOCK(targetp);
 	return (0);
