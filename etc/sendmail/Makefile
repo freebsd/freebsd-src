@@ -17,11 +17,20 @@ RM=	rm -f
 
 ALL=	freebsd.cf
 
-# Local sendmail.cf, may be set in /etc/make.conf.  Warning! If set, this
-# causes 'make install' to always copy it over /etc/mail/sendmail.cf!!!
+# Local SENDMAIL_MC or SENDMAIL_CF may be set in /etc/make.conf.
+# Warning! If set, this causes 'make install' to always copy it
+# over /etc/mail/sendmail.cf!!!
 # Caveat emptor!  Be sure you want this before you enable it.
+.if defined(SENDMAIL_MC)
+INSTALL_CF=	${SENDMAIL_MC:R}.cf
+.else
 .if defined(SENDMAIL_CF)
-ALL+=	${SENDMAIL_CF}
+INSTALL_CF=	${SENDMAIL_CF}
+.endif
+.endif
+
+.if defined(INSTALL_CF)
+ALL+=	${INSTALL_CF}
 .endif
 
 CLEANFILES+=$(ALL)
@@ -30,22 +39,37 @@ all: $(ALL)
 
 depend:
 
-install:
-.if defined(SENDMAIL_CF)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${SENDMAIL_CF} \
+.if defined(INSTALL_CF)
+install: ${INSTALL_CF}
+.if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
+	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
+	@false
+.endif
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
 		${DESTDIR}/etc/mail/sendmail.cf
+.else
+install:
 .endif
 
 # Helper for src/etc/Makefile
 distribution: freebsd.cf freebsd.mc
+.if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
+	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
+	@false
+.endif
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
 		${DESTDIR}/etc/mail/freebsd.mc
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/freebsd.cf
+.if defined(INSTALL_CF)
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
+		${DESTDIR}/etc/mail/sendmail.cf
+.else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/sendmail.cf
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \ 
-		${DESTDIR}/var/log/sendmail.st 
+.endif
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	    ${DESTDIR}/var/log/sendmail.st
 
 # this is overkill, but....
 M4FILES!= find ${CFDIR} -type f -name '*.m4' -print
