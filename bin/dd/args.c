@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: args.c,v 1.9 1997/10/08 12:10:33 eivind Exp $
+ *	$Id: args.c,v 1.10 1997/10/11 20:09:04 joerg Exp $
  */
 
 #ifndef lint
@@ -283,8 +283,8 @@ static struct conv {
 	{ "oldascii",	C_ASCII,	C_EBCDIC,	e2a_32V },
 	{ "oldebcdic",	C_EBCDIC,	C_ASCII,	a2e_32V },
 	{ "oldibm",	C_EBCDIC,	C_ASCII,	a2ibm_32V },
-	{ "sparse",	C_SPARSE,	0,		NULL },
 	{ "osync",	C_OSYNC,	C_BS,		NULL },
+	{ "sparse",	C_SPARSE,	0,		NULL },
 	{ "swab",	C_SWAB,		0,		NULL },
 	{ "sync",	C_SYNC,		0,		NULL },
 	{ "ucase",	C_UCASE,	C_LCASE,	NULL },
