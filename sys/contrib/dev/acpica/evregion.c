@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 110 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -246,17 +246,16 @@ AcpiEvExecuteRegMethod (
     Params[1] = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!Params[1])
     {
-        AcpiUtRemoveReference (Params[0]);
-        return_ACPI_STATUS (AE_NO_MEMORY);
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
     }
-
-    Params[2] = NULL;
 
     /*
      *  Set up the parameter objects
      */
     Params[0]->Integer.Value  = RegionObj->Region.SpaceId;
     Params[1]->Integer.Value = Function;
+    Params[2] = NULL;
 
     /*
      *  Execute the method, no return value
@@ -264,9 +263,10 @@ AcpiEvExecuteRegMethod (
     DEBUG_EXEC(AcpiUtDisplayInitPathname (RegionObj->Region.Extra->Extra.Method_REG, "  [Method]"));
     Status = AcpiNsEvaluateByHandle (RegionObj->Region.Extra->Extra.Method_REG, Params, NULL);
 
-
-    AcpiUtRemoveReference (Params[0]);
     AcpiUtRemoveReference (Params[1]);
+
+Cleanup:
+    AcpiUtRemoveReference (Params[0]);
 
     return_ACPI_STATUS (Status);
 }
@@ -379,7 +379,7 @@ AcpiEvAddressSpaceDispatch (
     Handler = HandlerDesc->AddrHandler.Handler;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-        "Addrhandler %p (%p), Address %8.8lX%8.8lX\n",
+        "Addrhandler %p (%p), Address %8.8X%8.8X\n",
         &RegionObj->Region.AddrHandler->AddrHandler, Handler, HIDWORD(Address),
         LODWORD(Address)));
 
@@ -663,7 +663,7 @@ AcpiEvAddrHandlerHelper (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsConvertHandleToEntry (ObjHandle);
+    Node = AcpiNsMapHandleToNode (ObjHandle);
     if (!Node)
     {
         return (AE_BAD_PARAMETER);

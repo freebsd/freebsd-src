@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 57 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -314,7 +314,7 @@ AcpiNsInstallNode (
          * real definition is found later.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "[%4.4s] is a forward reference\n",
-            &Node->Name));
+            (char*)&Node->Name));
     }
 
     /*
@@ -341,7 +341,7 @@ AcpiNsInstallNode (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s added to %p at %p\n",
-        &Node->Name, ParentNode, Node));
+        (char*)&Node->Name, ParentNode, Node));
 
     /*
      * Increment the reference count(s) of all parents up to
@@ -408,7 +408,7 @@ AcpiNsDeleteChildren (
 
         if (ChildNode->Child)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Found a grandchild! P=%X C=%X\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Found a grandchild! P=%p C=%p\n",
                 ParentNode, ChildNode));
         }
 
@@ -420,13 +420,9 @@ AcpiNsDeleteChildren (
             ChildNode, AcpiGbl_CurrentNodeCount));
 
         /*
-         * Detach an object if there is one
+         * Detach an object if there is one, then free the child node
          */
-        if (ChildNode->Object)
-        {
-            AcpiNsDetachObject (ChildNode);
-        }
-
+        AcpiNsDetachObject (ChildNode);
         ACPI_MEM_FREE (ChildNode);
 
         /* And move on to the next child in the list */
@@ -461,7 +457,6 @@ ACPI_STATUS
 AcpiNsDeleteNamespaceSubtree (
     ACPI_NAMESPACE_NODE     *ParentNode)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *ChildNode = NULL;
     UINT32                  Level = 1;
 
@@ -480,33 +475,23 @@ AcpiNsDeleteNamespaceSubtree (
      */
     while (Level > 0)
     {
-        /*
-         * Get the next typed object in this scope.
-         * Null returned if not found
-         */
-        ChildNode = AcpiNsGetNextObject (ACPI_TYPE_ANY, ParentNode,
+        /* Get the next node in this scope (NULL if none) */
+
+        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode,
                                             ChildNode);
         if (ChildNode)
         {
-            /*
-             * Found an object - detach and delete any attached
-             * object.
-             */
-            ObjDesc = AcpiNsGetAttachedObject (ChildNode);
-            if (ObjDesc)
-            {
-                AcpiNsDetachObject (ChildNode);
-                AcpiUtRemoveReference (ObjDesc);
-            }
+            /* Found a child node - detach any attached object */
 
+            AcpiNsDetachObject (ChildNode);
 
-            /* Check if this object has any children */
+            /* Check if this node has any children */
 
-            if (AcpiNsGetNextObject (ACPI_TYPE_ANY, ChildNode, 0))
+            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, 0))
             {
                 /*
-                 * There is at least one child of this object,
-                 * visit the object
+                 * There is at least one child of this node,
+                 * visit the node
                  */
                 Level++;
                 ParentNode    = ChildNode;
@@ -517,8 +502,8 @@ AcpiNsDeleteNamespaceSubtree (
         else
         {
             /*
-             * No more children in this object.
-             * We will move up to the grandparent.
+             * No more children of this parent node.
+             * Move up to the grandparent.
              */
             Level--;
 
@@ -528,16 +513,15 @@ AcpiNsDeleteNamespaceSubtree (
              */
             AcpiNsDeleteChildren (ParentNode);
 
-            /* New "last child" is this parent object */
+            /* New "last child" is this parent node */
 
             ChildNode = ParentNode;
 
-            /* Now we can move up the tree to the grandparent */
+            /* Move up the tree to the grandparent */
 
             ParentNode = AcpiNsGetParentObject (ParentNode);
         }
     }
-
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -547,13 +531,13 @@ AcpiNsDeleteNamespaceSubtree (
  *
  * FUNCTION:    AcpiNsRemoveReference
  *
- * PARAMETERS:  Node           - Named object whose reference count is to be
+ * PARAMETERS:  Node           - Named node whose reference count is to be
  *                               decremented
  *
  * RETURN:      None.
  *
  * DESCRIPTION: Remove a Node reference.  Decrements the reference count
- *              of all parent Nodes up to the root.  Any object along
+ *              of all parent Nodes up to the root.  Any node along
  *              the way that reaches zero references is freed.
  *
  ******************************************************************************/
@@ -569,21 +553,21 @@ AcpiNsRemoveReference (
 
 
     /*
-     * Decrement the reference count(s) of this object and all
-     * objects up to the root,  Delete anything with zero remaining references.
+     * Decrement the reference count(s) of this node and all
+     * nodes up to the root,  Delete anything with zero remaining references.
      */
     NextNode = Node;
     while (NextNode)
     {
-        /* Decrement the reference count on this object*/
+        /* Decrement the reference count on this node*/
 
         NextNode->ReferenceCount--;
 
-        /* Delete the object if no more references */
+        /* Delete the node if no more references */
 
         if (!NextNode->ReferenceCount)
         {
-            /* Delete all children and delete the object */
+            /* Delete all children and delete the node */
 
             AcpiNsDeleteChildren (NextNode);
             AcpiNsDeleteNode (NextNode);
@@ -616,7 +600,6 @@ AcpiNsDeleteNamespaceByOwner (
 {
     ACPI_NAMESPACE_NODE     *ChildNode;
     UINT32                  Level;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
@@ -628,43 +611,32 @@ AcpiNsDeleteNamespaceByOwner (
     Level       = 1;
 
     /*
-     * Traverse the tree of objects until we bubble back up
+     * Traverse the tree of nodes until we bubble back up
      * to where we started.
      */
     while (Level > 0)
     {
-        /*
-         * Get the next typed object in this scope.
-         * Null returned if not found
-         */
-        ChildNode = AcpiNsGetNextObject (ACPI_TYPE_ANY, ParentNode,
-                                            ChildNode);
+        /* Get the next node in this scope (NULL if none) */
 
+        ChildNode = AcpiNsGetNextNode (ACPI_TYPE_ANY, ParentNode,
+                                            ChildNode);
         if (ChildNode)
         {
             if (ChildNode->OwnerId == OwnerId)
             {
-                /*
-                 * Found an object - delete the object within
-                 * the Value field
-                 */
-                ObjDesc = AcpiNsGetAttachedObject (ChildNode);
-                if (ObjDesc)
-                {
-                    AcpiNsDetachObject (ChildNode);
-                    AcpiUtRemoveReference (ObjDesc);
-                }
+                /* Found a child node - detach any attached object */
+
+                AcpiNsDetachObject (ChildNode);
             }
 
-            /* Check if this object has any children */
+            /* Check if this node has any children */
 
-            if (AcpiNsGetNextObject (ACPI_TYPE_ANY, ChildNode, 0))
+            if (AcpiNsGetNextNode (ACPI_TYPE_ANY, ChildNode, 0))
             {
                 /*
-                 * There is at least one child of this object,
-                 * visit the object
+                 * There is at least one child of this node,
+                 * visit the node
                  */
-
                 Level++;
                 ParentNode    = ChildNode;
                 ChildNode     = 0;
@@ -679,7 +651,8 @@ AcpiNsDeleteNamespaceByOwner (
         else
         {
             /*
-             * No more children in this object.  Move up to grandparent.
+             * No more children of this parent node.
+             * Move up to the grandparent.
              */
             Level--;
 
@@ -691,16 +664,15 @@ AcpiNsDeleteNamespaceByOwner (
                 }
             }
 
-            /* New "last child" is this parent object */
+            /* New "last child" is this parent node */
 
             ChildNode = ParentNode;
 
-            /* Now we can move up the tree to the grandparent */
+            /* Move up the tree to the grandparent */
 
             ParentNode = AcpiNsGetParentObject (ParentNode);
         }
     }
-
 
     return_ACPI_STATUS (AE_OK);
 }

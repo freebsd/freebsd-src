@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 38 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -214,7 +214,7 @@ AcpiExResolveOperands (
 
 
     OpInfo = AcpiPsGetOpcodeInfo (Opcode);
-    if (ACPI_GET_OP_TYPE (OpInfo) != ACPI_OP_TYPE_OPCODE)
+    if (OpInfo->Class == AML_CLASS_UNKNOWN)
     {
         return_ACPI_STATUS (AE_AML_BAD_OPCODE);
     }
@@ -244,7 +244,7 @@ AcpiExResolveOperands (
     {
         if (!StackPtr || !*StackPtr)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null stack entry at %X\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Internal - null stack entry at %p\n",
                 StackPtr));
 
             return_ACPI_STATUS (AE_AML_INTERNAL);
@@ -285,7 +285,7 @@ AcpiExResolveOperands (
                  * Decode the Reference
                  */
                 OpInfo = AcpiPsGetOpcodeInfo (Opcode);
-                if (ACPI_GET_OP_TYPE (OpInfo) != ACPI_OP_TYPE_OPCODE)
+                if (OpInfo->Class == AML_CLASS_UNKNOWN)
                 {
                     return_ACPI_STATUS (AE_AML_BAD_OPCODE);
                 }

@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 89 $
+ *              $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -682,7 +682,7 @@ AcpiNsExternalizeName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsConvertHandleToEntry
+ * FUNCTION:    AcpiNsMapHandleToNode
  *
  * PARAMETERS:  Handle          - Handle to be converted to an Node
  *
@@ -693,7 +693,7 @@ AcpiNsExternalizeName (
  ******************************************************************************/
 
 ACPI_NAMESPACE_NODE *
-AcpiNsConvertHandleToEntry (
+AcpiNsMapHandleToNode (
     ACPI_HANDLE             Handle)
 {
 
@@ -973,7 +973,7 @@ AcpiNsFindParentName (
         if (ParentNode)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Parent of %p [%4.4s] is %p [%4.4s]\n",
-                ChildNode, &ChildNode->Name, ParentNode, &ParentNode->Name));
+                ChildNode, (char*)&ChildNode->Name, ParentNode, (char*)&ParentNode->Name));
 
             if (ParentNode->Name)
             {
@@ -982,7 +982,7 @@ AcpiNsFindParentName (
         }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "unable to find parent of %p (%4.4s)\n",
-            ChildNode, &ChildNode->Name));
+            ChildNode, (char*)&ChildNode->Name));
     }
 
     return_VALUE (ACPI_UNKNOWN_NAME);
@@ -1074,21 +1074,21 @@ AcpiNsGetParentObject (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsGetNextValidObject
+ * FUNCTION:    AcpiNsGetNextValidNode
  *
  * PARAMETERS:  Node       - Current table entry
  *
- * RETURN:      Next valid object in the table.  NULL if no more valid
- *              objects
+ * RETURN:      Next valid Node in the linked node list.  NULL if no more valid
+ *              nodess
  *
- * DESCRIPTION: Find the next valid object within a name table.
+ * DESCRIPTION: Find the next valid node within a name table.
  *              Useful for implementing NULL-end-of-list loops.
  *
  ******************************************************************************/
 
 
 ACPI_NAMESPACE_NODE *
-AcpiNsGetNextValidObject (
+AcpiNsGetNextValidNode (
     ACPI_NAMESPACE_NODE     *Node)
 {
 

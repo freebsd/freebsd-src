@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 42 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -144,10 +144,10 @@
  *
  ****************************************************************************/
 
-static ACPI_STATUS
-AcpiExLoadTableOp (
+ACPI_STATUS
+AcpiExLoadOp (
     ACPI_OPERAND_OBJECT     *RgnDesc,
-    ACPI_OPERAND_OBJECT     **DdbHandle)
+    ACPI_OPERAND_OBJECT     *DdbHandle)
 {
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *TableDesc = NULL;
@@ -158,7 +158,7 @@ AcpiExLoadTableOp (
     UINT32                  i;
 
 
-    FUNCTION_TRACE ("ExLoadTable");
+    FUNCTION_TRACE ("ExLoadOp");
 
     /* TBD: [Unhandled] Object can be either a field or an opregion */
 
@@ -216,7 +216,7 @@ AcpiExLoadTableOp (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Table has invalid signature [%4.4s], must be SSDT or PSDT\n",
-            TableHeader.Signature));
+            (char*)TableHeader.Signature));
         Status = AE_BAD_SIGNATURE;
         goto Cleanup;
     }
@@ -266,7 +266,8 @@ AcpiExLoadTableOp (
     TableDesc->Reference.Opcode = AML_LOAD_OP;
     TableDesc->Reference.Object = TableInfo.InstalledDesc;
 
-    *DdbHandle = TableDesc;
+    /* TBD: store the tabledesc into the DdbHandle target */
+    /* DdbHandle = TableDesc; */
 
     return_ACPI_STATUS (Status);
 
@@ -276,7 +277,6 @@ Cleanup:
     ACPI_MEM_FREE (TableDesc);
     ACPI_MEM_FREE (TablePtr);
     return_ACPI_STATUS (Status);
-
 }
 
 
@@ -292,7 +292,7 @@ Cleanup:
  *
  ****************************************************************************/
 
-static ACPI_STATUS
+ACPI_STATUS
 AcpiExUnloadTable (
     ACPI_OPERAND_OBJECT     *DdbHandle)
 {
@@ -339,60 +339,6 @@ AcpiExUnloadTable (
     /* Delete the table descriptor (DdbHandle) */
 
     AcpiUtRemoveReference (TableDesc);
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    AcpiExReconfiguration
- *
- * PARAMETERS:  WalkState           - Current state of the parse tree walk
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Reconfiguration opcodes such as LOAD and UNLOAD
- *
- ****************************************************************************/
-
-ACPI_STATUS
-AcpiExReconfiguration (
-    ACPI_WALK_STATE         *WalkState)
-{
-    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
-    ACPI_STATUS             Status;
-
-
-    FUNCTION_TRACE ("ExReconfiguration");
-
-#define DdbHandle           Operand[0]
-#define RegionDesc          Operand[1]
-
-
-
-    switch (WalkState->Opcode)
-    {
-
-    case AML_LOAD_OP:
-
-        Status = AcpiExLoadTableOp (RegionDesc, &DdbHandle);
-        break;
-
-
-    case AML_UNLOAD_OP:
-
-        Status = AcpiExUnloadTable (DdbHandle);
-        break;
-
-
-    default:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad opcode=%X\n", WalkState->Opcode));
-        Status = AE_AML_BAD_OPCODE;
-        break;
-    }
-
 
     return_ACPI_STATUS (Status);
 }
