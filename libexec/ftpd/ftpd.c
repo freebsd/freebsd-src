@@ -1349,7 +1349,7 @@ pass(char *passwd)
 #ifdef USE_PAM
 	int e;
 #endif
-	char *chrootdir;
+	char *residue = NULL;
 	char *xpasswd;
 
 	if (logged_in || askpasswd == 0) {
@@ -1466,7 +1466,7 @@ skip:
 			stats = 0;
 
 	dochroot =
-		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &chrootdir)
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &residue)
 #ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
 		|| login_getcapbool(lc, "ftp-chroot", 0)
 #endif
@@ -1482,25 +1482,27 @@ skip:
 			goto bad;
 		}
 	} else if (dochroot) {
-		if (chrootdir) { /* chroot dir set in ftpchroot(5) */
-			if (chrootdir[0] != '/') { /* relative to homedir */
-				char *p;
+		char *chrootdir = NULL;
 
-				asprintf(&p, "%s/%s", pw->pw_dir, chrootdir);
-				if (p == NULL)
-					fatalerror("Ran out of memory.");
-				free(chrootdir);
-				chrootdir = p;
-			}
-		} else
-			if ((chrootdir = strdup(pw->pw_dir)) == NULL)
+		if (residue &&
+		    (chrootdir = strtok(residue, " \t")) != NULL &&
+		    chrootdir[0] != '/') {
+			asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
+			if (chrootdir == NULL)
 				fatalerror("Ran out of memory.");
+			free(residue);
+			residue = chrootdir;
+		}
+		if (chrootdir == NULL)
+			chrootdir = pw->pw_dir;
 		if (chroot(chrootdir) < 0 || chdir("/") < 0) {
 			reply(550, "Can't change root.");
-			free(chrootdir);
+			if (residue)
+				free(residue);
 			goto bad;
 		}
-		free(chrootdir);
+		if (residue)
+			free(residue);
 	} else if (chdir(pw->pw_dir) < 0) {
 		if (chdir("/") < 0) {
 			reply(530, "User %s: can't change directory to %s.",
