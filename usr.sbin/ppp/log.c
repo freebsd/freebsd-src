@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.32 1998/08/02 13:01:15 brian Exp $
+ *	$Id: log.c,v 1.33 1998/08/07 18:42:49 brian Exp $
  */
 
 #include <sys/types.h>
@@ -155,13 +155,16 @@ log_DisplayPrompts()
 }
 
 void
-log_WritePrompts(struct datalink *dl, const char *data, int len)
+log_WritePrompts(struct datalink *dl, const char *fmt,...)
 {
+  va_list ap;
   struct prompt *p;
 
+  va_start(ap, fmt);
   for (p = promptlist; p; p = p->next)
     if (prompt_IsTermMode(p, dl))
-      prompt_Printf(p, "%.*s", len, data);
+      prompt_vPrintf(p, fmt, ap);
+  va_end(ap);
 }
 
 void

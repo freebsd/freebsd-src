@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.16 1998/07/03 17:24:37 brian Exp $
+ *	$Id: datalink.c,v 1.17 1998/08/07 18:42:48 brian Exp $
  */
 
 #include <sys/types.h>
@@ -244,6 +244,9 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         if (--dl->dial_tries < 0)
           dl->dial_tries = 0;
         if (modem_Open(dl->physical, dl->bundle) >= 0) {
+          log_WritePrompts(dl, "%s: Entering terminal mode on %s\r\n"
+                           "Type `~?' for help\r\n", dl->name,
+                           dl->physical->name.full);
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_DIAL);
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
@@ -260,7 +263,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
               dl->cfg.dial.max)
             log_Printf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
-                      dl->cfg.dial.max - dl->dial_tries, dl->cfg.dial.max);
+                       dl->cfg.dial.max - dl->dial_tries, dl->cfg.dial.max);
           else
             log_Printf(LogCHAT, "Failed to open modem\n");
 
@@ -270,10 +273,15 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             datalink_NewState(dl, DATALINK_CLOSED);
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
+            log_WritePrompts(dl, "Failed to open %s\n",
+                             dl->physical->name.full);
             bundle_LinkClosed(dl->bundle, dl);
           }
-          if (!dl->bundle->CleaningUp)
+          if (!dl->bundle->CleaningUp) {
+            log_WritePrompts(dl, "Failed to open %s, pause %d seconds\n",
+                             dl->physical->name.full, dl->cfg.dial.timeout);
             datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
+          }
         }
       }
       break;
