@@ -507,7 +507,7 @@ main(argc, argv)
 						print(packet, cc, &from);
 						lastaddr = from.sin_addr.s_addr;
 					}
-					Printf("  %g ms", deltaT(&t1, &t2));
+					Printf("  %.3f ms", deltaT(&t1, &t2));
 					switch(i - 1) {
 					case ICMP_UNREACH_PORT:
 #ifndef ARCHAIC
