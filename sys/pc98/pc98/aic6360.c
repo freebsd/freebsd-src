@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.3 1996/09/03 10:23:23 asami Exp $
+ * $Id: aic6360.c,v 1.4 1996/09/10 09:37:43 asami Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -113,7 +113,7 @@
 #endif
 
 #include "opt_ddb.h"
-#include <aic.h>
+#include "aic.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -188,45 +188,7 @@
 
 /* AIC6360 definitions */
 #ifdef PC98
-#define SCSISEQ		(iobase + 0x00) /* SCSI sequence control */
-#define SXFRCTL0	(iobase + 0x02) /* SCSI transfer control 0 */
-#define SXFRCTL1	(iobase + 0x04) /* SCSI transfer control 1 */
-#define SCSISIGI	(iobase + 0x06) /* SCSI signal in */
-#define SCSISIGO	(iobase + 0x06) /* SCSI signal out */
-#define SCSIRATE	(iobase + 0x08) /* SCSI rate control */
-#define SCSIID		(iobase + 0x0a) /* SCSI ID */
-#define SELID		(iobase + 0x0a) /* Selection/Reselection ID */
-#define SCSIDAT		(iobase + 0x0c) /* SCSI Latched Data */
-#define SCSIBUS		(iobase + 0x0e) /* SCSI Data Bus*/
-#define STCNT0		(iobase + 0x10) /* SCSI transfer count */
-#define STCNT1		(iobase + 0x12)
-#define STCNT2		(iobase + 0x14)
-#define CLRSINT0	(iobase + 0x16) /* Clear SCSI interrupts 0 */
-#define SSTAT0		(iobase + 0x16) /* SCSI interrupt status 0 */
-#define CLRSINT1	(iobase + 0x18) /* Clear SCSI interrupts 1 */
-#define SSTAT1		(iobase + 0x18) /* SCSI status 1 */
-#define SSTAT2		(iobase + 0x1a) /* SCSI status 2 */
-#define SCSITEST	(iobase + 0x1c) /* SCSI test control */
-#define SSTAT3		(iobase + 0x1c) /* SCSI status 3 */
-#define CLRSERR		(iobase + 0x1e) /* Clear SCSI errors */
-#define SSTAT4		(iobase + 0x1e) /* SCSI status 4 */
-#define SIMODE0		(iobase + 0x20) /* SCSI interrupt mode 0 */
-#define SIMODE1		(iobase + 0x22) /* SCSI interrupt mode 1 */
-#define DMACNTRL0	(iobase + 0x24) /* DMA control 0 */
-#define DMACNTRL1	(iobase + 0x26) /* DMA control 1 */
-#define DMASTAT		(iobase + 0x28) /* DMA status */
-#define FIFOSTAT	(iobase + 0x2a) /* FIFO status */
-#define DMADATA		(iobase + 0x2c) /* DMA data */
-#define DMADATAL	(iobase + 0x2c) /* DMA data low byte */
-#define DMADATAH	(iobase + 0x2e) /* DMA data high byte */
-#define BRSTCNTRL	(iobase + 0x30) /* Burst Control */
-#define DMADATALONG	(iobase + 0x30)
-#define PORTA		(iobase + 0x34) /* Port A */
-#define PORTB		(iobase + 0x36) /* Port B */
-#define REV		(iobase + 0x38) /* Revision (001 for 6360) */
-#define STACK		(iobase + 0x3a) /* Stack */
-#define TEST		(iobase + 0x3c) /* Test register */
-#define ID		(iobase + 0x3e) /* ID register */
+#include <pc98/pc98/aic_98.h>
 #else
 #define SCSISEQ		(iobase + 0x00) /* SCSI sequence control */
 #define SXFRCTL0	(iobase + 0x01) /* SCSI transfer control 0 */
@@ -655,6 +617,9 @@ static struct aic_data { /* One of these per adapter */
 	u_char	imess[AIC_MAX_MSG_LEN + 1];
 	u_char	*imp;		/* Message pointer (for multibyte messages) */
 	u_char	imlen;
+#ifdef PC98
+	int		*aicport;	/* I/O port information */
+#endif
 } *aicdata[NAIC];
 
 #define AIC_SHOWACBS 0x01
@@ -769,6 +734,15 @@ aicprobe(dev)
 	bzero(aic, sizeof(struct aic_data));
 	aicdata[unit] = aic;
 	aic->iobase = dev->id_iobase;
+#ifdef PC98
+	if (AIC_TYPE98(dev->id_flags) == AIC98_100) {
+		/* PC-9801-100 */
+		aic->aicport = aicport_100;
+	} else {
+		/* generic card */
+		aic->aicport = aicport_generic;
+	}
+#endif
 
 	if (aic_find(aic) != 0) {
 		aicdata[unit] = NULL;

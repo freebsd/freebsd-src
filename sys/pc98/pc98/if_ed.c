@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.7 1996/09/10 09:38:04 asami Exp $
+ *	$Id: if_ed.c,v 1.8 1996/10/09 21:46:18 asami Exp $
  */
 
 /*
@@ -72,6 +72,7 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_mib.h>
 #include <net/if_types.h>
 
 #ifdef INET
@@ -157,6 +158,7 @@ struct ed_softc {
 	u_char  rec_page_start;	/* first page of RX ring-buffer */
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
+	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 #ifdef PC98
 	int unit;
 #endif
@@ -167,7 +169,7 @@ static struct ed_softc ed_softc[NED];
 static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
-static void ed_init		__P((struct ed_softc *));
+static void ed_init		__P((void *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -258,6 +260,16 @@ static struct pccard_drv ed_info = {
 static void
 edsuspend(struct pccard_dev *dp)
 {
+	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+        /*
+	 * Some 'ed' cards will generate a interrupt as they go away, 
+	 * and by the time the interrupt handler gets to the card,
+	 * the interrupt can't be cleared.
+	 * By setting gone here, we tell the handler to ignore the
+	 * interrupt when it happens.
+	 */
+        sc->gone = 1;		/* avoid spinning endlessly in interrupt handler */
+
 	printf("ed%d: suspending\n", dp->isahd.id_unit);
 }
 
@@ -285,6 +297,8 @@ edinit(struct pccard_dev *dp, int first)
 			return(ENXIO);
 		if (ed_attach_isa(&dp->isahd)==0)
 			return(ENXIO);
+	} else {
+	        sc->gone = 0;	/* reenable after a suspend */
 	}
 	/*
 	 * XXX TODO:
@@ -1578,115 +1592,28 @@ ed_probe_Novell(isa_dev)
 }
 
 #if NCRD > 0
-
+  
 /*
- * Probe and vendor-specific initialization routine for PCCARDs
+ * Probe framework for pccards.  Replicates the standard framework, 
+ * minus the pccard driver registration and ignores the ether address
+ * supplied (from the CIS), relying on the probe to find it instead.
  */
 static int
 ed_probe_pccard(isa_dev, ether)
 	struct isa_device *isa_dev;
 	u_char *ether;
 {
-	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	int     i;
-	u_int   memsize;
-	u_char  isa16bit;
-#ifdef PC98
-	int unit = isa_dev->id_unit;
-#endif
+	int     nports;
 
-	sc->nic_addr = isa_dev->id_iobase; 
-	sc->gone = 0;
-	sc->is790 = 0;
-	sc->cr_proto = ED_CR_RD2;
-	sc->vendor = ED_VENDOR_PCCARD;
-	sc->type = 0;
-	sc->type_str = "PCCARD";
-	sc->mem_size = isa_dev->id_msize = memsize = 16384;
-	sc->isa16bit = isa16bit = 1;
+	nports = ed_probe_WD80x3(isa_dev);
+	if (nports)
+		return (nports);
 
-	for (i = 0; i < ETHER_ADDR_LEN; ++i)
-		sc->arpcom.ac_enaddr[i] = ether[i];
+	nports = ed_probe_Novell(isa_dev);
+	if (nports)
+		return (nports);
 
-#if ED_DEBUG
-	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
-	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
-#endif
-
-	i = inb(sc->nic_addr + ED_PC_RESET);
-	DELAY(100000);
-	outb(sc->nic_addr + ED_PC_RESET,i);
-	DELAY(100000);
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		int j;
-		printf("ed_probe_pccard: possible failure\n");
-		for (j=0;j<20 && !i;j++) {
-			printf(".");
-			DELAY(100000);
-			i = inb(sc->nic_addr + ED_PC_MISC);
-		}
-		if (!i) {
-			printf("dead :-(\n");
-			return 0;
-		}
-		printf("\n");
-	}
-	/*
-	 * Set initial values for width/size.
-	 */
-
-	/* Make sure that we really have an 8390 based board */
-	if (!ed_probe_generic8390(sc)) {
-		printf("ed_probe_generic8390 failed\n");
-		return (0);
-	}
-	sc->txb_cnt = 2;
-	sc->tx_page_start = ED_PC_PAGE_OFFSET;
-	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
-	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
-
-	sc->mem_shared = 1;
-	sc->mem_start = (caddr_t) isa_dev->id_maddr;
-	sc->mem_size = memsize;
-	sc->mem_end = sc->mem_start + memsize;
-
-	sc->mem_ring = sc->mem_start + 
-		sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
-
-	/*
-	 * Now zero memory and verify that it is clear
-	 */
-	bzero(sc->mem_start, memsize);
-
-	for (i = 0; i < memsize; ++i) {
-		if (sc->mem_start[i]) {
-			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i));
-
-			return (0);
-		}
-		sc->mem_start[i] = (i - 5) & 0xff;
-	}
-	for (i = 0; i < memsize; ++i) {
-		if ((sc->mem_start[i] & 0xff) != ((i - 5) & 0xff)) {
-			printf("ed%d: shared memory failed at %lx (%x != %x) - check configuration\n",
-			    isa_dev->id_unit, kvtop(sc->mem_start + i),
-			    sc->mem_start[i], (i-5) & 0xff);
-			return (0);
-
-		}
-	}
-
-	i = inb(sc->nic_addr + ED_PC_MISC);
-	if (!i) {
-		printf("ed_probe_pccard: possible failure(2)\n");
-	}
-
-	/* clear any pending interupts that we may have caused */
-	outb(sc->nic_addr + ED_P0_ISR, 0xff);
-
-	return (ED_PC_IO_PORTS);
+	return (0);
 }
 
 #endif /* NCRD > 0 */
@@ -2445,8 +2372,22 @@ ed_attach(sc, unit, flags)
 		ifp->if_start = ed_start;
 		ifp->if_ioctl = ed_ioctl;
 		ifp->if_watchdog = ed_watchdog;
-		ifp->if_init = (if_init_f_t *)ed_init;
+		ifp->if_init = ed_init;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+		ifp->if_linkmib = &sc->mibdata;
+		ifp->if_linkmiblen = sizeof sc->mibdata;
+		/*
+		 * XXX - should do a better job.
+		 */
+		if (sc->is790)
+			sc->mibdata.dot3StatsEtherChipSet =
+				DOT3CHIPSET(dot3VendorWesternDigital,
+					    dot3ChipSetWesternDigital83C790);
+		else
+			sc->mibdata.dot3StatsEtherChipSet =
+				DOT3CHIPSET(dot3VendorNational, 
+					    dot3ChipSetNational8390);
+		sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
 
 		/*
 		 * Set default state for ALTPHYS flag (used to disable the 
@@ -2603,9 +2544,10 @@ ed_watchdog(ifp)
  * Initialize device.
  */
 static void
-ed_init(sc)
-	struct ed_softc *sc;
+ed_init(xsc)
+	void *xsc;
 {
+	struct ed_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
 #ifdef PC98
@@ -3043,6 +2985,9 @@ ed_rint(sc)
 				len += ((packet_hdr.next_packet - sc->rec_page_start) +
 					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
 			}
+			if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN 
+				   + sizeof(struct ed_ring)))
+				sc->mibdata.dot3StatsFrameTooLongs++;
 		}
 		/*
 		 * Be fairly liberal about what we allow as a "reasonable" length
@@ -3152,11 +3097,13 @@ edintr_sc(sc)
 			 */
 			(void) inb(sc->nic_addr + ED_P0_TSR);
 			if (isr & ED_ISR_TXE) {
+				u_char tsr;
 
 				/*
 				 * Excessive collisions (16)
 				 */
-				if ((inb(sc->nic_addr + ED_P0_TSR) & ED_TSR_ABT)
+				tsr = inb(sc->nic_addr + ED_P0_TSR);
+				if ((tsr & ED_TSR_ABT)	
 				    && (collisions == 0)) {
 
 					/*
@@ -3165,7 +3112,18 @@ edintr_sc(sc)
 					 * TSR_ABT is set.
 					 */
 					collisions = 16;
+					sc->mibdata.dot3StatsMultipleCollisionFrames++;
+					sc->mibdata.dot3StatsExcessiveCollisions++;
+					sc->mibdata.dot3StatsCollFrequencies[15]++;
 				}
+				if (tsr & ED_TSR_OWC)
+					sc->mibdata.dot3StatsLateCollisions++;
+				if (tsr & ED_TSR_CDH)
+					sc->mibdata.dot3StatsSQETestErrors++;
+				if (tsr & ED_TSR_CRS)
+					sc->mibdata.dot3StatsCarrierSenseErrors++;
+				if (tsr & ED_TSR_FU)
+					sc->mibdata.dot3StatsInternalMacTransmitErrors++;
 
 				/*
 				 * update output errors counter
@@ -3196,6 +3154,23 @@ edintr_sc(sc)
 			 * transmission.
 			 */
 			ifp->if_collisions += collisions;
+			switch(collisions) {
+			case 0:
+			case 16:
+				break;
+			case 1:
+				sc->mibdata.dot3StatsSingleCollisionFrames++;
+				sc->mibdata.dot3StatsDeferredTransmissions++;
+				sc->mibdata.dot3StatsCollFrequencies[0]++;
+				break;
+			default:
+				sc->mibdata.dot3StatsMultipleCollisionFrames++;
+				sc->mibdata.dot3StatsDeferredTransmissions++;
+				sc->mibdata.
+					dot3StatsCollFrequencies[collisions-1]
+						++;
+				break;
+			}
 
 			/*
 			 * Decrement buffer in-use count if not zero (can only
@@ -3242,6 +3217,14 @@ edintr_sc(sc)
 				 * missed packet.
 				 */
 				if (isr & ED_ISR_RXE) {
+					u_char rsr;
+					rsr = inb(sc->nic_addr + ED_P0_RSR);
+					if (rsr & ED_RSR_CRC)
+						sc->mibdata.dot3StatsFCSErrors++;
+					if (rsr & ED_RSR_FAE)
+						sc->mibdata.dot3StatsAlignmentErrors++;
+					if (rsr & ED_RSR_FO)
+						sc->mibdata.dot3StatsInternalMacReceiveErrors++;
 					ifp->if_ierrors++;
 #ifdef ED_DEBUG
 					printf("ed%d: receive error %x\n", ifp->if_unit,

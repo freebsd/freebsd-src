@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.4 1996/09/12 11:09:41 asami Exp $
+ *	$Id: vm_machdep.c,v 1.5 1996/10/09 21:46:03 asami Exp $
  */
 
 #include "npx.h"
@@ -68,6 +68,7 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/epsonio.h>
 #else
 #include <i386/isa/isa.h>
 #endif
@@ -631,8 +632,7 @@ cpu_wait(p)
 	struct proc *p;
 {
 	/* drop per-process resources */
-	pmap_qremove((vm_offset_t) p->p_addr, UPAGES);
-	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
+	pmap_dispose_proc(p);
 	vmspace_free(p->p_vmspace);
 }
 

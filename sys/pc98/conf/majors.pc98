@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.2 1996/07/23 07:45:50 asami Exp $
+$Id: majors.pc98,v 1.3 1996/09/03 10:23:13 asami Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -35,7 +35,7 @@ blkdev	name		comments
 19	wcdb		ATAPI CDROM client of "ata"
 20	od		SCSI "magneto-optical" disk
 21	ccd		concatenated disk
-
+22	gd		Geometry disk.
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
@@ -115,3 +115,4 @@ chrdev	name		comments
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
 77	cyy		Cyclades Ye/PCI serial card
+78	gd		Geometry disk

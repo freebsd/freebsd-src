@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/09/11 19:25:11 phk Exp $
+#	$Id: Makefile,v 1.1 1996/09/12 11:09:14 asami Exp $
 #
 
 PROG=	boot
@@ -11,20 +11,37 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=         -O2 \
+CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DPC98 \
 		-DRAWBOOT \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
-CFLAGS+=	-DCOMCONSOLE=0x30 -DCOMCONSOLE_CLK=16 -DCOMCONSOLE_MODE=0x0c
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
-#CFLAGS+=	-DPROBE_KEYBOARD
+.if defined(BOOT_PROBE_KEYBOARD)
+CFLAGS+=	-DPROBE_KEYBOARD
+.endif
 
-# Force use of the serial console (after probing the keyboard if
-# PROBE_KEYBOARD is defined).
-#CFLAGS+=	-DFORCE_COMCONSOLE
+# Probe the keyboard lock and use the serial console if the keyboard is locked.
+.if defined(BOOT_PROBE_KEYBOARD_LOCK)
+CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+.endif
+
+# Force use of the serial console.
+.if defined(BOOT_FORCE_COMCONSOLE)
+CFLAGS+=	-DFORCE_COMCONSOLE
+.endif
+
+# By default, if a serial port is going to be used as console, use COM1
+# (aka /dev/ttyd0).
+BOOT_COMCONSOLE_PORT?=0x30
+BOOT_COMCONSOLE_CLK?=16
+BOOT_COMCONSOLE_MODE=0x0c
+CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
+		-DCOMCONSOLE_CLK=${BOOT_COMCONSOLE_CLK} \
+		-DCOMCONSOLE_MODE=${BOOT_COMCONSOLE_MODE}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
@@ -75,10 +92,11 @@ boot.nohdr:	boot.strip
 rawboot:	boot.nohdr
 	dd if=boot.nohdr of=rawboot bs=8k count=1 conv=sync
 
-all:		rawboot 
+all:		rawboot
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		rawboot ${DESTDIR}${BINDIR}/rawboot
 
+.include <bsd.kern.mk>
 .include <bsd.prog.mk>

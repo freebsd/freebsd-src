@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: pc98.h,v 1.4 1996/09/12 11:09:54 asami Exp $
+ *	$Id: pc98.h,v 1.5 1996/10/09 21:46:34 asami Exp $
  */
 
 #ifndef _PC98_PC98_PC98_H_
@@ -193,7 +193,6 @@
 #define	M_H98		0x0020
 #define	M_NOTE		0x0040
 #define	M_NORMAL	0x1000
-#define	M_HIGHRESO	0x2000
 #define	M_8M		0x8000
 
 #if defined(KERNEL) && !defined(LOCORE)
@@ -214,52 +213,6 @@ extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 
 # define PC98_TYPE_CHECK(x)	((pc98_machine_type & (x)) == (x))
 
-#include <machine/spl.h>
-
-static inline u_char
-epson_inb(u_int port)
-{
-	u_char	data;
-
-	outb(0x43f, 0x42);
-	data = inb(port);
-	outb(0x43f, 0x40);
-	return (data);
-}
-
-static inline void
-epson_outb(u_int port, u_char data)
-{
-	outb(0x43f, 0x42);
-	outb(port,data);
-	outb(0x43f, 0x40);
-}
-
-static inline void
-epson_insw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	insw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	splx(s);
-}
-
-static inline void
-epson_outsw(u_int port, void *addr, size_t cnt)
-{
-	int	s;
-
-	s = splbio();
-	outb(0x43f, 0x42);
-	disable_intr();
-	outsw((u_int)port, (void *)addr, (size_t)cnt);
-	outb(0x43f, 0x40);
-	splx(s);
-}
 #endif /* KERNEL */
 
 /*
