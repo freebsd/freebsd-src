@@ -387,6 +387,16 @@
     and des hash methods are provided unless the des hash is
     specifically compiled out.</para>
 
+    <para>&man.install.1; has a number of new features, including the
+    <option>-b</option> and <option>-B</option> options for backing up
+    existing target files and the <option>-S</option> option for
+    <quote>safe</quote> (atomic copy) operation.  The
+    <option>-c</option> (copy) flag is now the default, and the
+    <option>-D</option> (debugging) flag has been withdrawn.
+    &man.install.1; now issues a warning if <option>-d</option>
+    (create directories) and <option>-C</option> (copy changed files
+    only) are used together.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -418,6 +428,13 @@
 
       <para><application>tcpdump</application> has been updated to
       3.6.3.</para>
+
+      <para><application>bzip2</application> 1.0.1 has been imported; this
+      brings the &man.bzip2.1; program and the <filename>libbz2</filename>
+      library to the base system.</para>
+
+      <para><application>libpcap</application> has been updated to
+      0.6.2.</para>
 
       <sect4 id="kame-userland">
         <title>KAME</title>
