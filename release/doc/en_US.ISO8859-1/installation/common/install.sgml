@@ -9,7 +9,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 -->
 
-<sect1>
+<sect1 id="install">
   <title>Installing &os;</title>
 
   <para>This section documents the process of installing a new
