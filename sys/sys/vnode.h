@@ -460,20 +460,9 @@ extern struct vnodeop_desc *vnodeop_descs[];
  */
 extern struct mtx mntvnode_mtx;
 
-/*
- * This macro is very helpful in defining those offsets in the vdesc struct.
- *
- * This is stolen from X11R4.  I ignored all the fancy stuff for
- * Crays, so if you decide to port this to such a serious machine,
- * you might want to consult Intrinsic.h's XtOffset{,Of,To}.
- */
-#define	VOPARG_OFFSET(p_type,field) \
-	((int) (((char *) (&(((p_type)NULL)->field))) - ((char *) NULL)))
-#define	VOPARG_OFFSETOF(s_type,field) \
-	VOPARG_OFFSET(s_type*,field)
-#define	VOPARG_OFFSETTO(S_TYPE,S_OFFSET,STRUCT_P) \
-	((S_TYPE)(((char*)(STRUCT_P))+(S_OFFSET)))
-
+#define	VOPARG_OFFSETOF(s_type, field)	__offsetof(s_type, field)
+#define	VOPARG_OFFSETTO(s_type, s_offset, struct_p) \
+    ((s_type)(((char*)(struct_p)) + (s_offset)))
 
 /*
  * This structure is used to configure the new vnodeops vector.
