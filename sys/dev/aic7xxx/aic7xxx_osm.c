@@ -433,9 +433,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		ahc_lock(ahc, &s);
 		if ((scb = ahc_get_scb(ahc)) == NULL) {
 	
+			xpt_freeze_simq(sim, /*count*/1);
 			ahc->flags |= AHC_RESOURCE_SHORTAGE;
 			ahc_unlock(ahc, &s);
-			xpt_freeze_simq(sim, /*count*/1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			return;
