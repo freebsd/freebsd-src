@@ -41,7 +41,7 @@ case "$daily_clean_tmps_enable" in
 		do
 		    [ ."${dir#/}" != ."$dir" -a -d $dir ] && cd $dir && {
 			find -d . -type f $args -delete $print
-			find -d . ! -name . -type d -mtime \
+			find -d . ! -name . -type d -empty -mtime \
 			    +$daily_clean_tmps_days -delete $print
 		    } | sed "s,^\\.,  $dir,"
 		done | tee /dev/stderr | wc -l)
