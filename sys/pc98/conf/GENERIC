@@ -70,7 +70,6 @@ options 	_KPOSIX_PRIORITY_SCHEDULING
 device		isa
 device		pci
 options 	COMPAT_OLDISA		# Old ISA driver shims
-options 	COMPAT_OLDPCI		# Old PCI driver shims
 
 # Floppy drives
 device		fdc
@@ -185,7 +184,7 @@ options 	FE_8BIT_SUPPORT		# LAC-98 support
 device		fe
 
 device		ep
-device		lnc
+#device		lnc
 device		sn
 device		snc
 
