@@ -83,7 +83,9 @@ static	int first = 1;
  */
 
 void
-ipxprotopr(u_long off, char *name, int af __unused)
+ipxprotopr(off, name)
+	u_long off;
+	char *name;
 {
 	struct ipxpcb cb;
 	register struct ipxpcb *prev, *next;
@@ -159,7 +161,9 @@ ipxprotopr(u_long off, char *name, int af __unused)
  * Dump SPX statistics structure.
  */
 void
-spx_stats(u_long off, char *name, int af __unused)
+spx_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct spx_istat spx_istat;
 #define spxstat spx_istat.newstats
@@ -235,7 +239,9 @@ spx_stats(u_long off, char *name, int af __unused)
  * Dump IPX statistics structure.
  */
 void
-ipx_stats(u_long off, char *name, int af __unused)
+ipx_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct ipxstat ipxstat;
 
@@ -278,7 +284,9 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-ipxerr_stats(u_long off, char *name, int af __unused)
+ipxerr_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct ipx_errstat ipx_errstat;
 	register int j;
@@ -318,7 +326,8 @@ ipxerr_stats(u_long off, char *name, int af __unused)
 }
 
 static void
-ipx_erputil(int z, int c)
+ipx_erputil(z, c)
+	int z, c;
 {
 	int j;
 	char codebuf[30];
@@ -346,7 +355,8 @@ ipx_erputil(int z, int c)
 static struct sockaddr_ipx ssipx = {AF_IPX};
 
 static
-char *ipx_prpr(struct ipx_addr *x)
+char *ipx_prpr(x)
+	struct ipx_addr *x;
 {
 	struct sockaddr_ipx *sipx = &ssipx;
 

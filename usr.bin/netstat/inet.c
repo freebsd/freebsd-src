@@ -94,8 +94,10 @@ static int udp_done, tcp_done;
  * -a (all) flag is specified.
  */
 void
-protopr(u_long proto,		/* for sysctl version we pass proto # */
-	char *name, int af)
+protopr(proto, name, af)
+	u_long proto;		/* for sysctl version we pass proto # */
+	char *name;
+	int af;
 {
 	int istcp;
 	static int first = 1;
@@ -165,7 +167,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != (int)proto)
+		if (so->xso_protocol != proto)
 			continue;
 
 		/* Ignore PCBs which were freed during copyout. */
@@ -346,7 +348,9 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
  * Dump TCP statistics structure.
  */
 void
-tcp_stats(u_long off __unused, char *name, int af __unused)
+tcp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct tcpstat tcpstat;
 	size_t len = sizeof tcpstat;
@@ -444,7 +448,9 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
  * Dump UDP statistics structure.
  */
 void
-udp_stats(u_long off __unused, char *name, int af __unused)
+udp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct udpstat udpstat;
 	size_t len = sizeof udpstat;
@@ -495,7 +501,9 @@ udp_stats(u_long off __unused, char *name, int af __unused)
  * Dump IP statistics structure.
  */
 void
-ip_stats(u_long off __unused, char *name, int af __unused)
+ip_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct ipstat ipstat;
 	size_t len = sizeof ipstat;
@@ -575,7 +583,9 @@ static	char *icmpnames[] = {
  * Dump ICMP statistics.
  */
 void
-icmp_stats(u_long off __unused, char *name, int af __unused)
+icmp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct icmpstat icmpstat;
 	int i, first;
@@ -641,7 +651,9 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
  * Dump IGMP statistics structure.
  */
 void
-igmp_stats(u_long off __unused, char *name, int af __unused)
+igmp_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct igmpstat igmpstat;
 	size_t len = sizeof igmpstat;
@@ -674,7 +686,11 @@ igmp_stats(u_long off __unused, char *name, int af __unused)
  * Pretty print an Internet address (net address + port).
  */
 void
-inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
+inetprint(in, port, proto, numeric_port)
+	register struct in_addr *in;
+	int port;
+	char *proto;
+	int numeric_port;
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -704,7 +720,8 @@ inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
  * numeric value, otherwise try for symbolic name.
  */
 char *
-inetname(struct in_addr *inp)
+inetname(inp)
+	struct in_addr *inp;
 {
 	register char *cp;
 	static char line[MAXHOSTNAMELEN];

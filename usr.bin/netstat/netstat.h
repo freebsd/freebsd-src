@@ -64,22 +64,22 @@ char	*plural __P((int));
 char	*plurales __P((int));
 
 void	protopr __P((u_long, char *, int));
-void	tcp_stats __P((u_long, char *, int));
-void	udp_stats __P((u_long, char *, int));
-void	ip_stats __P((u_long, char *, int));
-void	icmp_stats __P((u_long, char *, int));
-void	igmp_stats __P((u_long, char *, int));
+void	tcp_stats __P((u_long, char *));
+void	udp_stats __P((u_long, char *));
+void	ip_stats __P((u_long, char *));
+void	icmp_stats __P((u_long, char *));
+void	igmp_stats __P((u_long, char *));
 #ifdef IPSEC
-void	ipsec_stats __P((u_long, char *, int));
+void	ipsec_stats __P((u_long, char *));
 #endif
 
 #ifdef INET6
-void	ip6_stats __P((u_long, char *, int));
+void	ip6_stats __P((u_long, char *));
 void	ip6_ifstats __P((char *));
-void	icmp6_stats __P((u_long, char *, int));
+void	icmp6_stats __P((u_long, char *));
 void	icmp6_ifstats __P((char *));
-void	pim6_stats __P((u_long, char *, int));
-void	rip6_stats __P((u_long, char *, int));
+void	pim6_stats __P((u_long, char *));
+void	rip6_stats __P((u_long, char *));
 void	mroute6pr __P((u_long, u_long));
 void	mrt6_stats __P((u_long));
 
@@ -90,10 +90,10 @@ char *netname6 __P((struct sockaddr_in6 *, struct in6_addr *));
 #endif /*INET6*/
 
 #ifdef IPSEC
-void	pfkey_stats __P((u_long, char *, int));
+void	pfkey_stats __P((u_long, char *));
 #endif
 
-void	bdg_stats __P((u_long, char *, int));
+void	bdg_stats __P((u_long, char *));
 
 void	mbpr __P((u_long, u_long, u_long, u_long));
 
@@ -118,29 +118,29 @@ char	*ipx_print __P((struct sockaddr *));
 char	*ns_print __P((struct sockaddr *));
 void	routepr __P((u_long));
 
-void	ipxprotopr __P((u_long, char *, int));
-void	spx_stats __P((u_long, char *, int));
-void	ipx_stats __P((u_long, char *, int));
-void	ipxerr_stats __P((u_long, char *, int));
+void	ipxprotopr __P((u_long, char *));
+void	spx_stats __P((u_long, char *));
+void	ipx_stats __P((u_long, char *));
+void	ipxerr_stats __P((u_long, char *));
 
-void	nsprotopr __P((u_long, char *, int));
-void	spp_stats __P((u_long, char *, int));
-void	idp_stats __P((u_long, char *, int));
-void	nserr_stats __P((u_long, char *, int));
+void	nsprotopr __P((u_long, char *));
+void	spp_stats __P((u_long, char *));
+void	idp_stats __P((u_long, char *));
+void	nserr_stats __P((u_long, char *));
 
-void	atalkprotopr __P((u_long, char *, int));
-void	ddp_stats __P((u_long, char *, int));
+void	atalkprotopr __P((u_long, char *));
+void	ddp_stats __P((u_long, char *));
 
-void	netgraphprotopr __P((u_long, char *, int));
+void	netgraphprotopr __P((u_long, char *));
 
 void	unixpr __P((void));
 
-void	esis_stats __P((u_long, char *, int));
-void	clnp_stats __P((u_long, char *, int));
-void	cltp_stats __P((u_long, char *, int));
-void	iso_protopr __P((u_long, char *, int));
+void	esis_stats __P((u_long, char *));
+void	clnp_stats __P((u_long, char *));
+void	cltp_stats __P((u_long, char *));
+void	iso_protopr __P((u_long, char *));
 void	iso_protopr1 __P((u_long, int));
-void	tp_protopr __P((u_long, char *, int));
+void	tp_protopr __P((u_long, char *));
 void	tp_inproto __P((u_long));
 void	tp_stats __P((caddr_t, caddr_t));
 

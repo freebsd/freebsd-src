@@ -340,7 +340,9 @@ static	char *ip6nh[] = {
  * Dump IP6 statistics structure.
  */
 void
-ip6_stats(u_long off __unused, char *name, int af __unused)
+ip6_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct ip6stat ip6stat;
 	int first, i;
@@ -492,7 +494,8 @@ ip6_stats(u_long off __unused, char *name, int af __unused)
  * Dump IPv6 per-interface statistics based on RFC 2465.
  */
 void
-ip6_ifstats(char *ifname)
+ip6_ifstats(ifname)
+	char *ifname;
 {
 	struct in6_ifreq ifr;
 	int s;
@@ -807,7 +810,9 @@ static	char *icmp6names[] = {
  * Dump ICMP6 statistics.
  */
 void
-icmp6_stats(u_long off __unused, char *name, int af __unused)
+icmp6_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct icmp6stat icmp6stat;
 	register int i, first;
@@ -880,7 +885,8 @@ icmp6_stats(u_long off __unused, char *name, int af __unused)
  * Dump ICMPv6 per-interface statistics based on RFC 2466.
  */
 void
-icmp6_ifstats(char *ifname)
+icmp6_ifstats(ifname)
+	char *ifname;
 {
 	struct in6_ifreq ifr;
 	int s;
@@ -945,7 +951,9 @@ icmp6_ifstats(char *ifname)
  * Dump PIM statistics structure.
  */
 void
-pim6_stats(u_long off __unused, char *name, int af __unused)
+pim6_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct pim6stat pim6stat;
 
@@ -970,7 +978,9 @@ pim6_stats(u_long off __unused, char *name, int af __unused)
  * Dump raw ip6 statistics structure.
  */
 void
-rip6_stats(u_long off __unused, char *name, int af __unused)
+rip6_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct rip6stat rip6stat;
 	u_quad_t delivered;
@@ -1025,7 +1035,11 @@ rip6_stats(u_long off __unused, char *name, int af __unused)
 };
 
 void
-inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
+inet6print(in6, port, proto, numeric)
+	register struct in6_addr *in6;
+	int port;
+	char *proto;
+	int numeric;
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -1051,7 +1065,8 @@ inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
  */
 
 char *
-inet6name(struct in6_addr *in6p)
+inet6name(in6p)
+	struct in6_addr *in6p;
 {
 	register char *cp;
 	static char line[50];
