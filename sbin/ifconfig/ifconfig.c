@@ -68,9 +68,11 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 
+#ifdef NS
 #define	NSIP
 #include <netns/ns.h>
 #include <netns/ns_if.h>
+#endif
 
 #ifdef ISO
 #define EON
@@ -102,7 +104,9 @@ char	name[32];
 int	flags;
 int	metric;
 int	mtu;
+#ifdef ISO
 int	nsellength = 1;
+#endif
 int	setaddr;
 int	setipdst;
 int	doalias;
@@ -171,7 +175,9 @@ struct	cmd {
  */
 int	in_status(), in_getaddr();
 int	ipx_status(), ipx_getaddr();
+#ifdef NS
 int	xns_status(), xns_getaddr();
+#endif
 #ifdef ISO
 int	iso_status(), iso_getaddr();
 #endif
@@ -193,8 +199,10 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "ipx", AF_IPX, ipx_status, ipx_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+#ifdef NS
 	{ "ns", AF_NS, xns_status, xns_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+#endif
 #ifdef ISO
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
@@ -436,6 +444,7 @@ ifconfig(argc,argv,af,rafp)
 		if (setsockopt(s, 0, SO_IPXIP_ROUTE, &rq, size) < 0)
 			Perror("Encapsulation Routing");
 	}
+#ifdef NS
 	if (setipdst && af==AF_NS) {
 		struct nsip_req rq;
 		int size = sizeof(rq);
@@ -446,6 +455,7 @@ ifconfig(argc,argv,af,rafp)
 		if (setsockopt(s, 0, SO_NSIP_ROUTE, &rq, size) < 0)
 			Perror("Encapsulation Routing");
 	}
+#endif
 	if (clearaddr) {
 		if (rafp->af_ridreq == NULL || rafp->af_difaddr == 0) {
 			warnx("interface %s cannot change %s addresses!",
@@ -748,6 +758,7 @@ ipx_status(force)
 
 }
 
+#ifdef NS
 xns_status(force)
 	int force;
 {
@@ -781,6 +792,7 @@ xns_status(force)
 
 	putchar('\n');
 }
+#endif
 
 #ifdef ISO
 iso_status(force)
@@ -941,6 +953,7 @@ char *addr;
 		printf("Attempt to set IPX netmask will be ineffectual\n");
 }
 
+#ifdef NS
 #define SNS(x) ((struct sockaddr_ns *) &(x))
 struct sockaddr_ns *snstab[] = {
 SNS(ridreq.ifr_addr), SNS(addreq.ifra_addr),
@@ -958,6 +971,7 @@ char *addr;
 	if (which == MASK)
 		printf("Attempt to set XNS netmask will be ineffectual\n");
 }
+#endif
 
 #ifdef ISO
 #define SISO(x) ((struct sockaddr_iso *) &(x))
