@@ -1,4 +1,12 @@
-#	$Id: Makefile,v 1.2 1998/10/13 18:29:18 rnordier Exp $
+#	$Id: Makefile,v 1.3 1998/10/13 21:35:42 rnordier Exp $
+
+PROG=		boot2
+NOMAN=
+STRIP=
+BINDIR?=	/boot
+BINMODE=	444
+CLEANFILES+=	boot1 boot1.out boot1.o \
+		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o
 
 M4?=	m4
 
@@ -28,7 +36,8 @@ boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 boot1.o: boot1.m4 boot1.s
-	${M4} boot1.m4 boot1.s | ${AS} ${AFLAGS} -o ${.TARGET}
+	(cd ${.CURDIR}; ${M4} boot1.m4 boot1.s) | \
+		${AS} ${AFLAGS} -o ${.TARGET}
 
 boot2: boot2.ldr boot2.bin
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
@@ -47,6 +56,10 @@ boot2.out: boot2.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} \
 		${BTX}/lib/crt0.o boot2.o
 
-clean:
-	rm -f boot1 boot1.out boot1.o boot2 boot2.ldr boot2.bin \
-		boot2.ld boot2.out boot2.o
+install:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		boot1 ${DESTDIR}${BINDIR}/boot1
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		boot2 ${DESTDIR}${BINDIR}/boot2
+
+.include <bsd.prog.mk>
