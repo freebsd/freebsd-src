@@ -94,7 +94,9 @@ struct filedesc0 {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
+#if 0
 #define	UF_MAPPED 	0x02		/* mapped from device */
+#endif
 
 /*
  * Storage required per open file descriptor.
@@ -129,7 +131,7 @@ SLIST_HEAD(sigiolst, sigio);
 /*
  * Kernel global variables and routines.
  */
-int	dupfdopen __P((struct filedesc *, int, int, int, int));
+int	dupfdopen __P((struct proc *, struct filedesc *, int, int, int, int));
 int	fdalloc __P((struct proc *p, int want, int *result));
 int	fdavail __P((struct proc *p, int n));
 int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
@@ -140,7 +142,7 @@ struct	filedesc *fdcopy __P((struct proc *p));
 void	fdfree __P((struct proc *p));
 int	closef __P((struct file *fp,struct proc *p));
 void	fdcloseexec __P((struct proc *p));
-struct	file *getfp __P((struct filedesc* fdp, int fd, int flag));
+struct	file *holdfp __P((struct filedesc* fdp, int fd, int flag));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
 int	fdissequential __P((struct file *));
 void	fdsequential __P((struct file *, int));

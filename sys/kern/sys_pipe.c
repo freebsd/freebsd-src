@@ -185,6 +185,7 @@ pipe(p, uap)
 	error = falloc(p, &rf, &fd);
 	if (error)
 		goto free2;
+	fhold(rf);
 	p->p_retval[0] = fd;
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
@@ -201,11 +202,15 @@ pipe(p, uap)
 
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
+	fdrop(rf, p);
 
 	return (0);
 free3:
-	fdp->fd_ofiles[p->p_retval[0]] = 0;
-	ffree(rf);
+	if (fdp->fd_ofiles[p->p_retval[0]] == rf) {
+		fdp->fd_ofiles[p->p_retval[0]] = NULL;
+		fdrop(rf, p);
+	}
+	fdrop(rf, p);
 free2:
 	(void)pipeclose(wpipe);
 	(void)pipeclose(rpipe);
