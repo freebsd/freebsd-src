@@ -118,7 +118,7 @@ cpu_fork(td1, p2, td2, flags)
 	/* Ensure that p1's pcb is up to date. */
 	savecrit = intr_disable();
 	if (PCPU_GET(fpcurthread) == td1)
-		npxsave(&td1->td_pcb->pcb_save);
+		fpusave(&td1->td_pcb->pcb_save);
 	intr_restore(savecrit);
 
 	/* Point the pcb to the top of the stack */
@@ -206,7 +206,7 @@ cpu_thread_exit(struct thread *td)
 {
 
 	if (td == PCPU_GET(fpcurthread))
-		npxdrop();
+		fpudrop();
 }
 
 void
@@ -266,7 +266,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * more analysis) (need a good safe default).
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~PCB_NPXINITDONE;
+	pcb2->pcb_flags &= ~PCB_FPUINITDONE;
 
 	/*
 	 * Create a new fresh stack for the new thread.

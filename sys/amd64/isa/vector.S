@@ -33,7 +33,7 @@ eintrnames:
  *
  * XXX - the interrupt frame is set up to look like a trap frame.  This is
  * usually a waste of time.  The only interrupt handlers that want a frame
- * are the clock handler (it wants a clock frame), the npx handler (it's
+ * are the clock handler (it wants a clock frame), the fpu handler (it's
  * easier to do right all in assembler).  The interrupt return routine
  * needs a trap frame for rare AST's (it could easily convert the frame).
  * The direct costs of setting up a trap frame are two pushl's (error
@@ -42,7 +42,7 @@ eintrnames:
  * costs are making the driver interface nonuniform so unpending of
  * interrupts is more complicated and slower (call_driver(unit) would
  * be easier than ensuring an interrupt frame for all handlers.  Finally,
- * there are some struct copies in the npx handler and maybe in the clock
+ * there are some struct copies in the fpu handler and maybe in the clock
  * handler that could be avoided by working more with pointers to frames
  * instead of frames.
  *

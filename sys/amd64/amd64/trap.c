@@ -244,7 +244,7 @@ trap(frame)
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-			ucode = npxtrap();
+			ucode = fputrap();
 			if (ucode == -1)
 				goto userout;
 			i = SIGFPE;
@@ -310,7 +310,7 @@ trap(frame)
 
 		case T_DNA:
 			/* transparent fault (due to context switch "late") */
-			if (npxdna())
+			if (fpudna())
 				goto userout;
 			i = SIGFPE;
 			ucode = FPE_FPU_NP_TRAP;
@@ -338,12 +338,12 @@ trap(frame)
 
 		case T_DNA:
 			/*
-			 * The kernel is apparently using npx for copying.
+			 * The kernel is apparently using fpu for copying.
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			if (npxdna()) {
-				printf("npxdna in kernel mode!\n");
+			if (fpudna()) {
+				printf("fpudna in kernel mode!\n");
 				goto out;
 			}
 			break;
