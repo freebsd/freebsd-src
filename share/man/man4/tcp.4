@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2004
+.Dd October 23, 2004
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -408,10 +408,6 @@ the transmit side of a
 connection.
 .It Va inflight.debug
 Enable debugging for the bandwidth-delay product algorithm.
-This may
-default to on (1), so if you enable the algorithm,
-you should probably also
-disable debugging by setting this variable to 0.
 .It Va inflight.min
 This puts a lower bound on the bandwidth-delay product window, in bytes.
 A value of 1024 is typically used for debugging.
@@ -454,11 +450,8 @@ as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
-It
-helps avoid timeouts on lossy links and also when the congestion window
+It helps avoid timeouts on lossy links and also when the congestion window
 is small, as happens on short transfers.
-This is a standards track RFC
-and is off by default.
 .It Va rfc3390
 Enable support for RFC 3390, which allows for a variable-sized
 starting congestion window on new connections, depending on the
@@ -466,8 +459,6 @@ maximum segment size.
 This helps throughput in general, but
 particularly affects short transfers and high-bandwidth large
 propagation-delay connections.
-This is a standards track RFC and
-support for it is off by default.
 .Pp
 When this feature is enabled, the
 .Va slowstart_flightsize
