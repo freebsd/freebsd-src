@@ -46,6 +46,7 @@ packets to network hosts
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl l Ar preload
+.Op Fl M Ar mask | time
 .Op Fl m Ar ttl
 .Op Fl P Ar policy
 .Op Fl p Ar pattern
@@ -169,6 +170,15 @@ Set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
 .Va net.inet.ip.ttl
 MIB variable.
+.It Fl M Ar mask | time
+Use ICMP_MASKREQ or ICMP_TSTAMP instead of ICMP_ECHO.  For
+.Ar mask
+print the netmask of the remote machine.  Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable ICMP_MASKREPLY.
+For
+.Ar time
+print the origination, reception and transmition timestamps.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.

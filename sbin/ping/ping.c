@@ -97,14 +97,15 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
-#define	PHDR_LEN	((int)sizeof(struct timeval))
-#define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
+#define	TIMEVAL_LEN	((int)sizeof(struct timeval))
+#define	MASK_LEN	(ICMP_MASKLEN - ICMP_MINLEN)
+#define	TS_LEN		(ICMP_TSLEN - ICMP_MINLEN)
+#define	DEFDATALEN	64		/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
 #define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
 #define	MINICMPLEN	ICMP_MINLEN
-#define	MASKLEN		(options & F_MASK ? 4 : 0)
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
@@ -141,6 +142,7 @@ int options;
 #define	F_ONCE		0x20000
 #define	F_HDRINCL	0x40000
 #define	F_MASK		0x80000
+#define	F_TIME		0x100000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -163,6 +165,10 @@ char *hostname;
 char *shostname;
 int ident;			/* process id to identify our packets */
 int uid;			/* cached uid for micro-optimization */
+u_char icmp_type = ICMP_ECHO;
+u_char icmp_type_rsp = ICMP_ECHOREPLY;
+int timeoffset = 0;
+int phdr_len = 0;
 
 /* counters */
 long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
@@ -189,6 +195,7 @@ static void check_status(void);
 static void finish(void) __dead2;
 static void pinger(void);
 static char *pr_addr(struct in_addr);
+static char *pr_ntime(n_time);
 static void pr_icmph(struct icmp *);
 static void pr_iph(struct ip *);
 static void pr_pack(char *, int, struct sockaddr_in *, struct timeval *);
@@ -250,7 +257,7 @@ main(argc, argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdfI:i:Ll:Mm:nop:QqRrS:s:T:t:vz:"
+		"Aac:DdfI:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -323,7 +330,19 @@ main(argc, argv)
 			preload = ultmp;
 			break;
 		case 'M':
-			options |= F_MASK;
+			switch(optarg[0]) {
+			case 'M':
+			case 'm':
+				options |= F_MASK;
+				break;
+			case 'T':
+			case 't':
+				options |= F_TIME;
+				break;
+			default:
+				errx(EX_USAGE, "invalid message: `%c'", optarg[0]);
+				break;
+			}
 			break;
 		case 'm':		/* TTL */
 			ultmp = strtoul(optarg, &ep, 0);
@@ -421,12 +440,30 @@ main(argc, argv)
 	target = argv[optind];
 
 	maxpayload = IP_MAXPACKET - sizeof(struct ip) - MINICMPLEN;
+	if (options & F_MASK) {
+		icmp_type = ICMP_MASKREQ;
+		icmp_type_rsp = ICMP_MASKREPLY;
+		timeoffset = MASK_LEN;
+		datalen -= MASK_LEN;
+		phdr_len += MASK_LEN;
+		if (!(options & F_QUIET))
+			(void)printf("ICMP_MASKREQ\n");
+	}
+	if (options & F_TIME) {
+		icmp_type = ICMP_TSTAMP;
+		icmp_type_rsp = ICMP_TSTAMPREPLY;
+		timeoffset = TS_LEN;
+		datalen -= TS_LEN;
+		phdr_len += TS_LEN;
+		if (!(options & F_QUIET))
+			(void)printf("ICMP_TSTAMP\n");
+	}
 	if (options & F_RROUTE)
 		maxpayload -= MAX_IPOPTLEN;
 	if (datalen > maxpayload)
 		errx(EX_USAGE, "packet size too large: %lu > %u", datalen,
 		    maxpayload);
-	datap = &outpack[MINICMPLEN + PHDR_LEN];
+	datap = &outpack[MINICMPLEN + phdr_len];
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
@@ -487,13 +524,16 @@ main(argc, argv)
 		errx(EX_USAGE,
 		    "-I, -L, -T flags cannot be used with unicast destination");
 
-	if (datalen - MASKLEN >= PHDR_LEN)	/* can we time transfer */
+	if (datalen - TIMEVAL_LEN >= TIMEVAL_LEN) {	/* can we time transfer */
+		datalen -= TIMEVAL_LEN;
+		phdr_len += TIMEVAL_LEN;
 		timing = 1;
+	}
 	packlen = MAXIPLEN + MAXICMPLEN + datalen;
 	packlen = packlen > IP_MAXPACKET ? IP_MAXPACKET : packlen;
 
 	if (!(options & F_PINGFILLED))
-		for (i = PHDR_LEN; i < datalen; ++i)
+		for (i = phdr_len; i < datalen; ++i)
 			*datap++ = i;
 
 	ident = getpid() & 0xFFFF;
@@ -799,13 +839,14 @@ stopit(sig)
  * pinger --
  *	Compose and transmit an ICMP ECHO REQUEST packet.  The IP packet
  * will be added on by the kernel.  The ID field is our UNIX process ID,
- * and the sequence number is an ascending integer.  The first PHDR_LEN
+ * and the sequence number is an ascending integer.  The first TIMEVAL_LEN
  * bytes of the data portion are used to hold a UNIX "timeval" struct in
  * host byte-order, to compute the round-trip time.
  */
 static void
 pinger(void)
 {
+	struct timeval now;
 	struct ip *ip;
 	struct icmp *icp;
 	int cc, i;
@@ -813,10 +854,7 @@ pinger(void)
 
 	packet = outpack;
 	icp = (struct icmp *)outpack;
-	if (options & F_MASK)
-		icp->icmp_type = ICMP_MASKREQ;
-	else
-		icp->icmp_type = ICMP_ECHO;
+	icp->icmp_type = icmp_type;
 	icp->icmp_code = 0;
 	icp->icmp_cksum = 0;
 	icp->icmp_seq = htons(ntransmitted);
@@ -824,11 +862,18 @@ pinger(void)
 
 	CLR(ntransmitted % mx_dup_ck);
 
-	if (timing)
-		(void)gettimeofday((struct timeval *)&outpack[
-			MINICMPLEN + MASKLEN], NULL);
+	if ((options & F_TIME) || timing) {
+		(void)gettimeofday(&now, NULL);
 
-	cc = MINICMPLEN + datalen;
+		if (options & F_TIME)
+			icp->icmp_otime = htonl((now.tv_sec % (24*60*60))
+				* 1000 + now.tv_usec / 1000);
+		if (timing)
+			bcopy((void *)&now, (void *)&outpack[MINICMPLEN + timeoffset],
+				sizeof(struct timeval));
+	}
+
+	cc = MINICMPLEN + datalen + timeoffset;
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
@@ -897,8 +942,7 @@ pr_pack(buf, cc, from, tv)
 	/* Now the ICMP part */
 	cc -= hlen;
 	icp = (struct icmp *)(buf + hlen);
-	if ((icp->icmp_type == ICMP_ECHOREPLY) ||
-	    ((icp->icmp_type == ICMP_MASKREPLY) && (options & F_MASK))) {
+	if (icp->icmp_type == icmp_type_rsp) {
 		if (icp->icmp_id != ident)
 			return;			/* 'Twas not our ECHO */
 		++nreceived;
@@ -910,7 +954,7 @@ pr_pack(buf, cc, from, tv)
 #else
 			tp = icp->icmp_data;
 #endif
-			tp+=MASKLEN;
+			tp+=timeoffset;
 
 			/* Copy to avoid alignment problems: */
 			memcpy(&tv1, tp, sizeof(tv1));
@@ -957,10 +1001,15 @@ pr_pack(buf, cc, from, tv)
 				(void)printf(" mask=%s",
 					pr_addr(*(struct in_addr *)&(icp->icmp_mask)));
 			}
+			if (options & F_TIME) {
+				(void)printf(" tso=%s", pr_ntime(icp->icmp_otime));
+				(void)printf(" tsr=%s", pr_ntime(icp->icmp_rtime));
+				(void)printf(" tst=%s", pr_ntime(icp->icmp_ttime));
+			}
 			/* check the data */
-			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
-			dp = &outpack[MINICMPLEN + PHDR_LEN];
-			for (i = PHDR_LEN; i < datalen; ++i, ++cp, ++dp) {
+			cp = (u_char*)&icp->icmp_data[phdr_len];
+			dp = &outpack[MINICMPLEN + phdr_len];
+			for (i = phdr_len; i < datalen; ++i, ++cp, ++dp) {
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
@@ -1479,6 +1528,22 @@ pr_retip(ip)
 			(*cp * 256 + *(cp + 1)), (*(cp + 2) * 256 + *(cp + 3)));
 }
 
+static char *
+pr_ntime (n_time time)
+{
+	static char buf[10];
+	int h, m, s;
+
+	s = ntohl(time) / 1000;
+	h = s / 60 / 60;
+	m = (s % (60 * 60)) / 60;
+	s = (s % (60 * 60)) % 60;
+
+	(void)snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
+
+	return (buf);
+}
+
 static void
 fill(bp, patp)
 	char *bp, *patp;
@@ -1500,7 +1565,7 @@ fill(bp, patp)
 	    &pat[13], &pat[14], &pat[15]);
 
 	if (ii > 0)
-		for (kk = 0; kk <= maxpayload - (PHDR_LEN + ii); kk += ii)
+		for (kk = 0; kk <= maxpayload - (phdr_len + ii); kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
 	if (!(options & F_QUIET)) {
@@ -1515,14 +1580,15 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-AaDdfMnoQqRrv] [-c count] [-i wait] [-l preload] [-m ttl]",
-"            "
+"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload]",
+"            [-M mask | time] [-m ttl] [-p pattern] "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 "[-P policy] "
 #endif
 #endif
-"[-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
-"            [-z tos ] host | [-L] [-I iface] [-T ttl] mcast-group");
+"[-S src_addr]",
+"            [-s packetsize] [-t timeout] [-z tos]",
+"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
 	exit(EX_USAGE);
 }
