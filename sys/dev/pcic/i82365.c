@@ -555,11 +555,8 @@ pcic_intr_socket(struct pcic_handle *h)
 
 	cscreg = pcic_read(h, PCIC_CSC);
 
-	cscreg &= (PCIC_CSC_GPI |
-		   PCIC_CSC_CD |
-		   PCIC_CSC_READY |
-		   PCIC_CSC_BATTWARN |
-		   PCIC_CSC_BATTDEAD);
+	cscreg &= (PCIC_CSC_GPI | PCIC_CSC_CD | PCIC_CSC_READY | 
+	    PCIC_CSC_BATTWARN | PCIC_CSC_BATTDEAD);
 
 	if (cscreg & PCIC_CSC_GPI) {
 		DPRINTF(("%s: %02x GPI\n", h->ph_parent->dv_xname, h->sock));
@@ -691,14 +688,9 @@ pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size,
 
 	for (i = 0; i <= PCIC_MAX_MEM_PAGES - sizepg; i++) {
 		if ((sc->subregionmask & (mask << i)) == (mask << i)) {
-#if XXX
-			if (bus_space_subregion(sc->memt, sc->memh,
-			    i * PCIC_MEM_PAGESIZE,
-			    sizepg * PCIC_MEM_PAGESIZE, &memh))
-				return (1);
-#endif
 			mhandle = mask << i;
 			addr = sc->membase + (i * PCIC_MEM_PAGESIZE);
+			memh = addr;
 			sc->subregionmask &= ~(mhandle);
 			pcmhp->memt = sc->memt;
 			pcmhp->memh = memh;
@@ -928,22 +920,14 @@ pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
 
 	iot = sc->iot;
 
+	ioaddr = start;
 	if (start) {
-		ioaddr = start;
-#if XXX
-		if (bus_space_map(iot, start, size, 0, &ioh))
-			return (1);
-#endif
+		ioh = start;
 		DPRINTF(("pcic_chip_io_alloc map port %lx+%lx\n",
 		    (u_long) ioaddr, (u_long) size));
 	} else {
 		flags |= PCCARD_IO_ALLOCATED;
-#if XXX
-		if (bus_space_alloc(iot, sc->iobase,
-		    sc->iobase + sc->iosize, size, align, 0, 0,
-		    &ioaddr, &ioh))
-			return (1);
-#endif
+		ioh = start;
 		DPRINTF(("pcic_chip_io_alloc alloc port %lx+%lx\n",
 		    (u_long) ioaddr, (u_long) size));
 	}
@@ -960,16 +944,6 @@ pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
 void 
 pcic_chip_io_free(struct pcic_handle *h, struct pccard_io_handle *pcihp)
 {
-	bus_space_tag_t iot = pcihp->iot;
-	bus_space_handle_t ioh = pcihp->ioh;
-	bus_size_t size = pcihp->size;
-
-#if XXX
-	if (pcihp->flags & PCCARD_IO_ALLOCATED)
-		bus_space_free(iot, ioh, size);
-	else
-		bus_space_unmap(iot, ioh, size);
-#endif
 }
 
 
@@ -1268,7 +1242,8 @@ st_pcic_write(struct pcic_handle *h, int idx, u_int8_t data)
 	bus_space_write_1(h->ph_bus_t, h->ph_bus_h, PCIC_REG_DATA, data);
 }
 
-int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
+int
+pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	int err;
@@ -1280,10 +1255,7 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	sz = rman_get_end(r) - rman_get_start(r) + 1;
 	switch (type) {
 	case SYS_RES_IOPORT:
-		err = pcic_chip_io_alloc(h, rman_get_start(r), sz, 0,
-		    &h->io[rid]);
-		if (err)
-			return err;
+		win = rid;
 		err = pcic_chip_io_map(h, 0, 0, sz, &h->io[rid], &win);
 		if (err) {
 			pcic_chip_io_free(h, &h->io[rid]);
@@ -1291,9 +1263,6 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		}
 		break;
 	case SYS_RES_MEMORY: 
-		err = pcic_chip_mem_alloc(h, sz, &h->mem[rid]);
-		if (err)
-			return err;
 		err = pcic_chip_mem_map(h, 0, 0, sz, &h->mem[rid], &off, &win);
 		if (err) {
 			pcic_chip_mem_free(h, &h->mem[rid]);
@@ -1308,7 +1277,8 @@ int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	return (err);
 }
 
-int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
+int
+pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
@@ -1317,11 +1287,9 @@ int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 		pcic_chip_io_unmap(h, rid);
-		pcic_chip_io_free(h, &h->io[rid]);
 		break;
 	case SYS_RES_MEMORY: 
 		pcic_chip_mem_unmap(h, rid);
-		pcic_chip_mem_free(h, &h->mem[rid]);
 	default:
 		break;
 	}
@@ -1329,7 +1297,9 @@ int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	    type, rid, r);
 	return (err);
 }
-int pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
+
+int
+pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
     int flags, driver_intr_t intr, void *arg, void **cookiep)
 {
 	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(child);
@@ -1355,7 +1325,8 @@ int pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
 	return 0;
 }
 
-int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+int
+pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookiep)
 {
 	int reg;
@@ -1371,16 +1342,58 @@ int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	    cookiep));
 }
 
-int pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+struct resource *
+pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	return bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	int sz;
+	int err;
+	struct resource *r;
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+
+	r = bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags);
+	if (!r)
+		return r;
+	sz = rman_get_end(r) - rman_get_start(r) + 1;
+	switch (type) {
+	case SYS_RES_IOPORT:
+		err = pcic_chip_io_alloc(h, rman_get_start(r), sz, 0,
+		    &h->io[*rid]);
+		if (err) {
+			bus_generic_release_resource(dev, child, type, *rid, 
+			    r);
+			return 0;
+		}
+		break;
+	case SYS_RES_MEMORY: 
+		err = pcic_chip_mem_alloc(h, sz, &h->mem[*rid]);
+		if (err) {
+			bus_generic_release_resource(dev, child, type, *rid,
+			    r);
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+	return r;
 }
 
-int pcic_release_resource(device_t dev, device_t child, int type, int rid,
+int
+pcic_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		pcic_chip_io_free(h, &h->io[rid]);
+		break;
+	case SYS_RES_MEMORY: 
+		pcic_chip_mem_free(h, &h->mem[rid]);
+	default:
+		break;
+	}
 	return bus_generic_release_resource(dev, child, type, rid, r);
 }
-
