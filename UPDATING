@@ -5,6 +5,12 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20010709:
+	The PAM libraries have had an API upgrade that is beyond
+	the ability of the shared library major number to handle.
+	It is manifested by PAM-using ports dumping core. The
+	solution is to rebuild those ports.
+
 20010628:
 	The kernel compile module has moved from src/sys/compile/FOO
 	to src/sys/${MACHINE}/compile/FOO.
