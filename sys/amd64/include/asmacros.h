@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.15 1997/03/09 13:57:33 bde Exp $
+ *	$Id: asmacros.h,v 1.16 1997/04/22 06:55:32 jdp Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -65,13 +65,13 @@
 #define SUPERALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
 
 #define GEN_ENTRY(name)		ALIGN_TEXT; .globl CNAME(name); \
-				CNAME(name):
+				.type CNAME(name),@function; CNAME(name):
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
 #ifdef GPROF
 /*
- * __mcount is like mcount except that doesn't require its caller to set
+ * __mcount is like [.]mcount except that doesn't require its caller to set
  * up a frame pointer.  It must be called before pushing anything onto the
  * stack.  gcc should eventually generate code to call __mcount in most
  * cases.  This would make -pg in combination with -fomit-frame-pointer
@@ -80,19 +80,19 @@
  * inadequate for good handling of special cases, e.g., -fpic works best
  * with profiling after the prologue.
  *
- * mexitcount is a new function to support non-statistical profiling if an
+ * [.]mexitcount is a new function to support non-statistical profiling if an
  * accurate clock is available.  For C sources, calls to it are generated
  * by the FreeBSD extension `-mprofiler-epilogue' to gcc.  It is best to
- * call mexitcount at the end of a function like the MEXITCOUNT macro does,
+ * call [.]mexitcount at the end of a function like the MEXITCOUNT macro does,
  * but gcc currently generates calls to it at the start of the epilogue to
  * avoid problems with -fpic.
  *
- * mcount and __mexitcount may clobber the call-used registers and %ef.
- * mexitcount may clobber %ecx and %ef.
+ * [.]mcount and __mcount may clobber the call-used registers and %ef.
+ * [.]mexitcount may clobber %ecx and %ef.
  *
  * Cross-jumping makes non-statistical profiling timing more complicated.
- * It is handled in many cases by calling mexitcount before jumping.  It is
- * handled for conditional jumps using CROSSJUMP() and CROSSJUMP_LABEL().
+ * It is handled in many cases by calling [.]mexitcount before jumping.  It
+ * is handled for conditional jumps using CROSSJUMP() and CROSSJUMP_LABEL().
  * It is handled for some fault-handling jumps by not sharing the exit
  * routine.
  *
@@ -118,7 +118,7 @@
 #define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
 #define MCOUNT			call __mcount
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
-#define MEXITCOUNT		call mexitcount
+#define MEXITCOUNT		call HIDENAME(mexitcount)
 #define ret			MEXITCOUNT ; NON_GPROF_RET
 
 #else /* !GPROF */

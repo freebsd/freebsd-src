@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.58 1999/04/16 21:22:12 peter Exp $
+ *	$Id: exception.s,v 1.59 1999/04/28 01:03:18 luoqi Exp $
  */
 
 #include "npx.h"
@@ -74,7 +74,8 @@
 /*
  * Trap and fault vector routines
  */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); __CONCAT(_X,name):
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); \
+			.type __CONCAT(_X,name),@function; __CONCAT(_X,name):
 #define	TRAP(a)		pushl $(a) ; jmp _alltraps
 
 /*
@@ -199,6 +200,7 @@ IDTVEC(align)
 
 	SUPERALIGN_TEXT
 	.globl	_alltraps
+	.type	_alltraps,@function
 _alltraps:
 	pushal
 	pushl	%ds
