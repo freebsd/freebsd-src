@@ -1,0 +1,1027 @@
+---------- genclass -usage ----------
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+-----------
+---------- genclass -version ----------
+genclass: version 2.1
+-----------
+---------- genclass -requires ----------
+
+-----------
+---------- genclass -catalog ----------
+Catalog of genclass class templates
+directories searched:
+    /usr/latest/lib/gcc/sun4/1.95.01/g++-include/gen
+    /play/hgs/libg++-1.90/gentests
+selecting: all
+classes available:
+    AVLMap AVLSet AVec BSTSet Bag CHBag CHMap  CHSet  DLDeque  DLList
+    Deque  FPQueue  FPStack FPlex List MPlex Map OSLBag OSLSet OXPBag
+    OXPSet PHPQ PQ Plex Queue  RAVLMap  RPlex  SLBag  SLList  SLQueue
+    SLSet  SLStack Set SplayBag SplayMap SplayPQ SplaySet Stack VHBag
+    VHMap VHSet VOHSet VQueue VStack Vec XPBag XPDeque  XPPQ  XPQueue
+    XPSet XPStack XPlex defs
+    
+-----------
+---------- genclass -list ----------
+AVLMap
+AVLSet
+AVec
+BSTSet
+Bag
+CHBag
+CHMap
+CHSet
+DLDeque
+DLList
+Deque
+FPQueue
+FPStack
+FPlex
+List
+MPlex
+Map
+OSLBag
+OSLSet
+OXPBag
+OXPSet
+PHPQ
+PQ
+Plex
+Queue
+RAVLMap
+RPlex
+SLBag
+SLList
+SLQueue
+SLSet
+SLStack
+Set
+SplayBag
+SplayMap
+SplayPQ
+SplaySet
+Stack
+VHBag
+VHMap
+VHSet
+VOHSet
+VQueue
+VStack
+Vec
+XPBag
+XPDeque
+XPPQ
+XPQueue
+XPSet
+XPStack
+XPlex
+defs
+-----------
+---------- genclass -catalog PQ Set ----------
+Catalog of genclass class templates
+directories searched:
+    /usr/latest/lib/gcc/sun4/1.95.01/g++-include/gen
+    /play/hgs/libg++-1.90/gentests
+selecting: PQ Set
+classes available:
+    AVLSet BSTSet CHSet OSLSet  OXPSet  PHPQ  PQ  SLSet  Set  SplayPQ
+    SplaySet VHSet VOHSet XPPQ XPSet
+    
+-----------
+---------- genclass -list Map Stack ----------
+AVLMap
+CHMap
+FPStack
+Map
+RAVLMap
+SLStack
+SplayMap
+Stack
+VHMap
+VStack
+XPStack
+-----------
+Generating: genclass int ref AVLMap
+genclass: the AVLMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-AVLMap failed
+
+genclass int ref AVLMap fig
+genclass: the AVLMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-AVLMap failed
+
+Generating: genclass int ref AVLSet
+Checking for badsub
+removing int.AVLSet.h int.AVLSet.cc
+
+genclass int ref AVLSet fig
+Checking for badsub
+removing figAVLSet.h figAVLSet.cc
+
+Generating: genclass int ref AVec
+Checking for badsub
+removing int.AVec.h int.AVec.cc
+
+genclass int ref AVec fig
+Checking for badsub
+removing figAVec.h figAVec.cc
+
+Generating: genclass int ref BSTSet
+Checking for badsub
+removing int.BSTSet.h int.BSTSet.cc
+
+genclass int ref BSTSet fig
+Checking for badsub
+removing figBSTSet.h figBSTSet.cc
+
+Generating: genclass int ref Bag
+Checking for badsub
+removing int.Bag.h int.Bag.cc
+
+genclass int ref Bag fig
+Checking for badsub
+removing figBag.h figBag.cc
+
+Generating: genclass int ref CHBag
+Checking for badsub
+removing int.CHBag.h int.CHBag.cc
+
+genclass int ref CHBag fig
+Checking for badsub
+removing figCHBag.h figCHBag.cc
+
+Generating: genclass int ref CHMap
+genclass: the CHMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-CHMap failed
+
+genclass int ref CHMap fig
+genclass: the CHMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-CHMap failed
+
+Generating: genclass int ref CHSet
+Checking for badsub
+removing int.CHSet.h int.CHSet.cc
+
+genclass int ref CHSet fig
+Checking for badsub
+removing figCHSet.h figCHSet.cc
+
+Generating: genclass int ref DLDeque
+Checking for badsub
+removing int.DLDeque.h int.DLDeque.cc
+
+genclass int ref DLDeque fig
+Checking for badsub
+removing figDLDeque.h figDLDeque.cc
+
+Generating: genclass int ref DLList
+Checking for badsub
+removing int.DLList.h int.DLList.cc
+
+genclass int ref DLList fig
+Checking for badsub
+removing figDLList.h figDLList.cc
+
+Generating: genclass int ref Deque
+Checking for badsub
+removing int.Deque.h int.Deque.cc
+
+genclass int ref Deque fig
+Checking for badsub
+removing figDeque.h figDeque.cc
+
+Generating: genclass int ref FPQueue
+Checking for badsub
+removing int.FPQueue.h int.FPQueue.cc
+
+genclass int ref FPQueue fig
+Checking for badsub
+removing figFPQueue.h figFPQueue.cc
+
+Generating: genclass int ref FPStack
+Checking for badsub
+removing int.FPStack.h int.FPStack.cc
+
+genclass int ref FPStack fig
+Checking for badsub
+removing figFPStack.h figFPStack.cc
+
+Generating: genclass int ref FPlex
+Checking for badsub
+removing int.FPlex.h int.FPlex.cc
+
+genclass int ref FPlex fig
+Checking for badsub
+removing figFPlex.h figFPlex.cc
+
+Generating: genclass int ref List
+Checking for badsub
+removing int.List.h int.List.cc
+
+genclass int ref List fig
+Checking for badsub
+removing figList.h figList.cc
+
+Generating: genclass int ref MPlex
+Checking for badsub
+removing int.MPlex.h int.MPlex.cc
+
+genclass int ref MPlex fig
+Checking for badsub
+removing figMPlex.h figMPlex.cc
+
+Generating: genclass int ref Map
+genclass: the Map class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-Map failed
+
+genclass int ref Map fig
+genclass: the Map class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-Map failed
+
+Generating: genclass int ref OSLBag
+Checking for badsub
+removing int.OSLBag.h int.OSLBag.cc
+
+genclass int ref OSLBag fig
+Checking for badsub
+removing figOSLBag.h figOSLBag.cc
+
+Generating: genclass int ref OSLSet
+Checking for badsub
+removing int.OSLSet.h int.OSLSet.cc
+
+genclass int ref OSLSet fig
+Checking for badsub
+removing figOSLSet.h figOSLSet.cc
+
+Generating: genclass int ref OXPBag
+Checking for badsub
+removing int.OXPBag.h int.OXPBag.cc
+
+genclass int ref OXPBag fig
+Checking for badsub
+removing figOXPBag.h figOXPBag.cc
+
+Generating: genclass int ref OXPSet
+Checking for badsub
+removing int.OXPSet.h int.OXPSet.cc
+
+genclass int ref OXPSet fig
+Checking for badsub
+removing figOXPSet.h figOXPSet.cc
+
+Generating: genclass int ref PHPQ
+Checking for badsub
+removing int.PHPQ.h int.PHPQ.cc
+
+genclass int ref PHPQ fig
+Checking for badsub
+removing figPHPQ.h figPHPQ.cc
+
+Generating: genclass int ref PQ
+Checking for badsub
+removing int.PQ.h int.PQ.cc
+
+genclass int ref PQ fig
+Checking for badsub
+removing figPQ.h figPQ.cc
+
+Generating: genclass int ref Plex
+Checking for badsub
+removing int.Plex.h int.Plex.cc
+
+genclass int ref Plex fig
+Checking for badsub
+removing figPlex.h figPlex.cc
+
+Generating: genclass int ref Queue
+Checking for badsub
+removing int.Queue.h int.Queue.cc
+
+genclass int ref Queue fig
+Checking for badsub
+removing figQueue.h figQueue.cc
+
+Generating: genclass int ref RAVLMap
+genclass: the RAVLMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-RAVLMap failed
+
+genclass int ref RAVLMap fig
+genclass: the RAVLMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-RAVLMap failed
+
+Generating: genclass int ref RPlex
+Checking for badsub
+removing int.RPlex.h int.RPlex.cc
+
+genclass int ref RPlex fig
+Checking for badsub
+removing figRPlex.h figRPlex.cc
+
+Generating: genclass int ref SLBag
+Checking for badsub
+removing int.SLBag.h int.SLBag.cc
+
+genclass int ref SLBag fig
+Checking for badsub
+removing figSLBag.h figSLBag.cc
+
+Generating: genclass int ref SLList
+Checking for badsub
+removing int.SLList.h int.SLList.cc
+
+genclass int ref SLList fig
+Checking for badsub
+removing figSLList.h figSLList.cc
+
+Generating: genclass int ref SLQueue
+Checking for badsub
+removing int.SLQueue.h int.SLQueue.cc
+
+genclass int ref SLQueue fig
+Checking for badsub
+removing figSLQueue.h figSLQueue.cc
+
+Generating: genclass int ref SLSet
+Checking for badsub
+removing int.SLSet.h int.SLSet.cc
+
+genclass int ref SLSet fig
+Checking for badsub
+removing figSLSet.h figSLSet.cc
+
+Generating: genclass int ref SLStack
+Checking for badsub
+removing int.SLStack.h int.SLStack.cc
+
+genclass int ref SLStack fig
+Checking for badsub
+removing figSLStack.h figSLStack.cc
+
+Generating: genclass int ref Set
+Checking for badsub
+removing int.Set.h int.Set.cc
+
+genclass int ref Set fig
+Checking for badsub
+removing figSet.h figSet.cc
+
+Generating: genclass int ref SplayBag
+Checking for badsub
+removing int.SplayBag.h int.SplayBag.cc
+
+genclass int ref SplayBag fig
+Checking for badsub
+removing figSplayBag.h figSplayBag.cc
+
+Generating: genclass int ref SplayMap
+genclass: the SplayMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-SplayMap failed
+
+genclass int ref SplayMap fig
+genclass: the SplayMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-SplayMap failed
+
+Generating: genclass int ref SplayPQ
+Checking for badsub
+removing int.SplayPQ.h int.SplayPQ.cc
+
+genclass int ref SplayPQ fig
+Checking for badsub
+removing figSplayPQ.h figSplayPQ.cc
+
+Generating: genclass int ref SplaySet
+Checking for badsub
+removing int.SplaySet.h int.SplaySet.cc
+
+genclass int ref SplaySet fig
+Checking for badsub
+removing figSplaySet.h figSplaySet.cc
+
+Generating: genclass int ref Stack
+Checking for badsub
+removing int.Stack.h int.Stack.cc
+
+genclass int ref Stack fig
+Checking for badsub
+removing figStack.h figStack.cc
+
+Generating: genclass int ref VHBag
+Checking for badsub
+removing int.VHBag.h int.VHBag.cc
+
+genclass int ref VHBag fig
+Checking for badsub
+removing figVHBag.h figVHBag.cc
+
+Generating: genclass int ref VHMap
+genclass: the VHMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-VHMap failed
+
+genclass int ref VHMap fig
+genclass: the VHMap class requires the -2 syntax for the 2nd type
+usage: 
+    genclass -list [proto ...]
+    genclass -catalog [proto ...]
+    genclass type1 {ref|val} proto [out_prefix]
+    genclass -2 type1 {ref|val} type2 {ref|val} proto [out_prefix]
+Generation for int-VHMap failed
+
+Generating: genclass int ref VHSet
+Checking for badsub
+removing int.VHSet.h int.VHSet.cc
+
+genclass int ref VHSet fig
+Checking for badsub
+removing figVHSet.h figVHSet.cc
+
+Generating: genclass int ref VOHSet
+Checking for badsub
+removing int.VOHSet.h int.VOHSet.cc
+
+genclass int ref VOHSet fig
+Checking for badsub
+removing figVOHSet.h figVOHSet.cc
+
+Generating: genclass int ref VQueue
+Checking for badsub
+removing int.VQueue.h int.VQueue.cc
+
+genclass int ref VQueue fig
+Checking for badsub
+removing figVQueue.h figVQueue.cc
+
+Generating: genclass int ref VStack
+Checking for badsub
+removing int.VStack.h int.VStack.cc
+
+genclass int ref VStack fig
+Checking for badsub
+removing figVStack.h figVStack.cc
+
+Generating: genclass int ref Vec
+Checking for badsub
+removing int.Vec.h int.Vec.cc
+
+genclass int ref Vec fig
+Checking for badsub
+removing figVec.h figVec.cc
+
+Generating: genclass int ref XPBag
+Checking for badsub
+removing int.XPBag.h int.XPBag.cc
+
+genclass int ref XPBag fig
+Checking for badsub
+removing figXPBag.h figXPBag.cc
+
+Generating: genclass int ref XPDeque
+Checking for badsub
+removing int.XPDeque.h int.XPDeque.cc
+
+genclass int ref XPDeque fig
+Checking for badsub
+removing figXPDeque.h figXPDeque.cc
+
+Generating: genclass int ref XPPQ
+Checking for badsub
+removing int.XPPQ.h int.XPPQ.cc
+
+genclass int ref XPPQ fig
+Checking for badsub
+removing figXPPQ.h figXPPQ.cc
+
+Generating: genclass int ref XPQueue
+Checking for badsub
+removing int.XPQueue.h int.XPQueue.cc
+
+genclass int ref XPQueue fig
+Checking for badsub
+removing figXPQueue.h figXPQueue.cc
+
+Generating: genclass int ref XPSet
+Checking for badsub
+removing int.XPSet.h int.XPSet.cc
+
+genclass int ref XPSet fig
+Checking for badsub
+removing figXPSet.h figXPSet.cc
+
+Generating: genclass int ref XPStack
+Checking for badsub
+removing int.XPStack.h int.XPStack.cc
+
+genclass int ref XPStack fig
+Checking for badsub
+removing figXPStack.h figXPStack.cc
+
+Generating: genclass int ref XPlex
+Checking for badsub
+removing int.XPlex.h int.XPlex.cc
+
+genclass int ref XPlex fig
+Checking for badsub
+removing figXPlex.h figXPlex.cc
+
+Generating: genclass int ref defs
+genclass: warning, class has a .h but no .cc file
+Checking for badsub
+egrep: int.defs.cc: No such file or directory
+removing int.defs.h int.defs.cc
+rm: int.defs.cc: No such file or directory
+
+genclass int ref defs fig
+genclass: warning, class has a .h but no .cc file
+Checking for badsub
+egrep: figdefs.cc: No such file or directory
+removing figdefs.h figdefs.cc
+rm: figdefs.cc: No such file or directory
+
+Generating: genclass -2 int ref char val AVLMap
+Checking for badsub
+removing int.char.AVLMap.h int.char.AVLMap.cc
+
+Generating: genclass -2 int ref char val AVLMap fig
+Checking for badsub
+removing figAVLMap.h figAVLMap.cc
+
+Generating: genclass -2 int ref char val AVLSet
+Checking for badsub
+removing int.char.AVLSet.h int.char.AVLSet.cc
+
+Generating: genclass -2 int ref char val AVLSet fig
+Checking for badsub
+removing figAVLSet.h figAVLSet.cc
+
+Generating: genclass -2 int ref char val AVec
+Checking for badsub
+removing int.char.AVec.h int.char.AVec.cc
+
+Generating: genclass -2 int ref char val AVec fig
+Checking for badsub
+removing figAVec.h figAVec.cc
+
+Generating: genclass -2 int ref char val BSTSet
+Checking for badsub
+removing int.char.BSTSet.h int.char.BSTSet.cc
+
+Generating: genclass -2 int ref char val BSTSet fig
+Checking for badsub
+removing figBSTSet.h figBSTSet.cc
+
+Generating: genclass -2 int ref char val Bag
+Checking for badsub
+removing int.char.Bag.h int.char.Bag.cc
+
+Generating: genclass -2 int ref char val Bag fig
+Checking for badsub
+removing figBag.h figBag.cc
+
+Generating: genclass -2 int ref char val CHBag
+Checking for badsub
+removing int.char.CHBag.h int.char.CHBag.cc
+
+Generating: genclass -2 int ref char val CHBag fig
+Checking for badsub
+removing figCHBag.h figCHBag.cc
+
+Generating: genclass -2 int ref char val CHMap
+Checking for badsub
+removing int.char.CHMap.h int.char.CHMap.cc
+
+Generating: genclass -2 int ref char val CHMap fig
+Checking for badsub
+removing figCHMap.h figCHMap.cc
+
+Generating: genclass -2 int ref char val CHSet
+Checking for badsub
+removing int.char.CHSet.h int.char.CHSet.cc
+
+Generating: genclass -2 int ref char val CHSet fig
+Checking for badsub
+removing figCHSet.h figCHSet.cc
+
+Generating: genclass -2 int ref char val DLDeque
+Checking for badsub
+removing int.char.DLDeque.h int.char.DLDeque.cc
+
+Generating: genclass -2 int ref char val DLDeque fig
+Checking for badsub
+removing figDLDeque.h figDLDeque.cc
+
+Generating: genclass -2 int ref char val DLList
+Checking for badsub
+removing int.char.DLList.h int.char.DLList.cc
+
+Generating: genclass -2 int ref char val DLList fig
+Checking for badsub
+removing figDLList.h figDLList.cc
+
+Generating: genclass -2 int ref char val Deque
+Checking for badsub
+removing int.char.Deque.h int.char.Deque.cc
+
+Generating: genclass -2 int ref char val Deque fig
+Checking for badsub
+removing figDeque.h figDeque.cc
+
+Generating: genclass -2 int ref char val FPQueue
+Checking for badsub
+removing int.char.FPQueue.h int.char.FPQueue.cc
+
+Generating: genclass -2 int ref char val FPQueue fig
+Checking for badsub
+removing figFPQueue.h figFPQueue.cc
+
+Generating: genclass -2 int ref char val FPStack
+Checking for badsub
+removing int.char.FPStack.h int.char.FPStack.cc
+
+Generating: genclass -2 int ref char val FPStack fig
+Checking for badsub
+removing figFPStack.h figFPStack.cc
+
+Generating: genclass -2 int ref char val FPlex
+Checking for badsub
+removing int.char.FPlex.h int.char.FPlex.cc
+
+Generating: genclass -2 int ref char val FPlex fig
+Checking for badsub
+removing figFPlex.h figFPlex.cc
+
+Generating: genclass -2 int ref char val List
+Checking for badsub
+removing int.char.List.h int.char.List.cc
+
+Generating: genclass -2 int ref char val List fig
+Checking for badsub
+removing figList.h figList.cc
+
+Generating: genclass -2 int ref char val MPlex
+Checking for badsub
+removing int.char.MPlex.h int.char.MPlex.cc
+
+Generating: genclass -2 int ref char val MPlex fig
+Checking for badsub
+removing figMPlex.h figMPlex.cc
+
+Generating: genclass -2 int ref char val Map
+Checking for badsub
+removing int.char.Map.h int.char.Map.cc
+
+Generating: genclass -2 int ref char val Map fig
+Checking for badsub
+removing figMap.h figMap.cc
+
+Generating: genclass -2 int ref char val OSLBag
+Checking for badsub
+removing int.char.OSLBag.h int.char.OSLBag.cc
+
+Generating: genclass -2 int ref char val OSLBag fig
+Checking for badsub
+removing figOSLBag.h figOSLBag.cc
+
+Generating: genclass -2 int ref char val OSLSet
+Checking for badsub
+removing int.char.OSLSet.h int.char.OSLSet.cc
+
+Generating: genclass -2 int ref char val OSLSet fig
+Checking for badsub
+removing figOSLSet.h figOSLSet.cc
+
+Generating: genclass -2 int ref char val OXPBag
+Checking for badsub
+removing int.char.OXPBag.h int.char.OXPBag.cc
+
+Generating: genclass -2 int ref char val OXPBag fig
+Checking for badsub
+removing figOXPBag.h figOXPBag.cc
+
+Generating: genclass -2 int ref char val OXPSet
+Checking for badsub
+removing int.char.OXPSet.h int.char.OXPSet.cc
+
+Generating: genclass -2 int ref char val OXPSet fig
+Checking for badsub
+removing figOXPSet.h figOXPSet.cc
+
+Generating: genclass -2 int ref char val PHPQ
+Checking for badsub
+removing int.char.PHPQ.h int.char.PHPQ.cc
+
+Generating: genclass -2 int ref char val PHPQ fig
+Checking for badsub
+removing figPHPQ.h figPHPQ.cc
+
+Generating: genclass -2 int ref char val PQ
+Checking for badsub
+removing int.char.PQ.h int.char.PQ.cc
+
+Generating: genclass -2 int ref char val PQ fig
+Checking for badsub
+removing figPQ.h figPQ.cc
+
+Generating: genclass -2 int ref char val Plex
+Checking for badsub
+removing int.char.Plex.h int.char.Plex.cc
+
+Generating: genclass -2 int ref char val Plex fig
+Checking for badsub
+removing figPlex.h figPlex.cc
+
+Generating: genclass -2 int ref char val Queue
+Checking for badsub
+removing int.char.Queue.h int.char.Queue.cc
+
+Generating: genclass -2 int ref char val Queue fig
+Checking for badsub
+removing figQueue.h figQueue.cc
+
+Generating: genclass -2 int ref char val RAVLMap
+Checking for badsub
+removing int.char.RAVLMap.h int.char.RAVLMap.cc
+
+Generating: genclass -2 int ref char val RAVLMap fig
+Checking for badsub
+removing figRAVLMap.h figRAVLMap.cc
+
+Generating: genclass -2 int ref char val RPlex
+Checking for badsub
+removing int.char.RPlex.h int.char.RPlex.cc
+
+Generating: genclass -2 int ref char val RPlex fig
+Checking for badsub
+removing figRPlex.h figRPlex.cc
+
+Generating: genclass -2 int ref char val SLBag
+Checking for badsub
+removing int.char.SLBag.h int.char.SLBag.cc
+
+Generating: genclass -2 int ref char val SLBag fig
+Checking for badsub
+removing figSLBag.h figSLBag.cc
+
+Generating: genclass -2 int ref char val SLList
+Checking for badsub
+removing int.char.SLList.h int.char.SLList.cc
+
+Generating: genclass -2 int ref char val SLList fig
+Checking for badsub
+removing figSLList.h figSLList.cc
+
+Generating: genclass -2 int ref char val SLQueue
+Checking for badsub
+removing int.char.SLQueue.h int.char.SLQueue.cc
+
+Generating: genclass -2 int ref char val SLQueue fig
+Checking for badsub
+removing figSLQueue.h figSLQueue.cc
+
+Generating: genclass -2 int ref char val SLSet
+Checking for badsub
+removing int.char.SLSet.h int.char.SLSet.cc
+
+Generating: genclass -2 int ref char val SLSet fig
+Checking for badsub
+removing figSLSet.h figSLSet.cc
+
+Generating: genclass -2 int ref char val SLStack
+Checking for badsub
+removing int.char.SLStack.h int.char.SLStack.cc
+
+Generating: genclass -2 int ref char val SLStack fig
+Checking for badsub
+removing figSLStack.h figSLStack.cc
+
+Generating: genclass -2 int ref char val Set
+Checking for badsub
+removing int.char.Set.h int.char.Set.cc
+
+Generating: genclass -2 int ref char val Set fig
+Checking for badsub
+removing figSet.h figSet.cc
+
+Generating: genclass -2 int ref char val SplayBag
+Checking for badsub
+removing int.char.SplayBag.h int.char.SplayBag.cc
+
+Generating: genclass -2 int ref char val SplayBag fig
+Checking for badsub
+removing figSplayBag.h figSplayBag.cc
+
+Generating: genclass -2 int ref char val SplayMap
+Checking for badsub
+removing int.char.SplayMap.h int.char.SplayMap.cc
+
+Generating: genclass -2 int ref char val SplayMap fig
+Checking for badsub
+removing figSplayMap.h figSplayMap.cc
+
+Generating: genclass -2 int ref char val SplayPQ
+Checking for badsub
+removing int.char.SplayPQ.h int.char.SplayPQ.cc
+
+Generating: genclass -2 int ref char val SplayPQ fig
+Checking for badsub
+removing figSplayPQ.h figSplayPQ.cc
+
+Generating: genclass -2 int ref char val SplaySet
+Checking for badsub
+removing int.char.SplaySet.h int.char.SplaySet.cc
+
+Generating: genclass -2 int ref char val SplaySet fig
+Checking for badsub
+removing figSplaySet.h figSplaySet.cc
+
+Generating: genclass -2 int ref char val Stack
+Checking for badsub
+removing int.char.Stack.h int.char.Stack.cc
+
+Generating: genclass -2 int ref char val Stack fig
+Checking for badsub
+removing figStack.h figStack.cc
+
+Generating: genclass -2 int ref char val VHBag
+Checking for badsub
+removing int.char.VHBag.h int.char.VHBag.cc
+
+Generating: genclass -2 int ref char val VHBag fig
+Checking for badsub
+removing figVHBag.h figVHBag.cc
+
+Generating: genclass -2 int ref char val VHMap
+Checking for badsub
+removing int.char.VHMap.h int.char.VHMap.cc
+
+Generating: genclass -2 int ref char val VHMap fig
+Checking for badsub
+removing figVHMap.h figVHMap.cc
+
+Generating: genclass -2 int ref char val VHSet
+Checking for badsub
+removing int.char.VHSet.h int.char.VHSet.cc
+
+Generating: genclass -2 int ref char val VHSet fig
+Checking for badsub
+removing figVHSet.h figVHSet.cc
+
+Generating: genclass -2 int ref char val VOHSet
+Checking for badsub
+removing int.char.VOHSet.h int.char.VOHSet.cc
+
+Generating: genclass -2 int ref char val VOHSet fig
+Checking for badsub
+removing figVOHSet.h figVOHSet.cc
+
+Generating: genclass -2 int ref char val VQueue
+Checking for badsub
+removing int.char.VQueue.h int.char.VQueue.cc
+
+Generating: genclass -2 int ref char val VQueue fig
+Checking for badsub
+removing figVQueue.h figVQueue.cc
+
+Generating: genclass -2 int ref char val VStack
+Checking for badsub
+removing int.char.VStack.h int.char.VStack.cc
+
+Generating: genclass -2 int ref char val VStack fig
+Checking for badsub
+removing figVStack.h figVStack.cc
+
+Generating: genclass -2 int ref char val Vec
+Checking for badsub
+removing int.char.Vec.h int.char.Vec.cc
+
+Generating: genclass -2 int ref char val Vec fig
+Checking for badsub
+removing figVec.h figVec.cc
+
+Generating: genclass -2 int ref char val XPBag
+Checking for badsub
+removing int.char.XPBag.h int.char.XPBag.cc
+
+Generating: genclass -2 int ref char val XPBag fig
+Checking for badsub
+removing figXPBag.h figXPBag.cc
+
+Generating: genclass -2 int ref char val XPDeque
+Checking for badsub
+removing int.char.XPDeque.h int.char.XPDeque.cc
+
+Generating: genclass -2 int ref char val XPDeque fig
+Checking for badsub
+removing figXPDeque.h figXPDeque.cc
+
+Generating: genclass -2 int ref char val XPPQ
+Checking for badsub
+removing int.char.XPPQ.h int.char.XPPQ.cc
+
+Generating: genclass -2 int ref char val XPPQ fig
+Checking for badsub
+removing figXPPQ.h figXPPQ.cc
+
+Generating: genclass -2 int ref char val XPQueue
+Checking for badsub
+removing int.char.XPQueue.h int.char.XPQueue.cc
+
+Generating: genclass -2 int ref char val XPQueue fig
+Checking for badsub
+removing figXPQueue.h figXPQueue.cc
+
+Generating: genclass -2 int ref char val XPSet
+Checking for badsub
+removing int.char.XPSet.h int.char.XPSet.cc
+
+Generating: genclass -2 int ref char val XPSet fig
+Checking for badsub
+removing figXPSet.h figXPSet.cc
+
+Generating: genclass -2 int ref char val XPStack
+Checking for badsub
+removing int.char.XPStack.h int.char.XPStack.cc
+
+Generating: genclass -2 int ref char val XPStack fig
+Checking for badsub
+removing figXPStack.h figXPStack.cc
+
+Generating: genclass -2 int ref char val XPlex
+Checking for badsub
+removing int.char.XPlex.h int.char.XPlex.cc
+
+Generating: genclass -2 int ref char val XPlex fig
+Checking for badsub
+removing figXPlex.h figXPlex.cc
+
+Generating: genclass -2 int ref char val defs
+genclass: warning, class has a .h but no .cc file
+Checking for badsub
+egrep: int.char.defs.cc: No such file or directory
+removing int.char.defs.h int.char.defs.cc
+rm: int.char.defs.cc: No such file or directory
+
+Generating: genclass -2 int ref char val defs fig
+genclass: warning, class has a .h but no .cc file
+Checking for badsub
+egrep: figdefs.cc: No such file or directory
+removing figdefs.h figdefs.cc
+rm: figdefs.cc: No such file or directory
+

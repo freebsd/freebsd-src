@@ -1,0 +1,6 @@
+// -*- C++ -*- forwarding header.
+// This file is part of the GNU ANSI C++ Library.
+
+#ifndef __CSTDIO__
+#include <std/cstdio.h>
+#endif
