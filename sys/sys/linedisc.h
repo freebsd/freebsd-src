@@ -174,6 +174,7 @@ typedef void devfs_remove_t __P((dev_t dev));
 #define	D_NAGGED	0x20000		/* nagged about missing make_dev() */
 #define	D_CANFREE	0x40000		/* can free blocks */
 #define	D_TRACKCLOSE	0x80000		/* track all closes */
+#define D_MMAP_ANON	0x100000	/* special treatment in vm_mmap.c */
 
 /*
  * Character device switch table
