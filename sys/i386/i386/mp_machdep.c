@@ -375,9 +375,9 @@ configure_local_apic(void)
 		outb(0x23, byte);	/* disconnect 8259s/NMI */
 	}
 	/* mask the LVT1 */
-	temp = apic_base[APIC_LVT1];
+	temp = lapic__lvt_lint0;
 	temp |= APIC_LVT_M;
-	apic_base[APIC_LVT1] = temp;
+	lapic__lvt_lint0 = temp;
 }
 #endif	/* APIC_IO */
 
@@ -1258,7 +1258,7 @@ default_mp_table(int type)
 	}
 #endif	/* 0 */
 
-	boot_cpu_id = (apic_base[APIC_ID] & APIC_ID_MASK) >> 24;
+	boot_cpu_id = (lapic__id & APIC_ID_MASK) >> 24;
 	ap_cpu_id = (boot_cpu_id == 0) ? 1 : 0;
 
 	/* BSP */
@@ -1362,7 +1362,7 @@ start_all_aps(u_int boot_addr)
          *
          * get the initial mp_lock with a count of 1 for the BSP
          */
-	mp_lock = (apic_base[APIC_ID] & APIC_ID_MASK) + 1;
+	mp_lock = (lapic__id & APIC_ID_MASK) + 1;
 
 	/* initialize BSP's local APIC */
 	apic_initialize(1);
@@ -1401,7 +1401,7 @@ start_all_aps(u_int boot_addr)
 	}
 
 	/* fill in our (BSP) APIC version */
-	cpu_apic_versions[0] = apic_base[APIC_VER];
+	cpu_apic_versions[0] = lapic__version;
 
 	/* restore the warmstart vector */
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
@@ -1503,24 +1503,24 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 */
 
 	/* setup the address for the target AP */
-	icr_hi = apic_base[APIC_ICR_HI] & ~APIC_ID_MASK;
+	icr_hi = lapic__icr_hi & ~APIC_ID_MASK;
 	icr_hi |= (physical_cpu << 24);
-	apic_base[APIC_ICR_HI] = icr_hi;
+	lapic__icr_hi = icr_hi;
 
 	/* do an INIT IPI: assert RESET */
-	icr_lo = apic_base[APIC_ICR_LOW] & 0xfff00000;
-	apic_base[APIC_ICR_LOW] = icr_lo | 0x0000c500;
+	icr_lo = lapic__icr_lo & 0xfff00000;
+	lapic__icr_lo = icr_lo | 0x0000c500;
 
 	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+	while (lapic__icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 
 	/* do an INIT IPI: deassert RESET */
-	apic_base[APIC_ICR_LOW] = icr_lo | 0x00008500;
+	lapic__icr_lo = icr_lo | 0x00008500;
 
 	/* wait for pending status end */
 	u_sleep(10000);		/* wait ~10mS */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+	while (lapic__icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 
 	/*
@@ -1533,8 +1533,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 */
 
 	/* do a STARTUP IPI */
-	apic_base[APIC_ICR_LOW] = icr_lo | 0x00000600 | vector;
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+	lapic__icr_lo = icr_lo | 0x00000600 | vector;
+	while (lapic__icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
 
@@ -1545,8 +1545,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 * recognized after hardware RESET or INIT IPI.
 	 */
 
-	apic_base[APIC_ICR_LOW] = icr_lo | 0x00000600 | vector;
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
+	lapic__icr_lo = icr_lo | 0x00000600 | vector;
+	while (lapic__icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
 
