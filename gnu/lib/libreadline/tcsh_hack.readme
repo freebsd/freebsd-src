@@ -1,0 +1,50 @@
+*** readline.c.orig	Thu May  5 04:02:17 1994
+--- readline.c	Mon May  9 00:33:44 1994
+***************
+*** 32,37 ****
+--- 32,38 ----
+  
+  #include <stdio.h>
+  #include <sys/types.h>
++ #include <sys/ioctl.h>
+  #include <fcntl.h>
+  #include <sys/file.h>
+  #include <signal.h>
+***************
+*** 280,285 ****
+--- 281,295 ----
+  /* Non-zero means to save keys that we dispatch on in a kbd macro. */
+  static int defining_kbd_macro = 0;
+  
++ /* XXX this prevents to got editing mode from tcsh */
++ static void wait_foreground(void)
++ {
++ 	struct winsize w;
++ 	int tty = fileno (rl_instream);
++ 
++ 	if (ioctl (tty, TIOCGWINSZ, &w) == 0)
++ 		(void) ioctl (tty, TIOCSWINSZ, &w);
++ }
+  
+  /* **************************************************************** */
+  /*								    */
+***************
+*** 1153,1158 ****
+--- 1163,1169 ----
+  #endif /* POSIX */
+    int tty = fileno (rl_instream);
+  
++   wait_foreground ();   /* XXX this prevents to got editing mode from tcsh */
+  #if defined (_POSIX_VERSION)
+    if (tcgetattr (tty, &ttybuff) != -1)
+  #else
+***************
+*** 2307,2312 ****
+--- 2318,2324 ----
+  #  endif /* HAVE_BSD_SIGNALS */
+  #endif /* POSIX */
+  
++   wait_foreground ();   /* XXX this prevents to got editing mode from tcsh */
+  #if defined (_POSIX_VERSION)
+    tcgetattr (tty, &tio);
+  #else
