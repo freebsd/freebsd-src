@@ -291,6 +291,7 @@ sofree(so)
 	struct socket *so;
 {
 	struct socket *head = so->so_head;
+	int s;
 
 	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
 
@@ -314,6 +315,12 @@ sofree(so)
 		so->so_state &= ~SS_INCOMP;
 		so->so_head = NULL;
 	}
+	so->so_snd.sb_flags |= SB_NOINTR;
+	(void)sblock(&so->so_snd, M_WAITOK);
+	s = splimp();
+	socantsendmore(so);
+	splx(s);
+	sbunlock(&so->so_snd);
 	sbrelease(&so->so_snd, so);
 	sorflush(so);
 	sodealloc(so);
