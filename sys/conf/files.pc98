@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.100 1999/06/24 10:51:23 kato Exp $
+#	$Id: files.pc98,v 1.101 1999/07/09 13:19:35 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -30,6 +30,12 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
+#
+contrib/dev/fla/fla.c		optional	fla
+msysosak.o			optional	fla			\
+	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu" 		\
+	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu"	\
+	no-implicit-rule
 #
 dev/ata/ata-all.c		optional	ata
 dev/ata/ata-dma.c		optional	ata
@@ -133,7 +139,6 @@ pc98/pc98/atcompat_diskslice.c	optional	compat_atdisk
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
 pc98/pc98/fd.c			optional	fd
-i386/isa/fla.c			optional	fla
 i386/isa/gpib.c			optional	gp
 i386/isa/asc.c			optional	asc
 i386/isa/gsc.c			optional	gsc
