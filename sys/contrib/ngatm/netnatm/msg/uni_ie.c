@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/msg/uni_ie.c,v 1.14 2004/07/08 08:22:06 brandt Exp $
+ * $Begemot: libunimsg/netnatm/msg/uni_ie.c,v 1.15 2004/08/05 07:10:59 brandt Exp $
  *
  * Private definitions for the IE code file.
  *
@@ -792,11 +792,11 @@ uni_print_cx(char *buf, size_t size, struct unicx *cx)
 	};
 
 	static const char *errtab[] = {
-		[UNI_IERR_UNK] "unk",	/* unknown IE */
-		[UNI_IERR_LEN] "len",	/* length error */
-		[UNI_IERR_BAD] "bad",	/* content error */
-		[UNI_IERR_ACC] "acc",	/* access element discarded */
-		[UNI_IERR_MIS] "mis",	/* missing IE */
+		[UNI_IERR_UNK] = "unk",	/* unknown IE */
+		[UNI_IERR_LEN] = "len",	/* length error */
+		[UNI_IERR_BAD] = "bad",	/* content error */
+		[UNI_IERR_ACC] = "acc",	/* access element discarded */
+		[UNI_IERR_MIS] = "mis",	/* missing IE */
 	};
 
 	u_int i;
@@ -844,7 +844,7 @@ static const struct causetab {
 	enum uni_diag	diag;
 } itu_causes[128] = {
 
-#define D(NAME,VAL,DIAG,STD,STR) [UNI_CAUSE_##NAME] { STR, UNI_DIAG_##DIAG },
+#define D(NAME,VAL,DIAG,STD,STR) [UNI_CAUSE_##NAME] = { STR, UNI_DIAG_##DIAG },
 #define N(NAME,VAL,DIAG,STD,STR)
 
 UNI_DECLARE_CAUSE_VALUES
@@ -855,7 +855,7 @@ UNI_DECLARE_CAUSE_VALUES
 }, net_causes[128] = {
 
 #define D(NAME,VAL,DIAG,STD,STR)
-#define N(NAME,VAL,DIAG,STD,STR) [UNI_CAUSE_##NAME] { STR, UNI_DIAG_##DIAG },
+#define N(NAME,VAL,DIAG,STD,STR) [UNI_CAUSE_##NAME] = { STR, UNI_DIAG_##DIAG },
 
 UNI_DECLARE_CAUSE_VALUES
 

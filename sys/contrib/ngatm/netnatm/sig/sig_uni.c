@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/netnatm/sig/sig_uni.c,v 1.10 2004/07/08 08:22:23 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_uni.c,v 1.11 2004/08/05 07:11:03 brandt Exp $
  *
  * Instance handling
  */
@@ -45,7 +45,7 @@
 UNICORE
 #endif
 
-#define STR(S) [S] #S
+#define STR(S) [S] = #S
 static const char *custat_names[] = {
 	STR(CU_STAT0),
 	STR(CU_STAT1),

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: libunimsg/netnatm/sig/sig_reset.c,v 1.10 2004/07/08 08:22:22 brandt Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_reset.c,v 1.11 2004/08/05 07:11:03 brandt Exp $
  *
  * Reset-start and reset-respond
  */
@@ -60,13 +60,13 @@ static void start_status(struct uni *, struct uni_msg *, struct uni_all *);
 
 static int restart_forward(struct uni *, const struct uni_all *);
 
-#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME]	"SIG"#NAME,
+#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME] =	"SIG"#NAME,
 static const char *const start_sigs[] = {
 	DEF_START_SIGS
 };
 #undef DEF_PRIV_SIG
 
-#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME]	"SIG"#NAME,
+#define DEF_PRIV_SIG(NAME, FROM)	[SIG##NAME] =	"SIG"#NAME,
 static const char *const respond_sigs[] = {
 	DEF_RESPOND_SIGS
 };
