@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.17 1998/09/19 13:37:16 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.18 1998/10/08 17:24:26 kato Exp $
  */
 
 /*
@@ -3020,6 +3020,13 @@ ed_rint(sc)
 				len += ((packet_hdr.next_packet - sc->rec_page_start) +
 					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
 			}
+			/*
+			 * Because buffers are aligned on 256-byte boundary,
+			 * the length computed above is off by 256 in almost
+			 * all cases. Fix it...
+			 */
+			if (len & 0xff)
+				 len -= 256 ;
 			if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN 
 				   + sizeof(struct ed_ring)))
 				sc->mibdata.dot3StatsFrameTooLongs++;
@@ -3543,7 +3550,7 @@ ed_get_packet(sc, buf, len, multicast)
                 return ;
             }
             /* else fetch rest of pkt and continue */
-            if (need_more)
+            if (need_more && len > 14)
                 ed_ring_copy(sc, buf+14, (char *)(eh+1), len - 14);
             if (ifp != BDG_LOCAL )
                 bdg_forward(&m, ifp); /* not local, need forwarding */
