@@ -5,7 +5,7 @@
 As of sendmail 8.12, in order to improve security, the sendmail binary no
 longer needs to be set-user-ID root.  Instead, a set-group-ID binary
 accepts command line mail and relays it to a full mail transfer agent via
-SMTP.  A group writable client mail queue (/var/spool/client-mqueue/ by
+SMTP.  A group writable client mail queue (/var/spool/clientmqueue/ by
 default) holds the mail if an MTA can not be contacted.
 
 To accomplish this, under the default setup, an MTA must be listening on
