@@ -11,5 +11,9 @@ int semctl(semid, int semnum, cmd, semun)
 	union semun semun;
 #endif
 {
+#ifdef	__NETBSD_SYSCALLS
+	return (__semctl(semid, semnum, cmd, &semun));
+#else
 	return (semsys(0, semid, semnum, cmd, &semun));
+#endif
 }
