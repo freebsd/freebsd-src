@@ -984,6 +984,18 @@ main(argc, argv, envp)
 		usrerr("Permission denied");
 		finis(FALSE, EX_USAGE);
 	}
+	if (OpMode == MD_INITALIAS &&
+	    RealUid != 0 &&
+	    RealUid != TrustedUid &&
+	    !wordinclass(RealUserName, 't'))
+	{
+		if (LogLevel > 1)
+			sm_syslog(LOG_ALERT, NOQID,
+				  "user %d attempted to rebuild the alias map",
+				  RealUid);
+ 		usrerr("Permission denied");
+ 		finis(FALSE, EX_USAGE);
+ 	}
 
 	if (MeToo)
 		BlankEnvelope.e_flags |= EF_METOO;
