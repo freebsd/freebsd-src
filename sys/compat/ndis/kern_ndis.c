@@ -34,20 +34,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/unistd.h>
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/callout.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/conf.h>
-#include <sys/taskqueue.h>
 
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -85,7 +87,30 @@ __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 __stdcall static void ndis_sendrsrcavail_func(ndis_handle);
 
+static int ndis_create_kthreads(void);
+static void ndis_destroy_kthreads(void);
+static void ndis_stop_thread(int);
+static int ndis_enlarge_thrqueue(int);
+static int ndis_shrink_thrqueue(int);
+static void ndis_runq(void *);
+static void ndis_intq(void *);
+
+extern struct mtx_pool *ndis_mtxpool;
 static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
+struct mtx *ndis_thr_mtx;
+static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
+struct ndisqhead ndis_itodo;
+struct ndisqhead ndis_free;
+static int ndis_jobs = 32;
+static struct proc *ndis_tproc;
+static struct proc *ndis_iproc;
+
+struct ndis_req {
+	void			(*ndis_func)(void *);
+	void			*ndis_arg;
+	int			ndis_exit;
+	STAILQ_ENTRY(ndis_req)	link;
+};
 
 /*
  * This allows us to export our symbols to other modules.
@@ -111,9 +136,15 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		ndis_buffer_zone = uma_zcreate("NDIS buffer",
 		    sizeof(ndis_buffer), NULL, NULL, NULL,
 		    NULL, UMA_ALIGN_PTR, 0);
+
+		ndis_create_kthreads();
+
 		break;
 	case MOD_UNLOAD:
 	case MOD_SHUTDOWN:
+		/* stop kthreads */
+		ndis_destroy_kthreads();
+
 		/* Shut down subsystems */
 		ndis_libfini();
 		ntoskrnl_libfini();
@@ -132,6 +163,303 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
 
+/*
+ * We create two kthreads for the NDIS subsystem. One of them is a task
+ * queue for performing various odd jobs. The other is an swi thread
+ * reserved exclusively for running interrupt handlers. The reason we
+ * have our own task queue is that there are some cases where we may
+ * need to sleep for a significant amount of time, and if we were to
+ * use one of the taskqueue threads, we might delay the processing
+ * of other pending tasks which might need to run right away. We have
+ * a separate swi thread because we don't want our interrupt handling
+ * to be delayed either.
+ *
+ * By default there are 32 jobs available to start, and another 8
+ * are added to the free list each time a new device is created.
+ */
+
+static void
+ndis_runq(dummy)
+	void			*dummy;
+{
+	struct ndis_req		*r = NULL, *die = NULL;
+
+	while (1) {
+		kthread_suspend(ndis_tproc, 0);
+
+		/* Look for any jobs on the work queue. */
+
+		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		while(STAILQ_FIRST(&ndis_ttodo) != NULL) {
+			r = STAILQ_FIRST(&ndis_ttodo);
+			STAILQ_REMOVE_HEAD(&ndis_ttodo, link);
+			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+			/* Do the work. */
+
+			if (r->ndis_func != NULL)
+				(*r->ndis_func)(r->ndis_arg);
+
+			mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+			STAILQ_INSERT_HEAD(&ndis_free, r, link);
+
+			/* Check for a shutdown request */
+
+			if (r->ndis_exit == TRUE)
+				die = r;
+		}
+		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+		/* Bail if we were told to shut down. */
+
+		if (die != NULL)
+			break;
+	}
+
+	wakeup(die);
+	mtx_lock(&Giant);
+	kthread_exit(0);
+}
+
+static void
+ndis_intq(dummy)
+	void			*dummy;
+{
+	struct ndis_req		*r = NULL, *die = NULL;
+ 
+	while (1) {
+		kthread_suspend(ndis_iproc, 0);
+
+		/* Look for any jobs on the work queue. */
+
+		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		while(STAILQ_FIRST(&ndis_itodo) != NULL) {
+			r = STAILQ_FIRST(&ndis_itodo);
+			STAILQ_REMOVE_HEAD(&ndis_itodo, link);
+			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+			/* Do the work. */
+
+			if (r->ndis_func != NULL)
+				(*r->ndis_func)(r->ndis_arg);
+
+			mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+			STAILQ_INSERT_HEAD(&ndis_free, r, link);
+
+			/* Check for a shutdown request */
+
+			if (r->ndis_exit == TRUE)
+				die = r;
+		}
+		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+		/* Bail if this is an exit request. */
+
+		if (die != NULL)
+			break;
+	}
+
+	wakeup(die);
+	mtx_lock(&Giant);
+	kthread_exit(0);
+}
+
+static int
+ndis_create_kthreads()
+{
+	struct ndis_req		*r;
+	int			i, error = 0;
+
+	ndis_thr_mtx = mtx_pool_alloc(ndis_mtxpool);
+	STAILQ_INIT(&ndis_ttodo);
+	STAILQ_INIT(&ndis_itodo);
+	STAILQ_INIT(&ndis_free);
+
+	for (i = 0; i < ndis_jobs; i++) {
+		r = malloc(sizeof(struct ndis_req), M_DEVBUF, M_WAITOK);
+		if (r == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		STAILQ_INSERT_HEAD(&ndis_free, r, link);
+	}
+
+	if (error == 0)
+		error = kthread_create(ndis_runq, NULL,
+		    &ndis_tproc, RFHIGHPID, 0, "ndis taskqueue");
+
+	if (error == 0)
+		error = kthread_create(ndis_intq, NULL,
+		    &ndis_iproc, RFHIGHPID, 0, "ndis swi");
+
+	if (error) {
+		while ((r = STAILQ_FIRST(&ndis_free)) != NULL) {
+			STAILQ_REMOVE_HEAD(&ndis_free, link);
+			free(r, M_DEVBUF);
+		}
+		return(error);
+	}
+
+	return(0);
+}
+
+static void
+ndis_destroy_kthreads()
+{
+	struct ndis_req		*r;
+
+	/* Stop the threads. */
+
+	ndis_stop_thread(NDIS_TASKQUEUE);
+	ndis_stop_thread(NDIS_SWI);
+
+	/* Destroy request structures. */
+
+	while ((r = STAILQ_FIRST(&ndis_free)) != NULL) {
+		STAILQ_REMOVE_HEAD(&ndis_free, link);
+		free(r, M_DEVBUF);
+	}
+
+	return;
+}
+
+static void
+ndis_stop_thread(t)
+	int			t;
+{
+	struct ndis_req		*r;
+	struct timeval		tv;
+	struct ndisqhead	*q;
+	struct proc		*p;
+
+	if (t == NDIS_TASKQUEUE) {
+		q = &ndis_ttodo;
+		p = ndis_tproc;
+	} else {
+		q = &ndis_itodo;
+		p = ndis_iproc;
+	}
+
+	/* Create and post a special 'exit' job. */
+
+	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	r = STAILQ_FIRST(&ndis_free);
+	STAILQ_REMOVE_HEAD(&ndis_free, link);
+	r->ndis_func = NULL;
+	r->ndis_arg = NULL;
+	r->ndis_exit = TRUE;
+	STAILQ_INSERT_TAIL(q, r, link);
+	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+	kthread_resume(p);
+
+	/* wait for thread exit */
+
+	tv.tv_sec = 60;
+	tv.tv_usec = 0;
+	tsleep(r, PPAUSE|PCATCH, "ndisthrexit", tvtohz(&tv));
+
+	/* Now empty the job list. */
+
+	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	while ((r = STAILQ_FIRST(q)) != NULL) {
+		STAILQ_REMOVE_HEAD(q, link);
+		STAILQ_INSERT_HEAD(&ndis_free, r, link);
+	}
+	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+	return;
+}
+
+static int
+ndis_enlarge_thrqueue(cnt)
+	int			cnt;
+{
+	struct ndis_req		*r;
+	int			i;
+
+	for (i = 0; i < cnt; i++) {
+		r = malloc(sizeof(struct ndis_req), M_DEVBUF, M_WAITOK);
+		if (r == NULL)
+			return(ENOMEM);
+		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		STAILQ_INSERT_HEAD(&ndis_free, r, link);
+		ndis_jobs++;
+		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+	}
+
+	return(0);
+}
+
+static int
+ndis_shrink_thrqueue(cnt)
+	int			cnt;
+{
+	struct ndis_req		*r;
+	int			i;
+
+	for (i = 0; i < cnt; i++) {
+		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		r = STAILQ_FIRST(&ndis_free);
+		if (r == NULL) {
+			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			return(ENOMEM);
+		}
+		STAILQ_REMOVE_HEAD(&ndis_free, link);
+		ndis_jobs--;
+		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		free(r, M_DEVBUF);
+	}
+
+	return(0);
+}
+
+int
+ndis_sched(func, arg, t)
+	void			(*func)(void *);
+	void			*arg;
+	int			t;
+{
+	struct ndis_req		*r;
+	struct ndisqhead	*q;
+	struct proc		*p;
+
+	if (t == NDIS_TASKQUEUE) {
+		q = &ndis_ttodo;
+		p = ndis_tproc;
+	} else {
+		q = &ndis_itodo;
+		p = ndis_iproc;
+	}
+
+	mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+	/*
+	 * Check to see if an instance of this job is already
+	 * pending. If so, don't bother queuing it again.
+	 */
+	STAILQ_FOREACH(r, q, link) {
+		if (r->ndis_func == func && r->ndis_arg == arg) {
+			mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+			return(0);
+		}
+	}
+	r = STAILQ_FIRST(&ndis_free);
+	if (r == NULL) {
+		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+		return(EAGAIN);
+	}
+	STAILQ_REMOVE_HEAD(&ndis_free, link);
+	r->ndis_func = func;
+	r->ndis_arg = arg;
+	r->ndis_exit = FALSE;
+	STAILQ_INSERT_TAIL(q, r, link);
+	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
+
+	/* Post the job. */
+	kthread_resume(p);
+
+	return(0);
+}
 
 __stdcall static void
 ndis_sendrsrcavail_func(adapter)
@@ -1080,6 +1408,8 @@ ndis_unload_driver(arg)
 
 	ndis_flush_sysctls(sc);
 
+	ndis_shrink_thrqueue(8);
+
 	return(0);
 }
 
@@ -1185,6 +1515,8 @@ ndis_load_driver(img, arg)
 	block->nmb_ifp = &sc->arpcom.ac_if;
 	block->nmb_dev = sc->ndis_dev;
 	block->nmb_img = img;
+
+	ndis_enlarge_thrqueue(8);
 
 	return(0);
 }
