@@ -86,8 +86,8 @@ device		atapicd		# ATAPI CDROM drives
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 #device		esp		# 53C94 & friends, not CAM-ified
-#device		isp		# Qlogic family
-#device		ispfw		# Firmware module for Qlogic host adapters
+device		isp		# Qlogic family
+device		ispfw		# Firmware module for Qlogic host adapters
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
@@ -192,11 +192,8 @@ device		bpf		#Berkeley packet filter
 
 # Tempary things until things are farther along.
 makeoptions	NO_WERROR=true
-makeoptions	NO_MODULES=does_not_compile_yet
-#options 	MD_ROOT_SIZE=64
-options 	SUN_DISKLABEL		# Use SUN_DISKLABEL or NETBSD_DISKLABEL
+makeoptions	NO_MODULES=true
 options 	PCI_ENABLE_IO_MODES	# Enable all PCI resources
-options 	ATA_ENABLE_BUSMASTER	# Force busmaster support if available
 
 options		KTR
 options		KTR_COMPILE=0xffffffff
