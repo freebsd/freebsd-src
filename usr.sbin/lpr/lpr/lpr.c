@@ -133,7 +133,9 @@ main(argc, argv)
 	char *arg, *cp, *printer, *p;
 	char buf[BUFSIZ];
 	int c, i, f, errs;
+	int	 ret, didlink;
 	struct stat stb;
+	struct stat statb1, statb2;
 	struct printer myprinter, *pp = &myprinter;
 
 	printer = NULL;
@@ -398,6 +400,83 @@ main(argc, argv)
 		}
 		if (sflag)
 			printf("%s: %s: not linked, copying instead\n", name, arg);
+
+		if (f) {
+			/*
+			 * The user wants the file removed after it is copied
+			 * to the spool area, so see if the file can be moved
+			 * instead of copy/unlink'ed.  This is much faster and
+			 * uses less spool space than copying the file.  This
+			 * can be very significant when running services like
+			 * samba, pcnfs, CAP, et al.
+			 */
+			seteuid(euid);
+			didlink = 0;
+			/*
+			 * There are several things to check to avoid any
+			 * security issues.  Some of these are redundant
+			 * under BSD's, but are necessary when lpr is built
+			 * under some other OS's (which I do do...)
+			 */
+			if (lstat(arg, &statb1) < 0)
+				goto nohardlink;
+			if (S_ISLNK(statb1.st_mode))
+				goto nohardlink;
+			if (link(arg, dfname) != 0)
+				goto nohardlink;
+			didlink = 1;
+			/*
+			 * Make sure the user hasn't tried to trick us via
+			 * any race conditions
+			 */
+			if (lstat(dfname, &statb2) < 0)
+				goto nohardlink;
+			if (statb1.st_dev != statb2.st_dev)
+				goto nohardlink;
+			if (statb1.st_ino != statb2.st_ino)
+				goto nohardlink;
+			/*
+			 * Skip if the file already had multiple hard links,
+			 * because changing the owner and access-bits would
+			 * change ALL versions of the file
+			 */
+			if (statb2.st_nlink > 2)
+				goto nohardlink;
+			/*
+			 * If we can access and remove the original file
+			 * without special setuid-ness then this method is
+			 * safe.  Otherwise, abandon the move and fall back
+			 * to the (usual) copy method.
+			 */
+			seteuid(uid);
+			ret = access(dfname, R_OK);
+			if (ret == 0)
+				ret = unlink(arg);
+			seteuid(euid);
+			if (ret != 0)
+				goto nohardlink;
+			/*
+			 * Unlink of user file was successful.  Change the
+			 * owner and permissions, add entries to the control
+			 * file, and skip the file copying step.
+			 */
+			chown(dfname, pp->daemon_user, getegid());
+			chmod(dfname, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+			seteuid(uid);
+			if (format == 'p')
+				card('T', title ? title : arg);
+			for (i = 0; i < ncopies; i++)
+				card(format, &dfname[inchar-2]);
+			card('U', &dfname[inchar-2]);
+			card('N', arg);
+			nact++;
+			continue;
+		nohardlink:
+			if (didlink)
+				unlink(dfname);
+			seteuid(uid);           /* restore old uid */
+		} /* end: if (f) */
+
 		if ((i = open(arg, O_RDONLY)) < 0) {
 			printf("%s: cannot open %s\n", name, arg);
 		} else {
