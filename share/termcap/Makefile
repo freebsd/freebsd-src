@@ -24,5 +24,4 @@ beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/map3270 \
 	     ${DESTDIR}${BINDIR}/misc
 
-	
 .include <bsd.prog.mk>
