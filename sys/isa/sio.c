@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.133 1996/01/04 21:11:37 wollman Exp $
+ *	$Id: sio.c,v 1.134 1996/01/25 07:21:36 phk Exp $
  */
 
 #include "sio.h"
@@ -688,9 +688,11 @@ sioprobe(dev)
 	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
+	DELAY(1000);		/* XXX */
 	if (idev->id_irq != 0)
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
+	DELAY(1000);		/* XXX */
 	if (idev->id_irq != 0)
 		failures[5] = isa_irq_pending(idev) ? 1	: 0;
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
@@ -707,6 +709,7 @@ sioprobe(dev)
 	outb(iobase + com_ier, 0);
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
+	DELAY(1000);		/* XXX */
 	if (idev->id_irq != 0)
 		failures[8] = isa_irq_pending(idev) ? 1	: 0;
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
