@@ -4,7 +4,7 @@
 # machine-independent net sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net ${.CURDIR}/../libc/net
 
-SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
+SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getifaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
@@ -27,8 +27,8 @@ CFLAGS+=-DINET6
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc"
 
 .if ${LIB} == "c"
-MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
-	getifaddrs.3 getipnodebyname.3 \
+MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 getaddrinfo.3 \
+	gethostbyname.3 getifaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 if_indextoname.3 \
 	inet.3 inet_net.3 \
 	inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
@@ -40,6 +40,8 @@ MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
 	byteorder.3 ntohs.3
 MLINKS+=ethers.3 ether_aton.3 ethers.3 ether_hostton.3 ethers.3 ether_line.3 \
 	ethers.3 ether_ntoa.3 ethers.3 ether_ntohost.3
+MLINKS+=eui64.3 eui64_aton.3 eui64.3 eui64_hostton.3 \
+	eui64.3 eui64_ntoa.3 eui64.3 eui64_ntohost.3
 MLINKS+=getaddrinfo.3 freeaddrinfo.3 getaddrinfo.3 gai_strerror.3
 MLINKS+=gethostbyname.3 endhostent.3 gethostbyname.3 gethostbyaddr.3 \
 	gethostbyname.3 gethostbyname2.3 gethostbyname.3 gethostent.3 \
