@@ -318,7 +318,7 @@ fetchParseURL(const char *URL)
     } else {
 	p = URL;
     }
-    if (!*URL || *URL == '/')
+    if (!*URL || *URL == '/' || *URL == '.' || strchr(URL, '/') == NULL)
 	goto nohost;
 
     p = strpbrk(URL, "/@");
@@ -335,8 +335,10 @@ fetchParseURL(const char *URL)
 		    u->pwd[i++] = *q;
 	
 	p++;
-    } else p = URL;
-    
+    } else {
+	p = URL;
+    }
+
     /* hostname */
 #ifdef INET6
     if (*p == '[' && (q = strchr(p + 1, ']')) != NULL &&
