@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.12 1998/08/13 21:29:06 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.1 1998/08/16 17:14:59 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -429,7 +429,7 @@ struct xl_list_onefrag {
 };
 
 #define XL_MAXFRAGS		63
-#define XL_RX_LIST_CNT		4
+#define XL_RX_LIST_CNT		16
 #define XL_TX_LIST_CNT		10
 #define XL_MIN_FRAMELEN		60
 
