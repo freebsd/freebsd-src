@@ -124,7 +124,7 @@ struct cappage {
     u_int8_t	mode2_form1	:1;	/* mode 2 form 1 (XA) read */
     u_int8_t	mode2_form2	:1;	/* mode 2 form 2 format */
     u_int8_t	multisession	:1;	/* multi-session photo-CD */
-    u_int8_t			:1;
+    u_int8_t	burnproof	:1;	/* supports burnproof */
     u_int8_t	cd_da		:1;	/* audio-CD read supported */
     u_int8_t	cd_da_stream	:1;	/* CD-DA streaming */
     u_int8_t	rw		:1;	/* combined R-W subchannels */
@@ -221,7 +221,9 @@ struct write_param {
 #define CDR_WTYPE_RAW		0x03
 
     u_int8_t	test_write	:1;	/* test write enable */
-    u_int8_t	reserved2_567	:3;
+    u_int8_t	reserved2_5	:1;
+    u_int8_t	burnproof	:1;	/* BurnProof enable */
+    u_int8_t	reserved2_7	:1;
     u_int8_t	track_mode	:4;	/* track mode */
 #define CDR_TMODE_AUDIO		0x00
 #define CDR_TMODE_AUDIO_PREEMP	0x01
