@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_tcp.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_tcp.c,v 1.3 1995/10/22 14:51:38 phk Exp $";
+static char *rcsid = "$Id: svc_tcp.c,v 1.4 1995/12/07 12:50:56 bde Exp $";
 #endif
 
 /*
@@ -50,6 +50,9 @@ static char *rcsid = "$Id: svc_tcp.c,v 1.3 1995/10/22 14:51:38 phk Exp $";
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <errno.h>
+
+int bindresvport(int sd, struct sockaddr_in *);
+int _rpc_dtablesize(void);
 
 /*
  * Ops vector for TCP/IP based rpc service handle
