@@ -51,10 +51,18 @@
 
 static void
 format_track(int fd, int cyl, int secs, int head, int rate,
-	     int gaplen, int secsize, int fill)
+	     int gaplen, int secsize, int fill,int interleave)
 {
 	struct fd_formb f;
-	register int i;
+	register int i,j;
+	int il[FD_MAX_NSEC];
+
+	memset(il,0,sizeof il);
+	for(j = 0, i = 1; i <= secs; i++) {
+	    while(il[(j%secs)+1]) j++;
+	    il[(j%secs)+1] = i;
+	    j += interleave;
+	}
 
 	f.format_version = FD_FORMAT_VERSION;
 	f.head = head;
@@ -68,7 +76,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 	for(i = 0; i < secs; i++) {
 		f.fd_formb_cylno(i) = cyl;
 		f.fd_formb_headno(i) = head;
-		f.fd_formb_secno(i) = i + 1;
+		f.fd_formb_secno(i) = il[i+1];
 		f.fd_formb_secsize(i) = secsize;
 	}
 	if(ioctl(fd, FD_FORM, (caddr_t)&f) < 0) {
@@ -274,15 +282,15 @@ main(int argc, char **argv)
 
 	if (cyls >= 0)    fdt.tracks = cyls;
 	if (secs >= 0)    fdt.sectrac = secs;
+	if (fdt.sectrac > FD_MAX_NSEC) {
+		fprintf(stderr, "fdformat: too many sectors per track, max value is %d\n", FD_MAX_NSEC);
+		exit(2);
+	}
 	if (heads >= 0)   fdt.heads = heads;
 	if (gaplen >= 0)  fdt.f_gap = gaplen;
 	if (secsize >= 0) fdt.secsize = secsize;
 	if (steps >= 0)   fdt.steptrac = steps;
 	if (intleave >= 0) fdt.f_inter = intleave;
-	if (fdt.f_inter != 1) {
-		fprintf(stderr, "fdformat: can't format with interleave != 1 yet\n");
-		exit(2);
-	}
 
 	bytes_per_track = fdt.sectrac * (1<<fdt.secsize) * 128;
 	tracks_per_dot = fdt.tracks * fdt.heads / 40;
@@ -317,7 +325,8 @@ main(int argc, char **argv)
 	for (track = 0; track < fdt.tracks * fdt.heads; track++) {
 		if (!verify_only) {
 			format_track(fd, track / 2, fdt.sectrac, track & 1,
-				fdt.trans, fdt.f_gap, fdt.secsize, fill);
+				fdt.trans, fdt.f_gap, fdt.secsize, fill,
+				fdt.f_inter);
 			if(!quiet && !((track + 1) % tracks_per_dot)) {
 				putchar('F');
 				fflush(stdout);
