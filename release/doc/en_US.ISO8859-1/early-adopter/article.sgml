@@ -13,6 +13,9 @@
 
 <!ENTITY % mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
 %mailing-lists;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
 ]>
 
 <article>
@@ -32,7 +35,7 @@
     </copyright>
   </articleinfo>
 
-  <section>
+  <sect1>
     <title>Introduction</title>
 
     <para>FreeBSD 5.0 marks the first new major version of FreeBSD in
@@ -75,9 +78,9 @@
       development branch.  Finally, we present some notes on upgrading
       existing 4.<replaceable>X</replaceable> systems to 5.0.</para>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
     <title>An Overview of the FreeBSD Release Process</title>
 
     <para>FreeBSD employs a model of development that relies on multiple
@@ -127,9 +130,9 @@
       Engineering Web pages</ulink> and in the FreeBSD <ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">Release
       Engineering</ulink> article.</para>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
     <title>New Features</title>
 
     <para>A large attraction of FreeBSD 5.0 is a number of new
@@ -198,9 +201,9 @@
     <para>A more comprehensive list of new features can be found in
       the release notes for FreeBSD 5.0.</para>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
     <title>Drawbacks to Early Adoption</title>
 
     <para>Along with the new features of FreeBSD 5.0 come some areas
@@ -269,9 +272,9 @@
       and users stick to releases based on the 4-STABLE branch until
       the 5.<replaceable>X</replaceable> series is more polished.</para>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
     <title>Plans for the 4-STABLE Branch</title>
 
     <para>The release of FreeBSD 5.0 does not mean the end of the
@@ -307,9 +310,9 @@
       to security advisories and security fixes.  At its discretion,
       the team may support other releases.</para>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
     <title>Notes on Upgrading</title>
 
     <para>For those users with existing FreeBSD systems, this section
@@ -320,7 +323,7 @@
       version in question, as well as
       <filename>src/UPGRADING</filename> for source upgrades.</para>
 
-    <section>
+    <sect2>
       <title>Binary Upgrades</title>
 
       <para>Probably the most straightforward approach is that of
@@ -356,9 +359,9 @@
         4 installation CDROMs should be able to cope with the FreeBSD
         5.0 CDROMs.</para>
 
-    </section>
+    </sect2>
 
-    <section>
+    <sect2>
       <title>Source Upgrades</title>
 
       <para>Reading <filename>src/UPDATING</filename> is absolutely
@@ -368,9 +371,9 @@
         using of the <quote>shortcuts</quote> that some users
         occasionally employ.</para>
 
-    </section>
+    </sect2>
 
-    <section>
+    <sect2>
       <title>Common Notes</title>
 
       <para><application>Perl</application> has been removed from the
@@ -398,11 +401,11 @@
         (especially with C++ programs) as the compiler may wind up
         using a mixture of obsolete and current header files.</para>
 
-    </section>
+    </sect2>
 
-  </section>
+  </sect1>
 
-  <section>
+  <sect1>
 
     <title>Summary</title>
 
@@ -414,5 +417,5 @@
       some future plans for the 4-STABLE development branch and some
       tips on upgrading for early adopters.</para>
 
-  </section>
+  </sect1>
 </article>
