@@ -99,12 +99,6 @@
 
 #define DETACH_FORCE    0x1
 
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD $";
-#endif
-
-
 struct pccbb_sclist {
 	struct pccbb_softc *sc;
 	STAILQ_ENTRY(pccbb_sclist) entries;
@@ -390,9 +384,10 @@ pccbb_attach(device_t dev)
 	rid=PCCBBR_SOCKBASE;
 	sc->sc_base_res=bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 					   0,~0,1, RF_ACTIVE);
-	if (!sc->sc_base_res){
+	if (!sc->sc_base_res) {
 		/*
-		 * XXX EVILE HACK BAD THING! XXX
+		 * XXX eVILE HACK BAD THING! XXX
+		 * The pci bus device should do this for us.
 		 * Some BIOSes doesn't assign a memory space properly.
 		 * So we try to manually put one in...
 		 */
@@ -426,7 +421,6 @@ pccbb_attach(device_t dev)
 
 	sc->sc_socketreg =
 		(struct pccbb_socketreg *)rman_get_virtual(sc->sc_base_res);
-
 	pccbb_chipinit(sc);
 
 	/* CSC Interrupt: Card detect interrupt on */
@@ -1397,6 +1391,9 @@ pccbb_pcic_alloc_resource(device_t self, device_t child, int type, int* rid,
 		start = 0xd0000; /* XXX */
 		end = 0xdffff;
 	}
+
+	if (type == SYS_RES_IRQ)
+		flags |= RF_SHAREABLE;
 
 	if (type == SYS_RES_MEMORY)
 		flags = (flags & ~RF_ALIGNMENT_MASK)
