@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.17 1996/04/07 16:16:05 bde Exp $
+ * $Id: kern_proc.c,v 1.18 1996/05/30 01:21:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -453,6 +453,39 @@ fill_eproc(p, ep)
 	}
 }
 
+static struct proc *
+zpfind(pid_t pid)
+{
+	struct proc *p;
+
+	for (p = zombproc.lh_first; p != 0; p = p->p_list.le_next)
+		if (p->p_pid == pid)
+			return (p);
+	return (NULL);
+}
+
+
+static int
+sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
+{
+	struct eproc eproc;
+	int error;
+	pid_t pid = p->p_pid;
+
+	fill_eproc(p, &eproc);
+	error = SYSCTL_OUT(req,(caddr_t)p, sizeof(struct proc));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req,(caddr_t)&eproc, sizeof(eproc));
+	if (error)
+		return (error);
+	if (!doingzomb && pid && (pfind(pid) != p))
+		return EAGAIN;
+	if (doingzomb && zpfind(pid) != p)
+		return EAGAIN;
+	return (0);
+}
+
 static int
 sysctl_kern_proc SYSCTL_HANDLER_ARGS
 {
@@ -460,80 +493,100 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 	u_int namelen = arg2;
 	struct proc *p;
 	int doingzomb;
-	struct eproc eproc;
 	int error = 0;
 
-	if (namelen != 2 && !(namelen == 1 && name[0] == KERN_PROC_ALL))
+	if (oidp->oid_number == KERN_PROC_PID) {
+		if (namelen != 1) 
+			return (EINVAL);
+		p = pfind((pid_t)name[0]);
+		if (!p)
+			return (0);
+		error = sysctl_out_proc(p, req, 0);
+		return (error);
+	}
+	if (oidp->oid_number == KERN_PROC_ALL && !namelen)
+		;
+	else if (oidp->oid_number != KERN_PROC_ALL && namelen == 1)
+		;
+	else
 		return (EINVAL);
+	
 	if (!req->oldptr) {
-		/*
-		 * try over estimating by 5 procs
-		 */
+		/* overestimate by 5 procs */
 		error = SYSCTL_OUT(req, 0, sizeof (struct kinfo_proc) * 5);
 		if (error)
 			return (error);
 	}
-	p = allproc.lh_first;
-	doingzomb = 0;
-again:
-	for (; p != 0; p = p->p_list.le_next) {
-		/*
-		 * Skip embryonic processes.
-		 */
-		if (p->p_stat == SIDL)
-			continue;
-		/*
-		 * TODO - make more efficient (see notes below).
-		 * do by session.
-		 */
-		switch (name[0]) {
-
-		case KERN_PROC_PID:
-			/* could do this with just a lookup */
-			if (p->p_pid != (pid_t)name[1])
+	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
+		if (!doingzomb)
+			p = allproc.lh_first;
+		else
+			p = zombproc.lh_first;
+		for (; p != 0; p = p->p_list.le_next) {
+			/*
+			 * Skip embryonic processes.
+			 */
+			if (p->p_stat == SIDL)
 				continue;
-			break;
+			/*
+			 * TODO - make more efficient (see notes below).
+			 * do by session.
+			 */
+			switch (oidp->oid_number) {
 
-		case KERN_PROC_PGRP:
-			/* could do this by traversing pgrp */
-			if (p->p_pgrp == NULL || p->p_pgrp->pg_id != (pid_t)name[1])
-				continue;
-			break;
+			case KERN_PROC_PGRP:
+				/* could do this by traversing pgrp */
+				if (p->p_pgrp == NULL || 
+				    p->p_pgrp->pg_id != (pid_t)name[0])
+					continue;
+				break;
 
-		case KERN_PROC_TTY:
-			if ((p->p_flag & P_CONTROLT) == 0 ||
-			    p->p_session == NULL ||
-			    p->p_session->s_ttyp == NULL ||
-			    p->p_session->s_ttyp->t_dev != (dev_t)name[1])
-				continue;
-			break;
+			case KERN_PROC_TTY:
+				if ((p->p_flag & P_CONTROLT) == 0 ||
+				    p->p_session == NULL ||
+				    p->p_session->s_ttyp == NULL ||
+				    p->p_session->s_ttyp->t_dev != (dev_t)name[0])
+					continue;
+				break;
 
-		case KERN_PROC_UID:
-			if (p->p_ucred == NULL || p->p_ucred->cr_uid != (uid_t)name[1])
-				continue;
-			break;
+			case KERN_PROC_UID:
+				if (p->p_ucred == NULL || 
+				    p->p_ucred->cr_uid != (uid_t)name[0])
+					continue;
+				break;
 
-		case KERN_PROC_RUID:
-			if (p->p_ucred == NULL || p->p_cred->p_ruid != (uid_t)name[1])
-				continue;
-			break;
+			case KERN_PROC_RUID:
+				if (p->p_ucred == NULL || 
+				    p->p_cred->p_ruid != (uid_t)name[0])
+					continue;
+				break;
+			}
+
+			error = sysctl_out_proc(p, req, doingzomb);
+			if (error)
+				return (error);
 		}
-
-		fill_eproc(p, &eproc);
-		error = SYSCTL_OUT(req,(caddr_t)p, sizeof(struct proc));
-		if (error)
-			return (error);
-		error = SYSCTL_OUT(req,(caddr_t)&eproc, sizeof(eproc));
-		if (error)
-			return (error);
-	}
-	if (doingzomb == 0) {
-		p = zombproc.lh_first;
-		doingzomb++;
-		goto again;
 	}
 	return (0);
 }
 
-SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD, 
+
+SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
+
+SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
+	0, 0, sysctl_kern_proc, "S,proc", "");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
+	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD, 
+	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD, 
+	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD, 
+	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
