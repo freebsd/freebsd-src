@@ -145,10 +145,10 @@ my %table=(
 "debug-ulf",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -g -O2 -m486 -Wall -Werror -Wshadow -pipe::-D_REENTRANT:::${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
 "debug-steve",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DDEBUG_SAFESTACK -DCRYPTO_MDEBUG_ALL -DPEDANTIC -g -mcpu=i486 -pedantic -Wall -Werror -Wshadow -pipe::-D_REENTRANT::-rdynamic -ldl:${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn",
 "debug-steve-linux-pseudo64",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DDEBUG_SAFESTACK -DCRYPTO_MDEBUG_ALL -DOPENSSL_NO_ASM -g -mcpu=i486 -Wall -Werror -Wshadow -pipe::-D_REENTRANT::-rdynamic -ldl:SIXTY_FOUR_BIT::dlfcn",
-"debug-levitte-linux-elf","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -Wshadow -Wcast-align -Wstrict-prototypes -Wmissing-prototypes -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"debug-levitte-linux-noasm","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DOPENSSL_NO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -Wshadow -Wcast-align -Wstrict-prototypes -Wmissing-prototypes -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"debug-levitte-linux-elf-extreme","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -W -Wundef -Wshadow -Wcast-align -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"debug-levitte-linux-noasm-extreme","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DOPENSSL_NO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -W -Wundef -Wshadow -Wcast-align -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-levitte-linux-elf","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -Wshadow -Wcast-align -Wmissing-prototypes -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-levitte-linux-noasm","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DOPENSSL_NO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -Wshadow -Wcast-align -Wmissing-prototypes -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-levitte-linux-elf-extreme","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -W -Wundef -Wshadow -Wcast-align -Wmissing-prototypes -Wconversion -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-levitte-linux-noasm-extreme","gcc:-DLEVITTE_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DOPENSSL_NO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -DPEDANTIC -ggdb -g3 -mcpu=i486 -pedantic -ansi -Wall -W -Wundef -Wshadow -Wcast-align -Wmissing-prototypes -Wconversion -Wno-long-long -pipe::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "dist",		"cc:-O::(unknown)::::::",
 
 # Basic configs that should work on any (32 and less bit) box
@@ -216,13 +216,13 @@ my %table=(
 "irix-cc", "cc:-O2 -use_readonly_const -DTERMIOS -DB_ENDIAN::(unknown):::BN_LLONG RC4_CHAR RC4_CHUNK DES_PTR DES_RISC2 DES_UNROLL BF_PTR::::::::::dlfcn:irix-shared:::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 #### IRIX 6.x configs
 # Only N32 and N64 ABIs are supported. If you need O32 ABI build, invoke
-# './Configure irix-[g]cc' manually.
+# './Configure irix-cc -o32' manually.
 # -mips4 flag is added by ./config when appropriate.
-"irix-mips3-gcc","gcc:-mabi=n32 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK_LL DES_UNROLL DES_RISC2 DES_PTR BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared:::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"irix-mips3-cc", "cc:-n32 -mips3 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::DES_PTR RC4_CHAR RC4_CHUNK_LL DES_RISC2 DES_UNROLL BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared:::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix-mips3-gcc","gcc:-mabi=n32 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK_LL DES_UNROLL DES_RISC2 DES_PTR BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared::-mabi=n32:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix-mips3-cc", "cc:-n32 -mips3 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::DES_PTR RC4_CHAR RC4_CHUNK_LL DES_RISC2 DES_UNROLL BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared::-n32:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # N64 ABI builds.
-"irix64-mips4-gcc","gcc:-mabi=64 -mips4 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared:::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"irix64-mips4-cc", "cc:-64 -mips4 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared:::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix64-mips4-gcc","gcc:-mabi=64 -mips4 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared::-mabi=64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix64-mips4-cc", "cc:-64 -mips4 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE:::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared::-64:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### Unified HP-UX ANSI C configs.
 # Special notes:
@@ -260,6 +260,7 @@ my %table=(
 # 64bit PARISC for GCC without optimization, which seems to make problems.
 # Submitted by <ross.alexander@uk.neceur.com>
 "hpux64-parisc-gcc","gcc:-DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dlfcn:hpux64-shared:-fpic::.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux64-parisc2-gcc","gcc:-O3 -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/pa-risc2W.o:::::::::dlfcn:hpux64-shared:-fpic::.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 # IA-64 targets
 "hpux-ia64-cc","cc:-Ae +DD32 +O3 +Olit=all -z -DB_ENDIAN::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/ia64-cpp.o:::::::::dlfcn:hpux-shared:+Z::.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
