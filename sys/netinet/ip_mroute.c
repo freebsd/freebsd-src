@@ -7,8 +7,16 @@
  * Modified by Van Jacobson, LBL, January 1993
  * Modified by Ajit Thyagarajan, PARC, August 1993
  * Modified by Bill Fenner, PARC, April 1995
+ * Modified by Ahmed Helmy, SGI, June 1996
+ * Modified by George Edmond Eddy (Rusty), ISI, February 1998
+ * Modified by Pavlin Radoslavov, USC/ISI, May 1998, August 1999, October 2000
+ * Modified by Hitoshi Asaeda, WIDE, August 2000
+ * Modified by Pavlin Radoslavov, ICSI, October 2002
  *
  * MROUTING Revision: 3.5
+ * and PIM-SMv2 and PIM-DM support, advanced API support,
+ * bandwidth metering and signaling
+ *
  * $FreeBSD$
  */
 
@@ -1470,21 +1478,30 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	++mrtstat.mrts_wrong_if;
 	++rt->mfc_wrong_if;
 	/*
-	 * If we are doing PIM assert processing, and we are forwarding
-	 * packets on this interface, and it is a broadcast medium
-	 * interface (and not a tunnel), send a message to the routing daemon.
+	 * If we are doing PIM assert processing, send a message
+	 * to the routing daemon.
+	 *
+	 * XXX: A PIM-SM router needs the WRONGVIF detection so it
+	 * can complete the SPT switch, regardless of the type
+	 * of the iif (broadcast media, GRE tunnel, etc).
 	 */
-	if (pim_assert && rt->mfc_ttls[vifi] &&
-		(ifp->if_flags & IFF_BROADCAST) &&
-		!(viftable[vifi].v_flags & VIFF_TUNNEL)) {
+	if (pim_assert && (vifi < numvifs) && viftable[vifi].v_ifp) {
 	    struct timeval now;
 	    u_long delta;
+
+#ifdef PIM
+	    if (ifp == &multicast_register_if)
+		pimstat.pims_rcv_registers_wrongiif++;
+#endif
 
 	    /* Get vifi for the incoming packet */
 	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
 		;
 	    if (vifi >= numvifs)
 		return 0;	/* The iif is not found: ignore the packet. */
+
+	    if (rt->mfc_flags[vifi] & MRT_MFC_FLAGS_DISABLE_WRONGVIF)
+		return 0;	/* WRONGVIF disabled: ignore the packet */
 
 	    GET_TIME(now);
 
