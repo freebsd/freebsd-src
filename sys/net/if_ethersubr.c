@@ -500,6 +500,9 @@ ether_demux(ifp, eh, m)
 	register struct llc *l;
 #endif
 
+#ifdef BRIDGE
+    if (! (do_bridge && BDG_USED(ifp) ) )
+#endif
 	/* Discard packet if upper layers shouldn't see it because it was
 	   unicast to a different Ethernet address. If the driver is working
 	   properly, then this situation can only happen when the interface
