@@ -16,7 +16,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Wed Jun 14 11:12:25 PDT 2000
+Last updated:   Sun Jul 23 13:23:54 PDT 2000
 
 0.0     Quick Start
 ---     -----------
@@ -61,13 +61,6 @@ You will need the SRM console firmware for your platform. In some
 cases, it is possible to switch between AlphaBIOS (or ARC) firmware
 and SRM. In others it will be necessary to download new firmware from
 the vendor's Website.
-
-Caveat: if you find yourself staring a the following error after
-booting the installation: "can't find my init, going nowhere CPU panic"
-please make sure there are no other diskdrives attached to the system
-with a valid BSD disklabel on them (can be Linux, Tru64, OpenBSD etc). 
-The problem has also been observed when an OpenVMS bootable disk was present.
-This is a bug (alpha/17642) in need of a fix.
 
 0.1     Installing FreeBSD from CDROM or the Internet
 ---     ---------------------------------------------
