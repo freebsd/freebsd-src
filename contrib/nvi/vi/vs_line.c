@@ -10,7 +10,11 @@
 #include "config.h"
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)vs_line.c	10.19 (Berkeley) 9/26/96";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>
