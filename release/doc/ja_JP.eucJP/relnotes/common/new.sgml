@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.303
+    Original revision: 1.304
 -->
 
 <articleinfo>
@@ -528,9 +528,10 @@
       <para arch="sparc64">&os; が UltraSPARC プラットフォームに
 	対応しました.
 	以下のマシンが異なった度合いでサポートされています:
-	Ultra 1, Ultra 2, Ultra 5/10, Ultra60, Blade 100.
-	SMP にも対応しており, 2 プロセッサの Ultra 2 と 2 プロセッサの
-	Ultra 60 でテストされています.</para>
+	Ultra 1/2/5/10/30/60, Enterprise 220R/420R, Netra T1 AC200/DC200, Netra T 105, Blade 100.
+	SMP にも対応しており,
+	Ultra 2, Ultra 60, Enterprise 220R, Enterprise 420R
+	でテストされています.</para>
 
     </sect3>
 
@@ -1465,7 +1466,7 @@ hw.pcic.irq="0"</programlisting>
         <title>IPFilter</title>
 
 	<para><application>IPFilter</application> はバージョン
-	  3.4.20 に更新されました. &merged;</para>
+	  3.4.25 に更新されました.</para>
 
 	<para><application>IPFilter</application> が IPv6
 	  に対応しました. &merged;</para>
@@ -2407,6 +2408,10 @@ hw.pcic.irq="0"</programlisting>
       (ファイルシステムが dirty もしくは inconsistent かもしれない
       ので, ファイルを大きくしたり削ったりすることはできません).
     </para>
+
+    <para><filename>libstand</filename> が複数の物理メディアに
+      分割された巨大なカーネルやモジュールを読み込むことが
+      できるようになりました.</para>
 
     <para><filename>libfetch</filename> が passive FTP
       で用いる TCP ポート番号範囲の既定値が変更されました.
@@ -3450,7 +3455,7 @@ hw.pcic.irq="0"</programlisting>
 	  Rijndael 暗号アルゴリズムがサポートされました.
 	  &man.ssh.1; に既存セションの rekeying がサポートされ, 実験的な
 	  <application>SOCKS4</application> プロキシーも加えられました.
-	</para>
+	  &merged;</para>
 
 	<para><application>OpenSSH</application>
           の SSH1 モードが OPIE パスワード認証に対応しました.
