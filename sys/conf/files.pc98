@@ -3,19 +3,19 @@
 #
 # modified for PC-9801
 #
-#	$Id$
+#	$Id: files.pc98,v 1.16 1997/02/22 09:43:22 peter Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
-	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
-	compile-with	"${CC} -Wall -o $@ $>"				   \
+	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
+	compile-with	"cd $S/dev/aic7xxx; make BINDIR=${.CURDIR} all install" \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
 #
-aic7xxx_seq.h			optional	ahc	device-driver	   \
-	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"   \
+aic7xxx_{seq,reg}.h		optional	ahc	device-driver	   \
+	compile-with	"./aic7xxx_asm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
-	clean		"aic7xxx_seq.h"					   \
-	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm"
+	clean		"aic7xxx_{seq,reg}.h"				   \
+	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} aic7xxx_asm"
 #
 linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
@@ -33,7 +33,8 @@ i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 #i386/eisa/3c5x9.c		optional	ep	device-driver
-#i386/eisa/aic7770.c		optional	ahc	device-driver
+#i386/eisa/aic7770.c		optional	ahc	device-driver	   \
+#	dependency	"aic7xxx_reg.h $S/i386/eisa/aic7770.c"
 #i386/eisa/aha1742.c		optional	ahb	device-driver
 #i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
@@ -230,7 +231,7 @@ i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
+	dependency	"aic7xxx_{reg,seq}.h"
 pc98/scsi/bt.c			optional	bt	device-driver
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
