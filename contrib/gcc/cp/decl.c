@@ -1979,7 +1979,7 @@ mark_named_label_lists (labs, uses)
   for (; l; l = l->next)
     {
       ggc_mark (l);
-      mark_binding_level (l->binding_level);
+      mark_binding_level (&l->binding_level);
       ggc_mark_tree (l->old_value);
       ggc_mark_tree (l->label_decl);
       ggc_mark_tree (l->bad_decls);
@@ -6110,7 +6110,13 @@ lookup_name_real (name, prefer_type, nonclass, namespaces_only)
 	      if (got_scope && got_scope != type
 		  && val && TREE_CODE (val) == TYPE_DECL
 		  && TREE_CODE (TREE_TYPE (val)) == TYPENAME_TYPE)
-		TYPE_CONTEXT (TREE_TYPE (val)) = got_scope;
+		{
+		  val = TREE_TYPE (val);
+		  val = build_typename_type (got_scope, name,
+					     TYPENAME_TYPE_FULLNAME (val),
+					     TREE_TYPE (val));
+		  val = TYPE_STUB_DECL (val);
+		}
 	    }
 	}
       else
@@ -7614,7 +7620,13 @@ obscure_complex_init (decl, init)
 				 NULL_TREE);
   else
 #endif
-    DECL_INITIAL (decl) = error_mark_node;
+    {
+      if (zero_init_p (TREE_TYPE (decl)))
+	DECL_INITIAL (decl) = error_mark_node;
+      /* Otherwise, force_store_init_value will have already stored a
+	 zero-init initializer in DECL_INITIAL, that should be
+	 retained.  */
+    }
 
   return init;
 }
@@ -7860,8 +7872,16 @@ check_initializer (decl, init)
       if (init)
 	init = obscure_complex_init (decl, init);
     }
+  else if (!DECL_EXTERNAL (decl) && !zero_init_p (type))
+    {
+      force_store_init_value (decl, build_forced_zero_init (type));
+
+      if (init)
+	goto process_init;
+    }
   else if (init)
     {
+    process_init:
       if (TYPE_HAS_CONSTRUCTOR (type) || TYPE_NEEDS_CONSTRUCTING (type))
 	{
 	  if (TREE_CODE (type) == ARRAY_TYPE)
@@ -14231,7 +14251,7 @@ finish_function (flags)
       if (DECL_MAIN_P (current_function_decl))
 	{
 	  /* Make it so that `main' always returns 0 by default.  */
-#ifdef VMS_TARGET
+#if VMS_TARGET
 	  finish_return_stmt (integer_one_node);
 #else
 	  finish_return_stmt (integer_zero_node);
