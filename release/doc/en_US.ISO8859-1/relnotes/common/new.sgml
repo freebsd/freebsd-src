@@ -891,6 +891,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	appears as an Ethernet interface but delivers its Ethernet
 	frames to a Netgraph hook. &merged;</para>
 
+      <para>A new &man.ng.device.4; netgraph node type has been added,
+	which creates a device entry in <filename>/dev</filename>, to
+	be used as the entry point to a networking graph.</para>
+
       <para role="historic">A new &man.ng.etf.4; netgraph node allows Ethernet type
 	packets to be filtered to different hooks depending on
 	ethertype. &merged;</para>
@@ -1286,6 +1290,28 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been added.  This format is used on packet-written CD-RWs and
 	most commercial DVD-Video disks.  The &man.mount.udf.8;
 	command can be used to mount these disks.</para>
+
+      <para>Basic support has been added for the UFS2 filesystem.
+        Among its features:
+
+	<itemizedlist>
+	  <listitem>
+	    <para>The inode has been expanded to 256 bytes to make
+	      space for 64-bit block pointers.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A file-creation time field has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Space has been provided for extended attributes, up
+	      to twice the filesystem block size.</para>
+	  </listitem>
+	</itemizedlist>
+
+	</para>
+
     </sect3>
 
     <sect3>
@@ -2144,7 +2170,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       program.  They are used by error-reporting routines to produce
       consistent output. &merged;</para>
 
-    <para>&man.gifconfig.8; is obsolete and has been removed.  Its
+    <para>gifconfig(8) is obsolete and has been removed.  Its
       functionality is now handled by the <option>tunnel</option> and
       <option>deletetunnel</option> commands of
       &man.ifconfig.8;.</para>
@@ -2549,6 +2575,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-p</option>, <option>-r</option>, <option>-t</option>,
       and <option>-x</option> flags.</para>
 
+    <para>&man.newfs.8; now supports a <option>-O</option> flag to
+      select the creation of UFS1 or UFS2 filesystems.</para>
+
+    <para>The &man.newgrp.1; utility to change to a new group has been
+      added.</para>
+
     <para role="historic">&man.newsyslog.8; now has the ability to compress log files
       using &man.bzip2.1;. &merged;</para>
 
@@ -2580,6 +2612,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>A &man.pam.ftpusers.8; module has been added to perform
       checks against the &man.ftpusers.5; file.</para>
+
+    <para>A &man.pam.ksu.8; module has been added to do Kerberos 5
+      authentication and <filename>$HOME/.k5login</filename>
+      authorization for &man.su.1;.</para>
 
     <para>A &man.pam.lastlog.8; module has been added to record
       sessions in the &man.utmp.5;, &man.wtmp.5;, and &man.lastlog.5;
@@ -2674,7 +2710,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-p</option> flags to pause output going to a
       terminal. &merged;</para>
 
-    <para>&man.prefix.8; is obsolete and has been removed.  Its
+    <para>prefix(8) is obsolete and has been removed.  Its
       functionality is provided by the <option>eui64</option> command
       to &man.ifconfig.8;.</para>
 
@@ -3010,6 +3046,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       these utilities as &man.b64encode.1; and &man.b64decode.1;
       respectively.</para>
 
+    <para>The &man.uuidgen.1; utility has been added.  It uses the new
+      &man.uuidgen.2; system call to generate one or more Universally
+      Unique Identifiers compatible with OSF/DCE 1.1 version 1
+      UUIDs.</para>
+
     <para role="historic">&man.vidcontrol.1; now accepts a <option>-g</option>
       parameter to select custom text geometry in the
       <literal>VESA_800x600</literal> raster text mode. &merged;</para>
@@ -3202,8 +3243,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<command>more</command>. &merged; Version 371 of
       <application>less</application> has been imported.</para>
 
-      <para role="historic"><application>libpcap</application> has been updated to
-	0.6.2. &merged;</para>
+      <para><application>libpcap</application> has been updated to
+	0.7.1.</para>
 
       <para><application>libreadline</application> has been updated to
 	4.2.</para>
@@ -3302,8 +3343,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>GNU tar</application> has been updated to
 	1.13.25.</para>
 
-      <para role="historic"><application>tcpdump</application> has been updated to
-	3.6.3. &merged;</para>
+      <para><application>tcpdump</application> has been updated to
+	3.7.1.</para>
 
       <para role="historic">The &man.csh.1; shell has been replaced by &man.tcsh.1;,
 	although it can still be run as <command>csh</command>.
@@ -3386,10 +3427,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  access control. &merged;</para>
 
 	<para role="historic">&man.ifconfig.8; can now perform the functions of
-	  &man.gifconfig.8;. &merged;</para>
+	  gifconfig(8). &merged;</para>
 
 	<para role="historic">&man.ifconfig.8; can now perform the functions of
-	  &man.prefix.8;. &merged;</para>
+	  prefix(8). &merged;</para>
 
 	<para role="historic">&man.ndp.8; now implements garbage collection for stale
 	  NDP entries, as described in RFC 2461 (Neighbor Discovery
