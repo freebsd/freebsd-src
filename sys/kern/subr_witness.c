@@ -1649,7 +1649,6 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 	else {
 		panic("Lock (%s) %s is not sleep or spin!",
 		    lock->lo_class->lc_name, lock->lo_name);
-		return;
 	}
 	file = fixup_filename(file);
 	switch (flags) {
