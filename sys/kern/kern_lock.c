@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.23 1999/01/20 14:49:11 eivind Exp $
+ * $Id: kern_lock.c,v 1.24 1999/03/12 03:09:29 julian Exp $
  */
 
 #include "opt_lint.h"
@@ -215,7 +215,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * lock itself ).
 		 */
 		if (lkp->lk_lockholder != pid) {
-			if (p->p_flag & P_DEADLKTREAT) {
+			if (p && (p->p_flag & P_DEADLKTREAT)) {
 				error = acquire(
 					    lkp,
 					    extflags,
