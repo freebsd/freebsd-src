@@ -67,7 +67,6 @@ typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
 #define MNAMELEN   90	/* length of buffer for returned name */
 
 struct statfs {
-long	f_spare2;	  /* placeholder */
 long	f_bsize;	  /* fundamental file system block size */
 long	f_iosize;	  /* optimal transfer block size */
 long	f_blocks;	  /* total data blocks in file system */
@@ -77,17 +76,19 @@ long	f_files;	  /* total file nodes in file system */
 long	f_ffree;	  /* free file nodes in fs */
 fsid_t	f_fsid;		  /* file system id */
 uid_t	f_owner;	  /* user that mounted the filesystem */
-int	f_type;		  /* type of filesystem (see below) */
+int	f_type;		  /* type of filesystem */
 int	f_flags;	  /* copy of mount flags */
 long    f_syncwrites;	  /* count of sync writes since mount */
 long    f_asyncwrites;	  /* count of async writes since mount */
 char	f_fstypename[MFSNAMELEN];/* fs type name */
-char	f_mntonname[MNAMELEN];	  /* mount point */
-char	f_mntfromname[MNAMELEN];  /* mounted filesystem */
+char	f_mntonname[MNAMELEN];	 /* mount point */
+long    f_syncreads;		 /* count of sync reads since mount */
+long    f_asyncreads;		 /* count of async reads since mount */
+char	f_mntfromname[MNAMELEN]; /* mounted filesystem */
 };
 .Ed
 The flags that may be returned include:
-.Bl -tag -width MNT_ASYNCHRONOUS
+.Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
 The filesystem is mounted read-only;
 Even the super-user may not write on it.
@@ -99,7 +100,7 @@ Setuid and setgid bits on files are not honored when they are executed.
 Special files in the filesystem may not be opened.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the filesystem is done synchronously.
-.It Dv MNT_ASYNCHRONOUS
+.It Dv MNT_ASYNC
 No filesystem I/O is done synchronously.
 .It Dv MNT_LOCAL
 The filesystem resides locally.
