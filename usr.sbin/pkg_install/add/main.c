@@ -27,7 +27,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <sys/param.h>
 #include <sys/utsname.h>
-#include <objformat.h>
 #include "lib.h"
 #include "add.h"
 
@@ -50,7 +49,7 @@ add_mode_t AddMode	= NORMAL;
 char	pkgnames[MAX_PKGS][MAXPATHLEN];
 char	*pkgs[MAX_PKGS];
 
-static char *getpackagesite(char *);
+static char *getpackagesite(void);
 int getosreldate(void);
 
 static void usage __P((void));
@@ -63,7 +62,6 @@ main(int argc, char **argv)
     char *cp;
 
     char *remotepkg = NULL, *ptr;
-    static char binformat[1024];
     static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
 
     start = argv;
@@ -131,10 +129,8 @@ main(int argc, char **argv)
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
     	    if (Remote) {
-		if (getenv("PACKAGESITE") == NULL) {
-		   getobjformat(binformat, sizeof(binformat), &argc, argv); 
-		   strcat(packageroot, getpackagesite(binformat));
-		}
+		if (getenv("PACKAGESITE") == NULL)
+		   strcat(packageroot, getpackagesite());
 		else
 	    	   strcpy(packageroot, (getenv("PACKAGESITE")));
 		remotepkg = strcat(packageroot, *argv);
@@ -185,7 +181,7 @@ main(int argc, char **argv)
 }
 
 static char *
-getpackagesite(char binform[1024])
+getpackagesite(void)
 {
     int reldate;
     static char sitepath[MAXPATHLEN];
@@ -196,14 +192,7 @@ getpackagesite(char binform[1024])
     uname(&u);
     strcpy(sitepath, u.machine);
 
-    if (reldate == 300005)
-  	strcat(sitepath, "/packages-3.0/");
-    else if (300000 < reldate && reldate <= 300004)
-	strcat(sitepath, "/packages-3.0-aout/Latest/");
-    else if (300004 < reldate && reldate < 400000)
-	strcat(sitepath, !strcmp(binform, "elf") ? "/packages-3-stable/Latest/" :
-		"/packages-3.0-aout/Latest/");
-    else
+    if (reldate >= 400000)
 	strcat(sitepath, "/packages-current/Latest/");
 
     return sitepath;
