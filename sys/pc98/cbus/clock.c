@@ -845,7 +845,7 @@ calibrate_clocks(void)
 
 	if (bootverbose) {
 		if (tsc_present)
-		        printf("TSC clock: %u Hz, ", tsc_freq);
+		        printf("TSC clock: %ju Hz, ", (intmax_t)tsc_freq);
 	        printf("i8254 clock: %u Hz\n", tot_count);
 	}
 	return (tot_count);
@@ -1000,7 +1000,8 @@ startrtclock()
 		tsc_freq = rdtsc() - old_tsc;
 #ifdef CLK_USE_TSC_CALIBRATION
 		if (bootverbose)
-			printf("TSC clock: %u Hz (Method B)\n", tsc_freq);
+			printf("TSC clock: %ju Hz (Method B)\n",
+			    (intmax_t)tsc_freq);
 #endif
 	}
 
@@ -1556,7 +1557,7 @@ static int
 sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	u_int freq;
+	uint64_t freq;
 
 	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
@@ -1569,7 +1570,7 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_QUAD | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_tsc_freq, "IU", "");
 
 static unsigned
