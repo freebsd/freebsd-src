@@ -9,9 +9,33 @@
         std
         ..
     ..
+    isofs
+        cd9660
+        ..
+    ..
     kerberosIV
     ..
+    machine
+    ..
+    msdosfs
+    ..
+    net
+    ..
+    netatalk
+    ..
+    netinet
+    ..
+    netipx
+    ..
+    netkey
+    ..
+    netns
+    ..
+    nfs
+    ..
     objc
+    ..
+    pccard
     ..
     protocols
     ..
@@ -23,10 +47,24 @@
     ..
     ss
     ..
+    sys
+    ..
     tcl
         generic
         ..
         unix
         ..
+    ..
+    ufs
+        ffs
+        ..
+        lfs
+        ..
+        mfs
+        ..
+        ufs
+        ..
+    ..
+    vm
     ..
 ..
