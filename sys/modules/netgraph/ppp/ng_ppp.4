@@ -52,7 +52,7 @@ and control packets to a separate controlling entity (e.g., a
 user-land daemon).  This approach combines the fast dispatch of
 kernel implementations with the configuration flexibility of a
 user-land implementations.  The PPP node type directly supports
-multi-link PPP, Van Jacobsen compression, PPP compression, PPP
+multi-link PPP, Van Jacobson compression, PPP compression, PPP
 encryption, and the IP, IPX, and AppleTalk protocols.  A single
 PPP node corresponds to one PPP multi-link bundle.
 .Pp
@@ -150,7 +150,7 @@ When all of the
 and
 .Dv vjc_vjip
 hooks are connected, and the corresponding configuration flag is
-enabled, Van Jacobsen compression and/or decompression will become active.
+enabled, Van Jacobson compression and/or decompression will become active.
 Normally these hooks connect to the corresponding hooks of a single
 .Xr ng_vjc 4
 node.  The PPP node is compatible with the
@@ -283,7 +283,7 @@ This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_PPP_SET_CONFIG
 This command configures all aspects of the node.  This includes enabling
-multi-link PPP, encryption, compression, Van Jacobsen compression, and IP,
+multi-link PPP, encryption, compression, Van Jacobson compression, and IP,
 AppleTalk, and IPX packet delivery.  It includes per-link configuration,
 including enabling the link, setting latency and bandwidth parameters,
 and enabling protocol field compression.  Note that no link or functionality
