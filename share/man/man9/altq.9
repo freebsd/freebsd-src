@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$NetBSD: altq.9,v 1.8 2002/05/28 11:41:45 wiz Exp $
 .\"	$OpenBSD: altq.9,v 1.4 2001/07/12 12:41:42 itojun Exp $
 .\"
@@ -27,6 +26,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd August 7, 2004
 .Dt ALTQ 9
 .Os
@@ -43,7 +44,9 @@
 .Ss Enqueue macros
 .Fn IFQ_ENQUEUE "struct ifaltq *ifq" "struct mbuf *m" "int error"
 .Fn IFQ_HANDOFF "struct ifnet *ifp" "struct mbuf *m" "int error"
-.Fn IFQ_HANDOFF_ADJ "struct ifnet *ifp" "struct mbuf *m" "int adjust" "int error"
+.Fo IFQ_HANDOFF_ADJ
+.Fa "struct ifnet *ifp" "struct mbuf *m" "int adjust" "int error"
+.Fc
 .\"
 .Ss Dequeue macros
 .Fn IFQ_DEQUEUE "struct ifaltq *ifq" "struct mbuf *m"
@@ -75,7 +78,7 @@ touch the internal fields of the output queue structure.
 The macros are independent from the
 .Nm
 implementation, and compatible with the traditional
-.Dv ifqueue
+.Vt ifqueue
 macros for ease of transition.
 .Pp
 .Fn IFQ_ENQUEUE ,
@@ -87,13 +90,15 @@ enqueue a packet
 to the queue
 .Fa ifq .
 The underlying queuing discipline may discard the packet.
+The
 .Fa error
-is set to 0 on success, or
-.Dv ENOBUFS
+argument is set to 0 on success, or
+.Er ENOBUFS
 if the packet is discarded.
+The packet pointed to by
 .Fa m
-will be freed by the device driver on success or by the queuing discipline on
-failure so that the caller should not touch
+will be freed by the device driver on success, or by the queuing discipline on
+failure, so the caller should not touch
 .Fa m
 after enqueuing.
 .Fn IFQ_HANDOFF
@@ -120,14 +125,14 @@ under rate-limiting.
 .Pp
 .Fn IFQ_POLL_NOLOCK
 returns the next packet without removing it from the queue.
-The caller must hold the queue mutex when calling to
+The caller must hold the queue mutex when calling
 .Fn IFQ_POLL_NOLOCK
 in order to guarantee that a subsequent call to
 .Fn IFQ_DEQUEUE_NOLOCK
 dequeues the same packet.
 .Pp
-.Fn IFQ_XXX_NOLOCK
-variants - if available - always assume that the caller holds the queue mutex.
+.Fn IFQ_*_NOLOCK
+variants (if available) always assume that the caller holds the queue mutex.
 They can be grabbed with
 .Fn IFQ_LOCK
 and released with
@@ -148,9 +153,9 @@ if the queuing discipline is non-work conserving.
 .Pp
 .Fn IFQ_DRV_DEQUEUE
 moves up to
-.Va ifq->ifq_drv_maxlen
+.Fa ifq->ifq_drv_maxlen
 packets from the queue to the
-.Ql driver managed
+.Dq "driver managed"
 queue and returns the first one via
 .Fa m .
 As for
@@ -162,57 +167,58 @@ even for a non-empty queue.
 Subsequent calls to
 .Fn IFQ_DRV_DEQUEUE
 pass the packets from the
-.Ql driver managed
+.Dq "driver managed"
 queue without obtaining the queue mutex.
 It is the responsibility of the caller to protect against concurrent access.
 Enabling
 .Nm
 for a given queue sets
 .Va ifq_drv_maxlen
-to
-.Dv 0
-as the
-.Ql bulk dequeue
+to 0 as the
+.Dq "bulk dequeue"
 performed by
 .Fn IFQ_DRV_DEQUEUE
 for higher values of
 .Va ifq_drv_maxlen
 is adverse to
-.Sy ALTQ's
+.Nm ALTQ Ns 's
 internal timing.
 Note that a driver must not mix
-.Fn IFQ_DRV_XXX
+.Fn IFQ_DRV_*
 macros with the default dequeue macros as the default macros do not look at the
-.Ql driver managed
+.Dq "driver managed"
 queue which might lead to an mbuf leak.
 .Pp
 .Fn IFQ_DRV_PREPEND
 prepends
 .Fa m
 to the
-.Ql driver managed
+.Dq "driver managed"
 queue from where it will be obtained with the next call to
 .Fn IFQ_DRV_DEQUEUE .
 .Pp
 .Fn IFQ_DRV_PURGE
 flushes all packets in the
-.Ql driver managed
+.Dq "driver managed"
 queue and calls to
 .Fn IFQ_PURGE
 afterwards.
 .Pp
 .Fn IFQ_DRV_IS_EMPTY
 checks for packets in the
-.Ql driver managed
-part of the queue. If it is empty it forwards to
+.Dq "driver managed"
+part of the queue.
+If it is empty, it forwards to
 .Fn IFQ_IS_EMPTY .
-.Pp
 .Pp
 .Fn IFQ_SET_MAXLEN
 sets the queue length limit to the default FIFO queue.
-.Va ifaltq.ifq_drv_maxlen
-controls the length limit of the
-.Ql driver managed
+The
+.Va ifq_drv_maxlen
+member of the
+.Vt ifaltq
+structure controls the length limit of the
+.Dq "driver managed"
 queue.
 .Pp
 .Fn IFQ_INC_LEN
@@ -222,26 +228,26 @@ increment or decrement the current queue length in packets.
 This is mostly for internal purposes.
 .Pp
 .Fn IFQ_INC_DROPS
-increments the drop counter and is equal to
+increments the drop counter and is identical to
 .Fn IF_DROP .
-It is defined for naming consistency.
+It is defined for naming consistency only.
 .Pp
 .Fn IFQ_SET_READY
-sets a flag to indicate this driver is converted to use the new macros.
+sets a flag to indicate that a driver was converted to use the new macros.
 .Nm
 can be enabled only on interfaces with this flag.
 .Sh COMPATIBILITY
-.Ss ifaltq structure
+.Ss Vt ifaltq Ss structure
 In order to keep compatibility with the existing code, the new
 output queue structure
-.Dv ifaltq
+.Vt ifaltq
 has the same fields.
 The traditional
-.Fn IF_XXX
+.Fn IF_*
 macros and the code directly referencing the fields within
-.Dv if_snd
+.Va if_snd
 still work with
-.Dv ifaltq .
+.Vt ifaltq .
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
@@ -259,9 +265,9 @@ still work with
                                        |
 .Ed
 The new structure replaces
-.Dv struct ifqueue
+.Vt "struct ifqueue"
 in
-.Dv struct ifnet .
+.Vt "struct ifnet" .
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
@@ -275,8 +281,8 @@ in
                                        |
 .Ed
 The (simplified) new
-.Fn IFQ_XXX
-macros looks like:
+.Fn IFQ_*
+macros look like:
 .Bd -literal
 	#define IFQ_DEQUEUE(ifq, m)			\e
 		if (ALTQ_IS_ENABLED((ifq))		\e
@@ -307,24 +313,27 @@ do {                                                    \e
 .Pp
 .Fn IFQ_ENQUEUE
 does the following:
+.Pp
 .Bl -hyphen -compact
 .It
-queue a packet
+queue a packet,
 .It
-drop (and free) a packet if the enqueue operation fails
+drop (and free) a packet if the enqueue operation fails.
 .El
+.Pp
 If the enqueue operation fails,
 .Fa error
 is set to
-.Dv ENOBUFS .
-.Fa mbuf
-is freed by the queuing discipline.
+.Er ENOBUFS .
+The
+.Fa m
+mbuf is freed by the queuing discipline.
 The caller should not touch mbuf after calling
 .Fn IFQ_ENQUEUE
 so that the caller may need to copy
-.Fa m_pkthdr.len
+.Va m_pkthdr.len
 or
-.Fa m_flags
+.Va m_flags
 field beforehand for statistics.
 .Fn IFQ_HANDOFF
 and
@@ -347,24 +356,24 @@ looks as follows:
  {                                     | {
      ......                            |     ......
                                        |
-                                       |     mflags = m-\*[Gt]m_flags;
-                                       |     len = m-\*[Gt]m_pkthdr.len;
+                                       |     mflags = m->m_flags;
+                                       |     len = m->m_pkthdr.len;
      s = splimp();                     |     s = splimp();
-     if (IF_QFULL(\*[Am]ifp-\*[Gt]if_snd)) {     |     IFQ_ENQUEUE(\*[Am]ifp-\*[Gt]if_snd, m,
+     if (IF_QFULL(&ifp->if_snd)) {     |     IFQ_ENQUEUE(&ifp->if_snd, m,
                                        |                 error);
-         IF_DROP(\*[Am]ifp-\*[Gt]if_snd);        |     if (error != 0) {
+         IF_DROP(&ifp->if_snd);        |     if (error != 0) {
          splx(s);                      |         splx(s);
          senderr(ENOBUFS);             |         return (error);
      }                                 |     }
-     IF_ENQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);      |
-     ifp-\*[Gt]if_obytes +=                 |     ifp-\*[Gt]if_obytes += len;
-                    m-\*[Gt]m_pkthdr.len;   |
-     if (m-\*[Gt]m_flags \*[Am] M_MCAST)         |     if (mflags \*[Am] M_MCAST)
-         ifp-\*[Gt]if_omcasts++;            |         ifp-\*[Gt]if_omcasts++;
+     IF_ENQUEUE(&ifp->if_snd, m);      |
+     ifp->if_obytes +=                 |     ifp->if_obytes += len;
+                    m->m_pkthdr.len;   |
+     if (m->m_flags & M_MCAST)         |     if (mflags & M_MCAST)
+         ifp->if_omcasts++;            |         ifp->if_omcasts++;
                                        |
-     if ((ifp-\*[Gt]if_flags \*[Am] IFF_OACTIVE) |     if ((ifp-\*[Gt]if_flags \*[Am] IFF_OACTIVE)
+     if ((ifp->if_flags & IFF_OACTIVE) |     if ((ifp->if_flags & IFF_OACTIVE)
          == 0)                         |         == 0)
-         (*ifp-\*[Gt]if_start)(ifp);        |         (*ifp-\*[Gt]if_start)(ifp);
+         (*ifp->if_start)(ifp);        |         (*ifp->if_start)(ifp);
      splx(s);                          |     splx(s);
      return (error);                   |     return (error);
                                        |
@@ -381,23 +390,23 @@ First, make sure the corresponding
 is already converted to the new style.
 .Pp
 Look for
-.Fa if_snd
+.Va if_snd
 in the driver.
 Probably, you need to make changes to the lines that include
-.Fa if_snd .
+.Va if_snd .
 .Ss Empty check operation
 If the code checks
-.Fa ifq_head
+.Va ifq_head
 to see whether the queue is empty or not, use
 .Fn IFQ_IS_EMPTY .
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- if (ifp-\*[Gt]if_snd.ifq_head != NULL)     | if (!IFQ_IS_EMPTY(\*[Am]ifp-\*[Gt]if_snd))
+ if (ifp->if_snd.ifq_head != NULL)     | if (!IFQ_IS_EMPTY(&ifp->if_snd))
                                        |
 .Ed
 .Fn IFQ_IS_EMPTY
-checks only if there is any packet stored in the queue.
+only checks if there is any packet stored in the queue.
 Note that even when
 .Fn IFQ_IS_EMPTY
 is
@@ -425,7 +434,7 @@ due to rate-limiting.
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- IF_DEQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);          | IFQ_DEQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);
+ IF_DEQUEUE(&ifp->if_snd, m);          | IFQ_DEQUEUE(&ifp->if_snd, m);
                                        | if (m == NULL)
                                        |     return;
                                        |
@@ -442,17 +451,17 @@ and
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
-                                       | IFQ_LOCK(\*[Am]ifp-\*[Gt]if_snd);
- m = ifp-\*[Gt]if_snd.ifq_head;             | IFQ_POLL_NOLOCK(\*[Am]ifp-\*[Gt]if_snd, m);
+                                       | IFQ_LOCK(&ifp->if_snd);
+ m = ifp->if_snd.ifq_head;             | IFQ_POLL_NOLOCK(&ifp->if_snd, m);
  if (m != NULL) {                      | if (m != NULL) {
                                        |
      /* use m to get resources */      |     /* use m to get resources */
      if (something goes wrong)         |     if (something goes wrong)
-                                       |         IFQ_UNLOCK(\*[Am]ifp-\*[Gt]if_snd);
+                                       |         IFQ_UNLOCK(&ifp->if_snd);
          return;                       |         return;
                                        |
-     IF_DEQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);      |     IFQ_DEQUEUE_NOLOCK(\*[Am]ifp-\*[Gt]if_snd, m);
-                                       |     IFQ_UNLOCK(\*[Am]ifp-\*[Gt]if_snd);
+     IF_DEQUEUE(&ifp->if_snd, m);      |     IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
+                                       |     IFQ_UNLOCK(&ifp->if_snd);
                                        |
      /* kick the hardware */           |     /* kick the hardware */
  }                                     | }
@@ -465,27 +474,27 @@ under the same lock as a previous
 returns the same packet.
 Note that they need to be guarded by
 .Fn IFQ_LOCK .
-.Ss Eliminating IF_PREPEND
+.Ss Eliminating Fn IF_PREPEND
 If the code uses
 .Fn IF_PREPEND ,
 you have to eliminate it unless you can use a
-.Ql driver managed
-queue which allows use of
+.Dq "driver managed"
+queue which allows the use of
 .Fn IFQ_DRV_PREPEND
 as a substitute.
-A common use of
+A common usage of
 .Fn IF_PREPEND
 is to cancel the previous dequeue operation.
 You have to convert the logic into poll-and-dequeue.
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
-                                       | IFQ_LOCK(\*[Am]ifp-\*[Gt]if_snd);
- IF_DEQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);          | IFQ_POLL_NOLOCK(\*[Am]ifp-\*[Gt]if_snd, m);
+                                       | IFQ_LOCK(&ifp->if_snd);
+ IF_DEQUEUE(&ifp->if_snd, m);          | IFQ_POLL_NOLOCK(&ifp->if_snd, m);
  if (m != NULL) {                      | if (m != NULL) {
                                        |
      if (something_goes_wrong) {       |     if (something_goes_wrong) {
-         IF_PREPEND(\*[Am]ifp-\*[Gt]if_snd, m);  |         IFQ_UNLOCK(\*[Am]ifp-\*[Gt]if_snd);
+         IF_PREPEND(&ifp->if_snd, m);  |         IFQ_UNLOCK(&ifp->if_snd);
          return;                       |         return;
      }                                 |     }
                                        |
@@ -493,8 +502,8 @@ You have to convert the logic into poll-and-dequeue.
                                        |      * is committed to send this
                                        |      * packet.
                                        |      */
-                                       |     IFQ_DEQUEUE_NOLOCK(\*[Am]ifp-\*[Gt]if_snd, m);
-                                       |     IFQ_UNLOCK(\*[Am]ifp-\*[Gt]if_snd);
+                                       |     IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
+                                       |     IFQ_UNLOCK(&ifp->if_snd);
                                        |
      /* kick the hardware */           |     /* kick the hardware */
  }                                     | }
@@ -508,24 +517,24 @@ Note that a non-work conserving queue cannot be emptied by a dequeue loop.
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- while (ifp-\*[Gt]if_snd.ifq_head != NULL) {|  IFQ_PURGE(\*[Am]ifp-\*[Gt]if_snd);
-     IF_DEQUEUE(\*[Am]ifp-\*[Gt]if_snd, m);      |
+ while (ifp->if_snd.ifq_head != NULL) {|  IFQ_PURGE(&ifp->if_snd);
+     IF_DEQUEUE(&ifp->if_snd, m);      |
      m_freem(m);                       |
  }                                     |
                                        |
 .Ed
 .Ss Conversion using a driver managed queue
 Convert
-.Fn IF_XXX
+.Fn IF_*
 macros to their equivalent
-.Fn IFQ_DRV_XXX
+.Fn IFQ_DRV_*
 and employ
 .Fn IFQ_DRV_IS_EMPTY
-where appropriate
+where appropriate.
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- if (ifp-\*[Gt]if_snd.ifq_head != NULL)     | if (!IFQ_DRV_IS_EMPTY(\*[Am]ifp-\*[Gt]if_snd))
+ if (ifp->if_snd.ifq_head != NULL)     | if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                                        |
 .Ed
 Make sure that calls to
@@ -543,13 +552,13 @@ might also be appropriate.
 Use
 .Fn IFQ_SET_MAXLEN
 to set
-.Fa ifq_maxlen
+.Va ifq_maxlen
 to
 .Fa len .
 Initialize
 .Va ifq_drv_maxlen
 with a sensible value if you plan to use the
-.Fn IFQ_DRV_XXX
+.Fn IFQ_DRV_*
 macros.
 Add
 .Fn IFQ_SET_READY
@@ -558,9 +567,9 @@ to show this driver is converted to the new style.
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- ifp-\*[Gt]if_snd.ifq_maxlen = qsize;       | IFQ_SET_MAXLEN(\*[Am]ifp-\*[Gt]if_snd, qsize);
-                                       | ifp-\*[Gt]if_snd.ifq_drv_maxlen = qsize;
-                                       | IFQ_SET_READY(\*[Am]ifp-\*[Gt]if_snd);
+ ifp->if_snd.ifq_maxlen = qsize;       | IFQ_SET_MAXLEN(&ifp->if_snd, qsize);
+                                       | ifp->if_snd.ifq_drv_maxlen = qsize;
+                                       | IFQ_SET_READY(&ifp->if_snd);
  if_attach(ifp);                       | if_attach(ifp);
                                        |
 .Ed
@@ -569,27 +578,25 @@ The new macros for statistics:
 .Bd -literal
             ##old-style##                           ##new-style##
                                        |
- IF_DROP(\*[Am]ifp-\*[Gt]if_snd);                | IFQ_INC_DROPS(\*[Am]ifp-\*[Gt]if_snd);
+ IF_DROP(&ifp->if_snd);                | IFQ_INC_DROPS(&ifp->if_snd);
                                        |
- ifp-\*[Gt]if_snd.ifq_len++;                | IFQ_INC_LEN(\*[Am]ifp-\*[Gt]if_snd);
+ ifp->if_snd.ifq_len++;                | IFQ_INC_LEN(&ifp->if_snd);
                                        |
- ifp-\*[Gt]if_snd.ifq_len--;                | IFQ_DEC_LEN(\*[Am]ifp-\*[Gt]if_snd);
+ ifp->if_snd.ifq_len--;                | IFQ_DEC_LEN(&ifp->if_snd);
                                        |
 .Ed
 .Sh QUEUING DISCIPLINES
 Queuing disciplines need to maintain
 .Fa ifq_len
-.Po
-used by
-.Fn IFQ_IS_EMPTY
-.Pc .
-Queuing disciplines also need to guarantee the same mbuf is returned if
+(used by
+.Fn IFQ_IS_EMPTY ) .
+Queuing disciplines also need to guarantee that the same mbuf is returned if
 .Fn IFQ_DEQUEUE
 is called immediately after
 .Fn IFQ_POLL .
 .Sh SEE ALSO
 .Xr pf 4 ,
-.Xr pf.conf 5
+.Xr pf.conf 5 ,
 .Xr pfctl 8
 .Sh HISTORY
 The
