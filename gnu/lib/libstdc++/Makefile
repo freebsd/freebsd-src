@@ -18,8 +18,8 @@ CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR}
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections -Wno-deprecated
 #LDFLAGS+=	-Wl,-version-info,4:0:0 -Wl,--version-script=${SRCDIR}/src/linker.map
 
-LDADD+=		-lm
-DPADD+=		${LIBM}
+LDADD=		-lm
+DPADD=		${LIBM}
 
 # libstdc++ sources (libstdc++/src/Makefile.in, do not reorder)
 SRCS+= bitset.cc codecvt.cc complex_io.cc concept-inst.cc ctype.cc \

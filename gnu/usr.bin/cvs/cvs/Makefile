@@ -27,8 +27,8 @@ SRCS=	add.c admin.c annotate.c buffer.c \
 CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H \
 	 -I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff -I.
 
-DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
-LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
+DPADD=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
+LDADD=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
 .if !defined(NO_KERBEROS) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 CFLAGS+= -DHAVE_GSSAPI -DHAVE_GSSAPI_H -DENCRYPTION

@@ -28,8 +28,8 @@ LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
 CFLAGS+=	-Wall
-DPADD+=		${LIBMD}
-LDADD+=		-lmd
+DPADD=		${LIBMD}
+LDADD=		-lmd
 SHLIB_MAJOR=	1
 MAN=		libradius.3 radius.conf.5
 

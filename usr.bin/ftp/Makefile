@@ -14,8 +14,8 @@ SRCS=	cmds.c cmdtab.c complete.c domacro.c fetch.c ftp.c main.c progressbar.c \
 	ruserpass.c util.c
 
 CFLAGS+=-I${.CURDIR} -I${LUKEMFTP} -DINET6
-LDADD+=	-ledit -ltermcap -lutil
-DPADD+=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
+LDADD=	-ledit -ltermcap -lutil
+DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
 
 LINKS=	${BINDIR}/ftp ${BINDIR}/pftp \
 	${BINDIR}/ftp ${BINDIR}/gate-ftp

@@ -23,8 +23,9 @@ EXEMODE=	${NOBINMODE}
 
 .if !defined(NO_X) && exists(${XINCDIR}/X11/X.h) && exists(${XLIBDIR}/libX11.a)
 CFLAGS+=	-I${XINCDIR}
-LDADD+=		-L${XLIBDIR} -lX11
-DPADD+=		${XLIBDIR}/libX11.a
+LDFLAGS=	-L${XLIBDIR}
+LDADD=		-lX11
+DPADD=		${XLIBDIR}/libX11.a
 .else
 CFLAGS+=	-DNO_X
 .endif

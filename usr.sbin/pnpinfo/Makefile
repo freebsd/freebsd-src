@@ -13,7 +13,7 @@ CFLAGS+= -DPC98
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-LDADD+=	-lio
+LDADD=	-lio
 DPADD=  ${LIBIO}
 .endif
 

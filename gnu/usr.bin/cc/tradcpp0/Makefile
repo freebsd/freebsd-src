@@ -9,8 +9,8 @@ SRCS=	tradcpp.c tradcif+%DIKED.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 
-DPADD+=	${LIBCC_INT}
-LDADD+=	${LIBCC_INT}
+DPADD=	${LIBCC_INT}
+LDADD=	${LIBCC_INT}
 
 tradcif+%DIKED.c: tradcif.c
 	sed -e "s/malloc/xmalloc/g" \

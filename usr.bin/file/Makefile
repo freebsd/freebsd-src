@@ -33,8 +33,8 @@ MAGICPATH=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${SRCDIR}
 
-LDADD+=	-lz
-DPADD+=	${LIBZ}
+LDADD=	-lz
+DPADD=	${LIBZ}
 
 CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
 
