@@ -294,6 +294,8 @@ __CONCAT(dname,_detach)(self, flags) \
 
 typedef struct thread *usb_proc_ptr;
 
+#define uio_procp uio_td
+
 /* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
