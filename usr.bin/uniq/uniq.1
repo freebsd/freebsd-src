@@ -68,9 +68,9 @@ Precede each output line with the count of the number of times the line
 occurred in the input, followed by a single space.
 .It Fl d
 Only output lines that are repeated in the input.
-.It Fl f Ar fields
+.It Fl f Ar num
 Ignore the first
-.Ar fields
+.Ar num
 in each input line when doing comparisons.
 A field is a string of non-blank characters separated from adjacent fields
 by blanks.
@@ -84,7 +84,7 @@ If specified in conjunction with the
 option, the first
 .Ar chars
 characters after the first
-.Ar fields
+.Ar num
 fields will be ignored.
 Character numbers are one based, i.e. the first character is character one.
 .It Fl u
