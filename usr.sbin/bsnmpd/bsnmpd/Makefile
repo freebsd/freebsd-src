@@ -2,7 +2,8 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-.PATH:	${.CURDIR}/../../../contrib/bsnmp/snmpd
+CONTRIB=${.CURDIR}/../../../contrib/bsnmp
+.PATH:	${CONTRIB}/snmpd
 
 PROG=	bsnmpd
 SRCS=	oid.h tree.h tree.c main.c action.c config.c export.c trap.c
@@ -19,7 +20,8 @@ INCSDIR= ${INCLUDEDIR}/bsnmp
 # snmpdmod is installed in lib/libbsnmp/modules
 # INCS=	snmpmod.h
 
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../lib -I${.OBJDIR} -I${INCLUDEDIR}/bsnmp
+CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../lib -I${.OBJDIR} \
+	 -I${CONTRIB}/lib -I${CONTRIB}/snmpd
 DPADD+=	${LIBISC} ${LIBBSNMP}
 LDADD=	-lisc -lbsnmp
 
