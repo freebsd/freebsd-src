@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.18 1997/02/22 15:42:54 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -11,7 +11,6 @@ SUBDIR+=	doc
 LIB=		g++
 SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
-CPLUSPLUSLIB=	1	# include c++rt0.o for static constructors
 
 CFLAGS+=	-I${GPPDIR}/include -I/usr/include/g++
 CXXFLAGS+=	-I${GPPDIR}/include -I${GPPDIR}/libio -I${GPPDIR}/libstdc++
