@@ -47,16 +47,21 @@
 .Cd "options CY_PCI_FASTINTR"
 .Pp
 For one (PCI or ISA) card:
+.Bd -ragged -offset indent -compact
 .Cd "device cy 1"
+.Pp
 For one ISA card, in
 .Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
 .Cd hint.cy.0.irq="10"
 .Cd hint.cy.0.maddr="0xd4000"
 .Cd hint.cy.0.msize="0x2000"
+.Ed
 .Pp
 For two (PCI and/or ISA) cards:
+.Bd -ragged -offset indent -compact
 .Cd "device cy 2"
+.Pp
 For two ISA cards, in
 .Pa /boot/device.hints :
 .Cd hint.cy.0.at="isa"
@@ -67,10 +72,10 @@ For two ISA cards, in
 .Cd hint.cy.1.irq="11"
 .Cd hint.cy.1.maddr="0xd6000"
 .Cd hint.cy.1.msize="0x2000"
+.Ed
 .Pp
 Minor numbering:
-.Pp
-.Bd -literal
+.Bd -literal -offset indent -compact
 0b\fIMMMMMMMMMMMMMMMMxxxxxxxxOLIMMMMM\fR
                           call\fBO\fRut
                            \fBL\fRock
