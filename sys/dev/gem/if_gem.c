@@ -234,11 +234,6 @@ gem_attach(sc)
 	 * allocated.
 	 */
 
-	/* Announce ourselves. */
-	device_printf(sc->sc_dev, "Ethernet address:");
-	for (i = 0; i < 6; i++)
-		printf("%c%02x", i > 0 ? ':' : ' ', sc->sc_arpcom.ac_enaddr[i]);
-
 	/* Get RX FIFO size */
 	sc->sc_rxfifosize = 64 *
 	    bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_FIFO_SIZE);
