@@ -869,7 +869,7 @@ mroute_encap_input(struct mbuf *m, int off)
 
     m->m_pkthdr.rcvif = last_encap_vif->v_ifp;
 
-    netisr_queue(NETISR_IP, m);
+    netisr_queue(NETISR_IP, m);		/* mbuf is free'd on failure. */
     /*
      * normally we would need a "schednetisr(NETISR_IP)"
      * here but we were called by ip_input and it is going

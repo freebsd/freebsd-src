@@ -480,7 +480,7 @@ retry:
 		/*
 		 * Schedule callback
 		 */
-		if (! netisr_queue(NETISR_ATM, mhead)) {
+		if (netisr_queue(NETISR_ATM, mhead)) {	/* (0) on success. */
 			fup->fu_stats->st_drv.drv_rv_ifull++;
 			goto free_ent;
 		}

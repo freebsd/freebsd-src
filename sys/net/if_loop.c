@@ -311,7 +311,7 @@ if_simloop(ifp, m, af, hlen)
 	}
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
-	netisr_queue(isr, m);
+	netisr_queue(isr, m);	/* mbuf is free'd on failure. */
 	return (0);
 }
 
