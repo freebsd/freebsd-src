@@ -212,7 +212,7 @@ umountfs(name, typelist)
 	struct timeval pertry, try;
 	CLIENT *clp;
 	int so;
-	char *type, *delimp, *hostp, *mntpt, rname[MAXPATHLEN];
+	char *type, *delimp, *hostp, *mntpt, *newname, rname[MAXPATHLEN];
 
 	if (realpath(name, rname) == NULL) {
 		/* Continue and let the system call check it... */
@@ -233,11 +233,12 @@ umountfs(name, typelist)
 		}
 		name = rname;
 	} else if (S_ISDIR(sb.st_mode)) {
-		if ((name = getmntname(rname, MNTFROM, &type)) == NULL) {
+		mntpt = rname;
+		if ((newname = getmntname(mntpt, MNTFROM, &type)) == NULL) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
-		mntpt = rname;
+		newname = name;
 	} else {
 		warnx("%s: not a directory or special device", name);
 		return (1);
