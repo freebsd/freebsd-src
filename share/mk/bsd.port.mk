@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.220 1996/08/17 10:16:02 asami Exp $
+# $Id: bsd.port.mk,v 1.221 1996/08/18 10:53:16 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -112,23 +112,25 @@
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
 #				  by setting ${INTERACTIVE}.
-# FETCH_DEPENDS - A list of "prog:dir" pairs of other ports this
-#				  package depends in the "fetch" stage.  "prog" is the
-#				  name of an executable.  make will search your $PATH
-#				  for it and go into "dir" to do a "make all install"
-#				  if it's not found.
-# BUILD_DEPENDS - A list of "prog:dir" pairs of other ports this
-#				  package depends to build (between the "extract"
-#				  and "build" stages, inclusive).  "prog" is the name
-#				  of an executable.  make will search your $PATH for
-#				  it and go into "dir" to do a "make all install" if
-#				  it's not found.
-# RUN_DEPENDS	- A list of "prog:dir" pairs of other ports this package
-#				  depends to run.  "prog" is the name of an
-#				  executable.  make will search your $PATH for it and
-#				  go into "dir" to do a "make all install" if it's not
-#				  found.  This will be build during the "install" stage
-#				  and its name will be put into the package as well.
+# FETCH_DEPENDS - A list of "path:dir" pairs of other ports this
+#				  package depends in the "fetch" stage.  "path" is the
+#				  name of a file if it starts with a slash (/), an
+#				  executable otherwise.  make will test for the
+#				  existence (if it is a full pathname) or search for
+#				  it in your $PATH (if it is an executable) and go
+#				  into "dir" to do a "make all install" if it's not
+#				  found.
+# BUILD_DEPENDS - A list of "path:dir" pairs of other ports this
+#				  package depends to build (between the "extract" and
+#				  "build" stages, inclusive).  The test done to
+#				  determine the existence of the dependency is the
+#				  same as FETCH_DEPENDS.
+# RUN_DEPENDS	- A list of "path:dir" pairs of other ports this
+#				  package depends to run.  The test done to determine
+#				  the existence of the dependency is the same as
+#				  FETCH_DEPENDS.  This will be checked during the
+#				  "install" stage and the name of the dependency will
+#				  be put into the package as well.
 # LIB_DEPENDS	- A list of "lib:dir" pairs of other ports this package
 #				  depends on.  "lib" is the name of a shared library.
 #				  make will use "ldconfig -r" to search for the
