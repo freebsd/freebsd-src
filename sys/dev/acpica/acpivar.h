@@ -215,7 +215,7 @@ void		acpi_EnterDebugger(void);
 #define ACPI_DEVINFO_PRESENT(x)	(((x) & 0x9) == 9)
 BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
-BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
+BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, char *hid);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 		    ACPI_HANDLE *result);
 uint32_t	acpi_TimerDelta(uint32_t end, uint32_t start);
@@ -270,6 +270,8 @@ struct acpi_parse_resource_set {
 extern struct	acpi_parse_resource_set acpi_res_parse_set;
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
+extern struct	rman acpi_rman_io, acpi_rman_mem;
+struct resource_list_entry *acpi_sysres_find(int type, u_long addr);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);

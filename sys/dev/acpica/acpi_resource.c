@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 
 #include <machine/bus.h>
@@ -537,72 +538,125 @@ acpi_res_set_end_dependant(device_t dev, void *context)
 }
 
 /*
- * Resource-owning placeholders.
+ * Resource-owning placeholders for IO and memory pseudo-devices.
  *
- * This code "owns" system resource objects that aren't
- * otherwise useful to devices, and which shouldn't be
- * considered "free".
- *
- * Note that some systems claim *all* of the physical address space
- * with a PNP0C01 device, so we cannot correctly "own" system memory
- * here (must be done in the SMAP handler on x86 systems, for
- * example).
+ * This code allocates system resource objects that will be owned by ACPI
+ * child devices.  Really, the acpi parent device should have the resources
+ * but this would significantly affect the device probe code.
  */
 
-static int	acpi_sysresource_probe(device_t dev);
-static int	acpi_sysresource_attach(device_t dev);
+static int	acpi_sysres_probe(device_t dev);
+static int	acpi_sysres_attach(device_t dev);
 
-static device_method_t acpi_sysresource_methods[] = {
+static device_method_t acpi_sysres_methods[] = {
     /* Device interface */
-    DEVMETHOD(device_probe,	acpi_sysresource_probe),
-    DEVMETHOD(device_attach,	acpi_sysresource_attach),
+    DEVMETHOD(device_probe,	acpi_sysres_probe),
+    DEVMETHOD(device_attach,	acpi_sysres_attach),
 
     {0, 0}
 };
 
-static driver_t acpi_sysresource_driver = {
+static driver_t acpi_sysres_driver = {
     "acpi_sysresource",
-    acpi_sysresource_methods,
+    acpi_sysres_methods,
     0,
 };
 
-static devclass_t acpi_sysresource_devclass;
-DRIVER_MODULE(acpi_sysresource, acpi, acpi_sysresource_driver,
-	      acpi_sysresource_devclass, 0, 0);
+static devclass_t acpi_sysres_devclass;
+DRIVER_MODULE(acpi_sysresource, acpi, acpi_sysres_driver, acpi_sysres_devclass,
+    0, 0);
 MODULE_DEPEND(acpi_sysresource, acpi, 1, 1, 1);
 
 static int
-acpi_sysresource_probe(device_t dev)
+acpi_sysres_probe(device_t dev)
 {
-    if (!acpi_disabled("sysresource") && acpi_MatchHid(dev, "PNP0C02"))
-	device_set_desc(dev, "System Resource");
-    else
+    ACPI_HANDLE h;
+
+    h = acpi_get_handle(dev);
+    if (acpi_disabled("sysresource") ||
+	(!acpi_MatchHid(h, "PNP0C01") && !acpi_MatchHid(h, "PNP0C02")))
 	return (ENXIO);
 
+    device_set_desc(dev, "System Resource");
     device_quiet(dev);
     return (-100);
 }
 
 static int
-acpi_sysresource_attach(device_t dev)
+acpi_sysres_attach(device_t dev)
 {
-    struct resource	*res;
-    int			i, rid;
+    device_t gparent;
+    struct resource *res;
+    struct rman *rm;
+    struct resource_list_entry *rle;
+    struct resource_list *rl;
 
     /*
-     * Suck up all the resources that might have been assigned to us.
-     * Note that it's impossible to tell the difference between a
-     * resource that someone else has claimed, and one that doesn't
-     * exist.
+     * Pre-allocate/manage all memory and IO resources.  We detect duplicates
+     * by setting rle->res to the resource we got from the parent.  We can't
+     * ignore them since rman can't handle duplicates.
      */
-    for (i = 0; i < 100; i++) {
-	rid = i;
-	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, 0);
-	rid = i;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
-	rid = i;
-	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE);
+    rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+    SLIST_FOREACH(rle, rl, link) {
+	if (rle->res != NULL) {
+	    device_printf(dev, "duplicate resource for %lx\n", rle->start);
+	    continue;
+	}
+
+	/* Only memory and IO resources are valid here. */
+	switch (rle->type) {
+	case SYS_RES_IOPORT:
+	    rm = &acpi_rman_io;
+	    break;
+	case SYS_RES_MEMORY:
+	    rm = &acpi_rman_mem;
+	    break;
+	default:
+	    continue;
+	}
+
+	/* Pre-allocate resource and add to our rman pool. */
+	gparent = device_get_parent(device_get_parent(dev));
+	res = BUS_ALLOC_RESOURCE(gparent, dev, rle->type, &rle->rid,
+	    rle->start, rle->start + rle->count - 1, rle->count, 0);
+	if (res != NULL) {
+	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
+	    rle->res = res;
+	}
     }
 
     return (0);
+}
+
+struct resource_list_entry *
+acpi_sysres_find(int type, u_long addr)
+{
+    device_t *devs;
+    int i, numdevs;
+    struct resource_list *rl;
+    struct resource_list_entry *rle;
+
+    /* We only consider IO and memory resources for our pool. */
+    rle = NULL;
+    if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
+        return (rle);
+
+    /* Find all the sysresource devices. */
+    if (devclass_get_devices(acpi_sysres_devclass, &devs, &numdevs) != 0)
+	return (rle);
+
+    /* Check each device for a resource that contains "addr". */
+    for (i = 0; i < numdevs && rle == NULL; i++) {
+	rl = BUS_GET_RESOURCE_LIST(device_get_parent(devs[i]), devs[i]);
+	if (rl == NULL)
+	    continue;
+	SLIST_FOREACH(rle, rl, link) {
+	    if (type == rle->type && addr >= rle->start &&
+		addr < rle->start + rle->count)
+		break;
+	}
+    }
+
+    free(devs, M_TEMP);
+    return (rle);
 }
