@@ -400,7 +400,8 @@ terminfo.5:	MKterminfo.sh terminfo.head Caps
 	    ${NCURSES}/include/Caps ${NCURSES}/man/terminfo.tail >$@
 
 CLEANFILES+=	terminfo.5
-MANFILTER=	sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g'
+MANFILTER=      sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g' \
+		    -e 's%@NCURSES_OSPEED@%${NCURSES_OSPEED}%g'
 
 MANx=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_beep.3x curs_bkgd.3x curs_border.3x curs_clear.3x curs_color.3x \
