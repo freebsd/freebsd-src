@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_inherit.h,v 1.2 1994/08/02 07:55:20 davidg Exp $
+ * $Id: vm_inherit.h,v 1.3 1995/01/09 16:05:41 davidg Exp $
  */
 
 /*
@@ -78,7 +78,6 @@
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)	/* share with child */
 #define	VM_INHERIT_COPY		((vm_inherit_t) 1)	/* copy into child */
 #define VM_INHERIT_NONE		((vm_inherit_t) 2)	/* absent from child */
-#define	VM_INHERIT_DONATE_COPY	((vm_inherit_t) 3)	/* copy and delete */
 
 #define VM_INHERIT_DEFAULT	VM_INHERIT_COPY
 

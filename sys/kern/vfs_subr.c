@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.32 1995/06/28 12:00:55 davidg Exp $
+ * $Id: vfs_subr.c,v 1.33 1995/07/08 04:10:32 davidg Exp $
  */
 
 /*
@@ -512,10 +512,8 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	 */
 	object = vp->v_object;
 	if (object != NULL) {
-		vm_object_lock(object);
 		vm_object_page_remove(object, 0, object->size,
 		    (flags & V_SAVE) ? TRUE : FALSE);
-		vm_object_unlock(object);
 	}
 	if (!(flags & V_SAVEMETA) &&
 	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
@@ -1533,11 +1531,7 @@ loop:
 			continue;
 		if (vp->v_object &&
 		   (((vm_object_t) vp->v_object)->flags & OBJ_WRITEABLE)) {
-			if (vget(vp, 1))
-				goto loop;
-			_vm_object_page_clean(vp->v_object,
-					0, 0, TRUE);
-			vput(vp);
+			vm_object_page_clean(vp->v_object, 0, 0, TRUE, TRUE);
 		}
 	}
 }

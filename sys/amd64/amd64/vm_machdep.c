@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.38 1995/05/18 09:17:07 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.39 1995/05/30 07:59:46 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -56,6 +56,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
 #include <i386/isa/isa.h>
 

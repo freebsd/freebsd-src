@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.24 1995/05/18 02:59:22 davidg Exp $
+ * $Id: vm_fault.c,v 1.25 1995/05/30 08:15:59 rgrimes Exp $
  */
 
 /*
@@ -76,6 +76,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 #include <sys/resource.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
@@ -84,18 +85,15 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 
 int vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int, vm_page_t *, int *));
 
 #define VM_FAULT_READ_AHEAD 4
-#define VM_FAULT_READ_AHEAD_MIN 1
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
 extern int swap_pager_full;
-
-struct vnode *vnode_pager_lock __P((vm_object_t object));
-void vnode_pager_unlock __P((struct vnode *));
-
 
 /*
  *	vm_fault:
@@ -148,16 +146,12 @@ vm_fault(map, vaddr, fault_type, change_wiring)
  */
 #define	FREE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
-	vm_page_lock_queues();				\
 	vm_page_free(m);				\
-	vm_page_unlock_queues();			\
 }
 
 #define	RELEASE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
-	vm_page_lock_queues();				\
 	if ((m->flags & PG_ACTIVE) == 0) vm_page_activate(m);		\
-	vm_page_unlock_queues();			\
 }
 
 #define	UNLOCK_MAP	{				\
@@ -169,15 +163,12 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 
 #define	UNLOCK_THINGS	{				\
 	vm_object_pip_wakeup(object); \
-	vm_object_unlock(object);			\
 	if (object != first_object) {			\
-		vm_object_lock(first_object);		\
 		FREE_PAGE(first_m);			\
 		vm_object_pip_wakeup(first_object); \
-		vm_object_unlock(first_object);		\
 	}						\
 	UNLOCK_MAP;					\
-	if (vp != NULL) vnode_pager_unlock(vp);		\
+	if (vp != NULL) VOP_UNLOCK(vp);			\
 }
 
 #define	UNLOCK_AND_DEALLOCATE	{			\
@@ -198,7 +189,7 @@ RetryFault:;
 		return (result);
 	}
 
-	vp = (struct vnode *) vnode_pager_lock(first_object);
+	vp = vnode_pager_lock(first_object);
 
 	lookup_still_valid = TRUE;
 
@@ -214,8 +205,6 @@ RetryFault:;
 	 * they will stay around as well.
 	 */
 
-	vm_object_lock(first_object);
-
 	first_object->ref_count++;
 	first_object->paging_in_progress++;
 
@@ -223,7 +212,7 @@ RetryFault:;
 	 * INVARIANTS (through entire routine):
 	 *
 	 * 1)	At all times, we must either have the object lock or a busy
-	 * page in some object to prevent some other thread from trying to
+	 * page in some object to prevent some other process from trying to
 	 * bring in the same page.
 	 *
 	 * Note that we cannot hold any locks during the pager access or when
@@ -237,7 +226,7 @@ RetryFault:;
 	 * 2)	Once we have a busy page, we must remove it from the pageout
 	 * queues, so that the pageout daemon will not grab it away.
 	 *
-	 * 3)	To prevent another thread from racing us down the shadow chain
+	 * 3)	To prevent another process from racing us down the shadow chain
 	 * and entering a new page in the top object before we do, we must
 	 * keep a busy page in the top object while following the shadow
 	 * chain.
@@ -273,7 +262,7 @@ RetryFault:;
 				if ((m->flags & PG_BUSY) || m->busy) {
 					m->flags |= PG_WANTED | PG_REFERENCED;
 					cnt.v_intrans++;
-					tsleep((caddr_t) m, PSWP, "vmpfw", 0);
+					tsleep(m, PSWP, "vmpfw", 0);
 				}
 				splx(s);
 				vm_object_deallocate(first_object);
@@ -288,7 +277,7 @@ RetryFault:;
 			}
 
 			/*
-			 * Mark page busy for other threads, and the pagedaemon.
+			 * Mark page busy for other processes, and the pagedaemon.
 			 */
 			m->flags |= PG_BUSY;
 			if (m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
@@ -297,16 +286,18 @@ RetryFault:;
 			}
 			break;
 		}
-		if (((object->pager != NULL) && (!change_wiring || wired))
+		if (((object->type != OBJT_DEFAULT) && (!change_wiring || wired))
 		    || (object == first_object)) {
 
 			if (offset >= object->size) {
 				UNLOCK_AND_DEALLOCATE;
 				return (KERN_PROTECTION_FAILURE);
 			}
-			if (swap_pager_full && !object->shadow && (!object->pager ||
-				(object->pager && object->pager->pg_type == PG_SWAP &&
-				    !vm_pager_has_page(object->pager, offset + object->paging_offset)))) {
+#if 0	/* XXX is this really necessary? */
+			if (swap_pager_full && !object->backing_object &&
+			    (object->type == OBJT_DEFAULT ||
+			    (object->type == OBJT_SWAP && 
+			     !vm_pager_has_page(object, offset + object->paging_offset, NULL, NULL)))) {
 				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) {	/* XXX */
 					printf("Process %lu killed by vm_fault -- out of swap\n", (u_long) curproc->p_pid);
 					psignal(curproc, SIGKILL);
@@ -315,6 +306,7 @@ RetryFault:;
 					resetpriority(curproc);
 				}
 			}
+#endif
 			/*
 			 * Allocate a new page for this object/offset pair.
 			 */
@@ -328,16 +320,11 @@ RetryFault:;
 			}
 		}
 readrest:
-		if (object->pager != NULL && (!change_wiring || wired)) {
+		if (object->type != OBJT_DEFAULT && (!change_wiring || wired)) {
 			int rv;
 			int faultcount;
 			int reqpage;
 
-			/*
-			 * Now that we have a busy page, we can release the
-			 * object lock.
-			 */
-			vm_object_unlock(object);
 			/*
 			 * now we find out if any other pages should be paged
 			 * in at this time this routine checks to see if the
@@ -362,14 +349,13 @@ readrest:
 			UNLOCK_MAP;
 
 			rv = faultcount ?
-			    vm_pager_get_pages(object->pager,
-			    marray, faultcount, reqpage, TRUE) : VM_PAGER_FAIL;
+			    vm_pager_get_pages(object, marray, faultcount,
+				reqpage) : VM_PAGER_FAIL;
 			if (rv == VM_PAGER_OK) {
 				/*
 				 * Found the page. Leave it busy while we play
 				 * with it.
 				 */
-				vm_object_lock(object);
 
 				/*
 				 * Relookup in case pager changed page. Pager
@@ -392,11 +378,11 @@ readrest:
 			 * object/offset); before doing so, we must get back
 			 * our object lock to preserve our invariant.
 			 *
-			 * Also wake up any other thread that may want to bring
+			 * Also wake up any other process that may want to bring
 			 * in this page.
 			 *
 			 * If this is the top-level object, we must leave the
-			 * busy page to prevent another thread from rushing
+			 * busy page to prevent another process from rushing
 			 * past us, and inserting the page in that object at
 			 * the same time that we are.
 			 */
@@ -404,7 +390,6 @@ readrest:
 			if (rv == VM_PAGER_ERROR)
 				printf("vm_fault: pager input (probably hardware) error, PID %d failure\n",
 				    curproc->p_pid);
-			vm_object_lock(object);
 			/*
 			 * Data outside the range of the pager or an I/O error
 			 */
@@ -427,7 +412,7 @@ readrest:
 			}
 		}
 		/*
-		 * We get here if the object has no pager (or unwiring) or the
+		 * We get here if the object has default pager (or unwiring) or the
 		 * pager doesn't have the page.
 		 */
 		if (object == first_object)
@@ -438,8 +423,8 @@ readrest:
 		 * unlocking the current one.
 		 */
 
-		offset += object->shadow_offset;
-		next_object = object->shadow;
+		offset += object->backing_object_offset;
+		next_object = object->backing_object;
 		if (next_object == NULL) {
 			/*
 			 * If there's no object left, fill the page in the top
@@ -447,12 +432,10 @@ readrest:
 			 */
 			if (object != first_object) {
 				vm_object_pip_wakeup(object);
-				vm_object_unlock(object);
 
 				object = first_object;
 				offset = first_offset;
 				m = first_m;
-				vm_object_lock(object);
 			}
 			first_m = NULL;
 
@@ -461,11 +444,9 @@ readrest:
 			cnt.v_zfod++;
 			break;
 		} else {
-			vm_object_lock(next_object);
 			if (object != first_object) {
 				vm_object_pip_wakeup(object);
 			}
-			vm_object_unlock(object);
 			object = next_object;
 			object->paging_in_progress++;
 		}
@@ -529,19 +510,15 @@ readrest:
 			 * call.
 			 */
 
-			vm_page_lock_queues();
-
 			if ((m->flags & PG_ACTIVE) == 0)
 				vm_page_activate(m);
 			vm_page_protect(m, VM_PROT_NONE);
-			vm_page_unlock_queues();
 
 			/*
 			 * We no longer need the old page or object.
 			 */
 			PAGE_WAKEUP(m);
 			vm_object_pip_wakeup(object);
-			vm_object_unlock(object);
 
 			/*
 			 * Only use the new page below...
@@ -555,9 +532,7 @@ readrest:
 			/*
 			 * Now that we've gotten the copy out of the way,
 			 * let's try to collapse the top object.
-			 */
-			vm_object_lock(object);
-			/*
+			 *
 			 * But we have to play ugly games with
 			 * paging_in_progress to do that...
 			 */
@@ -567,176 +542,6 @@ readrest:
 		} else {
 			prot &= ~VM_PROT_WRITE;
 			m->flags |= PG_COPYONWRITE;
-		}
-	}
-
-	/*
-	 * If the page is being written, but hasn't been copied to the
-	 * copy-object, we have to copy it there.
-	 */
-RetryCopy:
-	if (first_object->copy != NULL) {
-		vm_object_t copy_object = first_object->copy;
-		vm_offset_t copy_offset;
-		vm_page_t copy_m;
-
-		/*
-		 * We only need to copy if we want to write it.
-		 */
-		if ((fault_type & VM_PROT_WRITE) == 0) {
-			prot &= ~VM_PROT_WRITE;
-			m->flags |= PG_COPYONWRITE;
-		} else {
-			/*
-			 * Try to get the lock on the copy_object.
-			 */
-			if (!vm_object_lock_try(copy_object)) {
-				vm_object_unlock(object);
-				/* should spin a bit here... */
-				vm_object_lock(object);
-				goto RetryCopy;
-			}
-			/*
-			 * Make another reference to the copy-object, to keep
-			 * it from disappearing during the copy.
-			 */
-			copy_object->ref_count++;
-
-			/*
-			 * Does the page exist in the copy?
-			 */
-			copy_offset = first_offset
-			    - copy_object->shadow_offset;
-			copy_m = vm_page_lookup(copy_object, copy_offset);
-			page_exists = (copy_m != NULL);
-			if (page_exists) {
-				if ((copy_m->flags & PG_BUSY) || copy_m->busy) {
-					/*
-					 * If the page is being brought in,
-					 * wait for it and then retry.
-					 */
-					RELEASE_PAGE(m);
-					copy_object->ref_count--;
-					vm_object_unlock(copy_object);
-					UNLOCK_THINGS;
-					spl = splhigh();
-					if ((copy_m->flags & PG_BUSY) || copy_m->busy) {
-						copy_m->flags |= PG_WANTED | PG_REFERENCED;
-						tsleep((caddr_t) copy_m, PSWP, "vmpfwc", 0);
-					}
-					splx(spl);
-					vm_object_deallocate(first_object);
-					goto RetryFault;
-				}
-			}
-			/*
-			 * If the page is not in memory (in the object) and
-			 * the object has a pager, we have to check if the
-			 * pager has the data in secondary storage.
-			 */
-			if (!page_exists) {
-
-				/*
-				 * If we don't allocate a (blank) page here...
-				 * another thread could try to page it in,
-				 * allocate a page, and then block on the busy
-				 * page in its shadow (first_object).  Then
-				 * we'd trip over the busy page after we found
-				 * that the copy_object's pager doesn't have
-				 * the page...
-				 */
-				copy_m = vm_page_alloc(copy_object, copy_offset, VM_ALLOC_NORMAL);
-				if (copy_m == NULL) {
-					/*
-					 * Wait for a page, then retry.
-					 */
-					RELEASE_PAGE(m);
-					copy_object->ref_count--;
-					vm_object_unlock(copy_object);
-					UNLOCK_AND_DEALLOCATE;
-					VM_WAIT;
-					goto RetryFault;
-				}
-				if (copy_object->pager != NULL) {
-					vm_object_unlock(object);
-					vm_object_unlock(copy_object);
-					UNLOCK_MAP;
-
-					page_exists = vm_pager_has_page(
-					    copy_object->pager,
-					    (copy_offset + copy_object->paging_offset));
-
-					vm_object_lock(copy_object);
-
-					/*
-					 * Since the map is unlocked, someone
-					 * else could have copied this object
-					 * and put a different copy_object
-					 * between the two.  Or, the last
-					 * reference to the copy-object (other
-					 * than the one we have) may have
-					 * disappeared - if that has happened,
-					 * we don't need to make the copy.
-					 */
-					if (copy_object->shadow != object ||
-					    copy_object->ref_count == 1) {
-						/*
-						 * Gaah... start over!
-						 */
-						FREE_PAGE(copy_m);
-						vm_object_unlock(copy_object);
-						vm_object_deallocate(copy_object);
-						/* may block */
-						vm_object_lock(object);
-						goto RetryCopy;
-					}
-					vm_object_lock(object);
-
-					if (page_exists) {
-						/*
-						 * We didn't need the page
-						 */
-						FREE_PAGE(copy_m);
-					}
-				}
-			}
-			if (!page_exists) {
-				/*
-				 * Must copy page into copy-object.
-				 */
-				vm_page_copy(m, copy_m);
-				copy_m->valid = VM_PAGE_BITS_ALL;
-
-				/*
-				 * Things to remember: 1. The copied page must
-				 * be marked 'dirty' so it will be paged out
-				 * to the copy object. 2. If the old page was
-				 * in use by any users of the copy-object, it
-				 * must be removed from all pmaps.  (We can't
-				 * know which pmaps use it.)
-				 */
-				vm_page_lock_queues();
-
-				if ((old_m->flags & PG_ACTIVE) == 0)
-					vm_page_activate(old_m);
-
-				vm_page_protect(old_m, VM_PROT_NONE);
-				copy_m->dirty = VM_PAGE_BITS_ALL;
-				if ((copy_m->flags & PG_ACTIVE) == 0)
-					vm_page_activate(copy_m);
-				vm_page_unlock_queues();
-
-				PAGE_WAKEUP(copy_m);
-			}
-			/*
-			 * The reference count on copy_object must be at least
-			 * 2: one for our extra reference, and at least one
-			 * from the outside world (we checked that when we
-			 * last locked copy_object).
-			 */
-			copy_object->ref_count--;
-			vm_object_unlock(copy_object);
-			m->flags &= ~PG_COPYONWRITE;
 		}
 	}
 
@@ -754,10 +559,9 @@ RetryCopy:
 		 * Since map entries may be pageable, make sure we can take a
 		 * page fault on them.
 		 */
-		vm_object_unlock(object);
 
 		/*
-		 * To avoid trying to write_lock the map while another thread
+		 * To avoid trying to write_lock the map while another process
 		 * has it read_locked (in vm_map_pageable), we do not try for
 		 * write permission.  If the page is still writable, we will
 		 * get write permission.  If it is not, or has been marked
@@ -766,8 +570,6 @@ RetryCopy:
 		 */
 		result = vm_map_lookup(&map, vaddr, fault_type & ~VM_PROT_WRITE,
 		    &entry, &retry_object, &retry_offset, &retry_prot, &wired, &su);
-
-		vm_object_lock(object);
 
 		/*
 		 * If we don't need the page any longer, put it on the active
@@ -815,8 +617,6 @@ RetryCopy:
 	 * once in each map for which it is wired.
 	 */
 
-	vm_object_unlock(object);
-
 	/*
 	 * Put this page into the physical map. We had to do the unlock above
 	 * because pmap_enter may cause other faults.   We don't put the page
@@ -849,8 +649,6 @@ RetryCopy:
 	 * If the page is not wired down, then put it where the pageout daemon
 	 * can find it.
 	 */
-	vm_object_lock(object);
-	vm_page_lock_queues();
 	if (change_wiring) {
 		if (wired)
 			vm_page_wire(m);
@@ -868,7 +666,6 @@ RetryCopy:
 			curproc->p_stats->p_ru.ru_minflt++;
 		}
 	}
-	vm_page_unlock_queues();
 
 	/*
 	 * Unlock everything, and return
@@ -948,8 +745,6 @@ vm_fault_unwire(map, start, end)
 	 * mappings from the physical map system.
 	 */
 
-	vm_page_lock_queues();
-
 	for (va = start; va < end; va += PAGE_SIZE) {
 		pa = pmap_extract(pmap, va);
 		if (pa == (vm_offset_t) 0) {
@@ -958,7 +753,6 @@ vm_fault_unwire(map, start, end)
 		pmap_change_wiring(pmap, va, FALSE);
 		vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 	}
-	vm_page_unlock_queues();
 
 	/*
 	 * Inform the physical mapping system that the range of addresses may
@@ -1008,7 +802,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	 * Create the top-level object for the destination entry. (Doesn't
 	 * actually shadow anything - we copy the pages directly.)
 	 */
-	dst_object = vm_object_allocate(
+	dst_object = vm_object_allocate(OBJT_DEFAULT,
 	    (vm_size_t) (dst_entry->end - dst_entry->start));
 
 	dst_entry->object.vm_object = dst_object;
@@ -1028,13 +822,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		/*
 		 * Allocate a page in the destination object
 		 */
-		vm_object_lock(dst_object);
 		do {
 			dst_m = vm_page_alloc(dst_object, dst_offset, VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
-				vm_object_unlock(dst_object);
 				VM_WAIT;
-				vm_object_lock(dst_object);
 			}
 		} while (dst_m == NULL);
 
@@ -1043,7 +834,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
-		vm_object_lock(src_object);
 		src_m = vm_page_lookup(src_object, dst_offset + src_offset);
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
@@ -1053,8 +843,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		/*
 		 * Enter it in the pmap...
 		 */
-		vm_object_unlock(src_object);
-		vm_object_unlock(dst_object);
 
 		dst_m->flags |= PG_WRITEABLE;
 		dst_m->flags |= PG_MAPPED;
@@ -1064,12 +852,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
-		vm_object_lock(dst_object);
-		vm_page_lock_queues();
 		vm_page_activate(dst_m);
-		vm_page_unlock_queues();
 		PAGE_WAKEUP(dst_m);
-		vm_object_unlock(dst_object);
 	}
 }
 
@@ -1093,18 +877,16 @@ vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
 	*rtoffset = 0;
 
 	while (!(m = vm_page_lookup(object, offset))) {
-		if (object->pager) {
-			if (vm_pager_has_page(object->pager, object->paging_offset + offset)) {
-				*rtobject = object;
-				*rtoffset = offset;
-				return 1;
-			}
+		if (vm_pager_has_page(object, object->paging_offset + offset, NULL, NULL)) {
+			*rtobject = object;
+			*rtoffset = offset;
+			return 1;
 		}
-		if (!object->shadow)
+		if (!object->backing_object)
 			return 0;
 		else {
-			offset += object->shadow_offset;
-			object = object->shadow;
+			offset += object->backing_object_offset;
+			object = object->backing_object;
 		}
 	}
 	*rtobject = object;
@@ -1155,7 +937,7 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	 * if the requested page is not available, then give up now
 	 */
 
-	if (!vm_pager_has_page(object->pager, object->paging_offset + offset))
+	if (!vm_pager_has_page(object, object->paging_offset + offset, NULL, NULL))
 		return 0;
 
 	/*

@@ -2,7 +2,8 @@
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
- * Copyright (c) 1993,1994 John S. Dyson
+ * Copyright (c) 1993, 1994 John S. Dyson
+ * Copyright (c) 1995, David Greenman
  *
  * This code is derived from software contributed to Berkeley by
  * the Systems Programming Group of the University of Utah Computer
@@ -37,25 +38,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.42 1995/07/06 11:48:48 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.43 1995/07/09 06:58:03 davidg Exp $
  */
 
 /*
  * Page to/from files (vnodes).
- *
- * TODO:
- *	pageouts
- *	fix credential use (uses current process credentials now)
  */
 
 /*
- * 1) Supports multiple - block reads/writes
- * 2) Bypasses buffer cache for reads
- *
  * TODO:
- *	Implement getpage/putpage interface for filesystems.  Should
+ *	Implement VOP_GETPAGES/PUTPAGES interface for filesystems. Will
  *	greatly re-simplify the vnode_pager.
- *
  */
 
 #include <sys/param.h>
@@ -66,64 +59,34 @@
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/mount.h>
+#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-#include <sys/buf.h>
-#include <miscfs/specfs/specdev.h>
-
-int vnode_pager_putmulti();
-
-void vnode_pager_init();
-void vnode_pager_dealloc();
-int vnode_pager_getpage();
-int vnode_pager_getmulti();
-int vnode_pager_putpage();
-boolean_t vnode_pager_haspage();
-
 struct pagerops vnodepagerops = {
-	vnode_pager_init,
+	NULL,
 	vnode_pager_alloc,
 	vnode_pager_dealloc,
-	vnode_pager_getpage,
-	vnode_pager_getmulti,
-	vnode_pager_putpage,
-	vnode_pager_putmulti,
-	vnode_pager_haspage
+	vnode_pager_getpages,
+	vnode_pager_putpages,
+	vnode_pager_haspage,
+	NULL
 };
-
-
-
-static int vnode_pager_input(vn_pager_t vnp, vm_page_t * m, int count, int reqpage);
-static int vnode_pager_output(vn_pager_t vnp, vm_page_t * m, int count, int *rtvals);
-
-extern vm_map_t pager_map;
-
-struct pagerlst vnode_pager_list;	/* list of managed vnodes */
-
-#define MAXBP (PAGE_SIZE/DEV_BSIZE);
-
-void
-vnode_pager_init()
-{
-	TAILQ_INIT(&vnode_pager_list);
-}
 
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.
  */
-vm_pager_t
+vm_object_t
 vnode_pager_alloc(handle, size, prot, offset)
 	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
 	vm_offset_t offset;
 {
-	register vm_pager_t pager;
-	register vn_pager_t vnp;
 	vm_object_t object;
 	struct vnode *vp;
 
@@ -149,49 +112,31 @@ vnode_pager_alloc(handle, size, prot, offset)
 	 * If the object is being terminated, wait for it to
 	 * go away.
 	 */
-	while (((object = vp->v_object) != NULL) && (object->flags & OBJ_DEAD))
+	while (((object = vp->v_object) != NULL) && (object->flags & OBJ_DEAD)) {
 		tsleep(object, PVM, "vadead", 0);
+	}
 
-	pager = NULL;
-	if (object != NULL)
-		pager = object->pager;
-	if (pager == NULL) {
-
-		/*
-		 * Allocate pager structures
-		 */
-		pager = (vm_pager_t) malloc(sizeof *pager, M_VMPAGER, M_WAITOK);
-		vnp = (vn_pager_t) malloc(sizeof *vnp, M_VMPGDATA, M_WAITOK);
-
+	if (object == NULL) {
 		/*
 		 * And an object of the appropriate size
 		 */
-		object = vm_object_allocate(round_page(size));
+		object = vm_object_allocate(OBJT_VNODE, round_page(size));
 		object->flags = OBJ_CANPERSIST;
-		vm_object_enter(object, pager);
-		object->pager = pager;
 
 		/*
-		 * Hold a reference to the vnode and initialize pager data.
+		 * Hold a reference to the vnode and initialize object data.
 		 */
 		VREF(vp);
-		vnp->vnp_flags = 0;
-		vnp->vnp_vp = vp;
-		vnp->vnp_size = size;
+		object->un_pager.vnp.vnp_size = size;
 
-		TAILQ_INSERT_TAIL(&vnode_pager_list, pager, pg_list);
-		pager->pg_handle = handle;
-		pager->pg_type = PG_VNODE;
-		pager->pg_ops = &vnodepagerops;
-		pager->pg_data = (caddr_t) vnp;
-		vp->v_object = (caddr_t) object;
+		object->handle = handle;
+		vp->v_object = object;
 	} else {
-
 		/*
-		 * vm_object_lookup() will remove the object from the cache if
-		 * found and also gain a reference to the object.
+		 * vm_object_reference() will remove the object from the cache if
+		 * found and gain a reference to the object.
 		 */
-		(void) vm_object_lookup(pager);
+		vm_object_reference(object);
 	}
 
 	if (vp->v_type == VREG)
@@ -202,134 +147,97 @@ vnode_pager_alloc(handle, size, prot, offset)
 		vp->v_flag &= ~VOWANT;
 		wakeup(vp);
 	}
-	return (pager);
+	return (object);
 }
 
 void
-vnode_pager_dealloc(pager)
-	vm_pager_t pager;
-{
-	register vn_pager_t vnp = (vn_pager_t) pager->pg_data;
-	register struct vnode *vp;
+vnode_pager_dealloc(object)
 	vm_object_t object;
+{
+	register struct vnode *vp = object->handle;
 
-	vp = vnp->vnp_vp;
-	if (vp) {
+	if (vp == NULL)
+		panic("vnode_pager_dealloc: pager already dealloced");
+
+	if (object->paging_in_progress) {
 		int s = splbio();
-
-		object = vp->v_object;
-		if (object) {
-			while (object->paging_in_progress) {
-				object->flags |= OBJ_PIPWNT;
-				tsleep(object, PVM, "vnpdea", 0);
-			}
+		while (object->paging_in_progress) {
+			object->flags |= OBJ_PIPWNT;
+			tsleep(object, PVM, "vnpdea", 0);
 		}
 		splx(s);
-
-		vp->v_object = NULL;
-		vp->v_flag &= ~(VTEXT | VVMIO);
-		vp->v_flag |= VAGE;
-		vrele(vp);
 	}
-	TAILQ_REMOVE(&vnode_pager_list, pager, pg_list);
-	free((caddr_t) vnp, M_VMPGDATA);
-	free((caddr_t) pager, M_VMPAGER);
-}
 
-int
-vnode_pager_getmulti(pager, m, count, reqpage, sync)
-	vm_pager_t pager;
-	vm_page_t *m;
-	int count;
-	int reqpage;
-	boolean_t sync;
-{
+	object->handle = NULL;
 
-	return vnode_pager_input((vn_pager_t) pager->pg_data, m, count, reqpage);
-}
-
-int
-vnode_pager_getpage(pager, m, sync)
-	vm_pager_t pager;
-	vm_page_t m;
-	boolean_t sync;
-{
-
-	vm_page_t marray[1];
-
-	if (pager == NULL)
-		return FALSE;
-	marray[0] = m;
-
-	return vnode_pager_input((vn_pager_t) pager->pg_data, marray, 1, 0);
+	vp->v_object = NULL;
+	vp->v_flag &= ~(VTEXT | VVMIO);
+	vp->v_flag |= VAGE;
+	vrele(vp);
 }
 
 boolean_t
-vnode_pager_putpage(pager, m, sync)
-	vm_pager_t pager;
-	vm_page_t m;
-	boolean_t sync;
-{
-	vm_page_t marray[1];
-	int rtvals[1];
-
-	if (pager == NULL)
-		return FALSE;
-	marray[0] = m;
-	vnode_pager_output((vn_pager_t) pager->pg_data, marray, 1, rtvals);
-	return rtvals[0];
-}
-
-int
-vnode_pager_putmulti(pager, m, c, sync, rtvals)
-	vm_pager_t pager;
-	vm_page_t *m;
-	int c;
-	boolean_t sync;
-	int *rtvals;
-{
-	return vnode_pager_output((vn_pager_t) pager->pg_data, m, c, rtvals);
-}
-
-
-boolean_t
-vnode_pager_haspage(pager, offset)
-	vm_pager_t pager;
+vnode_pager_haspage(object, offset, before, after)
+	vm_object_t object;
 	vm_offset_t offset;
+	int *before;
+	int *after;
 {
-	register vn_pager_t vnp = (vn_pager_t) pager->pg_data;
-	register struct vnode *vp = vnp->vnp_vp;
+	struct vnode *vp = object->handle;
 	daddr_t bn;
-	int err;
-	daddr_t block;
+	int err, run;
+	daddr_t startblock, reqblock;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
 	 * not have the page.
 	 */
-	if ((vp->v_mount == NULL) || (offset >= vnp->vnp_size))
+	if ((vp->v_mount == NULL) || (offset >= object->un_pager.vnp.vnp_size))
 		return FALSE;
 
-	block = offset / vp->v_mount->mnt_stat.f_iosize;
-	if (incore(vp, block))
-		return TRUE;
+	startblock = reqblock = offset / vp->v_mount->mnt_stat.f_iosize;
+	if (startblock > PFCLUSTER_BEHIND)
+		startblock -= PFCLUSTER_BEHIND;
+	else
+		startblock = 0;;
 
-	/*
-	 * Read the index to find the disk block to read from.  If there is no
-	 * block, report that we don't have this data.
-	 *
-	 * Assumes that the vnode has whole page or nothing.
-	 */
-	err = VOP_BMAP(vp, block, (struct vnode **) 0, &bn, 0);
+	if (before != NULL) {
+		/*
+		 * Loop looking for a contiguous chunk that includes the
+		 * requested page.
+		 */
+		while (TRUE) {
+			err = VOP_BMAP(vp, startblock, (struct vnode **) 0, &bn, &run);
+			if (err || bn == -1) {
+				if (startblock < reqblock) {
+					startblock++;
+					continue;
+				}
+				*before = 0;
+				if (after != NULL)
+					*after = 0;
+				return err ? TRUE : FALSE;
+			}
+			if ((startblock + run) < reqblock) {
+				startblock += run + 1;
+				continue;
+			}
+			*before = reqblock - startblock;
+			if (after != NULL)
+				*after = run;
+			return TRUE;
+		}
+	}
+
+	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn, after);
 	if (err)
-		return (TRUE);
+		return TRUE;
 	return ((long) bn < 0 ? FALSE : TRUE);
 }
 
 /*
  * Lets the VM system know about a change in size for a file.
- * If this vnode is mapped into some address space (i.e. we have a pager
- * for it) we adjust our own internal size and flush any cached pages in
+ * We adjust our own internal size and flush any cached pages in
  * the associated object that are affected by the size change.
  *
  * Note: this routine may be invoked as a result of a pager put
@@ -340,37 +248,24 @@ vnode_pager_setsize(vp, nsize)
 	struct vnode *vp;
 	u_long nsize;
 {
-	register vn_pager_t vnp;
-	register vm_object_t object;
-	vm_pager_t pager;
+	vm_object_t object = vp->v_object;
 
-	/*
-	 * Not a mapped vnode
-	 */
-	if (vp == NULL || vp->v_type != VREG || vp->v_object == NULL)
+	if (object == NULL)
 		return;
 
 	/*
 	 * Hasn't changed size
 	 */
-	object = vp->v_object;
-	if (object == NULL)
-		return;
-	if ((pager = object->pager) == NULL)
-		return;
-	vnp = (vn_pager_t) pager->pg_data;
-	if (nsize == vnp->vnp_size)
+	if (nsize == object->un_pager.vnp.vnp_size)
 		return;
 
 	/*
 	 * File has shrunk. Toss any cached pages beyond the new EOF.
 	 */
-	if (nsize < vnp->vnp_size) {
-		if (round_page((vm_offset_t) nsize) < vnp->vnp_size) {
-			vm_object_lock(object);
+	if (nsize < object->un_pager.vnp.vnp_size) {
+		if (round_page((vm_offset_t) nsize) < object->un_pager.vnp.vnp_size) {
 			vm_object_page_remove(object,
-			    round_page((vm_offset_t) nsize), vnp->vnp_size, FALSE);
-			vm_object_unlock(object);
+			    round_page((vm_offset_t) nsize), object->un_pager.vnp.vnp_size, FALSE);
 		}
 		/*
 		 * this gets rid of garbage at the end of a page that is now
@@ -389,7 +284,7 @@ vnode_pager_setsize(vp, nsize)
 			}
 		}
 	}
-	vnp->vnp_size = (vm_offset_t) nsize;
+	object->un_pager.vnp.vnp_size = (vm_offset_t) nsize;
 	object->size = round_page(nsize);
 }
 
@@ -397,19 +292,26 @@ void
 vnode_pager_umount(mp)
 	register struct mount *mp;
 {
-	register vm_pager_t pager, npager;
-	struct vnode *vp;
+	struct vnode *vp, *nvp;
 
-	for (pager = vnode_pager_list.tqh_first; pager != NULL; pager = npager) {
+loop:
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+		/*
+		 * Vnode can be reclaimed by getnewvnode() while we
+		 * traverse the list.
+		 */
+		if (vp->v_mount != mp)
+			goto loop;
+
 		/*
 		 * Save the next pointer now since uncaching may terminate the
-		 * object and render pager invalid
+		 * object and render vnode invalid
 		 */
-		npager = pager->pg_list.tqe_next;
-		vp = ((vn_pager_t) pager->pg_data)->vnp_vp;
-		if (mp == (struct mount *) 0 || vp->v_mount == mp) {
+		nvp = vp->v_mntvnodes.le_next;
+
+		if (vp->v_object != NULL) {
 			VOP_LOCK(vp);
-			(void) vnode_pager_uncache(vp);
+			vnode_pager_uncache(vp);
 			VOP_UNLOCK(vp);
 		}
 	}
@@ -424,46 +326,24 @@ vnode_pager_umount(mp)
  * destruction which may initiate paging activity which may necessitate
  * re-locking the vnode.
  */
-boolean_t
+void
 vnode_pager_uncache(vp)
-	register struct vnode *vp;
+	struct vnode *vp;
 {
-	register vm_object_t object;
-	boolean_t uncached;
-	vm_pager_t pager;
+	vm_object_t object;
 
 	/*
 	 * Not a mapped vnode
 	 */
 	object = vp->v_object;
 	if (object == NULL)
-		return (TRUE);
+		return;
 
-	pager = object->pager;
-	if (pager == NULL)
-		return (TRUE);
-
-#ifdef DEBUG
-	if (!VOP_ISLOCKED(vp)) {
-		extern int (**nfsv2_vnodeop_p)();
-
-		if (vp->v_op != nfsv2_vnodeop_p)
-			panic("vnode_pager_uncache: vnode not locked!");
-	}
-#endif
-	/*
-	 * Must use vm_object_lookup() as it actually removes the object from
-	 * the cache list.
-	 */
-	object = vm_object_lookup(pager);
-	if (object) {
-		uncached = (object->ref_count <= 1);
-		VOP_UNLOCK(vp);
-		pager_cache(object, FALSE);
-		VOP_LOCK(vp);
-	} else
-		uncached = TRUE;
-	return (uncached);
+	vm_object_reference(object);
+	VOP_UNLOCK(vp);
+	pager_cache(object, FALSE);
+	VOP_LOCK(vp);
+	return;
 }
 
 
@@ -523,15 +403,15 @@ vnode_pager_iodone(bp)
 	struct buf *bp;
 {
 	bp->b_flags |= B_DONE;
-	wakeup((caddr_t) bp);
+	wakeup(bp);
 }
 
 /*
  * small block file system vnode pager input
  */
 int
-vnode_pager_input_smlfs(vnp, m)
-	vn_pager_t vnp;
+vnode_pager_input_smlfs(object, m)
+	vm_object_t object;
 	vm_page_t m;
 {
 	int i;
@@ -540,11 +420,10 @@ vnode_pager_input_smlfs(vnp, m)
 	struct buf *bp;
 	vm_offset_t kva;
 	int fileaddr;
-	int block;
 	vm_offset_t bsize;
 	int error = 0;
 
-	vp = vnp->vnp_vp;
+	vp = object->handle;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 
@@ -602,7 +481,6 @@ vnode_pager_input_smlfs(vnp, m)
 			vm_page_set_clean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
 			bzero((caddr_t) kva + i * bsize, bsize);
 		}
-nextblock:
 	}
 	vm_pager_unmap_page(kva);
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
@@ -618,8 +496,8 @@ nextblock:
  * old style vnode pager output routine
  */
 int
-vnode_pager_input_old(vnp, m)
-	vn_pager_t vnp;
+vnode_pager_input_old(object, m)
+	vm_object_t object;
 	vm_page_t m;
 {
 	struct uio auio;
@@ -633,12 +511,12 @@ vnode_pager_input_old(vnp, m)
 	/*
 	 * Return failure if beyond current EOF
 	 */
-	if (m->offset >= vnp->vnp_size) {
+	if (m->offset >= object->un_pager.vnp.vnp_size) {
 		return VM_PAGER_BAD;
 	} else {
 		size = PAGE_SIZE;
-		if (m->offset + size > vnp->vnp_size)
-			size = vnp->vnp_size - m->offset;
+		if (m->offset + size > object->un_pager.vnp.vnp_size)
+			size = object->un_pager.vnp.vnp_size - m->offset;
 
 		/*
 		 * Allocate a kernel virtual address and initialize so that
@@ -656,7 +534,7 @@ vnode_pager_input_old(vnp, m)
 		auio.uio_resid = size;
 		auio.uio_procp = (struct proc *) 0;
 
-		error = VOP_READ(vnp->vnp_vp, &auio, 0, curproc->p_ucred);
+		error = VOP_READ(object->handle, &auio, 0, curproc->p_ucred);
 		if (!error) {
 			register int count = size - auio.uio_resid;
 
@@ -676,34 +554,22 @@ vnode_pager_input_old(vnp, m)
  * generic vnode pager input routine
  */
 int
-vnode_pager_input(vnp, m, count, reqpage)
-	register vn_pager_t vnp;
-	vm_page_t *m;
-	int count, reqpage;
-{
-	int i;
-	vm_offset_t kva, foff;
-	int size;
+vnode_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
+	vm_page_t *m;
+	int count;
+	int reqpage;
+{
+	vm_offset_t kva, foff;
+	int i, size, bsize, first, firstaddr;
 	struct vnode *dp, *vp;
-	int bsize;
-
-	int first, last;
-	int firstaddr;
-	int block, offset;
 	int runpg;
 	int runend;
-
 	struct buf *bp;
 	int s;
-	int failflag;
-
 	int error = 0;
 
-	object = m[reqpage]->object;	/* all vm_page_t items are in same
-					 * object */
-
-	vp = vnp->vnp_vp;
+	vp = object->handle;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 	/* get the UNDERLYING device for the file with VOP_BMAP() */
@@ -725,7 +591,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		}
 		cnt.v_vnodein++;
 		cnt.v_vnodepgsin++;
-		return vnode_pager_input_old(vnp, m[reqpage]);
+		return vnode_pager_input_old(object, m[reqpage]);
 
 		/*
 		 * if the blocksize is smaller than a page size, then use
@@ -742,7 +608,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		}
 		cnt.v_vnodein++;
 		cnt.v_vnodepgsin++;
-		return vnode_pager_input_smlfs(vnp, m[reqpage]);
+		return vnode_pager_input_smlfs(object, m[reqpage]);
 	}
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
@@ -768,10 +634,9 @@ vnode_pager_input(vnp, m, count, reqpage)
 	for(first = 0, i = 0; i < count; i = runend) {
 		firstaddr = vnode_pager_addr(vp, m[i]->offset, &runpg);
 		if (firstaddr == -1) {
-			if( i == reqpage && foff < vnp->vnp_size) {
-				printf("vnode_pager_input: unexpected missing page: firstaddr: %d, foff: %d, vnp_size: %d\n",
-			   	 firstaddr, foff, vnp->vnp_size);
-				panic("vnode_pager_input:...");
+			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
+				panic("vnode_pager_putpages: unexpected missing page: firstaddr: %d, foff: %ld, vnp_size: %d",
+			   	 firstaddr, foff, object->un_pager.vnp.vnp_size);
 			}
 			vnode_pager_freepage(m[i]);
 			runend = i + 1;
@@ -779,14 +644,14 @@ vnode_pager_input(vnp, m, count, reqpage)
 			continue;
 		}
 		runend = i + runpg;
-		if( runend <= reqpage) {
+		if (runend <= reqpage) {
 			int j;
-			for(j = i; j < runend; j++) {
+			for (j = i; j < runend; j++) {
 				vnode_pager_freepage(m[j]);
 			}
 		} else {
-			if( runpg < (count - first)) {
-				for(i=first + runpg; i < count; i++)
+			if (runpg < (count - first)) {
+				for (i = first + runpg; i < count; i++)
 					vnode_pager_freepage(m[i]);
 				count = first + runpg;
 			}
@@ -816,8 +681,8 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * calculate the size of the transfer
 	 */
 	size = count * PAGE_SIZE;
-	if ((foff + size) > vnp->vnp_size)
-		size = vnp->vnp_size - foff;
+	if ((foff + size) > object->un_pager.vnp.vnp_size)
+		size = object->un_pager.vnp.vnp_size - foff;
 
 	/*
 	 * round up physical size for real devices
@@ -875,7 +740,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 */
 	relpbuf(bp);
 
-finishup:
 	for (i = 0; i < count; i++) {
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 		m[i]->dirty = 0;
@@ -903,7 +767,7 @@ finishup:
 		}
 	}
 	if (error) {
-		printf("vnode_pager_input: I/O read error\n");
+		printf("vnode_pager_getpages: I/O read error\n");
 	}
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
@@ -912,10 +776,11 @@ finishup:
  * generic vnode pager output routine
  */
 int
-vnode_pager_output(vnp, m, count, rtvals)
-	vn_pager_t vnp;
+vnode_pager_putpages(object, m, count, sync, rtvals)
+	vm_object_t object;
 	vm_page_t *m;
 	int count;
+	boolean_t sync;
 	int *rtvals;
 {
 	int i;
@@ -926,12 +791,12 @@ vnode_pager_output(vnp, m, count, rtvals)
 	struct iovec aiov;
 	int error;
 
-	vp = vnp->vnp_vp;
+	vp = object->handle;;
 	for (i = 0; i < count; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
 
 	if ((int) m[0]->offset < 0) {
-		printf("vnode_pager_output: attempt to write meta-data!!! -- 0x%x(%x)\n", m[0]->offset, m[0]->dirty);
+		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%x(%x)\n", m[0]->offset, m[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
 		return VM_PAGER_BAD;
 	}
@@ -939,9 +804,9 @@ vnode_pager_output(vnp, m, count, rtvals)
 	maxsize = count * PAGE_SIZE;
 	ncount = count;
 
-	if (maxsize + m[0]->offset > vnp->vnp_size) {
-		if (vnp->vnp_size > m[0]->offset)
-			maxsize = vnp->vnp_size - m[0]->offset;
+	if (maxsize + m[0]->offset > object->un_pager.vnp.vnp_size) {
+		if (object->un_pager.vnp.vnp_size > m[0]->offset)
+			maxsize = object->un_pager.vnp.vnp_size - m[0]->offset;
 		else
 			maxsize = 0;
 		ncount = (maxsize + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -950,8 +815,8 @@ vnode_pager_output(vnp, m, count, rtvals)
 				rtvals[i] = VM_PAGER_BAD;
 			}
 			if (ncount == 0) {
-				printf("vnode_pager_output: write past end of file: %d, %d\n",
-					m[0]->offset, vnp->vnp_size);
+				printf("vnode_pager_putpages: write past end of file: %d, %d\n",
+					m[0]->offset, object->un_pager.vnp.vnp_size);
 				return rtvals[0];
 			}
 		}
@@ -976,10 +841,10 @@ vnode_pager_output(vnp, m, count, rtvals)
 	cnt.v_vnodepgsout += ncount;
 
 	if (error) {
-		printf("vnode_pager_output: I/O error %d\n", error);
+		printf("vnode_pager_putpages: I/O error %d\n", error);
 	}
 	if (auio.uio_resid) {
-		printf("vnode_pager_output: residual I/O %d at %d\n", auio.uio_resid, m[0]->offset);
+		printf("vnode_pager_putpages: residual I/O %d at %d\n", auio.uio_resid, m[0]->offset);
 	}
 	for (i = 0; i < count; i++) {
 		m[i]->busy--;
@@ -987,28 +852,21 @@ vnode_pager_output(vnp, m, count, rtvals)
 			rtvals[i] = VM_PAGER_OK;
 		}
 		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED))
-			wakeup((caddr_t) m[i]);
+			wakeup(m[i]);
 	}
 	return rtvals[0];
 }
 
 struct vnode *
-vnode_pager_lock(vm_object_t object) {
-
-	for(;object;object=object->shadow) {
-		vn_pager_t vnp;
-		if( !object->pager || (object->pager->pg_type != PG_VNODE))
+vnode_pager_lock(object)
+	vm_object_t object;
+{
+	for (; object != NULL; object = object->backing_object) {
+		if (object->type != OBJT_VNODE)
 			continue;
 
-		vnp = (vn_pager_t) object->pager->pg_data;
-		VOP_LOCK(vnp->vnp_vp);
-		return vnp->vnp_vp;
+		VOP_LOCK(object->handle);
+		return object->handle;
 	}
-	return (struct vnode *)NULL;
+	return NULL;
 }
-
-void
-vnode_pager_unlock(struct vnode *vp) {
-	VOP_UNLOCK(vp);
-}
-

@@ -36,19 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.h	8.3 (Berkeley) 12/13/93
- * $Id: device_pager.h,v 1.2 1994/08/02 07:55:07 davidg Exp $
+ * $Id: device_pager.h,v 1.3 1995/01/09 16:05:30 davidg Exp $
  */
 
 #ifndef	_DEVICE_PAGER_
 #define	_DEVICE_PAGER_	1
 
-/*
- * Device pager private data.
- */
-struct devpager {
-	struct pglist devp_pglist;	/* list of pages allocated */
-	vm_object_t devp_object;	/* object representing this device */
-};
-typedef struct devpager *dev_pager_t;
+void dev_pager_init __P((void));
+vm_object_t dev_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_offset_t));
+void dev_pager_dealloc __P((vm_object_t));
+int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
+int dev_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
+boolean_t dev_pager_haspage __P((vm_object_t, vm_offset_t, int *, int *));
 
 #endif				/* _DEVICE_PAGER_ */

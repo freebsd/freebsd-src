@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.10 1995/06/28 07:06:53 davidg Exp $
+ * $Id: lfs_vnops.c,v 1.11 1995/06/28 12:01:10 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -239,7 +239,7 @@ lfs_fsync(ap)
 	 * into the buffer cache.
 	 */
 	if (ap->a_vp->v_object)
-		_vm_object_page_clean(ap->a_vp->v_object, 0, 0, 0);
+		vm_object_page_clean(ap->a_vp->v_object, 0, 0, 0, TRUE);
 
 	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991, 1993
@@ -37,55 +36,27 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.6 1995/03/16 18:17:32 bde Exp $
+ * $Id: vm_pager.h,v 1.7 1995/05/10 18:56:08 davidg Exp $
  */
 
 /*
  * Pager routine interface definition.
- * For BSD we use a cleaner version of the internal pager interface.
  */
 
 #ifndef	_VM_PAGER_
 #define	_VM_PAGER_
 
-TAILQ_HEAD(pagerlst, pager_struct);
-
-struct pager_struct {
-	TAILQ_ENTRY(pager_struct) pg_list;	/* links for list management */
-	void *pg_handle;		/* ext. handle (vp, dev, fp) */
-	int pg_type;			/* type of pager */
-	struct pagerops *pg_ops;	/* pager operations */
-	void *pg_data;			/* private pager data */
-};
-
-/* pager types */
-#define PG_DFLT		-1
-#define	PG_SWAP		0
-#define	PG_VNODE	1
-#define PG_DEVICE	2
-
-/* flags */
-#define PG_CLUSTERGET	1
-#define PG_CLUSTERPUT	2
+TAILQ_HEAD(pagerlst, vm_object);
 
 struct pagerops {
 	void (*pgo_init) __P((void));		/* Initialize pager. */
-	vm_pager_t(*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_offset_t));	/* Allocate pager. */
-	void (*pgo_dealloc) __P((vm_pager_t));	/* Disassociate. */
-	int (*pgo_getpage) __P((vm_pager_t, vm_page_t, boolean_t));
-	int (*pgo_getpages) __P((vm_pager_t, vm_page_t *, int, int, boolean_t));	/* Get (read) page. */
-	int (*pgo_putpage) __P((vm_pager_t, vm_page_t, boolean_t));
-	int (*pgo_putpages) __P((vm_pager_t, vm_page_t *, int, boolean_t, int *)); /* Put (write) page. */
-	boolean_t(*pgo_haspage) __P((vm_pager_t, vm_offset_t)); /* Does pager have page? */
+	vm_object_t (*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_offset_t));	/* Allocate pager. */
+	void (*pgo_dealloc) __P((vm_object_t));	/* Disassociate. */
+	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
+	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, boolean_t, int *)); /* Put (write) page. */
+	boolean_t (*pgo_haspage) __P((vm_object_t, vm_offset_t, int *, int *)); /* Does pager have page? */
+	void (*pgo_sync) __P((void));
 };
-
-#define	VM_PAGER_ALLOC(h, s, p, o)		(*(pg)->pg_ops->pgo_alloc)(h, s, p, o)
-#define	VM_PAGER_DEALLOC(pg)		(*(pg)->pg_ops->pgo_dealloc)(pg)
-#define	VM_PAGER_GET(pg, m, s)		(*(pg)->pg_ops->pgo_getpage)(pg, m, s)
-#define	VM_PAGER_GET_MULTI(pg, m, c, r, s)	(*(pg)->pg_ops->pgo_getpages)(pg, m, c, r, s)
-#define	VM_PAGER_PUT(pg, m, s)		(*(pg)->pg_ops->pgo_putpage)(pg, m, s)
-#define	VM_PAGER_PUT_MULTI(pg, m, c, s, rtval)		(*(pg)->pg_ops->pgo_putpages)(pg, m, c, s, rtval)
-#define	VM_PAGER_HASPAGE(pg, o)		(*(pg)->pg_ops->pgo_haspage)(pg, o)
 
 /*
  * get/put return values
@@ -104,41 +75,20 @@ struct pagerops {
 #define VM_PAGER_AGAIN	5
 
 #ifdef KERNEL
-extern struct pagerops *dfltpagerops;
-
-vm_pager_t vm_pager_allocate __P((int, void *, vm_size_t, vm_prot_t, vm_offset_t));
+vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_size_t, vm_prot_t, vm_offset_t));
 vm_page_t vm_pager_atop __P((vm_offset_t));
 void vm_pager_bufferinit __P((void));
-void vm_pager_deallocate __P((vm_pager_t));
-int vm_pager_get_pages __P((vm_pager_t, vm_page_t *, int, int, boolean_t));
-boolean_t vm_pager_has_page __P((vm_pager_t, vm_offset_t));
+void vm_pager_deallocate __P((vm_object_t));
+int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
+boolean_t vm_pager_has_page __P((vm_object_t, vm_offset_t, int *, int *));
 void vm_pager_init __P((void));
-vm_pager_t vm_pager_lookup __P((struct pagerlst *, caddr_t));
+vm_object_t vm_pager_object_lookup __P((struct pagerlst *, void *));
 vm_offset_t vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
 vm_offset_t vm_pager_map_page __P((vm_page_t));
-int vm_pager_put_pages __P((vm_pager_t, vm_page_t *, int, boolean_t, int *));
+int vm_pager_put_pages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
 void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
-
-/*
- * XXX compat with old interface
- */
-#define vm_pager_get(p, m, s) \
-({ \
-	vm_page_t ml[1]; \
-	ml[0] = (m); \
-	vm_pager_get_pages(p, ml, 1, 0, s); \
-})
-
-#define vm_pager_put(p, m, s) \
-({ \
-	int rtval; \
-	vm_page_t ml[1]; \
-	ml[0] = (m); \
-	vm_pager_put_pages(p, ml, 1, s, &rtval); \
-	rtval; \
-})
 #endif
 
 #endif				/* _VM_PAGER_ */

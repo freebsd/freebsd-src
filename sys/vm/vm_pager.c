@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.14 1995/04/25 06:22:47 davidg Exp $
+ * $Id: vm_pager.c,v 1.15 1995/05/10 18:56:07 davidg Exp $
  */
 
 /*
@@ -79,19 +79,20 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_pager.h>
 
+extern struct pagerops defaultpagerops;
 extern struct pagerops swappagerops;
 extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
 
 struct pagerops *pagertab[] = {
-	&swappagerops,		/* PG_SWAP */
-	&vnodepagerops,		/* PG_VNODE */
-	&devicepagerops,	/* PG_DEV */
+	&defaultpagerops,	/* OBJT_DEFAULT */
+	&swappagerops,		/* OBJT_SWAP */
+	&vnodepagerops,		/* OBJT_VNODE */
+	&devicepagerops,	/* OBJT_DEVICE */
 };
 int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
-
-struct pagerops *dfltpagerops = NULL;	/* default pager */
 
 /*
  * Kernel address space for mapping pages.
@@ -119,10 +120,8 @@ vm_pager_init()
 	 * Initialize known pagers
 	 */
 	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
-		if (pgops)
+		if (pgops && ((*pgops)->pgo_init != NULL))
 			(*(*pgops)->pgo_init) ();
-	if (dfltpagerops == NULL)
-		panic("no default pager");
 }
 
 void
@@ -154,9 +153,9 @@ vm_pager_bufferinit()
  * Size, protection and offset parameters are passed in for pagers that
  * need to perform page-level validation (e.g. the device pager).
  */
-vm_pager_t
+vm_object_t
 vm_pager_allocate(type, handle, size, prot, off)
-	int type;
+	objtype_t type;
 	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
@@ -164,84 +163,49 @@ vm_pager_allocate(type, handle, size, prot, off)
 {
 	struct pagerops *ops;
 
-	ops = (type == PG_DFLT) ? dfltpagerops : pagertab[type];
+	ops = pagertab[type];
 	if (ops)
 		return ((*ops->pgo_alloc) (handle, size, prot, off));
 	return (NULL);
 }
 
 void
-vm_pager_deallocate(pager)
-	vm_pager_t pager;
+vm_pager_deallocate(object)
+	vm_object_t object;
 {
-	if (pager == NULL)
-		panic("vm_pager_deallocate: null pager");
-
-	(*pager->pg_ops->pgo_dealloc) (pager);
+	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
 
 int
-vm_pager_get_pages(pager, m, count, reqpage, sync)
-	vm_pager_t pager;
+vm_pager_get_pages(object, m, count, reqpage)
+	vm_object_t object;
 	vm_page_t *m;
 	int count;
 	int reqpage;
-	boolean_t sync;
 {
-	int i;
-
-	if (pager == NULL) {
-		for (i = 0; i < count; i++) {
-			if (i != reqpage) {
-				PAGE_WAKEUP(m[i]);
-				vm_page_free(m[i]);
-			}
-		}
-		vm_page_zero_fill(m[reqpage]);
-		return VM_PAGER_OK;
-	}
-	if (pager->pg_ops->pgo_getpages == 0) {
-		for (i = 0; i < count; i++) {
-			if (i != reqpage) {
-				PAGE_WAKEUP(m[i]);
-				vm_page_free(m[i]);
-			}
-		}
-		return (VM_PAGER_GET(pager, m[reqpage], sync));
-	} else {
-		return (VM_PAGER_GET_MULTI(pager, m, count, reqpage, sync));
-	}
+	return ((*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage));
 }
 
 int
-vm_pager_put_pages(pager, m, count, sync, rtvals)
-	vm_pager_t pager;
+vm_pager_put_pages(object, m, count, sync, rtvals)
+	vm_object_t object;
 	vm_page_t *m;
 	int count;
 	boolean_t sync;
 	int *rtvals;
 {
-	int i;
-
-	if (pager->pg_ops->pgo_putpages)
-		return (VM_PAGER_PUT_MULTI(pager, m, count, sync, rtvals));
-	else {
-		for (i = 0; i < count; i++) {
-			rtvals[i] = VM_PAGER_PUT(pager, m[i], sync);
-		}
-		return rtvals[0];
-	}
+	return ((*pagertab[object->type]->pgo_putpages)(object, m, count, sync, rtvals));
 }
 
 boolean_t
-vm_pager_has_page(pager, offset)
-	vm_pager_t pager;
+vm_pager_has_page(object, offset, before, after)
+	vm_object_t object;
 	vm_offset_t offset;
+	int *before;
+	int *after;
 {
-	if (pager == NULL)
-		panic("vm_pager_has_page: null pager");
-	return ((*pager->pg_ops->pgo_haspage) (pager, offset));
+	return ((*pagertab[object->type]->pgo_haspage) (object, offset, before, after));
 }
 
 /*
@@ -254,23 +218,9 @@ vm_pager_sync()
 	struct pagerops **pgops;
 
 	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
-		if (pgops)
-			(*(*pgops)->pgo_putpage) (NULL, NULL, 0);
+		if (pgops && ((*pgops)->pgo_sync != NULL))
+			(*(*pgops)->pgo_sync) ();
 }
-
-#if 0
-void
-vm_pager_cluster(pager, offset, loff, hoff)
-	vm_pager_t pager;
-	vm_offset_t offset;
-	vm_offset_t *loff;
-	vm_offset_t *hoff;
-{
-	if (pager == NULL)
-		panic("vm_pager_cluster: null pager");
-	return ((*pager->pg_ops->pgo_cluster) (pager, offset, loff, hoff));
-}
-#endif
 
 vm_offset_t
 vm_pager_map_page(m)
@@ -303,16 +253,16 @@ vm_pager_atop(kva)
 	return (PHYS_TO_VM_PAGE(pa));
 }
 
-vm_pager_t
-vm_pager_lookup(pglist, handle)
-	register struct pagerlst *pglist;
-	caddr_t handle;
+vm_object_t
+vm_pager_object_lookup(pg_list, handle)
+	register struct pagerlst *pg_list;
+	void *handle;
 {
-	register vm_pager_t pager;
+	register vm_object_t object;
 
-	for (pager = pglist->tqh_first; pager; pager = pager->pg_list.tqe_next)
-		if (pager->pg_handle == handle)
-			return (pager);
+	for (object = pg_list->tqh_first; object != NULL; object = object->pager_object_list.tqe_next)
+		if (object->handle == handle)
+			return (object);
 	return (NULL);
 }
 
@@ -328,14 +278,10 @@ pager_cache(object, should_cache)
 	if (object == NULL)
 		return (KERN_INVALID_ARGUMENT);
 
-	vm_object_cache_lock();
-	vm_object_lock(object);
 	if (should_cache)
 		object->flags |= OBJ_CANPERSIST;
 	else
 		object->flags &= ~OBJ_CANPERSIST;
-	vm_object_unlock(object);
-	vm_object_cache_unlock();
 
 	vm_object_deallocate(object);
 
@@ -355,7 +301,7 @@ getpbuf()
 	/* get a bp from the swap buffer header pool */
 	while ((bp = bswlist.tqh_first) == NULL) {
 		bswneeded = 1;
-		tsleep((caddr_t) &bswneeded, PVM, "wswbuf", 0);
+		tsleep(&bswneeded, PVM, "wswbuf", 0);
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	splx(s);
@@ -416,13 +362,13 @@ relpbuf(bp)
 		pbrelvp(bp);
 
 	if (bp->b_flags & B_WANTED)
-		wakeup((caddr_t) bp);
+		wakeup(bp);
 
 	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 
 	if (bswneeded) {
 		bswneeded = 0;
-		wakeup((caddr_t) &bswneeded);
+		wakeup(&bswneeded);
 	}
 	splx(s);
 }
