@@ -359,7 +359,6 @@ makelabel(const char *type, const char *name, struct disklabel *lp)
 int
 writelabel(int f, const char *boot, struct disklabel *lp)
 {
-	int flag;
 #ifdef __alpha__
 	u_long *p, sum;
 	int i;
@@ -376,93 +375,96 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 		Warning("write to disk label supressed - label was as follows:");
 		display(stdout, lp);
 		return (0);
-	} else {
-		setbootflag(lp);
-		lp->d_magic = DISKMAGIC;
-		lp->d_magic2 = DISKMAGIC;
-		lp->d_checksum = 0;
-		lp->d_checksum = dkcksum(lp);
-		if (rflag) {
-			/*
-			 * First set the kernel disk label,
-			 * then write a label to the raw disk.
-			 * If the SDINFO ioctl fails because it is unimplemented,
-			 * keep going; otherwise, the kernel consistency checks
-			 * may prevent us from changing the current (in-core)
-			 * label.
-			 */
-			if (ioctl(f, DIOCSDINFO, lp) < 0 &&
-				errno != ENODEV && errno != ENOTTY) {
-				l_perror("ioctl DIOCSDINFO");
-				return (1);
-			}
-			(void)lseek(f, (off_t)0, SEEK_SET);
-			
-#ifdef __alpha__
-			/*
-			 * Generate the bootblock checksum for the SRM console.
-			 */
-			for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
-				sum += p[i];
-			p[63] = sum;
-#endif
-#ifdef __sparc64__
-			/*
-			 * Generate a Sun disklabel around the BSD label for
-			 * PROM compatability.
-			 */
-			sl = (struct sun_disklabel *)boot;
-			memcpy(sl->sl_text, lp->d_packname, sizeof(lp->d_packname));
-			sl->sl_rpm = lp->d_rpm;
-			sl->sl_pcylinders = lp->d_ncylinders +
-			    lp->d_acylinders; /* XXX */
-			sl->sl_sparespercyl = lp->d_sparespercyl;
-			sl->sl_interleave = lp->d_interleave;
-			sl->sl_ncylinders = lp->d_ncylinders;
-			sl->sl_acylinders = lp->d_acylinders;
-			sl->sl_ntracks = lp->d_ntracks;
-			sl->sl_nsectors = lp->d_nsectors;
-			sl->sl_magic = SUN_DKMAGIC;
-			secpercyl = sl->sl_nsectors * sl->sl_ntracks;
-			for (i = 0; i < 8; i++) {
-				spp = &sl->sl_part[i];
-				npp = &lp->d_partitions[i];
-				/*
-				 * SunOS partitions must start on a cylinder
-				 * boundary. Note this restriction is forced
-				 * upon FreeBSD/sparc64 labels too, since we
-				 * want to keep both labels synchronised.
-				 */
-				spp->sdkp_cyloffset = npp->p_offset / secpercyl;
-				spp->sdkp_nsectors = npp->p_size;
-			}
+	}
 
-			/* Compute the XOR checksum. */
-			sp1 = (u_short *)sl;
-			sp2 = (u_short *)(sl + 1);
-			sl->sl_cksum = cksum = 0;
-			while (sp1 < sp2)
-				cksum ^= *sp1++;
-			sl->sl_cksum = cksum;
-#endif
-			if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
-				warn("write");
-				return (1);
-			}
-#if NUMBOOT > 0
-			/*
-			 * Output the remainder of the disklabel
-			 */
-			if (bootbuf && write(f, bootbuf, bootsize) != bootsize) {
-				warn("write");
-				return(1);
-			}
-#endif
-		} else if (ioctl(f, DIOCWDINFO, lp) < 0) {
+	setbootflag(lp);
+	lp->d_magic = DISKMAGIC;
+	lp->d_magic2 = DISKMAGIC;
+	lp->d_checksum = 0;
+	lp->d_checksum = dkcksum(lp);
+	if (!rflag) {
+		if (ioctl(f, DIOCWDINFO, lp) < 0) {
 			l_perror("ioctl DIOCWDINFO");
 			return (1);
 		}
+		return (0);
 	}
+
+	/*
+	 * First set the kernel disk label,
+	 * then write a label to the raw disk.
+	 * If the SDINFO ioctl fails because it is unimplemented,
+	 * keep going; otherwise, the kernel consistency checks
+	 * may prevent us from changing the current (in-core)
+	 * label.
+	 */
+	if (ioctl(f, DIOCSDINFO, lp) < 0 &&
+		errno != ENODEV && errno != ENOTTY) {
+		l_perror("ioctl DIOCSDINFO");
+		return (1);
+	}
+	(void)lseek(f, (off_t)0, SEEK_SET);
+	
+#ifdef __alpha__
+	/*
+	 * Generate the bootblock checksum for the SRM console.
+	 */
+	for (p = (u_long *)boot, i = 0, sum = 0; i < 63; i++)
+		sum += p[i];
+	p[63] = sum;
+#endif
+#ifdef __sparc64__
+	/*
+	 * Generate a Sun disklabel around the BSD label for
+	 * PROM compatability.
+	 */
+	sl = (struct sun_disklabel *)boot;
+	memcpy(sl->sl_text, lp->d_packname, sizeof(lp->d_packname));
+	sl->sl_rpm = lp->d_rpm;
+	sl->sl_pcylinders = lp->d_ncylinders +
+	    lp->d_acylinders; /* XXX */
+	sl->sl_sparespercyl = lp->d_sparespercyl;
+	sl->sl_interleave = lp->d_interleave;
+	sl->sl_ncylinders = lp->d_ncylinders;
+	sl->sl_acylinders = lp->d_acylinders;
+	sl->sl_ntracks = lp->d_ntracks;
+	sl->sl_nsectors = lp->d_nsectors;
+	sl->sl_magic = SUN_DKMAGIC;
+	secpercyl = sl->sl_nsectors * sl->sl_ntracks;
+	for (i = 0; i < 8; i++) {
+		spp = &sl->sl_part[i];
+		npp = &lp->d_partitions[i];
+		/*
+		 * SunOS partitions must start on a cylinder
+		 * boundary. Note this restriction is forced
+		 * upon FreeBSD/sparc64 labels too, since we
+		 * want to keep both labels synchronised.
+		 */
+		spp->sdkp_cyloffset = npp->p_offset / secpercyl;
+		spp->sdkp_nsectors = npp->p_size;
+	}
+
+	/* Compute the XOR checksum. */
+	sp1 = (u_short *)sl;
+	sp2 = (u_short *)(sl + 1);
+	sl->sl_cksum = cksum = 0;
+	while (sp1 < sp2)
+		cksum ^= *sp1++;
+	sl->sl_cksum = cksum;
+#endif
+	if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
+		warn("write");
+		return (1);
+	}
+#if NUMBOOT > 0
+	/*
+	 * Output the remainder of the disklabel
+	 */
+	if (bootbuf && write(f, bootbuf, bootsize) != bootsize) {
+		warn("write");
+		return(1);
+	}
+#endif
 	return (0);
 }
 
@@ -1682,7 +1684,7 @@ void
 usage(void)
 {
 #if NUMBOOT > 0
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: disklabel [-r] disk",
 		"\t\t(to read label)",
 		"       disklabel -w [-r] [-n] disk type [ packid ]",
@@ -1697,15 +1699,16 @@ usage(void)
 		"       disklabel -w -B [-n] [ -b boot1 [ -s boot2 ] ] disk type [ packid ]",
 		"\t\t(to write label and boot program)",
 		"       disklabel -R -B [-n] [ -b boot1 [ -s boot2 ] ] disk protofile [ type ]",
-		"\t\t(to restore label and boot program)",
+		"\t\t(to restore label and boot program)"
 #else
 		"       disklabel -B [-n] [ -b bootprog ] disk [ type ]",
 		"\t\t(to install boot program with existing on-disk label)",
 		"       disklabel -w -B [-n] [ -b bootprog ] disk type [ packid ]",
 		"\t\t(to write label and install boot program)",
 		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile [ type ]",
-		"\t\t(to restore label and install boot program)",
+		"\t\t(to restore label and install boot program)"
 #endif
+	);
 #else
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: disklabel [-r] disk", "(to read label)",
