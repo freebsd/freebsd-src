@@ -9,17 +9,6 @@
 
 #include "i386/isa/intr_machdep.h"
 
-/*
- * Interrupts must be enabled while waiting for the MP lock.
- */
-
-#define GET_FAST_INTR_LOCK						\
-	sti; call _get_mplock; cli
-
-#define REL_FAST_INTR_LOCK						\
-	movl	$_mp_lock, %edx ; /* GIANT_LOCK */			\
-	call	_MPrellock_edx
-
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
 
@@ -48,9 +37,7 @@ IDTVEC(vec_name) ;							\
 	mov	%ax,%fs ;						\
 	FAKE_MCOUNT((5+ACTUALLY_PUSHED)*4(%esp)) ;			\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
-	GET_FAST_INTR_LOCK ;						\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
-	REL_FAST_INTR_LOCK ;						\
 	addl	$4, %esp ;						\
 	movl	$0, lapic_eoi ;						\
 	lock ; 								\
