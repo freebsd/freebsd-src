@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.23 1997/11/07 15:55:06 ache Exp $
+# $Id: Makefile,v 1.24 1998/01/03 14:09:19 wosch Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd
@@ -6,6 +6,7 @@ KEYMAPS+= br275.iso.kbd br275.cp850.kbd
 KEYMAPS+= danish.iso.kbd danish.cp865.kbd
 KEYMAPS+= fr.iso.kbd
 KEYMAPS+= german.iso.kbd german.cp850.kbd
+KEYMAPS+= icelandic.iso.kbd
 KEYMAPS+= it.iso.kbd
 KEYMAPS+= jp.106.kbd jp.106x.kbd
 KEYMAPS+= lat-amer.kbd
