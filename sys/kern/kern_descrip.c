@@ -333,12 +333,29 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct vnode *vp;
 	u_int newmin;
 	int error, flg, tmp;
+	int giant_locked;
+
+	/*
+	 * XXXRW: Some fcntl() calls require Giant -- others don't.  Try to
+	 * avoid grabbing Giant for calls we know don't need it.
+	 */
+	switch (cmd) {
+	case F_DUPFD:
+	case F_GETFD:
+	case F_SETFD:
+	case F_GETFL:
+		giant_locked = 0;
+		break;
+
+	default:
+		giant_locked = 1;
+		mtx_lock(&Giant);
+	}
 
 	error = 0;
 	flg = F_POSIX;
 	p = td->td_proc;
 	fdp = p->p_fd;
-	mtx_lock(&Giant);
 	FILEDESC_LOCK(fdp);
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
@@ -350,6 +367,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	switch (cmd) {
 	case F_DUPFD:
+		mtx_assert(&Giant, MA_NOTOWNED);
 		FILEDESC_UNLOCK(fdp);
 		newmin = arg;
 		PROC_LOCK(p);
@@ -364,17 +382,21 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFD:
+		mtx_assert(&Giant, MA_NOTOWNED);
 		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
 		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_SETFD:
+		mtx_assert(&Giant, MA_NOTOWNED);
 		*pop = (*pop &~ UF_EXCLOSE) |
 		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_GETFL:
+		/* MPSAFE */
+		mtx_assert(&Giant, MA_NOTOWNED);
 		FILE_LOCK(fp);
 		FILEDESC_UNLOCK(fdp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -382,6 +404,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
+		mtx_assert(&Giant, MA_OWNED);
 		FILE_LOCK(fp);
 		FILEDESC_UNLOCK(fdp);
 		fhold_locked(fp);
@@ -409,6 +432,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
+		mtx_assert(&Giant, MA_OWNED);
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
@@ -418,6 +442,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
+		mtx_assert(&Giant, MA_OWNED);
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
 		tmp = arg;
@@ -426,10 +451,12 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETLKW:
+		mtx_assert(&Giant, MA_OWNED);
 		flg |= F_WAIT;
 		/* FALLTHROUGH F_SETLK */
 
 	case F_SETLK:
+		mtx_assert(&Giant, MA_OWNED);
 		if (fp->f_type != DTYPE_VNODE) {
 			FILEDESC_UNLOCK(fdp);
 			error = EBADF;
@@ -503,6 +530,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETLK:
+		mtx_assert(&Giant, MA_OWNED);
 		if (fp->f_type != DTYPE_VNODE) {
 			FILEDESC_UNLOCK(fdp);
 			error = EBADF;
@@ -542,7 +570,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 	}
 done2:
-	mtx_unlock(&Giant);
+	if (giant_locked)
+		mtx_unlock(&Giant);
 	return (error);
 }
 
