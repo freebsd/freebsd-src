@@ -373,7 +373,7 @@ static Keycap_def	key2ascii[] =
 /*  6*/ KBD_ASCII, I, {S,C "5"},     {S,C "%"},     {S,C "5"},
 /*  7*/ KBD_ASCII, I, {S,C "6"},     {S,C "^"},     {S,C "\036"},
 /*  8*/ KBD_ASCII, I, {S,C "7"},     {S,C "&"},     {S,C "7"},
-/*  9*/ KBD_ASCII, I, {S,C "8"},     {S,C "*"},     {S,C "9"},
+/*  9*/ KBD_ASCII, I, {S,C "8"},     {S,C "*"},     {S,C "8"},
 /* 10*/ KBD_ASCII, I, {S,C "9"},     {S,C "("},     {S,C "9"},
 /* 11*/ KBD_ASCII, I, {S,C "0"},     {S,C ")"},     {S,C "0"},
 /* 12*/ KBD_ASCII, I, {S,C "-"},     {S,C "_"},     {S,C "\037"},
