@@ -966,7 +966,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
     	default:
-		DEB(printf("default ioctl chan%d fn 0x%08lx fail\n", chan, cmd));
+		DEB(printf("default ioctl fn 0x%08lx fail\n", cmd));
 		ret = EINVAL;
 		break;
     	}
