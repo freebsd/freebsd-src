@@ -59,6 +59,13 @@ syscons_start()
 {
 	echo -n 'Configuring syscons:'
 
+	# keyboard
+	#
+	if [ -n "${keyboard}" ]; then
+		echo -n ' keyboard';	kbdcontrol < ${kbddev} \
+		    -k "${keyboard}" >/dev/null
+	fi
+
 	# keymap
 	#
 	case ${keymap} in
