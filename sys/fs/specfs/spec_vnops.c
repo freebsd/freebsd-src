@@ -686,18 +686,6 @@ spec_getpages(ap)
 	 * VOP_STRATEGY.  XXX
 	 */
 	offset = IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset;
-
-#define	DADDR_T_BIT	(sizeof(daddr_t)*8)
-#define	OFFSET_MAX	((1LL << (DADDR_T_BIT + DEV_BSHIFT)) - 1)
-
-	if (offset < 0 || offset > OFFSET_MAX) {
-		/* XXX still no %q in kernel. */
-		printf("spec_getpages: preposterous offset 0x%x%08x\n",
-		       (u_int)((u_quad_t)offset >> 32),
-		       (u_int)(offset & 0xffffffff));
-		return (VM_PAGER_ERROR);
-	}
-
 	blkno = btodb(offset);
 
 	/*
