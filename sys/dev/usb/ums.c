@@ -1,4 +1,5 @@
 /*	$NetBSD: ums.c,v 1.8 1998/08/01 20:11:39 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,4 +1,5 @@
 /*	$NetBSD: usb_mem.h,v 1.1 1998/07/24 21:09:08 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,3 +1,5 @@
+/*	FreeBSD $Id$ */
+
 /*
  * Copyright (c) 1997, 1998
  *      Nick Hibma <n_hibma@freebsd.org>. All rights reserved.
@@ -29,7 +31,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id$
  */
 
 /* Macro's to cope with the differences between NetBSD and FreeBSD

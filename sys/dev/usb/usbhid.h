@@ -1,4 +1,5 @@
 /*	$NetBSD: usbhid.h,v 1.1 1998/07/12 19:52:01 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
