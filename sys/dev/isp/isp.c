@@ -5239,16 +5239,13 @@ static char *fc_mbcmd_names[] = {
 static void
 isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 {
-	unsigned int lim, ibits, obits, box, opcode;
+	unsigned int ibits, obits, box, opcode;
 	u_int16_t *mcp;
 
-	if (IS_FC(isp)) {
+	if (IS_FC(isp))
 		mcp = mbpfc;
-		lim = (sizeof (mbpfc) / sizeof (mbpfc[0]));
-	} else {
+	else
 		mcp = mbpscsi;
-		lim = (sizeof (mbpscsi) / sizeof (mbpscsi[0]));
-	}
 	opcode = mbp->param[0];
 	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
 	obits = LOBYT(mcp[opcode]) & NMBOX_BMASK(isp);
