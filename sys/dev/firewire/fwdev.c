@@ -227,43 +227,41 @@ fw_read (dev_t dev, struct uio *uio, int ioflag)
 
 	ir = sc->fc->ir[sub];
 
-	if(ir->flag & FWXFERQ_PACKET){
+	if (ir->flag & FWXFERQ_PACKET) {
 		ir->stproc = NULL;
 	}
 readloop:
 	xfer = STAILQ_FIRST(&ir->q);
-	if(!(ir->flag & FWXFERQ_PACKET) && ir->stproc == NULL){
+	if ((ir->flag & FWXFERQ_PACKET) == 0 && ir->stproc == NULL) {
+		/* iso bulkxfer */
 		ir->stproc = STAILQ_FIRST(&ir->stvalid);
-		if(ir->stproc != NULL){
+		if (ir->stproc != NULL) {
 			s = splfw();
 			STAILQ_REMOVE_HEAD(&ir->stvalid, link);
 			splx(s);
 			ir->queued = 0;
 		}
 	}
-
-	if(xfer == NULL && ir->stproc == NULL){
-		if(slept == 0){
+	if (xfer == NULL && ir->stproc == NULL) {
+		/* no data avaliable */
+		if (slept == 0) {
 			slept = 1;
-			if(!(ir->flag & FWXFERQ_RUNNING)
-				&& (ir->flag & FWXFERQ_PACKET)){
+			if ((ir->flag & FWXFERQ_RUNNING) == 0
+					&& (ir->flag & FWXFERQ_PACKET)) {
 				err = sc->fc->irx_enable(sc->fc, sub);
-			}
-			if(err){
-				return err;
+				if (err)
+					return err;
 			}
 			ir->flag |= FWXFERQ_WAKEUP;
 			err = tsleep((caddr_t)ir, FWPRI, "fw_read", hz);
-			if(err){
-				ir->flag &= ~FWXFERQ_WAKEUP;
-				return err;
-			}
-			goto readloop;
-		}else{
+			ir->flag &= ~FWXFERQ_WAKEUP;
+			if (err == 0)
+				goto readloop;
+		} else if (slept == 1)
 			err = EIO;
-			return err;
-		}
-	}else if(xfer != NULL){
+		return err;
+	} else if(xfer != NULL) {
+		/* per packet mode */
 		s = splfw();
 		ir->queued --;
 		STAILQ_REMOVE_HEAD(&ir->q, link);
@@ -273,7 +271,8 @@ readloop:
 			sc->fc->irx_post(sc->fc, fp->mode.ld);
 		err = uiomove(xfer->recv.buf + xfer->recv.off, xfer->recv.len, uio);
 		fw_xfer_free( xfer);
-	}else if(ir->stproc != NULL){
+	} else if(ir->stproc != NULL) {
+		/* iso bulkxfer */
 		fp = (struct fw_pkt *)(ir->stproc->buf + ir->queued * ir->psize);
 		if(sc->fc->irx_post != NULL)
 			sc->fc->irx_post(sc->fc, fp->mode.ld);
@@ -281,8 +280,11 @@ readloop:
 			err = EIO;
 			return err;
 		}
-		err = uiomove((caddr_t)fp, ntohs(fp->mode.stream.len) + sizeof(u_int32_t), uio);
+		err = uiomove((caddr_t)fp,
+			ntohs(fp->mode.stream.len) + sizeof(u_int32_t), uio);
+#if 0
 		fp->mode.stream.len = 0;
+#endif
 		ir->queued ++;
 		if(ir->queued >= ir->bnpacket){
 			s = splfw();
@@ -290,6 +292,10 @@ readloop:
 			splx(s);
 			sc->fc->irx_enable(sc->fc, sub);
 			ir->stproc = NULL;
+		}
+		if (uio->uio_resid >= ir->psize) {
+			slept = -1;
+			goto readloop;
 		}
 	}
 	return err;
@@ -367,28 +373,34 @@ isoloop:
 			} else if (slept == 0) {
 				slept = 1;
 				err = sc->fc->itx_enable(sc->fc, sub);
-				if(err){
+				if (err)
 					return err;
-				}
-				err = tsleep((caddr_t)it, FWPRI, "fw_write", hz);
-				if(err){
+				err = tsleep((caddr_t)it, FWPRI,
+							"fw_write", hz);
+				if (err)
 					return err;
-				}
 				goto isoloop;
-			}else{
+			} else {
 				err = EIO;
 				return err;
 			}
 		}
-		err = uiomove(it->stproc->buf + it->queued * it->psize,
-							uio->uio_resid, uio);
+		fp = (struct fw_pkt *)
+			(it->stproc->buf + it->queued * it->psize);
+		err = uiomove((caddr_t)fp, sizeof(struct fw_isohdr), uio);
+		err = uiomove((caddr_t)fp->mode.stream.payload,
+					ntohs(fp->mode.stream.len), uio);
 		it->queued ++;
-		if(it->queued >= it->btpacket){
+		if (it->queued >= it->bnpacket) {
 			s = splfw();
 			STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
 			splx(s);
 			it->stproc = NULL;
 			err = sc->fc->itx_enable(sc->fc, sub);
+		}
+		if (uio->uio_resid >= sizeof(struct fw_isohdr)) {
+			slept = 0;
+			goto isoloop;
 		}
 		return err;
 	}
@@ -660,13 +672,11 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 
 		ir->bnchunk = ibufreq->rx.nchunk;
 		ir->bnpacket = ibufreq->rx.npacket;
-		ir->btpacket = ibufreq->rx.npacket;
 		ir->psize = (ibufreq->rx.psize + 3) & ~3;
 		ir->queued = 0;
 
 		it->bnchunk = ibufreq->tx.nchunk;
 		it->bnpacket = ibufreq->tx.npacket;
-		it->btpacket = ibufreq->tx.npacket;
 		it->psize = (ibufreq->tx.psize + 3) & ~3;
 		it->queued = 0;
 
