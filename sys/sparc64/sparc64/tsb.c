@@ -175,9 +175,11 @@ enter:
 			pm->pm_stats.resident_count++;
 			data |= TD_PV;
 		}
+		vm_page_lock_queues();
 		if (pmap_cache_enter(m, va) != 0)
 			data |= TD_CV;
 		TAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
+		vm_page_unlock_queues();
 	} else
 		data |= TD_FAKE | TD_E;
 
