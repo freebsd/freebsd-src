@@ -3,14 +3,14 @@
 PROG=	btxldr.out
 INTERNALPROG=
 NOMAN=
-SRCS=	btxldr.s
+SRCS=	btxldr.S
 CLEANFILES= btxldr
 
-M4?=	m4
-M4FLAGS+=	-DLOADER_ADDRESS=${LOADER_ADDRESS} -DPC98
+CFLAGS+=-DPC98
+CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
 
 .if defined(BTXLDR_VERBOSE)
-M4FLAGS+=	-DBTXLDR_VERBOSE
+CFLAGS+=-DBTXLDR_VERBOSE
 .endif
 
 all: btxldr
@@ -19,9 +19,5 @@ LDFLAGS=-N -e start -Ttext ${LOADER_ADDRESS}
 
 btxldr: btxldr.out
 	objcopy -S -O binary btxldr.out ${.TARGET}
-
-btxldr.o: btxldr.s
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btxldr.s ) | \
-		${AS} ${AFLAGS} -o ${.TARGET}
 
 .include <bsd.prog.mk>
