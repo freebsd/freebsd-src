@@ -52,10 +52,8 @@
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
 
-static int	procfs_init __P((struct vfsconf *vfsp));
 static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-static int	procfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
 static int	procfs_unmount __P((struct mount *mp, int mntflags,
@@ -135,17 +133,6 @@ procfs_root(mp, vpp)
 	return (procfs_allocvp(mp, vpp, 0, Proot));
 }
 
-/* ARGSUSED */
-static int
-procfs_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-
-	return (0);
-}
-
 /*
  * Get file system statistics.
  */
@@ -173,38 +160,18 @@ procfs_statfs(mp, sbp, p)
 	return (0);
 }
 
-static int
-procfs_init(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	return (0);
-}
-
-#define procfs_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct sockaddr *, struct vnode **, int *, struct ucred **)))einval)
-#define procfs_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
-	    struct proc *)))eopnotsupp)
-#define procfs_sync ((int (*) __P((struct mount *, int, struct ucred *, \
-	    struct proc *)))nullop)
-#define procfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
-	    size_t, struct proc *)))eopnotsupp)
-#define procfs_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
-	    eopnotsupp)
-#define procfs_vptofh ((int (*) __P((struct vnode *, struct fid *)))einval)
-
 static struct vfsops procfs_vfsops = {
 	procfs_mount,
-	procfs_start,
+	vfs_stdstart,
 	procfs_unmount,
 	procfs_root,
-	procfs_quotactl,
+	vfs_stdquotactl,
 	procfs_statfs,
-	procfs_sync,
-	procfs_vget,
-	procfs_fhtovp,
-	procfs_vptofh,
-	procfs_init,
+	vfs_stdsync,
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
+	vfs_stdinit,
 };
 
 VFS_SET(procfs_vfsops, procfs, VFCF_SYNTHETIC);

@@ -57,13 +57,10 @@ static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
 static int	fdesc_mount __P((struct mount *mp, char *path, caddr_t data,
 				 struct nameidata *ndp, struct proc *p));
-static int	fdesc_start __P((struct mount *mp, int flags, struct proc *p));
 static int	fdesc_unmount __P((struct mount *mp, int mntflags,
 				   struct proc *p));
 static int	fdesc_statfs __P((struct mount *mp, struct statfs *sbp,
 				  struct proc *p));
-static int	fdesc_sync __P((struct mount *mp, int waitfor,
-				struct ucred *cred, struct proc *p));
   
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -106,15 +103,6 @@ fdesc_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("fdesc", mp->mnt_stat.f_mntfromname, sizeof("fdesc"));
 	(void)fdesc_statfs(mp, &mp->mnt_stat, p);
-	return (0);
-}
-
-static int
-fdesc_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
 	return (0);
 }
 
@@ -226,38 +214,17 @@ fdesc_statfs(mp, sbp, p)
 	return (0);
 }
 
-static int
-fdesc_sync(mp, waitfor, cred, p)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct proc *p;
-{
-
-	return (0);
-}
-
-#define fdesc_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
-#define fdesc_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
-	    struct proc *)))eopnotsupp)
-#define fdesc_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
-	    size_t, struct proc *)))eopnotsupp)
-#define fdesc_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
-	    eopnotsupp)
-#define fdesc_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
-
 static struct vfsops fdesc_vfsops = {
 	fdesc_mount,
-	fdesc_start,
+	vfs_stdstart,
 	fdesc_unmount,
 	fdesc_root,
-	fdesc_quotactl,
+	vfs_stdquotactl,
 	fdesc_statfs,
-	fdesc_sync,
-	fdesc_vget,
-	fdesc_fhtovp,
-	fdesc_vptofh,
+	vfs_stdsync,
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
 	fdesc_init,
 };
 

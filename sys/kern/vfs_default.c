@@ -45,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
@@ -490,3 +491,118 @@ vop_noislocked(ap)
 	return (lockstatus(vp->v_vnlock));
 }
 
+/* 
+ * vfs default ops
+ * used to fill the vfs fucntion table to get reasonable default return values.
+ */
+int 
+vfs_stdmount (mp, path, data, ndp, p)
+	struct mount *mp;
+	char *path;
+	caddr_t data; 
+	struct nameidata *ndp;
+	struct proc *p;
+{
+	return (0);
+}
+
+int	
+vfs_stdunmount (mp, mntflags, p)
+	struct mount *mp;
+	int mntflags;
+	struct proc *p;
+{
+	return (0);
+}
+
+int	
+vfs_stdroot (mp, vpp)
+	struct mount *mp;
+	struct vnode **vpp;
+{
+	return (EOPNOTSUPP);
+}
+
+int	
+vfs_stdstatfs (mp, sbp, p)
+	struct mount *mp;
+	struct statfs *sbp;
+	struct proc *p;
+{
+	return (EOPNOTSUPP);
+}
+
+int
+vfs_stdvptofh (vp, fhp)
+	struct vnode *vp;
+	struct fid *fhp;
+{
+	return (EOPNOTSUPP);
+}
+
+int	
+vfs_stdstart (mp, flags, p)
+	struct mount *mp;
+	int flags;
+	struct proc *p;
+{
+	return (0);
+}
+
+int	
+vfs_stdquotactl (mp, cmds, uid, arg, p)
+	struct mount *mp;
+	int cmds;
+	uid_t uid;
+	caddr_t arg;
+	struct proc *p;
+{
+	return (EOPNOTSUPP);
+}
+
+int	
+vfs_stdsync (mp, waitfor, cred, p)
+	struct mount *mp;
+	int waitfor;
+	struct ucred *cred; 
+	struct proc *p;
+{
+	return (0);
+}
+
+int	
+vfs_stdvget (mp, ino, vpp)
+	struct mount *mp;
+	ino_t ino;
+	struct vnode **vpp;
+{
+	return (EOPNOTSUPP);
+}
+
+int	
+vfs_stdfhtovp (mp, fhp, nam, vpp, exflagsp, credanonp)
+	struct mount *mp;
+	struct fid *fhp;
+	struct sockaddr *nam;
+	struct vnode **vpp;
+	int *exflagsp;
+	struct ucred **credanonp;
+{
+	return (EOPNOTSUPP);
+}
+
+int
+vfs_stdinit (vfsp) 
+	struct vfsconf *vfsp;
+{
+	return (0);
+}
+
+int
+vfs_stduninit (vfsp)
+	struct vfsconf *vfsp;
+{
+	return(0);
+}
+
+/* end of vfs default ops */

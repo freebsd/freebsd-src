@@ -56,25 +56,13 @@
 static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
 extern int	union_init __P((struct vfsconf *));
-
-extern int	union_fhtovp __P((struct mount *mp, struct fid *fidp,
-				  struct mbuf *nam, struct vnode **vpp,
-				  int *exflagsp, struct ucred **credanonp));
 static int	union_mount __P((struct mount *mp, char *path, caddr_t data,
 				 struct nameidata *ndp, struct proc *p));
-extern int	union_quotactl __P((struct mount *mp, int cmd, uid_t uid,
-				    caddr_t arg, struct proc *p));
 static int	union_root __P((struct mount *mp, struct vnode **vpp));
-static int	union_start __P((struct mount *mp, int flags, struct proc *p));
 static int	union_statfs __P((struct mount *mp, struct statfs *sbp,
 				  struct proc *p));
-extern int	union_sync __P((struct mount *mp, int waitfor,
-				struct ucred *cred, struct proc *p));
 static int	union_unmount __P((struct mount *mp, int mntflags,
 				   struct proc *p));
-extern int	union_vget __P((struct mount *mp, ino_t ino,
-				struct vnode **vpp));
-extern int	union_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * Mount union filesystem
@@ -286,21 +274,6 @@ bad:
 	if (lowerrootvp)
 		vrele(lowerrootvp);
 	return (error);
-}
-
-/*
- * VFS start.  Nothing needed here - the start routine
- * on the underlying filesystem(s) will have been called
- * when that filesystem was mounted.
- */
-static int
-union_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-
-	return (0);
 }
 
 /*
@@ -521,33 +494,17 @@ union_statfs(mp, sbp, p)
 	return (0);
 }
 
-/*
- * XXX - Assumes no data cached at union layer.
- */
-#define union_sync ((int (*) __P((struct mount *, int, struct ucred *, \
-	    struct proc *)))nullop)
-
-#define union_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
-#define union_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
-	    struct proc *)))eopnotsupp)
-#define union_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
-	    size_t, struct proc *)))eopnotsupp)
-#define union_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
-	    eopnotsupp)
-#define union_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
-
 static struct vfsops union_vfsops = {
 	union_mount,
-	union_start,
+	vfs_stdstart,
 	union_unmount,
 	union_root,
-	union_quotactl,
+	vfs_stdquotactl,
 	union_statfs,
-	union_sync,
-	union_vget,
-	union_fhtovp,
-	union_vptofh,
+	vfs_stdsync,    /* XXX assumes no cached data on union level */
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
 	union_init,
 };
 

@@ -79,17 +79,12 @@ static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
 				    struct ucred **));
 static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
 				   struct nameidata *, struct proc *));
-static int	msdosfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
-				      struct proc *));
 static int	msdosfs_root __P((struct mount *, struct vnode **));
-static int	msdosfs_start __P((struct mount *, int, struct proc *));
 static int	msdosfs_statfs __P((struct mount *, struct statfs *,
 				    struct proc *));
 static int	msdosfs_sync __P((struct mount *, int, struct ucred *,
 				  struct proc *));
 static int	msdosfs_unmount __P((struct mount *, int, struct proc *));
-static int	msdosfs_vget __P((struct mount *mp, ino_t ino,
-				  struct vnode **vpp));
 static int	msdosfs_vptofh __P((struct vnode *, struct fid *));
 
 static int
@@ -746,16 +741,6 @@ error_exit:
 	return (error);
 }
 
-static int
-msdosfs_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-
-	return (0);
-}
-
 /*
  * Unmount the filesystem described by mp.
  */
@@ -826,17 +811,6 @@ msdosfs_root(mp, vpp)
 		return (error);
 	*vpp = DETOV(ndep);
 	return (0);
-}
-
-static int
-msdosfs_quotactl(mp, cmds, uid, arg, p)
-	struct mount *mp;
-	int cmds;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-	return EOPNOTSUPP;
 }
 
 static int
@@ -986,24 +960,15 @@ msdosfs_vptofh(vp, fhp)
 	return (0);
 }
 
-static int
-msdosfs_vget(mp, ino, vpp)
-	struct mount *mp;
-	ino_t ino;
-	struct vnode **vpp;
-{
-	return EOPNOTSUPP;
-}
-
 static struct vfsops msdosfs_vfsops = {
 	msdosfs_mount,
-	msdosfs_start,
+	vfs_stdstart,
 	msdosfs_unmount,
 	msdosfs_root,
-	msdosfs_quotactl,
+	vfs_stdquotactl,
 	msdosfs_statfs,
 	msdosfs_sync,
-	msdosfs_vget,
+	vfs_stdvget,
 	msdosfs_fhtovp,
 	msdosfs_vptofh,
 	msdosfs_init
