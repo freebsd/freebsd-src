@@ -296,7 +296,7 @@ MakeArgs(char *script, char **pvect, int maxargs, int flags)
   int nargs;
 
   nargs = 0;
-  while (*script) {
+  while (*script && *script != '#') {
     script += strspn(script, " \t");
     if (*script) {
       if (nargs >= maxargs - 1)
