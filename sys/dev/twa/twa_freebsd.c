@@ -153,7 +153,6 @@ static int	twa_shutdown (device_t dev);
 static int	twa_suspend (device_t dev);
 static int	twa_resume (device_t dev);
 static void	twa_pci_intr(void *arg);
-static void	twa_intrhook (void *arg);
 
 static device_method_t	twa_methods[] = {
 	/* Device interface */
