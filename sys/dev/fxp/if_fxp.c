@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.15 1996/09/18 16:18:05 davidg Exp $
+ *	$Id: if_fxp.c,v 1.16 1996/09/19 09:15:20 davidg Exp $
  */
 
 /*
@@ -89,9 +89,6 @@ struct fxp_softc {
 	int promisc_mode;		/* promiscuous mode enabled */
 };
 
-#include "fxp.h"
-static struct fxp_softc *fxp_sc[NFXP];	/* XXX Yuck */
-
 static u_long fxp_count;
 
 /*
@@ -130,7 +127,6 @@ static u_char fxp_cb_config_template[] = {
 static inline int fxp_scb_wait	__P((struct fxp_csr *));
 static char *fxp_probe		__P((pcici_t, pcidi_t));
 static void fxp_attach		__P((pcici_t, int));
-static int fxp_shutdown		__P((int, int));
 static void fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
@@ -139,6 +135,7 @@ static void fxp_stop		__P((struct fxp_softc *));
 static void fxp_watchdog	__P((struct ifnet *));
 static void fxp_get_macaddr	__P((struct fxp_softc *));
 static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
+static void fxp_shutdown	__P((int, void *));
 
 timeout_t fxp_stats_update;
 
@@ -147,7 +144,7 @@ static struct pci_device fxp_device = {
 	fxp_probe,
 	fxp_attach,
 	&fxp_count,
-	fxp_shutdown
+	NULL
 };
 DATA_SET(pcidevice_set, fxp_device);
 
@@ -278,8 +275,6 @@ fxp_attach(config_id, unit)
 		}
 	}
 
-	fxp_sc[unit] = sc;
-
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
 	ifp->if_unit = unit;
@@ -304,6 +299,14 @@ fxp_attach(config_id, unit)
 #if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
+
+	/*
+	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
+	 * doing do could allow DMA to corrupt kernel memory during the
+	 * reboot before the driver initializes.
+	 */
+	at_shutdown(fxp_shutdown, sc, SHUTDOWN_POST_SYNC);
+
 	splx(s);
 	return;
 
@@ -393,20 +396,16 @@ fxp_get_macaddr(sc)
 }
 
 /*
- * Device shutdown routine. Usually called at system shutdown. The
+ * Device shutdown routine. Called at system shutdown after sync. The
  * main purpose of this routine is to shut off receiver DMA so that
  * kernel memory doesn't get clobbered during warmboot.
  */
-static int
-fxp_shutdown(unit, force)
-	int unit;
-	int force;
+static void
+fxp_shutdown(howto, sc)
+	int howto;
+	void *sc;
 {
-	struct fxp_softc *sc = fxp_sc[unit];
-	
-	fxp_stop(sc);
-
-	return 0;
+	fxp_stop((struct fxp_softc *) sc);
 }
 
 /*
