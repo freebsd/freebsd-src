@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.27 1996/01/13 23:27:56 phk Exp $
+ * $Id: nfs_subs.c,v 1.28 1996/01/19 03:58:52 dyson Exp $
  */
 
 /*
@@ -1147,9 +1147,9 @@ nfs_init()
 	 * Initialize reply list and start timer
 	 */
 	TAILQ_INIT(&nfs_reqq);
-#ifndef NFS_NOSERVER
+
 	nfs_timer(0);
-#endif
+
 
 #ifdef __FreeBSD__
 	/*
