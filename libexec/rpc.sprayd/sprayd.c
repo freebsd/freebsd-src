@@ -44,7 +44,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
-static void spray_service __P((struct svc_req *, SVCXPRT *));
+static void spray_service(struct svc_req *, SVCXPRT *);
 
 static int from_inetd = 1;
 
@@ -61,22 +61,20 @@ static int from_inetd = 1;
 #define TIMEOUT 120
 
 void
-cleanup()
+cleanup(int sig __unused)
 {
 	(void) pmap_unset(SPRAYPROG, SPRAYVERS);
 	exit(0);
 }
 
 void
-die()
+die(int sig __unused)
 {
 	exit(0);
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
 	int sock = 0;
@@ -128,9 +126,7 @@ main(argc, argv)
 
 
 static void
-spray_service(rqstp, transp)
-	struct svc_req *rqstp;
-	SVCXPRT *transp;
+spray_service(struct svc_req *rqstp, SVCXPRT *transp)
 {
 	static spraycumul scum;
 	static struct timeval clear, get;
