@@ -38,13 +38,9 @@
  *		EXPERIMENTAL !!!
  *		================
  *
- *	$Id: i4b_tel_s0P.c,v 1.13 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_tel_s0P.c,v 1.2 1999/03/07 16:08:16 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:29:00 1999]
- *
- *	-hm	rudimentary PnP support, hint from Andrew Gordon
- *	-hm	more cleanup
- *      -hm     NetBSD patches from Martin 
+ *      last edit-date: [Tue Mar 16 10:39:14 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -200,7 +196,7 @@ tels0163P_read_reg(struct isic_softc *sc, int what, bus_size_t offs)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_probe_s0163P(struct isa_device *dev)
+isic_probe_s0163P(struct isa_device *dev, unsigned int iobase2)
 {
 	struct isic_softc *sc = &isic_sc[dev->id_unit];
 	
@@ -330,7 +326,7 @@ isic_probe_s0163P(struct isa_device *dev)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_attach_s0163P(struct isa_device *dev)
+isic_attach_s0163P(struct isa_device *dev, unsigned int iobase2)
 {
 	outb((dev->id_iobase) + 0x1c, 0);
 	DELAY(SEC_DELAY / 10);
