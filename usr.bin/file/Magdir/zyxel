@@ -7,3 +7,5 @@
 >10     byte            0               - CELP encoding
 >10     byte            1               - ADPCM2 encoding
 >10     byte            2               - ADPCM3 encoding
+>10     byte            3               - ADPCM4 encoding
+
