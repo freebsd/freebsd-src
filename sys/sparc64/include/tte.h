@@ -101,6 +101,8 @@
 #define	TD_W		(1L << 1)
 #define	TD_G		(1L << 0)
 
+#define	TT_GET_CTX(tag)	(((tag) >> TT_CTX_SHIFT) & TT_CTX_MASK)
+
 struct tte {
 	u_long	tte_tag;
 	u_long	tte_data;
@@ -111,12 +113,6 @@ struct stte {
 	vm_offset_t st_next;
 	vm_offset_t st_prev;
 };
-
-static __inline u_int
-tte_get_ctx(struct tte tte)
-{
-	return ((tte.tte_tag >> TT_CTX_SHIFT) & TT_CTX_MASK);
-}
 
 static __inline vm_offset_t
 tte_get_vpn(struct tte tte)
