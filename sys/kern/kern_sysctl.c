@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.42 1995/11/14 09:10:54 phk Exp $
+ * $Id: kern_sysctl.c,v 1.43 1995/11/14 09:17:32 phk Exp $
  */
 
 /*
@@ -687,8 +687,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
-	int error, level;
-	dev_t ndumpdev;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF
@@ -697,15 +695,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 
 	switch (name[0]) {
 
-	case KERN_SECURELVL:
-		level = securelevel;
-		if ((error = sysctl_int(oldp, oldlenp, newp, newlen, &level)) ||
-		    newp == NULL)
-			return (error);
-		if (level < securelevel && p->p_pid != 1)
-			return (EPERM);
-		securelevel = level;
-		return (0);
 	case KERN_VNODE:
 		return (sysctl_vnode(oldp, oldlenp));
 #ifdef GPROF
@@ -713,20 +702,46 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_doprof(name + 1, namelen - 1, oldp, oldlenp,
 		    newp, newlen));
 #endif
-	case KERN_DUMPDEV:
-		ndumpdev = dumpdev;
-		error = sysctl_struct(oldp, oldlenp, newp, newlen, &ndumpdev,
-				      sizeof ndumpdev);
-		if (!error && ndumpdev != dumpdev) {
-			error = setdumpdev(ndumpdev);
-		}
-		return error;
 	default:
 		return (EOPNOTSUPP);
 	}
 	/* NOTREACHED */
 }
 
+static int
+sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
+{
+		int error, level;
+
+		level = securelevel;
+		error = sysctl_handle_int(oidp, &level, 0, req);
+		if (error || !req->newptr)
+			return (error);
+		if (level < securelevel && req->p->p_pid != 1)
+			return (EPERM);
+		securelevel = level;
+		return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
+	0, 0, sysctl_kern_securelvl, "");
+
+static int
+sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+{
+	int error;
+	dev_t ndumpdev;
+
+	ndumpdev = dumpdev;
+	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
+	if (!error && ndumpdev != dumpdev) {
+		error = setdumpdev(ndumpdev);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "");
 /*
  * hardware related system variables.
  */
