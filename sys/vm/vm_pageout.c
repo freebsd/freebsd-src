@@ -956,8 +956,6 @@ int add;
 static void
 vm_pageout()
 {
-	(void) spl0();
-
 	/*
 	 * Initialize some paging parameters.
 	 */
@@ -1044,8 +1042,6 @@ vm_daemon()
 {
 	vm_object_t object;
 	struct proc *p;
-
-	(void) spl0();
 
 	while (TRUE) {
 		tsleep(&vm_daemon_needed, PUSER, "psleep", 0);

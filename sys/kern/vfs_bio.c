@@ -1697,7 +1697,6 @@ int vfs_update_interval = 30;
 static void
 vfs_update()
 {
-	(void) spl0();		/* XXX redundant?  wrong place? */
 	while (1) {
 		tsleep(&vfs_update_wakeup, PUSER, "update",
 		    hz * vfs_update_interval);
