@@ -466,6 +466,8 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 		printf("PC-Card %s (%d mem & %d I/O windows)\n",
 			cp->name, cp->maxmem, cp->maxio);
 	}
+	callout_handle_init(&slt->insert_ch);
+	callout_handle_init(&slt->poff_ch);
 #if NAPM > 0
 	{
 		struct apmhook *ap;
