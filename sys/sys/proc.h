@@ -333,6 +333,7 @@ struct thread {
 #define	TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
 #define	TDI_MUTEX	0x08	/* Stopped on a mutex. */
 #define	TDI_IWAIT	0x10	/* Awaiting interrupt. */
+#define	TDI_LOAN	0x20	/* bound thread's KSE is lent */
 
 #define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
 #define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
@@ -361,12 +362,14 @@ struct thread {
 #define	TD_SET_MUTEX(td)	TD_SET_INHIB((td), TDI_MUTEX)
 #define	TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
 #define	TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
+#define	TD_SET_LOAN(td)		TD_SET_INHIB((td), TDI_LOAN)
 
 #define	TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
 #define	TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
 #define	TD_CLR_MUTEX(td)	TD_CLR_INHIB((td), TDI_MUTEX)
 #define	TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
 #define	TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
+#define	TD_CLR_LOAN(td)		TD_CLR_INHIB((td), TDI_LOAN)
 
 #define	TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
 #define	TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
@@ -437,6 +440,7 @@ struct kse {
 #define	KEF_USER	0x00200	/* Process is not officially in the kernel */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
+#define	KEF_ONLOANQ	0x01000 /* KSE is on loan queue */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 
 /*
@@ -459,6 +463,7 @@ struct ksegrp {
 	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* Queue of KSEGs in kg_proc. */
 	TAILQ_HEAD(, kse) kg_kseq;	/* (ke_kglist) All KSEs. */
 	TAILQ_HEAD(, kse) kg_iq;	/* (ke_kgrlist) Idle KSEs. */
+	TAILQ_HEAD(, kse) kg_lq;	/* (ke_kgrlist) Loan KSEs. */
 	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
 	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq) waiting RUNNABLE threads */
 	TAILQ_HEAD(, thread) kg_slpq;	/* (td_runq) NONRUNNABLE threads. */
@@ -469,6 +474,7 @@ struct ksegrp {
 	struct thread 	*kg_last_assigned; /* Last thread assigned to a KSE */
 	int		kg_runnable;	/* Num runnable threads on queue. */
 	int		kg_runq_kses;	/* Num KSEs on runq. */
+	int		kg_loan_kses;	/* Num KSEs on loan queue. */
 	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
 #define	kg_endzero kg_pri_class
 
