@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1994/08/24 13:10:33 csgr Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -6,13 +6,12 @@
 # of all uncompressed scanners.
 #
 # Bootstrapping of lex is handled automatically.
-# ALso note that flex.skel no longer gets installed.
+# Also note that flex.skel no longer gets installed.
 #
 # XXX Todo:
 #	Install as lex++, and install FlexLexer.h
 
 PROG=		lex
-LINKS=		${BINDIR}/lex ${BINDIR}/flex 
 #LINKS+=	${BINDIR}/lex ${BINDIR}/lex++ ${BINDIR}/flex ${BINDIR}/flex++
 
 SRCS=		ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
@@ -20,10 +19,9 @@ SRCS=		ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
 OBJS+=		scan.o
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
-MAN1=		flex.1 flexdoc.1
-MLINKS=		flex.1 lex.1 flexdoc.1 lexdoc.1
+MAN1=		lex.1 lexdoc.1
 
-CLEANFILES+=	parse.c parse.h scan.c y.tab.h
+CLEANFILES+=	parse.c parse.h scan.c y.tab.h y.tab.c
 
 
 SUBDIR=		lib
