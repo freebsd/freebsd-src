@@ -1005,6 +1005,7 @@ Crystal Semiconductor CS461x/462x/428x
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E
+ESS Maestro-3/Allegro
 ForteMedia fm801
 Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
