@@ -272,7 +272,8 @@ struct umass_softc {
 	unsigned char		drive;
 #	define DRIVE_GENERIC		0	/* use defaults for this one */
 #	define ZIP_100			1	/* to be used for quirks */
-#	define SHUTTLE_EUSB		2
+#	define ZIP_250			2	/* to be used for quirks */
+#	define SHUTTLE_EUSB		3
 
 	unsigned char		quirks;
 	/* The drive does not support Test Unit Ready. Convert to
@@ -575,20 +576,29 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		return(UMATCH_VENDOR_PRODUCT);
 	}
 
+	if (UGETW(dd->idVendor) == USB_VENDOR_INSYSTEM
+	    && UGETW(dd->idProduct) == USB_PRODUCT_INSYSTEM_USBCABLE) {
+		sc->proto = PROTO_ATAPI | PROTO_CBI;
+		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
+		return(UMATCH_VENDOR_PRODUCT);
+	}
+
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
 	    && UGETW(dd->idProduct) == USB_PRODUCT_YEDATA_FLASHBUSTERU) {
 
 		/* Revisions < 1.28 do not handle the inerrupt endpoint
 		 * very well.
 		 */
-		if (UGETW(dd->bcdDevice) < 0x128)
+		if (UGETW(dd->bcdDevice) < 0x128) {
 			sc->proto = PROTO_UFI | PROTO_CBI;
-		else
+		} else {
 #if CBI_I
 			sc->proto = PROTO_UFI | PROTO_CBI_I;
 #else
 			sc->proto = PROTO_UFI | PROTO_CBI;
 #endif
+		}
+
 		/*
 		 * Revisions < 1.28 do not have the TEST UNIT READY command
 		 * Revisions == 1.28 have a broken TEST UNIT READY
@@ -598,10 +608,8 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 		sc->quirks |= RS_NO_CLEAR_UA;
 		sc->transfer_speed = UMASS_FLOPPY_TRANSFER_SPEED;
-		return(UMATCH_VENDOR_PRODUCT_REV);
+		return(UMATCH_VENDOR_PRODUCT);
 	}
-
-
 
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UCLASS_MASS)
@@ -2108,7 +2116,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		/* the opcodes requiring a target. These should never occur. */
 		if (sc == NULL) {
 			printf("%s:%d:%d:%d:func_code 0x%04x: "
-				"Invalid target\n",
+				"Invalid target (target needed)\n",
 				DEVNAME_SIM, cam_sim_path(umass_sim),
 				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code);
@@ -2126,7 +2134,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if (sc == NULL && ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
 			DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d:func_code 0x%04x: "
-				"Invalid target\n",
+				"Invalid target (no wildcard)\n",
 				DEVNAME_SIM, cam_sim_path(umass_sim),
 				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code));
