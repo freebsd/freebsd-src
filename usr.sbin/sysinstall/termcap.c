@@ -21,6 +21,50 @@
 #define VTY_STATUS_LINE    24
 #define TTY_STATUS_LINE    23
 
+static void
+prompt_term(char **termp, char **termcapp)
+{
+    char str[80];
+    static struct {
+	const char *term, *termcap;
+    } lookup[] = { { "ansi", termcap_ansi },
+		   { "vt100", termcap_vt100 },
+		   { "cons25", termcap_cons25 },
+		   { "cons25-m", termcap_cons25_m } };
+
+    if (RunningAsInit) {
+	while (1) {
+	    int i;
+
+	    printf("\nThese are the predefined terminal types available to\n");
+	    printf("sysinstall when running stand-alone.  Please choose the\n");
+	    printf("closest match for your particular terminal.\n\n");
+	    printf("1 ...................... Standard ANSI terminal.\n");
+	    printf("2 ...................... VT100 or compatible terminal.\n");
+	    printf("3 ...................... FreeBSD system console (color).\n");
+	    printf("4 ...................... FreeBSD system console (monochrome).\n\n");
+	    printf("Your choice: (1-4) ");
+	    fflush(stdout);
+	    fgets(str, 80, stdin);
+	    i = str[0] - '0';
+	    if (i > 0 && i < 5) {
+		*termp = (char *)lookup[i - 1].term;
+		*termcapp = (char *)lookup[i - 1].termcap;
+		break;
+	    }
+	    else
+		printf("\007Invalid choice, please try again.\n\n");
+	}
+    }
+    else {
+	printf("\nPlease set your TERM variable before running this program.\n");
+	printf("Defaulting to an ANSI compatible terminal - please press RETURN\n");
+	fgets(str, 80, stdin);	/* Just to make it interactive */
+	*termp = (char *)"ansi";
+	*termcapp = (char *)termcap_ansi;
+    }
+}
+
 int
 set_termcap(void)
 {
@@ -31,7 +75,7 @@ set_termcap(void)
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
-    if (getpid() != 1) {
+    if (!RunningAsInit) {
 	if (getenv("SYSINSTALL_DEBUG"))
 	    DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
 	else
@@ -42,9 +86,12 @@ set_termcap(void)
 
     if (!OnVTY || (stat < 0)) {
 	if (!term) {
-	    if (setenv("TERM", "vt100", 1) < 0)
+	    char *term, *termcap;
+
+	    prompt_term(&term, &termcap);
+	    if (setenv("TERM", term, 1) < 0)
 		return -1;
-	    if (setenv("TERMCAP", termcap_vt100, 1) < 0)
+	    if (setenv("TERMCAP", termcap, 1) < 0)
 		return -1;
 	}
 	if (DebugFD == -1)
