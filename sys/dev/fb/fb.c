@@ -399,7 +399,7 @@ static moduledata_t fb_mod = {
 DECLARE_MODULE(fb, fb_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 int
-fb_attach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
+fb_attach(int unit, video_adapter_t *adp, struct cdevsw *cdevsw)
 {
 	int s;
 
@@ -409,7 +409,7 @@ fb_attach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 		return EINVAL;
 
 	s = spltty();
-	adp->va_minor = minor(dev);
+	adp->va_minor = unit;
 	vidcdevsw[adp->va_index] = cdevsw;
 	splx(s);
 
@@ -418,7 +418,7 @@ fb_attach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 }
 
 int
-fb_detach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
+fb_detach(int unit, video_adapter_t *adp, struct cdevsw *cdevsw)
 {
 	int s;
 
@@ -434,84 +434,6 @@ fb_detach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 	splx(s);
 	return 0;
 }
-
-#if experimental
-static int
-fbopen(dev_t dev, int flag, int mode, struct thread *td)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (unit >= adapters)
-		return ENXIO;
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_open)(makedev(0, adapter[unit]->va_minor),
-					  flag, mode, td);
-}
-
-static int
-fbclose(dev_t dev, int flag, int mode, struct thread *td)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_close)(makedev(0, adapter[unit]->va_minor),
-					   flag, mode, td);
-}
-
-static int
-fbread(dev_t dev, struct uio *uio, int flag)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_read)(makedev(0, adapter[unit]->va_minor),
-					  uio, flag);
-}
-
-static int
-fbwrite(dev_t dev, struct uio *uio, int flag)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_write)(makedev(0, adapter[unit]->va_minor),
-					   uio, flag);
-}
-
-static int
-fbioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_ioctl)(makedev(0, adapter[unit]->va_minor),
-					   cmd, arg, flag, td);
-}
-
-static int
-fbmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
-{
-	int unit;
-
-	unit = FB_UNIT(dev);
-	if (vidcdevsw[unit] == NULL)
-		return ENXIO;
-	return (*vidcdevsw[unit]->d_mmap)(makedev(0, adapter[unit]->va_minor),
-					  offset, paddr, nprot);
-}
-
-DEV_DRIVER_MODULE(fb, foo, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
-#endif
 
 /*
  * Generic frame buffer cdev driver functions
