@@ -83,9 +83,6 @@ struct mtx	acpi_mutex;
 /* Bitmap of device quirks. */
 int		acpi_quirks;
 
-/* Local pools for managing system resources for ACPI child devices. */
-struct rman	acpi_rman_io, acpi_rman_mem;
-
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
@@ -99,6 +96,9 @@ static int	acpi_read_ivar(device_t dev, device_t child, int index,
 static int	acpi_write_ivar(device_t dev, device_t child, int index,
 			uintptr_t value);
 static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
+static int	acpi_sysres_alloc(device_t dev);
+static struct resource_list_entry *acpi_sysres_find(device_t dev, int type,
+		    u_long addr);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
@@ -188,6 +188,9 @@ DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
 MODULE_VERSION(acpi, 1);
 
 ACPI_SERIAL_DECL(acpi, "ACPI root bus");
+
+/* Local pools for managing system resources for ACPI child devices. */
+static struct rman acpi_rman_io, acpi_rman_mem;
 
 #define ACPI_MINIMUM_AWAKETIME	5
 
@@ -745,6 +748,75 @@ acpi_get_rlist(device_t dev, device_t child)
     return (&ad->ad_rl);
 }
 
+/*
+ * Pre-allocate/manage all memory and IO resources.  Since rman can't handle
+ * duplicates, we merge any in the sysresource attach routine.
+ */
+static int
+acpi_sysres_alloc(device_t dev)
+{
+    struct resource *res;
+    struct resource_list *rl;
+    struct resource_list_entry *rle;
+    struct rman *rm;
+
+    rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+    SLIST_FOREACH(rle, rl, link) {
+	if (rle->res != NULL) {
+	    device_printf(dev, "duplicate resource for %lx\n", rle->start);
+	    continue;
+	}
+
+	/* Only memory and IO resources are valid here. */
+	switch (rle->type) {
+	case SYS_RES_IOPORT:
+	    rm = &acpi_rman_io;
+	    break;
+	case SYS_RES_MEMORY:
+	    rm = &acpi_rman_mem;
+	    break;
+	default:
+	    continue;
+	}
+
+	/* Pre-allocate resource and add to our rman pool. */
+	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev, rle->type,
+	    &rle->rid, rle->start, rle->start + rle->count - 1, rle->count, 0);
+	if (res != NULL) {
+	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
+	    rle->res = res;
+	} else
+	    device_printf(dev, "reservation of %lx, %lx (%d) failed\n",
+		rle->start, rle->count, rle->type);
+    }
+    return (0);
+}
+
+/* Find if we manage a given resource. */
+static struct resource_list_entry *
+acpi_sysres_find(device_t dev, int type, u_long addr)
+{
+    struct resource_list *rl;
+    struct resource_list_entry *rle;
+
+    ACPI_SERIAL_ASSERT(acpi);
+
+    /* We only consider IO and memory resources for our pool. */
+    rle = NULL;
+    if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
+	goto out;
+
+    rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+    SLIST_FOREACH(rle, rl, link) {
+	if (type == rle->type && addr >= rle->start &&
+	    addr < rle->start + rle->count)
+	    break;
+    }
+
+out:
+    return (rle);
+}
+
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -774,7 +846,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     }
 
     /* If we don't manage this address, pass the request up to the parent. */
-    rle = acpi_sysres_find(type, start);
+    rle = acpi_sysres_find(bus, type, start);
     if (rle == NULL) {
 	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
 	    start, end, count, flags);
@@ -844,7 +916,7 @@ acpi_release_resource(device_t bus, device_t child, int type, int rid,
      * If we know about this address, deactivate it and release it to the
      * local pool.  If we don't, pass this request up to the parent.
      */
-    if (acpi_sysres_find(type, rman_get_start(r)) == NULL) {
+    if (acpi_sysres_find(bus, type, rman_get_start(r)) == NULL) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
@@ -1133,6 +1205,9 @@ acpi_probe_children(device_t bus)
 			      bus, NULL);
 	}
     }
+
+    /* Pre-allocate resources for our rman from any sysresource devices. */
+    acpi_sysres_alloc(bus);
 
     /* Create any static children by calling device identify methods. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
@@ -1757,7 +1832,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
     case ACPI_STATE_S4:
-	status = AcpiGetSleepTypeData((UINT8)state, &TypeA, &TypeB);
+	status = AcpiGetSleepTypeData(state, &TypeA, &TypeB);
 	if (status == AE_NOT_FOUND) {
 	    device_printf(sc->acpi_dev,
 			  "Sleep state S%d not supported by BIOS\n", state);
@@ -1807,7 +1882,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 		AcpiEnable();
 	} else {
 	    ACPI_DISABLE_IRQS();
-	    status = AcpiEnterSleepState((UINT8)state);
+	    status = AcpiEnterSleepState(state);
 	    if (ACPI_FAILURE(status)) {
 		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			      AcpiFormatException(status));

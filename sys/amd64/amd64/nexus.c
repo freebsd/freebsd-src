@@ -97,6 +97,7 @@ static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 			     void (*)(void *), void *, void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
+static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
 static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
@@ -120,6 +121,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
@@ -462,6 +464,14 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	return (intr_config_intr(irq, trig, pol));
+}
+
+static struct resource_list *
+nexus_get_reslist(device_t dev, device_t child)
+{
+	struct nexus_device *ndev = DEVTONX(child);
+
+	return (&ndev->nx_resources);
 }
 
 static int

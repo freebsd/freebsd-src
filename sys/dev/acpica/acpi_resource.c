@@ -625,10 +625,12 @@ acpi_res_set_end_dependant(device_t dev, void *context)
 /*
  * Resource-owning placeholders for IO and memory pseudo-devices.
  *
- * This code allocates system resource objects that will be owned by ACPI
- * child devices.  Really, the acpi parent device should have the resources
- * but this would significantly affect the device probe code.
+ * This code allocates system resources that will be used by ACPI
+ * child devices.  The acpi parent manages these resources through a
+ * private rman.
  */
+
+static int	acpi_sysres_rid = 100;
 
 static int	acpi_sysres_probe(device_t dev);
 static int	acpi_sysres_attach(device_t dev);
@@ -669,79 +671,66 @@ acpi_sysres_probe(device_t dev)
 static int
 acpi_sysres_attach(device_t dev)
 {
-    device_t gparent;
-    struct resource *res;
-    struct rman *rm;
-    struct resource_list_entry *rle;
-    struct resource_list *rl;
+    device_t bus;
+    struct resource_list_entry *bus_rle, *dev_rle;
+    struct resource_list *bus_rl, *dev_rl;
+    int done, type;
+    u_long start, end, count;
 
     /*
-     * Pre-allocate/manage all memory and IO resources.  We detect duplicates
-     * by setting rle->res to the resource we got from the parent.  We can't
-     * ignore them since rman can't handle duplicates.
+     * Loop through all current resources to see if the new one overlaps
+     * any existing ones.  If so, grow the old one up and/or down
+     * accordingly.  Discard any that are wholly contained in the old.  If
+     * the resource is unique, add it to the parent.  It will later go into
+     * the rman pool.
      */
-    rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-    SLIST_FOREACH(rle, rl, link) {
-	if (rle->res != NULL) {
-	    device_printf(dev, "duplicate resource for %lx\n", rle->start);
+    bus = device_get_parent(dev);
+    dev_rl = BUS_GET_RESOURCE_LIST(bus, dev);
+    bus_rl = BUS_GET_RESOURCE_LIST(device_get_parent(bus), bus);
+    SLIST_FOREACH(dev_rle, dev_rl, link) {
+	if (dev_rle->type != SYS_RES_IOPORT && dev_rle->type != SYS_RES_MEMORY)
 	    continue;
-	}
 
-	/* Only memory and IO resources are valid here. */
-	switch (rle->type) {
-	case SYS_RES_IOPORT:
-	    rm = &acpi_rman_io;
-	    break;
-	case SYS_RES_MEMORY:
-	    rm = &acpi_rman_mem;
-	    break;
-	default:
-	    continue;
-	}
+	start = dev_rle->start;
+	end = dev_rle->end;
+	count = dev_rle->count;
+	type = dev_rle->type;
+	done = FALSE;
 
-	/* Pre-allocate resource and add to our rman pool. */
-	gparent = device_get_parent(device_get_parent(dev));
-	res = BUS_ALLOC_RESOURCE(gparent, dev, rle->type, &rle->rid,
-	    rle->start, rle->start + rle->count - 1, rle->count, 0);
-	if (res != NULL) {
-	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
-	    rle->res = res;
-	}
-    }
+	SLIST_FOREACH(bus_rle, bus_rl, link) {
+	    if (bus_rle->type != type)
+		continue;
 
-    return (0);
-}
+	    /* New resource wholly contained in old, discard. */
+	    if (start >= bus_rle->start && end <= bus_rle->end)
+		break;
 
-/* XXX The resource list may require locking and refcounting. */
-struct resource_list_entry *
-acpi_sysres_find(int type, u_long addr)
-{
-    device_t *devs;
-    int i, numdevs;
-    struct resource_list *rl;
-    struct resource_list_entry *rle;
+	    /* New tail overlaps old head, grow existing resource downward. */
+	    if (start < bus_rle->start && end >= bus_rle->start) {
+		bus_rle->count += bus_rle->start - start;
+		bus_rle->start = start;
+		done = TRUE;
+	    }
 
-    /* We only consider IO and memory resources for our pool. */
-    rle = NULL;
-    if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY)
-        return (rle);
+	    /* New head overlaps old tail, grow existing resource upward. */
+	    if (start <= bus_rle->end && end > bus_rle->end) {
+		bus_rle->count += end - bus_rle->end;
+		bus_rle->end = end;
+		done = TRUE;
+	    }
 
-    /* Find all the sysresource devices. */
-    if (devclass_get_devices(acpi_sysres_devclass, &devs, &numdevs) != 0)
-	return (rle);
-
-    /* Check each device for a resource that contains "addr". */
-    for (i = 0; i < numdevs && rle == NULL; i++) {
-	rl = BUS_GET_RESOURCE_LIST(device_get_parent(devs[i]), devs[i]);
-	if (rl == NULL)
-	    continue;
-	SLIST_FOREACH(rle, rl, link) {
-	    if (type == rle->type && addr >= rle->start &&
-		addr < rle->start + rle->count)
+	    /* If we adjusted the old resource, we're finished. */
+	    if (done)
 		break;
 	}
+
+	/* If we didn't merge with anything, add this resource. */
+	if (bus_rle == NULL)
+	    bus_set_resource(bus, type, acpi_sysres_rid++, start, count);
     }
 
-    free(devs, M_TEMP);
-    return (rle);
+    /* After merging/moving resources to the parent, free the list. */
+    resource_list_free(dev_rl);
+
+    return (0);
 }
