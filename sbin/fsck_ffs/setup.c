@@ -421,6 +421,7 @@ readsb(listerr)
 	altsblock.fs_csp = sblock.fs_csp;
 	altsblock.fs_maxcluster = sblock.fs_maxcluster;
 	altsblock.fs_contigdirs = sblock.fs_contigdirs;
+	altsblock.fs_active = sblock.fs_active;
 	altsblock.fs_avgfilesize = sblock.fs_avgfilesize;
 	altsblock.fs_avgfpdir = sblock.fs_avgfpdir;
 	altsblock.fs_pendingblocks = sblock.fs_pendingblocks;
