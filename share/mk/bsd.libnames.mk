@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.8 1997/05/23 04:48:23 brian Exp $
+#	$Id: bsd.libnames.mk,v 1.9 1997/12/09 20:17:49 wosch Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -12,6 +12,7 @@ LIBKZTAIL?=	${DESTDIR}/usr/lib/kztail.o
 LIBALIAS?=	${DESTDIR}/usr/lib/libalias.a
 LIBC?=		${DESTDIR}/usr/lib/libc.a
 LIBC_PIC=	${DESTDIR}/usr/lib/libc_pic.a
+LIBCALENDAR?=	${DESTDIR}/usr/lib/libcalendar.a
 LIBCOM_ERR=	${DESTDIR}/usr/lib/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
 LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
