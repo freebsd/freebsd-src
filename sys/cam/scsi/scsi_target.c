@@ -1348,7 +1348,8 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 		desc = (struct targ_cmd_desc *)atio->ccb_h.ccb_descr;
 
 		/* Is this a tagged request? */
-		flags = atio->ccb_h.flags & (CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
+		flags = atio->ccb_h.flags &
+		    (CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
 
 		/*
 		 * If we are done with the transaction, tell the
@@ -1432,9 +1433,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 		("targdone %x\n", done_ccb->ccb_h.func_code));
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-		("targdone %x\n", done_ccb->ccb_h.func_code));
-
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	{
@@ -1455,6 +1453,18 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		}
 
+#ifdef	CAMDEBUG
+		{
+			int i;
+			char dcb[128];
+ 			for (dcb[0] = 0, i = 0; i < atio->cdb_len; i++) {
+				snprintf(dcb, sizeof dcb,
+				    "%s %02x", dcb, cdb[i] & 0xff);
+			}
+			CAM_DEBUG(periph->path,
+			    CAM_DEBUG_PERIPH, ("cdb:%s\n", dcb));
+		}
+#endif
 		if (atio->sense_len != 0) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("ATIO with sense_len\n"));
@@ -1477,7 +1487,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			&& cdb[0] != INQUIRY) {
 
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-			    ("pending_ca %d pending_ua %dn", istate->pending_ca,			    istate->pending_ua));
+			    ("pending_ca %d pending_ua %d\n",
+			    istate->pending_ca, istate->pending_ua));
 			     
 			/* Pending UA, tell initiator */
 			/* Direction is always relative to the initator */
@@ -1514,10 +1525,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			if (pending_ca == CA_UNIT_ATTN)
 				istate->pending_ua = UA_NONE;
 
-			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
-				("cdb[..] = %x %x %x %x %x %x\n",
-				  cdb[0], cdb[1], cdb[2], cdb[3],
-				  cdb[4], cdb[5]));
 			/*
 			 * Determine the type of incoming command and
 			 * setup our buffer for a response.
