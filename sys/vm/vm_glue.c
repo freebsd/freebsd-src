@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.67 1997/11/07 08:53:42 phk Exp $
+ * $Id: vm_glue.c,v 1.68 1997/12/06 02:23:30 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -398,7 +398,8 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2,
  * if any, otherwise the longest-resident process.
  */
 void
-swapout_procs(int action)
+swapout_procs(action)
+int action;
 {
 	register struct proc *p;
 	struct proc *outp, *outp2;
