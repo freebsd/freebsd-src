@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * msgs - a user bulletin board program
@@ -130,7 +131,7 @@ bool		mailing = NO;
 bool		quitit = NO;
 bool		sending = NO;
 bool		intrpflg = NO;
-int		uid;
+uid_t		uid;
 int		msg;
 int		prevmsg;
 int		lct;
@@ -201,10 +202,9 @@ int argc; char *argv[];
 				break;
 
 			case 'c':
-				if (uid != SUPERUSER && uid != DAEMON) {
-					fprintf(stderr, "Sorry\n");
-					exit(1);
-				}
+				if (uid != SUPERUSER && uid != DAEMON)
+					errx(1,
+				"only the super-user can use the c flag");
 				clean = YES;
 				break;
 
@@ -540,26 +540,31 @@ cmnd:
 		in = inbuf;
 		switch (*in) {
 			case 'x':
+				/* FALLTHROUGH */
 			case 'X':
 				exit(0);
-
+				/* NOTREACHED */
 			case 'q':
+				/* FALLTHROUGH */
 			case 'Q':
 				quitit = YES;
 				printf("--Postponed--\n");
 				exit(0);
-				/* intentional fall-thru */
+				/* NOTREACHED */
 			case 'n':
+				/* FALLTHROUGH */
 			case 'N':
 				if (msg >= nextmsg) sep = "Flushed";
 				prevmsg = msg;
 				break;
 
 			case 'p':
+				/* FALLTHROUGH */
 			case 'P':
 				use_pager = (*in++ == 'p');
-				/* intentional fallthru */
+				/* FALLTHROUGH */
 			case '\n':
+				/* FALLTHROUGH */
 			case 'y':
 			default:
 				if (*in == '-') {
@@ -613,6 +618,7 @@ cmnd:
 	if (!(already || hush || qopt))
 		printf("No new messages.\n");
 	exit(0);
+	/* NOTREACHED */
 }
 
 static void
