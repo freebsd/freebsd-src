@@ -1421,7 +1421,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<varname>kern.cam.scsi_delay</varname> tunable/sysctl.</para>
 
       <para>The trm driver has been added to support SCSI adapters
-        using the Tekram TRM-S1040 SCSI chipset.</para>
+        using the Tekram TRM-S1040 SCSI chipset. &merged;</para>
 
       <para arch="i386" role="historic">The &man.twe.4; 3ware ATA RAID driver has
 	added. &merged;</para>
