@@ -56,7 +56,7 @@
 #define PACKAGE "grep"
 
 /* Version number. */
-#define VERSION "2.4"
+#define VERSION "2.4d"
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef ssize_t */
