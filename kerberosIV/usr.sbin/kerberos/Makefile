@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1997/10/02 15:03:22 markm Exp $
 
 PROG=		kerberos
 MAN1=		${KRB4DIR}/man/kerberos.1
@@ -15,9 +15,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRBOBJDIR} \
 		-I${.CURDIR}/../include
 LDADD=		-L${ROKENOBJDIR} -lroken \
-		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb \
-		-ldes
-DPADD=		${LIBROKEN} ${LIBKDB} ${LIBKRB} ${LIBDES}
+		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcrypt
+DPADD=		${LIBROKEN} ${LIBKDB} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
 
 .include <bsd.prog.mk>
 

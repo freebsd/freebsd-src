@@ -1,15 +1,19 @@
-#	$Id$
+#	$Id: Makefile,v 1.9 1998/09/04 22:18:49 markm Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
 SDIR= ${.CURDIR}/..
 
-CODAI=	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; \
+CODAI=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir && \
+	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes obj && \
+	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes depend all install
+
+CODAIN=	${MAKE} ${MFLAGS} cleandir && \
+	${MAKE} ${MFLAGS} obj && \
 	${MAKE} ${MFLAGS} depend all install
 
-CODAD=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir; \
-	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes obj; \
+CODAD=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir && \
+	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes obj && \
 	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes depend all distribute
 
 # These are the programs which depend on kerberos
@@ -26,10 +30,26 @@ kprog:
 	cd ${SDIR}/sbin/dump; ${CODAI}
 	cd ${SDIR}/sbin/restore; ${CODAI}
 
+# These are the programs which depend on kerberos
+# This target us used to rebuild these programs WITHOUT kerberos
+dekerberise:
+	cd ${SDIR}/bin/rcp; ${CODAIN}
+	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAIN}
+	cd ${SDIR}/libexec/rlogind; ${CODAIN}
+	cd ${SDIR}/libexec/rshd; ${CODAIN}
+	cd ${SDIR}/usr.bin/login; ${CODAIN}
+	cd ${SDIR}/usr.bin/passwd; ${CODAIN}
+	cd ${SDIR}/usr.bin/rlogin; ${CODAIN}
+	cd ${SDIR}/usr.bin/rsh; ${CODAIN}
+	cd ${SDIR}/usr.bin/su; ${CODAIN}
+	cd ${SDIR}/sbin/dump; ${CODAIN}
+	cd ${SDIR}/sbin/restore; ${CODAIN}
+
 bootstrap: cleandir obj depend all install kprog
 
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
+	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAD}
 	cd ${SDIR}/libexec/rlogind; ${CODAD}
 	cd ${SDIR}/libexec/rshd; ${CODAD}
 	cd ${SDIR}/usr.bin/login; ${CODAD}
