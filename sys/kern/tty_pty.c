@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #include <sys/ioctl_compat.h>
 #endif
 #include <sys/proc.h>
@@ -738,7 +738,7 @@ ptyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		case TIOCSETP:
 		case TIOCSETN:
 #endif
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		case TIOCSETC:
 		case TIOCSLTC:
 		case TIOCLBIS:
