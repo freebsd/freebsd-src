@@ -65,11 +65,8 @@ static struct cdevsw ast_cdevsw = {
 };
 
 /* prototypes */
-int32_t astattach(struct atapi_softc *);
-void astdetach(struct atapi_softc *);
 static int32_t ast_sense(struct ast_softc *);
 static void ast_describe(struct ast_softc *);
-static void ast_start(struct ast_softc *);
 static int32_t ast_done(struct atapi_request *);
 static int32_t ast_mode_sense(struct ast_softc *, u_int8_t, void *, int32_t); 
 static int32_t ast_mode_select(struct ast_softc *, void *, int32_t);
@@ -452,13 +449,14 @@ aststrategy(struct buf *bp)
 
     s = splbio();
     bufq_insert_tail(&stp->buf_queue, bp);
-    ast_start(stp);
+    ata_start(stp->atp->controller);
     splx(s);
 }
 
-static void 
-ast_start(struct ast_softc *stp)
+void 
+ast_start(struct atapi_softc *atp)
 {
+    struct ast_softc *stp = atp->driver;
     struct buf *bp = bufq_first(&stp->buf_queue);
     u_int32_t blkcount;
     int8_t ccb[16];
@@ -471,12 +469,12 @@ ast_start(struct ast_softc *stp)
     if (bp->b_flags & B_READ) {
 	ccb[0] = ATAPI_READ;
 	if (!(stp->flags & ATAPI_F_DSC_USED))
-	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL, NULL);
+	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL);
     } 
     else {
 	ccb[0] = ATAPI_WRITE;
 	if (!(stp->flags & ATAPI_F_DSC_USED))
-	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL, NULL);
+	    atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 2*60, NULL, NULL);
     } 
     
     bufq_remove(&stp->buf_queue, bp);
@@ -490,7 +488,7 @@ ast_start(struct ast_softc *stp)
     devstat_start_transaction(&stp->stats);
 
     atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
-		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 60, ast_done, stp,bp);
+		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 60, ast_done, bp);
 }
 
 static int32_t 
@@ -511,7 +509,6 @@ ast_done(struct atapi_request *request)
     }
     devstat_end_transaction_buf(&stp->stats, bp);
     biodone(bp);
-    ast_start(stp);
     return 0;
 }
 
@@ -524,7 +521,7 @@ ast_mode_sense(struct ast_softc *stp, u_int8_t page,
     int32_t error;
  
     error = atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, ATPR_F_READ, 10, 
-			    NULL, NULL, NULL);
+			    NULL, NULL);
 #ifdef AST_DEBUG
     atapi_dump("ast: mode sense ", pagebuf, pagesize);
 #endif
@@ -542,7 +539,7 @@ ast_mode_select(struct ast_softc *stp, void *pagebuf, int32_t pagesize)
     atapi_dump("ast: mode select ", pagebuf, pagesize);
 #endif
     return atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, 0, 10,
-			   NULL, NULL, NULL);
+			   NULL, NULL);
 }
 
 static int32_t
@@ -562,7 +559,7 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
 		stp->flags |= F_FM_WRITTEN;
 	}
     }
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
+    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     return atapi_wait_ready(stp->atp, 10*60);
@@ -578,7 +575,7 @@ ast_read_position(struct ast_softc *stp, int32_t hard,
 
     error = atapi_queue_cmd(stp->atp, ccb, position, 
 			    sizeof(struct ast_readposition), ATPR_F_READ, 10,
-			    NULL, NULL, NULL);
+			    NULL, NULL);
     position->tape = ntohl(position->tape);
     position->host = ntohl(position->host);
     return error;
@@ -590,7 +587,7 @@ ast_space(struct ast_softc *stp, u_int8_t function, u_int32_t count)
     int8_t ccb[16] = { ATAPI_SPACE, function, count>>16, count>>8, count,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL, NULL);
+    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
 }
 
 static int32_t
@@ -601,7 +598,7 @@ ast_locate(struct ast_softc *stp, int32_t hard, int32_t pos)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
+    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     return atapi_wait_ready(stp->atp, 60*60);
@@ -613,7 +610,7 @@ ast_prevent_allow(struct ast_softc *stp, int32_t lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0,30, NULL, NULL, NULL);
+    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0,30, NULL, NULL);
 }
 
 static int32_t
@@ -625,7 +622,7 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
 
     if ((function & SS_EJECT) && !stp->cap.eject)
 	return 0;
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
+    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     tsleep((caddr_t)&error, PRIBIO, "astlu", 1 * hz);
@@ -641,7 +638,7 @@ ast_rewind(struct ast_softc *stp)
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
+    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     return atapi_wait_ready(stp->atp, 60*60);
@@ -657,5 +654,5 @@ ast_erase(struct ast_softc *stp)
     if ((error = ast_rewind(stp)))
 	return error;
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL, NULL);
+    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
 }

@@ -71,7 +71,8 @@ struct ad_request {
 };
 
 void ad_attach(struct ata_softc *, int32_t);
-void ad_detach(struct ata_softc *, int32_t);
+void ad_detach(struct ad_softc *);
+void ad_start(struct ad_softc *);
 void ad_transfer(struct ad_request *);
 int32_t ad_interrupt(struct ad_request *);
 void ad_reinit(struct ad_softc *);
