@@ -203,6 +203,14 @@ hexadecimal; otherwise, a leading 0 implies octal;
 otherwise, the number is interpreted as decimal).
 .Pp
 The
+.Fn inet_pton
+function only understands Internet addresses written as dotted quads.
+Each
+.Dq part
+may only contain numeric characters and is always interpreted as a
+decimal value.
+.Pp
+The
 .Fn inet_aton
 and
 .Fn inet_ntoa
