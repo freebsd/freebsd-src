@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.219 1999/01/12 00:17:53 eivind Exp $
+ *	$Id: pmap.c,v 1.219.2.1 1999/03/05 19:49:42 jkh Exp $
  */
 
 /*
@@ -1966,12 +1966,11 @@ pmap_remove_all(pa)
 	s = splvm();
 	ppv = pa_to_pvh(pa);
 	while ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
-		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-
 		pv->pv_pmap->pm_stats.resident_count--;
 
-		tpte = *pte;
-		*pte = 0;
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
+
+		tpte = loadandclear(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 
