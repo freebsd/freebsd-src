@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.5 1993/09/18 03:38:47 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.6 1994/12/06 00:51:32 jkh Exp $";
 #endif
 
 /*
@@ -32,7 +32,7 @@ static const char *rcsid = "$Id: extract.c,v 1.5 1993/09/18 03:38:47 jkh Exp $";
 
 #define PUSHOUT(todir) /* push out string */ \
 	if (strlen(where_args) > sizeof(STARTSTRING)-1) { \
-		    strcat(where_args, "|tar xpf - -C "); \
+		    strcat(where_args, "|tar xf - -C "); \
 		    strcat(where_args, todir); \
 		    if (system(where_args)) \
 			barf("can't invoke tar pipeline"); \
@@ -40,7 +40,7 @@ static const char *rcsid = "$Id: extract.c,v 1.5 1993/09/18 03:38:47 jkh Exp $";
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
 	if (perm_count) { \
-		    apply_perms(todir, perm_args); \
+		    if (!isdir(todir)) apply_perms(todir, perm_args); \
 		    perm_args[0] = 0;\
 		    perm_count = 0; \
 	}
