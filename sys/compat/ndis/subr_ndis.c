@@ -263,6 +263,10 @@ __stdcall static void ndis_ind_status(ndis_handle, ndis_status,
         void *, uint32_t);
 static void ndis_workfunc(void *, int);
 __stdcall static ndis_status ndis_sched_workitem(ndis_work_item *);
+__stdcall static void ndis_pkt_to_pkt(ndis_packet *, uint32_t, uint32_t,
+	ndis_packet *, uint32_t, uint32_t *);
+__stdcall static void ndis_pkt_to_pkt_safe(ndis_packet *, uint32_t, uint32_t,
+	ndis_packet *, uint32_t, uint32_t *, uint32_t);
 __stdcall static void dummy(void);
 
 /*
@@ -2506,6 +2510,110 @@ ndis_sched_workitem(work)
 }
 
 __stdcall static void
+ndis_pkt_to_pkt(dpkt, doff, reqlen, spkt, soff, cpylen)
+	ndis_packet		*dpkt;
+	uint32_t		doff;
+	uint32_t		reqlen;
+	ndis_packet		*spkt;
+	uint32_t		soff;
+	uint32_t		*cpylen;
+{
+	ndis_buffer		*src, *dst;
+	char			*sptr, *dptr;
+	int			resid, copied, len, scnt, dcnt;
+
+	*cpylen = 0;
+
+	src = spkt->np_private.npp_head;
+	dst = dpkt->np_private.npp_head;
+
+	sptr = MDL_VA(src);
+	dptr = MDL_VA(dst);
+	scnt = src->nb_bytecount;
+	dcnt = dst->nb_bytecount;
+
+	while (soff) {
+		if (src->nb_bytecount > soff) {
+			sptr += soff;
+			scnt = src->nb_bytecount - soff;
+			break;
+		}
+		soff -= src->nb_bytecount;
+		src = src->nb_next;
+		if (src == NULL)
+			return;
+		sptr = MDL_VA(src);
+	}
+
+	while (doff) {
+		if (dst->nb_bytecount > doff) {
+			dptr += doff;
+			dcnt = dst->nb_bytecount - doff;
+			break;
+		}
+		doff -= dst->nb_bytecount;
+		dst = dst->nb_next;
+		if (dst == NULL)
+			return;
+		dptr = MDL_VA(dst);
+	}
+
+	resid = reqlen;
+	copied = 0;
+
+	while(1) {
+		if (resid < scnt)
+			len = resid;
+		else
+			len = scnt;
+		if (dcnt < len)
+			len = dcnt;
+
+		bcopy(sptr, dptr, len);
+
+		copied += len;
+		resid -= len;
+		if (resid == 0)
+			break;
+
+		dcnt -= len;
+		if (dcnt == 0) {
+			dst = dst->nb_next;
+			if (dst == NULL)
+				break;
+			dptr = MDL_VA(dst);
+			dcnt = dst->nb_bytecount;
+		}
+
+		scnt -= len;
+		if (scnt == 0) {
+			src = src->nb_next;
+			if (src == NULL)
+				break;
+			sptr = MDL_VA(src);
+			scnt = src->nb_bytecount;
+		}
+	}
+
+	*cpylen = copied;
+	return;
+}
+
+__stdcall static void
+ndis_pkt_to_pkt_safe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
+	ndis_packet		*dpkt;
+	uint32_t		doff;
+	uint32_t		reqlen;
+	ndis_packet		*spkt;
+	uint32_t		soff;
+	uint32_t		*cpylen;
+	uint32_t		prio;
+{
+	ndis_pkt_to_pkt(dpkt, doff, reqlen, spkt, soff, cpylen);
+	return;
+}
+
+__stdcall static void
 dummy()
 {
 	printf ("NDIS dummy called...\n");
@@ -2513,6 +2621,8 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisCopyFromPacketToPacket",	(FUNC)ndis_pkt_to_pkt },
+	{ "NdisCopyFromPacketToPacketSafe", (FUNC)ndis_pkt_to_pkt_safe },
 	{ "NdisScheduleWorkItem",	(FUNC)ndis_sched_workitem },
 	{ "NdisMIndicateStatusComplete", (FUNC)ndis_ind_statusdone },
 	{ "NdisMIndicateStatus",	(FUNC)ndis_ind_status },
