@@ -233,18 +233,19 @@ pr_family(af)
  * Print header for routing table columns.
  */
 void
-pr_rthdr(af)
+pr_rthdr(wid_af)
+	int wid_af;
 {
 	int wid_dst, wid_gw;
 
 	wid_dst =
 #ifdef INET6
-		af == AF_INET6 ? WID_DST6 :
+		wid_af == AF_INET6 ? WID_DST6 :
 #endif
 		WID_DST;
 	wid_gw =
 #ifdef INET6
-		af == AF_INET6 ? WID_GW6 :
+		wid_af == AF_INET6 ? WID_GW6 :
 #endif
 		WID_GW;
 
