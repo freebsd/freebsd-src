@@ -488,7 +488,7 @@ route_IfDelete(struct bundle *bundle, int all)
     for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
       rtm = (struct rt_msghdr *)cp;
       route_ParseHdr(rtm, sa);
-      if (sa[RTAX_DST]) {
+      if (sa[RTAX_DST] && sa[RTAX_DST]->sa_family == AF_INET) {
         log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
                   " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
                   Index2Nam(rtm->rtm_index), rtm->rtm_flags,
