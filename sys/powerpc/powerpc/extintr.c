@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>

@@ -67,12 +67,12 @@ static const char rcsid[] =
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/sysproto.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/ktr.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/bio.h>
