@@ -90,7 +90,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #ifdef PC98
 #define SBC_IRQ		10	/* IQR10 is not the factory default on PC9821.	 */
 #else
-#define SBC_IRQ		7	/* IQR7 is the factory default.	 */
+#define SBC_IRQ		5	/* IQR5 is the factory default.	 */
 #endif
 #endif
 
