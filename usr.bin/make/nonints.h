@@ -64,6 +64,7 @@ void For_Run(void);
 /* main.c */
 void Main_ParseArgLine(char *);
 char *Cmd_Exec(char *, char **);
+void Debug(const char *, ...);
 void Error(const char *, ...);
 void Fatal(const char *, ...);
 void Punt(const char *, ...);

@@ -488,7 +488,7 @@ Targ_PrintType (type)
     int    tbit;
 
 #define	PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
-#define	PRINTDBIT(attr) case CONCAT(OP_,attr): DEBUGF(TARG, "." #attr " "); break
+#define	PRINTDBIT(attr) case CONCAT(OP_,attr): DEBUGF(TARG, ("." #attr " ")); break
 
     type &= ~OP_OPMASK;
 
@@ -509,7 +509,7 @@ Targ_PrintType (type)
 	    PRINTBIT(NOTMAIN);
 	    PRINTDBIT(LIB);
 	    /*XXX: MEMBER is defined, so CONCAT(OP_,MEMBER) gives OP_"%" */
-	    case OP_MEMBER: DEBUGF(TARG, ".MEMBER "); break;
+	    case OP_MEMBER: DEBUGF(TARG, (".MEMBER ")); break;
 	    PRINTDBIT(ARCHV);
 	}
     }

@@ -157,9 +157,9 @@ Make_OODate (gn)
     if ((gn->type & (OP_JOIN|OP_USE|OP_EXEC)) == 0) {
 	(void) Dir_MTime (gn);
 	if (gn->mtime != 0) {
-	    DEBUGF(MAKE, "modified %s...", Targ_FmtTime(gn->mtime));
+	    DEBUGF(MAKE, ("modified %s...", Targ_FmtTime(gn->mtime)));
 	} else {
-	    DEBUGF(MAKE, "non-existent...");
+	    DEBUGF(MAKE, ("non-existent..."));
 	}
     }
 
@@ -182,10 +182,10 @@ Make_OODate (gn)
 	 * If the node is a USE node it is *never* out of date
 	 * no matter *what*.
 	 */
-	DEBUGF(MAKE, ".USE node...");
+	DEBUGF(MAKE, (".USE node..."));
 	oodate = FALSE;
     } else if (gn->type & OP_LIB) {
-	DEBUGF(MAKE, "library...");
+	DEBUGF(MAKE, ("library..."));
 
 	/*
 	 * always out of date if no children and :: target
@@ -198,7 +198,7 @@ Make_OODate (gn)
 	 * A target with the .JOIN attribute is only considered
 	 * out-of-date if any of its children was out-of-date.
 	 */
-	DEBUGF(MAKE, ".JOIN node...");
+	DEBUGF(MAKE, (".JOIN node..."));
 	oodate = gn->childMade;
     } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
@@ -206,11 +206,11 @@ Make_OODate (gn)
 	 * the .EXEC attribute is always considered out-of-date.
 	 */
 	if (gn->type & OP_FORCE) {
-	    DEBUGF(MAKE, "! operator...");
+	    DEBUGF(MAKE, ("! operator..."));
 	} else if (gn->type & OP_PHONY) {
-	    DEBUGF(MAKE, ".PHONY node...");
+	    DEBUGF(MAKE, (".PHONY node..."));
 	} else {
-	    DEBUGF(MAKE, ".EXEC node...");
+	    DEBUGF(MAKE, (".EXEC node..."));
 	}
 	oodate = TRUE;
     } else if ((gn->mtime < gn->cmtime) ||
@@ -225,17 +225,17 @@ Make_OODate (gn)
 	 * it.
 	 */
 	if (gn->mtime < gn->cmtime) {
-	    DEBUGF(MAKE, "modified before source...");
+	    DEBUGF(MAKE, ("modified before source..."));
 	} else if (gn->mtime == 0) {
-	    DEBUGF(MAKE, "non-existent and no sources...");
+	    DEBUGF(MAKE, ("non-existent and no sources..."));
 	} else {
-	    DEBUGF(MAKE, ":: operator and no sources...");
+	    DEBUGF(MAKE, (":: operator and no sources..."));
 	}
 	oodate = TRUE;
     } else {
 #if 0
 	/* WHY? */
-	DEBUGF(MAKE, "source %smade...", gn->childMade ? "" : "not ");
+	DEBUGF(MAKE, ("source %smade...", gn->childMade ? "" : "not "));
 	oodate = gn->childMade;
 #else
 	oodate = FALSE;
@@ -457,7 +457,7 @@ Make_Update (cgn)
 	if (noExecute || (cgn->type & OP_SAVE_CMDS) || Dir_MTime(cgn) == 0) {
 	    cgn->mtime = now;
 	}
-	DEBUGF(MAKE, "update time: %s\n", Targ_FmtTime(cgn->mtime));
+	DEBUGF(MAKE, ("update time: %s\n", Targ_FmtTime(cgn->mtime)));
 #endif
     }
 
@@ -662,7 +662,7 @@ MakeStartJobs ()
 
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
-	DEBUGF(MAKE, "Examining %s...", gn->name);
+	DEBUGF(MAKE, ("Examining %s...", gn->name));
 	/*
 	 * Make sure any and all predecessors that are going to be made,
 	 * have been.
@@ -674,7 +674,7 @@ MakeStartJobs ()
 		GNode	*pgn = (GNode *)Lst_Datum(ln);
 
 		if (pgn->make && pgn->made == UNMADE) {
-		    DEBUGF(MAKE, "predecessor %s not made yet.\n", pgn->name);
+		    DEBUGF(MAKE, ("predecessor %s not made yet.\n", pgn->name));
 		    break;
 		}
 	    }
@@ -691,14 +691,14 @@ MakeStartJobs ()
 
 	numNodes--;
 	if (Make_OODate (gn)) {
-	    DEBUGF(MAKE, "out-of-date\n");
+	    DEBUGF(MAKE, ("out-of-date\n"));
 	    if (queryFlag) {
 		return (TRUE);
 	    }
 	    Make_DoAllVar (gn);
 	    Job_Make (gn);
 	} else {
-	    DEBUGF(MAKE, "up-to-date\n");
+	    DEBUGF(MAKE, ("up-to-date\n"));
 	    gn->made = UPTODATE;
 	    if (gn->type & OP_JOIN) {
 		/*

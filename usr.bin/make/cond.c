@@ -657,8 +657,8 @@ do_string_compare:
 		    string = (char *)Buf_GetAll(buf, (int *)0);
 		    Buf_Destroy(buf, FALSE);
 
-		    DEBUGF(COND, "lhs = \"%s\", rhs = \"%s\", op = %.2s\n",
-			   lhs, string, op);
+		    DEBUGF(COND, ("lhs = \"%s\", rhs = \"%s\", op = %.2s\n",
+			   lhs, string, op));
 		    /*
 		     * Null-terminate rhs and perform the comparison.
 		     * t is set to the result.
@@ -718,8 +718,8 @@ do_string_compare:
 			}
 		    }
 
-		    DEBUGF(COND, "left = %f, right = %f, op = %.2s\n", left,
-			   right, op);
+		    DEBUGF(COND, ("left = %f, right = %f, op = %.2s\n", left,
+			   right, op));
 		    switch(op[0]) {
 		    case '!':
 			if (op[1] != '=') {
