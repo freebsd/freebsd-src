@@ -15,7 +15,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
@@ -29,6 +28,7 @@
 #include <sys/kernel.h>
 #include <sys/snoop.h>
 #include <sys/vnode.h>
+#include <sys/conf.h>
 
 static	d_open_t	snpopen;
 static	d_close_t	snpclose;
@@ -61,8 +61,62 @@ static struct cdevsw snp_cdevsw = {
 
 static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
 
+#define ttytosnp(t) (struct snoop *)(t)->t_sc
 static struct tty	*snpdevtotty __P((dev_t dev));
 static int		snp_detach __P((struct snoop *snp));
+
+/*
+ * The number of the "snoop" line discipline.  This gets determined at
+ * module load time.
+ */
+static int mylinedisc;
+
+static int
+dsnwrite(struct tty *tp, struct uio *uio, int flag)
+{
+	struct snoop *snp = ttytosnp(tp);
+	int error = 0;
+	char ibuf[1024];
+	int ilen;
+	struct iovec iov;
+	struct uio uio2;
+
+	while (uio->uio_resid) {
+		ilen = MIN(sizeof(ibuf), uio->uio_resid);
+		error = uiomove(ibuf, ilen, uio);
+		if (error)
+			break;
+		snpin(snp, ibuf, ilen);
+		/* Hackish, but I think it's the least of all evils. */
+		iov.iov_base = ibuf;
+		iov.iov_len = ilen;
+		uio2.uio_iov = &iov;
+		uio2.uio_iovcnt = 1;
+		uio2.uio_offset = 0;
+		uio2.uio_resid = ilen;
+		uio2.uio_segflg = UIO_SYSSPACE;
+		uio2.uio_rw = UIO_WRITE;
+		uio2.uio_procp = uio->uio_procp;
+		error = ttwrite(tp, &uio2, flag);
+		if (error)
+			break;
+	}
+	return (error);
+}
+
+/*
+ * XXX should there be a global version of this?
+ */
+static int
+l_nullioctl(struct tty *tp, u_long cmd, char *data, int flags, struct proc *p)
+{
+
+	return (ENOIOCTL);
+}
+
+static struct linesw snpdisc = {
+	ttyopen,	ttylclose,	ttread,		dsnwrite,
+	l_nullioctl,	ttyinput,	ttstart,	ttymodem };
 
 static struct tty *
 snpdevtotty (dev)
@@ -98,7 +152,7 @@ snpwrite(dev, uio, flag)
 	tp = snp->snp_tty;
 
 	if ((tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC))
+	    tp->t_line == mylinedisc)
 		goto tty_input;
 
 	printf("Snoop: attempt to write to bad tty.\n");
@@ -334,9 +388,10 @@ snp_detach(snp)
 	tp = snp->snp_tty;
 
 	if (tp && (tp->t_sc == snp) && (tp->t_state & TS_SNOOP) &&
-	    (tp->t_line == OTTYDISC || tp->t_line == NTTYDISC)) {
+	    tp->t_line == mylinedisc) {
 		tp->t_sc = NULL;
 		tp->t_state &= ~TS_SNOOP;
+		tp->t_line = snp->snp_olddisc;
 	} else
 		printf("Snoop: bad attached tty data.\n");
 
@@ -409,12 +464,6 @@ snpioctl(dev, cmd, data, flags, p)
 		if (!tp)
 			return (EINVAL);
 
-		if ((tp->t_sc != (caddr_t)snp) && (tp->t_state & TS_SNOOP))
-			return (EBUSY);
-
-		if ((tp->t_line != OTTYDISC) && (tp->t_line != NTTYDISC))
-			return (EBUSY);
-
 		s = spltty();
 
 		if (snp->snp_target == NODEV) {
@@ -425,6 +474,8 @@ snpioctl(dev, cmd, data, flags, p)
 
 		tp->t_sc = (caddr_t)snp;
 		tp->t_state |= TS_SNOOP;
+		snp->snp_olddisc = tp->t_line;
+		tp->t_line = mylinedisc;
 		snp->snp_tty = tp;
 		snp->snp_target = tdev;
 
@@ -503,8 +554,6 @@ snppoll(dev, events, p)
 	return (revents);
 }
 
-static void snp_drvinit __P((void *unused));
-
 static void
 snp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -519,13 +568,31 @@ snp_clone(void *arg, char *name, int namelen, dev_t *dev)
 	return;
 }
 
-static void
-snp_drvinit(unused)
-	void *unused;
+static int
+snp_modevent(module_t mod, int type, void *data)
 {
+	static eventhandler_tag eh_tag = NULL;
 
-	EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
-	cdevsw_add(&snp_cdevsw);
+	switch (type) {
+	case MOD_LOAD:
+		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
+		mylinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
+		cdevsw_add(&snp_cdevsw);
+		break;
+	case MOD_UNLOAD:
+		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+		ldisc_deregister(mylinedisc);
+		cdevsw_remove(&snp_cdevsw);
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 
-SYSINIT(snpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,snp_drvinit,NULL)
+static moduledata_t snp_mod = {
+        "snp",
+        snp_modevent,
+        NULL
+};
+DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
