@@ -90,6 +90,14 @@ Driver support has been added for the 3Com 3c905C-TX.
 
 APM support has been improved.
 
+User- and group-based IPFW firewalling has been added.
+
+Support for probabalistic rule matching has been added to IPFW.
+
+IPFW logging is now dynamic. IPFW logging counts can be reset, and any
+given rule can be given an arbitrary logging limit.
+
+
 1.2. SECURITY FIXES
 -------------------
 
