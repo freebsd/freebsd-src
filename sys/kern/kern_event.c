@@ -497,9 +497,9 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	SLIST_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 	FILE_LOCK(fp);
 	fp->f_flag = FREAD | FWRITE;
@@ -746,13 +746,13 @@ findkn:
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 		}
 
+		FILEDESC_UNLOCK(fdp);
 		KQ_LOCK(kq);
 		if (kev->ident < kq->kq_knlistsize) {
 			SLIST_FOREACH(kn, &kq->kq_knlist[kev->ident], kn_link)
 				if (kev->filter == kn->kn_filter)
 					break;
 		}
-		FILEDESC_UNLOCK(fdp);
 	} else {
 		if ((kev->flags & EV_ADD) == EV_ADD)
 			kqueue_expand(kq, fops, kev->ident, waitok);
@@ -1391,9 +1391,9 @@ kqueue_close(struct file *fp, struct thread *td)
 
 	KQ_UNLOCK(kq);
 
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	SLIST_REMOVE(&fdp->fd_kqlist, kq, kqueue, kq_list);
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 	knlist_destroy(&kq->kq_sel.si_note);
 	mtx_destroy(&kq->kq_lock);
