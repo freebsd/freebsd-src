@@ -1,3 +1,0 @@
-# $Id: resolv.conf.en,v 1.1 1998/08/02 13:03:32 abial Exp $
-domain		mydomain.edu
-nameserver	192.33.4.12
