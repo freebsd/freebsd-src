@@ -164,7 +164,9 @@ camcontrol_optret getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum,
 			    char **subopt);
 #ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
+#endif /* MINIMALISTIC */
 static int getdevtree(void);
+#ifndef MINIMALISTIC
 static int testunitready(struct cam_device *device, int retry_count,
 			 int timeout, int quiet);
 static int scsistart(struct cam_device *device, int startstop, int loadeject,
@@ -300,8 +302,11 @@ getdevtree(void)
 		return(1);
 	}
 
-	bzero(&(&ccb.ccb_h)[1],
-	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
+	bzero(&ccb, sizeof(union ccb));
+
+	ccb.ccb_h.path_id = CAM_XPT_PATH_ID;
+	ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
+	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
 
 	ccb.ccb_h.func_code = XPT_DEV_MATCH;
 	bufsize = sizeof(struct dev_match_result) * 100;
@@ -3398,6 +3403,11 @@ main(int argc, char **argv)
 				errx(1, "numeric device specification must "
 				     "be either bus:target, or "
 				     "bus:target:lun");
+			/* default to 0 if lun was not specified */
+			if ((arglist & CAM_ARG_LUN) == 0) {
+				lun = 0;
+				arglist |= CAM_ARG_LUN;
+			}
 			optstart++;
 		} else {
 			if (cam_get_device(argv[2], name, sizeof name, &unit)
