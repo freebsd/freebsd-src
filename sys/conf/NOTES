@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.32 1993/12/12 12:22:27 davidg Exp $
+#	$Id: LINT,v 1.33 1993/12/19 00:49:52 wollman Exp $
 #
 
 machine		"i386"
@@ -24,7 +24,7 @@ config		"386bsd"	at 0xFE100000 root on wd0 swap on wd0 and sd0
 options		"COM_BIDIR"		#Bidirectional support in sys/isa/sio.c
 options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=103939"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=104705"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 options		"NCONS=8"		#number of syscons virtual consoles
@@ -47,6 +47,7 @@ options		FASTLINKS		#support for fast symbolic links
 options		MACHVMCOMPAT		#support for Mach-style vm calls
 options		IPBROADCASTECHO=1	#send reply to broadcast pings
 options		IPMASKAGENT=1		#send reply to icmp mask requests
+options		TPCONS			#support X.25 network-layer service
 
 #
 # options that are in sys/conf/files
