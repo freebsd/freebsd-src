@@ -77,11 +77,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
-#ifdef APIC_IO
-#include <machine/smp.h>
-#else
-#include <i386/isa/icu.h>
-#endif /* APIC_IO */
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -114,28 +109,11 @@ configure(dummy)
 {
 
 	/*
-	 * Activate the ICU's.  Note that we are explicitly at splhigh()
-	 * at present as we have no way to disable stray PCI level triggered
-	 * interrupts until the devices have had a driver attached.  This
-	 * is particularly a problem when the interrupts are shared.  For
-	 * example, if IRQ 10 is shared between a disk and network device
-	 * and the disk device generates an interrupt, if we "activate"
-	 * IRQ 10 when the network driver is set up, then we will get
-	 * recursive interrupt 10's as nothing will know how to turn off
-	 * the disk device's interrupt.
-	 *
-	 * Having the ICU's active means we can probe interrupt routing to
-	 * see if a device causes the corresponding pending bit to be set.
-	 *
-	 * This is all rather inconvenient.
+	 * Enable interrupts on the processor.  The interrupts are still
+	 * disabled in the interrupt controllers until interrupt handlers
+	 * are registered.
 	 */
-#ifdef APIC_IO
-	bsp_apic_configure();
 	enable_intr();
-#else
-	enable_intr();
-	INTREN(IRQ_SLAVE);
-#endif /* APIC_IO */
 
 	/* nexus0 is the top of the i386 device tree */
 	device_add_child(root_bus, "nexus", 0);
@@ -151,12 +129,6 @@ configure(dummy)
 	if (isa_bus_device)
 		isa_probe_children(isa_bus_device);
 #endif
-
-	/*
-	 * Now we're ready to handle (pending) interrupts.
-	 * XXX this is slightly misplaced.
-	 */
-	spl0();
 }
 
 static void
@@ -167,11 +139,6 @@ configure_final(dummy)
 	cninit_finish(); 
 
 	if (bootverbose) {
-
-#ifdef APIC_IO
-		imen_dump();
-#endif /* APIC_IO */
-
 #ifdef PC98
 		{
 		int i;
