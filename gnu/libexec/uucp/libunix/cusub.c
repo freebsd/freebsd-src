@@ -63,6 +63,7 @@ const char cusub_rcsid[] = "$FreeBSD$";
 #endif /* ! defined (O_NONBLOCK) */
 
 #include <errno.h>
+#include <paths.h>
 
 /* 4.2 systems don't define SIGUSR2.  This should work for them.  On
    systems which are missing SIGUSR1, or SIGURG, you must find two
@@ -156,8 +157,8 @@ fsysdep_port_access (qport)
   zfree = NULL;
   if (*zline != '/')
     {
-      zfree = zbufalc (sizeof "/dev/" + strlen (zline));
-      sprintf (zfree, "/dev/%s", zline);
+      zfree = zbufalc (sizeof _PATH_DEV + strlen (zline));
+      sprintf (zfree, "%s%s", _PATH_DEV, zline);
       zline = zfree;
     }
 
@@ -188,14 +189,14 @@ fsysdep_port_is_line (qport, zline)
   zfree2 = NULL;
   if (*zline != '/')
     {
-      zfree1 = zbufalc (sizeof "/dev/" + strlen (zline));
-      sprintf (zfree1, "/dev/%s", zline);
+      zfree1 = zbufalc (sizeof _PATH_DEV + strlen (zline));
+      sprintf (zfree1, "%s%s", _PATH_DEV, zline);
       zline = zfree1;
     }
   if (*zpline != '/')
     {
-      zfree2 = zbufalc (sizeof "/dev/" + strlen (zpline));
-      sprintf (zfree2, "/dev/%s", zpline);
+      zfree2 = zbufalc (sizeof _PATH_DEV + strlen (zpline));
+      sprintf (zfree2, "%s%s", _PATH_DEV, zpline);
       zpline = zfree2;
     }
 

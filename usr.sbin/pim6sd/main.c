@@ -60,6 +60,7 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
@@ -466,7 +467,7 @@ usage:
 	(void) setpgrp();
 #else
 #ifdef TIOCNOTTY
-	t = open("/dev/tty", 2);
+	t = open(_PATH_TTY, 2);
 	if (t >= 0)
 	{
 	    (void) ioctl(t, TIOCNOTTY, (char *) 0);

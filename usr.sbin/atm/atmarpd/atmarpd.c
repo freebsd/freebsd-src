@@ -52,6 +52,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libatm.h>
+#include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
@@ -247,7 +248,7 @@ start_daemon()
 		atmarp_log(LOG_ERR, "can't change process group");
 		exit(1);
 	}
-	fd = open("/dev/tty", O_RDWR);
+	fd = open(_PATH_TTY, O_RDWR);
 	if (fd >= 0) {
 		ioctl(fd, TIOCNOTTY, (char *)0);
 		close(fd);

@@ -23,6 +23,8 @@
    c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
+/* $FreeBSD$ */
+
 #include "uucp.h"
 
 #include "uudefs.h"
@@ -30,6 +32,7 @@
 #include "sysdep.h"
 
 #include <errno.h>
+#include <paths.h>
 
 #if HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -123,7 +126,7 @@ usysdep_detach ()
   {
     int o;
 
-    o = open ((char *) "/dev/tty", O_RDONLY);
+    o = open ((char *) _PATH_TTY, O_RDONLY);
     if (o >= 0)
       {
 	(void) ioctl (o, TIOCNOTTY, (char *) NULL);
@@ -137,10 +140,10 @@ usysdep_detach ()
   (void) close (0);
   (void) close (1);
   (void) close (2);
-  if (open ((char *) "/dev/null", O_RDONLY) != 0
-      || open ((char *) "/dev/null", O_WRONLY) != 1
-      || open ((char *) "/dev/null", O_WRONLY) != 2)
-    ulog (LOG_FATAL, "open (/dev/null): %s", strerror (errno));
+  if (open ((char *) _PATH_DEVNULL, O_RDONLY) != 0
+      || open ((char *) _PATH_DEVNULL, O_WRONLY) != 1
+      || open ((char *) _PATH_DEVNULL, O_WRONLY) != 2)
+    ulog (LOG_FATAL, "open (%s): %s", _PATH_DEVNULL, strerror (errno));
 
 #if HAVE_SETSID
 

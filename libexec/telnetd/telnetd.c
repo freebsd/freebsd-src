@@ -62,6 +62,7 @@ static const char rcsid[] =
 
 #include <sys/mman.h>
 #include <libutil.h>
+#include <paths.h>
 #include <utmp.h>
 
 #if	defined(_SC_CRAY_SECURE_SYS)
@@ -824,10 +825,10 @@ doit(who)
 	if (secflag) {
 		char slave_dev[16];
 
-		sprintf(tty_dev, "/dev/pty/%03d", ptynum);
+		sprintf(tty_dev, "%spty/%03d", _PATH_DEV, ptynum);
 		if (setdevs(tty_dev, &dv) < 0)
 		 	fatal(net, "cannot set pty security");
-		sprintf(slave_dev, "/dev/ttyp%03d", ptynum);
+		sprintf(slave_dev, "%sp%03d", _PATH_TTY, ptynum);
 		if (setdevs(slave_dev, &dv) < 0)
 		 	fatal(net, "cannot set tty security");
 	}

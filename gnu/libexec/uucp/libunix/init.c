@@ -23,6 +23,8 @@
    c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
+/* $FreeBSD$ */
+
 #include "uucp.h"
 
 #include "uudefs.h"
@@ -31,6 +33,7 @@
 #include "sysdep.h"
 
 #include <errno.h>
+#include <paths.h>
 #include <pwd.h>
 
 #if HAVE_FCNTL_H
@@ -189,13 +192,13 @@ usysdep_initialize (puuconf,iflags)
 
   /* Make sure stdin, stdout and stderr are open.  */
   if (fcntl (0, F_GETFD, 0) < 0
-      && open ((char *) "/dev/null", O_RDONLY, 0) != 0)
+      && open ((char *) _PATH_DEVNULL, O_RDONLY, 0) != 0)
     exit (EXIT_FAILURE);
   if (fcntl (1, F_GETFD, 0) < 0
-      && open ((char *) "/dev/null", O_WRONLY, 0) != 1)
+      && open ((char *) _PATH_DEVNULL, O_WRONLY, 0) != 1)
     exit (EXIT_FAILURE);
   if (fcntl (2, F_GETFD, 0) < 0
-      && open ((char *) "/dev/null", O_WRONLY, 0) != 2)
+      && open ((char *) _PATH_DEVNULL, O_WRONLY, 0) != 2)
     exit (EXIT_FAILURE);
 
   iuuconf = uuconf_spooldir (puuconf, &zSspooldir);

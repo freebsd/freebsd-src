@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)paths.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef _PATHS_H_
@@ -50,6 +51,7 @@
 #define	_PATH_CSHELL	"/bin/csh"
 #define	_PATH_DEVDB	"/var/run/dev.db"
 #define	_PATH_DEVNULL	"/dev/null"
+#define	_PATH_DEVZERO	"/dev/zero"
 #define	_PATH_DRUM	"/dev/drum"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_KMEM	"/dev/kmem"

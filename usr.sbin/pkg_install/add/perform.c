@@ -24,6 +24,7 @@ static const char rcsid[] =
  */
 
 #include <err.h>
+#include <paths.h>
 #include "lib.h"
 #include "add.h"
 
@@ -363,9 +364,9 @@ pkg_do(char *pkg)
 	    printf("Running mtree for %s..\n", PkgName);
 	p = find_plist(&Plist, PLIST_CWD);
 	if (Verbose)
-	    printf("mtree -U -f %s -d -e -p %s >/dev/null\n", MTREE_FNAME, p ? p->name : "/");
+	    printf("mtree -U -f %s -d -e -p %s >%s\n", MTREE_FNAME, p ? p->name : "/", _PATH_DEVNULL);
 	if (!Fake) {
-	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >/dev/null", MTREE_FNAME, p ? p->name : "/"))
+	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >%s", MTREE_FNAME, p ? p->name : "/"), _PATH_DEVNULL)
 		warnx("mtree returned a non-zero status - continuing");
 	}
 	unlink(MTREE_FNAME);

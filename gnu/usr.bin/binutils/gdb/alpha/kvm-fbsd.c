@@ -19,6 +19,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+/* $FreeBSD$ */
+
 /*
  * This works like "remote" but, you use it like this:
  *     target kcore /dev/mem
@@ -37,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <signal.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <paths.h>
 
 #include "defs.h"
 #include "gdb_string.h"
@@ -110,7 +113,7 @@ initial_pcb()
     return (0);
 
   /* If this is NOT /dev/mem try for dumppcb. */
-  if (strncmp(core_file, "/dev/", 5)) {
+  if (strncmp(core_file, _PATH_DEV, sizeof _PATH_DEV - 1)) {
     sym = lookup_minimal_symbol("dumppcb", NULL, NULL);
     if (sym != NULL) {
       addr = SYMBOL_VALUE_ADDRESS(sym);

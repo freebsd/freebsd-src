@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -283,7 +284,7 @@ invalid:
 		warning("ignoring excess arguments");
 
 	if (devfs) {
-		mount("devfs", "/dev", 0, 0);
+		mount("devfs", _PATH_DEV, 0, 0);
 	}
 
 	/*

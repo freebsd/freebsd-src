@@ -39,6 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
+static char rscid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -82,6 +83,7 @@ static char sccsid[] = "@(#)sliplogin.c	8.2 (Berkeley) 2/1/94";
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
+#include <paths.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -375,7 +377,7 @@ main(argc, argv)
 	FILE *iffile;				/* interfaces file */
 	char *p;
 	int n;
-	char devnam[MAXPATHLEN] = "/dev/tty";   /* Device name */
+	char devnam[MAXPATHLEN] = _PATH_TTY;   /* Device name */
 
 	if ((name = strrchr(argv[0], '/')) == NULL)
 		name = argv[0];
@@ -510,7 +512,7 @@ main(argc, argv)
 	(void) close(1);
 	if ((fd = open(_PATH_DEVNULL, O_WRONLY)) != 1) {
 		if (fd < 0) {
-			syslog(LOG_ERR, "open /dev/null: %m");
+			syslog(LOG_ERR, "open %s: %m", _PATH_DEVNULL);
 			exit(1);
 		}
 		(void) dup2(fd, 1);
