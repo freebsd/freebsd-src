@@ -263,7 +263,7 @@ set_user_ldt(struct pcb *pcb)
 	gdt[GUSERLDT_SEL].sd = pcb_ldt->ldt_sd;
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
-	currentldt = GSEL(GUSERLDT_SEL, SEL_KPL);
+	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
 }
 
 struct pcb_ldt *
@@ -311,7 +311,7 @@ user_ldt_free(struct pcb *pcb)
 
 	if (pcb == curpcb) {
 		lldt(_default_ldt);
-		currentldt = _default_ldt;
+		PCPU_SET(currentldt, _default_ldt);
 	}
 
 	if (--pcb_ldt->ldt_refcnt == 0) {

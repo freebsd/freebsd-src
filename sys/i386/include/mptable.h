@@ -480,7 +480,7 @@ init_secondary(void)
 
 	lldt(_default_ldt);
 #ifdef USER_LDT
-	currentldt = _default_ldt;
+	PCPU_SET(currentldt, _default_ldt);
 #endif
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
