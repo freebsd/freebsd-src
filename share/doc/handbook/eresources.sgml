@@ -1,18 +1,32 @@
-<!-- $Id: eresources.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.7 1995/07/09 16:35:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-    <chapt>
-      <heading>Additional resources on the Internet</heading>
+<chapt>
+  <heading>Resources on the Internet<label id="eresources"></heading>
+
+  <p>The rapid pace of FreeBSD progress makes print media
+    impractical as a means for following the latest
+    developments.  Electronic resources are the best, if not the
+    only way stay informed of the latest advances.  Also, since
+    FreeBSD is a volunteer effort, the user community also serves
+    as the technical support department and invariably,
+    electronic mail and Usenet news are the most effective way of
+    getting technical problems resolved.
+
+    Below, the most important points of contact with the FreeBSD
+    user community are outlined.  If you are aware of other
+    resources not included, please send them to
+    <tt>doc@freebsd.org</tt> so they may be included.
 
       <sect>
-        <heading>Mailing lists<label id="eresources:mailing-lists"></heading>
+        <heading>Mailing lists<label id="eresources:mail"></heading>
 
 <p><em>Contributed by &a.dufalt;.<newline>
-  5 May 1995.</em>
+  20 Jun 1995.</em>
 
 Though many of the FreeBSD development members read USENET, we cannot
 always guarantee that we'll get to your questions in a timely fashion
-(or at all) if you post them only to one of the comp.os.386bsd.*
+(or at all) if you post them only to one of the comp.unix.bsd.*
 groups.  By addressing your questions to the appropriate mailing list
 you will reach both us and a concentrated FreeBSD audience, invariably
 assuring a better (or at least faster) response.
@@ -21,6 +35,12 @@ There are list charters at the bottom of this document.  Please read
 the list charter before joining a list.  We must strive to
 keep the signal to noise ratio of the lists high, especially in
 the technical lists.
+
+Archives are kept for all of the mailing lists and can be searched
+using the the <url url="http://www.freebsd.org/How/mail-archive.html"
+name="FreeBSD World Wide Web server">.  The keyword searchable archive
+offers an excellent way to find answers to frequently asked questions
+and should be consulted before posting a question.
 
 <sect1><heading>List summary</heading>
 
@@ -65,6 +85,7 @@ freebsd-admin            Administrative issues
 freebsd-arch             Architecture and design discussions
 freebsd-core             FreeBSD core team
 freebsd-install          Installation development
+freebsd-user-groups      User group coordination
 </verb>
 
 <bf>CVS lists:</bf> The following lists are for people seeing the log messages
@@ -92,9 +113,10 @@ cvs-usrsbin     /usr/src/usr.sbin    System binaries
 
 <sect1><heading>How to subscribe</heading>
 
-<p>All mailing lists live on `FreeBSD.ORG', so to post to a list you
-simply mail to `&lt;listname&gt;@FreeBSD.ORG'.  It will then be redistributed
-to mailing list members throughout the world.
+<p>All mailing lists live on <tt>FreeBSD.ORG</tt>, so to post to a
+list you simply mail to <em>listname</em><tt>@FreeBSD.ORG</tt>.  It
+will then be redistributed to mailing list members throughout the
+world.
 
 To subscribe to a list, send mail to:
 <tscreen><verb>
@@ -232,66 +254,78 @@ for FreeBSD.
 <tag/FREEBSD-SECURITY/ <em>Security issues</em><newline> 
 FreeBSD computer security issues (DES, Kerberos, known security holes and
 fixes, etc).
+
+<tag/FREEBSD-USER-GROUPS/ <em>User Group Coordination List</em><newline>
+This is the mailing list for the coordinators from each of the 
+local area Users Groups to dicuss matters with each other and a 
+designated individual from the Core Team.  This mail list should
+be limited to meeting synopsis and coordination of projects that span
+User Groups.
+
 </descrip>
 
       <sect>
-        <heading>Usenet newsgroups</heading>
+        <heading>Usenet newsgroups<label id="eresources:news"></heading>
 
-        <p>While no newsgroups dedicated to FreeBSD exist, there
-          are many in which FreeBSD is discussed or are otherwise
-          relevant to FreeBSD users.
+        <p>In addition to two FreeBSD specific newsgroups, there
+          are many others in which FreeBSD is discussed or are
+          otherwise relevant to FreeBSD users. <url
+          url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews_search.html"
+          name="Keyword searchable archives"> are available for
+          some of these newsgroups from courtesy of Warren Toomey
+          <tt>&lt;wkt@cs.adfa.oz.au&gt;</tt>.
 
         <sect1>
           <heading>BSD specific newsgroups</heading>
 
           <p><itemize>
-              <item> comp.unix.bsd.freebsd.announce
-              <item> comp.unix.bsd.freebsd.misc
+              <item>comp.unix.bsd.freebsd.announce
+              <item>comp.unix.bsd.freebsd.misc
             </itemize>
 
         <sect1>
           <heading>Other Unix newsgroups of interest</heading>
 
           <p><itemize>
-              <item> comp.unix 
-              <item> comp.unix.questions 
-              <item> comp.unix.admin 
-              <item> comp.unix.programmer 
-              <item> comp.unix.shell 
-              <item> comp.unix.user-friendly 
-              <item> comp.security.unix 
-              <item> comp.sources.unix 
-              <item> comp.unix.advocacy 
-              <item> comp.unix.misc 
-              <item> comp.os.386bsd.announce
-              <item> comp.os.386bsd.apps
-              <item> comp.os.386bsd.bugs 
-              <item> comp.os.386bsd.development 
-              <item> comp.os.386bsd.misc 
-              <item> comp.os.386bsd.questions 
-              <item> comp.bugs.4bsd 
-              <item> comp.bugs.4bsd.ucb-fixes 
-              <item> comp.unix.bsd 
+              <item>comp.unix 
+              <item>comp.unix.questions 
+              <item>comp.unix.admin 
+              <item>comp.unix.programmer 
+              <item>comp.unix.shell 
+              <item>comp.unix.user-friendly 
+              <item>comp.security.unix 
+              <item>comp.sources.unix 
+              <item>comp.unix.advocacy 
+              <item>comp.unix.misc 
+              <item>comp.os.386bsd.announce
+              <item>comp.os.386bsd.apps
+              <item>comp.os.386bsd.bugs 
+              <item>comp.os.386bsd.development 
+              <item>comp.os.386bsd.misc 
+              <item>comp.os.386bsd.questions 
+              <item>comp.bugs.4bsd 
+              <item>comp.bugs.4bsd.ucb-fixes 
+              <item>comp.unix.bsd 
             </itemize>
 
         <sect1>
           <heading>X-Window system</heading>
 
           <p><itemize>
-              <item> comp.windows.x.i386unix 
-              <item> comp.windows.x 
-              <item> comp.windows.x.apps 
-              <item> comp.windows.x.announce 
-              <item> comp.windows.x.intrinsics 
-              <item> comp.windows.x.motif 
-              <item> comp.windows.x.pex 
-              <item> comp.emulators.ms-windows.wine 
+              <item>comp.windows.x.i386unix 
+              <item>comp.windows.x 
+              <item>comp.windows.x.apps 
+              <item>comp.windows.x.announce 
+              <item>comp.windows.x.intrinsics 
+              <item>comp.windows.x.motif 
+              <item>comp.windows.x.pex 
+              <item>comp.emulators.ms-windows.wine 
             </itemize>
 
       <sect>
-        <heading>Word Wide Web servers</heading>
+        <heading>Word Wide Web servers<label id="eresources:web"></heading>
 
         <p><itemize> 
-            <item> <url url="http://www.freebsd.org/"></item>
+            <item><url url="http://www.freebsd.org/"></item>
           </itemize>
     </sect>

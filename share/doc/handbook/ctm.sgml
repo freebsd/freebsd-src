@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier RObert <roberto@FreeBSD.ORG>
 #
-# $Id: m_ctm.sgml,v 1.1 1995/04/10 02:35:55 jfieber Exp $
+# $Id: ctm.sgml,v 1.3 1995/07/06 14:24:56 jfieber Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -14,7 +14,7 @@
 #
 -->
 
-<sect><heading>CTM</heading>
+<sect><heading>CTM<label id="ctm"></heading>
 
 <p><em>Contributed by &a.phk;.  Updated 16-Mar-1995.</em>
 
@@ -37,11 +37,7 @@
 
         You will also need to make yourself aware of the various caveats in
         running ``current'' sources, and for this it is recommended that
-        you refer to the relevant FAQ which can be found in
-        <verb>
-          /usr/share/FAQ/Text/current-policy.FAQ 
-        </verb>
-	<!-- XXX -->
+        you read <ref id="current" name="Staying current with FreeBSD">.
 
     <sect1>What do I need to use <tt/CTM/?
 
