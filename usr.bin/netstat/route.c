@@ -726,9 +726,9 @@ netname(in, mask)
 	register u_long i;
 
 	i = ntohl(in);
+	dmask = forgemask(i);
 	omask = mask;
 	if (!nflag && i) {
-		dmask = forgemask(i);
 		net = i & dmask;
 		if (!(np = getnetbyaddr(i, AF_INET)) && net != i)
 			np = getnetbyaddr(net, AF_INET);
@@ -739,15 +739,34 @@ netname(in, mask)
 	}
 	if (cp)
 		strncpy(line, cp, sizeof(line) - 1);
-	else if ((i & 0xffffff) == 0)
-		sprintf(line, "%lu", C(i >> 24));
-	else if ((i & 0xffff) == 0)
-		sprintf(line, "%lu.%lu", C(i >> 24) , C(i >> 16));
-	else if ((i & 0xff) == 0)
-		sprintf(line, "%lu.%lu.%lu", C(i >> 24), C(i >> 16), C(i >> 8));
-	else
-		sprintf(line, "%lu.%lu.%lu.%lu", C(i >> 24),
-			C(i >> 16), C(i >> 8), C(i));
+	else {
+		switch (dmask) {
+		case IN_CLASSA_NET:
+			if ((i & IN_CLASSA_HOST) == 0) {
+				sprintf(line, "%lu", C(i >> 24));
+				break;
+			}
+			/* FALLTHROUGH */
+		case IN_CLASSB_NET:
+			if ((i & IN_CLASSB_HOST) == 0) {
+				sprintf(line, "%lu.%lu",
+					C(i >> 24), C(i >> 16));
+				break;
+			}
+			/* FALLTHROUGH */
+		case IN_CLASSC_NET:
+			if ((i & IN_CLASSC_HOST) == 0) {
+				sprintf(line, "%lu.%lu.%lu",
+					C(i >> 24), C(i >> 16), C(i >> 8));
+				break;
+			}
+			/* FALLTHROUGH */
+		default:
+			sprintf(line, "%lu.%lu.%lu.%lu",
+				C(i >> 24), C(i >> 16), C(i >> 8), C(i));
+			break;
+		}
+	}
 	domask(line+strlen(line), i, omask);
 	return (line);
 }
