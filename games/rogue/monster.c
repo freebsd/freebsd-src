@@ -147,7 +147,7 @@ put_mons()
 object *
 gr_monster(monster, mn)
 object *monster;
-mn;
+int mn;
 {
 	if (!monster) {
 		monster = alloc_object();
@@ -267,7 +267,7 @@ int rn, n;
 }
 
 gmc_row_col(row, col)
-row, col;
+int row, col;
 {
 	object *monster;
 
@@ -454,7 +454,7 @@ object *monster;
 short row, col;
 {
 	short c;
-	mrow, mcol;
+	int mrow, mcol;
 
 	mrow = monster->row;
 	mcol = monster->col;
@@ -603,7 +603,7 @@ const object *monster;
 }
 
 rogue_is_around(row, col)
-row, col;
+int row, col;
 {
 	short rdif, cdif, retval;
 
@@ -731,9 +731,9 @@ object *monster;
 }
 
 rogue_can_see(row, col)
-row, col;
+int row, col;
 {
-	retval;
+	int retval;
 
 	retval = !blind &&
 			(((get_room_number(row, col) == cur_room) &&
