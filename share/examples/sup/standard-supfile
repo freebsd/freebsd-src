@@ -1,4 +1,4 @@
-# $Id: standard-supfile,v 1.4 1996/05/04 14:08:49 jkh Exp $
+# $Id: standard-supfile,v 1.5 1996/06/26 05:40:58 phk Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # source distribution from the current (new and experimental) development
@@ -50,5 +50,6 @@ src-sbin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/u
 #src-secure release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-share release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-sys release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
+src-tools release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-usrbin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-usrsbin release=current host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
