@@ -359,7 +359,7 @@ Spawn(const char *prog, const char *acname, const char *provider,
         syslog(LOG_INFO, "Waiting for a SUCCESS reply %s", path);
 
       do {
-        if ((ret = NgRecvMsg(cs, rep, sizeof msgbuf, NULL) < 0)) {
+        if ((ret = NgRecvMsg(cs, rep, sizeof msgbuf, NULL)) < 0) {
           syslog(LOG_ERR, "%s: Cannot receive a message: %m", path);
           _exit(EX_OSERR);
         }
