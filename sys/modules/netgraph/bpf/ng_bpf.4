@@ -133,6 +133,44 @@ except that the statistics are also atomically cleared.
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
+.Sh EXAMPLE
+It is possible to configure a node from the command line, using
+.Xr tcpdump 8 
+to generate raw BPF instructions which are then fed into an
+.Xr awk 1
+script to create the ASCII form of a
+.Dv NGM_BPF_SET_PROGRAM
+control message, as demonstrated here:
+.Bd -literal -offset 4n
+#!/bin/sh
+
+PATTERN="tcp dst port 80"
+NODEPATH="my_node:"
+INHOOK="hook1"
+MATCHHOOK="hook2"
+NOTMATCHHOOK="hook3"
+
+cat > /tmp/bpf.awk << xxENDxx
+{
+  if (!init) {
+    printf "bpf_prog_len=%d bpf_prog=[", \\$1;
+    init=1;
+  } else {
+    printf " { code=%d jt=%d jf=%d k=%d }", \\$1, \\$2, \\$3, \\$4;
+  }
+}
+END {
+  print " ]"
+}
+xxENDxx
+
+BPFPROG=`tcpdump -ddd ${PATTERN} | awk -f /tmp/bpf.awk`
+
+ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
+  ifMatch=\\"${MATCHHOOK}\\" \\
+  ifNotMatch=\\"${NOTMATCHHOOK}\\" \\
+  ${BPFPROG} } }
+.Ed
 .Sh BUGS
 When built as a loadable kernel module, this module includes the file
 .Pa net/bpf_filter.c .
