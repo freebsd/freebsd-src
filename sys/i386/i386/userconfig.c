@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.12 1994/11/13 00:43:29 jkh Exp $
+ *      $Id: userconfig.c,v 1.13 1994/11/13 00:57:06 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -159,7 +159,9 @@ parse_cmd(char *cmd)
 	int len = strlen(cp->name);
 
 	if (!strncmp(cp->name, cmd, len)) {
-	    if (parse_args(cmd + len, cp->parms))
+	    while (*cmd && *cmd != ' ' && *cmd != '\t')
+		++cmd;
+	    if (parse_args(cmd, cp->parms))
 		return NULL;
 	    else
 		return cp;
