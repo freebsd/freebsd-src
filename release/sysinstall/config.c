@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.60 1996/11/27 22:52:31 phk Exp $
+ * $Id: config.c,v 1.61 1996/12/02 05:01:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -275,7 +275,7 @@ configSysconfig(char *config)
 	    /* Skip the comments */
 	    if (lines[i][0] == '#')
 		continue;
-	    strcpy(tmp, lines[i]);
+	    SAFE_STRCPY(tmp, lines[i]);
 	    cp = index(tmp, '=');
 	    if (!cp)
 		continue;
@@ -411,7 +411,7 @@ skip:
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
 	else {
-	    strcpy(cp2, hp);
+	    SAFE_STRCPY(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);

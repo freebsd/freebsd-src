@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.21 1996/07/08 08:54:30 jkh Exp $
+ * $Id: misc.c,v 1.22 1996/07/09 14:28:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,6 +74,14 @@ string_concat(char *one, char *two)
     strcpy(tmp, one);
     strcat(tmp, two);
     return tmp;
+}
+
+/* sane strncpy() function */
+char *
+sstrncpy(char *dst, const char *src, int size)
+{
+    *(dst + size) = '\0';
+    return strncpy(dst, src, size - 1);
 }
 
 /* Concatenate three strings into static storage */

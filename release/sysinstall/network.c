@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.19 1996/12/09 06:37:44 jkh Exp $
+ * $Id: network.c,v 1.20 1996/12/09 06:45:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -94,7 +94,7 @@ mediaInitNetwork(Device *dev)
 	if (!val)
 	    return FALSE;
 	else
-	    strncpy(attach, val, 256);
+	    SAFE_STRCPY(attach, val);
 	/*
 	 * Doing this with vsystem() is actually bogus since we should be storing the pid of slattach
 	 * for later killing.  It's just too convenient to call vsystem(), however, rather than
@@ -198,15 +198,17 @@ startPPP(Device *devp)
 		      "maximum data rate since most modems can talk at one speed to the\n"
 		      "computer and at another speed to the remote end.\n\n"
 		      "If you're not sure what to put here, just select the default.");
-    strncpy(speed, (val && *val) ? val : "115200", 16);
+    SAFE_STRCPY(speed, (val && *val) ? val : "115200");
 
-    strncpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0", 16);
+    val = variable_get(VAR_GATEWAY);
+    SAFE_STRCPY(provider, (val && *val) ? val : "0");
+
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\n"
 		      "don't know it and would prefer to negotiate it dynamically.");
-    strncpy(provider, val ? val : "0", 16);
+    SAFE_STRCPY(provider, (val && *val) ? val : "0");
 
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strncpy(myaddr, ((DevInfo *)devp->private)->ipaddr, 16);
+	SAFE_STRCPY(myaddr, ((DevInfo *)devp->private)->ipaddr);
     else
 	strcpy(myaddr, "0");
 
