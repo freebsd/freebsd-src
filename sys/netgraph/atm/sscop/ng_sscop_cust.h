@@ -111,6 +111,7 @@ typedef struct callout sscop_timer_t;
 	ng_untimeout(&(S)->t_##T, (S)->aarg);				\
     } while (0)
 #define	TIMER_RESTART(S, T) do {					\
+	TIMER_STOP(S, T);						\
 	ng_timeout(&(S)->t_##T, (S)->aarg, NULL,			\
 	    hz * (S)->timer##T / 1000, T##_func, (S), 0);		\
     } while (0)
