@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+# Copyright (c) 2004 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,35 +36,13 @@
 # $FreeBSD$
 #
 
-#
-# Hardware Access Layer (HAL) for the Atheros Wireless NIC driver.
-#
-# This module contains the hardware-specific bits for the network
-# interface driver.  It is built as a separate module to simplify
-# maintenance and isolate the bits that are not (currently) distributed
-# in source form.
-#
+.PATH: ${.CURDIR}/../../dev/ath/ath_rate/onoe
+
+KMOD=	ath_rate
+SRCS=	onoe.c
+SRCS+=	opt_bdg.h device_if.h bus_if.h pci_if.h opt_inet.h
+
 HAL=	${.CURDIR}/../../contrib/dev/ath
-
-.PATH: ${HAL}/freebsd
-
-KMOD=	ath_hal
-SRCS=	ah_osdep.c
-SRCS+=	bus_if.h device_if.h pci_if.h ah_if.h opt_ah.h
-OBJS=	hal.o
-MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
-	contrib/dev/ath/freebsd/ah_if.m
-
-CFLAGS+= -I. -I${HAL}/freebsd -I${HAL}
-
-.if defined(HAL_SRC)
-.include "${HAL}/freebsd/Makefile.inc"
-.else
-
-hal.o:	${HAL}/public/i386-elf.hal.o.uu
-	uudecode -p < ${HAL}/public/i386-elf.hal.o.uu > ${.TARGET}
-opt_ah.h: ${HAL}/public/i386-elf.opt_ah.h
-	cp ${HAL}/public/i386-elf.opt_ah.h ${.TARGET}
-.endif
+CFLAGS+=  -I. -I${HAL}/freebsd -I${HAL}
 
 .include <bsd.kmod.mk>
