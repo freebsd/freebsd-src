@@ -244,7 +244,7 @@
       and 1.64 of <filename>src/sys/netkey/key.c</filename>.  More
       information about these problems has been posted to the
       &a.current;, in particular the thread entitled <ulink 
-      url="http://lists.freebsd.org/pipermail/freebsd-current/2004-January/thread.html#18084">
+      url="http://lists.FreeBSD.org/pipermail/freebsd-current/2004-January/thread.html#18084">
       <quote>[PATCH] IPSec fixes</quote></ulink>.</para>
 
 ]]>
