@@ -245,6 +245,9 @@ DRIVER_MODULE(if_fxp, pci, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(if_fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 
+static int fxp_rnr;
+SYSCTL_INT(_hw, OID_AUTO, fxp_rnr, CTLFLAG_RW, &fxp_rnr, 0, "fxp rnr events");
+
 /*
  * Inline function to copy a 16-bit aligned 32-bit quantity.
  */
@@ -1226,6 +1229,12 @@ static void
 fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 {
 	struct ifnet *ifp = &sc->sc_if;
+	struct mbuf *m;
+	struct fxp_rfa *rfa;
+	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
+
+	if (rnr)
+		fxp_rnr++;
 
 	/*
 	 * Free any finished transmit mbuf chains.
@@ -1264,71 +1273,78 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 		if (ifp->if_snd.ifq_head != NULL)
 			fxp_start(ifp);
 	}
+
+	/*
+	 * Just return if nothing happened on the receive side.
+	 */
+	if ( (statack & (FXP_SCB_STATACK_FR | FXP_SCB_STATACK_RNR)) == 0)
+		return;
+
 	/*
 	 * Process receiver interrupts. If a no-resource (RNR)
 	 * condition exists, get whatever packets we can and
 	 * re-start the receiver.
+	 * When using polling, we do not process the list to completion,
+	 * so when we get an RNR interrupt we must defer the restart
+	 * until we hit the last buffer with the C bit set.
+	 * If we run out of cycles and rfa_headm has the C bit set,
+	 * record the pending RNR in an unused status bit, so that the
+	 * info will be used in the subsequent polling cycle.
 	 */
-	if (statack & (FXP_SCB_STATACK_FR | FXP_SCB_STATACK_RNR)) {
-		struct mbuf *m;
-		struct fxp_rfa *rfa;
-rcvloop:
+
+#define	FXP_RFA_RNRMARK		0x4000	/* used to mark a pending RNR intr */
+
+	for (;;) {
 		m = sc->rfa_headm;
 		rfa = (struct fxp_rfa *)(m->m_ext.ext_buf +
 		    RFA_ALIGNMENT_FUDGE);
 
 #ifdef DEVICE_POLLING /* loop at most count times if count >=0 */
-		if (count < 0 || count-- > 0)
+		if (count >= 0 && count-- == 0)
+			break;
 #endif /* DEVICE_POLLING */
-		if (rfa->rfa_status & FXP_RFA_STATUS_C) {
-			/*
-			 * Remove first packet from the chain.
-			 */
-			sc->rfa_headm = m->m_next;
-			m->m_next = NULL;
+
+		if ( (rfa->rfa_status & FXP_RFA_STATUS_C) == 0)
+			break;
+
+		if (rfa->rfa_status & FXP_RFA_RNRMARK)
+			rnr = 1;
+		/*
+		 * Remove first packet from the chain.
+		 */
+		sc->rfa_headm = m->m_next;
+		m->m_next = NULL;
+
+		/*
+		 * Add a new buffer to the receive chain.
+		 * If this fails, the old buffer is recycled
+		 * instead.
+		 */
+		if (fxp_add_rfabuf(sc, m) == 0) {
+			int total_len;
 
 			/*
-			 * Add a new buffer to the receive chain.
-			 * If this fails, the old buffer is recycled
-			 * instead.
+			 * Fetch packet length (the top 2 bits of
+			 * actual_size are flags set by the controller
+			 * upon completion), and drop the packet in case
+			 * of bogus length or CRC errors.
 			 */
-			if (fxp_add_rfabuf(sc, m) == 0) {
-				struct ether_header *eh;
-				int total_len;
-
-				total_len = rfa->actual_size &
-				    (MCLBYTES - 1);
-				if (total_len <
-				    sizeof(struct ether_header)) {
-					m_freem(m);
-					goto rcvloop;
-				}
-
-				/*
-				 * Drop the packet if it has CRC
-				 * errors.  This test is only needed
-				 * when doing 802.1q VLAN on the 82557
-				 * chip.
-				 */
-				if (rfa->rfa_status &
-				    FXP_RFA_STATUS_CRC) {
-					m_freem(m);
-					goto rcvloop;
-				}
-
-				m->m_pkthdr.rcvif = ifp;
-				m->m_pkthdr.len = m->m_len = total_len;
-				eh = mtod(m, struct ether_header *);
-				m->m_data +=
-				    sizeof(struct ether_header);
-				m->m_len -=
-				    sizeof(struct ether_header);
-				m->m_pkthdr.len = m->m_len;
-				ether_input(ifp, eh, m);
+			total_len = rfa->actual_size & 0x3fff;
+			if (total_len < sizeof(struct ether_header) ||
+			    total_len > MCLBYTES - RFA_ALIGNMENT_FUDGE -
+				sizeof(struct fxp_rfa) ||
+			    rfa->rfa_status & FXP_RFA_STATUS_CRC) {
+				m_freem(m);
+				continue;
 			}
-			goto rcvloop;
+			m->m_pkthdr.len = m->m_len = total_len;
+			ether_input(ifp, NULL, m);
 		}
-		if (statack & FXP_SCB_STATACK_RNR) {
+	}
+	if (rnr) {
+		if (rfa->rfa_status & FXP_RFA_STATUS_C)
+			rfa->rfa_status |= FXP_RFA_RNRMARK;
+		else {
 			fxp_scb_wait(sc);
 			CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL,
 			    vtophys(sc->rfa_headm->m_ext.ext_buf) +
@@ -1844,17 +1860,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 	struct mbuf *m;
 	struct fxp_rfa *rfa, *p_rfa;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m != NULL) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_freem(m);
-			if (oldm == NULL)
-				return 1;
-			m = oldm;
-			m->m_data = m->m_ext.ext_buf;
-		}
-	} else {
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL) { /* try to recycle the old mbuf instead */
 		if (oldm == NULL)
 			return 1;
 		m = oldm;
