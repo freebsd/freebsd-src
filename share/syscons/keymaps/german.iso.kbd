@@ -5,8 +5,8 @@
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    esc    esc     O
   002   '1'    '!'    nop    nop    '1'    '!'    nop    nop     O
-  003   '2'    '"'    nop    nop    253    253    nop    nop     O
-  004   '3'    245    nop    nop    252    252    nop    nop     O
+  003   '2'    '"'    nop    nop    178    178    nop    nop     O
+  004   '3'    167    nop    nop    179    179    nop    nop     O
   005   '4'    '$'    nop    nop    '4'    '$'    nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
   007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
@@ -43,7 +43,7 @@
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   246    214    nop    nop    246    214    nop    nop     C
   040   228    196    nop    nop    228    196    nop    nop     C
-  041   '^'    248    rs     rs     '^'    248    rs     rs      O
+  041   '^'    176    rs     rs     '^'    176    rs     rs      O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '#'    '''    nop    nop    '#'    '''    nop    nop     O
   044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
@@ -52,7 +52,7 @@
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
-  050   'm'    'M'    cr     cr     230    230    cr     cr      C
+  050   'm'    'M'    cr     cr     181    181    cr     cr      C
   051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
   052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
   053   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
@@ -88,7 +88,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   ns     ns     ns     ns     ns     ns     ns     ns      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '<'    '>'    nop    nop    '|'    '|'    nop    nop     O
+  086   '<'    '>'    nop    nop    '|'    166    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
