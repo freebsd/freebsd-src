@@ -1453,7 +1453,7 @@ ntfs_writentvattr_plain(
 			if ((off == 0) && (tocopy == ntfs_cntob(cl)))
 			{
 				bp = getblk(ntmp->ntm_devvp, ntfs_cntobn(cn),
-					    ntfs_cntob(cl), 0, 0);
+					    ntfs_cntob(cl), 0, 0, 0);
 				clrbuf(bp);
 			} else {
 				error = bread(ntmp->ntm_devvp, ntfs_cntobn(cn),

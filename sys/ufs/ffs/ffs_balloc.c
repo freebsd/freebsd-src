@@ -176,7 +176,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			    nsize, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, lbn, nsize, 0, 0);
+			bp = getblk(vp, lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -213,7 +213,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			return (error);
 		nb = newb;
 		*allocblk++ = nb;
-		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0);
+		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
@@ -262,7 +262,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp)) {
@@ -314,7 +314,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
@@ -351,7 +351,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			goto fail;
 		}
 	} else {
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
 	*bpp = nbp;
@@ -541,7 +541,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			   nsize, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, -1 - lbn, nsize, 0, 0);
+			bp = getblk(vp, -1 - lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			bp->b_xflags |= BX_ALTDATA;
 			if (flags & BA_CLRBUF)
@@ -637,7 +637,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				&dp->di_db[0]), nsize, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, lbn, nsize, 0, 0);
+			bp = getblk(vp, lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -674,7 +674,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			return (error);
 		nb = newb;
 		*allocblk++ = nb;
-		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0);
+		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
@@ -723,7 +723,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp)) {
@@ -775,7 +775,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		}
 		nb = newb;
 		*allocblk++ = nb;
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
@@ -818,7 +818,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			goto fail;
 		}
 	} else {
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
 	*bpp = nbp;

@@ -455,6 +455,11 @@ buf_countdeps(struct buf *bp, int i)
 	(bp)->b_resid = 0;						\
 }
 
+/*
+ * Flags for getblk's last parameter.
+ */
+#define	GB_LOCK_NOWAIT	0x0001		/* Fail if we block on a buf lock. */
+
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
 extern int	maxswzone;		/* Max KVA for swap structures */
@@ -489,7 +494,7 @@ struct buf *     getpbuf(int *);
 struct buf *incore(struct vnode *, daddr_t);
 struct buf *gbincore(struct vnode *, daddr_t);
 int	inmem(struct vnode *, daddr_t);
-struct buf *getblk(struct vnode *, daddr_t, int, int, int);
+struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
 struct buf *geteblk(int);
 int	bufwait(struct buf *);
 void	bufdone(struct buf *);

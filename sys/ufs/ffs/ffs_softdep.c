@@ -1896,7 +1896,7 @@ setup_allocindir_phase2(bp, ip, aip)
 			bp->b_blkno = blkno;
 		}
 		newindirdep->ir_savebp =
-		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
+		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0, 0);
 		BUF_KERNPROC(newindirdep->ir_savebp);
 		bcopy(bp->b_data, newindirdep->ir_savebp->b_data, bp->b_bcount);
 	}

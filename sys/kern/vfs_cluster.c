@@ -125,7 +125,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	/*
 	 * get the requested block
 	 */
-	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0);
+	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0, 0);
 	origblkno = lblkno;
 	origtotread = totread;
 
@@ -243,7 +243,7 @@ single_block_read:
 				rbp = cluster_rbuild(vp, filesize, lblkno,
 					blkno, size, ntoread, NULL);
 			} else {
-				rbp = getblk(vp, lblkno, size, 0, 0);
+				rbp = getblk(vp, lblkno, size, 0, 0, 0);
 				rbp->b_flags |= B_ASYNC | B_RAM;
 				rbp->b_iocmd = BIO_READ;
 				rbp->b_blkno = blkno;
@@ -349,7 +349,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		tbp = fbp;
 		tbp->b_iocmd = BIO_READ; 
 	} else {
-		tbp = getblk(vp, lbn, size, 0, 0);
+		tbp = getblk(vp, lbn, size, 0, 0, 0);
 		if (tbp->b_flags & B_CACHE)
 			return tbp;
 		tbp->b_flags |= B_ASYNC | B_RAM;
@@ -420,7 +420,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 					break;
 			}
 
-			tbp = getblk(vp, lbn + i, size, 0, 0);
+			tbp = getblk(vp, lbn + i, size, 0, 0, 0);
 
 			/*
 			 * Stop scanning if the buffer is fully valid

@@ -680,7 +680,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 	int i;
 	int rv = 0, readwait = 0;
 
-	*bpp = bp = getblk(vp, blkno, size, 0, 0);
+	*bpp = bp = getblk(vp, blkno, size, 0, 0, 0);
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
@@ -702,7 +702,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 	for (i = 0; i < cnt; i++, rablkno++, rabsize++) {
 		if (inmem(vp, *rablkno))
 			continue;
-		rabp = getblk(vp, *rablkno, *rabsize, 0, 0);
+		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
 			if (curthread != PCPU_GET(idlethread))
@@ -2367,7 +2367,8 @@ vfs_setdirty(struct buf *bp)
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
 struct buf *
-getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
+getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+    int flags)
 {
 	struct buf *bp;
 	int s;
@@ -2399,13 +2400,17 @@ loop:
 
 	VI_LOCK(vp);
 	if ((bp = gbincore(vp, blkno))) {
+		int lockflags;
 		/*
 		 * Buffer is in-core.  If the buffer is not busy, it must
 		 * be on a queue.
 		 */
+		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
-		error = BUF_TIMELOCK(bp,
-		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+		if (flags & GB_LOCK_NOWAIT)
+			lockflags |= LK_NOWAIT;
+
+		error = BUF_TIMELOCK(bp, lockflags,
 		    VI_MTX(vp), "getblk", slpflag, slptimeo);
 
 		/*
