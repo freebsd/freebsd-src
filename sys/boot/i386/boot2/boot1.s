@@ -19,7 +19,7 @@
 		.set MEM_REL,0x700		// Relocation address
 		.set MEM_ARG,0x900		// Arguments
 		.set MEM_ORG,0x7c00		// Origin
-		.set MEM_BUF,0x8c00		// Load area
+		.set MEM_BUF,0x8cec		// Load area
 		.set MEM_BTX,0x9000		// BTX start
 		.set MEM_JMP,0x9010		// BTX entry point
 		.set MEM_USR,0xa000		// Client start
@@ -37,11 +37,7 @@
 		.set SIZ_PAG,0x1000		// Page size
 		.set SIZ_SEC,0x200		// Sector size
 
-#ifdef UFS1_ONLY
 		.set NSECT,0x10
-#else
-		.set NSECT,0x14
-#endif
 		.globl start
 		.globl xread
 		.code16
@@ -175,9 +171,9 @@ main.4: 	xor %dx,%dx			// Partition:drive
 // Ok, we have a slice and drive in %dx now, so use that to locate and load
 // boot2.  %si references the start of the slice we are looking for, so go
 // ahead and load up the first 16 sectors (boot1 + boot2) from that.  When
-// we read it in, we conveniently use 0x8c00 as our transfer buffer.  Thus,
-// boot1 ends up at 0x8c00, and boot2 starts at 0x8c00 + 0x200 = 0x8e00.
-// The first part of boot2 is the disklabel, which is 0x200 bytes long.
+// we read it in, we conveniently use 0x8cec as our transfer buffer.  Thus,
+// boot1 ends up at 0x8cec, and boot2 starts at 0x8cec + 0x200 = 0x8eec.
+// The first part of boot2 is the disklabel, which is 0x114 bytes long.
 // The second part is BTX, which is thus loaded into 0x9000, which is where
 // it also runs from.  The boot2.bin binary starts right after the end of
 // BTX, so we have to figure out where the start of it is and then move the
@@ -192,7 +188,7 @@ main.5: 	mov %dx,MEM_ARG			// Save args
 		mov 0xa(%bx),%si		// Get BTX length and set
 		add %bx,%si			//  %si to start of boot2.bin
 		mov $MEM_USR+SIZ_PAG*2,%di	// Client page 2
-		mov $MEM_BTX+(NSECT-2)*SIZ_SEC,%cx // Byte
+		mov $MEM_BTX+(NSECT-1)*SIZ_SEC,%cx // Byte
 		sub %si,%cx			//  count
 		rep				// Relocate
 		movsb				//  client
