@@ -1,5 +1,5 @@
 /* 
- * $Id: rk_rpc.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $
+ * $Id: rk_rpc.c,v 1.2 1995/10/05 21:29:52 gibbs Exp $
  * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_rpc.c,v $
  * $Author: gibbs $
  *
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rk_rpc.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $";
+static char *rcsid = "$Id: rk_rpc.c,v 1.2 1995/10/05 21:29:52 gibbs Exp $";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>
@@ -33,8 +33,6 @@ static int sock;
 struct sockaddr_in saddr;
 
 static char errbuf[BUFSIZ];
-
-char *calloc();
 
 #ifdef __STDC__
 int rki_send_packet(int sock, char type, u_int32_t length, const char *data)
