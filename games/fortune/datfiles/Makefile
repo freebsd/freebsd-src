@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
 # $FreeBSD$
 
-FILES=	fortunes fortunes2 murphy startrek zippy
+FILES=	fortunes fortunes2 freebsd-tips murphy startrek zippy
 BLDS=	fortunes.dat fortunes2.dat murphy.dat startrek.dat zippy.dat \
-	fortunes-o fortunes-o.dat
+	fortunes-o fortunes-o.dat freebsd-tips.dat
 
 # Pass all new entries by ${MAINTAINER} to preserve some semblance of
 # humor in the fortune files.  What's funny to you on 6 beers may not
@@ -31,7 +31,7 @@ beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
-.for f in fortunes fortunes2 fortunes2-o limerick murphy murphy-o startrek zippy
+.for f in fortunes fortunes2 fortunes2-o freebsd-tips limerick murphy murphy-o startrek zippy
 $f.dat: $f
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
 	    strfile -Crs ${.ALLSRC} ${.TARGET}
