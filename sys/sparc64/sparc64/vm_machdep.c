@@ -53,7 +53,8 @@ void
 cpu_fork(struct proc *p1, struct proc *p2, int flags)
 {
 	struct trapframe *tf;
-	struct frame *fp;
+	struct frame *fp1;
+	struct frame *fp2;
 	struct pcb *pcb;
 
 	if ((flags & RFPROC) == 0)
@@ -67,15 +68,24 @@ cpu_fork(struct proc *p1, struct proc *p2, int flags)
 	}
 	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
 
-	tf = (struct trapframe *)((caddr_t)pcb + UPAGES * PAGE_SIZE) - 1;
-	bcopy(p1->p_frame, tf, sizeof(*tf));
+	/* The initial window for the process. */
+	fp1 = (struct frame *)((caddr_t)pcb + UPAGES * PAGE_SIZE) - 1;
+	/* The trap frame. */
+	tf = (struct trapframe *)fp1 - 1;
+	bcopy(p1->p_frame, tf, sizeof(*tf) + sizeof(*fp1));
 	p2->p_frame = tf;
-
-	fp = (struct frame *)tf - 1;
-	fp->f_local[0] = (u_long)fork_return;
-	fp->f_local[1] = (u_long)p2;
-	fp->f_local[2] = (u_long)tf;
-	pcb->pcb_fp = (u_long)fp - SPOFF;
+	/* The window cpu_switch will load. */
+	fp2 = (struct frame *)tf - 1;
+	fp2->f_local[0] = (u_long)fork_return;
+	fp2->f_local[1] = (u_long)p2;
+	fp2->f_local[2] = (u_long)tf;
+	/*
+	 * Fake the frame pointer of the window to point to the initial window
+	 * on the stack. The initial window's stack pointer will later be
+	 * restored from the trap frame.
+	 */
+	fp2->f_fp = (u_long)fp1 - SPOFF;
+	pcb->pcb_fp = (u_long)fp2 - SPOFF;
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 }
 
