@@ -97,7 +97,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
 	int error, i, npart;
 	u_char *buf;
 	struct g_sunlabel_softc *ms;
@@ -174,22 +173,22 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				continue;
 			npart++;
 			g_topology_lock();
-			pp2 = g_slice_addslice(gp, i,
+			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 			    ((off_t)v * csize) << 9ULL,
 			    ((off_t)u) << 9ULL,
 			    sectorsize,
 			    "%s%c", pp->name, 'a' + i);
 			g_topology_unlock();
-			g_error_provider(pp2, 0);
 		}
 		break;
 	}
 	g_topology_lock();
-	error = g_access_rel(cp, -1, 0, 0);
-	if (npart > 0)
-		return (gp);
-	g_std_spoiled(cp);
-	return (NULL);
+	g_access_rel(cp, -1, 0, 0);
+	if (LIST_EMPTY(&gp->provider)) {
+		g_std_spoiled(cp);
+		return (NULL);
+	}
+	return (gp);
 }
 
 static struct g_class g_sunlabel_class = {
