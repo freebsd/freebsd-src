@@ -1,0 +1,13 @@
+2002-03-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from trunk:
+	2002-03-10  Daniel Jacobowitz  <drow@mvista.com>
+	* signals.h: New file, from gdb/defs.h.
+
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:
