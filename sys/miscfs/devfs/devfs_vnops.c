@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /sys/miscfs/devfs/RCS/devfs_vnops.c,v 1.3 1995/01/07 04:20:25 root Exp root $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.2 1995/04/20 07:34:54 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -903,6 +903,7 @@ DBPRINT(("readdir\n"));
 			dirent.d_fileno = (unsigned long int)dir_node;
 			name = ".";
 			dirent.d_namlen = 1;
+			dirent.d_type = DT_DIR;
 			break;
 		case	1:
 			if(dir_node->by.Dir.parent)
@@ -912,12 +913,32 @@ DBPRINT(("readdir\n"));
 				dirent.d_fileno = (unsigned long int)dir_node;
 			name = "..";
 			dirent.d_namlen = 2;
+			dirent.d_type = DT_DIR;
 			break;
 		default:
 			dirent.d_fileno =
 				(unsigned long int)name_node->dnp;
 			dirent.d_namlen = strlen(name_node->name);
 			name = name_node->name;
+			switch(name_node->dnp->type) {
+			case DEV_BDEV:
+				dirent.d_type = DT_BLK;
+				break;
+			case DEV_CDEV:
+				dirent.d_type = DT_CHR;
+				break;
+			case DEV_DDEV:
+				dirent.d_type = DT_SOCK; /*XXX*/
+				break;
+			case DEV_DIR:
+				dirent.d_type = DT_DIR;
+				break;
+			case DEV_SLNK:
+				dirent.d_type = DT_LNK;
+				break;
+			default:
+				dirent.d_type = DT_UNKNOWN;
+			}
 		}
 
 		reclen = dirent.d_reclen = DIRSIZ (&dirent);
