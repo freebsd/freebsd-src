@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.5 1995/12/19 17:02:49 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.6 1996/01/20 06:11:35 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -101,6 +101,13 @@
 	follow the descriptions in the <ref
 	id="kernelconfig:config" name="Configuration File">
 	section slowly and carefully.
+
+	<quote><em/Note:/ If you are trying to upgrade your kernel from an
+	older version of FreeBSD, you will probably have to get a new
+	version of <tt>config(8)</tt> from the same place you got the new
+	kernel sources.  It is located in <tt>/usr/src/usr.sbin</tt>, so
+	you'll need to download those sources as well.  Re-build and install
+	it before running the next commands.</quote>
 
 	When you're finished, type the following to compile and
 	install your kernel:
