@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.86 1999/02/05 22:15:49 jkh Exp $
+ * $Id: label.c,v 1.87 1999/03/09 12:36:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,16 +56,16 @@
 
 /* The smallest root filesystem we're willing to create */
 #ifdef __alpha__
-#define ROOT_MIN_SIZE			32
+#define ROOT_MIN_SIZE			40
 #else
-#define ROOT_MIN_SIZE			20
+#define ROOT_MIN_SIZE			30
 #endif
 
 /* The default root filesystem size */
 #ifdef __alpha__
-#define ROOT_DEFAULT_SIZE		48
+#define ROOT_DEFAULT_SIZE		60
 #else
-#define ROOT_DEFAULT_SIZE		32
+#define ROOT_DEFAULT_SIZE		40
 #endif
 
 /* The smallest swap partition we want to create by default */
@@ -75,7 +75,7 @@
 #define USR_MIN_SIZE			80
 
 /* The smallest /var partition we're willing to create by default */
-#define VAR_MIN_SIZE			30
+#define VAR_MIN_SIZE			20
 
 /* The bottom-most row we're allowed to scribble on */
 #define CHUNK_ROW_MAX			16
