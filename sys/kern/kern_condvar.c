@@ -47,10 +47,10 @@
  * Common sanity checks for cv_wait* functions.
  */
 #define	CV_ASSERT(cvp, mp, td) do {					\
-	KASSERT((td) != NULL, ("%s: curthread NULL", __FUNCTION__));	\
-	KASSERT((td)->td_proc->p_stat == SRUN, ("%s: not SRUN", __FUNCTION__));	\
-	KASSERT((cvp) != NULL, ("%s: cvp NULL", __FUNCTION__));		\
-	KASSERT((mp) != NULL, ("%s: mp NULL", __FUNCTION__));		\
+	KASSERT((td) != NULL, ("%s: curthread NULL", __func__));	\
+	KASSERT((td)->td_proc->p_stat == SRUN, ("%s: not SRUN", __func__));	\
+	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
+	KASSERT((mp) != NULL, ("%s: mp NULL", __func__));		\
 	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
 } while (0)
 
@@ -65,13 +65,13 @@
 		 * same mutex.						\
 		 */							\
 		KASSERT((cvp)->cv_mtx == (mp),				\
-		    ("%s: Multiple mutexes", __FUNCTION__));		\
+		    ("%s: Multiple mutexes", __func__));		\
 	}								\
 } while (0)
 #define	CV_SIGNAL_VALIDATE(cvp) do {					\
 	if (!TAILQ_EMPTY(&(cvp)->cv_waitq)) {				\
 		KASSERT(mtx_owned((cvp)->cv_mtx),			\
-		    ("%s: Mutex not owned", __FUNCTION__));		\
+		    ("%s: Mutex not owned", __func__));		\
 	}								\
 } while (0)
 #else
@@ -101,7 +101,7 @@ void
 cv_destroy(struct cv *cvp)
 {
 
-	KASSERT(cv_waitq_empty(cvp), ("%s: cv_waitq non-empty", __FUNCTION__));
+	KASSERT(cv_waitq_empty(cvp), ("%s: cv_waitq non-empty", __func__));
 }
 
 /*
@@ -471,8 +471,8 @@ cv_wakeup(struct cv *cvp)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	td = TAILQ_FIRST(&cvp->cv_waitq);
-	KASSERT(td->td_wchan == cvp, ("%s: bogus wchan", __FUNCTION__));
-	KASSERT(td->td_flags & TDF_CVWAITQ, ("%s: not on waitq", __FUNCTION__));
+	KASSERT(td->td_wchan == cvp, ("%s: bogus wchan", __func__));
+	KASSERT(td->td_flags & TDF_CVWAITQ, ("%s: not on waitq", __func__));
 	TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
 	td->td_flags &= ~TDF_CVWAITQ;
 	td->td_wchan = 0;
@@ -507,7 +507,7 @@ void
 cv_signal(struct cv *cvp)
 {
 
-	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
+	KASSERT(cvp != NULL, ("%s: cvp NULL", __func__));
 	mtx_lock_spin(&sched_lock);
 	if (!TAILQ_EMPTY(&cvp->cv_waitq)) {
 		CV_SIGNAL_VALIDATE(cvp);
@@ -524,7 +524,7 @@ void
 cv_broadcast(struct cv *cvp)
 {
 
-	KASSERT(cvp != NULL, ("%s: cvp NULL", __FUNCTION__));
+	KASSERT(cvp != NULL, ("%s: cvp NULL", __func__));
 	mtx_lock_spin(&sched_lock);
 	CV_SIGNAL_VALIDATE(cvp);
 	while (!TAILQ_EMPTY(&cvp->cv_waitq))
