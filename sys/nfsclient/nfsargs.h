@@ -95,5 +95,7 @@ struct nfs_args {
 #define	NFSMNT_ACDIRMIN		0x00100000
 #define	NFSMNT_ACDIRMAX		0x00200000
 #define	NFSMNT_NOLOCKD		0x00400000 /* Locks are local */
+#define	NFSMNT_NFSV4		0x00800000 /* Use NFS Version 4 protocol */
+#define	NFSMNT_HASWRITEVERF	0x01000000 /* NFSv4 Write verifier */
 
 #endif

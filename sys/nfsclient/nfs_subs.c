@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <rpc/rpcclnt.h>
+
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -761,6 +763,10 @@ nfs_invaldir(struct vnode *vp)
 	if (vp->v_type != VDIR)
 		panic("nfs: invaldir not dir");
 #endif
+	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NFSV4) != 0) {
+		nfs4_invaldir(vp);
+		return;
+	}
 	np->n_direofoffset = 0;
 	np->n_cookieverf.nfsuquad[0] = 0;
 	np->n_cookieverf.nfsuquad[1] = 0;

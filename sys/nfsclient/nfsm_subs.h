@@ -147,6 +147,17 @@ do { \
 	} \
 } while (0)
 
+#define	nfsm_request_mnt(n, t, p, c) \
+do { \
+	error = nfs4_request_mnt((n), mreq, (t), (p), (c), &mrep, &md, &dpos); \
+	if (error != 0) { \
+		if (error & NFSERR_RETERR) \
+			error &= ~NFSERR_RETERR; \
+		else \
+			goto nfsmout; \
+	} \
+} while (0)
+
 /* *********************************** */
 /* Reply interpretation phase macros */
 

@@ -50,8 +50,9 @@ struct	nfsmount {
 	int	nm_state;		/* Internal state flags */
 	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
 	int	nm_numgrps;		/* Max. size of groupslist */
-	u_char	nm_fh[NFSX_V3FHMAX];	/* File handle of root dir */
+	u_char	nm_fh[NFSX_V4FH];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
+	struct	rpcclnt nm_rpcclnt;	/* rpc state */
 	struct	socket *nm_so;		/* Rpc socket */
 	int	nm_sotype;		/* Type of socket */
 	int	nm_soproto;		/* and protocol */
@@ -79,6 +80,12 @@ struct	nfsmount {
 	short	nm_bufqwant;		/* process wants to add to the queue */
 	int	nm_bufqiods;		/* number of iods processing queue */
 	u_int64_t nm_maxfilesize;	/* maximum file size */
+
+	/* NFSv4 */
+	uint64_t nm_clientid;
+	fsid_t	nm_fsid;
+	u_int	nm_lease_time;
+	time_t	nm_last_renewal;
 };
 
 #if defined(_KERNEL)

@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#include <rpc/rpcclnt.h>
+
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -182,7 +184,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 
 	/*
 	 * Calculate nfs mount point and figure out whether the rslock should
-	 * be interruptable or not.
+	 * be interruptible or not.
 	 */
 	nmp = VFSTONFS(mntp);
 	if (nmp->nm_flag & NFSMNT_INT)
@@ -226,7 +228,10 @@ loop:
 	 */
 	np = uma_zalloc(nfsnode_zone, M_WAITOK);
 
-	error = getnewvnode("nfs", mntp, nfs_vnodeop_p, &nvp);
+	if (nmp->nm_flag & NFSMNT_NFSV4)
+		error = getnewvnode("nfs4", mntp, nfs4_vnodeop_p, &nvp);
+	else
+		error = getnewvnode("nfs", mntp, nfs_vnodeop_p, &nvp);
 	if (error) {
 		if (nfs_node_hash_lock < 0)
 			wakeup(&nfs_node_hash_lock);
@@ -295,7 +300,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
-		nfs_removeit(sp);
+		(sp->s_removeit)(sp);
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NFSREQ);
