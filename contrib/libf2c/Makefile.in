@@ -19,7 +19,8 @@
 #the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #02111-1307, USA.
 
-SHELL = /bin/sh
+SHELL = @SHELL@
+PWD_COMMAND = $${PWDCMD-pwd}
 MAKEOVERRIDES=
 .NOEXPORTS:
 
@@ -66,6 +67,7 @@ INSTALL_DATA = @INSTALL_DATA@
 
 LIBTOOL = @LIBTOOL@
 CC = @CC@
+WARN_CFLAGS = -W -Wall
 CFLAGS = @CFLAGS@
 AR = @AR@
 RANLIB = @RANLIB@
@@ -76,6 +78,7 @@ FLAGS_TO_PASS= \
 	CC='$(CC)' \
 	LD='$(LD)' \
 	LIBTOOL='$(LIBTOOL)' \
+	WARN_CFLAGS='$(WARN_CFLAGS)' \
 	CFLAGS='$(CFLAGS)' \
 	CPPFLAGS='$(CPPFLAGS)' \
 	DESTDIR='$(DESTDIR)' \
@@ -173,7 +176,7 @@ s-libe77: f2cext.c
 	do \
 	  echo $${name}; \
 	  $(LIBTOOL) --mode=compile $(CC) -c -I. -I$(srcdir) -I../../include \
-	    $(CPPFLAGS) $(CFLAGS) -DL$${name} $(srcdir)/f2cext.c \
+	    $(CPPFLAGS) $(WARN_CFLAGS) $(CFLAGS) -DL$${name} $(srcdir)/f2cext.c \
 	    -o libE77/L$${name}.lo ; \
 	  if [ $$? -eq 0 ] ; then true; else exit 1; fi; \
 	  echo libE77/L$${name}.lo >> $@.T; \
@@ -256,8 +259,8 @@ rebuilt: configure
         installcheck installdirs all-unilib
 
 subdir_do:
-	@rootpre=`pwd`/; export rootpre; \
-	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
+	@rootpre=`${PWD_COMMAND}`/; export rootpre; \
+	srcrootpre=`cd $(srcdir); ${PWD_COMMAND}`/; export srcrootpre; \
 	for i in .. $(DODIRS); do \
 	  if [ x$$i != x.. ]; then \
 	    if [ -f ./$$i/Makefile ]; then \

@@ -1,12 +1,8 @@
 #include "f2c.h"
 #undef abs
-#ifdef KR_headers
-extern char *F77_aloc(), *getenv();
-#else
 #include <stdlib.h>
 #include <string.h>
-extern char *F77_aloc(ftnlen, char*);
-#endif
+extern char *F77_aloc (ftnlen, char *);
 
 /*
  * getenv - f77 subroutine to return environment variables
@@ -20,37 +16,34 @@ extern char *F77_aloc(ftnlen, char*);
  *		if ENV_NAME is not defined
  */
 
-#ifdef KR_headers
- VOID
-G77_getenv_0 (fname, value, flen, vlen) char *value, *fname; ftnlen vlen, flen;
-#else
- void
+void
 G77_getenv_0 (char *fname, char *value, ftnlen flen, ftnlen vlen)
-#endif
 {
-	char buf[256], *ep, *fp;
-	integer i;
+  char buf[256], *ep, *fp;
+  integer i;
 
-	if (flen <= 0)
-		goto add_blanks;
-	for(i = 0; i < sizeof(buf); i++) {
-		if (i == flen || (buf[i] = fname[i]) == ' ') {
-			buf[i] = 0;
-			ep = getenv(buf);
-			goto have_ep;
-			}
-		}
-	while(i < flen && fname[i] != ' ')
-		i++;
-	strncpy(fp = F77_aloc(i+1, "getenv_"), fname, (int)i);
-	fp[i] = 0;
-	ep = getenv(fp);
-	free(fp);
- have_ep:
-	if (ep)
-		while(*ep && vlen-- > 0)
-			*value++ = *ep++;
- add_blanks:
-	while(vlen-- > 0)
-		*value++ = ' ';
+  if (flen <= 0)
+    goto add_blanks;
+  for (i = 0; i < (integer) sizeof (buf); i++)
+    {
+      if (i == flen || (buf[i] = fname[i]) == ' ')
+	{
+	  buf[i] = 0;
+	  ep = getenv (buf);
+	  goto have_ep;
 	}
+    }
+  while (i < flen && fname[i] != ' ')
+    i++;
+  strncpy (fp = F77_aloc (i + 1, "getenv_"), fname, (int) i);
+  fp[i] = 0;
+  ep = getenv (fp);
+  free (fp);
+have_ep:
+  if (ep)
+    while (*ep && vlen-- > 0)
+      *value++ = *ep++;
+add_blanks:
+  while (vlen-- > 0)
+    *value++ = ' ';
+}

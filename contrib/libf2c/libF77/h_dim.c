@@ -1,10 +1,7 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-shortint h_dim(a,b) shortint *a, *b;
-#else
-shortint h_dim(shortint *a, shortint *b)
-#endif
+shortint
+h_dim (shortint * a, shortint * b)
 {
-return( *a > *b ? *a - *b : 0);
+  return (*a > *b ? *a - *b : 0);
 }
