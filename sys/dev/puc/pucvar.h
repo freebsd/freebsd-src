@@ -64,7 +64,7 @@
  * Author: Christopher G. Demetriou, May 14, 1998.
  */
 
-#define	PUC_MAX_PORTS		12
+#define	PUC_MAX_PORTS		16
 
 struct puc_device_description {
 	const char	*name;
