@@ -19,7 +19,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
 #include <sys/ioctl_compat.h>	/* Oooh..We need O/NTTYDISC	 */
 #include <sys/proc.h>
 #include <sys/tty.h>

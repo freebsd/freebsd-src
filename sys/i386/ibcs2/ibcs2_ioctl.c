@@ -35,7 +35,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
 #include <sys/ioctl_compat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
