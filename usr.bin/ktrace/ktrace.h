@@ -41,4 +41,4 @@
 
 #define DEF_TRACEFILE	"ktrace.out"
 
-int getpoints __P((char *));
+int getpoints(char *);
