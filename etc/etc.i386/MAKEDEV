@@ -67,7 +67,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.12 1993/10/23 10:58:51 jkh Exp $
+#	$Id: MAKEDEV,v 1.13 1993/10/23 22:24:35 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -86,7 +86,7 @@ all)
 	# these are for codrv and interfere with other devices! - rgrimes
 	;;
 std)
-	rm -f console drum mem kmem null tty klog stdin stdout stderr
+	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
 	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
 	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
