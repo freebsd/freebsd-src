@@ -59,7 +59,8 @@ drops below _LOADAVG_MX, or the value specified in the invocation of
 .Nm \&At
 allows some moderately complex
 .Ar time
-specifications.  It accepts times of the form
+specifications.
+It accepts times of the form
 .Ar HHMM
 or
 .Ar HH:MM
@@ -135,15 +136,16 @@ An
 .Nm
 or
 .Nm batch
-command invoked from a 
+command invoked from a
 .Xr su 1
 shell will retain the current userid.
 The user will be mailed standard error and standard output from his
-commands, if any. Mail will be sent using the command
+commands, if any.
+Mail will be sent using the command
 .Xr sendmail 8 .
 If
 .Nm
-is executed from a 
+is executed from a
 .Xr su 1
 shell, the owner of the login shell will receive the mail.
 .Pp
@@ -180,7 +182,7 @@ Use the specified queue.
 A queue designation consists of a single letter; valid queue designations
 range from
 .Ar a
-to 
+to
 .Ar z
 and
 .Ar A
@@ -250,7 +252,7 @@ job-creation lock file
 If the file
 .Pa /var/run/utmp
 is not available or corrupted, or if the user is not logged on at the
-time 
+time
 .Nm
 is invoked, the mail is sent to the userid found
 in the environment variable
