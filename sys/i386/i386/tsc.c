@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.127 1998/09/20 19:56:28 bde Exp $
+ *	$Id: clock.c,v 1.128 1998/10/23 10:46:20 phk Exp $
  */
 
 /*
@@ -126,7 +126,7 @@ static void setup_8254_mixed_mode __P((void));
  */
 #define	TIMER0_MAX_FREQ		20000
 
-int	adjkerntz;		/* local offset	from GMT in seconds */
+int	adjkerntz;		/* local offset from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 u_int	idelayed;
 int	statclock_disable;
@@ -137,7 +137,7 @@ u_int	stat_imask = SWI_CLOCK_MASK;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 u_int	tsc_freq;
-int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
 static	u_int	clk_imask = HWI_MASK | SWI_MASK;
@@ -809,8 +809,8 @@ startrtclock()
 }
 
 /*
- * Initialize the time of day register,	based on the time base which is, e.g.
- * from	a filesystem.
+ * Initialize the time of day register, based on the time base which is, e.g.
+ * from a filesystem.
  */
 void
 inittodr(time_t base)
@@ -829,17 +829,17 @@ inittodr(time_t base)
 		splx(s);
 	}
 
-	/* Look	if we have a RTC present and the time is valid */
+	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto wrong_time;
 
-	/* wait	for time update	to complete */
-	/* If RTCSA_TUP	is zero, we have at least 244us	before next update */
+	/* wait for time update to complete */
+	/* If RTCSA_TUP is zero, we have at least 244us before next update */
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP);
 
 	days = 0;
 #ifdef USE_RTC_CENTURY
-	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY)	* 100;
+	year = readrtc(RTC_YEAR) + readrtc(RTC_CENTURY) * 100;
 #else
 	year = readrtc(RTC_YEAR) + 1900;
 	if (year < 1970)
@@ -847,21 +847,21 @@ inittodr(time_t base)
 #endif
 	if (year < 1970)
 		goto wrong_time;
-	month =	readrtc(RTC_MONTH);
-	for (m = 1; m <	month; m++)
-		days +=	daysinmonth[m-1];
-	if ((month > 2)	&& LEAPYEAR(year))
+	month = readrtc(RTC_MONTH);
+	for (m = 1; m < month; m++)
+		days += daysinmonth[m-1];
+	if ((month > 2) && LEAPYEAR(year))
 		days ++;
-	days +=	readrtc(RTC_DAY) - 1;
+	days += readrtc(RTC_DAY) - 1;
 	yd = days;
 	for (y = 1970; y < year; y++)
-		days +=	DAYSPERYEAR + LEAPYEAR(y);
+		days += DAYSPERYEAR + LEAPYEAR(y);
 	sec = ((( days * 24 +
 		  readrtc(RTC_HRS)) * 60 +
 		  readrtc(RTC_MIN)) * 60 +
 		  readrtc(RTC_SEC));
-	/* sec now contains the	number of seconds, since Jan 1 1970,
-	   in the local	time zone */
+	/* sec now contains the number of seconds, since Jan 1 1970,
+	   in the local time zone */
 
 	sec += tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
@@ -877,12 +877,12 @@ inittodr(time_t base)
 	return;
 
 wrong_time:
-	printf("Invalid	time in	real time clock.\n");
-	printf("Check and reset	the date immediately!\n");
+	printf("Invalid time in real time clock.\n");
+	printf("Check and reset the date immediately!\n");
 }
 
 /*
- * Write system	time back to RTC
+ * Write system time back to RTC
  */
 void
 resettodr()
@@ -900,7 +900,7 @@ resettodr()
 	/* Disable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
-	/* Calculate local time	to put in RTC */
+	/* Calculate local time to put in RTC */
 
 	tm -= tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
@@ -908,7 +908,7 @@ resettodr()
 	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
 	writertc(RTC_HRS, bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
 
-	/* We have now the days	since 01-01-1970 in tm */
+	/* We have now the days since 01-01-1970 in tm */
 	writertc(RTC_WDAY, (tm+4)%7);			/* Write back Weekday */
 	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
 	     tm >= m;
