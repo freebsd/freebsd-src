@@ -81,6 +81,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	 * 5:	0x3f2-0x3f5			# implies 0x3f7 too.
 	 * 6:	0x3f2-0x3f3,0x3f4-0x3f5,0x3f7	# becoming common
 	 * 7:	0x3f2-0x3f3,0x3f4-0x3f5		# rare
+	 * 8:	0x3f0-0x3f1,0x3f2-0x3f3,0x3f4-0x3f5,0x3f7
 	 *
 	 * The following code is generic for any value of 0x3fx :-)
 	 */
@@ -90,6 +91,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	 * worlds, this is 4 or 6 ports.  In others, well, that's
 	 * why this function is so complicated.
 	 */
+again_ioport:
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &fdc->rid_ioport, 0ul, ~0ul, nports, RF_ACTIVE);
 	if (fdc->res_ioport == 0) {
@@ -97,19 +99,27 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 		    nports);
 		return (ENXIO);
 	}
+	if ((rman_get_start(fdc->res_ioport) & 0x7) == 0 &&
+	    rman_get_size(fdc->res_ioport) == 2) {
+		/* Case 8 */
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
+		    fdc->res_ioport);
+		fdc->rid_ioport++;
+		goto again_ioport;
+	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
 	/*
-	 * Handle cases 4-7 above
+	 * Handle cases 4-8 above
 	 */
 	fdc->port_off = -(fdc->porth & 0x7);
 
 	/*
-	 * Deal with case 6 and 7: FDSTS and FDSATA are in rid 1.
+	 * Deal with case 6, 7, and 8: FDSTS and FDSATA are in rid 1.
 	 */
 	if (rman_get_size(fdc->res_ioport) == 2) {
-		fdc->rid_sts = 1;
+		fdc->rid_sts = fdc->rid_ioport + 1;
 		fdc->res_sts = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		    &fdc->rid_sts, RF_ACTIVE);
 		if (fdc->res_sts == NULL) {
@@ -117,7 +127,6 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 			fdc_release_resources(fdc);
 			return (ENXIO);
 		}
-		fdc->rid_ctl++;
 		fdc->sts_off = -4;
 		fdc->stst = rman_get_bustag(fdc->res_sts);
 		fdc->stsh = rman_get_bushandle(fdc->res_sts);
@@ -133,6 +142,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	 * fake it from the ioports resource.  XXX IS THIS THE RIGHT THING
 	 * TO DO, OR SHOULD WE CREATE A NEW RID? (I think we need a new rid)
 	 */
+	fdc->rid_ctl = fdc->rid_sts + 1;
 	fdc->res_ctl = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 	    &fdc->rid_ctl, RF_ACTIVE);
 	if (fdc->res_ctl == NULL) {
