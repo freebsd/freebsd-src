@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.13 1998/12/07 21:58:24 archie Exp $
+ *	$Id: wst.c,v 1.14 1999/01/12 00:36:36 eivind Exp $
  */
 
 #include "wdc.h"
@@ -213,6 +213,8 @@ static int wst_rewind(struct wst *t);
 static void wst_reset(struct wst *t);
 
 #ifdef DDB
+void  wst_dump(int lun, char *label, void *data, int len);
+
 void 
 wst_dump(int lun, char *label, void *data, int len)
 {
