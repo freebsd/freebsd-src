@@ -41,8 +41,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-/* XXX -- header file should probably be installed somewhere */
-#include "/sys/isa/ic/nec765.h"
+#include <dev/ic/nec765.h>
 
 int	quiet, recover;
 unsigned char fillbyte = 0xf0;	/* "foo" */
