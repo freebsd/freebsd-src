@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.54 1998/11/13 01:01:44 dg Exp $
+ * $Id: ffs_alloc.c,v 1.55 1999/01/06 17:04:33 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -363,7 +363,6 @@ ffs_reallocblks(ap)
 	ufs_daddr_t start_lbn, end_lbn, soff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
-	struct timeval tv;
 
 	if (doreallocblks == 0)
 		return (ENOSPC);
@@ -503,10 +502,8 @@ ffs_reallocblks(ap)
 			bwrite(sbp);
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		if (!doasyncfree) {
-			getmicrotime(&tv);
-			UFS_UPDATE(vp, &tv, &tv, 1);
-		}
+		if (!doasyncfree)
+			UFS_UPDATE(vp, 1);
 	}
 	if (ssize < len)
 		if (doasyncfree)

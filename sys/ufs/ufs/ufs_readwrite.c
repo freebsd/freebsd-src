@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.53 1998/10/07 13:59:26 luoqi Exp $
+ * $Id: ufs_readwrite.c,v 1.54 1998/12/15 03:29:52 julian Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -358,7 +358,6 @@ WRITE(ap)
 	ufs_daddr_t lbn;
 	off_t osize;
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
-	struct timeval tv;
 	vm_object_t object;
 
 	extended = 0;
@@ -493,10 +492,8 @@ WRITE(ap)
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
-	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		getmicrotime(&tv);
-		error = UFS_UPDATE(vp, &tv, &tv, 1);
-	}
+	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
+		error = UFS_UPDATE(vp, 1);
 	if (!error)
 		VN_POLLEVENT(vp, POLLWRITE | (extended ? POLLEXTEND : 0));
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.24 1998/04/15 12:27:31 bde Exp $
+ * $Id: ufs_lookup.c,v 1.25 1998/07/11 07:46:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -670,7 +670,6 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	struct direct *ep, *nep;
 	int error, ret, blkoff, loc, spacefree, flags;
 	char *dirbuf;
-	struct timeval tv;
 
 	p = curproc;	/* XXX */
 	cr = p->p_ucred;
@@ -722,8 +721,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		} else {
 			error = VOP_BWRITE(bp);
 		}
-		getmicrotime(&tv);
-		ret = UFS_UPDATE(dvp, &tv, &tv, !DOINGSOFTDEP(dvp));
+		ret = UFS_UPDATE(dvp, !DOINGSOFTDEP(dvp));
 		if (error == 0)
 			return (ret);
 		return (error);

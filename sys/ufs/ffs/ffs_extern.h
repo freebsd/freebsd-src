@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.23 1998/03/08 09:58:50 julian Exp $
+ * $Id: ffs_extern.h,v 1.24 1998/03/23 14:12:37 bde Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -94,7 +94,7 @@ int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int	ffs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 int	ffs_unmount __P((struct mount *, int, struct proc *));
-int	ffs_update __P((struct vnode *, struct timeval *, struct timeval *, int));
+int	ffs_update __P((struct vnode *, int));
 int	ffs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 
 int	ffs_vfree __P((struct vnode *, ino_t, int));

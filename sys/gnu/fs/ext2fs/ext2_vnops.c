@@ -182,7 +182,6 @@ ext2_fsync(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct buf *bp;
-	struct timeval tv;
 	struct buf *nbp;
 	int s;
 
@@ -229,8 +228,7 @@ loop:
 #endif
 	}
 	splx(s);
-	getmicrotime(&tv);
-	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	return (UFS_UPDATE(ap->a_vp, ap->a_waitfor == MNT_WAIT));
 }
 
 /*
@@ -320,7 +318,6 @@ ext2_link(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct proc *p = cnp->cn_proc;
 	struct inode *ip;
-	struct timeval tv;
 	int error;
 
 #ifdef DIAGNOSTIC
@@ -349,8 +346,7 @@ ext2_link(ap)
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	getmicrotime(&tv);
-	error = UFS_UPDATE(vp, &tv, &tv, 1);
+	error = UFS_UPDATE(vp, 1);
 	if (!error)
 		error = ext2_direnter(ip, tdvp, cnp);
 	if (error) {
@@ -389,7 +385,6 @@ ext2_rename(ap)
 	struct proc *p = fcnp->cn_proc;
 	struct inode *ip, *xp, *dp;
 	struct dirtemplate dirbuf;
-	struct timeval tv;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0;
 	u_char namlen;
@@ -527,8 +522,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	getmicrotime(&tv);
-	if (error = UFS_UPDATE(fvp, &tv, &tv, 1)) {
+	if (error = UFS_UPDATE(fvp, 1)) {
 		VOP_UNLOCK(fvp, 0, p);
 		goto bad;
 	}
@@ -589,7 +583,7 @@ abortit:
 			}
 			dp->i_nlink++;
 			dp->i_flag |= IN_CHANGE;
-			error = UFS_UPDATE(tdvp, &tv, &tv, 1);
+			error = UFS_UPDATE(tdvp, 1);
 			if (error)
 				goto bad;
 		}
@@ -598,7 +592,7 @@ abortit:
 			if (doingdirectory && newparent) {
 				dp->i_nlink--;
 				dp->i_flag |= IN_CHANGE;
-				(void)UFS_UPDATE(tdvp, &tv, &tv, 1);
+				(void)UFS_UPDATE(tdvp, 1);
 			}
 			goto bad;
 		}
@@ -807,7 +801,6 @@ ext2_mkdir(ap)
 	register struct inode *ip, *dp;
 	struct vnode *tvp;
 	struct dirtemplate dirtemplate, *dtp;
-	struct timeval tv;
 	int error, dmode;
 
 #ifdef DIAGNOSTIC
@@ -896,8 +889,7 @@ ext2_mkdir(ap)
 	ip->i_nlink = 2;
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;
-	getmicrotime(&tv);
-	error = UFS_UPDATE(tvp, &tv, &tv, 1);
+	error = UFS_UPDATE(tvp, 1);
 
 	/*
 	 * Bump link count in parent directory
@@ -907,7 +899,7 @@ ext2_mkdir(ap)
 	 */
 	dp->i_nlink++;
 	dp->i_flag |= IN_CHANGE;
-	error = UFS_UPDATE(dvp, &tv, &tv, 1);
+	error = UFS_UPDATE(dvp, 1);
 	if (error)
 		goto bad;
 
@@ -1077,7 +1069,6 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	struct componentname *cnp;
 {
 	register struct inode *ip, *pdir;
-	struct timeval tv;
 	struct vnode *tvp;
 	int error;
 
@@ -1170,8 +1161,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	getmicrotime(&tv);
-	error = UFS_UPDATE(tvp, &tv, &tv, 1);
+	error = UFS_UPDATE(tvp, 1);
 	if (error)
 		goto bad;
 	error = ext2_direnter(ip, dvp, cnp);

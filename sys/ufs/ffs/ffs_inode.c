@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.50 1999/01/06 16:52:38 bde Exp $
+ * $Id: ffs_inode.c,v 1.51 1999/01/06 18:18:06 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -70,10 +70,8 @@ static int ffs_indirtrunc __P((struct inode *, ufs_daddr_t, ufs_daddr_t,
  * set, then wait for the write to complete.
  */
 int
-ffs_update(vp, access, modify, waitfor)
+ffs_update(vp, waitfor)
 	struct vnode *vp;
-	struct timeval *access;
-	struct timeval *modify;
 	int waitfor;
 {
 	register struct fs *fs;
@@ -143,7 +141,6 @@ ffs_truncate(vp, length, flags, cred, p)
 	struct buf *bp;
 	int offset, size, level;
 	long count, nblocks, blocksreleased = 0;
-	struct timeval tv;
 	register int i;
 	int aflags, error, allerror;
 	off_t osize;
@@ -156,7 +153,6 @@ ffs_truncate(vp, length, flags, cred, p)
 		return (EINVAL);
 	if (length > fs->fs_maxfilesize)
 		return (EFBIG);
-	getmicrotime(&tv);
 	if (ovp->v_type == VLNK &&
 	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen || oip->i_din.di_blocks == 0)) {
 #ifdef DIAGNOSTIC
@@ -166,11 +162,11 @@ ffs_truncate(vp, length, flags, cred, p)
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 0));
+		return (UFS_UPDATE(ovp, 0));
 	}
 #ifdef QUOTA
 	error = getinoquota(oip);
@@ -199,7 +195,7 @@ ffs_truncate(vp, length, flags, cred, p)
 			softdep_setup_freeblocks(oip, length);
 			vinvalbuf(ovp, 0, cred, p, 0, 0);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
-			return (ffs_update(ovp, &tv, &tv, 0));
+			return (ffs_update(ovp, 0));
 		}
 	}
 	osize = oip->i_size;
@@ -227,7 +223,7 @@ ffs_truncate(vp, length, flags, cred, p)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -291,7 +287,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, &tv, &tv, ((length > 0) ? 0 : 1));
+	allerror = UFS_UPDATE(ovp, ((length > 0) ? 0 : 1));
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration

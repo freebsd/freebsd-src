@@ -80,10 +80,8 @@ ext2_init(struct vfsconf *vfsp)
  * set, then wait for the write to complete.
  */
 int
-ext2_update(vp, access, modify, waitfor)
+ext2_update(vp, waitfor)
 	struct vnode *vp;
-	struct timeval *access;
-	struct timeval *modify;
 	int waitfor;
 {
 	register struct ext2_sb_info *fs;
@@ -143,7 +141,6 @@ ext2_truncate(vp, length, flags, cred, p)
 	struct buf *bp;
 	int offset, size, level;
 	long count, nblocks, blocksreleased = 0;
-	struct timeval tv;
 	register int i;
 	int aflags, error, allerror;
 	off_t osize;
@@ -157,7 +154,6 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	    return EFBIG;
 
 	oip = VTOI(ovp);
-	getmicrotime(&tv);
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
 #if DIAGNOSTIC
@@ -167,11 +163,11 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 0));
+		return (UFS_UPDATE(ovp, 0));
 	}
 #if QUOTA
 	if (error = getinoquota(oip))
@@ -201,7 +197,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -257,7 +253,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, &tv, &tv, 1);
+	allerror = UFS_UPDATE(ovp, 1);
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
