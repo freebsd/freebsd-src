@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.27 1998/10/18 00:51:46 obrien Exp $";
+	"$Id: main.c,v 1.28 1998/11/14 16:15:04 dg Exp $";
 #endif /* not lint */
 
 /*-
@@ -1273,7 +1273,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrst] [-D variable] [-d flags] [-f makefile ]",
+"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-f makefile]",
 "            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "            [variable=value] [target ...]");
 	exit(2);
