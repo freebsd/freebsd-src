@@ -290,7 +290,7 @@
 
     <para arch="i386">A new <varname>KVA_SPACE</varname>kernel option
     can be used to reconfigure the size of the kernel virtual address
-    space.</para>
+    space. &merged;</para>
 
     <para>Coredumps of large processes (or of a large number of
     processes) no longer lock up the machine for long periods of
@@ -1420,7 +1420,9 @@
     enable softupdates on a new filesystem. &merged;</para>
 
     <para>The default number of cylinders per group in &man.newfs.8;
-    is now 22, up from 16.</para>
+    is now computed to be the maximum allowable given the current
+    filesystem parameters.  It can be overridden with the
+    <option>-c</option>.  Formerly, the default was fixed at 16.</para>
 
     <para>A number of buffer overflows in &man.config.8; have been
     fixed. &merged;</para>
@@ -1736,7 +1738,7 @@
     set the TTL of outgoing packets. &merged;</para>
 
     <para>&man.ping.8; now supports a <option>-A</option> option to
-    beep when packets are lost.</para>
+    beep when packets are lost. &merged;</para>
 
     <para>A version of Transport Independent RPC
     (<application>TI-RPC</application>) has been imported.</para>
@@ -1872,7 +1874,7 @@
     <option>-Q</option> option is not specified. &merged;</para>
 
     <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
-    of bugs compared to its prior behavior.</para>
+    of bugs compared to its prior behavior. &merged;</para>
 
     <para>&man.df.1; now takes a <option>-l</option> option to only
     display information about locally-mounted filesystems. &merged;</para>
