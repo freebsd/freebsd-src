@@ -1113,6 +1113,7 @@ of the colon results in a test for a parameter that is only unset.
 .It Li ${#parameter}
 String Length.  The length in characters of
 the value of parameter.
+.El
 .Pp
 The following four varieties of parameter expansion provide for substring
 processing.
@@ -1129,6 +1130,7 @@ the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
+.Bl -tag -width Ds
 .It Li ${parameter%word}
 Remove Smallest Suffix Pattern.  The word
 is expanded to produce a pattern.  The
