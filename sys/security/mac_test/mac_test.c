@@ -187,6 +187,13 @@ mac_test_init(struct mac_policy_conf *conf)
 
 }
 
+static int
+mac_test_syscall(struct thread *td, int call, void *arg)
+{
+
+	return (0);
+}
+
 /*
  * Label operations.
  */
@@ -1142,6 +1149,8 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_destroy },
 	{ MAC_INIT,
 	    (macop_t)mac_test_init },
+	{ MAC_SYSCALL,
+	    (macop_t)mac_test_syscall },
 	{ MAC_INIT_BPFDESC,
 	    (macop_t)mac_test_init_bpfdesc },
 	{ MAC_INIT_CRED,
