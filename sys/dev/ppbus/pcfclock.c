@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY SASCHA SCHUMANN ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
- * EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
@@ -50,7 +50,6 @@
 
 struct pcfclock_data {
 	int	count;
-	struct	ppb_device pcfclock_dev;
 };
 
 #define DEVTOSOFTC(dev) \
@@ -183,9 +182,8 @@ pcfclock_close(dev_t dev, int flags, int fmt, struct proc *p)
 	device_t ppbus = device_get_parent(pcfclockdev);
 
 	sc->count--;
-	if (sc->count == 0) {
+	if (sc->count == 0)
 		ppb_release_bus(ppbus, pcfclockdev);
-	}
 
 	return (0);
 }
@@ -220,6 +218,7 @@ pcfclock_display_data(dev_t dev, char buf[18])
 	year = NR(buf, 14);
 	if (year < 70)
 		year += 100;
+
 	printf(PCFCLOCK_NAME "%d: %02d.%02d.%4d %02d:%02d:%02d, "
 			"battery status: %s\n",
 			unit,
