@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.49 1998/01/24 02:54:23 eivind Exp $
+ * $Id: psm.c,v 1.50 1998/01/24 12:12:32 yokota Exp $
  */
 
 /*
@@ -79,9 +79,11 @@
 #include <sys/devfsext.h>
 #endif
 #include <sys/select.h>
+#include <sys/uio.h>
 
 #include <machine/apm_bios.h>
 #include <machine/clock.h>
+#include <machine/limits.h>
 #include <machine/mouse.h>
 
 #include <i386/isa/isa_device.h>

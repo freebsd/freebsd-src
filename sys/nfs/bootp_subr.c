@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.10 1998/03/14 03:25:14 tegge Exp $	*/
+/*	$Id: bootp_subr.c,v 1.11 1998/03/14 04:13:56 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -53,6 +53,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <net/route.h>
