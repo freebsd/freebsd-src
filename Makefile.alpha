@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.4 1998/03/10 20:25:17 jb Exp $
+# $Id: Makefile.alpha,v 1.5 1998/03/11 21:00:49 jb Exp $
 #
 # NOTE:
 #
@@ -69,8 +69,10 @@ COMPILER_ENV=	BISON_SIMPLE=${WORLDTMP}/usr/share/misc/bison.simple \
 		LD_LIBRARY_PATH=${WORLDTMP}${SHLIBDIR} \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib
 
-BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t
+BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
+		LDFLAGS=-static
 LMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} CC='cc -nostdinc' \
+		LDFLAGS=-static \
 		MKDEP_CPP='${WORLDTMP}/usr/bin/cc -E -nostdinc'
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
 		CC='cc -nostdinc' MKDEP_CPP='${WORLDTMP}/usr/bin/cc -nostdinc -E'
@@ -182,10 +184,16 @@ buildworld:
 	@cd ${.CURDIR} && ${LMAKE} build-tools
 	@echo
 	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding all tools with the new FreeBSD tools to see"
+	@echo " if they work..."
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR} && ${LMAKE} build-tools
+.if IHAVELOTSOFDISKSPACE
+	@echo
+	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR} && ${XMAKE} par-depend
-.if IHAVELOTSOFDISKSPACE
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
@@ -366,48 +374,36 @@ libraries:
 	@cd ${.CURDIR}/lib/libc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.if exists(lib/libcompat)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libcompat"
 	@cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libutil)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libutil"
 	@cd ${.CURDIR}/lib/libutil && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libmytinfo)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libmytinfo"
 	@cd ${.CURDIR}/lib/libmytinfo && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libncurses)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libncurses"
 	@cd ${.CURDIR}/lib/libncurses && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(lib/libtermcap)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib/libtermcap"
 	@cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(gnu)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/gnu/lib"
 	@cd ${.CURDIR}/gnu/lib && ${MAKE} ${CLEANDIR} ${OBJDIR} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/secure/lib"
@@ -415,31 +411,20 @@ libraries:
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(lib)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/lib"
 	@cd ${.CURDIR}/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(usr.bin/lex/lib)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/usr.bin/lex/lib"
 	@cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
 .if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 	@echo "-----------------------"
 	@echo "Making ${.CURDIR}/kerberosIV/lib"
 	@cd ${.CURDIR}/kerberosIV/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(usr.sbin/pcvt/keycap)
-	@echo "-----------------------"
-	@echo "Making ${.CURDIR}/usr.sbin/pcvt/keycap"
-	@cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
@@ -457,8 +442,6 @@ libraries:
 		# gnu/usr.bin/awk		
 		# gnu/usr.bin/groff	
 		# bin/sh			
-		# usr.bin/size		
-		# usr.bin/strip		
 		# usr.bin/symorder	
 build-tools:
 	@-rm -f ${WORLDTMP}/usr/bin/awk
@@ -466,6 +449,18 @@ build-tools:
 	ln -s /usr/bin/awk ${WORLDTMP}/usr/bin/awk
 	ln -s /bin/sh      ${WORLDTMP}/bin/sh
 .for d in			\
+	gnu/usr.bin/make 	\
+	gnu/usr.bin/xinstall 	\
+	gnu/usr.bin/lex 	\
+	gnu/usr.bin/gperf	\
+	gnu/usr.bin/bison	\
+	gnu/usr.bin/binutils	\
+	usr.bin/tsort		\
+	gnu/usr.bin/cc		\
+	usr.bin/compile_et	\
+	usr.bin/lex/lib		\
+	usr.bin/mk_cmds		\
+	usr.bin/uudecode	\
 	bin/cat 		\
 	bin/chmod		\
 	bin/cp 			\
