@@ -27,6 +27,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#ifndef	_PCCARD_CARD_H_
+#define	_PCCARD_CARD_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
+
 #define	PIOCGSTATE	_IOR('P', 1, struct slotstate)	/* Get slot state */
 #define	PIOCGMEM	_IOWR('P', 2, struct mem_desc)	/* Get memory map */
 #define	PIOCSMEM	_IOW('P', 3, struct mem_desc)	/* Set memory map */
@@ -41,7 +50,6 @@
  */
 #define PIOCGREG	_IOWR('P',100, struct pcic_reg)	/* get reg */
 #define PIOCSREG	_IOW('P', 101, struct pcic_reg)	/* Set reg */
-
 
 /*
  *	Slot states for PIOCGSTATE
@@ -138,3 +146,5 @@ struct power {
 #define	NUM_MEM_WINDOWS	10
 #define	NUM_IO_WINDOWS	6
 #define	CARD_DEVICE	"/dev/card%d"		/* String for sprintf */
+
+#endif /* !_PCCARD_CARD_H_ */

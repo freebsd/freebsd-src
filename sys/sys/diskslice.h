@@ -23,12 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.14 1996/07/23 07:46:59 asami Exp $
+ *	$Id: diskslice.h,v 1.15 1996/09/20 17:39:34 bde Exp $
  */
 
-#ifndef _SYS_DISKSLICE_H_
+#ifndef	_SYS_DISKSLICE_H_
 #define	_SYS_DISKSLICE_H_
 
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
 #include <sys/ioccom.h>
 
 #define	BASE_SLICE		2

@@ -25,6 +25,12 @@
  *
  * Version 1.2, Aug 30, 1995.
  */
+
+#ifndef	_MACHINE_SPIGOT_H_
+#define	_MACHINE_SPIGOT_H_
+
+#include <sys/ioccom.h>
+
 struct spigot_info {
 	unsigned long	maddr;
 	unsigned short	irq;
@@ -85,4 +91,6 @@ unsigned char		spigot_status(void);
  *
  * spigot_status() will return the above status bits.
  */
-#endif
+#endif /* !KERNEL */
+
+#endif /* !_MACHINE_SPIGOT_H_ */

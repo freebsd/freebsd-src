@@ -4,13 +4,13 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  *      modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $Id$
+ * $Id: speaker.h,v 1.2 1994/08/02 07:39:05 davidg Exp $
  */
 
-#ifndef _SPEAKER_H_
-#define _SPEAKER_H_
+#ifndef	_MACHINE_SPEAKER_H_
+#define	_MACHINE_SPEAKER_H_
 
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 #define SPKRTONE        _IOW('S', 1, tone_t)    /* emit tone */
 #define SPKRTUNE        _IO('S', 2)             /* emit tone sequence*/
@@ -27,6 +27,4 @@ tone_t;
  * see the spkr(4) man page for details.
  */
 
-#endif /* _SPEAKER_H_ */
-
-/* speaker.h ends here */
+#endif /* !_MACHINE_SPEAKER_H_ */

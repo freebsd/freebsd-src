@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.6 1996/06/17 16:47:39 bde Exp $
+ * $Id: random.h,v 1.7 1996/09/03 10:22:30 asami Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -47,7 +47,7 @@
  * 
  */
 
-#ifndef _MACHINE_RANDOM_H_
+#ifndef	_MACHINE_RANDOM_H_
 #define	_MACHINE_RANDOM_H_
 
 #include <sys/ioccom.h>

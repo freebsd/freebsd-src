@@ -31,12 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.22 1996/06/14 11:02:27 asami Exp $
+ * $Id: disklabel.h,v 1.23 1996/09/20 17:39:32 bde Exp $
  */
 
-#ifndef _SYS_DISKLABEL_H_
+#ifndef	_SYS_DISKLABEL_H_
 #define	_SYS_DISKLABEL_H_
 
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
 #include <sys/ioccom.h>
 
 /*
@@ -443,14 +446,10 @@ int	writedisklabel __P((dev_t dev, void (*strat)(struct buf *bp),
 
 #endif /* LOCORE */
 
-#if !defined(KERNEL) && !defined(LOCORE)
-
-#include <sys/cdefs.h>
-
+#ifndef KERNEL
 __BEGIN_DECLS
 struct disklabel *getdiskbyname __P((const char *));
 __END_DECLS
-
 #endif
 
 #endif /* !_SYS_DISKLABEL_H_ */

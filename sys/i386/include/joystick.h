@@ -1,8 +1,7 @@
-#ifndef _JOY_IOCTL_H_
-#define _JOY_IOCTL_H_
+#ifndef	_MACHINE_JOYSTICK_H_
+#define	_MACHINE_JOYSTICK_H_
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 struct joystick {
     int x;
@@ -18,4 +17,4 @@ struct joystick {
 #define JOY_GET_X_OFFSET  _IOR('J', 5, int)    /* get offset on X-axis */
 #define JOY_GET_Y_OFFSET  _IOR('J', 6, int)    /* get offset on Y-axis */
 
-#endif /* _JOY_IOCTL_H_ */
+#endif /* !_MACHINE_JOYSTICK_H_ */

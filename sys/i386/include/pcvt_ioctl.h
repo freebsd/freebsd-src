@@ -73,7 +73,7 @@
 #if !defined(KERNEL) && !defined(_KERNEL)
 #include <sys/types.h>
 #endif
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 /*---------------------------------------------------------------------------*
  *		IOCTLs for MF II and AT Keyboards
@@ -578,4 +578,4 @@ typedef struct keymap keymap_t;
 
 /* end of USL VT compatibility stuff */
 
-#endif	/* ! _MACHINE_PCVT_IOCTL_H_ */
+#endif /* !_MACHINE_PCVT_IOCTL_H_ */

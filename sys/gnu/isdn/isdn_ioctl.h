@@ -1,6 +1,6 @@
-/* @(#)$Id: isdn_ioctl.h,v 1.3 1995/11/16 10:44:48 bde Exp $
+/* @(#)$Id: isdn_ioctl.h,v 1.4 1996/06/12 05:02:22 gpalmer Exp $
  *******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@
  *
  *******************************************************************************
  * $Log: isdn_ioctl.h,v $
+ * Revision 1.4  1996/06/12 05:02:22  gpalmer
+ * Clean up -Wunused warnings.
+ *
+ * Reviewed by:		bde
+ *
  * Revision 1.3  1995/11/16 10:44:48  bde
  * Completed function declarations.
  *
@@ -32,6 +37,13 @@
  *
  ******************************************************************************/
 
+#ifndef	_GNU_ISDN_ISDN_IOCTL_H_
+#define	_GNU_ISDN_ISDN_IOCTL_H_
+
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
 
 #pragma pack (1)
 typedef struct
@@ -205,3 +217,5 @@ int	ity_input __P((int no, int len, char *buf, int dir));
 int	ity_out __P((int no, char *buf, int len));
 
 #endif /* KERNEL */
+
+#endif /* !_GNU_ISDN_ISDN_IOCTL_H_ */
