@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayreg.h,v 1.6 2000/03/12 22:52:00 dmlb Exp $
+ * $Id: if_rayreg.h,v 1.7 2000/03/21 14:26:38 dmlb Exp $
  *
  */
 
@@ -68,7 +68,7 @@
 #define RAY_CCR		0xf00			/* CCR register offset */
 #define RAY_COR		(RAY_CCR + 0x00)	/* config option register */
 #define	RAY_CCSR	(RAY_CCR + 0x01)	/* config/status register */
-#define	RAY_PIN		(RAY_CCR + 0x02)	/* not in hw */
+#define	RAY_PIN		(RAY_CCR + 0x02)	/* not used by hw */
 #define	RAY_SOCKETCOPY	(RAY_CCR + 0x03)	/* not used by hw */
 #define	RAY_HCSIR	(RAY_CCR + 0x05)	/* HCS intr register */
 #define	RAY_ECFIR	(RAY_CCR + 0x06)	/* ECF intr register */
@@ -97,44 +97,48 @@
 /*
  * CCS register bits
  */
-/* XXX the linux driver indicates bit 0 is the irq bit */
+#define	RAY_CCS_NORMAL		0x00	/* normal operation */
 #define	RAY_CCS_IRQ		0x02	/* interrupt pending */
-#define	RAY_CCS_POWER_DOWN	0x04
+#define	RAY_CCS_POWER_DOWN	0x04	/* when written powers down card */
 
 /*
- * HCSI register bits
+ * HCSIR bits
  *
  * the host can only clear this bit.
  */
 #define	RAY_HCSIR_IRQ		0x01	/* indicates an interrupt */
 
 /*
- * ECFI register values
+ * ECFIR values
  */
 #define	RAY_ECFIR_IRQ		0x01	/* interrupt the card */
 
 /*
- * authorization register 0 values
- *    -- used for testing/programming the card (unused)
+ * AR0 values
+ * used for testing/programming the card (unused)
  */
 #define	RAY_AR0_ON		0x57
 
 /*
- * authorization register 1 values
- *	-- used for testing/programming the card (unused)
+ * AR1 values
+ * used for testing/programming the card (unused)
  */
 #define	RAY_AR1_ON		0x82
 
 /*
- * PMR bits -- these are used to program the card (unused)
+ * PMR bits 
+ * these are used to program the card (unused)
  */
+#define	RAY_PMR_NORMAL		0x00	/* normal operation */
 #define	RAY_PMR_PC2PM		0x02	/* grant access to firmware flash */
 #define	RAY_PMR_PC2CAL		0x10	/* read access to the A/D modem inp */
 #define	RAY_PMR_MLSE		0x20	/* read access to the MSLE prom */
 
 /*
- * TMR bits -- get access to test modes (unused)
+ * TMR bits
+ * get access to test modes (unused)
  */
+#define	RAY_TMR_NORMAL		0x00	/* normal operation */
 #define	RAY_TMR_TEST		0x08	/* test mode */
 
 /*
@@ -205,6 +209,16 @@ struct ray_ecf_startup_v5 {
 #define	RAY_ECFS_RERSERVED1		0x40
 #define	RAY_ECFS_TEST_COMPLETE		0x80
 #define	RAY_ECFS_CARD_OK		RAY_ECFS_TEST_COMPLETE
+#define RAY_ECFS_PRINTFB	\
+	"\020"			\
+	"\001RESERVED0"		\
+	"\002PROC_SELF_TEST"	\
+	"\003PROG_MEM_CHECKSUM"	\
+	"\004DATA_MEM_TEST"	\
+	"\005RX_CALIBRATION"	\
+	"\006FW_VERSION_COMPAT"	\
+	"\007RERSERVED1"	\
+	"\010TEST_COMPLETE"
 
 /*
  * Firmware build codes
@@ -225,7 +239,7 @@ struct ray_ecf_startup_v5 {
 /*
  * commands for CCSR
  */
-#define	RAY_CMD_START_PARAMS	0x01	/* download start params */
+#define	RAY_CMD_DOWNLOAD_PARAMS	0x01	/* download start params */
 #define	RAY_CMD_UPDATE_PARAMS	0x02	/* update params */
 #define	RAY_CMD_REPORT_PARAMS	0x03	/* report params */
 #define	RAY_CMD_UPDATE_MCAST	0x04	/* update mcast list */
