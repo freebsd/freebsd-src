@@ -131,6 +131,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
+static int tcp_insecure_rst = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
+    &tcp_insecure_rst, 0,
+    "Follow the old (insecure) criteria for accepting RST packets.");
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
 	    "TCP Segment Reassembly Queue");
 
@@ -1528,7 +1533,8 @@ trimthenstep6:
 				goto close;
 
 			case TCPS_ESTABLISHED:
-				if (tp->last_ack_sent != th->th_seq) {
+				if (tp->last_ack_sent != th->th_seq &&
+			 	    tcp_insecure_rst == 0) {
 					tcpstat.tcps_badrst++;
 					goto drop;
 				}
