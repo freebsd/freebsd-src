@@ -1015,7 +1015,8 @@ void prtrack (struct cd_toc_entry *e, int lastflag)
 	else
 		next = ntohl(e[1].addr.lba);
 	len = next - block;
-	lba2msf (len, &m, &s, &f);
+	/* Take into account a start offset time. */
+	lba2msf (len - 150, &m, &s, &f);
 
 	/* Print duration, block, length, type */
 	printf ("%2d:%02d.%02d  %6d  %6d  %5s\n", m, s, f, block, len,
