@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.4 1994/09/14 16:42:37 jkh Exp $
+#	$Id: bsd.port.subdir.mk,v 1.5 1994/09/16 14:30:22 jkh Exp $
 
 .MAIN: all
 
@@ -63,6 +63,10 @@ clean: _SUBDIRUSE
 
 .if !target(depend)
 depend: _SUBDIRUSE
+.endif
+
+.if !target(reinstall)
+reinstall: _SUBDIRUSE
 .endif
 
 .if !target(install)
