@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.107 1999/05/10 03:51:07 bde Exp $
+#	$Id: Makefile,v 1.108 1999/05/21 04:37:40 wpaul Exp $
 
-MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 alpm.4 apm.4 ar.4 asc.4 atkbd.4 \
-	atkbdc.4 al.4 ax.4 bktr.4 bt.4 cs.4 cx.4 cy.4 de.4 \
+MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 al.4 alpm.4 apm.4 ar.4 asc.4 \
+	atkbd.4 atkbdc.4 ax.4 bktr.4 bt.4 cs.4 cx.4 cy.4 de.4 \
 	dgb.4 dpt.4 ed.4 el.4 en.4 ep.4 ex.4 fdc.4 fe.4 fxp.4 gsc.4 ie.4 \
 	io.4 joy.4 keyboard.4 labpc.4 le.4 lnc.4 matcd.4 mcd.4 \
 	mem.4 meteor.4 mouse.4 mse.4 mtio.4 mx.4 ncr.4 npx.4 \
@@ -17,12 +17,12 @@ MLINKS+=	aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
 MLINKS+=	ahc.4 ../ahc.4
 MLINKS+=	aic.4 ../aic.4
+MLINKS+=	al.4 ../al.4
 MLINKS+=	apm.4 ../apm.4
 MLINKS+=	ar.4 ../ar.4
 MLINKS+=	asc.4 ../asc.4
 MLINKS+=	atkbd.4 ../atkbd.4
 MLINKS+=	atkbdc.4 ../atkbdc.4
-MLINKS+=	al.4 ../al.4
 MLINKS+=	ax.4 ../ax.4
 MLINKS+=	bktr.4 ../bktr.4
 MLINKS+=	bt.4 ../bt.4
