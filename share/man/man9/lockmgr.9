@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 9, 2001
+.Dt LOCKMGR 9
+.Os
+.Sh NAME
+.Nm lockmgr
+.Nd "Aquires, releases and updates locks"
+.Sh SYNOPSIS
+.Fd #include <sys/lockmgr.h>
+.Ft int
+.Fo lockmgr
+.Fa "struct lock *lkp"
+.Fa "u_int flags"
+.Fa "struct mtx *interlkp"
+.Fa "struct proc *p"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+function handles general locking functionality within the kernel, including
+support for shared and exclusive locks, and recursion.  Locks can also be
+upgraded and downgraded.
+.Pp
+Its arguments are:
+.Bl -tag -width interlkp
+.It Ar lkp
+A pointer to lock to manipulate..
+.It Ar flags
+Flags indicating what action is to be taken.
+.Pp
+LK_SHARED - Aquire a shared lock.  If we currently hold an exclusive lock it will
+be downgraded.
+.Pp
+LK_EXCLUSIVE - Aquire an exclusive lock.  If we already hold an exclusive lock
+and LK_CANRECURSE is not set we will panic.
+.Pp
+LK_DOWNGRADE - Downgrade our exclusive lock to a shared lock.  Downgrading a shared
+lock is not valid.  If the exclusive lock has been recursed, all references will
+be downgraded.
+.Pp
+LK_EXCLUPGRADE - Upgrade our lock to an exclusive lock.  Will fail with EBUSY if
+there is someone ahead of use waiting for an upgrade. If this call fails we loose
+our shared lock.  Upgrading an exclusive lock will cause a panic.
+.Pp
+LK_UPGRADE - Upgrades our lock to an exclusive lock.  If this call fails we loose
+our shared lock.  Upgrading an exclusive lock will cause a panic.
+.Pp
+LK_RELEASE - Release the lock.  Releasing a lock that you do not hold can cause
+a panic.
+.Pp
+LK_DRAIN - Waits for all activity on the lock to end, and then marks it decommissioned.
+This is used before freeing a lock that is part of a piece of memory that is about to
+be freed. (As documented in lockmgr.h)
+.Pp
+LK_SLEEPFAIL - the we slept for the lock then fail.
+.Pp
+LK_NOWAIT - Do not allow the call to sleep.  This can be used to test the lock.
+.Pp
+LK_CANRECURSE - It is ok to recurse on an exclusive lock.  For every lock there
+must be a release.
+.Pp
+LK_INTERLOCK - Unlock the interlock, which is of course locked already.
+.Pp
+.It Ar interlkp
+An interlock mutex for controlling group access to the lock.
+If LK_INTERLOCK is specified 
+.Nm
+assumes
+.Ar interlkp
+is currently owned and not recursed, and will return it unlocked.
+See mtx_assert(9).
+.It Ar p
+The process responsible for this call. NULL becomes LK_KERNPROC.
+.El
+.Sh LOCKS
+If LK_INTERLOCK is specified then
+.Ar interlkp
+must be held prior to calling
+.Nm
+and will be returned unlocked.
+.Pp
+Upgrade attempts that fail result in the loss of the lock that
+is currently held.  As well, it is not valid to upgrade an
+exclusive lock, and a panic will be the result of trying.
+.Sh RETURN VALUES
+A value of 0 is returned on success. 
+.Sh ERRORS
+.Bl -tag
+.It Bq EBUSY
+Either LK_NOWAIT was specified and lockmgr would have slept, or another
+process was ahead of you in line for an exclusive upgrade.
+.It Bq ENOLCK
+LK_SLEEP_FAIL was set and we slept.
+.Sh SEE ALSO
+.Xr mutex 9
+.Xr lockcount 9
+.Xr lockdestroy 9
+.Xr lockstatus 9
+.Xr lockmgr_printinfo 9
+.Sh AUTHORS
+This man page was written by Chad David.
