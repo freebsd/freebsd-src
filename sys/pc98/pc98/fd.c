@@ -2665,7 +2665,7 @@ retrier(struct fdc_data *fdc)
 			/* Trick diskerr */
 			bp->bio_dev = makedev(major(bp->bio_dev),
 				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
-			diskerr(bp, "hard error", LOG_PRINTF,
+			diskerr(bp, "hard error",
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
 			bp->bio_dev = sav_bio_dev;

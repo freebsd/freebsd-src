@@ -459,7 +459,7 @@ struct	bio_queue_head;
 
 int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
 				     int wlabel));
-void	diskerr __P((struct bio *bp, char *what, int pri, int blkdone,
+void	diskerr __P((struct bio *bp, char *what, int blkdone,
 		     struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
