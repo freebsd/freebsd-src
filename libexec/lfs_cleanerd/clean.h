@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)clean.h	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	@(#)clean.h	8.2 (Berkeley) 5/4/95
+ *	$Id: clean.h,v 1.6 1997/02/22 14:21:44 peter Exp $
  */
 
 /*
@@ -107,7 +107,7 @@ typedef struct fs_info {
 __BEGIN_DECLS
 int	 dump_summary __P((struct lfs *, SEGSUM *, u_long, daddr_t **));
 void	 err __P((const int, const char *, ...));
-int	 fs_getmntinfo __P((struct statfs **, char *, int));
+int	 fs_getmntinfo __P((struct statfs **, char *, char *));
 int	 get __P((int, off_t, void *, size_t));
 FS_INFO	*get_fs_info __P((struct statfs *, int));
 int 	 lfs_segmapv __P((FS_INFO *, int, caddr_t, BLOCK_INFO **, int *));
