@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.51 1998/05/06 01:44:12 gibbs Exp $
+ * $Id: buf.h,v 1.52 1998/05/13 16:03:33 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -226,7 +226,7 @@ bufq_first(buf_queue_head *head)
  * buffer hash table calculation, originally by David Greenman
  */
 #define BUFHASH(vnp, bn)        \
-	(&bufhashtbl[(((unsigned long)(vnp) >> 7)+(int)(bn)) % BUFHSZ])
+	(&bufhashtbl[(((uintptr_t)(vnp) >> 7)+(int)(bn)) % BUFHSZ])
 
 /*
  * Definitions for the buffer free lists.
