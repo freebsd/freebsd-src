@@ -31,11 +31,18 @@ gateway_enable="NO"		# Set to YES if this host will be a gateway.
 arpproxy_all=""			# replaces obsolete kernel option ARP_PROXYALL.
 default_mask="0xffffff00"
 
-# Other network features
+### Other network features
 firewall_enable="NO"
 firewall_quiet="NO"		# be quiet if set.
 firewall_type=""		# Standard types or absolute pathname.
 tcp_extensions="NO"		# Allow RFC1323 & RFC1644 extensions (or NO).
+
+### Overrides for some files in /etc. Leave empty if no override,
+### set variable (remember to use multiple lines) to override content.
+
+host_conf="hosts
+bind"
+resolv_conf=""
 }
 
 # Try to identify the system by using the MAC address and name of the
