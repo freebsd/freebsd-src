@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.130 1999/05/12 04:52:40 jkh Exp $
+ * $Id: config.c,v 1.131 1999/05/12 09:02:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -472,6 +472,18 @@ write_root_xprofile(char *str)
     }
 }
 
+static int
+gotit(char *fname)
+{
+    char tmp[FILENAME_MAX];
+
+    snprintf(tmp, sizeof tmp, "/usr/X11R6/bin/%s", fname);
+    if (file_executable(tmp))
+	return TRUE;
+    snprintf(tmp, sizeof tmp, "/usr/local/bin/%s", fname);
+    return file_executable(tmp);
+}
+
 int
 configXDesktop(dialogMenuItem *self)
 {
@@ -483,32 +495,32 @@ configXDesktop(dialogMenuItem *self)
 	return DITEM_FAILURE;
     if (!strcmp(desk, "kde")) {
 	ret = package_add("kde");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
 	    write_root_xprofile("exec startkde\n");
     }
     else if (!strcmp(desk, "gnome")) {
 	ret = package_add("gnomecore");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
 	    ret = package_add("afterstep");
-	    if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("afterstep"))
 		write_root_xprofile("gnome-session &\nexec afterstep");
 	}
     }
     else if (!strcmp(desk, "afterstep")) {
 	ret = package_add("afterstep");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("afterstep"))
 	    write_root_xprofile("xterm &\nexec afterstep\n");
     }
     else if (!strcmp(desk, "windowmaker")) {
 	ret = package_add("windowmaker");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("wmaker.inst")) {
 	    vsystem("/usr/X11R6/bin/wmaker.inst");
 	    write_root_xprofile("xterm &\nexec wmaker\n");
 	}
     }
     else if (!strcmp(desk, "enlightenment")) {
 	ret = package_add("enlightenment");
-	if (DITEM_STATUS(ret) != DITEM_FAILURE)
+	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("enlightenment"))
 	    write_root_xprofile("xterm &\nexec enlightenment\n");
     }
     if (DITEM_STATUS(ret) == DITEM_FAILURE)
