@@ -1,7 +1,7 @@
                                  FreeBSD
                                  Sup FAQ
 
-Last updated: $Date: 1994/05/11 22:40:48 $
+Last updated: $Date: 1994/09/11 10:56:10 $
 
 	SUP is a network based software update tool developed at CMU.  The
 purpose of this document is get the beginner up and running with sup.
@@ -9,9 +9,9 @@ purpose of this document is get the beginner up and running with sup.
 	First off you will need to pick up the sup binaries.  The easiest
 way of doing this is to grab the sup_bin.tgz package from:
 
-	freebsd.cdrom.com:~ftp/pub/FreeBSD/packages
+	ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/packages-1.1
 		(FreeBSD 1.1 or later)
-	freebsd.cdrom.com:~ftp/pub/FreeBSD/packages-1.0
+	ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/packages-1.0
 		(FreeBSD 1.0.2 or earlier)
 
 If you only wish to set up a sup client, you may also simply grab the sup
@@ -30,7 +30,7 @@ sup both the source and ports collection - look for the blank line seperating
 the two collections; if you don't want ports, you can simply delete all the
 ports entries.  If you're inside the United States, you may also uncomment
 the `secure' collection line to grab the DES code.  If you're outside the
-U.S., you should NOT sup this code from freefall.cdrom.com as this will
+U.S., you should NOT sup this code from FreeBSD.ORG as this will
 violate U.S. export restrictions.  Simply sup everything *but* the secure
 collection and then go look on "braae.ru.ac.za", where it's available for
 anonymous ftp for those outside the U.S.
@@ -51,7 +51,7 @@ Thats all there is to it!  Remember that if you're running current,
 which is what you will have if you sup, please join the freebsd-current
 mailing list.  You should also be sure to read:
 
-freebsd.cdrom.com:~ftp/pub/FreeBSD/FAQ/OTHER-FAQS/FreeBSD.current.policy
+ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/FAQ/OTHER-FAQS/FreeBSD.current.policy
 
 For important information on just what we can and cannot do for you as
 a -current user.  
