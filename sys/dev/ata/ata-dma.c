@@ -970,6 +970,7 @@ via_82c586:
 
     case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
     case 0x5275105a:	/* Promise TX2 ATA133 controllers */
+    case 0x6269105a:	/* Promise TX2 ATA133 controllers */
 	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (udmamode >= 6 &&
 	    !(ATA_INB(atadev->channel->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {

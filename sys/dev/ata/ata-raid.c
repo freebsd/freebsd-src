@@ -122,6 +122,7 @@ ata_raiddisk_attach(struct ad_softc *adp)
     switch(adp->device->channel->chiptype) {
     case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
     case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
+    case 0x6269105a:
 	/* test RAID bit in PCI reg XXX */
 	return (ar_promise_read_conf(adp, ar_table, 0));
 
