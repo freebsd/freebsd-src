@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.20.2.4 1997/11/29 04:45:41 steve Exp $
+ * $Id: if_fe.c,v 1.45 1998/12/15 15:51:37 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 3.x
@@ -1082,11 +1082,12 @@ fe_init_lnx ( struct fe_softc * sc )
 static void
 fe_init_ubn ( struct fe_softc * sc )
 {
-#if 0
-	/* Do we need this?  FIXME.  */
-	outb(sc->ioaddr[0x18], 0x00);
-	DELAY( 200 );
-#endif
+ 	/* Do we need this?  FIXME.  */
+	outb(sc->ioaddr[FE_DLCR7],
+		sc->proto_dlcr7 | FE_D7_RBS_BMPR | FE_D7_POWER_UP);
+ 	outb(sc->ioaddr[0x18], 0x00);
+ 	DELAY( 200 );
+ 
 	/* Setup IRQ control register on the ASIC.  */
 	outb(sc->ioaddr[0x14], sc->priv_info);
 }
