@@ -39,6 +39,12 @@
 .Cd options INVARIANT_SUPPORT
 .Fn SPLASSERT level "const char *msg"
 .Sh DESCRIPTION
+.Sy This API is deprecated.
+.Sy Use mutexes to protect data structures instead.
+.Sy See
+.Xr mutex 9
+.Sy for more information.
+.Pp
 In a kernel compiled with both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
 the
