@@ -62,7 +62,7 @@ ENTRY(cpu_switch)
 	 * If the current thread was using floating point, save its context.
 	 */
 	ldx	[%l0 + TD_FRAME], %l2
-	ldub	[%l2 + TF_FPRS], %l3
+	ldx	[%l2 + TF_FPRS], %l3
 	andcc	%l3, FPRS_FEF, %g0
 	bz,a,pt	%xcc, 1f
 	 nop
@@ -75,7 +75,7 @@ ENTRY(cpu_switch)
 	membar	#Sync
 	wr	%g0, 0, %fprs
 	andn	%l3, FPRS_FEF, %l3
-	stb	%l3, [%l2 + TF_FPRS]
+	stx	%l3, [%l2 + TF_FPRS]
 
 	/*
 	 * Flush the windows out to the stack and save the current frame
