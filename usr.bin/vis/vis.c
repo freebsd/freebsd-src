@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <err.h>
 #include <locale.h>
@@ -52,11 +52,12 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <vis.h>
 
+#include "extern.h"
+
 int eflags, fold, foldwidth=80, none, markeol, debug;
 
 void process __P((FILE *));
 static void usage __P((void));
-extern int foldit __P((char *, int, int));
 
 int
 main(argc, argv)
