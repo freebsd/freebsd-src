@@ -10,12 +10,14 @@
  * $FreeBSD$
  */
 
+#ifndef	__alpha__
 #include "opt_npx.h"
 #ifdef PC98
 #include "opt_pc98.h"
 #endif
 #include "opt_reset.h"
 #include "opt_isa.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -35,8 +37,10 @@
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#ifndef	__alpha__
 #include <machine/pcb_ext.h>
 #include <machine/vm86.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -48,10 +52,12 @@
 
 #include <sys/user.h>
 
+#ifndef	__alpha__
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
+#endif
 #endif
 
 SYSCTL_DECL(_vm_stats_misc);
