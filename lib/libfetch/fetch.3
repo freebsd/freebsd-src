@@ -342,7 +342,7 @@ and
 .Fn fetchPutHTTP
 functions implement the HTTP/1.1 protocol.
 With a little luck, there's
-even a chance that they comply with RFC2068.
+even a chance that they comply with RFC2616 and RFC2617.
 .Pp
 If the
 .Fa d
@@ -359,6 +359,31 @@ method in a manner consistent with the rest of the
 library,
 .Fn fetchPutHTTP
 is currently unimplemented.
+.Sh AUTHENTICATION
+Apart from setting the appropriate environment variables and
+specifying the user name and password in the URL or the
+.Fa struct url ,
+the calling program has the option of defining an authentication
+function with the following prototype:
+.Pp
+.Ft int
+.Fn myAuthMethod "struct url *u"
+.Pp
+The callback function should fill in the
+.Fa user
+and
+.Fa pwd
+fields in the provided
+.Fa struct url
+and return 0 on success, or any other value to indicate failure.
+.Pp
+To register the authentication callback, simply set
+.Fa fetchAuthMethod
+to point at it.
+The callback will be used whenever a site requires authentication and
+the appropriate environment variables aren't set.
+.Pp
+This interface is experimental and may be subject to change.
 .Sh RETURN VALUES
 .Fn fetchParseURL
 returns a pointer to a
@@ -520,10 +545,24 @@ URL.
 .%A J. Gettys
 .%A J. Mogul
 .%A H. Frystyk
+.%A L. Masinter
+.%A P. Leach
 .%A T. Berners-Lee
-.%D Januray 1997
+.%D Januray 1999
 .%B Hypertext Transfer Protocol -- HTTP/1.1
-.%O RFC2068
+.%O RFC2616
+.Re
+.Rs
+.%A J. Franks
+.%A P. Hallam-Baker
+.%A J. Hostetler
+.%A S. Lawrence
+.%A P. Leach
+.%A A. Luotonen
+.%A L. Stewart
+.%D June 1999
+.%B HTTP Authentication: Basic and Digest Access Authentication
+.%O RFC2617
 .Re
 .Sh HISTORY
 The
