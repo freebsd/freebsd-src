@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.81 1998/10/01 14:49:57 jkh Exp $
+#	$Id: Makefile,v 1.82 1998/10/13 16:48:43 bde Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -8,7 +8,8 @@
 # libcom_err must be built before libss.
 # libcrypt must be built before libskey.
 # libm must be built before libf2c, libg++ and libstdc++.
-# libmd must be built before libatm, libopie and libskey.
+# libmd must be built before libatm, libopie, libradius, libskey,
+# and libtacplus.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
@@ -20,8 +21,8 @@ SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd libmytinfo \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libcurses libdevstat libdisk libedit libf2c libfetch \
 	libftpio libgnumalloc libipx libkvm libopie \
-	libpcap libresolv librpcsvc libskey libss libstand \
-	${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
+	libpcap libradius libresolv librpcsvc libskey libss libstand \
+	libtacplus ${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
 _csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
