@@ -56,12 +56,6 @@ initgroups(uname, agroup)
 	int groups[NGROUPS], ngroups;
 
 	ngroups = NGROUPS;
-	if (getgrouplist(uname, agroup, groups, &ngroups) < 0)
-		warnx("%s is in too many groups, using first %d",
-		    uname, ngroups);
-	if (setgroups(ngroups, groups) < 0) {
-		_warn("setgroups");
-		return (-1);
-	}
-	return (0);
+	getgrouplist(uname, agroup, groups, &ngroups);
+	return (setgroups(ngroups, groups));
 }

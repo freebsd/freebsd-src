@@ -61,10 +61,14 @@ is automatically included in the groups list.
 Typically this value is given as
 the group number from the password file.
 .Sh RETURN VALUES
+.Rv -std initgroups
+.Sh ERRORS
 The
 .Fn initgroups
-function
-returns \-1 if it was not invoked by the super-user.
+function may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr setgroups 2 .
 .Sh SEE ALSO
 .Xr setgroups 2 ,
 .Xr getgrouplist 3
