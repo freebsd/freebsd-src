@@ -50,7 +50,6 @@ static int precommit_list_proc PROTO((Node * p, void *closure));
 static int precommit_proc PROTO((char *repository, char *filter));
 static int remove_file PROTO ((struct file_info *finfo, char *tag,
 			       char *message));
-static void fix_rcs_modes PROTO((char *rcs, char *user));
 static void fixaddfile PROTO((char *file, char *repository));
 static void fixbranch PROTO((RCSNode *, char *branch));
 static void unlockrcs PROTO((RCSNode *rcs));
@@ -342,10 +341,11 @@ commit (argc, argv)
        readonly user stuff (CVSROOT/readers, &c).  That is, why should
        root be able to "cvs init", "cvs import", &c, but not "cvs ci"?  */
     if (geteuid () == (uid_t) 0
-#ifdef CLIENT_SUPPORT
+#  ifdef CLIENT_SUPPORT
+	/* Who we are on the client side doesn't affect logging.  */
 	&& !client_active
-#endif
-    )
+#  endif
+	)
     {
 	struct passwd *pw;
 
@@ -411,7 +411,7 @@ commit (argc, argv)
     argv += optind;
 
     /* numeric specified revision means we ignore sticky tags... */
-    if (saved_tag && isdigit (*saved_tag))
+    if (saved_tag && isdigit ((unsigned char) *saved_tag))
     {
 	aflag = 1;
 	/* strip trailing dots */
@@ -566,13 +566,6 @@ commit (argc, argv)
 	    send_arg("-n");
 	option_with_arg ("-r", saved_tag);
 
-	/* Sending only the names of the files which were modified, added,
-	   or removed means that the server will only do an up-to-date
-	   check on those files.  This is different from local CVS and
-	   previous versions of client/server CVS, but it probably is a Good
-	   Thing, or at least Not Such A Bad Thing.  */
-	send_file_names (find_args.argc, find_args.argv, 0);
-
 	/* FIXME: This whole find_args.force/SEND_FORCE business is a
 	   kludge.  It would seem to be a server bug that we have to
 	   say that files are modified when they are not.  This makes
@@ -584,6 +577,13 @@ commit (argc, argv)
 	   then it would be relatively simple to fix in the server.  */
 	send_files (find_args.argc, find_args.argv, local, 0,
 		    find_args.force ? SEND_FORCE : 0);
+
+	/* Sending only the names of the files which were modified, added,
+	   or removed means that the server will only do an up-to-date
+	   check on those files.  This is different from local CVS and
+	   previous versions of client/server CVS, but it probably is a Good
+	   Thing, or at least Not Such A Bad Thing.  */
+	send_file_names (find_args.argc, find_args.argv, 0);
 
 	send_to_server ("ci\012", 0);
 	err = get_responses_and_close ();
@@ -677,9 +677,10 @@ commit (argc, argv)
     {
 	time_t now;
 
-	(void) time (&now);
-	if (now == last_register_time)
+	for (;;)
 	{
+	    (void) time (&now);
+	    if (now != last_register_time) break;
 	    sleep (1);			/* to avoid time-stamp races */
 	}
     }
@@ -708,7 +709,7 @@ classify_file_internal (finfo, vers)
     noexec = quiet = really_quiet = 1;
 
     /* handle specified numeric revision specially */
-    if (saved_tag && isdigit (*saved_tag))
+    if (saved_tag && isdigit ((unsigned char) *saved_tag))
     {
 	/* If the tag is for the trunk, make sure we're at the head */
 	if (numdots (saved_tag) < 2)
@@ -792,6 +793,19 @@ check_fileproc (callerdat, finfo)
     struct commit_info *ci;
     struct logfile_info *li;
 
+    size_t cvsroot_len = strlen (CVSroot_directory);
+
+    if (strncmp (finfo->repository, CVSroot_directory, cvsroot_len) == 0
+	&& ISDIRSEP (finfo->repository[cvsroot_len])
+	&& strncmp (finfo->repository + cvsroot_len + 1,
+		    CVSROOTADM,
+		    sizeof (CVSROOTADM) - 1) == 0
+	&& ISDIRSEP (finfo->repository[cvsroot_len + sizeof (CVSROOTADM)])
+	&& strcmp (finfo->repository + cvsroot_len + sizeof (CVSROOTADM) + 1,
+		   CVSNULLREPOS) == 0
+	)
+	error (1, 0, "cannot check in to %s", finfo->repository);
+
     status = classify_file_internal (finfo, &vers);
 
     /*
@@ -830,7 +844,7 @@ check_fileproc (callerdat, finfo)
 	     *    allow the commit if timestamp is identical or if we find
 	     *    an RCS_MERGE_PAT in the file.
 	     */
-	    if (!saved_tag || !isdigit (*saved_tag))
+	    if (!saved_tag || !isdigit ((unsigned char) *saved_tag))
 	    {
 		if (vers->date)
 		{
@@ -902,7 +916,9 @@ warning: file `%s' seems to still contain conflict indicators",
 		}
 	    }
 
-	    if (status == T_REMOVED && vers->tag && isdigit (*vers->tag))
+	    if (status == T_REMOVED
+		&& vers->tag
+		&& isdigit ((unsigned char) *vers->tag))
 	    {
 		/* Remove also tries to forbid this, but we should check
 		   here.  I'm only _sure_ about somewhat obscure cases
@@ -941,7 +957,7 @@ warning: file `%s' seems to still contain conflict indicators",
 		    }
 		    free (rcs);
 		}
-		if (vers->tag && isdigit (*vers->tag) &&
+		if (vers->tag && isdigit ((unsigned char) *vers->tag) &&
 		    numdots (vers->tag) > 1)
 		{
 		    error (0, 0,
@@ -1001,7 +1017,7 @@ warning: file `%s' seems to still contain conflict indicators",
 	    ci = (struct commit_info *) xmalloc (sizeof (struct commit_info));
 	    ci->status = status;
 	    if (vers->tag)
-		if (isdigit (*vers->tag))
+		if (isdigit ((unsigned char) *vers->tag))
 		    ci->rev = xstrdup (vers->tag);
 		else
 		    ci->rev = RCS_whatbranch (finfo->rcs, vers->tag);
@@ -1120,7 +1136,7 @@ precommit_proc (repository, filter)
 
 	s = xstrdup (filter);
 	for (cp = s; *cp; cp++)
-	    if (isspace (*cp))
+	    if (isspace ((unsigned char) *cp))
 	    {
 		*cp = '\0';
 		break;
@@ -1267,7 +1283,11 @@ commit_fileproc (callerdat, finfo)
 	   Since the branch test was done in check_fileproc for
 	   modified files, we need to stub it in again here. */
 
-	if (ci->tag)
+	if (ci->tag
+
+	    /* If numeric, it is on the trunk; check_fileproc enforced
+	       this.  */
+	    && !isdigit ((unsigned char) ci->tag[0]))
 	{
 	    if (finfo->rcs == NULL)
 		error (1, 0, "internal error: no parsed RCS file");
@@ -1601,16 +1621,16 @@ findmaxrev (p, closure)
  * XXX - if removing a ,v file that is a relative symbolic link to
  * another ,v file, we probably should add a ".." component to the
  * link to keep it relative after we move it into the attic.
- */
+
+   Return value is 0 on success, or >0 on error (in which case we have
+   printed an error message).  */
 static int
 remove_file (finfo, tag, message)
     struct file_info *finfo;
     char *tag;
     char *message;
 {
-    mode_t omask;
     int retcode;
-    char *tmp;
 
     int branch;
     int lockflag;
@@ -1700,16 +1720,6 @@ remove_file (finfo, tag, message)
 	RCS_rewrite (finfo->rcs, NULL, NULL);
     }
 
-#ifdef SERVER_SUPPORT
-    if (server_active) {
-	/* If this is the server, there will be a file sitting in the
-	   temp directory which is the kludgy way in which server.c
-	   tells time_stamp that the file is no longer around.  Remove
-	   it so we can create temp files with that name (ignore errors).  */
-	unlink_file (finfo->file);
-    }
-#endif
-
     /* check something out.  Generally this is the head.  If we have a
        particular rev, then name it.  */
     retcode = RCS_checkout (finfo->rcs, finfo->file, rev ? corev : NULL,
@@ -1746,34 +1756,9 @@ remove_file (finfo, tag, message)
     if (rev != NULL)
 	free (rev);
 
-    old_path = finfo->rcs->path;
+    old_path = xstrdup (finfo->rcs->path);
     if (!branch)
-    {
-	/* this was the head; really move it into the Attic */
-	tmp = xmalloc(strlen(finfo->repository) +
-		      sizeof('/') +
-		      sizeof(CVSATTIC) +
-		      sizeof('/') +
-		      strlen(finfo->file) +
-		      sizeof(RCSEXT) + 1);
-	(void) sprintf (tmp, "%s/%s", finfo->repository, CVSATTIC);
-	omask = umask (cvsumask);
-	(void) CVS_MKDIR (tmp, 0777);
-	(void) umask (omask);
-	(void) sprintf (tmp, "%s/%s/%s%s", finfo->repository, CVSATTIC,
-			finfo->file, RCSEXT);
-
-	if (strcmp (finfo->rcs->path, tmp) != 0
-	    && CVS_RENAME (finfo->rcs->path, tmp) == -1
-	    && (isreadable (finfo->rcs->path) || !isreadable (tmp)))
-	{
-	    free(tmp);
-	    return (1);
-	}
-	/* The old value of finfo->rcs->path is in old_path, and is
-           freed below.  */
-	finfo->rcs->path = tmp;
-    }
+	RCS_setattic (finfo->rcs, 1);
 
     /* Print message that file was removed. */
     cvs_output (old_path, 0);
@@ -1784,8 +1769,7 @@ remove_file (finfo, tag, message)
     cvs_output ("\ndone\n", 0);
     free(prev_rev);
 
-    if (old_path != finfo->rcs->path)
-	free (old_path);
+    free (old_path);
 
     Scratch_Entry (finfo->entries, finfo->file);
     return (0);
@@ -1811,7 +1795,9 @@ finaladd (finfo, rev, tag, options)
 	char *tmp = xmalloc (strlen (finfo->file) + sizeof (CVSADM)
 			     + sizeof (CVSEXT_LOG) + 10);
 	(void) sprintf (tmp, "%s/%s%s", CVSADM, finfo->file, CVSEXT_LOG);
-	(void) unlink_file (tmp);
+	if (unlink_file (tmp) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", tmp);
 	free (tmp);
     }
     else
@@ -1855,7 +1841,10 @@ fixaddfile (file, repository)
     save_really_quiet = really_quiet;
     really_quiet = 1;
     if ((rcsfile = RCS_parsercsfile (rcs)) == NULL)
-	(void) unlink_file (rcs);
+    {
+	if (unlink_file (rcs) < 0)
+	    error (0, errno, "cannot remove %s", rcs);
+    }
     else
 	freercsnode (&rcsfile);
     really_quiet = save_really_quiet;
@@ -1902,8 +1891,20 @@ checkaddfile (file, repository, tag, options, rcsnode)
     int newfile = 0;
     RCSNode *rcsfile = NULL;
     int retval;
+    int adding_on_branch;
 
-    if (tag)
+    /* Callers expect to be able to use either "" or NULL to mean the
+       default keyword expansion.  */
+    if (options != NULL && options[0] == '\0')
+	options = NULL;
+    if (options != NULL)
+	assert (options[0] == '-' && options[1] == 'k');
+
+    /* If numeric, it is on the trunk; check_fileproc enforced
+       this.  */
+    adding_on_branch = tag != NULL && !isdigit ((unsigned char) tag[0]);
+
+    if (adding_on_branch)
     {
 	rcs = xmalloc (strlen (repository) + strlen (file)
 		       + sizeof (RCSEXT) + sizeof (CVSATTIC) + 10);
@@ -1926,6 +1927,7 @@ checkaddfile (file, repository, tag, options, rcsnode)
     {
 	/* file has existed in the past.  Prepare to resurrect. */
 	char *rev;
+	char *oldexpand;
 
 	if ((rcsfile = *rcsnode) == NULL)
 	{
@@ -1934,41 +1936,38 @@ checkaddfile (file, repository, tag, options, rcsnode)
 	    goto out;
 	}
 
-	if (tag == NULL)
+	oldexpand = RCS_getexpand (rcsfile);
+	if ((oldexpand != NULL
+	     && options != NULL
+	     && strcmp (options + 2, oldexpand) != 0)
+	    || (oldexpand == NULL && options != NULL))
 	{
-	    char *oldfile;
+	    /* We tell the user about this, because it means that the
+	       old revisions will no longer retrieve the way that they
+	       used to.  */
+	    error (0, 0, "changing keyword expansion mode to %s", options);
+	    RCS_setexpand (rcsfile, options + 2);
+	}
 
-	    /* we are adding on the trunk, so move the file out of the
-	       Attic. */
-	    oldfile = xstrdup (rcs);
-	    sprintf (rcs, "%s/%s%s", repository, file, RCSEXT);
-
-	    if (strcmp (oldfile, rcs) == 0)
+	if (!adding_on_branch)
+	{
+	    /* We are adding on the trunk, so move the file out of the
+	       Attic.  */
+	    if (!(rcsfile->flags & INATTIC))
 	    {
 		error (0, 0, "internal error: confused about attic for %s",
-		       oldfile);
-	    out1:
-		free (oldfile);
+		       rcsfile->path);
 		retval = 1;
 		goto out;
 	    }
-	    if (CVS_RENAME (oldfile, rcs) != 0)
+
+	    sprintf (rcs, "%s/%s%s", repository, file, RCSEXT);
+
+	    if (RCS_setattic (rcsfile, 0))
 	    {
-		error (0, errno, "failed to move `%s' out of the attic",
-		       oldfile);
-		goto out1;
+		retval = 1;
+		goto out;
 	    }
-	    if (isreadable (oldfile)
-		|| !isreadable (rcs))
-	    {
-		error (0, 0, "\
-internal error: `%s' didn't move out of the attic",
-		       oldfile);
-		goto out1;
-	    }
-	    free (oldfile);
-	    free (rcsfile->path);
-	    rcsfile->path = xstrdup (rcs);
 	}
 
 	rev = RCS_getversion (rcsfile, tag, NULL, 1, (int *) NULL);
@@ -2021,7 +2020,7 @@ internal error: `%s' didn't move out of the attic",
 	}
 
 	/* Set RCS keyword expansion options.  */
-	if (options && options[0] == '-' && options[1] == 'k')
+	if (options != NULL)
 	    opt = options + 2;
 	else
 	    opt = NULL;
@@ -2050,7 +2049,7 @@ internal error: `%s' didn't move out of the attic",
 
     /* when adding a file for the first time, and using a tag, we need
        to create a dead revision on the trunk.  */
-    if (tag && newfile)
+    if (adding_on_branch && newfile)
     {
 	char *tmp;
 	FILE *fp;
@@ -2112,7 +2111,7 @@ internal error: `%s' didn't move out of the attic",
 	}
     }
 
-    if (tag != NULL)
+    if (adding_on_branch)
     {
 	/* when adding with a tag, we need to stub a branch, if it
 	   doesn't already exist.  */
@@ -2178,13 +2177,22 @@ internal error: `%s' didn't move out of the attic",
 
     fileattr_newfile (file);
 
-    /* I don't think fix_rcs_modes is needed any more.  In the
-       add_rcs_file case, the algorithms used by add_rcs_file and
-       fix_rcs_modes are the same, so there is no need to go through
-       it all twice.  In the other cases, I think we want to just
-       preserve the mode that the file had before we started.  That is
-       a behavior change, but I would think a desirable one.  */
-    fix_rcs_modes (rcs, file);
+    /* At this point, we used to set the file mode of the RCS file
+       based on the mode of the file in the working directory.  If we
+       are creating the RCS file for the first time, add_rcs_file does
+       this already.  If we are re-adding the file, then perhaps it is
+       consistent to preserve the old file mode, just as we preserve
+       the old keyword expansion mode.
+
+       If we decide that we should change the modes, then we can't do
+       it here anyhow.  At this point, the RCS file may be owned by
+       somebody else, so a chmod will fail.  We need to instead do the
+       chmod after rewriting it.
+
+       FIXME: In general, I think the file mode (and the keyword
+       expansion mode) should be associated with a particular revision
+       of the file, so that it is possible to have different revisions
+       of a file have different modes.  */
 
     retval = 0;
 
@@ -2218,7 +2226,8 @@ lock_RCS (user, rcs, rev, repository)
      * the head points to the trunk, not a branch... and as such, it's not
      * necessary to move the head in this case.
      */
-    if (rev == NULL || (rev && isdigit (*rev) && numdots (rev) < 2))
+    if (rev == NULL
+	|| (rev && isdigit ((unsigned char) *rev) && numdots (rev) < 2))
     {
 	branch = xstrdup (rcs->branch);
 	if (branch != NULL)
@@ -2273,69 +2282,6 @@ lock_RCS (user, rcs, rev, repository)
     if (branch)
 	free (branch);
     return (1);
-}
-
-/* Called when "add"ing files to the RCS respository.  It doesn't seem to
-   be possible to get RCS to use the right mode, so we change it after
-   the fact.  TODO: now that RCS has been librarified, we have the power
-   to change this. */
-
-static void
-fix_rcs_modes (rcs, user)
-    char *rcs;
-    char *user;
-{
-    struct stat sb;
-    mode_t rcs_mode;
-
-#ifdef PRESERVE_PERMISSIONS_SUPPORT
-    /* Do ye nothing to the modes on a symbolic link. */
-    if (preserve_perms && islink (user))
-	return;
-#endif
-
-    if (CVS_STAT (user, &sb) < 0)
-    {
-	/* FIXME: Should be ->fullname.  */
-	error (0, errno, "warning: cannot stat %s", user);
-	return;
-    }
-
-    /* Now we compute the new mode.
-
-       TODO: decide whether this whole thing can/should be skipped
-       when `preserve_perms' is set.  Almost certainly so. -twp
-
-       The algorithm that we use is:
-
-       Write permission is always off (this is what RCS and CVS have always
-       done).
-
-       If S_IRUSR is on (user read), then the read permission of
-       the RCS file will be on.  It would seem that if this is off,
-       then other users can't do "cvs update" and such, so perhaps this
-       should be hardcoded to being on (it is a strange case, though--the
-       case in which a user file doesn't have user read permission on).
-
-       If S_IXUSR is on (user execute), then set execute permission
-       on the RCS file.  This allows other users who check out the file
-       to get the right setting for whether a shell script (for example)
-       has the executable bit set.
-
-       The result of that calculation is modified by CVSUMASK.  The
-       reason, of course, that the read and execute settings take the
-       user bit and copy it to all three bits (user, group, other), is
-       that it should be CVSUMASK, not the umask of individual users,
-       which is the sole determiner of modes in the repository.  */
-
-    rcs_mode = 0;
-    if (sb.st_mode & S_IRUSR)
-	rcs_mode |= S_IRUSR | S_IRGRP | S_IROTH;
-    if (sb.st_mode & S_IXUSR)
-	rcs_mode |= S_IXUSR | S_IXGRP | S_IXOTH;
-    rcs_mode &= ~cvsumask;
-    if (chmod (rcs, rcs_mode) < 0)
-	error (0, errno, "warning: cannot change mode of %s", rcs);
 }
 
 /*
