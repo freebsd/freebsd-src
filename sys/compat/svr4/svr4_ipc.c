@@ -1,4 +1,5 @@
 /*
+ *	$Id$
  *	Derived from:
  *	$NetBSD: svr4_ipc.c,v 1.7 1998/10/19 22:43:00 tron Exp $	*/
 
