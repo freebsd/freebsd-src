@@ -2,7 +2,7 @@
 
 SUBDIR=	fortune
 
-.ifmake (clean) || (cleandir)
+.ifmake (clean) || (cleandir) || (obj)
 SUBDIR+=datfiles
 .endif
 
