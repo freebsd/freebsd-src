@@ -1045,9 +1045,8 @@ uifree(uip)
 		LIST_REMOVE(uip, ui_hash);
 		mtx_unlock(&uihashtbl_mtx);
 		if (uip->ui_sbsize != 0)
-			/* XXX no %qd in kernel.  Truncate. */
-			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
-			    uip->ui_uid, (long)uip->ui_sbsize);
+			printf("freeing uidinfo: uid = %d, sbsize = %jd\n",
+			    uip->ui_uid, (intmax_t)uip->ui_sbsize);
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
