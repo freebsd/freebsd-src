@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.11 1997/03/16 10:57:54 kato Exp $
+ *	$Id: sys.c,v 1.12 1997/05/28 09:23:00 kato Exp $
  */
 
 /*
@@ -303,8 +303,11 @@ openrd(void)
 		return 1;
 	}
 	dosdev = dosdev_copy;
+#if 0
+	/* XXX this is useful, but misplaced. */
 	printf("dosdev= %x, biosdrive = %d, unit = %d, maj = %d\n",
 		dosdev_copy, biosdrive, unit, maj);
+#endif
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*
@@ -322,12 +325,14 @@ openrd(void)
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
 	ret = find(cp);
+	name = cp;
 	if (ret == 0)
 		return 1;
-	if (ret < 0)
+	if (ret < 0) {
+		name = NULL;
 		return -1;
+	}
 	poff = 0;
-	name = cp;
 #endif /* RAWBOOT */
 	return 0;
 }
