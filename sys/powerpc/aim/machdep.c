@@ -221,6 +221,7 @@ cpu_startup(void *dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
+
 	EVENTHANDLER_REGISTER(shutdown_final, powerpc_ofw_shutdown, 0,
 	    SHUTDOWN_PRI_LAST);
 
@@ -320,6 +321,7 @@ extern void	*decrint, *decrsize;
 extern void	*tlbimiss, *tlbimsize;
 extern void	*tlbdlmiss, *tlbdlmsize;
 extern void	*tlbdsmiss, *tlbdsmsize;
+extern void     *extint, *extsize;
 
 #if 0 /* XXX: interrupt handler.  We'll get to this later */
 extern void	ext_intr(void);
@@ -346,11 +348,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
-	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
-	bcopy(&dsitrap, (void *)EXC_DSI, (size_t)&dsisize);
-	bcopy(&isitrap, (void *)EXC_ISI, (size_t)&isisize);
-	bcopy(&trapcode, (void *)EXC_SC, (size_t)&trapsize);
-	bcopy(&trapcode, (void *)EXC_FPU, (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_DECR, (size_t)&trapsize);
+	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
+	bcopy(&isitrap,  (void *)EXC_ISI,  (size_t)&isisize);
+	bcopy(&trapcode, (void *)EXC_SC,   (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_FPU,  (size_t)&trapsize);
+	bcopy(&trapcode, (void *)EXC_EXI,  (size_t)&trapsize);
 
 	/*
 	 * Start initializing proc0 and thread0.
@@ -377,7 +380,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	/*
 	 * Initialise virtual memory.
 	 */
-	ofmsr |= PSL_IR | PSL_DR;
 	pmap_bootstrap(startkernel, endkernel);
 
 	/*
@@ -847,33 +849,6 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->srr0 = entry;
 	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
 	td->td_pcb->pcb_flags = 0;
-}
-
-extern void	*extint, *extsize;
-extern u_long	extint_call;
-
-void
-install_extint(void (*handler)(void))
-{
-	u_long	offset;
-	int	omsr, msr;
-
-	offset = (u_long)handler - (u_long)&extint_call;
-
-#ifdef	DIAGNOSTIC
-	if (offset > 0x1ffffff)
-		panic("install_extint: too far away");
-#endif
-
-	msr = mfmsr();
-	mtmsr(msr & ~(PSL_EE|PSL_RI));
-
-	extint_call = (extint_call & 0xfc000003) | offset;
-	bcopy(&extint, (void *)EXC_EXI, (size_t)&extsize);
-	__syncicache((void *)&extint_call, sizeof extint_call);
-	__syncicache((void *)EXC_EXI, (int)&extsize);
-
-	mtmsr(msr);
 }
 
 #if !defined(DDB)
