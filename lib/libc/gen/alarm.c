@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)alarm.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Backwards compatible alarm.
@@ -46,7 +48,7 @@ alarm(secs)
 	unsigned int secs;
 {
 	struct itimerval it, oitv;
-	register struct itimerval *itp = &it;
+	struct itimerval *itp = &it;
 
 	timerclear(&itp->it_interval);
 	itp->it_value.tv_sec = secs;

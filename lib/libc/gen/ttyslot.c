@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)ttyslot.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ttyent.h>
 #include <stdio.h>
@@ -43,9 +45,9 @@ static char sccsid[] = "@(#)ttyslot.c	8.1 (Berkeley) 6/4/93";
 int
 ttyslot()
 {
-	register struct ttyent *ttyp;
-	register int slot;
-	register char *p;
+	struct ttyent *ttyp;
+	int slot;
+	char *p;
 	int cnt;
 	char *name;
 

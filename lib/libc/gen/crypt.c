@@ -36,8 +36,9 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from static char sccsid[] = "@(#)crypt.c	5.11 (Berkeley) 6/25/91"; */
-static char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 #include <stdio.h>
@@ -55,7 +56,7 @@ __warn_references(des_setkey,
 
 int
 des_setkey(key)
-	register const char *key;
+	const char *key;
 {
 	fprintf(stderr, "WARNING!  des_setkey(3) not present in the system!\n");
 	return (0);
@@ -81,7 +82,7 @@ __warn_references(setkey,
 
 int
 setkey(key)
-	register const char *key;
+	const char *key;
 {
 	fprintf(stderr, "WARNING!  setkey(3) not present in the system!\n");
 	return (0);
@@ -92,7 +93,7 @@ __warn_references(encrypt,
 
 int
 encrypt(block, flag)
-	register char  *block;
+	char  *block;
 	int             flag;
 {
 	fprintf(stderr, "WARNING!  encrypt(3) not present in the system!\n");

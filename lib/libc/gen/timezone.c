@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)timezone.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -59,7 +61,7 @@ timezone(zone, dst)
 	int	zone,
 		dst;
 {
-	register char	*beg,
+	char	*beg,
 			*end;
 
 	if ( (beg = getenv("TZNAME")) ) {	/* set in environment */
@@ -109,11 +111,11 @@ static struct zone {
  */
 char *
 _tztab(zone,dst)
-	register int	zone;
+	int	zone;
 	int	dst;
 {
-	register struct zone	*zp;
-	register char	sign;
+	struct zone	*zp;
+	char	sign;
 
 	for (zp = zonetab; zp->offset != -1;++zp)	/* static tables */
 		if (zp->offset == zone) {
