@@ -378,11 +378,13 @@ pcic_power(struct slot *slt)
 	switch(sp->controller) {
 	case PCIC_I82365SL_DF:
 		/* 
-		 * Check to see if the power on bit is clear.  If so, we're
-		 * using the wrong voltage and should try 3.3V instead.
+		 * Look at the VS[12]# bits on the card.  If VS1 is clear
+		 * then we should apply 3.3 volts.  Maybe we should do this
+		 * with other cards too. Cirrus logic cards (PD67[12]*) do
+		 * things like this in a different way.
 		 */
 		c = sp->getb(sp, PCIC_CDGC);
-		if ((c & PCIC_POW) == 0)
+		if ((c & PCIC_VS1STAT) == 0)
 			slt->pwr.vcc = 33;
 		/* FALL THROUGH */
 	case PCIC_I82365:
@@ -413,6 +415,14 @@ pcic_power(struct slot *slt)
 		case 0:
 			break;
 		case 33:
+			/*
+			 * The wildboar code has comments that state that
+			 * the IBM KING controller doesn't support 3.3V
+			 * on the "IBM Smart PC card drive".  The code
+			 * intemates that's the only place they have seen
+			 * it used and that there's a boatload of issues
+			 * with it.
+			 */
 			if (sp->controller == PCIC_IBM_KING) {
 				reg |= PCIC_VCC_5V_KING;
 				break;
