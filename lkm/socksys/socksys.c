@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: socksys.c,v 1.1 1994/10/16 20:38:50 sos Exp $
  */
 
 #include <sys/param.h>
@@ -35,16 +35,6 @@
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <sys/errno.h>
-
-/* typedefs from sys/i386/i386/conf.c */
-typedef int d_open_t __P((dev_t, int, int, struct proc *));
-typedef int d_close_t __P((dev_t, int, int, struct proc *));
-typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
-typedef int d_rdwr_t __P((dev_t, struct uio *, int));
-typedef int d_stop_t __P((struct tty *, int));
-typedef int d_reset_t __P((int));
-typedef int d_select_t __P((dev_t, int, struct proc *));
-typedef int d_mmap_t __P((/* XXX */));
 
 int sockopen();
 int sockclose();
