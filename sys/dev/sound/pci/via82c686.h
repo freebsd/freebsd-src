@@ -51,6 +51,9 @@
 
 #define VIA_AC97STATUS		0x40
 #define		VIA_AC97STATUS_RDY	0x01
+#define		VIA_AC97STATUS_LOWPWR	0x02
+#define		VIA_AC97STATUS_2RDY	0x04
+
 #define VIA_ACLINKCTRL		0x41
 #define         VIA_ACLINK_EN		0x80     /* ac link enab */
 #define         VIA_ACLINK_NRST		0x40     /* ~(ac reset) */
