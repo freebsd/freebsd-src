@@ -107,7 +107,8 @@ rsrr_init()
 
 /* Read a message from the RSRR socket */
 void
-rsrr_read(rfd)
+rsrr_read(f, rfd)
+	int f;
 	fd_set *rfd;
 {
     register int rsrr_recvlen;

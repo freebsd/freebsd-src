@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: dvmrp.h,v 3.6 1995/06/25 18:52:10 fenner Exp $
+ * $Id: dvmrp.h,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 /*
@@ -96,6 +96,8 @@
 #define DVMRP_PRUNE		7	/* prune message */
 #define DVMRP_GRAFT		8	/* graft message */
 #define DVMRP_GRAFT_ACK		9	/* graft acknowledgement */
+#define DVMRP_INFO_REQUEST	10	/* information request */
+#define DVMRP_INFO_REPLY	11	/* information reply */
 
 /*
  * 'flags' byte values in DVMRP_NEIGHBORS2 reply.
@@ -107,6 +109,12 @@
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 #define DVMRP_NF_LEAF		0x80	/* Neighbor reports that it is a leaf */
+
+/*
+ * Request/reply types for info queries/replies
+ */
+#define DVMRP_INFO_VERSION	1	/* version string */
+#define DVMRP_INFO_NEIGHBORS	2	/* neighbors2 data */
 
 /*
  * Limit on length of route data
@@ -122,8 +130,14 @@
  */
 				        /* address for multicast DVMRP msgs */
 #define INADDR_DVMRP_GROUP	(u_int32)0xe0000004     /* 224.0.0.4 */
+/*
+ * The IGMPv2 <netinet/in.h> defines INADDR_ALLRTRS_GROUP, but earlier
+ * ones don't, so we define it conditionally here.
+ */
+#ifndef INADDR_ALLRTRS_GROUP
 					/* address for multicast mtrace msg */
 #define INADDR_ALLRTRS_GROUP	(u_int32)0xe0000002	/* 224.0.0.2 */
+#endif
 
 #define ROUTE_MAX_REPORT_DELAY	5	/* max delay for reporting changes  */
 					/*  (This is the timer interrupt    */
@@ -144,8 +158,7 @@
 #define GROUP_EXPIRE_TIME	270	/* time to consider group gone      */
 #define LEAVE_EXPIRE_TIME	3	/* " " after receiving a leave	    */
 /* Note: LEAVE_EXPIRE_TIME should ideally be shorter, but the resolution of
- * the timer in mrouted doesn't allow us to follow the spec and make it any
- * shorter. */
+ * the timer in mrouted doesn't allow us to make it any shorter. */
 
 #define UNREACHABLE		32	/* "infinity" metric, must be <= 64 */
 #define DEFAULT_METRIC		1	/* default subnet/tunnel metric     */

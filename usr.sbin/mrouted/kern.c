@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 3.6 1995/06/25 18:57:38 fenner Exp $
+ * $Id: kern.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 
@@ -162,8 +162,11 @@ void k_add_rg(origin, g)
     struct gtable *g;
 {
     struct mfcctl mc;
-    int i;
+    vifi_t i;
 
+#ifdef DEBUG_MFC
+    md_log(MD_ADD, origin, g->gt_mcastgrp);
+#endif
     /* copy table values so that setsockopt can process it */
     mc.mfcc_origin.s_addr = origin;
 #ifdef OLD_KERNEL
@@ -176,8 +179,12 @@ void k_add_rg(origin, g)
 
     /* write to kernel space */
     if (setsockopt(igmp_socket, IPPROTO_IP, MRT_ADD_MFC,
-		   (char *)&mc, sizeof(mc)) < 0)
+		   (char *)&mc, sizeof(mc)) < 0) {
+#ifdef DEBUG_MFC
+	md_log(MD_ADD_FAIL, origin, g->gt_mcastgrp);
+#endif
 	log(LOG_WARNING, errno, "setsockopt MRT_ADD_MFC");
+    }
 }
 
 
@@ -191,6 +198,9 @@ int k_del_rg(origin, g)
     struct mfcctl mc;
     int retval;
 
+#ifdef DEBUG_MFC
+    md_log(MD_DEL, origin, g->gt_mcastgrp);
+#endif
     /* copy table values so that setsockopt can process it */
     mc.mfcc_origin.s_addr = origin;
 #ifdef OLD_KERNEL
@@ -200,8 +210,12 @@ int k_del_rg(origin, g)
 
     /* write to kernel space */
     if ((retval = setsockopt(igmp_socket, IPPROTO_IP, MRT_DEL_MFC,
-		   (char *)&mc, sizeof(mc))) < 0)
+		   (char *)&mc, sizeof(mc))) < 0) {
+#ifdef DEBUG_MFC
+	md_log(MD_DEL_FAIL, origin, g->gt_mcastgrp);
+#endif
 	log(LOG_WARNING, errno, "setsockopt MRT_DEL_MFC");
+    }
 
     return retval;
 }	
@@ -211,6 +225,9 @@ int k_del_rg(origin, g)
  */
 int k_get_version()
 {
+#ifdef OLD_KERNEL
+    return -1;
+#else
     int vers;
     int len = sizeof(vers);
 
@@ -220,4 +237,5 @@ int k_get_version()
 		"getsockopt MRT_VERSION: perhaps your kernel is too old");
 
     return vers;
+#endif
 }
