@@ -518,7 +518,7 @@ show_var(int *oid, int nlen)
 		fwrite(val, 1, len, stdout);
 		return (0);
 	}
-
+	val[len] = '\0';
 	fmt = buf;
 	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
