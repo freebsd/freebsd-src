@@ -15,8 +15,6 @@
 
 name="ipsec"
 rcvar=`set_rcvar`
-# This will be overiden from rc.conf on FreeBSD.
-ipsec_file="/etc/ipsec.conf"
 start_precmd="ipsec_prestart"
 start_cmd="ipsec_start"
 stop_precmd="test -f /etc/ipsec.conf"
@@ -27,9 +25,11 @@ extra_commands="reload"
 case ${OSTYPE} in
 FreeBSD)
 	ipsec_program="/usr/sbin/setkey"
+	# ipsec_file is set by rc.conf
 	;;
 NetBSD)
 	ipsec_program="/sbin/setkey"
+	ipsec_file="/etc/ipsec.conf"
 	;;
 esac
 
