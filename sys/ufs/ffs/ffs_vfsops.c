@@ -180,6 +180,14 @@ ffs_mount(mp, path, data, ndp, td)
 		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
+			/*
+			 * Flush any dirty data.
+			 */
+			VFS_SYNC(mp, MNT_WAIT, td->td_proc->p_ucred, td);
+			/*
+			 * Check for and optionally get rid of files open
+			 * for writing.
+			 */
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;

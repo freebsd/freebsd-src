@@ -158,13 +158,12 @@ ufs_itimes(vp)
 	ip = VTOI(vp);
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
 		return;
+	if ((vp->v_type == VBLK || vp->v_type == VCHR) && !DOINGSOFTDEP(vp))
+		ip->i_flag |= IN_LAZYMOD;
+	else
+		ip->i_flag |= IN_MODIFIED;
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 		vfs_timestamp(&ts);
-		if ((vp->v_type == VBLK || vp->v_type == VCHR) &&
-		    !DOINGSOFTDEP(vp))
-			ip->i_flag |= IN_LAZYMOD;
-		else
-			ip->i_flag |= IN_MODIFIED;
 		if (ip->i_flag & IN_ACCESS) {
 			ip->i_atime = ts.tv_sec;
 			ip->i_atimensec = ts.tv_nsec;

@@ -1863,6 +1863,7 @@ vflush(mp, rootrefs, flags)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp, *nvp, *rootvp = NULL;
+	struct vattr vattr;
 	int busy = 0, error;
 
 	if (rootrefs > 0) {
@@ -1898,10 +1899,14 @@ loop:
 			continue;
 		}
 		/*
-		 * If WRITECLOSE is set, only flush out regular file vnodes
-		 * open for writing.
+		 * If WRITECLOSE is set, flush out unlinked but still open
+		 * files (even if open only for reading) and regular file
+		 * vnodes open for writing. 
 		 */
 		if ((flags & WRITECLOSE) &&
+		    (vp->v_type == VNON ||
+		    (VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td) == 0 &&
+		    vattr.va_nlink > 0)) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 			mtx_unlock(&vp->v_interlock);
 			mtx_lock(&mntvnode_mtx);
