@@ -1177,6 +1177,15 @@ ffs_vget(mp, ino, flags, vpp)
 		return (error);
 
 	/*
+	 * We must promote to an exclusive lock for vnode creation.  This
+	 * can happen if lookup is passed LOCKSHARED.
+ 	 */
+	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
+		flags &= ~LK_TYPE_MASK;
+		flags |= LK_EXCLUSIVE;
+	}
+
+	/*
 	 * We do not lock vnode creation as it is believed to be too
 	 * expensive for such rare case as simultaneous creation of vnode
 	 * for same ino by different processes. We just allow them to race
