@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.16 2000/01/27 08:49:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #include <sys/errno.h>
@@ -282,13 +282,19 @@ getports:
 	}
 
 
-	for (s = (u_char *)(ip + 1), hlen -= (int)sizeof(*ip); hlen; ) {
+	for (s = (u_char *)(ip + 1), hlen -= (int)sizeof(*ip); hlen > 0; ) {
 		opt = *s;
 		if (opt == '\0')
 			break;
-		ol = (opt == IPOPT_NOP) ? 1 : (int)*(s+1);
-		if (opt > 1 && (ol < 2 || ol > hlen))
-			break;
+		else if (opt == IPOPT_NOP)
+			ol = 1;
+		else {
+			if (hlen < 2)
+				break;
+			ol = (int)*(s + 1);
+			if (ol < 2 || ol > hlen)
+				break;
+		}
 		for (i = 9, mv = 4; mv >= 0; ) {
 			op = ipopts + i;
 			if (opt == (u_char)op->ol_val) {
