@@ -56,6 +56,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "bfd.h"
 #include "target.h"
 #include "gdbcore.h"
+#include "solist.h"
 
 static void
 kcore_files_info (struct target_ops *);
@@ -72,6 +73,10 @@ xfer_mem (CORE_ADDR, char *, int, int, struct mem_attrib *,
 
 static int
 xfer_umem (CORE_ADDR, char *, int, int);
+
+#ifdef SOLIB_ADD
+static int kcore_solib_add_stub (PTR);
+#endif
 
 static char		*core_file;
 static kvm_t		*core_kd;
@@ -210,6 +215,12 @@ kcore_close (int quitting)
 
   inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff.  */
 
+  /* Clear out solib state while the bfd is still open. See
+     comments in clear_solib in solib.c. */
+#ifdef CLEAR_SOLIB
+  CLEAR_SOLIB ();
+#endif
+
   if (core_kd)
     {
       kvm_close (core_kd);
@@ -306,7 +317,16 @@ kcore_open (char *filename /* the core file */, int from_tty)
       printf ("---\n");
     }
 
-  if (!ontop)
+  if (ontop)
+    {
+      /* Add symbols and section mappings for any kernel modules.  */
+#ifdef SOLIB_ADD
+      current_target_so_ops = &kgdb_so_ops;
+      catch_errors (kcore_solib_add_stub, &from_tty, (char *) 0,
+		    RETURN_MASK_ALL);
+#endif
+    }
+  else 
     {
       warning ("you won't be able to access this core file until you terminate\n"
 		"your %s; do ``info files''", target_longname);
@@ -711,6 +731,15 @@ set_proc_cmd (char *arg, int from_tty)
   if (set_context ((CORE_ADDR) val))
     error ("invalid proc address");
 }
+
+#ifdef SOLIB_ADD
+static int
+kcore_solib_add_stub (PTR from_ttyp)
+{
+  SOLIB_ADD (NULL, *(int *) from_ttyp, &current_target, auto_solib_add);
+  return 0;
+}
+#endif /* SOLIB_ADD */
 
 void
 _initialize_kcorelow (void)
