@@ -173,7 +173,7 @@ vfs_mountroot_try(char *mountfrom)
 	error   = EINVAL;
 
 	if (mountfrom == NULL)
-		goto done;
+		return(error);		/* don't complain */
 
 	printf("Mounting root from %s\n", mountfrom);
 
