@@ -662,16 +662,16 @@ options 	NFS			#Network File System
 # The rest are optional:
 #options 	NFS_NOSERVER		#Disable the NFS-server code.
 options 	CD9660			#ISO 9660 filesystem
-options 	FDESC			#File descriptor filesystem
+options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
 options 	NWFS			#NetWare filesystem
-options 	PORTAL			#Portal filesystem
+options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem
 options 	UMAPFS			#UID map filesystem
-options 	UNION			#Union filesystem
+options 	UNIONFS			#Union filesystem
 # options 	NODEVFS			#disable devices filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
 options 	NFS_ROOT		#NFS usable as root device

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../miscfs/umapfs
+.PATH: ${.CURDIR}/../../fs/umapfs
 
 KMOD=	umap
 SRCS=	vnode_if.h \

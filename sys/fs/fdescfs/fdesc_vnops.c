@@ -58,7 +58,7 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
-#include <miscfs/fdesc/fdesc.h>
+#include <fs/fdescfs/fdesc.h>
 
 #define FDL_WANT	0x01
 #define FDL_LOCKED	0x02

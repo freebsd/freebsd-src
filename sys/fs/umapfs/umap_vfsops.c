@@ -53,7 +53,7 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 
-#include <miscfs/umapfs/umap.h>
+#include <fs/umapfs/umap.h>
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 

@@ -45,7 +45,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
-#include <miscfs/umapfs/umap.h>
+#include <fs/umapfs/umap.h>
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
 #define	NUMAPNODECACHE 16

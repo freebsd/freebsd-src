@@ -41,7 +41,7 @@
 
 #include <sys/param.h>
 #include <sys/vnode.h>
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 int
 procfs_donote(curp, p, pfs, uio)

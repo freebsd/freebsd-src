@@ -48,7 +48,7 @@
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <miscfs/fifofs/fifo.h>
+#include <fs/fifofs/fifo.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/unistd.h>

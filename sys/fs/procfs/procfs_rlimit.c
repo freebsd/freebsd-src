@@ -52,7 +52,7 @@
 #include <sys/resourcevar.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 
 int

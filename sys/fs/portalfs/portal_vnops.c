@@ -61,7 +61,7 @@
 #include <sys/socketvar.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>
-#include <miscfs/portal/portal.h>
+#include <fs/portalfs/portal.h>
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;
 

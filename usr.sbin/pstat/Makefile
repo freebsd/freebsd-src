@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	pstat
-CFLAGS+=-I${.CURDIR}/../../sys
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM}

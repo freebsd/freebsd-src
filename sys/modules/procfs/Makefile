@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../miscfs/procfs
+.PATH: ${.CURDIR}/../../fs/procfs
 
 KMOD=	procfs
 SRCS=	vnode_if.h \
