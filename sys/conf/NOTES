@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.116 1994/12/13 22:01:35 wollman Exp $
+#	$Id: LINT,v 1.117 1994/12/16 06:04:16 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -272,7 +272,6 @@ pseudo-device	pty	4	#Pseudo ttys
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
-
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 
 
@@ -336,7 +335,7 @@ controller	isa0
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
-#options	DISKSLICE		#uncomment this when it works
+options		DISKSLICE
 #options	DUMMY_NOPS
 #options	TUNE_1542
 
