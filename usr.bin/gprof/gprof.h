@@ -44,6 +44,9 @@
 #if __alpha__
 #   include "alpha.h"
 #endif
+#if __amd64__
+#   include "amd64.h"
+#endif
 #if __arm__
 #   include "arm.h"
 #endif
