@@ -216,14 +216,13 @@ c_class(a, b)
 	return (strcmp(((const CLASS *)a)->name, ((const CLASS *)b)->name));
 }
 
-/*
- * English doesn't have any equivalence classes, so for now
- * we just syntax check and grab the character.
- */
 static void
 genequiv(s)
 	STR *s;
 {
+	int i, p, pri;
+	char src[2], dst[3];
+
 	if (*s->str == '\\') {
 		s->equiv[0] = backslash(s);
 		if (*s->str != '=')
@@ -233,6 +232,28 @@ genequiv(s)
 		if (s->str[1] != '=')
 			errx(1, "misplaced equivalence equals sign");
 	}
+
+	/*
+	 * Calculate the set of all characters in the same equivalence class
+	 * as the specified character (they will have the same primary
+	 * collation weights).
+	 * XXX Knows too much about how strxfrm() is implemented. Assumes
+	 * it fills the string with primary collation weight bytes. Only one-
+	 * to-one mappings are supported.
+	 */
+	src[0] = s->equiv[0];
+	src[1] = '\0';
+	if (strxfrm(dst, src, sizeof(dst)) == 1) {
+		pri = (unsigned char)*dst;
+		for (p = 1, i = 1; i < NCHARS; i++) {
+			*src = i;
+			if (strxfrm(dst, src, sizeof(dst)) == 1 && pri &&
+			    pri == (unsigned char)*dst)
+				s->equiv[p++] = i;
+		}
+		s->equiv[p] = OOBCH;
+	}
+
 	s->str += 2;
 	s->cnt = 0;
 	s->state = SET;
