@@ -306,7 +306,7 @@ static int	deadq_remove(pid_t);
 static int	decode(const char *, CODE *);
 static void	die(int);
 static void	dodie(int);
-static void	dofsync();
+static void	dofsync(void);
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
 static int	*socksetup(int, const char *);
