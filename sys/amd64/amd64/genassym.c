@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.20 1994/11/18 05:27:32 phk Exp $
+ *	$Id: genassym.c,v 1.21 1994/12/03 10:02:20 bde Exp $
  */
 
 #include <stdio.h>
@@ -94,11 +94,9 @@ main()
 	printf("#define\tP_PID %d\n", &p->p_pid);
 	printf("#define\tSSLEEP %d\n", SSLEEP);
 	printf("#define\tSRUN %d\n", SRUN);
-	printf("#define\tV_SWTCH %d\n", &vm->v_swtch);
 	printf("#define\tV_TRAP %d\n", &vm->v_trap);
 	printf("#define\tV_SYSCALL %d\n", &vm->v_syscall);
 	printf("#define\tV_INTR %d\n", &vm->v_intr);
-	printf("#define\tV_SOFT %d\n", &vm->v_soft);
 	printf("#define\tUPAGES %d\n", UPAGES);
 	printf("#define\tCLSIZE %d\n", CLSIZE);
 	printf("#define\tNBPG %d\n", NBPG);
