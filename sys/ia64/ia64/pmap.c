@@ -719,18 +719,24 @@ pmap_install_pte(struct ia64_lpte *vhpte, struct ia64_lpte *pte)
 {
 	u_int64_t *vhp, *p;
 
-	/* invalidate the pte */
-	atomic_set_64(&vhpte->pte_tag, 1L << 63);
-	ia64_mf();			/* make sure everyone sees */
+	vhp = (u_int64_t *)vhpte;
+	p = (u_int64_t *)pte;
 
-	vhp = (u_int64_t *) vhpte;
-	p = (u_int64_t *) pte;
+	critical_enter();
+
+	/* Invalidate the tag so the VHPT walker will not match this entry. */
+	vhp[2] = 1UL << 63;
+	ia64_mf();
 
 	vhp[0] = p[0];
 	vhp[1] = p[1];
-	vhp[2] = p[2];			/* sets ti to one */
-
 	ia64_mf();
+
+	/* Install a proper tag now that we're done. */
+	vhp[2] = p[2];
+	ia64_mf();
+
+	critical_exit();
 }
 
 /*
