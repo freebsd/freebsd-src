@@ -240,7 +240,7 @@ CompatRunCommand (cmdp, gnp)
 
     while ((*cmd == '@') || (*cmd == '-')) {
 	if (*cmd == '@') {
-	    silent = TRUE;
+	    silent = DEBUG(LOUD) ? FALSE : TRUE;
 	} else {
 	    errCheck = FALSE;
 	}

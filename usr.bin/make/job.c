@@ -555,7 +555,7 @@ JobPrintCommand(cmdp, jobp)
      */
     while (*cmd == '@' || *cmd == '-') {
 	if (*cmd == '@') {
-	    shutUp = TRUE;
+	    shutUp = DEBUG(LOUD) ? FALSE : TRUE;
 	} else {
 	    errOff = TRUE;
 	}
