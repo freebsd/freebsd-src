@@ -260,8 +260,10 @@ nfslockdans(p, ansp)
 	    ((ansp->la_msg_ident.msg_seq != -1) &&
 	      (timevalcmp(&p->p_nlminfo->pid_start,
 			&ansp->la_msg_ident.pid_start, !=) ||
-	       p->p_nlminfo->msg_seq != ansp->la_msg_ident.msg_seq)))
+	       p->p_nlminfo->msg_seq != ansp->la_msg_ident.msg_seq))) {
+		PROC_UNLOCK(p);
 		return (EPIPE);
+	}
 
 	p->p_nlminfo->retcode = ansp->la_errno;
 	p->p_nlminfo->set_getlk_pid = ansp->la_set_getlk_pid;
@@ -269,5 +271,6 @@ nfslockdans(p, ansp)
 
 	(void)wakeup((void *)p->p_nlminfo);
 
+	PROC_UNLOCK(p);
 	return (0);
 }
