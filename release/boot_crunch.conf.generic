@@ -7,7 +7,7 @@ progs sh find sed test
 progs pwd ppp
 progs sysinstall newfs minigzip cpio fsck ifconfig route slattach
 progs mount_nfs
-progs dhclient arp
+progs dhclient arp hostname
 ln minigzip gzip
 ln minigzip gunzip
 ln minigzip zcat
