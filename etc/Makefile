@@ -34,9 +34,10 @@ distribution: distrib-dirs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc
 	install -c -o root -g wheel -m 755 ${BIN3} ${DESTDIR}/etc
 	install -c -o root -g wheel -m 600 crontab ${DESTDIR}/var/cron/tabs/root
+	install -c -o root -g wheel -m 600 /dev/null ${DESTDIR}/var/cron/log
 	install -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
 	#
-	# This is broken, it always does /etc. It IGNORES the $DESTDIR for 
+	# This is broken, it always does /etc. It IGNORES the ${DESTDIR} for 
 	# where to write the spwd.db pwd.db files.  
 	#(cd ${DESTDIR}/etc; pwd_mkdb -p master.passwd)
 	#
@@ -89,11 +90,14 @@ distribution: distrib-dirs
 	    ${DESTDIR}/)
 .endif
 .if ${MACHINE} == "i386"
-	(cd ../sys/i386/boot; make depend all install; \
+	(cd ../sys/i386/boot; make depend all install cleandir; \
 	 cd /usr/mdec; find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
-	(cd ..; make install)
 	(cd ../include; make copies)
-	(cd ../usr.sbin/sendmail/src; make install)
+	(cd ../usr.sbin/sendmail/src; make install; \
+	 cd ../cf/cf; make tcpproto.cf; \
+	    install -o root -g wheel -m 644 tcpproto.cf \
+	        ${DESTDIR}/etc/sendmail.cf)
+	(cd ..; make install)
 .endif
 
 hcx9-distribution:
@@ -101,7 +105,7 @@ hcx9-distribution:
 	    ${DESTDIR}/)
 
 distrib-dirs:
-	mtree -du -f mtree/BSD.root.dist -p ${DESTDIR}
+	mtree -u -f mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -u -f mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -u -f mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	(cd ${DESTDIR}; rm -f ${DESTDIR}/sys; \
