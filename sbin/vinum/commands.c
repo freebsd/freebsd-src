@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.14 2000/11/14 20:01:23 grog Exp grog $
+ * $Id: commands.c,v 1.15 2001/05/22 08:40:21 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -1387,7 +1387,7 @@ vinum_help(int argc, char *argv[], char *argv0[])
 	"resetconfig\n"
 	"        Reset the complete vinum configuration.\n"
 	"resetstats [-r] [volume | plex | subdisk]\n"
-	"        Reset statistisc counters for the specified objects, or for all\n"
+	"        Reset statistics counters for the specified objects, or for all\n"
 	"        objects if none are specified.\n"
 	"rm [-f] [-r] volume | plex | subdisk\n"
 	"        Remove an object.\n"
