@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.69 1996/05/02 14:19:43 phk Exp $
+ *	$Id: locore.s,v 1.70 1996/05/02 22:24:55 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -740,6 +740,8 @@ over_symalloc:
 
 /* Map read-write, data, bss and symbols */
 	movl	$R(_etext),%eax
+	addl	$PAGE_MASK, %eax
+	andl	$~PAGE_MASK, %eax
 map_read_write:
 	movl	R(_KERNend),%ecx
 	subl	%eax,%ecx
