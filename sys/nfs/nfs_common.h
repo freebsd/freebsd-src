@@ -66,9 +66,8 @@ void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
 /* Interpretation phase macros */
 
 void	*nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos);
-int	nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **md,
-	    caddr_t *dpos);
-int	nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
+int	nfsm_strsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
+int	nfsm_adv_xx(int s, struct mbuf **md, caddr_t *dpos);
 
 /* Error check helpers */
 #define nfsm_dcheck(t1, mrep) \
@@ -102,7 +101,7 @@ do { \
 #define	nfsm_strsiz(s,m) \
 do { \
 	int t1; \
-	t1 = nfsm_strsiz_xx(&(s), (m), &tl, &md, &dpos); \
+	t1 = nfsm_strsiz_xx(&(s), (m), &md, &dpos); \
 	nfsm_dcheck(t1, mrep); \
 } while(0)
 
@@ -119,7 +118,7 @@ do {\
 #define	nfsm_adv(s) \
 do { \
 	int t1; \
-	t1 = nfsm_adv_xx((s), &tl, &md, &dpos); \
+	t1 = nfsm_adv_xx((s), &md, &dpos); \
 	nfsm_dcheck(t1, mrep); \
 } while (0)
 

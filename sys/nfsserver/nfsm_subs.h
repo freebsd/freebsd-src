@@ -76,19 +76,16 @@
 /* ************************************* */
 /* Dissection phase macros */
 
-int	nfsm_srvstrsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **md,
-	    caddr_t *dpos);
-int	nfsm_srvnamesiz_xx(int *s, u_int32_t **tl, struct mbuf **md,
-	    caddr_t *dpos);
+int	nfsm_srvstrsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
+int	nfsm_srvnamesiz_xx(int *s, struct mbuf **md, caddr_t *dpos);
 int	nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd,
-	    u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
-int	nfsm_srvsattr_xx(struct vattr *a, u_int32_t **tl, struct mbuf **md,
-	    caddr_t *dpos);
+	    struct mbuf **md, caddr_t *dpos);
+int	nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos);
 
 #define	nfsm_srvstrsiz(s, m) \
 do { \
 	int t1; \
-	t1 = nfsm_srvstrsiz_xx(&(s), (m), &tl, &md, &dpos); \
+	t1 = nfsm_srvstrsiz_xx(&(s), (m), &md, &dpos); \
 	if (t1) { \
 		error = t1; \
 		nfsm_reply(0); \
@@ -98,7 +95,7 @@ do { \
 #define	nfsm_srvnamesiz(s) \
 do { \
 	int t1; \
-	t1 = nfsm_srvnamesiz_xx(&(s), &tl, &md, &dpos); \
+	t1 = nfsm_srvnamesiz_xx(&(s), &md, &dpos); \
 	if (t1) { \
 		error = t1; \
 		nfsm_reply(0); \
@@ -108,7 +105,7 @@ do { \
 #define nfsm_srvmtofh(f) \
 do { \
 	int t1; \
-	t1 = nfsm_srvmtofh_xx((f), nfsd, &tl, &md, &dpos); \
+	t1 = nfsm_srvmtofh_xx((f), nfsd, &md, &dpos); \
 	if (t1) { \
 		error = t1; \
 		nfsm_reply(0); \
@@ -119,7 +116,7 @@ do { \
 #define nfsm_srvsattr(a) \
 do { \
 	int t1; \
-	t1 = nfsm_srvsattr_xx((a), &tl, &md, &dpos); \
+	t1 = nfsm_srvsattr_xx((a), &md, &dpos); \
 	if (t1) { \
 		error = t1; \
 		m_freem(mrep); \
@@ -153,18 +150,17 @@ do { \
 /* ************************************* */
 /* Reply phase macros - add additional reply info */
 
-void	nfsm_srvfhtom_xx(fhandle_t *f, int v3, u_int32_t **tl, struct mbuf **mb,
+void	nfsm_srvfhtom_xx(fhandle_t *f, int v3, struct mbuf **mb,
 	    caddr_t *bpos);
-void	nfsm_srvpostop_fh_xx(fhandle_t *f, u_int32_t **tl, struct mbuf **mb,
-	    caddr_t *bpos);
+void	nfsm_srvpostop_fh_xx(fhandle_t *f, struct mbuf **mb, caddr_t *bpos);
 void	nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
 	    char **bp, char **be, caddr_t bpos);
 
 #define nfsm_srvfhtom(f, v3) \
-	nfsm_srvfhtom_xx((f), (v3), &tl, &mb, &bpos)
+	nfsm_srvfhtom_xx((f), (v3), &mb, &bpos)
 
 #define nfsm_srvpostop_fh(f) \
-	nfsm_srvpostop_fh_xx((f), &tl, &mb, &bpos)
+	nfsm_srvpostop_fh_xx((f), &mb, &bpos)
 
 #define nfsm_srvwcc_data(br, b, ar, a) \
 	nfsm_srvwcc(nfsd, (br), (b), (ar), (a), &mb, &bpos)
