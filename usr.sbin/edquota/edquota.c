@@ -85,8 +85,10 @@ main(argc, argv)
 	extern int optind;
 	register long id, protoid;
 	register int quotatype, tmpfd;
-	char *protoname, ch;
+	register uid_t startuid, enduid;
+	char *protoname, *cp, ch;
 	int tflag = 0, pflag = 0;
+	char buf[30];
 
 	if (argc < 2)
 		usage();
@@ -125,6 +127,25 @@ main(argc, argv)
 			qup->dqblk.dqb_itime = 0;
 		}
 		while (argc-- > 0) {
+			if (isdigit(*argv[0]) && 
+			    (cp = strchr(*argv, '-')) != NULL) {
+				*cp++ = '\0';
+				startuid = atoi(*argv);
+				enduid = atoi(cp);
+				if (enduid < startuid) {
+					fprintf(stderr, "edquota: ending uid (%d) must be >= starting uid (%d) when using uid ranges\n",
+						enduid, startuid);
+					exit(1);
+				}
+				for ( ; startuid <= enduid; startuid++) {
+					snprintf(buf, sizeof(buf), "%d", 
+					    startuid);
+					if ((id = getentry(buf, quotatype)) < 0)
+						continue;
+					putprivs(id, quotatype, protoprivs);
+				}
+				continue;
+			}
 			if ((id = getentry(*argv++, quotatype)) < 0)
 				continue;
 			putprivs(id, quotatype, protoprivs);
