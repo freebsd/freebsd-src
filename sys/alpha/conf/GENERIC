@@ -87,7 +87,6 @@ device		atapist		# ATAPI tape drives
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-#device		esp		# 53C94 & friends, not CAM-ified
 device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT/Fusion
 device		ncr		# NCR/Symbios Logic
