@@ -11,4 +11,4 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 
 /* bytes for +Infinity on a sparc */
-char __infinity[] = { 0x7f, (char)0xf0, 0, 0, 0, 0, 0, 0 };
+const union __infinity_un __infinity = { { 0x7f, 0xf0, 0, 0, 0, 0, 0, 0 } };
