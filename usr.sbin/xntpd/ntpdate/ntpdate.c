@@ -251,7 +251,7 @@ main(argc, argv)
 	sys_maxservers = argc - ntp_optind;
 	if (errflg || sys_maxservers == 0) {
 		(void) fprintf(stderr,
-"usage: %s [-bqs] [-a key#] [-k file] [-p samples] [-t timeo] server ...\n",
+"usage: %s [-bdqsv] [-o version] [-a key#] [-e authdelay] [-k keyfile] [-p samples] [-t timeout] server ...\n",
 		    progname);
 		exit(2);
 	}
