@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.91 96/12/11 19:10:23 leres Exp $ (LBL)";
+    "@(#) $Header: gencode.c,v 1.94 98/07/12 13:06:49 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -52,6 +52,7 @@ struct rtentry;
 #include "ethertype.h"
 #include "nlpid.h"
 #include "gencode.h"
+#include "ppp.h"
 #include <pcap-namedb.h>
 
 #include "gnuc.h"
@@ -475,6 +476,13 @@ init_linktype(type)
 		off_nl = 16;
 		return;
 
+	case DLT_SLIP_BSDOS:
+		/* XXX this may be the same as the DLT_PPP_BSDOS case */
+		off_linktype = -1;
+		/* XXX end */
+		off_nl = 24;
+		return;
+
 	case DLT_NULL:
 		off_linktype = 0;
 		off_nl = 4;
@@ -483,6 +491,11 @@ init_linktype(type)
 	case DLT_PPP:
 		off_linktype = 2;
 		off_nl = 4;
+		return;
+
+	case DLT_PPP_BSDOS:
+		off_linktype = 5;
+		off_nl = 24;
 		return;
 
 	case DLT_FDDI:
@@ -553,8 +566,10 @@ gen_false()
 
 static struct block *
 gen_linktype(proto)
-	int proto;
+	register int proto;
 {
+	struct block *b0, *b1;
+
 	/* If we're not using encapsulation and checking for IP, we're done */
 	if (off_linktype == -1 && proto == ETHERTYPE_IP)
 		return gen_true();
@@ -566,7 +581,32 @@ gen_linktype(proto)
 
 	case DLT_PPP:
 		if (proto == ETHERTYPE_IP)
-			proto = 0x0021;		/* XXX - need ppp.h defs */
+			proto = PPP_IP;			/* XXX was 0x21 */
+		break;
+
+	case DLT_PPP_BSDOS:
+		switch (proto) {
+
+		case ETHERTYPE_IP:
+			b0 = gen_cmp(off_linktype, BPF_H, PPP_IP);
+			b1 = gen_cmp(off_linktype, BPF_H, PPP_VJC);
+			gen_or(b0, b1);
+			b0 = gen_cmp(off_linktype, BPF_H, PPP_VJNC);
+			gen_or(b1, b0);
+			return b0;
+
+		case ETHERTYPE_DN:
+			proto = PPP_DECNET;
+			break;
+
+		case ETHERTYPE_ATALK:
+			proto = PPP_APPLE;
+			break;
+
+		case ETHERTYPE_NS:
+			proto = PPP_NS;
+			break;
+		}
 		break;
 
 	case DLT_NULL:
@@ -1374,11 +1414,17 @@ gen_mcode(s1, s2, masklen, q)
 		mlen = __pcap_atoin(s2, &m);
 		/* Promote short ipaddr */
 		m <<= 32 - mlen;
+		if ((n & ~m) != 0)
+			bpf_error("non-network bits set in \"%s mask %s\"",
+			    s1, s2);
 	} else {
 		/* Convert mask len to mask */
 		if (masklen > 32)
 			bpf_error("mask length must be <= 32");
 		m = 0xffffffff << (32 - masklen);
+		if ((n & ~m) != 0)
+			bpf_error("non-network bits set in \"%s/%d\"",
+			    s1, masklen);
 	}
 
 	switch (q.addr) {
