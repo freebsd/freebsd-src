@@ -956,7 +956,6 @@ static int usbd_global_init_done = 0;
 void
 usbd_init()
 {
-	
 	if (!usbd_global_init_done) {
 		usbd_global_init_done = 1;
 		SIMPLEQ_INIT(&usbd_free_requests);
