@@ -129,6 +129,7 @@ check_it ()
 
 if $init ; then
 	(
+	echo "Cleaning modules"
 	cd modules
 	make clean > /dev/null 2>&1
 	make cleandir > /dev/null 2>&1
@@ -138,24 +139,29 @@ if $init ; then
 	)
 
 	(
+	echo "Cleaning compile"
 	cd compile
 	ls | grep -v CVS | xargs rm -rf
 	)
 
 	( 
-	cd i386/conf
-	for i in $kernels
+	echo "Configuring kernels"
+	for d in i386/conf pc98/conf
 	do
-		if [ -f $i ] ; then
-			config -r $i
-		fi
-	done
-	cd ../../pc98/conf
-	for i in $kernels
-	do
-		if [ -f $i ] ; then
-			config -r $i
-		fi
+		(
+		cd $d
+		for i in $kernels
+		do
+			if [ ! -f $i ] ; then
+				continue
+			fi
+			if [ $i = "LINT" ] ; then
+				config -r -p $i
+			else
+				config -r $i
+			fi
+		done
+		)
 	done
 	)
 
