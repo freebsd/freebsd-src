@@ -307,7 +307,6 @@ yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 		if (value == 0)
 			return (defaultresult);
 		return (value);
-		break;
 	default:
 		errno = EINVAL;
 		return (-1);
