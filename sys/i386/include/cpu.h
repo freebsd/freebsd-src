@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.29 1997/04/07 07:15:58 peter Exp $
+ *	$Id: cpu.h,v 1.30 1997/08/09 00:03:09 dyson Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -59,7 +59,7 @@
 #define cpu_set_init_frame(p, fp)	((p)->p_md.md_regs = (fp))
 
 #define	CLKF_USERMODE(framep) \
-	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))
+	(CS_SECURE((framep)->cf_cs) || (framep->cf_eflags & PSL_VM))
 
 #define CLKF_INTR(framep)	(intr_nesting_level >= 2)
 #if 0
