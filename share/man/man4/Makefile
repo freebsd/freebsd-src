@@ -71,8 +71,28 @@ MAN4=	adv.4 \
 	mtio.4 \
 	natm.4 \
 	ncr.4 \
+	netgraph.4 \
 	netintro.4 \
+	ng_UI.4 \
+	ng_async.4 \
+	ng_bpf.4 \
+	ng_cisco.4 \
+	ng_echo.4 \
 	ng_ether.4 \
+	ng_frame_relay.4 \
+	ng_hole.4 \
+	ng_iface.4 \
+	ng_ksocket.4 \
+	ng_lmi.4 \
+	ng_mppc.4 \
+	ng_ppp.4 \
+	ng_pppoe.4 \
+	ng_pptpgre.4 \
+	ng_rfc1490.4 \
+	ng_socket.4 \
+	ng_tee.4 \
+	ng_tty.4 \
+	ng_vjc.4 \
 	null.4 \
 	ohci.4 \
 	pass.4 \
