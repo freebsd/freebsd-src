@@ -1297,7 +1297,8 @@ _bfd_stab_section_find_nearest_line (abfd, symbols, section, offset, pfound,
 
   *pfound = true;
 
-  if (IS_ABSOLUTE_PATH(file_name) || directory_name == NULL)
+  if (file_name == NULL || IS_ABSOLUTE_PATH (file_name)
+      || directory_name == NULL)
     *pfilename = file_name;
   else
     {

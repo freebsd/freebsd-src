@@ -50,7 +50,7 @@ maintainers for a given domain then responsibility falls to the first
 maintainer.  The first maintainer is free to devolve that
 responsibility among the other maintainers.
 
-  ARC		   Peter Targett <peter.targett@arccores.com>
+  ARC		   Peter Targett <peter.targett@arc.com>
   ARM		   Nick Clifton <nickc@redhat.com>
   ARM		   Richard Earnshaw <rearnsha@arm.com>
   AVR		   Denis Chertykov <denisc@overta.ru>
@@ -74,12 +74,13 @@ responsibility among the other maintainers.
   PPC		   Geoff Keating <geoffk@redhat.com>
   PPC XCOFF	   Tom Rix <trix@redhat.com>
   s390, s390x	   Martin Schwidefsky <schwidefsky@de.ibm.com>
-  SH		   JÅˆrn Rennecke <amylaar@onetel.net.uk>
+  SH		   JÅˆrn Rennecke <joern.rennecke@superh.com>
   SH		   Hans-Peter Nilsson <hp@bitrange.com>
   SH		   Alexandre Oliva <aoliva@redhat.com>
   SPARC		   Jakub Jelinek <jakub@redhat.com>
   TIC54X           Timothy Wall <twall@alum.mit.edu>
-  z8k		   Christian Groessler <cpg@aladdin.de>
+  z8k		   Christian Groessler <chris@groessler.org>
+
 
       --------- CGEN Maintainers -------------
 

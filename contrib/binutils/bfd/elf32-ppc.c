@@ -1,5 +1,5 @@
 /* PowerPC-specific support for 32-bit ELF
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -49,6 +49,8 @@ static boolean ppc_elf_merge_private_bfd_data PARAMS ((bfd *, bfd *));
 static int ppc_elf_additional_program_headers PARAMS ((bfd *));
 static boolean ppc_elf_modify_segment_map PARAMS ((bfd *));
 
+static asection *ppc_elf_create_got
+  PARAMS ((bfd *, struct bfd_link_info *));
 static boolean ppc_elf_create_dynamic_sections
   PARAMS ((bfd *, struct bfd_link_info *));
 
@@ -679,20 +681,20 @@ static reloc_howto_type ppc_elf_howto_raw[] = {
 	 0xffff,		/* dst_mask */
 	 false),		/* pcrel_offset */
 
-  /* 32-bit section relative relocation.  */
+  /* 16-bit section relative relocation.  */
   HOWTO (R_PPC_SECTOFF,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 true,			/* pc_relative */
+	 1,			/* size (0 = byte, 1 = short, 2 = long) */
+	 16,			/* bitsize */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_bitfield, /* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_PPC_SECTOFF",	/* name */
 	 false,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 true),			/* pcrel_offset */
+	 0xffff,		/* dst_mask */
+	 false),		/* pcrel_offset */
 
   /* 16-bit lower half section relative relocation.  */
   HOWTO (R_PPC_SECTOFF_LO,	  /* type */
@@ -1295,7 +1297,7 @@ ppc_elf_reloc_type_lookup (abfd, code)
     case BFD_RELOC_HI16_PLTOFF:		ppc_reloc = R_PPC_PLT16_HI;		break;
     case BFD_RELOC_HI16_S_PLTOFF:	ppc_reloc = R_PPC_PLT16_HA;		break;
     case BFD_RELOC_GPREL16:		ppc_reloc = R_PPC_SDAREL16;		break;
-    case BFD_RELOC_32_BASEREL:		ppc_reloc = R_PPC_SECTOFF;		break;
+    case BFD_RELOC_16_BASEREL:		ppc_reloc = R_PPC_SECTOFF;		break;
     case BFD_RELOC_LO16_BASEREL:	ppc_reloc = R_PPC_SECTOFF_LO;		break;
     case BFD_RELOC_HI16_BASEREL:	ppc_reloc = R_PPC_SECTOFF_HI;		break;
     case BFD_RELOC_HI16_S_BASEREL:	ppc_reloc = R_PPC_SECTOFF_HA;		break;
@@ -1632,6 +1634,30 @@ ppc_elf_modify_segment_map (abfd)
   return true;
 }
 
+/* The powerpc .got has a blrl instruction in it.  Mark it executable.  */
+
+static asection *
+ppc_elf_create_got (abfd, info)
+     bfd *abfd;
+     struct bfd_link_info *info;
+{
+  register asection *s;
+  flagword flags;
+
+  if (!_bfd_elf_create_got_section (abfd, info))
+    return NULL;
+
+  s = bfd_get_section_by_name (abfd, ".got");
+  if (s == NULL)
+    abort ();
+
+  flags = (SEC_ALLOC | SEC_LOAD | SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY
+	   | SEC_LINKER_CREATED);
+  if (!bfd_set_section_flags (abfd, s, flags))
+    return NULL;
+  return s;
+}
+
 /* We have to create .dynsbss and .rela.sbss here so that they get mapped
    to output sections (just like _bfd_elf_create_dynamic_sections has
    to create .dynbss and .rela.bss).  */
@@ -1643,6 +1669,9 @@ ppc_elf_create_dynamic_sections (abfd, info)
 {
   register asection *s;
   flagword flags;
+
+  if (!ppc_elf_create_got (abfd, info))
+    return false;
 
   if (!_bfd_elf_create_dynamic_sections (abfd, info))
     return false;
@@ -1663,7 +1692,13 @@ ppc_elf_create_dynamic_sections (abfd, info)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
 	return false;
     }
-  return true;
+
+  s = bfd_get_section_by_name (abfd, ".plt");
+  if (s == NULL)
+    abort ();
+
+  flags = SEC_ALLOC | SEC_CODE | SEC_IN_MEMORY | SEC_LINKER_CREATED;
+  return bfd_set_section_flags (abfd, s, flags);
 }
 
 /* Adjust a symbol defined by a dynamic object and referenced by a
@@ -2119,10 +2154,9 @@ ppc_elf_check_relocs (abfd, info, sec, relocs)
 	    {
 	      if (dynobj == NULL)
 		elf_hash_table (info)->dynobj = dynobj = abfd;
-	      if (! _bfd_elf_create_got_section (dynobj, info))
+	      sgot = ppc_elf_create_got (dynobj, info);
+	      if (sgot == NULL)
 		return false;
-	      sgot = bfd_get_section_by_name (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
 	    }
 	}
 
@@ -2139,10 +2173,9 @@ ppc_elf_check_relocs (abfd, info, sec, relocs)
 	    {
 	      if (dynobj == NULL)
 		elf_hash_table (info)->dynobj = dynobj = abfd;
-	      if (! _bfd_elf_create_got_section (dynobj, info))
+	      sgot = ppc_elf_create_got (dynobj, info);
+	      if (sgot == NULL)
 		return false;
-	      sgot = bfd_get_section_by_name (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
 	    }
 
 	  if (srelgot == NULL
@@ -2542,7 +2575,8 @@ ppc_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 {
   if (sym->st_shndx == SHN_COMMON
       && !info->relocateable
-      && sym->st_size <= elf_gp_size (abfd))
+      && sym->st_size <= elf_gp_size (abfd)
+      && info->hash->creator->flavour == bfd_target_elf_flavour)
     {
       /* Common symbols less than or equal to -G nn bytes are automatically
 	 put into .sdata.  */
@@ -2895,6 +2929,9 @@ ppc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	   (info->relocateable) ? " (relocatable)" : "");
 #endif
 
+  if (info->relocateable)
+    return true;
+
   if (!ppc_elf_howto_table[R_PPC_ADDR32])
     /* Initialize howto table if needed.  */
     ppc_elf_howto_init ();
@@ -2939,34 +2976,6 @@ ppc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
       howto = ppc_elf_howto_table[(int) r_type];
       r_symndx = ELF32_R_SYM (rel->r_info);
 
-      if (info->relocateable)
-	{
-	  /* This is a relocateable link.  We don't have to change
-	     anything, unless the reloc is against a section symbol,
-	     in which case we have to adjust according to where the
-	     section symbol winds up in the output section.  */
-	  if (r_symndx < symtab_hdr->sh_info)
-	    {
-	      sym = local_syms + r_symndx;
-	      if ((unsigned) ELF_ST_TYPE (sym->st_info) == STT_SECTION)
-		{
-		  sec = local_sections[r_symndx];
-		  addend = rel->r_addend += sec->output_offset + sym->st_value;
-		}
-	    }
-
-#ifdef DEBUG
-	  fprintf (stderr, "\ttype = %s (%d), symbol index = %ld, offset = %ld, addend = %ld\n",
-		   howto->name,
-		   (int) r_type,
-		   r_symndx,
-		   (long) offset,
-		   (long) addend);
-#endif
-	  continue;
-	}
-
-      /* This is a final link.  */
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  sym = local_syms + r_symndx;
@@ -3780,6 +3789,7 @@ ppc_elf_grok_psinfo (abfd, note)
 #define elf_backend_can_refcount	1
 #define elf_backend_got_header_size	12
 #define elf_backend_plt_header_size	PLT_INITIAL_ENTRY_SIZE
+#define elf_backend_rela_normal		1
 
 #define bfd_elf32_bfd_merge_private_bfd_data	ppc_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_relax_section             ppc_elf_relax_section

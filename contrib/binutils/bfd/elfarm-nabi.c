@@ -138,8 +138,8 @@ static reloc_howto_type elf32_arm_howto_table[] =
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_ARM_ABS16",		/* name */
 	 false,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
+	 0x0000ffff,		/* src_mask */
+	 0x0000ffff,		/* dst_mask */
 	 false),		/* pcrel_offset */
 
   /* 12 bit absolute */

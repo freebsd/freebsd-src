@@ -1,0 +1,626 @@
+#  S/390 opcodes list. Use s390-mkopc to convert it into the opcode table.
+#  Copyright 2000, 2001 Free Software Foundation, Inc.
+#  Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
+5a a RX_RRRD "add" esa
+6a ad RX_FRRD "add normalized (long)" esa
+2a adr RR_FF "add normalized (long)" esa
+7a ae RX_FRRD "add normalized (short)" esa
+3a aer RR_FF "add normalized (short)" esa
+4a ah RX_RRRD "add halfword" esa
+5e al RX_RRRD "add logical" esa
+1e alr RR_RR "add logical" esa
+fa ap SS_LLRDRD "add decimal" esa
+1a ar RR_RR "add" esa
+7e au RX_FRRD "add unnormalized (short)" esa
+3e aur RR_FF "add unnormalized (short)" esa
+6e aw RX_FRRD "add unnormalized (long)" esa
+2e awr RR_FF "add unnormalized (long)" esa
+36 axr RR_FF "add normalized" esa
+b240 bakr RRE_RR "branch and stack" esa
+45 bal RX_RRRD "branch and link" esa
+05 balr RR_RR "branch and link" esa
+4d bas RX_RRRD "branch and save" esa
+0d basr RR_RR "branch and save" esa
+0c bassm RR_RR "branch and save and set mode" esa
+47 bc RX_URRD "branch on condition" esa
+07 bcr RR_UR "branch on condition" esa
+46 bct RX_RRRD "branch on count" esa
+06 bctr RR_RR "branch on count" esa
+b258 bsg RRE_RR "branch in subspace group" esa
+0b bsm RR_RR "branch and set mode" esa
+86 bxh RS_RRRD "branch on index high" esa
+87 bxle RS_RRRD "branch on index low or equal" esa
+59 c RX_RRRD "compare" esa
+69 cd RX_FRRD "compare (long)" esa
+29 cdr RR_FF "compare (long)" esa
+bb cds RS_RRRD "compare double and swap" esa
+79 ce RX_FRRD "compare (short)" esa
+39 cer RR_FF "compare (short)" esa
+b21a cfc S_RD "compare and form codeword" esa
+49 ch RX_RRRD "compare halfword" esa
+55 cl RX_RRRD "compare logical" esa
+d5 clc SS_L0RDRD "compare logical" esa
+0f clcl RR_RR "compare logical long" esa
+95 cli SI_URD "compare logical" esa
+bd clm RS_RURD "compare logical characters under mask" esa
+15 clr RR_RR "compare logical" esa
+b25d clst RRE_RR "compare logical string" esa
+b263 cmpsc RRE_RR "compression call" esa
+f9 cp SS_LLRDRD "compare decimal" esa
+b24d cpya RRE_AA "copy access" esa
+19 cr RR_RR "compare" esa
+ba cs RS_RRRD "compare and swap" esa
+b230 csch S_00 "clear subchannel" esa
+b257 cuse RRE_RR "compare until substring equal" esa
+b250 csp RRE_RR "compare and swap and purge" esa
+4f cvb RX_RRRD "convert to binary" esa
+4e cvd RX_RRRD "convert to decimal" esa
+5d d RX_RRRD "divide" esa
+6d dd RX_FRRD "divide (long)" esa
+2d ddr RR_FF "divide (long)" esa
+7d de RX_FRRD "divide (short)" esa
+3d der RR_FF "divide (short)" esa
+83 diag RS_RRRD "diagnose" esa
+fd dp SS_LLRDRD "divide decimal" esa
+1d dr RR_RR "divide" esa
+b22d dxr RRE_F0 "divide (ext.)" esa
+b24f ear RRE_RA "extract access" esa
+de ed SS_L0RDRD "edit" esa
+df edmk SS_L0RDRD "edit and mark" esa
+b226 epar RRE_R0 "extract primary ASN" esa
+b249 ereg RRE_RR "extract stacked registers" esa
+b227 esar RRE_R0 "extract secondary ASN" esa
+b24a esta RRE_RR "extract stacked state" esa
+44 ex RX_RRRD "execute" esa
+24 hdr RR_FF "halve (long)" esa
+34 her RR_FF "halve (short)" esa
+b231 hsch S_00 "halt subchannel" esa
+b224 iac RRE_R0 "insert address space control" esa
+43 ic RX_RRRD "insert character" esa
+bf icm RS_RURD "insert characters under mask" esa
+b20b ipk S_00 "insert PSW key" esa
+b222 ipm RRE_R0 "insert program mask" esa
+b221 ipte RRE_RR "invalidate page table entry" esa
+b229 iske RRE_RR "insert storage key extended" esa
+b223 ivsk RRE_RR "insert virtual storage key" esa
+58 l RX_RRRD "load" esa
+41 la RX_RRRD "load address" esa
+51 lae RX_RRRD "load address extended" esa
+9a lam RS_AARD "load access multiple" esa
+e500 lasp SSE_RDRD "load address space parameters" esa
+23 lcdr RR_FF "load complement (long)" esa
+33 lcer RR_FF "load complement (short)" esa
+13 lcr RR_RR "load complement" esa
+b7 lctl RS_CCRD "load control" esa
+68 ld RX_FRRD "load (long)" esa
+28 ldr RR_FF "load (long)" esa
+78 le RX_FRRD "load (short)" esa
+38 ler RR_FF "load (short)" esa
+48 lh RX_RRRD "load halfword" esa
+98 lm RS_RRRD "load multiple" esa
+21 lndr RR_FF "load negative (long)" esa
+31 lner RR_FF "load negative (short)" esa
+11 lnr RR_RR "load negative" esa
+20 lpdr RR_FF "load positive (long)" esa
+30 lper RR_FF "load positive (short)" esa
+10 lpr RR_RR "load positive" esa
+82 lpsw S_RD "load PSW" esa
+18 lr RR_RR "load" esa
+b1 lra RX_RRRD "load real address" esa
+25 lrdr RR_FF "load rounded (ext. to long)" esa
+35 lrer RR_FF "load rounded (long to short)" esa
+22 ltdr RR_FF "load and test (long)" esa
+32 lter RR_FF "load and test (short)" esa
+12 ltr RR_RR "load and test" esa
+b24b lura RRE_RR "load using real address" esa
+5c m RX_RRRD "multiply" esa
+af mc SI_URD "monitor call" esa
+6c md RX_FRRD "multiply (long)" esa
+2c mdr RR_FF "multiply (long)" esa
+7c me RX_FRRD "multiply (short to long)" esa
+3c mer RR_FF "multiply (short to long)" esa
+4c mh RX_RRRD "multiply halfword" esa
+fc mp SS_LLRDRD "multiply decimal" esa
+1c mr RR_RR "multiply" esa
+b232 msch S_RD "modify subchannel" esa
+b247 msta RRE_R0 "modify stacked state" esa
+d2 mvc SS_L0RDRD "move" esa
+e50f mvcdk SSE_RDRD "move with destination key" esa
+e8 mvcin SS_L0RDRD "move inverse" esa
+d9 mvck SS_RRRDRD "move with key" esa
+0e mvcl RR_RR "move long" esa
+da mvcp SS_RRRDRD "move to primary" esa
+db mvcs SS_RRRDRD "move to secondary" esa
+e50e mvcsk SSE_RDRD "move with source key" esa
+92 mvi SI_URD "move" esa
+d1 mvn SS_L0RDRD "move numerics" esa
+f1 mvo SS_LLRDRD "move with offset" esa
+b254 mvpg RRE_RR "move page" esa
+b255 mvst RRE_RR "move string" esa
+d3 mvz SS_L0RDRD "move zones" esa
+67 mxd RX_FRRD "multiply (long to ext.)" esa
+27 mxdr RR_FF "multiply (long to ext.)" esa
+26 mxr RR_FF "multiply (ext.)" esa
+54 n RX_RRRD "AND" esa
+d4 nc SS_L0RDRD "AND" esa
+94 ni SI_URD "AND" esa
+14 nr RR_RR "AND" esa
+56 o RX_RRRD "OR" esa
+d6 oc SS_L0RDRD "OR" esa
+96 oi SI_URD "OR" esa
+16 or RR_RR "OR" esa
+f2 pack SS_LLRDRD "pack" esa
+b248 palb RRE_00 "purge ALB" esa
+b218 pc S_RD "program call" esa
+0101 pr E "program return" esa
+b228 pt RRE_RR "program transfer" esa
+b20d ptlb S_00 "purge TLB" esa
+b23b rchp S_00 "reset channel path" esa
+b22a rrbe RRE_RR "reset reference bit extended" esa
+b238 rsch S_00 "resume subchannel" esa
+5b s RX_RRRD "subtract" esa
+b219 sac S_RD "set address space control" esa
+b279 sacf S_RD "set address space control fast" esa
+b237 sal S_00 "set address limit" esa
+b24e sar RRE_AR "set access" esa
+b23c schm S_00 "set channel monitor" esa
+b204 sck S_RD "set clock" esa
+b206 sckc S_RD "set clock comparator" esa
+6b sd RX_FRRD "subtract normalized (long)" esa
+2b sdr RR_FF "subtract normalized (long)" esa
+7b se RX_FRRD "subtract normalized (short)" esa
+3b ser RR_FF "subtract normalized (short)" esa
+4b sh RX_RRRD "subtract halfword" esa
+b214 sie S_RD "start interpretive execution" esa
+ae sigp RS_RRRD "signal processor" esa
+5f sl RX_RRRD "subtract logical" esa
+8b sla RS_R0RD "shift left single" esa
+8f slda RS_R0RD "shift left double (long)" esa
+8d sldl RS_R0RD "shift left double logical (long)" esa
+89 sll RS_R0RD "shift left single logical" esa
+1f slr RR_RR "subtract logical" esa
+fb sp SS_LLRDRD "subtract decimal" esa
+b20a spka S_RD "set PSW key from address" esa
+04 spm RR_R0 "set program mask" esa
+b208 spt S_RD "set CPU timer" esa
+b210 spx S_RD "set prefix" esa
+b244 sqdr RRE_F0 "square root (long)" esa
+b245 sqer RRE_F0 "square root (short)" esa
+1b sr RR_RR "subtract" esa
+8a sra RS_R0RD "shift right single" esa
+8e srda RS_R0RD "shift right double (long)" esa
+8c srdl RS_R0RD "shift right double logical (long)" esa
+88 srl RS_R0RD "shift right single logical" esa
+f0 srp SS_LIRDRD "shift and round decimal" esa
+b25e srst RRE_RR "search string" esa
+b225 ssar RRE_R0 "set secondary ASN" esa
+b233 ssch S_RD "start subchannel" esa
+b22b sske RRE_RR "set storage key extended" esa
+80 ssm S_RD "set system mask" esa
+50 st RX_RRRD "store" esa
+9b stam RS_AARD "store access multiple" esa
+b212 stap S_RD "store CPU address" esa
+42 stc RX_RRRD "store character" esa
+b205 stck S_RD "store clock" esa
+b207 stckc S_RD "store clock comparator" esa
+be stcm RS_RURD "store characters under mask" esa
+b23a stcps S_RD "store channel path status" esa
+b239 stcrw S_RD "store channel report word" esa
+b6 stctl RS_CCRD "store control" esa
+60 std RX_FRRD "store (long)" esa
+70 ste RX_FRRD "store (short)" esa
+40 sth RX_RRRD "store halfword" esa
+b202 stidp S_RD "store CPU id" esa
+90 stm RS_RRRD "store multiple" esa
+ac stnsm SI_URD "store then AND system mask" esa
+ad stosm SI_URD "store then OR system mask" esa
+b209 stpt S_RD "store CPU timer" esa
+b211 stpx S_RD "store prefix" esa
+b234 stsch S_RD "store subchannel" esa
+b246 stura RRE_RR "store using real address" esa
+7f su RX_FRRD "subtract unnormalized (short)" esa
+3f sur RR_FF "subtract unnormalized (short)" esa
+0a svc RR_U0 "supervisor call" esa
+6f sw RX_FRRD "subtract unnormalized (long)" esa
+2f swr RR_FF "subtract unnormalized (long)" esa
+37 sxr RR_FF "subtract normalized (ext.)" esa
+b24c tar RRE_AR "test access" esa
+b22c tb RRE_0R "test block" esa
+91 tm SI_URD "test under mask" esa
+b236 tpi S_RD "test pending interruption" esa
+e501 tprot SSE_RDRD "test protection" esa
+dc tr SS_L0RDRD "translate" esa
+99 trace RS_RRRD "trace" esa
+dd trt SS_L0RDRD "translate and test" esa
+93 ts S_RD "test and set" esa
+b235 tsch S_RD "test subchannel" esa
+f3 unpk SS_LLRDRD "unpack" esa
+0102 upt E "update tree" esa
+57 x RX_RRRD "exclusive OR" esa
+d7 xc SS_L0RDRD "exclusive OR" esa
+97 xi SI_URD "exclusive OR" esa
+17 xr RR_RR "exclusive OR" esa
+f8 zap SS_LLRDRD "zero and add" esa
+a70a ahi RI_RI "add halfword immediate" esa
+84 brxh RSI_RRP "branch relative on index high" esa
+85 brxle RSI_RRP "branch relative on index low or equal" esa
+a705 bras RI_RP "branch relative and save" esa
+a704 brc RI_UP "branch relative on condition" esa
+a706 brct RI_RP "branch relative on count" esa
+b241 cksm RRE_RR "checksum" esa
+a70e chi RI_RI "compare halfword immediate" esa
+a9 clcle RS_RRRD "compare logical long extended" esa
+a708 lhi RI_RI "load halfword immediate" esa
+a8 mvcle RS_RRRD "move long extended" esa
+a70c mhi RI_RI "multiply halfword immediate" esa
+b252 msr RRE_RR "multiply single" esa
+71 ms RX_RRRD "multiply single" esa
+a700 tmh RI_RU "test under mask high" esa
+a701 tml RI_RU "test under mask low" esa
+0700 nopr RR_0R "no operation" esa
+0710 bor RR_0R "branch on overflow / if ones" esa
+0720 bhr RR_0R "branch on high" esa
+0720 bpr RR_0R "branch on plus" esa
+0730 bnler RR_0R "branch on not low or equal" esa
+0740 blr RR_0R "branch on low" esa
+0740 bmr RR_0R "branch on minus / if mixed" esa
+0750 bnher RR_0R "branch on not high or equal" esa
+0760 blhr RR_0R "branch on low or high" esa
+0770 bner RR_0R "branch on not equal" esa
+0770 bnzr RR_0R "branch on not zero / if not zeros" esa
+0780 ber RR_0R "branch on equal" esa
+0780 bzr RR_0R "branch on zero / if zeros" esa
+0790 bnlhr RR_0R "branch on not low or high" esa
+07a0 bher RR_0R "branch on high or equal" esa
+07b0 bnlr RR_0R "branch on not low" esa
+07b0 bnmr RR_0R "branch on not minus / if not mixed" esa
+07c0 bler RR_0R "brach on low or equal" esa
+07d0 bnhr RR_0R "branch on not high" esa
+07d0 bnpr RR_0R "branch on not plus" esa
+07e0 bnor RR_0R "branch on not overflow / if not ones" esa
+07f0 br RR_0R "unconditional branch" esa
+4700 nop RX_0RRD "no operation" esa
+4710 bo RX_0RRD "branch on overflow / if ones" esa
+4720 bh RX_0RRD "branch on high" esa
+4720 bp RX_0RRD "branch on plus" esa
+4730 bnle RX_0RRD "branch on not low or equal" esa
+4740 bl RX_0RRD "branch on low" esa
+4740 bm RX_0RRD "branch on minus / if mixed" esa
+4750 bnhe RX_0RRD "branch on not high or equal" esa
+4760 blh RX_0RRD "branch on low or high" esa
+4770 bne RX_0RRD "branch on not equal" esa
+4770 bnz RX_0RRD "branch on not zero / if not zeros" esa
+4780 be RX_0RRD "branch on equal" esa
+4780 bz RX_0RRD "branch on zero / if zeros" esa
+4790 bnlh RX_0RRD "branch on not low or high" esa
+47a0 bhe RX_0RRD "branch on high or equal" esa
+47b0 bnl RX_0RRD "branch on not low" esa
+47b0 bnm RX_0RRD "branch on not minus / if not mixed" esa
+47c0 ble RX_0RRD "branch on low or equal" esa
+47d0 bnh RX_0RRD "branch on not high" esa
+47d0 bnp RX_0RRD "branch on not plus" esa
+47e0 bno RX_0RRD "branch on not overflow / if not ones" esa
+47f0 b RX_0RRD "unconditional branch" esa
+a714 jo RI_0P "jump on overflow / if ones" esa
+a724 jh RI_0P "jump on A high" esa
+a724 jp RI_0P "jump on plus" esa
+a734 jnle RI_0P "jump on not low or equal" esa
+a744 jl RI_0P "jump on A low" esa
+a744 jm RI_0P "jump on minus / if mixed" esa
+a754 jnhe RI_0P "jump on not high or equal" esa
+a764 jlh RI_0P "jump on low or high" esa
+a774 jne RI_0P "jump on A not equal B" esa
+a774 jnz RI_0P "jump on not zero / if not zeros" esa
+a784 je RI_0P "jump on A equal B" esa
+a784 jz RI_0P "jump on zero / if zeros" esa
+a794 jnlh RI_0P "jump on not low or high" esa
+a7a4 jhe RI_0P "jump on high or equal" esa
+a7b4 jnl RI_0P "jump on A not low" esa
+a7b4 jnm RI_0P "jump on not minus / if not mixed" esa
+a7c4 jle RI_0P "jump on low or equal" esa
+a7d4 jnh RI_0P "jump on A not high" esa
+a7d4 jnp RI_0P "jump on not plus" esa
+a7e4 jno RI_0P "jump on not overflow / if not ones" esa
+a7f4 j RI_0P "jump" esa
+b34a axbr RRE_FF "add extended bfp" esa
+b31a adbr RRE_FF "add long bfp" esa
+ed000000001a adb RXE_FRRD "add long bfp" esa
+b30a aebr RRE_FF "add short bfp" esa
+ed000000000a aeb RXE_FRRD "add short bfp" esa
+b349 cxbr RRE_FF "compare extended bfp" esa
+b319 cdbr RRE_FF "compare long bfp" esa
+ed0000000019 cdb RXE_FRRD "compare long bfp" esa
+b309 cebr RRE_FF "compare short bfp" esa
+ed0000000009 ceb RXE_FRRD "compare short bfp" esa
+b348 kxbr RRE_FF "compare and signal extended bfp" esa
+b318 kdbr RRE_FF "compare and signal long bfp" esa
+ed0000000018 kdb RXE_FRRD "compare and signal long bfp" esa
+b308 kebr RRE_FF "compare and signal short bfp" esa
+ed0000000008 keb RXE_FRRD "compare and signal short bfp" esa
+b396 cxfbr RRE_RF "convert from fixed 32 to extended bfp" esa
+b395 cdfbr RRE_RF "convert from fixed 32 to long bfp" esa
+b394 cefbr RRE_RF "convert from fixed 32 to short bfp" esa
+b39a cfxbr RRF_U0FR "convert to fixed extended bfp to 32" esa
+b399 cfdbr RRF_U0FR "convert to fixed long bfp to 32" esa
+b398 cfebr RRF_U0FR "convert to fixed short bfp to 32" esa
+b34d dxbr RRE_FF "divide extended bfp" esa
+b31d ddbr RRE_FF "divide long bfp" esa
+ed000000001d ddb RXE_FRRD "divide long bfp" esa
+b30d debr RRE_FF "divide short bfp" esa
+ed000000000d deb RXE_FRRD "divide short bfp" esa
+b35b didbr RRF_FUFF "divide to integer long bfp" esa
+b353 diebr RRF_FUFF "divide to integer short bfp" esa
+b38c efpc RRE_RR "extract fpc" esa
+b342 ltxbr RRE_FF "load and test extended bfp" esa
+b312 ltdbr RRE_FF "load and test long bfp" esa
+b302 ltebr RRE_FF "load and test short bfp" esa
+b343 lcxbr RRE_FF "load complement extended bfp" esa
+b313 lcdbr RRE_FF "load complement long bfp" esa
+b303 lcebr RRE_FF "load complement short bfp" esa
+b347 fixbr RRF_U0FF "load fp integer extended bfp" esa
+b35f fidbr RRF_U0FF "load fp integer long bfp" esa
+b357 fiebr RRF_U0FF "load fp integer short bfp" esa
+b29d lfpc S_RD "load fpc" esa
+b305 lxdbr RRE_FF "load lengthened long to extended bfp" esa
+ed0000000005 lxdb RXE_FRRD "load lengthened long to extended bfp" esa
+b306 lxebr RRE_FF "load lengthened short to extended bfp" esa
+ed0000000006 lxeb RXE_FRRD "load lengthened short to extended bfp" esa
+b304 ldebr RRE_FF "load lengthened short to long bfp" esa
+ed0000000004 ldeb RXE_FRRD "load lengthened short to long bfp" esa
+b341 lnxbr RRE_FF "load negative extended bfp" esa
+b311 lndbr RRE_FF "load negative long bfp" esa
+b301 lnebr RRE_FF "load negative short bfp" esa
+b340 lpxbr RRE_FF "load positive extended bfp" esa
+b310 lpdbr RRE_FF "load positive long bfp" esa
+b300 lpebr RRE_FF "load positive short bfp" esa
+b345 ldxbr RRE_FF "load rounded extended to long bfp" esa
+b346 lexbr RRE_FF "load rounded extended to short bfp" esa
+b344 ledbr RRE_FF "load rounded long to short bfp" esa
+b34c mxbr RRE_FF "multiply extended bfp" esa
+b31c mdbr RRE_FF "multiply long bfp" esa
+ed000000001c mdb RXE_FRRD "multiply long bfp" esa
+b307 mxdbr RRE_FF "multiply long to extended bfp" esa
+ed0000000007 mxdb RXE_FRRD "multiply long to extended bfp" esa
+b317 meebr RRE_FF "multiply short bfp" esa
+ed0000000017 meeb RXE_FRRD "multiply short bfp" esa
+b30c mdebr RRE_FF "multiply short to long bfp" esa
+ed000000000c mdeb RXE_FRRD "multiply short to long bfp" esa
+b31e madbr RRF_F0FF "multiply and add long bfp" esa
+ed000000001e madb RXF_FRRDF "multiply and add long bfp" esa
+b30e maebr RRF_F0FF "multiply and add short bfp" esa
+ed000000000e maeb RXF_FRRDF "multiply and add short bfp" esa
+b31f msdbr RRF_F0FF "multiply and subtract long bfp" esa
+ed000000001f msdb RXF_FRRDF "multiply and subtract long bfp" esa
+b30f msebr RRF_F0FF "multiply and subtract short bfp" esa
+ed000000000f mseb RXF_FRRDF "multiply and subtract short bfp" esa
+b384 sfpc RRE_RR "set fpc" esa
+b299 srnm S_RD "set rounding mode" esa
+b316 sqxbr RRE_FF "square root extended bfp" esa
+b315 sqdbr RRE_FF "square root long bfp" esa
+ed0000000015 sqdb RXE_FRRD "square root long bfp" esa
+b314 sqebr RRE_FF "square root short bfp" esa
+ed0000000014 sqeb RXE_FRRD "square root short bfp" esa
+b29c stfpc S_RD "store fpc" esa
+b34b sxbr RRE_FF "subtract extended bfp" esa
+b31b sdbr RRE_FF "subtract long bfp" esa
+ed000000001b sdb RXE_FRRD "subtract long bfp" esa
+b30b sebr RRE_FF "subtract short bfp" esa
+ed000000000b seb RXE_FRRD "subtract short bfp" esa
+ed0000000012 tcxb RXE_FRRD "test data class extended bfp" esa
+ed0000000011 tcdb RXE_FRRD "test data class long bfp" esa
+ed0000000010 tceb RXE_FRRD "test data class short bfp" esa
+b274 siga S_RD "signal adapter" esa
+# are the following instructions confidential ??
+b2a6 cuutf RRE_RR "convert unicode to utf-8" esa
+b2a7 cutfu RRE_RR "convert utf-8 to unicode" esa
+ee plo SS_RRRDRD2 "perform locked operation" esa
+b25a bsa RRE_RR "branch and set authority" esa
+b277 rp S_RD "resume program" esa
+0107 sckpf E "set clock programmable field" esa
+b27d stsi S_RD "store system information" esa
+01ff trap2 E "trap" esa
+b2ff trap4 S_RD "trap4" esa
+# Here are the new esame instructions:
+b946 bctgr RRE_RR "branch on count 64" esame
+b900 lpgr RRE_RR "load positive 64" esame
+b910 lpgfr RRE_RR "load positive 64<32" esame
+b901 lngr RRE_RR "load negative 64" esame
+b911 lngfr RRE_RR "load negative 64<32" esame
+b902 ltgr RRE_RR "load and test 64" esame
+b912 ltgfr RRE_RR "load and test 64<32" esame
+b903 lcgr RRE_RR "load complement 64" esame
+b913 lcgfr RRE_RR "load complement 64<32" esame
+b980 ngr RRE_RR "and 64" esame
+b921 clgr RRE_RR "compare logical 64" esame
+b931 clgfr RRE_RR "compare logical 64<32" esame
+b981 ogr RRE_RR "or 64" esame
+b982 xgr RRE_RR "exclusive or 64" esame
+b904 lgr RRE_RR "load 64" esame
+b914 lgfr RRE_RR "load 64<32" esame
+b920 cgr RRE_RR "compare 64" esame
+b930 cgfr RRE_RR "compare 64<32" esame
+b908 agr RRE_RR "add 64" esame
+b918 agfr RRE_RR "add 64<32" esame
+b909 sgr RRE_RR "subtract 64" esame
+b919 sgfr RRE_RR "subtract 64<32" esame
+b90a algr RRE_RR "add logical 64" esame
+b91a algfr RRE_RR "add logical 64<32" esame
+b90b slgr RRE_RR "subtract logical 64" esame
+b91b slgfr RRE_RR "subtract logical 64<32" esame
+e30000000046 bctg RXE_RRRD "branch on count 64" esame
+e3000000002e cvdg RXE_RRRD "convert to decimal 64" esame
+e3000000000e cvbg RXE_RRRD "convert to binary 64" esame
+e30000000024 stg RXE_RRRD "store 64" esame
+e30000000080 ng RXE_RRRD "and 64" esame
+e30000000021 clg RXE_RRRD "compare logical 64" esame
+e30000000031 clgf RXE_RRRD "comparee logical 64<32" esame
+e30000000081 og RXE_RRRD "or 64" esame
+e30000000082 xg RXE_RRRD "exclusive or 64" esame
+e30000000004 lg RXE_RRRD "load 64" esame
+e30000000014 lgf RXE_RRRD "load 64<32" esame
+e30000000015 lgh RXE_RRRD "load halfword 64" esame
+e30000000020 cg RXE_RRRD "compare 64" esame
+e30000000030 cgf RXE_RRRD "compare 64<32" esame
+e30000000008 ag RXE_RRRD "add 64" esame
+e30000000018 agf RXE_RRRD "add 64<32" esame
+e30000000009 sg RXE_RRRD "subtract 64" esame
+e30000000019 sgf RXE_RRRD "subtract 64<32" esame
+e3000000000a alg RXE_RRRD "add logical 64" esame
+e3000000001a algf RXE_RRRD "add logical 64<32" esame
+e3000000000b slg RXE_RRRD "subtract logical 64" esame
+e3000000001b slgf RXE_RRRD "subtract logical 64<32" esame
+e3000000000c msg RXE_RRRD "multiply single 64" esame
+e3000000001c msgf RXE_RRRD "multiply single 64<32" esame
+ec0000000044 brxhg RIE_RRP "branch relative on index high 64" esame
+ec0000000045 brxlg RIE_RRP "branch relative on index low or equal 64" esame
+eb0000000044 bxhg RSE_RRRD "branch on index high 64" esame
+eb0000000045 bxleg RSE_RRRD "branch on index low or equal 64" esame
+eb000000000c srlg RSE_RRRD "shift right single logical 64" esame
+eb000000000d sllg RSE_RRRD "shift left single logical 64" esame
+eb000000000a srag RSE_RRRD "shift right single 64" esame
+eb000000000b slag RSE_RRRD "shift left single 64" esame
+eb0000000024 stmg RSE_RRRD "store multiple 64" esame
+eb0000000026 stmh RSE_RRRD "store multiple high" esame
+eb0000000004 lmg RSE_RRRD "load multiple 64" esame
+eb0000000096 lmh RSE_RRRD "load multiple high" esame
+ef lmd SS_RRRDRD3 "load multiple disjoint" esame
+eb000000000f tracg RSE_RRRD "trace 64" esame
+e30000000003 lrag RXE_RRRD "load real address 64" esame
+e50000000002 strag SSE_RDRD "store read address" esame
+eb0000000025 stctg RSE_RRRD "store control 64" esame
+eb000000002f lctlg RSE_RRRD "load control 64" esame
+eb0000000030 csg RSE_RRRD "compare and swap 64" esame
+eb000000003e cdsg RSE_RRRD "compare double and swap 64" esame
+eb0000000020 clmh RSE_RURD "compare logical characters under mask high" esame
+eb000000002c stcmh RSE_RURD "store characters under mask high" esame
+eb0000000080 icmh RSE_RURD "insert characters under mask high" esame
+a700 tmlh RI_RU "test under mask low high" esame
+a702 tmhh RI_RU "test under mask high high" esame
+a701 tmll RI_RU "test under mask low low" esame
+a703 tmhl RI_RU "test under mask high low" esame
+c004 brcl RIL_UP "branch relative on condition long" esame
+c014 jgo RIL_0P "jump long on overflow / if ones" esame
+c024 jgh RIL_0P "jump long on high" esame
+c024 jgp RIL_0P "jump long on plus" esame
+c034 jgnle RIL_0P "jump long on not low or equal" esame
+c044 jgl RIL_0P "jump long on low" esame
+c044 jgm RIL_0P "jump long on minus / if mixed" esame
+c054 jgnhe RIL_0P "jump long on not high or equal" esame
+c064 jglh RIL_0P "jump long on low or high" esame
+c074 jgne RIL_0P "jump long on not equal" esame
+c074 jgnz RIL_0P "jump long on not zero / if not zeros" esame
+c084 jge RIL_0P "jump long on equal" esame
+c084 jgz RIL_0P "jump long on zero / if zeros" esame
+c094 jgnlh RIL_0P "jump long on not low or high" esame
+c0a4 jghe RIL_0P "jump long on high or equal" esame
+c0b4 jgnl RIL_0P "jump long on not low" esame
+c0b4 jgnm RIL_0P "jump long on not minus / if not mixed" esame
+c0c4 jgle RIL_0P "jump long on low or equal" esame
+c0d4 jgnh RIL_0P "jump long on not high" esame
+c0d4 jgnp RIL_0P "jump long on not plus" esame
+c0e4 jgno RIL_0P "jump long on not overflow / if not ones" esame
+c0f4 jg RIL_0P "jump long" esame
+c005 brasl RIL_RP "branch relative and save long" esame
+a707 brctg RI_RP "branch relative on count 64" esame
+a709 lghi RI_RI "load halfword immediate 64" esame
+a70b aghi RI_RI "add halfword immediate 64" esame
+a70d mghi RI_RI "multiply halfword immediate 64" esame
+a70f cghi RI_RI "compare halfword immediate 64" esame
+b925 sturg RRE_RR "store using real address 64" esame
+b90e eregg RRE_RR "extract stacked registers 64" esame
+b905 lurag RRE_RR "load using real address 64" esame
+b90c msgr RRE_RR "multiply single 64" esame
+b91c msgfr RRE_RR "multiply single 64<32" esame
+b3a4 cegbr RRE_RR "convert from fixed 64 to short bfp" esame
+b3a5 cdgbr RRE_RR "convert from fixed 64 to long bfp" esame
+b3a6 cxgbr RRE_RR "convert from fixed 64 to extended bfp" esame
+b3a8 cgebr RRF_U0FR "convert to fixed short bfd to 64" esame
+b3a9 cgdbr RRF_U0FR "convert to fixed long bfp to 64" esame
+b3aa cgxbr RRF_U0FR "convert to fixed extended bfp to 64" esame
+b3c4 cegr RRE_RR "convert from fixed 64 to short hfp" esame
+b3c5 cdgr RRE_RR "convert from fixed 64 to long hfp" esame
+b3c6 cxgr RRE_RR "convert from fixed 64 to extended hfp" esame
+b3c8 cger RRF_U0FR "convert to fixed short hfp to 64" esame
+b3c9 cgdr RRF_U0FR "convert to fixed long hfp to 64" esame
+b3ca cgxr RRF_U0FR "convert to fixed extended hfp to 64" esame
+010b tam E "test addressing mode" esame
+010c sam24 E "set addressing mode 24" esame
+010d sam31 E "set addressing mode 31" esame
+010e sam64 E "set addressing mode 64" esame
+a500 iihh RI_RU "insert immediate high high" esame
+a501 iihl RI_RU "insert immediate high low" esame
+a502 iilh RI_RU "insert immediate low high" esame
+a503 iill RI_RU "insert immediate low low" esame
+a504 nihh RI_RU "and immediate high high" esame
+a505 nihl RI_RU "and immediate high low" esame
+a506 nilh RI_RU "and immediate low high" esame
+a507 nill RI_RU "and immediate low low" esame
+a508 oihh RI_RU "or immediate high high" esame
+a509 oihl RI_RU "or immediate high low" esame
+a50a oilh RI_RU "or immediate low high" esame
+a50b oill RI_RU "or immediate low low" esame
+a50c llihh RI_RU "load logical immediate high high" esame
+a50d llihl RI_RU "load logical immediate high low" esame
+a50e llilh RI_RU "load logical immediate low high" esame
+a50f llill RI_RU "load logical immediate low low" esame
+b2b1 stfl S_RD "store facility list" esame
+b2b2 lpswe S_RD "load psw extended" esame
+b90d dsgr RRE_RR "divide single 64" esame
+b90f lrvgr RRE_RR "load reversed 64" esame
+b916 llgfr RRE_RR "load logical 64<32" esame
+b917 llgtr RRE_RR "load logical thirty one bits" esame
+b91d dsgfr RRE_RR "divide single 64<32" esame
+b91f lrvr RRE_RR "load reversed 32" esame
+b986 mlgr RRE_RR "multiply logical 64" esame
+b987 dlgr RRE_RR "divide logical 64" esame
+b988 alcgr RRE_RR "add logical with carry 64" esame
+b989 slbgr RRE_RR "subtract logical with borrow 64" esame
+b98d epsw RRE_RR "extract psw" esame
+b996 mlr RRE_RR "multiply logical 32" esame
+b997 dlr RRE_RR "divide logical 32" esame
+b998 alcr RRE_RR "add logical with carry 32" esame
+b999 slbr RRE_RR "subtract logical with borrow 32" esame
+b99d esea RRE_R0 "extract and set extended authority" esame
+c000 larl RIL_RP "load address relative long" esame
+e3000000000d dsg RXE_RRRD "divide single 64" esame
+e3000000000f lrvg RXE_RRRD "load reversed 64" esame
+e30000000016 llgf RXE_RRRD "load logical 64<32" esame
+e30000000017 llgt RXE_RRRD "load logical thirty one bits" esame
+e3000000001d dsgf RXE_RRRD "divide single 64<32" esame
+e3000000001e lrv RXE_RRRD "load reversed 32" esame
+e3000000001f lrvh RXE_RRRD "load reversed 16" esame
+e3000000002f strvg RXE_RRRD "store reversed 64" esame
+e3000000003e strv RXE_RRRD "store reversed 32" esame
+e3000000003f strvh RXE_RRRD "store reversed 64" esame
+e30000000086 mlg RXE_RRRD "multiply logical 64" esame
+e30000000087 dlg RXE_RRRD "divide logical 64" esame
+e30000000088 alcg RXE_RRRD "add logical with carry 64" esame
+e30000000089 slbg RXE_RRRD "subtract logical with borrow 64" esame
+e3000000008e stpq RXE_RRRD "store pair to quadword" esame
+e3000000008f lpq RXE_RRRD "load pair from quadword" esame
+e30000000096 ml RXE_RRRD "multiply logical 32" esame
+e30000000097 dl RXE_RRRD "divide logical 32" esame
+e30000000098 alc RXE_RRRD "add logical with carry 32" esame
+e30000000099 slb RXE_RRRD "subtract logical with borrow 32" esame
+e30000000090 llgc RXE_RRRD "load logical character" esame
+e30000000091 llgh RXE_RRRD "load logical halfword" esame
+eb000000001c rllg RSE_RRRD "rotate left single logical 64" esame
+eb000000001d rll RSE_RRRD "rotate left single logical 32" esame
+b278 stcke S_RD "store clock extended" esame
+b2a5 tre RRE_RR "translate extended" esame
+eb000000008e mvclu RSE_RRRD "move long unicode" esame
+e9 pka SS_L0RDRD "pack ascii" esame
+e1 pku SS_L0RDRD "pack unicode" esame
+b993 troo RRE_RR "translate one to one" esame
+b992 trot RRE_RR "translate one to two" esame
+b991 trto RRE_RR "translate two to one" esame
+b990 trtt RRE_RR "translate two to two" esame
+ea unpka SS_L0RDRD "unpack ascii" esame
+e2 unpku SS_L0RDRD "unpack unicode" esame
+b358 thder RRE_RR "convert short bfp to long hfp" esame
+b359 thdr RRE_RR "convert long bfp to long hfp" esame
+b350 tbedr RRF_U0FF "convert long hfp to short bfp" esame
+b351 tbdr RRF_U0FF "convert long hfp to long bfp" esame
+b374 lzer RRE_R0 "load short zero" esame
+b375 lzdr RRE_R0 "load long zero" esame
+b376 lzxr RRE_R0 "load extended zero" esame

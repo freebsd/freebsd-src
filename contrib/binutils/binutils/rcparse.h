@@ -42,6 +42,7 @@ typedef union
   } ss;
 } yystype;
 # define YYSTYPE yystype
+# define YYSTYPE_IS_TRIVIAL 1
 #endif
 # define	BEG	257
 # define	END	258

@@ -788,6 +788,11 @@ struct elf_backend_data
      section.  */
   unsigned default_use_rela_p : 1;
 
+  /* Set if RELA relocations for a relocatable link can be handled by
+     generic code.  Backends that set this flag need do nothing in the
+     backend relocate_section routine for relocatable linking.  */
+  unsigned rela_normal : 1;
+
   /* True if addresses "naturally" sign extend.  This is used when
      swapping in from Elf32 when BFD64.  */
   unsigned sign_extend_vma : 1;
