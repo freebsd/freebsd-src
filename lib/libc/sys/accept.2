@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
-.\"     $Id: accept.2,v 1.5 1998/01/11 17:07:20 alex Exp $
+.\"     $Id: accept.2,v 1.6 1998/11/16 03:49:39 nectar Exp $
 .\"
 .Dd December 11, 1993
 .Dt ACCEPT 2
@@ -165,6 +165,10 @@ will fail if:
 .Bl -tag -width EWOULDBLOCK
 .It Bq Er EBADF
 The descriptor is invalid.
+.It Bq Er EINTR
+The
+.Fn accept
+operation was interrupted.
 .It Bq Er EMFILE
 The per-process descriptor table is full.
 .It Bq Er ENFILE
