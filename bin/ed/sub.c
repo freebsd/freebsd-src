@@ -40,9 +40,7 @@ int rhbufi;			/* rhs substitution buffer index */
 
 /* extract_subst_tail: extract substitution tail from the command buffer */
 int
-extract_subst_tail(flagp, np)
-	int *flagp;
-	long *np;
+extract_subst_tail(int *flagp, long *np)
 {
 	char delimiter;
 
@@ -73,7 +71,7 @@ extract_subst_tail(flagp, np)
 /* extract_subst_template: return pointer to copy of substitution template
    in the command buffer */
 char *
-extract_subst_template()
+extract_subst_template(void)
 {
 	int n = 0;
 	int i = 0;
@@ -115,10 +113,7 @@ int rbufsz;			/* substitute_matching_text buffer size */
 /* search_and_replace: for each line in a range, change text matching a pattern
    according to a substitution template; return status  */
 int
-search_and_replace(pat, gflag, kth)
-	pattern_t *pat;
-	int gflag;
-	int kth;
+search_and_replace(pattern_t *pat, int gflag, int kth)
 {
 	undo_t *up;
 	const char *txt;
@@ -172,11 +167,7 @@ search_and_replace(pat, gflag, kth)
 /* substitute_matching_text: replace text matched by a pattern according to
    a substitution template; return pointer to the modified text */
 int
-substitute_matching_text(pat, lp, gflag, kth)
-	pattern_t *pat;
-	line_t *lp;
-	int gflag;
-	int kth;
+substitute_matching_text(pattern_t *pat, line_t *lp, int gflag, int kth)
 {
 	int off = 0;
 	int changed = 0;
@@ -234,11 +225,7 @@ substitute_matching_text(pat, lp, gflag, kth)
 /* apply_subst_template: modify text according to a substitution template;
    return offset to end of modified text */
 int
-apply_subst_template(boln, rm, off, re_nsub)
-	const char *boln;
-	regmatch_t *rm;
-	int off;
-	int re_nsub;
+apply_subst_template(const char *boln, regmatch_t *rm, int off, int re_nsub)
 {
 	int j = 0;
 	int k = 0;
