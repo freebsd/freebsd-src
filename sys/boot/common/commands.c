@@ -246,7 +246,8 @@ command_show(int argc, char *argv[])
 		pager_output("=");
 		pager_output(cp);
 	    }
-	    pager_output("\n");
+	    if (pager_output("\n"))
+		break;
 	}
 	pager_close();
     } else {
