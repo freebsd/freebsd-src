@@ -4,7 +4,7 @@
 SHELL = /bin/sh
 MAKE = make
 
-all : configures src/config.h.in
+all : configures src/config.h.in doc/gperf.1
 
 CONFIGURES = configure lib/configure src/configure tests/configure doc/configure
 
@@ -30,6 +30,9 @@ check-configures : $(CONFIGURES)
 
 src/config.h.in : src/configure.in aclocal.m4
 	cd src && autoheader -l ..
+
+doc/gperf.1 : force
+	prog=`PATH=build/src:src:$$PATH which gperf`; if test -n "$$prog"; then doc/help2man --name='generate a perfect hash function from a key set' --section=1 $$prog > doc/gperf.1; fi
 
 force :
 

@@ -1,5 +1,5 @@
 /* Driver program for the Gen_Perf hash function generator
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -66,6 +66,10 @@ main (int argc, char *argv[])
 
   /* Generates and prints the Gen_Perf hash table. */
   int status = generate_table ();
+
+  /* Check for write error on stdout. */
+  if (fflush (stdout) || ferror (stdout))
+    status = 1;
 
   /* Don't use exit() here, it skips the destructors. */
   return status;
