@@ -123,10 +123,13 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     }
     prt = &entry->prt;
     link = entry->pci_link;
-    if (bootverbose)
-	device_printf(pcib, "matched entry for %d.%d.INT%c (src %s)\n",
-	    pci_get_bus(dev), pci_get_slot(dev), 'A' + pin,
-	    acpi_name(entry->prt_source));
+    if (bootverbose) {
+	device_printf(pcib, "matched entry for %d.%d.INT%c",
+	    pci_get_bus(dev), pci_get_slot(dev), 'A' + pin);
+	if (prt->Source[0] != '\0')
+	    printf(" (src %s)", acpi_name(entry->prt_source));
+	printf("\n");
+    }
 
     /*
      * If source is empty/NULL, the source index is a global IRQ number
