@@ -13,7 +13,10 @@ LDADD=	-lm -lcrypt
 # Miniperl _must_ be static!!
 NOSHARED= yes
 
-build-tools: depend ${PROG}
+# We need miniperl early in `depend'.
+afterdepend: all
+
+build-tools: depend all
 
 install:
 
