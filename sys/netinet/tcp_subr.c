@@ -1642,6 +1642,7 @@ tcp_twstart(tp)
 	int tw_time, acknow;
 	struct socket *so;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_reset(). */
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	tw = uma_zalloc(tcptw_zone, M_NOWAIT);
@@ -1749,6 +1750,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	struct inpcb *inp;
 
 	inp = tw->tw_inpcb;
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);	/* tcp_timer_2msl_stop(). */
 	INP_LOCK_ASSERT(inp);
 
 	tw->tw_inpcb = NULL;
