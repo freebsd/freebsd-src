@@ -314,7 +314,8 @@ archive_write_pax_header(struct archive *a,
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
 	const char *hardlink;
-	const wchar_t *wp, *wp2, *wname_start;
+	const wchar_t *wp, *wp2;
+	const char *suffix_start;
 	int need_extension, r, ret;
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
@@ -368,11 +369,11 @@ archive_write_pax_header(struct archive *a,
 	 */
 	wp = archive_entry_pathname_w(entry_main);
 	p = archive_entry_pathname(entry_main);
-	if (wcslen(wp) <= 100)	/* Short enough for just 'name' field */
-		wname_start = wp;	/* Record a zero-length prefix */
+	if (strlen(p) <= 100)	/* Short enough for just 'name' field */
+		suffix_start = p;	/* Record a zero-length prefix */
 	else
 		/* Find the largest suffix that fits in 'name' field. */
-		wname_start = wcschr(wp + wcslen(wp) - 100 - 1, '/');
+		suffix_start = strchr(p + strlen(p) - 100 - 1, '/');
 
 	/* Find non-ASCII character, if any. */
 	wp2 = wp;
@@ -383,8 +384,7 @@ archive_write_pax_header(struct archive *a,
 	 * If name is too long, or has non-ASCII characters, add
 	 * 'path' to pax extended attrs.
 	 */
-	if (wname_start == NULL || wname_start - wp > 155 ||
-	    *wp2 != L'\0') {
+	if (suffix_start == NULL || suffix_start - p > 155 || *wp2 != L'\0') {
 		add_pax_attr_w(&(pax->pax_header), "path", wp);
 		archive_entry_set_pathname(entry_main,
 		    build_ustar_entry_name(ustar_entry_name, p));
