@@ -43,7 +43,7 @@ char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_std.c,v 1.1 1996/05/13 17:43:16 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,11 +74,21 @@ main(argc, argv)
 	int ch, mntflags;
 	struct vfsconf *vfc;
 
+	/*
+	 * XXX
+	 * mount(8) calls the mount programs with an argv[0] which is
+	 * /just/ the filesystem name.  So, if there is no underscore
+	 * in argv[0], we assume that we are being called from mount(8)
+	 * and that argv[0] is thus the name of the filesystem type.
+	 */
 	fsname = strrchr(argv[0], '_');
-	if (!fsname || strcmp(fsname, "_std") == 0)
-		errx(EX_USAGE, "argv[0] must end in _fsname");
-
-	fsname++;
+	if (fsname) {
+		if (strcmp(fsname, "_std") == 0)
+			errx(EX_USAGE, "argv[0] must end in _fsname");
+		fsname++;
+	} else {
+		fsname = argv[0];
+	}
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
