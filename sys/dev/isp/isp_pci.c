@@ -453,6 +453,7 @@ isp_pci_attach(device_t dev)
 	isp->isp_revision = pci_get_revid(dev);
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
+	isp->isp_role = ISP_DEFAULT_ROLES;
 
 	/*
 	 * Try and find firmware for this device.
