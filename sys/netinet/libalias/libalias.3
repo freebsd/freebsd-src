@@ -247,7 +247,7 @@ If this mode bit is not set, it the link table
 will never be reset in the event of an
 address change.
 .It PKT_ALIAS_PUNCH_FW.
-This option make libalias `punch holes' in an
+This option makes libalias `punch holes' in an
 ipfw based firewall for FTP/IRC DCC connections.
 The holes punched are bound by from/to IP address
 and port; it will not be possible to use a hole
@@ -259,6 +259,11 @@ clear the entire ipfw range allocated for holes.
 This will also happen on the initial call to
 PacketAliasSetFWBase().  This call must happen
 prior to setting this flag.
+.It PKT_ALIAS_REVERSE.
+This option makes libalias reverse the way it
+handles incoming and outgoing packets, allowing
+it to be fed data that passes through the internal
+interface rather than the external one.
 
 .El
 
