@@ -501,9 +501,6 @@
     <para>&man.killall.1; now supports a <option>-j</option> option to
       kill all processes inside a jail.</para>
 
-    <para>The MAKEDEV script is now unnecessary, due to the mandatory
-      presence of &man.devfs.5;, and has been removed.</para>
-
     <para>The &man.libgeom.3; library has been added to allow some
       userland access to the &man.geom.4; subsystem.</para>
 
@@ -512,6 +509,9 @@
       bind ports for TCP or UDP, and is intended to be used in
       conjunction with the recently-added
       <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.</para>
+
+    <para>The MAKEDEV script is now unnecessary, due to the mandatory
+      presence of &man.devfs.5;, and has been removed.</para>
 
     <para>The &man.mksnap.ffs.8; program has been added to allow
       easier creation of FFS snapshots.  It is a
