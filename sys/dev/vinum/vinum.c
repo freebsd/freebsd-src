@@ -45,7 +45,7 @@
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;
-extern total_malloced;
+extern int total_malloced;
 extern int malloccount;
 extern struct mc malloced[];
 #endif
@@ -213,10 +213,12 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #ifdef VINUMDEBUG
 	if (total_malloced) {
 	    int i;
+#ifdef INVARIANTS
 	    int *poke;
+#endif
 
 	    for (i = 0; i < malloccount; i++) {
-		if (debug & DEBUG_EXITFREE)		    /* want to hear about them */
+		if (debug & DEBUG_WARNINGS)		    /* want to hear about them */
 		    log(LOG_WARNING,
 			"vinum: exiting with %d bytes malloced from %s:%d\n",
 			malloced[i].size,
