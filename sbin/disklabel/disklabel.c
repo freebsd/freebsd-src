@@ -169,7 +169,7 @@ int	debug;
 int
 main(int argc, char *argv[])
 {
-	register struct disklabel *lp;
+	struct disklabel *lp;
 	FILE *t;
 	int ch, f = 0, flag, error = 0;
 	char *name = 0;
