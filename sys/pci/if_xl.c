@@ -223,9 +223,6 @@ static int xl_newbuf		(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update	(void *);
 static int xl_encap		(struct xl_softc *, struct xl_chain *,
 						struct mbuf *);
-static int xl_encap_90xB	(struct xl_softc *, struct xl_chain *,
-						struct mbuf *);
-
 static void xl_rxeof		(struct xl_softc *);
 static int xl_rx_resync		(struct xl_softc *);
 static void xl_txeof		(struct xl_softc *);
@@ -2243,7 +2240,7 @@ xl_encap(sc, c, m_head)
 	struct xl_chain		*c;
 	struct mbuf		*m_head;
 {
-	int			frag = 0;
+	int			frag;
 	struct xl_frag		*f = NULL;
 	int			total_len;
 	struct mbuf		*m;
@@ -2260,10 +2257,10 @@ xl_encap(sc, c, m_head)
 		if (m->m_len != 0) {
 			if (frag == XL_MAXFRAGS)
 				break;
-			total_len+= m->m_len;
-			c->xl_ptr->xl_frag[frag].xl_addr =
-					vtophys(mtod(m, vm_offset_t));
-			c->xl_ptr->xl_frag[frag].xl_len = m->m_len;
+			total_len += m->m_len;
+			f = &c->xl_ptr->xl_frag[frag];
+			f->xl_addr = vtophys(mtod(m, vm_offset_t));
+			f->xl_len = m->m_len;
 			frag++;
 		}
 	}
@@ -2301,12 +2298,24 @@ xl_encap(sc, c, m_head)
 		f = &c->xl_ptr->xl_frag[0];
 		f->xl_addr = vtophys(mtod(m_new, caddr_t));
 		f->xl_len = total_len = m_new->m_len;
-		frag = 1;
 	}
 
+	if (sc->xl_type == XL_TYPE_905B) {
+		c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
+
+		if (m_head->m_pkthdr.csum_flags) {
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
+			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
+			if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
+		}
+	} else
+		c->xl_ptr->xl_status = total_len;
+
 	c->xl_mbuf = m_head;
-	c->xl_ptr->xl_frag[frag - 1].xl_len |=  XL_LAST_FRAG;
-	c->xl_ptr->xl_status = total_len;
+	f->xl_len |= XL_LAST_FRAG;
 	c->xl_ptr->xl_next = 0;
 
 	return(0);
@@ -2437,51 +2446,6 @@ xl_start(ifp)
 	return;
 }
 
-static int xl_encap_90xB(sc, c, m_head)
-	struct xl_softc		*sc;
-	struct xl_chain		*c;
-	struct mbuf		*m_head;
-{
-	int			frag = 0;
-	struct xl_frag		*f = NULL;
-	struct mbuf		*m;
-	struct xl_list		*d;
-
-	/*
- 	 * Start packing the mbufs in this chain into
-	 * the fragment pointers. Stop when we run out
- 	 * of fragments or hit the end of the mbuf chain.
-	 */
-	d = c->xl_ptr;
-	d->xl_status = 0;
-	d->xl_next = 0;
-
-	for (m = m_head, frag = 0; m != NULL; m = m->m_next) {
-		if (m->m_len != 0) {
-			if (frag == XL_MAXFRAGS)
-				break;
-			f = &d->xl_frag[frag];
-			f->xl_addr = vtophys(mtod(m, vm_offset_t));
-			f->xl_len = m->m_len;
-			frag++;
-		}
-	}
-
-	c->xl_mbuf = m_head;
-	c->xl_ptr->xl_frag[frag - 1].xl_len |= XL_LAST_FRAG;
-	c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
-
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
-		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
-		if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
-	}
-	return(0);
-}
-
 static void xl_start_90xB(ifp)
 	struct ifnet		*ifp;
 {
@@ -2512,7 +2476,7 @@ static void xl_start_90xB(ifp)
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
-		xl_encap_90xB(sc, cur_tx, m_head);
+		xl_encap(sc, cur_tx, m_head);
 
 		/* Chain it together. */
 		if (prev != NULL)
