@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.29 1997/07/06 07:19:12 peter Exp $
+#	$Id: rc.i386,v 1.30 1997/09/13 18:03:41 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -102,7 +102,7 @@ fi
 if [ "X${moused_type}" != X"NO" ] ; then
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
-	vidcontrol -m on
+	vidcontrol <${viddev} -m on
 fi
 echo '.'
 
