@@ -253,6 +253,7 @@ read_random_real(void *buf, int count)
 	static int cur = 0;
 	static int gate = 1;
 	static u_char genval[KEYSIZE];
+	size_t tomove;
 	int i;
 	int retval;
 
@@ -270,14 +271,14 @@ read_random_real(void *buf, int count)
 			random_state.counter[0]++;
 			yarrow_encrypt(&random_state.key, random_state.counter,
 				genval);
-			memcpy((char *)buf + i, genval,
-				sizeof(random_state.counter));
+			tomove = min(count - i, sizeof(random_state.counter));
+			memcpy((char *)buf + i, genval, tomove);
 			if (++random_state.outputblocks >=
 				random_state.gengateinterval) {
 				generator_gate();
 				random_state.outputblocks = 0;
 			}
-			retval += (int)sizeof(random_state.counter);
+			retval += (int)tomove;
 		}
 	}
 	else {
