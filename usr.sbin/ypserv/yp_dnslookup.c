@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.2 1996/05/01 02:37:46 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.2 1996/05/31 16:01:49 wpaul Exp $
  */
 
 /*
@@ -54,11 +54,8 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.2 1996/05/01 02:37:46 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.2 1996/05/31 16:01:49 wpaul Exp $";
 #endif
-
-extern struct hostent *_gethostbydnsname __P(( char * ));
-extern struct hostent *_gethostbydnsaddr __P(( const char *, int, int ));
 
 static char *parse(hp)
 	struct hostent *hp;
@@ -91,7 +88,7 @@ char *yp_dnsname(address)
 
 	if (strchr(address, '@'))
 		return (NULL);
-	if ((hp = (struct hostent *)_gethostbydnsname(address)) == NULL)
+	if ((hp = (struct hostent *)_gethostbydnsname(address, AF_INET)) == NULL)
 		return (NULL);
 
 	return(parse(hp));
