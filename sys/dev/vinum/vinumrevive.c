@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: revive.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: revive.c,v 1.3 1998/10/30 00:56:38 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -51,12 +51,13 @@ revive_block(int plexno)
     struct plex *plex = &PLEX[plexno];
     struct buf *bp;
     int error = EAGAIN;
-    int size;
+    int size;						    /* size of revive block, bytes */
     int s;						    /* priority level */
 
     if (plex->revive_blocksize == 0) {
 	if (plex->stripesize != 0)			    /* we're striped, don't revive more than */
-	    plex->revive_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, plex->stripesize); /* one block at a time */
+	    plex->revive_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
+		plex->stripesize << DEV_BSHIFT);
 	else
 	    plex->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
     }
