@@ -247,8 +247,13 @@ extern unsigned long get_time(void);
  * The outb(0, 0x80) is just for slowdown. It's bit unsafe since
  * this address could be used for something usefull.
  */
-#define OUTB(addr, data)	{outb(data, addr);outb(0, 0x80);}
-#define OUTW(addr, data)	{outw(data, addr);outb(0, 0x80);}
+#ifdef PC98
+#define OUTB(addr, data)	{outb(data, addr);outb(0x5f, 0);}
+#define OUTW(addr, data)	{outw(data, addr);outb(0x5f, 0);}
+#else /* IBM-PC */
+#define OUTB(addr, data)	{outb(data, addr);outb(0x80, 0);}
+#define OUTW(addr, data)	{outw(data, addr);outb(0x80, 0);}
+#endif /* PC98 */
 #else
 #define OUTB(addr, data)	outb(data, addr)
 #define OUTW(addr, data)	outw(data, addr)
