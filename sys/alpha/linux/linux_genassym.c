@@ -1,24 +1,11 @@
 /* $FreeBSD$ */
 
+#include <sys/assym.h>
 #include <sys/param.h>
 
 #include <i386/linux/linux.h>
 
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
-#define	OS(s, m)	((u_int)offsetof(struct s, m))
-
-int	main __P((void));
-int	printf __P((const char *, ...));
-
-int
-main()
-{
-	printf("#define\tLINUX_SIGF_HANDLER %u\n",
-	    OS(linux_sigframe, sf_handler));
-	printf("#define\tLINUX_SIGF_SC %u\n", OS(linux_sigframe, sf_sc));
-	printf("#define\tLINUX_SC_GS %u\n", OS(linux_sigcontext, sc_gs));
-	printf("#define\tLINUX_SC_EFLAGS %u\n",
-	    OS(linux_sigcontext, sc_eflags));
-
-	return (0);
-}
+ASSYM(LINUX_SIGF_HANDLER, offsetof(linux_sigframe, sf_handler));
+ASSYM(LINUX_SIGF_SC, offsetof(linux_sigframe, sf_sc));
+ASSYM(LINUX_SC_GS, offsetof(linux_sigcontext, sc_gs));
+ASSYM(LINUX_SC_EFLAGS, offsetof(linux_sigcontext, sc_eflags));

@@ -14,12 +14,10 @@ MAN8=	linux.8
 
 # CFLAGS+=	-DDEBUG
 EXPORT_SYMS=_linux_mod
-CLEANFILES= linux_assym.h linux_genassym linux_genassym.o
+CLEANFILES= linux_assym.h linux_genassym.o
 
-build-tools: linux_genassym
-
-linux_assym.h:	linux_genassym
-	./linux_genassym > linux_assym.h
+linux_assym.h:	linux_genassym.o
+	genassym -o ${.TARGET} ${.ALLSRC}
 
 linux_locore.o:	linux_locore.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE -DKERNEL ${CFLAGS} \
@@ -27,9 +25,6 @@ linux_locore.o:	linux_locore.s linux_assym.h
 
 linux_genassym.o:	linux_genassym.c linux.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
-
-linux_genassym:	linux_genassym.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
