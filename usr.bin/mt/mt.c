@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.17 1998/12/18 02:02:20 mjacob Exp $";
+	"$Id: mt.c,v 1.18 1998/12/18 18:16:35 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -118,6 +118,7 @@ struct commands {
 	{ "rdspos",     MTIOCRDSPOS,  0 },
 	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "errstat",	MTIOCERRSTAT, 0 },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
@@ -225,13 +226,43 @@ main(argc, argv)
 			mt_com.mt_count = 1;
 #if	defined(__FreeBSD__)
 		switch (comp->c_code) {
+		case MTIOCERRSTAT:
+		{
+			int i;
+			union mterrstat umn;
+			struct scsi_tape_errors *s = &umn.scsi_errstat;
+
+			if (ioctl(mtfd, comp->c_code, (caddr_t)&umn) < 0)
+				err(2, "%s", tape);
+			(void)printf("Last I/O Residual: %u\n", s->io_resid);
+			(void)printf("   Last I/O Sense:\n\n\t");
+			for (i = 0; i < sizeof (s->io_sense); i++) {
+				(void)printf(" %02X", s->io_sense[i]);
+				if (((i + 1) & 0xf) == 0) {
+					(void)printf("\n\t");
+				}
+			}
+			(void)printf("\n");
+			(void)printf("Last Control Residual: %u\n",
+			    s->ctl_resid);
+			(void)printf("   Last Control Sense:\n\n\t");
+			for (i = 0; i < sizeof (s->ctl_sense); i++) {
+				(void)printf(" %02X", s->ctl_sense[i]);
+				if (((i + 1) & 0xf) == 0) {
+					(void)printf("\n\t");
+				}
+			}
+			(void)printf("\n\n");
+			exit(0);
+			/* NOTREACHED */
+		}
 		case MTIOCRDHPOS:
 		case MTIOCRDSPOS:
 		{
 			u_int32_t block;
 			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
 				err(2, "%s", tape);
-			printf("%s: %s block location %u\n", tape,
+			(void)printf("%s: %s block location %u\n", tape,
 			    (comp->c_code == MTIOCRDHPOS)? "hardware" :
 			    "logical", block);
 			exit(0);
