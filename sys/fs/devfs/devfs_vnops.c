@@ -52,7 +52,6 @@
 #include <fs/devfs/devfs.h>
 
 static int	devfs_access __P((struct vop_access_args *ap));
-static int	devfs_badop __P((void));
 static int	devfs_getattr __P((struct vop_getattr_args *ap));
 static int	devfs_lookupx __P((struct vop_lookup_args *ap));
 static int	devfs_print __P((struct vop_print_args *ap));
@@ -671,15 +670,6 @@ devfs_symlink(ap)
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	return (0);
-}
-
-/*
- * DEVFS "should never get here" operation
- */
-static int
-devfs_badop()
-{
-	return (EIO);
 }
 
 static vop_t **devfs_vnodeop_p;
