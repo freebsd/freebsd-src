@@ -30,22 +30,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 1999
+.Dd September 3, 2004
 .Dt STE 4
 .Os
 .Sh NAME
 .Nm ste
-.Nd "Sundance Technologies ST201 fast ethernet device driver"
+.Nd "Sundance Technologies ST201 Fast Ethernet device driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device ste"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI ethernet adapters and embedded
-controllers based on the Sundance Technologies ST201 PCI fast
-ethernet controller chip.
-This includes both the D-Link DFE-550TX and the DFE-530TXS.
+driver provides support for PCI Ethernet adapters and embedded
+controllers based on the Sundance Technologies ST201 PCI Fast
+Ethernet controller chip.
 .Pp
 The Sundance ST201 uses bus master DMA and is designed to be a
 3Com Etherlink XL workalike.
@@ -78,7 +77,7 @@ or
 .Ar half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Ar mediaopt
 option can also be used to select either
@@ -101,6 +100,18 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Sundance Technologies ST201 based Fast Ethernet
+adapters and embedded controllers including:
+.Pp
+.Bl -bullet -compact
+.It
+D-Link DFE-530TXS
+.It
+D-Link DFE-550TX
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ste%d: couldn't map ports/memory"
