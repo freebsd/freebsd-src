@@ -515,8 +515,7 @@ config::expand_one(const char *&src, string &dst)
 	// $var -> replace with value
 	do {
 		buffer.append(src++, 1);
-	} while (*src && isalpha(*src) || isdigit(*src) || *src == '_' ||
-	    *src == '-');
+	} while (is_id_char(*src));
 	buffer.append("", 1);
 	varstr = get_variable(buffer.c_str());
 	dst.append(varstr);
