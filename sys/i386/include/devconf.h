@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysctl.h,v 1.17 1994/10/10 00:58:34 phk Exp $
+ *	$Id: devconf.h,v 1.1 1994/10/16 03:50:01 wollman Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -36,7 +36,7 @@
 #define PARENTNAMELEN	32
 
 enum machdep_devtype { MDDT_CPU, MDDT_ISA, MDDT_EISA, MDDT_PCI, MDDT_SCSI,
-	       MDDT_WDC };
+	       MDDT_DISK, NDEVTYPES };
 
 #define DEVTYPENAMES { \
 			       "cpu", \
@@ -44,7 +44,7 @@ enum machdep_devtype { MDDT_CPU, MDDT_ISA, MDDT_EISA, MDDT_PCI, MDDT_SCSI,
 			       "eisa", \
 			       "pci", \
 			       "scsi", \
-			       "wdc", \
+			       "disk", \
 			       0 \
 	       }
 
@@ -57,5 +57,28 @@ struct machdep_devconf {
 #define dc_parent dc_md.mddc_parent
 #define dc_devtype dc_md.mddc_devtype
 #define dc_flags dc_md.mddc_flags	
+
+#include <i386/isa/isa_device.h>
+#include <i386/pci/pcireg.h>
+#include <scsi/scsi_all.h>
+#include <scsi/scsiconf.h>
+
+#define ISA_EXTERNALLEN (sizeof(struct isa_device))
+#define EISA_EXTERNALLEN (sizeof(struct isa_device) + sizeof(int))
+#define PCI_EXTERNALLEN (sizeof(struct pci_device))
+#define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
+#define DISK_EXTERNALLEN (sizeof(int))
+
+#ifdef KERNEL			/* XXX move these */
+extern int isa_externalize(struct isa_device *, void *, size_t);
+extern int isa_internalize(struct isa_device *, void *, size_t);
+
+extern int eisa_externalize(struct isa_device *, int, void *, size_t);
+
+extern int pci_externalize(struct pci_device *, void *, size_t);
+
+extern int scsi_externalize(struct scsi_link *, void *, size_t);
+extern int scsi_internalize(struct scsi_link *, void *, size_t);
+#endif
 
 #endif /* _MACHINE_DEVCONF_H_ */
