@@ -66,7 +66,7 @@ TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 	TAILQ_HEAD_INITIALIZER(zombie_upcalls);
 
 static int thread_update_usr_ticks(struct thread *td, int user);
-static void thread_alloc_spare(struct thread *td, struct thread *spare);
+static void thread_alloc_spare(struct thread *td);
 
 /* move to proc.h */
 extern void kse_purge(struct proc *p, struct thread *td);
@@ -606,7 +606,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * Of course nor may it actually be needed.
 	 */
 	if (td->td_standin == NULL)
-		thread_alloc_spare(td, NULL);
+		thread_alloc_spare(td);
 
 	/*
 	 * Creating upcalls more than number of physical cpu does
@@ -974,13 +974,12 @@ thread_update_usr_ticks(struct thread *td, int user)
  * for thread_schedule_upcall().
  */
 void
-thread_alloc_spare(struct thread *td, struct thread *spare)
+thread_alloc_spare(struct thread *td)
 {
 
 	if (td->td_standin)
 		return;
-	if (spare == NULL)
-		spare = thread_alloc();
+	spare = thread_alloc();
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
@@ -1141,7 +1140,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 		td->td_mailbox = NULL;
 	} else {
 		if (td->td_standin == NULL)
-			thread_alloc_spare(td, NULL);
+			thread_alloc_spare(td);
 		flags = fuword32(&tmbx->tm_flags);
 		/*
 		 * On some architectures, TP register points to thread
@@ -1368,7 +1367,7 @@ out:
 		 * for when we re-enter the kernel.
 		 */
 		if (td->td_standin == NULL)
-			thread_alloc_spare(td, NULL);
+			thread_alloc_spare(td);
 	}
 
 	ku->ku_mflags = 0;
