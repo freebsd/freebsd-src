@@ -45,11 +45,13 @@
 .Op Fl fkvz
 .Op Ar directory Op Ar device ...
 .Sh DESCRIPTION
-.Nm Savecore
+The
+.Nm
+utility
 copies a core dump into
-.Fa directory ,
+.Ar directory ,
 or the current working directory if no
-.Fa directory
+.Ar directory
 argument is given,
 and enters a reboot message and information about the core dump into
 the system log.
@@ -71,13 +73,20 @@ Compress the core dump and kernel (see
 .Xr gzip 1 ) .
 .El
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 looks for dumps on each device specified by the
 .Ar device
 argument(s), or on each device in
 .Pa /etc/fstab
-marked as "dump" or "swap".
-.Nm Savecore
+marked as
+.Dq dump
+or
+.Dq swap .
+The
+.Nm
+utility
 checks the core dump in various ways to make sure that it is complete.
 If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
@@ -89,7 +98,9 @@ and it is incremented and stored back into the file each time
 .Nm
 successfully runs.
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 also checks the available disk space before attempting to make the copies.
 If there is insufficient disk space in the filesystem containing
 .Ar directory ,
@@ -106,7 +117,9 @@ so that future invocations of
 .Nm
 will ignore it.
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 is meant to be called near the end of the initialization file
 .Pa /etc/rc
 (see
