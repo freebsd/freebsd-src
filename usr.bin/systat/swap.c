@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id: swap.c,v 1.5 1997/07/06 04:37:22 bde Exp $";
+	"$Id: swap.c,v 1.6 1998/06/09 04:17:27 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <err.h>
 
 #include "systat.h"
 #include "extern.h"
@@ -75,7 +77,7 @@ struct nlist syms[] = {
 #define VM_NSWDEV	3
 	{ "_dmmax" },	/* maximum size of a swap block */
 #define VM_DMMAX	4
-	0
+	{ 0 }
 };
 
 static int nswap, nswdev, dmmax;
@@ -118,6 +120,7 @@ closeswap(w)
  * Kevin Lahey <kml@rokkaku.atl.ga.us>.
  */
 
+int
 initswap()
 {
 	int i;
@@ -228,7 +231,7 @@ labelswap()
 void
 showswap()
 {
-	int col, row, div, i, j, k, avail, npfree, used, xsize, xfree;
+	int col, div, i, j, k, avail, npfree, used, xsize, xfree;
 
 	div = blocksize / 512;
 	avail = npfree = 0;

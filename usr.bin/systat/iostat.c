@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iostat.c,v 1.6 1998/09/15 08:16:40 gibbs Exp $
  */
 /*
  * Copyright (c) 1980, 1992, 1993
@@ -73,8 +73,10 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #include <nlist.h>
 #include <paths.h>
 #include <devstat.h>
+#include <err.h>
 #include "systat.h"
 #include "extern.h"
+#include "devs.h"
 
 static struct nlist namelist[] = {
 #define X_CP_TIME	0
@@ -103,7 +105,6 @@ static int barlabels __P((int));
 static void histogram __P((long double, int, double));
 static int numlabels __P((int));
 static int devstats __P((int, int, int));
-static int stats __P((int, int, int));
 static void stat1 __P((int, int));
 
 WINDOW *

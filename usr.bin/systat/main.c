@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.8 1998/06/09 04:17:19 imp Exp $";
+	"$Id: main.c,v 1.9 1998/07/06 22:07:58 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@ static const char rcsid[] =
 #include <nlist.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "systat.h"
 #include "extern.h"
 
@@ -157,6 +159,8 @@ main(argc, argv)
 	crmode();
 	keyboard();
 	/*NOTREACHED*/
+
+	return EXIT_SUCCESS;
 }
 
 void
