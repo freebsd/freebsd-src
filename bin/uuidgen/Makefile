@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	uuidgen
-WARNS?=	4
+WARNS?=	6
 
 .include <bsd.prog.mk>
