@@ -28,6 +28,7 @@
 #include <sys/time.h>			/* for struct timespec */
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/vm.h>			/* for vm_page_t */
+#include <sys/mac.h>			/* for struct label */
 #include <machine/param.h>		/* for PAGE_SIZE */
 #endif
 
@@ -106,6 +107,7 @@ struct pipe {
 	struct	pipe *pipe_peer;	/* link with other direction */
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
+	struct	label *pipe_label;	/* pipe MAC label - shared */
 	struct	mtx *pipe_mtxp;		/* shared mutex between both pipes */
 };
 
