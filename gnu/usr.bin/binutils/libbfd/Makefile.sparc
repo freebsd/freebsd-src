@@ -1,0 +1,23 @@
+#
+# $FreeBSD$
+#
+SRCS+=		aout-sparcle.c	\
+		cf-sparclynx.c	\
+		coff-sparc.c	\
+		cpu-sparc.c	\
+		elf32-sparc.c	\
+		elf32-target.h	\
+		elf32.c		\
+		elflink.c	\
+		sparclinux.c	\
+		sparclynx.c	\
+		sparcnetbsd.c
+VECS+=		bfd_elf32_sparc_vec
+.if ${MACHINE_ARCH} == "sparc"
+CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_sparc_vec
+.endif
+CFLAGS+=	-DHAVE_elf32_sparc_vec
+CLEANFILES+=	elf32-target.h
+
+elf32-target.h:	elfxx-target.h
+	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
