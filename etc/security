@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.5 1993/12/15 06:42:01 rich Exp $
+#	$Id: security,v 1.6 1994/01/22 10:54:13 rgrimes Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 
@@ -24,7 +24,7 @@ set $MP
 while test $# -ge 1; do
 	mount=$1
 	shift
-	find $mount -xdev -perm -u+s -or -perm -g+s | sort
+	find $mount -xdev \( -perm -u+s -or -perm -g+s \) | sort
 done | xargs -n 20 ls -lgTd > $TMP
 
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
