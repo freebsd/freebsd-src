@@ -100,8 +100,8 @@ char *sockname = YP_SOCKNAME;
 static void terminate(sig)
 	int sig;
 {
-	svc_unregister(YPPASSWDPROG, YPPASSWDVERS);
-	svc_unregister(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS);
+	rpcb_unset(YPPASSWDPROG, YPPASSWDVERS, NULL);
+	rpcb_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, NULL);
 	unlink(sockname);
 	exit(0);
 }
@@ -156,13 +156,14 @@ main(argc, argv)
 	char *argv[];
 {
 	register SVCXPRT *transp = NULL;
-	int sock;
-	int proto = 0;
 	struct sockaddr_in saddr;
 	int asize = sizeof (saddr);
+	struct netconfig *nconf;
+	void *localhandle;
 	int ch;
 	char *mastername;
 	char myname[MAXHOSTNAMELEN + 2];
+
 	extern int debug;
 
 	debug = 1;
@@ -246,78 +247,59 @@ the %s domain -- aborting", yppasswd_domain);
 
 	if (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {
 		int ssize = sizeof (int);
-
 		if (saddr.sin_family != AF_INET)
 			exit(1);
 		if (getsockopt(0, SOL_SOCKET, SO_TYPE,
-				(char *)&_rpcfdtype, &ssize) == -1)
+		    (char *)&_rpcfdtype, &ssize) == -1)
 			exit(1);
-		sock = 0;
 		_rpcpmstart = 1;
-		proto = 0;
-		openlog("rpc.yppasswdd", LOG_PID, LOG_DAEMON);
-	} else {
-		if (!debug) {
-			if (daemon(0,0)) {
-				err(1,"cannot fork");
-			}
-		}
-		openlog("rpc.yppasswdd", LOG_PID, LOG_DAEMON);
-		sock = RPC_ANYSOCK;
-		(void) pmap_unset(YPPASSWDPROG, YPPASSWDVERS);
-		(void) pmap_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS);
-		unlink(sockname);
 	}
 
-	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_DGRAM)) {
-		transp = svcudp_create(sock);
-		if (transp == NULL) {
-			yp_error("cannot create udp service.");
-			exit(1);
-		}
-		if (!_rpcpmstart)
-			proto = IPPROTO_UDP;
-		if (!svc_register(transp, YPPASSWDPROG, YPPASSWDVERS, yppasswdprog_1, proto)) {
-			yp_error("unable to register (YPPASSWDPROG, YPPASSWDVERS, udp).");
-			exit(1);
+	if (!debug && _rpcpmstart == 0) {
+		if (daemon(0,0)) {
+			err(1,"cannot fork");
 		}
 	}
+	openlog("rpc.yppasswdd", LOG_PID, LOG_DAEMON);
 
-	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_STREAM)) {
-		transp = svctcp_create(sock, 0, 0);
-		if (transp == NULL) {
-			yp_error("cannot create tcp service.");
-			exit(1);
-		}
-		if (!_rpcpmstart)
-			proto = IPPROTO_TCP;
-		if (!svc_register(transp, YPPASSWDPROG, YPPASSWDVERS, yppasswdprog_1, proto)) {
-			yp_error("unable to register (YPPASSWDPROG, YPPASSWDVERS, tcp).");
-			exit(1);
-		}
+	rpcb_unset(YPPASSWDPROG, YPPASSWDVERS, NULL);
+	rpcb_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, NULL);
+
+	if (svc_create(yppasswdprog_1, YPPASSWDPROG, YPPASSWDVERS, "netpath") == 0) {
+		yp_error("cannot create yppasswd service.");
+		exit(1);
 	}
-
-	unlink(sockname);
-        if (svc_create(yppasswdprog_1, YPPASSWDPROG, YPPASSWDVERS,
-	    "netpath") == 0) {
-                (void) fprintf(stderr,
-                        "%s: unable to create service\n", argv[0]);
-                exit(1);
-        }
-        if (svc_create(master_yppasswdprog_1, MASTER_YPPASSWDPROG,
+	if (svc_create(master_yppasswdprog_1, MASTER_YPPASSWDPROG,
 	    MASTER_YPPASSWDVERS, "netpath") == 0) {
-                (void) fprintf(stderr,
-                        "%s: unable to create service\n", argv[0]);
-                exit(1);
-        }
+		yp_error("cannot create master_yppasswd service.");
+		exit(1);
+	}
+
+	nconf = NULL;
+	localhandle = setnetconfig();
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
+		if (nconf->nc_protofmly != NULL &&
+		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+	if (nconf == NULL) {
+		yp_error("getnetconfigent unix: %s", nc_sperror());
+		exit(1);
+	}
+	unlink(sockname);
+	transp = svcunix_create(RPC_ANYSOCK, 0, 0, sockname);
 	if (transp == NULL) {
 		yp_error("cannot create AF_LOCAL service.");
 		exit(1);
 	}
-	if (!svc_register(transp, MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, master_yppasswdprog_1, 0)) {
-		yp_error("unable to register (MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, unix).");
+	if (!svc_reg(transp, MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS,
+	    master_yppasswdprog_1, nconf)) {
+		yp_error("unable to register (MASTER_YPPASSWDPROG,
+		    MASTER_YPPASSWDVERS, unix).");
 		exit(1);
 	}
+	endnetconfig(localhandle);
+
 	/* Only root may connect() to the AF_UNIX link. */
 	if (chmod(sockname, 0))
 		err(1, "chmod of %s failed", sockname);
