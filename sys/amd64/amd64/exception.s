@@ -36,7 +36,7 @@
 #include "npx.h"
 
 #include <machine/asmacros.h>
-#include <machine/ipl.h>
+#include <sys/ipl.h>
 #include <machine/lock.h>
 #include <machine/mutex.h>
 #include <machine/psl.h>

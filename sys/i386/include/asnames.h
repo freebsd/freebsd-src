@@ -225,7 +225,6 @@
 #define _get_syscall_lock		get_syscall_lock
 #define	_Giant				Giant
 #define _idle				idle
-#define _ihandlers			ihandlers
 #define _imen				imen
 #define _imen_lock			imen_lock
 #define _in_vm86call			in_vm86call
@@ -309,6 +308,7 @@
 #define _svr4_szsigcode			svr4_szsigcode
 #define _swi_dispatcher			swi_dispatcher
 #define _swi_generic			swi_generic
+#define _swi_net			swi_net
 #define _swi_null			swi_null
 #define _swi_vm				swi_vm
 #define _syscall2			syscall2

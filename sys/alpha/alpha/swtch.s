@@ -114,8 +114,6 @@ LEAF(cpu_switch, 1)
 	mov	a0, s0				/* save old curproc */
 	mov	a1, s1				/* save old U-area */
 
-	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
-	call_pal PAL_OSF1_swpipl
 sw1:
 	br	pv, Lcs1
 Lcs1:	LDGP(pv)
@@ -197,9 +195,6 @@ Lcs7:
 	stl	t1, sched_lock+MTX_RECURSE		/* restore lock */
 	ldq	t1, GD_CURPROC(globalp)
 	stq	t1, sched_lock+MTX_LOCK
-	ldq	a0, U_PCB_CONTEXT+(8 * 8)(t0)		/* restore ipl */
-	and	a0, ALPHA_PSL_IPL_MASK, a0
-	call_pal PAL_OSF1_swpipl
 
 	ldiq	v0, 1				/* possible ret to savectx() */
 	RET
@@ -230,7 +225,6 @@ LEAF(switch_trampoline, 0)
  * exception_return: return from trap, exception, or syscall
  */
 
-IMPORT(ipending, 4)
 IMPORT(astpending, 4)
 
 LEAF(exception_return, 1)			/* XXX should be NESTED */
@@ -241,14 +235,6 @@ Ler1:	LDGP(pv)
 	and	s1, ALPHA_PSL_IPL_MASK, t0	/* look at the saved IPL */
 	bne	t0, Lrestoreregs		/* != 0: can't do AST or SIR */
 
-	/* see if we can do an SIR */
-	ldl	t1, ipending			/* SIR pending? */
-	beq	t1, Lchkast			/* no, try an AST*/
-
-	/* We've got a SIR. */
-	CALL(do_sir)				/* do the SIR; lowers IPL */
-
-Lchkast:
 	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
 	beq	t0, Lrestoreregs		/* no: just return */
 

@@ -32,100 +32,8 @@
 
 #include <machine/cpu.h> 	/* for pal inlines */
 
-/*
- * Software interrupt bit numbers
- */
-#define SWI_TTY		0
-#define SWI_NET		1
-#define SWI_CAMNET	2
-#define SWI_CAMBIO	3
-#define SWI_VM		4
-#define SWI_CLOCK	5
-#define SWI_TQ		6
 #define NSWI		32
-#define NHWI		0
-
-extern u_int32_t ipending;
-
-#define getcpl()	(alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)
-
-#define SPLDOWN(name, pri)			\
-						\
-static __inline int name(void)			\
-{						\
-    int s;					\
-    s = alpha_pal_swpipl(ALPHA_PSL_IPL_##pri);	\
-    return s;					\
-}
-
-SPLDOWN(splsoftclock, SOFT)
-SPLDOWN(splsoft, SOFT)
-
-#define SPLUP(name, pri)				\
-							\
-static __inline int name(void)				\
-{							\
-    int cpl = getcpl();					\
-    if (ALPHA_PSL_IPL_##pri > cpl) {			\
-	int s = alpha_pal_swpipl(ALPHA_PSL_IPL_##pri);	\
-	return s;					\
-    } else						\
-	return cpl;					\
-}
-
-SPLUP(splsoftcam, SOFT)
-SPLUP(splsoftnet, SOFT)
-SPLUP(splsoftvm, SOFT)
-SPLUP(splsofttq, SOFT)
-SPLUP(splnet, IO)
-SPLUP(splbio, IO)
-SPLUP(splcam, IO)
-SPLUP(splimp, IO)
-SPLUP(spltty, IO)
-SPLUP(splvm, IO)
-SPLUP(splclock, CLOCK)
-SPLUP(splstatclock, CLOCK)
-SPLUP(splhigh, HIGH)
-
-static __inline void
-spl0(void)
-{
-    if (ipending)
-	do_sir();		/* lowers ipl to SOFT */
-
-    alpha_pal_swpipl(ALPHA_PSL_IPL_0);
-}
-
-static __inline void
-splx(int s)
-{
-    if (s)
-	alpha_pal_swpipl(s);
-    else
-	spl0();
-}
-
-extern void setdelayed(void);
-extern void setsofttty(void);
-extern void setsoftnet(void);
-extern void setsoftcamnet(void);
-extern void setsoftcambio(void);
-extern void setsoftvm(void);
-extern void setsofttq(void);
-extern void setsoftclock(void);
-
-extern void schedsofttty(void);
-extern void schedsoftnet(void);
-extern void schedsoftcamnet(void);
-extern void schedsoftcambio(void);
-extern void schedsoftvm(void);
-extern void schedsofttq(void);
-extern void schedsoftclock(void);
-
-#if 0
-/* XXX bogus */
-extern		unsigned cpl;	/* current priority level mask */
-#endif
+#define HWHI		0
 
 /*
  * Interprocessor interrupts for SMP.
@@ -142,4 +50,4 @@ void smp_ipi_all_but_self(u_int64_t ipi);
 void smp_ipi_self(u_int64_t ipi);
 void smp_handle_ipi(struct trapframe *frame);
 
-#endif /* !_MACHINE_MD_VAR_H_ */
+#endif /* !_MACHINE_IPL_H_ */

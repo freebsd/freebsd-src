@@ -46,7 +46,7 @@
 #endif
 
 #include <machine/clock.h>
-#include <machine/ipl.h>
+#include <sys/ipl.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
