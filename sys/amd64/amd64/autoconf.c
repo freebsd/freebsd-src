@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.68 1997/05/11 18:05:36 tegge Exp $
+ *	$Id: autoconf.c,v 1.2 1997/07/08 23:40:04 smp Exp smp $
  */
 
 /*
@@ -61,9 +61,10 @@
 #include <machine/bootinfo.h>
 #include <machine/cons.h>
 #include <machine/md_var.h>
-#if defined(APIC_IO)
+#ifdef APIC_IO
 #include <machine/smp.h>
 #endif /* APIC_IO */
+
 #include <i386/isa/icu.h> /* For interrupts */
 
 #include "isa.h"
@@ -190,13 +191,13 @@ configure(dummy)
 	configure_start();
 
 	/* Allow all routines to decide for themselves if they want intrs */
-#if defined(APIC_IO)
-	configure_local_apic();
-#endif /* APIC_IO */
+#ifdef APIC_IO
+	bsp_apic_configure();
 	enable_intr();
-#if !defined(APIC_IO)
+#else
+	enable_intr();
 	INTREN(IRQ_SLAVE);
-#endif /* !APIC_IO */
+#endif /* APIC_IO */
 
 #if NEISA > 0
 	eisa_configure();
