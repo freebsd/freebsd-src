@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.5 1996/12/17 14:15:35 davidn Exp $
+ *	$Id: pw_user.c,v 1.6 1996/12/19 15:22:45 davidn Exp $
  */
 
 #include <unistd.h>
@@ -829,8 +829,8 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		 * We give this information back to the user
 		 */
 		if (getarg(args, 'h') == NULL && getarg(args, 'N') == NULL) {
-			if (isatty(0))
-				printf("Password is: ");
+			if (isatty(1))
+				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
 			fflush(stdout);
 		}
