@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.22 1997/11/20 16:53:23 bde Exp $
+ *	$Id: db_input.c,v 1.23 1997/12/05 05:36:58 dyson Exp $
  */
 
 /*
@@ -157,9 +157,6 @@ db_inputchar(c)
 	    case CTRL('['):
 		escstate = 1;
 		break;
-#if __i386__ && __FreeBSD__
-	    case 591:		/* syscons's idea of left arrow key */
-#endif
 	    case CTRL('b'):
 		/* back up one character */
 		if (db_lc > db_lbuf_start) {
@@ -167,9 +164,6 @@ db_inputchar(c)
 		    db_lc--;
 		}
 		break;
-#if __i386__ && __FreeBSD__
-	    case 593:		/* syscons's idea of right arrow key */
-#endif
 	    case CTRL('f'):
 		/* forward one character */
 		if (db_lc < db_le) {
@@ -227,9 +221,6 @@ db_inputchar(c)
 		    db_putnchars(BACKUP, db_le - db_lc);
 		}
 		break;
-#if __i386__ && __FreeBSD__
-	    case 588:		/* syscons's idea of up arrow key */
-#endif
 	    case CTRL('p'):
 		/* Make previous history line the active one. */
 		if (db_lhistcur >= 0) {
@@ -239,9 +230,6 @@ db_inputchar(c)
 		    goto hist_redraw;
 		}
 		break;
-#if __i386__ && __FreeBSD__
-	    case 596:		/* syscons's idea of down arrow key */
-#endif
 	    case CTRL('n'):
 		/* Make next history line the active one. */
 		if (db_lhistcur < db_lhistidx - 1) {
