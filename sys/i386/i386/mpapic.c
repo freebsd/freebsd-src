@@ -27,7 +27,7 @@
 
 #include "opt_smp.h"
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 
 #include <machine/smptests.h>	/** TEST_TEST1 */
