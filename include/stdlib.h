@@ -37,9 +37,10 @@
 #define	_STDLIB_H_
 
 #include <machine/ansi.h>
-#include <machine/types.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#include <machine/types.h>
+
 #ifdef	_BSD_RUNE_T_
 typedef	_BSD_RUNE_T_	rune_t;
 #undef	_BSD_RUNE_T_
@@ -133,8 +134,8 @@ void	*alloca __P((size_t));		/* built-in for gcc */
 					/* getcap(3) functions */
 u_int32_t
 	 arc4random __P((void));
-void	 arc4random_stir __P((void));
 void	 arc4random_addrandom __P((unsigned char *dat, int datlen));
+void	 arc4random_stir __P((void));
 char	*getbsize __P((int *, long *));
 char	*cgetcap __P((char *, char *, int));
 int	 cgetclose __P((void));
