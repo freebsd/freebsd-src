@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.43 1996/09/01 17:54:25 adam Exp $
+#	$Id: Makefile,v 1.44 1996/09/20 13:42:26 bde Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -32,8 +32,8 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
-LDIRS=	net netatalk netinet netipx netkey nfs pccard sys vm \
-		# netccitt netiso netns
+LDIRS=	net netns netatalk netinet netipx netkey nfs pccard sys vm \
+		# netccitt netiso
 
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
