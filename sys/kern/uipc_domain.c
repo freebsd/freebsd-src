@@ -170,7 +170,7 @@ net_add_domain(void *data)
 	    ("attempt to net_add_domain(%s) before domaininit()",
 	    dp->dom_name));
 #ifndef INVARIANTS
-	if (domain_init_status == 0)
+	if (domain_init_status < 1)
 		printf("WARNING: attempt to net_add_domain(%s) before "
 		    "domaininit()\n", dp->dom_name);
 #endif
@@ -179,7 +179,7 @@ net_add_domain(void *data)
 	    ("attempt to net_add_domain(%s) after domainfinalize()",
 	    dp->dom_name));
 #else
-	if (domain_init_status != 0)
+	if (domain_init_status >= 2)
 		printf("WARNING: attempt to net_add_domain(%s) after "
 		    "domainfinalize()\n", dp->dom_name);
 #endif
