@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.17 1995/12/15 00:53:51 bde Exp $
+ * $Id: aic6360.c,v 1.18 1996/01/04 21:11:21 wollman Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -646,7 +646,7 @@ static void	aic_done	__P((struct acb *));
 static void	aic_dataout	__P((struct aic_data *aic));
 static void	aic_datain	__P((struct aic_data *aic));
 static int32	aic_scsi_cmd	__P((struct scsi_xfer *));
-static int	aic_poll	__P((int, struct acb *));
+static int	aic_poll	__P((struct aic_data *aic, struct acb *));
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
 static	void	aic6360_reset	__P((struct aic_data *aic));
@@ -828,6 +828,7 @@ aicattach(dev)
 	 */
 	aic->sc_link.adapter_unit = unit;
 	aic->sc_link.adapter_targ = AIC_SCSI_HOSTID;
+	aic->sc_link.adapter_softc = aic;
 	aic->sc_link.adapter = &aic_switch;
 	aic->sc_link.device = &aic_dev;
 
@@ -994,12 +995,12 @@ aic_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
 	struct scsi_link *sc = xs->sc_link;
-	int	unit = sc->adapter_unit;
-	struct aic_data *aic = aicdata[unit];
+	struct aic_data *aic;
 	struct acb 	*acb;
 	int s = 0;
 	int flags;
 
+	aic = (struct aic_data *)sc->adapter_softc;
 	SC_DEBUG(sc, SDEV_DB2, ("aic_scsi_cmd\n"));
 	AIC_TRACE(("aic_scsi_cmd\n"));
 	AIC_MISC(("[0x%x, %d]->%d ", (int)xs->cmd->opcode, xs->cmdlen,
@@ -1054,7 +1055,7 @@ aic_scsi_cmd(xs)
 	}
 
 	/* Not allowed to use interrupts, use polling instead */
-	return aic_poll(unit, acb);
+	return aic_poll(aic, acb);
 }
 
 /*
@@ -1084,11 +1085,10 @@ aic_adapter_info(unit)
  * Used when interrupt driven I/O isn't allowed, e.g. during boot.
  */
 static int
-aic_poll(unit, acb)
-	int	unit;
+aic_poll(aic, acb)
+	struct aic_data *aic;
 	struct acb *acb;
 {
-	struct aic_data *aic = aicdata[unit];
 	register u_short iobase = aic->iobase;
 	struct scsi_xfer *xs = acb->xs;
 	int count = xs->timeout * 10;
@@ -1096,7 +1096,7 @@ aic_poll(unit, acb)
 	AIC_TRACE(("aic_poll\n"));
 	while (count) {
 		if (inb(DMASTAT) & INTSTAT)
-			aicintr(unit);
+			aicintr(xs->sc_link->adapter_unit);
 		if (xs->flags & ITSDONE)
 			break;
 		DELAY(100);
@@ -1213,8 +1213,7 @@ aic_done(acb)
 {
 	struct scsi_xfer *xs = acb->xs;
 	struct scsi_link *sc = xs->sc_link;
-	int unit = sc->adapter_unit;
-	struct aic_data *aic = aicdata[unit];
+	struct aic_data *aic = (struct aic_data *)sc->adapter_softc;
 
 	AIC_TRACE(("aic_done "));
 
@@ -1306,7 +1305,8 @@ aic_done(acb)
 		else if (acb->chain.tqe_next) {
 			TAILQ_REMOVE(&aic->ready_list, acb, chain);
 		} else {
-			printf("aic%d: can't find matching acb\n", unit);
+			printf("aic%d: can't find matching acb\n", 
+				xs->sc_link->adapter_unit);
 			Debugger("aic6360");
 			fatal_if_no_DDB();
 		}
