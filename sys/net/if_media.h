@@ -1,4 +1,5 @@
 /*	$NetBSD: if_media.h,v 1.3 1997/03/26 01:19:27 thorpej Exp $	*/
+/*	$Id$ */
 
 /*
  * Copyright (c) 1997
@@ -49,7 +50,7 @@
  * to implement this interface.
  */
 
-#ifdef _KERNEL
+#ifdef KERNEL
 
 #include <sys/queue.h>
 
@@ -100,7 +101,7 @@ void	ifmedia_set __P((struct ifmedia *ifm, int mword));
 int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd));
 
-#endif /*_KERNEL */
+#endif /*KERNEL */
 
 /*
  * if_media Options word:
