@@ -7,7 +7,7 @@ TMACGRP?=	${BINGRP}
 TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
-LOCALEDIR?=     ${TMACDIR}/locale
+LOCALEDIR?=     ${MDOCDIR}/locale
 
 MAN7=           groff_ms.7 me.7 msafer.7
 MLINKS=         groff_ms.7 ms.7 me.7 groff_me.7 msafer.7 groff_msafer.7
