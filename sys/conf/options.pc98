@@ -5,6 +5,7 @@ DISABLE_PSE
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
 PMAP_SHPGPERPROC	opt_pmap.h
+ENABLE_PG_G		opt_pmap.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPC_DEBUG		opt_ppc.h
 SHOW_BUSYBUFS

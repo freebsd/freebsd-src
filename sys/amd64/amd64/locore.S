@@ -381,12 +381,6 @@ begin:
 	movl	IdlePTD,%esi
 	movl	%esi,(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE+PCB_CR3)(%eax)
 
-	testl	$CPUID_PGE, R(cpu_feature)
-	jz	1f
-	movl	%cr4, %eax
-	orl	$CR4_PGE, %eax
-	movl	%eax, %cr4
-1:
 	pushl	physfree			/* value of first for init386(first) */
 	call	init386				/* wire 386 chip for unix operation */
 
@@ -809,14 +803,7 @@ no_kernend:
 	jne	map_read_write
 #endif
 	xorl	%edx,%edx
-
-#if !defined(SMP)
-	testl	$CPUID_PGE, R(cpu_feature)
-	jz	2f
-	orl	$PG_G,%edx
-#endif
-	
-2:	movl	$R(etext),%ecx
+	movl	$R(etext),%ecx
 	addl	$PAGE_MASK,%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys(%edx)
@@ -827,13 +814,7 @@ no_kernend:
 	andl	$~PAGE_MASK, %eax
 map_read_write:
 	movl	$PG_RW,%edx
-#if !defined(SMP)
-	testl	$CPUID_PGE, R(cpu_feature)
-	jz	1f
-	orl	$PG_G,%edx
-#endif
-	
-1:	movl	R(KERNend),%ecx
+	movl	R(KERNend),%ecx
 	subl	%eax,%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys(%edx)
