@@ -1304,7 +1304,7 @@ device an
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300
-device xe0 at isa?
+device xe
 
 device oltr0 at isa?
 
