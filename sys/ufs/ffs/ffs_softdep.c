@@ -4122,6 +4122,8 @@ top:
 		return (0);
 	}
 	bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+	/* While syncing snapshots, we must allow recursive lookups */
+	bp->b_lock.lk_flags |= LK_CANRECURSE;
 loop:
 	/*
 	 * As we hold the buffer locked, none of its dependencies
@@ -4133,36 +4135,34 @@ loop:
 		case D_ALLOCDIRECT:
 			adp = WK_ALLOCDIRECT(wk);
 			if (adp->ad_state & DEPCOMPLETE)
-				break;
+				continue;
 			nbp = adp->ad_buf;
 			if (getdirtybuf(&nbp, waitfor) == 0)
-				break;
+				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
 			} else if ((error = BUF_WRITE(nbp)) != 0) {
-				bawrite(bp);
-				return (error);
+				break;
 			}
 			ACQUIRE_LOCK(&lk);
-			break;
+			continue;
 
 		case D_ALLOCINDIR:
 			aip = WK_ALLOCINDIR(wk);
 			if (aip->ai_state & DEPCOMPLETE)
-				break;
+				continue;
 			nbp = aip->ai_buf;
 			if (getdirtybuf(&nbp, waitfor) == 0)
-				break;
+				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
 			} else if ((error = BUF_WRITE(nbp)) != 0) {
-				bawrite(bp);
-				return (error);
+				break;
 			}
 			ACQUIRE_LOCK(&lk);
-			break;
+			continue;
 
 		case D_INDIRDEP:
 		restart:
@@ -4175,22 +4175,20 @@ loop:
 					goto restart;
 				FREE_LOCK(&lk);
 				if ((error = BUF_WRITE(nbp)) != 0) {
-					bawrite(bp);
-					return (error);
+					break;
 				}
 				ACQUIRE_LOCK(&lk);
 				goto restart;
 			}
-			break;
+			continue;
 
 		case D_INODEDEP:
 			if ((error = flush_inodedep_deps(WK_INODEDEP(wk)->id_fs,
 			    WK_INODEDEP(wk)->id_ino)) != 0) {
 				FREE_LOCK(&lk);
-				bawrite(bp);
-				return (error);
+				break;
 			}
-			break;
+			continue;
 
 		case D_PAGEDEP:
 			/*
@@ -4208,11 +4206,10 @@ loop:
 				    flush_pagedep_deps(vp, pagedep->pd_mnt,
 						&pagedep->pd_diraddhd[i]))) {
 					FREE_LOCK(&lk);
-					bawrite(bp);
-					return (error);
+					break;
 				}
 			}
-			break;
+			continue;
 
 		case D_MKDIR:
 			/*
@@ -4224,16 +4221,15 @@ loop:
 			 */
 			nbp = WK_MKDIR(wk)->md_buf;
 			if (getdirtybuf(&nbp, waitfor) == 0)
-				break;
+				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
 			} else if ((error = BUF_WRITE(nbp)) != 0) {
-				bawrite(bp);
-				return (error);
+				break;
 			}
 			ACQUIRE_LOCK(&lk);
-			break;
+			continue;
 
 		case D_BMSAFEMAP:
 			/*
@@ -4245,16 +4241,15 @@ loop:
 			 */
 			nbp = WK_BMSAFEMAP(wk)->sm_buf;
 			if (getdirtybuf(&nbp, waitfor) == 0)
-				break;
+				continue;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
 			} else if ((error = BUF_WRITE(nbp)) != 0) {
-				bawrite(bp);
-				return (error);
+				break;
 			}
 			ACQUIRE_LOCK(&lk);
-			break;
+			continue;
 
 		default:
 			FREE_LOCK(&lk);
@@ -4262,10 +4257,17 @@ loop:
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
 		}
+		/* We reach here only in error and unlocked */
+		if (error == 0)
+			panic("softdep_sync_metadata: zero error");
+		bp->b_lock.lk_flags &= ~LK_CANRECURSE;
+		bawrite(bp);
+		return (error);
 	}
 	(void) getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), MNT_WAIT);
 	nbp = TAILQ_NEXT(bp, b_vnbufs);
 	FREE_LOCK(&lk);
+	bp->b_lock.lk_flags &= ~LK_CANRECURSE;
 	bawrite(bp);
 	ACQUIRE_LOCK(&lk);
 	if (nbp != NULL) {
