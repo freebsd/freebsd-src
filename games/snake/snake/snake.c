@@ -585,7 +585,7 @@ struct point *sp, *np;
 	}
 	for(w=i=0; i<8; i++)
 		w+= wt[i];
-	vp = (( rand() >> 6 ) & 01777) %w;
+	vp = random() % w;
 	for(i=0; i<8; i++)
 		if (vp <wt[i])
 			break;
@@ -787,7 +787,7 @@ pushsnake()
 		{
 			surround(&you);
 			i = (cashvalue) % 10;
-			bonus = ((rand()>>8) & 0377)% 10;
+			bonus = random() % 10;
 			ll();
 			pr("%d\n", bonus);
 			delay(30);
