@@ -30,6 +30,7 @@ SUBDIR=	3dfx \
 	if_disc \
 	if_ef \
 	if_gif \
+	if_gre \
 	if_faith \
 	if_ppp \
 	if_sl \
