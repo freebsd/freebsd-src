@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.1 1995/03/04 20:50:46 dufault Exp $
+ *      $Id: pt.c,v 1.2 1995/04/14 15:10:28 dufault Exp $
  */
 
 /*
@@ -57,7 +57,7 @@ struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
 };
 
-void ptstart(u_int32 unit);
+void ptstart(u_int32 unit, u_int32 flags);
 void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
 int	pt_sense(struct scsi_xfer *scsi_xfer);
 
@@ -100,8 +100,9 @@ struct scsi_device pt_switch =
  * ptstart() is called at splbio
  */
 void 
-ptstart(unit)
+ptstart(unit, flags)
 	u_int32	unit;
+	u_int32 flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&pt_switch, unit);
 	struct scsi_data *pt = sc_link->sd;
@@ -116,7 +117,6 @@ ptstart(unit)
 		u_char	control;
 	} cmd;
 
-	u_int32 flags;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("ptstart "));
 	/*
@@ -142,10 +142,10 @@ ptstart(unit)
 		bzero(&cmd, sizeof(cmd));
 		if ((bp->b_flags & B_READ) == B_WRITE) {
 			cmd.op_code = PROCESSOR_SEND;
-			flags = SCSI_DATA_OUT;
+			flags |= SCSI_DATA_OUT;
 		} else {
 			cmd.op_code = PROCESSOR_RECEIVE;
-			flags = SCSI_DATA_IN;
+			flags |= SCSI_DATA_IN;
 		}
 
 		scsi_uto3b(bp->b_bcount, cmd.len);
@@ -160,7 +160,7 @@ ptstart(unit)
 			0,
 			10000,
 			bp,
-			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
+			flags) == SUCCESSFULLY_QUEUED) {
 		} else {
 			printf("pt%ld: oops not queued\n", unit);
 			bp->b_flags |= B_ERROR;
@@ -208,7 +208,7 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * not doing anything, otherwise just wait for completion
 	 * (All a bit silly if we're only allowing 1 open but..)
 	 */
-	ptstart(unit);
+	ptstart(unit, 0);
 
 	splx(opri);
 	return;

@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.25 1995/03/28 07:57:23 bde Exp $
+ *      $Id: scsi_base.c,v 1.27 1995/04/14 15:10:31 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -106,7 +106,7 @@ free_xs(xs, sc_link, flags)
 	} else {
 		if (sc_link->device->start) {
 			SC_DEBUG(sc_link, SDEV_DB2, ("calling private start()\n"));
-			(*(sc_link->device->start)) (sc_link->dev_unit);
+			(*(sc_link->device->start)) (sc_link->dev_unit, flags);
 		}
 	}
 }
@@ -470,7 +470,6 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 		}
 	}
 
-	if (bp && !(flags & SCSI_USER)) flags |= SCSI_NOSLEEP;
 	SC_DEBUG(sc_link, SDEV_DB2, ("scsi_cmd\n"));
 
 	xs = get_xs(sc_link, flags);
