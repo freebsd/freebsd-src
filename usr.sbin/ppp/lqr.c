@@ -139,7 +139,8 @@ SendLqrData(struct lcp *lcp)
   bp = mbuf_Alloc(sizeof(struct lqrdata) + extra, MB_LQROUT);
   bp->cnt -= extra;
   bp->offset += extra;
-  link_PushPacket(lcp->fsm.link, bp, lcp->fsm.bundle, PRI_LINK, PROTO_LQR);
+  link_PushPacket(lcp->fsm.link, bp, lcp->fsm.bundle,
+                  LINK_QUEUES(lcp->fsm.link) - 1, PROTO_LQR);
 }
 
 static void

@@ -411,7 +411,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     if (r && (bundle->phase == PHASE_NETWORK ||
               bundle->phys_type.all & PHYS_AUTO)) {
       /* enough surplus so that we can tell if we're getting swamped */
-      if (queued < 20) {
+      if (queued < 30) {
         /* Not enough - select() for more */
         if (bundle->choked.timer.state == TIMER_RUNNING)
           timer_Stop(&bundle->choked.timer);	/* Not needed any more */
@@ -788,6 +788,8 @@ bundle_Destroy(struct bundle *bundle)
   dl = bundle->links;
   while (dl)
     dl = datalink_Destroy(dl);
+
+  ipcp_Destroy(&bundle->ncp.ipcp);
 
   close(bundle->dev.fd);
   bundle_UnlockTun(bundle);

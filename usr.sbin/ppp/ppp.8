@@ -3626,9 +3626,9 @@ has read a certain number of packets from the local network for transmission,
 but cannot send the data due to link failure (the peer is busy etc.).
 .Nm
 will not read packets indefinitely.  Instead, it reads up to
-.Em 20
+.Em 30
 packets (or
-.Em 20 No +
+.Em 30 No +
 .Em nlinks No *
 .Em 2
 packets in multi-link mode), then stops reading the network interface
@@ -4499,6 +4499,32 @@ is specified,
 .Nm
 will never idle out before the link has been up for at least that number
 of seconds.
+.It set urgent Xo
+.Oo Op +|- Ns
+.Ar port
+.Oc No ...
+.Xc
+This command controls the ports that
+.Nm
+prioritizes when transmitting data.  The default priority ports are ports
+21 (ftp control), 22 (ssh), 23 (telnet), 513 (login), 514 (shell),
+543 (klogin) and 544 (kshell).  See
+.Xr services 5
+for details.
+.Pp
+If no
+.Ar port Ns No s
+are given, the priority port list is cleared.  If the first
+.Ar port
+argument is prefixed with a plus
+.Pq Dq \&+
+or a minus
+.Pq Dq \&- ,
+the current list is adjusted, otherwise the list is reassigned.
+.Ar port Ns No s
+prefixed with a plus or not prefixed at all are added to the list and
+.Ar port Ns No s
+prefixed with a minus are removed from the list.
 .It set vj slotcomp on|off
 This command tells
 .Nm
