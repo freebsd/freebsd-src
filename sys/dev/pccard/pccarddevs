@@ -453,6 +453,7 @@ product RATOC REX_R280_9530	0x0001	RATOC REX-R280/REX-9530
 
 /* Racore Computer Products */
 product RACORE ETHERNET		0x2216 Racore PC Card Ethernet
+product RACORE FASTENET		0x2328 Racore PC Card Fast Ethernet
 
 /* Raylink/WebGear */
 product RAYTHEON WLAN		0x0000 WLAN Adapter
