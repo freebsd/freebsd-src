@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.82 1995/12/14 19:38:40 bde Exp $
+ *      $Id: sd.c,v 1.83 1996/01/05 20:12:49 wollman Exp $
  */
 
 #include "opt_bounce.h"
@@ -193,6 +193,7 @@ sdattach(struct scsi_link *sc_link)
 	u_int32 unit;
 	struct disk_parms *dp;
 #ifdef DEVFS
+	int	mynor;
 	char	name[32];
 #endif
 
@@ -236,14 +237,14 @@ sdattach(struct scsi_link *sc_link)
 	sd_registerdev(unit);
 
 #ifdef DEVFS
-/* Fix minor numbers */
-	sprintf(name,"rsd%d",unit);
-	sd->c_devfs_token = devfs_add_devsw( "/", name, &sd_cdevsw, 0,
-					DV_CHR, 0, 0, 0600);
-	sprintf(name,"sd%d",unit);
-	sd->b_devfs_token = devfs_add_devsw( "/", name, &sd_bdevsw, 0,
-					DV_BLK, 0, 0, 0600);
+	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+	sprintf(name, "rsd%d", unit);
+	sd->b_devfs_token = devfs_add_devsw("/", name + 1, &sd_bdevsw, mynor,
+					    DV_BLK, 0, 0, 0640);
+	sd->c_devfs_token = devfs_add_devsw("/", name, &sd_cdevsw, mynor,
+					    DV_CHR, 0, 0, 0640);
 #endif
+
 	return 0;
 }
 
@@ -352,7 +353,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("sd", dev, fmt, &sd->dk_slices, &label, sdstrategy1,
-			 (ds_setgeom_t *)NULL);
+			 (ds_setgeom_t *)NULL, &sd_bdevsw, &sd_cdevsw);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));

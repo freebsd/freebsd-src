@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.77 1995/12/10 19:44:45 bde Exp $
+ *	$Id: fd.c,v 1.78 1996/01/27 02:33:35 bde Exp $
  *
  */
 
@@ -247,8 +247,8 @@ static struct fd_data {
 	int	options;	/* user configurable options, see ioctl_fd.h */
 	int	dkunit;		/* disk stats unit number */
 #ifdef	DEVFS
-	void	*rfd_devfs_token;
-	void	*fd_devfs_token;
+	void	*bdev;
+	void	*cdev;
 #endif
 } fd_data[NFD];
 
@@ -568,6 +568,7 @@ fdattach(struct isa_device *dev)
 	struct isa_device *fdup;
 	int ic_type = 0;
 #ifdef	DEVFS
+	int	mynor;
 	char	name[64];
 #endif	/* DEVFS */
 
@@ -765,12 +766,14 @@ fdattach(struct isa_device *dev)
 		}
 		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
-		fd->rfd_devfs_token = devfs_add_devsw(
-				"/",name,&fd_cdevsw, fdu * 8,
-				DV_CHR,0,0,0644);
-		fd->fd_devfs_token = devfs_add_devsw(
-				"/",name+1, &fd_bdevsw, fdu * 8,
-				DV_BLK,0,0,0644);
+		mynor = 8 * fdu;
+		fd->bdev = devfs_add_devsw("/", name + 1, &fd_bdevsw, mynor,
+					   DV_BLK, 0, 0, 0640);
+		fd->cdev = devfs_add_devsw("/", name, &fd_cdevsw, mynor,
+					   DV_CHR, 0, 0, 0640);
+		sprintf(name, "rfd%d", fdu);
+		dev_link("/", name + 1, fd->bdev);
+		dev_link("/", name, fd->cdev);
 #endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
