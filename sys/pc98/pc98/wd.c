@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.70 1999/01/16 11:43:12 kato Exp $
+ *	$Id: wd.c,v 1.71 1999/01/17 12:24:48 kato Exp $
  */
 
 /* TODO:
@@ -1220,10 +1220,11 @@ wdintr(void *unitnum)
 	outb(0x432,(du->dk_unit)%2);
 #endif
 	/* finish off DMA */
-	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
+	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
 		/* XXX SMP boxes sometimes generate an early intr.  Why? */
-		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
-		    != 0)
+		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & 
+		    WDDS_INTERRUPT) == 0)
+			return;
 		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
 	}
 
@@ -1739,6 +1740,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 		if (old_epson_note)
 			epson_outb(wdc + wd_features, count);
 		else
+			outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
 			outb(wdc + wd_features, count);
 			if ( count == WDFEA_SETXFER )
 				outb(wdc + wd_seccnt, sector);
@@ -2541,9 +2543,8 @@ wdreset(struct disk *du)
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
-	if ((du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) && du->dk_dmacookie)
+	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 		wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
-
   	(void)wdwait(du, 0, TIMEOUT);
 #ifdef PC98
 	if (old_epson_note) {
