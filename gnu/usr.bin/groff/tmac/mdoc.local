@@ -47,7 +47,6 @@
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
 .ds doc-str-Lb-libpam      PAM Library (libpam, \-lpam)
 .ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
-.ds doc-str-Lb-libskey     S/Key Password Control Table Access Library (libskey, \-lskey)
 .ds doc-str-Lb-libusbhid   USB HID access routines library (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
