@@ -90,13 +90,12 @@
 #endif
 
 /*
- * Per-interrupt data.  We consider the soft interrupt to be a special
- * case, so these arrays have NHWI + NSWI entries, not ICU_LEN.
+ * Per-interrupt data.
  */
-u_long	*intr_countp[NHWI + NSWI];	/* pointers to interrupt counters */
-driver_intr_t *intr_handler[NHWI + NSWI]; /* first level interrupt handler */
-struct ithd	*ithds[NHWI + NSWI];		/* real interrupt handler */
-void	*intr_unit[NHWI + NSWI];
+u_long	*intr_countp[ICU_LEN];		/* pointers to interrupt counters */
+driver_intr_t *intr_handler[ICU_LEN];	/* first level interrupt handler */
+struct ithd *ithds[ICU_LEN];		/* real interrupt handler */
+void	*intr_unit[ICU_LEN];
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),

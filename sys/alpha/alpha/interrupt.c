@@ -45,7 +45,11 @@
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/interrupt.h>
+#include <sys/ipl.h>
+#include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/unistd.h>
 
 #include <machine/reg.h>
 #include <machine/frame.h>
@@ -77,6 +81,8 @@ void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
 
 static u_int schedclk2;
+static void ithd_loop(void *);
+static driver_intr_t alpha_clock_interrupt;
 
 void
 interrupt(a0, a1, a2, framep)
@@ -115,18 +121,7 @@ interrupt(a0, a1, a2, framep)
 		}
 			
 		mtx_enter(&Giant, MTX_DEF);
-		cnt.v_intr++;
-#ifdef EVCNT_COUNTERS
-		clock_intr_evcnt.ev_count++;
-#else
-		intrcnt[INTRCNT_CLOCK]++;
-#endif
-		if (platform.clockintr){
-			(*platform.clockintr)(framep);
-			/* divide hz (1024) by 8 to get stathz (128) */
-			if((++schedclk2 & 0x7) == 0)
-				statclock((struct clockframe *)framep);
-		}
+		alpha_clock_interrupt(framep);
 		mtx_exit(&Giant, MTX_DEF);
 		break;
 
@@ -331,61 +326,299 @@ LIST_HEAD(alpha_intr_list, alpha_intr);
 struct alpha_intr {
     LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
     int			vector;	/* vector to match */
-    driver_intr_t	*intr;	/* handler function */
-    void		*arg;	/* argument to handler */
+    struct ithd		*ithd;  /* interrupt thread */
     volatile long	*cntp;  /* interrupt counter */
+    void		(*disable)(int); /* disable source */
+    void		(*enable)(int);	/* enable source */
 };
 
 static struct alpha_intr_list alpha_intr_hash[31];
 
-int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
-		     void **cookiep, volatile long *cntp)
+int
+alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
+		 void *arg, int pri, void **cookiep, volatile long *cntp,
+		 void (*disable)(int), void (*enable)(int))
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
-	int s;
+	struct intrec *head, *idesc;
+	struct ithd *ithd;
+	struct proc *p;
+	int s, errcode;
 
-	i = malloc(sizeof(struct alpha_intr), M_DEVBUF, M_NOWAIT);
-	if (!i)
+	/* First, check for an existing hash table entry for this vector. */
+	for (i = LIST_FIRST(&alpha_intr_hash[h]); i && i->vector != vector;
+	    i = LIST_NEXT(i, list))
+		;	/* nothing */
+	if (i == NULL) {
+		/* None was found, so create an entry. */
+		i = malloc(sizeof(struct alpha_intr), M_DEVBUF, M_NOWAIT);
+		if (i == NULL)
+			return ENOMEM;
+		i->vector = vector;
+		i->ithd = NULL;
+		i->cntp = cntp;
+		i->disable = disable;
+		i->enable = enable;
+
+		s = splhigh();
+		LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
+		splx(s);
+	}
+
+	/* Second, create the interrupt thread if needed. */
+	ithd = i->ithd;
+	if (ithd == NULL || ithd->it_ih == NULL) {
+		/* first handler for this vector */
+		if (ithd == NULL) {
+			ithd = malloc(sizeof(struct ithd), M_DEVBUF, M_WAITOK);
+			if (ithd == NULL)
+				return ENOMEM;
+
+			bzero(ithd, sizeof(struct ithd));
+			ithd->irq = vector;
+			ithd->it_md = i;
+			i->ithd = ithd;
+		}
+
+		/* Create a kernel thread if needed. */
+		if (ithd->it_proc == NULL) {
+			errcode = kthread_create(ithd_loop, NULL, &p,
+			    RFSTOPPED | RFHIGHPID, "intr: %s", name);
+			if (errcode)
+				panic(
+			    "alpha_setup_intr: Can't create interrupt thread");
+			p->p_rtprio.type = RTP_PRIO_ITHREAD;
+			p->p_stat = SWAIT;	/* we're idle */
+
+			/* Put in linkages. */
+			ithd->it_proc = p;
+			p->p_ithd = ithd;
+		} else
+			snprintf(ithd->it_proc->p_comm, MAXCOMLEN, "intr%03x: %s",
+			    vector, name);
+		p->p_rtprio.prio = pri;
+	} else {
+		p = ithd->it_proc;
+		if (strlen(p->p_comm) + strlen(name) < MAXCOMLEN) {
+			strcat(p->p_comm, " ");
+			strcat(p->p_comm, name);
+		} else if (strlen(p->p_comm) == MAXCOMLEN)
+			p->p_comm[MAXCOMLEN - 1] = '+';
+		else
+			strcat(p->p_comm, "+");
+	}
+
+	/* Third, setup the interrupt descriptor for this handler. */
+	idesc = malloc(sizeof (struct intrec), M_DEVBUF, M_WAITOK);
+	if (idesc == NULL)
 		return ENOMEM;
-	i->vector = vector;
-	i->intr = intr;
-	i->arg = arg;
-	i->cntp = cntp;
+	bzero(idesc, sizeof(struct intrec));
 
-	s = splhigh();
-	LIST_INSERT_HEAD(&alpha_intr_hash[h], i, list);
-	splx(s);
+	idesc->handler = handler;
+	idesc->argument = arg;
+	idesc->name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
+	if (idesc->name == NULL) {
+		free(idesc, M_DEVBUF);
+		return(NULL);
+	}
+	strcpy(idesc->name, name);
 
-	*cookiep = i;
+	/* Fourth, add our handler to the end of the ithread's handler list. */
+	head = ithd->it_ih;
+	if (head) {
+		while (head->next != NULL)
+			head = head->next;
+		head->next = idesc;
+	} else
+		ithd->it_ih = idesc;
+
+	*cookiep = idesc;
 	return 0;
-
 }
 
-int alpha_teardown_intr(void *cookie)
+int
+alpha_teardown_intr(void *cookie)
 {
-	struct alpha_intr *i = cookie;
+	struct intrec *idesc = cookie;
+	struct ithd *ithd;
+	struct intrec *head;
+#if 0
+	struct alpha_intr *i;
 	int s;
+#endif
 
+	/* First, detach ourself from our interrupt thread. */
+	ithd = idesc->ithd;
+	KASSERT(ithd != NULL, ("idesc without an interrupt thread"));
+
+	head = ithd->it_ih;
+	if (head == idesc)
+		ithd->it_ih = idesc->next;
+	else {
+		while (head != NULL && head->next != idesc)
+			head = head->next;
+		if (head == NULL)
+			return (-1);	/* couldn't find ourself */
+		head->next = idesc->next;
+	}
+	free(idesc, M_DEVBUF);
+
+	/* XXX - if the ithd has no handlers left, we should remove it */
+
+#if 0
 	s = splhigh();
 	LIST_REMOVE(i, list);
 	splx(s);
 
 	free(i, M_DEVBUF);
+#endif
 	return 0;
 }
 
 void
 alpha_dispatch_intr(void *frame, unsigned long vector)
 {
-	struct alpha_intr *i;
-	volatile long *cntp;
-
 	int h = HASHVEC(vector);
-	for (i = LIST_FIRST(&alpha_intr_hash[h]); i; i = LIST_NEXT(i, list))
-		if (i->vector == vector) {
-			if ((cntp = i->cntp) != NULL)
-				(*cntp) ++;
-			i->intr(i->arg);
+	struct alpha_intr *i;
+	struct ithd *ithd;			/* our interrupt thread */
+
+	/*
+	 * Walk the hash bucket for this vector looking for this vector's
+	 * interrupt thread.
+	 */
+	for (i = LIST_FIRST(&alpha_intr_hash[h]); i && i->vector != vector;
+	    i = LIST_NEXT(i, list))
+		;	/* nothing */
+	if (i == NULL)
+		return;			/* no ithread for this vector */
+
+	ithd = i->ithd;
+	KASSERT(ithd != NULL, ("interrupt vector without a thread"));
+
+	/*
+	 * As an optomization until we have kthread_cancel(), if an ithread
+	 * has no handlers, don't schedule it to run.
+	 */
+	if (ithd->it_ih == NULL)
+		return;
+
+	atomic_add_long(i->cntp, 1);
+
+	CTR3(KTR_INTR, "sched_ithd pid %d(%s) need=%d",
+		ithd->it_proc->p_pid, ithd->it_proc->p_comm, ithd->it_need);
+
+	/*
+	 * Set it_need so that if the thread is already running but close
+	 * to done, it will do another go-round.  Then get the sched lock
+	 * and see if the thread is on whichkqs yet.  If not, put it on
+	 * there.  In any case, kick everyone so that if the new thread
+	 * is higher priority than their current thread, it gets run now.
+	 */
+	ithd->it_need = 1;
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (ithd->it_proc->p_stat == SWAIT) {
+		/* not on the run queue and not running */
+		CTR1(KTR_INTR, "alpha_dispatch_intr: setrunqueue %d",
+		    ithd->it_proc->p_pid);
+
+		alpha_mb();	/* XXX - ??? */
+		ithd->it_proc->p_stat = SRUN;
+		setrunqueue(ithd->it_proc);
+		aston();
+	} else {
+		CTR3(KTR_INTR, "alpha_dispatch_intr: %d: it_need %d, state %d",
+		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
+	}
+	if (i->disable)
+		i->disable(i->vector);
+	mtx_exit(&sched_lock, MTX_SPIN);
+
+	need_resched();
+}
+ 
+void
+ithd_loop(void *dummy)
+{
+	struct ithd *ithd;		/* our thread context */
+	struct intrec *ih;		/* list of handlers */
+	struct alpha_intr *i;		/* interrupt source */
+
+	ithd = curproc->p_ithd;
+	i = ithd->it_md;
+
+	/*
+	 * As long as we have interrupts outstanding, go through the
+	 * list of handlers, giving each one a go at it.
+	 */
+	for (;;) {
+		CTR3(KTR_INTR, "ithd_loop pid %d(%s) need=%d",
+		    ithd->it_proc->p_pid, ithd->it_proc->p_comm, ithd->it_need);
+                while (ithd->it_need) {
+                        /*
+                         * Service interrupts.  If another interrupt
+                         * arrives while we are running, they will set
+                         * it_need to denote that we should make
+                         * another pass.
+                         */
+                        ithd->it_need = 0;
+
+                        alpha_wmb(); /* push out "it_need=0" */
+
+			for (ih = ithd->it_ih; ih != NULL; ih = ih->next) {
+				CTR5(KTR_INTR,
+				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
+				    ithd->it_proc->p_pid, (void *)ih,
+				    (void *)ih->handler, ih->argument,
+				    ih->flags);
+
+				if ((ih->flags & INTR_MPSAFE) == 0)
+					mtx_enter(&Giant, MTX_DEF);
+				ih->handler(ih->argument);
+				if ((ih->flags & INTR_MPSAFE) == 0)
+					mtx_exit(&Giant, MTX_DEF);
+			}
+
+			/*
+			 * Reenable the source to give it a chance to
+			 * set it_need again. 
+			 */
+			if (i->enable)
+				i->enable(i->vector);
 		}
+
+		/*
+		 * Processed all our interrupts.  Now get the sched
+		 * lock.  This may take a while and it_need may get
+		 * set again, so we have to check it again.
+		 */
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (!ithd->it_need) {
+			ithd->it_proc->p_stat = SWAIT; /* we're idle */
+			CTR1(KTR_INTR, "ithd_loop pid %d: done",
+			    ithd->it_proc->p_pid);
+			mi_switch();
+			CTR1(KTR_INTR, "ithd_loop pid %d: resumed",
+			    ithd->it_proc->p_pid);
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+	}
+}
+
+static void
+alpha_clock_interrupt(void *framep)
+{
+
+	cnt.v_intr++;
+#ifdef EVCNT_COUNTERS
+	clock_intr_evcnt.ev_count++;
+#else
+	intrcnt[INTRCNT_CLOCK]++;
+#endif
+	if (platform.clockintr){
+		(*platform.clockintr)((struct trapframe *)framep);
+		/* divide hz (1024) by 8 to get stathz (128) */
+		if((++schedclk2 & 0x7) == 0)
+			statclock((struct clockframe *)framep);
+	}
 }

@@ -37,7 +37,9 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <alpha/pci/t2reg.h>
 #include <alpha/pci/t2var.h>
@@ -326,6 +328,36 @@ static const char irq_to_mask[40] = {
 	 0,  1,  2,  3,  4,  5,  6,  7		/* PCI 0-7 XXX */
 };
 
+static void
+t2_disable_intr(int vector)
+{
+	int mask = (vector - 0x900) >> 4;
+
+	t2_shadow_mask |= (1UL << mask);
+
+	if (mask <= 7)
+		outb(SLAVE0_ICU, t2_shadow_mask);
+	else if (mask <= 15)
+		outb(SLAVE1_ICU, t2_shadow_mask >> 8);
+	else 
+		outb(SLAVE2_ICU, t2_shadow_mask >> 16);
+}
+
+static void
+t2_enable_intr(int vector)
+{
+	int mask = (vector - 0x900) >> 4;
+
+	t2_shadow_mask &= ~(1UL << mask);
+
+	if (mask <= 7)
+		outb(SLAVE0_ICU, t2_shadow_mask);
+	else if (mask <= 15)
+		outb(SLAVE1_ICU, t2_shadow_mask >> 8);
+	else 
+		outb(SLAVE2_ICU, t2_shadow_mask >> 16);
+}
+
 static int
 t2_setup_intr(device_t dev, device_t child,
 	       struct resource *irq, int flags,
@@ -340,9 +372,10 @@ t2_setup_intr(device_t dev, device_t child,
 	if (error)
 		return error;
 
-	error = alpha_setup_intr(vector,
-			intr, arg, cookiep,
-			&intrcnt[irq->r_start]);
+	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
+			vector, intr, arg, ithread_priority(flags), cookiep,
+			&intrcnt[irq->r_start],
+			t2_disable_intr, t2_enable_intr);
 	if (error)
 		return error;
 

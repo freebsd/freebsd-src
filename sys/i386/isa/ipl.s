@@ -54,19 +54,19 @@
 /* current priority (all off) */
 
 	.globl	_tty_imask
-_tty_imask:	.long	SWI_TTY_MASK
+_tty_imask:	.long	0
 	.globl	_bio_imask
-_bio_imask:	.long	SWI_CLOCK_MASK | SWI_CAMBIO_MASK
+_bio_imask:	.long	0
 	.globl	_net_imask
-_net_imask:	.long	SWI_NET_MASK | SWI_CAMNET_MASK
+_net_imask:	.long	0
 	.globl	_cam_imask
-_cam_imask:	.long	SWI_CAMBIO_MASK | SWI_CAMNET_MASK
+_cam_imask:	.long	0
 	.globl	_soft_imask
-_soft_imask:	.long	SWI_MASK
+_soft_imask:	.long	0
 	.globl	_softnet_imask
-_softnet_imask:	.long	SWI_NET_MASK
+_softnet_imask:	.long	0
 	.globl	_softtty_imask
-_softtty_imask:	.long	SWI_TTY_MASK
+_softtty_imask:	.long	0
 
 /* pending software interrupts */
 	.globl	_spending
@@ -173,7 +173,9 @@ doreti_ast:
 	jmp	doreti_next
 
 	ALIGN_TEXT
-swi_net:
+	.globl	_swi_net
+	.type	_swi_net,@function
+_swi_net:
 	MCOUNT
 	bsfl	_netisr,%eax
 	je	swi_net_done

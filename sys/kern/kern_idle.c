@@ -16,6 +16,7 @@
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/ipl.h>
 #include <sys/kthread.h>
 #include <sys/queue.h>
 #include <sys/eventhandler.h>
@@ -27,7 +28,6 @@
 #endif
 
 #include <machine/cpu.h>
-#include <machine/ipl.h>
 #include <machine/mutex.h>
 #include <machine/smp.h>
 
@@ -103,6 +103,5 @@ idle_proc(void *dummy)
 		mtx_enter(&sched_lock, MTX_SPIN);
 		mi_switch();
 		mtx_exit(&sched_lock, MTX_SPIN);
-		spl0();
 	}
 }

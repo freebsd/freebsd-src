@@ -214,8 +214,6 @@ int	icu_setup __P((int intr, driver_intr_t *func, void *arg,
 		       int flags));
 int	icu_unset __P((int intr, driver_intr_t *handler));
 
-intrmask_t splq __P((intrmask_t mask));
-
 /*
  * WARNING: These are internal functions and not to be used by device drivers!
  * They are subject to change without notice. 

@@ -29,8 +29,10 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
-int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
-		     void **cookiep, volatile long *cntp);
+int alpha_setup_intr(const char *name, int vector,
+		     driver_intr_t *handle, void *arg, int pri,
+		     void **cookiep, volatile long *cntp, 
+		     void (*disable)(int), void (*enable)(int));
 int alpha_teardown_intr(void *cookie);
 void alpha_dispatch_intr(void *frame, unsigned long vector);
 

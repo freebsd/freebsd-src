@@ -87,14 +87,8 @@
 #include <machine/mutex.h>
 #include <sys/ktr.h>
 #include <machine/cpu.h>
-#if 0
-#include <ddb/ddb.h>
-#endif
 
-u_long softintrcnt [NSWI];
 static u_int straycount[NHWI];
-
-SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr, NULL)
 
 #define	MAX_STRAY_LOG	5
 
@@ -115,8 +109,7 @@ sched_ithd(void *cookie)
 	 * argument for counting hardware interrupts when they're
 	 * processed too.
 	 */
-	if (irq < NHWI)			/* real interrupt, */
-		atomic_add_long(intr_countp[irq], 1); /* one more for this IRQ */
+	atomic_add_long(intr_countp[irq], 1); /* one more for this IRQ */
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
 	/*
@@ -124,47 +117,19 @@ sched_ithd(void *cookie)
 	 * this IRQ, log it as a stray interrupt.
 	 */
 	if (ir == NULL || ir->it_proc == NULL) {
-		if (irq < NHWI) {
-			if (straycount[irq] < MAX_STRAY_LOG) {
-				printf("stray irq %d\n", irq);
-				if (++straycount[irq] == MAX_STRAY_LOG)
-					printf("got %d stray irq %d's: "
-					  "not logging anymore\n",
-					  MAX_STRAY_LOG, irq);
-			}
-			return;
+		if (straycount[irq] < MAX_STRAY_LOG) {
+			printf("stray irq %d\n", irq);
+			if (++straycount[irq] == MAX_STRAY_LOG)
+				printf(
+			    "got %d stray irq %d's: not logging anymore\n",
+				    MAX_STRAY_LOG, irq);
 		}
-		panic("sched_ithd: ithds[%d] == NULL", irq);
+		return;
 	}
 
 	CTR3(KTR_INTR, "sched_ithd pid %d(%s) need=%d",
 		ir->it_proc->p_pid, ir->it_proc->p_comm, ir->it_need);
 
-#if 0
-	/*
-	 * If we are in the debugger, we can't use interrupt threads to
-	 * process interrupts since the threads are scheduled.  Instead,
-	 * call the interrupt handlers directly.  This should be able to
-	 * go away once we have light-weight interrupt handlers.
-	 */
-	if (db_active) {
-		struct intrec	*ih;	/* and our interrupt handler chain */
-#if 0
-		membar_unlock(); /* push out "it_need=0" */
-#endif
-		for (ih = ir->it_ih; ih != NULL; ih = ih->next) {
-			if ((ih->flags & INTR_MPSAFE) == 0)
-				mtx_enter(&Giant, MTX_DEF);
-			ih->handler(ih->argument);
-			if ((ih->flags & INTR_MPSAFE) == 0)
-				mtx_exit(&Giant, MTX_DEF);
-		}
-
-		INTREN (1 << ir->irq); /* reset the mask bit */
-		return;
-	}
-#endif
-		
 	/*
 	 * Set it_need so that if the thread is already running but close
 	 * to done, it will do another go-round.  Then get the sched lock
@@ -183,18 +148,13 @@ sched_ithd(void *cookie)
 		aston();
 	}
 	else {
-if (irq < NHWI && (irq & 7) != 0)
 		CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
 			ir->it_proc->p_pid,
 		        ir->it_need,
 		        ir->it_proc->p_stat );
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
-#if 0	
-	aston();			/* ??? check priorities first? */
-#else
 	need_resched();
-#endif
 }
 
 /*
@@ -262,116 +222,6 @@ ithd_loop(void *dummy)
 			mi_switch();
 			CTR1(KTR_INTR, "ithd_loop pid %d: resumed",
 				me->it_proc->p_pid);
-		}
-		mtx_exit(&sched_lock, MTX_SPIN);
-	}
-}
-
-/*
- * Start soft interrupt thread.
- */
-void
-start_softintr(void *dummy)
-{
-	int error;
-	struct proc *p;
-	struct ithd *softintr;		/* descriptor for the "IRQ" */
-	struct intrec *idesc;		/* descriptor for this handler */
-	char *name = "sintr";		/* name for idesc */
-	int i;
-
-	if (ithds[SOFTINTR]) {		/* we already have a thread */
-		printf("start_softintr: already running");
-		return;
-	}
-	/* first handler for this irq. */
-	softintr = malloc(sizeof (struct ithd), M_DEVBUF, M_WAITOK);
-	if (softintr == NULL)
-		panic ("Can't create soft interrupt thread");
-	bzero(softintr, sizeof(struct ithd));
-	softintr->irq = SOFTINTR;
-	ithds[SOFTINTR] = softintr;
-	error = kthread_create(intr_soft, NULL, &p,
-		RFSTOPPED | RFHIGHPID, "softinterrupt");
-	if (error)
-		panic("start_softintr: kthread_create error %d\n", error);
-
-	p->p_rtprio.type = RTP_PRIO_ITHREAD;
-	p->p_rtprio.prio = PI_SOFT;	/* soft interrupt */
-	p->p_stat = SWAIT;		/* we're idle */
-	p->p_flag |= P_NOLOAD;
-
-	/* Put in linkages. */
-	softintr->it_proc = p;
-	p->p_ithd = softintr;		/* reverse link */
-
-	idesc = malloc(sizeof (struct intrec), M_DEVBUF, M_WAITOK);
-	if (idesc == NULL)
-		panic ("Can't create soft interrupt thread");
-	bzero(idesc, sizeof (struct intrec));
-
-	idesc->ithd = softintr;
-	idesc->name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
-	if (idesc->name == NULL)
-		panic ("Can't create soft interrupt thread");
-	strcpy(idesc->name, name);
-	for (i = NHWI; i < NHWI + NSWI; i++)
-		intr_countp[i] = &softintrcnt [i - NHWI];
-}
-
-/*
- * Software interrupt process code.
- */
-void
-intr_soft(void *dummy)
-{
-	int i;
-	struct ithd *me;		/* our thread context */
-
-	me = curproc->p_ithd;		/* point to myself */
-
-	/* Main loop */
-	for (;;) {
-#if 0
-		CTR3(KTR_INTR, "intr_soft pid %d(%s) need=%d",
-		    me->it_proc->p_pid, me->it_proc->p_comm,
-		     me->it_need);
-#endif
-
-		/*
-		 * Service interrupts.  If another interrupt arrives
-		 * while we are running, they will set it_need to
-		 * denote that we should make another pass.
-		 */
-		me->it_need = 0;
-		while ((i = ffs(spending))) {
-			i--;
-			atomic_add_long(intr_countp[i], 1);
-			spending &= ~ (1 << i);
-			mtx_enter(&Giant, MTX_DEF);
-			if (ihandlers[i] == swi_generic)
-				swi_dispatcher(i);
-			else
-				(ihandlers[i])();
-			mtx_exit(&Giant, MTX_DEF);
-		}
-		/*
-		 * Processed all our interrupts.  Now get the sched
-		 * lock.  This may take a while and it_need may get
-		 * set again, so we have to check it again.
-		 */
-		mtx_enter(&sched_lock, MTX_SPIN);
-		if (!me->it_need) {
-#if 0
-			CTR1(KTR_INTR, "intr_soft pid %d: done",
-			    me->it_proc->p_pid);
-#endif
-			me->it_proc->p_stat = SWAIT; /* we're idle */
-			mi_switch();
-#if 0
-			CTR1(KTR_INTR, "intr_soft pid %d: resumed",
-			    me->it_proc->p_pid);
-#endif
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 	}

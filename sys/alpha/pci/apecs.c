@@ -62,7 +62,9 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
@@ -334,6 +336,20 @@ apecs_release_resource(device_t bus, device_t child, int type, int rid,
 		return pci_release_resource(bus, child, type, rid, r);
 }
 
+static void
+apecs_disable_intr(int vector)
+{
+	int irq = (vector - 0x900) >> 4;
+	platform.pci_intr_disable(irq);
+}
+
+static void
+apecs_enable_intr(int vector)
+{
+	int irq = (vector - 0x900) >> 4;
+	platform.pci_intr_enable(irq);
+}
+
 static int
 apecs_setup_intr(device_t dev, device_t child,
 	       struct resource *irq, int flags,
@@ -353,9 +369,11 @@ apecs_setup_intr(device_t dev, device_t child,
 	if (error)
 		return error;
 
-	error = alpha_setup_intr(0x900 + (irq->r_start << 4),
-			intr, arg, cookiep,
-			&intrcnt[INTRCNT_EB64PLUS_IRQ + irq->r_start]);
+	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
+			0x900 + (irq->r_start << 4), intr, arg,
+			ithread_priority(flags), cookiep,
+			&intrcnt[INTRCNT_EB64PLUS_IRQ + irq->r_start],
+			apecs_disable_intr, apecs_enable_intr);
 	if (error)
 		return error;
 

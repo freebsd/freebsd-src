@@ -66,7 +66,9 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <machine/swiz.h>
 #include <machine/intr.h>
@@ -377,7 +379,7 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
        driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
-	int slot, ionode, hose, error, vector, intpin;
+	int slot, ionode, hose, error, vector, intpin, pri;
 	
 	error = rman_activate_resource(irq);
 	if (error)
@@ -389,8 +391,9 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	hose = sc->bushose & 0x3;
 
 	vector = DWLPX_MVEC(ionode, hose, slot);
-	error = alpha_setup_intr(vector, intr, arg, cookiep,
-	    &intrcnt[INTRCNT_KN8AE_IRQ]);
+	pri = ithread_priority(flags);
+	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
+	    vector, intr, arg, pri, cookiep, &intrcnt[INTRCNT_KN8AE_IRQ], NULL, NULL);
 	if (error)
 		return error;
 	dwlpx_enadis_intr(vector, intpin, 1);

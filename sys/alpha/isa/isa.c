@@ -33,7 +33,9 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
@@ -315,9 +317,12 @@ isa_setup_intr(device_t dev, device_t child,
 	ii->arg = arg;
 	ii->irq = irq->r_start;
 
-	error = alpha_setup_intr(0x800 + (irq->r_start << 4),
-			 isa_handle_intr, ii, &ii->ih,
-			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start]);
+	error = alpha_setup_intr(
+			 device_get_nameunit(child ? child : dev),
+			 0x800 + (irq->r_start << 4), isa_handle_intr, ii,
+			 ithread_priority(flags), &ii->ih,
+			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start],
+			 NULL, NULL);
 	if (error) {
 		free(ii, M_DEVBUF);
 		return error;

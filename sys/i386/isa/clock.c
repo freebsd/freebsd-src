@@ -130,9 +130,7 @@ static void setup_8254_mixed_mode __P((void));
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
-volatile u_int	idelayed;
 int	statclock_disable;
-u_int	stat_imask = SWI_LOW_MASK;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
 #endif
@@ -143,9 +141,6 @@ int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
-#if 0
-static	u_int	clk_imask = HWI_MASK | SWI_MASK;
-#endif
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
 static	u_int32_t i8254_lastcount;
@@ -1005,7 +1000,6 @@ cpu_initclocks()
 		 * flag which would normally cause the RTC to generate
 		 * interrupts.
 		 */
-		stat_imask = HWI_MASK | SWI_MASK;
 		rtc_statusb = RTCSB_24HR;
 	} else {
 	        /* Setting stathz to nonzero early helps avoid races. */
