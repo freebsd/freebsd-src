@@ -37,7 +37,7 @@
  */
 
 #ifdef VINUMDEBUG
-#define MAX_IOCTL_REPLY 4096
+#define MAX_IOCTL_REPLY 1024
 #else
 #define MAX_IOCTL_REPLY 256
 #endif
@@ -124,12 +124,12 @@ struct vinum_ioctl_msg {
 #define VINUM_MALLOCINFO	_IOWR(L, 80, struct mc)	    /* get specific malloc information [i] */
 #define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
-#define VINUM_REMOVE 		_IOWR(L, 83, struct vinum_ioctl_msg) /* remove an object */
-#define VINUM_READPOL 		_IOWR(L, 84, struct vinum_ioctl_msg) /* set read policy */
+#define VINUM_REMOVE 		_IOWR(L, 83, struct _ioctl_reply) /* remove an object */
+#define VINUM_READPOL 		_IOWR(L, 84, struct _ioctl_reply) /* set read policy */
 #define VINUM_SETSTATE_FORCE	_IOC(IOC_IN | IOC_OUT, L, 85, MAX_IOCTL_REPLY) /* diddle object state */
-#define VINUM_RESETSTATS	_IOWR(L, 86, struct vinum_ioctl_msg) /* reset object stats */
-#define VINUM_ATTACH		_IOWR(L, 87, struct vinum_ioctl_msg) /* attach an object */
-#define VINUM_DETACH		_IOWR(L, 88, struct vinum_ioctl_msg) /* remove an object */
+#define VINUM_RESETSTATS	_IOWR(L, 86, struct _ioctl_reply) /* reset object stats */
+#define VINUM_ATTACH		_IOWR(L, 87, struct _ioctl_reply) /* attach an object */
+#define VINUM_DETACH		_IOWR(L, 88, struct _ioctl_reply) /* remove an object */
 
 struct vinum_rename_msg {
     int index;
@@ -138,8 +138,8 @@ struct vinum_rename_msg {
     char newname[MAXNAME];				    /* new name to give to object */
 };
 
-#define VINUM_RENAME		_IOWR(L, 89, struct vinum_ioctl_msg) /* rename an object */
-#define VINUM_REPLACE		_IOWR(L, 90, struct vinum_ioctl_msg) /* replace an object */
+#define VINUM_RENAME		_IOWR(L, 89, struct vinum_rename_msg) /* rename an object */
+#define VINUM_REPLACE		_IOWR(L, 90, struct vinum_rename_msg) /* replace an object */
 
 #ifdef VINUMDEBUG
 #define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */
@@ -149,3 +149,5 @@ struct vinum_rename_msg {
 #define VINUM_FINDDAEMON	_IOC(0, L, 93, 0)	    /* check for presence of Vinum daemon */
 #define VINUM_SETDAEMON		_IOW(L, 94, int)	    /* set daemon flags */
 #define VINUM_GETDAEMON		_IOR(L, 95, int)	    /* get daemon flags */
+#define VINUM_CHECKPARITY	_IOWR(L, 96, struct _ioctl_reply) /* check RAID-5 parity */
+#define VINUM_REBUILDPARITY	_IOWR(L, 97, struct _ioctl_reply) /* rebuild RAID-5 parity */
