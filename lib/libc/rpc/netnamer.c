@@ -104,7 +104,6 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
 			return (0);
 		}
 		*gidp = (gid_t) atol(p);
-		gidlen = 0;
 		for (gidlen = 0; gidlen < NGROUPS; gidlen++) {
 			p = strsep(&res, "\n,");
 			if (p == NULL)
