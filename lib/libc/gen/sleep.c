@@ -48,6 +48,7 @@ sleep(seconds)
 	if (seconds != 0) {
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
+		time_remaining = time_to_sleep;
 		(void)nanosleep(&time_to_sleep, &time_remaining);
 		seconds = time_remaining.tv_sec;
 		if (time_remaining.tv_nsec > 0)
