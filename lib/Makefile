@@ -19,6 +19,10 @@ SUBDIR+=        libc libcompat libcom_err libcurses libedit \
 SUBDIR+= libcrypt
 .else
 SUBDIR+= ../secure/lib/libcrypt
+.if defined(RELEASEDIR)
+# releases do need both libraries
+SUBDIR+= libcrypt
+.endif
 .endif
 
 .if !exists(../secure) || defined(NOSECURE)
