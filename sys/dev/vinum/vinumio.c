@@ -536,6 +536,7 @@ format_config(char *config, int len)
 		volume_state(vol->state));
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
 		snprintf(s,
+		    configend - s,
 		    " readpol prefer %s",
 		    vinum_conf.plex[vol->preferred_plex].name);
 	    while (*s)
