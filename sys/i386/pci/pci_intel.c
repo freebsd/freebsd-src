@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_intel.c,v 1.1 94/09/05 22:38:38 wolf Exp $
+**  $Id: pci_intel.c,v 1.1 1994/09/06 22:39:11 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -40,7 +40,10 @@
 **
 **-------------------------------------------------------------------------
 **
-**  $Log:	pci_intel.c,v $
+**  $Log: pci_intel.c,v $
+ * Revision 1.1  1994/09/06  22:39:11  se
+ * Initial revision
+ *
  * Revision 1.1  94/09/05  22:38:38  wolf
  * Initial revision
  * 
@@ -289,7 +292,7 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
 
 int	intel_attach(pcici_t config_id, pcidi_t type)
 {
-	printf ("        [40] %x [50] %x [54] %x\n",
+	printf ("        [40] %lx [50] %lx [54] %lx\n",
 		pci_conf_read (config_id, 0x40),
 		pci_conf_read (config_id, 0x50),
 		pci_conf_read (config_id, 0x54));
