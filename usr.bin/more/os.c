@@ -30,6 +30,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -51,6 +53,7 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <errno.h>
 #include <signal.h>
 #include <setjmp.h>
 #include <stdio.h>
@@ -250,7 +253,6 @@ bad_file(filename, message, len)
 	char *filename, *message;
 	u_int len;
 {
-	extern int errno;
 	struct stat statbuf;
 	char *strcat(), *strerror();
 

@@ -32,18 +32,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static char sccsid[] = "@(#)wwerror.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <errno.h>
 #include "ww.h"
 
 char *
 wwerror()
 {
-	extern int errno;
 	char *strerror();
 
 	switch (wwerrno) {
