@@ -134,7 +134,8 @@ bt_pci_probe(device_t dev)
 			if (error == 0
 			 && pci_info.io_port < BIO_DISABLED) {
 				bt_mark_probed_bio(pci_info.io_port);
-				if (bt->bsh != bt_iop_from_bio(pci_info.io_port)) {
+				if (rman_get_start(bt->port) !=
+				    bt_iop_from_bio(pci_info.io_port)) {
 					u_int8_t new_addr;
 
 					new_addr = BIO_DISABLED;
