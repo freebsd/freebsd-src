@@ -1,4 +1,4 @@
-# @(#)australasia	7.31
+# @(#)australasia	7.34
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -22,6 +22,7 @@ Rule	Aus	1943	only	-	Oct	 3	2:00	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Northern Territory
 Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
+			 9:00	-	CST	1899 May
 			 9:30	-	CST	1917 Jan 1 0:01
 			 9:30	Aus	CST
 # Western Australia
@@ -169,7 +170,12 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 # no indigenous inhabitants; only meteorologists
 # no information
 #
-# Macquarie, Manihiki, Penrhyn, Rakehanga
+# Macquarie
+# permanent occupation (scientific station) since 1948;
+# sealing and penguin oil station operated 1888-1917
+# no information
+#
+# Manihiki, Penrhyn, Rakehanga
 # no information
 
 
@@ -276,6 +282,9 @@ Zone	Pacific/Nauru	11:07:40 -	LMT	1921 Jan 15	# Uaobe
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	NC	1977	1978	-	Dec	Sun>=1	0:00	1:00	S
 Rule	NC	1978	1979	-	Feb	27	0:00	0	-
+Rule	NC	1996	only	-	Dec	1	2:00s	1:00	S
+Rule	NC	1997	max	-	Mar	Sun>=1	2:00s	0	-
+Rule	NC	1997	max	-	Nov	lastSun	2:00s	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 			11:00	NC	NC%sT
@@ -314,8 +323,13 @@ Zone Pacific/Auckland	11:39:04 -	LMT	1868
 Zone Pacific/Chatham	12:45	Chatham	CHA%sT
 
 
-# Antipodes Is, Kermadec Is
-# uninhabited except by research personnel; probably like Pacific/Auckland
+# Auckland Is
+# uninhabited
+
+# Campbell I
+# minor whaling stations operated 1909-14
+# scientific station operated 1941-1995
+# was probably like Pacific/Auckland
 
 ###############################################################################
 
@@ -753,6 +767,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # From Bradley White (1995-05-20):
 # Prem Bob Carr announced NSW will fall into line with other E states
 # and SA and continue daylight savings to the last Sun in Mar.
+
+# From Eric Ulevik <eau@ozemail.com.au> (1997-06-12):
+# The NSW state government in Australia is talking about bringing the start
+# of daylight savings time forward in the year 2000 to cater for the Olympics.
+# This is going to take some time to be negotiated, because the plan is to do
+# this in multiple states due to soccer games (which are not just in Sydney).
 
 # Yancowinna
 
