@@ -65,9 +65,6 @@ SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "SCHED");
 
-static int sched_strict;
-SYSCTL_INT(_kern_sched, OID_AUTO, strict, CTLFLAG_RD, &sched_strict, 0, "");
-
 static int slice_min = 1;
 SYSCTL_INT(_kern_sched, OID_AUTO, slice_min, CTLFLAG_RW, &slice_min, 0, "");
 
