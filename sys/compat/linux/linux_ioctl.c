@@ -1446,10 +1446,13 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		struct linux_cdrom_tocentry lte, *ltep =
 		    (struct linux_cdrom_tocentry *)args->arg;
 		struct ioc_read_toc_single_entry irtse;
-		irtse.address_format = ltep->cdte_format;
-		irtse.track = ltep->cdte_track;
-		error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse,
-		    td->td_ucred, td);
+		if (ltep != NULL) {
+			irtse.address_format = ltep->cdte_format;
+			irtse.track = ltep->cdte_track;
+			error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse,
+			    td->td_ucred, td);
+		} else
+			error = EINVAL;
 		if (!error) {
 			lte = *ltep;
 			lte.cdte_ctrl = irtse.entry.control;
@@ -1941,10 +1944,10 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	case LINUX_VT_SETMODE: {
-		struct vt_mode *mode;
+		struct vt_mode *mode = (struct vt_mode *)args->arg;
 		args->cmd = VT_SETMODE;
-		mode = (struct vt_mode *)args->arg;
-		if (!ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
+		if (mode != NULL &&
+		    !ISSIGVALID(mode->frsig) && ISSIGVALID(mode->acqsig))
 			mode->frsig = mode->acqsig;
 		error = (ioctl(td, (struct ioctl_args *)args));
 		break;
