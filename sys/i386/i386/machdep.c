@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.97 1994/12/11 03:11:23 davidg Exp $
+ *	$Id: machdep.c,v 1.98 1994/12/11 03:33:58 davidg Exp $
  */
 
 #include "npx.h"
@@ -216,6 +216,9 @@ cpu_startup()
 #endif
 #ifdef CCITT
 	DONET(ccittintr, NETISR_CCITT);
+#endif
+#ifdef ISDN
+	DONET(isdnintr, NETISR_ISDN);
 #endif
 #undef DONET
 
