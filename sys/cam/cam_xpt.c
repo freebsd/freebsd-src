@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.30 1998/12/15 08:13:10 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.31 1998/12/22 20:05:21 eivind Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -5787,13 +5787,13 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
  * XXX we should really have a way to dynamically register SWI handlers.
  */
 
-static void
+void
 swi_camnet()
 {
 	camisr(&cam_netq);
 }
 
-static void
+void
 swi_cambio()
 {
 	camisr(&cam_bioq);
