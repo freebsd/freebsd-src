@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.9.2.3 1997/03/25 03:55:01 mpp Exp $
+.\"	$Id: ftpd.8,v 1.9.2.4 1997/04/26 23:39:29 davidn Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -261,28 +261,37 @@ Bellcore.
 The login name must not appear in the file
 .Pa /etc/ftpusers .
 .It
+The login name must not be a member of a group specified in the file
+.Pa /etc/ftpusers .
+Entries in this file interpreted as group names are prefixed by an "at"
+.Ql \&@
+sign.
+.It
 The user must have a standard shell returned by 
 .Xr getusershell 3 .
 .It
 If the user name appears in the file
-.Pa /etc/ftpchroot
+.Pa /etc/ftpchroot ,
+or the user is a member of a group with a group entry in this file
+(that is, one prefixed with
+.Ql \&@ ),
 the session's root will be changed to the user's login directory by
 .Xr chroot 2
 as for an
 .Dq anonymous
 or
 .Dq ftp
-account (see next item).  However, the user must still supply a password.
+account (see next item).
+However, the user must still supply a password.
 This feature is intended as a compromise between a fully anonymous account
-and a fully privileged account.  The account should also be set up as for an
-anonymous account.
+and a fully privileged account.
+The account should also be set up as for an anonymous account.
 .It
 If the user name is
 .Dq anonymous
 or
 .Dq ftp ,
-an
-anonymous ftp account must be present in the password
+an anonymous ftp account must be present in the password
 file (user
 .Dq ftp ) .
 In this case the user is allowed
@@ -365,7 +374,7 @@ or in the shell's environment.
 .Sh FILES
 .Bl -tag -width /etc/ftpwelcome -compact
 .It Pa /etc/ftpusers
-List of unwelcome/restricted users.
+List of unwelcome/restricted users and groups.
 .It Pa /etc/ftpchroot
 List of normal users who should be chroot'd.
 .It Pa /etc/ftpwelcome

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.4 1997/02/13 20:07:16 guido Exp $
+ *	$Id: ftpd.c,v 1.25.2.5 1997/04/26 23:39:30 davidn Exp $
  */
 
 #if 0
@@ -76,6 +76,7 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <grp.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -667,15 +668,30 @@ checkuser(fname, name)
 	char *p, line[BUFSIZ];
 
 	if ((fd = fopen(fname, "r")) != NULL) {
-		while (fgets(line, sizeof(line), fd) != NULL)
+		while (!found && fgets(line, sizeof(line), fd) != NULL)
 			if ((p = strchr(line, '\n')) != NULL) {
 				*p = '\0';
 				if (line[0] == '#')
 					continue;
-				if (strcmp(line, name) == 0) {
-					found = 1;
-					break;
+				/*
+				 * if first chr is '@', check group membership
+				 */
+				if (line[0] == '@') {
+					int i = 0;
+					struct group *grp;
+
+					if ((grp = getgrnam(line+1)) == NULL)
+						continue;
+					while (!found && grp->gr_mem[i])
+						found = strcmp(name,
+							grp->gr_mem[i++])
+							== 0;
 				}
+				/*
+				 * Otherwise, just check for username match
+				 */
+				else
+					found = strcmp(line, name) == 0;
 			}
 		(void) fclose(fd);
 	}
