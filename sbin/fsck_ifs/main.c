@@ -285,8 +285,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	duplist = (struct dups *)0;
 	muldup = (struct dups *)0;
 	inocleanup();
-	if (fsmodified || (!sblock.fs_clean && preen && !nflag && !hotroot)) {
-		sblock.fs_clean = 1;
+	if (fsmodified) {
 		(void)time(&sblock.fs_time);
 		sbdirty();
 	}
