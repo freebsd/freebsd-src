@@ -94,7 +94,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.34 2002/02/22 15:32:45 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.35 2002/04/03 14:18:36 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -1200,15 +1200,15 @@ int topclosed;
 			if (c == ERR)
 				continue;
 
-			if (tolower(c) == 'l') {
+			if (isalpha(c) && isupper(c))
+				c = tolower(c);
+			if (c == 'l') {
 				redraw = 1;
-			} else if (tolower(c) == 'q') {
-				nocbreak();
-				endwin();
-				exit(0);
-			} else if (tolower(c) == 'r') {
+			} else if (c == 'q') {
+				break;	/* exits while() loop */
+			} else if (c == 'r') {
 				reverse = !reverse;
-			} else if (tolower(c) == 's') {
+			} else if (c == 's') {
 				sorting++;
 				if (sorting > STSORT_MAX)
 					sorting = 0;

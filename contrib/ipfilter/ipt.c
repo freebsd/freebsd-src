@@ -13,6 +13,7 @@
 # endif
 #endif
 #ifdef __sgi
+# define _KMEMUSER
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -63,7 +64,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.19 2002/03/11 03:30:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.21 2002/03/26 15:54:40 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -113,10 +114,13 @@ char *argv[];
 	while ((c = getopt(argc, argv, "6bdDEHi:I:l:NoPr:STvxX")) != -1)
 		switch (c)
 		{
-#ifdef	USE_INET6
 		case '6' :
+#ifdef	USE_INET6
 			use_inet6 = 1;
 			break;
+#else
+			fprintf(stderr, "IPv6 not supported\n");
+			exit(1);
 #endif
 		case 'b' :
 			opts |= OPT_BRIEF;

@@ -58,7 +58,7 @@ extern	char	*sys_errlist[];
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.6 2002/02/22 15:32:56 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.7 2002/04/24 17:35:37 darrenr Exp $";
 #endif
 
 
@@ -298,6 +298,9 @@ int opts;
 	struct	servent	*sv;
 	int	bits;
 
+	if (np->in_p != 0)
+		pr = getprotobynumber(np->in_p);
+
 	switch (np->in_redir)
 	{
 	case NAT_REDIRECT :
@@ -372,12 +375,18 @@ int opts;
 			printf(" udp");
 		else if (np->in_p == 0)
 			printf(" ip");
-		else if (np->in_p != 0)
-			printf(" %d", np->in_p);
+		else if (np->in_p != 0) {
+			if (pr != NULL)
+				printf(" %s", pr->p_name);
+			else
+				printf(" %d", np->in_p);
+		}
 		if (np->in_flags & IPN_ROUNDR)
 			printf(" round-robin");
 		if (np->in_flags & IPN_FRAG)
 			printf(" frag");
+		if (np->in_age[0])
+			printf(" age %d/%d", np->in_age[0], np->in_age[1]);
 		printf("\n");
 		if (opts & OPT_DEBUG)
 			printf("\tspc %lu flg %#x max %u use %d\n",
@@ -389,7 +398,7 @@ int opts;
 			printf("%s/", inet_ntoa(np->in_in[0]));
 			bits = countbits(np->in_in[1].s_addr);
 			if (bits != -1)
-				printf("%d ", bits);
+				printf("%d", bits);
 			else
 				printf("%s", inet_ntoa(np->in_in[1]));
 		}
@@ -401,12 +410,11 @@ int opts;
 			printf("%s/", inet_ntoa(np->in_out[0]));
 			bits = countbits(np->in_out[1].s_addr);
 			if (bits != -1)
-				printf("%d ", bits);
+				printf("%d", bits);
 			else
 				printf("%s", inet_ntoa(np->in_out[1]));
 		}
 		if (*np->in_plabel) {
-			pr = getprotobynumber(np->in_p);
 			printf(" proxy port");
 			if (np->in_dport != 0) {
 				if (pr != NULL)
@@ -426,8 +434,12 @@ int opts;
 			else
 				printf("%d", np->in_p);
 		} else if (np->in_redir == NAT_MAPBLK) {
-			printf(" ports %d", np->in_pmin);
-			if (opts & OPT_VERBOSE)
+			if ((np->in_pmin == 0) &&
+			    (np->in_flags & IPN_AUTOPORTMAP))
+				printf(" ports auto");
+			else
+				printf(" ports %d", np->in_pmin);
+			if (opts & OPT_DEBUG)
 				printf("\n\tip modulous %d", np->in_pmax);
 		} else if (np->in_pmin || np->in_pmax) {
 			printf(" portmap");
@@ -451,6 +463,8 @@ int opts;
 		}
 		if (np->in_flags & IPN_FRAG)
 			printf(" frag");
+		if (np->in_age[0])
+			printf(" age %d/%d", np->in_age[0], np->in_age[1]);
 		printf("\n");
 		if (opts & OPT_DEBUG) {
 			printf("\tspace %lu nextip %s pnext %d", np->in_space,
