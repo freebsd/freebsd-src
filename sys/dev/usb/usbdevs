@@ -620,6 +620,7 @@ product PRIMAX 1200U		0x0361	Colorado 1200u scanner
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
+product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
