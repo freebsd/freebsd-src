@@ -5,6 +5,15 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000624:
+	Mark Murray just committed the first parts of a cleanup of
+	/dev/zero, et al.  This is also cleaning up /dev/random.
+	The entropy is disconnected, so DO NOT USE VERSIONS OF FREEBSD
+	-CURRENT FROM THIS POINT FORWARD for cryptographic services
+	until Mark can merge in the fixes to this work in progress.
+	openssh and openssl should not be used to generate keys from this
+	date to the completion of the work.
+
 20000622:
 	The license on the softupdates is now a standard 2 clause
 	BSD license.  You may need to remove your symbolic links
@@ -38,9 +47,6 @@ ITEMS:'
 	to your config file to compile them in statically.  The format
 	of the config file has changed as well.  Please see LINT,
 	GENERIC or NEWCARD for examples of the new format.
-
-	More details to follow.  A better howto would be warmly
-	accepted by the author of UPDATING.
 
 20000522:
 	A new set of binutils went into the tree today.  Anybody
