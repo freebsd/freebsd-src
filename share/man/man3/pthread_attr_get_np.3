@@ -1,6 +1,6 @@
 .\" Copyright (c) 2002 Alexey Zelkin <phantom@FreeBSD.org>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd October 26, 2002
 .Dt PTHREAD_ATTR_GET_NP 3
 .Os
@@ -44,11 +45,12 @@ Value returned as
 is supposed to be used in conjunction with
 .Fn pthread_attr_get*
 functions to retrive individual values from
-.Ft pthread_attr_t
-structure.  Parameter
+.Vt pthread_attr_t
+structure.
+Parameter
 .Fa dst
 should point to allocated memory area big enough to fit this structure.
-It's HIGHLY RECOMENDED to use
+It is HIGHLY RECOMMENDED to use
 .Xr pthread_attr_init 3
 function to allocate attribute storage.
 .Sh EXAMPLES
@@ -77,19 +79,17 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Invalid value for one of given parameters.
-.El
-.Bl -tag -width Er
-.It Bq Er ESRCH
+.It Bq Er ESRC
 No thread could be found corresponding to that specified by the given
 thread ID.
 .El
 .Sh SEE ALSO
-.Xr pthread_attr_init 3 ,
 .Xr pthread_attr_destroy 3 ,
-.Xr pthread_attr_getstacksize 3 ,
-.Xr pthread_attr_getstackaddr 3 ,
 .Xr pthread_attr_getdetachstate 3 ,
 .Xr pthread_attr_getinheritsched 3 ,
 .Xr pthread_attr_getschedparam 3 ,
 .Xr pthread_attr_getschedpolicy 3 ,
-.Xr pthread_attr_getscope 3
+.Xr pthread_attr_getscope 3 ,
+.Xr pthread_attr_getstackaddr 3 ,
+.Xr pthread_attr_getstacksize 3 ,
+.Xr pthread_attr_init 3
