@@ -537,11 +537,8 @@ nfs_close(struct vop_close_args *ap)
 		    int cm = nfsv3_commit_on_close ? 1 : 0;
 		    error = nfs_flush(vp, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
-		} else {
-		    VOP_LOCK(vp, LK_EXCLUSIVE, curthread);
+		} else
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-		    VOP_UNLOCK(vp, 0, curthread);
-		}
 	    }
  	    /* 
  	     * Invalidate the attribute cache in all cases.
@@ -3144,9 +3141,7 @@ nfsfifo_close(struct vop_close_args *ap)
 				vattr.va_atime = np->n_atim;
 			if (np->n_flag & NUPD)
 				vattr.va_mtime = np->n_mtim;
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 			(void)VOP_SETATTR(vp, &vattr, ap->a_cred, ap->a_td);
-			VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 	}
 	return (fifo_specops.vop_close(ap));
