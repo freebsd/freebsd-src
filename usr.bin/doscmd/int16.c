@@ -93,9 +93,6 @@ int16(regcontext_t *REGS)
 
     case 0x01: /* Get keystroke */
     case 0x11: /* Get enhanced keystroke */
-	if (!raw_kbd)
-	    sleep_poll();
-	
 	if (KbdEmpty()) {
 	    R_FLAGS |= PSL_Z;
 	    break;
