@@ -104,6 +104,9 @@ static caddr_t bpf_alloc();
 static int bpf_bufsize = BPF_BUFSIZE;
 SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW, 
 	&bpf_bufsize, 0, "");
+static int bpf_maxbufsize = BPF_MAXBUFSIZE;
+SYSCTL_INT(_debug, OID_AUTO, bpf_maxbufsize, CTLFLAG_RW, 
+	&bpf_maxbufsize, 0, "");
 
 /*
  *  bpf_iflist is the list of interfaces; each corresponds to an ifnet
@@ -698,8 +701,8 @@ bpfioctl(dev, cmd, addr, flags, p)
 		else {
 			register u_int size = *(u_int *)addr;
 
-			if (size > BPF_MAXBUFSIZE)
-				*(u_int *)addr = size = BPF_MAXBUFSIZE;
+			if (size > bpf_maxbufsize)
+				*(u_int *)addr = size = bpf_maxbufsize;
 			else if (size < BPF_MINBUFSIZE)
 				*(u_int *)addr = size = BPF_MINBUFSIZE;
 			d->bd_bufsize = size;
