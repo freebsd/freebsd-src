@@ -199,7 +199,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 		 * gather kinfo_proc
 		 */
 		kp->ki_paddr = p;
-		kp->ki_addr = proc.p_uarea;
+		kp->ki_addr = 0;	/* XXX uarea */
 		/* kp->ki_kstack = proc.p_thread.td_kstack; XXXKSE */
 		kp->ki_args = proc.p_args;
 		kp->ki_tracep = proc.p_tracevp;
