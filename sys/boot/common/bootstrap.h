@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.3 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: bootstrap.h,v 1.4 1998/09/04 02:43:26 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -57,6 +57,9 @@ extern char	command_errbuf[];	/* XXX blah, length */
 extern void	interact(void);
 extern void	source(char *filename);
 
+/* interp_parse.c */
+extern int	parse(int *argc, char ***argv, char *str);
+
 /* boot.c */
 extern int	autoboot(int delay, char *prompt);
 
@@ -89,25 +92,33 @@ extern void		cons_probe(void);
 /*
  * Plug-and-play enumerator/configurator interface.
  */
+struct pnpident
+{
+    char		*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
+    struct pnpident	*id_next;	/* the next identifier */
+};
+
+struct pnphandler;
 struct pnpinfo
 {
-    char		*pi_ident;	/* ASCII identifier, actual format varies with bus/handler */
+    struct pnpident	*pi_ident;	/* list of identifiers */
     int			pi_revision;	/* optional revision (or -1) if not supported */
     char		*pi_module;	/* module/args nominated to handle device */
     int			pi_argc;	/* module arguments */
     char		**pi_argv;
-    int			pi_handler;	/* handler which detected this device */
+    struct pnphandler	*pi_handler;	/* handler which detected this device */
     struct pnpinfo	*pi_next;
-}
+};
 
 struct pnphandler 
 {
-    char		*pp_name;			/* handler/bus name */
-    struct pnpinfo	*(pp_enumerate *)(int index);	/* return a string identifying device (index) */
+    char	*pp_name;				/* handler/bus name */
+    void	(* pp_enumerate)(struct pnpinfo **);    /* add detected devices to chain */
 };
 
-extern struct pnphandler    *pnphandlers[];		/* provided by MD code */
-    
+extern struct pnphandler	*pnphandlers[];		/* provided by MD code */
+
+extern void			pnp_addident(struct pnpinfo *pi, char *ident);
 
 /*
  * Module metadata header.
@@ -158,11 +169,21 @@ extern struct loaded_module	*mod_findmodule(char *name, char *type);
 extern void			mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p);
 extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int type);
 extern void			mod_discard(struct loaded_module *mp);
+extern struct loaded_module	*mod_allocmodule(void);
+
+
+/* MI module loaders */
+extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
+extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
+
+/* extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result); */
 
 /*
  * Module information subtypes
+ * 
+ * XXX these are copies of the defines in <sys/linker.h>, and should be nuked
+ * XXX before being committed.
  */
-/* XXX these belong in <machine/bootinfo.h> */
 #define MODINFO_NAME		0x0000
 #define MODINFO_TYPE		0x0001
 #define MODINFO_ADDR		0x0002
@@ -173,15 +194,11 @@ extern void			mod_discard(struct loaded_module *mp);
 #define MODINFOMD_ELFHDR	0x0002		/* ELF header */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
-/* MI module loaders */
-extern int		aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
-extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
-
-/* extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result); */
-
 #define KLD_IDENT_SYMNAME	"kld_identifier_"
 #define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
 #define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
+
+
 
 #if defined(__ELF__)
 
@@ -268,8 +285,14 @@ struct arch_switch
     int			(*arch_copyout)(vm_offset_t src, void *dest, size_t len);
     /* Read from file to module address space, same semantics as read() */
     int			(*arch_readin)(int fd, vm_offset_t dest, size_t len);
+    /* Perform ISA byte port I/O (only for systems with ISA) */
+    int			(*arch_isainb)(int port);
+    void		(*arch_isaoutb)(int port, int value);
 };
 extern struct arch_switch archsw;
+
+/* This must be provided by the MD code, but should it be in the archsw? */
+extern void		delay(int delay);
 
 /*
  * XXX these belong in a system header

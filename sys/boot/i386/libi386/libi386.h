@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.2 1998/08/31 21:10:43 msmith Exp $
+ *	$Id: libi386.h,v 1.3 1998/09/03 02:10:09 msmith Exp $
  */
 
 
@@ -75,7 +75,6 @@ extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
 
 extern void		startprog(vm_offset_t entry, int argc, u_int32_t *argv, vm_offset_t stack);
 
-extern void		delay(int delay);
 extern int		getbasemem(void);
 extern int		getextmem(void);
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.1 1998/08/31 21:10:42 msmith Exp $
+ *	$Id: load_aout.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -126,11 +126,11 @@ aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /* 
      * Ok, we think we should handle this.
      */
-    mp = malloc(sizeof(struct loaded_module));
-    mp->m_name = kernel ? strdup(filename) : NULL;	/* XXX should we prune the name? */
+    mp = mod_allocmodule();
+    if (kernel)
+	mp->m_name = strdup(filename);		/* XXX should we prune the name? */
     mp->m_type = strdup(kernel ? aout_kerneltype : aout_moduletype);
-    mp->m_args = NULL;					/* filled in by parent */
-    mp->m_metadata = NULL;
+
     /* Page-align the load address */
     addr = dest;
     pad = (u_int)addr & PAGE_MASK;
