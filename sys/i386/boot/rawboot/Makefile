@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/02/15 21:38:19 eivind Exp $
+#	$Id: Makefile,v 1.10 1998/03/07 10:48:15 eivind Exp $
 #
 
 PROG=	boot
@@ -16,7 +16,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
