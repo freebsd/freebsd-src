@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.12 1995/09/13 17:36:31 wollman Exp $
+ *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
+ *	$Id: tcp_output.c,v 1.13 1995/09/20 21:00:58 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -436,7 +436,6 @@ send:
 		 * If there is still more to send, don't close the connection.
 		 */
 		flags &= ~TH_FIN;
-
 		len = tp->t_maxopd - optlen;
 		sendalot = 1;
 	}
@@ -487,7 +486,7 @@ send:
 		} else {
 			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
 			if (m->m_next == 0) {
-				m_free(m);
+				(void) m_free(m);
 				error = ENOBUFS;
 				goto out;
 			}
