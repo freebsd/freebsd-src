@@ -768,7 +768,6 @@ em_watchdog(struct ifnet *ifp)
 
 	ifp->if_flags &= ~IFF_RUNNING;
 
-	em_stop(adapter);
 	em_init(adapter);
 
 	ifp->if_oerrors++;
