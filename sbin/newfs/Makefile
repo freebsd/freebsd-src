@@ -2,6 +2,8 @@
 # $FreeBSD$
 
 PROG=	newfs
+DPADD=	${LIBUFS}
+LDADD=	-lufs
 SRCS=	newfs.c mkfs.c
 WARNS?=	2
 MAN=	newfs.8

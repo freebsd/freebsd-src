@@ -45,6 +45,7 @@
  * $FreeBSD$
  */
 
+#include <libufs.h>
 
 /*
  * variables set up by front end.
@@ -68,7 +69,7 @@ extern int	maxcontig;	/* max contiguous blocks to allocate */
 extern int	maxbpg;		/* maximum blocks per file in a cyl group */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
-extern int	fso;		/* filedescriptor to device */
 extern u_char	*volumelabel;	/* volume label for filesystem */
+extern struct uufsd disk;	/* libufs disk structure */
 
 void mkfs (struct partition *, char *);
