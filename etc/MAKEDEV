@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.82 1995/04/13 00:51:55 jkh Exp $
+#	$Id: MAKEDEV,v 1.83 1995/04/23 12:02:21 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -567,7 +567,7 @@ tw*)
 	unit=`expr $i : 'tw\(.*\)'`
 	rm -f tw$unit
 	mknod tw$unit c 19 $unit
-	chown bin.bin tw$unit
+	chown root.operator tw$unit
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
