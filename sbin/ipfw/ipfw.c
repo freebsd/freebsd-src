@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.10 1998/01/07 02:27:32 alex Exp $
+ * $Id: ipfw.c,v 1.34.2.11 1998/02/02 11:48:05 danny Exp $
  *
  */
 
@@ -50,22 +50,16 @@
 int 		lineno = -1;
 
 int 		s;				/* main RAW socket 	   */
+int 		do_resolv=0;			/* Would try to resolv all */
+int		do_acct=0;			/* Show packet/byte count  */
+int		do_time=0;			/* Show time stamps        */
+int		do_quiet=0;			/* Be quiet in add and flush  */
+int		do_force=0;			/* Don't ask for confirmation */
 
 struct icmpcode {
 	int	code;
 	char	*str;
 };
-
-struct ipfwopts {
-	unsigned int 		do_resolv;	/* Would try to resolv all */
-	unsigned int		do_acct;	/* Show packet/byte count  */
-	unsigned int		do_time;	/* Show time stamps        */
-	unsigned int		do_quiet;	/* Be quiet in add and flush  */
-	unsigned int		do_force;	/* Don't ask for confirmation */
-	unsigned int		do_not;		/* Just parse the command(s) */
-};
-
-struct ipfwopts globalopts, useopts;
 
 static struct icmpcode icmpcodes[] = {
       { ICMP_UNREACH_NET,		"net" },
@@ -118,7 +112,7 @@ print_port(prot, port, comma)
 	const char *protocol;
 	int printed = 0;
 
-	if (useopts.do_resolv) {
+	if (do_resolv) {
 		pe = getprotobynumber(prot);
 		if (pe)
 			protocol = pe->p_name;
@@ -177,15 +171,15 @@ show_ipfw(struct ip_fw *chain)
 	int nsp = IP_FW_GETNSRCP(chain);
 	int ndp = IP_FW_GETNDSTP(chain);
 
-	if (useopts.do_resolv)
-		setservent(1);	/* stay open */
+	if (do_resolv)
+		setservent(1/*stayopen*/);
 
 	printf("%05u ", chain->fw_number);
 
-	if (useopts.do_acct) 
+	if (do_acct) 
 		printf("%10lu %10lu ",chain->fw_pcnt,chain->fw_bcnt);
 
-	if (useopts.do_time)
+	if (do_time)
 	{
 		if (chain->timestamp)
 		{
@@ -243,7 +237,7 @@ show_ipfw(struct ip_fw *chain)
 	printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
 
 	adrt=ntohl(chain->fw_smsk.s_addr);
-	if (adrt==ULONG_MAX && useopts.do_resolv) {
+	if (adrt==ULONG_MAX && do_resolv) {
 		adrt=(chain->fw_src.s_addr);
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
@@ -283,7 +277,7 @@ show_ipfw(struct ip_fw *chain)
 	printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
 
 	adrt=ntohl(chain->fw_dmsk.s_addr);
-	if (adrt==ULONG_MAX && useopts.do_resolv) {
+	if (adrt==ULONG_MAX && do_resolv) {
 		adrt=(chain->fw_dst.s_addr);
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
@@ -398,7 +392,7 @@ show_ipfw(struct ip_fw *chain)
 			}
 	}
 	printf("\n");
-	if (useopts.do_resolv)
+	if (do_resolv)
 		endservent();
 }
 
@@ -409,14 +403,14 @@ list(ac, av)
 {
 	struct ip_fw *r;
 	struct ip_fw rules[1024];
-	int i, l;
+	int l,i;
 
-	memset(rules, 0, sizeof rules);
+	memset(rules,0,sizeof rules);
 	l = sizeof rules;
 	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &l);
 	if (i < 0)
 		err(2,"getsockopt(IP_FW_GET)");
-	for (r = rules; l >= sizeof rules[0]; r++, l-=sizeof rules[0])
+	for (r=rules; l >= sizeof rules[0]; r++, l-=sizeof rules[0])
 		show_ipfw(r);
 }
 
@@ -728,17 +722,14 @@ delete(ac,av)
 	/* Rule number */
 	while (ac && isdigit(**av)) {
 		rule.fw_number = atoi(*av); av++; ac--;
-		if (!useopts.do_not)
-		{
-			i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
-			if (i) {
-				failed = 1;
-				warn("setsockopt(%s)", "IP_FW_DEL");
-			}
+		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
+		if (i) {
+			failed = 1;
+			warn("rule %u: setsockopt(%s)", rule.fw_number, "IP_FW_DEL");
 		}
-		if (failed)
-			exit(1);
 	}
+	if (failed)
+		exit(1);
 }
 
 static void
@@ -1056,14 +1047,11 @@ badviacombo:
 	} else if ((rule.fw_flg & IP_FW_F_OIFACE) && (rule.fw_flg & IP_FW_F_IN))
 		show_usage("can't check xmit interface of incoming packets");
 
-	if (!useopts.do_quiet)
+	if (!do_quiet)
 		show_ipfw(&rule);
-	if (!useopts.do_not)
-	{
-		i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
-		if (i)
-			err(1, "setsockopt(%s)", "IP_FW_ADD");
-	}
+	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
+	if (i)
+		err(1, "setsockopt(%s)", "IP_FW_ADD");
 }
 
 static void
@@ -1075,12 +1063,9 @@ zero (ac, av)
 
 	if (!ac) {
 		/* clear all entries */
-		if (!useopts.do_not)
-		{
-			if (setsockopt(s, IPPROTO_IP, IP_FW_ZERO, NULL, 0) < 0)
-				err(1, "setsockopt(%s)", "IP_FW_ZERO");
-		}
-		if (!useopts.do_quiet)
+		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0)
+			err(1, "setsockopt(%s)", "IP_FW_ZERO");
+		if (!do_quiet)
 			printf("Accounting cleared.\n");
 	} else {
 		struct ip_fw rule;
@@ -1091,17 +1076,15 @@ zero (ac, av)
 			/* Rule number */
 			if (isdigit(**av)) {
 				rule.fw_number = atoi(*av); av++; ac--;
-				if (!useopts.do_not)
-				{
-				    if (setsockopt(s, IPPROTO_IP,
-					    IP_FW_ZERO, &rule, sizeof rule)) {
-					warn("setsockopt(%s)", "IP_FW_ZERO");
+				if (setsockopt(s, IPPROTO_IP,
+				    IP_FW_ZERO, &rule, sizeof rule)) {
+					warn("rule %u: setsockopt(%s)", rule.fw_number,
+						 "IP_FW_ZERO");
 					failed = 1;
-				    }
-				    else
-					printf("Entry %d cleared\n",
-						    rule.fw_number);
 				}
+				else
+					printf("Entry %d cleared\n",
+					    rule.fw_number);
 			} else
 				show_usage("invalid rule number ``%s''", *av);
 		}
@@ -1110,73 +1093,46 @@ zero (ac, av)
 	}
 }
 
-int ipfw_getopts(int argc, char **argv, struct ipfwopts *opts)
-{
-	char ch;
-	extern int optind, opterr, optreset;
-	
-	/* Reset getopt() in case this isn't the first
-	   time we're called. */
-	
-	optind = 1;
-	optreset = 1;
-	
-	memset(opts, 0, sizeof(*opts));
-		
-	while ((ch = getopt(argc, argv ,"afqtnN")) != -1)
-	switch(ch) {
-		case 'a':
-			opts->do_acct = 1;
-			break;
-		case 'f':
-			opts->do_force = 1;
-			break;
-		case 'q':
-			opts->do_quiet = 1;
-			break;
-		case 't':
-			opts->do_time = 1;
-			break;
-		case 'N':
-	 		opts->do_resolv = 1;
-			break;
-		case 'n':
-			opts->do_not = 1;
-			break;
-		default:
-			return 0;
-	}
-	
-	return optind;
-}
-
 int
 ipfw_main(ac,av)
 	int 	ac;
 	char 	**av;
 {
 
-	struct ipfwopts opts;
-	int optind;
+	char 		ch;
+	extern int 	optind;
+
 
 	if ( ac == 1 ) {
 		show_usage(NULL);
 	}
 
-	if (!(optind = ipfw_getopts(ac, av, &opts)))
-	{
-		show_usage(NULL);
+	/* Set the force flag for non-interactive processes */
+	do_force = !isatty(STDIN_FILENO);
+
+	while ((ch = getopt(ac, av ,"afqtN")) != -1)
+	switch(ch) {
+		case 'a':
+			do_acct=1;
+			break;
+		case 'f':
+			do_force=1;
+			break;
+		case 'q':
+			do_quiet=1;
+			break;
+		case 't':
+			do_time=1;
+			break;
+		case 'N':
+	 		do_resolv=1;
+			break;
+		default:
+			show_usage(NULL);
 	}
-	
-	useopts.do_acct   = globalopts.do_acct   | opts.do_acct;
-	useopts.do_force  = globalopts.do_force  | opts.do_force;
-	useopts.do_quiet  = globalopts.do_quiet  | opts.do_quiet;
-	useopts.do_resolv = globalopts.do_resolv | opts.do_resolv;
-	useopts.do_time   = globalopts.do_time   | opts.do_time;
-	useopts.do_not    = globalopts.do_not    | opts.do_not;
-	
+
 	ac -= optind;
-	if (*(av+=optind) == NULL) {
+	if (*(av+=optind)==NULL) {
 		 show_usage("Bad arguments");
 	}
 
@@ -1187,7 +1143,7 @@ ipfw_main(ac,av)
 	} else if (!strncmp(*av, "flush", strlen(*av))) {
 		int do_flush = 0;
 
-		if ( useopts.do_force || useopts.do_quiet )
+		if ( do_force || do_quiet )
 			do_flush = 1;
 		else {
 			int c;
@@ -1206,12 +1162,9 @@ ipfw_main(ac,av)
 				do_flush = 1;
 		}
 		if ( do_flush ) {
-			if (!useopts.do_not)
-			{
-			    if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0) < 0)
+			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0) < 0)
 				err(1, "setsockopt(%s)", "IP_FW_FLUSH");
-			}
-			if (!useopts.do_quiet)
+			if (!do_quiet)
 				printf("Flushed all rules.\n");
 		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
@@ -1219,17 +1172,9 @@ ipfw_main(ac,av)
 	} else if (!strncmp(*av, "print", strlen(*av))) {
 		list(--ac,++av);
 	} else if (!strncmp(*av, "list", strlen(*av))) {
-		if (useopts.do_not) {
-			printf("%s: -n invalid with list command\n", av[0]);
-			exit(1);
-		}
 		list(--ac,++av);
 	} else if (!strncmp(*av, "show", strlen(*av))) {
-		useopts.do_acct++;
-		if (useopts.do_not) {
-			printf("%s: -n invalid with show command\n", av[0]);
-			exit(1);
-		}
+		do_acct++;
 		list(--ac,++av);
 	} else {
 		show_usage("Bad arguments");
@@ -1247,59 +1192,40 @@ main(ac, av)
 	char	buf[BUFSIZ];
 	char	*a, *args[MAX_ARGS];
 	char	linename[10];
-	int 	i, optind;
+	int 	i;
 	FILE	*f;
 
+	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 )
 		err(1, "socket");
 
 	setbuf(stdout,0);
 
-	/* Set the force flag for non-interactive processes */
-	globalopts.do_force = !isatty(STDIN_FILENO);
-	
-	if (!(optind = ipfw_getopts(ac, av, &globalopts)))
-	{
-		show_usage(NULL);
-		exit(1);
-	}
-	else
-	{
-		if (!globalopts.do_not)	
-		{
-			if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1)
-			{
-				perror(NULL);
-				exit(1);
-			}
-		}	
-		if (av[optind] && !access(av[optind], R_OK)) {
-			lineno = 0;
-			if ((f = fopen(av[optind], "r")) == NULL)
-				err(1, "fopen: %s", av[optind]);
-			while (fgets(buf, BUFSIZ, f)) {
+	if (av[1] && !access(av[1], R_OK)) {
+		lineno = 0;
+		if ((f = fopen(av[1], "r")) == NULL)
+			err(1, "fopen: %s", av[1]);
+		while (fgets(buf, BUFSIZ, f)) {
 
-				lineno++;
-				sprintf(linename, "Line %d", lineno);
-				args[0] = linename;
+			lineno++;
+			sprintf(linename, "Line %d", lineno);
+			args[0] = linename;
 
-				if (*buf == '#')
-					continue;
-				for (i = 1, a = strtok(buf, WHITESP);
-				    a && i < MAX_ARGS;
-				    a = strtok(NULL, WHITESP), i++)
-					args[i] = a;
-				if (i == 1)
-					continue;
-				if (i == MAX_ARGS)
-					errx(1, "%s: too many arguments", linename);
-				args[i] = NULL;
+			if (*buf == '#')
+				continue;
+			for (i = 1, a = strtok(buf, WHITESP);
+			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
+				args[i] = a;
+			if (i == 1)
+				continue;
+			if (i == MAX_ARGS)
+				errx(1, "%s: too many arguments", linename);
+			args[i] = NULL;
 
-				ipfw_main(i, args); 
-			}
-			fclose(f);
-		} else
-			ipfw_main(ac,av);
-		return 0;
-	}
+			ipfw_main(i, args); 
+		}
+		fclose(f);
+	} else
+		ipfw_main(ac,av);
+	return 0;
 }

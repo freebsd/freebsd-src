@@ -6,9 +6,6 @@
 .Nd controlling utility for IP firewall
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Fl n
-.Oc
 .Ar file
 .Nm ipfw
 .Oo
@@ -36,7 +33,7 @@ list
 show
 .Nm ipfw
 .Oo
-.Fl qn
+.Fl q
 .Oc
 add
 .Op Ar number
@@ -120,9 +117,6 @@ console is required to recover.
 While listing, show last match timestamp.
 .It Fl N
 Try to resolve addresses and service names in output.
-.It Fl n
-Test the rule(s). Parses everything, but does not actually install the
-rule(s) into the kernel. Useful for testing the syntax.
 .El
 .Pp
 .Ar action :
