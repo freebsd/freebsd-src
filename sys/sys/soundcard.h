@@ -1,5 +1,5 @@
 #ifndef _SOUNDCARD_H_
-#define _SOUNDCARD_H_ 1
+#define _SOUNDCARD_H_
 /*
  * Copyright by Hannu Savolainen 1993
  *
@@ -34,10 +34,10 @@
   *
   * Regards,
   * Hannu Savolainen
-  * hsavolai@cs.helsinki.fi
+  * hannu@voxware.pp.fi, Hannu.Savolainen@helsinki.fi
   */
 
-#define SOUND_VERSION	203
+#define SOUND_VERSION   205
 #define VOXWARE
 
 #include <sys/ioctl.h>
@@ -310,6 +310,14 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
 #define    CTRL_EXPRESSION		253
 #define    CTRL_MAIN_VOLUME		252
 #define SEQ_BALANCE		11
+#define SEQ_VOLMODE             12
+
+/*
+ * Volume mode decides how volumes are used
+ */
+
+#define VOL_METHOD_ADAGIO	1
+#define VOL_METHOD_LINEAR	2
 
 /*
  * Note! SEQ_WAIT, SEQ_MIDIPUTC and SEQ_ECHO are used also as
@@ -630,7 +638,8 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  *	}
  */
 
-#define SEQ_DEFINEBUF(len)		unsigned char _seqbuf[len]; int _seqbuflen = len, _seqbufptr = 0
+#define SEQ_DEFINEBUF(len)		unsigned char _seqbuf[len]; int _seqbuflen = len; int _seqbufptr = 0
+#define SEQ_DECLAREBUF()		extern unsigned char _seqbuf[]; extern int _seqbuflen;extern int _seqbufptr
 #define SEQ_PM_DEFINES			struct patmgr_info _pm_info
 #define _SEQ_NEEDBUF(len)		if ((_seqbufptr+(len)) > _seqbuflen) seqbuf_dump()
 #define _SEQ_ADVBUF(len)		_seqbufptr += len
@@ -643,6 +652,17 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_pm_info.device=dev, memcpy(_pm_info.data.data8, pgm, 128), \
 					_pm_info.parm1 = bank, _pm_info.parm2 = 128, \
 					ioctl(seqfd, SNDCTL_PMGR_ACCESS, &_pm_info))
+
+#define SEQ_VOLUME_MODE(dev, mode)	{_SEQ_NEEDBUF(8);\
+					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
+					_seqbuf[_seqbufptr+1] = SEQ_VOLMODE;\
+					_seqbuf[_seqbufptr+2] = (dev);\
+					_seqbuf[_seqbufptr+3] = (mode);\
+					_seqbuf[_seqbufptr+4] = 0;\
+					_seqbuf[_seqbufptr+5] = 0;\
+					_seqbuf[_seqbufptr+6] = 0;\
+					_seqbuf[_seqbufptr+7] = 0;\
+					_SEQ_ADVBUF(8);}
 
 #define SEQ_START_NOTE(dev, voice, note, vol)	{_SEQ_NEEDBUF(8);\
 					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
@@ -734,8 +754,8 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_seqbuf[_seqbufptr+2] = (device);\
 					_seqbuf[_seqbufptr+3] = 0;\
 					_SEQ_ADVBUF(4);}
-#define SEQ_WRPATCH(patch, len)		{if (_seqbufptr) seqbuf_dump();\
-					if (write(seqfd, (char*)(patch), len)==-1) \
+#define SEQ_WRPATCH(patchx, len)	{if (_seqbufptr) seqbuf_dump();\
+					if (write(seqfd, (char*)(patchx), len)==-1) \
 					   perror("Write patch: /dev/sequencer");}
 
 #endif
