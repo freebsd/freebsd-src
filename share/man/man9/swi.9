@@ -71,7 +71,7 @@ function is used to register a new software interrupt handler.
 The
 .Fa ithdp
 argument is an optional pointer to a
-.Li struct ithd
+.Vt struct ithd
 pointer.
 If this argument points to an existing software interrupt thread, then this
 handler will be attached to that thread.
@@ -107,7 +107,7 @@ argument is used to specify the attributes of a handler such as
 The
 .Fn cookiep
 argument points to a
-.Li void *
+.Vt void *
 cookie.
 This cookie will be set to a value that uniquely identifies this handler,
 and is used to schedule the handler for execution later on.
@@ -230,7 +230,6 @@ and
 functions which date back to at least
 .Bx 4.4 .
 .Sh BUGS
-.Pp
 Most of the global variables described in this manual page should not be
 global, or at the very least should not be declared in
 .Aq Pa sys/interrupt.h .
