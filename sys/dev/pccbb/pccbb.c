@@ -114,7 +114,6 @@ struct pccbb_sclist {
 static STAILQ_HEAD(, pccbb_sclist) softcs;
 static int softcs_init = 0;
 
-
 struct yenta_chipinfo {
 	u_int32_t yc_id;
 	const	char *yc_name;
@@ -302,7 +301,7 @@ cb_chipset(u_int32_t pci_id, const char **namep, int *flagp)
 	if (flagp != NULL) {
 		*flagp = ycp->yc_flags;
 	}
-	return ycp->yc_chiptype;
+	return (ycp->yc_chiptype);
 }
 
 static int
@@ -311,9 +310,9 @@ pccbb_probe(device_t brdev)
 	const char *name;
 
 	if (cb_chipset(pci_get_devid(brdev), &name, NULL) == CB_UNKNOWN)
-		return ENXIO;
+		return (ENXIO);
 	device_set_desc(brdev, name);
-	return 0;
+	return (0);
 }
 
 static void
@@ -403,7 +402,9 @@ pccbb_attach(device_t brdev)
 {
 	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(brdev);
 	int rid;
+	u_int32_t sockbase;
 	u_int32_t tmp;
+	struct pccbb_sclist *sclist;
 
 	if (!softcs_init) {
 		softcs_init = 1;
@@ -431,8 +432,6 @@ pccbb_attach(device_t brdev)
 		 * Some BIOSes doesn't assign a memory space properly.
 		 * So we try to manually put one in...
 		 */
-		u_int32_t sockbase;
-
 		sockbase = pci_read_config(brdev, rid, 4);
 		if (sockbase < 0x100000 || sockbase >= 0xfffffff0) {
 			pci_write_config(brdev, rid, 0xffffffff, 4);
@@ -447,7 +446,7 @@ pccbb_attach(device_t brdev)
 				device_printf(brdev,
 				    "Could not grab register memory\n");
 				mtx_destroy(&sc->sc_mtx);
-				return ENOMEM;
+				return (ENOMEM);
 			}
 			pci_write_config(brdev, PCCBBR_SOCKBASE,
 			    rman_get_start(sc->sc_base_res), 4);
@@ -456,7 +455,7 @@ pccbb_attach(device_t brdev)
 		} else {
 			device_printf(brdev, "Could not map register memory\n");
 			mtx_destroy(&sc->sc_mtx);
-			return ENOMEM;
+			return (ENOMEM);
 		}
 	}
 
@@ -480,7 +479,7 @@ pccbb_attach(device_t brdev)
 		bus_release_resource(brdev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
 		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	if (bus_setup_intr(brdev, sc->sc_irq_res, INTR_TYPE_BIO, pccbb_intr, sc,
@@ -490,7 +489,7 @@ pccbb_attach(device_t brdev)
 		bus_release_resource(brdev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
 		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	/* attach children */
@@ -519,18 +518,14 @@ pccbb_attach(device_t brdev)
 		bus_release_resource(brdev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
 		    sc->sc_base_res);
 		mtx_destroy(&sc->sc_mtx);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 #endif
 
-	{
-		struct pccbb_sclist *sclist;
-		sclist = malloc(sizeof(struct pccbb_sclist), M_DEVBUF,
-		    M_WAITOK);
-		sclist->sc = sc;
-		STAILQ_INSERT_TAIL(&softcs, sclist, entries);
-	}
-	return 0;
+	sclist = malloc(sizeof(struct pccbb_sclist), M_DEVBUF, M_WAITOK);
+	sclist->sc = sc;
+	STAILQ_INSERT_TAIL(&softcs, sclist, entries);
+	return (0);
 }
 
 static int
@@ -553,7 +548,7 @@ pccbb_detach(device_t brdev)
 	}
 	free(devlist, M_TEMP);
 	if (error > 0)
-		return ENXIO;
+		return (ENXIO);
 
 	mtx_lock(&sc->sc_mtx);
 	bus_teardown_intr(brdev, sc->sc_irq_res, sc->sc_intrhand);
@@ -568,14 +563,15 @@ pccbb_detach(device_t brdev)
 			DPRINTF(("timeout\n"));
 		else
 			DPRINTF(("done\n"));
-	} else
+	} else {
 		mtx_unlock(&sc->sc_mtx);
+	}
 
 	bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	bus_release_resource(brdev, SYS_RES_MEMORY, PCCBBR_SOCKBASE,
 	    sc->sc_base_res);
 	mtx_destroy(&sc->sc_mtx);
-	return 0;
+	return (0);
 }
 
 static int
@@ -601,7 +597,7 @@ pccbb_shutdown(device_t brdev)
 	pci_write_config(brdev, PCCBBR_IOBASE1, 0, 4);
 	pci_write_config(brdev, PCCBBR_IOLIMIT1, 0, 4);
 	pci_write_config(brdev, PCIR_COMMAND, 0, 2);
-	return 0;
+	return (0);
 }
 
 static void
@@ -655,6 +651,7 @@ static void
 pccbb_child_detached(device_t brdev, device_t child)
 {
 	struct pccbb_softc *sc = device_get_softc(brdev);
+
 	if (child == sc->sc_cbdev)
 		sc->sc_cbdev = NULL;
 	else if (child == sc->sc_pccarddev)
@@ -665,7 +662,8 @@ pccbb_child_detached(device_t brdev, device_t child)
 }
 
 static int
-pccbb_card_reprobe(device_t brdev, device_t busdev) {
+pccbb_card_reprobe(device_t brdev, device_t busdev)
+{
 	struct pccbb_softc *sc = device_get_softc(brdev);
 	int wake = 0;
 	u_int32_t sockstate;
@@ -684,11 +682,11 @@ pccbb_card_reprobe(device_t brdev, device_t busdev) {
 			mtx_lock(&sc->sc_mtx);
 			wakeup(sc);
 			mtx_unlock(&sc->sc_mtx);
-			return 0;
+			return (0);
 		}
-		return EBUSY;
+		return (EBUSY);
 	}
-	return ENOENT;
+	return (ENOENT);
 }
 
 /************************************************************************/
@@ -703,9 +701,9 @@ pccbb_event_thread(void *arg)
 
 	mtx_lock(&Giant);
 	for(;;) {
-		if (!(sc->sc_flags & PCCBB_KTHREAD_RUNNING))
+		if (!(sc->sc_flags & PCCBB_KTHREAD_RUNNING)) {
 			sc->sc_flags |= PCCBB_KTHREAD_RUNNING;
-		else {
+		} else {
 			tsleep (sc, PWAIT, "pccbbev", 0);
 			/*
 			 * Delay 1 second, make sure the user is done with
@@ -847,8 +845,6 @@ pccbb_intr(void *arg)
 			    sc->sc_socketreg->socket_state));
 		}
 	}
-
-	return;
 }
 
 /************************************************************************/
@@ -864,20 +860,16 @@ pccbb_detect_voltage(device_t brdev)
 
 	psr = sc->sc_socketreg->socket_state;
 
-	if (psr & PCCBB_SOCKET_STAT_5VCARD) {
+	if (psr & PCCBB_SOCKET_STAT_5VCARD)
 		vol |= CARD_5V_CARD;
-	}
-	if (psr & PCCBB_SOCKET_STAT_3VCARD) {
+	if (psr & PCCBB_SOCKET_STAT_3VCARD)
 		vol |= CARD_3V_CARD;
-	}
-	if (psr & PCCBB_SOCKET_STAT_XVCARD) {
+	if (psr & PCCBB_SOCKET_STAT_XVCARD)
 		vol |= CARD_XV_CARD;
-	}
-	if (psr & PCCBB_SOCKET_STAT_YVCARD) {
+	if (psr & PCCBB_SOCKET_STAT_YVCARD)
 		vol |= CARD_YV_CARD;
-	}
 
-	return vol;
+	return (vol);
 }
 
 static int
@@ -885,6 +877,8 @@ pccbb_power(device_t brdev, int volts)
 {
 	u_int32_t status, sock_ctrl;
 	struct pccbb_softc *sc = device_get_softc(brdev);
+	int timeout;
+	u_int32_t sockevent;
 
 	DEVPRINTF((sc->sc_dev, "pccbb_power: %s and %s [%x]\n",
 	    (volts & CARD_VCCMASK) == CARD_VCC_UC ? "CARD_VCC_UC" :
@@ -929,7 +923,7 @@ pccbb_power(device_t brdev, int volts)
 		sock_ctrl &= ~PCCBB_SOCKET_CTRL_VCCMASK;
 		break;
 	default:
-		return 0;			/* power NEVER changed */
+		return (0);			/* power NEVER changed */
 		break;
 	}
 
@@ -950,7 +944,7 @@ pccbb_power(device_t brdev, int volts)
 	}
 
 	if (sc->sc_socketreg->socket_control == sock_ctrl)
-		return 1; /* no change necessary */
+		return (1); /* no change necessary */
 
 	sc->sc_socketreg->socket_control = sock_ctrl;
 	status = sc->sc_socketreg->socket_state;
@@ -961,23 +955,19 @@ pccbb_power(device_t brdev, int volts)
 	 * worried about the card not coming up, then we should also
 	 * schedule a timeout which we can cacel in the power interrupt.
 	 */
-	   
-	{
-		int timeout = 20;
-		u_int32_t sockevent;
-		do {
-			DELAY(20*1000);
-			sockevent = sc->sc_socketreg->socket_event;
-		} while (!(sockevent & PCCBB_SOCKET_EVENT_POWER) &&
-		    --timeout > 0);
-		/* reset event status */
-		/* XXX should only reset EVENT_POWER */
-		sc->sc_socketreg->socket_event = sockevent;
-		if (timeout < 0) {
-			printf ("VCC supply failed.\n");
-			return 0;
-		}
+	timeout = 20;
+	do {
+		DELAY(20*1000);
+		sockevent = sc->sc_socketreg->socket_event;
+	} while (!(sockevent & PCCBB_SOCKET_EVENT_POWER) && --timeout > 0);
+	/* reset event status */
+	/* XXX should only reset EVENT_POWER */
+	sc->sc_socketreg->socket_event = sockevent;
+	if (timeout < 0) {
+		printf ("VCC supply failed.\n");
+		return (0);
 	}
+
 	/* XXX
 	 * delay 400 ms: thgough the standard defines that the Vcc set-up time
 	 * is 20 ms, some PC-Card bridge requires longer duration.
@@ -1004,9 +994,9 @@ pccbb_power(device_t brdev, int volts)
 		    (volts & CARD_VPPMASK) == CARD_VPP_0V ? "CARD_VPP_0V" :
 		    "VPP-UNKNOWN",
 		    volts);
-		return 0;
+		return (0);
 	}
-	return 1;		/* power changed correctly */
+	return (1);		/* power changed correctly */
 }
 
 /************************************************************************/
@@ -1041,7 +1031,7 @@ pccbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 
 	if ((sc->sc_socketreg->socket_state & PCCBB_SOCKET_STAT_CD) ==
 	    PCCBB_SOCKET_STAT_CD)
-		return ENODEV;
+		return (ENODEV);
 
 	voltage = pccbb_detect_voltage(brdev);
 
@@ -1052,11 +1042,11 @@ pccbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 		pccbb_power(brdev, CARD_VCC_3V | CARD_VPP_VCC);
 	else {
 		device_printf(brdev, "Unknown card voltage\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	pccbb_cardbus_reset(brdev);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1079,7 +1069,7 @@ pccbb_cardbus_io_open(device_t brdev, int win, u_int32_t start, u_int32_t end)
 	if ((win < 0) || (win > 1)) {
 		DEVPRINTF((brdev,
 		    "pccbb_cardbus_io_open: window out of range %d\n", win));
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	basereg = win*8 + PCCBBR_IOBASE0;
@@ -1087,7 +1077,7 @@ pccbb_cardbus_io_open(device_t brdev, int win, u_int32_t start, u_int32_t end)
 
 	pci_write_config(brdev, basereg, start, 4);
 	pci_write_config(brdev, limitreg, end, 4);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1099,7 +1089,7 @@ pccbb_cardbus_mem_open(device_t brdev, int win, u_int32_t start, u_int32_t end)
 	if ((win < 0) || (win > 1)) {
 		DEVPRINTF((brdev,
 		    "pccbb_cardbus_mem_open: window out of range %d\n", win));
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	basereg = win*8 + PCCBBR_MEMBASE0;
@@ -1107,7 +1097,7 @@ pccbb_cardbus_mem_open(device_t brdev, int win, u_int32_t start, u_int32_t end)
 
 	pci_write_config(brdev, basereg, start, 4);
 	pci_write_config(brdev, limitreg, end, 4);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1118,6 +1108,7 @@ pccbb_cardbus_auto_open(struct pccbb_softc *sc, int type)
 	struct pccbb_reslist *rle;
 	int align;
 	int prefetchable[2];
+	u_int32_t reg;
 
 	starts[0] = starts[1] = 0xffffffff;
 	ends[0] = ends[1] = 0;
@@ -1137,6 +1128,7 @@ pccbb_cardbus_auto_open(struct pccbb_softc *sc, int type)
 			    "(type=%d, addr=%lx)\n",
 			    rle->type, rman_get_start(rle->res));
 		} else if (!(rman_get_flags(rle->res) & RF_ACTIVE)) {
+			/* XXX */
 		} else if (starts[0] == 0xffffffff) {
 			starts[0] = rman_get_start(rle->res);
 			ends[0] = rman_get_end(rle->res);
@@ -1201,8 +1193,6 @@ pccbb_cardbus_auto_open(struct pccbb_softc *sc, int type)
 	}
 
 	if (type == SYS_RES_MEMORY) {
-		u_int32_t reg;
-
 		pccbb_cardbus_mem_open(sc->sc_dev, 0, starts[0], ends[0]);
 		pccbb_cardbus_mem_open(sc->sc_dev, 1, starts[1], ends[1]);
 		reg = pci_read_config(sc->sc_dev, PCCBBR_BRIDGECTRL, 2);
@@ -1225,9 +1215,10 @@ pccbb_cardbus_activate_resource(device_t brdev, device_t child, int type,
 
 	ret = BUS_ACTIVATE_RESOURCE(device_get_parent(brdev), child,
 	    type, rid, res);
-	if (ret != 0) return ret;
+	if (ret != 0)
+		return (ret);
 	pccbb_cardbus_auto_open(device_get_softc(brdev), type);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1238,9 +1229,10 @@ pccbb_cardbus_deactivate_resource(device_t brdev, device_t child, int type,
 
 	ret = BUS_DEACTIVATE_RESOURCE(device_get_parent(brdev), child,
 	    type, rid, res);
-	if (ret != 0) return ret;
+	if (ret != 0)
+		return (ret);
 	pccbb_cardbus_auto_open(device_get_softc(brdev), type);
-	return 0;
+	return (0);
 }
 
 static struct resource *
@@ -1259,7 +1251,7 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 			device_printf(child, "requested interrupt %ld-%ld,"
 			    "count = %ld not supported by pccbb\n",
 			    start, end, count);
-			return NULL;
+			return (NULL);
 		}
 		start = end = tmp;
 		break;
@@ -1281,7 +1273,7 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
 		printf("pccbb alloc res fail\n");
-		return NULL;
+		return (NULL);
 	}
 
 	/*
@@ -1300,10 +1292,10 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	if (flags & RF_ACTIVE)
 		if (bus_activate_resource(child, type, *rid, res) != 0) {
 			bus_release_resource(child, type, *rid, res);
-			return NULL;
+			return (NULL);
 		}
 
-	return res;
+	return (res);
 }
 
 static int
@@ -1312,12 +1304,12 @@ pccbb_cardbus_release_resource(device_t brdev, device_t child, int type,
 {
 	struct pccbb_softc *sc = device_get_softc(brdev);
 	struct pccbb_reslist *rle;
+	int error;
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		int error;
 		error = bus_deactivate_resource(child, type, rid, res);
 		if (error != 0)
-			return error;
+			return (error);
 	}
 
 	SLIST_FOREACH(rle, &sc->rl, link) {
@@ -1328,8 +1320,8 @@ pccbb_cardbus_release_resource(device_t brdev, device_t child, int type,
 		}
 	}
 
-	return BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res);
+	return (BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
+	    type, rid, res));
 }
 
 /************************************************************************/
@@ -1340,22 +1332,23 @@ static int
 pccbb_pcic_power_enable_socket(device_t brdev, device_t child)
 {
 	struct pccbb_softc *sc = device_get_softc(brdev);
+	int voltage;
+	int cardtype;
+	int win;
 
 	DPRINTF(("pccbb_pcic_socket_enable:\n"));
 
 	/* power down/up the socket to reset */
-	{
-		int voltage = pccbb_detect_voltage(brdev);
+	voltage = pccbb_detect_voltage(brdev);
 
-		pccbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
-		if (voltage & CARD_5V_CARD)
-			pccbb_power(brdev, CARD_VCC_5V | CARD_VPP_VCC);
-		else if (voltage & CARD_3V_CARD)
-			pccbb_power(brdev, CARD_VCC_3V | CARD_VPP_VCC);
-		else {
-			device_printf(brdev, "Unknown card voltage\n");
-			return ENXIO;
-		}
+	pccbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
+	if (voltage & CARD_5V_CARD)
+		pccbb_power(brdev, CARD_VCC_5V | CARD_VPP_VCC);
+	else if (voltage & CARD_3V_CARD)
+		pccbb_power(brdev, CARD_VCC_3V | CARD_VPP_VCC);
+	else {
+		device_printf(brdev, "Unknown card voltage\n");
+		return (ENXIO);
 	}
 
 	/* enable socket i/o */
@@ -1374,31 +1367,24 @@ pccbb_pcic_power_enable_socket(device_t brdev, device_t child)
 	/* disable all address windows */
 	PCIC_WRITE(sc, PCIC_ADDRWIN_ENABLE, 0);
 
-	{
-		int cardtype;
-		CARD_GET_TYPE(child, &cardtype);
-		PCIC_MASK(sc, PCIC_INTR, | ((cardtype == PCCARD_IFTYPE_IO) ?
-		    PCIC_INTR_CARDTYPE_IO : PCIC_INTR_CARDTYPE_MEM));
-		DEVPRINTF((sc->sc_dev, "card type is %s\n",
-		    (cardtype == PCCARD_IFTYPE_IO) ? "io" : "mem"));
-	}
+	CARD_GET_TYPE(child, &cardtype);
+	PCIC_MASK(sc, PCIC_INTR, | ((cardtype == PCCARD_IFTYPE_IO) ?
+	    PCIC_INTR_CARDTYPE_IO : PCIC_INTR_CARDTYPE_MEM));
+	DEVPRINTF((sc->sc_dev, "card type is %s\n",
+	    (cardtype == PCCARD_IFTYPE_IO) ? "io" : "mem"));
 
 	/* reinstall all the memory and io mappings */
-	{
-		int win;
-
-		for (win = 0; win < PCIC_MEM_WINS; ++win) {
-			if (sc->memalloc & (1 << win)) {
-				pccbb_pcic_do_mem_map(sc, win);
-			}
-		}
-		for (win = 0; win < PCIC_IO_WINS; ++win) {
-			if (sc->ioalloc & (1 << win)) {
-				pccbb_pcic_do_io_map(sc, win);
-			}
+	for (win = 0; win < PCIC_MEM_WINS; ++win) {
+		if (sc->memalloc & (1 << win)) {
+			pccbb_pcic_do_mem_map(sc, win);
 		}
 	}
-	return 0;
+	for (win = 0; win < PCIC_IO_WINS; ++win) {
+		if (sc->ioalloc & (1 << win)) {
+			pccbb_pcic_do_io_map(sc, win);
+		}
+	}
+	return (0);
 }
 
 static void
@@ -1545,7 +1531,7 @@ pccbb_pcic_mem_map(struct pccbb_softc *sc, int kind, struct resource *res)
 	if (!rle) {
 		device_printf(sc->sc_dev,
 		    "pcic_map_mem: Memory resource not found\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 	card_addr = rle->cardaddr - rle->cardaddr % PCIC_MEM_PAGESIZE;
 	sc->mem[win].memt = rman_get_bustag(res);
@@ -1587,10 +1573,10 @@ pccbb_pcic_mem_findmap(struct pccbb_softc *sc, struct resource *res)
 		if (sc->mem[win].memt == rman_get_bustag(res) &&
 		    sc->mem[win].addr == rman_get_start(res) &&
 		    sc->mem[win].size == rman_get_size(res))
-			return win;
+			return (win);
 	}
 	device_printf(sc->sc_dev, "Memory map not found!\n");
-	return -1;
+	return (-1);
 }
 
 #define	PCIC_IOINFO(NUM) {						\
@@ -1717,10 +1703,10 @@ pccbb_pcic_io_findmap(struct pccbb_softc *sc, struct resource *res)
 		if (sc->io[win].iot == rman_get_bustag(res) &&
 		    sc->io[win].addr == rman_get_start(res) &&
 		    sc->io[win].size == rman_get_size(res))
-			return win;
+			return (win);
 	}
 	device_printf(sc->sc_dev, "IO map not found!\n");
-	return -1;
+	return (-1);
 }
 
 static int
@@ -1742,11 +1728,11 @@ pccbb_pcic_activate_resource(device_t brdev, device_t child, int type, int rid,
 			break;
 		}
 		if (err)
-			return err;
+			return (err);
 
 	}
-	return BUS_ACTIVATE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res);
+	return (BUS_ACTIVATE_RESOURCE(device_get_parent(brdev), child,
+	    type, rid, res));
 }
 
 static int
@@ -1763,19 +1749,19 @@ pccbb_pcic_deactivate_resource(device_t brdev, device_t child, int type,
 			if (win >= 0)
 				pccbb_pcic_io_unmap(sc, win);
 			else
-				return ENOENT;
+				return (ENOENT);
 			break;
 		case SYS_RES_MEMORY:
 			win = pccbb_pcic_mem_findmap(sc, res);
 			if (win >= 0)
 				pccbb_pcic_mem_unmap(sc, win);
 			else
-				return ENOENT;
+				return (ENOENT);
 			break;
 		}
 	}
-	return BUS_DEACTIVATE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res);
+	return (BUS_DEACTIVATE_RESOURCE(device_get_parent(brdev), child,
+	    type, rid, res));
 }
 
 static struct resource *
@@ -1813,7 +1799,7 @@ pccbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 			device_printf(child, "requested interrupt %ld-%ld,"
 			    "count = %ld not supported by pccbb\n",
 			    start, end, count);
-			return NULL;
+			return (NULL);
 		}
 		flags |= RF_SHAREABLE;
 		start = end = rman_get_start(sc->sc_irq_res);
@@ -1822,7 +1808,7 @@ pccbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	res = BUS_ALLOC_RESOURCE(device_get_parent(brdev), child, type, rid,
 	    start, end, count, flags & ~RF_ACTIVE);
 	if (res == NULL)
-		return NULL;
+		return (NULL);
 
 	rle = malloc(sizeof(struct pccbb_reslist), M_DEVBUF, M_NOWAIT);
 	if (!rle)
@@ -1836,11 +1822,11 @@ pccbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	if (flags & RF_ACTIVE) {
 		if (bus_activate_resource(child, type, *rid, res) != 0) {
 			bus_release_resource(child, type, *rid, res);
-			return NULL;
+			return (NULL);
 		}
 	}
 
-	return res;
+	return (res);
 }
 
 static int
@@ -1849,12 +1835,12 @@ pccbb_pcic_release_resource(device_t brdev, device_t child, int type,
 {
 	struct pccbb_softc *sc = device_get_softc(brdev);
 	struct pccbb_reslist *rle;
+	int error;
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
-		int error;
 		error = bus_deactivate_resource(child, type, rid, res);
 		if (error != 0)
-			return error;
+			return (error);
 	}
 
 	SLIST_FOREACH(rle, &sc->rl, link) {
@@ -1865,8 +1851,8 @@ pccbb_pcic_release_resource(device_t brdev, device_t child, int type,
 		}
 	}
 
-	return BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
-	    type, rid, res);
+	return (BUS_RELEASE_RESOURCE(device_get_parent(brdev), child,
+	    type, rid, res));
 }
 
 /************************************************************************/
@@ -1896,18 +1882,18 @@ pccbb_pcic_set_res_flags(device_t brdev, device_t child, int type, int rid,
 	if (res == NULL) {
 		device_printf(brdev,
 		    "set_res_flags: specified rid not found\n");
-		return ENOENT;
+		return (ENOENT);
 	}
 	win = pccbb_pcic_mem_findmap(sc, res);
 	if (win < 0) {
 		device_printf(brdev,
 		    "set_res_flags: specified resource not active\n");
-		return ENOENT;
+		return (ENOENT);
 	}
 
 	sc->mem[win].kind = flags;
 	pccbb_pcic_do_mem_map(sc, win);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1935,13 +1921,13 @@ pccbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
 	if (res == NULL) {
 		device_printf(brdev,
 		    "set_memory_offset: specified rid not found\n");
-		return ENOENT;
+		return (ENOENT);
 	}
 	win = pccbb_pcic_mem_findmap(sc, res);
 	if (win < 0) {
 		device_printf(brdev,
 		    "set_memory_offset: specified resource not active\n");
-		return ENOENT;
+		return (ENOENT);
 	}
 
 	delta = cardaddr % PCIC_MEM_PAGESIZE;
@@ -1955,7 +1941,7 @@ pccbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
 	sc->mem[win].offset = cardaddr - sc->mem[win].addr;
 	pccbb_pcic_do_mem_map(sc, win);
 
-	return 0;
+	return (0);
 }
 
 /************************************************************************/
@@ -1968,9 +1954,9 @@ pccbb_power_enable_socket(device_t brdev, device_t child)
 	struct pccbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->sc_flags & PCCBB_16BIT_CARD)
-		return pccbb_pcic_power_enable_socket(brdev, child);
+		return (pccbb_pcic_power_enable_socket(brdev, child));
 	else
-		return pccbb_cardbus_power_enable_socket(brdev, child);
+		return (pccbb_cardbus_power_enable_socket(brdev, child));
 }
 
 static void
@@ -1994,10 +1980,10 @@ pccbb_activate_resource(device_t brdev, device_t child, int type, int rid,
 	struct pccbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->sc_flags & PCCBB_16BIT_CARD)
-		return pccbb_pcic_activate_resource(brdev, child, type, rid, r);
+		return (pccbb_pcic_activate_resource(brdev, child, type, rid, r));
 	else
-		return pccbb_cardbus_activate_resource(brdev, child, type, rid,
-		    r);
+		return (pccbb_cardbus_activate_resource(brdev, child, type, rid,
+		    r));
 }
 
 static int
@@ -2007,11 +1993,11 @@ pccbb_deactivate_resource(device_t brdev, device_t child, int type,
 	struct pccbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->sc_flags & PCCBB_16BIT_CARD)
-		return pccbb_pcic_deactivate_resource(brdev, child, type,
-		    rid, r);
+		return (pccbb_pcic_deactivate_resource(brdev, child, type,
+		    rid, r));
 	else
-		return pccbb_cardbus_deactivate_resource(brdev, child, type,
-		    rid, r);
+		return (pccbb_cardbus_deactivate_resource(brdev, child, type,
+		    rid, r));
 }
 
 static struct resource *
@@ -2021,11 +2007,11 @@ pccbb_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	struct pccbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->sc_flags & PCCBB_16BIT_CARD)
-		return pccbb_pcic_alloc_resource(brdev, child, type, rid,
-		    start, end, count, flags);
+		return (pccbb_pcic_alloc_resource(brdev, child, type, rid,
+		    start, end, count, flags));
 	else
-		return pccbb_cardbus_alloc_resource(brdev, child, type, rid,
-		    start, end, count, flags);
+		return (pccbb_cardbus_alloc_resource(brdev, child, type, rid,
+		    start, end, count, flags));
 }
 
 static int
@@ -2035,11 +2021,11 @@ pccbb_release_resource(device_t brdev, device_t child, int type, int rid,
 	struct pccbb_softc *sc = device_get_softc(brdev);
 
 	if (sc->sc_flags & PCCBB_16BIT_CARD)
-		return pccbb_pcic_release_resource(brdev, child, type,
-		    rid, r);
+		return (pccbb_pcic_release_resource(brdev, child, type,
+		    rid, r));
 	else
-		return pccbb_cardbus_release_resource(brdev, child, type,
-		    rid, r);
+		return (pccbb_cardbus_release_resource(brdev, child, type,
+		    rid, r));
 }
 
 static int
@@ -2050,9 +2036,9 @@ pccbb_read_ivar(device_t brdev, device_t child, int which, uintptr_t *result)
 	switch (which) {
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_secbus;
-		return(0);
+		return (0);
 	}
-	return(ENOENT);
+	return (ENOENT);
 }
 
 static int
@@ -2065,7 +2051,7 @@ pccbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 		sc->sc_secbus = value;
 		break;
 	}
-	return(ENOENT);
+	return (ENOENT);
 }
 
 /************************************************************************/
@@ -2075,7 +2061,7 @@ pccbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 static int
 pccbb_maxslots(device_t brdev)
 {
-	return 0;
+	return (0);
 }
 
 static u_int32_t
@@ -2084,8 +2070,8 @@ pccbb_read_config(device_t brdev, int b, int s, int f, int reg, int width)
 	/*
 	 * Pass through to the next ppb up the chain (i.e. our grandparent).
 	 */
-	return PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
-	    b, s, f, reg, width);
+	return (PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
+	    b, s, f, reg, width));
 }
 
 static void
