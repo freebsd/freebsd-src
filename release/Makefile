@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.76 1995/01/13 08:06:55 gibbs Exp $
+#	$Id: Makefile,v 1.77 1995/01/14 07:48:09 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -29,7 +29,8 @@ CPIO2=  etc/services etc/protocols
 
 # bininst MUST be the last file on the cpio floppy.  It's used to detect
 # a successful extraction.
-CPIO3=	miscfuncs.sh instdist.sh netinst.sh adduser.sh bininst
+CPIO3=	scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
+	scripts/adduser.sh scripts/bininst
 
 CPIO4=	/usr/sbin/tzsetup
 CPIO4B=	tzsetup
@@ -157,8 +158,9 @@ release20:
 	( cd ${RELEASEDIR}/filesys; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bindist.)
-	cp ${.CURDIR}/extract_bin.sh ${RELEASEDIR}/tarballs/bindist/extract.sh
-	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/mkchecksums.sh )
+	cp ${.CURDIR}/scripts/extract_bin.sh \
+		${RELEASEDIR}/tarballs/bindist/extract.sh
+	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/scripts/mkchecksums.sh )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
 foo:
@@ -221,7 +223,7 @@ beforetarballs:
 	cd ${RELEASEDIR}/secure/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
 	mkdir -p ${RELEASEDIR}/src/usr
 	cd ${RELEASEDIR}/src/usr ; cvs export -r ${RELEASETAG} src
-	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure kerberosIV eBones
+	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure eBones
 
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
@@ -232,8 +234,10 @@ tarballs:
 		( cd ${RELEASEDIR}/$${i}; \
 			tar cf - . | \
 			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
-	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
-	cp ${.CURDIR}/extract_$${i}.sh ${RELEASEDIR}/tarballs/$${i}/extract.sh;\
+	( cd ${RELEASEDIR}/tarballs/$${i}; \
+		sh -e ${.CURDIR}/scripts/mkchecksums.sh ) ; \
+	cp ${.CURDIR}/scripts/extract_$${i}.sh \
+		${RELEASEDIR}/tarballs/$${i}/extract.sh;\
 	echo "$${i} distribution is finished."; \
 	done
 
