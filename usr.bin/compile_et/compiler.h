@@ -17,4 +17,3 @@ enum lang {
 int debug;			/* dump debugging info? */
 char *filename;			/* error table source */
 enum lang language;
-const char *whoami;

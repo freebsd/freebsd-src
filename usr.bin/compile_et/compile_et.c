@@ -7,11 +7,12 @@
  *
  */
 
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/file.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/param.h>
 #include "mit-sipb-copyright.h"
 #include "compiler.h"
@@ -25,7 +26,7 @@ static const char copyright[] =
     "Copyright 1987,1988 by MIT Student Information Processing Board";
 
 static const char rcsid_compile_et_c[] =
-    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.2 1995/01/14 22:29:31 wollman Exp $";
+    "$Header: /home/ncvs/src/usr.bin/compile_et/compile_et.c,v 1.3 1996/07/12 19:05:17 jkh Exp $";
 #endif
 
 extern char *gensym();
@@ -41,10 +42,8 @@ extern int yylineno;
 
 char * xmalloc (size) unsigned int size; {
     char * p = malloc (size);
-    if (!p) {
-	perror (whoami);
-	exit (1);
-    }
+    if (!p)
+		err(1, NULL);
     return p;
 }
 
@@ -112,14 +111,12 @@ char c_file[MAXPATHLEN];	/* output file */
 char h_file[MAXPATHLEN];	/* output */
 
 static void usage () {
-    fprintf (stderr, "%s: usage: %s ERROR_TABLE\n",
-	     whoami, whoami);
+    fprintf (stderr, "usage: compile_et ERROR_TABLE\n");
     exit (1);
 }
 
 static void dup_err (type, one, two) char const *type, *one, *two; {
-    fprintf (stderr, "%s: multiple %s specified: `%s' and `%s'\n",
-	     whoami, type, one, two);
+    warnx("multiple %s specified: `%s' and `%s'", type, one, two);
     usage ();
 }
 
@@ -132,10 +129,6 @@ int main (argc, argv) int argc; char **argv; {
     /* argument parsing */
     debug = 0;
     filename = 0;
-    whoami = argv[0];
-    p = strrchr (whoami, '/');
-    if (p)
-	whoami = p+1;
     while (argv++, --argc) {
 	char *arg = *argv;
 	if (arg[0] != '-') {
@@ -153,7 +146,7 @@ int main (argc, argv) int argc; char **argv; {
 		if (!arg)
 		    usage ();
 		if (language)
-		    dup_err ("languanges", language_names[(int)language], arg);
+		    dup_err ("languages", language_names[(int)language], arg);
 #define check_lang(x,v) else if (!strcasecmp(arg,x)) language = v
 		check_lang ("c", lang_C);
 		check_lang ("ansi_c", lang_C);
@@ -168,16 +161,12 @@ int main (argc, argv) int argc; char **argv; {
 		check_lang ("c-plus-plus", lang_CPP);
 #undef check_lang
 		else {
-		    fprintf (stderr, "%s: unknown language name `%s'\n",
-			     whoami, arg);
-		    fprintf (stderr, "\tpick one of: C K&R-C\n");
-		    exit (1);
+		    errx(1, "unknown language name `%s'\n\tpick one of: C K&R-C", arg);
 		}
 	    }
 	    else {
-		fprintf (stderr, "%s: unknown control argument -`%s'\n",
-			 whoami, arg);
-		usage ();
+			warnx("unknown control argument -`%s'", arg);
+			usage ();
 	    }
 	}
     }
@@ -186,9 +175,7 @@ int main (argc, argv) int argc; char **argv; {
     if (!got_language)
 	language = lang_KRC;
     else if (language == lang_CPP) {
-	fprintf (stderr, "%s: Sorry, C++ support is not yet finished.\n",
-		 whoami);
-	exit (1);
+		errx(1, "sorry, C++ support is not yet finished");
     }
 
     p = xmalloc (strlen (filename) + 5);
