@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.10 1995/02/19 15:02:26 bde Exp $
+ * $Id: subr_prf.c,v 1.11 1995/03/16 18:12:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,6 @@ int	(*v_putc)() = cnputc;		/* routine to putc on virtual console */
 void  logpri __P((int level));
 static void  putchar __P((int ch, int flags, struct tty *tp));
 static char *ksprintn __P((u_long num, int base, int *len));
-void kprintf __P((const char *fmt, int flags, struct tty *tp, va_list ap));
 
 int consintr = 1;			/* Ok to handle console interrupts? */
 
