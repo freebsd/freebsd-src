@@ -412,9 +412,7 @@ scmeminit(void *arg)
     sc_alloc_scr_buffer(sc_console, FALSE, FALSE);
 
 #ifndef SC_NO_CUTPASTE
-    /* cut buffer is available only when the mouse pointer is used */
-    if (ISMOUSEAVAIL(sc_console->sc->adp->va_flags))
-	sc_alloc_cut_buffer(sc_console, FALSE);
+    sc_alloc_cut_buffer(sc_console, FALSE);
 #endif
 
 #ifndef SC_NO_HISTORY
@@ -2801,8 +2799,7 @@ static scr_stat
 	sc_init_emulator(scp, "*");
 
 #ifndef SC_NO_CUTPASTE
-    if (ISMOUSEAVAIL(sc->adp->va_flags))
-	sc_alloc_cut_buffer(scp, TRUE);
+    sc_alloc_cut_buffer(scp, TRUE);
 #endif
 
 #ifndef SC_NO_HISTORY
