@@ -699,7 +699,12 @@ parseargs(int argc, char *argv[])
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "dwah:ilLs")) != -1) {
+#ifdef WARMSTART
+#define	WSOP	"w"
+#else
+#define	WSOP	""
+#endif
+	while ((c = getopt(argc, argv, "adh:iLls" WSOP)) != -1) {
 		switch (c) {
 		case 'a':
 			doabort = 1;	/* when debugging, do an abort on */
@@ -735,7 +740,9 @@ parseargs(int argc, char *argv[])
 			break;
 #endif
 		default:	/* error */
-			fprintf(stderr,	"usage: rpcbind [-Idwils]\n");
+			fprintf(stderr,
+			    "usage: rpcbind [-adiLls%s] [-h bindip]\n",
+			    WSOP);
 			exit (1);
 		}
 	}
@@ -744,6 +751,7 @@ parseargs(int argc, char *argv[])
 		"-a (abort) specified without -d (debugging) -- ignored.\n");
 	    doabort = 0;
 	}
+#undef WSOP
 }
 
 void
