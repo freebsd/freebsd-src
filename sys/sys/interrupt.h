@@ -90,11 +90,10 @@ struct ithd {
  */
 #define	SWI_TTY		0
 #define	SWI_NET		1
-#define	SWI_CAMNET	2
-#define	SWI_CAMBIO	3
-#define	SWI_VM		4
-#define	SWI_CLOCK	5
-#define	SWI_TQ_FAST	6
+#define	SWI_CAMBIO	2
+#define	SWI_VM		3
+#define	SWI_CLOCK	4
+#define	SWI_TQ_FAST	5
 #define	SWI_TQ		6
 #define	SWI_TQ_GIANT	6
 
