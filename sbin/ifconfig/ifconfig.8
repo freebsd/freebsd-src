@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
+.\"     @(#)ifconfig.8	8.4 (Berkeley) 6/1/94
 .\"
-.Dd January 5, 1994
+.Dd June 1, 1994
 .Dt IFCONFIG 8
 .Os BSD 4.2
 .Sh NAME
@@ -140,6 +140,7 @@ Enable driver dependent debugging code; usually, this turns on
 extra console error logging.
 .It Fl debug
 Disable driver dependent debugging code.
+.ne 1i
 .It Cm delete
 Remove the network address specified.
 This would be used if you incorrectly specified an alias, or it
@@ -240,6 +241,7 @@ Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
 they are in general used to select special modes of operation. An example
 of this is to enable SLIP compression. Currently, only used by SLIP.
+.ne 1i
 .It Fl link[0-2]
 Disable special processing at the link level with the specified interface.
 .It Cm up

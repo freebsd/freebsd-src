@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)init.8	8.3 (Berkeley) 4/18/94
+.\"     @(#)init.8	8.6 (Berkeley) 5/26/95
 .\"
-.Dd April 18, 1994
+.Dd May 26, 1995
 .Dt INIT 8
 .Os BSD 4
 .Sh NAME
@@ -101,6 +101,9 @@ disks for mounted filesystems,
 and
 .Pa /dev/kmem
 are read-only.
+The
+.Xr settimeofday 2
+system call can only advance the time.
 .It Ic 2
 Highly secure mode \- same as secure mode, plus disks are always
 read-only whether mounted or not.
@@ -159,6 +162,7 @@ then restarted by
 executing a new
 .Xr getty
 for the line.
+.pl +1
 .Pp
 Line status (on, off, secure, getty, or window information)
 may be changed in the
@@ -168,7 +172,7 @@ file without a reboot by sending the signal
 to
 .Nm init
 with the command
-.Dq Li "kill -HUP 1" .
+.Dq Li "kill \-s HUP 1" .
 On receipt of this signal,
 .Nm init
 re-reads the
@@ -208,7 +212,7 @@ will terminate multi-user operations and resume single-user mode
 if sent a terminate
 .Pq Dv TERM
 signal, for example,
-.Dq Li "kill \-TERM 1" .
+.Dq Li "kill \-s TERM 1" .
 If there are processes outstanding that are deadlocked (because of
 hardware or software failure),
 .Xr init
@@ -221,7 +225,7 @@ will cease creating new
 and allow the system to slowly die away, if it is sent a terminal stop
 .Pq Dv TSTP
 signal, i.e.
-.Dq Li "kill \-TSTP 1" .
+.Dq Li "kill \-s TSTP 1" .
 A later hangup will resume full
 multi-user operations, or a terminate will start a single user shell.
 This hook is used by

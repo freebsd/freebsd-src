@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
+static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -164,7 +164,7 @@ main(argc, argv)
 				break;
 			if (p != mbuf)
 				*p++ = ' ';
-			bcopy(*argv, p, arglen);
+			memmove(p, *argv, arglen);
 			p += arglen;
 		}
 		*p = '\n';
@@ -473,7 +473,8 @@ void
 finish(signo)
 	int signo;
 {
-	(void)unlink(_PATH_NOLOGIN);
+	if (!killflg)
+		(void)unlink(_PATH_NOLOGIN);
 	exit(0);
 }
 
