@@ -42,7 +42,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
+static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * There's a structure per input file which encapsulates the state of the
@@ -288,6 +289,10 @@ slurp(F)
 			    F->setalloc * sizeof(LINE))) == NULL)
 				err(1, NULL);
 			memset(F->set + cnt, 0, 50 * sizeof(LINE));
+
+			/* re-set lastlp in case it moved */
+			if (lastlp != NULL)
+				lastlp = &F->set[F->setcnt - 1];
 		}
 			
 		/*
@@ -309,7 +314,7 @@ slurp(F)
 		if ((bp = fgetln(F->fp, &len)) == NULL)
 			return;
 		if (lp->linealloc <= len + 1) {
-			lp->linealloc += MAX(100, len + 1);
+			lp->linealloc += MAX(100, len + 1 - lp->linealloc);
 			if ((lp->line =
 			    realloc(lp->line, lp->linealloc)) == NULL)
 				err(1, NULL);
@@ -351,9 +356,9 @@ cmp(lp1, fieldno1, lp2, fieldno2)
 	LINE *lp1, *lp2;
 	u_long fieldno1, fieldno2;
 {
-	if (lp1->fieldcnt < fieldno1)
-		return (lp2->fieldcnt < fieldno2 ? 0 : 1);
-	if (lp2->fieldcnt < fieldno2)
+	if (lp1->fieldcnt <= fieldno1)
+		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
+	if (lp2->fieldcnt <= fieldno2)
 		return (-1);
 	return (strcmp(lp1->fields[fieldno1], lp2->fields[fieldno2]));
 }
@@ -472,7 +477,7 @@ fieldarg(option)
 	u_long fieldno;
 	char *end, *token;
 
-	while ((token = strsep(&option, " \t")) != NULL) {
+	while ((token = strsep(&option, ", \t")) != NULL) {
 		if (*token == '\0')
 			continue;
 		if (token[0] != '1' && token[0] != '2' || token[1] != '.')

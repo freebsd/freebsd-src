@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)function.c	8.6 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)function.c	8.10 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -373,18 +373,15 @@ f_fstype(plan, entry)
 		}
 
 		first = 0;
-		switch (plan->flags) {
-		case F_MTFLAG:
-			val = sb.f_flags;
-			break;
-		case F_MTTYPE:
-			val = sb.f_type;
-			break;
-		default:
-			abort();
-		}
+
+		/*
+		 * Further tests may need both of these values, so
+		 * always copy both of them.
+		 */
+		val = sb.f_flags;
+		val = sb.f_type;
 	}
-	switch(plan->flags) {
+	switch (plan->flags) {
 	case F_MTFLAG:
 		return (val & plan->mt_data);	
 	case F_MTTYPE:
@@ -399,10 +396,21 @@ c_fstype(arg)
 	char *arg;
 {
 	register PLAN *new;
+	struct vfsconf vfc;
     
 	ftsoptions &= ~FTS_NOSTAT;
     
 	new = palloc(N_FSTYPE, f_fstype);
+
+	/*
+	 * Check first for a filesystem name.
+	 */
+	if (getvfsbyname(arg, &vfc) == 0) {
+		new->flags = F_MTTYPE;
+		new->mt_data = vfc.vfc_typenum;
+		return (new);
+	}
+
 	switch (*arg) {
 	case 'l':
 		if (!strcmp(arg, "local")) {
@@ -411,38 +419,10 @@ c_fstype(arg)
 			return (new);
 		}
 		break;
-	case 'm':
-		if (!strcmp(arg, "mfs")) {
-			new->flags = F_MTTYPE;
-			new->mt_data = MOUNT_MFS;
-			return (new);
-		}
-		break;
-	case 'n':
-		if (!strcmp(arg, "nfs")) {
-			new->flags = F_MTTYPE;
-			new->mt_data = MOUNT_NFS;
-			return (new);
-		}
-		break;
-	case 'p':
-		if (!strcmp(arg, "msdos")) {
-			new->flags = F_MTTYPE;
-			new->mt_data = MOUNT_MSDOS;
-			return (new);
-		}
-		break;
 	case 'r':
 		if (!strcmp(arg, "rdonly")) {
 			new->flags = F_MTFLAG;
 			new->mt_data = MNT_RDONLY;
-			return (new);
-		}
-		break;
-	case 'u':
-		if (!strcmp(arg, "ufs")) {
-			new->flags = F_MTTYPE;
-			new->mt_data = MOUNT_UFS;
 			return (new);
 		}
 		break;
@@ -858,9 +838,9 @@ c_size(arg)
 /*
  * -type c functions --
  *
- *	True if the type of the file is c, where c is b, c, d, p, or f for
- *	block special file, character special file, directory, FIFO, or
- *	regular file, respectively.
+ *	True if the type of the file is c, where c is b, c, d, p, f or w
+ *	for block special file, character special file, directory, FIFO,
+ *	regular file or whiteout respectively.
  */
 int
 f_type(plan, entry)
@@ -901,6 +881,12 @@ c_type(typestring)
 	case 's':
 		mask = S_IFSOCK;
 		break;
+#ifdef FTS_WHITEOUT
+	case 'w':
+		mask = S_IFWHT;
+		ftsoptions |= FTS_WHITEOUT;
+		break;
+#endif /* FTS_WHITEOUT */
 	default:
 		errx(1, "-type: %s: unknown type", typestring);
 	}

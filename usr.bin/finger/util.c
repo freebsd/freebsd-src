@@ -35,13 +35,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <db.h>
+#include <err.h>
 #include <pwd.h>
 #include <utmp.h>
 #include <errno.h>
@@ -80,14 +81,14 @@ match(pw, user)
 	if ((p = strtok(p, ",")) == NULL)
 		return(0);
 
-	for (t = name; *t = *p; ++p)
+	for (t = name; (*t = *p) != '\0'; ++p)
 		if (*t == '&') {
 			(void)strcpy(t, pw->pw_name);
 			while (*++t);
 		}
 		else
 			++t;
-	for (t = name; p = strtok(t, "\t "); t = NULL)
+	for (t = name; (p = strtok(t, "\t ")) != NULL; t = NULL)
 		if (!strcasecmp(p, user))
 			return(1);
 	return(0);
@@ -169,17 +170,18 @@ enter_person(pw)
 
 	if (db == NULL &&
 	    (db = dbopen(NULL, O_RDWR, 0, DB_BTREE, NULL)) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 
 	key.data = pw->pw_name;
 	key.size = strlen(pw->pw_name);
 
-	switch((*db->get)(db, &key, &data, 0)) {
+	switch ((*db->get)(db, &key, &data, 0)) {
 	case 0:
-		return(*(PERSON **)data.data);
+		memmove(&pn, data.data, sizeof pn);
+		return (pn);
 	default:
 	case -1:
-		err("db get: %s", strerror(errno));
+		err(1, "db get");
 		/* NOTREACHED */
 	case 1:
 		++entries;
@@ -190,8 +192,8 @@ enter_person(pw)
 		data.size = sizeof(PERSON *);
 		data.data = &pn;
 		if ((*db->put)(db, &key, &data, 0))
-			err("%s", strerror(errno));
-		return(pn);
+			err(1, "db put");
+		return (pn);
 	}
 }
 
@@ -201,6 +203,7 @@ find_person(name)
 {
 	register int cnt;
 	DBT data, key;
+	PERSON *p;
 	char buf[UT_NAMESIZE + 1];
 
 	if (!db)
@@ -213,7 +216,10 @@ find_person(name)
 	key.data = buf;
 	key.size = cnt;
 
-	return((*db->get)(db, &key, &data, 0) ? NULL : *(PERSON **)data.data);
+	if ((*db->get)(db, &key, &data, 0))
+		return (NULL);
+	memmove(&p, data.data, sizeof p);
+	return (p);
 }
 
 PERSON *
@@ -222,7 +228,7 @@ palloc()
 	PERSON *p;
 
 	if ((p = malloc((u_int) sizeof(PERSON))) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	return(p);
 }
 
@@ -233,7 +239,7 @@ walloc(pn)
 	register WHERE *w;
 
 	if ((w = malloc((u_int) sizeof(WHERE))) == NULL)
-		err("%s", strerror(errno));
+		err(1, NULL);
 	if (pn->whead == NULL)
 		pn->whead = pn->wtail = w;
 	else {
@@ -300,8 +306,7 @@ find_idle_and_ttywrite(w)
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_DEV, w->tty);
 	if (stat(tbuf, &sb) < 0) {
-		(void)fprintf(stderr,
-		    "finger: %s: %s\n", tbuf, strerror(errno));
+		warn(tbuf);
 		return;
 	}
 	w->idletime = now < sb.st_atime ? 0 : now - sb.st_atime;
@@ -333,7 +338,7 @@ userinfo(pn, pw)
 	/* ampersands get replaced by the login name */
 	if (!(p = strsep(&bp, ",")))
 		return;
-	for (t = name; *t = *p; ++p)
+	for (t = name; (*t = *p) != '\0'; ++p)
 		if (*t == '&') {
 			(void)strcpy(t, pw->pw_name);
 			if (islower(*t))
@@ -349,33 +354,4 @@ userinfo(pn, pw)
 	    strdup(p) : NULL;
 	pn->homephone = ((p = strsep(&bp, ",")) && *p) ?
 	    strdup(p) : NULL;
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "finger: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }

@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)lprint.c	8.1 (Berkeley) 6/6/93";
 #include <time.h>
 #include <tzfile.h>
 #include <db.h>
+#include <err.h>
 #include <pwd.h>
 #include <utmp.h>
 #include <errno.h>
@@ -72,15 +73,17 @@ lflag_print()
 	extern int pplan;
 	register PERSON *pn;
 	register int sflag, r;
+	PERSON *tmp;
 	DBT data, key;
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
 		if (r == -1)
-			err("db seq: %s", strerror(errno));
+			err(1, "db seq");
 		if (r == 1)
 			break;
-		pn = *(PERSON **)data.data;
+		memmove(&tmp, data.data, sizeof tmp);
+		pn = tmp;
 		if (sflag != R_FIRST)
 			putchar('\n');
 		lprint(pn);

@@ -38,15 +38,17 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)head.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
+
+#include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <ctype.h>
+#include <unistd.h>
 
 /*
  * head - give the first few lines of a stream or of each of a set of files

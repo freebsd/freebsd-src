@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
+static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -56,13 +56,15 @@ static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include <limits.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <unistd.h>
+
 #include "pathnames.h"
 
 /*
