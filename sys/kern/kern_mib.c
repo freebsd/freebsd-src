@@ -40,6 +40,8 @@
  * $FreeBSD$
  */
 
+#include "opt_global.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -142,6 +144,10 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
+#ifdef REGRESSION
+SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0, "Regression test MIB");
+#endif /* !REGRESSION */
+
 char hostname[MAXHOSTNAMELEN];
 
 static int
@@ -164,6 +170,13 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, 
        CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON,
        0, 0, sysctl_hostname, "A", "Hostname");
+
+#ifdef REGRESSION
+int	regression_securelevel_nonmonotonic=0;
+
+SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
+    &regression_securelevel_nonmonotonic, 0, "securelevel may be lowered");
+#endif /* !REGRESSION */
 
 int securelevel = -1;
 
@@ -190,11 +203,17 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 		 * global level, and local level if any.
 		 */
 		if (req->p->p_ucred->cr_prison != NULL) {
+#ifdef REGRESSION
+			if (!regression_securelevel_nonmonotonic)
+#endif /* !REGRESSION */
 			if (level < imax(securelevel,
 			    req->p->p_ucred->cr_prison->pr_securelevel))
 				return (EPERM);
 			req->p->p_ucred->cr_prison->pr_securelevel = level;
 		} else {
+#ifdef REGRESSION
+			if (!regression_securelevel_nonmonotonic)
+#endif /* !REGRESSION */
 			if (level < securelevel)
 				return (EPERM);
 			securelevel = level;
