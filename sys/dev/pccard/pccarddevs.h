@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.20 2001/11/19 05:02:55 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.21 2001/11/19 05:11:35 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.145 2001/11/08 17:05:42 christos Exp $ */
+/* $NetBSD: pcmciadevs,v 1.146 2001/11/18 04:25:43 mrg Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -108,6 +108,7 @@
 #define	PCMCIA_VENDOR_HAGIWARASYSCOM	0xc012	/* Hagiwara SYS-COM */
 #define	PCMCIA_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
 #define	PCMCIA_VENDOR_EMTAC	0xc250	/* EMTAC Technology Corporation */
+vector LINKSYS2			0x0274	The Linksys Group
 #define	PCMCIA_VENDOR_ELSA	0xd601	/* Elsa */
 
 /*
@@ -349,6 +350,9 @@
 #define	PCMCIA_CIS_LINKSYS_COMBO_ECARD	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_LINKSYS_COMBO_ECARD	0xc1ab
 #define	PCMCIA_STR_LINKSYS_COMBO_ECARD	"Linksys Combo EthernetCard"
+#define	PCMCIA_CIS_LINKSYS2_IWN	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_LINKSYS2_IWN	0x1612
+#define	PCMCIA_STR_LINKSYS2_IWN	"Instant Wireless Network PC Card"
 
 /* Lucent WaveLAN/IEEE */
 #define	PCMCIA_CIS_LUCENT_WAVELAN_IEEE	{ NULL, NULL, NULL, NULL }
@@ -787,7 +791,6 @@
 #define	PCMCIA_CIS_YEDATA_EXTERNAL_FDD	{ "Y-E DATA", "External FDD", NULL, NULL }
 #define	PCMCIA_PRODUCT_YEDATA_EXTERNAL_FDD	-1
 #define	PCMCIA_STR_YEDATA_EXTERNAL_FDD	"Y-E DATA External FDD"
-
 #define	PCMCIA_CIS_ZOOM_AIR_4000	{ "Zoom", "Air-4000", NULL, NULL }
 #define	PCMCIA_PRODUCT_ZOOM_AIR_4000	-1
 #define	PCMCIA_STR_ZOOM_AIR_4000	"Zoom Air-4000"
