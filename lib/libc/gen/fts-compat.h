@@ -47,7 +47,7 @@ typedef struct {
 	int fts_pathlen;		/* sizeof(path) */
 	int fts_nitems;			/* elements in the sort array */
 	int (*fts_compar)		/* compare function */
-(const struct _ftsent **, const struct _ftsent **);
+	    (const struct _ftsent **, const struct _ftsent **);
 
 #define	FTS_COMFOLLOW	0x001		/* follow command line symlinks */
 #define	FTS_LOGICAL	0x002		/* logical walk */
