@@ -101,7 +101,7 @@ static void epic_start_activity(epic_softc_t *);
 static void epic_set_rx_mode(epic_softc_t *);
 static void epic_set_tx_mode(epic_softc_t *);
 static void epic_set_mc_table(epic_softc_t *);
-static u_int32_t tx_mchash(caddr_t);
+static uint32_t tx_mchash(const uint8_t *);
 static int epic_read_eeprom(epic_softc_t *,u_int16_t);
 static void epic_output_eepromw(epic_softc_t *, u_int16_t);
 static u_int16_t epic_input_eepromw(epic_softc_t *);
@@ -1425,13 +1425,13 @@ epic_set_mc_table(sc)
 /*
  * Synopsis: calculate EPIC's hash of multicast address.
  */
-static u_int32_t
+static uint32_t
 tx_mchash(addr)
-	caddr_t addr;
+	const uint8_t *addr;
 {
-	u_int32_t crc, carry;
+	uint32_t crc, carry;
 	int idx, bit;
-	u_int8_t data;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

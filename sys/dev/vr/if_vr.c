@@ -160,7 +160,7 @@ static int vr_miibus_writereg	(device_t, int, int, int);
 static void vr_miibus_statchg	(device_t);
 
 static void vr_setcfg		(struct vr_softc *, int);
-static u_int32_t vr_mchash	(caddr_t);
+static uint32_t vr_mchash	(const uint8_t *);
 static void vr_setmulti		(struct vr_softc *);
 static void vr_reset		(struct vr_softc *);
 static int vr_list_rx_init	(struct vr_softc *);
@@ -566,11 +566,11 @@ vr_miibus_statchg(dev)
  */
 static u_int32_t
 vr_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

@@ -224,7 +224,7 @@ static int sk_marv_miibus_writereg	(struct sk_if_softc *, int, int,
 						int);
 static void sk_marv_miibus_statchg	(struct sk_if_softc *);
 
-static u_int32_t sk_mchash	(caddr_t);
+static uint32_t sk_mchash	(const uint8_t *);
 static void sk_setfilt		(struct sk_if_softc *, caddr_t, int);
 static void sk_setmulti		(struct sk_if_softc *);
 
@@ -714,11 +714,11 @@ sk_marv_miibus_statchg(sc_if)
 
 static u_int32_t
 sk_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

@@ -163,7 +163,7 @@ static void      xe_enable_intr		(struct xe_softc *scp);
 static void      xe_disable_intr	(struct xe_softc *scp);
 static void      xe_set_multicast	(struct xe_softc *scp);
 static void      xe_set_addr		(struct xe_softc *scp, u_int8_t* addr, unsigned idx);
-static void      xe_mchash		(struct xe_softc *scp, caddr_t addr);
+static void      xe_mchash		(struct xe_softc *scp, const uint8_t *addr);
 static int       xe_pio_write_packet	(struct xe_softc *scp, struct mbuf *mbp);
 
 /*
@@ -1412,10 +1412,10 @@ xe_set_addr(struct xe_softc *scp, u_int8_t* addr, unsigned idx) {
  * address.
  */
 static void
-xe_mchash(struct xe_softc* scp, caddr_t addr) {
-  u_int32_t crc = 0xffffffff;
+xe_mchash(struct xe_softc* scp, const uint8_t *addr) {
+  uint32_t crc = 0xffffffff;
   int idx, bit;
-  u_int8_t carry, byte, data, crc31, hash;
+  uint8_t carry, byte, data, crc31, hash;
 
   /* Compute CRC of the address -- standard Ethernet CRC function */
   for (data = *addr++, idx = 0; idx < 6; idx++, data >>= 1) {
