@@ -19,78 +19,15 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * if_epreg.h,v 1.4 1994/11/13 10:12:37 gibbs Exp Modified by:
- *
- October 2, 1994
-
- Modified by: Andres Vega Garcia
-
- INRIA - Sophia Antipolis, France
- e-mail: avega@sophia.inria.fr
- finger: avega@pax.inria.fr
-
- */
-/*
  * $FreeBSD$
- *
- *  Promiscuous mode added and interrupt logic slightly changed
- *  to reduce the number of adapter failures. Transceiver select
- *  logic changed to use value from EEPROM. Autoconfiguration
- *  features added.
- *  Done by:
- *          Serge Babkin
- *          Chelindbank (Chelyabinsk, Russia)
- *          babkin@hq.icb.chel.su
  */
 
 /*
- * Pccard support for 3C589 by:
- *		HAMADA Naoki
- *		nao@tom-yam.or.jp
+ * DELAY_MULTIPLE: How much to boost "base" delays, except
+ * for the inter-bit delays in get_eeprom_data.  A cyrix Media GX needed this.
  */
-
-/*
- * Ethernet software status per interface.
- */
-struct ep_softc {
-    struct arpcom arpcom;	/* Ethernet common part		 */
-    int ep_io_addr;		/* i/o bus address		 */
-    struct mbuf *top, *mcur;
-    short cur_len;
-    u_short ep_connectors;	/* Connectors on this card.	 */
-    u_char ep_connector;	/* Configured connector.	 */
-    int stat;			/* some flags */
-    int gone;			/* adapter is not present (for PCCARD) */
-#define         F_RX_FIRST   0x1
-#define		F_PROMISC    0x8
-
-#define         F_ACCESS_32_BITS 0x100
-
-    struct ep_board *epb;
-
-    int unit;
-
-#ifdef  EP_LOCAL_STATS
-    short tx_underrun;
-    short rx_no_first;
-    short rx_no_mbuf;
-    short rx_bpf_disc;
-    short rx_overrunf;
-    short rx_overrunl;
-#endif
-};
-
-struct ep_board {
-	int epb_addr;	/* address of this board */
-	char epb_used;	/* was this entry already used for configuring ? */
-				/* data from EEPROM for later use */
-	u_short eth_addr[3];	/* Ethernet address */
-	u_short prod_id;	/* product ID */
-	int	cmd_off;	/* command offset (bit shift) */
-	int	mii_trans;	/* activate MII transiever */
-	u_short res_cfg;	/* resource configuration */
-};
-
+#define DELAY_MULTIPLE 10
+#define BIT_DELAY_MULTIPLE 10
 
 /*
  * Some global constants
@@ -454,16 +391,6 @@ struct ep_board {
 #define UTP 				0x4
 
 #define RX_BYTES_MASK			(u_short) (0x07ff)
-
-extern	struct ep_board ep_board[];
-extern	int ep_boards;
-extern	u_long ep_unit;
-extern	struct ep_softc *ep_alloc __P((int unit, struct ep_board *epb));
-extern	void ep_free __P((struct ep_softc *sc));
-extern	void  ep_intr __P((void *sc));
-extern 	int ep_attach __P((struct ep_softc *sc));
-
-extern	u_int16_t get_e __P((struct ep_softc *sc, int offset));
 
 /*
  * Config flags
