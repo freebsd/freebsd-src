@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.17 1995/01/23 19:21:49 davidg Exp $
+ *	$Id: param.h,v 1.18 1995/02/19 10:36:17 gpalmer Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -107,14 +107,6 @@
 #endif	/* MCLSHIFT */
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
 #define MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
-
-#ifndef NMBCLUSTERS
-#ifdef GATEWAY
-#define NMBCLUSTERS	512		/* map size, max cluster allocation */
-#else
-#define NMBCLUSTERS	256		/* map size, max cluster allocation */
-#endif	/* GATEWAY */
-#endif	/* NMBCLUSTERS */
 
 /*
  * Some macros for units conversion
