@@ -394,11 +394,11 @@ that expect a few meg free.  The R6 X servers may work with 4Mb of
 memory, but in practice compilation while running X can take 5 or 10
 times as long due to constant paging.
 
-The easiest way for new users to start X windows is to type ``startx
+The easiest way for new users to start X Window System is to type ``startx
 >& startx.log''.  Error messages are lost unless you redirect them
 because the server takes over the screen.
 
-To get out of X windows, type: ``exit'' in the console xterm.  You can
+To get out of X Window System, type: ``exit'' in the console xterm.  You can
 customize your X by creating .xinitrc, .xserverrc, and .twmrc files in
 your home directory as described in the xinit and startx man pages.
 
