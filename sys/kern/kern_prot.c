@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.30 1997/03/31 13:47:00 peter Exp $
+ * $Id: kern_prot.c,v 1.31 1997/03/31 15:13:33 peter Exp $
  */
 
 /*
@@ -612,7 +612,8 @@ setreuid(p, uap, retval)
 	ruid = uap->ruid;
 	euid = uap->euid;
 	if ((ruid != (uid_t)-1 && ruid != pc->p_ruid && ruid != pc->p_svuid ||
-	     euid != (uid_t)-1 && euid != pc->p_ruid && euid != pc->p_svuid) &&
+	     euid != (uid_t)-1 && euid != pc->pc_ucred->cr_uid &&
+	     euid != pc->p_ruid && euid != pc->p_svuid) &&
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 
@@ -627,7 +628,8 @@ setreuid(p, uap, retval)
 		pc->p_ruid = ruid;
 		p->p_flag |= P_SUGID;
 	}
-	if (ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid) {
+	if ((ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid) &&
+	    pc->p_svuid != pc->pc_ucred->cr_uid) {
 		pc->p_svuid = pc->pc_ucred->cr_uid;
 		p->p_flag |= P_SUGID;
 	}
@@ -654,7 +656,8 @@ setregid(p, uap, retval)
 	rgid = uap->rgid;
 	egid = uap->egid;
 	if ((rgid != (gid_t)-1 && rgid != pc->p_rgid && rgid != pc->p_svgid ||
-	     egid != (gid_t)-1 && egid != pc->p_rgid && egid != pc->p_svgid) &&
+	     egid != (gid_t)-1 && egid != pc->pc_ucred->cr_groups[0] &&
+	     egid != pc->p_rgid && egid != pc->p_svgid) &&
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 
@@ -667,7 +670,8 @@ setregid(p, uap, retval)
 		pc->p_rgid = rgid;
 		p->p_flag |= P_SUGID;
 	}
-	if (rgid != (gid_t)-1 || pc->pc_ucred->cr_groups[0] != pc->p_rgid) {
+	if ((rgid != (gid_t)-1 || pc->pc_ucred->cr_groups[0] != pc->p_rgid) &&
+	    pc->p_svgid != pc->pc_ucred->cr_groups[0]) {
 		pc->p_svgid = pc->pc_ucred->cr_groups[0];
 		p->p_flag |= P_SUGID;
 	}
