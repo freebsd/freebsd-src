@@ -127,6 +127,9 @@ ${PROG}: ${FULLPROG}
 
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+.if !defined(DEBUG)
+	${OBJCOPY} --strip-debug ${FULLPROG}
+.endif
 
 EXPORT_SYMS?=	NO
 .if ${EXPORT_SYMS} != YES
