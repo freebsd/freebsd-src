@@ -167,7 +167,7 @@ cvslog (argc, argv)
 
     memset (&log_data, 0, sizeof log_data);
 
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+bd:hlNRr::s:tw::")) != -1)
     {
 	switch (c)

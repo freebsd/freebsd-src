@@ -102,7 +102,7 @@ add (argc, argv)
     wrap_setup ();
 
     /* parse args */
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+k:m:")) != -1)
     {
 	switch (c)

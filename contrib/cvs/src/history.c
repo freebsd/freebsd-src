@@ -395,7 +395,7 @@ history (argc, argv)
     since_tag = xstrdup ("");
     backto = xstrdup ("");
     rec_types = xstrdup ("");
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+Tacelow?D:b:f:m:n:p:r:t:u:x:X:z:")) != -1)
     {
 	switch (c)

@@ -81,7 +81,7 @@ release (argc, argv)
     /* Everything from here on is client or local.  */
     if (argc == -1)
 	usage (release_usage);
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+Qdq")) != -1)
     {
 	switch (c)

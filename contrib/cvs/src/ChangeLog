@@ -1,4 +1,40 @@
+Fri May 16 13:14:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* subr.c (free_names): Update documentation to reflect fact that
+	free_names is now called to free vectors allocated by expand_wild
+	as well	as by line2argv.
+
+	* main.c (main): Use "xstrdup (foo)" not "xstrdup(foo)" as
+	specified in HACKING.
+
+Fri May 16 15:10:37 1997  Norbert Kiesel  <nk@cosa.de>
+
+	* modules.c (do_module): initialize optind to 0.  use local copies
+ 	of optarg's (because they might me freed within free_names).
+
 Thu May 15 11:50:15 1997  Norbert Kiesel  <nk@cosa.de>
+
+	* main.c (main): initialize optind to 0.  use local copies of
+	optarg's (because they might me freed within read_cvsrc).
+
+	* cvsrc.c (read_cvsrc): free old argv after constructing a new
+	one.  This fixes a memory leak.
+
+	* recurse.c (start_recursion): use free_names() instead of
+	reimplementing it
+
+	* rcs.c (RCS_deltas): free branchversion (memory leak).
+
+	* parseinfo.c (Parse_Info): free some vars (3 memory leaks).
+
+	* logmsg.c (logfile_write): free str_list_format (memory leak).
+
+	* watch.c (watch_addremove), (watchers), update.c (update), tag.c
+ 	(cvstag), status.c (status), rtag.c (rtag), remove.c (cvsremove),
+ 	release.c (release), patch.c (patch), log.c (cvslog), import.c
+ 	(import), history.c (history), edit.c (watch_onoff), (edit),
+ 	(unedit), (editors), diff.c (diff), commit.c (commit), checkout.c
+ 	(checkout), add.c (add): initialize optind to 0
 
 	* diff.c (diff_fileproc): cosmetic change (whitespace added).
 
