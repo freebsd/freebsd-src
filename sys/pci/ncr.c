@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.123 1998/08/10 14:27:34 bde Exp $
+**  $Id: ncr.c,v 1.124 1998/09/15 10:06:22 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.123 1998/08/10 14:27:34 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.124 1998/09/15 10:06:22 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5605,8 +5605,10 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	    return;
 	}
 	if (cp != np->header.cp) {
-	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08lx != 0x%08lx) np->nccb = 0x%08lx\n", 
-		    ncr_name (np), (u_long) cp, (u_long) np->header.cp, np->link_nccb);
+	    printf ("%s: SCSI phase error fixup: CCB address mismatch "
+		    "(0x%08x != 0x%08x) np->nccb = 0x%08x\n", 
+		    ncr_name (np), (intptr_t)cp, (intptr_t)np->header.cp,
+		    (intptr_t)np->link_nccb);
 /*	    return;*/
 	}
 
@@ -6899,7 +6901,7 @@ ncrgetfreq (ncb_p np, int gen)
 	OUTB (nc_scntl3, 0);
 
 	if (bootverbose >= 2)
-	  	printf ("\tDelay (GEN=%d): %lu msec\n", gen, ms);
+	  	printf ("\tDelay (GEN=%d): %u msec\n", gen, ms);
 	/*
 	 * adjust for prescaler, and convert into KHz 
 	 */
@@ -6927,7 +6929,7 @@ static void ncr_getclock (ncb_p np, u_char multiplier)
 			f2 = ncrgetfreq (np, 11);
 
 			if (bootverbose >= 2)
-			  printf ("\tNCR clock is %luKHz, %luKHz\n", f1, f2);
+			  printf ("\tNCR clock is %uKHz, %uKHz\n", f1, f2);
 			if (f1 > f2) f1 = f2;	/* trust lower result	*/
 			if (f1 > 45000) {
 				scntl3 = 5;	/* >45Mhz: assume 80MHz	*/
