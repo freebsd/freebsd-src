@@ -104,6 +104,7 @@ sub print_inet($) {
     printf($inet_fmt, "USER", "COMMAND", "PID", "FD",
 	   "PROTO", "LOCAL ADDRESS", "FOREIGN ADDRESS");
     foreach $fsd (@{$fstat{$af}}) {
+	next unless defined($fsd->[7]);
 	$nsd = $netstat{$fsd->[7]} || $unknown;
 	printf($inet_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
 	       substr($fsd->[3], 0, -1),
@@ -127,6 +128,7 @@ sub print_unix() {
     }
     printf($unix_fmt, "USER", "COMMAND", "PID", "FD", "PROTO", "ADDRESS");
     foreach $fsd (@{$fstat{"local"}}) {
+	next unless defined($fsd->[6]);
 	$nsd = $netstat{$fsd->[6]} || $unknown;
 	printf($unix_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
 	       substr($fsd->[3], 0, -1), $fsd->[5],
