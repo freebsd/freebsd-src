@@ -2867,7 +2867,7 @@ pmap_page_exists_quick(pmap, m)
 		return FALSE;
 
 	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
 			splx(s);
