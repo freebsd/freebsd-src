@@ -78,7 +78,7 @@ struct option dhcp_options [256] = {
 	{ "lpr-servers", "IA",				&dhcp_universe, 9 },
 	{ "impress-servers", "IA",			&dhcp_universe, 10 },
 	{ "resource-location-servers", "IA",		&dhcp_universe, 11 },
-	{ "host-name", "t",				&dhcp_universe, 12 },
+	{ "host-name", "X",				&dhcp_universe, 12 },
 	{ "boot-size", "S",				&dhcp_universe, 13 },
 	{ "merit-dump", "t",				&dhcp_universe, 14 },
 	{ "domain-name", "t",				&dhcp_universe, 15 },
