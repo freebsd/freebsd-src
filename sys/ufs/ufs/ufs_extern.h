@@ -106,9 +106,9 @@ void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);
 
 /* Flags to low-level allocation routines. */
-#define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
-#define B_SYNC		0x02	/* Do all allocations synchronously. */
-#define B_METAONLY	0x04	/* Return indirect block buffer. */
-#define B_NOWAIT	0x08	/* do not sleep to await lock */
+#define BA_CLRBUF	0x01	/* Request allocated buffer be cleared. */
+#define BA_SYNC		0x02	/* Do all allocations synchronously. */
+#define BA_METAONLY	0x04	/* Return indirect block buffer. */
+#define BA_NOWAIT	0x08	/* do not sleep to await lock */
 
 #endif /* !_UFS_UFS_EXTERN_H_ */
