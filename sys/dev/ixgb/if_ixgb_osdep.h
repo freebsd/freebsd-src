@@ -48,8 +48,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <machine/clock.h>
 #if __FreeBSD_version >= 502000
         #include <dev/pci/pcivar.h>
