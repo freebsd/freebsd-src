@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.63 1996/10/17 17:56:07 jkh Exp $
+ * $Id: vfs_subr.c,v 1.64 1996/10/28 11:34:57 phk Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ static u_long freevnodes = 0;
 struct mntlist mountlist;	/* mounted filesystem list */
 
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RD, &desiredvnodes, 0, "");
+SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, &desiredvnodes, 0, "");
 
 static void	vfs_free_addrlist __P((struct netexport *nep));
 static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
