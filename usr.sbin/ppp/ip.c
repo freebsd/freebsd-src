@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.51 1998/08/25 17:48:42 brian Exp $
+ * $Id: ip.c,v 1.52 1998/08/26 17:39:37 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -36,15 +36,19 @@
 #include <arpa/inet.h>
 #include <sys/un.h>
 
-#ifndef NOALIAS
-#include <alias.h>
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#ifndef NOALIAS
+#ifdef __OpenBSD__
+#include "alias.h"
+#else
+#include <alias.h>
+#endif
+#endif
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.141 1998/08/07 18:42:49 brian Exp $
+ * $Id: main.c,v 1.142 1998/08/09 09:13:54 brian Exp $
  *
  *	TODO:
  */
@@ -28,9 +28,6 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
-#ifndef NOALIAS
-#include <alias.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -41,6 +38,13 @@
 #include <termios.h>
 #include <unistd.h>
 
+#ifndef NOALIAS
+#ifdef __OpenBSD__
+#include "alias.h"
+#else
+#include <alias.h>
+#endif
+#endif
 #include "probe.h"
 #include "mbuf.h"
 #include "log.h"
