@@ -1299,7 +1299,7 @@ cpu_initclocks()
 {
 #ifdef APIC_IO
 	int apic_8254_trial;
-	struct intrhand *clkdesc;
+	void *clkdesc;
 #endif /* APIC_IO */
 #ifndef PC98
 	int diag;
@@ -1336,8 +1336,8 @@ cpu_initclocks()
 			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
 	}
 
-	clkdesc = inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr,
-			      NULL, PI_REALTIME, INTR_FAST);
+	inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr, NULL,
+	    INTR_TYPE_CLK | INTR_FAST, &clkdesc);
 	INTREN(1 << apic_8254_intr);
 
 #else /* APIC_IO */
@@ -1347,8 +1347,8 @@ cpu_initclocks()
 	 * couldn't find anything suitable in the BSD/OS code (grog,
 	 * 19 July 2000).
 	 */
-	inthand_add("clk", 0, (driver_intr_t *)clkintr, NULL, PI_REALTIME,
-		    INTR_FAST);
+	inthand_add("clk", 0, (driver_intr_t *)clkintr, NULL,
+	    INTR_TYPE_CLK | INTR_FAST, NULL);
 	INTREN(IRQ0);
 
 #endif /* APIC_IO */
@@ -1372,8 +1372,8 @@ cpu_initclocks()
 		panic("APIC RTC != 8");
 #endif /* APIC_IO */
 
-	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL, PI_REALTIME,
-		    INTR_FAST);
+	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
+	    INTR_TYPE_CLK | INTR_FAST, NULL);
 
 #ifdef APIC_IO
 	INTREN(APIC_IRQ8);
@@ -1419,7 +1419,7 @@ cpu_initclocks()
 			setup_8254_mixed_mode();
 			inthand_add("clk", apic_8254_intr,
 				    (driver_intr_t *)clkintr, NULL,
-				    PI_REALTIME, INTR_FAST);
+				    INTR_TYPE_CLK | INTR_FAST, NULL);
 			INTREN(1 << apic_8254_intr);
 		}
 		
