@@ -155,7 +155,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	if (((prt->Address & 0xffff0000) >> 16) == pci_get_slot(dev) &&
 	    prt->Pin == pin) {
 	    if (bootverbose)
-		device_printf(pcib, "matched entry for %d.%d.INT%c (source %s)\n",
+		device_printf(pcib, "matched entry for %d.%d.INT%c (src %s)\n",
 			      pci_get_bus(dev), pci_get_slot(dev), 'A' + pin,
 			      prt->Source);
 	    break;
@@ -197,7 +197,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
     if ((devinfo->Valid & ACPI_VALID_HID) == 0 ||
 	strcmp("PNP0C0F", devinfo->HardwareId.Value) != 0) {
-	device_printf(pcib, "PCI interrupt link device %s has wrong _HID (%s)\n",
+	device_printf(pcib, "PCI interrupt link %s has invalid _HID (%s)\n",
 		      prt->Source, devinfo->HardwareId.Value);
 	goto out;
     }
@@ -214,13 +214,13 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      */
     crsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetCurrentResources(lnkdev, &crsbuf))) {
-	device_printf(pcib, "couldn't get PCI interrupt link device _CRS data - %s\n",
+	device_printf(pcib, "PCI interrupt link device _CRS failed - %s\n",
 		      AcpiFormatException(status));
 	goto out;
     }
     prsbuf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(status = AcpiGetPossibleResources(lnkdev, &prsbuf))) {
-	device_printf(pcib, "couldn't get PCI interrupt link device _PRS data - %s\n",
+	device_printf(pcib, "PCI interrupt link device _PRS failed - %s\n",
 		      AcpiFormatException(status));
     }
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %ld bytes for %s._CRS\n",
@@ -364,13 +364,13 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	resbuf.Data.ExtendedIrq.Interrupts[0] = Interrupts[0];
     }
     if (ACPI_FAILURE(status = acpi_AppendBufferResource(&crsbuf, &resbuf))) {
-	device_printf(pcib, "couldn't route interrupt %d via %s, interrupt resource build failed - %s\n",
+	device_printf(pcib, "buf append failed for interrupt %d via %s - %s\n",
 		      Interrupts[0], acpi_name(lnkdev),
 		      AcpiFormatException(status));
 	goto out;
     }
     if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
-	device_printf(pcib, "couldn't route interrupt %d via %s - %s\n",
+	device_printf(pcib, "_SRS failed for interrupt %d via %s - %s\n",
 		      Interrupts[0], acpi_name(lnkdev),
 		      AcpiFormatException(status));
 	goto out;
