@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.6.4-20000701"
+#define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -2211,7 +2211,7 @@ sym_find_firmware(struct sym_pci_chip *chip)
 	if (chip->features & FE_LDSTR)
 		return &sym_fw2;
 #ifdef	SYM_CONF_GENERIC_SUPPORT
-	else if (!(chip->features & (FE_PFEN|FE_NOPM|FE_64BIT)))
+	else if (!(chip->features & (FE_PFEN|FE_NOPM|FE_DAC)))
 		return &sym_fw1;
 #endif
 	else
@@ -2787,9 +2787,9 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	}
 	
 	/*
-	 *  64 bit (53C895A or 53C896) ?
+	 *  64 bit addressing  (895A/896/1010) ?
 	 */
-	if (np->features & FE_64BIT)
+	if (np->features & FE_DAC)
 #if BITS_PER_LONG > 32
 		np->rv_ccntl1	|= (XTIMOD | EXTIBMV);
 #else
@@ -3438,12 +3438,11 @@ static void sym_init (hcb_p np, int reason)
 		np->rv_ccntl0 |= DPR;
 
 	/*
-	 *  If 64 bit (895A/896/1010) write CCNTL1 to enable 40 bit 
-	 *  address table indirect addressing for MOVE.
-	 *  Also write CCNTL0 if 64 bit chip, since this register seems 
-	 *  to only be used by 64 bit cores.
+	 *  Write CCNTL0/CCNTL1 for chips capable of 64 bit addressing 
+	 *  and/or hardware phase mismatch, since only such chips 
+	 *  seem to support those IO registers.
 	 */
-	if (np->features & FE_64BIT) {
+	if (np->features & (FE_DAC|FE_NOPM)) {
 		OUTB (nc_ccntl0, np->rv_ccntl0);
 		OUTB (nc_ccntl1, np->rv_ccntl1);
 	}
@@ -6047,8 +6046,8 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	/*
 	 *  check values against driver limits.
 	 */
-	if (wide > np->maxoffs)
-		{chg = 1; wide = np->maxoffs;}
+	if (wide > np->maxwide)
+		{chg = 1; wide = np->maxwide;}
 	if (req) {
 		if (wide > tp->tinfo.user.width)
 			{chg = 1; wide = tp->tinfo.user.width;}
@@ -6913,12 +6912,18 @@ static int sym_regtest (hcb_p np)
 
 static int sym_snooptest (hcb_p np)
 {
-	u32	sym_rd, sym_wr, sym_bk, host_rd, host_wr, pc;
+	u32	sym_rd, sym_wr, sym_bk, host_rd, host_wr, pc, dstat;
 	int	i, err=0;
 #ifndef SYM_CONF_IOMAPPED
 	err |= sym_regtest (np);
 	if (err) return (err);
 #endif
+restart_test:
+	/*
+	 *  Enable Master Parity Checking as we intend 
+	 *  to enable it for normal operations.
+	 */
+	OUTB (nc_ctest4, (np->rv_ctest4 & MPEE));
 	/*
 	 *  init
 	 */
@@ -6941,6 +6946,27 @@ static int sym_snooptest (hcb_p np)
 	for (i=0; i<SYM_SNOOP_TIMEOUT; i++)
 		if (INB(nc_istat) & (INTF|SIP|DIP))
 			break;
+	if (i>=SYM_SNOOP_TIMEOUT) {
+		printf ("CACHE TEST FAILED: timeout.\n");
+		return (0x20);
+	};
+	/*
+	 *  Check for fatal DMA errors.
+	 */
+	dstat = INB (nc_dstat);
+#if 1	/* Band aiding for broken hardwares that fail PCI parity */
+	if ((dstat & MDPE) && (np->rv_ctest4 & MPEE)) {
+		printf ("%s: PCI DATA PARITY ERROR DETECTED - "
+			"DISABLING MASTER DATA PARITY CHECKING.\n",
+			sym_name(np));
+		np->rv_ctest4 &= ~MPEE;
+		goto restart_test;
+	}
+#endif
+	if (dstat & (MDPE|BF|IID)) {
+		printf ("CACHE TEST FAILED: DMA error (dstat=0x%02x).", dstat);
+		return (0x80);
+	}
 	/*
 	 *  Save termination position.
 	 */
@@ -6952,13 +6978,6 @@ static int sym_snooptest (hcb_p np)
 	sym_rd  = INL (nc_scratcha);
 	sym_bk  = INL (nc_temp);
 
-	/*
-	 *  check for timeout
-	 */
-	if (i>=SYM_SNOOP_TIMEOUT) {
-		printf ("CACHE TEST FAILED: timeout.\n");
-		return (0x20);
-	};
 	/*
 	 *  Check termination position.
 	 */
@@ -8717,25 +8736,25 @@ static struct sym_pci_chip sym_pci_dev_table[] = {
 #endif
  {PCI_ID_SYM53C896, 0xff, "896", 6, 31, 7, 4,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
- FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
+ FE_RAM|FE_RAM8K|FE_64BIT|FE_DAC|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
  ,
  {PCI_ID_SYM53C895A, 0xff, "895a", 6, 31, 7, 4,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
- FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
+ FE_RAM|FE_RAM8K|FE_DAC|FE_IO256|FE_NOPM|FE_LEDC|FE_LCKFRQ}
  ,
  {PCI_ID_LSI53C1010, 0x00, "1010-33", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
- FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
+ FE_RAM|FE_RAM8K|FE_64BIT|FE_DAC|FE_IO256|FE_NOPM|FE_LEDC|FE_CRC|
  FE_C10}
  ,
  {PCI_ID_LSI53C1010, 0xff, "1010-33", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
- FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_CRC|
+ FE_RAM|FE_RAM8K|FE_64BIT|FE_DAC|FE_IO256|FE_NOPM|FE_LEDC|FE_CRC|
  FE_C10|FE_U3EN}
  ,
  {PCI_ID_LSI53C1010_2, 0xff, "1010-66", 6, 31, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
- FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
+ FE_RAM|FE_RAM8K|FE_64BIT|FE_DAC|FE_IO256|FE_NOPM|FE_LEDC|FE_66MHZ|FE_CRC|
  FE_C10|FE_U3EN}
  ,
  {PCI_ID_LSI53C1510D, 0xff, "1510d", 6, 31, 7, 4,
