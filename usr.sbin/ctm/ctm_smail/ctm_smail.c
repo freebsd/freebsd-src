@@ -9,11 +9,15 @@
  * NOTICE: This is free software.  I hope you get some use from this program.
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
+ *
+ * $Id$
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -27,6 +31,8 @@
 
 void chop_and_send(char *delta, off_t ctm_size, long max_msg_size,
 	char *mail_alias);
+void chop_and_queue(char *delta, off_t ctm_size, long max_msg_size,
+	char *queue_dir, char *mail_alias);
 unsigned encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size);
 void write_header(FILE *sfp, char *mail_alias, char *delta, int pce,
 	int npieces);
@@ -35,7 +41,9 @@ void apologise(char *delta, off_t ctm_size, long max_ctm_size,
 	char *mail_alias);
 FILE *open_sendmail(void);
 int close_sendmail(FILE *fp);
-
+int lock_queuedir(char *queue_dir);
+void free_lock(int lockf, char *queue_dir);
+void add_to_queue(char *queue_dir, char *mail_alias, char *delta, int npieces, char **tempnames);
 
 int
 main(int argc, char **argv)
@@ -45,14 +53,16 @@ main(int argc, char **argv)
     long max_msg_size = DEF_MAX_MSG;
     long max_ctm_size = 0;
     char *log_file = NULL;
+    char *queue_dir = NULL;
     struct stat sb;
 
     err_prog_name(argv[0]);
 
-    OPTIONS("[-l log] [-m maxmsgsize] [-c maxctmsize] ctm-delta mail-alias")
+    OPTIONS("[-l log] [-m maxmsgsize] [-c maxctmsize] [-q queuedir] ctm-delta mail-alias")
 	NUMBER('m', max_msg_size)
 	NUMBER('c', max_ctm_size)
 	STRING('l', log_file)
+	STRING('q', queue_dir)
     ENDOPTS
 
     if (argc != 3)
@@ -72,8 +82,10 @@ main(int argc, char **argv)
 
     if (max_ctm_size != 0 && sb.st_size > max_ctm_size)
 	apologise(delta_file, sb.st_size, max_ctm_size, mail_alias);
-    else
+    else if (queue_dir == NULL)
 	chop_and_send(delta_file, sb.st_size, max_msg_size, mail_alias);
+    else
+	chop_and_queue(delta_file, sb.st_size, max_msg_size, queue_dir, mail_alias);
 
     return 0;
     }
@@ -92,6 +104,10 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
     FILE *sfp;
     FILE *dfp;
     unsigned sum;
+
+#ifdef howmany
+#undef howmany
+#endif
 
 #define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
 
@@ -129,6 +145,116 @@ chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
 
     fclose(dfp);
     }
+
+/* 
+ * Carve our CTM delta into pieces, encode them, and drop them in the
+ * queue dir.
+ *
+ * Basic algorythm:
+ *
+ * - for (each piece)
+ * -   gen. temp. file name (one which the de-queuer will ignore)
+ * -   record in array
+ * -   open temp. file
+ * -   encode delta (including headers) into the temp file
+ * -   close temp. file
+ * - end
+ * - lock queue directory
+ * - foreach (temp. file)
+ * -   rename to the proper filename
+ * - end
+ * - unlock queue directory
+ *
+ * This is probably overkill, but it means that incomplete deltas
+ * don't get mailed, and also reduces the window for lock races
+ * between ctm_smail and the de-queueing process.
+ */
+
+void
+chop_and_queue(char *delta, off_t ctm_size, long max_msg_size, char *queue_dir, char *mail_alias)
+{
+    int npieces, pce, len;
+    long msg_size, exp_size;
+    FILE *sfp, *dfp;
+    unsigned sum;
+    char **tempnames, *tempnam, *sn;
+
+#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
+
+    /*
+     * Work out how many pieces we need, bearing in mind that each piece
+     * grows by 4/3 when encoded.  We count the newlines too, but ignore
+     * all mail headers and piece headers.  They are a "small" (almost
+     * constant) per message overhead that we make the user worry about. :-)
+     */
+    exp_size = ctm_size * 4 / 3;
+    exp_size += howmany(exp_size, LINE_LENGTH);
+    npieces = howmany(exp_size, max_msg_size);
+    msg_size = howmany(ctm_size, npieces);
+
+#undef howmany
+
+    /*
+     * allocate space for the array of filenames. Try to be portable
+     * by not assuming anything to do with sizeof(char *)
+     */
+    tempnames = malloc(npieces * sizeof(char *));
+    if (tempnames == NULL)
+    {
+	err("malloc for tempnames failed");
+	exit(1);
+    }
+ 
+    len = strlen(queue_dir) + 16;
+    tempnam = malloc(len);
+    if (tempnam == NULL)
+    {
+	err("malloc for tempnames failed");
+	exit(1);
+    }
+    
+    if ((dfp = fopen(delta, "r")) == NULL)
+    {
+	err("cannot open '%s' for reading.", delta);
+	exit(1);
+    }
+
+    if ((sn = strrchr(delta, '/')) == NULL)
+	sn = delta;
+    else
+	sn++;
+
+    for (pce = 1; pce <= npieces; pce++)
+    {
+	if (snprintf(tempnam, len, "%s/.%08d-%03d", queue_dir, getpid(), pce) >= len)
+	    err("Whoops! tempnam isn't long enough");
+
+	tempnames[pce - 1] = strdup(tempnam);
+	if (tempnames[pce - 1] == NULL)
+	{
+	    err("strdup failed for temp. filename");
+	    exit(1);
+	}
+
+	sfp = fopen(tempnam, "w");
+	if (sfp == NULL)
+	    exit(1);
+	
+	write_header(sfp, mail_alias, delta, pce, npieces);
+	sum = encode_body(sfp, dfp, msg_size);
+	write_trailer(sfp, sum);
+
+	if (fclose(sfp) != 0)
+	    exit(1);
+
+	err("%s %d/%d created succesfully", sn, pce, npieces);
+    }
+
+    add_to_queue(queue_dir, mail_alias, delta, npieces, tempnames);
+
+    fclose(dfp);
+
+}
 
 
 /*
@@ -216,7 +342,7 @@ encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size)
 
     if (ferror(sm_fp))
 	{
-	err("error writing to sendmail");
+	err("error writing encoded file");
 	exit(1);
 	}
 
@@ -324,3 +450,138 @@ close_sendmail(FILE *fp)
 
     return (status == 0);
     }
+
+/*
+ * Lock the queuedir so we're the only guy messing about in there.
+ */
+int
+lock_queuedir(char *queue_dir)
+{
+    int fp, len;
+    char *buffer;
+    struct stat sb;
+
+    len = strlen(queue_dir) + 8;
+
+    buffer = malloc(len);
+    if (buffer == NULL)
+    {
+	err("malloc failed in lock_queuedir");
+	exit(1);
+    }
+
+    if (snprintf(buffer, len, "%s/.lock", queue_dir) >= len)
+	err("Whoops. lock buffer too small in lock_queuedir");
+
+    /*
+     * We do our own lockfile scanning to avoid unlink races. 60
+     * seconds should be enough to ensure that we won't get more races
+     * happening between the stat and the open/flock.
+     */
+
+    while (stat(buffer, &sb) == 0)
+	sleep(60);
+
+    if ((fp = open(buffer, O_WRONLY | O_CREAT | O_EXLOCK, 0600)) < 0)
+    {
+	err("can't open `%s' in lock_queuedir", buffer);
+	exit(1);
+    }
+
+    snprintf(buffer, len, "%8ld", getpid());
+    write(fp, buffer, 8);
+
+    free(buffer);
+    
+    return(fp);
+}
+
+/*
+ * Lock the queuedir so we're the only guy messing about in there.
+ */
+void
+free_lock(int lockf, char *queue_dir)
+{
+    int len;
+    char *path;
+
+    /*
+     * Most important: free the lock before we do anything else!
+     */
+
+    close(lockf);
+
+    len = strlen(queue_dir) + 7;
+
+    path = malloc(len);
+    if (path == NULL)
+    {
+	err("malloc failed in free_lock");
+	exit(1);
+    }
+
+    if (snprintf(path, len, "%s/.lock", queue_dir) >= len)
+	err("lock path buffer too small in free_lock");
+
+    if (unlink(path) != 0)
+    {
+	err("can't unlink lockfile `%s'", path);
+	exit(1);
+    }
+
+    free(path);
+}
+
+/* move everything into the queue directory. */
+
+void
+add_to_queue(char *queue_dir, char *mail_alias, char *delta, int npieces, char **tempnames)
+{
+    char *queuefile, *sn;
+    int pce, len, lockf;
+    
+    if ((sn = strrchr(delta, '/')) == NULL)
+	sn = delta;
+    else
+	sn++;
+
+    /* try to malloc all we need BEFORE entering the lock loop */
+    
+    len = strlen(queue_dir) + strlen(sn) + 7;
+    queuefile = malloc(len);
+    if (queuefile == NULL)
+    {
+	err("can't malloc for queuefile");
+	exit(1);
+    }
+
+    /*
+     * We should be the only process mucking around in the queue
+     * directory while we add the new queue files ... it could be
+     * awkward if the de-queue process starts it's job while we're
+     * adding files ...
+     */
+
+    lockf = lock_queuedir(queue_dir);
+    for (pce = 0; pce < npieces; pce++)
+    {
+	struct stat sb;
+
+	if (snprintf(queuefile, len, "%s/%s+%03d", queue_dir, sn, pce + 1) >= len)
+	    err("whoops, queuefile buffer is too small");
+
+	if (stat(queuefile, &sb) == 0)
+	{
+	    err("WOAH! Queue file `%s' already exists! Bailing out.", queuefile);
+	    free_lock(lockf, queue_dir);
+	    exit(1);
+	}
+
+	rename(tempnames[pce], queuefile);
+	err("Queue file %s now exists", queuefile);
+    }
+    
+    free_lock(lockf, queue_dir);
+
+    free(queuefile);
+}
