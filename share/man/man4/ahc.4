@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1995 
+.\" Copyright (c) 1995, 1996 
 .\" 	Justin T. Gibbs.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,21 +25,23 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"
-.Dd April 15, 1995
+.Dd April 20, 1996
 .Dt AHC 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm ahc
 .Nd Adaptec VL/EISA/PCI SCSI host adapter driver
 .Sh SYNOPSIS
-For VL/EISA cards:
-.Cd controller ahc0 at isa? bio irq ? vector ahcintr
-.Pp
-For PCI cards:
+For one or more VL/EISA cards:
+.Cd controller eisa0
 .Cd controller ahc0
 .Pp
-To enable tagged queueing:
-.Cd options AHC_TAGENABLE
+For one or more PCI cards:
+.Cd controller pci0
+.Cd controller ahc0
+.Pp
+To enable SCB paging:
+.Cd options AHC_SCBPAGING_ENABLE
 .Pp
 For one or more SCSI busses:
 .Cd controller scbus0 at ahc0
@@ -47,15 +49,24 @@ For one or more SCSI busses:
 This driver provides access to the
 .Tn SCSI
 bus connected to an Adaptec 
-274x, 284x, 294x, or motherboard-based
+274x, 284x, 2940, 3940, or controllers based on the
+.Tn AIC7770,
+.Tn AIC7850,
+.Tn AIC7860,
+.Tn AIC7870,
+or
+.Tn AIC7880
+host adapter chips.
+Features include support for twin and wide busses,
+ultra SCSI,
+two commands per non-tagged queueing target,
+tagged queuing,
+and SCB paging which allows up to 255 active commands on all adapters
+except those using 
 .Tn AIC7770
-or 
-.Tn AIC7870
-host adapter.
-Features include twin and wide bus support, two commands per target in
-non-tagged-queuing mode, and experimental tagged queuing support enabled
-with the
-.Dq Dv AHC_TAGENABLE
+chips prior to revision E.
+SCB paging is enabled with the
+.Dq Dv AHC_SCBPAGING_ENABLE
 configuration option.
 .Pp
 Per target configuration performed in the 
@@ -72,8 +83,10 @@ is honored by this driver with the stipulation that the
 .Tn BIOS
 must be enabled for 
 .Tn EISA
-adaptors.  This includes synchronous/asynchronous transfers, disconnection,
-and maximum synchronous negotiation rate settings.
+adaptors.  This includes synchronous/asynchronous transfers,
+maximum synchronous negotiation rate,
+disconnection,
+and the host adapter's SCSI ID.
 .Pp
 Note that I/O addresses are determined automatically by the probe routines,
 but care should be taken when using a 284x
@@ -88,22 +101,13 @@ cards.
 .Sh BUGS
 Some Quantum drives (at least the Empire 2100 and 1080s) will not run on an
 .Tn AIC7870
-in synchronous mode at 10MB/s.  It is speculated that the Adaptec
-runs slightly above 10MB/s, causing the drive much confusion.  Setting a 
-maximum synchronous negotiation rate of 8MB/s in the 
+Rev B in synchronous mode at 10MHz.  Controllers with this problem have a
+42 MHz clock crystal on them and run slightly above 10MHz, causing the
+drive much confusion.  Setting a maximum synchronous negotiation rate of 8MHz
+in the 
 .Tn SCSI-Select
 utility
 will allow normal function.
-.Pp
-The
-.Tn SCSI
-ID of
-.No Tn AIC7870 Ns -based
-controllers
-.Pq Tn AHA-294x
-is hard coded to 7 by the driver.  The user configured ID can be
-obtained by querying the adapter, but there is no driver support for
-this as of yet.
 .Sh SEE ALSO
 .Xr aha 4 ,
 .Xr ahb 4 ,
