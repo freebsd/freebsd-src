@@ -2,4 +2,6 @@
 
 PROG=	jot
 
+CFLAGS += -Wall -W
+
 .include <bsd.prog.mk>
