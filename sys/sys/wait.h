@@ -79,6 +79,7 @@
  */
 #define WNOHANG		1	/* don't hang in wait */
 #define WUNTRACED	2	/* tell about stopped, untraced children */
+#define WLINUXCLONE     0x80000000       /* wait for kthread spawned from linux_clone */
 
 #ifndef _POSIX_SOURCE
 /* POSIX extensions and 4.2/4.3 compatibility: */
