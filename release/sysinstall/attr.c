@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8.2.3 1997/01/19 09:59:22 jkh Exp $
+ * $Id: attr.c,v 1.8.2.4 1997/03/16 20:08:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,11 +81,18 @@ attr_parse(Attribs *attr, FILE *fp)
 		continue;
 	    }
 	    else if (isalpha(ch) || ch == '_') {
-		hold_n[n++] = ch;
-		state = NAME;
+		if (n >= MAX_NAME) {
+		    msgDebug("Attribute name overflow at character %d, ignoring entry..\n", n);
+		    n = 0;
+		    state = COMMENT;
+		}
+		else {
+		    hold_n[n++] = ch;
+		    state = NAME;
+		}
 	    }
 	    else {
-		msgDebug("Parse config: Invalid character '%c' at line %d\n", ch, lno);
+		msgDebug("Parse config: Invalid character '%c (%0x)' at line %d\n", ch, ch, lno);
 		state = COMMENT;	/* Ignore the rest of the line */
 	    }
 	    break;
@@ -98,13 +105,15 @@ attr_parse(Attribs *attr, FILE *fp)
 	case NAME:
 	    if (ch == '\n') {
 		hold_n[n] = '\0';
-		hold_v[v = 0] = '\0';
+		hold_v[0] = '\0';
+		v = n = 0;
 		state = COMMIT;
 	    }
 	    else if (isspace(ch))
 		continue;
 	    else if (ch == '=') {
 		hold_n[n] = '\0';
+		v = n = 0;
 		state = VALUE;
 	    }
 	    else
@@ -117,20 +126,31 @@ attr_parse(Attribs *attr, FILE *fp)
 	    else if (ch == '{') {
 		/* multiline value */
 		while (fread(&ch, 1, 1, fp) == 1 && ch != '}') {
-		    if (v == MAX_VALUE)
-			msgFatal("Value length overflow at line %d", lno);
-		    hold_v[v++] = ch;
+		    if (v >= MAX_VALUE) {
+			msgDebug("Value length overflow at character %d, line %d\n", v, lno);
+			state = COMMENT;
+			n = v = 0;
+			break;
+		    }
+		    else
+			hold_v[v++] = ch;
 		}
 		hold_v[v] = '\0';
+		v = n = 0;
 		state = COMMIT;
 	    }
 	    else if (ch == '\n') {
 		hold_v[v] = '\0';
+		v = n = 0;
 		state = COMMIT;
 	    }
 	    else {
-		if (v == MAX_VALUE)
-		    msgFatal("Value length overflow at line %d", lno);
+		if (v >= MAX_VALUE) {
+		    msgDebug("Value length overflow at character %d, line %d\n", v, lno);
+		    state = COMMENT;
+		    v = n = 0;
+		    break;
+		}
 		else
 		    hold_v[v++] = ch;
 	    }
@@ -141,8 +161,10 @@ attr_parse(Attribs *attr, FILE *fp)
 	    SAFE_STRCPY(attr[num_attribs].value, hold_v);
 	    state = LOOK;
 	    v = n = 0;
-	    if (++num_attribs >= MAX_ATTRIBS)
-		msgFatal("Attribute limit overflow; encountered a bad attributes file!");
+	    if (++num_attribs >= MAX_ATTRIBS) {
+		msgDebug("Attribute limit overflow at %d; encountered a bad attributes file!\n", num_attribs);
+		return DITEM_FAILURE;
+	    }
 	    break;
 
 	default:
