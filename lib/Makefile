@@ -19,8 +19,8 @@
 
 SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	libncurses libradius libskey libtacplus \
-	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
-	libcompat libdevstat libdisk libedit libfetch libform \
+	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
+	libcam libcompat libdevstat libdisk libedit libfetch libform \
 	libftpio libgnumalloc ${_libio} libipx libkvm libmenu ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap libresolv librpcsvc libss \
 	libstand ${_libtelnet} libutil ${_libvgl} libwrap libxpg4 liby libz
@@ -33,6 +33,10 @@ _csu=csu/${MACHINE_ARCH}
 
 .if !defined(NOLIBC_R)
 _libc_r=	libc_r
+.endif
+
+.if !defined(NO_BIND) && 0
+_libbind=	libbind
 .endif
 
 _libcrypt=	libcrypt
