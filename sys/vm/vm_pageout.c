@@ -1033,13 +1033,8 @@ unlock_and_continue:
 
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
-		/*
-		 * This is a consistency check, and should likely be a panic
-		 * or warning.
-		 */
-		if (m->queue != PQ_ACTIVE) {
-			break;
-		}
+		KASSERT(m->queue == PQ_ACTIVE,
+		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
 		/*
