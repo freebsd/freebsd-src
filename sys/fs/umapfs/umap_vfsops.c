@@ -275,8 +275,9 @@ umapfs_unmount(mp, mntflags, td)
 }
 
 static int
-umapfs_root(mp, vpp, td)
+umapfs_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {

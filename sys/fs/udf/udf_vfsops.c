@@ -531,7 +531,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 }
 
 static int
-udf_root(struct mount *mp, struct vnode **vpp, struct thread *td)
+udf_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct udf_mnt *udfmp;
 	struct vnode *vp;

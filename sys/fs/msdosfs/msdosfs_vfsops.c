@@ -186,7 +186,8 @@ update_mp(mp, td)
 		if (FAT32(pmp))
 			pmp->pm_flags |= MSDOSFSMNT_LONGNAME;
 		else {
-			if ((error = msdosfs_root(mp, &rootvp, td)) != 0)
+			if ((error =
+			    msdosfs_root(mp, LK_EXCLUSIVE, &rootvp, td)) != 0)
 				return error;
 			pmp->pm_flags |= findwin95(VTODE(rootvp))
 				? MSDOSFSMNT_LONGNAME
@@ -804,8 +805,9 @@ msdosfs_unmount(mp, mntflags, td)
 }
 
 static int
-msdosfs_root(mp, vpp, td)
+msdosfs_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {
