@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kern_lkm.c,v 1.36 1997/02/22 09:39:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -604,11 +604,9 @@ _lkm_vfs(lkmtp, cmd)
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
 	struct vfsconf *vfc = args->lkm_vfsconf;
-	struct vfsconf *vfsp, *lastvfsp, *prev_vfsp, *new_vfc;
-	int i;
+	struct vfsconf *vfsp, *prev_vfsp;
+	int i, maxtypenum;
 	int err = 0;
-	char fstypename[MFSNAMELEN];
-	int neednamesearch = 1;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -616,26 +614,9 @@ _lkm_vfs(lkmtp, cmd)
 		if (lkmexists(lkmtp))
 			return(EEXIST);
 
-		/* check to see if filesystem already exists */
-		vfsp = NULL;
-#ifdef COMPAT_43	/* see vfs_syscalls.c:mount() */
-		if (vfc->vfc_typenum < maxvfsconf) {
-			neednamesearch = 0;
-			for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-				if (vfsp->vfc_typenum == vfc->vfc_typenum)
-					break;
-			if (vfsp != NULL) {
-				neednamesearch = 1;
-				strncpy(fstypename, vfsp->vfc_name, MFSNAMELEN);
-			}
-		} else
-#endif /* COMPAT_43 */
-		if (neednamesearch) {
-			strncpy(fstypename, vfc->vfc_name, MFSNAMELEN);
-			for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
-				if (!strcmp(vfsp->vfc_name, fstypename)) {
-					return EEXIST;
-				}
+		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next) {
+			if (!strcmp(vfc->vfc_name, vfsp->vfc_name)) {
+				return EEXIST;
 			}
 		}
 
@@ -645,21 +626,10 @@ _lkm_vfs(lkmtp, cmd)
 		}
 		args->lkm_offset = vfc->vfc_typenum = i;
 
-		if (maxvfsconf <= vfsp->vfc_typenum)
-			maxvfsconf = vfsp->vfc_typenum + 1;
+		if (maxvfsconf <= i)
+			maxvfsconf = i + 1;
 
-		/* find vfsconf tail */
-		for (lastvfsp = vfsconf; lastvfsp->vfc_next;
-					lastvfsp = lastvfsp->vfc_next) ;
-
-		/* make copy */
-/* possible race condition if vfsconf changes while we wait XXX JH */
-		MALLOC(new_vfc, struct vfsconf *, sizeof(struct vfsconf),
-				M_VFSCONF, M_WAITOK);
-		*new_vfc = *vfc;
-		vfc = new_vfc;
-
-		lastvfsp->vfc_next = vfc;
+		vfsp->vfc_next = vfc;
 		vfc->vfc_next = NULL;
 
 		/* like in vfs_op_init */
@@ -673,7 +643,7 @@ _lkm_vfs(lkmtp, cmd)
 		/*
 		 * Call init function for this VFS...
 		 */
-	 	(*(vfsp->vfc_vfsops->vfs_init))(vfsp);
+	 	(*(vfc->vfc_vfsops->vfs_init))(vfc);
 
 		/* done! */
 		break;
@@ -685,7 +655,7 @@ _lkm_vfs(lkmtp, cmd)
 		prev_vfsp = NULL;
 		for (vfsp = vfsconf; vfsp;
 				prev_vfsp = vfsp, vfsp = vfsp->vfc_next) {
-			if (vfsp->vfc_typenum == vfc->vfc_typenum)
+			if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
 				break;
 		}
 		if (vfsp == NULL) {
@@ -699,6 +669,15 @@ _lkm_vfs(lkmtp, cmd)
 		FREE(vfsp, M_VFSCONF);
 
 		prev_vfsp->vfc_next = vfsp->vfc_next;
+
+		/*
+		 * Maintain maxvfsconf.
+		 */
+		maxtypenum = 0;
+		for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
+			if (maxtypenum < vfsp->vfc_typenum)
+				maxtypenum = vfsp->vfc_typenum;
+		maxvfsconf = maxtypenum + 1;
 
 		break;
 
