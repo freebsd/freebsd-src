@@ -3047,6 +3047,16 @@ static void dc_init(xsc)
 	/*
 	 * Enable interrupts.
 	 */
+#ifdef DEVICE_POLLING
+	/*
+	 * ... but only if we are not polling, and make sure they are off in
+	 * the case of polling. Some cards (e.g. fxp) turn interrupts on
+	 * after a reset.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+	else
+#endif
 	CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 	CSR_WRITE_4(sc, DC_ISR, 0xFFFFFFFF);
 

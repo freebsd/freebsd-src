@@ -1616,7 +1616,13 @@ static void sis_init(xsc)
 	 */
 	CSR_WRITE_4(sc, SIS_IMR, SIS_INTRS);
 #ifdef DEVICE_POLLING
-	if (!(ifp->if_ipending & IFF_POLLING))
+	/*
+	 * ... only enable interrupts if we are not polling, make sure
+	 * they are off otherwise.
+	 */
+	if (ifp->if_ipending & IFF_POLLING)
+		CSR_WRITE_4(sc, SIS_IER, 0);
+	else
 #endif /* DEVICE_POLLING */
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
