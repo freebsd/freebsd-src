@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.6.2.1 1995/06/02 10:50:54 davidg Exp $";
+	"$Id: sysctl.c,v 1.7 1995/06/11 19:32:58 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -76,7 +76,6 @@ struct ctlname vmname[] = CTL_VM_NAMES;
 struct ctlname netname[] = CTL_NET_NAMES;
 struct ctlname hwname[] = CTL_HW_NAMES;
 struct ctlname username[] = CTL_USER_NAMES;
-struct ctlname debugname[CTL_DEBUG_MAXID];
 #ifdef CTL_MACHDEP_NAMES
 struct ctlname machdepname[] = CTL_MACHDEP_NAMES;
 #endif
@@ -93,7 +92,7 @@ struct list secondlevel[] = {
 	{ vmname, VM_MAXID },		/* CTL_VM */
 	{ 0, 0 },			/* CTL_FS */
 	{ netname, NET_MAXID },		/* CTL_NET */
-	{ 0, CTL_DEBUG_MAXID },		/* CTL_DEBUG */
+	{ 0, 0 },			/* CTL_DEBUG */
 	{ hwname, HW_MAXID },		/* CTL_HW */
 #ifdef CTL_MACHDEP_NAMES
 	{ machdepname, CPU_MAXID },	/* CTL_MACHDEP */
@@ -149,7 +148,6 @@ main(argc, argv)
 	argv += optind;
 
 	if (Aflag || aflag) {
-		debuginit();
 		for (lvl1 = 1; lvl1 < CTL_MAXID; lvl1++)
 			listall(topname[lvl1].ctl_name, &secondlevel[lvl1]);
 		exit(0);
@@ -219,8 +217,6 @@ parse(string, flags)
 	if ((indx = findname(string, "top", &bufp, &toplist)) == -1)
 		return;
 	mib[0] = indx;
-	if (indx == CTL_DEBUG)
-		debuginit();
 	lp = &secondlevel[indx];
 	if (lp->list == 0) {
 		fprintf(stderr, "%s: class is not implemented\n",
@@ -314,10 +310,6 @@ parse(string, flags)
 		fprintf(stderr, "Use netstat to view %s information\n", string);
 		return;
 
-	case CTL_DEBUG:
-		mib[2] = CTL_DEBUG_VALUE;
-		len = 3;
-		break;
 
 	case CTL_MACHDEP:
 #ifdef CPU_CONSDEV
@@ -462,28 +454,6 @@ parse(string, flags)
 	}
 }
 
-/*
- * Initialize the set of debugging names
- */
-debuginit()
-{
-	int mib[3], size, loc, i;
-
-	if (secondlevel[CTL_DEBUG].list != 0)
-		return;
-	secondlevel[CTL_DEBUG].list = debugname;
-	mib[0] = CTL_DEBUG;
-	mib[2] = CTL_DEBUG_NAME;
-	for (loc = 0, i = 0; i < CTL_DEBUG_MAXID; i++) {
-		mib[1] = i;
-		size = BUFSIZ - loc;
-		if (sysctl(mib, 3, &names[loc], &size, NULL, 0) == -1)
-			continue;
-		debugname[i].ctl_name = &names[loc];
-		debugname[i].ctl_type = CTLTYPE_INT;
-		loc += size;
-	}
-}
 
 struct ctlname inetname[] = CTL_IPPROTO_NAMES;
 struct ctlname ipname[] = IPCTL_NAMES;
