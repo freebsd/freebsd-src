@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.384 1997/12/09 12:04:44 jamil Exp $
+#	$Id: LINT,v 1.385 1997/12/12 14:08:43 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -874,6 +874,16 @@ device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+
+#
+# `flags' for psm:
+#	0x000R	set resolution to R (1..4). Some MouseSystems PS/2 mice
+#		require this value to be 4.
+#	0x00N0	set accelaration factor to N (1..15).
+#	0x0100	disable synchronization check. This replaces the option
+#		PSM_CHECKSYNC in previous versions.
+#
+
 # Options for psm:
 options		PSM_HOOKAPM		#hook the APM resume event, useful
 					#for some laptops
