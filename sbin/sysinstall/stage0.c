@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: stage0.c,v 1.2 1994/10/20 04:59:56 phk Exp $
  *
  */
 
@@ -15,7 +15,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <ncurses.h>
 #include <dialog.h>
 
 #include "sysinstall.h"
@@ -24,11 +23,11 @@ void
 stage0()
 {
 	if (!access(README_FILE, R_OK)) {
-		clear();
-		dialog_textbox("READ ME FIRST", README_FILE, 25, 80);
+		dialog_clear();
+		dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
 	}
 	if (!access(COPYRIGHT_FILE, R_OK)) {
-		clear();
-		dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 25, 80);
+		dialog_clear();
+		dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 24, 80);
 	}
 }
