@@ -88,16 +88,22 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Digital Science DC280",
 	},
 	{
-	    USB_VENDOR_CATC, USB_PRODUCT_CATC_CHIEF,
+	    USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX,
 	    0,
-	    "Computer Access Technology Corp.",
-	    "USB Chief Bus & Protocol Analyzer",
+	    "Melco Inc.",
+	    "LU-ATX Ethernet adapter",
 	},
 	{
 	    USB_VENDOR_CATC, USB_PRODUCT_CATC_ANDROMEDA,
 	    0,
 	    "Computer Access Technology Corp.",
 	    "Andromeda hub",
+	},
+	{
+	    USB_VENDOR_CATC, USB_PRODUCT_CATC_CHIEF,
+	    0,
+	    "Computer Access Technology Corp.",
+	    "USB Chief Bus & Protocol Analyzer",
 	},
 	{
 	    USB_VENDOR_GRAVIS, USB_PRODUCT_GRAVIS_GAMEPADPRO,
@@ -308,12 +314,6 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "American Power Conversion",
 	    "Back-UPS Pro 500",
-	},
-	{
-	    USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_TURBOCONNECT,
-	    0,
-	    "NetChip Technology",
-	    "Turbo-Connect",
 	},
 	{
 	    USB_VENDOR_AKS, USB_PRODUCT_AKS_USBHASP,
@@ -568,6 +568,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "USB ImageMate",
 	},
 	{
+	    USB_VENDOR_ADMTEK, USB_PRODUCT_ADMTEK_PEGASUS,
+	    0,
+	    "ADMtek Inc.",
+	    "AN986 USB Ethernet adapter",
+	},
+	{
 	    USB_VENDOR_SIIG, USB_PRODUCT_SIIG_DIGIFILMREADER,
 	    0,
 	    "SIIG",
@@ -590,6 +596,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "ActiveWire Inc.",
 	    "I/O Board, rev. 1 firmware",
+	},
+	{
+	    USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB100,
+	    0,
+	    "Billionton Systems",
+	    "USB100 Ethernet adapter",
 	},
 	{
 	    USB_VENDOR_MOTOROLA, USB_PRODUCT_MOTOROLA_MC141555,
@@ -631,6 +643,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_KODAK, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Eastman Kodak Corp.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_MELCO, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Melco Inc.",
 	    NULL,
 	},
 	{
@@ -814,12 +832,6 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
-	    USB_VENDOR_NETCHIP, 0,
-	    USB_KNOWNDEV_NOPROD,
-	    "NetChip Technology",
-	    NULL,
-	},
-	{
 	    USB_VENDOR_AKS, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Fast Security AG",
@@ -982,6 +994,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_ADMTEK, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "ADMtek Inc.",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_SIIG, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "SIIG",
@@ -997,6 +1015,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_ACTIVEWIRE, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "ActiveWire Inc.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_BILLIONTON, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Billionton Systems",
 	    NULL,
 	},
 	{

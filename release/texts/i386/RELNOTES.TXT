@@ -79,18 +79,19 @@ Driver support has been added for PCI fast ethernet cards based
 on the ADMtek Inc. AL981 Comet chipset. [MERGED]
 
 Driver support has been added for PCI fast ethernet cards based
-on the ADMtek Inc. AL985 Centaur chipset.
+on the ADMtek Inc. AL985 Centaur chipset. [MERGED]
 
 Support has been added for the Rise mP6 processor. [MERGED]
 
 Driver support has been added for SysKonnect SK-984x PCI gigabit
-ethernet adapters.
+ethernet adapters. [MERGED]
 
 Driver support has been added for Adaptec Duralink PCI ethernet adapters
-based on the Adaptec AIC-6915 fast ethernet controller.
+based on the Adaptec AIC-6915 fast ethernet controller. [MERGED]
 
 Driver support has been added for PCI fast ethernet adapters based on
 the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+[MERGED]
 
 Driver support has been added for the 3Com 3c905C-TX. [MERGED]
 
@@ -106,6 +107,7 @@ syslog(3) to log all messages to /var/log/security.
 
 Driver support has been added for PCI fast ethernet adapters based on
 the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
+[MERGED]
 
 Driver support has been added for PCI fast ethernet adapters based on
 the Davicom DM9100 and DM9102 ethernet controllers, including the Jaton
@@ -128,6 +130,12 @@ The `al' `ax' `dm' `pn' and `mx' drivers have been removed and replaced
 with a single driver (`dc') in order to reduce code duplication. The
 new driver handles all chipsets supported by the older drivers, and it
 offers improved support for 10/100 cards based on the DEC/Intel 21143.
+
+Driver support has been added for the 3Com 3c450-TX HomeConnect
+PCI ethernet NIC. [MERGED]
+
+Driver support has been added for USB ethernet adapters based on
+the ADMtek AN986 Pegasus chip, including the LinkSys USB100TX.
 
 1.2. SECURITY FIXES
 -------------------
@@ -359,6 +367,10 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
 
 ADMtek Inc. AL981-based PCI fast ethernet NICs
 ADMtek Inc. AN985-based PCI fast ethernet NICs
+ADMtek Inc. AN986-based USB ethernet NICs including the following:
+  LinkSys USB100TX
+  Billionton USB100
+  Melco Inc. LU-ATX
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204

@@ -56,12 +56,14 @@
 #include <sys/proc.h>
 
 #include <machine/bus.h>
+#include <machine/clock.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_mem.h>
+#include <dev/usb/usb_quirks.h>
 
 #if defined(__FreeBSD__)
 #include "usb_if.h"
@@ -297,7 +299,18 @@ usbd_transfer(xfer)
 	if (!xfer->done) {
 		if (pipe->device->bus->use_polling)
 			panic("usbd_transfer: not done\n");
-		tsleep(xfer, PRIBIO, "usbsyn", 0);
+		if (pipe->device->quirks->uq_flags & UQ_NO_TSLEEP) {
+			int			i;
+			for (i = 0; i < xfer->timeout + 1; i++) {
+				DELAY(1);
+			pipe->device->bus->methods->do_poll(pipe->device->bus);
+				if (xfer->done)
+					break;
+			}
+			if (!xfer->done)
+				pipe->methods->abort(xfer);
+		} else
+			tsleep(xfer, PRIBIO, "usbsyn", 0);
 	}
 	splx(s);
 	return (xfer->status);

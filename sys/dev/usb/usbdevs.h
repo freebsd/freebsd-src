@@ -51,6 +51,7 @@
 #define	USB_VENDOR_HP	0x03f0		/* Hewlett Packard */
 #define	USB_VENDOR_NEC	0x0409		/* NEC */
 #define	USB_VENDOR_KODAK	0x040a		/* Eastman Kodak Corp. */
+#define	USB_VENDOR_MELCO	0x0411		/* Melco Inc. */
 #define	USB_VENDOR_CATC	0x0423		/* Computer Access Technology Corp. */
 #define	USB_VENDOR_GRAVIS	0x0428		/* Advanced Gravis Computer Tech. Ltd. */
 #define	USB_VENDOR_LEXMARK	0x043d		/* Lexmark International Inc. */
@@ -81,7 +82,6 @@
 #define	USB_VENDOR_BELKIN	0x050d		/* Belkin Components */
 #define	USB_VENDOR_KAWATSU	0x050f		/* Kawatsu Semiconductor, Inc. */
 #define	USB_VENDOR_APC	0x051d		/* American Power Conversion */
-#define	USB_VENDOR_NETCHIP	0x0525		/* NetChip Technology */
 #define	USB_VENDOR_AKS	0x0529		/* Fast Security AG */
 #define	USB_VENDOR_UNIACCESS	0x0540		/* Universal Access */
 #define	USB_VENDOR_ANCHOR	0x0547		/* Anchor Chips Inc. */
@@ -109,9 +109,11 @@
 #define	USB_VENDOR_ADS	0x06e1		/* ADS Technologies */
 #define	USB_VENDOR_MIDIMAN	0x0763		/* Midiman */
 #define	USB_VENDOR_SANDISK	0x0781		/* SanDisk Corp */
+#define	USB_VENDOR_ADMTEK	0x07a6		/* ADMtek Inc. */
 #define	USB_VENDOR_SIIG	0x07cc		/* SIIG */
 #define	USB_VENDOR_HANDSPRING	0x082d		/* Handspring Inc. */
 #define	USB_VENDOR_ACTIVEWIRE	0x0854		/* ActiveWire Inc. */
+#define	USB_VENDOR_BILLIONTON	0x08DD		/* Billionton Systems */
 #define	USB_VENDOR_MOTOROLA	0x1063		/* Motorola */
 #define	USB_VENDOR_PLX	0x10b5		/* PLX */
 #define	USB_VENDOR_INSIDEOUT	0x1608		/* Inside Out Networks */
@@ -135,9 +137,12 @@
 #define	USB_PRODUCT_KODAK_DC240	0x0120		/* Digital Science DC240 */
 #define	USB_PRODUCT_KODAK_DC280	0x0130		/* Digital Science DC280 */
 
+/* Melco products */
+#define	USB_PRODUCT_MELCO_LUATX	0x0001		/* LU-ATX Ethernet adapter */
+
 /* CATC products */
-#define	USB_PRODUCT_CATC_CHIEF	0x000d		/* USB Chief Bus & Protocol Analyzer */
 #define	USB_PRODUCT_CATC_ANDROMEDA	0x1237		/* Andromeda hub */
+#define	USB_PRODUCT_CATC_CHIEF	0x000d		/* USB Chief Bus & Protocol Analyzer */
 
 /* Gravis products */
 #define	USB_PRODUCT_GRAVIS_GAMEPADPRO	0x4001		/* GamePad Pro */
@@ -225,9 +230,6 @@
 
 /* American Power Conversion products */
 #define	USB_PRODUCT_APC_UPSPRO500	0x0002		/* Back-UPS Pro 500 */
-
-/* NetChip Technology Products */
-#define	USB_PRODUCT_NETCHIP_TURBOCONNECT	0x1080		/* Turbo-Connect */
 
 /* AKS products */
 #define	USB_PRODUCT_AKS_USBHASP	0x0001		/* USB-HASP 0.06 */
@@ -325,6 +327,9 @@
 /* SanDisk products */
 #define	USB_PRODUCT_SANDISK_IMAGEMATE	0x0001		/* USB ImageMate */
 
+/* ADMtek products */
+#define	USB_PRODUCT_ADMTEK_PEGASUS	0x0986		/* AN986 USB Ethernet adapter */
+
 /* SIIG products */
 #define	USB_PRODUCT_SIIG_DIGIFILMREADER	0x0004		/* DigiFilm-Combo Reader */
 
@@ -334,6 +339,9 @@
 /* ActiveWire Inc. products */
 #define	USB_PRODUCT_ACTIVEWIRE_IOBOARD	0x0100		/* I/O Board */
 #define	USB_PRODUCT_ACTIVEWIRE_IOBOARD_FW1	0x0101		/* I/O Board, rev. 1 firmware */
+
+/* Billionton products */
+#define	USB_PRODUCT_BILLIONTON_USB100	0x0986		/* USB100 Ethernet adapter */
 
 /* Motorola products */
 #define	USB_PRODUCT_MOTOROLA_MC141555	0x1555		/* MC141555 hub controller */
