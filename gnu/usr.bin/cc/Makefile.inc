@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.26 1999/04/04 16:36:31 obrien Exp $
+# $Id: Makefile.inc,v 1.27 1999/04/04 17:11:00 obrien Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -12,22 +12,7 @@ BISON?=		bison
 MD_FILE=	${GCCDIR}/config/${MACHINE_ARCH}/${MACHINE_ARCH}.md
 OUT_FILE=	${MACHINE_ARCH}.c
 OUT_OBJ=	${MACHINE_ARCH}
-
-.if ${MACHINE_ARCH} != "i386"
-BINFORMAT=	elf
-.else
-BINFORMAT?=	elf
-.endif
-
-# same backend, just change compiled-in default.
-.if ${BINFORMAT} == aout
-CFLAGS+=	-DFREEBSD_AOUT
-target=		${MACHINE_ARCH}-unknown-freebsd-aout
-.endif
-.if ${BINFORMAT} == elf
-CFLAGS+=	-DFREEBSD_ELF
 target=		${MACHINE_ARCH}-unknown-freebsd
-.endif
 
 # These architectures are Cygnus's default for enabling Haifa
 .if (${MACHINE_ARCH} == "alpha") || (${MACHINE_ARCH} == "sparc")
