@@ -126,8 +126,21 @@ setjobctl(int on)
 			i = 0;
 			while (i <= 2 && !isatty(i))
 				i++;
-			if (i > 2 || (ttyfd = dup(i)) < 0)
+			if (i > 2 || (ttyfd = fcntl(i, F_DUPFD, 10)) < 0)
 				goto out;
+		}
+		if (ttyfd < 10) {
+			/*
+			 * Keep our TTY file descriptor out of the way of
+			 * the user's redirections.
+			 */
+			if ((i = fcntl(ttyfd, F_DUPFD, 10)) < 0) {
+				close(ttyfd);
+				ttyfd = -1;
+				goto out;
+			}
+			close(ttyfd);
+			ttyfd = i;
 		}
 		if (fcntl(ttyfd, F_SETFD, FD_CLOEXEC) < 0) {
 			close(ttyfd);
