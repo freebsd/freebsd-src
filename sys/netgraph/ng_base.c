@@ -2435,6 +2435,7 @@ ng_apply_item(node_p node, item_p item)
 		&& (NGI_FN(item) != &ng_rmnode)) {
 			TRAP_ERROR();
 			error = EINVAL;
+			NG_FREE_ITEM(item);
 			break;
 		}
 		(*NGI_FN(item))(node, hook, NGI_ARG1(item), NGI_ARG2(item));
