@@ -412,7 +412,7 @@ mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 		return (0);
 
 	error = VOP_GETATTR(vp, &vap, cred, curthread);
-	if (error) 
+	if (error)
 		return (error);
 	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VADMIN));
 }
@@ -500,10 +500,10 @@ mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 {
 	struct vattr vap;
 	int error;
-  
+
 	if (!mac_bsdextended_enabled)
 		return (0);
-  
+
 	error = VOP_GETATTR(dvp, &vap, cred, curthread);
 	if (error)
 		return (error);
