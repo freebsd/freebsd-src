@@ -52,6 +52,10 @@
 #define	PT_DETACH	11	/* stop tracing a process */
 #define PT_IO		12	/* do I/O to/from stopped process. */
 
+#define	PT_TO_SCE	20
+#define	PT_TO_SCX	21
+#define	PT_SYSCALL	22
+
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
 #define PT_GETFPREGS    35	/* get floating-point registers */
@@ -78,6 +82,19 @@ struct ptrace_io_desc {
 #define PIOD_WRITE_I	4	/* Write to I space */
 
 #ifdef _KERNEL
+
+#define	PTRACESTOP_SC(p, td, flag)				\
+	if ((p)->p_flag & P_TRACED && (p)->p_stops & (flag)) {	\
+		PROC_LOCK(p);					\
+		ptracestop((td), SIGTRAP);			\
+	}
+/*
+ * The flags below are used for ptrace(2) tracing and have no relation
+ * to procfs.  They are stored in struct proc's p_stops member.
+ */
+#define	S_PT_SCE	0x000010000
+#define	S_PT_SCX	0x000020000
+
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
 int	ptrace_single_step(struct thread *_td);
 

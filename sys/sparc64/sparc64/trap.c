@@ -55,6 +55,7 @@
 #include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -578,6 +579,8 @@ syscall(struct trapframe *tf)
 
 		STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
+		PTRACESTOP_SC(p, td, S_PT_SCE);
+
 		error = (*callp->sy_call)(td, argp);
 
 		CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
@@ -641,6 +644,8 @@ syscall(struct trapframe *tf)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 
 #ifdef DIAGNOSTIC
 	cred_free_thread(td);
