@@ -244,7 +244,6 @@ MAN=	aac.4 \
 	sbsh.4 \
 	screen.4 \
 	scsi.4 \
-	sd.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
@@ -262,7 +261,6 @@ MAN=	aac.4 \
 	spic.4 \
 	splash.4 \
 	sppp.4 \
-	st.4 \
 	ste.4 \
 	stf.4 \
 	stg.4 \
