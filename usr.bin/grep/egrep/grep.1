@@ -1,0 +1,250 @@
+.\" Copyright (c) 1980, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
+.\"
+.Dd April 18, 1994
+.Dt GREP 1
+.Os
+.Sh NAME
+.Nm grep
+.Nd file pattern searcher
+.Sh SYNOPSIS
+.Nm grep
+.Op Fl bchilnosvw
+.Op Fl e Ar pattern
+.Op Ar
+.Nm egrep
+.Op Fl bchilnosv
+.Op Fl e Ar pattern
+.Op Fl f Ar pattern_file
+.Op Ar
+.Nm fgrep
+.Op Fl bchilnosvx
+.Op Fl e Ar pattern
+.Op Fl f Ar pattern_file
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm grep
+utilities search the given input files selecting lines
+which match one or more patterns; the type of patterns is controlled
+by the options specified.
+By default, a pattern
+matches an input line if any regular expression (RE) in the
+pattern matches the input line without its trailing <new-line>.
+A null RE matches every line.
+Each input line that matches at
+least one of the patterns is written to the standard output.
+.Pp
+For simple patterns or
+.Xr ex 1
+or
+.Xr ed 1
+style regular expressions, the
+.Nm grep
+utility is used.
+The
+.Nm egrep
+utility
+can handle extended regular expressions and
+embedded <newline>s in patterns.
+The
+.Nm fgrep
+utility is quick but can handle only fixed strings.
+A fixed string
+is a string of characters,
+each character
+is matched only by itself.
+The pattern
+value can consist of multiple lines with
+embedded <newline>s.
+In this case, the <newline>s
+act as alternation characters, allowing any of the
+pattern lines to match a portion of the input.
+.Pp
+The following options are available:
+.Pp
+.Bl -tag -width indent
+.It Fl b
+The block number on the disk in which a matched pattern is located
+is displayed in front of the respective matched line.
+.It Fl c
+Only a count of selected lines is written to standard
+output.
+.It Fl e Ar expression 
+Specify a pattern used during the search of the
+input.
+Multiple
+.Fl e
+options can be used to specify
+multiple patterns; an input line is selected if it
+matches any of the specified patterns.
+.It Fl f Ar pattern_file 
+The pattern is read from the file named by the
+pathname pattern_file.
+Trailing newlines
+in the pattern_file are ignored.
+.Pf ( Nm Egrep
+and
+.Nm fgrep
+only).
+.It Fl h
+Never print filename headers with output lines.
+.It Fl i
+The case of letters is ignored in making comparisons \- that is, upper and
+lower case are considered identical.
+.It Fl l
+Only the names of files containing selected lines
+are written to standard output.
+Pathnames are
+listed once per file searched.
+If the standard
+input is searched, the pathname
+.Sq Fl
+is written.
+.It Fl n
+Each output line is preceded by its relative line
+number in the file; each file starting at line 1.
+The line number counter is reset for each file processed.
+This option is ignored if
+.Fl c ,
+.Fl l ,
+or
+.Fl s
+is
+specified.
+.It Fl o
+Always print filename headers with output lines.
+.It Fl s
+Silent mode.  Nothing is printed (except error messages).
+This is useful for checking the error status.
+.It Fl v
+Selected lines are those
+.Em not
+matching the specified
+patterns.
+.It Fl x
+Only input lines selected against an entire fixed
+string or regular expression are considered to be
+matching lines.
+.Pf ( Nm Fgrep
+only).
+.It Fl w
+The expression is searched for as a word
+(as if surrounded by `\e<' and `\e>', see
+.Xr ex  1  . )
+.Pf ( Nm Grep
+only)
+.Pp
+.El
+If no file arguments are specified, the
+standard input is used.
+.Pp
+The
+.Nm grep
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width flag -compact
+.It Li 0
+One or more lines were selected.
+.It Li 1
+No lines were selected.
+.It Li >1
+An error occurred.
+.El
+.Sh EXTENDED REGULAR EXPRESSIONS
+The following characters are interpreted by
+.Nm egrep :
+.Pp
+.Bl -tag -width flag -compact
+.It Cm \&$
+Align the match from the end of the line.
+.It Cm \&^
+Align the match from the beginning of the line.
+.It Cm \&|
+Add another pattern (see example below).
+.It Cm \&?
+Match 1 or less sequential repetitions of the pattern.
+.It Cm \&+
+Match 1 or more sequential repetitions of the pattern.
+.It Cm \&*
+Match 0 or more sequential repetitions of the pattern.
+.It Cm \&[]
+Match any single character or range of characters
+enclosed in the brackets.
+.It Cm \&\e
+Escape special characters which have meaning to
+.Nm egrep ,
+the set of {$,.,^,[,],|,?,+,*,(,)}.
+.El
+.Sh EXAMPLES
+To find all occurrences of the word patricia in a file:
+.Pp
+.Dl grep patricia myfile
+.Pp
+To find all occurrences of the pattern
+.Ql \&.Pp
+at the beginning of a line:
+.Pp
+.Dl grep '^\e.Pp'
+.Pp
+The apostrophes assure the entire expression is evaluated by
+.Nm grep
+instead of by the
+users shell.
+The carat or hat
+.Ql Li \&^
+means
+.Em from the beginning of a line ,
+and the
+.Ql Li \&\e
+escapes the
+.Ql Li \&.
+which would otherwise match any character.
+.Pp
+A simple example of an extended regular expression:
+.Pp
+.Dl egrep '19|20|25' calendar
+.Pp
+Peruses the file calendar looking for either 19, 20
+or 25.
+.Sh SEE ALSO
+.Xr ed 1 ,
+.Xr ex 1 ,
+.Xr sed 1
+.Sh HISTORY
+The
+.Nm grep
+command appeared in
+.At v6 .
+.Sh BUGS
+Lines are limited to 256 characters; longer lines are truncated.

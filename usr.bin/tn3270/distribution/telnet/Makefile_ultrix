@@ -1,0 +1,179 @@
+#	@(#)Makefile	1.4 (Berkeley) 5/15/88
+
+# This is the makefile for an Ultrix system.  The current Ultrix make(1) doesn't
+# support VPATH, so we expand everything out.
+
+# The following is the telnet makefile for tn3270, using the shared telnet
+# sources.
+
+#
+# TERMCAP	Define this if your system is termcap based,
+#		otherwise a terminfo based system is assumed.
+#
+# SRCRT		Includes code to allow you to specify source routes.
+#		Format is:
+#			[!]@hop1@hop2...[@|:]dst
+#		Leading ! means strict source route.
+#
+# NOSTRNCASECMP	Define this if you do not have strncasecmp() in
+#		your C libarary.
+#
+# USE_TERMIO	Define this if you have System V termio structures.
+#		What is here is how things are on Cray computers.
+#
+# KLUDGELINEMODE Define this to get the kludged up version of linemode
+#		that was in 4.3BSD.  This is a good thing to have
+#		around for talking to older systems.
+#
+
+DEFINES= -DTERMCAP -DSRCRT -DKLUDGELINEMODE
+
+
+VPATH	=	../../telnet/Source
+XINCLUDES=	-I../../telnet/Source
+INCLUDES=	-I.
+XDEFINES	=	-DTN3270
+OPTIMIZE=	-O
+CFLAGS	=	${OPTIMIZE} ${INCLUDES} ${DEFINES}
+XCFLAGS=	${XINCLUDES} ${XDEFINES}
+LD	=	ld
+LDFLAGS	=	-r
+PRINT	= print
+ACTION = sccs tell
+LIBC=	/lib/libc.a
+SD=	../../telnet/Source/
+ALLH=	${SD}defines.h ${SD}externs.h ${SD}fdset.h ${SD}general.h ${SD}ring.h ${SD}types.h
+SRCS=	${SD}commands.c ${SD}main.c ${SD}network.c ${SD}ring.c \
+	${SD}sys_bsd.c ${SD}sys_dos.c ${SD}telnet.c ${SD}terminal.c \
+	${SD}tn3270.c ${SD}utilities.c
+ALLHC=		${ALLH} ${SRCS}
+ALLPRINT =	${ALLHC}
+ALLSOURCE=	${ALLHC} Makefile Makefile_ultrix
+OBJS=	commands.o main.o network.o ring.o sys_bsd.o sys_dos.o \
+	telnet.o terminal.o tn3270.o utilities.o
+
+.c.o:
+	${CC} -c ${CFLAGS} ${XCFLAGS} $<
+
+telprog.o:	${OBJS} ${LIBC}
+	${LD} ${LDFLAGS} -o $@ ${OBJS}
+
+clean: FRC
+	rm -f ${OBJS} core telnet
+
+depend: FRC ${SRCS}
+	mkdep ${CFLAGS} ${SRCS}
+
+lint: FRC ${SRCS}
+	lint ${CFLAGS} ${SRCS}
+
+tags: FRC ${ALLHC}
+	ctags ${ALLHC}
+
+print:	FRC ${ALLPRINT}
+	${PRINT} ${ALLPRINT}
+
+commands.o:	${SD}commands.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}commands.c
+
+main.o:	${SD}main.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}main.c
+
+network.o:	${SD}network.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}network.c
+
+ring.o:	${SD}ring.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}ring.c
+
+sys_bsd.o:	${SD}sys_bsd.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}sys_bsd.c
+
+sys_dos.o:	${SD}sys_dos.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}sys_dos.c
+
+telnet.o:	${SD}telnet.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}telnet.c
+
+terminal.o:	${SD}terminal.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}terminal.c
+
+tn3270.o:	${SD}tn3270.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}tn3270.c
+
+utilities.o:	${SD}utilities.c
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${SD}utilities.c
+
+
+action: FRC
+	${ACTION}
+
+clist:	FRC ${SRCS}
+	@for i in ${SRCS} ; \
+		do (echo ${DIRPATH}$$i); done
+
+hclist:	FRC ${ALLHC}
+	@for i in ${ALLHC} ; \
+		do (echo ${DIRPATH}$$i); done
+
+sourcelist:	FRC ${ALLSOURCE}
+	@for i in ${ALLSOURCE} ../../telnet/Makefile ; \
+		do (echo ${DIRPATH}$$i); done
+
+FRC:
+
+# DO NOT DELETE THIS LINE -- mkdep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+
+commands.o: ../../telnet/Source/commands.c /usr/include/sys/types.h
+commands.o: /usr/include/sys/socket.h /usr/include/netinet/in.h
+commands.o: /usr/include/signal.h /usr/include/machine/trap.h
+commands.o: /usr/include/netdb.h /usr/include/ctype.h
+commands.o: /usr/include/arpa/telnet.h ../../telnet/Source/ring.h
+commands.o: ../../telnet/Source/externs.h /usr/include/stdio.h
+commands.o: /usr/include/setjmp.h ../../telnet/Source/defines.h
+commands.o: ../../telnet/Source/types.h
+main.o: ../../telnet/Source/main.c /usr/include/sys/types.h
+main.o: ../../telnet/Source/ring.h ../../telnet/Source/externs.h
+main.o: /usr/include/stdio.h /usr/include/setjmp.h
+main.o: ../../telnet/Source/defines.h
+network.o: ../../telnet/Source/network.c /usr/include/sys/types.h
+network.o: /usr/include/sys/socket.h /usr/include/sys/time.h
+network.o: /usr/include/time.h /usr/include/errno.h /usr/include/arpa/telnet.h
+network.o: ../../telnet/Source/ring.h ../../telnet/Source/defines.h
+network.o: ../../telnet/Source/externs.h /usr/include/stdio.h
+network.o: /usr/include/setjmp.h ../../telnet/Source/fdset.h
+ring.o: ../../telnet/Source/ring.c /usr/include/stdio.h /usr/include/errno.h
+ring.o: /usr/include/sys/types.h /usr/include/sys/ioctl.h
+ring.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+ring.o: /usr/include/sys/socket.h ../../telnet/Source/ring.h
+ring.o: ../../telnet/Source/general.h
+sys_bsd.o: ../../telnet/Source/sys_bsd.c /usr/include/sys/ioctl.h
+sys_bsd.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+sys_bsd.o: /usr/include/sys/types.h /usr/include/sys/time.h /usr/include/time.h
+sys_bsd.o: /usr/include/sys/socket.h /usr/include/signal.h
+sys_bsd.o: /usr/include/machine/trap.h /usr/include/errno.h
+sys_bsd.o: ../../telnet/Source/ring.h ../../telnet/Source/fdset.h
+sys_bsd.o: ../../telnet/Source/defines.h ../../telnet/Source/externs.h
+sys_bsd.o: /usr/include/stdio.h /usr/include/setjmp.h
+sys_bsd.o: ../../telnet/Source/types.h
+sys_dos.o: ../../telnet/Source/sys_dos.c
+telnet.o: ../../telnet/Source/telnet.c /usr/include/sys/types.h
+telnet.o: /usr/include/curses.h /usr/include/stdio.h /usr/include/sgtty.h
+telnet.o: /usr/include/sys/ioctl.h /usr/include/sys/ttychars.h
+telnet.o: /usr/include/sys/ttydev.h /usr/include/arpa/telnet.h
+telnet.o: /usr/include/strings.h ../../telnet/Source/ring.h
+telnet.o: ../../telnet/Source/defines.h ../../telnet/Source/externs.h
+telnet.o: /usr/include/stdio.h /usr/include/setjmp.h
+telnet.o: ../../telnet/Source/types.h ../../telnet/Source/general.h
+telnet.o: /usr/include/varargs.h
+terminal.o: ../../telnet/Source/terminal.c /usr/include/arpa/telnet.h
+terminal.o: /usr/include/sys/types.h ../../telnet/Source/ring.h
+terminal.o: ../../telnet/Source/externs.h /usr/include/stdio.h
+terminal.o: /usr/include/setjmp.h ../../telnet/Source/types.h
+tn3270.o: ../../telnet/Source/tn3270.c ../../telnet/Source/fdset.h
+utilities.o: ../../telnet/Source/utilities.c /usr/include/arpa/telnet.h
+utilities.o: /usr/include/sys/types.h /usr/include/ctype.h
+utilities.o: ../../telnet/Source/ring.h ../../telnet/Source/externs.h
+utilities.o: /usr/include/stdio.h /usr/include/setjmp.h
+
+# IF YOU PUT ANYTHING HERE IT WILL GO AWAY
