@@ -246,7 +246,7 @@ atalkprotopr(u_long off __unused, char *name, int af __unused)
 		}
 		if (Aflag)
 			printf("%8lx ", (u_long) this);
-		printf("%-5.5s %6lu %6lu ", name, sockb.so_rcv.sb_cc,
+		printf("%-5.5s %6u %6u ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", atalk_print(
 					(struct sockaddr *)&ddpcb.ddp_lsat,7));
