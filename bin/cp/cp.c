@@ -366,7 +366,7 @@ copy(char *argv[], enum op type, int fts_options)
 			 * normally want to preserve them on directories.
 			 */
 			if (pflag) {
-				if (setfile(curr->fts_statp, 0))
+				if (setfile(curr->fts_statp, -1))
 				    rval = 1;
 			} else {
 				mode = curr->fts_statp->st_mode;
