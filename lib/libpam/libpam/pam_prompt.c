@@ -27,6 +27,7 @@
  */
 
 #include <security/pam_modules.h>
+#include <stdlib.h>
 #include "pam_mod_misc.h"
 
 /*
@@ -36,22 +37,22 @@
 int
 pam_prompt(pam_handle_t *pamh, int style, const char *prompt, char **user_msg)
 {
-	int retval;
-	const void *item;
 	const struct pam_conv *conv;
 	struct pam_message msg;
 	const struct pam_message *msgs[1];
 	struct pam_response *resp;
+	const void *item;
+	int retval;
 
-	if ((retval = pam_get_item(pamh, PAM_CONV, &item)) !=
-	    PAM_SUCCESS)
+	retval = pam_get_item(pamh, PAM_CONV, &item);
+	if (retval != PAM_SUCCESS)
 		return retval;
 	conv = (const struct pam_conv *)item;
 	msg.msg_style = style;
 	msg.msg = prompt != NULL ? prompt : "";
 	msgs[0] = &msg;
-	if ((retval = conv->conv(1, msgs, &resp, conv->appdata_ptr)) !=
-	    PAM_SUCCESS)
+	retval = conv->conv(1, msgs, &resp, conv->appdata_ptr);
+	if (retval != PAM_SUCCESS)
 		return retval;
 	if (user_msg != NULL)
 		*user_msg = resp[0].resp;

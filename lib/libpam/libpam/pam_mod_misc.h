@@ -31,22 +31,44 @@
 
 #include <sys/cdefs.h>
 
-/* Options */
-#define	PAM_OPT_DEBUG			0x0001
-#define	PAM_OPT_NO_WARN			0x0002
-#define	PAM_OPT_USE_FIRST_PASS		0x0004
-#define	PAM_OPT_TRY_FIRST_PASS		0x0008
-#define	PAM_OPT_USE_MAPPED_PASS		0x0010
-#define	PAM_OPT_ECHO_PASS		0x0020
-#define	PAM_OPT_AUTH_AS_SELF		0x0040
-#define	PAM_OPT_NULLOK			0x0080
-#define	PAM_OPT_NO_ANON			0x0100
-#define	PAM_OPT_IGNORE			0x0200
+/* Standard options
+ */
+enum opt { PAM_OPT_DEBUG, PAM_OPT_NO_WARN, PAM_OPT_ECHO_PASS,
+	PAM_OPT_USE_FIRST_PASS, PAM_OPT_TRY_FIRST_PASS, PAM_OPT_USE_MAPPED_PASS,
+	PAM_OPT_EXPOSE_ACCOUNT, PAM_OPT_STD_MAX /* XXX */ };
+
+#define PAM_MAX_OPTIONS	20
+
+struct opttab {
+	const char *name;
+	int value;
+};
+
+struct options {
+	struct {
+		int bool;
+		char *arg;
+	} opt[PAM_MAX_OPTIONS];
+};
 
 __BEGIN_DECLS
-int	 pam_get_pass(pam_handle_t *, const char **, const char *, int);
-int	 pam_prompt(pam_handle_t *, int, const char *, char **);
-int	 pam_std_option(int *, const char *);
+int	pam_get_pass(pam_handle_t *, const char **, const char *, struct options *);
+int	pam_prompt(pam_handle_t *, int, const char *, char **);
+void	pam_std_option(struct options *, struct opttab *, int, const char **);
+int	pam_test_option(struct options *, enum opt, char **);
+void	pam_set_option(struct options *, enum opt);
+void	pam_clear_option(struct options *, enum opt);
+void	_pam_log(struct options *, const char *, const char *, const char *, ...);
+void	_pam_log_retval(struct options *, const char *, const char *, int);
 __END_DECLS
+
+#define	PAM_LOG(args...)					\
+	_pam_log(&options, __FILE__, __FUNCTION__, ##args)
+
+#define PAM_RETURN(arg)							\
+	do {								\
+	_pam_log_retval(&options, __FILE__, __FUNCTION__, arg);		\
+	return arg;							\
+	} while (0)
 
 #endif
