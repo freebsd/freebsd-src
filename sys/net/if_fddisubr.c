@@ -299,15 +299,15 @@ fddi_output(ifp, m, dst, rt0)
 	 * reasons and compatibility with the original behavior.
 	 */
 	if ((ifp->if_flags & IFF_SIMPLEX) && (loop_copy != -1)) {
-		if ((m->m_flags & M_BCAST) || loop_copy) {
-			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
-
-			(void) if_simloop(ifp,
-				n, dst->sa_family, FDDI_HDR_LEN);
-	     	} else if (bcmp(fh->fddi_dhost,
-		    fh->fddi_shost, FDDI_ADDR_LEN) == 0) {
-			(void) if_simloop(ifp,
-				m, dst->sa_family, FDDI_HDR_LEN);
+		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
+			struct mbuf *n;
+			n = m_copy(m, 0, (int)M_COPYALL);
+			(void) if_simloop(ifp, n, dst->sa_family,
+					  FDDI_HDR_LEN);
+	     	} else if (bcmp(fh->fddi_dhost, fh->fddi_shost,
+				FDDI_ADDR_LEN) == 0) {
+			(void) if_simloop(ifp, m, dst->sa_family,
+					  FDDI_HDR_LEN);
 			return (0);	/* XXX */
 		}
 	}
