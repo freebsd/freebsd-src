@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: loader.8,v 1.1.2.1 1999/03/15 08:57:48 dcs Exp $
+.\"	$Id: loader.8,v 1.1.2.2 1999/04/25 21:42:23 dcs Exp $
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -38,8 +38,9 @@ The program called
 is the third stage of FreeBSD's three stage bootstrap.
 It is a
 .Pa BTX
-client linked statically to libstand(3) and
-usually located in the directory
+client linked statically to
+.Xr libstand 3
+and usually located in the directory
 .Pa /boot .
 .Pp
 It provides a scripting language that can be used to
@@ -387,7 +388,7 @@ All backslash characters are preprocessed.
 .Bl -bullet
 .It
 \eb , \ef , \er , \en and \et are processed as by C's
-.fn printf() .
+.Fn printf .
 .It
 \es is converted to a space.
 .It
@@ -474,7 +475,7 @@ virtual machine library that can be called by C functions and vice
 versa.
 .Pp
 In
-.Nm ,
+.Nm No ,
 each line read interactively is then fed to
 .Tn FICL ,
 which may call
