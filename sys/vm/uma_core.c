@@ -513,10 +513,12 @@ cache_drain(uma_zone_t zone, int destroy)
 		bucket_drain(zone, cache->uc_allocbucket);
 		bucket_drain(zone, cache->uc_freebucket);
 		if (destroy) {
-			uma_zfree_internal(bucketzone, cache->uc_allocbucket,
-			    NULL, 0);
-			uma_zfree_internal(bucketzone, cache->uc_freebucket,
-			    NULL, 0);
+			if (cache->uc_allocbucket != NULL)
+				uma_zfree_internal(bucketzone,
+				    cache->uc_allocbucket, NULL, 0);
+			if (cache->uc_freebucket != NULL)
+				uma_zfree_internal(bucketzone,
+				    cache->uc_freebucket, NULL, 0);
 			cache->uc_allocbucket = cache->uc_freebucket = NULL;
 		}
 	}
