@@ -70,11 +70,11 @@ typedef struct __mcontext {
 #define	_MC_FPOWNED_FPU		0x20001	/* FP state came from FPU */
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	long	mc_ownedfp;
-	long	mc_spare1[1];		/* align next field to 16 bytes */
+	long	mc_spare1[1];		/* align mc_fpstate to 16 bytes */
 	/*
 	 * See <machine/npx.h> for the internals of mc_fpstate[].
 	 */
-	long	mc_fpstate[128] __aligned(16);
+	long	mc_fpstate[64] __aligned(16);
 	long	mc_spare2[8];
 } mcontext_t;
 
