@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.15 1998/02/17 05:04:56 alex Exp $
+ * $Id: ipfw.c,v 1.34.2.16 1998/05/15 12:33:37 danny Exp $
  *
  */
 
@@ -1241,7 +1241,7 @@ main(ac, av)
 	char	buf[BUFSIZ];
 	char	*a, *args[MAX_ARGS];
 	char	linename[10];
-	int 	i;
+	int 	i, qflag=0;
 	FILE	*f;
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
@@ -1250,10 +1250,11 @@ main(ac, av)
 
 	setbuf(stdout,0);
 
-	if (av[1] && !access(av[1], R_OK)) {
+	if (av[1] && (!access(av[1], R_OK) ||
+	    (av[2] && (qflag=!strcmp(av[1],"-q")) && !access(av[2], R_OK)))){
 		lineno = 0;
-		if ((f = fopen(av[1], "r")) == NULL)
-			err(1, "fopen: %s", av[1]);
+		if ((f = fopen(av[ac-1], "r")) == NULL)
+			err(1, "fopen: %s", av[ac-1]);
 		while (fgets(buf, BUFSIZ, f)) {
 
 			lineno++;
@@ -1262,7 +1263,9 @@ main(ac, av)
 
 			if (*buf == '#')
 				continue;
-			for (i = 1, a = strtok(buf, WHITESP);
+			i=1;
+			if (qflag) args[i++]="-q";
+			for (a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
 			if (i == 1)
