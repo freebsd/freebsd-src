@@ -474,6 +474,10 @@ void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));
 void sc_print_finish __P((void));
 
+#ifndef SCSIDEBUG
+void scsi_print_info __P((struct scsi_link *));
+#endif
+
 void	scsi_device_register __P((struct scsi_device *sd));
 
 void scsi_configure_start __P((void));
