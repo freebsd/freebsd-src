@@ -29,6 +29,7 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
 
@@ -119,6 +120,8 @@ dec_2100_a500_cons_init()
 	comconsole = 0;
 	if (siocnattach(0x3f8, comcnrate))
 	    panic("can't init serial console");
+
+	boothowto |= RB_SERIAL;
 	break;
 
     case 3:
