@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.99 1998/10/15 17:09:19 peter Exp $
+ * $Id: init_main.c,v 1.100 1998/12/19 02:55:33 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -469,14 +469,15 @@ proc0_init(dummy)
 #endif	/* INCOMPAT_LITES2*/
 #endif
 
-	/*
 #ifndef COMPAT_LINUX_THREADS
+	/*
 	 * We continue to place resource usage info and signal
 	 * actions in the user struct so they're pageable.
 	 */
 	p->p_stats = &p->p_addr->u_stats;
 	p->p_sigacts = &p->p_addr->u_sigacts;
 #else
+	/*
 	 * We continue to place resource usage info in the user struct so
 	 * it's pageable.
 	 */
