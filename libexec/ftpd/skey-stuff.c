@@ -1,6 +1,6 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
  *
- *	$Id: skey-stuff.c,v 1.3 1996/09/22 21:53:34 wosch Exp $
+ *	$Id: skey-stuff.c,v 1.4 1996/10/17 17:06:04 ache Exp $
  */
 
 #include <stdio.h>
@@ -23,7 +23,8 @@ int    *sflag;
     /* Display s/key challenge where appropriate. */
 
     *sflag = skeychallenge(&skey, username, buf);
-    sprintf(buf, "%s required for %s.",
-	pwok ? "Password" : "S/Key password", name);
+    if (*sflag)
+	sprintf(buf, "%s required for %s.",
+	    pwok ? "Password" : "S/Key password", name);
     return (buf);
 }
