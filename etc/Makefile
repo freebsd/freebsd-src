@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.135 1996/03/22 17:28:07 nate Exp $
+#	$Id: Makefile,v 1.136 1996/04/03 17:13:57 phk Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -105,7 +105,7 @@ distribution:
 	    ${MAKE} all; \
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
-	    ${MAKE} obj; \
+	    ${MAKE} objlink; \
 	    ${MAKE} freebsd.cf; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/freebsd.cf \
 		${DESTDIR}/etc/sendmail.cf)
