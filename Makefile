@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.19 1997/09/28 16:33:05 mckay Exp $
+#	$Id: Makefile,v 1.149 1997/10/05 09:34:41 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -552,8 +552,8 @@ libraries:
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/lib && ${MAKE} depend && \
+.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
