@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.1 1998/05/10 01:30:23 luigi Exp $
+ *	$Id: ip_dummynet.h,v 1.1 1998/09/12 22:03:20 luigi Exp $
  */
 
 #ifndef _IP_DUMMYNET_H
@@ -83,6 +83,14 @@ struct dn_pipe {			/* a pipe */
         int     ticks_from_last_insert;
         long    numbytes;		/* which can send or receive */
 };
+
+/*
+ * The following is used to define a new mbuf type that is
+ * prepended to the packet when it comes out of a pipe. The definition
+ * ought to go in /sys/sys/mbuf.h but here it is less intrusive.
+ */
+
+#define MT_DUMMYNET MT_CONTROL
 
 /*
  * what to do of a packet when it comes out of a pipe
