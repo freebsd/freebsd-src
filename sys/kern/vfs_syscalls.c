@@ -75,7 +75,7 @@
 #include <vm/vm_page.h>
 
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
-static void checkdirs __P((struct vnode *olddp));
+static void checkdirs __P((struct vnode *olddp, struct vnode *newdp));
 static int chroot_refuse_vdir_fds __P((struct filedesc *fdp));
 static int getutimes __P((const struct timeval *, struct timespec *));
 static int setfown __P((struct proc *, struct vnode *, uid_t, gid_t));
@@ -332,6 +332,8 @@ update:
 	 */
 	cache_purge(vp);
 	if (!error) {
+		struct vnode *newdp;
+
 		mtx_lock(&vp->v_interlock);
 		vp->v_flag &= ~VMOUNT;
 		vp->v_mountedhere = mp;
@@ -339,7 +341,10 @@ update:
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
-		checkdirs(vp);
+		if (VFS_ROOT(mp, &newdp))
+			panic("mount: lost mount");
+		checkdirs(vp, newdp);
+		vput(newdp);
 		VOP_UNLOCK(vp, 0, p);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
@@ -360,21 +365,18 @@ update:
 
 /*
  * Scan all active processes to see if any of them have a current
- * or root directory onto which the new filesystem has just been
- * mounted. If so, replace them with the new mount point.
+ * or root directory of `olddp'. If so, replace them with the new
+ * mount point.
  */
 static void
-checkdirs(olddp)
-	struct vnode *olddp;
+checkdirs(olddp, newdp)
+	struct vnode *olddp, *newdp;
 {
 	struct filedesc *fdp;
-	struct vnode *newdp;
 	struct proc *p;
 
 	if (olddp->v_usecount == 1)
 		return;
-	if (VFS_ROOT(olddp->v_mountedhere, &newdp))
-		panic("mount: lost mount");
 	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
 		fdp = p->p_fd;
@@ -395,7 +397,6 @@ checkdirs(olddp)
 		VREF(newdp);
 		rootvnode = newdp;
 	}
-	vput(newdp);
 }
 
 /*
@@ -470,7 +471,7 @@ dounmount(mp, flags, p)
 	int flags;
 	struct proc *p;
 {
-	struct vnode *coveredvp;
+	struct vnode *coveredvp, *fsrootvp;
 	int error;
 	int async_flag;
 
@@ -488,6 +489,16 @@ dounmount(mp, flags, p)
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
 		vrele(mp->mnt_syncer);
+	/* Move process cdir/rdir refs on fs root to underlying vnode. */
+	if (VFS_ROOT(mp, &fsrootvp) == 0) {
+		if (mp->mnt_vnodecovered != NULL)
+			checkdirs(fsrootvp, mp->mnt_vnodecovered);
+		if (fsrootvp == rootvnode) {
+			vrele(rootvnode);
+			rootvnode = NULL;
+		}
+		vput(fsrootvp);
+	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
 	     (error = VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p)) == 0) ||
 	    (flags & MNT_FORCE)) {
@@ -496,6 +507,16 @@ dounmount(mp, flags, p)
 	vn_finished_write(mp);
 	mtx_lock(&mountlist_mtx);
 	if (error) {
+		/* Undo cdir/rdir and rootvnode changes made above. */
+		if (VFS_ROOT(mp, &fsrootvp) == 0) {
+			if (mp->mnt_vnodecovered != NULL)
+				checkdirs(mp->mnt_vnodecovered, fsrootvp);
+			if (rootvnode == NULL) {
+				rootvnode = fsrootvp;
+				vref(rootvnode);
+			}
+			vput(fsrootvp);
+		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
 		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
