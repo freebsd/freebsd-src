@@ -128,6 +128,8 @@ static struct
     {0x101e, 0x1960, 0},
     {0x1000, 0x1960, PROBE_SIGNATURE},
     {0x1000, 0x0407, 0},
+    {0x1028, 0x000e, PROBE_SIGNATURE}, /* perc4/di i960 */
+    {0x1028, 0x000f, 0}, /* perc4/di Verde*/
     {0, 0, 0}
 };
 
@@ -178,7 +180,8 @@ amr_pci_attach(device_t dev)
      * Determine board type.
      */
     command = pci_read_config(dev, PCIR_COMMAND, 1);
-    if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407)){
+    if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407) ||
+	(pci_get_device(dev) == 0x000e) || (pci_get_device(dev) == 0x000f)) {
 	/*
 	 * Make sure we are going to be able to talk to this board.
 	 */
