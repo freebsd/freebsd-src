@@ -23,6 +23,7 @@ MLINKS+=	vgl.3 VGLBitmapCopy.3 \
 		vgl.3 VGLMouseSetImage.3 \
 		vgl.3 VGLMouseSetStdImage.3 \
 		vgl.3 VGLMouseStatus.3 \
+		vgl.3 VGLPanScreen.3 \
 		vgl.3 VGLSetBorder.3 \
 		vgl.3 VGLSetPalette.3 \
 		vgl.3 VGLSetPaletteIndex.3 \
