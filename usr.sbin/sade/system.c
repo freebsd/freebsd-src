@@ -63,7 +63,7 @@ intr_restart(dialogMenuItem *self)
     fdmax = getdtablesize();
     for (fd = 3; fd < fdmax; fd++)
 	close(fd);
-    ret = execl(StartName, StartName, (char *)NULL);
+    ret = execl(StartName, StartName, "-restart", (char *)NULL);
     msgDebug("execl failed (%s)\n", strerror(errno));
     /* NOTREACHED */
     return -1;
