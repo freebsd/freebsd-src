@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.43 1998/04/24 09:25:39 dg Exp $
+ * 	$Id: tcp_var.h,v 1.44 1998/05/15 20:11:35 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -288,10 +288,10 @@ struct	tcpstat {
 
 /*
  * TCB structure exported to user-land via sysctl(3).
- * Evil hack: declare only if in_pcb.h has been included.
- * Not all of our clients do.
+ * Evil hack: declare only if in_pcb.h and sys/socketvar.h have been
+ * included.  Not all of our clients do.
  */
-#ifdef _NETINET_IN_PCB_H_
+#if defined(_NETINET_IN_PCB_H_) && defined(_SYS_SOCKETVAR_H_)
 struct	xtcpcb {
 	size_t	xt_len;
 	struct	inpcb	xt_inp;
