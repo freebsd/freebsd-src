@@ -2653,6 +2653,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 		if (ndis_find_sym(lf, afilename, "_end", &kldend))
 			continue;
 		fh->nf_vp = lf;
+		fh->nf_map = NULL;
 		fh->nf_type = NDIS_FH_TYPE_MODULE;
 		*filelength = fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
 		*filehandle = fh;
