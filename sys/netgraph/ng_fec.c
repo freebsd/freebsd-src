@@ -191,7 +191,7 @@ static void	ng_fec_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 /* Netgraph methods */
 static ng_constructor_t	ng_fec_constructor;
 static ng_rcvmsg_t	ng_fec_rcvmsg;
-static ng_shutdown_t	ng_fec_shutdown;
+static ng_shutdown_t	ng_fec_rmnode;
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_fec_cmds[] = {
@@ -228,12 +228,13 @@ static const struct ng_cmdlist ng_fec_cmds[] = {
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
+	NG_VERSION,
 	NG_FEC_NODE_TYPE,
 	NULL,
 	ng_fec_constructor,
 	ng_fec_rcvmsg,
-	ng_fec_shutdown,
+	ng_fec_rmnode,
+	NULL,
 	NULL,
 	NULL,
 	NULL,
@@ -306,10 +307,10 @@ ng_fec_free_unit(int unit)
 	/*
 	 * XXX We could think about reducing the size of ng_fec_units[]
 	 * XXX here if the last portion is all ones
-	 * XXX At least free it if no more units
-	 * Needed if we are to eventually be able to unload.
+	 * XXX At least free it if no more units.
+	 * Needed if we are eventually be able to unload.
 	 */
-	ng_units_in_use--;
+	ng_units_in_use++;
 	if (ng_units_in_use == 0) { /* XXX make SMP safe */
 		FREE(ng_fec_units, M_NETGRAPH);
 		ng_fec_units_len = 0;
@@ -733,7 +734,7 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0,
 	if (node == NULL)
 		return;
 
-	priv = NG_NODE_PRIVATE(node);
+	priv = node->private;
 	b = &priv->fec_bundle;
 	bifp = &priv->arpcom.ac_if;
 
@@ -1037,10 +1038,11 @@ ng_fec_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
  * Constructor for a node
  */
 static int
-ng_fec_constructor(node_p node)
+ng_fec_constructor(node_p *nodep)
 {
 	char ifname[NG_FEC_FEC_NAME_MAX + 1];
 	struct ifnet *ifp;
+	node_p node;
 	priv_p priv;
 	struct ng_fec_bundle *b;
 	int error = 0;
@@ -1064,8 +1066,17 @@ ng_fec_constructor(node_p node)
 		return (error);
 	}
 
+	/* Call generic node constructor */
+	if ((error = ng_make_node_common(&typestruct, nodep)) != 0) {
+		ng_fec_free_unit(priv->unit);
+		FREE(ifp, M_NETGRAPH);
+		FREE(priv, M_NETGRAPH);
+		return (error);
+	}
+	node = *nodep;
+
 	/* Link together node and private info */
-	NG_NODE_SET_PRIVATE(node, priv);
+	node->private = priv;
 	priv->node = node;
 	priv->arpcom.ac_netgraph = node;
 
@@ -1116,16 +1127,15 @@ ng_fec_constructor(node_p node)
  * Receive a control message
  */
 static int
-ng_fec_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ng_fec_rcvmsg(node_p node, struct ng_mesg *msg,
+		const char *retaddr, struct ng_mesg **rptr)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const priv_p priv = node->private;
 	struct ng_fec_bundle	*b;
 	struct ng_mesg *resp = NULL;
-	struct ng_mesg *msg;
 	char *ifname;
 	int error = 0;
 
-	NGI_GET_MSG(item, msg);
 	b = &priv->fec_bundle;
 
 	switch (msg->header.typecookie) {
@@ -1161,8 +1171,11 @@ ng_fec_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		error = EINVAL;
 		break;
 	}
-	NG_RESPOND_MSG(error, node, item, resp);
-	NG_FREE_MSG(msg);
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);
+	FREE(msg, M_NETGRAPH);
 	return (error);
 }
 
@@ -1170,9 +1183,9 @@ ng_fec_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * Shutdown and remove the node and its associated interface.
  */
 static int
-ng_fec_shutdown(node_p node)
+ng_fec_rmnode(node_p node)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const priv_p priv = node->private;
 	struct ng_fec_bundle *b;
 	struct ng_fec_portlist	*p;
 	char ifname[IFNAMSIZ];
@@ -1188,13 +1201,15 @@ ng_fec_shutdown(node_p node)
 		ng_fec_delport(priv, ifname);
 	}
 
+	ng_cutlinks(node);
+	ng_unname(node);
 	if (ng_ether_input_p != NULL)
 		ng_ether_input_p = NULL;
 	ether_ifdetach(&priv->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	FREE(priv, M_NETGRAPH);
-	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(node);
+	node->private = NULL;
+	ng_unref(node);
 	return (0);
 }
