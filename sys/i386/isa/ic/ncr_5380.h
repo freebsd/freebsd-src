@@ -1,32 +1,22 @@
 /*
- * Mach Operating System
- * Copyright (c) 1991,1990,1989 Carnegie Mellon University
- * All Rights Reserved.
- * 
- * Permission to use, copy, modify and distribute this software and its
- * documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
- * software, derivative works or modified versions, and any portions
- * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
- * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
- * Carnegie Mellon requests users of this software to return to
- * 
- *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
- *  School of Computer Science
- *  Carnegie Mellon University
- *  Pittsburgh PA 15213-3890
- * 
- * any improvements or extensions that they make and grant Carnegie the
- * rights to redistribute these changes.
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <phk@login.dkuug.dk> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+ * ----------------------------------------------------------------------------
+ *
+ * $Id$
+ *
+ * Definitions for 5380 SCSI-controller chip.
+ *
+ * Derived from "NCR 53C80 Family SCSI Protocol Controller Data Manual"
  */
 
 #ifndef  _IC_NCR_5380_H_ 
 #define  _IC_NCR_5380_H_ 
 
+#if 0 /* XXX */
 /*
  * Register map
  */
@@ -126,5 +116,101 @@ typedef struct {
 #define SCI_CSR_PERR		0x20	/* r:  Parity error */
 #define SCI_CSR_DREQ		0x40	/* r:  DMA request */
 #define SCI_CSR_DONE		0x80	/* r:  DMA count is zero */
+
+#endif /* XXX */
+
+#define R_CSDR	0		/* R   Current SCSI Data Reg.		*/
+#define W_ODR	0		/* W   Output Data Reg.			*/
+
+#define R_ICR	1		/* R   Initiator Command Reg.		*/
+#define R_ICR_ASSERT_RST		0x80
+#define R_ICR_ARBITRATION_IN_PROGRESS	0x40
+#define R_ICR_LOST_ARBITRATION		0x20
+#define R_ICR_ASSERT_ACK		0x10
+#define R_ICR_ASSERT_BSY		0x08
+#define R_ICR_ASSERT_SEL		0x04
+#define R_ICR_ASSERT_ATN		0x02
+#define R_ICR_ASSERT_DATA_BUS		0x01
+
+#define W_ICR	1		/* W   Initiator Command Reg.		*/
+#define W_ICR_ASSERT_RST		0x80
+#define W_ICR_TRI_STATE_MODE		0x40
+#define W_ICR_DIFF_ENABLE		0x20
+#define W_ICR_ASSERT_ACK		0x10
+#define W_ICR_ASSERT_BSY		0x08
+#define W_ICR_ASSERT_SEL		0x04
+#define W_ICR_ASSERT_ATN		0x02
+#define W_ICR_ASSERT_DATA_BUS		0x01
+
+/* 
+ * The mask to use when doing read_modify_write on ICR.
+ */
+#define RW_ICR_MASK	(~(W_ICR_DIFF_ENABLE|W_ICR_TRI_STATE_MODE))
+
+#define RW_MR	2		/* RW  Mode Reg.			*/
+#define RW_MR_BLOCK_MODE_DMA		0x80
+#define RW_MR_TARGET_MODE		0x40
+#define RW_MR_ENABLE_PARITY_CHECKING	0x20
+#define RW_MR_ENABLE_PARITY_INTERRUPT	0x10
+#define RW_MR_ENABLE_EOP_INTERRUPT	0x08
+#define RW_MR_MONITOR_BUSY		0x04
+#define RW_MR_DMA_MODE			0x02
+#define RW_MR_ARBITRATE			0x01
+
+#define R_TCR	3		/* R   Target Command Reg.		*/
+#define R_TCR_LAST_BYTE_SENT		0x80
+/*      R_TCR_RESERVED			0x40 */
+/*      R_TCR_RESERVED			0x20 */
+/*      R_TCR_RESERVED			0x10 */
+#define R_TCR_ASSERT_REQ		0x08
+#define R_TCR_ASSERT_MSG		0x04
+#define R_TCR_ASSERT_CD			0x02
+#define R_TCR_ASSERT_IO			0x01
+
+#define W_TCR	3		/* W   Target Command Reg.		*/
+/*      W_TCR_RESERVED			0x80 */
+/*      W_TCR_RESERVED			0x40 */
+/*      W_TCR_RESERVED			0x20 */
+/*      W_TCR_RESERVED			0x10 */
+#define W_TCR_ASSERT_REQ		0x08
+#define W_TCR_ASSERT_MSG		0x04
+#define W_TCR_ASSERT_CD			0x02
+#define W_TCR_ASSERT_IO			0x01
+
+#define R_CSCR	4		/* R   Current SCSI Bus Status Reg.	*/
+#define R_CSCR_RST			0x80
+#define R_CSCR_BSY			0x40
+#define R_CSCR_REQ			0x20
+#define R_CSCR_MSG			0x10
+#define R_CSCR_CD			0x08
+#define R_CSCR_IO			0x04
+#define R_CSCR_SEL			0x02
+#define R_CSCR_ACK			0x01
+
+#define W_SER	4		/* W   Select Enable Reg.		*/
+#define W_SER_SCSI_ID_7			0x80
+#define W_SER_SCSI_ID_6			0x40
+#define W_SER_SCSI_ID_5			0x20
+#define W_SER_SCSI_ID_4			0x10
+#define W_SER_SCSI_ID_3			0x08
+#define W_SER_SCSI_ID_2			0x04
+#define W_SER_SCSI_ID_1			0x02
+#define W_SER_SCSI_ID_0			0x01
+
+#define R_BSR	5		/* R   Bus and Status Reg.		*/
+#define R_BSR_END_OF_DMA_XFER		0x80
+#define R_BSR_DMA_REQUEST		0x40
+#define R_BSR_PARITY_ERROR		0x20
+#define R_BSR_INTERRUPT_REQUEST_ACTIVE	0x10
+#define R_BSR_PHASE_MISMATCH		0x08
+#define R_BSR_BUSY_ERROR		0x04
+#define R_BSR_ATN			0x02
+#define R_BSR_ACK			0x01
+
+#define W_SDSR	5		/* W   Start DMA Send Reg.		*/
+#define R_IDR	6		/* R   Input Data Reg.			*/
+#define W_SDTR	6		/* W   Start DMA Target Receive Reg.	*/
+#define R_RPIR	7		/* R   Reset Parity/Interrupt Reg.	*/
+#define W_SDIR	7		/* W  Start DMA Initiator Receive Reg.	*/
 
 #endif /* _IC_NCR_5380_H_ */
