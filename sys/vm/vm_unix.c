@@ -44,6 +44,8 @@
 /*
  * Traditional sbrk/grow interface to VM
  */
+#include "opt_bleed.h"
+
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -99,6 +101,9 @@ obreak(p, uap)
 		vm_size_t diff;
 
 		diff = new - old;
+#ifndef BLEED
+		mtx_lock(&Giant);
+#endif
 		mtx_lock(&vm_mtx);
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
@@ -108,6 +113,9 @@ obreak(p, uap)
 		}
 		vm->vm_dsize += btoc(diff);
 		mtx_unlock(&vm_mtx);
+#ifndef BLEED
+		mtx_unlock(&Giant);
+#endif
 	} else if (new < old) {
 		mtx_lock(&Giant);
 		mtx_lock(&vm_mtx);
