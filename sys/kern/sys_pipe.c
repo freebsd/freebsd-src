@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.11 1996/02/11 22:09:50 dyson Exp $
+ * $Id: sys_pipe.c,v 1.12 1996/02/17 14:47:16 peter Exp $
  */
 
 #ifndef OLD_PIPE
@@ -278,7 +278,7 @@ pipelock(cpipe, catch)
 	int error;
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
-		if (error = tsleep( &cpipe->pipe_state,
+		if (error = tsleep( cpipe,
 			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) {
 			return error;
 		}
@@ -297,7 +297,7 @@ pipeunlock(cpipe)
 	cpipe->pipe_state &= ~PIPE_LOCK;
 	if (cpipe->pipe_state & PIPE_LWANT) {
 		cpipe->pipe_state &= ~PIPE_LWANT;
-		wakeup(&cpipe->pipe_state);
+		wakeup(cpipe);
 	}
 	return;
 }
@@ -430,6 +430,12 @@ pipe_read(fp, uio, cred)
 			} else {
 				break;
 			}
+
+			if (rpipe->pipe_state & PIPE_WANTW) {
+				rpipe->pipe_state &= ~PIPE_WANTW;
+				wakeup(rpipe);
+			}
+
 			rpipe->pipe_state |= PIPE_WANTR;
 			if (error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
 				break;
@@ -473,7 +479,7 @@ pipe_read(fp, uio, cred)
 		}
 	}
 
-	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) > 0)
+	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) > PIPE_BUF)
 		pipeselwakeup(rpipe);
 
 	return error;
@@ -638,7 +644,6 @@ retry:
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdwc", 0);
 		if (error || (wpipe->pipe_state & PIPE_EOF)) {
-			wpipe->pipe_state &= ~PIPE_DIRECTW;
 			if (error == 0)
 				error = EPIPE;
 			goto error1;
@@ -858,7 +863,7 @@ pipewrite(wpipe, uio, nbio)
 	 * We have something to offer,
 	 * wake up select.
 	 */
-	if (wpipe->pipe_buffer.cnt > 0)
+	if (wpipe->pipe_buffer.cnt)
 		pipeselwakeup(wpipe);
 
 	--wpipe->pipe_busy;
@@ -938,7 +943,8 @@ pipe_select(fp, which, p)
 	switch (which) {
 
 	case FREAD:
-		if (rpipe->pipe_buffer.cnt > 0 ||
+		if ( (rpipe->pipe_state & PIPE_DIRECTW) ||
+			(rpipe->pipe_buffer.cnt > 0) ||
 			(rpipe->pipe_state & PIPE_EOF)) {
 			return (1);
 		}
@@ -949,7 +955,8 @@ pipe_select(fp, which, p)
 	case FWRITE:
 		if ((wpipe == NULL) ||
 			(wpipe->pipe_state & PIPE_EOF) ||
-			((wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF)) {
+			(((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
+			 (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF)) {
 			return (1);
 		}
 		selrecord(p, &wpipe->pipe_sel);
