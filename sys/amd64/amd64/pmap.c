@@ -227,7 +227,6 @@ static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
-static void *pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
@@ -526,13 +525,6 @@ pmap_bootstrap(firstaddr)
 	invltlb();
 }
 
-static void *
-pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	*flags = UMA_SLAB_PRIV;
-	return (void *)kmem_alloc(kernel_map, bytes);
-}
-
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -545,7 +537,6 @@ pmap_init(phys_start, phys_end)
 	vm_paddr_t phys_start, phys_end;
 {
 	int i;
-	int initial_pvs;
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
@@ -563,13 +554,9 @@ pmap_init(phys_start, phys_end)
 	/*
 	 * init the pv free list
 	 */
-	initial_pvs = vm_page_array_size;
-	if (initial_pvs < MINPV)
-		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_zone_set_allocf(pvzone, pmap_pv_allocf);
-	uma_prealloc(pvzone, initial_pvs);
+	uma_prealloc(pvzone, MINPV);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
