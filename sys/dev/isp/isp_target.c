@@ -387,7 +387,7 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
 			atun._atio2.at_lun = (u_int8_t) aep->at_lun;
 		}
 		atun._atio2.at_iid = aep->at_iid;
-		atun._atoi2.at_rxid = aep->at_rxid;
+		atun._atio2.at_rxid = aep->at_rxid;
 		atun._atio2.at_status = CT_OK;
 	} else {
 		at_entry_t *aep = arg;
