@@ -51,7 +51,7 @@
 /*
  * Macro to test if we're using a specific version of gcc or later.
  */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__GNUC_PREREQ__(ma, mi)	\
 	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
 #else
@@ -83,9 +83,9 @@
 #if defined(__cplusplus)
 #define	__inline	inline		/* convert to C++ keyword */
 #else
-#ifndef __GNUC__
+#if !(defined(__GNUC__) || defined(__INTEL_COMPILER))
 #define	__inline			/* delete GCC keyword */
-#endif /* !__GNUC__ */
+#endif /* !(__GNUC__ || __INTEL_COMPILER) */
 #endif /* !__cplusplus */
 
 #else	/* !(__STDC__ || __cplusplus) */
@@ -93,7 +93,7 @@
 #define	__CONCAT(x,y)	x/**/y
 #define	__STRING(x)	"x"
 
-#ifndef __GNUC__
+#if !(defined(__GNUC__) || defined(__INTEL_COMPILER))
 #define	__const				/* delete pseudo-ANSI C keywords */
 #define	__inline
 #define	__signed
@@ -112,7 +112,7 @@
 #define	signed
 #define	volatile
 #endif	/* !NO_ANSI_KEYWORDS */
-#endif	/* !__GNUC__ */
+#endif	/* !(__GNUC__ || __INTEL_COMPILER) */
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*
@@ -132,12 +132,12 @@
 #define	__aligned(x)
 #define	__section(x)
 #else
-#if !__GNUC_PREREQ__(2, 5)
+#if !__GNUC_PREREQ__(2, 5) && !defined(__INTEL_COMPILER)
 #define	__dead2
 #define	__pure2
 #define	__unused
 #endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7 && !defined(__INTEL_COMPILER)
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused
@@ -151,9 +151,17 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
+#if defined(__INTEL_COMPILER)
+#define __dead2		__attribute__((__noreturn__))
+#define __pure2		__attribute__((__const__))
+#define __unused	__attribute__((__unused__))
+#define __packed	__attribute__((__packed__))
+#define __aligned(x)	__attribute__((__aligned__(x)))
+#define __section(x)	__attribute__((__section__(x)))
+#endif
 #endif
 
-#if __GNUC_PREREQ__(3, 1)
+#if __GNUC_PREREQ__(3, 1) || (defined(__INTEL_COMPILER) && __INTEL_COMPILER >= 800)
 #define	__always_inline	__attribute__((__always_inline__))
 #else
 #define	__always_inline
@@ -166,11 +174,11 @@
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
-#if !__GNUC_PREREQ__(2, 7)
+#if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__func__	NULL
 #endif
 
-#if __GNUC__ >= 2 && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
+#if (defined(__INTEL_COMPILER) || (defined(__GNUC__) && __GNUC__ >= 2)) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
 #endif
 
@@ -236,7 +244,7 @@
  * that are known to support the features properly (old versions of gcc-2
  * didn't permit keeping the keywords out of the application namespace).
  */
-#if !__GNUC_PREREQ__(2, 7)
+#if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #else
@@ -247,16 +255,18 @@
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if __FreeBSD_cc_version >= 300001
+#if __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else
 #define	__printf0like(fmtarg, firstvararg)
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifndef __INTEL_COMPILER
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)));
+#endif
 #ifdef __STDC__
 #define	__weak_reference(sym,alias)	\
 	__asm__(".weak " #alias);	\
@@ -274,9 +284,9 @@
 	__asm__(".asciz \"msg\"");	\
 	__asm__(".previous")
 #endif	/* __STDC__ */
-#endif	/* __GNUC__ */
+#endif	/* __GNUC__ || __INTEL_COMPILER */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
 #else
 /*

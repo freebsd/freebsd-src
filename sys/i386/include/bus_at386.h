@@ -292,7 +292,7 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movb (%2),%%al				\n\
@@ -301,6 +301,10 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -321,7 +325,7 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movw (%2),%%ax				\n\
@@ -330,6 +334,10 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -350,7 +358,7 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movl (%2),%%eax				\n\
@@ -359,6 +367,10 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -399,7 +411,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inb %w2,%%al				\n\
@@ -409,6 +421,10 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -418,7 +434,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -426,6 +442,10 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -441,7 +461,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inw %w2,%%ax				\n\
@@ -451,6 +471,10 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -460,7 +484,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -468,6 +492,10 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -483,7 +511,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inl %w2,%%eax				\n\
@@ -493,6 +521,10 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -502,7 +534,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -510,6 +542,10 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -631,7 +667,7 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsb					\n\
@@ -640,6 +676,10 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -660,7 +700,7 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
@@ -669,6 +709,10 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -689,7 +733,7 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsl					\n\
@@ -698,6 +742,10 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -739,7 +787,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsb					\n\
@@ -749,6 +797,10 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -758,7 +810,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -766,6 +818,10 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -781,7 +837,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
@@ -791,6 +847,10 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -800,7 +860,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -808,6 +868,10 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -823,7 +887,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsl					\n\
@@ -833,6 +897,10 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -842,7 +910,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -850,6 +918,10 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 	}
 #endif
@@ -1221,11 +1293,15 @@ static __inline void
 bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 		  bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 	if (flags & BUS_SPACE_BARRIER_READ)
 		__asm __volatile("lock; addl $0,0(%%esp)" : : : "memory");
 	else
 		__asm __volatile("" : : : "memory");
+#else
+# ifndef lint
+#  error "no assembler code for your compiler"
+# endif
 #endif
 }
 

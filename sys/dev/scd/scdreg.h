@@ -32,8 +32,8 @@
 #ifndef SCD_H
 #define	SCD_H
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
 #pragma pack(1)
 #endif
 #endif

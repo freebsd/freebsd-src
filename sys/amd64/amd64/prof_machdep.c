@@ -69,7 +69,7 @@ static struct gmonparam saved_gmp;
 #endif
 #endif /* GUPROF */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 __asm("								\n\
 GM_STATE	=	0					\n\
 GMON_PROF_OFF	=	3					\n\
@@ -122,9 +122,9 @@ __cyg_profile_func_enter:					\n\
 .mcount_exit:							\n\
 	ret							\n\
 ");
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 #error
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 
 #ifdef GUPROF
 /*
@@ -133,7 +133,7 @@ __cyg_profile_func_enter:					\n\
  * dependent file together with cputime(), __mcount and [.]mcount.  cputime()
  * can't just be put in machdep.c because it has to be compiled without -pg.
  */
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 __asm("								\n\
 	.text							\n\
 #								\n\
@@ -168,9 +168,9 @@ __cyg_profile_func_exit:					\n\
 .mexitcount_exit:						\n\
 	ret							\n\
 ");
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 #error
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 
 /*
  * Return the time elapsed since the last call.  The units are machine-
@@ -346,7 +346,7 @@ stopguprof(gp)
 }
 
 #else /* !GUPROF */
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 __asm("								\n\
 	.text							\n\
 	.p2align 4,0x90						\n\
@@ -354,7 +354,7 @@ __asm("								\n\
 " __XSTRING(HIDENAME(mexitcount)) ":				\n\
 	ret							\n\
 ");
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 #error
-#endif /* __GNUC__ */
+#endif /* __GNUC__ || __INTEL_COMPILER */
 #endif /* GUPROF */

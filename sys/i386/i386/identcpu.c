@@ -768,7 +768,7 @@ static	volatile u_int trap_by_rdmsr;
  * be advanced.
  */
 inthand_t	bluetrap6;
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 __asm
 ("									\n\
 	.text								\n\
@@ -787,7 +787,7 @@ __asm
  * Accessing non-existent MSR generates general protection fault.
  */
 inthand_t	bluetrap13;
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 __asm
 ("									\n\
 	.text								\n\

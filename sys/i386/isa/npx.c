@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 #define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
 
-#if defined(__GNUC__) && !defined(lint)
+#if (defined(__GNUC__) && !defined(lint)) || defined(__INTEL_COMPILER)
 
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
 
-#else	/* not __GNUC__ */
+#else	/* !((__GNUC__ && !lint ) || __INTEL_COMPILER) */
 
 void	fldcw(caddr_t addr);
 void	fnclex(void);
@@ -136,7 +136,7 @@ void	fxrstor(caddr_t addr);
 void	start_emulating(void);
 void	stop_emulating(void);
 
-#endif	/* __GNUC__ */
+#endif	/* (__GNUC__ && !lint ) || __INTEL_COMPILER */
 
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \

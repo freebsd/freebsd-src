@@ -47,8 +47,8 @@
 #ifndef MCD_H
 #define	MCD_H
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
 #pragma pack(1)
 #endif
 #endif
@@ -222,8 +222,8 @@ struct mcd_rawsector {
 	u_char ecc_bits[280];
 };
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
 #pragma pack(4)
 #endif
 #endif

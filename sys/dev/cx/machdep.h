@@ -84,7 +84,7 @@
 #endif
 
 #ifndef inline
-#   if __GNUC__ >= 2
+#   if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
 #      define inline __inline__
 #   else
 #      define inline /**/

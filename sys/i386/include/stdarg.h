@@ -46,7 +46,7 @@
 typedef	__va_list	va_list;
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+#if (defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER))
 
 #define	va_start(ap, last) \
 	__builtin_stdarg_start((ap), (last))
@@ -62,12 +62,12 @@ typedef	__va_list	va_list;
 #define	va_end(ap) \
 	__builtin_va_end(ap)
 
-#else	/* ! __GNUC__ post GCC 2.95 */
+#else	/* ! (__GNUC__ post GCC 2.95 || __INTEL_COMPILER) */
 
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define va_start(ap, last) \
 	((ap) = (va_list)__builtin_next_arg(last))
 #else	/* non-GNU compiler */
@@ -77,6 +77,11 @@ typedef	__va_list	va_list;
 
 #define	va_arg(ap, type) \
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
+
+#if __ISO_C_VISIBLE >= 1999
+#define	va_copy(dest, src) \
+	((dest) = (src))
+#endif
 
 #define	va_end(ap)
 

@@ -46,7 +46,7 @@ __BEGIN_DECLS
  */
 void cpu_critical_fork_exit(void);
 
-#ifdef	__GNUC__
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 /*
  *	cpu_critical_enter:
@@ -81,12 +81,12 @@ cpu_critical_exit(void)
 	intr_restore(curthread->td_md.md_savecrit);
 }
 
-#else /* !__GNUC__ */
+#else /* !(__GNUC__ || __INTEL_COMPILER) */
 
 void cpu_critical_enter(void);
 void cpu_critical_exit(void);
 
-#endif	/* __GNUC__ */
+#endif        /* __GNUC__ || __INTEL_COMPILER */
 
 __END_DECLS
 
