@@ -81,7 +81,7 @@ struct	in_aliasreq {
 #ifdef	_KERNEL
 extern	u_char	inetctlerrmap[];
 
-/* 
+/*
  * Hash table for IP addresses.
  */
 extern	LIST_HEAD(in_ifaddrhashhead, in_ifaddr) *in_ifaddrhashtbl;

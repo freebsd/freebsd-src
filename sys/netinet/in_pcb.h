@@ -322,7 +322,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 
 #define	INP_SOCKAF(so) so->so_proto->pr_domain->dom_family
 
-#define	INP_CHECK_SOCKAF(so, af) 	(INP_SOCKAF(so) == af)
+#define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
 extern int	ipport_lowfirstauto;

@@ -15,8 +15,8 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *      This product includes software developed by Charles D. Cranor and 
- *	Washington University.
+ *      This product includes software developed by Charles D. Cranor and
+ *      Washington University.
  * 4. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
@@ -119,7 +119,7 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		 * first check to see if this is not a host route, in which
 		 * case we are being called via "ifconfig" to set the address.
 		 */
-		if ((rt->rt_flags & RTF_HOST) == 0) { 
+		if ((rt->rt_flags & RTF_HOST) == 0) {
 			rt_setgate(rt,rt_key(rt),(struct sockaddr *)&null_sdl);
 			gate = rt->rt_gateway;
 			SDL(gate)->sdl_type = rt->rt_ifp->if_type;
@@ -225,7 +225,7 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		if (sin->sin_family != AF_INET)
 			goto failed;
 		npcb = npcb_add(NULL, rt->rt_ifp, op.param.vci,  op.param.vpi);
-		if (npcb == NULL) 
+		if (npcb == NULL)
 			goto failed;
 		npcb->npcb_flags |= NPCB_IP;
 		npcb->ipaddr.s_addr = sin->sin_addr.s_addr;
@@ -238,7 +238,7 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		 */
 		op.rxhand = NULL;
 		op.param.flags |= ATMIO_FLAG_ASYNC;
-		if (rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMOPENVCC, 
+		if (rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMOPENVCC,
 		    (caddr_t)&op) != 0) {
 			printf("atm: couldn't add VC\n");
 			goto failed;
@@ -269,7 +269,7 @@ failed:
 		 * tell native ATM we are done with this VC
 		 */
 		if (rt->rt_flags & RTF_LLINFO) {
-			npcb_free((struct natmpcb *)rt->rt_llinfo, 
+			npcb_free((struct natmpcb *)rt->rt_llinfo,
 			    NPCB_DESTROY);
 			rt->rt_llinfo = NULL;
 			rt->rt_flags &= ~RTF_LLINFO;
@@ -284,7 +284,7 @@ failed:
 		cl.vpi = *addr++;
 		cl.vci = *addr++ << 8;
 		cl.vci |= *addr++;
-		(void)rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMCLOSEVCC, 
+		(void)rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMCLOSEVCC,
 		    (caddr_t)&cl);
 		break;
 	}
@@ -298,7 +298,7 @@ failed:
  *     [3] "dst" = sockaddr_in (IP) address of dest.
  *   output:
  *     [4] "desten" = ATM pseudo header which we will fill in VPI/VCI info
- *   return: 
+ *   return:
  *     0 == resolve FAILED; note that "m" gets m_freem'd in this case
  *     1 == resolve OK; desten contains result
  *
@@ -321,7 +321,7 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 		if (rt == NULL)
 			goto bad;	/* failed */
 		RT_REMREF(rt);		/* don't keep LL references */
-		if ((rt->rt_flags & RTF_GATEWAY) != 0 || 
+		if ((rt->rt_flags & RTF_GATEWAY) != 0 ||
 		    (rt->rt_flags & RTF_LLINFO) == 0 ||
 		    /* XXX: are we using LLINFO? */
 		    rt->rt_gateway->sa_family != AF_LINK) {
@@ -332,7 +332,7 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 	}
 
 	/*
-	 * note that rt_gateway is a sockaddr_dl which contains the 
+	 * note that rt_gateway is a sockaddr_dl which contains the
 	 * atm_pseudohdr data structure for this route.   we currently
 	 * don't need any rt_llinfo info (but will if we want to support
 	 * ATM ARP [c.f. if_ether.c]).

@@ -102,7 +102,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
 
 int     tcp_do_newreno = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
-        0, "Enable NewReno Algorithms");
+	0, "Enable NewReno Algorithms");
 
 /*
  * Tcp output routine: figure out what should be sent and send it.
@@ -151,10 +151,10 @@ tcp_output(struct tcpcb *tp)
 		 * We have been idle for "a while" and no acks are
 		 * expected to clock out any data we send --
 		 * slow start to get ack "clock" running again.
-		 *       
+		 *
 		 * Set the slow-start flight size depending on whether
 		 * this is a local network or not.
-		 */      
+		 */
 		int ss = ss_fltsz;
 #ifdef INET6
 		if (isipv6) {
@@ -194,7 +194,7 @@ again:
 	 * we're replacing a (future) new transmission with a retransmission
 	 * now, and we previously incremented snd_cwnd in tcp_input().
 	 */
-	/* 
+	/*
 	 * Still in sack recovery , reset rxmit flag to zero.
 	 */
 	sack_rxmit = 0;
@@ -207,33 +207,33 @@ again:
 		/* Do not retransmit SACK segments beyond snd_recover */
 		if (SEQ_GT(p->end, tp->snd_recover)) {
 			/*
-			 * (At least) part of sack hole extends beyond 
-			 * snd_recover. Check to see if we can rexmit data 
+			 * (At least) part of sack hole extends beyond
+			 * snd_recover. Check to see if we can rexmit data
 			 * for this hole.
 			 */
 			if (SEQ_GEQ(p->rxmit, tp->snd_recover)) {
-				/* 
+				/*
 				 * Can't rexmit any more data for this hole.
-				 * That data will be rexmitted in the next 
-				 * sack recovery episode, when snd_recover 
+				 * That data will be rexmitted in the next
+				 * sack recovery episode, when snd_recover
 				 * moves past p->rxmit.
 				 */
 				p = NULL;
 				goto after_sack_rexmit;
 			} else
 				/* Can rexmit part of the current hole */
-				len = ((long)ulmin(tp->snd_cwnd, 
+				len = ((long)ulmin(tp->snd_cwnd,
 					  tp->snd_recover - p->rxmit));
 		} else
 			len = ((long)ulmin(tp->snd_cwnd, p->end - p->rxmit));
 		sack_rxmit = 1;
 		sendalot = 1;
 		off = p->rxmit - tp->snd_una;
-		KASSERT(off >= 0,("%s: sack block to the left of una : %d", 
+		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 		    __func__, off));
 		if (len > 0) {
 			tcpstat.tcps_sack_rexmits++;
-			tcpstat.tcps_sack_rexmit_bytes += 
+			tcpstat.tcps_sack_rexmit_bytes +=
 			    min(len, tp->t_maxseg);
 		}
 	}
@@ -281,7 +281,7 @@ after_sack_rexmit:
 	}
 
 	/*
-	 * If snd_nxt == snd_max and we have transmitted a FIN, the 
+	 * If snd_nxt == snd_max and we have transmitted a FIN, the
 	 * offset will be > 0 even if so_snd.sb_cc is 0, resulting in
 	 * a negative length.  This can also occur when TCP opens up
 	 * its congestion window while receiving additional duplicate
@@ -291,9 +291,9 @@ after_sack_rexmit:
 	 * In the normal retransmit-FIN-only case, however, snd_nxt will
 	 * be set to snd_una, the offset will be 0, and the length may
 	 * wind up 0.
-	 * 
+	 *
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
-	 * in which case len is already set. 
+	 * in which case len is already set.
 	 */
 	if (!sack_rxmit)
 		len = ((long)ulmin(so->so_snd.sb_cc, sendwin) - off);
@@ -359,7 +359,7 @@ after_sack_rexmit:
 	if (sack_rxmit) {
 		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
 			flags &= ~TH_FIN;
-	} else { 
+	} else {
 		if (SEQ_LT(tp->snd_nxt + len, tp->snd_una + so->so_snd.sb_cc))
 			flags &= ~TH_FIN;
 	}
@@ -451,12 +451,12 @@ after_sack_rexmit:
 	 * that the retransmission timer is set.
 	 */
 	if (tp->sack_enable && SEQ_GT(tp->snd_max, tp->snd_una) &&
-	    !callout_active(tp->tt_rexmt) && 
+	    !callout_active(tp->tt_rexmt) &&
 	    !callout_active(tp->tt_persist)) {
 		callout_reset(tp->tt_rexmt, tp->t_rxtcur,
 			      tcp_timer_rexmt, tp);
-                return (0);
-        }
+		return (0);
+	} 
 	/*
 	 * TCP window updates are not reliable, rather a polling protocol
 	 * using ``persist'' packets is used to insure receipt of window
@@ -517,19 +517,19 @@ send:
 			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
 
-                        /*
-                         * If this is the first SYN of connection (not a SYN
-                         * ACK), include SACK_PERMIT_HDR option.  If this is a
-                         * SYN ACK, include SACK_PERMIT_HDR option if peer has
-                         * already done so. This is only for active connect,
+			/*
+			 * If this is the first SYN of connection (not a SYN
+			 * ACK), include SACK_PERMIT_HDR option.  If this is a
+			 * SYN ACK, include SACK_PERMIT_HDR option if peer has
+			 * already done so. This is only for active connect,
 			 * since the syncache takes care of the passive connect.
-                         */
-                        if (tp->sack_enable && ((flags & TH_ACK) == 0 || 
+			 */
+			if (tp->sack_enable && ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_SACK_PERMIT))) {
-                                *((u_int32_t *) (opt + optlen)) =
+				*((u_int32_t *) (opt + optlen)) =
 					htonl(TCPOPT_SACK_PERMIT_HDR);
-                                optlen += 4;
-                        }
+				optlen += 4;
+			}
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_RCVD_SCALE))) {
@@ -541,25 +541,25 @@ send:
 				optlen += 4;
 			}
 		}
- 	}
+	}
 
- 	/*
+	/*
 	 * Send a timestamp and echo-reply if this is a SYN and our side
 	 * wants to use timestamps (TF_REQ_TSTMP is set) or both our side
 	 * and our peer have sent timestamps in our SYN's.
- 	 */
- 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
- 	    (flags & TH_RST) == 0 &&
+	 */
+	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
+	    (flags & TH_RST) == 0 &&
 	    ((flags & TH_ACK) == 0 ||
 	     (tp->t_flags & TF_RCVD_TSTMP))) {
 		u_int32_t *lp = (u_int32_t *)(opt + optlen);
 
- 		/* Form timestamp option as shown in appendix A of RFC 1323. */
- 		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
- 		*lp++ = htonl(ticks);
- 		*lp   = htonl(tp->ts_recent);
- 		optlen += TCPOLEN_TSTAMP_APPA;
- 	}
+		/* Form timestamp option as shown in appendix A of RFC 1323. */
+		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
+		*lp++ = htonl(ticks);
+		*lp   = htonl(tp->ts_recent);
+		optlen += TCPOLEN_TSTAMP_APPA;
+	}
 
 	/*
 	 * Send SACKs if necessary.  This should be the last option processed.
@@ -587,12 +587,12 @@ send:
 		*olp = htonl(TCPOPT_SACK_HDR|(TCPOLEN_SACK*count+2));
 		optlen += TCPOLEN_SACK*count + 4; /* including leading NOPs */
 	}
- 	/*
+	/*
 	 * Send `CC-family' options if our side wants to use them (TF_REQ_CC),
 	 * options are allowed (!TF_NOOPT) and it's not a RST.
- 	 */
- 	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
- 	     (flags & TH_RST) == 0) {
+	 */
+	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
+	     (flags & TH_RST) == 0) {
 		switch (flags & (TH_SYN|TH_ACK)) {
 		/*
 		 * This is a normal ACK, send CC if we received CC before
@@ -630,7 +630,7 @@ send:
 						TCPOPT_CCNEW : TCPOPT_CC;
 			opt[optlen++] = TCPOLEN_CC;
 			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
- 			optlen += 4;
+			optlen += 4;
 			break;
 
 		/*
@@ -656,7 +656,7 @@ send:
 			}
 			break;
 		}
- 	}
+	}
 
 #ifdef TCP_SIGNATURE
 #ifdef INET6
@@ -682,7 +682,7 @@ send:
 	}
 #endif /* TCP_SIGNATURE */
 
- 	hdrlen += optlen;
+	hdrlen += optlen;
 
 #ifdef INET6
 	if (isipv6)
@@ -715,9 +715,9 @@ send:
 
 /*#ifdef DIAGNOSTIC*/
 #ifdef INET6
- 	if (max_linkhdr + hdrlen > MCLBYTES)
+	if (max_linkhdr + hdrlen > MCLBYTES)
 #else
- 	if (max_linkhdr + hdrlen > MHLEN)
+	if (max_linkhdr + hdrlen > MHLEN)
 #endif
 		panic("tcphdr too big");
 /*#endif*/
@@ -822,12 +822,12 @@ send:
 		tcpip_fillheaders(tp->t_inpcb, ip6, th);
 	} else
 #endif /* INET6 */
-      {
-	ip = mtod(m, struct ip *);
-	ipov = (struct ipovly *)ip;
-	th = (struct tcphdr *)(ip + 1);
-	tcpip_fillheaders(tp->t_inpcb, ip, th);
-      }
+	{
+		ip = mtod(m, struct ip *);
+		ipov = (struct ipovly *)ip;
+		th = (struct tcphdr *)(ip + 1);
+		tcpip_fillheaders(tp->t_inpcb, ip, th);
+	}
 
 	/*
 	 * Fill in fields, remembering maximum advertised
@@ -850,7 +850,7 @@ send:
 	 * case, since we know we aren't doing a retransmission.
 	 * (retransmit and persist are mutually exclusive...)
 	 */
-	if (len || (flags & (TH_SYN|TH_FIN)) 
+	if (len || (flags & (TH_SYN|TH_FIN))
 	    || callout_active(tp->tt_persist))
 		th->th_seq = htonl(tp->snd_nxt);
 	else
@@ -927,16 +927,16 @@ send:
 				       sizeof(struct tcphdr) + optlen + len);
 	else
 #endif /* INET6 */
-      {
-	m->m_pkthdr.csum_flags = CSUM_TCP;
-	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
-	th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-	    htons(sizeof(struct tcphdr) + IPPROTO_TCP + len + optlen));
+	{
+		m->m_pkthdr.csum_flags = CSUM_TCP;
+		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+		    htons(sizeof(struct tcphdr) + IPPROTO_TCP + len + optlen));
 
-	/* IP version must be set here for ipv4/ipv6 checking later */
-	KASSERT(ip->ip_v == IPVERSION,
-	    ("%s: IP version incorrect: %d", __func__, ip->ip_v));
-      }
+		/* IP version must be set here for ipv4/ipv6 checking later */
+		KASSERT(ip->ip_v == IPVERSION,
+		    ("%s: IP version incorrect: %d", __func__, ip->ip_v));
+	}
 
 	/*
 	 * In transmit state, time the transmission and arrange for
@@ -1067,8 +1067,8 @@ timer:
     {
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
- 	if (INP_CHECK_SOCKAF(so, AF_INET6))
- 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
+	if (INP_CHECK_SOCKAF(so, AF_INET6))
+		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
 #endif /* INET6 */
 	/*
 	 * If we do path MTU discovery, then we set DF on every packet.
@@ -1096,7 +1096,7 @@ timer:
 			if ((flags & TH_SYN) == 0) {
 				if (sack_rxmit)
 					p->rxmit -= len;
-				else 
+				else
 					tp->snd_nxt -= len;
 			}
 		}
@@ -1104,9 +1104,9 @@ timer:
 out:
 		if (error == ENOBUFS) {
 	                if (!callout_active(tp->tt_rexmt) &&
-                            !callout_active(tp->tt_persist))
+			    !callout_active(tp->tt_persist))
 	                        callout_reset(tp->tt_rexmt, tp->t_rxtcur,
-                                      tcp_timer_rexmt, tp);
+				    tcp_timer_rexmt, tp);
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}

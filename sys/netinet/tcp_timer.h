@@ -97,7 +97,7 @@
  * acks (typically 100ms) could create issues so we set the slop
  * to 200ms to try to cover it.  Note that, properly speaking,
  * delayed-acks should not create a major issue for interactive
- * environments which 'P'ush the last segment, at least as 
+ * environments which 'P'ush the last segment, at least as
  * long as implementations do the required 'at least one ack
  * for every two packets' for the non-interactive streaming case.
  * (maybe the RTO calculation should use 2*RTT instead of RTT

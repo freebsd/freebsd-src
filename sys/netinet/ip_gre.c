@@ -87,7 +87,7 @@
 #include <machine/stdarg.h>
 
 #if 1
-void gre_inet_ntoa(struct in_addr in); 	/* XXX */
+void gre_inet_ntoa(struct in_addr in);	/* XXX */
 #endif
 
 static struct gre_softc *gre_lookup(struct mbuf *, u_int8_t);
@@ -231,8 +231,8 @@ void
 gre_mobile_input(struct mbuf *m, ...)
 #else
 gre_mobile_input(m, va_alist)
-        struct mbuf *m;
-        va_dcl
+	struct mbuf *m;
+	va_dcl
 #endif
 {
 	struct ip *ip;

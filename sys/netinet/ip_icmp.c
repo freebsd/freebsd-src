@@ -91,11 +91,11 @@ SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
 	&icmpmaskfake, 0, "Fake reply to ICMP Address Mask Request packets.");
 
 static int	drop_redirect = 0;
-SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW,
 	&drop_redirect, 0, "");
 
 static int	log_redirect = 0;
-SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
 	&log_redirect, 0, "");
 
 static int      icmplim = 200;
@@ -416,7 +416,7 @@ icmp_input(m, off)
 		 * (if given) and then notify as usual.  The ULPs will
 		 * notice that the MTU has changed and adapt accordingly.
 		 * If no new MTU was suggested, then we guess a new one
-		 * less than the current value.  If the new MTU is 
+		 * less than the current value.  If the new MTU is
 		 * unreasonably small (defined by sysctl tcp_minmss), then
 		 * we don't update the MTU value.
 		 *
@@ -681,7 +681,7 @@ icmp_reflect(m)
 			goto match;
 		}
 	}
-	/* 
+	/*
 	 * If the packet was transiting through us, use the address of
 	 * the interface that is the closest to the packet source.
 	 * When we don't have a route back to the packet source, stop here
@@ -869,7 +869,7 @@ ip_next_mtu(mtu, dir)
  * badport_bandlim() - check for ICMP bandwidth limit
  *
  *	Return 0 if it is ok to send an ICMP error response, -1 if we have
- *	hit our bandwidth limit and it is not ok.  
+ *	hit our bandwidth limit and it is not ok.
  *
  *	If icmplim is <= 0, the feature is disabled and 0 is returned.
  *
@@ -880,7 +880,7 @@ ip_next_mtu(mtu, dir)
  *	Note that the printing of the error message is delayed so we can
  *	properly print the icmp error rate that the system was trying to do
  *	(i.e. 22000/100 pps, etc...).  This can cause long delays in printing
- *	the 'final' error, but it doesn't make sense to solve the printing 
+ *	the 'final' error, but it doesn't make sense to solve the printing
  *	delay with more complex code.
  */
 

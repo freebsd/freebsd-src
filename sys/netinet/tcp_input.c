@@ -105,7 +105,7 @@ SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
     &tcpstat , tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 static int log_in_vain = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &log_in_vain, 0, "Log all incoming TCP connections");
 
 static int blackhole = 0;
@@ -113,8 +113,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
 	&blackhole, 0, "Do not send RST when dropping refused connections");
 
 int tcp_delack_enabled = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW, 
-    &tcp_delack_enabled, 0, 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
+    &tcp_delack_enabled, 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
 #ifdef TCP_DROP_SYNFIN
@@ -394,7 +394,7 @@ tcp6_input(mp, offp, proto)
 	 * better place to put this in?
 	 */
 	ia6 = ip6_getdstifaddr(m);
-	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {		
+	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
 		struct ip6_hdr *ip6;
 
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -615,7 +615,7 @@ findpcb:
 	if (next_hop != NULL && isipv6 == 0) {	/* IPv6 support is not yet */
 		/*
 		 * Transparently forwarded. Pretend to be the destination.
-		 * already got one like this? 
+		 * already got one like this?
 		 */
 		inp = in_pcblookup_hash(&tcbinfo, ip->ip_src, th->th_sport,
 					ip->ip_dst, th->th_dport,
@@ -643,7 +643,7 @@ findpcb:
 						ip->ip_src, th->th_sport,
 						ip->ip_dst, th->th_dport,
 						1, m->m_pkthdr.rcvif);
-      }
+	}
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef INET6
@@ -707,7 +707,7 @@ findpcb:
 				break;
 			}
 		}
-		if (blackhole) { 
+		if (blackhole) {
 			switch (blackhole) {
 			case 1:
 				if (thflags & TH_SYN)
@@ -976,7 +976,7 @@ findpcb:
 			 */
 			if (thflags & TH_FIN || tlen != 0)
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
-			else 
+			else
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
@@ -1143,7 +1143,7 @@ after_listen:
 			    tp->snd_cwnd >= tp->snd_wnd &&
 			    ((!tcp_do_newreno && !tp->sack_enable &&
 			      tp->t_dupacks < tcprexmtthresh) ||
-			     ((tcp_do_newreno || tp->sack_enable) && 
+			     ((tcp_do_newreno || tp->sack_enable) &&
 			      !IN_FASTRECOVERY(tp)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
@@ -1171,7 +1171,7 @@ after_listen:
 				 * Recalculate the transmit timer / rtt.
 				 *
 				 * Some boxes send broken timestamp replies
-				 * during the SYN+ACK phase, ignore 
+				 * during the SYN+ACK phase, ignore
 				 * timestamps of 0 or we could calculate a
 				 * huge RTT and blow up the retransmit timer.
 				 */
@@ -1221,7 +1221,7 @@ after_listen:
 				if (tp->snd_una == tp->snd_max)
 					callout_stop(tp->tt_rexmt);
 				else if (!callout_active(tp->tt_persist))
-					callout_reset(tp->tt_rexmt, 
+					callout_reset(tp->tt_rexmt,
 						      tp->t_rxtcur,
 						      tcp_timer_rexmt, tp);
 
@@ -1404,8 +1404,8 @@ after_listen:
 			 * ACKNOW will be turned on later.
 			 */
 			if (DELAY_ACK(tp) && tlen != 0)
-                                callout_reset(tp->tt_delack, tcp_delacktime,  
-                                    tcp_timer_delack, tp);  
+				callout_reset(tp->tt_delack, tcp_delacktime,
+				    tcp_timer_delack, tp);
 			else
 				tp->t_flags |= TF_ACKNOW;
 			/*
@@ -1426,15 +1426,15 @@ after_listen:
 			}
 		} else {
 			/*
-		 	 * Received initial SYN in SYN-SENT[*] state =>
-		 	 * simultaneous open.  If segment contains CC option
-		 	 * and there is a cached CC, apply TAO test.
-		 	 * If it succeeds, connection is * half-synchronized.
-		 	 * Otherwise, do 3-way handshake:
-		 	 *        SYN-SENT -> SYN-RECEIVED
-		 	 *        SYN-SENT* -> SYN-RECEIVED*
-		 	 * If there was no CC option, clear cached CC value.
-		 	 */
+			 * Received initial SYN in SYN-SENT[*] state =>
+			 * simultaneous open.  If segment contains CC option
+			 * and there is a cached CC, apply TAO test.
+			 * If it succeeds, connection is * half-synchronized.
+			 * Otherwise, do 3-way handshake:
+			 *        SYN-SENT -> SYN-RECEIVED
+			 *        SYN-SENT* -> SYN-RECEIVED*
+			 * If there was no CC option, clear cached CC value.
+			 */
 			tp->t_flags |= TF_ACKNOW;
 			callout_stop(tp->tt_rexmt);
 			if (to.to_flags & TOF_CC) {
@@ -1501,7 +1501,7 @@ trimthenstep6:
 		 * processing in the middle of step 5, ack processing.
 		 * Otherwise, goto step 6.
 		 */
- 		if (thflags & TH_ACK)
+		if (thflags & TH_ACK)
 			goto process_ACK;
 
 		goto step6;
@@ -1538,7 +1538,7 @@ trimthenstep6:
 			else
 				goto drop;
 		}
- 		break;  /* continue normal processing */
+		break;  /* continue normal processing */
 	}
 
 	/*
@@ -1574,7 +1574,7 @@ trimthenstep6:
 	 *   we use a much stricter check while in the ESTABLISHED state,
 	 *   only accepting RSTs where the sequence number is equal to
 	 *   last_ack_sent.  In all other states (the states in which a
-	 *   RST is more likely), the more permissive check is used. 
+	 *   RST is more likely), the more permissive check is used.
 	 * If we have multiple segments in flight, the intial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
@@ -1680,7 +1680,7 @@ trimthenstep6:
 	 */
 	if ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) == (TF_REQ_CC|TF_RCVD_CC) &&
 	    ((to.to_flags & TOF_CC) == 0 || tp->cc_recv != to.to_cc))
- 		goto dropafterack;
+		goto dropafterack;
 
 	/*
 	 * In the SYN-RECEIVED state, validate that the packet belongs to
@@ -1869,7 +1869,7 @@ trimthenstep6:
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tp->t_state = TCPS_ESTABLISHED;
-			callout_reset(tp->tt_keep, tcp_keepidle, 
+			callout_reset(tp->tt_keep, tcp_keepidle,
 				      tcp_timer_keep, tp);
 		}
 		/*
@@ -1939,8 +1939,8 @@ trimthenstep6:
 					u_int win;
 
 					/*
-					 * If we're doing sack, check to 
-					 * see if we're already in sack 
+					 * If we're doing sack, check to
+					 * see if we're already in sack
 					 * recovery. If we're not doing sack,
 					 * check to see if we're in newreno
 					 * recovery.
@@ -1968,11 +1968,11 @@ trimthenstep6:
 					tp->t_rtttime = 0;
 					if (tp->sack_enable) {
 						tcpstat.tcps_sack_recovery_episode++;
-						tp->snd_cwnd = 
-						    tp->t_maxseg * 
+						tp->snd_cwnd =
+						    tp->t_maxseg *
 						    tp->t_dupacks;
 						(void) tcp_output(tp);
-						tp->snd_cwnd += 
+						tp->snd_cwnd +=
 						    tp->snd_ssthresh;
 						goto drop;
 					}
@@ -2054,11 +2054,11 @@ trimthenstep6:
 						tp->snd_cwnd = tp->snd_ssthresh;
 				}
 			}
-                } else {
-                        if (tp->t_dupacks >= tcprexmtthresh &&
-                            tp->snd_cwnd > tp->snd_ssthresh)
+		} else {
+			if (tp->t_dupacks >= tcprexmtthresh &&
+			    tp->snd_cwnd > tp->snd_ssthresh)
 				tp->snd_cwnd = tp->snd_ssthresh;
-                }
+		}
 		tp->t_dupacks = 0;
 		if (SEQ_GT(th->th_ack, tp->snd_max)) {
 			tcpstat.tcps_rcvacktoomuch++;
@@ -2110,7 +2110,7 @@ process_ACK:
 			if (tp->t_flags & TF_WASFRECOVERY)
 				ENTER_FASTRECOVERY(tp);
 			tp->snd_nxt = tp->snd_max;
-			tp->t_badrxtwin = 0;	/* XXX probably not required */ 
+			tp->t_badrxtwin = 0;	/* XXX probably not required */
 		}
 
 		/*
@@ -2123,7 +2123,7 @@ process_ACK:
 		 * Recompute the initial retransmit timer.
 		 *
 		 * Some boxes send broken timestamp replies
-		 * during the SYN+ACK phase, ignore 
+		 * during the SYN+ACK phase, ignore
 		 * timestamps of 0 or we could calculate a
 		 * huge RTT and blow up the retransmit timer.
 		 */
@@ -2162,7 +2162,7 @@ process_ACK:
 		 * Otherwise open linearly: maxseg per window
 		 * (maxseg^2 / cwnd per packet).
 		 */
-		if ((!tcp_do_newreno && !tp->sack_enable) || 
+		if ((!tcp_do_newreno && !tp->sack_enable) ||
 		    !IN_FASTRECOVERY(tp)) {
 			register u_int cw = tp->snd_cwnd;
 			register u_int incr = tp->t_maxseg;
@@ -2182,12 +2182,12 @@ process_ACK:
 		}
 		sowwakeup_locked(so);
 		/* detect una wraparound */
-		if ((tcp_do_newreno || tp->sack_enable) && 
+		if ((tcp_do_newreno || tp->sack_enable) &&
 		    !IN_FASTRECOVERY(tp) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
-		if ((tcp_do_newreno || tp->sack_enable) && 
+		if ((tcp_do_newreno || tp->sack_enable) &&
 		    IN_FASTRECOVERY(tp) &&
 		    SEQ_GEQ(th->th_ack, tp->snd_recover))
 			EXIT_FASTRECOVERY(tp);
@@ -2195,7 +2195,7 @@ process_ACK:
 		if (tp->sack_enable) {
 			if (SEQ_GT(tp->snd_una, tp->snd_recover))
 				tp->snd_recover = tp->snd_una;
-		} 
+		}
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
 
@@ -2228,7 +2228,7 @@ process_ACK:
 			}
 			break;
 
-	 	/*
+		/*
 		 * In CLOSING STATE in addition to the processing for
 		 * the ESTABLISHED state if the ACK acknowledges our FIN
 		 * then enter the TIME-WAIT state, otherwise ignore
@@ -2440,7 +2440,7 @@ dodata:							/* XXX */
 		}
 		switch (tp->t_state) {
 
-	 	/*
+		/*
 		 * In SYN_RECEIVED and ESTABLISHED STATES
 		 * enter the CLOSE_WAIT state.
 		 */
@@ -2451,7 +2451,7 @@ dodata:							/* XXX */
 			tp->t_state = TCPS_CLOSE_WAIT;
 			break;
 
-	 	/*
+		/*
 		 * If still in FIN_WAIT_1 STATE FIN has not been acked so
 		 * enter the CLOSING state.
 		 */
@@ -2459,7 +2459,7 @@ dodata:							/* XXX */
 			tp->t_state = TCPS_CLOSING;
 			break;
 
-	 	/*
+		/*
 		 * In FIN_WAIT_2 state enter the TIME_WAIT state,
 		 * starting the time-wait timer, turning off the other
 		 * standard timers.
@@ -2497,8 +2497,8 @@ check_delack:
 	INP_LOCK_ASSERT(inp);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
-		callout_reset(tp->tt_delack, tcp_delacktime,  
-		    tcp_timer_delack, tp);  
+		callout_reset(tp->tt_delack, tcp_delacktime,
+		    tcp_timer_delack, tp);
 	}
 	INP_UNLOCK(inp);
 	return;
@@ -2553,8 +2553,8 @@ dropwithreset:
 	} else {
 		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-	    	    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
-	    	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
+		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			goto drop;
 	}
 	/* IPv6 anycast check is done at tcp6_input() */
@@ -2564,7 +2564,7 @@ dropwithreset:
 	 */
 	if (badport_bandlim(rstreason) < 0)
 		goto drop;
- 
+
 #ifdef TCPDEBUG
 	if (tp == 0 || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
@@ -2710,7 +2710,7 @@ tcp_dooptions(tp, to, cp, cnt, is_syn, th)
 			    optlen != TCPOLEN_SACK_PERMITTED)
 				continue;
 			if (is_syn) {
-				/* MUST only be set on SYN */   
+				/* MUST only be set on SYN */
 				to->to_flags |= TOF_SACK;
 			}
 			break;
@@ -2999,11 +2999,11 @@ tcp_mss(tp, offer)
 	 * were received yet.  In this case we just guess, otherwise
 	 * we do the same as before T/TCP.
 	 */
- 	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
+	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
 	    (origoffer == -1 ||
 	     (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP))
 		mss -= TCPOLEN_TSTAMP_APPA;
- 	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
+	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
 	    (origoffer == -1 ||
 	     (tp->t_flags & TF_RCVD_CC) == TF_RCVD_CC))
 		mss -= TCPOLEN_CC_APPA;
@@ -3202,7 +3202,7 @@ tcp_newreno_partial_ack(tp, th)
  * Returns 1 if the TIME_WAIT state was killed and we should start over,
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
-static int 
+static int
 tcp_timewait(tw, to, th, m, tlen)
 	struct tcptw *tw;
 	struct tcpopt *to;
@@ -3235,7 +3235,7 @@ tcp_timewait(tw, to, th, m, tlen)
 
 	/*
 	 * If segment contains a SYN and CC [not CC.NEW] option:
-	 * 	if connection duration > MSL, drop packet and send RST;
+	 *	if connection duration > MSL, drop packet and send RST;
 	 *
 	 *	if SEG.CC > CCrecv then is new SYN.
 	 *	    Complete close and delete TCPCB.  Then reprocess
@@ -3300,7 +3300,7 @@ tcp_timewait(tw, to, th, m, tlen)
 	/*
 	 * Acknowledge the segment if it has data or is not a duplicate ACK.
 	 */
-	if (thflags != TH_ACK || tlen != 0 || 
+	if (thflags != TH_ACK || tlen != 0 ||
 	    th->th_seq != tw->rcv_nxt || th->th_ack != tw->snd_nxt)
 		tcp_twrespond(tw, TH_ACK);
 	goto drop;
