@@ -50,7 +50,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mutex.9 \
 	namei.9 \
-	panic.9 pfil.9 pfind.9 physio.9 posix4.9 printf.9 psignal.9 \
+	panic.9 pbuf.9 pfil.9 pfind.9 physio.9 posix4.9 printf.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9 \
 	sbuf.9 scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 \
@@ -58,7 +58,12 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
 	ucred.9 uidinfo.9 uio.9 \
 	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 vget.9 \
-	vinvalbuf.9 vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
+	vinvalbuf.9 \
+	vm_page_alloc.9 vm_page_copy.9 vm_page_flag.9 vm_page_hold.9 \
+	vm_page_insert.9 vm_page_io.9 vm_page_lookup.9 \
+	vm_page_protect.9 vm_page_sleep_busy.9 vm_page_wakeup.9 \
+	vm_page_wire.9 vm_page_zero_fill.9 vm_set_page_size.9 \
+	vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
 	vslock.9 \
 	zone.9
 
@@ -127,6 +132,7 @@ MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=mi_switch.9 cpu_switch.9 mi_switch.9 cpu_throw.9
 MLINKS+=namei.9 NDINIT.9
 MLINKS+=namei.9 NDFREE.9
+MLINKS+=pbuf.9 getpbuf.9 pbuf.9 trypbuf.9 pbuf.9 relpbuf.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
 MLINKS+=posix4.9 p1003_1b.9
@@ -164,6 +170,13 @@ MLINKS+=timeout.9 callout_stop.9 timeout.9 callout_reset.9
 MLINKS+=uidinfo.9 uihashinit.9 uidinfo.9 uifind.9
 MLINKS+=uidinfo.9 uihold.9 uidinfo.9 uifree.9
 MLINKS+=uio.9 uiomove.9
+MLINKS+=vm_page_flag.9 vm_page_flag_clear.9 vm_page_flag.9 vm_page_flag_set.9
+MLINKS+=vm_page_hold.9 vm_page_unhold.9
+MLINKS+=vm_page_insert.9 vm_page_remove.9
+MLINKS+=vm_page_io.9 vm_page_io_start.9 vm_page_io.9 vm_page_io_finised.9
+MLINKS+=vm_page_wakeup.9 vm_page_busy.9
+MLINKS+=vm_page_wakeup.9 vm_page_flash.9
+MLINKS+=vm_page_wire.9 vm_page_unwire.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vslock.9 vsunlock.9
 
