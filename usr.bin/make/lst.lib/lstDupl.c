@@ -84,14 +84,10 @@ Lst_Duplicate(Lst *list, DuplicateProc *copyProc)
 
     ln = list->firstPtr;
     while (ln != NULL) {
-	if (copyProc != NOCOPY) {
-	    if (Lst_AtEnd(nl, (*copyProc)(ln->datum)) == FAILURE) {
-		return (NULL);
-	    }
-	} else if (Lst_AtEnd (nl, ln->datum) == FAILURE) {
-	    return (NULL);
-	}
-
+	if (copyProc != NOCOPY)
+	    Lst_AtEnd(nl, (*copyProc)(ln->datum));
+	else
+	    Lst_AtEnd(nl, ln->datum);
 	ln = ln->nextPtr;
     }
 
