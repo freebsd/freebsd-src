@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
- *                    based on work by Slawa Olhovchenkov
+ *   based on work by Slawa Olhovchenkov
+ *                    John Prince <johnp@knight-trosoft.com>
+ *                    Eric Hernes
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
