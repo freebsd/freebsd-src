@@ -209,7 +209,9 @@ fwe_attach(device_t dev)
 	ifp->if_name = "fwe";
 #endif
 	ifp->if_init = fwe_init;
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	ifp->if_output = ether_output;
+#endif
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_mtu = ETHERMTU;
@@ -228,6 +230,7 @@ fwe_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
 
@@ -549,7 +552,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		/* keep ip packet alignment for alpha */
 		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
 		fp = &xfer->send.hdr;
-		*(u_int32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
+		*(uint32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
 		fp->mode.stream.len = m->m_pkthdr.len;
 		xfer->mbuf = m;
 		xfer->send.pay_len = m->m_pkthdr.len;
@@ -618,9 +621,11 @@ fwe_as_input(struct fw_xferq *xferq)
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 		eh = (struct ether_header *)c;
 		m->m_data += sizeof(struct ether_header);
+		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN
+		    - sizeof(struct ether_header);
+#else
+		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN;
 #endif
-		m->m_len = m->m_pkthdr.len =
-				fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
 #if 0
 		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
