@@ -50,10 +50,10 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-static	char *types[] =
+static	const char *types[] =
     { "leave_invite", "look_up", "delete", "announce" };
 #define	NTYPES	(sizeof (types) / sizeof (types[0]))
-static	char *answers[] =
+static	const char *answers[] =
     { "success", "not_here", "failed", "machine_unknown", "permission_denied",
       "unknown_request", "badversion", "badaddr", "badctladdr" };
 #define	NANSWERS	(sizeof (answers) / sizeof (answers[0]))
@@ -61,7 +61,8 @@ static	char *answers[] =
 void
 print_request(const char *cp, CTL_MSG *mp)
 {
-	char tbuf[80], *tp;
+	const char *tp;
+	char tbuf[80];
 
 	if (mp->type > NTYPES) {
 		(void)snprintf(tbuf, sizeof(tbuf), "type %d", mp->type);
@@ -69,13 +70,14 @@ print_request(const char *cp, CTL_MSG *mp)
 	} else
 		tp = types[mp->type];
 	syslog(LOG_DEBUG, "%s: %s: id %lu, l_user %s, r_user %s, r_tty %s",
-	    cp, tp, mp->id_num, mp->l_name, mp->r_name, mp->r_tty);
+	    cp, tp, (long)mp->id_num, mp->l_name, mp->r_name, mp->r_tty);
 }
 
 void
 print_response(const char *cp, CTL_RESPONSE *rp)
 {
-	char tbuf[80], *tp, abuf[80], *ap;
+	const char *tp, *ap;
+	char tbuf[80], abuf[80];
 
 	if (rp->type > NTYPES) {
 		(void)snprintf(tbuf, sizeof(tbuf), "type %d", rp->type);

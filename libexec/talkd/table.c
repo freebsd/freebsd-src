@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <protocols/talkd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -198,7 +199,7 @@ new_id(void)
  * Delete the invitation with id 'id_num'
  */
 int
-delete_invite(int id_num)
+delete_invite(u_int32_t id_num)
 {
 	TABLE_ENTRY *ptr;
 
