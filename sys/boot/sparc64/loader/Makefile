@@ -2,11 +2,14 @@
 
 BASE=		loader
 PROG=		${BASE}
+STRIP=
 NEWVERSWHAT=	"bootstrap loader" sparc64
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
+NOFORTH=	yes
 
-CFLAGS=		-mno-app-regs 
+# Architecture-specific loader code
+SRCS=		locore.S main.c metadata.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
@@ -34,8 +37,16 @@ CFLAGS+=	-DLOADER_NFS_SUPPORT
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
 .endif
 
-# Architecture-specific loader code
-SRCS=		locore.S main.c metadata.c
+.if !defined(NOFORTH)
+# Enable BootForth
+BOOT_FORTH=	yes
+CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/sparc64
+.if exists(${.OBJDIR}/../../ficl/libficl.a)
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.else
+LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
+.endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
@@ -43,11 +54,14 @@ SRCS=		locore.S main.c metadata.c
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	${PROG}.help
+CLEANFILES+=	vers.c vers.o ${BASE}.help
 
 CFLAGS+=	-ffreestanding
 LDFLAGS=	-nostdlib -static
-LDADD=		${LIBSTAND} ${LIBOFW}
+
+# Openfirmware standalone support library
+LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
+CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 
 # where to get libstand from
 #XXX need a better way to do this
@@ -58,37 +72,36 @@ LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
 LIBSTAND=	-lstand
 .endif
 .endif
-LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
-CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
+
+LDADD=		${LIBSTAND} ${LIBOFW}
+
+vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+	${CC} -c vers.c
 
 ${BASE}.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
-beforeinstall: ${PROG}.help
-.if exists(${DESTDIR}/boot/loader)
-	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
-.endif
-#.if exists(${.OBJDIR}/loader.help)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
-#.else
-#	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-#		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
-#.endif
+.PATH: ${.CURDIR}/../../forth
+FILES=	${BASE}.help loader.4th support.4th loader.conf
+FILESDIR_loader.conf=	/boot/defaults
+
 .if !exists(${DESTDIR}/boot/loader.rc)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+FILES+= loader.rc
 .endif
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
 # There are no things relevant to all boot parts of FreeBSD/sparc64 yet.
 #.include <${.CURDIR}/../Makefile.inc>
 
 .include <bsd.prog.mk>
+
+.if exists(${.CURDIR}/../../../sparc64/include)
+beforedepend ${OBJS}: machine
+
+machine:
+	ln -sf ${.CURDIR}/../../../sparc64/include machine
+.endif
+
+CLEANFILES+=	machine
