@@ -364,7 +364,8 @@ vm_object_reference(vm_object_t object)
 {
 	if (object == NULL)
 		return;
-	if (object != kmem_object)
+	if (object != kernel_object &&
+	    object != kmem_object)
 		mtx_lock(&Giant);
 	VM_OBJECT_LOCK(object);
 	object->ref_count++;
@@ -374,7 +375,8 @@ vm_object_reference(vm_object_t object)
 			printf("vm_object_reference: delay in getting object\n");
 		}
 	}
-	if (object != kmem_object)
+	if (object != kernel_object &&
+	    object != kmem_object)
 		mtx_unlock(&Giant);
 }
 
