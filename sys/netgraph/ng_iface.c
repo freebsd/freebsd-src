@@ -50,6 +50,11 @@
  * This node also includes Berkeley packet filter support.
  */
 
+#include "opt_atalk.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_ipx.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -772,16 +777,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 #ifdef NETATALK
 	case AF_APPLETALK:
 		isr = NETISR_ATALK2;
-		break;
-#endif
-#ifdef NATM
-	case AF_NATM:
-		isr = NETISR_NATM;
-		break;
-#endif
-#ifdef ATM_CORE
-	case AF_ATM:
-		isr = NETISR_ATM;
 		break;
 #endif
 	default:
