@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VFS_MOUNT.9,v 1.1 1997/03/03 17:59:54 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -74,14 +74,14 @@ to update the NFS export information for the filesystem.
 If the
 .Dv MNT_UPDATE
 flag is not specified, then this is a newly mounted filesystem.  The
-filesystem code should allocate and initialise
+filesystem code should allocate and initialize
 any private data needed to represent
 the filesystem (it can use the
 .Fa mp->mnt_data
 field to store this information).
 .Sh SEE ALSO
-.Xr vnode 9 ,
-.Xr VFS 9
+.Xr VFS 9 ,
+.Xr vnode 9
 .Sh AUTHORS
 This man page was written by Doug Rabson.
 

@@ -26,21 +26,21 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VFS_INIT.9,v 1.1 1997/03/03 17:59:53 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
 .Dt VFS_INIT 9
 .Sh NAME
 .Nm VFS_INIT
-.Nd initialise a filesystem
+.Nd initialize a filesystem
 .Sh SYNOPSIS
 .Fd #include <sys/mount.h>
 .Fd #include <sys/vnode.h>
 .Ft int
 .Fn VFS_INIT
 .Sh DESCRIPTION
-This function is called once to allow a filesystem to initialise any
+This function is called once to allow a filesystem to initialize any
 global data structures that it might have.  It is either called when
 the operating system boots or, for dynamically loaded filesystems,
 when the kernel module containing the filesystem is loaded.
