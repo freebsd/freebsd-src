@@ -2198,14 +2198,6 @@ typedef Sighandler_t Sigsave_t;
 typedef int (CPERLscope(*runops_proc_t)) (pTHX);
 typedef OP* (CPERLscope(*PPADDR_t)[]) (pTHX);
 
-#ifndef PERL_OBJECT
-typedef int runops_proc_t _((void));
-int runops_standard _((void));
-#ifdef DEBUGGING
-int runops_debug _((void));
-#endif
-#endif  /* PERL_OBJECT */
-
 /* _ (for $_) must be first in the following list (DEFSV requires it) */
 #define THREADSV_NAMES "_123456789&`'+/.,\\\";^-%=|~:\001\005!@"
 
@@ -2605,8 +2597,6 @@ typedef void (*XSINIT_t) (pTHXo);
 typedef void (*ATEXIT_t) (pTHXo_ void*);
 typedef void (*XSUBADDR_t) (pTHXo_ CV *);
 
-#endif
-
 /* Set up PERLVAR macros for populating structs */
 #define PERLVAR(var,type) type var;
 #define PERLVARA(var,n,type) type var[n];
@@ -2735,10 +2725,6 @@ typedef void *Thread;
 #define PERLVARA(var,n,type) EXT type PL_##var[n];
 #define PERLVARI(var,type,init) EXT type  PL_##var INIT(init);
 #define PERLVARIC(var,type,init) EXTCONST type PL_##var INIT(init);
-
-#ifndef PERL_GLOBAL_STRUCT
-#include "perlvars.h"
-#endif
 
 #if !defined(MULTIPLICITY) && !defined(PERL_OBJECT)
 START_EXTERN_C
