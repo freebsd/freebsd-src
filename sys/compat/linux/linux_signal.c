@@ -34,7 +34,6 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/ksiginfo.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
@@ -391,7 +390,7 @@ linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 #endif
 
 	PROC_LOCK(p);
-	ksiginfo_to_sigset_t(p, &bset);
+	bset = p->p_siglist;
 	SIGSETAND(bset, p->p_sigmask);
 	bsd_to_linux_sigset(&bset, &lset);
 	PROC_UNLOCK(p);

@@ -102,7 +102,6 @@
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <sys/sysctl.h>
-#include <sys/ksiginfo.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -1842,24 +1841,21 @@ int
 ttycheckoutq(struct tty *tp, int wait)
 {
 	int hiwat, s;
-	sigset_t oldmask, newmask;
+	sigset_t oldmask;
 
 	hiwat = tp->t_ohiwat;
 	SIGEMPTYSET(oldmask);
 	s = spltty();
 	if (wait)
-		ksiginfo_to_sigset_t(curproc, &oldmask);
+		oldmask = curproc->p_siglist;
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
 			if (tp->t_outq.c_cc <= hiwat)
 				break;
-			if (!wait) {
-				ksiginfo_to_sigset_t(curproc, &newmask);
-				if (SIGSETEQ(newmask, oldmask)) {
-					splx(s);
-					return (0);
-				}
+			if (!(wait && SIGSETEQ(curproc->p_siglist, oldmask))) {
+				splx(s);
+				return (0);
 			}
 			SET(tp->t_state, TS_SO_OLOWAT);
 			tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", hz);
