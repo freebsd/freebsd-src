@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/buf.h>
 #include <sys/exec.h>
+#include <sys/kdb.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -97,8 +98,9 @@ __FBSDID("$FreeBSD$");
 #define KERNEL_PT_IO		3	/* Page table for mapping IO */
 #define KERNEL_PT_IRQ		2	/* Page table for mapping irq handler */
 #define KERNEL_PT_KERNEL	1	/* Page table for mapping kernel */
-#define	KERNEL_PT_VMDATA	4	/* Page tables for mapping kernel VM */
-#define	KERNEL_PT_VMDATA_NUM	12	/* start with 16MB of KVM */
+#define KERNEL_PT_L1		4	/* Page table for mapping l1pt */
+#define	KERNEL_PT_VMDATA	5	/* Page tables for mapping kernel VM */
+#define	KERNEL_PT_VMDATA_NUM	4	/* start with 16MB of KVM */
 #define	NUM_KERNEL_PTS		(KERNEL_PT_VMDATA + KERNEL_PT_VMDATA_NUM)
 
 /* Define various stack sizes in pages */
@@ -154,6 +156,19 @@ bus_dma_get_range(void)
 	return (NULL);
 }
 
+int
+bus_dma_get_range_nb(void)
+{
+	return (0);
+}
+
+void
+cpu_reset()
+{
+	cpu_halt();
+	while (1);
+}
+
 #define CPU_SA110_CACHE_CLEAN_SIZE (0x4000 * 2)
 
 void *
@@ -168,6 +183,7 @@ initarm(void *arg, void *arg2)
 	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
+	vm_offset_t lastalloced;
 	vm_size_t pt_size;
 	int i = 0;
 	uint32_t fake_preload[35];
@@ -220,6 +236,7 @@ initarm(void *arg, void *arg2)
 	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNEL_TEXT_BASE;
 	symbolsize = 0;
 	freemempos = (vm_offset_t)round_page(physical_freestart);
+	printf("freemempos %p\n", (void*)freemempos);
 	memset((void *)freemempos, 0, 256*1024);
 		/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
@@ -266,6 +283,7 @@ initarm(void *arg, void *arg2)
 
 	/* Allocate pages for process 0 kernel stack and uarea */
 	valloc_pages(proc0_uarea, UAREA_PAGES);
+	lastalloced = proc0_uarea.pv_va;
 	
 	/*
 	 * Now we start construction of the L1 page table
@@ -282,6 +300,8 @@ initarm(void *arg, void *arg2)
 	    &kernel_pt_table[KERNEL_PT_KERNEL]);
 	pmap_link_l2pt(l1pagetable, 0xd0000000,
 	    &kernel_pt_table[KERNEL_PT_IO]);
+	pmap_link_l2pt(l1pagetable, lastalloced & ~((L1_S_SIZE * 4) - 1),
+	    &kernel_pt_table[KERNEL_PT_L1]);
 	pmap_link_l2pt(l1pagetable, 0x90000000, &kernel_pt_table[KERNEL_PT_IRQ]);
 	pmap_link_l2pt(l1pagetable, MDROOT_ADDR,
 	    &md_bla);
@@ -291,8 +311,10 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNBASE,
 	   (uint32_t)&end - KERNBASE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
+	printf("avant irq %p %p\n", (void*)irqstack.pv_va, (void*)irqstack.pv_pa);
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	printf("apres irq\n");
 	pmap_map_chunk(l1pagetable, md_addr.pv_va, md_addr.pv_pa,
 	    MDSIZE * 1024, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, abtstack.pv_va, abtstack.pv_pa,
@@ -385,9 +407,10 @@ initarm(void *arg, void *arg2)
 	got_mmu = 1;
 	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
 
+	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;
 
 	pmap_bootstrap(KERNEL_VM_BASE, 
-	    KERNEL_VM_BASE + KERNEL_PT_VMDATA_NUM * 0x400000, &kernel_l1pt);
+	    0xd0000000, &kernel_l1pt);
 
 	
 	mutex_init();
@@ -401,6 +424,7 @@ initarm(void *arg, void *arg2)
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
+	kdb_init();
 	avail_end = 0xc0000000 + 0x02000000 - 1;
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP));
 }
