@@ -20,6 +20,11 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
+.if !defined(NO_OPENSSH)
+BIN1+=	${.CURDIR}/../crypto/openssh/ssh_config \
+	${.CURDIR}/../crypto/openssh/sshd_config
+.endif
+
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
