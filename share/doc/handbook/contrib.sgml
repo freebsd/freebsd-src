@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.26 1995/10/04 08:19:09 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.27 1995/10/04 17:33:01 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -132,6 +132,7 @@
 	  <item>Gene Stark &lt;stark@cs.sunysb.edu&gt;
 	  <item>Guido van Rooij &lt;guido@gvr.win.tue.nl&gt;
 	  <item>Havard Eidnes &lt;Havard.Eidnes@runit.sintef.no&gt;
+	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
 	  <item>Ishii Masahiro, R. Kym Horsell
 	  <item>J.T. Conklin &lt;jtc@winsey.com&gt;
