@@ -233,8 +233,11 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 					continue;
 				}
 
+				printf("\t");
 				print_batt_stat(aps.ap_batt_stat);
+				printf("\t");
 				print_batt_life(aps.ap_batt_life);
+				printf("\t");
 				print_batt_time(aps.ap_batt_time);
 			}
 		}
