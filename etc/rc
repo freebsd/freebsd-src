@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.175 1999/01/31 04:28:51 grog Exp $
+#	$Id: rc,v 1.169.2.1 1999/01/31 04:35:36 grog Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -36,7 +36,9 @@ fi
 
 # If there is a global system configuration file, suck it in.
 #
-if [ -f /etc/rc.conf ]; then
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
