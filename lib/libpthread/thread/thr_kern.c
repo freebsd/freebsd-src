@@ -853,8 +853,9 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		curthread->wakeup_time.tv_nsec = -1;
 		break;
 
-	case PS_JOIN:
 	case PS_MUTEX_WAIT:
+		break;
+	case PS_JOIN:
 	case PS_SUSPENDED:
 	case PS_DEADLOCK:
 	default:
@@ -1735,8 +1736,10 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 		case PS_SIGWAIT:
 			KSE_WAITQ_INSERT(kse, thread);
 			break;
-		case PS_JOIN:
 		case PS_MUTEX_WAIT:
+			KSE_WAITQ_INSERT(kse, thread);
+			break;
+		case PS_JOIN:
 		case PS_SIGSUSPEND:
 		case PS_SUSPENDED:
 		case PS_DEADLOCK:

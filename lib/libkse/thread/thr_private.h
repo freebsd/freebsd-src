@@ -390,6 +390,18 @@ struct pthread_cond_attr {
 	long			c_flags;
 };
 
+struct pthread_barrier {
+	pthread_mutex_t	b_lock;
+	pthread_cond_t	b_cond;
+	int		b_count;
+	int		b_waiters;
+	int		b_generation;
+};
+
+struct pthread_barrierattr {
+	int		pshared;
+};
+
 /*
  * Flags for condition variables.
  */

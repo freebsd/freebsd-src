@@ -28,6 +28,8 @@ SRCS+= \
 	thr_attr_setstack.c \
 	thr_attr_setstackaddr.c \
 	thr_attr_setstacksize.c \
+	thr_barrier.c \
+	thr_barrierattr.c \
 	thr_cancel.c \
 	thr_clean.c \
 	thr_close.c \
