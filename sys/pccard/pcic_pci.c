@@ -1412,13 +1412,33 @@ pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
+static int
+pcic_pci_resume(device_t dev)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+
+	/*
+	 * Some BIOSes will not save the BARs for the pci chips, so we
+	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
+	 * device, it will read back as 0x1, so no explicit test for
+	 * memory devices are needed.
+	 *
+	 * Note: The PCI bus code should do this automatically for us on
+	 * suspend/resume, but until it does, we have to cope.
+	 */
+	if (pci_read_config(dev, CB_PCI_SOCKET_BASE, 4) == 0)
+                pci_write_config(dev, CB_PCI_SOCKET_BASE,
+		    rman_get_start(sc->memres), 4);
+	return (bus_generic_resume(dev));
+}
+
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
 	DEVMETHOD(device_attach,	pcic_pci_attach),
 	DEVMETHOD(device_detach,	pcic_pci_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	pcic_pci_resume),
 	DEVMETHOD(device_shutdown,	pcic_pci_shutdown),
 
 	/* Bus interface */
