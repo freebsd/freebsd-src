@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.16 1999/07/29 08:47:30 obrien Exp $
+ *	$Id: skeleton.c,v 1.17 1999/07/29 09:42:14 obrien Exp $
  */
 
 #ifndef lint
@@ -58,6 +58,7 @@ char *banner[] =
 {
     "#ifndef lint",
     "static char const yysccsid[] = \"@(#)yaccpar	1.9 (Berkeley) 02/21/93\";",
+    "static char const yyrcsid[] = \"$Id$\";",
     "#endif",
     "#include <stdlib.h>",
     "#define YYBYACC 1",
