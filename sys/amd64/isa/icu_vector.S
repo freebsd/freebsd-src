@@ -3,18 +3,6 @@
  * $FreeBSD$
  */
 
-/*
- * modified for PC98 by Kakefuda
- */
-
-#ifdef PC98
-#define ICU_IMR_OFFSET		2	/* IO_ICU{1,2} + 2 */
-#else
-#define ICU_IMR_OFFSET		1	/* IO_ICU{1,2} + 1 */
-#endif
-
-#define	ICU_EOI			0x20	/* XXX - define elsewhere */
-
 #define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))
 #define	IRQ_LBIT(irq_num)	(1 << (irq_num))
 #define	IRQ_BYTE(irq_num)	((irq_num) >> 3)

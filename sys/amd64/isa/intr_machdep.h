@@ -208,14 +208,6 @@ inthand_t
 #endif /** TEST_TEST1 */
 #endif /* SMP || APIC_IO */
 
-#ifdef PC98
-#define	ICU_IMR_OFFSET		2		/* IO_ICU{1,2} + 2 */
-#define	ICU_SLAVEID		7
-#else
-#define	ICU_IMR_OFFSET		1		/* IO_ICU{1,2} + 1 */
-#define	ICU_SLAVEID		2
-#endif
-
 #ifdef APIC_IO
 /*
  * This is to accommodate "mixed-mode" programming for 
