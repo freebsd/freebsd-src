@@ -51,3 +51,5 @@ void	 printscol __P((DISPLAY *));
 void	 usage __P((void));
 int	 len_octal __P((char *, int));
 int	 prn_octal __P((char *));
+void	 parsecolors __P((char *cs));
+int	 colortype __P((mode_t mode));
