@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.23 1998/03/16 22:53:31 brian Exp $
+ * $Id: ccp.c,v 1.30.2.24 1998/03/17 22:29:02 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -98,7 +98,7 @@ static char const *cftypes[] = {
   "???", "???", "???", "???", "???", "???",
   "HWPPC",		/* 16: Hewlett-Packard PPC */
   "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
-  "MSPPC",		/* 18: Microsoft PPC */
+  "MPPC",		/* 18: Microsoft PPC (rfc2118) */
   "GAND",		/* 19: Gandalf FZA (rfc1993) */
   "V42BIS",		/* 20: ARG->DATA.42bis compression */
   "BSD",		/* 21: BSD LZW Compress */
