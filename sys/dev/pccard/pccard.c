@@ -533,8 +533,7 @@ static void
 pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
     bus_addr_t offset, bus_size_t size)
 {
-	bus_addr_t iosize;
-	bus_size_t tmp;
+	bus_size_t iosize, tmp;
 
 	if (addr != 0) {
 		if (pf->pf_mfc_iomax == 0) {
@@ -555,8 +554,8 @@ pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
 		;
 	iosize--;
 
-	DEVPRINTF((pf->dev, "MFC: I/O base 0x%llx IOSIZE %lld\n",
-	  (uint64_t) pf->pf_mfc_iobase, (uint64_t) iosize));
+	DEVPRINTF((pf->dev, "MFC: I/O base 0x%jx IOSIZE %jd\n",
+	  (uintmax_t) pf->pf_mfc_iobase, (uintmax_t) iosize));
 	pccard_ccr_write(pf, PCCARD_CCR_IOBASE0,
 	    pf->pf_mfc_iobase & 0xff);
 	pccard_ccr_write(pf, PCCARD_CCR_IOBASE1,
