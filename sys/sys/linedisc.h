@@ -352,6 +352,12 @@ int set_dumper(struct dumperinfo *);
 void dumpsys(struct dumperinfo *);
 extern int dumping;		/* system is dumping */
 
+/* D_TTY related functions */
+d_kqfilter_t	 ttykqfilter;
+d_poll_t	 ttypoll;
+d_read_t	 ttyread;
+d_write_t	 ttywrite;
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
