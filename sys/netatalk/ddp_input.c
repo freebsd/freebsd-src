@@ -421,8 +421,10 @@ ddp_input(m, ifp, elh, phase)
     /* 
      * If we found one, deliver th epacket to the socket
      */
-    if (sbappendaddr(&ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
+    SOCKBUF_LOCK(&ddp->ddp_socket->so_rcv);
+    if (sbappendaddr_locked(&ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
 	    m, NULL) == 0) {
+    	SOCKBUF_UNLOCK(&ddp->ddp_socket->so_rcv);
 	/* 
 	 * If the socket is full (or similar error) dump the packet.
 	 */
@@ -432,7 +434,7 @@ ddp_input(m, ifp, elh, phase)
     /*
      * And wake up whatever might be waiting for it
      */
-    sorwakeup(ddp->ddp_socket);
+    sorwakeup_locked(ddp->ddp_socket);
     m = NULL;
 out:
     DDP_LIST_SUNLOCK();
