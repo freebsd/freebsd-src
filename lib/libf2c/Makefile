@@ -35,4 +35,7 @@ I77SRCS = Version.c backspace.c close.c dfe.c dolio.c due.c endfile.c err.c \
 
 SRCS= ${F77SRCS} ${I77SRCS}
 
+LDADD+=	-lm
+DPADD+=	${LIBM}
+
 .include <bsd.lib.mk>
