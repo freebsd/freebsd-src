@@ -906,4 +906,5 @@ usb_detach(device_t self)
 #if defined(__FreeBSD__)
 DRIVER_MODULE(usb, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usb, uhci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usb, ehci, usb_driver, usb_devclass, 0, 0);
 #endif
