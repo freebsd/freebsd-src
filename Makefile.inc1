@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.52 1998/12/30 11:26:24 bde Exp $
+#	$Id: Makefile.inc1,v 1.53 1998/12/30 12:06:07 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -718,7 +718,8 @@ libraries:
     lib/libmytinfo lib/libncurses lib/libtermcap \
     lib/libradius lib/libskey lib/libtacplus \
     ${_secure_lib} ${_kerberosIV_lib} \
-    gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib 
+    gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
+    usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
@@ -907,6 +908,8 @@ legacy-install:
 	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc; \
 		${MAKE} -B -DNOMAN -DNOINFO install
 	cd ${.CURDIR}/usr.bin/lex/lib; \
+		${MAKE} -B -DNOMAN -DNOINFO install
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap; \
 		${MAKE} -B -DNOMAN -DNOINFO install
 .if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib; ${MAKE} -B -DNOMAN -DNOINFO install
