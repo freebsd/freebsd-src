@@ -54,7 +54,6 @@ struct amd64tss {
 	u_int64_t	tss_rsp2 __packed; 	/* kernel stack pointer ring 2 */
 	u_int32_t	tss_rsvd1;
 	u_int32_t	tss_rsvd2;
-	u_int32_t	tss_rsvd3;
 	u_int64_t	tss_ist1 __packed;	/* Interrupt stack table 1 */
 	u_int64_t	tss_ist2 __packed;	/* Interrupt stack table 2 */
 	u_int64_t	tss_ist3 __packed;	/* Interrupt stack table 3 */

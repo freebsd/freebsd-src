@@ -335,6 +335,7 @@ init_secondary(void)
 	/* Init tss */
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
+	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
 
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],

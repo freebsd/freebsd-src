@@ -1210,6 +1210,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* doublefault stack space, runs on ist1 */
 	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
 
+	/* Set the IO permission bitmap (empty due to tss seg limit) */
+	common_tss[0].tss_iobase = sizeof(struct amd64tss);
+
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
 
