@@ -16,7 +16,8 @@ Commercial  usage is  also  possible  with  participation of it's author.
 
 char * FtpPwd(FTP * con)
 {
-  String tmp,tmp1;
+  String tmp;
+  static String tmp1;
   int i;
   
   if ( FtpSendMessage(con,"PWD") == QUIT )
