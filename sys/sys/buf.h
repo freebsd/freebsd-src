@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.53 1998/07/15 04:17:48 bde Exp $
+ * $Id: buf.h,v 1.54 1998/08/24 17:47:08 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -136,7 +136,7 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_AVAIL1	0x00000100	/* Available flag */
+#define	B_FREEBUF	0x00000100	/* Instruct driver: free blocks */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_ERROR		0x00000800	/* I/O error occurred. */
@@ -161,6 +161,12 @@ struct buf {
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
+
+#define PRINT_BUF_FLAGS "\20\40bounce\37cluster\36vmio\35ram\34ordered" \
+	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26avail3" \
+	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
+	"\17locked\16inval\15avail2\14error\13eintr\12done\11freebuf" \
+	"\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age"
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
