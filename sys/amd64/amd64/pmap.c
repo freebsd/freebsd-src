@@ -904,10 +904,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 			/* We just released a PT, unhold the matching PD */
 			vm_page_t pdpg;
 
-			pdpg = vm_page_lookup(pmap->pm_pteobj, NUPDE +
-			    ((va >> PDPSHIFT) & (NUPDPE - 1)));
-			while (vm_page_sleep_if_busy(pdpg, FALSE, "pulook"))
-				vm_page_lock_queues();
+			pdpg = PHYS_TO_VM_PAGE(*pmap_pdpe(pmap, va));
 			vm_page_unhold(pdpg);
 			if (pdpg->hold_count == 0)
 				_pmap_unwire_pte_hold(pmap, va, pdpg);
@@ -916,10 +913,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 			/* We just released a PD, unhold the matching PDP */
 			vm_page_t pdppg;
 
-			pdppg = vm_page_lookup(pmap->pm_pteobj, NUPDE + NUPDPE +
-			    ((va >> PML4SHIFT) & (NUPML4E - 1)));
-			while (vm_page_sleep_if_busy(pdppg, FALSE, "pulooK"))
-				vm_page_lock_queues();
+			pdppg = PHYS_TO_VM_PAGE(*pmap_pml4e(pmap, va));
 			vm_page_unhold(pdppg);
 			if (pdppg->hold_count == 0)
 				_pmap_unwire_pte_hold(pmap, va, pdppg);
@@ -963,21 +957,12 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 static int
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 {
-	vm_pindex_t ptepindex;
 
 	if (va >= VM_MAXUSER_ADDRESS)
 		return 0;
 
 	if (mpte == NULL) {
-		ptepindex = pmap_pde_pindex(va);
-		if (pmap->pm_pteobj->root &&
-		    pmap->pm_pteobj->root->pindex == ptepindex) {
-			mpte = pmap->pm_pteobj->root;
-		} else {
-			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
-			    vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
-				vm_page_lock_queues();
-		}
+		mpte = PHYS_TO_VM_PAGE(*pmap_pde(pmap, va));
 	}
 
 	return pmap_unwire_pte_hold(pmap, va, mpte);
