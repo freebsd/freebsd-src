@@ -28,8 +28,6 @@
 
 #include "opt_bootp.h"
 #include "opt_isa.h"
-#include "opt_nfs.h"
-#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -63,8 +61,6 @@ void bootpc_init(void);
 device_t isa_bus_device = 0;
 #endif
 
-extern int nfs_diskless_valid;		/* XXX use include file */
-
 /*
  * Determine i/o configuration for a machine.
  */
@@ -91,26 +87,3 @@ configure(void *dummy)
 
 	cold = 0;
 }
-
-/*
- * Do legacy root filesystem discovery.  This isn't really
- * needed on the Alpha, which has always used the loader.
- */
-void
-cpu_rootconf()
-{
-#if defined(NFSCLIENT) && defined(NFS_ROOT)
-	int	order = 0;
-#endif
-
-#ifdef BOOTP
-	bootpc_init();
-#endif
-#if defined(NFSCLIENT) && defined(NFS_ROOT)
-#if !defined(BOOTP_NFSROOT)
-	if (nfs_diskless_valid)
-#endif
-		rootdevnames[order++] = "nfs:";
-#endif
-}
-SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)
