@@ -409,6 +409,7 @@ retry:
 		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_unmanage(m);
 		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
