@@ -410,6 +410,8 @@ md_clone (void *arg, char *name, int namelen, dev_t *dev)
 	i = dev_stdclone(name, NULL, "md", &u);
 	if (i == 0)
 		return;
+	if (u > DKMAXUNIT)
+		return;
 	/* XXX: should check that next char is [\0sa-h] */
 	/*
 	 * Now we cheat: We just create the disk, but don't match.
