@@ -121,7 +121,11 @@ struct external_exec
 /* Sun shared libraries, not linux.  This macro is only relevant for ZMAGIC
    files.  */
 #ifndef N_SHARED_LIB
+#if defined (TEXT_START_ADDR) && TEXT_START_ADDR == 0
+#define N_SHARED_LIB(x) (0)
+#else
 #define N_SHARED_LIB(x) ((x).a_entry < TEXT_START_ADDR)
+#endif
 #endif
 
 /* Returning 0 not TEXT_START_ADDR for OMAGIC and NMAGIC is based on

@@ -1,5 +1,5 @@
-/* hash.h - for hash.c
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+/* hash.h -- header file for gas hash table routines
+   Copyright (C) 1987, 92, 93, 95, 1999 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -14,32 +14,65 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
-#ifndef hashH
-#define hashH
+#ifndef HASH_H
+#define HASH_H
 
 struct hash_control;
 
-/* returns control block */
-struct hash_control *hash_new PARAMS ((void));
-void hash_die PARAMS ((struct hash_control *));
-/* returns previous value */
-PTR hash_delete PARAMS ((struct hash_control *, const char *str));
-/* returns previous value */
-PTR hash_replace PARAMS ((struct hash_control *, const char *str, PTR val));
-/* returns error string or null */
-const char *hash_insert PARAMS ((struct hash_control *, const char *str,
-				 PTR val));
-/* returns value */
-PTR hash_find PARAMS ((struct hash_control *, const char *str));
-/* returns error text or null (internal) */
-const char *hash_jam PARAMS ((struct hash_control *, const char *str,
-			      PTR val));
+/* Create a hash table.  This return a control block.  */
 
-void hash_print_statistics PARAMS ((FILE *, const char *,
-				    struct hash_control *));
-#endif /* #ifdef hashH */
+extern struct hash_control *hash_new PARAMS ((void));
 
-/* end of hash.c */
+/* Delete a hash table, freeing all allocated memory.  */
+
+extern void hash_die PARAMS ((struct hash_control *));
+
+/* Insert an entry into a hash table.  This returns NULL on success.
+   On error, it returns a printable string indicating the error.  It
+   is considered to be an error if the entry already exists in the
+   hash table.  */
+
+extern const char *hash_insert PARAMS ((struct hash_control *,
+					const char *key, PTR value));
+
+/* Insert or replace an entry in a hash table.  This returns NULL on
+   success.  On error, it returns a printable string indicating the
+   error.  If an entry already exists, its value is replaced.  */
+
+extern const char *hash_jam PARAMS ((struct hash_control *,
+				     const char *key, PTR value));
+
+/* Replace an existing entry in a hash table.  This returns the old
+   value stored for the entry.  If the entry is not found in the hash
+   table, this does nothing and returns NULL.  */
+
+extern PTR hash_replace PARAMS ((struct hash_control *, const char *key,
+				 PTR value));
+
+/* Find an entry in a hash table, returning its value.  Returns NULL
+   if the entry is not found.  */
+
+extern PTR hash_find PARAMS ((struct hash_control *, const char *key));
+
+/* Delete an entry from a hash table.  This returns the value stored
+   for that entry, or NULL if there is no such entry.  */
+
+extern PTR hash_delete PARAMS ((struct hash_control *, const char *key));
+
+/* Traverse a hash table.  Call the function on every entry in the
+   hash table.  */
+
+extern void hash_traverse PARAMS ((struct hash_control *,
+				   void (*pfn) (const char *key, PTR value)));
+
+/* Print hash table statistics on the specified file.  NAME is the
+   name of the hash table, used for printing a header.  */
+
+extern void hash_print_statistics PARAMS ((FILE *, const char *name,
+					   struct hash_control *));
+
+#endif /* HASH_H */

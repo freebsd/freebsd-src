@@ -1,6 +1,7 @@
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 ** NOTE: libbfd.h is a GENERATED file.  Don't change it; instead,
@@ -317,6 +318,10 @@ extern boolean _bfd_generic_set_section_contents
   ((boolean (*) \
     PARAMS ((bfd *, asection *, struct bfd_link_info *, boolean *))) \
    bfd_false)
+#define _bfd_nolink_bfd_gc_sections \
+  ((boolean (*) \
+    PARAMS ((bfd *, struct bfd_link_info *))) \
+   bfd_false)
 #define _bfd_nolink_bfd_link_hash_table_create \
   ((struct bfd_link_hash_table *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
 #define _bfd_nolink_bfd_link_add_symbols \
@@ -352,10 +357,15 @@ extern boolean _bfd_stab_section_find_nearest_line
   PARAMS ((bfd *, asymbol **, asection *, bfd_vma, boolean *, const char **,
 	   const char **, unsigned int *, PTR *));
 
+/* Find the neaderst line using DWARF 1 debugging information.  */
+extern boolean _bfd_dwarf1_find_nearest_line
+  PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
+	   const char **, unsigned int *));
+
 /* Find the nearest line using DWARF 2 debugging information.  */
 extern boolean _bfd_dwarf2_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
-	   const char **, unsigned int *));
+	   const char **, unsigned int *, unsigned int));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc
@@ -469,6 +479,9 @@ extern bfd_size_type _bfd_stringtab_add
 
 /* Write out a string table.  */
 extern boolean _bfd_stringtab_emit PARAMS ((bfd *, struct bfd_strtab_hash *));
+
+/* Check that endianness of input and output file match.  */
+extern boolean _bfd_generic_verify_endian_match PARAMS ((bfd *, bfd *));
 
 /* Macros to tell if bfds are read or write enabled.
 
@@ -489,6 +502,17 @@ void	bfd_assert PARAMS ((const char*,int));
 
 #define BFD_FAIL() \
 { bfd_assert(__FILE__,__LINE__); }
+
+extern void _bfd_abort PARAMS ((const char *, int, const char *))
+     ATTRIBUTE_NORETURN;
+
+/* if gcc >= 2.6, we can give a function name, too */
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 6)
+#define __PRETTY_FUNCTION__  ((char *) NULL)
+#endif
+
+#undef abort
+#define abort() _bfd_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 FILE *	bfd_cache_lookup_worker PARAMS ((bfd *));
 

@@ -1,5 +1,5 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -45,7 +45,7 @@ DESCRIPTION
 /*ARGSUSED*/
 boolean
 bfd_false (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return false;
@@ -57,7 +57,7 @@ bfd_false (ignore)
 /*ARGSUSED*/
 boolean
 bfd_true (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
   return true;
 }
@@ -68,7 +68,7 @@ bfd_true (ignore)
 /*ARGSUSED*/
 PTR
 bfd_nullvoidptr (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return NULL;
@@ -77,7 +77,7 @@ bfd_nullvoidptr (ignore)
 /*ARGSUSED*/
 int 
 bfd_0 (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -85,7 +85,7 @@ bfd_0 (ignore)
 /*ARGSUSED*/
 unsigned int 
 bfd_0u (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
    return 0;
 }
@@ -93,7 +93,7 @@ bfd_0u (ignore)
 /*ARGUSED*/
 long
 bfd_0l (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -104,7 +104,7 @@ bfd_0l (ignore)
 /*ARGSUSED*/
 long
 _bfd_n1 (ignore_abfd)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return -1;
@@ -113,15 +113,15 @@ _bfd_n1 (ignore_abfd)
 /*ARGSUSED*/
 void 
 bfd_void (ignore)
-     bfd *ignore;
+     bfd *ignore ATTRIBUTE_UNUSED;
 {
 }
 
 /*ARGSUSED*/
 boolean
 _bfd_nocore_core_file_matches_executable_p (ignore_core_bfd, ignore_exec_bfd)
-     bfd *ignore_core_bfd;
-     bfd *ignore_exec_bfd;
+     bfd *ignore_core_bfd ATTRIBUTE_UNUSED;
+     bfd *ignore_exec_bfd ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return false;
@@ -133,7 +133,7 @@ _bfd_nocore_core_file_matches_executable_p (ignore_core_bfd, ignore_exec_bfd)
 /*ARGSUSED*/
 char *
 _bfd_nocore_core_file_failing_command (ignore_abfd)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return (char *)NULL;
@@ -145,7 +145,7 @@ _bfd_nocore_core_file_failing_command (ignore_abfd)
 /*ARGSUSED*/
 int
 _bfd_nocore_core_file_failing_signal (ignore_abfd)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_invalid_operation);
   return 0;
@@ -154,7 +154,7 @@ _bfd_nocore_core_file_failing_signal (ignore_abfd)
 /*ARGSUSED*/
 const bfd_target *
 _bfd_dummy_target (ignore_abfd)
-     bfd *ignore_abfd;
+     bfd *ignore_abfd ATTRIBUTE_UNUSED;
 {
   bfd_set_error (bfd_error_wrong_format);
   return 0;
@@ -232,7 +232,25 @@ real_read (where, a,b, file)
      size_t b;
      FILE *file;
 {
+  /* FIXME - this looks like an optimization, but it's really to cover
+     up for a feature of some OSs (not solaris - sigh) that
+     ld/pe-dll.c takes advantage of (apparently) when it creates BFDs
+     internally and tries to link against them.  BFD seems to be smart
+     enough to realize there are no symbol records in the "file" that
+     doesn't exist but attempts to read them anyway.  On Solaris,
+     attempting to read zero bytes from a NULL file results in a core
+     dump, but on other platforms it just returns zero bytes read.
+     This makes it to something reasonable. - DJ */
+  if (a == 0 || b == 0)
+    return 0;
+
+#if defined (__VAX) && defined (VMS)
+  /* Apparently fread on Vax VMS does not keep the record length
+     information.  */
+  return read (fileno (file), where, a * b);
+#else
   return fread (where, a, b, file);
+#endif
 }
 
 /* Return value is amount read (FIXME: how are errors and end of file dealt
@@ -256,7 +274,10 @@ bfd_read (ptr, size, nitems, abfd)
       get = size * nitems;
       if (abfd->where + get > bim->size)
 	{
-	  get = bim->size - abfd->where;
+	  if (bim->size < (bfd_size_type) abfd->where)
+	    get = 0;
+	  else
+	    get = bim->size - abfd->where;
 	  bfd_set_error (bfd_error_file_truncated);
 	}
       memcpy (ptr, bim->buffer + abfd->where, get);
@@ -275,7 +296,7 @@ bfd_read (ptr, size, nitems, abfd)
 
      A BFD backend may wish to override bfd_error_file_truncated to
      provide something more useful (eg. no_symbols or wrong_format).  */
-  if (nread < (int)(size * nitems))
+  if (nread != (int) (size * nitems))
     {
       if (ferror (bfd_cache_lookup (abfd)))
 	bfd_set_error (bfd_error_system_call);
@@ -318,7 +339,6 @@ bfd_init_window (windowp)
 #undef HAVE_MPROTECT /* code's not tested yet */
 
 #if HAVE_MMAP || HAVE_MPROTECT || HAVE_MADVISE
-#include <sys/types.h>
 #include <sys/mman.h>
 #endif
 
@@ -461,10 +481,10 @@ bfd_get_file_window (abfd, offset, size, windowp, writable)
   else if (debug_windows)
     {
       if (ok_to_map)
-	fprintf (stderr, "not mapping: data=%lx mapped=%d\n",
+	fprintf (stderr, _("not mapping: data=%lx mapped=%d\n"),
 		 (unsigned long) i->data, (int) i->mapped);
       else
-	fprintf (stderr, "not mapping: env var not set\n");
+	fprintf (stderr, _("not mapping: env var not set\n"));
     }
 #else
   ok_to_map = 0;
@@ -523,7 +543,29 @@ bfd_write (ptr, size, nitems, abfd)
   long nwrote;
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
-    abort ();
+    {
+      struct bfd_in_memory *bim = (struct bfd_in_memory *) (abfd->iostream);
+      size *= nitems;
+      if (abfd->where + size > bim->size)
+	{
+	  long newsize, oldsize = (bim->size + 127) & ~127;
+	  bim->size = abfd->where + size;
+	  /* Round up to cut down on memory fragmentation */
+	  newsize = (bim->size + 127) & ~127;
+	  if (newsize > oldsize)
+	    {
+	      bim->buffer = bfd_realloc (bim->buffer, newsize);
+	      if (bim->buffer == 0)
+		{
+		  bim->size = 0;
+		  return 0;
+		}
+	    }
+	}
+      memcpy (bim->buffer + abfd->where, ptr, size);
+      abfd->where += size;
+      return size;
+    }
 
   nwrote = fwrite (ptr, 1, (size_t) (size * nitems),
 		   bfd_cache_lookup (abfd));
@@ -638,10 +680,22 @@ bfd_seek (abfd, position, direction)
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
+      struct bfd_in_memory *bim;
+
+      bim = (struct bfd_in_memory *) abfd->iostream;
+      
       if (direction == SEEK_SET)
 	abfd->where = position;
       else
 	abfd->where += position;
+      
+      if ((bfd_size_type) abfd->where > bim->size)
+	{
+	  abfd->where = bim->size;
+	  bfd_set_error (bfd_error_file_truncated);
+	  return -1;
+	}
+      
       return 0;
     }
 
@@ -753,7 +807,7 @@ DESCRIPTION
 .{* Byte swapping macros for user section data.  *}
 .
 .#define bfd_put_8(abfd, val, ptr) \
-.                (*((unsigned char *)(ptr)) = (unsigned char)(val))
+.                ((void) (*((unsigned char *)(ptr)) = (unsigned char)(val)))
 .#define bfd_put_signed_8 \
 .		bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
@@ -787,6 +841,20 @@ DESCRIPTION
 .                BFD_SEND(abfd, bfd_getx64, (ptr))
 .#define bfd_get_signed_64(abfd, ptr) \
 .		 BFD_SEND(abfd, bfd_getx_signed_64, (ptr))
+.
+.#define bfd_get(bits, abfd, ptr)				\
+.                ((bits) == 8 ? bfd_get_8 (abfd, ptr)		\
+.		 : (bits) == 16 ? bfd_get_16 (abfd, ptr)	\
+.		 : (bits) == 32 ? bfd_get_32 (abfd, ptr)	\
+.		 : (bits) == 64 ? bfd_get_64 (abfd, ptr)	\
+.		 : (abort (), (bfd_vma) - 1))
+.
+.#define bfd_put(bits, abfd, val, ptr)				\
+.                ((bits) == 8 ? bfd_put_8 (abfd, val, ptr)	\
+.		 : (bits) == 16 ? bfd_put_16 (abfd, val, ptr)	\
+.		 : (bits) == 32 ? bfd_put_32 (abfd, val, ptr)	\
+.		 : (bits) == 64 ? bfd_put_64 (abfd, val, ptr)	\
+.		 : (abort (), (void) 0))
 .
 */ 
 
@@ -844,7 +912,8 @@ DESCRIPTION
 
 /* Sign extension to bfd_signed_vma.  */
 #define COERCE16(x) (((bfd_signed_vma) (x) ^ 0x8000) - 0x8000)
-#define COERCE32(x) (((bfd_signed_vma) (x) ^ 0x80000000) - 0x80000000)
+#define COERCE32(x) \
+  ((bfd_signed_vma) (long) (((unsigned long) (x) ^ 0x80000000) - 0x80000000))
 #define EIGHT_GAZILLION (((BFD_HOST_64_BIT)0x80000000) << 32)
 #define COERCE64(x) \
   (((bfd_signed_vma) (x) ^ EIGHT_GAZILLION) - EIGHT_GAZILLION)
@@ -899,37 +968,57 @@ bfd_vma
 bfd_getb32 (addr)
      register const bfd_byte *addr;
 {
-  return (((((bfd_vma)addr[0] << 8) | addr[1]) << 8)
-	  | addr[2]) << 8 | addr[3];
+  unsigned long v;
+
+  v = (unsigned long) addr[0] << 24;
+  v |= (unsigned long) addr[1] << 16;
+  v |= (unsigned long) addr[2] << 8;
+  v |= (unsigned long) addr[3];
+  return (bfd_vma) v;
 }
 
 bfd_vma
 bfd_getl32 (addr)
      register const bfd_byte *addr;
 {
-  return (((((bfd_vma)addr[3] << 8) | addr[2]) << 8)
-	  | addr[1]) << 8 | addr[0];
+  unsigned long v;
+
+  v = (unsigned long) addr[0];
+  v |= (unsigned long) addr[1] << 8;
+  v |= (unsigned long) addr[2] << 16;
+  v |= (unsigned long) addr[3] << 24;
+  return (bfd_vma) v;
 }
 
 bfd_signed_vma
 bfd_getb_signed_32 (addr)
      register const bfd_byte *addr;
 {
-  return COERCE32((((((bfd_vma)addr[0] << 8) | addr[1]) << 8)
-		   | addr[2]) << 8 | addr[3]);
+  unsigned long v;
+
+  v = (unsigned long) addr[0] << 24;
+  v |= (unsigned long) addr[1] << 16;
+  v |= (unsigned long) addr[2] << 8;
+  v |= (unsigned long) addr[3];
+  return COERCE32 (v);
 }
 
 bfd_signed_vma
 bfd_getl_signed_32 (addr)
      register const bfd_byte *addr;
 {
-  return COERCE32((((((bfd_vma)addr[3] << 8) | addr[2]) << 8)
-		   | addr[1]) << 8 | addr[0]);
+  unsigned long v;
+
+  v = (unsigned long) addr[0];
+  v |= (unsigned long) addr[1] << 8;
+  v |= (unsigned long) addr[2] << 16;
+  v |= (unsigned long) addr[3] << 24;
+  return COERCE32 (v);
 }
 
 bfd_vma
 bfd_getb64 (addr)
-     register const bfd_byte *addr;
+     register const bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   bfd_vma low, high;
@@ -953,7 +1042,7 @@ bfd_getb64 (addr)
 
 bfd_vma
 bfd_getl64 (addr)
-     register const bfd_byte *addr;
+     register const bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   bfd_vma low, high;
@@ -977,7 +1066,7 @@ bfd_getl64 (addr)
 
 bfd_signed_vma
 bfd_getb_signed_64 (addr)
-     register const bfd_byte *addr;
+     register const bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   bfd_vma low, high;
@@ -1001,7 +1090,7 @@ bfd_getb_signed_64 (addr)
 
 bfd_signed_vma
 bfd_getl_signed_64 (addr)
-     register const bfd_byte *addr;
+     register const bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   bfd_vma low, high;
@@ -1046,8 +1135,8 @@ bfd_putl32 (data, addr)
 
 void
 bfd_putb64 (data, addr)
-     bfd_vma data;
-     register bfd_byte *addr;
+     bfd_vma data ATTRIBUTE_UNUSED;
+     register bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   addr[0] = (bfd_byte)(data >> (7*8));
@@ -1065,8 +1154,8 @@ bfd_putb64 (data, addr)
 
 void
 bfd_putl64 (data, addr)
-     bfd_vma data;
-     register bfd_byte *addr;
+     bfd_vma data ATTRIBUTE_UNUSED;
+     register bfd_byte *addr ATTRIBUTE_UNUSED;
 {
 #ifdef BFD64
   addr[7] = (bfd_byte)(data >> (7*8));
@@ -1092,22 +1181,29 @@ _bfd_generic_get_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-    if (count == 0)
-        return true;
-    if ((bfd_size_type)(offset+count) > section->_raw_size
-        || bfd_seek(abfd, (file_ptr)(section->filepos + offset), SEEK_SET) == -1
-        || bfd_read(location, (bfd_size_type)1, count, abfd) != count)
-        return (false); /* on error */
-    return (true);
+  if (count == 0)
+    return true;
+
+  if ((bfd_size_type) (offset + count) > section->_raw_size)
+    {
+      bfd_set_error (bfd_error_invalid_operation);
+      return false;
+    }
+
+  if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0
+      || bfd_read (location, (bfd_size_type) 1, count, abfd) != count)
+    return false;
+
+  return true;
 }
 
 boolean
 _bfd_generic_get_section_contents_in_window (abfd, section, w, offset, count)
-     bfd *abfd;
-     sec_ptr section;
-     bfd_window *w;
-     file_ptr offset;
-     bfd_size_type count;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     sec_ptr section ATTRIBUTE_UNUSED;
+     bfd_window *w ATTRIBUTE_UNUSED;
+     file_ptr offset ATTRIBUTE_UNUSED;
+     bfd_size_type count ATTRIBUTE_UNUSED;
 {
 #ifdef USE_MMAP
   if (count == 0)
@@ -1180,13 +1276,14 @@ DESCRIPTION
 	@var{x} of 1025 returns 11.
 */
 
-unsigned
-bfd_log2(x)
+unsigned int
+bfd_log2 (x)
      bfd_vma x;
 {
-  unsigned result = 0;
-  while ( (bfd_vma)(1<< result) < x)
-    result++;
+  unsigned int result = 0;
+
+  while ((x = (x >> 1)) != 0)
+    ++result;
   return result;
 }
 
@@ -1200,3 +1297,26 @@ bfd_generic_is_local_label_name (abfd, name)
   return (name[0] == locals_prefix);
 }
 
+/*  Can be used from / for bfd_merge_private_bfd_data to check that
+    endianness matches between input and output file.  Returns
+    true for a match, otherwise returns false and emits an error.  */
+boolean
+_bfd_generic_verify_endian_match (ibfd, obfd)
+     bfd *ibfd;
+     bfd *obfd;
+{
+  if (ibfd->xvec->byteorder != obfd->xvec->byteorder
+      && obfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
+    {
+      (*_bfd_error_handler)
+	("%s: compiled for a %s endian system and target is %s endian",
+	 bfd_get_filename (ibfd),
+	 bfd_big_endian (ibfd) ? "big" : "little",
+	 bfd_big_endian (obfd) ? "big" : "little");
+
+      bfd_set_error (bfd_error_wrong_format);
+      return false;
+    }
+
+  return true;
+}

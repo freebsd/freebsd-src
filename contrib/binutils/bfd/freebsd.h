@@ -1,5 +1,5 @@
 /* BFD back-end definitions used by all FreeBSD targets.
-   Copyright (C) 1990, 1991, 1992, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1992, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -76,11 +76,7 @@ MY(write_object_contents) (abfd)
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-#if CHOOSE_RELOC_SIZE
-  CHOOSE_RELOC_SIZE(abfd);
-#else
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
-#endif
 
   /* Magic number, maestro, please!  */
   switch (bfd_get_arch(abfd)) {

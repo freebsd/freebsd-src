@@ -1,5 +1,5 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright 1997 Free Software Foundation, Inc.
+   Copyright 1997, 1998 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -122,6 +122,7 @@ static unsigned long class;
 %token <s> QUOTEDSTRING STRING
 %token <i> NUMBER
 %token <ss> SIZEDSTRING
+%token IGNORED_TOKEN
 
 %type <pacc> acc_entries
 %type <acc> acc_entry acc_event
@@ -167,6 +168,7 @@ input:
 	| input newcmd stringtable
 	| input newcmd user
 	| input newcmd versioninfo
+	| input newcmd IGNORED_TOKEN
 	;
 
 newcmd:
@@ -223,7 +225,7 @@ acc_entry:
 	    $$.flags |= $4;
 	    if (($$.flags & ACC_VIRTKEY) == 0
 		&& ($$.flags & (ACC_SHIFT | ACC_CONTROL | ACC_ALT)) != 0)
-	      rcparse_warning ("inappropriate modifiers for non-VIRTKEY");
+	      rcparse_warning (_("inappropriate modifiers for non-VIRTKEY"));
 	  }
 	;
 
@@ -247,7 +249,7 @@ acc_event:
 	      }
 	    $$.key = ch;
 	    if (s[1] != '\0')
-	      rcparse_warning ("accelerator should only be one character");
+	      rcparse_warning (_("accelerator should only be one character"));
 	  }
 	| posnumexpr
 	  {
@@ -436,7 +438,7 @@ styles:
 	    dialog.pointsize = $3;
 	    unicode_from_ascii ((int *) NULL, &dialog.font, $5);
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("extended FONT requires DIALOGEX");
+	      rcparse_warning (_("extended FONT requires DIALOGEX"));
 	    else
 	      {
 		dialog.ex->weight = $6;
@@ -514,7 +516,7 @@ control:
 	  {
 	    $$ = $3;
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("IEDIT requires DIALOGEX");
+	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "BEDIT");
 	  }
 	| CHECKBOX
@@ -544,7 +546,7 @@ control:
 	    if ($11 != NULL)
 	      {
 		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
+		  rcparse_warning (_("control data requires DIALOGEX"));
 		$$->data = $11;
 	      }
 	  }
@@ -553,9 +555,33 @@ control:
 	  {
 	    $$ = define_control ($2, $3, $6, $7, $8, $9, $4, style, $10);
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("help ID requires DIALOGEX");
+	      rcparse_warning (_("help ID requires DIALOGEX"));
 	    $$->help = $11;
 	    $$->data = $12;
+	  }
+	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
+	    cnumexpr cnumexpr cnumexpr cnumexpr optcnumexpr opt_control_data
+	  {
+	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
+	    if ($12 != NULL)
+	      {
+		if (dialog.ex == NULL)
+		  rcparse_warning ("control data requires DIALOGEX");
+		$$->data = $12;
+	      }
+	    $$->class.named = 1;
+  	    unicode_from_ascii(&$$->class.u.n.length, &$$->class.u.n.name, $5);
+	  }
+	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
+	    cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
+	  {
+	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
+	    if (dialog.ex == NULL)
+	      rcparse_warning ("help ID requires DIALOGEX");
+	    $$->help = $12;
+	    $$->data = $13;
+	    $$->class.named = 1;
+  	    unicode_from_ascii(&$$->class.u.n.length, &$$->class.u.n.name, $5);
 	  }
 	| CTEXT
 	    {
@@ -607,7 +633,7 @@ control:
 	  {
 	    $$ = $3;
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("IEDIT requires DIALOGEX");
+	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "HEDIT");
 	  }
 	| ICON optstringc numexpr cnumexpr cnumexpr opt_control_data
@@ -617,7 +643,7 @@ control:
 	    if ($6 != NULL)
 	      {
 		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
+		  rcparse_warning (_("control data requires DIALOGEX"));
 		$$->data = $6;
 	      }
 	  }
@@ -629,7 +655,7 @@ control:
 	    if ($10 != NULL)
 	      {
 		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
+		  rcparse_warning (_("control data requires DIALOGEX"));
 		$$->data = $10;
 	      }
 	  }
@@ -639,7 +665,7 @@ control:
     	    $$ = define_control ($2, $3, $4, $5, $6, $7, CTL_STATIC,
 				 style, $9);
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("help ID requires DIALOGEX");
+	      rcparse_warning (_("help ID requires DIALOGEX"));
 	    $$->help = $10;
 	    $$->data = $11;
 	  }
@@ -653,7 +679,7 @@ control:
 	  {
 	    $$ = $3;
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("IEDIT requires DIALOGEX");
+	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "IEDIT");
 	  }
 	| LISTBOX
@@ -762,7 +788,7 @@ control_params:
 	    if ($7 != NULL)
 	      {
 		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
+		  rcparse_warning (_("control data requires DIALOGEX"));
 		$$->data = $7;
 	      }
 	  }
@@ -773,7 +799,7 @@ control_params:
 	    if ($9 != NULL)
 	      {
 		if (dialog.ex == NULL)
-		  rcparse_warning ("control data requires DIALOGEX");
+		  rcparse_warning (_("control data requires DIALOGEX"));
 		$$->data = $9;
 	      }
 	  }
@@ -782,7 +808,7 @@ control_params:
 	  {
 	    $$ = define_control ($1, $2, $3, $4, $5, $6, class, style, $8);
 	    if (dialog.ex == NULL)
-	      rcparse_warning ("help ID requires DIALOGEX");
+	      rcparse_warning (_("help ID requires DIALOGEX"));
 	    $$->help = $9;
 	    $$->data = $10;
 	  }
@@ -988,6 +1014,10 @@ menuexitem:
 	  {
 	    $$ = define_menuitem ($2, $3, $4, $5, 0, NULL);
 	  }
+ 	| MENUITEM SEPARATOR
+ 	  {
+ 	    $$ = define_menuitem (NULL, 0, 0, 0, 0, NULL);
+ 	  }
 	| POPUP QUOTEDSTRING BEG menuexitems END
 	  {
 	    $$ = define_menuitem ($2, 0, 0, 0, 0, $4);
@@ -1235,8 +1265,8 @@ id:
 	    /* It seems that resource ID's are forced to upper case.  */
 	    copy = xstrdup ($1);
 	    for (s = copy; *s != '\0'; s++)
-	      if (islower (*s))
-		*s = toupper (*s);
+	      if (islower ((unsigned char) *s))
+		*s = toupper ((unsigned char) *s);
 	    res_string_to_id (&$$, copy);
 	    free (copy);
 	  }
@@ -1302,7 +1332,7 @@ memflags_move:
 	    $$.language = language;
 	    $$.memflags = MEMFLAG_MOVEABLE;
 	  }
-	| memflags_move_discard memflag
+	| memflags_move memflag
 	  {
 	    $$ = $1;
 	    $$.memflags |= $2.on;

@@ -37,6 +37,7 @@
 #else
 #define LISTING_NEWLINE() {;}
 #endif
+#define LISTING_EOF()     LISTING_NEWLINE()
 
 #define LISTING_SKIP_COND() ((listing & LISTING_NOCOND) != 0)
 

@@ -1,5 +1,5 @@
 /* Define a target vector and some small routines for a variant of a.out.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -234,9 +234,9 @@ static boolean MY_bfd_copy_private_section_data
 static boolean
 MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
      bfd *ibfd;
-     asection *isec;
+     asection *isec ATTRIBUTE_UNUSED;
      bfd *obfd;
-     asection *osec;
+     asection *osec ATTRIBUTE_UNUSED;
 {
   if (bfd_get_flavour (ibfd) == bfd_target_aout_flavour
       && bfd_get_flavour (obfd) == bfd_target_aout_flavour)
@@ -258,11 +258,7 @@ MY(write_object_contents) (abfd)
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-#if CHOOSE_RELOC_SIZE
-  CHOOSE_RELOC_SIZE(abfd);
-#else
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
-#endif
 
   WRITE_HEADERS(abfd, execp);
 
@@ -509,6 +505,9 @@ MY_bfd_final_link (abfd, info)
 #ifndef MY_bfd_relax_section
 #define MY_bfd_relax_section bfd_generic_relax_section
 #endif
+#ifndef MY_bfd_gc_sections
+#define MY_bfd_gc_sections bfd_generic_gc_sections
+#endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup NAME(aout,reloc_type_lookup)
 #endif
@@ -642,6 +641,9 @@ const bfd_target MY(vec) =
      BFD_JUMP_TABLE_LINK (MY),
      BFD_JUMP_TABLE_DYNAMIC (MY),
 
-  (PTR) MY_backend_data,
+  /* Alternative_target */
+  NULL,
+  
+  (PTR) MY_backend_data
 };
 #endif /* MY_BFD_TARGET */
