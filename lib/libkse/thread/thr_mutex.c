@@ -427,8 +427,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	 * Instead, the thread is interrupted and backed out of the
 	 * waiting queue prior to executing the signal handler.
 	 */
-	while (((*mutex)->m_owner != _thread_run) && (ret == 0) &&
-	    (_thread_run->interrupted == 0)) {
+	do {
 		/*
 		 * Defer signals to protect the scheduling queues from
 		 * access by the signal handler:
@@ -637,7 +636,8 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 * necessary:
 		 */
 		_thread_kern_sig_undefer();
-	}
+	} while (((*mutex)->m_owner != _thread_run) && (ret == 0) &&
+	    (_thread_run->interrupted == 0));
 
 	if (_thread_run->interrupted != 0 &&
 	    _thread_run->continuation != NULL)
