@@ -451,4 +451,4 @@ static struct vfsops umap_vfsops = {
 	umapfs_extattrctl,
 };
 
-VFS_SET(umap_vfsops, umap, VFCF_LOOPBACK);
+VFS_SET(umap_vfsops, umapfs, VFCF_LOOPBACK);

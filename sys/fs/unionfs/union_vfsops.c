@@ -482,4 +482,4 @@ static struct vfsops union_vfsops = {
 	vfs_stdextattrctl,
 };
 
-VFS_SET(union_vfsops, union, VFCF_LOOPBACK);
+VFS_SET(union_vfsops, unionfs, VFCF_LOOPBACK);
