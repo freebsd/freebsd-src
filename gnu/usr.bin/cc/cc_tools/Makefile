@@ -407,6 +407,7 @@ all: ${SRCS}
 # define PROG because we have multiple programs.
 #
 OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
+CLEANFILES+=	${OBJS}
 
 .if !exists(${DEPENDFILE})
 # Fudge pre-dependfile dependencies of objects in much the same way as
