@@ -138,13 +138,21 @@
 #define		PCIC_IOCARD	0x20
 #define		PCIC_MEMCARD	0x00
 #define PCIC_CARDRESET	0x40	/* Card reset 0 = Reset, 1 = Normal */
-#define	PCIC_INTR_ENA	0x10	/* Interrupt enable */
+#define	PCIC_INTR_ENA	0x10	/* PCI CSC Interrupt enable */
 
 /* For the Card Status Change register (PCIC_STAT_CHG) */
 #define PCIC_CDTCH	0x08	/* Card Detect Change */
 #define PCIC_RDYCH	0x04	/* Ready Change */
 #define PCIC_BATWRN	0x02	/* Battery Warning */
 #define PCIC_BATDED	0x01	/* Battery Dead */
+
+/* For the Card status change interrupt PCIC_STAT_INT */
+#define PCIC_CSCSELECT		0xf0	/* CSCSELECT */
+#define PCIC_SI_IRQ_SHIFT	4
+#define PCIC_CDEN		0x8
+#define PCIC_READYEN		0x4
+#define PCIC_BATWARNEN		0x2
+#define PCIC_BATDEADEN		0x1
 
 /*
  * For the Address Window Enable Register (PCIC_ADDRWINE)
