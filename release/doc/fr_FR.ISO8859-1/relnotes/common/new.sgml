@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.283
+     Original revision: 1.22.2.284
 -->
 
 <articleinfo>
@@ -372,6 +372,16 @@
     <para>&man.fold.1; dispose maintenant de l'option de ligne de commande
     <option>-b</option> permettant de couper a un certain nombre de bytes
     et de l'option <option>-s</option> permettant de couper au mot.</para>
+
+
+    <para>&man.ftp.1; dispose maintenant de la commande 
+    <command>epsv4</command> pour lui permettre de basculer entre la
+    nouvelle requ&egrave;te EPSV/EPRT et l'ancienne PASV/PORT lors
+    de trransferts en IPv4. Cette commande permet de rem&eacute;dier
+    aux probl&egrave;me survenant lors de l'utilisation de &man.ftp.1;
+    &agrave; travers <application>IPFilter</application> ou &agrave;
+    travers d'autres firewalls ne supportant pas les nouvelles
+    requ&egrave;tes FTP.</para>
 
     <para>&man.ifconfig.8; dispose de la commande <option>eui64</option>
     permettant de remplir les 64 bits inf&eacute;rieurs d'une adresse
