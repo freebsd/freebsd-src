@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <libutil.h>
 #include <limits.h>
 #include <nlist.h>
 #include <stdio.h>
@@ -87,6 +88,7 @@ static struct nlist nl[] = {
 	{ "" }
 };
 
+static int	humanflag;
 static int	usenumflag;
 static int	totalflag;
 static int	swapflag;
@@ -120,17 +122,20 @@ main(int argc, char *argv[])
 		opts = argv[0];
 	if (!strcmp(opts, "swapinfo")) {
 		swapflag = 1;
-		opts = "kM:N:";
-		usagestr = "swapinfo [-k] [-M core [-N system]]";
+		opts = "hkM:N:";
+		usagestr = "swapinfo [-hk] [-M core [-N system]]";
 	} else {
-		opts = "TM:N:fknst";
-		usagestr = "pstat [-Tfknst] [-M core [-N system]]";
+		opts = "TM:N:hfknst";
+		usagestr = "pstat [-Tfhknst] [-M core [-N system]]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) != -1)
 		switch (ch) {
 		case 'f':
 			fileflag = 1;
+			break;
+		case 'h':
+			humanflag = 1;
 			break;
 		case 'k':
 			putenv("BLOCKSIZE=1K");
@@ -469,7 +474,7 @@ getfiles(char **abuf, size_t *alen)
  * by Kevin Lahey <kml@rokkaku.atl.ga.us>.
  */
 
-#define CONVERT(v)	((int)((intmax_t)(v) * pagesize / blocksize))
+#define CONVERT(v)	((int64_t)(v) * pagesize / blocksize)
 static struct kvm_swap swtot;
 static int nswdev;
 
@@ -488,25 +493,43 @@ print_swap_header(void)
 }
 
 static void
-print_swap(struct kvm_swap *ksw)
+print_swap_line(const char *devname, intmax_t nblks, intmax_t bused,
+    intmax_t bavail, float bpercent)
 {
+	char usedbuf[5];
+	char availbuf[5];
 	int hlen, pagesize;
 	long blocksize;
 
 	pagesize = getpagesize();
 	getbsize(&hlen, &blocksize);
+
+	printf("%-15s %*jd ", devname, hlen, CONVERT(nblks));
+	if (humanflag) {
+		humanize_number(usedbuf, sizeof(usedbuf),
+		    CONVERT(blocksize * bused), "",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		humanize_number(availbuf, sizeof(availbuf),
+		    CONVERT(blocksize * bavail), "",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		printf("%8s %8s %5.0f%%\n", usedbuf, availbuf, bpercent);
+	} else {
+		printf("%8jd %8jd %5.0f%%\n", (intmax_t)CONVERT(bused),
+		    (intmax_t)CONVERT(bavail), bpercent);
+	}
+}
+
+static void
+print_swap(struct kvm_swap *ksw)
+{
+
 	swtot.ksw_total += ksw->ksw_total;
 	swtot.ksw_used += ksw->ksw_used;
 	++nswdev;
-	if (totalflag == 0) {
-		(void)printf("%-15s %*d ",
-		    ksw->ksw_devname, hlen,
-		    CONVERT(ksw->ksw_total));
-		(void)printf("%8d %8d %5.0f%%\n",
-		    CONVERT(ksw->ksw_used),
-		    CONVERT(ksw->ksw_total - ksw->ksw_used),
+	if (totalflag == 0)
+		print_swap_line(ksw->ksw_devname, ksw->ksw_total,
+		    ksw->ksw_used, ksw->ksw_total,
 		    (ksw->ksw_used * 100.0) / ksw->ksw_total);
-	}
 }
 
 static void
@@ -519,13 +542,11 @@ print_swap_total(void)
 	getbsize(&hlen, &blocksize);
 	if (totalflag) {
 		blocksize = 1024 * 1024;
-		(void)printf("%dM/%dM swap space\n",
+		(void)printf("%jdM/%jdM swap space\n",
 		    CONVERT(swtot.ksw_used), CONVERT(swtot.ksw_total));
 	} else if (nswdev > 1) {
-		(void)printf("%-15s %*d %8d %8d %5.0f%%\n",
-		    "Total", hlen, CONVERT(swtot.ksw_total),
-		    CONVERT(swtot.ksw_used),
-		    CONVERT(swtot.ksw_total - swtot.ksw_used),
+		print_swap_line("Total", swtot.ksw_total, swtot.ksw_used,
+		    swtot.ksw_total - swtot.ksw_used,
 		    (swtot.ksw_used * 100.0) / swtot.ksw_total);
 	}
 }
