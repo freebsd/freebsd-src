@@ -44,7 +44,7 @@ driver claims to support the
 controller cards.
 Some supported devices include:
 .Pp
-.Bl -item -compact
+.Bl -bullet -compact
 .It
 IBM ServeRAID 3H
 .It
@@ -59,7 +59,7 @@ These cards come with a built in configuration utility stored in
 the firmware known as the
 .Tn ISPR .
 This utility is accessed with the
-.Em CTRL + I
+.Aq Em Ctrl+I
 key combination during the initial card
 .Tn POST .
 .Pp
@@ -71,19 +71,15 @@ In some cases, the
 driver can have difficulties attaching during
 the system initialization period.
 To avoid these difficulties, set the
-.Dl hw.ips.0.disable
-tunable to
-.Dq 1 .
-This
-.Tn MIB
-prevents the driver from attaching.
+.Va hw.ips.0.disable
+tunable to 1.
+It will prevent the driver from attaching.
 .Sh DIAGNOSTICS
 Several error codes may be shown when the card initializes the
 .Tn IBM
 .Tn ISPR
 utility and are independent of
 .Fx .
-.Pp
 .Bl -diag
 .It ips%d: failed to get adapter configuration data from device
 .It ips%d: failed to get drive configuration data from device
