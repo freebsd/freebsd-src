@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -53,6 +57,7 @@ void ttysetup (int speed);
  *  cu phone-number [-s speed] [-l line] [-a acu]
  */
 
+#include <err.h>
 #include "tipconf.h"
 #include "tip.h"
 #include "pathnames.h"
@@ -78,6 +83,18 @@ void	tipdone();
 char	*sname();
 char	PNbuf[256];			/* This limits the size of a number */
 
+static void usage __P((void));
+void setparity __P((char *));
+void pwrite __P((int, char *, int));
+char escape __P((void));
+void tipin __P((void));
+int prompt __P((char *, char *));
+void unraw __P((void));
+void shell_uid __P((void));
+void daemon_uid __P((void));
+void user_uid __P((void));
+int speed __P((int));
+
 void
 main(argc, argv)
 	char *argv[];
@@ -100,14 +117,10 @@ main(argc, argv)
 	}
 #endif /* INCLUDE_CU_INTERFACE */
 
-	if (argc > 4) {
-		fprintf(stderr, "usage: tip [-v] [-speed] [system-name]\n");
-		exit(1);
-	}
-	if (!isatty(0)) {
-		fprintf(stderr, "tip: must be interactive\n");
-		exit(1);
-	}
+	if (argc > 4)
+		usage();
+	if (!isatty(0))
+		errx(1, "must be interactive");
 
 	for (; argc > 1; argv++, argc--) {
 		if (argv[1][0] != '-')
@@ -124,7 +137,7 @@ main(argc, argv)
 			break;
 
 		default:
-			fprintf(stderr, "tip: %s, unknown option\n", argv[1]);
+			warnx("%s, unknown option", argv[1]);
 			break;
 		}
 	}
@@ -138,11 +151,8 @@ main(argc, argv)
 	 * Copy the number then stomp on the original (in case the number
 	 *	is private, we don't want 'ps' or 'w' to find it).
 	 */
-	if (strlen(system) > sizeof PNbuf - 1) {
-		fprintf(stderr, "tip: phone number too long (max = %d bytes)\n",
-			sizeof PNbuf - 1);
-		exit(1);
-	}
+	if (strlen(system) > sizeof PNbuf - 1)
+		errx(1, "phone number too long (max = %d bytes)", sizeof PNbuf - 1);
 	strncpy( PNbuf, system, sizeof PNbuf - 1 );
 	for (p = system; *p; p++)
 		*p = '\0';
@@ -199,7 +209,7 @@ notnumber:
 	 */
 	if (HW)
 		ttysetup(i);
-	if (p = connect()) {
+	if ((p = connect())) {
 		printf("\07%s\n[EOT]\n", p);
 		daemon_uid();
 		(void)uu_unlock(uucplock);
@@ -207,7 +217,7 @@ notnumber:
 	}
 	if (!HW)
 		ttysetup(i);
-cucommon:
+/* cucommon:*/
 	/*
 	 * From here down the code is shared with
 	 * the "cu" version of tip.
@@ -258,11 +268,18 @@ cucommon:
 		tipabort ("login failed");
 	}
 
-	if (pid = fork())
+	if ((pid = fork()))
 		tipin();
 	else
 		tipout();
 	/*NOTREACHED*/
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: tip [-v] [-speed] [system-name]\n");
+	exit(1);
 }
 
 void
@@ -293,6 +310,7 @@ tipdone()
  */
 static int uidswapped;
 
+void
 user_uid()
 {
 	if (uidswapped == 0) {
@@ -301,18 +319,18 @@ user_uid()
 	}
 }
 
+void
 daemon_uid()
 {
-
 	if (uidswapped) {
 		seteuid(euid);
 		uidswapped = 0;
 	}
 }
 
+void
 shell_uid()
 {
-
 	seteuid(uid);
 }
 
@@ -337,6 +355,7 @@ raw ()
 /*
  * return keyboard to normal mode
  */
+void
 unraw()
 {
 #if HAVE_TERMIOS
@@ -357,6 +376,7 @@ static	jmp_buf promptbuf;
  *  in from the terminal.  Handles signals & allows use of
  *  normal erase and kill characters.
  */
+int
 prompt(s, p)
 	char *s;
 	register char *p;
@@ -396,6 +416,7 @@ intprompt()
 /*
  * ****TIPIN   TIPIN****
  */
+void
 tipin()
 {
 	int i;
@@ -451,6 +472,7 @@ extern esctable_t etable[];
  * Escape handler --
  *  called on recognition of ``escapec'' at the beginning of a line
  */
+char
 escape()
 {
 	register char gch;
@@ -476,6 +498,7 @@ escape()
 	return (gch);
 }
 
+int
 speed(n)
 	int n;
 {
@@ -491,6 +514,7 @@ speed(n)
 #endif
 }
 
+int
 any(c, p)
 	register char c, *p;
 {
@@ -500,6 +524,7 @@ any(c, p)
 	return (0);
 }
 
+int
 size(s)
 	register char	*s;
 {
@@ -517,7 +542,7 @@ interp(s)
 	static char buf[256];
 	register char *p = buf, c, *q;
 
-	while (c = *s++) {
+	while ((c = *s++)) {
 		for (q = "\nn\rr\tt\ff\033E\bb"; *q; q++)
 			if (*q++ == c) {
 				*p++ = '\\'; *p++ = *q;
@@ -556,6 +581,7 @@ ctrl(c)
 /*
  * Help command
  */
+void
 help(c)
 	char c;
 {
@@ -628,6 +654,7 @@ static int bits8;
  * We are doing 8 bit wide output, so we just generate a character
  * with the right parity and output it.
  */
+void
 pwrite(fd, buf, n)
 	int fd;
 	char *buf;
@@ -655,6 +682,7 @@ pwrite(fd, buf, n)
 /*
  * Build a parity table with appropriate high-order bit.
  */
+void
 setparity(defparity)
 	char *defparity;
 {

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)acucommon.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -41,6 +45,8 @@ static char sccsid[] = "@(#)acucommon.c	8.1 (Berkeley) 6/6/93";
  */
 #include "tipconf.h"
 #include "tip.h"
+
+#include <err.h>
 
 #if HAVE_SELECT
 #include <sys/types.h>
@@ -161,12 +167,12 @@ int acu_setspeed (int speed)
 #else /* HAVE TERMIOS */
 	struct sgttyb sb;
 	if (ioctl(FD, TIOCGETP, &sb) < 0) {
-		perror("TIOCGETP");
+		warn("TIOCGETP");
 	}
 	else {
 		sb.sg_ispeed = sb.sg_ospeed = speed;
 		if (ioctl(FD, TIOCSETP, &sb) < 0) {
-			perror("TIOCSETP");
+			warn("TIOCSETP");
 		}
 		else
 			++rc;
