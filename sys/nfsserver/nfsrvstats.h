@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.24 1997/03/29 12:34:33 bde Exp $
+ * $Id: nfs.h,v 1.25 1997/05/10 16:12:02 dfr Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -404,6 +404,12 @@ struct nfsuid {
 #define NU_NAM		0x2
 #define NU_NETFAM(u)	(((u)->nu_flag & NU_INETADDR) ? AF_INET : AF_ISO)
 
+struct nfsrv_rec {
+	STAILQ_ENTRY(nfsrv_rec) nr_link;
+	struct mbuf	*nr_address;
+	struct mbuf	*nr_packet;
+};
+
 struct nfssvc_sock {
 	TAILQ_ENTRY(nfssvc_sock) ns_chain;	/* List of all nfssvc_sock's */
 	TAILQ_HEAD(, nfsuid) ns_uidlruhead;
@@ -412,8 +418,7 @@ struct nfssvc_sock {
 	struct mbuf	*ns_nam;
 	struct mbuf	*ns_raw;
 	struct mbuf	*ns_rawend;
-	struct mbuf	*ns_rec;
-	struct mbuf	*ns_recend;
+	STAILQ_HEAD(, nfsrv_rec) ns_rec;
 	struct mbuf	*ns_frag;
 	int		ns_flag;
 	int		ns_solock;

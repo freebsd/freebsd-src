@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.23 1997/04/22 17:38:01 dfr Exp $
+ * $Id: nfs_socket.c,v 1.24 1997/04/27 20:01:21 wollman Exp $
  */
 
 /*
@@ -1662,7 +1662,7 @@ nfsrv_rcv(so, arg, waitflag)
 		 * to an nfsd so that there is feedback to the TCP layer that
 		 * the nfs servers are heavily loaded.
 		 */
-		if (slp->ns_rec && waitflag == M_DONTWAIT) {
+		if (STAILQ_FIRST(&slp->ns_rec) && waitflag == M_DONTWAIT) {
 			slp->ns_flag |= SLP_NEEDQ;
 			goto dorecs;
 		}
@@ -1711,18 +1711,19 @@ nfsrv_rcv(so, arg, waitflag)
 				(so, &nam, &auio, &mp,
 						(struct mbuf **)0, &flags);
 			if (mp) {
+				struct nfsrv_rec *rec;
+				rec = malloc(sizeof(struct nfsrv_rec),
+					     M_NFSRVDESC, waitflag);
+				if (!rec) {
+					if (nam)
+						m_freem(nam);
+					m_freem(mp);
+					continue;
+				}
 				nfs_realign(mp, 10 * NFSX_UNSIGNED);
-				if (nam) {
-					m = nam;
-					m->m_next = mp;
-				} else
-					m = mp;
-				if (slp->ns_recend)
-					slp->ns_recend->m_nextpkt = m;
-				else
-					slp->ns_rec = m;
-				slp->ns_recend = m;
-				m->m_nextpkt = (struct mbuf *)0;
+				rec->nr_address = nam;
+				rec->nr_packet = mp;
+				STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
 			}
 			if (error) {
 				if ((so->so_proto->pr_flags & PR_CONNREQUIRED)
@@ -1739,7 +1740,8 @@ nfsrv_rcv(so, arg, waitflag)
 	 */
 dorecs:
 	if (waitflag == M_DONTWAIT &&
-		(slp->ns_rec || (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
+		(STAILQ_FIRST(&slp->ns_rec)
+		 || (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
 		nfsrv_wakenfsd(slp);
 }
 
@@ -1855,12 +1857,16 @@ nfsrv_getstream(slp, waitflag)
 		mpp = &((*mpp)->m_next);
 	    *mpp = recm;
 	    if (slp->ns_flag & SLP_LASTFRAG) {
-		nfs_realign(slp->ns_frag, 10 * NFSX_UNSIGNED);
-		if (slp->ns_recend)
-		    slp->ns_recend->m_nextpkt = slp->ns_frag;
-		else
-		    slp->ns_rec = slp->ns_frag;
-		slp->ns_recend = slp->ns_frag;
+		struct nfsrv_rec *rec;
+		rec = malloc(sizeof(struct nfsrv_rec), M_NFSRVDESC, waitflag);
+		if (!rec) {
+		    m_freem(slp->ns_frag);
+		} else {
+		    nfs_realign(slp->ns_frag, 10 * NFSX_UNSIGNED);
+		    rec->nr_address = (struct mbuf*)0;
+		    rec->nr_packet = slp->ns_frag;
+		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
+		}
 		slp->ns_frag = (struct mbuf *)0;
 	    }
 	}
@@ -1875,25 +1881,19 @@ nfsrv_dorec(slp, nfsd, ndp)
 	struct nfsd *nfsd;
 	struct nfsrv_descript **ndp;
 {
+	struct nfsrv_rec *rec;
 	register struct mbuf *m, *nam;
 	register struct nfsrv_descript *nd;
 	int error;
 
 	*ndp = NULL;
-	if ((slp->ns_flag & SLP_VALID) == 0 ||
-	    (m = slp->ns_rec) == (struct mbuf *)0)
+	if ((slp->ns_flag & SLP_VALID) == 0 || !STAILQ_FIRST(&slp->ns_rec))
 		return (ENOBUFS);
-	slp->ns_rec = m->m_nextpkt;
-	if (slp->ns_rec)
-		m->m_nextpkt = (struct mbuf *)0;
-	else
-		slp->ns_recend = (struct mbuf *)0;
-	if (m->m_type == MT_SONAME) {
-		nam = m;
-		m = m->m_next;
-		nam->m_next = NULL;
-	} else
-		nam = NULL;
+	rec = STAILQ_FIRST(&slp->ns_rec);
+	STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
+	nam = rec->nr_address;
+	m = rec->nr_packet;
+	free(rec, M_NFSRVDESC);
 	MALLOC(nd, struct nfsrv_descript *, sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
 	nd->nd_md = nd->nd_mrep = m;
