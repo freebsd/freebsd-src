@@ -510,7 +510,7 @@ in6_addmulti(maddr6, ifp, errorp)
 	 * If ifma->ifma_protospec is null, then if_addmulti() created
 	 * a new record.  Otherwise, we are done.
 	 */
-	if (ifma->ifma_protospec != 0) {
+	if (ifma->ifma_protospec != NULL) {
 		splx(s);
 		return ifma->ifma_protospec;
 	}
@@ -556,7 +556,7 @@ in6_delmulti(in6m)
 		 * that we are leaving the multicast group.
 		 */
 		mld6_stop_listening(in6m);
-		ifma->ifma_protospec = 0;
+		ifma->ifma_protospec = NULL;
 		LIST_REMOVE(in6m, in6m_entry);
 		free(in6m, M_IPMADDR);
 	}
