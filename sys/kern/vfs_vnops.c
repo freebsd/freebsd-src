@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.62 1999/01/20 14:49:11 eivind Exp $
+ * $Id: vfs_vnops.c,v 1.63 1999/01/30 12:21:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -284,12 +284,17 @@ vn_read(fp, uio, cred)
 
 	VOP_LEASE(vp, p, cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
-	if (uio->uio_offset == -1)
-		uio->uio_offset = fp->f_offset;
-	count = uio->uio_resid;
+
 	flag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		flag |= IO_NDELAY;
+
+	if (uio->uio_offset != -1) {
+		error = VOP_READ(vp, uio, flag, cred);
+		goto out;
+	}
+	uio->uio_offset = fp->f_offset;
+	count = uio->uio_resid;
 
 	/*
 	 * Sequential read heuristic.
@@ -321,6 +326,7 @@ vn_read(fp, uio, cred)
 	error = VOP_READ(vp, uio, flag, cred);
 	fp->f_offset += count - uio->uio_resid;
 	fp->f_nextread = fp->f_offset;
+out:
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
@@ -347,6 +353,10 @@ vn_write(fp, uio, cred)
 		ioflag |= IO_SYNC;
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	if (uio->uio_offset != -1) {
+		error = VOP_WRITE(vp, uio, ioflag, cred);
+		goto out;
+	}
 	uio->uio_offset = fp->f_offset;
 	count = uio->uio_resid;
 	error = VOP_WRITE(vp, uio, ioflag, cred);
@@ -354,6 +364,7 @@ vn_write(fp, uio, cred)
 		fp->f_offset = uio->uio_offset;
 	else
 		fp->f_offset += count - uio->uio_resid;
+out:
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
