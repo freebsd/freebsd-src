@@ -143,8 +143,5 @@ extern u_short InternetChecksum(u_short *, int);
 #define PKT_ALIAS_UNRESOLVED_FRAGMENT 3
 #define PKT_ALIAS_FOUND_HEADER_FRAGMENT 4
 
-#undef __libalias_version
-#define __libalias_version "2.4"
-
 #endif
 /*lint -restore */
