@@ -13,7 +13,7 @@
     function calls, so other segments of the program need not know
     about the underlying data structures.  Alias_ftp.c contains
     special code for modifying the ftp PORT command used to establish
-    data connections, while alias_irc.c do the same for IRC
+    data connections, while alias_irc.c does the same for IRC
     DCC. Alias_util.c contains a few utility routines.
 
     This software is placed into the public domain with no restrictions
@@ -81,10 +81,6 @@
     $FreeBSD$
 */
 
-#include <stdio.h>
-#include <unistd.h>
-
-#include <sys/param.h>
 #include <sys/types.h>
 
 #include <netinet/in_systm.h>
@@ -311,7 +307,7 @@ IcmpAliasIn2(struct ip *pip)
     else if (ip->ip_p == IPPROTO_ICMP) {
         if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
             link = FindIcmpIn(ip->ip_dst, ip->ip_src, ic2->icmp_id);
-         else
+        else
             link = NULL;
     } else
         link = NULL;
@@ -379,8 +375,8 @@ fragment contained in ICMP data section */
                                  2);
             pip->ip_dst = original_address;
 
-/* Un-alias address of original IP packet and seqence number of 
-   embedded icmp datagram */
+/* Un-alias address of original IP packet and sequence number of 
+   embedded ICMP datagram */
             ip->ip_src = original_address;
             ic2->icmp_id = original_id;
         }
@@ -495,30 +491,106 @@ IcmpAliasOut2(struct ip *pip)
     Alias outgoing ICMP error messages containing
     IP header and first 64 bits of datagram.
 */
-    struct in_addr alias_addr;
     struct ip *ip;
-    struct icmp *ic;
+    struct icmp *ic, *ic2;
+    struct udphdr *ud;
+    struct tcphdr *tc;
+    struct alias_link *link;
 
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
     ip = (struct ip *) ic->icmp_data;
 
-    alias_addr = FindAliasAddress(ip->ip_src);
+    ud = (struct udphdr *) ((char *) ip + (ip->ip_hl <<2));
+    tc = (struct tcphdr *) ud;
+    ic2 = (struct icmp *) ud;
 
-/* Alias destination address in IP fragment */
-    DifferentialChecksum(&ic->icmp_cksum,
-                         (u_short *) &alias_addr,
-                         (u_short *) &ip->ip_dst,
-                         2);
-    ip->ip_dst = alias_addr;
+    if (ip->ip_p == IPPROTO_UDP)
+        link = FindUdpTcpOut(ip->ip_dst, ip->ip_src,
+                            ud->uh_dport, ud->uh_sport,
+                            IPPROTO_UDP);
+    else if (ip->ip_p == IPPROTO_TCP)
+        link = FindUdpTcpOut(ip->ip_dst, ip->ip_src,
+                            tc->th_dport, tc->th_sport,
+                            IPPROTO_TCP);
+    else if (ip->ip_p == IPPROTO_ICMP) {
+        if (ic2->icmp_type == ICMP_ECHO || ic2->icmp_type == ICMP_TSTAMP)
+            link = FindIcmpOut(ip->ip_dst, ip->ip_src, ic2->icmp_id);
+        else
+            link = NULL;
+    } else
+        link = NULL;
 
-/* alias source address in IP header */
-    DifferentialChecksum(&pip->ip_sum,
-                         (u_short *) &alias_addr,
-                         (u_short *) &pip->ip_src,
-                         2);
-    pip->ip_src = alias_addr;
+    if (link != NULL)
+    {
+        if (ip->ip_p == IPPROTO_UDP || ip->ip_p == IPPROTO_TCP)
+        {
+            u_short *sptr;
+            int accumulate;
+            struct in_addr alias_address;
+            u_short alias_port;
 
-    return PKT_ALIAS_OK;
+            alias_address = GetAliasAddress(link);
+            alias_port = GetAliasPort(link);
+    
+/* Adjust ICMP checksum */
+            sptr = (u_short *) &(ip->ip_dst);
+            accumulate  = *sptr++;
+            accumulate += *sptr;
+            sptr = (u_short *) &alias_address;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+            accumulate += ud->uh_dport;
+            accumulate -= alias_port;
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+
+/* Alias address in IP header */
+            DifferentialChecksum(&pip->ip_sum,
+                                 (u_short *) &alias_address,
+                                 (u_short *) &pip->ip_src,
+                                 2);
+            pip->ip_src = alias_address;
+
+/* Alias address and port number of original IP packet
+fragment contained in ICMP data section */
+            ip->ip_dst = alias_address;
+            ud->uh_dport = alias_port; 
+        }
+        else if (pip->ip_p == IPPROTO_ICMP)
+        {
+            u_short *sptr;
+            int accumulate;
+            struct in_addr alias_address;
+            u_short alias_id;
+
+            alias_address = GetAliasAddress(link);
+            alias_id = GetAliasPort(link);
+
+/* Adjust ICMP checksum */
+            sptr = (u_short *) &(ip->ip_dst);
+            accumulate  = *sptr++;
+            accumulate += *sptr;
+            sptr = (u_short *) &alias_address;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+            accumulate += ic2->icmp_id;
+            accumulate -= alias_id;
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+
+/* Alias address in IP header */
+            DifferentialChecksum(&pip->ip_sum,
+                                 (u_short *) &alias_address,
+                                 (u_short *) &pip->ip_src,
+                                 2);
+            pip->ip_src = alias_address;
+
+/* Alias address of original IP packet and sequence number of 
+   embedded ICMP datagram */
+            ip->ip_dst = alias_address;
+            ic2->icmp_id = alias_id;
+        }
+        return(PKT_ALIAS_OK);
+    }
+    return(PKT_ALIAS_IGNORED);
 }
 
 
