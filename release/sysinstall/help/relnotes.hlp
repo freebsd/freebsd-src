@@ -1,11 +1,17 @@
                                  RELEASE NOTES
-                             FreeBSD 2.1.7 RELEASE
+                            FreeBSD 2.1.7.1 RELEASE
 
 0. What is this release?
 ------------------------
 FreeBSD 2.1.7R is the follow-on release to 2.1.6R and focuses primarily
 on fixing bugs and closing security holes, the most notable being the
 setlocale() bug (see ftp://freefall.freebsd.org/pub/CERT) in 2.1.6R.
+
+2.1.7.1 is an even smaller incremental fix release to 2.1.7, primarily
+aimed at fixing some problems with the Adaptec 2940 driver which could
+cause instability in very heavily loaded systems (like news servers).
+We essentially brought in all changes from the RELENG_2_1_0 branch
+between the release date of 2.1.7 and March 14th, 1997.
 
 For more information on our bleeding-edge development, please see
 http://www.freebsd.org/handbook/current.html.
@@ -110,7 +116,7 @@ easily understood installation process.  Your feedback on this
 (constantly evolving) process is especially welcome!
 
 In addition to the base distributions, FreeBSD offers a new ported
-software collection with over 390 commonly sought-after programs.  The
+software collection with over 420 commonly sought-after programs.  The
 list of ports ranges from http (WWW) servers, to games, languages,
 editors and almost everything in between.  The entire ports collection
 requires only 10MB of storage, all ports being expressed as "deltas"
@@ -537,5 +543,5 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.31 1997/02/08 17:46:04 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.32 1997/02/17 08:32:05 jkh Exp $
  LocalWords:  Adaptec
