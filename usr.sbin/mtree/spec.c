@@ -211,7 +211,7 @@ set(t, ip)
 				err("invalid link count %s", val);
 			break;
 		case F_SIZE:
-			ip->st_size = strtoul(val, &ep, 10);
+			ip->st_size = strtoq(val, &ep, 10);
 			if (*ep)
 				err("invalid size %s", val);
 			break;
