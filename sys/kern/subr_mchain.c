@@ -75,7 +75,6 @@ mb_init(struct mbchain *mbp)
 	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m == NULL) 
 		return ENOBUFS;
-	m->m_pkthdr.rcvif = NULL;
 	m->m_len = 0;
 	mb_initm(mbp, m);
 	return 0;
@@ -308,7 +307,6 @@ md_init(struct mdchain *mdp)
 	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m == NULL) 
 		return ENOBUFS;
-	m->m_pkthdr.rcvif = NULL;
 	m->m_len = 0;
 	md_initm(mdp, m);
 	return 0;
