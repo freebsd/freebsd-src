@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.6 1995/07/29 18:09:19 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.7 1995/07/29 18:12:50 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -32,6 +32,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
         There are regular snapshots extracted from 2.2-CURRENT. Check on
         <tt>ftp.FreeBSD.ORG in <tt>/pub/FreeBSD/*-SNAP*</tt>.
+
+        The current snapshot is 2.1.0-950726-SNAP.
 
         This version of the FAQ use the <tt>linuxdoc-sgml</tt> utility
         written for Linux by Matt Welsh. The initial SGML translation was made 
