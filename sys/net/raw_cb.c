@@ -51,6 +51,7 @@
  *	redo address binding to allow wildcards
  */
 
+struct mtx rawcb_mtx;
 struct rawcb_list_head rawcb_list;
 
 const static u_long	raw_sendspace = RAWSNDQ;
@@ -81,7 +82,9 @@ raw_attach(so, proto)
 	rp->rcb_socket = so;
 	rp->rcb_proto.sp_family = so->so_proto->pr_domain->dom_family;
 	rp->rcb_proto.sp_protocol = proto;
+	mtx_lock(&rawcb_mtx);
 	LIST_INSERT_HEAD(&rawcb_list, rp, list);
+	mtx_unlock(&rawcb_mtx);
 	return (0);
 }
 
