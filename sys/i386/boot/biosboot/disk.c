@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.13 1995/05/30 07:58:31 rgrimes Exp $
+ *	$Id: disk.c,v 1.13.4.1 1995/08/23 04:34:30 davidg Exp $
  */
 
 /*
@@ -91,13 +91,22 @@ devopen(void)
 #endif
 
 	di = get_diskinfo(dosdev);
-	spc = (spt = SPT(di)) * HEADS(di);
+	spt = SPT(di);
+
+	/* Hack for 2.88MB floppy drives. */
+	if (!(dosdev & 0x80) && spt == 36)
+		spt = 18;
+
+	spc = spt * HEADS(di);
+
+#if 0 /* save a little more space and avoid surprises when booting from fd2 */
 	if (dosdev == 2)
 	{
 		boff = 0;
 		part = (spt == 15 ? 3 : 1);
 	}
 	else
+#endif
 	{
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
