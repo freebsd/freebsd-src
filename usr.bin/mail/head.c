@@ -150,6 +150,11 @@ copyin(src, space)
  * below is used as the criterion of correctness.
  * Also, we check for a possible trailing time zone using
  * the tmztype template.
+ *
+ * If the mail file is created by Sys V (Solaris), there are
+ * no seconds in the time. If the mail is created by another
+ * program such as imapd, it might have timezone as
+ * <-|+>nnnn (-0800 for instance) at the end.
  */
 
 /*
@@ -157,19 +162,34 @@ copyin(src, space)
  * 'a'	A lower case char
  * ' '	A space
  * '0'	A digit
- * 'O'	An optional digit or space
+ * 'O'	A digit or space
+ * 'p'	A punctuation char
+ * 'P'	A punctuation char or space
  * ':'	A colon
  * 'N'	A new line
  */
-char ctype[] = "Aaa Aaa O0 00:00:00 0000";
-char tmztype[] = "Aaa Aaa O0 00:00:00 AAA 0000";
+
+static char *date_formats[] = {
+	"Aaa Aaa O0 00:00:00 0000",	   /* Mon Jan 01 23:59:59 2001 */
+	"Aaa Aaa O0 00:00:00 AAA 0000",	   /* Mon Jan 01 23:59:59 PST 2001 */
+	"Aaa Aaa O0 00:00:00 0000 p0000",  /* Mon Jan 01 23:59:59 2001 -0800 */
+	"Aaa Aaa O0 00:00 0000",	   /* Mon Jan 01 23:59 2001 */
+	"Aaa Aaa O0 00:00 AAA 0000",	   /* Mon Jan 01 23:59 PST 2001 */
+	"Aaa Aaa O0 00:00 0000 p0000",	   /* Mon Jan 01 23:59 2001 -0800 */
+	NULL
+};
 
 int
 isdate(date)
 	char date[];
 {
+	int i;
 
-	return (cmatch(date, ctype) || cmatch(date, tmztype));
+	for(i = 0; date_formats[i] != NULL; i++) {
+		if (cmatch(date, date_formats[i]))
+			return (1);
+	}
+	return (0);
 }
 
 /*
@@ -201,6 +221,15 @@ cmatch(cp, tp)
 			break;
 		case 'O':
 			if (*cp != ' ' && !isdigit(*cp))
+				return (0);
+			cp++;
+			break;
+		case 'p':
+			if (!ispunct(*cp++))
+				return (0);
+			break;
+		case 'P':
+			if (*cp != ' ' && !ispunct(*cp))
 				return (0);
 			cp++;
 			break;
