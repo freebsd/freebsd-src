@@ -40,7 +40,7 @@ adapter driver
 .Xr ahc 4 ) .
 A
 .Tn SCSI
-adapter must also be separatly configured into the system
+adapter must also be separately configured into the system
 before a
 .Tn SCSI
 tape can be configured.
@@ -196,10 +196,10 @@ When reading a variable record/block from the tape, the head is
 logically considered to be immediately after the last item read,
 and before the next item after that. If the next item is a file mark,
 but it was never read, then the next
-process to read will immediately hit the file mark and receive an end-of-file nification.
+process to read will immediately hit the file mark and receive an end-of-file notification.
 .It Fixed block-size
 Data written by the user is passed to the tape as a succession of
-fixed size blocks.  It may be contiguouse in memory, but it is
+fixed size blocks.  It may be contiguous in memory, but it is
 considered to be a series of independent blocks. One may never write
 an amount of data that is not an exact multiple of the blocksize.  One
 may read and write the same data as a different set of records, In
@@ -224,23 +224,23 @@ understand why) that certain types of tape do not actually write two
 file marks to tape, but when read, report a `phantom' file mark when the
 last file is read.  These devices include the QIC family of devices.
 (It might be that this set of devices is the same set as that of fixed
-block devices.  This has not been detirmined yet, and they are treated
+block devices.  This has not been determined yet, and they are treated
 as separate behaviors by the driver at this time.)
 .Sh KERNEL CONFIGURATION
 Because different tape drives behave differently, there is a mechanism 
 within the source to
 .Nm
-to quickly and conveniently recognise and deal
+to quickly and conveniently recognize and deal
 with brands and models of drive that have special requirements.
 .Pp
 There is a table (called the
 .Dq Em Rogues Gallery )
-in which the indentification
+in which the identification
 strings of known errant drives can be stored.  Alongside each is
 a set of flags that allows the setting of densities and blocksizes for each 
 of the four modes, along with a set of `QUIRK' flags that can be
 used to enable or disable sections of code within the driver if a particular
-drive is recognised.
+drive is recognized.
 .Sh IOCTLS
 The following 
 .Xr ioctl 2

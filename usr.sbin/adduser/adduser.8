@@ -28,10 +28,10 @@
 .\"
 .\" /usr/sbin/adduser - add new user(s)
 .\"
-.\" Bugs: sure (my english!)
+.\" Bugs: sure (my English!)
 .\"   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: adduser.8,v 1.5 1995/03/07 16:42:33 w Exp w $
+.\" $Id: adduser.8,v 1.7 1995/03/08 22:44:35 ache Exp $
 .\"
 
 .Dd Jan, 9, 1995
@@ -67,9 +67,9 @@ not allowed.
 .It Sy shell
 Only valid shells from shell database or sliplogin and pppd
 .It Sy uid
-Automatic generated or your choise. Less than 32000.
+Automatically generated or your choice. Less than 32000.
 .It Sy gid/login group
-Your choise or automatic generated. 
+Your choice or automatically generated. 
 .It Sy password
 If not empty password is encoded with crypt.
 .El
@@ -80,11 +80,11 @@ with most other schemes.  With each user in his/her own group the user can
 safely run with a umask of 002 and have files created in there home directory
 and not worry about others being able to read them.
 
-For a shared area you create a seperate uid/gid (like cvs or ncvs on freefall),
+For a shared area you create a separate uid/gid (like cvs or ncvs on freefall),
 you place each person that should be able to access this area into that new
 group.
 
-This model of uid/gid administration allows far greater flexibilty that lumping
+This model of uid/gid administration allows far greater flexibility that lumping
 users into groups and having to muck with the umask when working in a shared
 area.
 
@@ -153,7 +153,7 @@ Do not read config file.
 Default shell for new users.
 
 .It Sy -silent,-s,-quit,-q
-Few warnings, question, bugreports. 
+Few warnings, question, bug reports. 
 
 .It Sy -uid Ar uid
 Use uid's from 
@@ -161,7 +161,7 @@ Use uid's from
 up.
 
 .It Sy -verbose,-v
-Many warning, question. Recommended for noivice users.
+Many warning, question. Recommended for novice users.
 
 
 

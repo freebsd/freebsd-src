@@ -16,7 +16,7 @@ driver provides support for a
 (Compact Disc-Read Only Memory) drive.
 In an attempt to look like a regular disk, the 
 .Nm
-driver synthesises a partition table, with one partition covering the entire
+driver synthesizes a partition table, with one partition covering the entire
 .Tn CD-ROM .
 It is possible to modify this partition table using
 .Xr disklabel 8 ,
@@ -123,7 +123,7 @@ struct ioc_capability {
 #define	CDSETMUTE	0x00001000
 	/* Output can be muted */
 #define CDSETPATCH	0x00008000
-	/* Direct routing countrol allowed */
+	/* Direct routing control allowed */
 
 	u_long	special_function;
 #define	CDDOEJECT	0x00000001
@@ -325,7 +325,7 @@ In addition the general
 .Xr scsi 4
 ioctls may be used with the 
 .Nm
-driver, if used against the `whole disk' partiton (i.e. 
+driver, if used against the `whole disk' partition (i.e. 
 .Pa /dev/rcd0c ) .
 .Sh NOTES
 When a 
