@@ -12,7 +12,6 @@
 %token	BIO
 %token	BUS
 %token	CAM
-%token	HA
 %token	COMMA
 %token	CONFIG
 %token	CONFLICTS
@@ -113,8 +112,6 @@
  *	@(#)config.y	8.1 (Berkeley) 6/6/93
  */
 
-#include "config.h"
-
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 
@@ -122,6 +119,8 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "config.h"
 
 static struct	device cur;
 static struct	device *curp = 0;
@@ -134,10 +133,7 @@ char	errbuf[80];
 int	maxusers;
 int	do_trace;
 
-#if MACHINE_I386        
-int	seen_isa;
 int	seen_scbus;
-#endif
 
 #define ns(s)	strdup(s)
 
@@ -148,6 +144,8 @@ static void verifycomp __P((struct file_list *));
 static struct device *connect __P((char *, int));
 static struct device *huhcon __P((char *));
 static dev_t *verifyswap __P((struct file_list *, dev_t *, dev_t *));
+static void yyerror __P((char *s));
+
 
 %}
 %%
@@ -550,9 +548,7 @@ Dev_name:
 	Init_dev Dev NUMBER
 	      = {
 		cur.d_name = $2;
-		if (eq($2, "isa"))
-			seen_isa = 1;
-		else if (eq($2, "scbus"))
+		if (eq($2, "scbus"))
 			seen_scbus = 1;
 		cur.d_unit = $3;
 		};
@@ -629,8 +625,6 @@ Info:
 	      = { cur.d_mask = "bio"; } |
 	CAM 
 	      = { cur.d_mask = "cam"; } |
-	HA 
-	      = { cur.d_mask = "ha"; } |
 	NET 
 	      = { cur.d_mask = "net"; } |
 	FLAGS NUMBER
@@ -664,7 +658,7 @@ Id_list:
 
 %%
 
-void
+static void
 yyerror(s)
 	char *s;
 {
