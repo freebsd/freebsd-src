@@ -30,8 +30,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)pxin0.n	5.2 (Berkeley) 4/17/91
+.\" $FreeBSD$
 .\"
-.if !\n(xx .so tmac.p
 .RP
 .TL
 Berkeley Pascal
