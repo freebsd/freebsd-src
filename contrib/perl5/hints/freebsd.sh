@@ -87,8 +87,6 @@ case "$osvers" in
 	d_setegid='undef'
 	d_seteuid='undef'
 	;;
-#
-# Guesses at what will be needed after 2.2
 *)	usevfork='true'
 	usemymalloc='n'
 	libswanted=`echo $libswanted | sed 's/ malloc / /'`
@@ -180,7 +178,7 @@ $define|true|[yY]*)
 	0*|1*|2.0*|2.1*)   cat <<EOM >&4
 I did not know that FreeBSD $osvers supports POSIX threads.
 
-Feel free to tell perlbug@perl.com otherwise.
+Feel free to tell perlbug@perl.org otherwise.
 EOM
 	      exit 1
 	      ;;
@@ -190,7 +188,8 @@ EOM
 POSIX threads are not supported well by FreeBSD $osvers.
 
 Please consider upgrading to at least FreeBSD 2.2.8,
-or preferably to 3.something.
+or preferably to the most recent -RELEASE or -STABLE
+version (see http://www.freebsd.org/releases/).
 
 (While 2.2.7 does have pthreads, it has some problems
  with the combination of threads and pipes and therefore

@@ -1,10 +1,31 @@
 # $FreeBSD$
 package ExtUtils::Liblist;
 
+@ISA = qw(ExtUtils::Liblist::Kid File::Spec);
+
+sub lsdir {
+  shift;
+  my $rex = qr/$_[1]/;
+  opendir my $dir, $_[0];
+  grep /$rex/, readdir $dir;
+}
+
+sub file_name_is_absolute {
+  require File::Spec;
+  shift;
+  'File::Spec'->file_name_is_absolute(@_);
+}
+
+
+package ExtUtils::Liblist::Kid;
+
+# This kid package is to be used by MakeMaker.  It will not work if
+# $self is not a Makemaker.
+
 use 5.005_64;
 # Broken out of MakeMaker from version 4.11
 
-our $VERSION = substr q$Revision: 1.25 $, 10;
+our $VERSION = substr q$Revision: 1.26 $, 10;
 
 use Config;
 use Cwd 'cwd';
@@ -17,19 +38,19 @@ sub ext {
 }
 
 sub _unix_os2_ext {
-    my($self,$potential_libs, $verbose) = @_;
-    if ($^O =~ 'os2' and $Config{libs}) { 
+    my($self,$potential_libs, $verbose, $give_libs) = @_;
+    if ($^O =~ 'os2' and $Config{perllibs}) { 
 	# Dynamic libraries are not transitive, so we may need including
 	# the libraries linked against perl.dll again.
 
 	$potential_libs .= " " if $potential_libs;
-	$potential_libs .= $Config{libs};
+	$potential_libs .= $Config{perllibs};
     }
-    return ("", "", "", "") unless $potential_libs;
+    return ("", "", "", "", ($give_libs ? [] : ())) unless $potential_libs;
     warn "Potential libraries are '$potential_libs':\n" if $verbose;
 
     my($so)   = $Config{'so'};
-    my($libs) = $Config{'libs'};
+    my($libs) = $Config{'perllibs'};
     my $Config_libext = $Config{lib_ext} || ".a";
 
 
@@ -40,6 +61,7 @@ sub _unix_os2_ext {
     my(@searchpath); # from "-L/path" entries in $potential_libs
     my(@libpath) = split " ", $Config{'libpth'};
     my(@ldloadlibs, @bsloadlibs, @extralibs, @ld_run_path, %ld_run_path_seen);
+    my(@libs, %libs_seen);
     my($fullname, $thislib, $thispth, @fullname);
     my($pwd) = cwd(); # from Cwd.pm
     my($found) = 0;
@@ -133,6 +155,7 @@ sub _unix_os2_ext {
 	    warn "'-l$thislib' found at $fullname\n" if $verbose;
 	    my($fullnamedir) = dirname($fullname);
 	    push @ld_run_path, $fullnamedir unless $ld_run_path_seen{$fullnamedir}++;
+	    push @libs, $fullname unless $libs_seen{$fullname}++;
 	    $found++;
 	    $found_lib++;
 
@@ -180,28 +203,29 @@ sub _unix_os2_ext {
 		     ."No library found for -l$thislib\n"
 	    unless $found_lib>0;
     }
-    return ('','','','') unless $found;
-    ("@extralibs", "@bsloadlibs", "@ldloadlibs",join(":",@ld_run_path));
+    return ('','','','', ($give_libs ? \@libs : ())) unless $found;
+    ("@extralibs", "@bsloadlibs", "@ldloadlibs",join(":",@ld_run_path), ($give_libs ? \@libs : ()));
 }
 
 sub _win32_ext {
 
     require Text::ParseWords;
 
-    my($self, $potential_libs, $verbose) = @_;
+    my($self, $potential_libs, $verbose, $give_libs) = @_;
 
     # If user did not supply a list, we punt.
     # (caller should probably use the list in $Config{libs})
-    return ("", "", "", "") unless $potential_libs;
+    return ("", "", "", "", ($give_libs ? [] : ())) unless $potential_libs;
 
     my $cc		= $Config{cc};
     my $VC		= 1 if $cc =~ /^cl/i;
     my $BC		= 1 if $cc =~ /^bcc/i;
     my $GC		= 1 if $cc =~ /^gcc/i;
     my $so		= $Config{'so'};
-    my $libs		= $Config{'libs'};
+    my $libs		= $Config{'perllibs'};
     my $libpth		= $Config{'libpth'};
     my $libext		= $Config{'lib_ext'} || ".lib";
+    my(@libs, %libs_seen);
 
     if ($libs and $potential_libs !~ /:nodefault/i) { 
 	# If Config.pm defines a set of default libs, we always
@@ -230,6 +254,10 @@ sub _win32_ext {
 
     # add "$Config{installarchlib}/CORE" to default search path
     push @libpath, "$Config{installarchlib}/CORE";
+
+    if ($VC and exists $ENV{LIB} and $ENV{LIB}) {
+        push @libpath, split /;/, $ENV{LIB};
+    }
 
     foreach (Text::ParseWords::quotewords('\s+', 0, $potential_libs)){
 
@@ -295,6 +323,7 @@ sub _win32_ext {
 	    $found++;
 	    $found_lib++;
 	    push(@extralibs, $fullname);
+	    push @libs, $fullname unless $libs_seen{$fullname}++;
 	    last;
 	}
 
@@ -316,10 +345,11 @@ sub _win32_ext {
 
     }
 
-    return ('','','','') unless $found;
+    return ('','','','', ($give_libs ? \@libs : ())) unless $found;
 
     # make sure paths with spaces are properly quoted
     @extralibs = map { (/\s/ && !/^".*"$/) ? qq["$_"] : $_ } @extralibs;
+    @libs = map { (/\s/ && !/^".*"$/) ? qq["$_"] : $_ } @libs;
     $lib = join(' ',@extralibs);
 
     # normalize back to backward slashes (to help braindead tools)
@@ -328,18 +358,18 @@ sub _win32_ext {
     $lib =~ s,/,\\,g;
 
     warn "Result: $lib\n" if $verbose;
-    wantarray ? ($lib, '', $lib, '') : $lib;
+    wantarray ? ($lib, '', $lib, '', ($give_libs ? \@libs : ())) : $lib;
 }
 
 
 sub _vms_ext {
-  my($self, $potential_libs,$verbose) = @_;
+  my($self, $potential_libs,$verbose,$give_libs) = @_;
   my(@crtls,$crtlstr);
   my($dbgqual) = $self->{OPTIMIZE} || $Config{'optimize'} ||
                  $self->{CCFLAS}   || $Config{'ccflags'};
   @crtls = ( ($dbgqual =~ m-/Debug-i ? $Config{'dbgprefix'} : '')
               . 'PerlShr/Share' );
-  push(@crtls, grep { not /\(/ } split /\s+/, $Config{'libs'});
+  push(@crtls, grep { not /\(/ } split /\s+/, $Config{'perllibs'});
   push(@crtls, grep { not /\(/ } split /\s+/, $Config{'libc'});
   # In general, we pass through the basic libraries from %Config unchanged.
   # The one exception is that if we're building in the Perl source tree, and
@@ -362,7 +392,7 @@ sub _vms_ext {
 
   unless ($potential_libs) {
     warn "Result:\n\tEXTRALIBS: \n\tLDLOADLIBS: $crtlstr\n" if $verbose;
-    return ('', '', $crtlstr, '');
+    return ('', '', $crtlstr, '', ($give_libs ? [] : ()));
   }
 
   my(@dirs,@libs,$dir,$lib,%found,@fndlibs,$ldlib);
@@ -371,6 +401,7 @@ sub _vms_ext {
   # List of common Unix library names and there VMS equivalents
   # (VMS equivalent of '' indicates that the library is automatially
   # searched by the linker, and should be skipped here.)
+  my(@flibs, %libs_seen);
   my %libmap = ( 'm' => '', 'f77' => '', 'F77' => '', 'V77' => '', 'c' => '',
                  'malloc' => '', 'crypt' => '', 'resolv' => '', 'c_s' => '',
                  'socket' => '', 'X11' => 'DECW$XLIBSHR',
@@ -475,6 +506,7 @@ sub _vms_ext {
         if ($cand eq 'VAXCCURSE') { unshift @{$found{$ctype}}, $cand; }  
         else                      { push    @{$found{$ctype}}, $cand; }
         warn "\tFound as $cand (really $test), type $ctype\n" if $verbose > 1;
+	push @flibs, $name unless $libs_seen{$fullname}++;
         next LIB;
       }
     }
@@ -489,7 +521,7 @@ sub _vms_ext {
 
   $ldlib = $crtlstr ? "$lib $crtlstr" : $lib;
   warn "Result:\n\tEXTRALIBS: $lib\n\tLDLOADLIBS: $ldlib\n" if $verbose;
-  wantarray ? ($lib, '', $ldlib, '') : $lib;
+  wantarray ? ($lib, '', $ldlib, '', ($give_libs ? \@flibs : ())) : $lib;
 }
 
 1;
@@ -504,20 +536,22 @@ ExtUtils::Liblist - determine libraries to use and how to use them
 
 C<require ExtUtils::Liblist;>
 
-C<ExtUtils::Liblist::ext($self, $potential_libs, $verbose);>
+C<ExtUtils::Liblist::ext($self, $potential_libs, $verbose, $need_names);>
 
 =head1 DESCRIPTION
 
 This utility takes a list of libraries in the form C<-llib1 -llib2
--llib3> and prints out lines suitable for inclusion in an extension
+-llib3> and returns lines suitable for inclusion in an extension
 Makefile.  Extra library paths may be included with the form
 C<-L/another/path> this will affect the searches for all subsequent
 libraries.
 
-It returns an array of four scalar values: EXTRALIBS, BSLOADLIBS,
-LDLOADLIBS, and LD_RUN_PATH.  Some of these don't mean anything
-on VMS and Win32.  See the details about those platform specifics
-below.
+It returns an array of four or five scalar values: EXTRALIBS,
+BSLOADLIBS, LDLOADLIBS, LD_RUN_PATH, and, optionally, a reference to
+the array of the filenames of actual libraries.  Some of these don't
+mean anything unless on Unix.  See the details about those platform
+specifics below.  The list of the filenames is returned only if
+$need_names argument is true.
 
 Dependent libraries can be linked in one of three ways:
 
@@ -625,7 +659,7 @@ Unix-OS/2 version in several respects:
 =item *
 
 If C<$potential_libs> is empty, the return value will be empty.
-Otherwise, the libraries specified by C<$Config{libs}> (see Config.pm)
+Otherwise, the libraries specified by C<$Config{perllibs}> (see Config.pm)
 will be appended to the list of C<$potential_libs>.  The libraries
 will be searched for in the directories specified in C<$potential_libs>,
 C<$Config{libpth}>, and in C<$Config{installarchlib}/CORE>.
@@ -669,7 +703,7 @@ Entries in C<$potential_libs> beginning with a colon and followed by
 alphanumeric characters are treated as flags.  Unknown flags will be ignored.
 
 An entry that matches C</:nodefault/i> disables the appending of default
-libraries found in C<$Config{libs}> (this should be only needed very rarely).
+libraries found in C<$Config{perllibs}> (this should be only needed very rarely).
 
 An entry that matches C</:nosearch/i> disables all searching for
 the libraries specified after it.  Translation of C<-Lfoo> and
@@ -679,7 +713,7 @@ valid files or directories.
 
 An entry that matches C</:search/i> reenables searching for
 the libraries specified after it.  You can put it at the end to
-enable searching for default libraries specified by C<$Config{libs}>.
+enable searching for default libraries specified by C<$Config{perllibs}>.
 
 =item *
 
