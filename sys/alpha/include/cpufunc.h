@@ -35,9 +35,13 @@
 #include <machine/chipset.h>
 #include <machine/alpha_cpu.h>
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 struct thread;
 
-#ifdef __GNUC__
+#if defined(__GNUCLIKE_ASM)
 
 static __inline void
 breakpoint(void)

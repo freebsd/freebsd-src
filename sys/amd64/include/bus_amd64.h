@@ -74,6 +74,10 @@
 
 #include <machine/cpufunc.h>
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * To remain compatible with NetBSD's interface, default to both memio and
  * pio when neither of them is defined.
@@ -284,7 +288,7 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movb (%2),%%al				\n\
@@ -313,7 +317,7 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movw (%2),%%ax				\n\
@@ -342,7 +346,7 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	movl (%2),%%eax				\n\
@@ -391,7 +395,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inb %w2,%%al				\n\
@@ -410,7 +414,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -433,7 +437,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inw %w2,%%ax				\n\
@@ -452,7 +456,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -475,7 +479,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	inl %w2,%%eax				\n\
@@ -494,7 +498,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -623,7 +627,7 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsb					\n\
@@ -652,7 +656,7 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
@@ -681,7 +685,7 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsl					\n\
@@ -731,7 +735,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsb					\n\
@@ -750,7 +754,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -773,7 +777,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsw					\n\
@@ -792,7 +796,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -815,7 +819,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		int _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 		1:	lodsl					\n\
@@ -834,7 +838,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	{
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			cld					\n\
 			repne					\n\
@@ -1213,7 +1217,7 @@ static __inline void
 bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 		  bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
-#ifdef	__GNUC__
+#ifdef	__GNUCLIKE_ASM
 	if (flags & BUS_SPACE_BARRIER_READ)
 		__asm __volatile("lock; addl $0,0(%%rsp)" : : : "memory");
 	else

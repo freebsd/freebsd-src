@@ -63,7 +63,7 @@
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
 
 #define __word_swap_int_var(x) \
 __extension__ ({ register __uint32_t __X = (x); \
@@ -177,7 +177,7 @@ __bswap16(__uint16_t _x)
 #define	__ntohl(x)	__bswap32(x)
 #define	__ntohs(x)	__bswap16(x)
 
-#else /* !__GNUC__ */
+#else /* !(__GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P) */
 
 /*
  * No optimizations are available for this compiler.  Fall back to
@@ -186,6 +186,6 @@ __bswap16(__uint16_t _x)
  */
 #define	_BYTEORDER_FUNC_DEFINED
 
-#endif /* __GNUC__ */
+#endif /* __GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P */
 
 #endif /* !_MACHINE_ENDIAN_H_ */

@@ -75,6 +75,10 @@
 #   include <sys/systm.h>
 #   define memset(a,b,c)	bzero (a,c)
 #   define port_t int
+
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
 #endif
 
 #endif
@@ -82,7 +86,7 @@
 #endif
 
 #ifndef inline
-#   if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
+#   ifdef __CC_SUPPORTS___INLINE__
 #      define inline __inline__
 #   else
 #      define inline /**/

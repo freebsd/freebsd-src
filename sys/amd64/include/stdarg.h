@@ -39,7 +39,7 @@
 typedef	__va_list	va_list;
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUCLIKE_BUILTIN_STDARG)
 #define	va_start(ap, last) \
 	__builtin_stdarg_start((ap), (last))
 
@@ -67,6 +67,8 @@ typedef	__va_list	va_list;
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
 #define	va_end(ap)
 
+#else
+#error this file needs to be ported to your compiler
 #endif
 
 #endif /* !_MACHINE_STDARG_H_ */

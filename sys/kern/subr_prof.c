@@ -543,8 +543,8 @@ out:
 	PROC_UNLOCK(p);
 }
 
-#if (defined(__amd64__) || defined(__i386__)) && __GNUC__ >= 2 && \
-	!defined(__INTEL_COMPILER)
+#if (defined(__amd64__) || defined(__i386__)) && \
+	defined(__GNUCLIKE_CTOR_SECTION_HANDLING)
 /*
  * Support for "--test-coverage --profile-arcs" in GCC.
  *

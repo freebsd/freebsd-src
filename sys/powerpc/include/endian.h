@@ -65,7 +65,7 @@
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS___INLINE
 
 static __inline __uint16_t
 __bswap16(__uint16_t _x)
@@ -97,7 +97,7 @@ __bswap64(__uint64_t _x)
 #define	__ntohl(x)	((__uint32_t)(x))
 #define	__ntohs(x)	((__uint16_t)(x))
 
-#else /* !__GNUC__ */
+#else /* !__CC_SUPPORTS___INLINE */
 
 /*
  * No optimizations are available for this compiler.  Fall back to
@@ -106,6 +106,6 @@ __bswap64(__uint64_t _x)
  */
 #define	_BYTEORDER_FUNC_DEFINED
 
-#endif /* __GNUC__ */
+#endif /* __CC_SUPPORTS___INLINE */
 
 #endif /* !_MACHINE_ENDIAN_H_ */

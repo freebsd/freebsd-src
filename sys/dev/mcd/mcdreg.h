@@ -47,12 +47,6 @@
 #ifndef MCD_H
 #define	MCD_H
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
-#pragma pack(1)
-#endif
-#endif
-
 /* toc */
 #define MCD_MAXTOCS	104	/* from the Linux driver */
 #define MCD_LASTPLUS1	170	/* special toc entry */
@@ -172,14 +166,14 @@ struct mcd_dma_mode {
 	u_char	dma_mode;
 	u_char	data0;		/* If dma_mode & 0x10: Use IRQ settings	*/
 	u_char	data1;		/* Used	if dma_mode & 0x01 */
-};
+} __packed;
 
 struct mcd_volinfo {
 	bcd_t	trk_low;
 	bcd_t	trk_high;
 	bcd_t	vol_msf[3];
 	bcd_t	trk1_msf[3];
-};
+} __packed;
 
 struct mcd_qchninfo {
 	u_char  addr_type:4;
@@ -189,29 +183,29 @@ struct mcd_qchninfo {
 	bcd_t	trk_size_msf[3];
 	u_char	:8;
 	bcd_t	hd_pos_msf[3];
-};
+} __packed;
 
 struct mcd_volume {
 	u_char	v0l;
 	u_char	v0rs;
 	u_char	v0r;
 	u_char	v0ls;
-};
+} __packed;
 
 struct mcd_holdtime {
 	u_char	units_of_ten_seconds;
 			/* If this is 0, the default (12) is used */
-};
+} __packed;
 
 struct mcd_read1 {
 	bcd_t	start_msf[3];
 	u_char	nsec[3];
-};
+} __packed;
 
 struct mcd_read2 {
 	bcd_t	start_msf[3];
 	bcd_t	end_msf[3];
-};
+} __packed;
 
 struct mcd_rawsector {
 	u_char sync1[12];
@@ -220,11 +214,6 @@ struct mcd_rawsector {
 	u_char subheader2[4];
 	u_char data[MCDBLK];
 	u_char ecc_bits[280];
-};
+} __packed;
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
-#pragma pack(4)
-#endif
-#endif
 #endif /* MCD_H */

@@ -45,6 +45,76 @@
 #endif
 
 /*
+ * This code has been put in place to help reduce the addition of
+ * compiler specific defines in FreeBSD code.  It helps to aid in
+ * having a compiler-agnostic source tree.
+ */
+
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+
+#if __GNUC__ >= 3 || defined(__INTEL_COMPILER)
+#define __GNUCLIKE_ASM 3
+#define __GNUCLIKE_MATH_BUILTIN_CONSTANTS
+#else
+#define __GNUCLIKE_ASM 2
+#endif
+#define __GNUCLIKE___TYPEOF 1
+#define __GNUCLIKE___OFFSETOF 1
+#define __GNUCLIKE___SECTION 1
+
+#define __GNUCLIKE_ATTRIBUTE_PRINTF 1
+#define __GNUCLIKE_ATTRIBUTE_MODE_DI 1
+
+#ifndef __INTEL_COMPILER
+# define __GNUCLIKE_CTOR_SECTION_HANDLING 1
+#endif
+
+#define __GNUCLIKE_BUILTIN_CONSTANT_P 1
+# if defined(__INTEL_COMPILER) && defined(__cplusplus) \
+    && __INTEL_COMPILER < 800
+#  undef __GNUCLIKE_BUILTIN_CONSTANT_P
+# endif
+
+#if __GNUC_MINOR__ > 95 || __GNUC__ >= 3 || defined(__INTEL_COMPILER)
+# define __GNUCLIKE_BUILTIN_VARARGS 1
+#endif
+#define __GNUCLIKE_BUILTIN_VAALIST 1
+
+#if defined(__GNUC__)
+# define __GNUC_VA_LIST_COMPATIBILITY 1
+#endif
+
+#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
+# define __GNUCLIKE_BUILTIN_STDARG 1
+#endif
+
+#ifndef __INTEL_COMPILER
+# define __GNUCLIKE_BUILTIN_NEXT_ARG 1
+# define __GNUCLIKE_MATH_BUILTIN_RELOPS
+#endif
+
+#define __GNUCLIKE_BUILTIN_MEMCPY 1
+
+/* XXX: if __GNUC__ >= 2: not tested everywhere originally, where replaced */
+#define __CC_SUPPORTS_INLINE 1
+#define __CC_SUPPORTS___INLINE 1
+#define __CC_SUPPORTS___INLINE__ 1
+
+#define __CC_SUPPORTS___FUNC__ 1
+#define __CC_SUPPORTS_WARNING 1
+
+#define __CC_SUPPORTS_FORWARD_REFERENCE_CONSTRUCT 1
+
+#define __CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
+
+#define __CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
+
+/* XXX: sys/dev/mpt/mpilib/mpi_type.h uses it, someone should review it */
+#define __CC_INT_IS_32BIT 1
+
+#endif /* __GNUC__ || __INTEL_COMPILER */
+
+/*
  * Macro to test if we're using a specific version of gcc or later.
  */
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER)
@@ -79,9 +149,9 @@
 #if defined(__cplusplus)
 #define	__inline	inline		/* convert to C++ keyword */
 #else
-#if !(defined(__GNUC__) || defined(__INTEL_COMPILER))
+#if !(defined(__CC_SUPPORTS___INLINE))
 #define	__inline			/* delete GCC keyword */
-#endif /* !(__GNUC__ || __INTEL_COMPILER) */
+#endif /* ! __CC_SUPPORTS___INLINE */
 #endif /* !__cplusplus */
 
 #else	/* !(__STDC__ || __cplusplus) */
@@ -89,7 +159,7 @@
 #define	__CONCAT(x,y)	x/**/y
 #define	__STRING(x)	"x"
 
-#if !(defined(__GNUC__) || defined(__INTEL_COMPILER))
+#if !defined(__CC_SUPPORTS___INLINE)
 #define	__const				/* delete pseudo-ANSI C keywords */
 #define	__inline
 #define	__signed
@@ -108,7 +178,7 @@
 #define	signed
 #define	volatile
 #endif	/* !NO_ANSI_KEYWORDS */
-#endif	/* !(__GNUC__ || __INTEL_COMPILER) */
+#endif	/* !__CC_SUPPORTS___INLINE */
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*

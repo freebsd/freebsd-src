@@ -18,8 +18,6 @@ Revision History
 
 --*/
 
-#pragma pack()
-
 #include <sys/stdint.h>
 
 /* Basic EFI types of various widths. */
@@ -142,7 +140,7 @@ void __mf (void);
 #ifdef NO_INTERFACE_DECL
 #define INTERFACE_DECL(x)
 #else
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS_FORWARD_REFERENCE_CONSTRUCT
 #define INTERFACE_DECL(x) struct x
 #else
 #define INTERFACE_DECL(x) typedef struct x
