@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.18 1996/10/06 16:41:52 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.19 1997/02/12 18:35:41 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -564,7 +564,6 @@ p_mesgout_dropatn:
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
 	dec	DINDEX
-	mvi	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
 	jmp	p_mesgout_loop
 

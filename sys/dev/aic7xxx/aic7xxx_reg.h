@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.2.2.9 1996/10/06 16:41:58 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2.2.10 1997/02/12 18:35:43 gibbs Exp $
  */
 
 /*
@@ -657,11 +657,8 @@
  * we can see what is getting thrown away.
  */
 #define REJBYTE			0x030
-/*
- * Since the sequencer cannot read QOUTCNT, we use this memory location
- * to make sure that we don't overflow the QOUTFIFO when doing SCB Paging.
- */
-#define	QOUTQCNT		0x031
+#define LASTPHASE		0x031
+#define		P_BUSFREE	0x01
 
 /*
  * Bit vector of targets that have disconnection disabled.
@@ -675,7 +672,7 @@
  */
 #define MSG_LEN			0x034
 
-/* We reserve 6bytes to store outgoing messages */
+/* We reserve 8bytes to store outgoing messages */
 #define MSG0			0x035
 #define		COMP_MSG0	0xcb      /* 2's complement of MSG0 */
 #define MSG1			0x036
@@ -683,16 +680,8 @@
 #define MSG3			0x038
 #define MSG4			0x039
 #define MSG5			0x03a
-
-#define LASTPHASE		0x03b
-#define		P_BUSFREE	0x01
-
-#define ARG_1			0x03c
-#define RETURN_1		0x03c
-#define		SEND_MSG	0x80
-#define		SEND_SENSE	0x40
-#define		SEND_REJ	0x20
-#define		SCB_PAGEDIN	0x10
+#define MSG6			0x03b
+#define MSG7			0x03c
 
 #define DMAPARAMS		0x03d	/* Parameters for DMA Logic */
 
@@ -774,7 +763,12 @@
 #define HSCB_ADDR3		0x057
 
 #define	CUR_SCBID		0x058
-#define QFULLCNT		0x059
+#define ARG_1			0x059
+#define RETURN_1		0x059
+#define		SEND_MSG	0x80
+#define		SEND_SENSE	0x40
+#define		SEND_REJ	0x20
+#define		SCB_PAGEDIN	0x10
 
 #define		SCB_LIST_NULL	0xff
 
