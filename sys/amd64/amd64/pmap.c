@@ -197,7 +197,7 @@ static pt_entry_t *PMAP1 = 0;
 static pt_entry_t *PADDR1 = 0;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
-static unsigned * get_ptbase __P((pmap_t pmap));
+static pt_entry_t *get_ptbase __P((pmap_t pmap));
 static pv_entry_t get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
 static __inline void	pmap_changebit __P((vm_page_t m, int bit, boolean_t setem));
@@ -205,7 +205,7 @@ static __inline void	pmap_changebit __P((vm_page_t m, int bit, boolean_t setem))
 static void	pmap_remove_all __P((vm_page_t m));
 static vm_page_t pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_page_t m, vm_page_t mpte));
-static int pmap_remove_pte __P((pmap_t pmap, unsigned *ptq, vm_offset_t sva));
+static int pmap_remove_pte __P((pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva));
 static void pmap_remove_page __P((struct pmap *pmap, vm_offset_t va));
 static int pmap_remove_entry __P((struct pmap *pmap, vm_page_t m,
 					vm_offset_t va));
@@ -217,12 +217,12 @@ static vm_page_t pmap_allocpte __P((pmap_t pmap, vm_offset_t va));
 
 static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
-static unsigned * pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
+static pt_entry_t *pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 
-static unsigned pdir4mb;
+static pd_entry_t pdir4mb;
 
 /*
  *	Routine:	pmap_pte
@@ -231,7 +231,7 @@ static unsigned pdir4mb;
  *		with the given map/virtual_address pair.
  */
 
-PMAP_INLINE unsigned *
+PMAP_INLINE pt_entry_t *
 pmap_pte(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
@@ -358,7 +358,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/*
 	 * ptemap is used for pmap_pte_quick
 	 */
-	SYSMAP(unsigned *, PMAP1, PADDR1, 1);
+	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1);
 
 	virtual_avail = va;
 
@@ -385,7 +385,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 #if !defined(DISABLE_PSE)
 	if (cpu_feature & CPUID_PSE) {
-		unsigned ptditmp;
+		pd_entry_t ptditmp;
 		/*
 		 * Note that we have enabled PSE mode
 		 */
@@ -439,8 +439,7 @@ pmap_set_opt(void)
 	if (pseflag && (cpu_feature & CPUID_PSE)) {
 		load_cr4(rcr4() | CR4_PSE);
 		if (pdir4mb && PCPU_GET(cpuid) == 0) {	/* only on BSP */
-			kernel_pmap->pm_pdir[KPTDI] =
-			    PTD[KPTDI] = (pd_entry_t)pdir4mb;
+			kernel_pmap->pm_pdir[KPTDI] = PTD[KPTDI] = pdir4mb;
 			cpu_invltlb();
 		}
 	}
@@ -602,14 +601,13 @@ static pt_entry_t *
 get_ptbase(pmap)
 	pmap_t pmap;
 {
-	unsigned frame = (unsigned) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
+	pd_entry_t frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
 
 	/* are we current address space or kernel? */
-	if (pmap == kernel_pmap || frame == (((unsigned) PTDpde) & PG_FRAME)) {
+	if (pmap == kernel_pmap || frame == (PTDpde & PG_FRAME))
 		return PTmap;
-	}
 	/* otherwise, we are alternate address space */
-	if (frame != (((unsigned) APTDpde) & PG_FRAME)) {
+	if (frame != (APTDpde & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (frame | PG_RW | PG_V);
 #if defined(SMP)
 		/* The page directory is not shared between CPUs */
@@ -635,14 +633,13 @@ pmap_pte_quick(pmap, va)
 	vm_offset_t va;
 {
 	pd_entry_t pde, newpf;
-	if ((pde = (unsigned) pmap->pm_pdir[va >> PDRSHIFT]) != 0) {
-		pd_entry_t frame = (unsigned) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
+	pde = pmap->pm_pdir[va >> PDRSHIFT];
+	if (pde != 0) {
+		pd_entry_t frame = pmap->pm_pdir[PTDPTDI] & PG_FRAME;
 		unsigned index = i386_btop(va);
 		/* are we current address space or kernel? */
-		if ((pmap == kernel_pmap) ||
-			(frame == (((unsigned) PTDpde) & PG_FRAME))) {
+		if (pmap == kernel_pmap || frame == (PTDpde & PG_FRAME))
 			return PTmap + index;
-		}
 		newpf = pde & PG_FRAME;
 		if (((*PMAP1) & PG_FRAME) != newpf) {
 			*PMAP1 = newpf | PG_RW | PG_V;
@@ -666,8 +663,12 @@ pmap_extract(pmap, va)
 {
 	vm_offset_t rtval;	/* XXX FIXME */
 	vm_offset_t pdirindex;
+
+	if (pmap == 0)
+		return;
 	pdirindex = va >> PDRSHIFT;
-	if (pmap && (rtval = (unsigned) pmap->pm_pdir[pdirindex])) {
+	rtval = pmap->pm_pdir[pdirindex];
+	if (rtval != 0) {
 		pt_entry_t *pte;
 		if ((rtval & PG_PS) != 0) {
 			rtval &= ~(NBPDR - 1);
@@ -2149,7 +2150,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 #if 0 && defined(PMAP_DIAGNOSTIC)
 	else {
 		pd_entry_t *pdeaddr = pmap_pde(pmap, va);
-		if (((origpte = *pdeaddr) & PG_V) == 0) { 
+		origpte = *pdeaddr;
+		if ((origpte & PG_V) == 0) { 
 			panic("pmap_enter: invalid kernel page table page, pdir=%p, pde=%p, va=%p\n",
 				pmap->pm_pdir[PTDPTDI], origpte, va);
 		}
@@ -2481,8 +2483,8 @@ retry:
 	psize = i386_btop(size);
 
 	if ((object->type != OBJT_VNODE) ||
-		((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
-			(object->resident_page_count > MAX_INIT_PT))) {
+	    ((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
+	     (object->resident_page_count > MAX_INIT_PT))) {
 		return;
 	}
 
