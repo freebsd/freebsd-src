@@ -1721,6 +1721,7 @@ sioattach(dev, xrid)
 	int		rid;
 	struct resource *port;
 	int		ret;
+	int		intrstate;
 #ifdef PC98
 	u_char		*obuf;
 	u_long		obufsize;
@@ -1863,7 +1864,10 @@ sioattach(dev, xrid)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
+	intrstate = save_intr();
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
+		COM_UNLOCK();
+		restore_intr(intrstate);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1872,6 +1876,8 @@ sioattach(dev, xrid)
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
 	}
+	COM_UNLOCK();
+	restore_intr(intrstate);
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -2920,6 +2926,8 @@ more_intr:
 /* XXX - needs to go away when alpha gets ithreads */
 #ifdef __alpha__
 				schedsofttty();
+#else
+				setsofttty();
 #endif
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
@@ -3550,10 +3558,12 @@ comparam(tp, t)
 	}
 #endif
 
+	/*
+	 * This returns with interrupts disabled so that we can complete
+	 * the speed change atomically.  Keeping interrupts disabled is
+	 * especially important while com_data is hidden.
+	 */
 	intrsave = save_intr();
-	disable_intr();
-	COM_LOCK();
-
 	(void) siosetwater(com, t->c_ispeed);
 
 #ifdef PC98
@@ -3692,6 +3702,10 @@ comparam(tp, t)
 	return (0);
 }
 
+/*
+ * This function must be called with interrupts enabled and the com_lock
+ * unlocked.  It will return with interrupts disabled and the com_lock locked.
+ */
 static int
 siosetwater(com, speed)
 	struct com_s	*com;
@@ -3701,7 +3715,6 @@ siosetwater(com, speed)
 	u_char		*ibuf;
 	int		ibufsize;
 	struct tty	*tp;
-	int		intrsave;
 
 	/*
 	 * Make the buffer size large enough to handle a softtty interrupt
@@ -3716,16 +3729,22 @@ siosetwater(com, speed)
 	if (com->pc98_if_type == COM_IF_RSA98III)
 		ibufsize = 2048;
 #endif
-	if (ibufsize == com->ibufsize)
+	if (ibufsize == com->ibufsize) {
+		disable_intr();
+		COM_LOCK();
 		return (0);
+	}
 
 	/*
 	 * Allocate input buffer.  The extra factor of 2 in the size is
 	 * to allow for an error byte for each input byte.
 	 */
 	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
-	if (ibuf == NULL)
+	if (ibuf == NULL) {
+		disable_intr();
+		COM_LOCK();
 		return (ENOMEM);
+	}
 
 	/* Initialize non-critical variables. */
 	com->ibufold = com->ibuf;
@@ -3741,7 +3760,6 @@ siosetwater(com, speed)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	intrsave = save_intr();
 	disable_intr();
 	COM_LOCK();
 	if (com->iptr != com->ibuf)
@@ -3762,8 +3780,6 @@ siosetwater(com, speed)
 	com->ibufend = ibuf + ibufsize;
 	com->ierroff = ibufsize;
 	com->ihighwater = ibuf + 3 * ibufsize / 4;
-	COM_UNLOCK();
-	restore_intr(intrsave);
 	return (0);
 }
 
