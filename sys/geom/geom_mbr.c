@@ -100,7 +100,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 		dos_partition_dec(
 		    sec0 + DOSPARTOFF + i * sizeof(struct dos_partition),
 		    dp + i);
-		if (bootverbose)
+		if (0 && bootverbose)
 			g_mbr_print(i, dp + i);
 	}
 	if ((!bcmp(dp, historical_bogus_partition_table,
@@ -374,7 +374,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    buf + DOSPARTOFF + 
 				    i * sizeof(struct dos_partition), dp + i);
 			g_free(buf);
-			if (bootverbose) {
+			if (0 && bootverbose) {
 				printf("MBREXT Slice %d on %s:\n",
 				    slice + 5, gp->name);
 				g_mbr_print(0, dp);
