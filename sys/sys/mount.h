@@ -37,23 +37,14 @@
 #ifndef _SYS_MOUNT_H_
 #define _SYS_MOUNT_H_
 
-/*
- * XXX - compatability until lockmgr() goes away or all the #includes are
- * updated.
- */
-#include <sys/lockmgr.h>
-
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
+#include <sys/lockmgr.h>
 #include <sys/_label.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #endif
-
-struct iovec;
-struct netcred;
-struct netexport;
 
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
@@ -76,6 +67,8 @@ struct fid {
 #define	MFSNAMELEN	16	/* length of fs type name, including null */
 #define	MNAMELEN	(88 - 2 * sizeof(long))	/* size of on/from name bufs */
 
+/* XXX getfsstat.2 is out of date with write and read counter changes here. */
+/* XXX statfs.2 is out of date with read counter changes here. */
 struct statfs {
 	long	f_spare2;		/* placeholder */
 	long	f_bsize;		/* fundamental filesystem block size */
@@ -89,19 +82,35 @@ struct statfs {
 	uid_t	f_owner;		/* user that mounted the filesystem */
 	int	f_type;			/* type of filesystem */
 	int	f_flags;		/* copy of mount exported flags */
-	long    f_syncwrites;		/* count of sync writes since mount */
-	long    f_asyncwrites;		/* count of async writes since mount */
+	long	f_syncwrites;		/* count of sync writes since mount */
+	long	f_asyncwrites;		/* count of async writes since mount */
 	char	f_fstypename[MFSNAMELEN]; /* fs type name */
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
-	long    f_syncreads;		/* count of sync reads since mount */
-	long    f_asyncreads;		/* count of async reads since mount */
+	long	f_syncreads;		/* count of sync reads since mount */
+	long	f_asyncreads;		/* count of async reads since mount */
 	short	f_spares1;		/* unused spare */
 	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
 	short	f_spares2;		/* unused spare */
-	long    f_spare[2];		/* unused spare */
+	/*
+	 * XXX on machines where longs are aligned to 8-byte boundaries, there
+	 * is an unnamed int32_t here.  This spare was after the apparent end
+	 * of the struct until we bit off the read counters from f_mntonname.
+	 */
+	long	f_spare[2];		/* unused spare */
 };
 
 #ifdef _KERNEL
+#define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
+
+TAILQ_HEAD(vnodelst, vnode);
+TAILQ_HEAD(vfsoptlist, vfsopt);
+struct vfsopt {
+	TAILQ_ENTRY(vfsopt) link;
+	char	*name;
+	void	*value;
+	int	len;
+};
+
 /*
  * Structure per mounted filesystem.  Each mounted filesystem has an
  * array of operations and an instance record.  The filesystems are
@@ -114,17 +123,6 @@ struct statfs {
  * list.  Filesystem kld's syncing code should remain compatible since
  * they only need to scan the dirty vnode list (nvnodelist -> dirtyvnodelist).
  */
-TAILQ_HEAD(vnodelst, vnode);
-
-#define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
-
 struct mount {
 	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
@@ -144,7 +142,7 @@ struct mount {
 	struct ucred	*mnt_cred;		/* credentials of mounter */
 	qaddr_t		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
-	u_int		mnt_iosize_max;		/* max IO request size */
+	int		mnt_iosize_max;		/* max size for clusters, etc */
 	struct netexport *mnt_export;		/* export list */
 	struct label	mnt_mntlabel;		/* MAC label for the mount */
 	struct label	mnt_fslabel;		/* MAC label for the fs */
@@ -164,7 +162,7 @@ struct mount {
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
 #define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
 #define	MNT_NOSYMFOLLOW	0x00400000	/* do not follow symlinks */
-#define	MNT_JAILDEVFS	0x02000000	/* Jail friendly DEVFS behaviour */
+#define	MNT_JAILDEVFS	0x02000000	/* jail-friendly DEVFS behaviour */
 #define	MNT_MULTILABEL	0x04000000	/* MAC support for individual objects */
 #define	MNT_ACLS	0x08000000	/* ACL support enabled */
 #define	MNT_NOATIME	0x10000000	/* disable update of file access time */
@@ -193,7 +191,7 @@ struct mount {
 #define	MNT_IGNORE	0x00800000	/* do not show entry in df */
 
 /*
- * Mask of flags that are visible to statfs()
+ * Mask of flags that are visible to statfs().
  * XXX I think that this could now become (~(MNT_CMDFLAGS))
  * but the 'mount' program may need changing to handle this.
  */
@@ -207,8 +205,8 @@ struct mount {
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_JAILDEVFS	| MNT_MULTILABEL | MNT_ACLS)
 
-/* Mask of flags that can be updated */
-#define MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| MNT_NODEV	| \
+/* Mask of flags that can be updated. */
+#define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| MNT_NODEV	| \
 			MNT_SYNCHRONOUS	| MNT_UNION	| MNT_ASYNC	| \
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| MNT_JAILDEVFS	| \
@@ -280,8 +278,8 @@ struct mount {
  * Generic file handle
  */
 struct fhandle {
-	fsid_t	fh_fsid;	/* File system id of mount point */
-	struct	fid fh_fid;	/* File sys specific id */
+	fsid_t	fh_fsid;	/* Filesystem id of mount point */
+	struct	fid fh_fid;	/* Filesys specific id */
 };
 typedef struct fhandle	fhandle_t;
 
@@ -354,6 +352,9 @@ struct ovfsconf {
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
 
+struct iovec;
+struct uio;
+
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -366,11 +367,8 @@ extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
 /*
  * Operations supported on mounted filesystem.
  */
-#ifdef __STDC__
-struct nameidata;
-struct mbuf;
 struct mount_args;
-#endif
+struct nameidata;
 
 typedef int vfs_mount_t(struct mount *mp, char *path, caddr_t data,
 			struct nameidata *ndp, struct thread *td);
@@ -412,7 +410,7 @@ struct vfsops {
 	vfs_init_t		*vfs_init;
 	vfs_uninit_t		*vfs_uninit;
 	vfs_extattrctl_t	*vfs_extattrctl;
-	/* additions below are not binary compatible with 5.0 and below */
+	/* Additions below are not binary compatible with 5.0 and below. */
 	vfs_nmount_t		*vfs_nmount;
 };
 
@@ -509,8 +507,9 @@ vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 
 /* XXX - these should be indirect functions!!! */
-int	softdep_process_worklist(struct mount *);
 int	softdep_fsync(struct vnode *);
+int	softdep_process_worklist(struct mount *);
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
@@ -525,8 +524,8 @@ int	fstatfs(int, struct statfs *);
 int	getfh(const char *, fhandle_t *);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
-int	nmount(struct iovec *, unsigned int, int);
 int	mount(const char *, const char *, int, void *);
+int	nmount(struct iovec *, u_int, int);
 int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
 
