@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.21 1998/06/20 00:19:32 brian Exp $
+ *	$Id: bundle.c,v 1.22 1998/06/20 01:36:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -679,11 +679,12 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   }
 }
 
-static void
+static int
 bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
+  int result = 0;
 
   /* This is not actually necessary as struct mpserver doesn't Write() */
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
@@ -691,7 +692,9 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
 
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
-      descriptor_Write(&dl->desc, bundle, fdset);
+      result += descriptor_Write(&dl->desc, bundle, fdset);
+
+  return result;
 }
 
 void

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.47 1998/05/28 23:17:38 brian Exp $
+ *	$Id: chat.c,v 1.48 1998/06/15 19:06:38 brian Exp $
  */
 
 #include <sys/types.h>
@@ -464,10 +464,11 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   }
 }
 
-static void
+static int
 chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
+  int result = 0;
 
   if (c->state == CHAT_SEND) {
     int wrote;
@@ -491,6 +492,7 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
 
     wrote = physical_Write(c->physical, c->argptr, c->arglen);
+    result = wrote ? 1 : 0;
     if (wrote == -1) {
       if (errno != EINTR)
         log_Printf(LogERROR, "chat_Write: %s\n", strerror(errno));
@@ -507,6 +509,8 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       c->arglen -= wrote;
     }
   }
+
+  return result;
 }
 
 void

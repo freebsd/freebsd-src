@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.91 1998/06/16 19:40:39 brian Exp $
+ * $Id: modem.c,v 1.92 1998/06/18 22:43:18 brian Exp $
  *
  *  TODO:
  */
@@ -78,8 +78,8 @@
 #include "systems.h"
 
 
-static void modem_DescriptorWrite(struct descriptor *, struct bundle *,
-                                  const fd_set *);
+static int modem_DescriptorWrite(struct descriptor *, struct bundle *,
+                                 const fd_set *);
 static void modem_DescriptorRead(struct descriptor *, struct bundle *,
                                  const fd_set *);
 static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
@@ -831,12 +831,12 @@ modem_LogicalClose(struct physical *modem)
   modem->name.base = modem->name.full;
 }
 
-static void
+static int
 modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct physical *modem = descriptor2physical(d);
-  int nb, nw;
+  int nb, nw, result = 0;
 
   if (modem->out == NULL)
     modem->out = link_Dequeue(&modem->link);
@@ -851,14 +851,19 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
       modem->out->offset += nw;
       if (modem->out->cnt == 0)
 	modem->out = mbuf_FreeSeg(modem->out);
+      result = 1;
     } else if (nw < 0) {
       if (errno != EAGAIN) {
 	log_Printf(LogPHASE, "%s: write (%d): %s\n", modem->link.name,
                    modem->fd, strerror(errno));
         datalink_Down(modem->dl, CLOSE_NORMAL);
       }
+      result = 1;
     }
+    /* else we shouldn't really have been called !  select() is broken ! */
   }
+
+  return result;
 }
 
 int
