@@ -1049,6 +1049,7 @@ extern void utmp_sig_notify P((int));
 getptyslave()
 {
 	register int t = -1;
+	char erase;
 
 #if	!defined(CRAY) || !defined(NEWINIT)
 # ifdef	LINEMODE
@@ -1065,12 +1066,13 @@ getptyslave()
 	 * 	if linemode was turned on
 	 *	terminal window size
 	 *	terminal speed
+	 *	erase character
 	 * so that we can re-set them if we need to.
 	 */
 # ifdef	LINEMODE
 	waslm = tty_linemode();
 # endif
-
+	erase = termbuf.c_cc[VERASE];
 
 	/*
 	 * Make sure that we don't have a controlling tty, and
@@ -1156,6 +1158,8 @@ getptyslave()
 # endif /* defined(USE_TERMIO) && !defined(CRAY) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
+	if (erase)
+		termbuf.c_cc[VERASE] = erase;
 # ifdef	LINEMODE
 	if (waslm)
 		tty_setlinemode(1);
