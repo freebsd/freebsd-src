@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25 1995/05/30 08:09:55 rgrimes Exp $
+ *	$Id: tcp_input.c,v 1.25.4.1 1995/07/23 05:12:13 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -216,8 +216,6 @@ present:
 		return (0);
 	ti = tp->seg_next;
 	if (ti == (struct tcpiphdr *)tp || ti->ti_seq != tp->rcv_nxt)
-		return (0);
-	if (tp->t_state == TCPS_SYN_RECEIVED && ti->ti_len)
 		return (0);
 	do {
 		tp->rcv_nxt += ti->ti_len;
@@ -1529,7 +1527,7 @@ dodata:							/* XXX */
 			socantrcvmore(so);
 			/*
 			 *  If connection is half-synchronized
-			 *  (ie SEND_SYN flag on) then delay ACK,
+			 *  (ie NEEDSYN flag on) then delay ACK,
 			 *  so it may be piggybacked when SYN is sent.
 			 *  Otherwise, since we received a FIN then no
 			 *  more input can be expected, send ACK now.
