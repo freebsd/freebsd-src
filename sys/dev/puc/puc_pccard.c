@@ -50,7 +50,6 @@ const struct puc_device_description rscom_devices = {
 
 	"ARGOSY SP320 Dual port serial PCMCIA",
 	/* http://www.argosy.com.tw/product/sp320.htm */
-	NULL,
 		{	0,	0,	0,	0	},
 		{	0,	0,	0,	0	},
 	{

@@ -70,7 +70,6 @@ struct puc_softc;
 typedef int puc_init_t(struct puc_softc *sc);
 struct puc_device_description {
 	const char	*name;
-	puc_init_t	*init;
 	uint32_t	rval[4];
 	uint32_t	rmask[4];
 	struct {
@@ -83,6 +82,7 @@ struct puc_device_description {
 	} ports[PUC_MAX_PORTS];
 	uint32_t	ilr_type;
 	uint32_t	ilr_offset[2];
+	puc_init_t	*init;
 };
 
 #define	PUC_REG_VEND		0
