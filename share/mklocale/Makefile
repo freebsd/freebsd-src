@@ -4,9 +4,9 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=        bg_BG.CP1251 \
-		ja_JP.EUC \
+		ja_JP.eucJP \
 		ja_JP.SJIS \
-		ko_KR.EUC \
+		ko_KR.eucKR \
 		la_LN.US-ASCII \
 		la_LN.ISO8859-1 \
 		la_LN.ISO8859-2 \
@@ -16,7 +16,7 @@ LOCALES=        bg_BG.CP1251 \
 		ru_RU.ISO8859-5 \
 		ru_RU.KOI8-R \
 		uk_UA.KOI8-U \
-		zh_CN.EUC \
+		zh_CN.eucCN \
 		zh_TW.Big5
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
