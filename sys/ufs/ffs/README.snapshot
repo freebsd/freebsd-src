@@ -30,7 +30,7 @@ I use the convention of putting a `snapshot' directory at the
 root of each filesystem into which I can place snapshots.
 You may create up to 20 snapshots per filesystem. Active snapshots
 are recorded in the superblock, so they persist across unmount
-and remount operations and across system reboots. When your
+and remount operations and across system reboots. When you
 are done with a snapshot, it can be removed with the `rm'
 command. Snapshots may be removed in any order, however you
 may not get back all the space contained in the snapshot as
