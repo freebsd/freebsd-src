@@ -1,0 +1,247 @@
+@node Setting up a realm, Things in search for a better place, Building and Installing, Top
+@chapter Setting up a realm
+
+A
+@cindex realm
+realm is an administrative domain.  The name of a Kerberos realm is
+usually the Internet domain name in uppercase.  Call your realm the same
+as your Internet domain name if you do not have strong reasons for not
+doing so.  It will make life easier for you and everyone else.
+
+@section Configuration file
+
+To setup a realm you will first have to create a configuration file:
+@file{/etc/krb5.conf}. The @file{krb5.conf} file can contain many
+configuration options, some of which are described here.
+
+There is a sample @file{krb5.conf} supplied with the distribution.
+
+The configuration file is a hierarchical structure consisting of
+sections, each containing a list of bindings (either variable
+assignments or subsections). A section starts with
+@samp{[section-name]}.  A binding consists of a left hand side, an equal
+(@samp{=}) and a right hand side (the left hand side tag must be
+separated from the equal with some whitespace.) Subsections has a
+@samp{@{} as the first non-whitespace character after the equal. All
+other bindings are treated as variable assignments. The value of a
+variable extends to the end of the line.
+
+@example
+[section1]
+        a-subsection = @{
+                var = value1
+                other-var = value with @{@}
+                sub-sub-section = @{ 
+                        var = 123
+                @}
+        @}
+        var = some other value
+[section2]
+        var = yet another value
+@end example
+
+In this manual, names of sections and bindings will be given as strings
+separated by slashes (@samp{/}). The @samp{other-var} variable will thus
+be @samp{section1/a-subsection/other-var}.
+
+For in-depth information about the contents of the config file, refer to
+the @file{krb5.conf} manual page. Some of the more important sections
+are briefly described here.
+
+The @samp{libdefaults} section contains a list of library configuration
+parameters, such as the default realm and the timeout for kdc
+responses. The @samp{realms} section contains information about specific
+realms, such as where they hide their KDC. This section serves the same
+purpose as the Kerberos 4 @file{krb.conf} file, but can contain more
+information. Finally the @samp{domain_realm} section contains a list of
+mappings from domains to realms, equivalent to the Kerberos 4
+@file{krb.realms} file.
+
+To continue with the realm setup, you will have to create a config file,
+with contents similar to the following.
+
+@example
+[libdefaults]
+        default_realm = MY.REALM
+[realms]
+        MY.REALM = @{
+                kdc = my.kdc
+        @}
+[domain_realm]
+        .my.domain = MY.REALM
+
+@end example
+
+If you use a realm name equal to your domain name, you can omit the
+@samp{libdefaults}, and @samp{domain_realm}, sections. If you have a
+SRV-record for your realm, or your kerberos server has CNAME called
+@samp{kerberos.my.realm}, you can omit the @samp{realms} section too.
+
+@section Creating the database
+
+The database library will look for the database in @file{/var/heimdal},
+so you should probably create that directory.
+
+The keys of all the principals are stored in the database.  If you
+choose to, these can be encrypted with a master key.  You do not have to
+remember this key (or password), but just to enter it once and it will
+be stored in a file (@file{/var/heimdal/m-key}).  If you want to have a
+master key, run @samp{kstash} to create this master key:
+
+@example
+# kstash
+Master key: 
+Verifying password - Master key: 
+@end example
+
+To initialise the database use the @code{kadmin} program, with the
+@samp{-l} option (to enable local database mode). First issue a
+@kbd{init MY.REALM} command. This will create the database and insert
+default principals for that realm. You can have more than one realm in
+one database, so @samp{init} does not destroy any old database.
+
+Before creating the database, @samp{init} will ask you some questions
+about max ticket lifetimes.
+
+After creating the database you should probably add yourself to it. You
+do this with the @samp{add} command. It takes as argument the name of a
+principal. The principal should contain a realm, so if you haven't setup
+a default realm, you will need to explicitly include the realm.
+
+@example
+# kadmin -l
+kadmin> init MY.REALM
+Realm max ticket life [unlimited]:
+Realm max renewable ticket life [unlimited]:
+kadmin> add me  
+Max ticket life [unlimited]:
+Max renewable life [unlimited]:
+Attributes []:
+Password: 
+Verifying password - Password: 
+@end example
+
+Now start the KDC and try getting a ticket.
+
+@example
+# kdc &
+# kinit me
+me@@MY.REALMS's Password:
+# klist
+Credentials cache: /tmp/krb5cc_0
+        Principal: me@@MY.REALM
+
+  Issued           Expires          Principal
+Aug 25 07:25:55  Aug 25 17:25:55  krbtgt/MY.REALM@@MY.REALM
+@end example
+
+If you are curious you can use the @samp{dump} command to list all the
+entries in the database.  It should look something similar to the
+following example (note that the entries here are truncated for
+typographical reasons):
+
+@smallexample
+kadmin> dump
+me@@MY.REALM 1:0:1:0b01d3cb7c293b57:-:0:7:8aec316b9d1629e3baf8 ...
+kadmin/admin@@MY.REALM 1:0:1:e5c8a2675b37a443:-:0:7:cb913ebf85 ...
+krbtgt/MY.REALM@@MY.REALM 1:0:1:52b53b61c875ce16:-:0:7:c8943be ...
+kadmin/changepw@@MY.REALM 1:0:1:f48c8af2b340e9fb:-:0:7:e3e6088 ...
+@end smallexample
+
+@section keytabs
+
+To extract a service ticket from the database and put it in a keytab you
+need to first create the principal in the database with @samp{ank}
+(using the @kbd{--random} flag to get a random password) and then
+extract it with @samp{ext_keytab}.
+
+@example
+kadmin> add --random host/my.host.name
+Max ticket life [unlimited]:
+Max renewable life [unlimited]:
+Attributes []:
+kadmin> ext host/my.host.name
+# ktutil list
+Version  Type             Principal
+     1   des-cbc-md5      host/my.host.name@@MY.REALM
+     1   des-cbc-md4      host/my.host.name@@MY.REALM
+     1   des-cbc-crc      host/my.host.name@@MY.REALM
+     1   des3-cbc-sha1    host/my.host.name@@MY.REALM
+@end example
+
+@section Remote administration
+
+The administration server, @samp{kadmind}, is started by @samp{inetd}
+and you should add a line similar to the one below to your
+@file{/etc/inetd.conf}.
+
+@example
+kerberos-adm stream     tcp     nowait  root /usr/heimdal/libexec/kadmind kadmind
+@end example
+
+You might need to add @samp{kerberos-adm} to your @file{/etc/services}
+as 749/tcp.
+
+Access to the admin server is controlled by an acl-file, (default
+@file{/var/heimdal/kadmind.acl}.) The lines in the access file, has the
+following syntax:
+@smallexample
+principal       [priv1,priv2,...]
+@end smallexample
+
+The privileges you can assign to a principal are: @samp{add},
+@samp{change-password} (or @samp{cpw} for short), @samp{delete},
+@samp{get}, @samp{list}, and @samp{modify}, or the special privilege
+@samp{all}. All of these roughly corresponds to the different commands
+in @samp{kadmin}.
+
+@section Password changing
+
+To allow users to change their passwords, you should run @samp{kpasswdd}.
+It is not run from @samp{inetd}.
+
+You might need to add @samp{kpasswd} to your @file{/etc/services} as
+464/udp.
+
+@subsection Password quality assurance
+
+It is important that users have good passwords, both to make it harder
+to guess them and to avoid off-line attacks (pre-authentication provides
+some defense against off-line attacks).  To ensure that the users choose
+good passwords, you can enable password quality controls in
+@samp{kpasswdd}.  The controls themselves are done in a shared library
+that is used by @samp{kpasswdd}.  To configure in these controls, add
+lines similar to the following to your @file{/etc/krb5.conf}:
+
+@example
+[password_quality]
+        check_library = @var{library}
+        check_function = @var{function}
+@end example
+
+The function @var{function} in the shared library @var{library} will be
+called for proposed new passwords.  The function should be declared as:
+
+@example
+const char *
+function(krb5_context context, krb5_principal principal, krb5_data *pwd);
+@end example
+
+The function should verify that @var{pwd} is a good password for
+@var{principal} and if so return @code{NULL}.  If it is deemed to be of
+low quality, it should return a string explaining why that password
+should not be used.
+
+Code for a password quality checking function that uses the cracklib
+library can be found in @file{kpasswd/sample_password_check.c} in the
+source code distribution.  It requires the cracklib library built with
+the patch available at
+@url{ftp://ftp.pdc.kth.se/pub/krb/src/cracklib.patch}.
+
+If no password quality checking function is configured, it is only
+verified that it is at least six characters of length.
+
+@section Testing clients and servers
+
+Now you should be able to run all the clients and servers.  Refer to the
+appropriate man pages for information on how to use them.

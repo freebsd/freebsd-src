@@ -1,0 +1,39 @@
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: use LIB_roken
+
+1999-09-28  Assar Westerlund  <assar@sics.se>
+
+	* su.c (krb5_verify): use krb5_verify_user_lrealm
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* su.c: add support for shadow passwords and rewrite some logic.
+  	From Miroslav Ruda <ruda@ics.muni.cz>
+
+	* Makefile.am: add libkafs
+
+1999-06-15  Assar Westerlund  <assar@sics.se>
+
+	* su.c (main): conditionalize `getlogin'
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* su.c (verfiy_krb5): get the name out of the ccache before
+ 	closing it
+
+1999-05-05  Assar Westerlund  <assar@sics.se>
+
+	* su.c: some more error checking
+
+Wed Apr 21 21:04:36 1999  Assar Westerlund  <assar@sics.se>
+
+	* su.c (-f): implement
+
+	* su.c: implement -i
+	(verify_krb5): correct the ownership on the credential cache
+
+Tue Apr 20 13:26:13 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
+
+	* su.c: don't depend on paths.h
+
