@@ -68,7 +68,7 @@ main(argc, argv)
 	struct stat sb1, sb2;
 	off_t skip1, skip2;
 	int ch, fd1, fd2, special;
-	char *file1, *file2;
+	const char *file1, *file2;
 
 	while ((ch = getopt(argc, argv, "-lsxz")) != -1)
 		switch (ch) {

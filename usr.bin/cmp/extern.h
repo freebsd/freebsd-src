@@ -40,9 +40,9 @@
 #define DIFF_EXIT	1
 #define ERR_EXIT	2	/* error exit code */
 
-void	c_regular __P((int, char *, off_t, off_t, int, char *, off_t, off_t));
-void	c_special __P((int, char *, off_t, int, char *, off_t));
-void	diffmsg __P((char *, char *, off_t, off_t));
-void	eofmsg __P((char *));
+void	c_regular __P((int, const char *, off_t, off_t, int, const char *, off_t, off_t));
+void	c_special __P((int, const char *, off_t, int, const char *, off_t));
+void	diffmsg __P((const char *, const char *, off_t, off_t));
+void	eofmsg __P((const char *));
 
 extern int lflag, sflag, xflag;

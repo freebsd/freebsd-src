@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 #ifndef lint
@@ -45,7 +48,7 @@ static const char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 
 void
 eofmsg(file)
-	char *file;
+	const char *file;
 {
 	if (!sflag)
 		warnx("EOF on %s", file);
@@ -54,7 +57,7 @@ eofmsg(file)
 
 void
 diffmsg(file1, file2, byte, line)
-	char *file1, *file2;
+	const char *file1, *file2;
 	off_t byte, line;
 {
 	if (!sflag)
