@@ -70,4 +70,15 @@ typedef struct {
 void _rtld_bind_start(void);
 
 extern void *__tls_get_addr(tls_index *ti);
+
+static __inline u_int32_t
+atomic_cmpset_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+{
+
+	if (*p == cmpval) {
+		*p = newval;
+		return (1);
+	}
+	return (0);
+}
 #endif
