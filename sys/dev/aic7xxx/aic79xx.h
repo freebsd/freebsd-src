@@ -1438,6 +1438,8 @@ typedef enum {
 	SEARCH_REMOVE,
 	SEARCH_PRINT
 } ahd_search_action;
+void			ahd_done_with_status(struct ahd_softc *ahd,
+					     struct scb *scb, uint32_t status);
 int			ahd_search_qinfifo(struct ahd_softc *ahd, int target,
 					   char channel, int lun, u_int tag,
 					   role_t role, uint32_t status,
