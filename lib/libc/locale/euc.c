@@ -123,6 +123,8 @@ _EUC_init(rl)
 #define	_SS2	0x008e
 #define	_SS3	0x008f
 
+#define	GR_BITS	0x80808080 /* XXX: to be fixed */
+
 static inline int
 _euc_set(c)
 	u_int c;
@@ -202,6 +204,8 @@ CodeSet1:
 				}
 				*string++ = _SS2;
 				--i;
+				/* SS2 designates G2 into GR */
+				nm |= GR_BITS;
 			} else
 				if (m == CEI->bits[3]) {
 					i = len = CEI->count[3];
@@ -212,6 +216,8 @@ CodeSet1:
 					}
 					*string++ = _SS3;
 					--i;
+					/* SS3 designates G3 into GR */
+					nm |= GR_BITS;
 				} else
 					goto CodeSet1;	/* Bletch */
 		while (i-- > 0)
