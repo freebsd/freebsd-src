@@ -4,7 +4,7 @@ Project by Christos Zoulas.  It has been ported to FreeBSD by Mark Newton.
 To use it:
 
 1.  Choose one of:
-      a.  Add "pseudo-device streams" to your kernel config file and rebuild,
+      a.  Add "device streams" to your kernel config file and rebuild,
           reboot; or
       b.  Build and install the streams module in /sys/modules/streams
 
