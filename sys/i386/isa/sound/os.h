@@ -32,8 +32,7 @@
 #include <sys/buf.h>
 #include <i386/isa/isa_device.h>
 #include <machine/cpufunc.h>
-
-/* These few lines are used by 386BSD (only??). */
+#include <sys/signalvar.h>
 
 #if NSND > 0
 #define CONFIGURE_SOUNDCARD
@@ -116,13 +115,13 @@ typedef struct uio snd_rw_buf;
 /*
  * The way how the ioctl arguments are passed is another nonportable thing.
  * In Linux the argument is just a pointer directly to the user segment. On
- * 386bsd the data is already moved to the kernel space. The following
+ * FreeBSD the data is already moved to the kernel space. The following
  * macros should handle the difference.
  */
 
 /*
  * IOCTL_FROM_USER is used to copy a record pointed by the argument to
- * a buffer in the kernel space. On 386bsd it can be done just by calling
+ * a buffer in the kernel space. On FreeBSD it can be done just by calling
  * memcpy. With Linux a memcpy_from_fs should be called instead.
  * Parameters of the following macros are like in the COPY_*_USER macros.
  */
@@ -174,15 +173,13 @@ struct snd_wait {
  * is aborts the process. This macro is called from close() to see if the
  * buffers should be discarded. If this kind info is not available, a constant
  * 1 or 0 could be returned (1 should be better than 0).
- * I'm not sure if the following is correct for 386BSD.
  */
-#define PROCESS_ABORTING(q, f) (f.aborting | curproc->p_siglist)
+#define PROCESS_ABORTING(q, f) (f.aborting || CURSIG(curproc))
 
 /*
- * The following macro calls sleep. It should be implemented such that
- * the process is resumed if it receives a signal. The following is propably
- * not the way how it should be done on 386bsd.
- * The on_what parameter is a wait_queue defined with DEFINE_WAIT_QUEUE(),
+ * The following macro calls tsleep. It should be implemented such that
+ * the process is resumed if it receives a signal.
+ * The q parameter is a wait_queue defined with DEFINE_WAIT_QUEUE(),
  * and the second is a workarea parameter. The third is a timeout 
  * in ticks. Zero means no timeout.
  */
@@ -190,13 +187,18 @@ struct snd_wait {
 	{ \
 	  int flag; \
 	  f.mode = WK_SLEEP; \
-	  flag=tsleep((caddr_t) &q, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
-	  if(flag == ERESTART) f.aborting = 1;\
-	  else f.aborting = 0;\
+	  flag=tsleep(&q, (PRIBIO-5)|PCATCH, "sndint", time_limit); \
 	  f.mode &= ~WK_SLEEP; \
+	  if (flag == EINTR) \
+		f.aborting = 1; \
+	  else { \
+		f.aborting = 0; \
+		if (flag == EWOULDBLOCK) \
+			f.mode |= WK_TIMEOUT; \
+	  } \
 	}
 /* An the following wakes up a process */
-#define WAKE_UP(q, f)   {f.mode = WK_WAKEUP;wakeup((caddr_t) &q);}
+#define WAKE_UP(q, f)   wakeup(&q)
 
 /*
  * Timing macros. This driver assumes that there is a timer running in the
@@ -253,7 +255,7 @@ extern unsigned long get_time(void);
 #define OUTW(addr, data)	outw(data, addr)
 #endif
 
-/* memcpy() was not defined og 386bsd. Lets define it here */
+/* memcpy() was not defined on FreeBSD. Lets define it here */
 #define memcpy(d, s, c)		bcopy(s, d, c)
 
 /*
