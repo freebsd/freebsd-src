@@ -34,10 +34,13 @@
  * SUCH DAMAGE.
  */
 
+/* UTF2 is obsolete and will be removed in FreeBSD 6 -- use UTF-8 instead. */
+#define	OBSOLETE_IN_6
+
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)utf2.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <rune.h>

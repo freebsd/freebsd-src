@@ -34,7 +34,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/* setinvalidrune() is obsolete in FreeBSD 6 -- use WEOF instead. */
+#define	OBSOLETE_IN_6
+
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <rune.h>
