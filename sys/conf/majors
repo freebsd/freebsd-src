@@ -20,7 +20,6 @@
 # 
 #maj 	name		comments
 1	*ctty		/dev/tty
-2	*mm		/dev/mem,kmem,etc
 4	*geom		GEOMetry
 5	*pts		pseudo tty "tty" half
 6	*ptc		pseudo tty "master" half
