@@ -86,7 +86,7 @@ kern/inflate.c		optional gzip
 kern/init_main.c	standard
 kern/init_sysent.c	standard
 kern/init_sysvec.c	standard
-#kern/kern_intr.c	standard
+kern/kern_intr.c	standard
 kern/kern_module.c	standard
 kern/kern_linker.c	standard
 kern/link_aout.c	standard
