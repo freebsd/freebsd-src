@@ -13,6 +13,7 @@ SUBDIR=	apply \
 	basename \
 	biff \
 	brandelf \
+	bzip2 \
 	c89 \
 	calendar \
 	cap_mkdb \
