@@ -1,9 +1,8 @@
 # $FreeBSD$
 
-SUBDIR =
-SUBDIR += firewire
-SUBDIR += sbp
-SUBDIR += sbp_targ
-SUBDIR += fwe
+SUBDIR=	firewire \
+	fwe \
+	sbp \
+	sbp_targ
 
 .include <bsd.subdir.mk>

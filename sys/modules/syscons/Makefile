@@ -1,20 +1,20 @@
 # $FreeBSD$
 
-SUBDIR =
-SUBDIR += blank
-SUBDIR += daemon
-SUBDIR += dragon
-SUBDIR += fade
-SUBDIR += fire
-SUBDIR += green
-SUBDIR += logo
-SUBDIR += rain
-SUBDIR += snake
-SUBDIR += star
-SUBDIR += warp
+SUBDIR=	${_apm} \
+	blank \
+	daemon \
+	dragon \
+	fade \
+	fire \
+	green \
+	logo \
+	rain \
+	snake \
+	star \
+	warp
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR += apm
+_apm=	apm
 .endif
 
 .include <bsd.subdir.mk>
