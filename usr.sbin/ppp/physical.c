@@ -1129,3 +1129,11 @@ physical_Slot(struct physical *p)
 
   return -1;
 }
+
+int
+physical_SetPPPoEnonstandard(struct physical *p, int enable)
+{
+   p->cfg.nonstandard_pppoe = enable ? 1 : 0;
+   p->cfg.pppoe_configured = 1;
+   return 1;
+}
