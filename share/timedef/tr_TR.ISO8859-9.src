@@ -65,7 +65,7 @@ Cumartesi
 #
 # c_fmt
 #
-%e %b %Y %a %X
+%a %e %b %X %Y
 #
 # am
 #
