@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.435 1998/12/09 15:11:11 jkh Exp $
+#	$Id: Makefile,v 1.436 1998/12/18 05:13:01 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -43,6 +43,8 @@ OBJFORMAT?=		elf
 # in English only.
 ALLLANG=	yes
 DOCPORTS=	textproc/docproj
+# Set this to wherever the distfiles required by ${DOCPORTS} live.
+DISTFILES?=	${.CURDIR}/../../ports/distfiles
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            INSTALL.TXT RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
@@ -181,10 +183,7 @@ rerelease release:
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
-	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
-	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
-	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
-        done
+	[ -d ${DISTFILES}/ ] && cp -rp ${DISTFILES} ${CHROOTDIR}/usr/ports/distfiles
 .endif
 .endif
 .if make(rerelease)
