@@ -1211,13 +1211,18 @@
     world-readable <filename>/etc/master.passwd</filename> has been
     fixed (see security advisory FreeBSD-SA-01:59). &merged;</para>
 
-    <para>All non-<username>root</username>-owned binaries in standard
+    <para>A vulnerability in <application>UUCP</application> has been
+    closed (see security advisory FreeBSD-SA-01:62).  
+    All non-<username>root</username>-owned binaries in standard
     system paths now have the <literal>schg</literal> flag set to
     prevent exploit vectors when run by &man.cron.8;, by
     <username>root</username>, or by a user other then the one owning
     the binary.  In addition, &man.uustat.1; is now run via
     <filename>/etc/periodic/daily/410.status-uucp</filename> as
-    <username>uucp</username>, not <username>root</username>. &merged;</para>
+    <username>uucp</username>, not <username>root</username>.
+    In &os; -CURRENT, <application>UUCP</application> has since been moved
+    to the Ports Collection and no longer a part of the base
+    system. &merged;</para>
 
     <para>A security hole in the form of a buffer overflow in the
     &man.semop.2; system call has been closed. &merged;</para>
