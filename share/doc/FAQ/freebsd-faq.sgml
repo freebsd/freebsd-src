@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.38 1996/03/05 23:48:02 joerg Exp $
+<date> $Id: freebsd-faq.sgml,v 1.39 1996/03/24 22:24:10 joerg Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1338,7 +1338,95 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           <verb>
             mount_cd9660 /dev/cd0c /mnt
           </verb>
+          
+      <sect1>
+        <heading>How can  I use the  NT  loader to  boot Linux, FreeBSD, or whatever ?</heading>
+        <p>
+          The general idea is that one copies the first sector of your
+          native root Linux or FreeBSD partition into a file in the DOS/NT
+          partition.  Assuming one names that file something like
+          <tt>c:&bsol;bootsect.lnx</tt> or <tt>c:&bsol;bootsect.bsd</tt>
+          (inspired by <tt>c:&bsol;bootsect.dos</tt>) one can then edit the
+          <tt>c:&bsol;boot.ini</tt> file to come up with something like
+          this:
+          <verb>
+            [boot loader]
+            timeout=30
+            default=multi(0)disk(0)rdisk(0)partition(1)\WINDOWS
+            [operating systems]
+            multi(0)disk(0)rdisk(0)partition(1)\WINDOWS="Windows NT" 
+            C:\BOOTSECT.LNX="Linux"
+            C:\BOOTSECT.BSD="FreeBSD"
+            C:\="DOS"
+          </verb>
+          This procedure assumes that DOS, NT, Linux, FreeBSD, or whatever
+          have been installed into their respective fdisk partitions on the
+          <bf/same/ disk.  In my case DOS &amp; NT are in the first fdisk
+          partition, Linux in the second, and FreeBSD in the third.  I also
+          installed Linux and FreeBSD to boot from their native partitions,
+          not the disk MBR, and without delay.
+
+          Mount a DOS-formatted floppy (if you've converted to NTFS) or the
+          FAT partition, under, say, <tt>/mnt</tt>.
+
+          In Linux:
+          <verb>
+            dd if=/dev/sda2 of=/mnt/bootsect.lnx bs=512 count=1
+          </verb>
+
+          In FreeBSD:  
+          <verb>
+            dd if=/dev/rsd0a of=/mnt/bootsect.bsd bs=512 count=1
+          </verb>
+
+          Reboot into DOS or NT.  NTFS users copy the <tt/bootsect.lnx/
+          and/or the <tt/bootsect.bsd/ file from the floppy to
+          <tt/C:&bsol;/.  Modify the attributes (permissions) on
+          <tt/boot.ini/ with:
  
+          <verb>
+            attrib -s -r c:\boot.ini
+          </verb>
+
+          Edit to add the appropriate entries from the example
+          <tt/boot.ini/ above, and restore the attributes:
+
+          <verb>
+            attrib -r -s c:\boot.ini
+          </verb>
+
+          If Linux or FreeBSD are booting from the MBR, restore it with the
+          DOS ``<tt>fdisk /mbr</tt>'' command after you reconfigure them to
+          boot from their native partitions.
+
+      <sect1>
+        <heading>Hey! My printer is slow as a dog. What can I do ?</heading>
+        <p>
+          If it's parallel, and all your problem is that it's terribly
+          slow, try setting your printer port into ``polled'' mode:
+
+          <verb>
+            lptcontrol -p
+          </verb>
+
+          Some newer HP printers are told to not work correctly in
+          interrupt mode, apparently due to some (not yet exactly
+          understood) timing problem.  Slowaris is also affected by this
+          (and that's probably the reason why the HP support does rather
+          act like an ``unsupport'' here).
+
+      <sect1>
+        <heading>I Installed FreeBSD on my XYZ-brand PC, and my keyboard (and probably bus mouse, too) is locking up after switching between vtys (or even spontaneous). What's wrong?</heading>
+        <p>
+          Try adding the following option in your kernel configuration file
+          and recompile it.
+          <verb>
+            options ASYNCH
+          </verb>
+
+          See the section  on <ref id="make-kernel" name="about building  a
+          kernel"> if you've no experience with building kernels.
+
       <sect1>
 	<heading>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?</heading>
         <p>
@@ -1704,6 +1792,80 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 
       </sect1>
 
+      <sect1>
+        <heading>How does one detect and initialize a Plug N Play ISA card?</heading>
+        <p>
+          By: Frank Durda IV <tt>&lt;uhclem@nemesis.lonestar.org&gt;</tt>
+
+          In a nutshell, there a few I/O ports that all of the PnP boards
+          respond to when the host asks if anyone is out there.  So when
+          the PnP probe routine starts, he asks if there are any PnP boards
+          present, and all the PnP boards respond with their model &num; to
+          a I/O read of the same port, so the probe routine gets a wired-OR
+          ``yes'' to that question.  At least one bit will be on in that
+          reply.  Then the probe code is able to cause boards with board
+          model IDs (assigned by Microsoft/Intel) lower than X to go
+          ``off-line''.  It then looks to see if any boards are still
+          responding to the query.  If the answer was ``<tt/0/'', then
+          there are no boards with IDs above X.  Now probe asks if there
+          are any boards below ``X''.  If so, probe knows there are boards
+          with a model numbers below X.  Probe then asks for boards greater
+          than X-(limit/4) to go off-line.  If repeats the query.  By
+          repeating this semi-binary search of IDs-in-range enough times,
+          the probing code will eventually identify all PnP boards present
+          in a given machine with a number of iterations that is much lower
+          than what 2^64 would take.
+
+          The IDs are two 32-bit fields (hence 2&circ;64) + 8 bit checksum.
+          The first 32 bits are a vendor identifier.  They never come out
+          and say it, but it appears to be assumed that different types of
+          boards from the same vendor could have different 32-bit vendor
+          ids.  The idea of needing 32 bits just for unique manufacturers
+          is a bit excessive.
+
+          The lower 32 bits are a serial &num;, ethernet address, something
+          that makes this one board unique.  The vendor must never produce
+          a second board that has the same lower 32 bits unless the upper
+          32 bits are also different.  So you can have multiple boards of
+          the same type in the machine and the full 64 bits will still be
+          unique.
+
+          The 32 bit groups can never be all zero.  This allows the
+          wired-OR to show non-zero bits during the initial binary search.
+
+          Once the system has identified all the board IDs present, it will
+          reactivate each board, one at a time (via the same I/O ports),
+          and find out what resources the given board needs, what interrupt
+          choices are available, etc.  A scan is made over all the boards
+          to collect this information.
+
+          This info is then combined with info from any ECU files on the
+          hard disk or wired into the MLB BIOS.  The ECU and BIOS PnP
+          support for hardware on the MLB is usually synthetic, and the
+          peripherals don't really do geniune PnP.  However by examining
+          the BIOS info plus the ECU info, the probe routines can cause the
+          devices that are PnP to avoid those devices the probe code cannot
+          relocate.
+
+          Then the PnP devices are visited once more and given their I/O,
+          DMA, IRQ and Memory-map address assignments.  The devices will
+          then appear at those locations and remain there until the next
+          reboot, although there is nothing that says you can't move them
+          around whenever you want.
+
+          There is a lot of oversimplification above, but you should get
+          the general idea.
+
+          Microsoft took over some of the primary printer status ports to
+          do PnP, on the logic that no boards decoded those addresses for
+          the opposing I/O cycles.  I found a genuine IBM printer board
+          that did decode writes of the status port during the early PnP
+          proposal review period, but MS said ``tough''.  So they do a
+          write to the printer status port for setting addresses, plus that
+          use that address + <tt/0x800/, and a third I/O port for reading
+          that can be located anywhere between <tt/0x200/ and <tt/0x3ff/.
+
+          
     <sect>
       <heading>Kernel Configuration</heading>
       <p>
@@ -2199,6 +2361,9 @@ disable pred1
           <verb>
             tcp_extensions=NO
           </verb>
+
+          Xylogic's Annex boxes are also broken in this regard and you must
+          use the above change to connect thru them.
 
       <sect1>
 	<heading>I want to enable IP multicast support on my FreeBSD box, how do I do it?  (Alternatively: What the heck IS multicasting and what applications make use of it?)</heading>
