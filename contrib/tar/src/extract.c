@@ -1026,10 +1026,19 @@ extract_archive (void)
       {
 	struct stat st1, st2;
 	int e;
+	size_t skiplinkcrud;
+
+	if (absolute_names_option)
+	  skiplinkcrud = 0;
+	else {
+	  skiplinkcrud = FILESYSTEM_PREFIX_LEN (current_link_name);
+	  while (ISSLASH (current_link_name[skiplinkcrud]))
+	    skiplinkcrud++;
+	}
 
 	/* MSDOS does not implement links.  However, djgpp's link() actually
 	   copies the file.  */
-	status = link (current_link_name, CURRENT_FILE_NAME);
+	status = link (current_link_name + skiplinkcrud, CURRENT_FILE_NAME);
 
 	if (status == 0)
 	  {
