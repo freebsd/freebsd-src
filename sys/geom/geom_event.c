@@ -255,7 +255,6 @@ g_post_event_x(g_event_t *func, void *arg, int flag, struct g_event **epp, va_li
 		g_trace(G_T_TOPOLOGY, "  ref %p", p);
 		ep->ref[n++] = p;
 	}
-	va_end(ap);
 	KASSERT(p == NULL, ("Too many references to event"));
 	ep->func = func;
 	ep->arg = arg;
@@ -273,11 +272,14 @@ int
 g_post_event(g_event_t *func, void *arg, int flag, ...)
 {
 	va_list ap;
+	int i;
 
-	va_start(ap, flag);
 	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
 	    ("Wrong flag to g_post_event"));
-	return (g_post_event_x(func, arg, flag, NULL, ap));
+	va_start(ap, flag);
+	i = g_post_event_x(func, arg, flag, NULL, ap);
+	va_end(ap);
+	return (i);
 }
 
 
@@ -296,10 +298,11 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	int error;
 
 	/* g_topology_assert_not(); */
-	va_start(ap, flag);
 	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
 	    ("Wrong flag to g_post_event"));
+	va_start(ap, flag);
 	error = g_post_event_x(func, arg, flag | EV_WAKEUP, &ep, ap);
+	va_end(ap);
 	if (error)
 		return (error);
 	do 

@@ -102,6 +102,7 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	sbuf_vprintf(req->serror, fmt, ap);
+	va_end(ap);
 	sbuf_finish(req->serror);
 	if (g_debugflags & G_F_CTLDUMP)
 		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));

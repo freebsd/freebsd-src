@@ -344,9 +344,10 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 		pp->mediasize = gsl->length;
 		return (0);
 	}
-	va_start(ap, fmt);
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
 	pp2 = LIST_FIRST(&gp->consumer)->provider;
