@@ -185,9 +185,13 @@ return a valid pointer to a passwd structure on success
 or
 .Dv NULL
 if the entry is not found or if an error occurs.
-In the latter case,
+If an error does occur,
 .Va errno
 will be set.
+Note that programs must explicitly set
+.Va errno
+to zero before calling any of these functions if they need to
+distinguish between a non-existent entry and an error.
 The functions
 .Fn getpwent_r ,
 .Fn getpwnam_r ,
