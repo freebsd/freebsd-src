@@ -427,8 +427,8 @@ sbreserve(sb, cc, so, p)
 	 */
 	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
-	if (p && !chgsbsize(so->so_cred->cr_uid, &sb->sb_hiwat, cc,
-		p->p_rlimit[RLIMIT_SBSIZE].rlim_cur)) {
+	if (!chgsbsize(so->so_cred->cr_uid, &sb->sb_hiwat, cc,
+	    p ? p->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
 		return (0);
 	}
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
