@@ -17,8 +17,9 @@ SUBDIR+=		${MACHINE_ARCH}
 .endif
 
 # Build ARC / AlphaBIOS executable on the Alpha
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=		arc
-.endif
+# (this is a WIP (work in progress))
+#.if ${MACHINE_ARCH} == "alpha"
+#SUBDIR+=		arc
+#.endif
 
 .include <bsd.subdir.mk>
