@@ -1012,8 +1012,14 @@ pr_pack(buf, cc, from, tv)
 			cp = (u_char*)&icp->icmp_data[phdr_len];
 			dp = &outpack[MINICMPLEN + phdr_len];
 			cc -= ICMP_MINLEN + phdr_len;
-			for (i = phdr_len; i < datalen && cc != 0;
-			     ++i, ++cp, ++dp, cc--) {
+			i = 0;
+			if (timing) {   /* don't check variable timestamp */
+				cp += TIMEVAL_LEN;
+				dp += TIMEVAL_LEN;
+				cc -= TIMEVAL_LEN;
+				i += TIMEVAL_LEN;
+			}
+			for (; i < datalen && cc > 0; ++i, ++cp, ++dp, --cc) {
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
