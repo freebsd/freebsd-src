@@ -142,7 +142,7 @@ propagate_priority(struct proc *p)
 		 * If lock holder is actually running, just bump priority.
 		 */
 		if (p->p_oncpu != NOCPU) {
-			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
+			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB || p->p_stat == SSTOP);
 			return;
 		}
 
