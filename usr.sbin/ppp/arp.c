@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.19 1997/12/23 22:38:51 brian Exp $
+ * $Id: arp.c,v 1.20 1997/12/24 09:28:49 brian Exp $
  *
  */
 
@@ -29,14 +29,10 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#ifdef __FreeBSD__
-#include <net/if_var.h>
-#endif
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <net/if_types.h>
-#include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 
 #include <fcntl.h>
