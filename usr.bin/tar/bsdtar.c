@@ -153,7 +153,7 @@ main(int argc, char **argv)
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
 
 	if (bsdtar->user_uid == 0)
-		bsdtar->extract_flags = ARCHIVE_EXTRACT_OWNER;
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 
 	bsdtar->progname = strrchr(*argv, '/');
 	if (bsdtar->progname != NULL)
