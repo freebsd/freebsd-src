@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.7 1997/06/20 10:28:13 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.8 1997/10/13 08:58:48 kato Exp $
  */
 
 /*
@@ -387,8 +387,9 @@ config_isadev_c(isdp, mp, reconfig)
 	struct isa_driver *dp = isdp->id_driver;
 
 	if (!isdp->id_enabled) {
-		printf("%s%d: disabled, not probed.\n",
-			dp->name, isdp->id_unit);
+		if (bootverbose)
+			printf("%s%d: disabled, not probed.\n",
+				dp->name, isdp->id_unit);
 		return;
 	}
 	checkbits = CC_DRQ | CC_IOADDR | CC_MEMADDR;
