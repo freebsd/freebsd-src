@@ -45,6 +45,7 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sun_disklabel.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
@@ -63,23 +64,17 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 {
 	int i, error;
 	u_int u, v, csize;
+	struct sun_disklabel sl;
 
-	/* The second last short is a magic number */
-	if (be16dec(sec0 + 508) != 0xdabe)
-		return (EBUSY);
+	error = sunlabel_dec(sec0, &sl);
+	if (error)
+		return (error);
 
-	/* The shortword parity of the entire thing must be even */
-	u = 0;
-	for (i = 0; i < 512; i += 2)
-		u ^= be16dec(sec0 + i);
-	if (u != 0)
-		return(EBUSY);
+	csize = sl.sl_ntracks * sl.sl_nsectors;
 
-	csize = be16dec(sec0 + 436) * be16dec(sec0 + 438);
-
-	for (i = 0; i < 8; i++) {
-		v = be32dec(sec0 + 444 + i * 8);
-		u = be32dec(sec0 + 448 + i * 8);
+	for (i = 0; i < SUN_NPART; i++) {
+		v = sl.sl_part[i].sdkp_cyloffset;
+		u = sl.sl_part[i].sdkp_nsectors;
 		g_topology_lock();
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
 		    ((off_t)v * csize) << 9ULL,
@@ -90,9 +85,9 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 		if (error)
 			return (error);
 	}
-	for (i = 0; i < 8; i++) {
-		v = be32dec(sec0 + 444 + i * 8);
-		u = be32dec(sec0 + 448 + i * 8);
+	for (i = 0; i < SUN_NPART; i++) {
+		v = sl.sl_part[i].sdkp_cyloffset;
+		u = sl.sl_part[i].sdkp_nsectors;
 		g_topology_lock();
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 		    ((off_t)v * csize) << 9ULL,
@@ -101,9 +96,9 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 		    "%s%c", gp->name, 'a' + i);
 		g_topology_unlock();
 	}
-	ms->nalt = be16dec(sec0 + 434);
-	ms->nheads = be16dec(sec0 + 436);
-	ms->nsects = be16dec(sec0 + 438);
+	ms->nalt = sl.sl_acylinders;
+	ms->nheads = sl.sl_ntracks;
+	ms->nsects = sl.sl_nsectors;
 
 	return (0);
 }
@@ -141,7 +136,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, i, npart;
+	int error, npart;
 	u_char *buf;
 	struct g_sunlabel_softc *ms;
 	off_t mediasize;
@@ -169,30 +164,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		buf = g_read_data(cp, 0, ms->sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
-
-		if (bootverbose) {
-			g_hexdump(buf, 128);
-			for (i = 0; i < 8; i++) {
-				printf("part %d %u %u\n", i,
-				    be32dec(buf + 444 + i * 8),
-				    be32dec(buf + 448 + i * 8));
-			}
-			printf("v_version = %d\n", be32dec(buf + 128));
-			printf("v_nparts = %d\n", be16dec(buf + 140));
-			for (i = 0; i < 8; i++) {
-				printf("v_part[%d] = %d %d\n",
-				    i, be16dec(buf + 142 + i * 4),
-				    be16dec(buf + 144 + i * 4));
-			}
-			printf("v_sanity %x\n", be32dec(buf + 186));
-			printf("v_version = %d\n", be32dec(buf + 128));
-			printf("v_rpm %d\n", be16dec(buf + 420));
-			printf("v_totalcyl %d\n", be16dec(buf + 422));
-			printf("v_cyl %d\n", be16dec(buf + 432));
-			printf("v_alt %d\n", be16dec(buf + 434));
-			printf("v_head %d\n", be16dec(buf + 436));
-			printf("v_sec %d\n", be16dec(buf + 438));
-		}
 		
 		g_sunlabel_modify(gp, ms, buf);
 
