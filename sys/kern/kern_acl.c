@@ -50,12 +50,12 @@
 
 MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
-static int	vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
-	    struct acl *aclp);
-static int	vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
-	    struct acl *aclp);
+static int	vacl_set_acl(struct thread *td, struct vnode *vp,
+		    acl_type_t type, struct acl *aclp);
+static int	vacl_get_acl(struct thread *td, struct vnode *vp,
+		    acl_type_t type, struct acl *aclp);
 static int	vacl_aclcheck(struct thread *td, struct vnode *vp,
-	    acl_type_t type, struct acl *aclp);
+		    acl_type_t type, struct acl *aclp);
 
 /*
  * Implement a version of vaccess() that understands POSIX.1e ACL semantics.
