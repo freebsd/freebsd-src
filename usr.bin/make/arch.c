@@ -740,11 +740,11 @@ static FILE *
 ArchFindMember(const char *archive, const char *member, struct ar_hdr *arhPtr,
     const char *mode)
 {
-    FILE *	  arch;	      /* Stream to archive */
-    int		  size;       /* Size of archive member */
-    const char	  *cp;	      /* Useful character pointer */
-    char	  magic[SARMAG];
-    size_t	  len, tlen;
+    FILE	*arch;	/* Stream to archive */
+    int		size;	/* Size of archive member */
+    const char	*cp;	/* Useful character pointer */
+    char	magic[SARMAG];
+    size_t	len, tlen;
 
     arch = fopen(archive, mode);
     if (arch == NULL) {
