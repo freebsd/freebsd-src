@@ -29,7 +29,6 @@
 #include <sys/select.h>
 #include <sys/poll.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>

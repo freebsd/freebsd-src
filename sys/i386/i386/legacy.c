@@ -68,7 +68,6 @@
 #else
 #include <i386/isa/isa.h>
 #endif
-#include <sys/proc.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #include <sys/rtprio.h>
