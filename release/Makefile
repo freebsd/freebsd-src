@@ -875,7 +875,7 @@ createBOOTMFS:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
 	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS && \
 	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
-.if ${MACHINE_ARCH} == "i386"
+.if 0 && ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
