@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.83 1997/12/07 04:09:12 brian Exp $
+.\" $Id: ppp.8,v 1.84 1997/12/13 02:37:31 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1232,7 +1232,8 @@ commands.  The
 command is used to talk to your modem and establish a link with your
 ISP, for example:
 .Bd -literal -offset indent
-set dial "ABORT BUSY ABORT NO\\\\sCARRIER TIMEOUT 4 \\"\\" ATZ OK-ATZ-OK ATDT\\\\T TIMEOUT 60 CONNECT"
+set dial "ABORT BUSY ABORT NO\\\\sCARRIER TIMEOUT 4 \\"\\" \e
+  ATZ OK-ATZ-OK ATDT\\\\T TIMEOUT 60 CONNECT"
 .Ed
 .Pp
 This modem "chat" string means:
@@ -1260,11 +1261,11 @@ Wait for the CONNECT string.
 Once the connection is established, the login script is executed.  This
 script is written in the same style as the dial script:
 .Bd -literal -offset indent
-set login "TIMEOUT 15 login:-\\\\r-login: awfulhak word: xxx ocol: PPP HELLO"
+set login "TIMEOUT 15 login:-\\\\r-login: awfulhak \e
+  word: xxx ocol: PPP HELLO"
 .Ed
 .Pp
 This login "chat" string means:
-
 .Bl -bullet
 .It
 Set the timeout to 15 seconds.
