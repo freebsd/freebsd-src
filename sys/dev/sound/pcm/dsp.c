@@ -213,60 +213,46 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 
 	/* lock snddev so nobody else can monkey with it */
 	pcm_lock(d);
-	if ((dsp_get_flags(i_dev) & SD_F_SIMPLEX) && (i_dev->si_drv1 || i_dev->si_drv2)) {
+
+	rdch = i_dev->si_drv1;
+	wrch = i_dev->si_drv2;
+
+	if ((dsp_get_flags(i_dev) & SD_F_SIMPLEX) && (rdch || wrch)) {
 		/* simplex device, already open, exit */
 		pcm_unlock(d);
 		splx(s);
 		return EBUSY;
 	}
 
-	/*  if we get here, the open request is valid */
-	rdch = i_dev->si_drv1;
-	wrch = i_dev->si_drv2;
+	if (((flags & FREAD) && rdch) || ((flags & FWRITE) && wrch)) {
+		/* device already open in one or both directions */
+		pcm_unlock(d);
+		splx(s);
+		return EBUSY;
+	}
 
+	/*  if we get here, the open request is valid */
 	if (flags & FREAD) {
 		/* open for read */
-		if (rdch == NULL) {
-			/* not already open, try to get a channel */
-			if (devtype == SND_DEV_DSPREC)
-				rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, PCMCHAN(i_dev));
-			else
-				rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, -1);
-			if (!rdch) {
-				/* no channel available, exit */
-				pcm_unlock(d);
-				splx(s);
-				return EBUSY;
-			}
-			/* got a channel, already locked for us */
-		} else {
-			/* already open for read, exit */
+		if (devtype == SND_DEV_DSPREC)
+			rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, PCMCHAN(i_dev));
+		else
+			rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, -1);
+		if (!rdch) {
+			/* no channel available, exit */
 			pcm_unlock(d);
 			splx(s);
 			return EBUSY;
 		}
+		/* got a channel, already locked for us */
 	}
 
 	if (flags & FWRITE) {
 		/* open for write */
-		if (wrch == NULL) {
-			/* not already open, try to get a channel */
-			wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
-			if (!wrch) {
-				/* no channel available */
-				if (rdch && (flags & FREAD)) {
-					/* just opened a read channel, release it */
-					pcm_chnrelease(rdch);
-				}
-				/* exit */
-				pcm_unlock(d);
-				splx(s);
-				return EBUSY;
-			}
-			/* got a channel, already locked for us */
-		} else {
-			/* already open for write */
-			if (rdch && (flags & FREAD)) {
+		wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
+		if (!wrch) {
+			/* no channel available */
+			if (flags & FREAD) {
 				/* just opened a read channel, release it */
 				pcm_chnrelease(rdch);
 			}
@@ -275,6 +261,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 			splx(s);
 			return EBUSY;
 		}
+		/* got a channel, already locked for us */
 	}
 
 	i_dev->si_drv1 = rdch;
@@ -283,41 +270,37 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	/* finished with snddev, new channels still locked */
 
 	/* bump refcounts, reset and unlock any channels that we just opened */
-	if (rdch) {
-		if (flags & FREAD) {
-	        	if (chn_reset(rdch, fmt)) {
-				pcm_lock(d);
-				pcm_chnrelease(rdch);
-				if (wrch && (flags & FWRITE))
-					pcm_chnrelease(wrch);
-				pcm_unlock(d);
-				splx(s);
-				return ENODEV;
-			}
-			if (flags & O_NONBLOCK)
-				rdch->flags |= CHN_F_NBIO;
-		} else
-			CHN_LOCK(rdch);
-
+	if (flags & FREAD) {
+		if (chn_reset(rdch, fmt)) {
+			pcm_lock(d);
+			pcm_chnrelease(rdch);
+			if (wrch && (flags & FWRITE))
+				pcm_chnrelease(wrch);
+			pcm_unlock(d);
+			splx(s);
+			return ENODEV;
+		}
+		if (flags & O_NONBLOCK)
+			rdch->flags |= CHN_F_NBIO;
 		pcm_chnref(rdch, 1);
 	 	CHN_UNLOCK(rdch);
 	}
-	if (wrch) {
-		if (flags & FWRITE) {
-	        	if (chn_reset(wrch, fmt)) {
-				pcm_lock(d);
-				pcm_chnrelease(wrch);
-				if (rdch && (flags & FREAD))
-					pcm_chnrelease(rdch);
-				pcm_unlock(d);
-				splx(s);
-				return ENODEV;
+	if (flags & FWRITE) {
+		if (chn_reset(wrch, fmt)) {
+			pcm_lock(d);
+			pcm_chnrelease(wrch);
+			if (flags & FREAD) {
+				CHN_LOCK(rdch);
+				pcm_chnref(rdch, -1);
+				pcm_chnrelease(rdch);
+				CHN_UNLOCK(rdch);
 			}
-			if (flags & O_NONBLOCK)
-				wrch->flags |= CHN_F_NBIO;
-		} else
-			CHN_LOCK(wrch);
-
+			pcm_unlock(d);
+			splx(s);
+			return ENODEV;
+		}
+		if (flags & O_NONBLOCK)
+			wrch->flags |= CHN_F_NBIO;
 		pcm_chnref(wrch, 1);
 	 	CHN_UNLOCK(wrch);
 	}
