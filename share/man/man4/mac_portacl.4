@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2004
+.Dd December , 2004
 .Dt MAC_PORTACL 4
 .Os
 .Sh NAME
@@ -205,15 +205,10 @@ explicitly allow this.
 (Default: 1).
 .It Va security.mac.portacl.autoport_exempt
 Allow applications to use automatic binding to port 0.
-Often applications will use port 0 as a request for
-automatic port allocation before binding an IP address to
-a socket.
-This tunable will exempt port 0 allocation from
-rule checking when a low port will not be used.
-For this to perform as expected,
-.Dv IP_PORTRANGELOW
-is must not be set as it is used to request a
-low port.
+Applications use port 0 as a request for automatic port allocation when
+binding an IP address to a socket.
+This tunable will exempt port 0 allocation from rule checking.
+(Default: 1)
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
