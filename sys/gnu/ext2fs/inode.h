@@ -65,7 +65,7 @@ struct inode {
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
 	u_int32_t i_flag;	/* flags, see below */
-	struct cdev *i_dev;	/* Device associated with the inode. */
+	struct	cdev *i_dev;	/* Device associated with the inode. */
 	ino_t	  i_number;	/* The identity of the inode. */
 
 	struct	ext2_sb_info *i_e2fs;	/* EXT2FS */
@@ -110,7 +110,7 @@ struct inode {
  * The di_db fields may be overlaid with other information for
  * file types that do not have associated disk storage. Block
  * and character devices overlay the first data block with their
- * struct cdev *value. Short symbolic links place their path in the
+ * dev_t value. Short symbolic links place their path in the
  * di_db area.
  */
 #define	i_shortlink	i_db
