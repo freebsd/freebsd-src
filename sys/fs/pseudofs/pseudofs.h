@@ -133,6 +133,15 @@ typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
 typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
 
 /*
+ * Last-close callback
+ */
+#define PFS_CLOSE_ARGS \
+	struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_CLOSE_PROTO(name) \
+	int name(PFS_CLOSE_ARGS);
+typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
+
+/*
  * pfs_info: describes a pseudofs instance
  */
 struct pfs_info {
@@ -160,6 +169,7 @@ struct pfs_node {
 #define pn_func		u1._pn_func
 #define pn_nodes	u1._pn_nodes
 	pfs_ioctl_t		 pn_ioctl;
+	pfs_close_t		 pn_close;
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	void			*pn_data;
@@ -245,6 +255,6 @@ static struct vfsops name##_vfsops = {					\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
 MODULE_VERSION(name, version);						\
-MODULE_DEPEND(name, pseudofs, 3, 3, 3);
+MODULE_DEPEND(name, pseudofs, 1, 1, 1);
 
 #endif

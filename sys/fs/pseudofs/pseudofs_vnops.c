@@ -121,7 +121,32 @@ pfs_access(struct vop_access_args *va)
 static int
 pfs_close(struct vop_close_args *va)
 {
-	PFS_RETURN (0);
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+	struct proc *proc;
+	int error;
+
+	PFS_TRACE((pn->pn_name));
+
+	/*
+	 * Do nothing unless this is the last close and the node has a
+	 * last-close handler.
+	 */
+	if (vn->v_usecount > 1 || pn->pn_close == NULL)
+		PFS_RETURN (0);
+
+	if (pvd->pvd_pid != NO_PID)
+		proc = pfind(pvd->pvd_pid);
+	else
+		proc = NULL;
+	
+	error = (pn->pn_close)(va->a_td, proc, pn);
+	
+	if (proc != NULL)
+		PROC_UNLOCK(proc);
+	
+	PFS_RETURN (error);
 }
 
 /*
