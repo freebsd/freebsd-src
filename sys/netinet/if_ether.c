@@ -234,8 +234,8 @@ arp_rtrequest(req, rt, info)
 		 * in `arp -a' listings as unresolved.  It's not actually
 		 * functional.  Then the same for broadcast.
 		 */
-		if (IN_MULTICAST(ntohl(SIN(rt_key(rt))->sin_addr.s_addr))
-		&&  rt->rt_ifp->if_type != IFT_ARCNET) {
+		if (IN_MULTICAST(ntohl(SIN(rt_key(rt))->sin_addr.s_addr)) &&
+		    rt->rt_ifp->if_type != IFT_ARCNET) {
 			ETHER_MAP_IP_MULTICAST(&SIN(rt_key(rt))->sin_addr,
 					       LLADDR(SDL(gate)));
 			SDL(gate)->sdl_alen = 6;
