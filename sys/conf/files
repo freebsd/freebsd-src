@@ -408,8 +408,6 @@ dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
 dev/mly/mly.c		optional mly
-dev/mly/mly_cam.c	optional mly
-dev/mly/mly_pci.c	optional mly
 dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
 dev/null/null.c		standard
