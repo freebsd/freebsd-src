@@ -156,6 +156,7 @@ static struct block *gen_ahostop(const u_char *, int);
 static struct block *gen_ehostop(const u_char *, int);
 static struct block *gen_fhostop(const u_char *, int);
 static struct block *gen_thostop(const u_char *, int);
+static struct block *gen_whostop(const u_char *, int);
 static struct block *gen_dnhostop(bpf_u_int32, int, u_int);
 static struct block *gen_host(bpf_u_int32, bpf_u_int32, int, int);
 #ifdef INET6
@@ -567,11 +568,6 @@ init_linktype(type)
 		off_nl = 6;	/* XXX in reality, variable! */
 		return;
 
-	case DLT_IEEE802_11:
-		off_linktype = 30; /* XXX variable */
-		off_nl = 32;
-		return;
-
 	case DLT_EN10MB:
 		off_linktype = 12;
 		off_nl = 14;
@@ -667,7 +663,6 @@ init_linktype(type)
 		off_nl = 22;
 		return;
 
-#ifdef notdef
 	case DLT_IEEE802_11:
 		/*
 		 * 802.11 doesn't really have a link-level type field.
@@ -679,12 +674,13 @@ init_linktype(type)
 		 *
 		 * XXX - the header is actually variable-length.  We
 		 * assume a 24-byte link-layer header, as appears in
-		 * data frames in networks with no bridges.
+		 * data frames in networks with no bridges.  If the
+		 * fromds and tods 802.11 header bits are both set,
+		 * it's actually supposed to be 30 bytes.
 		 */
 		off_linktype = 24;
-		off_nl = 30;
+		off_nl = 32;
 		return;
-#endif
 
 	case DLT_PRISM_HEADER:
 		/*
@@ -959,6 +955,7 @@ gen_linktype(proto)
 		break;
 
 	case DLT_IEEE802_11:
+		return gen_snap(0x000000, proto, off_linktype);
 	case DLT_PRISM_HEADER:
 	case DLT_FDDI:
 	case DLT_IEEE802:
@@ -1681,6 +1678,40 @@ gen_thostop(eaddr, dir)
 }
 
 /*
+ * Like gen_ehostop, but for DLT_IEEE802_11 (Wireless)
+ */
+static struct block *
+gen_whostop(eaddr, dir)
+	register const u_char *eaddr;
+	register int dir;
+{
+	register struct block *b0, *b1;
+
+	switch (dir) {
+	case Q_SRC:
+		return gen_bcmp(10, 6, eaddr);
+
+	case Q_DST:
+		return gen_bcmp(4, 6, eaddr);
+
+	case Q_AND:
+		b0 = gen_whostop(eaddr, Q_SRC);
+		b1 = gen_whostop(eaddr, Q_DST);
+		gen_and(b0, b1);
+		return b1;
+
+	case Q_DEFAULT:
+	case Q_OR:
+		b0 = gen_whostop(eaddr, Q_SRC);
+		b1 = gen_whostop(eaddr, Q_DST);
+		gen_or(b0, b1);
+		return b1;
+	}
+	abort();
+	/* NOTREACHED */
+}
+
+/*
  * This is quite tricky because there may be pad bytes in front of the
  * DECNET header, and then there are two possible data packet formats that
  * carry both src and dst addresses, plus 5 packet types in a format that
@@ -2022,6 +2053,8 @@ gen_gateway(eaddr, alist, proto, dir)
 			b0 = gen_fhostop(eaddr, Q_OR);
 		else if (linktype == DLT_IEEE802)
 			b0 = gen_thostop(eaddr, Q_OR);
+		else if (linktype == DLT_IEEE802_11)
+			b0 = gen_whostop(eaddr, Q_OR);
 		else
 			bpf_error(
 			    "'gateway' supported only on ethernet, FDDI or token ring");
@@ -2976,6 +3009,15 @@ gen_scode(name, q)
 				free(eaddr);
 				return b;
 
+			case DLT_IEEE802_11:
+				eaddr = pcap_ether_hostton(name);
+				if (eaddr == NULL)
+					bpf_error(
+					    "unknown ether host '%s'", name);
+				b = gen_whostop(eaddr, dir);
+				free(eaddr);
+				return b;
+
 			default:
 				bpf_error(
 			"only ethernet/FDDI/token ring supports link-level host name");
@@ -3337,6 +3379,8 @@ gen_ecode(eaddr, q)
 			return gen_fhostop(eaddr, (int)q.dir);
 		if (linktype == DLT_IEEE802)
 			return gen_thostop(eaddr, (int)q.dir);
+		if (linktype == DLT_IEEE802_11)
+			return gen_whostop(eaddr, (int)q.dir);
 		bpf_error("ethernet addresses supported only on ethernet, FDDI or token ring");
 	}
 	bpf_error("ethernet address used in non-ether expression");
@@ -3746,6 +3790,8 @@ gen_broadcast(proto)
 			return gen_fhostop(ebroadcast, Q_DST);
 		if (linktype == DLT_IEEE802)
 			return gen_thostop(ebroadcast, Q_DST);
+		if (linktype == DLT_IEEE802_11)
+			return gen_whostop(ebroadcast, Q_DST);
 		bpf_error("not a broadcast link");
 		break;
 
