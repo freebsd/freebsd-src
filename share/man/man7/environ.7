@@ -47,7 +47,7 @@ is made available by
 when a process begins.  By convention these strings have the form
 .Dq Ar name=value .
 The following names are used by various commands:
-.Bl -tag -width ENABLE_STARTUP_LOCALE
+.Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
 The size of the block units used by several commands, most notably
 .Xr df 1 ,
@@ -60,15 +60,6 @@ in units of a kilobyte by specifying a number followed by ``K'' or
 or ``m'' and in units of a gigabyte by specifying a number followed
 by ``G'' or ``g''.
 Sizes less than 512 bytes or greater than a gigabyte are ignored.
-.It Ev ENABLE_STARTUP_LOCALE
-If this variable is set (value ignored), call
-.Xr \%setlocale 3
-at program startup automatically (for 8-bits wide locales only), configuring
-program by
-.Ev LANG
-variable or
-.Ev LC_*
-variables at very beginning.
 .It Ev EXINIT
 A startup list of commands read by
 .Xr ex  1  ,
@@ -80,6 +71,10 @@ A user's login directory, set by
 .Xr login  1
 from the password file
 .Xr passwd  5  .
+.It Ev LANG
+This variable configure all programs which use
+.Xr \%setlocale 3
+to specified locale.
 .It Ev PATH
 The sequence of directories, separated by colons, searched by
 .Xr csh  1  ,
