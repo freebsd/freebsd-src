@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.26 2003/01/18 19:29:31 ue Exp $
-	basiert auf: 1.13.2.75
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.30 2003/03/19 10:40:36 ue Exp $
+	basiert auf: 1.13.2.79
 -->
 
 <sect1>
@@ -870,8 +870,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Promise SuperTrak ATA RAID Controller (pst
-      Treiber)
+    <para arch="i386">Promise SuperTrak ATA RAID Controller
+      (&man.pst.4; Treiber)
       <itemizedlist>
         <listitem>
           <para>Promise SuperTrak SX6000 ATA RAID Controller</para>
@@ -893,7 +893,7 @@
     </para>
 
     <para arch="i386">PCI SCSI Hostadapter auf Basis des Tekram
-      TRM-S1040 SCSI Chipsatzes (trm Treiber)
+      TRM-S1040 SCSI Chipsatzes (&man.trm.4; Treiber)
       <itemizedlist>
 	<listitem>
 	  <para>Tekram DC395U/UW/F</para>
@@ -1451,7 +1451,8 @@
     </para>
 
     <para arch="i386,alpha">VIA Technologies VT3043 <quote>Rhine
-      I</quote> und VT86C100A <quote>Rhine II</quote> Fast Ethernet
+      I</quote>, VT86C100A <quote>Rhine II</quote> und
+      VT86C105/VT86C105M <quote>Rhine III</quote> Fast Ethernet
       Karten (&man.vr.4; Treiber)
       <itemizedlist>
         <listitem>
@@ -1828,7 +1829,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Davicom DM9100 und DM9102 PCI Fast
+    <para arch="i386,alpha">Davicom DM9009, DM9100 und DM9102 PCI Fast
       Ethernet Karten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
@@ -2964,6 +2965,9 @@
         </listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">Creative Technologies Sound Blaster Live!
+      Familie (emu10k1 Treiber)</para>
 
     <para arch="i386">Trident 4DWave DX/NX (&man.pcm.4;
       Treiber)</para>
