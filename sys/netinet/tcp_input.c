@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.68 1998/01/21 02:05:59 fenner Exp $
+ *	$Id: tcp_input.c,v 1.69 1998/01/27 09:15:08 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -82,6 +82,10 @@ static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
 	&log_in_vain, 0, "");
 
+int tcp_delack_enabled = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, delack_enabled, CTLFLAG_RW, 
+	&tcp_delack_enabled, 0, "");
+
 u_long	tcp_now;
 struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
@@ -109,7 +113,10 @@ static void	 tcp_xmit_timer __P((struct tcpcb *, int));
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
 	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
 	    (tp)->t_state == TCPS_ESTABLISHED) { \
-		tp->t_flags |= TF_DELACK; \
+		if (tcp_delack_enabled) \
+			tp->t_flags |= TF_DELACK; \
+		else \
+			tp->t_flags |= TF_ACKNOW; \
 		(tp)->rcv_nxt += (ti)->ti_len; \
 		flags = (ti)->ti_flags & TH_FIN; \
 		tcpstat.tcps_rcvpack++;\
@@ -558,21 +565,12 @@ findpcb:
 			 */
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
-#ifdef TCP_ACK_HACK
-			/*
-			 * If this is a short packet, then ACK now - with Nagel
-			 *	congestion avoidance sender won't send more until
-			 *	he gets an ACK.
-			 */
-			if (tiflags & TH_PUSH) {
+			if (tcp_delack_enabled) {
+				tp->t_flags |= TF_DELACK;
+			} else {
 				tp->t_flags |= TF_ACKNOW;
 				tcp_output(tp);
-			} else {
-				tp->t_flags |= TF_DELACK;
 			}
-#else
-			tp->t_flags |= TF_DELACK;
-#endif
 			return;
 		}
 	}
@@ -697,8 +695,8 @@ findpcb:
 			 * segment.  Otherwise must send ACK now in case
 			 * the other side is slow starting.
 			 */
-			if ((tiflags & TH_FIN) || (ti->ti_len != 0 &&
-			    in_localaddr(inp->inp_faddr)))
+			if (tcp_delack_enabled && ((tiflags & TH_FIN) || (ti->ti_len != 0 &&
+			    in_localaddr(inp->inp_faddr))))
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
@@ -834,7 +832,7 @@ findpcb:
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (ti->ti_len != 0)
+			if (tcp_delack_enabled && ti->ti_len != 0)
 				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;
@@ -1576,7 +1574,7 @@ dodata:							/* XXX */
 			 *  Otherwise, since we received a FIN then no
 			 *  more input can be expected, send ACK now.
 			 */
-			if (tp->t_flags & TF_NEEDSYN)
+			if (tcp_delack_enabled && (tp->t_flags & TF_NEEDSYN))
 				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;

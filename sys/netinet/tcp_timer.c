@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.24 1997/09/16 18:36:06 joerg Exp $
+ *	$Id: tcp_timer.c,v 1.25 1998/01/25 04:23:33 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -100,18 +100,19 @@ tcp_fasttimo()
 	register struct tcpcb *tp;
 	int s;
 
-	s = splnet();
-
-	for (inp = tcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
-		if ((tp = (struct tcpcb *)inp->inp_ppcb) &&
-		    (tp->t_flags & TF_DELACK)) {
-			tp->t_flags &= ~TF_DELACK;
-			tp->t_flags |= TF_ACKNOW;
-			tcpstat.tcps_delack++;
-			(void) tcp_output(tp);
+	if (tcp_delack_enabled) {
+		s = splnet();
+		for (inp = tcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
+			if ((tp = (struct tcpcb *)inp->inp_ppcb) &&
+			    (tp->t_flags & TF_DELACK)) {
+				tp->t_flags &= ~TF_DELACK;
+				tp->t_flags |= TF_ACKNOW;
+				tcpstat.tcps_delack++;
+				(void) tcp_output(tp);
+			}
 		}
+		splx(s);
 	}
-	splx(s);
 }
 
 /*
