@@ -268,7 +268,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 nopgrp:
 			kp->ki_tdev = NODEV;
 		}
-		if (mainthread.td_wmesg)	/* XXXKSE */
+		if (mainthread && mainthread.td_wmesg)	/* XXXKSE */
 			(void)kvm_read(kd, (u_long)mainthread.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
@@ -307,7 +307,7 @@ nopgrp:
 			strncpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
 			kp->ki_comm[MAXCOMLEN] = 0;
 		}
-		if (mainthread.td_blocked != 0) {	/* XXXKSE */
+		if (mainthread && mainthread.td_blocked != 0) {	/* XXXKSE */
 			kp->ki_kiflag |= KI_MTXBLOCK;
 			if (mainthread.td_mtxname)	/* XXXKSE */
 				(void)kvm_read(kd, (u_long)mainthread.td_mtxname,
@@ -321,41 +321,43 @@ nopgrp:
 		kp->ki_sigmask = proc.p_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
-		kp->ki_pctcpu = proc.p_kse.ke_pctcpu;		/* XXXKSE */
-		kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;	/* XXXKSE */
-		kp->ki_slptime = proc.p_kse.ke_slptime;		/* XXXKSE */
-		kp->ki_swtime = proc.p_swtime;
-		kp->ki_flag = proc.p_flag;	/* WILDLY INNACURATE XXXKSE */
-		kp->ki_sflag = proc.p_sflag;
-		kp->ki_wchan = mainthread.td_wchan;		/* XXXKSE */
-		kp->ki_traceflag = proc.p_traceflag;
-		if (proc.p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
-			if ((mainthread.td_state == TDS_RUNQ) ||
-			    (mainthread.td_state == TDS_RUNNING)) {
-				kp->ki_stat = SRUN;
-			} else if (mainthread.td_state == TDS_SLP) {
-				kp->ki_stat = SSLEEP;
-			} else if (P_SHOULDSTOP(&proc)) {
-				kp->ki_stat = SSTOP;
-			} else if (mainthread.td_state == TDS_MTX) {
-				kp->ki_stat = SMTX;
+		if (mainthread) {
+			kp->ki_pctcpu = proc.p_kse.ke_pctcpu;
+			kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;
+			kp->ki_slptime = proc.p_kse.ke_slptime;
+			kp->ki_swtime = proc.p_swtime;
+			kp->ki_flag = proc.p_flag;
+			kp->ki_sflag = proc.p_sflag;
+			kp->ki_wchan = mainthread.td_wchan;
+			kp->ki_traceflag = proc.p_traceflag;
+			if (proc.p_state == PRS_NORMAL) { 
+				if ((mainthread.td_state == TDS_RUNQ) ||
+				    (mainthread.td_state == TDS_RUNNING)) {
+					kp->ki_stat = SRUN;
+				} else if (mainthread.td_state == TDS_SLP) {
+					kp->ki_stat = SSLEEP;
+				} else if (P_SHOULDSTOP(&proc)) {
+					kp->ki_stat = SSTOP;
+				} else if (mainthread.td_state == TDS_MTX) {
+					kp->ki_stat = SMTX;
+				} else {
+					kp->ki_stat = SWAIT;
+				}
 			} else {
-				kp->ki_stat = SWAIT;
+				kp->ki_stat = SIDL;
 			}
-		} else if (proc.p_state == PRS_ZOMBIE) {
-			kp->ki_stat = SZOMB;
+			kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class;
+			kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri;
+			kp->ki_pri.pri_level = mainthread.td_priority;
+			kp->ki_pri.pri_native = mainthread.td_base_pri;
+			kp->ki_nice = proc.p_ksegrp.kg_nice;
+			kp->ki_lock = proc.p_lock;
+			kp->ki_rqindex = proc.p_kse.ke_rqindex;
+			kp->ki_oncpu = proc.p_kse.ke_oncpu;
+			kp->ki_lastcpu = mainthread.td_lastcpu;
 		} else {
-			kp->ki_stat = SIDL;
+			kp->ki_stat = SZOMB;
 		}
-		kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class; /* XXXKSE */
-		kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri; /* XXXKSE */
-		kp->ki_pri.pri_level = mainthread.td_priority;	/* XXXKSE */
-		kp->ki_pri.pri_native = mainthread.td_base_pri; /* XXXKSE */
-		kp->ki_nice = proc.p_ksegrp.kg_nice;		/* XXXKSE */
-		kp->ki_lock = proc.p_lock;
-		kp->ki_rqindex = proc.p_kse.ke_rqindex;		/* XXXKSE */
-		kp->ki_oncpu = proc.p_kse.ke_oncpu;		/* XXXKSE */
-		kp->ki_lastcpu = mainthread.td_lastcpu;	/* XXXKSE */
 		bcopy(&kinfo_proc, bp, sizeof(kinfo_proc));
 		++bp;
 		++cnt;
