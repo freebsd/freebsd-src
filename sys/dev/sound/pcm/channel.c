@@ -156,7 +156,7 @@ chn_wrupdate(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	KASSERT(c->direction == PCMDIR_PLAY, ("chn_wrupdate on bad channel"));
 
-	if ((c->flags & CHN_F_MAPPED) || !(c->flags & CHN_F_TRIGGERED))
+	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || !(c->flags & CHN_F_TRIGGERED))
 		return;
 	chn_dmaupdate(c);
 	ret = chn_wrfeed(c);
@@ -533,7 +533,8 @@ chn_abort(struct pcm_channel *c)
 	/* kill the channel */
 	chn_trigger(c, PCMTRIG_ABORT);
 	sndbuf_setrun(b, 0);
-	chn_dmaupdate(c);
+	if (!(c->flags & CHN_F_VIRTUAL))
+		chn_dmaupdate(c);
     	missing = sndbuf_getready(bs) + sndbuf_getready(b);
 
 	c->flags &= ~CHN_F_ABORTING;
@@ -1056,9 +1057,18 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 {
 	struct pcmchan_children *pce;
 	struct pcm_channel *child;
+	int run;
 
 	if (SLIST_EMPTY(&c->children))
 		return ENODEV;
+
+	run = (c->flags & CHN_F_TRIGGERED)? 1 : 0;
+	/*
+	 * if the hwchan is running, we can't change its rate, format or
+	 * blocksize
+	 */
+	if (run)
+		flags &= CHN_N_VOLUME | CHN_N_TRIGGER;
 
 	if (flags & CHN_N_RATE) {
 		/*
@@ -1092,21 +1102,21 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		chn_setblocksize(c, 2, blksz);
 	}
 	if (flags & CHN_N_TRIGGER) {
-		int run;
+		int nrun;
 		/*
 		 * scan the children, and figure out if any are running
 		 * if so, we need to be running, otherwise we need to be stopped
 		 * if we aren't in our target sstate, move to it
 		 */
-		run = 0;
+		nrun = 0;
 		SLIST_FOREACH(pce, &c->children, link) {
 			child = pce->channel;
 			if (child->flags & CHN_F_TRIGGERED)
-				run = 1;
+				nrun = 1;
 		}
-		if (run && !(c->flags & CHN_F_TRIGGERED))
+		if (nrun && !run)
 			chn_start(c, 1);
-		if (!run && (c->flags & CHN_F_TRIGGERED))
+		if (!nrun && run)
 			chn_abort(c);
 	}
 	return 0;
