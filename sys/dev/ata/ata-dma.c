@@ -98,13 +98,13 @@ ata_dmaalloc(struct ata_channel *ch)
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, 256 * DEV_BSIZE,
 			   ATA_DMA_ENTRIES, ch->dma->max_iosize,
-			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->dmatag))
+			   0, NULL, NULL, &ch->dma->dmatag))
 	goto error;
 
     if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
-			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->cdmatag))
+			   0, NULL, NULL, &ch->dma->cdmatag))
 	goto error;
 
     if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
@@ -131,7 +131,7 @@ ata_dmaalloc(struct ata_channel *ch)
     if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
-			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->wdmatag))
+			   0, NULL, NULL, &ch->dma->wdmatag))
 	goto error;
 
     if (bus_dmamem_alloc(ch->dma->wdmatag, (void **)&ch->dma->workspace, 0,
