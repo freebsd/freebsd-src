@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
-.\"	$Id: err.3,v 1.7 1997/03/19 00:43:13 bde Exp $
+.\"	$Id: err.3,v 1.8 1998/04/22 19:59:55 rnordier Exp $
 .\"
 .Dd April 13, 1995
 .Dt ERR 3
@@ -38,10 +38,14 @@
 .Sh NAME
 .Nm err ,
 .Nm verr ,
+.Nm errc ,
+.Nm verrc ,
 .Nm errx ,
 .Nm verrx ,
 .Nm warn ,
 .Nm vwarn ,
+.Nm warnc ,
+.Nm vwarnc ,
 .Nm warnx ,
 .Nm vwarnx ,
 .Nm err_set_file ,
@@ -52,22 +56,31 @@
 .Ft void
 .Fn err "int eval" "const char *fmt" "..."
 .Ft void
+.Fn errc "int eval" "int code" "const char *fmt" "..."
+.Ft void
 .Fn errx "int eval" "const char *fmt" "..."
 .Ft void
 .Fn warn "const char *fmt" "..."
 .Ft void
-.Fn warnx "const char *fmt" "..."
+.Fn warnc "int code" "const char *fmt" "..."
 .Ft void
-.Fn err_set_file "void *fp"
+.Fn warnx "const char *fmt" "..."
+.Fd #include <stdio.h>
+.Ft void
+.Fn err_set_file "FILE *fp"
 .Ft void
 .Fn err_set_exit "void (*exitf)(int)"
 .Fd #include <stdarg.h>
 .Ft void
 .Fn verr "int eval" "const char *fmt" "va_list args"
 .Ft void
+.Fn verrc "int eval" "int code" "const char *fmt" "va_list args"
+.Ft void
 .Fn verrx "int eval" "const char *fmt" "va_list args"
 .Ft void
 .Fn vwarn "const char *fmt" "va_list args"
+.Ft void
+.Fn vwarnc "int code" "const char *fmt" "va_list args"
 .Ft void
 .Fn vwarnx "const char *fmt" "va_list args"
 .Sh DESCRIPTION
@@ -85,22 +98,37 @@ If the
 .Va fmt
 argument is not NULL, the formatted error message is output.
 In the case of the
-.Fn err ,
-.Fn verr ,
-.Fn warn ,
+.Fn errc ,
+.Fn verrc ,
+.Fn warnc ,
 and
-.Fn vwarn
+.Fn vwarnc
 functions,
-the error message string affiliated with the current value of
-the global variable
-.Va errno 
-is also output,
+the error message string affiliated with the
+.Va code
+argument is also output,
 preceded by another colon and space if necessary.
 In all cases, the output is followed by a newline character.
 .Pp
 The
 .Fn err ,
 .Fn verr ,
+.Fn warn ,
+and
+.Fn vwarn
+functions use the global variable
+.Va errno
+rather than the
+.Va code
+argument of the
+.Fn errc
+family
+.Pp
+The
+.Fn err ,
+.Fn verr ,
+.Fn errc ,
+.Fn verrc ,
 .Fn errx ,
 and
 .Fn verrx
@@ -136,6 +164,14 @@ if ((fd = open(raw_device, O_RDONLY, 0)) == -1)
 if ((fd = open(block_device, O_RDONLY, 0)) == -1)
 	err(1, "%s", block_device);
 .Ed
+.Pp
+Warn of an error without using the global variable
+.Va errno :
+.Bd -literal -offset indent
+error = my_function();	/* returns a value from <errno.h> */
+if (error != 0)
+	warnc(error, "my_function");
+.Ed
 .Sh SEE ALSO
 .Xr exit 3 ,
 .Xr strerror 3
@@ -146,3 +182,15 @@ and
 .Fn warn
 functions first appeared in
 .Bx 4.4 .
+The
+.Fn err_set_file
+and
+.Fn err_set_exit
+functions first appeared in
+.Fx 2.1 .
+The
+.Fn errc
+and
+.Fn warnc
+functions first appeared in
+.Fx 3.0 .
