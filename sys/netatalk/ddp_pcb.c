@@ -239,7 +239,7 @@ at_pcballoc(struct socket *so)
 	ddp->ddp_prev = NULL;
 	ddp->ddp_pprev = NULL;
 	ddp->ddp_pnext = NULL;
-	if (ddpcb) {
+	if (ddpcb != NULL) {
 		ddpcb->ddp_prev = ddp;
 	}
 	ddpcb = ddp;
