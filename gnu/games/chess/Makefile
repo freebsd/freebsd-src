@@ -7,13 +7,6 @@ MAN6=	chess.6
 DPADD=	${LIBCURSES} ${LIBTERM}
 LDADD=	-lcurses -ltermlib
 HIDEGAME=hidegame
-BINOWN?=	games
-.if defined(HIDEGAME)
-BINDIR?=	/usr/games/hide
-BINMODE?=	4700
-.else
-BINDIR?=	/usr/games
-.endif
 
 beforeinstall: 
 	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/gnuchess.book \
