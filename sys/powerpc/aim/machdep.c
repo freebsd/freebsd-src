@@ -964,22 +964,6 @@ ptrace_single_step(struct proc *p)
 }
 
 int
-ptrace_write_u(struct proc *p, vm_offset_t off, long data)
-{
-
-	/* XXX: coming soon... */
-	return (ENOSYS);
-}
-
-int
-ptrace_read_u_check(struct proc *p, vm_offset_t addr, size_t len)
-{
-
-	/* XXX: coming soon... */
-	return (ENOSYS);
-}
-
-int
 ptrace_clear_single_step(struct proc *p)
 {
 

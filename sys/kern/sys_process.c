@@ -256,10 +256,8 @@ ptrace(curp, uap)
 
 	case PT_READ_I:
 	case PT_READ_D:
-	case PT_READ_U:
 	case PT_WRITE_I:
 	case PT_WRITE_D:
-	case PT_WRITE_U:
 	case PT_CONTINUE:
 	case PT_KILL:
 	case PT_STEP:
@@ -447,47 +445,6 @@ ptrace(curp, uap)
 				error = EINVAL;	/* EOF */
 		}
 		return (error);
-
-	case PT_READ_U:
-		if ((uintptr_t)uap->addr > UPAGES * PAGE_SIZE - sizeof(int)) {
-			return EFAULT;
-		}
-		if ((uintptr_t)uap->addr & (sizeof(int) - 1)) {
-			return EFAULT;
-		}
-		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,
-					sizeof(int))) {
-			return EFAULT;
-		}
-		error = 0;
-		PHOLD(p);	/* user had damn well better be incore! */
-		mtx_lock_spin(&sched_lock);
-		if (p->p_sflag & PS_INMEM) {
-			mtx_unlock_spin(&sched_lock);
-			fill_kinfo_proc (p, &p->p_addr->u_kproc);
-			curp->p_retval[0] = *(int *)
-			    ((uintptr_t)p->p_addr + (uintptr_t)uap->addr);
-		} else {
-			mtx_unlock_spin(&sched_lock);
-			curp->p_retval[0] = 0;
-			error = EFAULT;
-		}
-		PRELE(p);
-		return error;
-
-	case PT_WRITE_U:
-		PHOLD(p);	/* user had damn well better be incore! */
-		mtx_lock_spin(&sched_lock);
-		if (p->p_sflag & PS_INMEM) {
-			mtx_unlock_spin(&sched_lock);
-			fill_kinfo_proc (p, &p->p_addr->u_kproc);
-			error = ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
-		} else {
-			mtx_unlock_spin(&sched_lock);
-			error = EFAULT;
-		}
-		PRELE(p);
-		return error;
 
 	case PT_KILL:
 		uap->data = SIGKILL;

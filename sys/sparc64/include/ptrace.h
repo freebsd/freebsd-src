@@ -29,6 +29,4 @@
 #ifndef	_MACHINE_PTRACE_H_
 #define	_MACHINE_PTRACE_H_
 
-int	ptrace_read_u_check(struct proc *p, vm_offset_t off, size_t len);
-
 #endif /* !_MACHINE_PTRACE_H_ */
