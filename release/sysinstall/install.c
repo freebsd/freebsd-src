@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.19 1995/06/04 07:06:44 jkh Exp $
+ * $Id: install.c,v 1.70.2.20 1995/06/04 07:13:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -240,7 +240,6 @@ installInitial(void)
 	    exit(1);
 	}
 	printf("Warning: This shell is chroot()'d to /mnt\n");
-	setenv("PATH", "/bin:/sbin:/usr/sbin:/usr/bin:/usr/X11R6/bin:/usr/local/bin", 1);
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
