@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)setup.c	8.2 (Berkeley) 2/21/94";
+static const char sccsid[] = "@(#)setup.c	8.2 (Berkeley) 2/21/94";
 #endif /* not lint */
 
 #define DKTYPENAMES
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)setup.c	8.2 (Berkeley) 2/21/94";
 #include <sys/disklabel.h>
 #include <sys/file.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -54,8 +55,13 @@ struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-struct	disklabel *getdisklabel();
+static int	readsb __P((int listerr));
+static void	badsb __P((int listerr, char *s));
+static int	calcsb __P((char *dev, int devfd, struct fs *fs));
+static struct disklabel * getdisklabel __P((char *s, int fd));
 
+
+int
 setup(dev)
 	char *dev;
 {
@@ -99,7 +105,8 @@ setup(dev)
 	asblk.b_un.b_buf = malloc(SBSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errexit("cannot allocate space for superblock\n");
-	if (lp = getdisklabel((char *)NULL, fsreadfd))
+	lp = getdisklabel((char *)NULL, fsreadfd);
+	if (lp)
 		dev_bsize = secsize = lp->d_secsize;
 	else
 		dev_bsize = secsize = DEV_BSIZE;
@@ -297,6 +304,7 @@ badsb:
 /*
  * Read in the super block and its summary info.
  */
+static int
 readsb(listerr)
 	int listerr;
 {
@@ -380,6 +388,7 @@ readsb(listerr)
 	return (1);
 }
 
+static void
 badsb(listerr, s)
 	int listerr;
 	char *s;
@@ -398,6 +407,7 @@ badsb(listerr, s)
  * can be used. Do NOT attempt to use other macros without verifying that
  * their needed information is available!
  */
+int
 calcsb(dev, devfd, fs)
 	char *dev;
 	int devfd;
@@ -409,7 +419,7 @@ calcsb(dev, devfd, fs)
 	int i;
 
 	cp = index(dev, '\0') - 1;
-	if (cp == (char *)-1 || (*cp < 'a' || *cp > 'h') && !isdigit(*cp)) {
+	if (cp == (char *)-1 || ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))) {
 		pfatal("%s: CANNOT FIGURE OUT FILE SYSTEM PARTITION\n", dev);
 		return (0);
 	}

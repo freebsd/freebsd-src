@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1986, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
+static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,22 +49,24 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/23/94";
 #include <ufs/ffs/fs.h>
 #include <fstab.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
 #include "fsck.h"
+static int	argtoi __P((int flag, char *req, char *str, int base));
+static int	docheck __P((struct fstab *fsp));
+static int	checkfilesys __P((char *filesys, char *mntpt, long auxdata,
+				  int child));
 
-void	catch(), catchquit(), voidquit();
-int	returntosingle;
-
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
 {
 	int ch;
 	int ret, maxrun = 0;
-	extern int docheck(), checkfilesys();
-	extern char *optarg, *blockcheck();
+	extern char *optarg;
 	extern int optind;
 
 	sync();
@@ -135,6 +137,7 @@ main(argc, argv)
 	exit(ret);
 }
 
+int
 argtoi(flag, req, str, base)
 	int flag;
 	char *req, *str;
@@ -152,6 +155,7 @@ argtoi(flag, req, str, base)
 /*
  * Determine whether a filesystem should be checked.
  */
+int
 docheck(fsp)
 	register struct fstab *fsp;
 {
@@ -168,9 +172,11 @@ docheck(fsp)
  * Check the specified filesystem.
  */
 /* ARGSUSED */
+int
 checkfilesys(filesys, mntpt, auxdata, child)
 	char *filesys, *mntpt;
 	long auxdata;
+	int child;
 {
 	daddr_t n_ffree, n_bfree;
 	struct dups *dp;
@@ -255,7 +261,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
 	pwarn("%ld files, %ld used, %ld free ",
 	    n_files, n_blks, n_ffree + sblock.fs_frag * n_bfree);
-	printf("(%ld frags, %ld blocks, %d.%d%% fragmentation)\n",
+	printf("(%ld frags, %ld blocks, %ld.%ld%% fragmentation)\n",
 	    n_ffree, n_bfree, (n_ffree * 100) / sblock.fs_dsize,
 	    ((n_ffree * 1000 + sblock.fs_dsize / 2) / sblock.fs_dsize) % 10);
 	if (debug &&

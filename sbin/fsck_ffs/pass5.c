@@ -32,19 +32,21 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass5.c	8.2 (Berkeley) 2/2/94";
+static const char sccsid[] = "@(#)pass5.c	8.2 (Berkeley) 2/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <stdio.h>
 #include <string.h>
 #include "fsck.h"
 
+void
 pass5()
 {
-	int c, blk, frags, basesize, sumsize, mapsize, savednrpos;
+	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
 	register struct fs *fs = &sblock;
 	register struct cg *cg = &cgrp;
 	daddr_t dbase, dmax;
