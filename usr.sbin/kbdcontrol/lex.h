@@ -54,6 +54,13 @@
 #define TACC		279
 #define TSPSC		280
 #define TPREV		281
+#define TPANIC		282
+#define TLSHA		283
+#define TRSHA		284
+#define TLCTRA		285
+#define TRCTRA		286
+#define TLALTA		287
+#define TRALTA		288
 
 extern int number;
 extern char letter;
