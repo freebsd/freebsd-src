@@ -81,19 +81,25 @@
 
 #include <sys/user.h>
 
+#define	PROCFS_ACTION(action) do {					\
+	int error;							\
+									\
+	mtx_lock_spin(&sched_lock);					\
+	if ((p->p_sflag & PS_INMEM) == 0)				\
+		error = EIO;						\
+	else								\
+		error = (action);					\
+	mtx_unlock_spin(&sched_lock);					\
+	return (error);							\
+} while(0)
+
 int
 procfs_read_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
 
-	mtx_lock_spin(&sched_lock);
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		mtx_unlock_spin(&sched_lock);
-		return (EIO);
-	}
-	mtx_unlock_spin(&sched_lock);
-	return (fill_regs(p, regs));
+	PROCFS_ACTION(fill_regs(p, regs));
 }
 
 int
@@ -102,13 +108,7 @@ procfs_write_regs(p, regs)
 	struct reg *regs;
 {
 
-	mtx_lock_spin(&sched_lock);
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		mtx_unlock_spin(&sched_lock);
-		return (EIO);
-	}
-	mtx_unlock_spin(&sched_lock);
-	return (set_regs(p, regs));
+	PROCFS_ACTION(set_regs(p, regs));
 }
 
 /*
@@ -122,12 +122,7 @@ procfs_read_fpregs(p, fpregs)
 	struct fpreg *fpregs;
 {
 
-	mtx_lock_spin(&sched_lock);
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		mtx_unlock_spin(&sched_lock);
-		return (EIO);
-	}
-	return (fill_fpregs(p, fpregs));
+	PROCFS_ACTION(fill_fpregs(p, fpregs));
 }
 
 int
@@ -136,13 +131,7 @@ procfs_write_fpregs(p, fpregs)
 	struct fpreg *fpregs;
 {
 
-	mtx_lock_spin(&sched_lock);
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		mtx_unlock_spin(&sched_lock);
-		return (EIO);
-	}
-	mtx_unlock_spin(&sched_lock);
-	return (set_fpregs(p, fpregs));
+	PROCFS_ACTION(set_fpregs(p, fpregs));
 }
 
 int
