@@ -264,8 +264,20 @@ static	u_char def_clock_var[] = {
 /*
  * System and processor definitions.  These will change for the gizmo board.
  */
+#ifndef HAVE_UNAME
+#ifndef STR_SYSTEM
+#define       STR_SYSTEM      "UNIX"
+#endif
+#ifndef STR_PROCESSOR
+#define       STR_PROCESSOR   "unknown"
+#endif
+
+static char str_system[] = STR_SYSTEM;
+static char str_processor[] = STR_PROCESSOR;
+#else
 #include <sys/utsname.h>
 static struct utsname utsname;
+#endif /* HAVE_UNAME */
 
 /*
  * Trap structures.  We only allow a few of these, and send
@@ -294,7 +306,7 @@ static struct utsname utsname;
 static u_char clocktypes[] = {
 	CTL_SST_TS_NTP,		/* REFCLK_NONE */
 	CTL_SST_TS_UNSPEC,	/* REFCLK_LOCALCLOCK */
-	CTL_SST_TS_HF,		/* REFCLK_GPS_TRAK */
+	CTL_SST_TS_UHF,		/* REFCLK_GPS_TRAK */
 	CTL_SST_TS_HF,		/* REFCLK_WWV_PST */
 	CTL_SST_TS_LF,		/* REFCLK_WWVB_SPECTRACOM */
 	CTL_SST_TS_UHF,		/* REFCLK_GOES_TRUETIME */
@@ -379,6 +391,7 @@ extern struct peer *sys_peer;
 extern l_fp	last_offset;
 extern s_fp	drift_comp;
 extern int	time_constant;
+extern int	pll_control;
 /*
  * Imported from the leap module
  */
@@ -426,7 +439,9 @@ init_control()
 {
 	int i;
 
+#ifdef HAVE_UNAME
 	uname(&utsname);
+#endif /* HAVE_UNAME */
 
 	ctl_clr_stats();
 
@@ -716,10 +731,12 @@ ctlsysstatus()
 	if (sys_peer != 0)
 		if (sys_peer->sstclktype != CTL_SST_TS_UNSPEC)
 			clock = sys_peer->sstclktype;
-		else
+		else {
 			if (sys_peer->refclktype < sizeof(clocktypes))
 				clock = clocktypes[sys_peer->refclktype];
-
+			if (pps_control)
+				clock |= CTL_SST_TS_PPS;
+		}
 	return (u_short)CTL_SYS_STATUS(sys_leap, clock, 
 	    ctl_sys_num_events, ctl_sys_last_event);
 }
@@ -1262,12 +1279,22 @@ ctl_putsys(varid)
 		ctl_putuint(sys_var[CS_LEAPWARNING].text, (U_LONG)leap_warning);
 		break;
 	case CS_PROCESSOR:
+#ifndef HAVE_UNAME
+		ctl_putstr(sys_var[CS_PROCESSOR].text, str_processor,
+		    sizeof(str_processor) - 1);
+#else
 		ctl_putstr(sys_var[CS_PROCESSOR].text, utsname.machine,
 		    strlen(utsname.machine));
+#endif /* HAVE_UNAME */
 		break;
 	case CS_SYSTEM:
-		ctl_putstr(sys_var[CS_SYSTEM].text, utsname.sysname,
+#ifndef HAVE_UNAME
+		ctl_putstr(sys_var[CS_SYSTEM].text, str_system,
+		    sizeof(str_system) - 1);
+#else
+ 		ctl_putstr(sys_var[CS_SYSTEM].text, utsname.sysname,
 		    strlen(utsname.sysname));
+#endif /* HAVE_UNAME */
 		break;
 	case CS_KEYID:
 		ctl_putuint(sys_var[CS_KEYID].text, (U_LONG)0);
