@@ -39,7 +39,7 @@
  *	pcvt_conf.h	VT220 driver global configuration file
  *	------------------------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:38:19 2000]
+ *	Last Edit-Date: [Fri Mar 31 10:20:27 2000]
  *
  * $FreeBSD$
  *
@@ -78,6 +78,13 @@
 				/* you have an energy-saving monitor 	*/
 				/* which turns off the display if its	*/
 				/* black !!!!!!				*/
+
+#if !defined PCVT_GREENSAVER	/* ---------- DEFAULT: OFF ------------ */
+# define PCVT_GREENSAVER 0	/* screensaver mode that enables 	*/
+#elif PCVT_GREENSAVER != 0	/* power-save mode			*/
+# undef PCVT_GREENSAVER
+# define PCVT_GREENSAVER 1
+#endif
 
 #if !defined PCVT_CTRL_ALT_DEL	/* ---------- DEFAULT: OFF ------------ */
 # define PCVT_CTRL_ALT_DEL 0	/* this enables the execution of a cpu	*/
