@@ -438,7 +438,6 @@ vattr_null(vap)
 /*
  * Routines having to do with the management of the vnode table.
  */
-extern vop_t **dead_vnodeop_p;
 
 /*
  * Return the next vnode from the free list.
@@ -2926,6 +2925,8 @@ vn_isdisk(vp, errp)
 	struct vnode *vp;
 	int *errp;
 {
+	struct cdevsw *cdevsw;
+
 	if (vp->v_type != VBLK && vp->v_type != VCHR) {
 		if (errp != NULL)
 			*errp = ENOTBLK;
@@ -2936,12 +2937,13 @@ vn_isdisk(vp, errp)
 			*errp = ENXIO;
 		return (0);
 	}
-	if (!devsw(vp->v_rdev)) {
+	cdevsw = devsw(vp->v_rdev);
+	if (cdevsw == NULL) {
 		if (errp != NULL)
 			*errp = ENXIO;
 		return (0);
 	}
-	if (!(devsw(vp->v_rdev)->d_flags & D_DISK)) {
+	if (!(cdevsw->d_flags & D_DISK)) {
 		if (errp != NULL)
 			*errp = ENOTBLK;
 		return (0);
