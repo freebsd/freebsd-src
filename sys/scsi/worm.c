@@ -43,14 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.30 1996/11/06 13:33:53 joerg Exp $
- */
-
-/* XXX This is PRELIMINARY.
- *
- *     Until Bruce finishes the slice stuff there will be no partitions.
- *     When it is finished I hope to hoist the partition code up into
- *     "scsi_driver" and use common code for all devices.
+ *      $Id: worm.c,v 1.29.2.1 1996/11/06 19:21:53 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -99,7 +92,9 @@ struct scsi_data
 	u_int32_t n_blks;		/* Number of blocks (0 for bogus) */
 	u_int32_t blk_size;	/* Size of each blocks */
 #ifdef	DEVFS
-	void	*devfs_token;	/* more elaborate later */
+	void	*b_devfs_token;
+	void	*c_devfs_token;
+	void	*ctl_devfs_token;
 #endif
 
 	struct worm_quirks *quirks; /* model-specific functions */
@@ -113,6 +108,7 @@ struct scsi_data
 #define WORMFL_DISK_PREPED	0x01 /* disk parameters have been spec'ed */
 #define WORMFL_TRACK_PREPED	0x02 /* track parameters have been spec'ed */
 #define WORMFL_WRITTEN		0x04 /* track has been written */
+#define WORMFL_IOCTL_ONLY	0x08 /* O_NDELAY, only ioctls allowed */
 };
 
 static void wormstart(u_int32_t unit, u_int32_t flags);
@@ -148,10 +144,11 @@ static	d_ioctl_t	wormioctl;
 static	d_strategy_t	wormstrategy;
 
 #define CDEV_MAJOR 62
-static struct cdevsw worm_cdevsw = 
-	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
-	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
-	  seltrue,	nommap,		wormstrategy };
+#define BDEV_MAJOR 23
+static struct cdevsw worm_cdevsw;
+static struct bdevsw worm_bdevsw = 
+	{ wormopen,	wormclose,	wormstrategy,	wormioctl,	/*23*/
+	  nodump,	nopsize,	0,	"worm",	&worm_cdevsw,	-1 };
 
 
 static int
@@ -250,12 +247,15 @@ wormattach(struct scsi_link *sc_link)
 
 #ifdef DEVFS
 	mynor = wormunit(sc_link->dev);
-	worm->devfs_token =
+	worm->b_devfs_token =
+		devfs_add_devswf(&worm_bdevsw, mynor,
+				 DV_BLK, 0, 0, 0444, "worm%d", mynor);
+	worm->c_devfs_token =
 		devfs_add_devswf(&worm_cdevsw, mynor,
-				DV_CHR, 0, 0, 0600, "rworm%d", mynor);
-	worm->devfs_token =
+				 DV_CHR, 0, 0, 0644, "rworm%d", mynor);
+	worm->ctl_devfs_token =
 		devfs_add_devswf(&worm_cdevsw, mynor | SCSI_CONTROL_MASK,
-				DV_CHR, 0, 0, 0600, "rworm%d.ctl", mynor);
+				 DV_CHR, 0, 0, 0600, "rworm%d.ctl", mynor);
 #endif
 	return 0;
 }
@@ -374,6 +374,15 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	unit = wormunit(bp->b_dev);
 	worm = sc_link->sd;
 
+	if ((worm->worm_flags & WORMFL_IOCTL_ONLY) != 0) {
+		SC_DEBUG(sc_link, SDEV_DB3,
+			 ("attempted IO on ioctl-only descriptor\n"));
+		bp->b_error = EBADF;
+		bp->b_flags |= B_ERROR;
+		biodone(bp);
+		return;
+	}
+
 	/*
 	 * The ugly modulo operation is necessary since audio tracks
 	 * have a block size of 2352 bytes.
@@ -382,7 +391,11 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	    bp->b_blkno * DEV_BSIZE > worm->n_blks * worm->blk_size||
 	    (bp->b_bcount % worm->blk_size) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3,
-			 ("worm block size / capacity error") );
+			 ("worm block size / capacity error, "
+			  "b_blkno = %d, n_blks = %d, blk_size = %d, "
+			  "b_bcount = %d\n",
+			  bp->b_blkno, worm->n_blks, worm->blk_size,
+			  bp->b_bcount) );
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
@@ -453,13 +466,13 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 	/*
 	 * The semantics of the "flags" is as follows:
 	 *
-	 * If the device has been opened O_RDONLY, no write will be
-	 * allowed, and the command sequence is only subject to the
-	 * restrictions as in worm_ioctl() below.
+	 * If the device has been opened with O_NONBLOCK set, no
+	 * actual IO will be allowed, and the command sequence is only
+	 * subject to the restrictions as in worm_ioctl() below.
 	 *
 	 * If the device is to be opened with O_RDWR/O_WRONLY, the
 	 * disk and track must have been prepared accordingly by
-	 * preceding ioctls (on an O_RDONLY descriptor for the device),
+	 * preceding ioctls (on an O_NONBLOCK descriptor for the device),
 	 * or a sequence error will result here.
 	 */
 	if ((flags & FWRITE) != 0 &&
@@ -467,11 +480,12 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 		SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
 		return ENXIO;
 	}
-	
+
 	/*
-	 * Next time actually take notice of error returns
+	 * Next time actually take notice of error returns,
+	 * unit attn errors are now errors.
 	 */
-	sc_link->flags |= SDEV_OPEN;	/* unit attn errors are now errors */
+	sc_link->flags |= SDEV_OPEN;
 
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("not ready\n"));
@@ -481,26 +495,35 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 		return ENXIO;
 	}
 
-	/*
-	 * XXX The check might go away if we wanna support CDROM, too.
-	 */
-	if ((flags & FWRITE) != 0) {
+	if ((flags & O_NONBLOCK) == 0) {
 		scsi_start_unit(sc_link, SCSI_SILENT);
 		scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
-	}
 
-	if((flags & FWRITE) != 0 &&
-	   ((error = worm_rezero_unit(sc_link)) != 0 ||
-	    (error = worm_size(sc_link, 0)) != 0 ||
-	    (error = (worm->quirks->prepare_track)
-	     (sc_link, worm->audio, worm->preemp)) != 0)) {
-		SC_DEBUG(sc_link, SDEV_DB3,
-			 ("rezero, get size, or prepare_track failed\n"));
-		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
-		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-		worm->worm_flags &= ~WORMFL_TRACK_PREPED;
-		sc_link->flags &= ~SDEV_OPEN;
-	}
+		if((flags & FWRITE) != 0) {
+			if ((error = worm_rezero_unit(sc_link)) != 0 ||
+			    (error = worm_size(sc_link, 0)) != 0 ||
+			    (error = (worm->quirks->prepare_track)
+			     (sc_link, worm->audio, worm->preemp)) != 0) {
+				SC_DEBUG(sc_link, SDEV_DB3,
+					 ("rezero, get size, or prepare_track failed\n"));
+				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
+				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+				sc_link->flags &= ~SDEV_OPEN;
+			}
+		} else {
+			/* read/only */
+			if ((error = worm_size(sc_link, 0)) != 0) {
+				SC_DEBUG(sc_link, SDEV_DB3,
+					 ("get size failed\n"));
+				scsi_stop_unit(sc_link, 0, SCSI_SILENT);
+				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+				worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+				sc_link->flags &= ~SDEV_OPEN;
+			}
+		}
+	} else
+		worm->worm_flags |= WORMFL_IOCTL_ONLY;
 
 	return error;
 }
@@ -510,18 +533,25 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 	   struct scsi_link *sc_link)
 {
 	struct scsi_data *worm = sc_link->sd;
+	errval error;
 
-	scsi_stop_unit(sc_link, 0, SCSI_SILENT);
-	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+	error = 0;
 
-	sc_link->flags &= ~SDEV_OPEN;
+	if ((worm->worm_flags & WORMFL_IOCTL_ONLY) == 0) {
+		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
+		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 
-	if((flags & FWRITE) != 0) {
-		worm->worm_flags &= ~WORMFL_TRACK_PREPED;
-		(worm->quirks->finalize_track)(sc_link);
+		sc_link->flags &= ~SDEV_OPEN;
+
+		if ((flags & FWRITE) != 0) {
+			worm->worm_flags &= ~WORMFL_TRACK_PREPED;
+			error = (worm->quirks->finalize_track)(sc_link);
+		}
 	}
+	sc_link->flags &= ~SDEV_OPEN;
+	worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
 
-	return 0;
+	return error;
 }
 
 /*
@@ -675,11 +705,9 @@ worm_quirk_select(struct scsi_link *sc_link, u_int32_t unit,
 static void
 worm_drvinit(void *unused)
 {
-	dev_t dev;
 
-	if (! worm_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &worm_cdevsw, NULL);
+	if (!worm_devsw_installed) {
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &worm_bdevsw);
 		worm_devsw_installed = 1;
     	}
 }
