@@ -35,8 +35,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <pthread.h>

@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
-#include <sys/lock.h>
 #include <sys/stat.h>
 #ifndef	ultrix
 #include <fcntl.h>
