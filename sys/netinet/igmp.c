@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.24 1997/10/11 18:31:31 phk Exp $
+ * $Id: igmp.c,v 1.25 1997/10/12 20:25:21 phk Exp $
  */
 
 /*
@@ -198,6 +198,8 @@ igmp_input(m, iphlen)
 
 	ip = mtod(m, struct ip *);
 	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
+	if (timer == 0)
+		timer = 1;
 	rti = find_rti(ifp);
 
 	/*
