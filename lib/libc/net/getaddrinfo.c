@@ -185,13 +185,6 @@ static const ns_src default_dns_files[] = {
 	{ 0 }
 };
 
-#define MAXPACKET	(64*1024)
-
-typedef union {
-	HEADER hdr;
-	u_char buf[MAXPACKET];
-} querybuf;
-
 struct res_target {
 	struct res_target *next;
 	const char *name;	/* domain name */
@@ -201,9 +194,14 @@ struct res_target {
 	int n;			/* result length */
 };
 
+#define MAXPACKET	(64*1024)
+
+typedef union {
+	HEADER hdr;
+	u_char buf[MAXPACKET];
+} querybuf;
+
 static int str_isnumber(const char *);
-static int explore_fqdn(const struct addrinfo *, const char *,
-	const char *, struct addrinfo **);
 static int explore_null(const struct addrinfo *,
 	const char *, struct addrinfo **);
 static int explore_numeric(const struct addrinfo *, const char *,
@@ -222,8 +220,14 @@ static int addrconfig(struct addrinfo *);
 static int ip6_str2scopeid(char *, struct sockaddr_in6 *, u_int32_t *);
 #endif
 
+static int explore_fqdn(const struct addrinfo *, const char *,
+	const char *, struct addrinfo **);
+
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 	const struct addrinfo *);
+#if defined(RESOLVSORT)
+static int addr4sort(struct addrinfo *);
+#endif
 static int _dns_getaddrinfo(void *, void *, va_list);
 static void _sethtent(void);
 static void _endhtent(void);
@@ -578,70 +582,6 @@ getaddrinfo(hostname, servname, hints, res)
 	if (sentinel.ai_next)
 		freeaddrinfo(sentinel.ai_next);
 	*res = NULL;
-	return error;
-}
-
-/*
- * FQDN hostname, DNS lookup
- */
-static int
-explore_fqdn(pai, hostname, servname, res)
-	const struct addrinfo *pai;
-	const char *hostname;
-	const char *servname;
-	struct addrinfo **res;
-{
-	struct addrinfo *result;
-	struct addrinfo *cur;
-	int error = 0;
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_files_getaddrinfo, NULL)
-		{ NSSRC_DNS, _dns_getaddrinfo, NULL },	/* force -DHESIOD */
-		NS_NIS_CB(_yp_getaddrinfo, NULL)
-		{ 0 }
-	};
-
-	result = NULL;
-
-	THREAD_LOCK();
-
-	/*
-	 * if the servname does not match socktype/protocol, ignore it.
-	 */
-	if (get_portmatch(pai, servname) != 0) {
-		THREAD_UNLOCK();
-		return 0;
-	}
-
-	switch (_nsdispatch(&result, dtab, NSDB_HOSTS, "getaddrinfo",
-			default_dns_files, hostname, pai)) {
-	case NS_TRYAGAIN:
-		error = EAI_AGAIN;
-		goto free;
-	case NS_UNAVAIL:
-		error = EAI_FAIL;
-		goto free;
-	case NS_NOTFOUND:
-		error = EAI_NONAME;
-		goto free;
-	case NS_SUCCESS:
-		error = 0;
-		for (cur = result; cur; cur = cur->ai_next) {
-			GET_PORT(cur, servname);
-			/* canonname should be filled already */
-		}
-		break;
-	}
-	THREAD_UNLOCK();
-
-	*res = result;
-
-	return 0;
-
-free:
-	THREAD_UNLOCK();
-	if (result)
-		freeaddrinfo(result);
 	return error;
 }
 
@@ -1134,71 +1074,69 @@ ip6_str2scopeid(scope, sin6, scopeid)
 }
 #endif
 
-#ifdef RESOLVSORT
-struct addr_ptr {
-	struct addrinfo *ai;
-	int aval;
-};
-
+/*
+ * FQDN hostname, DNS lookup
+ */
 static int
-addr4sort(struct addrinfo *sentinel)
+explore_fqdn(pai, hostname, servname, res)
+	const struct addrinfo *pai;
+	const char *hostname;
+	const char *servname;
+	struct addrinfo **res;
 {
-	struct addrinfo *ai;
-	struct addr_ptr *addrs, addr;
-	struct sockaddr_in *sin;
-	int naddrs, i, j;
-	int needsort = 0;
+	struct addrinfo *result;
+	struct addrinfo *cur;
+	int error = 0;
+	static const ns_dtab dtab[] = {
+		NS_FILES_CB(_files_getaddrinfo, NULL)
+		{ NSSRC_DNS, _dns_getaddrinfo, NULL },	/* force -DHESIOD */
+		NS_NIS_CB(_yp_getaddrinfo, NULL)
+		{ 0 }
+	};
 
-	if (!sentinel)
-		return -1;
-	naddrs = 0;
-	for (ai = sentinel->ai_next; ai; ai = ai->ai_next)
-		naddrs++;
-	if (naddrs < 2)
-		return 0;		/* We don't need sorting. */
-	if ((addrs = malloc(sizeof(struct addr_ptr) * naddrs)) == NULL)
-		return -1;
-	i = 0;
-	for (ai = sentinel->ai_next; ai; ai = ai->ai_next) {
-		sin = (struct sockaddr_in *)ai->ai_addr;
-		for (j = 0; (unsigned)j < _res.nsort; j++) {
-			if (_res.sort_list[j].addr.s_addr == 
-			    (sin->sin_addr.s_addr & _res.sort_list[j].mask))
-				break;
-		}
-		addrs[i].ai = ai;
-		addrs[i].aval = j;
-		if (needsort == 0 && i > 0 && j < addrs[i - 1].aval)
-			needsort = i;
-		i++;
-	}
-	if (!needsort) {
-		free(addrs);
+	result = NULL;
+
+	THREAD_LOCK();
+
+	/*
+	 * if the servname does not match socktype/protocol, ignore it.
+	 */
+	if (get_portmatch(pai, servname) != 0) {
+		THREAD_UNLOCK();
 		return 0;
 	}
 
-	while (needsort < naddrs) {
-	    for (j = needsort - 1; j >= 0; j--) {
-		if (addrs[j].aval > addrs[j+1].aval) {
-		    addr = addrs[j];
-		    addrs[j] = addrs[j + 1];
-		    addrs[j + 1] = addr;
-		} else
-		    break;
-	    }
-	    needsort++;
+	switch (_nsdispatch(&result, dtab, NSDB_HOSTS, "getaddrinfo",
+			default_dns_files, hostname, pai)) {
+	case NS_TRYAGAIN:
+		error = EAI_AGAIN;
+		goto free;
+	case NS_UNAVAIL:
+		error = EAI_FAIL;
+		goto free;
+	case NS_NOTFOUND:
+		error = EAI_NONAME;
+		goto free;
+	case NS_SUCCESS:
+		error = 0;
+		for (cur = result; cur; cur = cur->ai_next) {
+			GET_PORT(cur, servname);
+			/* canonname should be filled already */
+		}
+		break;
 	}
+	THREAD_UNLOCK();
 
-	ai = sentinel;
-	for (i = 0; i < naddrs; ++i) {
-		ai->ai_next = addrs[i].ai;
-		ai = ai->ai_next;
-	}
-	ai->ai_next = NULL;
-	free(addrs);
+	*res = result;
+
 	return 0;
+
+free:
+	THREAD_UNLOCK();
+	if (result)
+		freeaddrinfo(result);
+	return error;
 }
-#endif /*RESOLVSORT*/
 
 #ifdef DEBUG
 static const char AskedForGot[] =
@@ -1415,6 +1353,72 @@ getanswer(answer, anslen, qname, qtype, pai)
 	h_errno = NO_RECOVERY;
 	return NULL;
 }
+
+#ifdef RESOLVSORT
+struct addr_ptr {
+	struct addrinfo *ai;
+	int aval;
+};
+
+static int
+addr4sort(struct addrinfo *sentinel)
+{
+	struct addrinfo *ai;
+	struct addr_ptr *addrs, addr;
+	struct sockaddr_in *sin;
+	int naddrs, i, j;
+	int needsort = 0;
+
+	if (!sentinel)
+		return -1;
+	naddrs = 0;
+	for (ai = sentinel->ai_next; ai; ai = ai->ai_next)
+		naddrs++;
+	if (naddrs < 2)
+		return 0;		/* We don't need sorting. */
+	if ((addrs = malloc(sizeof(struct addr_ptr) * naddrs)) == NULL)
+		return -1;
+	i = 0;
+	for (ai = sentinel->ai_next; ai; ai = ai->ai_next) {
+		sin = (struct sockaddr_in *)ai->ai_addr;
+		for (j = 0; (unsigned)j < _res.nsort; j++) {
+			if (_res.sort_list[j].addr.s_addr == 
+			    (sin->sin_addr.s_addr & _res.sort_list[j].mask))
+				break;
+		}
+		addrs[i].ai = ai;
+		addrs[i].aval = j;
+		if (needsort == 0 && i > 0 && j < addrs[i - 1].aval)
+			needsort = i;
+		i++;
+	}
+	if (!needsort) {
+		free(addrs);
+		return 0;
+	}
+
+	while (needsort < naddrs) {
+	    for (j = needsort - 1; j >= 0; j--) {
+		if (addrs[j].aval > addrs[j+1].aval) {
+		    addr = addrs[j];
+		    addrs[j] = addrs[j + 1];
+		    addrs[j + 1] = addr;
+		} else
+		    break;
+	    }
+	    needsort++;
+	}
+
+	ai = sentinel;
+	for (i = 0; i < naddrs; ++i) {
+		ai->ai_next = addrs[i].ai;
+		ai = ai->ai_next;
+	}
+	ai->ai_next = NULL;
+	free(addrs);
+	return 0;
+}
+#endif /*RESOLVSORT*/
 
 /*ARGSUSED*/
 static int
