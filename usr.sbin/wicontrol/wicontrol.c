@@ -58,23 +58,30 @@ static const char rcsid[] =
 #include <errno.h>
 #include <err.h>
 
-static void wi_getval		__P((char *, struct wi_req *));
-static void wi_setval		__P((char *, struct wi_req *));
+static void wi_getval		__P((const char *, struct wi_req *));
+static void wi_setval		__P((const char *, struct wi_req *));
 static void wi_printstr		__P((struct wi_req *));
-static void wi_setstr		__P((char *, int, char *));
-static void wi_setbytes		__P((char *, int, char *, int));
-static void wi_setword		__P((char *, int, int));
-static void wi_sethex		__P((char *, int, char *));
+static void wi_setstr		__P((const char *, int, char *));
+static void wi_setbytes		__P((const char *, int, char *, int));
+static void wi_setword		__P((const char *, int, int));
+static void wi_sethex		__P((const char *, int, char *));
 static void wi_printwords	__P((struct wi_req *));
 static void wi_printbool	__P((struct wi_req *));
 static void wi_printhex		__P((struct wi_req *));
-static void wi_dumpinfo		__P((char *));
-static void wi_setkeys		__P((char *, char *, int));
+static void wi_dumpinfo		__P((const char *));
+static void wi_dumpstats	__P((const char *));
+static void wi_setkeys		__P((const char *, char *, int));
 static void wi_printkeys	__P((struct wi_req *));
+static int wi_hex2int		__P((char));
+static void wi_str2key		__P((char *, struct wi_key *));
+#ifdef WICACHE
+static void wi_zerocache	__P((const char *));
+static void wi_readcache	__P((const char *));
+#endif
 static void usage		__P((char *));
 
 static void wi_getval(iface, wreq)
-	char			*iface;
+	const char		*iface;
 	struct wi_req		*wreq;
 {
 	struct ifreq		ifr;
@@ -99,7 +106,7 @@ static void wi_getval(iface, wreq)
 }
 
 static void wi_setval(iface, wreq)
-	char			*iface;
+	const char		*iface;
 	struct wi_req		*wreq;
 {
 	struct ifreq		ifr;
@@ -150,7 +157,7 @@ void wi_printstr(wreq)
 }
 
 void wi_setstr(iface, code, str)
-	char			*iface;
+	const char		*iface;
 	int			code;
 	char			*str;
 {
@@ -178,7 +185,7 @@ void wi_setstr(iface, code, str)
 }
 
 void wi_setbytes(iface, code, bytes, len)
-	char			*iface;
+	const char		*iface;
 	int			code;
 	char			*bytes;
 	int			len;
@@ -200,7 +207,7 @@ void wi_setbytes(iface, code, bytes, len)
 }
 
 void wi_setword(iface, code, word)
-	char			*iface;
+	const char		*iface;
 	int			code;
 	int			word;
 {
@@ -218,7 +225,7 @@ void wi_setword(iface, code, word)
 }
 
 void wi_sethex(iface, code, str)
-	char			*iface;
+	const char		*iface;
 	int			code;
 	char			*str;
 {
@@ -262,10 +269,12 @@ static void wi_str2key(s, k)
 		/* Yes, convert to int. */
 		n = 0;
 		p = (char *)&k->wi_keydat[0];
-		for (i = 2; i < strlen(s); i+= 2) {
+		for (i = 2; s[i] != '\0' && s[i + 1] != '\0'; i+= 2) {
 			*p++ = (wi_hex2int(s[i]) << 4) + wi_hex2int(s[i + 1]);
 			n++;
 		}
+		if (s[i] != '\0')
+			errx(1, "hex strings must be of even length");
 		k->wi_keylen = n;
 	} else {
 		/* No, just copy it in. */
@@ -277,7 +286,7 @@ static void wi_str2key(s, k)
 }
 
 static void wi_setkeys(iface, key, idx)
-	char			*iface;
+	const char		*iface;
 	char			*key;
 	int			idx;
 {
@@ -416,7 +425,7 @@ void wi_printhex(wreq)
 struct wi_table {
 	int			wi_code;
 	int			wi_type;
-	char			*wi_str;
+	const char		*wi_str;
 };
 
 static struct wi_table wi_table[] = {
@@ -440,18 +449,18 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_SYSTEM_SCALE, WI_WORDS, "Access point density:\t\t\t" },
 	{ WI_RID_PM_ENABLED, WI_WORDS, "Power Mgmt (1=on, 0=off):\t\t" },
 	{ WI_RID_MAX_SLEEP, WI_WORDS, "Max sleep time:\t\t\t\t" },
-	{ 0, NULL }
+	{ 0, 0, NULL }
 };
 
 static struct wi_table wi_crypt_table[] = {
 	{ WI_RID_ENCRYPTION, WI_BOOL, "WEP encryption:\t\t\t\t" },
 	{ WI_RID_TX_CRYPT_KEY, WI_WORDS, "TX encryption key:\t\t\t" },
 	{ WI_RID_DEFLT_CRYPT_KEYS, WI_KEYSTRUCT, "Encryption keys:\t\t\t" },
-	{ 0, NULL }
+	{ 0, 0, NULL }
 };
 
 static void wi_dumpinfo(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct wi_req		wreq;
 	int			i, has_wep;
@@ -533,7 +542,7 @@ static void wi_dumpinfo(iface)
 }
 
 static void wi_dumpstats(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct wi_req		wreq;
 	struct wi_counters	*c;
@@ -624,7 +633,7 @@ static void usage(p)
 
 #ifdef WICACHE
 static void wi_zerocache(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct wi_req		wreq;
 
@@ -639,7 +648,7 @@ static void wi_zerocache(iface)
 }
 
 static void wi_readcache(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct wi_req		wreq;
 	int 			*wi_sigitems;
@@ -690,7 +699,7 @@ int main(argc, argv)
 	char			*argv[];
 {
 	int			ch;
-	char			*iface = NULL;
+	const char		*iface = NULL;
 	char			*p = argv[0];
 	char			*key = NULL;
 	int			modifier = 0;
