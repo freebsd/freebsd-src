@@ -50,6 +50,7 @@
 #include <netdb.h>
 #include <err.h>
 #include <string.h>
+#include <sys/eui64.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <arpa/telnet.h>
@@ -63,7 +64,8 @@
 
 #include <sys/errno.h>
 
-#define	DCONS_POLL_HZ	100
+#define	DCONS_POLL_HZ		100
+#define	DCONS_POLL_OFFLINE	2	/* sec */
 
 #define RETRY 3
 
@@ -75,6 +77,7 @@
 
 int verbose = 0;
 int tc_set = 0;
+int poll_hz = DCONS_POLL_HZ;
 
 #define IS_CONSOLE(p)	((p)->port == 0)
 #define IS_GDB(p)	((p)->port == 1)
@@ -324,6 +327,7 @@ dconschat_get_ptr (struct dcons_state *dc) {
 	int dlen, i;
 	u_int32_t ptr[DCONS_NPORT*2+1];
 	static int retry = RETRY;
+	char ebuf[64];
 
 again:
 	dlen = dread(dc, &ptr, sizeof(ptr),
@@ -337,7 +341,10 @@ again:
 		return(-1);
 	}
 	if (ptr[0] != htonl(DCONS_MAGIC)) {
-		dconschat_ready(dc, 0, "wrong magic");
+		if ((dc->flags & F_USE_CROM) !=0)
+			dc->paddr = 0;
+		snprintf(ebuf, sizeof(ebuf), "wrong magic 0x%08x", ptr[0]);
+		dconschat_ready(dc, 0, ebuf);
 		return(-1);
 	}
 	retry = RETRY;
@@ -765,10 +772,11 @@ dconschat_start_session(struct dcons_state *dc)
 	int counter = 0;
 
 	while (1) {
-		if ((dc->flags & F_READY) == 0 && (++counter % 200) == 0)
+		if ((dc->flags & F_READY) == 0 &&
+			(++counter % (poll_hz * DCONS_POLL_OFFLINE)) == 0)
 			dconschat_fetch_header(dc);
 		if ((dc->flags & F_READY) != 0)
-			 dconschat_proc_dcons(dc);
+			dconschat_proc_dcons(dc);
 		dconschat_proc_socket(dc);
 	}
 	return (0);
@@ -806,11 +814,11 @@ main(int argc, char **argv)
 {
 	struct dcons_state *dc;
 	struct fw_eui64 eui;
+	struct eui64 target;
 	char devname[256], *core = NULL, *system = NULL;
 	int i, ch, error;
-	int unit=0, wildcard=0, poll_hz = DCONS_POLL_HZ;
+	int unit=0, wildcard=0;
 	int port[DCONS_NPORT];
-	u_int64_t target = 0;
 
 	bzero(&sc, sizeof(sc));
 	dc = &sc;
@@ -838,9 +846,11 @@ main(int argc, char **argv)
 			dc->flags |= F_REPLAY;
 			break;
 		case 't':
-			target = strtoull(optarg, NULL, 0);
-			eui.hi = target >> 32;
-			eui.lo = target & (((u_int64_t)1 << 32) - 1);
+			if (eui64_hostton(optarg, &target) != 0 &&
+			    eui64_aton(optarg, &target) != 0)
+				errx(1, "invalid target: %s", optarg);
+			eui.hi = ntohl(*(u_int32_t*)&(target.octet[0]));
+			eui.lo = ntohl(*(u_int32_t*)&(target.octet[4]));
 			dc->type = TYPE_FW;
 			break;
 		case 'u':
