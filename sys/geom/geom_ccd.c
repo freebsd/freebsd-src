@@ -1397,6 +1397,7 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			ccdunlock(cs);
 			return (error);
 		}
+		free(cpp, M_CCD);
 
 		/*
 		 * The ccd has been successfully initialized, so
