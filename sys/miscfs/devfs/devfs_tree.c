@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.11 1995/12/09 09:11:01 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.12 1996/01/02 09:14:44 peter Exp $
  */
 
 #include "param.h"
@@ -513,11 +513,13 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
  * then the devfs_node will still exist as the ref count will be non-0
  * removing a directory node will remove all sup-nodes on all planes (ZAP)
  *
- * Used be device drivers to remove nodes that are no longer relevant
+ * Used by device drivers to remove nodes that are no longer relevant
+ * The argument is the 'cookie' they were given when they created the node
+ * this function is exported.. see sys/devfsext.h
  ***********************************************************************/
-void	dev_remove_dev(devnm_p devnmp) /*proto*/
+void	devfs_remove_dev(void *devnmp)
 {
-	DBPRINT(("dev_remove_dev\n"));
+	DBPRINT(("devfs_remove_dev\n"));
 	/*
 	 * Keep removing the next front node till no more exist
 	 */
@@ -889,6 +891,7 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 /***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
+* this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
 void *devfs_add_devsw(char *path,
 		char *name,
@@ -942,6 +945,7 @@ void *devfs_add_devsw(char *path,
 /***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 *  a link to the already created device given as an arg..		*
+* this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
 void *dev_link(char *path, char *name, void *original)
 {
