@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.34 1994/09/13 06:22:11 jkh Exp $
+# $Id: bsd.port.mk,v 1.35 1994/09/13 06:43:10 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -288,7 +288,7 @@ fetch: pre-fetch
 					echo ">> $$file Fetched!" ; \
 					break; \
 				fi \
-			done \
+			done; \
 			if [ ! -f $$file ]; then \
 				echo ">> Couldn't fetch it - please try to retreive this";\
 				echo ">> port manually into ${DISTDIR} and try again."; \
