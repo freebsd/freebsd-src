@@ -2209,7 +2209,7 @@ c100-rv-s|concept-rv-s|concept100-rv-s|c100rvs|slow reverse concept 100:\
 cons25w|ansiw|ansi80x25-raw:\
 	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
 	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
-	:ms:nd=\E[C:pt:rs=\E[x\Ec:so=\E[7m:se=\E[27m:up=\E[A:\
+	:ms:nd=\E[C:pt:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:sc=\E7:rc=\E8:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
