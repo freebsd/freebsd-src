@@ -29,14 +29,27 @@
  */
 
 #include <sys/param.h>
+#include <sys/sbuf.h>
+
+#ifdef _KERNEL
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/sbuf.h>
 #include <sys/systm.h>
-
 #include <machine/stdarg.h>
+#else /* _KERNEL */
+#include <stdarg.h>
+#endif /* _KERNEL */
 
+#ifdef _KERNEL
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
+#define SBMALLOC(size)		malloc(size, M_SBUF, M_WAITOK)
+#define SBFREE(buf)		free(buf, M_SBUF)
+#else /* _KERNEL */
+#define KASSERT(e, m)
+#define SBMALLOC(size)		malloc(size)
+#define SBFREE(buf)		free(buf)
+#define min(x,y)		MIN(x,y)
+#endif /* _KERNEL */
 
 /*
  * Predicates
@@ -55,7 +68,7 @@ MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 /*
  * Debugging support
  */
-#ifdef INVARIANTS
+#if defined(_KERNEL) && defined(INVARIANTS)
 static void
 _assert_sbuf_integrity(char *fun, struct sbuf *s)
 {
@@ -76,10 +89,10 @@ _assert_sbuf_state(char *fun, struct sbuf *s, int state)
 }
 #define assert_sbuf_integrity(s) _assert_sbuf_integrity(__FUNCTION__, (s))
 #define assert_sbuf_state(s, i)	 _assert_sbuf_state(__FUNCTION__, (s), (i))
-#else
+#else /* _KERNEL && INVARIANTS */
 #define assert_sbuf_integrity(s) do { } while (0)
 #define assert_sbuf_state(s, i)	 do { } while (0)
-#endif
+#endif /* _KERNEL && INVARIANTS */
 
 /*
  * Initialize an sbuf.
@@ -102,7 +115,7 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 		s->s_buf = buf;
 		return (0);
 	}
-	s->s_buf = malloc(s->s_size, M_SBUF, M_WAITOK);
+	s->s_buf = (char *)SBMALLOC(s->s_size);
 	if (s->s_buf == NULL)
 		return (-1);
 	SBUF_SETFLAG(s, SBUF_DYNAMIC);
@@ -147,7 +160,7 @@ sbuf_setpos(struct sbuf *s, int pos)
  * Append a string to an sbuf.
  */
 int
-sbuf_cat(struct sbuf *s, char *str)
+sbuf_cat(struct sbuf *s, const char *str)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
@@ -168,22 +181,13 @@ sbuf_cat(struct sbuf *s, char *str)
  * Copy a string into an sbuf.
  */
 int
-sbuf_cpy(struct sbuf *s, char *str)
+sbuf_cpy(struct sbuf *s, const char *str)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 	
 	sbuf_clear(s);
 	return (sbuf_cat(s, str));
-}
-
-/*
- * PCHAR function for sbuf_printf()
- */
-static void
-_sbuf_pchar(int c, void *v)
-{
-	sbuf_putc((struct sbuf *)v, c);
 }
 
 /*
@@ -205,8 +209,21 @@ sbuf_printf(struct sbuf *s, char *fmt, ...)
 		return (-1);
 
 	va_start(ap, fmt);
-	len = kvprintf(fmt, _sbuf_pchar, s, 10, ap);
+	len = vsnprintf(&s->s_buf[s->s_len], s->s_size - s->s_len, fmt, ap);
 	va_end(ap);
+
+	/*
+	 * s->s_len is the length of the string, without the terminating nul.
+	 * When updating s->s_len, we must subtract 1 from the length that
+	 * we passed into vsnprintf() because that length includes the
+	 * terminating nul.
+	 *
+	 * vsnprintf() returns the amount that would have been copied,
+	 * given sufficient space, hence the min() calculation below.
+	 */
+	s->s_len += min(len, s->s_size - s->s_len - 1);
+	if (!SBUF_HASROOM(s))
+		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
@@ -296,6 +313,6 @@ sbuf_delete(struct sbuf *s)
 	/* don't care if it's finished or not */
 	
 	if (SBUF_ISDYNAMIC(s))
-		free(s->s_buf, M_SBUF);
+		SBFREE(s->s_buf);
 	bzero(s, sizeof *s);
 }

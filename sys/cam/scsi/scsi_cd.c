@@ -1557,10 +1557,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			else
 				sf = 0;
 
-			/* Retry selection timeouts */
-			sf |= SF_RETRY_SELTO;
-
-			if ((error = cderror(done_ccb, 0, sf)) == ERESTART) {
+			error = cderror(done_ccb, CAM_RETRY_SELTO, sf);
+			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
 				 * just return.
@@ -1659,8 +1657,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
 			 */
-			error = cderror(done_ccb, 0, SF_RETRY_UA |
-					SF_NO_PRINT | SF_RETRY_SELTO);
+			error = cderror(done_ccb, CAM_RETRY_SELTO,
+					SF_RETRY_UA | SF_NO_PRINT);
 			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
@@ -1711,15 +1709,21 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				 * supported" (0x25) error.
 				 */
 				if ((have_sense) && (asc != 0x25)
-				 && (error_code == SSD_CURRENT_ERROR))
+				 && (error_code == SSD_CURRENT_ERROR)) {
+					const char *sense_key_desc;
+					const char *asc_desc;
+
+					scsi_sense_desc(sense_key, asc, ascq,
+							&cgd.inq_data,
+							&sense_key_desc,
+							&asc_desc);
 					snprintf(announce_buf,
 					    sizeof(announce_buf),
 						"Attempt to query device "
 						"size failed: %s, %s",
-						scsi_sense_key_text[sense_key],
-						scsi_sense_desc(asc,ascq,
-								&cgd.inq_data));
-				else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
+						sense_key_desc,
+						asc_desc);
+				} else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
 					/*
 					 * We only print out an error for
 					 * CDROM type devices.  For WORM
@@ -2489,8 +2493,8 @@ cdprevent(struct cam_periph *periph, int action)
 		     SSD_FULL_SIZE,
 		     /* timeout */60000);
 	
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			/*sense_flags*/SF_RETRY_UA|SF_NO_PRINT|SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			/*sense_flags*/SF_RETRY_UA|SF_NO_PRINT);
 
 	xpt_release_ccb(ccb);
 
@@ -2533,8 +2537,8 @@ cdsize(dev_t dev, u_int32_t *size)
 			   SSD_FULL_SIZE,
 			   /* timeout */20000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT|SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA|SF_NO_PRINT);
 
 	xpt_release_ccb(ccb);
 
@@ -2694,8 +2698,8 @@ cdreadtoc(struct cam_periph *periph, u_int32_t mode, u_int32_t start,
 
 	scsi_cmd->op_code = READ_TOC;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -2741,8 +2745,8 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 	scsi_ulto2b(len, (u_int8_t *)scsi_cmd->data_len);
 	scsi_cmd->control = 0;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -2781,8 +2785,8 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_data *data, u_int32_t page)
 	scsi_cmd->length = sizeof(*data) & 0xff;
 	scsi_cmd->opcode = MODE_SENSE;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA|SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -2828,8 +2832,8 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_data *data)
 	 */
 	data->header.medium_type = 0;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -2884,8 +2888,8 @@ cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 		      cdb_len,
 		      /*timeout*/50 * 1000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -2929,8 +2933,8 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
         scsi_cmd->end_s = ends;
         scsi_cmd->end_f = endf; 
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 	
 	xpt_release_ccb(ccb);
 
@@ -2973,8 +2977,8 @@ cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
         scsi_cmd->end_track = etrack;
         scsi_cmd->end_index = eindex;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -3012,8 +3016,8 @@ cdpause(struct cam_periph *periph, u_int32_t go)
         scsi_cmd->op_code = PAUSE;
 	scsi_cmd->resume = go;
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA |SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -3040,8 +3044,8 @@ cdstartunit(struct cam_periph *periph)
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -3068,8 +3072,8 @@ cdstopunit(struct cam_periph *periph, u_int32_t eject)
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	xpt_release_ccb(ccb);
 
@@ -3139,8 +3143,8 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ 50000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	if (error != 0)
 		goto bailout;
@@ -3316,8 +3320,8 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		      /* sense_len */ SSD_FULL_SIZE,
 		      /* timeout */ 50000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 bailout:
 
@@ -3448,8 +3452,8 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 				/* sense_len */ SSD_FULL_SIZE,
 				/* timeout */ 50000);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
-			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
+			 /*sense_flags*/SF_RETRY_UA);
 
 	if (error != 0)
 		goto bailout;

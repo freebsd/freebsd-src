@@ -451,12 +451,8 @@ testunitready(struct cam_device *device, int retry_count, int timeout,
 			perror("error sending test unit ready");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		cam_freeccb(ccb);
@@ -472,12 +468,8 @@ testunitready(struct cam_device *device, int retry_count, int timeout,
 		error = 1;
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 	}
 
@@ -522,12 +514,8 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 		perror("error sending start unit");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		cam_freeccb(ccb);
@@ -558,12 +546,8 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 				"Error received from stop unit command\n");
 			
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 	}
 
@@ -702,12 +686,8 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 		perror("error sending SCSI inquiry");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		cam_freeccb(ccb);
@@ -718,12 +698,8 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 		error = 1;
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 	}
 
@@ -792,12 +768,8 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 		warn("error getting serial number");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		cam_freeccb(ccb);
@@ -809,12 +781,8 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 		error = 1;
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 	}
 
@@ -871,13 +839,9 @@ scsixferrate(struct cam_device *device)
 		else
 			warnx(error_string);
 
-		/*
-		 * If there is an error, it won't be a SCSI error since
-		 * this isn't a SCSI CCB.
-		 */
 		if (arglist & CAM_ARG_VERBOSE)
-			fprintf(stderr, "CAM status is %#x\n",
-				ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 
 		retval = 1;
 
@@ -1265,20 +1229,13 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		perror("error reading defect list");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		error = 1;
 		goto defect_bailout;
 	}
-
-	if (arglist & CAM_ARG_VERBOSE)
-		scsi_sense_print(device, &ccb->csio, stderr);
 
 	returned_length = scsi_2btoul(((struct
 		scsi_read_defect_data_hdr_10 *)defect_list)->length);
@@ -1286,7 +1243,9 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	returned_format = ((struct scsi_read_defect_data_hdr_10 *)
 			defect_list)->format;
 
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR)
+	 && (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND)
+	 && ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)) {
 		struct scsi_sense_data *sense;
 		int error_code, sense_key, asc, ascq;
 
@@ -1327,8 +1286,18 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		} else {
 			error = 1;
 			warnx("Error returned from read defect data command");
+			if (arglist & CAM_ARG_VERBOSE)
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
 			goto defect_bailout;
 		}
+	} else {
+		error = 1;
+		warnx("Error returned from read defect data command");
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		goto defect_bailout;
 	}
 
 	/*
@@ -1484,12 +1453,8 @@ mode_sense(struct cam_device *device, int mode_page, int page_control,
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 		cam_freeccb(ccb);
 		cam_close_device(device);
@@ -1537,12 +1502,8 @@ mode_select(struct cam_device *device, int save_pages, int retry_count,
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 		cam_freeccb(ccb);
 		cam_close_device(device);
@@ -1826,12 +1787,8 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			warnx("error sending command");
 
 		if (arglist & CAM_ARG_VERBOSE) {
-		 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 
 		error = 1;
@@ -2053,8 +2010,9 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 		}
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			warnx("XPT_REL_SIMQ CCB failed, status %#x",
-			      ccb->ccb_h.status);
+			warnx("XPT_REL_SIMQ CCB failed");
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 			retval = 1;
 			goto tagcontrol_bailout;
 		}
@@ -2077,8 +2035,9 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_GDEV_STATS CCB failed, status %#x",
-		      ccb->ccb_h.status);
+		warnx("XPT_GDEV_STATS CCB failed");
+		cam_error_print(device, ccb, CAM_ESF_ALL,
+				CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto tagcontrol_bailout;
 	}
@@ -2178,8 +2137,8 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 		warn("get_cpi: error sending Path Inquiry CCB");
 
 		if (arglist & CAM_ARG_VERBOSE)
-			fprintf(stderr, "CAM status is %#x\n",
-				ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 
 		retval = 1;
 
@@ -2189,8 +2148,8 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 
 		if (arglist & CAM_ARG_VERBOSE)
-			fprintf(stderr, "get_cpi: CAM status is %#x\n",
-				ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 
 		retval = 1;
 
@@ -2367,13 +2326,18 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		perror("error sending XPT_GET_TRAN_SETTINGS CCB");
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto get_print_cts_bailout;
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_GET_TRANS_SETTINGS CCB failed, status %#x",
-		      ccb->ccb_h.status);
+		warnx("XPT_GET_TRANS_SETTINGS CCB failed");
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto get_print_cts_bailout;
 	}
@@ -2497,13 +2461,20 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		perror("error sending XPT_PATH_INQ CCB");
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
 		retval = 1;
 		goto ratecontrol_bailout;
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		warnx("XPT_PATH_INQ CCB failed, status %#x",
-		      ccb->ccb_h.status);
+		warnx("XPT_PATH_INQ CCB failed");
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
 		retval = 1;
 		goto ratecontrol_bailout;
 	}
@@ -2645,13 +2616,20 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 
 		if (cam_send_ccb(device, ccb) < 0) {
 			perror("error sending XPT_SET_TRAN_SETTINGS CCB");
+			if (arglist & CAM_ARG_VERBOSE) {
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
+			}
 			retval = 1;
 			goto ratecontrol_bailout;
 		}
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			warnx("XPT_SET_TRANS_SETTINGS CCB failed, status %#x",
-			      ccb->ccb_h.status);
+			warnx("XPT_SET_TRANS_SETTINGS CCB failed");
+			if (arglist & CAM_ARG_VERBOSE) {
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
+			}
 			retval = 1;
 			goto ratecontrol_bailout;
 		}
@@ -2850,12 +2828,8 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 			warnx(errstr);
 
 		if (arglist & CAM_ARG_VERBOSE) {
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(device, &ccb->csio, stderr);
-			else
-				fprintf(stderr, "CAM status is %#x\n",
-					ccb->ccb_h.status);
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
 		}
 		error = 1;
 		goto scsiformat_bailout;
@@ -2904,13 +2878,8 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		if (retval < 0) {
 			warn("error sending CAMIOCOMMAND ioctl");
 			if (arglist & CAM_ARG_VERBOSE) {
-				if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-				    CAM_SCSI_STATUS_ERROR)
-					scsi_sense_print(device, &ccb->csio,
-							 stderr);
-				else
-					fprintf(stderr, "CAM status is %#x\n",
-						ccb->ccb_h.status);
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
 			}
 			error = 1;
 			goto scsiformat_bailout;
@@ -2919,7 +2888,8 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		status = ccb->ccb_h.status & CAM_STATUS_MASK;
 
 		if ((status != CAM_REQ_CMP)
-		 && (status == CAM_SCSI_STATUS_ERROR)) {
+		 && (status == CAM_SCSI_STATUS_ERROR)
+		 && ((status & CAM_AUTOSNS_VALID) != 0)) {
 			struct scsi_sense_data *sense;
 			int error_code, sense_key, asc, ascq;
 
@@ -2970,13 +2940,17 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 				sleep(1);
 			} else {
 				warnx("Unexpected SCSI error during format");
-				scsi_sense_print(device, &ccb->csio, stderr);
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
 				error = 1;
 				goto scsiformat_bailout;
 			}
 
 		} else if (status != CAM_REQ_CMP) {
 			warnx("Unexpected CAM status %#x", status);
+			if (arglist & CAM_ARG_VERBOSE)
+				cam_error_print(device, ccb, CAM_ESF_ALL,
+						CAM_EPF_ALL, stderr);
 			error = 1;
 			goto scsiformat_bailout;
 		}

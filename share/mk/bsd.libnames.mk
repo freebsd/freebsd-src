@@ -80,6 +80,7 @@ LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
+LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBDESCRYPT?=	"don't use LIBDESCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a

@@ -1,7 +1,7 @@
 /*
  * Implementation of Utility functions for all SCSI device types.
  *
- * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -35,9 +35,11 @@
 #include <opt_scsi.h>
 
 #include <sys/systm.h>
+#include <sys/libkern.h>
 #else
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #endif
 
@@ -45,6 +47,7 @@
 #include <cam/cam_ccb.h>
 #include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_all.h>
+#include <sys/sbuf.h>
 #ifndef _KERNEL
 #include <camlib.h>
 
@@ -58,25 +61,12 @@
 #define EJUSTRETURN     -2              /* don't modify regs, just return */
 #endif /* !_KERNEL */
 
-const char *scsi_sense_key_text[] = 
-{
-	"NO SENSE",
-	"RECOVERED ERROR",
-	"NOT READY",
-	"MEDIUM ERROR",
-	"HARDWARE FAILURE",
-	"ILLEGAL REQUEST",
-	"UNIT ATTENTION",
-	"DATA PROTECT",
-	"BLANK CHECK",
-	"Vendor Specific",
-	"COPY ABORTED",
-	"ABORTED COMMAND",
-	"EQUAL",
-	"VOLUME OVERFLOW",
-	"MISCOMPARE",
-	"RESERVED"
-};
+static int	ascentrycomp(const void *key, const void *member);
+static int	senseentrycomp(const void *key, const void *member);
+static void	fetchtableentries(int sense_key, int asc, int ascq,
+				  struct scsi_inquiry_data *,
+				  const struct sense_key_table_entry **,
+				  const struct asc_table_entry **);
 
 #if !defined(SCSI_NO_OP_STRINGS)
 
@@ -95,10 +85,6 @@ const char *scsi_sense_key_text[] =
 
 #define ALL 0xFFF
 
-/*
- * WARNING:  You must update the num_ops field below for this quirk table 
- * entry if you add more entries.
- */
 static struct op_table_entry plextor_cd_ops[] = {
 	{0xD8, R, "CD-DA READ"}
 };
@@ -115,7 +101,7 @@ static struct scsi_op_quirk_entry scsi_op_quirk_table[] = {
 		 * feel free to change this quirk entry.
 		 */
 		{T_CDROM, SIP_MEDIA_REMOVABLE, "PLEXTOR", "CD-ROM PX*", "*"},
-		1, /* number of vendor-specific opcodes for this entry */
+		sizeof(plextor_cd_ops)/sizeof(struct op_table_entry),
 		plextor_cd_ops
 	}
 };
@@ -701,27 +687,48 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 
 #include <sys/param.h>
 
-
 #if !defined(SCSI_NO_SENSE_STRINGS)
 #define SST(asc, ascq, action, desc) \
 	asc, ascq, action, desc
 #else 
+const char empty_string[] = "";
+
 #define SST(asc, ascq, action, desc) \
-	asc, ascq, action
+	asc, ascq, action, empty_string
 #endif 
 
 static const char quantum[] = "QUANTUM";
 
-/*
- * WARNING:  You must update the num_ascs field below for this quirk table 
- * entry if you add more entries.
- */
+const struct sense_key_table_entry sense_key_table[] = 
+{
+	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
+	{ SSD_KEY_RECOVERED_ERROR, SS_NOP|SSQ_PRINT_SENSE, "RECOVERED ERROR" },
+	{
+	  SSD_KEY_NOT_READY, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EBUSY,
+	  "NOT READY"
+	},
+	{ SSD_KEY_MEDIUM_ERROR, SS_RDEF, "MEDIUM ERROR" },
+	{ SSD_KEY_HARDWARE_ERROR, SS_RDEF, "HARDWARE FAILURE" },
+	{ SSD_KEY_ILLEGAL_REQUEST, SS_FATAL|EINVAL, "ILLEGAL REQUEST" },
+	{ SSD_KEY_UNIT_ATTENTION, SS_FATAL|ENXIO, "UNIT ATTENTION" },
+	{ SSD_KEY_Vendor_Specific, SS_FATAL|EIO, "Vendor Specific" },
+	{ SSD_KEY_COPY_ABORTED, SS_FATAL|EIO, "COPY ABORTED" },
+	{ SSD_KEY_ABORTED_COMMAND, SS_RDEF, "ABORTED COMMAND" },
+	{ SSD_KEY_EQUAL, SS_NOP, "EQUAL" },
+	{ SSD_KEY_VOLUME_OVERFLOW, SS_FATAL|EIO, "VOLUME OVERFLOW" },
+	{ SSD_KEY_MISCOMPARE, SS_NOP, "MISCOMPARE" },
+	{ SSD_KEY_RESERVED, SS_FATAL|EIO, "RESERVED" }
+};
+
+const int sense_key_table_size =
+    sizeof(sense_key_table)/sizeof(sense_key_table[0]);
+
 static struct asc_table_entry quantum_fireball_entries[] = {
 	{SST(0x04, 0x0b, SS_START|SSQ_DECREMENT_COUNT|ENXIO, 
 	     "Logical unit not ready, initializing cmd. required")}
 };
 
-static struct scsi_sense_quirk_entry asc_quirk_table[] = {
+static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 	{
 		/*
 		 * The Quantum Fireball ST and SE like to return 0x04 0x0b when
@@ -730,12 +737,17 @@ static struct scsi_sense_quirk_entry asc_quirk_table[] = {
 		 * hardware manual for these drives.
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "FIREBALL S*", "*"},
-		1, /* number of vendor-specific sense codes for this entry */
+		/*num_sense_keys*/0,
+		sizeof(quantum_fireball_entries)/sizeof(struct asc_table_entry),
+		/*sense key entries*/NULL,
 		quantum_fireball_entries
 	}
 };
 
-static struct asc_table_entry asc_text[] = {
+const int sense_quirk_table_size =
+    sizeof(sense_quirk_table)/sizeof(sense_quirk_table[0]);
+
+static struct asc_table_entry asc_table[] = {
 /*
  * From File: ASC-NUM.TXT
  * SCSI ASC/ASCQ Assignments
@@ -756,43 +768,43 @@ static struct asc_table_entry asc_text[] = {
  * .  .  .  . E - ENCLOSURE SERVICES DEVICE (SES)
  * DTLPWRSOMCAE        ASC   ASCQ  Action  Description
  * ------------        ----  ----  ------  -----------------------------------*/
-/* DTLPWRSOMCAE */{SST(0x00, 0x00, SS_NEPDEF,
+/* DTLPWRSOMCAE */{SST(0x00, 0x00, SS_NOP,
 			"No additional sense information") },
-/*  T    S      */{SST(0x00, 0x01, SS_DEF,
+/*  T    S      */{SST(0x00, 0x01, SS_RDEF,
 			"Filemark detected") },
-/*  T    S      */{SST(0x00, 0x02, SS_DEF,
+/*  T    S      */{SST(0x00, 0x02, SS_RDEF,
 			"End-of-partition/medium detected") },
-/*  T           */{SST(0x00, 0x03, SS_DEF,
+/*  T           */{SST(0x00, 0x03, SS_RDEF,
 			"Setmark detected") },
-/*  T    S      */{SST(0x00, 0x04, SS_DEF,
+/*  T    S      */{SST(0x00, 0x04, SS_RDEF,
 			"Beginning-of-partition/medium detected") },
-/*  T    S      */{SST(0x00, 0x05, SS_DEF,
+/*  T    S      */{SST(0x00, 0x05, SS_RDEF,
 			"End-of-data detected") },
-/* DTLPWRSOMCAE */{SST(0x00, 0x06, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x00, 0x06, SS_RDEF,
 			"I/O process terminated") },
-/*      R       */{SST(0x00, 0x11, SS_NEDEF|EBUSY,
+/*      R       */{SST(0x00, 0x11, SS_FATAL|EBUSY,
 			"Audio play operation in progress") },
-/*      R       */{SST(0x00, 0x12, SS_NEDEF,
+/*      R       */{SST(0x00, 0x12, SS_NOP,
 			"Audio play operation paused") },
-/*      R       */{SST(0x00, 0x13, SS_NEDEF,
+/*      R       */{SST(0x00, 0x13, SS_NOP,
 			"Audio play operation successfully completed") },
-/*      R       */{SST(0x00, 0x14, SS_DEF,
+/*      R       */{SST(0x00, 0x14, SS_RDEF,
 			"Audio play operation stopped due to error") },
-/*      R       */{SST(0x00, 0x15, SS_DEF,
+/*      R       */{SST(0x00, 0x15, SS_NOP,
 			"No current audio status to return") },
-/* DTLPWRSOMCAE */{SST(0x00, 0x16, SS_NEDEF|EBUSY,
+/* DTLPWRSOMCAE */{SST(0x00, 0x16, SS_FATAL|EBUSY,
 			"Operation in progress") },
-/* DTL WRSOM AE */{SST(0x00, 0x17, SS_DEF,
+/* DTL WRSOM AE */{SST(0x00, 0x17, SS_RDEF,
 			"Cleaning requested") },
-/* D   W  O     */{SST(0x01, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x01, 0x00, SS_RDEF,
 			"No index/sector signal") },
-/* D   WR OM    */{SST(0x02, 0x00, SS_DEF,
+/* D   WR OM    */{SST(0x02, 0x00, SS_RDEF,
 			"No seek complete") },
-/* DTL W SO     */{SST(0x03, 0x00, SS_DEF,
+/* DTL W SO     */{SST(0x03, 0x00, SS_RDEF,
 			"Peripheral device write fault") },
-/*  T           */{SST(0x03, 0x01, SS_DEF,
+/*  T           */{SST(0x03, 0x01, SS_RDEF,
 			"No write current") },
-/*  T           */{SST(0x03, 0x02, SS_DEF,
+/*  T           */{SST(0x03, 0x02, SS_RDEF,
 			"Excessive write errors") },
 /* DTLPWRSOMCAE */{SST(0x04, 0x00, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EIO,
 			"Logical unit not ready, cause not reportable") },
@@ -800,754 +812,864 @@ static struct asc_table_entry asc_text[] = {
 			"Logical unit is in process of becoming ready") },
 /* DTLPWRSOMCAE */{SST(0x04, 0x02, SS_START|SSQ_DECREMENT_COUNT|ENXIO,
 			"Logical unit not ready, initializing cmd. required") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x03, SS_NEDEF|ENXIO,
+/* DTLPWRSOMCAE */{SST(0x04, 0x03, SS_FATAL|ENXIO,
 			"Logical unit not ready, manual intervention required")},
-/* DTL    O     */{SST(0x04, 0x04, SS_NEDEF|EBUSY,
+/* DTL    O     */{SST(0x04, 0x04, SS_FATAL|EBUSY,
 			"Logical unit not ready, format in progress") },
-/* DT  W  OMCA  */{SST(0x04, 0x05, SS_NEDEF|EBUSY,
+/* DT  W  OMCA  */{SST(0x04, 0x05, SS_FATAL|EBUSY,
 			"Logical unit not ready, rebuild in progress") },
-/* DT  W  OMCA  */{SST(0x04, 0x06, SS_NEDEF|EBUSY,
+/* DT  W  OMCA  */{SST(0x04, 0x06, SS_FATAL|EBUSY,
 			"Logical unit not ready, recalculation in progress") },
-/* DTLPWRSOMCAE */{SST(0x04, 0x07, SS_NEDEF|EBUSY,
+/* DTLPWRSOMCAE */{SST(0x04, 0x07, SS_FATAL|EBUSY,
 			"Logical unit not ready, operation in progress") },
-/*      R       */{SST(0x04, 0x08, SS_NEDEF|EBUSY,
+/*      R       */{SST(0x04, 0x08, SS_FATAL|EBUSY,
 			"Logical unit not ready, long write in progress") },
-/* DTL WRSOMCAE */{SST(0x05, 0x00, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x05, 0x00, SS_RDEF,
 			"Logical unit does not respond to selection") },
-/* D   WR OM    */{SST(0x06, 0x00, SS_DEF,
+/* D   WR OM    */{SST(0x06, 0x00, SS_RDEF,
 			"No reference position found") },
-/* DTL WRSOM    */{SST(0x07, 0x00, SS_DEF,
+/* DTL WRSOM    */{SST(0x07, 0x00, SS_RDEF,
 			"Multiple peripheral devices selected") },
-/* DTL WRSOMCAE */{SST(0x08, 0x00, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x08, 0x00, SS_RDEF,
 			"Logical unit communication failure") },
-/* DTL WRSOMCAE */{SST(0x08, 0x01, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x08, 0x01, SS_RDEF,
 			"Logical unit communication time-out") },
-/* DTL WRSOMCAE */{SST(0x08, 0x02, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x08, 0x02, SS_RDEF,
 			"Logical unit communication parity error") },
-/* DT   R OM    */{SST(0x08, 0x03, SS_DEF,
+/* DT   R OM    */{SST(0x08, 0x03, SS_RDEF,
 			"Logical unit communication crc error (ultra-dma/32)")},
-/* DT  WR O     */{SST(0x09, 0x00, SS_DEF,
+/* DT  WR O     */{SST(0x09, 0x00, SS_RDEF,
 			"Track following error") },
-/*     WR O     */{SST(0x09, 0x01, SS_DEF,
+/*     WR O     */{SST(0x09, 0x01, SS_RDEF,
 			"Tracking servo failure") },
-/*     WR O     */{SST(0x09, 0x02, SS_DEF,
+/*     WR O     */{SST(0x09, 0x02, SS_RDEF,
 			"Focus servo failure") },
-/*     WR O     */{SST(0x09, 0x03, SS_DEF,
+/*     WR O     */{SST(0x09, 0x03, SS_RDEF,
 			"Spindle servo failure") },
-/* DT  WR O     */{SST(0x09, 0x04, SS_DEF,
+/* DT  WR O     */{SST(0x09, 0x04, SS_RDEF,
 			"Head select fault") },
-/* DTLPWRSOMCAE */{SST(0x0A, 0x00, SS_NEDEF|ENOSPC,
+/* DTLPWRSOMCAE */{SST(0x0A, 0x00, SS_FATAL|ENOSPC,
 			"Error log overflow") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x0B, 0x00, SS_RDEF,
 			"Warning") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x0B, 0x01, SS_RDEF,
 			"Specified temperature exceeded") },
-/* DTLPWRSOMCAE */{SST(0x0B, 0x02, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x0B, 0x02, SS_RDEF,
 			"Enclosure degraded") },
-/*  T   RS      */{SST(0x0C, 0x00, SS_DEF,
+/*  T   RS      */{SST(0x0C, 0x00, SS_RDEF,
 			"Write error") },
-/* D   W  O     */{SST(0x0C, 0x01, SS_NEDEF,
+/* D   W  O     */{SST(0x0C, 0x01, SS_NOP|SSQ_PRINT_SENSE,
 			"Write error - recovered with auto reallocation") },
-/* D   W  O     */{SST(0x0C, 0x02, SS_DEF,
+/* D   W  O     */{SST(0x0C, 0x02, SS_RDEF,
 			"Write error - auto reallocation failed") },
-/* D   W  O     */{SST(0x0C, 0x03, SS_DEF,
+/* D   W  O     */{SST(0x0C, 0x03, SS_RDEF,
 			"Write error - recommend reassignment") },
-/* DT  W  O     */{SST(0x0C, 0x04, SS_NEPDEF,
+/* DT  W  O     */{SST(0x0C, 0x04, SS_RDEF,
 			"Compression check miscompare error") },
-/* DT  W  O     */{SST(0x0C, 0x05, SS_DEF,
+/* DT  W  O     */{SST(0x0C, 0x05, SS_RDEF,
 			"Data expansion occurred during compression") },
-/* DT  W  O     */{SST(0x0C, 0x06, SS_DEF,
+/* DT  W  O     */{SST(0x0C, 0x06, SS_RDEF,
 			"Block not compressible") },
-/*      R       */{SST(0x0C, 0x07, SS_DEF,
+/*      R       */{SST(0x0C, 0x07, SS_RDEF,
 			"Write error - recovery needed") },
-/*      R       */{SST(0x0C, 0x08, SS_DEF,
+/*      R       */{SST(0x0C, 0x08, SS_RDEF,
 			"Write error - recovery failed") },
-/*      R       */{SST(0x0C, 0x09, SS_DEF,
+/*      R       */{SST(0x0C, 0x09, SS_RDEF,
 			"Write error - loss of streaming") },
-/*      R       */{SST(0x0C, 0x0A, SS_DEF,
+/*      R       */{SST(0x0C, 0x0A, SS_RDEF,
 			"Write error - padding blocks added") },
-/* D   W  O     */{SST(0x10, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x10, 0x00, SS_RDEF,
 			"ID CRC or ECC error") },
-/* DT  WRSO     */{SST(0x11, 0x00, SS_DEF,
+/* DT  WRSO     */{SST(0x11, 0x00, SS_RDEF,
 			"Unrecovered read error") },
-/* DT  W SO     */{SST(0x11, 0x01, SS_DEF,
+/* DT  W SO     */{SST(0x11, 0x01, SS_RDEF,
 			"Read retries exhausted") },
-/* DT  W SO     */{SST(0x11, 0x02, SS_DEF,
+/* DT  W SO     */{SST(0x11, 0x02, SS_RDEF,
 			"Error too long to correct") },
-/* DT  W SO     */{SST(0x11, 0x03, SS_DEF,
+/* DT  W SO     */{SST(0x11, 0x03, SS_RDEF,
 			"Multiple read errors") },
-/* D   W  O     */{SST(0x11, 0x04, SS_DEF,
+/* D   W  O     */{SST(0x11, 0x04, SS_RDEF,
 			"Unrecovered read error - auto reallocate failed") },
-/*     WR O     */{SST(0x11, 0x05, SS_DEF,
+/*     WR O     */{SST(0x11, 0x05, SS_RDEF,
 			"L-EC uncorrectable error") },
-/*     WR O     */{SST(0x11, 0x06, SS_DEF,
+/*     WR O     */{SST(0x11, 0x06, SS_RDEF,
 			"CIRC unrecovered error") },
-/*     W  O     */{SST(0x11, 0x07, SS_DEF,
+/*     W  O     */{SST(0x11, 0x07, SS_RDEF,
 			"Data re-synchronization error") },
-/*  T           */{SST(0x11, 0x08, SS_DEF,
+/*  T           */{SST(0x11, 0x08, SS_RDEF,
 			"Incomplete block read") },
-/*  T           */{SST(0x11, 0x09, SS_DEF,
+/*  T           */{SST(0x11, 0x09, SS_RDEF,
 			"No gap found") },
-/* DT     O     */{SST(0x11, 0x0A, SS_DEF,
+/* DT     O     */{SST(0x11, 0x0A, SS_RDEF,
 			"Miscorrected error") },
-/* D   W  O     */{SST(0x11, 0x0B, SS_DEF,
+/* D   W  O     */{SST(0x11, 0x0B, SS_RDEF,
 			"Unrecovered read error - recommend reassignment") },
-/* D   W  O     */{SST(0x11, 0x0C, SS_DEF,
+/* D   W  O     */{SST(0x11, 0x0C, SS_RDEF,
 			"Unrecovered read error - recommend rewrite the data")},
-/* DT  WR O     */{SST(0x11, 0x0D, SS_DEF,
+/* DT  WR O     */{SST(0x11, 0x0D, SS_RDEF,
 			"De-compression CRC error") },
-/* DT  WR O     */{SST(0x11, 0x0E, SS_DEF,
+/* DT  WR O     */{SST(0x11, 0x0E, SS_RDEF,
 			"Cannot decompress using declared algorithm") },
-/*      R       */{SST(0x11, 0x0F, SS_DEF,
+/*      R       */{SST(0x11, 0x0F, SS_RDEF,
 			"Error reading UPC/EAN number") },
-/*      R       */{SST(0x11, 0x10, SS_DEF,
+/*      R       */{SST(0x11, 0x10, SS_RDEF,
 			"Error reading ISRC number") },
-/*      R       */{SST(0x11, 0x11, SS_DEF,
+/*      R       */{SST(0x11, 0x11, SS_RDEF,
 			"Read error - loss of streaming") },
-/* D   W  O     */{SST(0x12, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x12, 0x00, SS_RDEF,
 			"Address mark not found for id field") },
-/* D   W  O     */{SST(0x13, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x13, 0x00, SS_RDEF,
 			"Address mark not found for data field") },
-/* DTL WRSO     */{SST(0x14, 0x00, SS_DEF,
+/* DTL WRSO     */{SST(0x14, 0x00, SS_RDEF,
 			"Recorded entity not found") },
-/* DT  WR O     */{SST(0x14, 0x01, SS_DEF,
+/* DT  WR O     */{SST(0x14, 0x01, SS_RDEF,
 			"Record not found") },
-/*  T           */{SST(0x14, 0x02, SS_DEF,
+/*  T           */{SST(0x14, 0x02, SS_RDEF,
 			"Filemark or setmark not found") },
-/*  T           */{SST(0x14, 0x03, SS_DEF,
+/*  T           */{SST(0x14, 0x03, SS_RDEF,
 			"End-of-data not found") },
-/*  T           */{SST(0x14, 0x04, SS_DEF,
+/*  T           */{SST(0x14, 0x04, SS_RDEF,
 			"Block sequence error") },
-/* DT  W  O     */{SST(0x14, 0x05, SS_DEF,
+/* DT  W  O     */{SST(0x14, 0x05, SS_RDEF,
 			"Record not found - recommend reassignment") },
-/* DT  W  O     */{SST(0x14, 0x06, SS_DEF,
+/* DT  W  O     */{SST(0x14, 0x06, SS_RDEF,
 			"Record not found - data auto-reallocated") },
-/* DTL WRSOM    */{SST(0x15, 0x00, SS_DEF,
+/* DTL WRSOM    */{SST(0x15, 0x00, SS_RDEF,
 			"Random positioning error") },
-/* DTL WRSOM    */{SST(0x15, 0x01, SS_DEF,
+/* DTL WRSOM    */{SST(0x15, 0x01, SS_RDEF,
 			"Mechanical positioning error") },
-/* DT  WR O     */{SST(0x15, 0x02, SS_DEF,
+/* DT  WR O     */{SST(0x15, 0x02, SS_RDEF,
 			"Positioning error detected by read of medium") },
-/* D   W  O     */{SST(0x16, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x16, 0x00, SS_RDEF,
 			"Data synchronization mark error") },
-/* D   W  O     */{SST(0x16, 0x01, SS_DEF,
+/* D   W  O     */{SST(0x16, 0x01, SS_RDEF,
 			"Data sync error - data rewritten") },
-/* D   W  O     */{SST(0x16, 0x02, SS_DEF,
+/* D   W  O     */{SST(0x16, 0x02, SS_RDEF,
 			"Data sync error - recommend rewrite") },
-/* D   W  O     */{SST(0x16, 0x03, SS_NEDEF,
+/* D   W  O     */{SST(0x16, 0x03, SS_NOP|SSQ_PRINT_SENSE,
 			"Data sync error - data auto-reallocated") },
-/* D   W  O     */{SST(0x16, 0x04, SS_DEF,
+/* D   W  O     */{SST(0x16, 0x04, SS_RDEF,
 			"Data sync error - recommend reassignment") },
-/* DT  WRSO     */{SST(0x17, 0x00, SS_NEDEF,
+/* DT  WRSO     */{SST(0x17, 0x00, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with no error correction applied") },
-/* DT  WRSO     */{SST(0x17, 0x01, SS_NEDEF,
+/* DT  WRSO     */{SST(0x17, 0x01, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with retries") },
-/* DT  WR O     */{SST(0x17, 0x02, SS_NEDEF,
+/* DT  WR O     */{SST(0x17, 0x02, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with positive head offset") },
-/* DT  WR O     */{SST(0x17, 0x03, SS_NEDEF,
+/* DT  WR O     */{SST(0x17, 0x03, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with negative head offset") },
-/*     WR O     */{SST(0x17, 0x04, SS_NEDEF,
+/*     WR O     */{SST(0x17, 0x04, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with retries and/or CIRC applied") },
-/* D   WR O     */{SST(0x17, 0x05, SS_NEDEF,
+/* D   WR O     */{SST(0x17, 0x05, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data using previous sector id") },
-/* D   W  O     */{SST(0x17, 0x06, SS_NEDEF,
+/* D   W  O     */{SST(0x17, 0x06, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data without ECC - data auto-reallocated") },
-/* D   W  O     */{SST(0x17, 0x07, SS_NEDEF,
+/* D   W  O     */{SST(0x17, 0x07, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data without ECC - recommend reassignment")},
-/* D   W  O     */{SST(0x17, 0x08, SS_NEDEF,
+/* D   W  O     */{SST(0x17, 0x08, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data without ECC - recommend rewrite") },
-/* D   W  O     */{SST(0x17, 0x09, SS_NEDEF,
+/* D   W  O     */{SST(0x17, 0x09, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data without ECC - data rewritten") },
-/* D   W  O     */{SST(0x18, 0x00, SS_NEDEF,
+/* D   W  O     */{SST(0x18, 0x00, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with error correction applied") },
-/* D   WR O     */{SST(0x18, 0x01, SS_NEDEF,
+/* D   WR O     */{SST(0x18, 0x01, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with error corr. & retries applied") },
-/* D   WR O     */{SST(0x18, 0x02, SS_NEDEF,
+/* D   WR O     */{SST(0x18, 0x02, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data - data auto-reallocated") },
-/*      R       */{SST(0x18, 0x03, SS_NEDEF,
+/*      R       */{SST(0x18, 0x03, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with CIRC") },
-/*      R       */{SST(0x18, 0x04, SS_NEDEF,
+/*      R       */{SST(0x18, 0x04, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with L-EC") },
-/* D   WR O     */{SST(0x18, 0x05, SS_NEDEF,
+/* D   WR O     */{SST(0x18, 0x05, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data - recommend reassignment") },
-/* D   WR O     */{SST(0x18, 0x06, SS_NEDEF,
+/* D   WR O     */{SST(0x18, 0x06, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data - recommend rewrite") },
-/* D   W  O     */{SST(0x18, 0x07, SS_NEDEF,
+/* D   W  O     */{SST(0x18, 0x07, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered data with ECC - data rewritten") },
-/* D      O     */{SST(0x19, 0x00, SS_DEF,
+/* D      O     */{SST(0x19, 0x00, SS_RDEF,
 			"Defect list error") },
-/* D      O     */{SST(0x19, 0x01, SS_DEF,
+/* D      O     */{SST(0x19, 0x01, SS_RDEF,
 			"Defect list not available") },
-/* D      O     */{SST(0x19, 0x02, SS_DEF,
+/* D      O     */{SST(0x19, 0x02, SS_RDEF,
 			"Defect list error in primary list") },
-/* D      O     */{SST(0x19, 0x03, SS_DEF,
+/* D      O     */{SST(0x19, 0x03, SS_RDEF,
 			"Defect list error in grown list") },
-/* DTLPWRSOMCAE */{SST(0x1A, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x1A, 0x00, SS_RDEF,
 			"Parameter list length error") },
-/* DTLPWRSOMCAE */{SST(0x1B, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x1B, 0x00, SS_RDEF,
 			"Synchronous data transfer error") },
-/* D      O     */{SST(0x1C, 0x00, SS_DEF,
+/* D      O     */{SST(0x1C, 0x00, SS_RDEF,
 			"Defect list not found") },
-/* D      O     */{SST(0x1C, 0x01, SS_DEF,
+/* D      O     */{SST(0x1C, 0x01, SS_RDEF,
 			"Primary defect list not found") },
-/* D      O     */{SST(0x1C, 0x02, SS_DEF,
+/* D      O     */{SST(0x1C, 0x02, SS_RDEF,
 			"Grown defect list not found") },
-/* D   W  O     */{SST(0x1D, 0x00, SS_NEPDEF,
+/* D   W  O     */{SST(0x1D, 0x00, SS_FATAL,
 			"Miscompare during verify operation" )},
-/* D   W  O     */{SST(0x1E, 0x00, SS_NEDEF,
+/* D   W  O     */{SST(0x1E, 0x00, SS_NOP|SSQ_PRINT_SENSE,
 			"Recovered id with ecc correction") },
-/* D      O     */{SST(0x1F, 0x00, SS_DEF,
+/* D      O     */{SST(0x1F, 0x00, SS_RDEF,
 			"Partial defect list transfer") },
-/* DTLPWRSOMCAE */{SST(0x20, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x20, 0x00, SS_FATAL|EINVAL,
 			"Invalid command operation code") },
-/* DT  WR OM    */{SST(0x21, 0x00, SS_DEF,
+/* DT  WR OM    */{SST(0x21, 0x00, SS_FATAL|EINVAL,
 			"Logical block address out of range" )},
-/* DT  WR OM    */{SST(0x21, 0x01, SS_DEF,
+/* DT  WR OM    */{SST(0x21, 0x01, SS_FATAL|EINVAL,
 			"Invalid element address") },
-/* D            */{SST(0x22, 0x00, SS_DEF,
+/* D            */{SST(0x22, 0x00, SS_FATAL|EINVAL,
 			"Illegal function") }, /* Deprecated. Use 20 00, 24 00, or 26 00 instead */
-/* DTLPWRSOMCAE */{SST(0x24, 0x00, SS_NEDEF|EINVAL,
+/* DTLPWRSOMCAE */{SST(0x24, 0x00, SS_FATAL|EINVAL,
 			"Invalid field in CDB") },
-/* DTLPWRSOMCAE */{SST(0x25, 0x00, SS_NEDEF|ENXIO,
+/* DTLPWRSOMCAE */{SST(0x25, 0x00, SS_FATAL|ENXIO,
 			"Logical unit not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x00, SS_NEDEF|EINVAL,
+/* DTLPWRSOMCAE */{SST(0x26, 0x00, SS_FATAL|EINVAL,
 			"Invalid field in parameter list") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x01, SS_NEDEF|EINVAL,
+/* DTLPWRSOMCAE */{SST(0x26, 0x01, SS_FATAL|EINVAL,
 			"Parameter not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x02, SS_NEDEF|EINVAL,
+/* DTLPWRSOMCAE */{SST(0x26, 0x02, SS_FATAL|EINVAL,
 			"Parameter value invalid") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x03, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x26, 0x03, SS_FATAL|EINVAL,
 			"Threshold parameters not supported") },
-/* DTLPWRSOMCAE */{SST(0x26, 0x04, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x26, 0x04, SS_FATAL|EINVAL,
 			"Invalid release of active persistent reservation") },
-/* DT  W  O     */{SST(0x27, 0x00, SS_NEDEF|EACCES,
+/* DT  W  O     */{SST(0x27, 0x00, SS_FATAL|EACCES,
 			"Write protected") },
-/* DT  W  O     */{SST(0x27, 0x01, SS_NEDEF|EACCES,
+/* DT  W  O     */{SST(0x27, 0x01, SS_FATAL|EACCES,
 			"Hardware write protected") },
-/* DT  W  O     */{SST(0x27, 0x02, SS_NEDEF|EACCES,
+/* DT  W  O     */{SST(0x27, 0x02, SS_FATAL|EACCES,
 			"Logical unit software write protected") },
-/*  T           */{SST(0x27, 0x03, SS_NEDEF|EACCES,
+/*  T           */{SST(0x27, 0x03, SS_FATAL|EACCES,
 			"Associated write protect") },
-/*  T           */{SST(0x27, 0x04, SS_NEDEF|EACCES,
+/*  T           */{SST(0x27, 0x04, SS_FATAL|EACCES,
 			"Persistent write protect") },
-/*  T           */{SST(0x27, 0x05, SS_NEDEF|EACCES,
+/*  T           */{SST(0x27, 0x05, SS_FATAL|EACCES,
 			"Permanent write protect") },
-/* DTLPWRSOMCAE */{SST(0x28, 0x00, SS_NEDEF|ENXIO,
+/* DTLPWRSOMCAE */{SST(0x28, 0x00, SS_FATAL|ENXIO,
 			"Not ready to ready change, medium may have changed") },
-/* DT  WR OM    */{SST(0x28, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x28, 0x01, SS_FATAL|ENXIO,
 			"Import or export element accessed") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x00, SS_NEDEF|ENXIO,
+/*
+ * XXX JGibbs - All of these should use the same errno, but I don't think
+ * ENXIO is the correct choice.  Should we borrow from the networking
+ * errnos?  ECONNRESET anyone?
+ */
+/* DTLPWRSOMCAE */{SST(0x29, 0x00, SS_FATAL|ENXIO,
 			"Power on, reset, or bus device reset occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x01, SS_RDEF,
 			"Power on occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x02, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x02, SS_RDEF,
 			"Scsi bus reset occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x03, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x03, SS_RDEF,
 			"Bus device reset function occurred") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x04, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x04, SS_RDEF,
 			"Device internal reset") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x05, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x05, SS_RDEF,
 			"Transceiver mode changed to single-ended") },
-/* DTLPWRSOMCAE */{SST(0x29, 0x06, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x29, 0x06, SS_RDEF,
 			"Transceiver mode changed to LVD") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x00, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x2A, 0x00, SS_RDEF,
 			"Parameters changed") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x01, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x2A, 0x01, SS_RDEF,
 			"Mode parameters changed") },
-/* DTL WRSOMCAE */{SST(0x2A, 0x02, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x2A, 0x02, SS_RDEF,
 			"Log parameters changed") },
-/* DTLPWRSOMCAE */{SST(0x2A, 0x03, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x2A, 0x03, SS_RDEF,
 			"Reservations preempted") },
-/* DTLPWRSO C   */{SST(0x2B, 0x00, SS_DEF,
+/* DTLPWRSO C   */{SST(0x2B, 0x00, SS_RDEF,
 			"Copy cannot execute since host cannot disconnect") },
-/* DTLPWRSOMCAE */{SST(0x2C, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x2C, 0x00, SS_RDEF,
 			"Command sequence error") },
-/*       S      */{SST(0x2C, 0x01, SS_DEF,
+/*       S      */{SST(0x2C, 0x01, SS_RDEF,
 			"Too many windows specified") },
-/*       S      */{SST(0x2C, 0x02, SS_DEF,
+/*       S      */{SST(0x2C, 0x02, SS_RDEF,
 			"Invalid combination of windows specified") },
-/*      R       */{SST(0x2C, 0x03, SS_DEF,
+/*      R       */{SST(0x2C, 0x03, SS_RDEF,
 			"Current program area is not empty") },
-/*      R       */{SST(0x2C, 0x04, SS_DEF,
+/*      R       */{SST(0x2C, 0x04, SS_RDEF,
 			"Current program area is empty") },
-/*  T           */{SST(0x2D, 0x00, SS_DEF,
+/*  T           */{SST(0x2D, 0x00, SS_RDEF,
 			"Overwrite error on update in place") },
-/* DTLPWRSOMCAE */{SST(0x2F, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x2F, 0x00, SS_RDEF,
 			"Commands cleared by another initiator") },
-/* DT  WR OM    */{SST(0x30, 0x00, SS_DEF,
+/* DT  WR OM    */{SST(0x30, 0x00, SS_RDEF,
 			"Incompatible medium installed") },
-/* DT  WR O     */{SST(0x30, 0x01, SS_DEF,
+/* DT  WR O     */{SST(0x30, 0x01, SS_RDEF,
 			"Cannot read medium - unknown format") },
-/* DT  WR O     */{SST(0x30, 0x02, SS_DEF,
+/* DT  WR O     */{SST(0x30, 0x02, SS_RDEF,
 			"Cannot read medium - incompatible format") },
-/* DT           */{SST(0x30, 0x03, SS_DEF,
+/* DT           */{SST(0x30, 0x03, SS_RDEF,
 			"Cleaning cartridge installed") },
-/* DT  WR O     */{SST(0x30, 0x04, SS_DEF,
+/* DT  WR O     */{SST(0x30, 0x04, SS_RDEF,
 			"Cannot write medium - unknown format") },
-/* DT  WR O     */{SST(0x30, 0x05, SS_DEF,
+/* DT  WR O     */{SST(0x30, 0x05, SS_RDEF,
 			"Cannot write medium - incompatible format") },
-/* DT  W  O     */{SST(0x30, 0x06, SS_DEF,
+/* DT  W  O     */{SST(0x30, 0x06, SS_RDEF,
 			"Cannot format medium - incompatible medium") },
-/* DTL WRSOM AE */{SST(0x30, 0x07, SS_DEF,
+/* DTL WRSOM AE */{SST(0x30, 0x07, SS_RDEF,
 			"Cleaning failure") },
-/*      R       */{SST(0x30, 0x08, SS_DEF,
+/*      R       */{SST(0x30, 0x08, SS_RDEF,
 			"Cannot write - application code mismatch") },
-/*      R       */{SST(0x30, 0x09, SS_DEF,
+/*      R       */{SST(0x30, 0x09, SS_RDEF,
 			"Current session not fixated for append") },
-/* DT  WR O     */{SST(0x31, 0x00, SS_DEF,
+/* DT  WR O     */{SST(0x31, 0x00, SS_RDEF,
 			"Medium format corrupted") },
-/* D L  R O     */{SST(0x31, 0x01, SS_DEF,
+/* D L  R O     */{SST(0x31, 0x01, SS_RDEF,
 			"Format command failed") },
-/* D   W  O     */{SST(0x32, 0x00, SS_DEF,
+/* D   W  O     */{SST(0x32, 0x00, SS_RDEF,
 			"No defect spare location available") },
-/* D   W  O     */{SST(0x32, 0x01, SS_DEF,
+/* D   W  O     */{SST(0x32, 0x01, SS_RDEF,
 			"Defect list update failure") },
-/*  T           */{SST(0x33, 0x00, SS_DEF,
+/*  T           */{SST(0x33, 0x00, SS_RDEF,
 			"Tape length error") },
-/* DTLPWRSOMCAE */{SST(0x34, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x34, 0x00, SS_RDEF,
 			"Enclosure failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x35, 0x00, SS_RDEF,
 			"Enclosure services failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x35, 0x01, SS_RDEF,
 			"Unsupported enclosure function") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x02, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x35, 0x02, SS_RDEF,
 			"Enclosure services unavailable") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x03, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x35, 0x03, SS_RDEF,
 			"Enclosure services transfer failure") },
-/* DTLPWRSOMCAE */{SST(0x35, 0x04, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x35, 0x04, SS_RDEF,
 			"Enclosure services transfer refused") },
-/*   L          */{SST(0x36, 0x00, SS_DEF,
+/*   L          */{SST(0x36, 0x00, SS_RDEF,
 			"Ribbon, ink, or toner failure") },
-/* DTL WRSOMCAE */{SST(0x37, 0x00, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x37, 0x00, SS_RDEF,
 			"Rounded parameter") },
-/* DTL WRSOMCAE */{SST(0x39, 0x00, SS_DEF,
+/* DTL WRSOMCAE */{SST(0x39, 0x00, SS_RDEF,
 			"Saving parameters not supported") },
-/* DTL WRSOM    */{SST(0x3A, 0x00, SS_NEDEF|ENXIO,
+/* DTL WRSOM    */{SST(0x3A, 0x00, SS_FATAL|ENXIO,
 			"Medium not present") },
-/* DT  WR OM    */{SST(0x3A, 0x01, SS_NEDEF|ENXIO,
+/* DT  WR OM    */{SST(0x3A, 0x01, SS_FATAL|ENXIO,
 			"Medium not present - tray closed") },
-/* DT  WR OM    */{SST(0x3A, 0x02, SS_NEDEF|ENXIO,
+/* DT  WR OM    */{SST(0x3A, 0x02, SS_FATAL|ENXIO,
 			"Medium not present - tray open") },
-/*  TL          */{SST(0x3B, 0x00, SS_DEF,
+/*  TL          */{SST(0x3B, 0x00, SS_RDEF,
 			"Sequential positioning error") },
-/*  T           */{SST(0x3B, 0x01, SS_DEF,
+/*  T           */{SST(0x3B, 0x01, SS_RDEF,
 			"Tape position error at beginning-of-medium") },
-/*  T           */{SST(0x3B, 0x02, SS_DEF,
+/*  T           */{SST(0x3B, 0x02, SS_RDEF,
 			"Tape position error at end-of-medium") },
-/*   L          */{SST(0x3B, 0x03, SS_DEF,
+/*   L          */{SST(0x3B, 0x03, SS_RDEF,
 			"Tape or electronic vertical forms unit not ready") },
-/*   L          */{SST(0x3B, 0x04, SS_DEF,
+/*   L          */{SST(0x3B, 0x04, SS_RDEF,
 			"Slew failure") },
-/*   L          */{SST(0x3B, 0x05, SS_DEF,
+/*   L          */{SST(0x3B, 0x05, SS_RDEF,
 			"Paper jam") },
-/*   L          */{SST(0x3B, 0x06, SS_DEF,
+/*   L          */{SST(0x3B, 0x06, SS_RDEF,
 			"Failed to sense top-of-form") },
-/*   L          */{SST(0x3B, 0x07, SS_DEF,
+/*   L          */{SST(0x3B, 0x07, SS_RDEF,
 			"Failed to sense bottom-of-form") },
-/*  T           */{SST(0x3B, 0x08, SS_DEF,
+/*  T           */{SST(0x3B, 0x08, SS_RDEF,
 			"Reposition error") },
-/*       S      */{SST(0x3B, 0x09, SS_DEF,
+/*       S      */{SST(0x3B, 0x09, SS_RDEF,
 			"Read past end of medium") },
-/*       S      */{SST(0x3B, 0x0A, SS_DEF,
+/*       S      */{SST(0x3B, 0x0A, SS_RDEF,
 			"Read past beginning of medium") },
-/*       S      */{SST(0x3B, 0x0B, SS_DEF,
+/*       S      */{SST(0x3B, 0x0B, SS_RDEF,
 			"Position past end of medium") },
-/*  T    S      */{SST(0x3B, 0x0C, SS_DEF,
+/*  T    S      */{SST(0x3B, 0x0C, SS_RDEF,
 			"Position past beginning of medium") },
-/* DT  WR OM    */{SST(0x3B, 0x0D, SS_NEDEF|ENOSPC,
+/* DT  WR OM    */{SST(0x3B, 0x0D, SS_FATAL|ENOSPC,
 			"Medium destination element full") },
-/* DT  WR OM    */{SST(0x3B, 0x0E, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x0E, SS_RDEF,
 			"Medium source element empty") },
-/*      R       */{SST(0x3B, 0x0F, SS_DEF,
+/*      R       */{SST(0x3B, 0x0F, SS_RDEF,
 			"End of medium reached") },
-/* DT  WR OM    */{SST(0x3B, 0x11, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x11, SS_RDEF,
 			"Medium magazine not accessible") },
-/* DT  WR OM    */{SST(0x3B, 0x12, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x12, SS_RDEF,
 			"Medium magazine removed") },
-/* DT  WR OM    */{SST(0x3B, 0x13, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x13, SS_RDEF,
 			"Medium magazine inserted") },
-/* DT  WR OM    */{SST(0x3B, 0x14, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x14, SS_RDEF,
 			"Medium magazine locked") },
-/* DT  WR OM    */{SST(0x3B, 0x15, SS_DEF,
+/* DT  WR OM    */{SST(0x3B, 0x15, SS_RDEF,
 			"Medium magazine unlocked") },
-/* DTLPWRSOMCAE */{SST(0x3D, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3D, 0x00, SS_RDEF,
 			"Invalid bits in identify message") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3E, 0x00, SS_RDEF,
 			"Logical unit has not self-configured yet") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3E, 0x01, SS_RDEF,
 			"Logical unit failure") },
-/* DTLPWRSOMCAE */{SST(0x3E, 0x02, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3E, 0x02, SS_RDEF,
 			"Timeout on logical unit") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3F, 0x00, SS_RDEF,
 			"Target operating conditions have changed") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x01, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3F, 0x01, SS_RDEF,
 			"Microcode has been changed") },
-/* DTLPWRSOMC   */{SST(0x3F, 0x02, SS_DEF,
+/* DTLPWRSOMC   */{SST(0x3F, 0x02, SS_RDEF,
 			"Changed operating definition") },
-/* DTLPWRSOMCAE */{SST(0x3F, 0x03, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x3F, 0x03, SS_RDEF,
 			"Inquiry data has changed") },
-/* DT  WR OMCAE */{SST(0x3F, 0x04, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x04, SS_RDEF,
 			"Component device attached") },
-/* DT  WR OMCAE */{SST(0x3F, 0x05, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x05, SS_RDEF,
 			"Device identifier changed") },
-/* DT  WR OMCAE */{SST(0x3F, 0x06, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x06, SS_RDEF,
 			"Redundancy group created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x07, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x07, SS_RDEF,
 			"Redundancy group deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x08, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x08, SS_RDEF,
 			"Spare created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x09, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x09, SS_RDEF,
 			"Spare deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0A, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x0A, SS_RDEF,
 			"Volume set created or modified") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0B, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x0B, SS_RDEF,
 			"Volume set deleted") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0C, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x0C, SS_RDEF,
 			"Volume set deassigned") },
-/* DT  WR OMCAE */{SST(0x3F, 0x0D, SS_DEF,
+/* DT  WR OMCAE */{SST(0x3F, 0x0D, SS_RDEF,
 			"Volume set reassigned") },
-/* D            */{SST(0x40, 0x00, SS_DEF,
+/* D            */{SST(0x40, 0x00, SS_RDEF,
 			"Ram failure") }, /* deprecated - use 40 NN instead */
-/* DTLPWRSOMCAE */{SST(0x40, 0x80, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x40, 0x80, SS_RDEF,
 			"Diagnostic failure: ASCQ = Component ID") },
-/* DTLPWRSOMCAE */{SST(0x40, 0xFF, SS_DEF|SSQ_RANGE,
+/* DTLPWRSOMCAE */{SST(0x40, 0xFF, SS_RDEF|SSQ_RANGE,
 			NULL) },/* Range 0x80->0xFF */
-/* D            */{SST(0x41, 0x00, SS_DEF,
+/* D            */{SST(0x41, 0x00, SS_RDEF,
 			"Data path failure") }, /* deprecated - use 40 NN instead */
-/* D            */{SST(0x42, 0x00, SS_DEF,
+/* D            */{SST(0x42, 0x00, SS_RDEF,
 			"Power-on or self-test failure") }, /* deprecated - use 40 NN instead */
-/* DTLPWRSOMCAE */{SST(0x43, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x43, 0x00, SS_RDEF,
 			"Message error") },
-/* DTLPWRSOMCAE */{SST(0x44, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x44, 0x00, SS_RDEF,
 			"Internal target failure") },
-/* DTLPWRSOMCAE */{SST(0x45, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x45, 0x00, SS_RDEF,
 			"Select or reselect failure") },
-/* DTLPWRSOMC   */{SST(0x46, 0x00, SS_DEF,
+/* DTLPWRSOMC   */{SST(0x46, 0x00, SS_RDEF,
 			"Unsuccessful soft reset") },
-/* DTLPWRSOMCAE */{SST(0x47, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x47, 0x00, SS_RDEF,
 			"SCSI parity error") },
-/* DTLPWRSOMCAE */{SST(0x48, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x48, 0x00, SS_RDEF,
 			"Initiator detected error message received") },
-/* DTLPWRSOMCAE */{SST(0x49, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x49, 0x00, SS_RDEF,
 			"Invalid message error") },
-/* DTLPWRSOMCAE */{SST(0x4A, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x4A, 0x00, SS_RDEF,
 			"Command phase error") },
-/* DTLPWRSOMCAE */{SST(0x4B, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x4B, 0x00, SS_RDEF,
 			"Data phase error") },
-/* DTLPWRSOMCAE */{SST(0x4C, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x4C, 0x00, SS_RDEF,
 			"Logical unit failed self-configuration") },
-/* DTLPWRSOMCAE */{SST(0x4D, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x4D, 0x00, SS_RDEF,
 			"Tagged overlapped commands: ASCQ = Queue tag ID") },
-/* DTLPWRSOMCAE */{SST(0x4D, 0xFF, SS_DEF|SSQ_RANGE,
+/* DTLPWRSOMCAE */{SST(0x4D, 0xFF, SS_RDEF|SSQ_RANGE,
 			NULL)}, /* Range 0x00->0xFF */
-/* DTLPWRSOMCAE */{SST(0x4E, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x4E, 0x00, SS_RDEF,
 			"Overlapped commands attempted") },
-/*  T           */{SST(0x50, 0x00, SS_DEF,
+/*  T           */{SST(0x50, 0x00, SS_RDEF,
 			"Write append error") },
-/*  T           */{SST(0x50, 0x01, SS_DEF,
+/*  T           */{SST(0x50, 0x01, SS_RDEF,
 			"Write append position error") },
-/*  T           */{SST(0x50, 0x02, SS_DEF,
+/*  T           */{SST(0x50, 0x02, SS_RDEF,
 			"Position error related to timing") },
-/*  T     O     */{SST(0x51, 0x00, SS_DEF,
+/*  T     O     */{SST(0x51, 0x00, SS_RDEF,
 			"Erase failure") },
-/*  T           */{SST(0x52, 0x00, SS_DEF,
+/*  T           */{SST(0x52, 0x00, SS_RDEF,
 			"Cartridge fault") },
-/* DTL WRSOM    */{SST(0x53, 0x00, SS_DEF,
+/* DTL WRSOM    */{SST(0x53, 0x00, SS_RDEF,
 			"Media load or eject failed") },
-/*  T           */{SST(0x53, 0x01, SS_DEF,
+/*  T           */{SST(0x53, 0x01, SS_RDEF,
 			"Unload tape failure") },
-/* DT  WR OM    */{SST(0x53, 0x02, SS_DEF,
+/* DT  WR OM    */{SST(0x53, 0x02, SS_RDEF,
 			"Medium removal prevented") },
-/*    P         */{SST(0x54, 0x00, SS_DEF,
+/*    P         */{SST(0x54, 0x00, SS_RDEF,
 			"Scsi to host system interface failure") },
-/*    P         */{SST(0x55, 0x00, SS_DEF,
+/*    P         */{SST(0x55, 0x00, SS_RDEF,
 			"System resource failure") },
-/* D      O     */{SST(0x55, 0x01, SS_NEDEF|ENOSPC,
+/* D      O     */{SST(0x55, 0x01, SS_FATAL|ENOSPC,
 			"System buffer full") },
-/*      R       */{SST(0x57, 0x00, SS_DEF,
+/*      R       */{SST(0x57, 0x00, SS_RDEF,
 			"Unable to recover table-of-contents") },
-/*        O     */{SST(0x58, 0x00, SS_DEF,
+/*        O     */{SST(0x58, 0x00, SS_RDEF,
 			"Generation does not exist") },
-/*        O     */{SST(0x59, 0x00, SS_DEF,
+/*        O     */{SST(0x59, 0x00, SS_RDEF,
 			"Updated block read") },
-/* DTLPWRSOM    */{SST(0x5A, 0x00, SS_DEF,
+/* DTLPWRSOM    */{SST(0x5A, 0x00, SS_RDEF,
 			"Operator request or state change input") },
-/* DT  WR OM    */{SST(0x5A, 0x01, SS_DEF,
+/* DT  WR OM    */{SST(0x5A, 0x01, SS_RDEF,
 			"Operator medium removal request") },
-/* DT  W  O     */{SST(0x5A, 0x02, SS_DEF,
+/* DT  W  O     */{SST(0x5A, 0x02, SS_RDEF,
 			"Operator selected write protect") },
-/* DT  W  O     */{SST(0x5A, 0x03, SS_DEF,
+/* DT  W  O     */{SST(0x5A, 0x03, SS_RDEF,
 			"Operator selected write permit") },
-/* DTLPWRSOM    */{SST(0x5B, 0x00, SS_DEF,
+/* DTLPWRSOM    */{SST(0x5B, 0x00, SS_RDEF,
 			"Log exception") },
-/* DTLPWRSOM    */{SST(0x5B, 0x01, SS_DEF,
+/* DTLPWRSOM    */{SST(0x5B, 0x01, SS_RDEF,
 			"Threshold condition met") },
-/* DTLPWRSOM    */{SST(0x5B, 0x02, SS_DEF,
+/* DTLPWRSOM    */{SST(0x5B, 0x02, SS_RDEF,
 			"Log counter at maximum") },
-/* DTLPWRSOM    */{SST(0x5B, 0x03, SS_DEF,
+/* DTLPWRSOM    */{SST(0x5B, 0x03, SS_RDEF,
 			"Log list codes exhausted") },
-/* D      O     */{SST(0x5C, 0x00, SS_DEF,
+/* D      O     */{SST(0x5C, 0x00, SS_RDEF,
 			"RPL status change") },
-/* D      O     */{SST(0x5C, 0x01, SS_NEDEF,
+/* D      O     */{SST(0x5C, 0x01, SS_NOP|SSQ_PRINT_SENSE,
 			"Spindles synchronized") },
-/* D      O     */{SST(0x5C, 0x02, SS_DEF,
+/* D      O     */{SST(0x5C, 0x02, SS_RDEF,
 			"Spindles not synchronized") },
-/* DTLPWRSOMCAE */{SST(0x5D, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x5D, 0x00, SS_RDEF,
 			"Failure prediction threshold exceeded") },
-/* DTLPWRSOMCAE */{SST(0x5D, 0xFF, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x5D, 0xFF, SS_RDEF,
 			"Failure prediction threshold exceeded (false)") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x00, SS_DEF,
+/* DTLPWRSO CA  */{SST(0x5E, 0x00, SS_RDEF,
 			"Low power condition on") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x01, SS_DEF,
+/* DTLPWRSO CA  */{SST(0x5E, 0x01, SS_RDEF,
 			"Idle condition activated by timer") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x02, SS_DEF,
+/* DTLPWRSO CA  */{SST(0x5E, 0x02, SS_RDEF,
 			"Standby condition activated by timer") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x03, SS_DEF,
+/* DTLPWRSO CA  */{SST(0x5E, 0x03, SS_RDEF,
 			"Idle condition activated by command") },
-/* DTLPWRSO CA  */{SST(0x5E, 0x04, SS_DEF,
+/* DTLPWRSO CA  */{SST(0x5E, 0x04, SS_RDEF,
 			"Standby condition activated by command") },
-/*       S      */{SST(0x60, 0x00, SS_DEF,
+/*       S      */{SST(0x60, 0x00, SS_RDEF,
 			"Lamp failure") },
-/*       S      */{SST(0x61, 0x00, SS_DEF,
+/*       S      */{SST(0x61, 0x00, SS_RDEF,
 			"Video acquisition error") },
-/*       S      */{SST(0x61, 0x01, SS_DEF,
+/*       S      */{SST(0x61, 0x01, SS_RDEF,
 			"Unable to acquire video") },
-/*       S      */{SST(0x61, 0x02, SS_DEF,
+/*       S      */{SST(0x61, 0x02, SS_RDEF,
 			"Out of focus") },
-/*       S      */{SST(0x62, 0x00, SS_DEF,
+/*       S      */{SST(0x62, 0x00, SS_RDEF,
 			"Scan head positioning error") },
-/*      R       */{SST(0x63, 0x00, SS_DEF,
+/*      R       */{SST(0x63, 0x00, SS_RDEF,
 			"End of user area encountered on this track") },
-/*      R       */{SST(0x63, 0x01, SS_NEDEF|ENOSPC,
+/*      R       */{SST(0x63, 0x01, SS_FATAL|ENOSPC,
 			"Packet does not fit in available space") },
-/*      R       */{SST(0x64, 0x00, SS_DEF,
+/*      R       */{SST(0x64, 0x00, SS_RDEF,
 			"Illegal mode for this track") },
-/*      R       */{SST(0x64, 0x01, SS_DEF,
+/*      R       */{SST(0x64, 0x01, SS_RDEF,
 			"Invalid packet size") },
-/* DTLPWRSOMCAE */{SST(0x65, 0x00, SS_DEF,
+/* DTLPWRSOMCAE */{SST(0x65, 0x00, SS_RDEF,
 			"Voltage fault") },
-/*       S      */{SST(0x66, 0x00, SS_DEF,
+/*       S      */{SST(0x66, 0x00, SS_RDEF,
 			"Automatic document feeder cover up") },
-/*       S      */{SST(0x66, 0x01, SS_DEF,
+/*       S      */{SST(0x66, 0x01, SS_RDEF,
 			"Automatic document feeder lift up") },
-/*       S      */{SST(0x66, 0x02, SS_DEF,
+/*       S      */{SST(0x66, 0x02, SS_RDEF,
 			"Document jam in automatic document feeder") },
-/*       S      */{SST(0x66, 0x03, SS_DEF,
+/*       S      */{SST(0x66, 0x03, SS_RDEF,
 			"Document miss feed automatic in document feeder") },
-/*           A  */{SST(0x67, 0x00, SS_DEF,
+/*           A  */{SST(0x67, 0x00, SS_RDEF,
 			"Configuration failure") },
-/*           A  */{SST(0x67, 0x01, SS_DEF,
+/*           A  */{SST(0x67, 0x01, SS_RDEF,
 			"Configuration of incapable logical units failed") },
-/*           A  */{SST(0x67, 0x02, SS_DEF,
+/*           A  */{SST(0x67, 0x02, SS_RDEF,
 			"Add logical unit failed") },
-/*           A  */{SST(0x67, 0x03, SS_DEF,
+/*           A  */{SST(0x67, 0x03, SS_RDEF,
 			"Modification of logical unit failed") },
-/*           A  */{SST(0x67, 0x04, SS_DEF,
+/*           A  */{SST(0x67, 0x04, SS_RDEF,
 			"Exchange of logical unit failed") },
-/*           A  */{SST(0x67, 0x05, SS_DEF,
+/*           A  */{SST(0x67, 0x05, SS_RDEF,
 			"Remove of logical unit failed") },
-/*           A  */{SST(0x67, 0x06, SS_DEF,
+/*           A  */{SST(0x67, 0x06, SS_RDEF,
 			"Attachment of logical unit failed") },
-/*           A  */{SST(0x67, 0x07, SS_DEF,
+/*           A  */{SST(0x67, 0x07, SS_RDEF,
 			"Creation of logical unit failed") },
-/*           A  */{SST(0x68, 0x00, SS_DEF,
+/*           A  */{SST(0x68, 0x00, SS_RDEF,
 			"Logical unit not configured") },
-/*           A  */{SST(0x69, 0x00, SS_DEF,
+/*           A  */{SST(0x69, 0x00, SS_RDEF,
 			"Data loss on logical unit") },
-/*           A  */{SST(0x69, 0x01, SS_DEF,
+/*           A  */{SST(0x69, 0x01, SS_RDEF,
 			"Multiple logical unit failures") },
-/*           A  */{SST(0x69, 0x02, SS_DEF,
+/*           A  */{SST(0x69, 0x02, SS_RDEF,
 			"Parity/data mismatch") },
-/*           A  */{SST(0x6A, 0x00, SS_DEF,
+/*           A  */{SST(0x6A, 0x00, SS_RDEF,
 			"Informational, refer to log") },
-/*           A  */{SST(0x6B, 0x00, SS_DEF,
+/*           A  */{SST(0x6B, 0x00, SS_RDEF,
 			"State change has occurred") },
-/*           A  */{SST(0x6B, 0x01, SS_DEF,
+/*           A  */{SST(0x6B, 0x01, SS_RDEF,
 			"Redundancy level got better") },
-/*           A  */{SST(0x6B, 0x02, SS_DEF,
+/*           A  */{SST(0x6B, 0x02, SS_RDEF,
 			"Redundancy level got worse") },
-/*           A  */{SST(0x6C, 0x00, SS_DEF,
+/*           A  */{SST(0x6C, 0x00, SS_RDEF,
 			"Rebuild failure occurred") },
-/*           A  */{SST(0x6D, 0x00, SS_DEF,
+/*           A  */{SST(0x6D, 0x00, SS_RDEF,
 			"Recalculate failure occurred") },
-/*           A  */{SST(0x6E, 0x00, SS_DEF,
+/*           A  */{SST(0x6E, 0x00, SS_RDEF,
 			"Command to logical unit failed") },
-/*  T           */{SST(0x70, 0x00, SS_DEF,
+/*  T           */{SST(0x70, 0x00, SS_RDEF,
 			"Decompression exception short: ASCQ = Algorithm ID") },
-/*  T           */{SST(0x70, 0xFF, SS_DEF|SSQ_RANGE,
+/*  T           */{SST(0x70, 0xFF, SS_RDEF|SSQ_RANGE,
 			NULL) }, /* Range 0x00 -> 0xFF */
-/*  T           */{SST(0x71, 0x00, SS_DEF,
+/*  T           */{SST(0x71, 0x00, SS_RDEF,
 			"Decompression exception long: ASCQ = Algorithm ID") },
-/*  T           */{SST(0x71, 0xFF, SS_DEF|SSQ_RANGE,
+/*  T           */{SST(0x71, 0xFF, SS_RDEF|SSQ_RANGE,
 			NULL) }, /* Range 0x00 -> 0xFF */	
-/*      R       */{SST(0x72, 0x00, SS_DEF,
+/*      R       */{SST(0x72, 0x00, SS_RDEF,
 			"Session fixation error") },
-/*      R       */{SST(0x72, 0x01, SS_DEF,
+/*      R       */{SST(0x72, 0x01, SS_RDEF,
 			"Session fixation error writing lead-in") },
-/*      R       */{SST(0x72, 0x02, SS_DEF,
+/*      R       */{SST(0x72, 0x02, SS_RDEF,
 			"Session fixation error writing lead-out") },
-/*      R       */{SST(0x72, 0x03, SS_DEF,
+/*      R       */{SST(0x72, 0x03, SS_RDEF,
 			"Session fixation error - incomplete track in session") },
-/*      R       */{SST(0x72, 0x04, SS_DEF,
+/*      R       */{SST(0x72, 0x04, SS_RDEF,
 			"Empty or partially written reserved track") },
-/*      R       */{SST(0x73, 0x00, SS_DEF,
+/*      R       */{SST(0x73, 0x00, SS_RDEF,
 			"CD control error") },
-/*      R       */{SST(0x73, 0x01, SS_DEF,
+/*      R       */{SST(0x73, 0x01, SS_RDEF,
 			"Power calibration area almost full") },
-/*      R       */{SST(0x73, 0x02, SS_NEDEF|ENOSPC,
+/*      R       */{SST(0x73, 0x02, SS_FATAL|ENOSPC,
 			"Power calibration area is full") },
-/*      R       */{SST(0x73, 0x03, SS_DEF,
+/*      R       */{SST(0x73, 0x03, SS_RDEF,
 			"Power calibration area error") },
-/*      R       */{SST(0x73, 0x04, SS_DEF,
+/*      R       */{SST(0x73, 0x04, SS_RDEF,
 			"Program memory area update failure") },
-/*      R       */{SST(0x73, 0x05, SS_DEF,
+/*      R       */{SST(0x73, 0x05, SS_RDEF,
 			"program memory area is full") }
 };
 
-#if !defined(SCSI_NO_SENSE_STRINGS)
-const char *
-scsi_sense_desc(int asc, int ascq, struct scsi_inquiry_data *inq_data)
+const int asc_table_size = sizeof(asc_table)/sizeof(asc_table[0]);
+
+struct asc_key
 {
-	int i, j;
+	int asc;
+	int ascq;
+};
+
+static int
+ascentrycomp(const void *key, const void *member)
+{
+	int asc;
+	int ascq;
+	const struct asc_table_entry *table_entry;
+
+	asc = ((const struct asc_key *)key)->asc;
+	ascq = ((const struct asc_key *)key)->ascq;
+	table_entry = (const struct asc_table_entry *)member;
+
+	if (asc >= table_entry->asc) {
+
+		if (asc > table_entry->asc)
+			return (1);
+
+		if (ascq <= table_entry->ascq) {
+			/* Check for ranges */
+			if (ascq == table_entry->ascq
+		 	 || ((table_entry->action & SSQ_RANGE) != 0
+		  	   && ascq >= (table_entry - 1)->ascq))
+				return (0);
+			return (-1);
+		}
+		return (1);
+	}
+	return (-1);
+}
+
+static int
+senseentrycomp(const void *key, const void *member)
+{
+	int sense_key;
+	const struct sense_key_table_entry *table_entry;
+
+	sense_key = *((const int *)key);
+	table_entry = (const struct sense_key_table_entry *)member;
+
+	if (sense_key >= table_entry->sense_key) {
+		if (sense_key == table_entry->sense_key)
+			return (0);
+		return (1);
+	}
+	return (-1);
+}
+
+static void
+fetchtableentries(int sense_key, int asc, int ascq,
+		  struct scsi_inquiry_data *inq_data,
+		  const struct sense_key_table_entry **sense_entry,
+		  const struct asc_table_entry **asc_entry)
+{
 	caddr_t match;
-	struct asc_table_entry *table[2];
-	int table_size[2];
-	int num_tables;
+	const struct asc_table_entry *asc_tables[2];
+	const struct sense_key_table_entry *sense_tables[2];
+	struct asc_key asc_ascq;
+	size_t asc_tables_size[2];
+	size_t sense_tables_size[2];
+	int num_asc_tables;
+	int num_sense_tables;
+	int i;
 
-	if (inq_data == NULL)
-		return(NULL);
-
-	match = cam_quirkmatch((caddr_t)inq_data,
-			       (caddr_t)asc_quirk_table,
-			       sizeof(asc_quirk_table)/sizeof(*asc_quirk_table),
-			       sizeof(*asc_quirk_table), scsi_inquiry_match);
+	/* Default to failure */
+	*sense_entry = NULL;
+	*asc_entry = NULL;
+	match = NULL;
+	if (inq_data != NULL)
+		match = cam_quirkmatch((caddr_t)inq_data,
+				       (caddr_t)sense_quirk_table,
+				       sense_quirk_table_size,
+				       sizeof(*sense_quirk_table),
+				       scsi_inquiry_match);
 
 	if (match != NULL) {
-		table[0] = ((struct scsi_sense_quirk_entry *)match)->asc_info;
-		table_size[0] = 
-			((struct scsi_sense_quirk_entry *)match)->num_ascs;
-		table[1] = asc_text;
-		table_size[1] = sizeof(asc_text)/sizeof(asc_text[0]);
-		num_tables = 2;
+		struct scsi_sense_quirk_entry *quirk;
+
+		quirk = (struct scsi_sense_quirk_entry *)match;
+		asc_tables[0] = quirk->asc_info;
+		asc_tables_size[0] = quirk->num_ascs;
+		asc_tables[1] = asc_table;
+		asc_tables_size[1] = asc_table_size;
+		num_asc_tables = 2;
+		sense_tables[0] = quirk->sense_key_info;
+		sense_tables_size[0] = quirk->num_sense_keys;
+		sense_tables[1] = sense_key_table;
+		sense_tables_size[1] = sense_key_table_size;
+		num_sense_tables = 2;
 	} else {
-		table[0] = asc_text;
-		table_size[0] = sizeof(asc_text)/sizeof(asc_text[0]);
-		num_tables = 1;
+		asc_tables[0] = asc_table;
+		asc_tables_size[0] = asc_table_size;
+		num_asc_tables = 1;
+		sense_tables[0] = sense_key_table;
+		sense_tables_size[0] = sense_key_table_size;
+		num_sense_tables = 1;
 	}
 
-	for (j = 0; j < num_tables; j++) {
-		for (i = 0; i < table_size[j]; i++) {
-			if (table[j][i].asc == asc) {
+	asc_ascq.asc = asc;
+	asc_ascq.ascq = ascq;
+	for (i = 0; i < num_asc_tables; i++) {
+		void *found_entry;
 
-				/* Check for ranges */
-				if ((table[j][i].action & SSQ_RANGE) != 0) {
-				
-					if (table[j][i].ascq >= ascq
-					 && table[j][i-1].ascq <= ascq)
-						return table[j][i-1].desc;
+		found_entry = bsearch(&asc_ascq, asc_tables[i],
+				      asc_tables_size[i],
+				      sizeof(**asc_tables),
+				      ascentrycomp);
 
-					continue;
-				}
-			
-				if (table[j][i].ascq == ascq)
-					return table[j][i].desc;
-			} 
+		if (found_entry) {
+			*asc_entry = (struct asc_table_entry *)found_entry;
+			break;
 		}
 	}
 
-	if (asc >= 0x80 && asc <= 0xff)
-		return "Vendor Specific ASC";
+	for (i = 0; i < num_sense_tables; i++) {
+		void *found_entry;
 
-	if (ascq >= 0x80 && ascq <= 0xff)
-		return "Vendor Specific ASCQ";
+		found_entry = bsearch(&sense_key, sense_tables[i],
+				      sense_tables_size[i],
+				      sizeof(**sense_tables),
+				      senseentrycomp);
 
-	return "Reserved ASC/ASCQ pair";
+		if (found_entry) {
+			*sense_entry =
+			    (struct sense_key_table_entry *)found_entry;
+			break;
+		}
+	}
 }
 
-#else /* SCSI_NO_SENSE_STRINGS */
-const char *
-scsi_sense_desc(int asc, int ascq, struct scsi_inquiry_data *inq_data)
+void
+scsi_sense_desc(int sense_key, int asc, int ascq,
+		struct scsi_inquiry_data *inq_data,
+		const char **sense_key_desc, const char **asc_desc)
 {
-	return ("");
+	const struct asc_table_entry *asc_entry;
+	const struct sense_key_table_entry *sense_entry;
+
+	fetchtableentries(sense_key, asc, ascq,
+			  inq_data,
+			  &sense_entry,
+			  &asc_entry);
+
+	*sense_key_desc = sense_entry->desc;
+
+	if (asc_entry != NULL)
+		*asc_desc = asc_entry->desc;
+	else if (asc >= 0x80 && asc <= 0xff)
+		*asc_desc = "Vendor Specific ASC";
+	else if (ascq >= 0x80 && ascq <= 0xff)
+		*asc_desc = "Vendor Specific ASCQ";
+	else
+		*asc_desc = "Reserved ASC/ASCQ pair";
 }
-#endif
 
 /*
- * Given a particular failed CCB and its device type information, return
- * the appropriate action from either the sense code quirk table or the
- * sense code table.
+ * Given sense and device type information, return the appropriate action.
+ * If we do not understand the specific error as identified by the ASC/ASCQ
+ * pair, fall back on the more generic actions derived from the sense key.
  */
 scsi_sense_action
-scsi_error_action(int asc, int ascq, struct scsi_inquiry_data *inq_data)
+scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
+		  u_int32_t sense_flags)
 {
-	caddr_t match;
-	struct asc_table_entry *table[2];
-	int table_size[2];
-	int num_tables;
-	int i, j;
+	const struct asc_table_entry *asc_entry;
+	const struct sense_key_table_entry *sense_entry;
+	int error_code, sense_key, asc, ascq;
+	scsi_sense_action action;
 
-	/*
-	 * If we don't have inquiry data, we can't match against any quirk
-	 * entries.
-	 */
-	if (inq_data != NULL) {
-		match = cam_quirkmatch((caddr_t)inq_data,
-				       (caddr_t)asc_quirk_table,
-				       sizeof(asc_quirk_table) /
-					 sizeof(*asc_quirk_table),
-				       sizeof(*asc_quirk_table),
-				       scsi_inquiry_match);
-	} else
-		match = NULL;
+	scsi_extract_sense(&csio->sense_data, &error_code,
+			   &sense_key, &asc, &ascq);
 
-	if (match != NULL) {
-		table[0] = ((struct scsi_sense_quirk_entry *)match)->asc_info;
-		table_size[0] = 
-			((struct scsi_sense_quirk_entry *)match)->num_ascs;
-		table[1] = asc_text;
-		table_size[1] = sizeof(asc_text)/sizeof(asc_text[0]);
-		num_tables = 2;
+	if (error_code == SSD_DEFERRED_ERROR) {
+		/*
+		 * XXX dufault@FreeBSD.org
+		 * This error doesn't relate to the command associated
+		 * with this request sense.  A deferred error is an error
+		 * for a command that has already returned GOOD status
+		 * (see SCSI2 8.2.14.2).
+		 *
+		 * By my reading of that section, it looks like the current
+		 * command has been cancelled, we should now clean things up
+		 * (hopefully recovering any lost data) and then retry the
+		 * current command.  There are two easy choices, both wrong:
+		 *
+		 * 1. Drop through (like we had been doing), thus treating
+		 *    this as if the error were for the current command and
+		 *    return and stop the current command.
+		 * 
+		 * 2. Issue a retry (like I made it do) thus hopefully
+		 *    recovering the current transfer, and ignoring the
+		 *    fact that we've dropped a command.
+		 *
+		 * These should probably be handled in a device specific
+		 * sense handler or punted back up to a user mode daemon
+		 */
+		action = SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE;
 	} else {
-		table[0] = asc_text;
-		table_size[0] = sizeof(asc_text)/sizeof(asc_text[0]);
-		num_tables = 1;
-	}
+		fetchtableentries(sense_key, asc, ascq,
+				  inq_data,
+				  &sense_entry,
+				  &asc_entry);
 
-	for (j = 0; j < num_tables; j++) {
-		for (i = 0; i < table_size[j]; i++) {
-			if (table[j][i].asc == asc) {
+		/*
+		 * Override the 'No additional Sense' entry (0,0)
+		 * with the error action of the sense key.
+		 */
+		if (asc_entry != NULL
+		 && (asc != 0 || ascq != 0))
+			action = asc_entry->action;
+		else
+			action = sense_entry->action;
 
-				/* Check for ranges */
-				if ((table[j][i].action & SSQ_RANGE) != 0){
-				
-					if (table[j][i].ascq >= ascq
-					 && table[j][i-1].ascq <= ascq)
-						return table[j][i].action;
-
-					continue;
-				}
-
-				/*
-				 * Check to see if we have a match.  If the
-				 * current ascq in the table is greater
-				 * than our ascq, and there aren't any more
-				 * tables to search, just return the
-				 * default action.
-				 */
-				if (table[j][i].ascq == ascq)
-					return(table[j][i].action);
-				else if ((j == (num_tables - 1)) &&
-					(table[j][i].ascq > ascq))
-					return(SS_DEF);
+		if (sense_key == SSD_KEY_RECOVERED_ERROR) {
+			/*
+			 * The action succeeded but the device wants
+			 * the user to know that some recovery action
+			 * was required.
+			 */
+			action &= ~(SS_MASK|SSQ_MASK|SS_ERRMASK);
+			action |= SS_NOP|SSQ_PRINT_SENSE;
+		} else if (sense_key == SSD_KEY_ILLEGAL_REQUEST) {
+			if ((sense_flags & SF_QUIET_IR) != 0)
+				action &= ~SSQ_PRINT_SENSE;
+		} else if (sense_key == SSD_KEY_UNIT_ATTENTION) {
+			if ((sense_flags & SF_RETRY_UA) != 0
+			 && (action & SS_MASK) == SS_FAIL) {
+				action &= ~(SS_MASK|SSQ_MASK);
+				action |= SS_RETRY|SSQ_DECREMENT_COUNT|
+					  SSQ_PRINT_SENSE;
 			}
 		}
 	}
-	/* 
-	 * If we get to this point, it's most likely a vendor specific
-	 * ASC and we don't have a quirk entry for it.  Oh well, we just
-	 * tell the error handling code to take the default action.
-	 */
-	return(SS_DEF);
+#ifdef KERNEL
+	if (bootverbose)
+		sense_flags |= SF_PRINT_ALWAYS;
+#endif
+	if ((sense_flags & SF_PRINT_ALWAYS) != 0)
+		action |= SSQ_PRINT_SENSE;
+	else if ((sense_flags & SF_NO_PRINT) != 0)
+		action &= ~SSQ_PRINT_SENSE;
+
+	return (action);
 }
 
 char *
@@ -1600,42 +1722,63 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 	*cdb_string = '\0';
 	for (i = 0; i < cdb_len; i++)
 		snprintf(cdb_string + strlen(cdb_string),
-		    len - strlen(cdb_string), "%x ", cdb_ptr[i]);
+			 len - strlen(cdb_string), "%x ", cdb_ptr[i]);
 
 	return(cdb_string);
 }
+
+const char *
+scsi_status_string(struct ccb_scsiio *csio)
+{
+	switch(csio->scsi_status) {
+	case SCSI_STATUS_OK:
+		return("OK");
+	case SCSI_STATUS_CHECK_COND:
+		return("Check Condition");
+	case SCSI_STATUS_BUSY:
+		return("Busy");
+	case SCSI_STATUS_INTERMED:
+		return("Intermediate");
+	case SCSI_STATUS_INTERMED_COND_MET:
+		return("Intermediate-Condition Met");
+	case SCSI_STATUS_RESERV_CONFLICT:
+		return("Reservation Conflict");
+	case SCSI_STATUS_CMD_TERMINATED:
+		return("Command Terminated");
+	case SCSI_STATUS_QUEUE_FULL:
+		return("Queue Full");
+	case SCSI_STATUS_ACA_ACTIVE:
+		return("ACA Active");
+	case SCSI_STATUS_TASK_ABORTED:
+		return("Task Aborted");
+	default: {
+		static char unkstr[64];
+		snprintf(unkstr, sizeof(unkstr), "Unknown %#x",
+			 csio->scsi_status);
+		return(unkstr);
+	}
+	}
+}
+
 /*
- * scsi_sense_print will decode the sense data into human
- * readable form.  Sense handlers can use this to generate
- * a report.
- */
-/*
- * Because scsi_sense_print() utilizes transport layer functions, it will
- * only work in the kernel.
+ * scsi_command_string() returns 0 for success and -1 for failure.
  */
 #ifdef _KERNEL
-
-void 
-scsi_sense_print(struct ccb_scsiio *csio)
+int
+scsi_command_string(struct ccb_scsiio *csio, struct sbuf *sb)
+#else /* !_KERNEL */
+int
+scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio, 
+		    struct sbuf *sb)
+#endif /* _KERNEL/!_KERNEL */
 {
-	struct	  scsi_sense_data *sense;
-	u_int32_t info;
-	int	  error_code;
-	int	  sense_key;
-	int	  asc, ascq;
-	struct ccb_getdev cgd;
-	u_int8_t  command_print;
+	struct scsi_inquiry_data *inq_data;
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+#ifdef _KERNEL
+	struct	  ccb_getdev cgd;
+#endif /* _KERNEL */
 
-	sense = &csio->sense_data;
-	
-	/*
-	 * If the CDB is a physical address, we can't deal with it..
-	 */
-	if ((csio->ccb_h.flags & CAM_CDB_PHYS) != 0)
-		command_print = 0;
-	else
-		command_print = 1;
-
+#ifdef _KERNEL
 	/*
 	 * Get the device information.
 	 */
@@ -1652,209 +1795,109 @@ scsi_sense_print(struct ccb_scsiio *csio)
 	if (cgd.ccb_h.status == CAM_DEV_NOT_THERE)
 		cgd.inq_data.device = T_DIRECT;
 
-	if (command_print != 0) {
-		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
-
-		xpt_print_path(csio->ccb_h.path);
-
-		if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-			printf("%s. CDB: %s\n", 
-				scsi_op_desc(csio->cdb_io.cdb_ptr[0],
-				&cgd.inq_data),
-				scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
-						sizeof(cdb_str)));
-		} else {
-			printf("%s. CDB: %s\n",
-				scsi_op_desc(csio->cdb_io.cdb_bytes[0], 
-				&cgd.inq_data), scsi_cdb_string(
-				csio->cdb_io.cdb_bytes, cdb_str,
-				sizeof(cdb_str)));
-		}
-	}
-
-	/*
-	 * If the sense data is a physical pointer, forget it.
-	 */
-	if (csio->ccb_h.flags & CAM_SENSE_PTR) {
-		if (csio->ccb_h.flags & CAM_SENSE_PHYS)
-			return;
-		else {
-			/* 
-			 * XXX KDM this is stupid, but casting the
-			 * structure doesn't work...
-			 */
-			bcopy(&csio->sense_data, sense, 
-			      sizeof(struct scsi_sense_data *));
-		}
-	} else {
-		/*
-		 * If the physical sense flag is set, but the sense pointer
-		 * is not also set, we assume that the user is an idiot and
-		 * return.  (Well, okay, it could be that somehow, the
-		 * entire csio is physical, but we would have probably core
-		 * dumped on one of the bogus pointer deferences above
-		 * already.)
-		 */
-		if (csio->ccb_h.flags & CAM_SENSE_PHYS) 
-			return;
-		else
-			sense = &csio->sense_data;
-	}
-
-	xpt_print_path(csio->ccb_h.path);
-	error_code = sense->error_code & SSD_ERRCODE;
-	sense_key = sense->flags & SSD_KEY;
-
-	switch (error_code) {
-	case SSD_DEFERRED_ERROR:
-		printf("Deferred Error: ");
-		/* FALLTHROUGH */
-	case SSD_CURRENT_ERROR:
-
-		printf("%s", scsi_sense_key_text[sense_key]);
-		info = scsi_4btoul(sense->info);
-		
-		if (sense->error_code & SSD_ERRCODE_VALID) {
-
-			switch (sense_key) {
-			case SSD_KEY_NOT_READY:
-			case SSD_KEY_ILLEGAL_REQUEST:
-			case SSD_KEY_UNIT_ATTENTION:
-			case SSD_KEY_DATA_PROTECT:
-				break;
-			case SSD_KEY_BLANK_CHECK:
-				printf(" req sz: %d (decimal)",
-				    info);
-				break;
-			default:
-				if (info) {
-					if (sense->flags & SSD_ILI) {
-						printf(" ILI (length mismatch):"
-						       " %d", info);
-					} else {
-						printf(" info:%x", info);
-					}
-				}
-			}
-		} else if (info)
-			printf(" info?:%x", info);
-
-		if (sense->extra_len >= 4) {
-			if (bcmp(sense->cmd_spec_info, "\0\0\0\0", 4)) {
-				printf(" csi:%x,%x,%x,%x",
-				       sense->cmd_spec_info[0],
-				       sense->cmd_spec_info[1],
-				       sense->cmd_spec_info[2],
-				       sense->cmd_spec_info[3]);
-			}
-		}
-
-		asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
-		ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
-
-		if (asc || ascq) {
-			const char *desc = scsi_sense_desc(asc, ascq,
-							   &cgd.inq_data);
-			printf(" asc:%x,%x\n", asc, ascq);
-
-			xpt_print_path(csio->ccb_h.path);
-			printf("%s", desc);
-		}
-
-		if (sense->extra_len >= 7 && sense->fru) {
-			printf(" field replaceable unit: %x", sense->fru);
-		}
-
-		if ((sense->extra_len >= 10)
-		 && (sense->sense_key_spec[0] & SSD_SCS_VALID) != 0) {
-			printf(" sks:%x,%x", sense->sense_key_spec[0],
-			       scsi_2btoul(&sense->sense_key_spec[1]));
-		}
-		break;
-
-	default:
-		printf("error code %d",
-		    sense->error_code & SSD_ERRCODE);
-		if (sense->error_code & SSD_ERRCODE_VALID) {
-			printf(" at block no. %d (decimal)",
-			       info = scsi_4btoul(sense->info));
-		}
-	}
-
-	printf("\n");
-}
+	inq_data = &cgd.inq_data;
 
 #else /* !_KERNEL */
 
+	inq_data = &device->inq_data;
 
-char *
-scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio, 
-		  char *str, int str_len)
+#endif /* _KERNEL/!_KERNEL */
+
+	if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
+		sbuf_printf(sb, "%s. CDB: %s", 
+			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data),
+			    scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
+					    sizeof(cdb_str)));
+	} else {
+		sbuf_printf(sb, "%s. CDB: %s",
+			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data),
+			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
+					    sizeof(cdb_str)));
+	}
+
+	return(0);
+}
+
+
+/*
+ * scsi_sense_sbuf() returns 0 for success and -1 for failure.
+ */
+#ifdef _KERNEL
+int
+scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
+		scsi_sense_string_flags flags)
+#else /* !_KERNEL */
+int
+scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio, 
+		struct sbuf *sb, scsi_sense_string_flags flags)
+#endif /* _KERNEL/!_KERNEL */
 {
 	struct	  scsi_sense_data *sense;
+	struct	  scsi_inquiry_data *inq_data;
+#ifdef _KERNEL
+	struct	  ccb_getdev cgd;
+#endif /* _KERNEL */
 	u_int32_t info;
 	int	  error_code;
 	int	  sense_key;
 	int	  asc, ascq;
-	u_int8_t  command_print;
 	char	  path_str[64];
-	char	  tmpstr[2048];
-	int	  tmpstrlen = 2048;
-	int	  cur_len = 0, tmplen = 0, retlen;
 
-	if ((device == NULL) || (csio == NULL) || (str == NULL))
-		return(NULL);
-
-	if (str_len <= 0)
-		return(NULL);
+#ifndef _KERNEL
+	if (device == NULL)
+		return(-1);
+#endif /* !_KERNEL */
+	if ((csio == NULL) || (sb == NULL))
+		return(-1);
 
 	/*
 	 * If the CDB is a physical address, we can't deal with it..
 	 */
 	if ((csio->ccb_h.flags & CAM_CDB_PHYS) != 0)
-		command_print = 0;
-	else
-		command_print = 1;
+		flags &= ~SSS_FLAG_PRINT_COMMAND;
 
-	cam_path_string(device, path_str, 64);
+#ifdef _KERNEL
+	xpt_path_string(csio->ccb_h.path, path_str, sizeof(path_str));
+#else /* !_KERNEL */
+	cam_path_string(device, path_str, sizeof(path_str));
+#endif /* _KERNEL/!_KERNEL */
 
-	str[0] = '\0';
+#ifdef _KERNEL
+	/*
+	 * Get the device information.
+	 */
+	xpt_setup_ccb(&cgd.ccb_h,
+		      csio->ccb_h.path,
+		      /*priority*/ 1);
+	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action((union ccb *)&cgd);
+
+	/*
+	 * If the device is unconfigured, just pretend that it is a hard
+	 * drive.  scsi_op_desc() needs this.
+	 */
+	if (cgd.ccb_h.status == CAM_DEV_NOT_THERE)
+		cgd.inq_data.device = T_DIRECT;
+
+	inq_data = &cgd.inq_data;
+
+#else /* !_KERNEL */
+
+	inq_data = &device->inq_data;
+
+#endif /* _KERNEL/!_KERNEL */
 
 	sense = NULL;
 
-	if (command_print != 0) {
-		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+	if (flags & SSS_FLAG_PRINT_COMMAND) {
 
-		retlen = snprintf(tmpstr, tmpstrlen, "%s", path_str);
+		sbuf_cat(sb, path_str);
 
-		if ((tmplen = str_len - cur_len - 1) < 0)
-			goto sst_bailout;
-
-		strncat(str, tmpstr, tmplen);
-		cur_len += retlen;
-		str[str_len - 1] = '\0';
-
-		if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-			retlen = snprintf(tmpstr, tmpstrlen, "%s. CDB: %s\n", 
-					  scsi_op_desc(csio->cdb_io.cdb_ptr[0], 
-						       &device->inq_data),
-					  scsi_cdb_string(csio->cdb_io.cdb_ptr, 
-							  cdb_str,
-							  sizeof(cdb_str)));
-		} else {
-			retlen = snprintf(tmpstr, tmpstrlen, "%s. CDB: %s\n",
-					 scsi_op_desc(csio->cdb_io.cdb_bytes[0],
-					  &device->inq_data), scsi_cdb_string(
-					  csio->cdb_io.cdb_bytes, cdb_str,
-					  sizeof(cdb_str)));
-		}
-
-		if ((tmplen = str_len - cur_len - 1) < 0)
-			goto sst_bailout;
-
-		strncat(str, tmpstr, tmplen);
-		cur_len += retlen;
-		str[str_len - 1] = '\0';
+#ifdef _KERNEL
+		scsi_command_string(csio, sb);
+#else /* !_KERNEL */
+		scsi_command_string(device, csio, sb);
+#endif /* _KERNEL/!_KERNEL */
 	}
 
 	/*
@@ -1862,11 +1905,12 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 	 */
 	if (csio->ccb_h.flags & CAM_SENSE_PTR) {
 		if (csio->ccb_h.flags & CAM_SENSE_PHYS)
-			return(NULL);
+			return(-1);
 		else {
 			/* 
-			 * XXX KDM this is stupid, but casting the
-			 * structure doesn't work...
+			 * bcopy the pointer to avoid unaligned access
+			 * errors on finicky architectures.  We don't
+			 * ensure that the sense data is pointer aligned.
 			 */
 			bcopy(&csio->sense_data, sense, 
 			      sizeof(struct scsi_sense_data *));
@@ -1881,46 +1925,32 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 		 * already.)
 		 */
 		if (csio->ccb_h.flags & CAM_SENSE_PHYS) 
-			return(NULL);
+			return(-1);
 		else
 			sense = &csio->sense_data;
 	}
 
 
-	retlen = snprintf(tmpstr, tmpstrlen, "%s", path_str);
-
-	if ((tmplen = str_len - cur_len - 1) < 0)
-		goto sst_bailout;
-
-	strncat(str, tmpstr, tmplen);
-	cur_len += retlen;
-	str[str_len - 1] = '\0';
+	sbuf_cat(sb, path_str);
 
 	error_code = sense->error_code & SSD_ERRCODE;
 	sense_key = sense->flags & SSD_KEY;
 
 	switch (error_code) {
 	case SSD_DEFERRED_ERROR:
-		retlen = snprintf(tmpstr, tmpstrlen, "Deferred Error: ");
+		sbuf_printf(sb, "Deferred Error: ");
 
-		if ((tmplen = str_len - cur_len - 1) < 0)
-			goto sst_bailout;
-
-		strncat(str, tmpstr, tmplen);
-		cur_len += retlen;
-		str[str_len - 1] = '\0';
 		/* FALLTHROUGH */
 	case SSD_CURRENT_ERROR:
+	{
+		const char *sense_key_desc;
+		const char *asc_desc;
 
-		retlen = snprintf(tmpstr, tmpstrlen, "%s", 
-				  scsi_sense_key_text[sense_key]);
-
-		if ((tmplen = str_len - cur_len - 1) < 0)
-			goto sst_bailout;
-
-		strncat(str, tmpstr, tmplen);
-		cur_len += retlen;
-		str[str_len - 1] = '\0';
+		asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
+		ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
+		scsi_sense_desc(sense_key, asc, ascq, inq_data,
+				&sense_key_desc, &asc_desc);
+		sbuf_cat(sb, sense_key_desc);
 
 		info = scsi_4btoul(sense->info);
 		
@@ -1933,362 +1963,168 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 			case SSD_KEY_DATA_PROTECT:
 				break;
 			case SSD_KEY_BLANK_CHECK:
-				retlen = snprintf(tmpstr, tmpstrlen, 
-						  " req sz: %d (decimal)", 
-						  info);
-
-				if ((tmplen = str_len - cur_len - 1) < 0)
-					goto sst_bailout;
-
-				strncat(str, tmpstr, tmplen);
-				cur_len += retlen;
-				str[str_len - 1] = '\0';
+				sbuf_printf(sb, " req sz: %d (decimal)", info);
 				break;
 			default:
 				if (info) {
 					if (sense->flags & SSD_ILI) {
-						retlen = snprintf (tmpstr,
-								   tmpstrlen, 
-								" ILI (length "
+						sbuf_printf(sb, " ILI (length "
 							"mismatch): %d", info);
 			
 					} else {
-						retlen = snprintf(tmpstr,
-								  tmpstrlen, 
-								  " info:%x", 
-								  info);
+						sbuf_printf(sb, " info:%x", 
+							    info);
 					}
-
-					if ((tmplen = str_len - cur_len -1) < 0)
-						goto sst_bailout;
-
-					strncat(str, tmpstr, tmplen);
-					cur_len += retlen;
- 					str[str_len - 1] = '\0';
 				}
 			}
 		} else if (info) {
-			retlen = snprintf(tmpstr, tmpstrlen," info?:%x", info);
-
-			if ((tmplen = str_len - cur_len -1) < 0)
-				goto sst_bailout;
-
-			strncat(str, tmpstr, tmplen);
-			cur_len += retlen;
- 			str[str_len - 1] = '\0';
+			sbuf_printf(sb, " info?:%x", info);
 		}
 
 		if (sense->extra_len >= 4) {
 			if (bcmp(sense->cmd_spec_info, "\0\0\0\0", 4)) {
-				retlen = snprintf(tmpstr, tmpstrlen, 
-						  " csi:%x,%x,%x,%x",
-						  sense->cmd_spec_info[0],
-						  sense->cmd_spec_info[1],
-						  sense->cmd_spec_info[2],
-						  sense->cmd_spec_info[3]);
-
-				if ((tmplen = str_len - cur_len -1) < 0)
-					goto sst_bailout;
-
-				strncat(str, tmpstr, tmplen);
-				cur_len += retlen;
-				str[str_len - 1] = '\0';
+				sbuf_printf(sb, " csi:%x,%x,%x,%x",
+					    sense->cmd_spec_info[0],
+					    sense->cmd_spec_info[1],
+					    sense->cmd_spec_info[2],
+					    sense->cmd_spec_info[3]);
 			}
 		}
 
-		asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
-		ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
-
 		if (asc || ascq) {
-			const char *desc = scsi_sense_desc(asc, ascq,
-							   &device->inq_data);
-			retlen = snprintf(tmpstr, tmpstrlen, 
-					  " asc:%x,%x\n%s%s", asc, ascq, 
-					  path_str, desc);
-
-			if ((tmplen = str_len - cur_len -1) < 0)
-				goto sst_bailout;
-
-			strncat(str, tmpstr, tmplen);
-			cur_len += retlen;
-			str[str_len - 1] = '\0';
+			sbuf_printf(sb, " asc:%x,%x\n%s%s", asc, ascq, 
+				    path_str, asc_desc);
 		}
 
 		if (sense->extra_len >= 7 && sense->fru) {
-			retlen = snprintf(tmpstr, tmpstrlen, 
-					  " field replaceable unit: %x", 
-					  sense->fru);
-
-			if ((tmplen = str_len - cur_len -1) < 0)
-				goto sst_bailout;
-
-			strncat(str, tmpstr, tmplen);
-			str[str_len - 1] = '\0';
-			cur_len += retlen;
+			sbuf_printf(sb, " field replaceable unit: %x", 
+				    sense->fru);
 		}
 
 		if ((sense->extra_len >= 10)
 		 && (sense->sense_key_spec[0] & SSD_SCS_VALID) != 0) {
-			retlen = snprintf(tmpstr, tmpstrlen, " sks:%x,%x", 
-					sense->sense_key_spec[0],
-			       		scsi_2btoul(&sense->sense_key_spec[1]));
+			switch(sense_key) {
+			case SSD_KEY_ILLEGAL_REQUEST: {
+				int bad_command;
+				char tmpstr2[40];
 
-			if ((tmplen = str_len - cur_len -1) < 0)
-				goto sst_bailout;
+				if (sense->sense_key_spec[0] & 0x40)
+					bad_command = 1;
+				else
+					bad_command = 0;
 
-			strncat(str, tmpstr, tmplen);
-			str[str_len - 1] = '\0';
-			cur_len += retlen;
+				tmpstr2[0] = '\0';
+
+				/* Bit pointer is valid */
+				if (sense->sense_key_spec[0] & 0x08)
+					snprintf(tmpstr2, sizeof(tmpstr2),
+						 "bit %d",
+						sense->sense_key_spec[0] & 0x7);
+					sbuf_printf(sb,
+						   ": %s byte %d %s is invalid",
+						    bad_command ?
+						    "Command" : "Data",
+						    scsi_2btoul(
+						    &sense->sense_key_spec[1]),
+						    tmpstr2);
+				break;
+			}
+			case SSD_KEY_RECOVERED_ERROR:
+			case SSD_KEY_HARDWARE_ERROR:
+			case SSD_KEY_MEDIUM_ERROR:
+				sbuf_printf(sb, " actual retry count: %d",
+					    scsi_2btoul(
+					    &sense->sense_key_spec[1]));
+				break;
+			default:
+				sbuf_printf(sb, " sks:%#x,%#x", 
+					    sense->sense_key_spec[0],
+					    scsi_2btoul(
+					    &sense->sense_key_spec[1]));
+				break;
+			}
 		}
 		break;
 
+	}
 	default:
-		retlen = snprintf(tmpstr, tmpstrlen, "error code %d",
-				  sense->error_code & SSD_ERRCODE);
-
-		if ((tmplen = str_len - cur_len -1) < 0)
-			goto sst_bailout;
-
-		strncat(str, tmpstr, tmplen);
-		cur_len += retlen;
- 		str[str_len - 1] = '\0';
+		sbuf_printf(sb, "error code %d",
+			    sense->error_code & SSD_ERRCODE);
 
 		if (sense->error_code & SSD_ERRCODE_VALID) {
-			retlen = snprintf(tmpstr, tmpstrlen, 
-					  " at block no. %d (decimal)",
-					  info = scsi_4btoul(sense->info));
-
-			if ((tmplen = str_len - cur_len -1) < 0)
-				goto sst_bailout;
-
-			strncat(str, tmpstr, tmplen);
-			cur_len += retlen;
- 			str[str_len - 1] = '\0';
+			sbuf_printf(sb, " at block no. %d (decimal)",
+				    info = scsi_4btoul(sense->info));
 		}
 	}
 
-	retlen = snprintf(tmpstr, tmpstrlen, "\n");
+	sbuf_printf(sb, "\n");
 
-	if ((tmplen = str_len - cur_len -1) < 0)
-		goto sst_bailout;
-
-	strncat(str, tmpstr, tmplen);
-	cur_len += retlen;
- 	str[str_len - 1] = '\0';
-
-sst_bailout:
-
-	return(str);
+	return(0);
 }
 
+
+
+#ifdef _KERNEL
+char *
+scsi_sense_string(struct ccb_scsiio *csio, char *str, int str_len)
+#else /* !_KERNEL */
+char *
+scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
+		  char *str, int str_len)
+#endif /* _KERNEL/!_KERNEL */
+{
+	struct sbuf sb;
+
+	sbuf_new(&sb, str, str_len, 0);
+
+#ifdef _KERNEL
+	scsi_sense_sbuf(csio, &sb, SSS_FLAG_PRINT_COMMAND);
+#else /* !_KERNEL */
+	scsi_sense_sbuf(device, csio, &sb, SSS_FLAG_PRINT_COMMAND);
+#endif /* _KERNEL/!_KERNEL */
+
+	sbuf_finish(&sb);
+
+	return(sbuf_data(&sb));
+}
+
+#ifdef _KERNEL
+void 
+scsi_sense_print(struct ccb_scsiio *csio)
+{
+	struct sbuf sb;
+	char str[512];
+
+	sbuf_new(&sb, str, sizeof(str), 0);
+
+	scsi_sense_sbuf(csio, &sb, SSS_FLAG_PRINT_COMMAND);
+
+	sbuf_finish(&sb);
+
+	printf("%s", sbuf_data(&sb));
+}
+
+#else /* !_KERNEL */
 void
 scsi_sense_print(struct cam_device *device, struct ccb_scsiio *csio, 
 		 FILE *ofile)
 {
-	char str[2048];
+	struct sbuf sb;
+	char str[512];
 
 	if ((device == NULL) || (csio == NULL) || (ofile == NULL))
 		return;
 
-	fprintf(ofile, "%s", scsi_sense_string(device, csio, str, 2048));
+	sbuf_new(&sb, str, sizeof(str), 0);
+
+	scsi_sense_sbuf(device, csio, &sb, SSS_FLAG_PRINT_COMMAND);
+
+	sbuf_finish(&sb);
+
+	fprintf(ofile, "%s", sbuf_data(&sb));
 }
 
 #endif /* _KERNEL/!_KERNEL */
-
-#ifdef _KERNEL
-int
-scsi_interpret_sense(union ccb *ccb, u_int32_t sense_flags,
-		     u_int32_t *relsim_flags, u_int32_t *openings,
-		     u_int32_t *timeout, scsi_sense_action error_action)
-#else
-int
-scsi_interpret_sense(struct cam_device *device, union ccb *ccb, 
-		     u_int32_t sense_flags, u_int32_t *relsim_flags,
-		     u_int32_t *openings, u_int32_t *timeout,
-		     scsi_sense_action error_action)
-#endif
-{
-	struct	   scsi_sense_data *sense;
-	int	   error_code, sense_key, asc, ascq;
-	int	   error;
-	int	   print_sense;
-	struct     ccb_scsiio *csio;
-	int        retry;
-
-	csio = &ccb->csio;
-	sense = &csio->sense_data;
-	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
-
-#ifdef _KERNEL
-	if (bootverbose) {
-		sense_flags |= SF_PRINT_ALWAYS;
-		print_sense = TRUE;
-	} else if ((sense_flags & SF_NO_PRINT) == 0)
-#else
-	if ((sense_flags & SF_NO_PRINT) == 0)
-#endif
-		print_sense = TRUE;
-	else
-		print_sense = FALSE;
-
-	switch (error_code) {
-	case SSD_DEFERRED_ERROR:
-	{
-		/*
-		 * XXX dufault@FreeBSD.org
-		 * This error doesn't relate to the command associated
-		 * with this request sense.  A deferred error is an error
-		 * for a command that has already returned GOOD status
-		 * (see 8.2.14.2).
-		 *
-		 * By my reading of that section, it looks like the current
-		 * command has been cancelled, we should now clean things up
-		 * (hopefully recovering any lost data) and then retry the
-		 * current command.  There are two easy choices, both wrong:
-		 *
-		 * 1. Drop through (like we had been doing), thus treating
-		 *    this as if the error were for the current command and
-		 *    return and stop the current command.
-		 * 
-		 * 2. Issue a retry (like I made it do) thus hopefully
-		 *    recovering the current transfer, and ignoring the
-		 *    fact that we've dropped a command.
-		 *
-		 * These should probably be handled in a device specific
-		 * sense handler or punted back up to a user mode daemon
-		 */
-
-		/* decrement the number of retries */
-		retry = ccb->ccb_h.retry_count > 0;
-		if (retry)
-			ccb->ccb_h.retry_count--;
-
-		error = ERESTART;
-		break;
-	}
-	case SSD_CURRENT_ERROR:
-	{
-		
-		switch (sense_key) {
-		case SSD_KEY_NO_SENSE:
-			/* Why were we called then? Well don't bail now */
-			/* FALLTHROUGH */
-		case SSD_KEY_EQUAL:
-			/* These should be filtered by the peripheral drivers */
-			print_sense = FALSE;
-			/* FALLTHROUGH */
-		case SSD_KEY_MISCOMPARE:
-			/* decrement the number of retries */
-			retry = ccb->ccb_h.retry_count > 0;
-			if (retry) {
-				error = ERESTART;
-				ccb->ccb_h.retry_count--;
-			} else {
-				error = EIO;
-			}
-		case SSD_KEY_RECOVERED_ERROR:
-			error = 0;	/* not an error */
-			break;
-		case SSD_KEY_ILLEGAL_REQUEST:
-			if (((sense_flags & SF_QUIET_IR) != 0)
-			 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
-				print_sense = FALSE;
-			error = EINVAL;
-			break;
-		case SSD_KEY_NOT_READY:
-		case SSD_KEY_DATA_PROTECT:
-		case SSD_KEY_VOLUME_OVERFLOW:
-		case SSD_KEY_BLANK_CHECK: /* should be filtered out by
-					     peripheral drivers */
-			retry = ccb->ccb_h.retry_count > 0;
-			if (retry) {
-				ccb->ccb_h.retry_count--;
-				error = ERESTART;
-				print_sense = FALSE;
-			} else {
-				if (((error_action & SSQ_PRINT_SENSE) == 0)
-				 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
-					print_sense = FALSE;
-
-				error = error_action & SS_ERRMASK;
-			}
-
-			break;
-		case SSD_KEY_UNIT_ATTENTION:
-			/*
-			 * This should also be filtered out by
-			 * peripheral drivers since each has a different
-			 * concept of what it means to invalidate the media.
-			 */
-			if ((sense_flags & SF_RETRY_UA) != 0) {
-				/* don't decrement retry count */
-				error = ERESTART;
-				print_sense = FALSE;
-			} else {
-				/* decrement the number of retries */
-				retry = ccb->ccb_h.retry_count > 0;
-				if (retry) {
-					ccb->ccb_h.retry_count--;
-					error = ERESTART;
-					print_sense = FALSE;
-				} else {
-					if (((error_action &
-					      SSQ_PRINT_SENSE) == 0)
-					 && ((sense_flags &
-					      SF_PRINT_ALWAYS) == 0))
-						print_sense = FALSE;
-
-					error = error_action & SS_ERRMASK;
-				}
-			}
-			break;
-		case SSD_KEY_ABORTED_COMMAND:
-		default:
-			/* decrement the number of retries */
-			retry = ccb->ccb_h.retry_count > 0;
-			if (retry) {
-				ccb->ccb_h.retry_count--;
-				error = ERESTART;
-				print_sense = FALSE;
-			} else {
-				if (((error_action & SSQ_PRINT_SENSE) == 0)
-				 && ((sense_flags & SF_PRINT_ALWAYS) == 0))
-					print_sense = FALSE;
-
-				error = error_action & SS_ERRMASK;
-			}
-			/*
-			 * Make sure ABORTED COMMAND errors get
-			 * printed as they're indicative of marginal
-			 * SCSI busses that people should address.
-			 */
-			if (sense_key == SSD_KEY_ABORTED_COMMAND)
-				print_sense = TRUE;
-		}
-		break;
-	}
-	default:
-		/* decrement the number of retries */
-		retry = ccb->ccb_h.retry_count > 0;
-		if (retry) {
-			ccb->ccb_h.retry_count--;
-			error = ERESTART;
-			print_sense = FALSE;
-		} else 
-			error = EIO;
-		break;
-	}
-
-	if (print_sense) {
-#ifdef _KERNEL
-		scsi_sense_print(csio);
-#else
-		scsi_sense_print(device, csio, stdout);
-#endif
-	}
-	
-	return (error);
-}
 
 /*
  * This function currently requires at least 36 bytes, or
@@ -2849,7 +2685,7 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = START_STOP_UNIT;
 	if (start != 0) {
-		scsi_cmd->how |= SSS_START;
+		scsi_cmd->how |= SS_START;
 		/* it takes a lot of power to start a drive */
 		extra_flags |= CAM_HIGH_POWER;
 	}
