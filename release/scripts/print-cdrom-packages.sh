@@ -91,7 +91,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-clients"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-documents"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-libraries"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-manuals"
-CDROM_SET_1="${CDROM_SET_1} x11/gnome"
+CDROM_SET_1="${CDROM_SET_1} x11/gnome2"
 CDROM_SET_1="${CDROM_SET_1} x11/kde3"
 CDROM_SET_1="${CDROM_SET_1} www/links"
 
