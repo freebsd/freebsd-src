@@ -145,16 +145,16 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 	hpriv_p	hpriv;
 	u_int16_t rulenum;
 	const char *cp;
-	char c;
-	int len;
+	char *endptr;
 
 	/* Check that name contains only digits */
-	for (len = strlen(name), cp = name, c = *cp; len > 0; c =*++cp, len--)
-		if (!isdigit(c))
+	for (cp = name; *cp != '\0'; cp++)
+		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 			return (EINVAL);
 
 	/* Convert it to integer */
-	if ((rulenum = (u_int16_t)strtol(name, NULL, 10)) == 0)
+	rulenum = (u_int16_t)strtol(name, &endptr, 10);
+	if (*endptr != '\0')
 		return (EINVAL);
 
 	/* Allocate memory for this hook's private data */
@@ -186,8 +186,10 @@ hook_p
 ng_ipfw_findhook(node_p node, const char *name)
 {
 	u_int16_t n;	/* numeric representation of hook */
+	char *endptr;
 
-	if ((n = (u_int16_t)strtol(name, NULL, 10)) == 0)
+	n = (u_int16_t)strtol(name, &endptr, 10);
+	if (*endptr != '\0')
 		return NULL;
 	return ng_ipfw_findhook1(node, n);
 }
