@@ -408,6 +408,54 @@ blank the display if the argment
 .Va blank
 != 0. This can be done to shut off the screen during display updates that
 the user should first see when it's done.
+.Ss Program termination and signal processing
+It is important to call
+.Fn VGLEnd
+before terminating the program.
+Care must be taken if you install signal handlers and try to call
+.Fn VGLEnd
+and
+.Xr exit 3
+to end the program.
+If a signal is caught while the program is inside
+.Nm libvgl
+functions,
+.Fn VGLEnd
+may not be able to properly restore the graphics hardware.
+.Pp
+The recommended way to handle signals and program termination is to
+have a flag to indicate singnal's delivery.
+Your singnal handlers set this flag but do not terminate
+the program immediately.
+The main part of the program checks the flag to see if it is
+supporsed to terminate, and call
+.Fn VGLEnd
+and
+.Xr exit 3
+if the flag is set.
+.Pp
+Note that
+.Fn VGLInit
+installs its internal signal handlers for
+.Dv SIGINT , SIGTERM , SIGSEGV ,
+and
+.Dv SIGBUS ,
+and terminates the program at appropriate time,
+after one of these signals is caught.
+If you want to have your own signal handlers for these signals,
+install handers
+.Em after
+.Fn VGLInit .
+.Pp
+.Dv SIGUSR1
+and
+.Dv SIGUSR2
+are internally used by
+.Nm libvgl
+to control screen switching and the mouse pointer,
+and are not available to
+.Nm libvgl
+client programs.
 .Sh AUTHORS
 .An S\(/oren Schmidt Aq sos@FreeBSD.org
 .Sh HISTORY
