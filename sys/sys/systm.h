@@ -50,6 +50,7 @@ extern int securelevel;		/* system security level (see init(8)) */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
+extern int dumping;		/* system is dumping */
 extern int safepri;		/* safe ipl when cold or panicing */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
