@@ -26,42 +26,25 @@
  * $FreeBSD$
  */
 
-/* #define ENTROPYSOURCE nn	   entropy sources (actually classes)
- *					This is properly defined in
- *					an enum in sys/random.h
+/* This contains Yarrow-specific declarations.
+ * See http://www.counterpane.com/yarrow.html
  */
 
-/* The ring size _MUST_ be a power of 2 */
-#define HARVEST_RING_SIZE	1024	/* harvest ring buffer size */
-#define HARVEST_RING_MASK	(HARVEST_RING_SIZE - 1)
-
 #define TIMEBIN		16	/* max value for Pt/t */
-
-#define HARVESTSIZE	16	/* max size of each harvested entropy unit */
 
 #define FAST		0
 #define SLOW		1
 
-int random_init(void);
-void random_deinit(void);
-void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum esource), u_int (*)(void *, u_int));
-void random_deinit_harvester(void);
-void random_set_wakeup_exit(void *);
-
-void random_reseed(void);
-
-u_int read_random_real(void *, u_int);
-void write_random(void *, u_int);
-
 /* This is the beastie that needs protecting. It contains all of the
  * state that we are excited about.
+ * Exactly one will be instantiated.
  */
 struct random_state {
-	u_int64_t counter;	/* C */
+	u_int64_t counter[4];	/* C - 256 bits */
 	struct yarrowkey key;	/* K */
-	int gengateinterval;	/* Pg */
-	int bins;		/* Pt/t */
-	int outputblocks;	/* count output blocks for gates */
+	u_int gengateinterval;	/* Pg */
+	u_int bins;		/* Pt/t */
+	u_int outputblocks;	/* count output blocks for gates */
 	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
 	struct pool {
 		struct source {
@@ -72,10 +55,7 @@ struct random_state {
 		u_int thresh;	/* pool reseed threshhold */
 		struct yarrowhash hash;	/* accumulated entropy */
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	int which;		/* toggle - shows the current insertion pool */
-	int seeded;		/* 0 causes blocking 1 allows normal output */
-	struct selinfo rsel;	/* For poll(2) */
-	u_char raw[HARVESTSIZE];/* Raw buffer for checking */
+	u_int which;		/* toggle - sets the current insertion pool */
 };
 
 extern struct random_state random_state;
