@@ -27,7 +27,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
 	byteorder.9 \
 	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
-	critical_enter.9 \
+	critical_enter.9 crypto.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
 	devclass_get_device.9 devclass_get_devices.9 \
 	devclass_get_maxunit.9 devclass_get_name.9 devclass_get_softc.9 \
