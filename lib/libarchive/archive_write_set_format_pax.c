@@ -315,6 +315,7 @@ archive_write_pax_header(struct archive *a,
 {
 	struct archive_entry *entry_main;
 	const char *linkname, *p;
+	const char *hardlink;
 	const wchar_t *wp, *wp2, *wname_start;
 	int need_extension, oldstate, r, ret;
 	struct pax *pax;
@@ -332,8 +333,10 @@ archive_write_pax_header(struct archive *a,
 
 	st_original = archive_entry_stat(entry_original);
 
+	hardlink = archive_entry_hardlink(entry_original);
+
 	/* Make sure this is a type of entry that we can handle here */
-	if (!archive_entry_hardlink(entry_original)) {
+	if (hardlink == NULL) {
 		switch (st_original->st_mode & S_IFMT) {
 		case S_IFREG:
 		case S_IFLNK:
@@ -390,13 +393,13 @@ archive_write_pax_header(struct archive *a,
 	}
 
 	/* If link name is too long, add 'linkpath' to pax extended attrs. */
-	linkname = archive_entry_hardlink(entry_main);
+	linkname = hardlink;
 	if (linkname == NULL)
 		linkname = archive_entry_symlink(entry_main);
 
 	if (linkname != NULL && strlen(linkname) > 100) {
 		add_pax_attr(&(pax->pax_header), "linkpath", linkname);
-		if (archive_entry_hardlink(entry_main))
+		if (hardlink != NULL)
 			archive_entry_set_hardlink(entry_main,
 			    "././@LongHardLink");
 		else
@@ -563,7 +566,7 @@ archive_write_pax_header(struct archive *a,
 	 * to improve compatibility with ustar.
 	 */
 	if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE &&
-	    archive_entry_hardlink(entry_main) != NULL)
+	    hardlink != NULL)
 		archive_entry_set_size(entry_main, 0);
 
 	/*
@@ -576,7 +579,7 @@ archive_write_pax_header(struct archive *a,
 	 * need to select this behavior, in which case the following
 	 * will need to be revisited. XXX
 	 */
-	if (archive_entry_hardlink(entry_main) != NULL)
+	if (hardlink != NULL)
 		archive_entry_set_size(entry_main, 0);
 
 	/* Format 'ustar' header for main entry. */
