@@ -170,11 +170,11 @@ fw_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
 	int err = 0;
 
-	if (dev->si_drv1 != NULL)
-		return (EBUSY);
-
 	if (DEV_FWMEM(dev))
 		return fwmem_open(dev, flags, fmt, td);
+
+	if (dev->si_drv1 != NULL)
+		return (EBUSY);
 
 #if __FreeBSD_version >= 500000
 	if ((dev->si_flags & SI_NAMED) == 0) {
