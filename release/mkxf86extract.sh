@@ -42,7 +42,7 @@ DO_THE_FUNKY_CHICKEN
 
 for i in $TARGETS; do
 	abbrevname=`echo $i | sed -e 's/XFree86-3.1-//' -e 's/.tar.gz//'`
-	echo "if dialog --title \"Install Request\" --yesno \"Do you wish to install the ${abbrevname} distribution?\" -1 -1; then dialog --title \"Progress\" --infobox \"Installing $i\" -1 -1; tar --unlink -xzf $i -C /usr; fi" >> extract.sh
+	echo "if [ "${INSTALL_TYPE}" != "Express" ]; then if dialog --title \"Install Request\" --yesno \"Do you wish to install the ${abbrevname} distribution?\" -1 -1; then dialog --title \"Progress\" --infobox \"Installing $i\" -1 -1; tar --unlink -xzf $i -C /usr; fi; fi" >> extract.sh
 done
 
 cat >> extract.sh << OH_YEAH_BABY_GET_DOWN
@@ -57,4 +57,5 @@ a symlink to /usr/X386." -1 -1
 OH_YEAH_BABY_GET_DOWN
 
 chmod 755 extract.sh
+touch -f .is_interactive
 echo "  Done."
