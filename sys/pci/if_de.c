@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.54.2.4 1997/04/05 08:00:46 phk Exp $
+ * $Id: if_de.c,v 1.54.2.5 1997/04/20 05:21:34 kato Exp $
  *
  */
 
@@ -3289,9 +3289,12 @@ tulip_read_macaddr(
 	    sc->tulip_boardsw = &tulip_21040_zx314_master_boardsw;
 	    sc->tulip_flags |= TULIP_SHAREDINTR;
 	}
-    } else if (sc->tulip_hwaddr[0] == TULIP_OUI_SMC_0
+    } else if ((sc->tulip_hwaddr[0] == TULIP_OUI_SMC_0
 	       && sc->tulip_hwaddr[1] == TULIP_OUI_SMC_1
-	       && sc->tulip_hwaddr[2] == TULIP_OUI_SMC_2) {
+	       && sc->tulip_hwaddr[2] == TULIP_OUI_SMC_2) ||
+	       (sc->tulip_hwaddr[0] == TULIP_OUI_SMC2_0
+	       && sc->tulip_hwaddr[1] == TULIP_OUI_SMC2_1
+	       && sc->tulip_hwaddr[2] == TULIP_OUI_SMC2_2)) {
 	tulip_identify_smc_nic(sc);
     }
 
