@@ -252,7 +252,6 @@ udf_getattr(struct vop_getattr_args *a)
 	node = VTON(vp);
 	fentry = node->fentry;
 
-	vap->va_fsid = dev2udev(node->i_dev);
 	vap->va_fileid = node->hash_id;
 	vap->va_mode = udf_permtomode(node);
 	vap->va_nlink = le16toh(fentry->link_cnt);
@@ -802,7 +801,7 @@ udf_bmap(struct vop_bmap_args *a)
 	node = VTON(a->a_vp);
 
 	if (a->a_bop != NULL)
-		*a->a_bop = &node->i_devvp->v_bufobj;
+		*a->a_bop = &node->udfmp->im_devvp->v_bufobj;
 	if (a->a_bnp == NULL)
 		return (0);
 	if (a->a_runb)
@@ -968,10 +967,6 @@ udf_reclaim(struct vop_reclaim_args *a)
 
 	if (unode != NULL) {
 		vfs_hash_remove(vp);
-		if (unode->i_devvp) {
-			vrele(unode->i_devvp);
-			unode->i_devvp = 0;
-		}
 
 		if (unode->fentry != NULL)
 			FREE(unode->fentry, M_UDFFENTRY);
