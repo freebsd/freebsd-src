@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id$
+#	$Id: SYSCONS,v 1.2 1993/08/21 23:48:06 rgrimes Exp $
 #
 
 machine		"i386"
@@ -9,6 +9,7 @@ cpu		"i386"
 ident		SYSCONS
 timezone	8 dst
 maxusers	10
+maxfdescs	2048			#Max file descriptors per process
 options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
