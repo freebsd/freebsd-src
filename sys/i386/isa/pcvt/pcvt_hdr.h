@@ -1143,14 +1143,14 @@ extern u_char		kbd_polling;
 extern u_char		keyboard_show;
 #endif /* PCVT_SHOWKEYS */
 
-u_char	cursor_pos_valid;
+extern	u_char	cursor_pos_valid;
 
-u_char	critical_scroll;
-int	switch_page;
+extern	u_char	critical_scroll;
+extern	int	switch_page;
 
 #if PCVT_SCREENSAVER
-u_char	reset_screen_saver;
-u_char	scrnsv_active;
+extern	u_char	reset_screen_saver;
+extern	u_char	scrnsv_active;
 #endif /* PCVT_SCREENSAVER */
 
 extern u_char		sgr_tab_color[];

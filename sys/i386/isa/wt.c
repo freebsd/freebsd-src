@@ -19,8 +19,14 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.16 1995/04/12 20:48:13 wollman Exp $
+ * $Id: wt.c,v 1.19 1995/09/08 11:08:03 bde Exp $
  *
+ */
+
+/*
+ * Code for MTERASE added by John Lind (john@starfire.mn.org) 95/09/02.
+ * This was very easy due to the excellent structure and clear coding
+ * of the original driver.
  */
 
 /*
@@ -258,13 +264,13 @@ int wtattach (struct isa_device *id)
 
 struct isa_driver wtdriver = { wtprobe, wtattach, "wt", };
 
-int wtdump (int dev)
+int wtdump (dev_t dev)
 {
 	/* Not implemented */
 	return (EINVAL);
 }
 
-int wtsize (int dev)
+int wtsize (dev_t dev)
 {
 	/* Not implemented */
 	return (-1);
@@ -273,7 +279,7 @@ int wtsize (int dev)
 /*
  * Open routine, called on every device open.
  */
-int wtopen (int dev, int flag)
+int wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -351,7 +357,7 @@ int wtopen (int dev, int flag)
 /*
  * Close routine, called on last device close.
  */
-int wtclose (int dev)
+int wtclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -401,7 +407,7 @@ done:
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  * ioctl (int fd, WTQICMD, int qicop)           -- do QIC op
  */
-int wtioctl (int dev, int cmd, void *arg, int mode)
+int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -487,6 +493,20 @@ int wtioctl (int dev, int cmd, void *arg, int mode)
 			return (error);
 		if (error = wtwritefm (t))
 			return (error);
+		return (0);
+	case MTERASE:		/* erase to EOM */
+		if (! (t->flags & TPWRITE) || (t->flags & TPWP))
+			return (EACCES);
+		if (error = wtwait (t, PCATCH, "wterase"))
+			return (error);
+		/* ERASE operations work like REWIND. */
+		/* Simulate the rewind operation here. */
+		t->flags &= ~(TPRO | TPWO | TPVOL);
+		if (! wtcmd (t, QIC_ERASE))
+			return (EIO);
+		t->flags |= TPSTART | TPREW;
+		t->flags |= TPWANY;
+		wtclock (t);
 		return (0);
 	}
 	return (EINVAL);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.10 1995/04/10 01:45:43 ache Exp $
+ * $Id: tty_pty.c,v 1.20 1995/09/08 11:08:38 bde Exp $
  */
 
 /*
@@ -122,7 +122,6 @@ ptsopen(dev, flag, devtype, p)
 		return (ENXIO);
 	tp = &pt_tty[minor(dev)];
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_WOPEN;
 		ttychars(tp);		/* Set up default chars */
 		tp->t_iflag = TTYDEF_IFLAG;
 		tp->t_oflag = TTYDEF_OFLAG;
@@ -133,13 +132,12 @@ ptsopen(dev, flag, devtype, p)
 	} else if (tp->t_state&TS_XCLUDE && p->p_ucred->cr_uid != 0)
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */
-		tp->t_state |= TS_CARR_ON;
+		(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
-		tp->t_state |= TS_WOPEN;
 		if (flag&FNONBLOCK)
 			break;
-		error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
-		    ttopen, 0);
+		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
+				 "ptsopn", 0);
 		if (error)
 			return (error);
 	}
@@ -185,16 +183,16 @@ again:
 			    p->p_flag & P_PPWAIT)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
-			error = ttysleep(tp, (caddr_t)&lbolt,
-			    TTIPRI | PCATCH, ttybg, 0);
+			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
+					 0);
 			if (error)
 				return (error);
 		}
 		if (tp->t_canq.c_cc == 0) {
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
-			error = ttysleep(tp, (caddr_t)&tp->t_canq,
-			    TTIPRI | PCATCH, ttyin, 0);
+			error = ttysleep(tp, TSA_PTS_READ(tp), TTIPRI | PCATCH,
+					 "ptsin", 0);
 			if (error)
 				return (error);
 			goto again;
@@ -262,25 +260,19 @@ ptcwakeup(tp, flag)
 
 	if (flag & FREAD) {
 		selwakeup(&pti->pt_selr);
-		wakeup((caddr_t)&tp->t_outq.c_cf);
+		wakeup(TSA_PTC_READ(tp));
 	}
 	if (flag & FWRITE) {
 		selwakeup(&pti->pt_selw);
-		wakeup((caddr_t)&tp->t_rawq.c_cl);
+		wakeup(TSA_PTC_WRITE(tp));
 	}
 }
 
-/*ARGSUSED*/
-#ifdef __STDC__
-int
-ptcopen(dev_t dev, int flag, int devtype, struct proc *p)
-#else
 int
 ptcopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
 	struct proc *p;
-#endif
 {
 	register struct tty *tp;
 	struct pt_ioctl *pti;
@@ -304,14 +296,31 @@ ptcopen(dev, flag, devtype, p)
 }
 
 int
-ptcclose(dev)
+ptcclose(dev, flags, fmt, p)
 	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	register struct tty *tp;
 
 	tp = &pt_tty[minor(dev)];
 	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
-	tp->t_state &= ~TS_CARR_ON;
+
+	/*
+	 * XXX MDMBUF makes no sense for ptys but would inhibit the above
+	 * l_modem().  CLOCAL makes sense but isn't supported.   Special
+	 * l_modem()s that ignore carrier drop make no sense for ptys but
+	 * may be in use because other parts of the line discipline make
+	 * sense for ptys.  Recover by doing everything that a normal
+	 * ttymodem() would have done except for sending a SIGHUP.
+	 */
+	if (tp->t_state & TS_ISOPEN) {
+		tp->t_state &= ~(TS_CARR_ON | TS_CONNECTED);
+		tp->t_state |= TS_ZOMBIE;
+		ttyflush(tp, FREAD | FWRITE);
+	}
+
 	tp->t_oproc = 0;		/* mark closed */
 	tp->t_session = 0;
 	return (0);
@@ -359,12 +368,11 @@ ptcread(dev, uio, flag)
 			if (tp->t_outq.c_cc && (tp->t_state&TS_TTSTOP) == 0)
 				break;
 		}
-		if ((tp->t_state&TS_CARR_ON) == 0)
+		if ((tp->t_state & TS_CONNECTED) == 0)
 			return (0);	/* EOF */
 		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
-		error = tsleep((caddr_t)&tp->t_outq.c_cf, TTIPRI | PCATCH,
-		    ttyin, 0);
+		error = tsleep(TSA_PTC_READ(tp), TTIPRI | PCATCH, "ptcin", 0);
 		if (error)
 			return (error);
 	}
@@ -376,13 +384,7 @@ ptcread(dev, uio, flag)
 			break;
 		error = uiomove(buf, cc, uio);
 	}
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state&TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
 	return (error);
 }
 
@@ -420,7 +422,7 @@ ptcselect(dev, rw, p)
 	struct pt_ioctl *pti = &pt_ioctl[minor(dev)];
 	int s;
 
-	if ((tp->t_state&TS_CARR_ON) == 0)
+	if ((tp->t_state & TS_CONNECTED) == 0)
 		return (1);
 	switch (rw) {
 
@@ -503,7 +505,7 @@ again:
 		}
 		(void) putc(0, &tp->t_canq);
 		ttwakeup(tp);
-		wakeup((caddr_t)&tp->t_canq);
+		wakeup(TSA_PTS_READ(tp));
 		return (0);
 	}
 	while (uio->uio_resid > 0) {
@@ -520,7 +522,7 @@ again:
 		while (cc > 0) {
 			if ((tp->t_rawq.c_cc + tp->t_canq.c_cc) >= TTYHOG - 2 &&
 			   (tp->t_canq.c_cc > 0 || !(tp->t_iflag&ICANON))) {
-				wakeup((caddr_t)&tp->t_rawq);
+				wakeup(TSA_HUP_OR_INPUT(tp));
 				goto block;
 			}
 			(*linesw[tp->t_line].l_rint)(*cp++, tp);
@@ -535,7 +537,7 @@ block:
 	 * Come here to wait for slave to open, for space
 	 * in outq, or space in rawq.
 	 */
-	if ((tp->t_state&TS_CARR_ON) == 0)
+	if ((tp->t_state & TS_CONNECTED) == 0)
 		return (EIO);
 	if (flag & IO_NDELAY) {
 		/* adjust for data copied in but not written */
@@ -544,7 +546,7 @@ block:
 			return (EWOULDBLOCK);
 		return (0);
 	}
-	error = tsleep((caddr_t)&tp->t_rawq.c_cl, TTOPRI | PCATCH, ttyout, 0);
+	error = tsleep(TSA_PTC_WRITE(tp), TTOPRI | PCATCH, "ptcout", 0);
 	if (error) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;

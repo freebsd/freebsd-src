@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.8 1994/05/25 08:54:24 rgrimes Exp $
+ *	$Id: mem.c,v 1.9 1994/08/06 10:25:34 davidg Exp $
  */
 
 /*
@@ -65,10 +65,11 @@
 extern        char *ptvmmap;            /* poor name! */
 /*ARGSUSED*/
 int
-mmclose(dev, uio, flags)
+mmclose(dev, flags, fmt, p)
 	dev_t dev;
-	struct uio *uio;
 	int flags;
+	int fmt;
+	struct proc *p;
 {
 	struct trapframe *fp;
 
@@ -84,10 +85,11 @@ mmclose(dev, uio, flags)
 }
 /*ARGSUSED*/
 int
-mmopen(dev, uio, flags)
+mmopen(dev, flags, fmt, p)
 	dev_t dev;
-	struct uio *uio;
 	int flags;
+	int fmt;
+	struct proc *p;
 {
 	struct trapframe *fp;
 

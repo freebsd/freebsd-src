@@ -28,7 +28,6 @@
 #include "buf.h"
 #include "systm.h"
 #include "sys/ioctl.h"
-#include "tty.h"
 #include "proc.h"
 #include "user.h"
 #include "uio.h"
@@ -139,9 +138,11 @@ gpattach(isdp)
  * i.e. even if gpib5 is open, we can't open another minor device
  */
 int
-gpopen(dev, flag)
+gpopen(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	struct gpib_softc *sc = &gpib_sc;
 	int delay;	/* slept time in 1/hz seconds of tsleep */
@@ -218,10 +219,11 @@ enableremote(unit);
  *	Close gpib device.
  */
 int
-gpclose(dev, flag)
+gpclose(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
-
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	struct gpib_softc *sc = &gpib_sc;
         unsigned char unit;
@@ -320,9 +322,10 @@ while (!(inb(ISR1)&2)&&(status==EWOULDBLOCK));
  *    by minor(dev).
  */
 int
-gpwrite(dev, uio)
+gpwrite(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
+	int ioflag;
 {
 	int err,count;
 
@@ -372,8 +375,9 @@ gpwrite(dev, uio)
    write to using a minor device = its GPIB address */
 
 int
-gpioctl(dev_t dev, int cmd, struct gpibdata *gd)
+gpioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
+	struct gpibdata *gd = (struct gpibdata *)data;
 	int	error,result;
 	error = 0;
 

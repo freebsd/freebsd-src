@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.13 1995/05/05 06:15:11 davidg Exp $
+ *    $Id: spkr.c,v 1.14 1995/05/30 08:03:09 rgrimes Exp $
  */
 
 #include "speaker.h"
@@ -437,8 +437,11 @@ size_t	slen;
 static int spkr_active = FALSE; /* exclusion flag */
 static struct buf *spkr_inbuf;  /* incoming buf */
 
-int spkropen(dev)
-dev_t	dev;
+int spkropen(dev, flags, fmt, p)
+dev_t		dev;
+int		flags;
+int		fmt;
+struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkropen: entering with dev = %x\n", dev);
@@ -460,9 +463,10 @@ dev_t	dev;
     }
 }
 
-int spkrwrite(dev, uio)
+int spkrwrite(dev, uio, ioflag)
 dev_t		dev;
 struct uio	*uio;
+int		ioflag;
 {
 #ifdef DEBUG
     printf("spkrwrite: entering with dev = %x, count = %d\n",
@@ -487,8 +491,11 @@ struct uio	*uio;
     }
 }
 
-int spkrclose(dev)
-dev_t	dev;
+int spkrclose(dev, flags, fmt, p)
+dev_t		dev;
+int		flags;
+int		fmt;
+struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkrclose: entering with dev = %x\n", dev);
@@ -506,10 +513,12 @@ dev_t	dev;
     }
 }
 
-int spkrioctl(dev, cmd, cmdarg)
-dev_t	dev;
-int	cmd;
-caddr_t	cmdarg;
+int spkrioctl(dev, cmd, cmdarg, flags, p)
+dev_t		dev;
+int		cmd;
+caddr_t		cmdarg;
+int		flags;
+struct proc	*p;
 {
 #ifdef DEBUG
     (void) printf("spkrioctl: entering with dev = %x, cmd = %x\n");

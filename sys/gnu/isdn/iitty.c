@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,98 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.11  1995/07/31  21:28:42  bde
+ * Use tsleep() instead of ttysleep() to wait for carrier since a generation
+ * change isn't an error.
+ *
+ * Revision 1.10  1995/07/31  21:01:03  bde
+ * Obtained from:	partly from ancient patches of mine via 1.1.5
+ *
+ * Introduce TS_CONNECTED and TS_ZOMBIE states.  TS_CONNECTED is set
+ * while a connection is established.  It is set while (TS_CARR_ON or
+ * CLOCAL is set) and TS_ZOMBIE is clear.  TS_ZOMBIE is set for on to
+ * off transitions of TS_CARR_ON that occur when CLOCAL is clear and
+ * is cleared for off to on transitions of CLOCAL.  I/o can only occur
+ * while TS_CONNECTED is set.  TS_ZOMBIE prevents further i/o.
+ *
+ * Split the input-event sleep address TSA_CARR_ON(tp) into TSA_CARR_ON(tp)
+ * and TSA_HUP_OR_INPUT(tp).  The former address is now used only for
+ * off to on carrier transitions and equivalent CLOCAL transitions.
+ * The latter is used for all input events, all carrier transitions
+ * and certain CLOCAL transitions.  There are some harmless extra
+ * wakeups for rare connection- related events.  Previously there were
+ * too many extra wakeups for non-rare input events.
+ *
+ * Drivers now call l_modem() instead of setting TS_CARR_ON directly
+ * to handle even the initial off to on transition of carrier.  They
+ * should always have done this.  l_modem() now handles TS_CONNECTED
+ * and TS_ZOMBIE as well as TS_CARR_ON.
+ *
+ * gnu/isdn/iitty.c:
+ * Set TS_CONNECTED for first open ourself to go with bogusly setting
+ * CLOCAL.
+ *
+ * i386/isa/syscons.c, i386/isa/pcvt/pcvt_drv.c:
+ * We fake carrier, so don't also fake CLOCAL.
+ *
+ * kern/tty.c:
+ * Testing TS_CONNECTED instead of TS_CARR_ON fixes TIOCCONS forgetting to
+ * test CLOCAL.  TS_ISOPEN was tested instead, but that broke when we disabled
+ * the clearing of TS_ISOPEN for certain transitions of CLOCAL.
+ *
+ * Testing TS_CONNECTED fixes ttyselect() returning false success for output
+ * to devices in state !TS_CARR_ON && !CLOCAL.
+ *
+ * Optimize the other selwakeup() call (this is not related to the other
+ * changes).
+ *
+ * kern/tty_pty.c:
+ * ptcopen() can be declared in traditional C now that dev_t isn't short.
+ *
+ * Revision 1.9  1995/07/22  16:44:26  bde
+ * Obtained from:	partly from ancient patches of mine via 1.1.5
+ *
+ * Give names to the magic tty i/o sleep addresses and use them.  This makes
+ * it easier to remember what the addresses are for and to keep them unique.
+ *
+ * Revision 1.8  1995/07/22  01:29:28  bde
+ * Move the inline code for waking up writers to a new function
+ * ttwwakeup().  The conditions for doing the wakeup will soon become
+ * more complicated and I don't want them duplicated in all drivers.
+ *
+ * It's probably not worth making ttwwakeup() a macro or an inline
+ * function.  The cost of the function call is relatively small when
+ * there is a process to wake up.  There is usually a process to wake
+ * up for large writes and the system call overhead dwarfs the function
+ * call overhead for small writes.
+ *
+ * Revision 1.7  1995/07/21  20:52:21  bde
+ * Obtained from:	partly from ancient patches by ache and me via 1.1.5
+ *
+ * Nuke `symbolic sleep message strings'.  Use unique literal messages so that
+ * `ps l' shows unambiguously where processes are sleeping.
+ *
+ * Revision 1.6  1995/07/21  16:30:37  bde
+ * Obtained from:	partly from an ancient patch of mine via 1.1.5
+ *
+ * Temporarily nuke TS_WOPEN.  It was only used for the obscure MDMBUF
+ * flow control option in the kernel and for informational purposes
+ * in `pstat -t'.  The latter worked properly only for ptys.  In
+ * general there may be multiple processes sleeping in open() and
+ * multiple processes that successfully opened the tty by opening it
+ * in O_NONBLOCK mode or during a window when CLOCAL was set.  tty.c
+ * doesn't have enough information to maintain the flag but always
+ * cleared it in ttyopen().
+ *
+ * TS_WOPEN should be restored someday just so that `pstat -t' can
+ * display it (MDMBUF is already fixed).  Fixing it requires counting
+ * of processes sleeping in open() in too many serial drivers.
+ *
+ * Revision 1.5  1995/03/28  07:54:43  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.4  1995/02/28  00:20:30  pst
  * Incorporate bde's code-review comments.
  *
@@ -106,7 +198,6 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0)
 	{
-		tp->t_state |= TS_WOPEN;
 		ttychars(tp);
 		if (tp->t_ispeed == 0)
 		{
@@ -122,14 +213,20 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 		return (EBUSY);
 	(void) spltty();
 
-	if(OUTBOUND(dev)) tp->t_cflag |= CLOCAL;
+	if (OUTBOUND(dev)) {
+		/*
+		 * XXX should call l_modem() here and not meddle with CLOCAL,
+		 * but itystart() wants TS_CARR_ON to give the true carrier.
+		 */
+		tp->t_cflag |= CLOCAL;
+		tp->t_state |= TS_CONNECTED;
+	}
 
 	while ((flag & O_NONBLOCK) == 0 && (tp->t_cflag & CLOCAL) == 0 &&
 	       (tp->t_state & TS_CARR_ON) == 0)
 	{
-		tp->t_state |= TS_WOPEN;
-		if (error = ttysleep(tp, (caddr_t) & tp->t_rawq, TTIPRI | PCATCH,
-				     ttopen, 0))
+		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "iidcd", 0);
+		if (error)
 			break;
 	}
 	(void) spl0();
@@ -207,15 +304,7 @@ itystart(struct tty *tp)
 		splx(s);
 		return;
 	}
-	if (tp->t_outq.c_cc <= tp->t_lowat)
-	{
-		if (tp->t_state & TS_ASLEEP)
-		{
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t) & tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
 	if (tp->t_outq.c_cc)
 	{
 		if(OUTBOUND(tp->t_dev) && (tp->t_cflag & CLOCAL) &&
@@ -258,7 +347,6 @@ ity_connect(int no)
 		return;
 	if(OUTBOUND(tp->t_dev)) tp->t_cflag &= ~CLOCAL;
 	(*linesw[tp->t_line].l_modem) (tp, 1);
-	tp->t_state |= TS_CARR_ON;
 	tp->t_state &=~ (TS_BUSY|TS_FLUSH);
 	if (tp->t_line)
 		(*linesw[tp->t_line].l_start)(tp);
