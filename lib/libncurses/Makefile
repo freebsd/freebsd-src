@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.23 1997/08/25 07:41:13 ache Exp $
+# $Id: Makefile,v 1.24 1997/10/20 17:53:54 ache Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
@@ -7,7 +7,8 @@ SHLIB_MINOR= 1
 SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
 	lib_unctrl.c lib_raw.c lib_vidattr.c lib_trace.c lib_beep.c \
 	lib_doupdate.c lib_refresh.c lib_initscr.c lib_newwin.c lib_addch.c \
-	lib_addstr.c lib_scroll.c lib_clreol.c lib_touch.c lib_mvcur.c lib_keyname.c\
+	lib_addstr.c lib_scroll.c lib_clreol.c lib_touch.c lib_mvcur.c \
+	lib_keyname.c keys.tries.h \
 	lib_delwin.c lib_endwin.c lib_clrbot.c lib_move.c lib_printw.c \
 	lib_scanw.c lib_erase.c lib_getch.c lib_options.c lib_acs.c lib_slk.c\
 	lib_box.c lib_clear.c lib_delch.c lib_insch.c lib_instr.c \
@@ -19,9 +20,7 @@ CFLAGS+= -I. -I${.CURDIR} -Wall -DMYTINFO #-DTRACE
 DPADD=	${LIBMYTINFO}
 LDADD=	-lmytinfo
 
-CLEANFILES+= lib_keyname.c keys.tries
-
-beforedepend: keys.tries
+CLEANFILES+= lib_keyname.c keys.tries.h
 
 beforeinstall:
 	${INSTALL} -C -m 444 -o $(BINOWN) -g $(BINGRP) ${.CURDIR}/unctrl.h \
@@ -29,11 +28,8 @@ beforeinstall:
 	${INSTALL} -C -m 444 -o $(BINOWN) -g $(BINGRP) ${.CURDIR}/curses.h \
 		${DESTDIR}/usr/include/ncurses.h
 
-keys.tries: ${.CURDIR}/keys.list ${.CURDIR}/MKkeys.awk
-	awk -f ${.CURDIR}/MKkeys.awk ${.CURDIR}/keys.list > keys.tries
-
-# in case you don't run make depend
-lib_options.o lib_options.so lib_options.po: keys.tries
+keys.tries.h: ${.CURDIR}/keys.list ${.CURDIR}/MKkeys.awk
+	awk -f ${.CURDIR}/MKkeys.awk ${.CURDIR}/keys.list > keys.tries.h
 
 lib_keyname.c: ${.CURDIR}/keys.list ${.CURDIR}/MKkeyname.awk
 	awk -f ${.CURDIR}/MKkeyname.awk ${.CURDIR}/keys.list > lib_keyname.c
