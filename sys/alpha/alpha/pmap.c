@@ -1276,11 +1276,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		--m->wire_count;
 		if (m->wire_count == 0) {
 
-			if (m->flags & PG_WANTED) {
-				vm_page_flag_clear(m, PG_WANTED);
-				wakeup(m);
-			}
-
+			vm_page_flash(m);
 			vm_page_busy(m);
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
