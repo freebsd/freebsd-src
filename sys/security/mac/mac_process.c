@@ -51,8 +51,8 @@
 #include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -66,7 +66,6 @@
 #include <sys/socket.h>
 #include <sys/pipe.h>
 #include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -78,7 +77,6 @@
 
 #include <fs/devfs/devfs.h>
 
-#include <net/bpf.h>
 #include <net/bpfdesc.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -2214,9 +2212,10 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		revokeperms = vme->max_protection & ~result;
 		if (!revokeperms)
 			continue;
-		printf("pid %d: revoking %s perms from %#lx:%d "
-		    "(max %s/cur %s)\n", td->td_proc->p_pid,
-		    prot2str(revokeperms), vme->start, vme->end - vme->start,
+		printf("pid %ld: revoking %s perms from %#lx:%ld "
+		    "(max %s/cur %s)\n", (long)td->td_proc->p_pid,
+		    prot2str(revokeperms), (u_long)vme->start,
+		    (long)(vme->end - vme->start),
 		    prot2str(vme->max_protection), prot2str(vme->protection));
 		vm_map_lock_upgrade(map);
 		/*
