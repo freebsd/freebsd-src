@@ -97,6 +97,7 @@
  * [See below for descriptions]
  *
  */
+void	mtx_sysinit(void *arg);
 void	mtx_init(struct mtx *m, const char *description, int opts);
 void	mtx_destroy(struct mtx *m);
 void	_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line);
@@ -325,6 +326,21 @@ do {									\
 	mtx_unlock(&Giant);						\
 	return (_val);							\
 } while (0)
+
+struct mtx_args {
+	struct mtx	*ma_mtx;
+	const char 	*ma_desc;
+	int		 ma_opts;
+};
+
+#define	MTX_SYSINIT(name, mtx, desc, opts)				\
+	static struct mtx_args name##_args = {				\
+		mtx,							\
+		desc,							\
+		opts							\
+	};								\
+	SYSINIT(name##_mtx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    mtx_sysinit, &name##_args)
 
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.

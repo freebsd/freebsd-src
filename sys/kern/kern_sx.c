@@ -53,6 +53,14 @@ struct lock_class lock_class_sx = {
 #endif
 
 void
+sx_sysinit(void *arg)
+{
+	struct sx_args *sargs = arg;
+
+	sx_init(sargs->sa_sx, sargs->sa_desc);
+}
+
+void
 sx_init(struct sx *sx, const char *description)
 {
 	struct lock_object *lock;
