@@ -42,6 +42,7 @@
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
 #include <machine/resource.h>
+#include <machine/cpuconf.h>
 
 static struct rman isa_irq_rman;
 static struct rman isa_drq_rman;
@@ -298,7 +299,11 @@ isa_setup_intr(device_t dev, device_t child,
 {
 	struct isa_intr *ii;
 	int error;
-	
+
+	if (platform.isa_setup_intr)
+		return platform.isa_setup_intr(dev, child, irq, flags, 
+			intr, arg, cookiep);	
+
 	error = rman_activate_resource(irq);
 	if (error)
 		return error;
@@ -333,6 +338,11 @@ isa_teardown_intr(device_t dev, device_t child,
 		  struct resource *irq, void *cookie)
 {
 	struct isa_intr *ii = cookie;
+
+	if (platform.isa_teardown_intr) {
+		platform.isa_teardown_intr(dev, child, irq, cookie);	
+		return 0;
+	}
 
 	alpha_teardown_intr(ii->ih);
 	isa_intr_disable(irq->r_start);
