@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.283 1996/10/09 18:36:43 bde Exp $
+#	$Id: LINT,v 1.284 1996/10/18 03:52:48 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -422,8 +422,8 @@ options		OD_AUTO_TURNOFF
 # Of these, only the `log' device is truly mandatory.  The `pty'
 # device usually turns out to be ``effectively mandatory'', as it is
 # required for `telnetd', `rlogind', `screen', `emacs', and `xterm',
-# among others.  The `isdn', `ii', `ity', `itel', and `ispy' devices
-# are all required when ISDN support is used.  If you wish to run certain
+# among others. 
+# If you wish to run certain
 # system utilities which are compressed by default (like /stand/sysinstall)
 # then `gzip' becomes mandatory too.
 #
@@ -434,13 +434,6 @@ pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
 pseudo-device	ccd	4	#Concatenated disk driver
-
-# These are non-optional for ISDN
-pseudo-device   isdn
-pseudo-device   ii      4
-pseudo-device   ity     4
-pseudo-device   itel    2       
-pseudo-device   ispy    1       
 
 # These are only for watching for bitrot in old tty code.
 # broken
@@ -703,19 +696,6 @@ device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
-
-#
-# ISDN drivers - `isdn'.
-#
-# Uncomment one (and only one) of the following two drivers for the appropriate
-# ISDN device you have.  For more information on what's considered appropriate
-# for your given set of circumstances, please read
-# /usr/src/gnu/usr.sbin/isdn/docs/INSTALL.  It's a bit sparse at present, but
-# it's the best we have right now.  The snic driver is also disabled at present,
-# waiting for someone to upgrade the driver to 2.0 (it's in /sys/gnu/scsi/).
-#
-device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
-device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 
 #
 # Audio drivers: `snd', `sb', `pas', `gus', `pca'
