@@ -43,6 +43,18 @@ the IEEE 802.1Q standard into logical
 network interfaces, which allows routing/bridging between
 multiple VLANs through a single switch trunk port.
 .Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
 To function, a
 .Nm
 interface must be assigned a parent interface and
