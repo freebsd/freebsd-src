@@ -41,12 +41,16 @@
 #include <net/if_arp.h>
 
 #include <dev/cs/if_csvar.h>
+#include <dev/cs/if_csreg.h>
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
 
 #include "card_if.h"
 
 static const struct pccard_product cs_pccard_products[] = {
+	{ PCCARD_STR_IBM_ETHERJET,		PCCARD_VENDOR_IBM,
+	  PCCARD_PRODUCT_IBM_ETHERJET,		0,
+	  PCCARD_CIS_IBM_ETHERJET },
 	{ NULL }
 };
 static int
@@ -79,14 +83,12 @@ cs_pccard_attach(device_t dev)
         int flags = device_get_flags(dev);
         int error;
         
-        if (sc->port_used > 0)
-                cs_alloc_port(dev, sc->port_rid, sc->port_used);
-        if (sc->mem_used)
-                cs_alloc_memory(dev, sc->mem_rid, sc->mem_used);
+	error = cs_alloc_port(dev, sc->port_rid, CS_89x0_IO_PORTS);
+	if (error != 0)
+		goto bad;
         error = cs_alloc_irq(dev, sc->irq_rid, 0);
 	if (error != 0)
 		goto bad;
-                
         error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 	    csintr, sc, &sc->irq_handle);
         if (error != 0)
