@@ -67,6 +67,37 @@
 
 #include "assym.s"
 
+	.register %g2,#ignore
+	.register %g3,#ignore
+	.register %g6,#ignore
+	.register %g7,#ignore
+
+/*
+ * Atomically increment an integer in memory.
+ */
+#define	ATOMIC_INC_INT(r1, r2, r3) \
+	lduw	[r1], r2 ; \
+9:	add	r2, 1, r3 ; \
+	casa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%xcc, 9b ; \
+	 mov	r3, r2
+
+/*
+ * Atomically set the reference bit in a tte.
+ */
+#define	TTE_SET_BIT(r1, r2, r3, bit) \
+	add	r1, TTE_DATA, r1 ; \
+	ldx	[r1], r2 ; \
+9:	or	r2, bit, r3 ; \
+	casxa	[r1] ASI_N, r2, r3 ; \
+	cmp	r2, r3 ; \
+	bne,pn	%xcc, 9b ; \
+	 mov	r3, r2
+
+#define	TTE_SET_REF(r1, r2, r3)		TTE_SET_BIT(r1, r2, r3, TD_REF)
+#define	TTE_SET_W(r1, r2, r3)		TTE_SET_BIT(r1, r2, r3, TD_W)
+
 /*
  * Macros for spilling and filling live windows.
  *
@@ -116,19 +147,15 @@
 /*
  * Magic to resume from a spill or fill trap.  If we get an alignment or an
  * mmu fault during a spill or a fill, this macro will detect the fault and
- * resume at a set instruction offset in the trap handler, which will try to
- * get help.
+ * resume at a set instruction offset in the trap handler.
  *
- * To check if the previous trap was a spill/fill we convert the the trapped
- * pc to a trap type and verify that it is in the range of spill/fill vectors.
+ * To check if the previous trap was a spill/fill we convert the trapped pc
+ * to a trap type and verify that it is in the range of spill/fill vectors.
  * The spill/fill vectors are types 0x80-0xff and 0x280-0x2ff, masking off the
  * tl bit allows us to detect both ranges with one test.
  *
  * This is:
- *	0x80 <= (((%tpc - %tba) >> 5) & ~0x200) <= 0xff
- *
- * Values outside of the trap table will produce negative or large positive
- * results.
+ *	0x80 <= (((%tpc - %tba) >> 5) & ~0x200) < 0x100
  *
  * To calculate the new pc we take advantage of the xor feature of wrpr.
  * Forcing all the low bits of the trapped pc on we can produce any offset
@@ -141,22 +168,41 @@
  */
 
 /*
- * If a spill/fill trap is not detected this macro will branch to the label l1.
- * Otherwise the caller should do any necesary cleanup and execute a done.
+ * Determine if we have trapped inside of a spill/fill vector, and if so resume
+ * at a fixed instruction offset in the trap vector.  Must be called on
+ * alternate globals.
  */
-#define	RESUME_SPILLFILL_MAGIC(r1, r2, xor, l1) \
-	rdpr	%tpc, r1 ; \
-	ERRATUM50(r1) ; \
-	rdpr	%tba, r2 ; \
-	sub	r1, r2, r2 ; \
-	srlx	r2, 5, r2 ; \
-	andn	r2, 0x200, r2 ; \
-	sub	r2, 0x80, r2 ; \
-	brlz	r2, l1 ; \
-	 sub	r2, 0x7f, r2 ; \
-	brgz	r2, l1 ; \
-	 or	r1, 0x7f, r1 ; \
-	wrpr	r1, xor, %tnpc ; \
+#define	RESUME_SPILLFILL_MAGIC(stxa_g0_sfsr, xor) \
+	dec	16, ASP_REG ; \
+	stx	%g1, [ASP_REG + 0] ; \
+	stx	%g2, [ASP_REG + 8] ; \
+	rdpr	%tpc, %g1 ; \
+	ERRATUM50(%g1) ; \
+	rdpr	%tba, %g2 ; \
+	sub	%g1, %g2, %g2 ; \
+	srlx	%g2, 5, %g2 ; \
+	andn	%g2, 0x200, %g2 ; \
+	cmp	%g2, 0x80 ; \
+	blu,pt	%xcc, 9f ; \
+	 cmp	%g2, 0x100 ; \
+	bgeu,pt	%xcc, 9f ; \
+	 or	%g1, 0x7f, %g1 ; \
+	wrpr	%g1, xor, %tnpc ; \
+	stxa_g0_sfsr ; \
+	ldx	[ASP_REG + 8], %g2 ; \
+	ldx	[ASP_REG + 0], %g1 ; \
+	inc	16, ASP_REG ; \
+	done ; \
+9:	ldx	[ASP_REG + 8], %g2 ; \
+	ldx	[ASP_REG + 0], %g1 ; \
+	inc	16, ASP_REG
+
+/*
+ * For certain faults we need to clear the sfsr mmu register before returning.
+ */
+#define	RSF_CLR_SFSR \
+	wr	%g0, ASI_DMMU, %asi ; \
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 
 #define	RSF_XOR(off)	((0x80 - off) - 1)
 
@@ -167,15 +213,16 @@
 #define	RSF_OFF_ALIGN	0x60
 #define	RSF_OFF_MMU	0x70
 
-#define	RSF_ALIGN	RSF_XOR(RSF_OFF_ALIGN)
-#define	RSF_MMU		RSF_XOR(RSF_OFF_MMU)
+#define	RESUME_SPILLFILL_ALIGN \
+	RESUME_SPILLFILL_MAGIC(RSF_CLR_SFSR, RSF_XOR(RSF_OFF_ALIGN))
+#define	RESUME_SPILLFILL_MMU \
+	RESUME_SPILLFILL_MAGIC(EMPTY, RSF_XOR(RSF_OFF_MMU))
+#define	RESUME_SPILLFILL_MMU_CLR_SFSR \
+	RESUME_SPILLFILL_MAGIC(RSF_CLR_SFSR, RSF_XOR(RSF_OFF_MMU))
 
 /*
  * Constant to add to %tnpc when taking a fill trap just before returning to
- * user mode.  The instruction sequence looks like restore, wrpr, retry; we
- * want to skip over the wrpr and retry and execute code to call back into the
- * kernel.  It is useful to add tracing between these instructions, which would
- * change the size of the sequence, so we demark with labels and subtract.
+ * user mode.
  */
 #define	RSF_FILL_INC	tl0_ret_fill_end - tl0_ret_fill
 
@@ -276,45 +323,25 @@
 	 * Stack fixups for entry from user mode.  We are still running on the
 	 * user stack, and with its live registers, so we must save soon.  We
 	 * are on alternate globals so we do have some registers.  Set the
-	 * transitional window state, save, and call a routine to get onto
-	 * the kernel stack.  If the save traps we attempt to spill a window
-	 * to the user stack.  If this fails, we spill the window to the pcb
-	 * and continue.
+	 * transitional window state, and do the save.  If this traps we
+	 * we attempt to spill a window to the user stack.  If this fails,
+	 * we spill the window to the pcb and continue.  Spilling to the pcb
+	 * must not fail.
 	 *
 	 * NOTE: Must be called with alternate globals and clobbers %g1.
 	 */
 
-	.macro	tl0_kstack
+	.macro	tl0_split
 	rdpr	%wstate, %g1
 	wrpr	%g1, WSTATE_TRANSITION, %wstate
 	save
-	call	tl0_kstack_fixup
-	 rdpr	%canrestore, %o0
 	.endm
 
 	.macro	tl0_setup	type
-	tl0_kstack
-	rdpr	%pil, %o2
+	tl0_split
 	b	%xcc, tl0_trap
 	 mov	\type, %o0
 	.endm
-
-/*
- * Setup the kernel stack and split the register windows when faulting from
- * user space.
- * %canrestore is passed in %o0 and %wstate in (alternate) %g1.
- */
-ENTRY(tl0_kstack_fixup)
-	and	%g1, WSTATE_MASK, %g1
-	sllx	%g1, WSTATE_USERSHIFT, %g1
-	wrpr	%g1, WSTATE_KERNEL, %wstate
-	wrpr	%o0, 0, %otherwin
-	wrpr	%g0, 0, %canrestore
-	ldx	[PCPU(CURTHREAD)], %o0
-	ldx	[%o0 + TD_PCB], %o0
-	retl
-	 sub	%o0, SPOFF + CCFSZ, %sp
-END(tl0_kstack_fixup)
 
 	/*
 	 * Generic trap type.  Call trap() with the specified type.
@@ -322,11 +349,6 @@ END(tl0_kstack_fixup)
 	.macro	tl0_gen		type
 	tl0_setup \type
 	.align	32
-	.endm
-
-	.macro	tl0_wide	type
-	tl0_setup \type
-	.align	128
 	.endm
 
 	/*
@@ -339,18 +361,25 @@ END(tl0_kstack_fixup)
 	.endr
 	.endm
 
-	/*
-	 * NOTE: we cannot use mmu globals here because tl0_kstack may cause
-	 * an mmu fault.
-	 */
+	.macro	tl0_insn_excptn
+	wr	%g0, ASI_IMMU, %asi
+	rdpr	%tpc, %g3
+	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
+	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
+	membar	#Sync
+	b	%xcc, tl0_sfsr_trap
+	 mov	T_INSTRUCTION_EXCEPTION, %g2
+	.align	32
+	.endm
+
 	.macro	tl0_data_excptn
-	wrpr	%g0, PSTATE_ALT, %pstate
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g5
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
 	b	%xcc, tl0_sfsr_trap
-	 mov	T_DATA_EXCPTN, %g2
+	 mov	T_DATA_EXCEPTION, %g2
 	.align	32
 	.endm
 
@@ -358,49 +387,28 @@ END(tl0_kstack_fixup)
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
 	b	%xcc, tl0_sfsr_trap
-	 mov	T_ALIGN, %g2
+	 mov	T_MEM_ADDRESS_NOT_ALIGNED, %g2
 	.align	32
 	.endm
 
 ENTRY(tl0_sfsr_trap)
-	/*
-	 * Clear the sfsr.
-	 */
-	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	membar	#Sync
-
-	/*
-	 * Get onto the kernel stack, save the mmu registers, and call
-	 * common code.
-	 */
-	tl0_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g4, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	stx	%g5, [%sp + SPOFF + CCFSZ + MF_TAR]
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_sfsr_trap: sfar=%#lx sfsr=%#lx tar=%#lx"
-	   , %g3, %g4, %g5, 7, 8, 9)
-	ldx	[%sp + SPOFF + CCFSZ + MF_SFAR], %g4
-	stx	%g4, [%g3 + KTR_PARM1]
-	ldx	[%sp + SPOFF + CCFSZ + MF_SFSR], %g4
-	stx	%g4, [%g3 + KTR_PARM2]
-	ldx	[%sp + SPOFF + CCFSZ + MF_TAR], %g4
-	stx	%g4, [%g3 + KTR_PARM3]
-9:
-#endif
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	tl0_split
+	mov	%g3, %o4
+	mov	%g4, %o5
 	b	%xcc, tl0_trap
 	 mov	%g2, %o0
 END(tl0_sfsr_trap)
 
 	.macro	tl0_intr level, mask
-	tl0_kstack
-	set	\mask, %o2
+	wrpr	%g0, \level, %pil
+	set	\mask, %g1
+	wr	%g1, 0, %asr21
+	tl0_split
 	b	%xcc, tl0_intr
-	 mov	\level, %o1
+	 mov	\level, %o2
 	.align	32
 	.endm
 
@@ -432,7 +440,7 @@ END(tl0_sfsr_trap)
 	.endm
 
 	.macro	tl0_intr_vector
-	b,a	intr_enqueue
+	b,a	%xcc, intr_enqueue
 	.align	32
 	.endm
 
@@ -443,59 +451,61 @@ END(tl0_sfsr_trap)
 	wrpr	%g0, PSTATE_MMU, %pstate
 
 	/*
-	 * Extract the 8KB pointer and convert to an index.
+	 * Extract the 8KB pointer.
 	 */
-	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR_REG, %g1	
-	srax	%g1, TTE_SHIFT, %g1
+	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR_REG, %g6
+	srax	%g6, TTE_SHIFT, %g6
 
 	/*
-	 * Compute the stte address in the primary used tsb.
+	 * Compute the tte address in the primary user tsb.
 	 */
-	and	%g1, (1 << TSB_PRIMARY_MASK_WIDTH) - 1, %g2
-	sllx	%g2, TSB_PRIMARY_STTE_SHIFT, %g2
-	setx	TSB_USER_MIN_ADDRESS, %g4, %g3
-	add	%g2, %g3, %g2
+	and	%g6, (1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
+	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
+	add	%g1, TSB_REG, %g1
 
 	/*
-	 * Preload the tte tag target.
+	 * Compute low bits of faulting va to check inside bucket loop.
 	 */
-	ldxa	[%g0] ASI_IMMU_TAG_TARGET_REG, %g3
+	and	%g6, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g2
+	sllx	%g2, TD_VA_LOW_SHIFT, %g2
+	or	%g2, TD_EXEC, %g2
 
 	/*
-	 * Preload tte data bits to check inside the bucket loop.
+	 * Load the tte tag target.
 	 */
-	and	%g1, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g4
-	sllx	%g4, TD_VA_LOW_SHIFT, %g4
-	or	%g4, TD_EXEC, %g4
+	ldxa	[%g0] ASI_IMMU_TAG_TARGET_REG, %g6
 
 	/*
-	 * Preload mask for tte data check.
+	 * Load mask for tte data check.
 	 */
-	setx	TD_VA_LOW_MASK, %g5, %g1
-	or	%g1, TD_EXEC, %g1
+	mov	TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g3
+	sllx	%g3, TD_VA_LOW_SHIFT, %g3
+	or	%g3, TD_EXEC, %g3
 
 	/*
-	 * Loop over the sttes in this bucket
+	 * Loop over the ttes in this bucket
 	 */
 
 	/*
 	 * Load the tte.
 	 */
-1:	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g6
+1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
 	/*
 	 * Compare the tag.
 	 */
-	cmp	%g6, %g3
+	cmp	%g4, %g6
 	bne,pn	%xcc, 2f
+	 EMPTY
 
 	/*
 	 * Compare the data.
 	 */
-	 xor	%g7, %g4, %g5
-	brgez,pn %g7, 2f
-	 andcc	%g5, %g1, %g0
+	 xor	%g2, %g5, %g4
+	brgez,pn %g5, 2f
+	 andcc	%g3, %g4, %g0
 	bnz,pn	%xcc, 2f
+	 EMPTY
 
 	/*
 	 * We matched a tte, load the tlb.
@@ -504,22 +514,22 @@ END(tl0_sfsr_trap)
 	/*
 	 * Set the reference bit, if it's currently clear.
 	 */
-	 andcc	%g7, TD_REF, %g0
+	 andcc	%g5, TD_REF, %g0
 	bz,a,pn	%xcc, tl0_immu_miss_set_ref
 	 nop
 
 	/*
 	 * Load the tte data into the tlb and retry the instruction.
 	 */
-	stxa	%g7, [%g0] ASI_ITLB_DATA_IN_REG
+	stxa	%g5, [%g0] ASI_ITLB_DATA_IN_REG
 	retry
 
 	/*
 	 * Check the low bits to see if we've finished the bucket.
 	 */
-2:	add	%g2, STTE_SIZEOF, %g2
-	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
-	bnz	%xcc, 1b
+2:	add	%g1, 1 << TTE_SHIFT, %g1
+	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,a,pt %xcc, 1b
 	 nop
 	b,a	%xcc, tl0_immu_miss_trap
 	.align	128
@@ -529,29 +539,18 @@ ENTRY(tl0_immu_miss_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	add	%g2, TTE_DATA, %g2
-1:	or	%g7, TD_REF, %g1
-	casxa	[%g2] ASI_N, %g7, %g1
-	cmp	%g1, %g7
-	bne,a,pn %xcc, 1b
-	 mov	%g1, %g7
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss: set ref"
-	    , %g2, %g3, %g4, 7, 8, 9)
-9:
-#endif
+	TTE_SET_REF(%g1, %g2, %g3)
 
 	/*
 	 * May have become invalid, in which case start over.
 	 */
-	brgez,pn %g1, 2f
-	 nop
+	brgez,pn %g2, 2f
+	 or	%g2, TD_REF, %g2
 
 	/*
 	 * Load the tte data into the tlb and retry the instruction.
 	 */
-	stxa	%g1, [%g0] ASI_ITLB_DATA_IN_REG
+	stxa	%g2, [%g0] ASI_ITLB_DATA_IN_REG
 2:	retry
 END(tl0_immu_miss_set_ref)
 
@@ -565,81 +564,72 @@ ENTRY(tl0_immu_miss_trap)
 	 * Load the tar, sfar and sfsr aren't valid.
 	 */
 	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss: trap sp=%#lx tar=%#lx"
-	    , %g3, %g4, %g5, 7, 8, 9)
-	stx	%sp, [%g3 + KTR_PARM1]
-	stx	%g2, [%g3 + KTR_PARM2]
-9:
-#endif
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
 
 	/*
 	 * Save the mmu registers on the stack, and call common trap code.
 	 */
-	tl0_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	tl0_split
+	mov	%g3, %o3
 	b	%xcc, tl0_trap
-	 mov	T_IMMU_MISS, %o0
+	 mov	T_INSTRUCTION_MISS, %o0
 END(tl0_immu_miss_trap)
 
 	.macro	dmmu_miss_user
 	/*
 	 * Extract the 8KB pointer and convert to an index.
 	 */
-	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g1	
-	srax	%g1, TTE_SHIFT, %g1
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g6
+	srax	%g6, TTE_SHIFT, %g6
 
 	/*
-	 * Compute the stte address in the primary used tsb.
+	 * Compute the tte bucket address.
 	 */
-	and	%g1, (1 << TSB_PRIMARY_MASK_WIDTH) - 1, %g2
-	sllx	%g2, TSB_PRIMARY_STTE_SHIFT, %g2
-	setx	TSB_USER_MIN_ADDRESS, %g4, %g3
-	add	%g2, %g3, %g2
+	and	%g6, (1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
+	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
+	add	%g1, TSB_REG, %g1
+
+	/*
+	 * Compute low bits of faulting va to check inside bucket loop.
+	 */
+	and	%g6, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g2
+	sllx	%g2, TD_VA_LOW_SHIFT, %g2
 
 	/*
 	 * Preload the tte tag target.
 	 */
-	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g3
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g6
 
 	/*
-	 * Preload tte data bits to check inside the bucket loop.
+	 * Load mask for tte data check.
 	 */
-	and	%g1, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g4
-	sllx	%g4, TD_VA_LOW_SHIFT, %g4
+	mov	TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g3
+	sllx	%g3, TD_VA_LOW_SHIFT, %g3
 
 	/*
-	 * Preload mask for tte data check.
-	 */
-	setx	TD_VA_LOW_MASK, %g5, %g1
-
-	/*
-	 * Loop over the sttes in this bucket
+	 * Loop over the ttes in this bucket
 	 */
 
 	/*
 	 * Load the tte.
 	 */
-1:	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g6
+1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
 	/*
 	 * Compare the tag.
 	 */
-	cmp	%g6, %g3
+	cmp	%g4, %g6
 	bne,pn	%xcc, 2f
+	 EMPTY
 
 	/*
 	 * Compare the data.
 	 */
-	 xor	%g7, %g4, %g5
-	brgez,pn %g7, 2f
-	 andcc	%g5, %g1, %g0
+	 xor	%g2, %g5, %g4
+	brgez,pn %g5, 2f
+	 andcc	%g3, %g4, %g0
 	bnz,pn	%xcc, 2f
+	 EMPTY
 
 	/*
 	 * We matched a tte, load the tlb.
@@ -648,22 +638,22 @@ END(tl0_immu_miss_trap)
 	/*
 	 * Set the reference bit, if it's currently clear.
 	 */
-	 andcc	%g7, TD_REF, %g0
+	 andcc	%g5, TD_REF, %g0
 	bz,a,pn	%xcc, dmmu_miss_user_set_ref
 	 nop
 
 	/*
 	 * Load the tte data into the tlb and retry the instruction.
 	 */
-	stxa	%g7, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
 
 	/*
 	 * Check the low bits to see if we've finished the bucket.
 	 */
-2:	add	%g2, STTE_SIZEOF, %g2
-	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
-	bnz	%xcc, 1b
+2:	add	%g1, 1 << TTE_SHIFT, %g1
+	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,a,pt %xcc, 1b
 	 nop
 	.endm
 
@@ -671,29 +661,18 @@ ENTRY(dmmu_miss_user_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	add	%g2, TTE_DATA, %g2
-1:	or	%g7, TD_REF, %g1
-	casxa	[%g2] ASI_N, %g7, %g1
-	cmp	%g1, %g7
-	bne,a,pn %xcc, 1b
-	 mov	%g1, %g7
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss: set ref"
-	    , %g2, %g3, %g4, 7, 8, 9)
-9:
-#endif
+	TTE_SET_REF(%g1, %g2, %g3)
 
 	/*
 	 * May have become invalid, in which case start over.
 	 */
-	brgez,pn %g1, 2f
-	 nop
+	brgez,pn %g2, 2f
+	 or	%g2, TD_REF, %g2
 
 	/*
 	 * Load the tte data into the tlb and retry the instruction.
 	 */
-	stxa	%g1, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g2, [%g0] ASI_DTLB_DATA_IN_REG
 2:	retry
 END(dmmu_miss_user_set_ref)
 
@@ -725,29 +704,133 @@ ENTRY(tl0_dmmu_miss_trap)
 	 * Load the tar, sfar and sfsr aren't valid.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss: trap sp=%#lx tar=%#lx"
-	    , %g3, %g4, %g5, 7, 8, 9)
-	stx	%sp, [%g3 + KTR_PARM1]
-	stx	%g2, [%g3 + KTR_PARM2]
-9:
-#endif
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
 
 	/*
 	 * Save the mmu registers on the stack and call common trap code.
 	 */
-	tl0_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	tl0_split
+	mov	%g3, %o3
 	b	%xcc, tl0_trap
-	 mov	T_DMMU_MISS, %o0
+	 mov	T_DATA_MISS, %o0
 END(tl0_dmmu_miss_trap)
 
+	.macro	dmmu_prot_user
+	/*
+	 * Extract the 8KB pointer and convert to an index.
+	 */
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g6
+	srax	%g6, TTE_SHIFT, %g6
+
+	/*
+	 * Compute the tte bucket address.
+	 */
+	and	%g6, (1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
+	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
+	add	%g1, TSB_REG, %g1
+
+	/*
+	 * Compute low bits of faulting va to check inside bucket loop.
+	 */
+	and	%g6, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g2
+	sllx	%g2, TD_VA_LOW_SHIFT, %g2
+	or	%g2, TD_SW, %g2
+
+	/*
+	 * Preload the tte tag target.
+	 */
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g6
+
+	/*
+	 * Load mask for tte data check.
+	 */
+	mov	TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g3
+	sllx	%g3, TD_VA_LOW_SHIFT, %g3
+	or	%g3, TD_SW, %g3
+
+	/*
+	 * Loop over the ttes in this bucket
+	 */
+
+	/*
+	 * Load the tte.
+	 */
+1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+
+	/*
+	 * Compare the tag.
+	 */
+	cmp	%g4, %g6
+	bne,pn	%xcc, 2f
+	 EMPTY
+
+	/*
+	 * Compare the data.
+	 */
+	 xor	%g2, %g5, %g4
+	brgez,pn %g5, 2f
+	 andcc	%g3, %g4, %g0
+	bnz,a,pn %xcc, 2f
+	 nop
+
+	b,a	%xcc, dmmu_prot_set_w
+	 nop
+
+	/*
+	 * Check the low bits to see if we've finished the bucket.
+	 */
+2:	add	%g1, 1 << TTE_SHIFT, %g1
+	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,a,pn %xcc, 1b
+	 nop
+	.endm
+
 	.macro	tl0_dmmu_prot
+	/*
+	 * Force kernel store order.
+	 */
+	wrpr	%g0, PSTATE_MMU, %pstate
+
+	/*
+	 * Try a fast inline lookup of the tsb.
+	 */
+	dmmu_prot_user
+
+	/*
+	 * Not in tsb.  Call c code.
+	 */
+	b,a	%xcc, tl0_dmmu_prot_trap
+	 nop
+	.align	128
+	.endm
+
+ENTRY(dmmu_prot_set_w)
+	/*
+	 * Set the hardware write bit in the tte.
+	 */
+	TTE_SET_W(%g1, %g2, %g3)
+
+	/*
+	 * Delete the old TLB entry.
+	 */
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+	srlx	%g1, PAGE_SHIFT, %g1
+	sllx	%g1, PAGE_SHIFT, %g1
+	stxa	%g0, [%g1] ASI_DMMU_DEMAP
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+
+	brgez,pn %g2, 1f
+	 or	%g2, TD_W, %g2
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g2, [%g0] ASI_DTLB_DATA_IN_REG
+1:	retry
+END(dmmu_prot_set_w)
+
+ENTRY(tl0_dmmu_prot_trap)
 	/*
 	 * Switch to alternate globals.
 	 */
@@ -757,27 +840,22 @@ END(tl0_dmmu_miss_trap)
 	 * Load the tar, sfar and sfsr.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
-	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g4
 	membar	#Sync
 
 	/*
-	 * Save the mmu registers on the stack, switch to alternate globals,
-	 * and call common trap code.
+	 * Save the mmu registers on the stack and call common trap code.
 	 */
-	tl0_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	stx	%g4, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	tl0_split
+	mov	%g2, %o3
+	mov	%g3, %o4
+	mov	%g4, %o5
 	b	%xcc, tl0_trap
-	 mov	T_DMMU_PROT, %o0
-	.align	128
-	.endm
+	 mov	T_DATA_PROTECTION, %o0
+END(tl0_dmmu_prot_trap)
 
 	.macro	tl0_spill_0_n
 	andcc	%sp, 1, %g0
@@ -794,7 +872,7 @@ END(tl0_dmmu_miss_trap)
 
 	.macro	tl0_spill_1_n
 	andcc	%sp, 1, %g0
-	bnz	%xcc, 1b
+	bnz,pt	%xcc, 1b
 	 wr	%g0, ASI_AIUP, %asi
 2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	SPILL(stwa, %sp, 4, %asi)
@@ -879,27 +957,27 @@ ENTRY(tl0_sftrap)
 	rdpr	%tstate, %g1
 	and	%g1, TSTATE_CWP_MASK, %g1
 	wrpr	%g1, 0, %cwp
-	tl0_kstack
-	rdpr	%pil, %o2
+	tl0_split
 	b	%xcc, tl0_trap
 	 mov	%g2, %o0
 END(tl0_sftrap)
 
 	.macro	tl0_spill_bad	count
 	.rept	\count
-	tl0_wide T_SPILL
+	sir
+	.align	128
 	.endr
 	.endm
 
 	.macro	tl0_fill_bad	count
 	.rept	\count
-	tl0_wide T_FILL
+	sir
+	.align	128
 	.endr
 	.endm
 
 	.macro	tl0_syscall
-	tl0_kstack
-	rdpr	%pil, %o0
+	tl0_split
 	b	%xcc, tl0_syscall
 	 mov	T_SYSCALL, %o0
 	.endm
@@ -916,19 +994,14 @@ END(tl0_sftrap)
 
 	.macro	tl1_setup	type
 	tl1_kstack
-	mov	\type | T_KERNEL, %o0
+	rdpr	%pil, %o1
 	b	%xcc, tl1_trap
-	 rdpr	%pil, %o2
+	 mov	\type | T_KERNEL, %o0
 	.endm
 
 	.macro	tl1_gen		type
 	tl1_setup \type
 	.align	32
-	.endm
-
-	.macro	tl1_wide	type
-	tl1_setup \type
-	.align	128
 	.endm
 
 	.macro	tl1_reserved	count
@@ -938,78 +1011,74 @@ END(tl0_sftrap)
 	.endm
 
 	.macro	tl1_insn_excptn
-	tl1_kstack
-	wrpr	%g0, PSTATE_ALT, %pstate
-	rdpr	%pil, %o2
-	b	%xcc, tl1_trap
-	 mov	T_INSN_EXCPTN | T_KERNEL, %o0
+	wr	%g0, ASI_IMMU, %asi
+	rdpr	%tpc, %g3
+	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
+	stxa	%g0, [%g0 + AA_IMMU_SFSR] %asi
+	membar	#Sync
+	b	%xcc, tl1_insn_exceptn_trap
+	 mov	T_INSTRUCTION_EXCEPTION | T_KERNEL, %g2
 	.align	32
 	.endm
 
+ENTRY(tl1_insn_exceptn_trap)
+	tl1_kstack
+	rdpr	%pil, %o1
+	mov	%g3, %o4
+	mov	%g4, %o5
+	b	%xcc, tl1_trap
+	 mov	%g2, %o0
+END(tl1_insn_exceptn_trap)
+
 	.macro	tl1_data_excptn
-	b,a	%xcc, tl1_data_exceptn_trap
+	b,a	%xcc, tl1_data_excptn_trap
 	 nop
 	.align	32
 	.endm
 
-ENTRY(tl1_data_exceptn_trap)
-	wr	%g0, ASI_DMMU, %asi
-	RESUME_SPILLFILL_MAGIC(%g1, %g2, RSF_MMU, 1f)
-	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	done
-
-1:	wrpr	%g0, PSTATE_ALT, %pstate
+ENTRY(tl1_data_excptn_trap)
+	wrpr	%g0, PSTATE_ALT, %pstate
+	RESUME_SPILLFILL_MMU_CLR_SFSR
 	b	%xcc, tl1_sfsr_trap
-	 mov	T_DATA_EXCPTN | T_KERNEL, %g1
-END(tl1_data_exceptn)
+	 mov	T_DATA_EXCEPTION | T_KERNEL, %g2
+END(tl1_data_excptn_trap)
 
-	/*
-	 * NOTE: We switch to mmu globals here, to avoid needing to save
-	 * alternates, which may be live.
-	 */
 	.macro	tl1_align
-	b	%xcc, tl1_align_trap
-	 wrpr	%g0, PSTATE_MMU, %pstate
+	b,a	%xcc, tl1_align_trap
+	 nop
 	.align	32
 	.endm
 
 ENTRY(tl1_align_trap)
-	wr	%g0, ASI_DMMU, %asi
-	RESUME_SPILLFILL_MAGIC(%g1, %g2, RSF_ALIGN, 1f)
-	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	done
-
-1:	wrpr	%g0, PSTATE_ALT, %pstate
+	wrpr	%g0, PSTATE_ALT, %pstate
+	RESUME_SPILLFILL_ALIGN
 	b	%xcc, tl1_sfsr_trap
-	 mov	T_ALIGN | T_KERNEL, %g1
-END(tl1_align_trap)
+	 mov	T_MEM_ADDRESS_NOT_ALIGNED | T_KERNEL, %g2
+END(tl1_data_excptn_trap)
 
 ENTRY(tl1_sfsr_trap)
-!	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
-	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
 	tl1_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	rdpr	%pil, %o1
+	mov	%g3, %o4
+	mov	%g4, %o5
 	b	%xcc, tl1_trap
-	 mov	%g1, %o0
-END(tl1_align_trap)
+	 mov	%g2, %o0
+END(tl1_sfsr_trap)
 
 	.macro	tl1_intr level, mask
 	tl1_kstack
-	rdpr	%pil, %o2
+	rdpr	%pil, %o1
 	wrpr	%g0, \level, %pil
-	set	\mask, %o3
-	wr	%o3, 0, %asr21
-	mov	T_INTR | T_KERNEL, %o0
+	set	\mask, %o2
+	wr	%o2, 0, %asr21
 	b	%xcc, tl1_intr
-	 mov	\level, %o1
+	 mov	\level, %o2
 	.align	32
 	.endm
 
@@ -1021,13 +1090,6 @@ END(tl1_align_trap)
 	b,a	intr_enqueue
 	.align	32
 	.endm
-
-/*
- * Interrupt %g6 and %g7 are pre-loaded with pointers to the per-cpu interrupt
- * queue and the interrupt vector table.
- */
-#define	IQ_REG	%g6
-#define	IV_REG	%g7
 
 ENTRY(intr_enqueue)
 	/*
@@ -1090,6 +1152,22 @@ ENTRY(intr_enqueue)
 	stx	%g4, [%g1 + IQE_FUNC]
 	stx	%g5, [%g1 + IQE_ARG]
 
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR, "intr_enqueue: head=%d tail=%d pri=%p tag=%#x vec=%#x"
+	    , %g2, %g4, %g5, 7, 8, 9)
+	ldx	[IQ_REG + IQ_HEAD], %g4
+	stx	%g4, [%g2 + KTR_PARM1]
+	ldx	[IQ_REG + IQ_TAIL], %g4
+	stx	%g4, [%g2 + KTR_PARM2]
+	lduw	[%g1 + IQE_PRI], %g4
+	stx	%g4, [%g2 + KTR_PARM3]
+	lduw	[%g1 + IQE_TAG], %g4
+	stx	%g4, [%g2 + KTR_PARM4]
+	ldx	[%g1 + IQE_VEC], %g4
+	stx	%g4, [%g2 + KTR_PARM5]
+9:
+#endif
+
 	/*
 	 * Trigger a softint at the level indicated by the priority.
 	 */
@@ -1103,19 +1181,18 @@ ENTRY(intr_enqueue)
 	/*
 	 * The interrupt queue is about to overflow.  We are in big trouble.
 	 */
-3:	sir	42
+3:	sir
 #endif
 END(intr_enqueue)
 
 	.macro	tl1_immu_miss
 	ldxa	[%g0] ASI_IMMU_TAG_TARGET_REG, %g1
-	sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - STTE_SHIFT), %g2
+	sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - TTE_SHIFT), %g2
 
 	set	TSB_KERNEL_VA_MASK, %g3
 	and	%g2, %g3, %g2
 
 	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR_REG, %g4
-	sllx	%g4, STTE_SHIFT - TTE_SHIFT, %g4
 	add	%g2, %g4, %g2
 
 	/*
@@ -1124,18 +1201,19 @@ END(intr_enqueue)
 	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 	brgez,pn %g5, 2f
 	 cmp	%g4, %g1
-	bne	%xcc, 2f
+	bne,pn	%xcc, 2f
 	 andcc	%g5, TD_EXEC, %g0
-	bz	%xcc, 2f
+	bz,pn	%xcc, 2f
 	 EMPTY
 
 	/*
 	 * Set the refence bit, if its currently clear.
 	 */
 	 andcc	%g5, TD_REF, %g0
-	bnz	%xcc, 1f
-	 or	%g5, TD_REF, %g1
-	stx	%g1, [%g2 + ST_TTE + TTE_DATA]
+	bnz,pt	%xcc, 1f
+	 EMPTY
+
+	TTE_SET_REF(%g2, %g3, %g4)
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
@@ -1149,15 +1227,13 @@ END(intr_enqueue)
 2:	wrpr	%g0, PSTATE_ALT, %pstate
 
 	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g1
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g3
 
 	tl1_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	rdpr	%pil, %o1
+	mov	%g3, %o3
 	b	%xcc, tl1_trap
-	 mov	T_IMMU_MISS | T_KERNEL, %o0
+	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
 	.align	128
 	.endm
 
@@ -1165,13 +1241,12 @@ END(intr_enqueue)
 	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
 	srlx	%g1, TT_CTX_SHIFT, %g2
 	brnz,pn	%g2, tl1_dmmu_miss_user
-	 sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - STTE_SHIFT), %g2
+	 sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - TTE_SHIFT), %g2
 
 	set	TSB_KERNEL_VA_MASK, %g3
 	and	%g2, %g3, %g2
 
 	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g4
-	sllx	%g4, STTE_SHIFT - TTE_SHIFT, %g4
 	add	%g2, %g4, %g2
 
 	/*
@@ -1180,16 +1255,17 @@ END(intr_enqueue)
 	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 	brgez,pn %g5, 2f
 	 cmp	%g4, %g1
-	bne	%xcc, 2f
+	bne,pn	%xcc, 2f
 	 EMPTY
 
 	/*
 	 * Set the refence bit, if its currently clear.
 	 */
 	 andcc	%g5, TD_REF, %g0
-	bnz	%xcc, 1f
-	 or	%g5, TD_REF, %g1
-	stx	%g1, [%g2 + ST_TTE + TTE_DATA]
+	bnz,pt	%xcc, 1f
+	 EMPTY
+
+	TTE_SET_REF(%g2, %g3, %g4)
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
@@ -1203,96 +1279,122 @@ END(intr_enqueue)
 2:	wrpr	%g0, PSTATE_ALT, %pstate
 
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
 
 	tl1_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	rdpr	%pil, %o1
+	mov	%g3, %o3
 	b	%xcc, tl1_trap
-	 mov	T_DMMU_MISS | T_KERNEL, %o0
+	 mov	T_DATA_MISS | T_KERNEL, %o0
 	.align	128
 	.endm
 
 ENTRY(tl1_dmmu_miss_user)
 	/*
-	 * Try a fast inline lookup of the primary tsb.
+	 * Try a fast inline lookup of the user tsb.
 	 */
 	dmmu_miss_user
-
-	/* Handle faults during window spill/fill. */
-	RESUME_SPILLFILL_MAGIC(%g1, %g2, RSF_MMU, 1f)
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss_user: resume spillfill npc=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	rdpr	%tnpc, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-9:
-#endif
-	done
-1:
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss_user: trap", %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
 
 	/*
 	 * Switch to alternate globals.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
+	/* Handle faults during window spill/fill. */
+	RESUME_SPILLFILL_MMU
+
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss: trap sp=%#lx tar=%#lx"
-	    , %g2, %g3, %g4, 7, 8, 9)
-	stx	%sp, [%g2 + KTR_PARM1]
-	stx	%g1, [%g2 + KTR_PARM2]
-9:
-#endif
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g3
 
 	tl1_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	rdpr	%pil, %o1
+	mov	%g3, %o3
 	b	%xcc, tl1_trap
-	 mov	T_DMMU_MISS | T_KERNEL, %o0
+	 mov	T_DATA_MISS | T_KERNEL, %o0
 END(tl1_dmmu_miss_user)
 
 	.macro	tl1_dmmu_prot
+	ldxa	[%g0] ASI_DMMU_TAG_TARGET_REG, %g1
+	srlx	%g1, TT_CTX_SHIFT, %g2
+	brnz,pn	%g2, tl1_dmmu_prot_user
+	 sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - TTE_SHIFT), %g2
+
+	set	TSB_KERNEL_VA_MASK, %g3
+	and	%g2, %g3, %g2
+
+	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR_REG, %g4
+	add	%g2, %g4, %g2
+
+	/*
+	 * Load the tte, check that it's valid and that the tags match.
+	 */
+	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+	brgez,pn %g5, 1f
+	 cmp	%g4, %g1
+	bne,pn	%xcc, 1f
+	 andcc	%g5, TD_SW, %g0
+	bz,pn	%xcc, 1f
+	 EMPTY
+
+	TTE_SET_W(%g2, %g3, %g4)
+
+	/*
+	 * Delete the old TLB entry.
+	 */
 	wr	%g0, ASI_DMMU, %asi
-	RESUME_SPILLFILL_MAGIC(%g1, %g2, RSF_MMU, 1f)
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
+	stxa	%g0, [%g1] ASI_DMMU_DEMAP
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	done
+
+	/*
+	 * Load the tte data into the TLB and retry the instruction.
+	 */
+	or	%g3, TD_W, %g3
+	stxa	%g3, [%g0] ASI_DTLB_DATA_IN_REG
+	retry
+
+1:	b	%xcc, tl1_dmmu_prot_trap
+	 wrpr	%g0, PSTATE_ALT, %pstate
+	.align	128
+	.endm
+
+ENTRY(tl1_dmmu_prot_user)
+	/*
+	 * Try a fast inline lookup of the user tsb.
+	 */
+	dmmu_prot_user
 
 	/*
 	 * Switch to alternate globals.
 	 */
-1:	wrpr	%g0, PSTATE_ALT, %pstate
+	wrpr	%g0, PSTATE_ALT, %pstate
 
+	/* Handle faults during window spill/fill. */
+	RESUME_SPILLFILL_MMU_CLR_SFSR
+
+	b,a	%xcc, tl1_dmmu_prot_trap
+	 nop
+END(tl1_dmmu_prot_user)
+
+ENTRY(tl1_dmmu_prot_trap)
 	/*
 	 * Load the sfar, sfsr and tar.  Clear the sfsr.
 	 */
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
-	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g2
-	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g3
+	wr	%g0, ASI_DMMU, %asi
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
+	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
 	tl1_kstack
-	sub	%sp, MF_SIZEOF, %sp
-	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
-	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFAR]
-	stx	%g3, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	rdpr	%pil, %o2
-	add	%sp, SPOFF + CCFSZ, %o1
+	rdpr	%pil, %o1
+	mov	%g2, %o3
+	mov	%g3, %o4
+	mov	%g4, %o5
 	b	%xcc, tl1_trap
-	 mov	T_DMMU_PROT | T_KERNEL, %o0
-	.align	128
-	.endm
+	 mov	T_DATA_PROTECTION | T_KERNEL, %o0
+END(tl1_dmmu_prot_trap)
 
 	.macro	tl1_spill_0_n
 	SPILL(stx, %sp + SPOFF, 8, EMPTY)
@@ -1317,7 +1419,7 @@ END(tl1_dmmu_miss_user)
 
 	.macro	tl1_spill_5_n
 	andcc	%sp, 1, %g0
-	bnz	%xcc, 1b
+	bnz,pt	%xcc, 1b
 	 wr	%g0, ASI_AIUP, %asi
 2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	SPILL(stwa, %sp, 4, %asi)
@@ -1355,7 +1457,7 @@ END(tl1_dmmu_miss_user)
 	 wr	%g0, ASI_AIUP, %asi
 1:	SPILL(stxa, %sp + SPOFF, 8, %asi)
 	saved
-	wrpr	%g0, WSTATE_ASSUME64 << WSTATE_USERSHIFT, %wstate
+	wrpr	%g0, WSTATE_ASSUME64 << WSTATE_OTHER_SHIFT, %wstate
 	retry
 	.align	32
 	RSF_SPILL_TOPCB
@@ -1364,12 +1466,12 @@ END(tl1_dmmu_miss_user)
 
 	.macro	tl1_spill_1_o
 	andcc	%sp, 1, %g0
-	bnz	%xcc, 1b
+	bnz,pt	%xcc, 1b
 	 wr	%g0, ASI_AIUP, %asi
 2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	SPILL(stwa, %sp, 4, %asi)
 	saved
-	wrpr	%g0, WSTATE_ASSUME32 << WSTATE_USERSHIFT, %wstate
+	wrpr	%g0, WSTATE_ASSUME32 << WSTATE_OTHER_SHIFT, %wstate
 	retry
 	.align	32
 	RSF_SPILL_TOPCB
@@ -1382,7 +1484,7 @@ END(tl1_dmmu_miss_user)
 	saved
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST32 << WSTATE_USERSHIFT)
+	RSF_ALIGN_RETRY(WSTATE_TEST32 << WSTATE_OTHER_SHIFT)
 	RSF_SPILL_TOPCB
 	.endm
 
@@ -1393,7 +1495,7 @@ END(tl1_dmmu_miss_user)
 	saved
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST64 << WSTATE_USERSHIFT)
+	RSF_ALIGN_RETRY(WSTATE_TEST64 << WSTATE_OTHER_SHIFT)
 	RSF_SPILL_TOPCB
 	.endm
 
@@ -1460,25 +1562,23 @@ ENTRY(tl1_spill_topcb)
 	wrpr	%g0, PSTATE_ALT, %pstate
 
 	/* Free some globals for our use. */
-	sub	%g6, 24, %g6
-	stx	%g1, [%g6]
-	stx	%g2, [%g6 + 8]
-	stx	%g3, [%g6 + 16]
+	dec	24, ASP_REG
+	stx	%g1, [ASP_REG + 0]
+	stx	%g2, [ASP_REG + 8]
+	stx	%g3, [ASP_REG + 16]
 
-	ldx	[PCPU(CURTHREAD)], %g1
-	ldx	[%g1 + TD_PCB], %g1
-	ldx	[%g1 + PCB_NSAVED], %g2
+	ldx	[PCB_REG + PCB_NSAVED], %g1
 
-	sllx	%g2, 3, %g3
-	add	%g3, %g1, %g3
-	stx	%sp, [%g3 + PCB_RWSP]
+	sllx	%g1, PTR_SHIFT, %g2
+	add	%g2, PCB_REG, %g2
+	stx	%sp, [%g2 + PCB_RWSP]
 
-	sllx	%g2, 7, %g3
-	add	%g3, %g1, %g3
-	SPILL(stx, %g3 + PCB_RW, 8, EMPTY)
+	sllx	%g1, RW_SHIFT, %g2
+	add	%g2, PCB_REG, %g2
+	SPILL(stx, %g2 + PCB_RW, 8, EMPTY)
 
-	inc	%g2
-	stx	%g2, [%g1 + PCB_NSAVED]
+	inc	%g1
+	stx	%g1, [PCB_REG + PCB_NSAVED]
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_spill_topcb: pc=%lx sp=%#lx nsaved=%d"
@@ -1486,31 +1586,31 @@ ENTRY(tl1_spill_topcb)
 	rdpr	%tpc, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%sp, [%g1 + KTR_PARM2]
-	ldx	[PCPU(CURTHREAD)], %g2
-	ldx	[%g2 + TD_PCB], %g2
-	ldx	[%g2 + PCB_NSAVED], %g2
+	ldx	[PCB_REG + PCB_NSAVED], %g2
 	stx	%g2, [%g1 + KTR_PARM3]
 9:
 #endif
 
 	saved
 
-	ldx	[%g6 + 16], %g3
-	ldx	[%g6 + 8], %g2
-	ldx	[%g6], %g1
-	add	%g6, 24, %g6
+	ldx	[ASP_REG + 16], %g3
+	ldx	[ASP_REG + 8], %g2
+	ldx	[ASP_REG + 0], %g1
+	inc	24, ASP_REG
 	retry
 END(tl1_spill_topcb)
 
 	.macro	tl1_spill_bad	count
 	.rept	\count
-	tl1_wide T_SPILL
+	sir
+	.align	128
 	.endr
 	.endm
 
 	.macro	tl1_fill_bad	count
 	.rept	\count
-	tl1_wide T_FILL
+	sir
+	.align	128
 	.endr
 	.endm
 
@@ -1525,41 +1625,30 @@ END(tl1_spill_topcb)
 	.globl	tl0_base
 
 tl0_base:
-	tl0_reserved	1		! 0x0 unused
-tl0_power_on:
-	tl0_gen		T_POWER_ON	! 0x1 power on reset
-tl0_watchdog:
-	tl0_gen		T_WATCHDOG	! 0x2 watchdog rest
-tl0_reset_ext:
-	tl0_gen		T_RESET_EXT	! 0x3 externally initiated reset
-tl0_reset_soft:
-	tl0_gen		T_RESET_SOFT	! 0x4 software initiated reset
-tl0_red_state:
-	tl0_gen		T_RED_STATE	! 0x5 red state exception
-	tl0_reserved	2		! 0x6-0x7 reserved
+	tl0_reserved	8		! 0x0-0x7 reserved
 tl0_insn_excptn:
-	tl0_gen		T_INSN_EXCPTN	! 0x8 instruction access exception
+	tl0_insn_excptn			! 0x8 instruction access exception
 	tl0_reserved	1		! 0x9 reserved
 tl0_insn_error:
-	tl0_gen		T_INSN_ERROR	! 0xa instruction access error
+	tl0_gen		T_INSTRUCTION_ERROR	! 0xa instruction access error
 	tl0_reserved	5		! 0xb-0xf reserved
 tl0_insn_illegal:
-	tl0_gen		T_INSN_ILLEGAL	! 0x10 illegal instruction
+	tl0_gen		T_ILLEGAL_INSTRUCTION	! 0x10 illegal instruction
 tl0_priv_opcode:
-	tl0_gen		T_PRIV_OPCODE	! 0x11 privileged opcode
+	tl0_gen		T_PRIVILEGED_OPCODE	! 0x11 privileged opcode
 	tl0_reserved	14		! 0x12-0x1f reserved
 tl0_fp_disabled:
 	tl0_gen		T_FP_DISABLED	! 0x20 floating point disabled
 tl0_fp_ieee:
-	tl0_gen		T_FP_IEEE	! 0x21 floating point exception ieee
+	tl0_gen		T_FP_EXCEPTION_IEEE_754	! 0x21 floating point exception ieee
 tl0_fp_other:
-	tl0_gen		T_FP_OTHER	! 0x22 floating point exception other
+	tl0_gen		T_FP_EXCEPTION_OTHER	! 0x22 floating point exception other
 tl0_tag_ovflw:
-	tl0_gen		T_TAG_OVFLW	! 0x23 tag overflow
+	tl0_gen		T_TAG_OFERFLOW	! 0x23 tag overflow
 tl0_clean_window:
 	clean_window			! 0x24 clean window
 tl0_divide:
-	tl0_gen		T_DIVIDE	! 0x28 division by zero
+	tl0_gen		T_DIVISION_BY_ZERO	! 0x28 division by zero
 	tl0_reserved	7		! 0x29-0x2f reserved
 tl0_data_excptn:
 	tl0_data_excptn			! 0x30 data access exception
@@ -1570,11 +1659,11 @@ tl0_data_error:
 tl0_align:
 	tl0_align			! 0x34 memory address not aligned
 tl0_align_lddf:
-	tl0_gen		T_ALIGN_LDDF	! 0x35 lddf memory address not aligned
+	tl0_gen		T_RESERVED	! 0x35 lddf memory address not aligned
 tl0_align_stdf:
-	tl0_gen		T_ALIGN_STDF	! 0x36 stdf memory address not aligned
+	tl0_gen		T_RESERVED	! 0x36 stdf memory address not aligned
 tl0_priv_action:
-	tl0_gen		T_PRIV_ACTION	! 0x37 privileged action
+	tl0_gen		T_PRIVILEGED_ACTION	! 0x37 privileged action
 	tl0_reserved	9		! 0x38-0x40 reserved
 tl0_intr_level:
 	tl0_intr_level			! 0x41-0x4f interrupt level 1 to 15
@@ -1582,11 +1671,11 @@ tl0_intr_level:
 tl0_intr_vector:
 	tl0_intr_vector			! 0x60 interrupt vector
 tl0_watch_phys:
-	tl0_gen		T_WATCH_PHYS	! 0x61 physical address watchpoint
+	tl0_gen		T_PA_WATCHPOINT	! 0x61 physical address watchpoint
 tl0_watch_virt:
-	tl0_gen		T_WATCH_VIRT	! 0x62 virtual address watchpoint
+	tl0_gen		T_VA_WATCHPOINT	! 0x62 virtual address watchpoint
 tl0_ecc:
-	tl0_gen		T_ECC		! 0x63 corrected ecc error
+	tl0_gen		T_CORRECTED_ECC_ERROR	! 0x63 corrected ecc error
 tl0_immu_miss:
 	tl0_immu_miss			! 0x64 fast instruction access mmu miss
 tl0_dmmu_miss:
@@ -1612,53 +1701,61 @@ tl0_fill_2_n:
 tl0_fill_3_n:
 	tl0_fill_3_n			! 0xcc fill 3 normal
 	tl0_fill_bad	12		! 0xc4-0xff fill normal, other
-tl0_sun_syscall:
-	tl0_reserved	1		! 0x100 sun system call
-tl0_breakpoint:
+tl0_soft:
+	tl0_reserved	1		! 0x100 reserved
 	tl0_gen		T_BREAKPOINT	! 0x101 breakpoint
-	tl0_soft	6		! 0x102-0x107 trap instruction
-	tl0_soft	1		! 0x108 SVr4 syscall
-tl0_bsd_syscall:
+	tl0_gen		T_DIVISION_BY_ZERO	! 0x102 division by zero
+	tl0_reserved	1		! 0x103 reserved
+	tl0_gen		T_CLEAN_WINDOW	! 0x104 clean window
+	tl0_gen		T_RANGE_CHECK	! 0x105 range check
+	tl0_gen		T_FIX_ALIGNMENT	! 0x106 fix alignment
+	tl0_gen		T_INTEGER_OVERFLOW	! 0x107 integer overflow
+	tl0_reserved	1		! 0x108 reserved
 	tl0_syscall			! 0x109 BSD syscall
-	tl0_soft	118		! 0x110-0x17f trap instruction
-	tl0_reserved	128		! 0x180-0x1ff reserved
+	tl0_reserved	6		! 0x10a-0x10f reserved
+	tl0_gen		T_TRAP_INSTRUCTION_16	! 0x110
+	tl0_gen		T_TRAP_INSTRUCTION_17	! 0x111
+	tl0_gen		T_TRAP_INSTRUCTION_18	! 0x112
+	tl0_gen		T_TRAP_INSTRUCTION_19	! 0x113
+	tl0_gen		T_TRAP_INSTRUCTION_20	! 0x114
+	tl0_gen		T_TRAP_INSTRUCTION_21	! 0x115
+	tl0_gen		T_TRAP_INSTRUCTION_22	! 0x116
+	tl0_gen		T_TRAP_INSTRUCTION_23	! 0x117
+	tl0_gen		T_TRAP_INSTRUCTION_24	! 0x118
+	tl0_gen		T_TRAP_INSTRUCTION_25	! 0x119
+	tl0_gen		T_TRAP_INSTRUCTION_26	! 0x11a
+	tl0_gen		T_TRAP_INSTRUCTION_27	! 0x11b
+	tl0_gen		T_TRAP_INSTRUCTION_28	! 0x11c
+	tl0_gen		T_TRAP_INSTRUCTION_29	! 0x11d
+	tl0_gen		T_TRAP_INSTRUCTION_30	! 0x11e
+	tl0_gen		T_TRAP_INSTRUCTION_31	! 0x11f
+	tl0_reserved	224		! 0x120-1ff reserved
 
 tl1_base:
-	tl1_reserved	1		! 0x200 unused
-tl1_power_on:
-	tl1_gen		T_POWER_ON	! 0x201 power on reset
-tl1_watchdog:
-	tl1_gen		T_WATCHDOG	! 0x202 watchdog rest
-tl1_reset_ext:
-	tl1_gen		T_RESET_EXT	! 0x203 externally initiated reset
-tl1_reset_soft:
-	tl1_gen		T_RESET_SOFT	! 0x204 software initiated reset
-tl1_red_state:
-	tl1_gen		T_RED_STATE	! 0x205 red state exception
-	tl1_reserved	2		! 0x206-0x207 reserved
+	tl1_reserved	8		! 0x200-0x207 reserved
 tl1_insn_excptn:
 	tl1_insn_excptn			! 0x208 instruction access exception
 	tl1_reserved	1		! 0x209 reserved
 tl1_insn_error:
-	tl1_gen		T_INSN_ERROR	! 0x20a instruction access error
+	tl1_gen		T_INSTRUCTION_ERROR	! 0x20a instruction access error
 	tl1_reserved	5		! 0x20b-0x20f reserved
 tl1_insn_illegal:
-	tl1_gen		T_INSN_ILLEGAL	! 0x210 illegal instruction
+	tl1_gen		T_ILLEGAL_INSTRUCTION	! 0x210 illegal instruction
 tl1_priv_opcode:
-	tl1_gen		T_PRIV_OPCODE	! 0x211 privileged opcode
+	tl1_gen		T_PRIVILEGED_OPCODE	! 0x211 privileged opcode
 	tl1_reserved	14		! 0x212-0x21f reserved
 tl1_fp_disabled:
 	tl1_gen		T_FP_DISABLED	! 0x220 floating point disabled
 tl1_fp_ieee:
-	tl1_gen		T_FP_IEEE	! 0x221 floating point exception ieee
+	tl1_gen		T_FP_EXCEPTION_IEEE_754	! 0x221 floating point exception ieee
 tl1_fp_other:
-	tl1_gen		T_FP_OTHER	! 0x222 floating point exception other
+	tl1_gen		T_FP_EXCEPTION_OTHER	! 0x222 floating point exception other
 tl1_tag_ovflw:
-	tl1_gen		T_TAG_OVFLW	! 0x223 tag overflow
+	tl1_gen		T_TAG_OFERFLOW	! 0x223 tag overflow
 tl1_clean_window:
 	clean_window			! 0x224 clean window
 tl1_divide:
-	tl1_gen		T_DIVIDE	! 0x228 division by zero
+	tl1_gen		T_DIVISION_BY_ZERO	! 0x228 division by zero
 	tl1_reserved	7		! 0x229-0x22f reserved
 tl1_data_excptn:
 	tl1_data_excptn			! 0x230 data access exception
@@ -1669,11 +1766,11 @@ tl1_data_error:
 tl1_align:
 	tl1_align			! 0x234 memory address not aligned
 tl1_align_lddf:
-	tl1_gen		T_ALIGN_LDDF	! 0x235 lddf memory address not aligned
+	tl1_gen		T_RESERVED	! 0x235 lddf memory address not aligned
 tl1_align_stdf:
-	tl1_gen		T_ALIGN_STDF	! 0x236 stdf memory address not aligned
+	tl1_gen		T_RESERVED	! 0x236 stdf memory address not aligned
 tl1_priv_action:
-	tl1_gen		T_PRIV_ACTION	! 0x237 privileged action
+	tl1_gen		T_PRIVILEGED_ACTION	! 0x237 privileged action
 	tl1_reserved	9		! 0x238-0x240 reserved
 tl1_intr_level:
 	tl1_intr_level			! 0x241-0x24f interrupt level 1 to 15
@@ -1681,11 +1778,11 @@ tl1_intr_level:
 tl1_intr_vector:
 	tl1_intr_vector			! 0x260 interrupt vector
 tl1_watch_phys:
-	tl1_gen		T_WATCH_PHYS	! 0x261 physical address watchpoint
+	tl1_gen		T_PA_WATCHPOINT	! 0x261 physical address watchpoint
 tl1_watch_virt:
-	tl1_gen		T_WATCH_VIRT	! 0x262 virtual address watchpoint
+	tl1_gen		T_VA_WATCHPOINT	! 0x262 virtual address watchpoint
 tl1_ecc:
-	tl1_gen		T_ECC		! 0x263 corrected ecc error
+	tl1_gen		T_CORRECTED_ECC_ERROR		! 0x263 corrected ecc error
 tl1_immu_miss:
 	tl1_immu_miss			! 0x264 fast instruction access mmu miss
 tl1_dmmu_miss:
@@ -1725,31 +1822,26 @@ tl1_fill_6_n:
 tl1_fill_7_n:
 	tl1_fill_7_n			! 0x2dc fill 7 normal
 	tl1_fill_bad	8		! 0x2e0-0x2ff fill other
-	tl1_reserved	1		! 0x300 trap instruction
+	tl1_reserved	1		! 0x300 reserved
 tl1_breakpoint:
 	tl1_gen		T_BREAKPOINT	! 0x301 breakpoint
-	tl1_gen		T_RSTRWP_PHYS	! 0x302 restore physical watchpoint (debug)
-	tl1_gen		T_RSTRWP_VIRT	! 0x303 restore virtual watchpoint (debug)
-	tl1_soft	124		! 0x304-0x37f trap instruction
-	tl1_reserved	128		! 0x380-0x3ff reserved
+	tl1_gen		T_RSTRWP_PHYS	! 0x302 restore physical watchpoint
+	tl1_gen		T_RSTRWP_PHYS	! 0x303 restore virtual watchpoint
+	tl1_reserved	252		! 0x304-0x3ff reserved
 
 /*
  * User trap entry point.
  *
- * void tl0_trap(u_long type, u_long arg, u_long pil, u_long wstate)
+ * void tl0_trap(u_int type, u_long o1, u_long o2, u_long tar, u_long sfar,
+ *		 u_int sfsr)
  *
  * The following setup has been performed:
  *	- the windows have been split and the active user window has been saved
  *	  (maybe just to the pcb)
- *	- we are on the current kernel stack and a frame has been setup, there
- *	  may be extra trap specific stuff below the frame
  *	- we are on alternate globals and interrupts are disabled
  *
- * We build a trapframe, switch to normal globals, enable interrupts and call
- * trap.
- *
- * NOTE: Due to a chip bug, we must save the trap state registers in memory
- * early.
+ * We switch to the kernel stack,  build a trapframe, switch to normal
+ * globals, enable interrupts and call trap.
  *
  * NOTE: We must be very careful setting up the per-cpu pointer.  We know that
  * it has been pre-set in alternate globals, so we read it from there and setup
@@ -1762,26 +1854,55 @@ ENTRY(tl0_trap)
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	sub	%sp, TF_SIZEOF, %sp
-	
 	rdpr	%tstate, %l0
-	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
-	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	rdpr	%tnpc, %l2
+	rd	%y, %l3
+	rd	%fprs, %l4
+	rdpr	%wstate, %l5
+
+#if KTR_COMPILE & KTR_TRAP
+	CATR(KTR_TRAP,
+	    "tl0_trap: td=%p type=%#x pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM2]
+	rdpr	%pil, %g2
+	stx	%g2, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%l2, [%g1 + KTR_PARM5]
+	stx	%i6, [%g1 + KTR_PARM6]
+9:
+#endif
+
+	and	%l5, WSTATE_NORMAL_MASK, %l5
+	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
+	wrpr	%l5, WSTATE_KERNEL, %wstate
+	rdpr	%canrestore, %l6
+	wrpr	%l6, 0, %otherwin
+	wrpr	%g0, 0, %canrestore
+
+	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
+
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
+	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
+	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
+
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	stw	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
+	stb	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
+	stb	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
-	rdpr	%wstate, %o3
-	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+	wr	%g0, FPRS_FEF, %fprs
+	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
+	wr	%g0, 0, %fprs
 
-.Ltl0_trap_fill:
-	mov	%g7, %l0
+	mov	PCPU_REG, %o0
 	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%l0, %g7	/* set up the normal %g7 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -1791,18 +1912,8 @@ ENTRY(tl0_trap)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_trap: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%o0, [%g1 + KTR_PARM2]
-	stx	%o2, [%g1 + KTR_PARM3]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%i6, [%g1 + KTR_PARM5]
-9:
-#endif
+	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
 	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
@@ -1813,38 +1924,70 @@ ENTRY(tl0_trap)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-.Ltl0_trap_spill:
+.Ltl0_trap_reenter:
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
 	b,a	%xcc, tl0_ret
 	 nop
 END(tl0_trap)
 
+/*
+ * System call entry point.
+ *
+ * Essentially the same as tl0_trap but calls syscall.
+ */
 ENTRY(tl0_syscall)
 	/*
 	 * Force kernel store order.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	sub	%sp, TF_SIZEOF, %sp
-	
 	rdpr	%tstate, %l0
-	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
-	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	rdpr	%tnpc, %l2
+	rd	%y, %l3
+	rd	%fprs, %l4
+	rdpr	%wstate, %l5
+
+#if KTR_COMPILE & KTR_SYSC
+	CATR(KTR_SYSC,
+	    "tl0_syscall: td=%p type=%#x pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM2]
+	rdpr	%pil, %g2
+	stx	%g2, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%l2, [%g1 + KTR_PARM5]
+	stx	%i6, [%g1 + KTR_PARM6]
+9:
+#endif
+
+	and	%l5, WSTATE_NORMAL_MASK, %l5
+	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
+	wrpr	%l5, WSTATE_KERNEL, %wstate
+	rdpr	%canrestore, %l6
+	wrpr	%l6, 0, %otherwin
+	wrpr	%g0, 0, %canrestore
+
+	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
+
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	stw	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
+	stb	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
+	stb	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
-	rdpr	%wstate, %o3
-	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+	wr	%g0, FPRS_FEF, %fprs
+	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
+	wr	%g0, 0, %fprs
 
-	mov	%g7, %l0
+	mov	PCPU_REG, %o0
 	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%l0, %g7	/* set up the normal %g7 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -1854,17 +1997,8 @@ ENTRY(tl0_syscall)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-#if KTR_COMPILE & KTR_SYSC
-	CATR(KTR_SYSC, "tl0_syscall: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%o0, [%g1 + KTR_PARM2]
-	stx	%o2, [%g1 + KTR_PARM3]
-	stx	%i7, [%g1 + KTR_PARM4]
-	stx	%i6, [%g1 + KTR_PARM5]
-9:
-#endif
+	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
 	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
@@ -1882,35 +2016,59 @@ ENTRY(tl0_syscall)
 END(tl0_syscall)
 
 ENTRY(tl0_intr)
-	wr	%o2, 0, %asr21
-	rdpr	%pil, %o2
-	wrpr	%g0, %o1, %pil
-	mov	T_INTR, %o0
-
 	/*
 	 * Force kernel store order.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	sub	%sp, TF_SIZEOF, %sp
-	
 	rdpr	%tstate, %l0
-	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
-	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	rdpr	%tnpc, %l2
+	rd	%y, %l3
+	rd	%fprs, %l4
+	rdpr	%wstate, %l5
+
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR,
+	    "tl0_intr: td=%p type=%#x pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	stx	%o0, [%g1 + KTR_PARM2]
+	rdpr	%pil, %g2
+	stx	%g2, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%l2, [%g1 + KTR_PARM5]
+	stx	%i6, [%g1 + KTR_PARM6]
+9:
+#endif
+
+	and	%l5, WSTATE_NORMAL_MASK, %l5
+	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
+	wrpr	%l5, WSTATE_KERNEL, %wstate
+	rdpr	%canrestore, %l6
+	wrpr	%l6, 0, %otherwin
+	wrpr	%g0, 0, %canrestore
+
+	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
+
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	stw	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
+	stb	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
+	stb	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
-	rdpr	%wstate, %o3
-	stx	%o3, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+	wr	%g0, FPRS_FEF, %fprs
+	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
+	wr	%g0, 0, %fprs
 
-	mov	%g7, %l0
+	mov	T_INTERRUPT, %o0
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+
+	mov	PCPU_REG, %o0
 	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%l0, %g7	/* set up the normal %g7 */
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -1920,18 +2078,8 @@ ENTRY(tl0_intr)
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
 
-#if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl0_intr: td=%p type=%#x pil=%#lx pc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	stx	%o0, [%g1 + KTR_PARM2]
-	stx	%o2, [%g1 + KTR_PARM3]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%i6, [%g1 + KTR_PARM5]
-9:
-#endif
+	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
 	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
@@ -1943,24 +2091,17 @@ ENTRY(tl0_intr)
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
 	SET(cnt+V_INTR, %l1, %l0)
-	lduw	[%l0], %l1
-1:	add	%l1, 1, %l2
-	casa	[%l0] ASI_N, %l1, %l2
-	cmp	%l1, %l2
-	bne,pn	%xcc, 1b
-	 mov	%l2, %l1
+	ATOMIC_INC_INT(%l0, %l1, %l2)
 
 	SET(intr_handlers, %l1, %l0)
-	sllx	%o1, IH_SHIFT, %l1
-	add	%l0, %l1, %l0
-	ldx	[%l0 + IH_FUNC], %l1
+	sllx	%o2, IH_SHIFT, %l1
+	ldx	[%l0 + %l1], %l1
 	call	%l1
 	 add	%sp, CCFSZ + SPOFF, %o0
 	b,a	%xcc, tl0_ret
 	 nop
 END(tl0_intr)
 
-/* Return to tl0 (user process). */
 ENTRY(tl0_ret)
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl0_ret: check ast td=%p (%s) pil=%#lx sflag=%#x"
@@ -1990,8 +2131,8 @@ ENTRY(tl0_ret)
 1:	ldx	[%l0 + TD_PCB], %l1
 	ldx	[%l1 + PCB_NSAVED], %l2
 	mov	T_SPILL, %o0
-	brnz,a,pn %l2, .Ltl0_trap_spill
-	 stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	brnz,a,pn %l2, .Ltl0_trap_reenter
+	 stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
@@ -2010,30 +2151,41 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %i6
 	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
 	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
 	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
-	ldx	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l4
+	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l3
+	ldub	[%sp + SPOFF + CCFSZ + TF_FPRS], %l4
+	ldub	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l5
+
+	set	TSTATE_IE, %o0
+	andcc	%l0, %o0, %g0
+	bnz	%xcc, 1f
+	 nop
+	ta	%xcc, 1
+1:	set	TSTATE_PEF, %o0
+	andcc	%l0, %o0, %g0
+	bnz	%xcc, 1f
+	 nop
+	ta	%xcc, 1
+1:
 
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	mov	%l0, %g1
-	mov	%l1, %g2
-	mov	%l2, %g3
+	wrpr	%g0, 0, %pil
+	wrpr	%l1, 0, %tpc
+	wrpr	%l2, 0, %tnpc
+	wr	%l3, 0, %y
 
-	andn	%l3, TSTATE_CWP_MASK, %g4
+	andn	%l0, TSTATE_CWP_MASK, %g1
+	mov	%l4, %g2
 
-	/*
-	 * Restore the user window state.
-	 * NOTE: whenever we come here, it should be with %canrestore = 0.
-	 */
-	srlx	%l4, WSTATE_USERSHIFT, %g5
-	wrpr	%g5, WSTATE_TRANSITION, %wstate
-	rdpr	%otherwin, %g1
-	wrpr	%g1, 0, %canrestore
+	srlx	%l5, WSTATE_OTHER_SHIFT, %g3
+	wrpr	%g3, WSTATE_TRANSITION, %wstate
+	rdpr	%otherwin, %o0
+	wrpr	%o0, 0, %canrestore
 	wrpr	%g0, 0, %otherwin
-	wrpr	%g1, 0, %cleanwin
+	wrpr	%o0, 0, %cleanwin
 
 	/*
 	 * If this instruction causes a fill trap which fails to fill a window
@@ -2043,24 +2195,21 @@ ENTRY(tl0_ret)
 	restore
 tl0_ret_fill:
 
-	wrpr	%g1, 0, %pil
-	wrpr	%g2, 0, %tpc
-	wrpr	%g3, 0, %tnpc
-	rdpr	%cwp, %g1
-	or	%g4, %g1, %g4
-	wrpr	%g4, 0, %tstate
-	wrpr	%g5, 0, %wstate
+	rdpr	%cwp, %g4
+	wrpr	%g1, %g4, %tstate
+	wr	%g2, 0, %fprs
+	wrpr	%g3, 0, %wstate
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_ret: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+	CATR(KTR_TRAP, "tl0_ret: td=%#lx pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
 	rdpr	%pil, %g3
 	stx	%g3, [%g2 + KTR_PARM2]
-	rdpr	%tstate, %g3
-	stx	%g3, [%g2 + KTR_PARM3]
 	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tnpc, %g3
 	stx	%g3, [%g2 + KTR_PARM4]
 	stx	%sp, [%g2 + KTR_PARM5]
 9:
@@ -2072,7 +2221,7 @@ tl0_ret_fill_end:
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl0_ret: fill magic wstate=%#lx sp=%#lx"
 	    , %l0, %l1, %l2, 7, 8, 9)
-	stx	%l4, [%l0 + KTR_PARM1]
+	stx	%l5, [%l0 + KTR_PARM1]
 	stx	%sp, [%l0 + KTR_PARM2]
 9:
 #endif
@@ -2081,63 +2230,63 @@ tl0_ret_fill_end:
 	 * The fill failed and magic has been performed.  Call trap again,
 	 * which will copyin the window on the user's behalf.
 	 */
-	wrpr	%l4, 0, %wstate
+	wrpr	%l5, 0, %wstate
+	mov	PCPU_REG, %o0
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+	mov	%o0, PCPU_REG
 	mov	T_FILL, %o0
-	b	%xcc, .Ltl0_trap_fill
-	 stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	b	%xcc, .Ltl0_trap_reenter
+	 stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 END(tl0_ret)
 
 /*
  * Kernel trap entry point
  *
- * void tl1_trap(u_long type, u_long arg, u_long pil)
+ * void tl1_trap(u_int type, u_char pil, u_long o2, u_long tar, u_long sfar,
+ *		 u_int sfsr)
  *
  * This is easy because the stack is already setup and the windows don't need
  * to be split.  We build a trapframe and call trap(), the same as above, but
  * the outs don't need to be saved.
- *
- * NOTE: See comments above tl0_trap for song and dance about chip bugs and
- * setting up pcpup.
  */
 ENTRY(tl1_trap)
 	sub	%sp, TF_SIZEOF, %sp
 
 	rdpr	%tstate, %l0
-	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
-	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	rdpr	%tnpc, %l2
-	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	mov	%o1, %l3
 
 #if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_trap: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
-	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %l4
-	stx	%l4, [%l3 + KTR_PARM1]
-#if 0
-	ldx	[%l4 + TD_PROC], %l4
-	add	%l4, P_COMM, %l4
-	stx	%l4, [%l3 + KTR_PARM2]
-#else
-	stx	%o2, [%l3 + KTR_PARM2]
-#endif
-	andn	%o0, T_KERNEL, %l4
-	stx	%l4, [%l3 + KTR_PARM3]
-	stx	%o1, [%l3 + KTR_PARM4]
-	stx	%l1, [%l3 + KTR_PARM5]
+	CATR(KTR_TRAP, "tl1_trap: td=%p type=%#lx pil=%#lx pc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	andn	%o0, T_KERNEL, %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	stx	%o1, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
 9:
 #endif
 
 	wrpr	%g0, 1, %tl
-	/* We may have trapped before %g7 was set up correctly. */
-	mov	%g7, %l0
-	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%l0, %g7
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stb	%o1, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
+	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
+	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
+
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	mov	PCPU_REG, %o0
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -2146,13 +2295,16 @@ ENTRY(tl1_trap)
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 
-#ifdef DDB
-	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
-	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
-#endif
+	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldub	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
@@ -2161,29 +2313,22 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
-
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	mov	%l0, %g1
+	andn	%l0, TSTATE_CWP_MASK, %g1
 	mov	%l1, %g2
 	mov	%l2, %g3
 
-	andn	%l3, TSTATE_CWP_MASK, %g4
+	wrpr	%l3, 0, %pil
 
 	restore
 
 	wrpr	%g0, 2, %tl
 
-	wrpr	%g1, 0, %pil
+	rdpr	%cwp, %g4
+	wrpr	%g1, %g4, %tstate
 	wrpr	%g2, 0, %tpc
 	wrpr	%g3, 0, %tnpc
-	rdpr	%cwp, %g1
-	or	%g1, %g4, %g1
-	wrpr	%g1, 0, %tstate
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_trap: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
@@ -2207,41 +2352,39 @@ ENTRY(tl1_intr)
 	sub	%sp, TF_SIZEOF, %sp
 
 	rdpr	%tstate, %l0
-	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	rdpr	%tpc, %l1
-	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	rdpr	%tnpc, %l2
-	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	mov	%o1, %l3
 
 #if KTR_COMPILE & KTR_INTR
-	CATR(KTR_INTR, "tl1_intr: td=%p pil=%#lx type=%#lx arg=%#lx pc=%#lx"
-	    , %l3, %l4, %l5, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %l4
-	stx	%l4, [%l3 + KTR_PARM1]
-#if 0
-	ldx	[%l4 + TD_PROC], %l4
-	add	%l4, P_COMM, %l4
-	stx	%l4, [%l3 + KTR_PARM2]
-#else
-	stx	%o2, [%l3 + KTR_PARM2]
-#endif
-	andn	%o0, T_KERNEL, %l4
-	stx	%l4, [%l3 + KTR_PARM3]
-	stx	%o1, [%l3 + KTR_PARM4]
-	stx	%l1, [%l3 + KTR_PARM5]
+	CATR(KTR_INTR, "tl1_intr: td=%p type=%#lx pil=%#lx pc=%#lx sp=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	andn	%o0, T_KERNEL, %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+	stx	%o1, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
 9:
 #endif
 
 	wrpr	%g0, 1, %tl
-	/* We may have trapped before %g7 was set up correctly. */
-	mov	%g7, %l0
-	wrpr	%g0, PSTATE_NORMAL, %pstate
-	mov	%l0, %g7
-	wrpr	%g0, PSTATE_KERNEL, %pstate
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
-	stx	%o2, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+	mov	T_INTERRUPT | T_KERNEL, %o0
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stb	%o1, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	mov	PCPU_REG, %o0
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -2250,19 +2393,16 @@ ENTRY(tl1_intr)
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
 
-	SET(cnt+V_INTR, %l1, %l0)
-	lduw	[%l0], %l1
-1:	add	%l1, 1, %l2
-	casa	[%l0] ASI_N, %l1, %l2
-	cmp	%l1, %l2
-	bne,pn	%xcc, 1b
-	 mov	%l2, %l1
+	mov	%o0, PCPU_REG
+	wrpr	%g0, PSTATE_KERNEL, %pstate
 
-	SET(intr_handlers, %l1, %l0)
-	sllx	%o1, IH_SHIFT, %l1
-	add	%l0, %l1, %l0
-	ldx	[%l0 + IH_FUNC], %l1
-	call	%l1
+	SET(cnt+V_INTR, %l5, %l4)
+	ATOMIC_INC_INT(%l4, %l5, %l6)
+
+	SET(intr_handlers, %l5, %l4)
+	sllx	%o2, IH_SHIFT, %l5
+	ldx	[%l4 + %l5], %l5
+	call	%l5
 	 add	%sp, CCFSZ + SPOFF, %o0
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
@@ -2272,32 +2412,24 @@ ENTRY(tl1_intr)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l3
-
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	mov	%l0, %g1
+	andn	%l0, TSTATE_CWP_MASK, %g1
 	mov	%l1, %g2
 	mov	%l2, %g3
-
-	andn	%l3, TSTATE_CWP_MASK, %g4
+	wrpr	%l3, 0, %pil
 
 	restore
 
 	wrpr	%g0, 2, %tl
 
-	wrpr	%g1, 0, %pil
+	rdpr	%cwp, %g4
+	wrpr	%g1, %g4, %tstate
 	wrpr	%g2, 0, %tpc
 	wrpr	%g3, 0, %tnpc
-	rdpr	%cwp, %g1
-	or	%g1, %g4, %g1
-	wrpr	%g1, 0, %tstate
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_intr: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
+#if KTR_COMPILE & KTR_INTR
+	CATR(KTR_INTR, "tl1_intr: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
 	    , %g2, %g3, %g4, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g3
 	stx	%g3, [%g2 + KTR_PARM1]
@@ -2334,9 +2466,8 @@ ENTRY(fork_trampoline)
 #endif
 	mov	%l0, %o0
 	mov	%l1, %o1
-	mov	%l2, %o2
 	call	fork_exit
-	 nop
+	 mov	%l2, %o2
 	b,a	%xcc, tl0_ret
 	 nop
 END(fork_trampoline)
