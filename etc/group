@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: group,v 1.17 1998/09/13 23:05:46 brian Exp $
 #
 wheel:*:0:root
 daemon:*:1:daemon
@@ -13,6 +13,7 @@ man:*:9:
 games:*:13:
 staff:*:20:root
 guest:*:31:root
+bind:*:53:
 uucp:*:66:
 xten:*:67:xten
 dialer:*:68:
