@@ -2,12 +2,12 @@
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c
-NOPIC=
+NO_PIC=
 
 LINKS=  ${LIBDIR}/libln.a ${LIBDIR}/libl.a
 LINKS+=	${LIBDIR}/libln.a ${LIBDIR}/libfl.a
 
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 LINKS+= ${LIBDIR}/libln_p.a ${LIBDIR}/libl_p.a
 LINKS+=	${LIBDIR}/libln_p.a ${LIBDIR}/libfl_p.a
 .endif

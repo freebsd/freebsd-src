@@ -7,8 +7,8 @@
 #
 
 LIB=		stand
-NOPROFILE=
-NOPIC=
+NO_PROFILE=
+NO_PIC=
 INCS=		stand.h
 MAN=		libstand.3
 

@@ -99,13 +99,13 @@ Version${x}.c: ${SRCDIR}/lib${x}77/Version.c
 ${E77OBJS}: f2cext.c
 	${CC} ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 
-.if !defined(NOPIC)
+.if !defined(NO_PIC)
 ${E77OBJS:.o=.So}: f2cext.c
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} \
 	    ${.ALLSRC:M*.c}
 .endif
 
-.if !defined(NOPROFILE)
+.if !defined(NO_PROFILE)
 ${E77OBJS:.o=.po}: f2cext.c
 	${CC} -p ${CFLAGS} -c -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 .endif

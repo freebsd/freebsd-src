@@ -8,7 +8,7 @@
 # SHLIB_NAME will be defined only if we are to create a shared library.
 # SHLIB_LINK will be defined only if we are to create a link to it.
 # INSTALL_PIC_ARCHIVE will be defined only if we are to create a PIC archive.
-.if defined(NOPIC)
+.if defined(NO_PIC)
 .undef SHLIB_NAME
 .undef INSTALL_PIC_ARCHIVE
 .else
@@ -115,7 +115,7 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 
 .if !defined(INTERNALLIB)
 
-.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
+.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 
@@ -155,7 +155,7 @@ lib${LIB}_pic.a: ${SOBJS}
 	${RANLIB} ${.TARGET}
 .endif
 
-.if defined(WANT_LINT) && !defined(NOLINT) && defined(LIB) && !empty(LIB)
+.if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
@@ -211,7 +211,7 @@ _libinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .endif
-.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
+.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 .endif
@@ -236,7 +236,7 @@ _libinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
-.if defined(WANT_LINT) && !defined(NOLINT) && defined(LIB) && !empty(LIB)
+.if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
@@ -289,7 +289,7 @@ clean:
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
 .endif
 .if !defined(INTERNALLIB)
-.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
+.if !defined(NO_PROFILE) && defined(LIB) && !empty(LIB)
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
 .endif
 .if defined(SHLIB_NAME) || \
