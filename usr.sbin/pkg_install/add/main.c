@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.20 1999/01/18 03:54:17 billf Exp $";
+	"$Id: main.c,v 1.21 1999/01/25 21:08:13 billf Exp $";
 #endif
 
 /*
@@ -192,9 +192,9 @@ getpackagesite(char binform[1024])
 
     if (reldate == 300005)
   	return "i386/packages-3.0/";
-    else if (30004 > reldate && reldate >= 300000)
+    else if (300004 > reldate && reldate >= 300000)
 	return "i386/packages-3.0-aout/Latest/" ;
-    else if (30004 < reldate) 
+    else if (300004 < reldate) 
 	return !strcmp(binform, "elf") ? "i386/packages-3-stable/Latest/" :
 		"i386/packages-3.0-aout/Latest/";
 
