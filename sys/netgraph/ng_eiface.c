@@ -609,7 +609,8 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 		printf("ng_eiface: mbuf is null.\n");
 		return (EINVAL);
 	}
-	if (!(ifp->if_flags & IFF_UP)) {
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
 
