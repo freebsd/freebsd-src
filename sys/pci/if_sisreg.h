@@ -407,6 +407,9 @@ struct sis_softc {
 	struct sis_list_data	*sis_ldata;
 	struct sis_ring_data	sis_cdata;
 	struct callout_handle	sis_stat_ch;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 /*

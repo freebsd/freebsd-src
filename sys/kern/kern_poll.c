@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2001 Luigi Rizzo
+ * Copyright (c) 2002 Luigi Rizzo
+ *
+ * Supported by: the Xorp Project (www.xorp.org)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,21 +33,21 @@
 #include <sys/socket.h>			/* needed by net/if.h		*/
 #include <sys/sysctl.h>
 
+#include <i386/include/md_var.h>	/* for vm_page_zero_idle()	*/
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
-
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/kthread.h>
 
 #ifdef SMP
 #error DEVICE_POLLING is not compatible with SMP
 #endif
 
-void ether_poll1(void);
+static void netisr_poll(void);		/* the two netisr handlers	*/
+static void netisr_pollmore(void);
+
+void init_device_poll(void);		/* init routine			*/
+void hardclock_device_poll(void);	/* hook from hardclock		*/
 void ether_poll(int);			/* polling while in trap	*/
-void ether_pollmore(void);
-void hardclock_device_poll(void);
+int idle_poll(void);			/* poll while in idle loop	*/
 
 /*
  * Polling support for [network] device drivers.
@@ -112,6 +114,10 @@ static u_int32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, burst_max, CTLFLAG_RW,
 	&poll_burst_max, 0, "Max Polling burst size");
 
+static u_int32_t poll_in_idle_loop=1;		/* do we poll in idle loop ? */
+SYSCTL_ULONG(_kern_polling, OID_AUTO, idle_poll, CTLFLAG_RW,
+	&poll_in_idle_loop, 0, "Enable device polling in idle loop");
+
 u_int32_t poll_in_trap;			/* used in trap.c */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, poll_in_trap, CTLFLAG_RW,
 	&poll_in_trap, 0, "Poll burst size during a trap");
@@ -132,25 +138,34 @@ static u_int32_t lost_polls;
 SYSCTL_ULONG(_kern_polling, OID_AUTO, lost_polls, CTLFLAG_RW,
 	&lost_polls, 0, "How many times we would have lost a poll tick");
 
+static u_int32_t pending_polls;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, pending_polls, CTLFLAG_RW,
+	&pending_polls, 0, "Do we need to poll again");
+
+static int residual_burst = 0;
+SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RW,
+	&residual_burst, 0, "# of residual cycles in burst");
+
 static u_int32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
-
-static u_int32_t poll_in_idle=1;	/* boolean */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, poll_in_idle, CTLFLAG_RW,
-	&poll_in_idle, 0, "Poll during idle loop");
-
-static u_int32_t idlepoll_sleeping; /* idlepoll is sleeping */
-SYSCTL_ULONG(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
-	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
 static int polling = 0;		/* global polling enable */
 SYSCTL_ULONG(_kern_polling, OID_AUTO, enable, CTLFLAG_RW,
 	&polling, 0, "Polling enabled");
 
+static volatile u_int32_t phase;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, phase, CTLFLAG_RW,
+	&phase, 0, "Polling phase");
 
-static u_int32_t poll1_active;
-static u_int32_t need_poll_again;
+static u_int32_t suspect;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, suspect, CTLFLAG_RW,
+	&suspect, 0, "suspect event");
+
+static volatile u_int32_t stalled;
+SYSCTL_ULONG(_kern_polling, OID_AUTO, stalled, CTLFLAG_RW,
+	&stalled, 0, "potential stalls");
+
 
 #define POLL_LIST_LEN  128
 struct pollrec {
@@ -159,6 +174,16 @@ struct pollrec {
 };
 
 static struct pollrec pr[POLL_LIST_LEN];
+
+/*
+ * register relevant netisr. Called from kern_clock.c:
+ */
+void
+init_device_poll(void)
+{
+	register_netisr(NETISR_POLL, netisr_poll);
+	register_netisr(NETISR_POLLMORE, netisr_pollmore);
+}
 
 /*
  * Hook from hardclock. Tries to schedule a netisr, but keeps track
@@ -173,6 +198,9 @@ hardclock_device_poll(void)
 	static struct timeval prev_t, t;
 	int delta;
 
+	if (poll_handlers == 0)
+		return;
+
 	microuptime(&t);
 	delta = (t.tv_usec - prev_t.tv_usec) +
 		(t.tv_sec - prev_t.tv_sec)*1000000;
@@ -181,15 +209,24 @@ hardclock_device_poll(void)
 	else
 		prev_t = t;
 
-	if (poll_handlers > 0) {
-		if (poll1_active) {
-			lost_polls++;
-			need_poll_again++;
-		} else {
-			poll1_active = 1;
-			schednetisr(NETISR_POLL);
-		}
+	if (pending_polls > 100) {
+		/* too much, assume it has stalled */
+		stalled++;
+		printf("poll stalled [%d] in phase %d\n",
+			stalled, phase);
+		pending_polls = 0;
+		phase = 0;
 	}
+
+	if (phase <= 2) {
+		if (phase != 0)
+			suspect++;
+		phase = 1;
+		schednetisr(NETISR_POLL);
+		phase = 2;
+	}
+	if (pending_polls++ > 0)
+		lost_polls++;
 }
 
 /*
@@ -201,20 +238,36 @@ ether_poll(int count)
 	int i;
 	int s = splimp();
 
-	mtx_lock(&Giant);
-
 	if (count > poll_each_burst)
 		count = poll_each_burst;
 	for (i = 0 ; i < poll_handlers ; i++)
 		if (pr[i].handler && (IFF_UP|IFF_RUNNING) ==
 		    (pr[i].ifp->if_flags & (IFF_UP|IFF_RUNNING)) )
 			pr[i].handler(pr[i].ifp, 0, count); /* quick check */
-	mtx_unlock(&Giant);
 	splx(s);
 }
 
 /*
- * ether_pollmore is called after other netisr's, possibly scheduling
+ * idle_poll is replaces the body of the idle loop when DEVICE_POLLING
+ * is used.
+ */
+int
+idle_poll(void)
+{
+	if (poll_in_idle_loop && poll_handlers > 0) {
+		int s = splimp();
+		enable_intr();
+		ether_poll(poll_each_burst);
+		disable_intr();
+		splx(s);
+		vm_page_zero_idle();
+		return 1;
+	} else
+		return vm_page_zero_idle();
+}
+
+/*
+ * netisr_pollmore is called after other netisr's, possibly scheduling
  * another NETISR_POLL call, or adapting the burst size for the next cycle.
  *
  * It is very bad to fetch large bursts of packets from a single card at once,
@@ -229,17 +282,17 @@ ether_poll(int count)
  * handling and forwarding.
  */
 
-static int residual_burst = 0;
 
 static struct timeval poll_start_t;
 
-void
-ether_pollmore()
+static void
+netisr_pollmore()
 {
 	struct timeval t;
 	int kern_load;
 	int s = splhigh();
 
+	phase = 5;
 	if (residual_burst > 0) {
 		schednetisr(NETISR_POLL);
 		/* will run immediately on return, followed by netisrs */
@@ -259,36 +312,38 @@ ether_pollmore()
 			poll_burst++;
 	}
 
-	if (need_poll_again) {
+	pending_polls--;
+	if (pending_polls == 0)	/* we are done */
+		phase = 0;
+	else {
 		/*
 		 * Last cycle was long and caused us to miss one or more
-		 * hardclock ticks. Restart processnig again, but slightly
+		 * hardclock ticks. Restart processing again, but slightly
 		 * reduce the burst size to prevent that this happens again.
 		 */
-		need_poll_again--;
 		poll_burst -= (poll_burst / 8);
 		if (poll_burst < 1)
 			poll_burst = 1;
 		schednetisr(NETISR_POLL);
-	} else
-		poll1_active = 0;
+		phase = 6;
+	}
 	splx(s);
 }
 
 /*
- * ether_poll1 is called by schednetisr when appropriate, typically once
+ * netisr_poll scheduled by schednetisr when appropriate, typically once
  * per tick. It is called at splnet() so first thing to do is to upgrade to
  * splimp(), and call all registered handlers.
  */
-void
-ether_poll1(void)
+static void
+netisr_poll(void)
 {
 	static int reg_frac_count;
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
 	int s=splimp();
-	mtx_lock(&Giant);
 
+	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
 		microuptime(&poll_start_t);
 		/*
@@ -343,8 +398,8 @@ ether_poll1(void)
 		residual_burst = 0;
 		poll_handlers = 0;
 	}
-	/* on -stable, schednetisr(NETISR_POLLMORE); */
-	mtx_unlock(&Giant);
+	schednetisr(NETISR_POLLMORE);
+	phase = 4;
 	splx(s);
 }
 
@@ -353,8 +408,8 @@ ether_poll1(void)
  * (and polling should be enabled), 0 otherwise.
  * A device is not supposed to register itself multiple times.
  *
- * This is called from within the *_intr() function, so we should
- * probably not need further locking. XXX
+ * This is called from within the *_intr() functions, so we do not need
+ * further locking.
  */
 int
 ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
@@ -394,27 +449,23 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 	poll_handlers++;
 	ifp->if_ipending |= IFF_POLLING;
 	splx(s);
-	if (idlepoll_sleeping)
-		wakeup(&idlepoll_sleeping);
 	return 1; /* polling enabled in next call */
 }
 
 /*
- * Remove the interface from the list of polling ones.
- * Normally run by *_stop().
- * We allow it being called with IFF_POLLING clear, the
- * call is sufficiently rare so it is preferable to save the
- * space for the extra test in each device in exchange of one
- * additional function call.
+ * Remove interface from the polling list. Normally called by *_stop().
+ * It is not an error to call it with IFF_POLLING clear, the call is
+ * sufficiently rare to be preferable to save the space for the extra
+ * test in each driver in exchange of one additional function call.
  */
 int
 ether_poll_deregister(struct ifnet *ifp)
 {
 	int i;
-
-	mtx_lock(&Giant);
+	int s = splimp();
+	
 	if ( !ifp || !(ifp->if_ipending & IFF_POLLING) ) {
-		mtx_unlock(&Giant);
+		splx(s);
 		return 0;
 	}
 	for (i = 0 ; i < poll_handlers ; i++)
@@ -422,7 +473,7 @@ ether_poll_deregister(struct ifnet *ifp)
 			break;
 	ifp->if_ipending &= ~IFF_POLLING; /* found or not... */
 	if (i == poll_handlers) {
-		mtx_unlock(&Giant);
+		splx(s);
 		printf("ether_poll_deregister: ifp not found!!!\n");
 		return 0;
 	}
@@ -431,47 +482,6 @@ ether_poll_deregister(struct ifnet *ifp)
 		pr[i].handler = pr[poll_handlers].handler;
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
-	mtx_unlock(&Giant);
+	splx(s);
 	return 1;
 }
-
-static void
-poll_idle(void)
-{
-	struct thread *td = curthread;
-	struct rtprio rtp;
-	int pri;
-
-	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
-	rtp.type = RTP_PRIO_IDLE;
-	mtx_lock_spin(&sched_lock);
-	rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
-	pri = td->td_ksegrp->kg_pri.pri_level;
-	mtx_unlock_spin(&sched_lock);
-
-	for (;;) {
-		if (poll_in_idle && poll_handlers > 0) {
-			idlepoll_sleeping = 0;
-			mtx_lock(&Giant);
-			ether_poll(poll_each_burst);
-			mtx_unlock(&Giant);
-			mtx_assert(&Giant, MA_NOTOWNED);
-			mtx_lock_spin(&sched_lock);
-			setrunqueue(td);
-			td->td_proc->p_stats->p_ru.ru_nvcsw++;
-			mi_switch();
-			mtx_unlock_spin(&sched_lock);
-		} else {
-			idlepoll_sleeping = 1;
-			tsleep(&idlepoll_sleeping, pri, "pollid", hz * 3);
-		}
-	}
-}
-
-static struct proc *idlepoll;
-static struct kproc_desc idlepoll_kp = {
-	 "idlepoll",
-	 poll_idle,
-	 &idlepoll
-};
-SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &idlepoll_kp)
