@@ -209,7 +209,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 			pmp->pm_flags &= ~MSDOSFSMNT_RONLY;
 		}
 		if (args.fspec == 0) {
-#ifdef	__notyet__		/* doesn't work correctly with current mountd	XXX */
+#ifdef	__notyet__	/* doesn't work correctly with current mountd	XXX */
 			if (args.flags & MSDOSFSMNT_MNTOPT) {
 				pmp->pm_flags &= ~MSDOSFSMNT_MNTOPT;
 				pmp->pm_flags |= args.flags & MSDOSFSMNT_MNTOPT;
@@ -346,11 +346,11 @@ mountmsdosfs(devvp, mp, td, argp)
 	b710 = (struct byte_bpb710 *)bsp->bs710.bsPBP;
 
 #ifndef MSDOSFS_NOCHECKSIG
-		if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
-		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
-			error = EINVAL;
-			goto error_exit;
-		}
+	if (bsp->bs50.bsBootSectSig0 != BOOTSIG0
+	    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
+		error = EINVAL;
+		goto error_exit;
+	}
 #endif
 
 	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK | M_ZERO);
@@ -375,17 +375,17 @@ mountmsdosfs(devvp, mp, td, argp)
 	/* calculate the ratio of sector size to DEV_BSIZE */
 	pmp->pm_BlkPerSec = pmp->pm_BytesPerSec / DEV_BSIZE;
 
-		/* XXX - We should probably check more values here */
-		if (!pmp->pm_BytesPerSec || !SecPerClust
-			|| !pmp->pm_Heads || pmp->pm_Heads > 255
+	/* XXX - We should probably check more values here */
+	if (!pmp->pm_BytesPerSec || !SecPerClust
+		|| !pmp->pm_Heads || pmp->pm_Heads > 255
 #ifdef PC98
-	    		|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 255) {
+    		|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 255) {
 #else
-			|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 63) {
+		|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 63) {
 #endif
-			error = EINVAL;
-			goto error_exit;
-		}
+		error = EINVAL;
+		goto error_exit;
+	}
 
 	if (pmp->pm_Sectors == 0) {
 		pmp->pm_HiddenSects = getulong(b50->bpbHiddenSecs);
