@@ -325,8 +325,8 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strlcpy(pname, sizeof(pname), _PATH_DEV);
-		strlcat(pname, sizeof(pname), name);
+		strlcpy(pname, _PATH_DEV, sizeof(pname));
+		strlcat(pname, name, sizeof(pname));
 		j = open(pname, O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG
