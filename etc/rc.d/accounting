@@ -20,7 +20,7 @@ stop_cmd="accounting_stop"
 
 accounting_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		_dir=`dirname "$accounting_file"`
 		if [ ! -d `dirname "$_dir"` ]; then

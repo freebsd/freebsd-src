@@ -19,7 +19,7 @@ start_precmd="named_precmd"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	nuser=bind
 	ngroup=bind
@@ -79,7 +79,7 @@ make_symlinks()
 
 named_precmd()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		! checkyesno named_rcng && return 0
 		# Is the user using a sandbox?
@@ -96,7 +96,7 @@ named_precmd()
 		;;
 	esac
 
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		# Make the symlinks only if the user wants them done.
 		checkyesno named_symlink_enable && make_symlinks
@@ -108,7 +108,7 @@ named_precmd()
 
 	#       Change run_rc_commands()'s internal copy of $named_flags
 	#
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		! checkyesno named_rcng && return
 		;;

@@ -14,7 +14,7 @@ name="nfsd"
 rcvar=`set_rcvar nfs_server`
 command="/usr/sbin/${name}"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	command_args="${nfs_server_flags}"
 	start_precmd="nfsd_precmd"

@@ -24,7 +24,7 @@ stop_cmd="ipsec_stop"
 reload_cmd="ipsec_reload"
 extra_commands="reload"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	ipsec_program="/usr/sbin/setkey"
 	;;

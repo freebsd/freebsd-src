@@ -15,7 +15,7 @@ name="amd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	start_precmd="amd_precmd"
 	command_args="&"
@@ -30,7 +30,7 @@ esac
 
 amd_precmd() 
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		if ! checkyesno nfs_client_enable ; then
 			force_depend nfsclient || return 1

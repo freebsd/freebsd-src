@@ -14,7 +14,7 @@
 name="ipmon"
 rcvar=`set_rcvar`
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	command="/sbin/ipmon"
 	start_precmd="ipmon_precmd"

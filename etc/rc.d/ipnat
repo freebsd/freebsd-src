@@ -14,7 +14,7 @@
 name="ipnat"
 rcvar=`set_rcvar`
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	IPNATDIR="/sbin"
 	start_precmd="ipnat_precmd"
@@ -44,7 +44,7 @@ ipnat_precmd()
 
 ipnat_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		echo -n 'Installing NAT rules ... '
 		if [ -r "${ipnat_rules}" ]; then

@@ -16,7 +16,7 @@ stop_cmd=":"
 
 ttyflags_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 
 		# Whack the pty perms back into shape.

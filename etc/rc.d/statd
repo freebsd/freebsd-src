@@ -13,7 +13,7 @@
 
 arg=$1
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	RCVAR_SERVER="nfs_server_enable"
 	RCVAR_CLIENT="nfs_client_enable"

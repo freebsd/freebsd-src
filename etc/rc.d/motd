@@ -16,7 +16,7 @@ rcvar="update_motd"
 start_cmd="motd_start"
 stop_cmd=":"
 
-case `${CMD_OSTYPE}` in
+case ${OSTYPE} in
 FreeBSD)
 	T=`mktemp /tmp/_motd.XXXXXX`
 	PERMS="644"
@@ -38,7 +38,7 @@ motd_start()
 		install -c -o root -g wheel -m ${PERMS} /dev/null /etc/motd
 	fi
 
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > ${T}
 		awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> ${T}

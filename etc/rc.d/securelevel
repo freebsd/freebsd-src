@@ -17,7 +17,7 @@ stop_cmd=":"
 
 securelevel_start()
 {
-	case `${CMD_OSTYPE}` in
+	case ${OSTYPE} in
 	FreeBSD)
 		case ${kern_securelevel_enable} in
 		[Yy][Ee][Ss])
