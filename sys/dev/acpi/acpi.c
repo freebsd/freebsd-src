@@ -1456,6 +1456,7 @@ acpi_attach(device_t dev)
 #ifndef ACPI_NO_ENABLE_ON_BOOT
 	acpi_enable_disable(sc, 1);
 	acpi_enable_events(sc);
+	acpi_intr((void *)sc);
 #endif
 
 	acpi_powerres_init(sc);
