@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/select.h>
 #endif
-#include <sys/vnode.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 
