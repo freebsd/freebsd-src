@@ -229,10 +229,6 @@ g_aes_start(struct bio *bp)
 		break;
 	case BIO_GETATTR:
 	case BIO_SETATTR:
-		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
-			return;
-		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
-			return;
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			g_io_deliver(bp, ENOMEM);
@@ -320,12 +316,8 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	while (1) {
 		if (gp->rank != 2)
 			break;
-		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
-		if (error)
-			break;
-		error = g_getattr("GEOM::mediasize", cp, &mediasize);
-		if (error)
-			break;
+		sectorsize = cp->provider->sectorsize;
+		mediasize = cp->provider->mediasize;
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0) {
 			break;
@@ -373,6 +365,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
 		pp->mediasize = mediasize - sectorsize;
+		pp->sectorsize = sectorsize;
 		g_error_provider(pp, 0);
 		g_topology_unlock();
 		break;

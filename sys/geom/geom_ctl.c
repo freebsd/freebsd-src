@@ -85,6 +85,7 @@ g_ctl_init2(void *p __unused)
 	gp->start = g_ctl_start;
 	gp->access = g_ctl_access;
 	pp = g_new_providerf(gp, "%s", gp->name);
+	pp->sectorsize = 512;
 	g_error_provider(pp, 0);
 }
 

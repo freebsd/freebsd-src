@@ -168,8 +168,8 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (gp->rank != 2 && insist == 0)
 			break;
 
-		error = g_getattr("GEOM::sectorsize", cp, &secsz);
-		if (error)
+		secsz = cp->provider->sectorsize;
+		if (secsz < 512)
 			break;
 
 		/* XXX: we need to get the media size as well. */
