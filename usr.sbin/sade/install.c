@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.60 1995/05/26 20:45:19 jkh Exp $
+ * $Id: install.c,v 1.61 1995/05/27 10:47:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -374,7 +374,7 @@ copy_self(void)
     int i;
 
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
-    i = vsystem("find -x /stand | cpio -pdmv /mnt");
+    i = vsystem("find -x /stand | cpio -pdmV /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
     /* copy up the etc files */
@@ -404,7 +404,7 @@ root_extract(void)
 	    if (mediaDevice->init)
 		if (!(*mediaDevice->init)(mediaDevice))
 		    break;
-	    fd = (*mediaDevice->get)("root.flp", "floppies/");
+	    fd = (*mediaDevice->get)("floppies/root.flp");
 	    if (fd != -1) {
 		msgNotify("Loading root floppy from %s", mediaDevice->name);
 		(void)mediaExtractDist("root.flp", "/", fd);
@@ -412,9 +412,13 @@ root_extract(void)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
 		    close(fd);
+		if (mediaDevice->shutdown)
+		    (*mediaDevice->shutdown)(mediaDevice);
+	    } else {
+		if (mediaDevice->shutdown)
+		    (*mediaDevice->shutdown)(mediaDevice);
+	        loop_on_root_floppy();
 	    }
-	    if (mediaDevice->shutdown)
-		(*mediaDevice->shutdown)(mediaDevice);
 	    break;
 
 	case DEVICE_TYPE_FLOPPY:

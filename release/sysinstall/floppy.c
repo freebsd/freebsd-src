@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: floppy.c,v 1.1 1995/05/27 10:38:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -141,28 +141,13 @@ mediaInitFloppy(Device *dev)
 }
 
 int
-mediaGetFloppy(char *dist, char *path)
+mediaGetFloppy(char *file)
 {
     char		buf[PATH_MAX];
-    char		*fname;
-    Attribs		*dist_attr;
-    int			retval;
 
-    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+    snprintf(buf, PATH_MAX, "/mnt/%s", file);
 
-    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
-    if (!access(buf, R_OK) && attr_parse(&dist_attr, buf) == 0)
-    {
-	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-	free(dist_attr);
-	return FALSE;
-    }
-    fname = index(dist, '/') + 1;
-    snprintf(buf, PATH_MAX, "/mnt/%s", fname);
-
-    retval = genericGetDist(buf, dist_attr, TRUE);
-    free(dist_attr);
-    return retval;
+    return open(buf,O_RDONLY);
 }
 
 void

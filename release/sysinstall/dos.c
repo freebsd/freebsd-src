@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: dos.c,v 1.1 1995/05/27 10:38:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,7 @@
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <grp.h>
 
 #define MSDOSFS
@@ -80,23 +81,12 @@ mediaInitDOS(Device *dev)
 }
 
 int
-mediaGetDOS(char *dist, char *path)
+mediaGetDOS(char *file)
 {
     char		buf[PATH_MAX];
-    Attribs		*dist_attr = NULL;
-    int			retval;
 
-    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
-    if (!access(buf, R_OK) && attr_parse(&dist_attr, buf) == 0) {
-	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-	free(dist_attr);
-	return FALSE;
-    }
-    snprintf(buf, PATH_MAX, "/dos/%s%s", path ? path : "", dist);
-    retval = genericGetDist(buf, dist_attr, FALSE);
-    free(dist_attr);
-    return retval;
+    snprintf(buf, PATH_MAX, "/dos/%s", file);
+    return open(buf,O_RDONLY);
 }
 
 void
