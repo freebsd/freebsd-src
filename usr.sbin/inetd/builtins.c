@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.8 1999/07/24 12:35:50 sheldonh Exp $
+ * $Id: builtins.c,v 1.9 1999/07/24 13:02:09 sheldonh Exp $
  *
  */
 
@@ -333,11 +333,11 @@ ident_stream(s, sep)		/* Ident service */
 {
 	struct sockaddr_in sin[2];
 	struct ucred uc;
-	struct passwd *pw;
 	struct timeval tv = {
 		10,
 		0
 	};
+	struct passwd *pw;
 	fd_set fdset;
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL;
 	int len, c, rflag = 0, fflag = 0, argc = 0;
@@ -349,6 +349,8 @@ ident_stream(s, sep)		/* Ident service */
 	for (av = sep->se_argv; *av; av++)
 		argc++;
 	if (argc) {
+		int sec, usec;
+
 		while ((c = getopt(argc, sep->se_argv, "fro:t:")) != -1)
 			switch (c) {
 			case 'f':
@@ -361,9 +363,6 @@ ident_stream(s, sep)		/* Ident service */
 				osname = optarg;
 				break;
 			case 't':
-			{
-				int sec, usec;
-
 				switch (sscanf(optarg, "%d.%d", &sec, &usec)) {
 				case 2:
 					tv.tv_usec = usec;
@@ -375,7 +374,7 @@ ident_stream(s, sep)		/* Ident service */
 						warnx("bad -t argument");
 					break;
 				}
-			}
+				break;
 			default:
 				break;
 			}
