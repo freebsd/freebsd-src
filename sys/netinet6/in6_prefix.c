@@ -777,7 +777,7 @@ init_newprefix(struct in6_rrenumreq *irr, struct ifprefix *ifpr,
 			return error;
 		rap->ra_ifid = orap->ra_ifid;
 		rap->ra_flags.anycast = (orap->ra_addr != NULL &&
-					 (orap->ra_addr->ia_flags &
+					 (orap->ra_addr->ia6_flags &
 					  IN6_IFF_ANYCAST) != 0) ? 1 : 0;
 		LIST_INSERT_HEAD(&rpp->rp_addrhead, rap, ra_entry);
 	}

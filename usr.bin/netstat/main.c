@@ -129,11 +129,11 @@ static struct nlist nl[] = {
 	{ "_ip6stat" },
 #define N_ICMP6STAT	29
 	{ "_icmp6stat" },
-#ifdef notyet
 #define N_IPSECSTAT	30
 	{ "_ipsecstat" },
 #define N_IPSEC6STAT	31
 	{ "_ipsec6stat" },
+#ifdef notyet
 #define N_PIM6STAT	32
 	{ "_pim6stat" },
 #define N_MRT6PROTO	33
