@@ -120,7 +120,8 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>A new module provides 802.11 link-layer support.  The
+	&man.wi.4; driver now uses this facility.</para>
 
     </sect3>
 
@@ -175,12 +176,42 @@
       at the cost of possibly missing filesystem updates that occur
       between passes.</para>
 
+    <para>elfdump, a utility to display information about &man.elf.5;
+      format executable files, has been added.</para>
+
+    <para>&man.ftpd.8; now supports a <option>-P</option> option to
+      specify a port on which to listen in daemon mode.  The default
+      data port number is now set to be one less than the control port
+      number, rather than being hard-coded.</para>
+
+    <para>&man.fwcontrol.8; now supports <option>-R</option> and
+      <option>-S</option> options for receiving and sending DV
+      streams. &merged;</para>
+
+    <para>&man.ipfw.8; now supports <literal>enable</literal> and
+      <literal>disable</literal> commands to control various aspects
+      of the operation of &man.ipfw.4; (including enabling and
+      disabling the firewall itself).  These provide a more convenient
+      and visible interface than the existing sysctl
+      variables. &merged;</para>
+
+    <para>&man.kenv.1; has been moved from
+      <filename>/usr/bin</filename> to <filename>/bin</filename> to
+      make it available at times during system startup when only the
+      root filesystem is mounted.</para>
+
     <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
       to force previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
       to finish before beginning a new one.  This feature is designed
       to prevent system overloads caused by starting several
       compression jobs on big files simultaneously. &merged;</para>
+
+    <para>&man.ping.8; now supports a <option>-D</option> flag to set
+      the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
+
+    <para>&man.ping.8; now supports a <option>-z</option> flag to set
+      the Type of Service bits in outgoing packets.</para>
 
     <para>The &man.swapoff.8; command has been added to disable paging
       and swapping on a device.  A related &man.swapctl.8; command has
@@ -210,6 +241,9 @@
         applications is now installed in the base system (in
         particular, <command>bzip2recover</command> is now built and
         installed. &merged;</para>
+
+      <para><application>CVS</application> has been updated to
+	1.11.5. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11.</para>
