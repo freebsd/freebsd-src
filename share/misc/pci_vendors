@@ -118,7 +118,7 @@
 	0013	53C875A PCI to Ultra SCSI Controller
 	0020	53C1010-33 PCI to Dual Channel Ultra3 SCSI Ctrlr
 	0021	53C1000/1010-66 PCI to Ultra160 SCSI Controller
-	0030	53C1030 PCI-X SCSI Controller
+	0030	53C1020/1030 PCI-X to Ultra320 SCSI Controller
 	0031	53C1030ZC PCI-X SCSI Controller
 	0035	53C1035 PCI-X SCSI Controller
 	0040	53C1035 PCI-X SCSI Controller
@@ -382,7 +382,7 @@
 	1204	CL-GD7541 Nordic-lite VGA Cntrlr
 	4400	CL-CD4400 Communications Controller
 	6001	Crystal CS4610/11 SoundFusion PCI Audio Accelerator
-	6003	Crystal CS4614/22/24 SoundFusion PCI Audio Accelerator
+	6003	Crystal CS4614/22/24/30 SoundFusion PCI Audio Accelerator
 	6004	Crystal CS4615 SoundFusion PCI Audio Accelerator
 	6005	Crystal CS4281 SoundFusion PCI Audio Accelerator
 1014	International Business Machines Corp.
@@ -645,6 +645,7 @@
 	0520	MGA-G200B Eclipse/Calao
 	0521	MGA-G200B Chipset (AGP)
 	0525	MGA-G400/450 Chipset
+	0527	Parhelia AGP
 	0D10	MGA-I Athena (Ultima/Impression board)
 	1000	MGA-G100 Chipset PCI
 	1001	MGA-G100 Twister AGP
@@ -786,6 +787,7 @@
 103C	Hewlett-Packard Company
 	1005	A4977A Visialize EG
 	1008	Donner GFX
+	100A	hpVisualizeFX Hewlett-Packard VisualizeFX Series Video
 	1028	Tachyon TL Fibre Channel Adapter
 	1029	HPFC-5200B Tachyon XL2 Fibre Channel Adapter
 	102A	Tach TS Tachyon TS Fibre Channel Host Adapter
@@ -807,6 +809,9 @@
 	121A	NetServer SMIC Controller
 	121B	NetServer Legacy COM Port Decoder
 	121C	NetServer PCI COM Port Decoder
+	1229	zx1 System Bus Adapter
+	122A	zx1 I/O Controller
+	122B	zx1 Local Bus Adapter
 	2910	E2910A PCI Bus Exerciser
 	2920	Fast Host Interface
 	2924	E2924A PCI Host Interface Adapter
@@ -931,6 +936,7 @@
 	AC40	PCI4450 PC card CardBus Controller
 	AC41	PCI4410 PC card CardBus Controller
 	AC42	PCI4451 PC card CardBus Controller
+	AC44	PC card & Integrated 1394a-2000 OHCI 2 port PHY/Link Layer Ctrlr
 	AC50	PCI1410 PC card cardBus Controller
 	AC51	PCI1420 PC card CardBus Controller
 	AC52	PCI1451 PC card CardBus Controller
@@ -955,14 +961,14 @@
 104F	Co-Time Computer Ltd.
 	104F	iatca8392 Multi I/O
 1050	Winbond Electronics Corp.
-	0000	W6692CF Ethernet Cntrlr
+	0000	Ethernet Controller (NE2000 compatible)
 	0001	W83769F Ethernet Adapter
 	0105	W82C105 Ethernet Adapter
 	0628	W83628F/629D PCI to ISA Bridge Set
 	0840	W89C840F 100/10Mbps Ethernet Controller
 	0940	W89C940 NE2000-Compatible Ethernet Adapter
 	5A5A	W89C940F ELANC-PCI Twisted-pair Ether-LAN Ctrlr
-	6692	W6692A/CF PCI ISDN S/T Controller
+	6692	W6692/92A/92CF PCI BusISDN S/T-Controller
 	9922	W9922PF ISDN Controller
 	9960	W9960CF Video Codec
 	9961	W9961CF H.263/H.261 Video Codec
@@ -976,7 +982,7 @@
 	0001	PCI Bridge
 	0002	PCI Bus Controller
 	3505	SH7751 SuperH (SH) 32-Bit RISC MCU/MPU Series
-1055	SMSC (Was EFAR Microsystems; bought out in 1996)
+1055	SMSC (Was: EFAR Microsystems; bought out in 1996)
 	0810	EFAR 486 Host Bridge
 	0922	Pentium/p54c host Bridge
 	0926	EFAR PCI to ISA Bridge
@@ -997,6 +1003,7 @@
 	1801	DSP56301 24-bit Digital Signal Processor
 	1802	DSP56305 24-Bit Digital Signal Processor
 	18C0	MPC8265A/66 PowerQUICC II PCI Bridge
+	3421	56IVMR/Phoenix 56ISMR Modem
 	4801	Raven PowerPC Chipset
 	4802	Falcon
 	4803	Hawk
@@ -1010,15 +1017,15 @@
 105A	Promise Technology
 	0D30	PDC20265 FastTrak100 Lite/Ultra100 EIDE Controller
 	0D38	PDC20263 FastTrak66 EIDE Controller
-	1275	PDC20275 FastTrak TX EIDE Controller
+	1275	PDC20275 FastTrack TX EIDE Controller
 	4D30	PDC20267 FastTrack100/Ultra100 EIDE Controller
-	4D33	PDC20246 FastTrak/Ultra33 EIDE Controller
+	4D33	PDC20246 FastTrak Ultra ATA RAID controller
 	4D38	PDC20262 FastTrak66/Ultra66 EIDE Controller
 	4D68	PDC20268 Ultra100 TX2 EIDE Controller
 	4D69	PDC20269 Ultra133 TX2 EIDE Controller
 	5275	PDC20276 Ultra133 TX2/FastTrak TX Lite EIDE Controller
 	5300	DC5300 EIDE Controller
-	6268	PDC20268R FastTrak100 TX2/TX4/LP EIDE Controller
+	6268	PDC20268R FastTrak100 TX2/TX4/LP EIDE controller
 	6269	PDC20271 FastTrak TX2000 EIDE controller
 	7275	PDC20277 FastTrak TX/SBFastTrak133 Lite EIDE Controller
 105B	Foxconn International
@@ -1220,9 +1227,10 @@
 1087	Cache Computer
 1088	Microcomputer Systems (M) Son
 1089	Data General Corporation
-108A	Bit3 Computer
+108A	SBS Technologie (Was: Bit3 Computer)
 	0001	Model 617 PCI-VME Bus Adapter
 	0010	Model 618 VME Bridge
+	0040	dataBLIZZARD
 	3000	Model 2106 VME Bridge
 108C	Elonex PLC c/o Oakleigh Systems Inc.
 108D	Olicom
@@ -1646,6 +1654,7 @@
 	2002	MB86606 Fast Wide SCSI Controller
 	2005	MB86974 10/100 Fast Ethernet Adapter
 	200C	MB86974 IEEE1394 OpenHCI Controller
+	2010	OHCI FireWire Controller
 	2011	MPEG2 R-Engine (MPEG2 Hardware Encoder)
 10D0	Fujitsu Limited
 10D1	FuturePlus Systems
@@ -1721,7 +1730,7 @@
 	0179	NV17M GeForce4 440 Go 64M
 	017A	Quadro4 200/400NVS [[NV17GL.2]
 	017B	Quadro4 550XGL [[NV17GL.3]
-	017C	NV17M-GL
+	017C	NV17M-GL Quadro4 500 GoGL
 	01A0	GeForce2 [Crush11] Integrated Graphics
 	01A4	nForce AGP Controller
 	01A5	nForce AGP Controller
@@ -1899,7 +1908,7 @@
 	8938	EV1938 Sound
 1103	HighPoint Technologies Inc.
 	0003	HPT343/5/6,HPT363 UDMA EIDE Controller
-	0004	HPT366/8/70 UDMA66/100 EIDE Controller
+	0004	HPT366/368/370/372 UDMA66/100 EIDE Controller
 	0005	HPT370 UDMA/ATA 100 EIDE Controller
 	0006	HPT302 UDMA/ATA133 EIDE Controller
 	0007	HPT371 UDMA/ATA133 EIDE Controller
@@ -1907,9 +1916,9 @@
 1104	Rasterops
 1105	Sigma Designs Inc.
 	5000	Multimedia
-	8300	REALmagic Hollywood Plus MPEG2 DVD Decoder
+	8300	EM8300 MPEG-2 Decoder (REALmagic Hollywood Plus)
 	8400	EM8400 MPEG-2 Decoder
-	8475	em8475 ISO MPEG 1/2/4 Decoder Card for Video & Audio
+	8475	EM8475 MPEG-1/2/4 Decoder Card for Video & Audio
 1106	VIA Technologies Inc
 	0130	VT6305 VIA Fire 1394.A OHCI Link Layer Ctrlr
 	0305	VT8363/5 KT133/KM133 System Controller
@@ -1959,7 +1968,7 @@
 	3109	VT8233C PCI to ISA Bridge
 	3112	VT8361 Apollo KLE133 System Controller
 	3113	PCI to PCI Bridge
-	3116	CPU-to-PCI Bridge
+	3116	Apollo KM266 System Controller
 	3128	VT8753 Apollo P4X266 System Controller
 	3133	VT3133 CPU to PCI Bridge
 	3147	VT8233 PCI to ISA Bridge
@@ -2378,6 +2387,7 @@
 	0211	OSB4 PCI EIDE Controller
 	0212	CSB5 PCI EIDE Controller
 	0220	OSB4 OpenHCI Compliant USB Controller
+	0225	CSB5 PCI Bridge
 	0230	PCI to ISA Bridge
 1167	Mutoh Industries Inc
 1168	Thine Electronics Inc
@@ -2438,6 +2448,7 @@
 	0476	RL5C476 II CardBus controller
 	0477	RL5c477 CardBus Controller
 	0478	RL5c478 CardBus Controller
+	0521	R5C521 1394 Host Controller
 	0551	IEEE1394 Controller
 	0552	RL5c552 IEEE-1394 Controller
 1181	Telmatics International
@@ -2446,10 +2457,10 @@
 1185	Dataworld International Ltd
 	8929	EIDE Controller
 1186	D-Link System Inc
-	0100	DC21041 Ethernet Adapter
+	0100	DEC DC21041-Based Ethernet Adapter
 	1002	DFE-550TX Fast Ethernet Adapter
-	1100	Fast Ethernet Adapter
-	1300	DFE-530TX+ Fast Ethernet Adapter (DL 10038C Chipset)
+	1100	DFE-??? Fast Ethernet Adapter
+	1300	DFE-530TX+/538TX Fast Ethernet Adapter (DL 10038C Chipset)
 	1340	DFE-690TXD CardBus PC Card
 	1561	DRP-32TXD CardBus PC Card
 	4000	DL2K Ethernet
@@ -2594,7 +2605,7 @@
 11BE	International Microcircuits Inc
 11BF	Astrodesign Inc.
 11C0	Hewlett-Packard
-11C1	Lucent/Agere Systems (Was AT&T MicroElectronics)
+11C1	Lucent/Agere Systems (Was: AT&T MicroElectronics)
 	0440	LT Winmodem 56k Data+Fax+Voice+DSVD
 	0441	LT Winmodem 56k Data+Fax
 	0442	1646T00 V.90 Lucent Modem
@@ -2609,10 +2620,10 @@
 	044B	LT Winmodem
 	044C	LT Winmodem
 	044D	LT Winmodem
-	044E	lucent 1646T00
+	044E	lucent 1646T00 LT WinModem 56k Data+Fax
 	044F	90094-1 LT V.90+DSL WildFire Modem
 	0450	1456VQH19R-1(INT) LT Winmodem 56K
-	0451	LT Winmodem
+	0451	LT Winmodem LT WinModem 56k Data+Fax+Voice+DSVD
 	0452	LT Winmodem
 	0453	LT Winmodem
 	0454	LT Winmodem
@@ -2834,7 +2845,7 @@
 122D	Aztech System Ltd
 	1206	368DSP
 	4201	MR2800W AMR 56K modem
-	50DC	3328 Audio
+	50DC	PCI168/3328 Audio Device
 	80DA	3328 Audio
 122E	Xyratex
 122F	Andrew Corp.
@@ -2931,10 +2942,12 @@
 	199B	ES1983 Maestro-3.COMM ES56CVM-PI PCI oice+Fax Modem
 	2808	ES336H PCI Fax Modem (later model)
 	2838	ES2838/2839 SuperLink Modem
-	2898	ES2898 ES56-PI Family V.90 PCI Modem
+	2843	ES2838/2839 SuperLink-MLP Voice Modem
+	2847	ES2838/2839 SuperLink-MLP 10 Voice Modem
+	2898	ES2898S TelDrive ES56T-PI family V.90 PCI modem
 125E	Specialvideo Engineering SRL
 125F	Concurrent Technologies Inc.
-1260	Intersil Americas Inc (Was Harris Semiconductor)
+1260	Intersil Americas Inc (Was: Harris Semiconductor)
 	3873	ISL3874A PRISMII.5 IEE802.11B Wireless LAN
 	8130	HMP8130 NTSC/PAL Video Decoder
 	8131	HMP8131 NTSC/PAL Video Decoder
@@ -2974,6 +2987,7 @@
 1274	Ensoniq (Creative)
 	1274	5880 multimedia audio device
 	1371	ES1371, ES1373 AudioPCI
+	1373	ES1373 Sound Blaster Audio(PCI)
 	5000	ES1370 AudioPCI
 	5880	5880 AudioPCI
 1275	Network Appliance Corp
@@ -3755,7 +3769,7 @@
 1449	TUT Systems Inc
 144A	ADLINK Technology Inc
 	7248	PCI-7248
-	7250	PCI-7250
+	7250	PCI-7250 PLX PCI9052
 	7296	PCI-7296
 	7432	PCI-7432
 	7433	PCI-7433
@@ -3934,6 +3948,7 @@
 	E001	VScom PCI-010HV2 1 x Printer Controler
 	E010	VScom PCI-100HV2 1 x RS-232 Controller
 	E020	VScom PCI-200HV2 2 x RS-232 Controller
+	FFFF	VScom Dummy Controller
 14D3	Cirtech (UK) Ltd
 14D4	Panacom Technology Corporation
 	0400	Panacom 7 Interface chip
@@ -4018,7 +4033,7 @@
 14F1	Conexant Systems, Inc.
 	1002	3251 HCF 56k Modem
 	1003	HCF 56k Modem
-	1004	11242-11 HCF 56k Modem
+	1004	11242-11 HCF 56k Modem   FCCID=H4TFM-PIB3PC
 	1005	HCF 56k Modem
 	1006	HCF 56k Modem
 	1022	HCF 56k Modem
@@ -4591,6 +4606,7 @@
 1678	INH Semiconductor
 1679	Tokyo Electron Device Ltd.
 168A	Utimaco Safeware AG
+168F	KDS Innotech Corp.
 16AE	SafeNet Inc.
 16CA	Cenatek Inc.
 	0001	Rocket Drive Solid State Disk
@@ -4891,14 +4907,15 @@
 	0962	80960RM/RN i960RM/RN Microprocessor/Bridge
 	0964	80960RP i960 RP Microprocessor Bridge
 	1000	82542 PRO/1000 Gigabit Server Adapter
-	1001	82543GC 10/100/1000 Ethernet Controller
+	1001	82543 PRO/1000 F Gigabit Ethernet Adapter
 	1002	Pro 100 LAN+Modem 56 CardBus II
-	1004	82543 PRO/1000 Gigabit Server Adapter
-	1008	82544 PRO/1000 Gigabit Ethernet Controller
-	1009	82544 PRO/1000 Gigabit Ethernet Controller
-	100C	82544GC Gigabit Ethernet Controller
+	1004	82543 PRO/1000 T Gigabit Server Adapter
+	1008	82544 PRO/1000 XT Gigabit Ethernet Controller
+	1009	82544 PRO/1000 XF Gigabit Ethernet Controller
+	100C	82544 T Desktop Gigabit Ethernet Controller
 	100D	82544GC based Gigabit Ethernet Controller
-	100E	82544XT PRO/1000 MT Desktop Adapter
+	100E	82540EM Gigabit Ethernet Controller
+	1010	82546EB Dual Gigabit Ethernet Controller
 	1015	82540EM PRO/1000 MT Mobile Connection
 	1029	82559 Fast Ethernet PCI/CardBus Controller
 	1030	82559 PCI Networking device
@@ -4913,6 +4930,7 @@
 	103A	82801DB (ICH4) LAN Controller with 82562ET/EZ (CNR) PHY
 	103B	82801DB (ICH4) LAN Controller with 82562EM/EX PHY
 	103C	82801DB (ICH4) LAN Controller with 82562EM/EX (CNR) PHY
+	1040	536EP V.92 PCI Modem
 	1100	82815 815/E (Solano) Host to I/O Hub Bridge with 100MHz DRAM Controller
 	1101	82815 815/E (Solano) PCI to AGP Bridge
 	1102	82815 815/E (Solano) Internal GUI Accelerator
@@ -5057,6 +5075,7 @@
 	3580	Montara GM Chipset
 	3584	Montara GM Chipset
 	3585	Montara GM Chipset
+	4000	Creatix V.90 HaM Modem
 	5001	PRO/DSL 2100 Modem - PPP
 	5005	PRO/DSL 2200 Modem - PPPoA
 	5200	EtherExpress PRO/100 Server PCI to PCI Bridge
@@ -5109,11 +5128,13 @@
 	84C5	82453KX/GX 450KX/GX Memory Controller (Orion)
 	84CA	82451NX 450NX PCIset Memory & I/O Controller
 	84CB	82454NX/82467GX 450NX PCI Expander Bridge
-	84E0	82461GX System Address controller
-	84E1	82462GX System Data Controller
-	84E2	82465GX Graphics Expander Bridge
-	84E3	82463GX Memory Address Controller
-	84E4	82464GX Memory Data Controller
+	84E0	82460GX 460GX System Address Controller
+	84E1	82460GX 460GX System Data Controller
+	84E2	82460GX 460GX AGP Bridge (GXB Function 2)
+	84E3	82460GX 460GX Memory Address Controller
+	84E4	82460GX 460GX Memory Data Controller
+	84E6	82466GX 460GX Wide and fast PCI eXpander Bridge
+	84EA	82460GX 460GX AGP Bridge (GXB Function 1)
 	9620	I2O RAID PCI to PCI Bridge
 	9621	SRCU21 I2O 1.5 RAID Controller (F/W<6.0)
 	9622	SRCUxx I2O 1.5 RAID Controller (F/W<6.0)
@@ -5272,6 +5293,9 @@ B00C	IC Book Labs
 	031C	Gunboat x4 Pro Quad PCI Serial Port Controller (High speed)
 	041C	Ironcad x8 Octal PCI Serial Port Controller (Standard speed)
 	051C	Ironcad x8 Pro Octal PCI Serial Port Controller (High speed)
+	061C	IC 138 PCI
+	081C	Dreadnought x16 Pro
+	091C	Dreadnought x16 Lite
 B1B3	Shiva Europe Ltd.
 B894	Brown & Sharpe Mfg. Co.
 C001	TSI Telsys
@@ -5325,8 +5349,9 @@ EDD8	ARK Logic, Inc
 	A0B1	ARK2000MI+ GUI Accelerator
 F5F5	F5 Networks Inc.
 FA57	Fast Search & Transfer ASA
+	0001	PMC Pattern Matching Chip
 FEBD	Ultraview Corp.
-FEDA	Epigram Inc
+FEDA	Broadcom (Was: Epigram Inc; Bought out in 1999)
 	A0FA	BCM4210 OEM Chip for 10meg/s over phone line
 FFFE	VMWare Inc (Older Product Versions)
 	0710	Virtual SVGA
