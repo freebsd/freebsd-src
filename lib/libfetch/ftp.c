@@ -487,6 +487,9 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     int af = AF_INET;
 #endif
     char *p, *q;
+    const char *logname;
+    char localhost[MAXHOSTNAMELEN];
+    char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
 
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
@@ -559,7 +562,14 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     /* did the server request a password? */
     if (e == FTP_NEED_PASSWORD) {
 	if (!pwd || !*pwd)
-	    pwd = FTP_ANONYMOUS_PASSWORD;
+	    pwd = getenv("FTP_PASSWORD");
+	if (!pwd || !*pwd) {
+	    if ((logname = getlogin()) == 0)
+		logname = FTP_ANONYMOUS_PASSWORD;
+	    gethostname(localhost, sizeof localhost);
+	    snprintf(pbuf, sizeof pbuf, "%s@%s", logname, localhost);
+	    pwd = pbuf;
+	}
 	e = _ftp_cmd(cd, "PASS %s", pwd);
     }
 
