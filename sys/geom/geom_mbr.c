@@ -393,6 +393,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			g_mbr_print(1, dp + 1);
 			if ((dp[0].dp_flag & 0x7f) == 0 &&
 			     dp[0].dp_size != 0 && dp[0].dp_typ != 0) {
+				g_topology_lock();
 				g_slice_config(gp, slice, G_SLICE_CONFIG_SET,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
 				    ((off_t)dp[0].dp_size) << 9ULL,
