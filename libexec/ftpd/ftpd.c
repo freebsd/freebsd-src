@@ -1189,7 +1189,7 @@ send_data(instr, outstr, blksize, filesize, isreg)
 		if (isreg && filesize < (off_t)16 * 1024 * 1024) {
 			buf = mmap(0, filesize, PROT_READ, MAP_SHARED, filefd,
 				   (off_t)0);
-			if (!buf) {
+			if (buf == MAP_FAILED) {
 				syslog(LOG_WARNING, "mmap(%lu): %m",
 				       (unsigned long)filesize);
 				goto oldway;

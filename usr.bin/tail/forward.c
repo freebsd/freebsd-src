@@ -210,7 +210,7 @@ rlines(fp, off, sbp)
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
-	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
+	    PROT_READ, MAP_SHARED, fileno(fp), (off_t)0)) == MAP_FAILED) {
 		ierr();
 		return;
 	}

@@ -88,6 +88,9 @@ create_knlist(name, db)
 
 	filep = (u_char*)mmap(0, sst.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
+	if (filep == (u_char*)MAP_FAILED)
+		err(1, "mmap failed");
+
 	/* Read in exec structure. */
 	ebuf = (struct exec *) filep;
 

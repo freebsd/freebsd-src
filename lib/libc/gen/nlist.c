@@ -99,8 +99,8 @@ __fdnlist(fd, list)
 	 * without making the memory allocation permanent as with
 	 * malloc/free (i.e., munmap will return it to the system).
 	 */
-	a_out_mmap = mmap(NULL, (size_t)st.st_size, PROT_READ, 0, fd, (off_t)0);
-	if (a_out_mmap == (char *)-1)
+	a_out_mmap = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, (off_t)0);
+	if (a_out_mmap == MAP_FAILED)
 		return (-1);
 
 	exec = (struct exec *)a_out_mmap;

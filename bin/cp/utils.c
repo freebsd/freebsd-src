@@ -121,7 +121,7 @@ copy_file(entp, dne)
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	if (fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    0, from_fd, (off_t)0)) == (char *)-1) {
+		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
 			warn("%s", entp->fts_path);
 			rval = 1;
 		} else {

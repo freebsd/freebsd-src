@@ -405,11 +405,11 @@ moveifchanged(const char *from_name, const char *to_name)
 	tsize = (size_t)from_sb.st_size;
 
 	if (!changed) {
-		p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
-		if ((long)p == -1)
+		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
-		q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
-		if ((long)q == -1)
+		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+		if (q == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", to_name);
 
 		changed = memcmp(p, q, tsize);
