@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.10 1997/05/10 04:28:17 ache Exp $ */
+/*	$Id: msgcat.c,v 1.11 1997/05/10 04:40:40 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -101,7 +101,11 @@ int type;
     } else {
 	if ((lang = (char *) getenv("LANG")) == NULL) 
 		lang = "C";
-	if ((nlspath = (char *) getenv("NLSPATH")) == NULL || issetugid())
+	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
+#ifndef __NETBSD_SYSCALLS
+	    || issetugid()
+#endif
+	    )
 	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L";
 
 	len = strlen(nlspath);
