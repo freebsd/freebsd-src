@@ -51,7 +51,8 @@ The functions
 .Fn tsleep
 and
 .Fn wakeup
-handle event-based process blocking.  If a process must wait for an
+handle event-based process blocking.
+If a process must wait for an
 external event, it is put on sleep by
 .Nm tsleep .
 The parameter
@@ -83,19 +84,22 @@ runnable.
 .Pp
 .Nm Tsleep
 is the general sleep call.  Suspends the current process until a wakeup is
-performed on the specified identifier.  The process will then be made
+performed on the specified identifier.
+The process will then be made
 runnable with the specified
 .Ar priority .
 Sleeps at most
 .Ar timo
-\&/ hz seconds (0 means no timeout).  If
+\&/ hz seconds (0 means no timeout).
+If
 .Ar pri
 includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
 not checked.  Returns 0 if awakened,
 .Er EWOULDBLOCK
-if the timeout expires.  If
+if the timeout expires.
+If
 .Dv PCATCH
 is set and a signal needs to be delivered,
 .Er ERESTART
@@ -107,17 +111,20 @@ is returned if the system call should be interrupted by the signal
 .Er EINTR ) .
 .Pp
 .Nm Msleep
-is a variation on tsleep.  The parameter
+is a variation on tsleep.
+The parameter
 .Ar mtx
 is a mutex, which will be exited before sleeping, and entered before
 .Nm msleep
-returns.  If
+returns.
+If
 .Ar pri
 includes the
 .Dv PDROP
 flag, the
 .Ar mtx
-parameter will not be entered before returning.  The mutex is
+parameter will not be entered before returning.
+The mutex is
 used to ensure that a condition can be checked atomically, and
 that the current process can be suspended without missing a
 change to the condition, or an associated wakeup.
@@ -128,7 +135,8 @@ See above.
 .Xr malloc 9 ,
 .Xr mi_switch 9
 .Sh HISTORY
-The sleep/wakeup process synchronization mechanism is very old.  It
+The sleep/wakeup process synchronization mechanism is very old.
+It
 appeared in a very early version of
 .Ux .
 .Pp
@@ -139,7 +147,8 @@ function appeared in
 .Pp
 The
 .Nm
-function used to be the traditional form.  It doesn't let you specify a timeout or a
+function used to be the traditional form.
+It does not let you specify a timeout or a
 .Ar wmesg ,
 hence it has been discontinued.
 .Sh AUTHORS
