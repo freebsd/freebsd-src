@@ -788,13 +788,13 @@ aio_daemon(void *uproc)
 	fdfree(td);
 	mycp->p_fd = NULL;
 
+	mtx_unlock(&Giant);
 	/* The daemon resides in its own pgrp. */
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		M_WAITOK | M_ZERO);
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
 		M_WAITOK | M_ZERO);
 
-	mtx_unlock(&Giant);
 	sx_xlock(&proctree_lock);
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
 	sx_xunlock(&proctree_lock);
