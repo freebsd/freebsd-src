@@ -178,7 +178,6 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_failprob = failprob;
 	gp->softc = sc;
 	gp->start = g_nop_start;
-	gp->spoiled = g_nop_orphan;
 	gp->orphan = g_nop_orphan;
 	gp->access = g_nop_access;
 	gp->dumpconf = g_nop_dumpconf;
