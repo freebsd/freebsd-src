@@ -39,32 +39,32 @@
  * $FreeBSD$
  */
 
-void	 append  __P((const u_char **, int, int, FILE *,
-	    void (*)(const RECHEADER *, FILE *), struct field *));
-void	 concat __P((FILE *, FILE *));
-length_t enterkey __P((RECHEADER *, DBT *, size_t, struct field *));
-void	 fixit __P((int *, char **));
-void	 fldreset __P((struct field *));
-FILE	*ftmp __P((void));
-void	 fmerge __P((int, int, struct filelist *, int,
-		get_func_t, FILE *, put_func_t, struct field *));
-void	 fsort __P((int, int, int, struct filelist *, int, FILE *,
-		struct field *));
-int	 geteasy __P((int, int, struct filelist *,
-	    int, RECHEADER *, u_char *, struct field *));
-int	 getnext __P((int, int, struct filelist *,
-	    int, RECHEADER *, u_char *, struct field *));
-int	 makekey __P((int, int, struct filelist *,
-	    int, RECHEADER *, u_char *, struct field *));
-int	 makeline __P((int, int, struct filelist *,
-	    int, RECHEADER *, u_char *, struct field *));
-void	 merge __P((int, int, get_func_t, FILE *, put_func_t, struct field *));
-void	 num_init __P((void));
-void	 onepass __P((const u_char **, int, long, long *, u_char *, FILE *));
-int	 optval __P((int, int));
-void	 order __P((struct filelist *, get_func_t, struct field *));
-void	 putline __P((const RECHEADER *, FILE *));
-void	 putrec __P((const RECHEADER *, FILE *));
-void	 rd_append __P((int, int, int, FILE *, u_char *, u_char *));
-int	 setfield __P((const char *, struct field *, int));
-void	 settables __P((int));
+void	 append(const u_char **, int, int, FILE *,
+	    void (*)(const RECHEADER *, FILE *), struct field *);
+void	 concat(FILE *, FILE *);
+length_t enterkey(RECHEADER *, DBT *, size_t, struct field *);
+void	 fixit(int *, char **);
+void	 fldreset(struct field *);
+FILE	*ftmp(void);
+void	 fmerge(int, int, struct filelist *, int,
+		get_func_t, FILE *, put_func_t, struct field *);
+void	 fsort(int, int, int, struct filelist *, int, FILE *,
+		struct field *);
+int	 geteasy(int, int, struct filelist *,
+	    int, RECHEADER *, u_char *, struct field *);
+int	 getnext(int, int, struct filelist *,
+	    int, RECHEADER *, u_char *, struct field *);
+int	 makekey(int, int, struct filelist *,
+	    int, RECHEADER *, u_char *, struct field *);
+int	 makeline(int, int, struct filelist *,
+	    int, RECHEADER *, u_char *, struct field *);
+void	 merge(int, int, get_func_t, FILE *, put_func_t, struct field *);
+void	 num_init(void);
+void	 onepass(const u_char **, int, long, long *, u_char *, FILE *);
+int	 optval(int, int);
+void	 order(struct filelist *, get_func_t, struct field *);
+void	 putline(const RECHEADER *, FILE *);
+void	 putrec(const RECHEADER *, FILE *);
+void	 rd_append(int, int, int, FILE *, u_char *, u_char *);
+int	 setfield(const char *, struct field *, int);
+void	 settables(int);
