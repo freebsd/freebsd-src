@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: hier.7,v 1.11 1997/02/22 13:26:14 peter Exp $
 .\"
 .Dd June 5, 1993
 .Dt HIER 7
@@ -62,18 +62,18 @@ see
 system configuration files and scripts 
 .Pp
 .Bl -tag -width "disklabels/" -compact
-.It Li localtime
-local timezone information;
+.It Li gnats/
+gnats configuration files;
 see
-.Xr ctime 3
-.It Li disklabels/
-backup disklabels;
-see
-.Xr disklabel 8
+.Xr send-pr 1
 .It Li kerberosIV/ 
 configuration files for the kerberos version IV;
 see
 .Xr kerberos 1
+.It Li localtime
+local timezone information;
+see
+.Xr ctime 3
 .It Li mtree/ 
 mtree configuration files;
 see
@@ -82,10 +82,37 @@ see
 named configuration files;
 see
 .Xr named 8
+.It Li ppp/
+.Xr ppp 8 
+ppp configuration files;
+see 
+.Xr ppp 8
+.It Li skel/
+local example . (dot) files for new accounts;
+see
+.Xr adduser 8
+.It Li uucp/
+uucp configuration files;
+see
+.Xr uucp 1
 .El
+.It Li /kernel
+pure kernel executable (the operating system loaded into memory
+at boot time).  
+.It Li /lkm/
+loadable kernel modules;
+see 
+.Xr lkm 4 
 .It Li /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
+.It Li /proc/
+process file system;
+see
+.Xr procfs 5 ,
+.Xr mount_procfs 8
+.It Li /root
+root's HOME directory
 .It Li /sbin/
 system programs and administration utilities
 fundamental to both single-user and multi-user environments
@@ -371,9 +398,6 @@ commonly ~uucp; public uucp temporary directory
 .It Li tmp/ 
 temporary files that are kept between system reboots
 .El
-.It Li /kernel
-pure kernel executable (the operating system loaded into memory
-at boot time).  
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,
