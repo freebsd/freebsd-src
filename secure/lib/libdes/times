@@ -1,3 +1,32 @@
+existing library on a DEC 3000/500
+set_key            per sec =    256294.06 (  3.9uS)
+DES ecb bytes      per sec =   3553694.40 (  2.3uS)
+DES cbc bytes      per sec =   3661004.80 (  2.2uS)
+DES ede cbc bytes  per sec =   1353115.99 (  5.9uS)
+crypt              per sec =     16829.40 ( 59.4uS)
+
+Intel P6/200 (NEXTSTEP) - cc -O3 (cc: gcc 2.5.8)
+set_key            per sec =    219220.82 (  4.6uS)
+DES ecb bytes      per sec =   2438014.04 (  3.3uS)
+DES cbc bytes      per sec =   2467648.85 (  3.2uS)
+DES ede cbc bytes  per sec =    942121.58 (  8.5uS)
+crypt              per sec =     11398.73 ( 87.7uS)
+
+# DECstation Alpha 3000 Model 700 AXP / OSF1 V3.0
+# gcc 2.6.3 / Young libdes 3.21
+set_key            per sec =    149369.74 (  6.7uS)
+DES ecb bytes      per sec =   2011976.68 (  4.0uS)
+DES cbc bytes      per sec =   2002245.35 (  4.0uS)
+DES ede cbc bytes  per sec =    793677.19 ( 10.1uS)
+crypt              per sec =      9244.52 (108.2uS)
+
+# Sun Ultra I gcc 2.7.2 / Young libdes 3.21
+set_key            per sec =    147172.22 (  6.8uS)
+DES ecb bytes      per sec =   1815054.70 (  4.4uS)
+DES cbc bytes      per sec =   1829405.18 (  4.4uS)
+DES ede cbc bytes  per sec =    714490.23 ( 11.2uS)
+crypt              per sec =      8896.24 (112.4uS)
+
 SGI Challenge (MIPS R4400 200mhz) - gcc -O2
 set_key       per sec =    114141.13 (  8.8uS)
 DES ecb bytes per sec =   1573472.84 (  5.1uS)
@@ -21,6 +50,20 @@ set_key       per sec =    124000.10 (  8.1uS)
 DES ecb bytes per sec =   1338138.45 (  6.0uS)
 DES cbc bytes per sec =   1356515.84 (  5.9uS)
 crypt         per sec =      6223.92 (160.7uS)
+
+Intel P5/133 (NEXTSTEP) - cc -O3 (cc: gcc 2.5.8)
+set_key            per sec =     81923.10 ( 12.2uS)
+DES ecb bytes      per sec =   1104711.61 (  7.2uS)
+DES cbc bytes      per sec =   1091536.05 (  7.3uS)
+DES ede cbc bytes  per sec =    410502.62 ( 19.5uS)
+crypt              per sec =      4849.60 (206.2uS)
+
+Sun SPARC 20 (NEXTSTEP) - cc -O3 (cc: gcc 2.5.8)
+set_key            per sec =     60973.05 ( 16.4uS)
+DES ecb bytes      per sec =    806032.15 (  9.9uS)
+DES cbc bytes      per sec =    801534.95 ( 10.0uS)
+DES ede cbc bytes  per sec =    298799.73 ( 26.8uS)
+crypt              per sec =      3678.42 (271.9uS)
 
 SGI Indy (MIPS R4600 133mhz) -cc -O2
 set_key       per sec =     88470.54 ( 11.3uS)

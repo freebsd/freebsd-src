@@ -1,5 +1,5 @@
-/* lib/des/cbc_cksm.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/cbc_cksm.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -47,16 +47,16 @@
 
 #include "des_locl.h"
 
-unsigned long des_cbc_cksum(input, output, length, schedule, ivec)
+DES_LONG des_cbc_cksum(input, output, length, schedule, ivec)
 des_cblock (*input);
 des_cblock (*output);
 long length;
 des_key_schedule schedule;
 des_cblock (*ivec);
 	{
-	register unsigned long tout0,tout1,tin0,tin1;
+	register DES_LONG tout0,tout1,tin0,tin1;
 	register long l=length;
-	unsigned long tin[2];
+	DES_LONG tin[2];
 	unsigned char *in,*out,*iv;
 
 	in=(unsigned char *)input;
@@ -77,7 +77,7 @@ des_cblock (*ivec);
 			
 		tin0^=tout0; tin[0]=tin0;
 		tin1^=tout1; tin[1]=tin1;
-		des_encrypt((unsigned long *)tin,schedule,DES_ENCRYPT);
+		des_encrypt((DES_LONG *)tin,schedule,DES_ENCRYPT);
 		/* fix 15/10/91 eay - thanks to keithr@sco.COM */
 		tout0=tin[0];
 		tout1=tin[1];

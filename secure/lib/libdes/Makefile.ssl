@@ -14,7 +14,7 @@ MAKEFILE=	Makefile.ssl
 
 CFLAGS= $(INCLUDES) $(CFLAG)
 
-GENERAL=Makefile
+GENERAL=Makefile des.org des_locl.org
 TEST=destest.c
 APPS=
 
@@ -25,16 +25,16 @@ LIBSRC=	cbc3_enc.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
 	qud_cksm.c rand_key.c read_pwd.c rpc_enc.c  set_key.c  \
 	str2key.c  cfb64ede.c ofb64ede.c supp.c
 
-LIBOBJ=	cbc3_enc.o cbc_cksm.o cbc_enc.o  cfb64enc.o cfb_enc.o  \
-	ecb3_enc.o ecb_enc.o  ede_enc.o  enc_read.o enc_writ.o \
-	fcrypt.o   ncbc_enc.o ofb64enc.o ofb_enc.o  pcbc_enc.o \
-	qud_cksm.o rand_key.o read_pwd.o rpc_enc.o  set_key.o  \
-	str2key.o  cfb64ede.o ofb64ede.o supp.o
+LIBOBJ= set_key.o  ecb_enc.o  ede_enc.o  cbc_enc.o  cbc3_enc.o \
+	ecb3_enc.o cfb64enc.o cfb64ede.o cfb_enc.o  ofb64ede.o \
+	enc_read.o enc_writ.o fcrypt.o   ncbc_enc.o ofb64enc.o \
+	ofb_enc.o  str2key.o  pcbc_enc.o qud_cksm.o rand_key.o \
+	read_pwd.o rpc_enc.o  cbc_cksm.o supp.o
 
 SRC= $(LIBSRC)
 
 EXHEADER= des.h
-HEADER=	des_locl.h rpc_des.h podd.h sk.h spr.h version.h $(EXHEADER)
+HEADER=	des_locl.h rpc_des.h podd.h sk.h spr.h des_ver.h $(EXHEADER)
 
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 
@@ -48,11 +48,14 @@ lib:	$(LIBOBJ)
 	$(TOP)/util/ranlib.sh $(LIB)
 	@touch lib
 
+files:
+	perl $(TOP)/util/files.pl Makefile.ssl >> $(TOP)/MINFO
+
 links:
 	/bin/rm -f Makefile
-	$(TOP)/util/point.sh Makefile.ssl Makefile
+	$(TOP)/util/point.sh Makefile.ssl Makefile ;
 	/bin/rm -f des.doc
-	$(TOP)/util/point.sh ../../doc/des.doc .
+	$(TOP)/util/point.sh ../../doc/des.doc des.doc ;
 	$(TOP)/util/mklink.sh ../../include $(EXHEADER)
 	$(TOP)/util/mklink.sh ../../test $(TEST)
 	$(TOP)/util/mklink.sh ../../apps $(APPS)
@@ -78,7 +81,7 @@ depend:
 	$(MAKEDEPEND) $(INCLUDES) $(PROGS) $(LIBSRC)
 
 dclean:
-	sed -e '/^# DO NOT DELETE THIS LINE/ q' $(MAKEFILE) >Makefile.new
+	perl -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
 	mv -f Makefile.new $(MAKEFILE)
 
 clean:

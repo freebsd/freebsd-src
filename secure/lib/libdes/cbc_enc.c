@@ -1,5 +1,5 @@
-/* lib/des/cbc_enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/cbc_enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -55,11 +55,11 @@ des_key_schedule schedule;
 des_cblock (*ivec);
 int encrypt;
 	{
-	register unsigned long tin0,tin1;
-	register unsigned long tout0,tout1,xor0,xor1;
+	register DES_LONG tin0,tin1;
+	register DES_LONG tout0,tout1,xor0,xor1;
 	register unsigned char *in,*out;
 	register long l=length;
-	unsigned long tin[2];
+	DES_LONG tin[2];
 	unsigned char *iv;
 
 	in=(unsigned char *)input;
@@ -81,7 +81,7 @@ int encrypt;
 				c2ln(in,tin0,tin1,l);
 			tin0^=tout0; tin[0]=tin0;
 			tin1^=tout1; tin[1]=tin1;
-			des_encrypt((unsigned long *)tin,schedule,DES_ENCRYPT);
+			des_encrypt((DES_LONG *)tin,schedule,DES_ENCRYPT);
 			tout0=tin[0]; l2c(tout0,out);
 			tout1=tin[1]; l2c(tout1,out);
 			}
@@ -94,7 +94,7 @@ int encrypt;
 			{
 			c2l(in,tin0); tin[0]=tin0;
 			c2l(in,tin1); tin[1]=tin1;
-			des_encrypt((unsigned long *)tin,schedule,DES_DECRYPT);
+			des_encrypt((DES_LONG *)tin,schedule,DES_DECRYPT);
 			tout0=tin[0]^xor0;
 			tout1=tin[1]^xor1;
 			if (l >= 8)

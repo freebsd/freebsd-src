@@ -1,5 +1,5 @@
-/* lib/des/ofb64enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/ofb64enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -59,12 +59,12 @@ des_key_schedule schedule;
 des_cblock (*ivec);
 int *num;
 	{
-	register unsigned long v0,v1,t;
+	register DES_LONG v0,v1,t;
 	register int n=*num;
 	register long l=length;
 	des_cblock d;
 	register char *dp;
-	unsigned long ti[2];
+	DES_LONG ti[2];
 	unsigned char *iv;
 	int save=0;
 
@@ -80,7 +80,7 @@ int *num;
 		{
 		if (n == 0)
 			{
-			des_encrypt((unsigned long *)ti,schedule,DES_ENCRYPT);
+			des_encrypt((DES_LONG *)ti,schedule,DES_ENCRYPT);
 			dp=(char *)d;
 			t=ti[0]; l2c(t,dp);
 			t=ti[1]; l2c(t,dp);
