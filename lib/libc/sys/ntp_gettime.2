@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2003
+.Dd June 21, 2003
 .Dt NTP_GETTIME 2
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@ struct ntptimeval {
 	struct timespec time;	/* current time (ns) (ro) */
 	long maxerror;		/* maximum error (us) (ro) */
 	long esterror;		/* estimated error (us) (ro) */
-	long tai;		/* TAI offset */
+	long tai;		/* TAI-UTC offset */
 	int time_state;		/* time status */
 };
 .Ed
@@ -71,9 +71,14 @@ Maximum error in microseconds (read-only).
 .It Va esterror
 Estimated error in microseconds (read-only).
 .It Va tai
-Temps Atomique International (French for International Atomic Time),
-measures real time.
-Used for acute time measurements.
+Offset in seconds between the TAI and UTC time scales.
+This offset is published twice a year and is an integral number of
+seconds between TAI (which does not have leap seconds) and UTC (which
+does).
+.Xr ntpd 8 
+or some other agent maintains this value.
+A value of 0 means unknown.
+As of the date of the manual page, the offset is 32 seconds.
 .It Va time_state
 Current time status.
 .El
@@ -86,9 +91,11 @@ Possible states of the clock are:
 .It Dv TIME_OK
 Everything okay, no leap second warning.
 .It Dv TIME_INS
-Insert leap second warning.
+Positive leap second warning.
+At the end of the day, an additional second will be inserted after 23:59:59.
 .It Dv TIME_DEL
-Delete leap second warning.
+Negative leap second warning.
+At the end of the day, 23:59:59 is skipped.
 .It Dv TIME_OOP
 Leap second in progress.
 .It Dv TIME_WAIT
@@ -98,7 +105,10 @@ Clock not synchronized.
 .El
 .Sh SEE ALSO
 .Xr ntp_adjtime 2 ,
-.Xr ntpd 8
+.Xr ntpd 8 ,
+.Dq Li http://www.bipm.fr/enus/5_Scientific/c_time/time_1.html ,
+.Dq Li http://www.boulder.nist.gov/timefreq/general/faq.htm ,
+.Dq Li ftp://time.nist.gov/pub/leap-seconds.list
 .Sh AUTHORS
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
