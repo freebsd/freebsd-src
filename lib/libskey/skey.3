@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: skey.3,v 1.2.2.2 1997/09/03 08:32:05 pst Exp $
+.\"	$Id: skey.3,v 1.2.2.3 1998/07/19 06:51:48 jkh Exp $
 .\"
 .Dd December 22, 1996
 .Dt SKEY 3
@@ -135,10 +135,12 @@ UNIX password (namely, a string containing ":").
 .Pp
 The
 .Fn skeyaccess
-function determines whether s/key passwords are permitted for any
-combination of user name, group member, terminal port, host name or
-network.
-See
+function determines whether traditional UNIX (non-S/Key) passwords
+are permitted for any combination of user name, group member,
+terminal port, host name, and network.  If UNIX passwords are allowed,
+.Fn skeyaccess
+returns a non-zero value.  If UNIX passwords are not allowed, it
+returns 0.  See
 .Xr skey.access 5
 for more information on the layout and structure of the
 skey.access configuration file which this function uses.
