@@ -350,7 +350,7 @@ rmremote(const struct printer *pp)
 	}
 	firstreq = elem;
 	for (i = 0; i < requests; i++) {
-		asprintf(&iov[elem].iov_base, " %d", requ[i]);
+		asprintf((char **)&iov[elem].iov_base, " %d", requ[i]);
 		if (iov[elem].iov_base == 0)
 			fatal(pp, "out of memory in rmremote()");
 		elem++;
