@@ -881,28 +881,24 @@ retry:
 int
 sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	void *tmparg;
+	int error, tries;
+	u_int generation;
 
 	/*
-	 * Attempt to get a coherent snapshot, either by wiring the
-	 * user space buffer or copying to a temporary kernel buffer
-	 * depending on the size of the data.
+	 * Attempt to get a coherent snapshot, by using the thread
+	 * pre-emption counter updated from within mi_switch() to
+	 * determine if we were pre-empted during a bcopy() or
+	 * copyout(). Make 3 attempts at doing this before giving up.
+	 * If we encounter an error, stop immediately.
 	 */
-	if (arg2 > PAGE_SIZE) {
-#if 0
-		sysctl_wire_old_buffer(req, arg2);
-#endif
+	tries = 0;
+	do {
+		generation = curthread->td_generation;
 		error = SYSCTL_OUT(req, arg1, arg2);
-	} else {
-		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
-		bcopy(arg1, tmparg, arg2);
-		error = SYSCTL_OUT(req, tmparg, arg2);
-		free(tmparg, M_SYSCTLTMP);
-	}
-
-	if (error || !req->newptr)
-		return (error);
+		if (error)
+			return (error);
+		tries++;
+	} while (generation != curthread->td_generation && tries < 3);
 
 	error = SYSCTL_IN(req, arg1, arg2);
 
