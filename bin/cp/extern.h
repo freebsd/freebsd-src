@@ -45,8 +45,8 @@ extern int fflag, iflag, nflag, pflag, vflag;
 
 __BEGIN_DECLS
 int	copy_fifo(struct stat *, int);
-int	copy_file(FTSENT *, int);
-int	copy_link(FTSENT *, int);
+int	copy_file(const FTSENT *, int);
+int	copy_link(const FTSENT *, int);
 int	copy_special(struct stat *, int);
 int	setfile(struct stat *, int);
 void	usage(void);
