@@ -1,10 +1,10 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.43 1998/02/12 23:52:23 bde Exp $
+#	$Id: Makefile.inc,v 1.44 1998/02/28 03:57:02 steve Exp $
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
 
-SRCS+=  _rand48.c alarm.c arc4random.c assert.c \
+SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c disklabel.c \
 	dlfcn.c drand48.c erand48.c err.c errlst.c \
@@ -28,18 +28,10 @@ SRCS+=  _rand48.c alarm.c arc4random.c assert.c \
 	wait.c wait3.c waitpid.c
 
 # machine-dependent gen sources
-.include "${.CURDIR}/../libc/${MACHINE}/gen/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc"
 
 .if defined(BINFORMAT) && ${BINFORMAT} == elf
 CFLAGS+=-D_NLIST_DO_ELF
-.endif
-
-.if (${MACHINE} == "tahoe" || ${MACHINE} == "vax")
-errlst.o errlst.po:
-	${CC} -S ${CFLAGS} ${.IMPSRC}
-	ed - < ${.CURDIR}/../libc/${MACHINE}/:errfix errlst.s
-	${AS} -o ${.TARGET} errlst.s
-	rm -f errlst.s
 .endif
 
 .if ${LIB} == "c"
