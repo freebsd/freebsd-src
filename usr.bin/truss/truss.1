@@ -72,7 +72,9 @@ options are mutually exclusive.)
 The
 .Xr procctl 8
 utility can be used to clear tracepoints in a stuck process
-left behind if truss abnormally terminates.
+left behind if
+.Nm
+terminates abnormally.
 .Sh EXAMPLES
 # Follow the system calls used in echoing "hello"
 .Dl $ truss /bin/echo hello
