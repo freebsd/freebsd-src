@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  */
 
+/* $Id$ */
+
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1983, 1993, 1994\n\
