@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.5 1996/10/08 19:16:24 sef Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.6 1998/06/06 23:33:28 jb Exp $ (LBL)";
 #endif
 
 /*
@@ -732,6 +732,8 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	wait.tv_sec = tp->tv_sec + waittime;
 	wait.tv_usec = tp->tv_usec;
 	(void)gettimeofday(&now, &tz);
+	if (wait.tv_sec < now.tv_sec + 1)
+		wait.tv_sec = now.tv_sec + 1;
 	tvsub(&wait, &now);
 
 	if (select(sock + 1, &fds, (fd_set *)0, (fd_set *)0, &wait) > 0)
