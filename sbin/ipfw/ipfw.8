@@ -19,7 +19,7 @@ delete
 .Ar number
 .Nm ipfw
 .Oo
-.Fl atN
+.Fl aftN
 .Oc
 list
 .Nm ipfw
@@ -92,6 +92,11 @@ The following options are available:
 .It Fl a
 While listing, show counter values. This option is the only way to see
 accounting records.
+.It Fl f
+Don't ask for confirmation for commands that can cause problems if misused
+(ie; flush).
+.Ar Note ,
+if there is no tty associated with the process, this is implied.
 .It Fl t
 While listing, show last match timestamp.
 .It Fl N
