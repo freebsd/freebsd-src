@@ -41,10 +41,10 @@ dos1200|1200 Baud dial-out to a DOS system:\
 # Rackmount:	U U D U D U D D U D
 #
 dial2400|2400 Baud Hayes attributes:\
-        :dv=/dev/com00:br#2400:cu=/dev/com00:at=hayes:du:
+        :dv=/dev/tty00:br#2400:cu=/dev/tty00:at=hayes:du:
 dial1200|1200 Baud Hayes attributes:\
-        :dv=/dev/com00:br#1200:cu=/dev/com00:at=hayes:du:
+        :dv=/dev/tty00:br#1200:cu=/dev/tty00:at=hayes:du:
 
 # Hardwired line
-com00c|com0c:dv=/dev/com00:br#9600
-com00b|com0b:dv=/dev/com00:br#2400
+tty00b|tty0b:dv=/dev/tty00:br#2400
+tty00c|tty0c:dv=/dev/tty00:br#9600
