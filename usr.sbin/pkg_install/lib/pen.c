@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pen.c,v 1.27 1998/02/16 17:16:51 jkh Exp $";
+	"$Id: pen.c,v 1.28 1998/04/12 16:01:10 jkh Exp $";
 #endif
 
 /*
@@ -102,12 +102,11 @@ make_playpen(char *pen, size_t sz)
     if (!find_play_pen(pen, sz))
 	return NULL;
 
-    if (!mktemp(pen)) {
+    if (!mkdtemp(pen)) {
 	cleanup(0);
 	errx(2, "can't mktemp '%s'", pen);
     }
-
-    if (mkdir(pen, 0755) == FAIL) {
+    if (chmod(pen, 0755) == FAIL) {
 	cleanup(0);
 	errx(2, "can't mkdir '%s'", pen);
     }
