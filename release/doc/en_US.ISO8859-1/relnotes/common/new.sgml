@@ -314,6 +314,12 @@
       <para><application>Heimdal Kerberos</application> has been updated to
 	0.5.1.</para>
 
+      <para><application>libz</application> has been updated to
+	1.1.4.</para>
+
+      <para><application>OpenSSH</application> has been updated to
+        3.5p1.</para>
+
       <para>The timezone database has been updated to the
 	<filename>tzdata2002d</filename> release.</para>
 
