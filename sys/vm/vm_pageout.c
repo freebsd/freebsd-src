@@ -500,8 +500,8 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 						vm_page_deactivate(p);
 					} else {
 						s = splvm();
-						TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
-						TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+						TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
+						TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
 						splx(s);
 					}
 				} else {
@@ -510,8 +510,8 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
 						p->act_count += ACT_ADVANCE;
 					s = splvm();
-					TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
-					TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+					TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
+					TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, p, pageq);
 					splx(s);
 				}
 			} else if (p->queue == PQ_INACTIVE) {
@@ -674,7 +674,7 @@ vm_pageout_scan()
 rescan0:
 	addl_page_shortage = addl_page_shortage_init;
 	maxscan = cnt.v_inactive_count;
-	for (m = TAILQ_FIRST(&vm_page_queue_inactive);
+	for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
 
@@ -688,8 +688,8 @@ rescan0:
 
 		if (m->hold_count) {
 			s = splvm();
-			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 			splx(s);
 			addl_page_shortage++;
 			continue;
@@ -794,8 +794,8 @@ rescan0:
 			 */
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
 				s = splvm();
-				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+				TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 				splx(s);
 				continue;
 			}
@@ -816,8 +816,8 @@ rescan0:
 			    object->type != OBJT_SWAP &&
 			    cnt.v_free_count < cnt.v_free_reserved) {
 				s = splvm();
-				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m,
+				TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m,
 				    pageq);
 				splx(s);
 				continue;
@@ -860,8 +860,8 @@ rescan0:
 						(m->busy == 0) &&
 						(m->flags & PG_BUSY) == 0) {
 						s = splvm();
-						TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-						TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+						TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+						TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 						splx(s);
 					}
 					if (object->flags & OBJ_MIGHTBEDIRTY)
@@ -895,8 +895,8 @@ rescan0:
 				 */
 				if (m->hold_count) {
 					s = splvm();
-					TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
-					TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+					TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
+					TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 					splx(s);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -946,7 +946,7 @@ rescan0:
 	 */
 
 	pcount = cnt.v_active_count;
-	m = TAILQ_FIRST(&vm_page_queue_active);
+	m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
 
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
@@ -966,8 +966,8 @@ rescan0:
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
 			s = splvm();
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			splx(s);
 			m = next;
 			continue;
@@ -1006,8 +1006,8 @@ rescan0:
 		 */
 		if (actcount && (m->object->ref_count != 0)) {
 			s = splvm();
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			splx(s);
 		} else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
@@ -1025,8 +1025,8 @@ rescan0:
 				}
 			} else {
 				s = splvm();
-				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 				splx(s);
 			}
 		}
@@ -1167,7 +1167,7 @@ vm_pageout_page_stats()
 			pcount = tpcount;
 	}
 
-	m = TAILQ_FIRST(&vm_page_queue_active);
+	m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
 	while ((m != NULL) && (pcount-- > 0)) {
 		int actcount;
 
@@ -1183,8 +1183,8 @@ vm_pageout_page_stats()
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
 			s = splvm();
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			splx(s);
 			m = next;
 			continue;
@@ -1202,8 +1202,8 @@ vm_pageout_page_stats()
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
 			s = splvm();
-			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			splx(s);
 		} else {
 			if (m->act_count == 0) {
@@ -1219,8 +1219,8 @@ vm_pageout_page_stats()
 			} else {
 				m->act_count -= min(m->act_count, ACT_DECLINE);
 				s = splvm();
-				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
-				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				TAILQ_REMOVE(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 				splx(s);
 			}
 		}

@@ -210,11 +210,13 @@ struct vm_page {
 #define PQ_COUNT	(2 + 2*PQ_L2_SIZE)
 #endif
 
-extern struct vpgqueues {
-	struct pglist *pl;
+struct vpgqueues {
+	struct pglist pl;
 	int	*cnt;
 	int	lcnt;
-} vm_page_queues[PQ_COUNT];
+};
+
+extern struct vpgqueues vm_page_queues[PQ_COUNT];
 
 #endif
 
@@ -271,15 +273,6 @@ extern struct vpgqueues {
  *		Pages that are really free and have been pre-zeroed
  *
  */
-
-#if !defined(KLD_MODULE)
-
-extern struct pglist vm_page_queue_free[PQ_L2_SIZE];/* memory free queue */
-extern struct pglist vm_page_queue_active;	/* active memory queue */
-extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
-extern struct pglist vm_page_queue_cache[PQ_L2_SIZE];/* cache memory queue */
-
-#endif
 
 extern int vm_page_zero_count;
 
@@ -595,17 +588,17 @@ vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
 
 #if PQ_L2_SIZE > 1
 	if (prefer_zero) {
-		m = TAILQ_LAST(vm_page_queues[basequeue+index].pl, pglist);
+		m = TAILQ_LAST(&vm_page_queues[basequeue+index].pl, pglist);
 	} else {
-		m = TAILQ_FIRST(vm_page_queues[basequeue+index].pl);
+		m = TAILQ_FIRST(&vm_page_queues[basequeue+index].pl);
 	}
 	if (m == NULL)
 		m = _vm_page_list_find(basequeue, index);
 #else
 	if (prefer_zero) {
-		m = TAILQ_LAST(vm_page_queues[basequeue].pl, pglist);
+		m = TAILQ_LAST(&vm_page_queues[basequeue].pl, pglist);
 	} else {
-		m = TAILQ_FIRST(vm_page_queues[basequeue].pl);
+		m = TAILQ_FIRST(&vm_page_queues[basequeue].pl);
 	}
 #endif
 	return(m);

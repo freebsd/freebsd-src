@@ -98,36 +98,23 @@ static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 static volatile int vm_page_bucket_generation;
 
-struct pglist vm_page_queue_free[PQ_L2_SIZE] = {{0}};
-struct pglist vm_page_queue_active = {0};
-struct pglist vm_page_queue_inactive = {0};
-struct pglist vm_page_queue_cache[PQ_L2_SIZE] = {{0}};
-
-struct vpgqueues vm_page_queues[PQ_COUNT] = {{0}};
+struct vpgqueues vm_page_queues[PQ_COUNT];
 
 static void
 vm_page_queue_init(void) {
 	int i;
 
 	for(i=0;i<PQ_L2_SIZE;i++) {
-		vm_page_queues[PQ_FREE+i].pl = &vm_page_queue_free[i];
 		vm_page_queues[PQ_FREE+i].cnt = &cnt.v_free_count;
 	}
-	vm_page_queues[PQ_INACTIVE].pl = &vm_page_queue_inactive;
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 
-	vm_page_queues[PQ_ACTIVE].pl = &vm_page_queue_active;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
 	for(i=0;i<PQ_L2_SIZE;i++) {
-		vm_page_queues[PQ_CACHE+i].pl = &vm_page_queue_cache[i];
 		vm_page_queues[PQ_CACHE+i].cnt = &cnt.v_cache_count;
 	}
-	for(i=PQ_FREE;i<PQ_COUNT;i++) {
-		if (vm_page_queues[i].pl) {
-			TAILQ_INIT(vm_page_queues[i].pl);
-		} else {
-			panic("vm_page_queue_init: queue %d is null", i);
-		}
+	for(i=0;i<PQ_COUNT;i++) {
+		TAILQ_INIT(&vm_page_queues[i].pl);
 	}
 }
 
@@ -316,7 +303,7 @@ vm_page_startup(starta, enda, vaddr)
 			m->flags = 0;
 			m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
 			m->queue = m->pc + PQ_FREE;
-			TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+			TAILQ_INSERT_HEAD(&vm_page_queues[m->queue].pl, m, pageq);
 			vm_page_queues[m->queue].lcnt++;
 			pa += PAGE_SIZE;
 		}
@@ -586,7 +573,7 @@ vm_page_unqueue_nowakeup(m)
 	if (queue != PQ_NONE) {
 		pq = &vm_page_queues[queue];
 		m->queue = PQ_NONE;
-		TAILQ_REMOVE(pq->pl, m, pageq);
+		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
 		pq->lcnt--;
 	}
@@ -610,7 +597,7 @@ vm_page_unqueue(m)
 	if (queue != PQ_NONE) {
 		m->queue = PQ_NONE;
 		pq = &vm_page_queues[queue];
-		TAILQ_REMOVE(pq->pl, m, pageq);
+		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
 		pq->lcnt--;
 		if ((queue - m->pc) == PQ_CACHE) {
@@ -656,10 +643,10 @@ _vm_page_list_find(basequeue, index)
 	 */
 
 	for(i = PQ_L2_SIZE / 2; i > 0; --i) {
-		if ((m = TAILQ_FIRST(pq[(index + i) & PQ_L2_MASK].pl)) != NULL)
+		if ((m = TAILQ_FIRST(&pq[(index + i) & PQ_L2_MASK].pl)) != NULL)
 			break;
 
-		if ((m = TAILQ_FIRST(pq[(index - i) & PQ_L2_MASK].pl)) != NULL)
+		if ((m = TAILQ_FIRST(&pq[(index - i) & PQ_L2_MASK].pl)) != NULL)
 			break;
 	}
 	return(m);
@@ -833,7 +820,7 @@ loop:
 	{
 		struct vpgqueues *pq = &vm_page_queues[m->queue];
 
-		TAILQ_REMOVE(pq->pl, m, pageq);
+		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
 		pq->lcnt--;
 	}
@@ -1009,7 +996,7 @@ vm_page_activate(m)
 		if (m->wire_count == 0) {
 			m->queue = PQ_ACTIVE;
 			vm_page_queues[PQ_ACTIVE].lcnt++;
-			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 			if (m->act_count < ACT_INIT)
 				m->act_count = ACT_INIT;
 			cnt.v_active_count++;
@@ -1158,10 +1145,10 @@ vm_page_free_toq(vm_page_t m)
 	 */
 
 	if (m->flags & PG_ZERO) {
-		TAILQ_INSERT_TAIL(pq->pl, m, pageq);
+		TAILQ_INSERT_TAIL(&pq->pl, m, pageq);
 		++vm_page_zero_count;
 	} else {
-		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
+		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
 	}
 
 	vm_page_free_wakeup();
@@ -1234,12 +1221,12 @@ vm_page_unwire(m, activate)
 		if (m->wire_count == 0) {
 			cnt.v_wire_count--;
 			if (activate) {
-				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_ACTIVE].pl, m, pageq);
 				m->queue = PQ_ACTIVE;
 				vm_page_queues[PQ_ACTIVE].lcnt++;
 				cnt.v_active_count++;
 			} else {
-				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 				m->queue = PQ_INACTIVE;
 				vm_page_queues[PQ_INACTIVE].lcnt++;
 				cnt.v_inactive_count++;
@@ -1281,9 +1268,9 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			cnt.v_reactivated++;
 		vm_page_unqueue(m);
 		if (athead)
-			TAILQ_INSERT_HEAD(&vm_page_queue_inactive, m, pageq);
+			TAILQ_INSERT_HEAD(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		else
-			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+			TAILQ_INSERT_TAIL(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
 		m->queue = PQ_INACTIVE;
 		vm_page_queues[PQ_INACTIVE].lcnt++;
 		cnt.v_inactive_count++;
@@ -1335,7 +1322,7 @@ vm_page_cache(m)
 	vm_page_unqueue_nowakeup(m);
 	m->queue = PQ_CACHE + m->pc;
 	vm_page_queues[m->queue].lcnt++;
-	TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
+	TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m, pageq);
 	cnt.v_cache_count++;
 	vm_page_free_wakeup();
 	splx(s);
@@ -1746,7 +1733,7 @@ again:
 			vm_page_t m, next;
 
 again1:
-			for (m = TAILQ_FIRST(&vm_page_queue_inactive);
+			for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
 				m != NULL;
 				m = next) {
 
@@ -1773,7 +1760,7 @@ again1:
 					vm_page_cache(m);
 			}
 
-			for (m = TAILQ_FIRST(&vm_page_queue_active);
+			for (m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
 				m != NULL;
 				m = next) {
 
@@ -1829,7 +1816,7 @@ again1:
 				vm_page_free(m);
 			}
 
-			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
+			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			vm_page_queues[m->queue].lcnt--;
 			cnt.v_free_count--;
 			m->valid = VM_PAGE_BITS_ALL;
