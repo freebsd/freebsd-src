@@ -26,8 +26,9 @@ CFLAGS+=-D_NEW_VFSCONF
 CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 CLEANFILES+=mount.h mount_xdr.c nfs_prot.h nfs_prot_xdr.c nfs_prot_svc.c
 RPCCOM = rpcgen
-MOUNT_X= /usr/include/rpcsvc/mount.x
-NFS_PROT_X= /usr/include/rpcsvc/nfs_prot.x
+MOUNT_X= ${.DESTDIR}/usr/include/rpcsvc/mount.x
+NFS_PROT_X= ${.DESTDIR}/usr/include/rpcsvc/nfs_prot.x
+DPSRCS= nfs_prot.h
 
 vers.${PROG}.c: ${SRCS:.c=.o}
 	@d=${.CURDIR}/ sh ${.CURDIR}/../config/newvers.sh ${PROG} ${MACHINE} ${OS}
@@ -40,7 +41,7 @@ mount.h: ${MOUNT_X}
 mount_xdr.c: mount.h ${MOUNT_X}
 	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
-${OBJS} beforedepend: nfs_prot.h
+beforedepend: nfs_prot.h
 
 nfs_prot.h: ${NFS_PROT_X}
 	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
