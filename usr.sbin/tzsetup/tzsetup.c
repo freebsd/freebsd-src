@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tzsetup.c,v 1.2.2.1 1997/02/01 18:36:27 jhay Exp $
+ *	$Id: tzsetup.c,v 1.2.2.2 1997/02/16 23:51:21 jkh Exp $
  */
 
 /*
@@ -483,6 +483,7 @@ install_zone_file(const char *filename)
 	else
 		copymode = 1;
 
+#ifdef VERBOSE
 	if (copymode)
 		asprintf(&msg, "Copying %s to " _PATH_LOCALTIME, filename);
 	else
@@ -491,6 +492,7 @@ install_zone_file(const char *filename)
 
 	dialog_notify(msg);
 	free(msg);
+#endif
 
 	if (reallydoit) {
 		if (copymode) {
@@ -551,6 +553,7 @@ install_zone_file(const char *filename)
 		}
 	}
 
+#ifdef VERBOSE
 	if (copymode)
 		asprintf(&msg, "Copied timezone file from %s to " 
 			 _PATH_LOCALTIME, filename);
@@ -560,6 +563,7 @@ install_zone_file(const char *filename)
 
 	dialog_mesgbox("Done", msg, 8, 72);
 	free(msg);
+#endif
 	return DITEM_LEAVE_MENU;
 }
 
