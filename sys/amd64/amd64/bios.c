@@ -31,8 +31,6 @@
  * Code for dealing with the BIOS in x86 PC systems.
  */
 
-#include "opt_pnp.h"
-
 #include "isa.h"
 
 #include <sys/param.h>
@@ -79,9 +77,10 @@ bios32_init(void *junk)
     struct PnPBIOS_table	*pt;
     u_int8_t			ck, *cv;
     int				i;
+    char			*p;
     
     /*
-     * BIOS32 Service Directory
+     * BIOS32 Service Directory, PCI BIOS
      */
     
     /* look for the signature */
@@ -100,10 +99,15 @@ bios32_init(void *junk)
 		printf("bios32: Entry = 0x%x (%x)  Rev = %d  Len = %d\n", 
 		       sdh->entry, bios32_SDCI, sdh->revision, sdh->len);
 	    }
-	    /* See if there's a PCI BIOS entrypoint here */
-	    PCIbios.ident.id = 0x49435024;	/* PCI systems should have this */
-	    if (!bios32_SDlookup(&PCIbios) && bootverbose)
-		printf("pcibios: PCI BIOS entry at 0x%x\n", PCIbios.entry);
+	    
+	    /* Allow user override of PCI BIOS search */
+	    if (((p = getenv("machdep.bios.pci")) == NULL) || strcmp(p, "disable")) {
+
+		/* See if there's a PCI BIOS entrypoint here */
+		PCIbios.ident.id = 0x49435024;	/* PCI systems should have this */
+		if (!bios32_SDlookup(&PCIbios) && bootverbose)
+		    printf("pcibios: PCI BIOS entry at 0x%x+0x%x\n", PCIbios.base, PCIbios.entry);
+	    }
 	} else {
 	    printf("bios32: Bad BIOS32 Service Directory\n");
 	}
@@ -111,8 +115,11 @@ bios32_init(void *junk)
 
     /*
      * PnP BIOS
+     *
+     * Allow user override of PnP BIOS search
      */
-    if ((sigaddr = bios_sigsearch(0, "$PnP", 4, 16, 0)) != 0) {
+    if ((((p = getenv("machdep.bios.pnp")) == NULL) || strcmp(p, "disable")) &&
+	((sigaddr = bios_sigsearch(0, "$PnP", 4, 16, 0)) != 0)) {
 
 	/* get a virtual pointer to the structure */
 	pt = (struct PnPBIOS_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
@@ -166,6 +173,7 @@ bios32_SDlookup(struct bios32_SDentry *ent)
 	ent->base = args.ebx;
 	ent->len = args.ecx;
 	ent->entry = args.edx;
+	ent->ventry = BIOS_PADDRTOVADDR(ent->base + ent->entry);
 	return (0);			/* all OK */
     }
     return (1);				/* failed */
@@ -454,8 +462,6 @@ bios16(struct bios_args *args, char *fmt, ...)
     return (i);
 }
 
-#ifdef PNPBIOS			/* remove conditional later */
-
 /*
  * PnP BIOS interface; enumerate devices only known to the system
  * BIOS and save information about them for later use.
@@ -518,7 +524,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
     /* no PnP BIOS information */
     if (pt == NULL)
 	return;
-    
+
     bzero(&args, sizeof(args));
     args.seg.code16.base = BIOS_PADDRTOVADDR(pt->pmentrybase);
     args.seg.code16.limit = 0xffff;		/* XXX ? */
@@ -623,5 +629,3 @@ static driver_t pnpbios_driver = {
 static devclass_t pnpbios_devclass;
 
 DRIVER_MODULE(pnpbios, isa, pnpbios_driver, pnpbios_devclass, 0, 0);
-
-#endif /* PNPBIOS */

@@ -36,8 +36,115 @@
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
 
+#include <machine/segments.h>
+#include <machine/pc/bios.h>
+
 static int cfgmech;
 static int devmax;
+static int usebios;
+
+static int	pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes);
+static void	pcibios_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes);
+static int	pcibios_cfgopen(void);
+static int	pcireg_cfgread(pcicfgregs *cfg, int reg, int bytes);
+static void	pcireg_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes);
+static int	pcireg_cfgopen(void);
+
+/* read configuration space register */
+
+int
+pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
+{
+	return(usebios ? 
+	       pcibios_cfgread(cfg, reg, bytes) : 
+	       pcireg_cfgread(cfg, reg, bytes));
+}
+
+/* write configuration space register */
+
+void
+pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+{
+	return(usebios ? 
+	       pcibios_cfgwrite(cfg, reg, data, bytes) : 
+	       pcireg_cfgwrite(cfg, reg, data, bytes));
+}
+
+/* initialise access to PCI configuration space */
+static int
+pci_cfgopen(void)
+{
+	if (pcibios_cfgopen() != 0) {
+		usebios = 1;
+	} else if (pcireg_cfgopen() != 0) {
+		usebios = 0;
+	} else {
+		return(0);
+	}
+	return(1);
+}
+
+/* config space access using BIOS functions */
+
+static int
+pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
+{
+	struct bios_regs args;
+    
+	switch(bytes) {
+	case 1:
+		args.eax = PCIBIOS_READ_CONFIG_BYTE;
+		break;
+	case 2:
+		args.eax = PCIBIOS_READ_CONFIG_WORD;
+		break;
+	case 4:
+		args.eax = PCIBIOS_READ_CONFIG_DWORD;
+		break;
+	default:
+		return(-1);
+	}
+	args.ebx = (cfg->bus << 8) | (cfg->slot << 3) | (cfg->func);
+	args.edi = reg;
+	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
+	/* check call results? */
+	return(args.ecx);
+}
+
+static void
+pcibios_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+{
+	struct bios_regs args;
+    
+	switch(bytes) {
+	case 1:
+		args.eax = PCIBIOS_WRITE_CONFIG_BYTE;
+		break;
+	case 2:
+		args.eax = PCIBIOS_WRITE_CONFIG_WORD;
+		break;
+	case 4:
+		args.eax = PCIBIOS_WRITE_CONFIG_DWORD;
+		break;
+	default:
+		return;
+	}
+	args.ebx = (cfg->bus << 8) | (cfg->slot << 3) | (cfg->func);
+	args.ecx = data;
+	args.edi = reg;
+	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
+}
+
+/* determine whether there is a PCI BIOS present */
+
+static int
+pcibios_cfgopen(void)
+{
+	/* check for a found entrypoint */
+	return(PCIbios.entry != 0);
+}
+
+/* configuration space access using direct register operations */
 
 /* enable configuration space accesses and return data port address */
 
@@ -86,10 +193,8 @@ pci_cfgdisable(void)
 	}
 }
 
-/* read configuration space register */
-
-int
-pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
+static int
+pcireg_cfgread(pcicfgregs *cfg, int reg, int bytes)
 {
 	int data = -1;
 	int port;
@@ -113,10 +218,8 @@ pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
 	return (data);
 }
 
-/* write configuration space register */
-
-void
-pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
+static void
+pcireg_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
 {
 	int port;
 
@@ -182,7 +285,7 @@ pci_cfgcheck(int maxdev)
 }
 
 static int
-pci_cfgopen(void)
+pcireg_cfgopen(void)
 {
 	unsigned long mode1res,oldval1;
 	unsigned char mode2res,oldval2;
