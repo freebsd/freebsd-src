@@ -4,6 +4,10 @@
 
 .PATH: ../cc_tools ${GCCDIR}/config/${GCC_ARCH} ${GCCDIR}
 
+LIB=		cc_int
+NOPROFILE=	YES
+NOPIC=		YES
+
 SRCS=	c-common.c c-pragma.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
@@ -28,10 +32,6 @@ SRCS+=	sched.c
 SRCS+=	obstack.c splay-tree.c
 
 CFLAGS+=	-DTARGET_NAME=\"${target}\"
-
-LIB=		cc_int
-NOPROFILE=	YES
-NOPIC=		YES
 
 install:
 	@true
