@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.96 1997/08/31 07:32:14 phk Exp $
+ * $Id: vfs_subr.c,v 1.97 1997/09/02 20:06:02 bde Exp $
  */
 
 /*
@@ -1114,8 +1114,7 @@ vputrele(vp, put)
 		panic("vputrele: negative ref cnt");
 	}
 
-	vp->v_holdcnt++; 	/* Make sure vnode isn't recycled */
-
+	vp->v_usecount--;
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
@@ -1125,15 +1124,11 @@ vputrele(vp, put)
 		simple_unlock(&vp->v_interlock);
 		VOP_INACTIVE(vp, p);
 		simple_lock(&vp->v_interlock);
-		vp->v_usecount--;
-		vp->v_holdcnt--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		simple_unlock(&vp->v_interlock);
 	} else if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0) {
 		VOP_INACTIVE(vp, p);
-		vp->v_usecount--;
-		vp->v_holdcnt--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 	}
