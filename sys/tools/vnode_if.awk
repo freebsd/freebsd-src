@@ -229,23 +229,12 @@ line: while (<SRC>) {
 	# Print out extern declaration.
 	print HEADER "extern struct vnodeop_desc ${name}_desc;\n";
 
-	# Print out prototype.
-	print HEADER "static __inline int ${uname} __P((\n";
+	# Print out function.
+	print HEADER "static __inline int ${uname}(\n";
 	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**\S*)\;/;
 	    print HEADER "\t$3 $4" .
-		($c2 < $numargs-1 ? "," : "));") . "\n";
-	}
-
-	# Print out function.
-	print HEADER "static __inline int ${uname}(";
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    $a{$c2} =~ /\**([^;\s]*)\;[^\s]*$/;
-	    print HEADER "$1" . ($c2 < $numargs - 1 ? ', ' : ")\n");
-	}
-	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
-	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**\S*\;)/;
-	    print HEADER "\t$3 $4\n";
+		($c2 < $numargs-1 ? "," : ")") . "\n";
 	}
 	print HEADER "{\n\tstruct ${name}_args a;\n";
 	print HEADER "\tint rc;\n";
