@@ -1,14 +1,14 @@
-#	$Id: Makefile,v 1.1 1999/07/24 20:55:04 wpaul Exp $
+#	$Id: Makefile,v 1.1 1999/07/23 05:48:01 wpaul Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
-KMOD	= ax
-SRCS	= if_ax.c ax.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= ax.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+KMOD	= vr
+SRCS	= if_vr.c vr.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= vr.h bpf.h opt_bdg.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
-ax.h:
-	echo "#define NAX 1" > ax.h
+vr.h:
+	echo "#define NVR 1" > vr.h
 
 bpf.h:
 	echo "#define NBPF 1" > bpf.h
