@@ -1,14 +1,14 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
  *
- * This software was developed for the FreeBSD Project in part by Network
- * Associates Laboratories, the Security Research Division of Network
- * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
- * as part of the DARPA CHATS research program.
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -59,6 +59,9 @@
 #include <sys/socketvar.h>
 #include <sys/pipe.h>
 #include <sys/sysctl.h>
+#include <sys/msg.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -344,6 +347,34 @@ stub_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
+stub_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
+{
+
+}
+
+static void
+stub_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel)
+{
+
+}
+
+static void
+stub_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semalabel)
+{
+
+}
+
+static void
+stub_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmalabel)
+{
+
+}
+
+static void
 stub_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
@@ -488,6 +519,33 @@ stub_thread_userret(struct thread *td)
 }
 
 /*
+ * Label cleanup/flush operations
+ */
+static void
+stub_cleanup_sysv_msgmsg(struct label *msglabel)
+{
+
+}
+
+static void
+stub_cleanup_sysv_msgqueue(struct label *msqlabel)
+{
+
+}
+
+static void
+stub_cleanup_sysv_sema(struct label *semalabel)
+{
+
+}
+
+static void
+stub_cleanup_sysv_shm(struct label *shmlabel)
+{
+
+}
+
+/*
  * Access control checks.
  */
 static int
@@ -531,6 +589,126 @@ stub_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 static int
 stub_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel, int cmd)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, int cmd)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, size_t accesstype)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int cmd)
+{
+
+	return (0);
+}
+
+static int
+stub_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel)
+{
+
+	return (0);
+}
+
+
+static int
+stub_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
 {
 
 	return (0);
@@ -1035,6 +1213,10 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_init_devfsdirent_label = stub_init_label,
 	.mpo_init_ifnet_label = stub_init_label,
 	.mpo_init_inpcb_label = stub_init_label_waitcheck,
+	.mpo_init_sysv_msgmsg_label = stub_init_label,
+	.mpo_init_sysv_msgqueue_label = stub_init_label,
+	.mpo_init_sysv_sema_label = stub_init_label,
+	.mpo_init_sysv_shm_label = stub_init_label,
 	.mpo_init_ipq_label = stub_init_label_waitcheck,
 	.mpo_init_mbuf_label = stub_init_label_waitcheck,
 	.mpo_init_mount_label = stub_init_label,
@@ -1048,6 +1230,10 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_devfsdirent_label = stub_destroy_label,
 	.mpo_destroy_ifnet_label = stub_destroy_label,
 	.mpo_destroy_inpcb_label = stub_destroy_label,
+	.mpo_destroy_sysv_msgmsg_label = stub_destroy_label,
+	.mpo_destroy_sysv_msgqueue_label = stub_destroy_label,
+	.mpo_destroy_sysv_sema_label = stub_destroy_label,
+	.mpo_destroy_sysv_shm_label = stub_destroy_label,
 	.mpo_destroy_ipq_label = stub_destroy_label,
 	.mpo_destroy_mbuf_label = stub_destroy_label,
 	.mpo_destroy_mount_label = stub_destroy_label,
@@ -1079,6 +1265,10 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_devfs_device = stub_create_devfs_device,
 	.mpo_create_devfs_directory = stub_create_devfs_directory,
 	.mpo_create_devfs_symlink = stub_create_devfs_symlink,
+	.mpo_create_sysv_msgmsg = stub_create_sysv_msgmsg,
+	.mpo_create_sysv_msgqueue = stub_create_sysv_msgqueue,
+	.mpo_create_sysv_sema = stub_create_sysv_sema,
+	.mpo_create_sysv_shm = stub_create_sysv_shm,
 	.mpo_create_vnode_extattr = stub_create_vnode_extattr,
 	.mpo_create_mount = stub_create_mount,
 	.mpo_create_root_mount = stub_create_root_mount,
@@ -1119,12 +1309,30 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_proc1 = stub_create_proc1,
 	.mpo_relabel_cred = stub_relabel_cred,
 	.mpo_thread_userret = stub_thread_userret,
+	.mpo_cleanup_sysv_msgmsg = stub_cleanup_sysv_msgmsg,
+	.mpo_cleanup_sysv_msgqueue = stub_cleanup_sysv_msgqueue,
+	.mpo_cleanup_sysv_sema = stub_cleanup_sysv_sema,
+	.mpo_cleanup_sysv_shm = stub_cleanup_sysv_shm,
 	.mpo_check_bpfdesc_receive = stub_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = stub_check_cred_relabel,
 	.mpo_check_cred_visible = stub_check_cred_visible,
 	.mpo_check_ifnet_relabel = stub_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = stub_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = stub_check_inpcb_deliver,
+	.mpo_check_sysv_msgmsq = stub_check_sysv_msgmsq,
+	.mpo_check_sysv_msgrcv = stub_check_sysv_msgrcv,
+	.mpo_check_sysv_msgrmid = stub_check_sysv_msgrmid,
+	.mpo_check_sysv_msqget = stub_check_sysv_msqget,
+	.mpo_check_sysv_msqsnd = stub_check_sysv_msqsnd,
+	.mpo_check_sysv_msqrcv = stub_check_sysv_msqrcv,
+	.mpo_check_sysv_msqctl = stub_check_sysv_msqctl,
+	.mpo_check_sysv_semctl = stub_check_sysv_semctl,
+	.mpo_check_sysv_semget = stub_check_sysv_semget,
+	.mpo_check_sysv_semop = stub_check_sysv_semop,
+	.mpo_check_sysv_shmat = stub_check_sysv_shmat,
+	.mpo_check_sysv_shmctl = stub_check_sysv_shmctl,
+	.mpo_check_sysv_shmdt = stub_check_sysv_shmdt,
+	.mpo_check_sysv_shmget = stub_check_sysv_shmget,
 	.mpo_check_kenv_dump = stub_check_kenv_dump,
 	.mpo_check_kenv_get = stub_check_kenv_get,
 	.mpo_check_kenv_set = stub_check_kenv_set,
