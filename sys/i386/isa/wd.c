@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.179 1998/11/15 13:54:31 bde Exp $
+ *	$Id: wd.c,v 1.180 1998/11/15 20:08:50 eivind Exp $
  */
 
 /* TODO:
@@ -2256,11 +2256,11 @@ static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
 {
 	if (bp == NULL)
-		printf("wd%d: %s:\n", du->dk_lunit, mesg);
+		printf("wd%d: %s", du->dk_lunit, mesg);
 	else
 		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip,
 			dsgetlabel(bp->b_dev, du->dk_slices));
-	printf("wd%d: status %b error %b\n", du->dk_lunit,
+	printf(" (status %b error %b)\n",
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
 
