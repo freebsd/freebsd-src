@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.1 1995/07/21 10:53:54 rgrimes Exp $
+ * $Id: install.c,v 1.71.2.2 1995/09/18 17:00:19 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -213,12 +213,10 @@ installExpress(char *str)
     diskLabelEditor("express");
     
     msgConfirm("Now it is time to select an installation subset.  There\n"
-	       "are two basic configurations: Developer and Router.  The\n"
-	       "Developer subset includes sources, documentation, and\n"
-	       "binaries for almost everything.  The Router subset\n"
-	       "includes the same binaries and documentation, but no\n"
-	       "sources.  You can also install absolutely everything,\n"
-	       "or select a custom software set.");
+	       "are many different configurations, ranging from minimal\n"
+	       "installation sets to full X developer oriented configs.\n"
+	       "You can also select a custom software set if none of the\n"
+	       "default configurations are suitable.");
     
     while(!Dists) {
 	dmenuOpenSimple(&MenuInstallType);
