@@ -49,6 +49,7 @@ struct mdthread {
 	register_t md_savecrit;
 	int md_ptrace_instr;
 	int md_ptrace_addr;
+	void *md_tp;
 };
 
 struct mdproc {
