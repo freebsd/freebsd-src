@@ -40,6 +40,8 @@
 #include <i386/ibcs2/ibcs2_syscall.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 
+MODULE_VERSION(ibcs2, 1);
+
 extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
 extern int szsigcode;
