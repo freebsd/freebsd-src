@@ -3,5 +3,5 @@ OBJS=\
   input.$(OBJEXT) \
   printer.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/input.cc \
-  $(srcdir)/printer.cc
+  $(srcdir)/input.cpp \
+  $(srcdir)/printer.cpp

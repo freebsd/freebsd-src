@@ -29,6 +29,7 @@
 .ftr TT CWEC
 .ftr H HREC
 .
+.special MI S
 .fspecial TREC TRTC
 .fspecial TIEC TITC
 .fspecial TBEC TBTC
@@ -37,18 +38,24 @@
 .fspecial HIEC HITC
 .fspecial HBEC HBTC
 .fspecial HBIEC HBIEC
-.fspecial CWEC CWTC
-.fspecial CWIEC CWITC
+.fspecial CWEC CWTC SC
+.fspecial CWIEC CWITC SC
 .
-.\" remove definitions of glyphs which are TC fonts
+.\" remove definitions of glyphs which are in TC fonts
 .rchar \[co] \[rg]
 .rchar \[ct]
 .rchar \[tm]
-.rchar \[aq]
-.rchar \[12] \[14] \[34]
+.rchar \[f/]
 .rchar \[S1] \[S2] \[S3]
 .rchar \[Of] \[Om]
-.rchar \[Ye] \[Cs]
+.rchar \[Cs]
+.rchar \[de]
+.
+.\" \[pl] and \[eq] must be roman
+.char \[pl] \f[TREC]+
+.char \[eq] \f[TREC]=
+.
+.schar \[nm] \o'\f[TREC]/\[mo]'
 .
 .\" an ID register
 .nr ECFONTS 1

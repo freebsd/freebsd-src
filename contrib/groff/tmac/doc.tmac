@@ -767,7 +767,7 @@
 .
 .
 .\" NS doc-do-func-decl macro
-.\" NS   do someting special while in SYNOPSIS
+.\" NS   do something special while in SYNOPSIS
 .\" NS
 .\" NS modifies:
 .\" NS   doc-curr-font
@@ -2652,10 +2652,10 @@
 .
 .    ie t \{\
 .      nop \*[doc-Li-font]\c
-'      ta T 9n
+.      ta T 9n
 .    \}
 .    el \
-'      ta T 8n
+.      ta T 8n
 .    nf
 .  \}
 .  el \{ .ie "\$1"-filled" \{\
@@ -2696,14 +2696,10 @@
 .    nr doc-display-indent-stack\n[doc-display-depth] 0
 .
 .  if \n[doc-display-indent-stack\n[doc-display-depth]] \
-'    in +\n[doc-display-indent-stack\n[doc-display-depth]]u
+.    in +\n[doc-display-indent-stack\n[doc-display-depth]]u
 .
-.  if !\n[doc-is-compact] \{\
-.    ie "\*[doc-display-type-stack\n[doc-display-depth]]"ragged" \
-.      sp \n[doc-display-vertical]u
-.    el \
-'      sp \n[doc-display-vertical]u
-.  \}
+.  if !\n[doc-is-compact] \
+.    sp \n[doc-display-vertical]u
 .
 .  if !\n[cR] \
 .    ne 2v
@@ -3963,15 +3959,16 @@
 .  ti -\n[doc-reg-dtl]u
 .
 .  nh
-.  ie (\n[dl]u > \n[doc-list-indent-stack\n[doc-list-depth]]u) \{\
-.    doc-item-box\n[doc-list-depth]
+.  doc-item-box\n[doc-list-depth]
+.  ie (\n[dl]u > \n[doc-list-indent-stack\n[doc-list-depth]]u) \
 .    br
-.  \}
 .  el \{\
-.    chop doc-item-box\n[doc-list-depth]
-.    \" Using \Z prevents stretching of the spaces in the tag
-.    nop \Z'\*[doc-item-box\n[doc-list-depth]]'\c
-.    nop \h'\n[doc-reg-dtl]u'\c
+.    \" format the tag separately to prevent stretching of spaces
+.    vpt 0
+.    br
+.    sp -1
+.    vpt 1
+.    nop \&\c
 .    nr doc-have-space 1
 .  \}
 .
@@ -4317,7 +4314,7 @@
 .    nr doc-list-indent-stack\n[doc-list-depth] \n[doc-column-indent-width]u
 .  if !\n[.u] \{\
 .    fi
-'    in +\n[doc-column-indent-width]u
+.    in +\n[doc-column-indent-width]u
 .  \}
 .  ti -\n[doc-column-indent-width]u
 .
@@ -4363,7 +4360,7 @@
 .\" NS width register `Dl' set in doc-common
 .
 .de Dl
-'  ta T .5i
+.  ta T .5i
 .  in +\n[doc-display-indent]u
 .
 .  ie \n[doc-arg-limit] \{\
@@ -4398,7 +4395,7 @@
 .\" NS width register `D1' set in doc-common
 .
 .de D1
-'  ta T .5i
+.  ta T .5i
 .  in +\n[doc-display-indent]u
 .
 .  ie \n[doc-arg-limit] \{\

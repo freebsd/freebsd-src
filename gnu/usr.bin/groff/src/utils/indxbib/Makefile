@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	indxbib
-SRCS=		indxbib.cc signal.c
+SRCS=		indxbib.cpp signal.c
 DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}

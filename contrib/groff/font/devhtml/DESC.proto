@@ -2,7 +2,7 @@ res 240
 hor 24
 vert 40
 unitwidth 10
-sizes 6 8 10 12 14 16 18 0
+sizes 1-1000 0
 fonts 9 R I B BI CR CI CB CBI S
 tcommand
 html

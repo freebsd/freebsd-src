@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2003 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -67,6 +67,10 @@ public:									      \
 };
 
 
+// Keys (which are strings) are allocated and freed by PTABLE.
+// Values must be allocated by the caller (always using new[], not new)
+// and are freed by PTABLE.
+
 #define implement_ptable(T)						      \
 									      \
 PASSOC(T)::PASSOC(T)()							      \
@@ -84,7 +88,7 @@ PTABLE(T)::~PTABLE(T)()							      \
 {									      \
   for (unsigned i = 0; i < size; i++) {					      \
     a_delete v[i].key;							      \
-    delete v[i].val;							      \
+    a_delete v[i].val;							      \
   }									      \
   a_delete v;								      \
 }									      \
@@ -98,7 +102,7 @@ void PTABLE(T)::define(const char *key, T *val)				      \
        v[n].key != 0;							      \
        n = (n == 0 ? size - 1 : n - 1))					      \
     if (strcmp(v[n].key, key) == 0) {					      \
-      delete v[n].val;							      \
+      a_delete v[n].val;						      \
       v[n].val = val;							      \
       return;								      \
     }									      \
@@ -165,4 +169,3 @@ int PTABLE_ITERATOR(T)::next(const char **keyp, T **valp)		      \
     }									      \
   return 0;								      \
 }
-

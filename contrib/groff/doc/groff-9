@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,294 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: DESC File Format,  Next: Font File Format,  Prev: Font Files,  Up: Font Files
+
+`DESC' File Format
+------------------
+
+   The `DESC' file can contain the following types of line.  Except for
+the `charset' keyword which must comes last (if at all), the order of
+the lines is not important.
+
+`res N'
+     There are N machine units per inch.
+
+`hor N'
+     The horizontal resolution is N machine units.  All horizontal
+     quantities are rounded to be multiples of this value.
+
+`vert N'
+     The vertical resolution is N machine units.  All vertical
+     quantities are rounded to be multiples of this value.
+
+`sizescale N'
+     The scale factor for point sizes.  By default this has a value
+     of 1.  One scaled point is equal to one point/N.  The arguments to
+     the `unitwidth' and `sizes' commands are given in scaled points.
+     *Note Fractional Type Sizes::, for more information.
+
+`unitwidth N'
+     Quantities in the font files are given in machine units for fonts
+     whose point size is N scaled points.
+
+`prepro PROGRAM'
+     Call PROGRAM as a preprocessor.  Currently, this keyword is used
+     by `groff' with option `-Thtml' only.
+
+`postpro PROGRAM'
+     Call PROGRAM as a postprocessor.  For example, the line
+
+
+          postpro grodvi
+
+     in the file `devdvi/DESC' makes `groff' call `grodvi' if option
+     `-Tdvi' is given (and `-Z' isn't used).
+
+`tcommand'
+     This means that the postprocessor can handle the `t' and `u'
+     intermediate output commands.
+
+`sizes S1 S2 ... SN 0'
+     This means that the device has fonts at S1, S2, ...  SN scaled
+     points.  The list of sizes must be terminated by 0 (this is digit
+     zero).  Each SI can also be a range of sizes M-N.  The list can
+     extend over more than one line.
+
+`styles S1 S2 ... SM'
+     The first M font positions are associated with styles S1 ... SM.
+
+`fonts N F1 F2 F3 ... FN'
+     Fonts F1 ... FN are mounted in the font positions M+1, ..., M+N
+     where M is the number of styles.  This command may extend over
+     more than one line.  A font name of 0 means no font is mounted on
+     the corresponding font position.
+
+`family FAM'
+     The default font family is FAM.
+
+`use_charnames_in_special'
+     This command indicates that `gtroff' should encode special
+     characters inside special commands.  Currently, this is only used
+     by the HTML output device.  *Note Postprocessor Access::.
+
+`papersize STRING ...'
+     Select a paper size.  Valid values for STRING are the ISO paper
+     types `A0'-`A7', `B0'-`B7', `C0'-`C7', `D0'-`D7', `DL', and the US
+     paper types `letter', `legal', `tabloid', `ledger', `statement',
+     `executive', `com10', and `monarch'.  Case is not significant for
+     STRING if it holds predefined paper types.  Alternatively, STRING
+     can be a file name (e.g. `/etc/papersize'); if the file can be
+     opened, `groff' reads the first line and tests for the above paper
+     sizes.  Finally, STRING can be a custom paper size in the format
+     `LENGTH,WIDTH' (no spaces before and after the comma).  Both
+     LENGTH and WIDTH must have a unit appended; valid values are `i'
+     for inches, `C' for centimeters, `p' for points, and `P' for
+     picas.  Example: `12c,235p'.  An argument which starts with a
+     digit is always treated as a custom paper format.  `papersize'
+     sets both the vertical and horizontal dimension of the output
+     medium.
+
+     More than one argument can be specified; `groff' scans from left to
+     right and uses the first valid paper specification.
+
+`pass_filenames'
+     Tell `gtroff' to emit the name of the source file currently being
+     processed.  This is achieved by the intermediate output command
+     `F'.  Currently, this is only used by the HTML output device.
+
+`print PROGRAM'
+     Use PROGRAM as a spooler program for printing.  If omitted, the
+     `-l' and `-L' options of `groff' are ignored.
+
+`charset'
+     This line and everything following in the file are ignored.  It is
+     allowed for the sake of backwards compatibility.
+
+   The `res', `unitwidth', `fonts', and `sizes' lines are mandatory.
+Other commands are ignored by `gtroff' but may be used by
+postprocessors to store arbitrary information about the device in the
+`DESC' file.
+
+   Here a list of obsolete keywords which are recognized by `groff' but
+completely ignored: `spare1', `spare2', `biggestfont'.
+
+
+File: groff,  Node: Font File Format,  Prev: DESC File Format,  Up: Font Files
+
+Font File Format
+----------------
+
+   A "font file", also (and probably better) called a "font description
+file", has two sections.  The first section is a sequence of lines each
+containing a sequence of blank delimited words; the first word in the
+line is a key, and subsequent words give a value for that key.
+
+`name F'
+     The name of the font is F.
+
+`spacewidth N'
+     The normal width of a space is N.
+
+`slant N'
+     The glyphs of the font have a slant of N degrees.  (Positive means
+     forward.)
+
+`ligatures LIG1 LIG2 ... LIGN [0]'
+     Glyphs LIG1, LIG2, ..., LIGN are ligatures; possible ligatures are
+     `ff', `fi', `fl', `ffi' and `ffl'.  For backwards compatibility,
+     the list of ligatures may be terminated with a 0.  The list of
+     ligatures may not extend over more than one line.
+
+`special'
+     The font is "special"; this means that when a glyph is requested
+     that is not present in the current font, it is searched for in any
+     special fonts that are mounted.
+
+   Other commands are ignored by `gtroff' but may be used by
+postprocessors to store arbitrary information about the font in the font
+file.
+
+   The first section can contain comments which start with the `#'
+character and extend to the end of a line.
+
+   The second section contains one or two subsections.  It must contain
+a `charset' subsection and it may also contain a `kernpairs'
+subsection.  These subsections can appear in any order.  Each
+subsection starts with a word on a line by itself.
+
+   The word `charset' starts the character set subsection.(1) (*note
+Font File Format-Footnote-1::)  The `charset' line is followed by a
+sequence of lines.  Each line gives information for one glyph.  A line
+comprises a number of fields separated by blanks or tabs.  The format is
+
+     NAME METRICS TYPE CODE [ENTITY-NAME] [`--' COMMENT]
+
+NAME identifies the glyph name(2) (*note Font File Format-Footnote-2::):
+If NAME is a single character C then it corresponds to the `gtroff'
+input character C; if it is of the form `\C' where C is a single
+character, then it corresponds to the special character `\[C]';
+otherwise it corresponds to the special character `\[NAME]'.  If it is
+exactly two characters XX it can be entered as `\(XX'.  Note that
+single-letter special characters can't be accessed as `\C'; the only
+exception is `\-' which is identical to `\[-]'.
+
+   `gtroff' supports 8-bit input characters; however some utilities
+have difficulties with eight-bit characters.  For this reason, there is
+a convention that the entity name `charN' is equivalent to the single
+input character whose code is N.  For example, `char163' would be
+equivalent to the character with code 163 which is the pounds sterling
+sign in the ISO Latin-1 character set.  You shouldn't use `charN'
+entities in font description files since they are related to input, not
+output.  Otherwise, you get hard-coded connections between input and
+output encoding which prevents use of different (input) character sets.
+
+   The name `---' is special and indicates that the glyph is unnamed;
+such glyphs can only be used by means of the `\N' escape sequence in
+`gtroff'.
+
+   The TYPE field gives the glyph type:
+
+`1'
+     the glyph has a descender, for example, `p';
+
+`2'
+     the glyph has an ascender, for example, `b';
+
+`3'
+     the glyph has both an ascender and a descender, for example, `('.
+
+   The CODE field gives the code which the postprocessor uses to print
+the glyph.  The glyph can also be input to `gtroff' using this code by
+means of the `\N' escape sequence.  CODE can be any integer.  If it
+starts with `0' it is interpreted as octal; if it starts with `0x' or
+`0X' it is interpreted as hexadecimal.  Note, however, that the `\N'
+escape sequence only accepts a decimal integer.
+
+   The ENTITY-NAME field gives an ASCII string identifying the glyph
+which the postprocessor uses to print the `gtroff' glyph NAME.  This
+field is optional and has been introduced so that the HTML device
+driver can encode its character set.  For example, the glyph `\[Po]' is
+represented as `&pound;' in HTML 4.0.
+
+   Anything on the line after the ENTITY-NAME field resp. after `--'
+will be ignored.
+
+   The METRICS field has the form:
+
+     WIDTH[`,'HEIGHT[`,'DEPTH[`,'ITALIC-CORRECTION
+       [`,'LEFT-ITALIC-CORRECTION[`,'SUBSCRIPT-CORRECTION]]]]]
+
+There must not be any spaces between these subfields (it has been split
+here into two lines for better legibility only).  Missing subfields are
+assumed to be 0.  The subfields are all decimal integers.  Since there
+is no associated binary format, these values are not required to fit
+into a variable of type `char' as they are in `ditroff'.  The WIDTH
+subfield gives the width of the glyph.  The HEIGHT subfield gives the
+height of the glyph (upwards is positive); if a glyph does not extend
+above the baseline, it should be given a zero height, rather than a
+negative height.  The DEPTH subfield gives the depth of the glyph, that
+is, the distance from the baseline to the lowest point below the
+baseline to which the glyph extends (downwards is positive); if a glyph
+does not extend below the baseline, it should be given a zero depth,
+rather than a negative depth.  The ITALIC-CORRECTION subfield gives the
+amount of space that should be added after the glyph when it is
+immediately to be followed by a glyph from a roman font.  The
+LEFT-ITALIC-CORRECTION subfield gives the amount of space that should
+be added before the glyph when it is immediately to be preceded by a
+glyph from a roman font.  The SUBSCRIPT-CORRECTION gives the amount of
+space that should be added after a glyph before adding a subscript.
+This should be less than the italic correction.
+
+   A line in the `charset' section can also have the format
+
+
+     NAME "
+
+This indicates that NAME is just another name for the glyph mentioned
+in the preceding line.
+
+   The word `kernpairs' starts the kernpairs section.  This contains a
+sequence of lines of the form:
+
+
+     C1 C2 N
+
+This means that when glyph C1 appears next to glyph C2 the space
+between them should be increased by N.  Most entries in the kernpairs
+section have a negative value for N.
+
+
+File: groff,  Node: Font File Format-Footnotes,  Up: Font File Format
+
+   (1) This keyword is misnamed since it starts a list of ordered
+glyphs, not characters.
+
+   (2) The distinction between input, characters, and output, glyphs,
+is not clearly separated in the terminology of `groff'; for example,
+the `char' request should be called `glyph' since it defines an output
+entity.
+
+
+File: groff,  Node: Installation,  Next: Copying This Manual,  Prev: File formats,  Up: Top
+
+Installation
+************
+
+
+File: groff,  Node: Copying This Manual,  Next: Request Index,  Prev: Installation,  Up: Top
+
+Copying This Manual
+*******************
+
+* Menu:
+
+* GNU Free Documentation License::  License for copying this manual.
 
 
 File: groff,  Node: GNU Free Documentation License,  Up: Copying This Manual
@@ -447,6 +732,7 @@ either `.' or `'').
 * chop:                                  Strings.
 * close:                                 I/O.
 * color:                                 Colors.
+* composite:                             Using Symbols.
 * continue:                              while.
 * cp:                                    Implementation Differences.
 * cs:                                    Artificial Fonts.
@@ -476,6 +762,7 @@ either `.' or `'').
 * fi:                                    Manipulating Filling and Adjusting.
 * fl:                                    Debugging.
 * fp:                                    Font Positions.
+* fschar:                                Using Symbols.
 * fspecial:                              Special Fonts.
 * ft <1>:                                Font Positions.
 * ft:                                    Changing Fonts.
@@ -540,6 +827,7 @@ either `.' or `'').
 * rchar:                                 Using Symbols.
 * rd:                                    I/O.
 * return:                                Writing Macros.
+* rfschar:                               Using Symbols.
 * rj:                                    Manipulating Filling and Adjusting.
 * rm:                                    Strings.
 * rn:                                    Strings.
@@ -547,6 +835,7 @@ either `.' or `'').
 * rr:                                    Setting Registers.
 * rs:                                    Manipulating Spacing.
 * rt:                                    Page Motions.
+* schar:                                 Using Symbols.
 * shc:                                   Manipulating Hyphenation.
 * shift:                                 Parameters.
 * sizes:                                 Changing Type Sizes.
@@ -596,7 +885,6 @@ warning, printing glyph X.
 
 * Menu:
 
-* <colon>:                               Manipulating Hyphenation.
 * \:                                     Using Symbols.
 * \!:                                    Diversions.
 * \":                                    Comments.
@@ -615,6 +903,7 @@ warning, printing glyph X.
 * \.:                                    Character Translations.
 * \/:                                    Ligatures and Kerning.
 * \0:                                    Page Motions.
+* \<colon>:                              Manipulating Hyphenation.
 * \<RET>:                                Line Control.
 * \<SP>:                                 Page Motions.
 * \?:                                    Diversions.
@@ -693,239 +982,4 @@ Operator Index
 * >:                                     Expressions.
 * >=:                                    Expressions.
 * >?:                                    Expressions.
-
-
-File: groff,  Node: Register Index,  Next: Macro Index,  Prev: Operator Index,  Up: Top
-
-Register Index
-**************
-
-   The macro package or program a specific register belongs to is
-appended in brackets.
-
-   A register name `x' consisting of exactly one character can be
-accessed as `\nx'.  A register name `xx' consisting of exactly two
-characters can be accessed as `\n(xx'.  Register names `xxx' of any
-length can be accessed as `\n[xxx]'.
-
-* Menu:
-
-* $$:                                    Built-in Registers.
-* %:                                     Page Layout.
-* .$:                                    Parameters.
-* .a:                                    Manipulating Spacing.
-* .A:                                    Built-in Registers.
-* .b:                                    Artificial Fonts.
-* .C:                                    Implementation Differences.
-* .c:                                    Built-in Registers.
-* .cdp:                                  Environments.
-* .ce:                                   Manipulating Filling and Adjusting.
-* .cht:                                  Environments.
-* .color:                                Colors.
-* .csk:                                  Environments.
-* .d:                                    Diversions.
-* .ev:                                   Environments.
-* .f:                                    Font Positions.
-* .F:                                    Built-in Registers.
-* .fam:                                  Font Families.
-* .fn:                                   Font Families.
-* .fp:                                   Font Positions.
-* .g:                                    Built-in Registers.
-* .h:                                    Diversions.
-* .H:                                    Built-in Registers.
-* .hla:                                  Manipulating Hyphenation.
-* .hlc:                                  Manipulating Hyphenation.
-* .hlm:                                  Manipulating Hyphenation.
-* .hy:                                   Manipulating Hyphenation.
-* .hym:                                  Manipulating Hyphenation.
-* .hys:                                  Manipulating Hyphenation.
-* .i:                                    Line Layout.
-* .in:                                   Line Layout.
-* .int:                                  Line Control.
-* .j:                                    Manipulating Filling and Adjusting.
-* .k:                                    Page Motions.
-* .kern:                                 Ligatures and Kerning.
-* .l:                                    Line Layout.
-* .L:                                    Manipulating Spacing.
-* .lg:                                   Ligatures and Kerning.
-* .linetabs:                             Tabs and Fields.
-* .ll:                                   Line Layout.
-* .lt:                                   Page Layout.
-* .ne:                                   Page Location Traps.
-* .ns:                                   Manipulating Spacing.
-* .o:                                    Line Layout.
-* .p:                                    Page Layout.
-* .P:                                    Built-in Registers.
-* .pn:                                   Page Layout.
-* .ps:                                   Fractional Type Sizes.
-* .psr:                                  Fractional Type Sizes.
-* .pvs:                                  Changing Type Sizes.
-* .rj:                                   Manipulating Filling and Adjusting.
-* .s:                                    Changing Type Sizes.
-* .sr:                                   Fractional Type Sizes.
-* .ss:                                   Manipulating Filling and Adjusting.
-* .sss:                                  Manipulating Filling and Adjusting.
-* .t:                                    Page Location Traps.
-* .T:                                    Built-in Registers.
-* .tabs:                                 Tabs and Fields.
-* .trunc:                                Page Location Traps.
-* .u:                                    Manipulating Filling and Adjusting.
-* .v:                                    Changing Type Sizes.
-* .V:                                    Built-in Registers.
-* .vpt:                                  Page Location Traps.
-* .warn:                                 Debugging.
-* .x:                                    Built-in Registers.
-* .Y:                                    Built-in Registers.
-* .y:                                    Built-in Registers.
-* .z:                                    Diversions.
-* c.:                                    Built-in Registers.
-* ct:                                    Page Motions.
-* dl:                                    Diversions.
-* dn:                                    Diversions.
-* dw:                                    Built-in Registers.
-* dy:                                    Built-in Registers.
-* FF [ms]:                               ms Document Control Registers.
-* FI [ms]:                               ms Document Control Registers.
-* FL [ms]:                               ms Document Control Registers.
-* FM [ms]:                               ms Document Control Registers.
-* HM [ms]:                               ms Document Control Registers.
-* hours:                                 Built-in Registers.
-* hp:                                    Page Motions.
-* LL [ms]:                               ms Document Control Registers.
-* llx:                                   Miscellaneous.
-* lly:                                   Miscellaneous.
-* ln:                                    Built-in Registers.
-* LT [ms]:                               ms Document Control Registers.
-* MINGW [ms] <1>:                        Additional ms Macros.
-* MINGW [ms]:                            ms Document Control Registers.
-* minutes:                               Built-in Registers.
-* mo:                                    Built-in Registers.
-* nl:                                    Page Control.
-* opmaxx:                                Suppressing output.
-* opmaxy:                                Suppressing output.
-* opminx:                                Suppressing output.
-* opminy:                                Suppressing output.
-* PD [ms]:                               ms Document Control Registers.
-* PI [ms]:                               ms Document Control Registers.
-* PO [ms]:                               ms Document Control Registers.
-* PS [ms]:                               ms Document Control Registers.
-* ps4html [grohtml]:                     grohtml specific registers and strings.
-* QI [ms]:                               ms Document Control Registers.
-* rsb:                                   Page Motions.
-* rst:                                   Page Motions.
-* sb:                                    Page Motions.
-* seconds:                               Built-in Registers.
-* skw:                                   Page Motions.
-* slimit:                                Debugging.
-* ssc:                                   Page Motions.
-* st:                                    Page Motions.
-* systat:                                I/O.
-* urx:                                   Miscellaneous.
-* ury:                                   Miscellaneous.
-* VS [ms]:                               ms Document Control Registers.
-* year:                                  Built-in Registers.
-* yr:                                    Built-in Registers.
-
-
-File: groff,  Node: Macro Index,  Next: String Index,  Prev: Register Index,  Up: Top
-
-Macro Index
-***********
-
-   The macro package a specific macro belongs to is appended in
-brackets.  They appear without the leading control character (normally
-`.').
-
-* Menu:
-
-* 1C [ms]:                               ms Multiple Columns.
-* 2C [ms]:                               ms Multiple Columns.
-* [ [ms]:                                ms Insertions.
-* ] [ms]:                                ms Insertions.
-* AB [ms]:                               ms Cover Page Macros.
-* AE [ms]:                               ms Cover Page Macros.
-* AI [ms]:                               ms Cover Page Macros.
-* AM [ms] <1>:                           Additional ms Macros.
-* AM [ms]:                               ms Strings and Special Characters.
-* AU [ms]:                               ms Cover Page Macros.
-* B [man]:                               Man font macros.
-* B [ms]:                                Highlighting in ms.
-* B1 [ms]:                               ms Displays and Keeps.
-* B2 [ms]:                               ms Displays and Keeps.
-* BD [ms]:                               ms Displays and Keeps.
-* BI [man]:                              Man font macros.
-* BI [ms]:                               Highlighting in ms.
-* BR [man]:                              Man font macros.
-* BX [ms]:                               Highlighting in ms.
-* CD [ms]:                               ms Displays and Keeps.
-* CW [ms] <1>:                           Additional ms Macros.
-* CW [ms]:                               Highlighting in ms.
-* DA [ms]:                               ms Cover Page Macros.
-* DE [ms]:                               ms Displays and Keeps.
-* DS [ms] <1>:                           Additional ms Macros.
-* DS [ms]:                               ms Displays and Keeps.
-* DT [man]:                              Miscellaneous man macros.
-* EF [ms]:                               ms Headers and Footers.
-* EH [ms]:                               ms Headers and Footers.
-* EN [ms]:                               ms Insertions.
-* EQ [ms]:                               ms Insertions.
-* FE [ms]:                               ms Footnotes.
-* FS [ms]:                               ms Footnotes.
-* HP [man]:                              Man usage.
-* I [man]:                               Man font macros.
-* I [ms]:                                Highlighting in ms.
-* IB [man]:                              Man font macros.
-* ID [ms]:                               ms Displays and Keeps.
-* IP [man]:                              Man usage.
-* IP [ms]:                               Lists in ms.
-* IR [man]:                              Man font macros.
-* IX [ms]:                               Additional ms Macros.
-* KE [ms]:                               ms Displays and Keeps.
-* KF [ms]:                               ms Displays and Keeps.
-* KS [ms]:                               ms Displays and Keeps.
-* LD [ms]:                               ms Displays and Keeps.
-* LG [ms]:                               Highlighting in ms.
-* LP [man]:                              Man usage.
-* LP [ms]:                               Paragraphs in ms.
-* MC [ms]:                               ms Multiple Columns.
-* ND [ms]:                               ms Cover Page Macros.
-* NH [ms]:                               Headings in ms.
-* NL [ms]:                               Highlighting in ms.
-* OF [ms]:                               ms Headers and Footers.
-* OH [ms]:                               ms Headers and Footers.
-* P [man]:                               Man usage.
-* PD [man]:                              Miscellaneous man macros.
-* PE [ms]:                               ms Insertions.
-* PP [man]:                              Man usage.
-* PP [ms]:                               Paragraphs in ms.
-* PS [ms]:                               ms Insertions.
-* PX [ms]:                               ms TOC.
-* QP [ms]:                               Paragraphs in ms.
-* R [ms]:                                Highlighting in ms.
-* RB [man]:                              Man font macros.
-* RD [ms]:                               ms Displays and Keeps.
-* RE [man]:                              Man usage.
-* RE [ms]:                               Indents in ms.
-* RI [man]:                              Man font macros.
-* RP [ms]:                               ms Cover Page Macros.
-* RS [man]:                              Man usage.
-* RS [ms]:                               Indents in ms.
-* SB [man]:                              Man font macros.
-* SH [man]:                              Man usage.
-* SH [ms]:                               Headings in ms.
-* SM [man]:                              Man font macros.
-* SM [ms]:                               Highlighting in ms.
-* SS [man]:                              Man usage.
-* TA [ms]:                               Tabstops in ms.
-* TC [ms]:                               ms TOC.
-* TE [ms]:                               ms Insertions.
-* TH [man]:                              Man usage.
-* TL [ms]:                               ms Cover Page Macros.
-* TP [man]:                              Man usage.
-* TS [ms]:                               ms Insertions.
-* UL [ms]:                               Highlighting in ms.
-* XA [ms]:                               ms TOC.
-* XE [ms]:                               ms TOC.
-* XP [ms]:                               Paragraphs in ms.
-* XS [ms]:                               ms TOC.
 

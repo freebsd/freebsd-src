@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	grn
-SRCS=		hdb.cc hpoint.cc hgraph.cc main.cc
+SRCS=		hdb.cpp hpoint.cpp hgraph.cpp main.cpp
 DPADD=	 	${LIBGROFF} ${LIBM}
 LDADD=	 	${LIBGROFF} -lm
 CLEANFILES=	${MAN}

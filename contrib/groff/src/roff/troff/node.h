@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -75,7 +75,7 @@ struct node {
   virtual node *merge_self(node *);
   virtual node *add_discretionary_hyphen();
   virtual node *add_self(node *, hyphen_list **);
-  virtual hyphen_list *get_hyphen_list(hyphen_list *s = 0);
+  virtual hyphen_list *get_hyphen_list(hyphen_list *, int *);
   virtual void ascii_print(ascii_output_file *);
   virtual void asciify(macro *);
   virtual int discardable();
@@ -218,6 +218,7 @@ public:
   unbreakable_space_node(hunits, color *, node * = 0);
   node *copy();
   int reread(int *);
+  void tprint(troff_output_file *);
   int same(node *);
   void asciify(macro *);
   const char *type();
@@ -228,7 +229,7 @@ public:
   void split(int, node **, node **);
   int merge_space(hunits, hunits, hunits);
   node *add_self(node *, hyphen_list **);
-  hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
+  hyphen_list *get_hyphen_list(hyphen_list *, int *);
   hyphenation_type get_hyphenation_type();
 };
 
@@ -301,7 +302,7 @@ public:
   const char *type();
   int force_tprint();
   node *add_self(node *, hyphen_list **);
-  hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
+  hyphen_list *get_hyphen_list(hyphen_list *, int *);
   hyphenation_type get_hyphenation_type();
 };
 
@@ -311,11 +312,12 @@ public:
   node *copy();
   void ascii_print(ascii_output_file *);
   void asciify(macro *);
+  void tprint(troff_output_file *);
   int same(node *);
   const char *type();
   int force_tprint();
   node *add_self(node *, hyphen_list **);
-  hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
+  hyphen_list *get_hyphen_list(hyphen_list *, int *);
   hyphenation_type get_hyphenation_type();
 };
 
@@ -424,7 +426,7 @@ public:
   hunits skew();
   hunits italic_correction();
   hunits subscript_correction();
-  hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
+  hyphen_list *get_hyphen_list(hyphen_list *, int *);
   node *add_self(node *, hyphen_list **);
   node *merge_glyph_node(glyph_node *);
 };
@@ -443,7 +445,7 @@ public:
   const char *type();
   int force_tprint();
   node *add_self(node *, hyphen_list **);
-  hyphen_list *get_hyphen_list(hyphen_list *ss = 0);
+  hyphen_list *get_hyphen_list(hyphen_list *, int *);
   hyphenation_type get_hyphenation_type();
 };
 

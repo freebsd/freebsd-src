@@ -212,6 +212,7 @@ p                       Output line horiz position at end of $PAD_STRING
 #Q_AT_TOP               Does a quote start at the top of a new page? (toggle)
 #QUAD                   In autoquad mode? (toggle)
 #RESTORE_LEAD           Lead value in effect prior to AUTOLEAD
+#RESTORE_LINE_LENGTH    Restores actual line length in RULE
 #RESTORE_PT_SIZE        Stores current point size (in units) prior to underscore
 #R_INDENT               Value of right indent
 #RLD                    RLD value
@@ -242,6 +243,7 @@ u                       Horiz position of start of underscore
 +++STRINGS+++
 
 $COND_PERCENT        Percentage by which to pseudo-condense type
+$CURRENT_QUAD        Restores current quad value in RULE
 $CURRENT_TAB         Current tab number
 $DC_ADJUST           +|- # of points to subtract from dropcap
 $DC_FAM              Drop cap family
@@ -352,12 +354,13 @@ DOCUMENT PROCESSING
 
 Document info
 -------------
-AUTHOR    Author
-CHAPTER   Chapter number
-DRAFT     Draft number
-REVISION  Revision number
-SUBTITLE  Doc subtitle
-TITLE     Doc title
+AUTHOR          Author
+CHAPTER         Chapter number
+CHAPTER_TITLE   Chapter title
+DRAFT           Draft number
+REVISION        Revision number
+SUBTITLE        Doc subtitle
+TITLE           Doc title
 
 Document style
 --------------
@@ -408,6 +411,9 @@ BLOCKQUOTE_FONT          Font to use in blockquotes
 BLOCKQUOTE_QUAD          How to quad blockquotes
 BLOCKQUOTE_SIZE          How much to de/increase point size of bquotes
 CHAPTER_STRING           What to print whenever the word "chapter" is required
+CHAPTER_TITLE_FAMILY     Family to use for chapter title in doc header
+CHAPTER_TITLE_FONT       Font to use for chapter title in doc header
+CHAPTER_TITLE_SIZE       ps in/decrease of chapter title (relative to size of running text)
 COLUMNS                  Print in columns
 DOC_FAMILY               Overall doc family
 DOCHEADER_ADVANCE        Start position of docheader (relative to top of page)
@@ -608,7 +614,6 @@ TRAPS                Sets hdrftr traps; optionally adjusts #DOC_LEAD to fill pag
 #CAP_HEIGHT_ADJUST         Tallest cap height of strings LEFT, CENTER, and RIGHT in footers; used to place rule over footer
 #CAPS_WAS_ON               In HDRFTR, to re-enable running text CAPS (toggle)
 #CENTER_CAP_HEIGHT         Cap height of center string in headers/footers
-#CHAPTER                   The chapter number
 #CLOSING                   Is there a closing (for letters)? 1=yes
 #COL_L_LENGTH              Line length of columns
 #COL_NEXT                  Was COL_NEXT invoked? (toggle; used in FOOTER)
@@ -801,12 +806,19 @@ $AUTHOR_1...9                   Document author(s)
 $AUTHOR_FAM                     Family to use for author in doc header
 $AUTHOR_FT                      Font to use for author in doc header
 $AUTHOR_SIZE_CHANGE             ps in/decrease of author in doc header*
+$AUTHOR_PT_SIZE                 Absolute ps of authors
 $BQUOTE_FAM                     Family to use for blockquotes
 $BQUOTE_FT                      Font to use for blockquotes
 $BQUOTE_QUAD                    Quad value for blockquotes
 $BQUOTE_SIZE_CHANGE             ps in/decrease of blockquotes*
 $CENTER_TITLE                   What to put in the middle of header title
+$CHAPTER                        The chapter number
 $CHAPTER_STRING                 What to print whenever the word "chapter" is required
+$CHAPTER_TITLE                  Chapter title (if there is one)
+$CHAPTER_TITLE_FAM              Family of chapter title
+$CHAPTER_TITLE_FT               Font of chapter title
+$CHAPTER_TITLE_SIZE_CHANGE      ps in/decrease of chapter title*
+$CHAPTER_TITLE_PT_SIZE          Absolute ps of chapter title
 $COPY_STYLE                     DRAFT or FINAL
 $DOC_FAM                        Predominant font family used in the document
 $DOC_QUAD                       Quad used for body text (justified or left) 
@@ -814,6 +826,7 @@ $DOC_TYPE                       Document type (default, chapter, named, letter)
 $DOCTYPE_FAM                    Family to use for DOCTYPE string in doc header
 $DOCTYPE_FT                     Font to use for DOCTYPE string in doc header
 $DOCTYPE_SIZE_CHANGE            ps in/decrease of DOCTYPE string in doc header*
+$DOCTYPE_PT_SIZE                Absolute ps of DOCTYPE
 $DRAFT_STRING                   What to print whenever the word "draft" is required
 $EN_FAMILY                      Family for endnotes
 $EN_FT                          Font for endnotes
@@ -880,11 +893,13 @@ $SH_SIZE_CHANGE                 ps in/decrease of subheads*
 $SUBTITLE                       Document subtitle
 $SUBTITLE_FAM                   Family to use for subtitle in doc header
 $SUBTITLE_FT                    Font to use for subtitle in doc header
-$SUBTITLE_SIZE_CHANGE           Font to use for subtitle in doc header
+$SUBTITLE_SIZE_CHANGE           ps in/decrease of subtitle*
+$SUBTITLE_PT_SIZE               Absolute ps of subtitle
 $SUITE                          The #SUITE number register
 $TITLE                          Document title
 $TITLE_FAM                      Family to use for title in doc header
 $TITLE_FT                       Font to use for title in doc header
+$TITLE_PT_SIZE                  Absolute point size of title in docheader
 $TITLE_SIZE_CHANGE              ps in/decrease of title in doc header*
 $USERDEF_HDRFTR_RECTO           User defined header/footer recto string
 $USERDEF_HDRFTR_VERSO           User defined header/footer verso string

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	tbl
-SRCS=		main.cc table.cc
+SRCS=		main.cpp table.cpp
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	${MAN}

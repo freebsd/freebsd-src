@@ -1,12 +1,20 @@
 .\" a4.tmac
 .\"
 .\" Set up groff for A4 paper.  Must be called before any other macro
-.\" package.  For correct PS output, you must also set the
-.\" `paperlength' keyword in devps/DESC to 841890 in case groff hasn't
-.\" guessed it correctly during configuration.
+.\" package.
+.\"
+.\" Some output drivers need an additional command line switch `-p' to
+.\" override the default paper length set in the driver specific DESC
+.\" file.
+.\"
+.\" For example, use the following for PS output:
+.\"
+.\"   groff -Tps -P-pa4 -ma4 -ms foo.ms > foo.ps
 .
 .pl 29.7c
 .ll 21c-2i
 .
-.\" for ms
-.if !rLL .nr LL \n[.l]u
+.\" for ms, mdoc, man
+.do if !r LL .nr LL \n[.l]u
+.
+.\" EOF

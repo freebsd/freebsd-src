@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,273 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Register Index,  Next: Macro Index,  Prev: Operator Index,  Up: Top
+
+Register Index
+**************
+
+   The macro package or program a specific register belongs to is
+appended in brackets.
+
+   A register name `x' consisting of exactly one character can be
+accessed as `\nx'.  A register name `xx' consisting of exactly two
+characters can be accessed as `\n(xx'.  Register names `xxx' of any
+length can be accessed as `\n[xxx]'.
+
+* Menu:
+
+* $$:                                    Built-in Registers.
+* %:                                     Page Layout.
+* .$:                                    Parameters.
+* .a:                                    Manipulating Spacing.
+* .A:                                    Built-in Registers.
+* .b:                                    Artificial Fonts.
+* .C:                                    Implementation Differences.
+* .c:                                    Built-in Registers.
+* .cdp:                                  Environments.
+* .ce:                                   Manipulating Filling and Adjusting.
+* .cht:                                  Environments.
+* .color:                                Colors.
+* .csk:                                  Environments.
+* .d:                                    Diversions.
+* .ev:                                   Environments.
+* .f:                                    Font Positions.
+* .F:                                    Built-in Registers.
+* .fam:                                  Font Families.
+* .fn:                                   Font Families.
+* .fp:                                   Font Positions.
+* .g:                                    Built-in Registers.
+* .h:                                    Diversions.
+* .H:                                    Built-in Registers.
+* .height:                               Artificial Fonts.
+* .hla:                                  Manipulating Hyphenation.
+* .hlc:                                  Manipulating Hyphenation.
+* .hlm:                                  Manipulating Hyphenation.
+* .hy:                                   Manipulating Hyphenation.
+* .hym:                                  Manipulating Hyphenation.
+* .hys:                                  Manipulating Hyphenation.
+* .i:                                    Line Layout.
+* .in:                                   Line Layout.
+* .int:                                  Line Control.
+* .j:                                    Manipulating Filling and Adjusting.
+* .k:                                    Page Motions.
+* .kern:                                 Ligatures and Kerning.
+* .l:                                    Line Layout.
+* .L:                                    Manipulating Spacing.
+* .lg:                                   Ligatures and Kerning.
+* .linetabs:                             Tabs and Fields.
+* .ll:                                   Line Layout.
+* .lt:                                   Page Layout.
+* .n:                                    Environments.
+* .ne:                                   Page Location Traps.
+* .ns:                                   Manipulating Spacing.
+* .o:                                    Line Layout.
+* .p:                                    Page Layout.
+* .P:                                    Built-in Registers.
+* .pe:                                   Page Location Traps.
+* .pn:                                   Page Layout.
+* .ps:                                   Fractional Type Sizes.
+* .psr:                                  Fractional Type Sizes.
+* .pvs:                                  Changing Type Sizes.
+* .rj:                                   Manipulating Filling and Adjusting.
+* .s:                                    Changing Type Sizes.
+* .slant:                                Artificial Fonts.
+* .sr:                                   Fractional Type Sizes.
+* .ss:                                   Manipulating Filling and Adjusting.
+* .sss:                                  Manipulating Filling and Adjusting.
+* .t:                                    Page Location Traps.
+* .T:                                    Built-in Registers.
+* .tabs:                                 Tabs and Fields.
+* .trunc:                                Page Location Traps.
+* .u:                                    Manipulating Filling and Adjusting.
+* .v:                                    Changing Type Sizes.
+* .V:                                    Built-in Registers.
+* .vpt:                                  Page Location Traps.
+* .w:                                    Environments.
+* .warn:                                 Debugging.
+* .x:                                    Built-in Registers.
+* .Y:                                    Built-in Registers.
+* .y:                                    Built-in Registers.
+* .z:                                    Diversions.
+* c.:                                    Built-in Registers.
+* ct:                                    Page Motions.
+* dl:                                    Diversions.
+* dn:                                    Diversions.
+* dw:                                    Built-in Registers.
+* dy:                                    Built-in Registers.
+* FF [ms]:                               ms Document Control Registers.
+* FI [ms]:                               ms Document Control Registers.
+* FL [ms]:                               ms Document Control Registers.
+* FM [ms]:                               ms Document Control Registers.
+* HM [ms]:                               ms Document Control Registers.
+* hours:                                 Built-in Registers.
+* hp:                                    Page Motions.
+* LL [ms]:                               ms Document Control Registers.
+* llx:                                   Miscellaneous.
+* lly:                                   Miscellaneous.
+* ln:                                    Built-in Registers.
+* LT [ms]:                               ms Document Control Registers.
+* MINGW [ms] <1>:                        Additional ms Macros.
+* MINGW [ms]:                            ms Document Control Registers.
+* minutes:                               Built-in Registers.
+* mo:                                    Built-in Registers.
+* nl:                                    Page Control.
+* opmaxx:                                Suppressing output.
+* opmaxy:                                Suppressing output.
+* opminx:                                Suppressing output.
+* opminy:                                Suppressing output.
+* PD [ms]:                               ms Document Control Registers.
+* PI [ms]:                               ms Document Control Registers.
+* PO [ms]:                               ms Document Control Registers.
+* PS [ms]:                               ms Document Control Registers.
+* ps4html [grohtml]:                     grohtml specific registers and strings.
+* QI [ms]:                               ms Document Control Registers.
+* rsb:                                   Page Motions.
+* rst:                                   Page Motions.
+* sb:                                    Page Motions.
+* seconds:                               Built-in Registers.
+* skw:                                   Page Motions.
+* slimit:                                Debugging.
+* ssc:                                   Page Motions.
+* st:                                    Page Motions.
+* systat:                                I/O.
+* urx:                                   Miscellaneous.
+* ury:                                   Miscellaneous.
+* VS [ms]:                               ms Document Control Registers.
+* year:                                  Built-in Registers.
+* yr:                                    Built-in Registers.
+
+
+File: groff,  Node: Macro Index,  Next: String Index,  Prev: Register Index,  Up: Top
+
+Macro Index
+***********
+
+   The macro package a specific macro belongs to is appended in
+brackets.  They appear without the leading control character (normally
+`.').
+
+* Menu:
+
+* 1C [ms]:                               ms Multiple Columns.
+* 2C [ms]:                               ms Multiple Columns.
+* [ [ms]:                                ms Insertions.
+* ] [ms]:                                ms Insertions.
+* AB [ms]:                               ms Cover Page Macros.
+* AE [ms]:                               ms Cover Page Macros.
+* AI [ms]:                               ms Cover Page Macros.
+* AM [ms] <1>:                           Additional ms Macros.
+* AM [ms]:                               ms Strings and Special Characters.
+* AT [man]:                              Miscellaneous man macros.
+* AU [ms]:                               ms Cover Page Macros.
+* B [man]:                               Man font macros.
+* B [ms]:                                Highlighting in ms.
+* B1 [ms]:                               ms Displays and Keeps.
+* B2 [ms]:                               ms Displays and Keeps.
+* BD [ms]:                               ms Displays and Keeps.
+* BI [man]:                              Man font macros.
+* BI [ms]:                               Highlighting in ms.
+* BR [man]:                              Man font macros.
+* BT [man]:                              Optional man extensions.
+* BX [ms]:                               Highlighting in ms.
+* CD [ms]:                               ms Displays and Keeps.
+* CT [man]:                              Optional man extensions.
+* CW [man]:                              Optional man extensions.
+* CW [ms] <1>:                           Additional ms Macros.
+* CW [ms]:                               Highlighting in ms.
+* DA [ms]:                               ms Cover Page Macros.
+* De [man]:                              Optional man extensions.
+* DE [ms]:                               ms Displays and Keeps.
+* Ds [man]:                              Optional man extensions.
+* DS [ms] <1>:                           Additional ms Macros.
+* DS [ms]:                               ms Displays and Keeps.
+* DT [man]:                              Miscellaneous man macros.
+* EE [man]:                              Optional man extensions.
+* EF [ms]:                               ms Headers and Footers.
+* EH [ms]:                               ms Headers and Footers.
+* EN [ms]:                               ms Insertions.
+* EQ [ms]:                               ms Insertions.
+* EX [man]:                              Optional man extensions.
+* FE [ms]:                               ms Footnotes.
+* FS [ms]:                               ms Footnotes.
+* G [man]:                               Optional man extensions.
+* GL [man]:                              Optional man extensions.
+* HB [man]:                              Optional man extensions.
+* HP [man]:                              Man usage.
+* I [man]:                               Man font macros.
+* I [ms]:                                Highlighting in ms.
+* IB [man]:                              Man font macros.
+* ID [ms]:                               ms Displays and Keeps.
+* IP [man]:                              Man usage.
+* IP [ms]:                               Lists in ms.
+* IR [man]:                              Man font macros.
+* IX [ms]:                               Additional ms Macros.
+* KE [ms]:                               ms Displays and Keeps.
+* KF [ms]:                               ms Displays and Keeps.
+* KS [ms]:                               ms Displays and Keeps.
+* LD [ms]:                               ms Displays and Keeps.
+* LG [ms]:                               Highlighting in ms.
+* LP [man]:                              Man usage.
+* LP [ms]:                               Paragraphs in ms.
+* MC [ms]:                               ms Multiple Columns.
+* MS [man]:                              Optional man extensions.
+* ND [ms]:                               ms Cover Page Macros.
+* NE [man]:                              Optional man extensions.
+* NH [ms]:                               Headings in ms.
+* NL [ms]:                               Highlighting in ms.
+* NT [man]:                              Optional man extensions.
+* OF [ms]:                               ms Headers and Footers.
+* OH [ms]:                               ms Headers and Footers.
+* P [man]:                               Man usage.
+* PD [man]:                              Miscellaneous man macros.
+* PE [ms]:                               ms Insertions.
+* Pn [man]:                              Optional man extensions.
+* PN [man]:                              Optional man extensions.
+* PP [man]:                              Man usage.
+* PP [ms]:                               Paragraphs in ms.
+* PS [ms]:                               ms Insertions.
+* PT [man]:                              Optional man extensions.
+* PX [ms]:                               ms TOC.
+* QP [ms]:                               Paragraphs in ms.
+* R [man]:                               Optional man extensions.
+* R [ms]:                                Highlighting in ms.
+* RB [man]:                              Man font macros.
+* RD [ms]:                               ms Displays and Keeps.
+* RE [man]:                              Man usage.
+* RE [ms]:                               Indents in ms.
+* RI [man]:                              Man font macros.
+* RN [man]:                              Optional man extensions.
+* RP [ms]:                               ms Cover Page Macros.
+* RS [man]:                              Man usage.
+* RS [ms]:                               Indents in ms.
+* SB [man]:                              Man font macros.
+* SH [man]:                              Man usage.
+* SH [ms]:                               Headings in ms.
+* SM [man]:                              Man font macros.
+* SM [ms]:                               Highlighting in ms.
+* SS [man]:                              Man usage.
+* TA [ms]:                               Tabstops in ms.
+* TB [man]:                              Optional man extensions.
+* TC [ms]:                               ms TOC.
+* TE [ms]:                               ms Insertions.
+* TH [man]:                              Man usage.
+* TL [ms]:                               ms Cover Page Macros.
+* TP [man]:                              Man usage.
+* TS [ms]:                               ms Insertions.
+* UC [man]:                              Miscellaneous man macros.
+* UL [ms]:                               Highlighting in ms.
+* VE [man]:                              Optional man extensions.
+* VS [man]:                              Optional man extensions.
+* XA [ms]:                               ms TOC.
+* XE [ms]:                               ms TOC.
+* XP [ms]:                               Paragraphs in ms.
+* XS [ms]:                               ms TOC.
 
 
 File: groff,  Node: String Index,  Next: Glyph Name Index,  Prev: Macro Index,  Up: Top
@@ -48,8 +312,8 @@ length can be accessed as `\*[xxx]'.
 * .T:                                    Built-in Registers.
 * 3 [ms]:                                ms Strings and Special Characters.
 * 8 [ms]:                                ms Strings and Special Characters.
-* <colon> [ms]:                          ms Strings and Special Characters.
 * ? [ms]:                                ms Strings and Special Characters.
+* \*[<colon>] [ms]:                      ms Strings and Special Characters.
 * ^ [ms]:                                ms Strings and Special Characters.
 * _ [ms]:                                ms Strings and Special Characters.
 * ` [ms]:                                ms Strings and Special Characters.
@@ -60,6 +324,7 @@ length can be accessed as `\*[xxx]'.
 * CH [ms]:                               ms Headers and Footers.
 * d- [ms]:                               ms Strings and Special Characters.
 * D- [ms]:                               ms Strings and Special Characters.
+* HF [man]:                              Predefined man strings.
 * LF [ms]:                               ms Headers and Footers.
 * LH [ms]:                               ms Headers and Footers.
 * lq [man]:                              Predefined man strings.
@@ -158,6 +423,8 @@ Program and File Index
 
 * an.tmac:                               man.
 * changebar:                             Miscellaneous.
+* composite.tmac:                        Using Symbols.
+* cp1047.tmac:                           Input Encodings.
 * DESC <1>:                              Special Fonts.
 * DESC <2>:                              Using Symbols.
 * DESC <3>:                              Font Positions.
@@ -167,7 +434,9 @@ Program and File Index
 * DESC, and font mounting:               Font Positions.
 * DESC, and use_charnames_in_special:    Postprocessor Access.
 * ditroff:                               History.
+* ec.tmac:                               Input Encodings.
 * eqn:                                   ms Insertions.
+* freeeuro.pfa:                          Input Encodings.
 * geqn:                                  Groff Options.
 * geqn, invocation in manual pages:      Preprocessors in man pages.
 * ggrn:                                  Groff Options.
@@ -183,12 +452,19 @@ Program and File Index
 * gtbl, invocation in manual pages:      Preprocessors in man pages.
 * gtroff:                                Groff Options.
 * hyphen.us:                             Manipulating Hyphenation.
+* hyphenex.us:                           Manipulating Hyphenation.
+* latin1.tmac:                           Input Encodings.
+* latin2.tmac:                           Input Encodings.
+* latin9.tmac:                           Input Encodings.
 * makeindex:                             Indices.
 * man, invocation of preprocessors:      Preprocessors in man pages.
 * man-old.tmac:                          man.
+* man.local <1>:                         Optional man extensions.
 * man.local:                             Man usage.
 * man.tmac:                              man.
+* man.ultrix:                            Optional man extensions.
 * nrchbar:                               Miscellaneous.
+* papersize.tmac:                        Paper Size.
 * perl:                                  I/O.
 * pic:                                   ms Insertions.
 * post-grohtml:                          Groff Options.
@@ -200,6 +476,7 @@ Program and File Index
 * troffrc <1>:                           Line Layout.
 * troffrc <2>:                           Troff and Nroff Mode.
 * troffrc <3>:                           Manipulating Hyphenation.
+* troffrc <4>:                           Paper Size.
 * troffrc:                               Groff Options.
 * troffrc-end <1>:                       Troff and Nroff Mode.
 * troffrc-end <2>:                       Manipulating Hyphenation.

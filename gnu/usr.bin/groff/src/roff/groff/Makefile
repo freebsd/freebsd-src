@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	groff
-SRCS=		groff.cc pipeline.c
+SRCS=		groff.cpp pipeline.c
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	${MAN}

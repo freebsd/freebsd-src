@@ -2,9 +2,9 @@
 
 /* <groff_src_dir>/src/include/color.h
 
-Last update: 10 Apr 2002
+Last update: 14 Feb 2003
 
-Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
     Written by Gaius Mulley <gaius@glam.ac.uk>
 
 This file is part of groff.
@@ -31,6 +31,8 @@ class color {
 private:
   color_scheme scheme;
   unsigned int components[4];
+  color *next;
+  static color *free_list;
 
   int read_encoding(const color_scheme, const char * const,
 		    const size_t);
@@ -39,6 +41,9 @@ public:
   enum {MAX_COLOR_VAL = 0xffff};
   color() : scheme(DEFAULT){}
   color(const color * const);
+  ~color();
+  void *operator new(size_t);
+  void operator delete(void *);
 
   int operator==(const color & c) const;
   int operator!=(const color & c) const;
@@ -71,6 +76,8 @@ public:
   void get_cmyk(unsigned int *c, unsigned int *m,
 		unsigned int *y, unsigned int *k) const;
   void get_gray(unsigned int *g) const;
+
+  char *print_color();
 };
 
 #define Cyan components[0]

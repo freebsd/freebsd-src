@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002, 2003
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -119,5 +120,6 @@ enum {
   NO_SETUP_SECTION = 01,
   STRIP_PERCENT_BANG = 02,
   STRIP_STRUCTURE_COMMENTS = 04,
-  USE_PS_ADOBE_2_0 = 010
+  USE_PS_ADOBE_2_0 = 010,
+  NO_PAPERSIZE = 020
 };

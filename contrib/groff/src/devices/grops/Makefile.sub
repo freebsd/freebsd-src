@@ -6,7 +6,7 @@ OBJS=\
   ps.$(OBJEXT) \
   psrm.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/ps.cc \
-  $(srcdir)/psrm.cc
+  $(srcdir)/ps.cpp \
+  $(srcdir)/psrm.cpp
 HDRS=\
   $(srcdir)/ps.h

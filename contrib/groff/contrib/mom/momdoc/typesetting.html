@@ -1085,14 +1085,21 @@ systems, where it stood for "End Line."  Conceptually,
 with no linefeed.
 
 <p>
-Every once in a while, the need arises for breaking a line without
-advancing on the page.  Imagine, for example, that you're working from
-marked-up copy.  The markup indicates 24 points of space between
-two given lines, but the prevailing line spacing is 12.5 points.
-You may find it more convenient to break the first line with
-<strong>EL</strong> and instruct <strong>mom</strong> to advance 24
-points to the next line, rather than calculating the lead that needs
-to be added to 12.5 to get 24.  To demonstrate:
+<em>Note to groff jocks:</em> <strong>EL</strong> is
+unrelated to groff's <strong>.el</strong>.  If you find the
+similarity confusing, you may want to alias <strong>EL</strong> as
+<strong>EOL</strong>.
+
+<p>
+<strong>EL</strong>'s function is simple: it breaks a line without
+advancing on the page.  As an example of where you might use it,
+imagine that you're working from marked-up copy.  The markup
+indicates 24 points of space between two given lines, but the
+prevailing line spacing is 12.5 points.  You may find it more
+convenient to break the first line with <strong>EL</strong> and
+instruct <strong>mom</strong> to advance 24 points to the next line
+instead of calculating the lead that needs to be added to 12.5 to
+get 24.  To demonstrate:
 <p>
 <pre>
 	.LS 12.5

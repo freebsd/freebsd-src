@@ -20,7 +20,7 @@
 .do ds troffrc!cp1047 tty.tmac
 .do ds troffrc!lj4 lj4.tmac
 .do ds troffrc!lbp lbp.tmac
-.do ds troffrc!html www.tmac
+.do ds troffrc!html html.tmac
 .do if d troffrc!\*[.T] \
 .	do mso \*[troffrc!\*[.T]]
 .do rm troffrc!ps troffrc!Xps troffrc!dvi troffrc!X75 troffrc!X75-12 \
@@ -35,8 +35,9 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .\" Set the hyphenation language to `us'.
 .do hla us
 .
-.\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
+.\" Load hyphenation patterns and exceptions.
 .do hpf hyphen.us
+.do hpfa hyphenex.us
 .
 .if "\*[.T]"koi8-r" \{\
 .
@@ -44,6 +45,12 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .do hpfa hyphen.ru
 .
 .\}
+.
+.\" Load composite mappings.
+.do mso composite.tmac
+.
+.\" Handle paper formats
+.do mso papersize.tmac
 .
 .\" Disable SGR support in grotty(1).
 .if n \{\

@@ -11,27 +11,47 @@
 .ftr TT CW
 .ftr H HR
 .
-.special TR TI
+.special TR TI MI S SA SB CW
 .fspecial TI CWI
 .fspecial TBI CWI
 .fspecial HI CWI
 .fspecial HBI CWI
+.fspecial CW SC
+.fspecial CWI SC
 .
-.\" This uses the dvi-char_1 string in font CW or CWI, dvi-char_0 otherwise.
-.fchar _ \
-\R'dvi-char_ ((\\n[.f] == \f[CW]\\n[.f]\f[]) : \
-              (\\n[.f] == \f[CWI]\\n[.f]\f[]))'\\*[dvi-char_\\n[dvi-char_]]
-.fchar \[ul] \R'dvi-char_ \w'M'==\w'i''\\*[dvi-char_\\n[dvi-char_]]
+.\" This uses the dvi-char-_-1 string in fixed-width fonts, dvi-char-_-0
+.\" otherwise.
+.fchar _ \R'dvi-char (\w'M' == \w'i')'\E*[dvi-char-_-\\n[dvi-char]]
 .\" Normally use a rule.
-.\" This is designed so that \(ul, \(rn and \(br form corners.
-.ds dvi-char_0 \Z'\v'.23m'\D'R .54m .04m''\h'.5m'
-.\" In font CW and CWI use a real _ character.
-.ds dvi-char_1 _
+.ds dvi-char-_-0 \Z'\v'.08m'\D'R .54m .04m''\h'.5m'
+.\" In fixed-width fonts (CW and CWI) use a real _ character.
+.ds dvi-char-_-1 _
 .
-.fchar \[radicalex] \D'R .5m -.04m'\v'.04m'
-.fchar \[br] \Z'\v'.25m'\D'R .04m -1m''
-.fchar \[ru] \Z'\v'-.02m'\D'R .54m .04m''\h'.5m'
-.fchar \[rn] \Z'\v'-.77m'\D'R .54m .04m''\h'.5m'
+.fchar \[/l] \
+\R'dvi-char ((\w'M' == \w'i') + \
+             (\En[.f] == \f[CWI]\En[.f]\f[]))'\E*[dvi-char-/l-\\n[dvi-char]]
+.ds dvi-char-/l-0 \[slash@for@l]l
+.ds dvi-char-/l-1 \Z'\v'0.22v'\h'-0.02m'\''l
+.ds dvi-char-/l-2 \Z'\v'0.22v'\h'-0.13m'\''l
+.
+.fchar \[/L] \
+\R'dvi-char ((\w'M' == \w'i') + \
+             (\En[.f] == \f[CWI]\En[.f]\f[]))'\E*[dvi-char-/L-\\n[dvi-char]]
+.ds dvi-char-/L-0 \h'\w'L'u-\w'\[slash@for@l]L'u'\[slash@for@l]L
+.ds dvi-char-/L-1 \Z'\v'0.22v'\h'-0.14m'\''L
+.ds dvi-char-/L-2 \Z'\v'0.22v'\h'-0.21m'\''L
+.
+.\" This is designed so that \(ul, \(rn and \(br form corners.
+.char \[br] \Z'\v'.25m'\D'R .04m -1m''
+.char \[ul] \Z'\v'.23m'\D'R .54m .04m''\h'.5m'
+.char \[rn] \Z'\v'-.77m'\D'R .54m .04m''\h'.5m'
+.
+.char \[or] \h'.1m'\Z'\D'l 0 -.675m''\h'.1m'
+.char \[ru] \Z'\v'-.02m'\D'R .54m .04m''\h'.5m'
+.
+.fchar \[sr] \v'-.75m'\[sqrt]\v'.75m'
+.fchar \[sqrtex] \D'R .5m -.04m'\v'.04m'
+.fchar \[radicalex] \v'-.75m'\D'R .5m -.04m'\v'.79m'
 .fchar \[co] \
 \z\s-2\[ci]\s0\
 \h'\w'\s-2\[ci]\s0'u-\w'\s-4C\s0'u/2u'\
@@ -42,16 +62,26 @@
 \h'\w'\s-2\[ci]\s0'u-\w'\s-4R\s0'u/2u'\
 \s-4R\s0\
 \h'\w'\s-2\[ci]\s0'u-\w'\s-4R\s0'u/2u'
-.fchar \[fm] \v'-.35m'\s[\\n[.s]*7u/10u]\[prime]\s0\v'.35m'
+.fchar \[fm] \v'-.35m'\s[\En[.s]*7u/10u]\[prime]\s0\v'.35m'
+.fchar \[sd] \v'-.35m'\s[\En[.s]*7u/10u]\[prime]\[prime]\s0\v'.35m'
 .fchar \[de] \h'.05m'\v'-.54m'\D'c .3m'\v'.54m'\h'.05m'
 .fchar \[ct] \o'c/'
 .fchar \[sq] \
 \Z'\h'.05m'\D'R .4m -.04m'\v'.04m'\h'-.04m'\
 \D'R .04m -.4m'\v'.04m'\D'R -.4m -.04m'\D'R .04m .4m''\h'.5m'
 .\"char \[sq] \h'.05m'\D'l .4m 0'\D'l 0 -.4m'\D'l -.4m 0'\D'l 0 .4m'\h'.45m'
-.fchar \[!=] \[slashnot]\[eq]
-.fchar \[tm] \v'-.3m'\s[\\n[.s]/2u]TM\s0\v'.3m'
-.fchar \[aq] '
+.\" SC contains a real \[!=] glyph
+.schar \[!=] \[slashnot]\[eq]
+.schar \[nm] \o'\F[T]\f[R]/\[mo]'
+.fschar CW \[nm] \o'/\[mo]'
+.fschar CWI \[nm] \o'\f[CW]/\[mo]'
+.schar \[ne] \[slashnot]\[==]
+.fschar CW \[ne] \o'/\[==]'
+.fschar CWI \[ne] \o'\f[CW]/\[==]'
+.fchar \[=~] \v'.1m'\Z'\[eq]'\v'-.4m'\[ap]\v'.3m'
+.fchar \[tm] \v'-.3m'\s[\En[.s]/2u]TM\s0\v'.3m'
+.\" TC fonts contain real \[aq] glyphs
+.schar \[aq] '
 .fchar \[bq] ,
 .fchar \[Bq] ,\h'\w'\[rq]'u-(2u*\w"'"u)',
 .fchar \[ho] \s[\En[.s]/2u]\v'.4m'c\v'-.4m'\s0
@@ -62,14 +92,30 @@ I\h'-.25m'\v'-.33m'\s[\En[.s]*6u/10u]\v'.33m'\
 D\v'-.33m'\s0\v'.33m'
 .fchar \[Tp] \zlp
 .fchar \[nb] \[slashnot]\[sb]
+.fchar \[nc] \[slashnot]\[sp]
 .cflags 8 \[an]
-.fchar \[an] \h'-.167m'\[mi]\h'-.167m'
+.schar \[an] \h'-.167m'\[mi]\h'-.167m'
+.fschar CW \[an] -
+.fschar CWI \[an] \f[CW]\[mi]
+.\" we follow the EC ligatures for fixed-width dashes
+.fchar \[em] --
+.fchar \[en] -
+.fchar \[hy] -
+.fschar CW \[va] \o'\[ua]\[da]'
+.fschar CWI \[va] \o'\[ua]\[da]'
+.fschar CW \[<>] \o'\[<-]\[->]'
+.fschar CWI \[<>] \o'\[<-]\[->]'
+.fchar \[lh] \[lA]
+.fchar \[rh] \[rA]
+.
+.fchar \[f/] /
 .
 .\" Define some fractions.
 .de dvi-frac
 .  fchar \[\\$1\\$2] \
-\v'-.25m'\s[\\\\n[.s]*7u/10u]\\$1\s0\v'.25m'\h'-.2m'\
-/\h'-.2m'\v'.25m'\s[\\\\n[.s]*7u/10u]\\$2\s0\v'-.25m'
+\v'-.25m'\s[\\En[.s]*7u/10u]\\$1\s0\v'.25m'\
+\h'-.2m'\[f/]\h'-.2m'\
+\v'.25m'\s[\\En[.s]*7u/10u]\\$2\s0\v'-.25m'
 ..
 .
 .dvi-frac 1 2
@@ -86,11 +132,15 @@ D\v'-.33m'\s0\v'.33m'
 .fchar \[S3] \v'-.2m'\s-33\s+3\v'+.2m'
 .fchar \[Of] \v'-.2m'\s'\En[.s]*6u/10u'\o'_a'\s0\v'.2m'
 .fchar \[Om] \v'-.2m'\s'\En[.s]*6u/10u'\o'_o'\s0\v'.2m'
+.fchar \[fo] \v'-.1m'\s-3<\s+3\v'+.1m'
+.fchar \[fc] \v'-.1m'\s-3>\s+3\v'+.1m'
 .fchar \[Fo] \v'-.1m'\s-3<\h'-.3m'<\s+3\v'+.1m'
 .fchar \[Fc] \v'-.1m'\s-3>\h'-.3m'>\s+3\v'+.1m'
 .fchar \[bb] |
-.fchar \[Ye] \o'-Y'
 .fchar \[Cs] \o'\[mu]o'
+.
+.fchar \[IJ] IJ
+.fchar \[ij] ij
 .
 .de dvi-achar
 .  \" Note that character definitions are always interpreted with
@@ -98,11 +148,11 @@ D\v'-.33m'\s0\v'.33m'
 .  fchar \\$1 \
 \\$3\
 \k[acc]\
-\h'(u;-\w'\\$2'-\w'\\$3'/2+\\\\n[skw]+(\w'x'*0)-\\\\n[skw])'\
-\v'(u;\w'x'*0+\\\\n[rst]+(\w'\\$3'*0)-\\\\n[rst])'\
+\h'(u;-\w'\\$2'-\w'\\$3'/2+\\En[skw]+(\w'x'*0)-\\En[skw])'\
+\v'(u;\w'x'*0+\\En[rst]+(\w'\\$3'*0)-\\En[rst])'\
 \\$2\
-\v'(u;\w'x'*0-\\\\n[rst]+(\w'\\$3'*0)+\\\\n[rst])'\
-\h'|\\\\n[acc]u'
+\v'(u;\w'x'*0-\\En[rst]+(\w'\\$3'*0)+\\En[rst])'\
+\h'|\\En[acc]u'
 .  hcode \\$1\\$4
 ..
 .
@@ -112,6 +162,7 @@ D\v'-.33m'\s0\v'.33m'
 .dvi-achar \[~A] ~     A     a
 .dvi-achar \[:A] \[ad] A     a
 .dvi-achar \[oA] \[ao] A     a
+.dvi-achar \['C] \'    C     c
 .dvi-achar \[`E] \`    E     e
 .dvi-achar \['E] \'    E     e
 .dvi-achar \[^E] ^     E     e
@@ -138,6 +189,7 @@ D\v'-.33m'\s0\v'.33m'
 .dvi-achar \[~a] ~     a     a
 .dvi-achar \[:a] \[ad] a     a
 .dvi-achar \[oa] \[ao] a     a
+.dvi-achar \['c] \'    c     c
 .dvi-achar \[`e] \`    e     e
 .dvi-achar \['e] \'    e     e
 .dvi-achar \[^e] ^     e     e

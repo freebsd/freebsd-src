@@ -18,26 +18,26 @@ OBJS=\
   pile.$(OBJEXT) \
   special.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/main.cc \
-  $(srcdir)/lex.cc \
-  $(srcdir)/box.cc \
-  $(srcdir)/limit.cc \
-  $(srcdir)/list.cc \
-  $(srcdir)/over.cc \
-  $(srcdir)/text.cc \
-  $(srcdir)/script.cc \
-  $(srcdir)/mark.cc \
-  $(srcdir)/other.cc \
-  $(srcdir)/delim.cc \
-  $(srcdir)/sqrt.cc \
-  $(srcdir)/pile.cc \
-  $(srcdir)/special.cc
+  $(srcdir)/main.cpp \
+  $(srcdir)/lex.cpp \
+  $(srcdir)/box.cpp \
+  $(srcdir)/limit.cpp \
+  $(srcdir)/list.cpp \
+  $(srcdir)/over.cpp \
+  $(srcdir)/text.cpp \
+  $(srcdir)/script.cpp \
+  $(srcdir)/mark.cpp \
+  $(srcdir)/other.cpp \
+  $(srcdir)/delim.cpp \
+  $(srcdir)/sqrt.cpp \
+  $(srcdir)/pile.cpp \
+  $(srcdir)/special.cpp
 HDRS=\
   $(srcdir)/box.h \
   $(srcdir)/eqn.h \
   $(srcdir)/pbox.h
 GRAM=$(srcdir)/eqn.y
-YTABC=eqn.cc
+YTABC=eqn.cpp
 YTABH=eqn_tab.h
 NAMEPREFIX=$(g)
 CLEANADD=neqn
@@ -48,6 +48,7 @@ neqn: neqn.sh
 	-rm -f $@
 	sed -e 's/@g@/$(g)/g' \
 	-e 's|@BINDIR@|$(bindir)|g' \
+	-e 's|@SEP@|$(SEP)|g' \
 	-e $(SH_SCRIPT_SED_CMD) $(srcdir)/neqn.sh >$@
 	chmod +x $@
 

@@ -1,5 +1,5 @@
 .\"
-.\" $Id: groff_mm.man,v 2.8 2002/05/30 05:39:54 jhaegg Exp $
+.\" $Id: groff_mm.man,v 2.9 2003/03/19 22:05:11 wlemb Exp $
 .\"
 .de T2
 .if t .ne 2v
@@ -1654,8 +1654,8 @@ Floating displays does not generate line break.
 A string containing the word "APPENDIX".
 .TP
 .B Apptxt
-.TP
 The current appendix text.
+.TP
 .B "EM"
 Em dash string
 .TP
@@ -1673,11 +1673,11 @@ Normally "0 0 0 0 0 0 0" which is the same as
 "10 10 10 10 10 10 10".
 .TP
 .B Index
-.TP
 Contains \fIINDEX\fP.
-.B Indcmd
 .TP
+.B Indcmd
 Contains the index command, \fIsort\ -t\et\fP.
+.TP
 .B Lifg
 String containing \fIFigure\fP.
 .TP
@@ -1845,10 +1845,10 @@ Append a dot after the level one heading number if >\ 0.
 Default is\ 1.
 .TP
 .B H1h
-.TP
 Copy of number register \fBH1\fP, but it is incremented
 just before the page break.
 Useful in user defined header macros.
+.TP
 .B Hb
 Heading break level [0:7], default\ 2.
 .TP
@@ -1866,7 +1866,7 @@ Heading temporary indent [0:2], default\ 1.
 2\ ->\ indent to line up with text part of preceding heading
 .TP
 .B Hps
-Numbervariable with the heading pre-space level.
+Number variable with the heading pre-space level.
 If the heading-level
 is less than or equal to \fBHps\fP, then two lines will precede the
 section heading instead of one.

@@ -32,7 +32,7 @@
 # We don't have complete option coverage on eqn because this is primarily
 # intended as a pic translator; we can live with eqn defaults. 
 #
-# $Id: pic2graph.sh,v 1.2 2002/07/17 04:55:46 wlemb Exp $
+# $Id: pic2graph.sh,v 1.3 2002/12/21 08:32:56 wlemb Exp $
 #
 groffpic_opts=""
 gs_opts=""
@@ -44,7 +44,7 @@ while [ "$1" ]
 do
     case $1 in
     -unsafe)
-	groffpic_opts="-U"
+	groffpic_opts="-U";;
     -format)
 	format=$2
 	shift;;

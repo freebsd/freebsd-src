@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -23,8 +23,18 @@ the original English.
 .\" Like TP, but if specified indent is more than half
 .\" the current line-length - indent, use the default indent.
 .de Tp
-.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
-.el .TP "\\$1"
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
+..
+.
+.de TQ
+.  br
+.  ns
+.  TP \$1
+..
+.
+.de FT
+.  if '\\*(.T'ps' .ft \\$1
 ..
 .
 .
@@ -106,52 +116,56 @@ option.
 .SH OPTIONS
 .TP
 .BI \-b n
-Workaround broken spoolers and previewers.
+Provide workarounds for older printers, broken spoolers, and previewers.
 .
 Normally
 .B grops
-produces output that conforms
-the Document Structuring Conventions version 3.0.
+produces output at PostScript LanguageLevel\~2 that conforms to the
+Document Structuring Conventions version 3.0.
 .
-Unfortunately some spoolers and previewers can't handle such output.
+Some older printers, spoolers, and previewers can't handle such output.
 .
 The value of\~\c
 .I n
 controls what
 .B grops
-does to its output acceptable to such programs.
+does to make its output acceptable to such programs.
 .
 A value of\~0 will cause grops not to employ any workarounds.
 .
+.IP
 Add\~1 if no
-.B %%BeginDocumentSetup
+.B %%Begin\%Document\%Setup
 and
-.B %%EndDocumentSetup
+.B %%End\%Document\%Setup
 comments should be generated;
 this is needed for early versions of TranScript that get confused by
 anything between the
-.B %%EndProlog
+.B %%End\%Prolog
 comment and the first
 .B %%Page
 comment.
 .
+.IP
 Add\~2 if lines in included files beginning with
 .B %!
 should be stripped out; this is needed for Sun's pageview previewer.
 .
+.IP
 Add\~4 if
 .BR %%Page ,
 .BR %%Trailer
 and
-.B %%EndProlog
+.B %%End\%Prolog
 comments should be
 stripped out of included files; this is needed for spoolers that
 don't understand the
-.B %%BeginDocument
+.B %%Begin\%Document
 and
-.B %%EndDocument
+.B %%End\%Document
 comments.
 .
+.IP
 Add\~8 if the first line of the PostScript output should be
 .B %!PS-Adobe-2.0
 rather than
@@ -159,6 +173,18 @@ rather than
 this is needed when using Sun's Newsprint with a printer that requires
 page reversal.
 .
+.IP
+Add\~16 if no media size information should be included in the document
+(this is, neither use
+.B %%Document\%Media
+nor the
+.B setpagedevice
+PostScript command).
+.
+This was the behaviour of groff version 1.18.1 and earlier; it is needed
+for older printers which don't understand PostScript LanguageLevel\~2.
+.
+.IP
 The default value can be specified by a
 .
 .RS
@@ -211,14 +237,19 @@ Turn manual feed on for the document.
 Set physical dimension of output medium.
 .
 This overrides the
-.B papersize
+.BR papersize ,
+.BR paperlength ,
 and
-.B paperlength
+.B paperwidth
 commands in the
 .B DESC
 file; it accepts the same arguments as the
 .B papersize
 command.
+.
+See
+.B groff_font (@MAN5EXT@)
+for details.
 .
 .TP
 .BI \-P prologue-file
@@ -258,14 +289,10 @@ The fonts are grouped into families
 .BR H ,
 .BR HN ,
 .BR N ,
-.B P
+.BR P ,
 and\~\c
 .B T
 having members in each of these styles:
-.
-.de FT
-.if '\\*(.T'ps' .ft \\$1
-..
 .
 .RS
 .TP
@@ -274,187 +301,187 @@ having members in each of these styles:
 AvantGarde-Book
 .FT
 .
-.TP
+.TQ
 .B AI
 .FT AI
 AvantGarde-BookOblique
 .FT
 .
-.TP
+.TQ
 .B AB
 .FT AB
 AvantGarde-Demi
 .FT
 .
-.TP
+.TQ
 .B ABI
 .FT ABI
 AvantGarde-DemiOblique
 .FT
 .
-.TP
+.TQ
 .B BMR
 .FT BMR
 Bookman-Light
 .FT
 .
-.TP
+.TQ
 .B BMI
 .FT BMI
 Bookman-LightItalic
 .FT
 .
-.TP
+.TQ
 .B BMB
 .FT BMB
 Bookman-Demi
 .FT
 .
-.TP
+.TQ
 .B BMBI
 .FT BMBI
 Bookman-DemiItalic
 .FT
 .
-.TP
+.TQ
 .B CR
 .FT CR
 Courier
 .FT
 .
-.TP
+.TQ
 .B CI
 .FT CI
 Courier-Oblique
 .FT
 .
-.TP
+.TQ
 .B CB
 .FT CB
 Courier-Bold
 .FT
 .
-.TP
+.TQ
 .B CBI
 .FT CBI
 Courier-BoldOblique
 .FT
 .
-.TP
+.TQ
 .B HR
 .FT HR
 Helvetica
 .FT
 .
-.TP
+.TQ
 .B HI
 .FT HI
 Helvetica-Oblique
 .FT
 .
-.TP
+.TQ
 .B HB
 .FT HB
 Helvetica-Bold
 .FT
 .
-.TP
+.TQ
 .B HBI
 .FT HBI
 Helvetica-BoldOblique
 .FT
 .
-.TP
+.TQ
 .B HNR
 .FT HNR
 Helvetica-Narrow
 .FT
 .
-.TP
+.TQ
 .B HNI
 .FT HNI
 Helvetica-Narrow-Oblique
 .FT
 .
-.TP
+.TQ
 .B HNB
 .FT HNB
 Helvetica-Narrow-Bold
 .FT
 .
-.TP
+.TQ
 .B HNBI
 .FT HNBI
 Helvetica-Narrow-BoldOblique
 .FT
 .
-.TP
+.TQ
 .B NR
 .FT NR
 NewCenturySchlbk-Roman
 .FT
 .
-.TP
+.TQ
 .B NI
 .FT NI
 NewCenturySchlbk-Italic
 .FT
 .
-.TP
+.TQ
 .B NB
 .FT NB
 NewCenturySchlbk-Bold
 .FT
 .
-.TP
+.TQ
 .B NBI
 .FT NBI
 NewCenturySchlbk-BoldItalic
 .FT
 .
-.TP
+.TQ
 .B PR
 .FT PR
 Palatino-Roman
 .FT
 .
-.TP
+.TQ
 .B PI
 .FT PI
 Palatino-Italic
 .FT
 .
-.TP
+.TQ
 .B PB
 .FT PB
 Palatino-Bold
 .FT
 .
-.TP
+.TQ
 .B PBI
 .FT PBI
 Palatino-BoldItalic
 .FT
 .
-.TP
+.TQ
 .B TR
 .FT TR
 Times-Roman
 .FT
 .
-.TP
+.TQ
 .B TI
 .FT TI
 Times-Italic
 .FT
 .
-.TP
+.TQ
 .B TB
 .FT TB
 Times-Bold
 .FT
 .
-.TP
+.TQ
 .B TBI
 .FT TBI
 Times-BoldItalic
@@ -474,9 +501,10 @@ ZapfChancery-MediumItalic
 .
 .LP
 There are also some special fonts called
-.B SS
-and\~\c
-.BR S .
+.B S
+for the PS Symbol font, and
+.BR SS ,
+containing slanted lowercase Greek letters taken from PS Symbol.
 .
 Zapf Dingbats is available as
 .BR ZD
@@ -497,6 +525,10 @@ is used, for `cmy' and `cmyk'
 .BR setcmykcolor ,
 and for `gray'
 .BR setgray .
+Note that
+.B setcmykcolor
+is a PostScript LanguageLevel\~2 command and thus not available on some
+older printers.
 .
 .LP
 .B grops
@@ -686,70 +718,23 @@ arguments are not allowed to have attached scaling indicators.
 .
 If the PostScript file complies with the Adobe Document Structuring
 Conventions and contains a
-.B %%BoundingBox
+.B %%Bounding\%Box
 comment, then the bounding box can be automatically
 extracted from within groff by using the
 .B psbb
 request.
 .
-.RS
-.LP
-The
-.B \-mps
-macros (which are automatically loaded when
-.B grops
-is run by the groff command) include a
-.B PSPIC
-macro which allows a picture to be easily imported.
-.
-This has the format
 .IP
-\&\fB.PSPIC\fP [\fB\-L\fP|\fB-R\fP|\fB\-I\fP \fIn\fP]\ \fI\|file\fP [\fIwidth\fP [\fIheight\fP]]
-.
-.LP
-.I file
-is the name of the file containing the illustration;
-.I width
-and
-.I height
-give the desired width and height of the graphic.
-.
-The
-.I width
-and
-.I height
-arguments may have scaling indicators attached;
-the default scaling indicator is\~\c
-.BR i .
-.
-This macro will scale the graphic uniformly
-in the x and y\~directions so that it is no more than
-.I width
-wide
-and
-.I height
-high.
-.
-By default, the graphic will be horizontally centered.
-.
-The
-.BI \-L
-and
-.BI \-R
-cause the graphic to be left-aligned and right-aligned
-respectively.
-.
-The
-.B \-I
-option causes the graphic to be indented by\~\c
-.IR n .
-.RE
+See
+.BR groff_tmac (@MAN5EXT@)
+for a description of the
+.B PSPIC
+macro which provides a convenient high-level interface for inclusion of
+PostScript graphics.
 .
 .TP
 .B \[rs]X'ps:\ invis'
-.br
-.ns
-.TP
+.TQ
 .B \[rs]X'ps:\ endinvis'
 No output will be generated for text and drawing commands
 that are bracketed with these
@@ -796,7 +781,12 @@ whereas
 will print the
 .B \[rs](em
 character
-and ignore the line.
+and ignore the line (this code is already in file
+.B Xps.tmac
+which will be loaded if a documented intended for
+.B grops
+is previewed with
+.BR gxditview ).
 .RE
 .
 .LP
@@ -808,7 +798,8 @@ must be in the format output by
 This is described in
 .BR groff_out (@MAN5EXT@).
 .
-In addition the device and font description files for the device used
+.LP
+In addition, the device and font description files for the device used
 must meet certain requirements.
 .
 The device and font description files supplied for
@@ -825,25 +816,12 @@ The
 .B ps
 device uses a resolution of 72000 and a sizescale of 1000.
 .
-The device description file should contain a command
-.IP
-.BI paperlength\  n
 .LP
-which says that output should be generated which is suitable for
-printing on a page whose length is
-.IR n \~\c
-machine units.
-.
-Common values are 792000 for letter paper and 841890 for paper in A4 format.
-.
-Alternatively, it can contain
-.IP
-.BI papersize\  string
-.LP
-to specify a paper size; see
+The device description file must contain a valid paper size; see
 .BR groff_font (@MAN5EXT@)
 for more information.
 .
+.LP
 Each font description file must contain a command
 .IP
 .BI internalname\  psname
@@ -868,7 +846,8 @@ where
 is the PostScript name of the character,
 and
 .I code
-is its position in the encoding expressed as a decimal integer.
+is its position in the encoding expressed as a decimal integer; valid
+values are in the range 0 to\~255.
 .
 Lines starting with
 .B #
@@ -897,10 +876,24 @@ it can make use of such a character to generate more efficient and
 compact PostScript output.
 .
 .LP
+Note that
+.B grops
+is able to display all glyphs in a PostScript font, not only 256.
+.I enc_file
+(or the default encoding if no encoding file specified) just defines the
+order of glyphs for the first 256 characters; all other glyphs are
+accessed with additional encoding vectors which
+.B grops
+produces on the fly.
+.
+.LP
 .B grops
 can automatically include the downloadable fonts necessary
 to print the document.
-.
+Such fonts must be in PFA format.
+Use
+.BR pfbtops (@MAN1EXT@)
+to convert a Type\~1 font in PFB format.
 Any downloadable fonts which should, when required, be included by
 .B grops
 must be listed in the file
@@ -951,7 +944,7 @@ and also a downloadable font called Garamond-Outline
 which depends on Garamond
 (typically it would be defined to copy Garamond's font dictionary,
 and change the PaintType),
-then it is necessary for Garamond to be appear before Garamond-Outline
+then it is necessary for Garamond to appear before Garamond-Outline
 in the PostScript document.
 .
 .B grops
@@ -981,30 +974,30 @@ in the
 file.
 .
 A downloadable font should not include its own name in a
-.B %%DocumentSuppliedResources
+.B %%Document\%Supplied\%Resources
 comment.
 .
 .LP
 .B grops
 will not interpret 
-.B %%DocumentFonts
+.B %%Document\%Fonts
 comments.
 .
 The
-.BR %%DocumentNeededResources ,
-.BR %%DocumentSuppliedResources ,
-.BR %%IncludeResource ,
-.BR %%BeginResource
+.BR %%Document\%Needed\%Resources ,
+.BR %%Document\%Supplied\%Resources ,
+.BR %%Include\%Resource ,
+.BR %%Begin\%Resource ,
 and
-.BR %%EndResource
+.BR %%End\%Resource
 comments
 (or possibly the old
-.BR %%DocumentNeededFonts ,
-.BR %%DocumentSuppliedFonts ,
-.BR %%IncludeFont ,
-.BR %%BeginFont
+.BR %%Document\%Needed\%Fonts ,
+.BR %%Document\%Supplied\%Fonts ,
+.BR %%Include\%Font ,
+.BR %%Begin\%Font ,
 and
-.BR %%EndFont
+.BR %%End\%Font
 comments)
 should be used.
 .
@@ -1104,10 +1097,11 @@ Temporary file.
 .BR afmtodit (@MAN1EXT@),
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
-.BR psbb (@MAN1EXT@),
+.BR pfbtops (@MAN1EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_font (@MAN5EXT@),
-.BR groff_char (@MAN7EXT@)
+.BR groff_char (@MAN7EXT@),
+.BR groff_tmac (@MAN5EXT@)
 .
 .\" Local Variables:
 .\" mode: nroff

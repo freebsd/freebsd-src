@@ -2,5 +2,10 @@
 
 FILES=		${DEVFILES}
 FILESDIR?=	${fontdir}/dev${DEV}
+SCRIPTS=	${DEVSCRIPTS}
+SCRIPTSDIR?=	${fontdir}/dev${DEV}
+.for script in ${SCRIPTS}
+SCRIPTSNAME_${script:T}= ${script:T}
+.endfor
 
 .include <bsd.prog.mk>

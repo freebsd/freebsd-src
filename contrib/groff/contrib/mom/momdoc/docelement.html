@@ -763,7 +763,9 @@ in the string(s) you pass to <strong>HEAD</strong>
 For example,
 <p>
 <pre>
-	.HEAD "\[ALD3]Text of head
+	.HEAD "\[ALD3]Text of head"
+        or
+    .HEAD "\[DOWN 3p]Text of head"
 </pre>
 
 will lower the baseline of the head by three points.  Note that
@@ -774,6 +776,8 @@ the escape in the string for each line, like this:
 <p>
 <pre>
 	.HEAD "\[ALD3]First line" "\[ALD3]Next line" 
+        or
+    .HEAD "\[DOWN 3p]First line" "\[DOWN 3p]Next line" 
 </pre>
 
 
@@ -880,7 +884,7 @@ the next in ascending order (i.e. the last subhead number + 1), invoke
 Your next subhead will be numbered &quot;4&quot; and subsequent
 subheads will be numbered in ascending order from &quot;4&quot;.
 
-<a name="#SUBHEAD_INLINES"><h3><u>Vertical inline escapes inside subheads</u></h3></a>
+<a name="SUBHEAD_INLINES"><h3><u>Vertical inline escapes inside subheads</u></h3></a>
 See
 <a href="#HEAD_INLINES">Vertical inline escapes inside heads</a>.
 The information there applies equally to subheads.

@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,7 +17,7 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
@@ -27,9 +28,10 @@ File: groff,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 GNU troff
 *********
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -292,7 +294,7 @@ Macro Packages
    Since `groff' provides such low-level facilities, it can be quite
 difficult to use by itself.  However, `groff' provides a "macro"
 facility to specify how certain routine operations (e.g. starting
-paragraphs, printing headers and footers, etc.) should be done.  These
+paragraphs, printing headers and footers, etc.)  should be done.  These
 macros can be collected together into a "macro package".  There are a
 number of macro packages available; the most common (and the ones
 described in this manual) are `man', `mdoc', `me', `ms', and `mm'.
@@ -390,6 +392,7 @@ called AT&T `troff' which is the common origin of all `troff' derivates
 * Environment::
 * Macro Directories::
 * Font Directories::
+* Paper Size::
 * Invocation Examples::
 
 
@@ -665,7 +668,7 @@ to format a file.
 `-rNAME=N'
      Set number register C or NAME to the value N.  C must be a
      one-letter name; NAME can be of arbitrary length.  N can be any
-     `gtroff' numeric expression.  All register  assignments happen
+     `gtroff' numeric expression.  All register assignments happen
      before loading any macro file (including the start-up file).
 
 `-FDIR'
@@ -764,14 +767,14 @@ files are (in that order):
 
           /usr/local/lib/groff/site-tmac
           /usr/local/share/groff/site-tmac
-          /usr/local/share/groff/1.18/tmac
+          /usr/local/share/groff/1.18.2/tmac
 
-     assuming that the version of `groff' is 1.18, and the installation
-     prefix was `/usr/local'.  It is possible to fine-tune those
-     directories during the installation process.
+     assuming that the version of `groff' is 1.18.2, and the
+     installation prefix was `/usr/local'.  It is possible to fine-tune
+     those directories during the installation process.
 
 
-File: groff,  Node: Font Directories,  Next: Invocation Examples,  Prev: Macro Directories,  Up: Invoking groff
+File: groff,  Node: Font Directories,  Next: Paper Size,  Prev: Macro Directories,  Up: Invoking groff
 
 Font Directories
 ================
@@ -805,14 +808,47 @@ files for `grodvi' must be in `/foo/bar/devdvi'.
 
 
           /usr/local/share/groff/site-font
-          /usr/local/share/groff/1.18/font
+          /usr/local/share/groff/1.18.2/font
 
-     assuming that the version of `groff' is 1.18, and the installation
-     prefix was `/usr/local'.  It is possible to fine-tune those
-     directories during the installation process.
+     assuming that the version of `groff' is 1.18.2, and the
+     installation prefix was `/usr/local'.  It is possible to fine-tune
+     those directories during the installation process.
 
 
-File: groff,  Node: Invocation Examples,  Prev: Font Directories,  Up: Invoking groff
+File: groff,  Node: Paper Size,  Next: Invocation Examples,  Prev: Font Directories,  Up: Invoking groff
+
+Paper Size
+==========
+
+   In groff, the page size for `gtroff' and for output devices are
+handled separately.  *Note Page Layout::, for vertical manipulation of
+the page size.  *Note Line Layout::, for horizontal changes.
+
+   A default paper size can be set in the device's `DESC' file.  Most
+output devices also have a command line option `-p' to override the
+default paper size and option `-l' to use landscape orientation.  *Note
+DESC File Format::, for a description of the `papersize' keyword which
+takes the same argument as `-p'.
+
+   A convenient shorthand to set a particular paper size for `gtroff'
+is command line option `-dpaper=SIZE'.  This defines string `paper'
+which is processed in file `papersize.tmac' (loaded in the start-up
+file `troffrc' by default).  Possible values for SIZE are the same as
+the predefined values for the `papersize' keyword (but only in
+lowercase) except `a7'-`d7'.  An appended `l' (ell) character denotes
+landscape orientation.
+
+   For example, use the following for PS output on A4 paper in landscape
+orientation:
+
+
+     groff -Tps -dpaper=a4l -P-pa4 -P-l -ms foo.ms > foo.ps
+
+   Note that it is up to the particular macro package to respect default
+page dimensions set in this way (most do).
+
+
+File: groff,  Node: Invocation Examples,  Prev: Paper Size,  Up: Invoking groff
 
 Invocation Examples
 ===================
@@ -946,7 +982,7 @@ spaces one line, but
 spaces four lines.  The number 4 is an argument to the `sp' request
 which says to space four lines instead of one.  Arguments are separated
 from the request and from each other by spaces (_no_ tabs).  More
-details on this can be found in *Note Request Arguments::.
+details on this can be found in *Note Request and Macro Arguments::.
 
    The primary function of `gtroff' is to collect words from input
 lines, fill output lines with those words, justify the right-hand margin
@@ -1307,6 +1343,18 @@ Macro Packages
    This chapter documents the main macro packages that come with
 `groff'.
 
+   Different main macro packages can't be used at the same time; for
+example
+
+
+     groff -m man foo.man -m ms bar.doc
+
+doesn't work.  Note that option arguments are processed before
+non-option arguments; the above (failing) sample is thus reordered to
+
+
+     groff -m man -m ms foo.man bar.doc
+
 * Menu:
 
 * man::
@@ -1333,54 +1381,5 @@ pages are based on it.
 * Miscellaneous man macros::
 * Predefined man strings::
 * Preprocessors in man pages::
-
-
-File: groff,  Node: Man options,  Next: Man usage,  Prev: man,  Up: man
-
-Options
--------
-
-   The command line format for using the `man' macros with `groff' is:
-
-
-     groff -m man [ -rLL=LENGTH ] [ -rLT=LENGTH ]
-           [ -rcR=1 ] [ -rC1 ] [ -rD1 ] [ -rPNNN ]
-           [ -rSXX ] [ -rXNNN ] [ FILES... ]
-
-It is possible to use `-man' instead of `-m man'.
-
-`-rLL=LENGTH'
-     Set line length to LENGTH.  If not specified, the line length
-     defaults to 78 en in nroff mode (this is 78 characters per line)
-     and 6.5 inch otherwise.
-
-`-rLT=LENGTH'
-     Set title length to LENGTH.  If not specified, the title length
-     defaults to 78 en in nroff mode (this is 78 characters per line)
-     and 6.5 inch otherwise.
-
-`-rcR=1'
-     This option (the default if a TTY output device is used) creates a
-     single, very long page instead of multiple pages.  Use `-rcR=0' to
-     disable it.
-
-`-rC1'
-     If more than one manual page is given on the command line, number
-     the pages continuously, rather than starting each at 1.
-
-`-rD1'
-     Double-sided printing.  Footers for even and odd pages are
-     formatted differently.
-
-`-rPNNN'
-     Page numbering starts with NNN rather than with 1.
-
-`-rSXX'
-     Use XX (which can be 10, 11, or 12pt) as the base document font
-     size instead of the default value of 10pt.
-
-`-rXNNN'
-     After page NNN, number pages as NNNa, NNNb, NNNc, etc.  For
-     example, the option `-rX2' produces the following page numbers: 1,
-     2, 2a, 2b, 2c, etc.
+* Optional man extensions::
 

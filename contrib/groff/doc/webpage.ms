@@ -42,9 +42,9 @@ Home of Groff (GNU Troff).
 .HnS 1
 .HR
 GNU Troff
-.URL http://\:groff.ffii.org/ (Groff) 
+.URL http://\:groff.ffii.org/ (Groff)
 \[em] a
-.URL http://\:www.gnu.org/ GNU 
+.URL http://\:www.gnu.org/ GNU
 project.
 Hosted by
 .URL http://\:ffii.org/ FFII .
@@ -62,15 +62,26 @@ Groff now supports HTML.
 .SH
 Download
 
-.URL "ftp://\:groff.ffii.org/\:pub/\:groff/" Germany 
-|
-.URL "ftp://\:ftp.gnu.org/\:gnu/\:groff/" USA 
+The source code of the currently released versions of groff is
+available at the 
+.URL "ftp://\:groff.ffii.org/\:pub/\:groff/" "FFII host (Germany)" ,
+.URL "ftp://\:ftp.gnu.org/\:gnu/\:groff/" "GNU host (USA)" ,
+and its mirrors.
+.
+The USA site also contains more old, obsolete versions.
 
-.URL http://\:www.gnu.org/\:copyleft/\:gpl.html License 
-|
-.URL http://\:ffii.org/\:mailman/\:listinfo/\:groff/ "Mailing list" 
-|
-.URL "http://\:gnuwin32.sf.net/\:packages/\:groffl.htm" "Groff for Windows" 
+The most actual pre-release, development version is available from a
+CVS repository, see below.
+.
+Development snapshots (produced twice a day from the CVS repository)
+can be downloaded with FTP from
+.URL "ftp://\:groff.ffii.org/\:pub/\:groff/devel" here .
+
+For a special version of groff on the Microsoft operating systems, see
+.URL "http://\:gnuwin32.sf.net/\:packages/\:groffl.htm" "Groff for Windows" .
+
+GNU troff is released under the
+.URL http://\:www.gnu.org/\:copyleft/\:gpl.html "GNU Copyright License" .
 
 User issues lead:
 .MTO Ted.Harding@\:nessie.mcc.ac.uk "Ted Harding"
@@ -115,7 +126,7 @@ A CVS repository is now available, containing the current development
 version of groff.
 You can access it with the commands
 
-.RS
+.in 2m
 .nf
 .ft C
 export CVSROOT=:pserver:anoncvs@anoncvs.ffii.org:/var/cvs
@@ -123,17 +134,17 @@ cvs login
 cvs -z9 co groff
 .ft P
 .fi
-.RE
+.in
 
 (if the prompt for the password appears, just press the enter key).
 After a successful login you no longer need the first two commands; an
 update of a checked out repository should be done with
 
-.RS
+.in 2m
 .ft C
 cvs -z9 update -dP
 .ft P
-.RE
+.in
 
 Please read the info pages of cvs for further details.
 
@@ -142,17 +153,17 @@ from
 .URL ftp://\:ftp.ffii.org/\:pub/\:groff/\:devel/\:groff-current.tar.gz here
 or a diff file relative to the latest official groff release as:
 
-.RS
+.in 2m
 .ft C
 ftp://ftp.ffii.org/pub/groff/devel/groff-\[la]version\[ra]-current.diff.gz
 .ft P
-.RE
+.in
 
 Assuming that groff-\[la]version\[ra].tar.gz and
 groff-\[la]version\[ra]-current.diff.gz are in the same directory, do the
 following to apply the diff file:
 
-.RS
+.in 2m
 .nf
 .ft C
 tar xzvf groff-\[la]version\[ra].tar.gz
@@ -160,7 +171,7 @@ cd groff-\[la]version\[ra]
 gunzip -c ../groff-\[la]version\[ra]-current.diff.gz | patch -p1
 .ft P
 .fi
-.RE
+.in
 
 Please report bugs using the form in the file BUG-REPORT; the idea of this
 is to make sure that FSF has all the information it needs to fix the bug.
@@ -194,7 +205,10 @@ To subscribe, send e-mail to \[la]list\[ra]-request@\[la]domain\[ra]
 (example:
 .MTO groff-request@\:ffii.org groff-request@\:ffii.org )
 with the word `subscribe' in either the
-subject or body of the e-mail (don't include the quotes).
+subject or body of the e-mail (don't include the quotes) or have a look
+at the
+.URL http://\:ffii.org/\:mailman/\:listinfo/\:groff/ \
+     "groff mailing list webpage" .
 
 GNU groff was written by
 .MTO jjc@\:jclark.com "James Clark" .
@@ -202,6 +216,335 @@ It is now maintained by
 .MTO Ted.Harding@\:nessie.mcc.ac.uk "Ted Harding"
 and
 .MTO wl@\:gnu.org "Werner Lemberg" .
+.
+.
+.SH
+NEWS VERSION 1.19
+.
+.SH 2
+troff
+
+.ULS
+.LI
+Input encoding files for \%latin-9 (a.k.a.\& \%latin-0 and ISO \%8859-15)
+and \%latin-2 (ISO \%8859-2) have been added.
+Example use:
+
+.in 2m
+.ft C
+groff -Tdvi -mlatin9 my_file > my_file.dvi
+.ft P
+.in
+
+You still need proper fonts with the necessary glyphs.
+Out of the box, the groff package supports \%latin-9 only for \-Tps,
+\-Tdvi, and \-Tutf8, and \%latin-2 only for \-Tdvi and \-Tutf8.
+
+.LI
+Composite glyphs are now supported.
+To do this, a subset of the Adobe Glyph List (AGL) Algorithm as described in
+.URL http://partners.adobe.com/asn/developer/typeforum/unicodegn.html \
+     http://partners.adobe.com/asn/developer/typeforum/unicodegn.html
+is used to construct glyph names based on Unicode character codes.
+The existing groff glyph names are frozen; no glyph names which can't be
+constructed algorithmically will be added in the future.
+
+The \e[...] escape sequence has been extended to specify multiple glyph
+components.
+Example:
+
+.in 2m
+.ft C
+\e[A ho]
+.ft R
+.in
+
+this accesses a glyph with the name `u0041_0328'.
+
+Some groff glyphs which are useful as composites map to `wrong' Unicode
+code points.
+For example, `ho' maps to U+02DB which is a spacing ogonek, whereas a
+non-spacing ogonek U+0328 is needed for composite glyphs.
+The new request
+
+.in 2m
+.ft C
+\&.composite from to
+.ft R
+.in
+
+will change the mapping while a composite glyph name is constructed.
+To make \e[A ho] yield the expected result,
+
+.in 2m
+.ft C
+\&.composite ho u0328
+.ft R
+.in
+
+is needed.
+[The new file `composite.tmac' loaded at start-up already
+contains proper calls to `.composite'.]
+
+Please refer to the info pages of groff and to the groff_char man page
+for more details.
+
+.LI
+A new request `fschar' has been added to define font-specific fallback
+characters.
+They are searched after the list of fonts declared with the
+`fspecial' request but before the list of fonts declared with `special'.
+
+.LI
+Fallback characters defined with `fschar' can be removed with the
+new `rfschar' request.
+
+.LI
+A new request `schar' has been added to define global fallback
+characters.
+They are searched after the list of fonts declared with the
+`special' request but before the already mounted special fonts.
+
+.LI
+In groff versions 1.18 and 1.18.1, \eD'f ...' didn't move the current
+point horizontally.
+Despite of being silly, this change has been reverted for backwards
+compatibility.
+Consequently, the intermediate output command `Df' also moves the 
+position horizontally again.
+
+\eD'f ...' is deprecated since it depends on the horizontal resolution of
+the output device (given with the `hor' parameter in the DESC file).
+Use the new \eD'Fg ...' escape instead.
+
+.LI
+For orthogonality, new \eD subcommands to change the fill color are
+available:
+
+.in 2m
+.ft C
+\eD'Fr ...' \f[R](rgb)\f[]
+.br
+\eD'Fc ...' \f[R](cmy)\f[]
+.br
+\eD'Fg ...' \f[R](gray)\f[]
+.br
+\eD'Fk ...' \f[R](cmyk)\f[]
+.br
+\eD'Fd' \f[R](default color)\f[]
+.ft R
+.in
+
+The arguments are the same as with the `defcolor' request.
+The current position is \f[I]not\f[] changed.
+
+.LI
+The values set with \eH and \eS are now available in number registers
+\en[.height] and \en[.slant], respectively.
+
+.LI
+The `.pe' number register isn't new but hasn't been documented before.
+It is set to 1 during a page ejection caused by the `bp' request.
+
+.LI
+The new glyph symbol `tno' is a textual variant of `no'.
+
+.LI
+The new glyph symbol `+e' represents U+03F5, GREEK LUNATE EPSILON SYMBOL.
+(Well, it is not really new since it has been previously supported by
+grolj4.)
+The mapping for both the dvi and lj4 symbol font has been
+changed accordingly so that Greek small letter epsilon, `*e', has the
+same glyph shape as with other devices.
+.ULE
+.
+.
+.SH 2
+grops
+
+.ULS
+.LI
+The font `freeeuro.pfa' has been added to provide various default glyph
+shapes for `eu' and `Eu'.
+
+.LI
+It is now possible to access all glyphs in a Type\~1 font, not only 256
+(provided the font file created by afmtodit has proper entries).
+grops constructs additional encoding vectors on the fly if necessary.
+
+.LI
+The paper size is now emitted via the %%DocumentMedia and PageSize
+mechanisms so that it is no longer required to tell `gv' or `ps2pdf'
+about the paper size.
+The `broken' flag value\~16 omits this feature
+(the used PostScript command `setpagedevice' is a LanguageLevel\~2
+extension).
+Patch by
+.MTO egil@\:kvaleberg.no "Egil Kvaleberg" .
+
+.LI
+Non-slanted PostScript metrics have been changed again; they no longer
+contain negative left italic correction values.
+This assures correct spacing with eqn.
+.ULE
+.
+.
+.SH 2
+grodvi
+
+.ULS
+.LI
+The font cmtex10 has been added as the special font `SC' to the DVI fonts.
+It is used as a font-specific special font for CW and CWI.
+
+.LI
+New options \-l and \-p to set landscape orientation and the paper size.
+grodvi now emits a `papersize' special which is understood by DVI drivers
+like dvips.
+
+Consequently, the DESC file should contain a `papersize' keyword.
+
+.LI
+The glyph shapes for \e[*f] and \e[*e] have been exchanged with \e[+f] and
+\e[+e], respectively, to be in sync with all other devices.
+
+.LI
+Glyphs \e[HE] and \e[DI] have been replaced with \e[u2662] and \e[u2661],
+respectively, since the former two glyphs have a black (filled) shape
+which grodvi doesn't provide by default (it never has actually).
+.ULE
+.
+.
+.SH 2
+grolj4
+
+.ULS
+.LI
+The glyphs \e[*e] and \e[+e] have been exchanged to be in sync with
+all other devices.
+
+.LI
+The glyph \e[~=] is now called \e[|=].  Similar to other devices, \e[~=]
+is now another name for glyph \e[~~].
+.ULE
+.
+.
+.SH 2
+grotty
+
+.ULS
+.LI
+New option `\-r'.
+It is similar to the \-i option except it tells grotty to
+use the `reverse video' attribute to render italic fonts.
+.ULE
+.
+.
+.SH 2
+pic
+
+.ULS
+.LI
+New command `figname' to set the name of a picture's output box in TeX
+mode.
+.ULE
+.
+.
+.SH 2
+refer
+
+.ULS
+.LI
+The environment variable `REFER' to override the name of the default
+database isn't new but hasn't been documented before.
+.ULE
+.
+.
+.SH 2
+soelim
+
+.ULS
+.LI
+New option `\-r' to avoid emission of `.lf' lines.
+
+.LI
+New option `\-t' to emit TeX comment lines (giving current file and the
+line number) instead of `.lf' lines.
+.ULE
+.
+.
+.SH 2
+afmtodit
+
+.ULS
+.LI
+Unencoded glyphs in an AFM file are output also (since grops can now emit
+multiple encoding vectors for a single font).
+
+.LI
+New option `\-m' to prevent negative left italic correction values.
+
+.LI
+The mapping and encoding file together with file `DESC' are now searched
+in the default font directory also.
+Please refer to the man page of afmtodit for more details.
+.ULE
+.
+.
+.SH 2
+macro packages
+
+.ULS
+.LI
+.MTO kollar@\:alltel.net "Larry Kollar"
+and others made the man macros more customizable.
+
+.ULS
+.LI
+New command line options \-rFT, \-rIN, and \-rSN to set the vertical
+location of the footer line, the body text indentation, and the
+sub-subheading indentation.
+
+.LI
+New command line option \-rHY (similar to the ms macros) to control
+hyphenation.
+
+.LI
+New macros `.PT' and `.BT' to print the header and footer strings.
+They can be replaced with a customized version in `man.local'.
+
+.LI
+The string `HF' now holds the typeface to print headings and
+subheadings.
+
+.LI
+Similar to the ms macros, the LT register now defaults to LL if not
+explicitly specified on the command line.
+.ULE
+
+.LI
+troff's start-up file `troffrc' now includes `papersize.tmac' to set
+the paper size with the command line option `-dpaper=<size>'.
+
+Possible values for `<size>' are the same as the predefined `papersize'
+values in the DESC file (only lowercase; see the groff_font man page)
+except \%a7-d7.
+An appended `l' (ell) character denotes landscape orientation.
+Examples: `a4', `c3l', `letterl'.
+
+Most output drivers need additional command line switches `\-p' and
+`\-l' to override the default paper length and orientation as set in
+the driver specific DESC file.
+
+For example, use the following for PS output on A4 paper in landscape
+orientation:
+
+.in 2m
+.ft C
+groff -Tps -dpaper=a4l -P-pa4 -P-l -ms foo.ms > foo.ps
+.ft R
+.in
+.ULE
 .
 .
 .SH
@@ -293,23 +636,24 @@ It is scanned from left to the right, and the first valid argument is used.
 This makes it possible to provide a fallback paper size.
 
 Example:
-.RS
+
+.in 2m
 .ft C
 papersize /etc/papersize a4
 .ft P
-.RE
+.in
 
 .LI
 A local font directory has been prepended to the default font path; it
 defaults to /usr/local/share/groff/site-font.  Similar to the normal
-font searching process, files must be placed into a dev\fIXXX\fP
+font searching process, files must be placed into a dev\f[I]XXX\f[]
 subdirectory, e.g.
 
-.RS
+.in 2m
 .ft C
 /usr/local/share/groff/site-font/devps/FOO
 .ft P
-.RE
+.in
 
 for a PostScript font definition file FOO.
 .ULE
@@ -402,20 +746,22 @@ got the troff glyph name `mc'.
 .LI
 Strings can take arguments, using this syntax: \e*[foo\~arg1\~arg2\~.\|.\|.].
 Example:
-.RS
+
+.in 2m
 .nf
 .ft C
 \&.ds xxx This is a \e\e$1 test.
 \e*[xxx nice]
 .ft P
 .fi
-.RE
+.in
 
 .LI
 It is now possible to have whitespace between the first and second dot (or
 the name of the ending macro) to end a macro definition.
 Example:
-.RS
+
+.in 2m
 .nf
 .ft C
 \&.de !
@@ -430,7 +776,7 @@ Example:
 \&..
 .ft P
 .fi
-.RE
+.in
 
 .LI
 `.fn' is a new string-valued register which returns the (internal) real
@@ -505,7 +851,8 @@ final `0' can be omitted.
 the exception that the `asciify' request will use the character code (if
 any) before the character translation.
 Example:
-.RS
+
+.in 2m
 .nf
 .ft C
 \&.trin ax
@@ -519,7 +866,7 @@ a
 \&.xxx
 .ft P
 .fi
-.RE
+.in
 
 The result is `x\~a'.  Using `tr', the result would be `x\~x'.
 
@@ -535,21 +882,22 @@ post-vertical line space.
 For compatibility with plan 9's troff, multiple `pi' requests are
 supported:
 
-.RS
+.in 2m
 .nf
 .ft C
 \&.pi foo
 \&.pi bar
 .ft P
 .fi
-.RE
+.in
 
 is now equivalent to
-.RS
+
+.in 2m
 .ft C
 \&.pi foo | bar
 .ft P
-.RE
+.in
 
 .LI
 A new escape sequence `\eO' is available to disable and enable glyph
@@ -645,13 +993,14 @@ documented properly before.
 .ULS
 .LI
 The following macros have been renamed:
-.RS
+
+.in 2m
 .nf
 MAILTO -> MTO
 IMAGE  -> IMG
 LINE   -> HR
 .fi
-.RE
+.in
 
 .LI
 For consistency, the macros `URL', `FTL', and `MTO' now all have the
@@ -733,11 +1082,12 @@ New keywords `color' (or `colour', `colored', `coloured'), `outline' (or
 `outline' sets the color of the outline, `shaded' the fill color, and
 `color' sets both.
 Example:
-.RS
+
+.in 2m
 .ft C
 circle shaded "green" outline "black" ;
 .ft P
-.RE
+.in
 
 Filled arrows always use the outline color for filling.
 
@@ -814,7 +1164,8 @@ By default, font sizes are now available in the range 5\-10000pt, similar
 to PS fonts.
 If you want the old behaviour (i.e., font sizes at discrete values only),
 insert the following at the start of your document:
-.RS
+
+.in 2m
 .nf
 .ft C
 \&.if '\e*[.T]'dvi' \e
@@ -822,7 +1173,7 @@ insert the following at the start of your document:
 \&         1728 1800 2000 2074 2200 2400 2488 2800 3600
 .ft P
 .fi
-.RE
+.in
 
 .LI
 A new font file HBI (using cmssbxo10; this is slanted sans serif bold
@@ -939,17 +1290,17 @@ of examples.
 A new keyword `papersize' has been added to the DESC file format.
 Its argument is either
 
-.RS
-.IP \[bu]
+.ULS
+.LI
 a predefined paper format (e.g. `A4' or `letter')
 
-.IP \[bu]
+.LI
 a file name pointing to a file which must contain a paper size
 specification in its first line (e.g. `/etc/papersize')
 
-.IP \[bu]
+.LI
 a custom paper size definition like `35c,4i'
-.RE
+.ULE
 
 See groff_font(5) for more details.
 This keyword only affects the physical dimensions of the output medium;
@@ -959,7 +1310,7 @@ troff completely ignores it.
 .
 .HR
 .
-\s-2\fIThis document was produced using
+\s[-2]\f[I]This document was produced using
 .URL http://groff.ffii.org/ groff-\n[.x].\n[.y].\n[.Y] .
 .br
 The image at the top has been contributed by Imogen Mulley (born 1991),

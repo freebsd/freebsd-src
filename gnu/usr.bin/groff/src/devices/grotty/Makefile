@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	grotty
-SRCS=		tty.cc
+SRCS=		tty.cpp
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}

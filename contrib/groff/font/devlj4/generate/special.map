@@ -14,7 +14,6 @@
 53 *T
 57 *X
 59 *Z
-94 or
 96 ap
 183 mi
 191 +-
@@ -37,10 +36,12 @@
 297 >=
 298 <=
 301 ~~
+301 ~=
 302 md
 500 sr
+500 sqrt
 501 pt
-503 +e
+503 *e
 504 3d
 504 tf
 505 *G
@@ -62,7 +63,7 @@
 523 *b
 524 *g
 525 *d
-526 *e
+526 +e
 527 *z
 528 *y
 529 *h
@@ -85,7 +86,7 @@
 546 +h
 547 +f
 548 +p
-549 ~=
+549 |=
 550 ne
 551 arrowverttp
 551 uA
@@ -116,6 +117,7 @@
 581 OR
 584 ci
 587 is
+587 integral
 589 /_
 590 es
 591 Ah
@@ -149,6 +151,7 @@
 613 braceleftex
 613 bracerightex
 613 bv
+613 braceex
 614 barex
 614 bracketleftex
 614 bracketrightex
@@ -161,6 +164,7 @@
 633 <<
 634 >>
 638 -h
+638 hbar
 641 wp
 654 lz
 663 st

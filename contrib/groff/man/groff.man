@@ -2,11 +2,11 @@
 .ig
 groff.man
 
-Last update: 29 June 2002
+Last update: 13 Feb 2003
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
 maintained by Werner Lemberg <wl@gnu.org>
 
@@ -1329,6 +1329,13 @@ If
 .I N
 is zero disable colors, otherwise enable them.
 .
+.REQ .composite from to
+Map glyph name
+.I from
+to glyph name
+.I to
+while constructing a composite glyph name.
+.
 .REQ .continue
 Finish the current iteration of a while loop.
 .
@@ -1543,6 +1550,19 @@ name to short
 name on position
 .IR n .
 .
+.REQ .fschar f c anything
+Define fallback character
+.I c
+for font
+.I f
+as string
+.IR anything .
+.
+.REQ .fspecial font
+Reset list of special fonts for
+.I font
+to be empty.
+.
 .REQ .fspecial font s1 s2 .\|.\|.\&
 When the current font is
 .IR font ,
@@ -1703,6 +1723,10 @@ line).
 If
 .I n
 is zero, disable line-tabs mode, otherwise enable it.
+.
+.REQ .lf N
+Set input line number to
+.IR N .
 .
 .REQ .lf N file
 Set input line number to
@@ -1939,6 +1963,14 @@ Read insertion.
 .REQ .return
 Return from a macro.
 .
+.REQ .rfschar f c1 c2 .\|.\|.\&
+Remove the definitions of characters
+.IR c1 ,
+.IR c2 ,
+.I .\|.\|.\&
+for font
+.IR f .
+.
 .REQ .rj n
 Right justify the next
 .I n
@@ -1973,6 +2005,12 @@ Return
 to marked vertical place (default scaling indicator\~\c
 .scaleindicator v ).
 .
+.REQ .schar c anything
+Define global fallback character
+.I c
+as string
+.IR anything .
+.
 .REQ .shc
 Reset soft hyphen character to
 .esc (hy .
@@ -2006,6 +2044,9 @@ up or down according to sign of
 .I N
 (default scaling indicator\~\c
 .scaleindicator v ).
+.
+.REQ .special
+Reset global list of special fonts to be empty.
 .
 .REQ .special s1 s2 .\|.\|.\&
 Fonts
@@ -2509,8 +2550,14 @@ see section
 .BR "Special Characters" .
 .
 .ESC[] "" name
-The named character with arbitrary length name
+The named character (or rather glyph) with arbitrary length name
 .IR name .
+.
+.ESC[] "" "comp1 comp2 .\|.\|."
+A composite glyph with components
+.IR comp1 ,
+.IR comp2 ,
+.I .\|.\|.
 .
 .\" --------- alphabetical escapes ---------
 .
@@ -3023,6 +3070,10 @@ Text base-line high-water mark on current page or diversion.
 .REG .H
 Available horizontal resolution in basic units.
 .
+.REG .height
+The current font height as set with
+.request \[rs]H .
+.
 .REG .hla
 The current hyphenation language as set by the
 .B .hla
@@ -3106,6 +3157,9 @@ Current page offset.
 .REG .p
 Current page length.
 .
+.REG .pe
+1\~during page ejection, 0\~otherwise.
+.
 .REG .pn
 The number of the next page: either the value set by a
 .request pn
@@ -3125,6 +3179,10 @@ The number of lines to be right-justified as set by the rj request.
 .
 .REG .s
 Current point size as a decimal fraction.
+.
+.REG .slant
+The slant of the current font as set with
+.request \[rs]S .
 .
 .REG .sr
 The last requested pointsize in points as a decimal fraction
@@ -3366,7 +3424,7 @@ be reproduced, and say which version of groff you are using.
 .SH AUTHORS
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free

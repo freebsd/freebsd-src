@@ -37,10 +37,6 @@
 .
 .eo
 .
-.\" use -rC=1 to number pages continuously
-.
-.if !r C .nr C 0
-.
 .\" use -rD=1 for double-sided printing
 .
 .if !r D .nr D 0
@@ -123,13 +119,13 @@
 .\" NS doc-header-space global register
 .\" NS   the space between header and body
 .
-.nr doc-header-space 0
+.nr doc-header-space .5i
 .
 .
 .\" NS doc-footer-space global register
 .\" NS   the space between body and footer
 .
-.nr doc-footer-space 0
+.nr doc-footer-space .5i
 .
 .
 .\" NS doc-display-vertical global register
@@ -143,13 +139,8 @@
 .\" NS
 .\" NS modifies:
 .\" NS   doc-display-vertical
-.\" NS   doc-footer-space
-.\" NS   doc-header-space
 .
 .de doc-setup-page-layout
-.  nr doc-header-space .5i
-.  nr doc-footer-space .5i
-.
 .  ie r LL \
 .    ll \n[LL]u
 .  el \
@@ -213,17 +204,10 @@
 .  wh 0 doc-header
 .  wh -1.25i doc-footer
 .
-.  nr nL \n[nl]
 .  if \n[gX] \
 .    ds doc-command-name
 .
 .  br
-.
-.  \" Don't set the page number if this is the first page,
-.  \" in case the user has used -n.
-.  if \n[nL] \
-.    if !\n[C] \
-.      nr % 1
 .
 .  nr gX 0
 .  e@ doc-end-macro

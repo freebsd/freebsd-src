@@ -82,13 +82,13 @@ CXXFLAGS+=	-fno-rtti -fno-exceptions
 
 .y.o:
 	$(YACC) $(YFLAGS) $(.IMPSRC)
-	mv -f y.tab.c $(.PREFIX).cc
+	mv -f y.tab.c $(.PREFIX).cpp
 	mv -f y.tab.h $(.PREFIX)_tab.h
-	${CXX} ${CXXFLAGS} -c $(.PREFIX).cc -o ${.TARGET}
+	${CXX} ${CXXFLAGS} -c $(.PREFIX).cpp -o ${.TARGET}
 
-.y.cc:
+.y.cpp:
 	$(YACC) $(YFLAGS) $(.IMPSRC)
-	mv -f y.tab.c $(.PREFIX).cc
+	mv -f y.tab.c $(.PREFIX).cpp
 	mv -f y.tab.h $(.PREFIX)_tab.h
 
 .SUFFIXES: .man .1 .2 .3 .4 .5 .6 .7 .8
@@ -133,6 +133,8 @@ revision=`sed -e 's/^0$$//' -e 's/^[1-9].*$$/.&/' $(GROFF_DIST)/REVISION`
 .sh .pl:
 	@${ECHO} Making ${.TARGET} from ${.IMPSRC}
 	@sed -e "s|@BINDIR@|${BINDIR}|g" \
+	     -e "s;@FONTDIR@;$(fontdir);g" \
+	     -e "s|@SEP@|:|g" \
 	     -e "s|@VERSION@|$(version)$(revision)|" \
 	     -e "s|@g@|$(g)|g" \
 	     ${.IMPSRC} >${.TARGET}

@@ -344,6 +344,22 @@ example:
 </pre>
 
 The above draws a rule the full measure of the 6-pica line length.
+Please note that <strong>\*[$RULE]</strong> should appear on a line by
+itself and that it draws the rule to the full measure, hence it
+<em>cannot</em> be used to fill the remainder of a partial line with
+a rule in this way:
+<p>
+<pre>
+	Signature__________________________________________
+</pre>
+
+If you wish to accomplish this effect, you have to use
+<strong>\*[RULE]</strong> in conjunction with the
+<a href="goodies.html#PAD"><strong>PAD</strong></a>
+macro and
+<a href="typesetting.html#STRING_TABS">string tabs</a>.
+(See the example provided with
+<a href="goodies.html#PAD_EXAMPLE"><strong>.PAD</strong></a>.
 <p>
 See groff's
 <a href="#INLINE_LINEDRAWING_GROFF">Horizontal line drawing function</a>

@@ -21,22 +21,30 @@
 .fchar \[14] 1/4
 .fchar \[12] 1/2
 .fchar \[34] 3/4
+.fchar \[18] 1/8
+.fchar \[38] 3/8
+.fchar \[58] 5/8
+.fchar \[78] 7/8
 .fchar \[ff] ff
 .fchar \[fi] fi
 .fchar \[fl] fl
-.fchar \[Fi] ffi
-.fchar \[Fl] ffl
+.fchar \[Fi] f\[fi]
+.fchar \[Fl] f\[fl]
 .fchar \[<-] <-
 .fchar \[->] ->
 .fchar \[<>] <->
 .fchar \[em] --
 .fchar \[+-] +-
 .fchar \[t+-] +-
+.fchar \[-+] -+
 .fchar \[co] (C)
 .fchar \[<=] <=
 .fchar \[>=] >=
+.fchar \[<<] <<
+.fchar \[>>] >>
 .fchar \[!=] !=
 .fchar \[==] ==
+.fchar \[ne] !==
 .fchar \[~=] ~=
 .fchar \[sq] []
 .fchar \[lh] <=
@@ -49,9 +57,13 @@
 .fchar \[oe] oe
 .fchar \[AE] AE
 .fchar \[ae] ae
+.fchar \[IJ] IJ
+.fchar \[ij] ij
 .fchar \[an] -
 .fchar \[eu] EUR
 .fchar \[Eu] EUR
+.fchar \[.i] i
+.fchar \[bq] ,
 .
 .\" color definitions
 .defcolor black rgb #000000
@@ -68,7 +80,7 @@
 .ie '\*(.T'cp1047' \
 .  do mso cp1047.tmac
 .el \
-.  if '\*(.T'latin1' \
+.  if !'\*(.T'ascii' \
 .    do mso latin1.tmac
 .
 .\" If you want the character definitions in tty-char.tmac to be loaded

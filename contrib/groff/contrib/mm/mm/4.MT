@@ -1,11 +1,11 @@
 .\"------------
-.\" $Id: 4.MT,v 2.0 2000/09/14 03:40:25 jhaegg Exp $
+.\" $Id: 4.MT,v 2.2 2003/04/02 04:06:40 jhaegg Exp $
 .\" Cover sheet. Memorandum type 4
 .\"------------
 .de cov@print-title
 .if !d cov*title .@error title (.TL) not defined!
-.MOVE 2.4c
-.S +4
+.MOVE 2.8c
+.S +2
 .ad c
 .fi
 .B
@@ -14,27 +14,28 @@
 .S
 .R
 .ad b
-.PGFORM
 ..
 .\"------------
 .de cov@print-authors
 .SP 0.5
 .I
+.S +1
 .nr cov*i 0 1
 .while \\n+[cov*i]<=\\n[cov*au] \{\
 .ce
 \\*[cov*au!\\n[cov*i]!1]
 .br
 .\}
+.S
 .R
-.PGFORM
 ..
 .\"------------
 .de cov@print-firm
-.if !d cov*firm .@error firm (.AF) not defined!
-.SP 0.5
-.ce
+.if d cov*firm \{\
+.	SP 0.5
+.	ce
 \\*[cov*firm]
+.\}
 ..
 .\"------------
 .de cov@print-abstract
@@ -64,7 +65,7 @@
 .	if d cov*abstract \{\
 .		if !\n[cov*abs-arg] .cov@print-abstract
 .	\}
-.	SP 3
+.	SP 2
 .	nr hd*cur-bline \n[nl]
 .	ds cov*mt-printed
 .	pg@enable-top-trap

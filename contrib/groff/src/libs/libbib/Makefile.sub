@@ -6,9 +6,9 @@ OBJS=\
   search.$(OBJEXT) \
   map.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/common.cc \
-  $(srcdir)/index.cc \
-  $(srcdir)/linear.cc \
-  $(srcdir)/search.cc
+  $(srcdir)/common.cpp \
+  $(srcdir)/index.cpp \
+  $(srcdir)/linear.cpp \
+  $(srcdir)/search.cpp
 CSRCS=\
   $(srcdir)/map.c

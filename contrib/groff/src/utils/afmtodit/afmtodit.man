@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -41,21 +41,23 @@ afmtodit \- create font files for use with groff \-Tps
 .ti \niu
 .B afmtodit
 .de OP
-.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP\ " "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
 .
-.OP \-nsv
+.OP \-mnsv
+.OP \-a n
 .OP \-d desc_file
 .OP \-e enc_file
 .OP \-i n
-.OP \-a n
 .I afm_file
 .I map_file
 .I font
 .br
 .ad \na
 .
+.LP
+The whitespace between an command line option and its argument is optional.
 .
 .SH DESCRIPTION
 .B afmtodit
@@ -67,9 +69,11 @@ is written in perl;
 you must have perl version 3 or newer installed in order to run
 .BR afmtodit .
 .
+.LP
 .I afm_file
 is the AFM (Adobe Font Metric) file for the font.
 .
+.LP
 .I map_file
 is a file that says which groff character names map onto
 each PostScript character name;
@@ -96,12 +100,16 @@ Lines starting with
 .B #
 and blank lines are ignored.
 .
-.I font
-is the groff name of the font.
+If the file isn't found in the current directory, it is searched in
+the `devps/generate' subdirectory of the default font directory.
 .
+.LP
 If a PostScript character is in the encoding to be used for the font
 but is not mentioned in
-.I map_file
+.IR map_file ,
+or if a generic groff glyph name can't be deduced using the Adobe Glyph
+List (built into
+.BR afmtodit )
 then
 .B afmtodit
 will put it in the groff font file as an unnamed character,
@@ -110,6 +118,25 @@ which can be accessed by the
 escape sequence in
 .BR troff .
 .
+If option
+.B \-e
+is not specified, the encoding defined in the AFM file (i.e., entries with
+non-negative character codes) is used.
+.
+Please refer to section `Using Symbols' in the groff info file which
+describes how groff glyph names are constructed.
+.
+.LP
+Characters not encoded in the AFM file (i.e., entries which have \-1 as
+the character code) are still available in groff; they get glyph index
+values greater than 255 (or greater than the biggest character code used
+in the AFM file in the unlikely case that it is greater than 255) in the
+groff font file.
+.
+Glyph indices of unencoded characters don't have a specific order; it
+is best to access them with glyph names only.
+.
+.LP
 The groff font file will be output to a file called
 .IR font .
 .
@@ -153,43 +180,6 @@ These parameters are normally needed only for italic (or oblique) fonts.
 .
 .SH OPTIONS
 .TP
-.B \-v
-Print version.
-.
-.TP
-.B \-n
-Don't output a
-.B ligatures
-command for this font.
-.
-Use this with constant-width fonts.
-.
-.TP
-.B \-s
-The font is special.
-.
-The effect of this option is to add the
-.B special
-command to the font file.
-.
-.TP
-.BI \-d desc_file
-The device description file is
-.I desc_file
-rather than the default
-.BR DESC .
-.
-.TP
-.BI \-e enc_file
-The PostScript font should be reencoded to use the encoding described
-in enc_file.
-.
-The format of
-.I enc_file
-is described in
-.BR grops (@MAN1EXT@).
-.
-.TP
 .BI \-a n
 Use
 .I n
@@ -209,13 +199,38 @@ then use the
 option to give the font a smaller slant.
 .
 .TP
+.BI \-d desc_file
+The device description file is
+.I desc_file
+rather than the default
+.BR DESC .
+.
+If not found in the current directory, the `devps' subdirectory of the
+default font directory is searched (this is true for both the default
+device description file and a file given with option
+.BR \-d ).
+.
+.TP
+.BI \-e enc_file
+The PostScript font should be reencoded to use the encoding described
+in enc_file.
+.
+The format of
+.I enc_file
+is described in
+.BR grops (@MAN1EXT@).
+.
+If not found in the current directory, the `devps' subdirectory of the
+default font directory is searched.
+.
+.TP
 .BI \-i n
 Generate an italic correction for each character so that 
 the character's width plus the character's italic correction
 is equal to
 .I n
 thousandths of an em
-plus the amount by which the right edge of the character's bounding
+plus the amount by which the right edge of the character's bounding box
 is to the right of the character's origin.
 .
 If this would result in a negative italic correction, use a zero
@@ -238,7 +253,9 @@ thousandths of an em
 plus the amount by which the left edge of the character's bounding box
 is to the left of the character's origin.
 .
-The left italic correction may be negative.
+The left italic correction may be negative unless option
+.B \-m
+is given.
 .
 .IP
 This option is normally needed only with italic (or oblique) fonts.
@@ -246,6 +263,35 @@ This option is normally needed only with italic (or oblique) fonts.
 The font files distributed with groff were created using an option of
 .B \-i50
 for italic fonts.
+.
+.TP
+.B \-m
+Prevent negative left italic correction values.
+.
+Roman font files distributed with groff were created with
+.B \-i0\ \-m
+to improve spacing with
+.BR @g@eqn (@MAN1EXT@).
+.
+.TP
+.B \-n
+Don't output a
+.B ligatures
+command for this font.
+.
+Use this with constant-width fonts.
+.
+.TP
+.B \-s
+The font is special.
+.
+The effect of this option is to add the
+.B special
+command to the font file.
+.
+.TP
+.B \-v
+Print version.
 .
 .
 .SH FILES
@@ -276,6 +322,9 @@ Standard mapping.
 .BR grops (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR perl (1)
+.
+.LP
+The groff info file, section `Using Symbols'.
 .
 .\" Local Variables:
 .\" mode: nroff

@@ -1,16 +1,16 @@
 # $FreeBSD$
 
 PROG_CXX=	eqn
-SRCS=		eqn.cc eqn_tab.h main.cc lex.cc \
-		box.cc limit.cc list.cc over.cc text.cc \
-		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
+SRCS=		eqn.cpp eqn_tab.h main.cpp lex.cpp \
+		box.cpp limit.cpp list.cpp over.cpp text.cpp \
+		script.cpp mark.cpp other.cpp delim.cpp sqrt.cpp pile.cpp special.cpp
 CFLAGS+=	-I${DIST_DIR} -I.
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 SCRIPTS=	neqn
 MAN=		eqn.1 neqn.1
-CLEANFILES=	eqn.cc eqn_tab.h ${SCRIPTS} ${MAN} y.tab.c y.tab.h
+CLEANFILES=	eqn.cpp eqn_tab.h ${SCRIPTS} ${MAN} y.tab.c y.tab.h
 
-eqn_tab.h: eqn.cc
+eqn_tab.h: eqn.cpp
 
 .include <bsd.prog.mk>

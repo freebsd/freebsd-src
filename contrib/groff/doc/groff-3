@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,388 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: ms Strings and Special Characters,  Prev: ms TOC,  Up: ms Page Layout
+
+Strings and Special Characters
+..............................
+
+   The `ms' macros provide the following predefined strings.  You can
+change the string definitions to help in creating documents in
+languages other than English.
+
+ - String: \*[REFERENCES]
+     Contains the string printed at the beginning of the references
+     (bibliography) page.  The default is `References'.
+
+ - String: \*[ABSTRACT]
+     Contains the string printed at the beginning of the abstract.  The
+     default is `ABSTRACT'.
+
+ - String: \*[TOC]
+     Contains the string printed at the beginning of the table of
+     contents.
+
+ - String: \*[MONTH1]
+ - String: \*[MONTH2]
+ - String: \*[MONTH3]
+ - String: \*[MONTH4]
+ - String: \*[MONTH5]
+ - String: \*[MONTH6]
+ - String: \*[MONTH7]
+ - String: \*[MONTH8]
+ - String: \*[MONTH9]
+ - String: \*[MONTH10]
+ - String: \*[MONTH11]
+ - String: \*[MONTH12]
+     Prints the full name of the month in dates.  The default is
+     `January', `February', etc.
+
+   The following special characters are available(1) (*note ms Strings
+and Special Characters-Footnote-1::):
+
+ - String: \*[-]
+     Prints an em dash.
+
+ - String: \*[*Q]
+ - String: \*[*U]
+     Prints typographer's quotes in troff, plain quotes in nroff.  `*Q'
+     is the left quote and `*U' is the right quote.
+
+   Improved accent marks are available in the `ms' macros.
+
+ - Macro: .AM
+     Specify this macro at the beginning of your document to enable
+     extended accent marks and special characters.  This is a Berkeley
+     extension.
+
+     To use the accent marks, place them *after* the character being
+     accented.
+
+   The following accent marks are available after invoking the `AM'
+macro:
+
+ - String: \*[']
+     Acute accent.
+
+ - String: \*[`]
+     Grave accent.
+
+ - String: \*[^]
+     Circumflex.
+
+ - String: \*[,]
+     Cedilla.
+
+ - String: \*[~]
+     Tilde.
+
+ - String: \*[:]
+     Umlaut.
+
+ - String: \*[v]
+     Hacek.
+
+ - String: \*[_]
+     Macron (overbar).
+
+ - String: \*[.]
+     Underdot.
+
+ - String: \*[o]
+     Ring above.
+
+   The following are standalone characters available after invoking the
+`AM' macro:
+
+ - String: \*[?]
+     Upside-down question mark.
+
+ - String: \*[!]
+     Upside-down exclamation point.
+
+ - String: \*[8]
+     German ss ligature.
+
+ - String: \*[3]
+     Yogh.
+
+ - String: \*[Th]
+     Uppercase thorn.
+
+ - String: \*[th]
+     Lowercase thorn.
+
+ - String: \*[D-]
+     Uppercase eth.
+
+ - String: \*[d-]
+     Lowercase eth.
+
+ - String: \*[q]
+     Hooked o.
+
+ - String: \*[ae]
+     Lowercase ae ligature.
+
+ - String: \*[Ae]
+     Uppercase AE ligature.
+
+
+File: groff,  Node: ms Strings and Special Characters-Footnotes,  Up: ms Strings and Special Characters
+
+   (1) For an explanation what special characters are see *Note Special
+Characters::.
+
+
+File: groff,  Node: Differences from AT&T ms,  Prev: ms Page Layout,  Up: ms
+
+Differences from AT&T `ms'
+--------------------------
+
+   This section lists the (minor) differences between the `groff -ms'
+macros and AT&T `troff -ms' macros.
+
+* Menu:
+
+* Missing ms Macros::
+* Additional ms Macros::
+
+
+File: groff,  Node: Missing ms Macros,  Next: Additional ms Macros,  Prev: Differences from AT&T ms,  Up: Differences from AT&T ms
+
+`troff' macros not appearing in `groff'
+.......................................
+
+   Macros missing from `groff -ms' are cover page macros specific to
+Bell Labs.  The macros known to be missing are:
+
+`.TM'
+     Technical memorandum; a cover sheet style
+
+`.IM'
+     Internal memorandum; a cover sheet style
+
+`.MR'
+     Memo for record; a cover sheet style
+
+`.MF'
+     Memo for file; a cover sheet style
+
+`.EG'
+     Engineer's notes; a cover sheet style
+
+`.TR'
+     Computing Science Tech Report; a cover sheet style
+
+`.OK'
+     Other keywords
+
+`.CS'
+     Cover sheet information
+
+`.MH'
+     A cover sheet macro
+
+
+File: groff,  Node: Additional ms Macros,  Prev: Missing ms Macros,  Up: Differences from AT&T ms
+
+`groff' macros not appearing in AT&T `troff'
+............................................
+
+   The `groff -ms' macros have a few minor extensions compared to the
+AT&T `troff -ms' macros.
+
+ - Macro: .AM
+     Improved accent marks.  *Note ms Strings and Special Characters::,
+     for details.
+
+ - Macro: .DS I
+     Indented display.  The default behavior of AT&T `troff -ms' was to
+     indent; the `groff' default prints displays flush left with the
+     body text.
+
+ - Macro: .CW
+     Print text in `constant width' (Courier) font.
+
+ - Macro: .IX
+     Indexing term (printed on standard error).  You can write a script
+     to capture and process an index generated in this manner.
+
+
+   The following additional number registers appear in `groff -ms':
+
+ - Register: \n[MINGW]
+     Specifies a minimum space between columns (for multi-column
+     output); this takes the place of the `GW' register that was
+     documented but apparently not implemented in AT&T `troff'.
+
+
+   Several new string registers are available as well.  You can change
+these to handle (for example) the local language.  *Note ms Strings and
+Special Characters::, for details.
+
+
+File: groff,  Node: me,  Next: mm,  Prev: ms,  Up: Macro Packages
+
+`me'
+====
+
+   See the `meintro.me' and `meref.me' documents in groff's `doc'
+directory.
+
+
+File: groff,  Node: mm,  Prev: me,  Up: Macro Packages
+
+`mm'
+====
+
+   See the `groff_mm(7)' man page (type `man groff_mm' at the command
+line).
+
+
+File: groff,  Node: gtroff Reference,  Next: Preprocessors,  Prev: Macro Packages,  Up: Top
+
+`gtroff' Reference
+******************
+
+   This chapter covers *all* of the facilities of `gtroff'.  Users of
+macro packages may skip it if not interested in details.
+
+* Menu:
+
+* Text::
+* Measurements::
+* Expressions::
+* Identifiers::
+* Embedded Commands::
+* Registers::
+* Manipulating Filling and Adjusting::
+* Manipulating Hyphenation::
+* Manipulating Spacing::
+* Tabs and Fields::
+* Character Translations::
+* Troff and Nroff Mode::
+* Line Layout::
+* Line Control::
+* Page Layout::
+* Page Control::
+* Fonts and Symbols::
+* Sizes::
+* Strings::
+* Conditionals and Loops::
+* Writing Macros::
+* Page Motions::
+* Drawing Requests::
+* Traps::
+* Diversions::
+* Environments::
+* Suppressing output::
+* Colors::
+* I/O::
+* Postprocessor Access::
+* Miscellaneous::
+* Gtroff Internals::
+* Debugging::
+* Implementation Differences::
+
+
+File: groff,  Node: Text,  Next: Measurements,  Prev: gtroff Reference,  Up: gtroff Reference
+
+Text
+====
+
+   `gtroff' input files contain text with control commands interspersed
+throughout.  But, even without control codes, `gtroff' still does
+several things with the input text:
+
+   * filling and adjusting
+
+   * adding additional space after sentences
+
+   * hyphenating
+
+   * inserting implicit line breaks
+
+* Menu:
+
+* Filling and Adjusting::
+* Hyphenation::
+* Sentences::
+* Tab Stops::
+* Implicit Line Breaks::
+* Input Conventions::
+* Input Encodings::
+
+
+File: groff,  Node: Filling and Adjusting,  Next: Hyphenation,  Prev: Text,  Up: Text
+
+Filling and Adjusting
+---------------------
+
+   When `gtroff' reads text, it collects words from the input and fits
+as many of them together on one output line as it can.  This is known as
+"filling".
+
+   Once `gtroff' has a "filled" line, it tries to "adjust" it.  This
+means it widens the spacing between words until the text reaches the
+right margin (in the default adjustment mode).  Extra spaces between
+words are preserved, but spaces at the end of lines are ignored.
+Spaces at the front of a line cause a "break" (breaks are explained in
+*Note Implicit Line Breaks::).
+
+   *Note Manipulating Filling and Adjusting::.
+
+
+File: groff,  Node: Hyphenation,  Next: Sentences,  Prev: Filling and Adjusting,  Up: Text
+
+Hyphenation
+-----------
+
+   Since the odds are not great for finding a set of words, for every
+output line, which fit nicely on a line without inserting excessive
+amounts of space between words, `gtroff' hyphenates words so that it
+can justify lines without inserting too much space between words.  It
+uses an internal hyphenation algorithm (a simplified version of the
+algorithm used within TeX) to indicate which words can be hyphenated
+and how to do so.  When a word is hyphenated, the first part of the
+word is added to the current filled line being output (with an attached
+hyphen), and the other portion is added to the next line to be filled.
+
+   *Note Manipulating Hyphenation::.
+
+
+File: groff,  Node: Sentences,  Next: Tab Stops,  Prev: Hyphenation,  Up: Text
+
+Sentences
+---------
+
+   Although it is often debated, some typesetting rules say there
+should be different amounts of space after various punctuation marks.
+For example, the `Chicago typsetting manual' says that a period at the
+end of a sentence should have twice as much space following it as would
+a comma or a period as part of an abbreviation.
+
+   `gtroff' does this by flagging certain characters (normally `!',
+`?', and `.') as "end-of-sentence" characters.  When `gtroff'
+encounters one of these characters at the end of a line, it appends a
+normal space followed by a "sentence space" in the formatted output.
+(This justifies one of the conventions mentioned in *Note Input
+Conventions::.)
+
+   In addition, the following characters and symbols are treated
+transparently while handling end-of-sentence characters: `"', `'', `)',
+`]', `*', `\[dg]', and `\[rq]'.
+
+   See the `cflags' request in *Note Using Symbols::, for more details.
+
+   To prevent the insertion of extra space after an end-of-sentence
+character (at the end of a line), append `\&'.
 
 
 File: groff,  Node: Tab Stops,  Next: Implicit Line Breaks,  Prev: Sentences,  Up: Text
@@ -49,7 +428,7 @@ produces
    *Note Tabs and Fields::.
 
 
-File: groff,  Node: Implicit Line Breaks,  Prev: Tab Stops,  Up: Text
+File: groff,  Node: Implicit Line Breaks,  Next: Input Conventions,  Prev: Tab Stops,  Up: Text
 
 Implicit Line Breaks
 --------------------
@@ -74,10 +453,10 @@ document may vanish!
 is discussed in *Note Manipulating Filling and Adjusting::.
 
 
-File: groff,  Node: Input Conventions,  Next: Measurements,  Prev: Text,  Up: gtroff Reference
+File: groff,  Node: Input Conventions,  Next: Input Encodings,  Prev: Implicit Line Breaks,  Up: Text
 
 Input Conventions
-=================
+-----------------
 
    Since `gtroff' does filling automatically, it is traditional in
 `groff' not to try and type things in as nicely formatted paragraphs.
@@ -95,7 +474,57 @@ These are some conventions commonly used when typing `gtroff' text:
      try using spaces to get proper indentation).
 
 
-File: groff,  Node: Measurements,  Next: Expressions,  Prev: Input Conventions,  Up: gtroff Reference
+File: groff,  Node: Input Encodings,  Prev: Input Conventions,  Up: Text
+
+Input Encodings
+---------------
+
+   Currently, the following input encodings are available.
+
+cp1047
+     This input encoding works only on EBCDIC platforms (and vice
+     versa, the other input encodings don't work with EBCDIC); the file
+     `cp1047.tmac' is by default loaded at start-up.
+
+latin-1
+     This is the default input encoding on non-EBCDIC platforms; the
+     file `latin1.tmac' is loaded at start-up.
+
+latin-2
+     To use this encoding, either say `.mso latin2.tmac' at the very
+     beginning of your document or use `-mlatin2' as a command line
+     argument for `groff'.
+
+latin-9 (latin-0)
+     This encoding is intended (at least in Europe) to replace latin-1
+     encoding.  The main difference to latin-1 is that latin-9 contains
+     the Euro character.  To use this encoding, either say
+     `.mso latin9.tmac' at the very beginning of your document or use
+     `-mlatin9' as a command line argument for `groff'.
+
+   Note that it can happen that some input encoding characters are not
+available for a particular output device.  For example, saying
+
+
+     groff -Tlatin1 -mlatin9 ...
+
+will fail if you use the Euro character in the input.  Usually, this
+limitation is present only for devices which have a limited set of
+output glyphs (e.g. `-Tascii' and `-Tlatin1'); for other devices it is
+usually sufficient to install proper fonts which contain the necessary
+glyphs.
+
+   Due to the importance of the Euro glyph in Europe, the groff package
+now comes with a POSTSCRIPT font called `freeeuro.pfa' which provides
+various glyph shapes for the Euro.  With other words, latin-9 encoding
+is supported for the `-Tps' device out of the box (latin-2 isn't).
+
+   By its very nature, `-Tutf8' supports all input encodings; `-Tdvi'
+has support for both latin-2 and latin-9 if the command line `-mec' is
+used also to load the file `ec.tmac' (which flips to the EC fonts).
+
+
+File: groff,  Node: Measurements,  Next: Expressions,  Prev: Text,  Up: gtroff Reference
 
 Measurements
 ============
@@ -259,14 +688,15 @@ signs indicate increments and decrements.
 
    *Note Setting Registers::, for some examples.
 
- - Escape: \B'ANYTHING'
+ - Escape: \B'anything'
      Return 1 if ANYTHING is a valid numeric expression; or 0 if
      ANYTHING is empty or not a valid numeric expression.
 
    Due to the way arguments are parsed, spaces are not allowed in
 expressions, unless the entire expression is surrounded by parentheses.
 
-   *Note Request Arguments::, and *Note Conditionals and Loops::.
+   *Note Request and Macro Arguments::, and *Note Conditionals and
+Loops::.
 
 
 File: groff,  Node: Identifiers,  Next: Embedded Commands,  Prev: Expressions,  Up: gtroff Reference
@@ -322,7 +752,7 @@ after `.[' and `.]' is handled as a special argument to `refer'.  For
 example, `.[foo' makes `refer' to start a reference, using `foo' as a
 parameter.
 
- - Escape: \A'IDENT'
+ - Escape: \A'ident'
      Test whether an identifier IDENT is valid in `gtroff'.  It expands
      to the character 1 or 0 according to whether its argument (usually
      delimited by quotes) is or is not acceptable as the name of a
@@ -466,21 +896,23 @@ character prevents this.
 
 * Menu:
 
-* Request Arguments::
+* Request and Macro Arguments::
 
 
-File: groff,  Node: Request Arguments,  Prev: Requests,  Up: Requests
+File: groff,  Node: Request and Macro Arguments,  Prev: Requests,  Up: Requests
 
-Request Arguments
-.................
+Request and Macro Arguments
+...........................
 
-   Arguments to requests (and macros) are processed much like the shell:
+   Arguments to requests and macros are processed much like the shell:
 The line is split into arguments according to spaces.(1) (*note Request
-Arguments-Footnote-1::)  An argument which is intended to contain
-spaces can either be enclosed in double quotes, or have the spaces
-"escaped" with backslashes.
+and Macro Arguments-Footnote-1::)
 
-   Here are a few examples:
+   An argument to a macro which is intended to contain spaces can
+either be enclosed in double quotes, or have the spaces "escaped" with
+backslashes.  This is _not_ true for requests.
+
+   Here are a few examples for a hypothetical macro `uh':
 
 
      .uh The Mouse Problem
@@ -490,7 +922,7 @@ spaces can either be enclosed in double quotes, or have the spaces
 The first line is the `uh' macro being called with 3 arguments, `The',
 `Mouse', and `Problem'.  The latter two have the same effect of calling
 the `uh' macro with one argument, `The Mouse Problem'.(2) (*note
-Request Arguments-Footnote-2::)
+Request and Macro Arguments-Footnote-2::)
 
    A double quote which isn't preceded by a space doesn't start a macro
 argument.  If not closing a string, it is printed literally.
@@ -543,7 +975,7 @@ obscure behaviour!
 Strings::, for more details.
 
 
-File: groff,  Node: Request Arguments-Footnotes,  Up: Request Arguments
+File: groff,  Node: Request and Macro Arguments-Footnotes,  Up: Request and Macro Arguments
 
    (1) Plan 9's `troff' implementation also allows tabs for argument
 separation - `gtroff' intentionally doesn't support this.
@@ -563,9 +995,9 @@ Macros
 
    `gtroff' has a "macro" facility for defining a series of lines which
 can be invoked by name.  They are called in the same manner as requests
-- arguments also may be passed in the same manner.
+- arguments also may be passed basically in the same manner.
 
-   *Note Writing Macros::, and *Note Request Arguments::.
+   *Note Writing Macros::, and *Note Request and Macro Arguments::.
 
 
 File: groff,  Node: Escapes,  Prev: Macros,  Up: Embedded Commands
@@ -723,9 +1155,9 @@ forms of escapes is the comment.
 
      as expected.
 
- - Request: .ig yy
-     Ignore all input until `gtroff' encounters the macro named `.'YY
-     on a line by itself (or `..' if YY is not specified).  This is
+ - Request: .ig [end]
+     Ignore all input until `gtroff' encounters the macro named `.'END
+     on a line by itself (or `..' if END is not specified).  This is
      useful for commenting out large blocks of text:
 
 
@@ -786,7 +1218,7 @@ Setting Registers
    Define or set registers using the `nr' request or the `\R' escape.
 
  - Request: .nr ident value
- - Escape: \R'IDENT VALUE'
+ - Escape: \R'ident value'
      Set number register IDENT to VALUE.  If IDENT doesn't exist,
      `gtroff' creates it.
 
@@ -809,8 +1241,8 @@ decrement a register.
 
  - Request: .nr ident +value
  - Request: .nr ident -value
- - Escape: \R'IDENT +VALUE'
- - Escape: \R'IDENT -VALUE'
+ - Escape: \R'ident +value'
+ - Escape: \R'ident -value'
      Increment (decrement) register IDENT by VALUE.
 
 
@@ -869,11 +1301,11 @@ Interpolating Registers
 
    Numeric registers can be accessed via the `\n' escape.
 
- - Escape: \nI
- - Escape: \n(ID
- - Escape: \n[IDENT]
+ - Escape: \ni
+ - Escape: \n(id
+ - Escape: \n[ident]
      Interpolate number register with name IDENT (one-character name I,
-     two-character name ID). This means that the value of the register
+     two-character name ID).  This means that the value of the register
      is expanded in-place while `gtroff' is parsing the input line.
      Nested assignments (also called indirect assignments) are possible.
 
@@ -912,16 +1344,16 @@ to the `nr' request or `\R' escape.
    To activate auto-incrementing, the escape `\n' has a special syntax
 form.
 
- - Escape: \n+I
- - Escape: \n-I
- - Escape: \n(+ID
- - Escape: \n(-ID
- - Escape: \n+(ID
- - Escape: \n-(ID
- - Escape: \n[+IDENT]
- - Escape: \n[-IDENT]
- - Escape: \n+[IDENT]
- - Escape: \n-[IDENT]
+ - Escape: \n+i
+ - Escape: \n-i
+ - Escape: \n(+id
+ - Escape: \n(-id
+ - Escape: \n+(id
+ - Escape: \n-(id
+ - Escape: \n[+ident]
+ - Escape: \n[-ident]
+ - Escape: \n+[ident]
+ - Escape: \n-[ident]
      Before interpolating, increment or decrement IDENT (one-character
      name I, two-character name ID) by the auto-increment value as
      specified with the `nr' request (or the `\R' escape).  If no
@@ -1027,9 +1459,9 @@ using the `af' request.
      writeable register, then apply the `af' request to this other
      register.
 
- - Escape: \gI
- - Escape: \g(ID
- - Escape: \g[IDENT]
+ - Escape: \gi
+ - Escape: \g(id
+ - Escape: \g[ident]
      Return the current format of the specified register IDENT
      (one-character name I, two-character name ID).  For example, `\ga'
      after the previous example would produce the string `000'.  If the
@@ -1115,12 +1547,12 @@ appendix *Note Register Index::.
      *Note Miscellaneous::, for more information about line numbering.
 
 `.x'
-     The major version number.  For example, if the version number
-     is 1.03 then `.x' contains `1'.
+     The major version number.  For example, if the version number is
+     1.03 then `.x' contains `1'.
 
 `.y'
-     The minor version number.  For example, if the version number
-     is 1.03 then `.y' contains `03'.
+     The minor version number.  For example, if the version number is
+     1.03 then `.y' contains `03'.
 
 `.Y'
      The revision number of `groff'.
@@ -1151,224 +1583,4 @@ appendix *Note Register Index::.
      Additionally, `gtroff' predefines a single read-write string
      register `.T' which contains the current output device (for
      example, `latin1' or `ps').
-
-
-File: groff,  Node: Manipulating Filling and Adjusting,  Next: Manipulating Hyphenation,  Prev: Registers,  Up: gtroff Reference
-
-Manipulating Filling and Adjusting
-==================================
-
-   Various ways of causing "breaks" were given in *Note Implicit Line
-Breaks::.  The `br' request likewise causes a break.  Several other
-requests also cause breaks, but implicitly.  These are `bp', `ce',
-`cf', `fi', `fl', `in', `nf', `rj', `sp', `ti', and `trf'.
-
- - Request: .br
-     Break the current line, i.e., the input collected so far is emitted
-     without adjustment.
-
-     If the no-break control character is used, `gtroff' suppresses the
-     break:
-
-
-          a
-          'br
-          b
-              => a b
-
-
-   Initially, `gtroff' fills and adjusts text to both margins.  Filling
-can be disabled via the `nf' request and re-enabled with the `fi'
-request.
-
- - Request: .fi
- - Register: \n[.u]
-     Activate fill mode (which is the default).  This request implicitly
-     enables adjusting; it also inserts a break in the text currently
-     being filled.  The read-only number register `.u' is set to 1.
-
-     The fill mode status is associated with the current environment
-     (*note Environments::).
-
-     See *Note Line Control::, for interaction with the `\c' escape.
-
- - Request: .nf
-     Activate no-fill mode.  Input lines are output as-is, retaining
-     line breaks and ignoring the current line length.  This command
-     implicitly disables adjusting; it also causes a break.  The number
-     register `.u' is set to 0.
-
-     The fill mode status is associated with the current environment
-     (*note Environments::).
-
-     See *Note Line Control::, for interaction with the `\c' escape.
-
- - Request: .ad [mode]
- - Register: \n[.j]
-     Set adjusting mode.
-
-     Activation and deactivation of adjusting is done implicitly with
-     calls to the `fi' or `nf' requests.
-
-     MODE can have one of the following values:
-
-    `l'
-          Adjust text to the left margin.  This produces what is
-          traditionally called ragged-right text.
-
-    `r'
-          Adjust text to the right margin, producing ragged-left text.
-
-    `c'
-          Center filled text.  This is different to the `ce' request
-          which only centers text without filling.
-
-    `b'
-    `n'
-          Justify to both margins.  This is the default used by
-          `gtroff'.
-
-     With no argument, `gtroff' adjusts lines in the same way it did
-     before adjusting was deactivated (with a call to `na', for
-     example).
-
-
-          text
-          .ad r
-          text
-          .ad c
-          text
-          .na
-          text
-          .ad  \" back to centering
-          text
-
-     The current adjustment mode is available in the read-only number
-     register `.j'; it can be stored and subsequently used to set
-     adjustment.
-
-     The adjustment mode status is associated with the current
-     environment (*note Environments::).
-
- - Request: .na
-     Disable adjusting.  This request won't change the current
-     adjustment mode: A subsequent call to `ad' uses the previous
-     adjustment setting.
-
-     The adjustment mode status is associated with the current
-     environment (*note Environments::).
-
- - Request: .brp
- - Escape: \p
-     Adjust the current line and cause a break.
-
-     In most cases this produces very ugly results since `gtroff'
-     doesn't have a sophisticated paragraph building algorithm (as TeX
-     have, for example); instead, `gtroff' fills and adjusts a paragraph
-     line by line:
-
-
-            This is an uninteresting sentence.
-            This is an uninteresting sentence.\p
-            This is an uninteresting sentence.
-
-     is formatted as
-
-
-            This is  an uninteresting  sentence.   This  is an
-            uninteresting                            sentence.
-            This is an uninteresting sentence.
-
-
- - Request: .ss word_space_size [sentence_space_size]
- - Register: \n[.ss]
- - Register: \n[.sss]
-     Change the minimum size of a space between filled words.  It takes
-     its units as one twelfth of the space width parameter for the
-     current font.  Initially both the WORD_SPACE_SIZE and
-     SENTENCE_SPACE_SIZE are 12.
-
-     If two arguments are given to the `ss' request, the second
-     argument sets the sentence space size.  If the second argument is
-     not given, sentence space size is set to WORD_SPACE_SIZE.  The
-     sentence space size is used in two circumstances: If the end of a
-     sentence occurs at the end of a line in fill mode, then both an
-     inter-word space and a sentence space are added; if two spaces
-     follow the end of a sentence in the middle of a line, then the
-     second space is a sentence space.  If a second argument is never
-     given to the `ss' request, the behaviour of UNIX `troff' is the
-     same as that exhibited by GNU `troff'.  In GNU `troff', as in UNIX
-     `troff', a sentence should always be followed by either a newline
-     or two spaces.
-
-     The read-only number registers `.ss' and `.sss' hold the values of
-     the parameters set by the first and second arguments of the `ss'
-     request.
-
-     The word space and sentence space values are associated with the
-     current environment (*note Environments::).
-
-     Contrary to AT&T `troff', this request is _not_ ignored if a TTY
-     output device is used; the given values are then rounded down to a
-     multiple of 12 (*note Implementation Differences::).
-
-     The request is ignored if there is no parameter.
-
- - Request: .ce [nnn]
- - Register: \n[.ce]
-     Center text.  While the `.ad c' request also centers text, it
-     fills the text as well.  `ce' does not fill the text it affects.
-     This request causes a break.  The number of lines still to be
-     centered is associated with the current environment (*note
-     Environments::).
-
-     The following example demonstrates the differences.  Here the
-     input:
-
-
-          .ll 4i
-          .ce 1000
-          This is a small text fragment which shows the differences
-          between the `.ce' and the `.ad c' request.
-          .ce 0
-          
-          .ad c
-          This is a small text fragment which shows the differences
-          between the `.ce' and the `.ad c' request.
-
-     And here the result:
-
-
-            This is a small text fragment which
-                   shows the differences
-          between the `.ce' and the `.ad c' request.
-          
-            This is a small text fragment which
-          shows the differences between the `.ce'
-                  and the `.ad c' request.
-
-     With no arguments, `ce' centers the next line of text.  NNN
-     specifies the number of lines to be centered.  If the argument is
-     zero or negative, centering is disabled.
-
-     The basic length for centering text is the line length (as set
-     with the `ll' request) minus the indentation (as set with the `in'
-     request).  Temporary indentation is ignored.
-
-     As can be seen in the previous example, it is a common idiom to
-     turn on centering for a large number of lines, and to turn off
-     centering after text to be centered.  This is useful for any
-     request which takes a number of lines as an argument.
-
-     The `.ce' read-only number register contains the number of lines
-     remaining to be centered, as set by the `ce' request.
-
- - Request: .rj [nnn]
- - Register: \n[.rj]
-     Justify unfilled text to the right margin.  Arguments are
-     identical to the `ce' request.  The `.rj' read-only number
-     register is the number of lines to be right-justified as set by
-     the `rj' request.  This request causes a break.  The number of
-     lines still to be right-justified is associated with the current
-     environment (*note Environments::).
 

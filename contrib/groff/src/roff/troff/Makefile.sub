@@ -3,25 +3,33 @@ MAN1=troff.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=\
-  env.$(OBJEXT) \
-  node.$(OBJEXT) \
-  input.$(OBJEXT) \
-  div.$(OBJEXT) \
-  symbol.$(OBJEXT) \
   dictionary.$(OBJEXT) \
-  reg.$(OBJEXT) \
+  div.$(OBJEXT) \
+  env.$(OBJEXT) \
+  glyphuni.$(OBJEXT) \
+  input.$(OBJEXT) \
+  majorminor.$(OBJEXT) \
+  node.$(OBJEXT) \
   number.$(OBJEXT) \
-  majorminor.$(OBJEXT)
+  reg.$(OBJEXT) \
+  symbol.$(OBJEXT) \
+  unicode.$(OBJEXT) \
+  uniglyph.$(OBJEXT) \
+  uniuni.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/env.cc \
-  $(srcdir)/node.cc \
-  $(srcdir)/input.cc \
-  $(srcdir)/div.cc \
-  $(srcdir)/symbol.cc \
-  $(srcdir)/dictionary.cc \
-  $(srcdir)/reg.cc \
-  $(srcdir)/number.cc \
-  majorminor.cc
+  $(srcdir)/dictionary.cpp \
+  $(srcdir)/div.cpp \
+  $(srcdir)/env.cpp \
+  $(srcdir)/glyphuni.cpp \
+  $(srcdir)/input.cpp \
+  majorminor.cpp \
+  $(srcdir)/node.cpp \
+  $(srcdir)/number.cpp \
+  $(srcdir)/reg.cpp \
+  $(srcdir)/symbol.cpp \
+  $(srcdir)/unicode.cpp \
+  $(srcdir)/uniglyph.cpp \
+  $(srcdir)/uniuni.cpp
 HDRS=\
   $(srcdir)/charinfo.h \
   $(srcdir)/dictionary.h \
@@ -34,11 +42,12 @@ HDRS=\
   $(srcdir)/request.h \
   $(srcdir)/symbol.h \
   $(srcdir)/token.h \
-  $(srcdir)/troff.h
-GENSRCS=majorminor.cc
+  $(srcdir)/troff.h \
+  $(srcdir)/unicode.h
+GENSRCS=majorminor.cpp
 NAMEPREFIX=$(g)
 
-majorminor.cc: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+majorminor.cpp: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
 	@echo Making $@
 	@-rm -f $@
 	@echo const char \*major_version = \

@@ -5,7 +5,7 @@ OBJS=\
   addftinfo.$(OBJEXT) \
   guess.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/addftinfo.cc \
-  $(srcdir)/guess.cc
+  $(srcdir)/addftinfo.cpp \
+  $(srcdir)/guess.cpp
 HDRS=\
   $(srcdir)/guess.h

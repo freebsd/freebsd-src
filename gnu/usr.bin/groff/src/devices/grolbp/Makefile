@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	grolbp
-SRCS=		lbp.cc
+SRCS=		lbp.cpp
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}

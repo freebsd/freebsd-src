@@ -1,4 +1,3 @@
-.
 .TH GROFF_TMAC @MAN5EXT@ "@MDATE@" "Groff Version @VERSION@"
 .SH NAME
 groff_tmac \- macro files in the roff typesetting system
@@ -15,11 +14,11 @@ groff_tmac.5
 
 File position: <groff-source>/man/groff_tmac.man
 
-Last update: 21 Aug 2002
+Last update: 13 Mar 2003
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de> and Werner Lemberg
 <wl@gnu.org>
 
@@ -314,6 +313,21 @@ directories.
 provides all classical macro packages, some more full packages, and
 some secondary packages for special purposes.
 .
+Note that it is not possible to use multiple primary macro packages at the
+same time; saying e.g.\&
+.
+.IP
+.Shell_cmd "groff \-m man \-m ms foo"
+.
+.P
+or
+.
+.IP
+.Shell_cmd "groff \-m man foo \-m ms bar"
+.
+.P
+will fail.
+.
 .
 .\" --------------------------------------------------------------------
 .SS "Man\~Pages"
@@ -392,6 +406,108 @@ The macro packages in this section are not intended for stand-alone
 usage, but can be used to add special functionality to any other
 macro package or to plain groff.
 .
+.
+.TP
+.B papersize
+This macro file is already loaded at start-up by
+.B @g@troff
+so it isn't necessary to call it explicitly.
+.
+It provides an interface to set the paper size on the command line with
+the option \f[B]\%\-dpaper=\f[]\f[I]size\f[].
+.
+Possible values for
+.I size
+are the same as the predefined
+.B papersize
+values in the DESC file (only lowercase; see
+.BR groff_font (@MAN5EXT@)
+for more) except
+.BR a7 - d7 .
+.
+An appended
+.B l
+(ell) character denotes landscape orientation.
+.
+Examples:
+.BR a4 ,
+.BR c3l ,
+.BR letterl .
+.
+.IP
+Most output drivers need additional command line switches
+.B \-p
+and
+.B \-l
+to override the default paper length and orientation as set in the driver
+specific DESC file.
+.
+For example, use the following for PS output on A4 paper in landscape
+orientation:
+.
+.IP
+.Shell_cmd "groff \-Tps \-dpaper=a4l \-P\-pa4 \-P\-l \-ms foo.ms > foo.ps"
+.
+.
+.TP
+.B pspic
+A single macro is provided in this file,
+.BR PSPIC ,
+to include a PostScript graphic in a document.
+.
+It makes only sense for output devices which support inclusion of PS
+images:
+.BR \-Tps ,
+.BR \-Tdvi ,
+and
+.BR \-Thtml ;
+the file is then loaded automatically.
+.
+Syntax:
+.RS
+.IP
+\&\fB.PSPIC\fP [\fB\-L\fP|\fB-R\fP|\fB\-I\fP \fIn\fP]\ \fI\|file\fP [\fIwidth\fP [\fIheight\fP]]
+.RE
+.
+.IP
+.I file
+is the name of the file containing the illustration;
+.I width
+and
+.I height
+give the desired width and height of the graphic.
+.
+The
+.I width
+and
+.I height
+arguments may have scaling indicators attached;
+the default scaling indicator is\~\c
+.BR i .
+.
+This macro will scale the graphic uniformly
+in the x and y\~directions so that it is no more than
+.I width
+wide
+and
+.I height
+high.
+.
+By default, the graphic will be horizontally centered.
+.
+The
+.BI \-L
+and
+.BI \-R
+options cause the graphic to be left-aligned and right-aligned,
+respectively.
+.
+The
+.B \-I
+option causes the graphic to be indented by\~\c
+.I n
+(default scaling indicator is\~\c
+.BR m ).
 .
 .TP
 .B tty-char
@@ -625,7 +741,7 @@ is used or
 .P
 In both cases, the formatter is called with
 .IP
-.Shell_cmd "troff\~\-s\~" docu.roff
+.Shell_cmd "groff\~\-s\~" docu.roff
 .
 .
 .P
@@ -796,12 +912,16 @@ say.
 .
 .P
 When calling this macro by
+.
 .P
 .Example
 .  Text .print_args arg1 arg2
 ./Example
+.
 .P
 the following text is printed to the terminal:
+.
+.P
 .Example
 .  Text \f[CI]print_args\f[] was called with the following 2 arguments:
 arg1 arg2
@@ -997,7 +1117,7 @@ All macro names must be named
 to fully use the tmac mechanism.
 .
 .BI tmac. name
-as with	classical packages is possible as well, but deprecated.
+as with classical packages is possible as well, but deprecated.
 .
 .
 .P
@@ -1060,7 +1180,7 @@ See the previous section for a detailed description.
 .SH AUTHOR
 .\" --------------------------------------------------------------------
 .
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2003
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -68,7 +68,7 @@ public:
 extern object_dictionary number_reg_dictionary;
 extern void set_number_reg(symbol nm, units n);
 extern void check_output_limits(int x, int y);
-extern void reset_output_registers (int miny);
+extern void reset_output_registers();
 
 reg *lookup_number_reg(symbol);
 #if 0

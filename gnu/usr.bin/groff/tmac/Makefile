@@ -20,21 +20,24 @@ NORMALFILES=	mandoc.tmac andoc.tmac an-old.tmac \
 		mdoc.tmac \
 		pic.tmac \
 		a4.tmac \
+		papersize.tmac \
 		ec.tmac \
 		safer.tmac \
 		trace.tmac \
 		ps.tmac psold.tmac pspic.tmac psatk.tmac \
 		dvi.tmac \
 		tty.tmac tty-char.tmac \
-		latin1.tmac cp1047.tmac \
+		latin1.tmac latin2.tmac latin9.tmac cp1047.tmac \
 		X.tmac Xps.tmac \
 		lj4.tmac \
 		lbp.tmac \
-		html.tmac www.tmac \
+		html.tmac html-end.tmac \
+		europs.tmac \
+		composite.tmac \
 		eqnrc \
 		troffrc troffrc-end \
-		hyphen.us
-SPECIALFILES=	an.tmac man.tmac s.tmac ms.tmac
+		hyphen.us hyphenex.us
+SPECIALFILES=	an.tmac man.tmac s.tmac ms.tmac www.tmac
 STRIPFILES=	e.tmac doc.tmac mdoc.local
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms \
 		ru.KOI8-R
@@ -50,6 +53,7 @@ $f-s: $f
 $f-s: $f
 	sed -e "s;@TMAC_AN_PREFIX@;${tmac_an_prefix};g" \
 	    -e "s;@TMAC_S_PREFIX@;${tmac_s_prefix};g" \
+	    -e "s;@PNMTOPS_NOSETPAGE@;pnmtops;g" \
 		${.ALLSRC} > ${.TARGET}
 .endfor
 

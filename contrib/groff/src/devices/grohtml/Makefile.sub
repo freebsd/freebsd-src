@@ -8,10 +8,10 @@ OBJS=\
   html-text.$(OBJEXT) \
   output.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/post-html.cc \
-  $(srcdir)/html-table.cc \
-  $(srcdir)/html-text.cc \
-  $(srcdir)/output.cc
+  $(srcdir)/post-html.cpp \
+  $(srcdir)/html-table.cpp \
+  $(srcdir)/html-text.cpp \
+  $(srcdir)/output.cpp
 HDRS=\
   $(srcdir)/html.h \
   $(srcdir)/html-table.h \

@@ -267,7 +267,7 @@ PACKAGE_VERSION=
 PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 
-ac_unique_file="src/roff/groff/groff.cc"
+ac_unique_file="src/roff/groff/groff.cpp"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -305,7 +305,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS groff_top_builddir CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX TTYDEVDIRS OTHERDEVDIRS LPR LP LPQ PSPRINT DVIPRINT PERLPATH YACC RANLIB ac_ct_RANLIB INSTALL_INFO INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S SH_SCRIPT_SED_CMD CPP EGREP LIBM LIBOBJS BROKEN_SPOOLER_FLAGS PAGE g sys_tmac_prefix tmac_wrap pnmcut pnmcrop pnmtopng gs psselect make_html make_install_html LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS groff_top_builddir CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX TTYDEVDIRS OTHERDEVDIRS LPR LP LPQ PSPRINT DVIPRINT PERLPATH YACC RANLIB ac_ct_RANLIB INSTALL_INFO INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S SH_SCRIPT_SED_CMD CPP EGREP LIBM LIBOBJS BROKEN_SPOOLER_FLAGS PAGE g sys_tmac_prefix tmac_wrap pnmcut pnmcrop pnmtopng gs psselect pnmtops make_html make_install_html pnmtops_nosetpage LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -3459,9 +3459,8 @@ done
 
 
 
-
 for ac_header in stdlib.h unistd.h dirent.h limits.h sys/dir.h \
-                 string.h strings.h math.h stdint.h sys/time.h
+                 string.h strings.h math.h sys/time.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -4093,6 +4092,246 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
+echo "$as_me:$LINENO: checking whether rand must be declared" >&5
+echo $ECHO_N "checking whether rand must be declared... $ECHO_C" >&6
+ac_ext=cc
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+if test "${groff_cv_decl_needed_rand+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
+int
+main ()
+{
+#ifndef rand
+  char *p = (char *) rand;
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  groff_cv_decl_needed_rand=no
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+groff_cv_decl_needed_rand=yes
+fi
+rm -f conftest.$ac_objext conftest.$ac_ext
+fi
+
+echo "$as_me:$LINENO: result: $groff_cv_decl_needed_rand" >&5
+echo "${ECHO_T}$groff_cv_decl_needed_rand" >&6
+if test $groff_cv_decl_needed_rand = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define NEED_DECLARATION_RAND 1
+_ACEOF
+
+fi
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+echo "$as_me:$LINENO: checking whether snprintf must be declared" >&5
+echo $ECHO_N "checking whether snprintf must be declared... $ECHO_C" >&6
+ac_ext=cc
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+if test "${groff_cv_decl_needed_snprintf+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
+int
+main ()
+{
+#ifndef snprintf
+  char *p = (char *) snprintf;
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  groff_cv_decl_needed_snprintf=no
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+groff_cv_decl_needed_snprintf=yes
+fi
+rm -f conftest.$ac_objext conftest.$ac_ext
+fi
+
+echo "$as_me:$LINENO: result: $groff_cv_decl_needed_snprintf" >&5
+echo "${ECHO_T}$groff_cv_decl_needed_snprintf" >&6
+if test $groff_cv_decl_needed_snprintf = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define NEED_DECLARATION_SNPRINTF 1
+_ACEOF
+
+fi
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+echo "$as_me:$LINENO: checking whether srand must be declared" >&5
+echo $ECHO_N "checking whether srand must be declared... $ECHO_C" >&6
+ac_ext=cc
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+if test "${groff_cv_decl_needed_srand+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
+int
+main ()
+{
+#ifndef srand
+  char *p = (char *) srand;
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  groff_cv_decl_needed_srand=no
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+groff_cv_decl_needed_srand=yes
+fi
+rm -f conftest.$ac_objext conftest.$ac_ext
+fi
+
+echo "$as_me:$LINENO: result: $groff_cv_decl_needed_srand" >&5
+echo "${ECHO_T}$groff_cv_decl_needed_srand" >&6
+if test $groff_cv_decl_needed_srand = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define NEED_DECLARATION_SRAND 1
+_ACEOF
+
+fi
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
 echo "$as_me:$LINENO: checking whether strcasecmp must be declared" >&5
 echo $ECHO_N "checking whether strcasecmp must be declared... $ECHO_C" >&6
 ac_ext=cc
@@ -4432,6 +4671,57 @@ if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
 echo "${ECHO_T}yes" >&6;
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_CC_LIMITS_H 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+cat conftest.$ac_ext >&5
+echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+rm -f conftest.$ac_objext conftest.$ac_ext
+ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+ac_ext=cc
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+echo "$as_me:$LINENO: checking C++ <stdint.h>" >&5
+echo $ECHO_N "checking C++ <stdint.h>... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+#include "confdefs.h"
+#include <stdint.h>
+int
+main ()
+{
+uint32_t x; int32_t y;
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6;
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_CC_STDINT_H 1
 _ACEOF
 
 else
@@ -5118,7 +5408,10 @@ LIBS="$LIBS -lc $LIBM"
 
 
 
-for ac_func in fmod getcwd putenv snprintf strerror strtol
+
+
+for ac_func in fmod getcwd putenv snprintf strcasecmp \
+                 strerror strncasecmp strtol
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 echo "$as_me:$LINENO: checking for $ac_func" >&5
@@ -5196,8 +5489,7 @@ LIBS="$saved_libs"
 
 
 
-
-for ac_func in gettimeofday isatty rename strcasecmp strncasecmp strsep
+for ac_func in gettimeofday isatty rename setlocale strsep
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 echo "$as_me:$LINENO: checking for $ac_func" >&5
@@ -5660,6 +5952,7 @@ echo "${ECHO_T}$tmac_wrap" >&6
 
 make_html=html
 make_install_html=install_html
+missing=
 # Extract the first word of "pnmcut", so it can be a program name with args.
 set dummy pnmcut; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -5696,6 +5989,9 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
+if test $pnmcut = missing; then
+	missing="$missing pnmcut"
+fi
 # Extract the first word of "pnmcrop", so it can be a program name with args.
 set dummy pnmcrop; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -5732,6 +6028,9 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
+if test $pnmcrop = missing; then
+	missing="$missing pnmcrop"
+fi
 # Extract the first word of "pnmtopng", so it can be a program name with args.
 set dummy pnmtopng; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -5768,6 +6067,9 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
+if test $pnmtopng = missing; then
+	missing="$missing pnmtopng"
+fi
 # Extract the first word of "gs gsos2", so it can be a program name with args.
 set dummy gs gsos2; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -5804,6 +6106,9 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
+if test $gs = missing; then
+	missing="$missing gs"
+fi
 # Extract the first word of "psselect", so it can be a program name with args.
 set dummy psselect; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
@@ -5840,23 +6145,103 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
-case "x$pnmcut$pnmcrop$pnmtopng$gs$psselect" in
-*missing*)
+if test $psselect = missing; then
+	missing="$missing psselect"
+fi
+# Extract the first word of "pnmtops", so it can be a program name with args.
+set dummy pnmtops; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_prog_pnmtops+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test -n "$pnmtops"; then
+  ac_cv_prog_pnmtops="$pnmtops" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_pnmtops="found"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+  test -z "$ac_cv_prog_pnmtops" && ac_cv_prog_pnmtops="missing"
+fi
+fi
+pnmtops=$ac_cv_prog_pnmtops
+if test -n "$pnmtops"; then
+  echo "$as_me:$LINENO: result: $pnmtops" >&5
+echo "${ECHO_T}$pnmtops" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+if test $pnmtops = missing; then
+	missing="$missing pnmtops"
+fi
+if test -n "$missing"; then
+	cnt=0
+	for i in $missing
+	do
+		cnt=`expr $cnt + 1`
+		eval "prog$cnt=$i"
+	done
+	plural="s"
+	case $cnt in
+	1)
+		plural=""
+		progs="\`$prog1'" ;;
+	2)
+		progs="\`$prog1' and \`$prog2'" ;;
+	3)
+		progs="\`$prog1', \`$prog2', and \`$prog3'" ;;
+	4)
+		progs="\`$prog1', \`$prog2', \`$prog3', and \`$prog4'" ;;
+	5)
+		progs="\`$prog1', \`$prog2', \`$prog3', \`$prog4', and \`$prog5'" ;;
+	6)
+		progs="\`$prog1', \`$prog2', \`$prog3', \`$prog4', \`$prog5', and \`$prog6'" ;;
+	esac
 	make_html=
 	make_install_html=
 	{ echo "$as_me:$LINENO: WARNING:
 
-  Since one or more of the above five programs can't be found in the path,
-  the HTML backend of groff (grohtml) won't work properly.  Consequently,
-  no documentation in HTML format is built and installed.
+  The program$plural
+    $progs
+  can't be found in the path, thus the HTML backend of groff (grohtml)
+  won't work properly.  Consequently, no documentation in HTML format
+  is built and installed.
 " >&5
 echo "$as_me: WARNING:
 
-  Since one or more of the above five programs can't be found in the path,
-  the HTML backend of groff (grohtml) won't work properly.  Consequently,
-  no documentation in HTML format is built and installed.
-" >&2;} ;;
-esac
+  The program$plural
+    $progs
+  can't be found in the path, thus the HTML backend of groff (grohtml)
+  won't work properly.  Consequently, no documentation in HTML format
+  is built and installed.
+" >&2;}
+fi
+
+
+echo "$as_me:$LINENO: checking whether pnmtops can handle the -nosetpage option" >&5
+echo $ECHO_N "checking whether pnmtops can handle the -nosetpage option... $ECHO_C" >&6
+if echo P2 2 2 255 0 1 2 0 | pnmtops -nosetpage > /dev/null 2>&1 ; then
+	echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+	pnmtops_nosetpage="pnmtops -nosetpage"
+else
+	echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+	pnmtops_nosetpage="pnmtops"
+fi
 
 
           ac_config_files="$ac_config_files stamp-h"
@@ -6495,8 +6880,10 @@ s,@pnmcrop@,$pnmcrop,;t t
 s,@pnmtopng@,$pnmtopng,;t t
 s,@gs@,$gs,;t t
 s,@psselect@,$psselect,;t t
+s,@pnmtops@,$pnmtops,;t t
 s,@make_html@,$make_html,;t t
 s,@make_install_html@,$make_install_html,;t t
+s,@pnmtops_nosetpage@,$pnmtops_nosetpage,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
 

@@ -5,8 +5,8 @@ OBJS=\
   main.$(OBJEXT) \
   table.$(OBJEXT)
 CCSRCS=\
-  $(srcdir)/main.cc \
-  $(srcdir)/table.cc
+  $(srcdir)/main.cpp \
+  $(srcdir)/table.cpp
 HDRS=\
   $(srcdir)/table.h
 NAMEPREFIX=$(g)

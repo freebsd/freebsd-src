@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,266 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Page Location Traps,  Next: Diversion Traps,  Prev: Traps,  Up: Traps
+
+Page Location Traps
+-------------------
+
+   "Page location traps" perform an action when `gtroff' reaches or
+passes a certain vertical location on the page.  Page location traps
+have a variety of purposes, including:
+
+   * setting headers and footers
+
+   * setting body text in multiple columns
+
+   * setting footnotes
+
+ - Request: .vpt flag
+ - Register: \n[.vpt]
+     Enable vertical position traps if FLAG is non-zero, or disables
+     them otherwise.  Vertical position traps are traps set by the `wh'
+     or `dt' requests.  Traps set by the `it' request are not vertical
+     position traps.  The parameter that controls whether vertical
+     position traps are enabled is global.  Initially vertical position
+     traps are enabled.  The current setting of this is available in the
+     `.vpt' read-only number register.
+
+     Note that a page can't be ejected if `vpt' is set to zero.
+
+ - Request: .wh dist [macro]
+     Set a page location trap.  Non-negative values for DIST set the
+     trap relative to the top of the page; negative values set the trap
+     relative to the bottom of the page.  Default scaling indicator is
+     `v'.
+
+     MACRO is the name of the macro to execute when the trap is sprung.
+     If MACRO is missing, remove the first trap (if any) at DIST.
+
+     The following is a simple example of how many macro packages set
+     headers and footers.
+
+
+          .de hd                \" Page header
+          '  sp .5i
+          .  tl 'Title''date'
+          '  sp .3i
+          ..
+          .
+          .de fo                \" Page footer
+          '  sp 1v
+          .  tl ''%''
+          '  bp
+          ..
+          .
+          .wh 0   hd            \" trap at top of the page
+          .wh -1i fo            \" trap one inch from bottom
+
+     A trap at or below the bottom of the page is ignored; it can be
+     made active by either moving it up or increasing the page length
+     so that the trap is on the page.
+
+     It is possible to have more than one trap at the same location; to
+     do so, the traps must be defined at different locations, then
+     moved together with the `ch' request; otherwise the second trap
+     would replace the first one.  Earlier defined traps hide later
+     defined traps if moved to the same position (the many empty lines
+     caused by the `bp' request are omitted in the following example):
+
+
+          .de a
+          .  nop a
+          ..
+          .de b
+          .  nop b
+          ..
+          .de c
+          .  nop c
+          ..
+          .
+          .wh 1i a
+          .wh 2i b
+          .wh 3i c
+          .bp
+              => a b c
+
+
+          .ch b 1i
+          .ch c 1i
+          .bp
+              => a
+
+
+          .ch a 0.5i
+          .bp
+              => a b
+
+
+ - Register: \n[.t]
+     A read-only number register holding the distance to the next trap.
+
+     If there are no traps between the current position and the bottom
+     of the page, it contains the distance to the page bottom.  In a
+     diversion, the distance to the page bottom is infinite (the
+     returned value is the biggest integer which can be represented in
+     `groff') if there are no diversion traps.
+
+ - Request: .ch macro [dist]
+     Change the location of a trap.  The first argument is the name of
+     the macro to be invoked at the trap, and the second argument is
+     the new location for the trap (note that the parameters are
+     specified in opposite order as in the `wh' request).  This is
+     useful for building up footnotes in a diversion to allow more
+     space at the bottom of the page for them.
+
+     Default scaling indicator for DIST is `v'.  If DIST is missing,
+     the trap is removed.
+
+
+ - Register: \n[.ne]
+     The read-only number register `.ne' contains the amount of space
+     that was needed in the last `ne' request that caused a trap to be
+     sprung.  Useful in conjunction with the `.trunc' register.  *Note
+     Page Control::, for more information.
+
+     Since the `.ne' register is only set by traps it doesn't make much
+     sense to use it outside of trap macros.
+
+ - Register: \n[.trunc]
+     A read-only register containing the amount of vertical space
+     truncated by the most recently sprung vertical position trap, or,
+     if the trap was sprung by an `ne' request, minus the amount of
+     vertical motion produced by the `ne' request.  In other words, at
+     the point a trap is sprung, it represents the difference of what
+     the vertical position would have been but for the trap, and what
+     the vertical position actually is.
+
+     Since the `.trunc' register is only set by traps and it doesn't
+     make much sense to use it outside of trap macros.
+
+ - Register: \n[.pe]
+     A read-only register which is set to 1 while a page is ejected with
+     the `bp' request (or by the end of input).
+
+     Outside of traps this register is always zero.  In the following
+     example, only the second call to `x' is caused by `bp'.
+
+
+          .de x
+          \&.pe=\\n[.pe]
+          .br
+          ..
+          .wh 1v x
+          .wh 4v x
+          A line.
+          .br
+          Another line.
+          .br
+              => A line.
+                        .pe=0
+                        Another line.
+          
+                        .pe=1
+
+
+   An important fact to consider while designing macros is that
+diversions and traps do not interact normally.  For example, if a trap
+invokes a header macro (while outputting a diversion) which tries to
+change the font on the current page, the effect will not be visible
+before the diversion has completely been printed (except for input
+protected with `\!' or `\?') since the data in the diversion is already
+formatted.  In most cases, this is not the expected behaviour.
+
+
+File: groff,  Node: Diversion Traps,  Next: Input Line Traps,  Prev: Page Location Traps,  Up: Traps
+
+Diversion Traps
+---------------
+
+ - Request: .dt dist macro
+     Set a trap _within_ a diversion.  DIST is the location of the trap
+     (identical to the `wh' request; default scaling indicator is `v')
+     and MACRO is the name of the macro to be invoked.  The number
+     register `.t' still works within diversions.  *Note Diversions::,
+     for more information.
+
+
+File: groff,  Node: Input Line Traps,  Next: Blank Line Traps,  Prev: Diversion Traps,  Up: Traps
+
+Input Line Traps
+----------------
+
+ - Request: .it n macro
+ - Request: .itc n macro
+     Set an input line trap.  N is the number of lines of input which
+     may be read before springing the trap, MACRO is the macro to be
+     invoked.  Request lines are not counted as input lines.
+
+     For example, one possible use is to have a macro which prints the
+     next N lines in a bold font.
+
+
+          .de B
+          .  it \\$1 B-end
+          .  ft B
+          ..
+          .
+          .de B-end
+          .  ft R
+          ..
+
+     The `itc' request is identical except that an interrupted text
+     line (ending with `\c') is not counted as a separate line.
+
+     Both requests are associated with the current environment (*note
+     Environments::); switching to another environment disables the
+     current input trap, and going back reactivates it, restoring the
+     number of already processed lines.
+
+
+File: groff,  Node: Blank Line Traps,  Next: End-of-input Traps,  Prev: Input Line Traps,  Up: Traps
+
+Blank Line Traps
+----------------
+
+ - Request: .blm macro
+     Set a blank line trap.  `gtroff' executes MACRO when it encounters
+     a blank line in the input file.
+
+
+File: groff,  Node: End-of-input Traps,  Prev: Blank Line Traps,  Up: Traps
+
+End-of-input Traps
+------------------
+
+ - Request: .em macro
+     Set a trap at the end of input.  MACRO is executed after the last
+     line of the input file has been processed.
+
+     For example, if the document had to have a section at the bottom
+     of the last page for someone to approve it, the `em' request could
+     be used.
+
+
+          .de approval
+          .  ne 5v
+          .  sp |(\\n[.t] - 6v)
+          .  in +4i
+          .  lc _
+          .  br
+          Approved:\t\a
+          .  sp
+          Date:\t\t\a
+          ..
+          .
+          .em approval
+
 
 
 File: groff,  Node: Diversions,  Next: Environments,  Prev: Traps,  Up: gtroff Reference
@@ -87,7 +344,7 @@ output device).
      contains the name of the current diversion (this is a string-valued
      register).  The read-only number register `.d' contains the current
      vertical place in the diversion.  If not in a diversion it is the
-     same as the register `nl'.
+     same as register `nl'.
 
  - Register: \n[.h]
      The "high-water mark" on the current page.  It corresponds to the
@@ -110,6 +367,10 @@ output device).
  - Register: \n[dl]
      After completing a diversion, the read-write number registers `dn'
      and `dl' contain the vertical and horizontal size of the diversion.
+     Note that only the just processed lines are counted: For the
+     computation of `dn' and `dl', the requests `da' and `boxa' are
+     handled as if `di' and `box' had been used - lines which have been
+     already stored in a macro are not taken into account.
 
 
           .\" Center text both horizontally & vertically
@@ -150,16 +411,16 @@ output device).
 
 
  - Escape: \!
- - Escape: \?ANYTHING\?
+ - Escape: \?anything\?
      Prevent requests, macros, and escapes from being interpreted when
-     read into a diversion.  This takes the given text and
-     "transparently" embeds it into the diversion.  This is useful for
+     read into a diversion.  Both escapes take the given text and
+     "transparently" embed it into the diversion.  This is useful for
      macros which shouldn't be invoked until the diverted text is
      actually output.
 
      The `\!' escape transparently embeds text up to and including the
      end of the line.  The `\?' escape transparently embeds text until
-     the next occurrence of the `\?' escape.  For example:
+     the next occurrence of the `\?' escape.  Example:
 
 
           \?ANYTHING\?
@@ -198,7 +459,7 @@ output device).
 
  - Request: .output string
      Emit STRING directly to the `gtroff' intermediate output (subject
-     to copy-mode interpretation);  this is similar to `\!' used at the
+     to copy-mode interpretation); this is similar to `\!' used at the
      top level.  An initial double quote in STRING is stripped off to
      allow initial blanks.
 
@@ -209,7 +470,7 @@ output device).
 
      Use with caution!  It is normally only needed for mark-up used by a
      postprocessor which does something with the output before sending
-     it to the output device, filtering out `string' again.
+     it to the output device, filtering out STRING again.
 
  - Request: .asciify div
      "Unformat" the diversion specified by DIV in such a way that ASCII
@@ -333,18 +594,27 @@ environments named `0', `1', and `2'.
 
         * The number of consecutive hyphenated lines (set to zero).
 
+ - Register: \n[.w]
  - Register: \n[.cht]
  - Register: \n[.cdp]
  - Register: \n[.csk]
-     The `\n[.cht]' register contains the maximum extent (above the
-     baseline) of the last glyph added to the current environment.
+     The `\n[.w]' register contains the width of the last glyph added
+     to the current environment.
 
-     The `\n[.cdp]' register contains the maximum extent (below the
-     baseline) of the last glyph added to the current environment.
+     The `\n[.cht]' register contains the height of the last glyph
+     added to the current environment.
+
+     The `\n[.cdp]' register contains the depth of the last glyph added
+     to the current environment.  It is positive for glyphs extending
+     below the baseline.
 
      The `\n[.csk]' register contains the "skew" (how far to the right
-     of the glyph's center that `gtroff' shold place an accent) of the
+     of the glyph's center that `gtroff' should place an accent) of the
      last glyph added to the current environment.
+
+ - Register: \n[.n]
+     The `\n[.n]' register contains the length of the previous output
+     line in the current environment.
 
 
 File: groff,  Node: Suppressing output,  Next: Colors,  Prev: Environments,  Up: gtroff Reference
@@ -352,7 +622,7 @@ File: groff,  Node: Suppressing output,  Next: Colors,  Prev: Environments,  Up:
 Suppressing output
 ==================
 
- - Escape: \ONUM
+ - Escape: \Onum
      Disable or enable output depending on the value of NUM:
 
     `\O0'
@@ -423,7 +693,7 @@ Colors
 
  - Request: .defcolor ident scheme color_components
      Define color with name IDENT.  SCHEME can be one of  the following
-     values: `rgb' (three components), `cym' (three components), `cmyk'
+     values: `rgb' (three components), `cmy' (three components), `cmyk'
      (four components), and `gray' or `grey' (one component).
 
      Color components can be given either as a hexadecimal string or as
@@ -451,9 +721,9 @@ Colors
           .defcolor darkgreen rgb 0.1 0.5 0.2
 
 
- - Escape: \mC
- - Escape: \m(CO
- - Escape: \m[COLOR]
+ - Escape: \mc
+ - Escape: \m(co
+ - Escape: \m[color]
      Set drawing color.  The following example shows how to turn the
      next four words red.
 
@@ -473,9 +743,9 @@ Colors
           .mc \m[red]x\m[]
 
 
- - Escape: \MC
- - Escape: \M(CO
- - Escape: \M[COLOR]
+ - Escape: \Mc
+ - Escape: \M(co
+ - Escape: \M[color]
      Set background color for filled objects drawn with the `\D'...''
      commands.
 
@@ -661,7 +931,7 @@ was not there, `groff' would not know when to stop.
 
 
           .sy perl -e 'printf ".nr H %d\\n.nr M %d\\n.nr S %d\\n",\
-          	     (localtime(time))[2,1,0]' > /tmp/x\n[$$]
+                       (localtime(time))[2,1,0]' > /tmp/x\n[$$]
           .so /tmp/x\n[$$]
           .sy rm /tmp/x\n[$$]
           \nH:\nM:\nS
@@ -735,9 +1005,9 @@ was not there, `groff' would not know when to stop.
           .close idx
 
 
- - Escape: \VE
- - Escape: \V(EV
- - Escape: \V[ENV]
+ - Escape: \Ve
+ - Escape: \V(ev
+ - Escape: \V[env]
      Interpolate the contents of the specified environment variable ENV
      (one-character name E, two-character name EV) as returned by the
      function `getenv'.  `\V' is interpreted in copy-in mode.
@@ -752,7 +1022,7 @@ Postprocessor Access
 postprocessor.  This is particularly useful for embedding POSTSCRIPT
 into the final document.
 
- - Escape: \X'XXX'
+ - Escape: \X'xxx'
      Embeds its argument into the `gtroff' output preceded with `x X'.
 
      The escapes `\&', `\)', `\%', and `\:' are ignored within `\X',
@@ -766,9 +1036,9 @@ into the final document.
 
      `use_charnames_in_special' is currently used by `grohtml' only.
 
- - Escape: \YN
- - Escape: \Y(NM
- - Escape: \Y[NAME]
+ - Escape: \Yn
+ - Escape: \Y(nm
+ - Escape: \Y[name]
      This is approximately equivalent to `\X'\*[NAME]'' (one-character
      name N, two-character name NM).  However, the contents of the
      string or macro NAME are not interpreted; also it is permitted for
@@ -1028,16 +1298,20 @@ Debugging
    `gtroff' is not easy to debug, but there are some useful features
 and strategies for debugging.
 
- - Request: .lf line filename
-     Change the line number and the file name `gtroff' shall use for
-     error and warning messages.  LINE is the input line number of the
-     _next_ line.
+ - Request: .lf line [filename]
+     Change the line number and optionally the file name `gtroff' shall
+     use for error and warning messages.  LINE is the input line number
+     of the _next_ line.
 
      Without argument, the request is ignored.
 
      This is a debugging aid for documents which are split into many
      files, then put together with `soelim' and other preprocessors.
      Usually, it isn't invoked manually.
+
+     Note that other `troff' implementations (including the original
+     AT&T version) handle `lf' differently.  For them, LINE changes the
+     line number of the _current_ line.
 
  - Request: .tm string
  - Request: .tm1 string
@@ -1183,426 +1457,4 @@ occurs.  The most verbose level of warnings is `-ww'.
 * Menu:
 
 * Warnings::
-
-
-File: groff,  Node: Warnings,  Prev: Debugging,  Up: Debugging
-
-Warnings
---------
-
-   The warnings that can be given to `gtroff' are divided into the
-following categories.  The name associated with each warning is used by
-the `-w' and `-W' options; the number is used by the `warn' request and
-by the `.warn' register.
-
-`char'
-`1'
-     Non-existent glyphs.(1) (*note Warnings-Footnote-1::)  This is
-     enabled by default.
-
-`number'
-`2'
-     Invalid numeric expressions.  This is enabled by default.  *Note
-     Expressions::.
-
-`break'
-`4'
-     In fill mode, lines which could not be broken so that their length
-     was less than the line length.  This is enabled by default.
-
-`delim'
-`8'
-     Missing or mismatched closing delimiters.
-
-`el'
-`16'
-     Use of the `el' request with no matching `ie' request.  *Note
-     if-else::.
-
-`scale'
-`32'
-     Meaningless scaling indicators.
-
-`range'
-`64'
-     Out of range arguments.
-
-`syntax'
-`128'
-     Dubious syntax in numeric expressions.
-
-`di'
-`256'
-     Use of `di' or `da' without an argument when there is no current
-     diversion.
-
-`mac'
-`512'
-     Use of undefined strings, macros and diversions.  When an undefined
-     string, macro, or diversion is used, that string is automatically
-     defined as empty.  So, in most cases, at most one warning is given
-     for each name.
-
-`reg'
-`1024'
-     Use of undefined number registers.  When an undefined number
-     register is used, that register is automatically defined to have a
-     value of 0.  So, in most cases, at most one warning is given for
-     use of a particular name.
-
-`tab'
-`2048'
-     Use of a tab character where a number was expected.
-
-`right-brace'
-`4096'
-     Use of `\}' where a number was expected.
-
-`missing'
-`8192'
-     Requests that are missing non-optional arguments.
-
-`input'
-`16384'
-     Invalid input characters.
-
-`escape'
-`32768'
-     Unrecognized escape sequences.  When an unrecognized escape
-     sequence `\X' is encountered, the escape character is ignored, and
-     X is printed.
-
-`space'
-`65536'
-     Missing space between a request or macro and its argument.  This
-     warning is given when an undefined name longer than two characters
-     is encountered, and the first two characters of the name make a
-     defined name.  The request or macro is not invoked.  When this
-     warning is given, no macro is automatically defined.  This is
-     enabled by default.  This warning never occurs in compatibility
-     mode.
-
-`font'
-`131072'
-     Non-existent fonts.  This is enabled by default.
-
-`ig'
-`262144'
-     Invalid escapes in text ignored with the `ig' request.  These are
-     conditions that are errors when they do not occur in ignored text.
-
-`color'
-`524288'
-     Color related warnings.
-
-`all'
-     All warnings except `di', `mac' and `reg'.  It is intended that
-     this covers all warnings that are useful with traditional macro
-     packages.
-
-`w'
-     All warnings.
-
-
-File: groff,  Node: Warnings-Footnotes,  Up: Warnings
-
-   (1) `char' is a misnomer since it reports missing glyphs - there
-aren't missing input characters, only invalid ones.
-
-
-File: groff,  Node: Implementation Differences,  Prev: Debugging,  Up: gtroff Reference
-
-Implementation Differences
-==========================
-
-   GNU `troff' has a number of features which cause incompatibilities
-with documents written with old versions of `troff'.
-
-   Long names cause some incompatibilities.  UNIX `troff' interprets
-
-
-     .dsabcd
-
-as defining a string `ab' with contents `cd'.  Normally, GNU `troff'
-interprets this as a call of a macro named `dsabcd'.  Also UNIX `troff'
-interprets `\*[' or `\n[' as references to a string or number register
-called `['.  In GNU `troff', however, this is normally interpreted as
-the start of a long name.  In compatibility mode GNU `troff' interprets
-long names in the traditional way (which means that they are not
-recognized as names).
-
- - Request: .cp [n]
- - Request: .do cmd
- - Register: \n[.C]
-     If N is missing or non-zero, turn on compatibility mode;
-     otherwise, turn it off.
-
-     The read-only number register `.C' is 1 if compatibility mode is
-     on, 0 otherwise.
-
-     Compatibility mode can be also turned on with the `-C' command line
-     option.
-
-     The `do' request turns off compatibility mode while executing its
-     arguments as a `gtroff' command.
-
-
-          .do fam T
-
-     executes the `fam' request when compatibility mode is enabled.
-
-     `gtroff' restores the previous compatibility setting before
-     interpreting any files sourced by the CMD.
-
-   Two other features are controlled by `-C'.  If not in compatibility
-mode, GNU `troff' preserves the input level in delimited arguments:
-
-
-     .ds xx '
-     \w'abc\*(xxdef'
-
-In compatibility mode, the string `72def'' is returned; without `-C'
-the resulting string is `168' (assuming a TTY output device).
-
-   Finally, the escapes `\f', `\H', `\m', `\M', `\R', `\s', and `\S'
-are transparent for recognizing the beginning of a line only in
-compatibility mode (this is a rather obscure feature).  For example,
-the code
-
-
-     .de xx
-     Hallo!
-     ..
-     \fB.xx\fP
-
-   prints `Hallo!' in bold face if in compatibility mode, and `.xx' in
-bold face otherwise.
-
-   GNU `troff' does not allow the use of the escape sequences `\|',
-`\^', `\&', `\{', `\}', `\<SP>', `\'', `\`', `\-', `\_', `\!', `\%',
-and `\c' in names of strings, macros, diversions, number registers,
-fonts or environments; UNIX `troff' does.  The `\A' escape sequence
-(*note Identifiers::) may be helpful in avoiding use of these escape
-sequences in names.
-
-   Fractional point sizes cause one noteworthy incompatibility.  In
-UNIX `troff' the `ps' request ignores scale indicators and thus
-
-
-     .ps 10u
-
-sets the point size to 10 points, whereas in GNU `troff' it sets the
-point size to 10 scaled points.  *Note Fractional Type Sizes::, for
-more information.
-
-   In GNU `troff' there is a fundamental difference between
-(unformatted) input characters and (formatted) output glyphs.
-Everything that affects how a glyph is output is stored with the glyph
-node; once a glyph node has been constructed it is unaffected by any
-subsequent requests that are executed, including `bd', `cs', `tkf',
-`tr', or `fp' requests.  Normally glyphs are constructed from input
-characters at the moment immediately before the glyph is added to the
-current output line.  Macros, diversions and strings are all, in fact,
-the same type of object; they contain lists of input characters and
-glyph nodes in any combination.  A glyph node does not behave like an
-input character for the purposes of macro processing; it does not
-inherit any of the special properties that the input character from
-which it was constructed might have had.  For example,
-
-
-     .di x
-     \\\\
-     .br
-     .di
-     .x
-
-prints `\\' in GNU `troff'; each pair of input backslashes is turned
-into one output backslash and the resulting output backslashes are not
-interpreted as escape characters when they are reread.  UNIX `troff'
-would interpret them as escape characters when they were reread and
-would end up printing one `\'.  The correct way to obtain a printable
-backslash is to use the `\e' escape sequence: This always prints a
-single instance of the current escape character, regardless of whether
-or not it is used in a diversion; it also works in both GNU `troff' and
-UNIX `troff'.(1) (*note Implementation Differences-Footnote-1::)  To
-store, for some reason, an escape sequence in a diversion that will be
-interpreted when the diversion is reread, either use the traditional
-`\!' transparent output facility, or, if this is unsuitable, the new
-`\?' escape sequence.
-
-   *Note Diversions::, and *Note Gtroff Internals::, for more
-information.
-
-
-File: groff,  Node: Implementation Differences-Footnotes,  Up: Implementation Differences
-
-   (1) To be completely independent of the current escape character,
-use `\(rs' which represents a reverse solidus (backslash) glyph.
-
-
-File: groff,  Node: Preprocessors,  Next: Output Devices,  Prev: gtroff Reference,  Up: Top
-
-Preprocessors
-*************
-
-   This chapter describes all preprocessors that come with `groff' or
-which are freely available.
-
-* Menu:
-
-* geqn::
-* gtbl::
-* gpic::
-* ggrn::
-* grap::
-* grefer::
-* gsoelim::
-
-
-File: groff,  Node: geqn,  Next: gtbl,  Prev: Preprocessors,  Up: Preprocessors
-
-`geqn'
-======
-
-* Menu:
-
-* Invoking geqn::
-
-
-File: groff,  Node: Invoking geqn,  Prev: geqn,  Up: geqn
-
-Invoking `geqn'
----------------
-
-
-File: groff,  Node: gtbl,  Next: gpic,  Prev: geqn,  Up: Preprocessors
-
-`gtbl'
-======
-
-* Menu:
-
-* Invoking gtbl::
-
-
-File: groff,  Node: Invoking gtbl,  Prev: gtbl,  Up: gtbl
-
-Invoking `gtbl'
----------------
-
-
-File: groff,  Node: gpic,  Next: ggrn,  Prev: gtbl,  Up: Preprocessors
-
-`gpic'
-======
-
-* Menu:
-
-* Invoking gpic::
-
-
-File: groff,  Node: Invoking gpic,  Prev: gpic,  Up: gpic
-
-Invoking `gpic'
----------------
-
-
-File: groff,  Node: ggrn,  Next: grap,  Prev: gpic,  Up: Preprocessors
-
-`ggrn'
-======
-
-* Menu:
-
-* Invoking ggrn::
-
-
-File: groff,  Node: Invoking ggrn,  Prev: ggrn,  Up: ggrn
-
-Invoking `ggrn'
----------------
-
-
-File: groff,  Node: grap,  Next: grefer,  Prev: ggrn,  Up: Preprocessors
-
-`grap'
-======
-
-   A free implementation of `grap', written by Ted Faber, is available
-as an extra package from the following address:
-
-     <http://www.lunabase.org/~faber/Vault/software/grap/>
-
-
-File: groff,  Node: grefer,  Next: gsoelim,  Prev: grap,  Up: Preprocessors
-
-`grefer'
-========
-
-* Menu:
-
-* Invoking grefer::
-
-
-File: groff,  Node: Invoking grefer,  Prev: grefer,  Up: grefer
-
-Invoking `grefer'
------------------
-
-
-File: groff,  Node: gsoelim,  Prev: grefer,  Up: Preprocessors
-
-`gsoelim'
-=========
-
-* Menu:
-
-* Invoking gsoelim::
-
-
-File: groff,  Node: Invoking gsoelim,  Prev: gsoelim,  Up: gsoelim
-
-Invoking `gsoelim'
-------------------
-
-
-File: groff,  Node: Output Devices,  Next: File formats,  Prev: Preprocessors,  Up: Top
-
-Output Devices
-**************
-
-* Menu:
-
-* Special Characters::
-* grotty::
-* grops::
-* grodvi::
-* grolj4::
-* grolbp::
-* grohtml::
-* gxditview::
-
-
-File: groff,  Node: Special Characters,  Next: grotty,  Prev: Output Devices,  Up: Output Devices
-
-Special Characters
-==================
-
-   *Note Font Files::.
-
-
-File: groff,  Node: grotty,  Next: grops,  Prev: Special Characters,  Up: Output Devices
-
-`grotty'
-========
-
-* Menu:
-
-* Invoking grotty::
-
-
-File: groff,  Node: Invoking grotty,  Prev: grotty,  Up: grotty
-
-Invoking `grotty'
------------------
 

@@ -1,9 +1,9 @@
 .ig
 groff.man
 
-Last update: 14 July 2002
+Last update: 18 Mar 2003
 
-Copyright (C) 1989, 2002 Free Software Foundation, Inc.
+Copyright (C) 1989, 2002, 2003 Free Software Foundation, Inc.
 Rewritten in 2002 by Bernd Warken <bwarken@mayn.de>
 
 Permission is granted to copy, distribute and/or modify this document
@@ -121,7 +121,7 @@ $FreeBSD$
 .c --------------------------------------------------------------------
 .c ShortOpt ([char [punct]])
 .c
-.c `-c' somwhere in the text 
+.c `-c' somewhere in the text 
 .c second arg is punctuation
 .c
 .de ShortOpt
@@ -133,7 +133,7 @@ $FreeBSD$
 .c --------------------------------------------------------------------
 .c LongOpt  ([name [punct]])
 .c
-.c `--name' somwhere in the text 
+.c `--name' somewhere in the text 
 .c second arg is punctuation
 .c
 .de LongOpt
@@ -317,7 +317,7 @@ The
 .B groff
 program allows to control the whole
 .I groff
-system by comand line options.
+system by command line options.
 .
 This is a great simplification in comparison to the classical case (which
 uses pipes only).
@@ -433,12 +433,12 @@ Preprocess with
 .BR @g@pic .
 .
 .
-.OptDef P "" "-option"
-.OptDef+ P "" "-option \f[CB]-P\f[] arg"
+.OptDef P "" "\*[@-]option"
+.OptDef+ P "" "\*[@-]option \f[CB]\*[@-]P\f[] arg"
 Pass
-.I -option
+.I \*[@-]option
 or
-.I -option arg
+.I \*[@-]option arg
 to the postprocessor.
 .
 The option must be specified with the necessary preceding minus
@@ -452,11 +452,12 @@ postprocessor.
 For example, to pass a title to the gxditview postprocessor, the shell
 command
 .IP
-.ShellCommand groff -X -P -title -P 'groff it' \f[I]foo\f[]
+.ShellCommand groff \*[@-]X \*[@-]P \*[@-]title \*[@-]P 'groff it' \f[I]foo\f[]
 .IP
 is equivalent to
 .IP
-.ShellCommand groff -X -Z \f[I]foo\f[] | gxditview -title 'groff it' -
+.ShellCommand groff \*[@-]X \*[@-]Z \f[I]foo\f[] | \
+gxditview \*[@-]title 'groff it' \*[@-]
 .
 .
 .OptDef R
@@ -507,28 +508,79 @@ Preprocess with
 .OptDef T "" dev
 Set output device to
 .IR dev .
-The possible values in
-.I groff
+Contrary to
+.BR @g@troff ,
+.B groff
+calls a postprocessor to convert
+.BR @g@troff 's
+intermediate output to its final format.
+Real devices in
+.B groff
 are
-.BR ascii ,
-.BR cp1047 ,
-.BR dvi ,
-.BR html ,
-.BR latin1 ,
-.BR lbp ,
-.BR lj4 ,
-.BR ps ,
-.BR utf8 ,
-.BR X75 ,
-and
-.BR X100 .
 .
-Additionally,
-.B X75-12
+.RS
+.RS
+.IP dvi
+TeX DVI format (postprocessor is
+.BR grodvi ).
+.IP html
+HTML output (preprocessors are
+.B @g@soelim
 and
-.B X100-12
-are available for documents which use 12\|pt as the base document size.
+.BR \%pre-grohtml ,
+postprocessor is
+.BR \%post-grohtml ).
+.IP lbp
+Canon CAPSL printers (\%LBP-4 and \%LBP-8 series laser printers;
+postprocessor is
+.BR grolbp ).
+.IP lj4
+HP LaserJet4 compatible (or other PCL5 compatible) printers (postprocessor
+is
+.BR grolj4 ).
+.IP ps
+PostScript output (postprocessor is
+.BR grops ).
+.RE
+.RE
 .
+.IP
+For the following TTY output devices (postprocessor is always
+.BR grotty ),
+.ShortOpt T
+selects the output encoding:
+.RS
+.RS
+.IP ascii
+7bit ASCII.
+.IP cp1047
+\%Latin-1 character set for EBCDIC hosts.
+.IP latin1
+ISO \%8859-1.
+.IP utf8
+Unicode character set in \%UTF-8 encoding.
+.RE
+.RE
+.
+.IP
+The following arguments select
+.B gxditview
+as the `postprocessor' (it is rather a viewing program):
+.
+.RS
+.RS
+.IP X75
+75dpi resolution, 10pt document base font.
+.IP X75-12
+75dpi resolution, 12pt document base font.
+.IP X100
+100dpi resolution, 10pt document base font.
+.IP X100-12
+100dpi resolution, 12pt document base font.
+.RE
+.RE
+.
+.IP
 The default device is
 .BR @DEVICE@ .
 .
@@ -567,7 +619,7 @@ and
 is carried over to 
 .BR \%gxditview (@MAN1EXT@)
 by determining an argument for the
-.B -printCommand
+.B \*[@-]printCommand
 option of
 .BR \%gxditview (@MAN1EXT@).
 .
@@ -593,7 +645,7 @@ option to
 for example
 .
 .IP
-.ShellCommand groff -X -P-resolution -P100 -man foo.1
+.ShellCommand groff \*[@-]X \*[@-]P\*[@-]resolution \*[@-]P100 \*[@-]man foo.1
 .
 .
 .OptDef z
@@ -613,7 +665,7 @@ This will print the intermediate output to standard output; see
 .
 .
 .\" --------------------------------------------------------------------
-.SS Tranparent Options
+.SS Transparent Options
 .\" --------------------------------------------------------------------
 .
 The following options are transparently handed over to the formatter
@@ -698,7 +750,7 @@ Due to the front-end programs available within the groff system, using
 is much easier than
 .IR "classical roff" .
 .
-This section gives an overview of the parts that consitute the groff
+This section gives an overview of the parts that constitute the groff
 system.
 .
 It complements
@@ -960,8 +1012,8 @@ HTML output.
 .
 .TP
 .B latin1
-Text output using the ISO Latin-1 (ISO 8859-1) character set; see
-.BR iso_8859_1 (7).
+Text output using the ISO \%Latin-1 (ISO \%8859-1) character set; see
+.BR \%iso_8859_1 (7).
 .
 .TP
 .B koi8-r
@@ -969,7 +1021,7 @@ Text output using the Russian KOI8-R character set.
 .
 .TP
 .B lbp
-Output for Canon CAPSL printers (LBP-4 and LBP-8 series laser printers).
+Output for Canon CAPSL printers (\%LBP-4 and \%LBP-8 series laser printers).
 .
 .TP 
 .B lj4
@@ -982,7 +1034,7 @@ PostScript output; suitable for printers and previewers like
 .
 .TP
 .B utf8
-Text output using the Unicode (ISO 10646) character set with UTF-8
+Text output using the Unicode (ISO 10646) character set with \%UTF-8
 encoding; see
 .BR unicode (7).
 .
@@ -993,7 +1045,7 @@ encoding; see
 and
 .BR \%gxditview (@MAN1EXT@).
 A variant for a 12\|pt document base font is
-.BR X75-12 .
+.BR \%X75-12 .
 .
 .TP
 .B X100
@@ -1002,7 +1054,7 @@ A variant for a 12\|pt document base font is
 and
 .BR \%gxditview (@MAN1EXT@).
 A variant for a 12\|pt document base font is
-.BR X100-12 .
+.BR \%X100-12 .
 .
 .P
 The postprocessor to be used for a device is specified by the
@@ -1011,7 +1063,7 @@ command in the device description file; see
 .BR \%groff_font (@MAN5EXT@).
 .
 This can be overridden with the
-.B \-X
+.B \*[@-]X
 option.
 .
 .P
@@ -1038,7 +1090,7 @@ terminals or line-printers.
 .
 .P
 Today, most printing or drawing hardware is handled by the operating
-system, by device drivers, or by software interfaces, usally accepting
+system, by device drivers, or by software interfaces, usually accepting
 PostScript.
 .
 Consequently, there isn't an urgent need for more hardware device
@@ -1354,22 +1406,22 @@ and the
 macro set, classical troff had to be called by
 .
 .P
-.ShellCommand pic foo.me | tbl | troff -me -Tlatin1 | grotty
+.ShellCommand pic foo.me | tbl | troff \*[@-]me \*[@-]Tlatin1 | grotty
 .
 .P
 Using
 .BR groff ,
 this pipe can be shortened to the equivalent command
 .P
-.ShellCommand groff -p -t -me -T latin1 foo.me
+.ShellCommand groff \*[@-]p \*[@-]t \*[@-]me \*[@-]T latin1 foo.me
 .
 .P
 An even easier way to call this is to use
 .BR grog (@MAN1EXT@)
 to guess the preprocessor and macro options and execute the generated
-command (by specifying shell left quotes)
+command (by using backquotes to specify shell command substitution)
 .P
-.ShellCommand `grog -Tlatin1 foo.me`
+.ShellCommand \`grog \*[@-]Tlatin1 foo.me\`
 .
 .P
 The simplest way is to view the contents in an automated way by
@@ -1449,7 +1501,7 @@ This is the only grap version supported by groff.
 .SH AUTHORS
 .\" --------------------------------------------------------------------
 .
-Copyright \(co 1989, 2002 Free Software Foundation, Inc.
+Copyright \(co 1989, 2002, 2003 Free Software Foundation, Inc.
 .
 .P
 This document is distributed under the terms of the FDL (GNU Free
@@ -1567,6 +1619,7 @@ Groff macro packages and macro-specific utilities:
 .BR \%groff_mom (@MAN7EXT@),
 .BR \%groff_ms (@MAN7EXT@),
 .BR \%groff_www (@MAN7EXT@),
+.BR \%groff_trace (@MAN7EXT@),
 .BR \%mmroff (@MAN7EXT@).
 .
 .TP

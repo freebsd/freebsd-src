@@ -46,7 +46,7 @@
 .\" for an already extremely slow package.
 .\"
 .
-.Dd October 07, 2002
+.Dd February 27, 2003
 .Os
 .Dt GROFF_MDOC 7
 .
@@ -778,14 +778,27 @@ By default, the following architecture keywords are defined:
 .Ed
 .Pp
 .
+If the section number is neither a numeric expression in the range 1 to\~9
+nor one of the above described keywords, the third parameter is used
+verbatim as the volume name.
+.Pp
 In the following examples, the left (which is identical to the right) and
 the middle part of the manual page header strings are shown.
+Note how
+.Ql \e&
+prevents the digit\~1 from being a valid numeric expression.
 .
 .Bd -ragged
 .Bl -tag -width ".Li .Dt\ FOO\ 2\ i386" -compact -offset indent
 .It Li ".Dt FOO 7"
 .Ql FOO(7)
 .Ql \*[volume-operating-system] \*[volume-ds-7]
+.It Li ".Dt FOO 7 bar"
+.Ql FOO(7)
+.Ql \*[volume-operating-system] \*[volume-ds-7]
+.It Li ".Dt FOO \e&7 bar"
+.Ql FOO(7)
+.Ql bar
 .It Li ".Dt FOO 2 i386"
 .Ql FOO(2)
 .Ql \*[volume-operating-system]/\*[volume-as-i386] \*[volume-ds-2]
@@ -3064,11 +3077,13 @@ display must be ended with the
 macro.
 It has the following syntax:
 .Pp
+.Bd -ragged -compact
 .Bl -tag -width ".Li .Bd" -offset indent
 .It Li .Bd Xo
 .Bro \-literal | \-filled | \-unfilled | \-ragged | \-centered Brc
 .Oo \-offset Ao string Ac Oc Oo \-file Ao file name Ac Oc Oo \-compact Oc Xc
 .El
+.Ed
 .Pp
 .
 .Bl -tag -width ".Fl file Ao Ar file name Ac " -compact
@@ -3194,6 +3209,7 @@ Most of this document has been formatted with a tag style list
 It has the following syntax forms:
 .
 .Pp
+.Bd -ragged -compact
 .Bl -tag -width ".Li .Bl" -offset indent -compact
 .It Li .Bl Xo
 .Bro \-hang | \-ohang | \-tag | \-diag | \-inset Brc
@@ -3206,6 +3222,7 @@ It has the following syntax forms:
 .Bro \-item | \-enum Oo \-nested Oc | \-bullet | \-hyphen | \-dash Brc
 .Oo \-offset Ao string Ac Oc Oo \-compact Oc Xc
 .El
+.Ed
 .Pp
 .
 And now a detailed description of the list types.
@@ -3908,14 +3925,15 @@ displayed with a
 device like
 .Sq latin1
 or
-.Sq unicode
+.Sq unicode ,
 to make the manual more efficient for viewing on-line.
 This behaviour can be changed (e.g.\& to create a hardcopy of the
 .Tn TTY
 output) by setting the register
 .Ql cR
 to zero while calling
-.Xr groff :
+.Xr groff 1 ,
+resulting in multiple pages instead of a single, very long page:
 .Pp
 .Dl groff -Tlatin1 -rcR=0 -mdoc foo.man > foo.txt
 .Pp

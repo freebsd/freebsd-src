@@ -11,9 +11,27 @@ questions and suggestions, or contact me directly at:
 
 ========================================================================
 
-Version 1.1.3c
-==============
+Version 1.1.5
+=============
 
+Draft and revision not appearing in page headers.
+---Fixed---
+
+\*[RULE] not working properly with indents and justified copy.
+---Fixed---
+
+Post-epigraph spacing in TYPEWRITE causing some first pages to run too
+deep.
+---Fixed---
+
+Spacing of docheaders in TYPEWRITE not always consistent.
+---Fixed---
+
+Version 1.1.4
+=============
+
+Blockquotes that span pages running too deep.
+---Fixed---
 
 Version 1.1.3
 =============

@@ -137,9 +137,10 @@ sit amet.  Accusam et justo duo do\%lo\%res et ea rebum
 \# a collated document, but if the page trap has already deposited one
 \# there, COLLATE can't undo it.  Hence, we turn the trap off
 \# (TRAP OFF), set the line, and put in an EL afterwards.
+\#
 \# Normally, all this isn't necessary when collating documents,
 \# but if you ever have the problem of a page header printing at the
-\# top of a collated document, this is how you get around it.
+\# top of a collated document, now you know how to get around it.
 \#
 .TRAP OFF
 .RIGHT
@@ -405,11 +406,11 @@ justo duo do\%lo\%res et ea rebum.
 Sanctus est lorem ipsum dolor sit amet, consetetur sadipscing.  Elitr,
 sed diam nonumy eirmod tempor, invidunt ut labore et do\%lo\%re magna
 ali\%quyam.  Erat sed diam voluptua, at vero eos et accusam et justo
-duo do\%lo\%res et ea rebum amet.  Consetetur sadipsc-
+duo do\%lo\%res et ea rebum amet.  Consetetur sadipsc\%
+ing elitr sed diam nonumy eirmod tempor invidunt ut
 .BREAK_QUOTE  \" Needed because blockquote crosses page AND contain footnotes
-ing elitr sed diam nonumy eirmod tempor invidunt ut labore.
-Et do\%lo\%re magna ali\%quyam erat, sed diam voluptua, at vero.
-Eos et accusam et justo duo.\c
+labore.  Et do\%lo\%re magna ali\%quyam erat, sed diam voluptua, at
+vero.  Eos et accusam et justo duo.\c
 .FOOTNOTE
 Labore et do\%lo\%re magna ali\%quyam erat sed diam voluptua.
 .FOOTNOTE OFF

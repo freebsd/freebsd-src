@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,230 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Changing Type Sizes,  Next: Fractional Type Sizes,  Prev: Sizes,  Up: Sizes
+
+Changing Type Sizes
+-------------------
+
+ - Request: .ps [size]
+ - Request: .ps +size
+ - Request: .ps -size
+ - Escape: \ssize
+ - Register: \n[.s]
+     Use the `ps' request or the `\s' escape to change (increase,
+     decrease) the type size (in points).  Specify SIZE as either an
+     absolute point size, or as a relative change from the current size.
+     The size 0, or no argument, goes back to the previous size.
+
+     Default scaling indicator of `size' is `z'.  If `size' is zero or
+     negative, it is set to 1u.
+
+     The read-only number register `.s' returns the point size in
+     points as a decimal fraction.  This is a string.  To get the point
+     size in scaled points, use the `.ps' register instead.
+
+     `.s' is associated with the current environment (*note
+     Environments::).
+
+
+          snap, snap,
+          .ps +2
+          grin, grin,
+          .ps +2
+          wink, wink, \s+2nudge, nudge,\s+8 say no more!
+          .ps 10
+
+     The `\s' escape may be called in a variety of ways.  Much like
+     other escapes there must be a way to determine where the argument
+     ends and the text begins.  Any of the following forms are valid:
+
+    `\sN'
+          Set the point size to N points.  N must be either 0 or in the
+          range 4 to 39.
+
+    `\s+N'
+    `\s-N'
+          Increase or decrease the point size by N points.  N must be
+          exactly one digit.
+
+    `\s(NN'
+          Set the point size to NN points.  NN must be exactly two
+          digits.
+
+    `\s+(NN'
+    `\s-(NN'
+    `\s(+NN'
+    `\s(-NN'
+          Increase or decrease the point size by NN points.  NN must be
+          exactly two digits.
+
+     Note that `\s' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \s[20]x\s[0]
+
+     *Note Fractional Type Sizes::, for yet another syntactical form of
+     using the `\s' escape.
+
+ - Request: .sizes s1 s2 ... sn [0]
+     Some devices may only have certain permissible sizes, in which case
+     `gtroff' rounds to the nearest permissible size.  The `DESC' file
+     specifies which sizes are permissible for the device.
+
+     Use the `sizes' request to change the permissible sizes for the
+     current output device.  Arguments are in scaled points; the
+     `sizescale' line in the `DESC' file for the output device provides
+     the scaling factor.  For example, if the scaling factor is 1000,
+     then the value 12000 is 12 points.
+
+     Each argument can be a single point size (such as `12000'), or a
+     range of sizes (such as `4000-72000').  You can optionally end the
+     list with a zero.
+
+ - Request: .vs [space]
+ - Request: .vs +space
+ - Request: .vs -space
+ - Register: \n[.v]
+     Change (increase, decrease) the vertical spacing by SPACE.  The
+     default scaling indicator is `p'.
+
+     If `vs' is called without an argument, the vertical spacing is
+     reset to the previous value before the last call to `vs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is negative;
+     the vertical spacing is then set to the vertical resolution (as
+     given in the `.V' register).
+
+     The read-only number register `.v' contains the current vertical
+     spacing; it is associated with the current environment (*note
+     Environments::).
+
+   The effective vertical line spacing consists of four components.
+
+   * The vertical line spacing as set with the `vs' request.
+
+   * The "post-vertical line spacing" as set with the `pvs' request.
+     This is vertical space which will be added after a line has been
+     output.
+
+   * The "extra pre-vertical line space" as set with the `\x' request,
+     using a negative value.  This is vertical space which will be
+     added once before the current line has been output.
+
+   * The "extra post-vertical line space" as set with the `\x' request,
+     using a positive value.  This is vertical space which will be
+     added once after the current line has been output.
+
+   It is usually better to use `vs' or `pvs' instead of `ls' to produce
+double-spaced documents: `vs' and `pvs' have a finer granularity for
+the inserted vertical space compared to `ls'; furthermore, certain
+preprocessors assume single-spacing.
+
+   *Note Manipulating Spacing::, for more details on the `\x' escape
+and the `ls' request.
+
+ - Request: .pvs [space]
+ - Request: .pvs +space
+ - Request: .pvs -space
+ - Register: \n[.pvs]
+     Change (increase, decrease) the post-vertical spacing by SPACE.
+     The default scaling indicator is `p'.
+
+     If `pvs' is called without an argument, the post-vertical spacing
+     is reset to the previous value before the last call to `pvs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is zero or
+     negative; the vertical spacing is then set to zero.
+
+     The read-only number register `.pvs' contains the current
+     post-vertical spacing; it is associated with the current
+     environment (*note Environments::).
+
+
+File: groff,  Node: Fractional Type Sizes,  Prev: Changing Type Sizes,  Up: Sizes
+
+Fractional Type Sizes
+---------------------
+
+   A "scaled point" is equal to 1/SIZESCALE points, where SIZESCALE is
+specified in the `DESC' file (1 by default).  There is a new scale
+indicator `z' which has the effect of multiplying by SIZESCALE.
+Requests and escape sequences in `gtroff' interpret arguments that
+represent a point size as being in units of scaled points, but they
+evaluate each such argument using a default scale indicator of `z'.
+Arguments treated in this way are the argument to the `ps' request, the
+third argument to the `cs' request, the second and fourth arguments to
+the `tkf' request, the argument to the `\H' escape sequence, and those
+variants of the `\s' escape sequence that take a numeric expression as
+their argument (see below).
+
+   For example, suppose SIZESCALE is 1000; then a scaled point is
+equivalent to a millipoint; the request `.ps 10.25' is equivalent to
+`.ps 10.25z' and thus sets the point size to 10250 scaled points, which
+is equal to 10.25 points.
+
+   `gtroff' disallows the use of the `z' scale indicator in instances
+where it would make no sense, such as a numeric expression whose
+default scale indicator was neither `u' nor `z'.  Similarly it would
+make no sense to use a scaling indicator other than `z' or `u' in a
+numeric expression whose default scale indicator was `z', and so
+`gtroff' disallows this as well.
+
+   There is also new scale indicator `s' which multiplies by the number
+of units in a scaled point.  So, for example, `\n[.ps]s' is equal to
+`1m'.  Be sure not to confuse the `s' and `z' scale indicators.
+
+ - Register: \n[.ps]
+     A read-only number register returning the point size in scaled
+     points.
+
+     `.ps' is associated with the current environment (*note
+     Environments::).
+
+ - Register: \n[.psr]
+ - Register: \n[.sr]
+     The last-requested point size in scaled points is contained in the
+     `.psr' read-only number register.  The last requested point size
+     in points as a decimal fraction can be found in `.sr'.  This is a
+     string-valued read-only number register.
+
+     Note that the requested point sizes are device-independent, whereas
+     the values returned by the `.ps' and `.s' registers are not.  For
+     example, if a point size of 11pt is requested, and a `sizes'
+     request (or a `sizescale' line in a `DESC' file) specifies 10.95pt
+     instead, this value is actually used.
+
+     Both registers are associated with the current environment (*note
+     Environments::).
+
+   The `\s' escape has the following syntax for working with fractional
+type sizes:
+
+`\s[N]'
+`\s'N''
+     Set the point size to N scaled points; N is a numeric expression
+     with a default scale indicator of `z'.
+
+`\s[+N]'
+`\s[-N]'
+`\s+[N]'
+`\s-[N]'
+`\s'+N''
+`\s'-N''
+`\s+'N''
+`\s-'N''
+     Increase or or decrease the point size by N scaled points; N is a
+     numeric expression with a default scale indicator of `z'.
+
+   *Note Font Files::.
 
 
 File: groff,  Node: Strings,  Next: Conditionals and Loops,  Prev: Sizes,  Up: gtroff Reference
@@ -33,16 +254,16 @@ this is a read-write string variable).
 
  - Request: .ds name [string]
  - Request: .ds1 name [string]
- - Escape: \*N
- - Escape: \*(NM
- - Escape: \*[NAME ARG1 ARG2 ...]
+ - Escape: \*n
+ - Escape: \*(nm
+ - Escape: \*[name arg1 arg2 ...]
      Define and access a string variable NAME (one-character name N,
      two-character name NM).  If NAME already exists, `ds' overwrites
      the previous definition.  Only the syntax form using brackets can
      take arguments which are handled identically to macro arguments;
      the single exception is that a closing bracket as an argument must
-     be enclosed in double quotes.  *Note Request Arguments::, and
-     *Note Parameters::.
+     be enclosed in double quotes.  *Note Request and Macro
+     Arguments::, and *Note Parameters::.
 
      Example:
 
@@ -231,7 +452,7 @@ requests.
 
 
           .ds xxx abcd\h'3i'efgh
-          .length yyy \n[xxx]
+          .length yyy \*[xxx]
           \n[yyy]
               => 14
 
@@ -604,12 +825,12 @@ invoked multiple times.  Use macros to define common operations.
      Note that macro identifiers are shared with identifiers for
      strings and diversions.
 
- - Request: .am xx
- - Request: .am1 xx
- - Request: .ami xx yy
-     Works similarly to `de' except it appends onto the macro named XX.
-     So, to make the previously defined `P' macro actually do indented
-     instead of block paragraphs, add the necessary code to the
+ - Request: .am name [end]
+ - Request: .am1 name [end]
+ - Request: .ami name [end]
+     Works similarly to `de' except it appends onto the macro named
+     NAME.  So, to make the previously defined `P' macro actually do
+     indented instead of block paragraphs, add the necessary code to the
      existing macro like this:
 
 
@@ -623,7 +844,7 @@ invoked multiple times.  Use macros to define common operations.
      a "compatibility restore" input token at the end.
 
      The `ami' request appends indirectly, meaning that `gtroff'
-     expands strings whose names are XX or YY before performing the
+     expands strings whose names are NAME or END before performing the
      append.
 
      Using `trace.tmac', you can trace calls to `am' and `am1'.
@@ -689,9 +910,9 @@ escapes.
    Any individual argument can be retrieved with one of the following
 escapes:
 
- - Escape: \$N
- - Escape: \$(NN
- - Escape: \$[NNN]
+ - Escape: \$n
+ - Escape: \$(nn
+ - Escape: \$[nnn]
      Retrieve the Nth, NNth or NNNth argument.  As usual, the first
      form only accepts a single number (larger than zero), the second a
      two-digit number (larger or equal to 10), and the third any
@@ -714,7 +935,7 @@ escapes:
      similar escape is `\$@', which concatenates all the arguments with
      each surrounded by double quotes, and separated by spaces.  If not
      in compatibility mode, the input level of double quotes is
-     preserved (see *Note Request Arguments::).
+     preserved (see *Note Request and Macro Arguments::).
 
  - Escape: \$0
      The name used to invoke the current macro.  The `als' request can
@@ -733,7 +954,7 @@ escapes:
           .als bar generic-macro
 
 
-   *Note Request Arguments::.
+   *Note Request and Macro Arguments::.
 
 
 File: groff,  Node: Page Motions,  Next: Drawing Requests,  Prev: Writing Macros,  Up: gtroff Reference
@@ -821,7 +1042,7 @@ for vertical motion, `sp'.
 
    The following escapes give fine control of movements about the page.
 
- - Escape: \v'E'
+ - Escape: \v'e'
      Move vertically, usually from the current location on the page (if
      no absolute position operator `|' is used).  The argument E
      specifies the distance to move; positive is downwards and negative
@@ -846,11 +1067,14 @@ for vertical motion, `sp'.
  - Escape: \d
      Move down .5v.
 
- - Escape: \h'E'
+ - Escape: \h'e'
      Move horizontally, usually from the current location (if no
      absolute position operator `|' is used).  The expression E
      indicates how far to move: positive is rightwards and negative
      leftwards.  The default scaling indicator for this escape is `m'.
+
+     This horizontal space is not discarded at the end of a line.  To
+     insert discardable space of a certain length use the `ss' request.
 
    There are a number of special-case escapes for horizontal motion.
 
@@ -878,7 +1102,7 @@ for vertical motion, `sp'.
 
      .ds TeX T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
 
- - Escape: \w'TEXT'
+ - Escape: \w'text'
  - Register: \n[st]
  - Register: \n[sb]
  - Register: \n[rst]
@@ -907,7 +1131,8 @@ for vertical motion, `sp'.
     `rsb'
           Like the `st' and `sb' registers, but takes account of the
           heights and depths of glyphs.  With other words, this gives
-          the highest and lowest point of TEXT.
+          the highest and lowest point of TEXT.  Values below the
+          baseline are negative.
 
     `ct'
           Defines the kinds of glyphs occurring in TEXT:
@@ -933,9 +1158,9 @@ for vertical motion, `sp'.
           argument, the center of an accent from a roman font should be
           placed over that glyph.
 
- - Escape: \kP
- - Escape: \k(PS
- - Escape: \k[POSITION]
+ - Escape: \kp
+ - Escape: \k(ps
+ - Escape: \k[position]
      Store the current horizontal position in the _input_ line in
      number register with name POSITION (one-character name P,
      two-character name PS).  Use this, for example, to return to the
@@ -948,15 +1173,15 @@ for vertical motion, `sp'.
      A read-only number register containing the current horizontal
      output position.
 
- - Escape: \o'ABC'
+ - Escape: \o'abc'
      Overstrike glyphs A, B, C, ...; the glyphs are centered, and the
      resulting spacing is the largest width of the affected glyphs.
 
- - Escape: \zG
+ - Escape: \zg
      Print glyph G with zero width, i.e., without spacing.  Use this to
      overstrike glyphs left-aligned.
 
- - Escape: \Z'ANYTHING'
+ - Escape: \Z'anything'
      Print ANYTHING, then restore the horizontal and vertical position.
      The argument may not contain tabs or leaders.
 
@@ -988,8 +1213,8 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
 
    All drawing is done via escapes.
 
- - Escape: \l'L'
- - Escape: \l'LG'
+ - Escape: \l'l'
+ - Escape: \l'lg'
      Draw a line horizontally.  L is the length of the line to be
      drawn.  If it is positive, start the line at the current location
      and draw to the right; its end point is the new current location.
@@ -1022,8 +1247,8 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
      location to the beginning of the _input_ line - this works because
      the line length is negative, not moving the current point.
 
- - Escape: \L'L'
- - Escape: \L'LG'
+ - Escape: \L'l'
+ - Escape: \L'lg'
      Draw vertical lines.  Its parameters are similar to the `\l'
      escape, except that the default scaling indicator is `v'.  The
      movement is downwards for positive values, and upwards for
@@ -1043,7 +1268,7 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
                     |test.
 
 
- - Escape: \D'COMMAND ARG ...'
+ - Escape: \D'command arg ...'
      The `\D' escape provides a variety of drawing functions.  Note
      that on character devices, only vertical and horizontal lines are
      supported within `grotty'; other devices may only support a subset
@@ -1051,7 +1276,9 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
 
      The default scaling indicator for all subcommands of `\D' is `m'
      for horizontal distances and `v' for vertical ones.  Exceptions
-     are `\D'f ...'' and `\D't ...'' which use `u' as the default.
+     are `\D'f ...'' and `\D't ...'' which use `u' as the default, and
+     `\D'FX ...'' which arguments are treated similar to the `defcolor'
+     request.
 
     `\D'l DX DY''
           Draw a line from the current location to the relative point
@@ -1083,30 +1310,35 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
 
     `\D'c D''
           Draw a circle with a diameter of D with the leftmost point at
-          the current position.
+          the current position.  After drawing, the current location is
+          positioned at the rightmost point of the circle.
 
     `\D'C D''
-          Draw a solid circle with the same parameters as an outlined
-          circle.  No outline is drawn.
+          Draw a solid circle with the same parameters and behaviour as
+          an outlined circle.  No outline is drawn.
 
     `\D'e X Y''
           Draw an ellipse with a horizontal diameter of X and a vertical
           diameter of Y with the leftmost point at the current position.
+          After drawing, the current location is positioned at the
+          rightmost point of the ellipse.
 
     `\D'E X Y''
-          Draw a solid ellipse with the same parameters as an outlined
-          ellipse.  No outline is drawn.
+          Draw a solid ellipse with the same parameters and behaviour
+          as an outlined ellipse.  No outline is drawn.
 
     `\D'a DX1 DY1 DX2 DY2''
           Draw an arc clockwise from the current location through the
           two specified relative locations (DX1,DY1) and (DX2,DY2).
           The coordinates of the first point are relative to the
           current position, and the coordinates of the second point are
-          relative to the first point.
+          relative to the first point.  After drawing, the current
+          position is moved to the final point of the arc.
 
     `\D'~ DX1 DY1 DX2 DY2 ...''
           Draw a spline from the current location to the relative point
-          (DX1,DY1) and then to (DX2,DY2), and so on.
+          (DX1,DY1) and then to (DX2,DY2), and so on.  The current
+          position is moved to the terminal point of the drawn curve.
 
     `\D'f N''
           Set the shade of gray to be used for filling solid objects
@@ -1116,15 +1348,27 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
           applies only to solid circles, solid ellipses, and solid
           polygons.  By default, a level of 1000 is used.
 
+          Despite of being silly, the current point is moved
+          horizontally to the right by N.
+
+          Don't use this command!  It has the serious drawback that it
+          will be always rounded to the next integer multiple of the
+          horizontal resolution (the value of the `hor' keyword in the
+          `DESC' file).  Use `\M' (*note Colors::) or `\D'Fg ...''
+          instead.
+
     `\D'p DX1 DY1 DX2 DY2 ...''
           Draw a polygon from the current location to the relative
           position (DX1,DY1) and then to (DX2,DY2) and so on.  When the
           specified data points are exhausted, a line is drawn back to
-          the starting point.
+          the starting point.  The current position is changed by
+          adding the sum of all arguments with odd index to the actual
+          horizontal position and the even ones to the vertical
+          position.
 
     `\D'P DX1 DY1 DX2 DY2 ...''
-          Draw a solid polygon with the same parameters as an outlined
-          polygon.  No outline is drawn.
+          Draw a solid polygon with the same parameters and behaviour
+          as an outlined polygon.  No outline is drawn.
 
           Here a better variant of the box macro to fill the box with
           some color.  Note that the box must be drawn before the text
@@ -1154,9 +1398,27 @@ or `ggrn'.  *Note gpic::, and *Note ggrn::, for more information.
           current point size (this is the default behaviour of AT&T
           `troff').
 
+          Despite of being silly, the current point is moved
+          horizontally to the right by N.
+
+    `\D'FSCHEME COLOR_COMPONENTS''
+          Change current fill color.  SCHEME is a single letter
+          denoting the color scheme: `r' (rgb), `c' (cmy), `k' (cmyk),
+          `g' (gray), or `d' (default color).  The color components use
+          exactly the same syntax as in the `defcolor' request (*note
+          Colors::); the command `\D'Fd'' doesn't take an argument.
+
+          _No_ position changing!
+
+          Examples:
+
+
+          \D'Fg .3'      \" same gray as \D'f 700' \D'Fr #0000ff' \"
+          blue
+
    *Note Graphics Commands::.
 
- - Escape: \b'STRING'
+ - Escape: \b'string'
      "Pile" a sequence of glyphs vertically, and center it vertically
      on the current line.  Use it to build large brackets and braces.
 
@@ -1197,219 +1459,4 @@ trap is "sprung" if the associated macro is executed.
 * Input Line Traps::
 * Blank Line Traps::
 * End-of-input Traps::
-
-
-File: groff,  Node: Page Location Traps,  Next: Diversion Traps,  Prev: Traps,  Up: Traps
-
-Page Location Traps
--------------------
-
-   "Page location traps" perform an action when `gtroff' reaches or
-passes a certain vertical location on the page.  Page location traps
-have a variety of purposes, including:
-
-   * setting headers and footers
-
-   * setting body text in multiple columns
-
-   * setting footnotes
-
- - Request: .vpt flag
- - Register: \n[.vpt]
-     Enable vertical position traps if FLAG is non-zero, or disables
-     them otherwise.  Vertical position traps are traps set by the `wh'
-     or `dt' requests.  Traps set by the `it' request are not vertical
-     position traps.  The parameter that controls whether vertical
-     position traps are enabled is global.  Initially vertical position
-     traps are enabled.  The current setting of this is available in the
-     `.vpt' read-only number register.
-
- - Request: .wh dist [macro]
-     Set a page location trap.  Positive values for DIST set the trap
-     relative to the top of the page; negative values set the trap
-     relative to the bottom of the page.  Default scaling indicator is
-     `v'.
-
-     MACRO is the name of the macro to execute when the trap is sprung.
-     If MACRO is missing, remove the first trap (if any) at DIST.
-
-     The following is a simple example of how many macro packages set
-     headers and footers.
-
-
-          .de hd                \" Page header
-          '  sp .5i
-          .  tl 'Title''date'
-          '  sp .3i
-          ..
-          .
-          .de fo                \" Page footer
-          '  sp 1v
-          .  tl ''%''
-          '  bp
-          ..
-          .
-          .wh 0   hd            \" trap at top of the page
-          .wh -1i fo            \" trap one inch from bottom
-
-     A trap at or below the bottom of the page is ignored; it can be
-     made active by either moving it up or increasing the page length
-     so that the trap is on the page.
-
-     It is possible to have more than one trap at the same location; to
-     do so, the traps must be defined at different locations, then
-     moved together with the `ch' request; otherwise the second trap
-     would replace the first one.  Earlier defined traps hide later
-     defined traps if moved to the same position (the many empty lines
-     caused by the `bp' request are omitted):
-
-
-          .de a
-          .  nop a
-          ..
-          .de b
-          .  nop b
-          ..
-          .de c
-          .  nop c
-          ..
-          .
-          .wh 1i a
-          .wh 2i b
-          .wh 3i c
-          .bp
-              => a b c
-
-
-          .ch b 1i
-          .ch c 1i
-          .bp
-              => a
-
-
-          .ch a 0.5i
-          .bp
-              => a b
-
-
- - Register: \n[.t]
-     A read-only number register holding the distance to the next trap.
-
-     If there are no traps between the current position and the bottom
-     of the page, it contains the distance to the page bottom.  In a
-     diversion, the distance to the page bottom is infinite (the
-     returned value is the biggest integer which can be represented in
-     `groff') if there are no diversion traps.
-
- - Request: .ch macro dist
-     Change the location of a trap.  The first argument is the name of
-     the macro to be invoked at the trap, and the second argument is
-     the new location for the trap (note that the parameters are
-     specified the opposite of the `wh' request).  This is useful for
-     building up footnotes in a diversion to allow more space at the
-     bottom of the page for them.
-
-     Default scaling indicator for DIST is `v'.  If DIST is missing,
-     the trap is removed.
-
-
- - Register: \n[.ne]
-     The read-only number register `.ne' contains the amount of space
-     that was needed in the last `ne' request that caused a trap to be
-     sprung.  Useful in conjunction with the `.trunc' register.  *Note
-     Page Control::, for more information.
-
- - Register: \n[.trunc]
-     A read-only register containing the amount of vertical space
-     truncated by the most recently sprung vertical position trap, or,
-     if the trap was sprung by an `ne' request, minus the amount of
-     vertical motion produced by the `ne' request.  In other words, at
-     the point a trap is sprung, it represents the difference of what
-     the vertical position would have been but for the trap, and what
-     the vertical position actually is.
-
-
-File: groff,  Node: Diversion Traps,  Next: Input Line Traps,  Prev: Page Location Traps,  Up: Traps
-
-Diversion Traps
----------------
-
- - Request: .dt dist macro
-     Set a trap _within_ a diversion.  DIST is the location of the trap
-     (identical to the `.wh' request; default scaling indicator is `v')
-     and MACRO is the name of the macro to be invoked.  The number
-     register `.t' still works within diversions.  *Note Diversions::,
-     for more information.
-
-
-File: groff,  Node: Input Line Traps,  Next: Blank Line Traps,  Prev: Diversion Traps,  Up: Traps
-
-Input Line Traps
-----------------
-
- - Request: .it n macro
- - Request: .itc n macro
-     Set an input line trap.  N is the number of lines of input which
-     may be read before springing the trap, MACRO is the macro to be
-     invoked.  Request lines are not counted as input lines.
-
-     For example, one possible use is to have a macro which prints the
-     next N lines in a bold font.
-
-
-          .de B
-          .  it \\$1 B-end
-          .  ft B
-          ..
-          .
-          .de B-end
-          .  ft R
-          ..
-
-     The `itc' request is identical, except that a line interrupted
-     with `\c' counts as one input line.
-
-     Both requests are associated with the current environment (*note
-     Environments::); switching to another environment disables the
-     current input trap, and going back reactivates it, restoring the
-     number of already processed lines.
-
-
-File: groff,  Node: Blank Line Traps,  Next: End-of-input Traps,  Prev: Input Line Traps,  Up: Traps
-
-Blank Line Traps
-----------------
-
- - Request: .blm macro
-     Set a blank line trap.  `gtroff' executes MACRO when it encounters
-     a blank line in the input file.
-
-
-File: groff,  Node: End-of-input Traps,  Prev: Blank Line Traps,  Up: Traps
-
-End-of-input Traps
-------------------
-
- - Request: .em macro
-     Set a trap at the end of input.  MACRO is executed after the last
-     line of the input file has been processed.
-
-     For example, if the document had to have a section at the bottom
-     of the last page for someone to approve it, the `em' request could
-     be used.
-
-
-          .de approval
-          .  ne 5v
-          .  sp |(\\n[.t] - 6v)
-          .  in +4i
-          .  lc _
-          .  br
-          Approved:\t\a
-          .  sp
-          Date:\t\t\a
-          ..
-          .
-          .em approval
-
 

@@ -6,13 +6,15 @@ prog="$0"
 # Default device.
 # First try the "locale charmap" command, because it's most reliable.
 # On systems where it doesn't exist, look at the environment variables.
-case "`#locale charmap 2>/dev/null`" in
+case "`locale charmap 2>/dev/null`" in
   UTF-8)
     T=-Tutf8 ;;
-  ISO-8859-1)
+  ISO*8859-1 | ISO*8859-15)
     T=-Tlatin1 ;;
   IBM-1047)
     T=-Tcp1047 ;;
+  KOI8-R)
+    T=-Tkoi8-r ;;
   *)
     case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
       *.UTF-8)
@@ -68,7 +70,7 @@ for i
       echo "GNU nroff (groff) version @VERSION@"
       exit 0 ;;
     --help)
-      echo "usage: nroff [-cChipt] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
+      echo "usage: nroff [-CchipStUv] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
       exit 0 ;;
     --)
       shift
@@ -89,6 +91,6 @@ done
 
 : ${GROFF_BIN_PATH=@BINDIR@}
 export GROFF_BIN_PATH
-PATH=$GROFF_BIN_PATH:$PATH groff -mtty-char $T $opts ${1+"$@"}
+PATH=$GROFF_BIN_PATH@SEP@$PATH groff -mtty-char $T $opts ${1+"$@"}
 
 # eof
