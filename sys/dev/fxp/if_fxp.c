@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.35 1997/06/13 22:34:52 davidg Exp $
+ *	$Id: if_fxp.c,v 1.36 1997/06/16 04:45:57 davidg Exp $
  */
 
 /*
@@ -997,6 +997,12 @@ fxp_init(xsc)
 			    (fxp_mdi_read(sc->csr, sc->phy_primary_addr, FXP_PHY_BMCR) |
 			    FXP_PHY_BMCR_AUTOEN));
 		}
+		break;
+	/*
+	 * The Seeq 80c24 doesn't have a PHY programming interface, so do
+	 * nothing.
+	 */
+	case FXP_PHY_80C24:
 		break;
 	default:
 		printf("fxp%d: warning: unsupported PHY, type = %d, addr = %d\n",
