@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.42 1997/03/29 03:32:28 imp Exp $
+ * $Id: ipfw.c,v 1.43 1997/06/02 05:02:33 julian Exp $
  *
  */
 
@@ -47,7 +47,6 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-extern char	*__progname;
 int 		lineno = -1;
 
 int 		s;				/* main RAW socket 	   */
@@ -426,11 +425,8 @@ show_usage(const char *fmt, ...)
 		vsnprintf(buf, sizeof(buf), fmt, args);
 		va_end(args);
 		warnx("error: %s", buf);
-	} else
-		warnx("error");
-	fprintf(stderr,
-"Usage:\n"
-"  %s [options]\n"
+	}
+	fprintf(stderr, "usage: ipfw [options]\n"
 "    flush\n"
 "    add [number] rule\n"
 "    delete number ...\n"
@@ -452,10 +448,9 @@ show_usage(const char *fmt, ...)
 "    {established|setup}\n"
 "    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
-"    icmptypes {type[,type]}...\n",
-__progname);
+"    icmptypes {type[,type]}...\n");
 
-	errx(1, "see man %s(8) for proper usage.", __progname);
+	exit(1);
 }
 
 static int
@@ -1077,7 +1072,7 @@ ipfw_main(ac,av)
 	 		do_resolv=1;
 			break;
 		default:
-			show_usage("invalid flag ``-%c''", ch);
+			show_usage(NULL);
 	}
 
 	ac -= optind;
