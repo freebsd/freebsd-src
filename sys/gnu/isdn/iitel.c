@@ -1,4 +1,4 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.1 1995/02/14 15:00:30 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.1  1995/02/14  15:00:30  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -27,7 +36,7 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
 #include "kernel.h"
 #include "malloc.h"
 
-#include "isdn/isdn_ioctl.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
 int             itelattach();
 

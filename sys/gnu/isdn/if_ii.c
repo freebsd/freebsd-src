@@ -1,4 +1,4 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/02/14 15:00:27 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/01/25 14:06:18 jkr Exp
  *
  *******************************************************************************
  * $Log: if_ii.c,v $
+ * Revision 1.1  1995/02/14  15:00:27  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -43,7 +52,7 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.1 1995/01/25 14:06:18 jkr Exp
 #endif
 
 #include "ii.h"
-#include "isdn/isdn_ioctl.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
 #define	IIMTU	1500
 
@@ -154,14 +163,14 @@ ii_input(int no, int len, char *buf)
 	return(len);
 }
 
-int
+void
 ii_connect(int no)
 {
 	struct ifnet   *ifp = &ii_if[no];
 	ifp->if_flags |= IFF_RUNNING;
 }
 
-int
+void
 ii_disconnect(int no)
 {
 	struct ifnet   *ifp = &ii_if[no];
