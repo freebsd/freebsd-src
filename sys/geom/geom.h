@@ -222,6 +222,7 @@ void g_io_request(struct bio *bp, struct g_consumer *cp);
 int g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr);
 struct bio *g_new_bio(void);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
+int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 
 /* geom_kern.c / geom_kernsim.c */
 
