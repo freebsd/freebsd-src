@@ -36,6 +36,11 @@
 #ifndef lib_pcap_ethers_h
 #define lib_pcap_ethers_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+  
+
 /*
  * As returned by the pcap_next_etherent()
  * XXX this stuff doesn't belong in this interface, but this
@@ -72,5 +77,10 @@ int	pcap_nametoeproto(const char *);
 int __pcap_atodn(const char *, bpf_u_int32 *);
 int __pcap_atoin(const char *, bpf_u_int32 *);
 u_short	__pcap_nametodnaddr(const char *);
+
+#ifdef __cplusplus
+}
+#endif
+     
 
 #endif

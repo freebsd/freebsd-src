@@ -43,6 +43,11 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+  
+
 #define PCAP_VERSION_MAJOR 2
 #define PCAP_VERSION_MINOR 4
 
@@ -134,4 +139,10 @@ void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
 /* XXX this guy lives in the bpf tree */
 u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
 char	*bpf_image(struct bpf_insn *, int);
+
+#ifdef __cplusplus
+}
+#endif
+     
+
 #endif
