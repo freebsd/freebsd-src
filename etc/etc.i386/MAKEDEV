@@ -107,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id$
+#	$Id: MAKEDEV,v 1.127.2.17 1998/02/20 10:36:18 markm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -875,69 +875,51 @@ cuaD?)
 	umask 77
 	;;
 
-# Rocketport multiport serial card.
-#
-#
 ttyR?)
 	major=81
-	Rnum=0; IRnum=32; LRnum=64
-	unit=1; minor=0
+	BOARD=1; MINOR=65536; Rnum=0
+	MINOR=`expr $BOARD \* 65536`
 	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
 	controllers=`awk '{print $1}' < /tmp/rp_list`
-
-	for i in $controllers; do
-	  ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
-	  echo -n "Creating $ndevices devices for $i: "
-	  for dev in `jot $ndevices 0`; do
-		name=ttyR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $Rnum 
-		name=ttylR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $LRnum 
-		name=ttyiR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $IRnum 
-		Rnum=`expr $Rnum + 1`
-		LRnum=`expr $LRnum + 1`
-		IRnum=`expr $IRnum + 1`
-	  done
-	  unit=`expr $unit + 1`
-	  echo " "
+	rm -f /dev/ttyR*; rm -f /dev/ttyiR*; rm -f /dev/ttylR*
+	for i in $controllers;do
+ 	   ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	   echo -n "Creating $ndevices devices for $i: "
+	   for dev in `jot $ndevices 0`;do
+		   mknod /dev/ttyR$Rnum c $major $MINOR 
+		   mknod /dev/ttylR$Rnum c $major `expr $MINOR + 32`
+		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 64` 
+		   Rnum=`expr $Rnum + 1`
+		   MINOR=`expr $MINOR + 1`
+	   done
+		BOARD=`expr $BOARD + 1`
+		MINOR=`expr $BOARD \* 65536`
+	   echo " "
 	done
 	;;
 
 cuaR?)
 	major=81
-	Rnum=0; CUnum=128; ICUnum=160; LCUnum=192
-	unit=1; minor=0
+	BOARD=1; MINOR=65536; Rnum=0
+	MINOR=`expr $BOARD \* 65536`
 	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
 	controllers=`awk '{print $1}' < /tmp/rp_list`
-
-	umask 7
-	for i in $controllers; do
-	  ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
-	  echo -n "Creating $ndevices devices for $i: "
-	  for dev in `jot $ndevices 0`; do
-		name=cuaR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $CUnum 
-		name=cualR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $LCUnum 
-		name=cuaiR$Rnum
-		echo -n "$name "
-		mknod /dev/$name c $major $ICUnum 
-		Rnum=`expr $Rnum + 1`
-		CUnum=`expr $CUnum + 1`
-		LCUnum=`expr $LCUnum + 1`
-		ICUnum=`expr $ICUnum + 1`
-	  done
-	  unit=`expr $unit + 1`
-	  echo " "
+	rm -f /dev/cuaR*; rm -f /dev/cuaiR*; rm -f /dev/cualR*
+	for i in $controllers;do
+ 	   ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	   echo -n "Creating $ndevices devices for $i: "
+	   for dev in `jot $ndevices 0`;do
+		   mknod /dev/cuaR$Rnum c  $major `expr $MINOR + 128`
+		   mknod /dev/cualR$Rnum c $major `expr $MINOR + 128 + 32`
+		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 64` 
+		   Rnum=`expr $Rnum + 1`
+		   MINOR=`expr $MINOR + 1`
+	   done
+		BOARD=`expr $BOARD + 1`
+		MINOR=`expr $BOARD \* 65536`
+	   echo " "
 	done
 	chown uucp.dialer /dev/cuaR*
-	umask 77
 	;;
 
 mse*)
