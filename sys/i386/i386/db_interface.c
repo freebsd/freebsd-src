@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.27 1997/03/28 12:56:07 bde Exp $
+ *	$Id: db_interface.c,v 1.28 1997/04/26 11:45:03 peter Exp $
  */
 
 /*
@@ -265,8 +265,6 @@ Debugger(msg)
 
 	if (!in_Debugger) {
 	    in_Debugger = 1;
-	    printf("CR0=%08x",rcr0());
-	    printf("CR3=%08x",rcr3());
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
 	    in_Debugger = 0;
