@@ -49,9 +49,6 @@
 #include <netns/idp.h>
 #include <netns/idp_var.h>
 
-#ifdef vax
-#include <machine/mtpr.h>
-#endif
 int ns_hold_output = 0;
 int ns_copy_output = 0;
 int ns_output_cnt = 0;
