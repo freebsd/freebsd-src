@@ -79,6 +79,7 @@ struct	ether_header;
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
+#include <sys/_task.h>
 
 #define	IF_DUNIT_NONE	-1
 
@@ -191,6 +192,7 @@ struct ifnet {
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 	struct	mtx if_afdata_mtx;
+	struct	task if_starttask;	/* task for IFF_NEEDSGIANT */
 };
 
 typedef void if_init_f_t(void *);
@@ -329,6 +331,8 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 #define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	\
 	if_handoff((struct ifqueue *)ifq, m, ifp, adj)
 
+void	if_start(struct ifnet *);
+
 static __inline int
 if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 {
@@ -350,7 +354,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 	_IF_ENQUEUE(ifq, m);
 	IF_UNLOCK(ifq);
 	if (ifp != NULL && !active)
-		(*ifp->if_start)(ifp);
+		if_start(ifp);
 	return (1);
 }
 #if 1 /* ALTQ */
@@ -474,7 +478,7 @@ do {									\
 		if (mflags & M_MCAST)					\
 			(ifp)->if_omcasts++;				\
 		if (((ifp)->if_flags & IFF_OACTIVE) == 0)		\
-			(*(ifp)->if_start)(ifp);			\
+			if_start(ifp);					\
 	}								\
 } while (0)
 
