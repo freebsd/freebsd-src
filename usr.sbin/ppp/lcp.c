@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.33 1997/09/22 23:59:14 brian Exp $
+ * $Id: lcp.c,v 1.34 1997/09/23 19:52:14 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -291,7 +291,11 @@ LcpSendConfigReq(struct fsm * fp)
     break;
   case PROTO_CHAP:
     PutConfValue(&cp, cftypes, TY_AUTHPROTO, 5, lcp->want_auth);
-    *cp++ = 5;			/* Use MD4/MD5 */
+#ifdef HAVE_DES
+    *cp++ = VarMSChap ? 0x80 : 0x05;	/* Use MSChap vs. RFC 1994 (MD5) */
+#else
+    *cp++ = 0x05;			/* Use MD5 */
+#endif
     break;
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
@@ -510,10 +514,18 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
 	    goto reqreject;
 	  }
-	  if (Acceptable(ConfChap) && cp[4] == 5) {
+#ifdef HAVE_DES
+          if (Acceptable(ConfChap) && (cp[4] == 5 || cp[4] == 0x80))
+#else
+          if (Acceptable(ConfChap) && cp[4] == 5)
+#endif
+	  {
 	    LcpInfo.his_auth = proto;
 	    bcopy(cp, ackp, length);
 	    ackp += length;
+#ifdef HAVE_DES
+            VarMSChap = cp[4] = 0x80;
+#endif
 	  } else if (Acceptable(ConfPap)) {
 	    *nakp++ = *cp;
 	    *nakp++ = 4;

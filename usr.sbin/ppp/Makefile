@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1997/08/31 20:18:03 brian Exp $
+#	$Id: Makefile,v 1.24 1997/09/04 00:38:17 brian Exp $
 
 PROG=	ppp
 SRCS=	alias_cmd.c arp.c async.c auth.c ccp.c chap.c chat.c command.c \
@@ -12,5 +12,12 @@ MAN8=	ppp.8
 BINMODE=4550
 BINOWN=	root
 BINGRP=	network
+
+.if exists(${DESTDIR}/usr/include/des.h) && !defined(NOSECURE)
+CFLAGS+=-DHAVE_DES
+SRCS+=	chap_ms.c
+LDADD+= -ldes
+DPADD+= ${LIBDES}
+.endif
 
 .include <bsd.prog.mk>
