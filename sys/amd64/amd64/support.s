@@ -89,7 +89,7 @@ ENTRY(generic_bzero)
 	popl	%edi
 	ret
 
-#if defined(I486_CPU)
+#ifdef I486_CPU
 ENTRY(i486_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
@@ -703,12 +703,8 @@ ENTRY(generic_copyout)
 	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
 
-#if defined(I386_CPU)
+#ifdef I386_CPU
 
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_386,_cpu_class
-	jne	3f
-#endif
 /*
  * We have to check each PTE for user write permission.
  * The checking may cause a page fault, so it is important to set
@@ -760,7 +756,6 @@ ENTRY(generic_copyout)
 #endif /* I386_CPU */
 
 	/* bcopy(%esi, %edi, %ebx) */
-3:
 	movl	%ebx,%ecx
 
 #if defined(I586_CPU) && NNPX > 0
@@ -1207,12 +1202,7 @@ ENTRY(suword)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
-#if defined(I386_CPU)
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_386,_cpu_class
-	jne	2f				/* we only have to set the right segment selector */
-#endif /* I486_CPU || I586_CPU || I686_CPU */
+#ifdef I386_CPU
 
 	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
@@ -1240,7 +1230,6 @@ ENTRY(suword)
 	movl	4(%esp),%edx
 #endif
 
-2:
 	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address validity */
 	ja	fusufault
 
@@ -1259,12 +1248,7 @@ ENTRY(susword)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
-#if defined(I386_CPU)
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_386,_cpu_class
-	jne	2f
-#endif /* I486_CPU || I586_CPU || I686_CPU */
+#ifdef I386_CPU
 
 	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
@@ -1292,7 +1276,6 @@ ENTRY(susword)
 	movl	4(%esp),%edx
 #endif
 
-2:
 	cmpl	$VM_MAXUSER_ADDRESS-2,%edx	/* verify address validity */
 	ja	fusufault
 
@@ -1312,12 +1295,7 @@ ENTRY(subyte)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
-#if defined(I386_CPU)
-
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_386,_cpu_class
-	jne	2f
-#endif /* I486_CPU || I586_CPU || I686_CPU */
+#ifdef I386_CPU
 
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
@@ -1344,7 +1322,6 @@ ENTRY(subyte)
 	movl	4(%esp),%edx
 #endif
 
-2:
 	cmpl	$VM_MAXUSER_ADDRESS-1,%edx	/* verify address validity */
 	ja	fusufault
 
@@ -1586,7 +1563,7 @@ ENTRY(rcr3)
 
 /* void load_cr3(caddr_t cr3) */
 ENTRY(load_cr3)
-#if defined(SWTCH_OPTIM_STATS)
+#ifdef SWTCH_OPTIM_STATS
 	incl	_tlb_flush_count
 #endif
 	movl	4(%esp),%eax
