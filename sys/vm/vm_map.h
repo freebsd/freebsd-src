@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.44 1999/08/01 06:05:08 alc Exp $
+ * $Id: vm_map.h,v 1.45 1999/08/16 18:21:09 alc Exp $
  */
 
 /*
@@ -217,7 +217,6 @@ struct vmspace {
 		} \
 		(map)->timestamp++; \
 	} while(0)
-}
 #endif
 #else
 #define	vm_map_lock(map) \
