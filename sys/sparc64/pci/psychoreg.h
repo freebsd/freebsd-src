@@ -240,6 +240,9 @@
 #define	UEAFSR_P_DWR	(1UL << 61)	/* pri. error during write */
 #define	UEAFSR_P_DRD	(1UL << 62)	/* pri. error during read */
 
+/* Definitions for the target address space register. */
+#define	PCITAS_ADDR_SHIFT	29
+
 /* Definitions for the psycho configuration space */
 #define	PCS_DEVICE	0		/* Device number of psycho CS entry */
 #define	PCS_FUNC	0		/* Function number of psycho CS entry */

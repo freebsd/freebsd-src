@@ -62,6 +62,7 @@ struct psycho_softc {
 #define	PSYCHO_MODE_PSYCHO	2
 
 	struct iommu_state		*sc_is;
+	u_int32_t			sc_dvmabase;
 
 	struct resource			*sc_mem_res;
 	struct resource			*sc_irq_res[6];
