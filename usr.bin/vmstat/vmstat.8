@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: vmstat.8,v 1.12 1999/02/13 09:59:24 dillon Exp $
+.\"	$Id: vmstat.8,v 1.13 1999/02/15 13:57:18 bde Exp $
 .\"
 .Dd June 6, 1996
 .Dt VMSTAT 8
@@ -173,6 +173,8 @@ seconds between each display.
 If no repeat
 .Ar count
 is specified, the default is infinity.
+.It Fl z
+Report on memory used by the kernel zone allocator, by zone.
 .El
 .Pp
 By default,
@@ -190,8 +192,6 @@ in run queue
 blocked for resources (i/o, paging, etc.)
 .It w
 runnable or short sleeper (< 20 secs) but swapped
-.It Fl z
-Report on memory used by the kernel zone allocator, by zone.
 .El
 .It memory
 Information about the usage of virtual and real memory.
