@@ -249,7 +249,7 @@ acct_process(td)
 	acct.ac_utime = encode_comp_t(ut.tv_sec, ut.tv_usec);
 	acct.ac_stime = encode_comp_t(st.tv_sec, st.tv_usec);
 
-	/* (3) The elapsed time the commmand ran (and its starting time) */
+	/* (3) The elapsed time the command ran (and its starting time) */
 	acct.ac_btime = p->p_stats->p_start.tv_sec;
 	microtime(&tmp);
 	timevalsub(&tmp, &p->p_stats->p_start);
