@@ -1,4 +1,4 @@
-#     $Id: BSD.x11.dist,v 1.1.2.1 1997/06/04 00:02:53 asami Exp $
+#     $Id: BSD.x11.dist,v 1.1.2.2 1997/06/10 07:56:30 asami Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -208,7 +208,7 @@
         ..
         catn            uname=man
         ..
-        ja_JP.EUC
+        ja
             cat1            uname=man
             ..
             cat2            uname=man
