@@ -1,207 +1,154 @@
 /*
- * $Source: /home/ncvs/src/eBones/des/new_rnd_key.c,v $
- * $Author: rgrimes $
+ * Copyright (c) 1995
+ *	Mark Murray.  All rights reserved.
  *
- * Copyright 1988 by the Massachusetts Institute of Technology.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Mark Murray
+ *	and Eric Young
+ * 4. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * For copying and distribution information, please see the file
- * <mit-copyright.h>.
+ * THIS SOFTWARE IS PROVIDED BY MARK MURRAY AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * New pseudo-random key generator, using DES encryption to make the
- * pseudo-random cycle as hard to break as DES.
- *
- * Written by Mark Lillibridge, MIT Project Athena
- *
- * Under U.S. law, this software may not be exported outside the US
- * without license from the U.S. Commerce department.
+ * $Id: new_rnd_key.c,v 1.3 1995/09/16 20:44:27 markm Exp $
  */
 
-#ifndef	lint
-static char rcsid_new_rnd_key_c[] =
-"$Header: /home/ncvs/src/eBones/des/new_rnd_key.c,v 1.1.1.1 1994/05/27 05:12:12 rgrimes Exp $";
-#endif	lint
+#include <unistd.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <machine/types.h>
 
-#include <mit-copyright.h>
-
-#include <des.h>
 #include "des_locl.h"
 
-void des_set_random_generator_seed(), des_set_sequence_number();
-void des_generate_random_block();
+/* This counter keeps track of the pseudo-random sequence */
+static union {
+	u_int32_t ul0, ul1;
+	u_char uc[8];
+} counter;
+
+/* The current encryption schedule */
+static des_key_schedule current_key;
 
 /*
- * des_new_random_key: create a random des key
- *
- * Requires: des_set_random_number_generater_seed must be at called least
- *           once before this routine is called.
- *
- * Notes: the returned key has correct parity and is guarenteed not
- *        to be a weak des key.  Des_generate_random_block is used to
- *        provide the random bits.
- */
-int
-des_new_random_key(key)
-     des_cblock *key;
-{
-    do {
-	des_generate_random_block(key);
-	des_fixup_key_parity(key);
-    } while (des_is_weak_key(key));
-
-    return(0);
-}
-
-/*
- * des_init_random_number_generator:
- *
- *    This routine takes a secret key possibly shared by a number
- * of servers and uses it to generate a random number stream that is
- * not shared by any of the other servers.  It does this by using the current
- * process id, host id, and the current time to the nearest second.  The
- * resulting stream seed is not useful information for cracking the secret
- * key.   Moreover, this routine keeps no copy of the secret key.
- * This routine is used for example, by the kerberos server(s) with the
- * key in question being the kerberos master key.
- *
- * Note: this routine calls des_set_random_generator_seed.
- */
-#if NOTBSDUNIX
-  you lose...   (aka, you get to implement an analog of this for your
-		 system...)
-#else
-
-#include <sys/time.h>
-
-void des_init_random_number_generator(key)
-     des_cblock *key;
-{
-    struct { /* This must be 64 bits exactly */
-	long process_id;
-	long host_id;
-    } seed;
-    struct timeval time; /* this must also be 64 bits exactly */
-    des_cblock new_key;
-    long gethostid();
-
-    /*
-     * use a host id and process id in generating the seed to ensure
-     * that different servers have different streams:
-     */
-    seed.host_id = gethostid();
-    seed.process_id = getpid();
-
-    /*
-     * Generate a tempory value that depends on the key, host_id, and
-     * process_id such that it gives no useful information about the key:
-     */
-    des_set_random_generator_seed(key);
-    des_set_sequence_number((unsigned char *)&seed);
-    des_new_random_key(&new_key);
-
-    /*
-     * use it to select a random stream:
-     */      
-    des_set_random_generator_seed(&new_key);
-
-    /*
-     * use a time stamp to ensure that a server started later does not reuse
-     * an old stream:
-     */
-    gettimeofday(&time, (struct timezone *)0);
-    des_set_sequence_number((unsigned char *)&time);
-
-    /*
-     * use the time stamp finally to select the final seed using the
-     * current random number stream:
-     */
-    des_new_random_key(&new_key);
-    des_set_random_generator_seed(&new_key);
-}
-
-#endif /* ifdef BSDUNIX */
-
-/*
- * This module implements a random number generator faculty such that the next
- * number in any random number stream is very hard to predict without knowing
- * the seed for that stream even given the preceeding random numbers.
- */
-
-/*
- * The secret des key schedule for the current stream of random numbers:
- */
-static des_key_schedule random_sequence_key;
-
-/*
- * The sequence # in the current stream of random numbers:
- */
-static unsigned char sequence_number[8];
-
-/*
- * des_set_random_generator_seed: this routine is used to select a random
- *                                number stream.  The stream that results is
- *                                totally determined by the passed in key.
- *                                (I.e., calling this routine again with the
- *                                same key allows repeating a sequence of
- *                                random numbers)
- *
- * Requires: key is a valid des key.  I.e., has correct parity and is not a
- *           weak des key.
+ *   des_set_random_generator_seed: starts a new pseudorandom sequence
+ *                                  dependant on the supplied key
  */
 void
-des_set_random_generator_seed(key)
-     des_cblock *key;
+des_set_random_generator_seed(new_key)
+	des_cblock *new_key;
 {
-    register int i;
+	des_key_sched(new_key, current_key);
 
-    /* select the new stream: (note errors are not possible here...) */
-    des_key_sched(key, random_sequence_key);
-
-    /* "seek" to the start of the stream: */
-    for (i=0; i<8; i++)
-      sequence_number[i] = 0;
+	/* reset the counter */
+	counter.ul0 = counter.ul1 = 0;
 }
 
 /*
- * des_set_sequence_number: this routine is used to set the sequence number
- *                          of the current random number stream.  This routine
- *                          may be used to "seek" within the current random
- *                          number stream.
- *
- * Note that des_set_random_generator_seed resets the sequence number to 0.
+ *   des_set_sequence_number: set the counter to a known value
  */
 void
-des_set_sequence_number(new_sequence_number)
-     des_cblock new_sequence_number;
+des_set_sequence_number(new_counter)
+	des_cblock new_counter;
 {
-    bcopy((char *)new_sequence_number, (char *)sequence_number,
-	  sizeof(sequence_number));
+	bcopy((void *)new_counter, (char *)counter.uc, sizeof(counter));
 }
 
 /*
- * des_generate_random_block: routine to return the next random number
- *                            from the current random number stream.
- *                            The returned number is 64 bits long.
- *
- * Requires: des_set_random_generator_seed must have been called at least once
- *           before this routine is called.
+ *   des_generate_random_block: returns the next 64 bit random number
  */
-void des_generate_random_block(block)
-     des_cblock *block;
+
+void des_generate_random_block(random_block)
+	des_cblock *random_block;
 {
-    int i;
+	/* Encrypt the counter to get pseudo-random numbers */
+    	des_ecb_encrypt(&counter.uc, random_block, current_key, DES_ENCRYPT);
 
-    /*
-     * Encrypt the sequence number to get the new random block:
-     */
-    des_ecb_encrypt(&sequence_number, block, random_sequence_key, 1);
+	/* increment the 64-bit counter */
+	counter.ul0++;
+	if (!counter.ul0) counter.ul1++;
+}
 
-    /*
-     * Increment the sequence number as an 8 byte unsigned number with wrap:
-     * (using LSB here)
-     */
-    for (i=0; i<8; i++) {
-	sequence_number[i] = (sequence_number[i] + 1) & 0xff;
-	if (sequence_number[i])
-	  break;
-    }
+/*
+ *   des_new_random_key: Invents a new, random strong key with odd parity.
+ */
+int 
+des_new_random_key(new_key)
+	des_cblock *new_key;
+{
+	do {
+		des_generate_random_block(new_key);
+		des_set_odd_parity(new_key);
+	} while (des_is_weak_key(new_key));
+	return(0);
+}
+
+/*
+ *   des_init_random_number_generator: intialises the random number generator
+ *                                     to a truly nasty sequence using system
+ *                                     supplied volatile variables.
+ */
+void
+des_init_random_number_generator(key)
+	des_cblock *key;
+{
+	/* 64-bit structures */
+	struct {
+		u_int32_t pid;
+		u_int32_t hostid;
+	} sysblock;
+	struct timeval timeblock;
+	struct {
+		u_int32_t tv_sec;
+		u_int32_t tv_usec;
+	} time64bit;
+	des_cblock new_key;
+	int mib[2];
+	size_t len;
+
+	/* Get host ID using official BSD 4.4 method */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_HOSTID;
+	len = sizeof(sysblock.hostid);
+	sysctl(mib, 2, &sysblock.hostid, &len, NULL, 0);
+
+	/* Get Process ID */
+	sysblock.pid = getpid();
+
+	/* Generate a new key, and use it to seed the random generator */
+	des_set_random_generator_seed(key);
+	des_set_sequence_number((unsigned char *)&sysblock);
+	des_new_random_key(&new_key);
+	des_set_random_generator_seed(&new_key);
+
+	/* Try to confuse the sequence counter */
+	gettimeofday(&timeblock, NULL);
+	time64bit.tv_sec = (u_int32_t)timeblock.tv_sec;
+	time64bit.tv_usec = (u_int32_t)timeblock.tv_usec;
+	des_set_sequence_number((unsigned char *)&time64bit);
+
+	/* Do the work */
+	des_new_random_key(&new_key);
+	des_set_random_generator_seed(&new_key);
 }
