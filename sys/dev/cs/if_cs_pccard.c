@@ -48,9 +48,9 @@
 #include "card_if.h"
 
 static const struct pccard_product cs_pccard_products[] = {
-	{ PCCARD_STR_IBM_ETHERJET,		PCCARD_VENDOR_IBM,
-	  PCCARD_PRODUCT_IBM_ETHERJET,		0,
-	  PCCARD_CIS_IBM_ETHERJET },
+	{ PCMCIA_STR_IBM_ETHERJET,		PCMCIA_VENDOR_IBM,
+	  PCMCIA_PRODUCT_IBM_ETHERJET,		0,
+	  PCMCIA_CIS_IBM_ETHERJET },
 	{ NULL }
 };
 static int
