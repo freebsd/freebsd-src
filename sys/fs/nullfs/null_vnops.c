@@ -188,15 +188,15 @@ static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
 	&null_bug_bypass, 0, "");
 
-static int	null_access __P((struct vop_access_args *ap));
-static int	null_getattr __P((struct vop_getattr_args *ap));
-static int	null_inactive __P((struct vop_inactive_args *ap));
-static int	null_lock __P((struct vop_lock_args *ap));
-static int	null_lookup __P((struct vop_lookup_args *ap));
-static int	null_print __P((struct vop_print_args *ap));
-static int	null_reclaim __P((struct vop_reclaim_args *ap));
-static int	null_setattr __P((struct vop_setattr_args *ap));
-static int	null_unlock __P((struct vop_unlock_args *ap));
+static int	null_access(struct vop_access_args *ap);
+static int	null_getattr(struct vop_getattr_args *ap);
+static int	null_inactive(struct vop_inactive_args *ap);
+static int	null_lock(struct vop_lock_args *ap);
+static int	null_lookup(struct vop_lookup_args *ap);
+static int	null_print(struct vop_print_args *ap);
+static int	null_reclaim(struct vop_reclaim_args *ap);
+static int	null_setattr(struct vop_setattr_args *ap);
+static int	null_unlock(struct vop_unlock_args *ap);
 
 /*
  * This is the 10-Apr-92 bypass routine.
