@@ -143,7 +143,7 @@ setfile(name)
 	 * the mail file, so reset mailsize to be where
 	 * we really are in the file...
 	 */
-	mailsize = ftell(ibuf);
+	mailsize = ftello(ibuf);
 	(void)Fclose(ibuf);
 	relsesigs();
 	sawcom = 0;
@@ -162,7 +162,7 @@ nomail:
 int
 incfile()
 {
-	int newsize;
+	off_t newsize;
 	int omsgCount = msgCount;
 	FILE *ibuf;
 
@@ -179,7 +179,7 @@ incfile()
 		return (0);		/* no new mail */
 	setptr(ibuf, mailsize);
 	setmsize(msgCount);
-	mailsize = ftell(ibuf);
+	mailsize = ftello(ibuf);
 	(void)Fclose(ibuf);
 	relsesigs();
 	return (msgCount - omsgCount);
@@ -290,7 +290,7 @@ execute(linebuf, contxt)
 	 * lexical conventions.
 	 */
 
-	for (cp = linebuf; isspace(*cp); cp++)
+	for (cp = linebuf; isspace((unsigned char)*cp); cp++)
 		;
 	if (*cp == '!') {
 		if (sourcing) {
@@ -398,7 +398,7 @@ execute(linebuf, contxt)
 		 * Just the straight string, with
 		 * leading blanks removed.
 		 */
-		while (isspace(*cp))
+		while (isspace((unsigned char)*cp))
 			cp++;
 		e = (*com->c_func)(cp);
 		break;
