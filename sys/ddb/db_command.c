@@ -617,11 +617,11 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 		    break;
 	/* sx_sunlock(&allproc_lock); */
 	if (p == NULL)
-		DB_ERROR(("Can't find process with pid %d\n", pid));
+		DB_ERROR(("Can't find process with pid %ld\n", (long) pid));
 
 	/* If it's already locked, bail; otherwise, do the deed. */
 	if (PROC_TRYLOCK(p) == 0)
-		DB_ERROR(("Can't lock process with pid %d\n", pid));
+		DB_ERROR(("Can't lock process with pid %ld\n", (long) pid));
 	else {
 		psignal(p, sig);
 		PROC_UNLOCK(p);
