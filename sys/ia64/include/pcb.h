@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Doug Rabson
+ * Copyright (c) 2003,2004 Marcel Moolenaar
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -59,6 +59,10 @@ struct pcb {
 #ifdef _KERNEL
 
 #define	savectx(p)	swapctx(p, NULL)
+
+struct trapframe;
+
+void makectx(struct trapframe *, struct pcb *);
 void restorectx(struct pcb *) __dead2;
 int swapctx(struct pcb *old, struct pcb *new);
 

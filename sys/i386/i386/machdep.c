@@ -2206,6 +2206,25 @@ f00f_hack(void *unused)
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_edi = tf->tf_edi;
+	pcb->pcb_esi = tf->tf_esi;
+	pcb->pcb_ebp = tf->tf_ebp;
+	pcb->pcb_ebx = tf->tf_ebx;
+	pcb->pcb_eip = tf->tf_eip;
+	pcb->pcb_esp = (ISPL(tf->tf_cs)) ? tf->tf_esp : (int)(tf + 1) - 8;
+}
+
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {

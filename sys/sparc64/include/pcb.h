@@ -49,6 +49,7 @@ struct pcb {
 } __aligned(64);
 
 #ifdef _KERNEL
+void	makectx(struct trapframe *, struct pcb *);
 int	savectx(struct pcb *pcb);
 #endif
 

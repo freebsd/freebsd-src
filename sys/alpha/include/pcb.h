@@ -58,6 +58,7 @@ struct pcb {
 };
 
 #ifdef _KERNEL
+void	makectx(struct trapframe *, struct pcb *);
 void	savectx(struct pcb *);
 #endif
 

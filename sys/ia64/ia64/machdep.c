@@ -1017,6 +1017,23 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 }
 #endif
 
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_special = tf->tf_special;
+	pcb->pcb_special.__spare = ~0UL;	/* XXX see unwind.c */
+	save_callee_saved(&pcb->pcb_preserved);
+	save_callee_saved_fp(&pcb->pcb_preserved_fp);
+}
+
 int
 get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 {
