@@ -649,7 +649,7 @@ syncache_socket(sc, lso, m)
 		struct in_addr laddr;
 		struct sockaddr_in sin;
 
-		inp->inp_options = ip_srcroute();
+		inp->inp_options = ip_srcroute(m);
 		if (inp->inp_options == NULL) {
 			inp->inp_options = sc->sc_ipopts;
 			sc->sc_ipopts = NULL;
@@ -847,7 +847,7 @@ syncache_add(inc, to, th, sop, m)
 #ifdef INET6
 	if (!inc->inc_isipv6)
 #endif
-		ipopts = ip_srcroute();
+		ipopts = ip_srcroute(m);
 
 	/*
 	 * See if we already have an entry for this connection.

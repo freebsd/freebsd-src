@@ -711,7 +711,7 @@ match:
 		 * add on any record-route or timestamp options.
 		 */
 		cp = (u_char *) (ip + 1);
-		if ((opts = ip_srcroute()) == 0 &&
+		if ((opts = ip_srcroute(m)) == 0 &&
 		    (opts = m_gethdr(M_DONTWAIT, MT_HEADER))) {
 			opts->m_len = sizeof(struct in_addr);
 			mtod(opts, struct in_addr *)->s_addr = 0;
