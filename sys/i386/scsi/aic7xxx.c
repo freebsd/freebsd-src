@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81 1996/10/28 06:10:00 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.82 1996/11/05 07:57:26 gibbs Exp $
  */
 /*
  * TODO:
@@ -968,7 +968,7 @@ ahc_handle_seqint(ahc, intstat)
 					 */
 					AHC_OUTB(ahc, RETURN_1, 0);
 				} else
-					AHC_OUTB(ahc, RETURN_1, SEND_REJ;
+					AHC_OUTB(ahc, RETURN_1, SEND_REJ);
 			} else {
 				/*
 				 * Send our own SDTR in reply
