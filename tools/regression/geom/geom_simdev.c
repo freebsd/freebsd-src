@@ -49,7 +49,7 @@
 
 
 static struct g_geom *
-dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -57,7 +57,7 @@ dev_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp __unused
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	LIST_FOREACH(cp, &pp->consumers, consumers) {
-		if (cp->geom->method == mp) {
+		if (cp->geom->class == mp) {
 			g_topology_unlock();
 			return (NULL);
 		}
@@ -87,13 +87,13 @@ g_dev_orphan(struct g_consumer *cp, struct thread *tp __unused)
 }
 
 
-static struct g_method dev_method	= {
-	"DEV-method",
+static struct g_class dev_class	= {
+	"DEV-class",
 	dev_taste,
 	NULL,
 	g_dev_orphan,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
 static struct g_geom *
@@ -101,7 +101,7 @@ g_dev_findg(char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &dev_method.geom, geom)
+	LIST_FOREACH(gp, &dev_class.geom, geom)
 		if (!strcmp(gp->name, name))
 			break;
 	return (gp);
@@ -111,7 +111,7 @@ void
 g_dev_init(void *junk __unused)
 {
 
-	g_add_method(&dev_method);
+	g_add_class(&dev_class);
 }
 
 
