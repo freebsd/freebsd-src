@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.47 1997/05/26 04:57:42 jkh Exp $
+ * $Id: config.c,v 1.51.2.48 1997/05/26 05:33:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -584,6 +584,8 @@ configXFree86(dialogMenuItem *self)
 		       "to it will actually be /cdrom/CDE/dtinstall when you run it later).\n");
 	}
 	else {
+	    if (file_readable("/dist/CDE/post-install"))
+		systemExecute("/dist/CDE/post-install");
 	    /* Repair the damage done by the CDE installation */
 	    msgNotify("Doing final adjustments to Xaccel distribution...");
 	    systemExecute("/usr/X11R6/lib/X11/AcceleratedX/bin/Xinstall");
