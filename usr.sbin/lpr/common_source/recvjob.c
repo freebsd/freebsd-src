@@ -336,14 +336,14 @@ rcleanup(signo)
 	dfname[0] = '\0';
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 static void
-#if __STDC__
+#ifdef __STDC__
 frecverr(const char *msg, ...)
 #else
 frecverr(msg, va_alist)
@@ -352,7 +352,7 @@ frecverr(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);

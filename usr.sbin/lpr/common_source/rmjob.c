@@ -330,7 +330,7 @@ rmremote()
 		*cp++ = ' ';
 		strcpy(cp, user[i]);
 	}
-	for (i = 0; i < requests && cp-buf+10 < sizeof(buf); i++) {
+	for (i = 0; i < requests && cp-buf+10 < sizeof(buf) - 1; i++) {
 		cp += strlen(cp);
 		(void) sprintf(cp, " %d", requ[i]);
 	}

@@ -1197,7 +1197,6 @@ sendmail(user, bombed)
 	int dtablesize;
 	int p[2], s;
 	register char *cp;
-	char buf[100];
 	struct stat stb;
 	FILE *fp;
 
@@ -1211,8 +1210,7 @@ sendmail(user, bombed)
 			cp++;
 	else
 			cp = _PATH_SENDMAIL;
-		sprintf(buf, "%s@%s", user, fromhost);
-		execl(_PATH_SENDMAIL, cp, buf, 0);
+		execl(_PATH_SENDMAIL, cp, "-t", 0);
 		exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], 1);
@@ -1620,14 +1618,14 @@ setty()
 	}
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 static void
-#if __STDC__
+#ifdef __STDC__
 pstatus(const char *msg, ...)
 #else
 pstatus(msg, va_alist)
@@ -1638,7 +1636,7 @@ pstatus(msg, va_alist)
 	register int fd;
 	char buf[BUFSIZ];
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
@@ -1651,7 +1649,7 @@ pstatus(msg, va_alist)
 		exit(1);
 	}
 	ftruncate(fd, 0);
-	(void)vsnprintf(buf, sizeof(buf), msg, ap);
+	(void)vsnprintf(buf, sizeof(buf) - 1, msg, ap);
 	va_end(ap);
 	strcat(buf, "\n");
 	(void) write(fd, buf, strlen(buf));

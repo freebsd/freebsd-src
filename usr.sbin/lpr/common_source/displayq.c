@@ -224,12 +224,12 @@ displayq(format)
 		putchar('\n');
 	(void) snprintf(line, sizeof(line), "%c%s", format + '\3', RP);
 	cp = line;
-	for (i = 0; i < requests && cp-line+10 < sizeof(line); i++) {
+	for (i = 0; i < requests && cp-line+10 < sizeof(line) - 1; i++) {
 		cp += strlen(cp);
 		(void) sprintf(cp, " %d", requ[i]);
 	}
 	for (i = 0; i < users && cp - line + 1 + strlen(user[i]) < 
-		sizeof(line); i++) {
+		sizeof(line) - 1; i++) {
 		cp += strlen(cp);
 		*cp++ = ' ';
 		(void) strcpy(cp, user[i]);
