@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.336 1998/01/24 07:30:55 jkh Exp $
+#	$Id: Makefile,v 1.337 1998/01/27 01:06:49 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -532,7 +532,8 @@ cdrom.1:
 
 doc.1:
 	for i in ${DOCPORTS}; do \
-	  (cd /usr/ports/$$i; make all install clean FORCE_PKG_REGISTER=yes); \
+	  cd /usr/ports/$$i && make all install clean \
+	    FORCE_PKG_REGISTER=yes PATH=$PATH:/usr/local/bin; \
 	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 
