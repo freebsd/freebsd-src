@@ -128,13 +128,13 @@
       been removed.  Users running this class of CPU should use &os;
       5.<replaceable>X</replaceable> or earlier.</para>
 
-    <para>The kernel debugger &man.ddb.4; now supports
+    <para>The kernel debugger &man.ddb.4; now supports a
       <command>show alllocks</command> command, which dumps a list of processes
       and threads currently holding sleep mutexes (and spin mutexes for
-      curthread).  &merged;</para>
+      the current thread).  &merged;</para>
 
-    <para>A bug that the last line of configuration files such as &man.hosts.5;,
-      &man.services.5;, and so on which does not end in a newline character,
+    <para>A bug, which caused the last line of configuration files such as &man.hosts.5;,
+      &man.services.5;, and so on to be ignored if it did not end in a newline character,
       has been fixed.</para>
 
     <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
@@ -249,10 +249,10 @@
 
       <para arch="i386,amd64">The &man.acpi.4; driver now turns
 	the ACPI and PCI devices off or to a lower power state
-	in suspend, and back on again in resume.
+	when suspending, and back on again when resuming.
 	This behavior can be disabled by
-	setting <varname>debug.acpi.do_powerstate</varname> and
-	<varname>hw.pci.do_powerstate</varname> sysctls.</para>
+	setting the <varname>debug.acpi.do_powerstate</varname> and
+	<varname>hw.pci.do_powerstate</varname> sysctls to <literal>0</literal>.</para>
 
       <para arch="i386,amd64">The acpi_ibm driver for IBM laptops
 	has been added.</para>
@@ -416,7 +416,7 @@
 	install <literal>divert</literal> rules and &man.natd.8;
 	will return the error message <quote>protocol not supported</quote>.</para>
 
-      <para>The &man.ipfw.4; can work with
+      <para>The &man.ipfw.4; system can work with
 	<varname>debug.mpsafenet</varname>=<literal>1</literal>
 	(this tunable is <literal>1</literal> by default)
 	when the <literal>gid</literal>, <literal>jail</literal>,
@@ -459,16 +459,16 @@
 	handling of the &os; TCP stack has been improved
 	to make reset attacks as difficult as possible while
 	maintaining compatibility with the widest range of TCP stacks.
-	The algorithm is as follows.  For connections in the
+	The algorithm is as follows:  For connections in the
 	<literal>ESTABLISHED</literal>
 	state, only resets with sequence numbers exactly matching
-	<varname>last_ack_sent</varname> will cause a reset,
+	<varname>last_ack_sent</varname> will cause a reset;
 	all other segments will
 	be silently dropped. For connections in all other states,
 	a reset anywhere in the window will cause the connection
 	to be reset.  All other segments will be silently dropped.
-	Note that this breaks the RFC 793 specification and you
-	can still disable this and use the conventional behavior
+	Note that this behavior technically violates the RFC 793 specification;
+	the conventional (but less secure) behavior can be restored
 	by setting a new sysctl <varname>net.inet.tcp.insecure_rst</varname>
 	to <literal>1</literal>.  &merged;</para>
 
@@ -579,9 +579,9 @@
       <command>eject</command>) to take place after fixating a
       disk.</para>
 
-    <para>The &man.ftpd.8; program now uses <literal>212</literal>
-      and <literal>213</literal> status code for directory
-      and file status correctly (<literal>211</literal> is used in
+    <para>The &man.ftpd.8; program now uses the <literal>212</literal>
+      and <literal>213</literal> status codes for directory
+      and file status correctly (<literal>211</literal> was used in
       the previous versions).  This behavior is described in RFC 959.
       &merged;</para>
 
@@ -641,7 +641,7 @@
       print it when a data file received from some other host.
       Some implementations of &man.lpr.1; send the control file
       for a print job before sending the matching data files,
-      and that can cause problems if the receiving host is
+      which can cause problems if the receiving host is
       a busy print-server.  &merged;</para>
 
     <para>A number of new functions have been implemented in the
@@ -712,8 +712,8 @@
       complete list of these variables; it also implements some
       temporary backward compatibility for the old names.</para>
 
-    <para>The &man.periodic.8; security output now supports to display
-      information about blocked packet counts by &man.pf.4;.  &merged;</para>
+    <para>The &man.periodic.8; security output now supports the display of
+      information about blocked packet counts from &man.pf.4;.  &merged;</para>
 
     <para>The &man.ppp.8; program now implements an
       <option>echo</option> parameter, which allows LCP ECHOs to be
@@ -722,13 +722,13 @@
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behavior. &merged;</para>
 
-    <para><option>disable NAS-IP-Address</option> and
-      <option>disable NAS-Identifier</option> options
+    <para>The <option>disable NAS-IP-Address</option> and
+      <option>disable NAS-Identifier</option> options,
       which support pre-RFC 2865 RADIUS servers
       have been added to the &man.ppp.8; program.</para>
 
-    <para>Two bugs in the &man.pppd.8; program has been fixed.
-      They may result in an incorrect CBCP response
+    <para>Two bugs in the &man.pppd.8; program have been fixed.
+      They may result in an incorrect CBCP response,
       which violates the Microsoft PPP Callback Control Protocol
       section 3.2.  &merged;</para>
 
