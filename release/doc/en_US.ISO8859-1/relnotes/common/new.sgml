@@ -209,7 +209,7 @@
       in the ports collection as <filename>net/pim6dd</filename> and
       <filename>net/pim6dd</filename>.</para>
 
-      <para>&man.sendmail.8 and associated utilities have been upgraded
+      <para><application>sendmail</application> and associated utilities have been upgraded
       to version 8.11.4.  See
       <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
       for more information.</para>
