@@ -118,7 +118,7 @@ INCLUDE_CONFIG_FILE	opt_config.h
 CD9660		opt_dontuse.h
 CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
-FDESC		opt_dontuse.h
+FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 IFS		opt_dontuse.h
 LINPROCFS	opt_dontuse.h
@@ -126,12 +126,12 @@ MFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
-PORTAL		opt_dontuse.h
+PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 HPFS		opt_dontuse.h
-UNION		opt_dontuse.h
+UNIONFS		opt_dontuse.h
 
 # These static filesystems has one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are

@@ -185,7 +185,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#include <miscfs/nullfs/null.h>
+#include <fs/nullfs/null.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

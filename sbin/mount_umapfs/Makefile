@@ -6,7 +6,7 @@ SRCS=	mount_umap.c getmntopts.c
 MAN=	mount_umap.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
+CFLAGS+=-I${MOUNT}
 .PATH:	${MOUNT}
 
 .include <bsd.prog.mk>

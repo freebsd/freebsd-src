@@ -49,7 +49,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 /* use the equivalent procfs code */
 #if 0

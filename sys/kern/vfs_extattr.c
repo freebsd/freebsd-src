@@ -68,7 +68,6 @@
 #include <sys/jail.h>
 
 #include <machine/limits.h>
-#include <miscfs/union/union.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>

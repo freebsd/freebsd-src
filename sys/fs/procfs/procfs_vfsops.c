@@ -49,7 +49,7 @@
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../miscfs/fdesc
+.PATH: ${.CURDIR}/../../fs/fdescfs
 
-KMOD=	fdesc
+KMOD=	fdescfs
 SRCS=	vnode_if.h \
 	fdesc_vfsops.c fdesc_vnops.c
 NOMAN=

@@ -58,7 +58,7 @@
 #include <vm/vm_zone.h>
 #include <vm/vm_object.h>	/* for vm cache coherency */
 
-#include <miscfs/union/union.h>
+#include <fs/unionfs/union.h>
 
 #include <sys/proc.h>
 

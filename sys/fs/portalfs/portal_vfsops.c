@@ -57,7 +57,7 @@
 #include <sys/socketvar.h>
 #include <sys/vnode.h>
 
-#include <miscfs/portal/portal.h>
+#include <fs/portalfs/portal.h>
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 

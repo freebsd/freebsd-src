@@ -56,7 +56,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 #define DOCHECK() do { if (ps >= psbuf+sizeof(psbuf)) goto bailout; } while (0)
 int

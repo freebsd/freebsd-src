@@ -52,7 +52,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 int
 procfs_doregs(curp, p, pfs, uio)

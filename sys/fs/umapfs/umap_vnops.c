@@ -51,8 +51,8 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#include <miscfs/umapfs/umap.h>
-#include <miscfs/nullfs/null.h>
+#include <fs/umapfs/umap.h>
+#include <fs/nullfs/null.h>
 
 static int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,

@@ -68,7 +68,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <miscfs/fifofs/fifo.h>
+#include <fs/fifofs/fifo.h>
 
 #include <ufs/ufs/acl.h>
 #include <ufs/ufs/extattr.h>

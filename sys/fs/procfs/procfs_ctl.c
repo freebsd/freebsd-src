@@ -48,7 +48,7 @@
 #include <sys/sx.h>
 #include <sys/vnode.h>
 
-#include <miscfs/procfs/procfs.h>
+#include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
 

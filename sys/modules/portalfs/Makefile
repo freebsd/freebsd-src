@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../miscfs/portal
+.PATH: ${.CURDIR}/../../fs/portalfs
 
-KMOD=	portal
+KMOD=	portalfs
 SRCS=	vnode_if.h \
 	portal_vfsops.c portal_vnops.c
 NOMAN=
