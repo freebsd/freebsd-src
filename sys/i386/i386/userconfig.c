@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.126 1999/01/17 17:42:22 wpaul Exp $
+ **      $Id: userconfig.c,v 1.127 1999/01/28 01:59:50 dillon Exp $
  **/
 
 /**
@@ -189,97 +189,86 @@ SYSCTL_PROC( _machdep, OID_AUTO, uc_devlist, CTLFLAG_RD,
 ** Note that quit commands encountered in the script will be
 ** ignored if the RB_CONFIG flag is supplied.
 */
+static const char	*config_script;
+static int		config_script_size; /* use of int for -ve magic value */
+
+#define has_config_script()	(config_script_size > 0)
+
+static int
+init_config_script(void)
+{
+    caddr_t		autoentry, autoattr;
+
+    /* Look for loaded userconfig script */
+    autoentry = preload_search_by_type("userconfig_script");
+    if (autoentry != NULL) {
+	/* We have one, get size and data */
+	config_script_size = 0;
+	if ((autoattr = preload_search_info(autoentry, MODINFO_SIZE)) != NULL)
+	    config_script_size = (size_t)*(u_int32_t *)autoattr;
+	config_script = NULL;
+	if ((autoattr = preload_search_info(autoentry, MODINFO_ADDR)) != NULL)
+	    config_script = *(const char **)autoattr;
+	/* sanity check */
+	if ((config_script_size == 0) || (config_script == NULL)) {
+	    config_script_size = 0;
+	    config_script = NULL;
+	}
+    }
+    return has_config_script();
+}
+
 static int
 getchar(void)
 {
-    static const char	*asp;
-    static int		assize;		/* use of int for -ve magic value */
-    static int		autocheck = 0;
-    caddr_t		autoentry, autoattr;
-    int			c = 0;
+    int			c = -1;
+#ifdef INTRO_USERCONFIG
     static int		intro = 0;
+#endif
     
-    /* Look for loaded userconfig script */
-    if (autocheck == 0) 
-    {
-	autocheck = 1;
-	autoentry = preload_search_by_type("userconfig_script");
-	if (autoentry != NULL) 
-	{
-	    /* We have one, get size and data */
-	    assize = 0;
-	    if ((autoattr = preload_search_info(autoentry, MODINFO_SIZE)) != NULL)
-		assize = (size_t)*(u_int32_t *)autoattr;
-	    asp = NULL;
-	    if ((autoattr = preload_search_info(autoentry, MODINFO_ADDR)) != NULL)
-		asp = *(const char **)autoattr;
-	    /* sanity check */
-	    if ((assize == 0) || (asp == NULL)) {
-		assize = 0;
-		asp = NULL;
-	    }
-	}
-    }
-
-    if (assize > 0) 
+    if (has_config_script()) 
     {
 	/* Consume character from loaded userconfig script, display */
 	userconfig_boot_parsing = 1;
-	c = *asp;
-	asp++;
-	assize--;
+	c = *config_script;
+	config_script++;
+	config_script_size--;
 
-    } else if (assize == 0) {
+    } else {
 	
 #ifdef INTRO_USERCONFIG
-	if (intro == 0) 
-	{
-	    /* 
-	     * We don't want intro if we just executed a
-	     * script (userconfig_boot_parsing==1), otherwise
-	     * we would always block here waiting for user input.
-	     */
-	    intro = 1;
-	    if (userconfig_boot_parsing == 0)
-	    {
-		/* userconfig_boot_parsing will be set to 1 on next pass,
-		 * which will allow using 'intro' in the middle of other
-		 * userconfig_script commands.
-		 */
-	        c = 'i';
-	        asp = "ntro\n";
-	        assize = strlen(asp);
+	if (userconfig_boot_parsing) {
+	    if (!(boothowto & RB_CONFIG)) {
+		/* userconfig_script, !RB_CONFIG -> quit */
+		if (intro == 0) {
+		    c = 'q';
+		    config_script = "uit\n";
+		    config_script_size = strlen(config_script);
+		    /* userconfig_script will be 1 on the next pass */
+		}
 	    } else {
-	        userconfig_boot_parsing = 0;
-		assize=-1;
+		/* userconfig_script, RB_CONFIG -> cngetc() */
 	    }
-#else
-	userconfig_boot_parsing = 0;
-	if (!(boothowto & RB_CONFIG)) 
-	{
-	    /* don't want to drop to interpreter */
-	    c = 'q';
-	    asp = "uit\n";
-	    assize = strlen(asp);
-#endif
-	    userconfig_boot_parsing = 0;
 	} else {
-	    /* Only display signon banner if we are about to go interactive */
-	    if (!intro)
-		printf("\nFreeBSD Kernel Configuration Utility - Version 1.2\n"
-		       " Type \"help\" for help" 
-#ifdef VISUAL_USERCONFIG
-		       " or \"visual\" to go to the visual\n"
-		       " configuration interface (requires MGA/VGA display or\n"
-		       " serial terminal capable of displaying ANSI graphics)"
-#endif	
-		       ".\n");
-	    assize = -1;
+	    if (!(boothowto & RB_CONFIG)) {
+		/* no userconfig_script, !RB_CONFIG -> show intro */
+		if (intro == 0) {
+		    intro = 1;
+		    c = 'i';
+		    config_script = "ntro\n";
+		    config_script_size = strlen(config_script);
+		    /* userconfig_script will be 1 on the next pass */
+		}
+	    } else {
+		/* no userconfig_script, RB_CONFIG -> cngetc() */
+	    }
 	}
-    }
-    if (assize < 0) {
-	/* No script, read from the keyboard */
-	c = cngetc();
+#else /* !INTRO_USERCONFIG */
+	/* assert(boothowto & RB_CONFIG) */
+#endif /* INTRO_USERCONFIG */
+	userconfig_boot_parsing = 0;
+	if (c <= 0)
+	    c = cngetc();
     }
     return(c);
 }
@@ -2516,7 +2505,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.126 1999/01/17 17:42:22 wpaul Exp $
+ *      $Id: userconfig.c,v 1.127 1999/01/28 01:59:50 dillon Exp $
  */
 
 #include "scbus.h"
@@ -2660,11 +2649,35 @@ static Cmd CmdList[] = {
 void
 userconfig(void)
 {
+    static char banner = 1;
     char input[80];
     int rval;
     Cmd *cmd;
 
+    init_config_script();
     while (1) {
+
+	/* Only display signon banner if we are about to go interactive */
+	if (!has_config_script()) {
+	    if (!(boothowto & RB_CONFIG))
+#ifdef INTRO_USERCONFIG
+		banner = 0;
+#else
+		return;
+#endif
+	    if (banner) {
+		banner = 0;
+		printf("FreeBSD Kernel Configuration Utility - Version 1.2\n"
+		       " Type \"help\" for help" 
+#ifdef VISUAL_USERCONFIG
+		       " or \"visual\" to go to the visual\n"
+		       " configuration interface (requires MGA/VGA display or\n"
+		       " serial terminal capable of displaying ANSI graphics)"
+#endif
+		       ".\n");
+	    }
+	}
+
 	printf("config> ");
 	cngets(input, 80);
 	if (input[0] == '\0')
