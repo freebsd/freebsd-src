@@ -76,8 +76,8 @@ int
 main(int argc, char **argv)
 {
 	long arg_max;
-	int ch, cnt, count, Iflag, indouble, insingle, jfound, lflag;
-	int nargs, nflag, nline, wasquoted, foundeof, xflag;
+	int ch, cnt, count, Iflag, indouble, insingle, Jflag, jfound, lflag;
+	int nargs, nflag, nline, Rflag, wasquoted, foundeof, xflag;
 	size_t linelen;
 	const char *eofstr;
 	char **av, **avj, **bxp, **ep, **exp, **xp;
@@ -86,7 +86,8 @@ main(int argc, char **argv)
 	ep = environ;
 	inpline = replstr = NULL;
 	eofstr = "";
-	cnt = count = Iflag = jfound = lflag = nflag = xflag = wasquoted = 0;
+	cnt = count = Iflag = Jflag = jfound = lflag = nflag = Rflag = xflag =
+	    wasquoted = 0;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -109,7 +110,7 @@ main(int argc, char **argv)
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
-	while ((ch = getopt(argc, argv, "0E:I:J:L:n:ps:tx")) != -1)
+	while ((ch = getopt(argc, argv, "0E:I:J:L:n:pR:s:tx")) != -1)
 		switch(ch) {
 		case 'E':
 			eofstr = optarg;
@@ -117,9 +118,11 @@ main(int argc, char **argv)
 		case 'I':
 			Iflag = 1;
 			lflag = 1;
+			Rflag = 5;
 			replstr = optarg;
 			break;
 		case 'J':
+			Jflag = 1;
 			replstr = optarg;
 			break;
 		case 'L':
@@ -132,6 +135,12 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			pflag = 1;
+			break;
+		case 'R':
+			if (!Iflag)
+				usage();
+			if ((Rflag = atoi(optarg)) <= 0)
+				errx(1, "illegal number of replacements");
 			break;
 		case 's':
 			nline = atoi(optarg);
@@ -177,7 +186,7 @@ main(int argc, char **argv)
 		cnt = strlen((*bxp++ = echo));
 	else {
 		do {
-			if (!Iflag && replstr && strcmp(*argv, replstr) == 0) {
+			if (Jflag && strcmp(*argv, replstr) == 0) {
 				jfound = 1;
 				argv++;
 				for (avj = argv; *avj; avj++)
@@ -289,7 +298,7 @@ arg2:
 					if (tmp == NULL)
 						err(1, "malloc");
 					tmp2 = tmp;
-					repls = 5;
+					repls = Rflag;
 					for (avj = av, iter = argc; iter; avj++, iter--) {
 						*tmp = *avj;
 						if (avj != av && repls > 0 &&
@@ -424,7 +433,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: xargs [-0pt] [-E eofstr] [-I replstr] [-J replstr] [-L number]\n"
-"             [-n number [-x] [-s size] [utility [argument ...]]\n");
+"usage: xargs [-0pt] [-E eofstr] [-I replstr [-R replacements]] [-J replstr]\n"
+"             [-L number] [-n number [-x] [-s size] [utility [argument ...]]\n");
 	exit(1);
 }

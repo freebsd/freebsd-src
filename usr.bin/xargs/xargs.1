@@ -47,7 +47,10 @@
 .Nm
 .Op Fl 0pt
 .Op Fl E Ar eofstr
-.Op Fl I Ar replstr
+.Oo
+.Fl I Ar replstr
+.Op Fl R Ar replacements
+.Oc
 .Op Fl J Ar replstr
 .Op Fl L Ar number
 .Oo
@@ -104,7 +107,11 @@ Execute
 .Ar utility
 for each input line, replacing one or more occurences of
 .Ar replstr
-in up to 5 arguments to
+in up to
+.Ar replacements
+(or 5 if no
+.Op R
+flag is specified) arguments to
 .Ar utility
 with the entire line of input.
 The resulting arguments after replacement is done will not be allowed to grow
@@ -191,6 +198,10 @@ A response of
 .Ql y
 causes the command to be executed, any other response causes it to be
 skipped.
+.It Fl R Ar replacements
+This option specifies the maximum number of arguments that 
+.Op I
+will do replacement in.
 .It Fl s Ar size
 Set the maximum number of bytes for the command line length provided to
 .Ar utility .
