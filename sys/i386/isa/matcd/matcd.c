@@ -314,10 +314,19 @@ Edit number code marking begins here - earlier edits were during development.
 	I also fixed some duplicate location strings in the tsleep calls.
 	24-Sep-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 
+<26>	Moved a function declaration that generated two warnings with
+	the FULLCONFIG/FULLDRIVER conditionals disabled.
+	Updated the igot function so that it correctly reports limited
+	functions when a sub-set driver is compiled.
+	Eliminated FULLCONFIG conditional and now set controller counts
+	based on the NMATCD #define produced by the config process.
+	Also, disable the audio-related ioctls based on the BOOTMFS
+	conditional to help make the boot floppy kernel smaller.
+	18-Oct-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 ---------------------------------------------------------------------------*/
 
 /*Match this format:		Version_dc(d)__dd-mmm-yy	*/
-static char	MATCDVERSION[]="Version  1(25) 18-Sep-95";
+static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 
 /*	The following strings may not be changed*/
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
@@ -328,6 +337,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 	Include declarations
 ---------------------------------------------------------------------------*/
 
+#include	"matcd.h"		/*<26>*/
 #include	<sys/param.h>		/*<16>*/
 #include	<sys/systm.h>		/*<16>*/
 
@@ -341,7 +351,7 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 
 #include	"i386/isa/matcd/options.h"	/*Conditional compile options
 						  and probe port hints*/
-#include	"i386/isa/matcd/matcd.h"	/*Drive-related defs & strings*/
+#include	"i386/isa/matcd/matcddrv.h"	/*Drive-related defs & strings*/
 #include	"i386/isa/matcd/creative.h"	/*Host interface related defs*/
 
 #ifdef	FREE2
@@ -355,11 +365,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 	Defines and structures
 ---------------------------------------------------------------------------*/
 
-#ifdef FULLCONFIG
-#define NUMCTRLRS	4		/*With modern boards, four is max*/
-#else /*FULLCONFIG*/
-#define NUMCTRLRS	1		/*Produces a slightly smaller kernel*/
-#endif	/*FULLCONFIG*/
 #define DRIVESPERC	4		/*This is a constant*/
 #define TOTALDRIVES	NUMCTRLRS*DRIVESPERC	/*Max possible drives*/
 #if DIAGPORT > 0xff			/*<10>*/
@@ -423,8 +428,8 @@ static	struct matcd_data {		/*<18>*/
 	short	iobase;			/*<20>*/
 	short	iftype;			/*<20>Host interface type*/
 	struct	disklabel dlabel;
-	int	partflags[MAXPARTITIONS];
-	int	openflags;
+	unsigned int	partflags[MAXPARTITIONS];
+	unsigned int	openflags;
 	struct	matcd_volinfo volinfo;
 	struct	matcd_mbx mbx;
 	u_char	patch[2];		/*<12>Last known audio routing*/
@@ -576,7 +581,6 @@ static	int	matcd_route(int ldrive, int cdrive, int controller,/*<12>*/
 		            int command);		/*<12>*/
 static	int	matcd_pitch(int ldrive, int cdrive, int controller,/*<12>*/
 		            struct ioc_pitch * speed);	/*<12>*/
-static	int	matcd_igot(struct ioc_capability * sqp);	/*<16>*/
 #endif /*FULLDRIVER*/
 static	int	matcd_toc_header(int ldrive, int cdrive, int controller,/*<13>*/
 		                 struct ioc_toc_header * toc);  /*<13>*/
@@ -585,6 +589,7 @@ static	int	matcd_toc_entries(int ldrive, int cdrive,	/*<13>*/
 				  struct ioc_read_toc_entry *ioc_entry);/*<13>*/
 static	int	matcd_read_subq(int ldrive, int cdrive, int controller,/*<14>*/
 			        struct ioc_read_subchannel * sqp);/*<14>*/
+static	int	matcd_igot(struct ioc_capability * sqp);	/*<26>*/
 static	int	waitforit(int timelimit, int state, int port,
 			   char * where);	/*<14>*/
 static	int	get_stat(int port, int ldrive);	/*<14>*/
@@ -1238,8 +1243,8 @@ int matcd_probe(struct isa_device *dev)
 	int	i,cdrive;
 	unsigned char	y;
 	int port = dev->id_iobase;	/*Take port hint from config file*/
-	cdrive=nextcontroller;		/*Controller defined by pass for now*/
 
+	cdrive=nextcontroller;		/*Controller defined by pass for now*/
 #if DIAGPORT == 0x302			/*<10>*/
 	DIAGOUT(0x300,0x00);		/*<10>Init diag board in case some
 					  other device probe scrambled it*/
@@ -1262,7 +1267,6 @@ int matcd_probe(struct isa_device *dev)
 	i=nextcontroller*DRIVESPERC;	/*Precompute controller offset*/
 	for (y=0; y<DRIVESPERC; y++) {
 		matcd_data[i+y].flags=0;
-		matcd_data[i+y].config=0;
 	}
 
 #ifdef DEBUGPROBE
@@ -1411,7 +1415,7 @@ static inline void matcd_register(struct isa_device *id)
 int matcd_attach(struct isa_device *dev)
 {
 	int	i;
-	unsigned char	z,cdrive;
+	unsigned int	z,cdrive;
 	unsigned char cmd[MAXCMDSIZ];
 	unsigned char data[12];
 	struct matcd_data *cd;
@@ -1481,6 +1485,7 @@ int matcd_attach(struct isa_device *dev)
 void zero_cmd(char * lcmd)
 {
 	int	i;
+
 	for (i=0; i<MAXCMDSIZ; lcmd[i++]=0);
 	return;
 }
@@ -2255,6 +2260,7 @@ int chk_error(int errnum)
 int get_stat(int port,int ldrive)
 {
 	int 	status,busstat;		/*<16>*/
+
 	status=inb(port+DATA);		/*Read status byte, last step of cmd*/
 	busstat=inb(port+STATUS);	/*<16>Get bus status - should be 0xff*/
 	while ((busstat & (DTEN|STEN)) != (DTEN|STEN)) {	/*<19>*/
@@ -2706,6 +2712,7 @@ static int matcd_read_subq(int ldrive, int cdrive, int controller,
 static int matcd_igot(struct ioc_capability * sqp)
 {
 
+#ifdef FULLDRIVER
 	sqp->play_function=(CDDOPLAYTRK |	/*Can play trks/indx*/
 			   CDDOPLAYMSF |	/*Can play msf to msf*/
 			   CDDOPAUSE |		/*Can pause playback*/
@@ -2720,6 +2727,10 @@ static int matcd_igot(struct ioc_capability * sqp)
 			      CDSETRIGHT |	/*Can select right-only*/
 			      CDSETMUTE |	/*Can mute audio*/
 			      CDSETPATCH);	/*Direct patch settings*/
+#else /*FULLDRIVER*/
+	sqp->play_function=0;			/*No audio capability*/
+	sqp->routing_function=0;		/*No audio capability*/
+#endif /*FULLDRIVER*/
 
 	sqp->special_function=(CDDOEJECT |	/*Door can be opened*/
 			      CDDOCLOSE |	/*Door can be closed*/
