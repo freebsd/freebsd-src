@@ -507,7 +507,7 @@ sioattach(isdp)
 		isdp->id_unit = adapter;	/* XXX */
 	}
 	isdp->id_ointr = siointr;
-	isdp->id_ri_flags |= RI_FAST;
+	/* isdp->id_ri_flags |= RI_FAST; XXX unimplemented - use newbus! */
 	return (1);
 }
 
