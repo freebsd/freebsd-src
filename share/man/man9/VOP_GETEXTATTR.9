@@ -36,13 +36,21 @@
 .In sys/vnode.h
 .In sys/extattr.h
 .Ft int
-.Fn VOP_GETEXTATTR "struct vnode *vp" "int attrnamespace" "const char *name" "struct uio *uio" "struct ucred *cred" "struct thread *td"
+.Fo VOP_GETEXTATTR
+.Fa "struct vnode *vp"
+.Fa "int attrnamespace"
+.Fa "const char *name"
+.Fa "struct uio *uio"
+.Fa "size_t *size"
+.Fa "struct ucred *cred"
+.Fa "struct thread *td"
+.Fc
 .Sh DESCRIPTION
 This vnode call may be used to retrieve a specific named extended attribute
 from a file or directory.
 .Pp
 Its arguments are:
-.Bl -tag -width type
+.Bl -tag -width ".Fa attrnamespace"
 .It Fa vp
 the vnode of the file or directory
 .It Ar attrnamespace
@@ -51,7 +59,19 @@ name is present in
 .It Fa name
 pointer to a null-terminated character string containing the attribute name
 .It Fa uio
-the location of the data to be read or written
+the location of the data to be read
+.It Fa size
+if not
+.Dv NULL ,
+on return it will contain the number of bytes required to read all of the
+attribute data.
+In most cases
+.Fa uio
+will be
+.Dv NULL
+when
+.Fa size
+is not, and vise versa.
 .It Fa cred
 the user credentials to use in authorizing the request
 .It Fa td
