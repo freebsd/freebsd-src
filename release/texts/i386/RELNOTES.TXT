@@ -57,6 +57,13 @@ when they are mmap(2)ed. [4.1.1]
 
 The ata(4) driver now has support for ATA100 controllers. [4.1.1]
 
+The ata(4) driver now has support for tagged queueing, which is
+enabled by the ATA_ENABLE_TAGS option.  It also supports the
+ServerWorks ROSB4 ATA33 chipset, the CMD 648 ATA66 and CMD 649 ATA100
+chipsets, and the Cyrix 5530.  It also has support for ATA "pseudo"
+RAID controllers, including the Promise Fasttrak and HighPoint HPT370
+controllers.
+
 The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
 Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards. [4.1.1]
 
@@ -96,15 +103,6 @@ maximum of 16, and the other, aforementioned options are now dynamic.
 
 The ahc(4) driver has been updated.
 
-The ata(4) driver now supports the ServerWorks ROSB4 ATA33 chipset,
-the CMD 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530.
-
-The ata(4) driver now has support for tagged queueing, which is
-enabled by the ATA_ENABLE_TAGS option.
-
-The ata(4) driver now has support for ATA "pseudo" RAID controllers as
-the Promise Fasttrak and HighPoint HPT370 controllers.
-
 The amr(4) driver has been updated with support for new AMI
 MegaRAID models.
 
@@ -115,15 +113,17 @@ architecture.
 The ich(4) driver for the Intel 82801AA (ICH) SMBus controller and
 compatibles has been added.
 
-The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
-when unloading and reloading, and syncs with some NetBSD
-changes.
+bktr(4) driver has been updated to 2.15.  New tuner types have been
+added, and improvememts to the KLD module and to memory allocation
+have been made. [4.1.1]  This driver subsequently was updated to 2.17,
+which fixes bugs in devfs when unloading and reloading, and syncs with
+some NetBSD changes.
 
 Default the PC Card Interface Controller(pcic) to polling mode(irq 0).
 
-The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
-They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
-based PC-Card/ISA SCSI controllers.
+The ncv(4), nsp(4), and stg(4) drivers have been ported from
+NetBSD/pc98.  They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC
+18C30, 18C50 based PC-Card/ISA SCSI controllers.
 
 The mly(4) driver, for Mylex PCI to SCSI AccelRAID and eXtremeRAID
 controllers with firmware 6.x and later, has been added.
@@ -132,12 +132,13 @@ The twe(4) driver for 3ware controllers has been updated, with
 improved queueing, error handling and reporting, and user interface
 for the 3ware-supplied '3dm' monitoring tool.
 
-The uscanner(4) driver for basic USB scanner support using SANE. See
-the SANE home page for supported scanners. HP ScanJet 4100C, 5200C
-and 6300C are known to be working.
+The uscanner(4) driver, which provides basic USB scanner support using
+SANE, has been added.  (See the SANE home page for supported
+scanners.)  The HP ScanJet 4100C, 5200C and 6300C are known to be
+working.
 
-The umodem(4) driver for USB modems. Supported so far is only the 
-3Com 5605 USB modem.
+The umodem(4) driver for USB modems has been added; it currently
+supports the 3Com 5605 USB modem.
 
 
 1.2. SECURITY FIXES
@@ -151,6 +152,9 @@ rc.conf(5) on new installs. [4.1.1]
 Many string-handling library calls were fixed to reduce the
 possibility of buffer overflow-related exploits.
 
+A security hole in Linux emulation was fixed (see security advisory
+FreeBSD-SA-00:42).  [4.1.1]
+
 TCP now uses stronger randomness in choosing its initial sequence 
 numbers (see security advisory FreeBSD-SA-00:52).
 
@@ -161,66 +165,28 @@ FreeBSD-SA-00:54).
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This change only affects new installations.
 
+Several buffer overflows in tcpdump(1) were corrected (see security
+advisory FreeBSD-SA-00:61).
+
+A security hole in top(1) was corrected (see security advisory
+FreeBSD-SA-00:62).
+
+A potential security hole caused by an off-by-one-error in
+gethostbyname(3) has been fixed (see security advisory
+FreeBSD-SA-00:63).
+
 
 1.3. USERLAND CHANGES
 ---------------------
-GDB now supports hardware watchpoints. [4.1.1]
 
-routed(8) has been updated to version 2.22. [4.1.1]
-
-The truncate(1) utility, which truncates or extends the length of
-files, has been added. [4.1.1]
-
-syslogd(8) can take a -n option to disable DNS queries for every
-request. [4.1.1]
-
-kenv(1), a command to dump the kernel environment, has been added.
-[4.1.1]
-
-The behavior of periodic(8) is now controlled by
-/etc/defaults/periodic.conf and /etc/periodic.conf. [4.1.1]
- 
-logger(1) can now send messages directly to a remote syslog. [4.1.1]
- 
-OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
-and enhancements. [4.1.1]
- 
-finger(1) now has the ability to support fingering aliases, via the
-finger.conf(5) file. [4.1.1]
- 
 RSA Security has waived all patent rights to the RSA algorithm (two
 weeks before the patent was due to expire).  As a result, the native
 OpenSSL implementation of the RSA algorithm is now activated by
 default, and the rsaref port and librsaUSA are no longer required for
 USA residents. [4.1.1]
  
-sshd now enabled by default on new installs. [4.1.1]
+sshd is now enabled by default on new installs. [4.1.1]
  
-The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
-adapters used on some laptops. [4.1.1]
- 
-killall(1) is now a C program, rather than a Perl script.  As a
-result, killall's -m option now uses the regular expression syntax of
-regex(3), rather than that of perl(1). [4.1.1]
-
-boot98cfg(8), a PC-98 boot manager installation and configuration
-utility, has been added. [4.1.1]
-
-The ifconfig(8) command can set the link-layer address of an
-interface.  [4.1.1]
-
-bktr(4) driver update to 2.1.5.  New tuner types have been added, and
-improvememts to the KLD module and to memory allocation have been
-made. [4.1.1]
-
-setproctitle(3) has been moved from libutil to libc. [4.1.1]
-
-sed(1) now takes a -E option for extended regular expression
-support. [4.1.1]
-
-ln(1) now takes an -i option to request user configuration before
-overwriting an existing file. [4.1.1]
-
 Version numbers of installed packages have a new (backward-compatible)
 syntax, which supports the "PORTREVISION" and "PORTEPOCH" variables in
 ports collection makefiles.  These changes help keep track of changes
@@ -228,10 +194,6 @@ in the ports collection entries such as security patches or
 FreeBSD-specific updates, which aren't reflected in the original,
 third-party software distributions.  pkg_version(1) can now compare
 these new-style version numbers. [4.1.1]
-
-tcpdump(1) has received some updates and bugfixes.
-
-User-land ppp(8) has received a number of updates and bugfixes.
 
 sendmail upgraded from version 8.9.3 to version 8.11.1.  Important changes
 include: new default file locations (see /usr/src/contrib/sendmail/cf/README);
@@ -257,6 +219,74 @@ sendmail.
 The sendmail(8) configuration building tools are installed in
 /usr/share/sendmail/cf/.
 
+OpenSSH has been upgraded to 2.2.0.  ssh-add(1) and ssh-agent(1) can
+now handle DSA keys.  An sftp server interoperable with ssh.com
+clients and others has been added.  scp(1) can now handle files >2GB.
+Interoperability with other ssh2 clients/servers has been improved.  A
+new feature to limit the number of outstanding unauthenticated ssh
+connections in sshd has been added.
+
+The compiler chain now uses the FSF-supplied C/C++ runtime
+initialization code.  This change brings about better compatability
+with code generated from the various egcs and gcc ports, as well as
+the stock public FSF source.
+
+cvs(1) has been updated to 1.11.
+
+The threads library has gained some signal handling changes, bug
+fixes, and performance enhancements (including zero system call thread
+switching).  gdb(1) thread support has been updated to match these
+changes.
+
+GDB now supports hardware watchpoints. [4.1.1]
+
+routed(8) has been updated to version 2.22. [4.1.1]
+
+The truncate(1) utility, which truncates or extends the length of
+files, has been added. [4.1.1]
+
+syslogd(8) can take a -n option to disable DNS queries for every
+request. [4.1.1]
+
+kenv(1), a command to dump the kernel environment, has been added.
+[4.1.1]
+
+The behavior of periodic(8) is now controlled by
+/etc/defaults/periodic.conf and /etc/periodic.conf. [4.1.1]
+ 
+logger(1) can now send messages directly to a remote syslog. [4.1.1]
+ 
+OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
+and enhancements. [4.1.1]
+ 
+finger(1) now has the ability to support fingering aliases, via the
+finger.conf(5) file. [4.1.1]
+ 
+The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
+adapters used on some laptops. [4.1.1]
+ 
+killall(1) is now a C program, rather than a Perl script.  As a
+result, killall's -m option now uses the regular expression syntax of
+regex(3), rather than that of perl(1). [4.1.1]
+
+boot98cfg(8), a PC-98 boot manager installation and configuration
+utility, has been added. [4.1.1]
+
+The ifconfig(8) command can set the link-layer address of an
+interface.  [4.1.1]
+
+setproctitle(3) has been moved from libutil to libc. [4.1.1]
+
+sed(1) now takes a -E option for extended regular expression
+support. [4.1.1]
+
+ln(1) now takes an -i option to request user configuration before
+overwriting an existing file. [4.1.1]
+
+tcpdump(1) has received some updates and bugfixes.
+
+User-land ppp(8) has received a number of updates and bugfixes.
+
 The internal procedure for building perl has changed, and no longer
 depends on (nor installs) miniperl.  Users upgrading from source
 should delete /usr/bin/miniperl.
@@ -280,19 +310,8 @@ element to its previous location.
 
 The ISC library from the BIND distribution is now built as libisc.
 
-OpenSSH has been upgraded to 2.2.0.  ssh-add(1) and ssh-agent(1) can
-now handle DSA keys.  An sftp server interoperable with ssh.com
-clients and others has been added.  scp(1) can now handle files >2GB.
-Interoperability with other ssh2 clients/servers has been improved.  A
-new feature to limit the number of outstanding unauthenticated ssh
-connections in sshd has been added.
-
-The compiler chain now uses the FSF-supplied C/C++ runtime
-initialization code.  This change brings about better compatability
-with code generated from the various egcs and gcc ports, as well as
-the stock public FSF source.
-
-cvs(1) has been updated to 1.11.
+IP Filter is now supported by the rc.conf(5) boot-time configuration
+and initialization.
 
 
 2. Supported Configurations
