@@ -577,9 +577,14 @@ printline(hname, msg)
 
 	q = line;
 
-	while ((c = *p++ & 0177) != '\0' &&
-	    q < &line[sizeof(line) - 1])
-		if (iscntrl(c))
+	while ((c = (unsigned char)*p++) != '\0' &&
+	    q < &line[sizeof(line) - 3]) {
+		if ((c & 0x80) && c < 0xA0) {
+			c &= 0x7F;
+			*q++ = 'M';
+			*q++ = '-';
+		}
+		if (isascii(c) && iscntrl(c)) {
 			if (c == '\n')
 				*q++ = ' ';
 			else if (c == '\t')
@@ -588,8 +593,9 @@ printline(hname, msg)
 				*q++ = '^';
 				*q++ = c ^ 0100;
 			}
-		else
+		} else
 			*q++ = c;
+	}
 	*q = '\0';
 
 	logmsg(pri, line, hname, 0);
@@ -1785,10 +1791,10 @@ validate(sin, hname)
 		/* traditional behaviour, allow everything */
 		return 1;
 
-	strncpy(name, hname, sizeof name);
+	strlcpy(name, hname, sizeof name);
 	if (strchr(name, '.') == NULL) {
-		strncat(name, ".", sizeof name - strlen(name) - 1);
-		strncat(name, LocalDomain, sizeof name - strlen(name) - 1);
+		strlcat(name, ".", sizeof name);
+		strlcat(name, LocalDomain, sizeof name);
 	}
 	dprintf("validate: dgram from IP %s, port %d, name %s;\n",
 		addr2ascii(AF_INET, &sin->sin_addr, sizeof(struct in_addr), 0),
