@@ -48,6 +48,7 @@ static struct buf_ops __g_vfs_bufops = {
 	.bop_name =	"GEOM_VFS",
 	.bop_write =	bufwrite,
 	.bop_strategy =	g_vfs_strategy,	
+	.bop_sync =	bufsync,	
 };
 
 struct buf_ops *g_vfs_bufops = &__g_vfs_bufops;

@@ -69,14 +69,17 @@ struct bufv {
 
 typedef void b_strategy_t(struct bufobj *, struct buf *);
 typedef int b_write_t(struct buf *);
+typedef int b_sync_t(struct bufobj *, int waitfor, struct thread *td);
 
 struct buf_ops {
 	char		*bop_name;
 	b_write_t	*bop_write;
 	b_strategy_t	*bop_strategy;
+	b_sync_t	*bop_sync;
 };
 
 #define BO_STRATEGY(bo, bp)	((bo)->bo_ops->bop_strategy((bo), (bp)))
+#define BO_SYNC(bo, w, td)	((bo)->bo_ops->bop_sync((bo), (w), (td)))
 #define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
 
 struct bufobj {
@@ -123,6 +126,7 @@ struct bufobj {
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);
 int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
+int bufsync(struct bufobj *bo, int waitfor, struct thread *td);
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 #endif /* _SYS_BUFOBJ_H_ */
