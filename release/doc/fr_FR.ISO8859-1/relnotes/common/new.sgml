@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.296
+     Original revision: 1.22.2.297
 -->
 
 <articleinfo>
@@ -242,6 +242,10 @@
       <para arch="i386">Le gestionnaire de p&eacute;riph&eacute;riques pst, 
       permettant le support des controleurs RAID Promise SuperTrak ATA, 
       a &eacute;t&eacute; ajout&eacute;.</para>
+
+      <para arch="alpha">Le lecteur de disquette sur les AlphaStation/
+      AlphaServer DS100 ne fonctionne pas avec &os;, du a des bogues
+      non d&eacute;couverts.</para>   
 
     </sect3>
 
