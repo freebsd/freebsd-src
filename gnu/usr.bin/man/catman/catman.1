@@ -24,7 +24,7 @@
 .\"
 .\" /usr/bin/catman - preformat man pages
 .\"
-.\" $Id: catman.1,v 1.9 1996/12/09 07:25:41 mpp Exp $
+.\" $Id: catman.1,v 1.8.2.1 1996/12/10 17:23:05 joerg Exp $
 .Dd Mar 12, 1995
 .Dt CATMAN 1
 .Os
@@ -74,11 +74,11 @@ More warnings.
 .Pp
 Format man pages in
 .Ar /usr/share/man
-if neccessary.
+if necessary.
 .Pp
 .Dl $ catman $MANPATH
 .Pp
-Format all your man pages if neccessary.
+Format all your man pages if necessary.
 .Pp
 .Dl $ catman -f /usr/local/man/man1 /usr/local/man/manl
 .Pp
@@ -119,9 +119,9 @@ does not check for any
 in man page sources.  Use hard or symlinks
 to avoid redundant formatted man pages.
 .Sh SEE ALSO
+.Xr makewhatis 1 ,
 .Xr man 1 ,
-.Xr manpath 1 ,
-.Xr makewhatis 1 .
+.Xr manpath 1
 .Sh HISTORY
 This version of
 .Nm catman
