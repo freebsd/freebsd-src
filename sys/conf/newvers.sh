@@ -32,11 +32,11 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.26.2.6 1997/01/31 09:09:25 jkh Exp $
+#	$Id: newvers.sh,v 1.26.2.7 1997/02/19 06:08:42 asami Exp $
 
 TYPE="FreeBSD"
 REVISION="2.2"
-BRANCH="GAMMA"
+BRANCH="RELEASE"
 RELEASE="${REVISION}-${BRANCH}"
 SNAPDATE=""
 if [ "X${SNAPDATE}" != "X" ]; then
