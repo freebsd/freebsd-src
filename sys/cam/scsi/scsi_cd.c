@@ -1909,7 +1909,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
-	int	error;
+	int	error, nocopyout;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
@@ -1940,6 +1940,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 		}
 	}
 
+	nocopyout = 0;
 	switch (cmd) {
 
 	case CDIOCPLAYTRACKS:
@@ -2098,6 +2099,9 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			error = cdplay(periph, args->blk, args->len);
 		}
 		break;
+	case CDIOCREADSUBCHANNEL_SYSSPACE:
+		nocopyout = 1;
+		/* Fallthrough */
 	case CDIOCREADSUBCHANNEL:
 		{
 			struct ioc_read_subchannel *args
@@ -2138,8 +2142,12 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			len = min(len, ((data->header.data_len[0] << 8) +
 				data->header.data_len[1] +
 				sizeof(struct cd_sub_channel_header)));
-			if (copyout(data, args->data, len) != 0) {
-				error = EFAULT;
+			if (nocopyout == 0) {
+				if (copyout(data, args->data, len) != 0) {
+					error = EFAULT;
+				}
+			} else {
+				bcopy(data, args->data, len);
 			}
 			free(data, M_TEMP);
 		}

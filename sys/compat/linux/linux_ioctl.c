@@ -1490,30 +1490,29 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_CDROMSUBCHNL: {
 		struct linux_cdrom_subchnl sc;
 		struct ioc_read_subchannel bsdsc;
-		struct cd_sub_channel_info *bsdinfo;
-		caddr_t sg = stackgap_init();
-		bsdinfo = stackgap_alloc(&sg, sizeof(*bsdinfo));
+		struct cd_sub_channel_info bsdinfo;
+
 		bsdsc.address_format = CD_LBA_FORMAT;
 		bsdsc.data_format = CD_CURRENT_POSITION;
 		bsdsc.track = 0;
-		bsdsc.data_len = sizeof(*bsdinfo);
-		bsdsc.data = bsdinfo;
-		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc,
-		    td->td_ucred, td);
+		bsdsc.data_len = sizeof(bsdinfo);
+		bsdsc.data = &bsdinfo;
+		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL_SYSSPACE,
+		    (caddr_t)&bsdsc, td->td_ucred, td);
 		if (error)
 			break;
 		error = copyin((void *)args->arg, &sc, sizeof(sc));
 		if (error)
 			break;
-		sc.cdsc_audiostatus = bsdinfo->header.audio_status;
-		sc.cdsc_adr = bsdinfo->what.position.addr_type;
-		sc.cdsc_ctrl = bsdinfo->what.position.control;
-		sc.cdsc_trk = bsdinfo->what.position.track_number;
-		sc.cdsc_ind = bsdinfo->what.position.index_number;
+		sc.cdsc_audiostatus = bsdinfo.header.audio_status;
+		sc.cdsc_adr = bsdinfo.what.position.addr_type;
+		sc.cdsc_ctrl = bsdinfo.what.position.control;
+		sc.cdsc_trk = bsdinfo.what.position.track_number;
+		sc.cdsc_ind = bsdinfo.what.position.index_number;
 		set_linux_cdrom_addr(&sc.cdsc_absaddr, sc.cdsc_format,
-		    bsdinfo->what.position.absaddr.lba);
+		    bsdinfo.what.position.absaddr.lba);
 		set_linux_cdrom_addr(&sc.cdsc_reladdr, sc.cdsc_format,
-		    bsdinfo->what.position.reladdr.lba);
+		    bsdinfo.what.position.reladdr.lba);
 		error = copyout(&sc, (void *)args->arg, sizeof(sc));
 		break;
 	}
