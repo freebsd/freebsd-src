@@ -239,7 +239,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: portmap [-dv]\n");
+	fprintf(stderr, "usage: portmap [-dv] [-h bindip]\n");
 	exit(1);
 }
 
