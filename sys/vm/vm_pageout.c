@@ -728,6 +728,7 @@ rescan0:
 		}
 
 		next = TAILQ_NEXT(m, pageq);
+		object = m->object;
 
 		/*
 		 * skip marker pages
@@ -747,7 +748,12 @@ rescan0:
 		 * Don't mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			addl_page_shortage++;
+			continue;
+		}
 		if (m->busy || (m->flags & PG_BUSY)) {
+			VM_OBJECT_UNLOCK(object);
 			addl_page_shortage++;
 			continue;
 		}
@@ -756,7 +762,7 @@ rescan0:
 		 * If the object is not being used, we ignore previous 
 		 * references.
 		 */
-		if (m->object->ref_count == 0) {
+		if (object->ref_count == 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
 			pmap_clear_reference(m);
 
@@ -772,6 +778,7 @@ rescan0:
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
+			VM_OBJECT_UNLOCK(object);
 			m->act_count += (actcount + ACT_ADVANCE);
 			continue;
 		}
@@ -786,6 +793,7 @@ rescan0:
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
+			VM_OBJECT_UNLOCK(object);
 			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;
 		}
@@ -816,9 +824,6 @@ rescan0:
 			vm_page_dirty(m);
 		}
 
-		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object))
-			continue;
 		if (m->valid == 0) {
 			/*
 			 * Invalid pages can be easily freed
@@ -1018,12 +1023,20 @@ unlock_and_continue:
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
+		object = m->object;
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			vm_pageq_requeue(m);
+			m = next;
+			continue;
+		}
+
 		/*
 		 * Don't deactivate pages that are busy.
 		 */
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
+			VM_OBJECT_UNLOCK(object);
 			vm_pageq_requeue(m);
 			m = next;
 			continue;
@@ -1039,7 +1052,7 @@ unlock_and_continue:
 		 * Check to see "how much" the page has been used.
 		 */
 		actcount = 0;
-		if (m->object->ref_count != 0) {
+		if (object->ref_count != 0) {
 			if (m->flags & PG_REFERENCED) {
 				actcount += 1;
 			}
@@ -1060,15 +1073,15 @@ unlock_and_continue:
 		 * Only if an object is currently being used, do we use the
 		 * page activation count stats.
 		 */
-		if (actcount && (m->object->ref_count != 0)) {
+		if (actcount && (object->ref_count != 0)) {
 			vm_pageq_requeue(m);
 		} else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 			if (vm_pageout_algorithm ||
-			    m->object->ref_count == 0 ||
+			    object->ref_count == 0 ||
 			    m->act_count == 0) {
 				page_shortage--;
-				if (m->object->ref_count == 0) {
+				if (object->ref_count == 0) {
 					pmap_remove_all(m);
 					if (m->dirty == 0)
 						vm_page_cache(m);
@@ -1081,6 +1094,7 @@ unlock_and_continue:
 				vm_pageq_requeue(m);
 			}
 		}
+		VM_OBJECT_UNLOCK(object);
 		m = next;
 	}
 
@@ -1232,6 +1246,7 @@ unlock_and_continue:
 static void
 vm_pageout_page_stats()
 {
+	vm_object_t object;
 	vm_page_t m,next;
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
@@ -1263,12 +1278,20 @@ vm_pageout_page_stats()
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
+		object = m->object;
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			vm_pageq_requeue(m);
+			m = next;
+			continue;
+		}
+
 		/*
 		 * Don't deactivate pages that are busy.
 		 */
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
+			VM_OBJECT_UNLOCK(object);
 			vm_pageq_requeue(m);
 			m = next;
 			continue;
@@ -1304,7 +1327,7 @@ vm_pageout_page_stats()
 				vm_pageq_requeue(m);
 			}
 		}
-
+		VM_OBJECT_UNLOCK(object);
 		m = next;
 	}
 }
