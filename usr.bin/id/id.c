@@ -259,7 +259,7 @@ user(pw)
 		if (lastgid == (gid = groups[cnt]))
 			continue;
 		(void)printf(fmt, gid);
-		fmt = " %u";
+		fmt = ", %u";
 		if ((gr = getgrgid(gid)))
 			(void)printf("(%s)", gr->gr_name);
 		lastgid = gid;
