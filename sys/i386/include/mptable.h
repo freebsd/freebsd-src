@@ -1025,7 +1025,7 @@ revoke_apic_irq(int irq)
 	int oldintpin;
 	
 	if (int_to_apicintpin[irq].ioapic == -1)
-		panic("revoke_apiq_irq: inconsistent table");
+		panic("revoke_apic_irq: inconsistent table");
 	
 	oldapic = int_to_apicintpin[irq].ioapic;
 	oldintpin = int_to_apicintpin[irq].int_pin;
