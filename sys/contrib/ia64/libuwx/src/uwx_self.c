@@ -91,18 +91,33 @@ int uwx_self_init_from_sigcontext(
     uint64_t cfm;
     unsigned int nat;
     uint64_t ec;
+    int adj;
 
     info->ucontext = ucontext;
     status = __uc_get_reason(ucontext, &reason);
     status = __uc_get_ip(ucontext, &ip);
     status = __uc_get_grs(ucontext, 12, 1, &sp, &nat);
+    status = __uc_get_cfm(ucontext, &cfm);
+#ifdef NEW_UC_GET_AR
+    status = __uc_get_ar_bsp(ucontext, &bsp);
+    status = __uc_get_ar_bspstore(ucontext, &info->bspstore);
+    status = __uc_get_ar_ec(ucontext, &ec);
+#else
     status = __uc_get_ar(ucontext, 17, &bsp);
     status = __uc_get_ar(ucontext, 18, &info->bspstore);
     status = __uc_get_ar(ucontext, 66, &ec);
-    status = __uc_get_cfm(ucontext, &cfm);
-    cfm |= ec << 52;
+#endif
+    /* The returned bsp needs to be adjusted. */
+    /* For interrupt frames, where bsp was advanced by a cover */
+    /* instruction, subtract sof (size of frame). For non-interrupt */
+    /* frames, where bsp was advanced by br.call, subtract sol */
+    /* (size of locals). */
     if (reason != 0)
-	bsp = uwx_add_to_bsp(bsp, -((unsigned int)cfm & 0x7f));
+	adj = (unsigned int)cfm & 0x7f;		/* interrupt frame */
+    else
+	adj = ((unsigned int)cfm >> 7) & 0x7f;	/* non-interrupt frame */
+    bsp = uwx_add_to_bsp(bsp, -adj);
+    cfm |= ec << 52;
     uwx_init_context(env, ip, sp, bsp, cfm);
     return UWX_OK;
 }
@@ -171,22 +186,22 @@ int uwx_self_copyin(
 	regid = (int)rem;
 	if (rem < UWX_REG_GR(0)) {
 	    switch (regid) {
-		case UWX_REG_PFS:
-		    status = __uc_get_ar(info->ucontext, 64, dp);
-		    break;
 		case UWX_REG_PREDS:
 		    status = __uc_get_prs(info->ucontext, dp);
 		    break;
-		case UWX_REG_RNAT:
+		case UWX_REG_AR_PFS:
+		    status = __uc_get_ar(info->ucontext, 64, dp);
+		    break;
+		case UWX_REG_AR_RNAT:
 		    status = __uc_get_ar(info->ucontext, 19, dp);
 		    break;
-		case UWX_REG_UNAT:
+		case UWX_REG_AR_UNAT:
 		    status = __uc_get_ar(info->ucontext, 36, dp);
 		    break;
-		case UWX_REG_FPSR:
+		case UWX_REG_AR_FPSR:
 		    status = __uc_get_ar(info->ucontext, 40, dp);
 		    break;
-		case UWX_REG_LC:
+		case UWX_REG_AR_LC:
 		    status = __uc_get_ar(info->ucontext, 65, dp);
 		    break;
 		default:

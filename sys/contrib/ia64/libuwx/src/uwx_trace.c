@@ -98,9 +98,9 @@ void uwx_dump_rstate(int regid, uint64_t rstate)
 	    break;
 	case UWX_DISP_REG(0):
 	    reg = UWX_GET_DISP_REGID(rstate);
-	    if (reg == UWX_REG_PFS)
+	    if (reg == UWX_REG_AR_PFS)
 		printf("    [AR.PFS]\n");
-	    else if (reg == UWX_REG_UNAT)
+	    else if (reg == UWX_REG_AR_UNAT)
 		printf("    [AR.UNAT]\n");
 	    else if (reg >= UWX_REG_GR(0) && reg < UWX_REG_GR(128))
 		printf("    [GR%d]\n", reg - UWX_REG_GR(0));

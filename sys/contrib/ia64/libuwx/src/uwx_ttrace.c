@@ -249,22 +249,22 @@ int uwx_ttrace_copyin(
 	if (info->have_ucontext) {
 	    if (regid < UWX_REG_GR(0)) {
 		switch (regid) {
-		    case UWX_REG_PFS:
-			status = __uc_get_ar(&info->ucontext, 64, dp);
-			break;
 		    case UWX_REG_PREDS:
 			status = __uc_get_prs(&info->ucontext, dp);
 			break;
-		    case UWX_REG_RNAT:
+		    case UWX_REG_AR_PFS:
+			status = __uc_get_ar(&info->ucontext, 64, dp);
+			break;
+		    case UWX_REG_AR_RNAT:
 			status = __uc_get_ar(&info->ucontext, 19, dp);
 			break;
-		    case UWX_REG_UNAT:
+		    case UWX_REG_AR_UNAT:
 			status = __uc_get_ar(&info->ucontext, 36, dp);
 			break;
-		    case UWX_REG_FPSR:
+		    case UWX_REG_AR_FPSR:
 			status = __uc_get_ar(&info->ucontext, 40, dp);
 			break;
-		    case UWX_REG_LC:
+		    case UWX_REG_AR_LC:
 			status = __uc_get_ar(&info->ucontext, 65, dp);
 			break;
 		    default:
@@ -283,22 +283,22 @@ int uwx_ttrace_copyin(
 	else {
 	    if (regid < UWX_REG_GR(0)) {
 		switch (regid) {
-		    case UWX_REG_PFS:
-			ttreg = __ar_pfs;
-			break;
 		    case UWX_REG_PREDS:
 			ttreg = __pr;
 			break;
-		    case UWX_REG_RNAT:
+		    case UWX_REG_AR_PFS:
+			ttreg = __ar_pfs;
+			break;
+		    case UWX_REG_AR_RNAT:
 			ttreg = __ar_rnat;
 			break;
-		    case UWX_REG_UNAT:
+		    case UWX_REG_AR_UNAT:
 			ttreg = __ar_unat;
 			break;
-		    case UWX_REG_FPSR:
+		    case UWX_REG_AR_FPSR:
 			ttreg = __ar_fpsr;
 			break;
-		    case UWX_REG_LC:
+		    case UWX_REG_AR_LC:
 			ttreg = __ar_lc;
 			break;
 		    default:

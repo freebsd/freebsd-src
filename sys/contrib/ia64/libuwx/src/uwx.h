@@ -208,17 +208,25 @@ extern int uwx_get_abi_context_code(struct uwx_env *env);
 #define UWX_REG_CFM		3	/* cfm (no spill info) */
 #define UWX_REG_RP		4	/* rp (pseudo-register) */
 #define UWX_REG_PSP		5	/* psp (pseudo-register) */
-#define UWX_REG_PFS		6	/* ar.pfs */
+#define UWX_REG_PFS		6	/* pfs (pseudo-register) */
 #define UWX_REG_PREDS		7	/* p0 - p63 */
 #define UWX_REG_PRIUNAT		8	/* primary unat (pseudo-register) */
-#define UWX_REG_BSPSTORE	9	/* ar.bspstore */
-#define UWX_REG_RNAT		10	/* ar.rnat */
-#define UWX_REG_UNAT		11	/* ar.unat */
-#define UWX_REG_FPSR		12	/* ar.fpsr */
-#define UWX_REG_LC		13	/* ar.lc */
+#define UWX_REG_AR_PFS		9	/* ar.pfs */
+#define UWX_REG_AR_BSPSTORE	10	/* ar.bspstore */
+#define UWX_REG_AR_RNAT		11	/* ar.rnat */
+#define UWX_REG_AR_UNAT		12	/* ar.unat */
+#define UWX_REG_AR_FPSR		13	/* ar.fpsr */
+#define UWX_REG_AR_LC		14	/* ar.lc */
 #define UWX_REG_GR(gr)		(0x100 | (gr))
 #define UWX_REG_FR(fr)		(0x200 | (fr))
 #define UWX_REG_BR(br)		(0x300 | (br))
+
+/* for backwards compatibility with previous releases... */
+#define UWX_REG_BSPSTORE	UWX_REG_AR_BSPSTORE
+#define UWX_REG_RNAT		UWX_REG_AR_RNAT
+#define UWX_REG_UNAT		UWX_REG_AR_UNAT
+#define UWX_REG_FPSR		UWX_REG_AR_FPSR
+#define UWX_REG_LC		UWX_REG_AR_LC
 
 /* Values corresponding to UWX_KEY_SPILL keys indicate the disposition */
 /* of the spilled register -- either in the memory stack or in another */
