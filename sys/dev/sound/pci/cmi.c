@@ -981,6 +981,6 @@ static driver_t cmi_driver = {
 	PCM_SOFTC_SIZE
 };
 
-DRIVER_MODULE(snd_cmipci, pci, cmi_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_cmipci, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(snd_cmipci, 1);
+DRIVER_MODULE(snd_cmi, pci, cmi_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_cmi, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_cmi, 1);
