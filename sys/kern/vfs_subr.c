@@ -257,8 +257,9 @@ int (*softdep_process_worklist_hook)(struct mount *);
 /*
  * Initialize the vnode management data structures.
  */
-#define	MAX_SAFE_MAXVNODES	100000
-
+#ifndef	MAXVNODES_MAX
+#define	MAXVNODES_MAX	100000
+#endif
 static void
 vntblinit(void *dummy __unused)
 {
@@ -272,11 +273,11 @@ vntblinit(void *dummy __unused)
 	 */
 	desiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
 	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
-	if (desiredvnodes > MAX_SAFE_MAXVNODES) {
+	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
 			printf("Reducing kern.maxvnodes %d -> %d\n",
-			    desiredvnodes, MAX_SAFE_MAXVNODES);
-		desiredvnodes = MAX_SAFE_MAXVNODES;
+			    desiredvnodes, MAXVNODES_MAX);
+		desiredvnodes = MAXVNODES_MAX;
 	}
 	minvnodes = desiredvnodes / 4;
 	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
