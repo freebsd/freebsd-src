@@ -1,4 +1,4 @@
-/*	$KAME: config.h,v 1.3 2000/05/16 13:34:13 itojun Exp $	*/
+/*	$KAME: config.h,v 1.8 2003/06/17 08:26:22 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -37,3 +37,12 @@ extern void invalidate_prefix __P((struct prefix *));
 extern void update_prefix __P((struct prefix *));
 extern void make_prefix __P((struct rainfo *, int, struct in6_addr *, int));
 extern void make_packet __P((struct rainfo *));
+extern void get_prefix __P((struct rainfo *));
+
+
+/*
+ * it is highly unlikely to have 100 prefix information options,
+ * so it should be okay to limit it
+ */
+#define MAXPREFIX	100
+#define MAXROUTE	100

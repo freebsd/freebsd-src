@@ -1,4 +1,4 @@
-/*	$KAME: dump.c,v 1.16 2001/03/21 17:41:13 jinmei Exp $	*/
+/*	$KAME: dump.c,v 1.32 2003/05/19 09:46:50 keiichi Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -94,6 +94,9 @@ if_dump()
 {
 	struct rainfo *rai;
 	struct prefix *pfx;
+#ifdef ROUTEINFO
+	struct rtinfo *rti;
+#endif
 	char prefixbuf[INET6_ADDRSTRLEN];
 	int first;
 	struct timeval now;
@@ -148,7 +151,6 @@ if_dump()
 		fprintf(fp, "  ReachableTime: %d, RetransTimer: %d, "
 			"CurHopLimit: %d\n", rai->reachabletime,
 			rai->retranstimer, rai->hoplimit);
-
 		if (rai->clockskew)
 			fprintf(fp, "  Clock skew: %ldsec\n",
 			    rai->clockskew);
@@ -209,6 +211,26 @@ if_dump()
 			}
 			fprintf(fp, ")\n");
 		}
+#ifdef ROUTEINFO
+		for (first = 1, rti = rai->route.next; rti != &rai->route;
+		     rti = rti->next) {
+			if (first) {
+				fprintf(fp, "  Route Information:\n");
+				first = 0;
+			}
+			fprintf(fp, "    %s/%d (",
+				inet_ntop(AF_INET6, &rti->prefix,
+					  prefixbuf, sizeof(prefixbuf)),
+				rti->prefixlen);
+			fprintf(fp, "preference: %s, ",
+				rtpref_str[0xff & (rti->rtpref >> 3)]);
+			if (rti->ltime == ND6_INFINITE_LIFETIME)
+				fprintf(fp, "lifetime: infinity");
+			else
+				fprintf(fp, "lifetime: %ld", (long)rti->ltime);
+			fprintf(fp, ")\n");
+		}
+#endif
 	}
 }
 
@@ -216,6 +238,9 @@ void
 rtadvd_dump_file(dumpfile)
 	char *dumpfile;
 {
+	syslog(LOG_DEBUG, "<%s> dump current status to %s", __func__,
+	    dumpfile);
+
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
 		syslog(LOG_WARNING, "<%s> open a dump file(%s)",
 		    __func__, dumpfile);

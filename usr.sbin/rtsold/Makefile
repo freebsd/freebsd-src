@@ -16,7 +16,7 @@
 PROG=	rtsold
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
-CFLAGS+=-DINET6 -DHAVE_POLL_H
+CFLAGS+=-DINET6 -DHAVE_ARC4RANDOM -DHAVE_POLL_H
 
 MAN=	rtsold.8
 MLINKS=	rtsold.8 rtsol.8
