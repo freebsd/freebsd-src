@@ -96,6 +96,12 @@ agp_flush_cache()
 #ifdef __i386__
 	wbinvd();
 #endif
+#ifdef __alpha__
+	/* FIXME: This is most likely not correct as it doesn't flush CPU 
+	 * write caches, but we don't have a facility to do that and 
+	 * this is all linux does, too */
+	alpha_mb();
+#endif
 }
 
 u_int8_t

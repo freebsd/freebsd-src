@@ -263,7 +263,8 @@ SUBDIR+=aic \
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=linprocfs \
+SUBDIR+=agp \
+	linprocfs \
 	linux \
 	osf1 \
 	sound \

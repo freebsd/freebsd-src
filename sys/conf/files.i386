@@ -418,3 +418,9 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pci/cy_pci.c			optional	cy pci
+pci/agp_intel.c			optional	agp
+pci/agp_via.c			optional	agp
+pci/agp_sis.c			optional	agp
+pci/agp_ali.c			optional	agp
+pci/agp_amd.c			optional	agp
+pci/agp_i810.c			optional	agp

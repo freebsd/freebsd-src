@@ -1479,12 +1479,6 @@ pccard/pcic_isa.c	optional pcic card isa
 pccard/pcic_pci.c	optional pcic card pci
 pci/agp.c		optional agp
 pci/agp_if.m		optional agp
-pci/agp_intel.c		optional agp
-pci/agp_via.c		optional agp
-pci/agp_sis.c		optional agp
-pci/agp_ali.c		optional agp
-pci/agp_amd.c		optional agp
-pci/agp_i810.c		optional agp
 pci/alpm.c		optional alpm
 pci/amdpm.c		optional amdpm
 pci/amdpm.c		optional nfpm

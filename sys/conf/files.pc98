@@ -391,3 +391,9 @@ pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
 pccard/mecia.c			optional	mecia card
 pci/cy_pci.c			optional	cy pci
+pci/agp_intel.c			optional agp
+pci/agp_via.c			optional agp
+pci/agp_sis.c			optional agp
+pci/agp_ali.c			optional agp
+pci/agp_amd.c			optional agp
+pci/agp_i810.c			optional agp
