@@ -14,9 +14,6 @@ NOMAN=	yes
 
 SRCS=	gdbreplay.c
 
-# XXX Don't die on warnings, until the maintainer has a chance to fix them.
-NO_WERROR=	yes
-
 CFLAGS+=	-I${.CURDIR}/../gdb
 CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
