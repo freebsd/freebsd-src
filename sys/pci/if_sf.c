@@ -164,6 +164,12 @@ static u_int8_t sf_read_eeprom	(struct sf_softc *, int);
 static int sf_miibus_readreg	(device_t, int, int);
 static int sf_miibus_writereg	(device_t, int, int, int);
 static void sf_miibus_statchg	(device_t);
+#ifdef DEVICE_POLLING
+static void sf_poll		(struct ifnet *ifp, enum poll_cmd cmd,
+				 int count);
+static void sf_poll_locked	(struct ifnet *ifp, enum poll_cmd cmd,
+				 int count);
+#endif /* DEVICE_POLLING */
 
 static u_int32_t csr_read_4	(struct sf_softc *, int);
 static void csr_write_4		(struct sf_softc *, int, u_int32_t);
@@ -534,6 +540,10 @@ sf_ioctl(ifp, command, data)
 		mii = device_get_softc(sc->sf_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable &= ~IFCAP_POLLING;
+		ifp->if_capenable |= ifr->ifr_reqcap & IFCAP_POLLING;
+		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
@@ -714,6 +724,10 @@ sf_attach(dev)
 	ifp->if_init = sf_init;
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = SF_TX_DLIST_CNT - 1;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif /* DEVICE_POLLING */
+	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
 	 * Call MI attach routine.
@@ -903,6 +917,14 @@ sf_rxeof(sc)
 	while (cmpconsidx != cmpprodidx) {
 		struct mbuf		*m0;
 
+#ifdef DEVICE_POLLING
+		if (ifp->if_flags & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
+
 		cur_rx = &sc->sf_ldata->sf_rx_clist[cmpconsidx];
 		desc = &sc->sf_ldata->sf_rx_dlist_big[cur_rx->sf_endidx];
 		m = desc->sf_mbuf;
@@ -1010,6 +1032,63 @@ sf_txthresh_adjust(sc)
 	}
 }
 
+#ifdef DEVICE_POLLING
+static void
+sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct sf_softc *sc = ifp->if_softc;
+
+	SF_LOCK(sc);
+	sf_poll_locked(ifp, cmd, count);
+	SF_UNLOCK(sc);
+}
+
+static void
+sf_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct sf_softc *sc = ifp->if_softc;
+
+	SF_LOCK_ASSERT(sc);
+
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
+
+	if (cmd == POLL_DEREGISTER) {
+		/* Final call, enable interrupts. */
+		csr_write_4(sc, SF_IMR, SF_INTRS);
+		return;
+	}
+
+	sc->rxcycles = count;
+	sf_rxeof(sc);
+	sf_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		sf_start(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) {
+		u_int32_t status;
+
+		status = csr_read_4(sc, SF_ISR);
+		if (status)
+			csr_write_4(sc, SF_ISR, status);
+
+		if (status & SF_ISR_TX_LOFIFO)
+			sf_txthresh_adjust(sc);
+
+		if (status & SF_ISR_ABNORMALINTR) {
+			if (status & SF_ISR_STATSOFLOW) {
+				untimeout(sf_stats_update, sc,
+				    sc->sf_stat_ch);
+				sf_stats_update(sc);
+			} else
+				sf_init(sc);
+		}
+	}
+}
+#endif /* DEVICE_POLLING */
+
 static void
 sf_intr(arg)
 	void			*arg;
@@ -1022,6 +1101,19 @@ sf_intr(arg)
 	SF_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_flags & IFF_POLLING)
+		goto done_locked;
+
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(sf_poll, ifp)) {
+		/* OK, disable interrupts. */
+		csr_write_4(sc, SF_IMR, 0x00000000);
+		sf_poll_locked(ifp, 0, 1);
+		goto done_locked;
+	}
+#endif /* DEVICE_POLLING */
 
 	if (!(csr_read_4(sc, SF_ISR_SHADOW) & SF_ISR_PCIINT_ASSERTED)) {
 		SF_UNLOCK(sc);
@@ -1066,6 +1158,9 @@ sf_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		sf_start(ifp);
 
+#ifdef DEVICE_POLLING
+done_locked:
+#endif /* DEVICE_POLLING */
 	SF_UNLOCK(sc);
 }
 
@@ -1162,6 +1257,13 @@ sf_init(xsc)
 
 	/* Enable autopadding of short TX frames. */
 	SF_SETBIT(sc, SF_MACCFG_1, SF_MACCFG1_AUTOPAD);
+
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_flags & IFF_POLLING)
+		csr_write_4(sc, SF_IMR, 0x00000000);
+	else
+#endif /* DEVICE_POLLING */
 
 	/* Enable interrupts. */
 	csr_write_4(sc, SF_IMR, SF_INTRS);
@@ -1339,6 +1441,10 @@ sf_stop(sc)
 
 	untimeout(sf_stats_update, sc, sc->sf_stat_ch);
 
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
+	
 	csr_write_4(sc, SF_GEN_ETH_CTL, 0);
 	csr_write_4(sc, SF_CQ_CONSIDX, 0);
 	csr_write_4(sc, SF_CQ_PRODIDX, 0);

@@ -1046,6 +1046,9 @@ struct sf_softc {
 	int			sf_if_flags;
 	struct callout_handle	sf_stat_ch;
 	struct mtx		sf_mtx;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 
