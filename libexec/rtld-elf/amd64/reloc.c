@@ -115,10 +115,18 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 	SymCache *cache;
+	int bytes = obj->nchains * sizeof(SymCache);
+	int r = -1;
 
-	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
+	/*
+	 * The dynamic loader may be called from a thread, we have
+	 * limited amounts of stack available so we cannot use alloca().
+	 */
+	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
+	if (cache == MAP_FAILED)
+	    cache = NULL;
 	if (cache != NULL)
-	    memset(cache, 0, obj->nchains * sizeof(SymCache));
+	    memset(cache, 0, bytes);
 
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
@@ -137,7 +145,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
-			return -1;
+			goto done;
 
 		    *where += (Elf_Addr) (defobj->relocbase + def->st_value);
 		}
@@ -156,7 +164,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
-			return -1;
+			goto done;
 
 		    *where +=
 		      (Elf_Addr) (defobj->relocbase + def->st_value) -
@@ -174,7 +182,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		if (!obj->mainprog) {
 		    _rtld_error("%s: Unexpected R_386_COPY relocation"
 		      " in shared library", obj->path);
-		    return -1;
+		    goto done;
 		}
 		break;
 
@@ -186,7 +194,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
 		      false, cache);
 		    if (def == NULL)
-			return -1;
+			goto done;
 
 		    *where = (Elf_Addr) (defobj->relocbase + def->st_value);
 		}
@@ -200,10 +208,14 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		_rtld_error("%s: Unsupported relocation type %d"
 		  " in non-PLT relocations\n", obj->path,
 		  ELF_R_TYPE(rel->r_info));
-		return -1;
+		goto done;
 	    }
 	}
-    return 0;
+	if (cache)
+	    munmap(cache, bytes);
+    r = 0;
+done:
+    return(r);
 }
 
 /* Process the PLT relocations. */
