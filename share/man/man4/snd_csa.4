@@ -25,19 +25,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 1999
-.Dt CSA 4
+.Dd August 28, 2004
+.Dt SND_CSA 4
 .Os
 .Sh NAME
-.Nm csa
+.Nm snd_csa
 .Nd Crystal Semiconductor CS461x/462x/4280 PCI bridge device driver
 .Sh SYNOPSIS
-.Cd "device csa"
+.Cd "device sound"
+.Cd "device snd_csa"
 .Sh DESCRIPTION
 The
 .Nm
 bridge driver allows the generic audio drivers including
-.Xr pcm 4
+.Xr sound 4
 to attach to the following PCI sound cards:
 .Bl -bullet -width 2m
 .It
@@ -58,6 +59,6 @@ The
 device driver first appeared in
 .Fx 4.0 .
 .Sh SEE ALSO
-.Xr pcm 4
+.Xr sound 4
 .Sh AUTHORS
 .An Seigo Tanimura Aq tanimura@r.dl.itc.u-tokyo.ac.jp
