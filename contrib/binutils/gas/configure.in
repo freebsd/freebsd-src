@@ -11,7 +11,7 @@ AC_INIT(as.h)
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(gas, 2.10)
+AM_INIT_AUTOMAKE(gas, 2.10.1)
 
 AM_PROG_LIBTOOL
 
@@ -353,7 +353,15 @@ changequote([,])dnl
       sparc-fujitsu-none)   fmt=aout ;;
       sparc-*-elf | sparc-*-sysv4* | sparc-*-solaris*)
 			    fmt=elf ;;
-      sparc-*-netbsd*)      fmt=aout em=nbsd ;;
+      sparc-*-netbsd*)      em=nbsd bfd_gas=yes
+                            case ${cpu} in
+                                sparc) case ${os} in
+                                           *elf*) fmt=elf ;;
+                                           *)     fmt=aout ;;
+                                       esac ;;
+                                sparc64) fmt=elf ;;
+                            esac
+                            ;;
       sparc-*-openbsd*)     fmt=aout em=nbsd ;;
 
       sparc*-*-freebsd)	    fmt=elf em=freebsd ;;
