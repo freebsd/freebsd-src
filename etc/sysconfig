@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.5 1995/03/23 01:25:19 jkh Exp $
+#	$Id: sysconfig,v 1.6 1995/03/24 00:01:21 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -135,6 +135,5 @@ accounting=NO
 
 ######################### Start Of Misc Section #######################
 
-# Set to YES if you want ibcs2 emulation loaded at startup
+# Set to YES if you want ibcs2 (SCO) emulation loaded at startup
 ibcs2=NO
-
