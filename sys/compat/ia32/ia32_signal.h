@@ -151,6 +151,7 @@ struct ia32_sigframe {
 	u_int32_t		sf_ucontext;	/* points to sf_uc */
 	u_int32_t		sf_addr;	/* undocumented 4th arg */
 	u_int32_t		sf_ah;		/* action/handler pointer */
+	/* Beware, hole due to ucontext being 16 byte aligned! */
 	struct ia32_ucontext	sf_uc;		/* = *sf_ucontext */
 	struct ia32_siginfo	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
