@@ -1,3 +1,6 @@
+/*
+ * This file written by Garrett A. Wollman is in the public domain.
+ */
 #include <sys/param.h>
 #include <sys/devconf.h>
 
