@@ -103,7 +103,7 @@ in6_cksum(m, nxt, off, len)
 #if 0
 	int srcifid = 0, dstifid = 0;
 #endif
-	struct ip6_hdr *ip6;	
+	struct ip6_hdr *ip6;
 	union {
 		u_int16_t phs[4];
 		struct {
@@ -123,7 +123,7 @@ in6_cksum(m, nxt, off, len)
 
 	/* sanity check */
 	if (m->m_pkthdr.len < off + len) {
-		panic("in6_cksum: mbuf len (%d) < off+len (%d+%d)\n",
+		panic("in6_cksum: mbuf len (%d) < off+len (%d+%d)",
 			m->m_pkthdr.len, off, len);
 	}
 
@@ -236,7 +236,7 @@ in6_cksum(m, nxt, off, len)
 	/*
 	 * Lastly calculate a summary of the rest of mbufs.
 	 */
-	
+
 	for (;m && len; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
@@ -308,7 +308,7 @@ in6_cksum(m, nxt, off, len)
 			s_util.c[0] = *(char *)w;
 	}
 	if (len)
-		panic("in6_cksum: out of data\n");
+		panic("in6_cksum: out of data");
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
 		   standard (the odd byte may be shifted left by 8 bits

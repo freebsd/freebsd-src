@@ -94,7 +94,7 @@ ah_hdrsiz(isr)
 
 	/* sanity check */
 	if (isr == NULL)
-		panic("ah_hdrsiz: NULL was passed.\n");
+		panic("ah_hdrsiz: NULL was passed.");
 
 	if (isr->saidx.proto != IPPROTO_AH)
 		panic("unsupported mode passed to ah_hdrsiz");
