@@ -18,16 +18,14 @@ INSTALL_PIC_ARCHIVE=  yes
 CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED
 .if ${OBJFORMAT} != aout
-#CFLAGS+=	-fPIC -D_PTHREADS -DGTHREAD_USE_WEAK
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
 
 all: lib${LIB}.a
 
+CLEANFILES+=	lib${LIB}.a
 lib${LIB}.a: libgcc_build.a
 	cp -p ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	lib${LIB}.a
 
 #
 #	fake out to semi-follow what is done in GCC's Makefile.in
