@@ -70,7 +70,6 @@ int	ffs_flushfiles(struct mount *, int, struct thread *);
 void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_freefile(struct fs *, struct vnode *, ino_t, int );
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
-int	ffs_isfreeblock(struct fs *, unsigned char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct malloc_type *,
 	    struct fs *, ino_t);
 int	ffs_mountfs(struct vnode *, struct mount *, struct thread *,
