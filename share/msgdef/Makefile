@@ -3,7 +3,7 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        af_ZA.ISO8859-1 \
+LOCALES=	af_ZA.ISO8859-1 \
 		bg_BG.CP1251 \
 		cs_CZ.ISO8859-2 \
 		da_DK.ISO8859-1 \
@@ -39,20 +39,16 @@ LOCALES=        af_ZA.ISO8859-1 \
 		zh_TW.Big5 \
 		zh_CN.eucCN
 
-ASCIILINKS =    en_CA en_GB en_US
-8859_15_LINKS = af_ZA da_DK de_DE en_CA en_GB en_US es_ES fi_FI fr_CH \
-		fr_FR is_IS is_IS it_IT nl_NL no_NO pt_PT sv_SE
+LOCALEDIR=	${DESTDIR}/usr/share/locale
 
-ENGLISH=        en_GB
-ENGLISHLINKS=   en_AU en_NZ
-FRENCH=         fr_FR
-FRENCHLINKS=    fr_CA
-GERMAN=         de_DE
-GERMANLINKS=    de_AT
-CZECH=          cs_CZ
-CZECHLINKS=     sk_SK
+ASCIILINKS=	en_CA en_GB en_US
+LATIN15LINKS=	af_ZA da_DK de_DE en_CA en_GB en_US es_ES fi_FI fr_CH \
+		fr_FR is_IS it_IT nl_NL no_NO pt_PT sv_SE
 
-LOCALEDIR=      ${DESTDIR}/usr/share/locale
+GB_LINKS=	en_AU en_NZ
+FR_LINKS=	fr_CA
+DE_LINKS=	de_AT
+CZ_LINKS=	sk_SK
 
 .SUFFIXES: .src .out
 
@@ -68,32 +64,32 @@ afterinstall:
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_MESSAGES
 .endfor
-.for link in ${8859_15_LINKS}
+.for link in ${LATIN15LINKS}
 	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
 	       ${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
 .endfor
-.for link in ${ENGLISHLINKS}
-	ln -sf ../${ENGLISH}.ISO8859-1/LC_MESSAGES \
+.for link in ${GB_LINKS}
+	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../${ENGLISH}.ISO8859-1/LC_MESSAGES \
+	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
-	ln -sf ../${ENGLISH}.ISO8859-1/LC_MESSAGES \
+	ln -sf ../en_GB.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.US-ASCII/LC_MESSAGES
 .endfor
-.for link in ${FRENCHLINKS}
-	ln -sf ../${FRENCH}.ISO8859-1/LC_MESSAGES \
+.for link in ${FR_LINKS}
+	ln -sf ../fr_FR.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../${FRENCH}.ISO8859-1/LC_MESSAGES \
+	ln -sf ../fr_FR.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
 .endfor
-.for link in ${GERMANLINKS}
-	ln -sf ../${GERMAN}.ISO8859-1/LC_MESSAGES \
+.for link in ${DE_LINKS}
+	ln -sf ../de_DE.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
-	ln -sf ../${GERMAN}.ISO8859-1/LC_MESSAGES \
+	ln -sf ../de_DE.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
 .endfor
-.for link in ${CZECHLINKS}
-	ln -sf ../${CZECH}.ISO8859-2/LC_MESSAGES \
+.for link in ${CZ_LINKS}
+	ln -sf ../cs_CZ.ISO8859-2/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-2/LC_MESSAGES
 .endfor
 .for link in ${ASCIILINKS}
