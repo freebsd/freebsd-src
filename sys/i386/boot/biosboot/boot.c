@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.70 1998/02/01 05:24:24 yokota Exp $
+ *	$Id: boot.c,v 1.71 1998/09/23 06:50:45 yokota Exp $
  */
 
 
@@ -317,6 +317,7 @@ loadprog(void)
 	bootinfo.bi_kernelname = name + ouraddr;
 	bootinfo.bi_nfs_diskless = NULL;
 	bootinfo.bi_size = sizeof(bootinfo);
+	bootinfo.bi_bios_dev = dosdev;
 
 	/*
 	 * Load the kernel config file (if any).  Its name is given by
