@@ -40,17 +40,19 @@
 .Op Fl c Ar size
 .Op Fl s Ar size
 .Op Fl W Ar num
-.Ar bus:target:lun
+.Ar bus : Ns Ar target : Ns Ar lun
 .Ar filename
 .Sh DESCRIPTION
 The
 .Nm
-program emulates a SCSI target device using the
+utility emulates a SCSI target device using the
 .Xr targ 4
-device driver.  It supports the basic commands of a direct access device, like 
+device driver.
+It supports the basic commands of a direct access device, like
 .Xr da 4 .
 In typical operation, it opens a control device and
-enables target mode for the specified LUN.  It then communicates with
+enables target mode for the specified LUN.
+It then communicates with
 the SIM using CCBs exchanged via
 .Xr read 2
 and
@@ -61,78 +63,81 @@ For performance, all backing store accesses use
 .Xr aio 4 .
 Thus,
 .Nm
-requires a kernel compiled with "options VFS_AIO".
+requires a kernel compiled with
+.Cd "options VFS_AIO" .
 .Pp
 Options:
-.Pp
-.Bl -tag -width XXXXXXXXXXXXXX
+.Bl -tag -width indent
 .It Fl A
-Enable 16 addresses if supported by the SIM.  Default is 8.
+Enable 16 addresses if supported by the SIM.
+Default is 8.
 .It Fl S
-Enable synchronous transfers if supported by the SIM.  Default is disabled.
+Enable synchronous transfers if supported by the SIM.
+Default is disabled.
 .It Fl T
-Enable tagged queuing if supported by the SIM.  Default is no tagged
-queuing.
-.It Fl W Ar "8,16,32"
-Enable 16 or 32 bit wide transfers if supported by the SIM.  Default is 8.
+Enable tagged queuing if supported by the SIM.
+Default is no tagged queuing.
+.It Fl W Cm 8 | 16 | 32
+Enable 16 or 32 bit wide transfers if supported by the SIM.
+Default is 8.
 .It Fl b Ar bufsize
-Set buffer size for transfers.  Transfers larger than this will be split
-into multiple transfers.
+Set buffer size for transfers.
+Transfers larger than this will be split into multiple transfers.
 .It Fl c Ar sectorsize
-Set sector size for emulated volume.  Default is 512.
+Set sector size for emulated volume.
+Default is 512.
 .It Fl d
 Enable debugging output in
 .Nm
 and its associated control device.
 .It Fl s Ar volsize
-Use a different size for the emulated volume.  Must be less than or equal
-to the size of
+Use a different size for the emulated volume.
+Must be less than or equal to the size of
 .Ar filename .
 .El
 .Pp
 Required arguments:
-.Bl -tag -width XXXXXXXXXXXXXX
-.It Ar bus:target:lun
-Attach to specified bus id, target id, and lun.
+.Bl -tag -width indent
+.It Ar bus : Ns Ar target : Ns Ar lun
+Attach to specified bus ID, target ID, and LUN.
 .It Ar filename
-file to use as a backing store
+File to use as a backing store.
 .El
 .Pp
 All options default to the minimal functionality of SCSI-1.
 To be safe,
 .Nm
 checks the SIM for the requested capability before enabling target mode.
-.Sh EXAMPLE
+.Sh EXAMPLES
 Create a 5 megabyte backing store file.
-.Bd -literal
-# dd if=/dev/zero of=vol size=1m count=5
-.Ed
 .Pp
-Enable target mode on bus 0, target id 1, lun 0, using 
-.Ar vol
+.Dl "dd if=/dev/zero of=vol size=1m count=5"
+.Pp
+Enable target mode on bus 0, target ID 1, LUN 0, using
+.Pa vol
 as the backing store for READ6/10 and WRITE6/10 commands.
-Only the first 1000 bytes of 
-.Ar vol
-will be used.  Debugging information will be output.
+Only the first 1000 bytes of
+.Pa vol
+will be used.
+Debugging information will be output.
 16-bit wide transfers will be used if the SIM supports them.
 .Pp
-.Bd -literal
-# scsi_target -d -v 1000 -W 16 0:1:0 vol
-.Ed
+.Dl "scsi_target -d -v 1000 -W 16 0:1:0 vol"
 .Sh FILES
-.Bl -tag -width /usr/share/examples/scsi_target -compact
+.Bl -tag -width ".Pa /usr/share/examples/scsi_target" -compact
 .It Pa /dev/targ*
-are the control devices.
+Control devices.
 .It Pa /usr/share/examples/scsi_target
-is the source directory.
+Source directory.
 .El
 .Sh SEE ALSO
-.Xr targ 4 ,
-.Xr scsi 4
+.Xr scsi 4 ,
+.Xr targ 4
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-example first appeared in 
+example first appeared in
 .Fx 3.0
 and was written by
 .An Justin T. Gibbs .
