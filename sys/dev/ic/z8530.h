@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_UART_DEV_Z8530_H_
-#define _DEV_UART_DEV_Z8530_H_
+#ifndef _DEV_IC_Z8530_H_
+#define	_DEV_IC_Z8530_H_
 
 /*
  * Channel B control:	0
@@ -249,4 +249,4 @@
 #define	TPC_RTS		0x02	/* RTS. */
 #define	TPC_CRC		0x01	/* CRC Enable. */
 
-#endif /* _DEV_UART_DEV_Z8530_H_ */
+#endif /* _DEV_IC_Z8530_H_ */
