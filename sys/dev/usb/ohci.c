@@ -63,6 +63,7 @@
 #endif
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/endian.h>
@@ -88,10 +89,13 @@ struct cfdriver ohci_cd = {
 };
 #endif
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (ohcidebug) logprintf x
 #define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
-int ohcidebug = 1;
+int ohcidebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
+	   &ohcidebug, 0, "ohci debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -210,7 +214,7 @@ Static void		ohci_abort_xfer_end(void *);
 Static void		ohci_device_clear_toggle(usbd_pipe_handle pipe);
 Static void		ohci_noop(usbd_pipe_handle pipe);
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 Static void		ohci_dumpregs(ohci_softc_t *);
 Static void		ohci_dump_tds(ohci_soft_td_t *);
 Static void		ohci_dump_td(ohci_soft_td_t *);
@@ -778,7 +782,7 @@ ohci_init(sc)
 		err = USBD_IOERROR;
 		goto bad5;
 	}
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 15)
 		ohci_dumpregs(sc);
 #endif
@@ -815,7 +819,7 @@ ohci_init(sc)
 
 	sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 5)
 		ohci_dumpregs(sc);
 #endif
@@ -923,7 +927,7 @@ ohci_power(why, v)
 	int why;
 	void *v;
 {
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	ohci_softc_t *sc = v;
 
 	DPRINTF(("ohci_power: sc=%p, why=%d\n", sc, why));
@@ -933,7 +937,7 @@ ohci_power(why, v)
 }
 #endif
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 void
 ohci_dumpregs(sc)
 	ohci_softc_t *sc;
@@ -1110,7 +1114,7 @@ ohci_rhsc_able(sc, on)
 	}
 }
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 char *ohci_cc_strs[] = {
 	"NO_ERROR",
 	"CRC",
@@ -1147,7 +1151,7 @@ ohci_process_done(sc, done)
 	for (; done; done = LE(std->td.td_nexttd)) {
 		std = ohci_hash_find_td(sc, done & LE(OHCI_TAILMASK));
 		if (std == NULL) {
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 			DPRINTF(("%s: Invalid done queue 0x%08x",
 				USBDEVNAME(sc->sc_bus.bdev), done));
 			ohci_dumpregs(sc);
@@ -1164,7 +1168,7 @@ ohci_process_done(sc, done)
 		sdone = std;
 	}
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 10) {
 		DPRINTF(("ohci_process_done: TD done:\n"));
 		for (std = sdone; std; std = std->dnext)
@@ -1382,7 +1386,7 @@ ohci_waitintr(sc, xfer)
 		usb_delay_ms(&sc->sc_bus, 1);
 		intrs = OREAD4(sc, OHCI_INTERRUPT_STATUS) & sc->sc_eintrs;
 		DPRINTFN(15,("ohci_waitintr: 0x%04x\n", intrs));
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 		if (ohcidebug > 15)
 			ohci_dumpregs(sc);
 #endif
@@ -1395,7 +1399,7 @@ ohci_waitintr(sc, xfer)
 
 	/* Timeout */
 	DPRINTF(("ohci_waitintr: timeout\n"));
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	ohci_dumpregs(sc);
 #endif
 	xfer->status = USBD_TIMEOUT;
@@ -1511,7 +1515,7 @@ ohci_device_request(xfer)
 	stat->len = 0;
 	stat->xfer = xfer;
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 5) {
 		DPRINTF(("ohci_device_request:\n"));
 		ohci_dump_ed(sed);
@@ -1530,7 +1534,7 @@ ohci_device_request(xfer)
 	}
 	splx(s);
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 25) {
 		usb_delay_ms(&sc->sc_bus, 5);
 		DPRINTF(("ohci_device_request: status=%x\n",
@@ -1663,7 +1667,7 @@ ohci_timeout(addr)
 	splx(s);
 }
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 void
 ohci_dump_tds(std)
 	ohci_soft_td_t *std;
@@ -1879,7 +1883,7 @@ ohci_abort_xfer(xfer, status)
 
 	sed = opipe->sed;
 	sed->ed.ed_flags |= LE(OHCI_ED_SKIP); /* force hardware skip */
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
 	ohci_dump_ed(sed);
 #endif
@@ -2557,7 +2561,7 @@ ohci_device_bulk_start(xfer)
 		    (int)LE(sed->ed.ed_flags), (int)LE(data->td.td_flags),
 		    (int)LE(data->td.td_cbp), (int)LE(data->td.td_be)));
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 4) {
 		ohci_dump_ed(sed);
 		ohci_dump_tds(data);
@@ -2678,7 +2682,7 @@ ohci_device_intr_start(xfer)
 	data->flags = OHCI_CALL_DONE | OHCI_ADD_LEN;
 	xfer->hcpriv = data;
 
-#ifdef OHCI_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 5) {
 		DPRINTF(("ohci_device_intr_transfer:\n"));
 		ohci_dump_ed(sed);

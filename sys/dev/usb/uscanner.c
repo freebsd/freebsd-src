@@ -60,6 +60,7 @@
 #include <sys/vnode.h>
 #include <sys/poll.h>
 #include <sys/conf.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -67,10 +68,13 @@
 
 #include <dev/usb/usbdevs.h>
 
-#ifdef USCANNER_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uscannerdebug) logprintf x
 #define DPRINTFN(n,x)	if (uscannerdebug>(n)) logprintf x
 int	uscannerdebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, uscanner, CTLFLAG_RW, 0, "USB uscanner");
+SYSCTL_INT(_hw_usb_uscanner, OID_AUTO, debug, CTLFLAG_RW,
+	   &uscannerdebug, 0, "uscanner debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

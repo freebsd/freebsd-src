@@ -50,7 +50,7 @@
 
 #include <dev/usb/hid.h>
 
-#ifdef UHID_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int usbdebug;

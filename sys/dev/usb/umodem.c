@@ -70,6 +70,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -81,10 +82,13 @@
 
 #include <dev/usb/usbdevs.h>
 
-#ifdef UMODEM_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x) if(umodemdebug) logprintf x
 #define DPRINTFN(n, x) if(umodemdebug > (n)) logprintf x
-int	umodemdebug = 1;
+int	umodemdebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
+	   &umodemdebug, 0, "umodem debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n, x)

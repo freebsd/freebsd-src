@@ -60,15 +60,19 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#ifdef UGEN_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (ugendebug) logprintf x
 #define DPRINTFN(n,x)	if (ugendebug>(n)) logprintf x
 int	ugendebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB ugen");
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW,
+	   &ugendebug, 0, "ugen debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -1080,7 +1084,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		return (EINVAL);
 
 	switch (cmd) {
-#ifdef UGEN_DEBUG
+#ifdef USB_DEBUG
 	case USB_SETDEBUG:
 		ugendebug = *(int *)addr;
 		break;
