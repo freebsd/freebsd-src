@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - logging routines
  *	-----------------------------
  *
- *	$Id: log.c,v 1.25 2000/10/09 12:53:29 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:47:28 1999]
+ *      last edit-date: [Wed Dec 26 12:49:45 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -126,7 +124,7 @@ init_log(void)
 void
 finish_log(void)
 {
-	if(uselogfile)
+	if(uselogfile && logfp)
 	{
 		fflush(logfp);
 		fclose(logfp);

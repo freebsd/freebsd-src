@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 20 19:16:27 2001]
+ *      last edit-date: [Wed Dec 26 12:57:07 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -86,17 +86,17 @@ configure(char *filename, int reread)
 
 	yyin = fopen(filename, "r");
 
-	if(reread)
-	{
-		reset_scanner(yyin);
-	}
-	
-	if (yyin == NULL)
+	if(yyin == NULL)
 	{
 		log(LL_ERR, "cannot fopen file [%s]", filename);
 		exit(1);
 	}
 
+	if(reread)
+	{
+		reset_scanner(yyin);
+	}
+	
 	yyparse();
 	
 	monitor_fixup_rights();
@@ -465,8 +465,10 @@ cfg_setval(int keyword)
 						fclose(fp);
 						fp = fopen(yylval.str, "w");
 						if(fp != NULL)
+						{
 							fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
-						fclose(fp);
+							fclose(fp);
+						}
 					}
 				}
 				else
@@ -474,8 +476,10 @@ cfg_setval(int keyword)
 					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-callbacksfile %s", entrycount, yylval.str)));
 					fp = fopen(yylval.str, "w");
 					if(fp != NULL)
+					{
 						fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
-					fclose(fp);
+						fclose(fp);
+					}
 				}
 
 				fp = fopen(yylval.str, "r");
@@ -516,8 +520,10 @@ cfg_setval(int keyword)
 						fclose(fp);
 						fp = fopen(yylval.str, "w");
 						if(fp != NULL)
+						{
 							fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
-						fclose(fp);
+							fclose(fp);
+						}
 					}
 				}
 				else
@@ -525,8 +531,10 @@ cfg_setval(int keyword)
 					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: creating budget-calloutsfile %s", entrycount, yylval.str)));
 					fp = fopen(yylval.str, "w");
 					if(fp != NULL)
+					{
 						fprintf(fp, "%d %d %d", (int)time(NULL), (int)time(NULL), 0);
-					fclose(fp);
+						fclose(fp);
+					}
 				}
 
 				fp = fopen(yylval.str, "r");
