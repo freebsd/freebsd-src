@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.24 1996/03/09 23:48:53 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.25 1996/06/24 04:23:54 jkh Exp $
 
 PRINTER?=	ascii
 
@@ -76,14 +76,6 @@ clean:
 
 FILES?=	${SRCS}
 realinstall:
-	@if [ ! -d "${DESTDIR}${BINDIR}/${VOLUME}" ]; then \
-                /bin/rm -f ${DESTDIR}${BINDIR}/${VOLUME}  ; \
-                mkdir -p ${DESTDIR}${BINDIR}/${VOLUME}  ; \
-                chown root.wheel ${DESTDIR}${BINDIR}/${VOLUME}  ; \
-                chmod 755 ${DESTDIR}${BINDIR}/${VOLUME}  ; \
-        else \
-                true ; \
-        fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 
