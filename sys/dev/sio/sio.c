@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.242 1999/05/22 15:47:34 dfr Exp $
+ *	$Id: sio.c,v 1.243 1999/05/28 09:37:11 dfr Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -598,6 +598,13 @@ sioprobe(dev)
 	u_int		flags = isa_get_flags(dev);
 	int		rid;
 	struct resource *port;
+
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev)
+	    && isa_get_compatid(dev) != PNP_EISAID("PNP0500")
+	    && isa_get_compatid(dev) != PNP_EISAID("PNP0501")
+	    && isa_get_compatid(dev) != PNP_EISAID("PNP0502"))
+		return (ENXIO);
 
 	rid = 0;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
