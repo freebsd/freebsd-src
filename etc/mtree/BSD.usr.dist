@@ -1,16 +1,16 @@
-#	$Id: BSD.usr.dist,v 1.122 1998/09/10 15:46:41 bde Exp $
+#	$Id: BSD.usr.dist,v 1.123 1998/09/12 21:16:16 jkh Exp $
 #
 
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
 .               uname=root gname=wheel
     bin
     ..
-/set type=dir uname=games gname=bin mode=0700
-    games           uname=bin mode=0755
+/set type=dir uname=games gname=games mode=0700
+    games           uname=root mode=0755
         hide        gname=games uname=root mode=0550
         ..
     ..
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
     include
     ..
     lib
@@ -350,8 +350,8 @@
             worm
             ..
         ..
-/set type=dir uname=games gname=bin mode=0755
-        games           uname=bin
+/set type=dir uname=games gname=games mode=0755
+        games           uname=root
             atc
             ..
             fortune
@@ -361,7 +361,7 @@
             quiz.db
             ..
         ..
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
         groff_font
             devX100
             ..
@@ -464,8 +464,8 @@
 	    zh_TW.BIG5
             ..
         ..
-/set type=dir uname=man gname=bin mode=0755
-        man             uname=bin
+/set type=dir uname=man gname=root mode=0755
+        man             uname=wheel
             cat1
             ..
             cat1aout
@@ -494,7 +494,7 @@
             ..
 	    catn
 	    ..
-            ja          uname=bin
+            ja          uname=root
                 cat1
                 ..
                 cat2
@@ -515,36 +515,36 @@
                 ..
                 catn
                 ..
-                man1            uname=bin
+                man1            uname=root
                 ..
-                man2            uname=bin
+                man2            uname=root
                 ..
-                man3            uname=bin
+                man3            uname=root
                 ..
-                man4            uname=bin
+                man4            uname=root
                 ..
-                man5            uname=bin
+                man5            uname=root
                 ..
-                man6            uname=bin
+                man6            uname=root
                 ..
-                man7            uname=bin
+                man7            uname=root
                 ..
-                man8            uname=bin
+                man8            uname=root
                 ..
-                man9            uname=bin
+                man9            uname=root
                 ..
-                mann            uname=bin
+                mann            uname=root
                 ..
             ..
-            man1            uname=bin
+            man1            uname=root
             ..
-            man1aout        uname=bin
+            man1aout        uname=root
             ..
-            man2            uname=bin
+            man2            uname=root
             ..
-            man3            uname=bin
+            man3            uname=root
             ..
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
             man4
                 i386
                 ..
@@ -659,15 +659,15 @@
 	    ..
 	..
 	perl
-/set type=dir uname=man gname=bin mode=0755
-	    man			uname=bin
+/set type=dir uname=root gname=wheel mode=0755
+	    man			uname=root
 		cat3
 		..
-		man3		uname=bin
+		man3		uname=root
 		..
 	    ..
 	..
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
         skel
         ..
         syscons
@@ -694,7 +694,7 @@
 	    tcl
 	    ..
 	..
-/set type=dir uname=bin gname=bin mode=0555
+/set type=dir uname=root gname=wheel mode=0555
         zoneinfo        mode=0755
             Africa
             ..
