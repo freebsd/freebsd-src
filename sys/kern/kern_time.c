@@ -209,7 +209,12 @@ clock_getres(p, uap)
 	error = 0;
 	if (SCARG(uap, tp)) {
 		ts.tv_sec = 0;
-		ts.tv_nsec = 1000000000 / timecounter->tc_frequency;
+		/*
+		 * Round up the result of the division cheaply by adding 1.
+		 * Rounding up is especially important if rounding down
+		 * would give 0.  Perfect rounding is unimportant.
+		 */
+		ts.tv_nsec = 1000000000 / timecounter->tc_frequency + 1;
 		error = copyout(&ts, SCARG(uap, tp), sizeof(ts));
 	}
 	return (error);
