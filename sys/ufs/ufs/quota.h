@@ -178,25 +178,25 @@ struct thread;
 struct ucred;
 struct vnode;
 
-int	chkdq __P((struct inode *, long, struct ucred *, int));
-int	chkiq __P((struct inode *, long, struct ucred *, int));
-void	dqinit __P((void));
-void	dqrele __P((struct vnode *, struct dquot *));
-int	getinoquota __P((struct inode *));
-int	getquota __P((struct mount *, u_long, int, caddr_t));
-int	qsync __P((struct mount *mp));
-int	quotaoff __P((struct thread *td, struct mount *, int));
-int	quotaon __P((struct thread *td, struct mount *, int, caddr_t));
-int	setquota __P((struct mount *, u_long, int, caddr_t));
-int	setuse __P((struct mount *, u_long, int, caddr_t));
-int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct thread *td));
+int	chkdq(struct inode *, long, struct ucred *, int);
+int	chkiq(struct inode *, long, struct ucred *, int);
+void	dqinit(void);
+void	dqrele(struct vnode *, struct dquot *);
+int	getinoquota(struct inode *);
+int	getquota(struct mount *, u_long, int, caddr_t);
+int	qsync(struct mount *mp);
+int	quotaoff(struct thread *td, struct mount *, int);
+int	quotaon(struct thread *td, struct mount *, int, caddr_t);
+int	setquota(struct mount *, u_long, int, caddr_t);
+int	setuse(struct mount *, u_long, int, caddr_t);
+int	ufs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *td);
 
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	quotactl __P((const char *, int, int, void *));
+int	quotactl(const char *, int, int, void *);
 __END_DECLS
 
 #endif /* _KERNEL */
