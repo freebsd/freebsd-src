@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57.2.3 1997/01/31 04:17:20 dyson Exp $
+ * $Id: vm_map.c,v 1.57.2.4 1997/03/25 04:54:26 dyson Exp $
  */
 
 /*
@@ -283,9 +283,9 @@ vm_map_create(pmap, min, max, pageable)
 
 	if (kmem_map == NULL) {
 		result = kmap_free;
-		kmap_free = (vm_map_t) result->header.next;
 		if (result == NULL)
 			panic("vm_map_create: out of maps");
+		kmap_free = (vm_map_t) result->header.next;
 	} else
 		MALLOC(result, vm_map_t, sizeof(struct vm_map),
 		    M_VMMAP, M_WAITOK);
@@ -935,6 +935,23 @@ _vm_map_clip_start(map, entry, start)
 
 	vm_map_simplify_entry(map, entry);
 
+	/*
+	 * If there is no object backing this entry, we might as well create
+	 * one now.  If we defer it, an object can get created after the map
+	 * is clipped, and individual objects will be created for the split-up
+	 * map.  This is a bit of a hack, but is also about the best place to
+	 * put this improvement.
+	 */
+
+	if (entry->object.vm_object == NULL) {
+			vm_object_t object;
+
+			object = vm_object_allocate(OBJT_DEFAULT,
+					OFF_TO_IDX(entry->end - entry->start));
+			entry->object.vm_object = object;
+			entry->offset = 0;
+	}
+
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
@@ -975,6 +992,23 @@ _vm_map_clip_end(map, entry, end)
 	register vm_offset_t end;
 {
 	register vm_map_entry_t new_entry;
+
+	/*
+	 * If there is no object backing this entry, we might as well create
+	 * one now.  If we defer it, an object can get created after the map
+	 * is clipped, and individual objects will be created for the split-up
+	 * map.  This is a bit of a hack, but is also about the best place to
+	 * put this improvement.
+	 */
+
+	if (entry->object.vm_object == NULL) {
+			vm_object_t object;
+
+			object = vm_object_allocate(OBJT_DEFAULT,
+					OFF_TO_IDX(entry->end - entry->start));
+			entry->object.vm_object = object;
+			entry->offset = 0;
+	}
 
 	/*
 	 * Create a new entry and insert it AFTER the specified entry
@@ -1174,10 +1208,12 @@ vm_map_protect(map, start, end, new_prot, set_max)
 #undef	max
 #undef	MASK
 		}
+
+		vm_map_simplify_entry(map, current);
+
 		current = current->next;
 	}
 
-	vm_map_simplify_entry(map, entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1455,8 +1491,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			}
 
 			lock_clear_recursive(&map->lock);
-			vm_map_unlock(map);
-			vm_map_lock(map);
+			lock_read_to_write(&map->lock);
 
 			goto rescan;
 		}
