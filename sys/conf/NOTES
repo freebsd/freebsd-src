@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.249 1996/04/11 06:19:44 scrappy Exp $
+#	$Id: LINT,v 1.250 1996/04/22 19:40:25 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -448,19 +448,6 @@ options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
-
-#
-# Options for `sc':
-#
-# HARDFONTS allows the driver to load an ISO-8859-1 font to replace
-# the default font in your display adapter's memory.
-#
-options		HARDFONTS
-#
-# MAXCONS is maximum number of virtual consoles, no more than 16
-# default value: 12
-#
-options         MAXCONS=16
 
 #
 # This device is mandatory.
