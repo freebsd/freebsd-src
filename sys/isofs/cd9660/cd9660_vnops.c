@@ -167,14 +167,7 @@ cd9660_getattr(ap)
 	struct iso_node *ip = VTOI(vp);
 
 	vap->va_fsid	= dev2udev(ip->i_dev);
-
-	/*
-	 * Don't use ip->i_ino for this since it is wrong for hard links.
-	 * ip->i_ino should be the same as ip->iso_start (or not exist),
-	 * but this currently doesn't work since we abuse it to look up
-	 * parent directories from inodes.
-	 */
-	vap->va_fileid	= ip->iso_start;
+	vap->va_fileid	= ip->i_number;
 
 	vap->va_mode	= ip->inode.iso_mode;
 	vap->va_nlink	= ip->inode.iso_links;
@@ -528,12 +521,11 @@ cd9660_readdir(ap)
 			break;
 		}
 
-		/*
-		 * The "inode number" is iso_start, not i_ino, as in
-		 * cd9660_getattr().
-		 */
-		idp->current.d_fileno = isonum_711(ep->ext_attr_length) +
-		    isonum_733(ep->extent);
+		if (isonum_711(ep->flags)&2)
+			idp->current.d_fileno = isodirino(ep, imp);
+		else
+			idp->current.d_fileno = dbtob(bp->b_blkno) +
+				entryoffsetinblock;
 
 		idp->curroff += reclen;
 
