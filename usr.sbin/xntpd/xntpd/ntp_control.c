@@ -294,7 +294,7 @@ static struct utsname utsname;
 static u_char clocktypes[] = {
 	CTL_SST_TS_NTP,		/* REFCLK_NONE */
 	CTL_SST_TS_UNSPEC,	/* REFCLK_LOCALCLOCK */
-	CTL_SST_TS_HF,		/* REFCLK_WWV_HEATH */
+	CTL_SST_TS_HF,		/* REFCLK_GPS_TRAK */
 	CTL_SST_TS_HF,		/* REFCLK_WWV_PST */
 	CTL_SST_TS_LF,		/* REFCLK_WWVB_SPECTRACOM */
 	CTL_SST_TS_UHF,		/* REFCLK_GOES_TRUETIME */
