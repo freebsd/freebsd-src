@@ -83,26 +83,26 @@ num_inodes_by_path(char *path)
 	return (buf.f_files);
 }
 
+static const char zero_buf[8192];
+
 int
 initattr(int argc, char *argv[])
 {
 	struct ufs_extattr_fileheader	uef;
 	char	*fs_path = NULL;
-	char	*zero_buf = NULL;
-	long	loop, num_inodes;
-	int	ch, i, error, chunksize, overwrite = 0, flags;
+	int	ch, i, error, flags;
+	ssize_t	wlen;
+	size_t	easize;
 
+	flags = O_CREAT | O_WRONLY | O_TRUNC | O_EXCL;
 	optind = 0;
 	while ((ch = getopt(argc, argv, "fp:r:w:")) != -1)
 		switch (ch) {
 		case 'f':
-			overwrite = 1;
+			flags &= ~O_EXCL;
 			break;
 		case 'p':
-			if ((fs_path = strdup(optarg)) == NULL) {
-				perror("strdup");
-				return(-1);
-			}
+			fs_path = optarg;
 			break;
 		case '?':
 		default:
@@ -115,43 +115,31 @@ initattr(int argc, char *argv[])
 	if (argc != 2)
 		usage();
 
-	if (overwrite)
-		flags = O_CREAT | O_WRONLY;
-	else
-		flags = O_CREAT | O_EXCL | O_WRONLY;
-
 	error = 0;
-	if ((i = open(argv[1], flags, 0600)) != -1) {
-		uef.uef_magic = UFS_EXTATTR_MAGIC;
-		uef.uef_version = UFS_EXTATTR_VERSION;
-		uef.uef_size = atoi(argv[0]);
-		if (write(i, &uef, sizeof(uef)) == -1)
-			error = -1;
-		else if (fs_path) {
-			chunksize = sizeof(struct ufs_extattr_header) +
-			    uef.uef_size;
-			zero_buf = (char *) (malloc(chunksize));
-			if (zero_buf == NULL) {
-				perror("malloc");
-				unlink(argv[1]);
-				return (-1);
-			}
-			memset(zero_buf, 0, chunksize);
-			num_inodes = num_inodes_by_path(fs_path);
-			for (loop = 0; loop < num_inodes; loop++) {
-				error = write(i, zero_buf, chunksize);
-				if (error != chunksize) {
-					perror("write");
-					unlink(argv[1]);
-					return (-1);
-				}
-			}
-		}
-	}
-	if (i == -1) {
+	if ((i = open(argv[1], flags, 0600)) == -1) {
 		/* unable to open file */
 		perror(argv[1]);
 		return (-1);
+	}
+	uef.uef_magic = UFS_EXTATTR_MAGIC;
+	uef.uef_version = UFS_EXTATTR_VERSION;
+	uef.uef_size = atoi(argv[0]);
+	if (write(i, &uef, sizeof(uef)) == -1)
+		error = -1;
+	else if (fs_path != NULL) {
+		easize = (sizeof uef + uef.uef_size) *
+		    num_inodes_by_path(fs_path);
+		while (easize > 0) {
+			if (easize > sizeof zero_buf)
+				wlen = write(i, zero_buf, sizeof zero_buf);
+			else
+				wlen = write(i, zero_buf, easize);
+			if (wlen == -1) {
+				error = -1;
+				break;
+			}
+			easize -= wlen;
+		}
 	}
 	if (error == -1) {
 		perror(argv[1]);
