@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.16 1997/07/02 19:18:42 phk Exp $
+ * $Id: lqr.c,v 1.17 1997/08/25 00:29:18 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -243,7 +243,7 @@ void
 LqrDump(char *message, struct lqrdata * lqr)
 {
   if (LogIsKept(LogLQM)) {
-    LogPrintf(LogLQM, "%s:", message);
+    LogPrintf(LogLQM, "%s:\n", message);
     LogPrintf(LogLQM, "  Magic:          %08x   LastOutLQRs:    %08x\n",
 	      lqr->MagicNumber, lqr->LastOutLQRs);
     LogPrintf(LogLQM, "  LastOutPackets: %08x   LastOutOctets:  %08x\n",

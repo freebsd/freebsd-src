@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.12 1997/07/27 23:26:23 brian Exp $
+ * $Id: filter.c,v 1.13 1997/08/25 00:29:11 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -351,9 +351,9 @@ Parse(int argc, char **argv, struct filterent * ofp)
     break;
   }
 
-  LogPrintf(LogDEBUG, "Parse: Src: %s", inet_ntoa(fp->saddr));
-  LogPrintf(LogDEBUG, "Parse: Src mask: %s ", inet_ntoa(fp->smask));
-  LogPrintf(LogDEBUG, "Parse: Dst: %s", inet_ntoa(fp->daddr));
+  LogPrintf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(fp->saddr));
+  LogPrintf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(fp->smask));
+  LogPrintf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(fp->daddr));
   LogPrintf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(fp->dmask));
   LogPrintf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
