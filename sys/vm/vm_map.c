@@ -164,11 +164,11 @@ vm_map_startup(void)
 #endif
 	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(mapzone, MAX_KMAP);
-	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry), 
+	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_MTXCLASS | UMA_ZONE_VM);
 	uma_prealloc(kmapentzone, MAX_KMAPENT);
-	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry), 
+	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_prealloc(mapentzone, MAX_MAPENT);
 }
@@ -233,7 +233,7 @@ vm_map_zdtor(void *mem, int size, void *arg)
 
 	map = (vm_map_t)mem;
 	KASSERT(map->nentries == 0,
-	    ("map %p nentries == %d on free.", 
+	    ("map %p nentries == %d on free.",
 	    map, map->nentries));
 	KASSERT(map->size == 0,
 	    ("map %p size == %lu on free.",
@@ -267,7 +267,7 @@ vmspace_alloc(min, max)
 }
 
 void
-vm_init2(void) 
+vm_init2(void)
 {
 	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8 +
@@ -333,10 +333,10 @@ vmspace_exitfree(struct proc *p)
 	 * may not be 0 (e.g. fork() and child exits without exec()ing).
 	 * exitingcnt may increment above 0 and drop back down to zero
 	 * several times while vm_refcnt is held non-zero.  vm_refcnt
-	 * may also increment above 0 and drop back down to zero several 
+	 * may also increment above 0 and drop back down to zero several
 	 * times while vm_exitingcnt is held non-zero.
-	 * 
-	 * The last wait on the exiting child's vmspace will clean up 
+	 *
+	 * The last wait on the exiting child's vmspace will clean up
 	 * the remainder of the vmspace.
 	 */
 	if (--vm->vm_exitingcnt == 0 && vm->vm_refcnt == 0)
@@ -789,7 +789,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 * is trivially proven to be the only mapping for any
 		 * of the object's pages.  (Object granularity
 		 * reference counting is insufficient to recognize
-		 * aliases with precision.) 
+		 * aliases with precision.)
 		 */
 		VM_OBJECT_LOCK(object);
 		if (object->ref_count > 1 || object->shadow_count != 0)
@@ -807,7 +807,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				     (vm_size_t)(end - prev_entry->end)))) {
 		/*
 		 * We were able to extend the object.  Determine if we
-		 * can extend the previous map entry to include the 
+		 * can extend the previous map entry to include the
 		 * new range as well.
 		 */
 		if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
@@ -1058,7 +1058,7 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			if (next->object.vm_object)
 				vm_object_deallocate(next->object.vm_object);
 			vm_map_entry_dispose(map, next);
-	        }
+		}
 	}
 }
 /*
@@ -1316,7 +1316,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr,
 			vm_page_busy(p);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(object);
-			mpte = pmap_enter_quick(map->pmap, 
+			mpte = pmap_enter_quick(map->pmap,
 				addr + ptoa(tmpidx), p, mpte);
 			VM_OBJECT_LOCK(object);
 			vm_page_lock_queues();
@@ -1414,15 +1414,15 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 /*
  *	vm_map_madvise:
  *
- * 	This routine traverses a processes map handling the madvise
+ *	This routine traverses a processes map handling the madvise
  *	system call.  Advisories are classified as either those effecting
- *	the vm_map_entry structure, or those effecting the underlying 
+ *	the vm_map_entry structure, or those effecting the underlying
  *	objects.
  */
 int
 vm_map_madvise(
 	vm_map_t map,
-	vm_offset_t start, 
+	vm_offset_t start,
 	vm_offset_t end,
 	int behav)
 {
@@ -1431,7 +1431,7 @@ vm_map_madvise(
 
 	/*
 	 * Some madvise calls directly modify the vm_map_entry, in which case
-	 * we need to use an exclusive lock on the map and we need to perform 
+	 * we need to use an exclusive lock on the map and we need to perform
 	 * various clipping operations.  Otherwise we only need a read-lock
 	 * on the map.
 	 */
@@ -1549,10 +1549,10 @@ vm_map_madvise(
 			vm_object_madvise(current->object.vm_object,
 					  pindex, count, behav);
 			if (behav == MADV_WILLNEED) {
-				vm_map_pmap_enter(map, 
+				vm_map_pmap_enter(map,
 				    useStart,
 				    current->object.vm_object,
-				    pindex, 
+				    pindex,
 				    (count << PAGE_SHIFT),
 				    MAP_PREFAULT_MADVISE
 				);
@@ -1561,7 +1561,7 @@ vm_map_madvise(
 		vm_map_unlock_read(map);
 	}
 	return (0);
-}	
+}
 
 
 /*
@@ -2037,7 +2037,7 @@ vm_map_clean(
 			if (object->size < OFF_TO_IDX(offset + size))
 				size = IDX_TO_OFF(object->size) - offset;
 		}
-		if (object && (object->type == OBJT_VNODE) && 
+		if (object && (object->type == OBJT_VNODE) &&
 		    (current->protection & VM_PROT_WRITE)) {
 			/*
 			 * Flush pages if writing is allowed, invalidate them
@@ -2047,8 +2047,8 @@ vm_map_clean(
 			 * We cannot lock the vnode and then wait for paging
 			 * to complete without deadlocking against vm_fault.
 			 * Instead we simply call vm_object_page_remove() and
-			 * allow it to block internally on a page-by-page 
-			 * basis when it encounters pages undergoing async 
+			 * allow it to block internally on a page-by-page
+			 * basis when it encounters pages undergoing async
 			 * I/O.
 			 */
 			int flags;
@@ -2075,7 +2075,7 @@ vm_map_clean(
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
 			    FALSE);
 			VM_OBJECT_UNLOCK(object);
-                }
+		}
 		start += size;
 	}
 
@@ -2091,7 +2091,7 @@ vm_map_clean(
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-static void 
+static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_fault_unwire(map, entry->start, entry->end);
@@ -2329,7 +2329,7 @@ static void
 vm_map_copy_entry(
 	vm_map_t src_map,
 	vm_map_t dst_map,
-	vm_map_entry_t src_entry, 
+	vm_map_entry_t src_entry,
 	vm_map_entry_t dst_entry)
 {
 	vm_object_t src_object;
@@ -2560,7 +2560,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	 * If we can't accomodate max_ssize in the current mapping, no go.
 	 * However, we need to be aware that subsequent user mappings might
 	 * map into the space we have reserved for stack, and currently this
-	 * space is not protected.  
+	 * space is not protected.
 	 *
 	 * Hopefully we will at least detect this condition when we try to
 	 * grow the stack.
@@ -2727,9 +2727,9 @@ Retry:
 	if (grow_amount > stack_entry->avail_ssize)
 		grow_amount = stack_entry->avail_ssize;
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
-	                     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
+			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
 		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
-		              ctob(vm->vm_ssize);
+			      ctob(vm->vm_ssize);
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
@@ -2944,7 +2944,7 @@ RetryLookup:;
 
 		entry = *out_entry;
 	}
-	
+
 	/*
 	 * Handle submaps.
 	 */
@@ -3027,7 +3027,7 @@ RetryLookup:;
 	 */
 	if (entry->object.vm_object == NULL &&
 	    !map->system_map) {
-		if (vm_map_lock_upgrade(map)) 
+		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    atop(entry->end - entry->start));
