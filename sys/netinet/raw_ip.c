@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.27 1996/02/24 13:38:28 phk Exp $
+ *	$Id: raw_ip.c,v 1.19.4.6 1996/02/26 15:23:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -166,17 +166,23 @@ rip_output(m, so, dst)
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = MAXTTL;
-		opts = inp->inp_options;
 	} else {
 		ip = mtod(m, struct ip *);
+		/* don't allow both user specified and setsockopt options,
+		   and don't allow packet length sizes that will crash */
+		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
+		     (ip->ip_len > m->m_pkthdr.len)) {
+			m_freem(m);
+			return EINVAL;
+		}
 		if (ip->ip_id == 0)
 			ip->ip_id = htons(ip_id++);
-		opts = NULL;
 		/* XXX prevent ip_output from overwriting header fields */
 		flags |= IP_RAWOUTPUT;
 		ipstat.ips_rawout++;
 	}
-	return (ip_output(m, opts, &inp->inp_route, flags, inp->inp_moptions));
+	return (ip_output(m, inp->inp_options, &inp->inp_route, flags,
+			  inp->inp_moptions));
 }
 
 /*
