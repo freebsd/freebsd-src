@@ -48,7 +48,6 @@ struct pcic_event {
 
 struct pcic_handle {
 	struct pcic_softc *sc;
-	struct device *ph_parent;
 	device_t dev;
 	bus_space_tag_t ph_bus_t;	/* I/O or MEM?  I don't mind */
 	bus_space_handle_t ph_bus_h;
@@ -64,7 +63,6 @@ struct pcic_handle {
 	int	ioalloc;
 	struct pccard_io_handle io[PCIC_IO_WINS];
 	int	ih_irq;
-	struct device *pccard;
 
 	int shutdown;
 	struct proc *event_thread;
@@ -191,3 +189,5 @@ int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookiep);
 int pcic_suspend(device_t dev);
 int pcic_resume(device_t dev);
+int pcic_enable_socket(device_t dev, device_t child);
+int pcic_disable_socket(device_t dev, device_t child);

@@ -33,21 +33,12 @@ INTERFACE power;
 # generic enough to be used for other systems in addition to the pccard
 # <-> pcic interface that it was originally written for.
 #
-METHOD int set_slot {
+METHOD int enable_socket {
 	device_t	dev;
 	device_t	child;
-	int		slot;
-	int		vpp;
-	int		vcc;
 };
 
-#
-# Gets the current power requirements of the card.
-#
-METHOD int get_slot {
+METHOD int disable_socket {
 	device_t	dev;
 	device_t	child;
-	int		slot;
-	int		*vpp;
-	int		*vcc;
 };

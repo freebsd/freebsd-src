@@ -47,15 +47,21 @@
 #include <dev/pccard/pccardchip.h>
 #include <dev/pccard/pccardvar.h>
 
+#include "power_if.h"
+
+#define PCCARDDEBUG
+
 #ifdef PCCARDDEBUG
-int	pccard_debug = 0;
+int	pccard_debug = 1;
 #define	DPRINTF(arg) if (pccard_debug) printf arg
+#define	DEVPRINTF(arg) if (pccard_debug) device_printf arg
 int	pccardintr_debug = 0;
 /* this is done this way to avoid doing lots of conditionals
    at interrupt level.  */
 #define PCCARD_CARD_INTR (pccardintr_debug?pccard_card_intrdebug:pccard_card_intr)
 #else
 #define	DPRINTF(arg)
+#define	DEVPRINTF(arg)
 #define PCCARD_CARD_INTR (pccard_card_intr)
 #endif
 
@@ -66,11 +72,6 @@ int	pccard_verbose = 0;
 #endif
 
 int	pccard_print(void *, const char *);
-
-static __inline void pccard_socket_enable(pccard_chipset_tag_t,
-					     pccard_chipset_handle_t *);
-static __inline void pccard_socket_disable(pccard_chipset_tag_t,
-					      pccard_chipset_handle_t *);
 
 int pccard_card_intr(void *);
 #ifdef PCCARDDEBUG
@@ -107,20 +108,24 @@ pccard_card_attach(device_t dev)
 	struct pccard_softc *sc = (struct pccard_softc *) 
 	    device_get_softc(dev);
 	struct pccard_function *pf;
-	struct pccard_attach_args paa;
 	int attached;
 
+	DEVPRINTF((dev, "pccard_card_attach\n"));
 	/*
 	 * this is here so that when socket_enable calls gettype, trt happens
 	 */
 	STAILQ_INIT(&sc->card.pf_head);
 
-	pccard_chip_socket_enable(sc->pct, sc->pch);
+	DEVPRINTF((dev, "chip_socket_enable\n"));
+	POWER_ENABLE_SOCKET(device_get_parent(dev), dev);
 
+	DEVPRINTF((dev, "read_cis\n"));
 	pccard_read_cis(sc);
 
-	pccard_chip_socket_disable(sc->pct, sc->pch);
+	DEVPRINTF((dev, "chip_socket_disable\n"));
+	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
 
+	DEVPRINTF((dev, "check_cis_quirks\n"));
 	pccard_check_cis_quirks(dev);
 
 	/*
@@ -138,15 +143,16 @@ pccard_card_attach(device_t dev)
 
 	attached = 0;
 
+	DEVPRINTF((dev, "functions scanning\n"));
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
 #ifdef DIAGNOSTIC
 		if (pf->child != NULL) {
-			printf("%s: %s still attached to function %d!\n",
-			    sc->dev.dv_xname, pf->child->dv_xname,
-			    pf->number);
+			device_printf(sc->dev,
+			    "%s still attached to function %d!\n",
+			    device_get_name(pf->child), pf->number);
 			panic("pccard_card_attach");
 		}
 #endif
@@ -161,19 +167,13 @@ pccard_card_attach(device_t dev)
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
-		paa.manufacturer = sc->card.manufacturer;
-		paa.product = sc->card.product;
-		paa.card = &sc->card;
-		paa.pf = pf;
-
 #if XXX
 		if (attach_child()) {
 			attached++;
 
-			DPRINTF(("%s: function %d CCR at %d "
+			DEVPRINTF((sc->dev, "function %d CCR at %d "
 			     "offset %lx: %x %x %x %x, %x %x %x %x, %x\n",
-			     sc->dev.dv_xname, pf->number,
-			     pf->pf_ccr_window, pf->pf_ccr_offset,
+			     pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
 			     pccard_ccr_read(pf, 0x00),
 			pccard_ccr_read(pf, 0x02), pccard_ccr_read(pf, 0x04),
 			pccard_ccr_read(pf, 0x06), pccard_ccr_read(pf, 0x0A),
@@ -205,13 +205,13 @@ pccard_card_detach(device_t dev, int flags)
 			continue;
 		if (pf->child == NULL)
 			continue;
-		DPRINTF(("%s: detaching %s (function %d)\n",
-		    sc->dev.dv_xname, pf->child->dv_xname, pf->number));
+		DEVPRINTF((sc->dev, "detaching %s (function %d)\n",
+		    device_get_name(pf->child), pf->number));
 #if XXX
 		if ((error = config_detach(pf->child, flags)) != 0) {
-			printf("%s: error %d detaching %s (function %d)\n",
-			    sc->dev.dv_xname, error, pf->child->dv_xname,
-			    pf->number);
+			device_printf(sc->dev, 
+			    "error %d detaching %s (function %d)\n",
+			    error, device_get_name(pf->child), pf->number);
 		} else
 			pf->child = NULL;
 #endif
@@ -235,8 +235,8 @@ pccard_card_deactivate(device_t dev)
 			continue;
 		if (pf->child == NULL)
 			continue;
-		DPRINTF(("%s: deactivating %s (function %d)\n",
-		    sc->dev.dv_xname, pf->child->dv_xname, pf->number));
+		DEVPRINTF((sc->dev, "deactivating %s (function %d)\n",
+		    device_get_name(pf->child), pf->number));
 #if XXX
 		config_deactivate(pf->child);
 #endif
@@ -280,20 +280,6 @@ pccard_function_init(pf, cfe)
 	pf->cfe = cfe;
 }
 
-static __inline void pccard_socket_enable(pct, pch)
-     pccard_chipset_tag_t pct;
-     pccard_chipset_handle_t *pch;
-{
-	pccard_chip_socket_enable(pct, pch);
-}
-
-static __inline void pccard_socket_disable(pct, pch)
-     pccard_chipset_tag_t pct;
-     pccard_chipset_handle_t *pch;
-{
-	pccard_chip_socket_disable(pct, pch);
-}
-
 /* Enable a PCCARD function */
 int
 pccard_function_enable(pf)
@@ -310,9 +296,10 @@ pccard_function_enable(pf)
 	 * necessary.
 	 */
 	if (pf->sc->sc_enabled_count++ == 0)
-		pccard_chip_socket_enable(pf->sc->pct, pf->sc->pch);
-	DPRINTF(("%s: ++enabled_count = %d\n", pf->sc->dev.dv_xname,
-		 pf->sc->sc_enabled_count));
+		POWER_ENABLE_SOCKET(device_get_parent(pf->sc->dev), 
+		    pf->sc->dev);
+	DEVPRINTF((pf->sc->dev, "++enabled_count = %d\n", 
+	    pf->sc->sc_enabled_count));
 
 	if (pf->pf_flags & PFF_ENABLED) {
 		/*
@@ -403,21 +390,20 @@ pccard_function_enable(pf)
 #ifdef PCCARDDEBUG
 	if (pccard_debug) {
 		STAILQ_FOREACH(tmp, &pf->sc->card.pf_head, pf_list) {
-			printf("%s: function %d CCR at %d offset %lx: "
-			       "%x %x %x %x, %x %x %x %x, %x\n",
-			       tmp->sc->dev.dv_xname, tmp->number,
-			       tmp->pf_ccr_window, tmp->pf_ccr_offset,
-			       pccard_ccr_read(tmp, 0x00),
-			       pccard_ccr_read(tmp, 0x02),
-			       pccard_ccr_read(tmp, 0x04),
-			       pccard_ccr_read(tmp, 0x06),
-
-			       pccard_ccr_read(tmp, 0x0A),
-			       pccard_ccr_read(tmp, 0x0C), 
-			       pccard_ccr_read(tmp, 0x0E),
-			       pccard_ccr_read(tmp, 0x10),
-
-			       pccard_ccr_read(tmp, 0x12));
+			device_printf(tmp->sc->dev, 
+			    "function %d CCR at %d offset %x: "
+			    "%x %x %x %x, %x %x %x %x, %x\n",
+			    tmp->number, tmp->pf_ccr_window, 
+			    tmp->pf_ccr_offset,
+			    pccard_ccr_read(tmp, 0x00),
+			    pccard_ccr_read(tmp, 0x02),
+			    pccard_ccr_read(tmp, 0x04),
+			    pccard_ccr_read(tmp, 0x06),
+			    pccard_ccr_read(tmp, 0x0A),
+			    pccard_ccr_read(tmp, 0x0C), 
+			    pccard_ccr_read(tmp, 0x0E),
+			    pccard_ccr_read(tmp, 0x10),
+			    pccard_ccr_read(tmp, 0x12));
 		}
 	}
 #endif
@@ -431,8 +417,9 @@ pccard_function_enable(pf)
 	 * necessary.
 	 */
 	if (--pf->sc->sc_enabled_count == 0)
-		pccard_chip_socket_disable(pf->sc->pct, pf->sc->pch);
-	DPRINTF(("%s: --enabled_count = %d\n", pf->sc->dev.dv_xname,
+		POWER_DISABLE_SOCKET(device_get_parent(pf->sc->dev), 
+		    pf->sc->dev);
+	DEVPRINTF((pf->sc->dev, "--enabled_count = %d\n",
 		 pf->sc->sc_enabled_count));
 
 	return (1);
@@ -481,9 +468,10 @@ pccard_function_disable(pf)
 	 * necessary.
 	 */
 	if (--pf->sc->sc_enabled_count == 0)
-		pccard_chip_socket_disable(pf->sc->pct, pf->sc->pch);
-	DPRINTF(("%s: --enabled_count = %d\n", pf->sc->dev.dv_xname,
-		 pf->sc->sc_enabled_count));
+		POWER_DISABLE_SOCKET(device_get_parent(pf->sc->dev), 
+		    pf->sc->dev);
+	DEVPRINTF((pf->sc->dev, "--enabled_count = %d\n",
+	    pf->sc->sc_enabled_count));
 }
 
 int
@@ -582,9 +570,9 @@ pccard_intr_establish(pf, ipl, ih_fct, ih_arg)
 
 		STAILQ_FOREACH(pf2, &pf->sc->card.pf_head, pf_list) {
 			if (pf2->ih_fct) {
-				DPRINTF(("%s: function %d has ih_fct %p\n",
-					 pf->sc->dev.dv_xname, pf2->number,
-					 pf2->ih_fct));
+				DEVPRINTF((pf2->sc->dev, 
+				    "function %d has ih_fct %p\n",
+				    pf2->number, pf2->ih_fct));
 
 				if (ihcnt == 0) {
 					hiipl = pf2->ih_ipl;
@@ -806,11 +794,12 @@ pccard_card_intrdebug(arg)
 	ret = 0;
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		printf("%s: intr flags=%x fct=%d cor=%02x csr=%02x pin=%02x",
-		       sc->dev.dv_xname, pf->pf_flags, pf->number,
-		       pccard_ccr_read(pf, PCCARD_CCR_OPTION),
-		       pccard_ccr_read(pf, PCCARD_CCR_STATUS),
-		       pccard_ccr_read(pf, PCCARD_CCR_PIN));
+		device_printf(sc->dev, 
+		    "intr flags=%x fct=%d cor=%02x csr=%02x pin=%02x",
+		    pf->pf_flags, pf->number, 
+		    pccard_ccr_read(pf, PCCARD_CCR_OPTION),
+		    pccard_ccr_read(pf, PCCARD_CCR_STATUS),
+		    pccard_ccr_read(pf, PCCARD_CCR_PIN));
 		if (pf->ih_fct != NULL &&
 		    (pf->ccr_mask & (1 << (PCCARD_CCR_STATUS / 2)))) {
 			reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);

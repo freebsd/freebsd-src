@@ -126,11 +126,13 @@ struct pccard_chip_functions {
 #define pccard_chip_intr_disestablish(tag, handle, ih)			\
 	((*(tag)->intr_disestablish)((handle), (ih)))
 
+#if 0
 /* Socket functions. */
 #define	pccard_chip_socket_enable(tag, handle)				\
 	((*(tag)->socket_enable)((handle)))
 #define	pccard_chip_socket_disable(tag, handle)				\
 	((*(tag)->socket_disable)((handle)))
+#endif /* 0 */
 
 struct pccardbus_attach_args {
 	char *paa_busname;	/* Bus name */

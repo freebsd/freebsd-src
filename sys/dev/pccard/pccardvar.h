@@ -172,11 +172,12 @@ struct pccard_softc {
 	pccard_chipset_tag_t pct;
 	pccard_chipset_handle_t pch;
 
+	device_t		dev;
+
 	/* this stuff is for the card */
 	struct pccard_card card;
 	void		*ih;
-	int		sc_enabled_count;	/* how many functions are
-						   enabled */
+	int		sc_enabled_count;	/* num functions enabled */
 
 	/*
 	 * These are passed down from the PCCARD chip, and exist only
@@ -196,13 +197,6 @@ struct pccard_cis_quirk {
 	char *cis1_info[4];
 	struct pccard_function *pf;
 	struct pccard_config_entry *cfe;
-};
-
-struct pccard_attach_args {
-	int32_t manufacturer;
-	int32_t product;
-	struct pccard_card *card;
-	struct pccard_function *pf;
 };
 
 struct pccard_tuple {
