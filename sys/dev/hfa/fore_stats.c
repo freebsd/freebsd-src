@@ -147,7 +147,7 @@ fore_get_stats(fup)
 		(*hcp->hcq_status) = QSTAT_PENDING;
 
 		dma = vtophys(fup->fu_stats);
-		if (dma == NULL) {
+		if (dma == 0) {
 			fup->fu_stats->st_drv.drv_cm_nodma++;
 			(void) splx(s);
 			return (EIO);
