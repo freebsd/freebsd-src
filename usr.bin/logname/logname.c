@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[] __unused;
+main(int argc, char *argv[] __unused)
 {
 	char *p;
 
@@ -68,7 +66,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: logname\n");
 	exit(1);

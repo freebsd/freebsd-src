@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <db.h>
 #include <err.h>
 #include <langinfo.h>
@@ -56,10 +58,8 @@ __FBSDID("$FreeBSD$");
 static void	  stimeprint(WHERE *);
 
 void
-sflag_print()
+sflag_print(void)
 {
-	extern time_t now;
-	extern int    oflag;
 	PERSON *pn;
 	WHERE *w;
 	int sflag, r, namelen;
@@ -163,8 +163,7 @@ no_gecos:
 }
 
 static void
-stimeprint(w)
-	WHERE *w;
+stimeprint(WHERE *w)
 {
 	struct tm *delta;
 

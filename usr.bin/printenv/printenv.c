@@ -62,13 +62,11 @@ void	usage(void);
  * February, 1979
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	extern char **environ;
-	register char *cp, **ep;
-	register size_t len;
+	char *cp, **ep;
+	size_t len;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -98,7 +96,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: printenv [name]\n");
 	exit(1);

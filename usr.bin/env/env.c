@@ -58,9 +58,7 @@ extern char **environ;
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char **ep, *p;
 	char *cleanenv[1];
@@ -89,7 +87,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: env [-i] [name=value ...] [utility [argument ...]]\n");

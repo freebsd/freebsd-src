@@ -66,13 +66,11 @@ void add(int, const char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register LIST *p;
-	register int n, fd, rval, wval;
-	register char *bp;
+	LIST *p;
+	int n, fd, rval, wval;
+	char *bp;
 	int append, ch, exitval;
 	char *buf;
 #define	BSIZE (8 * 1024)
@@ -125,16 +123,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: tee [-ai] [file ...]\n");
 	exit(1);
 }
 
 void
-add(fd, name)
-	int fd;
-	const char *name;
+add(int fd, const char *name)
 {
 	LIST *p;
 

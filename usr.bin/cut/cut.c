@@ -68,9 +68,7 @@ void	needpos(size_t);
 static 	void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *fp;
 	void (*fcn)(FILE *, const char *);
@@ -155,8 +153,7 @@ size_t autostart, autostop, maxval;
 char *positions;
 
 void
-get_list(list)
-	char *list;
+get_list(char *list)
 {
 	size_t setautostart, start, stop;
 	char *pos;
@@ -237,9 +234,7 @@ needpos(size_t n)
  * c_cut() ought to be much faster.
  */
 void
-b_n_cut(fp, fname)
-	FILE *fp;
-	const char *fname;
+b_n_cut(FILE *fp, const char *fname)
 {
 	size_t col, i, lbuflen;
 	char *lbuf;
@@ -297,9 +292,7 @@ b_n_cut(fp, fname)
 }
 
 void
-c_cut(fp, fname)
-	FILE *fp;
-	const char *fname __unused;
+c_cut(FILE *fp, const char *fname __unused)
 {
 	int ch, col;
 	char *pos;
@@ -327,9 +320,7 @@ c_cut(fp, fname)
 }
 
 void
-f_cut(fp, fname)
-	FILE *fp;
-	const char *fname __unused;
+f_cut(FILE *fp, const char *fname __unused)
 {
 	int ch, field, isdelim;
 	char *pos, *p, sep;
@@ -394,7 +385,7 @@ f_cut(fp, fname)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 		"usage: cut -b list [-n] [file ...]",

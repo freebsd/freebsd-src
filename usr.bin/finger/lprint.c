@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <ctype.h>
@@ -69,9 +70,8 @@ static void	lprint(PERSON *);
 static void     vputc(unsigned char);
 
 void
-lflag_print()
+lflag_print(void)
 {
-	extern int pplan;
 	PERSON *pn;
 	int sflag, r;
 	PERSON *tmp;
@@ -101,10 +101,8 @@ lflag_print()
 }
 
 static void
-lprint(pn)
-	PERSON *pn;
+lprint(PERSON *pn)
 {
-	extern time_t now;
 	struct tm *delta;
 	WHERE *w;
 	int cpr, len, maxlen;
@@ -258,9 +256,7 @@ no_gecos:
 }
 
 static int
-demi_print(str, oddfield)
-	char *str;
-	int oddfield;
+demi_print(char *str, int oddfield)
 {
 	static int lenlast;
 	int lenthis, maxlen;
@@ -298,8 +294,7 @@ demi_print(str, oddfield)
 }
 
 int
-show_text(directory, file_name, header)
-	const char *directory, *file_name, *header;
+show_text(const char *directory, const char *file_name, const char *header)
 {
 	struct stat sb;
 	FILE *fp;
@@ -352,8 +347,7 @@ show_text(directory, file_name, header)
 }
 
 static void
-vputc(ch)
-	unsigned char ch;
+vputc(unsigned char ch)
 {
 	int meta;
 

@@ -98,7 +98,7 @@ static const char *whatis_name="whatis";/* -n option: the name */
 static char *common_output;		/* -o option: the single output file */
 static char *locale;			/* user's locale if -L is used */
 static char *lang_locale;		/* short form of locale */
-static char *machine;
+static const char *machine;
 
 static int exit_code;			/* exit code to use when finished */
 static SLIST_HEAD(, visited_dir) visited_dirs =
@@ -358,7 +358,7 @@ open_output(char *name)
 static int
 linesort(const void *a, const void *b)
 {
-	return strcmp((const char *)(*(const char **)a), (const char *)(*(const char **)b));
+	return strcmp((*(const char * const *)a), (*(const char * const *)b));
 }
 
 /*
@@ -810,8 +810,8 @@ process_page(struct page_info *page, char *section_dir)
 static int
 pagesort(const void *a, const void *b)
 {
-	struct page_info *p1 = *(struct page_info **) a;
-	struct page_info *p2 = *(struct page_info **) b;
+	const struct page_info *p1 = *(struct page_info * const *) a;
+	const struct page_info *p2 = *(struct page_info * const *) b;
 	if (p1->inode == p2->inode)
 		return strcmp(p1->name, p2->name);
 	return p1->inode - p2->inode;
@@ -964,8 +964,6 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	extern int optind;
-	extern char *optarg;
 	FILE *fp = NULL;
 
 	while ((opt = getopt(argc, argv, "ai:n:o:vL")) != -1) {

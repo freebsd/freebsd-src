@@ -79,9 +79,7 @@ void	finish(void);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int cc;
 	struct termios rtt, stt;
@@ -199,7 +197,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: script [-a] [-q] [-k] [-t time] [file] [command]\n");
@@ -207,7 +205,7 @@ usage()
 }
 
 void
-finish()
+finish(void)
 {
 	pid_t pid;
 	int die, e, status;
@@ -229,8 +227,7 @@ finish()
 }
 
 void
-doshell(av)
-	char **av;
+doshell(char **av)
 {
 	const char *shell;
 
@@ -252,15 +249,14 @@ doshell(av)
 }
 
 void
-fail()
+fail(void)
 {
 	(void)kill(0, SIGTERM);
 	done(1);
 }
 
 void
-done(eno)
-	int eno;
+done(int eno)
 {
 	time_t tvec;
 

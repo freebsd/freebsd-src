@@ -62,9 +62,7 @@ static void   usage(void);
 static char **process(const char *, char *, char **);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, exitval, n;
 	char *cptr, *term, buf[1024], tbuf[1024];
@@ -120,8 +118,7 @@ errx(2, "no terminal type specified and no TERM environmental variable.");
 }
 
 static void
-prlongname(buf)
-	char *buf;
+prlongname(char *buf)
 {
 	int savech;
 	char *p, *savep;
@@ -134,9 +131,7 @@ prlongname(buf)
 }
 
 static char **
-process(cap, str, argv)
-	const char *cap;
-	char *str, **argv;
+process(const char *cap, char *str, char **argv)
 {
 	static const char errfew[] =
 	    "not enough arguments (%d) for capability `%s'";
@@ -211,7 +206,7 @@ process(cap, str, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: tput [-T term] attribute ...\n");
 	exit(2);

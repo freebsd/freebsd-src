@@ -52,10 +52,9 @@ __FBSDID("$FreeBSD$");
 FU *endfu;					/* format at end-of-data */
 
 void
-addfile(name)
-	char *name;
+addfile(char *name)
 {
-	register unsigned char *p;
+	unsigned char *p;
 	FILE *fp;
 	int ch;
 	char buf[2048 + 1];
@@ -78,8 +77,7 @@ addfile(name)
 }
 
 void
-add(fmt)
-	const char *fmt;
+add(const char *fmt)
 {
 	unsigned const char *p, *savep;
 	static FS **nextfs;
@@ -154,12 +152,11 @@ add(fmt)
 static const char *spec = ".#-+ 0123456789";
 
 int
-size(fs)
-	FS *fs;
+size(FS *fs)
 {
-	register FU *fu;
-	register int bcnt, cursize;
-	register unsigned char *fmt;
+	FU *fu;
+	int bcnt, cursize;
+	unsigned char *fmt;
 	int prec;
 
 	/* figure out the data block size needed for each format unit */
@@ -208,12 +205,11 @@ size(fs)
 }
 
 void
-rewrite(fs)
-	FS *fs;
+rewrite(FS *fs)
 {
 	enum { NOTOKAY, USEBCNT, USEPREC } sokay;
-	register PR *pr, **nextpr;
-	register FU *fu;
+	PR *pr, **nextpr;
+	FU *fu;
 	unsigned char *p1, *p2, *fmtp;
 	char savech, cs[3];
 	int nconv, prec;
@@ -449,10 +445,9 @@ isint2:					switch(fu->bcnt) {
 }
 
 void
-escape(p1)
-	register char *p1;
+escape(char *p1)
 {
-	register char *p2;
+	char *p2;
 
 	/* alphabetic escape sequences have to be done in place */
 	for (p2 = p1;; ++p1, ++p2) {
@@ -492,28 +487,25 @@ escape(p1)
 }
 
 void
-badcnt(s)
-	char *s;
+badcnt(char *s)
 {
 	errx(1, "%s: bad byte count", s);
 }
 
 void
-badsfmt()
+badsfmt(void)
 {
 	errx(1, "%%s: requires a precision or a byte count");
 }
 
 void
-badfmt(fmt)
-	const char *fmt;
+badfmt(const char *fmt)
 {
 	errx(1, "\"%s\": bad format", fmt);
 }
 
 void
-badconv(ch)
-	char *ch;
+badconv(char *ch)
 {
 	errx(1, "%%%s: bad conversion character", ch);
 }

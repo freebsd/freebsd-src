@@ -56,9 +56,7 @@ __FBSDID("$FreeBSD$");
 void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char *p, *q, *suffix;
 	size_t suffixlen;
@@ -111,7 +109,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,

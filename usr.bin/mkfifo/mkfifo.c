@@ -63,9 +63,7 @@ static void usage(void);
 static int f_mode;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char *modestr;
 	void *modep;
@@ -109,7 +107,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: mkfifo [-m mode] fifo_name ...\n");
 	exit(1);

@@ -102,9 +102,7 @@ static void usage(void);
 static void userlist(int, char **);
 
 static int
-option(argc, argv)
-	int argc;
-	char **argv;
+option(int argc, char **argv)
 {
 	int ch;
 
@@ -151,16 +149,14 @@ option(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: finger [-46lmpshoT] [login ...]\n");
 	exit(1);
 }
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int envargc, argcnt;
 	char *envargv[3];
@@ -229,7 +225,7 @@ main(argc, argv)
 }
 
 static void
-loginlist()
+loginlist(void)
 {
 	PERSON *pn;
 	DBT data, key;
@@ -269,9 +265,7 @@ loginlist()
 }
 
 static void
-userlist(argc, argv)
-	int argc;
-	char **argv;
+userlist(int argc, char **argv)
 {
 	PERSON *pn;
 	DBT data, key;

@@ -58,14 +58,13 @@ static off_t eaddress;			/* end address */
 static __inline void print(PR *, u_char *);
 
 void
-display()
+display(void)
 {
-	extern FU *endfu;
-	register FS *fs;
-	register FU *fu;
-	register PR *pr;
-	register int cnt;
-	register u_char *bp;
+	FS *fs;
+	FU *fu;
+	PR *pr;
+	int cnt;
+	u_char *bp;
 	off_t saveaddress;
 	u_char savech, *savebp;
 
@@ -113,9 +112,7 @@ display()
 }
 
 static __inline void
-print(pr, bp)
-	PR *pr;
-	u_char *bp;
+print(PR *pr, u_char *bp)
 {
 	long double ldbl;
 	   double f8;
@@ -212,11 +209,10 @@ print(pr, bp)
 }
 
 void
-bpad(pr)
-	PR *pr;
+bpad(PR *pr)
 {
 	static char const *spec = " -0+#";
-	register char *p1, *p2;
+	char *p1, *p2;
 
 	/*
 	 * Remove all conversion flags; '-' is the only one valid
@@ -233,11 +229,11 @@ bpad(pr)
 static char **_argv;
 
 u_char *
-get()
+get(void)
 {
 	static int ateof = 1;
 	static u_char *curp, *savp;
-	register int n;
+	int n;
 	int need, nread;
 	int valid_save = 0;
 	u_char *tmpp;
@@ -308,10 +304,8 @@ get()
 }
 
 int
-next(argv)
-	char **argv;
+next(char **argv)
 {
-	extern int exitval;
 	static int done;
 	int statok;
 
@@ -344,11 +338,9 @@ next(argv)
 }
 
 void
-doskip(fname, statok)
-	const char *fname;
-	int statok;
+doskip(const char *fname, int statok)
 {
-	register int cnt;
+	int cnt;
 	struct stat sb;
 
 	if (statok) {

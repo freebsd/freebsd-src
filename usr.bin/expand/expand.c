@@ -62,12 +62,10 @@ static void getstops(char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register int c, column;
-	register int n;
+	int c, column;
+	int n;
 	int rval;
 
 	setlocale(LC_CTYPE, "");
@@ -159,10 +157,9 @@ main(argc, argv)
 }
 
 static void
-getstops(cp)
-	register char *cp;
+getstops(char *cp)
 {
-	register int i;
+	int i;
 
 	nstops = 0;
 	for (;;) {
@@ -185,7 +182,7 @@ getstops(cp)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf (stderr, "usage: expand [-t tablist] [file ...]\n");
 	exit(1);

@@ -62,9 +62,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	char *tty;
@@ -111,7 +109,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: mesg [y | n]\n");
 	exit(2);

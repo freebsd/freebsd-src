@@ -81,9 +81,7 @@ static int	plus(char, char);
 static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 	char *cp, *dp;
@@ -191,15 +189,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: colcrt [-] [-2] [file ...]\n");
 	exit(1);
 }
 
 static int
-plus(c, d)
-	char c, d;
+plus(char c, char d)
 {
 
 	return ((c == '|' && d == '-') || d == '_');
@@ -208,11 +205,10 @@ plus(c, d)
 int first;
 
 static void
-pflush(ol)
-	int ol;
+pflush(int ol)
 {
-	register int i;
-	register char *cp;
+	int i;
+	char *cp;
 	char lastomit;
 	int l;
 
@@ -243,10 +239,9 @@ pflush(ol)
 }
 
 static void
-move(l, m)
-	int l, m;
+move(int l, int m)
 {
-	register char *cp, *dp;
+	char *cp, *dp;
 
 	for (cp = page[l], dp = page[m]; *cp; cp++, dp++) {
 		switch (*cp) {

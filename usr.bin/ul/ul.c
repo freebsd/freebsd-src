@@ -101,9 +101,7 @@ void outc(int);
 #define	PRINT(s)	if (s == NULL) /* void */; else tputs(s, 1, outchar)
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int c;
 	const char *termtype;
@@ -159,15 +157,14 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: ul [-i] [-t terminal] file...\n");
 	exit(1);
 }
 
 void
-filter(f)
-	FILE *f;
+filter(FILE *f)
 {
 	int c;
 
@@ -277,7 +274,7 @@ filter(f)
 }
 
 void
-flushln()
+flushln(void)
 {
 	int lastmode;
 	int i;
@@ -317,11 +314,11 @@ flushln()
  * We don't do anything with halfline ups and downs, or Greek.
  */
 void
-overstrike()
+overstrike(void)
 {
-	register int i;
+	int i;
 	char lbuf[256];
-	register char *cp = lbuf;
+	char *cp = lbuf;
 	int hadbold=0;
 
 	/* Set up overstrike buffer */
@@ -355,11 +352,11 @@ overstrike()
 }
 
 void
-iattr()
+iattr(void)
 {
-	register int i;
+	int i;
 	char lbuf[256];
-	register char *cp = lbuf;
+	char *cp = lbuf;
 
 	for (i=0; i<maxcol; i++)
 		switch (obuf[i].c_mode) {
@@ -379,7 +376,7 @@ iattr()
 }
 
 void
-initbuf()
+initbuf(void)
 {
 
 	bzero((char *)obuf, sizeof (obuf));	/* depends on NORMAL == 0 */
@@ -389,7 +386,7 @@ initbuf()
 }
 
 void
-fwd()
+fwd(void)
 {
 	int oldcol, oldmax;
 
@@ -401,7 +398,7 @@ fwd()
 }
 
 void
-reverse()
+reverse(void)
 {
 	upln++;
 	fwd();
@@ -411,7 +408,7 @@ reverse()
 }
 
 void
-initcap()
+initcap(void)
 {
 	static char tcapbuf[512];
 	char *bp = tcapbuf;
@@ -464,8 +461,7 @@ initcap()
 }
 
 int
-outchar(c)
-	int c;
+outchar(int c)
 {
 	return(putchar(c & 0177));
 }
@@ -473,8 +469,7 @@ outchar(c)
 static int curmode = 0;
 
 void
-outc(c)
-	int c;
+outc(int c)
 {
 	putchar(c);
 	if (must_use_uc && (curmode&UNDERL)) {
@@ -484,8 +479,7 @@ outc(c)
 }
 
 void
-setnewmode(newmode)
-	int newmode;
+setnewmode(int newmode)
 {
 	if (!iflag) {
 		if (curmode != NORMAL && newmode != NORMAL)

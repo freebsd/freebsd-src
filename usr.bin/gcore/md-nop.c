@@ -48,9 +48,9 @@ __FBSDID("$FreeBSD$");
 
 void
 md_core(kd, fd, ki)
-	kvm_t *kd;
-	int fd;
-	struct kinfo_proc *ki;
+	kvm_t *kd __unused;
+	int fd __unused;
+	struct kinfo_proc *ki __unused;
 {
 	/* Don't need to fix anything for this architecture. */
 	return;
