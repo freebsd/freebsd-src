@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1986, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1986, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.64 (Berkeley) 10/30/96 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.67 (Berkeley) 4/9/97 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.64 (Berkeley) 10/30/96 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.67 (Berkeley) 4/9/97 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -197,6 +197,7 @@ getmxrr(host, mxhosts, droplocalhost, rcode)
 			goto punt;
 
 		  case TRY_AGAIN:
+		  case -1:
 			/* couldn't connect to the name server */
 			if (fallbackMX != NULL)
 			{
@@ -880,6 +881,7 @@ gethostalias(host)
 		fclose(fp);
 		return NULL;
 	}
+	fclose(fp);
 
 	/* got a match; extract the equivalent name */
 	while (*p != '\0' && isascii(*p) && isspace(*p))

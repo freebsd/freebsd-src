@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freefall.mc	$Revision: 1.8.2.3 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.11 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
