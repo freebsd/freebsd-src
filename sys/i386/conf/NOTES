@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.129 1995/01/25 21:39:59 bde Exp $
+#	$Id: LINT,v 1.130 1995/01/26 05:04:37 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -358,6 +358,10 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # the default font in your display adapter's memory.
 #
 options		HARDFONTS
+#
+# MAXCONS is maximum number of virtual consoles, no more than 16
+#
+options         "MAXCONS=16"
 
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
