@@ -57,7 +57,6 @@ idle_setup(void *dummy)
 		PROC_LOCK(p);
 		p->p_flag |= P_NOLOAD;
 		mtx_lock_spin(&sched_lock);
-		p->p_state = PRS_NORMAL;
 		td = FIRST_THREAD_IN_PROC(p);
 		td->td_state = TDS_CAN_RUN;
 		td->td_flags |= TDF_IDLETD;
