@@ -83,7 +83,7 @@ g_dev_orphan(struct g_consumer *cp)
 		return;
 	if (cp->acr  > 0 || cp->acw  > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
-	g_dettach(cp);
+	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 }
@@ -93,7 +93,7 @@ static struct g_class dev_class	= {
 	"DEV-class",
 	dev_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 static struct g_geom *
