@@ -284,6 +284,107 @@ ncp_get_bindery_object_id(struct ncp_conn *conn,
 	return 0;
 }
 
+/*
+ * target is a 8-byte buffer
+ */
+int
+ncp_get_encryption_key(struct ncp_conn *conn, char *target)
+{
+	struct ncp_rq *rqp;
+	int error;
+
+	error = ncp_rq_alloc_subfn(23, 23, conn, conn->procp, conn->ucred, &rqp);
+	if (error)
+		return error;
+	rqp->nr_minrplen = 8;
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_mem(&rqp->rp, target, 8, MB_MSYSTEM);
+	ncp_rq_done(rqp);
+	return error;
+}
+
+/*
+ * Initialize packet signatures. They a slightly modified MD4.
+ * The first 16 bytes of logindata are the shuffled password,
+ * the last 8 bytes the encryption key as received from the server.
+ */
+static int
+ncp_sign_start(struct ncp_conn *conn, char *logindata)
+{
+	char msg[64];
+	u_int32_t state[4];
+
+	memcpy(msg, logindata, 24);
+	memcpy(msg + 24, "Authorized NetWare Client", 25);
+	bzero(msg + 24 + 25, sizeof(msg) - 24 - 25);
+
+	conn->sign_state[0] = 0x67452301;
+	conn->sign_state[1] = 0xefcdab89;
+	conn->sign_state[2] = 0x98badcfe;
+	conn->sign_state[3] = 0x10325476;
+	ncp_sign(conn->sign_state, msg, state);
+	conn->sign_root[0] = state[0];
+	conn->sign_root[1] = state[1];
+	conn->flags |= NCPFL_SIGNACTIVE;
+	return 0;
+}
+
+
+int
+ncp_login_encrypted(struct ncp_conn *conn, struct ncp_bindery_object *object,
+	const u_char *key, const u_char *passwd,
+	struct proc *p, struct ucred *cred)
+{
+	struct ncp_rq *rqp;
+	struct mbchain *mbp;
+	u_int32_t tmpID = htonl(object->object_id);
+	u_char buf[16 + 8];
+	u_char encrypted[8];
+	int error;
+
+	nw_keyhash((u_char*)&tmpID, passwd, strlen(passwd), buf);
+	nw_encrypt(key, buf, encrypted);
+
+	error = ncp_rq_alloc_subfn(23, 24, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mbp = &rqp->rq;
+	mb_put_mem(mbp, encrypted, 8, MB_MSYSTEM);
+	mb_put_uint16be(mbp, object->object_type);
+	ncp_rq_pstring(rqp, object->object_name);
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
+	if ((conn->flags & NCPFL_SIGNWANTED) &&
+	    (error == 0 || error == NWE_PASSWORD_EXPIRED)) {
+		bcopy(key, buf + 16, 8);
+		error = ncp_sign_start(conn, buf);
+	}
+	return error;
+}
+
+int
+ncp_login_unencrypted(struct ncp_conn *conn, u_int16_t object_type, 
+	const char *object_name, const u_char *passwd,
+	struct proc *p, struct ucred *cred)
+{
+	struct ncp_rq *rqp;
+	int error;
+
+	error = ncp_rq_alloc_subfn(23, 20, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint16be(&rqp->rq, object_type);
+	ncp_rq_pstring(rqp, object_name);
+	ncp_rq_pstring(rqp, passwd);
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
+	return error;
+}
+
 int
 ncp_read(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred)
 {
