@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.35 1998/05/16 23:47:28 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.36 1998/05/18 23:24:24 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1743,6 +1743,13 @@ command:
  link 3 set device /dev/cuaa2
 .Ed
 .Pp
+Use the
+.Dq help
+command to see which commands require context (using the
+.Dq link
+command), which have optional
+context and which should not have any context.
+.Pp
 When
 .Nm
 has negotiated
@@ -1828,9 +1835,10 @@ CHAP is accepted by default.
 Some
 .Em PPP
 implementations use "MS-CHAP" rather than MD5 when encrypting the
-challenge.  Refer to the description of the
-.Dq set encrypt
-command for further details.
+challenge.  MS-CHAP is a combination of MD4 and DES.  If
+.Nm was build
+on a machine with DES libraries available, it will respond to MS-CHAP
+authentication requests, but will never request them.
 .It deflate
 Default: Enabled and Accepted.  This option decides if deflate
 compression will be used by the Compression Control Protocol (CCP).

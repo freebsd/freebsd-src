@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.85 1998/05/16 23:47:22 brian Exp $
+ * $Id: command.c,v 1.131.2.86 1998/05/16 23:47:41 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -94,17 +94,16 @@
 #define	VAR_OPENMODE	10
 #define	VAR_PHONE	11
 #define	VAR_HANGUP	12
-#define	VAR_ENC		13
-#define	VAR_IDLETIMEOUT	14
-#define	VAR_LQRPERIOD	15
-#define	VAR_LCPRETRY	16
-#define	VAR_CHAPRETRY	17
-#define	VAR_PAPRETRY	18
-#define	VAR_CCPRETRY	19
-#define	VAR_IPCPRETRY	20
-#define	VAR_DNS		21
-#define	VAR_NBNS	22
-#define	VAR_MODE	23
+#define	VAR_IDLETIMEOUT	13
+#define	VAR_LQRPERIOD	14
+#define	VAR_LCPRETRY	15
+#define	VAR_CHAPRETRY	16
+#define	VAR_PAPRETRY	17
+#define	VAR_CCPRETRY	18
+#define	VAR_IPCPRETRY	19
+#define	VAR_DNS		20
+#define	VAR_NBNS	21
+#define	VAR_MODE	22
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -124,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/16 23:47:22 $";
+const char VersionDate[] = "$Date: 1998/05/16 23:47:41 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -144,11 +143,23 @@ static int AliasEnable(struct cmdargs const *);
 static int AliasOption(struct cmdargs const *);
 #endif
 
+static const char *
+showcx(struct cmdtab const *cmd)
+{
+  if (cmd->lauth & LOCAL_CX)
+    return "(c)";
+  else if (cmd->lauth & LOCAL_CX_OPT)
+    return "(o)";
+
+  return "";
+}
+
 static int
 HelpCommand(struct cmdargs const *arg)
 {
   struct cmdtab const *cmd;
-  int n, cmax, dmax, cols;
+  int n, cmax, dmax, cols, cxlen;
+  const char *cx;
 
   if (!arg->prompt) {
     log_Printf(LogWARN, "help: Cannot help without a prompt\n");
@@ -160,7 +171,7 @@ HelpCommand(struct cmdargs const *arg)
       if ((cmd->lauth & arg->prompt->auth) &&
           ((cmd->name && !strcasecmp(cmd->name, arg->argv[arg->argn])) ||
            (cmd->alias && !strcasecmp(cmd->alias, arg->argv[arg->argn])))) {
-	prompt_Printf(arg->prompt, "%s\n", cmd->syntax);
+	prompt_Printf(arg->prompt, "%s %s\n", cmd->syntax, showcx(cmd));
 	return 0;
       }
     return -1;
@@ -169,7 +180,7 @@ HelpCommand(struct cmdargs const *arg)
   cmax = dmax = 0;
   for (cmd = arg->cmdtab; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & arg->prompt->auth)) {
-      if ((n = strlen(cmd->name)) > cmax)
+      if ((n = strlen(cmd->name) + strlen(showcx(cmd))) > cmax)
         cmax = n;
       if ((n = strlen(cmd->helpmes)) > dmax)
         dmax = n;
@@ -177,10 +188,14 @@ HelpCommand(struct cmdargs const *arg)
 
   cols = 80 / (dmax + cmax + 3);
   n = 0;
+  prompt_Printf(arg->prompt, "(o) = Optional context,"
+                " (c) = Context required\n");
   for (cmd = arg->cmdtab; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & arg->prompt->auth)) {
-      prompt_Printf(arg->prompt, " %-*.*s: %-*.*s",
-              cmax, cmax, cmd->name, dmax, dmax, cmd->helpmes);
+      cx = showcx(cmd);
+      cxlen = cmax - strlen(cmd->name);
+      prompt_Printf(arg->prompt, " %s%-*.*s: %-*.*s",
+              cmd->name, cxlen, cxlen, cx, dmax, dmax, cmd->helpmes);
       if (++n % cols == 0)
         prompt_Printf(arg->prompt, "\n");
     }
@@ -543,45 +558,45 @@ ShowProtocolStats(struct cmdargs const *arg)
 
 static struct cmdtab const ShowCommands[] = {
   {"bundle", NULL, bundle_ShowStatus, LOCAL_AUTH,
-  "Show bundle details", "show bundle"},
+  "bundle details", "show bundle"},
   {"ccp", NULL, ccp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Show CCP status", "show cpp"},
+  "CCP status", "show cpp"},
   {"compress", NULL, sl_Show, LOCAL_AUTH,
-  "Show compression stats", "show compress"},
+  "VJ compression stats", "show compress"},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
-  "Show escape characters", "show escape"},
+  "escape characters", "show escape"},
   {"filter", NULL, filter_Show, LOCAL_AUTH,
-  "Show packet filters", "show filter [in|out|dial|alive]"},
+  "packet filters", "show filter [in|out|dial|alive]"},
   {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
-  "Show HDLC errors", "show hdlc"},
+  "HDLC errors", "show hdlc"},
   {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
-  "Show IPCP status", "show ipcp"},
+  "IPCP status", "show ipcp"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
-  "Show LCP status", "show lcp"},
+  "LCP status", "show lcp"},
   {"link", "datalink", datalink_Show, LOCAL_AUTH | LOCAL_CX,
-  "Show (high-level) link info", "show link"},
+  "(high-level) link info", "show link"},
   {"links", NULL, bundle_ShowLinks, LOCAL_AUTH,
-  "Show available link names", "show links"},
+  "available link names", "show links"},
   {"log", NULL, log_ShowLevel, LOCAL_AUTH,
-  "Show log levels", "show log"},
+  "log levels", "show log"},
   {"mem", NULL, mbuf_Show, LOCAL_AUTH,
-  "Show memory map", "show mem"},
+  "mbuf allocations", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
-  "Show (low-level) link info", "show modem"},
+  "(low-level) link info", "show modem"},
   {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
-  "Show multilink setup", "show mp"},
+  "multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Show protocol summary", "show proto"},
+  "protocol summary", "show proto"},
   {"route", NULL, route_Show, LOCAL_AUTH,
-  "Show routing table", "show route"},
+  "routing table", "show route"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
-  "Show STOPPED timeout", "show stopped"},
+  "STOPPED timeout", "show stopped"},
   {"timers", NULL, ShowTimerList, LOCAL_AUTH,
-  "Show alarm timers", "show timers"},
+  "alarm timers", "show timers"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
-  "Show version string", "show version"},
+  "version string", "show version"},
   {"who", NULL, log_ShowWho, LOCAL_AUTH,
-  "Show client list", "show who"},
+  "client list", "show who"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Display this message", "show help|? [command]", ShowCommands},
   {NULL, NULL, NULL},
@@ -1136,9 +1151,9 @@ SetVariable(struct cmdargs const *arg)
   u_long ulong_val;
   const char *argp;
   int param = (int)arg->cmd->args, mode;
-  struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
+  struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *err = NULL;
-  struct link *l = command_ChooseLink(arg);	/* AUTH_CX_OPT uses this */
+  struct link *l = command_ChooseLink(arg);	/* LOCAL_CX_OPT uses this */
   int dummyint;
   struct in_addr dummyaddr, *addr;
 
@@ -1392,86 +1407,83 @@ SetCtsRts(struct cmdargs const *arg)
 
 static struct cmdtab const SetCommands[] = {
   {"accmap", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set accmap value", "set accmap hex-value", (const void *)VAR_ACCMAP},
+  "accmap value", "set accmap hex-value", (const void *)VAR_ACCMAP},
   {"authkey", "key", SetVariable, LOCAL_AUTH,
-  "Set authentication key", "set authkey|key key", (const void *)VAR_AUTHKEY},
+  "authentication key", "set authkey|key key", (const void *)VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
-  "Set authentication name", "set authname name", (const void *)VAR_AUTHNAME},
+  "authentication name", "set authname name", (const void *)VAR_AUTHNAME},
   {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
+  "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
   {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  "CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
   {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use hardware flow control", "set ctsrts [on|off]"},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set deflate window sizes", "set deflate out-winsize in-winsize",
+  "deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set modem device name", "set device|line device-name[,device-name]",
+  "modem device name", "set device|line device-name[,device-name]",
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
-  {"dns", NULL, SetVariable, LOCAL_AUTH, "Set Domain Name Server",
+  "dialing script", "set dial chat-script", (const void *) VAR_DIAL},
+  {"dns", NULL, SetVariable, LOCAL_AUTH, "Domain Name Server",
   "set dns pri-addr [sec-addr]", (const void *)VAR_DNS},
-  {"encrypt", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Select CHAP encryption type", "set encrypt MSChap|MD5",
-  (const void *)VAR_ENC},
   {"enddisc", NULL, mp_SetEnddisc, LOCAL_AUTH,
-  "Set Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]"},
+  "Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]"},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
-  "Set escape characters", "set escape hex-digit ..."},
+  "escape characters", "set escape hex-digit ..."},
   {"filter", NULL, filter_Set, LOCAL_AUTH,
-  "Set packet filters", "set filter alive|dial|in|out rule-no permit|deny "
+  "packet filters", "set filter alive|dial|in|out rule-no permit|deny "
   "[src_addr[/width]] [dst_addr[/width]] [tcp|udp|icmp [src [lt|eq|gt port]] "
   "[dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
-  {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",
+  "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
+  {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
-  "Set FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
+  "FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
   {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
+  "FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH,
-  "Set log level", "set log [local] [+|-]value..."},
+  "log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
+  "login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
-  {"mode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set mode value",
+  "LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
+  {"mode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "mode value",
   "set mode interactive|auto|ddial|background", (const void *)VAR_MODE},
-  {"mrru", NULL, SetVariable, LOCAL_AUTH, "Set MRRU value",
+  {"mrru", NULL, SetVariable, LOCAL_AUTH, "MRRU value",
   "set mrru value", (const void *)VAR_MRRU},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Set MRU value", "set mru value", (const void *)VAR_MRU},
+  "MRU value", "set mru value", (const void *)VAR_MRU},
   {"mtu", NULL, SetVariable, LOCAL_AUTH,
-  "Set interface MTU value", "set mtu value", (const void *)VAR_MTU},
-  {"nbns", NULL, SetVariable, LOCAL_AUTH, "Set NetBIOS Name Server",
+  "interface MTU value", "set mtu value", (const void *)VAR_MTU},
+  {"nbns", NULL, SetVariable, LOCAL_AUTH, "NetBIOS Name Server",
   "set nbns pri-addr [sec-addr]", (const void *)VAR_NBNS},
-  {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set open mode",
+  {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "open mode",
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
   {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
+  "PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
-  "Set modem parity", "set parity [odd|even|none]"},
-  {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set telephone number(s)",
+  "modem parity", "set parity [odd|even|none]"},
+  {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
-  "Set Reconnect timeout", "set reconnect value ntries"},
+  "Reconnect timeout", "set reconnect value ntries"},
   {"redial", NULL, datalink_SetRedial, LOCAL_AUTH | LOCAL_CX,
-  "Set Redial timeout", "set redial value|random[.value|random] [attempts]"},
+  "Redial timeout", "set redial value|random[.value|random] [attempts]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
-  "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
+  "server port", "set server|socket TcpPort|LocalName|none [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
-  "Set modem speed", "set speed value"},
+  "modem speed", "set speed value"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
-  "Set STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
-  {"timeout", NULL, SetVariable, LOCAL_AUTH, "Set Idle timeout",
+  "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
+  {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
-  "Set vj values", "set vj slots|slotcomp [value]"},
+  "vj values", "set vj slots|slotcomp [value]"},
   {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
-  "Set datalink weighting", "set weight n"},
+  "datalink weighting", "set weight n"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
@@ -1826,8 +1838,8 @@ static int
 NegotiateSet(struct cmdargs const *arg)
 {
   int param = (int)arg->cmd->args;
-  struct link *l = command_ChooseLink(arg);	/* AUTH_CX_OPT uses this */
-  struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
+  struct link *l = command_ChooseLink(arg);	/* LOCAL_CX_OPT uses this */
+  struct datalink *cx = arg->cx;	/* LOCAL_CX uses this */
   const char *cmd;
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
