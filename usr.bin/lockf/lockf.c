@@ -132,7 +132,7 @@ main(int argc, char **argv)
     if (child == 0) {	/* The child process. */
 	close(lockfd);
 	execvp(argv[0], argv);
-	perror(argv[0]);
+	warn("%s", argv[0]);
 	_exit(1);
     }
 
