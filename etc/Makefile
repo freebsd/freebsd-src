@@ -10,7 +10,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	dhclient.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
-	mac.conf motd modems netconfig networks newsyslog.conf \
+	mac.conf motd netconfig networks newsyslog.conf \
 	phones printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
