@@ -81,30 +81,36 @@ static driver_t mlx_pci_driver = {
 
 DRIVER_MODULE(mlx, pci, mlx_pci_driver, mlx_devclass, 0, 0);
 
-struct 
+struct mlx_ident
 {
     u_int16_t	vendor;
     u_int16_t	device;
+    u_int16_t	subvendor;
+    u_int16_t	subdevice;
     int		iftype;
     char	*desc;
 } mlx_identifiers[] = {
-    {0x1069, 0x0002, MLX_IFTYPE_3, "Mylex version 3 RAID interface"},	/* Mylex v3 software interface */
-    {0x1069, 0x0010, MLX_IFTYPE_4, "Mylex version 4 RAID interface"},	/* Mylex v4 software interface */
-    {0, 0, 0, 0}
+/*    {0x1069, 0x0001, 0x0000, 0x0000, MLX_IFTYPE_2, "Mylex version 2 RAID interface"}, */
+    {0x1069, 0x0002, 0x0000, 0x0000, MLX_IFTYPE_3, "Mylex version 3 RAID interface"},
+    {0x1069, 0x0010, 0x0000, 0x0000, MLX_IFTYPE_4, "Mylex version 4 RAID interface"},
+    {0x1011, 0x1065, 0x1069, 0x0020, MLX_IFTYPE_5, "Mylex version 5 RAID interface"},
+    {0, 0, 0, 0, 0, 0}
 };
 
 static int
 mlx_pci_probe(device_t dev)
 {
-    int		i;
+    struct mlx_ident	*m;
 
     debug("called");
 
-    for (i = 0; mlx_identifiers[i].vendor != 0; i++) {
-	if ((mlx_identifiers[i].vendor == pci_get_vendor(dev)) &&
-	    (mlx_identifiers[i].device == pci_get_device(dev))) {
+    for (m = mlx_identifiers; m->vendor != 0; m++) {
+	if ((m->vendor == pci_get_vendor(dev)) &&
+	    (m->device == pci_get_device(dev)) &&
+	    ((m->subvendor == 0) || ((m->subvendor == pci_get_subvendor(dev)) &&
+				     (m->subdevice == pci_get_subdevice(dev))))) {
 	    
-	    device_set_desc(dev, mlx_identifiers[i].desc);
+	    device_set_desc(dev, m->desc);
 	    return(0);
 	}
     }

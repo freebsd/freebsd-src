@@ -277,11 +277,11 @@ mlxd_attach(device_t dev)
 		      DEVSTAT_PRIORITY_ARRAY);
 
     dsk = disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, &mlxd_cdevsw, &mlxddisk_cdevsw);
+    dsk->si_drv1 = sc;
     disks_registered++;
 
     /* set maximum I/O size */
     dsk->si_iosize_max = sc->mlxd_controller->mlx_maxiosize * MLX_BLKSIZE;
-    dsk->si_drv1 = sc;
 
     return (0);
 }

@@ -53,6 +53,7 @@
 #define MLX_STATUS_OK		0x0000
 #define MLX_STATUS_RDWROFFLINE	0x0002	/* read/write claims drive is offline */
 #define MLX_STATUS_WEDGED	0xdead	/* controller not listening */
+#define MLX_STATUS_LOST		0xbeef	/* never came back */
 #define MLX_STATUS_BUSY		0xffff	/* command is in controller */
 
 /*
@@ -113,6 +114,40 @@
 
 #define MLX_V4_IER_MASK		0xfb		/* message unit interrupt mask */
 #define MLX_V4_IER_DISINT	(1<<2)		/* interrupt disable bit */
+
+/*
+ * Accessor defines for the V5 interface
+ */
+#define MLX_V5_MAILBOX		0x50
+#define MLX_V5_STATUS_IDENT	0x5d
+#define MLX_V5_STATUS		0x5e
+#define MLX_V5_IDBR		0x60
+#define MLX_V5_ODBR		0x61
+#define MLX_V5_IER		0x34
+
+#define MLX_V5_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_MAILBOX + idx, val)
+#define MLX_V5_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_STATUS_IDENT)
+#define MLX_V5_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_STATUS)
+#define MLX_V5_GET_IDBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IDBR)
+#define MLX_V5_PUT_IDBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IDBR, val)
+#define MLX_V5_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR)
+#define MLX_V5_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR, val)
+#define MLX_V5_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IER, val)
+
+#define MLX_V5_IDB_EMPTY	(1<<0)		/* mailbox is empty */
+
+#define MLX_V5_IDB_HWMBOX_CMD	(1<<0)		/* posted hardware mailbox command */
+#define MLX_V5_IDB_SACK		(1<<1)		/* acknowledge status read */
+#define MLX_V5_IDB_MEMMBOX_CMD	(1<<4)		/* posted memory mailbox command */
+
+#define MLX_V5_ODB_HWSAVAIL	(1<<0)		/* status is available for hardware mailbox */
+#define MLX_V5_ODB_MEMSAVAIL	(1<<1)		/* status is available for memory mailbox */
+
+#define MLX_V5_ODB_HWMBOX_ACK	(1<<0)		/* ack status read from hardware mailbox */
+#define MLX_V5_ODB_MEMMBOX_ACK	(1<<1)		/* ack status read from memory mailbox */
+
+#define MLX_V5_IER_DISINT	(1<<2)		/* interrupt disable bit */
+
 
 /*
  * Scatter-gather list format, type 1, kind 00.
