@@ -188,7 +188,6 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 {
 	int i=0,k=0;
 	struct chunk *c1;
-	u_long l;
 
 	if (c->type != freebsd)
 		return;
