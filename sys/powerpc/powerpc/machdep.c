@@ -723,15 +723,17 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	return;
 }
 
-#ifdef COMPAT_43
+/*
+ * Stub to satisfy the reference to osigreturn in the syscall table.  This
+ * is needed even for newer arches that don't support old signals because
+ * the syscall table is machine-independent.
+ */
 int
 osigreturn(struct thread *td, struct osigreturn_args *uap)
 {
 
-	/* XXX: To be done */
-	return(ENOSYS);
+	return (nosys(td, (struct nosys_args *)uap));
 }
-#endif
 
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)

@@ -446,6 +446,18 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_LOCK(p);
 }
 
+/*
+ * Stub to satisfy the reference to osigreturn in the syscall table.  This
+ * is needed even for newer arches that don't support old signals because
+ * the syscall table is machine-independent.
+ */
+int
+osigreturn(struct thread *td, struct osigreturn_args *uap)
+{
+
+	return (nosys(td, (struct nosys_args *)uap));
+}
+
 #ifndef	_SYS_SYSPROTO_H_
 struct sigreturn_args {
 	ucontext_t *ucp;
