@@ -693,6 +693,7 @@ distExtract(char *parent, Distribution *me)
 	    else if (fp > 0) {
 		char *dir = root_bias(me[i].my_dir);
 
+		dialog_clear_norefresh();
 		msgNotify("Extracting %s into %s directory...", dist, dir);
 		status = mediaExtractDist(dir, dist, fp);
 		fclose(fp);
@@ -716,6 +717,7 @@ distExtract(char *parent, Distribution *me)
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 
 	/* And go for all the chunks */
+	dialog_clear_norefresh();
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval, last_msg;
 	    char prompt[80];
@@ -793,6 +795,7 @@ distExtract(char *parent, Distribution *me)
 
     done:
 	if (!status) {
+	    dialog_clear_norefresh();
 	    if (me[i].my_dist) {
 		msgConfirm("Unable to transfer all components of the %s distribution.\n"
 			   "If this is a CDROM install, it may be because export restrictions prohibit\n"
@@ -805,7 +808,6 @@ distExtract(char *parent, Distribution *me)
 				  me[i].my_name, mediaDevice->name);
 		if (!status)
 		    --i;
-		dialog_clear();
 	    }
 	}
 	/* If extract was successful, remove ourselves from further consideration */
@@ -874,6 +876,7 @@ distExtractAll(dialogMenuItem *self)
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
 
+    dialog_clear_norefresh();
     /* Only do bin fixup if bin dist was successfully extracted */
     if ((old_dists & DIST_BIN) && !(Dists & DIST_BIN))
 	status |= installFixupBin(self);
@@ -887,6 +890,7 @@ distExtractAll(dialogMenuItem *self)
 	int col = 0;
 
 	buf[0] = '\0';
+	dialog_clear_norefresh();
 	printSelected(buf, Dists, DistTable, &col);
 	dialog_clear_norefresh();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
