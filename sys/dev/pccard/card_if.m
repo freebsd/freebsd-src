@@ -93,15 +93,6 @@ METHOD int detach_card {
 	int	  flags;
 }
 
-#
-# pccard/cardbus buses call this to request a reprobe of the bus.
-# reprobe only initiated if the child bus is the same type the card inserted.
-#
-METHOD int reprobe_card {
-	device_t  dev;
-	device_t  child;
-}
-
 HEADER {
 	#define DETACH_FORCE 0x01
 }
