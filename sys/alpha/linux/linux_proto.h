@@ -59,8 +59,15 @@ struct	linux_lseek_args {
 	long	off;	char off_[PAD_(long)];
 	int	whence;	char whence_[PAD_(int)];
 };
+struct	linux_mount_args {
+	char *	specialfile;	char specialfile_[PAD_(char *)];
+	char *	dir;	char dir_[PAD_(char *)];
+	char *	filesystemtype;	char filesystemtype_[PAD_(char *)];
+	u_long	rwflag;	char rwflag_[PAD_(u_long)];
+	void *	data;	char data_[PAD_(void *)];
+};
 struct	linux_umount_args {
-	register_t dummy;
+	char *	path;	char path_[PAD_(char *)];
 };
 struct	linux_ptrace_args {
 	register_t dummy;
@@ -81,6 +88,10 @@ struct	linux_open_args {
 struct	osf1_sigprocmask_args {
 	int	how;	char how_[PAD_(int)];
 	u_long	mask;	char mask_[PAD_(u_long)];
+};
+struct	linux_umount2_args {
+	char *	path;	char path_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
 };
 struct	linux_ioctl_args {
 	int	fd;	char fd_[PAD_(int)];
@@ -358,6 +369,11 @@ struct	linux_get_kernel_syms_args {
 struct	linux_ksyslog_args {
 	int	what;	char what_[PAD_(int)];
 };
+struct	linux_reboot_args {
+	int	magic1;	char magic1_[PAD_(int)];
+	int	magic2;	char magic2_[PAD_(int)];
+	int	opt;	char opt_[PAD_(int)];
+};
 struct	linux_clone_args {
 	int	flags;	char flags_[PAD_(int)];
 	void *	stack;	char stack_[PAD_(void *)];
@@ -521,12 +537,14 @@ int	linux_chmod __P((struct proc *, struct linux_chmod_args *));
 int	linux_chown __P((struct proc *, struct linux_chown_args *));
 int	linux_brk __P((struct proc *, struct linux_brk_args *));
 int	linux_lseek __P((struct proc *, struct linux_lseek_args *));
+int	linux_mount __P((struct proc *, struct linux_mount_args *));
 int	linux_umount __P((struct proc *, struct linux_umount_args *));
 int	linux_ptrace __P((struct proc *, struct linux_ptrace_args *));
 int	linux_access __P((struct proc *, struct linux_access_args *));
 int	linux_kill __P((struct proc *, struct linux_kill_args *));
 int	linux_open __P((struct proc *, struct linux_open_args *));
 int	osf1_sigprocmask __P((struct proc *, struct osf1_sigprocmask_args *));
+int	linux_umount2 __P((struct proc *, struct linux_umount2_args *));
 int	linux_ioctl __P((struct proc *, struct linux_ioctl_args *));
 int	linux_symlink __P((struct proc *, struct linux_symlink_args *));
 int	linux_readlink __P((struct proc *, struct linux_readlink_args *));
@@ -589,6 +607,7 @@ int	linux_init_module __P((struct proc *, struct linux_init_module_args *));
 int	linux_delete_module __P((struct proc *, struct linux_delete_module_args *));
 int	linux_get_kernel_syms __P((struct proc *, struct linux_get_kernel_syms_args *));
 int	linux_ksyslog __P((struct proc *, struct linux_ksyslog_args *));
+int	linux_reboot __P((struct proc *, struct linux_reboot_args *));
 int	linux_clone __P((struct proc *, struct linux_clone_args *));
 int	linux_uselib __P((struct proc *, struct linux_uselib_args *));
 int	linux_sysinfo __P((struct proc *, struct linux_sysinfo_args *));
