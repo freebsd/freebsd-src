@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.5 2002/08/29 22:54:10 stevesk Exp $
+.\" $OpenBSD: ssh_config.5,v 1.7 2003/03/28 10:11:43 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
@@ -177,8 +177,8 @@ is only supported in the
 client for interoperability with legacy protocol 1 implementations
 that do not support the
 .Ar 3des
-cipher.  Its use is strongly discouraged due to cryptographic
-weaknesses.
+cipher.
+Its use is strongly discouraged due to cryptographic weaknesses.
 The default is
 .Dq 3des .
 .It Cm Ciphers
@@ -194,7 +194,8 @@ The default is
 .It Cm ClearAllForwardings
 Specifies that all local, remote and dynamic port forwardings
 specified in the configuration files or on the command line be
-cleared.  This option is primarily useful when used from the
+cleared.
+This option is primarily useful when used from the
 .Nm ssh
 command line to clear port forwardings set in
 configuration files, and is automatically set by
@@ -231,13 +232,14 @@ The default is 1.
 Specifies that a TCP/IP port on the local machine be forwarded
 over the secure channel, and the application
 protocol is then used to determine where to connect to from the
-remote machine.  The argument must be a port number.
+remote machine.
+The argument must be a port number.
 Currently the SOCKS4 protocol is supported, and
 .Nm ssh
 will act as a SOCKS4 server.
 Multiple forwardings may be specified, and
-additional forwardings can be given on the command line.  Only
-the superuser can forward privileged ports.
+additional forwardings can be given on the command line.
+Only the superuser can forward privileged ports.
 .It Cm EscapeChar
 Sets the escape character (default:
 .Ql ~ ) .
@@ -260,10 +262,11 @@ or
 The default is
 .Dq no .
 .Pp
-Agent forwarding should be enabled with caution.  Users with the
-ability to bypass file permissions on the remote host (for the agent's
-Unix-domain socket) can access the local agent through the forwarded
-connection.  An attacker cannot obtain key material from the agent,
+Agent forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the agent's Unix-domain socket)
+can access the local agent through the forwarded connection.
+An attacker cannot obtain key material from the agent,
 however they can perform operations on the keys that enable them to
 authenticate using the identities loaded into the agent.
 .It Cm ForwardX11
@@ -278,18 +281,18 @@ or
 The default is
 .Dq no .
 .Pp
-X11 forwarding should be enabled with caution.  Users with the ability
-to bypass file permissions on the remote host (for the user's X
-authorization database) can access the local X11 display through the
-forwarded connection.  An attacker may then be able to perform
-activities such as keystroke monitoring.
+X11 forwarding should be enabled with caution.
+Users with the ability to bypass file permissions on the remote host
+(for the user's X authorization database)
+can access the local X11 display through the forwarded connection.
+An attacker may then be able to perform activities such as keystroke monitoring.
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to local
 forwarded ports.
 By default,
 .Nm ssh
-binds local port forwardings to the loopback address.  This
-prevents other remote hosts from connecting to forwarded ports.
+binds local port forwardings to the loopback address.
+This prevents other remote hosts from connecting to forwarded ports.
 .Cm GatewayPorts
 can be used to specify that
 .Nm ssh
@@ -396,8 +399,9 @@ Gives the verbosity level that is used when logging messages from
 .Nm ssh .
 The possible values are:
 QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2 and DEBUG3.
-The default is INFO.  DEBUG and DEBUG1 are equivalent.  DEBUG2
-and DEBUG3 each specify higher levels of verbose output.
+The default is INFO.
+DEBUG and DEBUG1 are equivalent.
+DEBUG2 and DEBUG3 each specify higher levels of verbose output.
 .It Cm MACs
 Specifies the MAC (message authentication code) algorithms
 in order of preference.
@@ -475,6 +479,9 @@ somewhere.
 Host key management will be done using the
 HostName of the host being connected (defaulting to the name typed by
 the user).
+Setting the command to
+.Dq none
+disables this option entirely.
 Note that
 .Cm CheckHostIP
 is not available for connects with a proxy command.
@@ -616,7 +623,7 @@ host key database instead of
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20030201 .
+.Dq FreeBSD-20030423 .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1

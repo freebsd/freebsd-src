@@ -163,7 +163,7 @@
 #include "log.h"
 #include "atomicio.h"
 
-RCSID("$Id: loginrec.c,v 1.44 2002/09/26 00:38:49 tim Exp $");
+RCSID("$Id: loginrec.c,v 1.47 2003/03/10 00:23:07 djm Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_UTIL_H
@@ -610,6 +610,9 @@ void
 construct_utmp(struct logininfo *li,
 		    struct utmp *ut)
 {
+# ifdef HAVE_ADDR_V6_IN_UTMP
+	struct sockaddr_in6 *sa6;
+#  endif
 	memset(ut, '\0', sizeof(*ut));
 
 	/* First fill out fields used for both logins and logouts */
@@ -663,6 +666,19 @@ construct_utmp(struct logininfo *li,
 	if (li->hostaddr.sa.sa_family == AF_INET)
 		ut->ut_addr = li->hostaddr.sa_in.sin_addr.s_addr;
 # endif
+# ifdef HAVE_ADDR_V6_IN_UTMP
+	/* this is just a 128-bit IPv6 address */
+	if (li->hostaddr.sa.sa_family == AF_INET6) {
+		sa6 = ((struct sockaddr_in6 *)&li->hostaddr.sa);
+		memcpy(ut->ut_addr_v6, sa6->sin6_addr.s6_addr, 16);
+		if (IN6_IS_ADDR_V4MAPPED(&sa6->sin6_addr)) {
+			ut->ut_addr_v6[0] = ut->ut_addr_v6[3];
+			ut->ut_addr_v6[1] = 0;
+			ut->ut_addr_v6[2] = 0;
+			ut->ut_addr_v6[3] = 0;
+		}
+	}
+# endif
 }
 #endif /* USE_UTMP || USE_WTMP || USE_LOGIN */
 
@@ -691,6 +707,9 @@ set_utmpx_time(struct logininfo *li, struct utmpx *utx)
 void
 construct_utmpx(struct logininfo *li, struct utmpx *utx)
 {
+# ifdef HAVE_ADDR_V6_IN_UTMP
+	struct sockaddr_in6 *sa6;
+#  endif
 	memset(utx, '\0', sizeof(*utx));
 # ifdef HAVE_ID_IN_UTMPX
 	line_abbrevname(utx->ut_id, li->line, sizeof(utx->ut_id));
@@ -726,6 +745,19 @@ construct_utmpx(struct logininfo *li, struct utmpx *utx)
 	/* this is just a 32-bit IP address */
 	if (li->hostaddr.sa.sa_family == AF_INET)
 		utx->ut_addr = li->hostaddr.sa_in.sin_addr.s_addr;
+# endif
+# ifdef HAVE_ADDR_V6_IN_UTMP
+	/* this is just a 128-bit IPv6 address */
+	if (li->hostaddr.sa.sa_family == AF_INET6) {
+		sa6 = ((struct sockaddr_in6 *)&li->hostaddr.sa);
+		memcpy(ut->ut_addr_v6, sa6->sin6_addr.s6_addr, 16);
+		if (IN6_IS_ADDR_V4MAPPED(&sa6->sin6_addr)) {
+			ut->ut_addr_v6[0] = ut->ut_addr_v6[3];
+			ut->ut_addr_v6[1] = 0;
+			ut->ut_addr_v6[2] = 0;
+			ut->ut_addr_v6[3] = 0;
+		}
+	}
 # endif
 # ifdef HAVE_SYSLEN_IN_UTMPX
 	/* ut_syslen is the length of the utx_host string */
@@ -1315,6 +1347,7 @@ syslogin_perform_login(struct logininfo *li)
 	}
 	construct_utmp(li, ut);
 	login(ut);
+	free(ut);
 
 	return 1;
 }
@@ -1492,22 +1525,32 @@ int
 lastlog_get_entry(struct logininfo *li)
 {
 	struct lastlog last;
-	int fd;
+	int fd, ret;
 
 	if (!lastlog_openseek(li, &fd, O_RDONLY))
-		return 0;
+		return (0);
 
-	if (atomicio(read, fd, &last, sizeof(last)) != sizeof(last)) {
-		close(fd);
-		log("lastlog_get_entry: Error reading from %s: %s",
-		    LASTLOG_FILE, strerror(errno));
-		return 0;
-	}
-
+	ret = atomicio(read, fd, &last, sizeof(last));
 	close(fd);
 
-	lastlog_populate_entry(li, &last);
+	switch (ret) {
+	case 0:
+		memset(&last, '\0', sizeof(last));
+		/* FALLTHRU */
+	case sizeof(last):
+		lastlog_populate_entry(li, &last);
+		return (1);
+	case -1:
+		error("%s: Error reading from %s: %s", __func__, 
+		    LASTLOG_FILE, strerror(errno));
+		return (0);
+	default:
+		error("%s: Error reading from %s: Expecting %d, got %d",
+		    __func__, LASTLOG_FILE, sizeof(last), ret);
+		return (0);
+	}
 
-	return 1;
+	/* NOTREACHED */
+	return (0);
 }
 #endif /* USE_LASTLOG */

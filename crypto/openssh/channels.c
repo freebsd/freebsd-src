@@ -39,7 +39,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: channels.c,v 1.183 2002/09/17 07:47:02 itojun Exp $");
+RCSID("$OpenBSD: channels.c,v 1.187 2003/03/05 22:33:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -414,13 +414,13 @@ channel_not_very_much_buffered_data(void)
 #if 0
 			if (!compat20 &&
 			    buffer_len(&c->input) > packet_get_maxsize()) {
-				debug("channel %d: big input buffer %d",
+				debug2("channel %d: big input buffer %d",
 				    c->self, buffer_len(&c->input));
 				return 0;
 			}
 #endif
 			if (buffer_len(&c->output) > packet_get_maxsize()) {
-				debug("channel %d: big output buffer %d > %d",
+				debug2("channel %d: big output buffer %d > %d",
 				    c->self, buffer_len(&c->output),
 				    packet_get_maxsize());
 				return 0;
@@ -579,7 +579,7 @@ channel_send_open(int id)
 		log("channel_send_open: %d: bad id", id);
 		return;
 	}
-	debug("send channel open %d", id);
+	debug2("channel %d: send open", id);
 	packet_start(SSH2_MSG_CHANNEL_OPEN);
 	packet_put_cstring(c->ctype);
 	packet_put_int(c->self);
@@ -589,15 +589,15 @@ channel_send_open(int id)
 }
 
 void
-channel_request_start(int local_id, char *service, int wantconfirm)
+channel_request_start(int id, char *service, int wantconfirm)
 {
-	Channel *c = channel_lookup(local_id);
+	Channel *c = channel_lookup(id);
 
 	if (c == NULL) {
-		log("channel_request_start: %d: unknown channel id", local_id);
+		log("channel_request_start: %d: unknown channel id", id);
 		return;
 	}
-	debug("channel request %d: %s", local_id, service) ;
+	debug("channel %d: request %s", id, service) ;
 	packet_start(SSH2_MSG_CHANNEL_REQUEST);
 	packet_put_int(c->remote_id);
 	packet_put_cstring(service);
@@ -1998,6 +1998,7 @@ channel_input_port_open(int type, u_int32_t seq, void *ctxt)
 		c->remote_id = remote_id;
 	}
 	if (c == NULL) {
+		xfree(originator_string);
 		packet_start(SSH_MSG_CHANNEL_OPEN_FAILURE);
 		packet_put_int(remote_id);
 		packet_send();
@@ -2282,7 +2283,10 @@ connect_to(const char *host, u_short port)
 		}
 		sock = socket(ai->ai_family, SOCK_STREAM, 0);
 		if (sock < 0) {
-			error("socket: %.100s", strerror(errno));
+			if (ai->ai_next == NULL)
+				error("socket: %.100s", strerror(errno));
+			else
+				verbose("socket: %.100s", strerror(errno));
 			continue;
 		}
 		if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0)
@@ -2607,6 +2611,7 @@ x11_input_open(int type, u_int32_t seq, void *ctxt)
 		/* Send refusal to the remote host. */
 		packet_start(SSH_MSG_CHANNEL_OPEN_FAILURE);
 		packet_put_int(remote_id);
+		xfree(remote_host);
 	} else {
 		/* Send a confirmation to the remote host. */
 		packet_start(SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
