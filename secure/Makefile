@@ -30,8 +30,4 @@ bootstrap:
 	${MAKE} ${MFLAGS} obj
 	${MAKE} ${MFLAGS} depend all install sprog
 
-help-distribute:	distribute
-	cd ${SDIR}/bin/ed; ${CODAD}
-	cd ${SDIR}/sbin/init; ${CODAD}
-
 .include <bsd.subdir.mk>
