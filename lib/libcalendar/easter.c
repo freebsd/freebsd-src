@@ -1,3 +1,5 @@
+...using script...
+CVS: up -A -p easter.c
 /*-
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: easter.c,v 1.2 1997/12/07 19:04:14 helbig Exp $
+ *	$Id: easter.c,v 1.3 1997/12/13 11:51:16 helbig Exp $
  */
 
 #include "calendar.h"
