@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.63 1997/09/21 15:03:58 peter Exp $
+ *	$Id: swtch.s,v 1.64 1997/10/10 09:44:06 peter Exp $
  */
 
 #include "npx.h"
@@ -86,6 +86,11 @@ _hlt_vector:	.long	_default_halt	/* pointer to halt routine */
 
 	.globl	_want_resched
 _want_resched:	.long	0		/* we need to re-run the scheduler */
+#if defined(SWTCH_OPTIM_STATS)
+	.globl	_swtch_optim_stats, _tlb_flush_count
+_swtch_optim_stats:	.long	0		/* number of _swtch_optims */
+_tlb_flush_count:	.long	0
+#endif
 
 	.text
 /*
@@ -252,6 +257,9 @@ _idle:
 	/* use our idleproc's "context" */
 	movl	_my_idlePTD,%ecx
 	movl	%ecx,%cr3
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_tlb_flush_count
+#endif
 	movl	$_idlestack_top,%ecx
 	movl	%ecx,%esp
 
@@ -259,8 +267,7 @@ _idle:
 #ifdef VM86
 	movl	_my_tr, %esi
 #endif /* VM86 */
-	movl	$_common_tss, %eax
-	movl	%ecx, TSS_ESP0(%eax)
+	movl	%ecx, _common_tss + TSS_ESP0
 
 #ifdef VM86
 	btrl	%esi, _private_tss
@@ -302,6 +309,9 @@ _idle:
 	.globl	idle_loop
 idle_loop:
 
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_tlb_flush_count
+#endif
 	movl	%cr3,%eax			/* ouch! */
 	movl	%eax,%cr3
 
@@ -357,15 +367,27 @@ idle_loop:
 #else
 	xorl	%ebp,%ebp
 	movl	$HIDENAME(tmpstk),%esp
-	movl	_IdlePTD,%ecx
-	movl	%ecx,%cr3
+#if defined(OVERLY_CONSERVATIVE_PTD_MGMT)
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_swtch_optim_stats
+#endif
+	movl	_IdlePTD, %ecx
+	movl	%cr3, %eax
+	cmpl	%ecx, %eax
+	je		2f
+#if defined(SWTCH_OPTIM_STATS)
+	decl	_swtch_optim_stats
+	incl	_tlb_flush_count
+#endif
+	movl	%ecx, %cr3
+2:
+#endif
 
 	/* update common_tss.tss_esp0 pointer */
 #ifdef VM86
 	movl	_my_tr, %esi
 #endif /* VM86 */
-	movl	$_common_tss, %eax
-	movl	%esp, TSS_ESP0(%eax)
+	movl	%esp, _common_tss + TSS_ESP0
 
 #ifdef VM86
 	btrl	%esi, _private_tss
@@ -576,16 +598,28 @@ swtch_com:
 
 	movl	%eax,P_BACK(%ecx) 		/* isolate process to run */
 	movl	P_ADDR(%ecx),%edx
-	movl	PCB_CR3(%edx),%ebx
 
 #ifdef SMP
+	movl	PCB_CR3(%edx),%ebx
 	/* Grab the private PT pointer from the outgoing process's PTD */
 	movl	$_PTD, %esi
 	movl	4*MPPTDI(%esi), %eax		/* fetch cpu's prv pt */
-#endif /* SMP */
-
+#else
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_swtch_optim_stats
+#endif
 	/* switch address space */
+	movl	%cr3,%ebx
+	cmpl	PCB_CR3(%edx),%ebx
+	je		4f
+#if defined(SWTCH_OPTIM_STATS)
+	decl	_swtch_optim_stats
+	incl	_tlb_flush_count
+#endif
+	movl	PCB_CR3(%edx),%ebx
+#endif /* SMP */
 	movl	%ebx,%cr3
+4:
 
 #ifdef SMP
 	/* Copy the private PT to the new process's PTD */
@@ -597,6 +631,9 @@ swtch_com:
 	 */
 	movl	%eax, 4*MPPTDI(%esi)		/* restore cpu's prv page */
 
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_tlb_flush_count
+#endif
 	/* XXX: we have just changed the page tables.. reload.. */
 	movl	%ebx, %cr3
 #endif /* SMP */

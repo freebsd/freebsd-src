@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.3 1997/09/05 20:20:31 smp Exp smp $
+ *	$Id: cpufunc.h,v 1.72 1997/09/07 22:01:27 fsmp Exp $
  */
 
 /*
@@ -45,6 +45,9 @@
 
 #include <machine/lock.h>
 
+#if defined(SWTCH_OPTIM_STATS)
+extern int tlb_flush_count;
+#endif
 
 #ifdef	__GNUC__
 
@@ -234,6 +237,9 @@ invltlb(void)
 	 */
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
 			 : : "memory");
+#if defined(SWTCH_OPTIM_STATS)
+	++tlb_flush_count;
+#endif
 }
 
 #endif	/* SMP */

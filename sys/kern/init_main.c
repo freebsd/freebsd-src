@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.77 1997/12/06 04:11:09 sef Exp $
+ * $Id: init_main.c,v 1.78 1997/12/12 04:00:57 dyson Exp $
  */
 
 #include "opt_devfs.h"
@@ -401,7 +401,7 @@ proc0_init(dummy)
 	/* Allocate a prototype map so we have something to fork. */
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
-	pmap_pinit(&vmspace0.vm_pmap);
+	pmap_pinit0(&vmspace0.vm_pmap);
 	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
 	    trunc_page(VM_MAXUSER_ADDRESS), TRUE);
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
