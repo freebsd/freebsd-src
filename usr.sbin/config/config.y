@@ -158,9 +158,7 @@ System_spec:
 
 System_id:
 	Save_id
-	      = {
-		newopt(ns("KERNEL"), $1);
-	      };
+	      = { newopt(&mkopt, ns("KERNEL"), $1); };
 
 System_parameter_list:
 	  System_parameter_list ID
@@ -178,13 +176,13 @@ Option:
 	      = {
 		char *s;
 
-		newopt($1, NULL);
+		newopt(&opt, $1, NULL);
 		if ((s = strchr($1, '=')))
 			errx(1, "line %d: The `=' in options should not be quoted", yyline);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
-		newopt($1, $3);
+		newopt(&opt, $1, $3);
 	      } ;
 
 Opt_value:
@@ -211,14 +209,7 @@ Mkopt_list:
 
 Mkoption:
 	Save_id EQUALS Opt_value
-	      = {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
-		memset(op, 0, sizeof(*op));
-		op->op_name = $1;
-		op->op_value = $3;
-		op->op_next = mkopt;
-		mkopt = op;
-	      } ;
+	      = { newopt(&mkopt, $1, $3); } ;
 
 Dev:
 	ID
@@ -228,13 +219,13 @@ Dev:
 Device_spec:
 	DEVICE Dev
 	      = {
-		newopt(devopt($2), ns("1"));
+		newopt(&opt, devopt($2), ns("1"));
 		/* and the device part */
 		newdev($2, UNKNOWN);
 		} |
 	DEVICE Dev NUMBER
 	      = {
-		newopt(devopt($2), ns("1"));
+		newopt(&opt, devopt($2), ns("1"));
 		/* and the device part */
 		newdev($2, $3);
 		if ($3 == 0)
@@ -271,7 +262,7 @@ newdev(char *name, int count)
 }
 
 static void
-newopt(char *name, char *value)
+newopt(struct opt **list, char *name, char *value)
 {
 	struct opt *op;
 
@@ -280,6 +271,6 @@ newopt(char *name, char *value)
 	op->op_name = name;
 	op->op_ownfile = 0;
 	op->op_value = value;
-	op->op_next = opt;
-	opt = op;
+	op->op_next = *list;
+	*list = op;
 }
