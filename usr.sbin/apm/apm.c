@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.13 1998/02/20 07:17:46 hosokawa Exp $";
+	"$Id: apm.c,v 1.14 1998/09/04 16:08:54 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -66,13 +66,15 @@ int
 bcd2int(int bcd)
 {
 	int retval = 0;
+	int place = 1;
 
 	if (bcd > 0x9999)
 		return -1;
 
 	while (bcd) {
-		retval = retval * 10 + ((bcd & 0xf000) >> 12);
-		bcd = (bcd & 0xfff) << 4;
+		retval += (bcd & 0xf) * place;
+		bcd >>= 4;
+		place *= 10;
 	}
 	return retval;
 }
