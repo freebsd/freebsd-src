@@ -48,7 +48,6 @@ struct acpi_pci_link_entry {
 	TAILQ_ENTRY(acpi_pci_link_entry) links;
 	ACPI_HANDLE	handle;
 	UINT8		current_irq;
-	UINT8		initial_irq;
 	ACPI_RESOURCE	possible_resources;
 	UINT8		number_of_interrupts;
 	UINT8		interrupts[MAX_POSSIBLE_INTERRUPTS];
@@ -72,6 +71,9 @@ TAILQ_HEAD(acpi_prt_entries, acpi_prt_entry);
 static struct acpi_prt_entries acpi_prt_entries;
 
 static int	irq_penalty[MAX_ACPI_INTERRUPTS];
+
+static int	acpi_pci_link_is_valid_irq(struct acpi_pci_link_entry *link,
+    UINT8 irq);
 
 #define ACPI_STA_PRESENT	0x00000001
 #define ACPI_STA_ENABLE		0x00000002
@@ -382,7 +384,12 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 		    acpi_name(handle), AcpiFormatException(error)));
 	}
 
-	link->initial_irq = link->current_irq;
+	if (!acpi_pci_link_is_valid_irq(link, link->current_irq)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+		    "initial IRQ %u is invalid for link %s\n",
+		    link->current_irq, acpi_name(handle)));
+		link->current_irq = 0;
+	}
 
 	error = AcpiGetPossibleResources(handle, &buf);
 	if (ACPI_FAILURE(error)) {
@@ -525,11 +532,6 @@ acpi_pci_link_is_valid_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		if (link->interrupts[i] == irq)
 			return (1);
 	}
-
-	/* allow initial IRQ as valid one. */
-	if (link->initial_irq == irq)
-		return (1);
-
 	return (0);
 }
 
