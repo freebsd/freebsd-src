@@ -309,7 +309,7 @@ ip_input(struct mbuf *m)
         } else
             rule = NULL ;
 
-#ifdef	DIAGNOSTIC
+#ifdef	INVARIANTS	
 	if (m == NULL || (m->m_flags & M_PKTHDR) == 0)
 		panic("ip_input no HDR");
 #endif
