@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.46 1995/01/26 01:45:02 davidg Exp $
+ *	$Id: pmap.c,v 1.47 1995/01/26 21:06:40 davidg Exp $
  */
 
 /*
@@ -278,7 +278,7 @@ pmap_pte_vm_page(pmap, pt)
 /*
  * Wire a page table page
  */
-inline void
+__inline void
 pmap_use_pt(pmap, va)
 	pmap_t pmap;
 	vm_offset_t va;
@@ -313,7 +313,8 @@ pmap_unuse_pt(pmap, va)
 	    (m->hold_count == 0) &&
 	    (m->wire_count == 0) &&
 	    (va < KPT_MIN_ADDRESS)) {
-		vm_page_deactivate(m);
+		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+		vm_page_free(m);
 	}
 }
 
@@ -612,7 +613,7 @@ pmap_growkernel(vm_offset_t addr)
 				*pmap_pde(pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
 			}
 		}
- 		*pmap_pde(kernel_pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
+		*pmap_pde(kernel_pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
 		kernel_vm_end = (kernel_vm_end + NBPG * NPTEPG) & ~(NBPG * NPTEPG - 1);
 	}
 	splx(s);
@@ -908,7 +909,7 @@ pmap_remove(pmap, sva, eva)
 
 		if (pmap_is_managed(pa)) {
 			if ((int) oldpte & PG_M) {
-				if ((sva < USRSTACK || sva > UPT_MAX_ADDRESS) ||
+				if ((sva < USRSTACK || sva >= KERNBASE) ||
 				    (sva >= USRSTACK && sva < USRSTACK + (UPAGES * NBPG))) {
 					if (sva < clean_sva || sva >= clean_eva) {
 						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
@@ -989,7 +990,7 @@ pmap_remove(pmap, sva, eva)
 			continue;
 		}
 		if ((int) oldpte & PG_M) {
-			if ((va < USRSTACK || va > UPT_MAX_ADDRESS) ||
+			if ((va < USRSTACK || va >= KERNBASE) ||
 			    (va >= USRSTACK && va < USRSTACK + (UPAGES * NBPG))) {
 				if (va < clean_sva || va >= clean_eva) {
 					PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
@@ -1058,7 +1059,7 @@ pmap_remove_all(pa)
 			 * Update the vm_page_t clean and reference bits.
 			 */
 			if ((int) *pte & PG_M) {
-				if ((va < USRSTACK || va > UPT_MAX_ADDRESS) ||
+				if ((va < USRSTACK || va >= KERNBASE) ||
 				    (va >= USRSTACK && va < USRSTACK + (UPAGES * NBPG))) {
 					if (va < clean_sva || va >= clean_eva) {
 						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
@@ -1518,10 +1519,10 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			if (tmpoff >= size) {
 				continue;
 			}
-			if ((p->bmapped == 0) &&
-			    (p->busy == 0) &&
+			if (((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			    ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
+			    (p->bmapped == 0) &&
+				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
@@ -1535,10 +1536,9 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 		 */
 		for (tmpoff = 0; tmpoff < size; tmpoff += NBPG) {
 			p = vm_page_lookup(object, tmpoff + offset);
-			if (p && (p->bmapped == 0) &&
-			    (p->busy == 0) &&
+			if (p && ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
+			    (p->bmapped == 0) && (p->busy == 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			    ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
@@ -1608,7 +1608,7 @@ pmap_prefault(pmap, addra, entry, object)
 		offset = (addr - entry->start) + entry->offset;
 		lobject = object;
 		for (m = vm_page_lookup(lobject, offset);
-		    (!m && lobject->shadow);
+		    (!m && lobject->shadow && !lobject->pager);
 		    lobject = lobject->shadow) {
 
 			offset += lobject->shadow_offset;
@@ -1621,17 +1621,21 @@ pmap_prefault(pmap, addra, entry, object)
 		if (m == NULL)
 			break;
 
-		if ((m->bmapped == 0) &&
-		    (m->busy == 0) &&
+		if (((m->flags & (PG_CACHE | PG_ACTIVE | PG_INACTIVE)) != 0) &&
 		    ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-		    ((m->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
-		    (m->flags & (PG_CACHE | PG_BUSY | PG_FICTITIOUS)) == 0) {
+		    (m->busy == 0) &&
+			(m->bmapped == 0) &&
+		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 			/*
 			 * test results show that the system is faster when
 			 * pages are activated.
 			 */
-			if ((m->flags & PG_ACTIVE) == 0)
-				vm_page_activate(m);
+			if ((m->flags & PG_ACTIVE) == 0) {
+				if( m->flags & PG_CACHE)
+					vm_page_deactivate(m);
+				else
+					vm_page_activate(m);
+			}
 			vm_page_hold(m);
 			pmap_enter_quick(pmap, addr, VM_PAGE_TO_PHYS(m));
 			vm_page_unhold(m);
@@ -1853,7 +1857,7 @@ pmap_testbit(pa, bit)
 					if (pv->pv_va < USRSTACK + (UPAGES * NBPG)) {
 						splx(s);
 						return TRUE;
-					} else if (pv->pv_va < UPT_MAX_ADDRESS) {
+					} else if (pv->pv_va < KERNBASE) {
 						splx(s);
 						return FALSE;
 					}
