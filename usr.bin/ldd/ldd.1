@@ -12,9 +12,11 @@
 .Op Fl f Ar format
 .Ar program ...
 .Sh DESCRIPTION
-.Nm ldd
+.Nm
 displays all shared objects that are needed to run the given program.
-Contrary to nm(1), the list includes
+Contrary to
+.Xr nm 1 ,
+the list includes
 .Dq indirect
 dependencies that are the result of needed shared objects which themselves
 depend on yet other shared objects.
@@ -25,7 +27,7 @@ options may be given.
 The argument is a format string passed to
 .Xr rtld 1
 and allows customization of
-.Nm ldd Ns 's
+.Nm Ns 's
 output.
 See
 .Xr rtld 1
@@ -42,10 +44,11 @@ files for the definitive meaning of all the fields.
 .Xr rtld 1
 .Sh HISTORY
 A
-.Nm ldd
-utility first appeared in SunOS 4.0, it appeared in its current form
-in FreeBSD 1.1.
+.Nm
+utility first appeared in SunOS 4.0, it appeared in its current form in
+.Fx 1.1 .
 .Pp
 The
 .Fl v
-support is based on code written by John Polstra <jdp@polstra.com>
+support is based on code written by
+.An John Polstra Aq jdp@polstra.com
