@@ -118,7 +118,7 @@ If the package contains a
 file (see 
 .Xr pkg_create 1 ) ,
 then this is executed first as
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm require
 .Ar <pkg-name>
 .Ar DEINSTALL
@@ -143,7 +143,7 @@ knows how to do is delete the files created in the original distribution.
 The
 .Nm deinstall
 script is called as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar <pkg-name>
 .Ar DEINSTALL
@@ -154,7 +154,7 @@ is the name of the package in question and
 .Ar DEINSTALL
 is a keyword denoting this as the pre-deinstallation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar DEINSTALL
 keyword will not appear if separate scripts for deinstall and post-deinstall
@@ -177,7 +177,7 @@ of the package.
 The
 .Nm post-deinstall
 script is called as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar <pkg-name>
 .Ar POST-DEINSTALL
@@ -188,7 +188,7 @@ is the name of the package in question and
 .Ar POST-DEINSTALL
 is a keyword denoting this as the post-deinstallation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar POST-DEINSTALL
 keyword will not appear if separate scripts for deinstall and post-deinstall
@@ -240,8 +240,7 @@ Default location of the installed package database.
 .Xr mtree 8
 .Sh AUTHORS
 .An Jordan Hubbard
-for most of the work.
-.An John Kohl
-for NetBSD refinements.
+.Sh CONTRIBUTORS
+.An John Kohl Aq jtk@rational.com
 .Sh BUGS
 Sure to be some.
