@@ -60,7 +60,7 @@
 #include <fs/ntfs/ntfs_ihash.h>
 #include <fs/ntfs/ntfsmount.h>
 
-MALLOC_DEFINE(M_NTFSMNT, "NTFS mount", "NTFS mount structure");
+static MALLOC_DEFINE(M_NTFSMNT, "NTFS mount", "NTFS mount structure");
 MALLOC_DEFINE(M_NTFSNTNODE,"NTFS ntnode",  "NTFS ntnode information");
 MALLOC_DEFINE(M_NTFSFNODE,"NTFS fnode",  "NTFS fnode information");
 MALLOC_DEFINE(M_NTFSDIR,"NTFS dir",  "NTFS dir buffer");
@@ -69,6 +69,7 @@ struct sockaddr;
 
 static int	ntfs_mountfs(register struct vnode *, struct mount *, 
 				  struct thread *);
+static int	ntfs_calccfree(struct ntfsmount *ntmp, cn_t *cfreep);
 
 static vfs_init_t       ntfs_init;
 static vfs_uninit_t     ntfs_uninit;
@@ -542,7 +543,7 @@ ntfs_root(
 	return (0);
 }
 
-int
+static int
 ntfs_calccfree(
 	struct ntfsmount *ntmp,
 	cn_t *cfreep)
