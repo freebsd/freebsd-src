@@ -1,3 +1,7 @@
+/* Stopgap, until Paul does the right thing */
+#define ESC 27
+#define TAB 9
+
 #define DKTYPENAMES
 #include <sys/param.h>
 #define DKTYPENAMES
