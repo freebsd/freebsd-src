@@ -61,6 +61,7 @@ static int enable_pcibios = 0;
 
 TUNABLE_INT("hw.pci.enable_pcibios", &enable_pcibios);
 
+static int	pci_cfgintr_valid(struct PIR_entry *pe, int pin, int irq);
 static int	pci_cfgintr_unique(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_linked(struct PIR_entry *pe, int pin);
 static int	pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int pin);
@@ -272,7 +273,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
  *     anyway, due to the way PCI interrupts are assigned.
  */
 int
-pci_cfgintr(int bus, int device, int pin)
+pci_cfgintr(int bus, int device, int pin, int oldirq)
 {
 	struct PIR_entry	*pe;
 	int			i, irq;
@@ -298,7 +299,20 @@ pci_cfgintr(int bus, int device, int pin)
 	     i++, pe++) {
 		if ((bus != pe->pe_bus) || (device != pe->pe_device))
 			continue;
+		/*
+		 * A link of 0 means that this intpin is not connected to
+		 * any other device's interrupt pins and is not connected to
+		 * any of the Interrupt Router's interrupt pins, so we can't
+		 * route it.
+		 */
+		if (pe->pe_intpin[pin - 1].link == 0)
+			continue;
 
+		if (pci_cfgintr_valid(pe, pin, oldirq)) {
+			printf("pci_cfgintr: %d:%d INT%c BIOS irq %d\n", bus,
+			    device, 'A' + pin - 1, oldirq);
+			return (oldirq);
+		}
 		irq = pci_cfgintr_linked(pe, pin);
 		if (irq == PCI_INVALID_IRQ)
 			irq = pci_cfgintr_unique(pe, pin);
@@ -335,6 +349,24 @@ pci_cfgintr(int bus, int device, int pin)
 	PRVERB(("pci_cfgintr: can't route an interrupt to %d:%d INT%c\n", bus, 
 	    device, 'A' + pin - 1));
 	return(PCI_INVALID_IRQ);
+}
+
+/*
+ * Check to see if an existing IRQ setting is valid.
+ */
+static int
+pci_cfgintr_valid(struct PIR_entry *pe, int pin, int irq)
+{
+	uint32_t irqmask;
+
+	if (!PCI_INTERRUPT_VALID(irq))
+		return (0);
+	irqmask = pe->pe_intpin[pin - 1].irqs;
+	if (irqmask & (1 << irq)) {
+		PRVERB(("pci_cfgintr_valid: BIOS irq %d is valid\n", irq));
+		return (1);
+	}
+	return (0);
 }
 
 /*
