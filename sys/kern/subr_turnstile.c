@@ -1766,6 +1766,16 @@ witness_list(struct proc *p)
 	return (nheld);
 }
 
+#ifdef DDB
+
+DB_COMMAND(witness_list, db_witness_list)
+{
+
+	witness_list(CURPROC);
+}
+
+#endif
+
 void
 witness_save(struct mtx *m, const char **filep, int *linep)
 {
