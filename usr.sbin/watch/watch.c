@@ -371,12 +371,12 @@ main(ac, av)
 				clear();
 				break;
 			case CHR_SWITCH:
-				if (opt_no_switch)
+				if (!opt_no_switch) {
+					detach_snp();
+					ask_dev(dev_name, MSG_CHANGE);
+					set_dev(dev_name);
 					break;
-				detach_snp();
-				ask_dev(dev_name, MSG_CHANGE);
-				set_dev(dev_name);
-				break;
+				}
 			default:
 				if (opt_write) {
 					rv = write(snp_io, chb, nread);
