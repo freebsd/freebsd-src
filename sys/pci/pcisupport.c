@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.90 1999/01/28 00:57:53 dillon Exp $
+**  $Id: pcisupport.c,v 1.91 1999/02/06 02:28:52 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -44,6 +44,7 @@
 #include "opt_pci.h"
 #include "opt_smp.h"
 #include "intpm.h"
+#include "alpm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -365,10 +366,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return("AcerLabs M1543 desktop PCI-ISA bridge");
 	case 0x524710b9:
 		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
+	case 0x523710b9:
+		return("AcerLabs M5237 USB controller");
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
 	case 0x710110b9:
+#if NALPM > 0
+	        return NULL;	/* Need to stop generic_pci_bridge() */
+#else
 		return("AcerLabs M15x3 Power Management Unit");
+#endif
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00011033:
