@@ -187,8 +187,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				}
 				/* If this falls, fall back to old method */
 			}
-			p = strncpy(dbuf, cnf->home, sizeof dbuf);
-			dbuf[MAXPATHLEN-1] = '\0';
+			strlcpy(dbuf, cnf->home, sizeof(dbuf));
+			p = dbuf;
 			if (stat(dbuf, &st) == -1) {
 				while ((p = strchr(++p, '/')) != NULL) {
 					*p = '\0';
@@ -396,8 +396,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 * invalidated by deletion
 			 */
 			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-			strncpy(home, pwd->pw_dir, sizeof home);
-			home[sizeof home - 1] = '\0';
+			strlcpy(home, pwd->pw_dir, sizeof(home));
 
 			rc = delpwent(pwd);
 			if (rc == -1)
@@ -978,8 +977,7 @@ shell_path(char const * path, char *shells[], char *sh)
 		/*
 		 * We need to search paths
 		 */
-		strncpy(paths, path, sizeof paths);
-		paths[sizeof paths - 1] = '\0';
+		strlcpy(paths, path, sizeof(paths));
 		for (p = strtok(paths, ": \t\r\n"); p != NULL; p = strtok(NULL, ": \t\r\n")) {
 			int             i;
 			static char     shellpath[256];
@@ -1118,8 +1116,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		return "*";
 
 	case 1:		/* user's name */
-		strncpy(pwbuf, user, sizeof pwbuf);
-		pwbuf[sizeof pwbuf - 1] = '\0';
+		strlcpy(pwbuf, user, sizeof(pwbuf));
 		break;
 	}
 	return pw_pwcrypt(pwbuf);
@@ -1144,17 +1141,14 @@ print_user(struct passwd * pwd, int pretty, int v7)
 		struct tm *    tptr;
 
 		if ((p = strtok(pwd->pw_gecos, ",")) != NULL) {
-			strncpy(uname, p, sizeof uname);
-			uname[sizeof uname - 1] = '\0';
+			strlcpy(uname, p, sizeof(uname));
 			if ((p = strtok(NULL, ",")) != NULL) {
-				strncpy(office, p, sizeof office);
-				office[sizeof office - 1] = '\0';
+				strlcpy(office, p, sizeof(office));
 				if ((p = strtok(NULL, ",")) != NULL) {
-					strncpy(wphone, p, sizeof wphone);
-					wphone[sizeof wphone - 1] = '\0';
+					strlcpy(wphone, p, sizeof(wphone));
 					if ((p = strtok(NULL, "")) != NULL) {
-						strncpy(hphone, p, sizeof hphone);
-						hphone[sizeof hphone - 1] = '\0';
+						strlcpy(hphone, p,
+						    sizeof(hphone));
 					}
 				}
 			}

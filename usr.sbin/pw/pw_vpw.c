@@ -60,8 +60,7 @@ vnextpwent(char const * nam, uid_t uid, int doclose)
 	struct passwd * pw = NULL;
 	static char pwtmp[1024];
 
-        strncpy(pwtmp, getpwpath(_MASTERPASSWD), sizeof pwtmp);
-        pwtmp[sizeof pwtmp - 1] = '\0';
+        strlcpy(pwtmp, getpwpath(_MASTERPASSWD), sizeof(pwtmp));
 
         if (pwd_fp != NULL || (pwd_fp = fopen(pwtmp, "r")) != NULL) {
                 int done = 0;
@@ -210,8 +209,7 @@ vnextgrent(char const * nam, gid_t gid, int doclose)
 	static int memlen = 0;
 
 	extendline(&grtmp, &grlen, MAXPATHLEN);
-	strncpy(grtmp, getgrpath(_GROUP), MAXPATHLEN);
-	grtmp[MAXPATHLEN - 1] = '\0';
+	strlcpy(grtmp, getgrpath(_GROUP), MAXPATHLEN);
 
 	if (grp_fp != NULL || (grp_fp = fopen(grtmp, "r")) != NULL) {
 		int done = 0;
