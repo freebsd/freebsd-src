@@ -1727,10 +1727,18 @@ cpu_halt(void)
 	prom_halt(1);
 }
 
+static int	cpu_idle_hlt = 1;
+SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
+    &cpu_idle_hlt, 0, "Idle loop HLT enable");
+
+/*
+ * call platform specific code to halt (until next interrupt) for the idle loop
+ */
 void
 cpu_idle(void)
 {
-	/* Insert code to halt (until next interrupt) for the idle loop */
+	if (cpu_idle_hlt && platform.cpu_idle != NULL)
+		platform.cpu_idle();
 }
 
 /*

@@ -71,6 +71,7 @@ extern struct platform {
 	void	(*clockintr)(void *);
 	void	(*mcheck_handler)(unsigned long, struct trapframe *,
 		unsigned long, unsigned long);
+	void	(*cpu_idle)(void);
 	void	(*pci_intr_init)(void);
 	void	(*pci_intr_map)(void *);
 	int	(*pci_intr_route)(struct device *, struct device *, int);
