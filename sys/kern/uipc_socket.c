@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.51.2.1 1999/02/26 17:32:49 peter Exp $
+ *	$Id: uipc_socket.c,v 1.51.2.2 1999/04/30 19:52:50 ache Exp $
  */
 
 #include <sys/param.h>
@@ -193,18 +193,12 @@ sofree(so)
 			TAILQ_REMOVE(&head->so_incomp, so, so_list);
 			head->so_incqlen--;
 		} else if (so->so_state & SS_COMP) {
-			/*
-			 * We must not decommission a socket that's
-			 * on the accept(2) queue.  If we do, then
-			 * accept(2) may hang after select(2) indicated
-			 * that the listening socket was ready.
-			 */
-			return;
+			TAILQ_REMOVE(&head->so_comp, so, so_list);
 		} else {
 			panic("sofree: not queued");
 		}
 		head->so_qlen--;
-		so->so_state &= ~SS_INCOMP;
+		so->so_state &= ~(SS_INCOMP|SS_COMP);
 		so->so_head = NULL;
 	}
 	sbrelease(&so->so_snd);
@@ -234,11 +228,6 @@ soclose(so)
 		}
 		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sonext) {
 			sonext = sp->so_list.tqe_next;
-			/* Dequeue from so_comp since sofree() won't do it */
-			TAILQ_REMOVE(&so->so_comp, sp, so_list);
-			so->so_qlen--;
-			sp->so_state &= ~SS_COMP;
-			sp->so_head = NULL;
 			(void) soabort(sp);
 		}
 	}
@@ -299,13 +288,7 @@ soaccept(so, nam)
 	if ((so->so_state & SS_NOFDREF) == 0)
 		panic("soaccept: !NOFDREF");
 	so->so_state &= ~SS_NOFDREF;
- 	if ((so->so_state & SS_ISDISCONNECTED) == 0)
-		error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);
-	else {
-		if (nam)
-			*nam = 0;
-		error = 0;
-	}
+	error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);
 	splx(s);
 	return (error);
 }
