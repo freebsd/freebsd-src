@@ -58,7 +58,7 @@ prcopy(src, dest, len)
 	int ch;
 
 	while (len--) {
-		ch = *src++;
+		ch = *src++ & 0xff;
 		*dest++ = isprint(ch) ? ch : '?';
 	}
 }
