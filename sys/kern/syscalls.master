@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.23 1996/01/08 04:13:25 peter Exp $
+	$Id: syscalls.master,v 1.24 1996/01/13 23:27:26 phk Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -24,7 +24,6 @@
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
-#include "opt_sysvipc.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -200,7 +199,7 @@
 117	STD	BSD	{ int getrusage(int who, struct rusage *rusage); }
 118	STD	BSD	{ int getsockopt(int s, int level, int name, \
 			    caddr_t val, int *avalsize); }
-119	UNIMPL	NOHIDE	nosys
+119	UNIMPL	NOHIDE	resuba (BSD/OS 2.x)
 120	STD	BSD	{ int readv(int fd, struct iovec *iovp, u_int iovcnt); }
 121	STD	BSD	{ int writev(int fd, struct iovec *iovp, \
 			    u_int iovcnt); }
@@ -246,9 +245,9 @@
 ; system calls.  (This includes various calls added for compatibity
 ; with other Unix variants.)
 ; Some of these calls are now supported by BSD...
-151	UNIMPL	NOHIDE	nosys
-152	UNIMPL	NOHIDE	nosys
-153	UNIMPL	NOHIDE	nosys
+151	UNIMPL	NOHIDE	sem_lock (BSD/OS 2.x)
+152	UNIMPL	NOHIDE	sem_wakeup (BSD/OS 2.x)
+153	UNIMPL	NOHIDE	asyncdaemon (BSD/OS 2.x)
 154	UNIMPL	NOHIDE	nosys
 #ifdef NFS
 155	STD	BSD	{ int nfssvc(int flag, caddr_t argp); }
@@ -287,9 +286,9 @@
 174	UNIMPL	NOHIDE	nosys
 175	UNIMPL	NOHIDE	nosys
 176	STD	BSD	{ int ntp_adjtime(struct timex *tp); }
-177	UNIMPL	NOHIDE	nosys
-178	UNIMPL	NOHIDE	nosys
-179	UNIMPL	NOHIDE	nosys
+177	UNIMPL	NOHIDE	sfork (BSD/OS 2.x)
+178	UNIMPL	NOHIDE	getdescriptor (BSD/OS 2.x)
+179	UNIMPL	NOHIDE	setdescriptor (BSD/OS 2.x)
 180	UNIMPL	NOHIDE	nosys
 
 ; Syscalls 180-199 are used by/reserved for BSD
@@ -358,7 +357,7 @@
 219	NODEF	NOHIDE	lkmnosys lkmnosys nosys_args int
 
 ;
-; The following were originally used in NetBSD.
+; The following were introduced with NetBSD/4.4Lite-2
 ;
 220	STD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
 			    union semun *arg); }
