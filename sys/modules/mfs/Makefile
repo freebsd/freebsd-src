@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/ufs/mfs
 KMOD=	mfs_mod

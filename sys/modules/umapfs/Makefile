@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/miscfs/umapfs
 KMOD=	umap_mod

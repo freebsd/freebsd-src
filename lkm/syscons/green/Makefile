@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 KMOD=	green_saver_mod
 SRCS= 	green_saver.c

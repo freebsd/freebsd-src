@@ -1,4 +1,4 @@
-#       $FreeBSD$
+#       $Id$
 
 .PATH:  ${.CURDIR}/../../sys/i386/i386
 KMOD=   fpu
