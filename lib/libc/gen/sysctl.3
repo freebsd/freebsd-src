@@ -449,7 +449,7 @@ Return profiling information about the kernel.
 If the kernel is not compiled for profiling,
 attempts to retrieve any of the KERN_PROF values will
 fail with
-.Er EOPNOTSUPP .
+.Er ENOENT .
 The third level names for the string and integer profiling information
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -787,7 +787,7 @@ array specifies an intermediate rather than terminal name.
 The
 .Fa name
 array specifies a terminal name, but the actual name is not terminal.
-.It Bq Er EOPNOTSUPP
+.It Bq Er ENOENT
 The
 .Fa name
 array specifies a value that is unknown.
