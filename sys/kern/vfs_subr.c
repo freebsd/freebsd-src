@@ -275,6 +275,50 @@ vop_strategy_pre(void *ap)
 	}
 }
 
+void
+vop_lookup_pre(void *ap)
+{
+	struct vop_lookup_args *a = ap;
+	struct vnode *dvp;
+
+	dvp = a->a_dvp;
+
+	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
+}
+
+void
+vop_lookup_post(void *ap, int rc)
+{
+	struct vop_lookup_args *a = ap;
+	struct componentname *cnp;
+	struct vnode *dvp;
+	struct vnode *vp;
+	int flags;
+
+	dvp = a->a_dvp;
+	cnp = a->a_cnp;
+	vp = *(a->a_vpp);
+	flags = cnp->cn_flags;
+
+
+	/*
+	 * If this is the last path component for this lookup and LOCPARENT
+	 * is set, OR if there is an error the directory has to be locked.
+	 */
+	if ((flags & LOCKPARENT) && (flags & ISLASTCN))
+		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (LOCKPARENT)");
+	else if (rc != 0)
+		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (error)");
+	else if (dvp != vp)
+		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (dvp)");
+
+	if (flags & PDIRUNLOCK)
+		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (PDIRUNLOCK)");
+
+	if (rc == 0)
+		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (vpp)");
+}
+
 #endif	/* DEBUG_VFS_LOCKS */
 
 void
@@ -2758,10 +2802,7 @@ vn_pollgone(vp)
 static int	sync_fsync(struct  vop_fsync_args *);
 static int	sync_inactive(struct  vop_inactive_args *);
 static int	sync_reclaim(struct  vop_reclaim_args *);
-#define sync_lock ((int (*)(struct  vop_lock_args *))vop_nolock)
-#define sync_unlock ((int (*)(struct  vop_unlock_args *))vop_nounlock)
 static int	sync_print(struct vop_print_args *);
-#define sync_islocked ((int(*)(struct vop_islocked_args *))vop_noislocked)
 
 static vop_t **sync_vnodeop_p;
 static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
@@ -2770,10 +2811,10 @@ static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
 	{ &vop_fsync_desc,	(vop_t *) sync_fsync },		/* fsync */
 	{ &vop_inactive_desc,	(vop_t *) sync_inactive },	/* inactive */
 	{ &vop_reclaim_desc,	(vop_t *) sync_reclaim },	/* reclaim */
-	{ &vop_lock_desc,	(vop_t *) sync_lock },		/* lock */
-	{ &vop_unlock_desc,	(vop_t *) sync_unlock },	/* unlock */
+	{ &vop_lock_desc,	(vop_t *) vop_stdlock },	/* lock */
+	{ &vop_unlock_desc,	(vop_t *) vop_stdunlock },	/* unlock */
 	{ &vop_print_desc,	(vop_t *) sync_print },		/* print */
-	{ &vop_islocked_desc,	(vop_t *) sync_islocked },	/* islocked */
+	{ &vop_islocked_desc,	(vop_t *) vop_stdislocked },	/* islocked */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc sync_vnodeop_opv_desc =

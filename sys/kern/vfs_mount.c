@@ -614,7 +614,7 @@ update:
 				error = vfs_allocate_syncvnode(mp);
 		} else {
 			if (mp->mnt_syncer != NULL)
-				vrele(mp->mnt_syncer);
+				vput(mp->mnt_syncer);
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, td);
@@ -957,7 +957,7 @@ update:
 				error = vfs_allocate_syncvnode(mp);
 		} else {
 			if (mp->mnt_syncer != NULL)
-				vrele(mp->mnt_syncer);
+				vput(mp->mnt_syncer);
 			mp->mnt_syncer = NULL;
 		}
 		vfs_unbusy(mp, td);
@@ -1157,7 +1157,7 @@ dounmount(mp, flags, td)
 	mp->mnt_flag &=~ MNT_ASYNC;
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
-		vrele(mp->mnt_syncer);
+		vput(mp->mnt_syncer);
 	/* Move process cdir/rdir refs on fs root to underlying vnode. */
 	if (VFS_ROOT(mp, &fsrootvp) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
