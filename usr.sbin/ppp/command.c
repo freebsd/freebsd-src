@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.14 1996/01/30 20:04:28 phk Exp $
+ * $Id: command.c,v 1.15 1996/03/08 09:03:04 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -842,7 +842,8 @@ int param;
       break;
     case VAR_PHONE:
       strncpy(VarPhoneList, *argv, sizeof(VarPhoneList)-1);
-      VarNextPhone = VarPhoneList;
+      strcpy(VarPhoneCopy, VarPhoneList);
+      VarNextPhone = VarPhoneCopy;
       break;
     }
   }
