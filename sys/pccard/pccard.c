@@ -48,7 +48,7 @@
 #include <i386/isa/icu.h>
 
 #include "apm.h"
-#if   NAPM > 0
+#if	NAPM > 0
 #include <machine/apm_bios.h>
 #endif	/* NAPM > 0 */
 
@@ -58,6 +58,12 @@
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
+
+/*
+ * XXX ISA_HOLE_START is defined in <machine/pmap.h>, but it
+ * carries too much baggage
+ */
+#define ISA_HOLE_START 0xA0000
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
@@ -87,6 +93,7 @@ SYSCTL_INT(_machdep_pccard, OID_AUTO, apm_pccard_resume, CTLFLAG_RW,
 
 static int		allocate_driver(struct slot *, struct drv_desc *);
 static void		inserted(void *);
+static void		unregister_device_interrupt(struct pccard_dev *devp);
 static void		disable_slot(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
 static struct pccard_drv *find_driver(char *);
@@ -289,6 +296,36 @@ power_off_slot(void *arg)
 }
 
 /*
+ *	unregister_device_interrupt - Disable the interrupt generation to
+ *	the device driver which is handling it, so we can remove it.
+ */
+static void
+unregister_device_interrupt(struct pccard_dev *devp)
+{
+	struct slot *sp = devp->sp;
+	int s;
+
+	s = splhigh();
+	if (devp->running) {
+		devp->drv->unload(devp);
+		devp->running = 0;
+		if (devp->isahd.id_irq && --sp->irqref <= 0) {
+			printf("Return IRQ=%d\n",sp->irq);
+			sp->ctrl->mapirq(sp, 0);
+			INTRDIS(1<<sp->irq);
+			unregister_intr(sp->irq, slot_irq_handler);
+			if (devp->drv->imask)
+				INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
+			/* Remove from the PCIC controller imask */
+			if (sp->ctrl->imask)
+				INTRUNMASK(*(sp->ctrl->imask), (1<<sp->irq));
+			sp->irq = 0;
+		}
+	}
+	splx(s);
+}
+
+/*
  *	disable_slot - Disables the slot by removing
  *	the power and unmapping the I/O
  */
@@ -299,40 +336,23 @@ disable_slot(struct slot *sp)
 	struct pccard_dev *devp;
 	/*
 	 * Unload all the drivers on this slot. Note we can't
-	 * call remove_device from here, because this may be called
-	 * from the event routine, which is called from the slot
-	 * controller's ISR, and this could remove the device
-	 * structure out in the middle of some driver activity.
+	 * remove the device structures themselves, because this
+	 * may be called from the event routine, which is called
+	 * from the slot controller's ISR, and removing the structures
+	 * shouldn't happen during the middle of some driver activity.
 	 *
 	 * Note that a race condition is possible here; if a
 	 * driver is accessing the device and it is removed, then
 	 * all bets are off...
 	 */
-	for (devp = sp->devices; devp; devp = devp->next) {
-		if (devp->running) {
-			int s = splhigh();
-			devp->drv->unload(devp);
-			devp->running = 0;
-			if (devp->isahd.id_irq && --sp->irqref == 0) {
-				printf("Return IRQ=%d\n",sp->irq);
-				sp->ctrl->mapirq(sp, 0);
-				INTRDIS(1<<sp->irq);
-				unregister_intr(sp->irq, slot_irq_handler);
-				if (devp->drv->imask)
-					INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
-				/* Remove from the PCIC controller imask */
-				if (sp->ctrl->imask)
-					INTRUNMASK(*(sp->ctrl->imask), (1<<sp->irq));
-				sp->irq = 0;
-			}
-			splx(s);
-		}
-	}
-	/* Power off the slot 1/2 second after remove of the card */
+	for (devp = sp->devices; devp; devp = devp->next)
+		unregister_device_interrupt(devp);
+
+	/* Power off the slot 1/2 second after removal of the card */
 	sp->poff_ch = timeout(power_off_slot, (caddr_t)sp, hz / 2);
 	sp->pwr_off_pending = 1;
 
-	/* De-activate all contexts.  */
+	/* De-activate all contexts. */
 	for (i = 0; i < sp->ctrl->maxmem; i++)
 		if (sp->mem[i].flags & MDF_ACTIVE) {
 			sp->mem[i].flags = 0;
@@ -346,7 +366,7 @@ disable_slot(struct slot *sp)
 }
 
 /*
- *    APM hooks for suspending and resuming.
+ *	APM hooks for suspending and resuming.
  */
 #if   NAPM > 0
 static int
@@ -463,7 +483,7 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 		ap->ah_order = APM_MID_ORDER;
 		apm_hook_establish(APM_HOOK_RESUME, ap);
 	}
-#endif        /* NAPM > 0 */
+#endif /* NAPM > 0 */
 	return(sp);
 }
 
@@ -572,7 +592,7 @@ allocate_driver(struct slot *sp, struct drv_desc *drvp)
 	 */
 	if (drvp->mem)
 		devp->isahd.id_maddr = 
-			(caddr_t)(drvp->mem + atdevbase - 0xA0000);
+			(caddr_t)(drvp->mem + atdevbase - ISA_HOLE_START);
 	else
 		devp->isahd.id_maddr = 0;
 	devp->next = sp->devices;
@@ -604,24 +624,7 @@ remove_device(struct pccard_dev *devp)
 	 *	If an interrupt is enabled on this slot,
 	 *	then unregister it if no-one else is using it.
 	 */
-	s = splhigh();
-	if (devp->running) {
-		devp->drv->unload(devp);
-		devp->running = 0;
-	}
-	if (devp->isahd.id_irq && --sp->irqref == 0) {
-		printf("Return IRQ=%d\n",sp->irq);
-		sp->ctrl->mapirq(sp, 0);
-		INTRDIS(1<<sp->irq);
-		unregister_intr(sp->irq, slot_irq_handler);
-		if (devp->drv->imask)
-			INTRUNMASK(*devp->drv->imask,(1<<sp->irq));
-		/* Remove from PCIC controller imask */
-		if (sp->ctrl->imask)
-			INTRUNMASK(*(sp->ctrl->imask),(1<<sp->irq));
-		sp->irq = 0;
-	}
-	splx(s);
+	unregister_device_interrupt(devp);
 	/*
 	 *	Remove from device list on this slot.
 	 */
@@ -654,11 +657,15 @@ inserted(void *arg)
 	 */
 	sp->pwr.vcc = 50;
 	sp->pwr.vpp = 0;
+	/*
+	 * Disable any pending timeouts for this slot, and explicitly
+	 * power it off right now.  Then, re-enable the power using
+	 * the (possibly new) power settings.
+	 */
 	untimeout(power_off_slot, (caddr_t)sp, sp->poff_ch);
-	if (sp->pwr_off_pending)
-		sp->ctrl->disable(sp);
-	sp->pwr_off_pending = 0;
+	power_off_slot(sp);
 	sp->ctrl->power(sp);
+
 	printf("Card inserted, slot %d\n", sp->slot);
 	/*
 	 *	Now start resetting the card.
@@ -684,8 +691,6 @@ static void enable_beep(void *dummy)
 void
 pccard_event(struct slot *sp, enum card_event event)
 {
-	int s;
-
 	if (sp->insert_seq) {
 		sp->insert_seq = 0;
 		untimeout(inserted, (void *)sp, sp->insert_ch);
@@ -697,7 +702,7 @@ pccard_event(struct slot *sp, enum card_event event)
 		 *	data structures are not unlinked.
 		 */
 		if (sp->state == filled) {
-			s = splhigh();
+			int s = splhigh();
 			disable_slot(sp);
 			sp->state = empty;
 			splx(s);
@@ -736,6 +741,10 @@ slot_irq_handler(int sp)
 	for (dp = ((struct slot *)sp)->devices; dp; dp = dp->next)
 		if (dp->isahd.id_irq && dp->running && dp->drv->handler(dp))
 			return;
+	/*
+	 * XXX - Should 'debounce' these for drivers that have recently
+	 * been removed.
+	 */
 	printf("Slot %d, unfielded interrupt (%d)\n",
 		((struct slot *)sp)->slot, ((struct slot *)sp)->irq);
 }
@@ -986,7 +995,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 		 */
 		pccard_mem = *(unsigned long *)data;
 		pccard_kmem = (unsigned char *)(pccard_mem
-				+ atdevbase - 0xA0000);
+				+ atdevbase - ISA_HOLE_START);
 		break;
 	/*
 	 *	Set power values
@@ -1006,7 +1015,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 		else
 			sysbeep(PCCARD_BEEP_PITCH2, PCCARD_BEEP_DURATION2);
 		return err;
-		}
+	}
 	return(0);
 }
 
@@ -1079,7 +1088,7 @@ crd_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&crd_cdevsw, NULL);
 		crd_devsw_installed = 1;
-    	}
+	}
 }
 
 SYSINIT(crddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,crd_drvinit,NULL)
