@@ -591,8 +591,8 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define PCI_VENDOR_LEADTEK_ALT_3	0x107d
 #define PCI_VENDOR_FLYVIDEO	0x1851
 #define PCI_VENDOR_FLYVIDEO_2	0x1852
-#define PCI_VENDOR_PINNACLE_ALT	0xBD11
 #define PCI_VENDOR_IODATA	0x10fc
+#define PCI_VENDOR_PINNACLE_ALT	0xBD11	/* They got their own ID backwards? */
 #define PCI_VENDOR_PINNACLE_NEW	0x11BD
 
 #define MODEL_IODATA_GV_BCTV3_PCI	0x4020
@@ -724,15 +724,16 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
                     goto checkTuner;
                 }
 
-		if (subsystem_vendor_id == PCI_VENDOR_PINNACLE_ALT) {
+		if (subsystem_vendor_id == PCI_VENDOR_PINNACLE_ALT ||
+		    subsystem_vendor_id == PCI_VENDOR_PINNACLE_NEW) {
                     bktr->card = cards[ (card = CARD_MIRO) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                     goto checkTuner;
                 }
 
-		if (subsystem_vendor_id == 0x10fc &&
-		    subsystem_id == 0x4020) {
+		if (subsystem_vendor_id == PCI_VENDOR_IODATA &&
+		    subsystem_id == MODEL_IODATA_GV_BCTV3_PCI) {
 		    bktr->card = cards[ (card = CARD_IO_BCTV3) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
