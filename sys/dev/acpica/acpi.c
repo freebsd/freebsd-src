@@ -425,7 +425,7 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
-    sc->acpi_sleep_delay = 1;
+    sc->acpi_sleep_delay = 0;
     sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
