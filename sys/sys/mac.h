@@ -76,27 +76,26 @@ typedef struct mac	*mac_t;
  * Extended non-POSIX.1e interfaces that offer additional services
  * available from the userland and kernel MAC frameworks.
  */
-int		 mac_execve(char *fname, char **argv, char **envv,
-		    mac_t _label);
-int		 mac_free(mac_t _label);
-int		 mac_from_text(mac_t *_label, const char *_text);
-int		 mac_get_fd(int _fd, mac_t _label);
-int		 mac_get_file(const char *_path, mac_t _label);
-int		 mac_get_link(const char *_path, mac_t _label);
-int		 mac_get_pid(pid_t _pid, mac_t _label);
-int		 mac_get_proc(mac_t _label);
-int		 mac_is_present(const char *_policyname);
-int		 mac_prepare(mac_t *_label, const char *_elements);
-int		 mac_prepare_file_label(mac_t *_label);
-int		 mac_prepare_ifnet_label(mac_t *_label);
-int		 mac_prepare_process_label(mac_t *_label);
-int		 mac_prepare_type(mac_t *_label, const char *_type);
-int		 mac_set_fd(int _fildes, const mac_t _label);
-int		 mac_set_file(const char *_path, mac_t _label);
-int		 mac_set_link(const char *_path, mac_t _label);
-int		 mac_set_proc(const mac_t _label);
-int		 mac_syscall(const char *_policyname, int _call, void *_arg);
-int		 mac_to_text(mac_t mac, char **_text);
+int	 mac_execve(char *fname, char **argv, char **envv, mac_t _label);
+int	 mac_free(mac_t _label);
+int	 mac_from_text(mac_t *_label, const char *_text);
+int	 mac_get_fd(int _fd, mac_t _label);
+int	 mac_get_file(const char *_path, mac_t _label);
+int	 mac_get_link(const char *_path, mac_t _label);
+int	 mac_get_pid(pid_t _pid, mac_t _label);
+int	 mac_get_proc(mac_t _label);
+int	 mac_is_present(const char *_policyname);
+int	 mac_prepare(mac_t *_label, const char *_elements);
+int	 mac_prepare_file_label(mac_t *_label);
+int	 mac_prepare_ifnet_label(mac_t *_label);
+int	 mac_prepare_process_label(mac_t *_label);
+int	 mac_prepare_type(mac_t *_label, const char *_type);
+int	 mac_set_fd(int _fildes, const mac_t _label);
+int	 mac_set_file(const char *_path, mac_t _label);
+int	 mac_set_link(const char *_path, mac_t _label);
+int	 mac_set_proc(const mac_t _label);
+int	 mac_syscall(const char *_policyname, int _call, void *_arg);
+int	 mac_to_text(mac_t mac, char **_text);
 
 #else /* _KERNEL */
 
