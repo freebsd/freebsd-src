@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.21 1996/01/15 22:40:43 phk Exp $
+ * $Id: subr_prf.c,v 1.22 1996/01/16 18:08:57 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -427,6 +427,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	int ch, n;
 	u_long ul;
 	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign, dot;
+	int dwidth;
 	char padc;
 	int retval = 0;
 
@@ -445,12 +446,8 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 				return retval;
 			PCHAR(ch);
 		}
-		lflag = 0;
-		ladjust = 0;
-		sharpflag = 0;
-		neg = 0;
-		sign = 0;
-		dot = 0;
+		lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
+		sign = 0; dot = 0; dwidth = 0;
 reswitch:	switch (ch = *(u_char *)fmt++) {
 		case '.':
 			dot = 1;
@@ -475,16 +472,22 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			}
 			goto reswitch;
 		case '0':
-			padc = '0';
-			goto reswitch;
+			if (!dot) {
+				padc = '0';
+				goto reswitch;
+			}
 		case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
-			for (width = 0;; ++fmt) {
-				width = width * 10 + ch - '0';
-				ch = *fmt;
-				if (ch < '0' || ch > '9')
-					break;
-			}
+				for (n = 0;; ++fmt) {
+					n = n * 10 + ch - '0';
+					ch = *fmt;
+					if (ch < '0' || ch > '9')
+						break;
+				}
+			if (dot)
+				dwidth = n;
+			else
+				width = n;
 			goto reswitch;
 		case 'b':
 			ul = va_arg(ap, int);
@@ -548,9 +551,11 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			if (!dot)
 				n = strlen (p);
 			else
-				for (n = 0; n < width && p[n]; n++)
+				for (n = 0; n < dwidth && p[n]; n++)
 					continue;
+
 			width -= n;
+
 			if (!ladjust && width > 0)
 				while (width--)
 					PCHAR(padc);
