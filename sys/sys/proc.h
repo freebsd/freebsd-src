@@ -231,7 +231,7 @@ struct	proc {
 	int	p_sig;			/* (n) For core dump/debugger XXX. */
 	u_long	p_code;			/* (n) For core dump/debugger XXX. */
 	struct	klist p_klist;	/* (c) Knotes attached to this process. */
-	LIST_HEAD(, mtx) p_heldmtx;	/* (j) For debugging code. */
+	struct	lock_list_entry *p_sleeplocks; /* (k) Held sleep locks. */
 	struct	mtx *p_blocked;		/* (j) Mutex process is blocked on. */
 	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
 	LIST_HEAD(, mtx) p_contested;	/* (j) Contested locks. */

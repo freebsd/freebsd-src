@@ -47,6 +47,7 @@
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -62,7 +63,6 @@
 #include <sys/sx.h>
 
 #include <vm/vm.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
@@ -524,7 +524,6 @@ again:
 	PROCTREE_LOCK(PT_RELEASE);
 	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
-	LIST_INIT(&p2->p_heldmtx);
 	LIST_INIT(&p2->p_contested);
 
 	callout_init(&p2->p_itcallout, 0);

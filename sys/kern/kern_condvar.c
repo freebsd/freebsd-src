@@ -197,7 +197,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 #endif
 	CV_ASSERT(cvp, mp, p);
 	WITNESS_SLEEP(0, mp);
-	WITNESS_SAVE(mp, mp);
+	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
@@ -225,7 +225,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(mp, mp);
+	WITNESS_RESTORE(&mp->mtx_object, mp);
 }
 
 /*
@@ -250,7 +250,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 #endif
 	CV_ASSERT(cvp, mp, p);
 	WITNESS_SLEEP(0, mp);
-	WITNESS_SAVE(mp, mp);
+	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
@@ -290,7 +290,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
 	mtx_lock(mp);
-	WITNESS_RESTORE(mp, mp);
+	WITNESS_RESTORE(&mp->mtx_object, mp);
 
 	return (rval);
 }
@@ -315,7 +315,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 #endif
 	CV_ASSERT(cvp, mp, p);
 	WITNESS_SLEEP(0, mp);
-	WITNESS_SAVE(mp, mp);
+	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
@@ -350,7 +350,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
-	WITNESS_RESTORE(mp, mp);
+	WITNESS_RESTORE(&mp->mtx_object, mp);
 
 	return (rval);
 }
@@ -377,7 +377,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 #endif
 	CV_ASSERT(cvp, mp, p);
 	WITNESS_SLEEP(0, mp);
-	WITNESS_SAVE(mp, mp);
+	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
@@ -424,7 +424,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
 	mtx_lock(mp);
-	WITNESS_RESTORE(mp, mp);
+	WITNESS_RESTORE(&mp->mtx_object, mp);
 
 	return (rval);
 }

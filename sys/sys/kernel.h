@@ -119,7 +119,7 @@ enum sysinit_sub_id {
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
-	SI_SUB_MUTEX		= 0x1A80000,	/* mutex (witness) fixup */
+	SI_SUB_WITNESS		= 0x1A80000,	/* witness initialization */
 	SI_SUB_LOCK		= 0x1B00000,	/* lockmgr locks */
 	SI_SUB_EVENTHANDLER	= 0x1C00000,	/* eventhandler init */
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
