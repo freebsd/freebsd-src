@@ -380,6 +380,58 @@ sbp_show_sdev_info(struct sbp_dev *sdev, int new)
 	printf("'%s' '%s' '%s'\n", sdev->vendor, sdev->product, sdev->revision);
 }
 
+static struct {
+	int bus;
+	int target;
+	struct fw_eui64 eui;
+} wired[] = {
+	/* Bus	Target	EUI64 */
+#if 0
+	{0,	2,	{0x00018ea0, 0x01fd0154}},	/* Logitec HDD */
+	{0,	0,	{0x00018ea6, 0x00100682}},	/* Logitec DVD */
+	{0,	1,	{0x00d03200, 0xa412006a}},	/* Yano HDD */
+#endif
+	{-1,	-1,	{0,0}}
+};
+
+static int
+sbp_new_target(struct sbp_softc *sbp, struct fw_device *fwdev)
+{
+	int bus, i, target=-1;
+	char w[SBP_NUM_TARGETS];
+
+	bzero(w, sizeof(w));
+	bus = device_get_unit(sbp->fd.dev);
+
+	/* XXX wired-down configuration should be gotten from
+					tunable or device hint */
+	for (i = 0; wired[i].bus >= 0; i ++) {
+		if (wired[i].bus == bus) {
+			w[wired[i].target] = 1;
+			if (wired[i].eui.hi == fwdev->eui.hi &&
+					wired[i].eui.lo == fwdev->eui.lo)
+				target = wired[i].target;
+		}
+	}
+	if (target >= 0) {
+		if(target < SBP_NUM_TARGETS &&
+				sbp->targets[target].fwdev == NULL)
+			return(target);
+		device_printf(sbp->fd.dev,
+			"target %d is not free for %08x:%08x\n", 
+			target, fwdev->eui.hi, fwdev->eui.lo);
+		target = -1;
+	}
+	/* non-wired target */
+	for (i = 0; i < SBP_NUM_TARGETS; i ++)
+		if (sbp->targets[i].fwdev == NULL && w[i] == 0) {
+			target = i;
+			break;
+		}
+
+	return target;
+}
+
 static struct sbp_target *
 sbp_alloc_target(struct sbp_softc *sbp, struct fw_device *fwdev)
 {
@@ -392,10 +444,9 @@ sbp_alloc_target(struct sbp_softc *sbp, struct fw_device *fwdev)
 SBP_DEBUG(1)
 	printf("sbp_alloc_target\n");
 END_DEBUG
-	for (i = 0; i < SBP_NUM_TARGETS; i++)
-		if(sbp->targets[i].fwdev == NULL) break;
-	if (i == SBP_NUM_TARGETS) {
-		printf("increase SBP_NUM_TARGETS!\n");
+	i = sbp_new_target(sbp, fwdev);
+	if (i < 0) {
+		device_printf(sbp->fd.dev, "increase SBP_NUM_TARGETS!\n");
 		return NULL;
 	}
 	/* new target */
