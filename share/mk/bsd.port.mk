@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id$
+#	$Id: bsd.port.mk,v 1.227.2.42 1998/08/06 10:45:22 markm Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -272,7 +272,7 @@ ARCH!=	uname -m
 OPSYS!=	uname -s
 
 # Get the operating system revision
-OSREL!=	uname -s | sed -e 's/[-(].*//'
+OSREL!=	uname -r | sed -e 's/[-(].*//'
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
