@@ -42,67 +42,39 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/mac.h
-.Ft mac_t
-.Fn mac_from_text "const char *text_p"
-.Ft "char *"
-.Fn mac_to_text "mac_t label" "size_t *len_p"
+.Ft int
+.Fn mac_from_text "mac_t *mac" "const char *text"
+.Ft int
+.Fn mac_to_text "mac_t label" "char **text"
 .Sh DESCRIPTION
 The
 .Fn mac_from_text
 function converts the text representation of a label
-into a
-.Vt mac_t ,
+into the internal policy label format
+.Vt ( mac_t )
+and places it in
+.Fa *mac ,
 which must later be freed with
-.Xr mac_free .
+.Xr mac_free 3 .
+.Pp
 The
 .Fn mac_to_text
-function returns
-the text representation of
-.Fa label
-and sets
-.Fa *len_p
-to the length of the returned string.
+function allocates storage for
+.Fa *text ,
+which will be set to the text representation of
+.Fa label .
 .Pp
 Refer to
 .Xr maclabel 7
 for the MAC label format.
 .Sh RETURN VALUES
-The
-.Fn mac_from_text
-function returns a valid
-.Vt mac_t
-equivalent to
-the MAC label described in
-.Fa text_p
-upon success, and
-.Dv NULL
-upon failure, setting
-.Va errno
-to indicate the error.
-.Pp
-The
-.Fn mac_to_text
-function returns a string
-containing the text representation of
-.Fa label
-upon success, and
-.Dv NULL
-upon failure, setting
-.Va errno
-to indicate the error.
+.Rv -std mac_from_text mac_to_text
 .Sh COMPATIBILITY
 POSIX.1e does not define
 a text format for text representations
 of MAC labels.
 .Sh ERRORS
 .Bl -tag -width Er
-.It Bq Er EINVAL
-An invalid policy or qualifier
-was specified in
-.Fa text_p ,
-or an invalid MAC label
-was specified in
-.Fa label .
 .It Bq Er ENOMEM
 Insufficient memory was available
 to allocate internal storage.
