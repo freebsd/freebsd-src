@@ -118,6 +118,13 @@ struct sal_ap_wakeup_descriptor {
 #define	SAL_OS_INIT		1
 #define	SAL_OS_BOOT_RENDEZ	2
 
+/* SAL_GET_STATE_INFO, SAL_GET_STATE_INFO_SIZE types */
+#define	SAL_INFO_MCA		0
+#define	SAL_INFO_INIT		1
+#define	SAL_INFO_CMC		2
+#define	SAL_INFO_CPE		3
+#define	SAL_INFO_TYPES		4	/* number of types we know about */
+
 struct ia64_sal_result {
 	int64_t		sal_status;
 	u_int64_t	sal_result[3];
@@ -127,7 +134,8 @@ typedef struct ia64_sal_result sal_entry_t
 	(u_int64_t, u_int64_t, u_int64_t, u_int64_t,
 	 u_int64_t, u_int64_t, u_int64_t, u_int64_t);
 
-extern void ia64_sal_init(struct sal_system_table *saltab);
 extern sal_entry_t *ia64_sal_entry;
+
+extern void ia64_sal_init(struct sal_system_table *saltab);
 
 #endif /* _MACHINE_SAL_H_ */
