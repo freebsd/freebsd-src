@@ -3,7 +3,7 @@
 SUBDIR=	doc lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on Kerberos.
-KPROGS=	lib/libpam secure/usr.bin/ssh secure/usr.sbin/sshd
+KPROGS=	lib/libpam lib/libssh secure/usr.bin/ssh secure/usr.sbin/sshd
 
 # This target is used to rebuild these programs WITH Kerberos.
 kerberize:
