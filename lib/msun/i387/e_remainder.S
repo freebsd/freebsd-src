@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: e_remainder.S,v 1.1.1.1 1994/08/19 09:40:01 jkh Exp $")
+RCSID("$Id: e_remainder.S,v 1.2 1994/08/19 11:14:18 jkh Exp $")
 
 ENTRY(__ieee754_remainder)
 	fldl	12(%esp)
