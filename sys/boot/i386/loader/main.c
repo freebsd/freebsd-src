@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.8 1998/09/28 20:17:05 peter Exp $
+ *	$Id: main.c,v 1.9 1998/10/02 16:33:43 msmith Exp $
  */
 
 /*
@@ -185,6 +185,6 @@ static int
 command_heap(int argc, char *argv[])
 {
     mallocstats();
-    printf("heap base at %p, top at %p", end, sbrk(0));
+    printf("heap base at %p, top at %p\n", end, sbrk(0));
     return(CMD_OK);
 }
