@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.8 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: vpo.c,v 1.9 1998/12/07 21:58:16 archie Exp $
  *
  */
 
@@ -411,6 +411,10 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		printf("vpo%d: XPT_PATH_INQ request\n", vpo->vpo_unit);
 #endif
 		cpi->version_num = 1; /* XXX??? */
+		cpi->hba_inquiry = 0;
+		cpi->target_sprt = 0;
+		cpi->hba_misc = 0;
+		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 7;
 		cpi->max_lun = 0;
 		cpi->initiator_id = VP0_INITIATOR;
