@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <sys/signal.h>
 #include <sys/user.h>
+#include <sys/ucontext.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
