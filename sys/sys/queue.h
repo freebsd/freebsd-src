@@ -81,28 +81,30 @@
  * For details on the use of these macros, see the queue(3) manual page.
  *
  *
- *			SLIST	LIST	STAILQ	TAILQ
- * _HEAD		+	+	+	+
- * _HEAD_INITIALIZER	+	+	+	+
- * _ENTRY		+	+	+	+
- * _INIT		+	+	+	+
- * _EMPTY		+	+	+	+
- * _FIRST		+	+	+	+
- * _NEXT		+	+	+	+
- * _PREV		-	-	-	+
- * _LAST		-	-	+	+
- * _FOREACH		+	+	+	+
- * _FOREACH_REVERSE	-	-	-	+
- * _INSERT_HEAD		+	+	+	+
- * _INSERT_BEFORE	-	+	-	+
- * _INSERT_AFTER	+	+	+	+
- * _INSERT_TAIL		-	-	+	+
- * _CONCAT		-	-	+	+
- * _REMOVE_HEAD		+	-	+	-
- * _REMOVE		+	+	+	+
+ *				SLIST	LIST	STAILQ	TAILQ
+ * _HEAD			+	+	+	+
+ * _HEAD_INITIALIZER		+	+	+	+
+ * _ENTRY			+	+	+	+
+ * _INIT			+	+	+	+
+ * _EMPTY			+	+	+	+
+ * _FIRST			+	+	+	+
+ * _NEXT			+	+	+	+
+ * _PREV			-	-	-	+
+ * _LAST			-	-	+	+
+ * _FOREACH			+	+	+	+
+ * _FOREACH_SAFE		+	+	+	+
+ * _FOREACH_REVERSE		-	-	-	+
+ * _FOREACH_REVERSE_SAFE	-	-	-	+
+ * _INSERT_HEAD			+	+	+	+
+ * _INSERT_BEFORE		-	+	-	+
+ * _INSERT_AFTER		+	+	+	+
+ * _INSERT_TAIL			-	-	+	+
+ * _CONCAT			-	-	+	+
+ * _REMOVE_HEAD			+	-	+	-
+ * _REMOVE			+	+	+	+
  *
  */
-#define QUEUE_MACRO_DEBUG 0
+#define	QUEUE_MACRO_DEBUG 0
 #if QUEUE_MACRO_DEBUG
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
@@ -112,17 +114,17 @@ struct qm_trace {
 	int prevline;
 };
 
-#define TRACEBUF	struct qm_trace trace;
-#define TRASHIT(x)	do {(x) = (void *)-1;} while (0)
+#define	TRACEBUF	struct qm_trace trace;
+#define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 
-#define QMD_TRACE_HEAD(head) do {					\
+#define	QMD_TRACE_HEAD(head) do {					\
 	(head)->trace.prevline = (head)->trace.lastline;		\
 	(head)->trace.prevfile = (head)->trace.lastfile;		\
 	(head)->trace.lastline = __LINE__;				\
 	(head)->trace.lastfile = __FILE__;				\
 } while (0)
 
-#define QMD_TRACE_ELEM(elem) do {					\
+#define	QMD_TRACE_ELEM(elem) do {					\
 	(elem)->trace.prevline = (elem)->trace.lastline;		\
 	(elem)->trace.prevfile = (elem)->trace.lastfile;		\
 	(elem)->trace.lastline = __LINE__;				\
@@ -130,10 +132,10 @@ struct qm_trace {
 } while (0)
 
 #else
-#define QMD_TRACE_ELEM(elem)
-#define QMD_TRACE_HEAD(head)
-#define TRACEBUF
-#define TRASHIT(x)
+#define	QMD_TRACE_ELEM(elem)
+#define	QMD_TRACE_HEAD(head)
+#define	TRACEBUF
+#define	TRASHIT(x)
 #endif	/* QUEUE_MACRO_DEBUG */
 
 /*
@@ -146,12 +148,12 @@ struct name {								\
 
 #define	SLIST_HEAD_INITIALIZER(head)					\
 	{ NULL }
- 
+
 #define	SLIST_ENTRY(type)						\
 struct {								\
 	struct type *sle_next;	/* next element */			\
 }
- 
+
 /*
  * Singly-linked List functions.
  */
@@ -164,7 +166,12 @@ struct {								\
 	    (var);							\
 	    (var) = SLIST_NEXT((var), field))
 
-#define SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
+#define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = SLIST_FIRST((head));				\
+	    (var) && ((tvar) = SLIST_NEXT((var), field), 1);		\
+	    (var) = (tvar))
+
+#define	SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
 	for ((varp) = &SLIST_FIRST((head));				\
 	    ((var) = *(varp)) != NULL;					\
 	    (varp) = &SLIST_NEXT((var), field))
@@ -238,6 +245,12 @@ struct {								\
 	for((var) = STAILQ_FIRST((head));				\
 	   (var);							\
 	   (var) = STAILQ_NEXT((var), field))
+
+
+#define	STAILQ_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = STAILQ_FIRST((head));				\
+	    (var) && ((tvar) = STAILQ_NEXT((var), field), 1);		\
+	    (var) = (tvar))
 
 #define	STAILQ_INIT(head) do {						\
 	STAILQ_FIRST((head)) = NULL;					\
@@ -325,12 +338,10 @@ struct {								\
 	    (var);							\
 	    (var) = LIST_NEXT((var), field))
 
-#define LIST_FOREACH_SAFE(var, head, field, tvar)			\
-	for ((var) = LIST_FIRST((head)),				\
-	    (var) != NULL ? (tvar) = LIST_NEXT((var), field) : NULL;	\
-	    (var) != NULL;						\
-	    (var) = (tvar),						\
-	    (var) != NULL ? (tvar) = LIST_NEXT((var), field) : NULL)
+#define	LIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = LIST_FIRST((head));				\
+	    (var) && ((tvar) = LIST_NEXT((var), field), 1);		\
+	    (var) = (tvar))
 
 #define	LIST_INIT(head) do {						\
 	LIST_FIRST((head)) = NULL;					\
@@ -410,10 +421,20 @@ struct {								\
 	    (var);							\
 	    (var) = TAILQ_NEXT((var), field))
 
+#define	TAILQ_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = TAILQ_FIRST((head));				\
+	    (var) && ((tvar) = TAILQ_NEXT((var), field), 1);		\
+	    (var) = (tvar))
+
 #define	TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
 	for ((var) = TAILQ_LAST((head), headname);			\
 	    (var);							\
 	    (var) = TAILQ_PREV((var), headname, field))
+
+#define	TAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, tvar)	\
+	for ((var) = TAILQ_LAST((head), headname);			\
+	    (var) && ((tvar) = TAILQ_PREV((var), headname, field), 1);	\
+	    (var) = (tvar))
 
 #define	TAILQ_INIT(head) do {						\
 	TAILQ_FIRST((head)) = NULL;					\
