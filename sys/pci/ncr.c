@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.34 1995/03/22 11:00:23 se Exp $
+**  $Id: ncr.c,v 1.35 1995/03/22 19:45:22 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -154,6 +154,8 @@
 **
 **==========================================================
 */
+
+#include <stddef.h>
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -433,16 +435,6 @@ struct	usrcmd {
 #define UC_SETFLAG	15
 
 #define	UF_TRACE	(0x01)
-
-
-/*==========================================================
-**
-**	Access to fields of structs.
-**
-**==========================================================
-*/
-
-#define	offsetof(type, member)  ((size_t)(&((type *)0)->member))
 
 /*---------------------------------------
 **
@@ -1224,7 +1216,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.34 1995/03/22 11:00:23 se Exp $\n";
+	"\n$Id: ncr.c,v 1.35 1995/03/22 19:45:22 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
