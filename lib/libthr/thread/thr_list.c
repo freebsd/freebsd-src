@@ -61,7 +61,6 @@ static umtx_t			free_thread_lock;
 static umtx_t			tcb_lock;
 static int			free_thread_count = 0;
 static int			inited = 0;
-static u_int64_t		next_uniqueid = 1;
 
 LIST_HEAD(thread_hash_head, pthread);
 #define HASH_QUEUES	128
@@ -217,23 +216,13 @@ thr_destroy(struct pthread *curthread __unused, struct pthread *thread)
 }
 
 /*
- * Add an active thread:
- *
- *   o Assign the thread a unique id (which GDB uses to track
- *     threads.
- *   o Add the thread to the list of all threads and increment
- *     number of active threads.
+ * Add the thread to the list of all threads and increment
+ * number of active threads.
  */
 void
 _thr_link(struct pthread *curthread, struct pthread *thread)
 {
 	THREAD_LIST_LOCK(curthread);
-	/*
-	 * Initialize the unique id (which GDB uses to track
-	 * threads), add the thread to the list of all threads,
-	 * and
-	 */
-	thread->uniqueid = next_uniqueid++;
 	THR_LIST_ADD(thread);
 	if (thread->attr.flags & PTHREAD_DETACHED)
 		thread->tlflags |= TLFLAGS_DETACHED;

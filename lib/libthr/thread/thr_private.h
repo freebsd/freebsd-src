@@ -339,7 +339,6 @@ struct pthread {
 #define	THR_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
 	char			*name;
-	u_int64_t		uniqueid; /* for gdb */
 
 	/*
 	 * Lock for accesses to this thread structure.
