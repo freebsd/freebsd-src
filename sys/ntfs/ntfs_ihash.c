@@ -42,7 +42,6 @@
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 
 #include <ntfs/ntfs.h>

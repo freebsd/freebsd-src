@@ -37,7 +37,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/fbio.h>

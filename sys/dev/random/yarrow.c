@@ -38,7 +38,6 @@
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/select.h>
 #include <sys/random.h>
 #include <sys/time.h>
