@@ -1516,9 +1516,7 @@ ENTRY(lgdt)
 	mov	%ax,%es
 	mov	%ax,%gs
 	mov	%ax,%ss
-#ifdef SMP
 	movl	$KPSEL,%eax
-#endif
 	mov	%ax,%fs
 
 	/* reload code selector by turning return into intersegmental return */

@@ -58,6 +58,7 @@ IDTVEC(vec_name) ; \
 	mov	$KDSEL,%ax ; \
 	mov	%ax,%ds ; \
 	mov	%ax,%es ; \
+	mov	$KPSEL,%ax ; \
 	mov	%ax,%fs ; \
 	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
 	incb	PCPU(INTR_NESTING_LEVEL) ; \
@@ -93,6 +94,7 @@ IDTVEC(vec_name) ; \
 	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */ \
 	mov	%ax,%ds ; \
 	mov	%ax,%es ; \
+	mov	$KPSEL,%ax ; \
 	mov	%ax,%fs ; \
 	maybe_extra_ipending ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
