@@ -61,6 +61,7 @@ idle_setup(void *dummy)
 			panic("idle_setup: kthread_create error %d\n", error);
 
 		p->p_flag |= P_NOLOAD;
+		p->p_state = PRS_NORMAL;
 		td = FIRST_THREAD_IN_PROC(p);
 		td->td_state = TDS_UNQUEUED;	
 		td->td_kse->ke_flags |= KEF_IDLEKSE; 
