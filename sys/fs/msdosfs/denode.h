@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.14 1997/10/17 12:36:16 phk Exp $ */
+/*	$Id: denode.h,v 1.15 1998/02/18 09:28:26 jkh Exp $ */
 /*	$NetBSD: denode.h,v 1.25 1997/11/17 15:36:28 ws Exp $	*/
 
 /*-
@@ -148,7 +148,6 @@ struct denode {
 	int de_fndcnt;		/* number of slots before de_fndoffset */
 	long de_refcnt;		/* reference count */
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
-	struct lockf *de_lockf;	/* byte level lock list */
 	u_char de_Name[12];	/* name, from DOS directory entry */
 	u_char de_Attributes;	/* attributes, from directory entry */
 	u_char de_CHun;		/* Hundredth of second of CTime*/
