@@ -71,7 +71,7 @@ static char *server_name; /* need a better way ! */
 int
 ncp_li_setserver(struct ncp_conn_loginfo *li, const char *arg) {
 	if (strlen(arg) >= NCP_BINDERY_NAME_LEN) {
-		fprintf(stderr, "Server name too long:%s\n", arg);
+		ncp_error("server name '%s' too long", 0, arg);
 		return ENAMETOOLONG;
 	}
 	ncp_str_upper(strcpy(li->server, arg));
@@ -81,7 +81,7 @@ ncp_li_setserver(struct ncp_conn_loginfo *li, const char *arg) {
 int
 ncp_li_setuser(struct ncp_conn_loginfo *li, char *arg) {
 	if (arg && strlen(arg) >= NCP_BINDERY_NAME_LEN) {
-		fprintf(stderr, "User name too long:%s\n", arg);
+		ncp_error("user name '%s' too long", 0, arg);
 		return ENAMETOOLONG;
 	}
 	if (li->user)
@@ -99,7 +99,7 @@ ncp_li_setuser(struct ncp_conn_loginfo *li, char *arg) {
 int
 ncp_li_setpassword(struct ncp_conn_loginfo *li, const char *passwd) {
 	if (passwd && strlen(passwd) >= 127) {
-		fprintf(stderr, "Password too long:%s\n", passwd);
+		ncp_error("password too long", 0);
 		return ENAMETOOLONG;
 	}
 	if (li->password) {
@@ -134,7 +134,7 @@ ncp_li_init(struct ncp_conn_loginfo *li, int argc, char *argv[]) {
 	li->group = NCP_DEFAULT_GROUP;
 	server_name = NULL;
 	if (argv == NULL) return 0;
-	while ((opt = ncp_getopt(argc, argv, ":S:U:")) != -1) {
+	while (error == 0 && (opt = ncp_getopt(argc, argv, ":S:U:")) != -1) {
 		arg = ncp_optarg;
 		switch (opt) {
 		    case 'S':
@@ -201,7 +201,7 @@ ncp_li_readrc(struct ncp_conn_loginfo *li) {
 		struct ncp_conn_stat cs;
 		
 		if ((error = ncp_conn_scan(li, &connHandle)) != 0) {
-			fprintf(stderr, "no default connection found: %s\n",strerror(errno));
+			ncp_error("no default connection found", errno);
 			return error;
 		}
 		ncp_conn_getinfo(connHandle, &cs);
@@ -247,18 +247,19 @@ ncp_li_check(struct ncp_conn_loginfo *li) {
 	
 	do {
 		if (li->server[0] == 0) {
-			fprintf(stderr, "no server name specified\n");
+			ncp_error("no server name specified", 0);
 			error = 1;
 			break;
 		}
 		error = ncp_find_fileserver(li,
 		    (server_name==NULL) ? AF_IPX : AF_INET, server_name);
 		if (error) {
-			fprintf(stderr,"Can't find server %s, error=%s\n",li->server,strerror(errno));
+			ncp_error("can't find server %s", error, li->server);
 			break;
 		}
 		if (li->user == NULL || li->user[0] == 0) {
-			fprintf(stderr, "no user name specified for server %s\n",li->server);
+			ncp_error("no user name specified for server %s",
+			    0, li->server);
 			error = 1;
 			break;
 		}
@@ -332,7 +333,8 @@ ncp_li_arg(struct ncp_conn_loginfo *li, int opt, char *arg) {
 	    case 'I':
 		sig_level = atoi(arg);
 		if (sig_level < 0 || sig_level > 3) {
-			fprintf(stderr, "Invalid NCP signature level option `%s' (must be number between 0 and 3)\n", arg);
+			ncp_error("invalid NCP signature level option `%s'\
+			    (must be a number between 0 and 3)", 0, arg);
 			error = 1;
 		}
 		li->sig_level = sig_level;
