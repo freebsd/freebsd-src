@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.98 1995/02/01 11:19:24 jkh Exp $
+#	$Id: Makefile,v 1.99 1995/02/01 22:53:32 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -31,7 +31,7 @@ CPIO2=  etc/services etc/protocols
 # bininst MUST be the last file on the cpio floppy.  It's used to detect
 # a successful extraction.
 CPIO3=	scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
-	scripts/adduser.sh scripts/bininst.sh
+	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
 CPIO4=	/usr/sbin/tzsetup
 CPIO4B=	tzsetup
