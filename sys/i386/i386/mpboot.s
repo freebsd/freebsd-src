@@ -31,8 +31,10 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.4 1997/08/26 18:10:32 peter Exp $
+ *	$Id: mpboot.s,v 1.5 1997/09/22 05:03:03 peter Exp $
  */
+
+#include "opt_vm86.h"
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/apic.h>

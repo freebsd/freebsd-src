@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.98 1997/09/21 05:49:56 dyson Exp $
+ *	$Id: locore.s,v 1.99 1997/09/21 15:03:56 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -47,6 +47,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_userconfig.h"
+#include "opt_vm86.h"
 
 #include <sys/syscall.h>
 #include <sys/reboot.h>
