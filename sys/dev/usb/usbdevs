@@ -1038,6 +1038,7 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet adapter
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
+product NIKON LS40		0x4000	CoolScan LS40 ED
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
