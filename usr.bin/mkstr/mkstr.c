@@ -191,6 +191,8 @@ copystr(void)
 	char *cp = buf;
 
 	for (;;) {
+		if (cp == buf + sizeof(buf) - 2)
+			errx(1, "message too long");
 		c = getchar();
 		if (c == EOF)
 			break;
