@@ -2,13 +2,14 @@
  * Missing stuff from OS's
  */
 
+#ifndef lint
+#include <sys/cdefs.h>
+__RCSID("$FreeBSD$");
+#endif
+
 #include <stdio.h>
 #include <errno.h>
 #include "make.h"
-
-#ifndef lint
-__RCSID("$FreeBSD$");
-#endif
 
 #if !__STDC__
 # ifndef const
