@@ -202,6 +202,8 @@ __stdcall static uint32_t ndis_buflen(ndis_buffer *);
 __stdcall static void ndis_query_buf(ndis_buffer *, void **, uint32_t *);
 __stdcall static void ndis_query_buf_safe(ndis_buffer *, void **,
 	uint32_t *, uint32_t);
+__stdcall static void *ndis_buf_vaddr(ndis_buffer *);
+__stdcall static void *ndis_buf_vaddr_safe(ndis_buffer *, uint32_t);
 __stdcall static void ndis_adjust_buflen(ndis_buffer *, int);
 __stdcall static uint32_t ndis_interlock_inc(uint32_t *);
 __stdcall static uint32_t ndis_interlock_dec(uint32_t *);
@@ -1798,6 +1800,23 @@ ndis_query_buf_safe(buf, vaddr, len, prio)
 	return;
 }
 
+/* Damnit Microsoft!! How many ways can you do the same thing?! */
+
+__stdcall static void *
+ndis_buf_vaddr(buf)
+	ndis_buffer		*buf;
+{
+	return(MDL_VA(buf));
+}
+
+__stdcall static void *
+ndis_buf_vaddr_safe(buf, prio)
+	ndis_buffer		*buf;
+	uint32_t		prio;
+{
+	return(MDL_VA(buf));
+}
+
 __stdcall static void
 ndis_adjust_buflen(buf, len)
 	ndis_buffer		*buf;
@@ -2766,6 +2785,8 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisAllocateBuffer",		(FUNC)ndis_alloc_buf },
 	{ "NdisQueryBuffer",		(FUNC)ndis_query_buf },
 	{ "NdisQueryBufferSafe",	(FUNC)ndis_query_buf_safe },
+	{ "NdisBufferVirtualAddress",	(FUNC)ndis_buf_vaddr },
+	{ "NdisBufferVirtualAddressSafe", (FUNC)ndis_buf_vaddr_safe },
 	{ "NdisBufferLength",		(FUNC)ndis_buflen },
 	{ "NdisFreeBuffer",		(FUNC)ndis_release_buf },
 	{ "NdisFreeBufferPool",		(FUNC)ndis_free_bufpool },
