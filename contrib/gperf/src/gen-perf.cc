@@ -1,6 +1,6 @@
 /* Provides high-level routines to manipulate the keywork list
    structures the code generation output.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -81,37 +81,45 @@ Gen_Perf::Gen_Perf (void)
 }
 
 /* Merge two disjoint hash key multisets to form the ordered disjoint union of the sets.
-   (In a multiset, an element can occur multiple times).
+   (In a multiset, an element can occur multiple times.)
    Precondition: both set_1 and set_2 must be ordered. Returns the length
    of the combined set. */
 
 inline int
-Gen_Perf::compute_disjoint_union (const char *set_1, const char *set_2, char *set_3)
+Gen_Perf::compute_disjoint_union  (const char *set_1, int size_1, const char *set_2, int size_2, char *set_3)
 {
   T (Trace t ("Gen_Perf::compute_disjoint_union");)
   char *base = set_3;
 
-  while (*set_1 && *set_2)
+  while (size_1 > 0 && size_2 > 0)
     if (*set_1 == *set_2)
-      set_1++, set_2++;
+      set_1++, size_1--, set_2++, size_2--;
     else
       {
-        *set_3 = *set_1 < *set_2 ? *set_1++ : *set_2++;
-        if (set_3 == base || *set_3 != *(set_3-1)) set_3++;
+        char next;
+        if (*set_1 < *set_2)
+          next = *set_1++, size_1--;
+        else
+          next = *set_2++, size_2--;
+        if (set_3 == base || next != set_3[-1])
+          *set_3++ = next;
       }
 
-  while (*set_1)
+  while (size_1 > 0)
     {
-      *set_3 = *set_1++;
-      if (set_3 == base || *set_3 != *(set_3-1)) set_3++;
+      char next;
+      next = *set_1++, size_1--;
+      if (set_3 == base || next != set_3[-1])
+        *set_3++ = next;
     }
 
-  while (*set_2)
+  while (size_2 > 0)
     {
-      *set_3 = *set_2++;
-      if (set_3 == base || *set_3 != *(set_3-1)) set_3++;
+      char next;
+      next = *set_2++, size_2--;
+      if (set_3 == base || next != set_3[-1])
+        *set_3++ = next;
     }
-  *set_3 = '\0';
   return set_3 - base;
 }
 
@@ -146,10 +154,12 @@ inline int
 Gen_Perf::hash (List_Node *key_node)
 {
   T (Trace t ("Gen_Perf::hash");)
-  int   sum = option[NOLENGTH] ? 0 : key_node->length;
+  int sum = option[NOLENGTH] ? 0 : key_node->key_length;
 
-  for (const char *ptr = key_node->char_set; *ptr; ptr++)
-      sum += asso_values[(unsigned char)(*ptr)];
+  const char *p = key_node->char_set;
+  int i = key_node->char_set_length;
+  for (; i > 0; p++, i--)
+      sum += asso_values[(unsigned char)(*p)];
 
   return key_node->hash_value = sum;
 }
@@ -209,28 +219,35 @@ Gen_Perf::change (List_Node *prior, List_Node *curr)
 {
   T (Trace t ("Gen_Perf::change");)
   static char *union_set;
+  int union_set_length;
 
   if (!union_set)
-    union_set = new char [2 * option.get_max_keysig_size () + 1];
+    union_set = new char [2 * option.get_max_keysig_size ()];
 
   if (option[DEBUG])
     {
-      fprintf (stderr, "collision on keyword #%d, prior = \"%s\", curr = \"%s\" hash = %d\n",
-               num_done, prior->key, curr->key, curr->hash_value);
+      fprintf (stderr, "collision on keyword #%d, prior = \"%.*s\", curr = \"%.*s\" hash = %d\n",
+               num_done,
+               prior->key_length, prior->key,
+               curr->key_length, curr->key,
+               curr->hash_value);
       fflush (stderr);
     }
-  sort_set (union_set, compute_disjoint_union (prior->char_set, curr->char_set, union_set));
+  union_set_length = compute_disjoint_union (prior->char_set, prior->char_set_length, curr->char_set, curr->char_set_length, union_set);
+  sort_set (union_set, union_set_length);
 
   /* Try changing some values, if change doesn't alter other values continue normal action. */
   fewest_collisions++;
 
-  for (char *temp = union_set; *temp; temp++)
-    if (!affects_prev (*temp, curr))
+  const char *p = union_set;
+  int i = union_set_length;
+  for (; i > 0; p++, i--)
+    if (!affects_prev (*p, curr))
       {
         if (option[DEBUG])
           {
             fprintf (stderr, " by changing asso_value['%c'] (char #%d) to %d\n",
-                     *temp, temp - union_set + 1, asso_values[(unsigned char)(*temp)]);
+                     *p, p - union_set + 1, asso_values[(unsigned char)(*p)]);
             fflush (stderr);
           }
         return; /* Good, doesn't affect previous hash values, we'll take it. */

@@ -1,5 +1,5 @@
 /* Provides an Iterator for keyword characters.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -20,7 +20,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 
 #include "iterator.h"
 
-#include <stream.h>
 #include <ctype.h>
 #include "trace.h"
 

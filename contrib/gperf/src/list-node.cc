@@ -1,5 +1,5 @@
 /* Creates and initializes a new list node.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -57,23 +57,21 @@ List_Node::set_sort (char *base, int len)
    of the total number of keys seen so far.  This is used to initialize
    the INDEX field to some useful value. */
 
-List_Node::List_Node (char *k, int len): link (0), next (0),
-     key (k), rest (option[TYPE] ? k + len + 1 : ""), length (len), index (0)
+List_Node::List_Node (const char *k, int len, const char *r):
+     link (0), next (0), key (k), key_length (len), rest (r), index (0)
 {
   T (Trace t ("List_Node::List_Node");)
-  char *ptr = new char[(option[ALLCHARS] ? len : option.get_max_keysig_size ()) + 1];
-  char *key_set = ptr;
-  k[len]    = '\0';             /* Null terminate KEY to separate it from REST. */
+  char *key_set = new char[(option[ALLCHARS] ? len : option.get_max_keysig_size ())];
+  char *ptr = key_set;
+  int i;
 
-  if (option[ALLCHARS])         /* Use all the character position in the KEY. */
-    for (; *k; k++, ptr++)
+  if (option[ALLCHARS])         /* Use all the character positions in the KEY. */
+    for (i = len; i > 0; k++, ptr++, i--)
       ++occurrences[(unsigned char)(*ptr = *k)];
   else                          /* Only use those character positions specified by the user. */
     {
-      int i;
-
-      /* Iterate thru the list of key_positions, initializing occurrences table
-        and char_set (via char * pointer ptr). */
+      /* Iterate through the list of key_positions, initializing occurrences table
+         and char_set (via char * pointer ptr). */
 
       for (option.reset (); (i = option.get ()) != EOS; )
         {
@@ -90,12 +88,15 @@ List_Node::List_Node (char *k, int len): link (0), next (0),
         keylength, so there are essentially no usable hash positions! */
       if (ptr == char_set && option[NOLENGTH])
         {
-          fprintf (stderr, "Can't hash keyword %s with chosen key positions.\n", key);
+          fprintf (stderr, "Can't hash keyword %.*s with chosen key positions.\n",
+                   key_length, key);
           exit (1);
         }
     }
-  *ptr = '\0';                  /* Terminate this bastard.... */
+
   /* Sort the KEY_SET items alphabetically. */
   set_sort (key_set, ptr - key_set);
+
   char_set = key_set;
+  char_set_length = ptr - key_set;
 }

@@ -1,6 +1,6 @@
 # Makefile for gperf/src
 
-# Copyright (C) 1989, 1992, 1993, 1998 Free Software Foundation, Inc.
+# Copyright (C) 1989, 1992, 1993, 1998, 2000 Free Software Foundation, Inc.
 # written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 #
 # This file is part of GNU GPERF.
@@ -39,6 +39,8 @@ CPP = @CPP@
 CXX = @CXX@
 CXXFLAGS = @CXXFLAGS@
 CXXCPP = @CXXCPP@
+# Both C and C++ compiler
+LDFLAGS = @LDFLAGS@
 # Other
 MV = mv
 LN = ln
@@ -49,6 +51,7 @@ RM = rm -f
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+MKINSTALLDIRS = $(SHELL) $(srcdir)/../mkinstalldirs
 
 #### End of system configuration section. ####
 
@@ -119,14 +122,14 @@ version.o : version.cc $(VERSION_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/version.cc
 
 install : all force
-	if [ ! -d $(bindir) ] ; then mkdir $(bindir) ; fi
-	$(INSTALL_PROGRAM) $(TARGETPROG) $(bindir)/$(TARGETPROG)
+	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
+	$(INSTALL_PROGRAM) $(TARGETPROG) $(DESTDIR)$(bindir)/$(TARGETPROG)
 
 installdirs : force
-	if [ ! -d $(bindir) ] ; then mkdir $(bindir) ; fi
+	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
 
 uninstall : force
-	$(RM) $(bindir)/$(TARGETPROG)
+	$(RM) $(DESTDIR)$(bindir)/$(TARGETPROG)
 
 check : all
 
