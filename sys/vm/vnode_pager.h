@@ -44,7 +44,6 @@
 
 #ifdef _KERNEL
 vm_object_t vnode_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));
-void vnode_pager_freepage __P((vm_page_t m));
 struct vnode *vnode_pager_lock __P((vm_object_t));
 
 /*

@@ -330,13 +330,6 @@ vnode_pager_setsize(vp, nsize)
 	object->size = nobjsize;
 }
 
-void
-vnode_pager_freepage(m)
-	vm_page_t m;
-{
-	vm_page_free(m);
-}
-
 /*
  * calculate the linear (byte) disk address of specified virtual
  * file address
@@ -626,7 +619,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
-				vnode_pager_freepage(m[i]);
+				vm_page_free(m[i]);
 			}
 		}
 		cnt.v_vnodein++;
@@ -642,7 +635,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage) {
-				vnode_pager_freepage(m[i]);
+				vm_page_free(m[i]);
 			}
 		}
 		cnt.v_vnodein++;
@@ -659,7 +652,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage)
-				vnode_pager_freepage(m[i]);
+				vm_page_free(m[i]);
 		}
 		return VM_PAGER_OK;
 	}
@@ -687,7 +680,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 				 (u_long)(u_int32_t)
 				 object->un_pager.vnp.vnp_size);
 			}
-			vnode_pager_freepage(m[i]);
+			vm_page_free(m[i]);
 			runend = i + 1;
 			first = runend;
 			continue;
@@ -696,12 +689,12 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		if (runend <= reqpage) {
 			int j;
 			for (j = i; j < runend; j++) {
-				vnode_pager_freepage(m[j]);
+				vm_page_free(m[j]);
 			}
 		} else {
 			if (runpg < (count - first)) {
 				for (i = first + runpg; i < count; i++)
-					vnode_pager_freepage(m[i]);
+					vm_page_free(m[i]);
 				count = first + runpg;
 			}
 			break;
@@ -845,7 +838,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 					vm_page_deactivate(mt);
 				vm_page_wakeup(mt);
 			} else {
-				vnode_pager_freepage(mt);
+				vm_page_free(mt);
 			}
 		}
 	}
