@@ -12,13 +12,11 @@
 
 name=moused
 rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
 
 case ${OSTYPE} in
 FreeBSD)
 	start_cmd="moused_start"
-	;;
-NetBSD)
-	command="/usr/sbin/${name}"
 	;;
 esac
 
