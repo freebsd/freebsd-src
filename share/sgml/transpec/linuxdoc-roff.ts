@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: linuxdoc-roff.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -102,6 +102,7 @@
 .\}
 .el \{\
 .  SA 0
+.  ftr C R
 .\}
 .PH "'${_followrel descendant TITLE &r.pass;}''%'"
 .nr N 1     <!-- header at the bottom of the first page -->
