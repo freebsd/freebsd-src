@@ -37,20 +37,24 @@
 #ifndef _MACHINE_SIGNAL_H_
 #define	_MACHINE_SIGNAL_H_
 
+#include <sys/cdefs.h>
+#include <sys/_sigset.h>
+
 /*
  * Machine-dependent signal definitions
  */
 
 typedef int sig_atomic_t;
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-
+#if __XSI_VISIBLE
 /*
  * Minimum signal stack size. The current signal frame
  * for i386 is 408 bytes large.
  */
 #define	MINSIGSTKSZ	(512 * 4)
+#endif
 
+#if __BSD_VISIBLE
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
 
 /*
@@ -96,7 +100,7 @@ struct osigcontext {
  * those in mcontext_t.
  */
 struct sigcontext {
-	sigset_t sc_mask;		/* signal mask to restore */
+	struct __sigset sc_mask;	/* signal mask to restore */
 	int	sc_onstack;		/* sigstack state to restore */
 	int	sc_gs;			/* machine state (struct trapframe): */
 	int	sc_fs;
@@ -135,6 +139,6 @@ struct sigcontext {
 #define	sc_ps		sc_efl
 #define	sc_eflags	sc_efl
 
-#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #endif /* !_MACHINE_SIGNAL_H_ */

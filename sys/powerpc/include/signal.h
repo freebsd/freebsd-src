@@ -35,16 +35,22 @@
 #ifndef	_MACHINE_SIGNAL_H_
 #define	_MACHINE_SIGNAL_H_
 
+#include <sys/cdefs.h>
+
+#if __XSI_VISIBLE
 #define	MINSIGSTKSZ	(512 * 4)
+#endif
 
 typedef int sig_atomic_t;
 
+#ifdef _KERNEL
 typedef unsigned int osigset_t;
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE) && \
-    !defined(_XOPEN_SOURCE)
 #include <machine/frame.h>
 
+/*
+ * XXX why do we have compatibility structs for a new platform?
+ */
 #if defined(__LIBC12_SOURCE__) || defined(_KERNEL)
 struct sigcontext13 {
 	int sc_onstack;			/* saved onstack flag */
@@ -57,15 +63,18 @@ struct osigcontext {
 	int sc_onstack;			/* saved onstack flag */
 	int __sc_mask13;		/* saved signal mask (old style) */
 	struct trapframe sc_frame;	/* saved registers */
-	sigset_t sc_mask;		/* saved signal mask (new style) */
+	struct __sigset sc_mask;	/* saved signal mask (new style) */
 };
 
+#endif /* _KERNEL */
+
+#if __BSD_VISIBLE
 struct sigcontext {
 	int sc_onstack;			/* saved onstack flag */
 	int __sc_mask13;		/* saved signal mask (old style) */
 	struct trapframe sc_frame;	/* saved registers */
-	sigset_t sc_mask;		/* saved signal mask (new style) */
+	struct __sigset sc_mask;	/* saved signal mask (new style) */
 };
+#endif
 
-#endif	/* !_ANSI_SOURCE && !_POSIX_C_SOURCE && !_XOPEN_SOURCE */
 #endif	/* !_MACHINE_SIGNAL_H_ */
