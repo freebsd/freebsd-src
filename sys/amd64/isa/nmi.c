@@ -340,7 +340,7 @@ update_intr_masks(void)
 		maskptr = intr_mptr[intr];
 		if (!maskptr)
 			continue;
-		*maskptr |= SWI_CLOCK_MASK | (1 << intr);
+		*maskptr |= SWI_LOW_MASK | (1 << intr);
 		mask = *maskptr;
 		if (mask != intr_mask[intr]) {
 #if 0
@@ -427,7 +427,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	disable_intr();
 	intr_handler[intr] = handler;
 	intr_mptr[intr] = maskptr;
-	intr_mask[intr] = mask | SWI_CLOCK_MASK | (1 << intr);
+	intr_mask[intr] = mask | SWI_LOW_MASK | (1 << intr);
 	intr_unit[intr] = arg;
 #ifdef FAST_HI
 	if (flags & INTR_FAST) {
