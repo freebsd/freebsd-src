@@ -262,7 +262,7 @@ rl_search_history (direction, invoking_key)
 	  break;
 	}
 
-      if (c >= 0 && (CTRL_CHAR (c) || META_CHAR (c) || c == RUBOUT))
+      if (c >= 0 && (CTRL_CHAR (c) || META_CHAR (c) || c == RUBOUT) && c != CTRL ('g'))
 	{
 	  rl_execute_next (c);
 	  break;
