@@ -1581,7 +1581,7 @@ encap_send(ip, vifp, m)
      */
     ip_copy = mtod(mb_copy, struct ip *);
     *ip_copy = multicast_encap_iphdr;
-    ip_copy->ip_id = ip_id++;
+    ip_copy->ip_id = htons(ip_id++);
     ip_copy->ip_len += len;
     ip_copy->ip_src = vifp->v_lcl_addr;
     ip_copy->ip_dst = vifp->v_rmt_addr;
@@ -1592,7 +1592,6 @@ encap_send(ip, vifp, m)
     ip = (struct ip *)((caddr_t)ip_copy + sizeof(multicast_encap_iphdr));
     --ip->ip_ttl;
     HTONS(ip->ip_len);
-    HTONS(ip->ip_id);
     HTONS(ip->ip_off);
     ip->ip_sum = 0;
     mb_copy->m_data += sizeof(multicast_encap_iphdr);

@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2000
+.Dd November 30, 1993
 .Dt IP 4
 .Os BSD 4.2
 .Sh NAME
@@ -368,10 +368,6 @@ ip->ip_off = offset;
 If the header source address is set to 
 .Dv INADDR_ANY,
 the kernel will choose an appropriate address.
-.Pp
-The header identification field
-.Dq Li ip_id
-is expected in host byte order.
 .Sh DIAGNOSTICS
 A socket operation may fail with one of the following errors returned:
 .Bl -tag -width [EADDRNOTAVAIL]
@@ -420,11 +416,3 @@ The
 .Nm
 protocol appeared in
 .Bx 4.2 .
-.Pp
-If the
-.Dv IP_HDRINCL
-option is in use,
-.Fx 4.2
-and above expect the
-.Dq Li ip_id
-field in host byte order.
