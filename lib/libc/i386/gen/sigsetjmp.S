@@ -59,7 +59,7 @@
  *	use sigreturn() if sigreturn() works.
  */
 
-ENTRY(__sigsetjmp)
+.globl CNAME(__sigsetjmp); CNAME(__sigsetjmp):
 ENTRY(sigsetjmp)
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx
@@ -90,7 +90,7 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-ENTRY(__siglongjmp)
+.globl CNAME(__siglongjmp); CNAME(__siglongjmp):
 ENTRY(siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)

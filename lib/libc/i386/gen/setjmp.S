@@ -54,7 +54,7 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-ENTRY(__setjmp)
+.globl CNAME(__setjmp); CNAME(__setjmp):
 ENTRY(setjmp)
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
@@ -81,7 +81,7 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-ENTRY(__longjmp)
+.globl CNAME(__longjmp); CNAME(__longjmp):
 ENTRY(longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
