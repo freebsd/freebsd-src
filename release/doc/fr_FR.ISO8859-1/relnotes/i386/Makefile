@@ -4,7 +4,7 @@
 #
 #      $Id$
 #      $FreeBSD$
-#      Original revision: 1.3.2.4
+#      Original revision: 1.6
 
 RELN_ROOT?= ${.CURDIR}/../../..
 
@@ -17,7 +17,7 @@ JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
 SRCS+=	article.sgml
-#SRCS+=	../common/relnotes.ent
+SRCS+=	../common/relnotes.ent
 #SRCS+=	../common/new.sgml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
