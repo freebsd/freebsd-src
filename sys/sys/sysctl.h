@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.4 1994/08/08 15:41:08 wollman Exp $
+ * $Id: sysctl.h,v 1.5 1994/08/10 06:25:07 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -224,7 +224,8 @@ struct kinfo_proc {
 #define	HW_PAGESIZE	 7		/* int: software page size */
 #define	HW_DISKNAMES	 8		/* strings: disk drive names */
 #define	HW_DISKSTATS	 9		/* struct: diskstats[] */
-#define	HW_MAXID	10		/* number of valid hw ids */
+#define HW_FLOATINGPT	10		/* int: has HW floating point? */
+#define	HW_MAXID	11		/* number of valid hw ids */
 
 #define CTL_HW_NAMES { \
 	{ 0, 0 }, \
@@ -237,6 +238,7 @@ struct kinfo_proc {
 	{ "pagesize", CTLTYPE_INT }, \
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
+	{ "floatingpoint", CTLTYPE_INT }, \
 }
 
 /*
