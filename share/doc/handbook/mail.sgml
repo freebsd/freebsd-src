@@ -1,4 +1,4 @@
-<!--  $Id: mail.sgml,v 1.4 1996/11/28 18:09:28 jfieber Exp $
+<!--  $Id: mail.sgml,v 1.5 1997/01/10 07:02:43 mpp Exp $
       The FreeBSD Documentation Project
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -422,9 +422,9 @@ OwTrue
 
 That way a remote site will deliver straight to you, without trying 
 the customer connection.  You then send to your customer.  Only works for 
-'hosts', so you need to get your customer to name their mail machine 
-'customer.com' as well as 'hostname.customer.com' in the DNS.  Just put 
-an A record in the DNS for 'customer.com'.
+"hosts", so you need to get your customer to name their mail machine 
+"customer.com" as well as "hostname.customer.com" in the DNS.  Just put 
+an A record in the DNS for "customer.com".
 </verb>
 
       </sect1>

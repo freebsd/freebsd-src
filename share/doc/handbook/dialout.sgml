@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialout Services.
-     $Id: dialout.sgml,v 1.1 1996/11/28 18:09:25 jfieber Exp $
+     $Id: dialout.sgml,v 1.2 1996/11/30 23:51:45 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -42,7 +42,7 @@ The following are tips to getting your host to be able to connect over the modem
           just a hard link to <tt/tip/.
 
       <sect1>
-	<heading>My stock Hayes modem is not supported&mdash;what can I do?</heading>
+	<heading>My stock Hayes modem is not supported, what can I do?</heading>
         <p>
           Actually, the man page for <tt/tip/ is out of date.  There is a
           generic Hayes dialer already built in.  Just use
@@ -162,7 +162,7 @@ The following are tips to getting your host to be able to connect over the modem
           and several thousand students trying to use them...
         <p>
           Make an entry for your university in <tt>/etc/remote</tt>
-          and use <tt>\@</tt> for the <tt/pn/ capability:
+          and use <tt>@</tt> for the <tt/pn/ capability:
           <verb>
             big-university:\
             :pn=\@:tc=dialout
