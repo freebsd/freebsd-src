@@ -91,6 +91,8 @@ struct puc_device_description {
 #define	PUC_PORT_TYPE_COM	1
 #define	PUC_PORT_TYPE_LPT	2
 
+#define	PUC_FLAGS_MEMORY	0x0001		/* Use memory mapped I/O. */
+
 #define	PUC_PORT_VALID(desc, port) \
   ((port) < PUC_MAX_PORTS && (desc)->ports[(port)].type != PUC_PORT_TYPE_NONE)
 
@@ -128,6 +130,7 @@ struct puc_softc {
 	struct {
 		int		used;
 		int 		bar;
+		int		type;	/* SYS_RES_IOPORT or SYS_RES_MEMORY. */
 		struct resource	*res;
 	} sc_bar_mappings[PUC_MAX_BAR];
 
