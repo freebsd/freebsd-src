@@ -50,4 +50,6 @@
 /* Tell gcc to locate libgcc.a for us according to the -m rules.  */
 #undef LIBGCC_SPEC
 #define LIBGCC_SPEC \
- "%{!shared:%{!pthread:%{!kthread:libgcc.a%s}}%{pthread|kthread:libgcc_r.a%s}}"
+ "%{!shared: \
+    %{!pthread:libgcc.a%s} \
+    %{pthread:libgcc_r.a%s}}"
