@@ -438,7 +438,7 @@ iso_mountfs(devvp, mp, p, argp)
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
 
-	devvp->v_specmountpoint = mp;
+	devvp->v_rdev->si_mountpoint = mp;
 
 	/* Check the Rock Ridge Extention support */
 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
@@ -505,7 +505,7 @@ iso_mountfs(devvp, mp, p, argp)
 
 	return 0;
 out:
-	devvp->v_specmountpoint = NULL;
+	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
 	if (pribp)
@@ -545,7 +545,7 @@ cd9660_unmount(mp, mntflags, p)
 
 	isomp = VFSTOISOFS(mp);
 
-	isomp->im_devvp->v_specmountpoint = NULL;
+	isomp->im_devvp->v_rdev->si_mountpoint = NULL;
 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, p);
 	vrele(isomp->im_devvp);
 	free((caddr_t)isomp, M_ISOFSMNT);

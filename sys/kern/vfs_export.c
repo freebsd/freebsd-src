@@ -1235,7 +1235,7 @@ reassignbuf(bp, newvp)
 				break;
 			case VCHR:
 			case VBLK:
-				if (newvp->v_specmountpoint != NULL) {
+				if (newvp->v_rdev->si_mountpoint != NULL) {
 					delay = metadelay;
 					break;
 				}
@@ -2251,7 +2251,7 @@ vfs_mountedon(vp)
 	struct vnode *vp;
 {
 
-	if (vp->v_specmountpoint != NULL)
+	if (vp->v_rdev->si_mountpoint != NULL)
 		return (EBUSY);
 	return (0);
 }

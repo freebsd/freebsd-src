@@ -155,8 +155,8 @@ ffs_fsync(ap)
 	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp, NULL)) {
 		lbn = INT_MAX;
-		if (vp->v_specmountpoint != NULL &&
-		    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP))
+		if (vp->v_rdev->si_mountpoint != NULL &&
+		    (vp->v_rdev->si_mountpoint->mnt_flag & MNT_SOFTDEP))
 			softdep_fsync_mountdev(vp);
 	} else {
 		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
