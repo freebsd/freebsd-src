@@ -811,10 +811,16 @@ Support for Dave Mills experimental Loran-C receiver.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS, and Melco 
-Airconnect). Note: the ISA versions of these adapters are actually PCMCIA 
-cards combined with an ISA to PCMCIA bridge card, so both kinds of 
-devices work with the same driver.
+NCR WaveLAN/IEEE 802.11
+Cabletron RoamAbout 802.11 DS
+ELECOM Air@Hawk/LD-WL11/PCC
+Farallon Skyline 11Mbps Wireless
+NEC Wireless Card CMZ-RT-WP
+Melco Airconnect WLI-PCM-L11
+PLANEX GeoWave/GW-NS110
+Note: the ISA versions of these adapters are actually PCMCIA cards
+combined with an ISA to PCMCIA bridge card, so both kinds of devices
+work with the same driver.
 
 Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
