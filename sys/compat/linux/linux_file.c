@@ -798,7 +798,7 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			"fspath", mntonname,
 			NULL);
 	} else
-		error = vfs_mount(td, fstypename, mntonname, fsflags, fsdata);
+		error = EOPNOTSUPP;
 	return (error);
 }
 
