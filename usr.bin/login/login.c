@@ -70,9 +70,27 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #include <unistd.h>
 #include <utmp.h>
 
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#else /* Undef AUTH as well */
+#undef LOGIN_CAP_AUTH
+#endif
+
+/* If LOGIN_CAP_AUTH is activated:
+ * kerberose & skey logins are runtime selected via login
+ * login_getstyle() and authentication types for login classes
+ * The actual login itself is handled via /usr/libexec/login_<style>
+ * Valid styles are determined by the auth-type=style,style entries
+ * in the login class.
+ */
+#ifdef LOGIN_CAP_AUTH
+#undef KERBEROS
+#undef SKEY
+#else
 #ifdef	SKEY
 #include <skey.h>
-#endif
+#endif /* SKEY */
+#endif /* LOGIN_CAP_AUTH */
 
 #include "pathnames.h"
 
@@ -80,7 +98,7 @@ void	 badlogin __P((char *));
 void	 checknologin __P((void));
 void	 dolastlog __P((int));
 void	 getloginname __P((void));
-void	 motd __P((void));
+void	 motd __P((char *));
 int	 rootterm __P((char *));
 void	 sigint __P((int));
 void	 sleepexit __P((int));
@@ -124,15 +142,27 @@ main(argc, argv)
 	struct stat st;
 	struct timeval tp;
 	struct utmp utmp;
+	int rootok;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
 	uid_t uid;
 	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
-#ifdef	SKEY
+	char shell[MAXPATHLEN];
+#ifdef LOGIN_CAP
+	login_cap_t *lc = NULL;
+#ifdef LOGIN_CAP_AUTH
+	char *style, *authtype;
+	char *auth_method = NULL;
+	char *instance = NULL;
+	int authok;
+#else /* !LOGIN_CAP_AUTH */
+#ifdef SKEY
 	int permit_passwd = 0;
-#endif
+#endif /* SKEY */
+#endif /* LOGIN_CAP_AUTH */
+#endif /* LOGIN_CAP */
 
 	(void)signal(SIGALRM, timedout);
 	(void)alarm(timeout);
@@ -216,20 +246,46 @@ main(argc, argv)
 	else
 		tty = ttyn;
 
+#ifdef LOGIN_CAP_AUTH
+	authtype = hostname ? "rlogin" : "login";
+#endif
+
 	for (cnt = 0;; ask = 1) {
 		if (ask) {
 			fflag = 0;
 			getloginname();
 		}
 		rootlogin = 0;
-#ifdef	KERBEROS
+		rootok = rootterm(tty); /* Default (auth may change) */
+#ifdef LOGIN_CAP_AUTH
+		authok = 0;
+		if (auth_method = strchr(username, ':')) {
+			*auth_method = '\0';
+			auth_method++;
+			if (*auth_method == '\0')
+				auth_method = NULL;
+		}
+		/*
+		 * We need to do this regardless of whether
+		 * kerberos is available.
+		 */
 		if ((instance = strchr(username, '.')) != NULL) {
 			if (strncmp(instance, ".root", 5) == 0)
 				rootlogin = 1;
 			*instance++ = '\0';
 		} else
 			instance = "";
-#endif
+#else /* !LOGIN_CAP_AUTH */
+#ifdef KERBEROS
+		if ((instance = strchr(username, '.')) != NULL) {
+			if (strncmp(instance, ".root", 5) == 0)
+				rootlogin = 1;
+			*instance++ = '\0';
+		} else
+			instance = "";
+#endif /* KERBEROS */
+#endif /* LOGIN_CAP_AUTH */
+
 		if (strlen(username) > UT_NAMESIZE)
 			username[UT_NAMESIZE] = '\0';
 
@@ -245,10 +301,14 @@ main(argc, argv)
 		}
 		(void)strcpy(tbuf, username);
 
-		if (pwd = getpwnam(username))
-			salt = pwd->pw_passwd;
-		else
-			salt = "xx";
+		pwd = getpwnam(username);
+#ifdef LOGIN_CAP
+		/* Establish the class now, before we might goto
+		 * within the next block. pwd can be NULL since it
+		 * falls back to the "default" class if it is.
+		 */
+		lc = login_getclass(pwd);
+#endif /* LOGIN_CAP */
 
 		/*
 		 * if we have a valid account name, and it doesn't have a
@@ -256,7 +316,8 @@ main(argc, argv)
 		 * is root or the caller isn't changing their uid, don't
 		 * authenticate.
 		 */
-		if (pwd) {
+		if (pwd != NULL) {
+			salt = pwd->pw_passwd;
 			if (pwd->pw_uid == 0)
 				rootlogin = 1;
 
@@ -269,74 +330,122 @@ main(argc, argv)
 				goto ttycheck;
 			}
 		}
+		else
+			salt = "xx";
 
 		fflag = 0;
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifdef	SKEY
-		permit_passwd = skeyaccess(username, tty,
-					   hostname ? full_hostname : NULL,
-					   NULL);
+#ifdef LOGIN_CAP_AUTH
+		/*
+		 * This hands off authorisation to an authorisation program,
+		 * depending on the styles available for the "auth-login",
+		 * auth-rlogin (or default) authorisation styles.
+		 * We do this regardless of whether an account exists so that
+		 * the remote user cannot tell a "real" from an invented
+		 * account name. If we don't have an account we just fall
+		 * back to the first method for the "default" class.
+		 */
+		if ((style = login_getstyle(lc, auth_method, authtype)) == NULL) {
+			rval = 1; /* No available authorisation method */
+			(void)printf("No auth method available for %s.\n", authtype);
+		} else {
+			/* Put back the kerberos instance, if any was given.
+			 * Don't worry about the non-kerberos case here, since
+			 * if kerberos is not available or not selected and an
+			 * instance is given at the login prompt, su or rlogin -l,
+			 * then anything else should fail as well.
+			 */
+			if (*instance)
+				*(instance - 1) = '.';
+			rval = authenticate(username, lc ? lc->lc_class : "default", style, authtype);
+			/* Junk it again */
+			if (*instance)
+				*(instance - 1) = '\0';
+		}
+
+		if (!rval) {
+			/*
+			 * If authentication succeeds, run any approval
+			 * program, if applicable for this class.
+			 */
+			char *approvep = login_getcapstr(lc, "approve", NULL, NULL);
+			rval = 1; /* Assume bad login again */
+			if (approvep==NULL || auth_script(approvep, approvep, username, lc->lc_class, 0) == 0) {
+				int     r = auth_scan(AUTH_OKAY);
+				/* See what the authorise program says */
+				if (r != AUTH_NONE) {
+					rval = 0;
+					if (!rootok && (r & AUTH_ROOTOKAY))
+						rootok = 1; /* root approved */
+					else rootlogin = 0;
+					if (!authok && (r & AUTH_SECURE))
+						authok = 1; /* secure */
+				}
+			}
+		}
+#else /* !LOGIN_CAP_AUTH */
+#ifdef SKEY
+		permit_passwd = skeyaccess(username, tty, hostname ? full_hostname : NULL, NULL);
 		p = skey_getpass("Password:", pwd, permit_passwd);
 		ep = skey_crypt(p, salt, pwd, permit_passwd);
-#else
+#else /* !SKEY */
 		p = getpass("Password:");
 		ep = crypt(p, salt);
-#endif
-
-		if (pwd) {
+#endif/* SKEY */
 #ifdef KERBEROS
 #ifdef SKEY
-			/*
-			 * Do not allow user to type in kerberos password
+		if (pwd) {
+			/* Do not allow user to type in kerberos password
 			 * over the net (actually, this is ok for encrypted
 			 * links, but we have no way of determining if the
 			 * link is encrypted.
 			 */
 			if (!permit_passwd) {
-				rval = 1;		/* failed */
+				rval = 1;		/* force failure */
 			} else
-#endif
+#endif /* SKEY */
 			rval = klogin(pwd, instance, localhost, p);
 			if (rval != 0 && rootlogin && pwd->pw_uid != 0)
 				rootlogin = 0;
 			if (rval == 0)
-				authok = 1;
-			else if (rval == 1)
+				authok = 1; /* kerberos authenticated ok */
+			else if (rval == 1) /* fallback to unix passwd */
 				rval = strcmp(ep, pwd->pw_passwd);
-#else
-			rval = strcmp(ep, pwd->pw_passwd);
-#endif
+#ifdef SKEY
 		}
+#endif /* SKEY */
+#else /* !KERBEROS */
+		rval = strcmp(ep, pwd->pw_passwd);
+#endif /* KERBEROS */
+		/* clear entered password */
 		memset(p, 0, strlen(p));
+#endif /* LOGIN_CAP_AUTH */
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
-
+#ifdef LOGIN_CAP
+		if (rval)
+			auth_rmfiles();
+#endif
 	ttycheck:
 		/*
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
 		 */
-#ifdef KERBEROS
+#if defined(KERBEROS) || defined(LOGIN_CAP_AUTH)
 		if (authok == 0)
 #endif
-		if (pwd && !rval && rootlogin && !rootterm(tty)) {
-			(void)fprintf(stderr,
-			    "%s login refused on this terminal.\n",
-			    pwd->pw_name);
+		if (pwd && !rval && rootlogin && !rootok) {
+			(void)fprintf(stderr, "%s login refused on this terminal.\n", pwd->pw_name);
 			if (hostname)
-				syslog(LOG_NOTICE,
-				    "LOGIN %s REFUSED FROM %s ON TTY %s",
-				    pwd->pw_name, full_hostname, tty);
+				syslog(LOG_NOTICE, "LOGIN %s REFUSED FROM %s ON TTY %s", pwd->pw_name, full_hostname, tty);
 			else
-				syslog(LOG_NOTICE,
-				    "LOGIN %s REFUSED ON TTY %s",
-				     pwd->pw_name, tty);
+				syslog(LOG_NOTICE, "LOGIN %s REFUSED ON TTY %s", pwd->pw_name, tty);
 			continue;
 		}
 
-		if (pwd && !rval)
+		if (pwd && !rval) /* valid password & authenticated */
 			break;
 
 		(void)printf("Login incorrect\n");
@@ -357,39 +466,129 @@ main(argc, argv)
 	endpwent();
 
 	/* if user not super-user, check for disabled logins */
+#ifdef LOGIN_CAP
+	if (!rootlogin)
+		auth_checknologin(lc);
+#else
 	if (!rootlogin)
 		checknologin();
+#endif
 
-	if (chdir(pwd->pw_dir) < 0) {
-		(void)printf("No home directory %s!\n", pwd->pw_dir);
-		if (chdir("/"))
-			exit(0);
+#ifdef LOGIN_CAP
+	quietlog = login_getcapbool(lc, "hushlogin", 0);
+#else
+	quietlog = 0;
+#endif
+	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
+#ifdef LOGIN_CAP
+		if (login_getcapbool(lc, "requirehome", !rootlogin) || chdir("/") < 0) {
+			(void)printf("No home directory %s!\n", pwd->pw_dir);
+			sleepexit(1);
+		}
+#else
+		if (chdir("/") < 0) {
+			(void)printf("No home directory %s!\n", pwd->pw_dir);
+			sleepexit(1);
+		}
+#endif
 		pwd->pw_dir = "/";
-		(void)printf("Logging in with home = \"/\".\n");
+		if (!quietlog)
+			(void)printf("No home directory.\nLogging in with home = \"/\".\n");
 	}
-
-	quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
+	if (!quietlog)
+		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
 
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
 
+#define DEFAULT_WARN  (2L * 7L & 86400L)  /* Two weeks */
+
 	changepass=0;
-	if (pwd->pw_change)
+	if (pwd->pw_change) {
 		if (tp.tv_sec >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
+			syslog(LOG_NOTICE, "%s Password expired - forcing change", pwd->pw_name);
 			changepass=1;
-		} else if (pwd->pw_change - tp.tv_sec <
-		    2 * 7 * 86400 && !quietlog)
-			(void)printf("Warning: your password expires on %s",
-			    ctime(&pwd->pw_change));
-	if (pwd->pw_expire)
+#ifdef LOGIN_CAP
+		} else {
+			time_t warntime = (time_t)login_getcaptime(lc, "warnpassword", DEFAULT_WARN, DEFAULT_WARN);
+			if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
+				(void)printf("Warning: your password expires on %s", ctime(&pwd->pw_change));
+		}
+#else
+		} else if (pwd->pw_change - tp.tv_sec < DEFAULT_WARN && !quietlog) {
+			(void)printf("Warning: your password expires on %s", ctime(&pwd->pw_change));
+		}
+#endif
+	}
+	if (pwd->pw_expire) {
 		if (tp.tv_sec >= pwd->pw_expire) {
 			(void)printf("Sorry -- your account has expired.\n");
+			syslog(LOG_NOTICE, "%s Account expired - login refused", pwd->pw_name);
 			sleepexit(1);
-		} else if (pwd->pw_expire - tp.tv_sec <
-		    2 * 7 * 86400 && !quietlog)
+#ifdef LOGIN_CAP
+		} else {
+			time_t warntime = (time_t)login_getcaptime(lc, "warnexpire", DEFAULT_WARN, DEFAULT_WARN);
+			if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
+				(void)printf("Warning: your account expires on %s",
+					    ctime(&pwd->pw_expire));
+		}
+#else
+		} else if (pwd->pw_expire - tp.tv_sec < DEFAULT_WARN && !quietlog) {
 			(void)printf("Warning: your account expires on %s",
-			    ctime(&pwd->pw_expire));
+				    ctime(&pwd->pw_expire));
+		}
+#endif
+	}
+
+#ifdef LOGIN_CAP
+	if (lc != NULL) {
+		char  *msg = NULL;
+
+		if (hostname) {
+			struct hostent *hp = gethostbyname(full_hostname);
+
+			if (hp == NULL)
+				optarg = NULL;
+			else {
+				struct in_addr in;
+				memmove(&in, hp->h_addr, sizeof(in));
+				optarg = strdup(inet_ntoa(in));
+			}
+			if (!auth_hostok(lc, full_hostname, optarg)) {
+				syslog(LOG_NOTICE, "%s LOGIN REFUSED (HOST) FROM %s", pwd->pw_name, full_hostname);
+				msg = "Permission denied";
+			}
+		}
+
+		if (msg == NULL && !auth_ttyok(lc, tty)) {
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED (TTY) ON %s", pwd->pw_name, tty);
+			msg = "Permission denied";
+		}
+
+		if (msg == NULL && !auth_timeok(lc, time(NULL))) {
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED (TIME) %s %s", pwd->pw_name, hostname?"FROM":"ON", hostname?full_hostname:tty);
+			msg = "Logins not available right now";
+		}
+
+		if (msg != NULL) {
+			printf("%s.\n", msg);
+			sleepexit(1);
+		}
+	}
+	strncpy(shell, login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell), sizeof shell);
+#else /* !LOGIN_CAP */
+	strncpy(shell, pwd->pw_shell, sizeof shell);
+#endif /* LOGIN_CAP */
+	shell[sizeof shell - 1] = '\0';
+
+#ifdef LOGIN_ACCESS
+	if (login_access(pwd->pw_name, hostname ? full_hostname : tty) == 0) {
+		printf("Permission denied\n");
+		syslog(LOG_NOTICE, "%s LOGIN REFUSED (ACCESS) %s %s", pwd->pw_name, hostname?"FROM":"ON", hostname?full_hostname:tty);
+		sleepexit(1);
+	}
+#endif /* LOGIN_ACCESS */
 
 	/* Nothing else left to fail -- really log in. */
 	memset((void *)&utmp, 0, sizeof(utmp));
@@ -409,41 +608,21 @@ main(argc, argv)
 	 */
 	login_fbtab(tty, pwd->pw_uid, pwd->pw_gid);
 
-	(void)chown(ttyn, pwd->pw_uid,
-	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
-	(void)setgid(pwd->pw_gid);
+	(void)chown(ttyn, pwd->pw_uid, (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
 
-	initgroups(username, pwd->pw_gid);
+	/* Preserve TERM if it happens to be already set */
+	if ((p = getenv("TERM")) != NULL) {
+		(void)strncpy(term, p, sizeof(term));
+		term[sizeof(term)-1] = '\0';
+	}
 
-	if (*pwd->pw_shell == '\0')
-		pwd->pw_shell = _PATH_BSHELL;
-
-	/* Destroy environment unless user has requested its preservation. */
-	if (!pflag)
-		environ = envinit;
-	(void)setenv("HOME", pwd->pw_dir, 1);
-	(void)setenv("SHELL", pwd->pw_shell, 1);
-	if (term[0] == '\0')
-		(void)strncpy(term, stypeof(tty), sizeof(term));
-	(void)setenv("TERM", term, 0);
-	(void)setenv("LOGNAME", pwd->pw_name, 1);
-	(void)setenv("USER", pwd->pw_name, 1);
-	(void)setenv("PATH", _PATH_DEFPATH, 0);
-#ifdef KERBEROS
-	if (krbtkfile_env)
-		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
-#endif
-
-	if (tty[sizeof("tty")-1] == 'd')
+	/* Exclude cons/vt/ptys only, assume dialup otherwise */
+	if (hostname==NULL && strchr("vpqstPQST", tty[sizeof("tty")-1]) == NULL)
 		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
 	/* If fflag is on, assume caller/authenticator has logged root login. */
 	if (rootlogin && fflag == 0)
-		if (hostname)
-			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s FROM %s",
-			    username, tty, full_hostname);
-		else
-			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s", username, tty);
+		syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s%s%s", username, tty, hostname?" FROM ":"", hostname?full_hostname:"");
 
 #ifdef KERBEROS
 	if (!quietlog && notickets == 1 && !noticketsdontcomplain)
@@ -455,37 +634,88 @@ main(argc, argv)
 	 * Syslog each successful login, so we don't have to watch hundreds
 	 * of wtmp or lastlogin files.
 	 */
-	if (hostname) {
-		syslog(LOG_INFO, "login from %s as %s", full_hostname, pwd->pw_name);
-	} else {
-		syslog(LOG_INFO, "login on %s as %s", tty, pwd->pw_name);
+	syslog(LOG_INFO, "login %s %s as %s", hostname?"from":"on", hostname?full_hostname:tty, pwd->pw_name);
+#endif
+
+	/* Destroy environment unless user has requested its preservation. */
+	if (!pflag)
+		environ = envinit;
+
+	/* We don't need to be root anymore, so
+	 * set the user and session context
+	 */
+#ifdef LOGIN_CAP
+	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETALL) != 0) {
+                syslog(LOG_ERR, "setusercontext() failed - exiting");
+		exit(1);
 	}
+#else
+     	if (setlogin(pwd->pw_name) < 0)
+                syslog(LOG_ERR, "setlogin() failure: %m");
+
+	(void)setgid(pwd->pw_gid);
+	initgroups(username, pwd->pw_gid);
+	(void)setuid(rootlogin ? 0 : pwd->pw_uid);
+#endif
+
+	if (*pwd->pw_shell == '\0')
+		pwd->pw_shell = _PATH_BSHELL;
+	(void)setenv("SHELL", pwd->pw_shell, 1);
+	(void)setenv("HOME", pwd->pw_dir, 1);
+	if (term[0] != '\0')
+		(void)setenv("TERM", term, 1);	/* Preset overrides */
+	else {
+		(void)strncpy(term, stypeof(tty), sizeof(term));
+		term[sizeof(term)-1] = '\0';
+		(void)setenv("TERM", term, 0);	/* Fallback doesn't */
+	}
+	(void)setenv("LOGNAME", pwd->pw_name, 1);
+	(void)setenv("USER", pwd->pw_name, 1);
+	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
+#if LOGIN_CAP_AUTH
+	auth_env();
+#else
+#ifdef KERBEROS
+	if (krbtkfile_env)
+		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
+#endif
 #endif
 
 	if (!quietlog) {
-		(void)printf("%s\n\t%s  %s\n\n",
-	    "Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
-		    "The Regents of the University of California. ",
-		    "All rights reserved.");
-		motd();
-		(void)snprintf(tbuf,
-		    sizeof(tbuf), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+#ifdef LOGIN_CAP
+		char *cw = login_getcapstr(lc, "copyright", NULL, NULL);
+		if (cw != NULL && access(cw, F_OK) == 0)
+			motd(cw);
+		else
+#endif
+		(void)printf("Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994\n"
+			     "\tThe Regents of the University of California.  All rights reserved.\n");
+		(void)printf("\n");
+#ifdef LOGIN_CAP
+		cw = login_getcapstr(lc, "welcome", NULL, NULL);
+		if (cw == NULL || access(cw, F_OK) != 0)
+			cw = _PATH_MOTDFILE;
+		motd(cw);
+		cw = getenv("MAIL");	/* $MAIL may have been set by class */
+		if (cw != NULL) {
+			strncpy(tbuf, cw, sizeof(tbuf));
+			tbuf[sizeof(tbuf)-1] = '\0';
+		} else
+			snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+#else
+		motd(_PATH_MOTDFILE);
+		snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+#endif
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
-			(void)printf("You have %smail.\n",
-			    (st.st_mtime > st.st_atime) ? "new " : "");
+			(void)printf("You have %smail.\n", (st.st_mtime > st.st_atime) ? "new " : "");
 	}
 
-#ifdef LOGIN_ACCESS
-	if (login_access(pwd->pw_name, hostname ? full_hostname : tty) == 0) {
-		printf("Permission denied\n");
-		if (hostname)
-			syslog(LOG_NOTICE, "%s LOGIN REFUSED FROM %s",
-				pwd->pw_name, full_hostname);
-		else
-			syslog(LOG_NOTICE, "%s LOGIN REFUSED ON %s",
-				pwd->pw_name, tty);
-		sleepexit(1);
-	}
+	/* Login shells have a leading '-' in front of argv[0] */
+	tbuf[0] = '-';
+	(void)strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
+
+#ifdef LOGIN_CAP
+	login_close(lc);
 #endif
 
 	(void)signal(SIGALRM, SIG_DFL);
@@ -493,34 +723,19 @@ main(argc, argv)
 	(void)signal(SIGINT, SIG_DFL);
 	(void)signal(SIGTSTP, SIG_IGN);
 
-	tbuf[0] = '-';
-	(void)strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ?
-	    p + 1 : pwd->pw_shell);
-
-     	if (setlogin(pwd->pw_name) < 0)
-                syslog(LOG_ERR, "setlogin() failure: %m");
-
-	/* Discard permissions last so can't get killed and drop core. */
-	if (rootlogin)
-		(void) setuid(0);
-	else
-		(void) setuid(pwd->pw_uid);
-
 	if (changepass) {
-		int res;
-		if ((res=system(_PATH_CHPASS)))
+		if (system(_PATH_CHPASS) != 0)
 			sleepexit(1);
 	}
 
-	execlp(pwd->pw_shell, tbuf, 0);
-	err(1, "%s", pwd->pw_shell);
+	execlp(shell, tbuf, 0);
+	err(1, "%s", shell);
 }
 
-#ifdef	KERBEROS
-#define	NBUFSIZ		(UT_NAMESIZE + 1 + 5)	/* .root suffix */
-#else
-#define	NBUFSIZ		(UT_NAMESIZE + 1)
-#endif
+
+/* Allow for authentication style and/or kerberos instance */
+
+#define	NBUFSIZ		UT_NAMESIZE + 64
 
 void
 getloginname()
@@ -556,36 +771,35 @@ rootterm(ttyn)
 	char *ttyn;
 {
 	struct ttyent *t;
-
 	return ((t = getttynam(ttyn)) && t->ty_status & TTY_SECURE);
 }
 
-jmp_buf motdinterrupt;
-
-void
-motd()
-{
-	int fd, nchars;
-	sig_t oldint;
-	char tbuf[8192];
-
-	if ((fd = open(_PATH_MOTDFILE, O_RDONLY, 0)) < 0)
-		return;
-	oldint = signal(SIGINT, sigint);
-	if (setjmp(motdinterrupt) == 0)
-		while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0)
-			(void)write(fileno(stdout), tbuf, nchars);
-	(void)signal(SIGINT, oldint);
-	(void)close(fd);
-}
+volatile int motdinterrupt;
 
 /* ARGSUSED */
 void
 sigint(signo)
 	int signo;
 {
+	motdinterrupt = 1;
+}
 
-	longjmp(motdinterrupt, 1);
+void
+motd(motdfile)
+	char *motdfile;
+{
+	int fd, nchars;
+	sig_t oldint;
+	char tbuf[256];
+
+	if ((fd = open(motdfile, O_RDONLY, 0)) < 0)
+		return;
+	motdinterrupt = 0;
+	oldint = signal(SIGINT, sigint);
+	while ((nchars = read(fd, tbuf, sizeof(tbuf))) > 0 && !motdinterrupt)
+		(void)write(fileno(stdout), tbuf, nchars);
+	(void)signal(SIGINT, oldint);
+	(void)close(fd);
 }
 
 /* ARGSUSED */
@@ -593,11 +807,11 @@ void
 timedout(signo)
 	int signo;
 {
-
 	(void)fprintf(stderr, "Login timed out after %d seconds\n", timeout);
 	exit(0);
 }
 
+#ifndef LOGIN_CAP
 void
 checknologin()
 {
@@ -610,6 +824,7 @@ checknologin()
 		sleepexit(0);
 	}
 }
+#endif
 
 void
 dolastlog(quiet)
@@ -676,7 +891,6 @@ stypeof(ttyid)
 	char *ttyid;
 {
 	struct ttyent *t;
-
 	return (ttyid && (t = getttynam(ttyid)) ? t->ty_type : UNKNOWN);
 }
 
@@ -684,7 +898,6 @@ void
 sleepexit(eval)
 	int eval;
 {
-
 	(void)sleep(5);
 	exit(eval);
 }
