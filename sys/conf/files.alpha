@@ -79,12 +79,12 @@ clock_if.o			standard				\
 	no-implicit-rule local
 clock_if.c			standard				\
 	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/alpha/alpha/clock_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"clock_if.c"
 clock_if.h			standard				\
 	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"clock_if.h"
 alpha/tlsb/tlsb.c		optional	tlsb
@@ -120,12 +120,12 @@ mcclock_if.o			optional	mcclock			\
 	no-implicit-rule local
 mcclock_if.c			standard				\
 	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/dec/mcclock_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"mcclock_if.c"
 mcclock_if.h			optional	mcclock			\
 	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/dec/mcclock_if.m" \
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"mcclock_if.h"
 alpha/alpha/elf_machdep.c	standard
