@@ -434,7 +434,7 @@ ngfrm_decode(node_p node, struct mbuf *m, meta_p meta)
 	int	    error = 0;
 	int	    ctxnum;
 
-	if ((m = m_pullup(m, 4)) == NULL) {
+	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
 		error = ENOBUFS;
 		goto out;
 	}

@@ -97,7 +97,7 @@ static int	ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p t);
 static int	ng_vjc_disconnect(hook_p hook);
 
 /* Helper stuff */
-static struct mbuf *pulluphdrs(struct mbuf *m);
+static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m);
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
@@ -191,18 +191,24 @@ ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
 	switch (msg->header.typecookie) {
 	case NGM_VJC_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_VJC_CONFIG:
+		case NGM_VJC_SET_CONFIG:
 		    {
 			struct ngm_vjc_config *const c =
 				(struct ngm_vjc_config *) msg->data;
 
-			if (msg->header.arglen != sizeof(*c)
-			    || c->numChannels > NG_VJC_MAX_CHANNELS
-			    || c->numChannels < NG_VJC_MIN_CHANNELS)
+			if (msg->header.arglen != sizeof(*c))
 				ERROUT(EINVAL);
-			if (priv->conf.enabled && c->enabled)
+			if ((priv->conf.enableComp || priv->conf.enableDecomp)
+			    && (c->enableComp || c->enableDecomp))
 				ERROUT(EALREADY);
-			if (c->enabled != 0) {
+			if (c->enableComp) {
+				if (c->numChannels > NG_VJC_MAX_CHANNELS
+				    || c->numChannels < NG_VJC_MIN_CHANNELS)
+					ERROUT(EINVAL);
+			} else {
+				c->numChannels = NG_VJC_MAX_CHANNELS;
+			}
+			if (c->enableComp != 0 || c->enableDecomp != 0) {
 				bzero(&priv->slc, sizeof(priv->slc));
 				sl_compress_init(&priv->slc, c->numChannels);
 			}
@@ -260,12 +266,12 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	if (hook == priv->ip) {			/* outgoing packet */
 		u_int   type;
 
-		if (!priv->conf.enabled)	/* compression not enabled */
+		if (!priv->conf.enableComp)	/* compression not enabled */
 			type = TYPE_IP;
 		else {
 			struct ip *ip;
 
-			if ((m = pulluphdrs(m)) == NULL)
+			if ((m = ng_vjc_pulluphdrs(m)) == NULL)
 				ERROUT(ENOBUFS);
 			ip = mtod(m, struct ip *);
 			type = (ip->ip_p == IPPROTO_TCP) ?
@@ -291,15 +297,15 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		u_char *hdr;
 		struct mbuf *mp;
 
-		/* Are we initialized? */
-		if (!priv->conf.enabled) {
+		/* Are we decompressing? */
+		if (!priv->conf.enableDecomp) {
 			m_freem(m);
 			m = NULL;
 			ERROUT(ENETDOWN);
 		}
 
 		/* Uncompress packet to reconstruct TCP/IP header */
-		if (!(m = m_pullup(m, MAX_VJHEADER)))
+		if (m->m_len < MAX_VJHEADER && !(m = m_pullup(m, MAX_VJHEADER)))
 			ERROUT(ENOBUFS);
 		vjlen = sl_uncompress_tcp_core(mtod(m, u_char *),
 		    m->m_len, m->m_pkthdr.len, TYPE_COMPRESSED_TCP,
@@ -342,18 +348,18 @@ compfailmem:
 		m = mp;
 		hook = priv->ip;
 	} else if (hook == priv->vjuncomp) {	/* incoming uncompressed pkt */
-		u_int   hlen;
 		u_char *hdr;
+		u_int hlen;
 
-		/* Are we initialized? */
-		if (!priv->conf.enabled) {
+		/* Are we decompressing? */
+		if (!priv->conf.enableDecomp) {
 			m_freem(m);
 			m = NULL;
 			ERROUT(ENETDOWN);
 		}
 
 		/* Run packet through uncompressor */
-		if ((m = pulluphdrs(m)) == NULL)
+		if ((m = ng_vjc_pulluphdrs(m)) == NULL)
 			ERROUT(ENOBUFS);
 		if (sl_uncompress_tcp_core(mtod(m, u_char *),
 		    m->m_len, m->m_pkthdr.len, TYPE_UNCOMPRESSED_TCP,
@@ -410,29 +416,30 @@ ng_vjc_disconnect(hook_p hook)
  ************************************************************************/
 
 /*
- * Pull up the full IP and TCP headers of a packet. This is optimized
- * for the common case of standard length headers. If packet is not
+ * Pull up the full IP and TCP headers of a packet. If packet is not
  * a TCP packet, just pull up the IP header.
  */
 static struct mbuf *
-pulluphdrs(struct mbuf *m)
+ng_vjc_pulluphdrs(struct mbuf *m)
 {
 	struct ip *ip;
 	struct tcphdr *tcp;
 	int ihlen, thlen;
 
-	if ((m = m_pullup(m, sizeof(*ip) + sizeof(*tcp))) == NULL)
+	if (m->m_len < sizeof(*ip) && !(m = m_pullup(m, sizeof(*ip))))
 		return (NULL);
 	ip = mtod(m, struct ip *);
 	if (ip->ip_p != IPPROTO_TCP)
 		return (m);
-	if ((ihlen = (ip->ip_hl << 2)) != sizeof(*ip)) {
+	ihlen = ip->ip_hl << 2;
+	if (m->m_len < ihlen + sizeof(*tcp)) {
 		if (!(m = m_pullup(m, ihlen + sizeof(*tcp))))
 			return (NULL);
 		ip = mtod(m, struct ip *);
 	}
 	tcp = (struct tcphdr *) ((u_char *) ip + ihlen);
-	if ((thlen = (tcp->th_off << 2)) != sizeof(*tcp))
+	thlen = tcp->th_off << 2;
+	if (m->m_len < ihlen + thlen)
 		m = m_pullup(m, ihlen + thlen);
 	return (m);
 }
