@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.28.4.3 1996/04/01 00:19:39 gibbs Exp $
+ *  $Id: if_ep.c,v 1.28.4.4 1996/05/22 00:27:36 dima Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -794,7 +794,7 @@ startagain:
 		  m->m_len / 4);
 	    if (m->m_len & 3)
 		outsb(BASE + EP_W1_TX_PIO_WR_1,
-		      mtod(m, caddr_t) + m->m_len / 4,
+		      mtod(m, caddr_t) + (m->m_len & (~3)),
 		      m->m_len & 3);
 	} else {
 	    outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 2);
