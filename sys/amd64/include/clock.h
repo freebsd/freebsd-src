@@ -30,10 +30,6 @@ extern int	wall_cmos_clock;
  */
 struct clockframe;
 
-#ifndef BURN_BRIDGES
-int	acquire_timer0(int rate, void (*function)(struct clockframe *frame));
-int	release_timer0(void);
-#endif
 int	acquire_timer2(int mode);
 int	release_timer2(void);
 int	rtcin(int val);
