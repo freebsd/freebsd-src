@@ -264,7 +264,7 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		nvp = vp->v_mntvnodes.le_next;
-		if (VOP_ISLOCKED(vp))
+		if (VOP_ISLOCKED(vp, NULL))
 			continue;
 		if (TAILQ_EMPTY(&vp->v_dirtyblkhd))
 			continue;

@@ -324,7 +324,7 @@ _zget(vm_zone_t z)
 		 * We can wait, so just do normal map allocation in the appropriate
 		 * map.
 		 */
-		if (lockstatus(&kernel_map->lock)) {
+		if (lockstatus(&kernel_map->lock, NULL)) {
 			int s;
 			s = splvm();
 #ifdef SMP

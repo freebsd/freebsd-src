@@ -1865,7 +1865,7 @@ coda_islocked(v)
     struct cnode *cp = VTOC(ap->a_vp);
     ENTRY;
 
-    return (lockstatus(&cp->c_lock));
+    return (lockstatus(&cp->c_lock, ap->a_p));
 }
 
 /* How one looks up a vnode given a device/inode pair: */
