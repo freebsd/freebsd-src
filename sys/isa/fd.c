@@ -2215,16 +2215,11 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		{
-			dev_t sav_bio_dev = bp->bio_dev;
 			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
 
-			/* Trick diskerr */
-			bp->bio_dev = makedev(major(bp->bio_dev),
-				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
 			if (printerror)
 				diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
 					(struct disklabel *)NULL);
-			bp->bio_dev = sav_bio_dev;
 			if (printerror) {
 				if (fdc->flags & FDC_STAT_VALID)
 				{
