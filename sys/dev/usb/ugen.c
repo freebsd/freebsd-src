@@ -474,7 +474,7 @@ ugenread(dev, uio, flag)
 			DPRINTFN(1, ("ugenread: start transfer %d bytes\n", n));
 			tn = n;
 			r = usbd_bulk_transfer(reqh, sce->pipeh, 0,
-					       UBSD_NO_TIMEOUT, buf,
+					       USBD_NO_TIMEOUT, buf,
 					       &tn, "ugenrb");
 			if (r != USBD_NORMAL_COMPLETION) {
 				if (r == USBD_INTERRUPTED)
