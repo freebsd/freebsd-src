@@ -95,10 +95,6 @@ TASKQUEUE_DEFINE(acpi, taskqueue_acpi_enqueue, 0,
 		 swi_add(NULL, "acpitaskq", taskqueue_acpi_run, NULL,
 		     SWI_TQ, 0, &taskqueue_acpi_ih));
 
-#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
-#define ACPI_USE_THREADS
-#endif
-
 #ifdef ACPI_USE_THREADS
 STAILQ_HEAD(, acpi_task_queue) acpi_task_queue;
 static struct mtx	acpi_task_mtx;

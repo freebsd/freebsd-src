@@ -491,7 +491,7 @@ acpi_attach(device_t dev)
     }
 #endif
 
-#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
+#ifdef ACPI_USE_THREADS
     if ((error = acpi_task_thread_init())) {
 	goto out;
     }
