@@ -40,8 +40,6 @@
 #include "opt_ddb.h"
 #include "opt_sio.h"
 #include "sio.h"
-/* #include "pnp.h" */
-#define NPNP 0
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -98,10 +96,6 @@
 #include <pccard/slot.h>
 #endif
 
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
 #endif
 
 #ifndef __i386__
@@ -115,11 +109,7 @@
 #endif /* SMP */
 
 #ifndef EXTRA_SIO
-#if NPNP > 0
-#define EXTRA_SIO MAX_PNP_CARDS
-#else
-#define EXTRA_SIO 0
-#endif
+#define EXTRA_SIO 4		/* XXX shouldn't need NSIO */
 #endif
 
 #define NSIOTOT (NSIO + EXTRA_SIO)
@@ -3063,101 +3053,6 @@ siogdbputc(c)
 	outb(siogdbiobase + com_data, c);
 	siocnclose(&sp, siogdbiobase);
 	splx(s);
-}
-#endif
-
-
-/*
- * support PnP cards if we are using 'em
- */
-
-#if NPNP > 0
-
-static pnpid_t siopnp_ids[] = {
-	{ 0x5015f435, "MOT1550"},
-	{ 0x8113b04e, "Supra1381"},
-	{ 0x9012b04e, "Supra1290"},
-	{ 0x7121b04e, "SupraExpress 56i Sp"},
-	{ 0x11007256, "USR0011"},
-	{ 0x30207256, "USR2030"},
-	{ 0x31307256, "USR3031"},
-	{ 0x90307256, "USR3090"},
-	{ 0x0100440e, "Cardinal MVP288IV"},
-	{ 0 }
-};
-
-static char *siopnp_probe(u_long csn, u_long vend_id);
-static void siopnp_attach(u_long csn, u_long vend_id, char *name,
-	struct isa_device *dev);
-static u_long nsiopnp = NSIO;
-
-static struct pnp_device siopnp = {
-	"siopnp",
-	siopnp_probe,
-	siopnp_attach,
-	&nsiopnp,
-	&tty_imask
-};
-DATA_SET (pnpdevice_set, siopnp);
-
-static char *
-siopnp_probe(u_long csn, u_long vend_id)
-{
-	pnpid_t *id;
-	char *s = NULL;
-
-	for(id = siopnp_ids; id->vend_id != 0; id++) {
-		if (vend_id == id->vend_id) {
-			s = id->id_str;
-			break;
-		}
-	}
-
-	if (s) {
-		struct pnp_cinfo d;
-		read_pnp_parms(&d, 0);
-		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %lu is disabled.\n", csn);
-			return (NULL);
-		}
-
-	}
-
-	return (s);
-}
-
-static void
-siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
-{
-	struct pnp_cinfo d;
-
-	if (dev->id_unit >= NSIOTOT)
-		return;
-
-	if (read_pnp_parms(&d, 0) == 0) {
-		printf("failed to read pnp parms\n");
-		return;
-	}
-
-	write_pnp_parms(&d, 0);
-
-	enable_pnp_card();
-
-	dev->id_iobase = d.port[0];
-	dev->id_irq = (1 << d.irq[0]);
-	dev->id_ointr = siointr;
-	dev->id_ri_flags = RI_FAST;
-	dev->id_drq = -1;
-
-	if (dev->id_driver == NULL) {
-		dev->id_driver = &siodriver;
-		dev->id_id = isa_compat_nextid();
-	}
-
-	if ((dev->id_alive = sioprobe(dev)) != 0)
-		sioattach(dev);
-	else
-		printf("sio%d: probe failed\n", dev->id_unit);
 }
 #endif
 
