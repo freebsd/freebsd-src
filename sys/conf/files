@@ -598,6 +598,12 @@ fs/hpfs/hpfs_lookup.c		optional hpfs
 fs/hpfs/hpfs_subr.c		optional hpfs
 fs/hpfs/hpfs_vfsops.c		optional hpfs
 fs/hpfs/hpfs_vnops.c		optional hpfs
+fs/msdosfs/msdosfs_conv.c	optional msdosfs
+fs/msdosfs/msdosfs_denode.c	optional msdosfs
+fs/msdosfs/msdosfs_fat.c	optional msdosfs
+fs/msdosfs/msdosfs_lookup.c	optional msdosfs
+fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
+fs/msdosfs/msdosfs_vnops.c	optional msdosfs
 fs/nullfs/null_subr.c	optional nullfs
 fs/nullfs/null_vfsops.c	optional nullfs
 fs/nullfs/null_vnops.c	optional nullfs
@@ -833,12 +839,6 @@ libkern/strtol.c	standard
 libkern/strtoq.c	standard
 libkern/strtoul.c	standard
 libkern/strtouq.c	standard
-msdosfs/msdosfs_conv.c		optional msdosfs
-msdosfs/msdosfs_denode.c	optional msdosfs
-msdosfs/msdosfs_fat.c		optional msdosfs
-msdosfs/msdosfs_lookup.c	optional msdosfs
-msdosfs/msdosfs_vfsops.c	optional msdosfs
-msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		standard
 net/bpf_filter.c	optional bpf
 bpf.h			standard			\

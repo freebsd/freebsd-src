@@ -61,7 +61,7 @@
 /*
  * MSDOSFS include files.
  */
-#include <msdosfs/direntry.h>
+#include <fs/msdosfs/direntry.h>
 
 /*
  * Total number of days that have passed for each month in a regular year.

@@ -45,7 +45,7 @@
 #define MSDOSFS
 #include <sys/mount.h>
 #include <ufs/ufs/ufsmount.h>
-#include <msdosfs/msdosfsmount.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <sys/sysctl.h>

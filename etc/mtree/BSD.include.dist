@@ -24,6 +24,8 @@
         ..
         fifofs
         ..
+        msdosfs
+        ..
         nullfs
         ..
         portalfs
@@ -48,8 +50,6 @@
         ..
     ..
     machine
-    ..
-    msdosfs
     ..
     net
     ..

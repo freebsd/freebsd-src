@@ -63,12 +63,12 @@
 #include <sys/stat.h> 				/* defines ALLPERMS */
 #include <sys/mutex.h>
 
-#include <msdosfs/bpb.h>
-#include <msdosfs/bootsect.h>
-#include <msdosfs/direntry.h>
-#include <msdosfs/denode.h>
-#include <msdosfs/msdosfsmount.h>
-#include <msdosfs/fat.h>
+#include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/bootsect.h>
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/msdosfsmount.h>
+#include <fs/msdosfs/fat.h>
 
 #define MSDOSFS_DFLTBSIZE       4096
 
