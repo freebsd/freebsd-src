@@ -39,14 +39,11 @@
 static char sccsid[] = "@(#)putchar.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: putchar.c,v 1.5 1997/02/22 15:02:19 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 #undef putchar
 
@@ -60,12 +57,8 @@ putchar(c)
 	int retval;
 	register FILE *so = stdout;
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(so,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(so);
 	retval = __sputc(c, so);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(so);
-#endif
+	FUNLOCKFILE(so);
 	return (retval);
 }

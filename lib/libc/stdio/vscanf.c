@@ -39,14 +39,11 @@
 static char sccsid[] = "@(#)vscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: vscanf.c,v 1.5 1997/02/22 15:02:43 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 int
 vscanf(fmt, ap)
@@ -55,12 +52,8 @@ vscanf(fmt, ap)
 {
 	int retval;
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(stdin,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(stdin);
 	retval = __svfscanf(stdin, fmt, ap);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(stdin);
-#endif
+	FUNLOCKFILE(stdin);
 	return (retval);
 }

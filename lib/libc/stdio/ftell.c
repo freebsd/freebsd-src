@@ -39,16 +39,13 @@
 static char sccsid[] = "@(#)ftell.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-		"$Id: ftell.c,v 1.7 1997/02/22 15:02:07 peter Exp $";
+		"$Id: ftell.c,v 1.8 1997/03/11 11:40:40 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include <errno.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * ftell: return current offset.
@@ -64,9 +61,7 @@ ftell(fp)
 		return (-1L);
 	}
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp, __FILE__, __LINE__);
-#endif
+	FLOCKFILE(fp);
 	/*
 	 * Find offset of underlying I/O object, then
 	 * adjust for buffered bytes.
@@ -76,9 +71,7 @@ ftell(fp)
 	else {
 		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
 		if (pos == -1) {
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+			FUNLOCKFILE(fp);
 			return (pos);
 		}
 	}
@@ -99,8 +92,6 @@ ftell(fp)
 		 */
 		pos += fp->_p - fp->_bf._base;
 	}
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (pos);
 }
