@@ -1,4 +1,7 @@
-/* This file is an ascii copy of the file sxbios.bin included in the
+/*
+ *	$Id$
+ *
+ * This file is an ascii copy of the file sxbios.bin included in the
  * Digiboard PC/Xem driver for Linux.  It is copyright 1992, DIGI 
  * International. All Rights Reserved.
  */
