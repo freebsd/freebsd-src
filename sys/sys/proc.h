@@ -282,7 +282,7 @@ struct thread {
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
 	sigset_t	*td_waitset;	/* (c) Wait set for sigwait. */
-	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
+	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_kflags;	/* (c) Flags for KSE threading. */
@@ -345,7 +345,7 @@ struct thread {
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_XSIG	0x00040000 /* Thread is exchanging signal under trace */
-#define	TDF_UMTXWAKEUP	0x00080000 /* Libthr thread must not sleep on a umtx. */
+#define	TDF_UMTXQ	0x00080000 /* Thread is sleeping on a umtx. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_DBSUSPEND	0x00200000 /* Thread is suspended by debugger */
 #define	TDF_UNUSED22	0x00400000 /* --available -- */
