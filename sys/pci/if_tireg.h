@@ -80,6 +80,13 @@
 #define SGI_DEVICEID_TIGON		0x0009
 
 /*
+ * DEC vendor ID, Farallon device ID. Apparently, Farallon used
+ * the DEC vendor ID in their cards by mistake.
+ */
+#define DEC_VENDORID			0x1011
+#define DEC_DEVICEID_FARALLON_PN9000SX	0x001a
+
+/*
  * Tigon configuration and control registers.
  */
 #define TI_MISC_HOST_CTL		0x040
