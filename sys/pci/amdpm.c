@@ -259,6 +259,7 @@ amdsmb_clear(struct amdsmb_softc *sc)
 	return (0);
 }
 
+#if 0
 static int
 amdsmb_abort(struct amdsmb_softc *sc)
 {
@@ -269,6 +270,7 @@ amdsmb_abort(struct amdsmb_softc *sc)
 
 	return (0);
 }
+#endif
 
 static int
 amdsmb_idle(struct amdsmb_softc *sc)
