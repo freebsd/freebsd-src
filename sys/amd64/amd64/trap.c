@@ -168,7 +168,7 @@ trap(frame)
 
 #ifdef DDB
 	if (db_active) {
-		eva = (type == T_PAGEFLT ? rcr2() : 0);
+		eva = (type == T_PAGEFLT ? frame.tf_addr : 0);
 		trap_fatal(&frame, eva);
 		goto out;
 	}
@@ -194,11 +194,10 @@ trap(frame)
 			printf("kernel trap %d with interrupts disabled\n",
 			    type);
 			/*
-			 * Page faults need interrupts diasabled until later,
-			 * and we shouldn't enable interrupts while holding a
+			 * We shouldn't enable interrupts while holding a
 			 * spin lock.
 			 */
-			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL)
+			if (PCPU_GET(spinlocks) == NULL)
 				enable_intr();
 		}
 	}
@@ -213,17 +212,9 @@ trap(frame)
 		 * do the VM lookup, so just consider it a fatal trap so the
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
-		 *
-		 * Note that T_PAGEFLT is registered as an interrupt gate.  This
-		 * is just like a trap gate, except interrupts are disabled.  This
-		 * happens to be critically important, because we could otherwise
-		 * preempt and run another process that may cause %cr2 to be
-		 * clobbered for something else.
 		 */
-		eva = rcr2();
-		if (PCPU_GET(spinlocks) == NULL)
-			enable_intr();
-		else
+		eva = frame.tf_addr;
+		if (PCPU_GET(spinlocks) != NULL)
 			trap_fatal(&frame, eva);
 	}
 
@@ -454,7 +445,7 @@ trap(frame)
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", (u_long)eva);
+			uprintf(", fault VA = 0x%lx", eva);
 		uprintf("\n");
 	}
 #endif
@@ -550,9 +541,6 @@ nogo:
 		trap_fatal(frame, eva);
 		return (-1);
 	}
-
-	/* kludge to pass faulting virtual address to sendsig */
-	frame->tf_err = eva;
 
 	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
