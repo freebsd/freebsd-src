@@ -37,6 +37,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
@@ -479,7 +480,7 @@ ad_transfer(struct ad_request *request)
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE))
-	    printf("ad%d: wouldn't take transfer command - HELP!\n", adp->lun);
+	    printf("ad%d: wouldn't take transfer command\n", adp->lun);
     }
    
     /* if this is a DMA transaction start it, return and wait for interrupt */

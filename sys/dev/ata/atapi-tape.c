@@ -35,6 +35,7 @@
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/mtio.h>
 #include <sys/disklabel.h>
 #include <sys/devicestat.h>

@@ -35,6 +35,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>

@@ -196,12 +196,10 @@ ata_pcimatch(device_t dev)
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA controller";
     case 0x05711106: /* 82c586 & 82c686 */
-	switch (pci_read_config(dev, 0x08, 1)) {
-	case 1:
+	if (ata_find_dev(dev, 0x05861106))
 	    return "VIA 82C586 ATA controller";
-	case 6:
+	if (ata_find_dev(dev, 0x06861106))
 	    return "VIA 82C686 ATA controller";
-	}
 	return "VIA Apollo ATA controller";
     case 0x55131039:
 	return "SiS 5591 ATA controller";
@@ -276,7 +274,6 @@ ata_pciattach(device_t dev)
     else {
 	iobase_1 = pci_read_config(dev, 0x10, 4) & IOMASK;
 	altiobase_1 = pci_read_config(dev, 0x14, 4) & IOMASK;
-	bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK;
 	irq1 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
     }
 
@@ -288,7 +285,6 @@ ata_pciattach(device_t dev)
     else {
 	iobase_2 = pci_read_config(dev, 0x18, 4) & IOMASK;
 	altiobase_2 = pci_read_config(dev, 0x1c, 4) & IOMASK;
-	bmaddr_2 = (pci_read_config(dev, 0x20, 4) & IOMASK) + ATA_BM_OFFSET1;
 	irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
     }
 
@@ -310,11 +306,12 @@ ata_pciattach(device_t dev)
     else {
     	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103) {
 	    /* Promise and HPT366 controllers support busmastering DMA */
+	    bmaddr_1 = pci_read_config(dev, 0x20, 4) & IOMASK;
+	    bmaddr_2 = (pci_read_config(dev, 0x20, 4) & IOMASK)+ATA_BM_OFFSET1;
 	    printf("ata-pci%d: Busmastering DMA supported\n", unit);
 	}
 	else {
-	    /* we dont know this controller, disable busmastering DMA */
-	    bmaddr_1 = bmaddr_2 = 0;
+	    /* we dont know this controller, no busmastering DMA */
 	    printf("ata-pci%d: Busmastering DMA not supported\n", unit);
 	}
     }
@@ -947,4 +944,28 @@ bpack(int8_t *src, int8_t *dst, int32_t len)
 	dst[j++] = src[i];
     }
     dst[j] = 0x00;
+}
+
+int32_t
+ata_find_dev(device_t dev, int32_t type)
+{
+    device_t *children, child;
+    int nchildren, i;
+
+    if (device_get_children(device_get_parent(dev), &children, &nchildren))
+	return 0;
+
+    for (i = 0; i < nchildren; i++) {
+	child = children[i];
+
+	/* check that it's on the same silicon and the device we want */
+	if (pci_get_slot(dev) == pci_get_slot(child) &&
+	    pci_get_vendor(child) == (type & 0xffff) &&
+	    pci_get_device(child) == ((type & 0xffff0000)>>16)) {
+	    free(children, M_TEMP);
+	    return 1;
+	}
+    }
+    free(children, M_TEMP);
+    return 0;
 }
