@@ -843,13 +843,11 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 			if (devlist[tmp] == NULL)
 				/* NOTHING */;
 			else if (strcmp(driver->name, "cardbus") == 0) {
-				printf("Adding cardbus\n");
 				sc->cbdev = devlist[tmp];
 				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
 				    (sockstate & CBB_SOCKET_STAT_CB))
 					wake++;
 			} else if (strcmp(driver->name, "pccard") == 0) {
-				printf("Adding pccard\n");
 				sc->pccarddev = devlist[tmp];
 				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
 				    (sockstate & CBB_SOCKET_STAT_16BIT))
