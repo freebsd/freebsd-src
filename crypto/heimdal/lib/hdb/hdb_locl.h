@@ -68,8 +68,10 @@
 #include <db.h>
 #endif
 
-#ifdef HAVE_NDBM_H
+#if defined(HAVE_NDBM_H)
 #include <ndbm.h>
+#elif defined(HAVE_GDBM_NDBM_H)
+#include <gdbm/ndbm.h>
 #endif
 
 int hdb_principal2key(krb5_context, krb5_principal, krb5_data*);
