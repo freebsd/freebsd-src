@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.16 1996/08/10 17:38:37 alex Exp $ -->
+<!-- $Id: scsi.sgml,v 1.17 1996/08/12 11:48:48 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -237,7 +237,7 @@
 	    There is nothing that stops you from using differential stuff
 	    with FreeBSD, as long as you use a controller that has device
 	    driver support in FreeBSD. As an example, Adaptec marketed the
-	    AH1740 as a single ended board, whereas the AH1744 was differential.
+	    AHA1740 as a single ended board, whereas the AHA1744 was differential.
 	    The software interface to the host is identical for both.
 
         <sect3><heading>Terminators</heading>
