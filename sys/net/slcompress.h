@@ -35,7 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id: slcompress.h,v 1.3 1994/08/21 05:11:47 paul Exp $
+ * $Id: slcompress.h,v 1.4 1994/08/21 19:06:48 paul Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_
@@ -156,6 +156,6 @@ struct slcompress {
 void	 sl_compress_init __P((struct slcompress *));
 u_int	 sl_compress_tcp __P((struct mbuf *,
 	    struct ip *, struct slcompress *, int));
-
-#endif
 int	 sl_uncompress_tcp __P((u_char **, int, u_int, struct slcompress *));
+
+#endif /* !_NET_SLCOMPRESS_H_ */
