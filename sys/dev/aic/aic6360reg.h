@@ -72,7 +72,9 @@
 #define TEST		0x1e	/* Test register */
 #define ID		0x1f	/* ID register */
 
-#define IDSTRING "(C)1991ADAPTECAIC6360           "
+#define IDSTRING_AIC6360  "(C)1991ADAPTECAIC6360           "
+#define IDSTRING_AIC6370  "(C)1994ADAPTECAIC6370"
+#define IDSTRING_GM82C700 "(C)1993 GoldStarGM82C700        "
 
 /* What all the bits do */
 
