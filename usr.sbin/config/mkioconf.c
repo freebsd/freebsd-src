@@ -140,6 +140,8 @@ write_all_device_resources(FILE *fp)
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_type != DEVICE)
 			continue;
+		if (dp->d_unit == UNKNOWN)
+			continue;
 		write_device_resources(fp, dp);
 	}
 }
@@ -157,6 +159,8 @@ write_devtab(FILE *fp)
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		char* n = devstr(dp);
 		if (dp->d_type != DEVICE)
+			continue;
+		if (dp->d_unit == UNKNOWN)
 			continue;
 		fprintf(fp, "\t{ \"%s\",\t%d,\t%s_count,\t%s_resources },\n",
 			dp->d_name, dp->d_unit, n, n);
