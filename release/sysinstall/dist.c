@@ -828,7 +828,7 @@ distExtract(char *parent, Distribution *me)
 		msgConfirm("Unable to transfer all components of the %s distribution.\n"
 		           "You may wish to switch media types and try again.\n", me[i].my_name);
 	    }
-	    else {
+	    else if (me[i].my_bit != DIST_LOCAL) {
 		status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
 				  "Do you want to try to retrieve it again?",
 				  me[i].my_name, mediaDevice->name);

@@ -1,11 +1,5 @@
                                  RELEASE NOTES
-                            FreeBSD Release 4.0-SNAP
-
-This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
-development branch which will produce its first release in early
-March 2000.  Those features which have also been back-ported to
-the 3.x-stable branch (the next release for which will be 3.5)
-are marked [MERGED].
+                              FreeBSD 4.0-RELEASE
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
@@ -16,7 +10,7 @@ directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.0-current snapshots, you should always see:
+For the latest of these 4.0-stable snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
@@ -731,7 +725,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 3.0-RELEASE and 2.2.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 4.0-RELEASE and 3.x-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
@@ -771,7 +765,7 @@ ways of upgrading FreeBSD distributions:
         o Using sources, via /usr/src
         o Using sysinstall's (binary) upgrade option.
 
-[insert other notes here]
+Please read the UPGRADE.TXT file for more information.
 
 
 5. Reporting problems, making suggestions, submitting code.

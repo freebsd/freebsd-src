@@ -75,7 +75,7 @@ poll_for_work_loop:
 		and	SEQCTL, ~PAUSEDIS;
 	}
 	test	SSTAT0, SELDO|SELDI	jnz selection;
-	test	SCSISEQ, ENSELO	jnz poll_for_work;
+	test	SCSISEQ, ENSELO	jnz poll_for_work_loop;
 	if ((ahc->features & AHC_TWIN) != 0) {
 		/*
 		 * Twin channel devices cannot handle things like SELTO
@@ -356,7 +356,11 @@ host_target_message_loop:
 
 ident_messages_done:
 		/* If ring buffer is full, return busy or queue full */
-		mov	A, KERNEL_TQINPOS;
+		if ((ahc->features & AHC_HS_MAILBOX) != 0) {
+			and	A, HOST_TQINPOS, HS_MAILBOX;
+		} else {
+			mov	A, KERNEL_TQINPOS;
+		}
 		cmp	TQINPOS, A jne tqinfifo_has_space;
 		mvi	P_STATUS|BSYO call change_phase;
 		cmp	INITIATOR_TAG, SCB_LIST_NULL je . + 3;
@@ -424,7 +428,7 @@ initiator_reselect:
  */
 select_out:
 	/* Turn off the selection hardware */
-	and	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ_TEMPLATE;
+	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ;
 	mvi	CLRSINT0, CLRSELDO;
 	mov	SCBPTR, WAITING_SCBH;
 	mov	WAITING_SCBH,SCB_NEXT;

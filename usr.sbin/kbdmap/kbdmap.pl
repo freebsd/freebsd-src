@@ -85,7 +85,7 @@ sub font_current {
 
     while(<F>) {
 	/^#/ && next;
-	if (/^\s*font[0-9]+x[0-9]+\s*=\s*\"?([^\s\"]+)\"?/) {
+	if (/^\s*font[0-9]+x[0-9]+\s*=\s*(\S+)/) {
 	    $font_current = $1 if $1 ne "NO";
 	}
     }

@@ -359,6 +359,7 @@ bpfopen(dev, flags, fmt, p)
 	dev->si_drv1 = d;
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
+	d->bd_seesent = 1;
 
 	return (0);
 }
@@ -633,6 +634,8 @@ reset_d(d)
  *  BIOCVERSION		Get filter language version.
  *  BIOCGHDRCMPLT	Get "header already complete" flag
  *  BIOCSHDRCMPLT	Set "header already complete" flag
+ *  BIOCGSEESENT	Get "see packets sent" flag
+ *  BIOCSSEESENT	Set "see packets sent" flag
  */
 /* ARGSUSED */
 static	int
@@ -846,6 +849,20 @@ bpfioctl(dev, cmd, addr, flags, p)
 	 */
 	case BIOCSHDRCMPLT:
 		d->bd_hdrcmplt = *(u_int *)addr ? 1 : 0;
+		break;
+
+	/*
+	 * Get "see sent packets" flag
+	 */
+	case BIOCGSEESENT:
+		*(u_int *)addr = d->bd_seesent;
+		break;
+
+	/*
+	 * Set "see sent packets" flag
+	 */
+	case BIOCSSEESENT:
+		d->bd_seesent = *(u_int *)addr;
 		break;
 
 	case FIONBIO:		/* Non-blocking I/O */
@@ -1103,6 +1120,8 @@ bpf_mtap(ifp, m)
 		pktlen += m0->m_len;
 
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
+		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
+			continue;
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
 		if (slen != 0)

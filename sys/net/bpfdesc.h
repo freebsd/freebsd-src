@@ -77,6 +77,7 @@ struct bpf_d {
 	u_char		bd_state;	/* idle, waiting, or timed out */
 	u_char		bd_immediate;	/* true to return on packet arrival */
 	int		bd_hdrcmplt;	/* false to fill in src lladdr automatically */
+	int		bd_seesent;	/* true if bpf should see sent packets */
 	int		bd_async;	/* non-zero if packet reception should generate signal */
 	int		bd_sig;		/* signal to send upon packet reception */
 	struct sigio *	bd_sigio;	/* information for async I/O */

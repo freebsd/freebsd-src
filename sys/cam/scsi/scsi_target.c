@@ -329,6 +329,7 @@ targenlun(struct cam_periph *periph)
 		xpt_setup_ccb(&atio->ccb_h, periph->path, /*priority*/1);
 		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		atio->ccb_h.cbfcnp = targdone;
+		atio->ccb_h.ccb_flags = TARG_CCB_NONE;
 		xpt_action((union ccb *)atio);
 		status = atio->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
@@ -734,6 +735,7 @@ targfreeinstance(struct ioc_alloc_unit *alloc_unit)
 	/* Find our instance. */
 	if ((periph = cam_periph_find(path, "targ")) == NULL) {
 		xpt_print_path(path);
+		printf("Invalid path specified for freeing target instance\n");
 		status = CAM_PATH_INVALID;
 		goto fail;
 	}
@@ -984,8 +986,8 @@ targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 					  &softc->device_stats);
 
 		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO)
-			TAILQ_INSERT_TAIL(&softc->pending_queue, &ccb->ccb_h,
-					  periph_links.tqe);
+			TAILQ_REMOVE(&softc->pending_queue, &ccb->ccb_h,
+				     periph_links.tqe);
 	} else {
 		ccb->ccb_h.status = CAM_UNACKED_EVENT;
 		error = 0;
@@ -1405,6 +1407,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			atio->ccb_h.flags |= CAM_DIR_NONE;
 			descr->data_resid = 0;
 			descr->data_increment = 0;
+			descr->timeout = 5 * 1000;
 			descr->status = SCSI_STATUS_CHECK_COND;
 			copy_sense(softc, istate, (u_int8_t *)&atio->sense_data,
 				   atio->sense_len);
@@ -1460,6 +1463,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				inq = (struct scsi_inquiry *)cdb;
 				sense = &istate->sense_data;
+				descr->status = SCSI_STATUS_OK;
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Saw an inquiry!\n"));
 				/*
@@ -1473,6 +1477,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					atio->ccb_h.flags |= CAM_DIR_NONE;
 					descr->data_resid = 0;
 					descr->data_increment = 0;
+					descr->timeout = 5 * 1000;
 					descr->status = SCSI_STATUS_CHECK_COND;
 					fill_sense(softc, atio->init_id,
 						   SSD_CURRENT_ERROR,
@@ -1517,7 +1522,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 						       inq->length);
 				descr->data_increment = descr->data_resid;
 				descr->timeout = 5 * 1000;
-				descr->status = SCSI_STATUS_OK;
 				break;
 			}
 			case TEST_UNIT_READY:
@@ -1904,7 +1908,6 @@ targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	istate = &softc->istate[csio->init_id];
 	switch (status) {
 	case CAM_REQ_ABORTED:
-		printf("Request Aborted!\n");
 		if ((ccb->ccb_h.ccb_flags & TARG_CCB_ABORT_TO_HELDQ) != 0) {
 
 			/*
@@ -2102,7 +2105,7 @@ set_ca_condition(struct cam_periph *periph, u_int initiator_id, ca_types ca)
 	softc = (struct targ_softc *)periph->softc;
 	softc->istate[initiator_id].pending_ca = ca;
 	abort_pending_transactions(periph, initiator_id, TARG_TAG_WILDCARD,
-				   /* errno */0, /*to_held_queue*/TRUE);
+				   /*errno*/0, /*to_held_queue*/TRUE);
 }
 
 static void
@@ -2192,7 +2195,7 @@ abort_pending_transactions(struct cam_periph *periph, u_int initiator_id,
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Aborting CTIO\n"));
 
-		TAILQ_REMOVE(&softc->work_queue, &csio->ccb_h,
+		TAILQ_REMOVE(&softc->pending_queue, &csio->ccb_h,
 			     periph_links.tqe);
 
 		if (to_held_queue != 0)

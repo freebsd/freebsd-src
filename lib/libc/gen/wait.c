@@ -49,4 +49,6 @@ __wait(istat)
 	return (wait4(WAIT_ANY, istat, 0, (struct rusage *)0));
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__wait, wait);
+#endif

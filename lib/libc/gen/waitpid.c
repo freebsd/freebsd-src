@@ -55,4 +55,6 @@ __waitpid(pid, istat, options)
 	return (wait4(pid, istat, options, (struct rusage *)0));
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__waitpid, waitpid);
+#endif
