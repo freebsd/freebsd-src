@@ -324,6 +324,7 @@ struct dos_partition {
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
 #define	DOSPTYP_EXT	5	/* DOS extended partition */
+#define	DOSPTYP_EXTLBA	15	/* DOS extended partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */
