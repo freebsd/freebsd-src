@@ -478,9 +478,9 @@ mdstrategy(struct bio *bp)
 
 	sc = bp->bio_dev->si_drv1;
 
-	mtx_lock(*sc->queue_mtx);
+	mtx_lock(&sc->queue_mtx);
 	bioqdisksort(&sc->bio_queue, bp);
-	mtx_unlock(*sc->queue_mtx);
+	mtx_unlock(&sc->queue_mtx);
 
 	wakeup(sc);
 }
@@ -721,8 +721,8 @@ md_kthread(void *arg)
 #else /* !NO_GEOM */
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, error);
-		}
 #endif
+		}
 	}
 }
 
