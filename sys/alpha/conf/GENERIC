@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.3 1998/08/10 07:53:58 dfr Exp $
+#	$Id: GENERIC,v 1.4 1998/08/20 08:27:10 dfr Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -49,18 +49,6 @@ controller	cia0
 controller	apecs0
 controller	lca0
 
-# TurboChannel
-controller	tcasic0
-controller	tc0
-controller	ioasic0
-
-# TurboChannel devices
-controller	tcds0
-controller	esp0
-
-# TC IO Asic devices
-device		le0
-
 # Standard busses
 controller	pci0
 controller	isa0
@@ -69,6 +57,7 @@ controller	isa0
 controller	tcasic0
 controller	tc0
 controller	tcds0
+controller	ioasic0
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
