@@ -26,7 +26,7 @@ ALL : ALL : allow
 # need to do it, here's how
 #sshd : .evil.cracker.example.com : deny 
 
-# Prevent those with no reverse DNS from connecting.
+# Provide some protection against clients using a forged source IP address
 ALL : PARANOID : RFC931 20 : deny
 
 # Allow anything from localhost.  Note that an IP address (not a host
