@@ -856,7 +856,7 @@ kern/uipc_socket.c	standard
 kern/uipc_socket2.c	standard
 kern/uipc_syscalls.c	standard
 kern/uipc_usrreq.c	standard
-kern/vfs_aio.c		standard
+kern/vfs_aio.c		optional vfs_aio
 kern/vfs_bio.c		standard
 kern/vfs_cache.c	standard
 kern/vfs_cluster.c	standard

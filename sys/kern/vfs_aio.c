@@ -38,6 +38,8 @@
 #include <sys/signalvar.h>
 #include <sys/protosw.h>
 #include <sys/socketvar.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
@@ -53,8 +55,6 @@
 #include <machine/limits.h>
 
 #include "opt_vfs_aio.h"
-
-#ifdef VFS_AIO
 
 static	long jobrefid;
 
@@ -107,6 +107,7 @@ static int num_buf_aio = 0;
 static int num_aio_resv_start = 0;
 static int aiod_timeout;
 static int aiod_lifetime;
+static int unloadable = 0;
 
 static int max_aio_per_proc = MAX_AIO_PER_PROC;
 static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
@@ -146,6 +147,9 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime,
 
 SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout,
 	CTLFLAG_RW, &aiod_timeout, 0, "");
+
+SYSCTL_INT(_vfs_aio, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
+    "Allow unload of aio (not recommended)");
 
 /*
  * AIO process info
@@ -206,28 +210,80 @@ static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
 static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
 
 static void	aio_init_aioinfo(struct proc *p);
-static void	aio_onceonly(void *);
+static void	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
 static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(void);
 static int	aio_aqueue(struct thread *td, struct aiocb *job, int type);
 static void	aio_physwakeup(struct buf *bp);
+static void	aio_proc_rundown(struct proc *p);
 static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
+static int	aio_unload(void);
 static void	process_signal(void *aioj);
-
-SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
+static int	filt_aioattach(struct knote *kn);
+static void	filt_aiodetach(struct knote *kn);
+static int	filt_aio(struct knote *kn, long hint);
 
 static vm_zone_t kaio_zone = 0, aiop_zone = 0, aiocb_zone = 0, aiol_zone = 0;
 static vm_zone_t aiolio_zone = 0;
+
+static struct filterops aio_filtops =
+	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
+
+static int
+aio_modload(struct module *module, int cmd, void *arg)
+{
+	int error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		aio_onceonly();
+		break;
+	case MOD_UNLOAD:
+		error = aio_unload();
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+static moduledata_t aio_mod = {
+	"aio",
+	&aio_modload,
+	NULL
+};
+
+SYSCALL_MODULE_HELPER(aio_return);
+SYSCALL_MODULE_HELPER(aio_suspend);
+SYSCALL_MODULE_HELPER(aio_cancel);
+SYSCALL_MODULE_HELPER(aio_error);
+SYSCALL_MODULE_HELPER(aio_read);
+SYSCALL_MODULE_HELPER(aio_write);
+SYSCALL_MODULE_HELPER(aio_waitcomplete);
+SYSCALL_MODULE_HELPER(lio_listio);
+
+DECLARE_MODULE(aio, aio_mod,
+	SI_SUB_VFS, SI_ORDER_ANY);
+MODULE_VERSION(aio, 1);
 
 /*
  * Startup initialization
  */
 static void
-aio_onceonly(void *na)
+aio_onceonly(void)
 {
+
+	/* XXX: should probably just use so->callback */
+	aio_swake = &aio_swake_cb;
+	at_exit(aio_proc_rundown);
+	at_exec(aio_proc_rundown);
+	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	TAILQ_INIT(&aio_freeproc);
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
@@ -241,6 +297,25 @@ aio_onceonly(void *na)
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
+}
+
+static int
+aio_unload(void)
+{
+
+	/*
+	 * XXX: no unloads by default, it's too dangerous.
+	 * perhaps we could do it if locked out callers and then
+	 * did an aio_proc_rundown() on each process.
+	 */
+	if (!unloadable)
+		return (EOPNOTSUPP);
+
+	aio_swake = NULL;
+	rm_at_exit(aio_proc_rundown);
+	rm_at_exec(aio_proc_rundown);
+	kqueue_del_filteropts(EVFILT_AIO);
+	return (0);
 }
 
 /*
@@ -384,17 +459,13 @@ aio_free_entry(struct aiocblist *aiocbe)
 	zfree(aiocb_zone, aiocbe);
 	return 0;
 }
-#endif /* VFS_AIO */
 
 /*
  * Rundown the jobs for a given process.  
  */
-void
+static void
 aio_proc_rundown(struct proc *p)
 {
-#ifndef VFS_AIO
-	return;
-#else
 	int s;
 	struct kaioinfo *ki;
 	struct aio_liojob *lj, *ljn;
@@ -519,10 +590,8 @@ restart4:
 
 	zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
-#endif /* VFS_AIO */
 }
 
-#ifdef VFS_AIO
 /*
  * Select a job to run (called by an AIO daemon).
  */
@@ -1150,17 +1219,13 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb)
 	relpbuf(bp, NULL);
 	return (error);
 }
-#endif /* VFS_AIO */
 
 /*
  * Wake up aio requests that may be serviceable now.
  */
 void
-aio_swake(struct socket *so, struct sockbuf *sb)
+aio_swake_cb(struct socket *so, struct sockbuf *sb)
 {
-#ifndef VFS_AIO
-	return;
-#else
 	struct aiocblist *cb,*cbn;
 	struct proc *p;
 	struct kaioinfo *ki = NULL;
@@ -1198,10 +1263,8 @@ aio_swake(struct socket *so, struct sockbuf *sb)
 			wakeup(aiop->aiothread);
 		}
 	}
-#endif /* VFS_AIO */
 }
 
-#ifdef VFS_AIO
 /*
  * Queue a new AIO request.  Choosing either the threaded or direct physio VCHR
  * technique is done in this code.
@@ -1474,7 +1537,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, int type)
 
 	return _aio_aqueue(td, job, NULL, type);
 }
-#endif /* VFS_AIO */
 
 /*
  * Support the aio_return system call, as a side-effect, kernel resources are
@@ -1483,9 +1545,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, int type)
 int
 aio_return(struct thread *td, struct aio_return_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	int s;
 	int jobref;
@@ -1547,7 +1606,6 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	splx(s);
 
 	return (EINVAL);
-#endif /* VFS_AIO */
 }
 
 /*
@@ -1556,9 +1614,6 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 int
 aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	struct timeval atv;
 	struct timespec ts;
@@ -1664,7 +1719,6 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 
 /* NOTREACHED */
 	return EINVAL;
-#endif /* VFS_AIO */
 }
 
 /*
@@ -1674,9 +1728,6 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 int
 aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	struct kaioinfo *ki;
 	struct aiocblist *cbe, *cbn;
@@ -1796,7 +1847,6 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	td->td_retval[0] = AIO_ALLDONE;
 
 	return 0;
-#endif /* VFS_AIO */
 }
 
 /*
@@ -1807,9 +1857,6 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 int
 aio_error(struct thread *td, struct aio_error_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	int s;
 	struct aiocblist *cb;
@@ -1887,35 +1934,25 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		return fuword(&uap->aiocbp->_aiocb_private.error);
 #endif
 	return EINVAL;
-#endif /* VFS_AIO */
 }
 
 int
 aio_read(struct thread *td, struct aio_read_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
+
 	return aio_aqueue(td, uap->aiocbp, LIO_READ);
-#endif /* VFS_AIO */
 }
 
 int
 aio_write(struct thread *td, struct aio_write_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
+
 	return aio_aqueue(td, uap->aiocbp, LIO_WRITE);
-#endif /* VFS_AIO */
 }
 
 int
 lio_listio(struct thread *td, struct lio_listio_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	int nent, nentqueued;
 	struct aiocb *iocb, * const *cbptr;
@@ -2080,10 +2117,8 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	}
 
 	return runningcode;
-#endif /* VFS_AIO */
 }
 
-#ifdef VFS_AIO
 /*
  * This is a weird hack so that we can post a signal.  It is safe to do so from
  * a timeout routine, but *not* from an interrupt routine.
@@ -2179,14 +2214,10 @@ aio_physwakeup(struct buf *bp)
 				timeout(process_signal, aiocbe, 0);
 	}
 }
-#endif /* VFS_AIO */
 
 int
 aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 {
-#ifndef VFS_AIO
-	return ENOSYS;
-#else
 	struct proc *p = td->td_proc;
 	struct timeval atv;
 	struct timespec ts;
@@ -2258,22 +2289,8 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		else if (error == EWOULDBLOCK)
 			return EAGAIN;
 	}
-#endif /* VFS_AIO */
 }
 
-
-#ifndef VFS_AIO
-static int
-filt_aioattach(struct knote *kn)
-{
-
-	return (ENXIO);
-}
-
-struct filterops aio_filtops =
-	{ 0, filt_aioattach, NULL, NULL };
-
-#else
 static int
 filt_aioattach(struct knote *kn)
 {
@@ -2314,7 +2331,3 @@ filt_aio(struct knote *kn, long hint)
 	kn->kn_flags |= EV_EOF; 
 	return (1);
 }
-
-struct filterops aio_filtops =
-	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
-#endif /* VFS_AIO */
