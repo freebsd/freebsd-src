@@ -91,6 +91,16 @@
 #define DEVICEID_LINKSYS_EG1032	0x1032
 
 /*
+ * D-Link PCI vendor ID
+ */
+#define	VENDORID_DLINK		0x1186
+
+/*
+ * D-Link gigabit ethernet device ID
+ */
+#define DEVICEID_DLINK_DGE530T	0x4c00
+
+/*
  * GEnesis registers. The GEnesis chip has a 256-byte I/O window
  * but internally it has a 16K register space. This 16K space is
  * divided into 128-byte blocks. The first 128 bytes of the I/O
