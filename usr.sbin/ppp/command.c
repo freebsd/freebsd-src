@@ -47,12 +47,13 @@
 #include <unistd.h>
 
 #ifndef NONAT
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
 #endif
+
 #include "layer.h"
 #include "defs.h"
 #include "command.h"
