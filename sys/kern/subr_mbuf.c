@@ -392,7 +392,7 @@ mbuf_init(void *dummy)
 	mb_list_mbuf.ml_map->system_map = 1;
 	mb_list_mbuf.ml_mapfull = 0;
 	mb_list_mbuf.ml_objsize = MSIZE;
-	mb_list_mbuf.ml_objbucks = MBUF_BUCK_SZ / MSIZE;
+	mb_list_mbuf.ml_objbucks = MBUF_BUCK_SZ / mb_list_mbuf.ml_objsize;
 	mb_list_mbuf.ml_wmhigh = &mbuf_hiwm;
 	mb_list_mbuf.ml_wmlow = &mbuf_lowm;
 
@@ -408,7 +408,7 @@ mbuf_init(void *dummy)
 	mb_list_clust.ml_map->system_map = 1;
 	mb_list_clust.ml_mapfull = 0;
 	mb_list_clust.ml_objsize = MCLBYTES;
-	mb_list_clust.ml_objbucks = CLUST_BUCK_SZ / MCLBYTES;
+	mb_list_clust.ml_objbucks = CLUST_BUCK_SZ / mb_list_clust.ml_objsize;
 	mb_list_clust.ml_wmhigh = &clust_hiwm;
 	mb_list_clust.ml_wmlow = &clust_lowm;
 
@@ -465,14 +465,14 @@ mbuf_init(void *dummy)
 	/*
 	 * Initialize general mbuf statistics.
 	 */
-	mbstat.m_msize = MSIZE;
-	mbstat.m_mclbytes = MCLBYTES;
+	mbstat.m_msize =  mb_list_mbuf.ml_objsize;
+	mbstat.m_mclbytes = mb_list_clust.ml_objsize;
 	mbstat.m_minclsize = MINCLSIZE;
 	mbstat.m_mlen = MLEN;
 	mbstat.m_mhlen = MHLEN;
 	mbstat.m_numtypes = MT_NTYPES;
-	mbstat.m_mbperbuck = MBUF_BUCK_SZ / MSIZE;
-	mbstat.m_clperbuck = CLUST_BUCK_SZ / MCLBYTES;
+	mbstat.m_mbperbuck = mb_list_mbuf.ml_objbucks;
+	mbstat.m_clperbuck = mb_list_clust.ml_objbucks;
 
 	/*
 	 * Allocate and initialize PCPU containers.
