@@ -3,10 +3,7 @@
 .PATH: ${.CURDIR}/../../../${MACHINE_ARCH}/${MACHINE_ARCH}
 
 LIB=		efi
-NOPIC=		true
-NOPROFILE=	true
 INTERNALLIB=	true
-INTERNALSTATICLIB=	true
 
 SRCS=	libefi.c efi_console.c time.c copy.c devicename.c module.c exit.c
 SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.s
