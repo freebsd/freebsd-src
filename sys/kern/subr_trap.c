@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.127 1998/04/28 18:15:04 eivind Exp $
+ *	$Id: trap.c,v 1.128 1998/08/23 10:16:26 bde Exp $
  */
 
 /*
@@ -104,8 +104,8 @@ extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
 
-static int trap_pfault __P((struct trapframe *, int));
-static void trap_fatal __P((struct trapframe *));
+static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
+static void trap_fatal __P((struct trapframe *, vm_offset_t));
 void dblfault_handler __P((void));
 
 extern inthand_t IDTVEC(syscall);
@@ -216,9 +216,46 @@ trap(frame)
 	struct proc *p = curproc;
 	u_quad_t sticks = 0;
 	int i = 0, ucode = 0, type, code;
-#ifdef DEBUG
-	u_long eva;
-#endif
+	vm_offset_t eva;
+
+	if (!(frame.tf_eflags & PSL_I)) {
+		/*
+		 * Buggy application or kernel code has disabled interrupts
+		 * and then trapped.  Enabling interrupts now is wrong, but
+		 * it is better than running with interrupts disabled until
+		 * they are accidentally enabled later.
+		 */
+		type = frame.tf_trapno;
+		if (ISPL(frame.tf_cs) == SEL_UPL || (frame.tf_eflags & PSL_VM))
+			printf(
+			    "pid %ld (%s): trap %d with interrupts disabled\n",
+			    (long)curproc->p_pid, curproc->p_comm, type);
+		else if (type != T_BPTFLT && type != T_TRCTRAP)
+			/*
+			 * XXX not quite right, since this may be for a
+			 * multiple fault in user mode.
+			 */
+			printf("kernel trap %d with interrupts disabled\n",
+			    type);
+		enable_intr();
+	}
+
+	eva = 0;
+	if (frame.tf_trapno == T_PAGEFLT) {
+		/*
+		 * For some Cyrix CPUs, %cr2 is clobbered by interrupts.
+		 * This problem is worked around by using an interrupt
+		 * gate for the pagefault handler.  We are finally ready
+		 * to read %cr2 and then must reenable interrupts.
+		 *
+		 * XXX this should be in the switch statement, but the
+		 * NO_FOOF_HACK and VM86 goto and ifdefs obfuscate the
+		 * flow of control too much for this to be obviously
+		 * correct.
+		 */
+		eva = rcr2();
+		enable_intr();
+	}
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
@@ -245,7 +282,7 @@ restart:
 			 */
 		case T_PROTFLT:
 		case T_SEGNPFLT:
-			trap_fatal(&frame);
+			trap_fatal(&frame, eva);
 			return;
 		case T_TRCTRAP:
 			type = T_BPTFLT;	/* kernel breakpoint */
@@ -314,7 +351,7 @@ restart:
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-			i = trap_pfault(&frame, TRUE);
+			i = trap_pfault(&frame, TRUE, eva);
 			if (i == -1)
 				return;
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -393,7 +430,7 @@ kernel_trap:
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-			(void) trap_pfault(&frame, FALSE);
+			(void) trap_pfault(&frame, FALSE, eva);
 			return;
 
 		case T_DNA:
@@ -541,7 +578,7 @@ kernel_trap:
 #endif /* NISA > 0 */
 		}
 
-		trap_fatal(&frame);
+		trap_fatal(&frame, eva);
 		return;
 	}
 
@@ -552,7 +589,6 @@ kernel_trap:
 	trapsignal(p, i, ucode);
 
 #ifdef DEBUG
-	eva = rcr2();
 	if (type <= MAX_TRAP_MSG) {
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
@@ -575,16 +611,16 @@ out:
  * debugging code.
  */
 static int
-trap_pfault(frame, usermode)
+trap_pfault(frame, usermode, eva)
 	struct trapframe *frame;
 	int usermode;
+	vm_offset_t eva;
 {
 	vm_offset_t va;
 	struct vmspace *vm = NULL;
 	vm_map_t map = 0;
 	int rv = 0;
 	vm_prot_t ftype;
-	int eva;
 	struct proc *p = curproc;
 
 	if (frame->tf_err & PGEX_W)
@@ -592,9 +628,7 @@ trap_pfault(frame, usermode)
 	else
 		ftype = VM_PROT_READ;
 
-	eva = rcr2();
-	va = trunc_page((vm_offset_t)eva);
-
+	va = trunc_page(eva);
 	if (va < VM_MIN_KERNEL_ADDRESS) {
 		vm_offset_t v;
 		vm_page_t mpte;
@@ -603,7 +637,7 @@ trap_pfault(frame, usermode)
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
 		     (intr_nesting_level != 0 || curpcb == NULL ||
 		      curpcb->pcb_onfault == NULL))) {
-			trap_fatal(frame);
+			trap_fatal(frame, eva);
 			return (-1);
 		}
 
@@ -664,7 +698,7 @@ nogo:
 			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
-		trap_fatal(frame);
+		trap_fatal(frame, eva);
 		return (-1);
 	}
 
@@ -676,21 +710,19 @@ nogo:
 #endif
 
 int
-trap_pfault(frame, usermode)
+trap_pfault(frame, usermode, eva)
 	struct trapframe *frame;
 	int usermode;
+	vm_offset_t eva;
 {
 	vm_offset_t va;
 	struct vmspace *vm = NULL;
 	vm_map_t map = 0;
 	int rv = 0;
 	vm_prot_t ftype;
-	int eva;
 	struct proc *p = curproc;
 
-	eva = rcr2();
-	va = trunc_page((vm_offset_t)eva);
-
+	va = trunc_page(eva);
 	if (va >= KERNBASE) {
 		/*
 		 * Don't allow user-mode faults in kernel address space.
@@ -769,7 +801,7 @@ nogo:
 			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
-		trap_fatal(frame);
+		trap_fatal(frame, eva);
 		return (-1);
 	}
 
@@ -780,15 +812,15 @@ nogo:
 }
 
 static void
-trap_fatal(frame)
+trap_fatal(frame, eva)
 	struct trapframe *frame;
+	vm_offset_t eva;
 {
-	int code, type, eva, ss, esp;
+	int code, type, ss, esp;
 	struct soft_segment_descriptor softseg;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	eva = rcr2();
 	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)].sd, &softseg);
 
 	if (type <= MAX_TRAP_MSG)
