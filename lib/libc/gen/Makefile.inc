@@ -49,8 +49,8 @@ MAN3+=  alarm.3 arc4random.3 clock.3 \
 	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 rfork_thread.3 \
-	scandir.3 setjmp.3 setmode.3 setproctitle.3 \
-	shm_open.3 siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
+	scandir.3 setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
+	siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
 	ttyname.3 tzset.3 ualarm.3 uname.3 unvis.3 usleep.3 utime.3 \
