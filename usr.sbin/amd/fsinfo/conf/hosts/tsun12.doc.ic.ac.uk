@@ -1,0 +1,3 @@
+#include "../csg_sun3"
+
+CSG_SUN3(tsun12,doc.ic.ac.uk,tsunfs.doc.ic.ac.uk,gould.doc.ic.ac.uk)

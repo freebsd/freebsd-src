@@ -1,0 +1,28 @@
+// $Id$
+// conf for obsidian
+
+#define FSTYPE_UFS	hfs
+#define DEFAULT_OPTS	rw
+
+host obsidian.doc.ic.ac.uk
+
+fs /dev/dsk/0s0 {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 1
+	mount / {}
+}
+
+fs /dev/dsk/1s0 {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 1
+	mount default {
+		volname /home/obsidian
+		exportfs "\
+			gould\
+		"
+	}
+}

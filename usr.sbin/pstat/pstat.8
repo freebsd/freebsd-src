@@ -1,0 +1,321 @@
+.\" Copyright (c) 1980, 1991, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\"	@(#)pstat.8	8.4 (Berkeley) 4/19/94
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)pstat.8	8.4 (Berkeley) 4/19/94
+.\"
+.Dd April 19, 1994
+.Dt PSTAT 8
+.Os BSD 4
+.Sh NAME
+.Nm pstat
+.Nd display system data structures
+.Sh SYNOPSIS
+.Nm pstat
+.Op Fl Tfnstv
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Sh DESCRIPTION
+.Nm Pstat
+displays open file entry, swap space utilization,
+terminal state, and vnode data structures.
+If
+.Ar corefile
+is given, the information is sought there, otherwise
+in
+.Pa /dev/kmem .
+The required namelist is taken from
+.Pa /vmunix
+unless 
+.Ar system
+is specified.
+The
+.Fl n
+option specifies that devices should be printed out by major/minor
+number rather than by name.
+.Pp
+Options are
+.Bl -tag -width indent
+.It Fl T
+Prints the number of used and free slots in the several system tables
+and is useful for checking to see how large system tables have become
+if the system is under heavy load.
+.It Fl f
+Print the open file table with these headings:
+.Bl -tag -width indent
+.It LOC
+The core location of this table entry.
+.It TYPE
+The type of object the file table entry points to.
+.It FLG
+Miscellaneous state variables encoded thus:
+.Bl -tag -width indent
+.It R
+open for reading
+.It W
+open for writing
+.It A
+open for appending
+.It S
+shared lock present
+.It X
+exclusive lock present
+.It I
+signal pgrp when data ready
+.El
+.It CNT
+Number of processes that know this open file.
+.It MSG
+Number of messages outstanding for this file.
+.It DATA
+The location of the vnode table entry or socket structure for this file.
+.It OFFSET
+The file offset (see
+.Xr lseek 2 ) .
+.El
+.It Fl s
+Print information about swap space usage on all the 
+swap areas compiled into the kernel.
+The first column is the device name of the partition.  The next column is
+the total space available in the partition.  The 
+.Ar Used
+column indicates the total blocks used so far;  the 
+.Ar Available
+column indicates how much space is remaining on each partition.
+The
+.Ar Capacity
+reports the percentage of space used.
+.Pp
+If more than one partition is configured into the system, totals for all
+of the statistics will be reported in the final line of the report.
+.It Fl t
+Print table for terminals
+with these headings:
+.Bl -tag -width indent
+.It RAW
+Number of characters in raw input queue.
+.It CAN
+Number of characters in canonicalized input queue.
+.It OUT
+Number of characters in putput queue.
+.It MODE
+See
+.Xr tty 4 .
+.It ADDR
+Physical device address.
+.It DEL
+Number of delimiters (newlines) in canonicalized input queue.
+.It COL
+Calculated column position of terminal.
+.It STATE
+Miscellaneous state variables encoded thus:
+.Bl -tag -width indent
+.It T
+delay timeout in progress
+.It W
+waiting for open to complete
+.It O
+open
+.It F
+outq has been flushed during DMA
+.It C
+carrier is on
+.It B
+busy doing output
+.It A
+process is awaiting output
+.It X
+open for exclusive use
+.It S
+output stopped
+.It H
+hangup on close
+.El
+.It PGRP
+Process group for which this is controlling terminal.
+.It DISC
+Line discipline; blank is old tty
+OTTYDISC
+or
+.Ql new tty
+for
+NTTYDISC
+or
+.Ql net
+for
+NETLDISC
+(see
+.Xr bk 4 ) .
+.El
+.It Fl v
+Print the active vnodes.  Each group of vnodes corresponding
+to a particular filesystem is preceded by a two line header.  The
+first line consists of the following:
+.Pp
+.Df I
+.No *** MOUNT Em fstype from 
+on
+.Em on fsflags
+.De
+.Pp
+where
+.Em fstype
+is one of
+.Em ufs , nfs , mfs , or pc ;
+.Em from
+is the filesystem is mounted from;
+.Em on
+is the directory
+the filesystem is mounted on; and
+.Em fsflags
+is a list
+of optional flags applied to the mount (see
+.Xr mount 8 ) .
+.The second line is a header for the individual fields ,
+the first part of which are fixed, and the second part are filesystem
+type specific.  The headers common to all vnodes are:
+.Bl -tag -width indent
+.It ADDR
+Location of this vnode.
+.It TYP
+File type.
+.It VFLAG
+.Pp
+A list of letters representing vnode flags:
+.Bl -tag -width indent
+.It R
+\- VROOT
+.It T
+\- VTEXT
+.It L
+\- VXLOCK
+.It W
+\- VXWANT
+.It E
+\- VEXLOCK
+.It S
+\- VSHLOCK
+.It T
+\- VLWAIT
+.It A
+\- VALIASED
+.It B
+\- VBWAIT
+.El
+.Pp
+.It USE
+The number of references to this vnode.
+.It HOLD
+The number of I/O buffers held by this vnode.
+.It FILEID
+The vnode fileid.
+In the case of
+.Em ufs
+this is the inode number.
+.It IFLAG
+Miscellaneous filesystem specific state variables encoded thus:
+.Bl -tag -width indent
+.It "For ufs:"
+.Pp
+.Bl -tag -width indent
+.It L
+locked
+.It U
+update time
+.Pq Xr fs 5
+must be corrected
+.It A
+access time must be corrected
+.It W
+wanted by another process (L flag is on)
+.It C
+changed time must be corrected
+.It S
+shared lock applied
+.It E
+exclusive lock applied
+.It Z
+someone waiting for a lock
+.It M
+contains modifications
+.It R
+has a rename in progress
+.El
+.It "For nfs:"
+.Bl -tag -width indent
+.It W
+waiting for I/O buffer flush to complete
+.It P
+I/O buffers being flushed
+.It M
+locally modified data exists
+.It E
+an earlier write failed
+.It X
+non-cacheable lease (nqnfs)
+.It O
+write lease (nqnfs)
+.It G
+lease was evicted (nqnfs)
+.El
+.El
+.It SIZ/RDEV
+Number of bytes in an ordinary file, or
+major and minor device of special file.
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/kmemxxx -compact
+.It Pa /vmunix
+namelist
+.It Pa /dev/kmem
+default source of tables
+.El
+.Sh SEE ALSO
+.Xr iostat 1 ,
+.Xr ps 1 ,
+.Xr systat 1 ,
+.Xr vmstat 1 ,
+.Xr stat 2 ,
+.Xr fs 5 ,
+.Rs
+.Rt Tn UNIX Rt Implementation ,
+.Ra K. Thompson
+.Re
+.Sh BUGS
+Swap statistics are reported for all swap partitions compiled into the kernel,
+regardless of whether those partitions are being used.
+.Pp
+Does not understand NFS swap servers.
+.Sh HISTORY
+The
+.Nm pstat
+command appeared in 4.0BSD.
