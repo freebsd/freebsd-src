@@ -269,34 +269,6 @@ cpu_thread_setup(struct thread *td)
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
 }
 
-struct md_store {
-	struct pcb mds_pcb;
-	struct trapframe mds_frame;
-};
-
-#if 0
-void
-cpu_save_upcall(struct thread *td, struct kse *newkse)
-{
-
-	newkse->ke_mdstorage = malloc(sizeof(struct md_store), M_TEMP,
-	    M_WAITOK);
-	/* Note: use of M_WAITOK means it won't fail. */
-	/* set up shortcuts in MI section */
-	newkse->ke_pcb =
-	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_pcb);
-	newkse->ke_frame =
-	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_frame);
-
-	/* Copy the upcall pcb. Kernel mode & fp regs are here. */
-	/* XXXKSE this may be un-needed */
-	bcopy(td->td_pcb, newkse->ke_pcb, sizeof(struct pcb));
-
-	/* This copies most of the user mode register values. */
-	bcopy(td->td_frame, newkse->ke_frame, sizeof(struct trapframe));
-}
-#endif
-
 void
 cpu_set_upcall(struct thread *td, void *pcb)
 {
@@ -353,54 +325,6 @@ cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 
 	/* XXX */
 }
-
-#if 0
-void
-cpu_set_args(struct thread *td, struct kse *ke)
-{
-/* XXX
-	suword((void *)(ke->ke_frame->tf_esp + sizeof(void *)),
-	    (int)ke->ke_mailbox);
-*/
-}
-#endif
-
-#if 0
-void
-cpu_free_kse_mdstorage(struct kse *kse)
-{
-
-	free(kse->ke_mdstorage, M_TEMP);
-	kse->ke_mdstorage = NULL;
-	kse->ke_pcb = NULL;
-	kse->ke_frame = NULL;
-}
-#endif
-
-#if 0
-int
-cpu_export_context(struct thread *td)
-{
-
-	/* XXXKSE */
-	struct trapframe *frame;
-	struct thread_mailbox *tm;
-	struct trapframe *uframe;
-	int error;
-
-	frame = td->td_frame;
-	tm = td->td_mailbox;
-	uframe = &tm->ctx.tfrm.tf_tf;
-	error = copyout(frame, uframe, sizeof(*frame));
-	/*
-	 * "What about the fp regs?" I hear you ask.... XXXKSE
-	 * Don't know where gs and "onstack" come from.
-	 * May need to fiddle a few other values too.
-	 */
-	return (error);
-	return (0);
-}
-#endif
 
 void
 cpu_wait(p)
