@@ -268,8 +268,8 @@ struct thread {
 #define	td_startzero td_flags
 	int		td_flags;	/* (j) TDF_* flags. */
 	int		td_inhibitors;	/* (j) Why can not run */
-	struct kse	*td_last_kse;	/* Where it wants to be if possible. */
-	struct kse	*td_kse;	/* Current KSE if running. */
+	struct kse	*td_last_kse;	/* (j) Previous value of td_kse */
+	struct kse	*td_kse;	/* (j) Current KSE if running. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
@@ -844,6 +844,7 @@ struct	proc *pfind(pid_t);	/* Find process by id. */
 struct	pgrp *pgfind(pid_t);	/* Find process group by id. */
 struct	proc *zpfind(pid_t);	/* Find zombie process by id. */
 
+void	adjustrunqueue(struct thread *, int newpri);
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
 int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
@@ -871,7 +872,6 @@ void	threadinit(void);
 void	proc_linkup(struct proc *p, struct ksegrp *kg,
 	    struct kse *ke, struct thread *td);
 void	proc_reparent(struct proc *child, struct proc *newparent);
-void	remrunqueue(struct thread *);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	setrunnable(struct thread *);
