@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001
+ * Copyright (c) 2001, 2002
  * 	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -782,7 +782,8 @@ mb_alloc_wait(struct mb_lstmngr *mb_list, short type)
  */
 static __inline
 void
-mb_free(struct mb_lstmngr *mb_list, void *m, short type)
+mb_free(struct mb_lstmngr *mb_list, void *m, short type, short persist,
+	int *pers_list)
 {
 	struct mb_pcpu_list *cnt_lst;
 	struct mb_gen_list *gen_list;
@@ -800,9 +801,19 @@ retry_lock:
 	switch (owner) {
 	case MB_GENLIST_OWNER:
 		gen_list = MB_GET_GEN_LIST(mb_list);
-		MB_LOCK_CONT(gen_list);
+		if (((persist & MBP_PERSISTENT) != 0) && (*pers_list >= 0)) {
+			if (*pers_list != MB_GENLIST_OWNER) {
+				cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list,
+				    *pers_list);
+				MB_UNLOCK_CONT(cnt_lst);
+				MB_LOCK_CONT(gen_list);
+			}
+		} else {
+			MB_LOCK_CONT(gen_list);
+		}
 		if (owner != (bucket->mb_owner & ~MB_BUCKET_FREE)) {
 			MB_UNLOCK_CONT(gen_list);
+			*pers_list = -1;
 			goto retry_lock;
 		}
 
@@ -816,14 +827,30 @@ retry_lock:
 		MB_MBTYPES_DEC(gen_list, type, 1);
 		if (gen_list->mb_cont.mc_starved > 0)
 			cv_signal(&(gen_list->mgl_mstarved));
-		MB_UNLOCK_CONT(gen_list);
+		if ((persist & MBP_PERSIST) == 0)
+			MB_UNLOCK_CONT(gen_list);
+		else
+			*pers_list = MB_GENLIST_OWNER;
 		break;
 
 	default:
 		cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list, owner);
-		MB_LOCK_CONT(cnt_lst);
+		if (((persist & MBP_PERSISTENT) != 0) && (*pers_list >= 0)) {
+			if (*pers_list == MB_GENLIST_OWNER) {
+				gen_list = MB_GET_GEN_LIST(mb_list);
+				MB_UNLOCK_CONT(gen_list);
+				MB_LOCK_CONT(cnt_lst);
+			} else {
+				cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list,
+				    *pers_list);
+				owner = *pers_list;
+			}
+		} else {
+			MB_LOCK_CONT(cnt_lst);
+		}
 		if (owner != (bucket->mb_owner & ~MB_BUCKET_FREE)) {
 			MB_UNLOCK_CONT(cnt_lst);
+			*pers_list = -1;
 			goto retry_lock;
 		}
 
@@ -875,7 +902,10 @@ retry_lock:
 				cnt_lst->mb_cont.mc_starved = 0;
 
 			MB_UNLOCK_CONT(gen_list);
-			MB_UNLOCK_CONT(cnt_lst);
+			if ((persist & MBP_PERSIST) == 0)
+				MB_UNLOCK_CONT(cnt_lst);
+			else
+				*pers_list = owner;
 			break;
 		}
 
@@ -918,7 +948,10 @@ retry_lock:
 			    mb_list->ml_objsize) - bucket->mb_numfree);
  
 			MB_UNLOCK_CONT(gen_list);
-			MB_UNLOCK_CONT(cnt_lst);
+			if ((persist & MBP_PERSIST) == 0)
+				MB_UNLOCK_CONT(cnt_lst);
+			else
+				*pers_list = owner;
 			break;
 		}
 
@@ -928,7 +961,10 @@ retry_lock:
 			bucket->mb_owner = cnt_lst->mb_cont.mc_numowner;
 		}
 
-		MB_UNLOCK_CONT(cnt_lst);
+		if ((persist & MBP_PERSIST) == 0)
+			MB_UNLOCK_CONT(cnt_lst);
+		else
+			*pers_list = owner;
 		break;
 	}
 }
@@ -1030,14 +1066,15 @@ mb_reclaim(void)
  *   and, therefore, is very m_getm()-specific.
  */
 static void _mclfree(struct mbuf *);
-static struct mbuf *_mgetm_internal(int, short, int, int);
+static struct mbuf *_mgetm_internal(int, short, short, int);
 
 void
 _mext_free(struct mbuf *mb)
 {
 
 	if (mb->m_ext.ext_type == EXT_CLUSTER)
-		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
+		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF,
+		    0, NULL);
 	else
 		(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf, mb->m_ext.ext_args);
 	_mext_dealloc_ref(mb);
@@ -1047,12 +1084,12 @@ static void
 _mclfree(struct mbuf *mb)
 {
 
-	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF);
+	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF, 0,NULL);
 	mb->m_ext.ext_buf = NULL;
 }
 
 static struct mbuf *
-_mgetm_internal(int how, short type, int persist, int cchnum)
+_mgetm_internal(int how, short type, short persist, int cchnum)
 {
 	struct mbuf *mb;
 
@@ -1123,8 +1160,8 @@ struct mbuf *
 m_getm(struct mbuf *m, int len, int how, short type)
 {
 	struct mbuf *mb, *top, *cur, *mtail;
-	int num, rem;
-	int cchnum, persist;
+	int num, rem, cchnum;
+	short persist;
 	int i;
 
 	KASSERT(len >= 0, ("m_getm(): len is < 0"));
@@ -1284,6 +1321,8 @@ struct mbuf *
 m_free(struct mbuf *mb)
 {
 	struct mbuf *nb;
+	int cchnum;
+	short persist = 0;
 
 	/* XXX: This check is bogus... please fix (see KAME). */
 	if ((mb->m_flags & M_PKTHDR) != 0 && mb->m_pkthdr.aux) {
@@ -1292,9 +1331,23 @@ m_free(struct mbuf *mb)
 	}
 
 	nb = mb->m_next;
-	if ((mb->m_flags & M_EXT) != 0)
-		MEXTFREE(mb);
-	mb_free(&mb_list_mbuf, mb, mb->m_type);
+	if ((mb->m_flags & M_EXT) != 0) {
+		MEXT_REM_REF(mb);
+		if (atomic_cmpset_int(mb->m_ext.ref_cnt, 0, 1)) {
+			_mext_dealloc_ref(mb);
+			if (mb->m_ext.ext_type == EXT_CLUSTER) {
+				mb_free(&mb_list_clust,
+				    (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF,
+				    MBP_PERSIST, &cchnum);
+				persist = MBP_PERSISTENT;
+			} else {
+				(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf,
+				    mb->m_ext.ext_args);
+				persist = 0;
+			}
+		}
+	}
+	mb_free(&mb_list_mbuf, mb, mb->m_type, persist, &cchnum);
 	return (nb);
 }
 
