@@ -87,7 +87,7 @@ vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
 
 	if ((vm_map_lookup(&map, uaddr,
-			   VM_PROT_READ, &entry, &uobject,
+			   VM_PROT_WRITE, &entry, &uobject,
 			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
 		return(EFAULT);
 	}
