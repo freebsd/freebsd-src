@@ -99,7 +99,9 @@ static int alpha_console;
 void
 init_bootstrap_console()
 {
+#ifndef SIMOS
 	char buf[4];
+#endif
 
 	init_prom_interface(hwrpb);
 
@@ -200,12 +202,14 @@ enter_prom()
 		/*
 		 * SimOS console uses floating point.
 		 */
-		if (curproc != PCPU_GET(fpcurproc)) {
+		if (curthread != PCPU_GET(fpcurthread)) {
 			alpha_pal_wrfen(1);
-			if (PCPU_GET(fpcurproc))
-				savefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
-			PCPU_SET(fpcurproc, curproc);
-			restorefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
+			if (PCPU_GET(fpcurthread)) {
+				savefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
+				PCPU_GET(fpcurthread)->td_pcb->pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
+			}
+			PCPU_SET(fpcurthread, curthread);
+			restorefpstate(&PCPU_GET(fpcurthread)->td_pcb->pcb_fp);
 		}
 #endif
 		if (!pmap_uses_prom_console())
