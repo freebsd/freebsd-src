@@ -989,7 +989,7 @@ static void aue_rxeof(xfer, priv, status)
 	 * split transfer. We really need a more reliable way
 	 * to detect this.
 	 */
-	if (r.aue_pktlen != AUE_CUTOFF && total_len == AUE_CUTOFF) {
+	if (total_len == AUE_CUTOFF && r.aue_pktlen != (AUE_CUTOFF - 4)) {
 		c->aue_accum = AUE_CUTOFF;
 		usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
 		    c, mtod(c->aue_mbuf, char *) + AUE_CUTOFF,
