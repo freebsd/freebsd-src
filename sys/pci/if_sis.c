@@ -1439,14 +1439,13 @@ static void sis_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
-	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
+	SIS_LOCK(sc);
 	/* Supress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		sis_stop(sc);
-		SIS_UNLOCK(sc);
-		return;
+		goto done;
 	}
 
 	/* Disable interrupts. */
@@ -1459,20 +1458,19 @@ static void sis_intr(arg)
 		if ((status & SIS_INTRS) == 0)
 			break;
 
-		if ((status & SIS_ISR_TX_DESC_OK) ||
-		    (status & SIS_ISR_TX_ERR) ||
-		    (status & SIS_ISR_TX_OK) ||
-		    (status & SIS_ISR_TX_IDLE))
+		if (status &
+		    (SIS_ISR_TX_DESC_OK | SIS_ISR_TX_ERR |
+		     SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
 			sis_txeof(sc);
 
-		if ((status & SIS_ISR_RX_DESC_OK) ||
-		    (status & SIS_ISR_RX_OK))
+		if (status & (SIS_ISR_RX_DESC_OK|SIS_ISR_RX_OK|SIS_ISR_RX_IDLE))
 			sis_rxeof(sc);
 
-		if ((status & SIS_ISR_RX_ERR) ||
-		    (status & SIS_ISR_RX_OFLOW)) {
+		if (status & (SIS_ISR_RX_ERR | SIS_ISR_RX_OFLOW))
 			sis_rxeoc(sc);
-		}
+
+		if (status & (SIS_ISR_RX_IDLE))
+			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 
 		if (status & SIS_ISR_SYSERR) {
 			sis_reset(sc);
@@ -1485,7 +1483,7 @@ static void sis_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		sis_start(ifp);
-
+done:
 	SIS_UNLOCK(sc);
 
 	return;
