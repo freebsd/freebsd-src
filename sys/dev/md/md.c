@@ -577,12 +577,12 @@ md_kthread(void *arg)
 			bioq_remove(&sc->bio_queue, bp);
 		/* XXX: UNLOCK(unique unit numbers) */
 		if (!bp) {
-			tsleep(sc, PRIBIO, "mdwait", 0);
 			if (sc->flags & MD_SHUTDOWN) {
 				sc->procp = NULL;
 				wakeup(&sc->procp);
 				kthread_exit(0);
 			}
+			tsleep(sc, PRIBIO, "mdwait", 0);
 			continue;
 		}
 
