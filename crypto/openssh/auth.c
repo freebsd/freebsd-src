@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.45 2002/09/20 18:41:29 stevesk Exp $");
+RCSID("$OpenBSD: auth.c,v 1.46 2002/11/04 10:07:53 markus Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_LOGIN_H
@@ -80,17 +80,20 @@ allowed_user(struct passwd * pw)
 	char *loginmsg;
 #endif /* WITH_AIXAUTHENTICATE */
 #if !defined(USE_PAM) && defined(HAVE_SHADOW_H) && \
-	!defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
+    !defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 	struct spwd *spw;
+	time_t today;
+#endif
 
 	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
 	if (!pw || !pw->pw_name)
 		return 0;
 
+#if !defined(USE_PAM) && defined(HAVE_SHADOW_H) && \
+    !defined(DISABLE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 #define	DAY		(24L * 60 * 60) /* 1 day in seconds */
-	spw = getspnam(pw->pw_name);
-	if (spw != NULL) {
-		time_t today = time(NULL) / DAY;
+	if ((spw = getspnam(pw->pw_name)) != NULL) {
+		today = time(NULL) / DAY;
 		debug3("allowed_user: today %d sp_expire %d sp_lstchg %d"
 		    " sp_max %d", (int)today, (int)spw->sp_expire,
 		    (int)spw->sp_lstchg, (int)spw->sp_max);
@@ -117,10 +120,6 @@ allowed_user(struct passwd * pw)
 			return 0;
 		}
 	}
-#else
-	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
-	if (!pw || !pw->pw_name)
-		return 0;
 #endif
 
 	/*
@@ -203,7 +202,15 @@ allowed_user(struct passwd * pw)
 	}
 
 #ifdef WITH_AIXAUTHENTICATE
-	if (loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &loginmsg) != 0) {
+	/*
+	 * Don't check loginrestrictions() for root account (use
+	 * PermitRootLogin to control logins via ssh), or if running as
+	 * non-root user (since loginrestrictions will always fail).
+	 */
+	if ((pw->pw_uid != 0) && (geteuid() == 0) &&
+	    loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &loginmsg) != 0) {
+		int loginrestrict_errno = errno;
+
 		if (loginmsg && *loginmsg) {
 			/* Remove embedded newlines (if any) */
 			char *p;
@@ -213,9 +220,13 @@ allowed_user(struct passwd * pw)
 			}
 			/* Remove trailing newline */
 			*--p = '\0';
-			log("Login restricted for %s: %.100s", pw->pw_name, loginmsg);
+			log("Login restricted for %s: %.100s", pw->pw_name, 
+			    loginmsg);
 		}
-		return 0;
+		/* Don't fail if /etc/nologin  set */
+	    	if (!(loginrestrict_errno == EPERM && 
+		    stat(_PATH_NOLOGIN, &st) == 0))
+			return 0;
 	}
 #endif /* WITH_AIXAUTHENTICATE */
 
@@ -418,6 +429,7 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 	uid_t uid = pw->pw_uid;
 	char buf[MAXPATHLEN], homedir[MAXPATHLEN];
 	char *cp;
+	int comparehome = 0;
 	struct stat st;
 
 	if (realpath(file, buf) == NULL) {
@@ -425,11 +437,8 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		    strerror(errno));
 		return -1;
 	}
-	if (realpath(pw->pw_dir, homedir) == NULL) {
-		snprintf(err, errlen, "realpath %s failed: %s", pw->pw_dir,
-		    strerror(errno));
-		return -1;
-	}
+	if (realpath(pw->pw_dir, homedir) != NULL)
+		comparehome = 1;
 
 	/* check the open file to avoid races */
 	if (fstat(fileno(f), &st) < 0 ||
@@ -458,7 +467,7 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 
 		/* If are passed the homedir then we can stop */
-		if (strcmp(homedir, buf) == 0) {
+		if (comparehome && strcmp(homedir, buf) == 0) {
 			debug3("secure_filename: terminating check at '%s'",
 			    buf);
 			break;
@@ -488,6 +497,11 @@ getpwnamallow(const char *user)
 	if (pw == NULL) {
 		log("Illegal user %.100s from %.100s",
 		    user, get_remote_ipaddr());
+#ifdef WITH_AIXAUTHENTICATE
+		loginfailed(user,
+		    get_canonical_hostname(options.verify_reverse_mapping),
+		    "ssh");
+#endif
 		return (NULL);
 	}
 	if (!allowed_user(pw))

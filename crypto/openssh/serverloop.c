@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.104 2002/09/19 16:03:15 stevesk Exp $");
+RCSID("$OpenBSD: serverloop.c,v 1.106 2003/04/01 10:22:21 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: readconf.c,v 1.100 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: readconf.c,v 1.104 2003/04/01 10:22:21 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -115,6 +115,7 @@ typedef enum {
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
 	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
+	oEnableSSHKeysign,
 	oVersionAddendum,
 	oDeprecated
 } OpCodes;
@@ -187,6 +188,7 @@ static struct {
 	{ "bindaddress", oBindAddress },
 	{ "smartcarddevice", oSmartcardDevice },
 	{ "clearallforwardings", oClearAllForwardings },
+	{ "enablesshkeysign", oEnableSSHKeysign },
 	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
 	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
@@ -269,14 +271,16 @@ parse_token(const char *cp, const char *filename, int linenum)
  * Processes a single option line as used in the configuration files. This
  * only sets those values that have not already been set.
  */
+#define WHITESPACE " \t\r\n"
 
 int
 process_config_line(Options *options, const char *host,
 		    char *line, const char *filename, int linenum,
 		    int *activep)
 {
-	char buf[256], *s, *string, **charptr, *endofnumber, *keyword, *arg;
+	char buf[256], *s, **charptr, *endofnumber, *keyword, *arg;
 	int opcode, *intptr, value;
+	size_t len;
 	u_short fwd_port, fwd_host_port;
 	char sfwd_host_port[6];
 
@@ -489,16 +493,9 @@ parse_string:
 
 	case oProxyCommand:
 		charptr = &options->proxy_command;
-		string = xstrdup("");
-		while ((arg = strdelim(&s)) != NULL && *arg != '\0') {
-			string = xrealloc(string, strlen(string) + strlen(arg) + 2);
-			strcat(string, " ");
-			strcat(string, arg);
-		}
+		len = strspn(s, WHITESPACE "=");
 		if (*activep && *charptr == NULL)
-			*charptr = string;
-		else
-			xfree(string);
+			*charptr = xstrdup(s + len);
 		return 0;
 
 	case oPort:
@@ -672,6 +669,10 @@ parse_int:
 			*intptr = value;
 		break;
 
+	case oEnableSSHKeysign:
+		intptr = &options->enable_ssh_keysign;
+		goto parse_flag;
+
 	case oVersionAddendum:
 		ssh_version_set_addendum(strtok(s, "\n"));
 		do {
@@ -802,6 +803,7 @@ initialize_options(Options * options)
 	options->preferred_authentications = NULL;
 	options->bind_address = NULL;
 	options->smartcard_device = NULL;
+	options->enable_ssh_keysign = - 1;
 	options->no_host_authentication_for_localhost = - 1;
 }
 
@@ -917,6 +919,8 @@ fill_default_options(Options * options)
 		clear_forwardings(options);
 	if (options->no_host_authentication_for_localhost == - 1)
 		options->no_host_authentication_for_localhost = 0;
+	if (options->enable_ssh_keysign == -1)
+		options->enable_ssh_keysign = 0;
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */
 	/* options->hostname will be set in the main program if appropriate */

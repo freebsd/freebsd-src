@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.57 2002/09/11 18:27:26 stevesk Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.58 2003/01/23 13:50:27 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -500,10 +500,10 @@ ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
 
 int
 ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
-    const char *comment, u_int life)
+    const char *comment, u_int life, u_int confirm)
 {
 	Buffer msg;
-	int type, constrained = (life != 0);
+	int type, constrained = (life || confirm);
 
 	buffer_init(&msg);
 
@@ -533,6 +533,8 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 			buffer_put_char(&msg, SSH_AGENT_CONSTRAIN_LIFETIME);
 			buffer_put_int(&msg, life);
 		}
+		if (confirm != 0)
+			buffer_put_char(&msg, SSH_AGENT_CONSTRAIN_CONFIRM);
 	}
 	if (ssh_request_reply(auth, &msg, &msg) == 0) {
 		buffer_free(&msg);
@@ -546,7 +548,7 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 int
 ssh_add_identity(AuthenticationConnection *auth, Key *key, const char *comment)
 {
-	return ssh_add_identity_constrained(auth, key, comment, 0);
+	return ssh_add_identity_constrained(auth, key, comment, 0, 0);
 }
 
 /*

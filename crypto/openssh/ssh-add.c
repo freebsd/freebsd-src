@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.63 2002/09/19 15:51:23 markus Exp $");
+RCSID("$OpenBSD: ssh-add.c,v 1.66 2003/03/05 22:33:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -70,6 +70,9 @@ static char *default_files[] = {
 
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
+
+/* User has to confirm key use */
+static int confirm = 0;
 
 /* we keep a cache of one passphrases */
 static char *pass = NULL;
@@ -166,12 +169,16 @@ add_file(AuthenticationConnection *ac, const char *filename)
 		}
 	}
 
-	if (ssh_add_identity_constrained(ac, private, comment, lifetime)) {
+ 	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
+ 	    confirm)) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
 		if (lifetime != 0)
-                        fprintf(stderr,
+			fprintf(stderr,
 			    "Lifetime set to %d seconds\n", lifetime);
+ 		if (confirm != 0)
+			fprintf(stderr,
+			    "The user has to confirm each use of the key\n");
 	} else if (ssh_add_identity(ac, private, comment)) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
@@ -189,6 +196,7 @@ static int
 update_card(AuthenticationConnection *ac, int add, const char *id)
 {
 	char *pin;
+	int ret = -1;
 
 	pin = read_passphrase("Enter passphrase for smartcard: ", RP_ALLOW_STDIN);
 	if (pin == NULL)
@@ -197,12 +205,14 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 	if (ssh_update_card(ac, add, id, pin)) {
 		fprintf(stderr, "Card %s: %s\n",
 		    add ? "added" : "removed", id);
-		return 0;
+		ret = 0;
 	} else {
 		fprintf(stderr, "Could not %s card: %s\n",
 		    add ? "add" : "remove", id);
-		return -1;
+		ret = -1;
 	}
+	xfree(pin);
+	return ret;
 }
 
 static int
@@ -293,6 +303,7 @@ usage(void)
 	fprintf(stderr, "  -x          Lock agent.\n");
 	fprintf(stderr, "  -X          Unlock agent.\n");
 	fprintf(stderr, "  -t life     Set lifetime (in seconds) when adding identities.\n");
+	fprintf(stderr, "  -c          Require confirmation to sign using identities\n");
 #ifdef SMARTCARD
 	fprintf(stderr, "  -s reader   Add key in smartcard reader.\n");
 	fprintf(stderr, "  -e reader   Remove key in smartcard reader.\n");
@@ -320,7 +331,7 @@ main(int argc, char **argv)
 		fprintf(stderr, "Could not open a connection to your authentication agent.\n");
 		exit(2);
 	}
-	while ((ch = getopt(argc, argv, "lLdDxXe:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "lLcdDxXe:s:t:")) != -1) {
 		switch (ch) {
 		case 'l':
 		case 'L':
@@ -333,6 +344,9 @@ main(int argc, char **argv)
 			if (lock_agent(ac, ch == 'x' ? 1 : 0) == -1)
 				ret = 1;
 			goto done;
+			break;
+		case 'c':
+			confirm = 1;
 			break;
 		case 'd':
 			deleting = 1;

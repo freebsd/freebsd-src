@@ -158,6 +158,10 @@ __RCSID(msg)
 # include <tmpdir.h>
 #endif
 
+#ifdef HAVE_LIBUTIL_H
+# include <libutil.h> /* Openpty on FreeBSD at least */
+#endif
+
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */
 
 #include "defines.h"

@@ -1,5 +1,5 @@
 #include "includes.h"
-RCSID("$Id: auth2-pam.c,v 1.14 2002/06/28 16:48:12 mouring Exp $");
+RCSID("$Id: auth2-pam.c,v 1.15 2003/01/08 01:37:03 djm Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef USE_PAM
@@ -155,8 +155,7 @@ input_userauth_info_response_pam(int type, u_int32_t seqnr, void *ctxt)
 
 		resp = packet_get_string(&rlen);
 		context_pam2.responses[j].resp_retcode = PAM_SUCCESS;
-		context_pam2.responses[j].resp = xstrdup(resp);
-		xfree(resp);
+		context_pam2.responses[j].resp = resp;
 		context_pam2.num_received++;
 	}
 
