@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.104 1997/11/18 19:38:27 brian Exp $
+ * $Id: command.c,v 1.105 1997/11/22 03:37:28 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -97,26 +97,39 @@ static int
 HelpCommand(struct cmdargs const *arg)
 {
   struct cmdtab const *cmd;
-  int n;
+  int n, cmax, dmax, cols;
 
   if (!VarTerm)
     return 0;
 
   if (arg->argc > 0) {
     for (cmd = arg->cmd; cmd->name; cmd++)
-      if (strcasecmp(cmd->name, *arg->argv) == 0 && (cmd->lauth & VarLocalAuth)) {
+      if (strcasecmp(cmd->name, *arg->argv) == 0 &&
+          (cmd->lauth & VarLocalAuth)) {
 	fprintf(VarTerm, "%s\n", cmd->syntax);
 	return 0;
       }
     return -1;
   }
+  cmax = dmax = 0;
+  for (cmd = arg->cmd; cmd->func; cmd++)
+    if (cmd->name && (cmd->lauth & VarLocalAuth)) {
+      if ((n = strlen(cmd->name)) > cmax)
+        cmax = n;
+      if ((n = strlen(cmd->helpmes)) > dmax)
+        dmax = n;
+    }
+
+  cols = 80 / (dmax + cmax + 3);
   n = 0;
   for (cmd = arg->cmd; cmd->func; cmd++)
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      fprintf(VarTerm, "  %-9s: %-20s\n", cmd->name, cmd->helpmes);
-      n++;
+      fprintf(VarTerm, " %-*.*s: %-*.*s",
+              cmax, cmax, cmd->name, dmax, dmax, cmd->helpmes);
+      if (++n % cols == 0)
+        fprintf(VarTerm, "\n");
     }
-  if (n & 1)
+  if (n % cols != 0)
     fprintf(VarTerm, "\n");
 
   return 0;
@@ -336,7 +349,7 @@ static struct cmdtab const Commands[] = {
   {"allow", "auth", AllowCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
-  "Run a command in the background", "[!]bg command"},
+  "Run a background command", "[!]bg command"},
   {"close", NULL, CloseCommand, LOCAL_AUTH,
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
@@ -362,9 +375,9 @@ static struct cmdtab const Commands[] = {
   {"shell", "!", FgShellCommand, LOCAL_AUTH,
   "Run a subshell", "shell|! [sh command]"},
   {"show", NULL, ShowCommand, LOCAL_AUTH,
-  "Show status and statistics", "show var"},
+  "Show status and stats", "show var"},
   {"term", NULL, TerminalCommand, LOCAL_AUTH,
-  "Enter to terminal mode", "term"},
+  "Enter terminal mode", "term"},
 #ifndef NOALIAS
   {"alias", NULL, AliasCommand, LOCAL_AUTH,
   "alias control", "alias option [yes|no]"},
@@ -563,19 +576,19 @@ ShowMSExt(struct cmdargs const *arg)
 
 static struct cmdtab const ShowCommands[] = {
   {"afilter", NULL, ShowAfilter, LOCAL_AUTH,
-  "Show keep Alive filters", "show afilter option .."},
+  "Show keep-alive filters", "show afilter option .."},
   {"auth", NULL, ShowAuthKey, LOCAL_AUTH,
-  "Show auth name, key and algorithm", "show auth"},
+  "Show auth details", "show auth"},
   {"ccp", NULL, ReportCcpStatus, LOCAL_AUTH,
   "Show CCP status", "show cpp"},
   {"compress", NULL, ReportCompress, LOCAL_AUTH,
-  "Show compression statistics", "show compress"},
+  "Show compression stats", "show compress"},
   {"dfilter", NULL, ShowDfilter, LOCAL_AUTH,
   "Show Demand filters", "show dfilteroption .."},
   {"escape", NULL, ShowEscape, LOCAL_AUTH,
   "Show escape characters", "show escape"},
   {"hdlc", NULL, ReportHdlcStatus, LOCAL_AUTH,
-  "Show HDLC error summary", "show hdlc"},
+  "Show HDLC errors", "show hdlc"},
   {"ifilter", NULL, ShowIfilter, LOCAL_AUTH,
   "Show Input filters", "show ifilter option .."},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
@@ -583,9 +596,9 @@ static struct cmdtab const ShowCommands[] = {
   {"lcp", NULL, ReportLcpStatus, LOCAL_AUTH,
   "Show LCP status", "show lcp"},
   {"loopback", NULL, ShowLoopback, LOCAL_AUTH,
-  "Show current loopback setting", "show loopback"},
+  "Show loopback setting", "show loopback"},
   {"log", NULL, ShowLogLevel, LOCAL_AUTH,
-  "Show current log level", "show log"},
+  "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
   "Show memory map", "show mem"},
   {"modem", NULL, ShowModemStatus, LOCAL_AUTH,
@@ -599,15 +612,15 @@ static struct cmdtab const ShowCommands[] = {
   {"proto", NULL, ReportProtStatus, LOCAL_AUTH,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH,
-  "Show Reconnect timer,tries", "show reconnect"},
+  "Show reconnect timer", "show reconnect"},
   {"redial", NULL, ShowRedial, LOCAL_AUTH,
-  "Show Redial timeout value", "show redial"},
+  "Show Redial timeout", "show redial"},
   {"route", NULL, ShowRoute, LOCAL_AUTH,
   "Show routing table", "show route"},
   {"timeout", NULL, ShowTimeout, LOCAL_AUTH,
-  "Show Idle timeout value", "show timeout"},
+  "Show Idle timeout", "show timeout"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH,
-  "Show STOPPED timeout value", "show stopped"},
+  "Show STOPPED timeout", "show stopped"},
 #ifndef NOMSEXT
   {"msext", NULL, ShowMSExt, LOCAL_AUTH,
   "Show MS PPP extentions", "show msext"},
@@ -663,7 +676,7 @@ FindExec(struct cmdtab const *cmds, int argc, char const *const *argv)
   if (nmatch > 1)
     LogPrintf(LogWARN, "%s: Ambiguous command\n", *argv);
   else if (cmd && (cmd->lauth & VarLocalAuth)) {
-    arg.cmd = cmd;
+    arg.cmd = cmds;
     arg.argc = argc-1;
     arg.argv = argv+1;
     arg.data = cmd->args;
