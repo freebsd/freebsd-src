@@ -224,6 +224,9 @@
     <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
     support is compiled into the kernel.</para>
 
+    <para>A &man.nmdm.4; null-modem terminal driver has been added.
+    &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
