@@ -106,14 +106,7 @@ char *speeds[] = {
 #define	MAX_SPEED_LENGTH	(sizeof("115200") - 1)
 };
 
-#ifdef OLDSUN
-struct winsize {
-	unsigned short ws_row, ws_col;
-	unsigned short ws_xpixel, ws_ypixel;
-};
-#else
 #define	get_window_size(fd, wp)	ioctl(fd, TIOCGWINSZ, wp)
-#endif
 struct	winsize winsize;
 
 void		catch_child(int);
@@ -135,14 +128,8 @@ void		usage(void) __dead2;
 void		writer(void);
 void		writeroob(int);
 
-#ifdef OLDSUN
-int		get_window_size(int, struct winsize *);
-#endif
-
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct passwd *pw;
 	struct servent *sp;
@@ -381,8 +368,7 @@ struct tchars notc = { -1, -1, -1, -1, -1, -1 };
 struct ltchars noltc = { -1, -1, -1, -1, -1, -1 };
 
 void
-doit(omask)
-	long omask;
+doit(long omask)
 {
 	struct sgttyb sb;
 
@@ -432,8 +418,7 @@ doit(omask)
 
 /* trap a signal, unless it is being ignored. */
 void
-setsignal(sig)
-	int sig;
+setsignal(int sig)
 {
 	int omask = sigblock(sigmask(sig));
 
@@ -443,8 +428,7 @@ setsignal(sig)
 }
 
 void
-done(status)
-	int status;
+done(int status)
 {
 	int w, wstatus;
 
@@ -465,8 +449,7 @@ int dosigwinch;
  * request to turn on the window-changing protocol.
  */
 void
-writeroob(signo)
-	int signo;
+writeroob(int signo)
 {
 	if (dosigwinch == 0) {
 		sendwindow();
@@ -476,8 +459,7 @@ writeroob(signo)
 }
 
 void
-catch_child(signo)
-	int signo;
+catch_child(int signo)
 {
 	union wait status;
 	int pid;
@@ -500,9 +482,9 @@ catch_child(signo)
  * ~<delayed-suspend char>	suspend rlogin process, but leave reader alone.
  */
 void
-writer()
+writer(void)
 {
-	register int bol, local, n;
+	int bol, local, n;
 	char c;
 
 	bol = 1;			/* beginning of line */
@@ -573,14 +555,9 @@ writer()
 }
 
 void
-#if __STDC__
-echo(register char c)
-#else
-echo(c)
-	register char c;
-#endif
+echo(char c)
 {
-	register char *p;
+	char *p;
 	char buf[8];
 
 	p = buf;
@@ -600,12 +577,7 @@ echo(c)
 }
 
 void
-#if __STDC__
 stop(char cmdc)
-#else
-stop(cmdc)
-	char cmdc;
-#endif
 {
 	mode(0);
 	(void)signal(SIGCHLD, SIG_IGN);
@@ -632,7 +604,7 @@ sigwinch(signo)
  * Send the window size to the server via the magic escape
  */
 void
-sendwindow()
+sendwindow(void)
 {
 	struct winsize *wp;
 	char obuf[4 + sizeof (struct winsize)];
@@ -669,8 +641,7 @@ int ppid, rcvcnt, rcvstate;
 char rcvbuf[8 * 1024];
 
 void
-oob(signo)
-	int signo;
+oob(int signo)
 {
 	struct sgttyb sb;
 	int atmark, n, out, rcvd;
@@ -760,8 +731,7 @@ oob(signo)
 
 /* reader: read from remote: line -> 1 */
 int
-reader(omask)
-	int omask;
+reader(int omask)
 {
 	int pid, n, remaining;
 	char *bufp;
@@ -815,8 +785,7 @@ reader(omask)
 }
 
 void
-mode(f)
-	int f;
+mode(int f)
 {
 	struct ltchars *ltc;
 	struct sgttyb sb;
@@ -857,8 +826,7 @@ mode(f)
 }
 
 void
-lostpeer(signo)
-	int signo;
+lostpeer(int signo)
 {
 	(void)signal(SIGPIPE, SIG_IGN);
 	msg("\007connection closed.");
@@ -867,21 +835,19 @@ lostpeer(signo)
 
 /* copy SIGURGs to the child process via SIGUSR1. */
 void
-copytochild(signo)
-	int signo;
+copytochild(int signo)
 {
 	(void)kill(child, SIGUSR1);
 }
 
 void
-msg(str)
-	char *str;
+msg(char *str)
 {
 	(void)fprintf(stderr, "rlogin: %s\r\n", str);
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	"usage: rlogin [-46%s]%s[-e char] [-i localname] [-l username] host\n",
@@ -897,32 +863,8 @@ usage()
 	exit(1);
 }
 
-/*
- * The following routine provides compatibility (such as it is) between older
- * Suns and others.  Suns have only a `ttysize', so we convert it to a winsize.
- */
-#ifdef OLDSUN
-int
-get_window_size(fd, wp)
-	int fd;
-	struct winsize *wp;
-{
-	struct ttysize ts;
-	int error;
-
-	if ((error = ioctl(0, TIOCGSIZE, &ts)) != 0)
-		return (error);
-	wp->ws_row = ts.ts_lines;
-	wp->ws_col = ts.ts_cols;
-	wp->ws_xpixel = 0;
-	wp->ws_ypixel = 0;
-	return (0);
-}
-#endif
-
 u_int
-getescape(p)
-	register char *p;
+getescape(char *p)
 {
 	long val;
 	int len;
