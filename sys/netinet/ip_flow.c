@@ -199,7 +199,7 @@ ipflow_free(
 	ipflow_addstats(ipf);
 	RTFREE(ipf->ipf_ro.ro_rt);
 	ipflow_inuse--;
-	FREE(ipf, M_IPFLOW);
+	free(ipf, M_IPFLOW);
 }
 
 static struct ipflow *
