@@ -61,7 +61,7 @@ grabh(hp, gflags)
 	struct header *hp;
 	int gflags;
 {
-	struct sgttyb ttybuf;
+	struct termios tio;
 	sig_t saveint;
 #ifndef TIOCSTI
 	sig_t savequit;
@@ -79,15 +79,15 @@ grabh(hp, gflags)
 #ifndef TIOCSTI
 	ttyset = 0;
 #endif
-	if (ioctl(fileno(stdin), TIOCGETP, &ttybuf) < 0) {
-		perror("gtty");
+	if (tcgetattr(fileno(stdin), &tio) < 0) {
+		perror("tcgetattr(stdin)");
 		return(-1);
 	}
-	c_erase = ttybuf.sg_erase;
-	c_kill = ttybuf.sg_kill;
+	c_erase = tio.c_cc[VERASE];
+	c_kill = tio.c_cc[VKILL];
 #ifndef TIOCSTI
-	ttybuf.sg_erase = 0;
-	ttybuf.sg_kill = 0;
+	tio.c_cc[VERASE] = 0;
+	tio.c_cc[VKILL] = 0;
 	if ((saveint = signal(SIGINT, SIG_IGN)) == SIG_DFL)
 		signal(SIGINT, SIG_DFL);
 	if ((savequit = signal(SIGQUIT, SIG_IGN)) == SIG_DFL)
@@ -100,7 +100,7 @@ grabh(hp, gflags)
 	if (gflags & GTO) {
 #ifndef TIOCSTI
 		if (!ttyset && hp->h_to != NIL)
-			ttyset++, stty(fileno(stdin), &ttybuf);
+			ttyset++, tcsetattr(fileno(stdin), TCSADRAIN, &tio);
 #endif
 		hp->h_to =
 			extract(readtty("To: ", detract(hp->h_to, 0)), GTO);
@@ -108,14 +108,14 @@ grabh(hp, gflags)
 	if (gflags & GSUBJECT) {
 #ifndef TIOCSTI
 		if (!ttyset && hp->h_subject != NOSTR)
-			ttyset++, stty(fileno(stdin), &ttybuf);
+			ttyset++, tcsetattr(fileno(stdin), TCSADRAIN, &tio);
 #endif
 		hp->h_subject = readtty("Subject: ", hp->h_subject);
 	}
 	if (gflags & GCC) {
 #ifndef TIOCSTI
 		if (!ttyset && hp->h_cc != NIL)
-			ttyset++, stty(fileno(stdin), &ttybuf);
+			ttyset++, tcsetattr(fileno(stdin), TCSADRAIN, &tio);
 #endif
 		hp->h_cc =
 			extract(readtty("Cc: ", detract(hp->h_cc, 0)), GCC);
@@ -123,7 +123,7 @@ grabh(hp, gflags)
 	if (gflags & GBCC) {
 #ifndef TIOCSTI
 		if (!ttyset && hp->h_bcc != NIL)
-			ttyset++, stty(fileno(stdin), &ttybuf);
+			ttyset++, tcsetattr(fileno(stdin), TCSADRAIN, &tio);
 #endif
 		hp->h_bcc =
 			extract(readtty("Bcc: ", detract(hp->h_bcc, 0)), GBCC);
@@ -133,10 +133,10 @@ out:
 	signal(SIGTTOU, savettou);
 	signal(SIGTTIN, savettin);
 #ifndef TIOCSTI
-	ttybuf.sg_erase = c_erase;
-	ttybuf.sg_kill = c_kill;
+	tio.c_cc[VERASE] = c_erase;
+	tio.c_cc[VKILL] = c_kill;
 	if (ttyset)
-		stty(fileno(stdin), &ttybuf);
+		tcsetattr(fileno(stdin), TCSADRAIN, &tio);
 	signal(SIGQUIT, savequit);
 #endif
 	signal(SIGINT, saveint);
