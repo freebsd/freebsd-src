@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.3 1995/05/30 08:06:52 rgrimes Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.4 1995/09/03 05:43:42 julian Exp $
  *
  *
  */
@@ -70,10 +70,14 @@ DBPRINT(("mount "));
  *  as best we can with whatever we can think of at the time
  */
 	devfs_mp_p = (struct devfsmount *)mp->mnt_data;
-	copyinstr(path, (caddr_t)mp->mnt_stat.f_mntonname,
-		sizeof(mp->mnt_stat.f_mntonname)-1, &size);
-	bzero(mp->mnt_stat.f_mntonname + size,
-		sizeof(mp->mnt_stat.f_mntonname) - size);
+	if(devfs_up_and_going) {
+		copyinstr(path, (caddr_t)mp->mnt_stat.f_mntonname,
+			sizeof(mp->mnt_stat.f_mntonname)-1, &size);
+		bzero(mp->mnt_stat.f_mntonname + size,
+			sizeof(mp->mnt_stat.f_mntonname) - size);
+	} else {
+		bcopy("dummy_mount", (caddr_t)mp->mnt_stat.f_mntonname,12);
+	}
 	bzero(mp->mnt_stat.f_mntfromname , MNAMELEN );
 	bcopy("devfs",mp->mnt_stat.f_mntfromname, 5);
 	(void)devfs_statfs(mp, &mp->mnt_stat, p);
@@ -137,7 +141,6 @@ DBPRINT(("unmount "));
 /* return the address of the root vnode  in *vpp */
 int devfs_root(struct mount *mp, struct vnode **vpp) /*proto*/
 {
-	struct denode *ndep;
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)(mp->mnt_data);
 
 DBPRINT(("root "));

@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_front.c,v 1.5 1995/09/03 08:39:26 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.1 1995/09/06 08:26:51 julian Exp $
  */
 
 #include "param.h"
@@ -40,10 +40,13 @@ void  devfs_sinit() /*proto*/
 	 * call the right routine at the right time with the right args....
 	 */
 	retval = dev_add_node("root",NULL,NULL,DEV_DIR,NULL,&dev_root);
+#ifdef PARANOID
+	if(retval) panic("devfs_sinit: dev_add_node failed ");
+#endif
 	devfs_hidden_mount = (struct mount *)malloc(sizeof(struct mount),
 							M_MOUNT,M_NOWAIT);
 #ifdef PARANOID
-	if(!devfs_hidden_mount) panic("devfs-main-mount: malloc failed");
+	if(!devfs_hidden_mount) panic("devfs_sinit: malloc failed");
 #endif
 	bzero(devfs_hidden_mount,sizeof(struct mount));
 	devfs_mount(devfs_hidden_mount,"dummy",NULL,NULL,NULL);
@@ -176,7 +179,6 @@ int	dev_add_node(char *name, dn_p dirnode,devnm_p back, int entrytype, union typ
 		dnp = dev_findname(dirnode,name);
 		if(dnp) /* if we actually found it.. */
 			return(EEXIST);
-		dnp = NULL; /*just want the return code..*/
 	}
 	/*
 	 * make sure the name is legal
@@ -291,9 +293,11 @@ int	dev_add_node(char *name, dn_p dirnode,devnm_p back, int entrytype, union typ
 		/* inherrit our parent's mount info */
 		if(dirnode) {
 			dnp->dvm = dirnode->dvm;
+			if(!dnp->dvm) printf("parent had null dvm ");
 		}
 	} else {
 		dnp = back->dnp;
+		if(!dnp->dvm) printf("node has null dvm ");
 	}
 
 	/*
