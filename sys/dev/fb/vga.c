@@ -2405,6 +2405,7 @@ vga_blank_display(video_adapter_t *adp, int mode)
 
     case KD_EGA:
 	/* no support yet */
+	splx(s);
 	return ENODEV;
 
     case KD_CGA:
