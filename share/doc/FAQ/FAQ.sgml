@@ -1,11 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.11 1996/10/06 20:33:37 jfieber Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.12 1996/10/09 20:52:35 asami Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date>$Date: 1996/10/06 20:33:37 $
+<date>$Date: 1996/10/09 20:52:35 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1699,6 +1699,15 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           something, and/or check its master/slave status if it is
           IDE (ATAPI).
           
+	  Sometimes a SCSI CD-ROM may be missed because it hadn't enough time
+	  to answer the bus reset. In you have a SCSI CD-ROM please try to
+	  add the following symbol into your  kernel configuration file
+          and recompile.
+
+          <verb>
+            options "SCSI_DELAY=15"
+          </verb>
+
       <sect1>
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
         <p>
