@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.59.2.1 1999/02/15 08:47:10 julian Exp $
+ *	$Id: if_fxp.c,v 1.59.2.2 1999/03/18 18:47:29 luigi Exp $
  */
 
 /*
@@ -98,6 +98,7 @@
 #include <machine/clock.h>	/* for DELAY */
 
 #include <pci/pcivar.h>
+#include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
 #include <pci/if_fxpreg.h>
 #include <pci/if_fxpvar.h>
 
@@ -529,6 +530,7 @@ fxp_attach(config_id, unit)
 	vm_offset_t pbase;
 	struct ifnet *ifp;
 	int s;
+	u_long val;
 
 	sc = malloc(sizeof(struct fxp_softc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL)
@@ -537,6 +539,13 @@ fxp_attach(config_id, unit)
 	callout_handle_init(&sc->stat_ch);
 
 	s = splimp();
+
+	/*
+	 * Enable bus mastering.
+	 */
+	val = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, val);
 
 	/*
 	 * Map control/status registers.
