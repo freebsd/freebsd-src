@@ -1,7 +1,7 @@
 /*
  * hrvatski praznici
  *
- * $Id: calendar.praznici,v 1.4 1997/02/22 19:28:33 peter Exp $
+ * $Id: calendar.praznici,v 1.2.4.1 1997/02/25 01:58:07 mpp Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_praznici
@@ -31,7 +31,7 @@ Easter+39	Uza¹a¹æe
 12/21*	Poèetak zime
  
 /* ljetno vrijeme */
-03/SundayLast	Poèetak ljetnog vremena
-10/SundayLast	Kraj ljetnog vremena
+03/NedjeljaLast	Poèetak ljetnog vremena
+10/NedjeljaLast	Kraj ljetnog vremena
 
 #endif /* !_hr_HR_ISO_8859_2_praznici */
