@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.29 1998/05/07 00:42:25 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.30 1998/06/07 17:11:27 dfr Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -195,8 +195,8 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): linux_sendsig(%8x, %d, %d, %ld)\n",
-		p->p_pid, catcher, sig, mask, code);
+	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %d, %lu)\n",
+	    (long)p->p_pid, catcher, sig, mask, code);
 #endif
 	/*
 	 * Allocate space for the signal handler context.
@@ -309,7 +309,8 @@ linux_sigreturn(p, args)
 	regs = p->p_md.md_regs;
 
 #ifdef DEBUG
-	printf("Linux-emul(%d): linux_sigreturn(%8x)\n", p->p_pid, args->scp);
+	printf("Linux-emul(%ld): linux_sigreturn(%p)\n",
+	    (long)p->p_pid, (void *)args->scp);
 #endif
 	/*
 	 * The trampoline code hands us the context.

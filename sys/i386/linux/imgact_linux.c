@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.26 1998/02/09 06:09:16 eivind Exp $
+ *	$Id: imgact_linux.c,v 1.27 1998/02/11 01:46:49 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,8 @@ exec_linux_imgact(imgp)
     }
     bss_size = round_page(a_out->a_bss);
 #ifdef DEBUG
-    printf("imgact: text: %08x, data: %08x, bss: %08x\n", a_out->a_text, a_out->a_data, bss_size);
+    printf("imgact: text: %08lx, data: %08lx, bss: %08lx\n",
+	(u_long)a_out->a_text, (u_long)a_out->a_data, bss_size);
 #endif
 
     /*
@@ -126,7 +127,7 @@ exec_linux_imgact(imgp)
      */
     if (file_offset & PAGE_MASK) {
 #ifdef DEBUG
-	printf("imgact: Non page aligned binary %d\n", file_offset);
+	printf("imgact: Non page aligned binary %lu\n", file_offset);
 #endif
 	/*
 	 * Map text+data+bss read/write/execute
@@ -167,7 +168,7 @@ exec_linux_imgact(imgp)
     }
     else {
 #ifdef DEBUG
-	printf("imgact: Page aligned binary %d\n", file_offset);
+	printf("imgact: Page aligned binary %lu\n", file_offset);
 #endif
 	/*
 	 * Map text+data read/execute
@@ -183,7 +184,8 @@ exec_linux_imgact(imgp)
 	    return (error);
     
 #ifdef DEBUG
-	printf("imgact: startaddr=%08x, length=%08x\n", vmaddr, a_out->a_text + a_out->a_data);
+	printf("imgact: startaddr=%08lx, length=%08lx\n",
+	    (u_long)vmaddr, a_out->a_text + a_out->a_data);
 #endif
 	/*
 	 * allow read/write of data
@@ -206,7 +208,8 @@ exec_linux_imgact(imgp)
 	    if (error)
 		return (error);
 #ifdef DEBUG
-	    printf("imgact: bssaddr=%08x, length=%08x\n", vmaddr, bss_size);
+	    printf("imgact: bssaddr=%08lx, length=%08lx\n",
+		(u_long)vmaddr, bss_size);
 #endif
 
 	}
