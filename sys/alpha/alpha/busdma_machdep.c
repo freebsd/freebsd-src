@@ -29,9 +29,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+
+/* XXX needed for to access pmap to convert per-proc virtual to physical */
+#include <sys/proc.h>
+#include <sys/lock.h>
+#include <vm/vm_map.h>
 
 #include <machine/bus.h>
 #include <machine/sgmap.h>
@@ -94,7 +101,7 @@ static struct bus_dmamap nobounce_dmamap;
 
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map);
-static vm_offset_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
+static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
@@ -175,7 +182,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		}
 	}
 	
-	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
+	if (newtag->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+	    (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 
 		if (lowaddr > bounce_lowaddr) {
@@ -259,7 +267,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 	}
 
-	if (dmat->lowaddr < ptoa(Maxmem)) {
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)) {
 		/* Must bounce */
 		int maxpages;
 
@@ -350,7 +358,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = &nobounce_dmamap;
 
-	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
+	if ((dmat->maxsize <= PAGE_SIZE) &&
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
 				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
 	} else {
@@ -371,7 +380,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 /*
  * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.
+ * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
@@ -382,7 +391,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != &nobounce_dmamap)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	free(vaddr, M_DEVBUF);
+	if ((dmat->maxsize <= PAGE_SIZE) &&
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) 
+		free(vaddr, M_DEVBUF);
+	else
+		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
@@ -399,7 +412,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		void *callback_arg, int flags)
 {
 	vm_offset_t		vaddr;
-	vm_offset_t		paddr;
+	vm_paddr_t		paddr;
 #ifdef __GNUC__
 	bus_dma_segment_t	dm_segments[dmat->nsegments];
 #else
@@ -408,7 +421,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t      *sg;
 	int			seg;
 	int			error;
-	vm_offset_t		nextpaddr;
+	vm_paddr_t		nextpaddr;
 
 	error = 0;
 
@@ -437,7 +450,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	 * If we are being called during a callback, pagesneeded will
 	 * be non-zero, so we can avoid doing the work twice.
 	 */
-	if (dmat->lowaddr < ptoa(Maxmem) && map->pagesneeded == 0) {
+	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+	    map->pagesneeded == 0) {
 		vm_offset_t	vendaddr;
 
 		/*
@@ -527,6 +541,209 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	(*callback)(callback_arg, dm_segments, seg, error);
 
 	return (0);
+}
+
+/*
+ * Utility function to load a linear buffer.  lastaddrp holds state
+ * between invocations (for multiple-buffer loads).  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ * first indicates if this is the first invocation of this function.
+ */
+static int
+_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
+			bus_dma_segment_t segs[],
+			void *buf, bus_size_t buflen,
+			struct proc *p,
+			int flags,
+			vm_offset_t *lastaddrp,
+			int *segp,
+			int first)
+{
+	bus_size_t sgsize;
+	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	vm_offset_t vaddr = (vm_offset_t)buf;
+	int seg;
+	pmap_t pmap;
+
+	if (p != NULL)
+		pmap = vmspace_pmap(p->p_vmspace);
+	else
+		pmap = NULL;
+
+	lastaddr = *lastaddrp;
+	bmask  = ~(dmat->boundary - 1);
+
+	for (seg = *segp; buflen > 0 ; ) {
+		/*
+		 * Get the physical address for this segment.
+		 */
+		if (pmap)
+			curaddr = pmap_extract(pmap, vaddr);
+		else
+			curaddr = pmap_kextract(vaddr);
+
+		/*
+		 * Compute the segment size, and adjust counts.
+		 */
+		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
+		if (buflen < sgsize)
+			sgsize = buflen;
+
+		/*
+		 * Make sure we don't cross any boundaries.
+		 */
+		if (dmat->boundary > 0) {
+			baddr = (curaddr + dmat->boundary) & bmask;
+			if (sgsize > (baddr - curaddr))
+				sgsize = (baddr - curaddr);
+		}
+
+		/*
+		 * Insert chunk into a segment, coalescing with
+		 * previous segment if possible.
+		 */
+		if (first) {
+			segs[seg].ds_addr = curaddr + alpha_XXX_dmamap_or;
+			segs[seg].ds_len = sgsize;
+			first = 0;
+		} else {
+			if (curaddr == lastaddr &&
+			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
+			    (dmat->boundary == 0 ||
+			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+				segs[seg].ds_len += sgsize;
+			else {
+				if (++seg >= dmat->nsegments)
+					break;
+				segs[seg].ds_addr = curaddr + alpha_XXX_dmamap_or;
+				segs[seg].ds_len = sgsize;
+			}
+		}
+
+		lastaddr = curaddr + sgsize;
+		vaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	*segp = seg;
+	*lastaddrp = lastaddr;
+
+	/*
+	 * Did we fit?
+	 */
+	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+}
+
+/*
+ * Like _bus_dmamap_load(), but for mbufs.
+ */
+int
+bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
+		     struct mbuf *m0,
+		     bus_dmamap_callback2_t *callback, void *callback_arg,
+		     int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[dmat->nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+	int nsegs, error;
+
+	KASSERT(dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) || map != NULL,
+		("bus_dmamap_load_mbuf: No support for bounce pages!"));
+	KASSERT(m0->m_flags & M_PKTHDR,
+		("bus_dmamap_load_mbuf: no packet header"));
+
+	nsegs = 0;
+	error = 0;
+	if (m0->m_pkthdr.len <= dmat->maxsize) {
+		int first = 1;
+		vm_offset_t lastaddr = 0;
+		struct mbuf *m;
+
+		for (m = m0; m != NULL && error == 0; m = m->m_next) {
+			error = _bus_dmamap_load_buffer(dmat,
+					dm_segments,
+					m->m_data, m->m_len,
+					NULL, flags, &lastaddr, &nsegs, first);
+			first = 0;
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	if (error) {
+		/* force "no valid mappings" in callback */
+		(*callback)(callback_arg, dm_segments, 0, 0, error);
+	} else {
+		(*callback)(callback_arg, dm_segments,
+			    nsegs+1, m0->m_pkthdr.len, error);
+	}
+	return (error);
+}
+
+/*
+ * Like _bus_dmamap_load(), but for uios.
+ */
+int
+bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
+		    struct uio *uio,
+		    bus_dmamap_callback2_t *callback, void *callback_arg,
+		    int flags)
+{
+	vm_offset_t lastaddr;
+#ifdef __GNUC__
+	bus_dma_segment_t dm_segments[dmat->nsegments];
+#else
+	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+	int nsegs, error, first, i;
+	bus_size_t resid;
+	struct iovec *iov;
+	struct proc *p = NULL;
+
+	KASSERT(dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) || map != NULL,
+		("bus_dmamap_load_uio: No support for bounce pages!"));
+
+	resid = uio->uio_resid;
+	iov = uio->uio_iov;
+
+	if (uio->uio_segflg == UIO_USERSPACE) {
+		p = uio->uio_procp;
+		KASSERT(p != NULL,
+			("bus_dmamap_load_uio: USERSPACE but no proc"));
+	}
+
+	nsegs = 0;
+	error = 0;
+	first = 1;
+	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
+		/*
+		 * Now at the first iovec to load.  Load each iovec
+		 * until we have exhausted the residual count.
+		 */
+		bus_size_t minlen =
+			resid < iov[i].iov_len ? resid : iov[i].iov_len;
+		caddr_t addr = (caddr_t) iov[i].iov_base;
+
+		error = _bus_dmamap_load_buffer(dmat,
+				dm_segments,
+				addr, minlen,
+				p, flags, &lastaddr, &nsegs, first);
+		first = 0;
+
+		resid -= minlen;
+	}
+
+	if (error) {
+		/* force "no valid mappings" in callback */
+		(*callback)(callback_arg, dm_segments, 0, 0, error);
+	} else {
+		(*callback)(callback_arg, dm_segments,
+			    nsegs+1, uio->uio_resid, error);
+	}
+	return (error);
 }
 
 /*
@@ -645,7 +862,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
 	return (pages);
 }
 
-static vm_offset_t
+static bus_addr_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bus_size_t size)
 {
