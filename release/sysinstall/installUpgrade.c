@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.17 1997/10/29 07:47:27 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.18 1998/03/21 02:08:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,6 +242,7 @@ installUpgrade(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	chdir("/");
+	installEnvironment();
 	systemCreateHoloshell();
     }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.25 1998/03/21 01:36:42 jkh Exp $
+ * $Id: disks.c,v 1.70.2.26 1998/03/21 21:20:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -621,6 +621,9 @@ diskPartitionWrite(dialogMenuItem *self)
     if (isDebug())
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
     cp = variable_get(DISK_PARTITIONED);
+    if (cp && !strcmp(cp, "written"))
+	return DITEM_SUCCESS;
+
     for (i = 0; devs[i]; i++) {
 	Chunk *c1;
 	Disk *d = (Disk *)devs[i]->private;
