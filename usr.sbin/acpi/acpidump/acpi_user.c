@@ -41,6 +41,8 @@
 
 #include "acpidump.h"
 
+static char machdep_acpi_root[] = "machdep.acpi_root";
+
 static int      acpi_mem_fd = -1;
 
 struct acpi_user_mapping {
@@ -98,22 +100,41 @@ acpi_user_find_mapping(vm_offset_t pa, size_t size)
 struct ACPIrsdp *
 acpi_find_rsd_ptr()
 {
-	int		i;
-	u_int8_t	buf[sizeof(struct ACPIrsdp)];
+	struct ACPIrsdp rsdp;
+	u_long		addr;
+	int		len;
 
 	acpi_user_init();
-	for (i = 0; i < 1024 * 1024; i += 16) {
-		read(acpi_mem_fd, buf, 16);
-		if (!memcmp(buf, "RSD PTR ", 8)) {
-			/* Read the rest of the structure */
-			read(acpi_mem_fd, buf + 16, sizeof(struct ACPIrsdp) - 16);
 
-			/* Verify checksum before accepting it. */
-			if (acpi_checksum(buf, sizeof(struct ACPIrsdp)))
-				continue;
-			return (acpi_map_physical(i, sizeof(struct ACPIrsdp)));
-		}
+	len = sizeof(addr);
+	if (sysctlbyname(machdep_acpi_root, &addr, &len, NULL, 0) == 0) {	
+		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
+		if (memcmp(rsdp.signature, "RSD PTR ", 8))
+			errx(1, "sysctl %s does not point to RSDP\n",
+			    machdep_acpi_root);
+		len = 20;			/* size of ACPI 1.0 table */
+		if (acpi_checksum(&rsdp, len))
+			warnx("RSDP has invalid checksum\n");
+		if (rsdp.revision > 0)
+			len = rsdp.length;
+		return (acpi_map_physical(addr, len));
 	}
+
+#if !defined(__ia64__)
+	for (addr = 0UL; addr < 1024UL * 1024UL; addr += 16UL) {
+		pread(acpi_mem_fd, &rsdp, 8, addr);
+		if (memcmp(rsdp.signature, "RSD PTR ", 8))
+			continue;
+		/* Read the entire table. */
+		pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
+		len = 20;			/* size of ACPI 1.0 table */
+		if (acpi_checksum(&rsdp, len))
+			continue;
+		if (rsdp.revision > 0)
+			len = rsdp.length;
+		return (acpi_map_physical(addr, len));
+	}
+#endif
 
 	return (0);
 }
