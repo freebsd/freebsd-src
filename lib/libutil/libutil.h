@@ -60,6 +60,9 @@ void	properties_free __P((properties list));
 char	*property_find __P((properties list, const char *name));
 char	*auth_getval __P((const char *name));
 int	realhostname __P((char *host, size_t hsize, const struct in_addr *ip));
+struct sockaddr;
+int	realhostname_sa __P((char *host, size_t hsize, struct sockaddr *addr,
+			     int addrlen));
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln __P((FILE *, size_t *, size_t *, const char[3], int));
 #endif

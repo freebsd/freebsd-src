@@ -10,7 +10,8 @@ MAINTAINER=des@freebsd.org
 COPTS+=	-Wall -DLOGIN_CAP
 #COPTS+=	-DSANITY_CHECK
 
-DPADD+=	${LIBUTIL} ${LIBWRAP}
-LDADD+=	-lutil -lwrap
+CFLAGS+=-DINET6 -DIPSEC
+DPADD+=	${LIBUTIL} ${LIBWRAP} ${LIBIPSEC}
+LDADD+=	-lutil -lwrap -lipsec
 
 .include <bsd.prog.mk>

@@ -80,6 +80,11 @@ static const char rcsid[] =
 #include <login_cap.h>
 #endif
 
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
+
 int	keepalive = 1;
 int	log_success;		/* If TRUE, log all successful accesses */
 int	sent_null;
@@ -88,7 +93,20 @@ int	no_delay;
 int	doencrypt = 0;
 #endif
 
-void	 doit __P((struct sockaddr_in *));
+union sockunion {
+	struct sockinet {
+		u_char si_len;
+		u_char si_family;
+		u_short si_port;
+	} su_si;
+	struct sockaddr_in  su_sin;
+	struct sockaddr_in6 su_sin6;
+};
+#define su_len		su_si.si_len
+#define su_family	su_si.si_family
+#define su_port		su_si.si_port
+
+void	 doit __P((union sockunion *));
 void	 error __P((const char *, ...));
 void	 getstr __P((char *, int, char *));
 int	 local_domain __P((char *));
@@ -109,7 +127,7 @@ main(argc, argv)
 	extern int __check_rhosts_file;
 	struct linger linger;
 	int ch, on = 1, fromlen;
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 
 	openlog("rshd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 
@@ -169,7 +187,7 @@ main(argc, argv)
 	if (no_delay &&
 	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
 		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
-	doit(&from);
+	doit((union sockunion *)&from);
 	/* NOTREACHED */
 	return(0);
 }
@@ -184,7 +202,7 @@ char	**environ;
 
 void
 doit(fromp)
-	struct sockaddr_in *fromp;
+	union sockunion *fromp;
 {
 	extern char *__rcmd_errstr;	/* syslog hook from libc/net/rcmd.c. */
 	struct passwd *pwd;
@@ -195,7 +213,9 @@ doit(fromp)
 	char *errorstr;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
-	char fromhost[MAXHOSTNAMELEN];
+	char fromhost[2 * MAXHOSTNAMELEN + 1];
+	char numericname[INET6_ADDRSTRLEN];
+	int af = fromp->su_family, err;
 	int retval;
 #ifdef	CRYPT
 	int rc;
@@ -216,14 +236,21 @@ doit(fromp)
 	  }
 	}
 #endif
-	fromp->sin_port = ntohs((u_short)fromp->sin_port);
-	if (fromp->sin_family != AF_INET) {
-		syslog(LOG_ERR, "malformed \"from\" address (af %d)",
-		    fromp->sin_family);
+	fromp->su_port = ntohs((u_short)fromp->su_port);
+	if (af != AF_INET
+#ifdef INET6
+	    && af != AF_INET6
+#endif
+	    ) {
+		syslog(LOG_ERR, "malformed \"from\" address (af %d)\n", af);
 		exit(1);
 	}
+	err = getnameinfo((struct sockaddr *)fromp, fromp->su_len, numericname,
+			  sizeof(numericname), NULL, 0,
+			  NI_NUMERICHOST|NI_WITHSCOPEID);
+	/* XXX: do 'err' check */
 #ifdef IP_OPTIONS
-      {
+      if (af == AF_INET) {
 	u_char optbuf[BUFSIZ/3];
 	int optsize = sizeof(optbuf), ipproto, i;
 	struct protoent *ip;
@@ -239,7 +266,7 @@ doit(fromp)
 			if (c == IPOPT_LSRR || c == IPOPT_SSRR) {
 				syslog(LOG_NOTICE,
 					"connection refused from %s with IP option %s",
-					inet_ntoa(fromp->sin_addr),
+					numericname,
 					c == IPOPT_LSRR ? "LSRR" : "SSRR");
 				exit(1);
 			}
@@ -251,12 +278,12 @@ doit(fromp)
       }
 #endif
 
-	if (fromp->sin_port >= IPPORT_RESERVED ||
-	    fromp->sin_port < IPPORT_RESERVED/2) {
+	if (fromp->su_port >= IPPORT_RESERVED ||
+	    fromp->su_port < IPPORT_RESERVED/2) {
 		syslog(LOG_NOTICE|LOG_AUTH,
 		    "connection from %s on illegal port %u",
-		    inet_ntoa(fromp->sin_addr),
-		    fromp->sin_port);
+		    numericname,
+		    fromp->su_port);
 		exit(1);
 	}
 
@@ -279,7 +306,7 @@ doit(fromp)
 	(void) alarm(0);
 	if (port != 0) {
 		int lport = IPPORT_RESERVED - 1;
-		s = rresvport(&lport);
+		s = rresvport_af(&lport, af);
 		if (s < 0) {
 			syslog(LOG_ERR, "can't get stderr port: %m");
 			exit(1);
@@ -288,11 +315,11 @@ doit(fromp)
 		    port < IPPORT_RESERVED/2) {
 			syslog(LOG_NOTICE|LOG_AUTH,
 			    "2nd socket from %s on unreserved port %u",
-			    inet_ntoa(fromp->sin_addr),
+			    numericname,
 			    port);
 			exit(1);
 		}
-		fromp->sin_port = htons(port);
+		fromp->su_port = htons(port);
 		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0) {
 			syslog(LOG_INFO, "connect second port %d: %m", port);
 			exit(1);
@@ -300,11 +327,13 @@ doit(fromp)
 	}
 
 	errorstr = NULL;
-	realhostname(fromhost, sizeof(fromhost) - 1, &fromp->sin_addr);
+	realhostname_sa(fromhost, sizeof(fromhost) - 1,
+			(struct sockaddr *)fromp,
+			fromp->su_len);
 	fromhost[sizeof(fromhost) - 1] = '\0';
 
 #ifdef CRYPT
-	if (doencrypt) {
+	if (doencrypt && af == AF_INET) {
 		struct sockaddr_in local_addr;
 		rc = sizeof(local_addr);
 		if (getsockname(0, (struct sockaddr *)&local_addr,
@@ -379,8 +408,14 @@ doit(fromp)
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
 		    (pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0' &&
-		    iruserok(fromp->sin_addr.s_addr, pwd->pw_uid == 0,
-		    remuser, locuser) < 0)) {
+		    iruserok_af(
+#ifdef INET6
+				(af == AF_INET6)
+				? (void *)&fromp->su_sin6.sin6_addr :
+#endif
+				(void *)&fromp->su_sin.sin_addr,
+				pwd->pw_uid == 0,
+		    remuser, locuser, af) < 0)) {
 			if (__rcmd_errstr)
 				syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
@@ -402,10 +437,10 @@ fail:
 		exit(1);
 	}
 #ifdef	LOGIN_CAP
-	if (lc != NULL) {
+	if (lc != NULL && fromp->su_family == AF_INET) {	/*XXX*/
 		char	remote_ip[MAXHOSTNAMELEN];
 
-		strncpy(remote_ip, inet_ntoa(fromp->sin_addr),
+		strncpy(remote_ip, numericname,
 			sizeof(remote_ip) - 1);
 		remote_ip[sizeof(remote_ip) - 1] = 0;
 		if (!auth_hostok(lc, fromhost, remote_ip)) {

@@ -165,6 +165,8 @@ int	 profil __P((char *, size_t, vm_offset_t, int));
 ssize_t	 pwrite __P((int, const void *, size_t, off_t));
 int	 rcmd __P((char **, int, const char *,
 		const char *, const char *, int *));
+int	 rcmd_af __P((char **, int, const char *,
+		const char *, const char *, int *, int));
 char	*re_comp __P((const char *));
 int	 re_exec __P((const char *));
 int	 readlink __P((const char *, char *, int));

@@ -40,6 +40,7 @@
 .Nm rresvport ,
 .Nm iruserok ,
 .Nm ruserok ,
+.Nm rcmd_af ,
 .Nm rresvport_af ,
 .Nm iruserok_af ,
 .Nm ruserok_af
@@ -55,7 +56,9 @@
 .Ft int
 .Fn ruserok "const char *rhost" "int superuser" "const char *ruser" "const char *luser"
 .Ft int
-.Fn rresvport_af "int *port" "int family"
+.Fn rcmd_af "char **ahost" "int inport" "const char *locuser" "const char *remuser" "const char *cmd" "int *fd2p" "int af"
+.Ft int
+.Fn rresvport_af "int *port" "int af"
 .Ft int
 .Fn iruserok_af "void *raddr" "int superuser" "const char *ruser" "const char *luser" "int af"
 .Ft int
@@ -184,17 +187,26 @@ It requires trusting the local DNS at most, while the
 function requires trusting the entire DNS, which can be spoofed.
 .Pp
 Functions with ``_af'' suffix, i.e.
+.Fn rcmd_af ,
 .Fn rresvport_af ,
-.Fn iruserok_af and
+.Fn iruserok_af
+and
 .Fn ruserok_af ,
 works just as same as functions without ``_af'', and is capable of
 handling both IPv6 port and IPv4 port.
+Functions without
+.Dq Li _af
+works for IPv4 only.
 To switch address family,
 .Fa af
 argument must be filled with
-.Dv AF_INET
+.Dv AF_INET ,
 or
 .Dv AF_INET6 .
+For
+.Fn rcmd_af ,
+.Dv PF_UNSPEC
+is also allowed.
 .Sh DIAGNOSTICS
 The
 .Fn rcmd
@@ -230,6 +242,9 @@ functions appeared in
 .Fn rresvport_af
 appeared in RFC2292, and implemented by WIDE project
 for Hydrangea IPv6 protocol stack kit.
+.Fn rcmd_af
+appeared in draft-ietf-ipngwg-rfc2292bis-01.txt,
+and implemented by WIDE/KAME IPv6 protocol stack kit.
 .Fn iruserok_af
 and
 .Fn rusreok_af
