@@ -193,8 +193,12 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 
 	static char *login_dbarray[] = { NULL, NULL, NULL };
 
-	/* Switch to user mode before checking/reading its ~/.login_conf */
-	/* - some NFSes have root read access disabled.                  */
+	/*
+	 * Switch to user mode before checking/reading its ~/.login_conf
+	 * - some NFSes have root read access disabled.
+	 *
+	 * XXX: This fails to configure additional groups.
+	 */
 	if (dir) {
 	    euid = geteuid();
 	    egid = getegid();
