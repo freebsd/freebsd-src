@@ -203,7 +203,8 @@ The function
 is identical to
 .Fn callout_stop
 except that it will wait for the callout to be completed if it is
-already in progress.  This MUST NOT be called while holding any
+already in progress.
+This function MUST NOT be called while holding any
 locks on which the callout might block, or deadlock will result.
 .Pp
 The function
