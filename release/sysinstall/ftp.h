@@ -1,5 +1,7 @@
 typedef struct {
+    enum {init, isopen, xfer} state;
     int		fd_ctrl;
+    int		fd_xfer;
     int		fd_debug;
     int		binary;
     int		passive;
@@ -12,12 +14,9 @@ FTP_t		FtpInit();
 int		FtpOpen(FTP_t, char *host, char *user, char *passwd);
 #define 	FtpBinary(ftp,bool)	{ (ftp)->binary = (bool); }
 #define 	FtpPassive(ftp,bool)	{ (ftp)->passive = (bool); }
+#ifndef STANDALONE_FTP
 #define 	FtpDebug(ftp, bool)	{ (ftp)->fd_debug = (bool); }
-/*
-void		FtpBinary(FTP_t, int);
-void		FtpPassive(FTP_t, int);
-void		FtpDebug(FTP_t, int);
-*/
+#endif
 int		FtpChdir(FTP_t, char *);
 int		FtpGet(FTP_t, char *);
 int		FtpEOF(FTP_t);
