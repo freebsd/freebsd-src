@@ -66,12 +66,12 @@ static void	fixit_common(void);
 static void	installConfigure(void);
 
 Boolean
-checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
+checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **vtdev, Chunk **hdev)
 {
     Device **devs;
     Boolean status;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev, *vartmpdev, *homedev;
     int i;
 
     /* Don't allow whinging if noWarn is set */
@@ -79,7 +79,19 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	whinge = FALSE;
 
     status = TRUE;
-    *rdev = *sdev = *udev = *vdev = rootdev = swapdev = usrdev = vardev = NULL;
+    if (rdev)
+	*rdev = NULL;
+    if (sdev)
+	*sdev = NULL;
+    if (udev)
+	*udev = NULL;
+    if (vdev)
+	*vdev = NULL;
+    if (vtdev)
+	*vtdev = NULL;
+    if (hdev)
+	*hdev = NULL;
+    rootdev = swapdev = usrdev = vardev = vartmpdev = homedev = NULL;
 
     /* We don't need to worry about root/usr/swap if we're already multiuser */
     if (!RunningAsInit)
@@ -136,6 +148,30 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 				if (isDebug())
 				    msgDebug("Found vardev at %s!\n", vardev->name);
 			    }
+			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var/tmp")) {
+			    if (vartmpdev) {
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /var/tmp filesystem.\n"
+					       "Using the first one found.");
+				continue;
+			    }
+			    else {
+				vartmpdev = c2;
+				if (isDebug())
+				    msgDebug("Found vartmpdev at %s!\n", vartmpdev->name);
+			    }
+			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/home")) {
+			    if (homedev) {
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /home filesystem.\n"
+					       "Using the first one found.");
+				continue;
+			    }
+			    else {
+				homedev = c2;
+				if (isDebug())
+				    msgDebug("Found homedev at %s!\n", homedev->name);
+			    }
 			}
 		    }
 		}
@@ -166,10 +202,18 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
     }
 
     /* Copy our values over */
-    *rdev = rootdev;
-    *sdev = swapdev;
-    *udev = usrdev;
-    *vdev = vardev;
+    if (rdev)
+	*rdev = rootdev;
+    if (sdev)
+	*sdev = swapdev;
+    if (udev)
+	*udev = usrdev;
+    if (vdev)
+	*vdev = vardev;
+    if (vtdev)
+	*vtdev = vartmpdev;
+    if (hdev)
+	*hdev = homedev;
 
     if (!rootdev && whinge) {
 	msgConfirm("No root device found - you must label a partition as /\n"
@@ -851,7 +895,7 @@ installFilesystems(dialogMenuItem *self)
 {
     int i, mountfailed;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
+    Chunk *c1, *c2, *rootdev, *swapdev;
     Device **devs;
     PartInfo *root;
     char dname[80];
@@ -863,7 +907,7 @@ installFilesystems(dialogMenuItem *self)
 	return DITEM_SUCCESS;
 
     upgrade = !variable_cmp(SYSTEM_STATE, "upgrade");
-    if (!checkLabels(TRUE, &rootdev, &swapdev, &usrdev, &vardev))
+    if (!checkLabels(TRUE, &rootdev, &swapdev, NULL, NULL, NULL, NULL))
 	return DITEM_FAILURE;
 
     if (rootdev)
