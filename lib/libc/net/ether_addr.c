@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.4 1996/07/12 18:54:31 jkh Exp $
+ *	$Id: ether_addr.c,v 1.4.2.1 1996/12/10 21:08:17 joerg Exp $
  */
 
 
@@ -134,7 +134,7 @@ int ether_ntohost(hostname, e)
 	struct ether_addr *e;
 {
 	FILE *fp;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ + 2];
 	struct ether_addr local_ether;
 	char local_host[MAXHOSTNAMELEN];
 #ifdef YP
@@ -159,7 +159,8 @@ int ether_ntohost(hostname, e)
 				continue;
 			}
 			strncpy(buf, result, resultlen);
-				free(result);
+			buf[resultlen] = '\0';
+			free(result);
 		}
 #endif
 		if (!ether_line(buf, &local_ether, local_host)) {
@@ -185,7 +186,7 @@ int ether_hostton(hostname, e)
 	struct ether_addr *e;
 {
 	FILE *fp;
-	char buf[BUFSIZ];
+	char buf[BUFSIZ + 2];
 	struct ether_addr local_ether;
 	char local_host[MAXHOSTNAMELEN];
 #ifdef YP
@@ -208,6 +209,7 @@ int ether_hostton(hostname, e)
 				continue;
 			}
 			strncpy(buf, result, resultlen);
+			buf[resultlen] = '\0';
 			free(result);
 		}
 #endif

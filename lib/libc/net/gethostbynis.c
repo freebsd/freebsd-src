@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.4 1996/08/29 20:07:54 peter Exp $";
-static char rcsid[] = "$Id: gethostbynis.c,v 1.4 1996/08/29 20:07:54 peter Exp $";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.4.2.1 1996/12/24 17:15:16 wpaul Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.4.2.1 1996/12/24 17:15:16 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ _gethostbynis(name, map, af)
 	int resultlen;
 	static struct hostent h;
 	static char *domain = (char *)NULL;
-	static char ypbuf[YPMAXRECORD];
+	static char ypbuf[YPMAXRECORD + 2];
 
 	switch(af) {
 	case AF_INET:

@@ -46,9 +46,8 @@ static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 static int serv_stepping_yp = 0;
-#endif
-
 extern int _yp_check __P(( char ** ));
+#endif
 
 #define	MAXALIASES	35
 
@@ -70,7 +69,7 @@ _getservbyport_yp(line)
 {
 	char *result;
 	int resultlen;
-	char buf[YPMAXRECORD];
+	char buf[YPMAXRECORD + 2];
 	int rv;
 
 	snprintf(buf, sizeof(buf), "%d/%s", ntohs(___getservbyport_yp),
@@ -116,7 +115,7 @@ _getservbyname_yp(line)
 {
 	char *result;
 	int resultlen;
-	char buf[YPMAXRECORD];
+	char buf[YPMAXRECORD + 2];
 
 	if(!yp_domain) {
 		if(yp_get_default_domain(&yp_domain))
