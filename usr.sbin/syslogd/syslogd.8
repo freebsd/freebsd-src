@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.6.2.2 1997/04/26 00:05:18 pst Exp $
+.\"	$Id: syslogd.8,v 1.6.2.3 1997/08/17 14:41:31 joerg Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -40,11 +40,11 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm syslogd
+.Op Fl ds
 .Op Fl a Ar allowed_peer
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
-.Op Fl s
 .Sh DESCRIPTION
 .Nm Syslogd
 reads and logs messages to the system console, log files, other
