@@ -194,10 +194,12 @@ is 5000.
 .It Fl p
 Echo each command to be executed and ask the user whether it should be
 executed.
-A response of
+An affirmative response,
 .Ql y
+in the POSIX locale,
 causes the command to be executed, any other response causes it to be
 skipped.
+No commands are executed if the process is not attached to a terminal.
 .It Fl R Ar replacements
 This option specifies the maximum number of arguments that 
 .Fl I
