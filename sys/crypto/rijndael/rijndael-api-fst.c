@@ -26,7 +26,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <crypto/rijndael/rijndael_local.h>
-#include <crypto/rijndael/rijndael-alg-fst.h>
 #include <crypto/rijndael/rijndael-api-fst.h>
 
 #ifndef TRUE
