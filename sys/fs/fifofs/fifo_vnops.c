@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.35 1997/10/26 20:55:16 phk Exp $
+ * $Id: fifo_vnops.c,v 1.36 1997/10/27 13:33:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -158,7 +158,6 @@ fifo_open(ap)
 	struct proc *p = ap->a_p;
 	struct socket *rso, *wso;
 	int error;
-	static char openstr[] = "fifo";
 
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
@@ -210,7 +209,7 @@ fifo_open(ap)
 		while (fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0, p);
 			error = tsleep((caddr_t)&fip->fi_readers,
-			    PCATCH | PSOCK, openstr, 0);
+			    PCATCH | PSOCK, "fifoor", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			if (error)
 				goto bad;
@@ -226,7 +225,7 @@ fifo_open(ap)
 			while (fip->fi_readers == 0) {
 				VOP_UNLOCK(vp, 0, p);
 				error = tsleep((caddr_t)&fip->fi_writers,
-				    PCATCH | PSOCK, openstr, 0);
+				    PCATCH | PSOCK, "fifoow", 0);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 				if (error)
 					goto bad;
