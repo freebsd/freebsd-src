@@ -39,6 +39,8 @@
 
 #include <dev/ppbus/ppbio.h>
   
+MODULE_VERSION(ppbus, 1);
+
 #define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
  
 /*
