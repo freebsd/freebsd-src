@@ -83,8 +83,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 		pam_set_option(&options, PAM_OPT_ECHO_PASS);
 		snprintf(prompt, sizeof prompt,
 			 "%s\nPassword [echo on]: ", challenge);
-		if ((retval = pam_get_pass(pamh, &response, prompt,
-		    &options)) != PAM_SUCCESS)
+		retval = pam_get_pass(pamh, &response, prompt, &options);
+		pam_clear_option(&options, PAM_OPT_ECHO_PASS);
+		if (retval != PAM_SUCCESS)
 			return retval;
 	}
 	/*

@@ -69,7 +69,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	struct opie opie;
 	struct options options;
 	struct passwd *pwd;
-	int retval, i;
+	int retval, i, echo;
 	const char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
 	char prompt[OPIE_CHALLENGE_MAX+22];
@@ -118,10 +118,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	 */
 	pam_set_item(pamh, PAM_AUTHTOK, NULL);
 
+	echo = pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL);
+
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
 		if (retval != PAM_SUCCESS) {
+			if (!echo)
+				pam_clear_option(&options, PAM_OPT_ECHO_PASS);
 			opieunlock();
 			return (retval);
 		}
@@ -134,6 +138,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		/* Second time round, echo the password */
 		pam_set_option(&options, PAM_OPT_ECHO_PASS);
 	}
+
+	if (!echo)
+		pam_clear_option(&options, PAM_OPT_ECHO_PASS);
 
 	/* We have to copy the response, because opieverify mucks with it. */
 	strlcpy(resp, response, sizeof (resp));
