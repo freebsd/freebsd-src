@@ -622,12 +622,9 @@ ntfs_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int error;
-#if NTFS_DEBUG
-	int wantparent = cnp->cn_flags & (LOCKPARENT|WANTPARENT);
-#endif
 	dprintf(("ntfs_lookup: \"%.*s\" (%ld bytes) in %d, wp: %d \n",
 		(int)cnp->cn_namelen, cnp->cn_nameptr, cnp->cn_namelen,
-		dip->i_number, wantparent));
+		dip->i_number));
 
 	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_thread);
 	if(error)
