@@ -23,8 +23,12 @@ int	y, touched = 0;
 	temp = win->_line[win->_regbottom];
 
 	if (win->_idlok && (insert_line != NULL)) {
-			putp(insert_line);
-			touched = 1;
+		if (back_color_erase) {
+			T(("back_color_erase, turning attributes off"));
+			vidattr(curscr->_attrs = A_NORMAL);
+		}
+		putp(insert_line);
+		touched = 1;
 	}
 
 	if (!touched) {
@@ -44,6 +48,6 @@ int	y, touched = 0;
 	win->_line[win->_cury] = temp;
 
 	for (end = &temp[win->_maxx];  temp <= end;  temp++)
-		*temp = ' ' | win->_attrs;
+		*temp = ' ';
 	return OK;
 }
