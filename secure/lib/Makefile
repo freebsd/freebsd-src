@@ -5,7 +5,7 @@ SUBDIR= libcipher
 SUBDIR+=libtelnet
 .endif
 .if !defined(NO_OPENSSL)
-SUBDIR+=libcrypto libssl
+SUBDIR+=libcrypto librsaglue libssl
 .endif
 .if !defined(NO_OPENSSH)
 SUBDIR+=libssh
