@@ -218,7 +218,8 @@ i4btrcattach()
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
 
 #if __FreeBSD__ > 4
-		mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
+		if(!mtx_initialized(&trace_queue[i].ifq_mtx))
+			mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
 #endif
 		device_state[i] = ST_IDLE;
 	}
