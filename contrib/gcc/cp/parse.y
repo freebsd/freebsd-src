@@ -2521,6 +2521,8 @@ class_head_defn:
 		  current_aggr = $1;
 		  $$.t = TYPE_MAIN_DECL (xref_tag ($1, make_anon_name (), 0));
 		  $$.new_type_flag = 0;
+		  CLASSTYPE_DECLARED_CLASS (TREE_TYPE ($$.t))
+		    = $1 == class_type_node;
 		  yyungetc ('{', 1);
 		}
 	;
@@ -3823,7 +3825,7 @@ bad_parm:
 		    {
 		      if (TREE_CODE (TREE_OPERAND ($$, 0)) == TEMPLATE_TYPE_PARM
 			  || TREE_CODE (TREE_OPERAND ($$, 0)) == BOUND_TEMPLATE_TEMPLATE_PARM)
-			error ("`%E' is not a type, use `typename %E' to make it one", $$);
+			error ("`%E' is not a type, use `typename %E' to make it one", $$, $$);
 		      else
 			error ("no type `%D' in `%T'", TREE_OPERAND ($$, 1), TREE_OPERAND ($$, 0));
 		    }

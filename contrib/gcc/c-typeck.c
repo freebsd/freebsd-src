@@ -752,7 +752,7 @@ c_sizeof (type)
      TYPE_IS_SIZETYPE means that certain things (like overflow) will
      never happen.  However, this node should really have type
      `size_t', which is just a typedef for an ordinary integer type.  */
-  return fold (build1 (NOP_EXPR, c_size_type_node, size));
+  return fold (build1 (NOP_EXPR, size_type_node, size));
 }
 
 tree
@@ -776,7 +776,7 @@ c_sizeof_nowarn (type)
      TYPE_IS_SIZETYPE means that certain things (like overflow) will
      never happen.  However, this node should really have type
      `size_t', which is just a typedef for an ordinary integer type.  */
-  return fold (build1 (NOP_EXPR, c_size_type_node, size));
+  return fold (build1 (NOP_EXPR, size_type_node, size));
 }
 
 /* Compute the size to increment a pointer by.  */
@@ -2888,9 +2888,6 @@ build_unary_op (code, xarg, flag)
 	tree inc;
 	tree result_type = TREE_TYPE (arg);
 
-	arg = get_unwidened (arg, 0);
-	argtype = TREE_TYPE (arg);
-
 	/* Compute the increment.  */
 
 	if (typecode == POINTER_TYPE)
@@ -2918,6 +2915,9 @@ build_unary_op (code, xarg, flag)
 	  }
 	else
 	  inc = integer_one_node;
+
+	arg = get_unwidened (arg, 0);
+	argtype = TREE_TYPE (arg);
 
 	inc = convert (argtype, inc);
 
@@ -6645,13 +6645,18 @@ process_init_element (value)
 			        bit_position (constructor_fields),
 			        DECL_SIZE (constructor_fields));
 
-	      constructor_unfilled_fields = TREE_CHAIN (constructor_fields);
-	      /* Skip any nameless bit fields.  */
-	      while (constructor_unfilled_fields != 0
-		     && DECL_C_BIT_FIELD (constructor_unfilled_fields)
-		     && DECL_NAME (constructor_unfilled_fields) == 0)
-		constructor_unfilled_fields =
-		  TREE_CHAIN (constructor_unfilled_fields);
+	      /* If the current field was the first one not yet written out,
+		 it isn't now, so update.  */
+	      if (constructor_unfilled_fields == constructor_fields)
+		{
+		  constructor_unfilled_fields = TREE_CHAIN (constructor_fields);
+		  /* Skip any nameless bit fields.  */
+		  while (constructor_unfilled_fields != 0
+			 && DECL_C_BIT_FIELD (constructor_unfilled_fields)
+			 && DECL_NAME (constructor_unfilled_fields) == 0)
+		    constructor_unfilled_fields =
+		      TREE_CHAIN (constructor_unfilled_fields);
+		}
 	    }
 
 	  constructor_fields = TREE_CHAIN (constructor_fields);
@@ -6886,9 +6891,10 @@ simple_asm_stmt (expr)
 
       if (TREE_CHAIN (expr))
 	expr = combine_strings (expr);
-      stmt = add_stmt (build_stmt (ASM_STMT, NULL_TREE, expr,
-				   NULL_TREE, NULL_TREE,
-				   NULL_TREE));
+
+      /* Simple asm statements are treated as volatile.  */
+      stmt = add_stmt (build_stmt (ASM_STMT, ridpointers[(int) RID_VOLATILE],
+      				   expr, NULL_TREE, NULL_TREE, NULL_TREE));
       ASM_INPUT_P (stmt) = 1;
       return stmt;
     }
