@@ -368,15 +368,8 @@ diskPartition(Device *dev)
 	    cp = variable_get(VAR_DEDICATE_DISK);
 	    if (cp && !strcasecmp(cp, "always"))
 		rv = 1;
-	    else {
-		rv = msgYesNo("Do you want to do this with a true partition entry\n"
-			      "so as to remain cooperative with any future possible\n"
-			      "operating systems on the drive(s)?\n"
-			      "(See also the section about ``dangerously dedicated''\n"
-			      "disks in the FreeBSD FAQ.)");
-		if (rv == -1)
-		    rv = 0;
-	    }
+	    else
+		rv = 0;
 #endif
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes", 0);
