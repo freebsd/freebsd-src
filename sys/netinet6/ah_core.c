@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ah_core.c,v 1.59 2003/07/25 10:17:14 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ip6_output.c,v 1.279 2002/01/26 06:12:30 jinmei Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
