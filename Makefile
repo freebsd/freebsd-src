@@ -9,6 +9,7 @@
 # world               - buildworld + installworld.
 # buildkernel         - Rebuild the kernel and the kernel-modules.
 # installkernel       - Install the kernel and the kernel-modules.
+# reinstallkernel     - Reinstall the kernel and the kernel-modules.
 # kernel              - buildkernel + installkernel.
 # update              - Convenient way to update your source tree (cvs).
 # upgrade             - Upgrade a.out (2.2.x/3.0) system to the new ELF way
@@ -86,7 +87,8 @@
 TGTS=	afterdistribute all buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute everything hierarchy includes \
 	install installkernel installmost installworld kernel libraries lint \
-	maninstall mk most obj objlink regress rerelease tags update
+	maninstall mk most obj objlink regress reinstallkernel rerelease \
+	tags update
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
