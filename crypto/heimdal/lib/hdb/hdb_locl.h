@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb_locl.h,v 1.15 2001/02/15 04:20:54 assar Exp $ */
+/* $Id: hdb_locl.h,v 1.17 2001/08/22 20:30:28 assar Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __HDB_LOCL_H__
@@ -57,7 +57,7 @@
 #endif
 #include <roken.h>
 
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #else
 #include <des.h>
@@ -65,17 +65,5 @@
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb-private.h>
-
-#if defined(HAVE_DB_185_H)
-#include <db_185.h>
-#elif defined(HAVE_DB_H)
-#include <db.h>
-#endif
-
-#if defined(HAVE_NDBM_H)
-#include <ndbm.h>
-#elif defined(HAVE_GDBM_NDBM_H)
-#include <gdbm/ndbm.h>
-#endif
 
 #endif /* __HDB_LOCL_H__ */
