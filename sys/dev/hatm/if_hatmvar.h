@@ -338,7 +338,6 @@ struct hevcc {
 #define HE_VCC_TX_OPEN		0x00040000
 #define HE_VCC_TX_CLOSING	0x00080000
 #define HE_VCC_FLOW_CTRL	0x00100000
-#define HE_VCC_ASYNC		0x00200000
 
 /*
  * CBR rate groups
