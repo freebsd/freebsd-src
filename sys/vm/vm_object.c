@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.14 1995/01/05 04:30:40 davidg Exp $
+ * $Id: vm_object.c,v 1.15 1995/01/09 16:05:49 davidg Exp $
  */
 
 /*
@@ -1152,20 +1152,30 @@ vm_object_rcollapse(object, sobject)
 	if (backing_object->ref_count != 1)
 		return;
 
+	object->ref_count += 2;
 	backing_object->ref_count += 2;
-	s = splbio();
-	while (backing_object->paging_in_progress) {
-		tsleep(backing_object, PVM, "rcolow", 0);
-	}
-	splx(s);
 
 	backing_offset = object->shadow_offset;
 	size = object->size;
+
+again:
+	s = splbio();
+	/* XXX what about object->paging_in_progress? */
+	while (backing_object->paging_in_progress) {
+		tsleep(backing_object, PVM, "rcolpp", 0);
+	}
+	splx(s);
+
 	p = backing_object->memq.tqh_first;
 	while (p) {
 		vm_page_t next;
 
 		next = p->listq.tqe_next;
+
+		if ((p->flags & PG_BUSY) || p->busy || p->bmapped) {
+			p = next;
+			continue;
+		}
 		pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
 		new_offset = (p->offset - backing_offset);
 		if (p->offset < backing_offset ||
@@ -1196,6 +1206,7 @@ vm_object_rcollapse(object, sobject)
 		p = next;
 	}
 	backing_object->ref_count -= 2;
+	object->ref_count -= 2;
 }
 
 /*
