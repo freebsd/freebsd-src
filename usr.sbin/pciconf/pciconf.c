@@ -80,9 +80,9 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: pciconf -l [-v]",
-		"       pciconf -a sel",
-		"       pciconf -r [-b | -h] sel addr[:addr]",
-		"       pciconf -w [-b | -h] sel addr [value]");
+		"       pciconf -a selector",
+		"       pciconf -r [-b | -h] selector addr[:addr2]",
+		"       pciconf -w [-b | -h] selector addr value");
 	exit (1);
 }
 
