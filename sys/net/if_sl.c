@@ -105,6 +105,8 @@
 
 #include <net/bpf.h>
 
+static MALLOC_DEFINE(M_SL, "sl", "SLIP Interface");
+
 static void slattach __P((void *));
 PSEUDO_SET(slattach, if_sl);
 
@@ -168,14 +170,17 @@ PSEUDO_SET(slattach, if_sl);
 #define	ABT_COUNT	3	/* count of escapes for abort */
 #define	ABT_WINDOW	(ABT_COUNT*2+2)	/* in seconds - time to count */
 
-static struct sl_softc sl_softc[NSL];
+LIST_HEAD(sl_list, sl_softc) sl_list;
 
 #define FRAME_END	 	0xc0		/* Frame End */
 #define FRAME_ESCAPE		0xdb		/* Frame Esc */
 #define TRANS_FRAME_END	 	0xdc		/* transposed frame end */
 #define TRANS_FRAME_ESCAPE 	0xdd		/* transposed frame esc */
 
-static int slinit __P((struct sl_softc *));
+static int slisstatic __P((int));
+static void slmarkstatic __P((int));
+static struct sl_softc *slcreate __P((void));
+static void sldestroy __P((struct sl_softc *sc));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
 static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
@@ -201,54 +206,109 @@ static void
 slattach(dummy)
 	void *dummy;
 {
-	register struct sl_softc *sc;
-	register int i = 0;
-
 	linesw[SLIPDISC] = slipdisc;
 
-	for (sc = sl_softc; i < NSL; sc++) {
-		sc->sc_if.if_name = "sl";
-		sc->sc_if.if_unit = i++;
-		sc->sc_if.if_mtu = SLMTU;
-		sc->sc_if.if_flags =
-#ifdef SLIP_IFF_OPTS
-		    SLIP_IFF_OPTS;
-#else
-		    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
-#endif
-		sc->sc_if.if_type = IFT_SLIP;
-		sc->sc_if.if_ioctl = slioctl;
-		sc->sc_if.if_output = sloutput;
-		sc->sc_if.if_snd.ifq_maxlen = 50;
-		sc->sc_fastq.ifq_maxlen = 32;
-		sc->sc_if.if_linkmib = sc;
-		sc->sc_if.if_linkmiblen = sizeof *sc;
-		if_attach(&sc->sc_if);
-		bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
-	}
+	LIST_INIT(&sl_list);
 }
 
-static int
-slinit(sc)
-	register struct sl_softc *sc;
-{
-	register caddr_t p;
+static int *st_unit_list;
+static size_t st_unit_max = 0;
 
-	if (sc->sc_ep == (u_char *) 0) {
-		MCLALLOC(p, M_WAIT);
-		if (p)
-			sc->sc_ep = (u_char *)p + SLBUFSIZE;
-		else {
-			printf("sl%ld: can't allocate buffer\n",
-			    (long)(sc - sl_softc));
-			return (0);
-		}
+static
+int slisstatic(unit)
+	int unit;
+{
+	size_t i;
+
+	for (i = 0; i < st_unit_max; i++)
+		if (st_unit_list[i] == unit)
+			return 1;
+	return 0;
+}
+
+static
+void slmarkstatic(unit)
+	int unit;
+{
+	int *t;
+
+	if (slisstatic(unit))
+		return;
+
+	MALLOC(t, int *, sizeof(int) * (st_unit_max+1), M_SL, M_NOWAIT);
+	if (t == NULL)
+		return;
+
+	if (st_unit_list) {
+		bcopy(st_unit_list, t, sizeof(int) * st_unit_max);
+		FREE(st_unit_list, M_SL);
 	}
+	st_unit_list = t;
+	st_unit_list[st_unit_max] = unit;
+	st_unit_max++;
+}
+
+static struct sl_softc *
+slcreate()
+{
+	struct sl_softc *sc, *nc;
+	int unit;
+	caddr_t p;
+
+	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK);
+	bzero(sc, sizeof *sc);
+
+	MCLALLOC(p, M_WAIT);
+	if (p)
+		sc->sc_ep = (u_char *)p + SLBUFSIZE;
+	else {
+		printf("sl: can't allocate buffer\n");
+		FREE(sc, M_SL);
+		return (NULL);
+	}
+
 	sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_mp = sc->sc_buf;
 	sl_compress_init(&sc->sc_comp, -1);
-	return (1);
+
+	sc->sc_if.if_softc = sc;
+	sc->sc_if.if_name = "sl";
+	sc->sc_if.if_mtu = SLMTU;
+	sc->sc_if.if_flags =
+#ifdef SLIP_IFF_OPTS
+	    SLIP_IFF_OPTS;
+#else
+	    IFF_POINTOPOINT | SC_AUTOCOMP | IFF_MULTICAST;
+#endif
+	sc->sc_if.if_type = IFT_SLIP;
+	sc->sc_if.if_ioctl = slioctl;
+	sc->sc_if.if_output = sloutput;
+	sc->sc_if.if_snd.ifq_maxlen = 50;
+	sc->sc_fastq.ifq_maxlen = 32;
+	sc->sc_if.if_linkmib = sc;
+	sc->sc_if.if_linkmiblen = sizeof *sc;
+
+	/*
+	 * Find a suitable unit number.
+	 */
+	for (unit=0; ; unit++) {
+		if (slisstatic(unit))
+			continue;
+		LIST_FOREACH(nc, &sl_list, sl_next) {
+			if (nc->sc_if.if_unit == unit)
+				continue;
+		}
+		break;
+	}
+	sc->sc_if.if_unit = unit;
+	LIST_INSERT_HEAD(&sl_list, sc, sl_next);
+
+	if_attach(&sc->sc_if);
+	bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
+
+	return sc;
 }
+
 
 /*
  * Line specific open routine.
@@ -262,7 +322,6 @@ slopen(dev, tp)
 {
 	struct proc *p = curproc;		/* XXX */
 	register struct sl_softc *sc;
-	register int nsl;
 	int s, error;
 
 	error = suser(p);
@@ -272,38 +331,44 @@ slopen(dev, tp)
 	if (tp->t_line == SLIPDISC)
 		return (0);
 
-	for (nsl = NSL, sc = sl_softc; --nsl >= 0; sc++)
-		if (sc->sc_ttyp == NULL && !(sc->sc_flags & SC_STATIC)) {
-			if (slinit(sc) == 0)
-				return (ENOBUFS);
-			tp->t_sc = (caddr_t)sc;
-			sc->sc_ttyp = tp;
-			sc->sc_if.if_baudrate = tp->t_ospeed;
-			ttyflush(tp, FREAD | FWRITE);
+	if ((sc = slcreate()) == NULL)
+		return (ENOBUFS);
 
-			tp->t_line = SLIPDISC;
-			/*
-			 * We don't use t_canq or t_rawq, so reduce their
-			 * cblock resources to 0.  Reserve enough cblocks
-			 * for t_outq to guarantee that we can fit a full
-			 * packet if the SLIP_HIWAT check allows slstart()
-			 * to loop.  Use the same value for the cblock
-			 * limit since the reserved blocks should always
-			 * be enough.  Reserving cblocks probably makes
-			 * the CLISTRESERVE check unnecessary and wasteful.
-			 */
-			clist_alloc_cblocks(&tp->t_canq, 0, 0);
-			clist_alloc_cblocks(&tp->t_outq,
-			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
-			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
-			clist_alloc_cblocks(&tp->t_rawq, 0, 0);
+	tp->t_sc = (caddr_t)sc;
+	sc->sc_ttyp = tp;
+	sc->sc_if.if_baudrate = tp->t_ospeed;
+	ttyflush(tp, FREAD | FWRITE);
+	tp->t_line = SLIPDISC;
 
-			s = splnet();
-			if_up(&sc->sc_if);
-			splx(s);
-			return (0);
-		}
-	return (ENXIO);
+	/*
+	 * We don't use t_canq or t_rawq, so reduce their
+	 * cblock resources to 0.  Reserve enough cblocks
+	 * for t_outq to guarantee that we can fit a full
+	 * packet if the SLIP_HIWAT check allows slstart()
+	 * to loop.  Use the same value for the cblock
+	 * limit since the reserved blocks should always
+	 * be enough.  Reserving cblocks probably makes
+	 * the CLISTRESERVE check unnecessary and wasteful.
+	 */
+	clist_alloc_cblocks(&tp->t_canq, 0, 0);
+	clist_alloc_cblocks(&tp->t_outq,
+	    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
+	    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
+	clist_alloc_cblocks(&tp->t_rawq, 0, 0);
+
+	s = splnet();
+	if_up(&sc->sc_if);
+	splx(s);
+	return (0);
+}
+
+void
+sldestroy(struct sl_softc *sc) {
+	bpfdetach(&sc->sc_if);
+	if_detach(&sc->sc_if);
+	LIST_REMOVE(sc, sl_next);
+	MCLFREE((caddr_t)(sc->sc_ep - SLBUFSIZE));
+	FREE(sc, M_SL);
 }
 
 /*
@@ -338,13 +403,9 @@ slclose(tp,flag)
 			untimeout(sl_keepalive, sc, sc->sc_kahandle);
 		}
 		if_down(&sc->sc_if);
-		sc->sc_flags &= SC_STATIC;
 		sc->sc_ttyp = NULL;
 		tp->t_sc = NULL;
-		MCLFREE((caddr_t)(sc->sc_ep - SLBUFSIZE));
-		sc->sc_ep = 0;
-		sc->sc_mp = 0;
-		sc->sc_buf = 0;
+		sldestroy(sc);
 	}
 	splx(s);
 	return 0;
@@ -363,8 +424,8 @@ sltioctl(tp, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc, *tmpnc;
-	int s, nsl;
+	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc;
+	int s, unit, wasup;
 
 	s = splimp();
 	switch (cmd) {
@@ -373,44 +434,36 @@ sltioctl(tp, cmd, data, flag, p)
 		break;
 
 	case SLIOCSUNIT:
-		if (sc->sc_if.if_unit != *(u_int *)data) {
-			for (nsl = NSL, nc = sl_softc; --nsl >= 0; nc++) {
-				if (   nc->sc_if.if_unit == *(u_int *)data
-				    && nc->sc_ttyp == NULL
-				   ) {
-					tmpnc = malloc(sizeof *tmpnc, M_TEMP,
-						       M_NOWAIT);
-					if (tmpnc == NULL) {
-						splx(s);
-						return (ENOMEM);
-					}
-					*tmpnc = *nc;
-					*nc = *sc;
-					nc->sc_if = tmpnc->sc_if;
-					tmpnc->sc_if = sc->sc_if;
-					*sc = *tmpnc;
-					free(tmpnc, M_TEMP);
-					if (sc->sc_if.if_flags & IFF_UP) {
-						if_down(&sc->sc_if);
-						if (!(nc->sc_if.if_flags & IFF_UP))
-							if_up(&nc->sc_if);
-					} else if (nc->sc_if.if_flags & IFF_UP)
-						if_down(&nc->sc_if);
-					sc->sc_flags &= ~SC_STATIC;
-					sc->sc_flags |= (nc->sc_flags & SC_STATIC);
-					tp->t_sc = sc = nc;
-					clist_alloc_cblocks(&tp->t_outq,
-					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
-					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
-					sl_compress_init(&sc->sc_comp, -1);
-					goto slfound;
-				}
-			}
+		unit = *(u_int *)data;
+		if (unit < 0) {
 			splx(s);
 			return (ENXIO);
 		}
-	slfound:
-		sc->sc_flags |= SC_STATIC;
+		if (sc->sc_if.if_unit != unit) {
+			LIST_FOREACH(nc, &sl_list, sl_next) {
+				if (nc->sc_if.if_unit == *(u_int *)data) {
+						splx(s);
+						return (ENXIO);
+				}
+			}
+
+			wasup = sc->sc_if.if_flags & IFF_UP;
+			bpfdetach(&sc->sc_if);
+			if_detach(&sc->sc_if);
+			LIST_REMOVE(sc, sl_next);
+			sc->sc_if.if_unit = unit;
+			LIST_INSERT_HEAD(&sl_list, sc, sl_next);
+			if_attach(&sc->sc_if);
+			bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
+			if (wasup)
+				if_up(&sc->sc_if);
+			else
+				if_down(&sc->sc_if);
+			clist_alloc_cblocks(&tp->t_outq,
+			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
+			    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
+		}
+		slmarkstatic(unit);
 		break;
 
 	case SLIOCSKEEPAL:
@@ -470,7 +523,7 @@ sloutput(ifp, m, dst, rtp)
 	struct sockaddr *dst;
 	struct rtentry *rtp;
 {
-	register struct sl_softc *sc = &sl_softc[ifp->if_unit];
+	register struct sl_softc *sc = ifp->if_softc;
 	register struct ip *ip;
 	register struct ifqueue *ifq;
 	int s;
@@ -936,6 +989,7 @@ slioctl(ifp, cmd, data)
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register int s, error = 0;
+	struct sl_softc *sc = ifp->if_softc;
 
 	s = splimp();
 
@@ -946,7 +1000,7 @@ slioctl(ifp, cmd, data)
 		 * if.c will set the interface up even if we
 		 * don't want it to.
 		 */
-		if (sl_softc[ifp->if_unit].sc_ttyp == NULL) {
+		if (sc->sc_ttyp == NULL) {
 			ifp->if_flags &= ~IFF_UP;
 		}
 		break;
@@ -956,7 +1010,7 @@ slioctl(ifp, cmd, data)
 		 * setting the address.
 		 */
 		if (ifa->ifa_addr->sa_family == AF_INET) {
-			if (sl_softc[ifp->if_unit].sc_ttyp != NULL)
+			if (sc->sc_ttyp != NULL)
 				ifp->if_flags |= IFF_UP;
 		} else {
 			error = EAFNOSUPPORT;
@@ -982,7 +1036,7 @@ slioctl(ifp, cmd, data)
 			struct tty *tp;
 
 			ifp->if_mtu = ifr->ifr_mtu;
-			tp = sl_softc[ifp->if_unit].sc_ttyp;
+			tp = sc->sc_ttyp;
 			if (tp != NULL)
 				clist_alloc_cblocks(&tp->t_outq,
 				    SLIP_HIWAT + 2 * ifp->if_mtu + 1,
