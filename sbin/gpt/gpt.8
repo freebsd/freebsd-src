@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2004
+.Dd November 12, 2004
 .Os
 .Dt GPT 8
 .Sh NAME
@@ -138,12 +138,21 @@ as aliases for the most commonly used partition types.
 .It Xo
 .Nm
 .Ic create
+.Op Fl f
 .Op Fl p
 .Ar device ...
 .Xc
 The
 .Ic create
 command allows the user to create a new (empty) GPT.
+By default one can not create a GPT when the device contains a MBR,
+however this can be overridden with the
+.Fl f
+option.
+If the
+.Fl f
+option is specified, an existing MBR is destroyed and any partitions
+described by the MBR are lost.
 .Pp
 The
 .Fl p
