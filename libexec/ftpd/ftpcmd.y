@@ -93,6 +93,7 @@ extern  int transflag;
 extern  char tmpline[];
 extern	int readonly;
 extern	int noepsv;
+extern	int noretr;
 
 off_t	restart_point;
 
@@ -439,8 +440,11 @@ cmd
 		}
 	| RETR check_login SP pathname CRLF
 		{
-			if ($2 && $4 != NULL)
+			if (noretr)
+				reply(500, "RETR command is disabled");
+			else if ($2 && $4 != NULL)
 				retrieve((char *) 0, $4);
+
 			if ($4 != NULL)
 				free($4);
 		}
