@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.59 1995/04/14 15:10:42 dufault Exp $
+ *      $Id: sd.c,v 1.60 1995/04/23 22:07:53 gibbs Exp $
  */
 
 #define SPLSD splbio
@@ -193,7 +193,6 @@ sdattach(struct scsi_link *sc_link)
 	if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
 #endif
 	{
-		printf("\n");
 		sc_print_addr(sc_link);
 		printf("with %d cyls, %d heads, and an average %d sectors/track",
 	   	dp->cyls, dp->heads, dp->sectors);
