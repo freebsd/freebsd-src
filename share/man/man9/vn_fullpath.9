@@ -44,7 +44,8 @@ The
 function makes a "best effort" attempt to generate a string pathname for
 the passed (locked) vnode; the resulting path, if any, will be relative to
 the root directory of the process associated with the passed thread pointer.
-.Fn is implemented by inspecting the VFS name cache, and attempting to
+.Fn
+is implemented by inspecting the VFS name cache, and attempting to
 reconstruct a path from the process root to the object.
 .Pp
 This process is necessarily unreliable for several reasons: intermediate
