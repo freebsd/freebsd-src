@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.71 1999/04/27 11:16:31 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.72 1999/04/28 11:37:15 phk Exp $
  */
 
 
@@ -1954,8 +1954,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 	bp->b_iodone = devfs_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */
-	bp->b_proc = curproc;
-	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+	bp->b_rcred = bp->b_wcred = curproc->p_ucred;
 	if (bp->b_rcred != NOCRED)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)

@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.116 1999/02/21 08:34:15 dillon Exp $
+ * $Id: swap_pager.c,v 1.117 1999/03/14 09:20:00 julian Exp $
  */
 
 #include <sys/param.h>
@@ -1110,8 +1110,7 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	bp->b_flags = B_BUSY | B_READ | B_CALL;
 	bp->b_iodone = swp_pager_async_iodone;
-	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
-	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+	bp->b_rcred = bp->b_wcred = proc0.p_ucred;
 	bp->b_data = (caddr_t) kva;
 	crhold(bp->b_rcred);
 	crhold(bp->b_wcred);
@@ -1368,8 +1367,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
 
-		bp->b_proc = &proc0; /* XXX (but without B_PHYS this is ok) */
-		bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+		bp->b_rcred = bp->b_wcred = proc0.p_ucred;
 		bp->b_bcount = PAGE_SIZE * n;
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;

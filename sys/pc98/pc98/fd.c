@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.55 1999/04/27 11:17:57 phk Exp $
+ *	$Id: fd.c,v 1.56 1999/05/05 03:43:00 kato Exp $
  *
  */
 
@@ -2609,7 +2609,6 @@ fdformat(dev, finfo, p)
 	PHOLD(p);
 	bzero((void *)bp, sizeof(struct buf));
 	bp->b_flags = B_BUSY | B_PHYS | B_FORMAT;
-	bp->b_proc = p;
 
 	/*
 	 * calculate a fake blkno, so fdstrategy() would initiate a

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.45 1999/02/25 00:03:50 peter Exp $
+ * $Id: nfs.h,v 1.46 1999/05/02 23:56:23 alc Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -605,7 +605,7 @@ int	nfs_readrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_writerpc __P((struct vnode *, struct uio *, struct ucred *, int *, 
 			  int *));
 int	nfs_readdirrpc __P((struct vnode *, struct uio *, struct ucred *));
-int	nfs_asyncio __P((struct buf *, struct ucred *));
+int	nfs_asyncio __P((struct buf *, struct ucred *, struct proc *));
 int	nfs_doio __P((struct buf *, struct ucred *, struct proc *));
 int	nfs_readlinkrpc __P((struct vnode *, struct uio *, struct ucred *));
 int	nfs_sigintr __P((struct nfsmount *, struct nfsreq *, struct proc *));
@@ -658,7 +658,7 @@ void	nfs_clearcommit __P((struct mount *));
 int	nfsrv_errmap __P((struct nfsrv_descript *, int));
 void	nfsrvw_sort __P((gid_t *, int));
 void	nfsrv_setcred __P((struct ucred *, struct ucred *));
-int	nfs_writebp __P((struct buf *, int));
+int	nfs_writebp __P((struct buf *, int, struct proc *));
 int	nfsrv_object_create __P((struct vnode *));
 void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
 int	nfsrv_writegather __P((struct nfsrv_descript **, struct nfssvc_sock *,
