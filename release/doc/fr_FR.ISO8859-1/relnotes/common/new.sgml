@@ -324,15 +324,15 @@
       .</para>
 
     <para>Un bogue permettant aux utilisateurs locaux de 
-    g&eacute;n&eacute;r&eacute; des panics du syst&egrave;me via 
+    g&eacute;n&eacute;rer des panics du syst&egrave;me via 
     le m&eacute;canisme &man.kqueue.2; a &eacute;t&eacute; corrig&eacute;.
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
     </para>
 
-    <para>Plusieurs bogues dans la v&eacute;rifications des limites dans les 
+    <para>Plusieurs bogues dans la v&eacute;rification des limites dans les 
     appels syst&egrave;mes, qui r&eacute;sultaient en retour de trop grandes 
-    portions de m&eacute;moire du noyau ont &eacute;t&eacute; fix&eacute;s
+    portions de m&eacute;moire du noyau ont &eacute;t&eacute; fix&eacute;s.
     Pour plus d'informations, voyez l'avis de s&eacute;curit&eacute; <ulink 
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
     </para>
