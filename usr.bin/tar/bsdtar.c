@@ -207,9 +207,11 @@ main(int argc, char **argv)
 		case 'h': /* Linux LSB for 'tar'; synonym for -H */
 			bsdtar->symlink_mode = 'H';
 			break;
+#ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
 			long_help();
 			break;
+#endif
 		case 'j': /* GNU tar */
 			if (bsdtar->create_compression != '\0')
 				bsdtar_errc(1, 0,
