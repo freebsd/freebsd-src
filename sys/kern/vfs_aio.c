@@ -2189,7 +2189,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 
 #ifdef VFS_AIO
 /*
- * This is a wierd hack so that we can post a signal.  It is safe to do so from
+ * This is a weird hack so that we can post a signal.  It is safe to do so from
  * a timeout routine, but *not* from an interrupt routine.
  */
 static void

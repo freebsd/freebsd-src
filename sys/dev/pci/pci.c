@@ -151,7 +151,7 @@ static size_t	pci_vendordata_size;
 struct pci_quirk {
 	u_int32_t devid;	/* Vendor/device of the card */
 	int	type;
-#define PCI_QUIRK_MAP_REG	1 /* PCI map register in wierd place */
+#define PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 	int	arg1;
 	int	arg2;
 };
