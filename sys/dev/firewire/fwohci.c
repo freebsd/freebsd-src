@@ -2304,10 +2304,11 @@ print_db(struct fwohcidb_tr *db_tr, volatile struct fwohcidb *db,
 		stat = res >> OHCI_STATUS_SHIFT;
 #if __FreeBSD_version >= 500000
 		printf("%08jx %s %s %s %s %5d %08x %08x %04x:%04x",
+				(uintmax_t)db_tr->bus_addr,
 #else
 		printf("%08x %s %s %s %s %5d %08x %08x %04x:%04x",
+				db_tr->bus_addr,
 #endif
-				(uintmax_t)db_tr->bus_addr,
 				dbcode[(cmd >> 28) & 0xf],
 				dbkey[(cmd >> 24) & 0x7],
 				dbcond[(cmd >> 20) & 0x3],
