@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.51 1994/08/25 10:15:28 bde Exp $
+ *	$Id: sio.c,v 1.52 1994/09/13 03:30:31 phk Exp $
  */
 
 #include "sio.h"
@@ -1449,6 +1449,7 @@ repeat:
 					"sio%d: %u more %s%s (total %lu)\n",
 					    unit, delta, error_desc[errnum],
 					    delta == 1 ? "" : "s", total);
+#if 0
 				if (errnum == CE_OVERRUN && com->hasfifo
 				    && com->ftl > FIFO_TRIGGER_1) {
 					static	u_char ftl_in_bytes[] =
@@ -1466,6 +1467,7 @@ repeat:
 					    ftl_in_bytes[com->ftl
 							 / FIFO_TRIGGER_DELTA]);
 				}
+#endif
 			}
 		}
 		if (com->state & CS_ODONE) {
