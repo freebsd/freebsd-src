@@ -83,7 +83,6 @@ struct mac_policy_ops {
 	int	(*mpo_init_socket_label)(struct label *label, int flag);
 	int	(*mpo_init_socket_peer_label)(struct label *label, int flag);
 	void	(*mpo_init_pipe_label)(struct label *label);
-	void	(*mpo_init_temp_label)(struct label *label);
 	void	(*mpo_init_vnode_label)(struct label *label);
 	void	(*mpo_destroy_bpfdesc_label)(struct label *label);
 	void	(*mpo_destroy_cred_label)(struct label *label);
@@ -96,11 +95,41 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_socket_label)(struct label *label);
 	void	(*mpo_destroy_socket_peer_label)(struct label *label);
 	void	(*mpo_destroy_pipe_label)(struct label *label);
-	void	(*mpo_destroy_temp_label)(struct label *label);
 	void	(*mpo_destroy_vnode_label)(struct label *label);
-
-	int	(*mpo_externalize)(struct label *label, struct mac *extmac);
-	int	(*mpo_internalize)(struct label *label, struct mac *extmac);
+	void	(*mpo_copy_pipe_label)(struct label *src,
+		    struct label *dest);
+	void	(*mpo_copy_vnode_label)(struct label *src,
+		    struct label *dest);
+	int	(*mpo_externalize_cred_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_ifnet_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_pipe_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_socket_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_socket_peer_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_vnode_label)(struct label *label,
+		    char *element_name, char *buffer, size_t buflen,
+		    size_t *len, int *claimed);
+	int	(*mpo_externalize_vnode_oldmac)(struct label *label,
+		    struct oldmac *extmac);
+	int	(*mpo_internalize_cred_label)(struct label *label,
+		    char *element_name, char *element_data, int *claimed);
+	int	(*mpo_internalize_ifnet_label)(struct label *label,
+		    char *element_name, char *element_data, int *claimed);
+	int	(*mpo_internalize_pipe_label)(struct label *label,
+		    char *element_name, char *element_data, int *claimed);
+	int	(*mpo_internalize_socket_label)(struct label *label,
+		    char *element_name, char *element_data, int *claimed);
+	int	(*mpo_internalize_vnode_label)(struct label *label,
+		    char *element_name, char *element_data, int *claimed);
 
 	/*
 	 * Labeling event operations: file system objects, and things that
@@ -136,7 +165,7 @@ struct mac_policy_ops {
 		    struct label *vnodelabel, struct mount *mp,
 		    struct label *fslabel);
 	int	(*mpo_update_vnode_from_externalized)(struct vnode *vp,
-		    struct label *vnodelabel, struct mac *mac);
+		    struct label *vnodelabel, struct oldmac *extmac);
 	void	(*mpo_update_vnode_from_mount)(struct vnode *vp,
 		    struct label *vnodelabel, struct mount *mp,
 		    struct label *fslabel);
@@ -379,7 +408,6 @@ enum mac_op_constant {
 	MAC_INIT_PIPE_LABEL,
 	MAC_INIT_SOCKET_LABEL,
 	MAC_INIT_SOCKET_PEER_LABEL,
-	MAC_INIT_TEMP_LABEL,
 	MAC_INIT_VNODE_LABEL,
 	MAC_DESTROY_BPFDESC_LABEL,
 	MAC_DESTROY_CRED_LABEL,
@@ -392,10 +420,21 @@ enum mac_op_constant {
 	MAC_DESTROY_PIPE_LABEL,
 	MAC_DESTROY_SOCKET_LABEL,
 	MAC_DESTROY_SOCKET_PEER_LABEL,
-	MAC_DESTROY_TEMP_LABEL,
 	MAC_DESTROY_VNODE_LABEL,
-	MAC_EXTERNALIZE,
-	MAC_INTERNALIZE,
+	MAC_COPY_PIPE_LABEL,
+	MAC_COPY_VNODE_LABEL,
+	MAC_EXTERNALIZE_CRED_LABEL,
+	MAC_EXTERNALIZE_IFNET_LABEL,
+	MAC_EXTERNALIZE_PIPE_LABEL,
+	MAC_EXTERNALIZE_SOCKET_LABEL,
+	MAC_EXTERNALIZE_SOCKET_PEER_LABEL,
+	MAC_EXTERNALIZE_VNODE_LABEL,
+	MAC_EXTERNALIZE_VNODE_OLDMAC,
+	MAC_INTERNALIZE_CRED_LABEL,
+	MAC_INTERNALIZE_IFNET_LABEL,
+	MAC_INTERNALIZE_PIPE_LABEL,
+	MAC_INTERNALIZE_SOCKET_LABEL,
+	MAC_INTERNALIZE_VNODE_LABEL,
 	MAC_CREATE_DEVFS_DEVICE,
 	MAC_CREATE_DEVFS_DIRECTORY,
 	MAC_CREATE_DEVFS_SYMLINK,
