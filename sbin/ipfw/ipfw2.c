@@ -1643,7 +1643,7 @@ sysctl_handler(int ac, char *av[], int which)
 	ac--;
 	av++;
 
-	if (*av == NULL) {
+	if (ac == 0) {
 		warnx("missing keyword to enable/disable\n");
 	} else if (strncmp(*av, "firewall", strlen(*av)) == 0) {
 		sysctlbyname("net.inet.ip.fw.enable", NULL, 0,
