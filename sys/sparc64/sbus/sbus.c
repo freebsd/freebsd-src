@@ -237,6 +237,10 @@ static int sbus_dmamap_create(bus_dma_tag_t, bus_dma_tag_t, int,
 static int sbus_dmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static int sbus_dmamap_load(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, void *,
     bus_size_t, bus_dmamap_callback_t *, void *, int);
+static int sbus_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+static int sbus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void sbus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static void sbus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     bus_dmasync_op_t);
@@ -341,6 +345,8 @@ sbus_probe(device_t dev)
 	sc->sc_cdmatag->dt_dmamap_create = sbus_dmamap_create;
 	sc->sc_cdmatag->dt_dmamap_destroy = sbus_dmamap_destroy;
 	sc->sc_cdmatag->dt_dmamap_load = sbus_dmamap_load;
+	sc->sc_cdmatag->dt_dmamap_load_mbuf = sbus_dmamap_load_mbuf;
+	sc->sc_cdmatag->dt_dmamap_load_uio = sbus_dmamap_load_uio;
 	sc->sc_cdmatag->dt_dmamap_unload = sbus_dmamap_unload;
 	sc->sc_cdmatag->dt_dmamap_sync = sbus_dmamap_sync;
 	sc->sc_cdmatag->dt_dmamem_alloc = sbus_dmamem_alloc;
@@ -939,6 +945,28 @@ sbus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
 
 	return (iommu_dvmamap_load(pdmat, ddmat, &sc->sc_is, map, buf, buflen,
+	    callback, callback_arg, flags));
+}
+
+static int
+sbus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
+    bus_dmamap_t map, struct mbuf *m, bus_dmamap_callback2_t *callback,
+    void *callback_arg, int flags)
+{
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
+
+	return (iommu_dvmamap_load_mbuf(pdmat, ddmat, &sc->sc_is, map, m,
+	    callback, callback_arg, flags));
+}
+
+static int
+sbus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
+    bus_dmamap_t map, struct uio *uio, bus_dmamap_callback2_t *callback,
+    void *callback_arg, int flags)
+{
+	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
+
+	return (iommu_dvmamap_load_uio(pdmat, ddmat, &sc->sc_is, map, uio,
 	    callback, callback_arg, flags));
 }
 
