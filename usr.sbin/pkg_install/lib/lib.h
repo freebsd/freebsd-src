@@ -24,16 +24,16 @@
 #define _INST_LIB_LIB_H_
 
 /* Includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <unistd.h>
+#include <sys/param.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/file.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 /* Macros */
 #define SUCCESS	(0)
@@ -131,8 +131,6 @@ Boolean         isfile(char *);
 Boolean		isempty(char *);
 Boolean		isURL(char *);
 char		*fileGetURL(char *, char *);
-char		*fileURLFilename(char *, char *, int);
-char		*fileURLHost(char *, char *, int);
 char		*fileFindByPath(char *, char *);
 char		*fileGetContents(char *);
 void		write_file(char *, char *);
