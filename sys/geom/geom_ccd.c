@@ -391,10 +391,11 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	struct vnode *vp;
 	size_t minsize;
 	int maxsecsize;
-	struct partinfo dpart;
 	struct ccdgeom *ccg = &cs->sc_geom;
 	char *tmppath = NULL;
 	int error = 0;
+	off_t mediasize;
+	u_int sectorsize;
 
 #ifdef DEBUG
 	if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
@@ -439,8 +440,9 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		/*
 		 * Get partition information for the component.
 		 */
-		if ((error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
-		    FREAD, td->td_ucred, td)) != 0) {
+		error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
+		    FREAD, td->td_ucred, td);
+		if (error != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
@@ -448,20 +450,22 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 #endif
 			goto fail;
 		}
-		if (dpart.part->p_fstype == FS_BSDFFS) {
-			maxsecsize =
-			    ((dpart.disklab->d_secsize > maxsecsize) ?
-			    dpart.disklab->d_secsize : maxsecsize);
-			size = dpart.part->p_size - CCD_OFFSET;
-		} else {
+		/*
+		 * Get partition information for the component.
+		 */
+		error = VOP_IOCTL(vp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
+		    FREAD, td->td_ucred, td);
+		if (error != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				printf("ccd%d: %s: incorrect partition type\n",
-				    cs->sc_unit, ci->ci_path);
+				 printf("ccd%d: %s: ioctl failed, error = %d\n",
+				     cs->sc_unit, ci->ci_path, error);
 #endif
-			error = EFTYPE;
 			goto fail;
 		}
+		if (sectorsize > maxsecsize)
+			maxsecsize = sectorsize;
+		size = mediasize / DEV_BSIZE - CCD_OFFSET;
 
 		/*
 		 * Calculate the size, truncating to an interleave
