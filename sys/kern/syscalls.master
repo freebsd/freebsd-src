@@ -247,7 +247,7 @@
 157	COMPAT4	{ int statfs(char *path, struct ostatfs *buf); }
 158	COMPAT4	{ int fstatfs(int fd, struct ostatfs *buf); }
 159	UNIMPL	nosys
-160	UNIMPL	nosys
+160	STD	{ int lgetfh(char *fname, struct fhandle *fhp); }
 161	STD	{ int getfh(char *fname, struct fhandle *fhp); }
 162	MSTD	{ int getdomainname(char *domainname, int len); }
 163	MSTD	{ int setdomainname(char *domainname, int len); }

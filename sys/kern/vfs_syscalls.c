@@ -3824,6 +3824,44 @@ getvnode(fdp, fd, fpp)
  * Get (NFS) file handle
  */
 #ifndef _SYS_SYSPROTO_H_
+struct lgetfh_args {
+	char	*fname;
+	fhandle_t *fhp;
+};
+#endif
+int
+lgetfh(td, uap)
+	struct thread *td;
+	register struct lgetfh_args *uap;
+{
+	struct nameidata nd;
+	fhandle_t fh;
+	register struct vnode *vp;
+	int error;
+
+	/*
+	 * Must be super user
+	 */
+	error = suser(td);
+	if (error)
+		return (error);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, td);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vp = nd.ni_vp;
+	bzero(&fh, sizeof(fh));
+	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
+	error = VFS_VPTOFH(vp, &fh.fh_fid);
+	vput(vp);
+	if (error)
+		return (error);
+	error = copyout(&fh, uap->fhp, sizeof (fh));
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
 struct getfh_args {
 	char	*fname;
 	fhandle_t *fhp;
