@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.26 1995/05/26 11:21:49 jkh Exp $
+ * $Id: media_strategy.c,v 1.27 1995/05/26 19:28:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -650,14 +650,6 @@ mediaInitFTP(Device *dev)
     url = getenv("ftp");
     if (!url)
 	return FALSE;
-    if (!strcmp(url, "other")) {
-	url = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
-	if (!url || strncmp("ftp://", url, 6))
-	    return FALSE;
-	else
-	    variable_set2("ftp", url);
-    }
-
     my_name = getenv(VAR_HOSTNAME);
     if (strncmp("ftp://", url, 6) != NULL) {
 	msgConfirm("Invalid URL (`%s') passed to FTP routines!\n(must start with `ftp://')", url);

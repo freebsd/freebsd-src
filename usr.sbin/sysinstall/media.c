@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.16 1995/05/24 09:00:40 jkh Exp $
+ * $Id: media.c,v 1.17 1995/05/26 08:41:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -258,6 +258,14 @@ mediaSetFTP(char *str)
     cp = getenv("ftp");
     if (!cp)
 	return 0;
+    if (!strcmp(cp, "other")) {
+	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
+	if (!cp || strncmp("ftp://", cp, 6))
+	    return 0;
+	else
+	    variable_set2("ftp", cp);
+    }
+
     strcpy(ftpDevice.name, cp);
     ftpDevice.type = DEVICE_TYPE_NETWORK;
     ftpDevice.init = mediaInitFTP;
