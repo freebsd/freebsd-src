@@ -371,6 +371,7 @@ product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 product PANASONIC KXLC004	0x0604 Panasonic KXL-810AN Interface Card
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
+product PANASONIC KXLC005_1	0x2904 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 
 /* Planex */
