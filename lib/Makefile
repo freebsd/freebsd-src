@@ -29,14 +29,11 @@ _csu=csu/${MACHINE_ARCH}
 _libc_r=	libc_r
 .endif
 
-.if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
+# Build both libraries. They have different names, so no harm,
+# and this avoids having stale libscrypt.*
 _libcrypt=	libcrypt
-.else
-_libcrypt=	../secure/lib/libcrypt
-# Releases need both libraries.
-.if defined(RELEASEDIR)
-_libcrypt+=	libcrypt
-.endif
+.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
+_libcrypt+=	../secure/lib/libcrypt
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
