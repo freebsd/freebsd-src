@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.66 1996/04/26 22:26:45 bde Exp $
+ *	$Id: locore.s,v 1.67 1996/04/28 07:14:05 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -756,14 +756,6 @@ map_read_write:
 	shrl	$PGSHIFT-2, %ebx
 	addl	R(_KPTphys), %ebx
 	orl	$PG_V|PG_KW, %eax
-	fillkpt
-
-/* ... and the virtual way */
-	movl	R(p0upt), %eax
-	movl	$1, %ecx
-	orl	$PG_V|PG_KW, %eax
-	movl	R(_KPTphys), %ebx
-	addl	$(KSTKPTEOFF * PTESIZE), %ebx
 	fillkpt
 
 /* Map proc0s UPAGES the physical way */
