@@ -13,7 +13,7 @@ NON_GPROF_ENTRY(linux_sigcode)
 	int	$0x80				/* enter kernel with args on stack */
 	hlt					/* never gets here */
 
-	.align	2				/* long word align */
+	.align	4				/* long word align */
 _linux_esigcode:
 
 	.data
