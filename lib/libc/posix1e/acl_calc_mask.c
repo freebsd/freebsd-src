@@ -32,22 +32,34 @@
 #include "un-namespace.h"
 
 #include <errno.h>
+#include <stdio.h>
 
 /*
- * acl_calc_mask() calculates and set the permissions associated
- * with the ACL_MASK ACL entry.  If the ACL already contains an
- * ACL_MASK entry, its permissions shall be overwritten; if not,
- * one shall be added.
+ * acl_calc_mask() (23.4.2): calculate and set the permissions
+ * associated with the ACL_MASK ACL entry.  If the ACL already
+ * contains an ACL_MASK entry, its permissions shall be
+ * overwritten; if not, one shall be added.
  */
 int
 acl_calc_mask(acl_t *acl_p)
 {
-	acl_t acl_new;
-	int group_obj, i, mask_mode, mask_num, other_obj, user_obj;
+	struct acl	*acl_int, *acl_int_new;
+	acl_t		acl_new;
+	int		i, mask_mode, mask_num;
 
-	/* check args */
-	if (!acl_p || !*acl_p || ((*acl_p)->acl_cnt < 3) ||
-	    ((*acl_p)->acl_cnt > ACL_MAX_ENTRIES)) {
+	/*
+	 * (23.4.2.4) requires acl_p to point to a pointer to a valid ACL.
+	 * Since one of the primary reasons to use this function would be
+	 * to calculate the appropriate mask to obtain a valid ACL, we only
+	 * perform sanity checks here and validate the ACL prior to
+	 * returning.
+	 */
+	if (!acl_p || !*acl_p) {
+		errno = EINVAL;
+		return -1;
+	}
+	acl_int = &(*acl_p)->ats_acl;
+	if ((acl_int->acl_cnt < 3) || (acl_int->acl_cnt > ACL_MAX_ENTRIES)) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -55,57 +67,42 @@ acl_calc_mask(acl_t *acl_p)
 	acl_new = acl_dup(*acl_p);
 	if (!acl_new)
 		return -1;
+	acl_int_new = &acl_new->ats_acl;
 
-	user_obj = group_obj = other_obj = mask_mode = 0;
+	mask_mode = 0;
 	mask_num = -1;
 
 	/* gather permissions and find a mask entry */
-	for (i = 0; i < acl_new->acl_cnt; i++) {
-		switch(acl_new->acl_entry[i].ae_tag) {
-		case ACL_USER_OBJ:
-			user_obj++;
-			break;
-		case ACL_OTHER:
-			other_obj++;
-			break;
-		case ACL_GROUP_OBJ:
-			group_obj++;
-			/* FALLTHROUGH */
-		case ACL_GROUP:
+	for (i = 0; i < acl_int_new->acl_cnt; i++) {
+		switch(acl_int_new->acl_entry[i].ae_tag) {
 		case ACL_USER:
+		case ACL_GROUP:
+		case ACL_GROUP_OBJ:
 			mask_mode |=
-			    acl_new->acl_entry[i].ae_perm & ACL_PERM_BITS;
+			    acl_int_new->acl_entry[i].ae_perm & ACL_PERM_BITS;
 			break;
 		case ACL_MASK:
 			mask_num = i;
 			break;
-		default:
-			errno = EINVAL;
-			acl_free(acl_new);
-			return -1;
-			/* NOTREACHED */
 		}
 	}
-	if ((user_obj != 1) || (group_obj != 1) || (other_obj != 1)) {
-		errno = EINVAL;
-		acl_free(acl_new);
-		return -1;
-	}
+
 	/* if a mask entry already exists, overwrite the perms */
-	if (mask_num != -1) {
-		acl_new->acl_entry[mask_num].ae_perm = mask_mode;
-	} else {
+	if (mask_num != -1)
+		acl_int_new->acl_entry[mask_num].ae_perm = mask_mode;
+	else {
 		/* if no mask exists, check acl_cnt... */
-		if (acl_new->acl_cnt == ACL_MAX_ENTRIES) {
-			errno = EINVAL;
-			acl_free(acl_new);
+		if (acl_int_new->acl_cnt == ACL_MAX_ENTRIES) {
+			errno = ENOMEM;
 			return -1;
 		}
 		/* ...and add the mask entry */
-		acl_new->acl_entry[acl_new->acl_cnt].ae_tag  = ACL_MASK;
-		acl_new->acl_entry[acl_new->acl_cnt].ae_id   = 0;
-		acl_new->acl_entry[acl_new->acl_cnt].ae_perm = mask_mode;
-		acl_new->acl_cnt++;
+		acl_int_new->acl_entry[acl_int_new->acl_cnt].ae_tag = ACL_MASK;
+		acl_int_new->acl_entry[acl_int_new->acl_cnt].ae_id =
+		    ACL_UNDEFINED_ID;
+		acl_int_new->acl_entry[acl_int_new->acl_cnt].ae_perm =
+		    mask_mode;
+		acl_int_new->acl_cnt++;
 	}
 
 	if (acl_valid(acl_new) == -1) {

@@ -36,10 +36,18 @@
 #include <sys/errno.h>
 #include <stdlib.h>
 
+/*
+ * acl_free() (23.4.12): free any releasable memory allocated to the
+ * ACL data object identified by obj_p.
+ */
 int
 acl_free(void *obj_p)
 {
 
-	free(obj_p);
+	if (obj_p) {
+		free(obj_p);
+		obj_p = NULL;
+	}
+
 	return (0);
 }

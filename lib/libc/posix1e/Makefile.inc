@@ -47,6 +47,7 @@ MAN+=	acl.3				\
 	acl_free.3			\
 	acl_from_text.3			\
 	acl_get.3			\
+	acl_get_entry.3			\
 	acl_get_permset.3		\
 	acl_get_perm_np.3		\
 	acl_get_qualifier.3		\

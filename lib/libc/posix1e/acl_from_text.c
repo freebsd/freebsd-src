@@ -109,13 +109,13 @@ acl_string_to_tag(char *tag, char *qualifier)
 acl_t
 acl_from_text(const char *buf_p)
 {
-	acl_tag_t	t;
-	acl_perm_t	p;
-	acl_t	acl;
-	uid_t	id;
-	char	*mybuf_p, *line, *cur, *notcomment, *comment, *entry;
-	char	*tag, *qualifier, *permission;
-	int	error;
+	acl_tag_t	 t;
+	acl_perm_t	 p;
+	acl_t		 acl;
+	char		*mybuf_p, *line, *cur, *notcomment, *comment, *entry;
+	char		*tag, *qualifier, *permission;
+	int		 error;
+	uid_t		 id;
 
 	/* Local copy we can mess up. */
 	mybuf_p = strdup(buf_p);

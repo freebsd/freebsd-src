@@ -96,9 +96,12 @@ _posix1e_acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 int
 _posix1e_acl_sort(acl_t acl)
 {
+	struct acl *acl_int;
 
-	qsort(&acl->acl_entry[0], acl->acl_cnt, sizeof(struct acl_entry), 
-	    (compare) _posix1e_acl_entry_compare);
+	acl_int = &acl->ats_acl;
+
+	qsort(&acl_int->acl_entry[0], acl_int->acl_cnt,
+	    sizeof(struct acl_entry), (compare) _posix1e_acl_entry_compare);
 
 	return (0);
 }
@@ -130,8 +133,9 @@ _posix1e_acl(acl_t acl, acl_type_t type)
  * this.  Returns 0 on success, EINVAL on failure.
  */
 int
-_posix1e_acl_check(struct acl *acl)
+_posix1e_acl_check(acl_t acl)
 {
+	struct acl *acl_int;
 	struct acl_entry	*entry; 	/* current entry */
 	uid_t	obj_uid=-1, obj_gid=-1, highest_uid=0, highest_gid=0;
 	int	stage = ACL_USER_OBJ;
@@ -139,10 +143,12 @@ _posix1e_acl_check(struct acl *acl)
 	int	count_user_obj=0, count_user=0, count_group_obj=0,
 		count_group=0, count_mask=0, count_other=0;
 
+	acl_int = &acl->ats_acl;
+
 	/* printf("_posix1e_acl_check: checking acl with %d entries\n",
 	    acl->acl_cnt); */
-	while (i < acl->acl_cnt) {
-		entry = &acl->acl_entry[i];
+	while (i < acl_int->acl_cnt) {
+		entry = &acl_int->acl_entry[i];
 
 		if ((entry->ae_perm | ACL_PERM_BITS) != ACL_PERM_BITS)
 			return (EINVAL);
@@ -408,18 +414,21 @@ _posix1e_acl_string_to_perm(char *string, acl_perm_t *perm)
 int
 _posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 {
+	struct acl		*acl_int;
 	struct acl_entry	*e;
 
-	if (acl->acl_cnt >= ACL_MAX_ENTRIES) {
+	acl_int = &acl->ats_acl;
+
+	if (acl_int->acl_cnt >= ACL_MAX_ENTRIES) {
 		errno = ENOMEM;
 		return (-1);
 	}
 
-	e = &(acl->acl_entry[acl->acl_cnt]);
+	e = &(acl_int->acl_entry[acl_int->acl_cnt]);
 	e->ae_perm = perm;
 	e->ae_tag = tag;
 	e->ae_id = id;
-	acl->acl_cnt++;
+	acl_int->acl_cnt++;
 
 	return (0);
 }

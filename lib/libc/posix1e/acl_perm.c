@@ -35,25 +35,29 @@
 #include <string.h>
 
 /*
- * acl_add_perm() adds the permission contained in perm to the
+ * acl_add_perm() (23.4.1): add the permission contained in perm to the
  * permission set permset_d
  */
 int
 acl_add_perm(acl_permset_t permset_d, acl_perm_t perm)
 {
 
-	if (!permset_d || (perm & !(ACL_PERM_BITS))) {
-		errno = EINVAL;
-		return -1;
+	if (permset_d) {
+		switch(perm) {
+		case ACL_READ:
+		case ACL_WRITE:
+		case ACL_EXECUTE:
+			*permset_d |= perm;
+			return 0;
+		}
 	}
 
-	*permset_d |= perm;
-
-	return 0;
+	errno = EINVAL;
+	return -1;
 }
 
 /*
- * acl_clear_perms() clears all permisions from the permission
+ * acl_clear_perms() (23.4.3): clear all permisions from the permission
  * set permset_d
  */
 int
@@ -65,25 +69,29 @@ acl_clear_perms(acl_permset_t permset_d)
 		return -1;
 	}
 
-	*permset_d = 0;
+	*permset_d = ACL_PERM_NONE;
 
 	return 0;
 }
 
 /*
- * acl_delete_perm() removes the permission in perm from the
+ * acl_delete_perm() (23.4.10): remove the permission in perm from the
  * permission set permset_d
  */
 int
 acl_delete_perm(acl_permset_t permset_d, acl_perm_t perm)
 {
 
-	if (!permset_d) {
-		errno = EINVAL;
-		return -1;
+	if (permset_d) {
+		switch(perm) {
+		case ACL_READ:
+		case ACL_WRITE:
+		case ACL_EXECUTE:
+			*permset_d &= ~(perm & ACL_PERM_BITS);
+			return 0;
+		}
 	}
 
-	*permset_d &= ~(perm & ACL_PERM_BITS);
-
-	return 0;
+	errno = EINVAL;
+	return -1;
 }

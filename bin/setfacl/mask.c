@@ -40,10 +40,14 @@
 
 /* set the appropriate mask the given ACL's */
 int
-set_acl_mask(acl_t prev_acl)
+set_acl_mask(acl_t *prev_acl)
 {
+	acl_entry_t entry;
 	acl_t acl;
-	int i;
+	acl_tag_t tag;
+	int entry_id;
+
+	entry = NULL;
 
 	/*
 	 * ... if a mask entry is specified, then the permissions of the mask
@@ -53,7 +57,7 @@ set_acl_mask(acl_t prev_acl)
 	if (have_mask)
 		return 0;
 
-	acl = acl_dup(prev_acl);
+	acl = acl_dup(*prev_acl);
 	if (!acl)
 		err(EX_OSERR, "acl_dup() failed");
 
@@ -76,11 +80,19 @@ set_acl_mask(acl_t prev_acl)
 		 * specified, then the permissions of the resulting ACL
 		 * mask entry shall remain unchanged ...
 		 */
-		for (i = 0; i < acl->acl_cnt; i++)
-			if (acl->acl_entry[i].ae_tag == ACL_MASK) {
+
+		entry_id = ACL_FIRST_ENTRY;
+
+		while (acl_get_entry(acl, entry_id, &entry) == 1) {
+			entry_id = ACL_NEXT_ENTRY;
+			if (acl_get_tag_type(entry, &tag) == -1)
+				err(1, "acl_get_tag_type() failed");
+
+			if (tag == ACL_MASK) {
 				acl_free(acl);
 				return 0;
 			}
+		}
 
 		/*
 		 * If no mask entry is specified, the -n option is specified,
@@ -93,7 +105,7 @@ set_acl_mask(acl_t prev_acl)
 		return 0;
 	}
 
-	*prev_acl = *acl;
+	prev_acl = &acl;
 	acl_free(acl);
 
 	return 0;
