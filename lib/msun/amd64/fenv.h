@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,10 +180,11 @@ int feupdateenv(const fenv_t *__envp);
 
 #if __BSD_VISIBLE
 
-int fesetmask(int __mask);
+int feenableexcept(int __mask);
+int fedisableexcpt(int __mask);
 
 static __inline int
-fegetmask(void)
+fegetexcept(void)
 {
 	int __control;
 

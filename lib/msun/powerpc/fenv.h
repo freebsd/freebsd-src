@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -222,21 +222,33 @@ feupdateenv(const fenv_t *__envp)
 #if __BSD_VISIBLE
 
 static __inline int
-fesetmask(int __mask)
+feenableexcept(int __mask)
 {
 	union __fpscr __r;
 	fenv_t __oldmask;
 
 	__mffs(&__r.__d);
 	__oldmask = __r.__bits.__reg;
-	__r.__bits.__reg &= ~_ENABLE_MASK;
-	__r.__bits.__reg |= __mask >> _FPUSW_SHIFT;
+	__r.__bits.__reg |= (__mask & FE_ALL_EXCEPT) >> _FPUSW_SHIFT;
 	__mtfsf(__r.__d);
 	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
 }
 
 static __inline int
-fegetmask(void)
+fedisableexcept(int __mask)
+{
+	union __fpscr __r;
+	fenv_t __oldmask;
+
+	__mffs(&__r.__d);
+	__oldmask = __r.__bits.__reg;
+	__r.__bits.__reg &= ~((__mask & FE_ALL_EXCEPT) >> _FPUSW_SHIFT);
+	__mtfsf(__r.__d);
+	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
+}
+
+static __inline int
+fegetexcept(void)
 {
 	union __fpscr __r;
 
