@@ -3,7 +3,7 @@
 MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 gsc.4 fdc.4 fe.4 ie.4 io.4 \
 	joy.4 keyboard.4 labpc.4 lpt.4 matcd.4 mcd.4 mem.4 meteor.4 \
-	mse.4 nca.4 npx.4 pcvt.4 qcam.4 scd.4 screen.4 sea.4 si.4 sio.4 \
+	mse.4 mtio.4 nca.4 npx.4 pcvt.4 qcam.4 scd.4 screen.4 sea.4 si.4 sio.4 \
 	spkr.4 tw.4 uha.4 wd.4
 
 MLINKS=		aha.4 ../aha.4
@@ -31,6 +31,7 @@ MLINKS+=	mcd.4 ../mcd.4
 MLINKS+=	mem.4 kmem.4 mem.4 ../mem.4 mem.4 ../kmem.4
 MLINKS+=	meteor.4 ../meteor.4
 MLINKS+=	mse.4 ../mse.4
+MLINKS+=	mtio.4 ../mtio.4
 MLINKS+=	nca.4 ../nca.4
 MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcvt.4 ../pcvt.4
