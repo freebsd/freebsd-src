@@ -111,6 +111,7 @@ SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr counters");
 static int	netisr_enable = 0;
 SYSCTL_INT(_net_isr, OID_AUTO, enable, CTLFLAG_RW, 
     &netisr_enable, 0, "enable direct dispatch");
+TUNABLE_INT("net.isr.enable", &netisr_enable);
 
 SYSCTL_INT(_net_isr, OID_AUTO, count, CTLFLAG_RD,
     &isrstat.isrs_count, 0, "");
