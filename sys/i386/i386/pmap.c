@@ -1610,6 +1610,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	pt_entry_t *pte;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
 		return;
@@ -1641,6 +1642,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 
 	vm_page_lock_queues();
+	sched_pin();
 	PMAP_LOCK(pmap);
 
 	/*
@@ -1707,6 +1709,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (anyvalid)
 		pmap_invalidate_all(pmap);
 out:
+	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
