@@ -67,6 +67,8 @@
 
 #include "assym.s"
 
+#define	KTR_TLB	KTR_CT5
+
 	.register %g2,#ignore
 	.register %g3,#ignore
 	.register %g6,#ignore
@@ -543,7 +545,7 @@ END(tl0_sfsr_trap)
 	.align	32
 	.endm
 
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_immu_miss
 	b,a	%xcc, tl0_immu_miss_traced
 	 nop
@@ -580,8 +582,8 @@ ENTRY(tl0_immu_miss_traced)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP,
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB,
 	    "tl0_immu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
 	    , %g4, %g5, %g6, 7, 8, 9)
 	rdpr	%tl, %g5
@@ -608,8 +610,8 @@ ENTRY(tl0_immu_miss_traced)
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss: vpn=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_immu_miss: vpn=%#lx data=%#lx"
 	    , %g6, %g4, %g5, 7, 8, 9)
 	ldx	[%g1 + TTE_VPN], %g4
 	stx	%g4, [%g6 + KTR_PARM1]
@@ -647,8 +649,8 @@ ENTRY(tl0_immu_miss_traced)
 	bz,a,pn	%xcc, tl0_immu_miss_set_ref
 	 nop
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss: match tar=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_immu_miss: match tar=%#lx data=%#lx"
 	    , %g1, %g3, %g4, 7, 8, 9)
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%g5, [%g1 + KTR_PARM2]
@@ -679,7 +681,7 @@ ENTRY(tl0_immu_miss_traced)
 
 	b,a	%xcc, tl0_immu_miss_trap
 	 nop
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 END(tl0_immu_miss_traced)
 #else
 	.align	128
@@ -692,8 +694,8 @@ ENTRY(tl0_immu_miss_set_ref)
 	 */
 	TTE_SET_REF(%g1, %g4, %g5)
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss_set_ref: tp=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_immu_miss_set_ref: tp=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g1, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -706,8 +708,8 @@ ENTRY(tl0_immu_miss_set_ref)
 	brgez,pn %g4, 1f
 	 or	%g4, TD_REF, %g4
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss_set_ref: return tar=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_immu_miss_set_ref: return tar=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g2, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -733,8 +735,8 @@ ENTRY(tl0_immu_miss_trap)
 	 */
 	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_immu_miss_trap: tar=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_immu_miss_trap: tar=%#lx"
 	    , %g1, %g3, %g4, 7, 8, 9)
 	stx	%g2, [%g1 + KTR_PARM1]
 9:
@@ -771,8 +773,8 @@ END(tl0_immu_miss_trap)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP,
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB,
 	    "tl0_dmmu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
 	    , %g4, %g5, %g6, 7, 8, 9)
 	rdpr	%tl, %g5
@@ -799,8 +801,8 @@ END(tl0_immu_miss_trap)
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss: vpn=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_miss: vpn=%#lx data=%#lx"
 	    , %g6, %g4, %g5, 7, 8, 9)
 	ldx	[%g1 + TTE_VPN], %g4
 	stx	%g4, [%g6 + KTR_PARM1]
@@ -835,8 +837,8 @@ END(tl0_immu_miss_trap)
 	bz,a,pn	%xcc, dmmu_miss_user_set_ref
 	 nop
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss: match tar=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_miss: match tar=%#lx data=%#lx"
 	    , %g1, %g3, %g4, 7, 8, 9)
 	stx	%g2, [%g1 + KTR_PARM1]
 	stx	%g5, [%g1 + KTR_PARM2]
@@ -872,8 +874,8 @@ ENTRY(dmmu_miss_user_set_ref)
 	 */
 	TTE_SET_REF(%g1, %g4, %g5)
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss_set_ref: tp=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_miss_set_ref: tp=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g1, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -886,8 +888,8 @@ ENTRY(dmmu_miss_user_set_ref)
 	brgez,pn %g4, 1f
 	 or	%g4, TD_REF, %g4
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss_set_ref: return tar=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_miss_set_ref: return tar=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g2, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -902,7 +904,7 @@ ENTRY(dmmu_miss_user_set_ref)
 1:	retry
 END(dmmu_miss_user_set_ref)
 
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_dmmu_miss
 	b,a	%xcc, tl0_dmmu_miss_traced
 	 nop
@@ -928,7 +930,7 @@ ENTRY(tl0_dmmu_miss_traced)
 	 */
 	b,a	%xcc, tl0_dmmu_miss_trap
 	 nop
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 END(tl0_dmmu_miss_traced)
 #else
 	.align	128
@@ -946,8 +948,8 @@ ENTRY(tl0_dmmu_miss_trap)
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_miss_trap: tar=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_miss_trap: tar=%#lx"
 	    , %g1, %g3, %g4, 7, 8, 9)
 	stx	%g2, [%g1 + KTR_PARM1]
 9:
@@ -984,8 +986,8 @@ END(tl0_dmmu_miss_trap)
 	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
 	add	%g1, TSB_REG, %g1
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP,
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB,
 	    "tl0_dmmu_prot: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
 	    , %g4, %g5, %g6, 7, 8, 9)
 	rdpr	%tl, %g5
@@ -1012,8 +1014,8 @@ END(tl0_dmmu_miss_trap)
 	 */
 1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_prot: vpn=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_prot: vpn=%#lx data=%#lx"
 	    , %g6, %g4, %g5, 7, 8, 9)
 	ldx	[%g1 + TTE_VPN], %g4
 	stx	%g4, [%g6 + KTR_PARM1]
@@ -1062,7 +1064,7 @@ END(tl0_dmmu_miss_trap)
 	membar	#Sync
 	.endm
 
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 	.macro	tl0_dmmu_prot
 	b,a	%xcc, tl0_dmmu_prot_traced
 	 nop
@@ -1088,7 +1090,7 @@ ENTRY(tl0_dmmu_prot_traced)
 	 */
 	b,a	%xcc, tl0_dmmu_prot_trap
 	 nop
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 END(tl0_dmmu_prot_traced)
 #else
 	.align	128
@@ -1109,8 +1111,8 @@ ENTRY(dmmu_prot_set_w)
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_prot_set_w: tp=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_prot_set_w: tp=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g1, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -1123,8 +1125,8 @@ ENTRY(dmmu_prot_set_w)
 	brgez,pn %g4, 1f
 	 or	%g4, TD_W, %g4
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_prot_set_w: return tar=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_prot_set_w: return tar=%#lx data=%#lx"
 	   , %g3, %g5, %g6, 7, 8, 9)
 	stx	%g2, [%g3 + KTR_PARM1]
 	stx	%g4, [%g3 + KTR_PARM2]
@@ -1150,8 +1152,8 @@ ENTRY(tl0_dmmu_prot_trap)
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_dmmu_prot_trap: tar=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl0_dmmu_prot_trap: tar=%#lx"
 	    , %g1, %g3, %g4, 7, 8, 9)
 	stx	%g2, [%g1 + KTR_PARM1]
 9:
@@ -1527,7 +1529,7 @@ ENTRY(tl1_immu_miss_trap)
 	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
 END(tl1_immu_miss_trap)
 
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 	.macro	tl1_dmmu_miss
 	b,a	%xcc, tl1_dmmu_miss_traced
 	 nop
@@ -1567,8 +1569,8 @@ ENTRY(tl1_dmmu_miss_traced)
 	sllx	%g3, TTE_SHIFT, %g3
 	add	%g3, %g4, %g3
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP,
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB,
 	    "tl1_dmmu_miss: tl=%#lx tpc=%#lx %#lx tar=%#lx vpn=%#lx tp=%#lx"
 	    , %g4, %g5, %g6, 7, 8, 9)
 	rdpr	%tl, %g5
@@ -1590,8 +1592,8 @@ ENTRY(tl1_dmmu_miss_traced)
 	 */
 	ldda	[%g3] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss: vpn=%#lx data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl1_dmmu_miss: vpn=%#lx data=%#lx"
 	    , %g6, %g4, %g5, 7, 8, 9)
 	ldx	[%g3 + TTE_VPN], %g4
 	stx	%g4, [%g6 + KTR_PARM1]
@@ -1630,15 +1632,15 @@ ENTRY(tl1_dmmu_miss_traced)
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
 1:
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss: match data=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl1_dmmu_miss: match data=%#lx"
 	    , %g3, %g4, %g6, 7, 8, 9)
 	stx	%g5, [%g3 + KTR_PARM1]
 9:
 #endif
 	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 2:	retry
-#if KTR_COMPILE & KTR_TRAP
+#if KTR_COMPILE & KTR_TLB
 END(tl1_dmmu_miss_traced)
 #else
 	.align	128
@@ -1651,8 +1653,8 @@ ENTRY(tl1_dmmu_miss_trap)
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss_trap: tar=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl1_dmmu_miss_trap: tar=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -1685,8 +1687,8 @@ ENTRY(tl1_dmmu_miss_user)
 	 */
 	RESUME_SPILLFILL_MMU
 
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss_user: trap tar=%#lx"
+#if KTR_COMPILE & KTR_TLB
+	CATR(KTR_TLB, "tl1_dmmu_miss_user: trap tar=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 	stx	%g2, [%g1 + KTR_PARM1]
