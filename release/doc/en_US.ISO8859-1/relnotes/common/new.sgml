@@ -3168,6 +3168,20 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
 	</para>
+
+	<para>Beginning with the import of
+	  <application>sendmail</application> 8.12.2, multiple
+	  <application>sendmail</application> daemons (some required
+	  to handle outgoing mail) are started by &man.rc.8;, even if
+	  the <varname>sendmail_enable</varname> variable is set to
+	  <literal>NO</literal>.  To completely disable
+	  <application>sendmail</application>,
+	  <varname>sendmail_enable</varname> must be set to
+	  <literal>NONE</literal>.  Alternatively, for systems using a
+	  different MTA, the <varname>mta_start_script</varname> can
+	  be used to point to a different startup script (more details
+	  can be found in &man.rc.sendmail.8;). &merged;</para>
+
       </sect4>
     </sect3>
 
