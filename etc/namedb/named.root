@@ -12,11 +12,14 @@
 ;              submenu          InterNIC Registration Archives
 ;           file                named.root
 ;
-;       last update:    Aug 25, 1995
-;       related version of root zone:   1995082500
+;       last update:    Sep 1, 1995
+;       related version of root zone:   1995090100
 ;
-.                        3600000  IN  NS    NS.INTERNIC.NET.
-NS.INTERNIC.NET.         3600000      A     198.41.0.4
+;
+; formerly NS.INTERNIC.NET
+;
+.                        3600000  IN  NS    A.ROOT-SERVERS.NET.
+A.ROOT-SERVERS.NET.      3600000      A     198.41.0.4
 ;
 ; formerly NS1.ISI.EDU
 ;
