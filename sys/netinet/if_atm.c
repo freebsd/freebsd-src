@@ -30,14 +30,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * IP <=> ATM address resolution.
  */
-
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_natm.h"
@@ -64,7 +63,6 @@
 #include <netnatm/natm.h>
 #endif
 
-
 #define SDL(s) ((struct sockaddr_dl *)s)
 
 /*
@@ -73,14 +71,10 @@
  *           "rt" = route entry
  *           "info" = rt_addrinfo
  */
-
 void
-atm_rtrequest(req, rt, info)
-	int req;
-	register struct rtentry *rt;
-	struct rt_addrinfo *info;
+atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
-	register struct sockaddr *gate = rt->rt_gateway;
+	struct sockaddr *gate = rt->rt_gateway;
 	struct atm_pseudoioctl api;
 #ifdef NATM
 	struct sockaddr_in *sin;
@@ -99,14 +93,12 @@ atm_rtrequest(req, rt, info)
 		break;
 
 	case RTM_ADD:
-
 		/*
 		 * route added by a command (e.g. ifconfig, route, arp...).
 		 *
 		 * first check to see if this is not a host route, in which
 		 * case we are being called via "ifconfig" to set the address.
 		 */
-
 		if ((rt->rt_flags & RTF_HOST) == 0) { 
 			rt_setgate(rt,rt_key(rt),(struct sockaddr *)&null_sdl);
 			gate = rt->rt_gateway;
@@ -137,7 +129,7 @@ atm_rtrequest(req, rt, info)
 			goto failed;
 		aph = (struct atm_pseudohdr *) LLADDR(SDL(gate));
 		npcb = npcb_add(NULL, rt->rt_ifp, ATM_PH_VCI(aph), 
-						ATM_PH_VPI(aph));
+		    ATM_PH_VPI(aph));
 		if (npcb == NULL) 
 			goto failed;
 		npcb->npcb_flags |= NPCB_IP;
@@ -152,7 +144,7 @@ atm_rtrequest(req, rt, info)
 		bcopy(LLADDR(SDL(gate)), &api.aph, sizeof(api.aph));
 		api.rxhand = NULL;
 		if (rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMENA, 
-							(caddr_t)&api) != 0) {
+		    (caddr_t)&api) != 0) {
 			printf("atm: couldn't add VC\n");
 			goto failed;
 		}
@@ -171,19 +163,17 @@ failed:
 		}
 #endif
 		rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
-			rt_mask(rt), 0, (struct rtentry **) 0);
+		    rt_mask(rt), 0, (struct rtentry **)0);
 		break;
 
 	case RTM_DELETE:
-
 #ifdef NATM
 		/*
 		 * tell native ATM we are done with this VC
 		 */
-
 		if (rt->rt_flags & RTF_LLINFO) {
 			npcb_free((struct natmpcb *)rt->rt_llinfo, 
-								NPCB_DESTROY);
+			    NPCB_DESTROY);
 			rt->rt_llinfo = NULL;
 			rt->rt_flags &= ~RTF_LLINFO;
 		}
@@ -191,12 +181,10 @@ failed:
 		/*
 		 * tell the lower layer to disable this circuit
 		 */
-
 		bcopy(LLADDR(SDL(gate)), &api.aph, sizeof(api.aph));
 		api.rxhand = NULL;
 		(void)rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMDIS, 
-							(caddr_t)&api);
-
+		    (caddr_t)&api);
 		break;
 	}
 }
@@ -218,30 +206,26 @@ failed:
  */
 
 int
-atmresolve(rt, m, dst, desten)
-
-register struct rtentry *rt;
-struct mbuf *m;
-register struct sockaddr *dst;
-register struct atm_pseudohdr *desten;	/* OUT */
-
+atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
+    struct atm_pseudohdr *desten)
 {
 	struct sockaddr_dl *sdl;
 
-	if (m->m_flags & (M_BCAST|M_MCAST)) {
+	if (m->m_flags & (M_BCAST | M_MCAST)) {
 		log(LOG_INFO, "atmresolve: BCAST/MCAST packet detected/dumped");
 		goto bad;
 	}
 
 	if (rt == NULL) {
 		rt = RTALLOC1(dst, 0);
-		if (rt == NULL) goto bad; /* failed */
+		if (rt == NULL)
+			goto bad;	/* failed */
 		rt->rt_refcnt--;	/* don't keep LL references */
 		if ((rt->rt_flags & RTF_GATEWAY) != 0 || 
-			(rt->rt_flags & RTF_LLINFO) == 0 ||
-			/* XXX: are we using LLINFO? */
-			rt->rt_gateway->sa_family != AF_LINK) {
-				goto bad;
+		    (rt->rt_flags & RTF_LLINFO) == 0 ||
+		    /* XXX: are we using LLINFO? */
+		    rt->rt_gateway->sa_family != AF_LINK) {
+			goto bad;
 		}
 	}
 
@@ -251,15 +235,12 @@ register struct atm_pseudohdr *desten;	/* OUT */
 	 * don't need any rt_llinfo info (but will if we want to support
 	 * ATM ARP [c.f. if_ether.c]).
 	 */
-
 	sdl = SDL(rt->rt_gateway);
 
 	/*
 	 * Check the address family and length is valid, the address
 	 * is resolved; otherwise, try to resolve.
 	 */
-
-
 	if (sdl->sdl_family == AF_LINK && sdl->sdl_alen == sizeof(*desten)) {
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		return(1);	/* ok, go for it! */
@@ -270,9 +251,8 @@ register struct atm_pseudohdr *desten;	/* OUT */
 	 * info in it (it is prob. the interface route, which has
 	 * sdl_alen == 0).    dump packet.  (fall through to "bad").
 	 */
-
 bad:
 	m_freem(m);
-	return(0);
+	return (0);
 }
 #endif /* INET */
