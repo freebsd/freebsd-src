@@ -67,7 +67,7 @@ static	const char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
-static struct pci_device chipset_device = {
+struct pci_device chipset_device = {
 	"chip",
 	chipset_probe,
 	chipset_attach,
@@ -75,7 +75,7 @@ static struct pci_device chipset_device = {
 	NULL
 };
 
-DATA_SET (pcidevice_set, chipset_device);
+/*DATA_SET (pcidevice_set, chipset_device);*/
 
 struct condmsg {
     unsigned char	port;

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.19 1999/01/14 06:22:10 jdp Exp $
+ * $Id: pci_compat.c,v 1.20 1999/01/19 23:29:19 se Exp $
  *
  */
 
@@ -384,9 +384,20 @@ pci_finddrv(pcicfgregs *cfg)
 		lkm = lkm->next;
 	}
 
+	/*
+	 * it wasn't a loaded driver, look in the linked in ones
+	 */
 	dvpp = (struct pci_device **)pcidevice_set.ls_items;
 	while (drvname == NULL && (dvp = *dvpp++) != NULL)
 		drvname = pci_probedrv(cfg, dvp);
+
+	/*
+	 * It wasn't one of the linked in drivers either, so try the defaults.
+	 */
+	if (drvname == NULL) {
+		dvp = &chipset_device;
+		drvname = pci_probedrv(cfg, dvp);
+	}
 	return (dvp);
 }
 

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.24 1999/01/13 04:59:19 bde Exp $
+ * $Id: pcivar.h,v 1.25 1999/01/19 23:29:20 se Exp $
  *
  */
 
@@ -165,6 +165,7 @@ struct pci_devinfo {
 	struct pci_conf		conf;
 };
 
+extern struct pci_device chipset_device; /* the default bridge handler */
 extern u_int32_t pci_numdevs;
 
 
