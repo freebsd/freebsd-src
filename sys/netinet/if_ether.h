@@ -115,7 +115,7 @@ extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 extern struct	ifqueue arpintrq;
 
 int	arpresolve(struct ifnet *, struct rtentry *, struct mbuf *,
-			struct sockaddr *, u_char *, struct rtentry *);
+	    struct sockaddr *, u_char *, struct rtentry *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 #endif
 
