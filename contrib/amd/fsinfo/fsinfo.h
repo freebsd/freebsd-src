@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.h,v 5.2.2.1 1992/02/09 15:09:51 jsp beta $
+ * $Id: fsinfo.h,v 1.2 1998/12/27 06:25:21 ezk Exp $
  *
  */
 
@@ -109,6 +109,7 @@ extern void domain_strip(char *otherdom, char *localdom);
  */
 #ifndef yywrap
 extern int yywrap(void);
+# define yywrap() 1
 #endif /* not yywrap */
 extern int yyparse(void);
 extern int write_atab(qelem *q);

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: opts.c,v 5.2.2.4 1992/08/02 10:42:21 jsp Exp $
+ * $Id: opts.c,v 1.2 1998/12/27 06:24:48 ezk Exp $
  *
  */
 
@@ -91,7 +91,7 @@ struct functable {
 };
 
 /*
- * FORWARD DEFINITSION:
+ * FORWARD DEFINITION:
  */
 static int f_in_network(char *);
 static int f_netgrp(char *);
@@ -106,7 +106,7 @@ static struct am_opts fs_static; /* copy of the options to play with */
 static char NullStr[] = "<NULL>";
 static char nullstr[] = "";
 static char *opt_dkey = NullStr;
-static char *opt_host = hostname;
+static char *opt_host = nullstr; /* XXX: was the global hostname */
 static char *opt_hostd = hostd;
 static char *opt_key = nullstr;
 static char *opt_keyd = nullstr;
@@ -1050,7 +1050,7 @@ expand_op(opt_apply *p, int sel_p)
       }
 
       /*
-       * Check that the search was succesful
+       * Check that the search was successful
        */
       if (!op->name) {
 	/*
@@ -1104,7 +1104,7 @@ out:
     }
 
     /*
-     * Save the exansion
+     * Save the expansion
      */
     *p->opt = strdup(expbuf);
   }
@@ -1219,6 +1219,9 @@ eval_fs_opts(am_opts *fo, char *opts, char *g_opts, char *path, char *key, char 
   memset((voidp) vars, 0, sizeof(vars));
   memset((voidp) fo, 0, sizeof(*fo));
 
+  /* set hostname */
+  opt_host = (char *) am_get_hostname();
+
   /*
    * Set key, map & path before expansion
    */
@@ -1260,7 +1263,7 @@ eval_fs_opts(am_opts *fo, char *opts, char *g_opts, char *path, char *key, char 
     ok = FALSE;
 
   /*
-   * Normalise remote host name.
+   * Normalize remote host name.
    * 1.  Expand variables
    * 2.  Normalize relative to host tables
    * 3.  Strip local domains from the remote host

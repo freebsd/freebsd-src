@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 5.2.2.2 1992/05/31 16:35:45 jsp Exp $
+ * $Id: mount_fs.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
  *
  */
 
@@ -315,7 +315,7 @@ again:
 /*
  * Fill in the many possible fields and flags of struct nfs_args.
  *
- * nap:		pre-allocted structure to fill in.
+ * nap:		pre-allocated structure to fill in.
  * mntp:	mount entry structure (includes options)
  * genflags:	generic mount flags already determined
  * nfsncp:	(TLI only) netconfig entry for this NFS mount

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.10 1993/09/13 15:11:00 ezk Exp $
+ * $Id: stubs.c,v 1.1.1.1 1998/11/05 02:04:55 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -132,7 +132,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 #ifndef MNT2_NFS_OPT_SYMTTL
     /*
      * This code is needed to defeat Solaris 2.4's (and newer) symlink
-     * values cache.  It forces the last-modifed time of the symlink to be
+     * values cache.  It forces the last-modified time of the symlink to be
      * current.  It is not needed if the O/S has an nfs flag to turn off the
      * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
      */
@@ -158,7 +158,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 	un_fattr.na_fileid = uid;
 	res.ns_u.ns_attr_u = un_fattr;
 #ifdef DEBUG
-	dlog("nfs_getattr: succesful search for uid=%d, gid=%d", uid, gid);
+	dlog("nfs_getattr: successful search for uid=%d, gid=%d", uid, gid);
 #endif /* DEBUG */
       } else {			/* not found */
 	res.ns_status = NFSERR_STALE;
@@ -233,7 +233,7 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       return &res;
     }
 
-    /* if get's here, gid == hlfs_gid */
+    /* if gets here, gid == hlfs_gid */
     if ((idx = untab_index(argp->da_name)) < 0) {
       res.dr_status = NFSERR_NOENT;
       return &res;
@@ -248,7 +248,7 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       res.dr_u.dr_drok_u.drok_fhandle = un_fhandle;
       res.dr_status = NFS_OK;
 #ifdef DEBUG
-      dlog("nfs_lookup: succesful lookup for uid=%d, gid=%d: username=%s",
+      dlog("nfs_lookup: successful lookup for uid=%d, gid=%d: username=%s",
 	   uid, gid, untab[idx].username);
 #endif /* DEBUG */
       return &res;

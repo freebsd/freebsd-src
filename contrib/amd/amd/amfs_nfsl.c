@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_nfsl.c,v 5.2.2.3 1992/08/02 10:42:21 jsp Exp $
+ * $Id: amfs_nfsl.c,v 1.2 1998/12/27 06:24:45 ezk Exp $
  *
  */
 
@@ -99,7 +99,7 @@ amfs_nfsl_match(am_opts *fo)
   struct stat stb;
 
   if (!cp || !ho) {
-    plog(XLOG_USER, "amfs_nfsl: nost $fs and $rhost must be specified");
+    plog(XLOG_USER, "amfs_nfsl: host $fs and $rhost must be specified");
     return NULL;
   }
 
@@ -109,7 +109,7 @@ amfs_nfsl_match(am_opts *fo)
    * If link value exists (or same host), then perform amfs_link_match(),
    * same as for linkx.
    */
-  if (!STRCEQ(ho, hostname)) {
+  if (!STRCEQ(ho, am_get_hostname())) {
     plog(XLOG_INFO, "amfs_nfsl: \"%s\" is not local host, using type:=nfs", ho);
     return nfs_match(fo);
   } else if (lstat(cp, &stb) < 0) {
@@ -228,7 +228,7 @@ amfs_nfsl_ffserver(mntfs *mf)
    * If link value exists (or same host), then perform
    * find_amfs_auto_srvr(), same as for linkx.
    */
-  if (!STREQ(ho, hostname) || lstat(cp, &stb) < 0) {
+  if (!STRCEQ(ho, am_get_hostname()) || lstat(cp, &stb) < 0) {
     return find_nfs_srvr(mf);
   } else {
     mf->mf_flags |= MFF_NFSLINK;
