@@ -3007,7 +3007,7 @@ pmap_testbit(m, bit)
 		return FALSE;
 
 	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		/*
 		 * if the bit being tested is the modified bit, then
