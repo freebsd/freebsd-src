@@ -55,7 +55,8 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-struct timezone tz;
+int tz_minuteswest;
+int tz_dsttime;
 
 /*
  * Time of day and interval timer support.
@@ -327,9 +328,8 @@ gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 		error = copyout(&atv, uap->tp, sizeof (atv));
 	}
 	if (error == 0 && uap->tzp != NULL) {
-		mtx_lock(&Giant);
-		rtz = tz;
-		mtx_unlock(&Giant);
+		rtz.tz_minuteswest = tz_minuteswest;
+		rtz.tz_dsttime = tz_dsttime;
 		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
@@ -373,9 +373,8 @@ settimeofday(struct thread *td, struct settimeofday_args *uap)
 	if (uap->tv && (error = settime(td, &atv)))
 		return (error);
 	if (uap->tzp) {
-		mtx_lock(&Giant);
-		tz = atz;
-		mtx_unlock(&Giant);
+		tz_minuteswest = atz.tz_minuteswest;
+		tz_dsttime = atz.tz_dsttime;
 	}
 	return (error);
 }
