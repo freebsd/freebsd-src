@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.40 1998/09/23 09:58:45 yokota Exp $
+ *	$Id: console.h,v 1.41 1998/10/01 11:39:09 yokota Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -303,7 +303,7 @@ struct video_info {
     int			vi_flags;
 #define V_INFO_COLOR	(1<<0)
 #define V_INFO_GRAPHICS	(1<<1)
-#define V_INFO_LENEAR	(1<<2)
+#define V_INFO_LINEAR	(1<<2)
 #define V_INFO_VESA	(1<<3)
     int			vi_width;
     int			vi_height;
