@@ -44,12 +44,13 @@ static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <sys/buf.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/user.h>
 #include <sys/proc.h>
+#include <sys/uio.h>
 #include <sys/namei.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
-#include <vm/vm.h>
+
+#include <vm/vm_param.h>
 
 #include <signal.h>
 #include <nlist.h>
