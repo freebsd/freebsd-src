@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.21 1999/03/05 23:20:20 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.22 1999/05/06 20:16:04 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -178,8 +178,6 @@ static struct da_quirk_entry da_quirk_table[] =
 };
 
 static	d_open_t	daopen;
-static	d_read_t	daread;
-static	d_write_t	dawrite;
 static	d_close_t	daclose;
 static	d_strategy_t	dastrategy;
 static	d_ioctl_t	daioctl;
@@ -242,8 +240,8 @@ static struct cdevsw da_cdevsw =
 {
 	/*d_open*/	daopen,
 	/*d_close*/	daclose,
-	/*d_read*/	daread,
-	/*d_write*/	dawrite,
+	/*d_read*/	physread,
+	/*d_write*/	physwrite,
 	/*d_ioctl*/	daioctl,
 	/*d_stop*/	nostop,
 	/*d_reset*/	noreset,
@@ -495,18 +493,6 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);	
-}
-
-static int
-daread(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(dastrategy, NULL, dev, 1, minphys, uio));
-}
-
-static int
-dawrite(dev_t dev, struct uio *uio, int ioflag)
-{
-	return(physio(dastrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
