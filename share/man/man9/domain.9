@@ -57,52 +57,53 @@
 .Sh DESCRIPTION
 Network protocols installed in the system are maintained within what
 are called domains
-.Pq for example the inetdomain and localdomain .
+(for example the
+.Va inetdomain
+and
+.Va localdomain ) .
 .Bd -literal
-
 struct domain {
-        int     dom_family;             /* AF_xxx */
-        char    *dom_name;
-        void    (*dom_init)             /* initialize domain data structures */
-                __P((void));
-        int     (*dom_externalize)      /* externalize access rights */
-                __P((struct mbuf *, struct mbuf **));
-        void    (*dom_dispose)          /* dispose of internalized rights */
-                __P((struct mbuf *));
-        struct  protosw *dom_protosw, *dom_protoswNPROTOSW;
-        struct  domain *dom_next;
-        int     (*dom_rtattach)         /* initialize routing table */
-                __P((void **, int));
-        int     dom_rtoffset;           /* an arg to rtattach, in bits */
-        int     dom_maxrtkey;           /* for routing layer */
+	int	dom_family;		/* AF_xxx */
+	char	*dom_name;
+	void	(*dom_init)		/* initialize domain data structures */
+		__P((void));
+	int	(*dom_externalize)	/* externalize access rights */
+		__P((struct mbuf *, struct mbuf **));
+	void	(*dom_dispose)		/* dispose of internalized rights */
+		__P((struct mbuf *));
+	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
+	struct	domain *dom_next;
+	int	(*dom_rtattach)		/* initialize routing table */
+		__P((void **, int));
+	int	dom_rtoffset;		/* an arg to rtattach, in bits */
+	int	dom_maxrtkey;		/* for routing layer */
 };
 .Ed
 .Pp
 Each domain contains an array of protocol switch structures
-.Pq Vt struct protosw * ,
+.Pq Vt "struct protosw *" ,
 one for each socket type supported.
 .Bd -literal
-
 struct protosw {
-        short   pr_type;                /* socket type used for */
-        struct  domain *pr_domain;      /* domain protocol a member of */
-        short   pr_protocol;            /* protocol number */
-        short   pr_flags;               /* see below */
+	short	pr_type;		/* socket type used for */
+	struct	domain *pr_domain;	/* domain protocol a member of */
+	short	pr_protocol;		/* protocol number */
+	short	pr_flags;		/* see below */
 /* protocol-protocol hooks */
-        pr_input_t *pr_input;           /* input to protocol (from below) */
-        pr_output_t *pr_output;         /* output to protocol (from above) */
-        pr_ctlinput_t *pr_ctlinput;     /* control input (from below) */
-        pr_ctloutput_t *pr_ctloutput;   /* control output (from above) */
+	pr_input_t *pr_input;		/* input to protocol (from below) */
+	pr_output_t *pr_output;		/* output to protocol (from above) */
+	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
+	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* user-protocol hook */
-        pr_usrreq_t     *pr_ousrreq;
+	pr_usrreq_t	*pr_ousrreq;
 /* utility hooks */
-        pr_init_t *pr_init;
-        pr_fasttimo_t *pr_fasttimo;     /* fast timeout (200ms) */
-        pr_slowtimo_t *pr_slowtimo;     /* slow timeout (500ms) */
-        pr_drain_t *pr_drain;           /* flush any excess space possible */
+	pr_init_t *pr_init;
+	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
+	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
+	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
-        struct  pr_usrreqs *pr_usrreqs; /* supersedes pr_usrreq() */
-        struct  pfil_head       pr_pfh;
+	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pfil_head	pr_pfh;
 };
 .Ed
 .Pp
@@ -115,7 +116,7 @@ is called by the system whenever an event occurs that could affect every
 domain.
 Examples of those types of events are routing table changes, interface
 shutdowns or certain
-.Dv ICMP
+.Tn ICMP
 message types.
 When called,
 .Fn pfctlinput
@@ -127,8 +128,8 @@ function for each protocol in that has defined one, in every domain.
 provides that same functionality of
 .Fn pfctlinput ,
 but with a few additional checks and a new
-.Vt void *
-argument that is passed directly to the protocols
+.Vt "void *"
+argument that is passed directly to the protocol's
 .Fn pr_ctlinput
 function.
 Unlike
@@ -149,9 +150,9 @@ adds a new protocol domain to the system.
 The argument
 .Fa data
 is cast directly to
-.Vt struct domain *
+.Vt "struct domain *"
 within the function, but is declared
-.Vt void *
+.Vt "void *"
 in order to prevent compiler warnings when new domains are registered with
 .Fn SYSINIT .
 In most cases
@@ -160,20 +161,21 @@ is not called directly, instead
 .Fn DOMAIN_SET
 is used.
 .Pp
-If the new domain has defined an initialization routine it is called by
+If the new domain has defined an initialization routine, it is called by
 .Fn net_add_domain ;
 as well, each of the protocols within the domain that have defined an
 initialization routine will have theirs called.
 .Pp
-Once a domain is added it cannot be unloaded.  This is because there is
+Once a domain is added it cannot be unloaded.
+This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
 .Pp
 .Fn pffindtype
 and
 .Fn pffindproto
-lookup a protocol by its number or by its type.
-In most cases if the protocol or type cannot be found
+look up a protocol by its number or by its type.
+In most cases, if the protocol or type cannot be found,
 .Dv NULL
 is returned, but
 .Fn pffindproto
@@ -188,20 +190,21 @@ Both functions are called by
 in order to resolve the protocol for the socket currently being created.
 .Pp
 .Fn DOMAIN_SET
-is a macro that simplifies the registration of a domain via SYSINIT.
+is a macro that simplifies the registration of a domain via
+.Fn SYSINIT .
 The code resulting from the macro expects there to be a domain structure
 named
-.Vt namedomain 
-where name is the argument
-.Fa name .
+.Dq Fa name Ns Li domain
+where
+.Fa name
+is the argument to
+.Fn DOMAIN_SET :
 .Bd -literal
+struct domain localdomain =
+{ AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
+  localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
 
-	struct domain localdomain =
-	{ AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
-	  localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
-
-	DOMAIN_SET(local);
-
+DOMAIN_SET(local);
 .Ed
 .Sh RETURN VALUES
 Both
@@ -209,13 +212,13 @@ Both
 and
 .Fn pffindproto
 return a
-.Vt struct protosw *
+.Vt "struct protosw *"
 for the protocol requested.
-If the protocol or socket type is not found
+If the protocol or socket type is not found,
 .Dv NULL
 is returned.
 In the case of
-.Fn pffindproto
+.Fn pffindproto ,
 the default protocol may be returned for
 .Dv SOCK_RAW
 types if the domain has a default raw protocol.
