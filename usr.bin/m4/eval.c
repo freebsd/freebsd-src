@@ -356,6 +356,7 @@ register int td;
 	/*
 	 * doexit - immediate exit from m4.
 	 */
+		killdiv();
 		exit((argc > 2) ? atoi(argv[2]) : 0);
 		break;
 
