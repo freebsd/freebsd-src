@@ -870,9 +870,6 @@ controller	isa0
 # The amount is in kilobytes, so for a machine with 128MB of RAM, it would
 # be 131072 (128 * 1024).
 #
-# TUNE_1542 enables the automatic ISA bus speed selection for the
-# Adaptec 1542 boards. Does not work for all boards, use it with caution.
-#
 # BROKEN_KEYBOARD_RESET disables the use of the keyboard controller to
 # reset the CPU for reboot.  This is needed on some systems with broken
 # keyboard controllers.
@@ -882,7 +879,6 @@ controller	isa0
 options 	AUTO_EOI_1
 #options 	AUTO_EOI_2
 options 	MAXMEM="(128*1024)"
-options 	TUNE_1542
 #options 	BROKEN_KEYBOARD_RESET
 #options 	PAS_JOYSTICK_ENABLE
 
