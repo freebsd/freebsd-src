@@ -6,6 +6,7 @@
 
 # PROVIDE: cron
 # REQUIRE: LOGIN
+# BEFORE: securelevel
 # KEYWORD: FreeBSD NetBSD shutdown
 
 . /etc/rc.subr
