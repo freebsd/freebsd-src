@@ -274,7 +274,7 @@ ravage()
 follow()
 {
 	if (followfight == gtime){
-		puts("The Dark Lord leaps away and runs down secret tunnels and corridoors.");
+		puts("The Dark Lord leaps away and runs down secret tunnels and corridors.");
 		puts("You chase him through the darkness and splash in pools of water.");
 		puts("You have cornered him.  His laser sword extends as he steps forward.");
 		position = FINAL;

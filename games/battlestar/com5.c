@@ -108,7 +108,7 @@ love()
 				return;
 			}
 		if (wordvalue[wordnumber] == NATIVE){
-			puts("The girl is easy prey.  She peals off her sarong and indulges you.");
+			puts("The girl is easy prey.  She peels off her sarong and indulges you.");
 			power++;
 			pleasure += 5;
 			printf("Girl:\n");
@@ -299,7 +299,7 @@ give()
 						puts("\nBut, as the year wears on and autumn comes along, you become restless and");
 						puts("yearn for adventure.  The goddess, too, realizes that the marriage can't last.");
 						puts("She becomes bored and takes several more natives as husbands.  One evening,");
-						puts("after having been out drinking with the girls, she kicks the throne particulary");
+						puts("after having been out drinking with the girls, she kicks the throne particularly");
 						puts("hard and wakes you up.  (If you want to win this game, you're going to have to\nshoot her!)");
 						clearbit(location[position].objects,MEDALION);
 						wintime = gtime;

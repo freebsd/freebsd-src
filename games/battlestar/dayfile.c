@@ -555,7 +555,7 @@ way.* The water is +.**\n" },
 	{ "You are on a dirt road.",
 	173, 93, 174, 175, 82, 0, 0, 0,
 "The light tan soil of the road contrasts artistically with the lush green\n\
-vegetation and seering blue sky.*  There is a clearing and many people +.\n\
+vegetation and searing blue sky.*  There is a clearing and many people +.\n\
 The road continues - and -.\n" },
 	{ "You are at the seaplane dock.",
 	93, 0, 176, 177, 82, 0, 0, 0,
@@ -751,7 +751,7 @@ catch of colorful fish is drying in the sun. There are paths leading \n\
 off -*, -, and -.\n" },
 	{ "You are at the lagoon.",
 	118, 0, 170, 166, 81, 0, 0, 0,
-"This is a grassy little spot near the water. A sightly native girl is frolicing\n\
+"This is a grassy little spot near the water. A sightly native girl is frolicking\n\
 in the water close to shore here.** The path continues - and -. \n" },
 	{ "You are at the lagoon.",
 	118, 0, 166, 172, 81, 0, 0, 0,
