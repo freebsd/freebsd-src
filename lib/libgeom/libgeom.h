@@ -31,6 +31,7 @@
 #ifndef _LIBGEOM_H_
 #define _LIBGEOM_H_
 
+#include <sys/time.h>
 #include <geom/geom_stats.h>
 
 void geom_stats_close(void);
