@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.2 1995/07/21 11:45:45 rgrimes Exp $
+ * $Id: menus.c,v 1.42.2.3 1995/07/27 01:37:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,14 +64,14 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_DISPLAY_FILE,	"usage.hlp", 0, 0		},
       { "Doc",			"More detailed documentation on FreeBSD.",	/* D */
 	DMENU_SUBMENU,		&MenuDocumentation, 0, 0	},
-      { "Language",		"Set your preferred language.",			/* L */
-	DMENU_SUBMENU,		&MenuOptionsLanguage, 0, 0	},
       { "Options",		"Select various options for this utility.",	/* O */
 	DMENU_SUBMENU,		&MenuOptions, 0, 0		},
       { "Custom",		"Begin a custom installation",			/* C */
-	DMENU_SUBMENU,		&MenuInstallCustom, 0, 0		},
+	DMENU_SUBMENU,		&MenuInstallCustom, 0, 0	},
       { "Express",		"Begin a quick installation",			/* E */
 	DMENU_CALL,		&installExpress, 0, 0		},
+      { "Shell",		"Go to a shell for debugging or repair",
+	DMENU_SYSTEM_COMMAND,	"sh", 0, 0			},
       { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
       { NULL } },
@@ -100,46 +100,6 @@ consult the README file.",
 	DMENU_DISPLAY_FILE,	"RELNOTES", 0, 0	},
       { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL,		NULL, 0, 0		},
-      { NULL } },
-};
-
-/*
- * The language selection menu.
- */
-DMenu MenuOptionsLanguage = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Natural language selection",	/* title */
-    "Please specify the language you would like to use by default.\n\n\
-While almost all of the system's documentation is still written\n\
-in english (and may never be translated), there are a few guides\n\
-and types of system documentation that may be written in your\n\
-preferred language.  When such are found, they will be used instead\n\
-of the english versions.  This feature is nonetheless considered\n\
-to be in experimental status at this time.",		/* prompt */
-    "Press F1 for more information",
-    "language.hlp",
-    { { "Danish",	"Danish language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Danish, 0, 0		},
-      { "Dutch",	"Dutch language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Dutch, 0, 0		},
-      { "English",	"English language (system default)",
-	DMENU_CALL,	lang_set_English, 0, 0		},
-      { "French",	"French language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_French, 0, 0		},
-      { "German",	"German language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_German, 0, 0		},
-      { "Italian",	"Italian language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Italian, 0, 0		},
-      { "Japanese",	"Japanese language and default character set (romaji)",
-	DMENU_CALL,	lang_set_Japanese, 0, 0		},
-      { "Norwegian",	"Norwegian language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Norwegian, 0, 0	},
-      { "Russian",	"Russian language and character set (KOI8-R)",
-	DMENU_CALL,	lang_set_Russian, 0, 0		},
-      { "Spanish",	"Spanish language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Spanish, 0, 0		},
-      { "Swedish",	"Swedish language and character set (ISO-8859-1)",
-	DMENU_CALL,	lang_set_Swedish, 0, 0		},
       { NULL } },
 };
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.1 1995/07/21 10:53:46 rgrimes Exp $
+ * $Id: disks.c,v 1.31.2.2 1995/07/21 11:45:38 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -206,12 +206,8 @@ diskPartition(Disk *d)
 		if (val && (size = strtol(val, &cp, 0)) > 0) {
 		    if (*cp && toupper(*cp) == 'M')
 			size *= 2048;
-		    Create_Chunk(d, chunk_info[current_chunk]->offset,
-				 size,
-				 freebsd,
-				 3,
-				 (chunk_info[current_chunk]->flags &
-				  CHUNK_ALIGN));
+		    Create_Chunk(d, chunk_info[current_chunk]->offset, size, freebsd, 3,
+				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    record_chunks(d);
 		}
 	    }
@@ -229,8 +225,7 @@ diskPartition(Disk *d)
 	case 'G': {
 	    char *val, geometry[80];
 
-	    snprintf(geometry, 80, "%lu/%lu/%lu",
-		     d->bios_cyl, d->bios_hd, d->bios_sect);
+	    snprintf(geometry, 80, "%lu/%lu/%lu", d->bios_cyl, d->bios_hd, d->bios_sect);
 	    val = msgGetInput(geometry,
 "Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
 	    if (val) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71 1995/06/11 19:29:58 rgrimes Exp $
+ * $Id: install.c,v 1.71.2.1 1995/07/21 10:53:54 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,7 @@
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 Boolean SystemWasInstalled = FALSE;
@@ -199,39 +200,36 @@ installInitial(void)
 int
 installExpress(char *str)
 {
-    /* Warn the user what it is we're about to do */
-    msgConfirm("You have chosen the express installation option.  This option will\nlead you through all the steps necessary to install FreeBSD for the\nfirst time on your machine.  If you would prefer to do these steps\nmanually then chose the Custom installation method instead.  The\ncontents of your hard disk(s) will not be modified until the very end\nof this installation, and only after a final confirmation.");
-
-    /* Bring up the partition editor */
-    diskPartitionEditor(NULL);
-    if (!getenv(DISK_PARTITIONED)) {
-	msgConfirm("You need to partition your disk before you can proceed with\nthis installation.");
-	return 0;
+    msgConfirm("In the next menu, you will need to set up a DOS-style\n"
+	       "partitioning scheme for your hard disk.  If you don't\n"
+	       "want to do anything special, just type `A' to use the\n"
+	       "whole disk and then `Q' to quit.");
+    diskPartitionEditor("express");
+    
+    msgConfirm("Next, you need to lay out BSD partitions inside of the\n"
+	       "DOS-style partition just created.  If you don't want to\n"
+	       "do anything special, just type `A' to use the default\n"
+	       "partitioning scheme and then `Q' to quit.");
+    diskLabelEditor("express");
+    
+    msgConfirm("Now it is time to select an installation subset.  There\n"
+	       "are two basic configurations: Developer and Router.  The\n"
+	       "Developer subset includes sources, documentation, and\n"
+	       "binaries for almost everything.  The Router subset\n"
+	       "includes the same binaries and documentation, but no\n"
+	       "sources.  You can also install absolutely everything,\n"
+	       "or select a custom software set.");
+    
+    while(!Dists) {
+	dmenuOpenSimple(&MenuInstallType);
     }
     
-    /* Bring up the label editor */
-    diskLabelEditor(NULL);
-    if (!getenv(DISK_LABELLED)) {
-	msgConfirm("You need to assign disk labels before you can proceed with\nthis installation.");
-	return 0;
-    }
-    if (!checkLabels())
-	return 0;
-
-    /* Ask for the media type */
-    if (!dmenuOpenSimple(&MenuMedia))
-	return 0;
-    if (!mediaVerify())
-	return 0;
-
-    /* Select the distribution set we want */
-    if (!dmenuOpenSimple(&MenuInstallType))
-	return 0;
-
-    /* Do it all */
-    (void)installCommit(NULL);
-
-    /* Do post-configuration */
+    msgConfirm("Finally, you must specify an installation medium.");
+    
+    dmenuOpenSimple(&MenuMedia);
+    
+    installCommit("express");
+    
     dmenuOpenSimple(&MenuConfigure);
     return 0;
 }
@@ -311,10 +309,10 @@ installCommit(char *str)
     /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
     /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
     if (file_readable("/usr/X11R6"))
-	(void)system("chmod 755 /usr/X11R6");
+	chmod("/usr/X11R6", 0755);
 
     /* BOGON #2: We leave /etc in a bad state */
-    (void)system("chmod 755 /etc");
+    chmod("/etc", 0755);
 
     dialog_clear();
     /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */

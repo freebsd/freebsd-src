@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.1 1995/07/21 10:53:44 rgrimes Exp $
+ * $Id: config.c,v 1.16.2.2 1995/07/21 11:45:36 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -362,8 +362,6 @@ configRoutedFlags(char *str)
 int
 configPackages(char *str)
 {
-    int i, pstat;
-    pid_t pid;
     Boolean onCD;
 
     /* If we're running as init, we know that a CD in the drive is probably ours */
@@ -374,19 +372,7 @@ configPackages(char *str)
 		onCD = TRUE;
 	}
     }
-
-    if (!(pid = fork())) {
-	if (onCD && chdir("/cdrom/packages"))
-	    exit(1);
-	execl("/usr/sbin/pkg_manage", "/usr/sbin/pkg_manage", (char *)NULL);
-	exit(1);
-    }
-    else {
-	pid = waitpid(pid, (int *)&pstat, 0);
-	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-    }
-    if (i != 0 && isDebug())
-	msgDebug("pkg_manage returns status of %d\n", i);
+    /* XXX Construct some sort of menu here using an INDEX file from /cdrom/packages XXX */
     return 0;
 }
 

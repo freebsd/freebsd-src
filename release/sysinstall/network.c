@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.1 1995/07/21 10:54:04 rgrimes Exp $
+ * $Id: network.c,v 1.7.2.2 1995/07/21 10:57:33 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,7 +98,7 @@ mediaInitNetwork(Device *dev)
 	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.");
 	return FALSE;
     }
-    i = vsystem("ifconfig %s %s", dev->name, cp);
+    i = vsystem("ifconfig %s %s", "sl0", cp);
     if (i) {
 	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", dev->name);
 	return FALSE;
