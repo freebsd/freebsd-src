@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.41 1999/08/22 06:12:58 yokota Exp $
+.\"     $Id: rc.conf.5,v 1.42 1999/08/22 23:25:35 brian Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -81,6 +81,19 @@ enable support for Automatic Power Management with
 the
 .Xr apm 8
 command.
+.It Ar apmd_enable
+(bool) Run
+.Xr apmd 8
+to handle APM event from userland.
+This also enable support for APM.
+.It Ar apmd_flags
+(str) If
+.Ar apmd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr apmd 8
+daemon.
 .It Ar pccard_enable
 (bool) If set to
 .Ar YES ,
