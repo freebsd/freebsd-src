@@ -1,3 +1,7 @@
+22.07.2002	1.4.5 (bug fix only)
+    - Some iconv libraries may refuse to recode some characters. This
+      caused problems with translation between server and local charsets.
+
 16.04.2002	1.4.4
     - Workaround for W2K bug in resource listing.
     - Minor bug fixes.
