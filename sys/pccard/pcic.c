@@ -810,7 +810,7 @@ pcic_probe(void)
 		if (pcic_irq == 0) {
 			pcic_imask = soft_imask;
 			pcic_irq = pccard_alloc_intr(free_irqs,
-				pcicintr, 0, NULL, &pcic_imask);
+				pcicintr, 0, &pcic_imask, NULL);
 			if (pcic_irq < 0)
 				printf("pcic: failed to allocate IRQ\n");
 			else

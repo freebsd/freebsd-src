@@ -489,17 +489,18 @@ pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
 		mask = 1ul << irq;
 		if (!(mask & imask))
 			continue;
-		if (maskp)
-			INTRMASK(*maskp, mask);
+		INTRMASK(*maskp, mask);
 		if (register_intr(irq, 0, 0, hand, maskp, unit) == 0) {
 			/* add this to the PCIC controller's mask */
-			INTRMASK(*pcic_imask, (1 << irq));
+			if (pcic_imask)
+				INTRMASK(*pcic_imask, (1 << irq));
+			update_intr_masks();
 			INTREN(mask);
 			return(irq);
 		}
 		/* No luck, remove from mask again... */
-		if (maskp)
-			INTRUNMASK(*maskp, mask);
+		INTRUNMASK(*maskp, mask);
+		update_intr_masks();
 	}
 	return(-1);
 }
