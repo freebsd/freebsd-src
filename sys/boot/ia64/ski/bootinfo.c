@@ -325,7 +325,7 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
 
     /* Describe the SKI memory map. */
     bi->bi_memmap = (u_int64_t)(bi + 1);
-    bi->bi_memmap_size = 1 * sizeof(EFI_MEMORY_DESCRIPTOR);
+    bi->bi_memmap_size = 2 * sizeof(EFI_MEMORY_DESCRIPTOR);
     bi->bi_memdesc_size = sizeof(EFI_MEMORY_DESCRIPTOR);
     bi->bi_memdesc_version = 1;
 
@@ -336,6 +336,12 @@ bi_load(struct bootinfo *bi, struct preloaded_file *fp, char *args)
     memp[0].VirtualStart = 0;
     memp[0].NumberOfPages = (64L*1024*1024)>>12;
     memp[0].Attribute = EFI_MEMORY_WB;
+
+    memp[1].Type = EfiMemoryMappedIOPortSpace;
+    memp[1].PhysicalStart = 0xffffc000000;
+    memp[1].VirtualStart = 0;
+    memp[1].NumberOfPages = (64L*1024*1024)>>12;
+    memp[1].Attribute = EFI_MEMORY_UC;
 
     return(0);
 }
