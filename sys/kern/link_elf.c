@@ -113,6 +113,9 @@ static void	link_elf_unload_file(linker_file_t);
 static void	link_elf_unload_preload(linker_file_t);
 static int	link_elf_lookup_set(linker_file_t, const char *,
 				    void ***, void ***, int *);
+static int	link_elf_each_function_name(linker_file_t,
+				int (*)(const char *, void *),
+				void *);
 
 static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -123,6 +126,7 @@ static kobj_method_t link_elf_methods[] = {
     KOBJMETHOD(linker_link_preload,	link_elf_link_preload),
     KOBJMETHOD(linker_link_preload_finish, link_elf_link_preload_finish),
     KOBJMETHOD(linker_lookup_set,	link_elf_lookup_set),
+    KOBJMETHOD(linker_each_function_name, link_elf_each_function_name),
     { 0, 0 }
 };
 
@@ -1148,4 +1152,23 @@ link_elf_lookup_set(linker_file_t lf, const char *name,
 out:
 	free(setsym, M_LINKER);
 	return error;
+}
+
+static int
+link_elf_each_function_name(linker_file_t file,
+  int (*callback)(const char *, void *), void *opaque) {
+    elf_file_t ef = (elf_file_t)file;
+    const Elf_Sym* symp;
+    int i, error;
+	
+    /* Exhaustive search */
+    for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+	if (symp->st_value != 0 &&
+	    ELF_ST_TYPE(symp->st_info) == STT_FUNC) {
+		error = callback(ef->ddbstrtab + symp->st_name, opaque);
+		if (error)
+		    return (error);
+	}
+    }
+    return (0);
 }
