@@ -424,8 +424,8 @@ functions,
 may not be able to properly restore the graphics hardware.
 .Pp
 The recommended way to handle signals and program termination is to
-have a flag to indicate singnal's delivery.
-Your singnal handlers set this flag but do not terminate
+have a flag to indicate signal's delivery.
+Your signal handlers set this flag but do not terminate
 the program immediately.
 The main part of the program checks the flag to see if it is
 supporsed to terminate, and call
@@ -443,7 +443,7 @@ and
 and terminates the program at appropriate time,
 after one of these signals is caught.
 If you want to have your own signal handlers for these signals,
-install handers
+install handlers
 .Em after
 .Fn VGLInit .
 .Pp
