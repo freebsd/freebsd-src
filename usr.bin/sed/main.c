@@ -413,9 +413,7 @@ inplace_edit(filename)
 	char **filename;
 {
 	struct stat orig;
-	int input, output;
 	char backup[MAXPATHLEN];
-	char *buffer;
 
 	if (lstat(*filename, &orig) == -1)
 		err(1, "lstat");
@@ -425,36 +423,36 @@ inplace_edit(filename)
 	}
 
 	if (*inplace == '\0') {
-		char template[] = "/tmp/sed.XXXXXXXXXX";
-
-		output = mkstemp(template);
-		if (output == -1)
-			err(1, "mkstemp");
-		strlcpy(backup, template, MAXPATHLEN);
+		/*
+		 * This is a bit of a hack: we use mkstemp() to avoid the
+		 * mktemp() link-time warning, although mktemp() would fit in
+		 * this context much better. We're only interested in getting
+		 * a name for use in the rename(); there aren't any security
+		 * issues here that don't already exist in relation to the
+		 * original file and its directory.
+		 */
+		int fd;
+		strlcpy(backup, *filename, sizeof(backup));
+		strlcat(backup, ".XXXXXXXXXX", sizeof(backup));
+		fd = mkstemp(backup);
+		if (fd == -1)
+			errx(1, "could not create backup of %s", *filename);
+		else
+			close(fd);
 	} else {
-		strlcpy(backup, *filename, MAXPATHLEN);
-		strlcat(backup, inplace, MAXPATHLEN);
-		output = open(backup, O_WRONLY | O_CREAT | O_TRUNC);
-		if (output == -1)
-			err(1, "open(%s)", backup);
+		strlcpy(backup, *filename, sizeof(backup));
+		strlcat(backup, inplace, sizeof(backup));
 	}
 
-	input = open(*filename, O_RDONLY);
-	if (input == -1)
-		err(1, "open(%s)", *filename);
-	if (fchmod(output, orig.st_mode & ~S_IFMT) == -1)
-		err(1, "chmod");
-	buffer = (char *)mmap(0, orig.st_size, PROT_READ, MAP_SHARED, input, 0);
-	if (buffer == MAP_FAILED)
-		err(1, "mmap(%s)", *filename);
-	if (write(output, buffer, orig.st_size) == -1)
-		err(1, "write(%s)", backup);
-	if (munmap(buffer, orig.st_size) == -1)
-		err(1, "munmap(%s)", *filename);
-	close(input);
-	close(output);
-	freopen(*filename, "w", stdout);
+	if (rename(*filename, backup) == -1)
+		err(1, "rename(\"%s\", \"%s\")", *filename, backup);
+	if (freopen(*filename, "w", stdout) == NULL)
+		err(1, "open(\"%s\")", *filename);
+	if (fchmod(fileno(stdout), orig.st_mode) == -1)
+		err(1, "chmod(\"%s\")", *filename);
 	*filename = strdup(backup);
+	if (*filename == NULL)
+		err(1, "malloc");
 	return 0;
 }
 
