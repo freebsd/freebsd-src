@@ -62,7 +62,7 @@ echo '.'
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-echo -n 'rc.i386 configuring syscons:'
+echo -n 'Configuring syscons:'
 
 # keymap
 #
