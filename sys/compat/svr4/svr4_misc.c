@@ -1272,10 +1272,8 @@ loop:
 			continue;
 		}
 		nfound++;
-		mtx_lock_spin(&sched_lock);
 		if ((q->p_state == PRS_ZOMBIE) && 
 		    ((uap->options & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
-			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(q);
 			sx_sunlock(&proctree_lock);
 			*retval = 0;
@@ -1396,7 +1394,6 @@ loop:
 		if (P_SHOULDSTOP(q) && ((q->p_flag & P_WAITED) == 0) &&
 		    (q->p_flag & P_TRACED ||
 		     (uap->options & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
-			mtx_unlock_spin(&sched_lock);
 			DPRINTF(("jobcontrol %d\n", q->p_pid));
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
 				q->p_flag |= P_WAITED;
@@ -1405,7 +1402,6 @@ loop:
 			return svr4_setinfo(q, W_STOPCODE(q->p_xstat),
 					    uap->info);
 		}
-		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(q);
 	}
 
