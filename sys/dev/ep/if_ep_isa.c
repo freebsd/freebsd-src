@@ -139,7 +139,7 @@ ep_isa_match_id (id, isa_devs)
 	 * return something so that it will work; be annoying
 	 * so that the user will tell us about it though.
 	 */
-	if ((id >> 8) == ISA_ID_3C509_XXX) {
+	if ((id >> 4) == ISA_ID_3C509_XXX) {
 		return ("Unknown 3c509; notify maintainer!");
 	}
 	return (NULL);
@@ -211,7 +211,7 @@ ep_isa_identify (driver_t *driver, device_t parent)
 				device_printf(parent, "if_ep: unknown ID 0x%08x\n",
 						isa_id);
 			}
-			break;
+			continue;
 		}
 
 		/* Retreive IRQ */
@@ -232,8 +232,8 @@ ep_isa_identify (driver_t *driver, device_t parent)
 			data = get_eeprom_data(ELINK_ID_PORT, EEPROM_INT_CONFIG_1);
 			if (data & ICW1_IAS_PNP) {
 				if (bootverbose) {
-					device_printf(parent, "if_ep: Adapter at 0x%03x in PnP mode!\n",
-					  	      ioport);
+					device_printf(parent, "if_ep: <%s> at 0x%03x in PnP mode!\n",
+					  	      desc, ioport);
 				}
 				/* Set the adaptor tag so that the next card can be found. */
 				outb(ELINK_ID_PORT, tag--);
@@ -251,8 +251,8 @@ ep_isa_identify (driver_t *driver, device_t parent)
 		outw(ioport + EP_COMMAND, WINDOW_SELECT | 0);
 		data = inw(ioport + EP_W0_EEPROM_COMMAND);
 		if (data & EEPROM_TST_MODE) {
-			device_printf(parent, "if_ep: Adapter at 0x%03x in TEST mode!  Erase pencil mark.\n",
-			  	      ioport);
+			device_printf(parent, "if_ep: <%s> at port 0x%03x in TEST mode!  Erase pencil mark.\n",
+					desc, ioport);
 			continue;
 		}
 
