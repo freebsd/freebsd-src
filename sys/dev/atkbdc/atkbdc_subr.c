@@ -313,3 +313,4 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
 }
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_driver, atkbdc_devclass, 0, 0);
+DRIVER_MODULE(atkbdc, acpi, atkbdc_driver, atkbdc_devclass, 0, 0);

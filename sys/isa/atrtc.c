@@ -1279,3 +1279,4 @@ static driver_t attimer_driver = {
 static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
+DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);

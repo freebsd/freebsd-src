@@ -1067,6 +1067,7 @@ static driver_t fdc_driver = {
 };
 
 DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+DRIVER_MODULE(fdc, acpi, fdc_driver, fdc_devclass, 0, 0);
 
 #if NCARD > 0
 
