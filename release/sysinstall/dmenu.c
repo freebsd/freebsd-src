@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.25.2.3 1996/12/09 09:28:56 jkh Exp $
+ * $Id: dmenu.c,v 1.25.2.4 1997/01/15 04:50:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
     return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE) |
-	DITEM_RECREATE;
+	DITEM_RESTORE;
 }
 
 int
