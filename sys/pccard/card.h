@@ -51,14 +51,13 @@ enum cardstate { noslot, empty, filled };
 /*
  *	Descriptor structure for memory map.
  */
-struct mem_desc
-	{
+struct mem_desc {
 	int	window;		/* Memory map window number (0-4) */
 	int	flags;		/* Flags - see below */
 	caddr_t	start;		/* System memory start */
 	int	size;		/* Size of memory area */
 	unsigned long card;	/* Card memory address */
-	};
+};
 
 #define	MDF_16BITS	0x01	/* Memory is 16 bits wide */
 #define	MDF_ZEROWS	0x02	/* Set no wait states for memory */
@@ -71,13 +70,12 @@ struct mem_desc
 /*
  *	Descriptor structure for I/O map
  */
-struct io_desc
-	{
+struct io_desc {
 	int	window;		/* I/O map number (0-1) */
 	int	flags;		/* Flags - see below */
 	int	start;		/* I/O port start */
 	int	size;		/* Number of port addresses */
-	};
+};
 
 #define	IODF_WS		0x01	/* Set wait states for 16 bit I/O access */
 #define	IODF_16BIT	0x02	/* I/O access are 16 bit */
@@ -88,8 +86,7 @@ struct io_desc
 /*
  *	Device descriptor for allocation of driver.
  */
-struct drv_desc
-	{
+struct drv_desc {
 	char	name[16];	/* Driver name */
 	int	unit;		/* Driver unit number */
 	unsigned long mem;	/* Memory address of driver */
@@ -98,33 +95,31 @@ struct drv_desc
 	int	irqmask;	/* Interrupt number(s) to allocate */
 	int	flags;		/* Device flags */
 	u_char	misc[128];	/* For any random info */
-	};
+};
 
-struct pcic_reg
-	{
+struct pcic_reg {
 	unsigned char reg;
 	unsigned char value;
-	};
+};
+
 /*
  *	Slot information. Used to read current status of slot.
  */
-struct slotstate
-	{
+struct slotstate {
 	enum cardstate state;		/* Current state of slot */
 	int	maxmem;			/* Max allowed memory windows */
 	int	maxio;			/* Max allowed I/O windows */
 	int	irqs;			/* Bitmap of IRQs allowed */
 	int	flags;			/* Capability flags */
-	};
+};
 
 /*
  *	The power values are in volts * 10, e.g. 5V is 50, 3.3V is 33.
  */
-struct power
-	{
+struct power {
 	int	vcc;
 	int	vpp;
-	};
+};
 
 /*
  *	Other system limits

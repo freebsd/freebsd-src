@@ -40,6 +40,7 @@
 #define	PCIC_PD6710	4
 #define	PCIC_CL6729	5
 #define	PCIC_VG468	6
+#define	PCIC_VG469	7
 /*
  *	Address of the controllers. Each controller can manage
  *	two PCMCIA slots. Up to 8 slots are supported in total.
@@ -101,6 +102,7 @@
 #define PCIC_OUTENA	0x80	/* Output Enable */
 #define PCIC_DISRST	0x40	/* Disable RESETDRV */
 #define PCIC_APSENA	0x20	/* Auto Pwer Switch Enable */
+#define PCIC_PCPWRE	0x10	/* PC Card Power Enable */
 #define	PCIC_VCC	0x18	/* Vcc control bits */
 #define	PCIC_VCC_5V	0x10	/* 5 volts */
 #define	PCIC_VCC_3V	0x18	/* 3 volts */
