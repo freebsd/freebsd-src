@@ -90,7 +90,7 @@ int
 main(int argc, char *argv[])
 {
 	struct addrinfo *res;
-	const char *host;
+	const char *country, *host;
 	char *qnichost;
 	int ch, flags, use_qnichost;
 
@@ -98,14 +98,15 @@ main(int argc, char *argv[])
 	SOCKSinit(argv[0]);
 #endif
 
-	host = NULL;
-	qnichost = NULL;
-	flags = 0;
-	use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1) {
+	country = host = qnichost = NULL;
+	flags = use_qnichost = 0;
+	while ((ch = getopt(argc, argv, "ac:dgh:impQrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
+			break;
+		case 'c':
+			country = optarg;
 			break;
 		case 'd':
 			host = DNICHOST;
@@ -146,23 +147,26 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!argc)
+	if (!argc || (country != NULL && host != NULL))
 		usage();
 
 	/*
-	 * If no nic host is specified determine the top level domain from
-	 * the query.  If the TLD is a number, query ARIN.  Otherwise, use
+	 * If no host or country is specified determine the top level domain
+	 * from the query.  If the TLD is a number, query ARIN.  Otherwise, use
 	 * TLD.whois-server.net.  If the domain does not contain '.', fall
 	 * back to NICHOST.
 	 */
-	if (host == NULL) {
+	if (host == NULL && country == NULL) {
 		use_qnichost = 1;
 		host = NICHOST;
 		if (!(flags & WHOIS_QUICK))
 			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
 	}
 	while (argc--) {
-		if (use_qnichost)
+		if (country != NULL) {
+			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
+			res = gethostinfo(qnichost, 1);
+		} else if (use_qnichost)
 			if ((qnichost = choose_server(*argv)) != NULL)
 				res = gethostinfo(qnichost, 1);
 		if (qnichost == NULL)
@@ -202,7 +206,7 @@ choose_server(char *domain)
 	return (retval);
 }
 
-static struct addrinfo *
+static struct addrinfo * 
 gethostinfo(char const *host, int exit_on_error)
 {
 	struct addrinfo hints, *res;
@@ -220,7 +224,7 @@ gethostinfo(char const *host, int exit_on_error)
 		return (NULL);
 	}
 	return (res);
-}
+} 
 
 /*
  * Wrapper for asprintf(3) that exits on error.
@@ -319,6 +323,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-adgimpQrR6] [-h hostname] name ...\n");
+	    "usage: whois [-adgimpQrR6] [-c country-code | -h hostname] "
+	    "name ...\n");
 	exit(EX_USAGE);
 }
