@@ -119,7 +119,7 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 #endif
 
 	error = getnameinfo(addr, addrlen, buf, sizeof(buf), NULL, 0,
-			    NI_WITHSCOPEID);
+			    NI_WITHSCOPEID | NI_NAMEREQD);
 	if (error == 0) {
 		struct addrinfo hints, *res, *ores;
 		struct sockaddr *sa;
