@@ -48,6 +48,10 @@ Each
 has a name and there cannot be two devclasses with the same name.
 This ensures that unique unit numbers are allocated to device
 instances.
+.Pp
+Beware that this means
+.Dv devclass
+must be the same for different bus attachments of the same device driver.
 .Sh SEE ALSO
 .Xr devclass_add_driver 9 ,
 .Xr devclass_delete_driver 9 ,
