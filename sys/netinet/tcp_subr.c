@@ -451,14 +451,17 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 #ifdef INET6
 	if (isipv6) {
 		(void)ip6_output(m, NULL, ro6, ipflags, NULL, NULL);
-		if (ro6 == &sro6 && ro6->ro_rt)
+		if (ro6 == &sro6 && ro6->ro_rt) {
 			RTFREE(ro6->ro_rt);
+			ro6->ro_rt = NULL;
+		}
 	} else
 #endif /* INET6 */
       {
 	(void) ip_output(m, NULL, ro, ipflags, NULL);
 	if (ro == &sro && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
+		ro->ro_rt = NULL;
 	}
       }
 }
