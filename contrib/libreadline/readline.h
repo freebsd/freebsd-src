@@ -385,6 +385,7 @@ extern int rl_inhibit_completion;
 #define MULT_MATCH      2
 
 #if !defined (savestring)
+#define savestring rl_savestring
 extern char *savestring ();	/* XXX backwards compatibility */
 #endif
 
