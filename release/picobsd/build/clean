@@ -5,7 +5,7 @@
 #
 set -e
 
-TARGETS="dial net isp router"
+TARGETS="dial net isp router bridge"
 if [ $# -lt 1 ]; then
     echo "What to clean? Possible targets are ${TARGETS} or 'all'"
     exit 1
