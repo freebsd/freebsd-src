@@ -1,7 +1,6 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/31/94
 # $FreeBSD$
 
-# XXX missing: chess ching monop [copyright]
 SUBDIR= adventure \
 	arithmetic \
 	atc \
