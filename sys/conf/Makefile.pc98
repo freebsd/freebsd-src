@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.12 1997/03/22 18:54:10 kato Exp $
+#	$Id: Makefile.pc98,v 1.13 1997/04/22 12:20:12 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -37,7 +37,7 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 LOAD_ADDRESS?=	F0100000
 .if defined(PROF)
@@ -140,12 +140,14 @@ assym.s: genassym
 
 # Some of the defines that genassym outputs may well depend on the
 # value of kernel options.
-genassym.o: ${I386}/i386/genassym.c Makefile
+genassym.o: ${I386}/i386/genassym.c Makefile opt_global.h
 	rm -f ./machine ; ln -s ${I386}/include ./machine
 	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
 	${CC} ${CFLAGS} ${PARAM} genassym.o -o $@
+
+${OBJS}: opt_global.h
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
