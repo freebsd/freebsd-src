@@ -24,7 +24,6 @@
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 
-int	 intcmp(const void *, const void *);
 int	 list(const int);
 int	 query(const int, const int);
 
@@ -180,13 +179,6 @@ main(int argc, char **argv)
 		printf("%s%d\n", MD_NAME, mdio.md_unit);
 	close (fd);
 	return (0);
-}
-
-int
-intcmp(const void *a, const void *b)
-{
-
-	return (*(int *)a - *(int *)b);
 }
 
 struct dl {
