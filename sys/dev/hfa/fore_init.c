@@ -214,7 +214,7 @@ fore_initialize_complete(fup)
 		log(LOG_ERR, 
 			"fore initialization failed: intf=%s%d, hbeat=0x%lx\n",
 			fup->fu_pif.pif_name, fup->fu_pif.pif_unit,
-			CP_READ(aap->aali_heartbeat));
+			(u_long)CP_READ(aap->aali_heartbeat));
 		return;
 	}
 
