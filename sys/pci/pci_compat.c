@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.11 1998/09/15 08:21:09 gibbs Exp $
+ * $Id: pci_compat.c,v 1.12 1998/10/06 14:18:40 dfr Exp $
  *
  */
 
@@ -46,6 +46,10 @@
 
 #ifdef RESOURCE_CHECK
 #include <sys/drvresource.h>
+#endif
+
+#ifdef APIC_IO
+#include <machine/smp.h>
 #endif
 
 #ifdef PCI_COMPAT
