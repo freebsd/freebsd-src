@@ -114,15 +114,26 @@ parsetab(void)
 	char *cp, *p, *line, *opt;
 	size_t len;
 	struct autoentry *ent;
-	int lineno, x, gotopt;
+	int i, lineno, x, gotopt;
 	const char *expecting = "expecting 'direct', 'indirect' or 'browse'";
+	const char *tabfiles[] = {
+		"/etc/autotab", "/usr/local/etc/autotab", "./autotab", NULL
+	};
 
-	tab = "autotab";
 	lineno = 0;
+	for (i = 0; (tab = tabfiles[i]) != NULL; i++) {
+		tab = tabfiles[i];
+		fp = fopen(tab, "r");
+		if (fp == NULL)
+			warn("fopen %s", tab);
+		if (fp != NULL)
+			break;
+	}
+	if (fp == NULL) {
+		err(1, "no config file available.");
+	}
 
-	fp = fopen(tab, "r");
-	if (fp == NULL)
-		err(1, "fopen %s", tab);
+	fprintf(stderr, "using config file: %s\n", tab);
 
 	while ((cp = fgetln(fp, &len)) != NULL) {
 		lineno++;
@@ -280,6 +291,7 @@ doreq(autoh_t ah, autoreq_t req)
 	struct autoentry *ent;
 	int error;
 	int mcmp;
+	int xid;
 	const char *mnt;
 
 	mnt = autoh_mp(ah);
@@ -293,6 +305,8 @@ doreq(autoh_t ah, autoreq_t req)
 		    (int)strlen(ent->ae_mnt),
 		    (int)strlen(autoreq_getpath(req)),
 		    (int)strlen(ent->ae_path));
+		autoreq_getxid(req, &xid);
+		fprintf(stderr, "req xid %d\n", xid);
 		if ((mcmp = strcmp(mnt, ent->ae_mnt)) != 0) {
 			fprintf(stderr, "mcmp = %d\n", mcmp);
 			continue;
@@ -322,8 +336,11 @@ mount_indirect(req, ent)
 	char *path, *cmd;
 	int error, x;
 
-	if (ent->ae_indirect != 1)
+	if (ent->ae_indirect != 1) {
+		fprintf(stderr, "not indirect.\n");
 		return (0);
+	}
+	fprintf(stderr, "indirect mount...\n");
 	/*
 	 * handle lookups, fake all stat(2) requests... this is bad,
 	 * but we're a driver so we don't care...
@@ -333,14 +350,19 @@ mount_indirect(req, ent)
 	case AUTOREQ_OP_LOOKUP:
 		break;
 	case AUTOREQ_OP_STAT:
+		fprintf(stderr, "stat\n");
 		return (1);
 	default:
+		fprintf(stderr, "unknown\n");
 		return (0);
 	}
 	if (stat(ent->ae_fullpath, &sb))
 		return (0);
-	if (sb.st_ino != autoreq_getdirino(req))
+	if (sb.st_ino != autoreq_getdirino(req)) {
+		fprintf(stderr, "st_ino %d != dirino %d\n",
+		    (int)sb.st_ino, (int)autoreq_getdirino(req));
 		return (0);
+	}
 	x = asprintf(&path, "%s/%s", ent->ae_fullpath, autoreq_getpath(req));
 	if (x > PATH_MAX) {
 		autoreq_seterrno(req, ENAMETOOLONG);
@@ -377,8 +399,11 @@ mount_direct(req, ent)
 	char *cmd;
 	int error;
 
-	if (ent->ae_direct != 1)
+	if (ent->ae_direct != 1) {
+		fprintf(stderr, "not direct.\n");
 		return (0);
+	}
+	fprintf(stderr, "direct mount...\n");
 	/*
 	 * handle lookups, fake all stat(2) requests... this is bad,
 	 * but we're a driver so we don't care...
@@ -496,6 +521,7 @@ eventloop(void)
 		for (i = 0; i < cnt; i++) {
 			dotheneedful(array[i]);
 		}
+		autoh_freeall(array);
 	}
 }
 
@@ -503,6 +529,8 @@ int
 main(int argc __unused, char **argv __unused)
 {
 
+	if (getuid() != 0)
+		errx(1, "autodriver needs to be run as root to work.");
 	parsetab();
 	populate_tab();
 	eventloop();
