@@ -57,11 +57,9 @@
 
 #include <net/if.h>
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
 static u_char intr_no[] = { 1, 1, 0, 2, 4, 6, 1, 1, 1, 0, 8, 10, 12, 1, 1, 14 };

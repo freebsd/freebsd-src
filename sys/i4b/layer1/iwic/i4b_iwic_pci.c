@@ -56,7 +56,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
 
@@ -66,7 +65,6 @@
 #include <i4b/layer1/i4b_l1.h>
 
 #include <i4b/layer1/iwic/i4b_iwic.h>
-#include <i4b/layer1/iwic/i4b_iwic_ext.h>
 #include <i4b/layer1/iwic/i4b_w6692.h>
 
 extern struct i4b_l1mux_func iwic_l1mux_func;

@@ -47,8 +47,6 @@
 #include <net/if.h>
 
 
-#include <machine/bus.h>
-#include <machine/resource.h>
 
 
 #include <machine/i4b_debug.h>
@@ -62,7 +60,6 @@
 
 #include <i4b/layer1/iwic/i4b_iwic.h>
 #include <i4b/layer1/iwic/i4b_iwic_ext.h>
-#include <i4b/layer1/iwic/i4b_w6692.h>
 
 /* jump table for multiplex routines */
 

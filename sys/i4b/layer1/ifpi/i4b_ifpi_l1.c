@@ -45,7 +45,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
-#include <machine/stdarg.h>
 
 #include <net/if.h>
 
@@ -55,7 +54,6 @@
 
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_isac.h>
-#include <i4b/layer1/isic/i4b_hscx.h>
 
 #include <i4b/layer1/ifpi/i4b_ifpi_ext.h>
 
