@@ -985,7 +985,7 @@ pmap_pinit(pmap_t pm)
 	 * Allocate kva space for the tsb.
 	 */
 	if (pm->pm_tsb == NULL) {
-		pm->pm_tsb = (struct tte *)kmem_alloc_pageable(kernel_map,
+		pm->pm_tsb = (struct tte *)kmem_alloc_nofault(kernel_map,
 		    TSB_BSIZE);
 	}
 
