@@ -360,6 +360,7 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
         Data Technology DTC3130 (all variants)
+	Diamond FirePort (all)
         NCR cards (all)
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
