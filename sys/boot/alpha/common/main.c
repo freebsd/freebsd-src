@@ -63,8 +63,8 @@ memsize()
     return total;
 }
 
-static void
-extend_heap()
+void
+extend_heap(void)
 {
     struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
     struct mddt *mddtp;
@@ -117,7 +117,6 @@ main(void)
      * alloc() is usable. The stack is buried inside us, so this is
      * safe.
      */
-    extend_heap();
     setheap((void *)end, (void *)0x20080000);
 
 #ifdef LOADER
