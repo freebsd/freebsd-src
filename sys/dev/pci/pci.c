@@ -1082,7 +1082,7 @@ pci_add_resources(device_t dev, pcicfgregs* cfg)
 			pci_add_map(dev, cfg, q->arg1);
 	}
 
-	if (cfg->intline != 255)
+	if (cfg->intpin > 0 && cfg->intline != 255)
 		resource_list_add(rl, SYS_RES_IRQ, 0,
 				  cfg->intline, cfg->intline, 1);
 }
@@ -1139,19 +1139,53 @@ pci_new_probe(device_t dev)
 }
 
 static int
+pci_print_resources(struct resource_list *rl, const char *name, int type,
+		    const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed, retval;
+
+	printed = 0;
+	retval = 0;
+	/* Yes, this is kinda cheating */
+	SLIST_FOREACH(rle, rl, link) {
+		if (rle->type == type) {
+			if (printed == 0)
+				retval += printf(" %s ", name);
+			else if (printed > 0)
+				retval += printf(",");
+			printed++;
+			retval += printf(format, rle->start);
+			if (rle->count > 1) {
+				retval += printf("-");
+				retval += printf(format, rle->start +
+						 rle->count - 1);
+			}
+		}
+	}
+	return retval;
+}
+
+static int
 pci_print_child(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
 	pcicfgregs *cfg;
 	int retval = 0;
 
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
+	rl = &dinfo->resources;
 
 	retval += bus_print_child_header(dev, child);
 
-	if (cfg->intpin > 0 && cfg->intline != 255)
-		retval += printf(" irq %d", cfg->intline);
+	retval += pci_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += pci_print_resources(rl, "mem", SYS_RES_MEMORY, "%#lx");
+	retval += pci_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
+	if (device_get_flags(dev))
+		retval += printf(" flags %#x", device_get_flags(dev));
+
 	retval += printf(" at device %d.%d", pci_get_slot(child),
 			 pci_get_function(child));
 
