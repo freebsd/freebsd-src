@@ -101,6 +101,8 @@ linux_emul_convpath(td, path, pathseg, pbuf, cflag)
 	char			*ptr, *buf, *cp;
 	size_t			 len, sz;
 
+	GIANT_REQUIRED;
+
 	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	*pbuf = buf;
 
