@@ -1849,7 +1849,7 @@ ubsec_dma_malloc(
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
-			"bus_dmammem_alloc failed; size %u, error %u\n",
+			"bus_dmammem_alloc failed; size %zu, error %u\n",
 			size, r);
 		goto fail_2;
 	}
