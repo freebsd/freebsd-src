@@ -153,7 +153,7 @@ int
 decode2(void)
 {
 	int base64;
-	int n;
+	size_t n;
 	char ch, *p, *q;
 	void *mode;
 	struct passwd *pw;
@@ -270,7 +270,7 @@ decode2(void)
 			if (n >= 3) {
 				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) &&
 				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
-                                	OUT_OF_RANGE
+                                	OUT_OF_RANGE;
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 				putchar(ch);
@@ -282,14 +282,14 @@ decode2(void)
 			else {
 				if (n >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
-	                                	OUT_OF_RANGE
+	                                	OUT_OF_RANGE;
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 					putchar(ch);
 				}
 				if (n >= 2) {
 					if (!(IS_DEC(*(p + 1)) &&
 						IS_DEC(*(p + 2))))
-		                                OUT_OF_RANGE
+		                                OUT_OF_RANGE;
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
 					putchar(ch);
@@ -297,7 +297,7 @@ decode2(void)
 				if (n >= 3) {
 					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
-		                                OUT_OF_RANGE
+		                                OUT_OF_RANGE;
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
 					putchar(ch);
 				}
