@@ -60,7 +60,6 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <geom/geom_stats.h>
 #include <machine/stdarg.h>
 
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
