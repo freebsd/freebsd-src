@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.245 1996/03/17 08:39:51 jkh Exp $
+#	$Id: LINT,v 1.246 1996/03/31 04:18:02 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -126,6 +126,12 @@ options		KTRACE			#kernel tracing
 options		DIAGNOSTIC
 
 #
+# PERFMON causes the driver for Pentium/Pentium Pro performance counters
+# to be compiled.  See perfmon(4) for more information.
+#
+options		PERFMON
+
+# XXX - this doesn't belong here.
 # Allow ordinary users to take the console - this is useful for X.
 options		UCONSOLE
 
@@ -806,9 +812,6 @@ controller	ahc0
 # The `fpa' device provides support for the Digital DEFPA PCI FDDI
 # adapter. pseudo-device fddi is also needed.
 #
-# The PROBE_VERBOSE option enables a long listing of chip set registers
-# for supported PCI chip sets (currently only intel Saturn and Mercury).
-# 
 # The `meteor' device is a PCI video capture board. It can also have the
 # following options:
 #   options METEOR_ALLOC_PAGES=xxx	preallocate kernel pages for data entry
@@ -826,7 +829,6 @@ device		fxp0
 device		vx0
 device		fpa0
 device		meteor0
-options		PROBE_VERBOSE
 
 
 #
@@ -854,6 +856,5 @@ options		DEBUG
 options		"EXT2FS"
 options		"IBCS2"
 options		LINUX
-options		PERFMON
 options		"SCSI_2_DEF"
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
