@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 1.4 1995/08/20 22:32:57 peter Exp $";
+static char rcsid[] = "$Id: host.c,v 1.5 1995/10/23 16:07:56 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -813,7 +813,7 @@ pr_rr(cp, msg, file, filter)
 	case T_AFSDB:
 	case T_RT:
 		if (doprint)
-		  if (type == T_MX)
+		  if (type == T_MX && !verbose)
 		    fprintf(file," (pri=%d) by ", _getshort(cp));
 		  else
 		    if (verbose)
