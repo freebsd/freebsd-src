@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.88 1994/10/16 20:38:21 phk Exp $
+#	$Id: Makefile,v 1.89 1994/10/17 02:32:36 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -245,15 +245,12 @@ hcx9-distribution:
 	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 ${WCS2} ${DESTDIR}/)
 
-kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERICAH ${.CURDIR}/../sys/i386/conf/GENERICBT
-	(cd ${.CURDIR}/../sys/compile; rm -rf GENERICAH GENERICBT)
-	(cd ${.CURDIR}/../sys/i386/conf; config GENERICAH; config GENERICBT)
-	(cd ${.CURDIR}/../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
+kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERIC
+	(cd ${.CURDIR}/../sys/compile; rm -rf GENERIC)
+	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
+	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
-	        ${DESTDIR}/kernel.GENERICAH)
-	(cd ${.CURDIR}/../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
-	        ${DESTDIR}/kernel.GENERICBT)
+	        ${DESTDIR}/kernel.GENERIC)
 
 kcopy-floppy:
 	echo y | fdformat ${FLOPPY}
@@ -278,31 +275,18 @@ kcopy-floppy:
 		ln bin/kcopy $$i; \
 	    done)
 
-kcopy_ah.flp:
+kcopy.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
-	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
+	(cd ${.CURDIR}/../sys/compile/GENERIC; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
 	# XXX umount is returning 1 for some reason :-(
 	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_ah.flp \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy.flp \
 		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_ah.flp \
-		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz &
-
-kcopy_bt.flp:
-	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
-	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
-	df -ik ${MOUNT}
-	# XXX umount is returning 1 for some reason :-(
-	-umount /dev/${FLOPPY}
-	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/kcopy_bt.flp \
-		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_bt.flp \
-		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz &
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy.flp \
+		>${RELEASEDIR}/floppies/kcopy.flp.gz &
 
 cdins-floppy:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
@@ -320,31 +304,18 @@ cdins-floppy:
 	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
 	ln ${MOUNT}/install ${MOUNT}/etc/rc
 	
-cdins_ah.flp:
+cdins.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
-	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
+	(cd ${.CURDIR}/../sys/compile/GENERIC; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
 	# XXX umount is returning 1 for some reason :-(
 	-umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_ah.flp \
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins.flp \
 		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_ah.flp \
-		>${RELEASEDIR}/floppies/cdins_ah.flp.gz &
-
-cdins_bt.flp:
-	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
-	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
-	df -ik ${MOUNT}
-	# XXX umount is returning 1 for some reason :-(
-	-umount /dev/${FLOPPY}
-	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_bt.flp \
-		bs=${FLOPPY_BS} count=${FLOPPY_TRACKS}
-	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_bt.flp \
-		>${RELEASEDIR}/floppies/cdins_bt.flp.gz &
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins.flp \
+		>${RELEASEDIR}/floppies/cdins.flp.gz &
 
 filesyst.flp:
 	echo y | fdformat ${FLOPPY}
@@ -566,8 +537,7 @@ distrib-dirs:
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
-floppies:	kcopy_ah.flp kcopy_bt.flp filesyst.flp cpio.flp \
-		cdins_ah.flp cdins_bt.flp
+floppies:	kcopy.flp filesyst.flp cpio.flp cdins.flp
 
 release:	release-dirs distribution crunch extract kcopy-kernels \
 		floppies bin-tarball des-tarball clean
