@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.13 1993/10/31 00:21:46 jkh Exp $
+#	$Id: SYSCONS,v 1.14 1994/01/04 20:10:34 nate Exp $
 #
 
 machine		"i386"
@@ -25,7 +25,7 @@ options		"FAT_CURSOR"		#block cursor in syscons
 options		"STAR_SAVER"		#syscons "stars" screen saver
 #options	GATEWAY			#Host is a Gateway (forwards packets)
 
-config		"386bsd"	root on wd0 swap on wd0 and sd0
+config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 controller	isa0
 
