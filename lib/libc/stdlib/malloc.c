@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.17 1996/10/26 08:19:07 phk Exp $
+ * $Id: malloc.c,v 1.18 1996/10/29 20:35:39 phk Exp $
  *
  */
 
@@ -1085,7 +1085,7 @@ ifree(void *ptr)
 #include "pthread_private.h"
 static int malloc_lock;
 #define THREAD_LOCK() _thread_kern_sig_block(&malloc_lock);
-#define THREAD_UNLOCK() _thread_kern_sig_unblock(&malloc_lock);
+#define THREAD_UNLOCK() _thread_kern_sig_unblock(malloc_lock);
 #else
 #define THREAD_LOCK() 
 #define THREAD_UNLOCK()
