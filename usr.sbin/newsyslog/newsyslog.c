@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.7.2.3 1997/10/08 07:21:12 charnier Exp $";
+	"$Id: newsyslog.c,v 1.7.2.4 1998/03/09 12:20:44 jkh Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -89,6 +89,7 @@ struct conf_entry {
 int     verbose = 0;            /* Print out what's going on */
 int     needroot = 1;           /* Root privs are necessary */
 int     noaction = 0;           /* Don't do anything, just show it */
+int     force = 0;		/* Force the time no matter what*/
 char    *conf = CONF;           /* Configuration file to use */
 time_t  timenow;
 pid_t   syslog_pid;             /* read in from /etc/syslog.pid */
@@ -159,7 +160,7 @@ static void do_entry(ent)
                         printf("size (Kb): %d [%d] ", size, ent->size);
                 if (verbose && (ent->hours > 0))
                         printf(" age (hr): %d [%d] ", modtime, ent->hours);
-                if (((ent->size > 0) && (size >= ent->size)) ||
+                if (force || ((ent->size > 0) && (size >= ent->size)) ||
                     ((ent->hours > 0) && ((modtime >= ent->hours)
                                         || (modtime < 0)))) {
                         if (verbose)
@@ -201,7 +202,7 @@ static void PRS(argc,argv)
 	}
 
         optind = 1;             /* Start options parsing */
-        while ((c=getopt(argc,argv,"nrvf:t:")) != -1)
+        while ((c=getopt(argc,argv,"nrvFf:t:")) != -1)
                 switch (c) {
                 case 'n':
                         noaction++; /* This implies needroot as off */
@@ -215,6 +216,9 @@ static void PRS(argc,argv)
                 case 'f':
                         conf = optarg;
                         break;
+		case 'F':
+			force++;
+			break;
                 default:
                         usage();
                 }
