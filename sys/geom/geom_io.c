@@ -302,9 +302,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	    bp, bp->bio_from, bp->bio_from->geom->name,
 	    bp->bio_to, bp->bio_to->name, bp->bio_cmd);
 	g_bioq_enqueue_tail(bp, &g_bio_run_down);
-	mtx_lock(&Giant);
 	wakeup(&g_wait_down);
-	mtx_unlock(&Giant);
 }
 
 void
@@ -319,9 +317,7 @@ g_io_deliver(struct bio *bp)
 
 	g_bioq_enqueue_tail(bp, &g_bio_run_up);
 
-	mtx_lock(&Giant);
 	wakeup(&g_wait_up);
-	mtx_unlock(&Giant);
 }
 
 void
@@ -355,9 +351,7 @@ g_io_schedule_up(struct thread *tp __unused)
 		if (bp->bio_done != NULL) {
 			bp->bio_done(bp);
 		} else {
-			mtx_lock(&Giant);
 			wakeup(bp);
-			mtx_unlock(&Giant);
 		}
 	}
 }
