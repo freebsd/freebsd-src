@@ -871,7 +871,9 @@ device		pass		#CAM passthrough driver
 # SCSI_NO_OP_STRINGS: When defined disables opcode descriptions
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
 #             queue after a bus reset, and the number of milliseconds to
-#             freeze the device queue after a bus device reset.
+#             freeze the device queue after a bus device reset.  This
+#             can be changed at boot and runtime with the
+#             kern.cam.scsi_delay tunable/sysctl.
 options 	CAMDEBUG
 options 	CAM_DEBUG_BUS=-1
 options 	CAM_DEBUG_TARGET=-1
