@@ -443,7 +443,7 @@ typedef struct ndis_wlan_bssid_ex ndis_wlan_bssid_ex;
 
 struct ndis_80211_bssid_list_ex {
 	uint32_t		nblx_items;
-	ndis_wlan_bssid		nblx_bssid[1];
+	ndis_wlan_bssid_ex	nblx_bssid[1];
 };
 
 typedef struct ndis_80211_bssid_list_ex ndis_80211_bssid_list_ex;

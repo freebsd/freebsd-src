@@ -82,6 +82,8 @@ __stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
 __stdcall static uint8_t hal_irql(void);
 __stdcall static void dummy (void);
 
+extern struct mtx_pool *ndis_mtxpool;
+
 __stdcall static void
 hal_stall_exec_cpu(usecs)
 	uint32_t		usecs;
@@ -211,7 +213,7 @@ hal_lock(/*lock*/void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_lock((struct mtx *)*lock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
 	return(0);
 }
 
@@ -223,7 +225,7 @@ hal_unlock(/*lock, newirql*/void)
 
 	__asm__ __volatile__ ("" : "=c" (lock), "=d" (newiqrl));
 
-	mtx_unlock((struct mtx *)*lock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
 	return;
 }
 
