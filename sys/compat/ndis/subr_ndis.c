@@ -795,12 +795,17 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 {
 	ndis_miniport_block	*block;
 	va_list			ap;
-	int			i;
-	char			*str = NULL;
+	int			i, error;
+	char			*str = NULL, *ustr = NULL;
+	uint16_t		flags;
 
 	block = (ndis_miniport_block *)adapter;
 
-	pe_get_message(block->nmb_img, code, &str, &i);
+	error = pe_get_message(block->nmb_img, code, &str, &i, &flags);
+	if (error == 0 && flags & MESSAGE_RESOURCE_UNICODE) {
+		ndis_unicode_to_ascii((uint16_t *)str, i, &ustr);
+		str = ustr;
+	}
 	device_printf (block->nmb_dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
 	device_printf (block->nmb_dev, "NDIS NUMERRORS: %x\n", numerrors);
@@ -811,6 +816,8 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 		    va_arg(ap, void *));
 	va_end(ap);
 
+	if (ustr != NULL)
+		free(ustr, M_DEVBUF);
 	return;
 }
 

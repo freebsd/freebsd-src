@@ -422,10 +422,8 @@ extern int pe_get_section(vm_offset_t, image_section_header *, const char *);
 extern int pe_relocate(vm_offset_t);
 extern int pe_get_import_descriptor(vm_offset_t, image_import_descriptor *, char *);
 extern int pe_patch_imports(vm_offset_t, char *, image_patch_table *);
-#ifdef _KERNEL
-extern int pe_get_messagetable(vm_offset_t, message_resource_data  **);
-extern int pe_get_message(vm_offset_t, uint32_t, char **, int *);
-#endif
+extern int pe_get_messagetable(vm_offset_t, message_resource_data **);
+extern int pe_get_message(vm_offset_t, uint32_t, char **, int *, uint16_t *);
 __END_DECLS
 
 #endif /* _PE_VAR_H_ */
