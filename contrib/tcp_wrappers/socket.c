@@ -222,7 +222,7 @@ struct host_info *host;
 	hints.ai_family = sin->sa_family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE | AI_CANONNAME | AI_NUMERICHOST;
-	if ((err = getaddrinfo(host->name, NULL, &hints, &res0) == 0)) {
+	if ((err = getaddrinfo(host->name, NULL, &hints, &res0)) == 0) {
 	    freeaddrinfo(res0);
 	    tcpd_warn("host name/name mismatch: "
 		      "reverse lookup results in non-FQDN %s",
