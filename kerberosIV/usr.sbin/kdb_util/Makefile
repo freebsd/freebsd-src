@@ -5,6 +5,8 @@ MAN8=		${KRB4DIR}/man/kdb_util.8
 SRCS=		kdb_util.c
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
+		-I${KRB4DIR}/lib/kadm \
+		-I${KRB4DIR}/lib/kdb \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRB4DIR}/admin \
 		-I${.CURDIR}/../include
