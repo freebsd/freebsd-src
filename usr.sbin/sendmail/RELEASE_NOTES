@@ -1,9 +1,51 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.6.9.3 (Berkeley) 4/19/94
+	     @(#)RELEASE_NOTES	8.6.10.2 (Berkeley) 2/10/95
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.6.10/8.6.10	95/02/10
+	SECURITY: Diagnose bogus values to some command line flags that
+		could allow trash to get into headers and qf files.
+	Validate the name of the user returned by the IDENT protocol.
+		Some systems that really dislike IDENT send intentionally
+		bogus information.  Problem pointed out by Michael Bushnell
+		of the Free Software Foundation.  Has some security
+		implications.
+	Fix a problem causing error messages about DNS problems when
+		the host name contained a percent sign to act oddly
+		because it was passed as a printf-style format string.
+		In some cases this could cause core dumps.
+	Avoid possible buffer overrun in returntosender() if error
+		message is quite ling.  From Fletcher Mattox of the
+		University of Texas.
+	Fix a problem that would silently drop "too many hops" error
+		messages if and only if you were sending to an alias.
+		From Jon Giltner of the University of Colorado and
+		Dan Harton of Oak Ridge National Laboratory.
+	Fix a bug that caused core dumps on some systems if -d11.2 was
+		set and e->e_message was null.  Fix from Bruce Nagel of
+		Data General.
+	Fix problem that can still cause df files to be left around
+		after "hop count exceeded" messages.  Fix from Andrew
+		Chang and Shau-Ping Lo of SunSoft.
+	Fix a problem that can cause buffer overflows on very long
+		user names (as might occur if you piped to a program
+		with a lot of arguments).
+	Avoid returning an error and re-queueing if the host signature
+		is null; this can occur on addresses like ``user@.''.
+		Problem noted by Wesley Craig and the University of
+		Michigan.
+	Avoid possible calls to malloc(0) if MCI caching is turned
+		off.  Bug fix from Pierre David of the Laboratoire
+		Parallelisme, Reseaux, Systemes et Modelisation (PRiSM),
+		Universite de Versailles - St Quentin, and Jacky
+		Thibault.
+	Make a local copy of the line being sent via senttolist() -- in
+		some cases, buffers could get trashed by map lookups
+		causing it to do unexpected things.  This also simplifies
+		some of the map code.
 
 8.6.9/8.6.9	94/04/19
 	Do all mail delivery completely disconnected from any terminal.
