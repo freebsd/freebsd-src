@@ -229,6 +229,74 @@ nat_RedirectAddr(struct cmdargs const *arg)
 }
 
 
+int
+nat_RedirectProto(struct cmdargs const *arg)
+{
+  if (!arg->bundle->NatEnabled) {
+    prompt_Printf(arg->prompt, "nat not enabled\n");
+    return 1;
+  } else if (arg->argc >= arg->argn + 2 && arg->argc <= arg->argn + 4) {
+    struct in_addr localIP, publicIP, remoteIP;
+    struct alias_link *link;
+    struct protoent *pe;
+    int error, len;
+
+    len = strlen(arg->argv[arg->argn]);
+    if (len == 0) {
+      prompt_Printf(arg->prompt, "proto redirect: invalid protocol\n");
+      return 1;
+    }
+    if (strspn(arg->argv[arg->argn], "01234567") == len)
+      pe = getprotobynumber(atoi(arg->argv[arg->argn]));
+    else
+      pe = getprotobyname(arg->argv[arg->argn]);
+    if (pe == NULL) {
+      prompt_Printf(arg->prompt, "proto redirect: invalid protocol\n");
+      return 1;
+    }
+
+    error = StrToAddr(arg->argv[arg->argn + 1], &localIP);
+    if (error) {
+      prompt_Printf(arg->prompt, "proto redirect: invalid src address\n");
+      return 1;
+    }
+
+    if (arg->argc >= arg->argn + 3) {
+      error = StrToAddr(arg->argv[arg->argn + 2], &publicIP);
+      if (error) {
+        prompt_Printf(arg->prompt, "proto redirect: invalid alias address\n");
+        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+                      arg->cmd->syntax);
+        return 1;
+      }
+    } else
+      publicIP.s_addr = INADDR_ANY;
+
+    if (arg->argc == arg->argn + 4) {
+      error = StrToAddr(arg->argv[arg->argn + 2], &remoteIP);
+      if (error) {
+        prompt_Printf(arg->prompt, "proto redirect: invalid dst address\n");
+        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+                      arg->cmd->syntax);
+        return 1;
+      }
+    } else
+      remoteIP.s_addr = INADDR_ANY;
+
+    link = PacketAliasRedirectProto(localIP, remoteIP, publicIP, pe->p_proto);
+    if (link == NULL) {
+      prompt_Printf(arg->prompt, "proto redirect: packet aliasing"
+                    " engine error\n");
+      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+                    arg->cmd->syntax);
+    }
+  } else
+    return -1;
+
+  return 0;
+}
+
+
 static int
 StrToAddr(const char *str, struct in_addr *addr)
 {
