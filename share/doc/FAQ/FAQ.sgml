@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.49 1997/05/03 04:46:42 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.50 1997/05/06 06:38:46 jkh Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/03 04:46:42 $</date>
+<date>$Date: 1997/05/06 06:38:46 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1594,7 +1594,8 @@ options		"CMD640"
 
 	  <p>Be sure to specify that you want the FreeBSD version of Motif
 	  when ordering!  Versions for BSDI and Linux are also sold by
-	  <em>Xi Graphics</em>.</p>
+	  <em>Xi Graphics</em>. This is currently a 4 diskette set... in the
+	  future this will change to a unified CD distribution like their CDE.</p>
 
       <sect1>
 	<heading>Where can I get CDE for FreeBSD?</heading>
@@ -1602,9 +1603,7 @@ options		"CMD640"
            distribution for FreeBSD.  This includes Motif 1.2.5, and can
            be used with Motif 2.0.
 
-	  <p>Be sure to specify that you want the FreeBSD version of CDE
-	  when ordering!  Versions for BSDI and Linux are also sold by
-	  <em>Xi Graphics</em>.</p>
+	  <p>This is a unified CDROM distribution for FreeBSD and Linux.</p>
 
       <sect1>
         <heading>Are there any commercial high-performance X servers?<label id="xig"></heading>
@@ -1615,12 +1614,12 @@ options		"CMD640"
 
           This high performance X Server offers easy configuration, support
           for multiple concurrent video boards and is distributed in binary
-          form only.
+          form only, in a unified diskette distribution for FreeBSD and Linux.
 
           There is a free "compatibility demo" of version 3.1 available.
 
           Xi Graphics also sells Motif and CDE for FreeBSD (see above).
-          
+
           <descrip>
             <tag/More info/
               <url url="http://www.xig.com/" name="Xi Graphics WWW page">
