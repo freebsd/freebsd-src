@@ -63,7 +63,7 @@ static const char rcsid[] =
 
 extern char *flags_to_string __P((u_long, char *));
 
-int dflag, eval, fflag, iflag, Pflag, Wflag, vflag, stdin_ok;
+int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
@@ -88,7 +88,7 @@ main(argc, argv)
 	int ch, rflag;
 
 	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiPRrWv")) != -1)
+	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -108,11 +108,11 @@ main(argc, argv)
 		case 'r':			/* Compatibility. */
 			rflag = 1;
 			break;
-		case 'W':
-			Wflag = 1;
-			break;
 		case 'v':
 			vflag = 1;
+			break;
+		case 'W':
+			Wflag = 1;
 			break;
 		default:
 			usage();
@@ -150,6 +150,7 @@ rm_tree(argv)
 	int needstat;
 	int flags;
 	int rval;
+	int e;
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
@@ -226,7 +227,6 @@ rm_tree(argv)
 			rval = chflags(p->fts_accpath,
 				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
 		if (!rval) {
-			int e;
 			/*
 			 * If we can't read or search the directory, may still be
 			 * able to remove it.  Don't print out the un{read,search}able
@@ -235,19 +235,21 @@ rm_tree(argv)
 			switch (p->fts_info) {
 			case FTS_DP:
 			case FTS_DNR:
-				if ((e=rmdir(p->fts_accpath)) == 0 ||
-				    (fflag && errno == ENOENT)) {
+				e = rmdir(p->fts_accpath);
+				if (e == 0 || (fflag && errno == ENOENT)) {
 					if (e == 0 && vflag)
-						(void)printf("%s\n", p->fts_accpath);
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
 				}
 				break;
 
 			case FTS_W:
-				if (!(e=undelete(p->fts_accpath)) ||
-			    	(fflag && errno == ENOENT)) {
+				e = undelete(p->fts_accpath);
+				if (e == 0 || (fflag && errno == ENOENT)) {
 					if (e == 0 && vflag)
-						(void)printf("%s\n", p->fts_accpath);
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
 				}
 				break;
@@ -255,9 +257,11 @@ rm_tree(argv)
 			default:
 				if (Pflag)
 					rm_overwrite(p->fts_accpath, NULL);
-				if (!(e=unlink(p->fts_accpath)) || (fflag && errno == ENOENT)) {
+				e = unlink(p->fts_accpath);
+				if (e == 0 || (fflag && errno == ENOENT)) {
 					if (e == 0 && vflag)
-						(void)printf("%s\n", p->fts_accpath);
+						(void)printf("%s\n",
+						    p->fts_accpath);
 					continue;
 				}
 			}
@@ -468,6 +472,6 @@ checkdot(argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrWv] file ...\n");
+	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrvW] file ...\n");
 	exit(EX_USAGE);
 }
