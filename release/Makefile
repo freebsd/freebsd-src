@@ -38,6 +38,12 @@ AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEAS
 
 KERNCONF=GENERIC
 
+# If you want to pass flags to the world build such as -j X, use
+# WORLD_FLAGS.  Similarly, you can specify make flags for kernel
+# builds via KERNEL_FLAGS.
+#WORLD_FLAGS=-j4
+#KERNEL_FLAGS=-j4
+
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
 # in the environment.
@@ -284,6 +290,9 @@ rerelease release:
 .if defined(BOOT_CONFIG)
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
+.if defined(KERNEL_FLAGS)
+	echo "export KERNEL_FLAGS=\"${KERNEL_FLAGS}\"" >> ${CHROOTDIR}/mk
+.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
@@ -291,10 +300,10 @@ rerelease release:
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "	(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
-	echo "	make world && \\"		>> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} world && \\"	>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "	make all install && \\"		>> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} all install && \\" >> ${CHROOTDIR}/mk
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
@@ -753,7 +762,7 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make kernel-depend && \
-			make  ${KERNEL} && \
+			make ${KERNEL_FLAGS} ${KERNEL} && \
 			make kernel-reinstall DESTDIR=${RD}/kernels
 
 #
@@ -769,7 +778,7 @@ doMFSKERN:
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 .if defined(BIGBOOT)
-	@echo "options \"MD_ROOT_SIZE=`cat mfsroot.size`\"" >> \
+	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
