@@ -179,8 +179,6 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 
 			if (addr < (vm_offset_t)VADDR(PTDPTDI, 0))
 				return (EFAULT);
-			if (eaddr >= (vm_offset_t)VADDR(APTDPTDI, 0))
-				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return (EFAULT);

@@ -1636,11 +1636,8 @@ pmap_release(pmap_t pmap)
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
 
-	bzero(pmap->pm_pdir + KPTDI, nkpt * sizeof(*pmap->pm_pdir));
-	for (i = 0; i < NPGPTD; i++) {
-		pmap->pm_pdir[PTDPTDI + i] = 0;
-		pmap->pm_pdir[APTDPTDI + i] = 0;
-	}
+	bzero(pmap->pm_pdir + PTDPTDI, (nkpt + NPGPTD) *
+	    sizeof(*pmap->pm_pdir));
 #ifdef SMP
 	pmap->pm_pdir[MPPTDI] = 0;
 #endif
