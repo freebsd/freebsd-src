@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.29 1995/10/05 09:25:24 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.30 1995/10/06 05:17:28 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -184,6 +184,7 @@
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Rodney W. Grimes &lt;rgrimes@FreeBSD.org&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
+	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Scott Mace &lt;smace@FreeBSD.org&gt;
 	  <item>Sean Eric Fagan &lt;sef@kithrup.com&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
