@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.30 1994/04/21 14:13:43 sos Exp $
+#	$Id: files.i386,v 1.31 1994/04/23 01:59:04 ache Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -83,3 +83,34 @@ i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
+gpl/fpemul/div_small.s	optional gpl_math_emulate
+gpl/fpemul/errors.c	optional gpl_math_emulate
+gpl/fpemul/fpu_arith.c	optional gpl_math_emulate
+gpl/fpemul/fpu_aux.c	optional gpl_math_emulate
+gpl/fpemul/fpu_entry.c	optional gpl_math_emulate
+gpl/fpemul/fpu_etc.c	optional gpl_math_emulate
+gpl/fpemul/fpu_trig.c	optional gpl_math_emulate
+gpl/fpemul/get_address.c	optional gpl_math_emulate
+gpl/fpemul/load_store.c	optional gpl_math_emulate
+gpl/fpemul/poly_2xm1.c	optional gpl_math_emulate
+gpl/fpemul/poly_atan.c	optional gpl_math_emulate
+gpl/fpemul/poly_div.s	optional gpl_math_emulate
+gpl/fpemul/poly_l2.c	optional gpl_math_emulate
+gpl/fpemul/poly_mul64.s	optional gpl_math_emulate
+gpl/fpemul/poly_sin.c	optional gpl_math_emulate
+gpl/fpemul/poly_tan.c	optional gpl_math_emulate
+gpl/fpemul/polynomial.s	optional gpl_math_emulate
+gpl/fpemul/reg_add_sub.c	optional gpl_math_emulate
+gpl/fpemul/reg_compare.c	optional gpl_math_emulate
+gpl/fpemul/reg_constant.c	optional gpl_math_emulate
+gpl/fpemul/reg_div.s	optional gpl_math_emulate
+gpl/fpemul/reg_ld_str.c	optional gpl_math_emulate
+gpl/fpemul/reg_mul.c	optional gpl_math_emulate
+gpl/fpemul/reg_norm.s	optional gpl_math_emulate
+gpl/fpemul/reg_round.s	optional gpl_math_emulate
+gpl/fpemul/reg_u_add.s	optional gpl_math_emulate
+gpl/fpemul/reg_u_div.s	optional gpl_math_emulate
+gpl/fpemul/reg_u_mul.s	optional gpl_math_emulate
+gpl/fpemul/reg_u_sub.s	optional gpl_math_emulate
+gpl/fpemul/wm_shrx.s	optional gpl_math_emulate
+gpl/fpemul/wm_sqrt.s	optional gpl_math_emulate
