@@ -101,7 +101,9 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL)
-vx0     dyn     dyn     n/a     dyn     3Com 3c59x / 3c9xx
+vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
+xl0	dyn	dyn	n/a	dyn	3Com 3c900, 3c905 and 3c905B
+					((Fast) Etherlink XL)
 ze0     300     5       n/a     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
@@ -414,7 +416,7 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
 (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.44 1998/08/23 21:30:02 wpaul Exp $
+ *	$Id: if_xl.c,v 1.35 1998/08/24 17:46:19 wpaul Exp $
  */
 
 /*
@@ -96,7 +96,16 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
 
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#endif
+ 
 #if NBPFILTER > 0
 #include <net/bpf.h>
 #endif
@@ -124,7 +133,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.44 1998/08/23 21:30:02 wpaul Exp $";
+	"$Id: if_xl.c,v 1.35 1998/08/24 17:46:19 wpaul Exp $";
 #endif
 
 /*
@@ -181,7 +190,7 @@ static void xl_txeof		__P((struct xl_softc *));
 static void xl_txeoc		__P((struct xl_softc *));
 static void xl_intr		__P((void *));
 static void xl_start		__P((struct ifnet *));
-static int xl_ioctl		__P((struct ifnet *, u_long, caddr_t));
+static int xl_ioctl		__P((struct ifnet *, int, caddr_t));
 static void xl_init		__P((void *));
 static void xl_stop		__P((struct xl_softc *));
 static void xl_watchdog		__P((struct ifnet *));
@@ -206,7 +215,6 @@ static void xl_getmode_mii	__P((struct xl_softc *));
 static void xl_setmode		__P((struct xl_softc *, int));
 static u_int8_t xl_calchash	__P((u_int8_t *));
 static void xl_setmulti		__P((struct xl_softc *));
-static void xl_setmulti_hash	__P((struct xl_softc *));
 static void xl_reset		__P((struct xl_softc *));
 static int xl_list_rx_init	__P((struct xl_softc *));
 static int xl_list_tx_init	__P((struct xl_softc *));
@@ -589,17 +597,14 @@ static u_int8_t xl_calchash(addr)
 	return(crc & 0x000000FF);
 }
 
-/*
- * NICs older than the 3c905B have only one multicast option, which
- * is to enable reception of all multicast frames.
- */
 static void xl_setmulti(sc)
 	struct xl_softc		*sc;
 {
 	struct ifnet		*ifp;
-	struct ifmultiaddr	*ifma;
+	int			h, i;
+	struct ether_multi	*enm;
+	struct ether_multistep	step;
 	u_int8_t		rxfilt;
-	int			mcnt = 0;
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -612,69 +617,44 @@ static void xl_setmulti(sc)
 		return;
 	}
 
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-				ifma = ifma->ifma_link.le_next)
-		mcnt++;
-
-	if (mcnt)
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-	else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
-
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-
-	return;
-}
-
-/*
- * 3c905B adapters have a hash filter that we can program.
- */
-static void xl_setmulti_hash(sc)
-	struct xl_softc		*sc;
-{
-	struct ifnet		*ifp;
-	int			h = 0, i;
-	struct ifmultiaddr	*ifma;
-	u_int8_t		rxfilt;
-	int			mcnt = 0;
-
-	ifp = &sc->arpcom.ac_if;
-
-	XL_SEL_WIN(5);
-	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
-
-	if (ifp->if_flags & IFF_ALLMULTI) {
-		rxfilt |= XL_RXFILTER_ALLMULTI;
+	if (sc->arpcom.ac_multicnt == 0) {
+		/* disable multicast */
+		rxfilt &= ~(XL_RXFILTER_ALLMULTI | XL_RXFILTER_MULTIHASH);
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
 		return;
-	} else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
-
-
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < XL_HASHFILT_SIZE; i++)
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
-
-	/* now program new ones */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-				ifma = ifma->ifma_link.le_next) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = xl_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|XL_HASH_SET|h);
-		mcnt++;
 	}
 
-	if (mcnt)
+	if (ifp->if_flags & IFF_ALLMULTI || sc->xl_type == XL_TYPE_90X) {
+		rxfilt |= XL_RXFILTER_ALLMULTI;
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
+	} else {
+		/* first, zot all the existing hash bits */
+		for (i = 0; i < XL_HASHFILT_SIZE; i++)
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
+		/* now program new ones */
 		rxfilt |= XL_RXFILTER_MULTIHASH;
-	else
-		rxfilt &= ~XL_RXFILTER_MULTIHASH;
-
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
+		rxfilt &= ~XL_RXFILTER_ALLMULTI;
+		ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
+		while(enm != NULL) {
+			if (bcmp(enm->enm_addrlo, enm->enm_addrhi,
+							ETHER_ADDR_LEN)) {
+				rxfilt &= ~XL_RXFILTER_MULTIHASH;
+				rxfilt |= XL_RXFILTER_ALLMULTI;
+				CSR_WRITE_2(sc, XL_COMMAND,
+					XL_CMD_RX_SET_FILT|rxfilt);
+				break;
+			} else {
+				h = xl_calchash(enm->enm_addrlo);
+				CSR_WRITE_2(sc, XL_COMMAND,
+					XL_CMD_RX_SET_HASH|XL_HASH_SET|h);
+			}
+			ETHER_NEXT_MULTI(step, enm);
+		}
+		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
+	}
 
 	return;
 }
-
 #ifdef notdef
 static void xl_testpacket(sc)
 	struct xl_softc		*sc;
@@ -1300,12 +1280,13 @@ xl_attach(config_id, unit)
 	 * Map control/status registers.
 	 */
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	command |= (PCI_COMMAND_IO_ENABLE|PCI_COMMAND_MEM_ENABLE
+				|PCI_COMMAND_MASTER_ENABLE);
 	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 
 #ifdef XL_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
+	if (!(command & PCI_COMMAND_IO_ENABLE)) {
 		printf("xl%d: failed to enable I/O ports!\n", unit);
 		free(sc, M_DEVBUF);
 		goto fail;
@@ -1313,7 +1294,7 @@ xl_attach(config_id, unit)
 
 	sc->iobase = pci_conf_read(config_id, XL_PCI_LOIO) & 0xFFFFFFE0;
 #else
-	if (!(command & PCIM_CMD_MEMEN)) {
+	if (!(command & PCI_COMMAND_MEM_ENABLE)) {
 		printf("xl%d: failed to enable memory mapping!\n", unit);
 		goto fail;
 	}
@@ -1349,7 +1330,6 @@ xl_attach(config_id, unit)
 	printf("xl%d: Ethernet address: %6D\n", unit, eaddr, ":");
 
 	sc->xl_unit = unit;
-	callout_handle_init(&sc->xl_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->xl_ldata_ptr = malloc(sizeof(struct xl_list_data) + 8,
@@ -2000,7 +1980,7 @@ static void xl_stats_update(xsc)
 	XL_SEL_WIN(7);
 
 	if (!sc->xl_stats_no_timeout)
-		sc->xl_stat_ch = timeout(xl_stats_update, sc, hz);
+		timeout(xl_stats_update, sc, hz);
 
 	return;
 }
@@ -2214,6 +2194,7 @@ static void xl_init(xsc)
 	if (sc->xl_autoneg)
 		return;
 
+
 	s = splimp();
 
 	/*
@@ -2296,10 +2277,7 @@ static void xl_init(xsc)
 	/*
 	 * Program the multicast filter, if necessary.
 	 */
-	if (sc->xl_type == XL_TYPE_905B)
-		xl_setmulti_hash(sc);
-	else
-		xl_setmulti(sc);
+	xl_setmulti(sc);
 
 	/*
 	 * Load the address of the RX list. We have to
@@ -2325,6 +2303,7 @@ static void xl_init(xsc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_START);
 	else
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
+
 
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
@@ -2362,7 +2341,7 @@ static void xl_init(xsc)
 
 	(void)splx(s);
 
-	sc->xl_stat_ch = timeout(xl_stats_update, sc, hz);
+	timeout(xl_stats_update, sc, hz);
 
 	return;
 }
@@ -2480,7 +2459,7 @@ static void xl_ifmedia_sts(ifp, ifmr)
 
 static int xl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
-	u_long			command;
+	int			command;
 	caddr_t			data;
 {
 	struct xl_softc		*sc = ifp->if_softc;
@@ -2506,11 +2485,14 @@ static int xl_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (sc->xl_type == XL_TYPE_905B)
-			xl_setmulti_hash(sc);
+		if (command == SIOCADDMULTI)
+			error = ether_addmulti(ifr, &sc->arpcom);
 		else
+			error = ether_delmulti(ifr, &sc->arpcom);
+		if (error == ENETRESET) {
 			xl_setmulti(sc);
-		error = 0;
+			error = 0;
+		}
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2580,7 +2562,7 @@ static void xl_stop(sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|XL_STAT_INTLATCH);
 
 	/* Stop the stats updater. */
-	untimeout(xl_stats_update, sc, sc->xl_stat_ch);
+	untimeout(xl_stats_update, sc);
 
 	/*
 	 * Free data in the RX lists.
