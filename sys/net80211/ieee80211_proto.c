@@ -889,8 +889,10 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				break;
 			}
 			goto reset;
-		case IEEE80211_S_AUTH:
 		case IEEE80211_S_SCAN:
+			ieee80211_cancel_scan(ic);
+			goto reset;
+		case IEEE80211_S_AUTH:
 		reset:
 			ic->ic_mgt_timer = 0;
 			IF_DRAIN(&ic->ic_mgtq);
