@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 310.locate,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+# $Id: 310.locate,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
 #
 locdb=/var/db/locate.database
 
@@ -11,8 +11,6 @@ if [ -x /usr/libexec/locate.updatedb -a -f $locdb ] ; then
 
     touch ${locdb}; chown nobody ${locdb}; chmod 644 ${locdb}
 
-    echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody 2>&1 |\
-	fgrep -v 'Permission denied'
-
+    echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody
     chmod 444 ${locdb}
 fi
