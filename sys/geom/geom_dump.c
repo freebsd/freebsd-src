@@ -281,34 +281,3 @@ g_trace(int level, const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 }
-
-void
-g_hexdump(void *ptr, int length)
-{
-	int i, j, k;
-	unsigned char *cp;
-
-	cp = ptr;
-	for (i = 0; i < length; i+= 16) {
-		printf("%04x  ", i);
-		for (j = 0; j < 16; j++) {
-			k = i + j;
-			if (k < length)
-				printf(" %02x", cp[k]);
-			else
-				printf("   ");
-		}
-		printf("  |");
-		for (j = 0; j < 16; j++) {
-			k = i + j;
-			if (k >= length)
-				printf(" ");
-			else if (cp[k] >= ' ' && cp[k] <= '~')
-				printf("%c", cp[k]);
-			else
-				printf(".");
-		}
-		printf("|\n");
-	}
-}
-
