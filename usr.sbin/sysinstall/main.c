@@ -116,21 +116,19 @@ main(int argc, char **argv)
 
     {
 	FILE *fp;
-	Attribs *attrs;
+	char buf[BUFSIZ];
 
-	attrs = alloca(sizeof(Attribs) * MAX_ATTRIBS);
 	fp = fopen("install.cfg", "r");
 	if (fp) {
 	    msgNotify("Loading pre-configuration file");
-	    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
-		int i;
-
-		for (i = 0; attrs[i].name; i++)
-		    variable_set2(attrs[i].name, attrs[i].value);
+	    while (fgets(buf, sizeof buf, fp)) {
+		if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
+		    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
+		    break;
+		}
 	    }
 	    fclose(fp);
 	}
-
 #if defined(LOAD_CONFIG_FILE)
 	else {
 	    /* If we have a compiled-in startup config file name on
@@ -141,19 +139,15 @@ main(int argc, char **argv)
 	    distWanted = (char *)1;
 
 	    /* Try to open the floppy drive if we can do that first */
-	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE &&
-		mediaDevice->init(mediaDevice)) {
-		int fd;
-
+	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
 		fp = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
 		if (fp) {
-		    msgNotify("Loading %s pre-configuration file",
-			      LOAD_CONFIG_FILE);
-		    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
-			int i;
-
-			for (i = 0; attrs[i].name; i++)
-			    variable_set2(attrs[i].name, attrs[i].value);
+		    msgNotify("Loading %s pre-configuration file", LOAD_CONFIG_FILE);
+		    while (fgets(buf, sizeof buf, fp)) {
+			if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
+			    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
+			    break;
+			}
 		    }
 		    fclose(fp);
 		}
