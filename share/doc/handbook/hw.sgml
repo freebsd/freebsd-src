@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.45 1996/10/07 14:25:44 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.46 1996/10/07 14:31:01 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -41,7 +41,7 @@ making any purchases.</p>
 
     <p>
     <itemize>
-	<item><htmlurl url="http://www.u-net.com/~sysdoc/hardware.htm"
+	<item><htmlurl url="http://sysdoc.pair.com/"
 	name="The Pentium Systems Hardware Performance Guide"></item>
     </itemize>
 
