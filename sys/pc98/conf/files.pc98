@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.8 1997/04/08 11:00:54 kato Exp $
+#	$Id: files.pc98,v 1.9.2.9 1997/04/21 12:56:02 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -105,7 +105,7 @@ pc98/pc98/atcompat_diskslice.c	optional	compat_atdisk
 i386/isa/elink.c		optional	ep	device-driver
 #i386/isa/elink.c		optional	ie	device-driver
 pc98/pc98/fd.c			optional	fd	device-driver
-pc98/pc98/ft.c			optional	ft	device-driver
+i386/isa/ft.c			optional	ft	device-driver
 pc98/pc98/gpib.c		optional	gp	device-driver
 pc98/isa/asc.c			optional	asc	device-driver
 pc98/isa/gsc.c			optional	gsc	device-driver
