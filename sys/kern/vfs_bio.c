@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.184 1998/10/31 15:31:22 peter Exp $
+ * $Id: vfs_bio.c,v 1.185 1998/11/18 09:00:47 dg Exp $
  */
 
 /*
@@ -497,9 +497,9 @@ bdwrite(struct buf * bp)
 	 * requested by the soft dependency code.
 	 */
 	if ((vp = bp->b_vp) &&
-	    (vp->v_type == VBLK && vp->v_specmountpoint &&
-	    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP)) ||
-	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)))
+	    ((vp->v_type == VBLK && vp->v_specmountpoint &&
+		  (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP)) ||
+		 (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))))
 		return;
 
 	if (numdirtybuffers >= hidirtybuffers)
@@ -1739,7 +1739,7 @@ allocbuf(struct buf * bp, int size)
 						m = bp->b_pages[pageindex];
 #ifdef VFS_BIO_DIAG
 						if (m->pindex != objoff)
-							panic("allocbuf: page changed offset??!!!?");
+							panic("allocbuf: page changed offset?!!!?");
 #endif
 						bytesinpage = tinc;
 						if (tinc > (newbsize - toff))
