@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: apecsreg.h,v 1.7 1997/06/06 23:54:24 thorpej Exp $ */
 
 /*

@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# $FreeBSD$
 
 $errpos = hex($ARGV[0])/4;
 $ofs=0;

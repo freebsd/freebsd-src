@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 static int gpib_port=0x2c0;
 #define IEEE gpib_port
 

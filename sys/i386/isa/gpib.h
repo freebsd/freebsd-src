@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifndef	_I386_ISA_GPIB_H_
 #define	_I386_ISA_GPIB_H_
 
