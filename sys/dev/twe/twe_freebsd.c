@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -31,20 +33,11 @@
  * FreeBSD-specific code.
  */
 
-#include <sys/param.h>
-#include <sys/cons.h>
-#include <machine/bus.h>
-#include <machine/clock.h>
-#include <machine/md_var.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <dev/twe/twe_compat.h>
 #include <dev/twe/twereg.h>
+#include <dev/twe/twe_tables.h>
 #include <dev/twe/tweio.h>
 #include <dev/twe/twevar.h>
-#include <dev/twe/twe_tables.h>
-
-#include <sys/devicestat.h>
 
 static devclass_t	twe_devclass;
 
@@ -67,8 +60,6 @@ static u_int32_t	twed_bio_out;
 static	d_open_t		twe_open;
 static	d_close_t		twe_close;
 static	d_ioctl_t		twe_ioctl_wrapper;
-
-#define TWE_CDEV_MAJOR  146
 
 static struct cdevsw twe_cdevsw = {
     twe_open,
@@ -133,11 +124,16 @@ static int	twe_probe(device_t dev);
 static int	twe_attach(device_t dev);
 static void	twe_free(struct twe_softc *sc);
 static int	twe_detach(device_t dev);
-static void	twe_shutdown(device_t dev);
+static int	twe_shutdown(device_t dev);
 static int	twe_suspend(device_t dev);
 static int	twe_resume(device_t dev);
 static void	twe_pci_intr(void *arg);
 static void	twe_intrhook(void *arg);
+static void	twe_free_request(struct twe_request *tr);
+static void	twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs,
+								  int nsegments, int error);
+static void	twe_setup_request_dmamap(void *arg, bus_dma_segment_t *segs,
+									 int nsegments, int error);
 
 static device_method_t twe_methods[] = {
     /* Device interface */
@@ -177,7 +173,7 @@ twe_probe(device_t dev)
     if ((pci_get_vendor(dev) == TWE_VENDOR_ID) &&
 	((pci_get_device(dev) == TWE_DEVICE_ID) || 
 	 (pci_get_device(dev) == TWE_DEVICE_ID_ASIC))) {
-	device_set_desc(dev, TWE_DEVICE_NAME);
+	device_set_desc(dev, TWE_DEVICE_NAME " driver ver. " TWE_DRIVER_VERSION_STRING);
 #ifdef TWE_OVERRIDE
 	return(0);
 #else
@@ -214,7 +210,7 @@ twe_attach(device_t dev)
 	return (ENXIO);
     }
     SYSCTL_ADD_STRING(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	OID_AUTO, "driver_version", CTLFLAG_RD, "$Revision$", 0,
+	OID_AUTO, "driver_version", CTLFLAG_RD, TWE_DRIVER_VERSION_STRING, 0,
 	"TWE driver version");
 
     /*
@@ -295,8 +291,10 @@ twe_attach(device_t dev)
     /*
      * Initialise the controller and driver core.
      */
-    if ((error = twe_setup(sc)))
+    if ((error = twe_setup(sc))) {
+	twe_free(sc);
 	return(error);
+    }
 
     /*
      * Print some information about the controller and configuration.
@@ -386,7 +384,8 @@ twe_detach(device_t dev)
     /*	
      * Shut the controller down.
      */
-    twe_shutdown(dev);
+    if ((error = twe_shutdown(dev)))
+	goto out;
 
     twe_free(sc);
 
@@ -402,11 +401,11 @@ twe_detach(device_t dev)
  * Note that we can assume that the bioq on the controller is empty, as we won't
  * allow shutdown if any device is open.
  */
-static void
+static int
 twe_shutdown(device_t dev)
 {
     struct twe_softc	*sc = device_get_softc(dev);
-    int			i, s;
+    int			i, s, error = 0;
 
     debug_called(4);
 
@@ -416,7 +415,9 @@ twe_shutdown(device_t dev)
      * Delete all our child devices.
      */
     for (i = 0; i < TWE_MAX_UNITS; i++) {
-	twe_detach_drive(sc, i);
+      if (sc->twe_drive[i].td_disk != 0)
+	if ((error = twe_detach_drive(sc, i)) != 0)
+	    goto out;
     }
 
     /*
@@ -424,7 +425,9 @@ twe_shutdown(device_t dev)
      */
     twe_deinit(sc);
 
+ out:
     splx(s);
+    return(error);
 }
 
 /********************************************************************************
@@ -493,16 +496,16 @@ twe_intrhook(void *arg)
  *
  * This is called from twe_add_unit.
  */
-void
+int
 twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
 {
     char	buf[80];
-    int		error;
+    int		error = 0;
 
     dr->td_disk =  device_add_child(sc->twe_dev, NULL, -1);
     if (dr->td_disk == NULL) {
-	twe_printf(sc, "device_add_child failed\n");
-	return;
+	twe_printf(sc, "Cannot add unit\n");
+	return (EIO);
     }
     device_set_ivars(dr->td_disk, dr);
 
@@ -511,13 +514,16 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
      * always set...
      */
     sprintf(buf, "Unit %d, %s, %s",
-	    dr->td_unit,
+	    dr->td_twe_unit,
 	    twe_describe_code(twe_table_unittype, dr->td_type),
 	    twe_describe_code(twe_table_unitstate, dr->td_state & TWE_PARAM_UNITSTATUS_MASK));
     device_set_desc_copy(dr->td_disk, buf);
 
-    if ((error = bus_generic_attach(sc->twe_dev)) != 0)
-	twe_printf(sc, "bus_generic_attach returned %d\n", error);
+    if ((error = bus_generic_attach(sc->twe_dev)) != 0) {
+	twe_printf(sc, "Cannot attach unit to controller. error = %d\n", error);
+	error = EIO;
+    }
+    return (error);
 }
 
 /********************************************************************************
@@ -525,15 +531,17 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
  *
  * This is called from twe_del_unit.
  */
-void
+int
 twe_detach_drive(struct twe_softc *sc, int unit)
 {
+    int	error = 0;
 
-    if (sc->twe_drive[unit].td_disk != 0) {
-	if (device_delete_child(sc->twe_dev, sc->twe_drive[unit].td_disk) != 0)
-	    twe_printf(sc, "failed to delete unit %d\n", unit);
-	sc->twe_drive[unit].td_disk = 0;
+    if ((error = device_delete_child(sc->twe_dev, sc->twe_drive[unit].td_disk))) {
+	twe_printf(sc, "Cannot delete unit. error = %d\n", error);
+	return (error);
     }
+    bzero(&sc->twe_drive[unit], sizeof(sc->twe_drive[unit]));
+    return (error);
 }
 
 /********************************************************************************
@@ -561,22 +569,6 @@ twe_clear_pci_abort(struct twe_softc *sc)
                                                                       Disk device
  ********************************************************************************
  ********************************************************************************/
-
-/*
- * Disk device softc
- */
-struct twed_softc 
-{
-    device_t		twed_dev;
-    dev_t		twed_dev_t;
-    struct twe_softc	*twed_controller;	/* parent device softc */
-    struct twe_drive	*twed_drive;		/* drive data in parent softc */
-    struct disk		twed_disk;		/* generic disk handle */
-    struct devstat	twed_stats;		/* accounting */
-    struct disklabel	twed_label;		/* synthetic label */
-    int			twed_flags;
-#define TWED_OPEN	(1<<0)			/* drive is open (can't shut down) */
-};
 
 /*
  * Disk device bus interface
@@ -612,8 +604,6 @@ static	d_open_t	twed_open;
 static	d_close_t	twed_close;
 static	d_strategy_t	twed_strategy;
 static	d_dump_t	twed_dump;
-
-#define TWED_CDEV_MAJOR	147
 
 static struct cdevsw twed_cdevsw = {
     twed_open,
@@ -702,7 +692,7 @@ twed_strategy(twe_bio *bp)
     TWED_BIO_IN;
 
     /* bogus disk? */
-    if (sc == NULL) {
+    if ((sc == NULL) || (!sc->twed_drive->td_disk)) {
 	TWE_BIO_SET_ERROR(bp, EINVAL);
 	printf("twe: bio for invalid disk!\n");
 	TWE_BIO_DONE(bp);
@@ -724,7 +714,7 @@ twed_strategy(twe_bio *bp)
 /********************************************************************************
  * System crashdump support
  */
-int
+static int
 twed_dump(dev_t dev)
 {
     struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
@@ -758,7 +748,7 @@ twed_dump(dev_t dev)
 		va = pmap_kenter_temporary(trunc_page(0), i);
 	}
 
-	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_unit, blkno, va, 
+	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_twe_unit, blkno, va, 
 				     (PAGE_SIZE * dumppages) / TWE_BLOCK_SIZE)) != 0)
 	    return(error);
 
@@ -816,6 +806,7 @@ twed_attach(device_t dev)
     parent = device_get_parent(dev);
     sc->twed_controller = (struct twe_softc *)device_get_softc(parent);
     sc->twed_drive = device_get_ivars(dev);
+    sc->twed_drive->td_sys_unit = device_get_unit(dev);
     sc->twed_dev = dev;
 
     /* report the drive */
@@ -823,15 +814,17 @@ twed_attach(device_t dev)
 		sc->twed_drive->td_size / ((1024 * 1024) / TWE_BLOCK_SIZE),
 		sc->twed_drive->td_size);
     
-    devstat_add_entry(&sc->twed_stats, "twed", device_get_unit(dev), TWE_BLOCK_SIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_ARRAY);
+    devstat_add_entry(&sc->twed_stats, "twed", sc->twed_drive->td_sys_unit,
+			TWE_BLOCK_SIZE,
+			DEVSTAT_NO_ORDERED_TAGS,
+			DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
+			DEVSTAT_PRIORITY_ARRAY);
 
     /* attach a generic disk device to ourselves */
-    dsk = disk_create(device_get_unit(dev), &sc->twed_disk, 0, &twed_cdevsw, &tweddisk_cdevsw);
+    dsk = disk_create(sc->twed_drive->td_sys_unit, &sc->twed_disk,
+			0, &twed_cdevsw, &tweddisk_cdevsw);
     dsk->si_drv1 = sc;
-    dsk->si_drv2 = &sc->twed_drive->td_unit;
+/*    dsk->si_drv2 = sc->twed_drive;*/
     sc->twed_dev_t = dsk;
 #ifdef FREEBSD_4
     disks_registered++;
@@ -857,11 +850,10 @@ twed_detach(device_t dev)
 	return(EBUSY);
 
     devstat_remove_entry(&sc->twed_stats);
+    disk_destroy(sc->twed_dev_t);
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
 	cdevsw_remove(&tweddisk_cdevsw);
-#else
-    disk_destroy(sc->twed_dev_t);
 #endif
 
     return(0);
@@ -873,14 +865,10 @@ twed_detach(device_t dev)
  ********************************************************************************
  ********************************************************************************/
 
-static void	twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
-static void	twe_setup_request_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
-
+MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe commands", "twe commands");
 /********************************************************************************
  * Allocate a command buffer
  */
-MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe commands", "twe commands");
-
 struct twe_request *
 twe_allocate_request(struct twe_softc *sc)
 {
@@ -894,6 +882,8 @@ twe_allocate_request(struct twe_softc *sc)
 	twe_free_request(tr);
 	return(NULL);
     }
+    bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_cmdmap, &tr->tr_command,
+	sizeof(tr->tr_command), twe_setup_request_dmamap, tr, 0);
     if (bus_dmamap_create(sc->twe_buffer_dmat, 0, &tr->tr_dmamap)) {
 	bus_dmamap_destroy(sc->twe_buffer_dmat, tr->tr_cmdmap);
 	twe_free_request(tr);
@@ -905,13 +895,14 @@ twe_allocate_request(struct twe_softc *sc)
 /********************************************************************************
  * Permanently discard a command buffer.
  */
-void
+static void
 twe_free_request(struct twe_request *tr) 
 {
     struct twe_softc	*sc = tr->tr_sc;
     
     debug_called(4);
 
+    bus_dmamap_unload(sc->twe_buffer_dmat, tr->tr_cmdmap); 
     bus_dmamap_destroy(sc->twe_buffer_dmat, tr->tr_cmdmap);
     bus_dmamap_destroy(sc->twe_buffer_dmat, tr->tr_dmamap);
     free(tr, TWE_MALLOC_CLASS);
@@ -948,6 +939,13 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
 
     debug_called(4);
 
+    if (tr->tr_flags & TWE_CMD_MAPPED)
+	panic("already mapped command");
+
+    tr->tr_flags |= TWE_CMD_MAPPED;
+
+    if (tr->tr_flags & TWE_CMD_IN_PROGRESS)
+	tr->tr_sc->twe_state &= ~TWE_STATE_FRZN;
     /* save base of first segment in command (applicable if there only one segment) */
     tr->tr_dataphys = segs[0].ds_addr;
 
@@ -993,6 +991,16 @@ twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int err
 	    break;
 	}
     }
+    if (tr->tr_flags & TWE_CMD_DATAIN)
+	bus_dmamap_sync(tr->tr_sc->twe_buffer_dmat, tr->tr_dmamap, BUS_DMASYNC_PREREAD);
+    if (tr->tr_flags & TWE_CMD_DATAOUT) {
+	/* if we're using an alignment buffer, and we're writing data, copy the real data out */
+	if (tr->tr_flags & TWE_CMD_ALIGNBUF)
+	    bcopy(tr->tr_realdata, tr->tr_data, tr->tr_length);
+	bus_dmamap_sync(tr->tr_sc->twe_buffer_dmat, tr->tr_dmamap, BUS_DMASYNC_PREWRITE);
+    }
+    if (twe_start(tr) == EBUSY)
+	twe_requeue_ready(tr);
 }
 
 static void
@@ -1006,25 +1014,26 @@ twe_setup_request_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int 
     tr->tr_cmdphys = segs[0].ds_addr;
 }
 
-void
+int
 twe_map_request(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
+    int			error = 0;
 
     debug_called(4);
 
+    if (sc->twe_state & TWE_STATE_FRZN)
+	return (EBUSY);
 
     /*
      * Map the command into bus space.
      */
-    bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_cmdmap, &tr->tr_command, sizeof(tr->tr_command), 
-		    twe_setup_request_dmamap, tr, 0);
     bus_dmamap_sync(sc->twe_buffer_dmat, tr->tr_cmdmap, BUS_DMASYNC_PREWRITE);
 
     /*
      * If the command involves data, map that too.
      */
-    if (tr->tr_data != NULL) {
+    if ((tr->tr_data != NULL) && ((tr->tr_flags & TWE_CMD_MAPPED) == 0)) {
 
 	/* 
 	 * Data must be 64-byte aligned; allocate a fixup buffer if it's not.
@@ -1032,37 +1041,44 @@ twe_map_request(struct twe_request *tr)
 	if (((vm_offset_t)tr->tr_data % TWE_ALIGNMENT) != 0) {
 	    tr->tr_realdata = tr->tr_data;				/* save pointer to 'real' data */
 	    tr->tr_flags |= TWE_CMD_ALIGNBUF;
-	    tr->tr_data = malloc(tr->tr_length, TWE_MALLOC_CLASS, M_NOWAIT);	/* XXX check result here */
+	    tr->tr_data = malloc(tr->tr_length, TWE_MALLOC_CLASS, M_NOWAIT);
+	    if (tr->tr_data == NULL) {
+		twe_printf(sc, "%s: malloc failed\n", __func__);
+		tr->tr_data = tr->tr_realdata; /* restore original data pointer */
+		return(ENOMEM);
+	    }
 	}
 	
 	/*
 	 * Map the data buffer into bus space and build the s/g list.
 	 */
-	bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data, tr->tr_length, 
-			twe_setup_data_dmamap, tr, 0);
-	if (tr->tr_flags & TWE_CMD_DATAIN)
-	    bus_dmamap_sync(sc->twe_buffer_dmat, tr->tr_dmamap, BUS_DMASYNC_PREREAD);
-	if (tr->tr_flags & TWE_CMD_DATAOUT) {
-	    /* if we're using an alignment buffer, and we're writing data, copy the real data out */
-	    if (tr->tr_flags & TWE_CMD_ALIGNBUF)
-		bcopy(tr->tr_realdata, tr->tr_data, tr->tr_length);
-	    bus_dmamap_sync(sc->twe_buffer_dmat, tr->tr_dmamap, BUS_DMASYNC_PREWRITE);
+	if ((error = bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data,
+			tr->tr_length, twe_setup_data_dmamap, tr, 0)
+			== EINPROGRESS)) {
+	    tr->tr_flags |= TWE_CMD_IN_PROGRESS;
+	    sc->twe_state |= TWE_STATE_FRZN;
+	    error = 0;
+	}
+    } else {
+	if ((error = twe_start(tr)) == EBUSY) {
+	    twe_requeue_ready(tr);
+	    error = 0;
 	}
     }
+
+    return(error);
 }
 
 void
 twe_unmap_request(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
-
     debug_called(4);
 
     /*
      * Unmap the command from bus space.
      */
     bus_dmamap_sync(sc->twe_buffer_dmat, tr->tr_cmdmap, BUS_DMASYNC_POSTWRITE);
-    bus_dmamap_unload(sc->twe_buffer_dmat, tr->tr_cmdmap); 
 
     /*
      * If the command involved data, unmap that too.
@@ -1089,6 +1105,7 @@ twe_unmap_request(struct twe_request *tr)
 }
 
 #ifdef TWE_DEBUG
+void twe_report(void);
 /********************************************************************************
  * Print current controller status, call from DDB.
  */

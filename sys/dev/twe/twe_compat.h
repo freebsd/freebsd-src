@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -37,6 +39,7 @@
 #define TWE_SUPPORTED_PLATFORM
 
 #include <sys/param.h>
+#include <sys/cons.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -47,10 +50,17 @@
 #include <sys/disk.h>
 #include <sys/stat.h>
 
+#include <sys/devicestat.h>
+
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/md_var.h>
+
 #include <sys/rman.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -63,35 +73,43 @@
  * All public symbols must be listed here.
  */
 #ifdef TWE_OVERRIDE
-#define twe_setup		Xtwe_setup
-#define twe_init		Xtwe_init
-#define twe_deinit		Xtwe_deinit
-#define twe_intr		Xtwe_intr
-#define twe_submit_bio		Xtwe_submit_bio
-#define twe_ioctl		Xtwe_ioctl
-#define twe_describe_controller	Xtwe_describe_controller
-#define twe_print_controller	Xtwe_print_controller
-#define twe_enable_interrupts	Xtwe_enable_interrupts
-#define twe_disable_interrupts	Xtwe_disable_interrupts
-#define twe_attach_drive	Xtwe_attach_drive
-#define twed_intr		Xtwed_intr
-#define twe_allocate_request	Xtwe_allocate_request
-#define twe_free_request	Xtwe_free_request
-#define twe_map_request		Xtwe_map_request
-#define twe_unmap_request	Xtwe_unmap_request
-#define twe_describe_code	Xtwe_describe_code
-#define twe_table_status	Xtwe_table_status
-#define twe_table_unitstate	Xtwe_table_unitstate
-#define twe_table_unittype	Xtwe_table_unittype
-#define twe_table_aen		Xtwe_table_aen
-#define TWE_DRIVER_NAME		Xtwe
-#define TWED_DRIVER_NAME	Xtwed
-#define TWE_MALLOC_CLASS	M_XTWE
-#else
-#define TWE_DRIVER_NAME		twe
-#define TWED_DRIVER_NAME	twed
-#define TWE_MALLOC_CLASS	M_TWE
-#endif
+/* public symbols defined in twe.c */
+#define twe_setup			Xtwe_setup
+#define twe_init			Xtwe_init
+#define twe_deinit			Xtwe_deinit
+#define twe_intr			Xtwe_intr
+#define twe_startio			Xtwe_startio
+#define twe_dump_blocks			Xtwe_dump_blocks
+#define twe_ioctl			Xtwe_ioctl
+#define twe_enable_interrupts		Xtwe_enable_interrupts
+#define twe_disable_interrupts		Xtwe_disable_interrupts
+#define twe_describe_controller		Xtwe_describe_controller
+#define twe_describe_code		Xtwe_describe_code
+#define twe_print_controller		Xtwe_print_controller
+
+/* public symbols defined in twe_freebsd.c */
+#define twe_attach_drive		Xtwe_attach_drive
+#define twe_clear_pci_parity_error	Xtwe_clear_pci_parity_error
+#define twe_clear_pci_abort		Xtwe_clear_pci_abort
+#define twed_intr			Xtwed_intr
+#define twe_allocate_request		Xtwe_allocate_request
+#define twe_map_request			Xtwe_map_request
+#define twe_unmap_request		Xtwe_unmap_request
+
+/* public symbols defined in twe_tables.h */
+#define twe_table_status		Xtwe_table_status
+#define twe_table_unitstate		Xtwe_table_unitstate
+#define twe_table_unittype		Xtwe_table_unittype
+#define twe_table_aen			Xtwe_table_aen
+#define twe_table_opcode		Xtwe_table_opcode
+
+#define TWE_MALLOC_CLASS		M_XTWE
+
+#else /* TWE_OVERRIDE */
+
+#define TWE_MALLOC_CLASS		M_TWE
+
+#endif /* TWE_OVERRIDE */
 
 /* 
  * Wrappers for bus-space actions
@@ -138,6 +156,7 @@
 # define INTR_ENTROPY			0
 
 # include <sys/buf.h>			/* old buf style */
+#define FREEBSD_4
 typedef struct buf			twe_bio;
 typedef struct buf_queue_head		twe_bioq;
 # define TWE_BIO_QINIT(bq)		bufq_init(&bq);
@@ -149,7 +168,7 @@ typedef struct buf_queue_head		twe_bioq;
 # define TWE_BIO_LENGTH(bp)		(bp)->b_bcount
 # define TWE_BIO_LBA(bp)		(bp)->b_pblkno
 # define TWE_BIO_SOFTC(bp)		(bp)->b_dev->si_drv1
-# define TWE_BIO_UNIT(bp)		*(int *)((bp)->b_dev->si_drv2)
+# define TWE_BIO_UNIT(bp)		((struct twed_softc *)(TWE_BIO_SOFTC(bp)))->twed_drive->td_twe_unit
 # define TWE_BIO_SET_ERROR(bp, err)	do { (bp)->b_error = err; (bp)->b_flags |= B_ERROR;} while(0)
 # define TWE_BIO_HAS_ERROR(bp)		((bp)->b_flags & B_ERROR)
 # define TWE_BIO_RESID(bp)		(bp)->b_resid
@@ -169,7 +188,7 @@ typedef struct bio_queue_head		twe_bioq;
 # define TWE_BIO_LENGTH(bp)		(bp)->bio_bcount
 # define TWE_BIO_LBA(bp)		(bp)->bio_pblkno
 # define TWE_BIO_SOFTC(bp)		(bp)->bio_dev->si_drv1
-# define TWE_BIO_UNIT(bp)		*(int *)((bp)->bio_dev->si_drv2)
+# define TWE_BIO_UNIT(bp)		((struct twed_softc *)(TWE_BIO_SOFTC(bp)))->twed_drive->td_twe_unit
 # define TWE_BIO_SET_ERROR(bp, err)	do { (bp)->bio_error = err; (bp)->bio_flags |= BIO_ERROR;} while(0)
 # define TWE_BIO_HAS_ERROR(bp)		((bp)->bio_flags & BIO_ERROR)
 # define TWE_BIO_RESID(bp)		(bp)->bio_resid

@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -27,6 +29,15 @@
  *	$FreeBSD$
  */
 
+/*
+ * The scheme for the driver version is:
+ * <major change>.<external release>.<3ware internal release>.<development release>
+ */
+#define TWE_DRIVER_VERSION_STRING	"1.40.01.000"
+#define TWE_CDEV_MAJOR			146
+#define TWED_CDEV_MAJOR			147
+
+
 #ifdef TWE_DEBUG
 #define debug(level, fmt, args...)							\
 	do {										\
@@ -51,7 +62,10 @@ struct twe_drive
     int			td_cylinders;
     int			td_heads;
     int			td_sectors;
-    int			td_unit;
+    int			td_sys_unit; /* Unit #, as seen by the system
+				     (the 0 in twed0, the 1 in twed1 etc.) */
+    int			td_twe_unit; /* Unit #, as seen by us, and our ctlr
+				     (index into sc->twe_drive[]) */
 
     /* unit state and type */
     u_int8_t		td_state;
@@ -59,6 +73,22 @@ struct twe_drive
 
     /* handle for attached driver */
     device_t		td_disk;
+};
+
+/*
+ * Disk device softc
+ */
+struct twed_softc 
+{
+    device_t		twed_dev;
+    dev_t		twed_dev_t;
+    struct twe_softc	*twed_controller;	/* parent device softc */
+    struct twe_drive	*twed_drive;		/* drive data in parent softc */
+    struct disk		twed_disk;		/* generic disk handle */
+    struct devstat	twed_stats;		/* accounting */
+    struct disklabel	twed_label;		/* synthetic label */
+    int			twed_flags;
+#define TWED_OPEN	(1<<0)			/* drive is open (can't shut down) */
 };
 
 /*
@@ -84,11 +114,14 @@ struct twe_request
 #define TWE_CMD_SETUP		0	/* being assembled */
 #define TWE_CMD_BUSY		1	/* submitted to controller */
 #define TWE_CMD_COMPLETE	2	/* completed by controller (maybe with error) */
+#define TWE_CMD_ERROR		3	/* encountered error, even before submission to controller */
     int				tr_flags;
 #define TWE_CMD_DATAIN		(1<<0)
 #define TWE_CMD_DATAOUT		(1<<1)
 #define TWE_CMD_ALIGNBUF	(1<<2)	/* data in bio is misaligned, have to copy to/from private buffer */
 #define TWE_CMD_SLEEPER		(1<<3)	/* owner is sleeping on this command */
+#define TWE_CMD_MAPPED		(1<<4)	/* cmd has been mapped */
+#define TWE_CMD_IN_PROGRESS	(1<<5)	/* bus_dmamap_load returned EINPROGRESS */
     void			(* tr_complete)(struct twe_request *tr);	/* completion handler */
     void			*tr_private;	/* submitter-private data or wait channel */
 
@@ -120,6 +153,7 @@ struct twe_softc
 #define TWE_STATE_SHUTDOWN	(1<<1)	/* controller is shut down */
 #define TWE_STATE_OPEN		(1<<2)	/* control device is open */
 #define TWE_STATE_SUSPEND	(1<<3)	/* controller is suspended */
+#define TWE_STATE_FRZN		(1<<4)
     int			twe_host_id;
     struct twe_qstat	twe_qstat[TWEQ_COUNT];	/* queue statistics */
 
@@ -134,25 +168,26 @@ extern void	twe_init(struct twe_softc *sc);			/* init controller */
 extern void	twe_deinit(struct twe_softc *sc);		/* stop controller */
 extern void	twe_intr(struct twe_softc *sc);			/* hardware interrupt signalled */
 extern void	twe_startio(struct twe_softc *sc);
+extern int	twe_start(struct twe_request *tr);
 extern int	twe_dump_blocks(struct twe_softc *sc, int unit,	/* crashdump block write */
 				u_int32_t lba, void *data, int nblks);
 extern int	twe_ioctl(struct twe_softc *sc, int cmd,
 				  void *addr);			/* handle user request */
 extern void	twe_describe_controller(struct twe_softc *sc);	/* print controller info */
+extern char	*twe_describe_code(struct twe_code_lookup *table, u_int32_t code);
 extern void	twe_print_controller(struct twe_softc *sc);
 extern void	twe_enable_interrupts(struct twe_softc *sc);	/* enable controller interrupts */
 extern void	twe_disable_interrupts(struct twe_softc *sc);	/* disable controller interrupts */
 
-extern void	twe_attach_drive(struct twe_softc *sc,
-					 struct twe_drive *dr); /* attach drive when found in twe_add_unit */
-extern void	twe_detach_drive(struct twe_softc *sc,
+extern int	twe_attach_drive(struct twe_softc *sc,
+					 struct twe_drive *dr); /* attach drive when found in twe_init */
+extern int	twe_detach_drive(struct twe_softc *sc,
 					 int unit);		/* detach drive */
 extern void	twe_clear_pci_parity_error(struct twe_softc *sc);
 extern void	twe_clear_pci_abort(struct twe_softc *sc);
 extern void	twed_intr(twe_bio *bp);				/* return bio from core */
-extern struct twe_request *twe_allocate_request(struct twe_softc *sc);	/* allocate request structure */
-extern void	twe_free_request(struct twe_request *tr);	/* free request structure */
-extern void	twe_map_request(struct twe_request *tr);	/* make request visible to controller, do s/g */
+extern struct	twe_request *twe_allocate_request(struct twe_softc *sc);/* allocate request structure */
+extern int	twe_map_request(struct twe_request *tr);	/* make request visible to controller, do s/g */
 extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer, unmap */
 
 /********************************************************************************
@@ -167,11 +202,20 @@ extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer
 		qs->q_max = qs->q_length;			\
 	} while(0)
 
-#define TWEQ_REMOVE(sc, qname)    (sc)->twe_qstat[qname].q_length--
-#define TWEQ_INIT(sc, qname)			\
-	do {					\
-	    sc->twe_qstat[qname].q_length = 0;	\
-	    sc->twe_qstat[qname].q_max = 0;	\
+#define TWEQ_REMOVE(sc, qname)					\
+	do {							\
+	    struct twe_qstat *qs = &(sc)->twe_qstat[qname];	\
+								\
+	    qs->q_length--;					\
+	    if (qs->q_length < qs->q_min)			\
+		qs->q_min = qs->q_length;			\
+	} while(0)
+
+#define TWEQ_INIT(sc, qname)				\
+	do {						\
+	    sc->twe_qstat[qname].q_length = 0;		\
+	    sc->twe_qstat[qname].q_max = 0;		\
+	    sc->twe_qstat[qname].q_min = 0xFFFFFFFF;	\
 	} while(0)
 
 

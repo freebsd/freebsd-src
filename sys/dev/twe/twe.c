@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2003 Paul Saab
+ * Copyright (c) 2003 Vinod Kashyap
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -33,10 +35,10 @@
 
 #include <dev/twe/twe_compat.h>
 #include <dev/twe/twereg.h>
-#include <dev/twe/tweio.h>
-#include <dev/twe/twevar.h>
 #define TWE_DEFINE_TABLES
 #include <dev/twe/twe_tables.h>
+#include <dev/twe/tweio.h>
+#include <dev/twe/twevar.h>
 
 /*
  * Command submission.
@@ -60,13 +62,12 @@ static int	twe_wait_request(struct twe_request *tr);
 static int	twe_immediate_request(struct twe_request *tr);
 static void	twe_completeio(struct twe_request *tr);
 static void	twe_reset(struct twe_softc *sc);
-static void	twe_add_unit(struct twe_softc *sc, int unit);
-static void	twe_del_unit(struct twe_softc *sc, int unit);
+static int	twe_add_unit(struct twe_softc *sc, int unit);
+static int	twe_del_unit(struct twe_softc *sc, int unit);
 
 /*
  * Command I/O to controller.
  */
-static int	twe_start(struct twe_request *tr);
 static void	twe_done(struct twe_softc *sc);
 static void	twe_complete(struct twe_softc *sc);
 static int	twe_wait_status(struct twe_softc *sc, u_int32_t status, int timeout);
@@ -87,7 +88,7 @@ static void	twe_command_intr(struct twe_softc *sc);
 static int	twe_fetch_aen(struct twe_softc *sc);
 static void	twe_handle_aen(struct twe_request *tr);
 static void	twe_enqueue_aen(struct twe_softc *sc, u_int16_t aen);
-static int	twe_dequeue_aen(struct twe_softc *sc);
+static u_int16_t	twe_dequeue_aen(struct twe_softc *sc);
 static int	twe_drain_aen_queue(struct twe_softc *sc);
 static int	twe_find_aen(struct twe_softc *sc, u_int16_t aen);
 
@@ -191,7 +192,7 @@ twe_setup(struct twe_softc *sc)
     return(0);
 }
 
-static void
+static int
 twe_add_unit(struct twe_softc *sc, int unit)
 {
     struct twe_drive		*dr;
@@ -199,40 +200,46 @@ twe_add_unit(struct twe_softc *sc, int unit)
     u_int16_t			dsize;
     TWE_Param			*drives = NULL, *param = NULL;
     TWE_Unit_Descriptor		*ud;
+    int				error = 0;
 
     if (unit < 0 || unit > TWE_MAX_UNITS)
-	return;
-
+	return (EINVAL);
     /*
      * The controller is in a safe state, so try to find drives attached to it.
      */
     if ((drives = twe_get_param(sc, TWE_PARAM_UNITSUMMARY, TWE_PARAM_UNITSUMMARY_Status,
 				TWE_MAX_UNITS, NULL)) == NULL) {
 	twe_printf(sc, "can't detect attached units\n");
-	return;
+	return (EIO);
     }
 
     dr = &sc->twe_drive[unit];
     /* check that the drive is online */
-    if (!(drives->data[unit] & TWE_PARAM_UNITSTATUS_Online))
+    if (!(drives->data[unit] & TWE_PARAM_UNITSTATUS_Online)) {
+	error = ENXIO;
 	goto out;
+    }
 
     table = TWE_PARAM_UNITINFO + unit;
 
     if (twe_get_param_4(sc, table, TWE_PARAM_UNITINFO_Capacity, &dr->td_size)) {
 	twe_printf(sc, "error fetching capacity for unit %d\n", unit);
+	error = EIO;
 	goto out;
     }
     if (twe_get_param_1(sc, table, TWE_PARAM_UNITINFO_Status, &dr->td_state)) {
 	twe_printf(sc, "error fetching state for unit %d\n", unit);
+	error = EIO;
 	goto out;
     }
     if (twe_get_param_2(sc, table, TWE_PARAM_UNITINFO_DescriptorSize, &dsize)) {
 	twe_printf(sc, "error fetching descriptor size for unit %d\n", unit);
+	error = EIO;
 	goto out;
     }
     if ((param = twe_get_param(sc, table, TWE_PARAM_UNITINFO_Descriptor, dsize - 3, NULL)) == NULL) {
 	twe_printf(sc, "error fetching descriptor for unit %d\n", unit);
+	error = EIO;
 	goto out;
     }
     ud = (TWE_Unit_Descriptor *)param->data;
@@ -247,25 +254,31 @@ twe_add_unit(struct twe_softc *sc, int unit)
 	dr->td_sectors = 32;
     }
     dr->td_cylinders = dr->td_size / (dr->td_heads * dr->td_sectors);
-    dr->td_unit = unit;
+    dr->td_twe_unit = unit;
 
-    twe_attach_drive(sc, dr);
+    error = twe_attach_drive(sc, dr);
 
 out:
     if (param != NULL)
 	free(param, M_DEVBUF);
     if (drives != NULL)
 	free(drives, M_DEVBUF);
+    return (error);
 }
 
-static void
+static int
 twe_del_unit(struct twe_softc *sc, int unit)
 {
+    int		error;
 
-    if (unit < 0 || unit > TWE_MAX_UNITS)
-	return;
+    if (unit < 0 || unit >= TWE_MAX_UNITS)
+        return (ENXIO);
 
-    twe_detach_drive(sc, unit);
+    if (sc->twe_drive[unit].td_disk == NULL)
+        return (ENXIO);
+
+    error = twe_detach_drive(sc, unit);
+    return (error);
 }
 
 /********************************************************************************
@@ -353,7 +366,7 @@ twe_intr(struct twe_softc *sc)
 	twe_command_intr(sc);
     if (status_reg & TWE_STATUS_RESPONSE_INTERRUPT)
 	twe_done(sc);
-};
+}
 
 /********************************************************************************
  * Pull as much work off the softc's work queue as possible and give it to the
@@ -368,6 +381,9 @@ twe_startio(struct twe_softc *sc)
     int			error;
 
     debug_called(4);
+
+    if (sc->twe_state & TWE_STATE_FRZN)
+	    return;
 
     /* spin until something prevents us from doing any work */
     for (;;) {
@@ -407,25 +423,25 @@ twe_startio(struct twe_softc *sc)
 	    cmd->io.unit = TWE_BIO_UNIT(bp);
 	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
 	    cmd->io.lba = TWE_BIO_LBA(bp);
-
-	    /* map the command so the controller can work with it */
-	    twe_map_request(tr);
 	}
 	
 	/* did we find something to do? */
 	if (tr == NULL)
 	    break;
 	
-	/* try to give command to controller */
-	error = twe_start(tr);
+	/* try to map and submit the command to controller */
+	error = twe_map_request(tr);
 
 	if (error != 0) {
-	    if (error == EBUSY) {
-		twe_requeue_ready(tr);		/* try it again later */
-		break;				/* don't try anything more for now */
-	    }
-	    /* we don't support any other return from twe_start */
-	    twe_panic(sc, "twe_start returned nonsense");
+	    tr->tr_status = TWE_CMD_ERROR;
+	    if (tr->tr_private != NULL) {
+		bp = (twe_bio *)(tr->tr_private);
+		TWE_BIO_SET_ERROR(bp, error);
+		tr->tr_private = NULL;
+		twed_intr(bp);
+	        twe_release_request(tr);
+	    } else if (tr->tr_flags & TWE_CMD_SLEEPER)
+		wakeup_one(tr); /* wakeup the sleeping owner */
 	}
     }
 }
@@ -455,7 +471,6 @@ twe_dump_blocks(struct twe_softc *sc, int unit,	u_int32_t lba, void *data, int n
     cmd->io.block_count = nblks;
     cmd->io.lba = lba;
 
-    twe_map_request(tr);
     error = twe_immediate_request(tr);
     if (error == 0)
 	if (twe_report_request(tr))
@@ -476,7 +491,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
     union twe_statrequest	*ts = (union twe_statrequest *)addr;
     TWE_Param			*param;
     void			*data;
-    int				*arg = (int *)addr;
+    unsigned short		*aen_code = (unsigned short *) addr;
     struct twe_request		*tr;
     u_int8_t			srid;
     int				s, error;
@@ -487,7 +502,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
     case TWEIO_COMMAND:
 	/* get a request */
 	while (twe_get_request(sc, &tr))
-	    tsleep(NULL, PPAUSE, "twioctl", hz);
+	    tsleep(sc, PPAUSE, "twioctl", hz);
 
 	/*
 	 * Save the command's request ID, copy the user-supplied command in,
@@ -513,8 +528,9 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	}
 
 	/* run the command */
-	twe_map_request(tr);
-	twe_wait_request(tr);
+	error = twe_wait_request(tr);
+	if (error)
+	    goto cmd_done;
 
 	/* copy the command out again */
 	bcopy(&tr->tr_command, &tu->tu_command, sizeof(TWE_Command));
@@ -552,13 +568,13 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 
 	/* poll for an AEN */
     case TWEIO_AEN_POLL:
-	*arg = twe_dequeue_aen(sc);
+	*aen_code = twe_dequeue_aen(sc);
 	break;
 
 	/* wait for another AEN to show up */
     case TWEIO_AEN_WAIT:
 	s = splbio();
-	while ((*arg = twe_dequeue_aen(sc)) == TWE_AEN_QUEUE_EMPTY) {
+	while ((*aen_code = twe_dequeue_aen(sc)) == TWE_AEN_QUEUE_EMPTY) {
 	    error = tsleep(&sc->twe_aen_queue, PRIBIO | PCATCH, "tweaen", 0);
 	    if (error == EINTR)
 		break;
@@ -599,11 +615,11 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	break;
 
     case TWEIO_ADD_UNIT:
-	twe_add_unit(sc, td->td_unit);
+	error = twe_add_unit(sc, td->td_unit);
 	break;
 
     case TWEIO_DEL_UNIT:
-	twe_del_unit(sc, td->td_unit);
+	error = twe_del_unit(sc, td->td_unit);
 	break;
 
 	/* XXX implement ATA PASSTHROUGH */
@@ -722,9 +738,6 @@ twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_siz
     cmd->param.unit = 0;
     cmd->param.param_count = 1;
 
-    /* map the command/data into controller-visible space */
-    twe_map_request(tr);
-
     /* fill in the outbound parameter data */
     param->table_id = table_id;
     param->parameter_id = param_id;
@@ -738,11 +751,13 @@ twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_siz
 	    if (twe_report_request(tr))
 		goto err;
 	}
+	else
+		goto err;
 	twe_release_request(tr);
 	return(param);
     } else {
 	tr->tr_complete = func;
-	error = twe_start(tr);
+	error = twe_map_request(tr);
 	if (error == 0)
 	    return(func);
     }
@@ -817,9 +832,6 @@ twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
     cmd->param.unit = 0;
     cmd->param.param_count = 1;
 
-    /* map the command/data into controller-visible space */
-    twe_map_request(tr);
-
     /* fill in the outbound parameter data */
     param->table_id = table_id;
     param->parameter_id = param_id;
@@ -867,13 +879,8 @@ twe_init_connection(struct twe_softc *sc, int mode)
     cmd->initconnection.message_credits = mode;
     cmd->initconnection.response_queue_pointer = 0;
 
-    /* map the command into controller-visible space */
-    twe_map_request(tr);
-
     /* submit the command */
     error = twe_immediate_request(tr);
-    /* XXX check command result? */
-    twe_unmap_request(tr);
     twe_release_request(tr);
 
     if (mode == TWE_INIT_MESSAGE_CREDITS)
@@ -902,7 +909,7 @@ twe_wait_request(struct twe_request *tr)
 	tsleep(tr, PRIBIO, "twewait", 0);
     splx(s);
     
-    return(0);
+    return(tr->tr_status != TWE_CMD_COMPLETE);
 }
 
 /********************************************************************************
@@ -917,9 +924,7 @@ twe_immediate_request(struct twe_request *tr)
 
     debug_called(4);
 
-    error = 0;
-
-    if ((error = twe_start(tr)) != 0)
+    if ((error = twe_map_request(tr)) != 0)
 	return(error);
     while (tr->tr_status == TWE_CMD_BUSY){
 	twe_done(tr->tr_sc);
@@ -939,10 +944,9 @@ twe_completeio(struct twe_request *tr)
     debug_called(4);
 
     if (tr->tr_status == TWE_CMD_COMPLETE) {
-
-	if (twe_report_request(tr))
-	    TWE_BIO_SET_ERROR(bp, EIO);
-
+	if (tr->tr_command.generic.status)
+		if (twe_report_request(tr))
+			TWE_BIO_SET_ERROR(bp, EIO);
     } else {
 	twe_panic(sc, "twe_completeio on incomplete command");
     }
@@ -964,7 +968,7 @@ twe_reset(struct twe_softc *sc)
     /*
      * Sleep for a short period to allow AENs to be signalled.
      */
-    tsleep(NULL, PRIBIO, "twereset", hz);
+    tsleep(sc, PRIBIO, "twereset", hz);
 
     /*
      * Disable interrupts from the controller, and mask any accidental entry
@@ -1023,7 +1027,7 @@ out:
  *
  * Can be called at any interrupt level, with or without interrupts enabled.
  */
-static int
+int
 twe_start(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
@@ -1301,8 +1305,8 @@ twe_command_intr(struct twe_softc *sc)
      * We don't use this, rather we try to submit commands when we receive
      * them, and when other commands have completed.  Mask it so we don't get
      * another one.
-     */
     twe_printf(sc, "command interrupt\n");
+     */
     TWE_CONTROL(sc, TWE_CONTROL_MASK_COMMAND_INTERRUPT);
 }
 
@@ -1419,10 +1423,10 @@ twe_enqueue_aen(struct twe_softc *sc, u_int16_t aen)
  *
  * We are more or less interrupt-safe, so don't block interrupts.
  */
-static int
+static u_int16_t
 twe_dequeue_aen(struct twe_softc *sc)
 {
-    int		result;
+    u_int16_t	result;
     
     debug_called(4);
 
@@ -1557,23 +1561,34 @@ twe_describe_controller(struct twe_softc *sc)
     twe_get_param_1(sc, TWE_PARAM_CONTROLLER, TWE_PARAM_CONTROLLER_PortCount, &ports);
 
     /* get version strings */
-    p[0] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_Mon,  16, NULL);
-    p[1] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_FW,   16, NULL);
-    p[2] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_BIOS, 16, NULL);
-    p[3] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_PCB,  8, NULL);
-    p[4] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_ATA,  8, NULL);
-    p[5] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_PCI,  8, NULL);
+    p[0] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_FW,   16, NULL);
+    p[1] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_BIOS, 16, NULL);
 
-    twe_printf(sc, "%d ports, Firmware %.16s, BIOS %.16s\n", ports, p[1]->data, p[2]->data);
-    if (bootverbose)
-	twe_printf(sc, "Monitor %.16s, PCB %.8s, Achip %.8s, Pchip %.8s\n", p[0]->data, p[3]->data,
-		   p[4]->data, p[5]->data);
-    free(p[0], M_DEVBUF);
-    free(p[1], M_DEVBUF);
-    free(p[2], M_DEVBUF);
-    free(p[3], M_DEVBUF);
-    free(p[4], M_DEVBUF);
-    free(p[5], M_DEVBUF);
+    if (p[0] && p[1])
+	    twe_printf(sc, "%d ports, Firmware %.16s, BIOS %.16s\n", ports, p[0]->data, p[1]->data);
+    if (bootverbose) {
+	p[2] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_Mon,  16, NULL);
+	p[3] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_PCB,  8, NULL);
+	p[4] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_ATA,  8, NULL);
+	p[5] = twe_get_param(sc, TWE_PARAM_VERSION, TWE_PARAM_VERSION_PCI,  8, NULL);
+
+	if (p[2] && p[3] && p[4] && p[5])
+		twe_printf(sc, "Monitor %.16s, PCB %.8s, Achip %.8s, Pchip %.8s\n",
+			p[2]->data, p[3]->data, p[4]->data, p[5]->data);
+
+	if (p[2])
+		free(p[2], M_DEVBUF);
+	if (p[3])
+		free(p[3], M_DEVBUF);
+	if (p[4])
+		free(p[4], M_DEVBUF);
+	if (p[5])
+		free(p[5], M_DEVBUF);
+    }
+    if (p[0])
+	free(p[0], M_DEVBUF);
+    if (p[1])
+	free(p[1], M_DEVBUF);
 
     /* print attached drives */
     if (bootverbose) {
@@ -1590,9 +1605,26 @@ twe_describe_controller(struct twe_softc *sc)
 		twe_printf(sc, "port %d, drive status unavailable\n", i);
 	    }
 	}
-	free(p[0], M_DEVBUF);
+	if (p[0])
+	    free(p[0], M_DEVBUF);
     }
 }
+
+
+/********************************************************************************
+ * Look up a text description of a numeric code and return a pointer to same.
+ */
+char *
+twe_describe_code(struct twe_code_lookup *table, u_int32_t code)
+{
+    int		i;
+
+    for (i = 0; table[i].string != NULL; i++)
+	if (table[i].code == code)
+	    return(table[i].string);
+    return(table[i+1].string);
+}
+
 
 /********************************************************************************
  * Complain if the status bits aren't what we're expecting.
@@ -1715,7 +1747,7 @@ twe_report_request(struct twe_request *tr)
 	/*
 	 * The status code 0xff requests a controller reset.
 	 */
-	twe_printf(sc, "command returned with controller rest request\n");
+	twe_printf(sc, "command returned with controller reset request\n");
 	twe_reset(sc);
 	result = 1;
     } else if (cmd->generic.status > TWE_STATUS_FATAL) {
@@ -1771,12 +1803,12 @@ twe_print_controller(struct twe_softc *sc)
 
     status_reg = TWE_STATUS(sc);
     twe_printf(sc, "status   %b\n", status_reg, TWE_STATUS_BITS_DESCRIPTION);
-    twe_printf(sc, "          current  max\n");
-    twe_printf(sc, "free      %04d     %04d\n", sc->twe_qstat[TWEQ_FREE].q_length, sc->twe_qstat[TWEQ_FREE].q_max);
-    twe_printf(sc, "ready     %04d     %04d\n", sc->twe_qstat[TWEQ_READY].q_length, sc->twe_qstat[TWEQ_READY].q_max);
-    twe_printf(sc, "busy      %04d     %04d\n", sc->twe_qstat[TWEQ_BUSY].q_length, sc->twe_qstat[TWEQ_BUSY].q_max);
-    twe_printf(sc, "complete  %04d     %04d\n", sc->twe_qstat[TWEQ_COMPLETE].q_length, sc->twe_qstat[TWEQ_COMPLETE].q_max);
-    twe_printf(sc, "bioq      %04d     %04d\n", sc->twe_qstat[TWEQ_BIO].q_length, sc->twe_qstat[TWEQ_BIO].q_max);
+    twe_printf(sc, "          current  max    min\n");
+    twe_printf(sc, "free      %04d     %04d   %04d\n", sc->twe_qstat[TWEQ_FREE].q_length, sc->twe_qstat[TWEQ_FREE].q_max, sc->twe_qstat[TWEQ_FREE].q_min);
+    twe_printf(sc, "ready     %04d     %04d   %04d\n", sc->twe_qstat[TWEQ_READY].q_length, sc->twe_qstat[TWEQ_READY].q_max, sc->twe_qstat[TWEQ_READY].q_min);
+    twe_printf(sc, "busy      %04d     %04d   %04d\n", sc->twe_qstat[TWEQ_BUSY].q_length, sc->twe_qstat[TWEQ_BUSY].q_max, sc->twe_qstat[TWEQ_BUSY].q_min);
+    twe_printf(sc, "complete  %04d     %04d   %04d\n", sc->twe_qstat[TWEQ_COMPLETE].q_length, sc->twe_qstat[TWEQ_COMPLETE].q_max, sc->twe_qstat[TWEQ_COMPLETE].q_min);
+    twe_printf(sc, "bioq      %04d     %04d   %04d\n", sc->twe_qstat[TWEQ_BIO].q_length, sc->twe_qstat[TWEQ_BIO].q_max, sc->twe_qstat[TWEQ_BIO].q_min);
     twe_printf(sc, "AEN queue head %d  tail %d\n", sc->twe_aen_head, sc->twe_aen_tail);
 }	
 
