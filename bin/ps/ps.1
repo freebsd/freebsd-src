@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: ps.1,v 1.4 1994/09/24 02:56:46 davidg Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
@@ -54,7 +54,7 @@
 .Nm \&Ps
 displays a header line followed by lines containing information about your
 processes that have controlling terminals.
-This information is sorted by process
+This information is sorted by controlling terminal, then by process
 .Tn ID .
 .Pp
 The information displayed is selected based on a set of keywords (see the
@@ -67,6 +67,12 @@ The default output format includes, for each process, the process'
 .Tn ID ,
 controlling terminal, cpu time (including both user and system time),
 state, and associated command.
+.Pp
+The process file system (see
+.Xr procfs 5
+\&) should be mounted when
+.Nm
+is executed, otherwise not all information will be available.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -491,12 +497,16 @@ default kernel memory
 system namelist database
 .It Pa /kernel
 default system namelist
+.It Pa /proc
+the mount point of
+.Xr procfs 5
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr w 1 ,
 .Xr kvm 3 ,
 .Xr strftime 3 ,
+.Xr procfs 5 ,
 .Xr pstat 8
 .Sh BUGS
 Since
