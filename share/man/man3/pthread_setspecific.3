@@ -51,7 +51,7 @@ function associates a thread-specific value with a
 .Fa key
 obtained via a previous call to
 .Fn pthread_key_create .
-Different threads man bind different values to the same key.
+Different threads can bind different values to the same key.
 These values are
 typically pointers to blocks of dynamically allocated memory that have been
 reserved for use by the calling thread.
