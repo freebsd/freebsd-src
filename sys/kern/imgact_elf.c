@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.24 1998/04/28 18:15:07 eivind Exp $
+ *	$Id: imgact_elf.c,v 1.25 1998/06/07 17:11:31 dfr Exp $
  */
 
 #include "opt_rlimit.h"
@@ -157,7 +157,7 @@ elf_check_header(const Elf_Ehdr *hdr, int type)
 	      hdr->e_ident[EI_MAG3] == ELFMAG3))
 		return ENOEXEC;
 
-#ifdef __i396__
+#ifdef __i386__
 	if (hdr->e_machine != EM_386 && hdr->e_machine != EM_486)
 #endif
 #ifdef __alpha__
