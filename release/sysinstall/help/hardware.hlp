@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.5 1996/07/01 02:43:43 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.6 1996/07/05 01:24:38 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -69,7 +69,6 @@ ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
-nca1    350     5       dyn     dyn     ProAudioSpectrum cards
 sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
@@ -78,17 +77,14 @@ mse0    23c     5       n/a     n/a     Microsoft Bus Mouse
 psm0    60      12      n/a     n/a     PS/2 Mouse (disabled by default)
 
 mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
-mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
 matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
 scd0    230     n/a     n/a     n/a     Sony CD-ROM
 
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
-sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
 
 lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
-lpt2    dyn     dyn     n/a     n/a     Printer Port 2
 
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
@@ -106,7 +102,6 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL)
-lnc1    300     10      n/a     dyn     See lnc0
 vx0     dyn     dyn     n/a     dyn
 ze0     300     5       dyn     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
