@@ -720,6 +720,7 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	movl	$1,%eax
 	cpuid					# cpuid 1
 	movl	%eax,R(cpu_id)			# store cpu_id
+	movl	%ebx,R(cpuid_cpuinfo)		# store cpuid_cpuinfo
 	movl	%edx,R(cpu_feature)		# store cpu_feature
 	rorl	$8,%eax				# extract family type
 	andl	$15,%eax
