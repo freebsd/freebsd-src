@@ -170,13 +170,13 @@ struct	atm_pif {
 				(int, caddr_t, caddr_t);
 
 /* Interface statistics */
-	long		pif_ipdus;	/* PDUs received from interface */
-	long		pif_opdus;	/* PDUs sent to interface */
-	long		pif_ibytes;	/* Bytes received from interface */
-	long		pif_obytes;	/* Bytes sent to interface */
-	long		pif_ierrors;	/* Errors receiving from interface */
-	long		pif_oerrors;	/* Errors sending to interface */
-	long		pif_cmderrors;	/* Interface command errors */
+	u_quad_t	pif_ipdus;	/* PDUs received from interface */
+	u_quad_t	pif_opdus;	/* PDUs sent to interface */
+	u_quad_t	pif_ibytes;	/* Bytes received from interface */
+	u_quad_t	pif_obytes;	/* Bytes sent to interface */
+	u_quad_t	pif_ierrors;	/* Errors receiving from interface */
+	u_quad_t	pif_oerrors;	/* Errors sending to interface */
+	u_quad_t	pif_cmderrors;	/* Interface command errors */
 	caddr_t		pif_cardstats;	/* Card specific statistics */
 
 /* Interface capabilities */
