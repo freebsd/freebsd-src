@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
-.\"	$Id: link.2,v 1.8 1997/02/22 15:03:58 peter Exp $
+.\"	$Id: link.2,v 1.9 1998/01/15 04:31:28 alex Exp $
 .\"
-.Dd January 12, 1994
+.Dd Mar 5, 1999
 .Dt LINK 2
 .Os BSD 4
 .Sh NAME
@@ -100,8 +100,7 @@ does not support links.
 .It Bq Er EMLINK
 The link count of the file named by
 .Fa name1
-would exceed
-.Dv {LINK_MAX}.
+would exceed 32767.
 .It Bq Er EACCES
 A component of either path prefix denies search permission.
 .It Bq Er EACCES
