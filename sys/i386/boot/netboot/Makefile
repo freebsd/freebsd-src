@@ -1,4 +1,4 @@
-#	Makefile,v 1.4 1994/12/31 17:16:49 jkh Exp
+#	$Id$
 #
 # Makefile for NETBOOT
 #
