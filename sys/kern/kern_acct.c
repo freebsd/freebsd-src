@@ -388,6 +388,7 @@ acctwatch(a)
 		if (sb.f_bavail <= acctsuspend * sb.f_blocks / 100) {
 			savacctp = acctp;
 			savacctflags = acctflags;
+			savacctcred = acctcred;
 			acctp = NULLVP;
 			acctcred = NOCRED;
 			log(LOG_NOTICE, "Accounting suspended\n");
