@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.15 1993/11/06 23:22:23 wollman Exp $
+#	$Id: MAKEDEV,v 1.16 1993/11/22 05:40:49 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -118,15 +118,23 @@ std)
 wt*)
 	umask 2 ; u=`expr $i : '..\(.*\)'`
 	if [ x$u = x ]; then u=0; fi
-	rm -f rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
-	mknod rwt${u}   c 10 `expr  0 + $u`     # 150 megabytes
+	rm -f r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	mknod rwt${u}   c 10 `expr  0 + $u`# default density, 512b blocks
 	mknod nrwt${u}  c 10 `expr  4 + $u`
-	mknod rwt${u}a  c 10 `expr  8 + $u`     # 120 megabytes
-	mknod nrwt${u}a c 10 `expr 12 + $u`
-	mknod rwt${u}b  c 10 `expr 16 + $u`     # 60 megabytes
+#	mknod rWt${u}   c 10 `expr 64 + $u`	# default density, 1024b blocks
+#	mknod nrWt${u}  c 10 `expr 68 + $u`
+	mknod rwt${u}b  c 10 `expr 16 + $u`	# 60 megabytes
 	mknod nrwt${u}b c 10 `expr 20 + $u`
-	chown root.operator rwt$u nrwt$u rwt${u}a nrwt${u}a rwt${u}b nrwt${u}b
-	umask 77;
+	mknod rwt${u}c  c 10 `expr 24 + $u`     # 120 megabytes
+	mknod nrwt${u}c c 10 `expr 28 + $u`
+	mknod rwt${u}d  c 10 `expr 32 + $u`	# 150 megabytes
+	mknod nrwt${u}d c 10 `expr 36 + $u`
+#	mknod rwt${u}e  c 10 `expr 40 + $u`	# 300 megabytes?
+#	mknod nrwt${u}e c 10 `expr 44 + $u`
+#	mknod rwt${u}f  c 10 `expr 48 + $u`	# 600 megabytes?
+#	mknod nrwt${u}f c 10 `expr 52 + $u`
+	chown root.operator r[Ww]t$u nr[Ww]t$u r[Ww]t$u[a-f] nr[Ww]t$u[a-f]
+	umask 77
 	;;
 
 fd*|sd*|wd*)
