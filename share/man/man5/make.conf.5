@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2004
+.Dd January 21, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -354,11 +354,12 @@ rather than load the server's kernel.
 Set to a list of modules to build instead of all of them.
 .It Va WITHOUT_MODULES
 .Pq Vt str
-Set to a list of modules to exclude from the build.  This provides a
+Set to a list of modules to exclude from the build.
+This provides a
 somewhat easier way to exclude modules you are certain you will never
-need than specifying 
+need than specifying
 .Va MODULES_OVERRIDE .
-This is applied 
+This is applied
 .Em after
 .Va MODULES_OVERRIDE .
 .It Va PORTS_MODULES
