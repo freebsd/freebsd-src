@@ -73,20 +73,20 @@ const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 #define ISA_ID_3C509_TPO   0x506d5095
 
 static struct isa_ident ep_isa_devs[] = {
-	{ ISA_ID_3C509_TP,	"3Com EtherLink III (3c509-TP)" },
-	{ ISA_ID_3C509_BNC,	"3Com EtherLink III (3c509-BNC)" },
-	{ ISA_ID_3C509_COMBO,	"3Com EtherLink III (3c509-Combo)" },
-	{ ISA_ID_3C509_TPO,	"3Com EtherLink III (3c509-TPO)" },
+	{ ISA_ID_3C509_TP,	"3Com 3C509-TP EtherLink III" },
+	{ ISA_ID_3C509_BNC,	"3Com 3C509-BNC EtherLink III" },
+	{ ISA_ID_3C509_COMBO,	"3Com 3C509-Combo EtherLink III" },
+	{ ISA_ID_3C509_TPO,	"3Com 3C509-TPO EtherLink III" },
 	{ 0,			NULL },
 };
 
 static struct isa_pnp_id ep_ids[] = {
-	{ 0x90506d50,		NULL },	/* TCM5090 */
-	{ 0x91506d50,		NULL },	/* TCM5091 */
-	{ 0x94506d50,		NULL },	/* TCM5094 */
-	{ 0x95506d50,		NULL },	/* TCM5095 */
-	{ 0xf780d041,		NULL }, /* PNP80f7 */
-	{ 0,			NULL },
+	{ 0x90506d50,	"3Com 3C509B-TP EtherLink III (PnP)" },	/* TCM5090 */
+	{ 0x91506d50,	"3Com 3C509B-BNC EtherLink III (PnP)" },/* TCM5091 */
+	{ 0x94506d50,	"3Com 3C509B-Combo EtherLink III (PnP)" },/* TCM5094 */
+	{ 0x95506d50,	"3Com 3C509B-TPO EtherLink III (PnP)" },/* TCM5095 */
+	{ 0xf780d041,	NULL }, /* PNP80f7 */
+	{ 0,		NULL },
 };
 
 /*
