@@ -291,8 +291,6 @@ void
 cpu_exit(struct thread *td)
 {
 	struct mdproc *mdp;
-	struct pcb *pcb = td->td_pcb; 
-
 
 	/* Reset pc->pcb_gs and %gs before possibly invalidating it. */
 	mdp = &td->td_proc->p_md;
@@ -301,17 +299,13 @@ cpu_exit(struct thread *td)
 		load_gs(_udatasel);
 		user_ldt_free(td);
 	}
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		/* disable all hardware breakpoints */
-		reset_dbregs();
-		pcb->pcb_flags &= ~PCB_DBREGS;
-	}
 }
 
 void
 cpu_thread_exit(struct thread *td)
 {
 	struct pcb *pcb = td->td_pcb; 
+
 #ifdef DEV_NPX
 	if (td == PCPU_GET(fpcurthread))
 		npxdrop();
