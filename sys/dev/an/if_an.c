@@ -505,6 +505,7 @@ an_dma_free(sc, dma)
 {
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
+	dma->an_dma_vaddr = 0;
 	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
 }
 
@@ -1406,6 +1407,8 @@ an_read_record(sc, ltv)
 			*ptr2 = CSR_READ_1(sc, AN_DATA1);
 		}
 	} else { /* MPI-350 */
+		if (!sc->an_rid_buffer.an_dma_vaddr)
+			return(EIO);
 		an_rid_desc.an_valid = 1;
 		an_rid_desc.an_len = AN_RID_BUFFER_SIZE;
 		an_rid_desc.an_rid = 0;
@@ -1438,11 +1441,18 @@ an_read_record(sc, ltv)
 			an_rid_desc.an_len = an_ltv->an_len;
 		}
 
-		if (an_rid_desc.an_len > 2)
-			bcopy(&an_ltv->an_type,
-			      &ltv->an_val, 
-			      an_rid_desc.an_len - 2);
-		ltv->an_len = an_rid_desc.an_len + 2;
+		len = an_rid_desc.an_len;
+		if (len > (ltv->an_len - 2)) {
+			printf("an%d: record length mismatch -- expected %d, "
+			       "got %d for Rid %x\n", sc->an_unit,
+			       ltv->an_len - 2, len, ltv->an_type);
+			len = ltv->an_len - 2;
+		} else {
+			ltv->an_len = len + 2;
+		}
+		bcopy(&an_ltv->an_type,
+		    &ltv->an_val, 
+		    len);
 	}
 
 	if (an_dump)

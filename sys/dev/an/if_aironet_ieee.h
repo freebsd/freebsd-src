@@ -337,7 +337,7 @@ struct an_ltv_genconfig {
 	u_int8_t		an_magic_packet_action;	/* 0x98 */
 	u_int8_t		an_magic_packet_ctl;	/* 0x99 */
 	u_int16_t		an_rsvd9;
-	u_int16_t		an_spare[13];
+	u_int16_t		an_spare[19];
 };
 
 #define AN_OPMODE_IBSS_ADHOC			0x0000
@@ -593,7 +593,7 @@ struct an_ltv_status {
 	u_int8_t		an_avg_noise_prev_min_db;       /* 0x7D */
 	u_int8_t		an_max_noise_prev_min_pc;       /* 0x7E */
 	u_int8_t		an_max_noise_prev_min_db;       /* 0x7F */
-	u_int16_t		an_spare[8];
+	u_int16_t		an_spare[18];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
