@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-# as per handbook policies section
-MAINTAINER=	peter@freebsd.org
+# I once used this extensively, but no longer have a modem.  Feel free
+# to ask me questions about it, but I disclaim ownership now.  -Peter
 
 PROG=	pppd
 MAN=	pppd.8
