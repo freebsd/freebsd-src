@@ -115,6 +115,7 @@ L Jonas Olsson <ljo@po.cwru.edu>
 Marc Frajola <marc@escargot.rain.com>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
+Matt Thomas <?>
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Poul-Henning Kamp <phk@login.dkuug.dk>
@@ -124,12 +125,14 @@ Sascha Wildner <swildner@channelz.GUN.de>
 Scott Mace <smace@FreeBSD.org>
 Sean Eric Fagan <sef@kithrup.com>
 Serge V. Vakulenko <vak@zebub.msk.su>
+Stefan Esser <se@MI.Uni-Koeln.DE>
 Stephen McKay <syssgm@devetir.qld.gov.au>
 Steven Wallace <swallace@ece.uci.edu>
 Søren Schmidt <sos@login.dkuug.dk>
 Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Theo Deraadt <deraadt@fsa.ca>
 Ugen J.S.Antsilevich <ugen@NetVision.net.il>
+Wolfgang Stanglmeier <wolf@kintaro.cologne.de>
 Wolfram Schneider <wosch@cs.tu-berlin.de>
 Yuval Yarom <yval@cs.huji.ac.il>
 Yves Fonk <yves@cpcoup5.tn.tudelft.nl>
@@ -230,4 +233,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.9 1995/02/14 04:07:59 phk Exp $
+$Id: CONTRIB.FreeBSD,v 1.10 1995/02/14 18:04:16 phk Exp $
