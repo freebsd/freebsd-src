@@ -35,7 +35,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
-.Fl f Ar fsname
+.Op Fl f 
+.Ar fsname
 .Sh DESCRIPTION
 .Nm
 opens 
@@ -59,6 +60,10 @@ The
 option enables additional debugging output (which comes primarily from
 .Xr fsck 8 -derived
 code).
+.Pp
+The
+.Fl f
+option is left for historical reasons and has no meaning.
 .Sh COMMANDS
 Besides the built-in 
 .Xr libedit 3
