@@ -23,6 +23,7 @@ SUBDIR=	${_3dfx} \
 	${_arcnet} \
 	${_arl} \
 	${_asr} \
+	ata \
 	ath \
 	${_ath_hal} \
 	ath_rate_amrr \
