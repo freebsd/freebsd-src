@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>  /* Linux doesn't define mode_t, etc. in sys/stat.h. */
 #include <archive_entry.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,4 +234,89 @@ bsdtar_strmode(struct archive_entry *entry, char *bp)
 	}
 	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
 		bp[10] = '+';
+}
+
+
+/*
+ * Read lines from file and do something with each one.  If option_null
+ * is set, lines are terminated with zero bytes; otherwise, they're
+ * terminated with newlines.
+ *
+ * This uses a self-sizing buffer to handle arbitrarily-long lines.
+ * If the "process" function returns non-zero for any line, this
+ * function will return non-zero after attempting to process all
+ * remaining lines.
+ */
+int
+process_lines(struct bsdtar *bsdtar, const char *pathname,
+    int (*process)(struct bsdtar *, const char *))
+{
+	FILE *f;
+	char *buff, *buff_end, *line_start, *line_end, *p;
+	size_t buff_length, bytes_read, bytes_wanted;
+	int separator;
+	int ret;
+
+	separator = bsdtar->option_null ? '\0' : '\n';
+	ret = 0;
+
+	if (strcmp(pathname, "-") == 0)
+		f = stdin;
+	else
+		f = fopen(pathname, "r");
+	if (f == NULL)
+		bsdtar_errc(bsdtar, 1, errno, "Couldn't open %s", pathname);
+	buff_length = 8192;
+	buff = malloc(buff_length);
+	if (buff == NULL)
+		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read %s", pathname);
+	line_start = line_end = buff_end = buff;
+	for (;;) {
+		/* Get some more data into the buffer. */
+		bytes_wanted = buff + buff_length - buff_end;
+		bytes_read = fread(buff_end, 1, bytes_wanted, f);
+		buff_end += bytes_read;
+		/* Process all complete lines in the buffer. */
+		while (line_end < buff_end) {
+			if (*line_end == separator) {
+				*line_end = '\0';
+				if ((*process)(bsdtar, line_start) != 0)
+					ret = -1;
+				line_start = line_end + 1;
+				line_end = line_start;
+			} else
+				line_end++;
+		}
+		if (feof(f))
+			break;
+		if (ferror(f))
+			bsdtar_errc(bsdtar, 1, errno,
+			    "Can't read %s", pathname);
+		if (line_start > buff) {
+			/* Move a leftover fractional line to the beginning. */
+			memmove(buff, line_start, buff_end - line_start);
+			buff_end -= line_start - buff;
+			line_end -= line_start - buff;
+			line_start = buff;
+		} else {
+			/* Line is too big; enlarge the buffer. */
+			p = realloc(buff, buff_length *= 2);
+			if (buff == NULL)
+				bsdtar_errc(bsdtar, 1, ENOMEM,
+				    "Line too long in %s", pathname);
+			buff_end = p + (buff_end - buff);
+			line_end = p + (line_end - buff);
+			line_start = buff = p;
+		}
+	}
+	/* At end-of-file, handle the final line. */
+	if (line_end > line_start) {
+		*line_end = '\0';
+		if ((*process)(bsdtar, line_start) != 0)
+			ret = -1;
+	}
+	free(buff);
+	if (f != stdin)
+		fclose(f);
+	return (ret);
 }

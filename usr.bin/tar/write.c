@@ -103,6 +103,8 @@ static int		 append_archive(struct bsdtar *, struct archive *,
 			     const char *fname);
 static void		 archive_names_from_file(struct bsdtar *bsdtar,
 			     struct archive *a);
+static int		 archive_names_from_file_helper(struct bsdtar *bsdtar,
+			     const char *line);
 static void		 create_cleanup(struct bsdtar *);
 static void		 free_cache(struct name_cache *cache);
 static const char *	 lookup_gname(struct bsdtar *bsdtar, gid_t gid);
@@ -447,50 +449,40 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	create_cleanup(bsdtar);
 }
 
-/* Archive names specified in file. */
+/*
+ * Archive names specified in file.
+ *
+ * Unless --null was specified, a line containing exactly "-C" will
+ * cause the next line to be a directory to pass to chdir().  If
+ * --null is specified, then a line "-C" is just another filename.
+ */
 void
 archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 {
-	FILE *f;
-	char buff[1024];
-	int l;
+	bsdtar->archive = a;
 
-	if (strcmp(bsdtar->names_from_file, "-") == 0)
-		f = stdin;
+	bsdtar->next_line_is_dir = 0;
+	process_lines(bsdtar, bsdtar->names_from_file,
+	    archive_names_from_file_helper);
+	if (bsdtar->next_line_is_dir)
+		bsdtar_errc(bsdtar, 1, errno,
+		    "Unexpected end of filename list; "
+		    "directory expected after -C");
+}
+
+static int
+archive_names_from_file_helper(struct bsdtar *bsdtar, const char *line)
+{
+	if (bsdtar->next_line_is_dir) {
+		if (chdir(line) != 0)
+			bsdtar_errc(bsdtar, 1, errno,
+			    "chdir(%s) failed", line);
+		bsdtar->next_line_is_dir = 0;
+	} else if (!bsdtar->option_null && strcmp(line, "-C") == 0)
+		bsdtar->next_line_is_dir = 1;
 	else
-		f = fopen(bsdtar->names_from_file, "r");
-
-	while (fgets(buff, sizeof(buff), f) != NULL) {
-		l = strlen(buff);
-		if (buff[l-1] == '\n')
-			buff[l-1] = '\0';
-
-		/*
-		 * This -C processing hack is really quite ugly, but
-		 * gtar does it this way and pkg_create depends on it,
-		 * so I guess I'm stuck having to implement it.
-		 *
-		 * Someday, pkg_create will just use libarchive directly
-		 * and this will just be a bad memory.
-		 */
-		if (strcmp(buff, "-C") == 0) {
-			if (fgets(buff, sizeof(buff), f) == NULL)
-				bsdtar_errc(bsdtar, 1, errno,
-				    "Unexpected end of filename list; "
-				    "directory expected after -C");
-			l = strlen(buff);
-			if (buff[l-1] == '\n')
-				buff[l-1] = '\0';
-			if (chdir(buff))
-				bsdtar_errc(bsdtar, 1, errno,
-				    "chdir(%s) failed", buff);
-		} else {
-			write_heirarchy(bsdtar, a, buff);
-		}
-	}
-
-	if (strcmp(bsdtar->names_from_file, "-") != 0)
-		fclose(f);
+		write_heirarchy(bsdtar, bsdtar->archive, line);
+	return (0);
 }
 
 /*
