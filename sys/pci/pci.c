@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.6 1998/03/06 23:45:13 julian Exp $
+**  $Id: pci.c,v 1.57.2.7 1998/03/07 11:33:01 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1507,6 +1507,44 @@ int pci_unmap_int (pcici_t tag)
 	free (this, M_DEVBUF);
 	return (1);
 }
+
+/*-----------------------------------------------------------
+**
+**	Extract bus information from a tag
+**
+**-----------------------------------------------------------
+*/
+
+int pci_get_bus(pcici_t tag)
+{
+	return (pcibus->pb_bus(tag));
+}
+
+/*-----------------------------------------------------------
+**
+**	Extract device information from a tag
+**
+**-----------------------------------------------------------
+*/
+
+int pci_get_device(pcici_t tag)
+{
+	return (pcibus->pb_device(tag));
+}
+
+/*-----------------------------------------------------------
+**
+**	Extract device function from a tag
+**
+**-----------------------------------------------------------
+*/
+
+int pci_get_function(pcici_t tag)
+{
+	return (pcibus->pb_function(tag));
+}
+
+
 
 /*-----------------------------------------------------------
 **

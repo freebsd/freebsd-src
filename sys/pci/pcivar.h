@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.12 1996/09/08 10:44:14 phk Exp $
+**  $Id: pcivar.h,v 1.13 1996/09/10 23:31:02 bde Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -225,5 +225,11 @@ int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg,
 		 unsigned *maskptr);
 
 int pci_unmap_int (pcici_t tag);
+
+int pci_get_bus(pcici_t tag);
+
+int pci_get_device(pcici_t tag);
+
+int pci_get_function(pcici_t tag);
 
 #endif
