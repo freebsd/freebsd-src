@@ -2,11 +2,8 @@
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
- *---------------------------------------
- * Copyright (c) 1997, 1998, 1999 by Matthew Jacob
- * NASA/Ames Research Center
+ * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
  * All rights reserved.
- *---------------------------------------
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,10 +11,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice immediately at the beginning of the file, without modification,
  *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -160,6 +154,9 @@ typedef struct {
 #define	MBOX_LOOP_ID_USED		0x4008
 #define	MBOX_ALL_IDS_USED		0x4009
 #define	MBOX_NOT_LOGGED_IN		0x400A
+#define	MBLOGALL			0x000f
+#define	MBLOGNONE			0x0000
+#define	MBLOGMASK(x)			((x) & 0xf)
 
 /*
  * Asynchronous event status codes
@@ -371,7 +368,7 @@ typedef struct {
 #define	req_response_len	req_time	/* FC only */
 	u_int16_t	req_sense_len;
 	u_int32_t	req_resid;
-	u_int8_t	_res1[8];
+	u_int8_t	req_response[8];	/* FC only */
 	u_int8_t	req_sense_data[32];
 } ispstatusreq_t;
 
@@ -381,20 +378,25 @@ typedef struct {
  */
 #define	RQCS_RU	0x800	/* Residual Under */
 #define	RQCS_RO	0x400	/* Residual Over */
+#define	RQCS_RESID	(RQCS_RU|RQCS_RO)
 #define	RQCS_SV	0x200	/* Sense Length Valid */
-#define	RQCS_RV	0x100	/* Residual Valid */
+#define	RQCS_RV	0x100	/* FCP Response Length Valid */
 
 /* 
  * Completion Status Codes.
  */
 #define RQCS_COMPLETE			0x0000
-#define RQCS_INCOMPLETE			0x0001
 #define RQCS_DMA_ERROR			0x0002
-#define RQCS_TRANSPORT_ERROR		0x0003
 #define RQCS_RESET_OCCURRED		0x0004
 #define RQCS_ABORTED			0x0005
 #define RQCS_TIMEOUT			0x0006
 #define RQCS_DATA_OVERRUN		0x0007
+#define RQCS_DATA_UNDERRUN		0x0015
+#define	RQCS_QUEUE_FULL			0x001C
+
+/* 1X00 Only Completion Codes */
+#define RQCS_INCOMPLETE			0x0001
+#define RQCS_TRANSPORT_ERROR		0x0003
 #define RQCS_COMMAND_OVERRUN		0x0008
 #define RQCS_STATUS_OVERRUN		0x0009
 #define RQCS_BAD_MESSAGE		0x000a
@@ -408,26 +410,24 @@ typedef struct {
 #define RQCS_DEVICE_RESET_MSG_FAILED	0x0012
 #define RQCS_ID_MSG_FAILED		0x0013
 #define RQCS_UNEXP_BUS_FREE		0x0014
-#define RQCS_DATA_UNDERRUN		0x0015
 #define	RQCS_XACT_ERR1			0x0018
 #define	RQCS_XACT_ERR2			0x0019
 #define	RQCS_XACT_ERR3			0x001A
 #define	RQCS_BAD_ENTRY			0x001B
-#define	RQCS_QUEUE_FULL			0x001C
 #define	RQCS_PHASE_SKIPPED		0x001D
 #define	RQCS_ARQS_FAILED		0x001E
 #define	RQCS_WIDE_FAILED		0x001F
 #define	RQCS_SYNCXFER_FAILED		0x0020
 #define	RQCS_LVD_BUSERR			0x0021
 
-/* 2100 Only Completion Codes */
+/* 2X00 Only Completion Codes */
 #define	RQCS_PORT_UNAVAILABLE		0x0028
 #define	RQCS_PORT_LOGGED_OUT		0x0029
 #define	RQCS_PORT_CHANGED		0x002A
 #define	RQCS_PORT_BUSY			0x002B
 
 /*
- * State Flags (not applicable to 2100)
+ * 1X00 specific State Flags 
  */
 #define RQSF_GOT_BUS			0x0100
 #define RQSF_GOT_TARGET			0x0200
@@ -438,7 +438,7 @@ typedef struct {
 #define	RQSF_XFER_COMPLETE		0x4000
 
 /*
- * Status Flags (not applicable to 2100)
+ * 1X00 Status Flags
  */
 #define RQSTF_DISCONNECT		0x0001
 #define RQSTF_SYNCHRONOUS		0x0002
@@ -448,6 +448,29 @@ typedef struct {
 #define RQSTF_ABORTED			0x0020
 #define RQSTF_TIMEOUT			0x0040
 #define RQSTF_NEGOTIATION		0x0080
+
+/*
+ * 2X00 specific state flags
+ */
+/* RQSF_SENT_CDB	*/
+/* RQSF_XFRD_DATA	*/
+/* RQSF_GOT_STATUS	*/
+/* RQSF_XFER_COMPLETE	*/
+
+/*
+ * 2X00 specific status flags
+ */
+/* RQSTF_ABORTED */
+/* RQSTF_TIMEOUT */
+#define	RQSTF_DMA_ERROR			0x0080
+#define	RQSTF_LOGOUT			0x2000
+
+/*
+ * Miscellaneous
+ */
+#ifndef	ISP_EXEC_THROTTLE
+#define	ISP_EXEC_THROTTLE	16
+#endif
 
 /*
  * FC (ISP2100) specific data structures
