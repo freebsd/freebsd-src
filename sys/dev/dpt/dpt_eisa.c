@@ -43,7 +43,7 @@
 
 #include <dev/dpt/dpt.h>
 
-#define DPT_EISA_IOSIZE			0x100
+#define DPT_EISA_IOSIZE			0x9
 #define DPT_EISA_SLOT_OFFSET		0x0c00
 #define DPT_EISA_EATA_REG_OFFSET	0x0088
 
@@ -67,7 +67,6 @@ static const char *	dpt_eisa_match	(eisa_id_t);
 static int		dpt_eisa_probe	(device_t);
 static int		dpt_eisa_attach	(device_t);
 
-
 static int
 dpt_eisa_probe (device_t dev)
 {
@@ -80,9 +79,11 @@ dpt_eisa_probe (device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-	io_base = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + DPT_EISA_SLOT_OFFSET;
+	io_base = (eisa_get_slot(dev) * EISA_SLOT_SIZE) +
+		DPT_EISA_SLOT_OFFSET +
+		DPT_EISA_EATA_REG_OFFSET;
 
-	conf = dpt_pio_get_conf(io_base + DPT_EISA_EATA_REG_OFFSET);
+	conf = dpt_pio_get_conf(io_base);
 	if (!conf) {
 		printf("dpt: dpt_pio_get_conf() failed.\n");
 		return (ENXIO);
@@ -98,36 +99,22 @@ dpt_eisa_probe (device_t dev)
 static int
 dpt_eisa_attach (device_t dev)
 {
-	dpt_softc_t * dpt;
-	struct resource *io = 0;
-	struct resource *irq = 0;
+	dpt_softc_t *	dpt;
 	int		s;
-	int		rid;
-	void *		ih;
 	int		error = 0;
 
-	rid = 0;
-	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (!io) {
-		device_printf(dev, "No I/O space?!\n");
-		error = ENOMEM;
+	dpt = device_get_softc(dev);
+
+	dpt->io_rid = 0;
+	dpt->io_type = SYS_RES_IOPORT;
+	dpt->irq_rid = 0;
+
+	error = dpt_alloc_resources(dev);
+	if (error) {
 		goto bad;
 	}
 
-	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (!irq) {
-		device_printf(dev, "No irq?!\n");
-		error = ENOMEM;
-		goto bad;
-	}
-
-	dpt = dpt_alloc(dev, rman_get_bustag(io),
-			rman_get_bushandle(io) + DPT_EISA_EATA_REG_OFFSET);
-	if (dpt == NULL) {
-		error = ENOMEM;
-		goto bad;
-	}
+	dpt_alloc(dev);
 
 	/* Allocate a dmatag representing the capabilities of this attachment */
 	/* XXX Should be a child of the EISA bus dma tag */
@@ -143,7 +130,6 @@ dpt_eisa_attach (device_t dev)
 				/* maxsegsz  */	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */0,
 				&dpt->parent_dmat) != 0) {
-		dpt_free(dpt);
 		error = ENXIO;
 		goto bad;
 	}
@@ -151,7 +137,7 @@ dpt_eisa_attach (device_t dev)
 	s = splcam();
 
 	if (dpt_init(dpt) != 0) {
-		dpt_free(dpt);
+		splx(s);
 		error = ENXIO;
 		goto bad;
 	}
@@ -161,8 +147,8 @@ dpt_eisa_attach (device_t dev)
 
 	splx(s);
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_ENTROPY, dpt_intr,
-			   dpt, &ih)) {
+	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
+			   dpt_intr, dpt, &dpt->ih)) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		error = ENXIO;
 		goto bad;
@@ -171,10 +157,10 @@ dpt_eisa_attach (device_t dev)
 	return (error);
 
  bad:
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	dpt_release_resources(dev);
+
+	if (dpt)
+		dpt_free(dpt);
 
 	return (error);
 }
@@ -210,6 +196,7 @@ static device_method_t dpt_eisa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		dpt_eisa_probe),
 	DEVMETHOD(device_attach,	dpt_eisa_attach),
+	DEVMETHOD(device_detach,	dpt_detach),
 
 	{ 0, 0 }
 };
@@ -219,7 +206,5 @@ static driver_t dpt_eisa_driver = {
 	dpt_eisa_methods,
 	sizeof(dpt_softc_t),
 };
-
-static devclass_t dpt_devclass;
 
 DRIVER_MODULE(dpt, eisa, dpt_eisa_driver, dpt_devclass, 0, 0);
