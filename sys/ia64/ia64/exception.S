@@ -525,13 +525,17 @@ interruption_Break:
 	mov	r16=pr			// save pr for a moment
 	mov	r17=cr.iim;;		// read break value
 	mov	r18=0x100000;;		// syscall number
-	cmp.eq	p1,p2=r18,r17;;		// check for syscall
-(p2)	br.dpnt.few 9f
+	cmp.eq	p6,p7=r18,r17;;		// check for syscall
+(p7)	br.dpnt.few 9f
 
 	mov	r17=cr.ipsr;;		// check for user mode
 	extr.u	r17=r17,32,2;;
-	cmp.eq	p1,p2=r0,r17
-(p1)	br.dpnt.few 9f			// trap if kernel mode
+	cmp.eq	p6,p7=r0,r17
+(p6)	br.dpnt.few 9f			// trap if kernel mode
+
+	// Note: p6 and p7 are temporaries so we don't need to restore
+	// the value of pr here since the user-mode program assumes
+	// that syscalls only preserve the function-preserved state.
 
 	br.sptk.many	do_syscall
 	;;
@@ -1321,26 +1325,23 @@ END(exception_save)
  * System call entry point (via Break Instruction vector).
  *
  * Arguments:
- *	r16	saved predicates
+ *	r15		System call number
+ *	out0-out7	System call arguments
  */
 ENTRY(do_syscall, 0)
 	.prologue
 	.save	rp,r0
 	.body
-	rsm	psr.dt			// physical addressing for a moment
-	mov	r17=sp;;		// save user sp
-	srlz.d				// serialize psr.dt
-	mov	sp=ar.k6;;		// switch to kernel sp
-	add	sp=-SIZEOF_TRAPFRAME,sp;; // reserve trapframe
-	dep	r30=0,sp,61,3;;		// physical address
-	add	r31=16,r30;;		// secondary pointer
-
 	// Save minimal state for syscall.
 	// We need to save enough state so that sendsig doesn't
 	// trash things if we take a signal during the system call.
 	// Essentially we need to save all the function-preserved
-	// state. Note that if we didn't take a signal, we don't need
-	// to restore much of that state on the way out.
+	// state. Note that if we don't take a signal, we don't need
+	// to restore much of that state on the way out. Note also
+	// that when we save r4-r7 we spill their NaT bits into
+	// ar.unat. This register is preserved by the call to
+	// syscall() and if a full restore is needed,
+	// exception_restore will recover the NaT bits from ar.unat.
 	// The function-preserved state (including syscall number) is:
 	//
 	//	r1,r4-r7,sp,r15
@@ -1349,200 +1350,261 @@ ENTRY(do_syscall, 0)
 	//	b0-b5
 	//	various ar's
 	//
-	mov	r18=cr.iip
-	mov	r19=cr.ipsr
-	mov	r20=cr.isr
-	mov	r21=FRAME_SYSCALL
+{ .mmi					// start reading high latency regs
+	mov	r16=cr.ipsr		// (13)
+	mov.m	r17=ar.rsc		// (13)
+	mov	r18=sp			// save user sp
 	;;
-	st8	[r30]=r21,8
+} { .mmi
+	mov	sp=ar.k6		// (13) kernel sp
+	mov	r19=cr.isr		// (13)
+	nop.i	0
+} { .mmi
+	mov.m	ar.rsc=0
+	;; 
+	mov.m	r20=ar.bspstore		// (13)
+	nop.i	0
+} { .mmi
+	mov.m	r21=ar.k5		// (13)
+	mov.m	r22=ar.rnat		// (6)
+	nop.i	0
+} { .mmi
+	mov.m	r23=ar.unat		// (6)
+	rsm	psr.dt			// (5) physical addressing
+} { .mii
+	mov	r24=cr.iip		// (2)
+	mov.i	r25=ar.pfs		// (2)
+	add	sp=-SIZEOF_TRAPFRAME,sp // reserve trapframe
+	;; 
+} { .mii
+	addl	r27=FRAME_SYSCALL,r0	// (1)
+	mov	r26=pr			// (2)
+	dep	r30=0,sp,61,3		// physical address
+} { .mmi
+	srlz.d				// serialize psr.dt
+	;; 
+	add	r31=8,r30		// secondary pointer
+	;; 
+} { .mmi
+	st8	[r30]=r27,16		// tf_flags
+	st8	[r31]=r24,16		// save cr.iip
+	mov	r28=b0
 	;;
-	st8	[r30]=r18,16		// save cr.iip
-	st8	[r31]=r19,16		// save cr.ipsr
+} { .mmi
+	st8	[r30]=r16,24		// save cr.ipsr, skip to pr
+	st8	[r31]=r19,24		// save cr.isr, skip to ar.rsc
+	mov	r24=b1
 	;;
-	st8	[r30]=r20,16		// save cr.isr
-	add	r31=16,r31		// skip cr.ifa
-	mov	r16=pr
-	mov	r18=ar.rsc
-	mov	r19=ar.pfs
+} { .mmi
+	st8	[r30]=r26,16		// save pr, skip to ar.pfs
+	st8	[r31]=r17,24		// save ar.rsc, skip to ar.bspstore
+	mov	r27=b2
 	;;
-	st8	[r30]=r16,16		// save pr
-	st8	[r31]=r18,16		// save ar.rsc
-	mov	ar.rsc=0		// turn off rse
+} { .mii
+	st8	[r30]=r25,24		// save ar.pfs, skip to ar.rnat
+	mov	r16=b3
+	mov	r17=b4
 	;;
-	st8	[r30]=r19,16		// save ar.pfs
-	add	r31=16,r31		// skip cr.ifs
-	mov	r20=ar.bspstore
-	mov	r21=ar.rnat
-	mov	r22=ar.k5
+} { .mmi
+	st8	[r31]=r20,24		// save ar.bspstore, skip to ar.unat
+	mov.m	ar.bspstore=r21		// switch to kernel backing store
+	mov	r29=b5
 	;;
-	mov	ar.bspstore=r22		// switch to kernel backing store
+} { .mmi
+	mov.m	r20=ar.ccv
+	mov.m	r21=ar.fpsr
+	nop.i	0
+	;; 
+} { .mmi
+	st8	[r30]=r22,24		// save ar.rnat, skip to ar.ccv
+	st8	[r31]=r23,16		// save ar.unat, skip to ar.fpsr
+	nop.i	0
 	;;
-	mov	r23=ar.bsp		// calculate ndirty
+} { .mmi
+	st8	[r30]=r20,16		// save ar.ccv, skip to b0
+	st8	[r31]=r21,16		// save ar.fpsr, skip to b1
+	nop.i	0
 	;;
-	st8	[r30]=r20,16		// save ar.bspstore
-	st8	[r31]=r21,16		// save ar.rnat
-	sub	r16=r23,r22		// bytes of dirty regs
-	mov	r18=ar.unat
+} { .mmi
+	st8	[r30]=r28,16		// save b0, skip to b2
+	st8	[r31]=r24,16		// save b1, skip to b3
+	nop.i	0
+	;; 
+} { .mmi
+	st8	[r30]=r27,16		// save b2, skip to b4
+	st8	[r31]=r16,16		// save b3, skip to b5
+	nop.i	0
 	;;
-	st8	[r30]=r16,16		// save ndirty
-	st8	[r31]=r18,16		// save ar.unat
-	mov	r20=ar.ccv
-	mov	r21=ar.fpsr
+} { .mmi
+	st8	[r30]=r17,TF_R_R1-(TF_B+4*8) // save b4, skip to r1
+	st8	[r31]=r29,TF_R_R4-(TF_B+5*8) // save b5, skip to r4
+	nop.i	0
 	;;
-	st8	[r30]=r20,16		// save ar.ccv
-	st8	[r31]=r21,16		// save ar.fpsr
-	mov	r18=b0
-	mov	r19=b1
-	;;
-	st8	[r30]=r18,16		// save b0
-	st8	[r31]=r19,16		// save b1
-	mov	r20=b2
-	mov	r21=b3
-	;;
-	st8	[r30]=r20,16		// save b2
-	st8	[r31]=r21,16		// save b3
-	mov	r18=b4
-	mov	r19=b5
-	;;
-	st8	[r30]=r18,TF_R_R1-(TF_B+4*8) // save b4, skip to r1
-	st8	[r31]=r19,TF_R_R4-(TF_B+5*8) // save b5, skip to r4
-	;;
+} { .mmi
 	st8	[r30]=r1,TF_R_R5-TF_R_R1 // save r1, skip to r5
 	.mem.offset 8,0
-	st8.spill [r31]=r4,16		// save r4
+	st8.spill [r31]=r4,16		// save r4, skip to r6
+	nop.i	0
 	;;
+} { .mmi
 	.mem.offset 0,0
-	st8.spill [r30]=r5,16		// save r5
+	st8.spill [r30]=r5,16		// save r5, skip to r7
 	.mem.offset 8,0
-	st8.spill [r31]=r6,TF_R_SP-TF_R_R6 // save r6
-	;; 
+	st8.spill [r31]=r6,TF_R_SP-TF_R_R6 // save r6, skip to sp
+	nop.i	0
+	;;
+} { .mmi
 	.mem.offset 0,0
-	st8.spill [r30]=r7,TF_R_R15-TF_R_R7 // save r7
-	st8	[r31]=r17		// save user sp
-	;;
+	st8.spill [r30]=r7,TF_R_R15-TF_R_R7 // save r7, skip to r15
+	st8	[r31]=r18		// save sp
+	nop.i	0
+	;; 
+} { .mmb
 	st8	[r30]=r15		// save r15 (syscall number)
-	;;
+	add	sp=-(8*8),sp		// reserve stack for arguments
+	br.call.sptk.few b0=Lsaveargs	// dump args
+} { .mmb
+	mov.m	r13=ar.k4		// processor globals
+	nop.m	0
 	bsw.1				// switch back to bank 1
 	;;
-	mov	r18=sp			// trapframe pointer
-	;; 
-	add	sp=-(8*8),sp		// reserve stack for arguments
+} { .mmb
+	mov	r16=sp			// point at args
+	mov.m	r17=ar.k5		// for calculating ndirty
+	cover				// preserve user register frame
 	;;
-	br.call.sptk.few b0=Lsaveargs	// dump args
-	;;
-	mov	r31=sp			// point at args
-	mov	r20=ar.bsp		// record bsp before the cover
-	;;
+} { .mmi
+	mov	r18=cr.ifs		// record user's CFM
+	mov.m	r19=ar.bsp		// ndirty = ar.bsp - kbsp
 	add	sp=-16,sp		// reserve scratch space
-	cover				// preserve arguments
 	;;
-	mov	r22=cr.ifs		// record user's CFM
-	add	r23=TF_CR_IFS,r18
+} { .mmi
+	add	r20=TF_CR_IFS+(8*8),r16	// point at cr.ifs
+	ssm	psr.ic|psr.dt		// reenable traps and translation
+	sub	r19=r19,r17		// calculate ndirty
 	;;
-	ssm	psr.ic|psr.dt
-	;;
+} { .mmi
 	srlz.i				// serialize psr.ic and psr.dt
 	;;
 	ssm	psr.i			// safe to take interrupts again
+	add	r21=TF_NDIRTY+(8*8),r16	// point at ndirty
 	;;
+} { .mmi
+	st8	[r20]=r18		// save cr.ifs
+	st8	[r21]=r19		// save ndirty
+	;;
+} { .mmi
+	alloc	r14=ar.pfs,0,1,3,0
 	srlz.d				// serialize psr.i
+	add	loc0=(8*8),r16		// remember where trapframe is
 	;;
-	st8	[r23]=r22		// save cr.ifs
-	;;
-	mov	r21=ar.bsp		// r21-r20 = size of user reg frame
-	add	r22=TF_NDIRTY,r18
-	;;
-	sub	r20=r21,r20
-	ld8	r23=[r22]
-	;;
-	add	r23=r23,r20		// adjust ndirty
-	;;
-	st8	[r22]=r23
-	;;
-	alloc	r14=ar.pfs,0,3,3,0
-	mov	r13=ar.k4		// processor globals
-	;;
-	mov	loc0=r15		// save in case of restarts
-	mov	loc1=r18		// save so we can restore
-	mov	loc2=gp			// save user gp
+} { .mlx
 	mov	out0=r15		// syscall number (from user)
-	mov	out1=r31		// arguments
-	mov	out2=r18		// trapframe pointer
-	;;
 	movl	gp=__gp			// kernel globals
-	;;
+} { .mmb
+	mov	out1=r16		// arguments
+	add	out2=(8*8),r16		// trapframe pointer
 	br.call.sptk.many rp=syscall	// do the work
-
-	ld8	r14=[loc1]		// check tf_flags
+} { .mii
+	ld8	r14=[loc0]		// check tf_flags
+	dep	r15=0,loc0,61,3		// physical address of trapframe
 	;;
 	tbit.z p6,p0=r14,0		// check FRAME_SYSCALL bit
 	;;
-(p6)	add	sp=-16,loc1		// do a full restore if clear
+} { .mib
+(p6)	add	sp=-16,loc0		// do a full restore if clear
+	add	r16=SIZEOF_TRAPFRAME,loc0 // new kernel sp
 (p6)	br.dpnt.many exception_restore
-
+} { .mmi
 	rsm 	psr.dt|psr.ic|psr.i	// get ready to restore
 	;;
 	srlz.i				// serialise psr.dt and psr.ic
-	dep	r30=0,loc1,61,3		// physical address
-	mov	gp=loc2			// restore user gp
-	add	r16=SIZEOF_TRAPFRAME,loc1
-	;;
-	mov	ar.k6=r16		// restore kernel sp
-	add	r30=TF_R_SP,r30		// &tf_r[FRAME_SP]
-	mov	r15=loc0		// saved syscall number
+	add	r30=TF_R_R15,r15	// point at r15
+	;; 
+} { .mmi
 	alloc	r14=ar.pfs,0,0,0,0	// discard register frame
+	mov	ar.k6=r16		// restore kernel sp
+	add	r31=TF_R_SP,r15		// point at sp
 	;;
-	ld8	sp=[r30],TF_R_R10-TF_R_SP // restore user sp
+} { .mmi
+	ld8	r15=[r30],TF_R_R10-TF_R_R15 // restore r15, skip to r10
+	ld8	sp=[r31],TF_R_R9-TF_R_SP // restore user sp, skip to r9
+	nop.i	0
 	;;
-	ld8	r10=[r30],-8		// ret2
+} { .mmi
+	ld8	r10=[r30],-16		// restore r10, skip to r8
+	ld8	r9=[r31],TF_R_R1-TF_R_R9 // restore r9, skip to r1
+	nop.i	0
 	;;
-	ld8	r9=[r30],-8		// ret1
+} { .mmi
+	ld8	r8=[r30],TF_B-TF_R_R8	// restore r8, skip to b0
+	ld8	r1=[r31],TF_AR_FPSR-TF_R_R1 // restore r1, skip to ar.fpsr
+	nop.i	0
 	;;
-	ld8	r8=[r30],TF_B-TF_R_R8	// ret0
+} { .mmi
+	ld8	r16=[r30],-16		// restore b0, skip to ar.ccv
+	ld8	r17=[r31],-16		// restore ar.fpsr, skip to ar.unat
+	nop.i	0
 	;;
-	ld8	r16=[r30],-16		// restore b0
-	;;	
+} { .mmi
+	ld8	r18=[r30],-16		// restore ar.ccv, skip to ndirty
+	ld8	r19=[r31],-16		// restore ar.unat, skip to ar.rnat
 	mov	b0=r16
-	add	r31=8,r30		// secondary pointer, &tf_fpsr
 	;;
-	ld8	r16=[r31],-16		// restore ar.fpsr
-	ld8	r17=[r30],-16		// restore ar.ccv
+} { .mmi
+	ld8	r20=[r30],-16		// restore ndirty, skip to ar.bspstore
+	ld8	r21=[r31],-16		// restore ar.rnat, skip to cr.ifs
+	nop.i	0
+	;; 
+} { .mmi
+	ld8	r16=[r30],-16		// restore ar.bspstore, skip to ar.pfs
+	mov	ar.fpsr=r17
+	shl	r20=r20,16		// value for ar.rsc
+	;; 
+} { .mmi
+	ld8	r22=[r31],-16		// restore cr.ifs, skip to ar.rsc
+	mov.m	ar.ccv=r18
+	nop.i	0
 	;;
-	ld8	r18=[r31],-16		// restore ar.unat
-	ld8	r19=[r30],-16		// restore ndirty
-	mov	ar.fpsr=r16
-	mov	ar.ccv=r17
+} { .mmi
+	ld8	r17=[r30],-16		// restore ar.pfs, skip to pr
+	mov.m	ar.unat=r19
+	nop.i	0
 	;;
-	ld8	r16=[r31],-16		// restore ar.rnat
-	ld8	r17=[r30],-16		// restore ar.bspstore
-	mov	ar.unat=r18
+} { .mmi
+	ld8	r18=[r31],-32		// restore ar.rsc, skip to cr.ipsr
+	mov.m	ar.rsc=r20		// setup for loadrs
+	nop.i	0
 	;;
-	shl	r19=r19,16		// value for ar.rsc
+} { .mmi
+	loadrs				// restore user stacked registers
+	;; 
+	mov.m	ar.bspstore=r16		// back to user backing store
+	mov.i	ar.pfs=r17	
 	;;
-	mov	ar.rsc=r19		// setup for loadrs
+} { .mmi
+	mov.m	ar.rnat=r21
+	mov.m	ar.rsc=r18
+	nop.i	0
 	;;
-	loadrs				// restore user registers
+} { .mmi
+	ld8	r16=[r30],-32		// restore pr, skip to cr.iip
+	ld8	r17=[r31]		// restore cr.ipsr
+	nop.i	0
 	;;
-	mov	ar.bspstore=r17
+} { .mmi
+	ld8	r18=[r30]		// restore cr.iip
+	mov	cr.ifs=r22
+	nop.i	0
 	;;
-	mov	ar.rnat=r16
-	ld8	r18=[r31],-16		// restore cr.ifs
-	ld8	r19=[r30],-16		// restore ar.pfs
+} { .mmi
+	mov	cr.iip=r18
+	mov	cr.ipsr=r17
+	mov	pr=r16,0x1ffff
 	;;
-	ld8	r16=[r31],-32		// restore ar.rsc
-	ld8	r17=[r30],-32		// restore pr
-	mov	cr.ifs=r18
-	mov	ar.pfs=r19
-	;;
-	ld8	r18=[r31],-16		// restore cr.ipsr
-	ld8	r19=[r30],-16		// restore cr.iip
-	mov	ar.rsc=r16
-	mov	pr=r17,0x1ffff
-	;;
-	mov	cr.ipsr=r18
-	mov	cr.iip=r19
-	;;
+} { .bbb
 	rfi
+}	
 
 	// This is done as a function call to make sure that we only
 	// have output registers in the register frame. It also gives
@@ -1553,26 +1615,29 @@ ENTRY(do_syscall, 0)
 	// we haven't yet covered the user's register frame to get a
 	// value for cr.ifs
 Lsaveargs:
+{ .mii
 	alloc	r14=ar.pfs,0,0,8,0	// round up to 8 outputs
-	;;
 	extr.u	r31=sp,0,61		// physical address
 	;;
-	st8	[r31]=r32,8
+	add	r30=8,r31
+	;;
+} { .mmi
+	st8	[r31]=r32,16
+	st8	[r30]=r33,16
+	;;
+} { .mmi
+	st8	[r31]=r34,16
+	st8	[r30]=r35,16
 	;; 
-	st8	[r31]=r33,8
+} { .mmi
+	st8	[r31]=r36,16
+	st8	[r30]=r37,16
 	;; 
-	st8	[r31]=r34,8
-	;; 
-	st8	[r31]=r35,8
-	;; 
-	st8	[r31]=r36,8
-	;; 
-	st8	[r31]=r37,8
-	;; 
-	st8	[r31]=r38,8
-	;; 
-	st8	[r31]=r39
+} { .mmb
+	st8	[r31]=r38
+	st8	[r30]=r39
 	br.ret.sptk.many b0
+}
 	.global do_syscall_end
 do_syscall_end:
 
