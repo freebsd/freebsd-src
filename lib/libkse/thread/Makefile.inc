@@ -78,6 +78,8 @@ SRCS+= \
 	thr_seterrno.c \
 	thr_setprio.c \
 	thr_setschedparam.c \
+	thr_sig.c \
+	thr_sigaction.c \
 	thr_sigmask.c \
 	thr_sigsuspend.c \
 	thr_sigwait.c \
