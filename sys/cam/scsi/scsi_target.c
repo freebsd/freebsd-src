@@ -556,12 +556,12 @@ targwrite(dev_t dev, struct uio *uio, int ioflag)
 				  ("write - uiomove failed (%d)\n", error));
 			break;
 		}
-		priority = fuword(&user_ccb->ccb_h.pinfo.priority);
+		priority = fuword32(&user_ccb->ccb_h.pinfo.priority);
 		if (priority == -1) {
 			error = EINVAL;
 			break;
 		}
-		func_code = fuword(&user_ccb->ccb_h.func_code);
+		func_code = fuword32(&user_ccb->ccb_h.func_code);
 		switch (func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMED_NOTIFY:
@@ -683,10 +683,10 @@ targusermerge(struct targ_softc *softc, struct targ_cmd_descr *descr,
 	 * preserved, the rest we get from the user ccb. (See xpt_merge_ccb)
 	 */
 	xpt_setup_ccb(k_ccbh, softc->path, descr->priority);
-	k_ccbh->retry_count = fuword(&u_ccbh->retry_count);
+	k_ccbh->retry_count = fuword32(&u_ccbh->retry_count);
 	k_ccbh->func_code = descr->func_code;
-	k_ccbh->flags = fuword(&u_ccbh->flags);
-	k_ccbh->timeout = fuword(&u_ccbh->timeout);
+	k_ccbh->flags = fuword32(&u_ccbh->flags);
+	k_ccbh->timeout = fuword32(&u_ccbh->timeout);
 	ccb_len = targccblen(k_ccbh->func_code) - sizeof(struct ccb_hdr);
 	error = copyin(u_ccbh + 1, k_ccbh + 1, ccb_len);
 	if (error != 0) {
