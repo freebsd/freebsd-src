@@ -2195,9 +2195,8 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 
       <para>The AlphaServer 4x00 machines are intended as small enterprise
       servers. Expect a 30&quot; high pedestal cabinet or alternatively 
-      the same system box in a 19&quot; rack. This is medium iron, not 
-      a typical hobbyist system. Rawhides are multi-CPU machines, up to 
-      4 CPUs can be in a single machine.  Basic disk storage is housed in 
+      the same system box in a 19&quot; rack. Rawhides are multi-CPU machines, 
+      up to 4 CPUs can be in a single machine.  Basic disk storage is housed in 
       one or two StorageWorks shelves at the bottom of the pedestal. The 
       Rawhides intended for the NT market are designated DIGITAL 
       Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU). A 
@@ -2211,7 +2210,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 	  </listitem>
 	  <listitem>
             <para>cache: 4 Mbytes per CPU. EV5 300 MHz was also 
-	    available cache-less. 8 Mbytes for EV5 600Mhz</para>
+	    available cache-less. 8 Mbytes for EV56 600Mhz</para>
 	  </listitem>
 	  <listitem>
 	    <para>memory bus: 128 bit with ECC</para>
@@ -2232,18 +2231,19 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 
      <para>Rawhide uses a maximum of 8 RAM modules. These modules are used 
      in pairs and supply 72 bits to the bus (this includes ECC bits). 
-     Memory can be EDO RAM or synchronous DRAM. A fully populated Rawhide 
-     has 4 pairs of memory modules. Given the choice use SDRAM for 
+     Memory can be EDO RAM or synchronous DRAM. A fully populated AS4100 
+     has 4 pairs of memory modules. The AS4000 model is limited to 2 pairs
+     of memory modules. Given the choice use SDRAM for 
      best performance. The highest capacity memory board must be in 
      memory slot 0. A mix of memory board sizes is allowed. A mix 
-     of EDO and SDRAM is also reported as working (assuming you don't 
+     of EDO and SDRAM works as well (assuming you don't 
      try to mix EDO and SDRAM in one module pair). A mix of EDO and SDRAM
      results in the <emphasis>entire</emphasis> memory subsystem running at
      the slower EDO timing</para>
 
      <para>Rawhide has an embedded Symbios 810 chip that gives you a
      narrow fast-SCSI bus. Generally only the SCSI CDROM is driven by
-     this interface.</para>
+     this interface. </para>
 
      <para>Rawhides are available with a 8 64-bit PCI / 3 EISA 
      slot expansion backplanes (called <quote>Saddle</quote> modules). There 
@@ -2262,11 +2262,20 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
 
      <note><para>EISA slots are currently unsupported, but the Compaq Qvision
      EISA VGA adapter is treated as an ISA device. It therefore works 
-     OK as a console.</para></note>
+     OK as a console. In case you use EISA options in your machine you
+     must run the EISA Configuration Utility (ECU) from floppy. Do yourself
+     a favor and use the Tru64/OpenVMS ECU, and not the WindowsNT ECU.
+     </para></note>
 
      <para>Rawhide employs an I2C based power controller system. If 
      you want to be sure all power is removed from the system remove the 
      mains cables from the system.</para>
+
+     <para>Rawhide comes with RCM functionality, which means you can 
+     power it on/off remotely, reset it etc. See also the description for
+     RMC in the DS10 section of this document. RCM versus RMC is not a typo,
+     the various documentation I consulted used both acronyms
+     interchangably.</para>
 
      <para>The kernel config file must contain:</para>
 <programlisting>options	DEC_KN300
