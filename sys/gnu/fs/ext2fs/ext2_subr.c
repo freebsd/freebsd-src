@@ -101,13 +101,8 @@ ext2_checkoverlap(bp, ip)
 		if (ep == bp || (ep->b_flags & B_INVAL) ||
 		    ep->b_vp == NULLVP)
 			continue;
-#if !defined(__FreeBSD__)
-		if (VOP_BMAP(ep->b_vp, (daddr_t)0, &vp, (daddr_t)0, NULL))
-			continue;
-#else
 		if (VOP_BMAP(ep->b_vp, (daddr_t)0, &vp, (daddr_t)0, NULL, NULL))
 			continue;
-#endif
 		if (vp != ip->i_devvp)
 			continue;
 		/* look for overlap */

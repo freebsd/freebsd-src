@@ -39,12 +39,7 @@
  *	@(#)ext2_inode.c	8.5 (Berkeley) 12/30/93
  */
 
-#if !defined(__FreeBSD__)
-#include "quota.h"
-#include "diagnostic.h"
-#else
 #include "opt_quota.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,9 +49,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
-#if !defined(__FreeBSD__)
-#include <sys/trace.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -100,9 +92,6 @@ ext2_update(vp, access, modify, waitfor)
 	struct buf *bp;
 	struct inode *ip;
 	int error;
-#if !defined(__FreeBSD__)
-	struct timeval time;
-#endif
 
 	ip = VTOI(vp);
 	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
@@ -120,9 +109,6 @@ ext2_update(vp, access, modify, waitfor)
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
-#if !defined(__FreeBSD__)
-		gettime(&time);
-#endif
 		ip->i_ctime = time.tv_sec;
 	}
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
@@ -224,9 +210,6 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		    aflags))
 			return (error);
 		oip->i_size = length;
-#if !defined(__FreeBSD__)
-		(void) vnode_pager_uncache(ovp);
-#endif
 		if (aflags & IO_SYNC)
 			bwrite(bp);
 		else
@@ -255,9 +238,6 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 			return (error);
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
-#if !defined(__FreeBSD__)
-		(void) vnode_pager_uncache(ovp);
-#endif
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
 		allocbuf(bp, size);
 		if (aflags & IO_SYNC)
@@ -452,22 +432,12 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->s_blocksize, 0, 0);
 	if (bp->b_flags & (B_DONE | B_DELWRI)) {
-		/* Braces must be here in case trace evaluates to nothing. */
-#if !defined(__FreeBSD__)
-		trace(TR_BREADHIT, pack(vp, fs->s_blocksize), lbn);
-#endif
 	} else {
-#if !defined(__FreeBSD__)
-		trace(TR_BREADMISS, pack(vp, fs->s_blocksize), lbn);
-		get_proc()->p_stats->p_ru.ru_inblock++;	/* pay for read */
-#endif
 		bp->b_flags |= B_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
-#if defined(__FreeBSD__)
 		vfs_busy_pages(bp, 0);
-#endif
 		VOP_STRATEGY(bp);
 		error = biowait(bp);
 	}
