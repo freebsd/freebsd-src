@@ -55,7 +55,9 @@
 <![ %release.type.release [
       &release.current;,
 ]]>
-      containing significant information discovered after the release.
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
       This information includes security advisories, as well as news
       relating to the software or documentation that could affect its
       operation or usability.  An up-to-date version of this document
