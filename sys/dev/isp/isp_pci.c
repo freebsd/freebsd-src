@@ -338,46 +338,31 @@ static int
 isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
-	int tval, rtp, rgd, iqd, m1, m2, isp_debug, role;
+	int unit, bitmap, rtp, rgd, iqd, m1, m2, isp_debug;
 	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
+	quad_t wwn;
 	bus_size_t lim;
-	const char *sptr;
-	int locksetup = 0;
 
 	/*
 	 * Figure out if we're supposed to skip this one.
-	 * If we are, we actually go to ISP_ROLE_NONE.
 	 */
-
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "disable", &tval) == 0 && tval) {
-		device_printf(dev, "device is disabled\n");
-		/* but return 0 so the !$)$)*!$*) unit isn't reused */
-		return (0);
-	}
-	
-	role = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "role", &role) == 0 &&
-	    ((role & ~(ISP_ROLE_INITIATOR|ISP_ROLE_TARGET)) == 0)) {
-		device_printf(dev, "setting role to 0x%x\n", role);
-	} else {
-#ifdef	ISP_TARGET_MODE
-		role = ISP_ROLE_INITIATOR|ISP_ROLE_TARGET;
-#else
-		role = ISP_DEFAULT_ROLES;
-#endif
+	unit = device_get_unit(dev);
+	if (getenv_int("isp_disable", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			device_printf(dev, "not configuring\n");
+			return (ENODEV);
+		}
 	}
 
-	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT | M_ZERO);
+	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
 	if (pcs == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
+	bzero(pcs, sizeof (struct isp_pcisoftc));
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
@@ -389,18 +374,19 @@ isp_pci_attach(device_t dev)
 	m1 = PCIM_CMD_PORTEN;
 	m2 = PCIM_CMD_MEMEN;
 #endif
-
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "prefer_iomap", &tval) == 0 && tval != 0) {
-		m1 = PCIM_CMD_PORTEN;
-		m2 = PCIM_CMD_MEMEN;
+	bitmap = 0;
+	if (getenv_int("isp_mem_map", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			m1 = PCIM_CMD_MEMEN;
+			m2 = PCIM_CMD_PORTEN;
+		}
 	}
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "prefer_memmap", &tval) == 0 && tval != 0) {
-		m1 = PCIM_CMD_MEMEN;
-		m2 = PCIM_CMD_PORTEN;
+	bitmap = 0;
+	if (getenv_int("isp_io_map", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			m1 = PCIM_CMD_PORTEN;
+			m2 = PCIM_CMD_MEMEN;
+		}
 	}
 
 	linesz = PCI_DFLT_LNSZ;
@@ -511,16 +497,22 @@ isp_pci_attach(device_t dev)
 		    PCI_MBOX_REGS2300_OFF;
 	}
 	isp = &pcs->pci_isp;
-	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
 	if (isp->isp_param == NULL) {
 		device_printf(dev, "cannot allocate parameter data\n");
 		goto bad;
 	}
+	bzero(isp->isp_param, psize);
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
 	isp->isp_revision = pci_get_revid(dev);
-	isp->isp_role = role;
+#ifdef	ISP_TARGET_MODE
+	isp->isp_role = ISP_ROLE_BOTH;
+#else
+	isp->isp_role = ISP_DEFAULT_ROLES;
+#endif
 	isp->isp_dev = dev;
+
 
 	/*
 	 * Try and find firmware for this device.
@@ -591,53 +583,33 @@ isp_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "fwload_disable", &tval) == 0 && tval != 0) {
-		isp->isp_confopts |= ISP_CFG_NORELOAD;
+	if (getenv_int("isp_no_fwload", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts |= ISP_CFG_NORELOAD;
 	}
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "ignore_nvram", &tval) == 0 && tval != 0) {
-		isp->isp_confopts |= ISP_CFG_NONVRAM;
+	if (getenv_int("isp_fwload", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts &= ~ISP_CFG_NORELOAD;
 	}
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "fullduplex", &tval) == 0 && tval != 0) {
-		isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
+	if (getenv_int("isp_no_nvram", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts |= ISP_CFG_NONVRAM;
 	}
-#ifdef	ISP_FW_CRASH_DUMP
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "fw_dump_enable", &tval) == 0 && tval != 0) {
-		size_t amt = 0;
-		if (IS_2200(isp)) {
-			amt = QLA2200_RISC_IMAGE_DUMP_SIZE;
-		} else if (IS_23XX(isp)) {
-			amt = QLA2300_RISC_IMAGE_DUMP_SIZE;
-		}
-		if (amt) {
-			FCPARAM(isp)->isp_dump_data =
-			    malloc(amt, M_DEVBUF, M_WAITOK | M_ZERO);
-		} else {
-			device_printf(dev,
-			    "f/w crash dumps not supported for this model\n");
-		}
+	if (getenv_int("isp_nvram", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts &= ~ISP_CFG_NONVRAM;
 	}
-#endif
-
-	sptr = 0;
-        if (resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "topology", (const char **) &sptr) == 0 && sptr != 0) {
-		if (strcmp(sptr, "lport") == 0) {
-			isp->isp_confopts |= ISP_CFG_LPORT;
-		} else if (strcmp(sptr, "nport") == 0) {
+	if (getenv_int("isp_fcduplex", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
+	}
+	if (getenv_int("isp_no_fcduplex", &bitmap)) {
+		if (bitmap & (1 << unit))
+			isp->isp_confopts &= ~ISP_CFG_FULL_DUPLEX;
+	}
+	if (getenv_int("isp_nport", &bitmap)) {
+		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_NPORT;
-		} else if (strcmp(sptr, "lport-only") == 0) {
-			isp->isp_confopts |= ISP_CFG_LPORT_ONLY;
-		} else if (strcmp(sptr, "nport-only") == 0) {
-			isp->isp_confopts |= ISP_CFG_NPORT_ONLY;
-		}
 	}
 
 	/*
@@ -648,56 +620,54 @@ isp_pci_attach(device_t dev)
 	 * hint replacement to specify WWN strings with a leading
 	 * 'w' (e..g w50000000aaaa0001). Sigh.
 	 */
-	sptr = 0;
-	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "portwwn", (const char **) &sptr);
-	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
-		char *eptr = 0;
-		isp->isp_osinfo.default_port_wwn = strtouq(sptr, &eptr, 16);
-		if (eptr < sptr + 16 || isp->isp_osinfo.default_port_wwn == 0) {
-			device_printf(dev, "mangled portwwn hint '%s'\n", sptr);
-			isp->isp_osinfo.default_port_wwn = 0;
-		} else {
-			isp->isp_confopts |= ISP_CFG_OWNWWPN;
-		}
+	if (getenv_quad("isp_portwwn", &wwn)) {
+		isp->isp_osinfo.default_port_wwn = wwn;
+		isp->isp_confopts |= ISP_CFG_OWNWWPN;
 	}
 	if (isp->isp_osinfo.default_port_wwn == 0) {
 		isp->isp_osinfo.default_port_wwn = 0x400000007F000009ull;
 	}
 
-	sptr = 0;
-	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
-            "nodewwn", (const char **) &sptr);
-	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
-		char *eptr = 0;
-		isp->isp_osinfo.default_node_wwn = strtouq(sptr, &eptr, 16);
-		if (eptr < sptr + 16 || isp->isp_osinfo.default_node_wwn == 0) {
-			device_printf(dev, "mangled nodewwn hint '%s'\n", sptr);
-			isp->isp_osinfo.default_node_wwn = 0;
-		} else {
-			isp->isp_confopts |= ISP_CFG_OWNWWNN;
-		}
+	if (getenv_quad("isp_nodewwn", &wwn)) {
+		isp->isp_osinfo.default_node_wwn = wwn;
+		isp->isp_confopts |= ISP_CFG_OWNWWNN;
 	}
 	if (isp->isp_osinfo.default_node_wwn == 0) {
 		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
 	}
 
 	isp_debug = 0;
-        (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "debug", &isp_debug);
-
-	/* Make sure the lock is set up. */
-	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
-	locksetup++;
-
-#ifdef	ISP_SMPLOCK
-#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY
-#else
-#define	INTR_FLAGS	INTR_TYPE_CAM | INTR_ENTROPY
-#endif
-	if (bus_setup_intr(dev, irq, INTR_FLAGS, isp_pci_intr, isp, &pcs->ih)) {
+	(void) getenv_int("isp_debug", &isp_debug);
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, isp_pci_intr,
+	    isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
+	}
+
+#ifdef	ISP_FW_CRASH_DUMP
+	bitmap = 0;
+	if (getenv_int("isp_fw_dump_enable", &bitmap)) {
+		if (bitmap & (1 << unit) {
+			size_t amt = 0;
+			if (IS_2200(isp)) {
+				amt = QLA2200_RISC_IMAGE_DUMP_SIZE;
+			} else if (IS_23XX(isp)) {
+				amt = QLA2300_RISC_IMAGE_DUMP_SIZE;
+			}
+			if (amt) {
+				FCPARAM(isp)->isp_dump_data =
+				    malloc(amt, M_DEVBUF, M_WAITOK);
+				bzero(FCPARAM(isp)->isp_dump_data, amt);
+			} else {
+				device_printf(dev,
+				    "f/w crash dumps not supported for card\n");
+			}
+		}
+	}
+#endif
+
+	if (IS_2312(isp)) {
+		isp->isp_port = pci_get_function(dev);
 	}
 
 	/*
@@ -712,32 +682,32 @@ isp_pci_attach(device_t dev)
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
 
 	/*
-	 * Last minute checks...
-	 */
-	if (IS_2312(isp)) {
-		isp->isp_port = pci_get_function(dev);
-	}
-
-	/*
 	 * Make sure we're in reset state.
 	 */
 	ISP_LOCK(isp);
 	isp_reset(isp);
+
 	if (isp->isp_state != ISP_RESETSTATE) {
 		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_init(isp);
-	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_INITSTATE) {
-		isp_uninit(isp);
-		ISP_UNLOCK(isp);
-		goto bad;
+	if (isp->isp_state != ISP_INITSTATE) {
+		/* If we're a Fibre Channel Card, we allow deferred attach */
+		if (IS_SCSI(isp)) {
+			isp_uninit(isp);
+			ISP_UNLOCK(isp);
+			goto bad;
+		}
 	}
 	isp_attach(isp);
-	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_RUNSTATE) {
-		isp_uninit(isp);
-		ISP_UNLOCK(isp);
-		goto bad;
+	if (isp->isp_state != ISP_RUNSTATE) {
+		/* If we're a Fibre Channel Card, we allow deferred attach */
+		if (IS_SCSI(isp)) {
+			isp_uninit(isp);
+			ISP_UNLOCK(isp);
+			goto bad;
+		}
 	}
 	/*
 	 * XXXX: Here is where we might unload the f/w module
@@ -750,10 +720,6 @@ bad:
 
 	if (pcs && pcs->ih) {
 		(void) bus_teardown_intr(dev, irq, pcs->ih);
-	}
-
-	if (locksetup && isp) {
-		mtx_destroy(&isp->isp_osinfo.lock);
 	}
 
 	if (irq) {
