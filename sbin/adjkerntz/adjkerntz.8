@@ -56,7 +56,8 @@ initialization call from
 (before any daemons are started).
 .Nm Adjkerntz
 makes the first adjustment and the initial time zone offset is stored into
-.Pa /var/run/.adjkerntz
+.Pa adjkerntz
+kernel variable
 for following subsequent
 .Nm adjkerntz
 calls.
@@ -67,7 +68,8 @@ uses the previously stored
 time zone offset and the changed time zone rule to
 produce the new time zone offset, fix the kernel time and store the new
 offset into
-.Pa /var/run/.adjkerntz
+.Pa adjkerntz
+kernel variable
 too.
 It is recommended to use this form in root's
 .Xr crontab 5
@@ -101,8 +103,6 @@ Link to the current zone info file, see
 Empty file.
 Presence of it indicates that the machine runs wall CMOS clock,
 absence indicates UTC CMOS clock.
-.It Pa /var/run/.adjkerntz
-Text file with the stored current time zone offset in seconds.
 .Sh SEE ALSO
 .Xr tzset 3 ,
 .Xr zic 8 ,
