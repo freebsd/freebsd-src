@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=		fetch
-WARNS?=		5
+CSTD?=		c99
+WARNS?=		6
 DPADD=		${LIBFETCH}
 LDADD=		-lfetch
 .if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
