@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.1 1995/04/28 19:48:56 jfieber Exp $
+     $Id: booting.sgml,v 1.2 1995/05/10 11:34:06 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -22,7 +22,7 @@
     <toc>
 -->
 
-    <chapt><heading>Booting FreeBSD on a PC</heading>
+    <chapt><heading>The FreeBSD Booting Process</heading>
 
        <p><em>Contributed by &a.phk;. v1.1, April 26th.</em>
     
