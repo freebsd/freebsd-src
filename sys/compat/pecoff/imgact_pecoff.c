@@ -131,7 +131,7 @@ static int
 exec_pecoff_coff_makecmds(struct image_params *,
 			  struct coff_filehdr *, int);
 
-static int      pecoff_signature(struct proc *, struct vnode *, struct pecoff_dos_filehdr *);
+static int      pecoff_signature(struct proc *, struct vnode *, const struct pecoff_dos_filehdr *);
 static int      pecoff_read_from(struct proc *, struct vnode *, int, caddr_t, int);
 static int 
 pecoff_load_section(struct proc * p,
@@ -231,8 +231,8 @@ pecoff_load_section(struct proc * p, struct vmspace * vmspace, struct vnode * vp
 		copy_map_len = round_page(offset + filsz) - file_addr;
 		copy_start = offset - file_addr;
 
-		DPRINTF(("offset=%x vmaddr=%x filsz=%x memsz=%x\n",
-			 offset, vmaddr, filsz, memsz));
+		DPRINTF(("offset=%x vmaddr=%lx filsz=%x memsz=%x\n",
+			 offset, (long)vmaddr, filsz, memsz));
 		DPRINTF(("map_len=%x copy_len=%x copy_map_offset=%x"
 			 " copy_map_len=%x copy_start=%x\n",
 			 map_len, copy_len, copy_map_offset,
@@ -573,7 +573,7 @@ static int
 pecoff_signature(p, vp, dp)
 	struct proc    *p;
 	struct vnode   *vp;
-	struct pecoff_dos_filehdr *dp;
+	const struct pecoff_dos_filehdr *dp;
 {
 	int             error;
 	char            buf[512];
@@ -617,7 +617,7 @@ pecoff_read_from(p, vp, pos, buf, siz)
 static int 
 imgact_pecoff(struct image_params * imgp)
 {
-	struct pecoff_dos_filehdr *dp = (struct pecoff_dos_filehdr *)
+	const struct pecoff_dos_filehdr *dp = (const struct pecoff_dos_filehdr *)
 	imgp->image_header;
 	struct coff_filehdr *fp;
 	int             error, peofs;
