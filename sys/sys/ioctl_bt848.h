@@ -156,8 +156,8 @@ struct bktr_msp_control {
 };
 
 #define BT848_MSP_RESET _IO('x', 76)				/* MSP chip reset */
-#define BT848_MSP_READ  _IOWR('x', 77, struct bktr_msp_control)	/* MSP chip reset */
-#define BT848_MSP_WRITE _IOWR('x', 78, struct bktr_msp_control)	/* MSP chip reset */
+#define BT848_MSP_READ  _IOWR('x', 77, struct bktr_msp_control)	/* MSP chip read */
+#define BT848_MSP_WRITE _IOWR('x', 78, struct bktr_msp_control)	/* MSP chip write */
 
 /* Support for radio tuner */
 #define RADIO_SETMODE	 _IOW('x', 58, unsigned int)  /* set radio modes */
