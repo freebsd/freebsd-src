@@ -94,6 +94,8 @@ enum {
 	NGM_KSOCKET_GETOPT,
 };
 
+#ifdef _KERNEL
+
 /* Structure for sockaddr tag */
 struct sa_tag {
 	struct m_tag	tag;
@@ -103,4 +105,5 @@ struct sa_tag {
 /* Tag information ID's */
 #define NG_KSOCKET_TAG_SOCKADDR	1	/* data is struct sockaddr */
 
+#endif /* _KERNEL */
 #endif /* _NETGRAPH_NG_KSOCKET_H_ */
