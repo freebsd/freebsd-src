@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.91 1995/01/03 11:51:59 jkh Exp $
+# $Id: bsd.port.mk,v 1.92 1995/01/04 07:35:46 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -17,7 +17,9 @@
 #				  (default: ${PORTSDIR}/distfiles).
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
-#				  locally.
+#				  locally (default:
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles)
+#
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
 # MASTER_SITE_FREEBSD - If set, only use the FreeBSD master repository for
@@ -27,9 +29,12 @@
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf).
 #
-# Variables that typically apply to an individual port:
+# Variables that typically apply to an individual port.  Non-Boolean
+# variables without defaults are *mandatory*.
+# 
 #
-# WRKDIR 		- A temporary working directory that gets *clobbered* on clean.
+# WRKDIR 		- A temporary working directory that gets *clobbered* on clean
+#				  (default: ${.CURDIR}/work).
 # WRKSRC		- A subdirectory of ${WRKDIR} where the distribution actually
 #				  unpacks to.  (Default: ${WRKDIR}/${DISTNAME} unless
 #				  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
@@ -38,12 +43,17 @@
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
+#				  (default: ${DISTNAME}).
 # EXTRACT_ONLY	- If defined, a subset of ${DISTFILES} you want to
 #			  	  actually extract.
-# PATCHDIR 		- A directory containing any required patches.
-# SCRIPTDIR 	- A directory containing any auxilliary scripts.
+# PATCHDIR 		- A directory containing any required patches
+#				  (default: ${.CURDIR}/patches)
+# SCRIPTDIR 	- A directory containing any auxilliary scripts
+#				  (default: ${.CURDIR}/scripes)
 # FILESDIR 		- A directory containing any miscellaneous additional files.
+#				  (default: ${.CURDIR}/files)
 # PKGDIR 		- A direction containing any package creation files.
+#				  (default: ${.CURDIR}/pkg)
 #
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
@@ -60,11 +70,11 @@
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
-# CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
+# CONFIGURE_ARGS - Pass these args to configure, if ${HAS_CONFIGURE} set.
 # IS_INTERACTIVE - Set this if your port needs to interact with the user
-#				during a build.  User can then decide to skip this port by
-#				setting BATCH, or compile ONLY interactive ports by setting
-#				INTERACTIVE.
+#				  during a build.  User can then decide to skip this port by
+#				  setting ${BATCH}, or compiling only the interactive ports
+#				  by setting ${INTERACTIVE}.
 # DEPENDS		- A list of other ports this package depends on being
 #				  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
 #				  etc).
