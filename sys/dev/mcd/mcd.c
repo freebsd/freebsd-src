@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.55 1995/12/10 19:44:49 bde Exp $
+ *	$Id: mcd.c,v 1.56 1995/12/22 13:09:39 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -436,7 +436,7 @@ mcdstrategy(struct buf *bp)
 	if (unit >= NMCD || bp->b_blkno < 0) {
 		printf("mcdstrategy: unit = %d, blkno = %ld, bcount = %ld\n",
 			unit, bp->b_blkno, bp->b_bcount);
-		print("mcd: mcdstratregy failure");
+		printf("mcd: mcdstratregy failure");
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;
 		goto bad;
