@@ -320,7 +320,7 @@ doit(fromp)
 			exit(1);
 		}
 		fromp->su_port = htons(port);
-		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0) {
+		if (connect(s, (struct sockaddr *)fromp, fromp->su_len) < 0) {
 			syslog(LOG_INFO, "connect second port %d: %m", port);
 			exit(1);
 		}
