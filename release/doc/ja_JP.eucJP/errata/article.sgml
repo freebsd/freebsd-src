@@ -2,10 +2,10 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.59
+    Original revision: 1.61
 -->
 
-<!-- 
+<!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification
@@ -231,7 +231,7 @@
       いった、さまざまなエラーが発生するようです。
       こういった症状が現れる場合は、
       起動ローダの<quote>セーフモード</quote>オプションや
-      ローダ変数 <varname>hint.acpi.0.disabled</varname>
+      ローダ変数 <varname>hint.apic.0.disabled</varname>
       を使って、APIC ルーティングを無効にすると改善するかも知れません。
       ただし、APIC を無効にすると SMP システムの利用はできなくなります。</para>
 
@@ -264,6 +264,22 @@
       ある <username>root</username> ユーザが削除されてしまう可能性のある
       バグが含まれています。この port/package を使っている場合は、
       ぜひバージョン 3.1.4_1 へアップグレードするようお願いします。</para>
+
+    <para>(2004 年 1 月 21 日)
+      KAME プロジェクトから統合された IPSec 実装に、
+      まだ参照されているメモリオブジェクトを開放してしまう可能性のあるバグが
+      発見されました。今まで、セキュリティポリシデータベース
+      (SPD; Security Policy Database) をフラッシュした後に異常な動作をしたり、
+      カーネルパニックが発生するという症状が報告されています。
+      問題の一部は &os; &release.current; に含まれる
+      <filename>src/sys/netinet6/ipsec.c</filename> のリビジョン 1.31,
+      <filename>src/sys/netinet/in_pcb.c</filename> のリビジョン 1.136,
+      <filename>src/sys/netkey/key.c</filename> のリビジョン 1.64
+      で修正されました。この問題の詳細については、
+      &a.current; の投稿、特に
+      <ulink url="http://lists.FreeBSD.org/pipermail/freebsd-current/2004-January/thread.html#18084">
+	<quote>[PATCH] IPSec fixes</quote></ulink>
+      という題名のついたスレッドをご覧ください。</para>
 ]]>
 
   <sect1 id="late-news">
