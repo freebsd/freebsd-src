@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.45 1997/10/16 20:32:24 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.46 1997/10/16 21:59:59 phk Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1522,7 +1522,7 @@ devfs_dropvnode(dn_p dnp)
 
 vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_bmap_desc,		(vop_t *) devfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },

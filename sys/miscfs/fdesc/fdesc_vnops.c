@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.30 1997/10/16 20:32:25 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.31 1997/10/16 22:00:05 phk Exp $
  */
 
 /*
@@ -856,8 +856,8 @@ fdesc_badop()
 }
 
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_access_desc,		(vop_t *) nullop },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
+	{ &vop_access_desc,		(vop_t *) vop_null },
 	{ &vop_bmap_desc,		(vop_t *) fdesc_badop },
 	{ &vop_getattr_desc,		(vop_t *) fdesc_getattr },
 	{ &vop_inactive_desc,		(vop_t *) fdesc_inactive },

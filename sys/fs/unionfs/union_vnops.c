@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.44 1997/10/15 10:04:54 phk Exp $
+ * $Id: union_vnops.c,v 1.45 1997/10/16 20:32:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1739,7 +1739,7 @@ union_strategy(ap)
  */
 vop_t **union_vnodeop_p;
 static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) union_abortop },
 	{ &vop_access_desc,		(vop_t *) union_access },
 	{ &vop_advlock_desc,		(vop_t *) union_advlock },

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.25 1997/10/16 20:32:27 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.26 1997/10/16 22:00:19 phk Exp $
  */
 
 /*
@@ -649,7 +649,7 @@ kernfs_badop()
 
 vop_t	**kernfs_vnodeop_p;
 static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) kernfs_access },
 	{ &vop_bmap_desc,		(vop_t *) kernfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) kernfs_getattr },

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.33 1997/10/16 20:32:26 phk Exp $
+ * $Id: fifo_vnops.c,v 1.34 1997/10/16 22:00:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,6 @@ struct fifoinfo {
 	long		fi_writers;
 };
 
-static int	fifo_ebadf __P((void));
 static int	fifo_badop __P((void));
 static int	fifo_print __P((struct vop_print_args *));
 static int	fifo_lookup __P((struct vop_lookup_args *));
@@ -77,17 +76,17 @@ static int	fifo_advlock __P((struct vop_advlock_args *));
 
 vop_t **fifo_vnodeop_p;
 static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_abortop_desc,		(vop_t *) fifo_badop },
-	{ &vop_access_desc,		(vop_t *) fifo_ebadf },
+	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
 	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) fifo_badop },
-	{ &vop_getattr_desc,		(vop_t *) fifo_ebadf },
+	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
-	{ &vop_lease_desc,		(vop_t *) nullop },
+	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) fifo_badop },
 	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) fifo_badop },
@@ -100,11 +99,11 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) fifo_badop },
 	{ &vop_readlink_desc,		(vop_t *) fifo_badop },
 	{ &vop_reallocblks_desc,	(vop_t *) fifo_badop },
-	{ &vop_reclaim_desc,		(vop_t *) nullop },
+	{ &vop_reclaim_desc,		(vop_t *) vop_null },
 	{ &vop_remove_desc,		(vop_t *) fifo_badop },
 	{ &vop_rename_desc,		(vop_t *) fifo_badop },
 	{ &vop_rmdir_desc,		(vop_t *) fifo_badop },
-	{ &vop_setattr_desc,		(vop_t *) fifo_ebadf },
+	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) fifo_badop },
 	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
@@ -482,16 +481,6 @@ fifo_print(ap)
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);
-}
-
-/*
- * Fifo failed operation
- */
-static int
-fifo_ebadf()
-{
-
-	return (EBADF);
 }
 
 /*
