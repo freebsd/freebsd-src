@@ -205,7 +205,7 @@ static unsigned	malloc_ninfo;
 static struct pgfree free_list;
 
 /* Abort(), user doesn't handle problems.  */
-static int malloc_abort;
+static int malloc_abort = 1;
 
 /* Are we trying to die ?  */
 static int suicide;
@@ -226,7 +226,7 @@ static int malloc_sysv;
 static int malloc_zero;
 
 /* junk fill ?  */
-static int malloc_junk;
+static int malloc_junk = 1;
 
 #ifdef HAS_UTRACE
 
