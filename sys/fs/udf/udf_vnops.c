@@ -68,26 +68,21 @@ static vop_reclaim_t	udf_reclaim;
 static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, uint8_t **);
 static int udf_bmap_internal(struct udf_node *, uint32_t, daddr_t *, uint32_t *);
 
-vop_t **udf_vnodeop_p;
-static struct vnodeopv_entry_desc udf_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) udf_access },
-	{ &vop_bmap_desc,		(vop_t *) udf_bmap },
-	{ &vop_cachedlookup_desc,	(vop_t *) udf_lookup },
-	{ &vop_getattr_desc,		(vop_t *) udf_getattr },
-	{ &vop_ioctl_desc,		(vop_t *) udf_ioctl },
-	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_pathconf_desc,		(vop_t *) udf_pathconf },
-	{ &vop_read_desc,		(vop_t *) udf_read },
-	{ &vop_readdir_desc,		(vop_t *) udf_readdir },
-	{ &vop_readlink_desc,		(vop_t *) udf_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) udf_reclaim },
-	{ &vop_strategy_desc,		(vop_t *) udf_strategy },
-	{ NULL, NULL }
+static struct vop_vector udf_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		udf_access,
+	.vop_bmap =		udf_bmap,
+	.vop_cachedlookup =	udf_lookup,
+	.vop_getattr =		udf_getattr,
+	.vop_ioctl =		udf_ioctl,
+	.vop_lookup =		vfs_cache_lookup,
+	.vop_pathconf =		udf_pathconf,
+	.vop_read =		udf_read,
+	.vop_readdir =		udf_readdir,
+	.vop_readlink =		udf_readlink,
+	.vop_reclaim =		udf_reclaim,
+	.vop_strategy =		udf_strategy,
 };
-static struct vnodeopv_desc udf_vnodeop_opv_desc =
-	{ &udf_vnodeop_p, udf_vnodeop_entries };
-VNODEOP_SET(udf_vnodeop_opv_desc);
 
 MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
 MALLOC_DEFINE(M_UDFDS, "UDF DS", "UDF Dirstream structure");
@@ -171,7 +166,7 @@ udf_allocv(struct mount *mp, struct vnode **vpp, struct thread *td)
 	int error;
 	struct vnode *vp;
 
-	error = getnewvnode("udf", mp, udf_vnodeop_p, &vp);
+	error = getnewvnode("udf", mp, &udf_vnodeops, &vp);
 	if (error) {
 		printf("udf_allocv: failed to allocate new vnode\n");
 		return (error);

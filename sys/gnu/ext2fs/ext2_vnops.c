@@ -116,65 +116,54 @@ static int filt_ext2vnode(struct knote *kn, long hint);
 static void filt_ext2detach(struct knote *kn);
 
 /* Global vfs data structures for ext2. */
-vop_t **ext2_vnodeop_p;
-static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) ext2_access },
-	{ &vop_advlock_desc,		(vop_t *) ext2_advlock },
-	{ &vop_bmap_desc,		(vop_t *) ext2_bmap },
-	{ &vop_cachedlookup_desc,	(vop_t *) ext2_lookup },
-	{ &vop_close_desc,		(vop_t *) ext2_close },
-	{ &vop_create_desc,		(vop_t *) ext2_create },
-	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
-	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
-	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_link_desc,		(vop_t *) ext2_link },
-	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) ext2_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) ext2_mknod },
-	{ &vop_open_desc,		(vop_t *) ext2_open },
-	{ &vop_pathconf_desc,		(vop_t *) ext2_pathconf },
-	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
-	{ &vop_kqfilter_desc,		(vop_t *) ext2_kqfilter },
-	{ &vop_print_desc,		(vop_t *) ext2_print },
-	{ &vop_read_desc,		(vop_t *) ext2_read },
-	{ &vop_readdir_desc,		(vop_t *) ext2_readdir },
-	{ &vop_readlink_desc,		(vop_t *) ext2_readlink },
-	{ &vop_reallocblks_desc,	(vop_t *) ext2_reallocblks },
-	{ &vop_reclaim_desc,		(vop_t *) ext2_reclaim },
-	{ &vop_remove_desc,		(vop_t *) ext2_remove },
-	{ &vop_rename_desc,		(vop_t *) ext2_rename },
-	{ &vop_rmdir_desc,		(vop_t *) ext2_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
-	{ &vop_strategy_desc,		(vop_t *) ext2_strategy },
-	{ &vop_symlink_desc,		(vop_t *) ext2_symlink },
-	{ &vop_write_desc,		(vop_t *) ext2_write },
-	{ NULL, NULL }
+struct vop_vector ext2_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		ext2_access,
+	.vop_advlock =		ext2_advlock,
+	.vop_bmap =		ext2_bmap,
+	.vop_cachedlookup =	ext2_lookup,
+	.vop_close =		ext2_close,
+	.vop_create =		ext2_create,
+	.vop_fsync =		ext2_fsync,
+	.vop_getattr =		ext2_getattr,
+	.vop_inactive =		ext2_inactive,
+	.vop_link =		ext2_link,
+	.vop_lookup =		vfs_cache_lookup,
+	.vop_mkdir =		ext2_mkdir,
+	.vop_mknod =		ext2_mknod,
+	.vop_open =		ext2_open,
+	.vop_pathconf =		ext2_pathconf,
+	.vop_poll =		vop_stdpoll,
+	.vop_kqfilter =		ext2_kqfilter,
+	.vop_print =		ext2_print,
+	.vop_read =		ext2_read,
+	.vop_readdir =		ext2_readdir,
+	.vop_readlink =		ext2_readlink,
+	.vop_reallocblks =	ext2_reallocblks,
+	.vop_reclaim =		ext2_reclaim,
+	.vop_remove =		ext2_remove,
+	.vop_rename =		ext2_rename,
+	.vop_rmdir =		ext2_rmdir,
+	.vop_setattr =		ext2_setattr,
+	.vop_strategy =		ext2_strategy,
+	.vop_symlink =		ext2_symlink,
+	.vop_write =		ext2_write,
 };
-static struct vnodeopv_desc ext2fs_vnodeop_opv_desc =
-	{ &ext2_vnodeop_p, ext2_vnodeop_entries };
 
-vop_t **ext2_fifoop_p;
-static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-	{ &vop_access_desc,		(vop_t *) ext2_access },
-	{ &vop_close_desc,		(vop_t *) ext2fifo_close },
-	{ &vop_fsync_desc,		(vop_t *) ext2_fsync },
-	{ &vop_getattr_desc,		(vop_t *) ext2_getattr },
-	{ &vop_inactive_desc,		(vop_t *) ext2_inactive },
-	{ &vop_kqfilter_desc,		(vop_t *) ext2fifo_kqfilter },
-	{ &vop_print_desc,		(vop_t *) ext2_print },
-	{ &vop_read_desc,		(vop_t *) ext2fifo_read },
-	{ &vop_reclaim_desc,		(vop_t *) ext2_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) ext2_setattr },
-	{ &vop_write_desc,		(vop_t *) ext2fifo_write },
-	{ NULL, NULL }
+struct vop_vector ext2_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		ext2_access,
+	.vop_close =		ext2fifo_close,
+	.vop_fsync =		ext2_fsync,
+	.vop_getattr =		ext2_getattr,
+	.vop_inactive =		ext2_inactive,
+	.vop_kqfilter =		ext2fifo_kqfilter,
+	.vop_print =		ext2_print,
+	.vop_read =		ext2fifo_read,
+	.vop_reclaim =		ext2_reclaim,
+	.vop_setattr =		ext2_setattr,
+	.vop_write =		ext2fifo_write,
 };
-static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
-	{ &ext2_fifoop_p, ext2_fifoop_entries };
-
-	VNODEOP_SET(ext2fs_vnodeop_opv_desc);
-	VNODEOP_SET(ext2fs_fifoop_opv_desc);
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
@@ -1487,7 +1476,7 @@ ext2fifo_read(ap)
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
-	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap);
+	error = fifo_specops.vop_read(ap);
 	ip = VTOI(ap->a_vp);
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
 	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
@@ -1513,7 +1502,7 @@ ext2fifo_write(ap)
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
-	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
+	error = fifo_specops.vop_write(ap);
 	ip = VTOI(ap->a_vp);
 	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -1540,7 +1529,7 @@ ext2fifo_close(ap)
 	if (vp->v_usecount > 1)
 		ext2_itimes(vp);
 	VI_UNLOCK(vp);
-	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
+	return (fifo_specops.vop_close(ap));
 }
 
 /*
@@ -1554,7 +1543,7 @@ ext2fifo_kqfilter(ap)
 {
 	int error;
 
-	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_kqfilter), ap);
+	error = fifo_specops.vop_kqfilter(ap);
 	if (error)
 		error = ext2_kqfilter(ap);
 	return (error);
@@ -1622,7 +1611,7 @@ ext2_advlock(ap)
 int
 ext2_vinit(mntp, fifoops, vpp)
 	struct mount *mntp;
-	vop_t **fifoops;
+	struct vop_vector *fifoops;
 	struct vnode **vpp;
 {
 	struct inode *ip;

@@ -241,6 +241,8 @@ vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 
 vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
+	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
+	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.

@@ -763,7 +763,7 @@ pfs_setattr(struct vop_setattr_args *va)
  * Read from a file
  */
 static int
-pfs_write(struct vop_read_args *va)
+pfs_write(struct vop_write_args *va)
 {
 	struct vnode *vn = va->a_vp;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
@@ -822,35 +822,28 @@ pfs_write(struct vop_read_args *va)
 /*
  * Vnode operations
  */
-vop_t **pfs_vnodeop_p;
-static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *)vop_defaultop	},
-	{ &vop_access_desc,		(vop_t *)pfs_access	},
-	{ &vop_close_desc,		(vop_t *)pfs_close	},
-	{ &vop_create_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_getattr_desc,		(vop_t *)pfs_getattr	},
-	{ &vop_getextattr_desc,		(vop_t *)pfs_getextattr	},
-	{ &vop_ioctl_desc,		(vop_t *)pfs_ioctl	},
-	{ &vop_link_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_lookup_desc,		(vop_t *)pfs_lookup	},
-	{ &vop_mkdir_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_mknod_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_open_desc,		(vop_t *)pfs_open	},
-	{ &vop_read_desc,		(vop_t *)pfs_read	},
-	{ &vop_readdir_desc,		(vop_t *)pfs_readdir	},
-	{ &vop_readlink_desc,		(vop_t *)pfs_readlink	},
-	{ &vop_reclaim_desc,		(vop_t *)pfs_reclaim	},
-	{ &vop_remove_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_rename_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_rmdir_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
-	{ &vop_symlink_desc,		(vop_t *)vop_eopnotsupp	},
-	{ &vop_write_desc,		(vop_t *)pfs_write	},
-	/* XXX I've probably forgotten a few that need vop_eopnotsupp */
-	{ NULL,				(vop_t *)NULL		}
+struct vop_vector pfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		pfs_access,
+	.vop_close =		pfs_close,
+	.vop_create =		VOP_EOPNOTSUPP,
+	.vop_getattr =		pfs_getattr,
+	.vop_getextattr =	pfs_getextattr,
+	.vop_ioctl =		pfs_ioctl,
+	.vop_link =		VOP_EOPNOTSUPP,
+	.vop_lookup =		pfs_lookup,
+	.vop_mkdir =		VOP_EOPNOTSUPP,
+	.vop_mknod =		VOP_EOPNOTSUPP,
+	.vop_open =		pfs_open,
+	.vop_read =		pfs_read,
+	.vop_readdir =		pfs_readdir,
+	.vop_readlink =		pfs_readlink,
+	.vop_reclaim =		pfs_reclaim,
+	.vop_remove =		VOP_EOPNOTSUPP,
+	.vop_rename =		VOP_EOPNOTSUPP,
+	.vop_rmdir =		VOP_EOPNOTSUPP,
+	.vop_setattr =		pfs_setattr,
+	.vop_symlink =		VOP_EOPNOTSUPP,
+	.vop_write =		pfs_write,
+	/* XXX I've probably forgotten a few that need VOP_EOPNOTSUPP */
 };
-
-static struct vnodeopv_desc pfs_vnodeop_opv_desc =
-	{ &pfs_vnodeop_p, pfs_vnodeop_entries };
-
-VNODEOP_SET(pfs_vnodeop_opv_desc);

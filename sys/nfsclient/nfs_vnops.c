@@ -131,60 +131,50 @@ static vop_advlock_t	nfs_advlock;
 /*
  * Global vfs data structures for nfs
  */
-vop_t **nfs_vnodeop_p;
-static struct vnodeopv_entry_desc nfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) nfs_access },
-	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
-	{ &vop_close_desc,		(vop_t *) nfs_close },
-	{ &vop_create_desc,		(vop_t *) nfs_create },
-	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
-	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
-	{ &vop_putpages_desc,		(vop_t *) nfs_putpages },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) nfs_link },
-	{ &vop_lookup_desc,		(vop_t *) nfs_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) nfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) nfs_mknod },
-	{ &vop_open_desc,		(vop_t *) nfs_open },
-	{ &vop_print_desc,		(vop_t *) nfs_print },
-	{ &vop_read_desc,		(vop_t *) nfs_read },
-	{ &vop_readdir_desc,		(vop_t *) nfs_readdir },
-	{ &vop_readlink_desc,		(vop_t *) nfs_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) nfs_remove },
-	{ &vop_rename_desc,		(vop_t *) nfs_rename },
-	{ &vop_rmdir_desc,		(vop_t *) nfs_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) nfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) nfs_symlink },
-	{ &vop_write_desc,		(vop_t *) nfs_write },
-	{ NULL, NULL }
+struct vop_vector nfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		nfs_access,
+	.vop_advlock =		nfs_advlock,
+	.vop_close =		nfs_close,
+	.vop_create =		nfs_create,
+	.vop_fsync =		nfs_fsync,
+	.vop_getattr =		nfs_getattr,
+	.vop_getpages =		nfs_getpages,
+	.vop_putpages =		nfs_putpages,
+	.vop_inactive =		nfs_inactive,
+	.vop_lease =		VOP_NULL,
+	.vop_link =		nfs_link,
+	.vop_lookup =		nfs_lookup,
+	.vop_mkdir =		nfs_mkdir,
+	.vop_mknod =		nfs_mknod,
+	.vop_open =		nfs_open,
+	.vop_print =		nfs_print,
+	.vop_read =		nfs_read,
+	.vop_readdir =		nfs_readdir,
+	.vop_readlink =		nfs_readlink,
+	.vop_reclaim =		nfs_reclaim,
+	.vop_remove =		nfs_remove,
+	.vop_rename =		nfs_rename,
+	.vop_rmdir =		nfs_rmdir,
+	.vop_setattr =		nfs_setattr,
+	.vop_strategy =		nfs_strategy,
+	.vop_symlink =		nfs_symlink,
+	.vop_write =		nfs_write,
 };
-static struct vnodeopv_desc nfs_vnodeop_opv_desc =
-	{ &nfs_vnodeop_p, nfs_vnodeop_entries };
-VNODEOP_SET(nfs_vnodeop_opv_desc);
 
-vop_t **fifo_nfsnodeop_p;
-static struct vnodeopv_entry_desc nfs_fifoop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_close_desc,		(vop_t *) nfsfifo_close },
-	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_print_desc,		(vop_t *) nfs_print },
-	{ &vop_read_desc,		(vop_t *) nfsfifo_read },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
-	{ NULL, NULL }
+struct vop_vector nfs_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		nfsspec_access,
+	.vop_close =		nfsfifo_close,
+	.vop_fsync =		nfs_fsync,
+	.vop_getattr =		nfs_getattr,
+	.vop_inactive =		nfs_inactive,
+	.vop_print =		nfs_print,
+	.vop_read =		nfsfifo_read,
+	.vop_reclaim =		nfs_reclaim,
+	.vop_setattr =		nfs_setattr,
+	.vop_write =		nfsfifo_write,
 };
-static struct vnodeopv_desc fifo_nfsnodeop_opv_desc =
-	{ &fifo_nfsnodeop_p, nfs_fifoop_entries };
-VNODEOP_SET(fifo_nfsnodeop_opv_desc);
 
 static int	nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp,
 			     struct componentname *cnp, struct vattr *vap);
@@ -3046,7 +3036,7 @@ nfsfifo_read(struct vop_read_args *ap)
 	 */
 	np->n_flag |= NACC;
 	getnanotime(&np->n_atim);
-	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap));
+	return (fifo_specops.vop_read(ap));
 }
 
 /*
@@ -3062,7 +3052,7 @@ nfsfifo_write(struct vop_write_args *ap)
 	 */
 	np->n_flag |= NUPD;
 	getnanotime(&np->n_mtim);
-	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap));
+	return (fifo_specops.vop_write(ap));
 }
 
 /*
@@ -3097,7 +3087,7 @@ nfsfifo_close(struct vop_close_args *ap)
 			VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 	}
-	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
+	return (fifo_specops.vop_close(ap));
 }
 
 /*

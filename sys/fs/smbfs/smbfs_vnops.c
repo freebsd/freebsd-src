@@ -84,45 +84,38 @@ static vop_pathconf_t	smbfs_pathconf;
 static vop_advlock_t	smbfs_advlock;
 static vop_getextattr_t	smbfs_getextattr;
 
-vop_t **smbfs_vnodeop_p;
-static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) smbfs_access },
-	{ &vop_advlock_desc,		(vop_t *) smbfs_advlock },
-	{ &vop_close_desc,		(vop_t *) smbfs_close },
-	{ &vop_create_desc,		(vop_t *) smbfs_create },
-	{ &vop_fsync_desc,		(vop_t *) smbfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) smbfs_getattr },
-	{ &vop_getpages_desc,		(vop_t *) smbfs_getpages },
-	{ &vop_inactive_desc,		(vop_t *) smbfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) smbfs_ioctl },
-	{ &vop_link_desc,		(vop_t *) smbfs_link },
-	{ &vop_lookup_desc,		(vop_t *) smbfs_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) smbfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) smbfs_mknod },
-	{ &vop_open_desc,		(vop_t *) smbfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) smbfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) smbfs_print },
-	{ &vop_putpages_desc,		(vop_t *) smbfs_putpages },
-	{ &vop_read_desc,		(vop_t *) smbfs_read },
-	{ &vop_readdir_desc,		(vop_t *) smbfs_readdir },
-	{ &vop_reclaim_desc,		(vop_t *) smbfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) smbfs_remove },
-	{ &vop_rename_desc,		(vop_t *) smbfs_rename },
-	{ &vop_rmdir_desc,		(vop_t *) smbfs_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) smbfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) smbfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) smbfs_symlink },
-	{ &vop_write_desc,		(vop_t *) smbfs_write },
-	{ &vop_getextattr_desc, 	(vop_t *) smbfs_getextattr },
-/*	{ &vop_setextattr_desc,		(vop_t *) smbfs_setextattr },*/
-	{ NULL, NULL }
+struct vop_vector smbfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		smbfs_access,
+	.vop_advlock =		smbfs_advlock,
+	.vop_close =		smbfs_close,
+	.vop_create =		smbfs_create,
+	.vop_fsync =		smbfs_fsync,
+	.vop_getattr =		smbfs_getattr,
+	.vop_getpages =		smbfs_getpages,
+	.vop_inactive =		smbfs_inactive,
+	.vop_ioctl =		smbfs_ioctl,
+	.vop_link =		smbfs_link,
+	.vop_lookup =		smbfs_lookup,
+	.vop_mkdir =		smbfs_mkdir,
+	.vop_mknod =		smbfs_mknod,
+	.vop_open =		smbfs_open,
+	.vop_pathconf =		smbfs_pathconf,
+	.vop_print =		smbfs_print,
+	.vop_putpages =		smbfs_putpages,
+	.vop_read =		smbfs_read,
+	.vop_readdir =		smbfs_readdir,
+	.vop_reclaim =		smbfs_reclaim,
+	.vop_remove =		smbfs_remove,
+	.vop_rename =		smbfs_rename,
+	.vop_rmdir =		smbfs_rmdir,
+	.vop_setattr =		smbfs_setattr,
+	.vop_strategy =		smbfs_strategy,
+	.vop_symlink =		smbfs_symlink,
+	.vop_write =		smbfs_write,
+	.vop_getextattr = 	smbfs_getextattr,
+/*	.vop_setextattr =		smbfs_setextattr,*/
 };
-
-static struct vnodeopv_desc smbfs_vnodeop_opv_desc =
-	{ &smbfs_vnodeop_p, smbfs_vnodeop_entries };
-
-VNODEOP_SET(smbfs_vnodeop_opv_desc);
 
 static int
 smbfs_access(ap)

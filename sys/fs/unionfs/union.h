@@ -134,7 +134,7 @@ extern int (*union_dircheckp)(struct thread *, struct vnode **,
 #define UDEBUG(x)	if (uniondebug) printf x
 #define UDEBUG_ENABLED	1
 
-extern vop_t **union_vnodeop_p;
+extern struct vop_vector union_vnodeops;
 extern struct vfsops union_vfsops;
 extern int uniondebug;
 

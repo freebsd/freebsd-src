@@ -780,44 +780,33 @@ cd9660_pathconf(ap)
 /*
  * Global vfs data structures for cd9660
  */
-vop_t **cd9660_vnodeop_p;
-static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_bmap_desc,		(vop_t *) cd9660_bmap },
-	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },
-	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
-	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
-	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
-	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
-	{ &vop_read_desc,		(vop_t *) cd9660_read },
-	{ &vop_readdir_desc,		(vop_t *) cd9660_readdir },
-	{ &vop_readlink_desc,		(vop_t *) cd9660_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
-	{ NULL, NULL }
+struct vop_vector cd9660_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		cd9660_access,
+	.vop_bmap =		cd9660_bmap,
+	.vop_cachedlookup =	cd9660_lookup,
+	.vop_getattr =		cd9660_getattr,
+	.vop_inactive =		cd9660_inactive,
+	.vop_ioctl =		cd9660_ioctl,
+	.vop_lookup =		vfs_cache_lookup,
+	.vop_pathconf =		cd9660_pathconf,
+	.vop_read =		cd9660_read,
+	.vop_readdir =		cd9660_readdir,
+	.vop_readlink =		cd9660_readlink,
+	.vop_reclaim =		cd9660_reclaim,
+	.vop_setattr =		cd9660_setattr,
+	.vop_strategy =		cd9660_strategy,
 };
-static struct vnodeopv_desc cd9660_vnodeop_opv_desc =
-	{ &cd9660_vnodeop_p, cd9660_vnodeop_entries };
-VNODEOP_SET(cd9660_vnodeop_opv_desc);
 
 /*
  * Special device vnode ops
  */
 
-vop_t **cd9660_fifoop_p;
-static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
-	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
-	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ NULL, NULL }
+struct vop_vector cd9660_fifoops = {
+	.vop_default =		&fifo_specops,
+	.vop_access =		cd9660_access,
+	.vop_getattr =		cd9660_getattr,
+	.vop_inactive =		cd9660_inactive,
+	.vop_reclaim =		cd9660_reclaim,
+	.vop_setattr =		cd9660_setattr,
 };
-static struct vnodeopv_desc cd9660_fifoop_opv_desc =
-	{ &cd9660_fifoop_p, cd9660_fifoop_entries };
-
-VNODEOP_SET(cd9660_fifoop_opv_desc);

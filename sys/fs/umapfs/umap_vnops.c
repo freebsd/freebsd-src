@@ -506,19 +506,13 @@ umap_rename(ap)
  * go away with a merged buffer/block cache.
  *
  */
-vop_t **umap_vnodeop_p;
-static struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) umap_bypass },
-	{ &vop_getattr_desc,		(vop_t *) umap_getattr },
-	{ &vop_inactive_desc,		(vop_t *) umap_inactive },
-	{ &vop_lock_desc,		(vop_t *) umap_lock },
-	{ &vop_print_desc,		(vop_t *) umap_print },
-	{ &vop_reclaim_desc,		(vop_t *) umap_reclaim },
-	{ &vop_rename_desc,		(vop_t *) umap_rename },
-	{ &vop_unlock_desc,		(vop_t *) umap_unlock },
-	{ NULL, NULL }
+static struct vop_vector umap_vnodeops = {
+	.vop_default =		umap_bypass,
+	.vop_getattr =		umap_getattr,
+	.vop_inactive =		umap_inactive,
+	.vop_lock =		umap_lock,
+	.vop_print =		umap_print,
+	.vop_reclaim =		umap_reclaim,
+	.vop_rename =		umap_rename,
+	.vop_unlock =		umap_unlock,
 };
-static struct vnodeopv_desc umap_vnodeop_opv_desc =
-	{ &umap_vnodeop_p, umap_vnodeop_entries };
-
-VNODEOP_SET(umap_vnodeop_opv_desc);

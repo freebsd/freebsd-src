@@ -47,38 +47,38 @@
 
 
 /* NetBSD interfaces to the vnodeops */
-int coda_open(void *);
-int coda_close(void *);
-int coda_read(void *);
-int coda_write(void *);
-int coda_ioctl(void *);
+vop_open_t coda_open;
+vop_close_t coda_close;
+vop_read_t coda_read;
+vop_write_t coda_write;
+vop_ioctl_t coda_ioctl;
 /* 1.3 int cfs_select(void *);*/
-int coda_getattr(void *);
-int coda_setattr(void *);
-int coda_access(void *);
+vop_getattr_t coda_getattr;
+vop_setattr_t coda_setattr;
+vop_access_t coda_access;
 int coda_abortop(void *);
-int coda_readlink(void *);
-int coda_fsync(void *);
-int coda_inactive(void *);
-int coda_lookup(void *);
-int coda_create(void *);
-int coda_remove(void *);
-int coda_link(void *);
-int coda_rename(void *);
-int coda_mkdir(void *);
-int coda_rmdir(void *);
-int coda_symlink(void *);
-int coda_readdir(void *);
-int coda_bmap(void *);
-int coda_strategy(void *);
-int coda_reclaim(void *);
-int coda_lock(void *);
-int coda_unlock(void *);
-int coda_islocked(void *);
+vop_readlink_t coda_readlink;
+vop_fsync_t coda_fsync;
+vop_inactive_t coda_inactive;
+vop_lookup_t coda_lookup;
+vop_create_t coda_create;
+vop_remove_t coda_remove;
+vop_link_t coda_link;
+vop_rename_t coda_rename;
+vop_mkdir_t coda_mkdir;
+vop_rmdir_t coda_rmdir;
+vop_symlink_t coda_symlink;
+vop_readdir_t coda_readdir;
+vop_bmap_t coda_bmap;
+vop_strategy_t coda_strategy;
+vop_reclaim_t coda_reclaim;
+vop_lock_t coda_lock;
+vop_unlock_t coda_unlock;
+vop_islocked_t coda_islocked;
 int coda_vop_error(void *);
 int coda_vop_nop(void *);
 int coda_fbsd_getpages	(void *);
-int coda_pathconf(void *);
+vop_pathconf_t coda_pathconf;
 
 int coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw,
     int ioflag, struct ucred *cred, struct thread *td);

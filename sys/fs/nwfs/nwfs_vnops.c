@@ -83,41 +83,35 @@ static vop_print_t	nwfs_print;
 static vop_pathconf_t	nwfs_pathconf;
 
 /* Global vfs data structures for nwfs */
-vop_t **nwfs_vnodeop_p;
-static struct vnodeopv_entry_desc nwfs_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) nwfs_access },
-	{ &vop_open_desc,		(vop_t *) nwfs_open },
-	{ &vop_close_desc,		(vop_t *) nwfs_close },
-	{ &vop_create_desc,		(vop_t *) nwfs_create },
-	{ &vop_fsync_desc,		(vop_t *) nwfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nwfs_getattr },
-	{ &vop_getpages_desc,		(vop_t *) nwfs_getpages },
-	{ &vop_putpages_desc,		(vop_t *) nwfs_putpages },
-	{ &vop_ioctl_desc,		(vop_t *) nwfs_ioctl },
-	{ &vop_inactive_desc,		(vop_t *) nwfs_inactive },
-	{ &vop_link_desc,		(vop_t *) nwfs_link },
-	{ &vop_lookup_desc,		(vop_t *) nwfs_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) nwfs_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) nwfs_mknod },
-	{ &vop_pathconf_desc,		(vop_t *) nwfs_pathconf },
-	{ &vop_print_desc,		(vop_t *) nwfs_print },
-	{ &vop_read_desc,		(vop_t *) nwfs_read },
-	{ &vop_readdir_desc,		(vop_t *) nwfs_readdir },
-	{ &vop_reclaim_desc,		(vop_t *) nwfs_reclaim },
-	{ &vop_remove_desc,		(vop_t *) nwfs_remove },
-	{ &vop_rename_desc,		(vop_t *) nwfs_rename },
-	{ &vop_rmdir_desc,		(vop_t *) nwfs_rmdir },
-	{ &vop_setattr_desc,		(vop_t *) nwfs_setattr },
-	{ &vop_strategy_desc,		(vop_t *) nwfs_strategy },
-	{ &vop_symlink_desc,		(vop_t *) nwfs_symlink },
-	{ &vop_write_desc,		(vop_t *) nwfs_write },
-	{ NULL, NULL }
+static struct vop_vector nwfs_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		nwfs_access,
+	.vop_open =		nwfs_open,
+	.vop_close =		nwfs_close,
+	.vop_create =		nwfs_create,
+	.vop_fsync =		nwfs_fsync,
+	.vop_getattr =		nwfs_getattr,
+	.vop_getpages =		nwfs_getpages,
+	.vop_putpages =		nwfs_putpages,
+	.vop_ioctl =		nwfs_ioctl,
+	.vop_inactive =		nwfs_inactive,
+	.vop_link =		nwfs_link,
+	.vop_lookup =		nwfs_lookup,
+	.vop_mkdir =		nwfs_mkdir,
+	.vop_mknod =		nwfs_mknod,
+	.vop_pathconf =		nwfs_pathconf,
+	.vop_print =		nwfs_print,
+	.vop_read =		nwfs_read,
+	.vop_readdir =		nwfs_readdir,
+	.vop_reclaim =		nwfs_reclaim,
+	.vop_remove =		nwfs_remove,
+	.vop_rename =		nwfs_rename,
+	.vop_rmdir =		nwfs_rmdir,
+	.vop_setattr =		nwfs_setattr,
+	.vop_strategy =		nwfs_strategy,
+	.vop_symlink =		nwfs_symlink,
+	.vop_write =		nwfs_write,
 };
-static struct vnodeopv_desc nwfs_vnodeop_opv_desc =
-	{ &nwfs_vnodeop_p, nwfs_vnodeop_entries };
-
-VNODEOP_SET(nwfs_vnodeop_opv_desc);
 
 /*
  * nwfs_access vnode op

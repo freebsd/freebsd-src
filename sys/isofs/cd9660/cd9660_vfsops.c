@@ -729,7 +729,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		return (0);
 
 	/* Allocate a new vnode/iso_node. */
-	if ((error = getnewvnode("isofs", mp, cd9660_vnodeop_p, &vp)) != 0) {
+	if ((error = getnewvnode("isofs", mp, &cd9660_vnodeops, &vp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -870,7 +870,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	 */
 	switch (vp->v_type = IFTOVT(ip->inode.iso_mode)) {
 	case VFIFO:
-		vp->v_op = cd9660_fifoop_p;
+		vp->v_op = &cd9660_fifoops;
 		break;
 	default:
 		break;

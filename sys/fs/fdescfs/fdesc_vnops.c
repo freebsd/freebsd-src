@@ -60,8 +60,6 @@
 #define FDL_LOCKED	0x02
 static int fdcache_lock;
 
-static vop_t **fdesc_vnodeop_p;
-
 #define	NFDCACHE 4
 #define FD_NHASH(ix) \
 	(&fdhashtbl[(ix) & fdhash])
@@ -75,6 +73,8 @@ static vop_open_t	fdesc_open;
 static vop_readdir_t	fdesc_readdir;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
+
+extern struct vop_vector fdesc_vnodeops;
 
 /*
  * Initialise cache headers
@@ -129,7 +129,7 @@ loop:
 	 */
 	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
 
-	error = getnewvnode("fdesc", mp, fdesc_vnodeop_p, vpp);
+	error = getnewvnode("fdesc", mp, &fdesc_vnodeops, vpp);
 	if (error) {
 		FREE(fd, M_TEMP);
 		goto out;
@@ -519,20 +519,15 @@ fdesc_reclaim(ap)
 	return (0);
 }
 
-static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) vop_null },
-	{ &vop_getattr_desc,		(vop_t *) fdesc_getattr },
-	{ &vop_inactive_desc,		(vop_t *) fdesc_inactive },
-	{ &vop_lookup_desc,		(vop_t *) fdesc_lookup },
-	{ &vop_open_desc,		(vop_t *) fdesc_open },
-	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
-	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
-	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
-	{ NULL, NULL }
+static struct vop_vector fdesc_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		VOP_NULL,
+	.vop_getattr =		fdesc_getattr,
+	.vop_inactive =		fdesc_inactive,
+	.vop_lookup =		fdesc_lookup,
+	.vop_open =		fdesc_open,
+	.vop_pathconf =		vop_stdpathconf,
+	.vop_readdir =		fdesc_readdir,
+	.vop_reclaim =		fdesc_reclaim,
+	.vop_setattr =		fdesc_setattr,
 };
-static struct vnodeopv_desc fdesc_vnodeop_opv_desc =
-	{ &fdesc_vnodeop_p, fdesc_vnodeop_entries };
-
-VNODEOP_SET(fdesc_vnodeop_opv_desc);
