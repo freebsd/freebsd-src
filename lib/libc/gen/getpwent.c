@@ -1392,8 +1392,30 @@ compat_endstate(void *p)
 static int
 compat_setpwent(void *retval, void *mdata, va_list ap)
 {
+	static const ns_src compatsrc[] = {
+#ifdef YP
+		{ NSSRC_NIS, NS_SUCCESS },
+#endif
+		{ NULL, 0 }
+	};
+	ns_dtab dtab[] = {
+#ifdef YP
+		{ NSSRC_NIS, nis_setpwent, NULL },
+#endif
+#ifdef HESIOD
+		{ NSSRC_DNS, dns_setpwent, NULL },
+#endif
+		{ NULL, NULL, NULL }
+	};
 	struct compat_state	*st;
 	int			 rv, stayopen;
+
+#define set_setent(x, y) do {	 				\
+	int i;							\
+								\
+	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+		x[i].mdata = (void *)y;				\
+} while (0)
 
 	rv = compat_getstate(&st);
 	if (rv != 0)
@@ -1405,17 +1427,24 @@ compat_setpwent(void *retval, void *mdata, va_list ap)
 		if (stayopen)
 			st->db = pwdbopen(&st->version);
 		st->stayopen = stayopen;
+		set_setent(dtab, mdata);
+		(void)_nsdispatch(NULL, dtab, NSDB_PASSWD_COMPAT, "setpwent",
+		    compatsrc, 0);
 		break;
 	case ENDPWENT:
 		if (st->db != NULL) {
 			(void)st->db->close(st->db);
 			st->db = NULL;
 		}
+		set_setent(dtab, mdata);
+		(void)_nsdispatch(NULL, dtab, NSDB_PASSWD_COMPAT, "endpwent",
+		    compatsrc, 0);
 		break;
 	default:
 		break;
 	}
 	return (NS_UNAVAIL);
+#undef set_setent
 }
 
 
