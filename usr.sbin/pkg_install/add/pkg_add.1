@@ -262,7 +262,10 @@ for subsequent possible use by
 .Xr pkg_delete 8 .
 Any package dependencies are recorded in the other packages' 
 .Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
-file.
+file
+(if the environment variable PKG_DBDIR is set, this overrides the
+.Pa /var/db/pkg/
+path shown above).
 .It
 Finally, the staging area is deleted and the program terminates.
 .El

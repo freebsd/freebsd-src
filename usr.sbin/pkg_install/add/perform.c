@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.14 1995/04/09 15:04:52 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.15 1995/04/10 08:01:44 jkh Exp $";
 #endif
 
 /*
@@ -58,6 +58,7 @@ pkg_do(char *pkg)
 {
     char pkg_fullname[FILENAME_MAX];
     char home[FILENAME_MAX];
+    char *tmp;
     FILE *cfile;
     int code = 0;
     PackingList p;
@@ -131,9 +132,10 @@ pkg_do(char *pkg)
     }
     setenv(PKG_PREFIX_VNAME,
 	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
-    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
     /* Protect against old packages with bogus @name fields */
-    sprintf(LogDir, "%s/%s", LOG_DIR, basename_of(PkgName));
+    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+    	    basename_of(PkgName));
     if (isdir(LogDir)) {
 	whinge("Package `%s' already recorded as installed.\n", PkgName);
 	code = 1;
@@ -269,8 +271,9 @@ pkg_do(char *pkg)
 	    code = 1;
 	    goto success;	/* well, partial anyway */
 	}
-	/* Protect against old packages with bogus @name fields */
-	sprintf(LogDir, "%s/%s", LOG_DIR, basename_of(PkgName));
+	sprintf(LogDir, "%s/%s",
+		(tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+    	    	basename_of(PkgName));
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
 	if (make_hierarchy(LogDir)) {
@@ -305,8 +308,9 @@ pkg_do(char *pkg)
 	    if (Verbose)
 		printf("Attempting to record dependency on package `%s'\n",
 		       p->name);
-	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename_of(p->name),
-		    REQUIRED_BY_FNAME);
+	    sprintf(contents, "%s/%s/%s",
+	    	    (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+	    	    basename_of(p->name), REQUIRED_BY_FNAME);
 	    cfile = fopen(contents, "a");
 	    if (!cfile) {
 		whinge("Can't open dependency file '%s'!\n\tDependency registration incomplete.",
