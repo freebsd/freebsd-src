@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 1.4 1994/08/24 23:54:33 thyagara Exp $
+ * $Id: prune.c,v 1.2 1994/09/08 02:51:23 wollman Exp $
  */
 
 
@@ -530,7 +530,12 @@ void send_prune(kt)
 	*p++ = ((char *)&(kt->kt_origin))[i];
     for (i = 0; i < 4; i++)
 	*p++ = ((char *)&(kt->kt_mcastgrp))[i];
+#if BYTE_ORDER == BIG_ENDIAN
     for (i = 0; i < 4; i++)
+#endif
+#if BYTE_ORDER == LITTLE_ENDIAN
+    for (i = 3; i >= 0; i--)
+#endif
 	*p++ = ((char *)&(kt->kt_prsent_timer))[i];
     datalen += 12;
     
@@ -589,7 +594,12 @@ void accept_prune(src, dst, p, datalen)
 	((char *)&prun_src)[i] = *p++;
     for (i = 0; i< 4; i++)
 	((char *)&prun_dst)[i] = *p++;
+#if BYTE_ORDER == BIG_ENDIAN
     for (i = 0; i< 4; i++)
+#endif
+#if BYTE_ORDER == LITTLE_ENDIAN
+    for (i = 3; i >= 0; i--)
+#endif
 	((char *)&prun_tmr)[i] = *p++;
     
     kt = find_src_grp(prun_src, prun_dst);
@@ -1051,7 +1061,7 @@ void age_table_entry()
 	     krl;
 	     prev_krl = krl, krl = krl->rl_next) {
 	    if ((krl->rl_timer -= ROUTE_MAX_REPORT_DELAY) <= 0) {
-		log(LOG_DEBUG, 0, "forw again s %x g%x on vif %d", 
+              log(LOG_DEBUG, 0, "forw again s %x g %x on vif %d",
 		    kt->kt_origin, kt->kt_mcastgrp, krl->rl_vifi);
 		
 		if (!VIFM_ISSET(krl->rl_vifi, kt->kt_grpmems)) {
