@@ -36,7 +36,7 @@
  * we need to pretend to be enough of an Ethernet implementation
  * to make arp work.  The way we do this is by telling everyone
  * that we are an Ethernet, and then catch the packets that
- * ether_output() left on our output queue queue when it calls
+ * ether_output() left on our output queue when it calls
  * if_start(), rewrite them for use by the real outgoing interface,
  * and ask it to send them.
  *
