@@ -836,7 +836,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			 * This is SERIOUS! We are out of sync with the sender
 			 * and forcing a disconnect/reconnect is all I can do.
 			 */
-			if (len > NFS_MAXPACKET) {
+			if (len > NFS_MAXPACKET || len == 0) {
 				log(LOG_ERR, "%s (%d) from nfs server %s\n",
 				    "impossible packet length",
 				    len,
