@@ -196,7 +196,6 @@ mb_put_mem(struct mbchain *mbp, c_caddr_t source, int size, int type)
 				if (m == NULL)
 					return ENOBUFS;
 			}
-			m = m->m_next;
 			mleft = M_TRAILINGSPACE(m);
 			continue;
 		}
