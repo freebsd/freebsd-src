@@ -285,7 +285,7 @@ DMenu MenuInitial = {
     "first character of the option name you're interested in.  Invoke an\n"
     "option by pressing [ENTER] or [TAB-ENTER] to exit the installation.", 
     "Press F1 for Installation Guide",			/* help line */
-    "install",						/* help file */
+    "INSTALL",						/* help file */
     { { "Select" },
       { "X Exit Install",	NULL, NULL, dmenuExit },
       { " Usage",	"Quick start - How to use this menu system",	NULL, dmenuDisplayFile, NULL, "usage" },
@@ -416,7 +416,7 @@ DMenu MenuMediaCDROM = {
     "more than one CDROM drive was found on your system.  Please select one\n"
     "of the following CDROM drives as your installation drive.",
     "Press F1 to read the installation guide",
-    "install",
+    "INSTALL",
     { { NULL } },
 };
 
@@ -442,7 +442,7 @@ DMenu MenuMediaDOS = {
     "Otherwise, please select the DOS partition containing the FreeBSD\n"
     "distribution files.",
     "Press F1 to read the installation guide",
-    "install",
+    "INSTALL",
     { { NULL } },
 };
 
@@ -454,7 +454,7 @@ DMenu MenuMediaFTP = {
     "carries more than the base distribution kits. Only the Primary site is\n"
     "guaranteed to carry the full range of possible distributions.",
     "Select a site that's close!",
-    "install",
+    "INSTALL",
     { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org" },
       { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
@@ -654,7 +654,7 @@ DMenu MenuMediaTape = {
     "in one pass).  If you have sufficient space for this, then you should\n"
     "select one of the following tape devices detected on your system.",
     "Press F1 to read the installation guide",
-    "install",
+    "INSTALL",
     { { NULL } },
 };
 
@@ -1141,7 +1141,7 @@ DMenu MenuInstallCustom = {
     "details on the type of distribution you wish to have, where you wish\n"
     "to install it from and how you wish to allocate disk storage to FreeBSD.",
     "Press F1 to read the installation guide",
-    "install",
+    "INSTALL",
     { { "X Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { "2 Options",		"View/Set various installation options", NULL, optionsEditor },
 #ifdef __alpha__
