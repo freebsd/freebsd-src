@@ -1487,9 +1487,6 @@ device		miibus
 #       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
 #       KNE110TX.
 # de:   Digital Equipment DC21040
-# ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
-#       (requires miibus)
 # em:   Intel Pro/1000 Gigabit Ethernet 82542, 82543, 82544 based adapters.
 # ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
 #       and PC Card devices using these chipsets.
@@ -1584,12 +1581,6 @@ hint.cm.0.maddr="0xdc000"
 device		cs
 hint.cs.0.at="isa"
 hint.cs.0.port="0x300"
-device		ed
-#options 	ED_NO_MIIBUS		# Disable ed miibus support
-hint.ed.0.at="isa"
-hint.ed.0.port="0x280"
-hint.ed.0.irq="5"
-hint.ed.0.maddr="0xd8000"
 device		ep
 device		ex
 device		fe
