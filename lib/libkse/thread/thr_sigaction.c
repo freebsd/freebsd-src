@@ -42,6 +42,7 @@ int
 _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
 	int ret = 0;
+	int err = 0;
 	struct sigaction newact, oldact;
 	struct pthread *curthread;
 	kse_critical_t crit;
@@ -58,14 +59,8 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		crit = _kse_critical_enter();
 		curthread = _get_curthread();
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
-		/*
-		 * Check if the existing signal action structure contents are
-		 * to be returned: 
-		 */
-		if (oact != NULL) {
-			/* Return the existing signal action contents: */
-			oldact = _thread_sigact[sig - 1];
-		}
+
+		oldact = _thread_sigact[sig - 1];
 
 		/* Check if a signal action was supplied: */
 		if (act != NULL) {
@@ -94,14 +89,27 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 				newact.sa_handler = (void (*) ())_thr_sig_handler;
 			}
 			/* Change the signal action in the kernel: */
-			if (__sys_sigaction(sig, &newact, NULL) != 0)
+			if (__sys_sigaction(sig, &newact, NULL) != 0) {
+				_thread_sigact[sig - 1] = oldact;
+				/* errno is in kse, will copy it to thread */
+				err = errno;
 				ret = -1;
+			}
 		}
 		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
 		_kse_critical_leave(crit);
-
-		if (oact != NULL)
+		/*
+		 * Check if the existing signal action structure contents are
+		 * to be returned: 
+		*/
+		if (oact != NULL) {
+			/* Return the existing signal action contents: */
 			*oact = oldact;
+		}
+		if (ret != 0) {
+			/* Return errno to thread */
+			errno = err;
+		}
 	}
 
 	/* Return the completion status: */
