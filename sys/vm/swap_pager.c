@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.13 1994/10/14 12:26:17 davidg Exp $
+ * $Id: swap_pager.c,v 1.14 1994/10/15 13:33:06 davidg Exp $
  */
 
 /*
@@ -141,6 +141,8 @@ int dmmin, dmmax;
 extern int vm_page_count;
 
 static inline void swapsizecheck() {
+	if( vm_swap_size == 0)
+		return;
 	if( vm_swap_size < 128*btodb(PAGE_SIZE)) {
 		if( swap_pager_full)
 			printf("swap_pager: out of space\n");
@@ -235,9 +237,11 @@ swap_pager_alloc(handle, size, prot, offset)
 		}
 	}
 
-	if (swap_pager_full) {
+/*
+	if (swap_pager_full && (vm_swap_size == 0)) {
 		return(NULL);
 	}
+*/
 
 	/*
 	 * Pager doesn't exist, allocate swap management resources
@@ -533,6 +537,9 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 	sw_pager_t srcswp, dstswp;
 	vm_offset_t i;
 	int s;
+
+	if( vm_swap_size == 0)
+		return;
 
 	srcswp = (sw_pager_t) srcpager->pg_data;
 	dstswp = (sw_pager_t) dstpager->pg_data;
@@ -1204,6 +1211,12 @@ swap_pager_output(swp, m, count, flags, rtvals)
 	if( count > 1)
 		printf("off: 0x%x, count: %d\n", m[0]->offset, count);
 */
+	if( vm_swap_size == 0) {
+		for(i=0;i<count;i++)
+			rtvals[i] = VM_PAGER_FAIL;
+		return VM_PAGER_FAIL;
+	}
+
 	spc = NULL;
 
 	object = m[0]->object;

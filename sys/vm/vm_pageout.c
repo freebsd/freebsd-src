@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.18 1994/10/15 13:33:08 davidg Exp $
+ * $Id: vm_pageout.c,v 1.19 1994/10/18 14:59:20 davidg Exp $
  */
 
 /*
@@ -97,6 +97,7 @@ extern int hz;
 int	vm_pageout_proc_limit;
 extern int nswiodone;
 extern int swap_pager_full;
+extern int vm_swap_size;
 extern int swap_pager_ready();
 
 #define MAXREF 32767
@@ -483,7 +484,8 @@ vm_pageout_scan()
 	int		pages_freed;
 	int		desired_free;
 	vm_page_t	next;
-	struct proc	*p;
+	struct proc	*p, *bigproc;
+	vm_offset_t size, bigsize;
 	vm_object_t	object;
 	int		force_wakeup = 0;
 	int		cache_size, orig_cache_size;
@@ -510,7 +512,7 @@ redeact:
 	object = vm_object_cached_list.tqh_first;
 	vm_object_cache_lock();
 	while ( object && (cnt.v_inactive_count < cnt.v_inactive_target) &&
-		(cache_size >= vm_desired_cache_size)) {
+		(cache_size >= (vm_swap_size?vm_desired_cache_size:0))) {
 		vm_object_cache_unlock();
 
 		/*
@@ -538,7 +540,7 @@ morefree:
 	/*
 	 * now swap processes out if we are in low memory conditions
 	 */
-	if (cnt.v_free_count <= cnt.v_free_min) {
+	if ((cnt.v_free_count <= cnt.v_free_min) && !swap_pager_full && vm_swap_size) {
 		/*
 		 * swap out inactive processes
 		 */
@@ -551,7 +553,6 @@ morefree:
 	 */
 
 	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-		vm_offset_t size;
 		int overage;
 		quad_t limit;
 
@@ -714,7 +715,7 @@ rescan1:
 	if (page_shortage <= 0) {
 		if (pages_freed == 0) {
 			if( cnt.v_free_count < cnt.v_free_min) {
-				page_shortage = cnt.v_free_min - cnt.v_free_count;
+				page_shortage = cnt.v_free_min - cnt.v_free_count + 1;
 			} else if(((cnt.v_free_count + cnt.v_inactive_count) <
 				(cnt.v_free_min + cnt.v_inactive_target))) {
 				page_shortage = 1;
@@ -780,11 +781,57 @@ rescan1:
 	 * then we keep trying until we get some (any) memory.
 	 */
 
-	if( !force_wakeup && (swap_pager_full || !force_wakeup ||
-		(pages_freed == 0 && (cnt.v_free_count < cnt.v_free_min)))){
+	if (!force_wakeup && (swap_pager_full || !force_wakeup ||
+	    (pages_freed == 0 && (cnt.v_free_count < cnt.v_free_min)))){
 		vm_pager_sync();
 		force_wakeup = 1;
 		goto morefree;
+	}
+
+	/*
+	 * make sure that we have swap space -- if we are low on
+	 * memory and swap -- then kill the biggest process.
+	 */
+	if ((vm_swap_size == 0 || swap_pager_full) &&
+	    (cnt.v_free_count < cnt.v_free_min)) {
+		bigproc = NULL;
+		bigsize = 0;
+		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+			/*
+			 * if this is a system process, skip it
+			 */
+			if ((p->p_flag & P_SYSTEM) || ((p->p_pid < 48) && (vm_swap_size != 0))) {
+				continue;
+			}
+
+			/*
+			 * if the process is in a non-running type state,
+			 * don't touch it.
+			 */
+			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+				continue;
+			}
+			/*
+			 * get the process size
+			 */
+			size = p->p_vmspace->vm_pmap.pm_stats.resident_count;
+			/*
+			 * if the this process is bigger than the biggest one
+			 * remember it.
+			 */
+			if (size > bigsize) {
+				bigproc = p;
+				bigsize = size;
+			}
+		}
+		if (bigproc != NULL) {
+			printf("Process %lu killed by vm_pageout -- out of swap\n", (u_long)bigproc->p_pid);
+			psignal(bigproc, SIGKILL);
+			bigproc->p_estcpu = 0;
+			bigproc->p_nice = PRIO_MIN;
+			resetpriority(bigproc);
+			wakeup( (caddr_t) &cnt.v_free_count);
+		}
 	}
 	vm_page_pagesfreed += pages_freed;
 	return force_wakeup;
