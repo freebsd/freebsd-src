@@ -2073,6 +2073,9 @@
     driver)
       <itemizedlist>
         <listitem>
+	  <para>Avlab Technology, PCI IO 2S</para>
+	</listitem>
+        <listitem>
 	  <para>Moxa Industio CP-114</para>
 	</listitem>
         <listitem>
