@@ -236,9 +236,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object->ref_count++;
 		VM_OBJECT_UNLOCK(object);
 	}
-	VI_LOCK(vp);
-	vp->v_usecount++;
-	VI_UNLOCK(vp);
+	vref(vp);
 	return (object);
 }
 
