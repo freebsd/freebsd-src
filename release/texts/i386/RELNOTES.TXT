@@ -1473,6 +1473,7 @@ Laneed Wireless card
 ELECOM Air@Hawk/LD-WL11/PCC
 Farallon Skyline 11Mbps Wireless
 ICOM SL-1100
+IO Data WN-B11/PCM
 Melco Airconnect WLI-PCM-L11
 NEC Wireless Card CMZ-RT-WP
 PLANEX GeoWave/GW-NS110
