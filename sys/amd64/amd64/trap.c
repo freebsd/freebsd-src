@@ -729,21 +729,18 @@ syscall(frame)
 	/*
 	 * copyin and the ktrsyscall()/ktrsysret() code is MP-aware
 	 */
-	if (narg <= regcnt) {
-		argp = &frame.tf_rdi;
-		argp += reg;
-		error = 0;
-	} else {
-		KASSERT(narg <= sizeof(args) / sizeof(args[0]),
-		    ("Too many syscall arguments!"));
+	KASSERT(narg <= sizeof(args) / sizeof(args[0]),
+	    ("Too many syscall arguments!"));
+	error = 0;
+	argp = &frame.tf_rdi;
+	argp += reg;
+	bcopy(argp, args, sizeof(args[0]) * regcnt);
+	if (narg > regcnt) {
 		KASSERT(params != NULL, ("copyin args with no params!"));
-		argp = &frame.tf_rdi;
-		argp += reg;
-		bcopy(argp, args, sizeof(args[0]) * regcnt);
 		error = copyin(params, &args[regcnt],
-		    (narg - regcnt) * sizeof(args[0]));
-		argp = &args[0];
+	    		(narg - regcnt) * sizeof(args[0]));
 	}
+	argp = &args[0];
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
