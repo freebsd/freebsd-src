@@ -535,8 +535,8 @@ AAA
  * Always free the message.
  */
 static int
-ng_pppoe_rcvmsg(node_p node,
-	   struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr)
+ng_pppoe_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+		struct ng_mesg **rptr, hook_p lasthook)
 {
 	priv_p privp = node->private;
 	struct ngpppoe_init_data *ourmsg = NULL;
@@ -760,7 +760,8 @@ AAA
  * if we use up this data or abort we must free BOTH of these.
  */
 static int
-ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	node_p			node = hook->node;
 	const priv_p		privp = node->private;
@@ -1091,9 +1092,12 @@ AAA
 					/*
 					 * Now we have gone to Connected mode, 
 					 * Free all resources needed for 
-					 * negotiation.
+					 * negotiation. Be paranoid about
+					 * whether there may be a timeout.
 					 */
 					m_freem(sp->neg->m);
+					untimeout(pppoe_ticker, sendhook,
+				    		sp->neg->timeout_handle);
 					FREE(sp->neg, M_NETGRAPH);
 					sp->neg = NULL;
 				} else {
@@ -1257,6 +1261,7 @@ ng_pppoe_disconnect(hook_p hook)
 	int 	hooks;
 
 AAA
+	hooks = node->numhooks; /* this one already not counted */
 	if (hook->private == &privp->debug_hook) {
 		privp->debug_hook = NULL;
 	} else if (hook->private == &privp->ethernet_hook) {
@@ -1267,6 +1272,11 @@ AAA
 		if (sp->state != PPPOE_SNONE ) {
 			pppoe_send_event(sp, NGM_PPPOE_CLOSE);
 		}
+		/*
+		 * According to the spec, if we are connected,
+		 * we should send a DISC packet if we are shutting down
+		 * a session.
+		 */
 		if ((privp->ethernet_hook)
 		&& ((sp->state == PPPOE_CONNECTED)
 		 || (sp->state == PPPOE_NEWCONNECTED))) {
@@ -1307,6 +1317,10 @@ AAA
 				    dummy);
 			}
 		}
+		/*
+		 * As long as we have somewhere to store teh timeout handle,
+		 * we may have a timeout pending.. get rid of it.
+		 */
 		if (sp->neg) {
 			untimeout(pppoe_ticker, hook, sp->neg->timeout_handle);
 			if (sp->neg->m)
@@ -1317,11 +1331,8 @@ AAA
 		hook->private = NULL;
 		/* work out how many session hooks there are */
 		/* Node goes away on last session hook removal */
-		hooks = node->numhooks; /* this one already not counted */
 		if (privp->ethernet_hook) hooks -= 1;
 		if (privp->debug_hook) hooks -= 1;
-		if (hooks == 0) 
-			ng_rmnode(node);
 	}
 	if (node->numhooks == 0)
 		ng_rmnode(node);

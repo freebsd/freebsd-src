@@ -257,8 +257,8 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
  * (so that old userland programs could continue to work).
  */
 static int
-ng_xxx_rcvmsg(node_p node,
-	   struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr)
+ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+		struct ng_mesg **rptr, hook_p lasthook)
 {
 	const xxx_p xxxp = node->private;
 	struct ng_mesg *resp = NULL;
@@ -321,7 +321,8 @@ ng_xxx_rcvmsg(node_p node,
  * at the netgraph NETISR time. (at which time it will be entered using ng_xxx_rcvdataq().
  */
 static int
-ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	int dlci = -2;
 
@@ -343,7 +344,8 @@ ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
  * Always accept the data. This version of rcvdata is called from the dequeueing routine.
  */
 static int
-ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta)
+ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const xxx_p xxxp = hook->node->private;
 	int chan = -2;

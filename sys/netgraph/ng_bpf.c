@@ -263,7 +263,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr)
+	   struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct ng_mesg *resp = NULL;
 	int error = 0;
@@ -375,7 +375,8 @@ done:
  * Apply the filter, and then drop or forward packet as appropriate.
  */
 static int
-ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const hinfo_p hip = hook->private;
 	int totlen = m->m_pkthdr.len;

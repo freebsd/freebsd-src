@@ -82,7 +82,7 @@ NETGRAPH_INIT(echo, &typestruct);
  */
 static int
 nge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr)
+	   struct ng_mesg **rptr, hook_p lasthook)
 {
 	if (rptr) {
 		msg->header.flags |= NGF_RESP;
@@ -97,7 +97,8 @@ nge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Receive data
  */
 static int
-nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	int error = 0;
 

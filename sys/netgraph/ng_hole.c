@@ -77,7 +77,8 @@ NETGRAPH_INIT(hole, &typestruct);
  * Receive data
  */
 static int
-ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	NG_FREE_DATA(m, meta);
 	return 0;

@@ -172,7 +172,7 @@ ng_rfc1490_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_rfc1490_rcvmsg(node_p node, struct ng_mesg *msg,
-		  const char *raddr, struct ng_mesg **rp)
+		  const char *raddr, struct ng_mesg **rp, hook_p lasthook)
 {
 	FREE(msg, M_NETGRAPH);
 	return (EINVAL);
@@ -215,7 +215,8 @@ ng_rfc1490_rcvmsg(node_p node, struct ng_mesg *msg,
 #define OUICMP(P,A,B,C)	((P)[0]==(A) && (P)[1]==(B) && (P)[2]==(C))
 
 static int
-ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
