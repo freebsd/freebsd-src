@@ -95,6 +95,21 @@ backed
 .Nm
 disks,
 but not those backed by pre-loaded modules.
+.Sh EXAMPLES
+To mount a
+.Xr malloc 9
+backed
+.Nm
+device on
+.Pa /tmp :
+.Bd -literal
+if [ -e /dev/md0 -a -e /dev/md0c ]; then
+	disklabel -r -w md0 auto && \\
+	newfs /dev/md0c && \\
+	mount /dev/md0c /tmp && \\
+	chmod 1777 /tmp
+fi
+.Ed
 .Sh SEE ALSO
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
