@@ -42,7 +42,7 @@ struct mtx {
 	TAILQ_HEAD(, thread) mtx_blocked;	/* threads blocked on this lock */
 	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
 /* #ifdef MUTEX_PROFILING */
-	u_int64_t cycles;
+	u_int64_t acqtime;
 	const char *file;
 	int line;
 /* #endif */
