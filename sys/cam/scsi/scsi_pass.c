@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.5.2.2 1999/05/07 00:43:12 ken Exp $
+ *      $Id: scsi_pass.c,v 1.5.2.3 1999/05/09 01:27:41 ken Exp $
  */
 
 #include <sys/param.h>
@@ -298,15 +298,8 @@ passasync(void *callback_arg, u_int32_t code,
 
 		break;
 	}
-	case AC_LOST_DEVICE:
-		cam_periph_invalidate(periph);
-		break;
-	case AC_TRANSFER_NEG:
-	case AC_SENT_BDR:
-	case AC_SCSI_AEN:
-	case AC_UNSOL_RESEL:
-	case AC_BUS_RESET:
 	default:
+		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 }
