@@ -51,7 +51,7 @@ blocks of lines separated by
 .Em program
 and
 .Em hostname
-specifications,
+specifications (separations appear along on the line),
 with each line containing two fields: the
 .Em selector
 field which specifies the types of messages and priorities to which the
@@ -69,12 +69,12 @@ field by one or more tab characters or spaces.
 Note that if you use spaces as separators, your
 .Nm
 might be incompatible with other Unices or Unix-like systems.
-This functionality was added for the ease of configuration
+This functionality was added for ease of configuration
 (e.g. it is possible to cut-and-paste into
 .Nm ) ,
 and to avoid possible mistakes.
 This change however preserves
-backwards compatibility with the old style of the
+backwards compatibility with the old style of
 .Nm
 (i.e. tab characters only).
 .Pp
@@ -101,7 +101,7 @@ describes the part of the system generating the message, and is one of
 the following keywords: auth, authpriv, console, cron, daemon, ftp, kern,
 lpr, mail, mark, news, ntp, security, syslog, user, uucp and local0 through
 local7.
-These keywords (with the exception of mark) correspond to the
+These keywords (with the exception of mark) correspond to
 similar
 .Dq Dv LOG_
 values specified to the
@@ -113,14 +113,14 @@ library routines.
 The
 .Em comparison flags
 may be used to specify exactly what is logged.
-The default set of comparison flags are
+The default comparison is
 .Dq =>
 (or, if you prefer,
 .Dq >= ) ,
 which means that messages from the specified
 .Em facility
-list of a priority
-level equal or greater than
+list, and of a priority
+level equal to or greater than
 .Em level
 will be logged.
 Comparison flags beginning with
@@ -138,7 +138,7 @@ The
 describes the severity of the message, and is a keyword from the
 following ordered list (higher to lower): emerg, alert, crit, err,
 warning, notice, info and debug.
-These keywords correspond to the
+These keywords correspond to
 similar
 .Dq Dv LOG_
 values specified to the
@@ -155,14 +155,14 @@ A block will only log messages corresponding to the most recent
 and
 .Em hostname
 specifications given.
-Thus, a block which selects
+Thus, with a block which selects
 .Ql ppp
 as the
 .Em program ,
 directly followed by a block that selects messages from the
 .Em hostname
 .Ql dialhost ,
-then the second block will only log messages
+the second block will only log messages
 from the
 .Xr ppp 8
 program on dialhost.
@@ -202,9 +202,9 @@ specification of the form
 .Ql #+hostname
 or
 .Ql +hostname
-and the following blocks will be applied to messages
+means the following blocks will be applied to messages
 received from the specified hostname.
-Alternatively, a
+Alternatively, the
 .Em hostname
 specification
 .Ql #-hostname
@@ -224,7 +224,7 @@ specification may be reset by giving the program or hostname as
 .Pp
 See
 .Xr syslog 3
-for a further descriptions of both the
+for further descriptions of both the
 .Em facility
 and
 .Em level
@@ -272,9 +272,9 @@ characters.
 An asterisk
 .Pq Dq *
 can be used to specify all
-.Em facilities
+.Em facilities ,
 all
-.Em levels
+.Em levels ,
 or all
 .Em programs .
 .Pp
@@ -368,7 +368,7 @@ character are ignored.
 A configuration file might appear as follows:
 .Bd -literal
 # Log all kernel messages, authentication messages of
-# level notice or higher and anything of level err or
+# level notice or higher, and anything of level err or
 # higher to the console.
 # Don't log private authentication messages!
 *.err;kern.*;auth.notice;authpriv.none	/dev/console
@@ -420,7 +420,7 @@ Other messages logged with facility
 .Dq kern
 are usually translated to facility
 .Dq user .
-This translation can be disabled,
+This translation can be disabled;
 see
 .Xr syslogd 8
 for details.
