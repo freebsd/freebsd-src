@@ -564,9 +564,11 @@ retry:
 		if (((!to_stdout && stat(fs->fs_outputfile, &stab) == 0)
 		     || (to_stdout && fstat(STDOUT_FILENO, &stab) == 0))
 		    && S_ISREG(stab.st_mode)) {
-			addstr(iov, n, "If-Range: ");
-			addstr(iov, n, format_http_date(stab.st_mtime));
-			addstr(iov, n, "\r\n");
+			if (!fs->fs_forcerestart) {
+				addstr(iov, n, "If-Range: ");
+				addstr(iov, n, format_http_date(stab.st_mtime));
+				addstr(iov, n, "\r\n");
+			}
 			sprintf(rangebuf, "Range: bytes=%qd-\r\n", 
 				(long long)stab.st_size);
 			addstr(iov, n, rangebuf);
