@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)listen.2	8.2 (Berkeley) 12/11/93
+.\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
-.Dd December 11, 1993
+.Dd November 3, 1995
 .Dt LISTEN 2
 .Os BSD 4.2
 .Sh NAME
@@ -68,6 +69,19 @@ receive an error with an indication of
 .Er ECONNREFUSED ,
 or, if the underlying protocol supports retransmission,
 the request may be ignored so that retries may succeed.
+.Pp
+The
+.Xr sysctl 3
+MIB variable
+.Dq Li kern.somaxconn
+specifies a hard limit on
+.Fa backlog ;
+if a  value greater than
+.Li kern.somaxconn
+or less than zero is specified,
+.Fa backlog
+is silently forced to
+.Li kern.somaxconn .
 .Sh RETURN VALUES
 A 0 return value indicates success; -1 indicates an error.
 .Sh ERRORS
@@ -87,15 +101,20 @@ The socket is not of a type that supports the operation
 .Fn listen .
 .El
 .Sh SEE ALSO
+.Xr sysctl 1 ,
 .Xr accept 2 ,
 .Xr connect 2 ,
-.Xr socket 2
-.Sh BUGS
-The
-.Fa backlog
-is currently limited (silently) to 32.
+.Xr socket 2 ,
+.Xr sysctl 3
 .Sh HISTORY
 The
 .Nm
 function call appeared in
 .Bx 4.2 .
+The ability to configure the maximum
+.Fa backlog
+at run-time, and to use a negative
+.Fa backlog
+to request the maximum allowable value,  was introduced in
+.Tn FreeBSD
+2.2.
