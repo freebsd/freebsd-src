@@ -163,7 +163,7 @@ static int
 pecoff_coredump(register struct thread * td, register struct vnode * vp,
 		off_t limit)
 {
-	register struct ucred *cred = td->td_proc->p_ucred;
+	register struct ucred *cred = td->td_ucred;
 	register struct vmspace *vm = td->td_proc->p_vmspace;
 	int             error;
 #ifdef PECOFF_DEBUG
@@ -607,7 +607,7 @@ pecoff_read_from(td, vp, pos, buf, siz)
 	size_t          resid;
 
 	error = vn_rdwr(UIO_READ, vp, buf, siz, pos,
-			UIO_SYSSPACE, IO_NODELOCKED, td->td_proc->p_ucred,
+			UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
 			&resid, td);
 	if (error)
 		return error;

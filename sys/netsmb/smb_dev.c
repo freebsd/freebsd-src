@@ -123,8 +123,7 @@ static int
 nsmb_dev_open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	struct smb_dev *sdp;
-	struct proc *p = td->td_proc;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	int s;
 
 	sdp = SMB_GETDEV(dev);

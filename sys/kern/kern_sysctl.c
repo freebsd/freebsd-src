@@ -1074,7 +1074,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 			if (error)
 				return (error);
 		} else {
-			error = securelevel_gt(req->td->td_proc->p_ucred, 0);
+			error = securelevel_gt(req->td->td_ucred, 0);
 			if (error)
 				return (error);
 		}

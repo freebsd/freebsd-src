@@ -140,11 +140,11 @@ ibcs2_emul_find(td, sgp, prefix, path, pbuf, cflag)
 			return error;
 		}
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_proc->p_ucred, td)) != 0) {
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_proc->p_ucred, td))
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_ucred, td))
 		    != 0) {
 			goto done;
 		}

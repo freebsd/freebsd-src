@@ -114,7 +114,7 @@ alpha_sethae(struct thread *td, char *args)
 	if (error)
 		return (error);
 
-	error = securelevel_gt(td->td_proc->p_ucred, 0);
+	error = securelevel_gt(td->td_ucred, 0);
 	if (error)
 		return (error);
 

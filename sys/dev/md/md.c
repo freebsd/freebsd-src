@@ -604,7 +604,6 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 static int
 mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 {
-	struct proc *p = td->td_proc;
 	struct md_s *sc;
 	struct vattr vattr;
 	struct nameidata nd;
@@ -637,9 +636,9 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, td))) {
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
 		VOP_UNLOCK(nd.ni_vp, 0, td);
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
@@ -654,12 +653,12 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	else
 		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
 	if (sc->nsect == 0) {
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		return (EINVAL);
 	}
-	error = mdsetcred(sc, p->p_ucred);
+	error = mdsetcred(sc, td->td_ucred);
 	if (error) {
-		(void) vn_close(nd.ni_vp, flags, p->p_ucred, td);
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		return (error);
 	}
 	mdinit(sc);
@@ -749,7 +748,7 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 			return (EDOM);
 		}
 	}
-	error = mdsetcred(sc, td->td_proc->p_ucred);
+	error = mdsetcred(sc, td->td_ucred);
 	if (error)
 		mddestroy(sc, td);
 	else

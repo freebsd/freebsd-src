@@ -1830,7 +1830,7 @@ ip_dn_ctl(struct sockopt *sopt)
 
     /* Disallow sets in really-really secure mode. */
     if (sopt->sopt_dir == SOPT_SET) {
-	error =  securelevel_ge(sopt->sopt_td->td_proc->p_ucred, 3);
+	error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
 	if (error)
 	    return (error);
     }

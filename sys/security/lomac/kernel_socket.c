@@ -232,7 +232,7 @@ lomac_local_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = ENOTSOCK;
 		goto bad;
 	}
-	error = VOP_ACCESS(vp, VWRITE, td->td_proc->p_ucred, td);
+	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
 	so2 = vp->v_socket;
@@ -265,7 +265,7 @@ lomac_local_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * from its process structure at the time of connect()
 		 * (which is now).
 		 */
-		cru2x(td->td_proc->p_ucred, &unp3->unp_peercred);
+		cru2x(td->td_ucred, &unp3->unp_peercred);
 		unp3->unp_flags |= UNP_HAVEPC;
 		/*
 		 * The receiver's (server's) credentials are copied

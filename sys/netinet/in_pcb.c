@@ -206,7 +206,7 @@ in_pcbbind(inp, nam, td)
 			return (EAFNOSUPPORT);
 #endif
 		if (sin->sin_addr.s_addr != INADDR_ANY)
-			if (prison_ip(p->p_ucred, 0, &sin->sin_addr.s_addr))
+			if (prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
 				return(EINVAL);
 		lport = sin->sin_port;
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -231,7 +231,7 @@ in_pcbbind(inp, nam, td)
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
 			    suser_xxx(0, p, PRISON_ROOT))
 				return (EACCES);
-			if (p && jailed(p->p_ucred))
+			if (td && jailed(td->td_ucred))
 				prison = 1;
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -257,7 +257,7 @@ in_pcbbind(inp, nam, td)
 				}
 			}
 			if (prison &&
-			    prison_ip(p->p_ucred, 0, &sin->sin_addr.s_addr))
+			    prison_ip(td->td_ucred, 0, &sin->sin_addr.s_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, prison ? 0 : wild);
@@ -281,7 +281,7 @@ in_pcbbind(inp, nam, td)
 		int count;
 
 		if (inp->inp_laddr.s_addr != INADDR_ANY)
-			if (prison_ip(p->p_ucred, 0, &inp->inp_laddr.s_addr )) {
+			if (prison_ip(td->td_ucred, 0, &inp->inp_laddr.s_addr )) {
 				inp->inp_laddr.s_addr = INADDR_ANY;
 				return (EINVAL);
 			}
@@ -352,7 +352,7 @@ in_pcbbind(inp, nam, td)
 		}
 	}
 	inp->inp_lport = lport;
-	if (prison_ip(p->p_ucred, 0, &inp->inp_laddr.s_addr)) {
+	if (prison_ip(td->td_ucred, 0, &inp->inp_laddr.s_addr)) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
 		return (EINVAL);

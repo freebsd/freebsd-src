@@ -222,7 +222,7 @@ swapon(td, uap)
 	if (vn_isdisk(vp, &error))
 		error = swaponvp(td, vp, vp->v_rdev, 0);
 	else if (vp->v_type == VREG && vp->v_tag == VT_NFS &&
-	    (error = VOP_GETATTR(vp, &attr, td->td_proc->p_ucred, td)) == 0) {
+	    (error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) == 0) {
 		/*
 		 * Allow direct swapping to NFS regular files in the same
 		 * way that nfs_mountroot() sets up diskless swapping.
@@ -262,7 +262,6 @@ swaponvp(td, vp, dev, nblks)
 	swblk_t dvbase;
 	int error;
 	u_long aligned_nblks;
-	struct proc *p = td->td_proc;
 
 	if (!swapdev_vp) {
 		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
@@ -283,18 +282,18 @@ swaponvp(td, vp, dev, nblks)
 	return EINVAL;
     found:
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, td);
+	error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td);
 	(void) VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);
 
 	if (nblks == 0 && dev != NODEV && (devsw(dev)->d_psize == 0 ||
 	    (nblks = (*devsw(dev)->d_psize) (dev)) == -1)) {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 		return (ENXIO);
 	}
 	if (nblks == 0) {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 		return (ENXIO);
 	}
 
@@ -305,7 +304,7 @@ swaponvp(td, vp, dev, nblks)
 	if (nblks > 0x40000000 / BLIST_META_RADIX / nswdev) {
 		printf("exceeded maximum of %d blocks per swap unit\n",
 			0x40000000 / BLIST_META_RADIX / nswdev);
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 		return (ENXIO);
 	}
 	/*

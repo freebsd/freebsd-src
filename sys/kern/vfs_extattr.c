@@ -213,7 +213,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
 	 */
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) 
+	if (suser_xxx(td->td_ucred, 0, 0)) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -244,7 +244,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) {
+		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
 			error = suser_td(td);
 			if (error) {
 				vput(vp);
@@ -274,19 +274,19 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
-	error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td);
+	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
 	if (error) {
 		vput(vp);
 		return (error);
 	}
-	if (va.va_uid != td->td_proc->p_ucred->cr_uid) {
+	if (va.va_uid != td->td_ucred->cr_uid) {
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
 			return (error);
 		}
 	}
-	if ((error = vinvalbuf(vp, V_SAVE, td->td_proc->p_ucred, td, 0, 0))
+	if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0))
 	    != 0) {
 		vput(vp);
 		return (error);
@@ -352,7 +352,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_stat.f_fstypename[MFSNAMELEN - 1] = '\0';
 	mp->mnt_vnodecovered = vp;
-	mp->mnt_stat.f_owner = td->td_proc->p_ucred->cr_uid;
+	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_stat.f_mntonname[MNAMELEN - 1] = '\0';
 	mp->mnt_iosize_max = DFLTPHYS;
@@ -516,7 +516,7 @@ unmount(td, uap)
 	 * Only root, or the user that did the original mount is
 	 * permitted to unmount this filesystem.
 	 */
-	if (mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) {
+	if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
@@ -588,7 +588,7 @@ dounmount(mp, flags, td)
 		vput(fsrootvp);
 	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT, td->td_proc->p_ucred, td)) == 0) ||
+	     (error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td)) == 0) ||
 	    (flags & MNT_FORCE)) {
 		error = VFS_UNMOUNT(mp, flags, td);
 	}
@@ -667,7 +667,7 @@ sync(td, uap)
 			mp->mnt_flag &= ~MNT_ASYNC;
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT,
-			    ((td != NULL) ? td->td_proc->p_ucred : NOCRED), td);
+			    ((td != NULL) ? td->td_ucred : NOCRED), td);
 			mp->mnt_flag |= asyncflag;
 			vn_finished_write(mp);
 		}
@@ -721,7 +721,7 @@ quotactl(td, uap)
 	int error;
 	struct nameidata nd;
 
-	if (jailed(td->td_proc->p_ucred) && !prison_quotas)
+	if (jailed(td->td_ucred) && !prison_quotas)
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
@@ -772,7 +772,7 @@ statfs(td, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) {
+	if (suser_xxx(td->td_ucred, 0, 0)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -815,7 +815,7 @@ fstatfs(td, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) {
+	if (suser_xxx(td->td_ucred, 0, 0)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -923,7 +923,7 @@ fchdir(td, uap)
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
 	else
-		error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
+		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
@@ -1091,7 +1091,7 @@ change_dir(ndp, td)
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
 	else
-		error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
+		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	if (error)
 		vput(vp);
 	else
@@ -1235,11 +1235,11 @@ open(td, uap)
 	if (flags & O_TRUNC) {
 		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 			goto bad;
-		VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
+		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		VATTR_NULL(&vat);
 		vat.va_size = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_SETATTR(vp, &vat, p->p_ucred, td);
+		error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
 		if (error)
@@ -1378,7 +1378,7 @@ restart:
 		goto restart;
 	}
 	if (!error) {
-		VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		if (whiteout)
 			error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, CREATE);
 		else {
@@ -1442,7 +1442,7 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error == 0)
 		vput(nd.ni_vp);
@@ -1495,8 +1495,8 @@ link(td, uap)
 			vrele(nd.ni_vp);
 			error = EEXIST;
 		} else {
-			VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
-			VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
+			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1559,7 +1559,7 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, path);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0)
@@ -1610,7 +1610,7 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_WHITEOUT(nd.ni_dvp, &nd.ni_cnd, DELETE);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
@@ -1666,10 +1666,10 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (!error) {
-		VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1702,7 +1702,7 @@ lseek(td, uap)
 		syscallarg(int) whence;
 	} */ *uap;
 {
-	struct ucred *cred = td->td_proc->p_ucred;
+	struct ucred *cred = td->td_ucred;
 	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
@@ -1894,7 +1894,7 @@ eaccess(td, uap)
 		return (error);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, SCARG(uap, flags), td->td_proc->p_ucred, td);
+	error = vn_access(vp, SCARG(uap, flags), td->td_ucred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	return (error);
@@ -2258,7 +2258,7 @@ readlink(td, uap)
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_td = td;
 		auio.uio_resid = SCARG(uap, count);
-		error = VOP_READLINK(vp, &auio, td->td_proc->p_ucred);
+		error = VOP_READLINK(vp, &auio, td->td_ucred);
 	}
 	vput(vp);
 	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
@@ -2285,7 +2285,7 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = suser_xxx(td->td_proc->p_ucred, td->td_proc,
+		error = suser_xxx(td->td_ucred, td->td_proc,
 		    PRISON_ROOT);
 		if (error)
 			return (error);
@@ -2293,11 +2293,11 @@ setfflags(td, vp, flags)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VATTR_NULL(&vattr);
 	vattr.va_flags = flags;
-	error = VOP_SETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -2376,11 +2376,11 @@ setfmode(td, vp, mode)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
-	error = VOP_SETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2492,12 +2492,12 @@ setfown(td, vp, uid, gid)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VATTR_NULL(&vattr);
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
-	error = VOP_SETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2640,14 +2640,14 @@ setutimes(td, vp, ts, nullflag)
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VATTR_NULL(&vattr);
 	vattr.va_atime = ts[0];
 	vattr.va_mtime = ts[1];
 	if (nullflag)
 		vattr.va_vaflags |= VA_UTIMES_NULL;
-	error = VOP_SETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return error;
@@ -2793,15 +2793,15 @@ truncate(td, uap)
 		return (error);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 	else if ((error = vn_writechk(vp)) == 0 &&
-	    (error = VOP_ACCESS(vp, VWRITE, td->td_proc->p_ucred, td)) == 0) {
+	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = SCARG(uap, length);
-		error = VOP_SETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	}
 	vput(vp);
 	vn_finished_write(mp);
@@ -2847,7 +2847,7 @@ ftruncate(td, uap)
 		fdrop(fp, td);
 		return (error);
 	}
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
@@ -3043,12 +3043,12 @@ rename(td, uap)
 		error = -1;
 out:
 	if (!error) {
-		VOP_LEASE(tdvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+		VOP_LEASE(tdvp, td, td->td_ucred, LEASE_WRITE);
 		if (fromnd.ni_dvp != tdvp) {
-			VOP_LEASE(fromnd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+			VOP_LEASE(fromnd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		}
 		if (tvp) {
-			VOP_LEASE(tvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+			VOP_LEASE(tvp, td, td->td_ucred, LEASE_WRITE);
 		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
@@ -3140,7 +3140,7 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
@@ -3209,8 +3209,8 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, td, td->td_proc->p_ucred, LEASE_WRITE);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	vn_finished_write(mp);
 out:
@@ -3537,13 +3537,13 @@ revoke(td, uap)
 		vput(vp);
 		return (EINVAL);
 	}
-	error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
 	if (error) {
 		vput(vp);
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0, td);
-	if (td->td_proc->p_ucred->cr_uid != vattr.va_uid) {
+	if (td->td_ucred->cr_uid != vattr.va_uid) {
 		error = suser_xxx(0, td->td_proc, PRISON_ROOT);
 		if (error)
 			goto out;
@@ -3720,7 +3720,7 @@ fhopen(td, uap)
 	if (fmode & FREAD)
 		mode |= VREAD;
 	if (mode) {
-		error = VOP_ACCESS(vp, mode, p->p_ucred, td);
+		error = VOP_ACCESS(vp, mode, td->td_ucred, td);
 		if (error)
 			goto bad;
 	}
@@ -3730,23 +3730,23 @@ fhopen(td, uap)
 			vrele(vp);
 			return (error);
 		}
-		VOP_LEASE(vp, td, p->p_ucred, LEASE_WRITE);
+		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
 		VATTR_NULL(vap);
 		vap->va_size = 0;
-		error = VOP_SETATTR(vp, vap, p->p_ucred, td);
+		error = VOP_SETATTR(vp, vap, td->td_ucred, td);
 		vn_finished_write(mp);
 		if (error)
 			goto bad;
 	}
-	error = VOP_OPEN(vp, fmode, p->p_ucred, td);
+	error = VOP_OPEN(vp, fmode, td->td_ucred, td);
 	if (error)
 		goto bad;
 	/*
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vn_canvmio(vp) == TRUE) {
-		if ((error = vfs_object_create(vp, td, p->p_ucred)) != 0)
+		if ((error = vfs_object_create(vp, td, td->td_ucred)) != 0)
 			goto bad;
 	}
 	if (fmode & FWRITE)
@@ -3807,7 +3807,7 @@ fhopen(td, uap)
 		fp->f_flag |= FHASLOCK;
 	}
 	if ((vp->v_type == VREG) && (VOP_GETVOBJECT(vp, NULL) != 0))
-		vfs_object_create(vp, td, p->p_ucred);
+		vfs_object_create(vp, td, td->td_ucred);
 
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
@@ -3909,7 +3909,7 @@ fhstatfs(td, uap)
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) {
+	if (suser_xxx(td->td_ucred, 0, 0)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -4021,7 +4021,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	aiov.iov_base = data;
@@ -4040,7 +4040,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	cnt = nbytes;
 
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 	cnt -= auio.uio_resid;
 	td->td_retval[0] = cnt;
 
@@ -4121,7 +4121,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	size_t size;
 	int error;
 
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_READ);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/*
@@ -4227,11 +4227,11 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
-	    td->td_proc->p_ucred, td);
+	    td->td_ucred, td);
 
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);

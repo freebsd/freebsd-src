@@ -194,7 +194,6 @@ link_aout_load_file(linker_class_t lc, const char* filename, linker_file_t* resu
 {
     struct nameidata nd;
     struct thread *td = curthread;	/* XXX */
-    struct proc *p = td->td_proc;
     int error = 0;
     int resid, flags;
     struct exec header;
@@ -212,7 +211,7 @@ link_aout_load_file(linker_class_t lc, const char* filename, linker_file_t* resu
      * Read the a.out header from the file.
      */
     error = vn_rdwr(UIO_READ, nd.ni_vp, (void*) &header, sizeof header, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
+		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, &resid, td);
     if (error)
 	goto out;
 
@@ -237,7 +236,7 @@ link_aout_load_file(linker_class_t lc, const char* filename, linker_file_t* resu
      */
     error = vn_rdwr(UIO_READ, nd.ni_vp, (void*) af->address,
 		    header.a_text + header.a_data, 0,
-		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, td);
+		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, &resid, td);
     if (error)
 	goto out;
     bzero(af->address + header.a_text + header.a_data, header.a_bss);
@@ -269,7 +268,7 @@ out:
     if (error && lf)
 	linker_file_unload(lf);
     VOP_UNLOCK(nd.ni_vp, 0, td);
-    vn_close(nd.ni_vp, FREAD, p->p_ucred, td);
+    vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 
     return error;
 }

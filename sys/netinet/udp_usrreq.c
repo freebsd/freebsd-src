@@ -583,7 +583,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (inp = LIST_FIRST(udbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
 		if (inp->inp_gencnt <= gencnt) {
-			if (cr_cansee(req->td->td_proc->p_ucred,
+			if (cr_cansee(req->td->td_ucred,
 			    inp->inp_socket->so_cred))
 				continue;
 			inp_list[i++] = inp;
@@ -648,7 +648,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = cr_cansee(req->td->td_proc->p_ucred, inp->inp_socket->so_cred);
+	error = cr_cansee(req->td->td_ucred, inp->inp_socket->so_cred);
 	if (error)
 		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
@@ -686,8 +686,8 @@ udp_output(inp, m, addr, control, td)
 
 	if (addr) {
 		sin = (struct sockaddr_in *)addr;
-		if (td && jailed(td->td_proc->p_ucred))
-			prison_remote_ip(td->td_proc->p_ucred, 0, &sin->sin_addr.s_addr);
+		if (td && jailed(td->td_ucred))
+			prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 		laddr = inp->inp_laddr;
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
@@ -856,8 +856,8 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return EISCONN;
 	s = splnet();
 	sin = (struct sockaddr_in *)nam;
-	if (td && jailed(td->td_proc->p_ucred))
-		prison_remote_ip(td->td_proc->p_ucred, 0, &sin->sin_addr.s_addr);
+	if (td && jailed(td->td_ucred))
+		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, td);
 	splx(s);
 	if (error == 0)

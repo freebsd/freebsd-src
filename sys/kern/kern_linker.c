@@ -708,7 +708,7 @@ kldload(struct thread *td, struct kldload_args *uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser_xxx(td->td_proc->p_ucred, NULL, 0)) != 0)
+	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -755,7 +755,7 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser_xxx(td->td_proc->p_ucred, NULL, 0)) != 0)
+	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;
 
 	lf = linker_find_file_by_id(SCARG(uap, fileid));
@@ -1371,10 +1371,9 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			type = nd.ni_vp->v_type;
 			if (vap)
-				VOP_GETATTR(nd.ni_vp, vap,
-				    td->td_proc->p_ucred, td);
+				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred, td);
 			VOP_UNLOCK(nd.ni_vp, 0, td);
-			vn_close(nd.ni_vp, FREAD, td->td_proc->p_ucred, td);
+			vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 			if (type == VREG)
 				return (result);
 		}
@@ -1399,7 +1398,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
     int modnamelen, struct mod_depend *verinfo)
 {
 	struct thread *td = curthread;	/* XXX */
-	struct ucred *cred = td ? td->td_proc->p_ucred : NULL;
+	struct ucred *cred = td ? td->td_ucred : NULL;
 	struct nameidata nd;
 	struct vattr vattr, mattr;
 	u_char *hints = NULL;

@@ -238,7 +238,7 @@ ext2_mount(mp, path, data, ndp, td)
 			if (suser_td(td)) {
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    td->td_proc->p_ucred, td)) != 0) {
+				    td->td_ucred, td)) != 0) {
 					VOP_UNLOCK(devvp, 0, td);
 					return (error);
 				}
@@ -293,7 +293,7 @@ ext2_mount(mp, path, data, ndp, td)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		if ((error = VOP_ACCESS(devvp, accessmode, td->td_proc->p_ucred, td)) != 0) {
+		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td)) != 0) {
 			vput(devvp);
 			return (error);
 		}
@@ -642,7 +642,7 @@ ext2_mountfs(devvp, mp, td)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if ((error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0)) != 0)
+	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)) != 0)
 		return (error);
 #ifdef READONLY
 /* turn on this to force it to be read-only */

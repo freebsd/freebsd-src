@@ -284,7 +284,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	}
 
 	/* Executable? */
-	error = VOP_GETATTR(vp, &attr, td->td_proc->p_ucred, td);
+	error = VOP_GETATTR(vp, &attr, td->td_ucred, td);
 	if (error)
 		goto cleanup;
 
@@ -301,11 +301,11 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	}
 
 	/* Can we access it? */
-	error = VOP_ACCESS(vp, VEXEC, td->td_proc->p_ucred, td);
+	error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	if (error)
 		goto cleanup;
 
-	error = VOP_OPEN(vp, FREAD, td->td_proc->p_ucred, td);
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
 	if (error)
 		goto cleanup;
 

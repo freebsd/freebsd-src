@@ -141,7 +141,7 @@ acct(td, uap)
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		if (nd.ni_vp->v_type != VREG) {
-			vn_close(nd.ni_vp, FWRITE, td->td_proc->p_ucred, td);
+			vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
 			error = EACCES;
 			goto done2;
 		}
@@ -154,7 +154,7 @@ acct(td, uap)
 	if (acctp != NULLVP || savacctp != NULLVP) {
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
-		    td->td_proc->p_ucred, td);
+		    td->td_ucred, td);
 		acctp = savacctp = NULLVP;
 	}
 	if (SCARG(uap, path) == NULL)
@@ -258,9 +258,9 @@ acct_process(td)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, td->td_proc->p_ucred,
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, td->td_ucred,
 	    (int *)0, td));
 }
 

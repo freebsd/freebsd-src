@@ -172,7 +172,6 @@ ptsopen(dev, flag, devtype, td)
 	int flag, devtype;
 	struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	register struct tty *tp;
 	int error;
 	struct pt_ioctl *pti;
@@ -188,9 +187,9 @@ ptsopen(dev, flag, devtype, td)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser_xxx(p->p_ucred, NULL, 0)) {
+	} else if (tp->t_state & TS_XCLUDE && suser_xxx(td->td_ucred, NULL, 0)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
+	} else if (pti->pt_prison != td->td_ucred->cr_prison) {
 		return (EBUSY);
 	}
 	if (tp->t_oproc)			/* Ctrlr still around. */
@@ -344,7 +343,6 @@ ptcopen(dev, flag, devtype, td)
 	int flag, devtype;
 	struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	register struct tty *tp;
 	struct pt_ioctl *pti;
 
@@ -361,7 +359,7 @@ ptcopen(dev, flag, devtype, td)
 	(void)(*linesw[tp->t_line].l_modem)(tp, 1);
 	tp->t_lflag &= ~EXTPROC;
 	pti = dev->si_drv1;
-	pti->pt_prison = p->p_ucred->cr_prison;
+	pti->pt_prison = td->td_ucred->cr_prison;
 	pti->pt_flags = 0;
 	pti->pt_send = 0;
 	pti->pt_ucntl = 0;

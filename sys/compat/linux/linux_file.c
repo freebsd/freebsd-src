@@ -285,7 +285,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		return (EINVAL);
 	}
 
-	if ((error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td))) {
+	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
 		fdrop(fp, td);
 		return (error);
 	}
