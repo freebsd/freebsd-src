@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.7 1998/05/27 00:41:22 jb Exp $
+ * $Id: uthread_fd.c,v 1.8 1998/06/09 23:16:53 jb Exp $
  *
  */
 #include <errno.h>
@@ -55,6 +55,7 @@ _thread_fd_table_init(int fd)
 {
 	int	ret = 0;
 	struct fd_table_entry *entry;
+	int	saved_errno;
 
 	/* Check if the file descriptor is out of range: */
 	if (fd < 0 || fd >= _thread_dtablesize) {
@@ -116,8 +117,10 @@ _thread_fd_table_init(int fd)
 			 * not support non-blocking calls, or if the
 			 * driver is naturally non-blocking.
 			 */
+			saved_errno = errno;
 			_thread_sys_fcntl(fd, F_SETFL,
 			    entry->flags | O_NONBLOCK);
+			errno = saved_errno;
 
 			/* Lock the file descriptor table: */
 			_SPINLOCK(&fd_table_lock);
