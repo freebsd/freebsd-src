@@ -8,6 +8,7 @@ SUBDIR=	async \
 	echo \
 	eiface \
 	ether \
+	etf\
 	frame_relay \
 	gif \
 	gif_demux \
