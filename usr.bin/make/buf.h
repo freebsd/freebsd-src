@@ -62,7 +62,7 @@ typedef struct Buffer {
 
 /* Buf_AddByte adds a single byte to a buffer. */
 #define	Buf_AddByte(bp, byte) \
-	(void) (--(bp)->left <= 0 ? Buf_OvAddByte(bp, byte), 1 : \
+	(void)(--(bp)->left <= 0 ? Buf_OvAddByte(bp, byte), 1 : \
 		(*(bp)->inPtr++ = (byte), *(bp)->inPtr = 0), 1)
 
 #define	BUF_ERROR 256

@@ -155,11 +155,11 @@ static Boolean	  skipLine = FALSE; 	/* Whether the parse module is skipping
  *-----------------------------------------------------------------------
  */
 static void
-CondPushBack (Token t)
+CondPushBack(Token t)
 {
     condPushBack = t;
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondGetArg --
@@ -176,7 +176,7 @@ CondPushBack (Token t)
  *-----------------------------------------------------------------------
  */
 static int
-CondGetArg (char **linePtr, char **argPtr, char *func, Boolean parens)
+CondGetArg(char **linePtr, char **argPtr, char *func, Boolean parens)
 {
     char	  *cp;
     int	    	  argLen;
@@ -246,7 +246,7 @@ CondGetArg (char **linePtr, char **argPtr, char *func, Boolean parens)
 	cp++;
     }
     if (parens && *cp != ')') {
-	Parse_Error (PARSE_WARNING, "Missing closing parenthesis for %s()",
+	Parse_Error(PARSE_WARNING, "Missing closing parenthesis for %s()",
 		     func);
 	return (0);
     } else if (parens) {
@@ -259,7 +259,7 @@ CondGetArg (char **linePtr, char **argPtr, char *func, Boolean parens)
     *linePtr = cp;
     return (argLen);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondDoDefined --
@@ -274,14 +274,14 @@ CondGetArg (char **linePtr, char **argPtr, char *func, Boolean parens)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoDefined (int argLen, char *arg)
+CondDoDefined(int argLen, char *arg)
 {
     char    savec = arg[argLen];
     char    *p1;
     Boolean result;
 
     arg[argLen] = '\0';
-    if (Var_Value (arg, VAR_CMD, &p1) != (char *)NULL) {
+    if (Var_Value(arg, VAR_CMD, &p1) != (char *)NULL) {
 	result = TRUE;
     } else {
 	result = FALSE;
@@ -290,7 +290,7 @@ CondDoDefined (int argLen, char *arg)
     arg[argLen] = savec;
     return (result);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondStrMatch --
@@ -308,9 +308,9 @@ CondDoDefined (int argLen, char *arg)
 static int
 CondStrMatch(void *string, void *pattern)
 {
-    return(!Str_Match((char *) string,(char *) pattern));
+    return (!Str_Match((char *)string, (char *)pattern));
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondDoMake --
@@ -325,13 +325,13 @@ CondStrMatch(void *string, void *pattern)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoMake (int argLen, char *arg)
+CondDoMake(int argLen, char *arg)
 {
     char    savec = arg[argLen];
     Boolean result;
 
     arg[argLen] = '\0';
-    if (Lst_Find (create, (void *)arg, CondStrMatch) == NULL) {
+    if (Lst_Find(create, (void *)arg, CondStrMatch) == NULL) {
 	result = FALSE;
     } else {
 	result = TRUE;
@@ -339,7 +339,7 @@ CondDoMake (int argLen, char *arg)
     arg[argLen] = savec;
     return (result);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondDoExists --
@@ -354,7 +354,7 @@ CondDoMake (int argLen, char *arg)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoExists (int argLen, char *arg)
+CondDoExists(int argLen, char *arg)
 {
     char    savec = arg[argLen];
     Boolean result;
@@ -371,7 +371,7 @@ CondDoExists (int argLen, char *arg)
     arg[argLen] = savec;
     return (result);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondDoTarget --
@@ -386,7 +386,7 @@ CondDoExists (int argLen, char *arg)
  *-----------------------------------------------------------------------
  */
 static Boolean
-CondDoTarget (int argLen, char *arg)
+CondDoTarget(int argLen, char *arg)
 {
     char    savec = arg[argLen];
     Boolean result;
@@ -403,7 +403,6 @@ CondDoTarget (int argLen, char *arg)
     return (result);
 }
 
-
 /*-
  *-----------------------------------------------------------------------
  * CondCvtArg --
@@ -431,12 +430,12 @@ CondCvtArg(char *str, double *value)
 
 	for (str += 2, i = 0; ; str++) {
 	    int x;
-	    if (isdigit((unsigned char) *str))
+	    if (isdigit((unsigned char)*str))
 		x  = *str - '0';
-	    else if (isxdigit((unsigned char) *str))
-		x = 10 + *str - isupper((unsigned char) *str) ? 'A' : 'a';
+	    else if (isxdigit((unsigned char)*str))
+		x = 10 + *str - isupper((unsigned char)*str) ? 'A' : 'a';
 	    else {
-		*value = (double) i;
+		*value = (double)i;
 		return str;
 	    }
 	    i = (i << 4) + x;
@@ -445,10 +444,10 @@ CondCvtArg(char *str, double *value)
     else {
 	char *eptr;
 	*value = strtod(str, &eptr);
-	return eptr;
+	return (eptr);
     }
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondToken --
@@ -514,17 +513,18 @@ CondToken(Boolean doEval)
 		 * value in lhs.
 		 */
 		t = Err;
-		lhs = Var_Parse(condExpr, VAR_CMD, doEval,&varSpecLen,&doFree);
+		lhs = Var_Parse(condExpr, VAR_CMD, doEval,
+		    &varSpecLen, &doFree);
 		if (lhs == var_Error) {
 		    /*
 		     * Even if !doEval, we still report syntax errors, which
 		     * is what getting var_Error back with !doEval means.
 		     */
-		    return(Err);
+		    return (Err);
 		}
 		condExpr += varSpecLen;
 
-		if (!isspace((unsigned char) *condExpr) &&
+		if (!isspace((unsigned char)*condExpr) &&
 		    strchr("!=><", *condExpr) == NULL) {
 		    Buffer buf;
 		    char *cp;
@@ -551,7 +551,7 @@ CondToken(Boolean doEval)
 		/*
 		 * Skip whitespace to get to the operator
 		 */
-		while (isspace((unsigned char) *condExpr))
+		while (isspace((unsigned char)*condExpr))
 		    condExpr++;
 
 		/*
@@ -577,7 +577,7 @@ CondToken(Boolean doEval)
 
 			goto do_compare;
 		}
-		while (isspace((unsigned char) *condExpr)) {
+		while (isspace((unsigned char)*condExpr)) {
 		    condExpr++;
 		}
 		if (*condExpr == '\0') {
@@ -622,7 +622,7 @@ do_string_compare:
 			    int	len;
 			    Boolean freeIt;
 
-			    cp2 = Var_Parse(cp, VAR_CMD, doEval,&len, &freeIt);
+			    cp2 = Var_Parse(cp, VAR_CMD, doEval, &len, &freeIt);
 			    if (cp2 != var_Error) {
 				Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
 				if (freeIt) {
@@ -674,7 +674,7 @@ do_string_compare:
 			int 	len;
 			Boolean	freeIt;
 
-			string = Var_Parse(rhs, VAR_CMD, doEval,&len,&freeIt);
+			string = Var_Parse(rhs, VAR_CMD, doEval, &len, &freeIt);
 			if (string == var_Error) {
 			    right = 0.0;
 			} else {
@@ -702,7 +702,7 @@ do_string_compare:
 
 		    DEBUGF(COND, ("left = %f, right = %f, op = %.2s\n", left,
 			   right, op));
-		    switch(op[0]) {
+		    switch (op[0]) {
 		    case '!':
 			if (op[1] != '=') {
 			    Parse_Error(PARSE_WARNING,
@@ -748,7 +748,7 @@ error:
 		char	*arg;
 		int	arglen;
 
-		if (strncmp (condExpr, "defined", 7) == 0) {
+		if (strncmp(condExpr, "defined", 7) == 0) {
 		    /*
 		     * Use CondDoDefined to evaluate the argument and
 		     * CondGetArg to extract the argument from the 'function
@@ -756,12 +756,12 @@ error:
 		     */
 		    evalProc = CondDoDefined;
 		    condExpr += 7;
-		    arglen = CondGetArg (&condExpr, &arg, "defined", TRUE);
+		    arglen = CondGetArg(&condExpr, &arg, "defined", TRUE);
 		    if (arglen == 0) {
 			condExpr -= 7;
 			goto use_default;
 		    }
-		} else if (strncmp (condExpr, "make", 4) == 0) {
+		} else if (strncmp(condExpr, "make", 4) == 0) {
 		    /*
 		     * Use CondDoMake to evaluate the argument and
 		     * CondGetArg to extract the argument from the 'function
@@ -769,12 +769,12 @@ error:
 		     */
 		    evalProc = CondDoMake;
 		    condExpr += 4;
-		    arglen = CondGetArg (&condExpr, &arg, "make", TRUE);
+		    arglen = CondGetArg(&condExpr, &arg, "make", TRUE);
 		    if (arglen == 0) {
 			condExpr -= 4;
 			goto use_default;
 		    }
-		} else if (strncmp (condExpr, "exists", 6) == 0) {
+		} else if (strncmp(condExpr, "exists", 6) == 0) {
 		    /*
 		     * Use CondDoExists to evaluate the argument and
 		     * CondGetArg to extract the argument from the
@@ -832,7 +832,7 @@ error:
 			goto use_default;
 		    }
 		    break;
-		} else if (strncmp (condExpr, "target", 6) == 0) {
+		} else if (strncmp(condExpr, "target", 6) == 0) {
 		    /*
 		     * Use CondDoTarget to evaluate the argument and
 		     * CondGetArg to extract the argument from the
@@ -876,7 +876,7 @@ error:
     }
     return (t);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondT --
@@ -927,7 +927,7 @@ CondT(Boolean doEval)
     }
     return (t);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondF --
@@ -962,18 +962,18 @@ CondF(Boolean doEval)
 	    if (l == True) {
 		l = CondF(doEval);
 	    } else {
-		(void) CondF(FALSE);
+		 CondF(FALSE);
 	    }
 	} else {
 	    /*
 	     * F -> T
 	     */
-	    CondPushBack (o);
+	    CondPushBack(o);
 	}
     }
     return (l);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CondE --
@@ -1009,18 +1009,18 @@ CondE(Boolean doEval)
 	    if (l == False) {
 		l = CondE(doEval);
 	    } else {
-		(void) CondE(FALSE);
+		 CondE(FALSE);
 	    }
 	} else {
 	    /*
 	     * E -> F
 	     */
-	    CondPushBack (o);
+	    CondPushBack(o);
 	}
     }
     return (l);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Cond_Eval --
@@ -1043,7 +1043,7 @@ CondE(Boolean doEval)
  *-----------------------------------------------------------------------
  */
 int
-Cond_Eval (char *line)
+Cond_Eval(char *line)
 {
     struct If	    *ifp;
     Boolean 	    isElse;
@@ -1065,7 +1065,7 @@ Cond_Eval (char *line)
     if (line[0] == 'e' && line[1] == 'l') {
 	line += 2;
 	isElse = TRUE;
-    } else if (strncmp (line, "endif", 5) == 0) {
+    } else if (strncmp(line, "endif", 5) == 0) {
 	/*
 	 * End of a conditional section. If skipIfLevel is non-zero, that
 	 * conditional was skipped, so lines following it should also be
@@ -1079,7 +1079,7 @@ Cond_Eval (char *line)
 	    return (COND_SKIP);
 	} else {
 	    if (condTop == MAXIF) {
-		Parse_Error (level, "if-less endif");
+		Parse_Error(level, "if-less endif");
 		return (COND_INVALID);
 	    } else {
 		skipLine = FALSE;
@@ -1096,12 +1096,12 @@ Cond_Eval (char *line)
      * function is, etc. -- by looking in the table of valid "ifs"
      */
     for (ifp = ifs; ifp->form != (char *)0; ifp++) {
-	if (strncmp (ifp->form, line, ifp->formlen) == 0) {
+	if (strncmp(ifp->form, line, ifp->formlen) == 0) {
 	    break;
 	}
     }
 
-    if (ifp->form == (char *) 0) {
+    if (ifp->form == (char *)0) {
 	/*
 	 * Nothing fit. If the first word on the line is actually
 	 * "else", it's a valid conditional whose value is the inverse
@@ -1109,7 +1109,7 @@ Cond_Eval (char *line)
 	 */
 	if (isElse && (line[0] == 's') && (line[1] == 'e')) {
 	    if (condTop == MAXIF) {
-		Parse_Error (level, "if-less else");
+		Parse_Error(level, "if-less else");
 		return (COND_INVALID);
 	    } else if (skipIfLevel == 0) {
 		value = !condStack[condTop];
@@ -1126,7 +1126,7 @@ Cond_Eval (char *line)
     } else {
 	if (isElse) {
 	    if (condTop == MAXIF) {
-		Parse_Error (level, "if-less elif");
+		Parse_Error(level, "if-less elif");
 		return (COND_INVALID);
 	    } else if (skipIfLevel != 0) {
 		/*
@@ -1136,7 +1136,7 @@ Cond_Eval (char *line)
 		 * we're skipping...
 		 */
 	        skipIfLineno[skipIfLevel - 1] = lineno;
-		return(COND_SKIP);
+		return (COND_SKIP);
 	    }
 	} else if (skipLine) {
 	    /*
@@ -1145,7 +1145,7 @@ Cond_Eval (char *line)
 	     */
 	    skipIfLineno[skipIfLevel] = lineno;
 	    skipIfLevel += 1;
-	    return(COND_SKIP);
+	    return (COND_SKIP);
 	}
 
 	/*
@@ -1179,7 +1179,7 @@ Cond_Eval (char *line)
 		/*FALLTHRU*/
 	    case Err:
 	    err:
-		Parse_Error (level, "Malformed conditional (%s)",
+		Parse_Error(level, "Malformed conditional (%s)",
 			     line);
 		return (COND_INVALID);
 	    default:
@@ -1205,7 +1205,7 @@ Cond_Eval (char *line)
 	 * This is the one case where we can definitely proclaim a fatal
 	 * error. If we don't, we're hosed.
 	 */
-	Parse_Error (PARSE_FATAL, "Too many nested if's. %d max.", MAXIF);
+	Parse_Error(PARSE_FATAL, "Too many nested if's. %d max.", MAXIF);
 	return (COND_INVALID);
     } else {
 	condStack[condTop] = value;
@@ -1214,7 +1214,7 @@ Cond_Eval (char *line)
 	return (value ? COND_PARSE : COND_SKIP);
     }
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Cond_End --

@@ -73,11 +73,11 @@ ReturnStatus
 Lst_Open(Lst l)
 {
 
-	if (Lst_Valid (l) == FALSE) {
+	if (Lst_Valid(l) == FALSE) {
 		return (FAILURE);
 	}
 	l->isOpen = TRUE;
-	l->atEnd = Lst_IsEmpty (l) ? LstHead : LstUnknown;
+	l->atEnd = Lst_IsEmpty(l) ? LstHead : LstUnknown;
 	l->curPtr = NULL;
 
 	return (SUCCESS);

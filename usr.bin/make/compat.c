@@ -85,8 +85,8 @@ static void CompatInterrupt(int);
 static int CompatMake(void *, void *);
 static int shellneed(char *);
 
-static char *sh_builtin[] = { 
-	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 
+static char *sh_builtin[] = {
+	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit",
 	"unalias", "umask", "unset", "wait", ":", 0};
 
 static void
@@ -95,7 +95,7 @@ CompatInit(void)
     char    	  *cp;	    /* Pointer to string of shell meta-characters */
 
     for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
-	meta[(unsigned char) *cp] = 1;
+	meta[(unsigned char)*cp] = 1;
     }
     /*
      * The null character serves as a sentinel in the string.
@@ -144,12 +144,12 @@ CompatInterrupt (int signo)
     /* prevent recursion in evaluation of .INTERRUPT */
     interrupted = 0;
 
-    if ((curTarg != NULL) && !Targ_Precious (curTarg)) {
+    if ((curTarg != NULL) && !Targ_Precious(curTarg)) {
 	char	  *p1;
-	char 	  *file = Var_Value (TARGET, curTarg, &p1);
+	char 	  *file = Var_Value(TARGET, curTarg, &p1);
 
 	if (!noExecute && eunlink(file) != -1) {
-	    printf ("*** %s removed\n", file);
+	    printf("*** %s removed\n", file);
 	}
 	free(p1);
     }
@@ -168,21 +168,21 @@ CompatInterrupt (int signo)
 
     if (signo == SIGQUIT)
 	exit(signo);
-    (void) signal(signo, SIG_DFL);
-    (void) kill(getpid(), signo);
+    signal(signo, SIG_DFL);
+    kill(getpid(), signo);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * shellneed --
- *	
+ *
  * Results:
  *	Returns 1 if a specified line must be executed by the shell,
  *	0 if it can be run via execve, and -1 if the command is a no-op.
  *
  * Side Effects:
  *	None.
- *	
+ *
  *-----------------------------------------------------------------------
  */
 static int
@@ -197,7 +197,7 @@ shellneed (char *cmd)
 			return (1);
 	return (0);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Compat_RunCommand --
@@ -214,7 +214,7 @@ shellneed (char *cmd)
  *-----------------------------------------------------------------------
  */
 int
-Compat_RunCommand (void *cmdp, void *gnp)
+Compat_RunCommand(void *cmdp, void *gnp)
 {
     char    	  *cmdStart;	/* Start of expanded command */
     char	  *cp;
@@ -230,8 +230,8 @@ Compat_RunCommand (void *cmdp, void *gnp)
     int	    	  argc;	    	/* Number of arguments in av or 0 if not
 				 * dynamically allocated */
     int		  internal;	/* Various values.. */
-    char	  *cmd = (char *) cmdp;
-    GNode	  *gn = (GNode *) gnp;
+    char	  *cmd = (char *)cmdp;
+    GNode	  *gn = (GNode *)gnp;
 
     /*
      * Avoid clobbered variable warnings by forcing the compiler
@@ -245,8 +245,8 @@ Compat_RunCommand (void *cmdp, void *gnp)
     errCheck = !(gn->type & OP_IGNORE);
     doit = FALSE;
 
-    cmdNode = Lst_Member (gn->commands, (void *)cmd);
-    cmdStart = Var_Subst (NULL, cmd, gn, FALSE);
+    cmdNode = Lst_Member(gn->commands, (void *)cmd);
+    cmdStart = Var_Subst(NULL, cmd, gn, FALSE);
 
     /*
      * brk_string will return an argv with a NULL in av[0], thus causing
@@ -258,18 +258,18 @@ Compat_RunCommand (void *cmdp, void *gnp)
     if (*cmdStart == '\0') {
 	free(cmdStart);
 	Error("%s expands to empty string", cmd);
-	return(0);
+	return (0);
     } else {
 	cmd = cmdStart;
     }
     Lst_Replace (cmdNode, (void *)cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
-	(void)Lst_AtEnd(ENDNode->commands, (void *)cmdStart);
-	return(0);
+	Lst_AtEnd(ENDNode->commands, (void *)cmdStart);
+	return (0);
     } else if (strcmp(cmdStart, "...") == 0) {
 	gn->type |= OP_SAVE_CMDS;
-	return(0);
+	return (0);
     }
 
     while ((*cmd == '@') || (*cmd == '-') || (*cmd == '+')) {
@@ -309,7 +309,7 @@ Compat_RunCommand (void *cmdp, void *gnp)
      * this one. We also print the command if -n given, but not if '+'.
      */
     if (!silent || (noExecute && !doit)) {
-	printf ("%s\n", cmd);
+	printf("%s\n", cmd);
 	fflush(stdout);
     }
 
@@ -374,22 +374,22 @@ Compat_RunCommand (void *cmdp, void *gnp)
     }
     if (cpid == 0) {
 	execvp(av[0], av);
-	(void) write (STDERR_FILENO, av[0], strlen (av[0]));
-	(void) write (STDERR_FILENO, ":", 1);
-	(void) write (STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
-	(void) write (STDERR_FILENO, "\n", 1);
+	write(STDERR_FILENO, av[0], strlen (av[0]));
+	write(STDERR_FILENO, ":", 1);
+	write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
+	write(STDERR_FILENO, "\n", 1);
 	exit(1);
     }
 
-    /* 
+    /*
      * we need to print out the command associated with this Gnode in
      * Targ_PrintCmd from Targ_PrintGraph when debugging at level g2,
      * in main(), Fatal() and DieHorribly(), therefore do not free it
-     * when debugging. 
+     * when debugging.
      */
     if (!DEBUG(GRAPH2)) {
 	free(cmdStart);
-	Lst_Replace (cmdNode, cmdp);
+	Lst_Replace(cmdNode, cmdp);
     }
 
     /*
@@ -411,11 +411,11 @@ Compat_RunCommand (void *cmdp, void *gnp)
 	    } else if (WIFEXITED(reason)) {
 		status = WEXITSTATUS(reason);		/* exited */
 		if (status != 0) {
-		    printf ("*** Error code %d", status);
+		    printf("*** Error code %d", status);
 		}
 	    } else {
 		status = WTERMSIG(reason);		/* signaled */
-		printf ("*** Signal %d", status);
+		printf("*** Signal %d", status);
 	    }
 
 
@@ -427,27 +427,27 @@ Compat_RunCommand (void *cmdp, void *gnp)
 			 * Abort the current target, but let others
 			 * continue.
 			 */
-			printf (" (continuing)\n");
+			printf(" (continuing)\n");
 		    }
 		} else {
 		    /*
 		     * Continue executing commands for this target.
 		     * If we return 0, this will happen...
 		     */
-		    printf (" (ignored)\n");
+		    printf(" (ignored)\n");
 		    status = 0;
 		}
 	    }
 	    break;
 	} else {
-	    Fatal ("error in wait: %d", rstat);
+	    Fatal("error in wait: %d", rstat);
 	    /*NOTREACHED*/
 	}
     }
 
     return (status);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CompatMake --
@@ -462,10 +462,11 @@ Compat_RunCommand (void *cmdp, void *gnp)
  *-----------------------------------------------------------------------
  */
 static int
-CompatMake (void *gnp, void *pgnp)
+CompatMake(void *gnp, void *pgnp)
 {
-    GNode *gn = (GNode *) gnp;
-    GNode *pgn = (GNode *) pgnp;
+    GNode *gn = (GNode *)gnp;
+    GNode *pgn = (GNode *)pgnp;
+
     if (gn->type & OP_USE) {
 	Make_HandleUse(gn, pgn);
     } else if (gn->made == UNMADE) {
@@ -479,17 +480,17 @@ CompatMake (void *gnp, void *pgnp)
 	 */
 	gn->make = TRUE;
 	gn->made = BEINGMADE;
-	Suff_FindDeps (gn);
-	Lst_ForEach (gn->children, CompatMake, (void *)gn);
+	Suff_FindDeps(gn);
+	Lst_ForEach(gn->children, CompatMake, (void *)gn);
 	if (!gn->make) {
 	    gn->made = ABORTED;
 	    pgn->make = FALSE;
 	    return (0);
 	}
 
-	if (Lst_Member (gn->iParents, pgn) != NULL) {
+	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
-	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
+	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
 	}
 
@@ -500,7 +501,7 @@ CompatMake (void *gnp, void *pgnp)
 	 * Make_OODate function.
 	 */
 	DEBUGF(MAKE, ("Examining %s...", gn->name));
-	if (! Make_OODate(gn)) {
+	if (!Make_OODate(gn)) {
 	    gn->made = UPTODATE;
 	    DEBUGF(MAKE, ("up-to-date.\n"));
 	    return (0);
@@ -513,7 +514,7 @@ CompatMake (void *gnp, void *pgnp)
 	 * to tell him/her "yes".
 	 */
 	if (queryFlag) {
-	    exit (1);
+	    exit(1);
 	}
 
 	/*
@@ -527,24 +528,24 @@ CompatMake (void *gnp, void *pgnp)
 	 * Alter our type to tell if errors should be ignored or things
 	 * should not be printed so Compat_RunCommand knows what to do.
 	 */
-	if (Targ_Ignore (gn)) {
+	if (Targ_Ignore(gn)) {
 	    gn->type |= OP_IGNORE;
 	}
-	if (Targ_Silent (gn)) {
+	if (Targ_Silent(gn)) {
 	    gn->type |= OP_SILENT;
 	}
 
-	if (Job_CheckCommands (gn, Fatal)) {
+	if (Job_CheckCommands(gn, Fatal)) {
 	    /*
 	     * Our commands are ok, but we still have to worry about the -t
 	     * flag...
 	     */
 	    if (!touchFlag) {
 		curTarg = gn;
-		Lst_ForEach (gn->commands, Compat_RunCommand, (void *)gn);
+		Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
 		curTarg = NULL;
 	    } else {
-		Job_Touch (gn, gn->type & OP_SILENT);
+		Job_Touch(gn, gn->type & OP_SILENT);
 	    }
 	} else {
 	    gn->made = ERROR;
@@ -623,9 +624,9 @@ CompatMake (void *gnp, void *pgnp)
 	} else {
 	    char *p1;
 
-	    printf ("\n\nStop in %s.\n", Var_Value(".CURDIR", gn, &p1));
+	    printf("\n\nStop in %s.\n", Var_Value(".CURDIR", gn, &p1));
 	    free(p1);
-	    exit (1);
+	    exit(1);
 	}
     } else if (gn->made == ERROR) {
 	/*
@@ -634,9 +635,9 @@ CompatMake (void *gnp, void *pgnp)
 	 */
 	pgn->make = FALSE;
     } else {
-	if (Lst_Member (gn->iParents, pgn) != NULL) {
+	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
-	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
+	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
 	}
 	switch(gn->made) {
@@ -663,7 +664,7 @@ CompatMake (void *gnp, void *pgnp)
 
     return (0);
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Compat_Run --
@@ -726,14 +727,14 @@ Compat_Run(Lst targs)
      *	    	  	    could not be made due to errors.
      */
     errors = 0;
-    while (!Lst_IsEmpty (targs)) {
-	gn = (GNode *) Lst_DeQueue (targs);
-	CompatMake (gn, gn);
+    while (!Lst_IsEmpty(targs)) {
+	gn = (GNode *)Lst_DeQueue(targs);
+	CompatMake(gn, gn);
 
 	if (gn->made == UPTODATE) {
-	    printf ("`%s' is up to date.\n", gn->name);
+	    printf("`%s' is up to date.\n", gn->name);
 	} else if (gn->made == ABORTED) {
-	    printf ("`%s' not remade because of errors.\n", gn->name);
+	    printf("`%s' not remade because of errors.\n", gn->name);
 	    errors += 1;
 	}
     }

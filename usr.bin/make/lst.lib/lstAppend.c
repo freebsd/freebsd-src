@@ -75,11 +75,11 @@ Lst_Append(Lst list, LstNode ln, void *d)
 {
     LstNode	nLNode;
 
-    if (Lst_Valid (list) && (ln == NULL && Lst_IsEmpty (list))) {
+    if (Lst_Valid(list) && (ln == NULL && Lst_IsEmpty(list))) {
 	goto ok;
     }
 
-    if (!Lst_Valid (list) || Lst_IsEmpty (list)  || ! Lst_NodeValid(ln, list)) {
+    if (!Lst_Valid(list) || Lst_IsEmpty(list)  || ! Lst_NodeValid(ln, list)) {
 	return (FAILURE);
     }
     ok:

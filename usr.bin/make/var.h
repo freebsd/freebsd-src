@@ -68,8 +68,8 @@ typedef struct {
     int	    	  flags;
 } VarPattern;
 
-typedef struct { 
-    regex_t	   re; 
+typedef struct {
+    regex_t	   re;
     int		   nsub;
     regmatch_t	  *matches;
     char	  *replace;
