@@ -21,6 +21,7 @@ SRCS=	\
 	parse.y \
 	print_version.c \
 	print_version.h \
+	roken.h \
 	get_window_size.c \
 	strupr.c
 
@@ -32,7 +33,13 @@ print_version.h: ../make-print-version/make-print-version
 ../make-print-version/make-print-version:
 	cd ${.CURDIR}/../make-print-version && ${MAKE}
 
-CLEANFILES= print_version.h
+roken.h: ../make-roken/make-roken
+	../make-roken/make-roken > ${.TARGET}
+
+../make-roken/make-roken:
+	cd ${.CURDIR}/../make-roken && ${MAKE}
+
+CLEANFILES= print_version.h roken.h
 
 .include <bsd.prog.mk>
 
