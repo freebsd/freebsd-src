@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.64 1995/07/31 21:43:37 bde Exp $
+ * $Id: tty.c,v 1.65 1995/07/31 22:48:33 bde Exp $
  */
 
 /*-
@@ -2290,7 +2290,7 @@ ttysleep(tp, chan, pri, wmesg, timo)
 	char *wmesg;
 {
 	int error;
-	short gen;
+	int gen;
 
 	gen = tp->t_gen;
 	error = tsleep(chan, pri, wmesg, timo);
