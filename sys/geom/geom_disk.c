@@ -263,7 +263,6 @@ disk_invalidate (struct disk *disk)
 {
 }
 
-
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disklabel, CTLFLAG_RD,
     0, sizeof(struct disklabel), "sizeof(struct disklabel)");
 
@@ -272,3 +271,41 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, diskslices, CTLFLAG_RD,
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD,
     0, sizeof(struct disk), "sizeof(struct disk)");
+
+static void
+g_kern_disks(void *p)
+{
+	struct sbuf *sb;
+	struct g_geom *gp;
+	char *sp;
+
+	sb = p;
+	sp = "";
+	g_topology_assert();
+	LIST_FOREACH(gp, &g_disk_class.geom, geom) {
+		sbuf_printf(sb, "%s%s", sp, gp->name);
+		sp = " ";
+	}
+	sbuf_finish(sb);
+	wakeup(sb);
+}
+
+static int
+sysctl_disks(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct sbuf *sb;
+
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	g_call_me(g_kern_disks, sb);
+	do {
+		tsleep(sb, PZERO, "kern.disks", hz);
+	} while(!sbuf_done(sb));
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
+	sbuf_delete(sb);
+	return error;
+}
+ 
+SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NOLOCK, 0, 0, 
+    sysctl_disks, "A", "names of available disks");
