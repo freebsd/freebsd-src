@@ -28,11 +28,13 @@ bind:	root
 daemon:	root
 games:	root
 kmem:	root
+mailnull: postmaster
 man:	root
 news:	root
 nobody:	root
 operator: root
 pop:	root
+smmsp:	postmaster
 system:	root
 toor:	root
 tty:	root
