@@ -458,6 +458,17 @@ lex(word)
 	register struct cmd *cp;
 	extern struct cmd cmdtab[];
 
+	/*
+	 * ignore trailing chars after `#' 
+	 *
+	 * lines with beginning `#' are comments
+	 * spaces befor `#' are ignored in execute()
+	 */
+
+	if (*word == '#')
+	    *(word+1) = '\0';
+
+
 	for (cp = &cmdtab[0]; cp->c_name != NOSTR; cp++)
 		if (isprefix(word, cp->c_name))
 			return(cp);
