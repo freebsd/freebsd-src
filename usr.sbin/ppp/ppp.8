@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.50 1997/08/18 20:15:10 brian Exp $
+.\" $Id: ppp.8,v 1.51 1997/08/19 01:10:24 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -123,7 +123,7 @@ compression pre-compresses
 .Em all
 data flowing through the link, thus reducing overhead to a minimum.
 
-.It Supports Microsofts IPCP extentions.
+.It Supports Microsofts IPCP extensions.
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
@@ -2031,7 +2031,7 @@ and
 .Fl ddial
 modes.
 
-.Pa /var/run/ttyXX.pid
+.Pa /var/run/ttyXX.if
 The tun interface used by this port.  Again, this file is only created in
 .Fl background ,
 .Fl auto
