@@ -47,7 +47,6 @@ static const char rcsid[] =
 /*
  * build the ioconf.c file
  */
-static void	scbus_devtab __P((FILE *));
 
 static char *
 devstr(struct device *dp)
@@ -184,10 +183,6 @@ newbus_ioconf()
 	fprintf(fp, " */\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#include <sys/param.h>\n");
-
-	if (seen_scbus)
-		scbus_devtab(fp);
-
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
 	fprintf(fp, " * New bus architecture devices.\n");
@@ -206,82 +201,4 @@ newbus_ioconf()
 
 	(void) fclose(fp);
 	moveifchanged(path("ioconf.c.new"), path("ioconf.c"));
-}
-
-static char *
-id(int unit)
-{
-	static char buf[32];
-
-	char *s;
-	switch(unit)
-	{
-		case UNKNOWN:
-		s ="CAMCONF_UNSPEC";
-		break;;
-
-		case QUES:
-		s ="CAMCONF_ANY";
-		break;
-
-		default:
-		(void) snprintf(buf, sizeof(buf), "%d", unit);
-		s = buf;
-	}
-
-	return s;
-}
-
-/* XXX: dufault@hda.com: wiped out mkioconf.c locally:
- *      All that nice "conflicting SCSI ID checking" is now
- *      lost and should be put back in.
- */
-static void
-scbus_devtab(fp)
-	FILE	*fp;
-{
-	register struct device *dp;
-
-	fprintf(fp, "\n");
-	fprintf(fp, "/*\n");
-	fprintf(fp, " * CAM devices.\n");
-	fprintf(fp, " */\n");
-	fprintf(fp, "\n");
-	fprintf(fp, "#include <cam/cam_conf.h>\n");
-	fprintf(fp, "\n");
-	fprintf(fp, "struct cam_sim_config cam_sinit[] = {\n");
-	fprintf(fp, "/* pathid, sim name, sim unit, sim bus */\n");
-
-	for (dp = dtab; dp; dp = dp->d_next) {
-		if (dp->d_type != DEVICE || dp->d_conn == 0 ||
-		    !eq(dp->d_name, "scbus"))
-			continue;
-		fprintf(fp, "{ %s, ", id(dp->d_unit));
-		fprintf(fp, "\"%s\", ", dp->d_conn);
-		fprintf(fp, "%s, ", id(dp->d_connunit));
-		fprintf(fp, "%s },\n", id(dp->d_bus));
-	}
-	fprintf(fp, "{ 0, 0, 0, 0 }\n");
-	fprintf(fp, "};\n");
-
-
-	fprintf(fp, "\n");
-	fprintf(fp, "struct cam_periph_config cam_pinit[] = {\n");
-	fprintf(fp,
-"/* periph name, periph unit, pathid, target, LUN, flags */\n");
-	for (dp = dtab; dp; dp = dp->d_next) {
-		if (dp->d_type != DEVICE || dp->d_conn == 0 ||
-		    !eq(dp->d_conn, "scbus"))
-			continue;
-
-		fprintf(fp, "{ ");
-		fprintf(fp, "\"%s\", ", dp->d_name);
-		fprintf(fp, "%s, ", id(dp->d_unit));
-		fprintf(fp, "%s, ", id(dp->d_connunit));
-		fprintf(fp, "%s, ", id(dp->d_target));
-		fprintf(fp, "%s, ", id(dp->d_lun));
-		fprintf(fp, " 0x%x },\n", dp->d_flags);
-	}
-	fprintf(fp, "{ 0, 0, 0, 0, 0, 0 }\n");
-	fprintf(fp, "};\n");
 }
