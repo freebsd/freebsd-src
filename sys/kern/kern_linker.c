@@ -1370,6 +1370,9 @@ linker_lookup_file(const char *path, int pathlen,
  * Lookup KLD which contains requested module in the "linker.hints" file.
  * If version specification is available, then try to find the best KLD.
  * Otherwise just find the latest one.
+ *
+ * XXX: Vnode locking here is hosed; lock should be held for calls to
+ * VOP_GETATTR() and vn_rdwr().
  */
 static char *
 linker_hints_lookup(const char *path, int pathlen,
