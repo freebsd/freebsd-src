@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.16 1995/12/02 18:58:43 bde Exp $
+ * $Id: vfs_init.c,v 1.17 1995/12/03 18:00:35 bde Exp $
  */
 
 
@@ -302,7 +302,7 @@ sysctl_fs_vfsconf SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_fs, FS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_fs_vfsconf, "");
+	0, 0, sysctl_fs_vfsconf, "S,vfsconf", "");
 
 /*
  * This goop is here to support a loadable NFS module... grumble...

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.8 1995/07/29 11:44:25 bde Exp $
+ * $Id: vm_meter.c,v 1.9 1995/11/14 09:29:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,9 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-struct loadavg averunnable;	/* load average, of runnable procs */
+struct loadavg averunnable =
+	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
+
 struct vmmeter cnt;
 
 int maxslp = MAXSLP;
@@ -107,16 +109,7 @@ SYSCTL_INT(_vm, VM_V_CACHE_MAX, v_cache_max,
 SYSCTL_INT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
 
-static int
-vm_loadavg SYSCTL_HANDLER_ARGS
-{
-	averunnable.fscale = FSCALE;
-	return (sysctl_handle_opaque(oidp, 
-		oidp->oid_arg1, oidp->oid_arg2, req));
-}
-
-SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	&averunnable, sizeof(averunnable), vm_loadavg, "");
+SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, &averunnable, loadavg, "");
 
 static int
 vmtotal SYSCTL_HANDLER_ARGS
@@ -212,4 +205,4 @@ vmtotal SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_vm, VM_METER, vmmeter, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, sizeof(struct vmtotal), vmtotal, "");
+	0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", "");

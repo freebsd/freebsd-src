@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.152 1995/11/20 12:41:24 phk Exp $
+ *	$Id: machdep.c,v 1.153 1995/11/29 19:57:01 wollman Exp $
  */
 
 #include "npx.h"
@@ -142,7 +142,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 static void identifycpu(void);
 
 char machine[] = "i386";
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
+
 char cpu_model[128];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 
 struct kern_devconf kdc_cpu0 = {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -174,10 +177,30 @@ int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 
 
-/*
- * Machine-dependent startup code
- */
-int boothowto = 0, bootverbose = 0, Maxmem = 0, badpages = 0, physmem = 0;
+int physmem = 0;
+
+static int
+sysctl_hw_physmem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "I", "");
+
+static int
+sysctl_hw_usermem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0,
+		ctob(physmem - cnt.v_wire_count), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "I", "");
+
+int boothowto = 0, bootverbose = 0, Maxmem = 0, badpages = 0;
 long dumplo;
 extern int bootdev;
 int biosmem;
@@ -1037,8 +1060,8 @@ sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz,
-	CTLTYPE_INT|CTLFLAG_RW, &adjkerntz, 0, sysctl_machdep_adjkerntz, "");
+SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
 
 static int
 sysctl_machdep_consdev SYSCTL_HANDLER_ARGS
@@ -1048,8 +1071,8 @@ sysctl_machdep_consdev SYSCTL_HANDLER_ARGS
 	return (sysctl_handle_opaque(oidp, &consdev, sizeof consdev, req));
 }
 
-SYSCTL_PROC(_machdep, CPU_CONSDEV, consdev,
-	CTLTYPE_OPAQUE|CTLFLAG_RD, 0, 0, sysctl_machdep_consdev, "");
+SYSCTL_PROC(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_machdep_consdev, "T,dev_t", "");
 
 SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
