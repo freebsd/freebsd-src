@@ -481,6 +481,12 @@ archive_entry_set_hardlink(struct archive_entry *entry, const char *target)
 }
 
 void
+archive_entry_copy_hardlink(struct archive_entry *entry, const char *target)
+{
+	aes_copy_mbs(&entry->ae_hardlink, target);
+}
+
+void
 archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target)
 {
 	aes_copy_wcs(&entry->ae_hardlink, target);
@@ -1111,6 +1117,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 				    malloc(namebuff_length * sizeof(wchar_t));
 			}
 			wmemcpy(namebuff, name_start, name_end - name_start);
+			namebuff[name_end - name_start] = L'\0';
 			archive_entry_acl_add_entry_w(entry, type,
 			    permset, tag, id, namebuff);
 		}

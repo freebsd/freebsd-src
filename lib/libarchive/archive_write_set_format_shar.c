@@ -38,16 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_private.h"
 
-static int	archive_write_shar_finish(struct archive *);
-static int	archive_write_shar_header(struct archive *,
-		    struct archive_entry *);
-static int	archive_write_shar_data_sed(struct archive *,
-		    const void * buff, size_t);
-static int	archive_write_shar_data_uuencode(struct archive *,
-		    const void * buff, size_t);
-static int	archive_write_shar_finish_entry(struct archive *);
-static int	shar_printf(struct archive *, const char *fmt, ...);
-
 struct shar {
 	int			 dump;
 	int			 end_of_line;
@@ -60,19 +50,43 @@ struct shar {
 	int			 uuavail;
 	char			 uubuffer[3];
 	int			 wrote_header;
+	char			*work;
+	size_t			 work_len;
 };
+
+static int	archive_write_shar_finish(struct archive *);
+static int	archive_write_shar_header(struct archive *,
+		    struct archive_entry *);
+static int	archive_write_shar_data_sed(struct archive *,
+		    const void * buff, size_t);
+static int	archive_write_shar_data_uuencode(struct archive *,
+		    const void * buff, size_t);
+static int	archive_write_shar_finish_entry(struct archive *);
+static int	shar_printf(struct archive *, const char *fmt, ...);
+static void	uuencode_group(struct shar *);
 
 static int
 shar_printf(struct archive *a, const char *fmt, ...)
 {
+	struct shar *shar;
 	va_list ap;
-	char *p;
+	int required;
 	int ret;
 
+	shar = a->format_data;
+	if (shar->work_len <= 0) {
+		shar->work_len = 1024;
+		shar->work = malloc(shar->work_len);
+	}
+
 	va_start(ap, fmt);
-	vasprintf(&p, fmt, ap);
-	ret = ((a->compression_write)(a, p, strlen(p)));
-	free(p);
+	required = vsnprintf(shar->work, shar->work_len, fmt, ap);
+	if ((size_t)required >= shar->work_len) {
+		shar->work_len = required + 256;
+		realloc(shar->work, shar->work_len);
+		required = vsnprintf(shar->work, shar->work_len, fmt, ap);
+	}
+	ret = ((a->compression_write)(a, shar->work, strlen(shar->work)));
 	va_end(ap);
 	return (ret);
 }
@@ -261,6 +275,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	return (ARCHIVE_OK);
 }
 
+/* XXX TODO: This could be more efficient XXX */
 static int
 archive_write_shar_data_sed(struct archive *a, const void *buff, size_t length)
 {
@@ -297,6 +312,7 @@ archive_write_shar_data_sed(struct archive *a, const void *buff, size_t length)
 
 #define	UUENC(c)	(((c)!=0) ? ((c) & 077) + ' ': '`')
 
+/* XXX This could be a lot more efficient. XXX */
 static void
 uuencode_group(struct shar *shar)
 {
@@ -443,6 +459,8 @@ archive_write_shar_finish(struct archive *a)
 		archive_entry_free(shar->entry);
 	if (shar->last_dir != NULL)
 		free(shar->last_dir);
+	if (shar->work != NULL)
+		free(shar->work);
 	free(shar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
