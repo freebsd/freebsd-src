@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
-.\"	$Id$
+.\"	$Id: access.2,v 1.2 1996/08/29 21:23:53 wosch Exp $
 .\"
 .Dd April 1, 1994
 .Dt ACCESS 2
@@ -122,9 +122,10 @@ An I/O error occurred while reading from or writing to the file system.
 .Xr chmod 2 ,
 .Xr stat 2
 .Sh STANDARDS
-.Fn Access
-conforms to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+The
+.Fn access
+function call is expected to conform to 
+.St -p1003.1-90 .
 .Sh CAVEAT
 .Fn Access
 is a potential security hole and
