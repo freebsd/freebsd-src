@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.48 1996/10/30 21:40:25 julian Exp $
+ * $Id: sysctl.h,v 1.48.2.1 1997/08/13 07:43:58 peter Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -303,7 +303,8 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	HW_DISKNAMES	 8		/* strings: disk drive names */
 #define	HW_DISKSTATS	 9		/* struct: diskstats[] */
 #define HW_FLOATINGPT	10		/* int: has HW floating point? */
-#define	HW_MAXID	11		/* number of valid hw ids */
+#define HW_MACHINE_ARCH	11		/* string: machine architecture */
+#define	HW_MAXID	12		/* number of valid hw ids */
 
 #define CTL_HW_NAMES { \
 	{ 0, 0 }, \
