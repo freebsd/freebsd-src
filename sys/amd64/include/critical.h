@@ -57,10 +57,7 @@ void cpu_critical_fork_exit(void);
 static __inline void
 cpu_critical_enter(void)
 {
-	struct thread *td;
-
-	td = curthread;
-	td->td_md.md_savecrit = intr_disable();
+	curthread->td_md.md_savecrit = intr_disable();
 }
 
 /*
@@ -73,10 +70,7 @@ cpu_critical_enter(void)
 static __inline void
 cpu_critical_exit(void)
 {
-	struct thread *td;
-
-	td = curthread;
-	intr_restore(td->td_md.md_savecrit);
+	intr_restore(curthread->td_md.md_savecrit);
 }
 
 #else /* !__GNUC__ */
