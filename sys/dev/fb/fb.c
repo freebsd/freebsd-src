@@ -509,7 +509,7 @@ fbmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 					  offset, paddr, nprot);
 }
 
-DEV_DRIVER_MODULE(fb, ???, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(fb, foo, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
 #endif
 
 /*
