@@ -376,9 +376,13 @@ esac
 
 echo '.'
 
-# Build devices database
+# Build device name databases if we are not using DEVFS
 #
-dev_mkdb
+if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
+	rm /var/run/dev.db
+else
+	dev_mkdb
+fi
 
 # Enable dumpdev so that savecore can see it.
 # /var/crash should be a directory or a symbolic link
