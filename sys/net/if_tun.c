@@ -343,6 +343,7 @@ tunoutput(ifp, m0, dst, rt)
 			ifp->if_collisions++;
 			return (ENOBUFS);
 		}
+		ifp->if_obytes += m0->m_pkthdr.len;
 		IF_ENQUEUE(&ifp->if_snd, m0);
 		splx(s);
 		ifp->if_opackets++;
@@ -566,6 +567,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	}
 	IF_ENQUEUE(&ipintrq, top);
 	splx(s);
+	ifp->if_ibytes += tlen;
 	ifp->if_ipackets++;
 	schednetisr(NETISR_IP);
 	return error;
