@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.16 1995/05/20 07:50:20 jkh Exp $
+ * $Id: msg.c,v 1.17 1995/05/20 08:31:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,12 @@ msgInfo(char *fmt, ...)
     char *errstr;
     int attrs;
 
+    /* NULL is a special convention meaning "erase the old stuff" */
+    if (!fmt) {
+	move(23, 0);
+	clrtoeol();
+	return;
+    }
     errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
@@ -83,7 +89,7 @@ msgInfo(char *fmt, ...)
     refresh();
     if (OnVTY) {
 	msgDebug("Informational message `%s'\n", errstr);
-	msgInfo("");
+	msgInfo(NULL);
     }
     free(errstr);
 }
@@ -183,7 +189,7 @@ msgConfirm(char *fmt, ...)
     use_helpfile(NULL);
     if (OnVTY) {
 	msgDebug("User confirmation requested (type ALT-F1)\n");
-	msgInfo("");
+	msgInfo(NULL);
     }
     dialog_notify(errstr);
     free(errstr);
@@ -225,7 +231,7 @@ msgYesNo(char *fmt, ...)
     w = dupwin(newscr);
     if (OnVTY) {
 	msgDebug("User decision requested (type ALT-F1)\n");
-	msgInfo("");
+	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
     touchwin(w);
@@ -258,7 +264,7 @@ msgGetInput(char *buf, char *fmt, ...)
     w = dupwin(newscr);
     if (OnVTY) {
 	msgDebug("User input requested (type ALT-F1)\n");
-	msgInfo("");
+	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
     touchwin(w);

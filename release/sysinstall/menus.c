@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.18 1995/05/20 00:13:12 jkh Exp $
+ * $Id: menus.c,v 1.19 1995/05/20 07:50:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,13 +168,9 @@ procedure (available on the FreeBSD CDROM or the net under the\n\
 tools/dos directory) or have otherwise prepared a set of diskettes\n\
 for each distribution that properly contains all the components of\n\
 the distribution plus the extraction and checksumming scripts.",
-    "Please select the floppy drive you want to use",
+    "Please select which floppy drive you want to use",
     NULL,
-    { { "A", "Floppy drive A",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=fd0a", 0, 0	},
-      { "B", "Floppy drive B",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=fd1a", 0, 0	},
-      { NULL } },
+    { { NULL } },
 };
 
 DMenu MenuMediaFTP = {
