@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.73 1996/06/12 05:10:44 gpalmer Exp $
+**  $Id: ncr.c,v 1.74 1996/08/05 19:39:51 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1202,7 +1202,7 @@ static	void	ncr_complete	(ncb_p np, ccb_p cp);
 static	int	ncr_delta	(struct timeval * from, struct timeval * to);
 static	void	ncr_exception	(ncb_p np);
 static	void	ncr_free_ccb	(ncb_p np, ccb_p cp, int flags);
-static	void	ncr_getclock	(ncb_p np);
+static	void	ncr_getclock	(ncb_p np, u_char scntl3);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  u_int32_t ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.73 1996/06/12 05:10:44 gpalmer Exp $\n";
+	"\n$Id: ncr.c,v 1.74 1996/08/05 19:39:51 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3354,7 +3354,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**	Find the right value for scntl3.
 	*/
 
-	ncr_getclock (np);
+	ncr_getclock (np, INB(nc_scntl3));
 
 	/*
 	**	Reset chip.
@@ -6767,16 +6767,16 @@ static u_long ncr_lookup(char * id)
 #endif /* NCR_CLOCK */
 
 
-static void ncr_getclock (ncb_p np)
+static void ncr_getclock (ncb_p np, u_char scntl3)
 {
-	u_char	tbl[5] = {6,2,3,4,6};
+	u_char	tbl[6] = {6,2,3,4,6,8};
 	u_char	f;
 	u_char	ns_clock = (1000/NCR_CLOCK);
 
 	/*
 	**	Compute the best value for scntl3.
 	*/
-
+/*
 	f = (2 * MIN_SYNC_PD - 1) / ns_clock;
 	if (!f ) f=1;
 	if (f>4) f=4;
@@ -6791,6 +6791,15 @@ static void ncr_getclock (ncb_p np)
 	if (DEBUG_FLAGS & DEBUG_TIMING)
 		printf ("%s: sclk=%d async=%d sync=%d (ns) scntl3=0x%x\n",
 		ncr_name (np), ns_clock, np->ns_async, np->ns_sync, np->rv_scntl3);
+*/
+
+	/*
+	 *	For now just preserve the BIOS setting ...
+	 */
+
+	np->rv_scntl3 = ((scntl3 & 0x7) << 4) -0x20 + (scntl3 & 0x7);
+	if (bootverbose) printf ("\tinitial value of SCNTL3 = %02x, final = %02x\n",
+				 scntl3, np->rv_scntl3);
 }
 
 /*=========================================================================*/
