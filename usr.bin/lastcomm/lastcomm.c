@@ -176,7 +176,7 @@ main(argc, argv)
 		if (*argv && !requested(argv, &ab))
 			continue;
 
-		(void)printf("%-*.*s %-7s %-*s %-*s ",
+		(void)printf("%-*.*s %-7s %-*s %-*s",
 			     AC_COMM_LEN, AC_COMM_LEN, ab.ac_comm,
 			     flagbits(ab.ac_flag),
 			     UT_NAMESIZE, user_from_uid(ab.ac_uid, 0),
@@ -185,37 +185,36 @@ main(argc, argv)
 		
 		/* user + system time */
 		if (time & AC_CTIME) {
-			(void)printf("%6.2f secs ", 
+			(void)printf(" %6.2f secs", 
 				     (expand(ab.ac_utime) + 
 				      expand(ab.ac_stime))/AC_HZ);
 		}
 		
 		/* usr time */
 		if (time & AC_UTIME) {
-			(void)printf("%6.2f us ", expand(ab.ac_utime)/AC_HZ);
+			(void)printf(" %6.2f us", expand(ab.ac_utime)/AC_HZ);
 		}
 		
 		/* system time */
 		if (time & AC_STIME) {
-			(void)printf("%6.2f sy ", expand(ab.ac_stime)/AC_HZ);
+			(void)printf(" %6.2f sy", expand(ab.ac_stime)/AC_HZ);
 		}
 		
 		/* elapsed time */
 		if (time & AC_ETIME) {
-			(void)printf("%8.2f es ", expand(ab.ac_etime)/AC_HZ);
+			(void)printf(" %8.2f es", expand(ab.ac_etime)/AC_HZ);
 		}
 		
 		/* starting time */
 		if (time & AC_BTIME) {
-			(void)printf("%.16s ", ctime(&ab.ac_btime));
+			(void)printf(" %.16s", ctime(&ab.ac_btime));
 		}
 		
 		/* exit time (starting time + elapsed time )*/
 		if (time & AC_FTIME) {
 			t = ab.ac_btime;
 			t += (time_t)(expand(ab.ac_etime)/AC_HZ);
-			(void)printf("%.16s ", 
-				     ctime(&t));
+			(void)printf(" %.16s", ctime(&t));
 		}
 		printf("\n");
  	}
