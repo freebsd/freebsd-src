@@ -1,13 +1,7 @@
 /*
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00162
- * --------------------         -----   ----------------------
- *
- * 26 May 93	Holger Veit		added more 8042 defines
- *
  * Keyboard definitions
+ *	from: unknown origin, 386BSD 0.1
+ *	$Id$
  */
 
 /* Reference:	IBM AT Technical Reference Manual, 
