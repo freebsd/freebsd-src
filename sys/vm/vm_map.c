@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.167 1999/06/17 00:27:39 alc Exp $
+ * $Id: vm_map.c,v 1.168 1999/06/17 00:39:26 alc Exp $
  */
 
 /*
@@ -2186,6 +2186,8 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 
 	/* Now set the avail_ssize amount */
 	if (rv == KERN_SUCCESS){
+		if (prev_entry != &map->header)
+			vm_map_clip_end(map, prev_entry, addrbos + max_ssize - init_ssize);
 		new_stack_entry = prev_entry->next;
 		if (new_stack_entry->end   != addrbos + max_ssize ||
 		    new_stack_entry->start != addrbos + max_ssize - init_ssize)
@@ -2311,12 +2313,14 @@ Retry:
 	}
 
 	rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-			   stack_entry->protection,
-			   stack_entry->max_protection,
+			   VM_PROT_ALL,
+			   VM_PROT_ALL,
 			   0);
 
 	/* Adjust the available stack space by the amount we grew. */
 	if (rv == KERN_SUCCESS) {
+		if (prev_entry != &map->header)
+			vm_map_clip_end(map, prev_entry, addr);
 		new_stack_entry = prev_entry->next;
 		if (new_stack_entry->end   != stack_entry->start  ||
 		    new_stack_entry->start != addr)
