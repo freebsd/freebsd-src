@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.21 1996/06/10 23:07:31 gpalmer Exp $
+ * $Id: if_loop.c,v 1.22 1996/06/19 16:24:10 wollman Exp $
  */
 
 /*
@@ -291,6 +291,9 @@ loioctl(ifp, cmd, data)
 
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
+		break;
+
+	case SIOCSIFFLAGS:
 		break;
 
 	default:
