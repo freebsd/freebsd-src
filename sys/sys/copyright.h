@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1997,2000 The FreeBSD Project. All rights reserved.
+ * Copyright (C) 1992-2003 The FreeBSD Project. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
