@@ -36,7 +36,7 @@ MAINTAINER=	kris
 
 # base sources
 SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_dbg.c \
-	tmdiff.c
+	tmdiff.c uid.c
 
 # asn1
 
@@ -331,7 +331,10 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 	ssl/SSL_new.pod ssl/SSL_pending.pod ssl/SSL_read.pod \
 	ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod ssl/SSL_set_session.pod \
 	ssl/SSL_set_verify_result.pod ssl/SSL_shutdown.pod \
-	ssl/SSL_write.pod ssl/d2i_SSL_SESSION.pod ssl/ssl.pod
+	ssl/SSL_write.pod ssl/d2i_SSL_SESSION.pod ssl/ssl.pod \
+	ssl/SSL_CTX_sess_number.pod ssl/SSL_CTX_set_mode.pod \
+	ssl/SSL_get_version.pod ssl/SSL_set_connect_state.pod \
+	ssl/SSL_set_shutdown.pod
 
 .if defined(WANT_OPENSSL_MANPAGES)
 .for section in 1 3
