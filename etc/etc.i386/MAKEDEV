@@ -72,8 +72,9 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #	gsc	Genius GS-4500 hand scanner
+#	joy	pc joystick
 #
-#	$Id: MAKEDEV,v 1.61 1994/12/25 15:08:29 ats Exp $
+#	$Id: MAKEDEV,v 1.62 1995/01/07 14:49:59 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -684,6 +685,13 @@ cronyx)
 	mknod cronyx c 42 63
 	chown 444 cronyx
   	;;
+
+joy)
+	rm -f joy0 joy1
+	mknod joy0 c 51 0
+	mknod joy1 c 51 1
+	chmod 444 joy0 joy1
+	;;
 
 local)
 	umask 0
