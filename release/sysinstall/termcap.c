@@ -31,6 +31,8 @@ set_termcap(void)
     OnVTY = OnSerial = FALSE;
     if (getpid() != 1)
 	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
+    else
+	RunningAsInit = TRUE;
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
     if (stat < 0) {

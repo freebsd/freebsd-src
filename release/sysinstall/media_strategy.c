@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.18 1995/05/24 18:21:49 jkh Exp $
+ * $Id: media_strategy.c,v 1.19 1995/05/24 18:56:03 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,7 +201,7 @@ attr_match(struct attribs *attr, char *name)
 static pid_t getDistpid = 0;
 
 static int
-genericGetDist(char *path, struct attribs *dist_attrib)
+genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
 {
     int 	fd;
     char 	buf[512];
@@ -239,6 +239,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	}
 	getDistpid = 0;
     }
+
     msgDebug("Attempting to extract distribution from %u files\n", numchunks);
     pipe(pfd);
     getDistpid = fork();
@@ -266,7 +267,8 @@ genericGetDist(char *path, struct attribs *dist_attrib)
  	    retval = write(1, memory, sb.st_size);
 	    if (retval != sb.st_size)
 	    {
-		msgConfirm("write didn't write out the complete file!\n(wrote %d bytes of %d bytes)", retval, sb.st_size);
+		msgConfirm("write didn't write out the complete file!\n(wrote %d bytes of %d bytes)", retval,
+			   sb.st_size);
 		exit(1);
 	    }
 
@@ -350,7 +352,7 @@ mediaGetCDROM(char *dist)
    
     snprintf(buf, PATH_MAX, "/cdrom/dists/%s", dist);
 
-    retval = genericGetDist(buf, dist_attr);
+    retval = genericGetDist(buf, dist_attr, FALSE);
     free(dist_attr);
     return retval;
 }
@@ -403,7 +405,7 @@ mediaGetFloppy(char *dist)
    
     snprintf(buf, PATH_MAX, "/mnt/%s", dist);
 
-    retval = genericGetDist(buf, dist_attr);
+    retval = genericGetDist(buf, dist_attr, TRUE);
     free(dist_attr);
     return retval;
 }
