@@ -92,7 +92,6 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 	struct sysctl_oid_list *parent = oidp->oid_parent;
 	struct sysctl_oid *p;
 	struct sysctl_oid *q;
-	int n;
 
 	/*
 	 * First check if another oid with the same name already
