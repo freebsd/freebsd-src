@@ -118,7 +118,7 @@
     TcpMonitorIn()  -- These routines monitor TCP connections, and
     TcpMonitorOut()    delete a link when a connection is closed.
 
-These routines look for SYN, ACK and RST flags to determine when TCP
+These routines look for SYN, FIN and RST flags to determine when TCP
 connections open and close.  When a TCP connection closes, the data
 structure containing packet aliasing information is deleted after
 a timeout period.
@@ -140,12 +140,13 @@ TcpMonitorIn(struct ip *pip, struct alias_link *link)
     switch (GetStateIn(link))
     {
         case ALIAS_TCP_STATE_NOT_CONNECTED:
-            if (tc->th_flags & TH_SYN)
+            if (tc->th_flags & TH_RST)
+                SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
+            else if (tc->th_flags & TH_SYN)
                 SetStateIn(link, ALIAS_TCP_STATE_CONNECTED);
-            /*FALLTHROUGH*/
+            break;
         case ALIAS_TCP_STATE_CONNECTED:
-            if (tc->th_flags & TH_FIN
-                || tc->th_flags & TH_RST)
+            if (tc->th_flags & (TH_FIN | TH_RST))
                 SetStateIn(link, ALIAS_TCP_STATE_DISCONNECTED);
             break;
     }
@@ -161,12 +162,13 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
     switch (GetStateOut(link))
     {
         case ALIAS_TCP_STATE_NOT_CONNECTED:
-            if (tc->th_flags & TH_SYN)
+            if (tc->th_flags & TH_RST)
+                SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
+            else if (tc->th_flags & TH_SYN)
                 SetStateOut(link, ALIAS_TCP_STATE_CONNECTED);
-            /*FALLTHROUGH*/
+            break;
         case ALIAS_TCP_STATE_CONNECTED:
-            if (tc->th_flags & TH_FIN
-                || tc->th_flags & TH_RST)
+            if (tc->th_flags & (TH_FIN | TH_RST))
                 SetStateOut(link, ALIAS_TCP_STATE_DISCONNECTED);
             break;
     }
