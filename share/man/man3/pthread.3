@@ -274,6 +274,11 @@ Initialize a mutex with specified attributes.
 Lock a mutex and block until it becomes available.
 .It Xo
 .Ft int
+.Fn pthread_mutex_timedlock "pthread_mutex_t *mutex" "const struct timespec *abstime"
+.Xc
+Lock a mutex and block until it becomes available or until the timeout expires.
+.It Xo
+.Ft int
 .Fn pthread_mutex_trylock "pthread_mutex_t *mutex"
 .Xc
 Try to lock a mutex, but don't block if the mutex is locked by another thread,
