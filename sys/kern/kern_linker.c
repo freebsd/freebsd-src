@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.9 1998/10/10 02:29:07 peter Exp $
+ *	$Id: kern_linker.c,v 1.10 1998/10/15 17:12:12 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -702,14 +702,14 @@ linker_preload(void* arg)
 	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
 	modtype = (char *)preload_search_info(modptr, MODINFO_TYPE);
 	if (modname == NULL) {
-	    printf("Preloaded module at 0x%p does not have a name!\n", modptr);
+	    printf("Preloaded module at %p does not have a name!\n", modptr);
 	    continue;
 	}
 	if (modtype == NULL) {
-	    printf("Preloaded module at 0x%p does not have a type!\n", modptr);
+	    printf("Preloaded module at %p does not have a type!\n", modptr);
 	    continue;
 	}
-	printf("Preloaded %s \"%s\" at 0x%p.\n", modtype, modname, modptr);
+	printf("Preloaded %s \"%s\" at %p.\n", modtype, modname, modptr);
 	lf = linker_find_file_by_name(modname);
 	if (lf) {
 	    lf->userrefs++;
