@@ -422,9 +422,8 @@ vfs_cache_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct vnode *vdp;
-	struct vnode *pdp;
-	int lockparent;	
+	struct vnode *dvp, *vp;
+	int lockparent;
 	int error;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
@@ -434,60 +433,70 @@ vfs_cache_lookup(ap)
 	u_long vpid;	/* capability number of vnode */
 
 	*vpp = NULL;
-	vdp = ap->a_dvp;
+	dvp = ap->a_dvp;
 	lockparent = flags & LOCKPARENT;
 
-	if (vdp->v_type != VDIR)
+	if (dvp->v_type != VDIR)
                 return (ENOTDIR);
 
-	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
+	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 
-	error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc);
+	error = VOP_ACCESS(dvp, VEXEC, cred, p);
 
 	if (error)
 		return (error);
 
-	error = cache_lookup(vdp, vpp, cnp);
+	error = cache_lookup(dvp, vpp, cnp);
 
 	if (!error) 
-		return (VOP_CACHEDLOOKUP(ap->a_dvp, ap->a_vpp, ap->a_cnp));
+		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 
 	if (error == ENOENT)
 		return (error);
 
-	pdp = vdp;
-	vdp = *vpp;
-	vpid = vdp->v_id;
-	if (pdp == vdp) {   /* lookup on "." */
-		VREF(vdp);
+	vp = *vpp;
+	vpid = vp->v_id;
+	cnp->cn_flags &= ~PDIRUNLOCK;
+	if (dvp == vp) {   /* lookup on "." */
+		VREF(vp);
 		error = 0;
 	} else if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, p);
-		error = vget(vdp, LK_EXCLUSIVE, p);
-		if (!error && lockparent && (flags & ISLASTCN))
-			error = vn_lock(pdp, LK_EXCLUSIVE, p);
+		VOP_UNLOCK(dvp, 0, p);
+		cnp->cn_flags |= PDIRUNLOCK;
+		error = vget(vp, LK_EXCLUSIVE, p);
+		if (!error && lockparent && (flags & ISLASTCN)) {
+			if ((error = vn_lock(dvp, LK_EXCLUSIVE, p)) == 0)
+				cnp->cn_flags &= ~PDIRUNLOCK;
+		}
 	} else {
-		error = vget(vdp, LK_EXCLUSIVE, p);
-		if (!lockparent || error || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp, 0, p);
+		error = vget(vp, LK_EXCLUSIVE, p);
+		if (!lockparent || error || !(flags & ISLASTCN)) {
+			VOP_UNLOCK(dvp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 	}
 	/*
 	 * Check that the capability number did not change
 	 * while we were waiting for the lock.
 	 */
 	if (!error) {
-		if (vpid == vdp->v_id)
+		if (vpid == vp->v_id)
 			return (0);
-		vput(vdp);
-		if (lockparent && pdp != vdp && (flags & ISLASTCN))
-			VOP_UNLOCK(pdp, 0, p);
+		vput(vp);
+		if (lockparent && dvp != vp && (flags & ISLASTCN)) {
+			VOP_UNLOCK(dvp, 0, p);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 	}
-	error = vn_lock(pdp, LK_EXCLUSIVE, p);
-	if (error)
-		return (error);
-	return (VOP_CACHEDLOOKUP(ap->a_dvp, ap->a_vpp, ap->a_cnp));
+	if (cnp->cn_flags & PDIRUNLOCK) {
+		error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		if (error)
+			return (error);
+		cnp->cn_flags &= ~PDIRUNLOCK;
+	}
+	return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 }
 
 
