@@ -36,14 +36,30 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stddef.h>
 #include <sys/time.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
 #include "libc_private.h"
+
+static u_int64_t next_uniqueid = 1;
+
+#define OFF(f)	offsetof(struct pthread, f)
+int _thread_next_offset			= OFF(tle.tqe_next);
+int _thread_uniqueid_offset		= OFF(uniqueid);
+int _thread_state_offset		= OFF(state);
+int _thread_name_offset			= OFF(name);
+int _thread_sig_saved_offset		= OFF(sig_saved);
+int _thread_saved_sigcontext_offset	= OFF(saved_sigcontext);
+int _thread_saved_jmp_buf_offset	= OFF(saved_jmp_buf);
+#undef OFF
+
+int _thread_PS_RUNNING_value		= PS_RUNNING;
+int _thread_PS_DEAD_value		= PS_DEAD;
 
 int
 pthread_create(pthread_t * thread, const pthread_attr_t * attr,
@@ -266,6 +282,12 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * from access by the signal handler:
 			 */
 			_thread_kern_sig_defer();
+
+			/*
+			 * Initialise the unique id which GDB uses to
+			 * track threads.
+			 */
+			new_thread->uniqueid = next_uniqueid++;
 
 			/*
 			 * Check if the garbage collector thread
