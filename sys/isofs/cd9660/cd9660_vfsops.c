@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.13 1995/05/30 08:05:03 rgrimes Exp $
+ * $Id: cd9660_vfsops.c,v 1.14 1995/08/11 11:31:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,23 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 
-struct vfsops cd9660_vfsops = {
+
+static int cd9660_mount __P((struct mount *,
+	    char *, caddr_t, struct nameidata *, struct proc *));
+static int cd9660_start __P((struct mount *, int, struct proc *));
+static int cd9660_unmount __P((struct mount *, int, struct proc *));
+static int cd9660_root __P((struct mount *, struct vnode **));
+static int cd9660_quotactl __P((struct mount *, int, uid_t, caddr_t, 
+	    struct proc *));
+static int cd9660_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int cd9660_sync __P((struct mount *, int, struct ucred *, 
+	    struct proc *));
+static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
+static int cd9660_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+	    struct vnode **, int *, struct ucred **));
+static int cd9660_vptofh __P((struct vnode *, struct fid *));
+
+static struct vfsops cd9660_vfsops = {
 	cd9660_mount,
 	cd9660_start,
 	cd9660_unmount,
@@ -132,14 +148,14 @@ cd9660_mountroot()
 /*
  * Flag to allow forcible unmounting.
  */
-int iso_doforce = 1;
+static int iso_doforce = 1;
 
 /*
  * VFS Operations.
  *
  * mount system call
  */
-int
+static int
 cd9660_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -400,7 +416,7 @@ out:
  * Nothing to do at the moment.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -412,7 +428,7 @@ cd9660_start(mp, flags, p)
 /*
  * unmount system call
  */
-int
+static int
 cd9660_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -453,7 +469,7 @@ cd9660_unmount(mp, mntflags, p)
 /*
  * Return root of a filesystem
  */
-int
+static int
 cd9660_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -491,7 +507,7 @@ cd9660_root(mp, vpp)
  * Do operations associated with quotas, not supported
  */
 /* ARGSUSED */
-int
+static int
 cd9660_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -536,7 +552,7 @@ cd9660_statfs(mp, sbp, p)
 }
 
 /* ARGSUSED */
-int
+static int
 cd9660_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -551,7 +567,7 @@ cd9660_sync(mp, waitfor, cred, p)
  * Currently unsupported.
  */
 /* ARGSUSED */
-int
+static int
 cd9660_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
