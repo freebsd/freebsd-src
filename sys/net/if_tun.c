@@ -293,6 +293,7 @@ tunifioctl(ifp, cmd, data)
 		TUNDEBUG("%s%d: mtu set\n",
 			 ifp->if_name, ifp->if_unit);
 		break;
+	case SIOCSIFFLAGS:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
