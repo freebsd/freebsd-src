@@ -258,7 +258,7 @@ main(argc, argv)
 	 * parse options, determine operational mode, general init
 	 */
 	options(argc, argv);
-        if ((gen_init() < 0) || (tty_init() < 0))
+	if ((gen_init() < 0) || (tty_init() < 0))
 		return(exit_val);
 
 	/*
