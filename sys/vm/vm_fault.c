@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.33 1995/10/07 19:02:53 davidg Exp $
+ * $Id: vm_fault.c,v 1.34 1995/10/23 03:49:28 dyson Exp $
  */
 
 /*
@@ -357,9 +357,6 @@ readrest:
 					goto RetryFault;
 				}
 
-				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-				m->valid = VM_PAGE_BITS_ALL;
-				m->flags |= PG_BUSY;
 				hardfault++;
 				break;
 			}
