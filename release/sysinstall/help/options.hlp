@@ -34,23 +34,6 @@ Yes To All:   Assume "Yes" answers to all non-critical dialogs
     installs.
 
 
-FTP OnError:  What to do when FTP transfer errors occur.
-
-    This is pretty self-explanatory.  If you're transfering from a
-    host that drops the connection or cannot provide a file, you can
-    chose to Abort the connection, Retry the request (see next option)
-    or Reselect another FTP host, attempting to retry the request from
-    a new site.  Pressing SPACE will toggle through these options.
-
-
-FTP Retries:  How many times to retry failing FTP requests.
-
-    If FTP OnError is set to `retry', this is the number of times to
-    loop on a failing request before giving up.  If you're talking to a
-    site that's chronically overloaded (like ours!) you may wish to
-    simply set this to some large value and go to lunch or something.
-
-
 FTP username:  Specify username and password instead of anonymous.
 
     By default, the installation attempts to log in as the
