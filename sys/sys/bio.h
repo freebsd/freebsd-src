@@ -86,6 +86,9 @@ struct bio {
 	u_int	bio_cmd;		/* I/O operation. */
 	dev_t	bio_dev;		/* Device to do I/O on. */
 	daddr_t	bio_blkno;		/* Underlying physical block number. */
+	off_t	bio_offset;		/* Offset into file. */
+	long	bio_bcount;		/* Valid bytes in buffer. */
+	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
 	u_int	bio_flags;		/* BIO_ flags. */
 	struct buf	*_bio_buf;	/* Parent buffer. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
@@ -121,9 +124,11 @@ struct bio {
 struct buf {
 	/* XXX: b_io must be the first element of struct buf for now /phk */
 	struct bio b_io;		/* "Builtin" I/O request. */
+#define	b_bcount	b_io.bio_bcount
 #define	b_blkno		b_io.bio_blkno
 #define	b_caller1	b_io.bio_caller1
 #define	b_caller2	b_io.bio_caller2
+#define	b_data		b_io.bio_data
 #define	b_dev		b_io.bio_dev
 #define	b_driver1	b_io.bio_driver1
 #define	b_driver2	b_io.bio_driver2
@@ -132,6 +137,7 @@ struct buf {
 #define	b_iodone	b_io.bio_done
 #define	b_iodone_chain	b_io.bio_done_chain
 #define	b_ioflags	b_io.bio_flags
+#define	b_offset	b_io.bio_offset
 #define	b_pblkno	b_io.bio_pblkno
 #define	b_resid		b_io.bio_resid
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
@@ -143,12 +149,9 @@ struct buf {
 	unsigned char b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
 	long	b_bufsize;		/* Allocated buffer size. */
-	long	b_bcount;		/* Valid bytes in buffer. */
-	caddr_t	b_data;			/* Memory, superblocks, indirect etc. */
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
-	off_t	b_offset;		/* Offset into file */
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
@@ -220,6 +223,7 @@ struct buf {
 #define BIO_READ	1
 #define BIO_WRITE	2
 #define BIO_DELETE	4
+#define BIO_FORMAT	8
 
 #define BIO_ERROR	0x00000001
 #define BIO_ORDERED	0x00000002
@@ -385,6 +389,13 @@ struct buf_queue_head {
 	struct	buf *switch_point;
 };
 
+struct bio_queue_head {
+	TAILQ_HEAD(bio_queue, bio) queue;
+	daddr_t	last_pblkno;
+	struct	bio *insert_point;
+	struct	bio *switch_point;
+};
+
 /*
  * This structure describes a clustered I/O.  It is stored in the b_saveaddr
  * field of the buffer on which I/O is done.  At I/O completion, cluster
@@ -401,17 +412,29 @@ struct cluster_save {
 
 #ifdef _KERNEL
 static __inline void bufq_init __P((struct buf_queue_head *head));
-
+static __inline void bioq_init __P((struct bio_queue_head *head));
 static __inline void bufq_insert_tail __P((struct buf_queue_head *head,
 					   struct buf *bp));
-
+static __inline void bioq_insert_tail __P((struct bio_queue_head *head,
+					   struct bio *bp));
 static __inline void bufq_remove __P((struct buf_queue_head *head,
 				      struct buf *bp));
-
+static __inline void bioq_remove __P((struct bio_queue_head *head,
+				      struct bio *bp));
 static __inline struct buf *bufq_first __P((struct buf_queue_head *head));
+static __inline struct bio *bioq_first __P((struct bio_queue_head *head));
 
 static __inline void
 bufq_init(struct buf_queue_head *head)
+{
+	TAILQ_INIT(&head->queue);
+	head->last_pblkno = 0;
+	head->insert_point = NULL;
+	head->switch_point = NULL;
+}
+
+static __inline void
+bioq_init(struct bio_queue_head *head)
 {
 	TAILQ_INIT(&head->queue);
 	head->last_pblkno = 0;
@@ -430,6 +453,16 @@ bufq_insert_tail(struct buf_queue_head *head, struct buf *bp)
 }
 
 static __inline void
+bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
+{
+	if ((bp->bio_flags & BIO_ORDERED) != 0) {
+		head->insert_point = bp;
+		head->switch_point = NULL;
+	}
+	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
+}
+
+static __inline void
 bufq_remove(struct buf_queue_head *head, struct buf *bp)
 {
 	if (bp == head->switch_point)
@@ -445,8 +478,30 @@ bufq_remove(struct buf_queue_head *head, struct buf *bp)
 		head->switch_point = NULL;
 }
 
+static __inline void
+bioq_remove(struct bio_queue_head *head, struct bio *bp)
+{
+	if (bp == head->switch_point)
+		head->switch_point = TAILQ_NEXT(bp, bio_queue);
+	if (bp == head->insert_point) {
+		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
+		if (head->insert_point == NULL)
+			head->last_pblkno = 0;
+	} else if (bp == TAILQ_FIRST(&head->queue))
+		head->last_pblkno = bp->bio_pblkno;
+	TAILQ_REMOVE(&head->queue, bp, bio_queue);
+	if (TAILQ_FIRST(&head->queue) == head->switch_point)
+		head->switch_point = NULL;
+}
+
 static __inline struct buf *
 bufq_first(struct buf_queue_head *head)
+{
+	return (TAILQ_FIRST(&head->queue));
+}
+
+static __inline struct bio *
+bioq_first(struct bio_queue_head *head)
 {
 	return (TAILQ_FIRST(&head->queue));
 }

@@ -218,6 +218,7 @@ void devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 			     devstat_tag_type tag_type,
 			     devstat_trans_flags flags);
 void devstat_end_transaction_buf(struct devstat *ds, struct buf *);
+void devstat_end_transaction_bio(struct devstat *ds, struct bio *);
 #endif
 
 #endif /* _DEVICESTAT_H */
