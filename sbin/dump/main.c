@@ -97,6 +97,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	struct stat sb;
 	register ino_t ino;
 	register int dirty;
 	register struct dinode *dp;
@@ -325,10 +326,12 @@ main(argc, argv)
 	else
 		msgtail("to %s\n", tape);
 
-	if ((diskfd = open(disk, O_RDONLY)) < 0) {
-		msg("Cannot open %s\n", disk);
-		exit(X_STARTUP);
-	}
+	if ((diskfd = open(disk, O_RDONLY)) < 0)
+		err(X_STARTUP, "Cannot open %s", disk);
+	if (fstat(diskfd, &sb) != 0)
+		err(X_STARTUP, "%s: stat", disk);
+	if (S_ISDIR(sb.st_mode))
+		errx(X_STARTUP, "%s: unknown file system", disk);
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	bread(SBOFF, (char *) sblock, SBSIZE);
