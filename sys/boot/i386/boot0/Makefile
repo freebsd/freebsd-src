@@ -4,7 +4,7 @@ PROG=	${BOOT}
 INTERNALPROG=
 FILES=	${BOOT}
 NOMAN=
-SRCS=	${BOOT}.s
+SRCS=	${BOOT}.S
 
 BOOT?=	boot0
 
@@ -29,18 +29,10 @@ BOOT_BOOT0_ORG?=	0x600
 # command line
 BOOT_BOOT0_COMCONSOLE_SPEED?=	0xE3
 
-AFLAGS+=--defsym FLAGS=${BOOT_BOOT0_FLAGS} \
-	--defsym TICKS=${BOOT_BOOT0_TICKS} \
-	--defsym COMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
+CFLAGS+=-DFLAGS=${BOOT_BOOT0_FLAGS} \
+	-DTICKS=${BOOT_BOOT0_TICKS} \
+	-DCOMSPEED=${BOOT_BOOT0_COMCONSOLE_SPEED}
 
 LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S,--oformat,binary
-
-CLEANFILES+= boot0.s
-boot0.s: boot0_512.s
-	cpp -USIO < ${.ALLSRC} > ${.TARGET}
-
-CLEANFILES+= boot0sio.s
-boot0sio.s: boot0_512.s
-	cpp -DSIO < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
