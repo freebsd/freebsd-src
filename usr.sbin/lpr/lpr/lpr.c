@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.18 1997/07/23 20:53:38 imp Exp $\n";
+	"\n$Id: lpr.c,v 1.19 1997/07/29 04:17:19 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -760,14 +760,14 @@ lmktemp(id, num, len)
 	return(s);
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 static void
-#if __STDC__
+#ifdef __STDC__
 fatal2(const char *msg, ...)
 #else
 fatal2(msg, va_alist)
@@ -776,7 +776,7 @@ fatal2(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);

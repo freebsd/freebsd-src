@@ -308,7 +308,7 @@ checkremote()
 	if (RM != NULL) {
 		/* get the official name of the local host */
 		gethostname(name, sizeof(name));
-		name[sizeof(name)-1] = '\0';
+		name[sizeof(name) - 1] = '\0';
 		hp = gethostbyname(name);
 		if (hp == (struct hostent *) NULL) {
 		    (void) snprintf(errbuf, sizeof(errbuf),
@@ -352,14 +352,14 @@ delay(n)
 	(void) select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tdelay);
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 void
-#if __STDC__
+#ifdef __STDC__
 fatal(const char *msg, ...)
 #else
 fatal(msg, va_alist)
@@ -368,7 +368,7 @@ fatal(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
