@@ -1756,22 +1756,25 @@ ed_attach(dev)
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if (sc->type_str && (*sc->type_str != 0))
-		printf("type %s ", sc->type_str);
-	else
-		printf("type unknown (0x%x) ", sc->type);
+	if (bootverbose || 1) {
+		if (sc->type_str && (*sc->type_str != 0))
+			device_printf(dev, "type %s ", sc->type_str);
+		else
+			device_printf(dev, "type unknown (0x%x) ", sc->type);
 
-	if (sc->vendor == ED_VENDOR_HP)
-		printf("(%s %s IO)", (sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS) ?
-			"16-bit" : "32-bit",
-			sc->hpp_mem_start ? "memory mapped" : "regular");
-	else
-		printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
+		if (sc->vendor == ED_VENDOR_HP)
+			printf("(%s %s IO)",
+			    (sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS) ?
+			    "16-bit" : "32-bit",
+			    sc->hpp_mem_start ? "memory mapped" : "regular");
+		else
+			printf("%s ", sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
-	printf("%s\n", (((sc->vendor == ED_VENDOR_3COM) ||
-			 (sc->vendor == ED_VENDOR_HP)) &&
-		(ifp->if_flags & IFF_ALTPHYS)) ? " tranceiver disabled" : "");
-
+		printf("%s\n", (((sc->vendor == ED_VENDOR_3COM) ||
+				    (sc->vendor == ED_VENDOR_HP)) &&
+			   (ifp->if_flags & IFF_ALTPHYS)) ?
+		    " tranceiver disabled" : "");
+	}
 	return (0);
 }
 
