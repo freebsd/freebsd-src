@@ -1197,11 +1197,9 @@ sched_switch(struct thread *td, struct thread *newtd)
 				kse_reassign(ke);
 		}
 	}
-	if (newtd != NULL) {
+	if (newtd != NULL)
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
-		ke->ke_cpu = PCPU_GET(cpuid);
-		ke->ke_runq = KSEQ_SELF()->ksq_curr;
-	} else
+	else
 		newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);
