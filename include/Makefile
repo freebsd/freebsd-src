@@ -26,6 +26,9 @@ MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 # posix4/aio.h conflicts with dysons and isn't installed:
 PHDRS=	mqueue.h sched.h semaphore.h # aio.h
 
+# Only for default SHARED=copies case
+SHDRS=	soundcard.h joystick.h
+
 LHDRS=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
 
@@ -97,6 +100,9 @@ copies:
 		${DESTDIR}/usr/include/machine/pc
 .endif
 .endif
+.for i in ${SHDRS}
+	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
+.endfor
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
