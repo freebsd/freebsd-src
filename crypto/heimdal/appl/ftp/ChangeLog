@@ -1,3 +1,8 @@
+2000-02-07  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_read): more paranoia with return value from
+	sec_get_data
+
 2000-01-08  Assar Westerlund  <assar@sics.se>
 
 	* ftp/ftp.c (hookup): handle ai_canonname being set in any of the

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab.c,v 1.45 2000/01/02 00:31:20 assar Exp $");
+RCSID("$Id: keytab.c,v 1.46 2000/02/07 03:18:05 assar Exp $");
 
 /*
  * Register a new keytab in `ops'
@@ -114,8 +114,7 @@ krb5_kt_resolve(krb5_context context,
 krb5_error_code
 krb5_kt_default_name(krb5_context context, char *name, size_t namesize)
 {
-    strncpy(name, context->default_keytab, namesize);
-    if(strlen(context->default_keytab) >= namesize)
+    if (strlcpy (name, context->default_keytab, namesize) >= namesize)
 	return KRB5_CONFIG_NOTENUFSPACE;
     return 0;
 }
@@ -388,6 +387,7 @@ krb5_kt_add_entry(krb5_context context,
 {
     if(id->add == NULL)
 	return KRB5_KT_NOWRITE;
+    entry->timestamp = time(NULL);
     return (*id->add)(context, id,entry);
 }
 

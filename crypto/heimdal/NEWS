@@ -1,3 +1,13 @@
+Changes in release 0.2n:
+
+ * more robust parsing of dump files in kadmin
+ * changed default timestamp format for log messages to extended ISO
+   8601 format (Y-M-DTH:M:S)
+ * changed md4/md5/sha1 APIes to be de-facto `standard'
+ * always make hostname into lower-case before creating principal
+ * small bits of more MIT-compatability
+ * bug fixes
+
 Changes in release 0.2m:
 
  * handle glibc's getaddrinfo() that returns several ai_canonname

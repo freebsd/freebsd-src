@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: verify_mic.c,v 1.8 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: verify_mic.c,v 1.9 2000/01/25 23:14:47 assar Exp $");
 
 OM_uint32 gss_verify_mic
            (OM_uint32 * minor_status,
@@ -44,7 +44,7 @@ OM_uint32 gss_verify_mic
 	    )
 {
   u_char *p;
-  struct md5 md5;
+  MD5_CTX md5;
   u_char hash[16], seq_data[8];
   des_key_schedule schedule;
   des_cblock key;
@@ -68,11 +68,11 @@ OM_uint32 gss_verify_mic
   p += 16;
 
   /* verify checksum */
-  md5_init (&md5);
-  md5_update (&md5, p - 24, 8);
-  md5_update (&md5, message_buffer->value,
-	      message_buffer->length);
-  md5_finito (&md5, hash);
+  MD5Init (&md5);
+  MD5Update (&md5, p - 24, 8);
+  MD5Update (&md5, message_buffer->value,
+	     message_buffer->length);
+  MD5Final (hash, &md5);
 
   memset (&zero, 0, sizeof(zero));
 #if 0
@@ -83,8 +83,8 @@ OM_uint32 gss_verify_mic
 	  sizeof(key));
 
   des_set_key (&key, schedule);
-  des_cbc_cksum ((des_cblock *)hash,
-		 (des_cblock *)hash, sizeof(hash), schedule, &zero);
+  des_cbc_cksum ((const void *)hash, (void *)hash, sizeof(hash),
+		 schedule, &zero);
   if (memcmp (p - 8, hash, 8) != 0) {
     memset (key, 0, sizeof(key));
     memset (schedule, 0, sizeof(schedule));
@@ -106,7 +106,7 @@ OM_uint32 gss_verify_mic
 
   p -= 16;
   des_set_key (&key, schedule);
-  des_cbc_encrypt ((des_cblock *)p, (des_cblock *)p, 8,
+  des_cbc_encrypt ((const void *)p, (void *)p, 8,
 		   schedule, (des_cblock *)hash, DES_DECRYPT);
 
   memset (key, 0, sizeof(key));

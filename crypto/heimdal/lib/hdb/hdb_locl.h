@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: hdb_locl.h,v 1.12 1999/12/02 17:05:05 joda Exp $ */
+/* $Id: hdb_locl.h,v 1.13 2000/02/06 05:17:05 assar Exp $ */
 
 #ifndef __HDB_LOCL_H__
 #define __HDB_LOCL_H__
@@ -56,6 +56,7 @@
 #endif
 #include <roken.h>
 
+#include <des.h>
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb-private.h>

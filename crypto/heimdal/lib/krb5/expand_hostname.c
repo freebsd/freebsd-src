@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: expand_hostname.c,v 1.5 2000/01/08 08:07:18 assar Exp $");
+RCSID("$Id: expand_hostname.c,v 1.7 2000/02/02 04:42:57 assar Exp $");
 
 static krb5_error_code
 copy_hostname(krb5_context context,
@@ -43,6 +43,7 @@ copy_hostname(krb5_context context,
     *new_hostname = strdup (orig_hostname);
     if (*new_hostname == NULL)
 	return ENOMEM;
+    strlwr (*new_hostname);
     return 0;
 }
 
@@ -77,4 +78,43 @@ krb5_expand_hostname (krb5_context context,
     }
     freeaddrinfo (ai);
     return copy_hostname (context, orig_hostname, new_hostname);
+}
+
+/*
+ * expand `hostname' to a name we believe to be a hostname in newly
+ * allocated space in `host' and return realms in `realms'.
+ */
+
+krb5_error_code
+krb5_expand_hostname_realms (krb5_context context,
+			     const char *orig_hostname,
+			     char **new_hostname,
+			     char ***realms)
+{
+    struct addrinfo *ai, *a, hints;
+    int error;
+    krb5_error_code ret = 0;
+
+    memset (&hints, 0, sizeof(hints));
+    hints.ai_flags = AI_CANONNAME;
+
+    error = getaddrinfo (orig_hostname, NULL, &hints, &ai);
+    if (error)
+	return copy_hostname (context, orig_hostname, new_hostname);
+    for (a = ai; a != NULL; a = a->ai_next) {
+	if (a->ai_canonname != NULL) {
+	    ret = copy_hostname (context, orig_hostname, new_hostname);
+	    if (ret)
+		goto out;
+	    strlwr (*new_hostname);
+	    ret = krb5_get_host_realm (context, *new_hostname, realms);
+	    if (ret == 0)
+		goto out;
+	    free (*new_hostname);
+	}
+    }
+    ret = copy_hostname (context, orig_hostname, new_hostname);
+ out:
+    freeaddrinfo (ai);
+    return ret;
 }

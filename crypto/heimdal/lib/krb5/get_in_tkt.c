@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_in_tkt.c,v 1.93 2000/01/06 20:36:28 assar Exp $");
+RCSID("$Id: get_in_tkt.c,v 1.94 2000/02/06 05:18:20 assar Exp $");
 
 krb5_error_code
 krb5_init_etype (krb5_context context,
@@ -131,7 +131,7 @@ _krb5_extract_ticket(krb5_context context,
     krb5_principal tmp_principal;
     int tmp;
     time_t tmp_time;
-    int32_t sec_now;
+    krb5_timestamp sec_now;
 
     /* compare client */
 

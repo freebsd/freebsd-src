@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,15 +33,23 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: time.c,v 1.2 1999/12/02 17:05:13 joda Exp $");
+RCSID("$Id: time.c,v 1.3 2000/02/06 05:21:53 assar Exp $");
+
+/*
+ * return ``corrected'' time in `timeret'.
+ */
 
 krb5_error_code
 krb5_timeofday (krb5_context context,
-		int32_t *timeret)
+		krb5_timestamp *timeret)
 {
     *timeret = time(NULL) + context->kdc_sec_offset;
     return 0;
 }
+
+/*
+ * like gettimeofday but with time correction to the KDC
+ */
 
 krb5_error_code
 krb5_us_timeofday (krb5_context context,

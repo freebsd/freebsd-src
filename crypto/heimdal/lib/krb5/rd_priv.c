@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: rd_priv.c,v 1.22 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: rd_priv.c,v 1.23 2000/02/06 05:20:13 assar Exp $");
 
 krb5_error_code
 krb5_rd_priv(krb5_context context,
@@ -111,15 +111,15 @@ krb5_rd_priv(krb5_context context,
 
   /* check timestamp */
   if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
-      int32_t sec;
+      krb5_timestamp sec;
 
       krb5_timeofday (context, &sec);
-    if (part.timestamp == NULL ||
-	part.usec      == NULL ||
-	abs(*part.timestamp - sec) > context->max_skew) {
-	ret = KRB5KRB_AP_ERR_SKEW;
-	goto failure_part;
-    }
+      if (part.timestamp == NULL ||
+	  part.usec      == NULL ||
+	  abs(*part.timestamp - sec) > context->max_skew) {
+	  ret = KRB5KRB_AP_ERR_SKEW;
+	  goto failure_part;
+      }
   }
 
   /* XXX - check replay cache */
