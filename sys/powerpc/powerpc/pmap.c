@@ -246,8 +246,6 @@ struct	pvo_head pmap_pvo_unmanaged =
 
 uma_zone_t	pmap_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 uma_zone_t	pmap_mpvo_zone;	/* zone for pvo entries for managed pages */
-struct		vm_object pmap_upvo_zone_obj;
-struct		vm_object pmap_mpvo_zone_obj;
 
 #define	BPVO_POOL_SIZE	32768
 static struct	pvo_entry *pmap_bpvo_pool;
@@ -310,7 +308,6 @@ static struct	pte *pmap_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
-static void *		pmap_pvo_allocf(uma_zone_t, int, u_int8_t *, int);
 static struct		pvo_entry *pmap_rkva_alloc(void);
 static void		pmap_pa_map(struct pvo_entry *, vm_offset_t,
 			    struct pte *, int *);
@@ -1092,11 +1089,11 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	CTR0(KTR_PMAP, "pmap_init");
 
 	pmap_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_zone_set_allocf(pmap_upvo_zone, pmap_pvo_allocf);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	pmap_mpvo_zone = uma_zcreate("MPVO entry", sizeof(struct pvo_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_zone_set_allocf(pmap_mpvo_zone, pmap_pvo_allocf);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	pmap_initialized = TRUE;
 }
 
@@ -2005,26 +2002,6 @@ pmap_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 	}
 
 	return (NULL);
-}
-
-static void *
-pmap_pvo_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	static vm_pindex_t color;
-	vm_page_t	m;
-
-	if (bytes != PAGE_SIZE)
-		panic("pmap_pvo_allocf: benno was shortsighted.  hit him.");
-
-	*flags = UMA_SLAB_PRIV;
-	/*
-	 * The color is only a hint.  Thus, a data race in the read-
-	 * modify-write operation below isn't a catastrophe.
-	 */
-	m = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM);
-	if (m == NULL)
-		return (NULL);
-	return ((void *)VM_PAGE_TO_PHYS(m));
 }
 
 /*
