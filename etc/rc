@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.8 1993/12/13 08:28:03 davidg Exp $
+#	$Id: rc,v 1.9 1993/12/17 04:20:30 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -175,7 +175,7 @@ fi
 
 # $sendmail_flags is imported from /etc/netstart;
 # if $sendmail_flags is something other than NO, sendmail is run.
-if [ X"${sendmail_flags}" = X"NO" -a -r /etc/sendmail.cf ]; then
+if [ X"${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
 	echo -n ' sendmail';		sendmail ${sendmail_flags} 
 fi
 
