@@ -392,7 +392,6 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 devintr()
 {
 	int error;
-				 * here */
 
 	/* get packet from device and send on */
 	m = MGET(blah blah)
