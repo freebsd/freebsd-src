@@ -2526,6 +2526,8 @@ device		ohci
 # General USB code (mandatory for USB)
 device		usb
 #
+# Fm Radio
+device		ufm
 # Generic USB device driver
 device		ugen
 # Human Interface Device (anything with buttons and dials)

@@ -68,6 +68,7 @@ SUBDIR=	accf_data \
 	tl \
 	twe \
 	txp \
+	ufm \
 	ugen \
 	uhid \
 	ukbd \
