@@ -120,9 +120,13 @@ is valid and unchanged.
 If memory can be allocated, the memory referenced by
 .Fa ptr
 is freed and a pointer to the newly allocated memory is returned.
-Note that this may be different from the value
-passed as
-.Fa ptr .
+Note that the return value may differ from the
+.Fa ptr
+argument, that is
+.Fn realloc
+and
+.Fn reallocf
+may move the memory.
 If
 .Fa ptr
 is
