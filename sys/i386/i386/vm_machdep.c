@@ -184,14 +184,18 @@ cpu_fork(p1, p2, flags)
 	pcb2->pcb_ext = 0;
 
         /* Copy the LDT, if necessary. */
+	mtx_lock_spin(&sched_lock);
         if (pcb2->pcb_ldt != 0) {
 		if (flags & RFMEM) {
 			pcb2->pcb_ldt->ldt_refcnt++;
 		} else {
 			pcb2->pcb_ldt = user_ldt_alloc(pcb2,
 				pcb2->pcb_ldt->ldt_len);
+			if (pcb2->pcb_ldt == NULL)
+				panic("could not copy LDT");
 		}
         }
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Now, cpu_switch() can schedule the new process.
