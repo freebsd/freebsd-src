@@ -274,6 +274,7 @@ fpa:    DEC DEFPA PCI FDDI adapter
 gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:    Genius GS-4500 hand scanner
 gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
+gusmax: Gravis Ultrasound MAX (currently broken)
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
