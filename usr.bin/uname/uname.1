@@ -32,7 +32,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd April 02, 2003
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd display information about the system
 .Sh SYNOPSIS
 .Nm
-.Op Fl amnprsv
+.Op Fl aimnprsv
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,6 +57,8 @@ Behave as though the options
 and
 .Fl v
 were specified.
+.It Fl i
+Write the kernel ident to standard output.
 .It Fl m
 Write the type of the current hardware platform to standard output.
 .It Fl n
