@@ -75,7 +75,7 @@ mount -a       # chown and chgrp are in /usr
 # Since we are starting with a very fresh /etc on an MFS:
 if [ -d /conf/default/etc ]; then
 	newaliases
-if
+fi
 
 #
 # XXX make sure to create one dir for each printer as requested by lpd
