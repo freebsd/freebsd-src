@@ -1278,15 +1278,6 @@ pmap_growkernel(vm_offset_t addr)
 	panic("pmap_growkernel: can't grow kernel");
 }
 
-/*
- * This routine is very drastic, but can save the system
- * in a pinch.
- */
-void
-pmap_collect(void)
-{
-}
-
 int
 pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		vm_offset_t va)
