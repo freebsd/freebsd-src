@@ -50,6 +50,7 @@
 #define RBX_PAUSE	0x12	/* -p */
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
+#define RBX_NOINTR	0x1f	/* -n */
 
 #define RBX_MASK	0x2005ffff
 
@@ -58,7 +59,7 @@
 #define PATH_KERNEL	"/kernel"
 
 #define ARGS		0x900
-#define NOPT		13
+#define NOPT		14
 #define NDEV		5
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
@@ -100,7 +101,7 @@ static struct dmadat {
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCcdgmPprsv";
+static const char optstr[NOPT] = "DhaCcdgmnPprsv";
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -110,6 +111,7 @@ static const unsigned char flags[NOPT] = {
     RBX_KDB,
     RBX_GDB,
     RBX_MUTE,
+    RBX_NOINTR,
     RBX_PROBEKBD,
     RBX_PAUSE,
     RBX_DFLTROOT,
@@ -775,6 +777,8 @@ keyhit(unsigned ticks)
 {
     uint32_t t0, t1;
 
+    if (opts & 1 << RBX_NOINTR)
+	return 0;
     t0 = 0;
     for (;;) {
 	if (xgetc(1))
@@ -800,6 +804,8 @@ xputc(int c)
 static int
 xgetc(int fn)
 {
+    if (opts & 1 << RBX_NOINTR)
+	return 0;
     for (;;) {
 	if (ioctrl & 0x1 && getc(1))
 	    return fn ? 1 : getc(0);
