@@ -29,6 +29,8 @@ fsck_start()
 {
 	if [ "$autoboot" = no ]; then
 		echo "Fast boot: skipping disk checks."
+	elif [ ! -r /etc/fstab ]; then
+		echo "Warning! No /etc/fstab: skipping disk checks."
 	elif [ "$autoboot" = yes ]; then
 					# During fsck ignore SIGQUIT
 		trap : 3
