@@ -1,18 +1,17 @@
 /* BSDI README.booting_dos,v 2.2 1996/04/08 19:32:18 bostic Exp*/
+/* $FreeBSD$ */
 
 To install DOS on a pseudo hard disk under doscmd:
 
     1)	Create a .doscmdrc with at least the following:
 
-	    assign A: /dev/rfd0_1440_3.5 1440
-	    assign A: /dev/rfd0_720_3.5 720
+	    assign A: /dev/fd0.1440 1440
+	    assign A: /dev/fd0.720 720
 	    assign hard boot_drive 80 2 2
 
 	You may need to adjust the raw files for the A: drive to match
 	your system.  This example will cause the HD drive to be tried
 	first and the DD drive second.
-
-	[ For FreeBSD the A: drive devices are /dev/rfd0.1440 and /dev/rfd0.720 ]
 
 	Note that you should only use raw devices or files at this point,
 	do not use a cooked device!  (Well, it would probably be okay
