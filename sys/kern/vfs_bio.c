@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.183 1998/10/30 14:53:54 dg Exp $
+ * $Id: vfs_bio.c,v 1.184 1998/10/31 15:31:22 peter Exp $
  */
 
 /*
@@ -788,9 +788,10 @@ static void
 vfs_vmio_release(bp)
 	struct buf *bp;
 {
-	int i;
+	int i, s;
 	vm_page_t m;
 
+	s = splvm();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
@@ -820,6 +821,7 @@ vfs_vmio_release(bp)
 			}
 		}
 	}
+	splx(s);
 	bufspace -= bp->b_bufsize;
 	vmiospace -= bp->b_bufsize;
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
