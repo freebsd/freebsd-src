@@ -11,6 +11,12 @@ INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
+.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+CFLAGS+=	-DWITH_SSL
+DPADD=		${LIBSSL} ${LIBCRYPTO}
+LDADD=		-lssl -lcrypto
+.endif
+
 NO_WERROR=	yes
 
 SHLIB_MAJOR=    3
