@@ -226,14 +226,15 @@ Exit the program.
 .Xr clri 8 ,
 .Xr fsck 8
 .Sh BUGS
-Manipulation of ``short'' symlinks doesn't work (in particular, don't
-try changing a symlink's type).
+Manipulation of ``short'' symlinks has no effect.
+In particular, one should not
+try changing a symlink's type.
 .Pp
 You must specify modes as numbers rather than symbolic names.
 .Pp
 There are a bunch of other things that you might want to do which
 .Nm
-doesn't implement.
+does not implement.
 .Sh HISTORY
 The
 .Nm
