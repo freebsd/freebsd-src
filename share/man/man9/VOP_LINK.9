@@ -75,12 +75,10 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
     int error = 0;
 
     if (vp->v_mount != dvp->v_mount) {
-	VOP_ABORTOP(dvp, cnp);
 	error = EXDEV;
 	goto out2;
     }
     if (vp != dvp && (error = VOP_LOCK(vp))) {
-	VOP_ABORTOP(dvp, cnp);
 	goto out2;
     }
 
@@ -89,13 +87,11 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
      */
 
     if (vp would have too many links) {
-	VOP_ABORTOP(dvp, cnp);
 	error = EMLINK;
 	goto out1;
     }
 
     if (vp is immutable) {
-	VOP_ABORTOP(dvp, cnp);
 	error = EPERM;
 	goto out1;
     }
