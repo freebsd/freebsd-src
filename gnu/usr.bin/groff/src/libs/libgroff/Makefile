@@ -2,12 +2,12 @@
 
 LIB=		groff
 INTERNALLIB=	YES
-SRCS=		assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc\
-		error.cc fatal.cc filename.cc font.cc fontfile.cc\
-		htmlindicate.cc lf.cc lineno.cc macropath.cc\
-		maxfilename.cc nametoindex.cc new.cc prime.cc\
+SRCS=		assert.cc change_lf.cc cmap.cc color.cc cset.cc device.cc errarg.cc\
+		error.cc fatal.cc filename.cc font.cc fontfile.cc geometry.cc\
+		htmlhint.cc invalid.cc lf.cc lineno.cc macropath.cc\
+		maxfilename.cc mksdir.cc nametoindex.cc new.cc paper.cc prime.cc\
 	 	progname.cc ptable.cc searchpath.cc string.cc strsave.cc\
-		tmpfile.cc illegal.cc version.cc
+		tmpfile.cc tmpname.cc version.cc
 SRCS+=		getopt.c getopt1.c iftoa.c itoa.c matherr.c
 CLEANFILES=	version.cc
 
