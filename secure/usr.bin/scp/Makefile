@@ -3,8 +3,8 @@
 PROG=	scp
 CFLAGS+=-I${SSHDIR}
 
-DPADD=	${LIBSSH}
-LDADD=	-lssh
+DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
+LDADD=	-lssh -lcrypto -lz
 
 .include <bsd.prog.mk>
 
