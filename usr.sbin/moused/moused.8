@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 1997
+.Dd April 1, 2000
 .Dt MOUSED 8
 .Os FreeBSD
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd pass mouse data to the console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3DPRcdfs
+.Op Fl DPRcdfs
 .Op Fl I Ar file
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
@@ -48,6 +48,7 @@
 .Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
+.Op Fl 3 Op Fl E Ar timeout
 .Fl p Ar port
 .Pp
 .Nm
@@ -99,7 +100,7 @@ in the text mode console.
 The user program which is reading mouse data
 via 
 .Xr sysmouse 4
-won't be affected.
+will not be affected.
 .It Fl D
 Lower DTR on the serial port. 
 This option is valid only if 
@@ -109,6 +110,16 @@ The DTR line may need to be dropped for a 3-button mouse
 to operate in the
 .Ar mousesystems
 mode.
+.It Fl E Ar timeout
+When the third button emulation is enabled
+.Pq see above ,
+the
+.Nm
+daemon waits
+.Ar timeout
+msec at most before deciding whether two buttons are being pressed
+simultaneously.
+The default timeout is 200 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
 .It Fl I Ar file
@@ -124,7 +135,7 @@ If this option is given together with the
 .Fl i
 option, the
 .Nm
-command won't be able to print useful information for the serial mouse.
+command will not be able to print useful information for the serial mouse.
 .It Fl R
 Lower RTS on the serial port.
 This option is valid only if 
@@ -144,7 +155,7 @@ Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
 .It Fl c
 Some mice report middle button down events
-as if the left and right buttons are pressed.
+as if the left and right buttons are being pressed.
 This option handles this.
 .It Fl d
 Enable debugging messages.
@@ -328,18 +339,51 @@ maybe:
 .It Ar y
 X or Y axis movement will be reported when the Z axis movement is detected.
 .It Ar N
-Report the virtual buttons
+Report down events for the virtual buttons
 .Ar N 
 and 
 .Ar N+1 
-down events respectively when negative and positive Z axis movement 
+respectively when negative and positive Z axis movement 
 is detected.
-There doesn't need to be physical buttons 
+There do not need to be physical buttons 
 .Ar N
 and 
 .Ar N+1 .
 Note that mapping to logical buttons is carried out after mapping
 from the Z axis movement to the virtual buttons is done.
+.It Ar N1 N2
+Report down events for the virtual buttons
+.Ar N1
+and 
+.Ar N2
+respectively when negative and positive Z axis movement 
+is detected.
+.It Ar N1 N2 N3 N4
+This is useful for the mouse with two wheels of which
+the second wheel is used to generate horizontal scroll action,
+and for the mouse which has a knob or a stick which can detect
+the horizontal force applied by the user.
+.Pp
+The motion of the second wheel will be mapped to the buttons
+.Ar N3 ,
+for the negative direction, and
+.Ar N4 ,
+for the positive direction.
+If the buttons
+.Ar N3
+and
+.Ar N4
+actually exist in this mouse, their actions will not be detected.
+.Pp
+Note that horizontal movement or second roller/wheel movement may not
+always be detected,
+because there appears to be no accepted standard as to how it is encoded.
+.Pp
+Note also that some mice think left is the negative horizontal direction, 
+others may think otherwise.  
+Moreover, there are some mice whose two wheels are both mounted vertically,
+and the direction of the second vertical wheel does not match the
+first one's.
 .El
 .El
 .Ss Configuring Mouse Daemon
@@ -436,10 +480,10 @@ protocol.
 3-button serial mice may work with the
 .Ar mousesystems
 protocol.
-If it doesn't, it may work with the 
+If it does not, it may work with the 
 .Ar microsoft
 protocol although 
-the third (middle) button won't function.
+the third (middle) button will not function.
 3-button serial mice may also work with the
 .Ar mouseman
 protocol under which the third button may function as expected.
@@ -486,7 +530,7 @@ to use
 .Xr sysmouse ,
 then the application program will always see mouse data from either mice. 
 When the serial mouse is not attached, the corresponding mouse daemon
-won't detect any movement or button state change and the application
+will not detect any movement or button state change and the application
 program will only see mouse data coming from the daemon for the
 PS/2 mouse.
 In contrast when both mice are attached and both of them
