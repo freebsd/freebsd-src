@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.81 1996/07/10 09:41:09 jkh Exp $
+ * $Id: menus.c,v 1.42.2.61 1996/07/10 09:43:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -294,7 +294,7 @@ DMenu MenuInitial = {
       { "5 Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
       { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
       { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
-      { "8 Upgrade",	"Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
+      { "8 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "9 Configure",	"Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "0 Index",	"Glossary of functions.",		NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
@@ -626,7 +626,8 @@ These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose the\n\
 list of distributions yourself, simply select \"Custom\".  You can also\n\
 pick a canned distribution set and then fine-tune it with the Custom item.\n\n\
-When you are finished chose the Exit item or Cancel to abort.",
+Choose an item by pressing [SPACE]. When you are finished, chose the Exit\n\
+item or press [ENTER].",
     "Press F1 for more information on these options.",
     "distributions",
 { { "1 Developer",	"Full sources, binaries and doc but no games [180MB]",
