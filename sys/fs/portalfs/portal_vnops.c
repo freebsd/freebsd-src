@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.24 1997/10/16 10:48:35 phk Exp $
+ * $Id: portal_vnops.c,v 1.25 1997/10/16 20:32:27 phk Exp $
  */
 
 /*
@@ -603,8 +603,6 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) portal_badop },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
 	{ &vop_inactive_desc,		(vop_t *) portal_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
 	{ &vop_open_desc,		(vop_t *) portal_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
@@ -612,7 +610,6 @@ static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) portal_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc portal_vnodeop_opv_desc =
