@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.131 1999/05/12 09:02:32 jkh Exp $
+ * $Id: config.c,v 1.132 1999/05/12 09:22:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -514,8 +514,7 @@ configXDesktop(dialogMenuItem *self)
     else if (!strcmp(desk, "windowmaker")) {
 	ret = package_add("windowmaker");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("wmaker.inst")) {
-	    vsystem("/usr/X11R6/bin/wmaker.inst");
-	    write_root_xprofile("xterm &\nexec wmaker\n");
+	    write_root_xprofile("xterm &\n[ ! -d $HOME/GNUstep/Library/WindowMaker ] && /usr/X11R6/bin/wmaker.inst && exec /usr/X11R6/bin/wmaker\n");
 	}
     }
     else if (!strcmp(desk, "enlightenment")) {
