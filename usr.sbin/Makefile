@@ -151,7 +151,6 @@ SUBDIR+=elf2exe
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=apm \
 	apmd \
-	boot0cfg \
 	btxld \
 	i4b \
 	kgmon \
@@ -166,6 +165,14 @@ SUBDIR+=apm \
 	stallion \
 	wicontrol \
 	wlconfig
+.endif
+
+.if ${MACHINE} == "i386"
+SUBDIR+=boot0cfg
+.endif
+
+.if ${MACHINE} == "pc98"
+SUBDIR+=boot98cfg
 .endif
 
 .include <bsd.subdir.mk>
