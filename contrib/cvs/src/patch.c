@@ -356,7 +356,7 @@ patch_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     err = start_recursion (patch_fileproc, (FILESDONEPROC) NULL, patch_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL,
 			   argc - 1, argv + 1, local_specified,
-			   which, 0, LOCK_READ, where, 1);
+			   which, 0, CVS_LOCK_READ, where, 1);
     free (where);
 
     return (err);

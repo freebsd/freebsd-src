@@ -353,17 +353,17 @@ create_adm_p (base_dir, dir)
 	return 0;			/* nothing to do */
 
     /* Allocate some space for our directory-munging string. */
-    p = malloc (strlen (dir) + 1);
+    p = xmalloc (strlen (dir) + 1);
     if (p == NULL)
 	return ENOMEM;
 
-    dir_where_cvsadm_lives = malloc (strlen (base_dir) + strlen (dir) + 100);
+    dir_where_cvsadm_lives = xmalloc (strlen (base_dir) + strlen (dir) + 100);
     if (dir_where_cvsadm_lives == NULL)
 	return ENOMEM;
 
     /* Allocate some space for the temporary string in which we will
        construct filenames. */
-    tmp = malloc (strlen (base_dir) + strlen (dir) + 100);
+    tmp = xmalloc (strlen (base_dir) + strlen (dir) + 100);
     if (tmp == NULL)
 	return ENOMEM;
 
@@ -403,7 +403,7 @@ create_adm_p (base_dir, dir)
 	       differently.  */
 
 	    char *empty;
-	    empty = malloc (strlen (current_parsed_root->directory)
+	    empty = xmalloc (strlen (current_parsed_root->directory)
 			    + sizeof (CVSROOTADM)
 			    + sizeof (CVSNULLREPOS)
 			    + 3);
@@ -521,7 +521,7 @@ mkdir_p (dir)
      char *dir;
 {
     char *p;
-    char *q = malloc (strlen (dir) + 1);
+    char *q = xmalloc (strlen (dir) + 1);
     int retval;
 
     if (q == NULL)
@@ -648,7 +648,7 @@ alloc_pending (size)
 	   this case.  But we might as well handle it if they don't, I
 	   guess.  */
 	return 0;
-    pending_error_text = malloc (size);
+    pending_error_text = xmalloc (size);
     if (pending_error_text == NULL)
     {
 	pending_error = ENOMEM;
@@ -779,7 +779,7 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
     /* Now is a good time to read CVSROOT/options too. */
     parseopts(current_parsed_root->directory);
 
-    path = malloc (strlen (current_parsed_root->directory)
+    path = xmalloc (strlen (current_parsed_root->directory)
 		   + sizeof (CVSROOTADM)
 		   + 2);
     if (path == NULL)
@@ -798,7 +798,7 @@ E Protocol error: Root says \"%s\" but pserver says \"%s\"",
     free (path);
 
 #ifdef HAVE_PUTENV
-    env = malloc (strlen (CVSROOT_ENV) + strlen (current_parsed_root->directory) + 2);
+    env = xmalloc (strlen (CVSROOT_ENV) + strlen (current_parsed_root->directory) + 2);
     if (env == NULL)
     {
 	pending_error = ENOMEM;
@@ -929,7 +929,7 @@ serve_max_dotdot (arg)
 
     if (lim < 0)
 	return;
-    p = malloc (strlen (server_temp_dir) + 2 * lim + 10);
+    p = xmalloc (strlen (server_temp_dir) + 2 * lim + 10);
     if (p == NULL)
     {
 	pending_error = ENOMEM;
@@ -978,9 +978,6 @@ dirswitch (dir, repos)
 	return;
     }
 
-    if (dir_name != NULL)
-	free (dir_name);
-
     dir_len = strlen (dir);
 
     /* Check for a trailing '/'.  This is not ISDIRSEP because \ in the
@@ -996,7 +993,10 @@ dirswitch (dir, repos)
 	return;
     }
 
-    dir_name = malloc (strlen (server_temp_dir) + dir_len + 40);
+    if (dir_name != NULL)
+	free (dir_name);
+
+    dir_name = xmalloc (strlen (server_temp_dir) + dir_len + 40);
     if (dir_name == NULL)
     {
 	pending_error = ENOMEM;
@@ -1168,7 +1168,7 @@ serve_directory (arg)
     }
     else
     {
-	pending_error_text = malloc (80 + strlen (arg));
+	pending_error_text = xmalloc (80 + strlen (arg));
 	if (pending_error_text == NULL)
 	{
 	    pending_error = ENOMEM;
@@ -1275,7 +1275,7 @@ receive_partial_file (size, file)
 		pending_error = ENOMEM;
 	    else
 	    {
-		pending_error_text = malloc (80);
+		pending_error_text = xmalloc (80);
 		if (pending_error_text == NULL)
 		    pending_error = ENOMEM;
 		else if (status == -1)
@@ -1362,7 +1362,7 @@ receive_file (size, file, gzipped)
 	char *filebuf;
 	char *p;
 
-	filebuf = malloc (size);
+	filebuf = xmalloc (size);
 	p = filebuf;
 	/* If NULL, we still want to read the data and discard it.  */
 
@@ -1378,7 +1378,7 @@ receive_file (size, file, gzipped)
 		    pending_error = ENOMEM;
 		else
 		{
-		    pending_error_text = malloc (80);
+		    pending_error_text = xmalloc (80);
 		    if (pending_error_text == NULL)
 			pending_error = ENOMEM;
 		    else if (status == -1)
@@ -1424,7 +1424,7 @@ receive_file (size, file, gzipped)
 
     if (pending_error_text)
     {
-	char *p = realloc (pending_error_text,
+	char *p = xrealloc (pending_error_text,
 			   strlen (pending_error_text) + strlen (arg) + 30);
 	if (p)
 	{
@@ -1481,7 +1481,7 @@ serve_modified (arg)
 	    pending_error = ENOMEM;
 	else
 	{
-	    pending_error_text = malloc (80 + strlen (arg));
+	    pending_error_text = xmalloc (80 + strlen (arg));
 	    if (pending_error_text == NULL)
 		pending_error = ENOMEM;
 	    else
@@ -1507,7 +1507,7 @@ serve_modified (arg)
 	    pending_error = ENOMEM;
 	else
 	{
-	    pending_error_text = malloc (80 + strlen (arg));
+	    pending_error_text = xmalloc (80 + strlen (arg));
 	    if (pending_error_text == NULL)
 		pending_error = ENOMEM;
 	    else
@@ -1721,13 +1721,13 @@ serve_is_modified (arg)
     {
 	/* We got Is-modified but no Entry.  Add a dummy entry.
 	   The "D" timestamp is what makes it a dummy.  */
-	p = (struct an_entry *) malloc (sizeof (struct an_entry));
+	p = (struct an_entry *) xmalloc (sizeof (struct an_entry));
 	if (p == NULL)
 	{
 	    pending_error = ENOMEM;
 	    return;
 	}
-	p->entry = malloc (strlen (arg) + 80);
+	p->entry = xmalloc (strlen (arg) + 80);
 	if (p->entry == NULL)
 	{
 	    pending_error = ENOMEM;
@@ -1758,14 +1758,14 @@ serve_entry (arg)
     struct an_entry *p;
     char *cp;
     if (error_pending()) return;
-    p = (struct an_entry *) malloc (sizeof (struct an_entry));
+    p = (struct an_entry *) xmalloc (sizeof (struct an_entry));
     if (p == NULL)
     {
 	pending_error = ENOMEM;
 	return;
     }
     /* Leave space for serve_unchanged to write '=' if it wants.  */
-    cp = malloc (strlen (arg) + 2);
+    cp = xmalloc (strlen (arg) + 2);
     if (cp == NULL)
     {
 	pending_error = ENOMEM;
@@ -1807,7 +1807,7 @@ serve_kopt (arg)
 	return;
     }
 
-    kopt = malloc (strlen (arg) + 1);
+    kopt = xmalloc (strlen (arg) + 1);
     if (kopt == NULL)
     {
 	pending_error = ENOMEM;
@@ -1901,13 +1901,13 @@ server_write_entries ()
 }
 
 struct notify_note {
-    /* Directory in which this notification happens.  malloc'd*/
+    /* Directory in which this notification happens.  xmalloc'd*/
     char *dir;
 
-    /* malloc'd.  */
+    /* xmalloc'd.  */
     char *filename;
 
-    /* The following three all in one malloc'd block, pointed to by TYPE.
+    /* The following three all in one xmalloc'd block, pointed to by TYPE.
        Each '\0' terminated.  */
     /* "E" or "U".  */
     char *type;
@@ -1940,14 +1940,14 @@ serve_notify (arg)
     if (dir_name == NULL)
 	goto error;
 
-    new = (struct notify_note *) malloc (sizeof (struct notify_note));
+    new = (struct notify_note *) xmalloc (sizeof (struct notify_note));
     if (new == NULL)
     {
 	pending_error = ENOMEM;
 	return;
     }
-    new->dir = malloc (strlen (dir_name) + 1);
-    new->filename = malloc (strlen (arg) + 1);
+    new->dir = xmalloc (strlen (dir_name) + 1);
+    new->filename = xmalloc (strlen (arg) + 1);
     if (new->dir == NULL || new->filename == NULL)
     {
 	pending_error = ENOMEM;
@@ -1966,7 +1966,7 @@ serve_notify (arg)
 	    pending_error = ENOMEM;
 	else
 	{
-	    pending_error_text = malloc (80 + strlen (arg));
+	    pending_error_text = xmalloc (80 + strlen (arg));
 	    if (pending_error_text == NULL)
 		pending_error = ENOMEM;
 	    else
@@ -2126,7 +2126,7 @@ serve_argument (arg)
     {
 	argument_vector_size *= 2;
 	argument_vector =
-	    (char **) realloc ((char *)argument_vector,
+	    (char **) xrealloc ((char *)argument_vector,
 			       argument_vector_size * sizeof (char *));
 	if (argument_vector == NULL)
 	{
@@ -2134,7 +2134,7 @@ serve_argument (arg)
 	    return;
 	}
     }
-    p = malloc (strlen (arg) + 1);
+    p = xmalloc (strlen (arg) + 1);
     if (p == NULL)
     {
 	pending_error = ENOMEM;
@@ -2153,7 +2153,7 @@ serve_argumentx (arg)
     if (error_pending()) return;
 
     p = argument_vector[argument_count - 1];
-    p = realloc (p, strlen (p) + 1 + strlen (arg) + 1);
+    p = xrealloc (p, strlen (p) + 1 + strlen (arg) + 1);
     if (p == NULL)
     {
 	pending_error = ENOMEM;
@@ -3864,7 +3864,7 @@ serve_co (arg)
 	 * The client has not sent a "Repository" line.  Check out
 	 * into a pristine directory.
 	 */
-	tempdir = malloc (strlen (server_temp_dir) + 80);
+	tempdir = xmalloc (strlen (server_temp_dir) + 80);
 	if (tempdir == NULL)
 	{
 	    buf_output0 (buf_to_net, "E Out of memory\n");
@@ -4752,8 +4752,8 @@ struct request requests[] =
   REQ_LINE("Max-dotdot", serve_max_dotdot, 0),
   REQ_LINE("Static-directory", serve_static_directory, 0),
   REQ_LINE("Sticky", serve_sticky, 0),
-  REQ_LINE("Checkin-prog", serve_checkin_prog, 0),
-  REQ_LINE("Update-prog", serve_update_prog, 0),
+  REQ_LINE("Checkin-prog", serve_noop, 0),
+  REQ_LINE("Update-prog", serve_noop, 0),
   REQ_LINE("Entry", serve_entry, RQ_ESSENTIAL),
   REQ_LINE("Kopt", serve_kopt, 0),
   REQ_LINE("Checkin-time", serve_checkin_time, 0),
@@ -5067,7 +5067,7 @@ server (argc, argv)
 	    int status;
 	    int i = 0;
 
-	    server_temp_dir = malloc (strlen (Tmpdir) + 80);
+	    server_temp_dir = xmalloc (strlen (Tmpdir) + 80);
 	    if (server_temp_dir == NULL)
 	    {
 		/*

@@ -355,9 +355,9 @@ install-data-local:
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(bindir)
 	@list='$(bin_LINKS)'; for p in $$list; do \
-	    echo "test ! -e $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
+	    echo "test ! -f $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
 	    echo "  && cd $(DESTDIR)$(bindir) && $(LN_S) ../share/$(PACKAGE)/contrib/`echo $$p|sed '$(transform)'` ."; \
-	    (test ! -e $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'` \
+	    (test ! -f $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'` \
 	        && cd $(DESTDIR)$(bindir) && $(LN_S) ../share/$(PACKAGE)/contrib/`echo $$p|sed '$(transform)'` .) \
 	      || (echo "Link creation failed" && if test -f $$p; then \
 	           echo " $(INSTALL_SCRIPT) $$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \

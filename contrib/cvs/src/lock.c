@@ -932,7 +932,7 @@ lock_tree_for_write (argc, argv, local, which, aflag)
     lock_tree_list = getlist ();
     err = start_recursion ((FILEPROC) NULL, lock_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL, argc,
-			   argv, local, which, aflag, LOCK_NONE,
+			   argv, local, which, aflag, CVS_LOCK_NONE,
 			   (char *) NULL, 0);
     sortlist (lock_tree_list, fsortcmp);
     if (Writer_Lock (lock_tree_list) != 0)
