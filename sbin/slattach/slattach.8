@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.8 1995/10/26 05:13:54 nate Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.4.4.3 1996/01/06 07:09:54 nate Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -87,16 +87,16 @@ control is done.
 .It Fl l
 disable modem control (CLOCAL) and ignore carrier detect on the slip
 port.  By default the
-.Ar redial-commmand
+.Ar redial-command
 is invoked upon carrier drop and
 .Nm slattach
 aborts if no
-.Ar redial-commmand
+.Ar redial-command
 is specified.
 .It Fl n
 Throw away ICMP packets.  The slip interface will ignore ICMP packets
 to prevent slow lines being saturated by ICMP responses.
-.It Fl r Ar redial-commmand
+.It Fl r Ar redial-command
 Specifies a command to be invoked within a shell
 .Ql sh \-c Ar redial-command
 whenever carrier is lost on the line.
@@ -112,7 +112,7 @@ and
 .Ar <current>
 are the slip unit numbers when the line was
 last opened and the unit number of the current slip connection
-respecitvely.  The unit number can change after redialing if you are
+respectively.  The unit number can change after redialing if you are
 using more than one slip line.
 .Nm Slattach
 will abort if the unit number

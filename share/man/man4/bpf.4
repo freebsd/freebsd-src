@@ -114,7 +114,7 @@ Sets the buffer length for reads on
 .I bpf
 files.  The buffer must be set before the file is attached to an interface
 with BIOCSETIF.
-If the requested buffer size cannot be accomodated, the closest
+If the requested buffer size cannot be accommodated, the closest
 allowable size will be set and returned in the argument.
 A read call will result in EIO if it is passed a buffer that is not this size.
 .TP 10
@@ -223,7 +223,7 @@ Also, the actions of BIOCFLUSH are performed.
 See section \fBFILTER MACHINE\fP for an explanation of the filter language.
 .TP 10
 .B BIOCVERSION (struct bpf_version)
-Returns the major and minor version numbers of the filter languange currently
+Returns the major and minor version numbers of the filter language currently
 recognized by the kernel.  Before installing a filter, applications must check
 that the current version is compatible with the running kernel.  Version
 numbers are compatible if the major numbers match and the application minor
@@ -346,9 +346,9 @@ struct bpf_insn {
 
 The \fIk\fP field is used in differnet ways by different insutructions, 
 and the \fIjt\fP and \fIjf\fP fields are used as offsets
-by the branch intructions.
+by the branch instructions.
 The opcodes are encoded in a semi-hierarchical fashion.
-There are eight classes of intructions: BPF_LD, BPF_LDX, BPF_ST, BPF_STX,
+There are eight classes of instructions: BPF_LD, BPF_LDX, BPF_ST, BPF_STX,
 BPF_ALU, BPF_JMP, BPF_RET, and BPF_MISC.  Various other mode and 
 operator bits are or'd into the class to give the actual instructions.
 The classes and modes are defined in <net/bpf.h>.
@@ -409,7 +409,7 @@ A <- M[k]
 .TP 10
 .B BPF_LDX
 These instructions load a value into the index register.  Note that
-the addressing modes are more retricted than those of the accumulator loads,
+the addressing modes are more restrictive than those of the accumulator loads,
 but they include
 .B BPF_MSH,
 a hack for efficiently loading the IP header length.
@@ -566,7 +566,7 @@ accept k bytes
 .B BPF_MISC
 The miscellaneous category was created for anything that doesn't
 fit into the above classes, and for any new instructions that might need to
-be added.  Currently, these are the register transfer intructions
+be added.  Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
 .RS
 .TP 30

@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
-.\"	$Id: yp.4,v 1.4 1995/09/02 04:20:01 wpaul Exp $
+.\"	$Id: yp.4,v 1.3.4.1 1995/10/05 20:50:09 davidg Exp $
 .\"
 .Dd April 5, 1993
 .Dt YP 4
@@ -110,7 +110,7 @@ into
 .Nm .dir
 and
 .Nm .pag
-files which the ndbm code uses to hold seperate parts of the hash
+files which the ndbm code uses to hold separate parts of the hash
 database. The Berkeley DB hash method instead uses a single file for
 both pieces of information. This means that while you may have
 .Pa passwd.byname.dir
@@ -162,7 +162,7 @@ on, the client system will direct all of its NIS requests to that server.
 .Xr Ypbind 8
 will occasionally ``ping'' the server to make sure it's still up
 and running. If it fails to receive a reply to one of its pings
-withing a reasonable amount of time,
+within a reasonable amount of time,
 .Xr ypbind 8
 will mark the domain as unbound and begin broadcasting again in the
 hopes of locating another server.
@@ -202,7 +202,7 @@ key/data pair immediately following it (yp_first() and yp_next()
 can be used to do a sequential search of an NIS map)
 .It
 .Nm yp_all()
--- retreive the entire contents of a map
+-- retrieve the entire contents of a map
 .El
 .Pp
 There are a few other requests which
@@ -245,7 +245,7 @@ networks by:
 .Bl -bullet -offset indent
 .It
 Providing backup services in the event that the NIS master crashes
-or becomes unreachanble
+or becomes unreachable
 .It
 Spreading the client load out over several machines instead of
 causing the master to become overloaded
@@ -269,9 +269,9 @@ other NIS implementations) when used exclusively with FreeBSD client
 systems. The FreeBSD password database system (which is derived directly
 form 4.4BSD) includes support for
 .Nm shadow passwords .
-The standard password database does not contain users' encrpyted
+The standard password database does not contain users' encrypted
 passwords: these are instead stored (along with other information)
-is a seperate database which is accesible only by the super-user.
+is a separate database which is accessible only by the super-user.
 If the encrypted password database were made available as an NIS
 map, this security feature would be totally disabled, since any user
 is allowed to retrieve NIS data.
@@ -370,7 +370,7 @@ upon bootup.
 The
 .Nm YP
 subsystem was written from the ground up by Theo de Raadt
-to be compatible to Sun's implimentation. Bug fixes, improvements
+to be compatible to Sun's implementation. Bug fixes, improvements
 and NIS server support were later added by Bill Paul. The server-side
 code was originally written by Peter Eriksson and Tobias Reber and
 is subject to the GNU Public License. No Sun code was
