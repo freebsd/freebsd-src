@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.21 1997/10/12 20:25:40 phk Exp $
+ * $Id: nfs_node.c,v 1.22 1997/10/28 14:06:20 bde Exp $
  */
 
 
@@ -45,6 +45,8 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+
+#include <vm/vm_zone.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>

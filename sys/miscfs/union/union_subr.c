@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.21 1997/09/21 04:23:32 dyson Exp $
+ * $Id: union_subr.c,v 1.22 1997/11/18 15:07:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <sys/stat.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>	/* for vnode_pager_setsize */
+#include <vm/vm_zone.h>
 #include <miscfs/union/union.h>
 
 #include <sys/proc.h>
