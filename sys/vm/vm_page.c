@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.51 1996/05/18 03:37:57 dyson Exp $
+ *	$Id: vm_page.c,v 1.52 1996/05/24 05:20:15 dyson Exp $
  */
 
 /*
@@ -588,6 +588,10 @@ vm_page_alloc(object, pindex, page_req)
 			m = TAILQ_FIRST(&vm_page_queue_cache);
 			if (m == NULL) {
 				splx(s);
+#if defined(DIAGNOSTIC)
+				if (cnt.v_cache_count > 0)
+					printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
+#endif
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -606,6 +610,10 @@ vm_page_alloc(object, pindex, page_req)
 			m = TAILQ_FIRST(&vm_page_queue_cache);
 			if (m == NULL) {
 				splx(s);
+#if defined(DIAGNOSTIC)
+				if (cnt.v_cache_count > 0)
+					printf("vm_page_alloc(ZERO): missing pages on cache queue: %d\n", cnt.v_cache_count);
+#endif
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -625,6 +633,10 @@ vm_page_alloc(object, pindex, page_req)
 			m = TAILQ_FIRST(&vm_page_queue_cache);
 			if (m == NULL) {
 				splx(s);
+#if defined(DIAGNOSTIC)
+				if (cnt.v_cache_count > 0)
+					printf("vm_page_alloc(SYSTEM): missing pages on cache queue: %d\n", cnt.v_cache_count);
+#endif
 				pagedaemon_wakeup();
 				return (NULL);
 			}
@@ -661,7 +673,6 @@ vm_page_alloc(object, pindex, page_req)
 		m->flags = PG_BUSY;
 	}
 	m->wire_count = 0;
-	m->act_count = 0;
 	m->hold_count = 0;
 	m->busy = 0;
 	m->valid = 0;
@@ -708,8 +719,6 @@ vm_page_activate(m)
 	vm_page_unqueue(m);
 
 	if (m->wire_count == 0) {
-		if (m->act_count < 5)
-			m->act_count = 5;
 		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 		m->queue = PQ_ACTIVE;
 		cnt.v_active_count++;
@@ -847,8 +856,6 @@ vm_page_unwire(m)
 		cnt.v_wire_count--;
 		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 		m->queue = PQ_ACTIVE;
-		if (m->act_count < 5)
-			m->act_count = 5;
 		cnt.v_active_count++;
 	}
 	splx(s);
@@ -868,7 +875,7 @@ void
 vm_page_deactivate(m)
 	register vm_page_t m;
 {
-	int spl;
+	int s;
 
 	/*
 	 * Only move active pages -- ignore locked or already inactive ones.
@@ -880,7 +887,7 @@ vm_page_deactivate(m)
 	if (m->queue == PQ_INACTIVE)
 		return;
 
-	spl = splvm();
+	s = splvm();
 	if (m->wire_count == 0 && m->hold_count == 0) {
 		if (m->queue == PQ_CACHE)
 			cnt.v_reactivated++;
@@ -889,7 +896,7 @@ vm_page_deactivate(m)
 		m->queue = PQ_INACTIVE;
 		cnt.v_inactive_count++;
 	}
-	splx(spl);
+	splx(s);
 }
 
 /*

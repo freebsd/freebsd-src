@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.94 1996/05/22 17:07:14 peter Exp $
+ *	$Id: pmap.c,v 1.95 1996/05/29 05:09:07 dyson Exp $
  */
 
 /*
@@ -187,8 +187,6 @@ static __inline int pmap_remove_entry __P((struct pmap *pmap, pv_entry_t *pv,
 					vm_offset_t va));
 static int pmap_remove_pte __P((struct pmap *pmap, unsigned *ptq,
 					vm_offset_t sva));
-static vm_page_t
-		pmap_pte_vm_page __P((pmap_t pmap, vm_offset_t pt));
 static boolean_t
 		pmap_testbit __P((vm_offset_t pa, int bit));
 static __inline void pmap_insert_entry __P((pmap_t pmap, vm_offset_t va,
@@ -320,7 +318,6 @@ pmap_qenter(va, m, count)
 	int count;
 {
 	int i;
-	int anyvalid = 0;
 	register unsigned *pte;
 
 	for (i = 0; i < count; i++) {
@@ -408,6 +405,21 @@ pmap_is_managed(pa)
 	return 0;
 }
 
+static __inline int
+pmap_unwire_pte_hold(vm_page_t m) {
+	vm_page_unhold(m);
+	if (m->hold_count == 0) {
+		--m->wire_count;
+		if (m->wire_count == 0) {
+			--cnt.v_wire_count;
+			m->dirty = 0;
+			vm_page_deactivate(m);
+		}
+		return 1;
+	}
+	return 0;
+}
+
 #if !defined(PMAP_DIAGNOSTIC)
 __inline
 #endif
@@ -436,10 +448,6 @@ pmap_unuse_pt(pmap, va, mpte)
 	}
 #endif
 
-	vm_page_unhold(mpte);
-
-	if ((mpte->hold_count == 0) &&
-	    (mpte->wire_count == 0)) {
 /*
  * We don't free page-table-pages anymore because it can have a negative
  * impact on perf at times.  Now we just deactivate, and it'll get cleaned
@@ -447,11 +455,7 @@ pmap_unuse_pt(pmap, va, mpte)
  * brought back into the process address space by pmap_allocpte and be
  * reactivated.
  */
-		mpte->dirty = 0;
-		vm_page_deactivate(mpte);
-		return 1;
-	}
-	return 0;
+	return pmap_unwire_pte_hold(mpte);
 }
 
 /*
@@ -979,8 +983,6 @@ pmap_remove_pte(pmap, ptq, va)
 {
 	unsigned oldpte;
 	pv_entry_t *ppv;
-	int i;
-	int s;
 
 	oldpte = *ptq;
 	*ptq = 0;
@@ -1048,12 +1050,10 @@ pmap_remove(pmap, sva, eva)
 	register vm_offset_t eva;
 {
 	register unsigned *ptbase;
-	vm_offset_t va;
 	vm_offset_t pdnxt;
 	vm_offset_t ptpaddr;
 	vm_offset_t sindex, eindex;
 	vm_page_t mpte;
-	int s;
 	int anyvalid;
 
 	if (pmap == NULL)
@@ -1080,7 +1080,6 @@ pmap_remove(pmap, sva, eva)
 	sindex = i386_btop(sva);
 	eindex = i386_btop(eva);
 
-
 	for (; sindex < eindex; sindex = pdnxt) {
 
 		/*
@@ -1096,16 +1095,18 @@ pmap_remove(pmap, sva, eva)
 		if (ptpaddr == 0)
 			continue;
 
+		if (sindex < i386_btop(UPT_MIN_ADDRESS)) {
 		/*
 		 * get the vm_page_t for the page table page
 		 */
-		mpte = PHYS_TO_VM_PAGE(ptpaddr);
+			mpte = PHYS_TO_VM_PAGE(ptpaddr);
 
 		/*
-		 * if the pte isn't wired or held, just skip it.
+		 * if the pte isn't wired, just skip it.
 		 */
-		if ((mpte->hold_count == 0) && (mpte->wire_count == 0))
-			continue;
+			if (mpte->wire_count == 0)
+				continue;
+		}
 
 		/*
 		 * Limit our scan to either the end of the va represented
@@ -1140,9 +1141,8 @@ pmap_remove_pte_mapping(pa)
 	vm_offset_t pa;
 {
 	register pv_entry_t pv, *ppv, npv;
-	register unsigned *pte, *ptbase;
+	register unsigned *pte;
 	vm_offset_t va;
-	int s;
 	int anyvalid = 0;
 
 	ppv = pa_to_pvh(pa);
@@ -1214,6 +1214,8 @@ pmap_remove_all(pa)
 		pmap = pv->pv_pmap;
 		ptbase = get_ptbase(pmap);
 		va = pv->pv_va;
+		if (*pmap_pde(pmap, va) == 0)
+			continue;
 		pte = ptbase + i386_btop(va);
 		if (tpte = ((int) *pte)) {
 			pmap->pm_stats.resident_count--;
@@ -1284,7 +1286,6 @@ pmap_protect(pmap, sva, eva, prot)
 	eindex = i386_btop(eva);
 
 	for (; sindex < eindex; sindex = pdnxt) {
-		int pbits;
 
 		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
 		ptpaddr = (vm_offset_t) *pmap_pde(pmap, i386_ptob(sindex));
@@ -1296,10 +1297,15 @@ pmap_protect(pmap, sva, eva, prot)
 		if (ptpaddr == 0)
 			continue;
 
-		mpte = PHYS_TO_VM_PAGE(ptpaddr);
+		/*
+		 * Don't look at kernel page table pages
+		 */
+		if (sindex < i386_btop(UPT_MIN_ADDRESS)) {
+			mpte = PHYS_TO_VM_PAGE(ptpaddr);
 
-		if ((mpte->hold_count == 0) && (mpte->wire_count == 0))
-			continue;
+			if (mpte->wire_count == 0)
+				continue;
+		}
 
 		if (pdnxt > eindex) {
 			pdnxt = eindex;
@@ -1365,6 +1371,7 @@ _pmap_allocpte(pmap, va, ptepindex)
 {
 	vm_offset_t pteva, ptepa;
 	vm_page_t m;
+	int s;
 
 	/*
 	 * Find or fabricate a new pagetable page
@@ -1388,17 +1395,19 @@ retry:
 	 */
 	pmap->pm_pteobj->flags |= OBJ_WRITEABLE;
 
+	if (m->hold_count == 0) {
+		s = splvm();
+		vm_page_unqueue(m);
+		splx(s);
+		++m->wire_count;
+		++cnt.v_wire_count;
+	}
+
 	/*
 	 * Increment the hold count for the page table page
 	 * (denoting a new mapping.)
 	 */
 	++m->hold_count;
-
-	/*
-	 * Activate the pagetable page, if it isn't already
-	 */
-	if (m->queue != PQ_ACTIVE)
-		vm_page_activate(m);
 
 	/*
 	 * Map the pagetable page into the process address space, if
@@ -1407,7 +1416,6 @@ retry:
 	pteva = ((vm_offset_t) vtopte(va)) & PG_FRAME;
 	ptepa = (vm_offset_t) pmap->pm_pdir[ptepindex];
 	if (ptepa == 0) {
-		int s;
 		pv_entry_t pv, *ppv;
 
 		pmap->pm_stats.resident_count++;
@@ -1469,9 +1477,14 @@ pmap_allocpte(pmap, va)
 	 */
 	if ((ptepa & (PG_RW|PG_U|PG_V)) == (PG_RW|PG_U|PG_V)) {
 		m = PHYS_TO_VM_PAGE(ptepa);
+		if (m->hold_count == 0) {
+			int s = splvm();
+			vm_page_unqueue(m);
+			splx(s);
+			++m->wire_count;
+			++cnt.v_wire_count;
+		}
 		++m->hold_count;
-		if (m->queue != PQ_ACTIVE)
-			vm_page_activate(m);
 		return m;
 	}
 	return _pmap_allocpte(pmap, va, ptepindex);
@@ -1500,9 +1513,7 @@ pmap_enter(pmap, va, pa, prot, wired)
 	register unsigned *pte;
 	vm_offset_t opa;
 	vm_offset_t origpte, newpte;
-	vm_offset_t ptepa;
 	vm_page_t mpte;
-	int s;
 
 	if (pmap == NULL)
 		return;
@@ -1779,7 +1790,6 @@ pmap_prefault(pmap, addra, entry, object)
 	vm_offset_t addr;
 	vm_pindex_t pindex;
 	vm_page_t m;
-	int pageorder_index;
 
 	if (entry->object.vm_object != object)
 		return;
@@ -1893,7 +1903,6 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t pdnxt;
 	unsigned src_frame, dst_frame;
-	pd_entry_t pde;
 
 	if (dst_addr != src_addr)
 		return;
@@ -1943,8 +1952,8 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 					dst_pmap->pm_stats.resident_count++;
 					pmap_insert_entry(dst_pmap, addr, dstmpte,
 						(ptetemp & PG_FRAME));
-				} else {
-					--dstmpte->hold_count;
+	 			} else {
+					pmap_unwire_pte_hold(dstmpte);
 				}
 				if (dstmpte->hold_count >= srcmpte->hold_count)
 					break;
@@ -2108,6 +2117,8 @@ pmap_testbit(pa, bit)
 			continue;
 		}
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		if (pte == NULL)
+			continue;
 		if ((int) *pte & bit) {
 			splx(s);
 			return TRUE;
@@ -2127,7 +2138,7 @@ pmap_changebit(pa, bit, setem)
 	boolean_t setem;
 {
 	register pv_entry_t pv, *ppv;
-	register unsigned *pte, npte;
+	register unsigned *pte;
 	vm_offset_t va;
 	int changed;
 	int s;
@@ -2161,6 +2172,8 @@ pmap_changebit(pa, bit, setem)
 		}
 
 		pte = pmap_pte(pv->pv_pmap, va);
+		if (pte == NULL)
+			continue;
 		if (setem) {
 			*(int *)pte |= bit;
 			changed = 1;

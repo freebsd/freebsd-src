@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.73 1996/05/23 00:45:58 dyson Exp $
+ * $Id: vm_object.c,v 1.74 1996/05/24 05:17:21 dyson Exp $
  */
 
 /*
@@ -263,7 +263,6 @@ vm_object_deallocate(object)
 	vm_object_t object;
 {
 	vm_object_t temp;
-	vm_page_t p;
 
 	while (object != NULL) {
 
@@ -510,6 +509,7 @@ rescan:
 		}
 		splx(s);
 			
+		s = splvm();
 		maxf = 0;
 		for(i=1;i<vm_pageout_page_count;i++) {
 			if (tp = vm_page_lookup(object, pi + i)) {
@@ -576,6 +576,7 @@ rescan:
 			vm_page_protect(ma[index], VM_PROT_READ);
 		}
 		runlen = maxb + maxf + 1;
+		splx(s);
 /*
 		printf("maxb: %d, maxf: %d, runlen: %d, offset: %d\n", maxb, maxf, runlen, ma[0]->pindex);
 */
