@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.49 1997/03/26 17:12:31 ache Exp $
+ * $Id: soundcard.c,v 1.50 1997/04/20 16:54:56 bde Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -96,7 +96,7 @@ struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
 struct isa_driver pcmdriver	= {sndprobe, sndattach, "pcm"};
 #endif
 
-static unsigned short
+static int
 ipri_to_irq (unsigned short ipri);
 
 void
@@ -238,7 +238,7 @@ sndselect (dev_t dev, int rw, struct proc *p)
   return 0;
 }
 
-static unsigned short
+static int
 ipri_to_irq (unsigned short ipri)
 {
   /*
@@ -305,7 +305,7 @@ sndprobe (struct isa_device *dev)
 
       result = sndtable_probe (unit, &hw_config);
       dev->id_iobase = hw_config.io_base;
-      dev->id_irq = (1 << hw_config.irq);
+      dev->id_irq = hw_config.irq == -1 ? 0 : (1 << hw_config.irq);
       dev->id_drq = hw_config.dma;
 
       return result;
