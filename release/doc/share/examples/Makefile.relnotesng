@@ -20,7 +20,7 @@ DOC_PREFIX?=	/usr/doc
 CSS_SHEET?=	${DOC_PREFIX}/share/misc/docbook.css
 FORMATS?=	html txt pdf
 
-BUILD_OPTIONS?=
+BUILD_OPTIONS+=	URLS_ABSOLUTE=YES
 
 all:
 	(cd ${DOCDIR}; ${MAKE} DOC_PREFIX=${DOC_PREFIX} FORMATS="${FORMATS}" ${BUILD_OPTIONS} all)

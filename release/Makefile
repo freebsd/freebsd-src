@@ -1014,7 +1014,7 @@ doc.1:
 doc.2:
 	@echo "Making release documentation..."
 	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' \
-	    INSTALL_COMPRESSED='' DOCDIR=${RND}
+	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${RND}
 	touch ${.TARGET}
 
 # Various "subroutine" and other supporting targets.
