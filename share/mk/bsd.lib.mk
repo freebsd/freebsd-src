@@ -56,97 +56,61 @@ PICFLAG=-fpic
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.po:
 	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.o:
 	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.o:
 	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.o .asm.o:
 	${CC} -x assembler-with-cpp ${CFLAGS} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.po .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.So .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.o:
 	${CC} ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${AINC} -c ${.IMPSRC} \
 	    -o ${.TARGET}
-	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
 
 all: objwarn
 
