@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.38 1997/05/08 14:07:11 peter Exp $
+	$Id: syscalls.master,v 1.39 1997/06/01 08:52:38 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -462,3 +462,15 @@
 312	UNIMPL	NOHIDE	setresgid
 313	STD	BSD	{ int signanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp, sigset_t *mask); }
+314     STD     BSD     { int aio_return(struct aiocb *aiocbp); }
+315     STD     BSD     { int aio_suspend(struct aiocb * const * aiocbp, int nent, const struct timespec *timeout); }
+316     STD     BSD     { int aio_cancel(int fd, struct aiocb *aiocbp); }
+317     STD     BSD     { int aio_error(struct aiocb *aiocbp); }
+318     STD     BSD     { int aio_read(struct aiocb *aiocbp); }
+319     STD     BSD     { int aio_write(struct aiocb *aiocbp); }
+320     STD     BSD     { int lio_listio(int mode, struct aiocb * const *acb_list, int nent, struct sigevent *sig); }
+321     STD     BSD     { int yield(void); }
+322     STD     BSD     { int thr_sleep(const struct timespec *timeout); }
+323     STD     BSD     { int thr_wakeup(pid_t pid); }
+324     STD     BSD     { int mlockall(int how); }
+325     STD     BSD     { int munlockall(void); }

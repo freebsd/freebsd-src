@@ -346,4 +346,16 @@ struct sysent sysent[] = {
 	{ 0, (sy_call_t *)nosys },			/* 311 = setresuid */
 	{ 0, (sy_call_t *)nosys },			/* 312 = setresgid */
 	{ 3, (sy_call_t *)signanosleep },		/* 313 = signanosleep */
+	{ 1, (sy_call_t *)aio_return },			/* 314 = aio_return */
+	{ 3, (sy_call_t *)aio_suspend },		/* 315 = aio_suspend */
+	{ 2, (sy_call_t *)aio_cancel },			/* 316 = aio_cancel */
+	{ 1, (sy_call_t *)aio_error },			/* 317 = aio_error */
+	{ 1, (sy_call_t *)aio_read },			/* 318 = aio_read */
+	{ 1, (sy_call_t *)aio_write },			/* 319 = aio_write */
+	{ 4, (sy_call_t *)lio_listio },			/* 320 = lio_listio */
+	{ 0, (sy_call_t *)yield },			/* 321 = yield */
+	{ 1, (sy_call_t *)thr_sleep },			/* 322 = thr_sleep */
+	{ 1, (sy_call_t *)thr_wakeup },			/* 323 = thr_wakeup */
+	{ 1, (sy_call_t *)mlockall },			/* 324 = mlockall */
+	{ 0, (sy_call_t *)munlockall },			/* 325 = munlockall */
 };
