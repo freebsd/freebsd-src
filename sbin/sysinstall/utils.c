@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.26 1994/11/07 13:48:54 jkh Exp $
+ * $Id: utils.c,v 1.27 1994/11/16 14:42:22 ache Exp $
  *
  */
 
@@ -68,7 +68,7 @@ TellEm(char *fmt, ...)
 	write(debug_fd,">\n\r",3);
 	dialog_clear();
 	dialog_update();
-	dialog_msgbox("Progress", p, strheight(p)+2, strwidth(p)+4, 0);
+	dialog_msgbox("Progress", p, -1, -1, 0);
 	free(p);
 }
 
@@ -83,7 +83,7 @@ Fatal(char *fmt, ...)
 	va_end(ap);
 	strip_trailing_newlines(p);
 	if (dialog_active)
-		dialog_msgbox("Fatal", p, strheight(p)+4, strwidth(p)+4, 1);
+		dialog_msgbox("Fatal", p, -1, -1, 1);
 	else
 		fprintf(stderr, "Fatal -- %s\n", p);
 	free(p);
