@@ -244,8 +244,12 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	gp->dumpconf = g_mbr_dumpconf;
 	gp->ioctl = g_mbr_ioctl;
 	do {
-		if (gp->rank != 2 && insist == 0)
+		/* XXX: phk think about this! */
+		if (gp->rank != 2 &&
+		    strcmp(pp->geom->class->name, "LABEL") != 0 &&
+		    strcmp(pp->geom->class->name, "NOP") != 0) {
 			break;
+		}
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error)
 			fwsectors = 17;
