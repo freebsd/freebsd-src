@@ -22,9 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: kldunload.c,v 1.3 1997/10/21 09:59:26 jmg Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
@@ -36,7 +39,7 @@
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldunload [-i id] [-n filename]\n");
+    fprintf(stderr, "usage: kldunload [-v] [-i id] [-n name]\n");
     exit(1);
 }
 
@@ -73,7 +76,7 @@ main(int argc, char** argv)
 
     if (filename) {
 	if ((fileid = kldfind(filename)) < 0)
-	    err(1, "Can't find file %s", filename);
+	    err(1, "can't find file %s", filename);
     }
 
     if (verbose) {
@@ -85,8 +88,7 @@ main(int argc, char** argv)
     }
 
     if (kldunload(fileid) < 0)
-	err(1, "Can't unload file");
+	err(1, "can't unload file");
 
     return 0;
 }
-
