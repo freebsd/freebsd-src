@@ -381,6 +381,20 @@ wi_pci_attach(device_t dev)
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
+	/* We have to do a magic PLX poke to enable interrupts */
+	sc->local_rid = WI_PCI_LOCALRES;
+	sc->local = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		&sc->local_rid, 0, ~0, 1, RF_ACTIVE);
+	sc->wi_localtag = rman_get_bustag(sc->local);
+	sc->wi_localhandle = rman_get_bushandle(sc->local);
+	command = bus_space_read_4(sc->wi_localtag, sc->wi_localhandle,
+		WI_LOCAL_INTCSR);
+	command |= WI_LOCAL_INTEN;
+	bus_space_write_4(sc->wi_localtag, sc->wi_localhandle,
+		WI_LOCAL_INTCSR, command);
+	bus_release_resource(dev, SYS_RES_IOPORT, sc->local_rid, sc->local);
+	sc->local = NULL;
+
 	sc->mem_rid = WI_PCI_MEMRES;
 	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
 				0, ~0, 1, RF_ACTIVE);
