@@ -37,6 +37,7 @@
 
 /* Configuration constants */
 #define	CLPD6832_BCR_MGMT_IRQ_ENA	0x0800
+#define	CLPD6832_BCR_ISA_IRQ		0x0080
 
 /* End of CL-PD6832 defines */
 /* Texas Instruments PCI-1130/1131 CardBus Controller */
@@ -137,9 +138,8 @@
 #define CB_SOCKET_POWER		0x14
 #define CB_EXCA_OFFSET		0x800	/* Offset for ExCA registers */
 
-#define CB_SM_CD		0x6
-
-#define CB_SE_CD		0x6
+#define CB_SM_CD		0x6	/* Socket MASK Card detect */
+#define CB_SE_CD		0x6	/* Socket Event Card detect */
 
 #define CB_SS_CARDSTS		0x00000001 /* Card Status Change */
 #define CB_SS_CD1		0x00000002 /* Card Detect 1 */
