@@ -55,7 +55,7 @@ SRCS=		\
 	strupr.c		\
 	roken.h
 
-INCLUDES= roken.h
+INCLUDES= roken.h ${KRB5DIR}/lib/roken/roken-common.h
 
 .include <bsd.lib.mk>
 
