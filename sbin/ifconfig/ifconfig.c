@@ -236,6 +236,7 @@ struct	cmd {
 	{ "-monitor",	-IFF_MONITOR,	setifflags },
 #ifdef USE_IF_MEDIA
 	{ "media",	NEXTARG,	setmedia },
+	{ "mode",	NEXTARG,	setmediamode },
 	{ "mediaopt",	NEXTARG,	setmediaopt },
 	{ "-mediaopt",	NEXTARG,	unsetmediaopt },
 #endif
