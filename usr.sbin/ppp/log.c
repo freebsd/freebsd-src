@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.34 1998/08/09 15:34:11 brian Exp $
+ *	$Id: log.c,v 1.35 1998/08/21 18:10:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -132,15 +132,21 @@ log_UnRegisterPrompt(struct prompt *prompt)
 void
 log_DestroyPrompts(struct server *s)
 {
-  struct prompt *p, *pn;
+  struct prompt *p, *pn, *pl;
 
   p = promptlist;
+  pl = NULL;
   while (p) {
     pn = p->next;
-    if (s && p->owner != s) {
+    if (s && p->owner == s) {
+      if (pl)
+        pl->next = p->next;
+      else
+        promptlist = p->next;
       p->next = NULL;
       prompt_Destroy(p, 1);
-    }
+    } else
+      pl = p;
     p = pn;
   }
 }
