@@ -1,0 +1,18 @@
+#	$Id$
+
+EV5			opt_global.h
+DEC_KN8AE		opt_cpu.h
+
+ATAPI			opt_atapi.h
+ATAPI_STATIC		opt_atapi.h
+
+CMD640			opt_wd.h
+
+SHOW_BUSYBUFS
+PANIC_REBOOT_WAIT_TIME	opt_panic.h
+
+AHC_TAGENABLE		opt_aic7xxx.h
+AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
+AHC_ALLOW_MEMIO		opt_aic7xxx.h
+AHC_SHARE_SCBS		opt_aic7xxx.h
+

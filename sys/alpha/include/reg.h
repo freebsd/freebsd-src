@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: reg.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: reg.h,v 1.3 1997/04/06 08:47:40 cgd Exp */
 
 /*
@@ -91,9 +91,10 @@ struct fpreg {
 	u_int64_t	fpr_cr;
 };
 
-#ifdef _KERNEL
+#ifdef KERNEL
 void	restorefpstate __P((struct fpreg *));
 void	savefpstate __P((struct fpreg *));
+void	setregs __P((struct proc *, u_long, u_long));
 #endif
 
 #endif /* _ALPHA_REG_H_ */

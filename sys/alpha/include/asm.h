@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: asm.h,v 1.1 1998/01/10 22:09:52 jb Exp $ */
 /* From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp */
 
 /* 
@@ -474,7 +474,7 @@ _name_	=	_value_
 _name_:;							\
 	.mask	_i_mask_|IM_EXC,0;				\
 	.frame	sp,MSS_SIZE,ra;				
-/*	.livereg _i_mask_|IM_EXC,0
+/*	.livereg _i_mask_|IM_EXC,0 */
 /* should have been
 	.proc	_name_,1;					\
 	.frame	MSS_SIZE,$31,_i_mask_,0;			\
@@ -617,7 +617,7 @@ label:	ASCIZ msg;						\
  * Kernel RCS ID tag and copyright macros
  */
 
-#ifdef _KERNEL
+#ifdef KERNEL
 
 #ifdef __ELF__
 #define	__KERNEL_SECTIONSTRING(_sec, _str)				\
