@@ -345,6 +345,15 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
  * XXX: disk_create() and disk_destroy() is currently undefined (but generally
  * XXX: undesirable) so any solution seems to involve an intrusive decision.
  */
+
+static void
+disk_destroy_event(void *ptr, int flag)
+{
+
+	g_topology_assert();
+	g_wither_geom(ptr, ENXIO);
+}
+
 void
 disk_destroy(struct disk *dp)
 {
@@ -356,7 +365,7 @@ disk_destroy(struct disk *dp)
 		return;
 	gp->softc = NULL;
 	devstat_remove_entry(dp->d_devstat);
-	g_wither_geom(gp, ENXIO);
+	g_post_event(disk_destroy_event, gp, M_WAITOK, NULL, NULL);
 }
 
 static void
