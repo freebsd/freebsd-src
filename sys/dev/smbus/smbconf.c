@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.c,v 1.4 1999/01/09 18:08:23 nsouch Exp $
+ *	$Id: smbconf.c,v 1.5 1999/02/13 17:57:19 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -50,6 +50,34 @@ smbus_intr(device_t bus, u_char devaddr, char low, char high, int error)
 		SMBUS_INTR(sc->owner, devaddr, low, high, error);
 
 	return;
+}
+
+/*
+ * smbus_error()
+ *
+ * Converts an smbus error to a unix error.
+ */
+int
+smbus_error(int smb_error)
+{
+	int error = 0;
+
+	if (smb_error == SMB_ENOERR)
+		return (0);
+	
+	if (smb_error & (SMB_ENOTSUPP)) {
+		error = ENODEV;
+	} else if (smb_error & (SMB_ENOACK)) {
+		error = ENXIO;
+	} else if (smb_error & (SMB_ETIMEOUT)) {
+		error = EWOULDBLOCK;
+	} else if (smb_error & (SMB_EBUSY)) {
+		error = EBUSY;
+	} else {
+		error = EINVAL;
+	}
+
+	return (error);
 }
 
 /*
