@@ -272,8 +272,9 @@ struct umass_softc {
 	unsigned char		drive;
 #	define DRIVE_GENERIC		0	/* use defaults for this one */
 #	define ZIP_100			1	/* to be used for quirks */
-#	define ZIP_250			2	/* to be used for quirks */
+#	define ZIP_250			2
 #	define SHUTTLE_EUSB		3
+#	define INSYSTEM_USBCABLE	4
 
 	unsigned char		quirks;
 	/* The drive does not support Test Unit Ready. Convert to
@@ -578,6 +579,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	if (UGETW(dd->idVendor) == USB_VENDOR_INSYSTEM
 	    && UGETW(dd->idProduct) == USB_PRODUCT_INSYSTEM_USBCABLE) {
+		sc->drive = INSYSTEM_USBCABLE;
 		sc->proto = PROTO_ATAPI | PROTO_CBI;
 		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
 		return(UMATCH_VENDOR_PRODUCT);
@@ -730,6 +732,17 @@ USB_ATTACH(umass)
 	}
 #endif
 	printf("\n");
+
+	if (sc->drive == INSYSTEM_USBCABLE) {
+		err = usbd_set_interface(0, 1);
+		if (err) {
+			DPRINTF(UDMASS_USB, ("%s: could not switch to "
+				"Alt Interface %d\n",
+				USBDEVNAME(sc->sc_dev), 1));
+			umass_detach(self);
+			USB_ATTACH_ERROR_RETURN;
+		}
+	}
 
 	/*
 	 * In addition to the Control endpoint the following endpoints
