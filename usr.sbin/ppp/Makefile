@@ -37,8 +37,12 @@ DPADD+= ${LIBALIAS}
 DISTRIBUTION=des
 CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
-LDADD+= -ldes
-DPADD+= ${LIBDES}
+LDADD+= -lcrypto
+DPADD+= ${LIBCRYPTO}
+.if defined(RSAREF) && ${RSAREF} == YES
+LDADD+=	-lRSAglue
+DPADD+= ${LIBRSAGLUE}
+.endif
 .endif
 
 .if defined(NORADIUS)
