@@ -359,13 +359,14 @@ pcic_cd_event(void *arg)
 	
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 	device_printf(sc->dev, "debounced state is 0x%x\n", stat);
-	if ((stat & CB_SS_16BIT) == 0) {
-		device_printf(sp->sc->dev, "Unsupported card type inserted\n");
-	} else {
-		if (stat & CB_SS_CD)
-			pccard_event(sp->slt, card_removed);
+	if ((stat & CB_SS_CD) == 0) {
+		if ((stat & CB_SS_16BIT) == 0)
+			device_printf(sp->sc->dev,
+			    "Unsupported card type inserted\n");
 		else
 			pccard_event(sp->slt, card_inserted);
+	} else {
+		pccard_event(sp->slt, card_removed);
 	}
 	sc->cd_pending = 0;
 }
@@ -376,19 +377,23 @@ pcic_pci_intr(void *arg)
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t event;
+	u_int32_t stat;
 
 	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
-	if (event == 0)
-		return;
-	device_printf(sc->dev, "Event mask 0x%x\n", event);
-	if (event & CB_SE_CD) {
-		if (!sc->cd_pending) {
+	if (event != 0) {
+		device_printf(sc->dev, "Event mask 0x%x\n", event);
+		if ((event & CB_SE_CD) != 0 && !sc->cd_pending) {
 			sc->cd_pending = 1;
 			timeout(pcic_cd_event, arg, hz/2);
 		}
+		/* Ack the interrupt, all of them to be safe */
+		bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
 	}
-	/* Ack the interrupt, all of them to be safe */
-	bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+
+	/* Now call children interrupts if any */
+	if (sp->intr && (stat & CB_SS_CD) == 0)
+		sp->intr(sp->argp);
 }
 
 /*
@@ -627,6 +632,33 @@ pcic_pci_get_memory(device_t dev)
 	return (0);
 }
 
+static int
+pcic_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
+	struct pcic_slot *sp = &sc->slots[0];
+	
+	if (sp->intr)
+		panic("Interrupt already established");
+	sp->intr = intr;
+	sp->argp = arg;
+	*cookiep = sc;
+	return (0);
+}
+
+static int
+pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
+	struct pcic_slot *sp = &sc->slots[0];
+
+	sp->intr = NULL;
+	sp->argp = NULL;
+	return (0);
+}
+
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
@@ -642,8 +674,8 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	pcic_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_pci_teardown_intr),
 
 	/* Card interface */
 	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
