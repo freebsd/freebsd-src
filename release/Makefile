@@ -45,7 +45,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		110000
+MFSINODE=		80000
 FIXITINODE=		28000
 
 # Things which will get you into trouble if you change them
