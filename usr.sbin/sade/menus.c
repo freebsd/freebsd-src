@@ -1483,6 +1483,7 @@ DMenu MenuSysconsKeymap = {
       { " Brazil ISO (accent)",	"Brazil ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=br275.iso.acc" },
       { " Brazil ISO",	"Brazil ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=br275.iso" },
       { " Croatian ISO",	"Croatian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=hr.iso" },
+      { " Czech ISO (accent)",	"Czech ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=cs.latin2.qwertz" },
       { "Danish CP865",	"Danish Code Page 865 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.cp865" },
       { " Danish ISO",	"Danish ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.iso" },
       { "Estonian ISO", "Estonian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=estonian.iso" },
