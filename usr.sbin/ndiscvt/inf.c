@@ -146,12 +146,20 @@ dump_deviceids()
 	struct assign *manf, *dev;
 	struct section *sec;
 	struct assign *assign;
+	char xpsec[256];
 
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
 
 	/* Find manufacturer section */
-	sec = find_section(manf->vals[0]);
+	if (manf->vals[1] != NULL &&
+	    strcasecmp(manf->vals[1], "NT.5.1") == 0) {
+		/* Handle Windows XP INF files. */
+		snprintf(xpsec, sizeof(xpsec), "%s.%s",
+		    manf->vals[0], manf->vals[1]);
+		sec = find_section(xpsec);
+	} else
+		sec = find_section(manf->vals[0]);
 
 	/* Emit start of device table */
 	fprintf (ofp, "#define NDIS_DEV_TABLE");
@@ -206,7 +214,7 @@ dump_addreg(const char *s)
 				fprintf(ofp,"\n\t\"%s \",", reg->key);
 				fprintf(ofp, "\n\t{ \"%s\" } },",
 				    reg->value == NULL ? "" :
-				    reg->value);
+				    stringcvt(reg->value));
 			} else if (strcasestr(reg->subkey,
 			    "Ndi\\params") != NULL &&
 			    strcasecmp(reg->key, "ParamDesc") == 0)
@@ -229,7 +237,8 @@ dump_enumreg(const struct section *s, const struct reg *r)
 			continue;
 		if (reg->subkey == NULL || strcasecmp(reg->subkey, enumkey))
 			continue;
-		fprintf(ofp, " [%s=%s]", reg->key, stringcvt(reg->value));
+		fprintf(ofp, " [%s=%s]", reg->key,
+		    stringcvt(reg->value));
 	}
 	return;
 }
@@ -352,7 +361,7 @@ dump_regvals(void)
 	struct assign *assign;
 	struct assign_head tmp_ah;
 	char sname[256];
-	int i;
+	int i, is_winxp = 0;
 
 	TAILQ_INIT(&tmp_ah);
 
@@ -360,7 +369,15 @@ dump_regvals(void)
 	manf = find_assign("Manufacturer", NULL);
 
 	/* Find manufacturer section */
-	sec = find_section(manf->vals[0]);
+	if (manf->vals[1] != NULL &&
+	    strcasecmp(manf->vals[1], "NT.5.1") == 0) {
+		is_winxp++;
+		/* Handle Windows XP INF files. */
+		snprintf(sname, sizeof(sname), "%s.%s",
+		    manf->vals[0], manf->vals[1]);
+		sec = find_section(sname);
+	} else
+		sec = find_section(manf->vals[0]);
 
 	/* Emit start of block */
 	fprintf (ofp, "ndis_cfg ndis_regvals[] = {");
@@ -380,10 +397,20 @@ dump_regvals(void)
 		    sizeof(struct assign));
 		TAILQ_INSERT_TAIL(&tmp_ah, dev_dup, link);
 		if (assign->section == sec) {
-			/* Ignore Windows 95-era data. */
-			sprintf(sname, "%s.NT", assign->vals[0]);
-			/* Find all the AddReg sections. */
-			dev = find_assign(sname, "AddReg");
+			/*
+			 * Find all the AddReg sections.
+			 * Look for section names with .NT, unless
+			 * this is a WinXP .INF file.
+			 */
+			if (is_winxp)
+				dev = find_assign(assign->vals[0], "AddReg");
+			else {
+				sprintf(sname, "%s.NT", assign->vals[0]);
+				dev = find_assign(sname, "AddReg");
+			}
+			/* Section not found. */
+			if (dev == NULL)
+				continue;
 			for (i = 0; i < W_MAX; i++) {
 				if (dev->vals[i] != NULL)
 					dump_addreg(dev->vals[i]);
