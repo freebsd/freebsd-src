@@ -5,6 +5,11 @@ MAN=	ac.8
 
 WARNS?=	4
 
+# Temporary, while tracking down problem wrt 64-bit time_t's on sparc64
+.if ${MACHINE_ARCH} == "sparc64"
+CFLAGS+=-DDEBUG
+.endif
+
 # If "CONSOLE_TTY" is not defined, this program is compatible with the
 # traditional implementation (using SunOS 4.x as the sample traditional
 # implementation).  This is the default.
