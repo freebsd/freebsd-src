@@ -75,8 +75,8 @@ SUBDIR=	adjkerntz \
 SUBDIR+=	kget mount_nwfs
 .endif
 
-.if exists(${.CURDIR}/${MACHINE_ARCH})
-SUBDIR+= ${MACHINE_ARCH}
+.if exists(${.CURDIR}/${MACHINE})
+SUBDIR+= ${MACHINE}
 .endif
 
 .include <bsd.subdir.mk>
