@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.23 1994/10/25 05:35:44 davidg Exp $
+ * $Id: vm_pageout.c,v 1.24 1994/11/06 05:07:53 davidg Exp $
  */
 
 /*
@@ -631,8 +631,10 @@ rescan1:
 			continue;
 		}
 
-		if (((m->flags & PG_CLEAN) != 0) && pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+		if (((m->flags & PG_CLEAN) != 0) && pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
 			m->flags &= ~PG_CLEAN;
+			m->flags |= PG_LAUNDRY;
+		}
 
 		if (((m->flags & PG_REFERENCED) == 0) && pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 			m->flags |= PG_REFERENCED;
