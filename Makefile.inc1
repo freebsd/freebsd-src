@@ -667,7 +667,7 @@ _xargs=		usr.bin/xargs
 _yacc=		usr.bin/yacc
 .endif
 
-.if exists(${.CURDIR}/rescue) && defined(RESCUE) && \
+.if defined(RESCUE) && \
     ${BOOTSTRAPPING} < 501100
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
@@ -752,7 +752,7 @@ _elf2aout=	usr.bin/elf2aout
 _btxld=		usr.sbin/btxld
 .endif
 
-.if (exists(${.CURDIR}/rescue) && defined(RESCUE) || \
+.if (defined(RESCUE) || \
     defined(RELEASEDIR)) && \
     (${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101)
 _crunchide=	usr.sbin/crunch/crunchide
