@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH: ../cc_tools ${GCCDIR}/config/${GCC_ARCH} ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
 
 LIB=		cc_int
 NOPROFILE=	YES
@@ -24,7 +24,7 @@ SRCS=	c-aux-info.c c-common.c c-convert.c c-format.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dyn-string.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
-	${OUT_FILE}
+	${TARGET_ARCH}.c
 
 SRCS+=	bb-reorder.c conflict.c ggc-common.c \
 	ggc-page.c ifcvt.c lists.c predict.c regrename.c resource.c sibcall.c \
@@ -61,7 +61,5 @@ CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
 
 install:
 	@true
-
-${OUT_OBJ}.o ${OUT_OBJ}.So:	${OUT_FILE}
 
 .include <bsd.lib.mk>

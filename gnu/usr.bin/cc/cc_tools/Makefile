@@ -95,22 +95,22 @@ ${COMMONHDRS}: ${.CURDIR}/Makefile
 
 configargs.h:
 	echo 'static const char configuration_arguments[] ='	> ${.TARGET}
-	echo '	"FreeBSD/${GCC_ARCH} system compiler";'		>> ${.TARGET}
+	echo '	"FreeBSD/${TARGET_ARCH} system compiler";'		>> ${.TARGET}
 	echo 'static const char thread_model[] = "posix";'	>> ${.TARGET}
 
 config.h hconfig.h:
-	echo '#include "auto-host.h"'			> ${.TARGET}
-	echo '#include "gansidecl.h"'			>> ${.TARGET}
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "defaults.h"'			>> ${.TARGET}
-	echo '#include "hwint.h"'			>> ${.TARGET}
-	echo '#ifndef POSIX'				>> ${.TARGET}
-	echo '# define POSIX'				>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
-	echo '#include "insn-codes.h"'			>> ${.TARGET}
-	echo '#include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
+	echo '#include "auto-host.h"'				> ${.TARGET}
+	echo '#include "gansidecl.h"'				>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
+	echo '#include "defaults.h"'				>> ${.TARGET}
+	echo '#include "hwint.h"'				>> ${.TARGET}
+	echo '#ifndef POSIX'					>> ${.TARGET}
+	echo '# define POSIX'					>> ${.TARGET}
+	echo '#endif'						>> ${.TARGET}
+	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
+	echo '#include "insn-codes.h"'				>> ${.TARGET}
+	echo '#include "insn-flags.h"'				>> ${.TARGET}
+	echo '#endif'						>> ${.TARGET}
 
 gencheck.h:
 	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
@@ -136,44 +136,44 @@ specs.h:
 	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "gansidecl.h"'			> ${.TARGET}
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "defaults.h"'			>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
-	echo '#include "insn-codes.h"'			>> ${.TARGET}
-	echo '#include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
-	echo '#define USING_SJLJ_EXCEPTIONS 0'		>> ${.TARGET}
+	echo '#include "gansidecl.h"'				> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
+	echo '#include "defaults.h"'				>> ${.TARGET}
+	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
+	echo '#include "insn-codes.h"'				>> ${.TARGET}
+	echo '#include "insn-flags.h"'				>> ${.TARGET}
+	echo '#endif'						>> ${.TARGET}
+	echo '#define USING_SJLJ_EXCEPTIONS 0'			>> ${.TARGET}
 
 #	KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
 tm.h:
-	echo '#include "gansidecl.h"'			> ${.TARGET}
-	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	>> ${.TARGET}
-.if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
+	echo '#include "gansidecl.h"'				> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/${TARGET_ARCH}.h"'	>> ${.TARGET}
+.if ${TARGET_ARCH} == "i386"
+	echo '#include "${TARGET_ARCH}/att.h"'			>> ${.TARGET}
 .endif
-	echo '#include <freebsd-native.h>'		>> ${.TARGET}
-	echo '#include <freebsd.h>'			>> ${.TARGET}
-.if exists(${GCCDIR}/config/${GCC_ARCH}/elf.h)
-	echo '#include "${GCC_ARCH}/elf.h"'		>> ${.TARGET}
+	echo '#include <freebsd-native.h>'			>> ${.TARGET}
+	echo '#include <freebsd.h>'				>> ${.TARGET}
+.if exists(${GCCDIR}/config/${TARGET_ARCH}/elf.h)
+	echo '#include "${TARGET_ARCH}/elf.h"'			>> ${.TARGET}
 .endif
-	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/perform.h"'		>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/freebsd.h"'		>> ${.TARGET}
+.if ${TARGET_ARCH} == "i386"
+	echo '#include "${TARGET_ARCH}/perform.h"'		>> ${.TARGET}
 .endif
-	echo '#include "defaults.h"'			>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
-	echo '#include "insn-codes.h"'			>> ${.TARGET}
-	echo '#include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
+	echo '#include "defaults.h"'				>> ${.TARGET}
+	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
+	echo '#include "insn-codes.h"'				>> ${.TARGET}
+	echo '#include "insn-flags.h"'				>> ${.TARGET}
+	echo '#endif'						>> ${.TARGET}
 
 tm_p.h:
-	echo '#include "${GCC_ARCH}/${GCC_ARCH}-protos.h"' > ${.TARGET}
-	echo '#include <freebsd-native.h>'		>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
-	echo '#include "insn-codes.h"'			>> ${.TARGET}
-	echo '#include "insn-flags.h"'			>> ${.TARGET}
-	echo '#endif'					>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/${TARGET_ARCH}-protos.h"' > ${.TARGET}
+	echo '#include <freebsd-native.h>'			>> ${.TARGET}
+	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
+	echo '#include "insn-codes.h"'				>> ${.TARGET}
+	echo '#include "insn-flags.h"'				>> ${.TARGET}
+	echo '#endif'						>> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.

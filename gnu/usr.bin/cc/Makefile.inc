@@ -7,12 +7,9 @@
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-GCC_ARCH=	${TARGET_ARCH}
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
-OUT_FILE=	${GCC_ARCH}.c
-OUT_OBJ=	${GCC_ARCH}
+MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
 target=		${TARGET_ARCH}-unknown-freebsd
 
 version!=	sed -n /version_string/p ${GCCDIR}/version.c | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
