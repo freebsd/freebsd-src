@@ -1881,7 +1881,7 @@ static driver_t mss_driver = {
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
 DRIVER_MODULE(snd_mss, acpi, mss_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_mss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
 static int
@@ -2192,7 +2192,7 @@ static driver_t pnpmss_driver = {
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_pnpmss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_pnpmss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_pnpmss, 1);
 
 static int
@@ -2276,7 +2276,7 @@ static driver_t guspcm_driver = {
 };
 
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_guspcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_guspcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_guspcm, 1);
 
 

@@ -782,7 +782,7 @@ static driver_t sb_driver = {
 };
 
 DRIVER_MODULE(snd_sb8, sbc, sb_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_sb8, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_sb8, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(snd_sb8, snd_sbc, 1, 1, 1);
 MODULE_VERSION(snd_sb8, 1);
 

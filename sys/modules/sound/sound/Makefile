@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../dev/sound/pcm
 .PATH: ${.CURDIR}/../../../dev/sound/isa
 
-KMOD=	snd_pcm
+KMOD=	sound
 SRCS=	device_if.h bus_if.h isa_if.h pci_if.h
 SRCS+=	ac97_if.h channel_if.h feeder_if.h mixer_if.h
 SRCS+=	ac97_if.c channel_if.c feeder_if.c mixer_if.c

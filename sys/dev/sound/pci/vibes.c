@@ -943,5 +943,5 @@ static driver_t sonicvibes_driver = {
 };
 
 DRIVER_MODULE(snd_vibes, pci, sonicvibes_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_vibes, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_vibes, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_vibes, 1);
