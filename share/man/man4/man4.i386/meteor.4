@@ -531,11 +531,11 @@ the existing buffer is used.
 If METEORSETGEO fails the ioctl() will return a value of -1 and the
 external variable errno will be set to:
 .Pp
-.Bl -tag -width EINVAL
-.It Dv EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid meteor_geomet structure pointer, rows, columns,
 frames were invalid.
-.It Dv ENOMEM
+.It Bq Er ENOMEM
 could not allocate the contiguous block.
 .El
 .in -0.5i
@@ -658,13 +658,13 @@ capture
 If METEORCAPTUR fails the ioctl() will return a value of -1 and the
 external variable errno will be set to:
 .Pp
-.Bl -tag -width EINVAL
-.It Dv EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid capture command value
-.It Dv ENXIO
+.It Bq Er ENXIO
 there is not internal buffer to hold the frame.
 this indicates the previous set geometry ioctl failed.
-.It Dv EIO
+.It Bq Er EIO
 card is already capturing.
 .El
 .in -0.5i
@@ -707,13 +707,13 @@ is lower than lowat.
 If METEORCAPFRM fails the ioctl() will return a value of -1 and the
 external variable errno will be set to:
 .Pp
-.Bl -tag -width EINVAL
-.It Dv EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid meteor_geomet structure pointer or bad command.
-.It Dv ENXIO
+.It Bq Er ENXIO
 there is not internal buffer to hold the frame.
 this indicates the previous set geometry ioctl failed.
-.It Dv EIO
+.It Bq Er EIO
 card is already capturing.
 .El
 .in -0.5i
@@ -727,9 +727,8 @@ gain control and effects the UV output amplitude.
 If METEORSCHCV or METEORGCHCV fails the ioctl() will return a value
 of -1 and the external variable errno will be set to:
 .Pp
-.Bl -tag -width EINVAL
-.It Dv EINVAL
-EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid unsigned char pointer.
 .El
 .in -0.5i
@@ -745,8 +744,8 @@ signed character has legal values are from +127 which represent
 If METEORGHUE or METEORSHUE fails the ioctl() will return a value of
 -1 and the external variable errno will be set to:
 .Pp
-.Bl -tag -width EINVAL
-.It Dv EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid signed char pointer.
 .El
 .in -0.5i
@@ -773,8 +772,8 @@ number of FIFO errors since device was opened.
 .Pp
 If METEORSCOUNT or METEORGCOUNT fails the ioctl() will return a value
 of -1 and the external variable errno will be set to:
-.Bl -tag -width EINVAL
-.It Dv EINVAL
+.Bl -tag -width Er
+.It Bq Er EINVAL
 invalid meteor_counts structure pointer.
 .El
 .in -0.5i

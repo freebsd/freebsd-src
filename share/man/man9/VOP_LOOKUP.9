@@ -108,9 +108,9 @@ notfound:
 .Bd -filled -offset indent
 If creating or renaming and at end of pathname,
 return
-.Dv EJUSTRETURN ,
+.Er EJUSTRETURN ,
 leaving info on available slots else return
-.Dv ENOENT .
+.Er ENOENT .
 .Ed
 .Pp
 found:
@@ -126,7 +126,7 @@ The directory,
 .Fa dvp
 should be locked on entry.
 If an error (note: the return value
-.Dv EJUSTRETURN
+.Er EJUSTRETURN
 is not considered an error)
 is detected, it will be returned locked.
 Otherwise, it will be unlocked unless both
@@ -153,7 +153,7 @@ or
 the flag
 .Dv ISLASTCN
 is specified and the operation would succeed, the special return value
-.Dv EJUSTRETURN
+.Er EJUSTRETURN
 is returned.
 Otherwise, an appropriate error code is returned.
 .Sh PSEUDOCODE
