@@ -1805,6 +1805,7 @@ kse_fini(struct kse *kse)
 {
 	/* struct kse_group *free_kseg = NULL; */
 	struct timespec ts;
+	struct pthread *td;
 
 	/*
 	 * Check to see if this is one of the main kses.
@@ -1844,10 +1845,22 @@ kse_fini(struct kse *kse)
 			KSE_SCHED_LOCK(kse, kse->k_kseg);
 			TAILQ_REMOVE(&kse->k_kseg->kg_kseq, kse, k_kgqe);
 			kse->k_kseg->kg_ksecount--;
+			/*
+			 * Migrate thread to  _kse_initial if its lastest
+			 * kse it ran on is the kse.
+			 */
+			td = TAILQ_FIRST(&kse->k_kseg->kg_threadq);
+			while (td != NULL) {
+				if (td->kse == kse)
+					td->kse = _kse_initial;
+				td = TAILQ_NEXT(td, kle);
+			}
 			KSE_SCHED_UNLOCK(kse, kse->k_kseg);
 			KSE_LOCK_ACQUIRE(kse, &kse_lock);
 			kse_free_unlocked(kse);
 			KSE_LOCK_RELEASE(kse, &kse_lock);
+			/* Make sure there is always at least one is awake */
+			KSE_WAKEUP(_kse_initial);
 			kse_exit();
                         /* Never returns. */
                         PANIC("kse_exit() failed for initial kseg");
