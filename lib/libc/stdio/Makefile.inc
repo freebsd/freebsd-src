@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.8 1997/02/22 15:01:45 peter Exp $
+#	$Id: Makefile.inc,v 1.9 1997/05/03 03:50:03 jb Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
@@ -15,13 +15,10 @@ SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	vfprintf.c vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c wbuf.c wsetup.c
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
-MAN3+=	stdio/fclose.3 stdio/ferror.3 stdio/fflush.3 stdio/fgetln.3 \
-	stdio/fgets.3 stdio/fopen.3 stdio/fputs.3 stdio/fread.3 stdio/fseek.3 \
-	stdio/funopen.3 stdio/getc.3 stdio/mktemp.3 stdio/printf.3 \
-	stdio/putc.3 stdio/remove.3 stdio/scanf.3 stdio/setbuf.3 \
-	stdio/stdio.3 stdio/tmpnam.3 stdio/ungetc.3
+MAN3+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fopen.3 fputs.3 \
+	fread.3 fseek.3 funopen.3 getc.3 mktemp.3 printf.3 putc.3 remove.3 \
+	scanf.3 setbuf.3 stdio.3 tmpnam.3 ungetc.3
 
 MLINKS+=ferror.3 clearerr.3 ferror.3 feof.3 ferror.3 fileno.3
 MLINKS+=fflush.3 fpurge.3

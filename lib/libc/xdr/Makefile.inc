@@ -1,13 +1,12 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id$
+#	$Id: Makefile.inc,v 1.8 1997/05/28 16:29:12 wpaul Exp $
 
 .PATH: ${.CURDIR}/../libc/xdr ${.CURDIR}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
 	xdr_rec.c xdr_reference.c xdr_stdio.c xdr_sizeof.c
 
-# Only build man pages with libc.
 .if ${LIB} == "c"
-MAN3+=	xdr/xdr.3
+MAN3+=	xdr.3
 
 MLINKS+=	xdr.3 xdr_array.3 \
 		xdr.3 xdr_bool.3 \
