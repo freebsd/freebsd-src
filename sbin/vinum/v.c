@@ -467,6 +467,7 @@ make_devices(void)
     system("rm -rf " VINUM_DIR " " VINUM_RDIR);		    /* remove the old directories */
     system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
+	VINUM_DIR "/rplex "
 	VINUM_DIR "/sd "
 	VINUM_DIR "/rsd "
 	VINUM_DIR "/vol "
@@ -573,12 +574,26 @@ make_vol_dev(int volno, int recurse)
 void 
 make_plex_dev(int plexno, int recurse)
 {
-    dev_t plexdev;
+    dev_t plexdev;					    /* block device */
+    dev_t plexcdev;					    /* and character device device */
     char filename[PATH_MAX];				    /* for forming file names */
     int sdno;
 
     get_plex_info(&plex, plexno);
     if (plex.state != plex_unallocated) {
+	plexdev = VINUM_BLOCK_PLEX(plexno);
+	plexcdev = VINUM_CHAR_PLEX(plexno);
+
+	/* /dev/vinum/plex/<plex> */
+	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, plexdev) < 0)
+	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+
+	/* /dev/vinum/rplex/<plex> */
+	sprintf(filename, VINUM_DIR "/rplex/%s", plex.name);
+	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFCHR, plexcdev) < 0)
+	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+
 	if (plex.volno >= 0) {
 	    get_volume_info(&vol, plex.volno);
 	    plexdev = VINUMBDEV(plex.volno, plexno, 0, VINUM_PLEX_TYPE);
@@ -592,12 +607,7 @@ make_plex_dev(int plexno, int recurse)
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
 	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	} else						    /* detached plex */
-	    plexdev = VINUMBDEV(0, plexno, 0, VINUM_RAWPLEX_TYPE);
-	/* Create /dev/vinum/plex/<plex> */
-	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IFBLK, plexdev) < 0)
-	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	}
 	if (recurse) {
 	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
 		get_plex_sd_info(&sd, plex.plexno, sdno);
@@ -607,10 +617,10 @@ make_plex_dev(int plexno, int recurse)
     }
 }
 
+/* Create the contents of /dev/vinum/sd and /dev/vinum/rsd */
 void 
 make_sd_dev(int sdno)
 {
-    /* Create the contents of /dev/vinum/<vol>.plex/<plex>.sd */
     dev_t sddev;					    /* block device */
     dev_t sdcdev;					    /* and character device */
     char filename[PATH_MAX];				    /* for forming file names */
@@ -718,7 +728,7 @@ continue_revive(int sdno)
 	openlog(VINUMMOD, LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
 	syslog(LOG_INFO | LOG_KERN, "reviving %s", sd.name);
 
-	for (reply.error = EAGAIN; reply.error == EAGAIN;) {
+	for (reply.error = EAGAIN; reply.error == EAGAIN;) { /* revive the subdisk */
 	    message->index = sdno;			    /* pass sd number */
 	    message->type = sd_object;			    /* and type of object */
 	    message->state = object_up;
