@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.41 1997/02/22 12:59:28 peter Exp $ -->
+<!-- $Id: submitters.sgml,v 1.33.2.2 1997/03/15 23:30:35 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -501,8 +501,7 @@ like to publically thank them here!
 <itemize>
 	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
 	name="Annelise Anderson">
-
-	has generously donated funding for the further development of FreeBSD
+	has generously donated funding for FreeBSD development.
 	</item>
 
 	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
@@ -512,6 +511,11 @@ like to publically thank them here!
 
 	<item><htmlurl url="mailto:gmarco@masternet.it"
 	name="Gianmarco Giovannelli"> has generously donated funding for
+	FreeBSD development.
+	</item>
+
+	<item><htmlurl url="http://www.imagescape.com"
+	name="Imaginary Landscape, LLC."> has generously donated funding for
 	FreeBSD development.
 	</item>
 
