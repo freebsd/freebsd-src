@@ -106,6 +106,13 @@ The ata(4) driver now has support for ATA100 controllers. [MERGED]
 The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
 Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
 
+The mly(4) driver, for Mylex PCI to SCSI AccelRAID and eXtremeRAID
+controllers with firmware 6.x and later, has been added.
+
+The asr(4) driver, which provides support for the Adaptec SCSI RAID
+controller family, as well as the DPT SmartRAID V and VI families, has
+been added.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -240,6 +247,8 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
+Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+
 AdvanSys SCSI controllers (all models).
 
 BusLogic MultiMaster controllers:
@@ -264,8 +273,10 @@ The Buslogic/Bustek BT-640 and Storage Dimensions SDC3211B and SDC3211F
 Microchannel (MCA) bus adapters are also supported.
 
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
-SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
-is not yet supported.
+SmartRAID IV SCSI/RAID controllers.
+
+DPT SmartRAID V and VI SCSI RAID controllers:
+    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID 418
@@ -295,6 +306,15 @@ firmware:
     eXtremeRAID 1100
 Booting from these controllers is supported. EISA adapters are not 
 supported.
+
+Mylex PCI to SCSI RAID controllers with 6.x firmware:
+    AcceleRAID 160
+    AcceleRAID 170
+    AcceleRAID 352
+    eXtremeRAID 2000
+    eXtremeRAID 3000
+Compatible Mylex controllers not listed should work, but have not been 
+verified.
 
 3ware Escalade ATA RAID controllers.  All members of the 5000 and
 6000 series are supported.
