@@ -10,7 +10,7 @@ INCS=
 BOOTSTRAPPING?=	0
 
 # Some tools need <sys/endian.h>.
-.if !exists(/usr/include/sys/endian.h)
+.if !exists(/usr/include/sys/endian.h) || ${BOOTSTRAPPING} < 500000
 INCSGROUPS+=	SYSHDRS
 SYSHDRS=	endian.h
 SYSHDRSDIR=	${INCLUDEDIR}/sys
