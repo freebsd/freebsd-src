@@ -806,6 +806,7 @@ options 	MAC_NONE
 options 	MAC_PARTITION
 options 	MAC_PORTACL
 options 	MAC_SEEOTHERUIDS
+options 	MAC_STUB
 options 	MAC_TEST
 
 
