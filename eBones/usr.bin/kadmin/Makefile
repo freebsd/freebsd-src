@@ -1,6 +1,6 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/01/20 02:47:48 wollman Exp $
 
-BINDIR=	/usr/lib
+BINDIR=	/usr/bin
 PROG=	kadmin
 SRCS=	kadmin.c kadmin_cmds.c
 CLEANFILES+=	kadmin_cmds.c
