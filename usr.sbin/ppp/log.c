@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.33 1998/08/07 18:42:49 brian Exp $
+ *	$Id: log.c,v 1.34 1998/08/09 15:34:11 brian Exp $
  */
 
 #include <sys/types.h>
@@ -324,12 +324,12 @@ log_Printf(int lev, const char *fmt,...)
 }
 
 void
-log_DumpBp(int lev, const char *hdr, const struct mbuf * bp)
+log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
 {
   if (log_IsKept(lev)) {
     char buf[50];
     char *b;
-    u_char *ptr;
+    const u_char *ptr;
     int f;
 
     if (hdr && *hdr)
@@ -338,7 +338,7 @@ log_DumpBp(int lev, const char *hdr, const struct mbuf * bp)
     b = buf;
     do {
       f = bp->cnt;
-      ptr = MBUF_CTOP(bp);
+      ptr = CONST_MBUF_CTOP(bp);
       while (f--) {
 	sprintf(b, " %02x", (int) *ptr++);
         b += 3;
