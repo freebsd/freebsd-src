@@ -7,7 +7,7 @@ CLEANFILES+=	makedevs.c rtermcap dumpnlist
 SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c devices.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c ftp.c \
 	ftp_strat.c globals.c index.c install.c installUpgrade.c \
-	label.c lndir.c main.c makedevs.c media.c menus.c misc.c \
+	keymap.c label.c lndir.c main.c makedevs.c media.c menus.c misc.c \
 	msg.c network.c nfs.c options.c package.c samba.c system.c \
 	tape.c tcpip.c termcap.c ufs.c variable.c wizard.c \
 	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c \
@@ -51,7 +51,32 @@ makedevs.c:	Makefile rtermcap
 rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
+KEYMAPS= be.iso br275.iso danish.iso fr.iso german.iso it.iso jp.106 \
+	norwegian.iso ru.koi8-r spanish.iso swedish.iso \
+	swissgerman.iso uk.iso us.dvorak us.iso
+
+CLEANFILES+=	rtermcap rtermcap.tmp makedevs.c
+
+keymap.o:	keymap.c keymap.h
+keymap.h:	Makefile
+	rm -f keymap.tmp
+	for map in ${KEYMAPS} ; do \
+		kbdcontrol -L $$map >> keymap.tmp ; \
+	done
+	echo "static struct keymapInfo keymapInfos[] = {" >> keymap.tmp
+	for map in ${KEYMAPS} ; do \
+		echo -n '	{ "'$$map'", ' >> keymap.tmp ; \
+		echo "&keymap_$$map }," | tr '[-.]' '_' >> keymap.tmp ; \
+	done
+	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
+	mv keymap.tmp keymap.h
+
+CLEANFILES+=	keymap.tmp keymap.h
+
+
 testftp:       ftp.c
 	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
+
+CLEANFILES+=	testftp
 
 .include <bsd.prog.mk>
