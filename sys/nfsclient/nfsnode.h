@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.24 1997/10/28 14:06:25 bde Exp $
+ * $Id: nfsnode.h,v 1.25 1998/03/06 09:46:52 msmith Exp $
  */
 
 
@@ -81,7 +81,7 @@ struct nfsdmap {
  * If this structure exceeds 256 bytes (it is currently 256 using 4.4BSD-Lite
  * type definitions), file handles of > 32 bytes should probably be split out
  * into a separate MALLOC()'d data structure. (Reduce the size of nfsfh_t by
- * changing the definition in sys/mount.h of NFS_SMALLFH.)
+ * changing the definition in nfsproto.h of NFS_SMALLFH.)
  * NB: Hopefully the current order of the fields is such that everything will
  *     be well aligned and, therefore, tightly packed.
  */
