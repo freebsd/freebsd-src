@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.7 1994/09/25 19:33:46 phk Exp $
+ * $Id: kern_xxx.c,v 1.8 1994/10/02 17:35:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,17 @@
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/signalvar.h>
+
+/* This implements a "TEXT_SET" for cleanup functions */
+
+static void
+dummy_cleanup() {}
+TEXT_SET(cleanup_set, dummy_cleanup);
+        
+typedef void (*cleanup_func_t)(void);
+extern const struct linker_set cleanup_set;
+static const cleanup_func_t *cleanups =
+        (const cleanup_func_t *)&cleanup_set.ls_items[0];
 
 struct reboot_args {
 	int	opt;
@@ -58,6 +69,14 @@ reboot(p, uap, retval)
 
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
+
+	if (!uap->opt & RB_NOSYNC) {
+		printf("\ncleaning up... ");
+                while(*cleanups) {
+                        (**cleanups++)();
+                }
+	}
+
 	boot(uap->opt);
 	return (0);
 }
