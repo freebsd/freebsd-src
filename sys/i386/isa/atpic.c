@@ -100,7 +100,9 @@ __FBSDID("$FreeBSD$");
 static void	atpic_init(void *dummy);
 
 unsigned int imen;	/* XXX */
+#ifndef PC98
 static int using_elcr;
+#endif
 
 inthand_t
 	IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
@@ -269,8 +271,10 @@ atpic_resume(struct intsrc *isrc)
 
 	if (ai->at_irq == 0) {
 		i8259_init(ap, ap == &atpics[SLAVE]);
+#ifndef PC98
 		if (ap == &atpics[SLAVE] && using_elcr)
 			elcr_resume();
+#endif
 	}
 }
 
@@ -300,6 +304,17 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	if (ai->at_trigger == trig)
 		return (0);
 
+#ifdef PC98
+	if ((vector == 0 || vector == 1 || vector == 7 || vector == 8) &&
+	    trig == INTR_TRIGGER_LEVEL) {
+		if (bootverbose)
+			printf(
+		"atpic: Ignoring invalid level/low configuration for IRQ%u\n",
+			    vector);
+		return (EINVAL);
+	}
+	return (ENXIO);
+#else
 	/*
 	 * Certain IRQs can never be level/lo, so don't try to set them
 	 * that way if asked.  At least some ELCR registers ignore setting
@@ -328,6 +343,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	ai->at_trigger = trig;
 	mtx_unlock_spin(&icu_lock);
 	return (0);
+#endif /* PC98 */
 }
 
 static void
@@ -410,6 +426,20 @@ atpic_startup(void)
 	else
 #endif
 
+#ifdef PC98
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+		switch (i) {
+		case 0:
+		case 1:
+		case 7:
+		case 8:
+			ai->at_trigger = INTR_TRIGGER_EDGE;
+			break;
+		default:
+			ai->at_trigger = INTR_TRIGGER_LEVEL;
+			break;
+		}
+#else
 	/*
 	 * Look for an ELCR.  If we find one, update the trigger modes.
 	 * If we don't find one, assume that IRQs 0, 1, 2, and 13 are
@@ -440,6 +470,7 @@ atpic_startup(void)
 				break;
 			}
 	}
+#endif /* PC98 */
 }
 
 static void
