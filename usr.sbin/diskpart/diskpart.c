@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)diskpart.c	8.3 (Berkeley) 11/30/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: diskpart.c,v 1.6 1996/03/19 15:38:44 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -52,8 +52,9 @@ static const char rcsid[] =
 #define DKTYPENAMES
 #include <sys/disklabel.h>
 
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 
 #define	for_now			/* show all of `c' partition for disklabel */
 #define	NPARTITIONS	8
@@ -113,7 +114,9 @@ int	pflag;			/* print device driver partition tables */
 int	dflag;			/* print disktab entry */
 
 struct	disklabel *promptfordisk();
+static void usage __P((void));
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -125,11 +128,8 @@ main(argc, argv)
 	char *lp, *tyname;
 
 	argc--, argv++;
-	if (argc < 1) {
-		fprintf(stderr,
-		    "usage: disktab [ -p ] [ -d ] [ -s size ] disk-type\n");
-		exit(1);
-	}
+	if (argc < 1)
+		usage();
 	if (argc > 0 && strcmp(*argv, "-p") == 0) {
 		pflag++;
 		argc--, argv++;
@@ -146,10 +146,8 @@ main(argc, argv)
 	if (dp == NULL) {
 		if (isatty(0))
 			dp = promptfordisk(*argv);
-		if (dp == NULL) {
-			fprintf(stderr, "%s: unknown disk type\n", *argv);
-			exit(2);
-		}
+		if (dp == NULL)
+			errx(2, "%s: unknown disk type", *argv);
 	} else {
 		if (dp->d_flags & D_REMOVABLE)
 			tyname = "removable";
@@ -198,11 +196,8 @@ main(argc, argv)
 		if (curcyl < dp->d_ncylinders - threshhold)
 			break;
 	}
-	if (def >= NDEFAULTS) {
-		fprintf(stderr, "%s: disk too small, calculate by hand\n",
-			*argv);
-		exit(3);
-	}
+	if (def >= NDEFAULTS)
+		errx(3, "%s: disk too small, calculate by hand", *argv);
 
 	/*
 	 * Calculate number of cylinders allocated to each disk
@@ -342,6 +337,13 @@ main(argc, argv)
 			startcyl[part], startcyl[part] + numcyls[part] - 1,
 			defpart[def][part] % spc ? "*" : "");
 	}
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: disktab [-p] [-d] [-s size] disk-type\n");
+	exit(1);
 }
 
 struct disklabel disk;
