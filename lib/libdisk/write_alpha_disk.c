@@ -96,7 +96,7 @@ Write_Disk(const struct disk *d1)
 	memcpy(work, dp, sizeof work);
 	dp = work;
 	free(mbr);
-	for (c1 = d1->chunks->part; c1; c1 = c1->next) {
+	for (c1 = d1->chunks->part->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name, "X")) continue;
 		if (c1->type == freebsd)
