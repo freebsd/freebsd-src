@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.34 1997/03/24 11:33:11 bde Exp $
+ * $Id: if_ethersubr.c,v 1.35 1997/05/10 10:01:31 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -792,6 +792,9 @@ ether_resolvemulti(ifp, llsa, sa)
 
 	switch(sa->sa_family) {
 	case AF_LINK:
+		/* 
+		 * No mapping needed. Just check that it's a valid MC address.
+		 */
 		sdl = (struct sockaddr_dl *)sa;
 		e_addr = LLADDR(sdl);
 		if ((e_addr[0] & 1) != 1)
