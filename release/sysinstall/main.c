@@ -108,8 +108,10 @@ main(int argc, char **argv)
 	    moduleInitialize();
 
     /* Initialize PC-card */
+#ifdef PCCARD_ARCH
     if (!Restarting)
 	    pccardInitialize();
+#endif
 
     /* Initialize USB */
     if (!Restarting)

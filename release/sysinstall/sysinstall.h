@@ -54,6 +54,9 @@
 
 /*** Defines ***/
 
+#if defined(__i386__) || defined(PC98)
+#define PCCARD_ARCH 1		        /* Support PCCARD installations */
+#endif
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
