@@ -55,6 +55,16 @@
 #include <machine/cpu.h>
 #endif
 
+/*
+ * When realloc() is called, if the new size is sufficiently smaller than
+ * the old size, realloc() will allocate a new, smaller block to avoid
+ * wasting memory. 'Sufficiently smaller' is defined as: newsize <=
+ * oldsize / 2^n, where REALLOC_FRACTION defines the value of 'n'.
+ */
+#ifndef REALLOC_FRACTION
+#define	REALLOC_FRACTION	1	/* new block if <= half the size */
+#endif
+
 MALLOC_DEFINE(M_CACHE, "cache", "Various Dynamically allocated caches");
 MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
@@ -304,6 +314,10 @@ free(addr, type)
 	if (type->ks_limit == 0)
 		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
+	/* free(NULL, ...) does nothing */
+	if (addr == NULL)
+		return;
+
 	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
 	    ("free: address %p out of range", (void *)addr));
 	kup = btokup(addr);
@@ -401,6 +415,66 @@ free(addr, type)
 	}
 #endif
 	splx(s);
+}
+
+/*
+ *	realloc: change the size of a memory block
+ */
+void *
+realloc(addr, size, type, flags)
+	void *addr;
+	unsigned long size;
+	struct malloc_type *type;
+	int flags;
+{
+	struct kmemusage *kup;
+	unsigned long alloc;
+	void *newaddr;
+
+	/* realloc(NULL, ...) is equivalent to malloc(...) */
+	if (addr == NULL)
+		return (malloc(size, type, flags));
+
+	/* Sanity check */
+	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
+	    ("realloc: address %p out of range", (void *)addr));
+
+	/* Get the size of the original block */
+	kup = btokup(addr);
+	alloc = 1 << kup->ku_indx;
+	if (alloc > MAXALLOCSAVE)
+		alloc = kup->ku_pagecnt << PAGE_SHIFT;
+
+	/* Reuse the original block if appropriate */
+	if (size <= alloc
+	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
+		return (addr);
+
+	/* Allocate a new, bigger (or smaller) block */
+	if ((newaddr = malloc(size, type, flags)) == NULL)
+		return (NULL);
+
+	/* Copy over original contents */
+	bcopy(addr, newaddr, min(size, alloc));
+	free(addr, type);
+	return (newaddr);
+}
+
+/*
+ *	reallocf: same as realloc() but free memory on failure.
+ */
+void *
+reallocf(addr, size, type, flags)
+	void *addr;
+	unsigned long size;
+	struct malloc_type *type;
+	int flags;
+{
+	void *mem;
+
+	if ((mem = realloc(addr, size, type, flags)) == NULL)
+		free(addr, type);
+	return (mem);
 }
 
 /*
