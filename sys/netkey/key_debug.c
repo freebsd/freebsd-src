@@ -107,8 +107,8 @@ Research Laboratory (NRL).
 #endif
 #endif /* INET6 */
 
-#define SA_LEN 1
-#define SIN_LEN 1
+#define SA_LEN	1
+#define SIN_LEN	1
 
 #ifdef KEY_DEBUG
 #include <netkey/key.h>
