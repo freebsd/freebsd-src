@@ -1,7 +1,7 @@
-<!-- $Id: history.sgml,v 1.2 1995/06/30 17:37:38 jfieber Exp $ -->
+<!-- $Id: history.sgml,v 1.3 1995/07/07 22:25:51 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>A brief history of FreeBSD, according to Jordan Hubbard<label id="history"></heading>
+<sect><heading>A brief history of FreeBSD<label id="history"></heading>
 
 <p><em>Contributed by &a.jkh;</em>.
 
