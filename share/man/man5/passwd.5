@@ -291,6 +291,21 @@ Hesiod or
 On some systems, the
 .Ar passwd
 field may also be overridden.
+.Sh FILES
+.Bl -tag -width /etc/master.passwd -compact
+.It Pa /etc/passwd
+.Tn ASCII
+password file, with passwords removed
+.It Pa /etc/pwd.db
+.Xr db 3 -format
+password database, with passwords removed
+.It Pa /etc/master.passwd
+.Tn ASCII
+password file, with passwords intact
+.It Pa /etc/spwd.db
+.Xr db 3 -format
+password database, with passwords intact
+.El
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr login 1 ,
