@@ -1,0 +1,37 @@
+/*
+ * Feiertage
+ *
+ * $Id: feiertag,v 1.1 1996/01/28 19:12:45 wosch Exp $
+ */
+
+#ifndef _de_DE_ISO8859_1_feiertag_
+#define _de_DE_ISO8859_1_feiertag_
+
+/* arbeitsfreie staatliche Feiertage */
+01/01	Neujahr
+05/01	Maifeiertag
+10/03	Tag der deutschen Einheit
+
+/*  arbeitsfreie christliche Feiertage */
+Easter-2	Karfreitag
+Easter		Ostersonntag
+Easter+1 	Ostermontag
+Easter+49	Pfingstsonntag
+Easter+50	Pfingstmontag
+Easter+39	Christi Himmelfahrt
+
+/*  Gedenktage - nicht arbeitsfreie Feiertage :-( */
+06/17	Arbeiteraufstand am 17. Juni 1953
+/* ??/?? Befreiung des KZs Auschwitz */
+
+/* Jahreszeiten */
+03/21*	Frühlingsanfang
+06/21*	Sommeranfang
+09/21*	Herbstanfang
+12/21*	Winteranfang	
+
+/* Sommer- und Winterzeit */
+03/SundayLast	Anfang der Sommerzeit
+10/SundayLast	Ende der Sommerzeit
+
+#endif /*! _de_DE_ISO8859_1_feiertag_ */

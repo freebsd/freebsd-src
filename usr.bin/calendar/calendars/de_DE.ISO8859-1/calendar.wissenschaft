@@ -1,0 +1,14 @@
+/*
+ * Wissenschaft
+ *
+ * $Id: wissenschaft,v 1.1 1996/01/28 19:12:45 wosch Exp $
+ */
+
+#ifndef _de_DE_ISO8859_1_wissenschaft_
+#define _de_DE_ISO8859_1_wissenschaft_
+
+04/12   erster Mann im All, Juri Gagarin, 1961
+04/18   Einstein gestorben, 1955
+10/04   Sputnik 1, erster Satellit im Weltraum, 1957
+
+#endif /* ! _de_DE_ISO8859_1_wissenschaft_ */
