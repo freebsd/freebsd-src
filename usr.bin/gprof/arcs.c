@@ -646,6 +646,9 @@ compresslist()
     int		maxexitcnt;
     int		maxwithparentcnt;
     int		maxnoparentcnt;
+#   ifdef DEBUG
+	const char	*type;
+#   endif DEBUG
 
     maxexitcnt = 0;
     maxwithparentcnt = 0;
