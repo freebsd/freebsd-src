@@ -993,8 +993,8 @@ static void lge_rxeof(sc, cnt)
 		}
 
 		if (lge_newbuf(sc, &LGE_RXTAIL(sc), NULL) == ENOBUFS) {
-			m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-			    total_len + ETHER_ALIGN, 0, ifp, NULL);
+			m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN,
+			    ifp, NULL);
 			lge_newbuf(sc, &LGE_RXTAIL(sc), m);
 			if (m0 == NULL) {
 				printf("lge%d: no receive buffers "
@@ -1003,7 +1003,6 @@ static void lge_rxeof(sc, cnt)
 				ifp->if_ierrors++;
 				continue;
 			}
-			m_adj(m0, ETHER_ALIGN);
 			m = m0;
 		} else {
 			m->m_pkthdr.rcvif = ifp;

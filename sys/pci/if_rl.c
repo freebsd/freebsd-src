@@ -1063,14 +1063,8 @@ static int rl_list_tx_init(sc)
  * the 'rx status register' mentioned in the datasheet.
  *
  * Note: to make the Alpha happy, the frame payload needs to be aligned
- * on a 32-bit boundary. To achieve this, we cheat a bit by copying from
- * the ring buffer starting at an address two bytes before the actual
- * data location. We can then shave off the first two bytes using m_adj().
- * The reason we do this is because m_devget() doesn't let us specify an
- * offset into the mbuf storage space, so we have to artificially create
- * one. The ring is allocated in such a way that there are a few unused
- * bytes of space preceecing it so that it will be safe for us to do the
- * 2-byte backstep even if reading from the ring at offset 0.
+ * on a 32-bit boundary. To achieve this, we pass RL_ETHER_ALIGN (2 bytes)
+ * as the offset argument to m_devget(). 
  */
 static void rl_rxeof(sc)
 	struct rl_softc		*sc;
@@ -1148,32 +1142,25 @@ static void rl_rxeof(sc)
 		wrap = (sc->rl_cdata.rl_rx_buf + RL_RXBUFLEN) - rxbufpos;
 
 		if (total_len > wrap) {
-			/*
-			 * Fool m_devget() into thinking we want to copy
-			 * the whole buffer so we don't end up fragmenting
-			 * the data.
-			 */
-			m = m_devget(rxbufpos - RL_ETHER_ALIGN,
-			    total_len + RL_ETHER_ALIGN, 0, ifp, NULL);
+			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
+			    NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
 				    "copy %d bytes\n", sc->rl_unit, wrap);
 			} else {
-				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
 			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
-			m = m_devget(rxbufpos - RL_ETHER_ALIGN,
-			    total_len + RL_ETHER_ALIGN, 0, ifp, NULL);
+			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
+			    NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
 				    "copy %d bytes\n", sc->rl_unit, total_len);
-			} else
-				m_adj(m, RL_ETHER_ALIGN);
+			}
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
 

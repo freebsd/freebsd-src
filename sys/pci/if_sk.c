@@ -1579,8 +1579,8 @@ static void sk_rxeof(sc_if)
 		 */
 		if (sk_newbuf(sc_if, cur_rx, NULL) == ENOBUFS) {
 			struct mbuf		*m0;
-			m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-			    total_len + ETHER_ALIGN, 0, ifp, NULL);
+			m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN,
+			    ifp, NULL);
 			sk_newbuf(sc_if, cur_rx, m);
 			if (m0 == NULL) {
 				printf("sk%d: no receive buffers "
@@ -1589,7 +1589,6 @@ static void sk_rxeof(sc_if)
 				ifp->if_ierrors++;
 				continue;
 			}
-			m_adj(m0, ETHER_ALIGN);
 			m = m0;
 		} else {
 			m->m_pkthdr.rcvif = ifp;
