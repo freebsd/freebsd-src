@@ -8,7 +8,7 @@ MAN8=	rshd.8
 .if defined(NOPAM)
 CFLAGS+= -DNO_PAM
 .else
-#CFLAGS+= -DCRYPT
+#CFLAGS+= -DCRYPT -DNO_PAM
 SRCS+=	auth_pam.c
 DPADD+= ${LIBPAM}
 LDADD+= ${MINUSLPAM}
