@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.1 1995/05/01 21:56:32 jkh Exp $
+ * $Id: variable.c,v 1.2 1995/05/20 10:33:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,23 +45,31 @@
 
 /* Routines for dealing with variable lists */
 
-void
-variable_set(char *var)
+static void
+make_variable(char *var, char *value)
 {
-    char tmp[VAR_NAME_MAX + VAR_VALUE_MAX], *cp;
     Variable *newvar;
 
+    setenv(var, value, 1);
     newvar = (Variable *)safe_malloc(sizeof(Variable));
-    strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
-    if ((cp = index(tmp, '=')) == NULL)
-	msgFatal("Invalid variable format: %s", var);
-    *cp = '\0';
-    strncpy(newvar->name, tmp, VAR_NAME_MAX);
-    strncpy(newvar->value, cp + 1, VAR_VALUE_MAX);
+    strncpy(newvar->name, var, VAR_NAME_MAX);
+    strncpy(newvar->value, value, VAR_VALUE_MAX);
     newvar->next = VarHead;
     VarHead = newvar;
     setenv(newvar->name, newvar->value, 1);
     msgInfo("Set %s to %s", newvar->name, newvar->value);
+}
+
+void
+variable_set(char *var)
+{
+    char tmp[VAR_NAME_MAX + VAR_VALUE_MAX], *cp;
+
+    strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
+    if ((cp = index(tmp, '=')) == NULL)
+	msgFatal("Invalid variable format: %s", var);
+    *(cp++) = '\0';
+    make_variable(tmp, cp);
 }
 
 void
@@ -71,12 +79,5 @@ variable_set2(char *var, char *value)
 
     if (!var || !value)
 	msgFatal("Null name or value passed to set_variable2!");
-    setenv(var, value, 1);
-    newvar = (Variable *)safe_malloc(sizeof(Variable));
-    strncpy(newvar->name, var, VAR_NAME_MAX);
-    strncpy(newvar->value, value, VAR_VALUE_MAX);
-    newvar->next = VarHead;
-    VarHead = newvar;
-    setenv(newvar->name, newvar->value, 1);
-    msgInfo("Set %s to %s", newvar->name, newvar->value);
+    make_variable(var, value);
 }
