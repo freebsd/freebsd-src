@@ -18,15 +18,12 @@ hack :-):
 If you're running SLIP or PLIP, you also need to use it for specifying
 the remote end of the link (simply type the foreign IP address in).
 
-If you're dealing with an ethernet adaptor with multiple "link"
+If you're dealing with an ethernet adaptor with multiple media
 connectors (e.g. AUI, 10BT, 10B2, etc), you can use this field to
-specify which one to use.  The following links are recognized:
+specify which one to use.  The following strings are recognized:
 
-        link0 - AUI * highest precedence
-        link1 - BNC
-        link2 - UTP * lowest precedence
-
-That is to say that you can enter one of "link0", "link1" or "link2"
-into this field to select a different link.
+        "media 10base5/AUI" - Select the AUI port.
+        "media 10baseT/UTP" - Select the twisted pair port.
+        "media 10bast2/BNC" - Select the BNC connector.
 
 When you're done with this form, select OK.
