@@ -82,8 +82,8 @@ static void acd_select_slot(struct acd_softc *);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
 static int acd_close_track(struct acd_softc *);
 static int acd_close_disk(struct acd_softc *, int);
-static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
-static int acd_get_progress(struct acd_softc *cdp, int *);
+static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info *);
+static int acd_get_progress(struct acd_softc *, int *);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
@@ -94,7 +94,8 @@ static int acd_start_stop(struct acd_softc *, int);
 static int acd_pause_resume(struct acd_softc *, int);
 static int acd_mode_sense(struct acd_softc *, int, caddr_t, int);
 static int acd_mode_select(struct acd_softc *, caddr_t, int);
-static int acd_set_speed(struct acd_softc *cdp, int);
+static int acd_set_speed(struct acd_softc *, int);
+static void acd_get_cap(struct acd_softc *);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
@@ -105,7 +106,6 @@ acdattach(struct atapi_softc *atp)
 {
     struct acd_softc *cdp;
     struct changer *chp;
-    int count, error = 0;
     char name[16];
     static int acd_cdev_done = 0;
 
@@ -121,23 +121,7 @@ acdattach(struct atapi_softc *atp)
 
     sprintf(name, "acd%d", cdp->lun);
     ata_set_name(atp->controller, atp->unit, name);
-
-    /* get drive capabilities, some drives needs this repeated */
-    for (count = 0 ; count < 5 ; count++) {
-	if (!(error = acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
-				     (caddr_t)&cdp->cap, sizeof(cdp->cap))))
-	    break;
-    }
-    if (error) {
-	free(cdp, M_ACD);
-	return -1;
-    }
-    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
-    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
-    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
-    cdp->cap.cur_write_speed = ntohs(cdp->cap.cur_write_speed);
-    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
-    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+    acd_get_cap(cdp);
 
     /* if this is a changer device, allocate the neeeded lun's */
     if (cdp->cap.mech == MST_MECH_CHANGER) {
@@ -152,11 +136,9 @@ acdattach(struct atapi_softc *atp)
 	    free(cdp, M_ACD);
 	    return -1;
 	}
-	error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)chp, 
-			        sizeof(struct changer),
-				ATPR_F_READ, 60, NULL, NULL);
-
-	if (!error) {
+	if (!atapi_queue_cmd(cdp->atp, ccb, (caddr_t)chp, 
+			     sizeof(struct changer),
+			     ATPR_F_READ, 60, NULL, NULL)) {
 	    struct acd_softc *tmpcdp = cdp;
 	    struct acd_softc **cdparr;
 	    int count;
@@ -1009,7 +991,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
 
     case CDRIOCWRITESPEED:
-	error = acd_set_speed(cdp, (*(int *)addr) * 177);
+	error = acd_set_speed(cdp, (*(int *)addr));
 	break;
 
     case CDRIOCGETBLOCKSIZE:
@@ -1236,8 +1218,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len, ATPR_F_READ,
-			30, NULL, NULL)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len,
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
@@ -1252,8 +1234,8 @@ acd_read_toc(struct acd_softc *cdp)
     ccb[0] = ATAPI_READ_TOC;
     ccb[7] = len>>8;
     ccb[8] = len;
-    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len, ATPR_F_READ,
-			30, NULL, NULL)) {
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&cdp->toc, len,
+			ATPR_F_READ, 30, NULL, NULL)) {
 	bzero(&cdp->toc, sizeof(cdp->toc));
 	return;
     }
@@ -1421,6 +1403,14 @@ acd_close_disk(struct acd_softc *cdp, int multisession)
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
     if (error)
 	return error;
+
+    /* some drives just return ready, wait for the expected fixate time */
+    if ((error = atapi_test_ready(cdp->atp)) != EBUSY) {
+	timeout = timeout / (cdp->cap.cur_write_speed / 177);
+	tsleep(&error, PRIBIO, "acdfix", timeout * hz / 2);
+	return atapi_test_ready(cdp->atp);
+    }
+
     while (timeout-- > 0) {
 	if ((error = atapi_test_ready(cdp->atp)) != EBUSY)
 	    return error;
@@ -1896,8 +1886,30 @@ acd_mode_select(struct acd_softc *cdp, caddr_t pagebuf, int pagesize)
 static int
 acd_set_speed(struct acd_softc *cdp, int speed)
 {
-    int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff, speed>>8, speed, 
+    int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff,
+		       (speed * 177) >> 8, (speed * 177), 
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    int error;
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    if (!error)
+	acd_get_cap(cdp);
+    return error;
+}
+
+static void
+acd_get_cap(struct acd_softc *cdp)
+{
+    int retry = 5;
+
+    /* get drive capabilities, some drives needs this repeated */
+    while (retry-- && acd_mode_sense(cdp, ATAPI_CDROM_CAP_PAGE,
+				     (caddr_t)&cdp->cap, sizeof(cdp->cap)))
+
+    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
+    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
+    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
+    cdp->cap.cur_write_speed = ntohs(cdp->cap.cur_write_speed);
+    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
+    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
 }
