@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.34 1996/07/20 18:42:25 joerg Exp $ -->
+<!-- $Id: hw.sgml,v 1.35 1996/08/07 00:39:06 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -1208,9 +1208,9 @@ significant distance.
  options		INET			# needed for _tcp _icmpstat _ipstat
 					 #            _udpstat _tcpstat _udb
  options		FFS			#Berkeley Fast File System
- options		"FAT_CURSOR"		#block cursor in syscons or pccons
- options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
- options		"NCONS=2"		#1 virtual consoles
+ options		FAT_CURSOR		#block cursor in syscons or pccons
+ options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
+ options		NCONS=2		#1 virtual consoles
  options		USERCONFIG		#Allow user configuration with -c XXX
  
  config		kernel	root on sd0 swap on sd0 and sd1 dumps on sd0

@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.15 1996/07/07 02:00:48 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.16 1996/08/10 17:38:37 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -647,7 +647,7 @@ device          cd0     #Only need one of these, the code dynamically grows
 	  using a line like:
 
 	  <verb>
-options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
+options         SCSI_DELAY=15         #Be pessimistic about Joe SCSI device
 	  </verb>
 	  This line sets the delay time to 15 seconds. On my own system I had to
 	  use 3 seconds minimum to get my trusty old CDROM drive to be recognized.
