@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
 # define PARENT_DOES_UTMP
 #endif
 
+int     utmp_len = MAXHOSTNAMELEN;
 #ifdef	NEWINIT
 #include <initreq.h>
-int	utmp_len = MAXHOSTNAMELEN;	/* sizeof(init_request.host) */
 #else	/* NEWINIT*/
 # ifdef	UTMPX
 # include <utmpx.h>
@@ -58,10 +58,17 @@ struct	utmpx wtmp;
 struct	utmp wtmp;
 # endif /* UTMPX */
 
-int	utmp_len = sizeof(wtmp.ut_host);
 # ifndef PARENT_DOES_UTMP
+#ifdef _PATH_WTMP
+char    wtmpf[] = _PATH_WTMP;
+#else
 char	wtmpf[]	= "/usr/adm/wtmp";
+#endif
+#ifdef _PATH_UTMP
+char    utmpf[] = _PATH_UTMP;
+#else
 char	utmpf[] = "/etc/utmp";
+#endif
 # else /* PARENT_DOES_UTMP */
 char	wtmpf[]	= "/etc/wtmp";
 # endif /* PARENT_DOES_UTMP */
