@@ -100,6 +100,7 @@ kern/kern_sysctl.c	standard
 kern/kern_time.c	standard
 kern/kern_xxx.c		standard
 kern/md5c.c		optional md5
+kern/md5c.c		optional sppp
 kern/subr_diskslice.c	standard
 kern/subr_autoconf.c	standard
 kern/subr_dkbad.c	standard
