@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: keyboard.c,v 1.1 1997/10/01 20:53:38 sos Exp $
  */
 
 #include <stdio.h>
@@ -48,6 +48,7 @@ VGLKeyboardInit(int mode)
   tcgetattr(0, &VGLKeyboardTty);
 
   term = VGLKeyboardTty;
+  cfmakeraw(&term);
   term.c_iflag = IGNPAR | IGNBRK;
   term.c_oflag = 0;
   term.c_cflag = CREAD | CS8;
@@ -75,9 +76,10 @@ VGLKeyboardInit(int mode)
 void
 VGLKeyboardEnd()
 {
-  if (VGLKeyboardMode != -1)
+  if (VGLKeyboardMode != -1) {
     ioctl(0, KDSKBMODE, VGLKeyboardMode);
-  tcsetattr(0, TCSANOW, &VGLKeyboardTty);
+    tcsetattr(0, TCSANOW, &VGLKeyboardTty);
+  }
 }
 
 int

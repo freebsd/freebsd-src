@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: text.c,v 1.4 1997/08/13 19:34:23 sos Exp $
+ *  $Id: text.c,v 1.1 1997/08/17 21:09:35 sos Exp $
  */
 
 #include <stdio.h>
@@ -60,7 +60,7 @@ FILE *fd;
     fread(&VGLTextFont->Width, 1 , 1, fd);
     fread(&VGLTextFont->Height, 1 , 1, fd);
     VGLTextFont->BitmapArray = 
-      (byte*)malloc(256*VGLTextFont->Width*VGLTextFont->Height);
+      (byte*)malloc(256*((VGLTextFont->Width + 7)/8)*VGLTextFont->Height);
     fread(VGLTextFont->BitmapArray, 1, 
       (256*VGLTextFont->Width* VGLTextFont->Height), fd);
     fclose(fd);
