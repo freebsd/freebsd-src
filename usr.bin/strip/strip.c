@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id: strip.c,v 1.4 1994/12/18 01:18:17 ache Exp $";
+static char RCSid[] = "$Id: strip.c,v 1.5 1995/05/30 06:34:16 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -242,7 +242,7 @@ s_stab(fn, fd, ep)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: strip [-d] file ...\n");
+	(void)fprintf(stderr, "usage: strip [-dx] file ...\n");
 	exit(1);
 }
 
