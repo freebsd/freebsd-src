@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.19 1995/09/16 17:04:06 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.20 1995/11/23 07:24:32 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -275,7 +275,7 @@ readdisklabel(dev, strat, lp)
 			break;
 		}
 	}
-	bp->b_flags = B_INVAL | B_AGE;
+	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 	return (msg);
 }
@@ -391,7 +391,7 @@ done:
 	(*strat)(bp);
 	error = biowait(bp);
 #endif
-	bp->b_flags = B_INVAL | B_AGE;
+	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 	return (error);
 }
