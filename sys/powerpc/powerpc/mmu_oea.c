@@ -1871,9 +1871,9 @@ pmap_pvo_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	*flags = UMA_SLAB_PRIV;
 	m = vm_page_alloc(pmap_pvo_obj, pmap_pvo_count, VM_ALLOC_SYSTEM);
-	pmap_pvo_count++;
 	if (m == NULL)
 		return (NULL);
+	pmap_pvo_count++;
 	return ((void *)VM_PAGE_TO_PHYS(m));
 }
 
