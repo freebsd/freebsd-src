@@ -124,7 +124,7 @@ distribution:
 	    ${MTREE} ${DESTDIR}/etc/mtree
 .if !defined(NO_BIND_ETC) && !defined(NO_BIND)
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${NAMEDB} ${DESTDIR}/etc/namedb
+	    ${NAMEDB} ${DESTDIR}/var/named/etc/namedb
 .endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
