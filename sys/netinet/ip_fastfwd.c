@@ -484,7 +484,6 @@ forwardlocal:
 		if (fwd_tag) {
 			if (!in_localip(ip->ip_src) && !in_localaddr(ip->ip_dst))
 				dest.s_addr = ((struct sockaddr_in *)(fwd_tag+1))->sin_addr.s_addr;
-				//bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 			m_tag_delete(m, fwd_tag);
 		}
 #endif /* IPFIREWALL_FORWARD */
