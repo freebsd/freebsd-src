@@ -3586,9 +3586,11 @@ extattr_set_file(p, uap)
 	cnt = auio.uio_resid;
 	error = VOP_SETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
 	    p);
+	/* 
 	if (auio.uio_resid != cnt && (error == ERESTART ||
 	    error == EINTR || error == EWOULDBLOCK))
 		error = 0;
+	*/
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3656,9 +3658,11 @@ extattr_get_file(p, uap)
 	cnt = auio.uio_resid;
 	error = VOP_GETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
 	    p);
+	/* 
 	if (auio.uio_resid != cnt && (error == ERESTART ||
 	    error == EINTR || error == EWOULDBLOCK))
 		error = 0;
+	*/
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3685,7 +3689,7 @@ extattr_delete_file(p, uap)
 	error = copyin(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN);
 	if (error)
 		return(error);
-	NDINIT(&nd, LOOKUP | LOCKLEAF, FOLLOW, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return(error);
