@@ -300,7 +300,7 @@ static	void	siointr1	__P((struct com_s *com));
 static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
-static	swihand_t siopoll;
+static	void	siopoll		__P((void *));
 static	int	sioprobe	__P((device_t dev, int xrid));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
@@ -413,7 +413,8 @@ static	int	siocnunit;
 #endif
 static	Port_t	siogdbiobase;
 static	int	siogdbunit = -1;
-static	bool_t	sio_registered;
+static	struct intrhand *sio_slow_ih;
+static	struct intrhand *sio_fast_ih;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -1322,9 +1323,11 @@ determined_type: ;
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
 
-	if (!sio_registered) {
-		register_swi(SWI_TTY, siopoll);
-		sio_registered = TRUE;
+	if (sio_fast_ih == NULL) {
+		sio_fast_ih = sinthand_add("tty:sio", &tty_ithd, siopoll,
+		    NULL, SWI_TTY, 0);
+		sio_slow_ih = sinthand_add("tty:sio", &clk_ithd, siopoll,
+		    NULL, SWI_TTY, 0);
 	}
 	com->devs[0] = make_dev(&sio_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
@@ -1979,7 +1982,7 @@ siointr1(com)
 			}
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
-				setsofttty();
+				sched_swi(sio_fast_ih, SWI_NOSWITCH);
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
@@ -1987,10 +1990,10 @@ siointr1(com)
 				if (com->do_timestamp)
 					microtime(&com->timestamp);
 				++com_events;
-				schedsofttty();
+				sched_swi(sio_slow_ih, SWI_DELAY);
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
-	setsofttty();
+	sched_swi(sio_fast_ih, SWI_NOSWITCH);
 #endif
 				ioptr[0] = recv_data;
 				ioptr[com->ierroff] = line_status;
@@ -2028,7 +2031,7 @@ cont:
 			if (!(com->state & CS_CHECKMSR)) {
 				com_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				setsofttty();
+				sched_swi(sio_fast_ih, SWI_NOSWITCH);
 			}
 
 			/* handle CTS change immediately for crisp flow ctl */
@@ -2082,7 +2085,8 @@ cont:
 				if (!(com->state & CS_ODONE)) {
 					com_events += LOTS_OF_EVENTS;
 					com->state |= CS_ODONE;
-					setsofttty();	/* handle at high level ASAP */
+					/* handle at high level ASAP */
+					sched_swi(sio_fast_ih, SWI_NOSWITCH);
 				}
 			}
 			if (COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {
@@ -2257,7 +2261,7 @@ sioioctl(dev, cmd, data, flag, p)
 
 /* software interrupt handler for SWI_TTY */
 static void
-siopoll()
+siopoll(void *dummy)
 {
 	int		unit;
 	int		intrsave;

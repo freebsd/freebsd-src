@@ -36,27 +36,30 @@
  * together via the 'next' pointer.
  */
 
-struct ithd;
-
-struct intrec {
-	driver_intr_t	*handler;	/* code address of handler */
-	void		*argument;	/* argument to pass to handler */
-	enum intr_type	flags;		/* flag bits (sys/bus.h) */
-	char		*name;		/* name of handler */
-	struct ithd	*ithd;		/* handler we're connected to */
-	struct intrec	*next;		/* next handler for this irq */
+struct intrhand {
+	driver_intr_t	*ih_handler;	/* code address of handler */
+	void		*ih_argument;	/* argument to pass to handler */
+	enum intr_type	 ih_flags;	/* flag bits (sys/bus.h) */
+	char		*ih_name;	/* name of handler */
+	struct ithd	*ih_ithd;	/* handler we're connected to */
+	struct intrhand	*ih_next;	/* next handler for this irq */
+	int		 ih_need;	/* need interrupt */
 };
 
-typedef void swihand_t __P((void));
-
-extern swihand_t *shandlers[];
-
-void	register_swi __P((int intr, swihand_t *handler));
-void	swi_dispatcher __P((int intr));
-swihand_t swi_generic;
-swihand_t swi_null;
-void	unregister_swi __P((int intr, swihand_t *handler));
 int	ithread_priority __P((int flags));
-void	sched_softintr __P((void));
+void	sched_swi __P((struct intrhand *, int));
+#define	SWI_SWITCH	0x1
+#define	SWI_NOSWITCH	0x2
+#define	SWI_DELAY	0x4	/* implies NOSWITCH */
+
+struct	intrhand * sinthand_add __P((const char *name, struct ithd **,
+    driver_intr_t, void *arg, int pri, int flags));
+
+extern struct ithd *tty_ithd;
+extern struct ithd *clk_ithd;
+
+extern struct intrhand *net_ih;
+extern struct intrhand *softclock_ih;
+extern struct intrhand *vm_ih;
 
 #endif

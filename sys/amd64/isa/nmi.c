@@ -531,13 +531,13 @@ icu_unset(intr, handler)
 	return (0);
 }
 
-struct intrec *
+struct intrhand *
 inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 	     int pri, int flags)
 {
 	struct ithd *ithd = ithds[irq];	/* descriptor for the IRQ */
-	struct intrec *head;		/* chain of handlers for IRQ */
-	struct intrec *idesc;		/* descriptor for this handler */
+	struct intrhand *head;		/* chain of handlers for IRQ */
+	struct intrhand *idesc;		/* descriptor for this handler */
 	struct proc *p;			/* interrupt thread */
 	int errcode = 0;
 
@@ -592,7 +592,7 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 				panic("inthand_add: Can't initialize ICU");
 		}
 	} else if ((flags & INTR_EXCL) != 0
-		   || (ithd->it_ih->flags & INTR_EXCL) != 0) {
+		   || (ithd->it_ih->ih_flags & INTR_EXCL) != 0) {
 		/*
 		 * We can't append the new handler if either
 		 * list ithd or new handler do not allow
@@ -601,14 +601,14 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 		if (bootverbose)
 			printf("\tdevice combination %s and %s "
 			       "doesn't support shared irq%d\n",
-			       ithd->it_ih->name, name, irq);
+			       ithd->it_ih->ih_name, name, irq);
 		return(NULL);
 	} else if (flags & INTR_FAST) {
 		 /* We can only have one fast interrupt by itself. */
 		if (bootverbose)
 			printf("\tCan't add fast interrupt %s"
  			       " to normal interrupt %s on irq%d",
-			       name, ithd->it_ih->name, irq);
+			       name, ithd->it_ih->ih_name, irq);
 		return (NULL);
 	} else {			/* update p_comm */
 		p = ithd->it_proc;
@@ -620,42 +620,42 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 		else
 			strcat(p->p_comm, "+");
 	}
-	idesc = malloc(sizeof (struct intrec), M_DEVBUF, M_WAITOK);
+	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK);
 	if (idesc == NULL)
 		return (NULL);
-	bzero(idesc, sizeof (struct intrec));
+	bzero(idesc, sizeof (struct intrhand));
 
-	idesc->handler	= handler;
-	idesc->argument = arg;
-	idesc->flags    = flags;
-	idesc->ithd     = ithd;
+	idesc->ih_handler = handler;
+	idesc->ih_argument = arg;
+	idesc->ih_flags = flags;
+	idesc->ih_ithd = ithd;
 
-	idesc->name     = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
-	if (idesc->name == NULL) {
+	idesc->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
+	if (idesc->ih_name == NULL) {
 		free(idesc, M_DEVBUF);
 		return (NULL);
 	}
-	strcpy(idesc->name, name);
+	strcpy(idesc->ih_name, name);
 
 	/* Slow interrupts got set up above. */
 	if ((flags & INTR_FAST)
-		&& (icu_setup(irq, idesc->handler, idesc->argument,
-			      idesc->flags) != 0) ) {
+		&& (icu_setup(irq, idesc->ih_handler, idesc->ih_argument,
+			      idesc->ih_flags) != 0) ) {
 		if (bootverbose)
 				printf("\tinthand_add(irq%d) failed, result=%d\n", 
 			       irq, errcode);
-		free(idesc->name, M_DEVBUF);
+		free(idesc->ih_name, M_DEVBUF);
 		free(idesc, M_DEVBUF);
 			return NULL;
 	}
 	head = ithd->it_ih;		/* look at chain of handlers */
 	if (head) {
-		while (head->next != NULL)
-			head = head->next; /* find the end */
-		head->next = idesc;	/* hook it in there */
+		while (head->ih_next != NULL)
+			head = head->ih_next; /* find the end */
+		head->ih_next = idesc;	/* hook it in there */
 	} else
 		ithd->it_ih = idesc;	/* put it up front */
-	update_intrname(irq, idesc->name);
+	update_intrname(irq, idesc->ih_name);
 	return (idesc);
 }
 
@@ -670,29 +670,29 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
  */
 
 int
-inthand_remove(struct intrec *idesc)
+inthand_remove(struct intrhand *idesc)
 {
 	struct ithd *ithd;		/* descriptor for the IRQ */
-	struct intrec *ih;		/* chain of handlers */
+	struct intrhand *ih;		/* chain of handlers */
 
 	if (idesc == NULL)
 		return (-1);
-	ithd = idesc->ithd;
+	ithd = idesc->ih_ithd;
 	ih = ithd->it_ih;
 
 	if (ih == idesc)		/* first in the chain */
-		ithd->it_ih = idesc->next; /* unhook it */
+		ithd->it_ih = idesc->ih_next; /* unhook it */
 	else {
 		while ((ih != NULL)
-			&& (ih->next != idesc) )
-			ih = ih->next;
-		if (ih->next != idesc)
-		return (-1);
-		ih->next = ih->next->next;
-			}
+			&& (ih->ih_next != idesc) )
+			ih = ih->ih_next;
+		if (ih->ih_next != idesc)
+			return (-1);
+		ih->ih_next = ih->ih_next->ih_next;
+	}
 	
 	if (ithd->it_ih == NULL) {	/* no handlers left, */
-		icu_unset(ithd->irq, idesc->handler);
+		icu_unset(ithd->irq, idesc->ih_handler);
 		ithds[ithd->irq] = NULL;
 
 		mtx_enter(&sched_lock, MTX_SPIN);

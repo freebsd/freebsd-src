@@ -75,7 +75,7 @@ static struct callout *nextsoftcheck;	/* Next callout to be checked. */
  * Run periodic events from timeout queue.
  */
 void
-softclock()
+softclock(void *dummy)
 {
 	register struct callout *c;
 	register struct callout_tailq *bucket;

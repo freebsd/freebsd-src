@@ -27,7 +27,9 @@
  */
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
+#include <sys/interrupt.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
@@ -689,7 +691,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
 					   map, links);
 			busdma_swi_pending = 1;
-			setsoftvm();
+			sched_swi(vm_ih, SWI_NOSWITCH);
 		}
 	}
 	splx(s);

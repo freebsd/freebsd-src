@@ -591,7 +591,7 @@ vm_page_zero_idle()
  * Software interrupt handler for queued VM system processing.
  */   
 void  
-swi_vm() 
+swi_vm(void *dummy) 
 {     
 	if (busdma_swi_pending != 0)
 		busdma_swi();
