@@ -24,11 +24,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: buf.c,v 1.7 1995/05/30 00:06:43 rgrimes Exp $
  */
+
 #ifndef lint
-static char *rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
+#if 0
+static char * const rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
+#else
+static char * const rcsid =
+	"$Id: buf.c,v 1.15 1997/12/31 12:25:33 helbig Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/file.h>
@@ -264,6 +268,10 @@ init_buffers()
 	   hello, world
 	   EOF */
 	setbuffer(stdin, stdinbuf, 1);
+
+	/* Ensure stdout is line buffered. This avoids bogus delays
+	   of output if stdout is piped through utilities to a terminal. */
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	if (open_sbuf() < 0)
 		quit(2);
 	REQUE(&buffer_head, &buffer_head);
