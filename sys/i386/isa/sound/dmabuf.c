@@ -205,7 +205,7 @@ open_dmap(int dev, int mode, struct dma_buffparms * dmap, int chan)
     dmap->max_fragments = 65536;	/* Just a large value */
     dmap->byte_counter = 0;
     isa_dma_acquire(chan);
-
+    dmap->dma_chan = chan;
     dma_init_buffers(dev, dmap);
 
     return 0;
@@ -217,7 +217,7 @@ close_dmap(int dev, struct dma_buffparms * dmap, int chan)
     if (dmap->flags & DMA_BUSY)
 	dmap->dma_mode = DMODE_NONE;
     dmap->flags &= ~DMA_BUSY;
-    isa_dma_release(chan);
+    isa_dma_release(dmap->dma_chan);
 #ifdef RUNTIME_DMA_ALLOC
     sound_free_dmap(dev, dmap);
 #endif
