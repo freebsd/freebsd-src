@@ -219,24 +219,44 @@ pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
  * Set up the CL-PD6832
  */
 static void
-pcic_pci_pd6832_init(device_t dev)
+pcic_pci_pd683x_init(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
-	u_long bcr; 		/* to set interrupts */
+	u_int32_t	device_id = pci_get_devid(dev);
+	u_long bcr;
+	u_long cm1;
 
 	/*
-	 * CLPD683X management interrupt enable bit is bit 11 in bridge
-	 * control register(offset 0x3d).
+	 * CLPD6832 management interrupt enable bit is bit 11 (MGMT_IRQ_ENA)
+	 * in bridge control register(offset 0x3d).
 	 * When this bit is turned on, card status change interrupt sets
 	 * on ISA IRQ interrupt.
+	 * Bit 7 controls the function interrupts and appears to be stanard.
+	 *
+	 * The CLPD6833 does things differently.  It has bit 7, but not bit
+	 * 11.  Bit 11's functionality appears to be in the "Configuration
+	 * Miscellaneous 1" register bit 1.
 	 */
 	bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
-	bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
-	if (sc->csc_route == pci_parallel)
-		bcr &= ~CLPD6832_BCR_ISA_IRQ;
+	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6832) {
+		if (sc->csc_route >= pci_parallel)
+			bcr &= ~CLPD6832_BCR_MGMT_IRQ_ENA;
+		else
+			bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
+	}
+	if (sc->func_route >= pci_parallel)
+		bcr &= ~CB_BCR_INT_EXCA;
 	else
-		bcr |= CLPD6832_BCR_ISA_IRQ;
+		bcr |= CB_BCR_INT_EXCA;
 	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
+	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6833) {
+		cm1 = pci_read_config(dev, CLPD6833_CFG_MISC_1, 4);
+		if (sc->csc_route >= pci_parallel)
+			cm1 &= ~CLPD6833_CM1_MGMT_EXCA_ENA;
+		else
+			cm1 |= CLPD6833_CM1_MGMT_EXCA_ENA;
+		pci_write_config(dev, CLPD6833_CFG_MISC_1, cm1, 4);
+	}
 }
 
 /*
@@ -274,13 +294,13 @@ pcic_pci_ti_init(device_t dev)
 		 * Bridge Control Register(Offset:0x3e,0x13e).
 		 * Takeshi Shibagaki(shiba@jp.freebsd.org) 
 		 */
-		if (sc->func_route == pci_parallel) {
+		if (sc->func_route >= pci_parallel) {
 			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
 			cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
 		} else {
 			cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
 		}
-		if (sc->csc_route == pci_parallel)
+		if (sc->csc_route >= pci_parallel)
 			cardcntl |= TI113X_CARDCNTL_PCI_CSC;
 		else
 			cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
@@ -294,7 +314,7 @@ pcic_pci_ti_init(device_t dev)
 		}
 		break;
 	}
-	if (sc->func_route == pci_parallel) {
+	if (sc->func_route >= pci_parallel) {
 		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
 		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
 		devcntl = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
@@ -334,7 +354,7 @@ pcic_pci_cardbus_init(device_t dev)
 
 	unit = device_get_unit(dev);
 
-	if (sc->func_route == pci_parallel) {
+	if (sc->func_route >= pci_parallel) {
 		/* Use INTA for routing interrupts via pci bus */
 		brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 		brgcntl &= ~CB_BCR_INT_EXCA;
@@ -512,7 +532,7 @@ pcic_pci_probe(device_t dev)
 	 * We only need to route interrupts when we're doing pci
 	 * parallel interrupt routing.
 	 */
-	if (pcic_interrupt_route == pci_parallel) {
+	if (pcic_interrupt_route >= pci_parallel) {
 		rid = 0;
 		res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 		    RF_ACTIVE);
@@ -631,14 +651,18 @@ pcic_pci_attach(device_t dev)
 		pcic_pci_cardbus_init(dev);
 		break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		pcic_pci_pd6832_init(dev);
+	case PCI_DEVICE_ID_PCIC_CLPD6833:
+		pcic_pci_pd683x_init(dev);
+		pcic_pci_cardbus_init(dev);
 		break;
+	case PCI_DEVICE_ID_PCIC_CLPD6729:
+		pcic_pci_pd6729_init(dev);
 	default:
 		pcic_pci_cardbus_init(dev);
 		break;
 	}
 
-	if (sc->csc_route == pci_parallel) {
+	if (sc->csc_route >= pci_parallel) {
 		start = 0;
 		end = ~0;
 	} else {
