@@ -275,7 +275,8 @@ cmdloop()
 	    rval = 0;
 	free(line);
 	if (rval < 0)
-	    return rval;
+	    /* user typed "quit" */
+	    return 0;
 	if (rval)
 	    warnx("rval was %d", rval);
     }
