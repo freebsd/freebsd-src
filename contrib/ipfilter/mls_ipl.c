@@ -27,25 +27,40 @@
 # include <sun/openprom.h>
 #endif
 #include "ipl.h"
+#include "ip_compat.h"
+
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: mls_ipl.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: mls_ipl.c,v 2.0.2.3 1997/03/27 13:45:26 darrenr Exp $";
 #endif
 
 #ifndef	IPL_NAME
 #define	IPL_NAME	"/dev/ipl"
 #endif
+#define	IPL_NAT		"/dev/ipnat"
+#define	IPL_STATE	"/dev/ipstate"
 
-extern	int	iplattach(), iplopen(), iplclose(), iplioctl(), ipldetach();
+extern	int	iplattach __P((void));
+extern	int	iplopen __P((void));
+extern	int	iplclose __P((void));
+extern	int	iplioctl __P((void));
+extern	int	ipldetach __P((void));
 #ifdef	IPFILTER_LOG
-extern	int	iplread();
+extern	int	iplread __P((void));
 #else
 #define	iplread	nulldev
 #endif
-extern	int	nulldev(), iplidentify(), errno;
+extern	int	nulldev __P((void));
+extern	int	iplidentify __P((void));
+extern	int	errno;
 
-static	int	unload(), ipl_attach();
+extern int nodev __P((void));
+
+static	int	unload __P((void));
+static	int	ipl_attach __P((void));
+int	xxxinit __P((u_int, struct vddrv *, caddr_t, struct vdstat *));
+
 
 struct	cdevsw	ipldevsw = 
 {
@@ -111,27 +126,41 @@ struct vdldrv vd =
 };
 #endif /* sun4m */
 
-extern int vd_unuseddev();
+extern int vd_unuseddev __P((void));
 extern struct cdevsw cdevsw[];
 extern int nchrdev;
 
-xxxinit(fc, vdp, vdi, vds)
+xxxinit(fc, vdp, data, vds)
 u_int	fc;
 struct	vddrv	*vdp;
-caddr_t	vdi;
+caddr_t	data;
 struct	vdstat	*vds;
 {
+	struct vdioctl_load *vdi = (struct vdioctl_load *)data;
+
 	switch (fc)
 	{
 	case VDLOAD:
-		while (ipl_major < nchrdev &&
-		       cdevsw[ipl_major].d_open != vd_unuseddev)
-			ipl_major++;
-		if (ipl_major == nchrdev)
-			return ENODEV;
-		vd.Drv_charmajor = ipl_major;
+	    {
+		struct vdconf *vdc;
+		if (vdi && vdi->vdi_userconf)
+			for (vdc = vdi->vdi_userconf; vdc->vdc_type; vdc++)
+				if (vdc->vdc_type == VDCCHARMAJOR) {
+					ipl_major = vdc->vdc_data;
+					break;
+				}
+
+		if (!ipl_major) {
+			while (ipl_major < nchrdev &&
+			       cdevsw[ipl_major].d_open != vd_unuseddev)
+				ipl_major++;
+			if (ipl_major == nchrdev)
+				return ENODEV;
+		}
 		vdp->vdd_vdtab = (struct vdlinkage *)&vd;
+		vd.Drv_charmajor = ipl_major;
 		return ipl_attach();
+	    }
 	case VDUNLOAD:
 		return unload();
 	case VDSTAT:
@@ -168,6 +197,26 @@ static	int	ipl_attach()
 	vattr.va_rdev = ipl_major<<8;
 
 	error = vn_create(IPL_NAME, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
+	if (error == 0)
+		VN_RELE(vp);
+
+	(void) vn_remove(IPL_NAT, UIO_SYSSPACE, FILE);
+	vattr_null(&vattr);
+	vattr.va_type = MFTOVT(fmode);
+	vattr.va_mode = (fmode & 07777);
+	vattr.va_rdev = (ipl_major<<8)|1;
+
+	error = vn_create(IPL_NAT, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
+	if (error == 0)
+		VN_RELE(vp);
+
+	(void) vn_remove(IPL_STATE, UIO_SYSSPACE, FILE);
+	vattr_null(&vattr);
+	vattr.va_type = MFTOVT(fmode);
+	vattr.va_mode = (fmode & 07777);
+	vattr.va_rdev = (ipl_major<<8)|2;
+
+	error = vn_create(IPL_STATE, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
 	if (error == 0)
 		VN_RELE(vp);
 	return error;

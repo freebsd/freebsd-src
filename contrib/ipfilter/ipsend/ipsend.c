@@ -34,20 +34,12 @@ static	char	sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
 #include <netinet/ip_icmp.h>
 #ifndef	linux
 #include <netinet/ip_var.h>
-#include <netinet/tcpip.h>
 #endif
-#include "ip_compat.h"
-#ifdef	linux
-#include <linux/sockios.h>
-#include "tcpip.h"
-#endif
-#include "ipt.h"
+#include "ipsend.h"
 
 
 extern	char	*optarg;
 extern	int	optind;
-
-extern	int	resolve(), optname(), initdevice(), send_packet();
 
 char	options[68];
 #ifdef	linux
@@ -69,7 +61,12 @@ char	default_device[] = "lan0";
 #endif
 
 
-void	usage(prog)
+static	void	usage __P((char *));
+static	void	do_icmp __P((ip_t *, char *));
+int	main __P((int, char **));
+
+
+static	void	usage(prog)
 char	*prog;
 {
 	fprintf(stderr, "Usage: %s [options] dest [flags]\n\
@@ -346,5 +343,5 @@ char	**argv;
 	if (tcp->th_dport)
 		return do_socket(dev, mtu, ti, gwip);
 #endif
-	return send_packets(dev, mtu, ti, gwip);
+	return send_packets(dev, mtu, (ip_t *)ti, gwip);
 }

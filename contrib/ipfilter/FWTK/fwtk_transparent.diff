@@ -124,7 +124,7 @@ diff -cr ../TIS.orig/fwtk/Makefile.config.solaris fwtk/Makefile.config.solaris
 ***************
 *** 11,30 ****
   #
-  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.0.1.1 1997/02/19 13:02:37 darrenr Exp $"
+  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.0.2.1 1997/02/23 10:38:36 darrenr Exp $"
   
   
   # Your C compiler (eg, "cc" or "gcc")
@@ -145,7 +145,7 @@ diff -cr ../TIS.orig/fwtk/Makefile.config.solaris fwtk/Makefile.config.solaris
   -Dgethostbyaddr=res_gethostbyaddr -Dgetnetbyname=res_getnetbyname	\
 --- 11,34 ----
   #
-  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.0.1.1 1997/02/19 13:02:37 darrenr Exp $"
+  # RcsId: "$Header: /devel/CVS/IP-Filter/FWTK/fwtk_transparent.diff,v 2.0.2.1 1997/02/23 10:38:36 darrenr Exp $"
   
 + #
 + # Path to sources of ip_filter (ip_nat.h required in lib/hnam.c)

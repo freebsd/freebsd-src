@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: buildsunos,v 2.0.1.1 1997/01/09 15:14:43 darrenr Exp $
+# $Id: buildsunos,v 2.0.2.3 1997/03/30 15:37:34 darrenr Exp $
 :
 rev=`uname -r | sed -e 's/^\([^\.]*\)\..*/\1/'`
 cpu=`uname -m`
@@ -12,12 +12,12 @@ if [ $rev = 5 ] ; then
 	ln -s ../Makefile.ipsend SunOS5/${cpu}/Makefile.ipsend
 fi
 if [ $cpu = i86pc ] ; then
-	make ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" DCPU=${cpu}
+	make ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" CPU=${cpu}
 	exit $?
 fi
 if [ x$solrev = x ] ; then
 	make ${1+"$@"} sunos$rev "ARCH=`uname -m`"
 	exit $?
 fi
-make ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" DCPU=${cpu}
+make ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" CPU=${cpu}
 exit $?

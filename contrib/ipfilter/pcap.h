@@ -4,7 +4,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
- * $Id: pcap.h,v 2.0.1.1 1997/01/09 15:14:45 darrenr Exp $
+ * $Id: pcap.h,v 2.0.2.2 1997/02/23 10:38:17 darrenr Exp $
  */
 /*
  * This header file is constructed to match the version described by

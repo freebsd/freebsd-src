@@ -25,6 +25,7 @@
 #include <sys/byteorder.h>
 #endif
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/param.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -40,18 +41,20 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
-#include "ip_compat.h"
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
-#include "ip_nat.h"
 #include <ctype.h>
+#include "ip_compat.h"
+#include "ip_fil.h"
+#include "ip_nat.h"
+#include "kmem.h"
 
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static  char    sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipnat.c,v 2.0.1.8 1997/02/16 21:23:40 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipnat.c,v 2.0.2.6 1997/04/02 12:23:29 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -59,9 +62,18 @@ static	char	rcsid[] = "$Id: ipnat.c,v 2.0.1.8 1997/02/16 21:23:40 darrenr Exp $"
 #endif
 
 extern	char	*optarg;
-extern	int	kmemcpy();
 
-void	dostats(), printnat(), parsefile(), flushtable();
+ipnat_t	*parse __P((char *));
+u_long	hostnum __P((char *, int *));
+u_long	hostmask __P((char *));
+u_short	portnum __P((char *, char *));
+void	dostats __P((int, int)), flushtable __P((int, int));
+void	printnat __P((ipnat_t *, int, void *));
+void	parsefile __P((int, char *, int));
+void	usage __P((char *));
+int	countbits __P((u_long));
+char	*getnattype __P((ipnat_t *));
+int	main __P((int, char*[]));
 
 #define	OPT_REM		1
 #define	OPT_NODO	2
@@ -190,7 +202,7 @@ void *ptr;
 			printf(" udp");
 		printf("\n");
 		if (verbose)
-			printf("\t%p %u %x %u %x %d\n", (u_int)np->in_ifp,
+			printf("\t%p %u %x %u %p %d\n", np->in_ifp,
 			       np->in_space, np->in_flags, np->in_pnext, np,
 			       np->in_use);
 	} else {
@@ -220,7 +232,7 @@ void *ptr;
 		}
 		printf("\n");
 		if (verbose)
-			printf("\t%p %u %s %d %x\n", (u_int)np->in_ifp,
+			printf("\t%p %u %s %d %x\n", np->in_ifp,
 			       np->in_space, inet_ntoa(np->in_nextip),
 			       np->in_pnext, np->in_flags);
 	}
@@ -235,7 +247,8 @@ ipnat_t *ipnat;
 {
 	ipnat_t ipnatbuff;
 
-	if (ipnat && kmemcpy(&ipnatbuff, ipnat, sizeof(ipnatbuff)))
+	if (ipnat && kmemcpy((char *)&ipnatbuff, (long)ipnat,
+			     sizeof(ipnatbuff)))
 		return "???";
 
 	return (ipnatbuff.in_redir == NAT_MAP) ? "MAP" : "RDR";
@@ -264,13 +277,13 @@ int fd, opts;
 			ns.ns_added, ns.ns_expire);
 		printf("inuse\t%lu\n", ns.ns_inuse);
 		if (opts & OPT_VERBOSE)
-			printf("table %p list %p\n",
-				(u_int)ns.ns_table, (u_int)ns.ns_list);
+			printf("table %p list %p\n", ns.ns_table, ns.ns_list);
 	}
 	if (opts & OPT_LIST) {
 		printf("List of active MAP/Redirect filters:\n");
 		while (ns.ns_list) {
-			if (kmemcpy(&ipn, ns.ns_list, sizeof(ipn))) {
+			if (kmemcpy((char *)&ipn, (long)ns.ns_list,
+				    sizeof(ipn))) {
 				perror("kmemcpy");
 				break;
 			}
@@ -279,7 +292,8 @@ int fd, opts;
 		}
 
 		nt[0] = (nat_t **)malloc(sizeof(*nt) * NAT_SIZE);
-		if (kmemcpy(nt[0], ns.ns_table[0], sizeof(**nt) * NAT_SIZE)) {
+		if (kmemcpy((char *)nt[0], (long)ns.ns_table[0],
+			    sizeof(**nt) * NAT_SIZE)) {
 			perror("kmemcpy");
 			return;
 		}
@@ -288,7 +302,8 @@ int fd, opts;
 
 		for (i = 0; i < NAT_SIZE; i++)
 			for (np = nt[0][i]; np; np = nat.nat_hnext[0]) {
-				if (kmemcpy(&nat, np, sizeof(nat)))
+				if (kmemcpy((char *)&nat, (long)np,
+					    sizeof(nat)))
 					break;
 
 				printf("%s %-15s %-5hu <- ->",
@@ -300,7 +315,7 @@ int fd, opts;
 					ntohs(nat.nat_outport));
 				printf(" [%s %hu]", inet_ntoa(nat.nat_oip),
 					ntohs(nat.nat_oport));
-				printf(" %d %hu %lx", nat.nat_age,
+				printf(" %ld %hu %lx", nat.nat_age,
 					nat.nat_use, nat.nat_sumd);
 #if SOLARIS
 				printf(" %lx", nat.nat_ipsumd);

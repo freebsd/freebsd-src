@@ -33,7 +33,7 @@
 #include "snoop.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
-static	char	rcsid[] = "$Id: ipft_sn.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_sn.c,v 2.0.2.3 1997/03/10 08:10:29 darrenr Exp $";
 #endif
 
 struct	llc	{
@@ -59,9 +59,12 @@ static	struct	llc	llcs[SDL_MAX+1] = {
 	{ 0, 0, 0 },	/* SDL_OTHER */
 };
 
-static	int	snoop_open(), snoop_close(), snoop_readip();
+static	int	snoop_open __P((char *));
+static	int	snoop_close __P((void));
+static	int	snoop_readip __P((char *, int, char **, int *));
 
 static	int	sfd = -1, s_type = -1;
+static	int	snoop_read_rec __P((struct snooppkt *));
 
 struct	ipread	snoop = { snoop_open, snoop_close, snoop_readip };
 
