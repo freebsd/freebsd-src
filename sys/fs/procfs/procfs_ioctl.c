@@ -52,13 +52,13 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	error = 0;
 	switch (cmd) {
 	case PIOCBIS:
-		p->p_stops |= *(unsigned int *)data;
+		p->p_stops |= *(uintptr_t *)data;
 		break;
 	case PIOCBIC:
-		p->p_stops &= ~*(unsigned int *)data;
+		p->p_stops &= ~*(uintptr_t *)data;
 		break;
 	case PIOCSFL:
-		flags = *(unsigned int *)data;
+		flags = *(uintptr_t *)data;
 		if (flags & PF_ISUGID && (error = suser(td)) != 0)
 			break;
 		p->p_pfsflags = flags;
@@ -86,7 +86,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 	case PIOCCONT:
 		if (p->p_step == 0)
 			break;
-		sig = *(int *)data;
+		sig = *(uintptr_t *)data;
 		if (sig != 0 && !_SIG_VALID(sig)) {
 			error = EINVAL;
 			break;
