@@ -78,9 +78,12 @@ evil_goto:
 	break;
 
     case 6:	/* Proceed (do nothing special, really) */
+	fixit = 0;
 	break;
 
     case 7:
+	dialog_clear();
+	dialog_update();
 	dialog_msgbox("WARNING!", 
 "The usual install procedure will be invoked, but with most of the
 sanity checks disabled.  The suggested course of action is to:
