@@ -90,8 +90,12 @@ struct dcons_ch {
 #define STATE2		2
 
 #ifdef _KERNEL
-extern struct dcons_buf *dcons_buf;
-extern size_t dcons_bufsize;
-extern bus_dma_tag_t dcons_dma_tag;
-extern bus_dmamap_t dcons_dma_map;
+struct dcons_global {
+	struct consdev *cdev;
+	struct dcons_buf *buf;
+	size_t size;
+	bus_dma_tag_t dma_tag;
+	bus_dmamap_t dma_map;
+};
+extern struct dcons_global *dcons_conf;
 #endif
