@@ -101,6 +101,8 @@ dev/buslogic/bt_mca.c	optional bt mca
 dev/ccd/ccd.c		optional ccd
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
+dev/dpt/dpt_eisa.c	optional dpt eisa
+dev/dpt/dpt_pci.c	optional dpt pci
 dev/ed/if_ed_pci.c	optional ed pci
 dev/en/midway.c		optional en
 dev/ep/if_ep.c		optional ep
@@ -660,7 +662,6 @@ dev/bktr/bktr_audio.c	optional bktr pci
 dev/bktr/bktr_os.c	optional bktr pci
 pci/bt_pci.c		optional bt pci
 pci/cy_pci.c		optional cy pci
-pci/dpt_pci.c		optional dpt pci
 pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
 pci/if_ax.c		optional ax
