@@ -185,15 +185,16 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 
 	/*
 	 * If pathname is longer than PATH_MAX, record starting directory
-	 * and move to a suitable intermediate dir.
+	 * and chdir to a suitable intermediate dir.
 	 */
 	if (strlen(archive_entry_pathname(entry)) > PATH_MAX) {
+		char *intdir, *tail;
+
 		/*
 		 * Yes, the copy here is necessary because we edit
 		 * the pathname in-place to create intermediate dirnames.
 		 */
 		original_filename = strdup(archive_entry_pathname(entry));
-		char *intdir, *tail;
 
 		restore_pwd = open(".", O_RDONLY);
 		/*
@@ -203,28 +204,28 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		intdir = tail = original_filename;
 		while (strlen(tail) > PATH_MAX) {
 			intdir = tail;
+
+			/* Locate a dir prefix shorter than PATH_MAX. */
 			tail = intdir + PATH_MAX - 8;
 			while (tail > intdir && *tail != '/')
 				tail--;
 			if (tail <= intdir) {
-				close(restore_pwd);
 				archive_set_error(a, EPERM,
 				    "Path element too long");
-				return (ARCHIVE_WARN);
+				ret = ARCHIVE_WARN;
+				goto cleanup;
 			}
+
+			/* Create intdir and chdir to it. */
 			*tail = '\0'; /* Terminate dir portion */
-			if (create_dir(a, intdir, flags) != ARCHIVE_OK) {
-				fchdir(restore_pwd);
-				close(restore_pwd);
-				return (ARCHIVE_WARN);
-			}
-			if (chdir(intdir) != 0) {
+			ret = create_dir(a, intdir, flags);
+			if (ret == ARCHIVE_OK && chdir(intdir) != 0) {
 				archive_set_error(a, errno, "Couldn't chdir");
-				fchdir(restore_pwd);
-				close(restore_pwd);
-				return (ARCHIVE_WARN);
+				ret = ARCHIVE_WARN;
 			}
 			*tail = '/'; /* Restore the / we removed. */
+			if (ret != ARCHIVE_OK)
+				goto cleanup;
 			tail++;
 		}
 		archive_entry_set_pathname(entry, tail);
@@ -266,9 +267,12 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		}
 	}
 
+
+cleanup:
 	/* If we changed directory above, restore it here. */
 	if (restore_pwd >= 0 && original_filename != NULL) {
 		fchdir(restore_pwd);
+		close(restore_pwd);
 		archive_entry_copy_pathname(entry, original_filename);
 		free(original_filename);
 	}
