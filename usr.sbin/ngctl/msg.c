@@ -112,7 +112,7 @@ MsgRead()
 	u_char buf[2 * sizeof(struct ng_mesg) + BUF_SIZE];
 	struct ng_mesg *const m = (struct ng_mesg *)buf;
 	struct ng_mesg *const ascii = (struct ng_mesg *)m->data;
-	char path[NG_PATHLEN+1];
+	char path[NG_PATHSIZ];
 
 	/* Get incoming message (in binary form) */
 	if (NgRecvMsg(csock, m, sizeof(buf), path) < 0) {
