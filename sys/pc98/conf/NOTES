@@ -15,7 +15,7 @@
 machine		pc98
 options 	PC98
 
-# 
+#
 # We want LINT to cover profiling as well
 profile         2
 
@@ -57,7 +57,7 @@ options 	NO_MIXED_MODE		# Disable use of mixed mode
 # parts of the system run faster.
 # I386_CPU is mutually exclusive with the other CPU types.
 #
-#cpu		I386_CPU		
+#cpu		I386_CPU
 cpu		I486_CPU
 cpu		I586_CPU		# aka Pentium(tm)
 cpu		I686_CPU		# aka Pentium Pro(tm)
@@ -86,8 +86,8 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
-# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32 
-# machines.  VmWare seems to emulate this instruction poorly, causing 
+# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32
+# machines.  VmWare seems to emulate this instruction poorly, causing
 # the guest OS to run very slowly.  Enabling this with a SMP kernel
 # will cause the kernel to be unusable.
 #
@@ -105,7 +105,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # I/O clock delay time on Cyrix 5x86 and 6x86 are 0 and 7,respectively
 # (no clock delay).
 #
-# CPU_L2_LATENCY specifed the L2 cache latency value.  This option is used
+# CPU_L2_LATENCY specifies the L2 cache latency value.  This option is used
 # only when CPU_PPRO2CELERON is defined and Mendocino Celeron is detected.
 # The default value is 5.
 #
@@ -125,7 +125,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # CPU_UPGRADE_HW_CACHE eliminates unneeded cache flush instruction(s).
 #
 # CPU_WT_ALLOC enables write allocation on Cyrix 6x86/6x86MX and AMD
-# K5/K6/K6-2 cpus.
+# K5/K6/K6-2 CPUs.
 #
 # CYRIX_CACHE_WORKS enables CPU cache on Cyrix 486 CPUs with cache
 # flush at hold state.
@@ -378,7 +378,7 @@ hint.mse.0.irq="13"
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
+#       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
 #       (requires miibus)
 # el:   3Com 3C501 (slow!)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
@@ -456,9 +456,9 @@ hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
 
-# 
+#
 # SCSI host adapters:
-# 
+#
 # ct: WD33C93[ABC] based SCSI host adapters.
 # ncv: NCR 53C500 based SCSI host adapters.
 # nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
@@ -527,7 +527,7 @@ options		SAFE_RNDTEST	# enable rndtest support
 #  is capable of generating interrupts.  It largely undocumented.
 #  The port location in the hint is where you WANT the device to be
 #  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
-#  is the only thing truly supported, but aparently a fair percentage
+#  is the only thing truly supported, but apparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
 # Notes on the Stallion stl and stli drivers:
@@ -637,7 +637,7 @@ device		card	1
 #	ifpi  - AVM Fritz!Card PCI driver
 #	ifpi2  - AVM Fritz!Card PCI version 2 driver
 #	ihfc  - Cologne Chip HFC ISA/ISA-PnP chipset driver
-#	ifpnp - AVM Fritz!Card PnP driver 
+#	ifpnp - AVM Fritz!Card PnP driver
 #	itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
 #
 # i4b active ISDN cards support contains the following hardware drivers:
@@ -648,7 +648,7 @@ device		card	1
 # be uncommented to enable support for a given card !
 #
 # In addition to a hardware driver (and probably an option) the mandatory
-# ISDN protocol stack devices and the mandatory support device must be 
+# ISDN protocol stack devices and the mandatory support device must be
 # enabled as well as one or more devices from the optional devices section.
 #
 #---------------------------------------------------------------------------
@@ -695,7 +695,7 @@ device  "ifpi2"
 device  iwic
 #
 #---------------------------------------------------------------------------
-#	itjc driver for Simens ISAC / TJNet Tiger300/320 chipset
+#	itjc driver for Siemens ISAC / TJNet Tiger300/320 chipset
 #
 # Traverse Technologies NETjet-S
 # Teles PCI-TJ
@@ -807,18 +807,18 @@ options 	LINPROCFS
 # SysVR4 ABI emulation
 #
 # The svr4 ABI emulator can be statically compiled into the kernel or loaded as
-# a KLD module.  
-# The STREAMS network emulation code can also be compiled statically or as a 
+# a KLD module.
+# The STREAMS network emulation code can also be compiled statically or as a
 # module.  If loaded as a module, it must be loaded before the svr4 module
 # (the /usr/sbin/svr4 script does this for you).  If compiling statically,
 # the `streams' device must be configured into any kernel which also
-# specifies COMPAT_SVR4.  It is possible to have a statically-configured 
+# specifies COMPAT_SVR4.  It is possible to have a statically-configured
 # STREAMS device and a dynamically loadable svr4 emulator;  the /usr/sbin/svr4
 # script understands that it doesn't need to load the `streams' module under
 # those circumstances.
 # Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
-# (whether static or dynamic).  
-# 
+# (whether static or dynamic).
+#
 options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
