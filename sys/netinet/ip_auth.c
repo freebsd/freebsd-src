@@ -391,6 +391,7 @@ fr_authioctlloop:
 		if (error)
 			return error;
 		WRITE_ENTER(&ipf_auth);
+		i = au->fra_index;
 		if ((i < 0) || (i > FR_NUMAUTH) ||
 		    (fr_auth[i].fra_info.fin_id != au->fra_info.fin_id)) {
 			RWLOCK_EXIT(&ipf_auth);
