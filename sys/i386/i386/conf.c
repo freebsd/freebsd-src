@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.94 1995/09/03 19:53:11 jkh Exp $
+ *	$Id: conf.c,v 1.95 1995/09/03 23:55:53 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -893,6 +893,21 @@ d_ioctl_t	joyioctl;
 #define	joyioctl	nxioctl
 #endif
 
+#include "asc.h"
+#if NASC > 0
+d_open_t      ascopen;
+d_close_t     ascclose;
+d_rdwr_t      ascread;
+d_ioctl_t     ascioctl;
+d_select_t    ascselect;
+#else
+#define ascopen               nxopen
+#define ascclose      nxclose
+#define ascread               nxread
+#define ascioctl      nxioctl
+#define ascselect       nxselect
+#endif
+
 #include "tun.h"
 #if NTUN > 0
 d_open_t	tunopen;
@@ -1336,7 +1351,11 @@ struct cdevsw	cdevsw[] =
 	  seltrue,      nommap,         wcdstrategy },
 	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
 	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
-	  seltrue,	nommap,		odstrategy }
+	  seltrue,	nommap,		odstrategy },
+	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
+	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
+	  ascselect,    nommap,         NULL }
+
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
