@@ -135,6 +135,7 @@ ports-all
 #ports-net
 #ports-news
 #ports-palm
+#ports-picobsd
 #ports-print
 #ports-russian
 #ports-science
