@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.3 1994/08/18 22:35:31 wollman Exp $
+ * $Id: ip_var.h,v 1.4 1994/08/21 05:27:33 paul Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -111,6 +111,7 @@ struct ipoption {
  */
 struct ip_moptions {
 	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
+	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
 	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
 	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
 	u_short	imo_num_memberships;	/* no. memberships this socket */
@@ -155,6 +156,8 @@ extern struct	ipstat	ipstat;
 extern struct	ipq	ipq;			/* ip reass. queue */
 extern u_short	ip_id;				/* ip packet ctr, for ids */
 extern int	ip_defttl;			/* default IP ttl */
+extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
+extern struct socket *ip_mrouter; /* multicast routing daemon */
 
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_deq __P((struct ipasfrag *));
@@ -166,7 +169,8 @@ void	 ip_freef __P((struct ipq *));
 void	 ip_freemoptions __P((struct ip_moptions *));
 int	 ip_getmoptions __P((int, struct ip_moptions *, struct mbuf **));
 void	 ip_init __P((void));
-int	 ip_mforward __P((struct mbuf *, struct ifnet *));
+int	 ip_mforward __P((struct ip *, struct ifnet *, struct mbuf *,
+			  struct ip_moptions *));
 int	 ip_optcopy __P((struct ip *, struct ip *));
 int	 ip_output __P((struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *));

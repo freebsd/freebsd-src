@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.2 1994/08/02 07:48:14 davidg Exp $
+ * $Id: in.h,v 1.3 1994/08/21 05:27:27 paul Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -55,6 +55,7 @@
 #define	IPPROTO_UDP		17		/* user datagram protocol */
 #define	IPPROTO_IDP		22		/* xns idp */
 #define	IPPROTO_TP		29 		/* tp-4 w/ class negotiation */
+#define IPPROTO_RSVP		46 		/* resource reservation */
 #define	IPPROTO_EON		80		/* ISO cnlp */
 #define	IPPROTO_ENCAP		98		/* encapsulation header */
 
@@ -162,6 +163,10 @@ struct ip_opts {
 #define	IP_MULTICAST_LOOP	11   /* u_char; set/get IP multicast loopback */
 #define	IP_ADD_MEMBERSHIP	12   /* ip_mreq; add an IP group membership */
 #define	IP_DROP_MEMBERSHIP	13   /* ip_mreq; drop an IP group membership */
+#define IP_MULTICAST_VIF	14   /* set/get IP mcast virt. iface */
+#define IP_RSVP_ON		15   /* enable RSVP in kernel */
+#define IP_RSVP_OFF		16   /* disable RSVP in kernel */
+
 
 /*
  * Defaults and limits for options
