@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.649.2.24 2003/08/04 21:14:26 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649.2.30 2004/01/11 17:54:06 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -111,6 +111,7 @@ Fw`'confCW_FILE',
 # ... `define' this only if sendmail cannot automatically determine your domain
 ifdef(`confDOMAIN_NAME', `Dj`'confDOMAIN_NAME', `#Dj$w.Foo.COM')
 
+# host/domain names ending with a token in class P are canonical
 CP.
 
 ifdef(`UUCP_RELAY',
@@ -633,7 +634,8 @@ _OPTION(Milter.LogLevel, `confMILTER_LOG_LEVEL', `')
 _OPTION(Milter.macros.connect, `confMILTER_MACROS_CONNECT', `')
 _OPTION(Milter.macros.helo, `confMILTER_MACROS_HELO', `')
 _OPTION(Milter.macros.envfrom, `confMILTER_MACROS_ENVFROM', `')
-_OPTION(Milter.macros.envrcpt, `confMILTER_MACROS_ENVRCPT', `')')
+_OPTION(Milter.macros.envrcpt, `confMILTER_MACROS_ENVRCPT', `')
+')
 
 # CA directory
 _OPTION(CACertPath, `confCACERT_PATH', `')
