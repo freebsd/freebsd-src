@@ -564,9 +564,7 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		}
 		m->m_pkthdr.rcvif = ifp;
 		eh = mtod(m, struct ether_header *);
-		m->m_data += sizeof(struct ether_header);
-		m->m_len -= sizeof(struct ether_header);
-		m->m_pkthdr.len = m->m_len;
+		m_adj(m, sizeof(*eh));
 	}
 
 	/* Check for a BPF tap */
