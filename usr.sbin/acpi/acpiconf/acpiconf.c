@@ -49,12 +49,10 @@ static void
 acpi_init(void)
 {
 	acpifd = open(ACPIDEV, O_RDWR);
-	if (acpifd == -1){
+	if (acpifd == -1)
 		acpifd = open(ACPIDEV, O_RDONLY);
-	}
-	if (acpifd == -1){
+	if (acpifd == -1)
 		err(EX_OSFILE, ACPIDEV);
-	}
 }
 
 static int
