@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <net/if_var.h>
 #include <sys/sysctl.h>
+#include <sys/ioctl.h>
 #include <netinet6/in6_var.h>	/* XXX */
 #endif
 #include <arpa/inet.h>
@@ -247,6 +248,7 @@ static int get_portmatch(const struct addrinfo *, const char *);
 static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
 static int addrconfig(struct addrinfo *);
+static void set_source(struct ai_order *, struct policyhead *);
 static int comp_dst(const void *, const void *);
 #ifdef INET6
 static int ip6_str2scopeid(char *, struct sockaddr_in6 *, u_int32_t *);
@@ -261,6 +263,7 @@ static int get_addrselectpolicy(struct policyhead *);
 static void free_addrselectpolicy(struct policyhead *);
 static struct policyqueue *match_addrselectpolicy(struct sockaddr *,
 	struct policyhead *);
+static int matchlen(struct sockaddr *, struct sockaddr *);
 
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 	const struct addrinfo *);
@@ -677,6 +680,7 @@ reorder(sentinel)
 		aio[i].aio_dstscope = gai_addr2scopetype(ai->ai_addr);
 		aio[i].aio_dstpolicy = match_addrselectpolicy(ai->ai_addr,
 							      &policyhead);
+		set_source(&aio[i], &policyhead);
 	}
 
 	/* perform sorting. */
@@ -813,6 +817,113 @@ match_addrselectpolicy(addr, head)
 	return(NULL);
 #endif
 
+}
+
+static void
+set_source(aio, ph)
+	struct ai_order *aio;
+	struct policyhead *ph;
+{
+	struct addrinfo ai = *aio->aio_ai;
+	struct sockaddr_storage ss;
+	int s, srclen;
+
+	/* set unspec ("no source is available"), just in case */
+	aio->aio_srcsa.sa_family = AF_UNSPEC;
+	aio->aio_srcscope = -1;
+
+	switch(ai.ai_family) {
+	case AF_INET:
+#ifdef INET6
+	case AF_INET6:
+#endif
+		break;
+	default:		/* ignore unsupported AFs explicitly */
+		return;
+	}
+
+	/* XXX: make a dummy addrinfo to call connect() */
+	ai.ai_socktype = SOCK_DGRAM;
+	ai.ai_protocol = IPPROTO_UDP; /* is UDP too specific? */
+	ai.ai_next = NULL;
+	memset(&ss, 0, sizeof(ss));
+	memcpy(&ss, ai.ai_addr, ai.ai_addrlen);
+	ai.ai_addr = (struct sockaddr *)&ss;
+	get_port(&ai, "1", 0);
+
+	/* open a socket to get the source address for the given dst */
+	if ((s = _socket(ai.ai_family, ai.ai_socktype, ai.ai_protocol)) < 0)
+		return;		/* give up */
+	if (_connect(s, ai.ai_addr, ai.ai_addrlen) < 0)
+		goto cleanup;
+	srclen = ai.ai_addrlen;
+	if (_getsockname(s, &aio->aio_srcsa, &srclen) < 0) {
+		aio->aio_srcsa.sa_family = AF_UNSPEC;
+		goto cleanup;
+	}
+	aio->aio_srcscope = gai_addr2scopetype(&aio->aio_srcsa);
+	aio->aio_srcpolicy = match_addrselectpolicy(&aio->aio_srcsa, ph);
+	aio->aio_matchlen = matchlen(&aio->aio_srcsa, aio->aio_ai->ai_addr);
+#ifdef INET6
+	if (ai.ai_family == AF_INET6) {
+		struct in6_ifreq ifr6;
+		u_int32_t flags6;
+
+		/* XXX: interface name should not be hardcoded */
+		strncpy(ifr6.ifr_name, "lo0", sizeof(ifr6.ifr_name));
+		memset(&ifr6, 0, sizeof(ifr6));
+		memcpy(&ifr6.ifr_addr, ai.ai_addr, ai.ai_addrlen);
+		if (_ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) == 0) {
+			flags6 = ifr6.ifr_ifru.ifru_flags6;
+			if ((flags6 & IN6_IFF_DEPRECATED))
+				aio->aio_srcflag |= AIO_SRCFLAG_DEPRECATED;
+		}
+	}
+#endif
+
+  cleanup:
+	_close(s);
+	return;
+}
+
+static int
+matchlen(src, dst)
+	struct sockaddr *src, *dst;
+{
+	int match = 0;
+	u_char *s, *d;
+	u_char *lim, r;
+	int addrlen;
+
+	switch (src->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		s = (u_char *)&((struct sockaddr_in6 *)src)->sin6_addr;
+		d = (u_char *)&((struct sockaddr_in6 *)dst)->sin6_addr;
+		addrlen = sizeof(struct in6_addr);
+		lim = s + addrlen;
+		break;
+#endif
+	case AF_INET:
+		s = (u_char *)&((struct sockaddr_in6 *)src)->sin6_addr;
+		d = (u_char *)&((struct sockaddr_in6 *)dst)->sin6_addr;
+		addrlen = sizeof(struct in_addr);
+		lim = s + addrlen;
+		break;
+	default:
+		return(0);
+	}
+
+	while (s < lim)
+		if ((r = (*d++ ^ *s++)) != 0) {
+			while (r < addrlen * 8) {
+				match++;
+				r <<= 1;
+			}
+			break;
+		} else
+			match += 8;
+	return(match);
 }
 
 static int
