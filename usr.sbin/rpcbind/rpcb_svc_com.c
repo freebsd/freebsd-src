@@ -1069,8 +1069,8 @@ netbufdup(struct netbuf *ap)
 static void
 netbuffree(struct netbuf *ap)
 {
-	free(ap);
 	free(ap->buf);
+	free(ap);
 }
 
 
