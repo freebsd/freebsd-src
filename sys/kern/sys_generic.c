@@ -474,10 +474,8 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
-	mtx_lock(&Giant);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (EBADF);
 	}
 	fdp = td->td_proc->p_fd;
@@ -487,14 +485,12 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
 		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (0);
 	case FIOCLEX:
 		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
 		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (0);
 	}
 
@@ -508,7 +504,6 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	    ((com & IOC_VOID) && size > 0) ||
 	    ((com & (IOC_IN | IOC_OUT)) && size == 0)) {
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (ENOTTY);
 	}
 
@@ -524,7 +519,6 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		if (error) {
 			free(memp, M_IOCTLOPS);
 			fdrop(fp, td);
-			mtx_unlock(&Giant);
 			return (error);
 		}
 	} else if (com & IOC_OUT) {
@@ -561,7 +555,6 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	if (memp != NULL)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
 	return (error);
 }
 

@@ -759,82 +759,30 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct thread *td;
 {
 	struct vnode *vp = fp->f_vnode;
-	struct vnode *vpold;
 	struct vattr vattr;
 	int error;
 
-	GIANT_REQUIRED;
-
+	mtx_lock(&Giant);
+	error = ENOTTY;
 	switch (vp->v_type) {
-
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			error = VOP_GETATTR(vp, &vattr, active_cred, td);
 			VOP_UNLOCK(vp, 0, td);
-			if (error)
-				return (error);
-			*(int *)data = vattr.va_size - fp->f_offset;
-			return (0);
+			if (!error)
+				*(int *)data = vattr.va_size - fp->f_offset;
 		}
 		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
-			return (0);			/* XXX */
-		/* FALLTHROUGH */
+			error = 0;
+		break;
 
 	default:
-#if 0
-		return (ENOTTY);
-#endif
-	case VFIFO:
-	case VCHR:
-	case VBLK:
-		if (com == FIODTYPE) {
-			dev_lock();
-			if (vp->v_type != VCHR && vp->v_type != VBLK)
-				error = ENOTTY;
-			else if (vp->v_rdev == NULL)
-				error = ENXIO;
-			else if (vp->v_rdev->si_devsw == NULL)
-				error = ENXIO;
-			else {
-				error = 0;
-				*(int *)data =
-				    vp->v_rdev->si_devsw->d_flags & D_TYPEMASK;
-			}
-			dev_unlock();
-			return (error);
-		}
-		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
-		if (error == ENOIOCTL) {
-#ifdef DIAGNOSTIC
-			kdb_enter("ENOIOCTL leaked through");
-#endif
-			error = ENOTTY;
-		}
-		if (error == 0 && com == TIOCSCTTY) {
-
-			/* Do nothing if reassigning same control tty */
-			sx_slock(&proctree_lock);
-			if (td->td_proc->p_session->s_ttyvp == vp) {
-				sx_sunlock(&proctree_lock);
-				return (0);
-			}
-
-			vpold = td->td_proc->p_session->s_ttyvp;
-			VREF(vp);
-			SESS_LOCK(td->td_proc->p_session);
-			td->td_proc->p_session->s_ttyvp = vp;
-			SESS_UNLOCK(td->td_proc->p_session);
-
-			sx_sunlock(&proctree_lock);
-
-			/* Get rid of reference to old control tty */
-			if (vpold)
-				vrele(vpold);
-		}
-		return (error);
+		break;
 	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
