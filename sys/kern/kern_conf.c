@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.7 1995/12/13 15:12:48 julian Exp $
+ * $Id: kern_conf.c,v 1.8 1995/12/21 20:09:39 julian Exp $
  */
 
 #include <sys/param.h>
@@ -104,7 +104,6 @@ isdisk(dev, type)
 dev_t
 chrtoblk(dev_t dev)
 {
-	int blkmaj;
 	struct bdevsw *bd;
 	struct cdevsw *cd;
 
