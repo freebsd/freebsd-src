@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.117 1997/05/30 22:25:35 dfr Exp $
+ * $Id: vfs_bio.c,v 1.118 1997/06/03 09:42:43 dfr Exp $
  */
 
 /*
@@ -515,6 +515,8 @@ brelse(struct buf * bp)
 	 * XXX this seems to cause performance problems.
 	 */
 	if ((bp->b_flags & B_VMIO)
+	    && !(bp->b_vp->v_tag == VT_NFS &&
+		 (bp->b_flags & B_DELWRI) != 0)
 #ifdef notdef
 	    && (bp->b_vp->v_tag != VT_NFS
 		|| (bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR))
@@ -1498,8 +1500,14 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
 				}
-				if (vp->v_tag == VT_NFS && bp->b_validend == 0)
-					bp->b_flags &= ~B_CACHE;
+				if (vp->v_tag == VT_NFS) {
+					if (bp->b_dirtyend > 0) {
+						bp->b_validoff = min(bp->b_validoff, bp->b_dirtyoff);
+						bp->b_validend = max(bp->b_validend, bp->b_dirtyend);
+					}
+					if (bp->b_validend == 0)
+						bp->b_flags &= ~B_CACHE;
+				}
 				bp->b_data = (caddr_t) trunc_page(bp->b_data);
 				bp->b_npages = curbpnpages;
 				pmap_qenter((vm_offset_t) bp->b_data,
