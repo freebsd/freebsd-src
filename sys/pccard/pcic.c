@@ -499,12 +499,12 @@ pcic_attach(device_t dev)
 	struct pcic_slot *sp;
 	int i;
 	
+	SET_UNIT(dev, validunits);
 	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
 		if (sp->slt)
 			device_add_child(dev, NULL, -1);
 	}
-	SET_UNIT(dev, validunits);
 	validunits++;
 
 	rid = 0;
