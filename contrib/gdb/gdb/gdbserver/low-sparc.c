@@ -46,7 +46,7 @@ char buf2[MAX_REGISTER_RAW_SIZE];
 /***************End MY defs*********************/
 
 #include <sys/ptrace.h>
-#include <machine/reg.h>
+#include <sys/reg.h>
 
 extern int sys_nerr;
 extern char **sys_errlist;

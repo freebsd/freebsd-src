@@ -1,5 +1,6 @@
 /* Memory-access and commands for "inferior" process, for GDB.
-   Copyright 1986, 1987, 1988, 1989, 1991, 1992, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1986, 87, 88, 89, 91, 92, 95, 96, 1998 
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -19,7 +20,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include <signal.h>
-#include <sys/param.h>
 #include "gdb_string.h"
 #include "symtab.h"
 #include "gdbtypes.h"
@@ -31,8 +31,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbcore.h"
 #include "target.h"
 #include "language.h"
+#include "symfile.h"
+#include "objfiles.h"
 
-static void continue_command PARAMS ((char *, int));
+/* Functions exported for general use: */
+
+void nofp_registers_info PARAMS ((char *, int));
+
+void all_registers_info PARAMS ((char *, int));
+
+void registers_info PARAMS ((char *, int));
+
+/* Local functions: */
+
+void continue_command PARAMS ((char *, int));
 
 static void until_next_command PARAMS ((int));
 
@@ -48,13 +60,9 @@ static void float_info PARAMS ((char *, int));
 
 static void detach_command PARAMS ((char *, int));
 
-static void nofp_registers_info PARAMS ((char *, int));
-
-static void all_registers_info PARAMS ((char *, int));
-
-static void registers_info PARAMS ((char *, int));
-
+#if !defined (DO_REGISTERS_INFO)
 static void do_registers_info PARAMS ((int, int));
+#endif
 
 static void unset_environment_command PARAMS ((char *, int));
 
@@ -72,15 +80,23 @@ static void jump_command PARAMS ((char *, int));
 
 static void step_1 PARAMS ((int, int, char *));
 
-static void nexti_command PARAMS ((char *, int));
+void nexti_command PARAMS ((char *, int));
 
-static void stepi_command PARAMS ((char *, int));
+void stepi_command PARAMS ((char *, int));
 
 static void next_command PARAMS ((char *, int));
 
 static void step_command PARAMS ((char *, int));
 
 static void run_command PARAMS ((char *, int));
+
+void _initialize_infcmd PARAMS ((void));
+
+#define GO_USAGE   "Usage: go <location>\n"
+
+#ifdef CALL_DUMMY_BREAKPOINT_OFFSET
+static void breakpoint_auto_delete_contents PARAMS ((PTR));
+#endif
 
 #define ERROR_NO_INFERIOR \
    if (!target_has_execution) error ("The program is not being run.");
@@ -187,18 +203,27 @@ run_command (args, from_tty)
 
   dont_repeat ();
 
-  if (inferior_pid)
+  if (inferior_pid != 0 && target_has_execution)
     {
       if (
 	  !query ("The program being debugged has been started already.\n\
 Start it from the beginning? "))
 	error ("Program not restarted.");
       target_kill ();
+#if defined(SOLIB_RESTART)
+      SOLIB_RESTART ();
+#endif
+      init_wait_for_inferior ();
     }
 
   clear_breakpoint_hit_counts ();
 
   exec_file = (char *) get_exec_file (0);
+
+  /* Purge old solib objfiles. */
+  objfile_purge_solibs ();
+
+  do_run_cleanups (NULL);
 
   /* The exec file is re-read every time we do a generic_mourn_inferior, so
      we just have to worry about the symbol file.  */
@@ -234,8 +259,19 @@ Start it from the beginning? "))
   target_create_inferior (exec_file, inferior_args,
 			  environ_vector (inferior_environ));
 }
-
+
+
 static void
+run_no_args_command (args, from_tty)
+     char *args;
+     int from_tty;
+{
+  execute_command("set args", from_tty);
+  run_command((char *)NULL, from_tty);
+}
+
+
+void
 continue_command (proc_count_exp, from_tty)
      char *proc_count_exp;
      int from_tty;
@@ -299,7 +335,7 @@ next_command (count_string, from_tty)
 /* Likewise, but step only one instruction.  */
 
 /* ARGSUSED */
-static void
+void
 stepi_command (count_string, from_tty)
      char *count_string;
      int from_tty;
@@ -308,7 +344,7 @@ stepi_command (count_string, from_tty)
 }
 
 /* ARGSUSED */
-static void
+void
 nexti_command (count_string, from_tty)
      char *count_string;
      int from_tty;
@@ -332,7 +368,8 @@ step_1 (skip_subroutines, single_inst, count_string)
   if (!single_inst || skip_subroutines) /* leave si command alone */
     {
       enable_longjmp_breakpoint();
-      cleanups = make_cleanup(disable_longjmp_breakpoint, 0);
+      cleanups = make_cleanup ((make_cleanup_func) disable_longjmp_breakpoint, 
+                               0);
     }
 
   for (; count > 0; count--)
@@ -437,6 +474,21 @@ jump_command (arg, from_tty)
 	}
     }
 
+  if (sfn != NULL) 
+    {
+      fixup_symbol_section (sfn, 0);
+      if (section_is_overlay (SYMBOL_BFD_SECTION (sfn)) && 
+	  !section_is_mapped (SYMBOL_BFD_SECTION (sfn)))
+	{
+	  if (!query ("WARNING!!!  Destination is in unmapped overlay!  Jump anyway? "))
+	    {
+	      error ("Not confirmed.");
+	      /* NOTREACHED */
+	    }
+	}
+    }
+
+
   addr = sal.pc;
 
   if (from_tty)
@@ -450,6 +502,23 @@ jump_command (arg, from_tty)
   proceed (addr, TARGET_SIGNAL_0, 0);
 }
 
+
+/* Go to line or address in current procedure */
+static void
+go_command(line_no, from_tty)
+     char *line_no;
+     int from_tty;
+{
+  if (line_no == (char *)NULL || !*line_no)
+    printf_filtered(GO_USAGE);
+  else
+    {
+      tbreak_command(line_no, from_tty);
+      jump_command(line_no, from_tty);
+    }
+}
+
+
 /* Continue program giving it specified signal.  */
 
 static void
@@ -500,12 +569,17 @@ signal_command (signum_exp, from_tty)
 
 /* Call breakpoint_auto_delete on the current contents of the bpstat
    pointed to by arg (which is really a bpstat *).  */
-void
+
+#ifdef CALL_DUMMY_BREAKPOINT_OFFSET
+
+static void
 breakpoint_auto_delete_contents (arg)
      PTR arg;
 {
   breakpoint_auto_delete (*(bpstat *)arg);
 }
+
+#endif	/* CALL_DUMMY_BREAKPOINT_OFFSET */
 
 /* Execute a "stack dummy", a piece of code stored in the stack
    by the debugger to be executed in the inferior.
@@ -546,13 +620,13 @@ run_stack_dummy (addr, buffer)
     struct breakpoint *bpt;
     struct symtab_and_line sal;
 
+    INIT_SAL (&sal);	/* initialize to zeroes */
 #if CALL_DUMMY_LOCATION != AT_ENTRY_POINT
     sal.pc = addr - CALL_DUMMY_START_OFFSET + CALL_DUMMY_BREAKPOINT_OFFSET;
 #else
     sal.pc = CALL_DUMMY_ADDRESS ();
 #endif
-    sal.symtab = NULL;
-    sal.line = 0;
+    sal.section = find_pc_overlay (sal.pc);
 
     /* Set up a FRAME for the dummy frame so we can pass it to
        set_momentary_breakpoint.  We need to give the breakpoint a
@@ -579,8 +653,10 @@ run_stack_dummy (addr, buffer)
   }
 #endif /* CALL_DUMMY_BREAKPOINT_OFFSET.  */
 
+  disable_watchpoints_before_interactive_call_start ();
   proceed_to_finish = 1;	/* We want stop_registers, please... */
   proceed (addr, TARGET_SIGNAL_0, 0);
+  enable_watchpoints_after_interactive_call_stop ();
 
   discard_cleanups (old_cleanups);
 
@@ -694,7 +770,7 @@ finish_command (arg, from_tty)
 
   breakpoint = set_momentary_breakpoint (sal, frame, bp_finish);
 
-  old_chain = make_cleanup(delete_breakpoint, breakpoint);
+  old_chain = make_cleanup ((make_cleanup_func) delete_breakpoint, breakpoint);
 
   /* Find the function we will return from.  */
 
@@ -718,6 +794,7 @@ finish_command (arg, from_tty)
       struct type *value_type;
       register value_ptr val;
       CORE_ADDR funcaddr;
+      int struct_return;
 
       value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (function));
       if (!value_type)
@@ -728,15 +805,39 @@ finish_command (arg, from_tty)
 
       funcaddr = BLOCK_START (SYMBOL_BLOCK_VALUE (function));
 
-      val = value_being_returned (value_type, stop_registers,
-	      using_struct_return (value_of_variable (function, NULL),
+      struct_return = using_struct_return (value_of_variable (function, NULL),
+
 				   funcaddr,
 				   check_typedef (value_type),
-		BLOCK_GCC_COMPILED (SYMBOL_BLOCK_VALUE (function))));
+		BLOCK_GCC_COMPILED (SYMBOL_BLOCK_VALUE (function)));
 
-      printf_filtered ("Value returned is $%d = ", record_latest_value (val));
-      value_print (val, gdb_stdout, 0, Val_no_prettyprint);
-      printf_filtered ("\n");
+      if (!struct_return)
+      {
+        val = value_being_returned (value_type, stop_registers, struct_return);
+        printf_filtered ("Value returned is $%d = ", record_latest_value (val));
+        value_print (val, gdb_stdout, 0, Val_no_prettyprint);
+        printf_filtered ("\n");
+      }
+      else
+      {
+       /* elz: we cannot determine the contents of the structure because
+	  it is on the stack, and we don't know where, since we did not
+	  initiate the call, as opposed to the call_function_by_hand case */
+#ifdef VALUE_RETURNED_FROM_STACK
+          val = 0;
+          printf_filtered ("Value returned has type: %s.", 
+			   TYPE_NAME (value_type));
+          printf_filtered (" Cannot determine contents\n");
+#else
+          val = value_being_returned (value_type, stop_registers, 
+				      struct_return);
+          printf_filtered ("Value returned is $%d = ", 
+			   record_latest_value (val));
+          value_print (val, gdb_stdout, 0, Val_no_prettyprint);
+          printf_filtered ("\n");
+#endif
+       
+      }
     }
   do_cleanups(old_chain);
 }
@@ -768,7 +869,10 @@ program_info (args, from_tty)
       while (num != 0)
 	{
 	  if (num < 0)
-	    printf_filtered ("It stopped at a breakpoint that has since been deleted.\n");
+	    {
+	      printf_filtered ("It stopped at a breakpoint that has ");
+	      printf_filtered ("since been deleted.\n");
+	    }
 	  else
 	    printf_filtered ("It stopped at breakpoint %d.\n", num);
 	  num = bpstat_num (&bs);
@@ -782,7 +886,10 @@ program_info (args, from_tty)
     }
 
   if (!from_tty)
-    printf_filtered ("Type \"info stack\" or \"info registers\" for more information.\n");
+    {
+      printf_filtered ("Type \"info stack\" or \"info registers\" ");
+      printf_filtered ("for more information.\n");
+    }
 }
 
 static void
@@ -872,7 +979,8 @@ set_environment_command (arg, from_tty)
   var = savestring (arg, p - arg);
   if (nullset)
     {
-      printf_filtered ("Setting environment variable \"%s\" to null value.\n", var);
+      printf_filtered ("Setting environment variable ");
+      printf_filtered ("\"%s\" to null value.\n", var);
       set_in_environ (inferior_environ, var, "");
     }
   else
@@ -935,11 +1043,11 @@ path_command (dirname, from_tty)
   if (from_tty)
     path_info ((char *)NULL, from_tty);
 }
+
 
-/* The array of register names.  */
-
-char *reg_names[] = REGISTER_NAMES;
-
+#ifdef REGISTER_NAMES
+char *gdb_register_names[] = REGISTER_NAMES;
+#endif
 /* Print out the machine register regnum. If regnum is -1,
    print all registers (fpregs == 1) or all non-float registers
    (fpregs == 0).
@@ -979,16 +1087,16 @@ do_registers_info (regnum, fpregs)
 
       /* If the register name is empty, it is undefined for this
 	 processor, so don't display anything.  */
-      if (reg_names[i] == NULL || *(reg_names[i]) == '\0')
+      if (REGISTER_NAME (i) == NULL || *(REGISTER_NAME (i)) == '\0')
 	continue;
 
-      fputs_filtered (reg_names[i], gdb_stdout);
-      print_spaces_filtered (15 - strlen (reg_names[i]), gdb_stdout);
+      fputs_filtered (REGISTER_NAME (i), gdb_stdout);
+      print_spaces_filtered (15 - strlen (REGISTER_NAME (i)), gdb_stdout);
 
       /* Get the data in raw format.  */
       if (read_relative_register_raw_bytes (i, raw_buffer))
 	{
-	  printf_filtered ("Invalid register contents\n");
+	  printf_filtered ("*value not available*\n");
 	  continue;
 	}
 
@@ -1014,12 +1122,16 @@ do_registers_info (regnum, fpregs)
 	    printf_filtered ("<invalid float>");
 	  else
 #endif
-	    val_print (REGISTER_VIRTUAL_TYPE (i), virtual_buffer, 0,
+	    val_print (REGISTER_VIRTUAL_TYPE (i), virtual_buffer, 0, 0,
 		       gdb_stdout, 0, 1, 0, Val_pretty_default);
 
 	  printf_filtered ("\t(raw 0x");
 	  for (j = 0; j < REGISTER_RAW_SIZE (i); j++)
-	    printf_filtered ("%02x", (unsigned char)raw_buffer[j]);
+	    {
+	      register int idx = TARGET_BYTE_ORDER == BIG_ENDIAN ? j
+		: REGISTER_RAW_SIZE (i) - 1 - j;
+	      printf_filtered ("%02x", (unsigned char)raw_buffer[idx]);
+	    }
 	  printf_filtered (")");
 	}
 
@@ -1037,10 +1149,10 @@ do_registers_info (regnum, fpregs)
       /* Else print as integer in hex and in decimal.  */
       else
 	{
-	  val_print (REGISTER_VIRTUAL_TYPE (i), raw_buffer, 0,
+	  val_print (REGISTER_VIRTUAL_TYPE (i), virtual_buffer, 0, 0,
 		     gdb_stdout, 'x', 1, 0, Val_pretty_default);
 	  printf_filtered ("\t");
-	  val_print (REGISTER_VIRTUAL_TYPE (i), raw_buffer, 0,
+	  val_print (REGISTER_VIRTUAL_TYPE (i), virtual_buffer, 0, 0,
 		     gdb_stdout,   0, 1, 0, Val_pretty_default);
 	}
 
@@ -1055,7 +1167,9 @@ do_registers_info (regnum, fpregs)
 }
 #endif /* no DO_REGISTERS_INFO.  */
 
-static void
+extern int target_map_name_to_register PARAMS ((char *, int));
+
+void
 registers_info (addr_exp, fpregs)
      char *addr_exp;
      int fpregs;
@@ -1082,10 +1196,13 @@ registers_info (addr_exp, fpregs)
       while (*end != '\0' && *end != ' ' && *end != '\t')
 	++end;
       numregs = ARCH_NUM_REGS;
-      for (regnum = 0; regnum < numregs; regnum++)
-	if (!strncmp (addr_exp, reg_names[regnum], end - addr_exp)
-	    && strlen (reg_names[regnum]) == end - addr_exp)
-	  goto found;
+
+      regnum = target_map_name_to_register (addr_exp, end - addr_exp);
+      if (regnum >= 0) 
+	goto found;
+
+      regnum = numregs;
+
       if (*addr_exp >= '0' && *addr_exp <= '9')
 	regnum = atoi (addr_exp);		/* Take a number */
       if (regnum >= numregs)		/* Bad name, or bad number */
@@ -1100,7 +1217,7 @@ found:
     } while (*addr_exp != '\0');
 }
 
-static void
+void
 all_registers_info (addr_exp, from_tty)
      char *addr_exp;
      int from_tty;
@@ -1108,13 +1225,14 @@ all_registers_info (addr_exp, from_tty)
   registers_info (addr_exp, 1);
 }
 
-static void
+void
 nofp_registers_info (addr_exp, from_tty)
      char *addr_exp;
      int from_tty;
 {
   registers_info (addr_exp, 0);
 }
+
 
 /*
  * TODO:
@@ -1137,7 +1255,12 @@ attach_command (args, from_tty)
      char *args;
      int from_tty;
 {
+#ifdef SOLIB_ADD
   extern int auto_solib_add;
+#endif
+
+  char *  exec_file;
+  char *  full_exec_path = NULL;
 
   dont_repeat ();			/* Not for the faint of heart */
 
@@ -1170,14 +1293,42 @@ attach_command (args, from_tty)
   wait_for_inferior ();
 #endif
 
+  /*
+   * If no exec file is yet known, try to determine it from the
+   * process itself.
+   */
+  exec_file = (char *) get_exec_file (0);
+  if (! exec_file) {
+    exec_file = target_pid_to_exec_file (inferior_pid);
+    if (exec_file) {
+     /* It's possible we don't have a full path, but rather just a
+         filename.  Some targets, such as HP-UX, don't provide the
+         full path, sigh.
+
+         Attempt to qualify the filename against the source path.
+         (If that fails, we'll just fall back on the original
+         filename.  Not much more we can do...)
+         */
+      if (!source_full_path_of (exec_file, &full_exec_path))
+        full_exec_path = savestring (exec_file, strlen (exec_file));
+
+      exec_file_attach (full_exec_path, from_tty);
+      symbol_file_command (full_exec_path, from_tty);
+    }
+  }
+
 #ifdef SOLIB_ADD
   if (auto_solib_add)
     {
       /* Add shared library symbols from the newly attached process, if any.  */
-      SOLIB_ADD ((char *)0, from_tty, (struct target_ops *)0);
+      SOLIB_ADD ((char *)0, from_tty, &current_target);
       re_enable_breakpoints_in_shlibs ();
     }
 #endif
+
+  /* Take any necessary post-attaching actions for this platform.
+     */
+  target_post_attach (inferior_pid);
 
   normal_stop ();
 }
@@ -1200,6 +1351,9 @@ detach_command (args, from_tty)
 {
   dont_repeat ();			/* Not for the faint of heart */
   target_detach (args, from_tty);
+#if defined(SOLIB_RESTART)
+  SOLIB_RESTART ();
+#endif
 }
 
 /* ARGSUSED */
@@ -1209,9 +1363,9 @@ float_info (addr_exp, from_tty)
      int from_tty;
 {
 #ifdef FLOAT_INFO
-	FLOAT_INFO;
+  FLOAT_INFO;
 #else
-	printf_filtered ("No floating point info available for this processor.\n");
+  printf_filtered ("No floating point info available for this processor.\n");
 #endif
 }
 
@@ -1221,7 +1375,8 @@ unset_command (args, from_tty)
      char *args;
      int from_tty;
 {
-  printf_filtered ("\"unset\" must be followed by the name of an unset subcommand.\n");
+  printf_filtered ("\"unset\" must be followed by the name of ");
+  printf_filtered ("an unset subcommand.\n");
   help_list (unsetlist, "unset ", -1, gdb_stdout);
 }
 
@@ -1234,9 +1389,9 @@ _initialize_infcmd ()
 	   "Set terminal for future runs of program being debugged.");
 
   add_show_from_set
-    (add_set_cmd ("args", class_run, var_string_noescape, (char *)&inferior_args,
-		  
-"Set arguments to give program being debugged when it is started.\n\
+    (add_set_cmd ("args", class_run, var_string_noescape, 
+		  (char *)&inferior_args,
+"Set argument list to give program being debugged when it is started.\n\
 Follow this command with any number of args, to be passed to the program.",
 		  &setlist),
      &showlist);
@@ -1279,23 +1434,27 @@ fully linked executable files and separately compiled object files as needed.");
 $cwd in the path means the current working directory.\n\
 This path is equivalent to the $PATH shell variable.  It is a list of\n\
 directories, separated by colons.  These directories are searched to find\n\
-fully linked executable files and separately compiled object files as needed.", &showlist);
+fully linked executable files and separately compiled object files as needed.",
+	       &showlist);
   c->completer = noop_completer;
 
  add_com ("attach", class_run, attach_command,
  	   "Attach to a process or file outside of GDB.\n\
 This command attaches to another target, of the same type as your last\n\
-`target' command (`info files' will show your target stack).\n\
+\"target\" command (\"info files\" will show your target stack).\n\
 The command may take as argument a process id or a device file.\n\
 For a process id, you must have permission to send the process a signal,\n\
 and it must have the same effective uid as the debugger.\n\
-When using \"attach\", you should use the \"file\" command to specify\n\
-the program running in the process, and to load its symbol table.");
+When using \"attach\" with a process id, the debugger finds the\n\
+program running in the process, looking first in the current working\n\
+directory, or (if not found there) using the source file search path\n\
+(see the \"directory\" command).  You can also use the \"file\" command\n\
+to specify the program, and to load its symbol table.");
 
   add_com ("detach", class_run, detach_command,
 	   "Detach a process or file previously attached.\n\
-If a process, it is no longer traced, and it continues its execution.  If you\n\
-were debugging a file, the file is closed and gdb no longer accesses it.");
+If a process, it is no longer traced, and it continues its execution.  If\n\
+you were debugging a file, the file is closed and gdb no longer accesses it.");
 
   add_com ("signal", class_run, signal_command,
 	   "Continue program giving it signal specified by the argument.\n\
@@ -1321,6 +1480,8 @@ Like the \"step\" command as long as subroutine calls do not happen;\n\
 when they do, the call is treated as one instruction.\n\
 Argument N means do this N times (or till program stops for another reason).");
   add_com_alias ("n", "next", class_run, 1);
+  if (xdb_commands)
+    add_com_alias("S", "next", class_run, 1);
 
   add_com ("step", class_run, step_command,
 	   "Step program until it reaches a different source line.\n\
@@ -1328,7 +1489,7 @@ Argument N means do this N times (or till program stops for another reason).");
   add_com_alias ("s", "step", class_run, 1);
 
   add_com ("until", class_run, until_command,
-	   "Execute until the program reaches a source line greater than the current\n\
+"Execute until the program reaches a source line greater than the current\n\
 or a specified line or address or function (same args as break command).\n\
 Execution will also stop upon exit from the current stack frame.");
   add_com_alias ("u", "until", class_run, 1);
@@ -1337,6 +1498,16 @@ Execution will also stop upon exit from the current stack frame.");
 	   "Continue program being debugged at specified line or address.\n\
 Give as argument either LINENUM or *ADDR, where ADDR is an expression\n\
 for an address to start at.");
+
+  add_com ("go", class_run, go_command,
+	   "Usage: go <location>\n\
+Continue program being debugged, stopping at specified line or \n\
+address.\n\
+Give as argument either LINENUM or *ADDR, where ADDR is an \n\
+expression for an address to start at.\n\
+This command is a combination of tbreak and jump.");
+  if (xdb_commands)
+    add_com_alias("g", "g", class_run, 1);
 
   add_com ("continue", class_run, continue_command,
 	   "Continue program being debugged, after signal or breakpoint.\n\
@@ -1354,13 +1525,20 @@ With no arguments, uses arguments last specified (with \"run\" or \"set args\").
 To cancel previous arguments and run with no arguments,\n\
 use \"set args\" without arguments.");
   add_com_alias ("r", "run", class_run, 1);
+  if (xdb_commands)
+    add_com ("R", class_run, run_no_args_command,
+         "Start debugged program with no arguments.");
 
   add_info ("registers", nofp_registers_info,
     "List of integer registers and their contents, for selected stack frame.\n\
 Register name as argument means describe only that register.");
 
+  if (xdb_commands)
+    add_com("lr", class_info, nofp_registers_info,
+    "List of integer registers and their contents, for selected stack frame.\n\
+  Register name as argument means describe only that register.");
   add_info ("all-registers", all_registers_info,
-"List of all registers and their contents, for selected stack frame.\n\
+    "List of all registers and their contents, for selected stack frame.\n\
 Register name as argument means describe only that register.");
 
   add_info ("program", program_info,

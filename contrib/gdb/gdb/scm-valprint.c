@@ -26,12 +26,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "value.h"
 #include "scm-lang.h"
 #include "valprint.h"
+#include "gdbcore.h"
+
+/* FIXME: Should be in a header file that we import. */
+extern int
+c_val_print PARAMS ((struct type *, char *, int, CORE_ADDR, GDB_FILE *, int, int,
+		     int, enum val_prettyprint));
+
+static void scm_ipruk PARAMS ((char *, LONGEST, GDB_FILE *));
+static void scm_scmlist_print PARAMS ((LONGEST, GDB_FILE *, int, int,
+				      int, enum val_prettyprint));
+static int scm_inferior_print PARAMS ((LONGEST, GDB_FILE *, int, int,
+				       int, enum val_prettyprint));
 
 /* Prints the SCM value VALUE by invoking the inferior, if appropraite.
    Returns >= 0 on succes;  retunr -1 if the inferior cannot/should not
    print VALUE. */
 
-int
+static int
 scm_inferior_print (value, stream, format, deref_ref, recurse, pretty)
      LONGEST value;
      GDB_FILE *stream;
@@ -82,7 +94,7 @@ static char *scm_isymnames[] =
   "#<unspecified>"
 };
 
-static int
+static void
 scm_scmlist_print (svalue, stream, format, deref_ref, recurse, pretty)
      LONGEST svalue;
      GDB_FILE *stream;
@@ -95,7 +107,7 @@ scm_scmlist_print (svalue, stream, format, deref_ref, recurse, pretty)
   if (recurse > 6)
     {
       fputs_filtered ("...", stream);
-      return 0;
+      return;
     }
   scm_scmval_print (SCM_CAR (svalue), stream, format,
 		    deref_ref, recurse + 1, pretty);
@@ -135,7 +147,7 @@ scm_ipruk (hdr, ptr, stream)
   fprintf_filtered (stream, " 0x%x>", ptr);
 }
 
-int
+void
 scm_scmval_print (svalue, stream, format, deref_ref, recurse, pretty)
      LONGEST svalue;
      GDB_FILE *stream;
@@ -145,7 +157,7 @@ scm_scmval_print (svalue, stream, format, deref_ref, recurse, pretty)
      enum val_prettyprint pretty;
 {
  taloop:
-  switch (7 & svalue)
+  switch (7 & (int) svalue)
     {
     case 2:
     case 6:
@@ -191,7 +203,9 @@ scm_scmval_print (svalue, stream, format, deref_ref, recurse, pretty)
 	case scm_tcs_cons_gloc:
 	  if (SCM_CDR (SCM_CAR (svalue) - 1L) == 0)
 	    {
+#if 0
 	      SCM name;
+#endif
 	      fputs_filtered ("#<latte ", stream);
 #if 1
 	      fputs_filtered ("???", stream);
@@ -351,17 +365,21 @@ scm_scmval_print (svalue, stream, format, deref_ref, recurse, pretty)
 	  goto punk;
 #endif
 	default:
-	punk:scm_ipruk ("type", svalue, stream);
+#if 0
+	punk:
+#endif
+	  scm_ipruk ("type", svalue, stream);
 	}
       break;
     }
 }
 
 int
-scm_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
-	     pretty)
+scm_val_print (type, valaddr, embedded_offset, address,
+               stream, format, deref_ref, recurse, pretty)
      struct type *type;
      char *valaddr;
+     int embedded_offset;
      CORE_ADDR address;
      GDB_FILE *stream;
      int format;
@@ -387,7 +405,7 @@ scm_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
     }
   else
     {
-      return c_val_print (type, valaddr, address, stream, format,
+      return c_val_print (type, valaddr, 0, address, stream, format,
 			  deref_ref, recurse, pretty);
     }
 }
@@ -399,6 +417,6 @@ scm_value_print (val, stream, format, pretty)
      int format;
      enum val_prettyprint pretty;
 {
-  return (val_print (VALUE_TYPE (val), VALUE_CONTENTS (val),
+  return (val_print (VALUE_TYPE (val), VALUE_CONTENTS (val), 0,
 		     VALUE_ADDRESS (val), stream, format, 1, 0, pretty));
 }

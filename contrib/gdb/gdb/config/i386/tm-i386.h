@@ -59,7 +59,7 @@ extern int i386_skip_prologue PARAMS ((int));
 
 /* Stack grows downward.  */
 
-#define INNER_THAN <
+#define INNER_THAN(lhs,rhs) ((lhs) < (rhs))
 
 /* Sequence of bytes for breakpoint instruction.  */
 
@@ -69,10 +69,6 @@ extern int i386_skip_prologue PARAMS ((int));
    number of bytes in BREAKPOINT but not always. */
 
 #define DECR_PC_AFTER_BREAK 1
-
-/* Nonzero if instruction at PC is a return instruction.  */
-
-#define ABOUT_TO_RETURN(pc) (read_memory_integer ((pc), 1) == 0xc3)
 
 /* Say how long (ordinary) registers are.  This is a piece of bogosity
    used in push_word and a few other places; REGISTER_RAW_SIZE is the
@@ -158,8 +154,10 @@ extern int i386_skip_prologue PARAMS ((int));
    subroutine will return.  This is called from call_function. */
 
 #define STORE_STRUCT_RETURN(ADDR, SP) \
-  { (SP) -= sizeof (ADDR);		\
-    write_memory ((SP), (char *) &(ADDR), sizeof (ADDR)); }
+  { char buf[REGISTER_SIZE];	\
+    (SP) -= sizeof (ADDR);	\
+    store_address (buf, sizeof (ADDR), ADDR);	\
+    write_memory ((SP), buf, sizeof (ADDR)); }
 
 /* Extract from an array REGBUF containing the (raw) register state
    a function return value of type TYPE, and copy that, in virtual format,

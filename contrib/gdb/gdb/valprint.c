@@ -1,5 +1,5 @@
 /* Print values for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994
+   Copyright 1986, 1988, 1989, 1991, 1992, 1993, 1994, 1998
              Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -30,37 +30,32 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "demangle.h"
 #include "annotate.h"
+#include "valprint.h"
 
 #include <errno.h>
 
 /* Prototypes for local functions */
 
-static void
-print_hex_chars PARAMS ((GDB_FILE *, unsigned char *, unsigned int));
+static void print_hex_chars PARAMS ((GDB_FILE *, unsigned char *, 
+                                     unsigned int));
 
-static void
-show_print PARAMS ((char *, int));
+static void show_print PARAMS ((char *, int));
 
-static void
-set_print PARAMS ((char *, int));
+static void set_print PARAMS ((char *, int));
 
-static void
-set_radix PARAMS ((char *, int));
+static void set_radix PARAMS ((char *, int));
 
-static void
-show_radix PARAMS ((char *, int));
+static void show_radix PARAMS ((char *, int));
 
-static void
-set_input_radix PARAMS ((char *, int, struct cmd_list_element *));
+static void set_input_radix PARAMS ((char *, int, struct cmd_list_element *));
 
-static void
-set_input_radix_1 PARAMS ((int, unsigned));
+static void set_input_radix_1 PARAMS ((int, unsigned));
 
-static void
-set_output_radix PARAMS ((char *, int, struct cmd_list_element *));
+static void set_output_radix PARAMS ((char *, int, struct cmd_list_element *));
 
-static void
-set_output_radix_1 PARAMS ((int, unsigned));
+static void set_output_radix_1 PARAMS ((int, unsigned));
+
+void _initialize_valprint PARAMS ((void));
 
 /* Maximum number of chars to print for a string pointer value or vector
    contents, or UINT_MAX for no limit.  Note that "set print elements 0"
@@ -125,9 +120,11 @@ int addressprint;		/* Controls printing of machine addresses */
 
 
 int
-val_print (type, valaddr, address, stream, format, deref_ref, recurse, pretty)
+val_print (type, valaddr, embedded_offset, address,
+           stream, format, deref_ref, recurse, pretty)
      struct type *type;
      char *valaddr;
+     int embedded_offset;
      CORE_ADDR address;
      GDB_FILE *stream;
      int format;
@@ -154,8 +151,8 @@ val_print (type, valaddr, address, stream, format, deref_ref, recurse, pretty)
       return (0);
     }
   
-  return (LA_VAL_PRINT (type, valaddr, address, stream, format, deref_ref,
-			recurse, pretty));
+  return (LA_VAL_PRINT (type, valaddr, embedded_offset, address,
+                        stream, format, deref_ref, recurse, pretty));
 }
 
 /* Print the value VAL in C-ish syntax on stream STREAM.
@@ -225,15 +222,56 @@ val_print_type_code_int (type, valaddr, stream)
 }
 
 /* Print a number according to FORMAT which is one of d,u,x,o,b,h,w,g.
-   The raison d'etre of this function is to consolidate printing of LONG_LONG's
-   into this one function.  Some platforms have long longs but don't have a
-   printf() that supports "ll" in the format string.  We handle these by seeing
-   if the number is actually a long, and if not we just bail out and print the
-   number in hex.  The format chars b,h,w,g are from
-   print_scalar_formatted().  If USE_LOCAL, format it according to the current
-   language (this should be used for most integers which GDB prints, the
-   exception is things like protocols where the format of the integer is
-   a protocol thing, not a user-visible thing).  */
+   The raison d'etre of this function is to consolidate printing of 
+   LONG_LONG's into this one function.  Some platforms have long longs but
+   don't have a printf() that supports "ll" in the format string.  We handle
+   these by seeing if the number is representable as either a signed or
+   unsigned long, depending upon what format is desired, and if not we just
+   bail out and print the number in hex.
+
+   The format chars b,h,w,g are from print_scalar_formatted().  If USE_LOCAL,
+   format it according to the current language (this should be used for most
+   integers which GDB prints, the exception is things like protocols where
+   the format of the integer is a protocol thing, not a user-visible thing).
+   */
+
+#if defined (CC_HAS_LONG_LONG) && !defined (PRINTF_HAS_LONG_LONG)
+static void
+print_decimal (stream, sign, use_local, val_ulong)
+     GDB_FILE *stream;
+     char *sign;
+     int use_local;
+     ULONGEST val_ulong;
+{
+  unsigned long temp[3];
+  int i = 0;
+  do
+    {
+      temp[i] = val_ulong % (1000 * 1000 * 1000);
+      val_ulong /= (1000 * 1000 * 1000);
+      i++;
+    }
+  while (val_ulong != 0 && i < (sizeof (temp) / sizeof (temp[0])));
+  switch (i)
+    {
+    case 1:
+      fprintf_filtered (stream, "%s%lu",
+			sign, temp[0]);
+      break;
+    case 2:
+      fprintf_filtered (stream, "%s%lu%09lu",
+			sign, temp[1], temp[0]);
+      break;
+    case 3:
+      fprintf_filtered (stream, "%s%lu%09lu%09lu",
+			sign, temp[2], temp[1], temp[0]);
+      break;
+    default:
+      abort ();
+    }
+  return;
+}
+#endif
 
 void
 print_longest (stream, format, use_local, val_long)
@@ -243,20 +281,62 @@ print_longest (stream, format, use_local, val_long)
      LONGEST val_long;
 {
 #if defined (CC_HAS_LONG_LONG) && !defined (PRINTF_HAS_LONG_LONG)
-  long vtop, vbot;
-
-  vtop = val_long >> (sizeof (long) * HOST_CHAR_BIT);
-  vbot = (long) val_long;
-
-  if ((format == 'd' && (val_long < INT_MIN || val_long > INT_MAX))
-      || ((format == 'u' || format == 'x') && (unsigned long long)val_long > UINT_MAX))
+  if (sizeof (long) < sizeof (LONGEST))
     {
-      fprintf_filtered (stream, "0x%lx%08lx", vtop, vbot);
-      return;
+      switch (format)
+	{
+	case 'd':
+	  {
+	    /* Print a signed value, that doesn't fit in a long */
+	    if ((long) val_long != val_long)
+	      {
+		if (val_long < 0)
+		  print_decimal (stream, "-", use_local, -val_long);
+		else
+		  print_decimal (stream, "", use_local, val_long);
+		return;
+	      }
+	    break;
+	  }
+	case 'u':
+	  {
+	    /* Print an unsigned value, that doesn't fit in a long */
+	    if ((unsigned long) val_long != (ULONGEST) val_long)
+	      {
+		print_decimal (stream, "", use_local, val_long);
+		return;
+	      }
+	    break;
+	  }
+	case 'x':
+	case 'o':
+	case 'b':
+	case 'h':
+	case 'w':
+	case 'g':
+	  /* Print as unsigned value, must fit completely in unsigned long */
+	  {
+	    unsigned long temp = val_long;
+	    if (temp != val_long)
+	      {
+		/* Urk, can't represent value in long so print in hex.
+		   Do shift in two operations so that if sizeof (long)
+		   == sizeof (LONGEST) we can avoid warnings from
+		   picky compilers about shifts >= the size of the
+		   shiftee in bits */
+		unsigned long vbot = (unsigned long) val_long;
+		LONGEST temp = (val_long >> (sizeof (long) * HOST_CHAR_BIT - 1));
+		unsigned long vtop = temp >> 1;
+		fprintf_filtered (stream, "0x%lx%08lx", vtop, vbot);
+		return;
+	      }
+	    break;
+	  }
+	}
     }
 #endif
 
-#ifdef PRINTF_HAS_LONG_LONG
+#if defined (CC_HAS_LONG_LONG) && defined (PRINTF_HAS_LONG_LONG)
   switch (format)
     {
     case 'd':
@@ -295,7 +375,7 @@ print_longest (stream, format, use_local, val_long)
     default:
       abort ();
     }
-#else /* !PRINTF_HAS_LONG_LONG */
+#else /* !CC_HAS_LONG_LONG || !PRINTF_HAS_LONG_LONG*/
   /* In the following it is important to coerce (val_long) to a long. It does
      nothing if !LONG_LONG, but it will chop off the top half (which we know
      we can ignore) if the host supports long longs.  */
@@ -315,33 +395,137 @@ print_longest (stream, format, use_local, val_long)
       fprintf_filtered (stream,
 			use_local ? local_hex_format_custom ("l")
 				  : "%lx",
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     case 'o':
       fprintf_filtered (stream,
 			use_local ? local_octal_format_custom ("l")
 				  : "%lo",
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     case 'b':
       fprintf_filtered (stream, local_hex_format_custom ("02l"),
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     case 'h':
       fprintf_filtered (stream, local_hex_format_custom ("04l"),
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     case 'w':
       fprintf_filtered (stream, local_hex_format_custom ("08l"),
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     case 'g':
       fprintf_filtered (stream, local_hex_format_custom ("016l"),
-			(long) val_long);
+			(unsigned long) val_long);
       break;
     default:
       abort ();
     }
+#endif /* CC_HAS_LONG_LONG || PRINTF_HAS_LONG_LONG */
+}
+
+void
+strcat_longest (format, use_local, val_long, buf, buflen)
+     int format;
+     int use_local;
+     LONGEST val_long;
+     char *buf;
+     int buflen;		/* ignored, for now */
+{
+#if defined (CC_HAS_LONG_LONG) && !defined (PRINTF_HAS_LONG_LONG)
+  long vtop, vbot;
+
+  vtop = val_long >> (sizeof (long) * HOST_CHAR_BIT);
+  vbot = (long) val_long;
+
+  if ((format == 'd' && (val_long < INT_MIN || val_long > INT_MAX))
+      || ((format == 'u' || format == 'x') && (unsigned long long)val_long > UINT_MAX))
+    {
+      sprintf (buf, "0x%lx%08lx", vtop, vbot);
+      return;
+    }
+#endif
+
+#ifdef PRINTF_HAS_LONG_LONG
+  switch (format)
+    {
+    case 'd':
+      sprintf (buf,
+	       (use_local ? local_decimal_format_custom ("ll") : "%lld"), 
+	       val_long);
+      break;
+    case 'u':
+      sprintf (buf, "%llu",  val_long);
+      break;
+    case 'x':
+      sprintf (buf,
+	       (use_local ? local_hex_format_custom ("ll") : "%llx"), 
+			
+	       val_long);
+      break;
+    case 'o':
+      sprintf (buf,
+	       (use_local ? local_octal_format_custom ("ll") : "%llo"), 
+	       val_long);
+      break;
+    case 'b':
+      sprintf (buf, local_hex_format_custom ("02ll"),  val_long);
+      break;
+    case 'h':
+      sprintf (buf, local_hex_format_custom ("04ll"),  val_long);
+      break;
+    case 'w':
+      sprintf (buf, local_hex_format_custom ("08ll"),  val_long);
+      break;
+    case 'g':
+      sprintf (buf, local_hex_format_custom ("016ll"),  val_long);
+      break;
+    default:
+      abort ();
+    }
+#else /* !PRINTF_HAS_LONG_LONG */
+  /* In the following it is important to coerce (val_long) to a long. It does
+     nothing if !LONG_LONG, but it will chop off the top half (which we know
+     we can ignore) if the host supports long longs.  */
+
+  switch (format)
+    {
+    case 'd':
+      sprintf (buf, (use_local ? local_decimal_format_custom ("l") : "%ld"), 
+								 ((long) val_long));
+      break;
+    case 'u':
+      sprintf (buf, "%lu",  ((unsigned long) val_long));
+      break;
+    case 'x':
+      sprintf (buf, (use_local ? local_hex_format_custom ("l") : "%lx"), 
+	       ((long) val_long));
+      break;
+    case 'o':
+      sprintf (buf, (use_local ? local_octal_format_custom ("l") : "%lo"), 
+	       ((long) val_long));
+      break;
+    case 'b':
+      sprintf (buf, local_hex_format_custom ("02l"), 
+	       ((long) val_long));
+      break;
+    case 'h':
+      sprintf (buf, local_hex_format_custom ("04l"), 
+	       ((long) val_long));
+      break;
+    case 'w':
+      sprintf (buf, local_hex_format_custom ("08l"), 
+	       ((long) val_long));
+      break;
+    case 'g':
+      sprintf (buf, local_hex_format_custom ("016l"),
+	       ((long) val_long));
+      break;
+    default:
+      abort ();
+    }
+    
 #endif /* !PRINTF_HAS_LONG_LONG */
 }
 
@@ -355,16 +539,18 @@ int
 longest_to_int (arg)
      LONGEST arg;
 {
+  /* Let the compiler do the work */
+  int rtnval = (int) arg;
 
-  /* This check is in case a system header has botched the
-     definition of INT_MIN, like on BSDI.  */
-  if (sizeof (LONGEST) <= sizeof (int))
-    return arg;
-
-  if (arg > INT_MAX || arg < INT_MIN)
-    error ("Value out of range.");
-
-  return arg;
+  /* Check for overflows or underflows */
+  if (sizeof (LONGEST) > sizeof (int))
+    {
+      if (rtnval != arg)
+	{
+	  error ("Value out of range.");
+	}
+    }
+  return (rtnval);
 }
 
 /* Print a floating point value of type TYPE, pointed to in GDB by VALADDR,
@@ -397,6 +583,8 @@ print_floating (valaddr, type, stream)
        the fraction is nonzero)?  */
     int is_nan;
 
+    /* For lint, initialize these two variables to suppress warning: */
+    low = high = nonnegative = 0;
     if (len == 4)
       {
 	/* It's single precision.  */
@@ -470,6 +658,350 @@ print_floating (valaddr, type, stream)
     /* This at least wins with values that are representable as doubles */
     fprintf_filtered (stream, "%.17g", (double) doub);
 #endif
+}
+
+void 
+print_binary_chars (stream, valaddr, len)
+     GDB_FILE *stream;
+     unsigned char *valaddr;
+     unsigned len;
+{
+
+#define BITS_IN_BYTES 8
+
+  unsigned char *p;
+  int            i;
+  int            b;
+
+  /* Declared "int" so it will be signed.
+   * This ensures that right shift will shift in zeros.
+   */
+  const int      mask = 0x080;
+
+  /* FIXME: We should be not printing leading zeroes in most cases.  */
+
+  fprintf_filtered (stream, local_binary_format_prefix ());
+  if (TARGET_BYTE_ORDER == BIG_ENDIAN)
+    {
+      for (p = valaddr;
+	   p < valaddr + len;
+	   p++)
+	{
+          /* Every byte has 8 binary characters; peel off
+           * and print from the MSB end.
+           */
+          for( i = 0; i < (BITS_IN_BYTES * sizeof( *p )); i++ ) {
+              if( *p & ( mask >> i ))
+                  b = 1;
+              else
+                  b = 0;
+
+     	      fprintf_filtered (stream, "%1d", b);
+          }
+	}
+    }
+  else
+    {
+      for (p = valaddr + len - 1;
+	   p >= valaddr;
+	   p--)
+	{
+          for( i = 0; i < (BITS_IN_BYTES * sizeof( *p )); i++ ) {
+              if( *p & ( mask >> i ))
+                  b = 1;
+              else
+                  b = 0;
+
+     	      fprintf_filtered (stream, "%1d", b);
+          }
+	}
+    }
+  fprintf_filtered (stream, local_binary_format_suffix ());
+}
+
+/* VALADDR points to an integer of LEN bytes.
+ * Print it in octal on stream or format it in buf.
+ */
+void
+print_octal_chars (stream, valaddr, len)
+     GDB_FILE *stream;
+     unsigned char *valaddr;
+     unsigned len;
+{
+  unsigned char *p;
+  unsigned char octa1, octa2, octa3, carry;
+  int           cycle;
+  
+  /* FIXME: We should be not printing leading zeroes in most cases.  */
+
+
+  /* Octal is 3 bits, which doesn't fit.  Yuk.  So we have to track
+   * the extra bits, which cycle every three bytes:
+   *
+   * Byte side:       0            1             2          3
+   *                         |             |            |            |
+   * bit number   123 456 78 | 9 012 345 6 | 78 901 234 | 567 890 12 |
+   *
+   * Octal side:   0   1   carry  3   4  carry ...
+   *
+   * Cycle number:    0             1            2
+   *
+   * But of course we are printing from the high side, so we have to
+   * figure out where in the cycle we are so that we end up with no
+   * left over bits at the end.
+   */
+#define BITS_IN_OCTAL 3
+#define HIGH_ZERO     0340
+#define LOW_ZERO      0016
+#define CARRY_ZERO    0003
+#define HIGH_ONE      0200
+#define MID_ONE       0160
+#define LOW_ONE       0016
+#define CARRY_ONE     0001
+#define HIGH_TWO      0300
+#define MID_TWO       0070
+#define LOW_TWO       0007
+
+  /* For 32 we start in cycle 2, with two bits and one bit carry;
+   * for 64 in cycle in cycle 1, with one bit and a two bit carry.
+   */
+  cycle = (len * BITS_IN_BYTES) % BITS_IN_OCTAL;
+  carry = 0;
+  
+  fprintf_filtered (stream, local_octal_format_prefix ());
+  if (TARGET_BYTE_ORDER == BIG_ENDIAN)
+    {
+      for (p = valaddr;
+	   p < valaddr + len;
+	   p++)
+	{
+          switch (cycle) {
+              case 0:
+                 /* No carry in, carry out two bits.
+                  */
+                 octa1 = (HIGH_ZERO  & *p) >> 5;
+                 octa2 = (LOW_ZERO   & *p) >> 2;
+                 carry = (CARRY_ZERO & *p);
+    	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+                 break;
+
+              case 1:
+                 /* Carry in two bits, carry out one bit.
+                  */
+                 octa1 = (carry << 1) | ((HIGH_ONE & *p) >> 7);
+                 octa2 = (MID_ONE   & *p) >> 4;
+                 octa3 = (LOW_ONE   & *p) >> 1;
+                 carry = (CARRY_ONE & *p);
+    	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+    	         fprintf_filtered (stream, "%o", octa3);
+                 break;
+
+              case 2:
+                 /* Carry in one bit, no carry out.
+                  */
+                 octa1 = (carry << 2) | ((HIGH_TWO & *p) >> 6);
+                 octa2 = (MID_TWO & *p) >> 3;
+                 octa3 = (LOW_TWO & *p);
+                 carry = 0;
+    	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+    	         fprintf_filtered (stream, "%o", octa3);
+                 break;
+                 
+              default:
+                 error( "Internal error in octal conversion;" );
+          }
+
+          cycle++;
+          cycle = cycle % BITS_IN_OCTAL;
+	}
+    }
+  else
+    {
+      for (p = valaddr + len - 1;
+	   p >= valaddr;
+	   p--)
+	{
+          switch (cycle) {
+              case 0:
+                 /* Carry out, no carry in */
+                 octa1 = (HIGH_ZERO  & *p) >> 5;
+                 octa2 = (LOW_ZERO   & *p) >> 2;
+                 carry = (CARRY_ZERO & *p);
+    	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+                 break;
+
+              case 1:
+                 /* Carry in, carry out */
+                 octa1 = (carry << 1) | ((HIGH_ONE & *p) >> 7);
+                 octa2 = (MID_ONE   & *p) >> 4;
+                 octa3 = (LOW_ONE   & *p) >> 1;
+                 carry = (CARRY_ONE & *p);
+    	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+    	         fprintf_filtered (stream, "%o", octa3);
+                 break;
+
+              case 2:
+                 /* Carry in, no carry out */
+                 octa1 = (carry << 2) | ((HIGH_TWO & *p) >> 6);
+                 octa2 = (MID_TWO & *p) >> 3;
+                 octa3 = (LOW_TWO & *p);
+                 carry = 0;
+     	         fprintf_filtered (stream, "%o", octa1);
+    	         fprintf_filtered (stream, "%o", octa2);
+    	         fprintf_filtered (stream, "%o", octa3);
+                 break;
+                 
+              default:
+                 error( "Internal error in octal conversion;" );
+          }
+
+          cycle++;
+          cycle = cycle % BITS_IN_OCTAL;
+	}
+    }
+
+  fprintf_filtered (stream, local_octal_format_suffix ());
+}
+
+/* VALADDR points to an integer of LEN bytes.
+ * Print it in decimal on stream or format it in buf.
+ */
+void
+print_decimal_chars (stream, valaddr, len)
+     GDB_FILE *stream;
+     unsigned char *valaddr;
+     unsigned len;
+{
+#define TEN             10
+#define TWO_TO_FOURTH   16
+#define CARRY_OUT(  x ) ((x) / TEN)  /* extend char to int */
+#define CARRY_LEFT( x ) ((x) % TEN)
+#define SHIFT( x )      ((x) << 4)
+#define START_P \
+        ((TARGET_BYTE_ORDER == BIG_ENDIAN) ? valaddr : valaddr + len - 1)
+#define NOT_END_P \
+        ((TARGET_BYTE_ORDER == BIG_ENDIAN) ? (p < valaddr + len) : (p >= valaddr))
+#define NEXT_P \
+        ((TARGET_BYTE_ORDER == BIG_ENDIAN) ? p++ : p-- )
+#define LOW_NIBBLE(  x ) ( (x) & 0x00F)
+#define HIGH_NIBBLE( x ) (((x) & 0x0F0) >> 4)
+
+  unsigned char *p;
+  unsigned char *digits;
+  int            carry;
+  int            decimal_len;
+  int            i, j, decimal_digits;
+  int            dummy;
+  int            flip;
+  
+  /* Base-ten number is less than twice as many digits
+   * as the base 16 number, which is 2 digits per byte.
+   */
+  decimal_len = len * 2 * 2;
+  digits = (unsigned char *) malloc( decimal_len );
+  if( digits == NULL )
+      error( "Can't allocate memory for conversion to decimal." );
+
+  for( i = 0; i < decimal_len; i++ ) {
+      digits[i] = 0;
+  }
+
+  fprintf_filtered (stream, local_decimal_format_prefix ());
+
+  /* Ok, we have an unknown number of bytes of data to be printed in
+   * decimal.
+   *
+   * Given a hex number (in nibbles) as XYZ, we start by taking X and
+   * decemalizing it as "x1 x2" in two decimal nibbles.  Then we multiply
+   * the nibbles by 16, add Y and re-decimalize.  Repeat with Z.
+   *
+   * The trick is that "digits" holds a base-10 number, but sometimes
+   * the individual digits are > 10. 
+   *
+   * Outer loop is per nibble (hex digit) of input, from MSD end to
+   * LSD end.
+   */
+  decimal_digits = 0;  /* Number of decimal digits so far */
+  p = START_P;
+  flip = 0;
+  while( NOT_END_P ) {
+      /*
+       * Multiply current base-ten number by 16 in place.
+       * Each digit was between 0 and 9, now is between
+       * 0 and 144.
+       */
+      for( j = 0; j < decimal_digits; j++ ) {
+           digits[j] = SHIFT( digits[j] );
+      }
+    
+      /* Take the next nibble off the input and add it to what
+       * we've got in the LSB position.  Bottom 'digit' is now
+       * between 0 and 159.
+       *
+       * "flip" is used to run this loop twice for each byte.
+       */
+      if( flip == 0 ) {
+          /* Take top nibble.
+           */
+          digits[0] += HIGH_NIBBLE( *p );
+          flip = 1;
+      }
+      else {
+          /* Take low nibble and bump our pointer "p".
+           */
+          digits[0] += LOW_NIBBLE( *p );
+          NEXT_P;
+          flip = 0;
+      }
+
+      /* Re-decimalize.  We have to do this often enough
+       * that we don't overflow, but once per nibble is
+       * overkill.  Easier this way, though.  Note that the
+       * carry is often larger than 10 (e.g. max initial
+       * carry out of lowest nibble is 15, could bubble all
+       * the way up greater than 10).  So we have to do
+       * the carrying beyond the last current digit.
+       */
+      carry = 0;
+      for( j = 0; j < decimal_len - 1; j++ ) {
+          digits[j] += carry;
+
+          /* "/" won't handle an unsigned char with
+           * a value that if signed would be negative.
+           * So extend to longword int via "dummy".
+           */
+          dummy     = digits[j];
+          carry     = CARRY_OUT(  dummy );
+          digits[j] = CARRY_LEFT( dummy );
+
+          if( j >= decimal_digits && carry == 0 ) {
+              /*
+               * All higher digits are 0 and we
+               * no longer have a carry.
+               *
+               * Note: "j" is 0-based, "decimal_digits" is
+               *       1-based.
+               */
+              decimal_digits = j + 1;
+              break;
+          }
+      }
+  }
+
+  /* Ok, now "digits" is the decimal representation, with
+   * the "decimal_digits" actual digits.  Print!
+   */
+  for( i = decimal_digits - 1; i >= 0; i-- ) {
+      fprintf_filtered( stream, "%1d", digits[i] );
+  }
+  free( digits );
+  
+  fprintf_filtered (stream, local_decimal_format_suffix ());
 }
 
 /* VALADDR points to an integer of LEN bytes.  Print it in hex on stream.  */
@@ -571,7 +1103,7 @@ val_print_array_elements (type, valaddr, address, stream, format, deref_ref,
 
       if (reps > repeat_count_threshold)
 	{
-	  val_print (elttype, valaddr + i * eltlen, 0, stream, format,
+	  val_print (elttype, valaddr + i * eltlen, 0, 0, stream, format,
 		     deref_ref, recurse + 1, pretty);
 	  annotate_elt_rep (reps);
 	  fprintf_filtered (stream, " <repeats %u times>", reps);
@@ -582,7 +1114,7 @@ val_print_array_elements (type, valaddr, address, stream, format, deref_ref,
 	}
       else
 	{
-	  val_print (elttype, valaddr + i * eltlen, 0, stream, format,
+	  val_print (elttype, valaddr + i * eltlen, 0, 0, stream, format,
 		     deref_ref, recurse + 1, pretty);
 	  annotate_elt ();
 	  things_printed++;
@@ -596,128 +1128,148 @@ val_print_array_elements (type, valaddr, address, stream, format, deref_ref,
 }
 
 /*  Print a string from the inferior, starting at ADDR and printing up to LEN
-    characters, to STREAM.  If LEN is zero, printing stops at the first null
-    byte, otherwise printing proceeds (including null bytes) until either
-    print_max or LEN characters have been printed, whichever is smaller. */
+    characters, of WIDTH bytes a piece, to STREAM.  If LEN is -1, printing
+    stops at the first null byte, otherwise printing proceeds (including null
+    bytes) until either print_max or LEN characters have been printed,
+    whichever is smaller. */
 
-/* FIXME: All callers supply LEN of zero.  Supplying a non-zero LEN is
-   pointless, this routine just then becomes a convoluted version of
-   target_read_memory_partial.  Removing all the LEN stuff would simplify
-   this routine enormously.
-
-   FIXME: Use target_read_string.  */
+/* FIXME: Use target_read_string.  */
 
 int
-val_print_string (addr, len, stream)
+val_print_string (addr, len, width, stream)
     CORE_ADDR addr;
-    unsigned int len;
+    int len;
+    int width;
     GDB_FILE *stream;
 {
   int force_ellipsis = 0;	/* Force ellipsis to be printed if nonzero. */
   int errcode;			/* Errno returned from bad reads. */
-  unsigned int fetchlimit;	/* Maximum number of bytes to fetch. */
-  unsigned int nfetch;		/* Bytes to fetch / bytes fetched. */
-  unsigned int chunksize;	/* Size of each fetch, in bytes. */
-  unsigned int bufsize;		/* Size of current fetch buffer. */
+  unsigned int fetchlimit;	/* Maximum number of chars to print. */
+  unsigned int nfetch;		/* Chars to fetch / chars fetched. */
+  unsigned int chunksize;	/* Size of each fetch, in chars. */
   char *buffer = NULL;		/* Dynamically growable fetch buffer. */
   char *bufptr;			/* Pointer to next available byte in buffer. */
   char *limit;			/* First location past end of fetch buffer. */
   struct cleanup *old_chain = NULL; /* Top of the old cleanup chain. */
-  char peekchar;		/* Place into which we can read one char. */
+  int found_nul;		/* Non-zero if we found the nul char */
 
   /* First we need to figure out the limit on the number of characters we are
      going to attempt to fetch and print.  This is actually pretty simple.  If
-     LEN is nonzero, then the limit is the minimum of LEN and print_max.  If
-     LEN is zero, then the limit is print_max.  This is true regardless of
+     LEN >= zero, then the limit is the minimum of LEN and print_max.  If
+     LEN is -1, then the limit is print_max.  This is true regardless of
      whether print_max is zero, UINT_MAX (unlimited), or something in between,
      because finding the null byte (or available memory) is what actually
      limits the fetch. */
 
-  fetchlimit = (len == 0 ? print_max : min (len, print_max));
+  fetchlimit = (len == -1 ? print_max : min (len, print_max));
 
   /* Now decide how large of chunks to try to read in one operation.  This
-     is also pretty simple.  If LEN is nonzero, then we want fetchlimit bytes,
-     so we might as well read them all in one operation.  If LEN is zero, we
+     is also pretty simple.  If LEN >= zero, then we want fetchlimit chars,
+     so we might as well read them all in one operation.  If LEN is -1, we
      are looking for a null terminator to end the fetching, so we might as
      well read in blocks that are large enough to be efficient, but not so
      large as to be slow if fetchlimit happens to be large.  So we choose the
      minimum of 8 and fetchlimit.  We used to use 200 instead of 8 but
      200 is way too big for remote debugging over a serial line.  */
 
-  chunksize = (len == 0 ? min (8, fetchlimit) : fetchlimit);
+  chunksize = (len == -1 ? min (8, fetchlimit) : fetchlimit);
 
   /* Loop until we either have all the characters to print, or we encounter
      some error, such as bumping into the end of the address space. */
 
-  bufsize = 0;
-  do {
-    QUIT;
-    /* Figure out how much to fetch this time, and grow the buffer to fit. */
-    nfetch = min (chunksize, fetchlimit - bufsize);
-    bufsize += nfetch;
-    if (buffer == NULL)
-      {
-	buffer = (char *) xmalloc (bufsize);
-	bufptr = buffer;
-      }
-    else
-      {
-	discard_cleanups (old_chain);
-	buffer = (char *) xrealloc (buffer, bufsize);
-	bufptr = buffer + bufsize - nfetch;
-      }
-    old_chain = make_cleanup (free, buffer);
+  found_nul = 0;
+  old_chain = make_cleanup (null_cleanup, 0);
 
-    /* Read as much as we can. */
-    nfetch = target_read_memory_partial (addr, bufptr, nfetch, &errcode);
-    if (len != 0)
-      {
-	addr += nfetch;
-	bufptr += nfetch;
-      }
-    else
-      {
-	/* Scan this chunk for the null byte that terminates the string
-	   to print.  If found, we don't need to fetch any more.  Note
-	   that bufptr is explicitly left pointing at the next character
-	   after the null byte, or at the next character after the end of
-	   the buffer. */
-	limit = bufptr + nfetch;
-	while (bufptr < limit)
-	  {
-	    ++addr;
-	    ++bufptr;
-	    if (bufptr[-1] == '\0')
-	      {
-		/* We don't care about any error which happened after
-		   the NULL terminator.  */
-		errcode = 0;
-		break;
-	      }
-	  }
-      }
-  } while (errcode == 0					/* no error */
-	   && bufsize < fetchlimit			/* no overrun */
-	   && !(len == 0 && *(bufptr - 1) == '\0'));	/* no null term */
+  if (len > 0)
+    {
+      buffer = (char *) xmalloc (len * width);
+      bufptr = buffer;
+      old_chain = make_cleanup (free, buffer);
+
+      nfetch = target_read_memory_partial (addr, bufptr, len * width, &errcode)
+	/ width;
+      addr += nfetch * width;
+      bufptr += nfetch * width;
+    }
+  else if (len == -1)
+    {
+      unsigned long bufsize = 0;
+      do
+	{
+	  QUIT;
+	  nfetch = min (chunksize, fetchlimit - bufsize);
+
+	  if (buffer == NULL)
+	    buffer = (char *) xmalloc (nfetch * width);
+	  else
+	    {
+	      discard_cleanups (old_chain);
+	      buffer = (char *) xrealloc (buffer, (nfetch + bufsize) * width);
+	    }
+
+	  old_chain = make_cleanup (free, buffer);
+	  bufptr = buffer + bufsize * width;
+	  bufsize += nfetch;
+
+	  /* Read as much as we can. */
+	  nfetch = target_read_memory_partial (addr, bufptr, nfetch * width, &errcode)
+		   / width;
+
+	  /* Scan this chunk for the null byte that terminates the string
+	     to print.  If found, we don't need to fetch any more.  Note
+	     that bufptr is explicitly left pointing at the next character
+	     after the null byte, or at the next character after the end of
+	     the buffer. */
+
+	  limit = bufptr + nfetch * width;
+	  while (bufptr < limit)
+	    {
+	      unsigned long c;
+
+	      c = extract_unsigned_integer (bufptr, width);
+	      addr += width;
+	      bufptr += width;
+	      if (c == 0)
+		{
+		  /* We don't care about any error which happened after
+		     the NULL terminator.  */
+		  errcode = 0;
+		  found_nul = 1;
+		  break;
+		}
+	    }
+	}
+    while (errcode == 0				      /* no error */
+	   && bufptr - buffer < fetchlimit * width   /* no overrun */
+	   && !found_nul);			      /* haven't found nul yet */
+    }
+  else
+    {				/* length of string is really 0! */
+      buffer = bufptr = NULL;
+      errcode = 0;
+    }
 
   /* bufptr and addr now point immediately beyond the last byte which we
      consider part of the string (including a '\0' which ends the string).  */
 
   /* We now have either successfully filled the buffer to fetchlimit, or
-     terminated early due to an error or finding a null byte when LEN is
-     zero.  */
+     terminated early due to an error or finding a null char when LEN is -1. */
 
-  if (len == 0 && bufptr > buffer && *(bufptr - 1) != '\0')
+  if (len == -1 && !found_nul)
     {
+      char *peekbuf;
+
       /* We didn't find a null terminator we were looking for.  Attempt
 	 to peek at the next character.  If not successful, or it is not
 	 a null byte, then force ellipsis to be printed.  */
-      if (target_read_memory (addr, &peekchar, 1) != 0 || peekchar != '\0')
-	{
-	  force_ellipsis = 1;
-	}
+
+      peekbuf = (char *) alloca (width);
+
+      if (target_read_memory (addr, peekbuf, width) == 0
+	  && extract_unsigned_integer (peekbuf, width) != 0)
+	force_ellipsis = 1;
     }
-  else if ((len != 0 && errcode != 0) || (len > bufptr - buffer))
+  else if ((len >= 0 && errcode != 0) || (len > (bufptr - buffer)/width))
     {
       /* Getting an error when we have a requested length, or fetching less
 	 than the number of characters actually requested, always make us
@@ -736,7 +1288,7 @@ val_print_string (addr, len, stream)
 	{
 	  fputs_filtered (" ", stream);
 	}
-      LA_PRINT_STRING (stream, buffer, bufptr - buffer, force_ellipsis);
+      LA_PRINT_STRING (stream, buffer, (bufptr - buffer)/width, width, force_ellipsis);
     }
 
   if (errcode != 0)
@@ -756,7 +1308,7 @@ val_print_string (addr, len, stream)
     }
   gdb_flush (stream);
   do_cleanups (old_chain);
-  return (bufptr - buffer);
+  return ((bufptr - buffer)/width);
 }
 
 

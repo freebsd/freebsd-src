@@ -109,6 +109,10 @@ static int yylex PARAMS ((void));
 
 void yyerror PARAMS ((char *));
 
+static void growbuf_by_size PARAMS ((int));
+
+static int match_string_literal PARAMS ((void));
+
 %}
 
 /* Although the yacc "value" of an expression is not used,
@@ -639,7 +643,7 @@ parse_number (p, len, parsed_float, putithere)
   register int base = input_radix;
   int unsigned_p = 0;
   int long_p = 0;
-  unsigned LONGEST high_bit;
+  ULONGEST high_bit;
   struct type *signed_type;
   struct type *unsigned_type;
 
@@ -741,13 +745,13 @@ parse_number (p, len, parsed_float, putithere)
        && ((n >> 2) >> (TARGET_INT_BIT-2)))   /* Avoid shift warning */
       || long_p)
     {
-      high_bit = ((unsigned LONGEST)1) << (TARGET_LONG_BIT-1);
+      high_bit = ((ULONGEST)1) << (TARGET_LONG_BIT-1);
       unsigned_type = builtin_type_unsigned_long;
       signed_type = builtin_type_long;
     }
   else 
     {
-      high_bit = ((unsigned LONGEST)1) << (TARGET_INT_BIT-1);
+      high_bit = ((ULONGEST)1) << (TARGET_INT_BIT-1);
       unsigned_type = builtin_type_unsigned_int;
       signed_type = builtin_type_int;
     }    

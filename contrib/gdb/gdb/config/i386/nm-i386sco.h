@@ -35,12 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 extern int
 i386_register_u_addr PARAMS ((int, int));
 
-/*
- * SysV doesn't always have a <ptrace.h> or <sys/ptrace.h> file
- * (why, I don't know), and we don't need it.
- */
-#define NO_PTRACE_H
-
 /* When calling functions on SCO, sometimes we get an error writing some
    of the segment registers.  This would appear to be a kernel
    bug/non-feature.  */

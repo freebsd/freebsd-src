@@ -154,7 +154,28 @@ struct obj_section {
 
   /* Objfile this section is part of.  */
   struct objfile *objfile;
+
+  /* True if this "overlay section" is mapped into an "overlay region". */
+  int ovly_mapped;
 };
+
+/* An import entry contains information about a symbol that
+   is used in this objfile but not defined in it, and so needs
+   to be imported from some other objfile */
+/* Currently we just store the name; no attributes. 1997-08-05 */ 
+typedef char * ImportEntry;
+
+
+/* An export entry contains information about a symbol that
+   is defined in this objfile and available for use in other
+   objfiles */ 
+typedef struct {
+  char * name; /* name of exported symbol */ 
+  int address; /* offset subject to relocation */ 
+  /* Currently no other attributes 1997-08-05 */ 
+} ExportEntry;
+
+
 
 /* The "objstats" structure provides a place for gdb to record some
    interesting information about its internal state at runtime, on a
@@ -215,6 +236,22 @@ struct objfile
   /* The object file's name.  Malloc'd; free it if you free this struct.  */
 
   char *name;
+
+  /* TRUE if this objfile was created because the user explicitly caused
+     it (e.g., used the add-symbol-file command).
+     */
+  int  user_loaded;
+
+  /* TRUE if this objfile was explicitly created to represent a solib.
+
+     (If FALSE, the objfile may actually be a solib.  This can happen if
+     the user created the objfile by using the add-symbol-file command.
+     GDB doesn't in that situation actually check whether the file is a
+     solib.  Rather, the target's implementation of the solib interface
+     is responsible for setting this flag when noticing solibs used by
+     an inferior.)
+     */
+  int  is_solib;
 
   /* Some flag bits for this objfile. */
 
@@ -316,7 +353,7 @@ struct objfile
   /* Information about stabs.  Will be filled in with a dbx_symfile_info
      struct by those readers that need it. */
 
-  PTR sym_stab_info;
+  struct dbx_symfile_info *sym_stab_info;
 
   /* Hook for information for use by the symbol reader (currently used
      for information shared by sym_init and sym_read).  It is
@@ -355,6 +392,14 @@ struct objfile
   /* two auxiliary fields, used to hold the fp of separate symbol files */
   FILE *auxf1, *auxf2;
 
+  /* Imported symbols */
+  ImportEntry * import_list;
+  int import_list_size;
+
+  /* Exported symbols */
+  ExportEntry * export_list;
+  int export_list_size;
+
   /* Place to stash various statistics about this objfile */
   OBJSTATS;
 };
@@ -385,7 +430,12 @@ struct objfile
    To avoid this penalty for normal object files, we use this flag,
    whose setting is determined upon symbol table read in.  */
 
-#define OBJF_REORDERED	(2 << 1)	/* Functions are reordered */
+#define OBJF_REORDERED	(1 << 2)	/* Functions are reordered */
+                       
+/* Distinguish between an objfile for a shared library and a
+   "vanilla" objfile. */
+
+#define OBJF_SHARED     (1 << 3)        /* From a shared library */
 
 /* The object file that the main symbol table was loaded from (e.g. the
    argument to the "symbol-file" or "file" command).  */
@@ -420,7 +470,7 @@ extern struct objfile *object_files;
 /* Declarations for functions defined in objfiles.c */
 
 extern struct objfile *
-allocate_objfile PARAMS ((bfd *, int));
+allocate_objfile PARAMS ((bfd *, int, int, int));
 
 extern int
 build_objfile_section_table PARAMS ((struct objfile *));
@@ -445,6 +495,13 @@ have_partial_symbols PARAMS ((void));
 extern int
 have_full_symbols PARAMS ((void));
 
+/* This operation deletes all objfile entries that represent solibs that
+   weren't explicitly loaded by the user, via e.g., the add-symbol-file
+   command.
+   */
+extern void
+objfile_purge_solibs PARAMS ((void));
+
 /* Functions for dealing with the minimal symbol table, really a misc
    address<->symbol mapping for things we don't have debug symbols for.  */
 
@@ -453,6 +510,12 @@ have_minimal_symbols PARAMS ((void));
 
 extern struct obj_section *
 find_pc_section PARAMS((CORE_ADDR pc));
+
+extern struct obj_section *
+find_pc_sect_section PARAMS((CORE_ADDR pc, asection *section));
+
+extern int
+in_plt_section PARAMS ((CORE_ADDR, char *));
 
 /* Traverse all object files.  ALL_OBJFILES_SAFE works even if you delete
    the objfile during the traversal.  */
@@ -498,5 +561,12 @@ find_pc_section PARAMS((CORE_ADDR pc));
   ALL_OBJFILES (objfile)	 \
     if ((objfile)->msymbols)	 \
       ALL_OBJFILE_MSYMBOLS (objfile, m)
+
+#define ALL_OBJFILE_OSECTIONS(objfile, osect)	\
+  for (osect = objfile->sections; osect < objfile->sections_end; osect++)
+
+#define ALL_OBJSECTIONS(objfile, osect)		\
+  ALL_OBJFILES (objfile)			\
+    ALL_OBJFILE_OSECTIONS (objfile, osect)
 
 #endif	/* !defined (OBJFILES_H) */

@@ -1,5 +1,5 @@
 /* Definitions for dealing with stack frames, for GDB, the GNU debugger.
-   Copyright 1986, 1989, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1986, 1989, 1991, 1992, 1999 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -19,6 +19,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if !defined (FRAME_H)
 #define FRAME_H 1
+
+/* Describe the saved registers of a frame.  */
+
+#if defined (EXTRA_FRAME_INFO) || defined (FRAME_FIND_SAVED_REGS)
+/* XXXX - deprecated */
+struct frame_saved_regs
+  {
+
+    /* For each register, address of where it was saved on entry to
+       the frame, or zero if it was not saved on entry to this frame.
+       This includes special registers such as pc and fp saved in
+       special ways in the stack frame.  The SP_REGNUM is even more
+       special, the address here is the sp for the next frame, not the
+       address where the sp was saved.  */
+
+    CORE_ADDR regs[NUM_REGS];
+  };
+#endif
 
 /* We keep a cache of stack frames, each of which is a "struct
    frame_info".  The innermost one gets allocated (in
@@ -53,34 +71,54 @@ struct frame_info
        set this to prevent us from trying to print it like a normal frame.  */
     int signal_handler_caller;
 
-    /* Anything extra for this structure that may have been defined
-       in the machine dependent files. */
-#ifdef EXTRA_FRAME_INFO
-    EXTRA_FRAME_INFO
-#endif
-
-    /* We should probably also store a "struct frame_saved_regs" here.
-       This is already done by some machines (e.g. config/m88k/tm-m88k.h)
-       but there is no reason it couldn't be general.  */
-
-    /* Pointers to the next and previous frame_info's in the frame cache.  */
-   struct frame_info *next, *prev;
-  };
-
-/* Describe the saved registers of a frame.  */
-
-struct frame_saved_regs
-  {
-
     /* For each register, address of where it was saved on entry to
        the frame, or zero if it was not saved on entry to this frame.
        This includes special registers such as pc and fp saved in
        special ways in the stack frame.  The SP_REGNUM is even more
        special, the address here is the sp for the next frame, not the
        address where the sp was saved.  */
+    /* Allocated by frame_saved_regs_zalloc () which is called /
+       initialized by FRAME_INIT_SAVED_REGS(). */
+    CORE_ADDR *saved_regs; /*NUM_REGS*/
 
-    CORE_ADDR regs[NUM_REGS];
+#ifdef EXTRA_FRAME_INFO
+    /* XXXX - deprecated */
+    /* Anything extra for this structure that may have been defined
+       in the machine dependent files. */
+    EXTRA_FRAME_INFO
+#endif
+
+    /* Anything extra for this structure that may have been defined
+       in the machine dependent files. */
+    /* Allocated by frame_obstack_alloc () which is called /
+       initialized by INIT_EXTRA_FRAME_INFO */
+    struct frame_extra_info *extra_info;
+
+    /* Pointers to the next and previous frame_info's in the frame cache.  */
+   struct frame_info *next, *prev;
   };
+
+/* Allocate additional space for appendices to a struct frame_info. */
+
+#ifndef SIZEOF_FRAME_SAVED_REGS
+#define SIZEOF_FRAME_SAVED_REGS (sizeof (CORE_ADDR) * (NUM_REGS))
+#endif
+extern void *frame_obstack_alloc PARAMS ((unsigned long size));
+extern void frame_saved_regs_zalloc PARAMS ((struct frame_info *));
+
+/* Dummy frame.  This saves the processor state just prior to setting up the
+   inferior function call.  On most targets, the registers are saved on the
+   target stack, but that really slows down function calls.  */
+
+struct dummy_frame
+{
+  struct dummy_frame *next;
+
+  CORE_ADDR pc;
+  CORE_ADDR fp;
+  CORE_ADDR sp;
+  char regs[REGISTER_BYTES];
+};
 
 /* Return the frame address from FR.  Except in the machine-dependent
    *FRAME* macros, a frame address has no defined meaning other than
@@ -101,29 +139,25 @@ struct frame_saved_regs
    is the outermost one and has no caller.
 
    If a particular target needs a different definition, then it can override
-   the definition here by providing one in the tm file. */
+   the definition here by providing one in the tm file.
+
+   XXXX - both default and alternate frame_chain_valid functions are
+   deprecated.  New code should use generic dummy frames. */
+
+extern int default_frame_chain_valid PARAMS ((CORE_ADDR, struct frame_info *));
+extern int alternate_frame_chain_valid PARAMS ((CORE_ADDR, struct frame_info *));
+extern int nonnull_frame_chain_valid PARAMS ((CORE_ADDR, struct frame_info *));
+extern int generic_frame_chain_valid PARAMS ((CORE_ADDR, struct frame_info *));
 
 #if !defined (FRAME_CHAIN_VALID)
-
-#if defined (FRAME_CHAIN_VALID_ALTERNATE)
-
+#if !defined (FRAME_CHAIN_VALID_ALTERNATE)
+#define FRAME_CHAIN_VALID(chain, thisframe) default_frame_chain_valid (chain, thisframe)
+#else
 /* Use the alternate method of avoiding running up off the end of the frame
    chain or following frames back into the startup code.  See the comments
    in objfiles.h. */
-   
-#define FRAME_CHAIN_VALID(chain, thisframe)	\
-  ((chain) != 0					\
-   && !inside_main_func ((thisframe) -> pc)	\
-   && !inside_entry_func ((thisframe) -> pc))
-
-#else
-
-#define FRAME_CHAIN_VALID(chain, thisframe)	\
-  ((chain) != 0					\
-   && !inside_entry_file (FRAME_SAVED_PC (thisframe)))
-
+#define FRAME_CHAIN_VALID(chain, thisframe) alternate_frame_chain_valid (chain,thisframe)
 #endif	/* FRAME_CHAIN_VALID_ALTERNATE */
-
 #endif	/* FRAME_CHAIN_VALID */
 
 /* The stack frame that the user has specified for commands to act on.
@@ -145,9 +179,14 @@ extern void flush_cached_frames PARAMS ((void));
 
 extern void reinit_frame_cache PARAMS ((void));
 
+
+#ifdef FRAME_FIND_SAVED_REGS
+/* XXX - deprecated */
+#define FRAME_INIT_SAVED_REGS(FI) get_frame_saved_regs (FI, NULL)
 extern void get_frame_saved_regs PARAMS ((struct frame_info *,
 					  struct frame_saved_regs *));
-
+#endif
+  
 extern void set_current_frame PARAMS ((struct frame_info *));
 
 extern struct frame_info *get_prev_frame PARAMS ((struct frame_info *));
@@ -170,6 +209,8 @@ extern CORE_ADDR get_pc_function_start PARAMS ((CORE_ADDR));
 
 extern struct block * block_for_pc PARAMS ((CORE_ADDR));
 
+extern struct block * block_for_pc_sect PARAMS ((CORE_ADDR, asection *));
+
 extern int frameless_look_for_prologue PARAMS ((struct frame_info *));
 
 extern void print_frame_args PARAMS ((struct symbol *, struct frame_info *,
@@ -179,11 +220,19 @@ extern struct frame_info *find_relative_frame PARAMS ((struct frame_info *, int*
 
 extern void print_stack_frame PARAMS ((struct frame_info *, int, int));
 
+extern void print_only_stack_frame PARAMS ((struct frame_info *, int, int));
+
+extern void show_stack_frame PARAMS ((struct frame_info *));
+
 extern void select_frame PARAMS ((struct frame_info *, int));
 
 extern void record_selected_frame PARAMS ((CORE_ADDR *, int *));
 
+extern void select_and_print_frame PARAMS ((struct frame_info *, int));
+
 extern void print_frame_info PARAMS ((struct frame_info *, int, int, int));
+
+extern void show_frame_info PARAMS ((struct frame_info *, int, int, int));
 
 extern CORE_ADDR find_saved_register PARAMS ((struct frame_info *, int));
 
@@ -192,5 +241,24 @@ extern struct frame_info *block_innermost_frame PARAMS ((struct block *));
 extern struct frame_info *find_frame_addr_in_frame_chain PARAMS ((CORE_ADDR));
 
 extern CORE_ADDR sigtramp_saved_pc PARAMS ((struct frame_info *));
+
+extern CORE_ADDR generic_read_register_dummy PARAMS ((CORE_ADDR pc, 
+						      CORE_ADDR fp, 
+						      int));
+extern void      generic_push_dummy_frame    PARAMS ((void));
+extern void      generic_pop_current_frame   PARAMS ((void (*) (struct frame_info *)));
+extern void      generic_pop_dummy_frame     PARAMS ((void));
+
+extern int       generic_pc_in_call_dummy    PARAMS ((CORE_ADDR pc, 
+						      CORE_ADDR fp));
+extern char *    generic_find_dummy_frame    PARAMS ((CORE_ADDR pc, 
+						      CORE_ADDR fp));
+
+#ifdef __GNUC__
+/* Some native compilers, even ones that are supposed to be ANSI and for which __STDC__
+   is true, complain about forward decls of enums. */
+enum lval_type;
+extern void	 generic_get_saved_register  PARAMS ((char *, int *, CORE_ADDR *, struct frame_info *, int, enum lval_type *));
+#endif
 
 #endif /* !defined (FRAME_H)  */

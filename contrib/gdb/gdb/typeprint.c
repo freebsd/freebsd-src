@@ -1,5 +1,5 @@
 /* Language independent support for printing types for GDB, the GNU debugger.
-   Copyright 1986, 1988, 1989, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright 1986, 88, 89, 91, 92, 93, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -33,6 +33,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "gdb_string.h"
 #include <errno.h>
+
+/* For real-type printing in whatis_exp() */
+extern int objectprint;		/* Controls looking up an object's derived type
+				   using what we find in its vtables.  */
 
 static void
 ptype_command PARAMS ((char *, int));
@@ -74,17 +78,31 @@ whatis_exp (exp, show)
   struct expression *expr;
   register value_ptr val;
   register struct cleanup *old_chain = NULL;
+  struct type * real_type = NULL;
+  int full = 0;
+  int top = -1;
+  int using_enc = 0;
 
   if (exp)
     {
       expr = parse_expression (exp);
-      old_chain = make_cleanup (free_current_contents, &expr);
+      old_chain = make_cleanup ((make_cleanup_func) free_current_contents, 
+                                &expr);
       val = evaluate_type (expr);
     }
   else
     val = access_value_history (0);
 
+  real_type = value_rtti_type (val, &full, &top, &using_enc);
+
   printf_filtered ("type = ");
+
+  if (real_type && objectprint)
+    printf_filtered ("/* real type = %s%s */\n",
+                     TYPE_NAME (real_type),
+                     full ? "" : " (incomplete object)");
+  /* FIXME: maybe better to use type_print (real_type, "", gdb_stdout, -1); */
+
   type_print (VALUE_TYPE (val), "", gdb_stdout, show);
   printf_filtered ("\n");
 
@@ -140,7 +158,8 @@ ptype_command (typename, from_tty)
   else
     {
       expr = parse_expression (typename);
-      old_chain = make_cleanup (free_current_contents, &expr);
+      old_chain = make_cleanup ((make_cleanup_func) free_current_contents, 
+                                &expr);
       type = ptype_eval (expr);
       if (type != NULL)
 	{
@@ -262,7 +281,7 @@ maintenance_print_type (typename, from_tty)
   if (typename != NULL)
   {
     expr = parse_expression (typename);
-    old_chain = make_cleanup (free_current_contents, &expr);
+    old_chain = make_cleanup ((make_cleanup_func) free_current_contents, &expr);
     if (expr -> elts[0].opcode == OP_TYPE)
       {
 	/* The user expression names a type directly, just use that type. */

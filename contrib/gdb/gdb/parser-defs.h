@@ -112,6 +112,10 @@ extern void write_exp_msymbol PARAMS ((struct minimal_symbol *,
 
 extern void write_dollar_variable PARAMS ((struct stoken str));
 
+extern struct symbol * parse_nested_classes_for_hpacc PARAMS ((char *, int, char **, int *, char **));
+
+extern char * find_template_name_end PARAMS ((char *));
+
 extern void
 start_arglist PARAMS ((void));
 
@@ -132,6 +136,9 @@ pop_type PARAMS ((void));
 
 extern int
 pop_type_int PARAMS ((void));
+
+extern int
+length_of_subexp PARAMS ((struct expression *, int));
 
 extern struct type *follow_types PARAMS ((struct type *));
 

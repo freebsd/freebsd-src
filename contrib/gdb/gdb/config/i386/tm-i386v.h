@@ -100,8 +100,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #undef  STORE_STRUCT_RETURN
 #define STORE_STRUCT_RETURN(ADDR, SP) \
-  { (SP) -= sizeof (ADDR);		\
-    write_memory ((SP), (char *) &(ADDR), sizeof (ADDR)); }
+  { char buf[REGISTER_SIZE];	\
+    (SP) -= sizeof (ADDR);	\
+    store_address (buf, sizeof (ADDR), ADDR);	\
+    write_memory ((SP), buf, sizeof (ADDR)); }
 
 /* Extract from an array REGBUF containing the (raw) register state
    a function return value of type TYPE, and copy that, in virtual format,

@@ -18,6 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
+#if !defined (COMPLAINTS_H)
+#define COMPLAINTS_H
+
+
 /* Support for complaining about things in the symbol file that aren't
    catastrophic.
 
@@ -44,3 +48,6 @@ complain PARAMS ((struct complaint *, ...));
 
 extern void
 clear_complaints PARAMS ((int, int));
+
+
+#endif	/* !defined (COMPLAINTS_H) */
