@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.5.2.13 1998/11/18 16:47:50 wpaul Exp $
+ *	$Id: if_xl.c,v 1.62 1998/12/10 00:55:04 wpaul Exp $
  */
 
 /*
@@ -154,9 +154,9 @@
 
 #include <pci/if_xlreg.h>
 
-#ifndef lint
-static char rcsid[] =
-	"$Id: if_xl.c,v 1.5.2.13 1998/11/18 16:47:50 wpaul Exp $";
+#if !defined(lint)
+static const char rcsid[] =
+	"$Id: if_xl.c,v 1.62 1998/12/10 00:55:04 wpaul Exp $";
 #endif
 
 /*
@@ -233,14 +233,14 @@ static void xl_mii_send		__P((struct xl_softc *, u_int32_t, int));
 static int xl_mii_readreg	__P((struct xl_softc *, struct xl_mii_frame *));
 static int xl_mii_writereg	__P((struct xl_softc *, struct xl_mii_frame *));
 static u_int16_t xl_phy_readreg	__P((struct xl_softc *, int));
-static void xl_phy_writereg	__P((struct xl_softc *, u_int16_t, u_int16_t));
+static void xl_phy_writereg	__P((struct xl_softc *, int, int));
 
 static void xl_autoneg_xmit	__P((struct xl_softc *));
 static void xl_autoneg_mii	__P((struct xl_softc *, int, int));
 static void xl_setmode_mii	__P((struct xl_softc *, int));
 static void xl_getmode_mii	__P((struct xl_softc *));
 static void xl_setmode		__P((struct xl_softc *, int));
-static u_int8_t xl_calchash	__P((u_int8_t *));
+static u_int8_t xl_calchash	__P((caddr_t));
 static void xl_setmulti		__P((struct xl_softc *));
 static void xl_reset		__P((struct xl_softc *));
 static int xl_list_rx_init	__P((struct xl_softc *));
@@ -510,8 +510,8 @@ static u_int16_t xl_phy_readreg(sc, reg)
 
 static void xl_phy_writereg(sc, reg, data)
 	struct xl_softc		*sc;
-	u_int16_t		reg;
-	u_int16_t		data;
+	int			reg;
+	int			data;
 {
 	struct xl_mii_frame	frame;
 
@@ -600,7 +600,7 @@ static int xl_read_eeprom(sc, dest, off, cnt, swap)
  * On older cards, the upper 2 bits will be ignored. Grrrr....
  */
 static u_int8_t xl_calchash(addr)
-	u_int8_t		*addr;
+	caddr_t			addr;
 {
 	u_int32_t		crc, carry;
 	int			i, j;
@@ -1912,8 +1912,6 @@ static void xl_txeof(sc)
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
-		if (!cur_tx->xl_ptr->xl_next);
-			break;
 	}
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
