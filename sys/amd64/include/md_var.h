@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.20 1997/11/20 19:30:34 bde Exp $
+ *	$Id: md_var.h,v 1.21 1998/01/15 07:32:56 gibbs Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -82,6 +82,7 @@ void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 void	userconfig __P((void));
 void	vm_bounce_init __P((void));
 int	vm_page_zero_idle __P((void));
+void	swi_vm __P((void));
 void	busdma_swi __P((void));
 
 #ifdef PC98
