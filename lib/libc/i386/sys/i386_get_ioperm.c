@@ -23,24 +23,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: i386_get_ioperm.c,v 1.1 1998/07/28 03:39:03 jlemon Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: i386_get_ioperm.c,v 1.1 1998/07/28 03:39:03 jlemon Exp $";
 #endif /* LIBC_RCS and not lint */
 
-#include <sys/types.h>
 #include <machine/sysarch.h>
 
 struct parms {
-	u_int 		start;
-        u_int		length;
+	unsigned int 	start;
+	unsigned int	length;
         int	 	enable;
 };
 
 int
-i386_get_ioperm(u_int start, u_int *length, int *enable)
+i386_get_ioperm(unsigned int start, unsigned int *length, int *enable)
 {
 	struct parms p;
 	int error;
