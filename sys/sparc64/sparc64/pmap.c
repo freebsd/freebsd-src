@@ -1146,9 +1146,6 @@ pmap_remove_all(vm_page_t m)
 	vm_offset_t va;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-	   ("pmap_remove_all: illegal for unmanaged/fake page %#lx",
-	   VM_PAGE_TO_PHYS(m)));
 	for (tp = TAILQ_FIRST(&m->md.tte_list); tp != NULL; tp = tpn) {
 		tpn = TAILQ_NEXT(tp, tte_link);
 		if ((tp->tte_data & TD_PV) == 0)
