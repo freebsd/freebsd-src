@@ -692,6 +692,11 @@ lptread(dev_t dev, struct uio *uio, int ioflag)
 	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
 	int error = 0, len;
 
+	if (sc->sc_flags & LP_BYPASS) {
+		/* we can't do reads in bypass mode */
+		return (EPERM);
+	}
+
 	if ((error = ppb_1284_negociate(&sc->lpt_dev, PPB_NIBBLE, 0)))
 		return (error);
 
