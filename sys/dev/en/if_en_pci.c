@@ -45,18 +45,15 @@
  * thanks to Matt Thomas for figuring out FreeBSD vs NetBSD vs etc.. diffs.
  */
 
-#include "en.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#if defined(__FreeBSD__)
-#include <sys/eventhandler.h>
-#endif
-#include <sys/malloc.h>
 #include <sys/socket.h>
 
+#include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/if.h>
 
@@ -66,18 +63,14 @@
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 
-#ifndef COMPAT_OLDPCI
-#error "The en device requires the old pci compatibility shims"
-#endif
-
-
 /*
  * prototypes
  */
 
-static	void en_pci_attach __P((pcici_t, int));
-static	const char *en_pci_probe __P((pcici_t, pcidi_t));
-static void en_pci_shutdown __P((void *, int));
+static	int en_pci_probe __P((device_t));
+static	int en_pci_attach __P((device_t));
+static	int en_pci_detach __P((device_t));
+static	int en_pci_shutdown __P((device_t));
 
 /*
  * local structures
@@ -87,40 +80,18 @@ struct en_pci_softc {
   /* bus independent stuff */
   struct en_softc esc;		/* includes "device" structure */
 
-  /* PCI bus glue */
-  void *sc_ih;			/* interrupt handle */
-  pcici_t en_confid;		/* config id */
+  /* freebsd newbus glue */
+  struct resource *res;		/* resource descriptor for registers */
+  struct resource *irq;		/* resource descriptor for interrupt */
+  void *ih;			/* interrupt handle */
 };
 
 #if !defined(MIDWAY_ENIONLY)
-static  void eni_get_macaddr __P((struct en_pci_softc *));
+static  void eni_get_macaddr __P((device_t, struct en_pci_softc *));
 #endif
 #if !defined(MIDWAY_ADPONLY)
 static  void adp_get_macaddr __P((struct en_pci_softc *));
 #endif
-
-/*
- * pointers to softcs (we alloc)
- */
-
-static struct en_pci_softc *enpcis[NEN] = {0};
-extern struct cfdriver en_cd;
-
-/*
- * autoconfig structures
- */
-
-static u_long en_pci_count;
-
-static struct pci_device endevice = {
-	"en",
-	en_pci_probe,
-	en_pci_attach,
-	&en_pci_count,
-	NULL,
-};  
-
-COMPAT_PCI_DRIVER (en, endevice);
 
 /*
  * local defines (PCI specific stuff)
@@ -197,94 +168,104 @@ void *v;
  * autoconfig stuff
  */
 
-static const char *en_pci_probe(config_id, device_id)
-
-pcici_t config_id;
-pcidi_t device_id;
-
+static int
+en_pci_probe(device_t dev)
 {
+  switch (pci_get_vendor(dev)) {
 #if !defined(MIDWAY_ADPONLY)
-  if (PCI_VENDOR(device_id) == PCI_VENDOR_EFFICIENTNETS && 
-      (PCI_CHIPID(device_id) == PCI_PRODUCT_EFFICIENTNETS_ENI155PF ||
-       PCI_CHIPID(device_id) == PCI_PRODUCT_EFFICIENTNETS_ENI155PA))
-    return "Efficient Networks ENI-155p";
+  case PCI_VENDOR_EFFICIENTNETS:
+    switch (pci_get_device(dev)) {
+    case PCI_PRODUCT_EFFICIENTNETS_ENI155PF:
+    case PCI_PRODUCT_EFFICIENTNETS_ENI155PA:
+      device_set_desc(dev, "Efficient Networks ENI-155p");
+      return 0;
+    }
+    break;
 #endif
-
 #if !defined(MIDWAY_ENIONLY)
-  if (PCI_VENDOR(device_id) == PCI_VENDOR_ADP && 
-      (PCI_CHIPID(device_id) == PCI_PRODUCT_ADP_AIC5900 ||
-       PCI_CHIPID(device_id) == PCI_PRODUCT_ADP_AIC5905))
-    return "Adaptec 155 ATM";
+  case PCI_VENDOR_ADP:
+    switch (pci_get_device(dev)) {
+    case PCI_PRODUCT_ADP_AIC5900:
+    case PCI_PRODUCT_ADP_AIC5905:
+      device_set_desc(dev, "Adaptec 155 ATM");
+      return 0;
+    }
+    break;
 #endif
-
-  return 0;
+  }
+  return ENXIO;
 }
 
-static void en_pci_attach(config_id, unit)
-
-pcici_t config_id;
-int unit;
-
+static int
+en_pci_attach(device_t dev)
 {
   struct en_softc *sc;
   struct en_pci_softc *scp;
-  pcidi_t device_id;
-  int retval;
-  vm_offset_t pa;
+  u_long val;
+  int rid, s, unit, error = 0;
 
-  if (unit >= NEN) {
-    printf("en%d: not configured; kernel is built for only %d device%s.\n",
-	unit, NEN, NEN == 1 ? "" : "s");
-    return;
-  }
-
-  scp = (struct en_pci_softc *) malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT);
-  if (scp == NULL)
-    return;
+  sc = device_get_softc(dev);
+  scp = (struct en_pci_softc *)sc;
   bzero(scp, sizeof(*scp));		/* zero */
-  sc = &scp->esc;
 
-  retval = pci_map_mem(config_id, PCI_CBMA, (vm_offset_t *) &sc->en_base, &pa);
+  s = splimp();
 
-  if (!retval) {
-    free((caddr_t) scp, M_DEVBUF);
-    return;
+  /*
+   * Enable bus mastering.
+   */
+  val = pci_read_config(dev, PCIR_COMMAND, 2);
+  val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+  pci_write_config(dev, PCIR_COMMAND, val, 2);
+
+  /*
+   * Map control/status registers.
+   */
+  rid = PCI_CBMA;
+  scp->res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				0, ~0, 1, RF_ACTIVE);
+  if (!scp->res) {
+    device_printf(dev, "could not map memory\n");
+    error = ENXIO;
+    goto fail;
   }
-  enpcis[unit] = scp;			/* lock it in */
-  en_cd.cd_devs[unit] = sc;		/* fake a cfdriver structure */
-  en_cd.cd_ndevs = NEN;
+
+  sc->en_memt = rman_get_bustag(scp->res);
+  sc->en_base = rman_get_bushandle(scp->res);
+  
+  /*
+   * Allocate our interrupt.
+   */
+  rid = 0;
+  scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				RF_SHAREABLE | RF_ACTIVE);
+  if (scp->irq == NULL) {
+    device_printf(dev, "could not map interrupt\n");
+    bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
+    error = ENXIO;
+    goto fail;
+  }
+
+  error = bus_setup_intr(dev, scp->irq, INTR_TYPE_NET,
+			 en_intr, sc, &scp->ih);
+  if (error) {
+    device_printf(dev, "could not setup irq\n");
+    bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
+    bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
+    goto fail;
+  }
+  sc->ipl = 1; /* XXX (required to enable interrupt on midway) */
+
+  unit = device_get_unit(dev);
   snprintf(sc->sc_dev.dv_xname, sizeof(sc->sc_dev.dv_xname), "en%d", unit);
   sc->enif.if_unit = unit;
   sc->enif.if_name = "en";
-  scp->en_confid = config_id;
 
-  /*
-   * figure out if we are an adaptec card or not.
-   * XXX: why do we have to re-read PC_ID_REG when en_pci_probe already
-   * had that info?
-   */
-
-  device_id = pci_conf_read(config_id, PCI_ID_REG);
-  sc->is_adaptec = (PCI_VENDOR(device_id) == PCI_VENDOR_ADP) ? 1 : 0;
+  /* figure out if we are an adaptec card or not */
+  sc->is_adaptec = (pci_get_vendor(dev) == PCI_VENDOR_ADP) ? 1 : 0;
   
-  /*
-   * Add shutdown hook so that DMA is disabled prior to reboot. Not
-   * doing so could allow DMA to corrupt kernel memory during the
-   * reboot before the driver initializes.
-   */
-  EVENTHANDLER_REGISTER(shutdown_post_sync, en_pci_shutdown, scp,
-			SHUTDOWN_PRI_DEFAULT);
-
-  if (!pci_map_int(config_id, en_intr, (void *) sc, &net_imask)) {
-    printf("%s: couldn't establish interrupt\n", sc->sc_dev.dv_xname);
-    return;
-  }
-  sc->ipl = 1; /* XXX */
-
   /*
    * set up pci bridge
    */
-
 #if !defined(MIDWAY_ENIONLY)
   if (sc->is_adaptec) {
     adp_get_macaddr(scp);
@@ -295,9 +276,9 @@ int unit;
 
 #if !defined(MIDWAY_ADPONLY)
   if (!sc->is_adaptec) {
-    eni_get_macaddr(scp);
+    eni_get_macaddr(dev, scp);
     sc->en_busreset = NULL;
-    pci_conf_write(config_id, EN_TONGA, (TONGA_SWAP_DMA|TONGA_SWAP_WORD));
+    pci_write_config(dev, EN_TONGA, (TONGA_SWAP_DMA|TONGA_SWAP_WORD), 4);
   }
 #endif
 
@@ -307,17 +288,60 @@ int unit;
 
   en_attach(sc);
 
+  splx(s);
+
+  return 0;
+
+ fail:
+  splx(s);
+  return error;
 }
 
-static void
-en_pci_shutdown(
-	void *sc,
-	int howto)
+static int
+en_pci_detach(device_t dev)
 {
-    struct en_pci_softc *psc = (struct en_pci_softc *)sc;
-    
+	struct en_softc *sc = device_get_softc(dev);
+	struct en_pci_softc *scp = (struct en_pci_softc *)sc;
+	int s;
+
+	s = splimp();
+
+	/*
+	 * Close down routes etc.
+	 */
+	if_detach(&sc->enif);
+
+	/*
+	 * Stop DMA and drop transmit queue.
+	 */
+	en_reset(sc);
+
+	/*
+	 * Deallocate resources.
+	 */
+	bus_teardown_intr(dev, scp->irq, scp->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
+
+#ifdef notyet
+	/*
+	 * Free all the driver internal resources
+	 */
+#endif
+
+	splx(s);
+
+	return 0;
+}
+
+static int
+en_pci_shutdown(device_t dev)
+{
+    struct en_pci_softc *psc = (struct en_pci_softc *)device_get_softc(dev);
+
     en_reset(&psc->esc);
-    DELAY(10);
+    DELAY(10);	/* is this necessary? */
+    return (0);
 }
 
 #if !defined(MIDWAY_ENIONLY)
@@ -335,8 +359,8 @@ adp_get_macaddr(scp)
   int lcv;
 
   for (lcv = 0; lcv < sizeof(sc->macaddr); lcv++)
-    sc->macaddr[lcv] = bus_space_read_1(sc->en_memt, sc->en_base,
-					MID_ADPMACOFF + lcv);
+	  sc->macaddr[lcv] = bus_space_read_1(sc->en_memt, sc->en_base,
+					      MID_ADPMACOFF + lcv);
 }
 
 #endif /* MIDWAY_ENIONLY */
@@ -353,90 +377,109 @@ adp_get_macaddr(scp)
 #define EN_ESI         64
 
 static void 
-eni_get_macaddr(scp)
-     struct en_pci_softc *scp;
+eni_get_macaddr(device_t dev, struct en_pci_softc *scp)
 {
   struct en_softc * sc = (struct en_softc *)scp;
-  pcici_t id = scp->en_confid;
   int i, j, address, status;
   u_int32_t data, t_data;
   u_int8_t tmp;
   
-  t_data = pci_conf_read(id, EN_TONGA) & 0xffffff00;
+  t_data = pci_read_config(dev, EN_TONGA, 4) & 0xffffff00;
 
   data =  EN_PROM_MAGIC | EN_PROM_DATA | EN_PROM_CLK;
-  pci_conf_write(id, EN_TONGA, data);
+  pci_write_config(dev, EN_TONGA, data, 4);
 
   for (i = 0; i < sizeof(sc->macaddr); i ++){
     /* start operation */
     data |= EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data |= EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data &= ~EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data &= ~EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     /* send address with serial line */
     address = ((i + EN_ESI) << 1) + 1;
     for ( j = 7 ; j >= 0 ; j --){
       data = (address >> j) & 1 ? data | EN_PROM_DATA :
       data & ~EN_PROM_DATA;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
       data |= EN_PROM_CLK ;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
       data &= ~EN_PROM_CLK ;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
     }
     /* get ack */
     data |= EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data |= EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
-    data = pci_conf_read(id, EN_TONGA);
+    pci_write_config(dev, EN_TONGA, data, 4);
+    data = pci_read_config(dev, EN_TONGA, 4);
     status = data & EN_PROM_DATA;
     data &= ~EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data |= EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
 
     tmp = 0;
 
     for ( j = 7 ; j >= 0 ; j --){
       tmp <<= 1;
       data |= EN_PROM_DATA ;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
       data |= EN_PROM_CLK ;
-      pci_conf_write(id, EN_TONGA, data);
-      data = pci_conf_read(id, EN_TONGA);
+      pci_write_config(dev, EN_TONGA, data, 4);
+      data = pci_read_config(dev, EN_TONGA, 4);
       if(data & EN_PROM_DATA) tmp |= 1;
       data &= ~EN_PROM_CLK ;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
       data |= EN_PROM_DATA ;
-      pci_conf_write(id, EN_TONGA, data);
+      pci_write_config(dev, EN_TONGA, data, 4);
     }
     /* get ack */
     data |= EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data |= EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
-    data = pci_conf_read(id, EN_TONGA);
+    pci_write_config(dev, EN_TONGA, data, 4);
+    data = pci_read_config(dev, EN_TONGA, 4);
     status = data & EN_PROM_DATA;
     data &= ~EN_PROM_CLK ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
     data |= EN_PROM_DATA ;
-    pci_conf_write(id, EN_TONGA, data);
+    pci_write_config(dev, EN_TONGA, data, 4);
 
     sc->macaddr[i] = tmp;
   }
   /* stop operation */
   data &=  ~EN_PROM_DATA;
-  pci_conf_write(id, EN_TONGA, data);
+  pci_write_config(dev, EN_TONGA, data, 4);
   data |=  EN_PROM_CLK;
-  pci_conf_write(id, EN_TONGA, data);
+  pci_write_config(dev, EN_TONGA, data, 4);
   data |=  EN_PROM_DATA;
-  pci_conf_write(id, EN_TONGA, data);
-  pci_conf_write(id, EN_TONGA, t_data);
+  pci_write_config(dev, EN_TONGA, data, 4);
+  pci_write_config(dev, EN_TONGA, t_data, 4);
 }
 
 #endif /* !MIDWAY_ADPONLY */
+
+static device_method_t en_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		en_pci_probe),
+	DEVMETHOD(device_attach,	en_pci_attach),
+	DEVMETHOD(device_detach,	en_pci_detach),
+	DEVMETHOD(device_shutdown,	en_pci_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t en_driver = {
+	"en",
+	en_methods,
+	sizeof(struct en_pci_softc),
+};
+
+static devclass_t en_devclass;
+
+DRIVER_MODULE(if_en, pci, en_driver, en_devclass, 0, 0);
+
