@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam.h#15 $
+ * $P4: //depot/projects/openpam/include/security/openpam.h#16 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -208,6 +208,46 @@ struct pam_module {
 };
 
 /*
+ * Source-code compatibility with Linux-PAM modules
+ */
+#if defined(PAM_SM_AUTH) || defined(PAM_SM_ACCOUNT) || \
+	defined(PAM_SM_SESSION) || defined(PAM_SM_PASSWORD)
+#define LINUX_PAM_MODULE
+#endif
+#if defined(LINUX_PAM_MODULE) && !defined(PAM_SM_AUTH)
+#define _PAM_SM_AUTHENTICATE	0
+#define _PAM_SM_SETCRED		0
+#else
+#undef PAM_SM_AUTH
+#define PAM_SM_AUTH
+#define _PAM_SM_AUTHENTICATE	pam_sm_authenticate
+#define _PAM_SM_SETCRED		pam_sm_setcred
+#endif
+#if defined(LINUX_PAM_MODULE) && !defined(PAM_SM_ACCOUNT)
+#define _PAM_SM_ACCT_MGMT	0
+#else
+#undef PAM_SM_ACCOUNT
+#define PAM_SM_ACCOUNT
+#define _PAM_SM_ACCT_MGMT	pam_sm_acct_mgmt
+#endif
+#if defined(LINUX_PAM_MODULE) && !defined(PAM_SM_SESSION)
+#define _PAM_SM_OPEN_SESSION	0
+#define _PAM_SM_CLOSE_SESSION	0
+#else
+#undef PAM_SM_SESSION
+#define PAM_SM_SESSION
+#define _PAM_SM_OPEN_SESSION	pam_sm_open_session
+#define _PAM_SM_CLOSE_SESSION	pam_sm_close_session
+#endif
+#if defined(LINUX_PAM_MODULE) && !defined(PAM_SM_PASSWORD)
+#define _PAM_SM_CHAUTHTOK	0
+#else
+#undef PAM_SM_PASSWORD
+#define PAM_SM_PASSWORD
+#define _PAM_SM_CHAUTHTOK	pam_sm_chauthtok
+#endif
+
+/*
  * Infrastructure for static modules using GCC linker sets.
  * You are not expected to understand this.
  */
@@ -227,8 +267,8 @@ struct pam_module {
 #define PAM_MODULE_ENTRY(name)						\
 static char _pam_name[] = name PAM_SOEXT;				\
 static struct pam_module _pam_module = { _pam_name, {			\
-    pam_sm_authenticate, pam_sm_setcred, pam_sm_acct_mgmt,		\
-    pam_sm_open_session, pam_sm_close_session, pam_sm_chauthtok },	\
+    _PAM_SM_AUTHENTICATE, _PAM_SM_SETCRED, _PAM_SM_ACCT_MGMT,		\
+    _PAM_SM_OPEN_SESSION, _PAM_SM_CLOSE_SESSION, _PAM_SM_CHAUTHTOK },	\
     NULL, 0, NULL, NULL };						\
 DATA_SET(_openpam_static_modules, _pam_module)
 #else

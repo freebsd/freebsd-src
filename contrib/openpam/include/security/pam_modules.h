@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_modules.h#6 $
+ * $P4: //depot/projects/openpam/include/security/pam_modules.h#7 $
  */
 
 #ifndef _PAM_MODULES_H_INCLUDED
@@ -49,41 +49,53 @@ extern "C" {
  * XSSO 4.2.2, 6
  */
 
+#if defined(PAM_SM_ACCOUNT)
 PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *_pamh,
 	int _flags,
 	int _argc,
 	const char **_argv);
+#endif
 
+#if defined(PAM_SM_AUTH)
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *_pamh,
 	int _flags,
 	int _argc,
 	const char **_argv);
+#endif
 
+#if defined(PAM_SM_PASSWORD)
 PAM_EXTERN int
 pam_sm_chauthtok(pam_handle_t *_pamh,
 	int _flags,
 	int _argc,
 	const char **_argv);
+#endif
 
+#if defined(PAM_SM_SESSION)
 PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *_pamh,
 	int _flags,
 	int _args,
 	const char **_argv);
+#endif
 
+#if defined(PAM_SM_SESSION)
 PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *_pamh,
 	int _flags,
 	int _argc,
 	const char **_argv);
+#endif
 
+#if defined(PAM_SM_AUTH)
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *_pamh,
 	int _flags,
 	int _argc,
 	const char **_argv);
+#endif
 
 /*
  * Single Sign-On extensions
