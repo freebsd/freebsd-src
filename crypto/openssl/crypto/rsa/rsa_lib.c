@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD */
+/* $FreeBSD$ */
 
 #include <stdio.h>
 #include <openssl/crypto.h>

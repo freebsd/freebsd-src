@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=0.9.7c
+VERSION=0.9.7d
 MAJOR=0
 MINOR=9.7
 SHLIB_VERSION_NUMBER=0.9.7
@@ -12,9 +12,9 @@ SHLIB_VERSION_HISTORY=
 SHLIB_MAJOR=0
 SHLIB_MINOR=9.7
 SHLIB_EXT=
-PLATFORM=VC-WIN16
+PLATFORM=dist
 OPTIONS= no-krb5
-CONFIGURE_ARGS=VC-WIN16
+CONFIGURE_ARGS=dist
 SHLIB_TARGET=
 
 # HERE indicates where this Makefile lives.  This can be used to indicate
@@ -59,9 +59,9 @@ OPENSSLDIR=/usr/local/ssl
 # equal 4.
 # PKCS1_CHECK - pkcs1 tests.
 
-CC= cl
+CC= cc
 #CFLAG= -DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized -DSHA1_ASM -DMD5_ASM -DRMD160_ASM
-CFLAG= -DOPENSSL_SYSNAME_WIN16 -DOPENSSL_NO_KRB5 
+CFLAG= -DOPENSSL_NO_KRB5 -O
 DEPFLAG= 
 PEX_LIBS= 
 EX_LIBS= 
@@ -69,7 +69,7 @@ EXE_EXT=
 ARFLAGS= 
 AR=ar $(ARFLAGS) r
 RANLIB= /usr/bin/ranlib
-PERL= /usr/local/bin/perl5
+PERL= /usr/local/bin/perl
 TAR= tar
 TARFLAGS= --no-recursion
 MAKEDEPPROG=makedepend
@@ -458,10 +458,12 @@ do_irix-shared:
 		if [ "${SHLIBDIRS}" = "ssl" -a -n "$(LIBKRB5)" ]; then \
 			libs="$(LIBKRB5) $$libs"; \
 		fi; \
-		( set -x; ${CC} ${SHARED_LDFLAGS} \
+		( WHOLELIB="-all lib$$i.a -notall"; \
+		  (${CC} -v 2>&1 | grep gcc) > /dev/null && WHOLELIB="-Wl,-all,lib$$i.a,-notall"; \
+		  set -x; ${CC} ${SHARED_LDFLAGS} \
 			-shared -o lib$$i.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 			-Wl,-soname,lib$$i.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-			-all lib$$i.a $$libs ${EX_LIBS} -lc) || exit 1; \
+			$${WHOLELIB} $$libs ${EX_LIBS} -lc) || exit 1; \
 		libs="-l$$i $$libs"; \
 		done; \
 	fi
@@ -834,7 +836,7 @@ install: all install_docs
 		fi; \
 	fi
 	cp openssl.pc $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig
-	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig
+	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig/openssl.pc
 
 install_docs:
 	@$(PERL) $(TOP)/util/mkdir-p.pl \
@@ -859,6 +861,7 @@ install_docs:
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/$$fn.$${sec}$(MANSUFFIX); \
 		$(PERL) util/extract-names.pl < $$i | \
 			grep -v $$filecase "^$$fn\$$" | \
+			grep -v "[	]" | \
 			(cd $(INSTALL_PREFIX)$(MANDIR)/man$$sec/; \
 			 while read n; do \
 				$$here/util/point.sh $$fn.$${sec}$(MANSUFFIX) "$$n".$${sec}$(MANSUFFIX); \
@@ -875,6 +878,7 @@ install_docs:
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/$$fn.$${sec}$(MANSUFFIX); \
 		$(PERL) util/extract-names.pl < $$i | \
 			grep -v $$filecase "^$$fn\$$" | \
+			grep -v "[	]" | \
 			(cd $(INSTALL_PREFIX)$(MANDIR)/man$$sec/; \
 			 while read n; do \
 				$$here/util/point.sh $$fn.$${sec}$(MANSUFFIX) "$$n".$${sec}$(MANSUFFIX); \
