@@ -479,7 +479,7 @@ ng_source_request_output_ifp(sc_p sc)
 	if (msg == NULL)
 		return (ENOBUFS);
 
-	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, NULL);
+	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, 0);
 	return (error);
 }
 
@@ -547,7 +547,7 @@ ng_source_set_autosrc(sc_p sc, u_int32_t flag)
 		return(ENOBUFS);
 
 	*(u_int32_t *)msg->data = flag;
-	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, NULL);
+	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, 0);
 	return (error);
 }
 
