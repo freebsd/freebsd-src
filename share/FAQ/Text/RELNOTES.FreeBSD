@@ -12,13 +12,14 @@ enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
 Since our release of FreeBSD 2.0 some 8 months ago, the performance,
 feature set, and stability of FreeBSD has improved dramatically.  The
-largest change is a revamped VM system with a merged VM-file buffer
+largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance, but reduces FreeBSD's
 memory footprint, making a 4MB configuration a more acceptible
 minimum.  Other enhancements include full NIS client and server
 support, transaction TCP support, dial-on-demand PPP, an improved SCSI
 subsystem, early ISDN support, support for FDDI and Fast Ethernet
-(100Mbit) adapters and many hundreds of bug fixes.
+(100Mbit) adapters, improved support for the Adaptec 2940 (WIDE and
+narrow) and many hundreds of bug fixes.
 
 We've also taken the comments and suggestions of many of our users to
 heart and have attempted to provide what we hope is a more sane and
@@ -36,9 +37,9 @@ ports, and greatly reduces the disk space demands made by the older
 directory of the program you wish to install, type make and let the
 system do the rest.  The full original distribution for each port you
 build is retrieved dynamically off of CDROM or a local ftp site, so
-you only need enough disk space to build the ports you want.  Each
+you need only enough disk space to build the ports you want.  Each
 port is also provided as a pre-compiled "package" which can be
-installed with a simple command (pkg_add) for those who do not wish to
+installed with a simple command (pkg_add) by those who do not wish to
 compile their own ports from source.  See the file:
         /usr/share/FAQ/Text/ports.FAQ
 for a more complete description of the ports collection.
@@ -165,9 +166,10 @@ Sources involved:       sys/disklabel.h sys/diskslice.h sys/dkbad.h
 
 Support for Ontrack Disk Manager Version 6.0
 --------------------------------------------
-Support has been added for disks which use Ontrack Disk Manager.
-The fdisk program does NOT know about it however, so make all changes
-using the install program on the boot.flp or using Disk Managers tool.
+Support has been added for disks which use Ontrack Disk Manager.  The
+fdisk program does NOT know about it however, so make all changes
+using the install program on the boot.flp or the Ontrack Disk Manager
+tool under DOS.
 
 Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
 
@@ -705,10 +707,17 @@ Special mention to:
         And everyone at Montana State University for their initial support.
 
 
-Thanks to everyone, especially those not mentioned, and we sincerely
-hope you enjoy this release of FreeBSD!
+Jordan would also like to give special mention to Poul-Henning Kamp
+and Gary Palmer, both of whom put in long hours helping him to
+construct the new installation utility.  Poul, being a proud new
+father, was especially pressed for time yet somehow managed to put in
+significant amount of effort anyway and this release could not have
+happened without him.  Thank you both!
+
+Thanks also to everyone else who helped, especially those not
+mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.5 1995/05/28 18:32:01 gibbs Exp $
+$Id: RELNOTES.FreeBSD,v 1.6 1995/05/28 18:56:01 phk Exp $
