@@ -181,8 +181,9 @@ acd_attach(struct ata_device *atadev)
 }
 
 static void
-acd_detach(struct ata_device *atadev)
+acd_geom_detach(void *arg, int flag)
 {   
+    struct ata_device *atadev = arg;
     struct acd_softc *cdp = atadev->softc;
     int subdev;
 
@@ -213,6 +214,12 @@ acd_detach(struct ata_device *atadev)
     atadev->softc = NULL;
     atadev->flags = 0;
     free(cdp, M_ACD);
+}
+
+static void
+acd_detach(struct ata_device *atadev)
+{   
+    g_waitfor_event(acd_geom_detach, atadev, M_WAITOK, NULL);
 }
 
 static struct acd_softc *
