@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.71 1999/06/26 14:25:03 peter Exp $
+ * $Id: buf.h,v 1.72 1999/06/27 09:13:19 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -251,15 +251,19 @@ extern char *buf_wmesg;			/* Default buffer lock message */
  */
 static __inline int BUF_LOCK __P((struct buf *, int));
 static __inline int
-BUF_LOCK (struct buf *bp, int locktype)
+BUF_LOCK(struct buf *bp, int locktype)
 {
+	int s, ret;
 
+	s = splbio();
 	simple_lock(&buftimelock);
 	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
 	bp->b_lock.lk_timo = 0;
-	return (lockmgr(&(bp)->b_lock, locktype, &buftimelock, curproc));
+	ret = lockmgr(&(bp)->b_lock, locktype, &buftimelock, curproc);
+	splx(s);
+	return ret;
 }
 /*
  * Get a lock sleeping with specified interruptably and timeout.
@@ -268,20 +272,33 @@ static __inline int BUF_TIMELOCK __P((struct buf *, int, char *, int, int));
 static __inline int
 BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 {
+	int s, ret;
 
+	s = splbio();
 	simple_lock(&buftimelock);
 	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;
-	return (lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curproc));
+	ret = lockmgr(&(bp)->b_lock, (locktype), &buftimelock, curproc);
+	splx(s);
+	return ret;
 }
 /*
  * Release a lock. Only the acquiring process may free the lock unless
  * it has been handed off to biodone.
  */
-#define BUF_UNLOCK(bp) \
-	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curproc)
+static __inline void BUF_UNLOCK __P((struct buf *));
+static __inline void
+BUF_UNLOCK(struct buf *bp)
+{
+	int s;
+
+	s = splbio();
+	lockmgr(&(bp)->b_lock, LK_RELEASE, NULL, curproc);
+	splx(s);
+}
+
 /*
  * Free a buffer lock.
  */
@@ -299,19 +316,31 @@ static __inline void
 BUF_KERNPROC(struct buf *bp)
 {
 	struct buf *nbp;
+	int s;
 
+	s = splbio();
 	if (bp->b_flags & B_ASYNC)
 		bp->b_lock.lk_lockholder = LK_KERNPROC;
 	for (nbp = TAILQ_FIRST(&bp->b_cluster.cluster_head);
 	     nbp; nbp = TAILQ_NEXT(&nbp->b_cluster, cluster_entry))
 		if (nbp->b_flags & B_ASYNC)
 			nbp->b_lock.lk_lockholder = LK_KERNPROC;
+	splx(s);
 }
 /*
  * Find out the number of references to a lock.
  */
-#define BUF_REFCNT(bp) \
-	lockcount(&(bp)->b_lock)
+static __inline int BUF_REFCNT __P((struct buf *));
+static __inline int
+BUF_REFCNT(struct buf *bp)
+{
+	int s, ret;
+
+	s = splbio();
+	ret = lockcount(&(bp)->b_lock);
+	splx(s);
+	return ret;
+}
 
 #endif /* KERNEL */
 
