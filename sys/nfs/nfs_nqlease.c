@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.8 1995/01/09 16:05:06 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.9 1995/01/29 06:37:13 bde Exp $
  */
 
 /*
@@ -710,6 +710,7 @@ nqnfsrv_getlease(nfsd, mrep, md, dpos, cred, nam, mrq)
 		nfsm_reply(0);
 	if (rdonly && flags == NQL_WRITE) {
 		error = EROFS;
+		nfsrv_vput(vp);
 		nfsm_reply(0);
 	}
 	(void) nqsrv_getlease(vp, &nfsd->nd_duration, flags, nfsd,
