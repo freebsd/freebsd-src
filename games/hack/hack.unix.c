@@ -90,41 +90,6 @@ char *np;
 	if(stat(name, &hbuf))
 		error("Cannot get status of %s.",
 			(np = rindex(name, '/')) ? np+1 : name);
-#if 0
-/* version using PATH from: seismo!gregc@ucsf-cgl.ARPA (Greg Couch) */
-
-
-/*
- * The problem with   #include	<sys/param.h>   is that this include file
- * does not exist on all systems, and moreover, that it sometimes includes
- * <sys/types.h> again, so that the compiler sees these typedefs twice.
- */
-#define		MAXPATHLEN	1024
-
-char *np, *path;
-char filename[MAXPATHLEN+1];
-	if (index(name, '/') != NULL || (path = getenv("PATH")) == NULL)
-		path = "";
-
-	for (;;) {
-		if ((np = index(path, ':')) == NULL)
-			np = path + strlen(path);	/* point to end str */
-		if (np - path <= 1)			/* %% */
-			(void) strcpy(filename, name);
-		else {
-			(void) strncpy(filename, path, np - path);
-			filename[np - path] = '/';
-			(void) strcpy(filename + (np - path) + 1, name);
-		}
-		if (stat(filename, &hbuf) == 0)
-			return;
-		if (*np == '\0')
-			break;
-		path = np + 1;
-	}
-	error("Cannot get status of %s.",
-		(np = rindex(name, '/')) ? np+1 : name);
-#endif
 }
 
 uptodate(fd) {
