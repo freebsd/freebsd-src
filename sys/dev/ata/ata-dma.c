@@ -1534,11 +1534,11 @@ ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
     case 0x0d30105a:  /* Promise OEM ATA 100 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
 	if (ch->flags & ATA_48BIT_ACTIVE) {
-	ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
-		 ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) |
-		 (ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 
-                 (dir ? 0x05000000 : 0x06000000) | (count >> 1));
+	    ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
+		     ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) |
+		     (ch->unit ? 0x08 : 0x02));
+	    ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 
+		     (dir ? 0x05000000 : 0x06000000) | (count >> 1));
 	}
     }
 
@@ -1578,11 +1578,10 @@ ata_dmadone(struct ata_device *atadev)
     case 0x0d30105a:  /* Promise OEM ATA 100 */
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
 	if (ch->flags & ATA_48BIT_ACTIVE) {
-	ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
-		 ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) &
-		 ~(ch->unit ? 0x08 : 0x02));
-	ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 0);
-	    ch->flags &= ~ATA_48BIT_ACTIVE;
+	    ATA_OUTB(ch->r_bmio, (ch->unit ? 0x09 : 0x11),
+		     ATA_INB(ch->r_bmio, (ch->unit ? 0x09 : 0x11)) &
+		     ~(ch->unit ? 0x08 : 0x02));
+	    ATA_OUTL(ch->r_bmio, (ch->unit ? 0x1c : 0x20), 0);
 	}
     }
 
