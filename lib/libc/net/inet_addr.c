@@ -66,6 +66,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
  * ASCII internet address interpretation routine.
@@ -98,7 +99,7 @@ inet_aton(cp, addr)
 	u_long val;
 	char *c;
 	char *endptr;
-	int base, gotend, n;
+	int gotend, n;
 
 	c = (char *)cp;
 	n = 0;
