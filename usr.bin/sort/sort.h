@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sort.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -133,9 +134,9 @@ struct filelist {
 	const char * const * names;
 };
 
-typedef int (*get_func_t) __P((int, int, struct filelist *, int,
-		RECHEADER *, u_char *, struct field *));
-typedef void (*put_func_t) __P((const struct recheader *, FILE *));
+typedef int (*get_func_t)(int, int, struct filelist *, int,
+		RECHEADER *, u_char *, struct field *);
+typedef void (*put_func_t)(const struct recheader *, FILE *);
 
 extern int PANIC;	/* maximum depth of fsort before fmerge is called */
 extern u_char ascii[NBINS], Rascii[NBINS], Ftable[NBINS], RFtable[NBINS];
