@@ -111,13 +111,21 @@ static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 static u_char *
 mfs_getimage(void)
 {
-	caddr_t p, q;
+	caddr_t p;
+	vm_offset_t *q;
 
 	p = module_search_by_type("mfs_root");
 	if (!p)
 		return NULL;
-	q = module_search_info(p, MODINFO_ADDR);
-	return q;
+	q = (vm_offset_t *)module_search_info(p, MODINFO_ADDR);
+	if (!q)
+		return NULL;
+	/* XXX this needs to change to the appropriate function or macro */
+#ifdef __alpha__
+	return (u_char *)*q;
+#else
+	return (u_char *)*q + 0xf0000000;
+#endif
 }
 
 #endif	/* MFS_ROOT_SIZE */
