@@ -28,6 +28,7 @@ LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
 
+.if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DISTRIBUTION=	crypto
 SRCS+=		authenc.c
@@ -38,6 +39,7 @@ LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
 LDADD+=		-lkrb5 -lasn1 -lroken -lcom_err
+.endif
 .endif
 .endif
 
