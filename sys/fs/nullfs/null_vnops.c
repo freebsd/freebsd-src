@@ -599,10 +599,8 @@ null_lock(struct vop_lock_args *ap)
 			wakeup(&nn->null_pending_locks);
 		}
 		if (error == ENOENT && (vp->v_iflag & VI_XLOCK) != 0 &&
-		    vp->v_vxthread != curthread) {
-			vp->v_iflag |= VI_XWANT;
-			msleep(vp, VI_MTX(vp), PINOD, "nulbo", 0);
-		}
+		    vp->v_vxthread != curthread)
+			vx_waitl(vp);
 		VI_UNLOCK(vp);
 		return error;
 	} else {

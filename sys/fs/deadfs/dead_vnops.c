@@ -38,7 +38,6 @@
 #include <sys/poll.h>
 #include <sys/vnode.h>
 
-static int	chkvnlock(struct vnode *);
 /*
  * Prototypes for dead operations on vnodes.
  */
@@ -129,7 +128,7 @@ dead_read(ap)
 	} */ *ap;
 {
 
-	if (chkvnlock(ap->a_vp))
+	if (vx_wait(ap->a_vp))
 		panic("dead_read: lock");
 	/*
 	 * Return EOF for tty devices, EIO for others
@@ -153,7 +152,7 @@ dead_write(ap)
 	} */ *ap;
 {
 
-	if (chkvnlock(ap->a_vp))
+	if (vx_wait(ap->a_vp))
 		panic("dead_write: lock");
 	return (EIO);
 }
@@ -174,7 +173,7 @@ dead_ioctl(ap)
 	} */ *ap;
 {
 
-	if (!chkvnlock(ap->a_vp))
+	if (!vx_wait(ap->a_vp))
 		return (ENOTTY);
 	/* XXX: Doesn't this just recurse back here ? */
 	return (VOP_IOCTL_AP(ap));
@@ -202,7 +201,7 @@ dead_lock(ap)
 		mtx_unlock(&vp->v_interlock);
 		ap->a_flags &= ~LK_INTERLOCK;
 	}
-	if (!chkvnlock(vp))
+	if (!vx_wait(vp))
 		return (0);
 	return (VOP_LOCK_AP(ap));
 }
@@ -222,29 +221,9 @@ dead_bmap(ap)
 	} */ *ap;
 {
 
-	if (!chkvnlock(ap->a_vp))
+	if (!vx_wait(ap->a_vp))
 		return (EIO);
 	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_bop, ap->a_bnp, ap->a_runp, ap->a_runb));
-}
-
-/*
- * We have to wait during times when the vnode is
- * in a state of change.
- */
-static int
-chkvnlock(vp)
-	register struct vnode *vp;
-{
-	int locked = 0;
-
-	VI_LOCK(vp);
-	while (vp->v_iflag & VI_XLOCK) {
-		vp->v_iflag |= VI_XWANT;
-		(void) msleep((caddr_t)vp, VI_MTX(vp), PINOD, "ckvnlk", 0);
-		locked = 1;
-	}
-	VI_UNLOCK(vp);
-	return (locked);
 }
 
 /*
