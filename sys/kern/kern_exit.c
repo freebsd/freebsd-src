@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.73 1999/01/30 06:25:00 newton Exp $
+ * $Id: kern_exit.c,v 1.74 1999/01/31 03:15:13 newton Exp $
  */
 
 #include "opt_compat.h"
@@ -217,7 +217,7 @@ exit1(p, rv)
 	if (vm->vm_refcnt == 1) {
 		if (vm->vm_shm)
 			shmexit(p);
-		pmap_remove_pages(&vm->vm_pmap, VM_MIN_ADDRESS,
+		pmap_remove_pages(vmspace_pmap(vm), VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
 		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.135 1999/02/07 21:48:23 dillon Exp $
+ * $Id: vm_pageout.c,v 1.136 1999/02/08 00:37:36 dillon Exp $
  */
 
 /*
@@ -482,7 +482,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		return;
 
 	while (object) {
-		if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
+		if (pmap_resident_count(vm_map_pmap(map)) <= desired)
 			return;
 		if (object->paging_in_progress)
 			return;
@@ -497,7 +497,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		p = TAILQ_FIRST(&object->memq);
 		while (p && (rcount-- > 0)) {
 			int actcount;
-			if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
+			if (pmap_resident_count(vm_map_pmap(map)) <= desired)
 				return;
 			next = TAILQ_NEXT(p, listq);
 			cnt.v_pdpages++;
@@ -598,7 +598,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 */
 	tmpe = map->header.next;
 	while (tmpe != &map->header) {
-		if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
+		if (pmap_resident_count(vm_map_pmap(map)) <= desired)
 			break;
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
@@ -1158,7 +1158,7 @@ rescan0:
 			/*
 			 * get the process size
 			 */
-			size = p->p_vmspace->vm_pmap.pm_stats.resident_count;
+			size = vmspace_resident_count(p->p_vmspace);
 			/*
 			 * if the this process is bigger than the biggest one
 			 * remember it.
@@ -1453,7 +1453,7 @@ vm_daemon()
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 
-			size = p->p_vmspace->vm_pmap.pm_stats.resident_count * PAGE_SIZE;
+			size = vmspace_resident_count(p->p_vmspace) * PAGE_SIZE;
 			if (limit >= 0 && size >= limit) {
 				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
 				    (vm_pindex_t)(limit >> PAGE_SHIFT) );

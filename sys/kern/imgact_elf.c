@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.52 1999/02/07 21:48:21 dillon Exp $
+ *	$Id: imgact_elf.c,v 1.53 1999/02/07 23:49:56 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -226,7 +226,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 			return EINVAL;
 
 		/* prefault the page tables */
-		pmap_object_init_pt(&vmspace->vm_pmap,
+		pmap_object_init_pt(vmspace_pmap(vmspace),
 				    map_addr,
 				    object,
 				    (vm_pindex_t) OFF_TO_IDX(file_addr),

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.221 1999/01/24 06:04:51 dillon Exp $
+ *	$Id: pmap.c,v 1.222 1999/01/28 01:59:50 dillon Exp $
  */
 
 /*
@@ -1553,12 +1553,12 @@ pmap_growkernel(vm_offset_t addr)
 
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			if (p->p_vmspace) {
-				pmap = &p->p_vmspace->vm_pmap;
+				pmap = vmspace_pmap(p->p_vmspace);
 				*pmap_pde(pmap, kernel_vm_end) = newpdir;
 			}
 		}
 		if (aiovmspace != NULL) {
-			pmap = &aiovmspace->vm_pmap;
+			pmap = vmspace_pmap(aiovmspace);
 			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
@@ -1992,7 +1992,7 @@ pmap_remove_all(pa)
 				vm_page_dirty(ppv->pv_vm_page);
 		}
 		if (!update_needed &&
-			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
+			((!curproc || (vmspace_pmap(curproc->p_vmspace) == pv->pv_pmap)) ||
 			(pv->pv_pmap == kernel_pmap))) {
 			update_needed = 1;
 		}
@@ -2572,7 +2572,7 @@ pmap_prefault(pmap, addra, entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap))
+	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace)))
 		return;
 
 	object = entry->object.vm_object;
@@ -2975,7 +2975,7 @@ pmap_remove_pages(pmap, sva, eva)
 	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap)) {
+	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace))) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -3418,7 +3418,7 @@ pmap_activate(struct proc *p)
 	tlb_flush_count++;
 #endif
 	load_cr3(p->p_addr->u_pcb.pcb_cr3 =
-		vtophys(p->p_vmspace->vm_pmap.pm_pdir));
+		vtophys(vmspace_pmap(p->p_vmspace)->pm_pdir));
 }
 
 vm_offset_t
@@ -3446,7 +3446,7 @@ pmap_pid_dump(int pid) {
 		if (p->p_vmspace) {
 			int i,j;
 			index = 0;
-			pmap = &p->p_vmspace->vm_pmap;
+			pmap = vmspace_pmap(p->p_vmspace);
 			for(i=0;i<1024;i++) {
 				pd_entry_t *pde;
 				unsigned *pte;

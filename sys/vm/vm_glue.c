@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.82 1999/01/21 09:36:23 dillon Exp $
+ * $Id: vm_glue.c,v 1.83 1999/01/26 02:38:12 julian Exp $
  */
 
 #include "opt_rlimit.h"
@@ -511,8 +511,7 @@ swapout(p)
 	/*
 	 * remember the process resident count
 	 */
-	p->p_vmspace->vm_swrss =
-	    p->p_vmspace->vm_pmap.pm_stats.resident_count;
+	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
 	(void) splhigh();
 	p->p_flag &= ~P_INMEM;
