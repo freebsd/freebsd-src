@@ -289,22 +289,34 @@ acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
 {
 	struct group	*g;
 	struct passwd	*p;
+	unsigned long	l;
+	char 		*endp;
 
 	switch(tag) {
 	case ACL_USER:
 		p = getpwnam(name);
-		if (!p) {
-			errno = EINVAL;
-			return (-1);
+		if (p == NULL) {
+			l = strtoul(name, &endp, 0);
+			if (*endp != '\0' || l != (unsigned long)(uid_t)l) {
+				errno = EINVAL;
+				return (-1);
+			}
+			*id = (uid_t)l;
+			return (0);
 		}
 		*id = p->pw_uid;
 		return (0);
 
 	case ACL_GROUP:
 		g = getgrnam(name);
-		if (!g) {
-			errno = EINVAL;
-			return (-1);
+		if (g == NULL) {
+			l = strtoul(name, &endp, 0);
+			if (*endp != '\0' || l != (unsigned long)(gid_t)l) {
+				errno = EINVAL;
+				return (-1);
+			}
+			*id = (gid_t)l;
+			return (0);
 		}
 		*id = g->gr_gid;
 		return (0);
