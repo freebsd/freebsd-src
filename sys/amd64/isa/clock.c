@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.38 1995/10/28 15:38:49 phk Exp $
+ *	$Id: clock.c,v 1.39 1995/11/29 19:57:22 wollman Exp $
  */
 
 /*
@@ -130,7 +130,7 @@ clkintr(struct clockframe frame)
 	setdelayed();
 }
 #else
-void
+static void
 clkintr(struct clockframe frame)
 {
 	timer_func(&frame);
@@ -245,7 +245,7 @@ release_timer2()
  * The RTC chip requires that we read status register C (RTC_INTR)
  * to acknowledge an interrupt, before it will generate the next one.
  */
-void
+static void
 rtcintr(struct clockframe frame)
 {
 	u_char stat;
@@ -256,8 +256,8 @@ rtcintr(struct clockframe frame)
 }
 
 #ifdef DDB
-static void
-printrtc(void)
+void
+DDB_printrtc(void)
 {
 	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
 	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),

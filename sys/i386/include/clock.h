@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id$
+ *	$Id: clock.h,v 1.6 1995/11/29 19:57:16 wollman Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -66,8 +66,6 @@ extern u_int 	timer0_prescaler_count;
 #ifdef I586_CPU
 void	calibrate_cyclecounter __P((void));
 #endif
-void	clkintr __P((struct clockframe frame));
-void	rtcintr __P((struct clockframe frame));
 
 #ifdef I586_CPU
 static __inline u_long 

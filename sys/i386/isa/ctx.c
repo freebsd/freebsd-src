@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.12 1995/12/08 11:13:56 julian Exp $
+ *	$Id: ctx.c,v 1.13 1995/12/08 23:20:21 phk Exp $
  */
 
 /*
@@ -132,14 +132,14 @@
 #include <machine/ioctl_ctx.h>
 
 
-int     waitvb(short);
+static int     waitvb(short);
 
 /* state flags */
 #define   OPEN        (0x01)	/* device is open */
 
 #define   UNIT(x) ((x) & 0x07)
 
-int     ctxprobe(), ctxattach();
+static int     ctxprobe(), ctxattach();
 struct isa_driver ctxdriver = {ctxprobe, ctxattach, "ctx"};
 
 static	d_open_t	ctxopen;
@@ -162,7 +162,7 @@ static struct cdevsw ctx_cdevsw =
  *  Per unit shadow registers (because the dumb hardware is RO)
 */
 
-struct ctx_soft_registers {
+static struct ctx_soft_registers {
 	u_char *lutp;
 	u_char  cp0;
 	u_char  cp1;
@@ -195,7 +195,7 @@ ctx_registerdev(struct isa_device *id)
 	dev_attach(&kdc_ctx[id->id_unit]);
 }
 
-int
+static int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
@@ -210,7 +210,7 @@ ctxprobe(struct isa_device * devp)
 	return (status);
 }
 
-int
+static int
 ctxattach(struct isa_device * devp)
 {
 	struct ctx_soft_registers *sr;
@@ -452,7 +452,7 @@ ctxioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-int
+static int
 waitvb(short port)
 {				/* wait for a vertical blank,  */
 	if (inb(port) == 0xff)	/* 0xff means no board present */

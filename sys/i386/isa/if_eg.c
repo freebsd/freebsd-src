@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.7 1995/11/04 17:07:22 bde Exp $
+ * $Id: if_eg.c,v 1.8 1995/12/05 02:00:47 davidg Exp $
  */
 
 /* To do:
@@ -98,7 +98,7 @@
 /*
  * Ethernet software status per interface.
  */
-struct eg_softc {
+static struct eg_softc {
 	/* struct device sc_dev; */
 	/* struct intrhand sc_ih; */
 	struct arpcom sc_arpcom;	/* Ethernet common part */
@@ -116,8 +116,8 @@ struct eg_softc {
 	struct	kern_devconf kdc;	/* kernel configuration database */
 } eg_softc[NEG];
 
-int egprobe (struct isa_device *);
-int egattach (struct isa_device *);
+static int egprobe (struct isa_device *);
+static int egattach (struct isa_device *);
 
 struct isa_driver egdriver = {
 	egprobe, egattach, "eg", 0
@@ -149,7 +149,6 @@ static void eginit __P((struct eg_softc *));
 static int egioctl (struct ifnet *, int, caddr_t);
 static void egrecv(struct eg_softc *);
 static void egstart(struct ifnet *);
-static void egreset(int);
 static inline void egread __P((struct eg_softc *, caddr_t, int));
 static void egstop __P((struct eg_softc *));
 
@@ -305,7 +304,7 @@ egreadPCB(sc)
  * Real stuff
  */
 
-int
+static int
 egprobe(struct isa_device * id)
 {
 	struct eg_softc *sc = &eg_softc[id->id_unit];
@@ -364,7 +363,7 @@ egprobe(struct isa_device * id)
 	return 8;
 }
 
-int
+static int
 egattach (struct isa_device *id)
 {
 	struct eg_softc *sc = &eg_softc[id->id_unit];
@@ -805,21 +804,6 @@ egioctl(ifp, command, data)
 
 	splx(s);
 	return error;
-}
-
-static void
-egreset(int unit)
-{
-	struct eg_softc *sc = &eg_softc[unit];
-	int s;
-
-	log(LOG_ERR, "eg%d: device timeout\n", unit);
-	sc->sc_arpcom.ac_if.if_oerrors++;
-
-	s = splimp();
-	egstop(sc);
-	eginit(sc);
-	splx(s);
 }
 
 static void

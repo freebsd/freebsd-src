@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.2 1993/10/16 19:17:18 rgrimes Exp $
+ *	$Id: sioreg.h,v 1.3 1995/01/20 07:34:18 wpaul Exp $
  */
 
 
@@ -59,10 +59,10 @@
 #define	FIFO_RCV_RST	0x02
 #define	FIFO_XMT_RST	0x04
 #define	FIFO_DMA_MODE	0x08
-#define	FIFO_TRIGGER_1	0x00
-#define	FIFO_TRIGGER_4	0x40
-#define	FIFO_TRIGGER_8	0x80
-#define	FIFO_TRIGGER_14	0xc0
+#define	FIFO_RX_LOW	0x00
+#define	FIFO_RX_MEDL	0x40
+#define	FIFO_RX_MEDH	0x80
+#define	FIFO_RX_HIGH	0xc0
 
 /* character format control register */
 #define	CFCR_DLAB	0x80

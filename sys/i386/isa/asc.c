@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.9 1995/12/06 23:42:22 bde Exp $
+ * $Id: asc.c,v 1.10 1995/12/08 11:13:47 julian Exp $
  */
 
 #include "asc.h"
@@ -199,8 +199,8 @@ struct asc_unit {
 /***
  *** THE PER-DRIVER RECORD FOR ISA.C
  ***/
-int ascprobe (struct isa_device *isdp);
-int ascattach(struct isa_device *isdp);
+static int ascprobe (struct isa_device *isdp);
+static int ascattach(struct isa_device *isdp);
 struct isa_driver ascdriver = { ascprobe, ascattach, "asc" };
 
 #ifndef FREEBSD_1_X
@@ -217,10 +217,6 @@ static struct cdevsw asc_cdevsw =
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
 	  ascselect,    nommap,         NULL,	"asc",	NULL,	-1 };
-
-struct asc_softc {
-    struct isa_device *dev;
-} asc_softc[NASC];
 
 static struct kern_devconf kdc_asc[NASC] = { {
 	0, 0, 0,                /* filled in by dev_attach */
@@ -349,7 +345,6 @@ buffer_allocate(struct asc_unit *scu)
 static void
 dma_restart(struct asc_unit *scu)
 {
-    unsigned char al=scu->cmd_byte;
     isa_dmastart(B_READ, scu->sbuf.base+scu->sbuf.wptr,
 	scu->linesize, scu->dma_num);
     /*** this is done in sub_20, after dmastart ? ***/  
@@ -371,7 +366,7 @@ dma_restart(struct asc_unit *scu)
 /*** asc_reset
  ***	resets the scanner and the config bytes...
  ***/
-void
+static void
 asc_reset(struct asc_unit *scu)
 {
   scu->cfg_byte = 0 ; /* clear... */
@@ -392,7 +387,7 @@ asc_reset(struct asc_unit *scu)
  ***	- if address group matches (status byte has reasonable value)
  ***	  cannot check interrupt/dma, only clear the config byte.
  ***/
-int
+static int
 ascprobe (struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
@@ -443,7 +438,8 @@ ascprobe (struct isa_device *isdp)
       scu->dma_byte = ASC_CNF_DMA3;
       break;
     default:
-      lprintf("asc%d.probe: unsupported DMA %d (only 1 or 3)\n", scu->dma_num);
+      lprintf("asc%d.probe: unsupported DMA %d (only 1 or 3)\n", 
+		unit, scu->dma_num);
       return PROBE_FAIL;
   }
   asc_reset(scu);
@@ -460,7 +456,7 @@ ascprobe (struct isa_device *isdp)
  ***	finish initialization of unit structure, get geometry value (?)
  ***/
 
-int
+static int
 ascattach(struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
@@ -576,7 +572,7 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
   int unit = UNIT(minor(dev)) & UNIT_MASK;
   struct asc_unit *scu = unittab + unit;
   
-  lprintf("asc%d.open: minor %d icnt %d\n", unit, minor(dev), scu->icnt);
+  lprintf("asc%d.open: minor %d icnt %ld\n", unit, minor(dev), scu->icnt);
 
   if ( unit >= NASC || !( scu->flags & ATTACHED ) ) {
       lprintf("asc%d.open: unit was not attached successfully, flags 0x%04x\n",
@@ -611,7 +607,7 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
   return SUCCESS;
 }
 
-int
+static int
 asc_startread(struct asc_unit *scu)
 {
     /*** from here on, things can be delayed to the first read/ioctl ***/
@@ -800,7 +796,7 @@ ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 	 unit, minor(dev));
 
   if ( unit >= NASC || !( scu->flags & ATTACHED ) ) {
-      lprintf("asc%d.ioctl: unit was not attached successfully 0x04x\n",
+      lprintf("asc%d.ioctl: unit was not attached successfully %0x04x\n",
 	     unit, scu->flags);
       return ENXIO;
   }

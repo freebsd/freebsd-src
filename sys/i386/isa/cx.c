@@ -76,7 +76,7 @@ extern cx_board_t cxboard [NCX];        /* adapter state structures */
 extern cx_chan_t *cxchan [NCX*NCHAN];   /* unit to channel struct pointer */
 #if __FreeBSD__ >= 2
 extern struct kern_devconf kdc_cx [NCX];
-struct tty cx_tty [NCX*NCHAN];          /* tty data */
+static struct tty cx_tty [NCX*NCHAN];          /* tty data */
 
 static	d_open_t	cxopen;
 static	d_close_t	cxclose;
@@ -98,8 +98,8 @@ static struct cdevsw cx_cdevsw =
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
 
-void cxoproc (struct tty *tp);
-int cxparam (struct tty *tp, struct termios *t);
+static void cxoproc (struct tty *tp);
+static int cxparam (struct tty *tp, struct termios *t);
 void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
 
 int cxopen (dev_t dev, int flag, int mode, struct proc *p)
@@ -493,7 +493,8 @@ int cxioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 /*
  * Fill transmitter buffer with data.
  */
-void cxout (cx_chan_t *c, char b)
+static void
+cxout (cx_chan_t *c, char b)
 {
 	unsigned char *buf, *p, sym;
 	unsigned short port = c->chip->port, len = 0, cnt_port, sts_port;
@@ -604,10 +605,6 @@ void cxoproc (struct tty *tp)
 			cxout (c, 'B');
 		}
 	}
-#if defined (__FreeBSD__) && __FreeBSD__ < 2
-	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
-		ttwwakeup (tp);
-#else /* FreeBSD 2.x and BSDI */
 #ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
 	ttwwakeup(tp);
 #else
@@ -619,11 +616,11 @@ void cxoproc (struct tty *tp)
 		selwakeup(&tp->t_wsel);
 	}
 #endif
-#endif
 	splx (s);
 }
 
-int cxparam (struct tty *tp, struct termios *t)
+static int
+cxparam (struct tty *tp, struct termios *t)
 {
 	int unit = UNIT (tp->t_dev);
 	cx_chan_t *c = cxchan[unit];

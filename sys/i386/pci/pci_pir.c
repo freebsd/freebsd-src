@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.18 1995/10/17 15:23:14 se Exp $
+**  $Id: pcibus.c,v 1.19 1995/10/17 23:30:11 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -113,7 +113,7 @@ pcibus_imask_include (int irq, unsigned* maskptr);
 static int
 pcibus_imask_exclude (int irq, unsigned* maskptr);
 
-struct pcibus i386pci = {
+static struct pcibus i386pci = {
 	"pci",
 	pcibus_setup,
 	pcibus_tag,

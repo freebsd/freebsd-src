@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id:$ */
+/* $Id: matcd.c,v 1.12 1995/12/08 11:16:24 julian Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -546,8 +546,8 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
            --- not any more :)
 ---------------------------------------------------------------------------*/
 
-extern	int	matcd_probe(struct isa_device *dev);
-extern	int	matcd_attach(struct isa_device *dev);
+static	int	matcd_probe(struct isa_device *dev);
+static	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,	/*<16>*/
 				     "matcdc"};	/*<20>*/
 
@@ -1276,7 +1276,8 @@ int	matcdsize(dev_t dev)
 
 ---------------------------------------------------------------------------*/
 
-int matcd_probe(struct isa_device *dev)
+static int
+matcd_probe(struct isa_device *dev)
 {
 	int	i,cdrive;
 	unsigned char	y;
@@ -1450,7 +1451,8 @@ static inline void matcd_register(struct isa_device *id)
 		what it would be.
 ---------------------------------------------------------------------------*/
 
-int matcd_attach(struct isa_device *dev)
+static int
+matcd_attach(struct isa_device *dev)
 {
 	int	i;
 	unsigned int	z,cdrive;
@@ -1801,7 +1803,8 @@ NOTE -	Undocumented action of hardware:  If you change (or reaffirm) data
 	not fully understood.
 ---------------------------------------------------------------------------*/
 
-int matcd_setmode(int ldrive, int mode)
+static int
+matcd_setmode(int ldrive, int mode)
 {
 	struct	matcd_data *cd;
 	int retries;

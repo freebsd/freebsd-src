@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.18 1995/11/04 17:07:24 bde Exp $
+ * $Id: if_el.c,v 1.19 1995/12/05 02:00:49 davidg Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -20,7 +20,6 @@
  *	- Does not currently support multicasts
  */
 #include "el.h"
-#if NEL > 0
 #include "bpfilter.h"
 
 #include <sys/param.h>
@@ -77,7 +76,7 @@
 #endif
 
 /* el_softc: per line info and status */
-struct el_softc {
+static struct el_softc {
 	struct arpcom arpcom;	/* Ethernet common */
 	u_short el_base;	/* Base I/O addr */
 	caddr_t bpf;		/* BPF magic cookie */
@@ -85,13 +84,13 @@ struct el_softc {
 } el_softc[NEL];
 
 /* Prototypes */
-int el_attach(struct isa_device *);
-void el_init(int);
-int el_ioctl(struct ifnet *,int,caddr_t);
-int el_probe(struct isa_device *);
-void el_start(struct ifnet *);
-void el_reset(int);
-void el_watchdog(struct ifnet *);
+static int el_attach(struct isa_device *);
+static void el_init(int);
+static int el_ioctl(struct ifnet *,int,caddr_t);
+static int el_probe(struct isa_device *);
+static void el_start(struct ifnet *);
+static void el_reset(int);
+static void el_watchdog(struct ifnet *);
 
 static void el_stop(int);
 static int el_xmit(struct el_softc *,int);
@@ -126,7 +125,8 @@ el_registerdev(struct isa_device *id)
 }
 
 /* Probe routine.  See if the card is there and at the right place. */
-int el_probe(struct isa_device *idev)
+static int
+el_probe(struct isa_device *idev)
 {
 	struct el_softc *sc;
 	u_short base; /* Just for convenience */
@@ -186,7 +186,8 @@ int el_probe(struct isa_device *idev)
  * this is called, we know that the card exists at the given I/O address.
  * We still assume that the IRQ given is correct.
  */
-int el_attach(struct isa_device *idev)
+static int
+el_attach(struct isa_device *idev)
 {
 	struct el_softc *sc;
 	struct ifnet *ifp;
@@ -250,7 +251,8 @@ int el_attach(struct isa_device *idev)
 }
 
 /* This routine resets the interface. */
-void el_reset(int unit)
+static void 
+el_reset(int unit)
 {
 	int s;
 
@@ -292,7 +294,8 @@ static inline void el_hardreset(int unit)
 }
 
 /* Initialize interface.  */
-void el_init(int unit)
+static void 
+el_init(int unit)
 {
 	struct el_softc *sc;
 	struct ifnet *ifp;
@@ -344,7 +347,8 @@ void el_init(int unit)
  * them, giving the receiver a chance between datagrams.  Call only
  * from splimp or interrupt level!
  */
-void el_start(struct ifnet *ifp)
+static void
+el_start(struct ifnet *ifp)
 {
 	struct el_softc *sc;
 	u_short base;
@@ -687,7 +691,7 @@ elget(buf, totlen, off0, ifp)
  * Process an ioctl request. This code needs some work - it looks
  *	pretty ugly.
  */
-int
+static int
 el_ioctl(ifp, command, data)
 	register struct ifnet *ifp;
 	int command;
@@ -817,10 +821,10 @@ el_ioctl(ifp, command, data)
 }
 
 /* Device timeout routine */
-void el_watchdog(struct ifnet *ifp)
+static void
+el_watchdog(struct ifnet *ifp)
 {
 	log(LOG_ERR,"el%d: device timeout\n",ifp->if_unit);
 	ifp->if_oerrors++;
 	el_reset(ifp->if_unit);
 }
-#endif

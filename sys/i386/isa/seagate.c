@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.13 1995/12/06 23:50:20 bde Exp $
+ * $Id: seagate.c,v 1.14 1995/12/07 12:46:04 davidg Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ typedef struct adapter {
 	target_t target[8];             /* target state data */
 } adapter_t;
 
-adapter_t seadata[NSEA];
+static adapter_t seadata[NSEA];
 
 #define IS_BUSY(a,b)    ((a)->target[(b)->xfer->sc_link->target].busy &\
 				(1 << (b)->xfer->sc_link->lun))
