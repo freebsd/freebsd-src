@@ -29,9 +29,7 @@
 #include "report.h"
 #include "dovend.h"
 
-#define P(args) args
-
-PRIVATE int insert_generic P((struct shared_bindata *, byte **, int *));
+PRIVATE int insert_generic(struct shared_bindata *, byte **, int *);
 
 /*
  * Insert the 2nd part of the options into an option buffer.
