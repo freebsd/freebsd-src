@@ -33,6 +33,7 @@
 #include <stdarg.h>
 #include <sys/ioctl.h>
 #ifdef _THREAD_SAFE
+#include <sys/fcntl.h>	/* O_NONBLOCK*/
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -40,14 +41,44 @@ int
 ioctl(int fd, unsigned long request,...)
 {
 	int             ret;
+	int		*op;
+	int             status;
 	va_list         ap;
 
+	/* Block signals: */
+	_thread_kern_sig_block(&status);
+
+	/* Lock the file descriptor: */
+	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+		/* Initialise the variable argument list: */
 	va_start(ap, request);
-	if (fd < 0 || fd >= _thread_dtablesize)
-		ret = -1;
-	else
+
+		switch( request) {
+		case FIONBIO:
+			/*
+			 * descriptors must be non-blocking; we are only
+			 * twiddling the flag based on the request
+			 */
+			op = va_arg(ap, int *);
+			_thread_fd_table[fd]->flags &= ~O_NONBLOCK;
+			_thread_fd_table[fd]->flags |= ((*op) ? O_NONBLOCK : 0);
+			ret = 0;
+			break;
+		default:
 		ret = _thread_sys_ioctl(fd, request, va_arg(ap, char *));
+			break;
+		}
+
+		/* Free variable arguments: */
 	va_end(ap);
-	return ret;
+
+		/* Unlock the file descriptor: */
+		_thread_fd_unlock(fd, FD_RDWR);
+	}
+	/* Unblock signals: */
+	_thread_kern_sig_unblock(status);
+
+	/* Return the completion status: */
+	return (ret);
 }
 #endif
