@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.7 1996/09/13 09:17:06 bde Exp $
+ * $Id: kern_shutdown.c,v 1.8 1996/09/14 04:31:01 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -229,7 +229,7 @@ boot(howto)
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
-		cngetc();
+		while (cngetc() == -1); /* no console, halt means STOP HERE */
 	} else {
 		if (howto & RB_DUMP) {
 			if (!cold) {
