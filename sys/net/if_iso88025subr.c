@@ -77,6 +77,9 @@
 #include <netipx/ipx_if.h>
 #endif
 
+static u_char iso88025_broadcastaddr[ISO88025_ADDR_LEN] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
 				  struct sockaddr *));
 
@@ -96,7 +99,7 @@ iso88025_ifattach(struct ifnet *ifp)
         ifp->if_baudrate = TR_16MBPS; /* 16Mbit should be a safe default */
     if (ifp->if_mtu == 0)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
-    ifp->if_broadcastaddr = etherbroadcastaddr;
+    ifp->if_broadcastaddr = iso88025_broadcastaddr;
 
     ifa = ifaddr_byindex(ifp->if_index);
     if (ifa == 0) {
@@ -411,9 +414,8 @@ iso88025_input(ifp, th, m)
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
 
 	if (th->iso88025_dhost[0] & 1) {
-		if (bcmp((caddr_t)etherbroadcastaddr,
-			 (caddr_t)th->iso88025_dhost,
-			 sizeof(etherbroadcastaddr)) == 0)
+		if (bcmp((caddr_t)iso88025_broadcastaddr,
+			 (caddr_t)th->iso88025_dhost, ISO88025_ADDR_LEN) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
