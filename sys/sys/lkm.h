@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: lkm.h,v 1.1 1994/08/20 02:23:40 davidg Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -80,7 +80,8 @@ struct lkm_vfs {
 	int	lkm_ver;
 	char	*lkm_name;
 	u_long	lkm_offset;
-	struct vfsops	*lkm_vfsops;
+	struct  linker_set *lkm_vnodeops;
+	struct	vfsconf *lkm_vfsconf;
 };
 
 /*
@@ -215,13 +216,14 @@ struct lkm_table {
 		sysentp				\
 	};
 
-#define	MOD_VFS(name,vfsslot,vfsopsp)		\
+#define	MOD_VFS(name,vfsslot,vnodeops,vfsconf)	\
 	static struct lkm_vfs _module = {	\
 		LM_VFS,				\
 		LKM_VERSION,			\
 		name,				\
 		vfsslot,			\
-		vfsopsp				\
+		vnodeops,			\
+		vfsconf				\
 	};
 
 #define	MOD_DEV(name,devtype,devslot,devp)	\

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.3 1994/08/02 07:45:37 davidg Exp $
+ * $Id: umap_vnops.c,v 1.4 1994/08/20 03:48:54 davidg Exp $
  */
 
 /*
@@ -486,3 +486,5 @@ struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 };
 struct vnodeopv_desc umap_vnodeop_opv_desc =
 	{ &umap_vnodeop_p, umap_vnodeop_entries };
+
+VNODEOP_SET(umap_vnodeop_opv_desc);

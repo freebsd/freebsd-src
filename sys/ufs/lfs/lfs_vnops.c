@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id$
+ * $Id: lfs_vnops.c,v 1.3 1994/08/02 07:54:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -208,6 +208,12 @@ struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 struct vnodeopv_desc lfs_fifoop_opv_desc =
 	{ &lfs_fifoop_p, lfs_fifoop_entries };
 #endif /* FIFO */
+
+VNODEOP_SET(lfs_vnodeop_opv_desc);
+VNODEOP_SET(lfs_specop_opv_desc);
+#ifdef FIFO
+VNODEOP_SET(lfs_fifoop_opv_desc);
+#endif
 
 #define	LFS_READWRITE
 #include <ufs/ufs/ufs_readwrite.c>

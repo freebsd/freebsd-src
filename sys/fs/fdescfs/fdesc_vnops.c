@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.3 1994/09/09 13:23:20 davidg Exp $
+ * $Id: fdesc_vnops.c,v 1.4 1994/09/09 13:24:26 davidg Exp $
  */
 
 /*
@@ -975,3 +975,5 @@ struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 };
 struct vnodeopv_desc fdesc_vnodeop_opv_desc =
 	{ &fdesc_vnodeop_p, fdesc_vnodeop_entries };
+
+VNODEOP_SET(fdesc_vnodeop_opv_desc);

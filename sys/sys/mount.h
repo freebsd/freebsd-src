@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.6 1994/09/15 20:24:26 bde Exp $
+ * $Id: mount.h,v 1.7 1994/09/19 15:41:56 dfr Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -135,6 +135,7 @@ struct mount {
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	qaddr_t		mnt_data;		/* private data */
+	struct vfsconf	*mnt_vfc; 		/* configuration info */
 };
 
 /*
@@ -191,9 +192,24 @@ struct mount {
 #define MNT_WANTRDWR	0x02000000	/* want upgrade to read/write */
 
 /*
+ * used to get configured filesystems information
+ */
+#define VFS_MAXNAMELEN 32
+struct vfsconf {
+	void *vfc_vfsops;
+	char vfc_name[VFS_MAXNAMELEN];
+	int vfc_index;
+	int vfc_refcount;
+	int vfc_flags;
+};
+
+/*
  * Operations supported on mounted file system.
  */
 #ifdef KERNEL
+
+extern struct vfsconf *vfsconf[];
+
 #ifdef __STDC__
 struct nameidata;
 struct mbuf;
@@ -234,6 +250,39 @@ struct vfsops {
 #define VFS_FHTOVP(MP, FIDP, NAM, VPP, EXFLG, CRED) \
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, NAM, VPP, EXFLG, CRED)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
+
+#ifdef VFS_LKM
+#include <sys/conf.h>
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+#define VFS_SET(vfsops, fsname, index, flags) \
+	static struct vfsconf _fs_vfsops = { \
+		&vfsops, \
+		#fsname, \
+		index, \
+		1, \
+		flags \
+	}; \
+	extern struct linker_set MODVNOPS; \
+	MOD_VFS(#fsname,index,&MODVNOPS,&_fs_vfsops); \
+	int \
+	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
+		DISPATCH(lkmtp, cmd, ver, nosys, nosys, nosys); }
+#else
+
+#define VFS_SET(vfsops, fsname, index, flags) \
+	static struct vfsconf _fs_vfsops = { \
+		&vfsops, \
+		#fsname, \
+		index, \
+		1, \
+		flags \
+	}; \
+	DATA_SET(vfs_set,_fs_vfsops)
+#endif /* VFS_LKM */
+				
 #endif /* KERNEL */
 
 /*

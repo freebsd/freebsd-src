@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.3 1994/08/02 07:54:44 davidg Exp $
+ * $Id: mfs_vnops.c,v 1.4 1994/09/12 11:38:28 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -108,6 +108,8 @@ struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 };
 struct vnodeopv_desc mfs_vnodeop_opv_desc =
 	{ &mfs_vnodeop_p, mfs_vnodeop_entries };
+
+VNODEOP_SET(mfs_vnodeop_opv_desc);
 
 /*
  * Vnode Operations.

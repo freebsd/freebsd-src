@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_vnops.c,v 1.1 1994/09/19 15:41:46 dfr Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1931,3 +1931,5 @@ struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 };
 struct vnodeopv_desc msdosfs_vnodeop_opv_desc =
 	{ &msdosfs_vnodeop_p, msdosfs_vnodeop_entries };
+
+VNODEOP_SET(msdosfs_vnodeop_opv_desc);

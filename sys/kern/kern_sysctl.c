@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.12 1994/09/18 20:39:48 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.13 1994/09/19 21:07:00 ache Exp $
  */
 
 /*
@@ -120,11 +120,9 @@ __sysctl(p, uap, retval)
 	case CTL_NET:
 		fn = net_sysctl;
 		break;
-#ifdef notyet
 	case CTL_FS:
 		fn = fs_sysctl;
 		break;
-#endif
 	case CTL_MACHDEP:
 		fn = cpu_sysctl;
 		break;

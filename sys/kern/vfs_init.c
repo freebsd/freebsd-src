@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.3 1994/08/02 07:43:22 davidg Exp $
+ * $Id: vfs_init.c,v 1.4 1994/08/18 22:35:08 wollman Exp $
  */
 
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
@@ -51,6 +52,9 @@
 #include <sys/buf.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 
 /*
  * Sigh, such primitive tools are these...
@@ -61,8 +65,15 @@
 #define DODEBUG(A)
 #endif
 
-extern struct vnodeopv_desc *vfs_opv_descs[];
-				/* a list of lists of vnodeops defns */
+struct vfsconf void_vfsconf;
+
+extern struct linker_set vfs_opv_descs_;
+#define vfs_opv_descs ((struct vnodeopv_desc **)vfs_opv_descs_.ls_items)
+
+extern struct linker_set vfs_set;
+struct vfsops *vfssw[MOUNT_MAXTYPE + 1];
+struct vfsconf *vfsconf[MOUNT_MAXTYPE + 1];
+
 extern struct vnodeop_desc *vfs_op_descs[];
 				/* and the operations they perform */
 /*
@@ -73,7 +84,7 @@ extern struct vnodeop_desc *vfs_op_descs[];
  */
 int vfs_opv_numops;
 
-typedef (*PFI)();   /* the standard Pointer to a Function returning an Int */
+typedef int (*PFI)(); /* the standard Pointer to a Function returning an Int */
 
 /*
  * A miscellaneous routine.
@@ -103,7 +114,7 @@ vn_default_error()
  * that is a(whole)nother story.) This is a feature.
  */
 void
-vfs_opv_init()
+vfs_opv_init(struct vnodeopv_desc **them)
 {
 	int i, j, k;
 	int (***opv_desc_vector_p)();
@@ -113,8 +124,8 @@ vfs_opv_init()
 	/*
 	 * Allocate the dynamic vectors and fill them in.
 	 */
-	for (i=0; vfs_opv_descs[i]; i++) {
-		opv_desc_vector_p = vfs_opv_descs[i]->opv_desc_vector_p;
+	for (i=0; them[i]; i++) {
+		opv_desc_vector_p = them[i]->opv_desc_vector_p;
 		/*
 		 * Allocate and init the vector, if it needs it.
 		 * Also handle backwards compatibility.
@@ -128,8 +139,8 @@ vfs_opv_init()
 			    opv_desc_vector_p));
 		}
 		opv_desc_vector = *opv_desc_vector_p;
-		for (j=0; vfs_opv_descs[i]->opv_desc_ops[j].opve_op; j++) {
-			opve_descp = &(vfs_opv_descs[i]->opv_desc_ops[j]);
+		for (j=0; them[i]->opv_desc_ops[j].opve_op; j++) {
+			opve_descp = &(them[i]->opv_desc_ops[j]);
 
 			/*
 			 * Sanity check:  is this operation listed
@@ -168,8 +179,8 @@ vfs_opv_init()
 	 * with their default.  (Sigh, an O(n^3) algorithm.  I
 	 * could make it better, but that'd be work, and n is small.)
 	 */
-	for (i = 0; vfs_opv_descs[i]; i++) {
-		opv_desc_vector = *(vfs_opv_descs[i]->opv_desc_vector_p);
+	for (i = 0; them[i]; i++) {
+		opv_desc_vector = *(them[i]->opv_desc_vector_p);
 		/*
 		 * Force every operations vector to have a default routine.
 		 */
@@ -223,7 +234,23 @@ void
 vfsinit()
 {
 	struct vfsops **vfsp;
+	struct vfsconf **vfc;
+	int i;
 
+	/*
+	 * Initialize the VFS switch table
+	 */
+	for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
+		vfsconf[i] = &void_vfsconf;
+	}
+
+	vfc = (struct vfsconf **)vfs_set.ls_items;
+	while(*vfc) {
+		vfssw[(**vfc).vfc_index] = (**vfc).vfc_vfsops;
+		vfsconf[(**vfc).vfc_index] = *vfc;
+		vfc++;
+	}
+	
 	/*
 	 * Initialize the vnode table
 	 */
@@ -236,7 +263,7 @@ vfsinit()
 	 * Build vnode operation vectors.
 	 */
 	vfs_op_init();
-	vfs_opv_init();   /* finish the job */
+	vfs_opv_init(vfs_opv_descs);   /* finish the job */
 	/*
 	 * Initialize each file system type.
 	 */
@@ -247,3 +274,55 @@ vfsinit()
 		(*(*vfsp)->vfs_init)();
 	}
 }
+
+/*
+ * kernel related system variables.
+ */
+int
+fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
+	int *name;
+	u_int namelen;
+	void *oldp;
+	size_t *oldlenp;
+	void *newp;
+	size_t newlen;
+	struct proc *p;
+{
+	int i;
+	int error;
+	int buflen = *oldlenp;
+	caddr_t where = newp, start = newp;
+
+	switch (name[0]) {
+	case FS_VFSCONF:
+		if (namelen != 1) return ENOTDIR;
+
+		if (oldp == NULL) {
+			*oldlenp = (MOUNT_MAXTYPE+1) * sizeof(struct vfsconf);
+			return 0;
+		}
+		if (newp) {
+			return EINVAL;
+		}
+
+		for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
+			if(buflen < sizeof *vfsconf[i]) {
+				*oldlenp = where - start;
+				return ENOMEM;
+			}
+
+			if(error = copyout(vfsconf[i], where, 
+					   sizeof *vfsconf[i]))
+				return error;
+			where += sizeof *vfsconf[i];
+			buflen -= sizeof *vfsconf[i];
+		}
+		*oldlenp = where - start;
+		return 0;
+		
+	default:
+		return (EOPNOTSUPP);
+	}
+	/* NOTREACHED */
+}
+

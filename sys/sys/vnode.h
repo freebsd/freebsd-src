@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.5 1994/09/15 20:24:29 bde Exp $
+ * $Id: vnode.h,v 1.6 1994/09/19 15:41:57 dfr Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -210,6 +210,12 @@ void	vref __P((struct vnode *));
 #endif
 
 #define	NULLVP	((struct vnode *)NULL)
+
+#ifdef VFS_LKM
+#define VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
+#else
+#define VNODEOP_SET(f) DATA_SET(vfs_opv_descs_,f)
+#endif
 
 /*
  * Global vnode data.

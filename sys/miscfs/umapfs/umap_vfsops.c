@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id$
+ * $Id: umap_vfsops.c,v 1.2 1994/08/02 07:45:36 davidg Exp $
  */
 
 /*
@@ -405,3 +405,6 @@ struct vfsops umap_vfsops = {
 	umapfs_vptofh,
 	umapfs_init,
 };
+
+VFS_SET(umap_vfsops, umap, MOUNT_UMAP, 0);
+

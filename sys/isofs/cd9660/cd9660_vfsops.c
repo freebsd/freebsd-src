@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.5 1994/08/20 16:03:07 davidg Exp $
+ * $Id: cd9660_vfsops.c,v 1.6 1994/09/15 19:46:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -71,6 +71,8 @@ struct vfsops cd9660_vfsops = {
 	cd9660_vptofh,
 	cd9660_init,
 };
+VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, 0);
+
 
 /*
  * Called by vfs_mountroot when iso is going to be mounted as root.
