@@ -274,6 +274,9 @@ struct	cmd {
 	{ "wepkey",	NEXTARG,	set80211wepkey },
 	{ "nwkey",	NEXTARG,	set80211nwkey },	/* NetBSD */
 	{ "-nwkey",	0,		set80211wep },		/* NetBSD */
+	{ "rtsthreshold",NEXTARG,	set80211rtsthreshold },
+	{ "protmode",	NEXTARG,	set80211protmode },
+	{ "txpower",	NEXTARG,	set80211txpower },
 #endif
 #ifdef USE_MAC
 	{ "maclabel",	NEXTARG,	setifmaclabel },
