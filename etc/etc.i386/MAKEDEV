@@ -77,21 +77,33 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.68 1995/02/14 21:13:14 ugen Exp $
+#	$Id: MAKEDEV,v 1.69 1995/02/14 23:48:05 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
 umask 77
 
-# Convert integer to partition number
+# Convert integer to partition name
 dkitop() {
 	local p
 
 	case $1 in
 	0) p=a;; 1) p=b;; 2) p=c;; 3) p=d;; 4) p=e;; 5) p=f;; 6) p=g;; 7) p=h;;
-	default) p="?";;
+	*) p="?";;
 	esac
 	echo $p
+}
+
+# Convert integer to slice name
+dkitos() {
+	local s
+
+	case $1 in
+	0) s="";;
+	1) s="";;
+	*) s=s$(($1-1));;
+	esac
+	echo $s
 }
 
 # Convert disk (type, unit, slice, partition) to minor number
@@ -109,7 +121,7 @@ ttyminor()
 	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
 	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
 	v) m=31;;
-	default) m="?";;
+	*) m="?";;
 	esac
 	echo $m
 }
@@ -117,8 +129,11 @@ ttyminor()
 # Raw partition for disks
 dkrawpart=2
 
+# Compatibility slice for disks
+dkcompatslice=0
+
 # Raw slice for disks
-dkrawslice=0
+dkrawslice=1
 
 for i
 do
@@ -356,26 +371,25 @@ ssd*|svn*|swd*)
 	rm -f $name$unit* r$name$unit*
 	case $unit in
 	0|1|2|3|4|5|6)
-		# Whole disk is on (non-)slice 0, (non-)partition C.
-		minor=`dkminor 0 $unit $dkrawslice $dkrawpart`
-		mknod  ${name}${unit} b $blk $minor
-		mknod r${name}${unit} c $chr $minor
-		for slice in 1 2 3 4
+		for slice in $dkcompatslice
 		do
 			for part in 0 1 2 3 4 5 6 7
 			do
 				minor=`dkminor 0 $unit $slice $part`
+				slicename=`dkitos $slice`
 				partname=`dkitop $part`
-				mknod ${name}${unit}s${slice}${partname} \
+				mknod  ${name}${unit}${slicename}${partname} \
 				      b $blk $minor
-				mknod r${name}${unit}s${slice}${partname} \
+				mknod r${name}${unit}${slicename}${partname} \
 				      c $chr $minor
 			done
-			partname=`dkitop $dkrawpart`
-			ln ${name}${unit}s${slice}${partname} \
-			   ${name}${unit}s${slice}
-			ln r${name}${unit}s${slice}${partname} \
-			   r${name}${unit}s${slice}
+		done
+		for slice in $dkrawslice 2 3 4 5
+		do
+			minor=`dkminor 0 $unit $slice $dkrawpart`
+			slicename=`dkitos $slice`
+			mknod  ${name}${unit}${slicename} b $blk $minor
+			mknod r${name}${unit}${slicename} c $chr $minor
 		done
 		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
