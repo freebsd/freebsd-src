@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.11 1994/10/05 09:48:22 davidg Exp $
+ * $Id: vfs_subr.c,v 1.12 1994/10/06 21:06:37 davidg Exp $
  */
 
 /*
@@ -521,6 +521,7 @@ bgetvp(vp, bp)
 	register struct vnode *vp;
 	register struct buf *bp;
 {
+	int s;
 
 	if (bp->b_vp)
 		panic("bgetvp: not free");
@@ -533,7 +534,9 @@ bgetvp(vp, bp)
 	/*
 	 * Insert onto list for new vnode.
 	 */
+	s = splbio();
 	bufinsvn(bp, &vp->v_cleanblkhd);
+	splx(s);
 }
 
 /*
@@ -544,14 +547,18 @@ brelvp(bp)
 	register struct buf *bp;
 {
 	struct vnode *vp;
+	int s;
 
 	if (bp->b_vp == (struct vnode *) 0)
 		panic("brelvp: NULL");
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
+	s = splbio();
 	if (bp->b_vnbufs.le_next != NOLIST)
 		bufremvn(bp);
+	splx(s);
+
 	vp = bp->b_vp;
 	bp->b_vp = (struct vnode *) 0;
 	HOLDRELE(vp);
