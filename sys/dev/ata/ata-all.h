@@ -112,6 +112,7 @@
 #define ATA_ALTSTAT			0x00	/* alternate status register */
 #define ATA_ALTOFFSET			0x206	/* alternate registers offset */
 #define ATA_PCCARD_ALTOFFSET		0x0e	/* do for PCCARD devices */
+#define ATA_PC98_ALTOFFSET		0x10c	/* do for PC98 devices */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
 #define		ATA_A_RESET		0x04	/* RESET controller */
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
@@ -119,14 +120,19 @@
 /* misc defines */
 #define ATA_PRIMARY			0x1f0
 #define ATA_SECONDARY			0x170
+#define	ATA_PC98_BANK			0x432
 #define ATA_IOSIZE			0x08
 #define ATA_ALTIOSIZE			0x01
 #define ATA_BMIOSIZE			0x08
+#define	ATA_PC98_BANKIOSIZE		0x01
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
 #define ATA_IOADDR_RID			0
 #define ATA_ALTADDR_RID			1
 #define ATA_BMADDR_RID			2
+#define ATA_PC98_ALTADDR_RID		8
+#define ATA_PC98_BANKADDR_RID		9
+
 #define ATA_IRQ_RID			0
 #define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
 
@@ -223,7 +229,7 @@ struct ata_channel {
 
     u_int8_t			status;		/* last controller status */
     u_int8_t			error;		/* last controller error */
-    int				active;		/* active processing request */
+    int				active;		/* ATA channel state control */
 #define		ATA_IDLE		0x0000
 #define		ATA_IMMEDIATE		0x0001
 #define		ATA_WAIT_INTR		0x0002
@@ -233,6 +239,10 @@ struct ata_channel {
 #define		ATA_ACTIVE_ATA		0x0020
 #define		ATA_ACTIVE_ATAPI	0x0040
 #define		ATA_CONTROL		0x0080
+
+    void (*lock_func)(struct ata_channel *, int);/* controller lock function */
+#define		ATA_LF_LOCK		0x0001
+#define		ATA_LF_UNLOCK		0x0002
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -247,13 +257,13 @@ struct ata_channel {
 
 /* externs */
 extern devclass_t ata_devclass;
+extern struct intr_config_hook *ata_delayed_attach;
  
 /* public prototypes */
 int ata_probe(device_t);
 int ata_attach(device_t);
 int ata_detach(device_t);
 int ata_resume(device_t);
-
 void ata_start(struct ata_channel *);
 void ata_reset(struct ata_channel *);
 int ata_reinit(struct ata_channel *);
@@ -283,18 +293,16 @@ int ata_dmastatus(struct ata_channel *);
 int ata_dmadone(struct ata_device *);
 
 /* macros for locking a channel */
-#define ATA_LOCK_CH(ch, value)\
-	atomic_cmpset_int(&(ch)->active, ATA_IDLE, (value))
+#define ATA_LOCK_CH(ch, value) \
+	atomic_cmpset_acq_int(&(ch)->active, ATA_IDLE, (value))
 
-#define ATA_SLEEPLOCK_CH(ch, value)\
-	while (!atomic_cmpset_int(&(ch)->active, ATA_IDLE, (value)))\
+#define ATA_SLEEPLOCK_CH(ch, value) \
+	while (!atomic_cmpset_acq_int(&(ch)->active, ATA_IDLE, (value))) \
 	    tsleep((caddr_t)&(ch), PRIBIO, "atalck", 1);
 
-#define ATA_FORCELOCK_CH(ch, value)\
-	(ch)->active = value;
+#define ATA_FORCELOCK_CH(ch, value) atomic_store_rel_int(&(ch)->active, (value))
 
-#define ATA_UNLOCK_CH(ch)\
-	(ch)->active = ATA_IDLE
+#define ATA_UNLOCK_CH(ch) atomic_store_rel_int(&(ch)->active, ATA_IDLE)
 
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \

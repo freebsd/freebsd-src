@@ -1259,6 +1259,148 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
+    case 0x00091191:	/* Acard ATP865R controller */
+    case 0x00081191:	/* Acard ATP865 controller */
+	if (ATAPI_DEVICE(atadev))
+	    break;
+	if (udmamode >= 6) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up UDMA6 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+		
+		reg44 &= ~(0x000f << (devno << 2));
+		reg44 |= (0x0007 << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x031, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA6);
+		return;
+	    }
+	}
+	if (udmamode >= 5) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up UDMA5 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+		
+		reg44 &= ~(0x000f << (devno << 2));
+		reg44 |= (0x0006 << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x031, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA5);
+		return;
+	    }
+	}
+	/* FALLTHROUGH */
+
+    case 0x00071191:	/* Acard ATP860R controller */
+    case 0x00061191:	/* Acard ATP860 controller */
+	if (ATAPI_DEVICE(atadev))
+	    break;
+	if (udmamode >= 4) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up UDMA4 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+		
+		reg44 &= ~(0x000f << (devno << 2));
+		reg44 |= (0x0005 << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x031, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA4);
+		return;
+	    }
+	}
+	if (udmamode >= 2) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up UDMA2 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+		
+		reg44 &= ~(0x000f << (devno << 2));
+		reg44 |= (0x0003 << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x031, 1);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
+		return;
+	    }
+	}
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up WDMA2 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg44 = pci_read_config(parent, 0x44, 2);
+		
+		reg44 &= ~(0x000f << (devno << 2));
+		pci_write_config(parent, 0x44, reg44, 2);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + devno, 0x031, 1);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
+		return;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
+    case 0x00051191:	/* Acard ATP850UF controller */
+	if (ATAPI_DEVICE(atadev))
+	    break;
+	if (udmamode >= 2) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up UDMA2 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int8_t reg54 = pci_read_config(parent, 0x54, 1);
+		
+		reg54 |= (0x03 << (devno << 1));
+		pci_write_config(parent, 0x54, reg54, 1);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
+		ata_dmacreate(atadev, apiomode, ATA_UDMA2);
+		return;
+	    }
+	}
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting up WDMA2 mode on Acard chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int8_t reg54 = pci_read_config(parent, 0x54, 1);
+		
+		reg54 &= ~(0x03 << (devno << 1));
+		pci_write_config(parent, 0x54, reg54, 1);
+		pci_write_config(parent, 0x4a, 0xa6, 1);
+		pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
+		ata_dmacreate(atadev, apiomode, ATA_WDMA2);
+		return;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
     case 0x000116ca:	/* Cenatek Rocket Drive controller */
 	if (wdmamode >= 0 &&
 	    (ATA_INB(atadev->channel->r_bmio, ATA_BMSTAT_PORT) & 

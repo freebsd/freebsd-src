@@ -53,6 +53,17 @@ static struct isa_pnp_id ata_ids[] = {
 };
 
 static int
+ata_isa_intrnoop(struct ata_channel *ch)
+{
+    return 1;
+
+}
+static void
+ata_isa_lock(struct ata_channel *ch, int type)
+{
+}
+
+static int
 ata_isa_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
@@ -64,7 +75,7 @@ ata_isa_probe(device_t dev)
     if (ISA_PNP_PROBE(device_get_parent(dev), dev, ata_ids) == ENXIO)
 	return ENXIO;
     
-    /* allocate the io port range to get the start address */
+    /* allocate the io port range */
     rid = ATA_IOADDR_RID;
     io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			    ATA_IOSIZE, RF_ACTIVE);
@@ -80,6 +91,8 @@ ata_isa_probe(device_t dev)
     bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
+    ch->intr_func = ata_isa_intrnoop;
+    ch->lock_func = ata_isa_lock;
     return ata_probe(dev);
 }
 
