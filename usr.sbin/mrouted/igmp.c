@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 3.6 1995/06/25 18:52:55 fenner Exp $
+ * $Id: igmp.c,v 1.7 1995/06/28 17:58:32 wollman Exp $
  */
 
 
@@ -314,7 +314,8 @@ send_igmp(src, dst, type, code, group, datalen)
 					 IGMP_MINLEN + datalen);
 
     if (IN_MULTICAST(ntohl(dst))) k_set_if(src);
-    if (dst == allhosts_group) k_set_loop(TRUE);
+    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+	    k_set_loop(TRUE);
 
     bzero(&sdst, sizeof(sdst));
     sdst.sin_family = AF_INET;
@@ -332,7 +333,8 @@ send_igmp(src, dst, type, code, group, datalen)
 		inet_fmt(dst, s1), inet_fmt(src, s2));
     }
 
-    if (dst == allhosts_group) k_set_loop(FALSE);
+    if (dst == allhosts_group || type == IGMP_HOST_MEMBERSHIP_QUERY)
+	    k_set_loop(FALSE);
 
     log(LOG_DEBUG, 0, "SENT %s from %-15s to %s",
 	packet_kind(type, code), inet_fmt(src, s1), inet_fmt(dst, s2));
