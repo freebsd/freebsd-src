@@ -145,6 +145,14 @@ variable or the
 kernel configuration tunable.
 The number of sendfile buffers scales with
 .Va kern.maxusers .
+.Va kern.ipc.nsfbufsused
+and
+.Va kern.ipc.nsfbufspeak
+read-only sysctl variables show current and peak
+.Xr sendfile 2
+buffers usage respectively.
+These values may also be viewed through
+.Nm netstat Fl m .
 .Sh RETURN VALUES
 .Rv -std sendfile
 .Sh ERRORS
@@ -201,6 +209,7 @@ If specified, the number of bytes successfully sent will be returned in
 .Fa *sbytes .
 .El
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr open 2 ,
 .Xr send 2 ,
 .Xr socket 2 ,
