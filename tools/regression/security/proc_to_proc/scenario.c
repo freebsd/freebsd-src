@@ -53,7 +53,7 @@ struct cred {
  */
 struct scenario {
 	struct cred	*sc_cred1, *sc_cred2;	/* credentials of p1 and p2 */
-	int		sc_candebug_errno;	/* desired ptrace failure */
+	int		sc_canptrace_errno;	/* desired ptrace failure */
 	int		sc_cansighup_errno;	/* desired SIGHUP failure */
 	int		sc_cansigsegv_errno;	/* desired SIGSEGV failure */
 	int		sc_cansee_errno;	/* desired getprio failure */
@@ -86,7 +86,7 @@ static struct cred creds[] = {
  * Table of scenarios.
  */
 static const struct scenario scenarios[] = {
-/*	cred1		cred2		debug	sighup	sigsegv	see	sched	name */
+/*	cred1		cred2		ptrace	sighup	sigsegv	see	sched	name */
 {	&creds[0],	&creds[0],	0,	0,	0,	0,	0,	"0. priv on priv"},
 {	&creds[0],	&creds[1],	0,	0,	0,	0,	0,	"1. priv on priv"},
 {	&creds[1],	&creds[0],	0,	0,	0,	0,	0,	"2. priv on priv"},
@@ -329,7 +329,7 @@ enact_scenario(int scenario)
 				error = errno;
 				name = "ptrace";
 				desirederror =
-				    scenarios[scenario].sc_candebug_errno;
+				    scenarios[scenario].sc_canptrace_errno;
 				break;
 			case LOOP_SIGHUP:
 				error = kill(pid1, SIGHUP);
