@@ -186,6 +186,18 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
 
 /*
+ * Allow override of whether methods execute in parallel or not.
+ * Default to serial behavior as this fixes some AE_ALREADY_EXISTS errors
+ * and matches the MS interpreter.
+ */
+static int acpi_serialize_methods = 1;
+TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
+
+/* Allow override of whether to support the _OSI method. */
+static int acpi_osi_method;
+TUNABLE_INT("hw.acpi.osi_method", &acpi_osi_method);
+
+/*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.
  * It also cannot be unloaded, since the entire system bus heirarchy hangs
@@ -232,6 +244,13 @@ acpi_Startup(void)
     /* Initialise the ACPI mutex */
     mtx_init(&acpi_mutex, "ACPI global lock", NULL, MTX_DEF);
 #endif
+
+    /*
+     * Set the globals from our tunables.  This is needed because ACPI-CA
+     * uses UINT8 for some values and we have no tunable_uint8.
+     */
+    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods;
+    AcpiGbl_CreateOsiMethod = acpi_osi_method;
 
     /* Start up the ACPI CA subsystem. */
 #ifdef ACPI_DEBUGGER
