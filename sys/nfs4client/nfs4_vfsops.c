@@ -770,7 +770,7 @@ nfs4_do_setclientid(struct nfsmount *nmp, struct ucred *cred)
 	struct route ro;
 	char *ipsrc = NULL, uaddr[24], name[24];
 	int try = 0;
-	static int seq;
+	static unsigned long seq;
 	int error;
 
 #ifndef NFS4_USE_RPCCLNT
@@ -784,7 +784,7 @@ nfs4_do_setclientid(struct nfsmount *nmp, struct ucred *cred)
 
 	/* Try not to re-use clientids */
 	if (seq == 0)
-		seq = time_second & 0xffffff;
+		seq = time_second;
 
 #ifdef NFS4_USE_RPCCLNT
 	scid.cb_netid = (nmp->nm_rpcclnt.rc_sotype == SOCK_STREAM) ? "tcp" : "udp";
@@ -811,7 +811,7 @@ nfs4_do_setclientid(struct nfsmount *nmp, struct ucred *cred)
 	RTFREE(ro.ro_rt);
 
  try_again:
-	sprintf(name, "%s-%d", ipsrc, seq++);
+	sprintf(name, "%s-%d", ipsrc, (int) ((seq + try) % 1000000L));
 	scid.namelen = strlen(name);
 	scid.name = name;
 	nfs_v4initcompound(&cp);
