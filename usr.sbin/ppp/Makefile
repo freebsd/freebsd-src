@@ -1,4 +1,6 @@
-#	$Id: Makefile,v 1.50 1998/10/22 02:32:48 brian Exp $
+#	$Id: Makefile,v 1.51 1999/01/28 01:56:30 brian Exp $
+
+MAINTAINER=brian@FreeBSD.org
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c command.c \
