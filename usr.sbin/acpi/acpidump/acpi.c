@@ -377,6 +377,28 @@ acpi_handle_ecdt(struct ACPIsdt *sdp)
 }
 
 static void
+acpi_handle_mcfg(struct ACPIsdt *sdp)
+{
+	struct MCFGbody *mcfg;
+	u_int i, e;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	mcfg = (struct MCFGbody *) sdp->body;
+
+	e = (sdp->len - ((caddr_t)&mcfg->s[0] - (caddr_t)sdp)) /
+	    sizeof(*mcfg->s);
+	for (i = 0; i < e; i++, mcfg++) {
+		printf("\n");
+		printf("\tBase Address= 0x%016jx\n", mcfg->s[i].baseaddr);
+		printf("\tSegment Group= 0x%04x\n", mcfg->s[i].seg_grp);
+		printf("\tStart Bus= %d\n", mcfg->s[i].start);
+		printf("\tEnd Bus= %d\n", mcfg->s[i].end);
+	}
+	printf(END_COMMENT);
+}
+
+static void
 acpi_print_sdt(struct ACPIsdt *sdp)
 {
 	printf("  ");
@@ -683,6 +705,8 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			acpi_handle_hpet(sdp);
 		else if (!memcmp(sdp->signature, "ECDT", 4))
 			acpi_handle_ecdt(sdp);
+		else if (!memcmp(sdp->signature, "MCFG", 4))
+			acpi_handle_mcfg(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);
