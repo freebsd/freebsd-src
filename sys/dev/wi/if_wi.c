@@ -2345,7 +2345,6 @@ nextpkt:
 
 		if (sc->wi_ptype == WI_PORTTYPE_AP && sc->wi_use_wep) {
 			/* Do host encryption. */
-			printf( "XXX: host encrypt not implemented for 802.3\n" );
 		} else {
 			eh->ether_type = htons(m0->m_pkthdr.len -
 			    WI_SNAPHDR_LEN);
