@@ -1941,7 +1941,7 @@ ispscsicmd(xs)
 		if (XS_CANTAG(xs)) {
 			t2reqp->req_flags = XS_KINDOF_TAG(xs);
 		} else {
-			if (XS_CDBP(xs)[0] == 0x3)	/* REQUEST SENSE */
+			if (XS_CDBP(xs)->opcode == 0x3)	/* REQUEST SENSE */
 				t2reqp->req_flags = REQFLAG_HTAG;
 			else
 				t2reqp->req_flags = REQFLAG_OTAG;
