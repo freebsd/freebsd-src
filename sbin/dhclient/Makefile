@@ -1,30 +1,26 @@
-# ex:ts=8
 #
-# @(#)Makefile	1.0 (obrien) 2/6/99
-# $Id$
-#
-# Copyright (c) 1999 by David O'Brien
-# This file is under a "FreeBSD" copyright.  See /usr/src/sys/sys/copyright.h
-# for the terms of the copyright.
+# $Id: Makefile,v 1.1.1.1 1999/02/10 20:51:22 obrien Exp $
 #
 
-.PATH:		${.CURDIR}/../../contrib/isc-dhcp/client ${.CURDIR}/../../contrib/isc-dhcp/common
+DIST_DIR=	${.CURDIR}/../../contrib/isc-dhcp
+
+.PATH:		${DIST_DIR}/client ${DIST_DIR}/common
 
 PROG=		dhclient
-MAN5=		dhclient.conf.5 dhclient.leases.5 dhcp-options.5
-MAN8=		dhclient.8 dhclient-script.8
 
-SRCS=		dhclient.c clparse.c
-SRCS+=		raw.c parse.c nit.c icmp.c dispatch.c conflex.c upf.c bpf.c \
-		socket.c packet.c memory.c print.c options.c inet.c convert.c \
-		tree.c tables.c hash.c alloc.c errwarn.c inet_addr.c
+SRCS=		clparse.c dhclient.c
+SRCS+=		alloc.c bpf.c conflex.c convert.c dispatch.c errwarn.c hash.c \
+		icmp.c inet.c inet_addr.c memory.c nit.c options.c packet.c \
+		parse.c print.c raw.c socket.c tables.c tree.c upf.c
 
 CFLAGS+= 	-I${.CURDIR}/../../contrib/isc-dhcp/includes \
 		-I${.CURDIR}/../../contrib/isc-dhcp
 
+MAN5=		dhclient.conf.5 dhclient.leases.5 dhcp-options.5
+MAN8=		dhclient.8 dhclient-script.8
+
 afterinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/../../contrib/isc-dhcp/client/scripts/freebsd \
-		${BINDIR}/dhclient-script
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${DIST_DIR}/client/scripts/freebsd ${BINDIR}/dhclient-script
 
 .include <bsd.prog.mk>
