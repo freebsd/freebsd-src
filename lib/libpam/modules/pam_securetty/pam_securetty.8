@@ -1,5 +1,12 @@
 .\" Copyright (c) 2001 Mark R V Murray
 .\" All rights reserved.
+.\" Copyright (c) 2002 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\"
+.\" Portions of this software were developed for the FreeBSD Project by
+.\" ThinkSec AS and NAI Labs, the Security Research Division of Network
+.\" Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,6 +16,9 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -37,34 +47,27 @@
 .Pa pam_securetty
 .Op Ar options
 .Sh DESCRIPTION
-The SecureTTY authentication service module for PAM,
+The SecureTTY service module for PAM,
 .Nm
 provides functionality for only one PAM category:
-authentication.
+account management.
 In terms of the
 .Ar module-type
 parameter, this is the
-.Dq Li auth
+.Dq Li account
 feature.
-It also provides a null function for session management.
-.Ss SecureTTY Authentication Module
-The SecureTTY authentication component
-.Pq Fn pam_sm_authenticate ,
-returns success if the user is attempting to authenticate as superuser,
-and the process is attached to a secure TTY.
-Alternatively,
-if the user is not authenticating as superuser,
-the module always returns success.
+It also provides null functions for authentication and session
+management.
+.Ss SecureTTY Account Management Module
+The SecureTTY account management component
+.Pq Fn pam_sm_acct_mgmt ,
+returns failure if the user is attempting to authenticate as superuser,
+and the process is attached to an insecure TTY.
+In all other cases, the module returns success.
 .Pp
-A TTY is defined as secure if its entry is fetchable from
+A TTY is considered secure if it is listed in
 .Pa /etc/ttys
-by
-.Xr getttynam 3
-(see
-.Xr ttys 5 ) ,
-and the entry (a
-.Vt "struct ttyent" )
-has the
+and has the
 .Dv TTY_SECURE
 flag set.
 .Pp
