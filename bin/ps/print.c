@@ -185,7 +185,7 @@ state(k, ve)
 		break;
 
 	case SSLEEP:
-		if (flag & P_SINTR)	/* interuptable (long) */
+		if (flag & P_SINTR)	/* interruptable (long) */
 			*cp = p->p_slptime >= MAXSLP ? 'I' : 'S';
 		else
 			*cp = 'D';
@@ -194,6 +194,14 @@ state(k, ve)
 	case SRUN:
 	case SIDL:
 		*cp = 'R';
+		break;
+
+	case SWAIT:
+		*cp = 'W';
+		break;
+
+	case SMTX:
+		*cp = 'M';
 		break;
 
 	case SZOMB:

@@ -433,9 +433,11 @@ kern/kern_event.c	standard
 kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
+kern/kern_idle.c	standard
 kern/kern_intr.c	standard
 kern/kern_jail.c	standard
 kern/kern_kthread.c	standard
+kern/kern_ktr.c		optional ktr
 kern/kern_ktrace.c	standard
 kern/kern_linker.c	standard
 kern/kern_lock.c	standard
@@ -443,6 +445,7 @@ kern/kern_lockf.c	standard
 kern/kern_malloc.c	standard
 kern/kern_mib.c		standard
 kern/kern_module.c	standard
+kern/kern_mutex.c	standard
 kern/kern_ntptime.c	standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard

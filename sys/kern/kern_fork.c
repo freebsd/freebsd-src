@@ -52,6 +52,7 @@
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
 #include <sys/jail.h>	
@@ -64,6 +65,8 @@
 #include <vm/vm_zone.h>
 
 #include <sys/user.h>
+
+#include <machine/mutex.h>
 
 static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
 
@@ -131,7 +134,8 @@ rfork(p, uap)
 	int error;
 	struct proc *p2;
 
-	error = fork1(p, uap->flags, &p2);
+	/* mask kernel only flags out of the user flags */
+	error = fork1(p, uap->flags & ~RFKERNELONLY, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2 ? p2->p_pid : 0;
 		p->p_retval[1] = 0;
@@ -177,17 +181,19 @@ SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
 
 int
 fork1(p1, flags, procp)
-	struct proc *p1;
+	struct proc *p1;				    /* parent proc */
 	int flags;
-	struct proc **procp;
+	struct proc **procp;				    /* child proc */
 {
 	struct proc *p2, *pptr;
 	uid_t uid;
 	struct proc *newproc;
+	int trypid;
 	int ok;
 	static int pidchecked = 0;
 	struct forklist *ep;
 
+	/* Can't copy and clear */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
 
@@ -278,47 +284,56 @@ fork1(p1, flags, procp)
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
 	 * ready to use (from nextpid+1 through pidchecked-1).
+	 *
+	 * If RFHIGHPID is set (used during system boot), do not allocate
+	 * low-numbered pids.
 	 */
-	nextpid++;
+	trypid = nextpid + 1;
+	if (flags & RFHIGHPID) {
+		if (trypid < 10) {
+			trypid = 10;
+		}
+	} else {
 	if (randompid)
-		nextpid += arc4random() % randompid;
+			trypid += arc4random() % randompid;
+	}
 retry:
 	/*
 	 * If the process ID prototype has wrapped around,
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (nextpid >= PID_MAX) {
-		nextpid = nextpid % PID_MAX;
-		if (nextpid < 100)
-			nextpid += 100;
+	if (trypid >= PID_MAX) {
+		trypid = trypid % PID_MAX;
+		if (trypid < 100)
+			trypid += 100;
 		pidchecked = 0;
 	}
-	if (nextpid >= pidchecked) {
+	if (trypid >= pidchecked) {
 		int doingzomb = 0;
 
 		pidchecked = PID_MAX;
 		/*
 		 * Scan the active and zombie procs to check whether this pid
 		 * is in use.  Remember the lowest pid that's greater
-		 * than nextpid, so we can avoid checking for a while.
+		 * than trypid, so we can avoid checking for a while.
 		 */
 		p2 = LIST_FIRST(&allproc);
 again:
 		for (; p2 != 0; p2 = LIST_NEXT(p2, p_list)) {
-			while (p2->p_pid == nextpid ||
-			    p2->p_pgrp->pg_id == nextpid ||
-			    p2->p_session->s_sid == nextpid) {
-				nextpid++;
-				if (nextpid >= pidchecked)
+			while (p2->p_pid == trypid ||
+			    p2->p_pgrp->pg_id == trypid ||
+			    p2->p_session->s_sid == trypid) {
+				trypid++;
+				if (trypid >= pidchecked)
 					goto retry;
 			}
-			if (p2->p_pid > nextpid && pidchecked > p2->p_pid)
+			if (p2->p_pid > trypid && pidchecked > p2->p_pid)
 				pidchecked = p2->p_pid;
-			if (p2->p_pgrp->pg_id > nextpid &&
+			if (p2->p_pgrp->pg_id > trypid &&
 			    pidchecked > p2->p_pgrp->pg_id)
 				pidchecked = p2->p_pgrp->pg_id;
-			if (p2->p_session->s_sid > nextpid &&
+			if (p2->p_session->s_sid > trypid &&
 			    pidchecked > p2->p_session->s_sid)
 				pidchecked = p2->p_session->s_sid;
 		}
@@ -331,9 +346,17 @@ again:
 
 	p2 = newproc;
 	p2->p_stat = SIDL;			/* protect against others */
-	p2->p_pid = nextpid;
+	p2->p_pid = trypid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
+
+	/*
+	 * RFHIGHPID does not mess with the nextpid counter during boot.
+	 */
+	if (flags & RFHIGHPID)
+		pidchecked = 0;
+	else
+		nextpid = trypid;
 
 	/*
 	 * Make a proc table entry for the new process.
@@ -456,6 +479,8 @@ again:
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_children);
+	LIST_INIT(&p2->p_heldmtx);
+	LIST_INIT(&p2->p_contested);
 
 #ifdef KTRACE
 	/*
@@ -496,14 +521,19 @@ again:
 	}
 
 	/*
-	 * Make child runnable and add to run queue.
+	 * If RFSTOPPED not requested, make child runnable and add to
+	 * run queue.
 	 */
 	microtime(&(p2->p_stats->p_start));
 	p2->p_acflag = AFORK;
-	(void) splhigh();
-	p2->p_stat = SRUN;
-	setrunqueue(p2);
-	(void) spl0();
+	if ((flags & RFSTOPPED) == 0) {
+		splhigh();
+		mtx_enter(&sched_lock, MTX_SPIN);
+		p2->p_stat = SRUN;
+		setrunqueue(p2);
+		mtx_exit(&sched_lock, MTX_SPIN);
+		spl0();
+	}
 
 	/*
 	 * Now can be swapped.

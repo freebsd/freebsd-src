@@ -188,7 +188,8 @@ getpacket (char *buffer)
   unsigned char ch;
   int s;
 
-  s = spltty ();
+  s = read_eflags();
+  disable_intr();
   do
     {
       /* wait around for the start character, ignore all other characters */
@@ -239,7 +240,7 @@ getpacket (char *buffer)
 	}
     }
   while (checksum != xmitcsum);
-  splx (s);
+  write_eflags(s);
 }
 
 /* send the packet in buffer.  */
@@ -253,7 +254,8 @@ putpacket (char *buffer)
   int s;
 
   /*  $<packet info>#<checksum>. */
-  s = spltty ();
+  s = read_eflags();
+  disable_intr();
   do
     {
 /*
@@ -285,7 +287,7 @@ putpacket (char *buffer)
       putDebugChar (hexchars[checksum & 0xf]);
     }
   while ((getDebugChar () & 0x7f) != '+');
-  splx (s);
+  write_eflags(s);
 }
 
 static char  remcomInBuffer[BUFMAX];

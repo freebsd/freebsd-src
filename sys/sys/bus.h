@@ -45,6 +45,14 @@ typedef struct devclass		*devclass_t;
 typedef void driver_intr_t(void*);
 
 /*
+ * Interrupt type bits.  These flags are used both by newbus interrupt
+ * registration (nexus.c) and also in struct intrec, which defines
+ * interrupt properties.
+ *
+ * XXX We should probably revisit this and remove the vestiges of the
+ * spls implicit in names like INTR_TYPE_TTY.  In the meantime, don't
+ * confuse things by renaming them (Grog, 18 July 2000).
+ *
  * We define this in terms of bits because some devices may belong
  * to multiple classes (and therefore need to be included in
  * multiple interrupt masks, which is what this really serves to
@@ -57,7 +65,12 @@ enum intr_type {
     INTR_TYPE_NET = 4,
     INTR_TYPE_CAM = 8,
     INTR_TYPE_MISC = 16,
-    INTR_TYPE_FAST = 128
+    INTR_HEAVY = 32,			/* heavyweight interrupt process */
+    INTR_LIGHT = 64,			/* light weight interrupt thread */
+    INTR_THREADED = INTR_LIGHT | INTR_HEAVY, /* any kind of interrupt thread */
+    INTR_FAST = 128,
+    INTR_EXCL =	256,			/* exclusive interrupt */
+    INTR_MPSAFE = 512			/* this interrupt is SMP safe */
 };
 
 typedef int (*devop_t)(void);

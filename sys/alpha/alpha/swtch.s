@@ -28,7 +28,9 @@
  * rights to redistribute these changes.
  */
 
+#define _LOCORE
 #include <machine/asm.h>
+#include <machine/mutex.h>
 #include "assym.s"
 
 /**************************************************************************/
@@ -39,7 +41,7 @@
  */
 #define	SWITCH_CONTEXT							\
 	/* Make a note of the context we're running on. */		\
-	stq	a0, curpcb;						\
+	stq	a0, GD_CURPCB(globalp);					\
 									\
 	/* Swap in the new context. */					\
 	call_pal PAL_OSF1_swpctx
@@ -86,34 +88,16 @@ IMPORT(want_resched, 4)
 IMPORT(Lev1map, 8)
 
 /*
- * When no processes are on the runq, cpu_switch branches to idle
- * to wait for something to come ready.
- * Note: this is really a part of cpu_switch() but defined here for kernel
- * profiling.
- */
-LEAF(idle, 0)
-	br	pv, Lidle1
-Lidle1:	LDGP(pv)
-	stq	zero, switchtime		/* zero switchtime.tv_sec */
-	stq	zero, curproc			/* curproc <- NULL for stats */
-	mov	zero, a0			/* enable all interrupts */
-	call_pal PAL_OSF1_swpipl
-Lidle2:
-	CALL(procrunnable)
-	beq	v0, Lidle2
-	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
-	call_pal PAL_OSF1_swpipl
-	jmp	zero, sw1			/* jump back into the fray */
-	END(idle)
-
-/*
  * cpu_switch()
  * Find the highest priority process and resume it.
  */
 LEAF(cpu_switch, 1)
 	LDGP(pv)
 	/* do an inline savectx(), to save old context */
+	ldq	a0, GD_CURPROC(globalp)
 	ldq	a1, P_ADDR(a0)
+	ldl	t0, sched_lock+MTX_RECURSE	/* save sched_lock state */
+	stl	t0, U_PCB_SCHEDNEST(a1)
 	/* NOTE: ksp is stored by the swpctx */
 	stq	s0, U_PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
 	stq	s1, U_PCB_CONTEXT+(1 * 8)(a1)
@@ -129,16 +113,12 @@ LEAF(cpu_switch, 1)
 	mov	a0, s0				/* save old curproc */
 	mov	a1, s1				/* save old U-area */
 
-	CALL(procrunnable)			/* anything to run? */
-	beq	v0, idle			/* and if none, go idle */
-
 	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
 	call_pal PAL_OSF1_swpipl
 sw1:
 	br	pv, Lcs1
 Lcs1:	LDGP(pv)
-	CALL(chooseproc)
-	beq	v0, idle
+	CALL(chooseproc)			/* can't return NULL */
 	mov	v0, s2
 	ldq	s3, P_MD_PCBPADDR(s2)		/* save new pcbpaddr */
 
@@ -194,7 +174,7 @@ Lcs7:
 	 * because we might have re-entered cpu_switch() from idle(),
 	 * in which case curproc would be NULL.
 	 */
-	stq	s2, curproc			/* curproc = p */
+	stq	s2, GD_CURPROC(globalp)		/* curproc = p */
 	stl	zero, want_resched		/* we've rescheduled */
 
 	/*
@@ -212,6 +192,10 @@ Lcs7:
 	ldq	s5, U_PCB_CONTEXT+(5 * 8)(t0)
 	ldq	s6, U_PCB_CONTEXT+(6 * 8)(t0)
 	ldq	ra, U_PCB_CONTEXT+(7 * 8)(t0)		/* restore ra */
+	ldl	t1, U_PCB_SCHEDNEST(t0)
+	stl	t1, sched_lock+MTX_RECURSE		/* restore lock */
+	ldq	t1, GD_CURPROC(globalp)
+	stq	t1, sched_lock+MTX_LOCK
 	ldq	a0, U_PCB_CONTEXT+(8 * 8)(t0)		/* restore ipl */
 	and	a0, ALPHA_PSL_IPL_MASK, a0
 	call_pal PAL_OSF1_swpipl
@@ -231,6 +215,7 @@ Lcs7:
  * pointer to the executing process's proc structure.
  */
 LEAF(switch_trampoline, 0)
+	MTX_EXIT(sched_lock)
 	mov	s0, pv
 	mov	s1, ra
 	mov	s2, a0
@@ -266,7 +251,7 @@ Lchkast:
 	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
 	beq	t0, Lrestoreregs		/* no: just return */
 
-	ldl	t2, astpending			/* AST pending? */
+	ldl	t2, GD_ASTPENDING(globalp)	/* AST pending? */
 	beq	t2, Lrestoreregs		/* no: return */
 
 	/* We've got an AST.  Handle it. */
@@ -277,7 +262,7 @@ Lchkast:
 
 Lrestoreregs:
 	/* set the hae register if this process has specified a value */
-	ldq	t0, curproc
+	ldq	t0, GD_CURPROC(globalp)
 	beq	t0, Lnohae
 	ldq	t1, P_MD_FLAGS(t0)
 	and	t1, MDP_HAEUSED

@@ -620,7 +620,7 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, loran_timecounter, CTLFLAG_RD,
 /**********************************************************************/
 
 struct	isa_driver lorandriver = {
-	INTR_TYPE_TTY | INTR_TYPE_FAST,
+	INTR_TYPE_TTY | INTR_FAST,
 	loranprobe,
 	loranattach,
 	"loran"

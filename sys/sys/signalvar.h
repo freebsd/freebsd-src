@@ -189,6 +189,10 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 
 #ifdef _KERNEL
 
+#include <sys/ktr.h>
+#include <sys/systm.h>
+#include <machine/mutex.h>
+
 struct pgrp;
 struct proc;
 struct sigio;
@@ -240,9 +244,9 @@ static __inline int __cursig(struct proc *p)
 	     (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset))) {
 		return(0);
 	}
-	get_mplock();
+	mtx_enter(&Giant, MTX_DEF);
 	r = issignal(p);
-	rel_mplock();
+	mtx_exit(&Giant, MTX_DEF);
 	return(r);
 }
 

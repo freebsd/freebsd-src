@@ -30,7 +30,7 @@
 
 #include <machine/frame.h>
 #include <machine/reg.h>
-
+#include <machine/globaldata.h>
 #include <machine/alpha_cpu.h>
 
 /*
@@ -53,6 +53,7 @@ struct pcb {
 	u_int64_t	pcb_fp_control;		/* IEEE control word	[SW] */
 	unsigned long	pcb_onfault;		/* for copy faults	[SW] */
 	unsigned long	pcb_accessaddr;		/* for [fs]uswintr	[SW] */
+	u_int32_t	pcb_schednest;		/* state of sched_lock  [SW] */
 };
 
 /*
@@ -64,3 +65,9 @@ struct md_coredump {
 	struct	trapframe md_tf;
 	struct	fpreg md_fpstate;
 };
+
+#ifdef _KERNEL
+#ifndef curpcb
+extern struct pcb *curpcb;		/* our current running pcb */
+#endif
+#endif

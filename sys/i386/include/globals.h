@@ -74,6 +74,14 @@
 		__asm("movl %0,%%fs:gd_" #name : : "r" (val)); \
 	}
 
+static __inline int
+_global_globaldata(void)
+{
+	int val;
+	__asm("movl %%fs:globaldata,%0" : "=r" (val));
+	return (val);
+}
+
 #if defined(SMP) || defined(KLD_MODULE) || defined(ACTUALLY_LKM_NOT_KERNEL)
 /*
  * The following set of macros works for UP kernel as well, but for maximum
@@ -82,18 +90,21 @@
  * portability between UP and SMP kernels.
  */
 #define	curproc		GLOBAL_RVALUE_NV(curproc, struct proc *)
+#define	prevproc	GLOBAL_RVALUE_NV(prevproc, struct proc *)
 #define	curpcb		GLOBAL_RVALUE_NV(curpcb, struct pcb *)
-#define	npxproc		GLOBAL_LVALUE(npxproc, struct proc *)
+#define	npxproc		GLOBAL_RVALUE_NV(npxproc, struct proc *)
+#define	idleproc	GLOBAL_RVALUE_NV(idleproc, struct proc *)
 #define	common_tss	GLOBAL_LVALUE(common_tss, struct i386tss)
 #define	switchtime	GLOBAL_LVALUE(switchtime, struct timeval)
 #define	switchticks	GLOBAL_LVALUE(switchticks, int)
+#define	intr_nesting_level	GLOBAL_RVALUE(intr_nesting_level, u_char)
 
 #define	common_tssd	GLOBAL_LVALUE(common_tssd, struct segment_descriptor)
 #define	tss_gdt		GLOBAL_LVALUE(tss_gdt, struct segment_descriptor *)
-#define	astpending	GLOBAL_LVALUE(astpending, u_int)
+#define	astpending	GLOBAL_RVALUE(astpending, u_int)
 
 #ifdef USER_LDT
-#define	currentldt	GLOBAL_LVALUE(currentldt, int)
+#define	currentldt	GLOBAL_RVALUE(currentldt, int)
 #endif
 
 #ifdef SMP
@@ -109,18 +120,31 @@
 #define	prv_CADDR3	GLOBAL_RVALUE(prv_CADDR3, caddr_t)
 #define	prv_PADDR1	GLOBAL_RVALUE(prv_PADDR1, unsigned *)
 #endif
+
+#define	witness_spin_check	GLOBAL_RVALUE(witness_spin_check, int)
+
 #endif	/*UP kernel*/
 
 GLOBAL_FUNC(curproc)
+GLOBAL_FUNC(prevproc)
 GLOBAL_FUNC(astpending)
 GLOBAL_FUNC(curpcb)
 GLOBAL_FUNC(npxproc)
+GLOBAL_FUNC(idleproc)
 GLOBAL_FUNC(common_tss)
 GLOBAL_FUNC(switchtime)
 GLOBAL_FUNC(switchticks)
+GLOBAL_FUNC(intr_nesting_level)
 
 GLOBAL_FUNC(common_tssd)
 GLOBAL_FUNC(tss_gdt)
+
+/* XXX */
+#ifdef KTR_PERCPU
+GLOBAL_FUNC(ktr_idx)
+GLOBAL_FUNC(ktr_buf)
+GLOBAL_FUNC(ktr_buf_data)
+#endif
 
 #ifdef USER_LDT
 GLOBAL_FUNC(currentldt)
@@ -140,7 +164,17 @@ GLOBAL_FUNC(prv_CADDR3)
 GLOBAL_FUNC(prv_PADDR1)
 #endif
 
-#define	SET_CURPROC(x)	(_global_curproc_set_nv((int)x))
+GLOBAL_FUNC(witness_spin_check)
+
+#ifdef SMP
+#define	GLOBALDATA		GLOBAL_RVALUE(globaldata, struct globaldata *)
+#else
+#define	GLOBALDATA		(&globaldata)
+#endif
+
+#define	CURPROC			curproc
+
+#define	PCPU_SET(name, value)	(_global_##name##_set((int)value))
 
 #endif	/* _KERNEL */
 

@@ -52,9 +52,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sysproto.h>
+
+#include <machine/mutex.h>
 
 /*
  * Low level support for sleep/wakeup paradigm
@@ -145,10 +148,12 @@ yield(struct proc *p, struct yield_args *uap) {
 	p->p_retval[0] = 0;
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_priority = MAXPRI;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 
 	return(0);

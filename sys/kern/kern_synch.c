@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
@@ -59,6 +60,7 @@
 #include <machine/cpu.h>
 #include <machine/ipl.h>
 #include <machine/smp.h>
+#include <machine/mutex.h>
 
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
@@ -135,7 +137,7 @@ maybe_resched(chk)
 	 * standard process becomes runaway cpu-bound, the system can lockup
 	 * due to idle-scheduler processes in wakeup never getting any cpu.
 	 */
-	if (p == NULL) {
+	if (p == idleproc) {
 #if 0
 		need_resched();
 #endif
@@ -169,7 +171,7 @@ roundrobin(arg)
 	need_resched();
 	forward_roundrobin();
 #else 
- 	if (p == 0 || RTP_PRIO_NEED_RR(p->p_rtprio.type))
+ 	if (p == idleproc || RTP_PRIO_NEED_RR(p->p_rtprio.type))
  		need_resched();
 #endif
 
@@ -284,6 +286,8 @@ schedcpu(arg)
 		 * Increment time in/out of memory and sleep time
 		 * (if sleeping).  We ignore overflow; with 16-bit int's
 		 * (remember them?) overflow takes 45 days.
+		if (p->p_stat == SWAIT)
+			continue;
 		 */
 		p->p_swtime++;
 		if (p->p_stat == SSLEEP || p->p_stat == SSTOP)
@@ -295,7 +299,12 @@ schedcpu(arg)
 		 */
 		if (p->p_slptime > 1)
 			continue;
-		s = splhigh();	/* prevent state changes and protect run queue */
+		/*
+		 * prevent state changes and protect run queue
+		 */
+		s = splhigh();
+		mtx_enter(&sched_lock, MTX_SPIN);
+
 		/*
 		 * p_pctcpu is only for ps.
 		 */
@@ -325,6 +334,7 @@ schedcpu(arg)
 			} else
 				p->p_priority = p->p_usrpri;
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 	}
 	vmmeter();
@@ -364,6 +374,7 @@ updatepri(p)
 static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
 #define LOOKUP(x)	(((intptr_t)(x) >> 8) & (TABLESIZE - 1))
 
+#if 0
 /*
  * During autoconfiguration or after a panic, a sleep will simply
  * lower the priority briefly to allow interrupts, then return.
@@ -374,6 +385,7 @@ static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
  * higher to block network software interrupts after panics.
  */
 int safepri;
+#endif
 
 void
 sleepinit(void)
@@ -406,11 +418,15 @@ tsleep(ident, priority, wmesg, timo)
 	struct proc *p = curproc;
 	int s, sig, catch = priority & PCATCH;
 	struct callout_handle thandle;
+	int rval = 0;
 
 #ifdef KTRACE
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_enter(&sched_lock, MTX_SPIN);
+
 	s = splhigh();
 	if (cold || panicstr) {
 		/*
@@ -419,10 +435,14 @@ tsleep(ident, priority, wmesg, timo)
 		 * don't run any other procs or panic below,
 		 * in case this is the idle process and already asleep.
 		 */
+		mtx_exit(&sched_lock, MTX_SPIN);
+#if 0
 		splx(safepri);
+#endif
 		splx(s);
 		return (0);
 	}
+
 	KASSERT(p != NULL, ("tsleep1"));
 	KASSERT(ident != NULL && p->p_stat == SRUN, ("tsleep"));
 	/*
@@ -436,6 +456,9 @@ tsleep(ident, priority, wmesg, timo)
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
 	p->p_priority = priority & PRIMASK;
+	p->p_nativepri = p->p_priority;
+	CTR4(KTR_PROC, "tsleep: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	if (timo)
 		thandle = timeout(endtsleep, (void *)p, timo);
@@ -449,6 +472,9 @@ tsleep(ident, priority, wmesg, timo)
 	 * stopped, p->p_wchan will be 0 upon return from CURSIG.
 	 */
 	if (catch) {
+		CTR4(KTR_PROC,
+		        "tsleep caught: proc %p (pid %d, %s), schedlock %x",
+			p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 		p->p_flag |= P_SINTR;
 		if ((sig = CURSIG(p))) {
 			if (p->p_wchan)
@@ -465,6 +491,9 @@ tsleep(ident, priority, wmesg, timo)
 	p->p_stat = SSLEEP;
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
+	CTR4(KTR_PROC,
+	        "tsleep resume: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 resume:
 	curpriority = p->p_usrpri;
 	splx(s);
@@ -476,7 +505,8 @@ resume:
 			if (KTRPOINT(p, KTR_CSW))
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
-			return (EWOULDBLOCK);
+			rval = EWOULDBLOCK;
+			goto out;
 		}
 	} else if (timo)
 		untimeout(endtsleep, (void *)p, thandle);
@@ -486,14 +516,19 @@ resume:
 			ktrcsw(p->p_tracep, 0, 0);
 #endif
 		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
-			return (EINTR);
-		return (ERESTART);
+			rval = EINTR;
+		else
+			rval = ERESTART;
+		goto out;
 	}
+out:
+	mtx_exit(&sched_lock, MTX_SPIN);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
-	return (0);
+
+	return (rval);
 }
 
 /*
@@ -519,13 +554,14 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 	int s;
 
 	/*
-	 * splhigh() while manipulating sleep structures and slpque.
+	 * obtain sched_lock while manipulating sleep structures and slpque.
 	 *
 	 * Remove preexisting wait condition (if any) and place process
 	 * on appropriate slpque, but do not put process to sleep.
 	 */
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 
 	if (p->p_wchan != NULL)
 		unsleep(p);
@@ -539,6 +575,7 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 		TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	}
 
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 
 	return(0);
@@ -560,7 +597,11 @@ int
 await(int priority, int timo)
 {
 	struct proc *p = curproc;
+	int rval = 0;
 	int s;
+
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_enter(&sched_lock, MTX_SPIN);
 
 	s = splhigh();
 
@@ -616,7 +657,8 @@ resume:
 				if (KTRPOINT(p, KTR_CSW))
 					ktrcsw(p->p_tracep, 0, 0);
 #endif
-				return (EWOULDBLOCK);
+				rval = EWOULDBLOCK;
+				goto out;
 			}
 		} else if (timo)
 			untimeout(endtsleep, (void *)p, thandle);
@@ -626,8 +668,10 @@ resume:
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
 			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
-				return (EINTR);
-			return (ERESTART);
+				rval = EINTR;
+			else
+				rval = ERESTART;
+			goto out;
 		}
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_CSW))
@@ -655,7 +699,10 @@ resume:
 	 */
 	p->p_asleep.as_priority = 0;
 
-	return (0);
+out:
+	mtx_exit(&sched_lock, MTX_SPIN);
+
+	return (rval);
 }
 
 /*
@@ -673,7 +720,11 @@ endtsleep(arg)
 	int s;
 
 	p = (struct proc *)arg;
+	CTR4(KTR_PROC,
+	        "endtsleep: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_wchan) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
@@ -681,6 +732,7 @@ endtsleep(arg)
 			unsleep(p);
 		p->p_flag |= P_TIMEOUT;
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }
 
@@ -694,10 +746,12 @@ unsleep(p)
 	int s;
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_wchan) {
 		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_procq);
 		p->p_wchan = 0;
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }
 
@@ -713,6 +767,7 @@ wakeup(ident)
 	int s;
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	qp = &slpque[LOOKUP(ident)];
 restart:
 	TAILQ_FOREACH(p, qp, p_procq) {
@@ -721,6 +776,9 @@ restart:
 			p->p_wchan = 0;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
+				CTR4(KTR_PROC,
+				        "wakeup: proc %p (pid %d, %s), schedlock %x",
+					p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -737,6 +795,7 @@ restart:
 			}
 		}
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }
 
@@ -754,6 +813,7 @@ wakeup_one(ident)
 	int s;
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	qp = &slpque[LOOKUP(ident)];
 
 	TAILQ_FOREACH(p, qp, p_procq) {
@@ -762,6 +822,9 @@ wakeup_one(ident)
 			p->p_wchan = 0;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
+				CTR4(KTR_PROC,
+				        "wakeup1: proc %p (pid %d, %s), schedlock %x",
+					p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
@@ -778,6 +841,7 @@ wakeup_one(ident)
 			}
 		}
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 }
 
@@ -791,7 +855,9 @@ mi_switch()
 	struct timeval new_switchtime;
 	register struct proc *p = curproc;	/* XXX */
 	register struct rlimit *rlim;
+	int giantreleased;
 	int x;
+	WITNESS_SAVE_DECL(Giant);
 
 	/*
 	 * XXX this spl is almost unnecessary.  It is partly to allow for
@@ -812,6 +878,14 @@ mi_switch()
 	 */
 	x = splstatclock();
 
+	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
+
+	WITNESS_SAVE(&Giant, Giant);
+	for (giantreleased = 0; mtx_owned(&Giant); giantreleased++)
+		mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+
 #ifdef SIMPLELOCK_DEBUG
 	if (p->p_simple_locks)
 		printf("sleep: holding simple lock\n");
@@ -823,7 +897,7 @@ mi_switch()
 	microuptime(&new_switchtime);
 	if (timevalcmp(&new_switchtime, &switchtime, <)) {
 		printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-		    switchtime.tv_sec, switchtime.tv_usec, 
+		    switchtime.tv_sec, switchtime.tv_usec,
 		    new_switchtime.tv_sec, new_switchtime.tv_usec);
 		new_switchtime = switchtime;
 	} else {
@@ -834,6 +908,8 @@ mi_switch()
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
 	 * If over max, kill it.
+	 *
+	 * XXX drop sched_lock, pickup Giant
 	 */
 	if (p->p_stat != SZOMB && p->p_limit->p_cpulimit != RLIM_INFINITY &&
 	    p->p_runtime > p->p_limit->p_cpulimit) {
@@ -854,10 +930,18 @@ mi_switch()
 	 */
 	cnt.v_swtch++;
 	switchtime = new_switchtime;
-	cpu_switch(p);
+	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	cpu_switch();
+	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
 	if (switchtime.tv_sec == 0)
 		microuptime(&switchtime);
 	switchticks = ticks;
+	mtx_exit(&sched_lock, MTX_SPIN);
+	while (giantreleased--)
+		mtx_enter(&Giant, MTX_DEF);
+	WITNESS_RESTORE(&Giant, Giant);
 
 	splx(x);
 }
@@ -874,10 +958,12 @@ setrunnable(p)
 	register int s;
 
 	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
 	switch (p->p_stat) {
 	case 0:
 	case SRUN:
 	case SZOMB:
+	case SWAIT:
 	default:
 		panic("setrunnable");
 	case SSTOP:
@@ -891,6 +977,7 @@ setrunnable(p)
 	p->p_stat = SRUN;
 	if (p->p_flag & P_INMEM)
 		setrunqueue(p);
+	mtx_exit(&sched_lock, MTX_SPIN);
 	splx(s);
 	if (p->p_slptime > 1)
 		updatepri(p);

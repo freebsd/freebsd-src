@@ -49,10 +49,12 @@
 #include "opt_trap.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
@@ -76,12 +78,14 @@
 #include <machine/cpu.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/pcb.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
 #include <machine/tss.h>
 
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 
 #ifdef POWERFAIL_NMI
@@ -96,11 +100,14 @@
 #include "isa.h"
 #include "npx.h"
 
+#include <sys/sysctl.h>
+
 int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall2 __P((struct trapframe frame));
+extern void ast __P((struct trapframe frame));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 static void trap_fatal __P((struct trapframe *, vm_offset_t));
@@ -142,7 +149,7 @@ static char *trap_msg[] = {
 };
 
 static __inline int userret __P((struct proc *p, struct trapframe *frame,
-				  u_quad_t oticks, int have_mplock));
+				  u_quad_t oticks, int have_giant));
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
@@ -158,18 +165,18 @@ SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 
 static __inline int
-userret(p, frame, oticks, have_mplock)
+userret(p, frame, oticks, have_giant)
 	struct proc *p;
 	struct trapframe *frame;
 	u_quad_t oticks;
-	int have_mplock;
+	int have_giant;
 {
 	int sig, s;
 
 	while ((sig = CURSIG(p)) != 0) {
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
 		}
 		postsig(sig);
 	}
@@ -184,31 +191,34 @@ userret(p, frame, oticks, have_mplock)
 		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
-		}
 		s = splhigh();
+		mtx_enter(&sched_lock, MTX_SPIN);
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
+		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
-		while ((sig = CURSIG(p)) != 0)
+		while ((sig = CURSIG(p)) != 0) {
+			if (have_giant == 0) {
+				mtx_enter(&Giant, MTX_DEF);
+				have_giant = 1;
+			}
 			postsig(sig);
+		}
 	}
 	/*
 	 * Charge system time if profiling.
 	 */
 	if (p->p_flag & P_PROFIL) {
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
 		}
 		addupc_task(p, frame->tf_eip,
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	}
 	curpriority = p->p_priority;
-	return(have_mplock);
+	return(have_giant);
 }
 
 /*
@@ -226,13 +236,20 @@ trap(frame)
 	u_quad_t sticks = 0;
 	int i = 0, ucode = 0, type, code;
 	vm_offset_t eva;
+#ifdef POWERFAIL_NMI
+	static int lastalert = 0;
+#endif
 
-	if (!(frame.tf_eflags & PSL_I)) {
+	atomic_add_int(&cnt.v_trap, 1);
+
+	if ((frame.tf_eflags & PSL_I) == 0) {
 		/*
-		 * Buggy application or kernel code has disabled interrupts
-		 * and then trapped.  Enabling interrupts now is wrong, but
-		 * it is better than running with interrupts disabled until
-		 * they are accidentally enabled later.
+		 * Buggy application or kernel code has disabled
+		 * interrupts and then trapped.  Enabling interrupts
+		 * now is wrong, but it is better than running with
+		 * interrupts disabled until they are accidentally
+		 * enabled later.  XXX Consider whether is this still
+		 * correct.
 		 */
 		type = frame.tf_trapno;
 		if (ISPL(frame.tf_cs) == SEL_UPL || (frame.tf_eflags & PSL_VM))
@@ -252,54 +269,27 @@ trap(frame)
 	eva = 0;
 	if (frame.tf_trapno == T_PAGEFLT) {
 		/*
-		 * For some Cyrix CPUs, %cr2 is clobbered by interrupts.
-		 * This problem is worked around by using an interrupt
-		 * gate for the pagefault handler.  We are finally ready
-		 * to read %cr2 and then must reenable interrupts.
-		 *
-		 * XXX this should be in the switch statement, but the
-		 * NO_FOOF_HACK and VM86 goto and ifdefs obfuscate the
-		 * flow of control too much for this to be obviously
-		 * correct.
+		 * For some Cyrix CPUs, %cr2 is clobbered by
+		 * interrupts.  This problem is worked around by using
+		 * an interrupt gate for the pagefault handler.  We
+		 * are finally ready to read %cr2 and then must
+		 * reenable interrupts.
 		 */
 		eva = rcr2();
 		enable_intr();
-	}
+	}	
+
+	mtx_enter(&Giant, MTX_DEF);
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
 #endif
+
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
-	if (in_vm86call) {
-		if (frame.tf_eflags & PSL_VM &&
-		    (type == T_PROTFLT || type == T_STKFLT)) {
-			i = vm86_emulate((struct vm86frame *)&frame);
-			if (i != 0)
-				/*
-				 * returns to original process
-				 */
-				vm86_trap((struct vm86frame *)&frame);
-			return;
-		}
-		switch (type) {
-			/*
-			 * these traps want either a process context, or
-			 * assume a normal userspace trap.
-			 */
-		case T_PROTFLT:
-		case T_SEGNPFLT:
-			trap_fatal(&frame, eva);
-			return;
-		case T_TRCTRAP:
-			type = T_BPTFLT;	/* kernel breakpoint */
-			/* FALL THROUGH */
-		}
-		goto kernel_trap;	/* normal kernel trap handling */
-	}
-
-        if ((ISPL(frame.tf_cs) == SEL_UPL) || (frame.tf_eflags & PSL_VM)) {
+        if ((ISPL(frame.tf_cs) == SEL_UPL) ||
+	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
 		/* user trap */
 
 		sticks = p->p_sticks;
@@ -322,16 +312,6 @@ restart:
 			i = SIGFPE;
 			break;
 
-		case T_ASTFLT:		/* Allow process switch */
-			astoff();
-			cnt.v_soft++;
-			if (p->p_flag & P_OWEUPC) {
-				p->p_flag &= ~P_OWEUPC;
-				addupc_task(p, p->p_stats->p_prof.pr_addr,
-					    p->p_stats->p_prof.pr_ticks);
-			}
-			goto out;
-
 			/*
 			 * The following two traps can happen in
 			 * vm86 mode, and, if so, we want to handle
@@ -342,7 +322,7 @@ restart:
 			if (frame.tf_eflags & PSL_VM) {
 				i = vm86_emulate((struct vm86frame *)&frame);
 				if (i == 0)
-					goto out;
+					goto user;
 				break;
 			}
 			/* FALL THROUGH */
@@ -357,14 +337,20 @@ restart:
 
 		case T_PAGEFLT:		/* page fault */
 			i = trap_pfault(&frame, TRUE, eva);
-			if (i == -1)
-				return;
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-			if (i == -2)
+			if (i == -2) {
+				/*
+				 * f00f hack workaround has triggered, treat
+				 * as illegal instruction not page fault.
+				 */
+				frame.tf_trapno = T_PRIVINFLT;
 				goto restart;
+			}
 #endif
-			if (i == 0)
+			if (i == -1)
 				goto out;
+			if (i == 0)
+				goto user;
 
 			ucode = T_PAGEFLT;
 			break;
@@ -377,7 +363,15 @@ restart:
 #if NISA > 0
 		case T_NMI:
 #ifdef POWERFAIL_NMI
-			goto handle_powerfail;
+#ifndef TIMER_FREQ
+#  define TIMER_FREQ 1193182
+#endif
+			if (time_second - lastalert > 10) {
+				log(LOG_WARNING, "NMI: power fail\n");
+				sysbeep(TIMER_FREQ/880, hz);
+				lastalert = time_second;
+			}
+			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
@@ -391,7 +385,7 @@ restart:
 					kdb_trap (type, 0, &frame);
 				}
 #endif /* DDB */
-				return;
+				goto out;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
 			break;
@@ -410,9 +404,9 @@ restart:
 
 		case T_DNA:
 #if NNPX > 0
-			/* if a transparent fault (due to context switch "late") */
+			/* transparent fault (due to context switch "late") */
 			if (npxdna())
-				return;
+				goto out;
 #endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
@@ -422,7 +416,7 @@ restart:
 			i = (*pmath_emulate)(&frame);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
-					return;
+					goto out;
 				frame.tf_eflags &= ~PSL_T;
 				i = SIGTRAP;
 			}
@@ -435,13 +429,12 @@ restart:
 			break;
 		}
 	} else {
-kernel_trap:
 		/* kernel trap */
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
 			(void) trap_pfault(&frame, FALSE, eva);
-			return;
+			goto out;
 
 		case T_DNA:
 #if NNPX > 0
@@ -451,31 +444,35 @@ kernel_trap:
 			 * registered such use.
 			 */
 			if (npxdna())
-				return;
+				goto out;
 #endif
 			break;
 
-		case T_PROTFLT:		/* general protection fault */
-		case T_SEGNPFLT:	/* segment not present fault */
 			/*
-			 * Invalid segment selectors and out of bounds
-			 * %eip's and %esp's can be set up in user mode.
-			 * This causes a fault in kernel mode when the
-			 * kernel tries to return to user mode.  We want
-			 * to get this fault so that we can fix the
-			 * problem here and not have to check all the
-			 * selectors and pointers when the user changes
-			 * them.
+			 * The following two traps can happen in
+			 * vm86 mode, and, if so, we want to handle
+			 * them specially.
 			 */
-#define	MAYBE_DORETI_FAULT(where, whereto)				\
-	do {								\
-		if (frame.tf_eip == (int)where) {			\
-			frame.tf_eip = (int)whereto;			\
-			return;						\
-		}							\
-	} while (0)
+		case T_PROTFLT:		/* general protection fault */
+		case T_STKFLT:		/* stack fault */
+			if (frame.tf_eflags & PSL_VM) {
+				i = vm86_emulate((struct vm86frame *)&frame);
+				if (i != 0)
+					/*
+					 * returns to original process
+					 */
+					vm86_trap((struct vm86frame *)&frame);
+				goto out;
+			}
+			/* FALL THROUGH */
 
-			if (intr_nesting_level == 0) {
+		case T_SEGNPFLT:	/* segment not present fault */
+			if (in_vm86call)
+				break;
+
+			if (intr_nesting_level != 0)
+				break;
+
 				/*
 				 * Invalid %fs's and %gs's can be created using
 				 * procfs or PT_SETREGS or by invalidating the
@@ -488,20 +485,38 @@ kernel_trap:
 				if (frame.tf_eip == (int)cpu_switch_load_gs) {
 					curpcb->pcb_gs = 0;
 					psignal(p, SIGBUS);
-					return;
+				goto out;
+			}
+
+			/*
+			 * Invalid segment selectors and out of bounds
+			 * %eip's and %esp's can be set up in user mode.
+			 * This causes a fault in kernel mode when the
+			 * kernel tries to return to user mode.  We want
+			 * to get this fault so that we can fix the
+			 * problem here and not have to check all the
+			 * selectors and pointers when the user changes
+			 * them.
+			 */
+			if (frame.tf_eip == (int)doreti_iret) {
+				frame.tf_eip = (int)doreti_iret_fault;
+				goto out;
+			}
+			if (frame.tf_eip == (int)doreti_popl_ds) {
+				frame.tf_eip = (int)doreti_popl_ds_fault;
+				goto out;
+			}
+			if (frame.tf_eip == (int)doreti_popl_es) {
+				frame.tf_eip = (int)doreti_popl_es_fault;
+				goto out;
 				}
-				MAYBE_DORETI_FAULT(doreti_iret,
-						   doreti_iret_fault);
-				MAYBE_DORETI_FAULT(doreti_popl_ds,
-						   doreti_popl_ds_fault);
-				MAYBE_DORETI_FAULT(doreti_popl_es,
-						   doreti_popl_es_fault);
-				MAYBE_DORETI_FAULT(doreti_popl_fs,
-						   doreti_popl_fs_fault);
+			if (frame.tf_eip == (int)doreti_popl_fs) {
+				frame.tf_eip = (int)doreti_popl_fs_fault;
+				goto out;
+			}
 				if (curpcb && curpcb->pcb_onfault) {
 					frame.tf_eip = (int)curpcb->pcb_onfault;
-					return;
-				}
+				goto out;
 			}
 			break;
 
@@ -517,7 +532,7 @@ kernel_trap:
 			 */
 			if (frame.tf_eflags & PSL_NT) {
 				frame.tf_eflags &= ~PSL_NT;
-				return;
+				goto out;
 			}
 			break;
 
@@ -529,7 +544,7 @@ kernel_trap:
 				 * silently until the syscall handler has
 				 * saved the flags.
 				 */
-				return;
+				goto out;
 			}
 			if (frame.tf_eip == (int)IDTVEC(syscall) + 1) {
 				/*
@@ -537,7 +552,7 @@ kernel_trap:
 				 * flags.  Stop single stepping it.
 				 */
 				frame.tf_eflags &= ~PSL_T;
-				return;
+				goto out;
 			}
 			/*
 			 * Ignore debug register trace traps due to
@@ -549,13 +564,13 @@ kernel_trap:
 			 * in kernel space because that is useful when
 			 * debugging the kernel.
 			 */
-			if (user_dbreg_trap()) {
+			if (user_dbreg_trap() && !in_vm86call) {
 				/*
 				 * Reset breakpoint bits because the
 				 * processor doesn't
 				 */
 				load_dr6(rdr6() & 0xfffffff0);
-				return;
+				goto out;
 			}
 			/*
 			 * Fall through (TRCTRAP kernel mode, kernel address)
@@ -567,28 +582,19 @@ kernel_trap:
 			 */
 #ifdef DDB
 			if (kdb_trap (type, 0, &frame))
-				return;
+				goto out;
 #endif
 			break;
 
 #if NISA > 0
 		case T_NMI:
 #ifdef POWERFAIL_NMI
-#ifndef TIMER_FREQ
-#  define TIMER_FREQ 1193182
-#endif
-	handle_powerfail:
-		{
-		  static unsigned lastalert = 0;
-
-		  if(time_second - lastalert > 10)
-		    {
+			if (time_second - lastalert > 10) {
 		      log(LOG_WARNING, "NMI: power fail\n");
 		      sysbeep(TIMER_FREQ/880, hz);
 		      lastalert = time_second;
-		    }
-		  return;
 		}
+			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
@@ -602,16 +608,16 @@ kernel_trap:
 					kdb_trap (type, 0, &frame);
 				}
 #endif /* DDB */
-				return;
+				goto out;
 			} else if (panic_on_nmi == 0)
-				return;
+				goto out;
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
 #endif /* NISA > 0 */
 		}
 
 		trap_fatal(&frame, eva);
-		return;
+		goto out;
 	}
 
 	/* Translate fault for emulators (e.g. Linux) */
@@ -630,8 +636,10 @@ kernel_trap:
 	}
 #endif
 
-out:
+user:
 	userret(p, &frame, sticks, 1);
+out:
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 #ifdef notyet
@@ -769,10 +777,8 @@ trap_pfault(frame, usermode, eva)
 		 * fault.
 		 */
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-		if ((eva == (unsigned int)&idt[6]) && has_f00f_bug) {
-			frame->tf_trapno = T_PRIVINFLT;
+		if ((eva == (unsigned int)&idt[6]) && has_f00f_bug)
 			return -2;
-		}
 #endif
 		if (usermode)
 			goto nogo;
@@ -869,8 +875,7 @@ trap_fatal(frame, eva)
         		frame->tf_eflags & PSL_VM ? "vm86" :
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
-	/* three seperate prints in case of a trap on an unmapped page */
-	printf("mp_lock = %08x; ", mp_lock);
+	/* two seperate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", cpuid);
 	printf("lapic.id = %08x\n", lapic.id);
 #endif
@@ -917,26 +922,6 @@ trap_fatal(frame, eva)
 	} else {
 		printf("Idle\n");
 	}
-	printf("interrupt mask		= ");
-	if ((cpl & net_imask) == net_imask)
-		printf("net ");
-	if ((cpl & tty_imask) == tty_imask)
-		printf("tty ");
-	if ((cpl & bio_imask) == bio_imask)
-		printf("bio ");
-	if ((cpl & cam_imask) == cam_imask)
-		printf("cam ");
-	if (cpl == 0)
-		printf("none");
-#ifdef SMP
-/**
- *  XXX FIXME:
- *	we probably SHOULD have stopped the other CPUs before now!
- *	another CPU COULD have been touching cpl at this moment...
- */
-	printf(" <- SMP: XXX");
-#endif
-	printf("\n");
 
 #ifdef KDB
 	if (kdb_trap(&psl))
@@ -973,8 +958,7 @@ dblfault_handler()
 	printf("esp = 0x%x\n", common_tss.tss_esp);
 	printf("ebp = 0x%x\n", common_tss.tss_ebp);
 #ifdef SMP
-	/* three seperate prints in case of a trap on an unmapped page */
-	printf("mp_lock = %08x; ", mp_lock);
+	/* two seperate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", cpuid);
 	printf("lapic.id = %08x\n", lapic.id);
 #endif
@@ -1048,12 +1032,14 @@ syscall2(frame)
 	int error;
 	int narg;
 	int args[8];
-	int have_mplock = 0;
+	int have_giant = 0;
 	u_int code;
+
+	atomic_add_int(&cnt.v_syscall, 1);
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame.tf_cs) != SEL_UPL) {
-		get_mplock();
+		mtx_enter(&Giant, MTX_DEF);
 		panic("syscall");
 		/* NOT REACHED */
 	}
@@ -1075,9 +1061,9 @@ syscall2(frame)
 		/*
 		 * The prep code is not MP aware.
 		 */
-		get_mplock();
+		mtx_enter(&Giant, MTX_DEF);
 		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
-		rel_mplock();
+		mtx_exit(&Giant, MTX_DEF);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
@@ -1114,8 +1100,8 @@ syscall2(frame)
 	 */
 	if (params && (i = narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
-		get_mplock();
-		have_mplock = 1;
+		mtx_enter(&Giant, MTX_DEF);
+		have_giant = 1;
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
 			ktrsyscall(p->p_tracep, code, narg, args);
@@ -1129,15 +1115,15 @@ syscall2(frame)
 	 * we are ktracing
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
-		get_mplock();
-		have_mplock = 1;
+		mtx_enter(&Giant, MTX_DEF);
+		have_giant = 1;
 	}
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
 		}
 		ktrsyscall(p->p_tracep, code, narg, args);
 	}
@@ -1192,9 +1178,9 @@ bad:
 	 * Traced syscall.  trapsignal() is not MP aware.
 	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
 		}
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
@@ -1203,13 +1189,13 @@ bad:
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	have_mplock = userret(p, &frame, sticks, have_mplock);
+	have_giant = userret(p, &frame, sticks, have_giant);
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (have_mplock == 0) {
-			get_mplock();
-			have_mplock = 1;
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
 		}
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
@@ -1225,27 +1211,66 @@ bad:
 	/*
 	 * Release the MP lock if we had to get it
 	 */
-	if (have_mplock)
-		rel_mplock();
+	if (have_giant)
+		mtx_exit(&Giant, MTX_DEF);
+
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
+}
+
+void
+ast(frame)
+	struct trapframe frame;
+{
+	struct proc *p = CURPROC;
+	u_quad_t sticks;
+
+	/*
+	 * handle atomicy by looping since interrupts are enabled and the 
+	 * MP lock is not held.
+	 */
+	sticks = ((volatile struct proc *)p)->p_sticks;	
+	while (sticks != ((volatile struct proc *)p)->p_sticks)
+		sticks = ((volatile struct proc *)p)->p_sticks;
+	
+	astoff();
+	atomic_add_int(&cnt.v_soft, 1);
+	if (p->p_flag & P_OWEUPC) {
+		mtx_enter(&Giant, MTX_DEF);
+		p->p_flag &= ~P_OWEUPC;
+		addupc_task(p, p->p_stats->p_prof.pr_addr,
+			    p->p_stats->p_prof.pr_ticks);
+}
+	if (userret(p, &frame, sticks, mtx_owned(&Giant)) != 0)
+		mtx_exit(&Giant, MTX_DEF);
 }
 
 /*
  * Simplified back end of syscall(), used when returning from fork()
- * directly into user mode.  MP lock is held on entry and should be 
- * held on return.
+ * directly into user mode.  Giant is not held on entry, and must not
+ * be held on return.
  */
 void
 fork_return(p, frame)
 	struct proc *p;
 	struct trapframe frame;
 {
+	int	have_giant;
+
 	frame.tf_eax = 0;		/* Child returns zero */
 	frame.tf_eflags &= ~PSL_C;	/* success */
 	frame.tf_edx = 1;
 
-	userret(p, &frame, 0, 1);
+	have_giant = userret(p, &frame, 0, mtx_owned(&Giant));
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
+		}
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
+	}
 #endif
+	if (have_giant)
+		mtx_exit(&Giant, MTX_DEF);
 }

@@ -122,6 +122,10 @@ struct	pargs {
 
 struct jail;
 
+struct mtx;
+
+struct ithd;
+
 struct	proc {
 	TAILQ_ENTRY(proc) p_procq;	/* run/sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* List of all processes. */
@@ -207,6 +211,9 @@ struct	proc {
 	int	p_sig;			/* for core dump/debugger XXX */
         u_long	p_code;	  	        /* for core dump/debugger XXX */
 	struct	klist p_klist;		/* knotes attached to this process */
+	LIST_HEAD(, mtx) p_heldmtx;	/* for debugging code */
+	struct mtx *p_blocked;		/* Mutex process is blocked on */
+	LIST_HEAD(, mtx) p_contested;	/* contested locks */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -216,8 +223,11 @@ struct	proc {
 
 	sigset_t p_sigmask;	/* Current signal mask. */
 	stack_t	p_sigstk;	/* sp & on stack state variable */
+
+	int	p_magic;	/* Magic number. */
 	u_char	p_priority;	/* Process priority. */
 	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
+	u_char	p_nativepri;	/* Priority before propogation. */
 	char	p_nice;		/* Process "nice" value. */
 	char	p_comm[MAXCOMLEN+1];
 
@@ -244,17 +254,20 @@ struct	proc {
 	struct proc *p_leader;
 	struct	pasleep p_asleep;	/* Used by asleep()/await(). */
 	void	*p_emuldata;	/* process-specific emulator state data */
+	struct ithd *p_ithd;	/* for interrupt threads only */
 };
 
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 
-/* Status values. */
+/* Status values (p_stat) */
 #define	SIDL	1		/* Process being created by fork. */
 #define	SRUN	2		/* Currently runnable. */
 #define	SSLEEP	3		/* Sleeping on an address. */
 #define	SSTOP	4		/* Process debugging or suspension. */
 #define	SZOMB	5		/* Awaiting collection by parent. */
+#define	SWAIT	6		/* Waiting for interrupt or CPU. */
+#define	SMTX	7		/* Blocked on a mutex. */
 
 /* These flags are kept in p_flags. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
@@ -293,6 +306,8 @@ struct	proc {
 #define	P_OLDMASK	0x2000000 /* need to restore mask before pause */
 #define	P_ALTSTACK	0x4000000 /* have alternate signal stack */
 
+#define	P_MAGIC		0xbeefface
+
 #define	P_CAN_SEE	1
 #define	P_CAN_KILL	2
 #define	P_CAN_SCHED	3
@@ -315,6 +330,56 @@ struct	pcred {
 	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption */
 };
 
+/*
+ * Describe an interrupt thread.  There is one of these per irq.  BSD/OS makes
+ * this a superset of struct proc, i.e. it_proc is the struct itself and not a
+ * pointer.  We point in both directions, because it feels good that way.
+ */
+typedef struct ithd {
+	struct proc	*it_proc;	/* interrupt process */
+
+	LIST_HEAD(ihhead, intrhand) it_ihhead;
+	LIST_HEAD(srchead, isrc) it_isrchead;
+
+	/* Fields used by all interrupt threads */
+	LIST_ENTRY(ithd) it_list;	/* All interrupt threads */
+	int		it_need;	/* Needs service */
+	int		irq;		/* irq */
+	struct intrec	*it_ih;		/* head of handler queue */
+	struct ithd	*it_interrupted; /* Who we interrupted */
+
+	/* Fields used only for hard interrupt threads */
+	int		it_stray;	/* Stray interrupts */
+
+#ifdef APIC_IO
+	/* Used by APIC interrupt sources */
+	int		it_needeoi;	/* An EOI is needed */
+	int		it_blocked;	/* at least 1 blocked apic src */
+#endif
+
+	/* stats */
+#ifdef SMP_DEBUG
+	int		it_busy;	/* failed attempts on runlock */
+	int		it_lostneeded;	/* Number of it_need races lost */
+	int		it_invprio;	/* Startup priority inversions */
+#endif
+#ifdef NEEDED
+	/*
+	 * These are in the BSD/OS i386 sources only, not in SPARC.
+	 * I'm not yet sure we need them.
+	 */
+	LIST_HEAD(ihhead, intrhand) it_ihhead;
+	LIST_HEAD(srchead, isrc) it_isrchead;
+
+	/* Fields used by all interrupt threads */
+	LIST_ENTRY(ithd) it_list;	/* All interrupt threads */
+
+	/* Fields user only for soft interrupt threads */
+	sifunc_t	it_service;	/* service routine */
+	int		it_cnt;		/* number of schedule events */
+
+#endif
+} ithd;
 
 #ifdef _KERNEL
 
@@ -351,13 +416,13 @@ MALLOC_DECLARE(M_PARGS);
  * STOPEVENT is MP SAFE.
  */
 extern void stopevent(struct proc*, unsigned int, unsigned int);
-#define	STOPEVENT(p,e,v)			\
-	do {					\
-		if ((p)->p_stops & (e)) {	\
-			get_mplock();		\
-			stopevent(p,e,v);	\
-			rel_mplock(); 		\
-		}				\
+#define	STOPEVENT(p,e,v)				\
+	do {						\
+		if ((p)->p_stops & (e)) {		\
+			mtx_enter(&Giant, MTX_DEF);	\
+			stopevent(p,e,v);		\
+			mtx_exit(&Giant, MTX_DEF);	\
+		}					\
 	} while (0)
 
 /* hold process U-area in memory, normally for ptrace/procfs work */
@@ -381,6 +446,8 @@ extern u_long pgrphash;
 
 #ifndef curproc
 extern struct proc *curproc;		/* Current running proc. */
+extern struct proc *prevproc;		/* Previously running proc. */
+extern struct proc *idleproc;		/* Current idle proc. */
 extern u_int astpending;		/* software interrupt pending */
 extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch */
@@ -398,12 +465,10 @@ extern struct proc *initproc, *pageproc, *updateproc; /* Process slots for init,
 
 #define	NQS	32			/* 32 run queues. */
 TAILQ_HEAD(rq, proc);
-extern struct rq queues[];
+extern struct rq itqueues[];
 extern struct rq rtqueues[];
+extern struct rq queues[];
 extern struct rq idqueues[];
-extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
-extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
-extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
 
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
@@ -447,7 +512,8 @@ int	suser __P((const struct proc *));
 int	suser_xxx __P((const struct ucred *cred, const struct proc *proc,
     int flag));
 void	remrunqueue __P((struct proc *));
-void	cpu_switch __P((struct proc *));
+void	cpu_switch __P((void));
+void	cpu_throw __P((void)) __dead2;
 void	unsleep __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;

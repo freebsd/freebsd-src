@@ -54,6 +54,8 @@
 #endif
 
 #ifdef __i386__
+#include <sys/proc.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/intr_machdep.h>
 #endif
 
@@ -141,7 +143,7 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 
 #ifdef INTR_FAST
 		if (intflags & INTR_FAST)
-			flags |= INTR_TYPE_FAST;
+			flags |= INTR_FAST;
 		if (intflags & INTR_EXCL)
 			resflags &= ~RF_SHAREABLE;
 #endif

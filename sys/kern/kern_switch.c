@@ -29,27 +29,39 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/rtprio.h>
 #include <sys/queue.h>
+
+#include <machine/mutex.h>
 
 /*
  * We have NQS (32) run queues per scheduling class.  For the normal
  * class, there are 128 priorities scaled onto these 32 queues.  New
  * processes are added to the last entry in each queue, and processes
  * are selected for running by taking them from the head and maintaining
- * a simple FIFO arrangement.  Realtime and Idle priority processes have
- * and explicit 0-31 priority which maps directly onto their class queue
- * index.  When a queue has something in it, the corresponding bit is
- * set in the queuebits variable, allowing a single read to determine
- * the state of all 32 queues and then a ffs() to find the first busy
+ * a simple FIFO arrangement.
+ *
+ * Interrupt, real time and idle priority processes have and explicit
+ * 0-31 priority which maps directly onto their class queue index.
+ * When a queue has something in it, the corresponding bit is set in
+ * the queuebits variable, allowing a single read to determine the
+ * state of all 32 queues and then a ffs() to find the first busy
  * queue.
+ *
+ * XXX This needs fixing.  First, we only have one idle process, so we
+ * hardly need 32 queues for it.  Secondly, the number of classes
+ * makes things unwieldy.  We should be able to merge them into a
+ * single 96 or 128 entry queue.
  */
-struct rq queues[NQS];
-struct rq rtqueues[NQS];
-struct rq idqueues[NQS];
-u_int32_t queuebits;
+struct rq itqueues[NQS];		/* interrupt threads */
+struct rq rtqueues[NQS];		/* real time processes */
+struct rq queues[NQS];			/* time sharing processes */
+struct rq idqueues[NQS];		/* idle process */
+u_int32_t itqueuebits;
 u_int32_t rtqueuebits;
+u_int32_t queuebits;
 u_int32_t idqueuebits;
 
 /*
@@ -61,8 +73,9 @@ rqinit(void *dummy)
 	int i;
 
 	for (i = 0; i < NQS; i++) {
-		TAILQ_INIT(&queues[i]);
+		TAILQ_INIT(&itqueues[i]);
 		TAILQ_INIT(&rtqueues[i]);
+		TAILQ_INIT(&queues[i]);
 		TAILQ_INIT(&idqueues[i]);
 	}
 }
@@ -81,22 +94,37 @@ setrunqueue(struct proc *p)
 	struct rq *q;
 	u_int8_t pri;
 
-	KASSERT(p->p_stat == SRUN, ("setrunqueue: proc not SRUN"));
-	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
-		pri = p->p_priority >> 2;
-		q = &queues[pri];
-		queuebits |= 1 << pri;
-	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME ||
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(p->p_stat == SRUN, ("setrunqueue: proc %p (%s) not SRUN", p, \
+	    p->p_comm));
+
+	/*
+	 * Decide which class we want to run.  We now have four
+	 * queues, and this is becoming ugly.  We should be able to
+	 * collapse the first three classes into a single contiguous
+	 * queue.  XXX FIXME.
+	 */
+	CTR4(KTR_PROC, "setrunqueue: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	if (p->p_rtprio.type == RTP_PRIO_ITHREAD) {	/* interrupt thread */
+		pri = p->p_rtprio.prio;
+		q = &itqueues[pri];
+		itqueuebits |= 1 << pri;
+	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME || /* real time */
 		   p->p_rtprio.type == RTP_PRIO_FIFO) {
 		pri = p->p_rtprio.prio;
 		q = &rtqueues[pri];
 		rtqueuebits |= 1 << pri;
-	} else if (p->p_rtprio.type == RTP_PRIO_IDLE) {
+	} else if (p->p_rtprio.type == RTP_PRIO_NORMAL) {   /* time sharing */
+		pri = p->p_priority >> 2;
+		q = &queues[pri];
+		queuebits |= 1 << pri;
+	} else if (p->p_rtprio.type == RTP_PRIO_IDLE) {	    /* idle proc */
 		pri = p->p_rtprio.prio;
 		q = &idqueues[pri];
 		idqueuebits |= 1 << pri;
 	} else {
-		panic("setrunqueue: invalid rtprio type");
+		panic("setrunqueue: invalid rtprio type %d", p->p_rtprio.type);
 	}
 	p->p_rqindex = pri;		/* remember the queue index */
 	TAILQ_INSERT_TAIL(q, p, p_procq);
@@ -114,14 +142,20 @@ remrunqueue(struct proc *p)
 	u_int32_t *which;
 	u_int8_t pri;
 
+	CTR4(KTR_PROC, "remrunqueue: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	pri = p->p_rqindex;
-	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
-		q = &queues[pri];
-		which = &queuebits;
+	if (p->p_rtprio.type == RTP_PRIO_ITHREAD) {
+		q = &itqueues[pri];
+		which = &itqueuebits;
 	} else if (p->p_rtprio.type == RTP_PRIO_REALTIME ||
 		   p->p_rtprio.type == RTP_PRIO_FIFO) {
 		q = &rtqueues[pri];
 		which = &rtqueuebits;
+	} else if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
+		q = &queues[pri];
+		which = &queuebits;
 	} else if (p->p_rtprio.type == RTP_PRIO_IDLE) {
 		q = &idqueues[pri];
 		which = &idqueuebits;
@@ -142,11 +176,17 @@ remrunqueue(struct proc *p)
  * loop to avoid the more expensive (and destructive) chooseproc().
  *
  * MP SAFE.  CALLED WITHOUT THE MP LOCK
+ *
+ * XXX I doubt this.  It's possibly fail-safe, but there's obviously
+ * the case here where one of the bits words gets loaded, the
+ * processor gets preempted, and by the time it returns from this
+ * function, some other processor has picked the runnable process.
+ * What am I missing?  (grog, 23 July 2000).
  */
 u_int32_t
 procrunnable(void)
 {
-	return (rtqueuebits || queuebits || idqueuebits);
+	return (itqueuebits || rtqueuebits || queuebits || idqueuebits);
 }
 
 /*
@@ -173,7 +213,12 @@ chooseproc(void)
 	u_char id;
 #endif
 
-	if (rtqueuebits) {
+	mtx_assert(&sched_lock, MA_OWNED);
+	if (itqueuebits) {
+		pri = ffs(itqueuebits) - 1;
+		q = &itqueues[pri];
+		which = &itqueuebits;
+	} else if (rtqueuebits) {
 		pri = ffs(rtqueuebits) - 1;
 		q = &rtqueues[pri];
 		which = &rtqueuebits;
@@ -186,10 +231,12 @@ chooseproc(void)
 		q = &idqueues[pri];
 		which = &idqueuebits;
 	} else {
-		return NULL;
+		CTR1(KTR_PROC, "chooseproc: idleproc, schedlock %x",
+			sched_lock.mtx_lock);
+		idleproc->p_stat = SRUN;
+		return idleproc;
 	}
 	p = TAILQ_FIRST(q);
-	KASSERT(p, ("chooseproc: no proc on busy queue"));
 #ifdef SMP
 	/* wander down the current run queue for this pri level for a match */
 	id = cpuid;
@@ -201,6 +248,9 @@ chooseproc(void)
 		}
 	}
 #endif
+	CTR4(KTR_PROC, "chooseproc: proc %p (pid %d, %s), schedlock %x",
+		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	KASSERT(p, ("chooseproc: no proc on busy queue"));
 	TAILQ_REMOVE(q, p, p_procq);
 	if (TAILQ_EMPTY(q))
 		*which &= ~(1 << pri);

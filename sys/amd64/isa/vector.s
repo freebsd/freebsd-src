@@ -16,9 +16,10 @@
 #include <i386/isa/isa.h>
 #endif
 
+#define FAST_INTR_HANDLER_USES_ES 1
 #ifdef FAST_INTR_HANDLER_USES_ES
 #define	ACTUALLY_PUSHED		1
-#define	MAYBE_MOVW_AX_ES	movl	%ax,%es
+#define	MAYBE_MOVW_AX_ES	movw	%ax,%es
 #define	MAYBE_POPL_ES		popl	%es
 #define	MAYBE_PUSHL_ES		pushl	%es
 #else
@@ -35,11 +36,6 @@
 
 	.data
 	ALIGN_DATA
-
-	.globl	_intr_nesting_level
-_intr_nesting_level:
-	.byte	0
-	.space	3
 
 /*
  * Interrupt counters and names for export to vmstat(8) and friends.
@@ -58,7 +54,6 @@ _eintrcnt:
 _intrnames:
 	.space	NR_INTRNAMES * 16
 _eintrnames:
-
 	.text
 
 /*

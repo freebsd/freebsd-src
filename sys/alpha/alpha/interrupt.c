@@ -33,6 +33,8 @@
  * notice.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
 /* __KERNEL_RCSID(0, "$NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $");*/
@@ -43,12 +45,15 @@
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/ktr.h>
 
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/cpuconf.h>
 #include <machine/bwx.h>
 #include <machine/intr.h>
+#include <machine/mutex.h>
+#include <machine/rpb.h>
 
 #ifdef EVCNT_COUNTERS
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
@@ -56,8 +61,11 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #include <machine/intrcnt.h>
 #endif
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 volatile int mc_expected, mc_received;
-u_int32_t intr_nesting_level;
 
 static void 
 dummy_perf(unsigned long vector, struct trapframe *framep)  
@@ -75,13 +83,19 @@ interrupt(a0, a1, a2, framep)
 	unsigned long a0, a1, a2;
 	struct trapframe *framep;
 {
+	/*
+	 * Find our per-cpu globals.
+	 */
+	globalp = (struct globaldata *) alpha_pal_rdval();
 
-	atomic_add_int(&intr_nesting_level, 1);
+	atomic_add_int(&PCPU_GET(intr_nesting_level), 1);
 	{
 		struct proc* p = curproc;
 		if (!p) p = &proc0;
-		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024)
+		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
+			mtx_enter(&Giant, MTX_DEF);
 			panic("possible stack overflow\n");
+		}
 	}
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
@@ -89,10 +103,18 @@ interrupt(a0, a1, a2, framep)
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
 	switch (a0) {
 	case ALPHA_INTR_XPROC:	/* interprocessor interrupt */
-		printf("interprocessor interrupt!\n");
+		CTR0(KTR_INTR|KTR_SMP, "interprocessor interrupt");
+		smp_handle_ipi(framep); /* note: lock not taken */
 		break;
 		
 	case ALPHA_INTR_CLOCK:	/* clock interrupt */
+		CTR0(KTR_INTR, "clock interrupt");
+		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
+			CTR0(KTR_INTR, "ignoring clock on secondary");
+			return;
+		}
+			
+		mtx_enter(&Giant, MTX_DEF);
 		cnt.v_intr++;
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
@@ -105,24 +127,31 @@ interrupt(a0, a1, a2, framep)
 			if((++schedclk2 & 0x7) == 0)
 				statclock((struct clockframe *)framep);
 		}
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case  ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
+		mtx_enter(&Giant, MTX_DEF);
 		a0 = alpha_pal_rdmces();
 		if (platform.mcheck_handler)
 			(*platform.mcheck_handler)(a0, framep, a1, a2);
 		else
 			machine_check(a0, framep, a1, a2);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_DEVICE:	/* I/O device interrupt */
+		mtx_enter(&Giant, MTX_DEF);
 		cnt.v_intr++;
 		if (platform.iointr)
 			(*platform.iointr)(framep, a1);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_PERF:	/* interprocessor interrupt */
+		mtx_enter(&Giant, MTX_DEF);
 		perf_irq(a1, framep);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_PASSIVE:
@@ -132,11 +161,12 @@ interrupt(a0, a1, a2, framep)
 		break;
 
 	default:
+		mtx_enter(&Giant, MTX_DEF);
 		panic("unexpected interrupt: type 0x%lx vec 0x%lx a2 0x%lx\n",
 		    a0, a1, a2);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(&intr_nesting_level, 1);
+	atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
 }
 
 void
@@ -204,6 +234,7 @@ fatal:
 		printf("        pid = %d, comm = %s\n", curproc->p_pid,
 		    curproc->p_comm);
 	printf("\n");
+	kdb_trap(mces, vector, param, ALPHA_KENTRY_MM, framep);
 	panic("machine check");
 }
 

@@ -63,6 +63,7 @@
 
 #include <machine/pcb.h>
 #include <machine/clock.h>
+#include <machine/lock.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>		/* smp_active, cpuid */
 
@@ -524,6 +525,11 @@ panic(const char *fmt, ...)
 	va_list ap;
 	static char buf[256];
 
+#ifdef SMP
+	/* Only 1 CPU can panic at a time */
+	s_lock(&panic_lock);
+#endif
+
 	bootopt = RB_AUTOBOOT | RB_DUMP;
 	if (panicstr)
 		bootopt |= RB_NOSYNC;
@@ -537,8 +543,7 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("panic: %s\n", buf);
 #ifdef SMP
-	/* three seperate prints in case of an unmapped page and trap */
-	printf("mp_lock = %08x; ", mp_lock);
+	/* two seperate prints in case of an unmapped page and trap */
 	printf("cpuid = %d; ", cpuid);
 	printf("lapic.id = %08x\n", lapic.id);
 #endif

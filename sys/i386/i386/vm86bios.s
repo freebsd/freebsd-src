@@ -62,11 +62,9 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-#ifdef SMP	
 	pushl	%edx
-	MP_LOCK				/* Get global lock */
+	call	__mtx_enter_giant_def	/* Get global lock */
 	popl	%edx
-#endif
 
 #if NNPX > 0
 	movl	_curproc,%ecx
@@ -135,13 +133,9 @@ ENTRY(vm86_bioscall)
 	/*
 	 * Return via _doreti
 	 */
-#ifdef SMP
-	pushl	_cpl			/* cpl to restore */
-#else
-	pushl	_cpl			/* cpl to restore */
-#endif
 	subl	$4,%esp			/* dummy unit */
 	incb	_intr_nesting_level
+	call	__mtx_exit_giant_def
 	MEXITCOUNT
 	jmp	_doreti
 

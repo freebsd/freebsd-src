@@ -153,6 +153,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		case 0:
 			continue;
 
+		case SMTX:
 		case SSLEEP:
 		case SSTOP:
 			if (p->p_flag & P_INMEM) {
@@ -165,6 +166,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			if (p->p_slptime >= maxslp)
 				continue;
 			break;
+
+		case SWAIT:
+			totalp->t_sl++;
+			continue;
 
 		case SRUN:
 		case SIDL:

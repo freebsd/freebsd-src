@@ -36,6 +36,7 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -65,6 +66,7 @@
 #include <machine/apic.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/mutex.h>
 #include <machine/mpapic.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
@@ -236,6 +238,8 @@ typedef struct BASETABLE_ENTRY {
 
 #define MP_ANNOUNCE_POST	0x19
 
+/* used to hold the AP's until we are ready to release them */
+struct simplelock	ap_boot_lock;
 
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
@@ -336,6 +340,7 @@ static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
 static int	apic_int_is_bus_type(int intr, int bus_type);
+static void	release_aps(void *dummy);
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -403,7 +408,7 @@ found:
 
 
 /*
- * Startup the SMP processors.
+ * Initialize the SMP hardware and the APIC and start up the AP's.
  */
 void
 mp_start(void)
@@ -618,6 +623,9 @@ mp_enable(u_int boot_addr)
 
 	/* initialize all SMP locks */
 	init_locks();
+
+	/* obtain the ap_boot_lock */
+	s_lock(&ap_boot_lock);
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
@@ -1866,9 +1874,6 @@ struct simplelock	fast_intr_lock;
 /* critical region around INTR() routines */
 struct simplelock	intr_lock;
 
-/* lock regions protected in UP kernel via cli/sti */
-struct simplelock	mpintr_lock;
-
 /* lock region used by kernel profiling */
 struct simplelock	mcount_lock;
 
@@ -1885,25 +1890,15 @@ struct simplelock	clock_lock;
 /* lock around the MP rendezvous */
 static struct simplelock smp_rv_lock;
 
+/* only 1 CPU can panic at a time :) */
+struct simplelock	panic_lock;
+
 static void
 init_locks(void)
 {
-	/*
-	 * Get the initial mp_lock with a count of 1 for the BSP.
-	 * This uses a LOGICAL cpu ID, ie BSP == 0.
-	 */
-	mp_lock = 0x00000001;
-
-#if 0
-	/* ISR uses its own "giant lock" */
-	isr_lock = FREE_LOCK;
-#endif
-
 #if defined(APIC_INTR_DIAGNOSTIC) && defined(APIC_INTR_DIAGNOSTIC_IRQ)
 	s_lock_init((struct simplelock*)&apic_itrace_debuglock);
 #endif
-
-	s_lock_init((struct simplelock*)&mpintr_lock);
 
 	s_lock_init((struct simplelock*)&mcount_lock);
 
@@ -1912,6 +1907,7 @@ init_locks(void)
 	s_lock_init((struct simplelock*)&imen_lock);
 	s_lock_init((struct simplelock*)&cpl_lock);
 	s_lock_init(&smp_rv_lock);
+	s_lock_init(&panic_lock);
 
 #ifdef USE_COMLOCK
 	s_lock_init((struct simplelock*)&com_lock);
@@ -1919,11 +1915,9 @@ init_locks(void)
 #ifdef USE_CLOCKLOCK
 	s_lock_init((struct simplelock*)&clock_lock);
 #endif /* USE_CLOCKLOCK */
+
+	s_lock_init(&ap_boot_lock);
 }
-
-
-/* Wait for all APs to be fully initialized */
-extern int wait_ap(unsigned int);
 
 /*
  * start each AP in our list
@@ -1987,6 +1981,7 @@ start_all_aps(u_int boot_addr)
 		SMPpt[pg + 4] = 0;		/* *prv_PMAP1 */
 
 		/* prime data page for it to use */
+		SLIST_INSERT_HEAD(&cpuhead, gd, gd_allcpu);
 		gd->gd_cpuid = x;
 		gd->gd_cpu_lockid = x << 24;
 		gd->gd_prv_CMAP1 = &SMPpt[pg + 1];
@@ -2211,7 +2206,6 @@ start_ap(int logical_cpu, u_int boot_addr)
 	return 0;		/* return FAILURE */
 }
 
-
 /*
  * Flush the TLB on all other CPU's
  *
@@ -2348,9 +2342,12 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 void ap_init(void);
 
 void
-ap_init()
+ap_init(void)
 {
 	u_int	apic_id;
+
+	/* lock against other AP's that are waking up */
+	s_lock(&ap_boot_lock);
 
 	/* BSP may have changed PTD while we're waiting for the lock */
 	cpu_invltlb();
@@ -2397,6 +2394,30 @@ ap_init()
 		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
 		smp_active = 1;	 /* historic */
 	}
+
+	/* let other AP's wake up now */
+	s_unlock(&ap_boot_lock);
+
+	/* wait until all the AP's are up */
+	while (smp_started == 0)
+		; /* nothing */
+
+	/*
+	 * Set curproc to our per-cpu idleproc so that mutexes have
+	 * something unique to lock with.
+	 */
+	PCPU_SET(curproc,idleproc);
+	PCPU_SET(prevproc,idleproc);
+
+	microuptime(&switchtime);
+	switchticks = ticks;
+
+	/* ok, now grab sched_lock and enter the scheduler */
+	enable_intr();
+	mtx_enter(&sched_lock, MTX_SPIN);
+	cpu_throw();	/* doesn't return */
+
+	panic("scheduler returned us to ap_init");
 }
 
 #ifdef BETTER_CLOCK
@@ -2453,6 +2474,12 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 	p = checkstate_curproc[id];
 	cpustate = checkstate_cpustate[id];
 
+	/* XXX */
+	if (p->p_ithd)
+		cpustate = CHECKSTATE_INTR;
+	else if (p == idleproc)
+		cpustate = CHECKSTATE_SYS;
+
 	switch (cpustate) {
 	case CHECKSTATE_USER:
 		if (p->p_flag & P_PROFIL)
@@ -2482,9 +2509,10 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		if (pscnt > 1)
 			return;
 
-		if (!p)
+		if (p == idleproc) {
+			p->p_sticks++;
 			cp_time[CP_IDLE]++;
-		else {
+		} else {
 			p->p_sticks++;
 			cp_time[CP_SYS]++;
 		}
@@ -2510,7 +2538,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 			p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
-	if (p != NULL) {
+	if (p != idleproc) {
 		schedclock(p);
 		
 		/* Update resource usage integrals and maximums. */
@@ -2863,3 +2891,11 @@ smp_rendezvous(void (* setup_func)(void *),
 	/* release lock */
 	s_unlock(&smp_rv_lock);
 }
+
+void
+release_aps(void *dummy __unused)
+{
+	s_unlock(&ap_boot_lock);
+}
+
+SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);

@@ -171,6 +171,7 @@
 
 #include <machine/md_var.h>
 #include <machine/rpb.h>
+#include <machine/smp.h>
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
@@ -325,9 +326,7 @@ vm_offset_t kernel_vm_end;
  * Data for the ASN allocator
  */
 static int pmap_maxasn;
-static int pmap_nextasn = 0;
-static u_int pmap_current_asngen = 1;
-static pmap_t pmap_active = 0;
+static pmap_t pmap_active[NCPUS];
 
 /*
  * Data for the pv entry allocation mechanism
@@ -456,16 +455,13 @@ void
 pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 {
 	pt_entry_t newpte;
-	pt_entry_t* pte;
-	vm_offset_t va;
 	int i;
 
 	/*
-	 * Setup ASNs
+	 * Setup ASNs. PCPU_GET(next_asn) and PCPU_GET(current_asngen) are set
+	 * up already.
 	 */
-	pmap_nextasn = 0;
 	pmap_maxasn = maxasn;
-	pmap_current_asngen = 1;
 
 	/*
 	 * Allocate a level 1 map for the kernel.
@@ -550,25 +546,12 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_lev1 = Lev1map;
 	kernel_pmap->pm_count = 1;
-	kernel_pmap->pm_active = 1;
-	kernel_pmap->pm_asn = 0;
-	kernel_pmap->pm_asngen = pmap_current_asngen;
-	pmap_nextasn = 1;
+	kernel_pmap->pm_active = ~0;
+	kernel_pmap->pm_asn[alpha_pal_whami()].asn = 0;
+	kernel_pmap->pm_asn[alpha_pal_whami()].gen = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	nklev3 = NKPT;
 	nklev2 = 1;
-
-	/*
-	 * Reserve some special page table entries/VA space for temporary
-	 * mapping of pages.
-	 */
-#define	SYSMAP(c, p, v, n)	\
-	v = (c)va; va += ((n)*PAGE_SIZE); p = pte; pte += (n);
-
-	va = virtual_avail;
-	pte = pmap_lev3pte(kernel_pmap, va);
-
-	virtual_avail = va;
 
 	/*
 	 * Set up proc0's PCB such that the ptbr points to the right place
@@ -663,14 +646,44 @@ pmap_init2()
 static void
 pmap_invalidate_asn(pmap_t pmap)
 {
-	pmap->pm_asngen = 0;
+	pmap->pm_asn[PCPU_GET(cpuno)].gen = 0;
+}
+
+struct pmap_invalidate_page_arg {
+	pmap_t pmap;
+	vm_offset_t va;
+};
+
+static void
+pmap_invalidate_page_action(void *arg)
+{
+	pmap_t pmap = ((struct pmap_invalidate_page_arg *) arg)->pmap;
+	vm_offset_t va = ((struct pmap_invalidate_page_arg *) arg)->va;
+
+	if (pmap->pm_active & (1 << PCPU_GET(cpuno))) {
+		ALPHA_TBIS(va);
+		alpha_pal_imb();		/* XXX overkill? */
+	} else {
+		pmap_invalidate_asn(pmap);
+	}
 }
 
 static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap_isactive(pmap)) {
-		ALPHA_TBIS(va);
+	struct pmap_invalidate_page_arg arg;
+	arg.pmap = pmap;
+	arg.va = va;
+	smp_rendezvous(0, pmap_invalidate_page_action, 0, (void *) &arg);
+}
+
+static void
+pmap_invalidate_all_action(void *arg)
+{
+	pmap_t pmap = (pmap_t) arg;
+
+	if (pmap->pm_active & (1 << PCPU_GET(cpuno))) {
+		ALPHA_TBIA();
 		alpha_pal_imb();		/* XXX overkill? */
 	} else
 		pmap_invalidate_asn(pmap);
@@ -679,32 +692,29 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 static void
 pmap_invalidate_all(pmap_t pmap)
 {
-	if (pmap_isactive(pmap)) {
-		ALPHA_TBIA();
-		alpha_pal_imb();		/* XXX overkill? */
-	} else
-		pmap_invalidate_asn(pmap);
+	smp_rendezvous(0, pmap_invalidate_all_action, 0, (void *) pmap);
 }
 
 static void
 pmap_get_asn(pmap_t pmap)
 {
-	if (pmap->pm_asngen != pmap_current_asngen) {
-		if (pmap_nextasn > pmap_maxasn) {
+	if (pmap->pm_asn[PCPU_GET(cpuno)].gen != PCPU_GET(current_asngen)) {
+		if (PCPU_GET(next_asn) > pmap_maxasn) {
 			/*
 			 * Start a new ASN generation.
 			 *
 			 * Invalidate all per-process mappings and I-cache
 			 */
-			pmap_nextasn = 0;
-			pmap_current_asngen++;
+			PCPU_GET(next_asn) = 0;
+			PCPU_GET(current_asngen)++;
+			PCPU_GET(current_asngen) &= (1 << 24) - 1;
 
-			if (pmap_current_asngen == 0) {
+			if (PCPU_GET(current_asngen) == 0) {
 				/*
-				 * Clear the pm_asngen of all pmaps.
+				 * Clear the pm_asn[].gen of all pmaps.
 				 * This is safe since it is only called from
 				 * pmap_activate after it has deactivated
-				 * the old pmap.
+				 * the old pmap and it only affects this cpu.
 				 */
 				struct proc *p;
 				pmap_t tpmap;
@@ -712,11 +722,11 @@ pmap_get_asn(pmap_t pmap)
 #ifdef PMAP_DIAGNOSTIC
 				printf("pmap_get_asn: generation rollover\n");
 #endif
-				pmap_current_asngen = 1;
+				PCPU_GET(current_asngen) = 1;
 				LIST_FOREACH(p, &allproc, p_list) {
 					if (p->p_vmspace) {
 						tpmap = vmspace_pmap(p->p_vmspace);
-						tpmap->pm_asngen = 0;
+						tpmap->pm_asn[PCPU_GET(cpuno)].gen = 0;
 					}
 				}
 			}
@@ -729,8 +739,8 @@ pmap_get_asn(pmap_t pmap)
 			ALPHA_TBIAP();
 			alpha_pal_imb();	/* XXX overkill? */
 		}
-		pmap->pm_asn = pmap_nextasn++;
-		pmap->pm_asngen = pmap_current_asngen;
+		pmap->pm_asn[PCPU_GET(cpuno)].asn = PCPU_GET(next_asn)++;
+		pmap->pm_asn[PCPU_GET(cpuno)].gen = PCPU_GET(current_asngen);
 	}
 }
 
@@ -1163,13 +1173,17 @@ void
 pmap_pinit0(pmap)
 	struct pmap *pmap;
 {
+	int i;
+
 	pmap->pm_lev1 = Lev1map;
 	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	pmap->pm_asn = 0;
-	pmap->pm_asngen = 0;
+	for (i = 0; i < NCPUS; i++) {
+		pmap->pm_asn[i].asn = 0;
+		pmap->pm_asn[i].gen = 0;
+	}
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -1183,6 +1197,7 @@ pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
 	vm_page_t lev1pg;
+	int i;
 
 	/*
 	 * allocate object for the ptes
@@ -1215,8 +1230,10 @@ pmap_pinit(pmap)
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
-	pmap->pm_asn = 0;
-	pmap->pm_asngen = 0;
+	for (i = 0; i < NCPUS; i++) {
+		pmap->pm_asn[i].asn = 0;
+		pmap->pm_asn[i].gen = 0;
+	}
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -2994,21 +3011,22 @@ pmap_activate(struct proc *p)
 
 	pmap = vmspace_pmap(p->p_vmspace);
 
-	if (pmap_active && pmap != pmap_active) {
-		pmap_active->pm_active = 0;
-		pmap_active = 0;
+	if (pmap_active[PCPU_GET(cpuno)] && pmap != pmap_active[PCPU_GET(cpuno)]) {
+		atomic_clear_32(&pmap_active[PCPU_GET(cpuno)]->pm_active,
+				1 << PCPU_GET(cpuno));
+		pmap_active[PCPU_GET(cpuno)] = 0;
 	}
 
 	p->p_addr->u_pcb.pcb_hw.apcb_ptbr =
 		ALPHA_K0SEG_TO_PHYS((vm_offset_t) pmap->pm_lev1) >> PAGE_SHIFT;
 
-	if (pmap->pm_asngen != pmap_current_asngen)
+	if (pmap->pm_asn[PCPU_GET(cpuno)].gen != PCPU_GET(current_asngen))
 		pmap_get_asn(pmap);
 
-	pmap_active = pmap;
-	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
+	pmap_active[PCPU_GET(cpuno)] = pmap;
+	atomic_set_32(&pmap->pm_active, 1 << PCPU_GET(cpuno));
 
-	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn;
+	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuno)].asn;
 
 	if (p == curproc) {
 		alpha_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
@@ -3020,8 +3038,8 @@ pmap_deactivate(struct proc *p)
 {
 	pmap_t pmap;
 	pmap = vmspace_pmap(p->p_vmspace);
-	pmap->pm_active = 0;
-	pmap_active = 0;
+	atomic_clear_32(&pmap->pm_active, 1 << PCPU_GET(cpuno));
+	pmap_active[PCPU_GET(cpuno)] = 0;
 }
 
 vm_offset_t

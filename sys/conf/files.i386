@@ -188,7 +188,6 @@ i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
-i386/i386/mplock.s		optional	smp
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
@@ -198,6 +197,7 @@ i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
+i386/i386/synch_machdep.c	standard
 i386/i386/trap.c		standard
 i386/i386/userconfig.c		optional	userconfig
 i386/i386/vm86.c		standard
@@ -242,6 +242,7 @@ i386/isa/if_wi.c		optional	wi card
 i386/isa/if_wl.c		count		wl
 i386/isa/if_wlp.c		optional	wlp
 i386/isa/intr_machdep.c		standard
+i386/isa/ithread.c		standard
 i386/isa/ipl_funcs.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/isa/isa.c			optional	isa

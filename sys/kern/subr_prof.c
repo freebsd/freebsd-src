@@ -93,6 +93,7 @@ kmstartup(dummy)
 	int nullfunc_loop_profiled_time;
 	uintfptr_t tmp_addr;
 #endif
+	int intrstate;
 
 	/*
 	 * Round lowpc and highpc to multiples of the density we're using
@@ -135,6 +136,7 @@ kmstartup(dummy)
 	 * Disable interrupts to avoid interference while we calibrate
 	 * things.
 	 */
+	intrstate = save_intr();
 	disable_intr();
 
 	/*
@@ -189,7 +191,7 @@ kmstartup(dummy)
 	p->state = GMON_PROF_OFF;
 	stopguprof(p);
 
-	enable_intr();
+	restore_intr(intrstate);
 
 	nullfunc_loop_profiled_time = 0;
 	for (tmp_addr = (uintfptr_t)nullfunc_loop_profiled;
