@@ -1288,6 +1288,9 @@ do_child(Session *s, const char *command)
 	const char *shell, *shell0, *hostname = NULL;
 	struct passwd *pw = s->pw;
 	u_int i;
+#ifdef HAVE_LOGIN_CAP
+	int lc_requirehome;
+#endif
 
 	/* remove hostkey from the child's memory */
 	destroy_sensitive_data();
@@ -1346,6 +1349,10 @@ do_child(Session *s, const char *command)
 	/* XXX better use close-on-exec? -markus */
 	channel_close_all();
 
+#ifdef HAVE_LOGIN_CAP
+	lc_requirehome = login_getcapbool(lc, "requirehome", 0);
+	login_close(lc);
+#endif
 	/*
 	 * Close any extra file descriptors.  Note that there may still be
 	 * descriptors left by system functions.  They will be closed later.
@@ -1384,7 +1391,7 @@ do_child(Session *s, const char *command)
 		fprintf(stderr, "Could not chdir to home directory %s: %s\n",
 		    pw->pw_dir, strerror(errno));
 #ifdef HAVE_LOGIN_CAP
-		if (login_getcapbool(lc, "requirehome", 0))
+		if (lc_requirehome)
 			exit(1);
 #endif
 	}
