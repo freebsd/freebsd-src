@@ -134,6 +134,12 @@ ip_nat_t *ip_nat_ptr;
 ip_nat_ctl_t *ip_nat_ctl_ptr;
 #endif
 
+#if defined(IPFILTER_LKM) || defined(IPFILTER)
+int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
+#endif
+
+
 /*
  * We need to save the IP options in case a protocol wants to respond
  * to an incoming packet over the same route if the packet got here
@@ -339,6 +345,19 @@ tooshort:
 
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
 		return;
+#endif
+
+#if defined(IPFILTER) || defined(IPFILTER_LKM)
+    {
+	struct	mbuf	*m0 = m;
+	/*
+	 * Check if we want to allow this packet to be processed.
+	 * Consider it to be bad if not.
+	 */
+	if (fr_checkp && (*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m0))
+		goto next;
+	ip = mtod(m = m0, struct ip *);
+    }
 #endif
 
 	/*
