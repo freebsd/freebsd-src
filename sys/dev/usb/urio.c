@@ -158,6 +158,9 @@ struct urio_softc {
 	int sc_epaddr[2];
 
 	int sc_refcnt;
+#if defined(__FreeBSD__)
+	dev_t sc_dev_t;
+#endif	/* defined(__FreeBSD__) */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	u_char sc_dying;
 #endif
@@ -272,7 +275,7 @@ USB_ATTACH(urio)
 #if defined(__FreeBSD__)
  #if (__FreeBSD__ >= 4)
 	/* XXX no error trapping, no storing of dev_t */
-	(void) make_dev(&urio_cdevsw, device_get_unit(self),
+	sc->sc_dev_t = make_dev(&urio_cdevsw, device_get_unit(self),
 			UID_ROOT, GID_OPERATOR,
 			0644, "urio%d", device_get_unit(self));
  #endif
@@ -672,8 +675,6 @@ USB_DETACH(urio)
 	/* Nuke the vnodes for any open instances (calls close). */
 	mn = self->dv_unit * USB_MAX_ENDPOINTS;
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
-#elif defined(__FreeBSD__)
-	/* XXX not implemented yet */
 #endif
 
 	usbd_add_drv_event(USB_EVENT_DRIVER_DETACH, sc->sc_udev,
@@ -687,7 +688,11 @@ USB_DETACH(urio)
 Static int
 urio_detach(device_t self)
 {       
+	struct urio_softc *sc = device_get_softc(self);
+
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	destroy_dev(sc->sc_dev_t);
+	/* XXX not implemented yet */
 	device_set_desc(self, NULL);
 	return 0;
 }
