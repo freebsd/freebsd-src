@@ -67,6 +67,19 @@
 .Ft const char *
 .Fn hstrerror "int err"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Xr getaddrinfo 3
+and
+.Xr getnameinfo 3
+functions are preferred over the
+.Fn gethostbyname ,
+.Fn gethostbyname2 ,
+and
+.Fn gethostbyaddr
+functions.
+.Ef
+.Pp
 The
 .Fn gethostbyname ,
 .Fn gethostbyname2
@@ -76,12 +89,45 @@ functions
 each return a pointer to an object with the
 following structure describing an internet host
 referenced by name or by address, respectively.
-This structure contains either the information obtained from the name server,
+.Pp
+The
+.Fa name
+argument passed to
+.Fn gethostbyname
+or
+.Fn gethostbyname2
+should point to a
+.Dv NUL Ns -terminated
+hostname.
+The
+.Fa addr
+argument passed to
+.Fn gethostbyaddr
+should point to an address which is
+.Fa len
+bytes long,
+in binary form
+(i.e. not an IP address in human readable
+.Tn ASCII
+form).
+The
+.Fa type
+argument specifies the address family
+(e.g.\&
+.Dv AF_INET , AF_INET6 ,
+etc.) of this address.
+.Pp
+The structure returned contains either the information obtained from the name
+server,
 .Xr named 8 ,
-or broken-out fields from a line in
-.Pa /etc/hosts .
-If the local name server is not running these routines do a lookup in
-.Pa /etc/hosts .
+broken-out fields from a line in
+.Pa /etc/hosts ,
+or database entries supplied by the
+.Xr yp 8
+system.
+The order of the lookups is controlled by the
+.Xr host.conf 5
+configuration file.
 .Bd -literal
 struct	hostent {
 	char	*h_name;	/* official name of host */
@@ -148,7 +194,7 @@ else the function will return
 after having set
 .Va h_errno
 to
-.Dv NETDB_INTERNAL
+.Dv NETDB_INTERNAL .
 .Pp
 The
 .Fn sethostent
@@ -180,8 +226,8 @@ connection.
 The
 .Fn herror
 function writes a message to the diagnostic output consisting of the
-string parameter
-.Fa s ,
+string argument
+.Fa string ,
 the constant string
 .Qq Li ":\ " ,
 and a message corresponding to the value of
@@ -192,13 +238,29 @@ The
 function returns a string which is the message text corresponding to the
 value of the
 .Fa err
-parameter.
+argument.
 .Sh FILES
 .Bl -tag -width /etc/resolv.conf -compact
 .It Pa /etc/hosts
 .It Pa /etc/host.conf
 .It Pa /etc/resolv.conf
 .El
+.Sh EXAMPLES
+Print out the hostname associated with a specific IP address:
+.Bd -literal -offset indent
+const char *ipstr = "127.0.0.1";
+struct in_addr ip;
+struct hostent *hp;
+
+if (!inet_aton(ipstr, &ip))
+	errx(1, "can't parse IP address %s", ipstr);
+
+if ((hp = gethostbyaddr((const char *)&ip,
+    sizeof ip, AF_INET)) == NULL)
+	errx(1, "no name associated with %s", ipstr);
+
+printf("name associated with %s is %s\en", ipstr, hp->h_name);
+.Ed
 .Sh DIAGNOSTICS
 Error return status from
 .Fn gethostbyname ,
@@ -247,6 +309,8 @@ for example, a mail-forwarder may be registered for this domain.
 .El
 .Sh SEE ALSO
 .Xr getaddrinfo 3 ,
+.Xr getnameinfo 3 ,
+.Xr inet_aton 3 ,
 .Xr resolver 3 ,
 .Xr hosts 5 ,
 .Xr hostname 7 ,
@@ -261,7 +325,7 @@ and
 .Fn endhostent
 are redefined,
 when
-.Xr libc 3
+.Lb libc
 is built to use only the routines to lookup in
 .Pa /etc/hosts
 and not the name server.
