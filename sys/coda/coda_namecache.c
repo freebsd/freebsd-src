@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_namecache.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_namecache.c,v 1.5 1998/09/13 13:57:59 rvb Exp $
+ *  $Id: coda_namecache.c,v 1.6 1998/09/25 17:38:31 rvb Exp $
  * 
  */
 
@@ -47,6 +47,11 @@
 /*
  * HISTORY
  * $Log: coda_namecache.c,v $
+ * Revision 1.6  1998/09/25 17:38:31  rvb
+ * Put "stray" printouts under DIAGNOSTIC.  Make everything build
+ * with DEBUG on.  Add support for lkm.  (The macro's don't work
+ * for me; for a good chuckle look at the end of coda_fbsd.c.)
+ *
  * Revision 1.5  1998/09/13 13:57:59  rvb
  * Finish conversion of cfs -> coda
  *
@@ -283,7 +288,7 @@ coda_nc_init(void)
     
     bzero(&coda_nc_stat, (sizeof(struct coda_nc_statistics)));
 
-#ifdef	DIAGNOSTIC
+#ifdef	CODA_VERBOSE
     printf("CODA NAME CACHE: CACHE %d, HASH TBL %d\n", CODA_NC_CACHESIZE, CODA_NC_HASHSIZE);
 #endif
     CODA_ALLOC(coda_nc_heap, struct coda_cache *, TOTAL_CACHE_SIZE);
