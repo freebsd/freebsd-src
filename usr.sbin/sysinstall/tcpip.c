@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.18 1995/05/26 20:31:01 jkh Exp $
+ * $Id: tcpip.c,v 1.19 1995/05/26 21:16:02 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -503,12 +503,6 @@ tcpStartPPP(Device *devp)
     else
 	strcpy(myaddr, "0");
     fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
-    if (devp->private && ((DevInfo *)devp->private)->netmask[0])
-	strcpy(netmask, ((DevInfo *)devp->private)->netmask);
-    else
-	strcpy(netmask, "255.255.255.240");
-    if (strcmp(val, "0"))
-	fprintf(fp, "add 0 %s %s\n", netmask, val);
     fclose(fp);
     if (!fork()) {
 	dup2(fd, 0);
