@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.8 1996/12/28 07:56:41 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.9 1996/12/28 08:25:14 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.51 -->
+<!-- Original revision: 1.52 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -262,7 +262,7 @@ lib/X11/oneko/mouse.xpm
 	  れ, 正しく動作することを確認してください.
 
       <sect3>
-	<heading><label id="porting:submitting">Portの送付</heading>
+	<heading>Portの送付<label id="porting:submitting"></heading>
 
 	<p>さあ, あなたのportに満足したら, あとはそれをFreeBSDのメイ
 	  ンのportsツリーに置いて, 皆に使ってもらうだけです. そのた
