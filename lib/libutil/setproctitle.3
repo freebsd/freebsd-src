@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: setproctitle.3,v 1.5 1996/12/30 21:08:45 mpp Exp $
+.\" $Id: setproctitle.3,v 1.4.2.1 1996/12/30 21:15:45 mpp Exp $
 .\"
 .\" The following requests are required for all man pages.
 .Dd December 16, 1995
@@ -61,7 +61,7 @@ is NULL, the process title is reset to simply the name of the executable.
 .\" .Sh ENVIRONMENT
 .\" .Sh FILES
 .Sh EXAMPLES
-To set the title on a daemon to indicate it's activity:
+To set the title on a daemon to indicate its activity:
 .Bd -literal -offset indent
 setproctitle("talking to %s", inet_ntoa(addr));
 .Ed
