@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
+#include <sys/time.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
