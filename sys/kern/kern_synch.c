@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.24 1996/09/01 10:30:33 davidg Exp $
+ * $Id: kern_synch.c,v 1.25 1996/09/22 06:35:24 gpalmer Exp $
  */
 
 #include "opt_ktrace.h"
@@ -461,6 +461,7 @@ restart:
 					setrunqueue(p);
 					need_resched();
 				} else {
+					p->p_flag |= P_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
@@ -506,6 +507,7 @@ wakeup_one(ident)
 					need_resched();
 					break;
 				} else {
+					p->p_flag |= P_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
 				}
 				/* END INLINE EXPANSION */
@@ -624,8 +626,10 @@ setrunnable(p)
 	if (p->p_slptime > 1)
 		updatepri(p);
 	p->p_slptime = 0;
-	if ((p->p_flag & P_INMEM) == 0)
+	if ((p->p_flag & P_INMEM) == 0) {
+		p->p_flag |= P_SWAPINREQ;
 		wakeup((caddr_t)&proc0);
+	}
 	else if (p->p_priority < curpriority)
 		need_resched();
 }
