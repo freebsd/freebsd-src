@@ -167,6 +167,22 @@ struct ciss_ldrive
 };
 
 /*
+ * Per-physical-drive data
+ */
+struct ciss_pdrive
+{
+    union ciss_device_address	cp_address;
+    int				cp_online;
+};
+
+#define CISS_PHYSICAL_SHIFT	5
+#define CISS_PHYSICAL_BASE	(1 << CISS_PHYSICAL_SHIFT)
+#define CISS_MAX_PHYSTGT	15
+
+#define CISS_IS_PHYSICAL(bus)	(bus >= CISS_PHYSICAL_BASE)
+#define CISS_CAM_TO_PBUS(bus)	(bus - CISS_PHYSICAL_BASE)
+
+/*
  * Per-adapter data
  */
 struct ciss_softc
@@ -212,8 +228,11 @@ struct ciss_softc
     struct ciss_request		*ciss_periodic_notify;	/* notify callback request */
 
     struct ciss_ldrive		**ciss_logical;
+    struct ciss_pdrive		**ciss_physical;
     union ciss_device_address	*ciss_controllers;	/* controller address */
     int				ciss_max_bus_number;	/* maximum bus number */
+    int				ciss_max_logical_bus;
+    int				ciss_max_physical_bus;
 
     struct cam_devq		*ciss_cam_devq;
     struct cam_sim		**ciss_cam_sim;
