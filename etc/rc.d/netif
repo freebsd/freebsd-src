@@ -56,6 +56,9 @@ network_start()
 
 		# Create IPv6<-->IPv4 tunnels
 		gif_up
+
+		# Rename interfaces.
+		ifnet_rename
 	fi
 
 	# Configure the interface(s).
