@@ -687,9 +687,6 @@ tail(char *fn)
 /*
  * Create the makerules for each file
  * which is part of the system.
- * Devices are processed with the special c2 option -i
- * which avoids any problem areas with i/o addressing
- * (e.g. for the VAX); assembler files are processed by as.
  */
 static void
 do_rules(FILE *f)
