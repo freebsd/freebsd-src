@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.47 1999/04/30 12:51:20 des Exp $";
+	"$Id: syslogd.c,v 1.46.2.1 1999/05/01 18:49:17 des Exp $";
 #endif /* not lint */
 
 /*
@@ -394,7 +394,7 @@ main(argc, argv)
 				die(0);
 		}
 	}
-	if (SecureMode > 1)
+	if (SecureMode <= 1)
 		finet = socket(AF_INET, SOCK_DGRAM, 0);
 	if (finet >= 0) {
 		struct servent *sp;
