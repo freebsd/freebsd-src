@@ -161,6 +161,7 @@ distribution: distrib-dirs
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; ${MAKE} mdec; )
+	(cd ../share/man; ${MAKE} makedb; )
 .if ${MACHINE} == "tahoe"
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS1} \
 	    ${DESTDIR}/)
