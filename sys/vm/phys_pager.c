@@ -145,9 +145,9 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	for (i = 0; i < count; i++) {
 		if ((m[i]->flags & PG_ZERO) == 0)
 			pmap_zero_page(m[i]);
-		vm_page_flag_set(m[i], PG_ZERO);
 		/* Switch off pv_entries */
 		vm_page_lock_queues();
+		vm_page_flag_set(m[i], PG_ZERO);
 		vm_page_unmanage(m[i]);
 		vm_page_unlock_queues();
 		m[i]->valid = VM_PAGE_BITS_ALL;
