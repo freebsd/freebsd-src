@@ -54,7 +54,7 @@
 #include "sysinstall.h"
 
 #define APACHE_BASE     "/usr/local/www"
-#define APACHE_HELPFILE "apache.hlp"
+#define APACHE_HELPFILE "apache"
 #define APACHE_PACKAGE  "apache-0.8.14"
 
 typedef struct
@@ -488,7 +488,8 @@ installApache(char *unused)
     
     msgNotify("Writing configuration files....");
     sleep(1);
-    
+
+    (void)vsystem("mkdir -p %s/config", APACHE_BASE);
     sprintf(file, "%s/config/access.conf", APACHE_BASE);
     if (file_readable(file))
     {
