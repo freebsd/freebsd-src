@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.90 1995/10/29 17:34:17 bde Exp $
+ *	$Id: wd.c,v 1.91 1995/11/20 12:41:53 phk Exp $
  */
 
 /* TODO:
@@ -245,8 +245,20 @@ struct disk {
 static int wdtest = 0;
 
 static struct disk *wddrives[NWD];	/* table of units */
+static struct buf_queue_head drive_queue[NWD];	/* head of queue per drive */
+static struct {
+	int	b_errcnt;
+	int	b_active;
+} wdutab[NWD];
+/*
 static struct buf wdtab[NWDC];
-static struct buf wdutab[NWD];	/* head of queue per drive */
+*/
+static struct {
+	struct	buf_queue_head controller_queue;
+	int	b_errcnt;
+	int	b_active;
+} wdtab[NWDC];
+
 #ifdef notyet
 static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 #endif
@@ -399,6 +411,7 @@ wdattach(struct isa_device *dvp)
 		return (0);
 
 	kdc_wdc[dvp->id_unit].kdc_state = DC_UNKNOWN; /* XXX */
+	TAILQ_INIT( &wdtab[dvp->id_unit].controller_queue);
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
 		if (wdup->id_iobase != dvp->id_iobase)
@@ -406,6 +419,7 @@ wdattach(struct isa_device *dvp)
 		lunit = wdup->id_unit;
 		if (lunit >= NWD)
 			continue;
+
 		unit = wdup->id_physid;
 
 		du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
@@ -414,6 +428,7 @@ wdattach(struct isa_device *dvp)
 		if (wddrives[lunit] != NULL)
 			panic("drive attached twice");
 		wddrives[lunit] = du;
+		TAILQ_INIT( &drive_queue[lunit]);
 		bzero(du, sizeof *du);
 		du->dk_ctrlr = dvp->id_unit;
 		du->dk_unit = unit;
@@ -567,12 +582,11 @@ wdstrategy(register struct buf *bp)
 	}
 
 	/* queue transfer on drive, activate drive and controller if idle */
-	dp = &wdutab[lunit];
 	s = splbio();
 
-	disksort(dp, bp);
+	tqdisksort(&drive_queue[lunit], bp);
 
-	if (dp->b_active == 0)
+	if (wdutab[lunit].b_active == 0)
 		wdustart(du);	/* start drive */
 
 	/* Pick up changes made by readdisklabel(). */
@@ -628,30 +642,25 @@ wdstrategy1(struct buf *bp)
 static void
 wdustart(register struct disk *du)
 {
-	register struct buf *bp, *dp = &wdutab[du->dk_lunit];
+	register struct buf *bp;
 	int	ctrlr = du->dk_ctrlr;
 
 	/* unit already active? */
-	if (dp->b_active)
+	if (wdutab[du->dk_lunit].b_active)
 		return;
 
-	/* anything to start? */
-	bp = dp->b_actf;
-	if (bp == NULL)
-		return;
 
-	dp->b_actf = bp->b_actf;
-	bp->b_actf = NULL;
-	/* link onto controller queue */
-	if (wdtab[ctrlr].b_actf == NULL) {
-		wdtab[ctrlr].b_actf = bp;
-	} else {
-		*wdtab[ctrlr].b_actb = bp;
+	bp = drive_queue[du->dk_lunit].tqh_first;
+	if (bp == NULL) {	/* yes, an assign */
+		return;
 	}
-	wdtab[ctrlr].b_actb = &bp->b_actf;
+	TAILQ_REMOVE( &drive_queue[du->dk_lunit], bp, b_act);
+
+	/* link onto controller queue */
+	TAILQ_INSERT_TAIL( &wdtab[ctrlr].controller_queue, bp, b_act);
 
 	/* mark the drive unit as busy */
-	dp->b_active = 1;
+	wdutab[du->dk_lunit].b_active = 1;
 }
 
 /*
@@ -682,7 +691,7 @@ wdstart(int ctrlr)
 #endif
 loop:
 	/* is there a drive for the controller to do a transfer with? */
-	bp = wdtab[ctrlr].b_actf;
+	bp = wdtab[ctrlr].controller_queue.tqh_first;
 	if (bp == NULL) {
 #ifdef ATAPI
 		if (atapi_start && atapi_start (ctrlr))
@@ -928,9 +937,8 @@ wdintr(int unit)
 		return;
 	}
 #endif
-	bp = wdtab[unit].b_actf;
+	bp = wdtab[unit].controller_queue.tqh_first;
 	du = wddrives[dkunit(bp->b_dev)];
-	dp = &wdutab[du->dk_lunit];
 	du->dk_timeout = 0;
 
 	if (wdwait(du, 0, TIMEOUT) < 0) {
@@ -1070,11 +1078,11 @@ outt:
 done: ;
 		/* done with this transfer, with or without error */
 		du->dk_flags &= ~DKFL_SINGLE;
-		wdtab[unit].b_actf = bp->b_actf;
+		TAILQ_REMOVE(&wdtab[unit].controller_queue, bp, b_act);
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
-		dp->b_active = 0;
-		dp->b_errcnt = 0;
+		wdutab[du->dk_lunit].b_active = 0;
+		wdutab[du->dk_lunit].b_errcnt = 0;
 		du->dk_skip = 0;
 		biodone(bp);
 	}
@@ -1091,7 +1099,7 @@ done: ;
 	/* anything more for controller to do? */
 #ifndef ATAPI
 	/* This is not valid in ATAPI mode. */
-	if (wdtab[unit].b_actf)
+	if (wdtab[unit].controller_queue.tqh_first)
 #endif
 		wdstart(unit);
 }
@@ -1129,7 +1137,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	wdsleep(du->dk_ctrlr, "wdopn1");
 	du->dk_flags |= DKFL_LABELLING;
 	du->dk_state = WANTOPEN;
-	wdutab[lunit].b_actf = NULL;
+	/* drive_queue[lunit].b_actf = NULL; */
 	{
 	struct disklabel label;
 
@@ -1150,7 +1158,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if ((du->dk_flags & DKFL_BSDLABEL) == 0) {
 		/*
 		 * wdtab[ctrlr].b_active != 0 implies
-		 * wdutab[lunit].b_actf == NULL (?)
+		 * drive_queue[lunit].b_actf == NULL (?)
 		 * so the following guards most things (until the next i/o).
 		 * It doesn't guard against a new i/o starting and being
 		 * affected by the label being changed.  Sigh.
@@ -1159,7 +1167,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 		du->dk_flags |= DKFL_LABELLING;
 		du->dk_state = WANTOPEN;
-		wdutab[lunit].b_actf = NULL;
+		/* drive_queue[lunit].b_actf = NULL; */
 
 		error = dsinit(dkmodpart(dev, RAW_PART), wdstrategy,
 			       &du->dk_dd, &du->dk_slices);
@@ -1962,8 +1970,10 @@ wdreset(struct disk *du)
 static void
 wdsleep(int ctrlr, char *wmesg)
 {
+	int s = splbio();
 	while (wdtab[ctrlr].b_active)
 		tsleep((caddr_t)&wdtab[ctrlr].b_active, PZERO - 1, wmesg, 1);
+	splx(s);
 }
 
 static void
