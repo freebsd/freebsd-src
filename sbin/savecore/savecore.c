@@ -131,7 +131,7 @@ void     find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
-void	 log __P((int, char *, ...));
+void	 log __P((int, char *, ...)) __printflike(2, 3);
 void	 Lseek __P((int, off_t, int));
 int	 Open __P((const char *, int rw));
 int	 Read __P((int, void *, int));

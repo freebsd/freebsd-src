@@ -189,7 +189,7 @@ iblock(idesc, ilevel, isize)
 			(void)sprintf(buf, "PARTIALLY TRUNCATED INODE I=%lu",
 			    (u_long)idesc->id_number);
 			if (preen) {
-				pfatal(buf);
+				pfatal("%s", buf);
 			} else if (dofix(idesc, buf)) {
 				*ap = 0;
 				dirty(bp);

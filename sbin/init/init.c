@@ -104,9 +104,9 @@ static const char rcsid[] =
 void handle __P((sig_t, ...));
 void delset __P((sigset_t *, ...));
 
-void stall __P((char *, ...));
-void warning __P((char *, ...));
-void emergency __P((char *, ...));
+void stall __P((const char *, ...)) __printflike(1, 2);
+void warning __P((const char *, ...)) __printflike(1, 2);
+void emergency __P((const char *, ...)) __printflike(1, 2);
 void disaster __P((int));
 void badsys __P((int));
 int  runshutdown __P((void));
@@ -412,7 +412,7 @@ delset(va_alist)
  */
 void
 #ifdef __STDC__
-stall(char *message, ...)
+stall(const char *message, ...)
 #else
 stall(va_alist)
 	va_dcl
@@ -420,7 +420,7 @@ stall(va_alist)
 {
 	va_list ap;
 #ifndef __STDC__
-	char *message;
+	const char *message;
 
 	va_start(ap);
 	message = va_arg(ap, char *);
@@ -440,7 +440,7 @@ stall(va_alist)
  */
 void
 #ifdef __STDC__
-warning(char *message, ...)
+warning(const char *message, ...)
 #else
 warning(va_alist)
 	va_dcl
@@ -448,7 +448,7 @@ warning(va_alist)
 {
 	va_list ap;
 #ifndef __STDC__
-	char *message;
+	const char *message;
 
 	va_start(ap);
 	message = va_arg(ap, char *);
@@ -466,7 +466,7 @@ warning(va_alist)
  */
 void
 #ifdef __STDC__
-emergency(char *message, ...)
+emergency(const char *message, ...)
 #else
 emergency(va_alist)
 	va_dcl
@@ -474,7 +474,7 @@ emergency(va_alist)
 {
 	va_list ap;
 #ifndef __STDC__
-	char *message;
+	const char *message;
 
 	va_start(ap);
 	message = va_arg(ap, char *);
