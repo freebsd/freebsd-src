@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.77 1998/05/21 19:21:43 eivind Exp $
+#	$Id: Makefile,v 1.78 1998/06/07 19:44:00 phk Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -24,7 +24,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 FILES+=	math.h
 .endif
 
-ARPAFILES=	ftp.h inet.h nameser.h telnet.h tftp.h
+ARPAFILES=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 
 PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
