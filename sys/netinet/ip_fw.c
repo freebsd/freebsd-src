@@ -328,7 +328,7 @@ bad_packet:
 		 * If global icmp flag set we will do
 		 * something here...later..
 		 */
-		return_0;
+		goto return_0;
 	}
 return_0:
 	m_freem(m);
