@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id$
+$Id: MIRROR.SITES,v 1.3 1994/10/03 03:31:13 gclarkii Exp $
 
 The FreeBSD 2.0 distribution (or later) is being mirrored at the following
 locations:
@@ -17,4 +17,20 @@ USA		ftp://gatekeeper.dec.com:/pub/BSD/FreeBSD/FreeBSD-current
 USA		ftp://ftp.cybernetics.net:/pub/FreeBSD
 		<michael@Cybernetics.NET>
 
+Japan		ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0-RELEASE
+		Ashida Hiroyuki <assie@bpel.tutics.tut.ac.jp>
 
+Japan		ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0-RELEASE
+		ftp-admin@sra.co.jp
+
+Japan		ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-2.0-RELEASE
+		ftp-admin@ftp.ee.uec.ac.jp
+
+Japan		ftp://ftp.mei.co.jpfree/PC-UNIX/FreeBSD/2.0-RELEASE
+		TANIGUCHI Syuuhei <tanig@isl.mei.co.jp>
+
+Japan		ftp://ftp.waseda.ac.jp/pub/FreeBSD/2.0-RELEASE
+		<ftp-admin@waseda.ac.jp>
+
+Japan		ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0-RELEASE
+		Yoshihiko USUI <usui@pu-toyama.ac.jp>
