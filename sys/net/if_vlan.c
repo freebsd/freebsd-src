@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.2 1998/05/15 20:02:47 wollman Exp $
+ *	$Id: if_vlan.c,v 1.3 1998/08/23 03:07:10 wollman Exp $
  */
 
 /*
@@ -334,8 +334,8 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGETVLAN:
 		bzero(&vlr, sizeof vlr);
 		if (ifv->ifv_p) {
-			sprintf(vlr.vlr_parent, "%s%d", ifv->ifv_p->if_name,
-				ifv->ifv_p->if_unit);
+			snprintf(vlr.vlr_parent, sizeof(vlr.vlr_parent),
+			    "%s%d", ifv->ifv_p->if_name, ifv->ifv_p->if_unit);
 			vlr.vlr_tag = ifv->ifv_tag;
 		}
 		error = copyout(&vlr, ifr->ifr_data, sizeof vlr);

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_if.c,v 1.2 1998/09/17 09:35:00 phk Exp $
+ *	@(#) $Id: spans_if.c,v 1.3 1998/10/31 20:06:56 phk Exp $
  *
  */
 
@@ -46,7 +46,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_if.c,v 1.2 1998/09/17 09:35:00 phk Exp $");
+__RCSID("@(#) $Id: spans_if.c,v 1.3 1998/10/31 20:06:56 phk Exp $");
 #endif
 
 /*
@@ -972,7 +972,8 @@ spans_ioctl(code, data, arg1)
 			/*
 			 * Fill out the response struct for the VCC
 			 */
-			(void) sprintf(rsp.avp_intf, "%s%d",
+			(void) snprintf(rsp.avp_intf,
+				    sizeof(rsp.avp_intf), "%s%d",
 					spp->sp_pif->pif_name,
 					spp->sp_pif->pif_unit);
 			rsp.avp_vpi = svp->sv_vpi;

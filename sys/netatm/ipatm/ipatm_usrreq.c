@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_usrreq.c,v 1.1 1998/09/15 08:23:01 phk Exp $
+ *	@(#) $Id: ipatm_usrreq.c,v 1.2 1998/10/31 20:06:55 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: ipatm_usrreq.c,v 1.1 1998/09/15 08:23:01 phk Exp $");
+__RCSID("@(#) $Id: ipatm_usrreq.c,v 1.2 1998/10/31 20:06:55 phk Exp $");
 #endif
 
 
@@ -333,7 +333,8 @@ ipatm_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aivr.aip_dst_addr)->sin_addr.s_addr = 
 					ivp->iv_dst.s_addr;
-				(void) sprintf(aivr.aip_intf, "%s%d",
+				(void) snprintf(aivr.aip_intf,
+				    sizeof(aivr.aip_intf), "%s%d",
 					inp->inf_nif->nif_if.if_name,
 					inp->inf_nif->nif_if.if_unit);
 				if ((ivp->iv_conn) &&

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.15 1998/06/02 05:39:07 dyson Exp $
+ *	$Id: ibcs2_xenix.c,v 1.16 1998/08/16 01:21:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -157,14 +157,22 @@ xenix_utsname(struct proc *p, struct xenix_utsname_args *uap)
 
 	DPRINTF(("IBCS2: 'xenix sco_utsname'\n"));
 	bzero(&ibcs2_sco_uname, sizeof(struct ibcs2_sco_utsname));
-	strncpy(ibcs2_sco_uname.sysname, ostype, 8);
-	strncpy(ibcs2_sco_uname.nodename, hostname, 8);
-	strncpy(ibcs2_sco_uname.release, osrelease, 15);
-	strncpy(ibcs2_sco_uname.kernelid, version, 19);
-	strncpy(ibcs2_sco_uname.machine, machine, 8);
-	bcopy("ISA/EISA", ibcs2_sco_uname.bustype, 8);
-	bcopy("no charge", ibcs2_sco_uname.sysserial, 9);
-	bcopy("unlim", ibcs2_sco_uname.numusers, 8);
+	strncpy(ibcs2_sco_uname.sysname, ostype,
+		sizeof(ibcs2_sco_uname.sysname) - 1);
+	strncpy(ibcs2_sco_uname.nodename, hostname,
+		sizeof(ibcs2_sco_uname.nodename) - 1);
+	strncpy(ibcs2_sco_uname.release, osrelease,
+		sizeof(ibcs2_sco_uname.release) - 1);
+	strncpy(ibcs2_sco_uname.kernelid, version,
+		sizeof(ibcs2_sco_uname.kernelid) - 1);
+	strncpy(ibcs2_sco_uname.machine, machine,
+		sizeof(ibcs2_sco_uname.machine) - 1);
+	strncpy(ibcs2_sco_uname.bustype, "ISA/EISA",
+		sizeof(ibcs2_sco_uname.bustype) - 1);
+	strncpy(ibcs2_sco_uname.sysserial, "no charge",
+		sizeof(ibcs2_sco_uname.sysserial) - 1);
+	strncpy(ibcs2_sco_uname.numusers, "unlim",
+		sizeof(ibcs2_sco_uname.numusers) - 1);
 	ibcs2_sco_uname.sysorigin = 0xFFFF;
 	ibcs2_sco_uname.sysoem = 0xFFFF;
 	ibcs2_sco_uname.numcpu = 1;

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_util.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_util.c,v 1.3 1998/10/31 20:07:01 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/uni/unisig_msg.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_util.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_util.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
 #endif
 
 
@@ -303,7 +303,8 @@ unisig_addr_print(p)
 				 * two-digit hex representation of the
 				 * NSAP byte in the output buffer
 				 */
-				sprintf(t_buff, "%x", *cp + 512);
+				snprintf(t_buff, sizeof(t_buff),
+					"%x", *cp + 512);
 				strcpy(op, &t_buff[strlen(t_buff)-2]);
 				op++; op++;
 				cp++;
@@ -325,7 +326,8 @@ unisig_addr_print(p)
 		 * Print the IA5 characters of the E.164 address
 		 */
 		for(i=0; i<p->address_length; i++) {
-			sprintf(&strbuff[strlen(strbuff)], "%c",
+			snprintf(strbuff + strlen(strbuff),
+			    sizeof(strbuff) - strlen(strbuff), "%c",
 				((Atm_addr_e164 *)p->address)->aae_addr[i]);
 		}
 		break;
@@ -346,7 +348,7 @@ unisig_addr_print(p)
 		/*
 		 * Print the address as two words xxxxx.yyyyyyyy
 		 */
-		sprintf(strbuff, "%x.%x", u1.w, u2.w);
+		snprintf(strbuff, sizeof(strbuff), "%x.%x", u1.w, u2.w);
 		break;
 
 	case T_ATM_ABSENT:

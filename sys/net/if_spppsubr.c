@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.44 1998/10/06 20:47:53 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.45 1998/10/06 21:12:45 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -4029,7 +4029,7 @@ sppp_cp_type_name(u_char type)
 	case ECHO_REPLY: return "echo-reply";
 	case DISC_REQ:   return "discard-req";
 	}
-	sprintf (buf, "0x%x", type);
+	snprintf (buf, sizeof(buf), "0x%x", type);
 	return buf;
 }
 
@@ -4052,7 +4052,7 @@ sppp_auth_type_name(u_short proto, u_char type)
 		case PAP_NAK:		return "nak";
 		}
 	}
-	sprintf (buf, "0x%x", type);
+	snprintf (buf, sizeof(buf), "0x%x", type);
 	return buf;
 }
 
@@ -4069,7 +4069,7 @@ sppp_lcp_opt_name(u_char opt)
 	case LCP_OPT_PROTO_COMP:	return "proto-comp";
 	case LCP_OPT_ADDR_COMP:		return "addr-comp";
 	}
-	sprintf (buf, "0x%x", opt);
+	snprintf (buf, sizeof(buf), "0x%x", opt);
 	return buf;
 }
 
@@ -4082,7 +4082,7 @@ sppp_ipcp_opt_name(u_char opt)
 	case IPCP_OPT_COMPRESSION:	return "compression";
 	case IPCP_OPT_ADDRESS:		return "address";
 	}
-	sprintf (buf, "0x%x", opt);
+	snprintf (buf, sizeof(buf), "0x%x", opt);
 	return buf;
 }
 
@@ -4127,7 +4127,7 @@ sppp_proto_name(u_short proto)
 	case PPP_PAP:	return "pap";
 	case PPP_CHAP:	return "chap";
 	}
-	sprintf(buf, "0x%x", (unsigned)proto);
+	snprintf(buf, sizeof(buf), "0x%x", (unsigned)proto);
 	return buf;
 }
 

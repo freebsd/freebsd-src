@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.34 1998/02/09 06:08:09 eivind Exp $
+ *	$Id: eisaconf.c,v 1.35 1998/05/14 19:47:38 gibbs Exp $
  */
 
 #include "opt_eisa.h"
@@ -350,7 +350,7 @@ eisa_reg_end(e_dev)
 	{
 		char string[25];
 
-		sprintf(string, " on %s0 slot %d",
+		snprintf(string, sizeof(string), " on %s0 slot %d",
 			mainboard_drv.name,
 			e_dev->ioconf.slot);
 		eisa_reg_print(e_dev, string, NULL);
@@ -432,7 +432,7 @@ eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
 		return EPERM;
 	}
 
-	sprintf(string, " irq %d", irq);
+	snprintf(string, sizeof(string), " irq %d", irq);
 	eisa_reg_print(e_dev, string, reg_state.num_interrupts ? 
 				      &separator : NULL);
 	reg_state.num_interrupts++;

@@ -158,7 +158,7 @@ bsprobe(dev)
 	else
 		bsc->sm_offset = (u_long) 0;
 
-	sprintf(bsc->sc_dvname, "bs%d", unit);
+	snprintf(bsc->sc_dvname, sizeof(bsc->sc_dvname), "bs%d", unit);
 
 	if (dev->id_iobase == 0)
 	{

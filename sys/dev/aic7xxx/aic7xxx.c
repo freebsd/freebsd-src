@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.9 1998/10/15 23:49:27 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.10 1998/11/23 01:33:46 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -374,7 +374,7 @@ ahc_name(struct ahc_softc *ahc)
 {
 	static char name[10];
 
-	sprintf(name, "ahc%d", ahc->unit);
+	snprintf(name, sizeof(name), "ahc%d", ahc->unit);
 	return (name);
 }
 

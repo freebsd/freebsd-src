@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.11 1997/06/26 19:35:42 jhay Exp $
+ * $Id: ipx.c,v 1.12 1998/06/07 17:12:18 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -359,7 +359,7 @@ register struct ipx_addr *addr;
 		net = "*";
 	else {
 		q = work.x_net.c_net;
-		sprintf(cnet, "%x%x%x%x",
+		snprintf(cnet, sizeof(cnet), "%x%x%x%x",
 			q[0], q[1], q[2], q[3]);
 		for (p = cnet; *p == '0' && p < cnet + 8; p++)
 			continue;
@@ -372,7 +372,7 @@ register struct ipx_addr *addr;
 		host = "*";
 	else {
 		q = work.x_host.c_host;
-		sprintf(chost, "%x%x%x%x%x%x",
+		snprintf(chost, sizeof(chost), "%x%x%x%x%x%x",
 			q[0], q[1], q[2], q[3], q[4], q[5]);
 		for (p = chost; *p == '0' && p < chost + 12; p++)
 			continue;
@@ -382,9 +382,9 @@ register struct ipx_addr *addr;
 	if (port) {
 		if (strcmp(host, "*") == 0) {
 			host = "";
-			sprintf(cport, "%x", port);
+			snprintf(cport, sizeof(cport), "%x", port);
 		} else
-			sprintf(cport, ".%x", port);
+			snprintf(cport, sizeof(cport), ".%x", port);
 	} else
 		*cport = 0;
 

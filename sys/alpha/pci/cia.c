@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.12 1998/11/28 09:55:16 dfr Exp $
+ *	$Id: cia.c,v 1.13 1998/12/02 09:33:27 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -804,13 +804,13 @@ cia_attach(device_t dev)
 		set_iointr(alpha_dispatch_intr);
 
 	if (cia_ispyxis) {
-		strcpy(chipset_type, "pyxis");
+		snprintf(chipset_type, sizeof(chipset_type), "pyxis");
 		chipset_bwx = 1;
 		chipset_ports = CIA_EV56_BWIO;
 		chipset_memory = CIA_EV56_BWMEM;
 		chipset_dense = CIA_PCI_DENSE;
 	} else {
-		strcpy(chipset_type, "cia");
+		snprintf(chipset_type, sizeof(chipset_type), "cia");
 		chipset_bwx = 0;
 		chipset_ports = CIA_PCI_SIO1;
 		chipset_memory = CIA_PCI_SMEM1;

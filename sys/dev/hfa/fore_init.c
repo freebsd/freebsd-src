@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_init.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: fore_init.c,v 1.3 1998/10/31 20:06:53 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_init.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: fore_init.c,v 1.3 1998/10/31 20:06:53 phk Exp $");
 #endif
 
 
@@ -122,7 +122,8 @@ fore_initialize(fup)
 		errmsg = "unsupported microcode version";
 		goto failed;
 	}
-	sprintf(fup->fu_config.ac_firm_vers, "%ld.%ld.%ld",
+	snprintf(fup->fu_config.ac_firm_vers,
+	    sizeof(fup->fu_config.ac_firm_vers), "%ld.%ld.%ld",
 		(vers >> 16) & 0xff, (vers >> 8) & 0xff, vers & 0xff);
 
 #ifdef notdef

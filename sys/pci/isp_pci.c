@@ -270,7 +270,7 @@ isp_pci_attach(config_id, unit)
 	    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
 
 	isp = &pcs->pci_isp;
-	(void) sprintf(isp->isp_name, "isp%d", unit);
+	(void) snprintf(isp->isp_name, sizeof(isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
 
 	data = pci_conf_read(config_id, PCI_ID_REG);

@@ -1300,19 +1300,21 @@ init_status(snddev_info *d)
 
     if (status_len != 0) /* only do init once */
 	return ;
-    sprintf(status_buf,
+    snprintf(status_buf, sizeof(status_buf),
 	"FreeBSD Audio Driver (981002) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {
         if (pcm_info[i].open)
-            sprintf(status_buf + strlen(status_buf),
+            snprintf(status_buf + strlen(status_buf),
+		sizeof(status_buf) - strlen(status_buf),
 		"pcm%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, pcm_info[i].name, pcm_info[i].io_base,
 		pcm_info[i].irq,
 		pcm_info[i].dbuf_out.chan, pcm_info[i].dbuf_in.chan);
         if (midi_info[i].open)
-            sprintf(status_buf + strlen(status_buf),
+            snprintf(status_buf + strlen(status_buf),
+		sizeof(status_buf) - strlen(status_buf),
 		"midi%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, midi_info[i].name, midi_info[i].io_base,
 		midi_info[i].irq,
@@ -1325,7 +1327,8 @@ init_status(snddev_info *d)
 	    case 4 : s = "OPL4"; break;
 	    }
 
-            sprintf(status_buf + strlen(status_buf),
+            snprintf(status_buf + strlen(status_buf),
+		sizeof(status_buf) - strlen(status_buf),
 		"sequencer%d: <%s> at 0x%x (not functional)\n",
 		i, s, pcm_info[i].synth_base);
 	}

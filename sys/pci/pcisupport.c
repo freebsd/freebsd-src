@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.74 1998/11/26 21:57:52 n_hibma Exp $
+**  $Id: pcisupport.c,v 1.75 1998/12/01 21:50:58 sos Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -102,10 +102,12 @@ generic_pci_bridge (pcici_t tag)
 		case 5:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
 		case 7:	strcpy(tmpbuf, "PCI to CardBus"); break;
 		default: 
-			sprintf(tmpbuf, "PCI to 0x%x", classreg>>16 & 0xff); 
+			snprintf(tmpbuf, sizeof(tmpbuf),
+			    "PCI to 0x%x", classreg>>16 & 0xff); 
 			break;
 	}
-	sprintf(tmpbuf+strlen(tmpbuf), " bridge (vendor=%04x device=%04x)",
+	snprintf(tmpbuf+strlen(tmpbuf), sizeof(tmpbuf)-strlen(tmpbuf),
+	    " bridge (vendor=%04x device=%04x)",
 	    id & 0xffff, (id >> 16) & 0xffff);
 	descr = malloc (strlen(tmpbuf) +1, M_DEVBUF, M_WAITOK);
 	strcpy(descr, tmpbuf);

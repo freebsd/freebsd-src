@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.2 1998/10/06 14:18:40 dfr Exp $
+ *	$Id: apecs.c,v 1.3 1998/11/15 18:25:16 dfr Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -514,7 +514,7 @@ apecs_attach(device_t dev)
 
 	set_iointr(alpha_dispatch_intr);
 
-	strcpy(chipset_type, "apecs");
+	snprintf(chipset_type, sizeof(chipset_type), "apecs");
 	chipset_bwx = 0;
 	chipset_ports = APECS_PCI_SIO;
 	chipset_memory = APECS_PCI_SPARSE;

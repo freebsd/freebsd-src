@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.25 1998/07/08 09:11:38 bde Exp $
+ *	$Id: db_sym.c,v 1.26 1998/07/08 10:53:51 bde Exp $
  */
 
 /*
@@ -91,9 +91,7 @@ db_qualify(sym, symtabname)
 	static char     tmp[256];
 
 	db_symbol_values(sym, &symname, 0);
-	strcpy(tmp,symtabname);
-	strcat(tmp,":");
-	strcat(tmp,symname);
+	snprintf(tmp, sizeof(tmp), "%s:%s", symtabname, symname);
 	return tmp;
 }
 

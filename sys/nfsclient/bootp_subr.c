@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.15 1998/08/23 03:07:16 wollman Exp $	*/
+/*	$Id: bootp_subr.c,v 1.16 1998/12/03 20:28:23 dillon Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -774,7 +774,8 @@ bootpc_init(void)
   bzero(&ireq, sizeof(ireq));
   for (ifp = TAILQ_FIRST(&ifnet); ifp != 0; ifp = TAILQ_NEXT(ifp,if_link))
   {
-    sprintf(ireq.ifr_name, "%s%d", ifp->if_name, ifp->if_unit);
+    snprintf(ireq.ifr_name, sizeof(ireq.ifr_name),
+	"%s%d", ifp->if_name, ifp->if_unit);
 #ifdef BOOTP_WIRED_TO
     if (strcmp(ireq.ifr_name, __XSTRING(BOOTP_WIRED_TO)) == 0)
         break;
@@ -885,7 +886,7 @@ bootpc_init(void)
   myaddr.sin_addr = reply.yiaddr;
 
   ip = ntohl(myaddr.sin_addr.s_addr);
-  sprintf(lookup_path,"swap.%d.%d.%d.%d",
+  snprintf(lookup_path, sizeof(lookup_path), "swap.%d.%d.%d.%d",
 	  ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
 
   printip("My ip address",myaddr.sin_addr);

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.77 1998/09/05 17:13:27 bde Exp $
+ * $Id: kern_sysctl.c,v 1.78 1998/10/16 03:55:00 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -225,7 +225,7 @@ sysctl_sysctl_name SYSCTL_HANDLER_ARGS
 
 	while (namelen) {
 		if (!lsp) {
-			sprintf(buf,"%d",*name);
+			snprintf(buf,sizeof(buf),"%d",*name);
 			if (req->oldidx)
 				error = SYSCTL_OUT(req, ".", 1);
 			if (!error)
