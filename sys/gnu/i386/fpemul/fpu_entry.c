@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.13 1997/07/20 08:46:23 bde Exp $
+ *  $Id: fpu_entry.c,v 1.14 1998/08/16 01:21:48 bde Exp $
  *
  */
 
@@ -515,15 +515,35 @@ gnufpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
 }
 #else /* !LKM */
 
-static void
-gnufpu_init(void *unused)
+static int
+gnufpu_modevent(module_t mod, modeventtype_t type, void *unused) 
 {
-	if (pmath_emulate)
-		printf("Another Math emulator already present\n");
-	else
-		pmath_emulate = math_emulate;
+	switch (type) {
+	case MOD_LOAD:
+		if (pmath_emulate) {
+			printf("Another Math emulator already present\n");
+			return EACCES;
+		} else
+			pmath_emulate = math_emulate;
+		break;
+	case MOD_UNLOAD:
+		if (pmath_emulate != math_emulate) {
+			printf("Cannot unload another math emulator\n");
+			return EACCES;
+		}
+		pmath_emulate = 0;
+		break;
+	default:
+		break;
+	}
+	return 0;
+		
 }
-
-SYSINIT(gnufpu, SI_SUB_CPU, SI_ORDER_ANY, gnufpu_init, NULL);
+moduledata_t gnufpumod = {
+	"gnufpu",
+	gnufpu_modevent,
+	0
+};
+DECLARE_MODULE(gnufpu, gnufpu_modevent, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 #endif /* LKM */

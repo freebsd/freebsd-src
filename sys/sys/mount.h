@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.67 1998/09/07 13:17:05 bde Exp $
+ *	$Id: mount.h,v 1.68 1998/09/15 11:44:44 phk Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -326,7 +326,7 @@ struct vfsops {
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, NAM, VPP, EXFLG, CRED)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
 
-#ifdef VFS_LKM
+#if defined(VFS_LKM) && !defined(KLD_MODULE)
 #include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
@@ -350,15 +350,43 @@ struct vfsops {
 		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
 #else
 
+#include <sys/module.h>
 #define VFS_SET(vfsops, fsname, flags) \
-	static struct vfsconf _fs_vfsconf = { \
+	static struct vfsconf fsname ## _vfsconf = { \
 		&vfsops, \
 		#fsname, \
 		-1, \
 		0, \
 		flags | VFCF_STATIC, \
 	}; \
-	DATA_SET(vfs_set,_fs_vfsconf)
+	static int fsname ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
+	{ \
+		struct vfsconf *vfc = (struct vfsconf *)data; \
+		int error = 0; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#fsname " module load\n"); */ \
+			error = vfs_register(vfc); \
+			if (error) \
+				printf(#fsname " register failed\n"); \
+			break; \
+		case MOD_UNLOAD: \
+			/* printf(#fsname " module unload\n"); */ \
+			error = vfs_register(vfc); \
+			if (error) \
+				printf(#fsname " register failed\n"); \
+			break; \
+		} \
+		return error; \
+	} \
+	static moduledata_t fsname ## _mod = { \
+		#fsname, \
+		fsname ## _modevent, \
+		& fsname ## _vfsconf \
+	}; \
+	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE);
+
 #endif /* VFS_LKM */
 
 #endif /* KERNEL */
@@ -408,6 +436,8 @@ int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
 int	vfs_rootmountalloc __P((char *, char *, struct mount **));
 void	vfs_unbusy __P((struct mount *, struct proc *));
 void	vfs_unmountall __P((void));
+int	vfs_register __P((struct vfsconf *));
+int	vfs_unregister __P((struct vfsconf *));
 extern	CIRCLEQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct simplelock mountlist_slock;
 extern	struct nfs_public nfs_pub;

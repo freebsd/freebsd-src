@@ -23,10 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.15 1997/04/23 22:07:04 ache Exp $
+ *	$Id: imgact_shell.c,v 1.16 1997/08/02 14:31:23 bde Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -134,4 +135,4 @@ exec_shell_imgact(imgp)
  * correct directive to use.
  */
 static const struct execsw shell_execsw = { exec_shell_imgact, "#!" };
-TEXT_SET(execsw_set, shell_execsw);
+EXEC_SET(shell, shell_execsw);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.5 1998/10/13 09:27:00 peter Exp $
+ *	$Id: link_elf.c,v 1.6 1998/10/15 17:16:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -771,12 +771,12 @@ out:
 }
 
 static const char *
-symbol_name(elf_file_t ef, const Elf_Rela *rela)
+symbol_name(elf_file_t ef, Elf_Word r_info)
 {
     const Elf_Sym *ref;
 
-    if (ELF_R_SYM(rela->r_info)) {
-	ref = ef->symtab + ELF_R_SYM(rela->r_info);
+    if (ELF_R_SYM(r_info)) {
+	ref = ef->symtab + ELF_R_SYM(r_info);
 	return ef->strtab + ref->st_name;
     } else
 	return NULL;
@@ -790,43 +790,54 @@ relocate_file(linker_file_t lf)
     const Elf_Rel *rel;
     const Elf_Rela *relalim;
     const Elf_Rela *rela;
+    const char *symname;
 
     /* Perform relocations without addend if there are any: */
-    rellim = (const Elf_Rel *) ((caddr_t) ef->rel + ef->relsize);
-    for (rel = ef->rel;  ef->rel != NULL && rel < rellim;  rel++) {
-	Elf_Rela locrela;
-
-	locrela.r_info = rel->r_info;
-	locrela.r_offset = rel->r_offset;
-	locrela.r_addend = 0;
-	if (elf_reloc(lf, &locrela, symbol_name(ef, &locrela)))
-	    return ENOENT;
+    rel = ef->rel;
+    if (rel) {
+	rellim = (const Elf_Rel *) ((caddr_t) ef->rel + ef->relsize);
+	while (rel < rellim) {
+	    symname = symbol_name(ef, rel->r_info);
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
+		return ENOENT;
+	    rel++;
+	}
     }
 
     /* Perform relocations with addend if there are any: */
-    relalim = (const Elf_Rela *) ((caddr_t) ef->rela + ef->relasize);
-    for (rela = ef->rela;  ef->rela != NULL && rela < relalim;  rela++) {
-	if (elf_reloc(lf, rela, symbol_name(ef, rela)))
-	    return ENOENT;
+    rela = ef->rela;
+    if (rela) {
+	relalim = (const Elf_Rela *) ((caddr_t) ef->rela + ef->relasize);
+	while (rela < relalim) {
+	    symname = symbol_name(ef, rela->r_info);
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
+		return ENOENT;
+	    rela++;
+	}
     }
 
     /* Perform PLT relocations without addend if there are any: */
-    rellim = (const Elf_Rel *) ((caddr_t) ef->pltrel + ef->pltrelsize);
-    for (rel = ef->pltrel;  ef->pltrel != NULL && rel < rellim;  rel++) {
-	Elf_Rela locrela;
-
-	locrela.r_info = rel->r_info;
-	locrela.r_offset = rel->r_offset;
-	locrela.r_addend = 0;
-	if (elf_reloc(lf, &locrela, symbol_name(ef, &locrela)))
-	    return ENOENT;
+    rel = ef->pltrel;
+    if (rel) {
+	rellim = (const Elf_Rel *) ((caddr_t) ef->pltrel + ef->pltrelsize);
+	while (rel < rellim) {
+	    symname = symbol_name(ef, rel->r_info);
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
+		return ENOENT;
+	    rel++;
+	}
     }
 
     /* Perform relocations with addend if there are any: */
-    relalim = (const Elf_Rela *) ((caddr_t) ef->pltrela + ef->pltrelasize);
-    for (rela = ef->pltrela;  ef->pltrela != NULL && rela < relalim;  rela++) {
-	if (elf_reloc(lf, rela, symbol_name(ef, rela)))
-	    return ENOENT;
+    rela = ef->pltrela;
+    if (rela) {
+	relalim = (const Elf_Rela *) ((caddr_t) ef->pltrela + ef->pltrelasize);
+	while (rela < relalim) {
+	    symname = symbol_name(ef, rela->r_info);
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
+		return ENOENT;
+	    rela++;
+	}
     }
 
     return 0;

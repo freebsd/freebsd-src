@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: elf_machdep.c,v 1.1 1998/09/11 08:47:02 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -38,73 +38,81 @@
 
 /* Process one elf relocation with addend. */
 int
-elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym)
+elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
-	Elf_Addr *where = (Elf_Addr *) (relocbase + rela->r_offset);
+	Elf_Addr *where;
+	Elf_Addr addr, tmp_value;
+	Elf_Addr addend;
+	Elf_Word rtype;
+	const Elf_Rel *rel;
+	const Elf_Rela *rela;
 
-	switch (ELF_R_TYPE(rela->r_info)) {
-
-		case R_ALPHA_REFQUAD: {
-			Elf_Addr addr;
-			Elf_Addr tmp_value;
-
-			addr = (Elf_Addr)
-				linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
-				return -1;
-
-			tmp_value = addr + *where + rela->r_addend;
-			if (*where != tmp_value)
-				*where = tmp_value;
-		}
+	switch (type) {
+	case ELF_RELOC_REL:
+		rel = (Elf_Rel *)data;
+		where = (Elf_Addr *) (relocbase + rel->r_offset);
+		addend = *where;
+		rtype = ELF_R_TYPE(rel->r_info);
 		break;
+	case ELF_RELOC_RELA:
+		rela = (Elf_Rela *)data;
+		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		break;
+	default:
+		panic("elf_reloc: unknown relocation mode %d\n", type);
+	}
 
-		case R_ALPHA_GLOB_DAT: {
-			Elf_Addr addr;
+	switch (rtype) {
 
+		case R_ALPHA_REFQUAD:
 			addr = (Elf_Addr)
 				linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
 				return -1;
-
+			addr += addend;
 			if (*where != addr)
 				*where = addr;
-		}
-		break;
+			break;
 
-		case R_ALPHA_JMP_SLOT: {
+		case R_ALPHA_GLOB_DAT:
+			addr = (Elf_Addr)
+				linker_file_lookup_symbol(lf, sym, 1);
+			if (addr == NULL)
+				return -1;
+			if (*where != addr)
+				*where = addr;
+			break;
+
+		case R_ALPHA_JMP_SLOT:
 			/* No point in lazy binding for kernel modules. */
-			Elf_Addr addr;
-
 			addr = (Elf_Addr)
 				linker_file_lookup_symbol(lf, sym, 1);
 			if (addr == NULL)
 				return -1;
-			
 			if (*where != addr)
 				*where = addr;
-		}
-		break;
+			break;
 
-		case R_ALPHA_RELATIVE: {
-			*where += relocbase;
-		}
-		break;
+		case R_ALPHA_RELATIVE:
+			addr = relocbase + addend;
+			if (*where != addr)
+				*where = addr;
+			break;
 
-		case R_ALPHA_COPY: {
+		case R_ALPHA_COPY:
 			/*
 			 * There shouldn't be copy relocations in kernel
 			 * objects.
 			 */
 			printf("kldload: unexpected R_COPY relocation\n");
 			return -1;
-		}
-		break;
 
 		default:
 			printf("kldload: unexpected relocation type %d\n",
-			       ELF_R_TYPE(rela->r_info));
+			       rtype);
 			return -1;
 	}
 	return(0);

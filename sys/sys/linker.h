@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.7 1998/10/09 07:06:43 msmith Exp $
+ *	$Id: linker.h,v 1.8 1998/10/09 23:07:27 peter Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -243,8 +243,10 @@ extern int kld_debug;
 #endif
 
 /* Support functions */
-int	elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym);
-
+int	elf_reloc(linker_file_t lf, const void *rel, int type, const char *sym);
+/* values for type */
+#define ELF_RELOC_REL	1
+#define ELF_RELOC_RELA	2
 
 #endif /* KERNEL */
 
