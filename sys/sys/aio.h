@@ -16,7 +16,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.6 1998/03/09 00:15:08 dufault Exp $
+ * $Id: aio.h,v 1.7 1998/03/28 11:50:34 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -133,6 +133,11 @@ int aio_cancel( int fd, struct aiocb *iocb);
  */
 int aio_suspend( const struct aiocb * const acb_list[], int nacb_listent,
                const struct timespec *tm);
+
+/*
+ * Retrieve the status of the specified I/O request.
+ */
+int aio_error( const struct aiocb *aiocbp);
 
 #else
 
