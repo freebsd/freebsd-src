@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.7 1999/05/09 04:53:58 kato Exp $
+ *	$Id: pc98kbd.c,v 1.8 1999/05/30 16:53:20 phk Exp $
  */
 
 #include "pckbd.h"
@@ -66,24 +66,6 @@
 /* device configuration flags */
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
 
-/* some macros */
-#define PC98KBD_UNIT(dev)	minor(dev)
-#define PC98KBD_MKMINOR(unit)	(unit)
-
-/* cdev driver declaration */
-
-typedef struct pckbd_softc {
-	short		flags;
-#define	PC98KBD_ATTACHED	(1 << 0)
-	keyboard_t	*kbd;
-#ifdef KBD_INSTALL_CDEV
-	genkbd_softc_t	gensc;
-#endif
-} pckbd_softc_t;
-
-#define PC98KBD_SOFTC(unit)		\
-	((pckbd_softc_t)devclass_get_softc(pckbd_devclass, unit))
-
 static devclass_t	pckbd_devclass;
 
 static int		pckbdprobe(device_t dev);
@@ -100,48 +82,17 @@ static device_method_t pckbd_methods[] = {
 static driver_t pckbd_driver = {
 	DRIVER_NAME,
 	pckbd_methods,
-	sizeof(pckbd_softc_t),
+	1,
 };
 
 DRIVER_MODULE(pckbd, isa, pckbd_driver, pckbd_devclass, 0, 0);
 
 static int		pckbd_probe_unit(int unit, int port, int irq,
 					 int flags);
-static int		pckbd_attach_unit(int unit, pckbd_softc_t *sc,
+static int		pckbd_attach_unit(int unit, keyboard_t **kbd,
 					  int port, int irq, int flags);
 static timeout_t	pckbd_timeout;
 
-#ifdef KBD_INSTALL_CDEV
-
-static d_open_t		pckbdopen;
-static d_close_t	pckbdclose;
-static d_read_t		pckbdread;
-static d_ioctl_t	pckbdioctl;
-static d_poll_t		pckbdpoll;
-
-static struct cdevsw pckbd_cdevsw = {
-	/* open */	pckbdopen,
-	/* close */	pckbdclose,
-	/* read */	pckbdread,
-	/* write */	nowrite,
-	/* ioctl */	pckbdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
-	/* poll */	pckbdpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	DRIVER_NAME,
-	/* parms */	noparms,
-	/* maj */	-1,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* maxio */	0,
-	/* bmaj */	-1
-};
-
-#endif /* KBD_INSTALL_CDEV */
 
 static int
 pckbdprobe(device_t dev)
@@ -155,20 +106,18 @@ pckbdprobe(device_t dev)
 static int
 pckbdattach(device_t dev)
 {
+	keyboard_t	*kbd;
 	void		*ih;
 	struct resource	*res;
 	int		zero = 0;
 
-	pckbd_softc_t	*sc = device_get_softc(dev);
-	bzero(sc, sizeof(*sc));
-
-	pckbd_attach_unit(device_get_unit(dev), sc, isa_get_port(dev),
+	pckbd_attach_unit(device_get_unit(dev), &kbd, isa_get_port(dev),
 			  (1 << isa_get_irq(dev)), isa_get_flags(dev));
 
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
 	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
-				   pckbd_isa_intr, sc, &ih);
+				   pckbd_isa_intr, kbd, &ih);
 
 	return (0);
 }
@@ -176,8 +125,7 @@ pckbdattach(device_t dev)
 static void
 pckbd_isa_intr(void *arg)
 {
-        pckbd_softc_t	*sc = arg;
-	keyboard_t	*kbd = sc->kbd;
+        keyboard_t	*kbd = arg;
 
 	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 }
@@ -202,14 +150,11 @@ pckbd_probe_unit(int unit, int port, int irq, int flags)
 }
 
 static int
-pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
+pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
 	int error;
-
-	if (sc->flags & PC98KBD_ATTACHED)
-		return 0;
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
@@ -218,19 +163,18 @@ pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 	/* reset, initialize and enable the device */
 	args[0] = port;
 	args[1] = irq;
-	sc->kbd = NULL;
+	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
 	if (error)
 		return error;
-	error = (*sw->init)(unit, &sc->kbd, args, flags);
+	error = (*sw->init)(unit, kbd, args, flags);
 	if (error)
 		return error;
-	(*sw->enable)(sc->kbd);
+	(*sw->enable)(*kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	/* attach a virtual keyboard cdev */
-	error = kbd_attach(makedev(0, PC98KBD_MKMINOR(unit)), sc->kbd,
-			   &pckbd_cdevsw);
+	error = kbd_attach(*kbd);
 	if (error)
 		return error;
 #endif /* KBD_INSTALL_CDEV */
@@ -239,12 +183,11 @@ pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
-	pckbd_timeout(sc->kbd);
+	pckbd_timeout(*kbd);
 
 	if (bootverbose)
-		(*sw->diag)(sc->kbd, bootverbose);
+		(*sw->diag)(*kbd, bootverbose);
 
-	sc->flags |= PC98KBD_ATTACHED;
 	return 0;
 }
 
@@ -283,63 +226,6 @@ pckbd_timeout(void *arg)
 	splx(s);
 	timeout(pckbd_timeout, arg, hz/10);
 }
-
-/* cdev driver functions */
-
-#ifdef KBD_INSTALL_CDEV
-
-static int
-pckbdopen(dev_t dev, int flag, int mode, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	if (sc == NULL)
-		return ENXIO;
-	if (mode & (FWRITE | O_CREAT | O_APPEND | O_TRUNC))
-		return ENODEV;
-
-	/* FIXME: set the initial input mode (K_XLATE?) and lock state? */
-	return genkbdopen(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-pckbdclose(dev_t dev, int flag, int mode, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdclose(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-pckbdread(dev_t dev, struct uio *uio, int flag)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdread(&sc->gensc, sc->kbd, uio, flag);
-}
-
-static int
-pckbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdioctl(&sc->gensc, sc->kbd, cmd, arg, flag, p);
-}
-
-static int
-pckbdpoll(dev_t dev, int event, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdpoll(&sc->gensc, sc->kbd, event, p);
-}
-
-#endif /* KBD_INSTALL_CDEV */
 
 /* LOW-LEVEL */
 
