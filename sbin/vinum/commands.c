@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.24 2003/05/07 03:17:43 grog Exp grog $
+ * $Id: commands.c,v 1.52 2003/05/08 00:33:57 grog Exp $
  * $FreeBSD$
  */
 
@@ -674,42 +674,6 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	    }
 	}
     }
-}
-
-void
-vinum_label(int argc, char *argv[], char *arg0[])
-{
-    int object;
-    struct _ioctl_reply reply;
-    int *message = (int *) &reply;
-
-    if (argc == 0)					    /* start everything */
-	fprintf(stderr, "label: please specify one or more volume names\n");
-    else {						    /* start specified objects */
-	int i;
-	enum objecttype type;
-
-	for (i = 0; i < argc; i++) {
-	    object = find_object(argv[i], &type);	    /* look for it */
-	    if (type == invalid_object)
-		fprintf(stderr, "Can't find object: %s\n", argv[i]);
-	    else if (type != volume_object)		    /* it exists, but it isn't a volume */
-		fprintf(stderr, "%s is not a volume\n", argv[i]);
-	    else {
-		message[0] = object;			    /* pass object number */
-		ioctl(superdev, VINUM_LABEL, message);
-		if (reply.error != 0)
-		    fprintf(stderr,
-			"Can't label %s: %s (%d)\n",
-			argv[i],
-			reply.msg[0] ? reply.msg : strerror(reply.error),
-			reply.error);
-		if (Verbose)
-		    vinum_li(object, type);
-	    }
-	}
-    }
-    checkupdates();					    /* not updating? */
 }
 
 void
