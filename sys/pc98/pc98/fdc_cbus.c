@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/systm.h>
 
+#include <machine/bus.h>
+
 #include <pc98/pc98/fdcvar.h>
 #include <pc98/pc98/fdreg.h>
 
@@ -50,7 +52,6 @@ fdc_cbus_probe(device_t dev)
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
-	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
 
 	/* Check pnp ids */
@@ -59,16 +60,9 @@ fdc_cbus_probe(device_t dev)
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_alloc_resources(fdc);
-	if (error)
-		goto out;
+	if (!error)
+		error = fdc_initial_reset(fdc);
 
-	/* see if it can handle a command */
-	if (fd_cmd(fdc, 3, NE7CMD_SPECIFY, NE7_SPEC_1(4, 240), 
-		   NE7_SPEC_2(2, 0), 0)) {
-		error = ENXIO;
-	}
-
-out:
 	fdc_release_resources(fdc);
 	return (error);
 }
@@ -85,6 +79,7 @@ static device_method_t fdc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	fdc_print_child),
 	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
+	DEVMETHOD(bus_write_ivar,       fdc_write_ivar),
 	/* Our children never use any other bus interface methods. */
 
 	{ 0, 0 }
