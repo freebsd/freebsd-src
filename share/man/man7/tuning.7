@@ -313,18 +313,14 @@ bandwidth limitations in order to ensure that they are not charged for
 using too much bandwidth.
 .Pp
 Setting the send or receive TCP buffer to values larger then 65535 will result
-in a marginal performance improvement at best due to limitations within
-the TCP protocol itself.
-These limitations can prevent certain types of network links (specifically,
-gigabit WAN links and high-latency satellite links) from reaching
-their maximum level of performance.  For such cases we first recommend that
-you simply set the TCP buffer size to 65535 and stick with that if the
-performance is acceptable.  In extreme cases you may have to turn on the
+in a marginal performance improvement unless both hosts support the window
+scaling extension of the TCP protocol, which is controlled by the 
 .Em net.inet.tcp.rfc1323
-sysctl and increase the buffer size to values greater then 65535.  This option
-turns on the window sizing extension to the TCP protocol.  We do not recommend
-that you use this option unless you absolutely have to because many hosts on
-the internet can't handle the feature and may cause connections to freeze up.
+sysctl. 
+These extensions should be enabled and the TCP buffer size should be set
+to a value larger than 65536 in order to obtain good performance out of
+certain types of network links; specifically, gigabit WAN links and
+high-latency satellite links.
 .Pp
 We recommend that you turn on (set to 1) and leave on the
 .Em net.inet.tcp.always_keepalive
