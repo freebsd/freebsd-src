@@ -46,7 +46,7 @@ pkg_perform(char **pkgs)
     Package plist;
     int len;
     char *suf;
-    int compress = 0;
+    int compress = TRUE;	/* default is to compress packages */
 
     /* Preliminary setup */
     sanity_check();
@@ -76,9 +76,6 @@ pkg_perform(char **pkgs)
 	    compress = FALSE;
 	    pkg[len - 4] = '\0';
 	}
-	else
-	    /* default is to compress packages */
-	    compress = TRUE;
     }
     if (compress)
 	suf = "tgz";
