@@ -6,6 +6,20 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20000827:
+	sendmail has been updated from 8.9.3 to 8.11.0.  Some of the more
+	visible changes that may immediately affect your configuration
+	include:
+	- New default file locations from src/contrib/sendmail/cf/README
+	- newaliases limited to root and trusted users
+	- MSA port (587) turned on by default
+	- New queue file naming system so can't go from 8.11 -> 8.9
+	- FEATURE(`rbl') renamed to FEATURE(`dnsbl')
+	- FEATURE(`nullclient') is more full featured
+	- FEATURE(`nouucp') requires an argument: `reject' or `nospecial'
+	- mail.local FreeBSD-only -b option changed to -B
+	- See src/contrib/sendmail/RELEASE_NOTES for more info
+
 20000803:
 	The "installkernel" target has changed slightly. Now even if
 	you override KERNEL e.g. 'make installkernel KERNEL=MYKERNEL'
