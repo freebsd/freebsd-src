@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.73 1998/02/06 12:14:25 eivind Exp $
+ * $Id: vm_mmap.c,v 1.74 1998/03/07 21:37:01 dyson Exp $
  */
 
 /*
@@ -162,6 +162,7 @@ mmap(p, uap)
 	vm_prot_t prot, maxprot;
 	void *handle;
 	int flags, error;
+	int disablexworkaround;
 	off_t pos;
 
 	addr = (vm_offset_t) uap->addr;
@@ -252,6 +253,26 @@ mmap(p, uap)
 			pos = 0;
 		} else {
 			/*
+			 * cdevs does not provide private mappings of any kind.
+			 */
+			/*
+			 * However, for XIG X server to continue to work,
+			 * we should allow the superuser to do it anyway.
+			 * We only allow it at securelevel < 1.
+			 * (Because the XIG X server writes directly to video
+			 * memory via /dev/mem, it should never work at any
+			 * other securelevel.
+			 * XXX this will have to go
+			 */
+			if (securelevel >= 1)
+				disablexworkaround = 1;
+			else
+				disablexworkaround = suser(p->p_ucred,
+							   &p->p_acflag);
+			if (vp->v_type == VCHR && disablexworkaround &&
+				(flags & (MAP_PRIVATE|MAP_COPY)))
+				 return (EINVAL);
+			/*
 			 * Ensure that file and memory protections are
 			 * compatible.  Note that we only worry about
 			 * writability if mapping is shared; in this case,
@@ -265,12 +286,20 @@ mmap(p, uap)
 				maxprot |= VM_PROT_READ;
 			else if (prot & PROT_READ)
 				return (EACCES);
-			if (flags & MAP_SHARED) {
-				if (fp->f_flag & FWRITE)
-					maxprot |= VM_PROT_WRITE;
-				else if (prot & PROT_WRITE)
-					return (EACCES);
-			} else
+			/*
+			 * If we are sharing potential changes (either via
+			 * MAP_SHARED or via the implicit sharing of character
+			 * device mappings), and we are trying to get write
+			 * permission although we opened it without asking
+			 * for it, bail out.  Check for superuser, only if
+			 * we're at securelevel < 1, to allow the XIG X server
+			 * to continue to work.
+			 */
+			if (((flags & MAP_SHARED) != 0 ||
+				(vp->v_type == VCHR && disablexworkaround)) &&
+				(fp->f_flag & FWRITE) == 0 && (prot & PROT_WRITE) != 0)
+				return (EACCES);
+			else
 				maxprot |= VM_PROT_WRITE;
 			handle = (void *)vp;
 		}
