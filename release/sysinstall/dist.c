@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.10 1995/06/03 09:49:39 jkh Exp $
+ * $Id: dist.c,v 1.35.2.11 1995/06/03 09:59:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,7 +235,7 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist, buf[10240];
     const char *tmp;
     Attribs *dist_attr;
-    unsigned int oldFlags;
+    unsigned int oldOpts;
 
     status = TRUE;
     if (isDebug())
