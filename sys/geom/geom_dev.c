@@ -333,7 +333,8 @@ g_dev_done(struct bio *bp2)
 		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
 		    bp2, bp, bp->bio_resid, (intmax_t)bp2->bio_completed);
 	}
-	bp->bio_resid = bp->bio_bcount - bp2->bio_completed;
+	bp->bio_resid = bp->bio_length - bp2->bio_completed;
+	bp->bio_completed = bp2->bio_completed;
 	g_destroy_bio(bp2);
 	biodone(bp);
 }
@@ -371,7 +372,6 @@ g_dev_strategy(struct bio *bp)
 		tsleep(&bp, PRIBIO, "gdstrat", hz / 10);
 	}
 	KASSERT(bp2 != NULL, ("XXX: ENOMEM in a bad place"));
-	bp2->bio_length = (off_t)bp->bio_bcount;
 	bp2->bio_done = g_dev_done;
 	g_trace(G_T_BIO,
 	    "g_dev_strategy(%p/%p) offset %jd length %jd data %p cmd %d",
