@@ -1,12 +1,12 @@
-Hardware Documentation Guide:  $Id$
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1 1995/06/04 02:33:02 jkh Exp $
 
 Table of Contents
 -----------------
 
-1. Using UserConfig to change FreeBSD kernel settings
-2. Default Configuration (GENERIC kernel)
-3. LINT - other possible configurations.
-4. Known Hardware Problems.
+1.  Using UserConfig to change FreeBSD kernel settings
+2.  Default Configuration (GENERIC kernel)
+3.  LINT - other possible configurations.
+4.  Known Hardware Problems.
 
 =========================================================================
 
@@ -14,10 +14,13 @@ Table of Contents
 1.	Using UserConfig to change FreeBSD kernel settings
 --	--------------------------------------------------
 
-All the values given as ``defaults'' in this document can be
-over-ridden at system boot time by the UserConfig utility.  This
-utility is invoked by specifing the `-c' flag to the kernel at the
-initial boot prompt, e.g.:
+The UserConfig utility allows you to override various settings of
+the FreeBSD kernel when the system is booting.  This allows you to
+make minor adjustments to the drivers in the system without having to
+recompile the kernel.
+
+UserConfig is activated by including the '-c' flag at the initial
+boot prompt.  For example:
 
 	>> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
 	Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
@@ -25,24 +28,26 @@ initial boot prompt, e.g.:
 	Use ? for file list or press Enter for defaults
 
 	Boot: -c
+	      --
 
-Will boot the system into the UserConfig utility with the standard
-kernel.  If you need to specify some other parameters for your system
-to boot properly (e.g. off a secondary drive), then simply append the
--c flag to those arguments.  For example, to boot off the second of 2
-SCSI drives installed and run Userconfig you would type:
+This command causes the system to boot the default kernel ("/kernel") and
+the UserConfig utility will be started once the kernel is loaded into memory.
+
+The '-c' flag follows any other parameters that you may need to provide
+for the system to boot properly.   For example, to boot off the second of
+two SCSI drives installed and run UserConfig, you would type:
 
 	Boot: sd(1,a)/kernel -c
+	      -----------------
 
-
-You will see the kernel build information and some information on your
-processor and how much memory you have. Then you will be presented
-with a:
+As always, the kernel will report some information on your processor
+and how much memory your system has.  Then UserConfig will be invoked
+and you will see the prompt:
 
 	config>
 
-prompt.  To see the list of commands available, you can type `?' and
-press [ENTER]. The current help message looks like this:
+To see the list of commands that UserConfig accepts, you may type '?' and
+press [ENTER].  The help message looks something like this:
 
 Command                 Description
 -------                 -----------
@@ -60,52 +65,101 @@ disable <devname>       Disable device (will not be probed)
 quit                    Exit this configuration utility
 help                    This message
 
-Any command may be abbreviated to its most unique prefix.
 
-You may alter pretty much any and all settings in the FreeBSD generic
-kernel - reassigning IRQs, disabling troublesome devices, setting
-special device flags, etc.  Once you are happy with a given
-configuration you may use the `exit' command to continue with the
-normal kernel boot sequence, albeit with the new settings.
+You may alter nearly all of the default settings present in the FreeBSD
+generic kernel.  This includes reassigning IRQs, disabling troublesome
+devices (or drivers that conflict with the hardware your system has),
+setting special device flags, etc.  
+
+The first thing most people do is determine the current settings for
+a driver that they are having trouble with.  The "ls" command displays
+the current settings for all the drivers present in the kernel that
+is loaded in memory.
+
+Once you have located the entry in question, you will use the device
+name to change settings or even disable the driver completely.
+For example, to change the address of network adapter 'ed0' to the
+address 0xd4000, you would type
+	
+	config> iomem ed0 0xd4000
+		-----------------
+
+You might also want to disable a driver you are not using.  In this
+example, you might want to disable device 'ie0', so you would type:
+
+	config> disable ie0
+		-----------
+
+You can use the 'ls' command to verify your changes and you can correct
+any mistyped commands at any time.  
+
+
+Once you are happy with a given configuration you may use the `quit'
+command.  This will cause the kernel to boot with the new settings you
+have specified.
+
 
 Once you have a fully installed system (e.g. the filesystems have been
-partitioned and the bin distribution successfully extracted), you need
-only specify such alterations only once, a utility called `dset' in
-the boot sequence recording the changes permanently into the
-``/kernel'' file on the root filesystem.  These settings will remain
-in effect until such time as you install a new kernel.  If you don't
-like this behavior, simply remove `dset' from your /etc/rc file!
+partitioned and the bin distribution successfully extracted), any changes
+you make in UserConfig are permanently stored in the '/kernel' file on
+the root filesystem.  This action is performed by the utility 'dset'.
+These settings will remain in effect until you replace the kernel
+a different one.  If you do not want your changes to be permanently
+stored, remove 'dset' from the /etc/rc file before you make any
+changes.
 
-We suggest as a general rule that you disable anything not needed for
-your particular hardware configuration. There are known problems with
-certain device drivers (see section 4.0) for cards you may not have
-yet still conflict with some other device you have residing at the
-same port/IRQ addresses.  These drivers will eventually be fixed or
-replaced, but until such time it's quite a bit simpler to use the
-`disable' command to remove them from consideration entirely.  This
-can also be fixed by building yourself a custom kernel containing only
-those device deviers which you need (see section 6.0 of the
-FreeBSD.FAQ).  When you have space for the kernel sources, this is the
-option we advise!
+If you accidentally change a setting for a device that you did not mean
+to change, the safest thing to do is to reset the computer and start
+over.  Do not allow the boot to proceed (do not type 'quit') with settings
+you are not happy with because the settings may be permanently stored and
+may leave your system in a state where it will not run properly anymore.
+
+
+We suggest as a general rule that you disable any drivers that are not
+used by your particular hardware configuration.  There are known problems
+with certain device drivers (see section 4.0) for devices that your
+system may not have, yet they still conflict with some other device that
+your system does have, residing at the same port/IRQ addresses.  These
+drivers will eventually be fixed or replaced in some future release
+of the operating system, but until that time it is quite a bit simpler
+to use the `disable' command to remove them from consideration entirely.
+
+You can also remove drivers that are not needed by building yourself a
+custom kernel that contains only the device deviers which your system
+really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
+sufficient free disk space to store and compile the kernel sources,
+this is the option we recommend.
 
 
 
 2.	Default (GENERIC) Configuration
 --      -------------------------------
 
-In the following table, the numbers in the Port and IOMem columns are
-specified in hexadecimal.  The IRQ and DRQ columns are in decimal.  If
-an entry has `n/a' for a value then it means that the parameter does
-not apply to that device.  A value of `dyn' means that the correct
-value is determined dynamically at runtime by the kernel.
+The following table contains a list of all of the devices that are present
+in the GENERIC kernel, which is the kernel (the operating system) that was
+placed on your computer during the FreeBSD installation process.
+(A compressed version of the GENERIC kernel is also used on the
+installation floppy diskettes.)
 
-This table describes all devices in the GENERIC kernel, which is the
-kernel installed on your system by default after FreeBSD has been
-installed.  It's also the kernel used when initially booting FreeBSD,
-though in compressed form.  In cases where your hardware is not set in
-agreement with this table and the conflicting item is not marked
-`dyn', you will have to either reconfigure your hardware or use
-UserConfig to adjust the kernel (see section 1.0).
+The table describes the various parameters used by the driver to communicate
+with the hardware in your system.   There are four parameters in the
+table, but not all are used by each device.  They are:
+
+   Port   the starting I/O port used by the device, shown in hexadecimal.
+
+   IOMem  the lowest (or starting) memory address used by the device,
+	  also shown in hexadecimal.
+
+   IRQ    the interrupt the device uses to alert the driver to an event,
+	  given in decimal.
+
+   DRQ    the DMA (direct memory access) channel the device uses to move
+	  data to and from main memory, also given in decimal.
+
+If an entry in the table has `n/a' for the value, it means that the
+parameter does not apply to that device.  A value of `dyn' means that the
+correct value is determined automatically by the kernel when the system
+boots.
 
 
 FreeBSD GENERIC kernel:
@@ -130,12 +184,13 @@ nca1    350     5       dyn     dyn     ProAudioSpectrum cards
 sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
-mcd0    300     10                      Mitsumi CD-ROM
-mcd1    340     11                      Mitsumi CD-ROM
 
-matcd0  dyn                             Matsushita/Panasonic CD-ROM
+mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
+mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
 
-scd0    230                             Sony CD-ROM
+matcd0  dyn     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
+
+scd0    230     n/a     n/a     n/a     Sony CD-ROM
 
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
@@ -168,54 +223,64 @@ zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
 --- End of table ---
 
 
+If the hardware in your computer is not set to the same settings as
+those shown in this table and the item is not marked 'dyn', you will 
+have to either reconfigure your hardware, or use UserConfig ('-c boot
+option) to reconfigure the kernel to match the way your hardware is
+currently set (see section 1.0).   
+
+If the settings do not match, the kernel may be unable to locate
+or reliably access the devices in your system.
+
+
 
 3.	LINT - other possible configurations
 --	------------------------------------
 
 The following drivers are not in the GENERIC kernel but remain
-available to those who don't mind compiling a custom kernel (see
+available to those who do not mind compiling a custom kernel (see
 section 6 of FreeBSD.FAQ).  The LINT configuration file
 (/sys/i386/conf/LINT) also contains prototype entries for just about
 every device supported by FreeBSD and is a good general reference.
 
-The device names and a short description are listed below. The port
-numbers, etc, are not meaningful here since you'll need to compile a
+The device names and a short description of each are listed below. The port
+numbers, etc, are not meaningful here since you will need to compile a
 custom kernel to gain access to these devices anyway and can thus
-adjust the addresses to match in the process.  The LINT file contains
-prototype entries for all of the below which you can easily
-cut-and-paste into your own file (or simple copy LINT and edit it to
-taste):
+adjust the addresses to match the hardware in your computer in the process.
+The LINT file contains prototype entries for all of the below which you
+can easily cut-and-paste into your own file (or simply copy LINT and edit
+it to taste):
 
-wds:	Western Digital WD7000 IDE
-mse:	Logitech & ATI InPort bus mouse ports
-psm:	PS/2 mouse port
+apm:	Laptop Advanced Power Management (experimental)
+ctx:	Cortex-I frame grabber
 cx:	Cronyx/Sigma multiport sync/async
+cy:	Cyclades high-speed serial driver
 el:	3Com 3C501
 fe:	Fujitsu MB86960A/MB86965A Ethernet cards
 fea:	DEV DEFEA EISA FDDI adater
-nic:	Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
-sb:	SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
-sbxvi:	SoundBlaster 16
-sbmidi:	SoundBlaster 16 MIDI interface
-pas:	ProAudioSpectrum PCM and MIDI
-gus:	Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-gusxvi: Gravis Ultrasound 16-bit PCM
-gusmax: Gravis Ultrasound MAX (currently broken)
-mss:	Microsoft Sound System
-opl:	Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
-uart:	Stand-alone 6850 UART for MIDI
-mpu:	Roland MPU-401 stand-alone card
-pca:	PCM audio through your PC speaker
-ctx:	Cortex-I frame grabber
-apm:	Laptop Advanced Power Management (experimental)
-spigot:	Create Labs Video Spigot video-acquisition board
-cy:	Cyclades high-speed serial driver
+fpa:	DEC DEFPA PCI FDDI adapter
 gp:	National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:	Genius GS-4500 hand scanner
+gus:	Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
+gusmax: Gravis Ultrasound MAX (currently broken)
+gusxvi: Gravis Ultrasound 16-bit PCM
 joy:	Joystick
 labpc:	National Instrument's Lab-PC and Lab-PC+
+mpu:	Roland MPU-401 stand-alone card
+mse:	Logitech & ATI InPort bus mouse ports
+mss:	Microsoft Sound System
+nic:	Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
+opl:	Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
+pas:	ProAudioSpectrum PCM and MIDI
+pca:	PCM audio through your PC speaker
+psm:	PS/2 mouse port
 rc:	RISCom/8 multiport card
-fpa:	DEC DEFPA PCI FDDI adapter
+sb:	SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
+sbmidi:	SoundBlaster 16 MIDI interface
+sbxvi:	SoundBlaster 16
+spigot:	Create Labs Video Spigot video-acquisition board
+uart:	Stand-alone 6850 UART for MIDI
+wds:	Western Digital WD7000 IDE
 
 --- end of list ---
 
@@ -223,7 +288,7 @@ fpa:	DEC DEFPA PCI FDDI adapter
 4.0	Known Hardware Problems, Q & A:
 ---	-------------------------------
 
-Q: mcd0 keeps thinking that it's found a device and this stops my Intel
+Q: mcd0 keeps thinking that it has found a device and this stops my Intel
    EtherExpress card from working.
 
 A: Use the UserConfig utility (see section 1.0) and disable the probing of
@@ -231,14 +296,17 @@ A: Use the UserConfig utility (see section 1.0) and disable the probing of
    the devices that you will be using enabled in your kernel.
 
 
-Q: It finds my ed card, but I keep getting device timeouts.
+Q: The system finds my ed network card, but I keep getting device 
+   timeout errors.
 
-A: Your card is probably on a different IRQ from that in the kernel
-   configuration. For various reasons, the ed driver will no longer use
-   the `soft' configuration by default, and only do it when you specify
-   `?' in the IRQ field of your kernel config file. This is because the
-   driver used to read the soft configuration even when the card was
-   jumpered to use a hard configuration, and this caused problems.
+A: Your card is probably on a different IRQ from what is specified in the
+   kernel configuration.  The ed driver will no longer use the `soft'
+   configuration by default (values entered using EZSETUP in DOS), but it
+   will use the software configuration if you specify `?' in the IRQ field
+   of your kernel config file.  The reason for the change is because the
+   ed driver used to read and try to use the soft configuration information
+   even when the card was jumpered to use a hard configuration, and this
+   caused problems.
 
    Either move the jumper on the card to a hard configuration setting
    (altering the kernel settings if necessary), or specify the IRQ as
@@ -246,21 +314,27 @@ A: Your card is probably on a different IRQ from that in the kernel
    tell the kernel to use the soft configuration.
 
 
-Q: I go to boot by disk for the first time, but the Boot Manger prompt
-   just prints `F?' and the boot menu each time - it won't boot FreeBSD!
+Q: I go to boot from the hard disk for the first time after installing
+   FreeBSD, but the Boot Manger prompt just prints `F?' and the boot menu
+   each time and the system won't go any further.
 
-A: Your geometry was set incorrectly in the Partition editor when you
-   installed FreeBSD.  Go back into the editor and specify the actual
-   Geometry of your disk, reinstalling FreeBSD again from the beginning.
+A: The hard disk geometry was set incorrectly in the Partition editor when
+   you installed FreeBSD.  Go back into the partition editor and specify
+   the actual geometry of your hard disk.  You must reinstall FreeBSD
+   again from the beginning.
+
    << XXX Hints here about determining correct geometry? XXX >>
 
 
-Q: I don't have any problems with FreeBSD, but I just wanted to say
-   that while you jokers were hacking this stuff out I went and got
-   the most _amazing_ girlfriend and now I actually have a life on
-   Saturday nights and everything!  You wouldn't believe how great a
-   time I'm having!
+Q: I have a Matsushita/Panasonic CD-ROM drive but it isn't recognized
+   by the system, even if I use UserConfig to change the Port address to
+   630, which is what my card uses.
 
-A: We hope you get food poisoning and die.
+A: Not all of the companies that sell the Matsushita/Panasonic CR-562
+   and CR-563 drives use the same I/O ports and interface that the
+   matcd driver in FreeBSD expects.  The only adapters that are supported
+   at this time are those that are 100% compatible with the Creative
+   Labs (SoundBlaster) host interface.  See matcd.4 documentation for a
+   list of host adapters that are known to work.
 
 [ Please add more hardware tips to this Q&A section! ]
