@@ -87,7 +87,7 @@ function creates a new interrupt thread.
 The
 .Fa ithread
 argument points to an
-.Li struct ithd
+.Vt struct ithd
 pointer that will point to the newly created thread upon success.
 The
 .Fa vector
@@ -171,9 +171,7 @@ function translates the
 interrupt flags into interrupt handler priorities.
 .Pp
 The interrupt flags not related to the type of a particular interrupt
-.Po
-.Dv INTR_TYPE_*
-.Pc
+.Pq Dv INTR_TYPE_*
 can be used to specify additional properties of both hardware and software
 interrupt handlers.
 The
@@ -347,9 +345,9 @@ Interrupt threads and their corresponding API first appeared in
 .Fx 5.0 .
 .Sh BUGS
 Currently
-.Li struct ithd
+.Vt struct ithd
 represents both an interrupt source and an interrupt thread.
 There should be a separate
-.Li struct isrc
+.Vt struct isrc
 that contains a vector number, enable and disable functions, etc. that
 an ithread holds a reference to.
