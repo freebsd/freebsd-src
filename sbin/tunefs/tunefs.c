@@ -109,8 +109,12 @@ main(argc, argv)
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "a:Ae:f:l:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:l:m:n:o:ps:")) != -1)
 	  switch (ch) {
+	  case 'A':
+		found_arg = 1;
+		Aflag++;
+		break;
 	  case 'a':
 		found_arg = 1;
 		name = "ACLs";
@@ -120,10 +124,6 @@ main(argc, argv)
 			    "`enable' or `disable'");
 		}
 		aflag = 1;
-		break;
-	  case 'A':
-		found_arg = 1;
-		Aflag++;
 		break;
 	  case 'e':
 		found_arg = 1;
@@ -377,7 +377,7 @@ void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: tunefs [-a enable | disable] [-A] [-e maxbpg] [-f avgfilesize]",
+"usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
 "              [-l enable | disable] [-m minfree] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
 	exit(2);
