@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#define	ABUSEHOST	"whois.abuse.net"
 #define	NICHOST		"whois.crsnic.net"
 #define	INICHOST	"whois.networksolutions.com"
 #define	DNICHOST	"whois.nic.mil"
@@ -73,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
 #define	BNICHOST	"whois.registro.br"
+#define NORIDHOST	"whois.norid.no"
+#define	IANAHOST	"whois.iana.org"
+#define GERMNICHOST	"de.whois-servers.net"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	WHOIS_ORG_SERVER_ID	"Registrant Street1:Whois Server:"
 
@@ -85,7 +89,7 @@ const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST, NULL };
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
-static void s_asprintf(char **ret, const char *format, ...);
+static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
 static void usage(void);
 static void whois(const char *, const char *, int);
 
@@ -102,10 +106,13 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "ac:dgh:ilmpQrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "abc:dgh:iIlmpQrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
+			break;
+		case 'b':
+			host = ABUSEHOST;
 			break;
 		case 'c':
 			country = optarg;
@@ -121,6 +128,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			host = INICHOST;
+			break;
+		case 'I':
+			host = IANAHOST;
 			break;
 		case 'l':
 			host = LNICHOST;
@@ -198,6 +208,12 @@ choose_server(char *domain)
 		*pos = '\0';
 	if (*domain == '\0')
 		errx(EX_USAGE, "can't search for a null string");
+	if (strlen(domain) > sizeof("-NORID")-1 &&
+	    strcasecmp(domain + strlen(domain) - sizeof("-NORID") + 1,
+		"-NORID") == 0) {
+		s_asprintf(&retval, "%s", NORIDHOST);
+		return (retval);
+	}
 	while (pos > domain && *pos != '.')
 		--pos;
 	if (pos <= domain)
@@ -271,7 +287,11 @@ whois(const char *query, const char *hostname, int flags)
 	sfo = fdopen(s, "w");
 	if (sfi == NULL || sfo == NULL)
 		err(EX_OSERR, "fdopen()");
-	fprintf(sfo, "%s\r\n", query);
+	if (strcmp(hostname, GERMNICHOST) == 0) {
+		fprintf(sfo, "-T dn,ace -C US-ASCII %s\r\n", query);
+	} else {
+		fprintf(sfo, "%s\r\n", query);
+	}
 	fflush(sfo);
 	nhost = NULL;
 	while ((buf = fgetln(sfi, &len)) != NULL) {
@@ -326,7 +346,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-adgilmpQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-abdgiIlmpQrR6] [-c country-code | -h hostname] "
 	    "name ...\n");
 	exit(EX_USAGE);
 }

@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2001
+.Dd June 14, 2004
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl adgilmpQrR6
+.Op Fl abdgiIlmpQrR6
 .Op Fl c Ar country-code | Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
@@ -66,6 +66,10 @@ nor by
 whois database end with
 .Qq Li -ARIN . )
 .Pp
+.It Fl b
+Use the Network Abuse Clearinghouse database.
+It contains addresses to which network abuse should be reported,
+indexed by domain name.
 .It Fl c Ar country-code
 This is the equivalent of using the
 .Fl h
@@ -101,8 +105,7 @@ Registry for Internet Numbers
 If a query to
 .Tn ARIN
 references
-.Tn APNIC ,
-.Tn LACNIC ,
+.Tn APNIC , LACNIC ,
 or
 .Tn RIPE ,
 that server will be queried also, provided that the
@@ -142,6 +145,11 @@ can be looked up by prefixing
 to the
 .Tn NIC
 handle in the query.)
+.It Fl I
+Use the Internet Assigned Numbers Authority
+.Pq Tn IANA
+database.
+It contains network information for top-level domains.
 .It Fl l
 Use the Latin American and Caribbean IP address Regional Registry
 .Pq Tn LACNIC
