@@ -1,4 +1,4 @@
-<!-- $Id: basics.sgml,v 1.2 1995/06/14 18:38:49 jfieber Exp $ -->
+<!-- $Id: basics.sgml,v 1.3 1995/06/30 17:37:29 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Unix Basics<label id="basics"></heading>
@@ -45,7 +45,12 @@
 	    % <bf>man 1 chmod</bf>
 	  </tscreen>
 	  which will display the manual page for the user command
-	  <tt><bf>chmod</bf></tt>.
+	  <tt><bf>chmod</bf></tt>.  References to a particular
+	  section of the on-line manual are traditionally placed
+	  in paranthesis in written documentation; so
+	  <tt><bf>chmod(1)</bf></tt> refers to the <tt><bf>chmod
+	  </bf></tt> user command, while <tt><bf>chmod(2)</bf></tt>
+	  means the system call.
 
 	<p>This is fine if you know the name of the command and
 	  forgot how to use it, but what if you cannot recall the
@@ -57,7 +62,21 @@
 	  </tscreen>
 	  With this command you will be presented with a list of
 	  commands that have the keyword `mail' in their
-	  descriptions.
+	  descriptions.  This is the same as the separate command
+	  <tt><bf>apropos</bf></tt>.
+
+	<p>You are seeing all those fancy commands in <tt>
+	  /usr/bin</tt>, but don't even have the silliest idea
+	  what most of the names do actually stand for?  Simply
+	  do a
+	  <tscreen>
+	    % <bf>cd /usr/bin; man -f *</bf>
+	  </tscreen>
+	  or
+	  <tscreen>
+	    % <bf>cd /usr/bin; whatis *</bf>
+	  </tscreen>
+	  which is the same.
 
       <sect>
 	<heading>GNU Info files<label id="basics:info"></heading>

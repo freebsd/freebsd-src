@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.32 1995/10/15 02:46:36 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.33 1995/10/21 17:51:47 torstenb Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -255,7 +255,7 @@
 	<item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	<item>Jay Fenlason &lt;hack@datacube.com&gt;
 	<item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
-	<item>Joerg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
+	<item>J&ouml;rg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
 	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
 	<item>John Polstra &lt;jdp@polstra.com&gt;

@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.6 1995/09/25 04:53:28 jfieber Exp $
+     $Id: booting.sgml,v 1.7 1995/10/07 04:31:15 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -107,7 +107,7 @@
     <sect1><heading>Initialize user-land things</heading>
       <p>
         To get the user-land going, when the kernel has finished
-        initialization, it will create a with ``<tt/pid == 1/'' and execute
+        initialization, it will create a process with ``<tt/pid == 1/'' and execute
         a program on the rootfilesystem, this program is normally
         ``<tt>/sbin/init</tt>''.
 
@@ -115,8 +115,11 @@
         in mind that:
 
         there is no stdin/out/err unless you open it yourself, if you exit,
-        the machine panics signal handling is special for ``<tt/pid ==
+        the machine panics, signal handling is special for ``<tt/pid ==
         1/''.
+
+	An example of this is the ``<tt>/stand/sysinstall</tt>''
+	program on the installation floppy.
 
 
     <sect1><heading>Interesting combinations</heading>
