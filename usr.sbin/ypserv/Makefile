@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/12/23 21:35:27 wpaul Exp $
+# $Id: Makefile,v 1.4 1996/04/28 04:38:45 wpaul Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
@@ -35,9 +35,6 @@ afterinstall:
 	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
 		ln -s	${DESTDIR}/var/yp/Makefile.dist \
 			${DESTDIR}/var/yp/Makefile; fi
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/mknetid \
-		${DESTDIR}/usr/libexec/mknetid
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${.CURDIR}/mkaliases \
 		${DESTDIR}/usr/libexec/mkaliases
