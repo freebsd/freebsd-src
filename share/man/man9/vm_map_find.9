@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd July 19, 2003
-.Dt vm_map_find 9
+.Dt VM_MAP_FIND 9
 .Sh NAME
 .Nm vm_map_find
 .Nd find a free region within a map, and optionally map a vm_object
@@ -35,7 +35,11 @@
 .In vm/vm.h
 .In vm/vm_map.h
 .Ft int
-.Fn vm_map_find "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset" "vm_offset_t *addr" "vm_size_t length" "boolean_t find_space" "vm_prot_t prot" "vm_prot_t max" "int cow"
+.Fo vm_map_find
+.Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
+.Fa "vm_offset_t *addr" "vm_size_t length" "boolean_t find_space"
+.Fa "vm_prot_t prot" "vm_prot_t max" "int cow"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_find
@@ -58,7 +62,9 @@ when creating the mapping, if and only if a free region is found.
 .Pp
 If
 .Fa object
-is non-NULL, the reference count on the object must be incremented
+is
+.Pf non- Dv NULL ,
+the reference count on the object must be incremented
 by the caller before calling this function to account for the new entry.
 .Pp
 If
@@ -80,7 +86,7 @@ The search for a free region is defined to be first-fit, from the address
 onwards.
 .Sh RETURN VALUES
 The
-.Fn
+.Fn vm_map_find
 function returns
 .Dv KERN_SUCCESS
 if space for the mapping could be found and

@@ -41,7 +41,7 @@ subsystem is used to manage virtual address spaces.
 This section describes the main data structures used within the code.
 .Pp
 The
-.Fa struct vm_map
+.Vt "struct vm_map"
 is a generic representation of an address space.
 This address space may belong to a user process or the kernel.
 The kernel actually uses several maps, which are maintained as
@@ -68,7 +68,7 @@ struct vm_map {
 The fields of
 .Vt struct vm_map
 are as follows:
-.Bl -tag -width needs_wakeupXXX
+.Bl -tag -width ".Va needs_wakeup"
 .It Va header
 Head node of a circular, doubly linked list of
 .Vt struct vm_map_entry
@@ -106,7 +106,7 @@ The following flags can be passed to
 and
 .Xr vm_map_insert 9
 to specify the copy-on-write properties of regions within the map:
-.Bl -tag -width MAP_PREFAULT_MADVISEXXX
+.Bl -tag -width ".Dv MAP_PREFAULT_MADVISE"
 .It Dv MAP_COPY_ON_WRITE
 The mapping is copy-on-write.
 .It Dv MAP_NOFAULT
@@ -155,7 +155,7 @@ struct vm_map_entry {
 The fields of
 .Vt struct vm_map_entry
 are as follows:
-.Bl -tag -width struct_vm_map_objectXXX
+.Bl -tag -width ".Va avail_ssize"
 .It Va prev
 Pointer to the previous node in a doubly-linked, circular list.
 .It Va next
@@ -180,13 +180,13 @@ Offset within the
 which is mapped from
 .Va start
 onwards.
-.It Vt eflags
+.It Va eflags
 Flags applied to this entry, described below.
 .El
 .Pp
 The following five members are only valid for entries forming part of
 a user process's address space:
-.Bl -tag -width struct_vm_map_objectXXX
+.Bl -tag -width ".Va max_protection"
 .It Va protection
 Memory protection bits applied to this region.
 These are identical to those defined for
@@ -207,9 +207,9 @@ Contains the address of the last read which caused a page fault.
 .Pp
 The following flags may be applied to each entry, by specifying them
 as a mask within the
-.Fa eflags
+.Va eflags
 member:
-.Bl -tag -width MAP_ENTRY_BEHAV_SEQUENTIALXXX
+.Bl -tag -width ".Dv MAP_ENTRY_BEHAV_SEQUENTIAL"
 .It Dv MAP_ENTRY_NOSYNC
 The system should not flush the data associated with this map
 periodically, but only when it needs to.
@@ -245,13 +245,13 @@ The region should not be included in a core dump.
 .El
 .Pp
 The
-.Fa inheritance
+.Va inheritance
 member has type
 .Vt vm_inherit_t .
 This governs the inheritance behaviour for a map entry during fork processing.
 The following values are defined for
 .Vt vm_inherit_t :
-.Bl -tag -width VM_INHERIT_DEFAULTXXX
+.Bl -tag -width ".Dv VM_INHERIT_DEFAULT"
 .It Dv VM_INHERIT_SHARE
 The object associated with the entry should be cloned and shared
 with the new map.
