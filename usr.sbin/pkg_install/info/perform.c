@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.25 1998/09/11 07:26:58 jkh Exp $";
+	"$Id: perform.c,v 1.27 1999/07/30 23:14:15 jdp Exp $";
 #endif
 
 /*
@@ -26,8 +26,10 @@ static const char rcsid[] =
 #include "lib.h"
 #include "info.h"
 
+#include <fts.h>
 #include <signal.h>
 
+static int fname_cmp(const FTSENT **, const FTSENT **);
 static int pkg_do(char *);
 
 int
@@ -49,17 +51,24 @@ pkg_perform(char **pkgs)
 	return abs(access(buf, R_OK));
     }
     else if (AllInstalled) {
-	DIR *dirp;
-	struct dirent *dp;
+	FTS *ftsp;
+	FTSENT *f;
+	char *paths[2];
 
 	if (!isdir(tmp))
 	    return 1;
-	dirp = opendir(tmp);
-	if (dirp) {
-	    for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp))
-		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, ".."))
-		    err_cnt += pkg_do(dp->d_name);
-	    (void)closedir(dirp);
+	paths[0] = tmp;
+	paths[1] = NULL;
+	ftsp = fts_open(paths, FTS_LOGICAL | FTS_NOCHDIR | FTS_NOSTAT,
+	  fname_cmp);
+	if (ftsp != NULL) {
+	    while ((f = fts_read(ftsp)) != NULL) {
+		if (f->fts_info == FTS_D && f->fts_level == 1) {
+		    err_cnt += pkg_do(f->fts_name);
+		    fts_set(ftsp, f, FTS_SKIP);
+		}
+	    }
+	    fts_close(ftsp);
 	}
     }
     else
@@ -213,4 +222,10 @@ cleanup(int sig)
     }
     if (sig)
 	exit(1);
+}
+
+static int
+fname_cmp(const FTSENT **a, const FTSENT **b)
+{
+    return strcmp((*a)->fts_name, (*b)->fts_name);
 }
