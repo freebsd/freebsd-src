@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 53 $
+ *       $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION             0x20010125
+#define ACPI_CA_VERSION             0x20010208
 
 
 /* Maximum objects in the various object caches */
@@ -239,11 +239,6 @@
 #define LO_RSDP_WINDOW_SIZE         0x400
 #define HI_RSDP_WINDOW_SIZE         0x20000
 #define RSDP_SCAN_STEP              16
-
-
-/* Maximum nesting of package objects */
-
-#define MAX_PACKAGE_DEPTH           16
 
 
 #endif /* _ACCONFIG_H */

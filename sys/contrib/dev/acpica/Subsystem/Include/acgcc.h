@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 4 $
+ *       $Revision: 5 $
  *
  *****************************************************************************/
 
@@ -117,12 +117,12 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
-#define COMPILER_DEPENDENT_UINT64   unsigned long long
 
 
 #ifdef __ia64__
 #define _IA64
 
+#define COMPILER_DEPENDENT_UINT64   unsigned long
 /* Single threaded */
 #define ACPI_APPLICATION
 
@@ -188,8 +188,7 @@
 
 
 #else /* DO IA32 */
-
-
+#define COMPILER_DEPENDENT_UINT64   unsigned long long
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
 #define BREAKPOINT3
