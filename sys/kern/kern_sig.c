@@ -840,33 +840,69 @@ sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 }
 
 static int
-kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
+kern_sigtimedwait(struct thread *td, sigset_t waitset, siginfo_t *info,
     struct timespec *timeout)
 {
-	register struct sigacts *ps;
-	sigset_t oldmask;
-	struct proc *p; 
+	struct sigacts *ps;
+	sigset_t savedmask, sigset;
+	struct proc *p;
 	int error;
 	int sig;
 	int hz;
+	int i;
 
 	p = td->td_proc;
 	error = 0;
 	sig = 0;
-	SIG_CANTMASK(set);
+	SIG_CANTMASK(waitset);
 
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
-	oldmask = td->td_sigmask;
-	SIGFILLSET(td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	SIGSETNAND(td->td_sigmask, set);
-	signotify(td);
+	savedmask = td->td_sigmask;
 
-	mtx_lock(&ps->ps_mtx);
-	sig = cursig(td);
-	if (sig)
+again:
+	for (i = 1; i <= _SIG_MAXSIG; ++i) {
+		if (!SIGISMEMBER(waitset, i))
+			continue;
+		if (SIGISMEMBER(td->td_siglist, i)) {
+			SIGFILLSET(td->td_sigmask);
+			SIG_CANTMASK(td->td_sigmask);
+			SIGDELSET(td->td_sigmask, i);
+			mtx_lock(&ps->ps_mtx);
+			sig = cursig(td);
+			i = 0;
+			mtx_unlock(&ps->ps_mtx);
+		} else if (SIGISMEMBER(p->p_siglist, i)) {
+			if (p->p_flag & P_SA) {
+				p->p_flag |= P_SIGEVENT;
+				wakeup(&p->p_siglist);
+			}
+			SIGDELSET(p->p_siglist, i);
+			SIGADDSET(td->td_siglist, i);
+			SIGFILLSET(td->td_sigmask);
+			SIG_CANTMASK(td->td_sigmask);
+			SIGDELSET(td->td_sigmask, i);
+			mtx_lock(&ps->ps_mtx);
+			sig = cursig(td);
+			i = 0;
+			mtx_unlock(&ps->ps_mtx);
+		}
+		if (sig) {
+			td->td_sigmask = savedmask;
+			signotify(td);
+			goto out;
+		}
+	}
+	if (error)
 		goto out;
+
+	td->td_sigmask = savedmask;
+	signotify(td);
+	sigset = td->td_siglist;
+	SIGSETOR(sigset, p->p_siglist);
+	SIGSETAND(sigset, waitset);
+	if (!SIGISEMPTY(sigset))
+		goto again;
 
 	/*
 	 * POSIX says this must be checked after looking for pending
@@ -879,46 +915,40 @@ kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
 			error = EINVAL;
 			goto out;
 		}
-		if (timeout->tv_sec == 0 && timeout->tv_nsec == 0)
-			goto nosleep;
+		if (timeout->tv_sec == 0 && timeout->tv_nsec == 0) {
+			error = EAGAIN;
+			goto out;
+		}
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		hz = tvtohz(&tv);
 	} else
 		hz = 0;
 
-	mtx_unlock(&ps->ps_mtx);
-	error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "pause", hz);
-	mtx_lock(&ps->ps_mtx);
-	if (error == EINTR)
-		error = 0;
-	else if (error)
-		goto out;
-nosleep:
-	sig = cursig(td);
+	td->td_waitset = &waitset;
+	error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
+	td->td_waitset = NULL;
+	if (error == 0) /* surplus wakeup ? */
+		error = EINTR;
+	goto again;
 
 out:
-	td->td_sigmask = oldmask;
 	if (sig) {
 		sig_t action;
 
+		error = 0;
+		mtx_lock(&ps->ps_mtx);
 		action = ps->ps_sigact[_SIG_IDX(sig)];
 		mtx_unlock(&ps->ps_mtx);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_PSIG))
-			ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
-			    &td->td_oldsigmask : &td->td_sigmask, 0);
+			ktrpsig(sig, action, &td->td_sigmask, 0);
 #endif
 		_STOPEVENT(p, S_SIG, sig);
-
-		if (action == SIG_DFL)
-			sigexit(td, sig);
-			/* NOTREACHED */
 
 		SIGDELSET(td->td_siglist, sig);
 		info->si_signo = sig;
 		info->si_code = 0;
-	} else
-		mtx_unlock(&ps->ps_mtx);
+	}
 	PROC_UNLOCK(p);
 	return (error);
 }
@@ -1478,11 +1508,6 @@ trapsignal(struct thread *td, int sig, u_long code)
 			SIGDELSET(td->td_sigmask, sig);
 			mtx_lock_spin(&sched_lock);
 			/*
-			 * don't psignal to the thread, it only can accept
-			 * its own sync signal.
-			 */
-			td->td_flags |= TDF_NOSIGPOST;
-			/*
 			 * Force scheduling an upcall, so UTS has chance to
 			 * process the signal before thread runs again in
 			 * userland.
@@ -1546,37 +1571,35 @@ trapsignal(struct thread *td, int sig, u_long code)
 static struct thread *
 sigtd(struct proc *p, int sig, int prop)
 {
-	struct thread *td;
+	struct thread *td, *signal_td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/*
-	 * If we know the signal is bound for a specific thread then we
-	 * assume that we are in that threads context.  This is the case
-	 * for SIGXCPU, SIGILL, etc. Otherwise someone did a kill() from
-	 * userland, if current thread can handle the signal, it should
-	 * get the signal.
+	 * First find a thread in sigwait state and signal belongs to
+	 * its wait set. POSIX's arguments is that speed of delivering signal
+	 * to sigwait thread is faster than delivering signal to user stack.
+	 * If we can not find sigwait thread, then find the first thread in
+	 * the proc that doesn't have this signal masked, an exception is
+	 * if current thread is sending signal to its process, and it does not
+	 * mask the signal, it should get the signal, this is another fast
+	 * way to deliver signal.
 	 */
-	if (curthread->td_proc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
-		return (curthread);
-
-	/*
-	 * We should search for the first thread that is blocked in
-	 * sigsuspend with this signal unmasked.
-	 */
-
-	/* XXX */
-
-	/*
-	 * Find the first thread in the proc that doesn't have this signal
-	 * masked.
-	 */
-	FOREACH_THREAD_IN_PROC(p, td)
-		if (!SIGISMEMBER(td->td_sigmask, sig) &&
-		    !(td->td_flags & TDF_NOSIGPOST))
-			return (td);
-
-	return (FIRST_THREAD_IN_PROC(p));
+	signal_td = NULL;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (td->td_waitset != NULL &&
+		    SIGISMEMBER(*(td->td_waitset), sig))
+				return (td);
+		if (!SIGISMEMBER(td->td_sigmask, sig)) {
+			if (td == curthread)
+				signal_td = curthread;
+			else if (signal_td == NULL)
+				signal_td = td;
+		}
+	}
+	if (signal_td == NULL)
+		signal_td = FIRST_THREAD_IN_PROC(p);
+	return (signal_td);
 }
 
 /*
@@ -1660,8 +1683,17 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	 * assign it to the process so that we can find it later in the first
 	 * thread that unblocks it.  Otherwise, assign it to this thread now.
 	 */
-	siglist = (target != SIGTARGET_TD && SIGISMEMBER(td->td_sigmask, sig)) ?
-	    &p->p_siglist : &td->td_siglist;
+	if (target == SIGTARGET_TD) {
+		siglist = &td->td_siglist;
+	} else {
+		if (!SIGISMEMBER(td->td_sigmask, sig))
+			siglist = &td->td_siglist;
+		else if (td->td_waitset != NULL &&
+			SIGISMEMBER(*(td->td_waitset), sig))
+			siglist = &td->td_siglist;
+		else
+			siglist = &p->p_siglist;
+	}
 
 	/*
 	 * If proc is traced, always give parent a chance;
@@ -1684,7 +1716,11 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 			mtx_unlock(&ps->ps_mtx);
 			return;
 		}
-		if (SIGISMEMBER(td->td_sigmask, sig))
+		if (((td->td_waitset == NULL) &&
+		     SIGISMEMBER(td->td_sigmask, sig)) ||
+		    ((td->td_waitset != NULL) &&
+		     SIGISMEMBER(td->td_sigmask, sig) &&
+		     !SIGISMEMBER(*(td->td_waitset), sig)))
 			action = SIG_HOLD;
 		else if (SIGISMEMBER(ps->ps_sigcatch, sig))
 			action = SIG_CATCH;
@@ -1719,8 +1755,14 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 			SIG_CONTSIGMASK(td0->td_siglist);
 		p->p_flag &= ~P_CONTINUED;
 	}
+
 	SIGADDSET(*siglist, sig);
 	signotify(td);			/* uses schedlock */
+	if (siglist == &td->td_siglist && (td->td_waitset != NULL) &&
+	    action != SIG_HOLD) {
+		td->td_waitset = NULL;
+	}
+
 	/*
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
