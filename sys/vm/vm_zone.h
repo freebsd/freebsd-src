@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1997 John S. Dyson
  * All rights reserved.
@@ -19,51 +18,52 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.5 1997/08/10 00:12:13 dyson Exp $
+ * $Id: vm_zone.h,v 1.6 1997/09/21 04:24:27 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
 
 #define _SYS_ZONE_H
 
-#define ZONE_INTERRUPT 1	/* Use this if you need to allocate at int time */
-#define ZONE_BOOT 16		/* This is an internal flag used by zbootinit */
+#define ZONE_INTERRUPT 1 /* Use this if you need to allocate at int time */
+#define ZONE_BOOT 16	 /* This is an internal flag used by zbootinit */
 
 #include	<machine/param.h>
 #include	<sys/lock.h>
 
-
 typedef struct vm_zone {
-	struct	simplelock		zlock;			/* lock for data structure */
-	void					*zitems;		/* linked list of items */
-	int						zfreecnt;		/* free entries */
-	int						zfreemin;		/* minimum number of free entries */
-	int						znalloc;		/* number of allocations */
-	vm_offset_t				zkva;			/* Base kva of zone */
-	int						zpagecount;		/* Total # of allocated pages */
-	int						zpagemax;		/* Max address space */
-	int						zmax;			/* Max number of entries allocated */
-	int						ztotal;			/* Total entries allocated now */
-	int						zsize;			/* size of each entry */
-	int						zalloc;			/* hint for # of pages to alloc */
-	int						zflags;			/* flags for zone */
-	int						zallocflag;		/* flag for allocation */
-	struct	vm_object		*zobj;			/* object to hold zone */
-	char					*zname;			/* name for diags */
-	struct	vm_zone			*znext;			/* list of zones for sysctl */
+	struct simplelock zlock;	/* lock for data structure */
+	void		*zitems;	/* linked list of items */
+	int		zfreecnt;	/* free entries */
+	int		zfreemin;	/* minimum number of free entries */
+	int		znalloc;	/* number of allocations */
+	vm_offset_t	zkva;		/* Base kva of zone */
+	int		zpagecount;	/* Total # of allocated pages */
+	int		zpagemax;	/* Max address space */
+	int		zmax;		/* Max number of entries allocated */
+	int		ztotal;		/* Total entries allocated now */
+	int		zsize;		/* size of each entry */
+	int		zalloc;		/* hint for # of pages to alloc */
+	int		zflags;		/* flags for zone */
+	int		zallocflag;	/* flag for allocation */
+	struct vm_object *zobj;		/* object to hold zone */
+	char		*zname;		/* name for diags */
+	struct vm_zone	*znext;		/* list of zones for sysctl */
 } *vm_zone_t;
 
 
-void zerror __P((int)) __dead2;
-vm_zone_t zinit __P((char *name, int size, int nentries, int flags, int zalloc));
-int zinitna __P((vm_zone_t z, struct vm_object *obj, char *name, int size,
-		int nentries, int flags, int zalloc));
-static void * zalloc __P((vm_zone_t z));
-static void zfree __P((vm_zone_t z, void *item));
-void * zalloci __P((vm_zone_t z));
-void zfreei __P((vm_zone_t z, void *item));
-void zbootinit __P((vm_zone_t z, char *name, int size, void *item, int nitems));
-void * _zget __P((vm_zone_t z));
+void		zerror __P((int)) __dead2;
+vm_zone_t	zinit __P((char *name, int size, int nentries, int flags,
+			   int zalloc));
+int		zinitna __P((vm_zone_t z, struct vm_object *obj, char *name,
+			     int size, int nentries, int flags, int zalloc));
+static void *	zalloc __P((vm_zone_t z));
+static void	zfree __P((vm_zone_t z, void *item));
+void *		zalloci __P((vm_zone_t z));
+void		zfreei __P((vm_zone_t z, void *item));
+void		zbootinit __P((vm_zone_t z, char *name, int size, void *item,
+			       int nitems));
+void *		_zget __P((vm_zone_t z));
 
 #define ZONE_ERROR_INVALID 0
 #define ZONE_ERROR_NOTFREE 1
@@ -79,7 +79,8 @@ void * _zget __P((vm_zone_t z));
  *  Frees an item back to a specified zone.
  */
 static __inline__ void *
-_zalloc(vm_zone_t z) {
+_zalloc(vm_zone_t z)
+{
 	void *item;
 
 #if defined(DIAGNOSTIC)
@@ -87,10 +88,9 @@ _zalloc(vm_zone_t z) {
 		zerror(ZONE_ERROR_INVALID);
 #endif
 
-	if (z->zfreecnt <= z->zfreemin) {
+	if (z->zfreecnt <= z->zfreemin)
 		return _zget(z);
-	}
-	
+
 	item = z->zitems;
 	z->zitems = ((void **) item)[0];
 #if defined(DIAGNOSTIC)
@@ -98,17 +98,18 @@ _zalloc(vm_zone_t z) {
 		zerror(ZONE_ERROR_NOTFREE);
 	((void **) item)[1] = 0;
 #endif
-	
+
 	z->zfreecnt--;
 	z->znalloc++;
 	return item;
 }
 
 static __inline__ void
-_zfree(vm_zone_t z, void *item) {
+_zfree(vm_zone_t z, void *item)
+{
 	((void **) item)[0] = z->zitems;
 #if defined(DIAGNOSTIC)
-	if ((( void **) item)[1] == (void *) ZENTRY_FREE)
+	if (((void **) item)[1] == (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_ALREADYFREE);
 	((void **) item)[1] = (void *) ZENTRY_FREE;
 #endif
@@ -117,7 +118,8 @@ _zfree(vm_zone_t z, void *item) {
 }
 
 static __inline__ void *
-zalloc(vm_zone_t z) {
+zalloc(vm_zone_t z)
+{
 #if defined(SMP)
 	return zalloci(z);
 #else
@@ -126,7 +128,8 @@ zalloc(vm_zone_t z) {
 }
 
 static __inline__ void
-zfree(vm_zone_t z, void *item) {
+zfree(vm_zone_t z, void *item)
+{
 #if defined(SMP)
 	zfreei(z, item);
 #else
