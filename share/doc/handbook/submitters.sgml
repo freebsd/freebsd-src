@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.17 1996/02/03 17:17:56 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.18 1996/02/04 08:49:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -121,6 +121,22 @@ some kind of symbol table in the kernel.
 <item>Write a configuration manager (in the 3rd stage boot?) that probes
 your hardware in a sane manner, keeps only the LKMs required for
 your hardware, etc.
+</itemize>
+<item>PCMCIA/PCCARD.  Coordinator: <tt><htmlurl
+url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
+<itemize>
+<item>Reliable operation of the pcic driver.
+<item>Recognizer & handler for sio.c
+<item>Recognizer & handler for ed.c
+<item>Recognizer & handler for ep.c
+<item>User-mode recognizer & handler.
+</itemize>
+<item>Advanced Power Management.  Coordinator: <tt><htmlurl
+url="mailto:phk@freebsd.org" name="Poul-Henning Kamp"></tt>
+<itemize>
+<item>APM sub-driver.
+<item>IDE/ATA disk sub-driver.
+<item>syscons/pcvt sub-driver.
 </itemize>
 </enum>
 
@@ -400,7 +416,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.17 1996/02/03 17:17:56 jfieber Exp $
+	$Id: submitters.sgml,v 1.18 1996/02/04 08:49:17 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
