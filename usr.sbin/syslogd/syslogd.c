@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.10 1996/10/05 15:20:51 peter Exp $";
+	"$Id: syslogd.c,v 1.12 1996/10/28 08:25:13 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -71,7 +71,7 @@ static const char rcsid[] =
 #define DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define TIMERINTVL	30		/* interval for checking flush, mark */
-#define TTYMSGTIME	1		/* timeout passed to ttymsg */
+#define TTYMSGTIME	1		/* timed out passed to ttymsg */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -213,6 +213,7 @@ char   *ttymsg __P((struct iovec *, int, char *, int));
 void	usage __P((void));
 void	wallmsg __P((struct filed *, struct iovec *));
 int	waitdaemon __P((int, int, int));
+void	timedout __P((int));
 
 int
 main(argc, argv)
@@ -260,7 +261,7 @@ main(argc, argv)
 		setlinebuf(stdout);
 
 	consfile.f_type = F_CONSOLE;
-	(void)strcpy(consfile.f_un.f_fname, ctty);
+	(void)strcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1);
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		*p++ = '\0';
@@ -635,6 +636,7 @@ fprintlog(f, flags, msg)
 	struct iovec *v;
 	int l;
 	char line[MAXLINE + 1], repbuf[80], greetings[200];
+	char *msgret;
 
 	v = iov;
 	if (f->f_type == F_WALL) {
@@ -700,6 +702,20 @@ fprintlog(f, flags, msg)
 		}
 		break;
 
+	case F_FILE:
+		dprintf(" %s\n", f->f_un.f_fname);
+		v->iov_base = "\n";
+		v->iov_len = 1;
+		if (writev(f->f_file, iov, 6) < 0) {
+			int e = errno;
+			(void)close(f->f_file);
+			f->f_type = F_UNUSED;
+			errno = e;
+			logerror(f->f_un.f_fname);
+		} else if (flags & SYNC_FILE)
+			(void)fsync(f->f_file);
+		break;
+
 	case F_CONSOLE:
 		if (flags & IGN_CONS) {
 			dprintf(" (ignored)\n");
@@ -708,37 +724,15 @@ fprintlog(f, flags, msg)
 		/* FALLTHROUGH */
 
 	case F_TTY:
-	case F_FILE:
-		dprintf(" %s\n", f->f_un.f_fname);
-		if (f->f_type != F_FILE) {
-			v->iov_base = "\r\n";
-			v->iov_len = 2;
-		} else {
-			v->iov_base = "\n";
-			v->iov_len = 1;
+		dprintf(" %s%s\n", _PATH_DEV, f->f_un.f_fname);
+		v->iov_base = "\r\n";
+		v->iov_len = 2;
+
+		errno = 0;	/* ttymsg() only sometimes returns an errno */
+		if ((msgret = ttymsg(iov, 6, f->f_un.f_fname, 10))) {
+			f->f_type = F_UNUSED;
+			logerror(msgret);
 		}
-	again:
-		if (writev(f->f_file, iov, 6) < 0) {
-			int e = errno;
-			(void)close(f->f_file);
-			/*
-			 * Check for errors on TTY's due to loss of tty
-			 */
-			if ((e == EIO || e == EBADF) && f->f_type != F_FILE) {
-				f->f_file = open(f->f_un.f_fname,
-				    O_WRONLY|O_APPEND, 0);
-				if (f->f_file < 0) {
-					f->f_type = F_UNUSED;
-					logerror(f->f_un.f_fname);
-				} else
-					goto again;
-			} else {
-				f->f_type = F_UNUSED;
-				errno = e;
-				logerror(f->f_un.f_fname);
-			}
-		} else if (flags & SYNC_FILE)
-			(void)fsync(f->f_file);
 		break;
 
 	case F_USERS:
@@ -813,9 +807,9 @@ void
 reapchild(signo)
 	int signo;
 {
-	union wait status;
+	int status;
 
-	while (wait3((int *)&status, WNOHANG, (struct rusage *)NULL) > 0)
+	while (wait3(&status, WNOHANG, (struct rusage *)NULL) > 0)
 		;
 }
 
@@ -911,7 +905,7 @@ die(signo)
 	}
 	if (created_lsock)
 		(void)unlink(LogName);
-	exit(0);
+	exit(1);
 }
 
 /*
@@ -941,10 +935,11 @@ init(signo)
 
 		switch (f->f_type) {
 		case F_FILE:
-		case F_TTY:
-		case F_CONSOLE:
 		case F_FORW:
 			(void)close(f->f_file);
+			break;
+		case F_CONSOLE:
+		case F_TTY:
 			break;
 		}
 		next = f->f_next;
@@ -1024,9 +1019,12 @@ init(signo)
 			printf("%s: ", TypeNames[f->f_type]);
 			switch (f->f_type) {
 			case F_FILE:
-			case F_TTY:
-			case F_CONSOLE:
 				printf("%s", f->f_un.f_fname);
+				break;
+
+			case F_CONSOLE:
+			case F_TTY:
+				printf("%s%s", _PATH_DEV, f->f_un.f_fname);
 				break;
 
 			case F_FORW:
@@ -1162,18 +1160,22 @@ cfline(line, f, prog)
 		break;
 
 	case '/':
-		(void)strcpy(f->f_un.f_fname, p);
 		if ((f->f_file = open(p, O_WRONLY|O_APPEND, 0)) < 0) {
 			f->f_file = F_UNUSED;
 			logerror(p);
 			break;
 		}
-		if (isatty(f->f_file))
-			f->f_type = F_TTY;
-		else
+		if (isatty(f->f_file)) {
+			if (strcmp(p, ctty) == 0)
+				f->f_type = F_CONSOLE;
+			else
+				f->f_type = F_TTY;
+			close(f->f_file);
+			(void)strcpy(f->f_un.f_fname, p + sizeof _PATH_DEV - 1);
+		} else {
+			(void)strcpy(f->f_un.f_fname, p);
 			f->f_type = F_FILE;
-		if (strcmp(p, ctty) == 0)
-			f->f_type = F_CONSOLE;
+		}
 		break;
 
 	case '*':
@@ -1227,39 +1229,40 @@ decode(name, codetab)
 	return (-1);
 }
 
-static char *exitmsg;
-
-void
-timeout(sig)
-	int sig __unused;
-{
-	int left;
-	left = alarm(0);
-	signal(SIGALRM, SIG_DFL);
-	if (left == 0)
-		exitmsg = "timed out waiting for child";
-	return;
-}
-
+/*
+ * fork off and become a daemon, but wait for the child to come online
+ * before returing to the parent, or we get disk thrashing at boot etc.
+ * Set a timer so we don't hang forever if it wedges.
+ */
 int
 waitdaemon(nochdir, noclose, maxwait)
 	int nochdir, noclose, maxwait;
 {
 	int fd;
+	int status;
+	pid_t pid, childpid;
 
-	switch (fork()) {
+	switch (childpid = fork()) {
 	case -1:
 		return (-1);
 	case 0:
 		break;
 	default:
-		signal(SIGALRM, timeout);
+		signal(SIGALRM, timedout);
 		alarm(maxwait);
-		pause();
-		if (exitmsg)
-			err(1, exitmsg);
-		else
-			exit(0);
+		while ((pid = wait3(&status, 0, NULL)) != -1) {
+			if (WIFEXITED(status))
+				errx(1, "child pid %d exited with return code %d",
+					pid, WEXITSTATUS(status));
+			if (WIFSIGNALED(status))
+				errx(1, "child pid %d exited on signal %d%s",
+					pid, WTERMSIG(status),
+					WCOREDUMP(status) ? " (core dumped)" :
+					"");
+			if (pid == childpid)	/* it's gone... */
+				break;
+		}
+		exit(0);
 	}
 
 	if (setsid() == -1)
@@ -1276,4 +1279,24 @@ waitdaemon(nochdir, noclose, maxwait)
 			(void)close (fd);
 	}
 	return (getppid());
+}
+
+/*
+ * We get a SIGALRM from the child when it's running and finished doing it's
+ * fsync()'s or O_SYNC writes for all the boot messages.
+ *
+ * We also get a signal from the kernel if the timer expires, so check to
+ * see what happened.
+ */
+void
+timedout(sig)
+	int sig __unused;
+{
+	int left;
+	left = alarm(0);
+	signal(SIGALRM, SIG_DFL);
+	if (left == 0)
+		errx(1, "timed out waiting for child");
+	else
+		exit(0);
 }

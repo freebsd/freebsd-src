@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49 1996/10/05 11:56:47 jkh Exp $
+ * $Id: devices.c,v 1.49.2.1 1996/11/16 21:10:00 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -139,13 +139,13 @@ deviceTry(char *name, char *try)
     int fd;
 
     snprintf(try, FILENAME_MAX, "/dev/%s", name);
-    fd = open(try, O_RDWR);
+    fd = open(try, O_RDONLY);
     if (fd > 0)
 	return fd;
     if (errno == EBUSY)
 	return -1;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
-    fd = open(try, O_RDWR);
+    fd = open(try, O_RDONLY);
     return fd;
 }
 
