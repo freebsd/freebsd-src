@@ -733,7 +733,7 @@ write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 		sdt.check = 0;
 		sum = acpi_checksum(dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
 		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
-		while (sflag && ssdt != NULL) {
+		while (ssdt != NULL) {
 			sdt.len += ssdt->len - SIZEOF_SDT_HDR;
 			sum += acpi_checksum(ssdt->body,
 			    ssdt->len - SIZEOF_SDT_HDR);
@@ -748,7 +748,7 @@ write_dsdt(int fd, struct ACPIsdt *rsdt, struct ACPIsdt *dsdt)
 	write(fd, dsdt->body, dsdt->len - SIZEOF_SDT_HDR);
 
 	/* Write out any SSDTs (if present and the user requested this.) */
-	if (sflag && rsdt != NULL) {
+	if (rsdt != NULL) {
 		ssdt = sdt_from_rsdt(rsdt, "SSDT", NULL);
 		while (ssdt != NULL) {
 			write(fd, ssdt->body, ssdt->len - SIZEOF_SDT_HDR);

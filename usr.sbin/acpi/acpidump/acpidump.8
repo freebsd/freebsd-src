@@ -38,7 +38,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
-.Op Fl s
 .Op Fl t
 .Op Fl h
 .Op Fl v
@@ -67,11 +66,9 @@ The
 .Nm
 utility can extract the DSDT data block from physical memory and store it into
 an output file and optionally also disassemble it.
-If Secondary System Description Table
+If any Secondary System Description Table
 (SSDT)
-entries exist, specifying the
-.Fl s
-option will include those tables in the output file and disassembly.
+entries exist, they will also be included in the output file and disassembly.
 .Pp
 When
 .Nm
@@ -128,9 +125,6 @@ The following options are supported by
 Disassemble the DSDT into ASL using
 .Xr iasl 8
 and print the results to stdout.
-.It Fl s
-Dump any SSDTs by concatenating them with the DSDT.
-The SSDTs are optional tables with the same format as the DSDT.
 .It Fl t
 Dump the contents of the various fixed tables listed above.
 .It Fl h
@@ -162,11 +156,6 @@ Verbose messages are enabled.
 .Sh BUGS
 The current implementation does not dump the BOOT structure or
 other miscellaneous tables.
-.Pp
-There is currently no way to override SSDTs so dumping them only provides
-information.
-Overriding the DSDT with a custom version that also includes the contents of
-SSDTs will result in multiple-definition errors.
 .Sh FILES
 .Bl -tag -width /dev/mem
 .It Pa /dev/mem

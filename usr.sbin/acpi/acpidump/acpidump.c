@@ -37,7 +37,6 @@
 #include "acpidump.h"
 
 int	dflag;	/* Disassemble AML using iasl(8) */
-int	sflag;	/* Include secondary (SSDT) tables. */
 int	tflag;	/* Dump contents of SDT tables */
 int	vflag;	/* Use verbose messages */
 
@@ -45,7 +44,7 @@ static void
 usage(const char *progname)
 {
 
-	fprintf(stderr, "usage: %s [-d] [-s] [-t] [-h] [-v] [-f dsdt_input] "
+	fprintf(stderr, "usage: %s [-d] [-t] [-h] [-v] [-f dsdt_input] "
 			"[-o dsdt_output]\n", progname);
 	exit(1);
 }
@@ -63,13 +62,10 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage(progname);
 
-	while ((c = getopt(argc, argv, "dhstvf:o:")) != -1) {
+	while ((c = getopt(argc, argv, "dhtvf:o:")) != -1) {
 		switch (c) {
 		case 'd':
 			dflag = 1;
-			break;
-		case 's':
-			sflag = 1;
 			break;
 		case 't':
 			tflag = 1;
