@@ -709,7 +709,7 @@ explore_numeric_scope(pai, hostname, servname, res)
 	switch (pai->ai_family) {
 #ifdef INET6
 	case AF_INET6:
-		scope = if_nametoindex(hostname2);
+		scope = if_nametoindex(cp);
 		if (scope == 0) {
 			error = EAI_SYSTEM;
 			goto free;
@@ -718,7 +718,7 @@ explore_numeric_scope(pai, hostname, servname, res)
 #endif
 	}
 
-	error = explore_numeric(pai, cp, servname, res);
+	error = explore_numeric(pai, hostname2, servname, res);
 	if (error == 0) {
 		for (cur = *res; cur; cur = cur->ai_next) {
 #ifdef INET6
