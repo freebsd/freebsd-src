@@ -247,13 +247,14 @@ dsp_speed(int speed)
     /*
      * SB models earlier than SB Pro have low limit for the input speed.
      */
-    if (open_mode != OPEN_WRITE)	/* Recording is possible */
-	if (sbc_major < 3) /* Limited input speed with these cards */
+    if (open_mode != OPEN_WRITE) {	/* Recording is possible */
+	if (sbc_major < 3) { /* Limited input speed with these cards */
 	    if (sbc_major == 2 && sbc_minor > 0)
 		max_speed = 15000;
 	    else
 		max_speed = 13000;
-
+	}
+    }
     if (speed > max_speed)
 	speed = max_speed;	/* Invalid speed */
 
@@ -1084,7 +1085,7 @@ sb_dsp_init(struct address_info * hw_config)
     conf_printf(sb_dsp_operations.name, hw_config);
 
 #if defined(CONFIG_SB16) && defined(CONFIG_SBPRO)
-    if (!sb16)		/* There is a better driver for SB16 */
+    if (!sb16) {		/* There is a better driver for SB16 */
 #endif	/* CONFIG_SB16 && CONFIG_SBPRO */
 	if (num_audiodevs < MAX_AUDIO_DEV) {
 	    audio_devs[my_dev = num_audiodevs++] = &sb_dsp_operations;
@@ -1104,6 +1105,9 @@ sb_dsp_init(struct address_info * hw_config)
 #endif	/* JAZZ16 */
 	} else
 	    printf("SB: Too many DSP devices available\n");
+#if defined(CONFIG_SB16) && defined(CONFIG_SBPRO)
+    }
+#endif	/* CONFIG_SB16 && CONFIG_SBPRO */
 #else
     conf_printf("SoundBlaster (configured without audio support)", hw_config);
 #endif

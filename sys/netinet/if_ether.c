@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.56 1999/03/10 10:11:43 julian Exp $
+ * $Id: if_ether.c,v 1.57 1999/04/15 17:58:24 eivind Exp $
  */
 
 /*
@@ -544,7 +544,7 @@ in_arpinput(m)
 		}
 #endif
 		if (sdl->sdl_alen &&
-		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
+		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen)) {
 			if (rt->rt_expire)
 			    log(LOG_INFO, "arp: %s moved from %6D to %6D on %s%d\n",
 				inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
@@ -557,6 +557,7 @@ in_arpinput(m)
 				ac->ac_if.if_name, ac->ac_if.if_unit);
 			    goto reply;
 			}
+		}
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
                 sdl->sdl_rcf = NULL;

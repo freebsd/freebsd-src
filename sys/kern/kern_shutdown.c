@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.47 1999/04/27 11:16:04 phk Exp $
+ * $Id: kern_shutdown.c,v 1.48 1999/05/03 23:57:22 billf Exp $
  */
 
 #include "opt_ddb.h"
@@ -233,12 +233,13 @@ boot(howto)
 		 */
 		nbusy = 0;
 		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) 
-			    ||((bp->b_flags & (B_DELWRI | B_INVAL))== B_DELWRI))
+			if (((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) ||
+			    ((bp->b_flags & (B_DELWRI | B_INVAL))== B_DELWRI)) {
 				if(bp->b_dev == NODEV)
 					CIRCLEQ_REMOVE(&mountlist, bp->b_vp->v_mount, mnt_list);
 				else
 					nbusy++;
+			}
 
 
 		}

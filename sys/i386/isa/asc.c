@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.34 1999/01/28 01:59:53 dillon Exp $
+ * $Id: asc.c,v 1.35 1999/04/28 10:52:14 dt Exp $
  */
 
 #include "asc.h"
@@ -864,7 +864,7 @@ ascpoll(dev_t dev, int events, struct proc *p)
 
     sps=spltty();
 
-    if (events & (POLLIN | POLLRDNORM))
+    if (events & (POLLIN | POLLRDNORM)) {
 	if (scu->sbuf.count >0)
 	    revents |= events & (POLLIN | POLLRDNORM);
 	else {
@@ -877,7 +877,7 @@ ascpoll(dev_t dev, int events, struct proc *p)
 	    else
 		scu->selp.si_pid = p->p_pid;
 	}
-
+    }
     splx(sps);
     return 0;
 }

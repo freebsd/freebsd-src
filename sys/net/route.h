@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.27 1997/09/07 05:26:27 bde Exp $
+ * $Id: route.h,v 1.28 1998/03/23 13:58:02 bde Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -255,10 +255,12 @@ struct route_cb {
 
 #ifdef KERNEL
 #define	RTFREE(rt) \
-	if ((rt)->rt_refcnt <= 1) \
-		rtfree(rt); \
-	else \
-		(rt)->rt_refcnt--;
+	do { \
+		if ((rt)->rt_refcnt <= 1) \
+			rtfree(rt); \
+		else \
+			(rt)->rt_refcnt--; \
+	} while (0)
 
 extern struct route_cb route_cb;
 extern struct radix_node_head *rt_tables[AF_MAX+1];

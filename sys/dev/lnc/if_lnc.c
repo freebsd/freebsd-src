@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.56 1999/04/18 01:37:19 paul Exp $
+ * $Id: if_lnc.c,v 1.57 1999/04/18 01:49:16 paul Exp $
  */
 
 /*
@@ -1708,13 +1708,13 @@ lnc_start(struct ifnet *ifp)
 			 */
 
 
-			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits))
+			if (no_entries_needed > (NDESC(sc->ntdre) - sc->pending_transmits)) {
 				if (!(head = chain_to_cluster(head))) {
 					log(LOG_ERR, "lnc%d: Couldn't get mbuf for transmit packet -- Resetting \n ",ifp->if_unit);
 					lnc_reset(sc);
 					return;
 				}
-			else if ((sc->nic.ic == LANCE) || (sc->nic.ic == C_LANCE)) {
+			} else if ((sc->nic.ic == LANCE) || (sc->nic.ic == C_LANCE)) {
 				if ((head->m_len < 100) && (head->m_next)) {
 					len = 100 - head->m_len;
 					if (M_TRAILINGSPACE(head) < len) {

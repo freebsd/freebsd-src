@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.115 1999/02/19 19:34:49 luoqi Exp $
+ * $Id: tty.c,v 1.116 1999/04/27 11:16:17 phk Exp $
  */
 
 /*-
@@ -1069,19 +1069,20 @@ ttypoll(tp, events, p)
 			| POLLHUP);
 
 	s = spltty();
-	if (events & (POLLIN | POLLRDNORM))
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (ttnread(tp) > 0 || ISSET(tp->t_state, TS_ZOMBIE))
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(p, &tp->t_rsel);
-
-	if (events & (POLLOUT | POLLWRNORM))
+	}
+	if (events & (POLLOUT | POLLWRNORM)) {
 		if ((tp->t_outq.c_cc <= tp->t_olowat &&
 		     ISSET(tp->t_state, TS_CONNECTED))
 		    || ISSET(tp->t_state, TS_ZOMBIE))
 			revents |= events & (POLLOUT | POLLWRNORM);
 		else
 			selrecord(p, &tp->t_wsel);
+	}
 	splx(s);
 	return (revents);
 }
