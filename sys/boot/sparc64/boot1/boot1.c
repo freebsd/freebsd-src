@@ -55,7 +55,6 @@ int main(void);
 void exit(int);
 static void load(const char *);
 static ino_t lookup(const char *);
-static int xfsread(ino_t, void *, size_t);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, u_int64_t, int);
 static int printf(const char *, ...);
@@ -325,7 +324,7 @@ load(const char *fname)
 		printf("File %s not found\n", fname);
 		return;
 	}
-	if (xfsread(ino, &eh, sizeof(eh)))
+	if (fsread(ino, &eh, sizeof(eh)) != sizeof(eh))
 		return;
 	if (!IS_ELF(eh)) {
 		printf("Not an ELF file\n");
@@ -333,7 +332,7 @@ load(const char *fname)
 	}
 	fs_off = eh.e_phoff;
 	for (j = i = 0; i < eh.e_phnum && j < 2; i++) {
-		if (xfsread(ino, ep + j, sizeof(ep[0])))
+		if (fsread(ino, ep + j, sizeof(ep[0])) != sizeof(ep[0]))
 			return;
 		if (ep[j].p_type == PT_LOAD)
 			j++;
@@ -341,7 +340,7 @@ load(const char *fname)
 	for (i = 0; i < j; i++) {
 		p = (caddr_t)ep[i].p_vaddr;
 		fs_off = ep[i].p_offset;
-		if (xfsread(ino, p, ep[i].p_filesz))
+		if (fsread(ino, p, ep[i].p_filesz) != ep[i].p_filesz)
 			return;
 		/*
 		 * Assume the second program header table entry
@@ -355,13 +354,13 @@ load(const char *fname)
 	p += roundup2(ep[1].p_memsz, PAGE_SIZE);
 	if (eh.e_shnum == eh.e_shstrndx + 3) {
 		fs_off = eh.e_shoff + sizeof(es[0]) * (eh.e_shstrndx + 1);
-		if (xfsread(ino, &es, sizeof(es)))
+		if (fsread(ino, &es, sizeof(es)) != sizeof(es))
 			return;
 		for (i = 0; i < 2; i++) {
 			memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
 			p += sizeof(es[i].sh_size);
 			fs_off = es[i].sh_offset;
-			if (xfsread(ino, p, es[i].sh_size))
+			if (fsread(ino, p, es[i].sh_size) != es[i].sh_size)
 				return;
 			p += es[i].sh_size;
 		}
@@ -404,16 +403,6 @@ lookup(const char *path)
 		path = s;
 	}
 	return (dt == DT_REG ? ino : 0);
-}
-
-static int
-xfsread(ino_t inode, void *buf, size_t nbyte)
-{
-	if (fsread(inode, buf, nbyte) != (ssize_t)nbyte) {
-		printf("Invalid %s\n", "format");
-		return (-1);
-	}
-	return (0);
 }
 
 static ssize_t
