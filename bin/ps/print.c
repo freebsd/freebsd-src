@@ -366,13 +366,9 @@ started(k, ve)
 	if (!now)
 		(void)time(&now);
 	if (now - k->ki_u.u_start.tv_sec < 24 * 3600) {
-		/* I *hate* SCCS... */
-		static char fmt[] = __CONCAT("%l:%", "M%p");
-		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+		(void)strftime(buf, sizeof(buf) - 1, "%l:%M%p", tp);
 	} else if (now - k->ki_u.u_start.tv_sec < 7 * 86400) {
-		/* I *hate* SCCS... */
-		static char fmt[] = __CONCAT("%a%", "I%p");
-		(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+		(void)strftime(buf, sizeof(buf) - 1, "%a%I%p", tp);
 	} else
 		(void)strftime(buf, sizeof(buf) - 1, "%e%b%y", tp);
 	(void)printf("%-*s", v->width, buf);
