@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.85 1999/10/23 12:33:54 tom Exp $ */
-/* $FreeBSD$ */
+/* $Id: curses.h.in,v 1.92 2000/04/29 18:52:53 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -65,6 +64,12 @@
 
 #undef  NCURSES_CONST
 #define NCURSES_CONST @NCURSES_CONST@
+
+#undef	NCURSES_COLOR_T
+#define	NCURSES_COLOR_T short
+
+#undef	NCURSES_SIZE_T
+#define	NCURSES_SIZE_T short
 
 typedef unsigned @cf_cv_typeof_chtype@ chtype;
 
@@ -246,18 +251,18 @@ cchar_t;
 struct ldat
 {
 	chtype  *text;		/* text of the line */
-	short   firstchar;	/* first changed character in the line */
-	short   lastchar;	/* last changed character in the line */
-	short   oldindex;	/* index of the line at last update */
+	NCURSES_SIZE_T firstchar; /* first changed character in the line */
+	NCURSES_SIZE_T lastchar; /* last changed character in the line */
+	NCURSES_SIZE_T oldindex; /* index of the line at last update */
 };
 
 struct _win_st
 {
-	short   _cury, _curx;	/* current cursor position */
+	NCURSES_SIZE_T _cury, _curx; /* current cursor position */
 
 	/* window location and size */
-	short   _maxy, _maxx;	/* maximums of x and y, NOT window size */
-	short   _begy, _begx;	/* screen coords of upper-left-hand corner */
+	NCURSES_SIZE_T _maxy, _maxx; /* maximums of x and y, NOT window size */
+	NCURSES_SIZE_T _begy, _begx; /* screen coords of upper-left-hand corner */
 
 	short   _flags;		/* window state flags */
 
@@ -280,8 +285,8 @@ struct _win_st
 	struct ldat *_line;	/* the actual line data */
 
 	/* global screen state */
-	short	_regtop;	/* top line of scrolling region */
-	short	_regbottom;	/* bottom line of scrolling region */
+	NCURSES_SIZE_T _regtop;	/* top line of scrolling region */
+	NCURSES_SIZE_T _regbottom; /* bottom line of scrolling region */
 
 	/* these are used only if this is a sub-window */
 	int	_parx;		/* x coordinate of this window in parent */
@@ -291,12 +296,12 @@ struct _win_st
 	/* these are used only if this is a pad */
 	struct pdat
 	{
-	    short _pad_y,      _pad_x;
-	    short _pad_top,    _pad_left;
-	    short _pad_bottom, _pad_right;
+	    NCURSES_SIZE_T _pad_y,      _pad_x;
+	    NCURSES_SIZE_T _pad_top,    _pad_left;
+	    NCURSES_SIZE_T _pad_bottom, _pad_right;
 	} _pad;
 
-	short   _yoffset;	/* real begy is _begy + _yoffset */
+	NCURSES_SIZE_T _yoffset; /* real begy is _begy + _yoffset */
 };
 
 extern WINDOW   *stdscr;
@@ -312,16 +317,20 @@ extern int	TABSIZE;
  */
 extern int ESCDELAY;	/* ESC expire time in milliseconds */
 
+extern char ttytype[];		/* needed for backward compatibility */
+
+/*
+ * These functions are extensions - not in XSI Curses.
+ */
 extern char *keybound (int, int);
 extern const char *curses_version (void);
+extern int assume_default_colors (int, int);
 extern int define_key (char *, int);
 extern int keyok (int, bool);
 extern int resizeterm (int, int);
 extern int use_default_colors (void);
 extern int use_extended_names (bool);
 extern int wresize (WINDOW *, int, int);
-
-extern char ttytype[];		/* needed for backward compatibility */
 
 /*
  * GCC (and some other compilers) define '__attribute__'; we're using this
@@ -434,6 +443,7 @@ extern int doupdate(void);				/* implemented */
 extern WINDOW *dupwin(WINDOW *);			/* implemented */
 extern int echo(void);					/* implemented */
 extern int echochar(const chtype);			/* generated */
+extern int erase(void);					/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
 extern int echo_wchar(const cchar_t *);			/* missing */
 extern int erasewchar(wchar_t*);			/* missing */
@@ -946,7 +956,7 @@ extern bool mouse_trafo(int*, int*, bool);              /* generated */
 #define winchstr(w, s)		winchnstr(w, s, -1)
 #define winsstr(w, s)		winsnstr(w, s, -1)
 
-#define redrawwin(w)		wredrawln(w, 0, w->_maxy+1)
+#define redrawwin(win)		wredrawln(win, 0, (win)->_maxy+1)
 #define waddstr(win,str)	waddnstr(win,str,-1)
 #define waddchstr(win,str)	waddchnstr(win,str,-1)
 
@@ -1314,7 +1324,6 @@ extern char *_tracechar(const unsigned char);
 extern char *_tracechtype(chtype);
 extern char *_tracechtype2(int, chtype);
 extern char *_tracemouse(const MEVENT *);
-#define trace _nc_trace
 extern void trace(const unsigned int);
 
 /* trace masks */
@@ -1331,6 +1340,7 @@ extern void trace(const unsigned int);
 #define TRACE_BITS	0x0100	/* trace state of TTY control bits */
 #define TRACE_ICALLS	0x0200	/* trace internal/nested calls */
 #define TRACE_CCALLS	0x0400	/* trace per-character calls */
+#define TRACE_DATABASE	0x0800	/* trace read/write of terminfo/termcap data */
 #define TRACE_MAXIMUM	0xffff	/* maximum trace level */
 
 #if defined(TRACE) || defined(NCURSES_TEST)
@@ -1343,6 +1353,14 @@ extern const char *_nc_visbuf(const char *);
 #endif
 
 #ifdef __cplusplus
+
+/* these names conflict with STL */
+#undef box
+#undef clear
+#undef erase
+#undef move
+#undef refresh
+
 }
 #endif
 

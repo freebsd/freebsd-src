@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998,1999         *
+ *  Author: Thomas E. Dickey <dickey@clark.net> 1996-2000                   *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -195,6 +195,8 @@ int	wclrtoeol(
 		{ return(*(int *)0); }
 
 /* ./base/lib_color.c */
+
+#include <tic.h>
 
 #undef COLOR_PAIRS
 int	COLOR_PAIRS;
@@ -444,6 +446,10 @@ int	deleteln(void)
 #undef echochar
 int	echochar(
 		const chtype z)
+		{ return(*(int *)0); }
+
+#undef erase
+int	erase(void)
 		{ return(*(int *)0); }
 
 #undef getbkgd
@@ -1058,8 +1064,6 @@ int	winchnstr(
 		{ return(*(int *)0); }
 
 /* ./base/lib_initscr.c */
-
-#include <tic.h>
 
 #undef initscr
 WINDOW	*initscr(void)
@@ -1936,6 +1940,12 @@ int	keyok(
 int	use_default_colors(void)
 		{ return(*(int *)0); }
 
+#undef assume_default_colors
+int	assume_default_colors(
+		int	fg, 
+		int	bg)
+		{ return(*(int *)0); }
+
 /* ./base/lib_freeall.c */
 
 #include <term_entry.h>
@@ -2191,7 +2201,7 @@ ENTRY	*_nc_tail;
 
 #undef _nc_free_entries
 void	_nc_free_entries(
-		ENTRY	*head)
+		ENTRY	*headp)
 		{ /* void */ }
 
 #undef _nc_entry_match
@@ -2665,8 +2675,6 @@ int	tputs(
 
 /* ./trace/lib_trace.c */
 
-#include <fcntl.h>
-
 #undef _nc_tracing
 unsigned _nc_tracing;
 
@@ -2790,7 +2798,10 @@ int	_nc_capcmp(
 		const char *t)
 		{ return(*(int *)0); }
 
-typedef struct {const char *from; const char *to;} assoc;
+typedef struct {
+    const char *from;
+    const char *to;
+} assoc;
 
 /* ./tinfo/read_entry.c */
 

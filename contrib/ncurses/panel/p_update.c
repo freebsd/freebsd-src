@@ -36,7 +36,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_update.c,v 1.3 1999/09/29 15:22:32 juergen Exp $")
+MODULE_ID("$Id: p_update.c,v 1.5 1999/11/25 13:49:26 juergen Exp $")
 
 void
 update_panels(void)
@@ -47,15 +47,14 @@ update_panels(void)
   pan = _nc_bottom_panel;
   while(pan && pan->above)
     {
-      PANEL_UPDATE(pan,pan->above);
+      PANEL_UPDATE(pan,pan->above, FALSE);
       pan = pan->above;
     }
 
   pan = _nc_bottom_panel;
   while (pan)
     {
-      if (is_wintouched(pan->win))
-	Wnoutrefresh(pan);
+      Wnoutrefresh(pan);
       pan = pan->above;
     }
 }

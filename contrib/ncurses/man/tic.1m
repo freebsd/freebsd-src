@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tic.1m,v 1.25 1999/03/07 02:07:06 tom Exp $
+.\" $Id: tic.1m,v 1.26 2000/03/19 02:18:18 tom Exp $
 .TH tic 1M ""
 .ds n 5
 .ds d @DATADIR@/terminfo
@@ -41,6 +41,7 @@ I\
 N\
 R\
 T\
+a\
 c\
 f\
 r\
@@ -72,8 +73,14 @@ Libraries that read terminfo entries are expected to check for a TERMINFO
 directory first, look at \fI$HOME/.terminfo\fR if TERMINFO is not set, and
 finally look in \fI\*d\fR.
 .TP
+\fB-a\fR
+tells \fBtic\fP to retain commented-out capabilities rather than discarding
+them.  Capabilities are commented by prefixing them with a period.
+This sets the \fB-x\fR option, because it treats the commented-out
+entries as user-defined names.
+.TP
 \fB-c\fR
-specifies to only check \fIfile\fR for errors, including syntax problems and
+tells \fBtic\fP to only check \fIfile\fR for errors, including syntax problems and
 bad use links.  If you specify \fB-C\fR (\fB-I\fR) with this option, the code
 will print warnings about entries which, after use resolution, are more than
 1023 (4096) bytes long.  Due to a fixed buffer length in older termcap
@@ -171,6 +178,9 @@ are written, and the number of entries which are compiled.
 .TP
 \fB-x\fR
 Treat unknown capabilities as user-defined.
+That is, if you supply a capability name which \fBtic\fP does not recognize,
+it will infer its type (boolean, number or string) from the syntax and
+make an extended table entry for that.
 .TP
 \fIfile\fR
 contains one or more \fBterminfo\fR terminal descriptions in source
@@ -251,16 +261,17 @@ The error messages from this \fBtic\fR have the same format as GNU C
 error messages, and can be parsed by GNU Emacs's compile facility.
 
 The
-\fB-o\fR,
+\fB-C\fR,
 \fB-G\fR,
 \fB-I\fR,
-\fB-C\fR,
 \fB-N\fR,
 \fB-R\fR,
+\fB-T\fR,
+\fB-a\fR,
 \fB-e\fR,
 \fB-f\fR,
 \fB-g\fR,
-\fB-T\fR,
+\fB-o\fR,
 \fB-r\fR,
 \fB-s\fR and
 \fB-x\fR

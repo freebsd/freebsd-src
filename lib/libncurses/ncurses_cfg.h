@@ -31,7 +31,7 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
  ****************************************************************************/
 /*
- * Id: ncurses_cfg.hin,v 1.2 1998/02/11 12:13:46 tom Exp
+ * $Id: ncurses_cfg.hin,v 1.2 1998/02/11 12:13:46 tom Exp $
  *
  * This is a template-file used to generate the "ncurses_cfg.h" file.
  *
@@ -39,13 +39,17 @@
  * the definitions that it finds using 'sed'.  You need a patch (971222)
  * to autoconf 2.12 to do this.
  */
+
+/* $FreeBSD$ */
+
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H
 
 #define BSD_TPUTS 1
 #define CC_HAS_INLINE_FUNCS 1
 #define CC_HAS_PROTOS 1
-#define ETIP_NEEDS_ 1
+#define CPP_HAS_PARAM_INIT 1
+#define ETIP_NEEDS_MATH_H 1
 #define GCC_NORETURN __dead2
 #define GCC_PRINTF 1
 #define GCC_SCANF 1
@@ -59,6 +63,7 @@
 #define HAVE_GETCWD 1
 #define HAVE_GETTIMEOFDAY 1
 #define HAVE_GETTTYNAM 1
+#define HAVE_HAS_KEY 1
 #define HAVE_ISASCII 1
 #define HAVE_LIBFORM 1
 #define HAVE_LIBMENU 1
@@ -69,6 +74,7 @@
 #define HAVE_LONG_FILE_NAMES 1
 #define HAVE_MEMCCPY 1
 #define HAVE_MENU_H 1
+#define HAVE_MKSTEMP 1
 #define HAVE_NANOSLEEP 1
 #define HAVE_NC_ALLOC_H 1
 #define HAVE_PANEL_H 1
@@ -76,6 +82,8 @@
 #define HAVE_POLL_H 1
 #define HAVE_REGEX_H_FUNCS 1
 #define HAVE_REMOVE 1
+#define HAVE_REMOVE 1
+#define HAVE_RESIZETERM 1
 #define HAVE_SELECT 1
 #define HAVE_SETBUF 1
 #define HAVE_SETBUFFER 1
@@ -88,6 +96,7 @@
 #define HAVE_SYMLINK 1
 #define HAVE_SYS_IOCTL_H 1
 #define HAVE_SYS_PARAM_H 1
+#define HAVE_SYS_POLL_H 1
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_TIMES_H 1
 #define HAVE_SYS_TIME_H 1
@@ -99,10 +108,13 @@
 #define HAVE_TTYENT_H 1
 #define HAVE_TYPEINFO 1
 #define HAVE_UNISTD_H 1
-#define HAVE_USLEEP 1
+#define HAVE_UNLINK 1
+#define HAVE_USE_DEFAULT_COLORS 1
 #define HAVE_VSNPRINTF 1
 #define HAVE_VSSCANF 1
 #define NCURSES_EXT_FUNCS 1
+#define HAVE_WORKING_POLL 1
+#define HAVE_WRESIZE 1
 #define NCURSES_NO_PADDING 1
 #define NDEBUG 1
 #define RETSIGTYPE void

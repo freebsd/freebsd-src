@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.10 1999/05/16 17:31:42 juergen Exp $
+// $Id: cursesf.h,v 1.11 1999/10/30 23:59:37 tom Exp $
 
 #ifndef _CURSESF_H
 #define _CURSESF_H
@@ -310,7 +310,7 @@ private:
   // Get the backward pointer to the C++ object from a FORM
   static inline NCursesForm* getHook(const FORM *f) {
     UserHook* hook = (UserHook*)::form_userptr(f);
-    assert(hook && hook->m_owner==f);
+    assert(hook != 0 && hook->m_owner==f);
     return (NCursesForm*)(hook->m_back);
   }
 
@@ -329,13 +329,13 @@ protected:
   // internal routines 
   inline void set_user(void *user) {
     UserHook* uptr = (UserHook*)::form_userptr (form);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==form);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
     uptr->m_user = user;
   }
 
   inline void *get_user() {
     UserHook* uptr = (UserHook*)::form_userptr (form);
-    assert (uptr && uptr->m_back==this && uptr->m_owner==form);
+    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
     return uptr->m_user;
   }  
   
