@@ -31,9 +31,15 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/systm.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <sys/user.h>
 
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -222,10 +228,11 @@ linux_proc_read_fpxregs(struct proc *p, struct linux_pt_fpxreg *fpxregs)
 	int error;
 
 	error = 0;
-	if (cpu_fxsr == 0 || (p->p_sflag & PS_INMEM) == 0)
+	if (cpu_fxsr == 0 || (p->p_flag & P_INMEM) == 0)
 		error = EIO;
 	else
-		bcopy(&p->p_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
+		bcopy(&p->p_addr->u_pcb.pcb_save.sv_xmm,
+		    fpxregs, sizeof(*fpxregs));
 	return (error);
 }
 
@@ -235,10 +242,11 @@ linux_proc_write_fpxregs(struct proc *p, struct linux_pt_fpxreg *fpxregs)
 	int error;
 
 	error = 0;
-	if (cpu_fxsr == 0 || (p->p_sflag & PS_INMEM) == 0)
+	if (cpu_fxsr == 0 || (p->p_flag & P_INMEM) == 0)
 		error = EIO;
 	else
-		bcopy(fpxregs, &p->p_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
+		bcopy(fpxregs, &p->p_addr->u_pcb.pcb_save.sv_xmm,
+		    sizeof(*fpxregs));
 	return (error);
 }
 #endif
@@ -359,8 +367,10 @@ linux_ptrace(struct proc *curp, struct linux_ptrace_args *uap)
 			break;
 		}
 
-		if ((error = p_candebug(curp, p)) != 0)
+		if (!PRISON_CHECK(curp, p)) {
+			error = ESRCH;
 			goto fail;
+		}
 
 		/* System processes can't be debugged. */
 		if ((p->p_flag & P_SYSTEM) != 0) {
