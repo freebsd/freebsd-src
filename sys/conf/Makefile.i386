@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.86 1996/08/21 16:31:34 ache Exp $
+#	$Id: Makefile.i386,v 1.87 1996/08/31 14:47:08 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -37,8 +37,7 @@ CWARNFLAGS?=	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 # of material assistance.
 #
 COPTFLAGS?=-O
-# Not ready for -I- yet.  #include "foo.h" where foo.h is in the srcdir fails.
-INCLUDES= -nostdinc -I. -I$S -I$S/sys
+INCLUDES= -nostdinc -I- -I. -I$S
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
 .if exists($S/../include)
 INCLUDES+= -I$S/../include
