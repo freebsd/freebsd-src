@@ -105,7 +105,10 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 					error = EFAULT;
 					goto doerror;
 				}
-				vmapbuf(bp);
+				if (vmapbuf(bp) < 0) {
+					error = EFAULT;
+					goto doerror;
+				}
 			}
 
 			BUF_STRATEGY(bp, 0);

@@ -984,7 +984,10 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	}
 
 	/* Bring buffer into kernel space. */
-	vmapbuf(bp);
+	if (vmapbuf(bp) < 0) {
+		error = EFAULT;
+		goto doerror;
+	}
 
 	s = splbio();
 	aiocbe->bp = bp;
