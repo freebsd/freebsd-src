@@ -53,6 +53,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <sys/namei.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filio.h>
@@ -1495,6 +1496,70 @@ fdcloseexec(td)
 	while (fdp->fd_lastfile > 0 && fdp->fd_ofiles[fdp->fd_lastfile] == NULL)
 		fdp->fd_lastfile--;
 	FILEDESC_UNLOCK(fdp);
+}
+
+/*
+ * It is unsafe for set[ug]id processes to be started with file
+ * descriptors 0..2 closed, as these descriptors are given implicit
+ * significance in the Standard C library.  fdcheckstd() will create a
+ * descriptor referencing /dev/null for each of stdin, stdout, and
+ * stderr that is not already open.
+ */
+int
+fdcheckstd(td)
+	struct thread *td;
+{
+	struct nameidata nd;
+	struct filedesc *fdp;
+	struct file *fp;
+	register_t retval;
+	int fd, i, error, flags, devnull;
+
+	fdp = td->td_proc->p_fd;
+	if (fdp == NULL)
+		return (0);
+	devnull = -1;
+	error = 0;
+	for (i = 0; i < 3; i++) {
+		if (fdp->fd_ofiles[i] != NULL)
+			continue;
+		if (devnull < 0) {
+			FILEDESC_LOCK(fdp);
+			error = falloc(td, &fp, &fd);
+			FILEDESC_UNLOCK(fdp);
+			if (error != 0)
+				break;
+			NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
+			    td);
+			flags = FREAD | FWRITE;
+			error = vn_open(&nd, &flags, 0);
+			if (error != 0) {
+				FILEDESC_LOCK(fdp);
+				fdp->fd_ofiles[i] = NULL;
+				FILEDESC_UNLOCK(fdp);
+				fdrop(fp, td);
+				break;
+			}
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			fp->f_data = (caddr_t)nd.ni_vp;
+			fp->f_flag = flags;
+			fp->f_ops = &vnops;
+			fp->f_type = DTYPE_VNODE;
+			VOP_UNLOCK(nd.ni_vp, 0, td);
+			devnull = fd;
+		} else {
+			FILEDESC_LOCK(fdp);
+			error = fdalloc(td, 0, &fd);
+			if (error != 0) {
+				FILEDESC_UNLOCK(fdp);
+				break;
+			}
+			error = do_dup(fdp, devnull, fd, &retval, td);
+			if (error != 0)
+				break;
+		}
+	}
+	return (error);
 }
 
 /*
