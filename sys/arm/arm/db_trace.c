@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+#include <sys/systm.h>
 
 
 #include <sys/proc.h>
@@ -103,7 +104,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	boolean_t	trace_thread = FALSE;
 	int	scp_offset;
 
-	if (kdb_frame == NULL)
+	if (kdb_frame == NULL && !have_addr)
 		return;
 	while ((c = *cp++) != 0) {
 		if (c == 'u')
@@ -152,11 +153,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		 * In theory, the SCP isn't guaranteed to be in the function
 		 * that generated the stack frame.  We hope for the best.
 		 */
-#ifdef __PROG26
-		scp = frame[FR_SCP] & R15_PC;
-#else
 		scp = frame[FR_SCP];
-#endif
 
 		db_printsym(scp, DB_STGY_PROC);
 		db_printf("\n\t");
@@ -248,12 +245,18 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 int
 db_trace_thread(struct thread *thr, int count)
 {
+	uint32_t addr;
 
-	db_stack_trace_cmd((db_expr_t)__builtin_frame_address(0), 1, -1, NULL);
+	if (thr == curthread)
+		addr = (uint32_t)__builtin_frame_address(0);
+	else
+		addr = thr->td_pcb->un_32.pcb32_r11;
+	db_stack_trace_cmd(addr, 1, -1, NULL);
 	return (0);
 }
 
 void
 db_trace_self(void)
 {
+	db_trace_thread(curthread, -1);
 }
