@@ -1587,8 +1587,10 @@ ata_sii_ident(device_t dev)
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,	 ATA_SA150, "SiI 3114" },
+     { ATA_SII3512,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3512" },
      { ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+     { ATA_SII3512,   0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3512" },
      { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
      { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
      { ATA_SII0680,   0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "SiI 0680" },
