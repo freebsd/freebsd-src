@@ -44,6 +44,9 @@ struct alias_link;
     extern int
     PacketAliasOut(char *, int maxpacketsize);
 
+    extern int
+    PacketUnaliasOut(char *, int maxpacketsize);
+
 /* Port and Address Redirection */
     extern struct alias_link *
     PacketAliasRedirectPort(struct in_addr, u_short, 
