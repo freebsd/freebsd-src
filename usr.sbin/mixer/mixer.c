@@ -90,8 +90,24 @@ main(int argc, char *argv[])
 		case 2:
 			bar = 0;
 			break;
+		case 1:
+			bar = -1;
+			break;
 		default:
 			usage();
+	}
+
+	if (bar < 0) {
+		for (foo = 0; foo < SOUND_MIXER_NRDEVICES; foo++) {
+			if (!((1 << foo) & devmask)) 
+				continue;
+			if (ioctl(baz, MIXER_READ(foo),&bar)== -1) {
+			   	perror("MIXER_READ");
+				continue;
+			}
+			printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
+		}
+		return(0);
 	}
 
 	for (foo = 0; foo < SOUND_MIXER_NRDEVICES && strcmp(names[foo], argv[1]); foo++);
