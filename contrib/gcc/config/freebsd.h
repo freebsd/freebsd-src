@@ -43,7 +43,10 @@ Boston, MA 02111-1307, USA.  */
 #define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
 
 #undef  CPP_PREDEFINES
-#define CPP_PREDEFINES FBSD_CPP_PREDEFINES
+/* Obsolete, do not define it. */
+
+#undef  TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS() FBSD_TARGET_OS_CPP_BUILTINS()
 
 #undef  CPP_SPEC
 #define CPP_SPEC FBSD_CPP_SPEC
@@ -68,17 +71,10 @@ Boston, MA 02111-1307, USA.  */
 #undef  NO_IMPLICIT_EXTERN_C
 #define NO_IMPLICIT_EXTERN_C	1
 
-/* Allow #sccs in preprocessor.  */
-#undef  SCCS_DIRECTIVE
-#define SCCS_DIRECTIVE	1
-
 /* Make gcc agree with FreeBSD's standard headers (<machine/ansi.h>, etc...)  */
 
 #undef  WCHAR_TYPE
-#define WCHAR_TYPE	"int"
-
-#undef  WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED	0
+#define WCHAR_TYPE "int"
 
 #ifdef FREEBSD_NATIVE
 #define LIBSTDCXX_PROFILE       "-lstdc++_p"
@@ -101,9 +97,3 @@ Boston, MA 02111-1307, USA.  */
    This enables the test coverage code to use file locking when exiting a
    program, which avoids race conditions if the program has forked.  */
 #define TARGET_HAS_F_SETLKW	1
-
-
-/************************[  Assembler stuff  ]********************************/
-
-
-/************************[  Debugger stuff  ]*********************************/

@@ -50,44 +50,42 @@ Boston, MA 02111-1307, USA.  */
    || !strcmp ((STR), "soname") || !strcmp ((STR), "defsym") 		\
    || !strcmp ((STR), "assert") || !strcmp ((STR), "dynamic-linker"))
 
+#define FBSD_TARGET_OS_CPP_BUILTINS()					\
+  do									\
+    {									\
+	if (FBSD_MAJOR == 6)						\
+	  builtin_define ("__FreeBSD__=6");			       	\
+	else if (FBSD_MAJOR == 5)	       				\
+	  builtin_define ("__FreeBSD__=5");			       	\
+	else if (FBSD_MAJOR == 4)			       		\
+	  builtin_define ("__FreeBSD__=4");			       	\
+	else if (FBSD_MAJOR == 3)	       				\
+	  builtin_define ("__FreeBSD__=3");			       	\
+	else								\
+	  builtin_define ("__FreeBSD__");			       	\
+	builtin_define_std ("unix");					\
+	builtin_define ("__ELF__");					\
+	builtin_define ("__KPRINTF_ATTRIBUTE__");		       	\
+	builtin_assert ("system=unix");					\
+	builtin_assert ("system=bsd");					\
+	builtin_assert ("system=FreeBSD");				\
+	FBSD_NATIVE_TARGET_OS_CPP_BUILTINS();				\
+	FBSD_TARGET_CPU_CPP_BUILTINS();					\
+    }									\
+  while (0)
 
-#ifndef FREEBSD_NATIVE	/* these bits are here to reduce merge diffs, but I don't want to acutally use the bits right now */
+/* Define the default FreeBSD-specific per-CPU hook code. */
+#define FBSD_TARGET_CPU_CPP_BUILTINS() do {} while (0)
 
-
-#if FBSD_MAJOR == 6
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=6 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
+#ifdef FREEBSD_NATIVE
+#define FBSD_NATIVE_TARGET_OS_CPP_BUILTINS()				\
+  do {									\
+	builtin_define_std ("__FreeBSD_cc_version=500006");		\
+  } while (0)
+#else
+#define FBSD_NATIVE_TARGET_OS_CPP_BUILTINS()				\
+  do {} while (0)
 #endif
-
-#if FBSD_MAJOR == 5
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=5 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
-#endif
-
-#if FBSD_MAJOR == 4
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=4 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
-#endif
-
-#if FBSD_MAJOR == 3
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=3 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
-#endif
-
-#ifndef FBSD_CPP_PREDEFINES
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__   -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
-#endif
-
-
-#else	/* FREEBSD_NATIVE */
-/* Place spaces around this string.  We depend on string splicing to produce
-   the final CPP_PREDEFINES value.  */
-
-#define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500005 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
-#endif	/* ! FREEBSD_NATIVE */
-
 
 /* Provide a CPP_SPEC appropriate for FreeBSD.  We just deal with the GCC 
    option `-posix', and PIC issues.  Try to detect support for the
@@ -106,7 +104,7 @@ Boston, MA 02111-1307, USA.  */
 /* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add
    the magical crtbegin.o file (see crtstuff.c) which provides part 
 	of the support for getting C++ file-scope static object constructed 
-	before entering `main'. */
+	before entering `main'.  */
    
 #define FBSD_STARTFILE_SPEC \
   "%{!shared: \
