@@ -312,6 +312,12 @@
       is now called <varname>dev.foo.0.bar</varname>, and it is
       possible to to have <varname>dev.foo.bar</varname> as well.</para>
 
+    <para>A sysctl <varname>kern.sched.name</varname>
+      which has the name of the scheduler currently in use,
+      has been added, and the <varname>kern.quantum</varname> sysctl
+      has been moved to <varname>kern.sched.quantum</varname>
+      for consistency.</para>
+
     <para arch="alpha,amd64,i386">For the &man.uart.4; device
       <varname>hw.uart.console</varname> and
       <varname>hw.uart.dbgport</varname> environment variables
@@ -344,6 +350,16 @@
       new <varname>d_version</varname> field in <varname>struct
       cdevsw</varname>.  Note that third-party device drivers will
       require recompiling after this change.</para>
+
+    <para>The pseudo-interface cloning has been updated and
+      the match function to allow creation of &man.stf.4;
+      interfaces named <devicename>stf0</devicename>,
+      <devicename>stf</devicename>, or <devicename>6to4</devicename>.
+      Note that this breaks backward compatibility; for example,
+      now <command>ifconfig stf</command> creates
+      the interface named <devicename>stf</devicename>,
+      not <devicename>stf0</devicename>, and does not print
+      <devicename>stf0</devicename> to stdout.</para>
 
     <para>The kernel's file descriptor allocation code has been
       updated, and is now derived from similar code in OpenBSD.</para>
@@ -611,7 +627,7 @@
       <para>TCP Selective Acknowledgements (SACK) as described in RFC
         2018 have been added.  This improves TCP performance over
         connections with heavy packet loss.  SACK can be enabled with
-        the sysctl <varname>net.inet.tcp.sack.enable.</varname></para>
+        the sysctl <varname>net.inet.tcp.sack.enable</varname>.</para>
 
       <para>&man.udav.4; driver now supports promiscuous mode.</para>
 
@@ -776,6 +792,10 @@
       smooth load peaks appearing when a lot of jobs are scheduled
       for a particular moment. &merged;</para>
 
+    <para>&man.cut.1; <option>-c</option>,
+      <option>-d</option>, and <option>-f</option>
+      now work correctly in locales with multibyte characters.</para>
+
     <para>&man.daemon.8; now supports a <option>-p</option>
       option to create a PID file.</para>
 
@@ -820,6 +840,12 @@
     <para>&man.indent.1; now supports a <option>-ldi</option> option
       to control indentation of local variables.  A number of other
       tunings were made to this utility.</para>
+
+    <para>&man.indent.1; now supports <option>-fbs</option> and
+      <option>-ut</option> for function declarations
+      with the opening brace on the same line as the declaration
+      of arguments all spaces and no tabs in order
+      to fix problem when non-8 space tabs are used.</para>
 
     <para>&man.ifconfig.8; now supports renaming of network interfaces
       at run-time using the <option>name</option> parameter.</para>
@@ -1002,7 +1028,8 @@
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
 
-    <para>&man.sha1.1; and &man.rmd160.1; utility have been added.</para>
+    <para>&man.sha1.1; and &man.rmd160.1; utility have been added.
+      &merged;</para>
 
     <para>&man.smbmsg.8;, a small utility to send/receive SMBus messages
       has been added.</para>
@@ -1087,7 +1114,7 @@
       a 23 May 2004 snapshot from the FSF 2.15 branch.</para>
 
     <para><application>CVS</application> has been updated from
-      version 1.11.15 to version 1.11.17.</para>
+      version 1.11.15 to version 1.11.17.  &merged;</para>
 
     <para><application>gdtoa</application> (a library that performs
       conversions of numbers between binary and decimal form) has been
@@ -1118,7 +1145,7 @@
        updated from 0.6 to 0.6.1.
 
     <para>The <application>ISC DHCP</application> client has been
-       updated to 3.0.1RC14.</para>
+       updated from 3.0.1 RC10 to 3.0.1 RC14.</para>
 
     <para><application>libpcap</application> has been updated from
       version 0.7.1 to version 0.8.3.</para>
@@ -1222,6 +1249,13 @@
 
     <para>The package tools have improved handling of corrupt package
       databases.</para>
+
+    <para>&man.pkg.create.1; now supports a <option>-S</option>
+      option to make all <literal>@cwd</literal> be prefixed
+      during package creation.</para>
+
+    <para>&man.pkg.info.1; now supports a <option>-j</option>
+      option to show the requirements script for each package.</para>
   </sect2>
 
   <sect2 id="releng">
