@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.34 1995/12/22 15:53:53 bde Exp $
+ * $Id: tty_pty.c,v 1.35 1996/01/25 07:21:50 phk Exp $
  */
 
 /*
@@ -802,11 +802,11 @@ ptc_drvinit(void *unused)
 			devfs_token_pts[i] = 
 				devfs_add_devswf(&pts_cdevsw,i,
 						DV_CHR,0,0,0666,
-						"tty%c%n",j,k);
+						"tty%c%n",jnames[j],k);
 			devfs_token_ptc[i] =
 				devfs_add_devswf(&ptc_cdevsw,i,
 						DV_CHR,0,0,0666,
-						"pty%c%n",j,k);
+						"pty%c%n",jnames[j],k);
 		}
 #endif
     	}
