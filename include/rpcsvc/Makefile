@@ -1,9 +1,10 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.5 1995/06/29 19:45:46 wollman Exp $
+#	$Id: Makefile,v 1.6 1995/08/06 12:23:10 bde Exp $
 
 .SUFFIXES: .x
 
 RPCCOM = rpcgen
+BINMODE = 444
 
 HDRS= klm_prot.h mount.h nfs_prot.h nlm_prot.h rex.h rnusers.h\
       rquota.h rstat.h rwall.h sm_inter.h spray.h yppasswd.h yp.h
