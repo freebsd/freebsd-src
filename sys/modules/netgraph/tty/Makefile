@@ -3,6 +3,5 @@
 
 KMOD=		ng_tty
 SRCS= 		ng_tty.c
-MAN4=		ng_tty.4
 
 .include <bsd.kmod.mk>

@@ -3,6 +3,5 @@
 
 KMOD=		ng_rfc1490
 SRCS= 		ng_rfc1490.c
-MAN4=		ng_rfc1490.4
 
 .include <bsd.kmod.mk>
