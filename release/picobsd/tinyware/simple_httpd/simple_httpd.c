@@ -99,7 +99,7 @@ init_servconnection(void)
 		perror("bind socket");
 		exit(1);
 	}
-        if (verbose) printf("simple_httpd\n",http_port);
+        if (verbose) printf("simple_httpd:%d\n",http_port);
 }
 
 /*
