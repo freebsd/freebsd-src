@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.7 1995/03/16 18:13:23 bde Exp $
+ * $Id: kernfs_vfsops.c,v 1.8 1995/03/16 20:23:38 wollman Exp $
  */
 
 /*
@@ -56,6 +56,8 @@
 #include <miscfs/kernfs/kernfs.h>
 
 struct vnode *rrootvp;
+
+int kernfs_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * Create a vnode for a character device.
@@ -160,6 +162,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("kernfs", mp->mnt_stat.f_mntfromname, sizeof("kernfs"));
+	(void)kernfs_statfs(mp, &mp->mnt_stat, p);
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_mount: at %s\n", mp->mnt_stat.f_mntonname);
 #endif
