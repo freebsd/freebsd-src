@@ -282,9 +282,10 @@ mdmaybeload(void)
 {
         struct module_stat mstat;
         int fileid, modid;
-        const char *name = "md";
+        const char *name;
 	char *cp;
 
+	name = MD_NAME;
         /* scan files in kernel */
         mstat.version = sizeof(struct module_stat);
         for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid)) {
