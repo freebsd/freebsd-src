@@ -47,7 +47,6 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/lock.h
-.In sys/mutex.h
 .In sys/sx.h
 .Ft void
 .Fn sx_init "struct sx *sx" "const char *description"
@@ -71,6 +70,7 @@
 .Fn sx_downgrade "struct sx *sx"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
+.In sys/kernel.h
 .Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
