@@ -735,6 +735,10 @@ pcib_match(device_t dev)
 	case 0x00261011:
 		return ("DEC 21154 PCI-PCI bridge");
 
+	/* Compaq -- vendor 0x0e11 */
+	case 0x60100e11:
+		return ("Compaq HotPlug PCI bridge");
+
 	/* Others */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
