@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -270,17 +271,17 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		for (bsize = NFS_FABLKSIZE; ; bsize *= 2) {
 			sbp->f_bsize = bsize;
 			tquad = fxdr_hyper(&sfp->sf_tbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
+			if (((unsigned long)(tquad / bsize) > LONG_MAX) ||
 			    ((long)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_blocks = tquad / bsize;
 			tquad = fxdr_hyper(&sfp->sf_fbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
+			if (((unsigned long)(tquad / bsize) > LONG_MAX) ||
 			    ((long)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_bfree = tquad / bsize;
 			tquad = fxdr_hyper(&sfp->sf_abytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
+			if (((unsigned long)(tquad / bsize) > LONG_MAX) ||
 			    ((long)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_bavail = tquad / bsize;
