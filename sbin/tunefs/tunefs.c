@@ -61,7 +61,6 @@ static const char rcsid[] =
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 /* the optimization warning string template */
@@ -81,7 +80,6 @@ int bread(daddr_t, char *, int);
 void getsb(struct fs *, char *);
 void usage __P((void));
 void printfs __P((void));
-char *rawname __P((char *, char *));
 
 int
 main(argc, argv)
