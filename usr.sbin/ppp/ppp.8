@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.116 1998/08/09 17:17:23 brian Exp $
+.\" $Id: ppp.8,v 1.117 1998/08/09 23:40:31 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2776,35 +2776,35 @@ format.
 It is possible to specify some special
 .Sq values
 in your chat script as follows:
-.Bd -literal -offset indent
-.It \\\\\\\\\\\\\\\\c
+.Bd -unfilled -offset indent
+.It Li \\\\\\\\\\\\\\\\c
 When used as the last character in a
 .Sq send
 string, this indicates that a newline should not be appended.
-.It \\\\\\\\\\\\\\\\d
+.It Li \\\\\\\\\\\\\\\\d
 When the chat script encounters this sequence, it delays two seconds.
-.It \\\\\\\\\\\\\\\\p
+.It Li \\\\\\\\\\\\\\\\p
 When the chat script encounters this sequence, it delays for one quarter of
 a second.
-.It \\\\\\\\\\\\\\\\n
+.It Li \\\\\\\\\\\\\\\\n
 This is replaced with a newline character.
-.It \\\\\\\\\\\\\\\\r
+.It Li \\\\\\\\\\\\\\\\r
 This is replaced with a carriage return character.
-.It \\\\\\\\\\\\\\\\s
+.It Li \\\\\\\\\\\\\\\\s
 This is replaced with a space character.
-.It \\\\\\\\\\\\\\\\t
+.It Li \\\\\\\\\\\\\\\\t
 This is replaced with a tab character.
-.It \\\\\\\\\\\\\\\\T
+.It Li \\\\\\\\\\\\\\\\T
 This is replaced by the current phone number (see
 .Dq set phone
 below).
-.It \\\\\\\\\\\\\\\\P
+.It Li \\\\\\\\\\\\\\\\P
 This is replaced by the current
 .Ar authkey
 value (see
 .Dq set authkey
 above).
-.It \\\\\\\\\\\\\\\\U
+.It Li \\\\\\\\\\\\\\\\U
 This is replaced by the current
 .Ar authname
 value (see
@@ -2898,15 +2898,15 @@ LCP negotiation,
 .Nm
 will send the information to the peer using the LCP endpoint discriminator
 option.  The following discriminators may be set:
-.Bd -literal -offset indent
-.It label
+.Bd -unfilled -offset indent
+.It Li label
 The current label is used.
-.It IP
+.It Li IP
 Our local IP number is used.  As LCP is negotiated prior to IPCP, it is
 possible that the IPCP layer will subsequently change this value.  If
 it does, the endpoint discriminator stays at the old value unless manually
 reset.
-.It MAC
+.It Li MAC
 This is similar to the
 .Ar IP
 option above, except that the MAC address associated with the local IP
@@ -2918,9 +2918,9 @@ As the local IP number defaults to whatever the machine host name is,
 is usually done prior to any
 .Dq set ifaddr
 commands.
-.It magic
+.It Li magic
 A 20 digit random number is used.
-.It psn Ar value
+.It Li psn Ar value
 The given
 .Ar value
 is used.
