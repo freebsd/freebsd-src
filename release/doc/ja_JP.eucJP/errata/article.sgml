@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.100
+    Original revision: 1.1.2.104
 -->
 
 <!-- 
@@ -190,6 +190,46 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
       &os; &release.prev; では、このドライバのモジュールは提供されていません。
       したがって、一般的には、&man.awi.4; ドライバを利用する
       &os; &release.prev; のネットワークインストールはできません。</para>
+
+    <para>容量不足のため、1,44MB の alpha 版
+      <filename>kern.flp</filename> 起動フロッピから、
+      ATAPI フロッピディスクと DEC AlphaServer 8200 および
+      8400 (<quote>TurboLaser</quote>) マシン対応が削除されました。</para>
+
+    <para>&os; &release.prev; カーネルには、
+      Intel 80386 プロセッサ上で起動しないというバグがあります。
+      &release.prev; セキュリティ修正ブランチと
+      &release.branch; 開発ブランチでは、この問題は修正ずみです。</para>
+
+    <para>&os; は、<filename>/etc/login.conf.db</filename>
+      にあるハッシュされた login
+      ケーパビリティデータベースに対応しています。
+      これは <filename>/etc/login.conf</filename>
+      というテキストファイルから生成されるものです。
+      ハッシュされたデータベースが存在する場合、
+      &man.login.1; はテキストファイルよりもそれを優先して使います。
+      &os; &release.prev; は、<filename>/etc/login.conf.db</filename>
+      がインストールメディア収録された初めてのリリースです。
+      そのため、<filename>/etc/login.conf</filename> を変更した場合、
+      &man.cap.mkdb.1;
+      を使ってデータベースを忘れずに再構築しなければなりません。
+      ソースからアップグレードしていれば、アップグレード中に
+      &man.mergemaster.8; が <filename>/etc/login.conf.db</filename>
+      を更新するかどうか尋ねてくるため、大きな問題にはならないでしょう。
+      login ケーパビリティデータベースの書式や使用方法の詳細については、
+      &man.login.conf.5; をご覧ください。</para>
+
+    <para>&man.sysinstall.8; を使って Ports Collection をインストールした場合、
+      <filename role="port">multimedia/gstreamer-plugins</filename> port
+      含まれるファイルのファイル名が壊れている可能性があります。
+      これは、その port の構築や package のインストールには影響ありません。
+      しかし、将来 Pors Collection を更新する際に問題となる可能性があるので、
+      次のコマンドを実行してファイル名を変更することをおすすめします。</para>
+
+    <screen>&prompt.root; <userinput>cd /usr/ports/multimedia/gstreamer-plugins/files</userinput>
+&prompt.root; <userinput>mv patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_i \
+patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
+</userinput></screen>
 
 ]]>
   </sect1>
