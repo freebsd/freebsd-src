@@ -15,7 +15,7 @@
 	${LCRYPTO_SRC}/sha ${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db \
 	${LCRYPTO_SRC}/x509 ${LCRYPTO_SRC}/x509v3
 
-.if defined(WITH_IDEA) && ${WITH_IDEA} == YES
+.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 .PATH:  ${LCRYPTO_SRC}/idea
 .endif
 
@@ -103,7 +103,7 @@ SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 SRCS+=	hmac.c
 
 # idea
-.if defined(WITH_IDEA) && ${WITH_IDEA} == YES
+.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 SRCS+=	i_ecb.c i_cbc.c i_cfb64.c i_ofb64.c i_skey.c
 .endif
 
@@ -185,7 +185,7 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
-.if defined(WITH_IDEA) && ${WITH_IDEA} == YES
+.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
 HDRS+=	idea/idea.h
 .endif
 
