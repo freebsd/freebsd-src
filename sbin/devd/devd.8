@@ -51,10 +51,20 @@ becoming a daemon.
 is a system daemon that runs in the background all the time.
 Whenever a device is added to or removed from the device tree,
 .Nm
-will execute specified actions.
-In addition, when a device without a suitable driver loaded enters the system,
+will execute actions specified in
+.Xr devd.conf 5 .
+For example,
 .Nm
-will perform a different specified action.
+might execute
+.Xr dhclient 8
+when an ethernet adapter is added to the system and kill the
+.Xr dhclient 8
+instance when the same adapter is removed.
+Another example would be for
+.Nm
+to use a table to locate and load via
+.Xr kldload 8
+the proper driver for an unrecognized device that is added to the system.
 .Pp
 .Nm 
 hooks into the
