@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999-2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ struct acl {
 typedef struct acl	*acl_t;
 
 /*
- * Possible valid values for a_tag of acl_entry_t.
+ * Possible valid values for ae_tag field.
  */
 #define	ACL_USER_OBJ	0x00000001
 #define	ACL_USER	0x00000002
@@ -73,7 +73,7 @@ typedef struct acl	*acl_t;
 #define	ACL_OTHER_OBJ	ACL_OTHER
 
 /*
- * Possible valid values a_type_t arguments.
+ * Possible valid values for acl_type_t arguments.
  */
 #define	ACL_TYPE_ACCESS		0x00000000
 #define	ACL_TYPE_DEFAULT	0x00000001
@@ -83,7 +83,7 @@ typedef struct acl	*acl_t;
 #define	ACL_TYPE_NWFS		0x00000005
 
 /*
- * Possible flags in a_perm field.
+ * Possible flags in ae_perm field.
  */
 #define	ACL_PERM_EXEC	0x0001
 #define	ACL_PERM_WRITE	0x0002
