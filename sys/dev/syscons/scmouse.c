@@ -646,7 +646,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		old_mouse->u.data.x = scp->mouse_xpos;
 		old_mouse->u.data.y = scp->mouse_ypos;
 		old_mouse->u.data.buttons = swapb[scp->mouse_buttons & 0x7];
-		break;
+		return 0;
 	    default:
 		return EINVAL;
 	    }
