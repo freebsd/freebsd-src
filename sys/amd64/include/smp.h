@@ -51,8 +51,6 @@ extern int current_postcode;  /** XXX currently in mp_machdep.c */
  * Interprocessor interrupts for SMP.
  */
 #define	IPI_INVLTLB		XINVLTLB_OFFSET
-#define	IPI_INVLPG		XINVLPG_OFFSET
-#define	IPI_INVLRNG		XINVLRNG_OFFSET
 #define	IPI_RENDEZVOUS		XRENDEZVOUS_OFFSET
 #define	IPI_AST			XCPUAST_OFFSET
 #define	IPI_STOP		XCPUSTOP_OFFSET
@@ -109,6 +107,7 @@ void	assign_apic_irq		__P((int apic, int intpin, int irq));
 void	revoke_apic_irq		__P((int irq));
 void	bsp_apic_configure	__P((void));
 void	init_secondary		__P((void));
+void	smp_invltlb		__P((void));
 void	forward_statclock	__P((void));
 void	forwarded_statclock	__P((struct trapframe frame));
 void	forward_hardclock	__P((void));

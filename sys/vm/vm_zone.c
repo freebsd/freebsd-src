@@ -386,7 +386,7 @@ _zget(vm_zone_t z)
 				break;
 
 			zkva = z->zkva + z->zpagecount * PAGE_SIZE;
-			pmap_qenter(zkva, &m, 1);
+			pmap_kenter(zkva, VM_PAGE_TO_PHYS(m));
 			bzero((caddr_t) zkva, PAGE_SIZE);
 			z->zpagecount++;
 			atomic_add_int(&zone_kmem_pages, 1);

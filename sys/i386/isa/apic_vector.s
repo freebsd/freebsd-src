@@ -181,108 +181,30 @@ Xspuriousint:
 	iret
 
 /*
- * Global address space TLB shootdown.
+ * Handle TLB shootdowns.
  */
 	.text
 	SUPERALIGN_TEXT
 	.globl	Xinvltlb
 Xinvltlb:
 	pushl	%eax
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
 
 #ifdef COUNT_XINVLTLB_HITS
 	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
+	movl	$KPSEL, %eax
 	mov	%ax, %fs
 	movl	PCPU(CPUID), %eax
 	popl	%fs
-	incl	xhits_gbl(,%eax,4)
+	ss
+	incl	_xhits(,%eax,4)
 #endif /* COUNT_XINVLTLB_HITS */
 
 	movl	%cr3, %eax		/* invalidate the TLB */
 	movl	%eax, %cr3
 
+	ss				/* stack segment, avoid %ds load */
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
-	lock
-	incl	smp_tlb_wait
-
-	popl	%ds
-	popl	%eax
-	iret
-
-/*
- * Single page TLB shootdown
- */
-	.text
-	SUPERALIGN_TEXT
-	.globl	Xinvlpg
-Xinvlpg:
-	pushl	%eax
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
-
-#ifdef COUNT_XINVLTLB_HITS
-	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
-	movl	PCPU(CPUID), %eax
-	popl	%fs
-	ss
-	incl	xhits_pg(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
-
-	movl	smp_tlb_addr1, %eax
-	invlpg	(%eax)			/* invalidate single page */
-
-	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popl	%ds
-	popl	%eax
-	iret
-
-/*
- * Page range TLB shootdown.
- */
-	.text
-	SUPERALIGN_TEXT
-	.globl	Xinvlrng
-Xinvlrng:
-	pushl	%eax
-	pushl	%edx
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
-
-#ifdef COUNT_XINVLTLB_HITS
-	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
-	movl	PCPU(CPUID), %eax
-	popl	%fs
-	incl	xhits_rng(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
-
-	movl	smp_tlb_addr1, %edx
-	movl	smp_tlb_addr2, %eax
-1:	invlpg	(%edx)			/* invalidate single page */
-	addl	$PAGE_SIZE, %edx
-	cmpl	%edx, %eax
-	jb	1b
-
-	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popl	%ds
-	popl	%edx
 	popl	%eax
 	iret
 
@@ -520,6 +442,12 @@ Xrendezvous:
 	
 	
 	.data
+
+#ifdef COUNT_XINVLTLB_HITS
+	.globl	_xhits
+_xhits:
+	.space	(NCPU * 4), 0
+#endif /* COUNT_XINVLTLB_HITS */
 
 	.globl	apic_pin_trigger
 apic_pin_trigger:
