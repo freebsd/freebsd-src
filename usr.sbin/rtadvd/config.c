@@ -37,9 +37,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <net/route.h>
 #include <net/if_dl.h>
 
@@ -56,9 +54,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#include <search.h>
-#endif
 #include <unistd.h>
 #include <ifaddrs.h>
 
