@@ -1014,7 +1014,8 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf,
   }
   else if (tcommand_flag) {
     if (tbuf_len > 0 && hpos == output_hpos && vpos == output_vpos
-	&& gcol == current_glyph_color && fcol == current_fill_color
+	&& (!gcol || gcol == current_glyph_color)
+	&& (!fcol || fcol == current_fill_color)
 	&& kk == tbuf_kern
 	&& tbuf_len < TBUF_SIZE) {
       check_charinfo(tf, ci);
@@ -1039,7 +1040,8 @@ void troff_output_file::put_char_width(charinfo *ci, tfont *tf,
     check_charinfo(tf, ci);
     // check_output_limits(output_hpos, output_vpos);
     if (vpos == output_vpos
-	&& gcol == current_glyph_color && fcol == current_fill_color
+	&& (!gcol || gcol == current_glyph_color)
+	&& (!fcol || fcol == current_fill_color)
 	&& n > 0 && n < 100 && !force_motion) {
       put(char(n/10 + '0'));
       put(char(n%10 + '0'));
@@ -1087,7 +1089,8 @@ void troff_output_file::put_char(charinfo *ci, tfont *tf,
   else {
     int n = hpos - output_hpos;
     if (vpos == output_vpos
-	&& gcol == current_glyph_color && fcol == current_fill_color
+	&& (!gcol || gcol == current_glyph_color)
+	&& (!fcol || fcol == current_fill_color)
 	&& n > 0 && n < 100) {
       put(char(n/10 + '0'));
       put(char(n%10 + '0'));
@@ -1162,7 +1165,7 @@ void troff_output_file::set_font(tfont *tf)
 
 void troff_output_file::fill_color(color *col)
 {
-  if ((current_fill_color == col) || !color_flag)
+  if (!col || current_fill_color == col || !color_flag)
     return;
   flush_tbuf();
   put("DF");
@@ -1210,7 +1213,7 @@ void troff_output_file::fill_color(color *col)
 
 void troff_output_file::glyph_color(color *col)
 {
-  if ((current_glyph_color == col) || !color_flag)
+  if (!col || current_glyph_color == col || !color_flag)
     return;
   flush_tbuf();
   put("m");
