@@ -28,12 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Linkage to services provided by the dynamic linker.  These are
- * implemented differently in ELF and a.out, because the dynamic
- * linkers have different interfaces.
+ * Linkage to services provided by the dynamic linker.
  */
-#ifdef __ELF__
-
 #include <dlfcn.h>
 #include <stddef.h>
 
@@ -107,76 +103,3 @@ dlsym(void * __restrict handle, const char * __restrict name)
 	_rtld_error(sorry);
 	return NULL;
 }
-
-#else /* a.out format */
-
-#include <sys/types.h>
-#include <nlist.h>		/* XXX - Required by link.h */
-#include <dlfcn.h>
-#include <link.h>
-#include <stddef.h>
-
-/*
- * For a.out, entry to the dynamic linker is via these trampolines.
- * They enter the dynamic linker through the ld_entry struct that was
- * passed back from the dynamic linker at startup time.
- */
-
-/* GCC is needed because we use its __builtin_return_address construct. */
-
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-
-/*
- * These variables are set by code in crt0.o.  For compatibility with
- * old executables, they must be common, not extern.
- */
-struct ld_entry	*__ldso_entry;		/* Entry points to dynamic linker */
-int		 __ldso_version;	/* Dynamic linker version number */
-
-int
-dladdr(const void *addr, Dl_info *dlip)
-{
-	if (__ldso_entry == NULL || __ldso_version < LDSO_VERSION_HAS_DLADDR)
-		return 0;
-	return (__ldso_entry->dladdr)(addr, dlip);
-}
-
-int
-dlclose(void *handle)
-{
-	if (__ldso_entry == NULL)
-		return -1;
-	return (__ldso_entry->dlclose)(handle);
-}
-
-const char *
-dlerror(void)
-{
-	if (__ldso_entry == NULL)
-		return "Service unavailable";
-	return (__ldso_entry->dlerror)();
-}
-
-void *
-dlopen(const char *name, int mode)
-{
-	if (__ldso_entry == NULL)
-		return NULL;
-	return (__ldso_entry->dlopen)(name, mode);
-}
-
-void *
-dlsym(void * __restrict handle, const char * __restrict name)
-{
-	if (__ldso_entry == NULL)
-		return NULL;
-	if (__ldso_version >= LDSO_VERSION_HAS_DLSYM3) {
-		void *retaddr = __builtin_return_address(0); /* __GNUC__ only */
-		return (__ldso_entry->dlsym3)(handle, name, retaddr);
-	} else
-		return (__ldso_entry->dlsym)(handle, name);
-}
-
-#endif /* __ELF__ */

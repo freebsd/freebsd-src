@@ -23,18 +23,14 @@ ldconfig_start()
 		ldconfig=${ldconfig_command}
 		checkyesno ldconfig_insecure && ldconfig="${ldconfig} -i"
 		if [ -x "${ldconfig_command}" ]; then
-			case `/usr/bin/objformat` in
-			elf)
-				_LDC=/usr/lib
-				for i in ${ldconfig_paths}; do
-					if [ -d "${i}" ]; then
-						_LDC="${_LDC} ${i}"
-					fi
-				done
-				echo 'ELF ldconfig path:' ${_LDC}
-				${ldconfig} -elf ${_LDC}
-				;;
-			esac
+			_LDC=/usr/lib
+			for i in ${ldconfig_paths}; do
+				if [ -d "${i}" ]; then
+					_LDC="${_LDC} ${i}"
+				fi
+			done
+			echo 'ELF ldconfig path:' ${_LDC}
+			${ldconfig} -elf ${_LDC}
 
 			# Legacy aout support for i386 only
 			case `sysctl -n hw.machine_arch` in

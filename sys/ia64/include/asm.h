@@ -164,36 +164,13 @@ label:	ASCIZ msg;				\
 /*
  * WEAK_ALIAS: create a weak alias (ELF only).
  */
-#ifdef __ELF__
 #define WEAK_ALIAS(alias,sym)					\
 	.weak alias;						\
 	alias = sym
-#endif
 
 /*
- * Kernel RCS ID tag and copyright macros
+ * ID tag macros
  */
-
-#ifdef _KERNEL
-
-#ifdef __ELF__
-#define	__KERNEL_SECTIONSTRING(_sec, _str)				\
-	.section _sec ; .asciz _str ; .text
-#else /* __ELF__ */
-#define	__KERNEL_SECTIONSTRING(_sec, _str)				\
-	.data ; .asciz _str ; .align 3 ; .text
-#endif /* __ELF__ */
-
-#define	__KERNEL_RCSID(_n, _s)		__KERNEL_SECTIONSTRING(.ident, _s)
-#define	__KERNEL_COPYRIGHT(_n, _s)	__KERNEL_SECTIONSTRING(.copyright, _s)
-
-#ifdef NO_KERNEL_RCSIDS
-#undef __KERNEL_RCSID
-#define	__KERNEL_RCSID(_n, _s)		/* nothing */
-#endif
-
-#endif /* _KERNEL */
-
 #if !defined(lint) && !defined(STRIP_FBSDID)
 #define __FBSDID(s)	.ident s
 #else

@@ -13,11 +13,6 @@ LIB=	gcc
 #SHLIB_MAJOR=	1
 #SHLIB_MINOR=	0
 
-.if ${OBJFORMAT} == aout
-# Install libgcc_pic.a, since ld.so uses it.
-INSTALL_PIC_ARCHIVE=  yes
-.endif
-
 #
 # XXX This is a hack, but it seems to work.
 # libgcc2.a is meant to be compiled by *this* version of gcc.
@@ -37,9 +32,7 @@ XCXX=	${CXX}
 CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DFINE_GRAINED_LIBRARIES
-.if ${OBJFORMAT} != aout
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
-.endif
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCDIR}/config -I${GCCDIR} -I.
 LDFLAGS=	-nostdlib

@@ -27,23 +27,12 @@ ${BOOT}: ${BSECT} ${LDR} ${LOADER}
 	rm ${.TARGET}.tmp
 
 ${LDR}: ${LDR}.o
-.if ${OBJFORMAT} == aout
-	${LD} -nostdlib -N -s -T ${ORG} -o ${LDR}.out ${LDR}.o
-	dd if=${LDR}.out of=${.TARGET} ibs=32 skip=1
-.else
 	${LD} -N -e start -Ttext ${ORG} -o ${LDR}.out ${LDR}.o
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
-.endif
 
 ${BSECT}: ${BSECT}.o
-.if ${OBJFORMAT} == aout
-	${LD} -nostdlib -N -s -T ${ORG} -o ${BSECT}.out ${BSECT}.o
-	dd if=${BSECT}.out of=${.TARGET} ibs=32 skip=1
-.else
 	${LD} -N -e start -Ttext ${ORG} -o ${BSECT}.out ${BSECT}.o
 	objcopy -S -O binary ${BSECT}.out ${.TARGET}
-.endif
-
 
 ${BSECT}.o: ${BSECT}.s ${LOADER}
 

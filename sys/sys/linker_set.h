@@ -34,10 +34,8 @@
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `linker_set' as defined below.
  * For ELF, this is done by constructing a separate segment for each set.
- * For a.out, it is done automatically by the linker.
  */
 
-#if defined(__ELF__)
 /*
  * Private macros, not to be used outside this header file.
  */
@@ -72,52 +70,6 @@
 	(&__CONCAT(__start_set_,set))
 #define SET_LIMIT(set)							\
 	(&__CONCAT(__stop_set_,set))
-
-#else	/* __ELF__ */
-
-/*
- * The old way.  This depends on GNU ld extensions that are not widely
- * available outside of the a.out format.
- *
- * NB: the constants defined below must match those defined in
- * ld/ld.h.  Since their calculation requires arithmetic, we
- * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
- *
- * In the __MAKE_SET macro below, the line:
- *   static void const * const __set_##set##_sym_##sym = &sym;
- * is present only to prevent the compiler from producing bogus
- * warnings about unused symbols.
- */
-/* Private macros */
-#ifdef __UNDERSCORES__
-#define __MAKE_SET(set, sym, type) \
-	static void const * const __set_##set##_sym_##sym = &sym;	\
-	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
-#else
-#define __MAKE_SET(set, sym, type) \
-	static void const * const __set_##set##_sym_##sym = &sym;	\
-	__asm(".stabs \"" #set "\", " #type ", 0, 0, " #sym)
-#endif
-
-/* Public Macros */
-#define TEXT_SET(set, sym)	__MAKE_SET(set, sym, 23)
-#define DATA_SET(set, sym)	__MAKE_SET(set, sym, 25)
-#define BSS_SET(set, sym)	__MAKE_SET(set, sym, 27)
-#define ABS_SET(set, sym)	__MAKE_SET(set, sym, 21)
-#define SET_ENTRY(set, sym)	error error must provide text/data type
-
-#define SET_DECLARE(set, ptype)						\
-	extern struct  {						\
-		int		ls_length;				\
-		ptype		*ls_items[1];				\
-	} set
-
-#define SET_BEGIN(set)							\
-	(&((set).ls_items[0]))
-#define SET_LIMIT(set)							\
-	(&((set).ls_items[(set).ls_length]))
-
-#endif	/* __ELF__ */
 
 /*
  * Iterate over all the elements of a set.

@@ -24,13 +24,8 @@ BOOT_BOOT0_TICKS?=	0xb6
 BOOT_BOOT0_ORG?=	0x600
 
 boot0: boot0.o
-.if ${OBJFORMAT} == aout
-	${LD} -N -s -T ${BOOT_BOOT0_ORG} -o boot0.out boot0.o
-	dd if=boot0.out of=${.TARGET} ibs=32 skip=1
-.else
 	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o boot0.out boot0.o
 	objcopy -S -O binary boot0.out ${.TARGET}
-.endif
 
 boot0.o: boot0.s
 	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \

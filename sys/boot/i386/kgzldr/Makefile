@@ -4,11 +4,7 @@ FILES=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 OBJS=	${SRCS:N*.h:R:S/$/.o/g}
 CFLAGS=	-ffreestanding
-.if ${OBJFORMAT} == aout
-CFLAGS+=-O2
-.else
 CFLAGS+=-Os
-.endif
 CFLAGS+=-DKZIP
 LDFLAGS=-nostdlib -static -r
 BINDIR=	/usr/lib
@@ -16,17 +12,10 @@ BINDIR=	/usr/lib
 
 CLEANFILES=${FILES}
 
-M4?=	m4
-M4FLAGS=-DOBJFORMAT=${OBJFORMAT}
-
 BOOT_COMCONSOLE_PORT?=	0x3f8
 M4FLAGS+=-DSIOPRT=${BOOT_COMCONSOLE_PORT}
 
 kgzldr.o: ${OBJS}
 	${CC} ${LDFLAGS} -o ${.TARGET} ${OBJS}
-
-.s.o:
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} kgzldr.m4 ${.IMPSRC}) |\
-		${AS} ${AFLAGS} -o ${.TARGET}
 
 .include <bsd.prog.mk>

@@ -44,7 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <link.h>
+#include <sys/link_aout.h>
 #include <objformat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,17 +102,18 @@ char	*argv[];
 {
 	int		i, c;
 	int		rval = 0;
-	char		objformat[32];
 	int		is_aout;
 
-	if (getobjformat(objformat, sizeof objformat, &argc, argv) == -1)
-		errx(1, "getobjformat failed: name too long");
-	if (strcmp(objformat, "aout") == 0)
+	is_aout = 0;
+	if (argc > 1 && strcmp(argv[1], "-aout") == 0) {
 		is_aout = 1;
-	else if (strcmp(objformat, "elf") == 0)
-		is_aout = 0;
-	else
-		errx(1, "unknown object format \"%s\"", objformat);
+		argc--;
+		argv++;
+	} else if (argc > 1 && strcmp(argv[1], "-elf") == 0) {
+		/* skip over legacy -elf arg */
+		argc--;
+		argv++;
+	}
 
 	hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
 	if (argc == 1)
