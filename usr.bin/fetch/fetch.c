@@ -1,3 +1,4 @@
+
 /*-
  * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
@@ -597,7 +598,7 @@ main(int argc, char *argv[])
 			break;
 		case 'B':
 			if (parseoff(optarg, &B_size) == -1)
-				errx(1, "invalid buffer size");
+				errx(1, "invalid buffer size (%s)", optarg);
 			break;
 		case 'b':
 			warnx("warning: the -b option is deprecated");
@@ -657,14 +658,14 @@ main(int argc, char *argv[])
 			break;
 		case 'S':
 			if (parseoff(optarg, &S_size) == -1)
-				errx(1, "invalid size");
+				errx(1, "invalid size (%s)", optarg);
 			break;
 		case 's':
 			s_flag = 1;
 			break;
 		case 'T':
 			if (parseint(optarg, &T_secs) == -1)
-				errx(1, "invalid timeout");
+				errx(1, "invalid timeout (%s)", optarg);
 			break;
 		case 't':
 			t_flag = 1;
@@ -679,7 +680,7 @@ main(int argc, char *argv[])
 		case 'w':
 			a_flag = 1;
 			if (parseint(optarg, &w_secs) == -1)
-				errx(1, "invalid delay");
+				errx(1, "invalid delay (%s)", optarg);
 			break;
 		default:
 			usage();
@@ -717,13 +718,15 @@ main(int argc, char *argv[])
 	/* timeouts */
 	if ((s = getenv("FTP_TIMEOUT")) != NULL) {
 		if (parseint(s, &ftp_timeout) == -1) {
-			warnx("FTP_TIMEOUT is not a positive integer");
+			warnx("FTP_TIMEOUT (%s) is not a positive integer",
+			    optarg);
 			ftp_timeout = 0;
 		}
 	}
 	if ((s = getenv("HTTP_TIMEOUT")) != NULL) {
 		if (parseint(s, &http_timeout) == -1) {
-			warnx("HTTP_TIMEOUT is not a positive integer");
+			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
+			    optarg);
 			http_timeout = 0;
 		}
 	}
