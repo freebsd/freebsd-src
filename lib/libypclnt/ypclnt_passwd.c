@@ -154,7 +154,9 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	}
 
 	/* connect to rpc.yppasswdd */
-	nc = getnetconfigent("unix");
+	nc = getnetconfigent("local");
+	if (nc == NULL)
+		nc = getnetconfigent("unix");
 	clnt = clnt_tp_create(ypclnt->server, YPPASSWDPROG, YPPASSWDVERS, nc);
 	if (clnt == NULL) {
 		ypclnt_error(ypclnt, __func__,
