@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.58 1996/11/30 22:41:47 dyson Exp $
+ * $Id: vm_map.c,v 1.60 1996/12/07 06:19:37 dyson Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static vm_map_entry_t vm_map_entry_create __P((vm_map_t));
 static void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
-static __inline void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
+static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
 static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
@@ -1707,7 +1707,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-static __inline void 
+static void 
 vm_map_entry_unwire(map, entry)
 	vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1721,7 +1721,7 @@ vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */
-static __inline void
+static void
 vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
