@@ -26,14 +26,14 @@
  *
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA MicroLink ISDN/PCI
  *	==================================================================
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:09:28 2001]
  *
  *	Note: ELSA Quickstep 1000pro PCI = ELSA MicroLink ISDN/PCI
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
