@@ -48,7 +48,7 @@ extern bool_t xdr_ypresp_all_seq __P(( XDR *, unsigned long * ));
 int (*ypresp_allfn)();
 void *ypresp_data;
 extern DB *specdbp;
-extern int yp_errno;
+extern enum ypstat yp_errno;
 
 /*
  * This is largely the same as yp_all() except we do the transfer
