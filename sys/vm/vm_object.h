@@ -123,6 +123,7 @@ struct vm_object {
 			TAILQ_HEAD(, vm_page) devp_pglist;
 		} devp;
 
+#if 0
 		/*
 		 * Physmem pager
 		 *
@@ -131,6 +132,7 @@ struct vm_object {
 		struct {
 			TAILQ_HEAD(, vm_page) physp_pglist;
 		} physp;
+#endif
 
 		/*
 		 * Swap pager

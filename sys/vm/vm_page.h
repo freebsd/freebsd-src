@@ -225,6 +225,13 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
  * These are the flags defined for vm_page.
  *
  * Note: PG_FILLED and PG_DIRTY are added for the filesystems.
+ *
+ * Note: PG_UNMANAGED (used by OBJT_PHYS) indicates that the page is
+ * 	 not under PV management but otherwise should be treated as a
+ *	 normal page.  Pages not under PV management cannot be paged out
+ *	 via the object/vm_page_t because there is no knowledge of their
+ *	 pte mappings, nor can they be removed from their objects via 
+ *	 the object, and such pages are also not on any PQ queue.
  */
 #define	PG_BUSY		0x0001		/* page is in transit (O) */
 #define	PG_WANTED	0x0002		/* someone is waiting for page (O) */
@@ -236,6 +243,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 #define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
 #define PG_SWAPINPROG	0x0200		/* swap I/O in progress on page	     */
 #define PG_NOSYNC	0x0400		/* do not collect for syncer */
+#define PG_UNMANAGED	0x0800		/* No PV management for page */
 
 /*
  * Misc constants.
@@ -399,6 +407,7 @@ void vm_page_remove __P((vm_page_t));
 void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 vm_page_t vm_add_new_page __P((vm_offset_t pa));
+void vm_page_unmanage __P((vm_page_t));
 void vm_page_unwire __P((vm_page_t, int));
 void vm_page_wire __P((vm_page_t));
 void vm_page_unqueue __P((vm_page_t));

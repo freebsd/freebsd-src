@@ -2095,7 +2095,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	if (pmap_initialized && (m->flags & PG_FICTITIOUS) == 0) {
+	if (pmap_initialized && 
+	    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, mpte, m);
 		pa |= PG_MANAGED;
 	}
@@ -2223,7 +2224,8 @@ retry:
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	pmap_insert_entry(pmap, va, mpte, m);
+	if ((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0)
+		pmap_insert_entry(pmap, va, mpte, m);
 
 	/*
 	 * Increment counters
@@ -2235,7 +2237,10 @@ retry:
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = pa | PG_V | PG_U | PG_MANAGED;
+	if (m->flags & (PG_FICTITIOUS|PG_UNMANAGED))
+		*pte = pa | PG_V | PG_U;
+	else
+		*pte = pa | PG_V | PG_U | PG_MANAGED;
 
 	return mpte;
 }
