@@ -1121,17 +1121,18 @@ acd_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    lba = bp->bio_offset / cdp->block_size;
     track = (bp->bio_dev->si_udev & 0x00ff0000) >> 16;
 
     if (track) {
 	blocksize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
 	lastlba = ntohl(cdp->toc.tab[track].addr.lba);
+	lba = bp->bio_offset / blocksize;
 	lba += ntohl(cdp->toc.tab[track - 1].addr.lba);
     }
     else {
 	blocksize = cdp->block_size;
 	lastlba = cdp->disk_size;
+	lba = bp->bio_offset / blocksize;
     }
 
     if (bp->bio_bcount % blocksize != 0) {
@@ -1205,6 +1206,7 @@ acd_read_toc(struct acd_softc *cdp)
 {
     struct acd_devlist *entry;
     int track, ntracks, len;
+    u_int32_t sizes[2];
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
@@ -1243,7 +1245,18 @@ acd_read_toc(struct acd_softc *cdp)
     cdp->toc.hdr.len = ntohs(cdp->toc.hdr.len);
 
     cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
+#if 0
     cdp->disk_size = ntohl(cdp->toc.tab[cdp->toc.hdr.ending_track].addr.lba);
+#else
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_READ_CAPACITY;
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)sizes, sizeof(sizes),
+			ATPR_F_READ, 30, NULL, NULL)) {
+	bzero(&cdp->toc, sizeof(cdp->toc));
+	return;
+    }
+    cdp->disk_size = ntohl(sizes[0]) + 1;
+#endif
 
     bzero(&cdp->disklabel, sizeof(struct disklabel));
     strncpy(cdp->disklabel.d_typename, "               ", 
