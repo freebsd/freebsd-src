@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.79 1995/12/14 08:32:09 phk Exp $
+ * $Id: vfs_bio.c,v 1.80 1996/01/04 06:09:00 davidg Exp $
  */
 
 /*
@@ -31,6 +31,8 @@
  * Significant help during the development and debugging phases
  * had been provided by David Greenman, also of the FreeBSD core team.
  */
+
+#include "opt_bounce.h"
 
 #define VMIO
 #include <sys/param.h>

@@ -14,8 +14,10 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.54 1995/12/20 12:02:43 dufault Exp $
+ *      $Id: cd.c,v 1.55 1995/12/30 13:56:28 joerg Exp $
  */
+
+#include "opt_bounce.h"
 
 #define SPLCD splbio
 #define ESUCCESS 0

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.54 1995/12/10 19:52:59 bde Exp $
+ * $Id: st.c,v 1.55 1995/12/14 09:54:33 phk Exp $
  */
 
 /*
@@ -26,6 +26,8 @@
  * to be depending on whether we expect to retension or not.
  *
  */
+
+#include "opt_bounce.h"
 
 #include <sys/types.h>
 
