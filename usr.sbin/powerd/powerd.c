@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __i386__
 #include <machine/apm_bios.h>
+#endif
 
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
@@ -184,7 +186,9 @@ usage(void)
 int
 main(int argc, char * argv[])
 {
+#ifdef __i386__
 	struct apm_info info;
+#endif
 	long idle, total;
 	int apm_fd, curfreq, *freqs, i, numfreqs;
 	int ch, mode_ac, mode_battery, mode_none, acline, mode, vflag;
@@ -259,10 +263,13 @@ main(int argc, char * argv[])
 		err(1, "error reading supported CPU frequencies");
 
 	/* Decide whether to use ACPI or APM to read the AC line status. */
+	apm_fd = -1;
 	len = sizeof(acline);
 	if (sysctlbyname(ACPIAC, &acline, &len, NULL, 0)) {
+#ifdef __i386__
 		/* ACPI disabled, try APM */
 		apm_fd = open(APMDEV, O_RDONLY);
+#endif
 		if (apm_fd == -1) {
 			warnx("cannot read AC line status, "
 			    "using default settings");
@@ -271,7 +278,6 @@ main(int argc, char * argv[])
 		len = 3;
 		if (sysctlnametomib(ACPIAC, acline_mib, &len))
 			err(1, "lookup acline");
-		apm_fd = -1;
 	}
 
 	/* Run in the background unless in verbose mode. */
@@ -285,10 +291,12 @@ main(int argc, char * argv[])
 
 		/* Read the current AC status and record the mode. */
 		if (apm_fd != -1) {
+#ifdef __i386__
 			if (ioctl(apm_fd, APMIO_GETINFO, &info) == -1)
 				acline = SRC_UNKNOWN;
 			else
 				acline = info.ai_acline ? SRC_AC : SRC_BATTERY;
+#endif
 		} else {
 			len = sizeof(acline);
 			if (sysctl(acline_mib, 3, &acline, &len, NULL, 0))
@@ -383,8 +391,10 @@ main(int argc, char * argv[])
 	}
 	/* NOTREACHED */
 
+#ifdef __i386__
 	if (apm_fd != -1)
 		close(apm_fd);
+#endif
 
 	exit(0);
 }
