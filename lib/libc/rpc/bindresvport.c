@@ -55,7 +55,6 @@ bindresvport(sd, sin)
 	int sd;
 	struct sockaddr_in *sin;
 {
-	int on, old, error;
 	struct sockaddr_in myaddr;
 	int sinlen = sizeof(struct sockaddr_in);
 
@@ -69,39 +68,82 @@ bindresvport(sd, sin)
 		return (-1);
 	}
 
-	if (sin->sin_port == 0) {
+	return (bindresvport2(sd, sin, sinlen));
+}
+
+int
+bindresvport2(sd, sa, addrlen)
+	int sd;
+	struct sockaddr *sa;
+	socklen_t addrlen;
+{
+	int on, old, error, level, optname;
+	u_short port;
+
+	if (sa == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	switch (sa->sa_family) {
+	case AF_INET:
+		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
+		level = IPPROTO_IP;
+		optname = IP_PORTRANGE;
+		on = IP_PORTRANGE_LOW;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+		level = IPPROTO_IPV6;
+		optname = IPV6_PORTRANGE;
+		on = IPV6_PORTRANGE_LOW;
+		break;
+#endif
+	default:
+		errno = EAFNOSUPPORT;
+		return (-1);
+	}
+
+	if (port == 0) {
 		int oldlen = sizeof(old);
-		error = getsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
-				   &old, &oldlen);
+		error = getsockopt(sd, level, optname, &old, &oldlen);
 		if (error < 0)
 			return(error);
 
-		on = IP_PORTRANGE_LOW;
-		error = setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
-		           	   &on, sizeof(on));
+		error = setsockopt(sd, level, optname, &on, sizeof(on));
 		if (error < 0)
 			return(error);
 	}
 
-	error = bind(sd, (struct sockaddr *)sin, sinlen);
+	error = bind(sd, sa, addrlen);
 
-	if (sin->sin_port == 0) {
+	switch (sa->sa_family) {
+	case AF_INET:
+		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
+		break;
+#ifdef INET6
+	case AF_INET6:
+		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+		break;
+#endif
+	default: /* shoud not match here */
+		errno = EAFNOSUPPORT;
+		return (-1);
+	}
+	if (port == 0) {
 		int saved_errno = errno;
 
 		if (error) {
-			if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
+			if (setsockopt(sd, level, optname,
 			    &old, sizeof(old)) < 0)
 				errno = saved_errno;
 			return (error);
 		}
 
-		if (sin != &myaddr) {
-			/* Hmm, what did the kernel assign... */
-			if (getsockname(sd, (struct sockaddr *)sin,
-			    &sinlen) < 0)
-				errno = saved_errno;
-			return (error);
-		}
+		/* Hmm, what did the kernel assign... */
+		if (getsockname(sd, (struct sockaddr *)sa, &addrlen) < 0)
+			errno = saved_errno;
+		return (error);
 	}
 	return (error);
 }

@@ -44,7 +44,8 @@ crypt.h: ${RPCDIR}/crypt.x
 #
 
 # MAN1+=	rstat.1
-MAN3+=	bindresvport.3 des_crypt.3 getrpcent.3 getrpcport.3 publickey.3 rpc.3 \
+MAN3+=	bindresvport.3 bindresvport2.3 des_crypt.3 getrpcent.3 getrpcport.3 \
+	publickey.3 rpc.3 \
 	rpc_secure.3 rtime.3
 MAN5+=	publickey.5 rpc.5
 # MAN8+=	rstat_svc.8
