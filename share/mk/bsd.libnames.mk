@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.7 1997/02/22 13:56:11 peter Exp $
+#	$Id: bsd.libnames.mk,v 1.8 1997/05/23 04:48:23 brian Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -60,3 +60,4 @@ LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
 LIBXPG4?=	${DESTDIR}/usr/lib/libxpg4.a
 LIBY?=		${DESTDIR}/usr/lib/liby.a
+LIBZ?=		${DESTDIR}/usr/lib/libz.a
