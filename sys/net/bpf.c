@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.29 1997/02/22 09:40:52 peter Exp $
+ * $Id: bpf.c,v 1.30 1997/03/23 03:37:14 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -58,7 +58,9 @@
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
+#include <sys/sockio.h>
+#include <sys/ttycom.h>
 
 #include <sys/fcntl.h>
 #if defined(sparc) && BSD < 199103
