@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.297
+     Original revision: 1.22.2.300
 -->
 
 <articleinfo>
@@ -145,6 +145,11 @@
       l'option <literal>CPU_ELAN</literal> dans le fichier de configuration du 
       noyau.</para>
 
+      <para arch="alpha">Les AlphaServer 8200/8400 TurboLaser ne sont
+      pas support&eacute;s, le noyau d'installation causant une
+      v&eacute;rification de la machine lors du d&eacute;marrage.</para>
+
+
     </sect3>
 
     <sect3>
@@ -247,6 +252,18 @@
       AlphaServer DS100 ne fonctionne pas avec &os;, du a des bogues
       non d&eacute;couverts.</para>   
 
+      <para arch="alpha">Lors de l'installation sur des syst&egrave;mes
+      Alpha dot&eacute;s de cartes QLogic Fibrechannel, il est
+      n&eacute;cessaire de d&eacute;sactiver la reconnaissance de cette carte
+      par le chargeur. Cela permet d'&eacute;viter de tr&egrave;s longs temps
+      d'attentes de la part de &man.isp.4; lors du d&eacute;marrage du
+      noyau. Par exemple, en supposant que vous disposez d'un
+      syst&egrave;me avec une carte QLogic Fiberchannel s'affichant sous
+      isp1, Vous devez taper &agrave; l'invite de d&eacute;marrage:
+      </para>
+
+<screen><prompt>ok:</prompt><userinput>set isp_disable=0x2</userinput></screen>
+
     </sect3>
 
     <sect3>
@@ -264,7 +281,7 @@
     </sect3>
 
     <sect3>
-      <title>support Multim&eacute;dia</title>
+      <title>Support Multim&eacute;dia</title>
 
         <para arch="i386">Le controleur audio VT8233 dispose maintenant de
 	son propre gestionnaire de p&eacute;riph&eacute;rique, pour faciliter 
@@ -457,7 +474,13 @@
 
     <para>&man.inetd.8; dispose de la capacit&eacute; &agrave; limiter le 
     nombre maximum d'executions simultan&eacute;es de chaque service depuis 
-    une adresse IP..</para>
+    une adresse IP.</para>
+    
+    <para>&man.lock.1; accepte maintenant une option
+    <option>-v</option>, permettant de d&eacute;sactiver le changement de
+    VTY lorsque le terminal courant est v&eacute;rouill&eacute;. Cela permet
+    de v&eacute;rouiller l'ensemble de la console depuis un seul
+    terminal.</para>
 
     <para>Le programme &man.ls.1; dispose maintenant d'une option
     <option>-m</option> permettant de lister par page, d'une option
@@ -480,7 +503,6 @@
     byte &agrave; passer, de l'option <option>-s</option> permettant 
     d'afficher des "shorts" sign&eacute;s, et de l'option <option>-t</option> 
     permettant de choisir le type de sortie.</para>
-
 
     <para>&man.pam.opie.8; ne propose plus des challenges faux lorsque
     la variable <varname>no_fake_prompts</varname> est positionn&eacute;e.
@@ -540,10 +562,13 @@
     <para>&man.tr.1; dispose maintenant du support basic pour
     les classes de locales.</para>
 
-
     <para>&man.unexpand.1; dispose de l'option <option>-t</option> permettant
     de sp&eacute;cifier le nombre de tabulations de la meme façon que 
     &man.expand.1;.</para>
+
+    <para>&man.vidcontrol.1; accepte maintenant l'option
+    <option>-S</option>, permettant &agrave; l'utilisateur de
+    d&eacute;sactiver le changement de VTY.</para>
 
     <para>&man.who.1; dispose de plusieurs nouvelles options: 
       <option>-H</option> affiche un titre de colonnes; <option>-T</option>
@@ -728,10 +753,10 @@
 
     <itemizedlist>
       <listitem>
-      <para>Utiliser l'option de mise &agrave; jour binaire de &man.sysinstall.8;.Cette
-            option est sans doute la plus rapide mais elle suppose
-            que votre installation de &os; n'utilise aucune
-            option sp&eacute;ciale de compilation.</para>
+      <para>Utiliser l'option de mise &agrave; jour binaire de
+      &man.sysinstall.8;.Cette option est sans doute la plus rapide
+      mais elle suppose que votre installation de &os; n'utilise
+      aucune option sp&eacute;ciale de compilation.</para>
           </listitem>
           <listitem>
             <para>Faire une r&eacute;installation compl&egrave;te de &os;.
@@ -740,8 +765,9 @@
             mise &agrave; jour binaire dans le sens ou elle n&eacute;cessite de
             sauvegarder et de restaurer manuellement le contenu du
             r&eacute;pertoire <filename>/etc</filename>. Cependant,
-            cela peut &ecirc;tre utile si vous d&eacute;sirez (ou si vous devez)
-            modifier le partitionnement de vos disques.</para>
+            cela peut &ecirc;tre utile si vous d&eacute;sirez (ou si
+            vous devez) modifier le partitionnement de vos
+            disques.</para>
           </listitem>
           <listitem>
             <para>A partir du code source du r&eacute;pertoire 
@@ -753,9 +779,10 @@
 	    <quote>Using <command>make world</command></quote></ulink> du 
 	    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">manuel FreeBSD</ulink>. Faire 
 	    une mise &agrave; jour depuis une tr&egrave;s ancienne version de 
-	    &os; peut &ecirc;tre probl&eacute;matique; dans de tels cas, il est 
-	    g&eacute;n&eacute;ralement plus efficace de r&eacute;aliser une mise &agrave; 
-	    jour binaire ou une r&eacute;installation compl&egrave;te.</para>
+	    &os; peut &ecirc;tre probl&eacute;matique; dans de tels
+            cas, il est g&eacute;n&eacute;ralement plus efficace de
+            r&eacute;aliser une mise &agrave; jour binaire ou une
+            r&eacute;installation compl&egrave;te.</para>
           </listitem>
     </itemizedlist>
 
@@ -772,16 +799,17 @@
         consulter la section 
        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
        <quote>-CURRENT vs. -STABLE</quote></ulink>  
-       <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel 
-       de r&eacute;f&eacute;rence de FreeBSD</ulink>.
+       <ulink
+       url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel de r&eacute;f&eacute;rence de FreeBSD</ulink>.
        </para>
 
         <important>
             <para><emphasis>Important:</emphasis> La mise &agrave; jour 
 	    de &os; devrait,
-            bien &eacute;videmment, &ecirc;tre r&eacute;alis&eacute;e uniquement apr&egrave;s 
-	    avoir effectu&eacute; une sauvegarde de <emphasis>toutes</emphasis> 
-	    les donn&eacute;es et des fichiers de configuration.</para>
+            bien &eacute;videmment, &ecirc;tre r&eacute;alis&eacute;e
+            uniquement apr&egrave;s avoir effectu&eacute; une
+            sauvegarde de <emphasis>toutes</emphasis> les
+            donn&eacute;es et des fichiers de configuration.</para>
         </important>
 
 </sect1>
