@@ -1,7 +1,8 @@
 # list of hosts and domains for whom we relay mail.
 # all .forward hosts, domains must be listed in this file.
 # same for hosts and domains in /etc/aliases
-FR-o /etc/sendmail.cR
+F{LocalIP}-o /etc/mail/Local-IP
+F{RelayTo}-o /etc/mail/Relay-Hosts
 
 # database declarations
 Kdenyip hash -o -a.REJECT /etc/mail/denyip.db
