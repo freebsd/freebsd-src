@@ -8,10 +8,8 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id: GENERICupgrade,v 1.3 1998/09/22 16:10:40 kato Exp $
+#	$Id: GENERICupgrade,v 1.4 1998/10/13 08:14:33 kato Exp $
 #
-
-# GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
 machine		"pc98"
 cpu		"I386_CPU"
@@ -144,6 +142,7 @@ device		mse0	at isa? port "IO_MSE" tty irq 13 vector mseintr
 # revision 1.20 of this file.
 device de0
 device fxp0
+device rl0
 device tl0
 device tx0
 device vx0
