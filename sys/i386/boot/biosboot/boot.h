@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.4 1994/08/21 17:47:26 paul Exp $
+ *	$Id: boot.h,v 1.5 1994/12/18 19:14:15 bde Exp $
  */
 
 #include <sys/types.h>
@@ -38,4 +38,4 @@ extern char *devs[], *name, *iodest;
 extern struct fs *fs;
 extern struct inode inode;
 extern int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
-extern	long int	ouraddr;
+extern unsigned long tw_chars;

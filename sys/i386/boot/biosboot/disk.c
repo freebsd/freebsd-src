@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.5 1994/05/16 03:06:00 ache Exp $
+ *	$Id: disk.c,v 1.6 1994/12/18 19:14:19 bde Exp $
  */
 
 /*
@@ -49,8 +49,6 @@
 #define BPS		512
 #define	SPT(di)		((di)&0xff)
 #define	HEADS(di)	((((di)>>8)&0xff)+1)
-
-char *devs[] = {"wd", "hd", "fd", "wt", "sd", 0};
 
 #ifdef DO_BAD144
 struct dkbad dkb;

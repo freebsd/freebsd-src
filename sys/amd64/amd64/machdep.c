@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.102 1995/01/17 01:15:12 bde Exp $
+ *	$Id: machdep.c,v 1.103 1995/01/24 09:56:29 davidg Exp $
  */
 
 #include "npx.h"
@@ -359,8 +359,8 @@ again:
 	if (bootverbose) {
 		printf("BIOS Geometries:");
 		for (i=0; i < N_BIOS_GEOM; i++)
-			printf(" %x:%x\n", i, bootinfo.bios_geom[i]);
-		printf(" %d accounted for\n",bootinfo.n_bios_used);
+			printf(" %x:%x\n", i, bootinfo.bi_bios_geom[i]);
+		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
 }
 
@@ -1233,6 +1233,20 @@ init386(first)
 	 */
 	biosbasemem = rtcin(RTC_BASELO)+ (rtcin(RTC_BASEHI)<<8);
 	biosextmem = rtcin(RTC_EXTLO)+ (rtcin(RTC_EXTHI)<<8);
+
+	/*
+	 * Print a warning if the official BIOS interface disagrees
+	 * with the hackish interface used above.  Eventually only
+	 * the official interface should be used.
+	 */
+	if (bootinfo.bi_memsizes_valid) {
+		if (bootinfo.bi_basemem != biosbasemem)
+			printf("BIOS basemem (%dK) != RTC basemem (%dK)\n",
+			       bootinfo.bi_basemem, biosbasemem);
+		if (bootinfo.bi_extmem != biosextmem)
+			printf("BIOS extmem (%dK) != RTC extmem (%dK)\n",
+			       bootinfo.bi_extmem, biosextmem);
+	}
 
 	/*
 	 * If BIOS tells us that it has more than 640k in the basemem,
