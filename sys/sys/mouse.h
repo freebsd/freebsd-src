@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.10 1998/06/14 20:05:22 ahasty Exp $
+ *	$Id: mouse.h,v 1.11 1998/11/20 11:22:06 yokota Exp $
  */
 
 #ifndef _MACHINE_MOUSE_H_
@@ -95,6 +95,7 @@ typedef struct mousehw {
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
 #define MOUSE_IF_SYSMOUSE	4
+#define MOUSE_IF_USB		5
 
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
@@ -200,6 +201,7 @@ typedef struct mousevar {
 #define MOUSE_MSC_BUTTON1UP	0x04	/* left */
 #define MOUSE_MSC_BUTTON2UP	0x02	/* middle */
 #define MOUSE_MSC_BUTTON3UP	0x01	/* right */
+#define MOUSE_MSC_MAXBUTTON	3
 
 /* MM series mouse data packet */
 #define MOUSE_MM_PACKETSIZE	3
