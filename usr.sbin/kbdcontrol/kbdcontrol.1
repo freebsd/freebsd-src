@@ -39,14 +39,16 @@ which set the bell to visual mode, ie flashes the screen instead.
 .TP
 .BI "\-r\ " [ delay.repeat | slow | fast | normal ]
 Set keyboard
-.I delay
+.I delay (250, 500, 750, 1000)
 and
-.I repeat
-rates, or use presets for
-.I slow,
-.I fast
+.I repeat (34, 38, 42, 46, 50, 55, 59, 63, 68, 76, 84, 92, 100, 110, 118, 126, 
+136, 152, 168, 184, 200, 220, 236, 252, 272, 304, 336, 368, 400, 440,
+472, 504)
+rates,  or use presets for
+.I slow (1000.504),
+.I fast (250.34)
 or
-.I normal.
+.I normal (500.126)
 .TP
 .BI "\-l\ " mapfile
 Install keyboard map file from

@@ -30,7 +30,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.3 1996/02/03 22:52:27 wosch Exp $
+# $Id: killall.pl,v 1.5 1996/05/30 22:04:09 smpatel Exp $
 #
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security
@@ -47,7 +47,7 @@ $PROC_RUID = 12;
 
 sub usage {
     $! = 2;
-    die "killall [-?|-help] [-d] [-l] [-m] [-s] [-SIGNAL] program\n";
+    die "killall [-?|-help] [-d] [-l] [-m] [-s] [-SIGNAL] procname ...\n";
 }
 
 $id = $<;			# real uid of this process / your id
@@ -63,48 +63,54 @@ while ($_ = $ARGV[0], /^-/) {
     elsif (/^-/)		    { &usage }
 }
 
-$program = $_; &usage unless $program;
-
-
+&usage if $#ARGV < 0;		# no arguments
 die "Maybe $procfs is not mounted\n" unless -e "$procfs/0/status";
-opendir(PROCFS, "$procfs") || die "$procfs $!\n";
-print "  PID  EUID  RUID COMMAND\n" if $debug > 1;
 
-# quote meta characters
-($programMatch = $program) =~ s/(\W)/\\$1/g;
+while ($program = $ARGV[0]) {
+    shift @ARGV;
+    $thiskill = 0;
 
-foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
-    $status = "$procfs/$_/status";
-    $pid = $_;
-    next if $pid == $$;		# don't kill yourself
+    opendir(PROCFS, "$procfs") || die "$procfs $!\n";
+    print "  PID  EUID  RUID COMMAND\n" if $debug > 1;
 
-    open(STATUS, "$status") || next; # process maybe already terminated
-    while(<STATUS>) {
-	@proc = split;
+    # quote meta characters
+    ($programMatch = $program) =~ s/(\W)/\\$1/g;
 
-	printf "%5d %5d %5d %s\n", $pid, $proc[$PROC_EUID],
-	$proc[$PROC_RUID], $proc[$PROC_NAME] if $debug > 1;
+    foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
+        $status = "$procfs/$_/status";
+        $pid = $_;
+        next if $pid == $$;		# don't kill yourself
 
-	if ( # match program name
-	    ($proc[$PROC_NAME] eq $program ||
-	     ($match && $proc[$PROC_NAME] =~ /$programMatch/oi)
-	     ) &&
-	    # id test
-	    ($proc[$PROC_EUID] eq $id || # effective uid
-	     $proc[$PROC_RUID] eq $id || # real uid
-	     !$id))			 # root
-	{
-	    push(@kill, $pid);
-	}
+        open(STATUS, "$status") || next; # process maybe already terminated
+        while(<STATUS>) {
+	    @proc = split;
+
+	    printf "%5d %5d %5d %s\n", $pid, $proc[$PROC_EUID],
+	    $proc[$PROC_RUID], $proc[$PROC_NAME] if $debug > 1;
+
+	    if ( # match program name
+	        ($proc[$PROC_NAME] eq $program ||
+	         ($match && $proc[$PROC_NAME] =~ /$programMatch/oi)
+	         ) &&
+	        # id test
+	        ($proc[$PROC_EUID] eq $id || # effective uid
+	         $proc[$PROC_RUID] eq $id || # real uid
+	         !$id))			 # root
+	    {
+	        push(@kill, $pid);
+	        $thiskill++;
+	    }
+        }
+        close STATUS;
     }
-    close STATUS;
-}
-closedir PROCFS;
+    closedir PROCFS;
 
-if ($#kill < 0) {		# nothing found
-    warn "No matching processes ``$program''.\n";
-    exit(1);
+    # nothing found
+    warn "No matching processes ``$program''\n" unless $thiskill;
 }
+
+# nothing found
+exit(1) if $#kill < 0;
 
 $signal =~ y/a-z/A-Z/;		# signal name in upper case
 $signal =~ s/^SIG//;		# strip a leading SIG if present
@@ -113,4 +119,3 @@ print "kill -$signal @kill\n" if $debug || $show;
 $cnt = kill ($signal, @kill) unless $show; # kill processes
 exit(0) if $show || $cnt == $#kill + 1;
 exit(1);
-
