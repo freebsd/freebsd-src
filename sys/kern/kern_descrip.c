@@ -2273,6 +2273,13 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	int error, n;
 
+	/*
+	 * Note: because the number of file descriptors is calculated
+	 * in different ways for sizing vs returning the data,
+	 * there is information leakage from the first loop.  However,
+	 * it is of a similar order of magnitude to the leakage from
+	 * global system statistics such as kern.openfiles.
+	 */
 	sysctl_wire_old_buffer(req, 0);
 	if (req->oldptr == NULL) {
 		n = 16;		/* A slight overestimate. */
@@ -2295,6 +2302,10 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		PROC_LOCK(p);
+		if (p_cansee(req->td, p) != 0) {
+			PROC_UNLOCK(p);
+			continue;
+		}
 		xf.xf_pid = p->p_pid;
 		xf.xf_uid = p->p_ucred->cr_uid;
 		PROC_UNLOCK(p);
