@@ -47,4 +47,4 @@ int	ufs_aclcheck __P((struct vop_aclcheck_args *));
 
 #endif /* !_KERNEL */
 
-#endif /* !_UFS_UFS_ACL_H */
+#endif /* !_UFS_UFS_ACL_H_ */
