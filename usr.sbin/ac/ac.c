@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ac.c,v 1.3 1995/05/30 03:45:34 rgrimes Exp $";
+static char rcsid[] = "$Id: ac.c,v 1.4 1995/10/26 23:10:10 ache Exp $";
 #endif
 
 #include <sys/types.h>

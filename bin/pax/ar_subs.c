@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_subs.c,v 1.3 1995/05/30 00:06:52 rgrimes Exp $
+ *	$Id: ar_subs.c,v 1.4 1995/10/23 21:22:58 ache Exp $
  */
 
 #ifndef lint

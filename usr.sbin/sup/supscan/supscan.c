@@ -41,6 +41,9 @@
  **********************************************************************
  * HISTORY
  * $Log: supscan.c,v $
+ * Revision 1.2  1995/12/26 05:11:06  peter
+ * Apply ports/net/sup/patches/patch-ab
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:48  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD

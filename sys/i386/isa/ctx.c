@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.20 1996/09/06 23:07:14 phk Exp $
+ *	$Id: ctx.c,v 1.20.2.1 1996/11/12 09:08:27 phk Exp $
  */
 
 /*

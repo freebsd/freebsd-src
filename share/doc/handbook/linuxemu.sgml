@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.17 1997/02/22 12:58:46 peter Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.13.2.1 1997/03/15 23:29:54 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>

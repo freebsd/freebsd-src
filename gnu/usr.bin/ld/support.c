@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *-
- * $Id: support.c,v 1.1 1996/10/01 01:22:42 peter Exp $
+ * $Id: support.c,v 1.1.2.1 1997/02/03 00:50:35 jdp Exp $
  */
 #include <sys/types.h>
 #include <string.h>

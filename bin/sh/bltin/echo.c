@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.2 (Berkeley) 5/4/95
- *	$Id: echo.c,v 1.3 1995/08/23 05:31:06 pst Exp $
+ *	$Id: echo.c,v 1.4 1996/09/01 10:22:16 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.2 1995/05/30 05:02:38 rgrimes Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.2.6.1 1997/03/17 22:32:29 jmg Exp $
  *
  * Log: util.h,v
  * Revision 2.0  86/09/17  15:40:06  lwall

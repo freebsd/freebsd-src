@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eisaconf.h,v 1.12.2.2 1997/03/13 22:24:25 joerg Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_

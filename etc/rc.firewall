@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.6.2.1 1997/04/26 22:39:34 jkh Exp $
+# $Id: rc.firewall,v 1.6.2.2 1997/05/05 07:09:05 jkh Exp $
 
 ############
 #

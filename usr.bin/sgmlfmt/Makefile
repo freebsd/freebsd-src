@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
+#	$Id: Makefile,v 1.2 1995/07/25 00:36:45 bde Exp $
 
 MAN1=	sgmlfmt.1
 

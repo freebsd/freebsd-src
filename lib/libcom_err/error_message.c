@@ -1,5 +1,5 @@
 /*
- * $Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+ * $Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.2 1996/07/12 18:55:46 jkh Exp $
  * $Source: /home/ncvs/src/lib/libcom_err/error_message.c,v $
  * $Locker:  $
  *
@@ -16,7 +16,7 @@
 #include "internal.h"
 
 static const char rcsid[] =
-    "$Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
+    "$Header: /home/ncvs/src/lib/libcom_err/error_message.c,v 1.2 1996/07/12 18:55:46 jkh Exp $";
 static const char copyright[] =
     "Copyright 1986, 1987, 1988 by the Student Information Processing Board\nand the department of Information Systems\nof the Massachusetts Institute of Technology";
 

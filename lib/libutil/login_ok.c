@@ -20,7 +20,7 @@
  *
  * Support allow/deny lists in login class capabilities
  *
- *	$Id: login_ok.c,v 1.3 1997/02/22 15:08:25 peter Exp $
+ *	$Id: login_ok.c,v 1.4 1997/05/10 18:55:38 davidn Exp $
  */
 
 #include <stdio.h>

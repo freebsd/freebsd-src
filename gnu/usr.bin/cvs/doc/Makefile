@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1996/08/21 00:57:26 peter Exp $
+# $Id: Makefile,v 1.5.2.1 1997/04/11 16:58:19 asami Exp $
 
 BINDIR?=	${INFODIR}
 

@@ -1,4 +1,4 @@
-#       $Id$
+#       $Id: Makefile,v 1.1 1997/03/04 18:21:07 wosch Exp $
 
 VOLUME= psd/28.cvs
 MACROS= -ms

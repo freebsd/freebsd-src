@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_signal.c,v 1.7 1996/12/08 02:24:10 swallace Exp $
+ * $Id: ibcs2_signal.c,v 1.6.4.1 1996/12/12 19:39:19 jkh Exp $
  */
 
 #include <sys/param.h>

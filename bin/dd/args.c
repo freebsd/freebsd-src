@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: args.c,v 1.3 1994/09/24 02:54:42 davidg Exp $
+ *	$Id: args.c,v 1.3.8.1 1996/11/21 16:30:28 phk Exp $
  */
 
 #ifndef lint

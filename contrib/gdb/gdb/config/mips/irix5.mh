@@ -1,0 +1,6 @@
+# Host: SGI Iris running irix 5.x
+XDEPFILES= ser-tcp.o
+XM_FILE= xm-irix5.h
+NAT_FILE= nm-irix5.h
+NATDEPFILES= fork-child.o procfs.o irix5-nat.o corelow.o
+XM_CLIBS=-lbsd -lsun

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/10/15 16:26:05 bde Exp $
+#	$Id: Makefile,v 1.3.2.1 1996/12/15 15:05:23 bde Exp $
 #
 
 PROG=	boot

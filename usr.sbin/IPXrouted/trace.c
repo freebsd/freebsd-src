@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trace.c,v 1.1 1995/10/26 21:28:29 julian Exp $
+ *	$Id: trace.c,v 1.2 1996/04/13 15:13:29 jhay Exp $
  */
 
 #ifndef lint

@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.4 1996/09/10 18:20:46 peter Exp $
+ **      $Id: moused.c,v 1.4.2.1 1997/01/20 08:12:07 sos Exp $
  **/
 
 /**

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.7 1996/02/18 07:44:16 gibbs Exp $
+ *	$Id: bt9xx.c,v 1.8 1996/10/15 19:22:37 bde Exp $
  */
 
 #include "pci.h"

@@ -56,7 +56,7 @@
 #ifdef STORAGE
 #ifndef lint
 static char *tr_h_RCSid =
-  "$Header: /usr/src/docbook-to-man/Instant/RCS/translate.h,v 1.3 1996/06/02 21:47:32 fld Exp $";
+  "$Header: /home/ncvs/src/usr.bin/sgmls/instant/translate.h,v 1.1.1.1 1996/09/08 01:55:10 jfieber Exp $";
 #endif
 #endif
 

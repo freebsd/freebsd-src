@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.4 1995/02/18 11:36:33 ache Exp $
+ * $Id: strxfrm.c,v 1.6 1996/08/13 17:03:18 ache Exp $
  */
 
 #include <stdlib.h>

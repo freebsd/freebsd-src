@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.5 1996/09/16 01:17:25 wosch Exp $
+ *      $Id: locate.c,v 1.6 1996/10/13 01:44:41 wosch Exp $
  */
 
 #ifndef lint

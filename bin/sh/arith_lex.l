@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.4 1996/06/02 17:06:40 phk Exp $
+ *	$Id: arith_lex.l,v 1.5 1996/09/01 10:19:41 peter Exp $
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/02/23 19:45:26 phk Exp $
+#	$Id: Makefile,v 1.3 1996/10/06 22:16:57 wosch Exp $
 
 KMOD=	fade_saver_mod
 SRCS= 	fade_saver.c

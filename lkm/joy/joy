@@ -1,4 +1,4 @@
 #!/bin/sh
-# $Id$
+# $Id: joy,v 1.1 1996/03/16 01:35:48 jmz Exp $
 
 modload -q -u -A `sysctl -n kern.bootfile` /lkm/joy_mod.o

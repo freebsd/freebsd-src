@@ -1,5 +1,5 @@
 #	from: @(#)Makefile.inc	5.3 (Berkeley) 2/20/91
-#	$Id: Makefile.inc,v 1.1 1994/08/07 23:04:53 wollman Exp $
+#	$Id: Makefile.inc,v 1.2 1995/12/14 05:16:43 wpaul Exp $
 
 # yp sources
 .PATH: ${.CURDIR}/yp

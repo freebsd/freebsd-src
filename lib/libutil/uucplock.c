@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.5 1997/04/02 04:24:39 ache Exp $
+ * $Id: uucplock.c,v 1.5.2.1 1997/05/12 10:37:19 brian Exp $
  *
  */
 

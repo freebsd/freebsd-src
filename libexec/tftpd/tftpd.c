@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tftpd.c,v 1.4.2.1 1996/12/03 10:34:56 phk Exp $
+ *	$Id: tftpd.c,v 1.4.2.2 1997/03/24 06:04:52 imp Exp $
  */
 
 #ifndef lint

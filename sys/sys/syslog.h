@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.8.2.1 1997/03/02 09:20:22 joerg Exp $
+ * $Id: syslog.h,v 1.8.2.2 1997/03/23 19:09:07 joerg Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_

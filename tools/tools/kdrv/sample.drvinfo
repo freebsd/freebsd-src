@@ -2,7 +2,7 @@
 # Sample driver information file for KernelDriver.  See the top of
 # the KernelDriver script for a more exact definition of the syntax.
 #
-# $Id: sample.drvinfo,v 1.1 1997/01/21 08:23:32 msmith Exp $
+# $Id: sample.drvinfo,v 1.1.1.1 1997/01/21 08:34:14 msmith Exp $
 
 # Device driver name
 #

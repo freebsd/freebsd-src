@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1997/01/04 22:38:26 jfieber Exp $
+#	$Id: Makefile,v 1.4.2.2 1997/02/07 02:29:22 jfieber Exp $
 
 SUBDIR= FreeBSD ISO docbook transpec
 FILES=	CATALOG

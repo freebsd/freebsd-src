@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_extern.h	8.1 (Berkeley) 6/11/93
- * $Id: mfs_extern.h,v 1.5 1995/12/17 21:09:58 phk Exp $
+ * $Id: mfs_extern.h,v 1.6 1996/05/01 02:16:10 bde Exp $
  */
 
 #ifndef _UFS_MFS_MFS_EXTERN_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.4 1995/10/23 23:08:26 ache Exp $
+ *	$Id: func.c,v 1.5 1996/08/11 23:10:38 ache Exp $
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tar.c,v 1.3 1995/05/30 00:07:03 rgrimes Exp $
+ *	$Id: tar.c,v 1.4 1995/10/23 21:23:25 ache Exp $
  */
 
 #ifndef lint

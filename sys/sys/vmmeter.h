@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.2 (Berkeley) 7/10/94
- * $Id: vmmeter.h,v 1.13 1996/02/25 08:50:38 hsu Exp $
+ * $Id: vmmeter.h,v 1.13 1996/03/11 02:22:40 hsu Exp $
  */
 
 #ifndef _SYS_VMMETER_H_

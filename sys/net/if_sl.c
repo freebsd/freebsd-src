@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.45 1996/10/11 18:40:48 wollman Exp $
+ * $Id: if_sl.c,v 1.45.2.1 1997/03/11 19:40:37 bde Exp $
  */
 
 /*

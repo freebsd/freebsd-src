@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: comsat.c,v 1.6 1996/09/22 21:53:07 wosch Exp $
  */
 
 #ifndef lint

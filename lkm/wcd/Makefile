@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/09/06 23:32:55 pst Exp $
+#	$Id: Makefile,v 1.5 1996/10/06 22:17:16 wosch Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod

@@ -1,6 +1,6 @@
 <!--
 
-  $Id: docbook-html.ts,v 1.9 1997/02/07 02:25:36 jfieber Exp $
+  $Id: docbook-html.ts,v 1.1.2.2 1997/02/07 02:29:33 jfieber Exp $
 
   Copyright (C) 1997
        John R. Fieber.  All rights reserved.

@@ -21,4 +21,4 @@ The following options are not implemented on Pentium CPUs:
 There is one mandatory argument, which must be the number of the counter.
 All numbers can be specified in any format acceptable to strtol(3).
 
-$Id$
+$Id: README,v 1.1.1.1 1996/03/28 21:20:22 wollman Exp $

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.5 1997/02/11 14:24:49 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.6 1997/02/13 12:26:42 kato Exp $
  */
 
 /*

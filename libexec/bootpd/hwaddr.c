@@ -2,7 +2,7 @@
  * hwaddr.c - routines that deal with hardware addresses.
  * (i.e. Ethernet)
  *
- *	$Id$
+ *	$Id: hwaddr.c,v 1.3 1996/09/22 21:52:16 wosch Exp $
  */
 
 #include <sys/types.h>

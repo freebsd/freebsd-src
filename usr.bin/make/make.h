@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
- *	$Id$
+ *	$Id: make.h,v 1.5 1996/10/08 04:06:02 steve Exp $
  */
 
 /*-

@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: xdryp.c,v 1.5 1996/02/04 05:05:43 wpaul Exp $";
+static char *rcsid = "$Id: xdryp.c,v 1.6 1996/06/03 13:16:53 jraynard Exp $";
 #endif
 
 #include <rpc/rpc.h>

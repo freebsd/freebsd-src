@@ -29,7 +29,7 @@
 /*
  * Create an MS-DOS (FAT) file system.
  *
- * $Id: mkdosfs.c,v 1.1.1.1 1995/11/05 16:02:04 joerg Exp $
+ * $Id: mkdosfs.c,v 1.2 1996/01/30 02:35:08 joerg Exp $
  */
 
 #include <sys/types.h>

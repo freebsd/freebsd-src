@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsrvcache.h,v 1.4 1994/10/17 17:47:44 phk Exp $
+ * $Id: nfsrvcache.h,v 1.5 1995/06/27 11:06:59 dfr Exp $
  */
 
 #ifndef _NFS_NFSRVCACHE_H_

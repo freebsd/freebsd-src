@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
-#	$Id: removeuser.perl,v 1.2 1996/08/11 13:03:25 wosch Exp $
+#	$Id: rmuser.perl,v 1.1 1996/11/17 03:51:33 wosch Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}

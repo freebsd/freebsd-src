@@ -1,4 +1,4 @@
-;	$Id: named.boot,v 1.3 1995/03/23 08:43:02 rgrimes Exp $
+;	$Id: named.boot,v 1.3.6.1 1997/05/08 15:25:32 joerg Exp $
 ;	From: @(#)named.boot	5.1 (Berkeley) 6/30/90
 
 ; Refer to the named(8) man page for details.  If you are ever going

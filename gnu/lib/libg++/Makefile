@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1996/10/04 15:11:42 peter Exp $
+# $Id: Makefile,v 1.16 1996/10/07 23:38:08 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++

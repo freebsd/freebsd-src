@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modunload.c,v 1.1 1994/08/19 12:07:21 davidg Exp $
+ *	$Id: modunload.c,v 1.1.8.1 1996/12/14 13:57:48 joerg Exp $
  */
 
 #include <stdio.h>

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.15 1996/11/21 07:18:58 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.14.2.1 1996/11/23 08:32:09 phk Exp $
  *
  *
  */

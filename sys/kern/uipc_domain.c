@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.13 1996/07/09 19:12:51 wollman Exp $
+ * $Id: uipc_domain.c,v 1.14 1996/07/11 16:31:55 wollman Exp $
  */
 
 #include <sys/param.h>

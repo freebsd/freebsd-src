@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	$Id: inet.h,v 1.3 1996/06/13 20:44:50 wollman Exp $
+ *	$Id: inet.h,v 1.4 1996/08/29 20:01:00 peter Exp $
  */
 
 #ifndef _ARPA_INET_H_

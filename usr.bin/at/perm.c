@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: perm.c,v 1.1 1995/05/24 15:07:32 ig25 Exp $";
+static char rcsid[] = "$Id: perm.c,v 1.3 1995/08/21 12:32:51 ache Exp $";
 
 /* Function declarations */
 

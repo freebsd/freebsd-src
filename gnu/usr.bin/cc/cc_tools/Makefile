@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/09/19 15:47:16 peter Exp $
 #
 
 #

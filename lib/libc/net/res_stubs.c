@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: res_stubs.c,v 1.1.2.1 1996/12/30 12:35:20 peter Exp $
  */
 
 /*

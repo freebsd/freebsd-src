@@ -17,7 +17,7 @@
  *              New eject algorithm.
  *              Some code style reformatting.
  *
- * $Id: cdcontrol.c,v 1.12 1996/02/09 01:16:23 ache Exp $
+ * $Id: cdcontrol.c,v 1.13 1996/06/25 21:01:27 ache Exp $
  */
 
 #include <ctype.h>

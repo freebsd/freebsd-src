@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.21.2.1 1996/11/07 14:47:07 joerg Exp $
+ *	$Id: vector.s,v 1.21.2.2 1996/11/09 21:08:53 phk Exp $
  */
 
 /*

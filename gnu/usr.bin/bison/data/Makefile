@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1996/09/10 13:23:44 peter Exp $
+# $Id: Makefile,v 1.2 1996/10/27 21:50:59 joerg Exp $
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sprite.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: sprite.h,v 1.5 1996/10/08 04:06:07 steve Exp $
  */
 
 /*

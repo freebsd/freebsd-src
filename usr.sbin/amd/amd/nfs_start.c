@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_start.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: nfs_start.c,v 1.2.6.1 1997/03/23 19:12:57 joerg Exp $
  *
  */
 

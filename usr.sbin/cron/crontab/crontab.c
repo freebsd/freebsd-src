@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 1.5 1996/08/05 00:31:27 pst Exp $";
+static char rcsid[] = "$Id: crontab.c,v 1.6 1996/08/05 00:50:02 pst Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files

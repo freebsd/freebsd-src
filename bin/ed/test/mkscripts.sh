@@ -1,7 +1,7 @@
 #!/bin/sh -
 # This script generates ed test scripts (.ed) from .t files
 #	
-#	$Id$
+#	$Id: mkscripts.sh,v 1.3 1996/09/22 21:51:30 wosch Exp $
 
 PATH="/bin:/usr/bin:/usr/local/bin/:."
 ED=$1

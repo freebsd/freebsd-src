@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
- *	$Id: trap.h,v 1.4 1995/01/14 13:20:26 bde Exp $
+ *	$Id: trap.h,v 1.5 1996/08/11 17:29:39 davidg Exp $
  */
 
 #ifndef _MACHINE_TRAP_H_

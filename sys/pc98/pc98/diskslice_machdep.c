@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.3.2.2 1996/12/04 16:00:52 phk Exp $
+ *	$Id: diskslice_machdep.c,v 1.3.2.3 1997/01/16 08:31:47 kato Exp $
  */
 
 /*

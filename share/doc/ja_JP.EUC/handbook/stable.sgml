@@ -1,4 +1,4 @@
-<!-- $Id: stable.sgml,v 1.6 1997/02/25 04:58:49 hanai Exp $ -->
+<!-- $Id: stable.sgml,v 1.1.1.1.2.1 1997/03/15 23:33:18 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.9 -->
 
@@ -11,7 +11,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1997/02/25 04:58:49 $
+Last updated: $Date: 1997/03/15 23:33:18 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,

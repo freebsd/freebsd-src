@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 4/20/94
-#	$Id: Makefile,v 1.4 1997/02/22 13:04:01 peter Exp $
+#	$Id: Makefile,v 1.2.6.1 1997/03/15 23:34:58 jkh Exp $
 
 VOLUME=	papers
 DOC=	nqnfs

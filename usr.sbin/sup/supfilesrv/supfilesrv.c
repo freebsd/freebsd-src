@@ -42,6 +42,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.6  1996/09/24 08:43:04  bde
+ * Really eliminated includes of the "temporary" backwards compatibility
+ * header <sys/dir.h> in applications.  My previous sweep didn't find the
+ * places that included it without needing it.
+ *
  * Revision 1.5  1996/09/06 15:40:08  peter
  * Rewrite part of the compression support so that it does not leave
  * files in /var/tmp.  Sup needs to send the file size, so that

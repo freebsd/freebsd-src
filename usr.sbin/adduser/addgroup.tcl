@@ -29,7 +29,7 @@
 #	signal handling
 # 	add only users who exist
 #
-# $Id: addgroup.tcl,v 1.5 1996/10/29 19:11:50 wosch Exp wosch $
+# $Id: addgroup.tcl,v 1.1 1996/10/29 20:31:43 wosch Exp $
 
 # set global variables
 set etc_group "/etc/group";        #set etc_group "/usr/tmp/group" 

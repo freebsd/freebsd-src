@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: idp_usrreq.c,v 1.4 1995/05/30 08:12:20 rgrimes Exp $
+ * $Id: idp_usrreq.c,v 1.6 1996/10/17 18:41:43 jkh Exp $
  */
 
 #include <sys/param.h>

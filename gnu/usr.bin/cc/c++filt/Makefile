@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/10/13 17:37:03 peter Exp $
 #
 
 PROG =	c++filt

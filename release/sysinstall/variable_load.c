@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.2.1 1997/03/28 02:25:15 jkh Exp $
+ * $Id: variable_load.c,v 1.1.2.2 1997/04/01 02:04:58 pst Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.

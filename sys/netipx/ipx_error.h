@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.h
  *
- * $Id: ipx_error.h,v 1.4 1995/11/04 09:02:47 julian Exp $
+ * $Id: ipx_error.h,v 1.5 1995/11/24 12:25:04 bde Exp $
  */
 
 #ifndef _NETIPX_IPX_ERROR_H_

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.20 1996/06/12 05:06:28 gpalmer Exp $
+ *  $Id: linux_misc.c,v 1.20.2.1 1997/04/28 02:55:10 msmith Exp $
  */
 
 #include <sys/param.h>

@@ -1,0 +1,114 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Barry Brachman.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)boggle.6	8.1 (Berkeley) 6/11/93
+.\"
+.TH BOGGLE 6 "June 11, 1993"
+.UC
+.SH NAME
+boggle \- word search game
+.SH SYNOPSIS
+boggle [-bd] [-s seed] [-t time] [-w length] [+[+]] [boardspec]
+.SH DESCRIPTION
+The object of
+.I boggle
+is to find as many words as possible on the Boggle board within the three
+minute time limit.
+A Boggle board is a four by four arrangement of Boggle cubes, each side of
+each cube displaying a letter of the alphabet or `qu'.
+Words are formed by finding a sequence of cubes (letters) that are in the
+game's dictionary.
+The (N+1)th cube in the word must be horizontally,
+vertically, or diagonally adjacent to the Nth cube.
+Cubes cannot be reused.
+Words consist solely of lower case letters and must be at least 3 letters long.
+.PP
+Command line flags can be given to change the rules of the game.
+The
+.B +
+flag allows a cube to be used multiple times, but not in succession.
+The
+.B ++
+flag allows the same cubes to be considered adjacent to itself.
+.B
+A seed other than the time of day is specified by
+.B -s#,
+where
+.B #
+is the seed.
+The time limit can be changed from the default 3 minutes by using the flag
+.B -t#,
+where
+.B #
+is the duration (in seconds) of each game.
+The minimum word length can be changed from 3 letters by specifying
+.B -w#,
+where
+.B #
+is the minimum number of letters to use.
+.PP
+A starting board position can be specified on the command line by
+listing the board left to right and top to bottom.
+.PP
+The
+.B -b
+flag puts
+.I boggle
+in batch mode.
+A
+.B boardspec
+must also be given.
+The dictionary is read from stdin and a list of words appearing in
+.B boardspec
+is printed to stdout.
+.PP
+Help is available during play by typing `?'.
+More detailed information on the game is given there.
+.SH BUGS
+If there are a great many words in the cube the final display of the words
+may scroll off of the screen.  (On a 25 line screen about 130 words can be
+displayed.)
+.sp 2
+No word can contain a 'q' that is not immediately followed by a 'u'.
+.sp 2
+When using the '+' or '++' options the display of words found in the board
+doesn't indicate reused cubes.
+.SH AUTHOR
+Boggle is a trademark of Parker Brothers.
+.br
+Barry Brachman
+.br
+Dept. of Computer Science
+.br
+University of British Columbia

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.7 1996/01/05 18:31:56 wollman Exp $
+ * $Id: ufs_quota.c,v 1.8 1996/07/09 16:51:17 wollman Exp $
  */
 
 #include "opt_quota.h"		/* not really necessary... */

@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ccp.h,v 1.4 1995/04/24 06:00:54 paulus Exp $
+ * $Id: ccp.h,v 1.2 1995/10/31 21:20:53 peter Exp $
  */
 
 typedef struct ccp_options {

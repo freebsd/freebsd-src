@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.12 1997/04/19 06:55:08 jkh Exp $
+ * $Id: main.c,v 1.28.2.13 1997/04/19 21:07:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.34 1996/07/12 17:22:32 fenner Exp $
+ * $Id: ip_mroute.c,v 1.34.2.1 1996/11/24 07:54:08 phk Exp $
  */
 
 #include "opt_mrouting.h"

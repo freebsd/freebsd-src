@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resource.h	8.4 (Berkeley) 1/9/95
- * $Id: resource.h,v 1.4 1996/03/11 02:10:14 hsu Exp $
+ * $Id: resource.h,v 1.4.4.1 1997/02/18 08:09:30 bde Exp $
  */
 
 #ifndef _SYS_RESOURCE_H_

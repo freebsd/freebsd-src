@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: gauge.c,v 1.1 1996/01/01 03:45:25 jkh Exp $
+ * $Id: gauge.c,v 1.2 1996/02/08 11:55:15 jkh Exp $
  */
 
 #include <stdio.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cmp.c,v 1.2 1994/09/24 02:55:52 davidg Exp $
+ *	$Id: cmp.c,v 1.2.8.1 1996/12/29 11:02:19 joerg Exp $
  */
 
 #ifndef lint

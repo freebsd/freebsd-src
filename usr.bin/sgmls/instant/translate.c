@@ -59,7 +59,7 @@
 
 #ifndef lint
 static char *RCSid =
-  "$Header: /usr/src/docbook-to-man/Instant/RCS/translate.c,v 1.11 1996/06/15 22:49:00 fld Exp $";
+  "$Header: /home/ncvs/src/usr.bin/sgmls/instant/translate.c,v 1.1.1.1 1996/09/08 01:55:10 jfieber Exp $";
 #endif
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.2 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6 1997/02/22 13:02:50 peter Exp $
+#	$Id: Makefile,v 1.4.6.1 1997/03/15 23:33:57 jkh Exp $
 
 VOLUME=	papers
 SRCS=	beyond43.ms

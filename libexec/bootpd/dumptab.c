@@ -1,7 +1,7 @@
 /*
  * dumptab.c - handles dumping the database
  *
- *	$Id$
+ *	$Id: dumptab.c,v 1.2 1996/09/22 21:52:07 wosch Exp $
  */
 
 #include <sys/types.h>

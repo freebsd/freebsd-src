@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.16 1996/07/14 10:46:52 joerg Exp $
+ *      $Id: sctarg.c,v 1.17 1996/09/08 10:44:18 phk Exp $
  */
 
 #include "opt_bounce.h"

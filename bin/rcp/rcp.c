@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rcp.c,v 1.8.2.1 1997/05/09 16:01:22 joerg Exp $
  */
 
 #ifndef lint

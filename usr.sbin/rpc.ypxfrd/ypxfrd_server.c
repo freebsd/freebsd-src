@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_server.c,v 1.2 1996/07/04 02:29:54 wpaul Exp $
+ *	$Id: ypxfrd_server.c,v 1.2.2.1 1997/04/10 13:53:31 wpaul Exp $
  */
 
 #include "ypxfrd.h"
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.2 1996/07/04 02:29:54 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.2.2.1 1997/04/10 13:53:31 wpaul Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

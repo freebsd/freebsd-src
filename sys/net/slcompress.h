@@ -35,7 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id: slcompress.h,v 1.8 1995/11/18 13:07:51 bde Exp $
+ * $Id: slcompress.h,v 1.9 1996/01/30 22:58:03 mpp Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strncmp.c,v 1.2 1996/08/28 20:32:21 bde Exp $
+ * $Id: strncmp.c,v 1.3 1996/08/31 16:52:33 bde Exp $
  */
 
 #include <sys/cdefs.h>

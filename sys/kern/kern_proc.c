@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.21 1996/07/09 16:51:10 wollman Exp $
+ * $Id: kern_proc.c,v 1.22 1996/09/14 10:53:46 bde Exp $
  */
 
 #include <sys/param.h>

@@ -1,0 +1,11 @@
+# Host: Little-endian MIPS machine such as DECstation.
+XDEPFILES= 
+XM_FILE= xm-mips.h
+NAT_FILE= nm-mips.h
+NATDEPFILES= infptrace.o inftarg.o corelow.o mips-nat.o fork-child.o
+
+# We can't use MMALLOC because the DECstation RPC library can't cope
+# with a malloc(0) that returns 0.  Besides, it's useless on a machine
+# without a real mmap().
+MMALLOC = 
+MMALLOC_DISABLE = -DNO_MMALLOC

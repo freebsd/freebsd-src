@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dbwrite.c,v 1.10 1996/06/03 03:11:25 wpaul Exp $
+ *	$Id: yp_dbwrite.c,v 1.4 1996/06/05 05:42:47 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.10 1996/06/03 03:11:25 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.4 1996/06/05 05:42:47 wpaul Exp $";
 #endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)

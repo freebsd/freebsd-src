@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.5 1995/12/10 02:34:29 bde Exp $
+ * $Id: vm_param.h,v 1.6 1996/06/26 05:39:27 dyson Exp $
  */
 
 /*

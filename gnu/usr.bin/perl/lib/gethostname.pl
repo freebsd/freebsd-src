@@ -4,7 +4,7 @@
 # Written 13-Feb-96 by Jörg Wunsch, interface business GmbH Dresden.
 # Placed in the public domain.
 #
-# $Id: gethostname.pl,v 1.1 1996/02/13 13:17:49 joerg Exp $
+# $Id: gethostname.pl,v 1.2 1996/03/18 21:42:31 joerg Exp $
 #
 
 package gethostname;

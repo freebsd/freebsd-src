@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id: scsiformat.sh,v 1.1.4.1 1996/11/04 10:11:50 phk Exp $
+# $Id: scsiformat.sh,v 1.1.4.2 1997/03/02 11:27:09 joerg Exp $
 #
 
 PATH="/sbin:/usr/sbin:/bin:/usr/bin"; export PATH

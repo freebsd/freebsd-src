@@ -1,6 +1,6 @@
 <!--
 
-  $Id: linuxdoc-html.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+  $Id: linuxdoc-html.ts,v 1.1.1.1.2.1 1996/12/22 15:32:24 joerg Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswd_comm.h,v 1.2 1996/01/27 20:42:38 wpaul Exp $
+ *	$Id: yppasswd_comm.h,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
  */
 
 #include "yppasswd_private.h"

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.8 1996/05/08 19:31:45 jhay Exp $
+ * $Id: ipx_ip.c,v 1.9 1996/06/12 05:10:27 gpalmer Exp $
  */
 
 /*

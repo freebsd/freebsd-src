@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1.2.1 1997/02/22 04:59:30 nate Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 

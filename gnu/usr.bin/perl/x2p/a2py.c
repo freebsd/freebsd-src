@@ -1,4 +1,4 @@
-/* $RCSfile: a2py.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:53 $
+/* $RCSfile: a2py.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:38 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: a2py.c,v $
+ * Revision 1.2  1995/05/30 05:03:38  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:53  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)setbuffer.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: setbuffer.c,v 1.2 1996/06/22 10:33:51 jraynard Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

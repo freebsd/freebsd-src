@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.13.2.9 1997/04/10 21:28:16 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.13.2.10 1997/04/11 15:45:35 brian Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-Last updated: <date>$Date: 1997/04/10 21:28:16 $</date>
+Last updated: <date>$Date: 1997/04/11 15:45:35 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are

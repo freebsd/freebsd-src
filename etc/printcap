@@ -1,5 +1,5 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $Id$
+# $Id: printcap,v 1.5 1996/10/13 16:52:33 joerg Exp $
 
 #
 # This enables a simple local "raw" printer, hooked up to the first

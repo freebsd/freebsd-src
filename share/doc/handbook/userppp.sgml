@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.13 1997/03/14 04:17:44 brian Exp $ -->
+<!-- $Id: userppp.sgml,v 1.10.2.1 1997/03/15 23:30:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">

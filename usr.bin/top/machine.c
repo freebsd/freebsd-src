@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.2 1997/04/19 20:28:50 peter Exp $
+ * $Id: machine.c,v 1.3 1997/04/21 13:53:47 ache Exp $
  */
 
 

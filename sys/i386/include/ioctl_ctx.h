@@ -7,7 +7,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- *	$Id: ioctl_ctx.h,v 1.2 1995/05/30 08:00:40 rgrimes Exp $
+ *	$Id: ioctl_ctx.h,v 1.3 1996/09/21 14:58:01 bde Exp $
  */
 
 /*

@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: dbm.t,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:02 $
+# $RCSfile: dbm.t,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:41 $
 
 if (!-r '/usr/include/dbm.h' && !-r '/usr/include/ndbm.h'
     && !-r '/usr/include/rpcsvc/dbm.h') {

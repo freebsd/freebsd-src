@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.11 1995/12/14 08:21:33 phk Exp $
+ *	$Id: frame.h,v 1.12 1996/01/30 22:54:27 mpp Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_

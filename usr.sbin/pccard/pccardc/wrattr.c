@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: wrattr.c,v 1.5 1996/04/18 05:23:47 nate Exp $
+ * $Id: wrattr.c,v 1.6 1996/06/17 22:14:18 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.2 1994/09/24 02:57:42 davidg Exp $
+ *	$Id: jobs.h,v 1.3 1996/09/01 10:20:27 peter Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */

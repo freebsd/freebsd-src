@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id$
+# $Id: sgmlfmt.pl,v 1.17.2.2 1997/02/07 02:47:27 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.

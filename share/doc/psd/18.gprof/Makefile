@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.4 1997/02/22 13:04:31 peter Exp $
+#	$Id: Makefile,v 1.2.2.1 1997/03/15 23:35:15 jkh Exp $
 
 VOLUME=	psd/18.gprof
 SRCS=	header.me abstract.me intro.me profiling.me gathering.me \

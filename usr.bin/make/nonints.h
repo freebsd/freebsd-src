@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
- *	$Id$
+ *	$Id: nonints.h,v 1.4 1996/10/08 04:06:04 steve Exp $
  */
 
 /* arch.c */

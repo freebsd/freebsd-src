@@ -64,7 +64,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: polynomial.s,v 1.3 1994/06/10 07:44:43 rich Exp $
+ *     $Id: polynomial.s,v 1.4 1996/09/10 08:24:05 bde Exp $
  *
  */
 

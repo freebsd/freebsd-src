@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: umoddi3.c,v 1.2 1994/08/02 07:44:46 davidg Exp $
+ * $Id: umoddi3.c,v 1.3 1996/09/10 08:22:52 bde Exp $
  */
 
 #include <libkern/quad.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: set.c,v 1.3 1995/05/30 00:06:38 rgrimes Exp $
+ *	$Id: set.c,v 1.4 1995/07/07 23:13:11 ache Exp $
  */
 
 #ifndef lint

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lstForEach.c,v 1.3 1996/10/08 04:07:33 steve Exp $
  */
 
 #ifndef lint

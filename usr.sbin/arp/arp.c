@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id: arp.c,v 1.4 1996/02/08 21:05:52 phk Exp $";
+static char const freebsdid[] = "$Id: arp.c,v 1.4.2.1 1997/05/07 05:24:36 asami Exp $";
 #endif /* not lint */
 
 /*

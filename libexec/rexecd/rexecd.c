@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.8.2.3 1997/02/09 04:40:52 imp Exp $
+ *	$Id: rexecd.c,v 1.8.2.4 1997/03/24 05:58:57 imp Exp $
  */
 
 #ifndef lint

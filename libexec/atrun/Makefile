@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1995/08/21 12:34:16 ache Exp $
+#	$Id: Makefile,v 1.4 1995/08/29 13:42:52 ache Exp $
 
 MAINSRC= ${.CURDIR}/../../usr.bin/at
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: $
+#	$Id: Makefile.inc,v 1.7 1996/05/07 23:16:16 wosch Exp $
 
 .PATH: ${.CURDIR}/${MACHINE}/string ${.CURDIR}/string
 

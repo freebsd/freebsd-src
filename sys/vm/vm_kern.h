@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.h,v 1.8.2.1 1997/01/17 19:28:39 davidg Exp $
+ * $Id: vm_kern.h,v 1.8.2.2 1997/04/03 06:37:49 davidg Exp $
  */
 
 #ifndef _VM_VM_KERN_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: mail.local.c,v 1.3.2.4 1997/03/06 07:54:15 mpp Exp $
  */
 
 #ifndef lint

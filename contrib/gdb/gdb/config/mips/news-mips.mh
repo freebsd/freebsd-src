@@ -1,0 +1,4 @@
+# Host: Big-endian MIPS machine such as Sony News
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o mips-nat.o
+XM_FILE= xm-news-mips.h
+NAT_FILE= nm-news-mips.h

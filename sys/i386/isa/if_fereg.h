@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id:$ */
+/* $Id: if_fereg.h,v 1.3 1996/03/17 08:36:38 jkh Exp $ */
 
 /*
  * Registers on FMV-180 series' ISA bus interface ASIC.

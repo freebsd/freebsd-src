@@ -28,6 +28,12 @@
  **********************************************************************
  * HISTORY
  * $Log: scan.c,v $
+ * Revision 1.4  1996/09/24 08:08:11  bde
+ * Eliminated includes of the "temporary" backwards compatibility header
+ * <sys/dir.h> in applications.  Maintained existing (inadequate) ifdefs
+ * for dir.h vs dirent.h in libdialog, amd and rarpd, but didn't add any
+ * new ones.
+ *
  * Revision 1.3  1995/12/26 05:10:59  peter
  * Apply ports/net/sup/patches/patch-ab
  *

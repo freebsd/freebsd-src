@@ -37,7 +37,7 @@
  *
  *	@(#)amq.c	8.1 (Berkeley) 6/7/93
  *
- * $Id$
+ * $Id: amq.c,v 1.2.6.1 1997/03/23 19:13:03 joerg Exp $
  *
  */
 
@@ -54,7 +54,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: amq.c,v 1.2.6.1 1997/03/23 19:13:03 joerg Exp $";
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif /* not lint */
 

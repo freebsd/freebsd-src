@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.17 1996/07/14 10:46:50 joerg Exp $
+ * $Id: scsi_driver.c,v 1.18 1996/09/06 23:09:13 phk Exp $
  *
  */
 

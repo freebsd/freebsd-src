@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1996/09/06 23:32:54 pst Exp $
+#	$Id: Makefile,v 1.6 1996/10/06 22:16:44 wosch Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.27.2.5 1997/01/20 16:15:26 jkh Exp $
+ * $Id: apache.c,v 1.27.2.6 1997/03/09 22:37:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.

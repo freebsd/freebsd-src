@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: README,v 1.4 1996/09/22 21:51:28 wosch Exp $
 
 The files in this directory with suffixes `.t', `.d', `.r' and `.err' are
 used for testing ed.  To run the tests, set the ED variable in the Makefile

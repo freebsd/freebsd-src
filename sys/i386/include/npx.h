@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.9 1995/09/19 18:54:53 bde Exp $
+ *	$Id: npx.h,v 1.10 1995/11/04 17:06:54 bde Exp $
  */
 
 /*

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: disklabel.c,v 1.3 1996/03/19 13:44:57 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

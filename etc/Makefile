@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.2 1996/12/14 11:35:56 joerg Exp $
+#	$Id: Makefile,v 1.143.2.3 1997/04/26 22:39:32 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root

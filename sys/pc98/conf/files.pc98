@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.9 1997/04/21 12:56:02 kato Exp $
+#	$Id: files.pc98,v 1.9.2.10 1997/04/23 13:21:58 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: kernbb.c,v 1.3 1995/10/22 19:45:28 phk Exp $
+ * $Id: kernbb.c,v 1.3.2.1 1997/01/14 10:35:10 bde Exp $
  *
  */
 

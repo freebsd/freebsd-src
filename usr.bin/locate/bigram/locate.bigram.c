@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.bigram.c,v 1.7 1996/09/14 20:15:49 wosch Exp $
+ * 	$Id: locate.bigram.c,v 1.8 1996/10/13 01:44:11 wosch Exp $
  */
 
 #ifndef lint

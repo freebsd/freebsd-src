@@ -1,4 +1,4 @@
-// $Header: /home/daffy/u0/vern/flex/RCS/FlexLexer.h,v 1.19 96/05/25 20:43:02 vern Exp $
+// $Header: /home/ncvs/src/usr.bin/lex/FlexLexer.h,v 1.1.1.2 1996/06/19 20:25:59 nate Exp $
 
 // FlexLexer.h -- define interfaces for lexical analyzer classes generated
 //		  by flex

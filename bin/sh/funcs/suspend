@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)suspend	8.2 (Berkeley) 5/4/95
-#	$Id: suspend,v 1.2 1994/09/24 02:58:44 davidg Exp $
+#	$Id: suspend,v 1.3 1996/09/01 10:22:36 peter Exp $
 
 suspend() {
 	local -

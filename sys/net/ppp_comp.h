@@ -25,7 +25,7 @@
  * OR MODIFICATIONS.
  *
  * From: Id: ppp-comp.h,v 1.7 1995/05/01 01:43:37 paulus Exp
- * $Id$
+ * $Id: ppp_comp.h,v 1.2 1995/10/31 20:24:12 peter Exp $
  */
 
 #ifndef _NET_PPP_COMP_H

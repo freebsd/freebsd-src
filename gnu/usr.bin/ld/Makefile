@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 1995/09/22 14:14:32 phk Exp $
+# $Id: Makefile,v 1.18 1996/10/01 01:22:12 peter Exp $
 #
 
 PROG=	ld

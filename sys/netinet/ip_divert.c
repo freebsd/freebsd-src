@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.1 1997/02/02 18:55:33 joerg Exp $
+ *	$Id: ip_divert.c,v 1.1.2.2 1997/03/03 09:24:38 davidg Exp $
  */
 
 #include <sys/param.h>

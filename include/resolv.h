@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 4.9.1.2 1993/05/17 09:59:01 vixie Exp
- *	$Id: resolv.h,v 1.6 1996/01/30 23:30:34 mpp Exp $
+ *	$Id: resolv.h,v 1.7 1996/08/29 20:00:58 peter Exp $
  */
 
 #ifndef _RESOLV_H_

@@ -1,0 +1,11 @@
+# Host: Little endian MIPS machine such as pmax
+# running Mach 3.0 operating system
+
+XDEPFILES= core-aout.o
+NATDEPFILES= mipsm3-nat.o m3-nat.o
+XM_FILE= xm-mipsm3.h
+NAT_FILE= ../nm-m3.h
+
+# Don't use the mmalloc library in Mach 3.
+MMALLOC = 
+MMALLOC_DISABLE = -DNO_MMALLOC

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.9 1995/11/20 12:20:02 phk Exp $
+ * $Id: kern_lock.c,v 1.10 1995/12/07 12:48:02 davidg Exp $
  */
 
 /*

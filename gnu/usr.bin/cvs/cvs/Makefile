@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1995/12/11 04:24:02 peter Exp $
+#	$Id: Makefile,v 1.14 1996/08/20 23:54:06 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char send_rcsid[] = "$Id: send.c,v 1.51 1995/06/21 19:15:49 ian Rel $";
+const char send_rcsid[] = "$Id: send.c,v 1.5 1995/08/19 21:29:52 ache Exp $";
 #endif
 
 #include <errno.h>

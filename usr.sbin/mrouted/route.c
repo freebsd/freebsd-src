@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.6 1996/01/06 21:10:21 peter Exp $
+ * $Id: route.c,v 1.6.2.1 1996/11/11 23:38:06 phk Exp $
  */
 
 

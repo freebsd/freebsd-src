@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.5 1996/08/31 14:47:42 bde Exp $
+ * $Id: istallion.c,v 1.6 1996/09/06 23:07:46 phk Exp $
  */
 
 /*****************************************************************************/

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
- * $Id: varargs.h,v 1.2 1994/08/02 07:39:17 davidg Exp $
+ * $Id: varargs.h,v 1.2.12.1 1997/02/28 07:21:04 bde Exp $
  */
 
 #ifndef _VARARGS_H_

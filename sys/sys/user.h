@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.7 1995/12/09 05:10:55 peter Exp $
+ * $Id: user.h,v 1.8 1996/09/10 08:21:29 bde Exp $
  */
 
 #ifndef _SYS_USER_H_

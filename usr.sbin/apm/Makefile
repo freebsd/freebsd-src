@@ -1,4 +1,4 @@
-#	$Id: $
+#	$Id: Makefile,v 1.5 1996/05/21 18:09:11 wosch Exp $
 
 PROG=		apm
 LINKS=		${BINDIR}/apm ${BINDIR}/zzz

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: aic7xxx_asm.h,v 1.1.2.1 1997/03/16 07:21:32 gibbs Exp $
  */
 
 #include <sys/queue.h>

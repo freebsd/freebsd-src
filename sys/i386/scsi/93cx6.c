@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.c,v 1.7.2.2 1997/03/01 06:53:31 gibbs Exp $
  */
 
 /*

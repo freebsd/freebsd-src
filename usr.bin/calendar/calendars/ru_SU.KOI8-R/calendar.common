@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $Id: calendar.common,v 1.5 1997/02/24 22:52:52 ache Exp $
+ * $Id: calendar.common,v 1.2.2.1 1997/02/25 01:58:09 mpp Exp $
  */
 
 #ifndef _ru_SU_KOI8_R_common_
