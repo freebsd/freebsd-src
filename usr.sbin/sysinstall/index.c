@@ -626,6 +626,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     int status = DITEM_SUCCESS;
     PkgNodePtr tmp2;
     IndexEntryPtr id = who->data;
+    WINDOW *w = savescr();
 
     if (id && id->deps && strlen(id->deps)) {
 	char t[1024], *cp, *cp2;
@@ -662,6 +663,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	if (DITEM_STATUS(status) == DITEM_SUCCESS)
 	    id->installed = 1;
     }
+    restorescr(w);
     return status;
 }
 
@@ -721,6 +723,7 @@ index_initialize(char *path)
 	    return DITEM_FAILURE;
 	}
 
+	dialog_clear_norefresh();
 	msgNotify("Attempting to fetch %s file from selected media.", path);
 	fp = mediaDevice->get(mediaDevice, path, TRUE);
 	if (!fp) {
@@ -735,6 +738,7 @@ index_initialize(char *path)
 	    restorescr(w);
 	    return DITEM_FAILURE;
 	}
+	dialog_clear_norefresh();
 	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&Top, &Plist);
 	if (index_read(fp, &Top)) {

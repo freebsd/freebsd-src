@@ -162,6 +162,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sigpipe_caught = FALSE;
 	signal(SIGPIPE, catch_pipe);
 
+        dialog_clear_norefresh();
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
