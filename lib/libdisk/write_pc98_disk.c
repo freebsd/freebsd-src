@@ -62,7 +62,6 @@ int
 Write_Disk(const struct disk *d1)
 {
 	int fd, i, j;
-	struct disk *old = NULL;
 	struct chunk *c1;
 	int ret = 0;
 	char device[64];
