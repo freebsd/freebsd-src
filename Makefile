@@ -187,7 +187,7 @@ world:
 	@echo "installation without also building and installing a new"
 	@echo "kernel.  This can be dangerous.  Please read the handbook,"
 	@echo "'Using make world', for how to upgrade your system."
-	@echo "Define DESTDIR to the where you want to install FreeBSD,
+	@echo "Define DESTDIR to the where you want to install FreeBSD,"
 	@echo "including /, to override this warning and proceed as usual."
 	@echo "Bailing out now..."
 	@false
