@@ -44,49 +44,79 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
-Support for Adaptec 152x/151x/AIC-6360 SCSI controllers is back.
+The loader was substantially updated from -current
 
-netgraph(4) has been added.  Netgraph provides a uniform and modular system
-for the implementation of kernel objects which perform various networking
-functions.  To enable it, ``options NETGRAPH'' must be added to the kernel.
+Various bugs in the CAM driver fixed.
 
-i4b(4) has been upgraded to version 00.83.00, providing increased robustness
-and stability, and supporting many new cards (Asuscom ISDNlink 128K,
-AVM Fritz!Card PCI, AVM Fritz!Card PnP, ELSA PCC-16, ITK ix1 micro V.3,
-Siemens I-Surf 2.0).
+oltr [Olicom NIC] driver updated.
 
-RAID-5 support has been added to vinum(8).
+bktr(4) [Brooktree frame-grabber] driver updated.
 
-Driver support for the Intel PIIX4 and AcerLabs M15x3 power management
-controllers has been added.
+isp(4) [Compaq Qlogic] driver updated.
+
+sym(4) [NCR/Symbios SCSI controller] driver updated.
+
+A number of bugs in syscons(4) fixed.
+
+A number of bugs in vinum(4) fixed.
+
+Better support for LBA in wd(4) driver.
+
+Audio mixer(8) support substantially updated.
+
+Support for Microsoft Sound Source (MSS) audio devices.
+
+Support for more Linux system calls in the Linux compatability code.
+
+netgraph(4) updated: new node types and documentation added.
+
+Various bugs in msdosfs code fixed.
 
 
 1.2. SECURITY CHANGES
 ---------------------
 
-Support has been added for blocking incoming ICMP redirects, outgoing RST
-frames and incoming SYN|FIN frames in order to lessen or nullify the
-impact of certain kinds of DoS attacks.
-
-Support has been added for forwarding IP datagrams without inspecting or
-decreasing the TTL in order to make gateways and firewalls less visible
-and therefore less exposed to attacks.
-
-New networking security features include the ability to drop TCP packets with
-SYN+FIN (NOTE: this breaks rfc1644 extensions (T/TCP)), restrict emission of
-RST, ignore incoming ICMP REDIRECT messages, and also set to log incoming
-ICMP REDIRECT messages.  See rc.conf(5) for details on how to utilize these
-new features.
+Many small but meaningful changes, too many to list.  See CVS repository
+for more details.  Suffice it to say from a user perspective that
+"various things were tightened up."
 
 
 1.3. USERLAND CHANGES
 ---------------------
+
+vinum(8) substantially updated.
+
+chmod(1) has gained a -v flag.  See man page for details.
+
+df(1) gains new unit types.  See man page for details.
+
+ppp(1) substantially updated.
+
+Various bugs in date(1), ed(1), ln(1), sh(1), camcontrol(8), vinum(8)
+and quite a number of other user commands fixed (see CVS for details :).
+
+groff(1), grep(1) texinfo(1) utilities updated.
+
+Quite a few enhancements to /etc from -current merged.
+
+Many doc bugs fixed in man pages.
+
+Thread locking functions added to dynamic linker (see dllockinit(3)).
+
+pthread_cancel(3) function added.
 
 ppp(8) has undergone some changes and bug fixes.  One change in particular
 may disturb existing configurations.  The # character is now treated
 as a comment start, irrespective of whether it's the first non-blank
 character on the line.  Some ISPs allocate authnames with embedded #
 characters.  These must now be escaped or quoted.
+
+picobsd support (/usr/src/release/picobsd) substantially updated.
+
+HTTP installation option added to system installer (sysinstall(8)).
+
+XFree86 updated from 3.3.5 to 3.3.6 (XFree86 4.0 not quite ready for
+prime-time yet).
 
 
 2. Supported Configurations
