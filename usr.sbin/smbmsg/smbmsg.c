@@ -71,6 +71,11 @@ static unsigned short oword, iword;
 #define MIN_I2C_ADDR	16
 #define MAX_I2C_ADDR	240
 
+static int	do_io(void);
+static int	getnum(const char *s);
+static void	probe_i2c(void);
+static void	usage(void);
+
 static void
 usage(void)
 {
@@ -78,7 +83,7 @@ usage(void)
 		"usage: smbmsg [-f dev] -p\n"
 		"       smbmsg [-f dev] -s slave [-F fmt] [-c cmd] [-w] "
 		"[-i incnt] [-o outcnt] [outdata ...]\n");
-	exit (EX_USAGE);
+	exit(EX_USAGE);
 }
 
 static int
@@ -90,7 +95,7 @@ getnum(const char *s)
 	l = strtoul(s, &endp, 0);
 	if (*s != '\0' && *endp == '\0')
 		return (int)l;
-	return -1;
+	return (-1);
 }
 
 static void
@@ -335,5 +340,5 @@ main(int argc, char **argv)
 	else if (i == -2)
 		errx(EX_USAGE, "Invalid option combination");
 
-	return 0;
+	return (0);
 }
