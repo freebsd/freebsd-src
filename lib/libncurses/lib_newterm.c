@@ -58,8 +58,8 @@ char   *use_it = _ncurses_copyright;
 #ifdef MYTINFO
 	if (setupterm(term, fileno(ofp), &errret) != OK)
 	    	return NULL;
-	COLS = cur_term->true_columns;
-	LINES = cur_term->true_lines;
+	COLS = columns;
+	LINES = lines;
 #else
 	if (setupterm(term, fileno(ofp), &errret) != 1)
 	    	return NULL;
