@@ -2,10 +2,9 @@
 
 .PATH: ${.CURDIR}/../common
 
-SRCS=		crt1.c crtbegin.c crtend.c
+SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
-SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-I${.CURDIR}/../common
 NOMAN=		true
 NOPIC=		true
@@ -14,7 +13,7 @@ INTERNALLIB=	true
 
 all: ${OBJS} ${SOBJS}
 
-gcrt1.o:  crt1.c
+gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
 
 realinstall:
