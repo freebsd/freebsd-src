@@ -579,6 +579,12 @@ ata_pci_intr(struct ata_channel *ch)
 	    return 1;
 	break;
 
+    case 0x06801095:	/* SiI 680 */
+	if (!(pci_read_config(device_get_parent(ch->dev),
+			      (ch->unit ? 0xb1 : 0xa1), 1) & 0x08))
+	    return 1;
+	break;
+
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
     case 0x0d38105a:	/* Promise Fasttrak 66 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */

@@ -626,7 +626,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		    ata_prtdev(atadev, "%s setting UDMA6 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x01, 1);
+		    pci_write_config(parent, ureg, (uval & ~0x3f) | 0x01, 1);
 		    atadev->mode = ATA_UDMA6;
 		    return;
 		}
@@ -638,7 +638,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		    ata_prtdev(atadev, "%s setting UDMA5 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x02, 1);
+		    pci_write_config(parent, ureg, (uval & ~0x3f) | 0x02, 1);
 		    atadev->mode = ATA_UDMA5;
 		    return;
 		}
@@ -650,7 +650,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		    ata_prtdev(atadev, "%s setting UDMA4 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x03, 1);
+		    pci_write_config(parent, ureg, (uval & ~0x3f) | 0x03, 1);
 		    atadev->mode = ATA_UDMA4;
 		    return;
 		}
@@ -662,7 +662,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		    ata_prtdev(atadev, "%s setting UDMA2 on SiI chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, ureg, (uval & 0x3f) | 0x07, 1);
+		    pci_write_config(parent, ureg, (uval & ~0x3f) | 0x07, 1);
 		    atadev->mode = ATA_UDMA2;
 		    return;
 		}
