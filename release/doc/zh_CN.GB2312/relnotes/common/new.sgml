@@ -1,0 +1,648 @@
+<!--
+     The FreeBSD Simplified Chinese Project
+
+     Original revision: 1.761.2.39
+-->
+<articleinfo>
+  <title>&os;/&arch; &release.current; 发行说明</title>
+
+  <corpauthor>The &os; Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
+  <abstract>
+    <para>这份 &os; &release.current; 的发行说明， 概括了 &os;
+      基本系统自 &release.prev; 以来所做的改动。
+      本文档同时列举了自前一发行版发布以来所有适用的安全公告， 以及对于 &os;
+      内核以及系统附带的应用程序所做的重要修改。
+      在升级时所需要注意的一些问题， 也进行了简略的介绍。</para>
+  </abstract>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>简介</title>
+
+  <para>这篇文档包括了在 &arch.print; 硬件平台上 &os;
+    &release.current; 的发行说明。 它描述了最近刚刚加入、修改或删除了的
+    &os; 特性的说明。 同时，它也将给出如何从先前的 &os; 版本完成升级的说明。</para>
+
+<![ %release.type.snapshot [
+
+  <para>这份说明所说的 &release.type; 版本，
+    是在 &release.branch; 开发分支上 &release.prev; 到未来的 &release.next;
+    上的一点。 这一开发分支上预编译的二进制形式的 &release.type;
+    安装包， 可以在 <ulink url="&release.url;"></ulink> 找到。</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>这是一份 &os; &release.current; 的
+    &release.type; 发布包。 您可以从 <ulink
+    url="&release.url;"></ulink> 或其他镜像那里得到它的副本。
+    关于这个 (或其他) &release.type; 发布包的更多信息，可以在
+    <ulink url="&url.books.handbook;/">&os; 手册</ulink>
+    中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    &os;</quote>附录</ulink> 中找到。</para>
+
+]]>
+
+  <para>我们鼓励所有的用户在开始安装 &os; 之前首先参考这一版本所对应的勘误信息。
+    勘误文档将随时更新，以便为用户提供在发布工程后期或该版本发布之后
+    <quote>新发现的</quote> 问题和相关信息。
+    通常，这包括已知的 bug，安全公告，以及对于文档的修订内容。
+    最新的 &os; &release.current; 勘误信息可以从 &os; 网站获得。</para>
+
+</sect1>
+
+<sect1 id="new">
+  <title>最新变动</title>
+
+  <para>这一节描述了
+    &os; 自 &release.prev; 以来最明显的新功能和变化。
+    一般说来， 没有注明 &merged; 的那些新特性是 &release.branch; 所独有的。
+  </para>
+
+  <para>发行说明中的绝大多数条目是在说明自从
+    &release.prev.historic;
+    以来的安全公告、新的驱动程序或硬件支持、新的命令或是选项、
+    重要的错误修补，以及基本系统中来自第三方的软件升级。
+    重要的 ports 和 packages 变动，或关于交付工程的变动也会在这份文档中体现。
+    显而易见地，发行说明不可能涵盖 &os; 版本之间的每一个微小变动；
+    这篇文档主要关注的，仍然是安全公告，用户可以察觉的修改，
+    以及重要的架构改良。</para>
+
+  <sect2 id="security">
+    <title>安全公告</title>
+
+    <para>在 &man.fetch.1; 工具中发现了一处问题，
+      它可能导致恶意的 HTTP 服务器覆盖客户程序任意部分的内存，
+      这一问题已经得到修复。 要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:16.fetch.asc">FreeBSD-SA-04:16.fetch</ulink>。
+      </para>
+
+    <para>在 &man.procfs.5; 和 &man.linprocfs.5;
+      中发现了一处问题， 它能够允许恶意的本地用户读取部分内核内存，
+      或通过造成系统 panic 来实施本地拒绝服务攻击，
+      这一问题已经得到修复。 要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>。
+      </para>
+
+    <para>修正了 TELNET 客户端程序中的两处缓冲区溢出问题。
+      这些问题可以导致恶意的 TELNET 服务器或网络上的主动攻击者，
+      使 &man.telnet.1; 以运行它的用户的身份执行任意的代码。
+      要了解更多信息， 请参见安全公告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>。
+      </para>
+
+  </sect2>
+
+  <sect2 id="kernel">
+    <title>对于内核的改动</title>
+
+    <para>内核调试器 &man.ddb.4; 现在支持用于显示持有休眠互斥体
+    (以及当前线程所持有的自旋互斥体) 的情况的
+      <command>show alllocks</command> 命令了。</para>
+
+    <para>现在 &man.jail.8; 功能支持一个新的 sysctl
+      <varname>security.jail.chflags_allowed</varname>，
+      用于控制 &man.chflags.1; 在 jail 中的行为。
+      如果设置为 <literal>0</literal> (默认值)， jail 中的 <username>root</username>
+      用户将被认为是非特权用户； 如果设置为 <literal>1</literal>，
+      则 jail 中的 root 用户会被视为与未 jail 的 <username>root</username>
+      用户一样。</para>
+
+    <para arch="alpha,amd64,i386">加载器变量 <varname>debug.mpsafevm</varname>
+      默认置为启用了。</para>
+
+    <!-- Above this line, sort kernel changes by manpage/keyword-->
+
+    <para>一系列 ULE 的问题得到了修正。</para>
+
+    <para arch="i386">一个关于在对处理器间中断 (IPI) 进行处理时的问题得以修正，
+      这一问题可能导致 SMP 系统在重载时崩溃。 更多细节， 可以在勘误说明
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:03.ipi.asc">FreeBSD-EN-05:03.ipi</ulink>
+      中找到。</para>
+
+    <para arch="i386">将传统 PCI 桥的内存分配范围，
+      限制到了 RAM 顶部的 32MB。 许多较早的、 旧的桥硬件，
+      只允许分配这一范围的内存。 这一修改只被应用于那些没有通过 BIOS
+      指定内存范围的设备。 它修正了 CardBus 桥 (&man.pccbb.4;)
+      的 <quote>bad Vcc</quote> 错误。</para>
+
+    <sect3 id="boot">
+      <title>引导区和 loader 的变化</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3 id="proc">
+      <title>硬件支持</title>
+
+      <para arch="sparc64">加入了用于驱动 SBus/EBus &ultrasparc;
+	型号上的某些辅助 I/O 功能的 &man.auxio.4; 驱动。</para>
+
+      <para>加入了用于灵活控制处理器速度的框架。
+	这为许多驱动程序通过调整 CPU 的速度来控制功耗提供了手段。
+	更多细节， 可以在 &man.cpufreq.4; 联机手册中找到。</para>
+
+      <para>加入了用于支持 GPIB-PCIIA IEEE-488 卡的 pcii 驱动。</para>
+
+      <para arch="sparc64">加入了用于支持许多 &ultrasparc; II
+	和 III 型号上的 MC146818 兼容时钟的 rtc 驱动。</para>
+
+      <para arch="sparc64">&man.uart.4; 驱动，
+	在 <filename>GENERIC</filename> 内核中默认启用，
+	并成为了串口的默认驱动。 ofw_console 和
+	&man.sab.4; 驱动在
+	<filename>GENERIC</filename> 内核中被禁用。</para>
+
+
+      <sect4 id="mm">
+	<title>多媒体支持</title>
+
+	<para arch="sparc64">加入了用于支持 &ultrasparc; 工作站上的
+	  Crystal Semiconductor CS4231 音效控制器的 &man.snd.audiocs.4;
+	  驱动。</para>
+
+      </sect4>
+
+      <sect4 id="net-if">
+	<title>网络接口设备支持</title>
+
+	<para>&man.cp.4; 驱动现在是 MPSAFE 的了。</para>
+
+	<para>&man.ctau.4; 驱动现在是 MPSAFE 的了。</para>
+
+	<para>&man.cx.4; 驱动现在是 MPSAFE 的了。</para>
+
+	<para>&man.ed.4; 驱动现在支持 &man.altq.4; 框架了。</para>
+
+	<para>在 &man.em.4; 驱动程序中， 默认禁用了对 VLAN 标记 (tagging)
+	  的硬件支持， 因为这个功能与混杂模式之间存在一些冲突。</para>
+
+	<para>默认地禁用了 &man.fxp.4; 驱动的以太网流控制功能，
+	  以避免系统崩溃或进入内核调试器。</para>
+
+	<para>The &man.hme.4; 驱动现在是 MPSAFE 的了。</para>
+
+	<para arch="amd64">现在 &man.ndis.4; 设备驱动 wrapper
+	  在 amd64 系统上能够支持 &windows;/x86-64 的二进制驱动了。
+	  </para>
+
+	<para>&man.re.4; 驱动支持 &man.altq.4; 框架了。</para>
+
+	<para>现在 &man.sf.4; 驱动支持设备混合轮询 (device polling)
+	  和 &man.altq.4; 了。</para>
+
+	<para>修正了 &man.sk.4; 驱动中的多处程序设计错误。
+	  这些问题主要影响 SMP 系统， 可能导致系统崩溃、 内核缺页、
+	  SSH 连接中断， 或文件传输问题。
+	  更多细节， 可以在勘误公告
+	  <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:02.sk.asc">FreeBSD-EN-05:02.sk</ulink>
+	  上找到。</para>
+
+	<para>现在， &man.sk.4; 驱动支持 &man.altq.4; 了。
+	  同时， 此驱动支持基于 Yukon 的网卡的巨型帧能力了。
+	  </para>
+
+      </sect4>
+    </sect3>
+
+    <sect3 id="net-proto">
+      <title>网络协议</title>
+
+      <para>当发送方写的数据必须分片时， 关闭了 IPv6 中的 MTU
+	反馈。</para>
+
+      <para>实现了共用地址冗余协议 (CARP)。
+	CARP 来自 OpenBSD， 允许多个主机共享同一个
+	IP 地址， 从而提供了高可用性和负载均衡。
+	要了解更多细节， 请参考 &man.carp.4; 联机手册。</para>
+
+      <para>&man.ipfw.4; 可以与
+	<varname>debug.mpsafenet</varname>=<literal>1</literal>
+	(默认情况下是 <literal>1</literal>)，
+	当使用了 <literal>gid</literal>, <literal>jail</literal>,
+	和/或 <literal>uid</literal> 规则选项时正常工作了。</para>
+
+      <para>&man.ipfw.8; <literal>ipfw fwd</literal> 规则现在支持完整的包目的地管理了，
+	其前提是启用了内核选项 <literal>options IPFIRWALL_FORWARD</literal>
+	的基础上打开了
+	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal>。
+	这个内核选项将禁用所有的限制， 以保证本地生成的包，
+	和发到配置在本地的 IP 地址的包能够正常地发出和转发。
+	请注意， 必须细心地编写 &man.ipfw.8; 规则，
+	以确保类似 PMTU 发现这类应用不致发生异常。</para>
+
+      <para>&man.ipnat.8; 允许在非 TCP/UDP 包上使用重定向规则了。</para>
+
+      <para>目前正在进行的工作， 在逐步去掉网络协议栈中的全局锁，
+	并改进锁的策略。</para>
+
+      <para>新的 &man.ng.netflow.4; NetGraph 节点，
+	使得采用 &os; 的路由器能够运行 NetFlow version 5 的导出。</para>
+
+      <para>现在 &man.sppp.4; 驱动程序包含了帧转发 (Frame Relay)
+	支持。</para>
+
+      <para>修正了 TCP 的一处问题， 这一问题有时会导致当接收窗口大小为零时，
+	RST 包被忽略的问题。</para>
+
+      <para>改进了 &os; TCP 协议栈中对 <literal>RST</literal>
+	的处理， 使得这类攻击变得尽可能地困难，
+	同时最大限度地保障了和其他 TCP 协议栈的兼容性。
+	算法如下： 对于所有在
+	<literal>ESTABLISHED</literal>
+	状态的连接， 只有当包的顺序号与
+	<varname>last_ack_sent</varname> 精确匹配时才将连接复位；
+	所有不符合的分片都将被直接丢弃。 对于所有其他状态的连接，
+	则对窗口内的复位请求进行处理。 其它的复位分片则被直接丢弃。
+	需要说明的是， 这一行为和 RFC 793 标准抵触， 传统的 (但安全性较差)
+	行为， 可以通过将新增的 sysctl <varname>net.inet.tcp.insecure_rst</varname>
+	设置为 <literal>1</literal> 来还原。</para>
+
+      <para>在 TCP SACK 实现中的许多错误得到了修正。</para>
+
+      <para>将 KAME IPv4 IPsec 实现集成到了 &os; 中，
+	现在支持 TCP-MD5 了。</para>
+
+      <para>短期使用端口的随机分配导致了在高连接速率时的端口重用问题。
+        这一功能现在在短期内发生大量连接， 即新端口的创建速率快于每秒
+        <varname>net.inet.ip.portrange.randomcps</varname> 时，
+        被自动禁用
+        <varname>net.inet.ip.portrange.randomtime</varname>
+        秒。 这两个 sysctl 变量的默认值，
+        分别是 <literal>10</literal> 和 <literal>45</literal>。</para>
+
+    </sect3>
+
+    <sect3 id="disks">
+      <title>磁盘及存储</title>
+
+      <para>现在 &man.amr.4; 可以安全地在使用了
+	&man.pae.4; 的系统上使用了。</para>
+
+      <para>加入了 SHSEC GEOM 类。 它提供了在多个 GEOM
+	提供者之间实现秘密分享的能力。 所有提供者必须都存在，
+	才能够解开保存的秘密信息。 这一特性可以通过 &man.gshsec.8;
+	工具来控制。</para>
+
+      <para>加入了用于支持 HighPoint
+	RocketRAID 182x 系列硬件的 &man.hptmv.4; 驱动。</para>
+
+      <para>现在 &man.ips.4; 驱动在较新的 ServeRAID 型号上，
+	能够支持内核崩溃的转储操作了。</para>
+
+      <para>删去了 &man.matcd.4; 驱动。</para>
+
+      <para>关于新挂接的 cd9660 文件系统的信息 (例如，
+	存在 RockRidge 扩展) 现在只有在内核以详细 (verbose)
+	模式启动时才会显示了。 这一修改主要是减少 (一般来说不必要的)
+	内核日志消息的数量。</para>
+
+    </sect3>
+
+    <sect3 id="fs">
+      <title>文件系统</title>
+
+      <para>原先在挂接时进行的， 重新计算
+	<quote>脏</quote> (即， 上次停机时没有正常卸下) 的 UFS 和 UFS2
+	文件系统摘要信息的工作， 现在转由后台
+	&man.fsck.8; 进行。
+	这一修改将极大地改善系统崩溃后挂接大文件系统时的速度。
+	如果希望还原原先的行为， 可以通过将
+	<varname>vfs.ffs.compute_summary_at_mount</varname> sysctl
+	变量设置为非零值来实现。</para>
+
+      <para>修正了由于 NFS 服务器可能导致的一个内核崩溃。
+	更多细节， 可以在勘误公告
+	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
+	中找到。</para>
+
+    </sect3>
+
+    <sect3>
+      <title>基本系统附带的第三方软件</title>
+
+      <para><application>ACPI-CA</application> 由
+	20040527 更新到了 20041119。</para>
+
+    </sect3>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>应用程序变动</title>
+
+    <para>现在 &man.ftpd.8; 程序会正确地为目录和文件的状态使用 <literal>212</literal>
+      和 <literal>213</literal> 状态代码了 (过去的版本，
+      曾经长期使用 <literal>211</literal>)。
+      这一行为在 RFC 959 中进行了描述。
+      </para>
+
+    <para>如果指定了 <literal>AF_UNSPEC</literal>，
+      现在 &man.getaddrinfo.3; 函数会在查询 <literal>AAAA</literal>
+      记录之前， 首先查询 <literal>A</literal>
+      DNS 资源记录。 一些有问题的 DNS 服务器会在 <literal>AAAA</literal>
+      记录不存在时返回 <literal>NXDOMAIN</literal>，
+      而根据标准， 它应该返回 <literal>NOERROR</literal>
+      和一条空记录。 这类服务器会在 IPv4/IPv6 双栈节点上导致查询停止，
+      因为对于 <literal>AAAA</literal> 的查询时返回的 <literal>NXDOMAIN</literal>
+      会导致服务器停止解析 <literal>A</literal> 记录的尝试。
+      另外， 这一行为也被视为一种潜在的拒绝服务攻击
+      (参见 <ulink url="http://www.kb.cert.org/vuls/id/714121"></ulink>
+      以了解更多细节)。 请注意， 虽然改变了查询顺序，
+      返回的结果仍然是
+      <literal>AF_INET6</literal> 记录先于
+      <literal>AF_INET</literal> 记录。</para>
+
+    <para>&man.gpt.8; 的 <literal>create</literal> 命令，
+      现在支持一个 <option>-f</option> 命令行标志，
+      以强制创建 GPT， 即使磁盘上原先已经存在了 MBR 记录。
+      </para>
+
+    <para>gvinum(8) 工具现在支持
+      <command>checkparity</command>、
+      <command>rebuildparity</command>， 以及
+      <command>setstate</command>
+      这三个子命令了。</para>
+
+    <para><filename>libarchive</filename> 库 (以及使用它的
+      &man.tar.1; 命令) 现在能够读取 ISO
+      镜像文件 (包括可选的 RockRidge 扩展) 和 ZIP 压缩文件
+      (采用 <literal>deflate</literal> 和 <literal>none</literal>
+      的压缩) 了。</para>
+
+    <para>加入了用于访问 GPIB 设备 (通过使用 pcii 驱动程序) 的
+      <function>ib<replaceable>foo</replaceable></function> API 的
+      <filename>libgpib</filename> 库。</para>
+
+    <para>从 HEAD 合并了一系列 <filename>libpthread</filename>
+      的错误修正。</para>
+
+    <para>为 &man.math.3; 函数库实现了一系列新的函数。
+      其中包括 &man.ceill.3;、
+      &man.floorl.3;、 &man.ilogbl.3;、 &man.fma.3; 及其变体，
+      &man.lrint.3; 及其变体， 以及 &man.lround.3; 及其变体。</para>
+
+    <para arch="i386">加入了用于为
+      <literal>GEOM_UZIP</literal> &man.geom.4; 模块提供压缩的文件系统的
+      &man.mkuzip.8; 工具。</para>
+
+    <para>现在 &man.moused.8; 服务能够支持 <quote>虚拟滚轮</quote> 了，
+      这一模式下， 按住鼠标中键时移动鼠标将被解释为滚轮操作。
+      这一功能可以通过 <option>-V</option> 标志来启用。</para>
+
+    <para>为 &man.named.8; 加入了属主为 <username>bind</username> 用户
+      (用于创建区域的日志文件) 的用于动态域的隔离目录。 要了解进一步的情况，
+      请参见示范的 &man.named.conf.5; 中动态域的例子。</para>
+
+    <para>现在 &man.ncal.1; 工具提供了一个 <option>-m</option> 选项，
+      用以生成当前年份指定月份的日历。</para>
+
+    <para>现在 &man.newfs.8; 提供了一个 <option>-n</option>
+      标志， 来禁止在新文件系统上创建 <filename>.snap</filename>
+      目录。 这一特性主要是为那些不需要快照支持的文件系统，
+      如内存或 vnode 文件系统准备的。</para>
+
+    <para>现在 &man.newfs.8; 会在创建 UFS 或 UFS2 文件系统，
+      而无法在其上产生快照时给出警告。
+      这一情况会在很大的文件系统使用很小尺寸的块时发生。</para>
+
+    <para>加入了编译用户应用时的 <literal>NO_NIS</literal> 开关。
+      如其名称所暗示的， 启用这个
+      <filename>Makefile</filename> 变量将使许多程序中不再包含 NIS
+      支持， 并不再勾践 NIS 工具。</para>
+
+    <para>现在 &man.periodic.8; 安全检查输出， 能够支持显示由
+      &man.pf.4; 所阻止的包的统计数据了。</para>
+
+    <para>&man.ppp.8; 程序实现了
+      <option>echo</option> 参数， 这使得分别地启用 LCP ECHO 和 LQR
+      报告成为可能。 较早版本的
+      &man.ppp.8; 会在协商失败时返回到 LCP ECHO 模式。
+      现在需要指定 <command>enable
+      echo</command> 来获得这一行为。</para>
+
+    <para>在 &man.pppd.8; 程序中的两个问题得以修正。
+      这些错误可能会导致不正确的 CBCP 响应，
+      而违反了 微软 PPP 回呼控制协议的 3.2 节。</para>
+
+    <para>现在 &man.rm.1; 工具提供了一个 <option>-I</option>
+      选项。 如果选择递归地删除目录，
+      或者在命令行上指定一次删除超过 3 个文件，
+      这个选项会提供一次确认的机会。</para>
+
+    <para>&man.rtld.1; 动态连接器现在支持通过
+      <varname>LD_LIBMAP</varname> 环境变量来指定库映射关系了。
+      这一选项能够覆盖 &man.libmap.conf.5; 的设置。</para>
+
+    <para>&man.syslog.3; 函数现在是线程安全的了。</para>
+
+    <para>&man.syslogd.8; 工具现在会打开一个额外的域 socket
+      (默认为 <filename>/var/run/logpriv</filename>)，
+      其权限是 <literal>0600</literal>， 作为和特权程序的接口。
+      者避免了发生本地的拒绝服务攻击时，
+      特权程序由于域 socket 的缓冲区耗尽而死锁。</para>
+
+    <para>现在 &man.systat.1; <option>-netstat</option> 的显示也包括了
+      IPv6 的数据。</para>
+
+    <para>&man.tail.1; 的 <option>-f</option>
+      选项能够支持同时查看多个文件了。</para>
+
+    <para>增加了用于关闭选定的 TCp 连接的 &man.tcpdrop.8; 命令。
+      它来自 OpenBSD。</para>
+
+    <para>&man.whois.1; 现在支持 <option>-k</option> 标志，
+      用以查询 <hostid role="fqdn">whois.krnic.net</hostid>
+      (韩国国家 Internet 开发局)， 它提供了在韩国境内的 IP
+      地址分配的详细资料。</para>
+
+    <para>修正了一个可能导致 &man.hosts.5;、
+      &man.services.5;， 以及其他一些配置文件， 在其最后一行不是空行时被忽略的问题。</para>
+
+    <sect3 id="rc-scripts">
+      <title><filename>/etc/rc.d</filename> 脚本</title>
+
+      <para>&man.rc.conf.5; 现在支持在引导时修改网络接口的名字了。
+	例如：</para>
+
+      <programlisting>ifconfig_fxp0_name="net0"
+ifconfig_net0="inet 10.0.0.1/16"</programlisting>
+
+      <para>&man.rc.conf.5; 现在支持 <varname>tmpmfs_flags</varname>
+	和 <varname>varmfs_flags</varname> 两个变量了。 这些变量，
+	可以用来向 &man.mdmfs.8; 工具提供额外的选项， 从而更好地定制
+	&man.md.4; 文件系统的创建过程， 包括是否打开 softupdates，
+	指定文件系统的默认属主， 等等。</para>
+
+    </sect3>
+  </sect2>
+
+  <sect2 id="contrib">
+    <title>基本系统包含的第三方软件</title>
+
+    <para><application>BIND</application> 从
+      9.3.0 升级到了 9.3.1。</para>
+
+    <para><application>Heimdal</application> 从
+      0.6.1 升级到了 0.6.3。</para>
+
+    <para>引入了来自 OpenBSD 的 2005 年 2 月 4 日快照的
+      <application>netcat</application>。 更多信息，
+      可以在 &man.nc.1; 联机手册中找到。</para>
+
+    <para><application>OpenSSL</application> 从
+      0.9.7d 升级到了 0.9.7e。</para>
+
+    <para><application>sendmail</application> 从
+      8.13.1 升级到了 version 8.13.3。</para>
+
+    <para>时区数据库从
+      <application>tzdata2004e</application> 版升级到了
+      <application>tzdata2004g</application> 版。</para>
+
+    <para></para>
+  </sect2>
+
+  <sect2 id="ports">
+    <title>Ports/Packages Collection 基础结构</title>
+
+    <para>从 CVS 库中删去了用于保存 Ports Collection 中所有项的
+      <filename>ports/INDEX<replaceable>*</replaceable></filename>。
+      这些文件过去并不经常性地重新生成， 因此可能会过时和不再准确。
+      需要使用 INDEX 文件的用户 (例如用于 &man.portupgrade.1;)
+      可以使用两种方法来获取一份副本：</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>使用 <command>make index</command> 在
+	  <filename>ports/</filename> tree 的顶部构建一份当前 ports
+	  tree 的索引。</para>
+      </listitem>
+
+      <listitem>
+	<para>在 <filename>ports/</filename> tree 顶部执行
+	  <command>make fetchindex</command> 来从网上下载。
+	  这个索引文件 (通常) 在一天之内是准确的。</para>
+      </listitem>
+    </itemizedlist>
+
+  </sect2>
+
+  <sect2 id="releng">
+    <title>发行版建造工程和功能集成</title>
+
+    <para>在先前的 &os; 版本中， <filename>disc1</filename>
+      CD-ROM (或 ISO 镜像文件) 是一张包含基本系统、 ports tree
+      和常用 package 的可以引导的光盘。
+      而 <filename>disc2</filename> CD-ROM (或 ISO 镜像文件)
+      则是可以引导的 <quote>fix it</quote> 盘， 它提供了现场 (live)
+      文件系统， 用于进行紧急修复操作。 这一格局发生了变化。
+      对于除了 ia64 以外的所有平台， 现在
+      <filename>disc1</filename> 包含了基本系统的安装包文件、
+      ports tree， 以及现场文件系统， 使得它适合于初始安装，
+      以及修复工作。 (在 ia64 上， 由于现场文件系统的尺寸太大，
+      以至于不得不将其放到另一张盘上。)
+      第三方 package 都在另一张盘上。</para>
+
+    <para>受支持的
+      <application>GNOME</application> 桌面环境的版本， 由 2.6.2
+      升级到了 2.10。 更多关于在 &os; 上运行 <application>GNOME</application>
+      的详细资料， 可以在
+      the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
+      Web 页面上找到。
+
+      <note>
+	<para>使用较早版本的
+	  <application>GNOME</application> 桌面
+	  (<filename role="package">x11/gnome2</filename>)
+	  的用户在升级时需要特别小心。 简单地使用 &man.portupgrade.1;
+	  (<filename role="package">sysutils/portupgrade</filename>)
+	  配合 &os; Ports Collection 进行升级可能会造成严重的问题。
+	  <application>GNOME</application> 桌面的用户， 应仔细阅读
+	  <ulink url="&url.base;/gnome/docs/faq210.html"></ulink>
+	  给出的说明， 并使用
+	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
+	  脚本来正确地升级到
+	  <application>GNOME</application> 2.10。</para>
+	</note>
+      </para>
+
+    <para>受支持的 <application>KDE</application>
+      桌面环境的版本， 从 3.3.0 升级到了
+      3.4.0。 更多关于在 &os; 上运行
+      <application>KDE</application> 的信息， 可以在
+      <ulink url="http://freebsd.kde.org/">FreeBSD 上的 KDE</ulink> Web
+      页面上找到。
+
+      <note>
+	<para>使用较早版本的
+	  <application>KDE</application> 的用户，
+	  应使用
+	  <ulink url="http://freebsd.kde.org/">FreeBSD 上的 KDE</ulink> Web
+	  页面或 <filename>ports/UPDATING</filename>
+	  中给出的方法升级。</para>
+	</note>
+      </para>
+
+    <para>受支持的 <application>Xorg</application>
+      从 6.7.0 升级到了 6.8.2。</para>
+
+  </sect2>
+
+  <sect2 id="doc">
+    <title>文档</title>
+
+    <para>以下联机手册先前的版本中曾包含来自 RFC 的内容，
+      为了避免对 IETF 的侵权， 已经重新编写：
+      &man.gai.strerror.3;,
+      &man.getaddrinfo.3;,
+      &man.getnameinfo.3;,
+      &man.inet6.opt.init.3;,
+      &man.inet6.option.space.3;,
+      &man.inet6.rth.space.3;,
+      &man.inet6.rthdr.space.3;,
+      &man.icmp6.4;, 和
+      &man.ip6.4;。</para>
+
+  </sect2>
+</sect1>
+
+<sect1 id="upgrade">
+  <title>从先前版本的 &os; 升级</title>
+
+  <para>使用现有的 &os; 系统的用户
+    <emphasis>强烈</emphasis> 推荐首先阅读 <quote>到 &os;
+      &release.current; 的迁移指南</quote>。
+    这份文档应该可以在光盘或这份发行版本说明所在的地方找到，
+    其文件名为 <filename>MIGRATE5.TXT</filename>。 它提供了一些关于升级的说明，
+    更重要的是， 升级到 &os;
+    5.<replaceable>X</replaceable> 和继续运行 &os;
+    4.<replaceable>X</replaceable> 的优缺点对比。</para>
+
+  <important>
+    <para>很显然，升级 &os; 时，应该首先备份
+      <emphasis>所有</emphasis> 数据和配置文件。</para>
+  </important>
+</sect1>
