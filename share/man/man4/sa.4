@@ -128,7 +128,7 @@ logically considered to be immediately after the last item read,
 and before the next item after that. If the next item is a file mark,
 but it was never read, then the next
 process to read will immediately hit the file mark and receive an end-of-file notification.
-.It Fixed block-size
+.It Fixed block-size:
 Data written by the user is passed to the tape as a succession of
 fixed size blocks.  It may be contiguous in memory, but it is
 considered to be a series of independent blocks. One may never write
