@@ -124,7 +124,7 @@ closenetstat(w)
 
 	endhostent();
 	endnetent();
-	TAILQ_FOREACH(p, *netcb, chain) {
+	TAILQ_FOREACH(p, &netcb, chain) {
 		if (p->ni_line != -1)
 			lastrow--;
 		p->ni_line = -1;
@@ -191,6 +191,7 @@ again:
 	KREAD(off, &head, sizeof (struct inpcbhead));
 	LIST_FOREACH(next, &head, inp_list) {
 		KREAD(next, &inpcb, sizeof (inpcb));
+		next = &inpcb;
 		if (!aflag && inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
 			continue;
 		if (nhosts && !checkhost(&inpcb))
@@ -301,7 +302,7 @@ shownetstat()
 				q->ni_flags |= NIF_LACHG|NIF_FACHG;
 			}
 		lastrow--;
-		q = TAILQ_PREV(p);
+		q = TAILQ_PREV(p, netinfohead, chain);
 		TAILQ_REMOVE(&netcb, p, chain);
 		free(p);
 		p = q;
