@@ -13,7 +13,7 @@
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
-# $Id$
+# $Id: bininst,v 1.21 1994/11/09 02:49:04 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -480,7 +480,9 @@ At the very least, you may wish to check out the 'tzsetup' command;
 it will at least handle the first checklist item for you. \n
 The login name \"root\" has no password.  If you're new to UN*X, log
 in as root when prompted for a user name and run vipw to add a new
-user for yourself.\nAny install-related comments to jkh, phk or paul (@freebsd.org)." 18 72
+user for yourself.
+
+Any install-related comments to jkh, phk or paul (@freebsd.org)." 18 72
 }
 
 welcome
