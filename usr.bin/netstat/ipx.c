@@ -132,8 +132,8 @@ ipxprotopr(off, name)
 			first = 0;
 		}
 		if (Aflag)
-			printf("%8x ", ppcb);
-		printf("%-5.5s %6d %6d ", name, sockb.so_rcv.sb_cc,
+			printf("%8lx ", ppcb);
+		printf("%-5.5s %6ld %6ld ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_laddr));
 		printf(Aflag?" %-18.18s":" %-22.22s", ipx_prpr(&ipxpcb.ipxp_faddr));
@@ -149,7 +149,7 @@ ipxprotopr(off, name)
 	}
 }
 #define ANY(x,y,z) \
-	((x) ? printf("\t%d %s%s%s -- %s\n",x,y,plural(x),z,"x") : 0)
+	((x) ? printf("\t%ld %s%s%s -- %s\n",(long)x,y,plural(x),z,"x") : 0)
 
 /*
  * Dump SPX statistics structure.

@@ -136,7 +136,7 @@ intpr(interval, ifnetaddr)
 			*cp = '\0';
 			ifaddraddr = (u_long)ifnet.if_addrlist;
 		}
-		printf("%-5.5s %-5d ", name, ifnet.if_mtu);
+		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 		if (ifaddraddr == 0) {
 			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
@@ -229,15 +229,15 @@ intpr(interval, ifnetaddr)
 			}
 			ifaddraddr = (u_long)ifaddr.ifa.ifa_next;
 		}
-		printf("%8d %5d ",
+		printf("%8lu %5lu ",
 		    ifnet.if_ipackets, ifnet.if_ierrors);
 		if (bflag)
-			printf("%10d ", ifnet.if_ibytes);
-		printf("%8d %5d ",
+			printf("%10lu ", ifnet.if_ibytes);
+		printf("%8lu %5lu ",
 		    ifnet.if_opackets, ifnet.if_oerrors);
 		if (bflag)
-			printf("%10d ", ifnet.if_obytes);
-		printf("%5d", ifnet.if_collisions);
+			printf("%10lu ", ifnet.if_obytes);
+		printf("%5lu", ifnet.if_collisions);
 		if (tflag)
 			printf(" %3d", ifnet.if_timer);
 		if (dflag)
@@ -288,7 +288,6 @@ sidewaysintpr(interval, off)
 	interesting = NULL;
 	interesting_off = 0;
 	for (off = firstifnet, ip = iftot; off;) {
-		char *cp;
 		char name[16], tname[16];
 
 		if (kread(off, (char *)&ifnet, sizeof ifnet))
@@ -342,7 +341,7 @@ loop:
 			exit(1);
 		};
 		if (!first) {
-			printf("%10u %5u %10u %10u %5u %10u %5u",
+			printf("%10lu %5lu %10lu %10lu %5lu %10lu %5lu",
 				ifnet.if_ipackets - ip->ift_ip,
 				ifnet.if_ierrors - ip->ift_ie,
 				ifnet.if_ibytes - ip->ift_ib,
