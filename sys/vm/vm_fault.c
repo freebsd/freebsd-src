@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.67 1997/04/06 02:29:41 dyson Exp $
+ * $Id: vm_fault.c,v 1.68 1997/04/06 16:16:11 peter Exp $
  */
 
 /*
@@ -326,7 +326,7 @@ RetryFault:;
 
 			m->flags |= PG_BUSY;
 
-			if (m->valid &&
+			if (/*m->valid && */
 				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
