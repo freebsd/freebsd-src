@@ -136,20 +136,11 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				if (pthread_mutex_unlock(&_gc_mutex) != 0)
 					PANIC("Cannot unlock gc mutex");
 
-				/* Red zone: */
-				if (mmap(stack - PTHREAD_STACK_GUARD,
-				    PTHREAD_STACK_GUARD, 0, MAP_ANON,
-				    -1, 0) == MAP_FAILED) {
-					ret = EAGAIN;
-					free(new_thread);
-				}
 				/* Stack: */
-				else if (mmap(stack, PTHREAD_STACK_DEFAULT,
+				if (mmap(stack, PTHREAD_STACK_DEFAULT,
 				    PROT_READ | PROT_WRITE, MAP_STACK,
 				    -1, 0) == MAP_FAILED) {
 					ret = EAGAIN;
-					munmap(stack - PTHREAD_STACK_GUARD,
-					    PTHREAD_STACK_GUARD);
 					free(new_thread);
 				}
 			}
