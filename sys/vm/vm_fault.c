@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.93 1999/01/10 01:58:28 eivind Exp $
+ * $Id: vm_fault.c,v 1.93.2.1 1999/01/22 05:49:39 dillon Exp $
  */
 
 /*
@@ -665,6 +665,18 @@ readrest:
 		 * Since map entries may be pageable, make sure we can take a
 		 * page fault on them.
 		 */
+
+ 
+		/*
+		 * Unlock vnode before the lookup to avoid deadlock.   E.G.
+		 * avoid a deadlock between the inode and exec_map that can
+		 * occur due to locks being obtained in different orders.
+		 */
+
+		if (fs.vp != NULL) {
+			vput(fs.vp);
+			fs.vp = NULL;
+		}
 
 		/*
 		 * To avoid trying to write_lock the map while another process
