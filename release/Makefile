@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.449 1999/01/06 19:18:45 jkh Exp $
+#	$Id: Makefile,v 1.450 1999/01/08 00:33:21 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -448,7 +448,8 @@ release.8: write_mfs_in_kernel dumpnlist
 	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
-	@cp -r /boot ${RD}/mfsfd
+	@mkdir -p ${RD}/mfsfd/boot
+	@cp /boot/boot* ${RD}/mfsfd/boot
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
