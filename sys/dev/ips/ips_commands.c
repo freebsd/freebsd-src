@@ -133,9 +133,9 @@ static void ips_io_request_callback(void *cmdptr, bus_dma_segment_t *segments,in
 		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
 				BUS_DMASYNC_PREWRITE);
 	}
-	PRINTF(10, "ips test: command id: %d segments: %d blkno: %lld "
+	PRINTF(10, "ips test: command id: %d segments: %d "
 		"pblkno: %lld length: %d, ds_len: %d\n", command->id, segnum,
-		iobuf->bio_blkno, iobuf->bio_pblkno,
+		iobuf->bio_pblkno,
 		length, segments[0].ds_len);
 
 	sc->ips_issue_cmd(command);
