@@ -189,18 +189,15 @@ static	ng_rcvdata_t ngmn_rcvdata;
 static	ng_disconnect_t ngmn_disconnect;
 
 static struct ng_type mntypestruct = {
-	NG_ABI_VERSION,
-	NG_MN_NODE_TYPE,
-	NULL, 
-	ngmn_constructor,
-	ngmn_rcvmsg,
-	ngmn_shutdown,
-	ngmn_newhook,
-	NULL,
-	ngmn_connect,
-	ngmn_rcvdata,
-	ngmn_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_MN_NODE_TYPE,
+	.constructor =	ngmn_constructor,
+	.rcvmsg =	ngmn_rcvmsg,
+	.shutdown =	ngmn_shutdown,
+	.newhook =	ngmn_newhook,
+	.connect =	ngmn_connect,
+	.rcvdata =	ngmn_rcvdata,
+	.disconnect =	ngmn_disconnect,
 };
 
 static MALLOC_DEFINE(M_MN, "mn", "Mx driver related");

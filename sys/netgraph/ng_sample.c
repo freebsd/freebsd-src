@@ -104,18 +104,17 @@ static const struct ng_cmdlist ng_xxx_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_XXX_NODE_TYPE,
-	NULL,
-	ng_xxx_constructor,
-	ng_xxx_rcvmsg,
-	ng_xxx_shutdown,
-	ng_xxx_newhook,
-	NULL,
-	ng_xxx_connect,
-	ng_xxx_rcvdata,
-	ng_xxx_disconnect,
-	ng_xxx_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_XXX_NODE_TYPE,
+	.constructor =	ng_xxx_constructor,
+	.rcvmsg =	ng_xxx_rcvmsg,
+	.shutdown =	ng_xxx_shutdown,
+	.newhook =	ng_xxx_newhook,
+/*	.findhook =	ng_xxx_findhook, 	*/
+	.connect =	ng_xxx_connect,
+	.rcvdata =	ng_xxx_rcvdata,
+	.disconnect =	ng_xxx_disconnect,
+	.cmdlist =	ng_xxx_cmdlist,
 };
 NETGRAPH_INIT(xxx, &typestruct);
 

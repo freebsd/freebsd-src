@@ -112,18 +112,16 @@ static const struct ng_cmdlist ng_etf_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_ETF_NODE_TYPE,
-	NULL,
-	ng_etf_constructor,
-	ng_etf_rcvmsg,
-	ng_etf_shutdown,
-	ng_etf_newhook,
-	NULL,
-	ng_etf_connect,
-	ng_etf_rcvdata,
-	ng_etf_disconnect,
-	ng_etf_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ETF_NODE_TYPE,
+	.constructor =	ng_etf_constructor,
+	.rcvmsg =	ng_etf_rcvmsg,
+	.shutdown =	ng_etf_shutdown,
+	.newhook =	ng_etf_newhook,
+	.connect =	ng_etf_connect,
+	.rcvdata =	ng_etf_rcvdata,
+	.disconnect =	ng_etf_disconnect,
+	.cmdlist =	ng_etf_cmdlist,
 };
 NETGRAPH_INIT(etf, &typestruct);
 

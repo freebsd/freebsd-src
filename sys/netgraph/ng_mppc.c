@@ -155,18 +155,14 @@ static void	ng_mppc_reset_req(node_p node);
 
 /* Node type descriptor */
 static struct ng_type ng_mppc_typestruct = {
-	NG_ABI_VERSION,
-	NG_MPPC_NODE_TYPE,
-	NULL,
-	ng_mppc_constructor,
-	ng_mppc_rcvmsg,
-	ng_mppc_shutdown,
-	ng_mppc_newhook,
-	NULL,
-	NULL,
-	ng_mppc_rcvdata,
-	ng_mppc_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_MPPC_NODE_TYPE,
+	.constructor =	ng_mppc_constructor,
+	.rcvmsg =	ng_mppc_rcvmsg,
+	.shutdown =	ng_mppc_shutdown,
+	.newhook =	ng_mppc_newhook,
+	.rcvdata =	ng_mppc_rcvdata,
+	.disconnect =	ng_mppc_disconnect,
 };
 NETGRAPH_INIT(mppc, &ng_mppc_typestruct);
 

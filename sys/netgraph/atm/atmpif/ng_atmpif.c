@@ -199,18 +199,16 @@ static int		ng_atmpif_mod_event(module_t, int, void *);
  * Node type descriptor
  */
 static struct ng_type ng_atmpif_typestruct = {
-	NG_ABI_VERSION,			/* version */
-	NG_ATMPIF_NODE_TYPE,		/* name */
-	ng_atmpif_mod_event,		/* mod_event */
-	ng_atmpif_constructor,		/* constructor */
-	ng_atmpif_rcvmsg,		/* rcvmsg */
-	ng_atmpif_rmnode,		/* shutdown */
-	ng_atmpif_newhook,		/* newhook */
-	NULL,				/* findhook */
-	NULL,				/* connect */
-	ng_atmpif_rcvdata,		/* rcvdata */
-	ng_atmpif_disconnect,		/* disconnect */
-	ng_atmpif_cmdlist,		/* cmdlist */
+	.version =	NG_ABI_VERSION,
+	.name =		NG_ATMPIF_NODE_TYPE,
+	.mod_event =	ng_atmpif_mod_event,
+	.constructor =	ng_atmpif_constructor,
+	.rcvmsg =	ng_atmpif_rcvmsg,
+	.shutdown =	ng_atmpif_rmnode,
+	.newhook =	ng_atmpif_newhook,
+	.rcvdata =	ng_atmpif_rcvdata,
+	.disconnect =	ng_atmpif_disconnect,
+	.cmdlist =	ng_atmpif_cmdlist,
 };
 NETGRAPH_INIT(atmpif, &ng_atmpif_typestruct);
 

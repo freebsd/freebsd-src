@@ -171,18 +171,15 @@ static const struct ng_cmdlist ng_cisco_cmdlist[] = {
 
 /* Node type */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_CISCO_NODE_TYPE,
-	NULL,
-	cisco_constructor,
-	cisco_rcvmsg,
-	cisco_shutdown,
-	cisco_newhook,
-	NULL,
-	NULL,
-	cisco_rcvdata,
-	cisco_disconnect,
-	ng_cisco_cmdlist
+	.version =	NG_ABI_VERSION,
+	.name =		NG_CISCO_NODE_TYPE,
+	.constructor =	cisco_constructor,
+	.rcvmsg =	cisco_rcvmsg,
+	.shutdown =	cisco_shutdown,
+	.newhook =	cisco_newhook,
+	.rcvdata =	cisco_rcvdata,
+	.disconnect =	cisco_disconnect,
+	.cmdlist =	ng_cisco_cmdlist,
 };
 NETGRAPH_INIT(cisco, &typestruct);
 

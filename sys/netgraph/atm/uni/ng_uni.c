@@ -185,18 +185,16 @@ static ng_rcvdata_t	ng_uni_rcvupper;
 static int ng_uni_mod_event(module_t, int, void *);
 
 static struct ng_type ng_uni_typestruct = {
-	NG_ABI_VERSION,
-	NG_UNI_NODE_TYPE,
-	ng_uni_mod_event,	/* Module event handler (optional) */
-	ng_uni_constructor,	/* Node constructor */
-	ng_uni_rcvmsg,		/* control messages come here */
-	ng_uni_shutdown,	/* reset, and free resources */
-	ng_uni_newhook,		/* first notification of new hook */
-	NULL,			/* findhook */
-	NULL,			/* connect */
-	ng_uni_rcvlower,	/* rcvdata */
-	ng_uni_disconnect,	/* notify on disconnect */
-	ng_uni_cmdlist,
+	.version =	NG_ABI_VERSION,
+	.name =		NG_UNI_NODE_TYPE,
+	.mod_event =	ng_uni_mod_event,
+	.constructor =	ng_uni_constructor,
+	.rcvmsg =	ng_uni_rcvmsg,
+	.shutdown =	ng_uni_shutdown,
+	.newhook =	ng_uni_newhook,
+	.rcvdata =	ng_uni_rcvlower,
+	.disconnect =	ng_uni_disconnect,
+	.cmdlist =	ng_uni_cmdlist,
 };
 NETGRAPH_INIT(uni, &ng_uni_typestruct);
 

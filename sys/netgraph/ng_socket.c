@@ -130,18 +130,16 @@ static int	ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg,
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
-	NG_ABI_VERSION,
-	NG_SOCKET_NODE_TYPE,
-	ngs_mod_event,
-	ngs_constructor,
-	ngs_rcvmsg,
-	ngs_shutdown,
-	ngs_newhook,
-	NULL,
-	ngs_connect,
-	ngs_rcvdata,
-	ngs_disconnect,
-	NULL
+	.version =	NG_ABI_VERSION,
+	.name =		NG_SOCKET_NODE_TYPE,
+	.mod_event =	ngs_mod_event,
+	.constructor =	ngs_constructor,
+	.rcvmsg =	ngs_rcvmsg,
+	.shutdown =	ngs_shutdown,
+	.newhook =	ngs_newhook,
+	.connect =	ngs_connect,
+	.rcvdata =	ngs_rcvdata,
+	.disconnect =	ngs_disconnect,
 };
 NETGRAPH_INIT(socket, &typestruct);
 
