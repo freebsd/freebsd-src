@@ -59,7 +59,11 @@ int     main(argc, argv)
 int     argc;
 char  **argv;
 {
+#ifdef INET6
+    struct addrinfo hints, *hp, *res;
+#else
     struct hostent *hp;
+#endif
     char   *myname = argv[0];
     char   *client;
     char   *server;
@@ -73,8 +77,6 @@ char  **argv;
 #ifdef INET6
     struct sockaddr_storage server_sin;
     struct sockaddr_storage client_sin;
-    char *ap;
-    int alen;
 #else
     struct sockaddr_in server_sin;
     struct sockaddr_in client_sin;
@@ -181,33 +183,17 @@ char  **argv;
     if (NOT_INADDR(server) == 0 || HOSTNAME_KNOWN(server)) {
 	if ((hp = find_inet_addr(server)) == 0)
 	    exit(1);
+#ifndef INET6
 	memset((char *) &server_sin, 0, sizeof(server_sin));
-#ifdef INET6
-	server_sin.ss_family = hp->h_addrtype;
-	switch (hp->h_addrtype) {
-	case AF_INET:
-	    ap = (char *)&((struct sockaddr_in *)&server_sin)->sin_addr;
-	    alen = sizeof(struct sockaddr_in);
-	    break;
-	case AF_INET6:
-	    ap = (char *)&((struct sockaddr_in6 *)&server_sin)->sin6_addr;
-	    alen = sizeof(struct sockaddr_in6);
-	    break;
-	default:
-	    exit(1);
-	}
-#ifdef SIN6_LEN
-	server_sin.ss_len = alen;
-#endif
-#else
 	server_sin.sin_family = AF_INET;
 #endif
 	request_set(&request, RQ_SERVER_SIN, &server_sin, 0);
 
-	for (count = 0; (addr = hp->h_addr_list[count]) != 0; count++) {
 #ifdef INET6
-	    memcpy(ap, addr, alen);
+	for (res = hp, count = 0; res; res = res->ai_next, count++) {
+	    memcpy(&server_sin, res->ai_addr, res->ai_addrlen);
 #else
+	for (count = 0; (addr = hp->h_addr_list[count]) != 0; count++) {
 	    memcpy((char *) &server_sin.sin_addr, addr,
 		   sizeof(server_sin.sin_addr));
 #endif
@@ -226,7 +212,11 @@ char  **argv;
 	    fprintf(stderr, "Please specify an address instead\n");
 	    exit(1);
 	}
+#ifdef INET6
+	freeaddrinfo(hp);
+#else
 	free((char *) hp);
+#endif
     } else {
 	request_set(&request, RQ_SERVER_NAME, server, 0);
     }
@@ -240,6 +230,18 @@ char  **argv;
 	tcpdmatch(&request);
 	exit(0);
     }
+#ifdef INET6
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+    if (getaddrinfo(client, NULL, &hints, &res) == 0) {
+	freeaddrinfo(res);
+	request_set(&request, RQ_CLIENT_ADDR, client, 0);
+	tcpdmatch(&request);
+	exit(0);
+    }
+#endif
 
     /*
      * Perhaps they are testing special client hostname patterns that aren't
@@ -261,36 +263,41 @@ char  **argv;
      */
     if ((hp = find_inet_addr(client)) == 0)
 	exit(1);
-    memset((char *) &client_sin, 0, sizeof(client_sin));
 #ifdef INET6
-    client_sin.ss_family = hp->h_addrtype;
-    switch (hp->h_addrtype) {
-    case AF_INET:
-	ap = (char *)&((struct sockaddr_in *)&client_sin)->sin_addr;
-	alen = sizeof(struct sockaddr_in);
-	break;
-    case AF_INET6:
-	ap = (char *)&((struct sockaddr_in6 *)&client_sin)->sin6_addr;
-	alen = sizeof(struct sockaddr_in6);
-	break;
-    default:
-	exit(1);
+    request_set(&request, RQ_CLIENT_SIN, &client_sin, 0);
+
+    for (res = hp, count = 0; res; res = res->ai_next, count++) {
+	memcpy(&client_sin, res->ai_addr, res->ai_addrlen);
+
+	/*
+	 * getnameinfo() doesn't do reverse lookup against link-local
+	 * address.  So, we pass through host name evaluation against
+	 * such addresses.
+	 */
+	if (res->ai_family != AF_INET6 ||
+	    !IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6 *)res->ai_addr)->sin6_addr)) {
+	    /*
+	     * Force evaluation of client host name and address. Host name
+	     * conflicts will be reported while eval_hostname() does its job.
+	     */
+	    request_set(&request, RQ_CLIENT_NAME, "", RQ_CLIENT_ADDR, "", 0);
+	    if (STR_EQ(eval_hostname(request.client), unknown))
+		tcpd_warn("host address %s->name lookup failed",
+			  eval_hostaddr(request.client));
+	}
+	tcpdmatch(&request);
+	if (res->ai_next)
+	    printf("\n");
     }
-#ifdef SIN6_LEN
-    client_sin.ss_len = alen;
-#endif
+    freeaddrinfo(hp);
 #else
+    memset((char *) &client_sin, 0, sizeof(client_sin));
     client_sin.sin_family = AF_INET;
-#endif
     request_set(&request, RQ_CLIENT_SIN, &client_sin, 0);
 
     for (count = 0; (addr = hp->h_addr_list[count]) != 0; count++) {
-#ifdef INET6
-	memcpy(ap, addr, alen);
-#else
 	memcpy((char *) &client_sin.sin_addr, addr,
 	       sizeof(client_sin.sin_addr));
-#endif
 
 	/*
 	 * Force evaluation of client host name and address. Host name
@@ -305,6 +312,7 @@ char  **argv;
 	    printf("\n");
     }
     free((char *) hp);
+#endif
     exit(0);
 }
 
