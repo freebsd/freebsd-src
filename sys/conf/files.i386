@@ -102,15 +102,13 @@ compat/svr4/svr4_sysent.c	optional compat_svr4
 compat/svr4/svr4_sysvec.c	optional compat_svr4
 compat/svr4/svr4_termios.c	optional compat_svr4
 compat/svr4/svr4_ttold.c	optional compat_svr4
+contrib/dev/hptmv/gui_lib.c	optional hptmv
+contrib/dev/hptmv/hptproc.c	optional hptmv
+contrib/dev/hptmv/ioctl.c	optional hptmv
 contrib/dev/oltr/if_oltr.c	optional oltr
 contrib/dev/oltr/trlldbm.c	optional oltr
 contrib/dev/oltr/trlldhm.c	optional oltr
 contrib/dev/oltr/trlldmac.c	optional oltr
-contrib/dev/hptmv/gui_lib.c	optional hptmv
-contrib/dev/hptmv/hptproc.c	optional hptmv
-contrib/dev/hptmv/ioctl.c	optional hptmv
-dev/hptmv/entry.c		optional hptmv
-dev/hptmv/mv.c			optional hptmv
 bf_enc.o			optional ipsec ipsec_esp		\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
@@ -150,15 +148,16 @@ dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
-dev/fdc/fdc_pccard.c		optional fdc card
 dev/fdc/fdc_pccard.c		optional fdc pccard
 dev/fe/if_fe_isa.c		optional fe isa
+dev/hptmv/entry.c		optional hptmv
+dev/hptmv/mv.c			optional hptmv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
-dev/if_ndis/if_ndis_pccard.c	optional ndis card
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional ndis cardbus
 dev/if_ndis/if_ndis_pci.c	optional ndis pci
+dev/io/iodev.c			optional io
 dev/kbd/atkbd.c			optional atkbd
 dev/kbd/atkbdc.c		optional atkbdc
 dev/kbd/kbd.c			optional atkbd
@@ -166,7 +165,6 @@ dev/kbd/kbd.c			optional sc
 dev/kbd/kbd.c			optional ukbd
 dev/kbd/kbd.c			optional vt
 dev/lnc/if_lnc_isa.c		optional lnc isa
-dev/io/iodev.c			optional io
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
@@ -236,8 +234,8 @@ i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet
 i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
-i386/i386/io_apic.c		optional apic
 i386/i386/io.c			optional io
+i386/i386/io_apic.c		optional apic
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		standard
 i386/i386/local_apic.c		optional apic
