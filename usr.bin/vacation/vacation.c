@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)vacation.c	8.2 (Berkeley) 1/26/94";
 static char rcsid[] =
-	"$Id: vacation.c,v 1.7 1997/04/23 22:25:20 ache Exp $";
+	"$Id: vacation.c,v 1.8 1997/04/23 22:36:51 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -424,6 +424,7 @@ sendmessage(myname)
 		dup2(pvect[0], 0);
 		close(pvect[0]);
 		close(pvect[1]);
+		close(fileno(mfp));
 		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, from, NULL);
 		syslog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, strerror(errno));
