@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.6 1997/05/12 14:08:52 brian Exp $
+# $Id: ppp.conf.sample,v 1.5.2.7 1997/06/10 10:05:31 brian Exp $
 #
 #################################################################
 
@@ -12,12 +12,14 @@
 #
 default:
  set device /dev/cuaa1
- set speed 38400
+ set speed 115200
+ set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  disable lqr
  deny lqr
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATE1Q0 OK-AT-OK \\dATDT\\T TIMEOUT 40 CONNECT"
 
-# Example with login script
+# Example with a login script
+#
 #   o From PPP prompt,
 #	ppp> dial simplesite
 #     automatically dials and performs the login script.
@@ -26,21 +28,24 @@ default:
 #     loads and executes commands, but doesn't dial.
 #
 #   o From shell, invoke as
-#       % ppp simplesite
+#       $ ppp simplesite
 #     to load commands associated with the 'simplesite' label. Use,
 #       ppp> dial
 #     to establish the connection.
 #
 simplesite:
  set phone 12345678
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp ocol: ppp"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp ocol: ppp"
  set timeout 120
 
-# Multi-phone example
+# Multi-phone example.  Numbers separated by a : are used sequentially.
+# Numbers separated by a | are used if the previous dial or login script
+# failed.  Usually, you will prefer to use only one of | or :, but both
+# are allowed.
 #
 multiphone:
- set phone 12345678:12345679:12345670:12345671
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp ocol: ppp"
+ set phone 12345678|12345679:12345670|12345671
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp ocol: ppp"
 
 # If the peer requires to use CHAP, don't forget to supply authname
 # and authkey.
@@ -54,7 +59,7 @@ multiphone:
 #
 chapsite:
  set phone 12345678
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  deny pap
  accept chap
 # enable chap
@@ -65,7 +70,7 @@ chapsite:
 #
 papsite:
  set phone 12345678
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  deny chap
  accept pap
 # enable pap
@@ -81,7 +86,7 @@ papsite:
 #
 ondemand:
  set phone 1234567
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
  add 0 0 192.244.176.44
@@ -91,23 +96,17 @@ ondemand:
 #  IP will be either, take a wild guess at an some IPs that you can't
 #  currently route to.  Ensure that the "delete" and "add" lines are also
 #  present in ppp.linkup so that when we connect, things will be put straight.
-#  Note that it is illegal to use HISADDR here - HISADDR is only available
-#  in ppp.linkup (after the value has been established).
 #
 #  The /0 bit says that we insist on 0 bits of the specified IP actually
 #  being correct, therefore, the other side can assign any IP numbers.
 #
-#  We also set openmode active - this makes us initiate ppp negotiation.
-#  The default is to wait for the server to start talking.
-#
 pmdemand:
  set phone 1234567
- set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0
  delete ALL
- add 0 0 10.0.0.2
- set openmode active
+ add 0 0 HISADDR
 
 # Examples to connect using a null-modem cable from one machine to another.
 # The important thing here is to allow the lqr packets on both sides.
@@ -124,7 +123,7 @@ direct-client:
  set sp 115200
  set timeout 900
  set log Phase Chat LQM
- set login "TIMEOUT 5 -\\r-login:-\\r-login: ppp word: ppp HELLO"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
  
@@ -157,15 +156,24 @@ users:
 #
 callback:
  set phone 0312345678
- set login "ABORT NO\\sCARRIER TIMEOUT 5 login:-\\r-login: MyName word: MySecret TIMEOUT 20 DUMMY"
+ set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: MyName word: MySecret TIMEOUT 20 DUMMY"
  set log phase chat
  dial
  quit
 
-# Example for PPP/TELNET and PPP/TCP. Read doc for further details
+# Example for ppp over tcp.  We assume that inetd on tcpsrv.mynet has been
+# configured to run "ppp -direct tcp-server" when it gets a connection on
+# port 1234.  Read doc for further details
 #
-ppptelnet:
+tcp-client:
+ set device tcpsrv.mynet:1234
+ set dial
+ set login
  set escape 0xff
+ set ifaddr 10.0.5.1 10.0.4.1
+ add 10.0.4.1 255.255.255.0 HISADDR
 
-ppptcp:
- set device 192.244.191.33:2400
+tcp-server:
+ set escape 0xff
+ set ifaddr 10.0.4.1 10.0.5.1
+ add 10.0.5.1 255.255.255.0 HISADDR
