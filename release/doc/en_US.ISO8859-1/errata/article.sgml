@@ -99,35 +99,35 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>(31 Oct 2004) Sometimes the performance of the &man.re.4; and &man.em.4;
-      drivers can become poor under heavy load.  Especially, there are
+    <para>(31 Oct 2004) The &man.re.4; and &man.em.4;
+      drivers may behave poorly under heavy load.  In particular, there are
       reports of &man.em.4; on the IBM ThinkPad T40 locking up
       under such conditions.</para>
 
     <para>(31 Oct 2004) There are reports of the &man.sk.4; driver
-      locking up under heavy load, especially when on-board NICs
-      of ASUStek motherboards are used.  To clear the condition,
+      locking up under heavy load, especially when ASUStek on-board NICs
+      are used.  To clear the condition,
       bringing the interface down then back up and/or rebooting
-      the system are needed.</para>
+      the system may be needed.</para>
 
     <para>(31 Oct 2004) The &man.burncd.8; utility is functional but may behave erratically
       on some systems.  Reported symptoms include that &man.burncd.8;
-      can appear to hang up and never complete while the operation actually
+      can appear to hang and never complete while the operation actually
       does complete, and the progress indicator does not show the correct value.
       Workarounds include:</para>
 
     <itemizedlist>
       <listitem>
-	<para>Eject and re-insert a media after burning a CD.</para>
+	<para>Eject and re-insert the media after burning a CD.</para>
       </listitem>
 
       <listitem>
 	<para>Press Ctrl-C when &man.burncd.8; appears to hang up
-	  in spite the access LED goes inactive.</para>
+	  while the access LED goes inactive.</para>
       </listitem>
     </itemizedlist>
 
-    <para>(31 Oct 2004) When the user/group rule modificators in &man.pf.4; and &man.ipfw.4;
+    <para>(31 Oct 2004) When the user/group rule clauses in &man.pf.4; and &man.ipfw.4;
       are used, the loader tunable <varname>debug.mpsafenet</varname>
       must be set to <literal>0</literal> (this is <literal>1</literal> by
       default).  For example, the following rules are affected:</para>
@@ -149,28 +149,28 @@
     <para>More specifically, the <literal>group</literal> and <literal>user</literal>
       filter parameters in &man.pf.4;, and the <literal>gid</literal>,
       <literal>jail</literal>, and <literal>uid</literal> rule options
-      in &man.ipfw.4; are relevant.
+      in &man.ipfw.4; are affected.
       If <varname>debug.mpsafenet</varname> is set to <literal>1</literal>,
-      the system can hang up when the rule is evaluated due to a lock order
+      the system can hang when the rule is evaluated due to a lock order
       reversal with the socket layer.  More details can be found in the
       &man.ipfw.8; and &man.pf.conf.5; manual pages.</para>
 
     <para>(31 Oct 2004) The &man.vinum.4; subsystem
-      works fine on 5.3, but it can cause a system panic at boot time.
+      works on 5.3, but it can cause a system panic at boot time.
       As a workaround you can add <literal>vinum_load="YES"</literal>
       to <filename>/boot/loader.conf</filename>.</para>
 
-    <para>As an alternative you can also use the new, &man.geom.4;-based
+    <para>As an alternative you can also use the new &man.geom.4;-based
       &man.vinum.4; subsystem.  To activate the &man.geom.4;-aware
       vinum at boot time, add <literal>geom_vinum_load="YES"</literal>
       to <filename>/boot/loader.conf</filename>.</para>
 
-    <para>While some sort of uncommon configurations such as
-      multiple vinum drives in a disk are not supported,
-      it is basically backward compatible.
-      Note that for the &man.geom.4;-aware vinum the new userland
-      control program, <command>gvinum</command> should be used,
-      and it still lacks some functionality.</para>
+    <para>While some uncommon configurations, such as
+      multiple vinum drives on a disk, are not supported,
+      it is generally backward compatible.
+      Note that for the &man.geom.4;-aware vinum, its new userland
+      control program, <command>gvinum</command>, should be used,
+      and it is not yet feature-complete.</para>
 
     <para>(31 Oct 2004) The results of <command>netstat -m</command>
       can become incorrect on SMP systems when <varname>debug.mpsafenet</varname>
@@ -182,7 +182,7 @@
       For &os;/i386 and &os;/amd64, when installing &os; 5.3
       using an USB keyboard the keyboard will stop
       working once the kernel boots, because a PS/2 keyboard is
-      always attached.  As a workaround, select
+      always considered to be attached.  As a workaround, select
       <quote>Escape to loader prompt</quote> in the boot loader menu
       and enter the following lines at the prompt:</para>
 
@@ -192,37 +192,36 @@ boot</screen>
     <para>Note that if you use the boot floppies, this is set
       by default.</para>
 
-    <para>After the installation, add the following line into
+    <para>After the installation, add the following line to
       <filename>/boot/loader.conf</filename>:</para>
 
     <programlisting>hint.atkbd.0.flags="0x1"</programlisting>
 
-    <para>(1 Nov 2004) The ULE scheduler described in the release note
+    <para>(1 Nov 2004) The ULE scheduler described in the release notes
       has been completely disabled to discourage its use because it has
-      several stability problems.</para>
+      stability problems.</para>
 
     <para>(1 Nov 2004) Programs linked with <application>libpthread</application>
       may not report any CPU usage statistics according to &man.top.1;,
-      while ones linked with <application>libthr</application> have
+      while those linked with <application>libthr</application> show
       the correct statistics.</para>
 
-    <para>(1 Nov 2004) When CMD649 or SiI0680 ATA controller is used,
-      the ATA RAID support of &man.ata.4; (ataraid) on 5.3 can corrupt
-      the existing RAID configuration which was created on 5.2 or prior.
-      The ATA RAID support for these controllers is non-functional
-      for this release.</para>
+    <para>(1 Nov 2004) ATA RAID support for the CMD649 and SiI0680 ATA
+      controllers is non-functional in this release. When such a
+      controller is brough up under &man.ata.4; (ataraid) on 5.3, the
+      RAID configuration stored under 5.2 or prior may be corrupted.</para>
 
-    <para>(3 Nov 2004) For &os;/i386 and &os;/amd64, the SMP support
+    <para>(3 Nov 2004) For &os;/i386 and &os;/amd64, SMP support
       in the <filename>GENERIC</filename> kernel has been disabled
       by default because the SMP kernel can degrade the performance
-      on UP machines.  A kernel configuration file <filename>SMP</filename>
-      which can be used to enable the SMP support has been added.
-      More details on building the custom kernel can be found in
+      on UP machines.  A kernel configuration file <filename>SMP</filename>,
+      which can be used to enable SMP support, has been added.
+      More details on building the custom kernel can be found at
       <ulink url="&url.books.handbook;/kernelconfig.html"></ulink>.</para>
 
-    <para>(4 Nov 2004) The &man.tar.1; (also known as &man.bsdtar.1;) utility
-      does not detect the end of a recording medium such as a tape
-      and a floppy disk properly when it is specified in the <option>-f</option>
+    <para>(4 Nov 2004) The &man.tar.1; utility (also known as &man.bsdtar.1;)
+      does not detect the end of media such as tape and
+      floppy disk properly when it is specified with the <option>-f</option>
       option.  As an alternative &man.gtar.1; (<application>GNU tar</application>)
       can be used.</para>
 
