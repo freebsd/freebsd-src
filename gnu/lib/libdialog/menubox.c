@@ -3,6 +3,8 @@
  *
  *  AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *
+ *	Substantial rennovation:  12/18/95, Jordan K. Hubbard
+ *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation; either version 2
@@ -30,17 +32,38 @@ static int menu_width, tag_x, item_x;
 /*
  * Display a menu for choosing among a number of options
  */
-int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result, int *ch, int *sc)
+int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
+		int item_no, void *it, unsigned char *result, int *ch, int *sc)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
       l, k, scroll = 0, max_choice, redraw_menu = FALSE;
+  char okButton, cancelButton;
   WINDOW *dialog, *menu;
+  unsigned char **items;
+  dialogMenuItem *ditems;
 
   if (ch)  /* restore menu item info */
       choice = *ch;
   if (sc)
       scroll = *sc;
 
+  /* If item_no is a positive integer, use old item specification format */
+  if (item_no >= 0) {
+    items = it;
+    ditems = NULL;
+  }
+  /* It's the new specification format - fake the rest of the code out */
+  else {
+    item_no = abs(item_no);
+    ditems = it;
+    items = (unsigned char **)alloca((item_no * 2) * sizeof(unsigned char *));
+
+    /* Initializes status */
+    for (i = 0; i < item_no; i++) {
+      items[i*2] = ditems[i].prompt;
+      items[i*2 + 1] = ditems[i].title;
+    }
+  }
   max_choice = MIN(menu_height, item_no);
 
   tag_x = 0;
@@ -55,19 +78,19 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
     item_x = MAX(item_x, l);
   }
   if (height < 0)
-	height = strheight(prompt)+menu_height+4+2;
+    height = strheight(prompt)+menu_height+4+2;
   if (width < 0) {
-	i = strwidth(prompt);
-	j = ((title != NULL) ? strwidth(title) : 0);
-	width = MAX(i,j);
-	width = MAX(width,tag_x+4)+4;
+    i = strwidth(prompt);
+    j = ((title != NULL) ? strwidth(title) : 0);
+    width = MAX(i,j);
+    width = MAX(width,tag_x+4)+4;
   }
   width = MAX(width,24);
 
   if (width > COLS)
-	width = COLS;
+    width = COLS;
   if (height > LINES)
-	height = LINES;
+    height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
@@ -80,7 +103,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   if (dialog == NULL) {
     endwin();
     fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
-    exit(1);
+    return -1;
   }
   keypad(dialog, TRUE);
 
@@ -117,7 +140,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   if (menu == NULL) {
     endwin();
     fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", menu_height,menu_width,y+box_y+1,x+box_x+1);
-    exit(1);
+    return -1;
   }
   keypad(menu, TRUE);
 
@@ -137,13 +160,51 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 
   x = width/2-11;
   y = height-2;
-  print_button(dialog, "Cancel", y, x+14, FALSE);
-  print_button(dialog, "  OK  ", y, x, TRUE);
+
+  if (ditems && result) {
+    cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
+    print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
+		 ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : FALSE);
+    okButton = toupper(ditems[OK_BUTTON].prompt[0]);
+    print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
+		 ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : TRUE);
+  }
+  else {
+    cancelButton = 'C';
+    print_button(dialog, "Cancel", y, x + 14, FALSE);
+    okButton = 'O';
+    print_button(dialog, "  OK  ", y, x, TRUE);
+  }
 
   wrefresh(dialog);
 
   while (key != ESC) {
     key = wgetch(dialog);
+
+    /* Shortcut to OK? */
+    if (toupper(key) == okButton) {
+      if (ditems && result && ditems[OK_BUTTON].fire) {
+	if ((*ditems[OK_BUTTON].fire)(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	  continue;
+	else
+	  delwin(dialog);
+      }
+      else {
+	delwin(dialog);
+	strcpy(result, items[(scroll+choice)*2]);
+      }
+      return 0;
+    }
+    /* Shortcut to cancel? */
+    else if (toupper(key) == cancelButton) {
+      if (ditems && result && ditems[CANCEL_BUTTON].fire) {
+	if ((*ditems[CANCEL_BUTTON].fire)(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	  continue;
+      }
+      delwin(dialog);
+      return 1;
+    }
+
     /* Check if key pressed matches first character of any item tag in menu */
     for (i = 0; i < max_choice; i++)
       if (key < 0x100 && toupper(key) == toupper(items[(scroll+i)*2][0]))
@@ -156,18 +217,6 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       else if (key == KEY_UP || key == '-') {
         if (!choice) {
           if (scroll) {
-#ifdef BROKEN_WSCRL
-    /* wscrl() in ncurses 1.8.1 seems to be broken, causing a segmentation
-       violation when scrolling windows of height = 4, so scrolling is not
-       used for now */
-            scroll--;
-            getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-            /* Reprint menu to scroll down */
-            for (i = 0; i < max_choice; i++)
-              print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice);
-
-#else
-
             /* Scroll menu down */
             getyx(dialog, cur_y, cur_x);    /* Save cursor position */
             if (menu_height > 1) {
@@ -179,7 +228,6 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
             }
             scroll--;
             print_item(menu, items[scroll*2], items[scroll*2 + 1], 0, TRUE);
-#endif
             wnoutrefresh(menu);
 	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
@@ -192,18 +240,6 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
       else if (key == KEY_DOWN || key == '+')
         if (choice == max_choice - 1) {
           if (scroll+choice < item_no-1) {
-#ifdef BROKEN_WSCRL
-    /* wscrl() in ncurses 1.8.1 seems to be broken, causing a segmentation
-       violation when scrolling windows of height = 4, so scrolling is not
-       used for now */
-            scroll++;
-            getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-            /* Reprint menu to scroll up */
-            for (i = 0; i < max_choice; i++)
-              print_item(menu, items[(scroll+i)*2], items[(scroll+i)*2 + 1], i, i == choice);
-
-#else
-
             /* Scroll menu up */
             getyx(dialog, cur_y, cur_x);    /* Save cursor position */
             if (menu_height > 1) {
@@ -215,7 +251,6 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
             }
             scroll++;
               print_item(menu, items[(scroll+max_choice-1)*2], items[(scroll+max_choice-1)*2 + 1], max_choice-1, TRUE);
-#endif
             wnoutrefresh(menu);
 	    print_arrows(dialog, scroll, menu_height, item_no, box_x, box_y, tag_x, cur_x, cur_y);
             wrefresh(dialog);
@@ -255,6 +290,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	}
 	redraw_menu = TRUE;
 	break;
+
     case KEY_NPAGE:
 	if (scroll + menu_height >= item_no-1 - menu_height) { /* can we go down a full page? */
 	    scroll = item_no - menu_height;
@@ -264,56 +300,75 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	}
 	redraw_menu = TRUE;
 	break;
+
     case KEY_HOME:
 	scroll = 0;
 	choice = 0;
 	redraw_menu = TRUE;
 	break;
+
     case KEY_END:
 	scroll = item_no - menu_height;
 	if (scroll < 0) scroll = 0;
 	choice = max_choice - 1;
 	redraw_menu = TRUE;
 	break;
-    case 'O':
-    case 'o':
-        delwin(dialog);
-	strcpy(result, items[(scroll+choice)*2]);
-        return 0;
-    case 'C':
-    case 'c':
-        delwin(dialog);
-        return 1;
+
     case KEY_BTAB:
     case TAB:
     case KEY_LEFT:
     case KEY_RIGHT:
-        if (!button) {
-          button = 1;    /* Indicates "Cancel" button is selected */
-          print_button(dialog, "  OK  ", y, x, FALSE);
-          print_button(dialog, "Cancel", y, x+14, TRUE);
-        }
-        else {
-          button = 0;    /* Indicates "OK" button is selected */
-          print_button(dialog, "Cancel", y, x+14, FALSE);
-          print_button(dialog, "  OK  ", y, x, TRUE);
-        }
-        wrefresh(dialog);
-        break;
+      button = !button;
+      if (ditems && result) {
+	if (button) {
+	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
+		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
+		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+	}
+	else {
+	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
+		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
+		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+	}
+      }
+      else {
+	if (button) {
+	  print_button(dialog, "  OK  ", y, x, !button);
+	  print_button(dialog, "Cancel", y, x + 14, button);
+	}
+	else {
+	  print_button(dialog, "Cancel", y, x + 14, button);
+	  print_button(dialog, "  OK  ", y, x, !button);
+	}
+      }
+      wrefresh(dialog);
+      break;
+
     case ' ':
     case '\r':
     case '\n':
-        delwin(dialog);
-        if (!button)
+      if (!button) {
+	if (ditems && ditems[scroll + choice].fire) {
+	  if ((*ditems[scroll + choice].fire)(&ditems[scroll + choice]) == DITEM_FAILURE)
+	    continue;
+	}
+	else if (result)
 	  strcpy(result, items[(scroll+choice)*2]);
-        return button;
+      }
+      delwin(dialog);
+      return button;
+
     case ESC:
         break;
+
     case KEY_F(1):
     case '?':
 	display_helpfile();
 	break;
     }
+
     if (redraw_menu) {
 	for (i = 0; i < max_choice; i++) {
 	    print_item(menu, items[(scroll+i)*2],
@@ -325,7 +380,7 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	redraw_menu = FALSE;
     }
   }
-
+  
   delwin(dialog);
   return -1;    /* ESC pressed */
 }

@@ -1,0 +1,381 @@
+.\"
+.\" Copyright (c) 1995, Jordan Hubbard
+.\"
+.\" All rights reserved.
+.\"
+.\" This manual page may be used, modified, copied, distributed, and
+.\" sold, in both source and binary form provided that the above
+.\" copyright and these terms are retained, verbatim, as the first
+.\" lines of this file.  Under no circumstances is the author
+.\" responsible for the proper functioning of the software described herein
+.\" nor does the author assume any responsibility for damages incurred with
+.\" its use.
+.\"
+.\" $Id$
+.\"
+.Dd December 18, 1995
+.Dt dialog 3
+.Os FreeBSD 2
+.Sh NAME
+.Nm draw_shadow ,
+.Nm draw_box ,
+.Nm line_edit ,
+.Nm strheight ,
+.Nm strwidth ,
+.Nm dialog_create_rc,
+.Nm dialog_yesno ,
+.Nm dialog_prgbox ,
+.Nm dialog_msgbox ,
+.Nm dialog_textbox ,
+.Nm dialog_menu ,
+.Nm dialog_checklist ,
+.Nm dialog_radiolist ,
+.Nm dialog_inputbox ,
+.Nm dialog_clear_norefresh ,
+.Nm dialog_clear ,
+.Nm dialog_update ,
+.Nm dialog_fselect ,
+.Nm dialog_notify ,
+.Nm dialog_mesgbox ,
+.Nm dialog_gauge ,
+.Nm init_dialog ,
+.Nm end_dialog ,
+.Nm use_helpfile ,
+.Nm use_helpline ,
+.Nm get_helpline ,
+.Nm restore_helpline .
+.Nd Provide a simple ncurses-based "GUI" interface.
+.Sh DESCRIPTION
+The dialog library attempts to provide a fairly simplistic set of
+fixed-presentation menus, input boxes, gauges, file requestors and
+other general purpose "GUI" (a bit of a stretch, since it uses
+ncurses) objects.  Since the library also had its roots in a
+shell-script writer's utility (see the \fBdialog(1)\fR command), the
+early API was somewhat primitively based on strings being passed in or
+out and parsed.  This API was later extended to take either the
+original arguments or arrays of \fBdialogMenuItem\fR structures,
+giving the user much more control over the internal behavior of each
+control.  The \fBdialogMenuItem\fR structure internals are public:
+
+.nf
+typedef struct _dmenu_item {
+   char *\fBprompt\fR;
+   char *\fBtitle\fR;
+   int (*\fBchecked\fR)(struct _dmenu_item *self);
+   int (*\fBfire\fR)(struct _dmenu_item *self);
+   void *\fBdata\fR;
+   char \fBlbra\fR, \fBmark\fR, \fBrbra\fR;
+} \fBdialogMenuItem\fR;
+.fi
+
+The \fBprompt\fR and \fBtitle\fR strings are pretty much self-explanatory,
+and the \fBchecked\fR and \fBfire\fR function pointers provide optional
+display and action hooks (the \fBdata\fR variable being available for
+the convenience of those hooks) when more tightly coupled feedback between
+a menu object and user code is required.  A number of clever tricks for
+simulating various kinds of item types can also be done by adjusting the
+values of \fBlbra\fR (default: '['), \fB\mark\fR (default: '*' for radio
+menus, 'X' for check menus) and \fBrbra\fR (default: ']') and declaring
+a reasonable \fBchecked\fR hook, which should return TRUE for the `marked' state 
+and FALSE for `unmarked.'  If an item has a \fBfire\fR hook associated
+with it, it will also be called whenever the item is "toggled" in some way
+and should return one of the following codes:
+.nf
+
+#define DITEM_SUCCESS            0      /* Successful completion */
+#define DITEM_FAILURE           -1      /* Failed to "fire" */
+#define DITEM_LEAVE_MENU        -2      /* Treat selection as "Ok" */
+#define DITEM_REDRAW            -3      /* Menu has changed, redraw it */
+.fi
+
+.Sh SYNOPSIS
+.Fd #include <dialog.h>
+.Ft "void"
+.Fn draw_shadow "WINDOW *win" "int y" "int x" "int height" "int width"
+
+Draws a shadow in curses window \fBwin\fR using the dimensions
+of \fBx, y, width\fR and \fBheight\fR.  Returns 0 on success, -1 on failure.
+
+.Ft "void"
+.Fn draw_box "WINDOW *win" "int y" "int x" "int height" "int width" "chtype box" "chtype border"
+
+Draws a bordered box using the dimensions of \fBx, y, width\fR and
+\fBheight\fR.  The attributes from \fBbox\fR and \fBborder\fR are
+used, if specified, while painting the box and border regions of the
+object.
+
+.Ft "int"
+.Fn line_edit "WINDOW *dialog" "int box_y" "int box_x" "int flen" "int box_width" "chtype attrs" "int first" "u_char *result"
+
+Invoke a simple line editor with an edit box of dimensions \fBbox_x,
+box_y\fR and \fBbox_width\fR.  The field length is constrained by
+\fBflen\fR, starting at the \fBfirst\fR character specified and
+optionally displayed with character attributes \fBattrs\fR.  The
+string being edited is stored in \fBresult\fR.
+
+Returns 0 on success, -1 on failure.
+
+.Ft "int"
+.Fn strheight "const char *p"
+
+Returns the height of string in \fBp\fR, counting newlines.
+
+.Ft "int"
+.Fn strwidth "const char *p"
+
+Returns the width of string in \fBp\fR, counting newlines.
+
+.Ft "void"
+.Fn dialog_create_rc "u_char *filename"
+
+Dump dialog library settings into \fBfilename\fR for later retreival
+as defaults.  Returns 0 on success, -1 on failure.
+
+.Ft "int"
+.Fn dialog_yesno "u_char *title" "u_char *prompt" "int height" "int width"
+
+Display a text box using \fBtitle\fR and \fBprompt\fR strings of dimensions
+\fBheight\fR and \fBwidth\fR.  Also paint a pair of \fBYes\fR and \fBNo\fR
+buttons at the bottom.  If the \fBYes\fR button is chosen, return FALSE.
+If \fBNo\fR, return TRUE.
+
+.Ft "int"
+.Fn dialog_prgbox "u_char *title" "u_char *line" "int height" "int width" "int pause" "int use_shell"
+
+Display a text box of dimensions \fBheight\fR and \fBwidth\fR
+containing the output of command \fBline\fR.  If \fBuse_shell\fR is
+TRUE, \fBline\fR is passed as an argument to \fBsh(1)\fR, otherwise it
+is simply passed to \fBexec(3)\fR.  If \fBpause\fR is TRUE, a final
+confirmation requestor will be put up when execution terminates.
+
+Returns 0 on success, -1 on failure.
+
+.Ft "int"
+.Fn dialog_textbox "u_char *title" "u_char *prompt" "int height" "int width"
+
+Display a text box containing the contents of string \fBprompt\fR of dimensions
+\fBheight\fR and \fBwidth\fR.
+
+Returns 0 on success, -1 on failure.
+
+.Ft "int"
+.Fn dialog_menu "u_char *title" "u_char *prompt" "int height" "int width" "int menu_height" "int item_no" "void *itptr" "u_char *result, int *ch, int *sc"
+
+Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
+optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
+and \fBitptr\fR arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface, \fBitem_no\fR should be a positive
+integer representing the number of string pointer pairs to find in
+\fBitptr\fR (which should be of type \fBchar **\fR), the strings are
+expected to be in prompt and title order for each item and the
+\fBresult\fR parameter is expected to point to an array where the
+prompt string of the item selected will be copied.  To use the newer
+interface, \fBitem_no\fR should be a \fInegative\fR integer
+representing the number of \fBdialogMenuItem\fR structures pointed to
+by \fBitptr\fR (which should be of type \fBdialogMenuItem *\fR), one
+structure per item.  In the new interface, the \fBresult\fR variable
+is used as a simple boolean (not a pointer) and should be NULL if
+\fBitptr\fR only points to menu items and the default \fBOK\fR and
+\fBCancel\fR buttons are desired.  If \fBresult\fR is non-NULL, then
+\fBitptr\fR is actually expected to point 2 locations \fBpast\fR the
+start of the menu item list.  \fBitptr\fR[-1] is then expected to
+point to an item representing the \fBCancel\fR button, from which the
+\fBprompt\fR and \fBfire\fR actions are used to override the default
+behavior, and \fBitptr\fR[-2] to the same for the \fBOK\fR button.
+
+Using either API behavior, the \fBch\fR and \fBsc\fR values may be passed in to preserve current
+item selection and scroll position values across calls.
+
+Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
+
+.Ft "int"
+.Fn dialog_checklist "u_char *title" "u_char *prompt" "int height" "int width" "int m_height" "int item_no" "void *itptr" "u_char *result"
+
+Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
+optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
+and \fBitptr\fR arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface, \fBitem_no\fR should be a positive
+integer representing the number of string pointer tuples to find in
+\fBitptr\fR (which should be of type \fBchar **\fR), the strings are
+expected to be in prompt, title and state ("on" or "off") order for
+each item and the \fBresult\fR parameter is expected to point to an
+array where the prompt string of the item(s) selected will be
+copied.  To use the newer interface, \fBitem_no\fR should be a
+\fInegative\fR integer representing the number of \fBdialogMenuItem\fR
+structures pointed to by \fBitptr\fR (which should be of type
+\fBdialogMenuItem *\fR), one structure per item. In the new interface,
+the \fBresult\fR variable is used as a simple boolean (not a pointer)
+and should be NULL if \fBitptr\fR only points to menu items and the
+default \fBOK\fR and \fBCancel\fR buttons are desired.  If
+\fBresult\fR is non-NULL, then \fBitptr\fR is actually expected to
+point 2 locations \fBpast\fR the start of the menu item list.
+\fBitptr\fR[-1] is then expected to point to an item representing the
+\fBCancel\fR button, from which the \fBprompt\fR and \fBfire\fR
+actions are used to override the default behavior, and \fBitptr\fR[-2]
+to the same for the \fBOK\fR button.
+
+In the standard API model, the menu supports the selection of multiple items,
+each of which is marked with an `X' character to denote selection.  When
+the OK button is selected, the prompt values for all items selected are
+concatenated into the \fBresult\fR string.
+
+In the new API model, it is not actually necessary to preserve
+"checklist" semantics at all since practically everything about how
+each item is displayed or marked as "selected" is fully configurable.
+You could have a single checklist menu that actually contained a group
+of items with "radio" behavior, "checklist" behavior and standard menu
+item behavior.  The only reason to call \fBdialog_checklist\fR over
+\fBdialog_radiolist\fR in the new API model is to inherit the base
+behavior, you're no longer constrained by it.
+
+Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
+
+.Ft "int"
+.Fn dialog_radiolist "u_char *title" "u_char *prompt" "int height" "int width" "int m_height" "int item_no" "void *it" "u_char *result"
+
+Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
+optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
+and \fBitptr\fR arguments are of particular importance since they,
+together, determine which of the 2 available APIs to use.  To use the
+older and traditional interface, \fBitem_no\fR should be a positive
+integer representing the number of string pointer tuples to find in
+\fBitptr\fR (which should be of type \fBchar **\fR), the strings are
+expected to be in prompt, title and state ("on" or "off") order for
+each item and the \fBresult\fR parameter is expected to point to an
+array where the prompt string of the item(s) selected will be
+copied.  To use the newer interface, \fBitem_no\fR should be a
+\fInegative\fR integer representing the number of \fBdialogMenuItem\fR
+structures pointed to by \fBitptr\fR (which should be of type
+\fBdialogMenuItem *\fR), one structure per item. In the new interface,
+the \fBresult\fR variable is used as a simple boolean (not a pointer)
+and should be NULL if \fBitptr\fR only points to menu items and the
+default \fBOK\fR and \fBCancel\fR buttons are desired.  If
+\fBresult\fR is non-NULL, then \fBitptr\fR is actually expected to
+point 2 locations \fBpast\fR the start of the menu item list.
+\fBitptr\fR[-1] is then expected to point to an item representing the
+\fBCancel\fR button, from which the \fBprompt\fR and \fBfire\fR
+actions are used to override the default behavior, and \fBitptr\fR[-2]
+does the same for the traditional \fBOK\fR button.
+
+In the standard API model, the menu supports the selection of only one
+of multiple items, the currently active item marked with an `*'
+character to denote selection.  When the OK button is selected, the
+prompt value for this item is copied into the \fBresult\fR string.
+
+In the new API model, it is not actually necessary to preserve
+"radio button" semantics at all since practically everything about how
+each item is displayed or marked as "selected" is fully configurable.
+You could have a single radio menu that actually contained a group
+of items with "checklist" behavior, "radio" behavior and standard menu
+item behavior.  The only reason to call \fBdialog_radiolist\fR over
+\fBdialog_checklistlist\fR in the new API model is to inherit the base
+behavior.
+
+Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
+
+.Ft "int"
+.Fn dialog_inputbox "u_char *title" "u_char *prompt" "int height" "int width" "u_char *result"
+
+Displays a single-line text input field in a box displaying \fBtitle\fR and \fBprompt\fR
+of dimensions \fBheight\fR and \fBwidth\fR.  The field entered is stored in \fBresult\fR.
+
+Returns 0 on success, -1 on failure or ESC.
+
+.Ft "char *"
+.Fn dialog_fselect "char *dir" "char *fmask"
+
+Brings up a file selector dialog starting at \fBdir\fR and showing only those file names
+matching \fBfmask\fR.
+
+Returns filename selected or NULL.
+
+.Ft "int"
+.Fn dialog_dselect "char *dir" "char *fmask"
+
+Brings up a directory selector dialog starting at \fBdir\fR and showing only those directory names
+matching \fBfmask\fR.
+
+Returns directory name selected or NULL.
+
+.Ft "void"
+.Fn dialog_notify "char *msg"
+
+Bring up a generic "hey, you!" notifier dialog containing \fBmsg\fR.
+
+.Ft "int"
+.Fn dialog_mesgbox "u_char *title" "u_char *prompt" "int height" "int width"
+
+Like a notifier dialog, but with more control over \fBtitle\fR, \fBprompt\fR, \fBwidth\fR and
+\fBheight\fR.  This object will also wait for user confirmation, unlike \fBdialog_notify\fR.
+
+Returns 0 on success, -1 on failure.
+
+.Ft "void"
+.Fn dialog_gauge "u_char *title" "u_char *prompt" "int y" "int x" "int height" "int width" "int perc"
+
+Display a horizontal bar-graph style gauge.  A value of \fB100\fR for \fBperc\fR constitutes
+a full gauge, a value of \fB0\fR an empty one.
+
+.Ft "void"
+.Fn use_helpfile "char *helpfile"
+
+For any menu supporting context sensitive help, invoke the text box
+object on this file whenever the \fBF1\fR key is pressed.
+
+
+.Ft "void"
+.Fn use_helpline "char *helpline"
+
+Display this line of helpful text below any menu being displayed.
+
+.Ft "char *"
+.Fn get_helpline "void"
+
+Get the current value of the helpful text line.
+
+.Ft "void"
+.Fn dialog_clear_norefresh "void"
+
+Clear the screen back to the dialog background color, but don't refresh the contents
+just yet.
+
+.Ft "void"
+.Fn dialog_clear "void"
+
+Clear the screen back to the dialog background color immediately.
+
+.Ft "void"
+.Fn dialog_update "void"
+
+Do any pending screen refreshes now.
+
+.Ft "void"
+.Fn init_dialog "void"
+
+Initialize the dialog library (call this routine before any other dialog API calls).
+
+.Ft "void"
+.Fn end_dialog "void"
+
+Shut down the dialog library (call this if you need to get back to sanity).
+
+.Sh SEE ALSO
+.Xr dialog 1 ,
+.Xr ncurses 3
+
+.Sh AUTHORS
+The primary author would appear to be Savio Lam <lam836@cs.cuhk.hk> with contributions over
+the years by Stuart Herbert <S.Herbert@sheffield.ac.uk>, Marc van Kempen <wmbfmk@urc.tue.nl>,
+Andrey Chernov <ache@freebsd.org> and Jordan Hubbard <jkh@freebsd.org>.
+
+.Sh HISTORY
+These functions appeared in
+.Em FreeBSD-2.0
+as the \fBdialog(1)\fR command and were soon split into library
+and command by Andrey Chernov.  Marc van Kempen implemented most of the
+extra controls and objects and Jordan Hubbard added the dialogMenuItem
+renovations and this man page.
+.Sh BUGS
+Sure!
