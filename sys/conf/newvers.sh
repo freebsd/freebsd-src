@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.16.4.9 1996/11/23 05:12:21 jkh Exp $
+#	$Id: newvers.sh,v 1.16.4.10 1997/02/07 01:55:21 jkh Exp $
 
 TYPE="FreeBSD"
 REVISION="2.1.7"
@@ -44,7 +44,7 @@ if [ "X${SNAPDATE}" != "X" ]; then
 fi
 VERSION="${TYPE} ${RELEASE}"
 
-RELDATE="199702"
+RELDATE="199612"
 
 if [ ! -r version ]
 then
