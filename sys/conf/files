@@ -1015,6 +1015,7 @@ net/route.c		standard
 net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
+net/slcompress.c	optional sppp
 net/zlib.c		optional ppp_deflate
 net/zlib.c		optional ipsec
 netatalk/aarp.c		optional netatalk
