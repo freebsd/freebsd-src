@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.13 1998/08/18 13:36:47 jb Exp $";
+	"$Id: mbuf.c,v 1.14 1998/08/23 15:23:11 gpalmer Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -68,7 +68,9 @@ static struct mbtypes {
 #ifdef MT_PCB
 	{ MT_PCB,	"protocol control blocks" },		/* XXX */
 #endif
+#ifdef MT_RTABLE
 	{ MT_RTABLE,	"routing table entries" },		/* XXX */
+#endif
 #ifdef MT_HTABLE
 	{ MT_HTABLE,	"IMP host table entries" },		/* XXX */
 #endif
