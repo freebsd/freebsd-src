@@ -92,7 +92,8 @@ main(int argc, char *argv[])
 {
     u_int8_t *mbr, *boot0;
     int boot0_size, mbr_size;
-    const char *bpath, *fpath, *disk;
+    const char *bpath, *fpath;
+    char *disk;
     int B_flag, v_flag, o_flag;
     int d_arg, m_arg, s_arg, t_arg;
     int o_and, o_or;
@@ -201,6 +202,7 @@ main(int argc, char *argv[])
     if (mbr != boot0)
 	free(boot0);
     free(mbr);
+    free(disk);
 
     return 0;
 }
@@ -316,7 +318,7 @@ boot0version(const u_int8_t *bs)
         return 0x100;
 
     /* We have a newer boot0, so extract the version number and return it. */
-    return *(int *)(bs + OFF_VERSION) & 0xffff;
+    return *(const int *)(bs + OFF_VERSION) & 0xffff;
 }
 
 /*
@@ -337,7 +339,7 @@ boot0bs(const u_int8_t *bs)
         {0x0,   sizeof(id0), id0},
         {0x1b2, sizeof(id1), id1}
     };
-    int i;
+    unsigned int i;
 
     for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
         if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
@@ -385,12 +387,14 @@ mkrdev(const char *fname)
     char buf[MAXPATHLEN];
     char *s;
 
-    s = (char *)fname;
     if (!strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-        if (!(s = strdup(buf)))
-            err(1, NULL);
-    }
+        s = strdup(buf);
+    } else
+        s = strdup(fname);
+
+    if (s == NULL)
+        errx(1, "No more memory");
     return s;
 }
 
