@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.46.4.3 1995/07/23 19:02:26 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46.4.4 1995/07/23 19:38:35 davidg Exp $
  */
 
 /*
@@ -932,6 +932,9 @@ allocbuf(struct buf * bp, int size)
 	int newbsize, mbsize;
 	int i;
 
+	if (!(bp->b_flags & B_BUSY))
+		panic("allocbuf: buffer not busy");
+
 	if ((bp->b_flags & B_VMIO) == 0) {
 		/*
 		 * Just get anonymous memory from the kernel
@@ -999,8 +1002,8 @@ allocbuf(struct buf * bp, int size)
 				if (tinc > bsize)
 					tinc = bsize;
 				off = bp->b_lblkno * bsize;
-				curbpnpages = bp->b_npages;
 		doretry:
+				curbpnpages = bp->b_npages;
 				bp->b_flags |= B_CACHE;
 				for (toff = 0; toff < newbsize; toff += tinc) {
 					int mask;
@@ -1036,7 +1039,6 @@ allocbuf(struct buf * bp, int size)
 								PAGE_WAKEUP(bp->b_pages[j]);
 							}
 							VM_WAIT;
-							curbpnpages = bp->b_npages;
 							goto doretry;
 						}
 						vm_page_activate(m);
@@ -1055,7 +1057,6 @@ allocbuf(struct buf * bp, int size)
 						tsleep(m, PRIBIO, "pgtblk", 0);
 						splx(s);
 
-						curbpnpages = bp->b_npages;
 						goto doretry;
 					} else {
 						int pb;
@@ -1131,6 +1132,9 @@ biodone(register struct buf * bp)
 	int s;
 
 	s = splbio();
+	if (!(bp->b_flags & B_BUSY))
+		panic("biodone: buffer not busy");
+
 	if (bp->b_flags & B_DONE) {
 		splx(s);
 		printf("biodone: buffer already done\n");
@@ -1165,7 +1169,7 @@ biodone(register struct buf * bp)
 		foff = vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
 		obj = (vm_object_t) vp->v_vmdata;
 		if (!obj) {
-			return;
+			panic("biodone: no object");
 		}
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
@@ -1226,8 +1230,10 @@ biodone(register struct buf * bp)
 				panic("biodone: page busy < 0\n");
 			}
 			--m->busy;
-			if( (m->busy == 0) && (m->flags & PG_WANTED))
+			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
+				m->flags &= ~PG_WANTED;
 				wakeup((caddr_t) m);
+			}
 			--obj->paging_in_progress;
 			foff += resid;
 			iosize -= resid;
@@ -1296,13 +1302,13 @@ vfs_unbusy_pages(struct buf * bp)
 		vm_object_t obj = (vm_object_t) vp->v_vmdata;
 		vm_offset_t foff;
 
-		foff = vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
+		foff = trunc_page(vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno);
 
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 
 			if (m == bogus_page) {
-				m = vm_page_lookup(obj, foff);
+				m = vm_page_lookup(obj, foff + i * PAGE_SIZE);
 				if (!m) {
 					panic("vfs_unbusy_pages: page missing\n");
 				}
@@ -1311,8 +1317,10 @@ vfs_unbusy_pages(struct buf * bp)
 			}
 			--obj->paging_in_progress;
 			--m->busy;
-			if( (m->busy == 0) && (m->flags & PG_WANTED))
+			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
+				m->flags &= ~PG_WANTED;
 				wakeup((caddr_t) m);
+			}
 		}
 		if (obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
