@@ -3442,7 +3442,7 @@ getvnode(fdp, fd, fpp)
 		if ((u_int)fd >= fdp->fd_nfiles ||
 		    (fp = fdp->fd_ofiles[fd]) == NULL)
 			error = EBADF;
-		else if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
+		else if (fp->f_vnode == NULL) {
 			fp = NULL;
 			error = EINVAL;
 		} else {
@@ -3454,6 +3454,7 @@ getvnode(fdp, fd, fpp)
 	*fpp = fp;
 	return (error);
 }
+
 /*
  * Get (NFS) file handle
  */
