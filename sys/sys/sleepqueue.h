@@ -82,7 +82,10 @@ struct thread;
 
 #ifdef _KERNEL
 
-#define	SLEEPQ_CONDVAR		0x1		/* Sleep queue is a cv. */
+#define	SLEEPQ_TYPE		0x0ff		/* Mask of sleep queue types. */
+#define	SLEEPQ_MSLEEP		0x00		/* Used by msleep/wakeup. */
+#define	SLEEPQ_CONDVAR		0x01		/* Used for a cv. */
+#define	SLEEPQ_INTERRUPTIBLE	0x100		/* Sleep is interruptible. */
 
 void	init_sleepqueues(void);
 void	sleepq_abort(struct thread *td);
