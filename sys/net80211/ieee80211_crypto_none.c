@@ -103,7 +103,7 @@ none_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
 	 * happen, at least, when changing keys.
 	 */
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] key (id %u) is invalid\n",
+		"[%s] key id %u is not set (encap)\n",
 		ether_sprintf(wh->i_addr1), keyid>>6);
 	ic->ic_stats.is_tx_badcipher++;
 	return 0;
@@ -124,7 +124,7 @@ none_decap(struct ieee80211_key *k, struct mbuf *m)
 	 */
 	/* XXX useful to know dst too */
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-		"[%s] key (id %u) is invalid\n",
+		"[%s] key id %u is not set (decap)\n",
 		ether_sprintf(wh->i_addr2), ivp[IEEE80211_WEP_IVLEN] >> 6);
 	ic->ic_stats.is_rx_badkeyid++;
 	return 0;

@@ -200,7 +200,7 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
 			return 0;
 		/* NB: tkip_encrypt handles wk_keytsc */
 	} else
-		k->wk_keytsc++;		/* XXX wrap at 48 bits */
+		k->wk_keytsc++;
 
 	return 1;
 }
@@ -264,7 +264,7 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m)
 		 * No extended IV; discard frame.
 		 */
 		IEEE80211_DPRINTF(ctx->tc_ic, IEEE80211_MSG_CRYPTO,
-			"[%s] Missing ExtIV for TKIP cipher\n",
+			"[%s] missing ExtIV for TKIP cipher\n",
 			ether_sprintf(wh->i_addr2));
 		ctx->tc_ic->ic_stats.is_rx_tkipformat++;
 		return 0;
@@ -274,14 +274,13 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m)
 	 */
 	if (ic->ic_flags & IEEE80211_F_COUNTERM) {
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_CRYPTO,
-			"[%s] Discard frame due to countermeasures (%s)\n",
+			"[%s] discard frame due to countermeasures (%s)\n",
 			ether_sprintf(wh->i_addr2), __func__);
 		ic->ic_stats.is_crypto_tkipcm++;
 		return 0;
 	}
 
-	ctx->rx_rsc = READ_6(ivp[2], ivp[0], ivp[4], ivp[5],
-		ivp[6], ivp[7]);
+	ctx->rx_rsc = READ_6(ivp[2], ivp[0], ivp[4], ivp[5], ivp[6], ivp[7]);
 	if (ctx->rx_rsc <= k->wk_keyrsc) {
 		/*
 		 * Replay violation; notify upper layer.
@@ -917,7 +916,7 @@ tkip_encrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 		icv);
 	(void) m_append(m, IEEE80211_WEP_CRCLEN, icv);	/* XXX check return */
 
-	key->wk_keytsc++;		/* XXX wrap at 48 bits */
+	key->wk_keytsc++;
 	if ((u16)(key->wk_keytsc) == 0)
 		ctx->tx_phase1_done = 0;
 	return 1;
