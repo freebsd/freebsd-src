@@ -42,7 +42,7 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 ASCIILINKS=	am_ET.UTF-8 en_AU.US-ASCII en_CA.US-ASCII en_GB.US-ASCII \
 		en_NZ.US-ASCII en_US.US-ASCII ko_KR.CP949 ko_KR.eucKR \
 		ja_JP.eucJP ja_JP.SJIS tr_TR.ISO8859-9 zh_CN.eucCN \
-		zh_CN.GB18030 zh_CN.GBK
+		zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK
 DELINKS=	de_AT de_CH
 ZHLINKS=	zh_TW.Big5
 
