@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #if __FreeBSD_version < 500000
@@ -52,9 +53,18 @@
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
-#define PRVERB(x)	if (bootverbose) device_printf x
+#define PRVERB(x)	do { \
+				if (bootverbose) { device_printf x; } \
+			} while (0)
 
 static int pcic_pci_get_memory(device_t dev);
+
+static int pcic_ignore_function_1 = 0;
+TUNABLE_INT("hw.pcic.ignore_function_1", &pcic_ignore_function_1);
+SYSCTL_DECL(_hw_pcic);
+SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
+    &pcic_ignore_function_1, 0,
+    "When set, driver ignores pci function 1 of the bridge");
 
 struct pcic_pci_table
 {
@@ -429,6 +439,11 @@ pcic_pci_probe(device_t dev)
 	struct pcic_pci_table *itm;
 	struct resource	*res;
 	int		rid;
+
+	if (pcic_ignore_function_1 && pci_get_function(dev) == 1) {
+		PRVERB((dev, "Ignoring function 1\n"));
+		return (ENXIO);
+	}
 
 	device_id = pci_get_devid(dev);
 	desc = NULL;
