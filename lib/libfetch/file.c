@@ -127,11 +127,11 @@ fetchListFile(struct url *u, const char *flags __unused)
 	}
 
 	ue = NULL;
-	strncpy(fn, u->doc, sizeof fn - 2);
-	fn[sizeof fn - 2] = 0;
+	strncpy(fn, u->doc, sizeof(fn) - 2);
+	fn[sizeof(fn) - 2] = 0;
 	strcat(fn, "/");
 	p = strchr(fn, 0);
-	l = sizeof fn - strlen(fn) - 1;
+	l = sizeof(fn) - strlen(fn) - 1;
 
 	while ((de = readdir(dir)) != NULL) {
 		strncpy(p, de->d_name, l - 1);

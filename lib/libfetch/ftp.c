@@ -434,7 +434,7 @@ _ftp_setup(conn_t *cconn, conn_t *dconn, int mode)
 
 	if (cconn == NULL || dconn == NULL)
 		return (NULL);
-	if ((io = malloc(sizeof *io)) == NULL)
+	if ((io = malloc(sizeof(*io))) == NULL)
 		return (NULL);
 	io->cconn = cconn;
 	io->dconn = dconn;
@@ -473,7 +473,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		    strncasecmp(s, "no", 2) != 0);
 
 	/* find our own address, bind, and listen */
-	l = sizeof sa;
+	l = sizeof(sa);
 	if (getsockname(conn->sd, (struct sockaddr *)&sa, &l) == -1)
 		goto sysouch;
 	if (sa.ss_family == AF_INET6)
@@ -559,7 +559,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 				goto sysouch;
 
 		/* construct sockaddr for data socket */
-		l = sizeof sa;
+		l = sizeof(sa);
 		if (getpeername(conn->sd, (struct sockaddr *)&sa, &l) == -1)
 			goto sysouch;
 		if (sa.ss_family == AF_INET6)
@@ -622,7 +622,7 @@ _ftp_transfer(conn_t *conn, const char *oper, const char *file,
 			((struct sockaddr_in *)&sa)->sin_port = 0;
 			arg = low ? IP_PORTRANGE_DEFAULT : IP_PORTRANGE_HIGH;
 			if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
-				(char *)&arg, sizeof arg) == -1)
+				(char *)&arg, sizeof(arg)) == -1)
 				goto sysouch;
 			break;
 		}
@@ -756,7 +756,7 @@ _ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 				len = 0;
 			else if (len > MAXLOGNAME)
 				len = MAXLOGNAME;
-			gethostname(pbuf + len, sizeof pbuf - len);
+			gethostname(pbuf + len, sizeof(pbuf) - len);
 			pwd = pbuf;
 		}
 		e = _ftp_cmd(conn, "PASS %s", pwd);
@@ -881,7 +881,7 @@ _ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
 	if (cached_connection)
 		_ftp_disconnect(cached_connection);
 	cached_connection = _fetch_ref(conn);
-	memcpy(&cached_host, url, sizeof *url);
+	memcpy(&cached_host, url, sizeof(*url));
 	return (conn);
 }
 

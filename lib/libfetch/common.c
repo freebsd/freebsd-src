@@ -206,7 +206,7 @@ _fetch_reopen(int sd)
 	conn_t *conn;
 
 	/* allocate and fill connection structure */
-	if ((conn = calloc(1, sizeof *conn)) == NULL)
+	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
 	conn->sd = sd;
 	++conn->ref;
@@ -552,7 +552,7 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
 	iov[0].iov_base = __DECONST(char *, str);
 	iov[0].iov_len = len;
 	iov[1].iov_base = __DECONST(char *, ENDL);
-	iov[1].iov_len = sizeof ENDL;
+	iov[1].iov_len = sizeof(ENDL);
 	if (len == 0)
 		ret = _fetch_writev(conn, &iov[1], 1);
 	else
@@ -593,7 +593,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 	}
 
 	if (*len >= *size - 1) {
-		tmp = realloc(*p, (*size * 2 + 1) * sizeof **p);
+		tmp = realloc(*p, (*size * 2 + 1) * sizeof(**p));
 		if (tmp == NULL) {
 			errno = ENOMEM;
 			_fetch_syserr();
@@ -605,7 +605,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 
 	tmp = *p + *len;
 	snprintf(tmp->name, PATH_MAX, "%s", name);
-	bcopy(us, &tmp->stat, sizeof *us);
+	bcopy(us, &tmp->stat, sizeof(*us));
 
 	(*len)++;
 	(++tmp)->name[0] = 0;
@@ -638,7 +638,7 @@ _fetch_netrc_auth(struct url *url)
 	FILE *f;
 
 	if ((p = getenv("NETRC")) != NULL) {
-		if (snprintf(fn, sizeof fn, "%s", p) >= (int)sizeof(fn)) {
+		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
 			_fetch_info("$NETRC specifies a file name "
 			    "longer than PATH_MAX");
 			return (-1);
@@ -651,7 +651,7 @@ _fetch_netrc_auth(struct url *url)
 			    (p = pwd->pw_dir) == NULL)
 				return (-1);
 		}
-		if (snprintf(fn, sizeof fn, "%s/.netrc", p) >= (int)sizeof(fn))
+		if (snprintf(fn, sizeof(fn), "%s/.netrc", p) >= (int)sizeof(fn))
 			return (-1);
 	}
 
@@ -675,7 +675,7 @@ _fetch_netrc_auth(struct url *url)
 		if (strcmp(word, "login") == 0) {
 			if ((word = _fetch_read_word(f)) == NULL)
 				goto ferr;
-			if (snprintf(url->user, sizeof url->user,
+			if (snprintf(url->user, sizeof(url->user),
 				"%s", word) > (int)sizeof(url->user)) {
 				_fetch_info("login name in .netrc is too long");
 				url->user[0] = '\0';
@@ -683,7 +683,7 @@ _fetch_netrc_auth(struct url *url)
 		} else if (strcmp(word, "password") == 0) {
 			if ((word = _fetch_read_word(f)) == NULL)
 				goto ferr;
-			if (snprintf(url->pwd, sizeof url->pwd,
+			if (snprintf(url->pwd, sizeof(url->pwd),
 				"%s", word) > (int)sizeof(url->pwd)) {
 				_fetch_info("password in .netrc is too long");
 				url->pwd[0] = '\0';
