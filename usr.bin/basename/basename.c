@@ -48,19 +48,25 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <libgen.h>
+#include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
+void stripsuffix(char *, const char *, size_t);
 void usage(void);
 
 int
 main(int argc, char **argv)
 {
-	char *p, *q, *suffix;
+	char *p, *suffix;
 	size_t suffixlen;
 	int aflag, ch;
+
+	setlocale(LC_ALL, "");
 
 	aflag = 0;
 	suffix = NULL;
@@ -99,13 +105,35 @@ main(int argc, char **argv)
 	while (argc--) {
 		if ((p = basename(*argv)) == NULL)
 			err(1, "%s", argv[0]);
-		if (suffixlen && (q = strchr(p, '\0') - suffixlen) > p &&
-		    strcmp(suffix, q) == 0)
-			*q = '\0';
+		stripsuffix(p, suffix, suffixlen);
 		argv++;
 		(void)printf("%s\n", p);
 	}
 	exit(0);
+}
+
+void
+stripsuffix(char *p, const char *suffix, size_t suffixlen)
+{
+	char *q, *r;
+	mbstate_t mbs;
+	size_t n;
+
+	if (suffixlen && (q = strchr(p, '\0') - suffixlen) > p &&
+	    strcmp(suffix, q) == 0) {
+		/* Ensure that the match occurred on a character boundary. */
+		memset(&mbs, 0, sizeof(mbs));
+		for (r = p; r < q; r += n) {
+			n = mbrlen(r, MB_LEN_MAX, &mbs);
+			if (n == (size_t)-1 || n == (size_t)-2) {
+				memset(&mbs, 0, sizeof(mbs));
+				n = 1;
+			}
+		}
+		/* Chop off the suffix. */
+		if (q == r)
+			*q = '\0';
+	}
 }
 
 void
