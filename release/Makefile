@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.69 1994/12/23 03:29:58 jkh Exp $
+#	$Id: Makefile,v 1.70 1995/01/07 11:09:48 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -53,8 +53,11 @@ hierarchy:
 	ln -s usr/src/sys ${DESTDIR}/sys
 
 kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
-	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
-	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
+	if [ ! -f ${.CURDIR}/../sys/compile/GENERIC ]; then \
+		(cd ${.CURDIR}/../sys/i386/conf; config GENERIC); \
+		(cd ${.CURDIR}/../sys/compile/GENERIC; \
+			${MAKE} depend; ${MAKE} all; ) \
+	fi
 
 boot_12.flp: 
 	(cd ${.CURDIR}; EVIL_FLOPPY=yes ${MAKE} boot.flp)
@@ -166,7 +169,7 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-EXTRADISTRIBUTIONS=	secrdist games manpages proflibs dict 
+EXTRADISTRIBUTIONS=	secrdist srcdist games manpages proflibs dict infodist
 DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
