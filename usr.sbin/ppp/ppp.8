@@ -20,7 +20,7 @@ This is a user process
 software package.
 Normally,
 .Em PPP
-is implemented as a part of the kernel (e.g. as managed by
+is implemented as a part of the kernel (e.g., as managed by
 .Xr pppd 8 )
 and it's thus somewhat hard to debug and/or modify its behaviour.
 However, in this implementation
@@ -333,7 +333,7 @@ network interface.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
-Normally, a modem has built-in compression (e.g. v42.bis) and the system
+Normally, a modem has built-in compression (e.g., v42.bis) and the system
 may receive higher data rates from it as a result of such compression.
 While this is generally a good thing in most other situations, this
 higher speed data imposes a penalty on the system by increasing the
