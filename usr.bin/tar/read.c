@@ -315,10 +315,12 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (name[0] == '/') {
 		/* Generate a warning the first time this happens. */
 		if (!bsdtar->warned_lead_slash) {
-			bsdtar_warnc(bsdtar, 0, "Removing leading '/' from member names");
+			bsdtar_warnc(bsdtar, 0,
+			    "Removing leading '/' from member names");
 			bsdtar->warned_lead_slash = 1;
 		}
-		name++;
+		while (name[0] == '/')
+			name++;
 		archive_entry_set_pathname(entry, name);
 	}
 
@@ -329,6 +331,7 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 		    (pn[2] == '\0' || pn[2] == '/')) {
 			bsdtar_warnc(bsdtar, 0,
 			    "Skipping pathname containing ..");
+			bsdtar->return_value = 1;
 			return (1);
 		}
 		pn = strchr(pn, '/');
@@ -367,11 +370,23 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 				break;
 		} else if (S_ISLNK(st.st_mode)) {
 			if (pn[0] == '\0') {
-				/* Last element is symlink; just remove it. */
-				bsdtar_warnc(bsdtar, 0, "Removing symlink %s",
-				    bsdtar->security->path);
+				/*
+				 * Last element is symlink; remove it
+				 * so we can overwrite it with the
+				 * item being extracted.
+				 */
+				if (!S_ISLNK(archive_entry_mode(entry))) {
+					/*
+					 * Warn only if the symlink is being
+					 * replaced with a non-symlink.
+					 */
+					bsdtar_warnc(bsdtar, 0,
+					    "Removing symlink %s",
+					    bsdtar->security->path);
+				}
 				unlink(bsdtar->security->path);
-				return (1);
+				/* Symlink gone.  No more problem! */
+				return (0);
 			} else if (bsdtar->option_unlink_first) {
 				/* User asked us to remove problems. */
 				unlink(bsdtar->security->path);
@@ -379,6 +394,7 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 				bsdtar_warnc(bsdtar, 0,
 				    "Cannot extract %s through symlink %s",
 				    name, bsdtar->security->path);
+				bsdtar->return_value = 1;
 				return (1);
 			}
 		}
