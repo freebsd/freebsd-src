@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.149 1998/10/14 11:23:48 jkh Exp $
+ * $Id: sysinstall.h,v 1.150 1998/11/15 09:06:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,14 +51,8 @@
 #include "colors.h"
 #include "libdisk.h"
 #include "dist.h"
-#include "version.h"
 
 /*** Defines ***/
-
-/* Different packages we depend on - update symlinks when versions change! */
-#define PACKAGE_GATED	"gated"
-#define PACKAGE_PCNFSD	"pcnfsd"
-#define PACKAGE_LYNX	"lynx"
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
