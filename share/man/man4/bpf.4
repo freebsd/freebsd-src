@@ -20,7 +20,7 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
-.\"	$Id: bpf.4,v 1.11 1998/01/02 19:22:51 alex Exp $
+.\"	$Id: bpf.4,v 1.12 1998/03/12 07:30:16 charnier Exp $
 .\"
 .Dd January 16, 1996
 .Dt BPF 4
@@ -641,12 +641,12 @@ This filter accepts only IP packets between host 128.3.112.15 and
 struct bpf_insn insns[] = {
 	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETHERTYPE_IP, 0, 8),
-	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 26),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 26),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x8003700f, 0, 2),
-	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 30),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 30),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x80037023, 3, 4),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x80037023, 0, 3),
-	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 30),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 30),
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x8003700f, 0, 1),
 	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
 	BPF_STMT(BPF_RET+BPF_K, 0),
