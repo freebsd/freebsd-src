@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: mail.local.c,v 8.143.4.37 2000/09/22 00:49:10 doug Exp $";
+static char id[] = "@(#)$Id: mail.local.c,v 8.143.4.39 2000/11/14 20:02:47 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -663,7 +663,7 @@ dolmtp(bouncequota)
 				printf("250 2.0.0 ok\r\n");
 
 rset:
-				while (rcpt_num)
+				while (rcpt_num > 0)
 					free(rcpt_addr[--rcpt_num]);
 				if (return_path != NULL)
 					free(return_path);
@@ -924,7 +924,7 @@ deliver(fd, name, bouncequota)
 	struct stat sb;
 	struct passwd *pw;
 	char path[MAXPATHLEN];
-	int mbfd, nr = 0, nw, off;
+	int mbfd = -1, nr = 0, nw, off;
 	char *p;
 	off_t curoff;
 #ifdef CONTENTLENGTH
