@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.54 1996/05/28 23:31:20 jkh Exp $
+ * $Id: dist.c,v 1.55 1996/05/29 01:35:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -474,10 +474,9 @@ distExtract(char *parent, Distribution *me)
 }
 
 static void
-printSelected(char *buf, int selected, Distribution *me)
+printSelected(char *buf, int selected, Distribution *me, int *col)
 {
     int i;
-    static int col = 0;
 
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
@@ -490,15 +489,15 @@ printSelected(char *buf, int selected, Distribution *me)
 	if (!me[i].my_dir)
 	    continue;
 
-	col += strlen(me[i].my_name);
-	if (col > 50) {
-	    col = 0;
+	*col += strlen(me[i].my_name);
+	if (*col > 50) {
+	    *col = 0;
 	    strcat(buf, "\n");
 	}
 	sprintf(&buf[strlen(buf)], " %s", me[i].my_name);
 	/* Recurse if have a sub-distribution */
 	if (me[i].my_dist)
-	    printSelected(buf, *(me[i].my_mask), me[i].my_dist);
+	    printSelected(buf, *(me[i].my_mask), me[i].my_dist, col);
     }
 }
 
@@ -525,8 +524,10 @@ distExtractAll(dialogMenuItem *self)
 	distExtract(NULL, DistTable);
 
     if (Dists) {
+	int col = 0;
+
 	buf[0] = '\0';
-	printSelected(buf, Dists, DistTable);
+	printSelected(buf, Dists, DistTable, &col);
 	dialog_clear();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
