@@ -22,14 +22,17 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.24 1998/10/08 18:47:30 des Exp $
+.\"     $Id: rc.conf.5,v 1.25 1998/11/15 20:29:27 msmith Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
 .Os FreeBSD 2.2.2
 .Sh NAME
 .Nm rc.conf
-.Nd local configuration information.
+.Nd system configuration information.
+.Pp
+.Nm rc.conf.local
+.Nd localized system configuration information.
 .Sh DESCRIPTION
 The file
 .Nm rc.conf
@@ -40,15 +43,16 @@ started up at system initial boot time.  In new installations, the
 file is generally initialized by the system installation utility:
 .Pa /stand/sysinstall .
 .Pp
-It is the duty of the system administrator to properly maintain this file
-as changes occur on the local host.
-.Sh FILES
-.Bl -tag -width /etc/rc.conf -compact
-.It Pa /etc/rc.conf
-.El
-.Sh DESCRIPTION
+The 
+.Nm rc.conf.local
+file may be used to override variables set in rc.conf.  The system
+administrator typically uses the distribution-supplied 
+.Nm rc.conf 
+file and maintains local overrides/additions in 
+.Nm rc.conf.local.
+.Pp
 The purpose of
-.Nm
+.Nm rc.conf[.local]
 is not to run commands or perform system startup actions
 directly.  Instead, it is included by the
 various generic startup scripts in
@@ -273,6 +277,15 @@ is set to
 .Ar YES ,
 these are the flags to pass to it.  Use the \fBinfo amd\fR
 command for more information.
+.It Ar update_motd
+(bool) If set to 
+.Ar YES ,
+.Nm /etc/motd
+will be updated at boot time to reflect the kernel release
+bring run.  If set to
+.Ar NO ,
+.Nm
+will not be updated
 .It Ar nfs_client_enable
 (bool) If set to
 .Ar YES ,
@@ -911,7 +924,14 @@ most secure).  See
 .Xr init 8
 for the list of possible security levels and their effect
 on system operation.
-
+.Sh FILES
+.Bl -tag -width /etc/rc.conf -compact
+.It Pa /etc/rc.conf
+.El
+.Pp
+.Bl -tag -width /etc/rc.conf.local -compact
+.It Pa /etc/rc.conf.local
+.El
 .Sh SEE ALSO
 .Xr gdb 1 ,
 .Xr info 1 ,
@@ -925,6 +945,7 @@ on system operation.
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
 .Xr lpd 8 ,
+.Xr motd 5 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
 .Xr named 8 ,
