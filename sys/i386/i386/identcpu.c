@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.58 1999/02/04 16:48:25 kato Exp $
+ *	$Id: identcpu.c,v 1.59 1999/02/20 19:46:39 roberto Exp $
  */
 
 #include "opt_cpu.h"
@@ -132,7 +132,7 @@ printcpuinfo(void)
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if (strcmp(cpu_vendor,"GenuineIntel") == 0) {
-		if ((cpu_id & 0xf00) > 3) {
+		if ((cpu_id & 0xf00) > 0x300) {
 			cpu_model[0] = '\0';
 
 			switch (cpu_id & 0x3000) {
@@ -508,7 +508,7 @@ printcpuinfo(void)
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
-		 ((cpu_id & 0xf00) > 5))) {
+		 ((cpu_id & 0xf00) > 0x500))) {
 		printf("  Stepping=%u", cpu_id & 0xf);
 		if (strcmp(cpu_vendor, "CyrixInstead") == 0)
 			printf("  DIR=0x%04x", cyrix_did);
