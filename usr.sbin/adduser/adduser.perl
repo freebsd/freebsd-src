@@ -30,7 +30,9 @@
 # read variables
 sub variables {
     $verbose = 1;		# verbose = [0-2]
-    $defaultpasswd = "yes";	# use password for new users
+    $defaultusepassword = "yes";	# use password authentication for new users
+    $defaultenableaccount = "yes"; # enable the account by default
+    $defaultemptypassword = "no"; # don't create an empty password
     $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
     $dotdir_bak = $dotdir;
     $send_message = "/etc/adduser.message"; # send message to new user
@@ -65,6 +67,9 @@ sub variables {
     $pwgid = '';		# $pwgid{pwgid} = username; gid from passwd db
 
     $password = '';		# password for new users
+    $usepassword = '';            # use password-based auth
+    $useemptypassword = '';       # use an empty password
+    $enableaccount = '';	# enable or disable account password at creation
 
     # group
     $groupname ='';		# $groupname{groupname} = gid
@@ -522,11 +527,24 @@ sub new_users_groups_valid {
 
 # your last change
 sub new_users_ok {
+    local ($newpasswd);
+    # Note that we either show "password disabled" or
+    # "****" .. we don't show "empty password" since
+    # the whole point of starring out the password in
+    # the first place is to stop people looking over your
+    # shoulder and seeing the password.. -- adrian
+    if ($usepassword eq "no") {
+        $newpasswd = "Password disabled";
+    } elsif ($enableaccount eq "no") {
+        $newpasswd = "Password disabled";
+    } else {
+        $newpasswd = "****";
+    }
 
     print <<EOF;
 
 Name:	  $name
-Password: ****
+Password: $newpasswd
 Fullname: $fullname
 Uid:	  $u_id
 Gid:	  $g_id ($group_login)
@@ -639,9 +657,6 @@ sub sendmessage {
 
 sub new_users_password {
 
-    # empty password
-    return "" if $defaultpasswd ne "yes";
-
     local($password);
 
     while(1) {
@@ -665,6 +680,29 @@ sub new_users_password {
     return $password;
 }
 
+sub new_users_use_password {
+    local ($p) = $defaultusepassword;
+    $p = &confirm_yn("Use password-based authentication", $defaultusepassword);
+    return "yes" if (($defaultusepassword eq "yes" && $p) ||
+                     ($defaultusepassword eq "no" && !$p));
+    return "no";    # otherwise
+}
+
+sub new_users_enable_account {
+    local ($p) = $defaultenableaccount;
+    $p = &confirm_yn("Enable account password at creation", $defaultenableaccount);
+    return "yes" if (($defaultenableaccount eq "yes" && $p) ||
+                     ($defaultenableaccount eq "no" && !$p));
+    return "no";    # otherwise
+}
+
+sub new_users_empty_password {
+    local ($p) = $defaultemptypassword;
+    $p = &confirm_yn("Use an empty password", $defaultemptypassword);
+    return "yes" if (($defaultemptypassword eq "yes" && $p) ||
+                     ($defaultemptypassword eq "no" && !$p));
+    return "no";    # otherwise
+}
 
 sub new_users {
 
@@ -703,15 +741,54 @@ sub new_users {
 	# do not use uniq username and login group
 	$g_id = $groupname{$group_login} if (defined($groupname{$group_login}));
 
-	$new_groups = &new_users_groups($name, $new_groups);
-	$password = &new_users_password;
 
+        # The tricky logic:
+        # If $usepasswd is 0, we use a * as a password
+        # If $usepasswd is 1, then
+        #   if $enableaccount is 0, we prepend * as a password
+        #     else if $enableaccount is 1 we don't prepend anything
+        #   if $useemptypassword is 0 we ask for a password,
+        #     else we use a blank one
+        #
+        # The logic is tasty, I'll give you that, but its flexible and
+        # it'll stop people shooting themselves in the foot.
+
+	$new_groups = &new_users_groups($name, $new_groups);
+
+        $usepassword = &new_users_use_password;
+        if ($usepassword eq "no") {
+            # note that the assignments to enableaccount and
+            # useemptypassword functionally do the same as
+            # usepasswd == "no". Just for consistency.
+            $password = "";    # no password!
+            $enableaccount = "no"; # doesn't matter here
+            $useemptypassword = "yes"; # doesn't matter here
+        } else {
+            $useemptypassword = &new_users_empty_password;
+            if ($useemptypassword eq "no") {
+                $password = &new_users_password;
+            }
+            $enableaccount = &new_users_enable_account;
+        }
 
 	if (&new_users_ok) {
 	    $new_users_ok = 1;
 
 	    $cryptpwd = "";
 	    $cryptpwd = crypt($password, &salt) if $password ne "";
+
+            if ($usepassword eq "no") {
+                $cryptpwd = "*";
+            } else {
+                # cryptpwd is valid before this if mess, so if
+                # blankpasswd is no we don't blank the cryptpwd
+                if ($useemptypassword eq "yes") {
+                    $cryptpwd = "";
+                }
+                if ($enableaccount eq "no") {
+                    $cryptpwd = "*" . $cryptpwd;
+                }
+            }
 	    # obscure perl bug
 	    $new_entry = "$name\:" . "$cryptpwd" .
 		"\:$u_id\:$g_id\:$class\:0:0:$fullname:$userhome:$sh";
@@ -735,14 +812,38 @@ sub new_users {
 
 # ask for password usage
 sub password_default {
-    local($p) = $defaultpasswd;
+    local($p) = $defaultusepassword;
     if ($verbose) {
-	$p = &confirm_yn("Use passwords", $defaultpasswd);
+	$p = &confirm_yn("Use password-based authentication", $defaultusepassword);
 	$changes++ unless $p;
     }
-    return "yes" if (($defaultpasswd eq "yes" && $p) ||
-		     ($defaultpasswd eq "no" && !$p));
+    return "yes" if (($defaultusepassword eq "yes" && $p) ||
+		     ($defaultusepassword eq "no" && !$p));
     return "no";    # otherwise
+}
+
+# ask for account enable usage
+sub enable_account_default {
+    local ($p) = $defaultenableaccount;
+    if ($verbose) {
+        $p = &confirm_yn("Enable account password at creation", $defaultenableaccount);
+        $changes++ unless $p;
+    }
+    return "yes" if (($defaultenableaccount eq "yes" && $p) ||
+                     ($defaultenableaccount eq "no" && !$p));
+    return "no";    # otherwise
+}
+
+# ask for empty password
+sub enable_empty_password {
+    local ($p) = $defaultemptypassword;
+    if ($verbose) {
+        $p = &confirm_yn("Use an empty password", $defaultemptypassword);
+        $changes++ unless $p;
+    }
+    return "yes" if (($defaultemptypassword eq "yes" && $p) ||
+                     ($defaultemptypassword eq "no" && !$p));
+    return "no"; # otherwise
 }
 
 # misc
@@ -1296,7 +1397,9 @@ sub config_write {
 
     # prepare some variables
     $send_message = "no" unless $send_message;
-    $defaultpasswd = "no" unless $defaultpasswd;
+    $defaultusepassword = "no" unless $defaultusepassword;
+    $defaultenableaccount = "yes" unless $defaultenableaccount;
+    $defaultemptypassword = "no" unless $defaultemptypassword;
     local($shpref) = "'" . join("', '", @shellpref) . "'";
     local($shpath) = "'" . join("', '", @path) . "'";
     local($user_var) = join('', @user_variable_list);
@@ -1313,9 +1416,18 @@ sub config_write {
 # verbose = [0-2]
 verbose = $verbose
 
-# use password for new users
-# defaultpasswd =  yes | no
-defaultpasswd = $defaultpasswd
+# use password-based authentication for new users
+# defaultusepassword =  "yes" | "no"
+defaultusepassword = "$defaultusepassword"
+
+# enable account password at creation
+# (the password will be prepended with a star if the account isn't enabled)
+# defaultenableaccount = "yes" | "no"
+defaultenableaccount = "$defaultenableaccount"
+
+# allow blank passwords
+# defaultemptypassword = "yes" | "no"
+defaultemptypassword = "$defaultemptypassword"
 
 # copy dotfiles from this dir ("/usr/share/skel" or "no")
 dotdir = "$dotdir"
@@ -1393,7 +1505,17 @@ $defaultshell = &shell_default;	# enter default shell
 $home = &home_partition($home);	# find HOME partition
 $dotdir = &dotdir_default;	# check $dotdir
 $send_message = &message_default;   # send message to new user
-$defaultpasswd = &password_default; # maybe use password
+$defaultusepassword = &password_default; # maybe use password
+if ($defaultusepassword eq "no") {
+    if ($verbose) {
+        print "Creating accounts with a locked password.\n";
+    }
+    $defaultenableaccount = "no";
+    $defaultemptypassword = "yes";
+} else {
+    $defaultenableaccount = &enable_account_default; # enable or disable account
+    $defaultemptypassword = &enable_empty_password; # use empty password or not
+}
 &config_write(!$verbose);	# write variables in file
 
 # main loop for creating new users
