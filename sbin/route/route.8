@@ -30,14 +30,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
-.|'	$Id: route.8,v 1.7.2.1 1997/03/03 07:01:44 mpp Exp $
+.\"	$Id: route.8,v 1.7.2.2 1998/07/17 20:13:49 jkh Exp $
 .\"
 .Dd March 19, 1994
 .Dt ROUTE 8
 .Os BSD 4.4
 .Sh NAME
 .Nm route
-.Nd manually manipulate the routing tables.
+.Nd manually manipulate the routing tables
 .Sh SYNOPSIS
 .Nm route
 .Op Fl nqv
@@ -55,7 +55,7 @@ system routing table management daemon such as
 should tend to this task.
 .Pp
 The
-.Nm route :
+.Nm
 utility supports a limited number of general options,
 but a rich command language, enabling the user to specify
 any arbitrary request that could be delivered via the
@@ -68,7 +68,7 @@ Bypasses attempts to print host and network names symbolically
 when reporting actions.  (The process of translating between symbolic
 names and numerical equivalents can be quite time consuming, and
 may require correct operation of the network; thus it may be expedient
-to forgo this, especially when attempting to repair networking operations),
+to forgot this, especially when attempting to repair networking operations).
 .It Fl v
 (verbose) Print additional details.
 .It Fl q
@@ -76,7 +76,7 @@ Suppress all output.
 .El
 .Pp
 The
-.Nm route :
+.Nm
 utility provides six commands:
 .Pp
 .Bl -tag -width Fl -compact
