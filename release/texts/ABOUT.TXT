@@ -127,7 +127,7 @@ HARDWARE.TXT    compat1x        info		src             tools
 INSTALL.TXT     compat20        dict            manpages        packages
 README.TXT      compat21        des             doc
 RELNOTES.TXT    compat22        floppies        ports
-XF86333
+XF86336
 
 If you want to do a CDROM, FTP or NFS installation from this
 distribution directory, all you need to do is make a pair of 1.44MB
@@ -142,7 +142,7 @@ follows is a more thorough description of each item in more detail:
 The *.TXT files obviously contain documentation (ABOUT.TXT being what
 you're reading now).
 
-The XF86333 directory contains the XFree86 project's 3.3.3.1 release and
+The XF86336 directory contains the XFree86 project's 3.3.6 release and
 consists of a series of gzip'd tar files which contain each component
 of the XFree86 distribution.
 
