@@ -14,7 +14,7 @@ SUBDIR+=        libc libcompat libcom_err libcurses libedit \
 		libf2c libfakegnumalloc libftpio libforms \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
 	libscsi libskey libss libtermcap libutil libxpg4 liby libipx \
-	libdisk
+	libdisk tcl
 
 .if !exists(../secure) || defined(NOSECURE) || defined(NOCRYPT)
 SUBDIR+= libcrypt
