@@ -257,7 +257,7 @@ aac_pci_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(sc->aac_parent_dmat, 	/* parent */
 			   1, 0, 			/* algnmnt, boundary */
-			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   MAXBSIZE, AAC_MAXSGENTRIES,	/* maxsize, nsegments */
@@ -273,7 +273,7 @@ aac_pci_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(sc->aac_parent_dmat,	/* parent */
 			   1, 0, 			/* algnmnt, boundary */
-			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   AAC_FIB_COUNT *
