@@ -11,29 +11,17 @@
 . /etc/rc.subr
 
 name="mountd"
+rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 required_files="/etc/exports"
 start_precmd="mountd_precmd"
 extra_commands="reload"
 
-case `${CMD_OSTYPE}` in
-FreeBSD)
-	rcvar=`set_rcvar nfs_server`
-	;;
-NetBSD)
-	rcvar=`set_rcvar`
-	;;
-esac
-
 mountd_precmd()
 {
 	case `${CMD_OSTYPE}` in
 	FreeBSD)
-		if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
-			force_depend nfsserver || return 1
-		fi
-
-		if ! checkyesno portmap_enable  && \
+		if ! checkyesno rpcbind_enable  && \
 		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
                 then
 			force_depend rpcbind || return 1
