@@ -305,7 +305,7 @@
     <para>A VESA S3 linear framebuffer driver has been added.</para>
 
     <para arch="i386">The &man.viapm.4; driver for VIA SMBus
-      power management controllers has been added.</para>
+      power management controllers has been added. &merged;</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -659,6 +659,9 @@
 	receive are supported, although hardware VLAN filtering is
 	not. &merged;</para>
 
+      <para>The my driver, which supports the Myson Fast Ethernet and
+	Gigabit Ethernet adapters, has been added. &merged;</para>
+
       <para>Added the &man.nge.4; driver, which supports PCI Gigabit
 	Ethernet adapters based on the National Semiconductor DP83820
 	and DP83821 Gigabit Ethernet controller chips, including the
@@ -825,9 +828,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>&man.ipfw.4; now filters correctly in the presence of ECN
 	bits in TCP segments. &merged;</para>
 
-      <para>A new &man.ng.eth.4; netgraph node allows Ethernet type
+      <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
 	packets to be filtered to different hooks depending on
-	ethertype.</para>
+	ethertype. &merged;</para>
 
       <para>The &man.ng.gif.4; and &man.ng.gif.demux.4; netgraph
 	nodes, for operating on &man.gif.4; devices, have been
@@ -2141,7 +2144,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para><filename>libstand</filename> now has support for loading
       large kernels and modules split across several physical
-      media.</para>
+      media. &merged;</para>
 
     <para>The default TCP port range used by
       <filename>libfetch</filename> for passive FTP retrievals has

@@ -1721,6 +1721,18 @@
 
     <para arch="sparc64">Sun GEM (Gigabit Ethernet) and ERI (Fast
     Ethernet) NICs (gem driver)</para>
+
+    <para arch="i386">Myson Ethernet NICs (my driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Myson MTD80X Based Fast Ethernet Card</para>
+	</listitem>
+        <listitem>
+	  <para>Myson MTD89X Based Gigabit Ethernet Card</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
   </sect2>
 
   <sect2>
