@@ -52,6 +52,10 @@
     hardware watchpoints (as opposed to software watchpoints) if supported
     by the architecture.</para>
 
+    <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
+    adjusts the maximum receive segment size of incoming TCP SYN
+    segments as well as outgoing TCP SYN segments.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -97,6 +101,11 @@
       <para>The &man.tx.4; driver now supports the fiber-optic
       SMC 9432FTX NICs.</para>
 
+      <para>The &man.ed.4; driver now has support for D-Link
+      DL10022 chips, necessary for the NetGear FA-410TX and other
+      cards.  As a result, <literal>device miibus</literal> is
+      required in kernel configurations using the &man.ed.4;
+      driver.</para>
     </sect3>
 
     <sect3>
@@ -120,6 +129,13 @@
       allocation of a TCP template structure for each connection; this
       should reduce the buffer usage on large systems handling many
       connections.</para>
+
+      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
+      option causes the ID field of IP packets to be randomized.  This
+      closes a minor information leak which allows a remote observer
+      to determine the rate at which the machine is generating
+      packets, since the default behaviour is to increment a counter
+      for each packet sent.</para>
 
     </sect3>
 
@@ -350,10 +366,21 @@
 
     <para>&man.last.1; now implements a <option>-d</option> that provides a
     <quote>snapshot</quote> of who was logged in at a particular date and
-    time. &merged;</para>
+    time.</para>
+
+    <para><filename>libcrypt</filename> and
+    <filename>libdescrypt</filename> have been unified to provide a
+    configurable password authentication hash library.  Both the md5
+    and des hash methods are provided unless the des hash is
+    specifically compiled out.</para>
 
     <sect3>
       <title>Contributed Software</title>
+
+      <para><application>BIND</application> is now built with the
+      <literal>NOADDITIONAL</literal> flag, which causes &man.named.8;
+      to operate in a more consistent fashion for certain common
+      misconfigurations.</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2.</para>
