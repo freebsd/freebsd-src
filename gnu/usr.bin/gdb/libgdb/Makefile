@@ -37,7 +37,7 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c bcache.c	\
 	tui-stack.c tui-win.c tui-windata.c tui-wingeneral.c		\
 	tui-winsource.c typeprint.c ui-file.c ui-out.c user-regs.c	\
 	utils.c valarith.c valops.c valprint.c values.c varobj.c	\
-	wrapper.c ${LIBSRCS}
+	wrapper.c fbsd-threads.c ${LIBSRCS}
 
 GENSRCS= version.c
 
