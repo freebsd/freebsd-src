@@ -73,7 +73,7 @@ main(argc, argv)
 	save = argv;
 	Hflag = Lflag = Pflag = aflag = sflag = 0;
 	ftsoptions = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPasx")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPaksx")) != EOF)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -89,6 +89,9 @@ main(argc, argv)
 			break;
 		case 'a':
 			aflag = 1;
+			break;
+		case 'k':
+			putenv("BLOCKSIZE=1024");
 			break;
 		case 's':
 			sflag = 1;
@@ -224,6 +227,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s] [-x] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s] [-k] [-x] [file ...]\n");
 	exit(1);
 }
