@@ -331,6 +331,9 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	struct hpfsmount *hpmp;
 	struct buf *bp = NULL;
 	struct vnode *vp;
+#if defined(__FreeBSD__)
+	struct ucred *uc;
+#endif
 	dev_t dev = devvp->v_rdev;
 
 	dprintf(("hpfs_mountfs():\n"));
@@ -353,7 +356,12 @@ hpfs_mountfs(devvp, mp, argsp, p)
 
 #if defined(__FreeBSD__)
 	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	error = vinvalbuf(devvp, V_SAVE, uc, p, 0, 0);
+	crfree(uc);
 	VOP__UNLOCK(devvp, 0, p);
 #else
 	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
