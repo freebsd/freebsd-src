@@ -38,7 +38,6 @@
 
 DUMMY(stat);
 DUMMY(stime);
-DUMMY(ptrace);
 DUMMY(fstat);
 DUMMY(olduname);
 DUMMY(syslog);
