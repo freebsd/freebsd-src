@@ -38,7 +38,6 @@
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
 
 
 #include <pci/pcireg.h>
@@ -47,8 +46,6 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/md_var.h>
-
 
 static u_int16_t isp_pci_rd_reg __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg __P((struct ispsoftc *, int, u_int16_t));
