@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 1997
+.Dd April 1, 2000
 .Dt MOUSED 8
 .Os FreeBSD
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd pass mouse data to the console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl 3DPRcdfs
+.Op Fl DPRcdfs
 .Op Fl I Ar file
 .Op Fl F Ar rate
 .Op Fl r Ar resolution
@@ -48,6 +48,7 @@
 .Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
+.Op Fl 3 Op Fl E Ar timeout
 .Fl p Ar port
 .Pp
 .Nm
@@ -99,7 +100,7 @@ in the text mode console.
 The user program which is reading mouse data
 via 
 .Xr sysmouse 4
-won't be affected.
+will not be affected.
 .It Fl D
 Lower DTR on the serial port. 
 This option is valid only if 
@@ -109,6 +110,16 @@ The DTR line may need to be dropped for a 3-button mouse
 to operate in the
 .Ar mousesystems
 mode.
+.It Fl E Ar timeout
+When the third button emulation is enabled
+.Pq see above ,
+the
+.Nm
+daemon waits
+.Ar timeout
+msec at most before deciding whether two buttons are being pressed
+simultaneously.
+The default timeout is 200 msec.
 .It Fl F Ar rate
 Set the report rate (reports/sec) of the device if supported.
 .It Fl I Ar file
@@ -124,7 +135,7 @@ If this option is given together with the
 .Fl i
 option, the
 .Nm
-command won't be able to print useful information for the serial mouse.
+command will not be able to print useful information for the serial mouse.
 .It Fl R
 Lower RTS on the serial port.
 This option is valid only if 
@@ -144,7 +155,7 @@ Select the baudrate for the serial port (1200 to 9600).
 Not all serial mice support this option.
 .It Fl c
 Some mice report middle button down events
-as if the left and right buttons are pressed.
+as if the left and right buttons are being pressed.
 This option handles this.
 .It Fl d
 Enable debugging messages.
@@ -246,6 +257,10 @@ or
 .Ar busmouse .
 Serial mouse protocols will not work with these mice.
 .Pp
+For the USB mouse, the protocol must be
+.Ar auto .
+No other protocol will work with the USB mouse.
+.Pp
 Valid types for this option are
 listed below.
 .Pp
@@ -300,6 +315,11 @@ For the PS/2 mouse:
 This is the only protocol type available for the PS/2 mouse
 and should be specified for any PS/2 mice, regardless of the brand.
 .El
+.Pp
+For the USB mouse,
+.Ar auto
+is the only protocol type available for the USB mouse
+and should be specified for any USB mice, regardless of the brand.
 .It Fl w Ar N
 Make the physical button
 .Ar N
@@ -319,18 +339,51 @@ maybe:
 .It Ar y
 X or Y axis movement will be reported when the Z axis movement is detected.
 .It Ar N
-Report the virtual buttons
+Report down events for the virtual buttons
 .Ar N 
 and 
 .Ar N+1 
-down events respectively when negative and positive Z axis movement 
+respectively when negative and positive Z axis movement 
 is detected.
-There doesn't need to be physical buttons 
+There do not need to be physical buttons 
 .Ar N
 and 
 .Ar N+1 .
 Note that mapping to logical buttons is carried out after mapping
 from the Z axis movement to the virtual buttons is done.
+.It Ar N1 N2
+Report down events for the virtual buttons
+.Ar N1
+and 
+.Ar N2
+respectively when negative and positive Z axis movement 
+is detected.
+.It Ar N1 N2 N3 N4
+This is useful for the mouse with two wheels of which
+the second wheel is used to generate horizontal scroll action,
+and for the mouse which has a knob or a stick which can detect
+the horizontal force applied by the user.
+.Pp
+The motion of the second wheel will be mapped to the buttons
+.Ar N3 ,
+for the negative direction, and
+.Ar N4 ,
+for the positive direction.
+If the buttons
+.Ar N3
+and
+.Ar N4
+actually exist in this mouse, their actions will not be detected.
+.Pp
+Note that horizontal movement or second roller/wheel movement may not
+always be detected,
+because there appears to be no accepted standard as to how it is encoded.
+.Pp
+Note also that some mice think left is the negative horizontal direction, 
+others may think otherwise.  
+Moreover, there are some mice whose two wheels are both mounted vertically,
+and the direction of the second vertical wheel does not match the
+first one's.
 .El
 .El
 .Ss Configuring Mouse Daemon
@@ -345,6 +398,7 @@ Some mice come with adapters with which the connector can
 be converted to another.  If you are to use such an adapter,
 remember the connector at the very end of the mouse/adapter pair is 
 what matters.
+The USB mouse has a flat rectangular connector.
 .Pp
 The next thing to decide is a port to use for the given interface.
 For the bus, InPort and PS/2 mice, there is little choice: 
@@ -357,6 +411,11 @@ mouse can be attached.  Many people often assign the first, built-in
 serial port
 .Pa /dev/cuaa0
 to the mouse.
+You can attach multiple USB mice to your system or to your USB hub.
+They are accessible as 
+.Pa /dev/ums0, /dev/ums1, 
+and so on.
+.Pa
 You may want to create a symbolic link
 .Pa /dev/mouse
 pointing to the real port to which the mouse is connected, so that you
@@ -410,21 +469,25 @@ The
 protocol should always be specified for the PS/2 mouse
 regardless of the brand of the mouse.
 .It 3.
+You must specify the
+.Ar auto
+protocol for the USB mouse.
+.It 4.
 Most 2-button serial mice support the
 .Ar microsoft
 protocol.
-.It 4.
+.It 5.
 3-button serial mice may work with the
 .Ar mousesystems
 protocol.
-If it doesn't, it may work with the 
+If it does not, it may work with the 
 .Ar microsoft
 protocol although 
-the third (middle) button won't function.
+the third (middle) button will not function.
 3-button serial mice may also work with the
 .Ar mouseman
 protocol under which the third button may function as expected.
-.It 5.
+.It 6.
 3-button serial mice may have a small switch to choose between ``MS''
 and ``PC'', or ``2'' and ``3''.
 ``MS'' or ``2'' usually mean the 
@@ -433,7 +496,7 @@ protocol.
 ``PC'' or ``3'' will choose the 
 .Ar mousesystems
 protocol.
-.It 6.
+.It 7.
 If the mouse has a roller or a wheel, it may be compatible with the
 .Ar intellimouse
 protocol.
@@ -467,7 +530,7 @@ to use
 .Xr sysmouse ,
 then the application program will always see mouse data from either mice. 
 When the serial mouse is not attached, the corresponding mouse daemon
-won't detect any movement or button state change and the application
+will not detect any movement or button state change and the application
 program will only see mouse data coming from the daemon for the
 PS/2 mouse.
 In contrast when both mice are attached and both of them
@@ -486,6 +549,8 @@ PS/2 mouse driver
 virtualized mouse driver
 .It Pa /dev/ttyv%d
 virtual consoles
+.It Pa /dev/ums%d
+USB mouse driver
 .It Pa /var/run/moused.pid
 process id of the currently running
 .Nm
@@ -573,7 +638,8 @@ option to assign the physical right button to the logical middle button:
 .Xr pcvt 4 ,
 .Xr psm 4 ,
 .Xr screen 4 ,
-.Xr sysmouse 4
+.Xr sysmouse 4 ,
+.Xr ums 4
 .Sh STANDARD
 The
 .Nm
