@@ -73,16 +73,32 @@ Boston, MA 02111-1307, USA.  */
 #undef  CPP_SPEC
 #define CPP_SPEC FBSD_CPP_SPEC
 
-/* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
-   libc, depending on whether we're doing profiling or need threads support.
-   (simular to the default, except no -lg, and no -p).  */
+/* Provide a LIB_SPEC appropriate for FreeBSD.  Before
+   __FreeBSD_version 500016, select the appropriate libc, depending on
+   whether we're doing profiling or need threads support.  (similar to
+   the default, except no -lg, and no -p).  At __FreeBSD_version
+   500016 and later, when threads support is requested include both
+   -lc and -lc_r instead of only -lc_r.  */
 
 #undef  LIB_SPEC
+#include <sys/param.h>
+#if __FreeBSD_version >= 500016
 #define LIB_SPEC "							\
   %{!shared:								\
     %{!pg: %{pthread:-lc_r} -lc}					\
     %{pg:  %{pthread:-lc_r_p} -lc_p}					\
   }"
+#else
+#define LIB_SPEC "							\
+  %{!shared:								\
+    %{!pg:								\
+      %{!pthread:-lc}							\
+      %{pthread:-lc_r}}							\
+    %{pg:								\
+      %{!pthread:-lc_p}							\
+      %{pthread:-lc_r_p}}						\
+  }"
+#endif
 
 
 /************************[  Target stuff  ]***********************************/
