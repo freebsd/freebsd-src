@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: mv.c,v 1.18 1998/05/15 06:25:17 charnier Exp $";
+	"$Id: mv.c,v 1.19 1998/05/25 22:44:16 steve Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	register char *p, *endp;
 	struct stat sb;
 	int ch;
-	char path[MAXPATHLEN + 1];
+	char path[MAXPATHLEN];
 
 	while ((ch = getopt(argc, argv, "fi")) != -1)
 		switch (ch) {
@@ -112,6 +112,8 @@ main(argc, argv)
 	}
 
 	/* It's a directory, move each file into it. */
+	if (strlen(argv[argc - 1]) > sizeof(path) - 1)
+		errx(1, "%s: destination pathname too long", *argv);
 	(void)strcpy(path, argv[argc - 1]);
 	baselen = strlen(path);
 	endp = &path[baselen];
