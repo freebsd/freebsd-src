@@ -1,6 +1,11 @@
+/*
+** This file is in the public domain, so clarified as of
+** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+*/
+
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)asctime.c	7.5";
+static char	elsieid[] = "@(#)asctime.c	7.7";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
