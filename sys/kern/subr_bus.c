@@ -29,15 +29,25 @@
 #include "opt_bus.h"
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/filio.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/selinfo.h>
+#include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 #include <sys/bus.h>
 
 #include <machine/stdarg.h>
@@ -168,6 +178,316 @@ void print_devclass_list(void);
 #define print_devclass_list_short()	/* nop */
 #define print_devclass_list()		/* nop */
 #endif
+
+/*
+ * /dev/devctl implementation
+ */
+
+/*
+ * This design allows only one reader for /dev/devctl.  This is not desirable
+ * in the long run, but will get a lot of hair out of this implementation.
+ * Maybe we should make this device a clonable device.
+ *
+ * Also note: we specifically do not attach a device to the device_t tree
+ * to avoid potential chicken and egg problems.  One could argue that all
+ * of this belongs to the root node.  One could also further argue that the
+ * sysctl interface that we have not might more properly be a ioctl
+ * interface, but at this stage of the game, I'm not inclinde to rock that
+ * boat.
+ *
+ * I'm also not sure that the SIGIO support is done correctly or not, as
+ * I copied it from a driver that had SIGIO support that likely hasn't been
+ * tested since 3.4 or 2.2.8!
+ */
+
+static d_open_t		devopen;
+static d_close_t	devclose;
+static d_read_t		devread;
+static d_ioctl_t	devioctl;
+static d_poll_t		devpoll;
+
+#define CDEV_MAJOR 173
+static struct cdevsw dev_cdevsw = {
+	/* open */	devopen,
+	/* close */	devclose,
+	/* read */	devread,
+	/* write */	nowrite,
+	/* ioctl */	devioctl,
+	/* poll */	devpoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"devctl",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+};
+
+struct dev_event_info
+{
+	char *dei_data;
+	TAILQ_ENTRY(dev_event_info) dei_link;
+};
+
+TAILQ_HEAD(devq, dev_event_info);
+
+struct dev_softc 
+{
+	int	inuse;
+	int 	nonblock;
+	int	async;
+	struct mtx mtx;
+	struct cv cv;
+	struct selinfo sel;
+	struct devq devq;
+	d_thread_t *async_td;
+} devsoftc;
+
+dev_t		devctl_dev;
+
+static void
+devinit(void)
+{
+	devctl_dev = make_dev(&dev_cdevsw, 0, 0, 0, 0644, "devctl");
+	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
+	cv_init(&devsoftc.cv, "dev cv");
+	TAILQ_INIT(&devsoftc.devq);
+}
+
+static int
+devopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
+{
+	if (devsoftc.inuse)
+		return (EBUSY);
+	/* move to init */
+	devsoftc.inuse = 1;
+	return (0);
+}
+
+static int
+devclose(dev_t dev, int fflag, int devtype, d_thread_t *td)
+{
+	struct dev_event_info *n1;
+
+	devsoftc.inuse = 0;
+	mtx_lock(&devsoftc.mtx);
+	cv_broadcast(&devsoftc.cv);
+	/*
+	 * See note in devread.  If we deside to keep data until read, then
+	 * remove the following while loop. XXX
+	 */
+	while (!TAILQ_EMPTY(&devsoftc.devq)) {
+		n1 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+	}
+	mtx_unlock(&devsoftc.mtx);
+
+	return (0);
+}
+
+/*
+ * The read channel for this device is used to report changes to
+ * userland in realtime.  We are required to free the data as well as
+ * the n1 object because we allocate them separately.  Also note that
+ * we return one record at a time.  If you try to read this device a
+ * character at a time, you will loose the rest of the data.  Listening
+ * programs are expected to cope.
+ */
+static int
+devread(dev_t dev, struct uio *uio, int ioflag)
+{
+	struct dev_event_info *n1;
+	int rv;
+
+	mtx_lock(&devsoftc.mtx);
+	while (TAILQ_EMPTY(&devsoftc.devq)) {
+		if (devsoftc.nonblock) {
+			mtx_unlock(&devsoftc.mtx);
+			return (EAGAIN);
+		}
+		rv = cv_wait_sig(&devsoftc.cv, &devsoftc.mtx);
+		if (rv) {
+			/*
+			 * Need to translate ERESTART to EINTR here? -- jake
+			 */
+			mtx_unlock(&devsoftc.mtx);
+			return (rv);
+		}
+	}
+	n1 = TAILQ_FIRST(&devsoftc.devq);
+	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	mtx_unlock(&devsoftc.mtx);
+	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
+	free(n1->dei_data, M_BUS);
+	free(n1, M_BUS);
+	return (rv);
+}
+
+static	int
+devioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
+{
+	switch (cmd) {
+
+	case FIONBIO:
+		if (*(int*)data)
+			devsoftc.nonblock = 1;
+		else
+			devsoftc.nonblock = 0;
+		return (0);
+	case FIOASYNC:
+		if (*(int*)data) {
+			devsoftc.async = 1;
+			devsoftc.async_td = td;
+		}
+		else {
+			devsoftc.async = 0;
+			devsoftc.async_td = NULL;
+		}
+		return (0);
+
+		/* (un)Support for other fcntl() calls. */
+	case FIOCLEX:
+	case FIONCLEX:
+	case FIONREAD:
+	case FIOSETOWN:
+	case FIOGETOWN:
+	default:
+		break;
+	}
+	return (ENOTTY);
+}
+
+static	int
+devpoll(dev_t dev, int events, d_thread_t *td)
+{
+	int	revents = 0;
+
+	if (events & (POLLIN | POLLRDNORM))
+		revents |= events & (POLLIN | POLLRDNORM);
+
+	if (events & (POLLOUT | POLLWRNORM))
+		revents |= events & (POLLOUT | POLLWRNORM);
+
+	mtx_lock(&devsoftc.mtx);
+	if (events & POLLRDBAND)
+		if (!TAILQ_EMPTY(&devsoftc.devq))
+			revents |= POLLRDBAND;
+	mtx_unlock(&devsoftc.mtx);
+
+	if (revents == 0)
+		selrecord(td, &devsoftc.sel);
+
+	return (revents);
+}
+
+/*
+ * Common routine that tries to make sending messages as easy as possible.
+ * We allocate memory for the data, copy strings into that, but do not
+ * free it unless there's an error.  The dequeue part of the driver should
+ * free the data.  We do not send any data if there is no listeners on the
+ * /dev/devctl device.  We assume that on startup, any program that wishes
+ * to do things based on devices that have attached before it starts will
+ * query the tree to find out its current state.  This decision may
+ * be revisited if there are difficulties determining if one should do an
+ * action or not (eg, are all actions that the listening program idempotent
+ * or not).  This may also open up races as well (say if the listener
+ * dies just before a device goes away, and is run again just after, no
+ * detach action would happen).  The flip side would be that we'd need to
+ * limit the size of the queue because otherwise if no listener is running
+ * then we'd have unbounded growth.  Most systems have less than 100 (maybe
+ * even less than 50) devices, so maybe a limit of 200 or 300 wouldn't be
+ * too horrible. XXX
+ */
+static void
+devaddq(const char *type, const char *what, device_t dev)
+{
+	struct dev_event_info *n1 = NULL;
+	char *data = NULL;
+	char *loc;
+	const char *parstr;
+
+	if (!devsoftc.inuse)
+		return;
+	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
+	if (n1 == NULL)
+		goto bad;
+	data = malloc(1024, M_BUS, M_NOWAIT);
+	if (data == NULL)
+		goto bad;
+	loc = malloc(1024, M_BUS, M_NOWAIT);
+	if (loc == NULL)
+		goto bad;
+	*loc = '\0';
+	bus_child_location_str(dev, loc, 1024);
+	if (device_get_parent(dev) == NULL)
+		parstr = ".";	/* Or '/' ? */
+	else
+		parstr = device_get_nameunit(device_get_parent(dev));
+	snprintf(data, 1024, "%s%s at %s on %s\n", type, what, loc, parstr);
+	free(loc, M_BUS);
+	n1->dei_data = data;
+	mtx_lock(&devsoftc.mtx);
+	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);	
+	cv_broadcast(&devsoftc.cv);
+	mtx_unlock(&devsoftc.mtx);
+	selwakeup(&devsoftc.sel);
+	if (devsoftc.async_td)
+		psignal(devsoftc.async_td->td_proc, SIGIO);
+	return;
+bad:;
+	free(data, M_BUS);
+	free(n1, M_BUS);
+	return;
+}
+
+/*
+ * A device was added to the tree.  We are called just after it successfully
+ * attaches (that is, probe and attach success for this device).  No call
+ * is made if a device is merely parented into the tree.  See devnomatch
+ * if probe fails.  If attach fails, no notification is sent (but maybe
+ * we should have a different message for this).
+ */
+static void
+devadded(device_t dev)
+{
+	devaddq("+", device_get_nameunit(dev), dev);
+}
+
+/*
+ * A device was removed from the tree.  We are called just before this
+ * happens.
+ */
+static void
+devremoved(device_t dev)
+{
+	devaddq("-", device_get_nameunit(dev), dev);
+}
+
+/*
+ * Called when there's no match for this device.  This is only called
+ * the first time that no match happens, so we don't keep getitng this
+ * message.  Should that prove to be undesirable, we can change it.
+ * This is called when all drivers that can attach to a given bus
+ * decline to accept this device.  Other errrors may not be detected.
+ */
+static void
+devnomatch(device_t dev)
+{
+	char *pnp = NULL;
+
+	pnp = malloc(1024, M_BUS, M_NOWAIT);
+	if (pnp == NULL)
+		return;
+	*pnp = '\0';
+	bus_child_pnpinfo_str(dev, pnp, 1024);
+	devaddq("?", pnp, dev);
+	free(pnp, M_BUS);
+	return;
+}
+
+/* End of /dev/devctl code */
 
 TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
@@ -1108,9 +1428,10 @@ device_probe_and_attach(device_t dev)
 			if (!device_is_quiet(dev))
 				device_print_child(bus, dev);
 			error = DEVICE_ATTACH(dev);
-			if (!error)
+			if (!error) {
 				dev->state = DS_ATTACHED;
-			else {
+				devadded(dev);
+			} else {
 				printf("device_probe_and_attach: %s%d attach returned %d\n",
 				    dev->driver->name, dev->unit, error);
 				/* Unset the class; set in device_probe_child */
@@ -1122,6 +1443,7 @@ device_probe_and_attach(device_t dev)
 		} else {
 			if (!(dev->flags & DF_DONENOMATCH)) {
 				BUS_PROBE_NOMATCH(bus, dev);
+				devnomatch(dev);
 				dev->flags |= DF_DONENOMATCH;
 			}
 		}
@@ -1148,6 +1470,7 @@ device_detach(device_t dev)
 
 	if ((error = DEVICE_DETACH(dev)) != 0)
 		return (error);
+	devremoved(dev);
 	device_printf(dev, "detached\n");
 	if (dev->parent)
 		BUS_CHILD_DETACHED(dev->parent, dev);
@@ -1889,6 +2212,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 		root_bus->driver = &root_driver;
 		root_bus->state = DS_ATTACHED;
 		root_devclass = devclass_find_internal("root", FALSE);
+		devinit();
 		return (0);
 
 	case MOD_SHUTDOWN:
