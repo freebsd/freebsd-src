@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.67 1999/04/16 21:22:51 peter Exp $
+ *	$Id: if_fxp.c,v 1.68 1999/05/08 21:59:39 dfr Exp $
  */
 
 /*
@@ -1128,12 +1128,16 @@ rcvloop:
 					    FXP_RFA_STATUS_IAMATCH) &&
 					    (eh->ether_dhost[0] & 1)
 					    == 0) {
+#ifdef BRIDGE
 dropit:
+#endif
 					    if (m)
 						m_freem(m);
 					    goto rcvloop;
 					}
+#ifdef BRIDGE
 getit:
+#endif
 					m->m_data +=
 					    sizeof(struct ether_header);
 					m->m_len -=
