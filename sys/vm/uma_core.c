@@ -733,15 +733,11 @@ slab_zalloc(uma_zone_t zone, int wait)
 		mem = tmps->us_data;
 	}
 
-	ZONE_LOCK(zone);
-
-	/* Alloc slab structure for offpage, otherwise adjust it's position */
+	/* Point the slab into the allocated memory */
 	if (!(zone->uz_flags & UMA_ZFLAG_OFFPAGE)) {
 		slab = (uma_slab_t )(mem + zone->uz_pgoff);
-	} else  {
-		if (!(zone->uz_flags & UMA_ZFLAG_MALLOC))
-			UMA_HASH_INSERT(&zone->uz_hash, slab, mem);
 	}
+
 	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
 #ifdef UMA_DEBUG
 		printf("Inserting %p into malloc hash from slab %p\n",
@@ -782,9 +778,15 @@ slab_zalloc(uma_zone_t zone, int wait)
 		for (i = 0; i < zone->uz_ipers; i++)
 			zone->uz_init(slab->us_data + (zone->uz_rsize * i),
 			    zone->uz_size);
+	ZONE_LOCK(zone);
+
+	if ((zone->uz_flags & (UMA_ZFLAG_OFFPAGE|UMA_ZFLAG_MALLOC)) ==
+	    UMA_ZFLAG_OFFPAGE)
+		UMA_HASH_INSERT(&zone->uz_hash, slab, mem);
 
 	zone->uz_pages += zone->uz_ppera;
 	zone->uz_free += zone->uz_ipers;
+
 
 	return (slab);
 }
