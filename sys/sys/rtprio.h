@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rtprio.h,v 1.5 1998/03/04 10:26:39 dufault Exp $
+ *	$Id: rtprio.h,v 1.6 1998/03/08 17:25:35 dufault Exp $
  */
 
 #ifndef _SYS_RTPRIO_H_
@@ -44,7 +44,7 @@
 #define RTP_PRIO_NORMAL		1
 #define RTP_PRIO_IDLE		2
 
-/* RTP_PRIO_FIFO is POSIX.4 SCHED_FIFO.
+/* RTP_PRIO_FIFO is POSIX.1B SCHED_FIFO.
  */
 
 #define RTP_PRIO_FIFO_BIT	4

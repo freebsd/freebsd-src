@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/05/03 03:57:21 jb Exp $
+#	$Id: Makefile,v 1.7 1998/03/09 05:09:43 jb Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -22,9 +22,9 @@ HIDDEN_SYSCALLS= accept.o bind.o close.o connect.o dup.o dup2.o \
 	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
 	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
 	mkfifo.o mknod.o nanosleep.o nfssvc.o open.o read.o readv.o \
-	recvfrom.o recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
-	shutdown.o sigaction.o sigaltstack.o signanosleep.o socket.o \
-	socketpair.o wait4.o write.o writev.o
+	recvfrom.o recvmsg.o sched_yield.o select.o sendmsg.o sendto.o \
+	setsockopt.o shutdown.o sigaction.o sigaltstack.o signanosleep.o \
+	socket.o socketpair.o wait4.o write.o writev.o
 
 .include "${.CURDIR}/../libc/Makefile.inc"
 .include "${.CURDIR}/man/Makefile.inc"

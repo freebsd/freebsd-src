@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.420 1998/03/21 14:13:47 peter Exp $
+#	$Id: LINT,v 1.421 1998/03/24 02:55:03 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -615,6 +615,19 @@ options		OD_BOGUS_NOT_READY
 #
 options		OD_AUTO_TURNOFF
 
+
+
+#####################################################################
+# POSIX P1003.1B
+
+# Real time extensions added int the 1993 Posix
+# P1003_1B: Infrastructure
+# _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
+# _KPOSIX_VERSION:             Version kernel is built for
+
+options		"P1003_1B"
+options		"_KPOSIX_PRIORITY_SCHEDULING"
+options		"_KPOSIX_VERSION=199309L"
 
 
 #####################################################################

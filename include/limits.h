@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.2 (Berkeley) 1/4/94
- *	$Id: limits.h,v 1.7 1998/03/08 17:24:31 dufault Exp $
+ *	$Id: limits.h,v 1.8 1998/03/08 22:29:56 dufault Exp $
  */
 
 #ifndef _LIMITS_H_
@@ -63,7 +63,7 @@
 #define	_POSIX2_RE_DUP_MAX	255
 
 
-#ifdef _POSIX4_VISIBLE
+#ifdef _P1003_1B_VISIBLE
 
 #define _POSIX_AIO_LISTIO_MAX	16
 #define _POSIX_AIO_MAX		1

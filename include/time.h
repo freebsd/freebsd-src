@@ -42,6 +42,7 @@
 #define	_TIME_H_
 
 #include <machine/ansi.h>
+#include <sys/_posix.h>
 
 #ifndef _ANSI_SOURCE
 /*
@@ -73,7 +74,10 @@ typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+/* XXX I'm not sure if _ANSI_SOURCE is playing properly
+ *     with the setups in _posix.h:
+ */
+#if !defined(_ANSI_SOURCE) && defined(_P1003_1B_VISIBLE_HISTORICALLY)
 /*
  * New in POSIX 1003.1b-1993.
  */
@@ -140,7 +144,9 @@ char *timezone __P((int, int));
 void tzsetwall __P((void));
 time_t timelocal __P((struct tm * const));
 time_t timegm __P((struct tm * const));
+#endif /* neither ANSI nor POSIX */
 
+#if !defined(_ANSI_SOURCE) && defined(_P1003_1B_VISIBLE_HISTORICALLY)
 /* Introduced in POSIX 1003.1b-1993, not part of 1003.1-1990. */
 int clock_getres __P((clockid_t, struct timespec *));
 int clock_gettime __P((clockid_t, struct timespec *));

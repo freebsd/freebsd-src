@@ -1,4 +1,4 @@
-#	$Id: options,v 1.68 1998/03/19 22:37:37 dyson Exp $
+#	$Id: options,v 1.69 1998/03/21 11:33:49 peter Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -57,8 +57,10 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 UCONSOLE
 
-# POSIX 4.
-POSIX4		opt_posix4.h
+# POSIX kernel options
+P1003_1B	opt_posix.h
+_KPOSIX_PRIORITY_SCHEDULING opt_posix.h
+_KPOSIX_VERSION opt_posix.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h

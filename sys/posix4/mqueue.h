@@ -1,7 +1,7 @@
 #ifndef _MQUEUE_H_
 #define _MQUEUE_H_
 
-/* mqueue.h: POSIX.4 Message Queues */
+/* mqueue.h: POSIX 1003.1b Message Queues */
 
 /*-
  * Copyright (c) 1996, 1997
@@ -36,7 +36,9 @@
  *
  */
 
-#ifdef _POSIX4_INCLUDE_MAYBES
+#include <sys/_posix.h>
+
+#ifdef _P1003_1B_INCLUDE_MAYBES
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>

@@ -1,7 +1,7 @@
 #ifndef _SCHED_H_
 #define _SCHED_H_
 
-/* sched.h: POSIX.4 Process Scheduling header */
+/* sched.h: POSIX 1003.1b Process Scheduling header */
 
 /*-
  * Copyright (c) 1996, 1997
@@ -37,7 +37,6 @@
  *
  */
 
-#include <unistd.h>
 #include <sys/types.h>	/* For pid_t */
 
 #ifndef KERNEL

@@ -1,5 +1,5 @@
-#ifndef _POSIX4_POSIX4_H_
-#define _POSIX4_POSIX4_H_
+#ifndef _P1003_1B_P1003_1B_H_
+#define _P1003_1B_P1003_1B_H_
 /*-
  * Copyright (c) 1996, 1997, 1998
  *	HD Associates, Inc.  All rights reserved.
@@ -33,56 +33,40 @@
  *
  */
 
-#include <sys/_posix.h>
+#include "opt_posix.h"
 
-#ifdef _POSIX4_VISIBLE
+#ifdef P1003_1B
 
 #include <sys/param.h>
 #include <sys/ioccom.h>
-#include <sched.h>
+#include <sys/malloc.h>
+#include <posix4/sched.h>
 
-/* 
- *
- * March 1, 1998: Details from here on change and this header file
- * is volatile.
- *
- * Locally I've got PRIORITY SCHEDULING
- * set as a system call available only to root 
- * and I'm still using a pseudo device to gate everything else.
- *
- * This interface vectors us into the kernel through a
- * POSIX4 pseudo device with some user privilege authorization along
- * the way.
- *
- * XXX I'm going with option 3.
- *
- * This has drawbacks from the point of view of ktrace.  There
- * are (at least) three ways to do this:
- *
- * 1. As it is being done, which is bad for ktrace and is hokey
- *    but is easy to extend during development;
- * 2. Add a system call for every POSIX4 entry point, which
- *    will result in many more system calls (on the order of 64)
- * 3. Add a system call for each POSIX4 option, which is a bit more
- *    useful for ktrace and will add only about 14 new system calls.
- * 
+/* Generate syscall stubs for when something is optionally
+ * LKM'd.  References "syscall_not_present". 
+ * XXX Good candidate for sys/syscall.h
  */
+struct proc;
+struct nosys_args;
+extern int syscall_not_present(struct proc *, const char *, struct nosys_args *);
 
-#define POSIX4_FACILITIES 16
-#define POSIX4_ONE_ONLY
+#define SYSCALL_NOT_PRESENT_GEN(SC) \
+int SC (struct proc *p, struct SC##_args *uap) \
+{ \
+	return syscall_not_present(p, #SC , (struct nosys_args *)uap); \
+}
 
-/* 
- * All facility request structures have a posix4_dispatch header
- * at the front.  Return values are always an indication of
- * success or failure and are automatically converted into an errno
- * by the kernel.  "Non-errno" return codes are handled via ret.
- */
-struct posix4_dispatch {
-	int op;
-	int ret;
-};
 
-#if defined(_POSIX_PRIORITY_SCHEDULING)
+MALLOC_DECLARE(M_P31B);
+
+#define p31b_malloc(SIZE) malloc((SIZE), M_P31B, M_WAITOK)
+#define p31b_free(P) free((P), M_P31B)
+
+int p31b_proc __P((struct proc *, pid_t, struct proc **));
+
+void p31b_setcfg __P((int, int));
+
+#ifdef _KPOSIX_PRIORITY_SCHEDULING
 
 /* 
  * KSCHED_OP_RW is a vector of read/write flags for each entry indexed
@@ -106,187 +90,29 @@ enum ksched_op {
 	SCHED_OP_MAX
 };
 
-struct ksched
-{
-	struct posix4_dispatch dispatch;
-	pid_t pid;
-	int policy;
-	struct sched_param param;
-	struct timespec interval;
-};
+struct ksched;
 
-#endif /* _POSIX_PRIORITY_SCHEDULING */
+int ksched_attach(struct ksched **);
+int ksched_detach(struct ksched *);
 
-#if defined(_POSIX_MEMLOCK) ^ defined(_POSIX_MEMLOCK_RANGE)
-/* This implementation expects these two options to always be together.
- * If one isn't handled it should be disabled at
- * run time.
- */
-#error _POSIX_MEMLOCK and _POSIX_MEMLOCK_RANGE should always be together
-#endif
-
-#if defined(_POSIX_MEMLOCK) && defined(_POSIX_MEMLOCK_RANGE)
-
-enum kmemlock_op {
-
-#define KMEMLOCK_OP_RW { 1, 1, 1, 1 }
-
-	MEMLOCK_MLOCKALL,
-	MEMLOCK_MUNLOCKALL,
-	MEMLOCK_MLOCK,
-	MEMLOCK_MUNLOCK,
-	MEMLOCK_OP_MAX
-};
-
-struct kmemlock
-{
-	struct posix4_dispatch dispatch;
-	int flags;
-	void *addr;
-	size_t len;
-};
-
-#endif /* _POSIX_MEMLOCK && _POSIX_MEMLOCK_RANGE */
-
-#if defined(KERNEL)
-
-struct proc;
-
-void *posix4malloc __P((int *, size_t));
-void posix4free __P((int *, void *));
-int posix4proc __P((struct proc *, pid_t, struct proc **));
-int posix4ioctl __P((dev_t, int, caddr_t, int, struct proc *));
-void posix4attach __P((int));
-void posix4_facility __P((int, int));
-
-struct lkm_table;
-int posix4_init __P((struct lkm_table *, int , int ));
-
-#ifdef _POSIX_PRIORITY_SCHEDULING
-
-int ksched_attach(int, int, void **);
-int ksched_detach(void *);
-
-int ksched_setparam(int *, void *,
+int ksched_setparam(int *, struct ksched *,
 	struct proc *, const struct sched_param *);
-int ksched_getparam(int *, void *,
+int ksched_getparam(int *, struct ksched *,
 	struct proc *, struct sched_param *);
 
-int ksched_setscheduler(int *, void *,
+int ksched_setscheduler(int *, struct ksched *,
 	struct proc *, int, const struct sched_param *);
-int ksched_getscheduler(int *, void *, struct proc *);
+int ksched_getscheduler(int *, struct ksched *, struct proc *);
 
-int ksched_yield(int *, void *);
+int ksched_yield(int *, struct ksched *);
 
-int ksched_get_priority_max(int *, void *, int);
-int ksched_get_priority_min(int *, void *, int);
+int ksched_get_priority_max(int *, struct ksched *, int);
+int ksched_get_priority_min(int *, struct ksched *, int);
 
-int ksched_rr_get_interval(int *, void *, struct proc *, struct timespec *);
+int ksched_rr_get_interval(int *, struct ksched *, struct proc *, struct timespec *);
 
-#endif /* _POSIX_PRIORITY_SCHEDULING */
+#endif /* _KPOSIX_PRIORITY_SCHEDULING */
 
-#if defined(_POSIX_MEMLOCK) && defined(_POSIX_MEMLOCK_RANGE)
 
-int kmemlock_attach(int, int, void **);
-int kmemlock_detach(void *);
-int kmlockall(int *, void *, int);
-int kmunlockall(int *, void *);
-int kmlock(int *, void *, const void *, size_t);
-int kmunlock(int *, void *, const void *, size_t );
-
-#endif /* _POSIX_MEMLOCK && _POSIX_MEMLOCK_RANGE */
-
-#endif	/* KERNEL */
-
-/* A facility is an implementation of one of the optional portions of
- * POSIX4 as selected by the feature test macros, such as the fixed
- * priority scheduler or the realtime signals.
- */
-
-/* Each facility has a facility code, an opcode, and r-w attributes.
- * To exercise the operation associated with an opcode you need the
- * appropriate privileges on the POSIX4 device with the facility
- * bit set in the minor number.  This means that every facility has
- * a protection bit: Probably more than we need, but it may have
- * advantages.
- *
- */
-
-#define posix4encode(FACILITY, RW) (FACILITY)
-#define posix4decode(X, FACILITY_P) \
-	do { \
-		*(FACILITY_P) = ((X) & 0xff); \
-	} while (0)
-
-/*
- * The dispatch codes:
- */
-#define IO_POSIX4_PRIORITY_SCHEDULING _IOWR('r', \
-	CTL_POSIX4_PRIORITY_SCHEDULING, struct ksched)
-
-#define IO_POSIX4_MEMLOCK _IOWR('r', \
-	CTL_POSIX4_MEMLOCK, struct ksched)
-
-/*
- * CTL_POSIX4 definitions for syscfg
- */
-
-#define CTL_POSIX4_ASYNCHRONOUS_IO	1	/* boolean */
-#define CTL_POSIX4_MAPPED_FILES		2	/* boolean */
-#define CTL_POSIX4_MEMLOCK		3	/* boolean */
-#define CTL_POSIX4_MEMLOCK_RANGE	4	/* boolean */
-#define CTL_POSIX4_MEMORY_PROTECTION	5	/* boolean */
-#define CTL_POSIX4_MESSAGE_PASSING	6	/* boolean */
-#define CTL_POSIX4_PRIORITIZED_IO	7	/* boolean */
-#define CTL_POSIX4_PRIORITY_SCHEDULING	8	/* boolean */
-#define CTL_POSIX4_REALTIME_SIGNALS	9	/* boolean */
-#define CTL_POSIX4_SEMAPHORES		10	/* boolean */
-#define CTL_POSIX4_FSYNC		11	/* boolean */
-#define CTL_POSIX4_SHARED_MEMORY_OBJECTS 12	/* boolean */
-#define CTL_POSIX4_SYNCHRONIZED_IO	13	/* boolean */
-#define CTL_POSIX4_TIMERS		14	/* boolean */
-#define CTL_POSIX4_AIO_LISTIO_MAX	15	/* int */
-#define CTL_POSIX4_AIO_MAX		16	/* int */
-#define CTL_POSIX4_AIO_PRIO_DELTA_MAX	17	/* int */
-#define CTL_POSIX4_DELAYTIMER_MAX	18	/* int */
-#define CTL_POSIX4_MQ_OPEN_MAX		19	/* int */
-#define CTL_POSIX4_PAGESIZE		20	/* int */
-#define CTL_POSIX4_RTSIG_MAX		21	/* int */
-#define CTL_POSIX4_SEM_NSEMS_MAX	22	/* int */
-#define CTL_POSIX4_SEM_VALUE_MAX	23	/* int */
-#define CTL_POSIX4_SIGQUEUE_MAX		24	/* int */
-#define CTL_POSIX4_TIMER_MAX		25	/* int */
-
-#define CTL_POSIX4_N_CTLS		25
-
-#define	CTL_POSIX4_NAMES { \
-	{ 0, 0 }, \
-	{ "asynchronous_io", CTLTYPE_INT }, \
-	{ "mapped_files", CTLTYPE_INT }, \
-	{ "memlock", CTLTYPE_INT }, \
-	{ "memlock_range", CTLTYPE_INT }, \
-	{ "memory_protection", CTLTYPE_INT }, \
-	{ "message_passing", CTLTYPE_INT }, \
-	{ "prioritized_io", CTLTYPE_INT }, \
-	{ "priority_scheduling", CTLTYPE_INT }, \
-	{ "realtime_signals", CTLTYPE_INT }, \
-	{ "semaphores", CTLTYPE_INT }, \
-	{ "fsync", CTLTYPE_INT }, \
-	{ "shared_memory_objects", CTLTYPE_INT }, \
-	{ "synchronized_io", CTLTYPE_INT }, \
-	{ "timers", CTLTYPE_INT }, \
-	{ "aio_listio_max", CTLTYPE_INT }, \
-	{ "aio_max", CTLTYPE_INT }, \
-	{ "aio_prio_delta_max", CTLTYPE_INT }, \
-	{ "delaytimer_max", CTLTYPE_INT }, \
-	{ "mq_open_max", CTLTYPE_INT }, \
-	{ "pagesize", CTLTYPE_INT }, \
-	{ "rtsig_max", CTLTYPE_INT }, \
-	{ "nsems_max", CTLTYPE_INT }, \
-	{ "sem_value_max", CTLTYPE_INT }, \
-	{ "sigqueue_max", CTLTYPE_INT }, \
-	{ "timer_max", CTLTYPE_INT }, \
-}
-
-#endif /* _POSIX4_VISIBLE */
-#endif /* _POSIX4_POSIX4_H_ */
+#endif /* P1003_1B */
+#endif /* _P1003_1B_P1003_1B_H_ */

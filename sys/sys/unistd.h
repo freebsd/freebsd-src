@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.15 1998/03/04 10:26:46 dufault Exp $
+ * $Id: unistd.h,v 1.16 1998/03/08 17:25:38 dufault Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -50,10 +50,6 @@
  */
 #ifdef	_NOT_AVAILABLE
 #define	_POSIX_SAVED_IDS	/* saved set-user-ID and set-group-ID */
-#endif
-
-#if _POSIX_VERSION >= 199309L
-#include <posix4/posix4.h>
 #endif
 
 #define	_POSIX2_VERSION		199212L
@@ -127,18 +123,19 @@
 /* configurable system strings */
 #define	_CS_PATH		 1
 
-#ifdef _POSIX4_VISIBLE
+#ifdef _P1003_1B_VISIBLE
+
+#define _POSIX_PRIORITY_SCHEDULING
 
 #if 0
 /* Not until the dust settles after the header commit
  */
-#define _POSIX_PRIORITY_SCHEDULING
 #define _POSIX_ASYNCHRONOUS_IO
 #define _POSIX_MEMLOCK
 #define _POSIX_MEMLOCK_RANGE
 #endif
 
-/* POSIX 4 sysconf options */
+/* POSIX.1B sysconf options */
 #define _SC_ASYNCHRONOUS_IO	28
 #define _SC_MAPPED_FILES	29
 #define _SC_MEMLOCK		30
@@ -165,12 +162,12 @@
 #define _SC_SIGQUEUE_MAX	51
 #define _SC_TIMER_MAX		52
 
-/* POSIX 4 pathconf and fpathconf options */
+/* POSIX.1B pathconf and fpathconf options */
 #define _PC_ASYNC_IO		53
 #define _PC_PRIO_IO		54
 #define _PC_SYNC_IO		55
 
-#endif /* _POSIX4_VISIBLE */
+#endif /* _P1003_1B_VISIBLE */
 
 #ifndef _POSIX_SOURCE
 /*
