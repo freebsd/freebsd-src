@@ -485,11 +485,11 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * and the useracc() check will fail if the process has not already
 	 * allocated the space with a `brk'.
 	 */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sip = (osiginfo_t *)((caddr_t)p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - rndfsize);
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		sip = (osiginfo_t *)((caddr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - rndfsize);
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
 	mtx_unlock(&psp->ps_mtx);
@@ -588,9 +588,9 @@ osf1_sigreturn(struct thread *td,
 	 */
 	PROC_LOCK(p);
 	if (ksc.sc_onstack)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 
 	/*
 	 * longjmp is still implemented by calling osigreturn. The new
