@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.131 1999/01/21 10:12:54 dillon Exp $
+ * $Id: vm_pageout.c,v 1.132 1999/01/24 01:06:31 dillon Exp $
  */
 
 /*
@@ -1083,6 +1083,9 @@ rescan0:
 		if (!m)
 			break;
 		if ((m->flags & PG_BUSY) || m->busy || m->hold_count || m->wire_count) {
+#ifdef INVARIANTS
+			printf("Warning: busy page %p found in cache\n", m);
+#endif
 			vm_page_deactivate(m);
 			continue;
 		}
