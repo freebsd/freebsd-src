@@ -591,17 +591,21 @@ proc_verify(kd, kernp, p)
 	u_long kernp;
 	const struct proc *p;
 {
-	struct proc kernproc;
+	struct kinfo_proc kp;
+	int mib[4], st, len;
 
-	/*
-	 * Just read in the whole proc.  It's not that big relative
-	 * to the cost of the read system call.
-	 */
-	if (kvm_read(kd, kernp, (char *)&kernproc, sizeof(kernproc)) !=
-	    sizeof(kernproc))
-		return (0);
-	return (p->p_pid == kernproc.p_pid &&
-		(kernproc.p_stat != SZOMB || p->p_stat == SZOMB));
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = p->p_pid;
+
+	len = sizeof kp;
+
+	st = sysctl(mib, 4, &kp, &len, NULL, 0);
+	if (st < 0)
+		return(0);
+	return (p->p_pid == kp.kp_proc.p_pid &&
+		(kp.kp_proc.p_stat != SZOMB || p->p_stat == SZOMB));
 }
 
 static char **
@@ -615,17 +619,17 @@ kvm_doargv(kd, kp, nchr, info)
 	register char **ap;
 	u_long addr;
 	int cnt;
-	struct ps_strings arginfo, *ps_strings;
-	int mib[2];
+	static struct ps_strings arginfo, *ps_strings;
 	size_t len;
+	int i;
 
-	ps_strings = NULL;
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PS_STRINGS;
-	len = sizeof(ps_strings);
-	if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
-	    ps_strings == NULL)
-		ps_strings = PS_STRINGS;
+	if (ps_strings == NULL) {
+		len = sizeof ps_strings;
+		i = sysctlbyname("kern.ps_strings", 
+		    &ps_strings, &len, 0, 0);
+		if (i < 0 || ps_strings == NULL)
+			ps_strings = PS_STRINGS;
+	}
 
 	/*
 	 * Pointers are stored at the top of the user stack.
