@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.7 1995/02/14 23:04:50 wollman Exp $
+ * $Id: in.h,v 1.9 1995/03/16 18:22:26 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -49,6 +49,7 @@
 #define	IPPROTO_ICMP		1		/* control message protocol */
 #define	IPPROTO_IGMP		2		/* group mgmt protocol */
 #define	IPPROTO_GGP		3		/* gateway^2 (deprecated) */
+#define IPPROTO_IPIP		4 		/* IP encapsulation in IP */
 #define	IPPROTO_TCP		6		/* tcp */
 #define	IPPROTO_EGP		8		/* exterior gateway protocol */
 #define	IPPROTO_PUP		12		/* pup */
@@ -166,14 +167,15 @@ struct ip_opts {
 #define IP_MULTICAST_VIF	14   /* set/get IP mcast virt. iface */
 #define IP_RSVP_ON		15   /* enable RSVP in kernel */
 #define IP_RSVP_OFF		16   /* disable RSVP in kernel */
-
+#define IP_RSVP_VIF_ON		17   /* set RSVP per-vif socket */
+#define IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
 
 /*
  * Defaults and limits for options
  */
 #define	IP_DEFAULT_MULTICAST_TTL  1	/* normally limit m'casts to 1 hop  */
 #define	IP_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member  */
-#define	IP_MAX_MEMBERSHIPS	20	/* per socket; must fit in one mbuf */
+#define	IP_MAX_MEMBERSHIPS	20	/* per socket */
 
 /*
  * Argument structure for IP_ADD_MEMBERSHIP and IP_DROP_MEMBERSHIP.

@@ -71,11 +71,11 @@ struct ipq {
  * Note: ipf_next must be at same offset as ipq_next above
  */
 struct	ipasfrag {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if BYTE_ORDER == LITTLE_ENDIAN 
 	u_char	ip_hl:4,
 		ip_v:4;
 #endif
-#if BYTE_ORDER == BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN 
 	u_char	ip_v:4,
 		ip_hl:4;
 #endif
@@ -111,11 +111,11 @@ struct ipoption {
  */
 struct ip_moptions {
 	struct	ifnet *imo_multicast_ifp; /* ifp for outgoing multicasts */
-	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
 	u_char	imo_multicast_ttl;	/* TTL for outgoing multicasts */
 	u_char	imo_multicast_loop;	/* 1 => hear sends if a member */
 	u_short	imo_num_memberships;	/* no. memberships this socket */
 	struct	in_multi *imo_membership[IP_MAX_MEMBERSHIPS];
+	u_long	imo_multicast_vif;	/* vif num outgoing multicasts */
 };
 
 struct	ipstat {
@@ -160,6 +160,7 @@ extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
 extern int	(*legal_vif_num) __P((int));
+extern u_long	(*ip_mcast_src) __P((int));
 
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_deq __P((struct ipasfrag *));
