@@ -589,19 +589,15 @@ thread_single(int force_exit)
 
 	td = curthread;
 	p = td->td_proc;
-	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
 	if ((p->p_flag & P_KSES) == 0)
 		return (0);
 
-	if (p->p_singlethread) {
-		/*
-		 * Someone is already single threading!
-		 */
+	/* Is someone already single threading? */
+	if (p->p_singlethread) 
 		return (1);
-	}
 
 	if (force_exit == SNGLE_EXIT)
 		p->p_flag |= P_SINGLE_EXIT;
@@ -616,31 +612,24 @@ thread_single(int force_exit)
 			switch(td2->td_state) {
 			case TDS_SUSPENDED:
 				if (force_exit == SNGLE_EXIT) {
+					mtx_lock_spin(&sched_lock);
 					TAILQ_REMOVE(&p->p_suspended,
 					    td, td_runq);
 					setrunqueue(td); /* Should suicide. */
+					mtx_unlock_spin(&sched_lock);
 				}
 			case TDS_SLP:
-				if (td2->td_flags & TDF_CVWAITQ) {
+				if (td2->td_flags & TDF_CVWAITQ)
 					cv_abort(td2);
-				} else {
+				else
 					abortsleep(td2);
-				}
 				break;
-			/* etc. XXXKSE */
-			default:
-				;
+			/* case TDS RUNNABLE: XXXKSE maybe raise priority? */
 			}
 		}
 		/*
-		 * XXXKSE-- idea
-		 * It's possible that we can just wake up when
-		 * there are no runnable KSEs, because that would
-		 * indicate that only this thread is runnable and
-		 * there are no running KSEs in userland.
-		 * --
 		 * Wake us up when everyone else has suspended.
-		 * (or died)
+		 * In the mean time we suspend as well.
 		 */
 		mtx_lock_spin(&sched_lock);
 		TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
@@ -702,24 +691,17 @@ thread_suspend_check(int return_instead)
 		if (P_SHOULDSTOP(p) == P_STOPPED_SNGL) {
 			KASSERT(p->p_singlethread != NULL,
 			    ("singlethread not set"));
-
 			/*
-			 * The only suspension in action is
-			 * a single-threading. Treat it ever
-			 * so slightly different if it is
-			 * in a special situation.
+			 * The only suspension in action is a
+			 * single-threading. Single threader need not stop.
 			 * XXX Should be safe to access unlocked 
 			 * as it can only be set to be true by us.
 			 */
-			if (p->p_singlethread == td) {
+			if (p->p_singlethread == td)
 				return (0);	/* Exempt from stopping. */
-			}
-
 		} 
-
-		if (return_instead) {
+		if (return_instead)
 			return (1);
-		}
 
 		/*
 		 * If the process is waiting for us to exit,
