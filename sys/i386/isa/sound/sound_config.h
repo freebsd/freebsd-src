@@ -26,11 +26,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sound_config.h,v 1.5 1994/08/02 07:40:53 davidg Exp $
  */
 
 #include "local.h"
 
+#if defined(ISC) || defined(SCO) || defined(SVR42)
+#define GENERIC_SYSV
+#endif
+
+/*
+ * Disable the AD1848 driver if there are no other drivers requiring it.
+ */
+
+#if defined(EXCLUDE_GUS16) && defined(EXCLUDE_MSS) && defined(EXCLUDE_PSS) && defined(EXCLUDE_GUSMAX)
+#define EXCLUDE_AD1848
+#endif
 
 #undef CONFIGURE_SOUNDCARD
 #undef DYNAMIC_BUFFER
@@ -55,20 +66,6 @@
 
 #ifndef SND_DEFAULT_ENABLE
 #define SND_DEFAULT_ENABLE	1
-#endif
-
-/** UWM - new MIDI stuff **/
-
-#ifdef EXCLUDE_CHIP_MIDI
-#ifndef EXCLUDE_PRO_MIDI
-#define EXCLUDE_PRO_MIDI
-#endif
-#endif
-
-/** UWM - stuff **/
- 
-#if defined(EXCLUDE_SEQUENCER) && defined(EXCLUDE_AUDIO)
-#undef CONFIGURE_SOUNDCARD
 #endif
 
 #ifdef CONFIGURE_SOUNDCARD
@@ -126,12 +123,49 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #define GUS_DMA		6
 #endif
 
+#ifndef GUS16_BASE
+#define GUS16_BASE	0x530
+#endif
+
+#ifndef GUS16_IRQ
+#define GUS16_IRQ	7
+#endif
+
+#ifndef GUS16_DMA
+#define GUS16_DMA	3
+#endif
+
 #ifndef MPU_BASE
 #define MPU_BASE	0x330
 #endif
 
 #ifndef MPU_IRQ
 #define MPU_IRQ		6
+#endif
+
+/* Echo Personal Sound System */
+#ifndef PSS_BASE
+#define PSS_BASE        0x220   /* 0x240 or */
+#endif
+
+#ifndef PSS_IRQ
+#define PSS_IRQ         7
+#endif
+
+#ifndef PSS_DMA
+#define PSS_DMA         1
+#endif
+
+#ifndef MSS_BASE
+#define MSS_BASE        0x530
+#endif
+
+#ifndef MSS_IRQ
+#define MSS_IRQ         10
+#endif
+
+#ifndef MSS_DMA
+#define MSS_DMA         3
 #endif
 
 #ifndef MAX_REALTIME_FACTOR
@@ -165,48 +199,42 @@ If your card has nonstandard I/O address or IRQ number, change defines
    driver. (There is no need to alter this) */
 #define SEQ_MAX_QUEUE	1024
 
-#define SBFM_MAXINSTR		(256)	/* Size of the FM Instrument
-						   bank				 */
+#define SBFM_MAXINSTR		(256)	/* Size of the FM Instrument bank */
 /* 128 instruments for general MIDI setup and 16 unassigned	 */
 
-#define SND_NDEVS	50	/* Number of supported devices */
+/*
+ * Minor numbers for the sound driver.
+ *
+ * Unfortunately Creative called the codec chip of SB as a DSP. For this
+ * reason the /dev/dsp is reserved for digitized audio use. There is a
+ * device for true DSP processors but it will be called something else.
+ * In v3.0 it's /dev/sndproc but this could be a temporary solution.
+ */
+
+#define SND_NDEVS	256	/* Number of supported devices */
 #define SND_DEV_CTL	0	/* Control port /dev/mixer */
 #define SND_DEV_SEQ	1	/* Sequencer output /dev/sequencer (FM
 				   synthesizer and MIDI output) */
-#define SND_DEV_MIDIN	2	/* MIDI input /dev/midin (not implemented
-				   yet) */
+#define SND_DEV_MIDIN	2	/* Raw midi access */
 #define SND_DEV_DSP	3	/* Digitized voice /dev/dsp */
 #define SND_DEV_AUDIO	4	/* Sparc compatible /dev/audio */
 #define SND_DEV_DSP16	5	/* Like /dev/dsp but 16 bits/sample */
-#define SND_DEV_STATUS	6	/* /dev/sndstatus */
-
-/* UWM ... note add new MIDI devices here..  
- *  Also do not forget to add table midi_supported[]
- *  Minor numbers for on-chip midi devices start from 15.. and 
- *  should be contiguous.. viz. 15,16,17....
- * ERROR!!!!!!!!! NO NO. Minor numbers above 15 are reserved!!!!!! Hannu
- *  Also note the max # of midi devices as MAX_MIDI_DEV
- */ 
-
-#define CMIDI_DEV_PRO  15  	/* Chip midi device == /dev/pro_midi */
-
-/*
- *  Add other midis here...
-		.
-		.
-		.
-		.
- */
+#define SND_DEV_STATUS	6	/* /dev/sndstat */
+/* #7 not in use now. Was in 2.4. Free for use after v3.0. */
+#define SND_DEV_SEQ2	8	/* /dev/sequecer, level 2 interface */
+#define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
+#define SND_DEV_PSS	SND_DEV_SNDPROC
 
 #define DSP_DEFAULT_SPEED	8000
 
 #define ON		1
 #define OFF		0
 
-#define MAX_DSP_DEV	4
+#define MAX_AUDIO_DEV	5
 #define MAX_MIXER_DEV	2
 #define MAX_SYNTH_DEV	3
-#define MAX_MIDI_DEV	4
+#define MAX_MIDI_DEV	6
+#define MAX_TIMER_DEV	3
 
 struct fileinfo {
        	  int mode;	/* Open mode */
@@ -217,6 +245,20 @@ struct address_info {
 	int irq;
 	int dma;
 };
+
+#define SYNTH_MAX_VOICES	32
+
+struct voice_alloc_info {
+		int max_voice;
+		int used_voices;
+		int ptr;		/* For device specific use */
+		unsigned short map[SYNTH_MAX_VOICES]; /* (ch << 8) | (note+1) */
+	};
+
+struct channel_info {
+		int pgm_num;
+		unsigned char controllers[128];
+	};
 
 /*
  * Process wakeup reasons
@@ -237,6 +279,11 @@ struct address_info {
 
 #ifndef DEB
 #define DEB(x)
+
+#define TIMER_ARMED	121234
+#define TIMER_NOT_ARMED	1
+
+#define FUTURE_VERSION
 #endif
 
 #endif

@@ -29,7 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added defines for the Sound Galaxy NX Pro mixer.
  * 
- * $Id$
+ * $Id: sb_mixer.h,v 1.3 1994/08/02 07:40:48 davidg Exp $
  */
 
 #define SBPRO_RECORDING_DEVICES	(SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
@@ -210,4 +210,13 @@ static unsigned char sb16_recmasks_R[SOUND_MIXER_NRDEVICES] =
 	0x00,	/* SOUND_MIXER_ALTPCM	*/
 	0x00	/* SOUND_MIXER_RECLEV	*/
 };
+
+/*
+ *	Recording sources (SB Pro)
+ */
+
+#define SRC_MIC         1	/* Select Microphone recording source */
+#define SRC_CD          3	/* Select CD recording source */
+#define SRC_LINE        7	/* Use Line-in for recording source */
+
 #endif

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.18 1994/08/02 07:40:58 davidg Exp $
+ * $Id: soundcard.c,v 1.19 1994/09/27 17:58:30 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -52,9 +52,6 @@ static int      timer_running = 0;
 static int      soundcards_installed = 0;	/* Number of installed
 						 * soundcards */
 static int      soundcard_configured = 0;
-extern char    *snd_raw_buf[MAX_DSP_DEV][DSP_BUFFCOUNT];
-extern unsigned long snd_raw_buf_phys[MAX_DSP_DEV][DSP_BUFFCOUNT];
-extern int      snd_raw_count[MAX_DSP_DEV];
 
 static struct fileinfo files[SND_NDEVS];
 
@@ -187,7 +184,6 @@ int
 sndattach (struct isa_device *dev)
 {
   int             i;
-  static int      dsp_initialized = 0;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   static int 	  generic_midi_initialized = 0; 
@@ -218,37 +214,21 @@ sndattach (struct isa_device *dev)
   printf("\n");
 
 #ifndef EXCLUDE_AUDIO
-  soundcard_configured = 1;
-  if (num_dspdevs)
-    sound_mem_init ();
-#endif
-
-  if (num_dspdevs && !dsp_initialized)	/* Audio devices present */
+  if (num_audiodevs)	/* Audio devices present */
     {
-      dsp_initialized = 1;
       mem_start = DMAbuf_init (mem_start);
       mem_start = audio_init (mem_start);
+      sound_mem_init ();
     }
 
-/** UWM stuff **/
+  soundcard_configured = 1;
+#endif
 
-#ifndef EXCLUDE_CHIP_MIDI
-
-     if (!generic_midi_initialized)
-     {
-	 generic_midi_initialized = 1;
-	 mem_start = CMIDI_init (mem_start);
-     } 
-
-#endif 
-
-#ifndef EXCLUDE_MPU401
   if (num_midis && !midi_initialized)
     {
       midi_initialized = 1;
       mem_start = MIDIbuf_init (mem_start);
     }
-#endif
 
   if ((num_midis + num_synths) && !seq_initialized)
     {
@@ -267,14 +247,6 @@ tenmicrosec (void)
   for (i = 0; i < 16; i++)
     inb (0x80);
 }
-
-#ifdef EXCLUDE_GUS
-void
-gusintr (int unit)
-{
-  return;
-}
-#endif
 
 void
 request_sound_timer (int count)
@@ -316,50 +288,52 @@ sound_mem_init (void)
 {
   int             i, dev;
   unsigned long   dma_pagesize;
+  struct dma_buffparms *dmap;
   static unsigned long dsp_init_mask = 0;
 
-  for (dev = 0; dev < num_dspdevs; dev++)	/* Enumerate devices */
+  for (dev = 0; dev < num_audiodevs; dev++)	/* Enumerate devices */
     if (!(dsp_init_mask & (1 << dev)))	/* Not already done */
-      if (sound_buffcounts[dev] > 0 && sound_dsp_dmachan[dev] > 0)
+      if (audio_devs[dev]->buffcount > 0 && audio_devs[dev]->dmachan > 0)
 	{
 	  dsp_init_mask |= (1 << dev);
+	  dmap = audio_devs[dev]->dmap;
 
-	  if (sound_dma_automode[dev])
-	    sound_buffcounts[dev] = 1;
+	  if (audio_devs[dev]->flags & DMA_AUTOMODE)
+	    audio_devs[dev]->buffcount = 1;
 
-	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
+	  if (audio_devs[dev]->dmachan > 3 && audio_devs[dev]->buffsize > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
 	    dma_pagesize = 65536;
 
 	  /* More sanity checks */
 
-	  if (sound_buffsizes[dev] > dma_pagesize)
-	    sound_buffsizes[dev] = dma_pagesize;
-	  sound_buffsizes[dev] &= ~0xfff;	/* Truncate to n*4k */
-	  if (sound_buffsizes[dev] < 4096)
-	    sound_buffsizes[dev] = 4096;
+	  if (audio_devs[dev]->buffsize > dma_pagesize)
+	    audio_devs[dev]->buffsize = dma_pagesize;
+	  audio_devs[dev]->buffsize &= ~0xfff;	/* Truncate to n*4k */
+	  if (audio_devs[dev]->buffsize < 4096)
+	    audio_devs[dev]->buffsize = 4096;
 
 	  /* Now allocate the buffers */
 
-	  for (snd_raw_count[dev] = 0; snd_raw_count[dev] < sound_buffcounts[dev]; snd_raw_count[dev]++)
+	  for (dmap->raw_count = 0; dmap->raw_count < audio_devs[dev]->buffcount; dmap->raw_count++)
 	    {
-	      char           *tmpbuf = (char *)vm_page_alloc_contig(sound_buffsizes[dev], 0ul, 0xfffffful, dma_pagesize);
+	      char           *tmpbuf = (char *)vm_page_alloc_contig(audio_devs[dev]->buffsize, 0ul, 0xfffffful, dma_pagesize);
 
 	      if (tmpbuf == NULL)
 		{
 		  printk ("snd: Unable to allocate %d bytes of buffer\n",
-			  sound_buffsizes[dev]);
+			  audio_devs[dev]->buffsize);
 		  return;
 		}
 
-	      snd_raw_buf[dev][snd_raw_count[dev]] = tmpbuf;
+	      dmap->raw_buf[dmap->raw_count] = tmpbuf;
 	      /*
 	       * Use virtual address as the physical address, since
 	       * isa_dmastart performs the phys address computation.
 	       */
-	      snd_raw_buf_phys[dev][snd_raw_count[dev]] =
-		(unsigned long) snd_raw_buf[dev][snd_raw_count[dev]];
+	      dmap->raw_buf_phys[dmap->raw_count] =
+		(unsigned long) dmap->raw_buf[dmap->raw_count];
 	    }
 	}			/* for dev */
 

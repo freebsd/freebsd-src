@@ -1,5 +1,40 @@
-Changelog for version 2.5
--------------------------
+Changelog for version 2.90
+------------------------------------
+
+This is an intermediate release (v3.0 prototype with some experimental
+features disabled). See experimental.txt for more info.
+
+Since pre-3.0-949712
+- GUS MAX support
+- Partially working MSS/WSS support (could work with some cards).
+- Hardware u-Law and A-Law support with AD1848/CS4248 and CS4231 codecs
+  (GUS MAX, GUS16, WSS etc). Hardware ADPCM is possible with GUS16 and
+  GUS MAX, but it doesn't work yet.
+Since pre-3.0-940426
+- AD1848/CS4248/CS4231 codec support (MSS, GUS MAX, Aztec, Orchid etc).
+This codec chip is used in various soundcards. This version is developed
+for the 16 bit daughtercard of GUS. It should work with other cards also
+if the following requirements are met:
+	- The I/O, IRQ and DMA settings are jumper selectable or
+	the card is initialized by booting DOS before booting Linux (etc.).
+	- You add the IO, IRQ and DMA settings manually to the local.h.
+	  (Just define GUS16_BASE, GUS16_IRQ and GUS16_DMA). Note that
+	the base address bust be the base address of the codec chip not the
+	card itself. For the GUS16 these are the same but most MSS compatible
+	cards have the codec located at card_base+4.
+- Some minor changes
+
+Since 2.5 (******* MAJOR REWRITE ***********)
+
+This version is based on v2.3. I have tried to maintain two versions
+together so that this one should have the same features than v2.5.
+Something may still be missing. If you notice such things, please let me
+know.
+
+The Readme.v30 contains more details.
+
+- /dev/midi## devices.
+- /dev/sequencer2
 
 Since 2.5-beta2
 - Some fine tuning to the GUS v3.7 mixer code.

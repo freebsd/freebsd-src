@@ -44,7 +44,8 @@
 
                marc.hoffman@analog.com
 
-   */
+ * $Id: $
+ */
 #include "sound_config.h"
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PSS)
