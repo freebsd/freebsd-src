@@ -49,6 +49,7 @@ flag r8flag = NO;
 flag use_bs = YES;
 flag keepsubs = NO;
 flag byterev = NO;
+flag echo = NO;
 int intr_omit;
 static int no_cd, no_i90;
 #ifdef TYQUAD
@@ -128,6 +129,7 @@ static arg_info table[] = {
     f2c_entry ("Nl", P_ONE_ARG, P_INT, &maxlablist, 0),
     f2c_entry ("c", P_NO_ARGS, P_INT, &addftnsrc, YES),
     f2c_entry ("p", P_NO_ARGS, P_INT, &usedefsforcommon, YES),
+    f2c_entry ("v", P_NO_ARGS, P_INT, &echo, YES),
     f2c_entry ("R", P_NO_ARGS, P_INT, &forcedouble, NO),
     f2c_entry ("!R", P_NO_ARGS, P_INT, &forcedouble, YES),
     f2c_entry ("A", P_NO_ARGS, P_INT, &Ansi, YES),
@@ -563,7 +565,7 @@ main(int argc, char **argv)
 
 	if(inilex( copys(file_name) ))
 		done(1);
-	if (filename0) {
+	if (filename0 && echo) {
 		fprintf(diagfile, "%s:\n", file_name);
 		fflush(diagfile);
 		}

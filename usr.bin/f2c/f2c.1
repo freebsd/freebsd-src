@@ -33,7 +33,7 @@
 .Nd Convert Fortran 77 to C or C++
 .Sh SYNOPSIS
 .Nm f2c
-.Op Fl AaCcEfgpRrsUuw
+.Op Fl AaCcEfgpRrsUuvw
 .Op Fl C++
 .Op Fl cd
 .Op Fl d Ar dir
@@ -195,6 +195,8 @@ may change prototypes or declarations.
 .It Fl p
 Supply preprocessor definitions to make common-block members look like local
 variables.
+.It Fl v
+Echo the file name, program name, and procedure name(s) during compilation.
 .It Fl R
 Do not promote REAL functions and operations to DOUBLE PRECISION.  Option
 .Fl !R
