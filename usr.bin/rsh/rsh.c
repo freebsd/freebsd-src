@@ -42,10 +42,10 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rsh.c,v 1.15 1998/03/23 07:46:23 charnier Exp $";
+	"$Id: rsh.c,v 1.16 1998/10/09 06:47:57 markm Exp $";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -332,7 +332,7 @@ talk(nflag, omask, pid, rem, timeout)
 	fd_set readfrom, ready, rembits;
 	char *bp, buf[BUFSIZ];
 	struct timeval tvtimeout;
-	int srval;
+	int nfds, srval;
 
 	if (!nflag && pid == 0) {
 		(void)close(rfd2);
@@ -345,7 +345,8 @@ reread:		errno = 0;
 rewrite:
 		FD_ZERO(&rembits);
 		FD_SET(rem, &rembits);
-		if (select(16, 0, &rembits, 0, 0) < 0) {
+		nfds = rem + 1;
+		if (select(nfds, 0, &rembits, 0, 0) < 0) {
 			if (errno != EINTR)
 				err(1, "select");
 			goto rewrite;
@@ -382,12 +383,13 @@ done:
 	FD_ZERO(&readfrom);
 	FD_SET(rfd2, &readfrom);
 	FD_SET(rem, &readfrom);
+	nfds = MAX(rfd2+1, rem+1);
 	do {
 		ready = readfrom;
 		if (timeout) {
-			srval = select(16, &ready, 0, 0, &tvtimeout);
+			srval = select(nfds, &ready, 0, 0, &tvtimeout);
 		} else {
-			srval = select(16, &ready, 0, 0, 0);
+			srval = select(nfds, &ready, 0, 0, 0);
 		}
 
 		if (srval < 0) {
