@@ -76,12 +76,14 @@ _start(char **ap,
 	int argc;
 	char **argv;
 	char **env;
+#if 0
 	void (*term)(void);	
 
 	/* Grab %g1 before it gets used for anything by the compiler. */
 	/* Sparc ELF psABI specifies a termination routine (if any) will be in
 	   %g1 */
 	__asm__ volatile("mov %%g1,%0" : "=r"(term));
+#endif
 
 	argc = * (long *) ap;
 	argv = ap + 1;
@@ -95,12 +97,14 @@ _start(char **ap,
 				__progname = s + 1;
 	}
 
+#if 0
 	/*
 	 * If the kernel or a shared library wants us to call
 	 * a termination function, arrange to do so.
 	 */
 	if (term)
 		atexit(term);
+#endif
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
@@ -108,11 +112,15 @@ _start(char **ap,
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
+#if 0
 	atexit(_fini);
+#endif
 #ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
+#if 0
 	_init();
+#endif
 	exit( main(argc, argv, env) );
 }
 
