@@ -135,6 +135,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
+options 	NOBLOCKRANDOM	# avoid any blocking on device random
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP

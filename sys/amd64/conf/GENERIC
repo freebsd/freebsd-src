@@ -207,6 +207,7 @@ device		lnc
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
+options 	NOBLOCKRANDOM	# avoid any blocking on device random
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
