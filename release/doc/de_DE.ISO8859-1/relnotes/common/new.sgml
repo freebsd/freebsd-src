@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.106 2002/11/23 18:43:12 ue Exp $
-  basiert auf: 1.22.2.309
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.108 2002/12/01 14:59:24 ue Exp $
+  basiert auf: 1.22.2.311
 -->
 
 <articleinfo>
@@ -112,9 +112,22 @@
   <sect2 id="kernel">
     <title>&Auml;nderungen im Kernel</title>
 
+    <para>Der Kernel wurde um eine von OpenBSD stammende
+      Crypto-Infrastruktur erg&auml;nzt (siehe &man.crypto.4; und
+      &man.crypto.9;).  Sie stellt dem Kernel eine konsistente
+      Schnittstelle zu Hardware- und Software-Varianten von
+      Verschl&uuml;sselungsalgorithmen zur Verf&uuml;gung,
+      Benutzerprogramme erhalten Zugriff auf
+      Verschl&uuml;sselungs-Hardware.  Treiber f&uuml;r Karten auf
+      Basis von hifn (&man.hifn.4;) und Braodcom (&man.ubsec.4;)
+      stehen zur Verf&uuml;gung.</para>
+
     <para arch="i386,pc98,powerpc">Es gibt jetzt minimale
       Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
       Firewire-Schnittstellen (siehe &man.firewire.4;).</para>
+
+    <para>Der neue Treiber &man.uftdi.4; unterst&uuml;tzt USB nach
+      Seriell Konverter von FTDI.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -214,6 +227,16 @@
 
   <sect2 id="userland">
     <title>Benutzerprogramme</title>
+
+    <para>Bei &man.burncd.8; kann bei <option>-s</option> jetzt der
+      Wert <literal>max</literal> angegeben werden, um die maximal
+      m&ouml;gliche Geschwindigkeit zu nutzen.</para>
+
+    <para>Bei &man.cdcontrol.1; kann jetzt die Geschwindigkeit des
+      CD-ROM-Zugriffs mit dem Kommando <literal>speed</literal>
+      eingestellt werden.  Wird der Wert <literal>max</literal>
+      angegeben, wird die h&ouml;chste m&ouml;gliche Geschwindigkeit
+      verwendet.</para>
 
     <para>Mit dem neuen Hilfsprogramm &man.getconf.1; k&ouml;nnen die
       Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die

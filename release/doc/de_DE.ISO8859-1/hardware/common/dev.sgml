@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.23 2002/11/23 18:23:43 ue Exp $
-	basiert auf: 1.13.2.72
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.24 2002/12/01 13:25:10 ue Exp $
+	basiert auf: 1.13.2.73
 -->
 
 <sect1>
@@ -3250,10 +3250,22 @@
 
     <para arch="i386,pc98,alpha">Serielle Schnittstellen 
       <itemizedlist>
+	<listitem>
+	  <para>HP USB-Serial Adapter (&man.uftdi.4;  Treiber)</para>
+	</listitem>
+
+	<listitem>
+	  <para>Inland UAS111 (&man.uftdi.4;  Treiber)</para>
+	</listitem>
+
         <listitem>
           <para>Prolific PL-2303 serial adapter (&man.uplcom.4;
             Treiber)</para>
         </listitem>
+
+	<listitem>
+	  <para>QVS USC-1000 (&man.uftdi.4; Treiber)</para>
+	</listitem>
 
         <listitem>
           <para>SUNTAC Slipper U VS-10U (&man.uvscom.4;
@@ -3359,6 +3371,43 @@
 	</listitem>
       </itemizedlist>
     </para>
+  </sect2>
+
+  <sect2>
+    <title>Verschl&uuml;sselungs-Hardware</title>
+
+    <para arch="i386,pc98">Karten auf Basis der Hifn 7751, 7811 und
+      7951 Chips (&man.hifn.4; Treiber)
+      <itemizedlist>
+	<listitem>
+	  <para>Invertex AEON</para>
+	</listitem>
+
+	<listitem>
+	  <para>Hifn 7751 Referenz-Platine</para>
+	</listitem>
+
+	<listitem>
+	  <para>Global Technologies Group PowerCrypt und
+	    XL-Crypt</para>
+	</listitem>
+
+	<listitem>
+	  <para>NetSec 7751</para>
+	</listitem>
+
+	<listitem>
+	  <para>Soekris Engineering vpn1201 und vpn1211</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98">Karten auf Basis der Bluesteel 5501 und
+      5601 Chips&auml;tze (&man.ubsec.4; Treiber)</para>
+
+    <para arch="i386,pc98">Karten auf Basis der Broadcom BCM5801,
+      BCM5802, BCM5805, BCM5820, BCM 5821, BCM5822 Chips&auml;tze
+      (&man.ubsec.4; Treiber)</para>
   </sect2>
 
   <sect2>
