@@ -537,6 +537,9 @@ void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 int	 tcp_twrespond(struct tcptw *, struct socket *, struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
+#ifdef TCP_SIGNATURE
+int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
+#endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
@@ -567,12 +570,6 @@ void	 tcp_hc_updatetao(struct in_conninfo *, int, tcp_cc, u_short);
 #define	TCP_HC_TAO_CC		0x1
 #define TCP_HC_TAO_CCSENT	0x2
 #define TCP_HC_TAO_MSSOPT	0x3
-
-#ifdef TCP_SIGNATURE
-int tcpsignature_apply(void *fstate, void *data, u_int len);
-int tcpsignature_compute(struct mbuf *m, int off0, int len, int tcpoptlen,
-    u_char *buf, u_int direction);
-#endif /* TCP_SIGNATURE */
 
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
