@@ -1,10 +1,10 @@
 #include "opt_defunct.h"
 
 #ifdef CHILD_MAX
-#warning "obsolete option CHILD_MAX - rename it to PROC0_RLIMIT_NPROC"
+#warning "obsolete option CHILD_MAX - use /etc/login.conf"
 #endif
 
-#ifdef GATEWAY
+#ifdef EXTRAVNODES
 #warning "obsolete option EXTRAVNODES - use `sysctl -w kern.maxvnodes=value'"
 #endif
 
@@ -13,5 +13,5 @@
 #endif
 
 #ifdef OPEN_MAX
-#warning "obsolete option OPEN_MAX - rename it to PROC0_RLIMIT_NOFILE"
+#warning "obsolete option OPEN_MAX - use /etc/login.conf"
 #endif
