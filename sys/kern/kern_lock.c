@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.17 1998/02/11 00:05:26 eivind Exp $
+ * $Id: kern_lock.c,v 1.18 1998/03/07 19:25:34 dyson Exp $
  */
 
 #include "opt_lint.h"
@@ -65,7 +65,7 @@
 #if defined(DIAGNOSTIC)
 #define LOCK_INLINE
 #else
-#define LOCK_INLINE inline
+#define LOCK_INLINE __inline
 #endif
 
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
