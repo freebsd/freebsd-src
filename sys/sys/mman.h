@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.13 1996/05/19 07:36:41 dyson Exp $
+ * $Id: mman.h,v 1.14 1996/05/23 00:45:44 dyson Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -62,6 +62,11 @@
 #define	MAP_INHERIT	 0x0080	/* region is retained after exec */
 #define	MAP_NOEXTEND	 0x0100	/* for MAP_FILE, don't change file size */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
+
+/*
+ * Error return from mmap()
+ */
+#define MAP_FAILED	((caddr_t)-1)
 
 /*
  * msync() flags
