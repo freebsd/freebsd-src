@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.47 1998/02/05 10:06:42 kato Exp $
+ *	$Id: pc98.c,v 1.48 1998/02/06 12:14:03 eivind Exp $
  */
 
 /*
@@ -51,6 +51,9 @@
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
  */
+#ifdef PC98
+#include "opt_pc98.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>

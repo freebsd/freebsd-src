@@ -38,6 +38,7 @@
 #include <i386/Cbus/dev/bs/bshw.lst>
 #endif
 #ifdef	__FreeBSD__
+#include "opt_pc98.h"
 #include <i386/isa/ic/i8237.h>
 #include <i386/isa/bs/bsif.h>
 #include <i386/isa/bs/bshw.lst>
