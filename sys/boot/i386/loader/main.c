@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.4 1998/09/14 18:27:06 msmith Exp $
+ *	$Id: main.c,v 1.5 1998/09/17 23:52:15 msmith Exp $
  */
 
 /*
@@ -83,16 +83,16 @@ main(void)
     printf("diskbuf at %p, %d sectors\n", &diskbuf, diskbuf_size);
     printf("using %d bytes of stack at %p\n",  (&stacktop - &stackbase), &stacktop);
 #endif
-    
+
     /* We're booting from a BIOS disk, try to spiff this */
     currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
     currdev.d_type = currdev.d_dev->dv_type;
     currdev.d_kind.biosdisk.unit = 0;			/* XXX wrong, need to get from bootinfo etc. */
     currdev.d_kind.biosdisk.slice = -1;			/* XXX should be able to detect this, default to autoprobe */
     currdev.d_kind.biosdisk.partition = 0;		/* default to 'a' */
-    
-    /* Create i386-specific variables */
 
+    /* Create i386-specific variables */
+    
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev), i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE,  i386_fmtdev(&currdev), env_noset, env_nounset);
     setenv("LINES", "24", 1);				/* optional */
@@ -122,7 +122,7 @@ command_reboot(int argc, char *argv[])
     __exit(0);
 }
 
-/* provide this for panic */
+/* provide this for panic, as it's not in the startup code */
 void
 exit(int code)
 {
