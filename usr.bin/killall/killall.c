@@ -144,7 +144,6 @@ main(int ac, char **av)
 		if (**av == '-') {
 			++*av;
 			switch (**av) {
-			case 'U':
 			case 'u':
 				++*av;
 				if (**av == '\0')
