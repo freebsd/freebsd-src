@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Function to concatentate two lists.
  */
 
-#include    "lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -62,8 +63,8 @@ __FBSDID("$FreeBSD$");
  *	SUCCESS if all went well. FAILURE otherwise.
  *
  * Arguments:
- *	l1	The list to which l2 is to be appended
- *	l2	The list to append to l1
+ *	list1	The list to which list2 is to be appended
+ *	list2	The list to append to list1
  *	flags	LST_CONCNEW if LstNode's should be duplicated
  *		LST_CONCLINK if should just be relinked
  *
@@ -72,16 +73,13 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Concat(Lst l1, Lst l2, int flags)
+Lst_Concat(Lst list1, Lst list2, int flags)
 {
-    ListNode  	ln;     /* original LstNode */
-    ListNode  	nln;    /* new LstNode */
-    ListNode  	last;   /* the last element in the list. Keeps
-				 * bookkeeping until the end */
-    List 	list1 = (List)l1;
-    List 	list2 = (List)l2;
-
-    if (!LstValid (l1) || !LstValid (l2)) {
+    LstNode  	ln;     /* original LstNode */
+    LstNode  	nln;    /* new LstNode */
+    LstNode  	last;   /* the last element in the list. Keeps
+			 * bookkeeping until the end */
+    if (!Lst_Valid (list1) || !Lst_Valid (list2)) {
 	return (FAILURE);
     }
 
@@ -121,15 +119,15 @@ Lst_Concat(Lst l1, Lst l2, int flags)
 	    list1->firstPtr->prevPtr = list1->lastPtr;
 	    list1->lastPtr->nextPtr = list1->firstPtr;
 	}
-	free (l2);
+	free (list2);
     } else if (list2->firstPtr != NULL) {
 	/*
 	 * We set the nextPtr of the last element of list 2 to be NULL to make
 	 * the loop less difficult. The loop simply goes through the entire
 	 * second list creating new LstNodes and filling in the nextPtr, and
-	 * prevPtr to fit into l1 and its datum field from the
-	 * datum field of the corresponding element in l2. The 'last' node
-	 * follows the last of the new nodes along until the entire l2 has
+	 * prevPtr to fit into list1 and its datum field from the
+	 * datum field of the corresponding element in list2. The 'last' node
+	 * follows the last of the new nodes along until the entire list2 has
 	 * been appended. Only then does the bookkeeping catch up with the
 	 * changes. During the first iteration of the loop, if 'last' is NULL,
 	 * the first list must have been empty so the newly-created node is
@@ -140,7 +138,7 @@ Lst_Concat(Lst l1, Lst l2, int flags)
 	     ln != NULL;
 	     ln = ln->nextPtr)
 	{
-	    PAlloc (nln, ListNode);
+	    nln = emalloc(sizeof(*nln));
 	    nln->datum = ln->datum;
 	    if (last != NULL) {
 		last->nextPtr = nln;

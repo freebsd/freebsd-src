@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Return the datum associated with a list node.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -66,8 +67,8 @@ Lst_Datum(LstNode ln)
 {
 
     if (ln != NULL) {
-	return (((ListNode)ln)->datum);
+	return (ln->datum);
     } else {
-	return ((void *) NULL);
+	return (NULL);
     }
 }

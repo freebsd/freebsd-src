@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Replace the datum in a node with a new datum
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -68,8 +69,7 @@ Lst_Replace(LstNode ln, void *d)
     if (ln == NULL) {
 	return (FAILURE);
     } else {
-	((ListNode) ln)->datum = d;
+	ln->datum = d;
 	return (SUCCESS);
     }
 }
-

@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Add a new node with a new datum after an existing node
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -70,29 +71,24 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Append (Lst l, LstNode ln, void *d)
+Lst_Append(Lst list, LstNode ln, void *d)
 {
-    List 	list;
-    ListNode	lNode;
-    ListNode	nLNode;
+    LstNode	nLNode;
 
-    if (LstValid (l) && (ln == NULL && LstIsEmpty (l))) {
+    if (Lst_Valid (list) && (ln == NULL && Lst_IsEmpty (list))) {
 	goto ok;
     }
 
-    if (!LstValid (l) || LstIsEmpty (l)  || ! LstNodeValid (ln, l)) {
+    if (!Lst_Valid (list) || Lst_IsEmpty (list)  || ! Lst_NodeValid(ln, list)) {
 	return (FAILURE);
     }
     ok:
 
-    list = (List)l;
-    lNode = (ListNode)ln;
-
-    PAlloc (nLNode, ListNode);
+    nLNode = emalloc(sizeof(*nLNode));
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
 
-    if (lNode == NULL) {
+    if (ln == NULL) {
 	if (list->isCirc) {
 	    nLNode->nextPtr = nLNode->prevPtr = nLNode;
 	} else {
@@ -100,15 +96,15 @@ Lst_Append (Lst l, LstNode ln, void *d)
 	}
 	list->firstPtr = list->lastPtr = nLNode;
     } else {
-	nLNode->prevPtr = lNode;
-	nLNode->nextPtr = lNode->nextPtr;
+	nLNode->prevPtr = ln;
+	nLNode->nextPtr = ln->nextPtr;
 
-	lNode->nextPtr = nLNode;
+	ln->nextPtr = nLNode;
 	if (nLNode->nextPtr != NULL) {
 	    nLNode->nextPtr->prevPtr = nLNode;
 	}
 
-	if (lNode == list->lastPtr) {
+	if (ln == list->lastPtr) {
 	    list->lastPtr = nLNode;
 	}
     }
