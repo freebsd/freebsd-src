@@ -837,7 +837,7 @@ umodem_cleanup(struct umodem_softc *sc)
 }
 
 int
-umodemread(dev_t dev, uio *uio, int flag)
+umodemread(dev_t dev, struct uio *uio, int flag)
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -1085,7 +1085,7 @@ umodem_set_comm_feature(struct umodem_softc *sc, int feature, int state)
 }
 
 usbd_status
-umodem_set_line_coding(struct umodem_softc *sc, usb_cdc_line_state_t state)
+umodem_set_line_coding(struct umodem_softc *sc, usb_cdc_line_state_t *state)
 {
 	usb_device_request_t req;
 	usbd_status err;
