@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <dev/acpica/acpiio.h>
@@ -49,10 +50,13 @@ acpi_enable_disable(int enable)
 
 	fd  = open(ACPIDEV, O_RDWR);
 	if (fd == -1) {
-		err(1, NULL);
+		err(EX_OSFILE, ACPIDEV);
 	}
 	if (ioctl(fd, enable, NULL) == -1) {
-		err(1, NULL);
+		if (enable == ACPIIO_ENABLE)
+			err(EX_IOERR, "enable failed");
+		else
+			err(EX_IOERR, "disable failed");
 	}
 	close(fd);
 
@@ -66,10 +70,10 @@ acpi_sleep(int sleep_type)
 
 	fd  = open(ACPIDEV, O_RDWR);
 	if (fd == -1) {
-		err(1, NULL);
+		err(EX_OSFILE, ACPIDEV);
 	}
 	if (ioctl(fd, ACPIIO_SETSLPSTATE, &sleep_type) == -1) {
-		err(1, NULL);
+		err(EX_IOERR, "sleep type (%d) failed", sleep_type);
 	}
 	close(fd);
 
@@ -107,11 +111,9 @@ main(int argc, char *argv[])
 
 		case 's':
 			sleep_type = optarg[0] - '0';
-			if (sleep_type < 0 || sleep_type > 5) {
-				fprintf(stderr, "%s: invalid sleep type (%d)\n",
-				    argv[0], sleep_type);
-				return -1;
-			}
+			if (sleep_type < 0 || sleep_type > 5)
+				errx(EX_USAGE, "invalid sleep type (%d)",
+				    sleep_type);
 			break;
 		default:
 			argc -= optind;
