@@ -998,7 +998,8 @@ smbfs_advlock(ap)
 		break;
 	    case SEEK_END:
 		/* 'size' is always >= 0 */
-		if (fl->l_start > 0 && size > OFF_MAX - fl->l_start)
+		if ((fl->l_start > 0 && size > OFF_MAX - fl->l_start) ||
+		    (fl->l_start < 0 && size + fl->l_start > OFF_MAX))
 			return EOVERFLOW;
 		start = fl->l_start + size;
 		break;
