@@ -58,7 +58,35 @@
 
 /*
  *	Slot states for PIOCGSTATE
+ *
+ *	Here's a state diagram of all the possible states:
+ *
+ *			      power x 1
+ *			 -------------------
+ *			/		    \
+ *		       /       		     v
+ *    resume  	+----------+   power x 0   +----------+
+ *	------->| inactive |<--------------| filled   |
+ *     /       	+----------+         	   +----------+
+ *    /	    	  / 	\    	      	    ^  	|
+ *  nil <---------  	 \   	  insert or |  	| suspend or
+ *	     suspend	  \   	  power x 1 |  	| eject
+ *			   \   	       	    |  	v
+ *	    		    \	    	   +----------+
+ *     	       	       	     ------------->|  empty   |
+ *     	       	       	       eject	   +----------+
+ *
+ *	Note, the above diagram is for the state.  On suspend, the laststate
+ * gets set to suspend to tell pccardd what happened.  Also the nil state
+ * means that when the no state change has happened.
+ *
+ * Some might argue that inactive should be sticky forever and
+ * eject/insert shouldn't take it out of that state.  They might be
+ * right.  On the other hand, some would argue that eject resets all
+ * state.  They might be right.  They both can't be right.  The above
+ * represents a reasonable compromise between the two.
  */
+
 enum cardstate { noslot, empty, suspend, filled, inactive };
 
 /*
