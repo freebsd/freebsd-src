@@ -22,7 +22,6 @@ options		CD9660			#ISO 9660 Filesystem
 options		EXT2FS
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 #options		DEVFS
-options		PCI_QUIET
 options		NO_SWAPPING
 options         COMPAT_OLDISA   #Use ISA shims and glue for old drivers
 
