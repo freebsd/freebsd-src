@@ -31,7 +31,7 @@
 
 #define	SPOFF	2047
 
-struct	trapframe {
+struct trapframe {
 	u_long	tf_global[8];
 	u_long	tf_out[8];
 	u_long	tf_pil;
@@ -44,13 +44,13 @@ struct	trapframe {
 };
 #define	tf_sp	tf_out[6]
 
-struct	mmuframe {
+struct mmuframe {
 	u_long	mf_sfar;
 	u_long	mf_sfsr;
 	u_long	mf_tar;
 };
 
-struct	kdbframe {
+struct kdbframe {
 	u_long	kf_fp;
 	u_long	kf_cfp;
 	u_long	kf_canrestore;
@@ -60,11 +60,11 @@ struct	kdbframe {
 	u_long	kf_otherwin;
 };
 
-struct	clockframe {
+struct clockframe {
 	struct	trapframe cf_tf;
 };
 
-struct	frame {
+struct frame {
 	u_long	f_local[8];
 	u_long	f_in[8];
 	u_long	f_pad[8];
@@ -75,7 +75,7 @@ struct	frame {
 /*
  * Frame used for pcb_wscratch.
  */
-struct	rwindow {
+struct rwindow {
 	u_long	rw_local[8];
 	u_long	rw_in[8];
 };
