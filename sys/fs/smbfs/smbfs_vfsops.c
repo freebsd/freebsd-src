@@ -79,7 +79,6 @@ static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
 static vfs_init_t       smbfs_init;
 static vfs_uninit_t     smbfs_uninit;
 static vfs_omount_t     smbfs_omount;
-static vfs_start_t      smbfs_start;
 static vfs_root_t       smbfs_root;
 static vfs_quotactl_t   smbfs_quotactl;
 static vfs_statfs_t     smbfs_statfs;
@@ -90,7 +89,6 @@ static struct vfsops smbfs_vfsops = {
 	.vfs_omount =		smbfs_omount,
 	.vfs_quotactl =		smbfs_quotactl,
 	.vfs_root =		smbfs_root,
-	.vfs_start =		smbfs_start,
 	.vfs_statfs =		smbfs_statfs,
 	.vfs_sync =		vfs_stdsync,
 	.vfs_uninit =		smbfs_uninit,
@@ -290,20 +288,6 @@ smbfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 	np = VTOSMB(vp);
 	smp->sm_root = np;
 	*vpp = vp;
-	return 0;
-}
-
-/*
- * Vfs start routine, a no-op.
- */
-/* ARGSUSED */
-static int
-smbfs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-	SMBVDEBUG("flags=%04x\n", flags);
 	return 0;
 }
 

@@ -54,7 +54,6 @@
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
 static vfs_omount_t		umapfs_omount;
-static vfs_start_t		umapfs_start;
 static vfs_root_t		umapfs_root;
 static vfs_quotactl_t		umapfs_quotactl;
 static vfs_statfs_t		umapfs_statfs;
@@ -231,22 +230,6 @@ umapfs_omount(mp, path, data, ndp, td)
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 #endif
 	return (0);
-}
-
-/*
- * VFS start.  Nothing needed here - the start routine
- * on the underlying filesystem will have been called
- * when that filesystem was mounted.
- */
-static int
-umapfs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-
-	return (0);
-	/* return (VFS_START(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, flags, td)); */
 }
 
 /*
@@ -433,7 +416,6 @@ static struct vfsops umap_vfsops = {
 	.vfs_omount =    		umapfs_omount,
 	.vfs_quotactl = 		umapfs_quotactl,
 	.vfs_root =     		umapfs_root,
-	.vfs_start =    		umapfs_start,
 	.vfs_statfs =    		umapfs_statfs,
 	.vfs_unmount =   		umapfs_unmount,
 	.vfs_vget =      		umapfs_vget,
