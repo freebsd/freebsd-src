@@ -160,10 +160,12 @@ int i;
 	 * PCnet-ISA cards this write will hit the Address PROM. 
 	 */
 
-printf("Dumping io space for is%d starting at %x\n",unit,is_softc[unit].iobase);
-for (i=0; i< 32; i++)
-	printf(" %x ",inb(is_softc[unit].iobase+i));
-printf("\n");
+#ifdef DEBUG
+	printf("Dumping io space for is%d starting at %x\n",unit,is_softc[unit].iobase);
+	for (i=0; i< 32; i++)
+		printf(" %x ",inb(is_softc[unit].iobase+i));
+	printf("\n");
+#endif	/* DEBUG*/
 
 	if (nports = bicc_probe(unit))
 		return (nports);
