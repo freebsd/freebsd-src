@@ -369,6 +369,11 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 		      AcpiFormatException(status));
 	goto out;
     }
+    /* XXX Figure out how this is happening when the append succeeds. */
+    if (crsbuf.Pointer == NULL) {
+	device_printf(pcib, "_CRS buf NULL after append?\n");
+	goto out;
+    }
     if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(pcib, "_SRS failed for interrupt %d via %s - %s\n",
 		      Interrupts[0], acpi_name(lnkdev),
