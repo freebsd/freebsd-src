@@ -457,9 +457,7 @@ mi_switch(void)
 {
 	struct bintime new_switchtime;
 	struct thread *td;
-	struct thread *newtd;
 	struct proc *p;
-	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	td = curthread;			/* XXX */
@@ -510,18 +508,9 @@ mi_switch(void)
 	PCPU_SET(switchtime, new_switchtime);
 	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
-	sched_nest = sched_lock.mtx_recurse;
 	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
-	sched_switchout(td);
-
-	newtd = choosethread();
-	if (td != newtd)
-		cpu_switch(td, newtd);	/* SHAZAM!! */
-
-	sched_lock.mtx_recurse = sched_nest;
-	sched_lock.mtx_lock = (uintptr_t)td;
-	sched_switchin(td);
+	sched_switch(td);
 
 	/* 
 	 * Start setting up stats etc. for the incoming thread.

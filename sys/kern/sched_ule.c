@@ -785,8 +785,10 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
-sched_switchout(struct thread *td)
+sched_switch(struct thread *td)
 {
+	struct thread *newtd;
+	u_int sched_nest;
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -823,13 +825,12 @@ sched_switchout(struct thread *td)
 	 */
 	if (td->td_proc->p_flag & P_SA)
 		kse_reassign(ke);
-}
-
-void
-sched_switchin(struct thread *td)
-{
-	/* struct kse *ke = td->td_kse; */
-	mtx_assert(&sched_lock, MA_OWNED);
+	sched_nest = sched_lock.mtx_recurse;
+	newtd = choosethread();
+	if (td != newtd)
+		cpu_switch(td, newtd);
+	sched_lock.mtx_recurse = sched_nest;
+	sched_lock.mtx_lock = (uintptr_t)td;
 
 	td->td_oncpu = PCPU_GET(cpuid);
 }
