@@ -74,10 +74,13 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
-static void extended __P((char *dname, dev_t dev, struct disklabel *lp,
-			  struct diskslices *ssp, u_long ext_offset,
-			  u_long ext_size, u_long base_ext_offset,
-			  int nsectors, int ntracks, u_long mbr_offset));
+#ifndef PC98
+static void mbr_extended __P((dev_t dev, struct disklabel *lp,
+			      struct diskslices *ssp, u_long ext_offset,
+			      u_long ext_size, u_long base_ext_offset,
+			      int nsectors, int ntracks, u_long mbr_offset,
+			      int level));
+#endif
 
 #ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
@@ -487,7 +490,15 @@ reread_mbr:
 		    sp->ds_type == DOSPTYP_EXTENDEDX)
   			mbr_extended(bp->b_dev, lp, ssp,
   				     sp->ds_offset, sp->ds_size, sp->ds_offset,
-  				     max_nsectors, max_ntracks, mbr_offset);
+				     max_nsectors, max_ntracks, mbr_offset, 1);
+
+	/*
+	 * mbr_extended() abuses ssp->dss_nslices for the number of slices
+	 * that would be found if there were no limit on the number of slices
+	 * in *ssp.  Cut it back now.
+	 */
+	if (ssp->dss_nslices > MAX_SLICES)
+		ssp->dss_nslices = MAX_SLICES;
 #endif
 
 done:
@@ -498,11 +509,10 @@ done:
 	return (error);
 }
 
-/* PC98 does not use this function */
+#ifndef PC98
 void
-extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
-	 nsectors, ntracks, mbr_offset)
-	char	*dname;
+mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
+	     ntracks, mbr_offset, level)
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices *ssp;
@@ -512,21 +522,26 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	int	nsectors;
 	int	ntracks;
 	u_long	mbr_offset;
+	int	level;
 {
 	struct buf *bp;
 	u_char	*cp;
 	int	dospart;
 	struct dos_partition *dp;
+	struct dos_partition dpcopy[NDOSPART];
 	u_long	ext_offsets[NDOSPART];
 	u_long	ext_sizes[NDOSPART];
 	char	partname[2];
 	int	slice;
 	char	*sname;
 	struct diskslice *sp;
-#ifdef PC98
-	int	pc98_start;
-	int	pc98_size;
-#endif
+
+	if (level >= 16) {
+		printf(
+	"%s: excessive recursion in search for slices; aborting search\n",
+		       devtoname(dev));
+		return;
+	}
 
 	/* Read extended boot record. */
 	bp = geteblk((int)lp->d_secsize);
@@ -553,25 +568,19 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 		goto done;
 	}
 
-	for (dospart = 0,
-	     dp = (struct dos_partition *)(bp->b_data + DOSPARTOFF),
-	     slice = ssp->dss_nslices, sp = &ssp->dss_slices[slice];
-	     dospart < NDOSPART; dospart++, dp++) {
+	/* Make a copy of the partition table to avoid alignment problems. */
+	memcpy(&dpcopy[0], cp + DOSPARTOFF, sizeof(dpcopy));
+
+	slice = ssp->dss_nslices;
+	for (dospart = 0, dp = &dpcopy[0]; dospart < NDOSPART;
+	    dospart++, dp++) {
 		ext_sizes[dospart] = 0;
-#ifdef PC98
-		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0)
-#else
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
-#endif
 			continue;
-#ifdef PC98
-		if (dp->dp_mid == 0xff) {	/* XXX */
-#else
 		if (dp->dp_typ == DOSPTYP_EXTENDED ||
 		    dp->dp_typ == DOSPTYP_EXTENDEDX) {
-#endif
-			char buf[32];
+			static char buf[32];
 
 			sname = dsname(dev, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
@@ -580,15 +589,8 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 				strcat(buf, "<extended>");
 			check_part(buf, dp, base_ext_offset, nsectors,
 				   ntracks, mbr_offset);
-#ifdef PC98
-			pc98_start = DPBLKNO(dp->dp_scyl,dp->dp_shd,dp->dp_ssect);
-			ext_offsets[dospart] = pc98_start;
-			ext_sizes[dospart] = DPBLKNO(dp->dp_ecyl+1,dp->dp_ehd,dp->dp_esect)
-									- pc98_start;
-#else
 			ext_offsets[dospart] = base_ext_offset + dp->dp_start;
 			ext_sizes[dospart] = dp->dp_size;
-#endif
 		} else {
 			sname = dsname(dev, dkunit(dev), slice, RAW_PART,
 				       partname);
@@ -599,34 +601,46 @@ extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 				slice++;
 				continue;
 			}
-#ifdef PC98
-			pc98_start = DPBLKNO(dp->dp_scyl,dp->dp_shd,dp->dp_ssect);
-			pc98_size = dp->dp_ecyl ? DPBLKNO(dp->dp_ecyl+1,dp->dp_ehd,dp->dp_esect) - pc98_start : 0;
-			sp->ds_offset = ext_offset + pc98_start;
-			sp->ds_size = pc98_size;
-			sp->ds_type = dp->dp_mid;
-			sp->ds_subtype = dp->dp_sid;
-			strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
-#else
+			sp = &ssp->dss_slices[slice];
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;
 			sp->ds_type = dp->dp_typ;
+#ifdef PC98_ATCOMPAT
+			/* Fake FreeBSD(98). */
+			if (sp->ds_type == DOSPTYP_386BSD)
+				sp->ds_type = 0x94;
 #endif
-			ssp->dss_nslices++;
 			slice++;
-			sp++;
 		}
 	}
+	ssp->dss_nslices = slice;
 
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			extended(dname, dev, lp, ssp,
-				 ext_offsets[dospart], ext_sizes[dospart],
-				 base_ext_offset, nsectors, ntracks,
-				 mbr_offset);
+			mbr_extended(dev, lp, ssp, ext_offsets[dospart],
+				     ext_sizes[dospart], base_ext_offset,
+				     nsectors, ntracks, mbr_offset, ++level);
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 }
+#endif
+
+#ifdef __alpha__
+void
+alpha_fix_srm_checksum(bp)
+	struct buf *bp;
+{
+	u_int64_t *p;
+	u_int64_t sum;
+	int i;
+
+	p = (u_int64_t *) bp->b_data;
+	sum = 0;
+	for (i = 0; i < 63; i++)
+		sum += p[i];
+	p[63] = sum;
+}
+#endif
