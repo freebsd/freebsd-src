@@ -121,8 +121,6 @@ KBDIO_DEBUG		opt_kbd.h
 
 EISA_SLOTS		opt_eisa.h
 
-FE_8BIT_SUPPORT		opt_fe.h
-
 # pcvt(4) has a bunch of options
 FAT_CURSOR		opt_pcvt.h
 XSERVER			opt_pcvt.h

@@ -1789,7 +1789,6 @@ hint.el.0.irq="9"
 device		ep
 device		ex
 device		fe	1
-options 	FE_8BIT_SUPPORT		# LAC-98 support
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
 device		fea

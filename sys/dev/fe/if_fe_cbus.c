@@ -22,10 +22,6 @@
  * $FreeBSD$
  */
 
-#include "opt_fe.h"
-#include "opt_inet.h"
-#include "opt_ipx.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -656,11 +652,6 @@ fe_probe_ssi(device_t dev)
 static int
 fe_probe_lnx(device_t dev)
 {
-#ifndef FE_8BIT_SUPPORT
-	device_printf(dev,
-		      "skip LAC-98012/013(only 16-bit cards are supported)\n");
-	return ENXIO;
-#else
 	struct fe_softc *sc = device_get_softc(dev);
 
 	u_long iobase, irq;
@@ -727,7 +718,6 @@ fe_probe_lnx(device_t dev)
 	sc->init = fe_init_lnx;
 
 	return 0;
-#endif /* FE_8BIT_SUPPORT */
 }
 
 
