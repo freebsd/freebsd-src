@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.25 1995/05/03 18:09:14 dufault Exp $
+ *	$Id: scsiconf.h,v 1.26 1995/05/30 08:13:47 rgrimes Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -203,9 +203,10 @@ void NAME##strategy(struct buf *bp) { \
 struct isa_driver;
 struct scsi_ctlr_config
 {
-	int bus;
+	int scbus;
 	char *driver;
 	int unit;
+	int bus;
 };
 
 struct scsi_device_config
@@ -274,24 +275,25 @@ typedef struct st_mode st_modes[4];
  */
 struct scsi_link
 {
-/*  1*/	u_int8	target;			/* targ of this dev */
-/*  2*/	u_int8	lun;			/* lun of this dev */
-/*  3*/	u_int8	adapter_targ;		/* what are we on the scsi bus */
-/*  4*/	u_int8	adapter_unit;		/* e.g. the 0 in aha0 */
-/*  5*/	u_int8	scsibus;		/* the Nth scsibus	*/
-/*  6*/	u_int8	dev_unit;		/* e.g. the 0 in sd0 */
-/*  7*/	u_int8	opennings;		/* available operations */
-/*  8*/	u_int8	active;			/* operations in progress */
-/* 10*/	u_int16	flags;			/* flags that all devices have */
-/* 12*/	u_int16	quirks;			/* device specific quirks */
-/* 16*/	struct	scsi_adapter *adapter;	/* adapter entry points etc. */
-/* 20*/	struct	scsi_device *device;	/* device entry points etc. */
-/* 24*/	struct	scsi_xfer *active_xs;	/* operations under way */
-/* 28*/	void *	fordriver;		/* for private use by the driver */
-/* 32*/	void *  devmodes;		/* device specific mode tables */
-/* 36*/ dev_t	dev;			/* Device major number (character) */
-/* 40*/	struct	scsi_data *sd;	/* Device data structure */
-/* 44+*/struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
+	u_int8	target;			/* targ of this dev */
+	u_int8	lun;			/* lun of this dev */
+	u_int8	adapter_targ;		/* what are we on the scsi bus */
+	u_int8	adapter_unit;		/* e.g. the 0 in aha0 */
+	u_int8	adapter_bus;		/* e.g. the 0 in bus0 */
+	u_int8	scsibus;		/* the Nth scsibus	*/
+	u_int8	dev_unit;		/* e.g. the 0 in sd0 */
+	u_int8	opennings;		/* available operations */
+	u_int8	active;			/* operations in progress */
+	u_int16	flags;			/* flags that all devices have */
+	u_int16	quirks;			/* device specific quirks */
+	struct	scsi_adapter *adapter;	/* adapter entry points etc. */
+	struct	scsi_device *device;	/* device entry points etc. */
+	struct	scsi_xfer *active_xs;	/* operations under way */
+	void *	fordriver;		/* for private use by the driver */
+	void *  devmodes;		/* device specific mode tables */
+	dev_t	dev;			/* Device major number (character) */
+	struct	scsi_data *sd;	/* Device data structure */
+	struct	scsi_inquiry_data inqbuf;	/* Inquiry data */
 };
 
 /* XXX-HA: dufault@hda.com: SDEV_BOUNCE is set down in the adapter drivers
