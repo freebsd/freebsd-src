@@ -591,8 +591,7 @@ mouse_cut_extend(scr_stat *scp)
 void
 sc_mouse_paste(scr_stat *scp)
 {
-    if (scp->status & MOUSE_VISIBLE)
-	sc_paste(scp, cut_buffer, strlen(cut_buffer));
+    sc_paste(scp, cut_buffer, strlen(cut_buffer));
 }
 
 #endif /* SC_NO_CUTPASTE */
