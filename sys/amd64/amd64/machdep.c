@@ -722,7 +722,7 @@ ssdtosyssd(ssd, sd)
 {
 
 	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
-	sd->sd_hibase = (ssd->ssd_base >> 24) & 0xffffff;
+	sd->sd_hibase = (ssd->ssd_base >> 24) & 0xfffffffffful;
 	sd->sd_lolimit = (ssd->ssd_limit) & 0xffff;
 	sd->sd_hilimit = (ssd->ssd_limit >> 16) & 0xf;
 	sd->sd_type  = ssd->ssd_type;
