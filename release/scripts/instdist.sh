@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.4 1995/01/28 09:04:12 jkh Exp $
+# $Id: instdist.sh,v 1.5 1995/01/28 09:07:48 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -318,10 +318,9 @@ MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
 from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
 illegally, thanks!  When finished, select <Cancel>." \
 -1 -1 10 \
-  "?diskfree"  "How much disk space do I have free?" OFF \
   "bin" "Binary base files (mandatory - ${BINSIZE})" ON \
   "games" "Games and other frivolities (optional - ${GAMESIZE})" OFF \
-  "info" "GNU info files for various utilities (optional - ${INFOSIZE})" OFF \
+  "info" "GNU info files (optional - ${INFOSIZE})" OFF \
   "manpages" "Manual pages (optional - ${MANSIZE})" OFF \
   "proflibs" "Profiled libraries (optional - ${PROFSIZE})" OFF \
   "dict" "Spelling checker dictionary files (optional - ${DICTSIZE})" OFF \
@@ -334,15 +333,6 @@ illegally, thanks!  When finished, select <Cancel>." \
 	MEDIA_DISTRIBUTIONS=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval ${RETVAL}; then return 1; fi
-	if [ "${MEDIA_DISTRIBUTIONS}" = "?diskfree" ]; then
-		if df -k > ${TMP}/df.out; then
-		   dialog --title "How much free space do I have?" \
-			--textbox ${TMP}/df.out 15 76
-		else
-			error "Couldn't get disk usage information! :-("
-		fi
-		MEDIA_DISTRIBUTIONS=""
-	fi
   done
 }
 
