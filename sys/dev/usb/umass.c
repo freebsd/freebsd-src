@@ -444,7 +444,7 @@ char *states[TSTATE_STATES+1] = {
 };
 #endif
 
-struct cam_sim *umass_sim;	/* SCSI Interface Module */
+Static struct cam_sim *umass_sim;	/* SCSI Interface Module */
 
 
 /* USB device probe/attach/detach functions */
