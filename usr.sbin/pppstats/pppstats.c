@@ -52,11 +52,7 @@ static char rcsid[] = "$Id: pppstats.c,v 1.19 1997/04/30 06:00:27 paulus Exp $";
 #ifndef STREAMS
 #include <sys/socket.h>		/* *BSD, Linux, NeXT, Ultrix etc. */
 #include <net/if.h>
-#ifndef _linux_
 #include <net/if_ppp.h>
-#else
-#include <net/if_ppp.h>
-#endif
 
 #else	/* STREAMS */
 #include <sys/stropts.h>	/* SVR4, Solaris 2, SunOS 4, OSF/1, etc. */
