@@ -81,20 +81,19 @@ struct page0 {
 	u_int			divisor;	/* int */
 	u_int			chunksize;	/* bytes */
 	u_int			ringsize;	/* chunks */
-	u_int			o_ringgen;	/*
+	u_int			o_sample;	/*
 						 * offset of ring generation
 						 * array
 						 */
 	u_int			o_ring;		/* offset of ring */
 };
 
-#define PAGE0VERSION	20031021
+#define PAGE0VERSION	20050219
 
 #ifdef _KERNEL
 
 struct pgstat {
-	u_int			*genp;
-	u_int			gen;
+	uint64_t		*sample;
 	vm_paddr_t		phys;
 	void			*virt;
 	struct pgstat		*next;
@@ -113,6 +112,7 @@ struct softc {
 	u_int			nchunks;
 	struct pgstat		*chunks;
 	struct pgstat		*next;
+	uint64_t		sample;
 };
 
 static d_ioctl_t adlink_ioctl;
@@ -139,8 +139,9 @@ adlink_intr(void *arg)
 		return;
 	bus_space_write_4(sc->t0, sc->h0, 0x38, u | 0x003f4000);
 
+	sc->sample += sc->p0->chunksize / 2;
 	pg = sc->next;
-	*(pg->genp) = ++pg->gen;
+	*(pg->sample) = sc->sample;
 
 	u = bus_space_read_4(sc->t1, sc->h1, 0x18);
 	if (u & 1)
@@ -153,7 +154,7 @@ adlink_intr(void *arg)
 
 	pg = pg->next;
 	sc->next = pg;
-	*(pg->genp) = 0;
+	*(pg->sample) = 0;
 	bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
 	bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
 	wakeup(sc);
@@ -194,7 +195,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	int i, error;
 	u_int u;
 	struct pgstat *pg;
-	u_int *genp;
+	uint64_t *sample;
 	
 	sc = dev->si_drv1;
 	u = *(u_int*)data;
@@ -238,19 +239,20 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 				sc->p0->divisor = 4;
 
 			sc->nchunks = sc->p0->ringsize / sc->p0->chunksize;
-			if (sc->nchunks * sizeof (*pg->genp) +
+			if (sc->nchunks * sizeof (*pg->sample) +
 			    sizeof *sc->p0 > PAGE_SIZE)
 				return (EINVAL);
 			sc->p0->o_ring = PAGE_SIZE;
-			genp = (u_int *)(sc->p0 + 1);
-			sc->p0->o_ringgen = (intptr_t)genp - (intptr_t)(sc->p0);
+			sample = (uint64_t *)(sc->p0 + 1);
+			sc->p0->o_sample =
+			    (uintptr_t)sample - (uintptr_t)(sc->p0);
 			pg = malloc(sizeof *pg * sc->nchunks,
 			    M_DEVBUF, M_WAITOK | M_ZERO);
 			sc->chunks = pg;
 			for (i = 0; i < sc->nchunks; i++) {
-				pg->genp = genp;
-				*pg->genp = 1;
-				genp++;
+				pg->sample = sample;
+				*pg->sample = 0;
+				sample++;
 				pg->virt = contigmalloc(sc->p0->chunksize,
 				    M_DEVBUF, M_WAITOK,
 				    0ul, 0xfffffffful,
@@ -268,8 +270,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		/* Reset generation numbers */
 		pg = sc->chunks;
 		for (i = 0; i < sc->nchunks; i++) {
-			*pg->genp = 0;
-			pg->gen = 0;
+			*pg->sample = 0;
 			pg++;
 		}
 
@@ -302,7 +303,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 
 		/* Set up Write DMA */
 		pg = sc->next = sc->chunks;
-		*(pg->genp) = 0;
+		*(pg->sample) = 0;
 		bus_space_write_4(sc->t0, sc->h0, 0x24, pg->phys);
 		bus_space_write_4(sc->t0, sc->h0, 0x28, sc->p0->chunksize);
 		u = bus_space_read_4(sc->t0, sc->h0, 0x3c);
@@ -316,7 +317,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		if (sc->p0->state == STATE_RESET)
 			break;
 		sc->p0->state = EINTR;	
-		while (*(sc->next->genp) == 0)
+		while (*(sc->next->sample) == 0)
 			tsleep(sc, PUSER | PCATCH, "adstop", 1);
 		break;
 #ifdef notyet
@@ -328,7 +329,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		if (sc->p0->state == STATE_RESET)
 			break;
 		sc->p0->state = EINTR;	
-		while (*(sc->next->genp) == 0)
+		while (*(sc->next->samp) == 0)
 			tsleep(sc, PUSER | PCATCH, "adreset", 1);
 		/* deallocate ring buffer */
 		break;
