@@ -109,7 +109,6 @@
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
-#define	IPSEC
 #endif
 
 #include <net/net_osdep.h>
@@ -2218,6 +2217,10 @@ icmp6_reflect(m, off)
 	 */
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
+#ifdef IPSEC
+	/* Don't lookup socket */
+	(void)ipsec_setsocket(m, NULL);
+#endif /* IPSEC */
 
 #ifdef COMPAT_RFC1885
 	ip6_output(m, NULL, &icmp6_reflect_rt, 0, NULL, &outif, NULL);
@@ -2441,7 +2444,7 @@ icmp6_redirect_input(m, off)
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	key_sa_routechange((struct sockaddr *)&sdst);
 #endif
     }
@@ -2725,6 +2728,10 @@ noredhdropt:;
 	    sizeof(*ip6), ntohs(ip6->ip6_plen));
 
 	/* send the packet to outside... */
+#ifdef IPSEC
+	/* Don't lookup socket */
+	(void)ipsec_setsocket(m, NULL);
+#endif /* IPSEC */
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);

@@ -96,7 +96,6 @@
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/key.h>
-#define	IPSEC
 #endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
@@ -620,6 +619,11 @@ syncache_socket(sc, lso, m)
 		goto abort;
 	}
 #ifdef IPSEC
+	/* copy old policy into new socket's */
+	if (ipsec_copy_pcbpolicy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
+		printf("syncache_expand: could not copy policy\n");
+#endif
+#ifdef FAST_IPSEC
 	/* copy old policy into new socket's */
 	if (ipsec_copy_policy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
 		printf("syncache_expand: could not copy policy\n");
