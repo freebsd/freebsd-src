@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992,1993,1994 Hellmuth Michaelis
+ * Copyright (c) 1992, 1995 Hellmuth Michaelis
  *
  * All rights reserved.
  *
@@ -17,10 +17,10 @@
  * 4. The name authors may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
@@ -31,7 +31,7 @@
  */
 
 static char *id =
-	"@(#)ispcvt.c, 3.20, Last Edit-Date: [Sun Feb 19 13:17:57 1995]";
+	"@(#)ispcvt.c, 3.20, Last Edit-Date: [Wed Apr  5 17:53:28 1995]";
 
 /*---------------------------------------------------------------------------*
  *
@@ -45,11 +45,18 @@ static char *id =
  *	-hm	new CONF_ values for 3.10
  *	-hm	new CONF_ values for 3.20
  *	-hm	removed PCVT_FAKE_SYSCONS10
+ *	-hm	added PCVT_PORTIO_DELAY
+ *	-hm	removed PCVT_386BSD
+ *	-hm	add -d option to specify a device
+ *	-hm	PCVT_XSERVER -> XSERVER
  *
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <fcntl.h>
 #include <machine/pcvt_ioctl.h>
+
+#define DEFAULTFD 0
 
 main(argc,argv)
 int argc;
@@ -65,8 +72,11 @@ char *argv[];
 	char *p;
 	int verbose = 0;
 	int config = 0;	
+	int dflag = 0;
+	int fd;
+	char *device;
 
-	while( (c = getopt(argc, argv, "vc")) != EOF)
+	while( (c = getopt(argc, argv, "vcd:")) != EOF)
 	{
 		switch(c)
 		{
@@ -78,6 +88,11 @@ char *argv[];
 				config = 1;
 				break;
 				
+			case 'd':
+				device = optarg;
+				dflag = 1;
+				break;
+				
 			case '?':
 			default:
 				usage();
@@ -85,7 +100,26 @@ char *argv[];
 		}
 	}
 
-	if(ioctl(0, VGAPCVTID, &pcvtid) == -1)
+	if(dflag)
+	{
+		if((fd = open(device, O_RDWR)) == -1)
+		{
+			if(verbose)
+			{
+				char buffer[80];
+				strcpy(buffer,"ERROR opening ");
+				strcat(buffer,device);
+				perror(buffer);
+			}
+			exit(1);
+		}
+	}
+	else
+	{
+		fd = DEFAULTFD;
+	}
+
+	if(ioctl(fd, VGAPCVTID, &pcvtid) == -1)
 	{
 		if(verbose)
 			perror("ispcvt - ioctl VGAPCVTID failed, error");
@@ -125,22 +159,17 @@ char *argv[];
 	if(config == 0)
 		exit(0);
 
-	if(ioctl(0, VGAPCVTINFO, &pcvtinfo) == -1)
+	if(ioctl(fd, VGAPCVTINFO, &pcvtinfo) == -1)
 	{
 		if(verbose)
 			perror("ispcvt - ioctl VGAPCVTINFO failed, error");
 		exit(1);
 	}
 
-
 	if(verbose)
 	{
 		switch(pcvtinfo.opsys)
 		{
-			case CONF_386BSD:
-				p = "PCVT_386BSD";
-				break;
-				
 			case CONF_NETBSD:
 				p = "PCVT_NETBSD";
 				break;
@@ -166,83 +195,85 @@ char *argv[];
 	
 	/* config booleans */
 
-		fprintf(stderr,"PCVT_VT220KEYB       = %s\t\t",
-			((u_int)pcvtinfo.compile_opts & (u_int)CONF_VT220KEYB) ? "ON" : "OFF");
-		
-		fprintf(stderr,"PCVT_SCREENSAVER     = %s\n",
-			(pcvtinfo.compile_opts & CONF_SCREENSAVER) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_PRETTYSCRNS     = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_PRETTYSCRNS) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_CTRL_ALT_DEL    = %s\n",
-			(pcvtinfo.compile_opts & CONF_CTRL_ALT_DEL) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_USEKBDSEC       = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_USEKBDSEC) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_24LINESDEF      = %s\n",
-			(pcvtinfo.compile_opts & CONF_24LINESDEF) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_EMU_MOUSE       = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_EMU_MOUSE) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_SHOWKEYS        = %s\n",
-			(pcvtinfo.compile_opts & CONF_SHOWKEYS) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_KEYBDID         = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_KEYBDID) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_SIGWINCH        = %s\n",
-			(pcvtinfo.compile_opts & CONF_SIGWINCH) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_NULLCHARS       = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_NULLCHARS) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_BACKUP_FONTS    = %s\n",
-			(pcvtinfo.compile_opts & CONF_BACKUP_FONTS) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_SW0CNOUTP       = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_SW0CNOUTP) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_NEEDPG          = %s\n",
-			(pcvtinfo.compile_opts & CONF_NEEDPG) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_SETCOLOR        = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_SETCOLOR) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_132GENERIC      = %s\n",
+		fprintf(stderr,"PCVT_132GENERIC      = %s",
 			(pcvtinfo.compile_opts & CONF_132GENERIC) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_PALFLICKER      = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_PALFLICKER) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_WAITRETRACE     = %s\n",
-			(pcvtinfo.compile_opts & CONF_WAITRETRACE) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_XSERVER         = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_XSERVER) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_USL_VT_COMPAT   = %s\n",
-			(pcvtinfo.compile_opts & CONF_USL_VT_COMPAT) ? "ON" : "OFF");
-	
-		fprintf(stderr,"PCVT_INHIBIT_NUMLOCK = %s\t\t",
+		next();
+		fprintf(stderr,"PCVT_24LINESDEF      = %s",
+			(pcvtinfo.compile_opts & CONF_24LINESDEF) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_BACKUP_FONTS    = %s",
+			(pcvtinfo.compile_opts & CONF_BACKUP_FONTS) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_CTRL_ALT_DEL    = %s",
+			(pcvtinfo.compile_opts & CONF_CTRL_ALT_DEL) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_EMU_MOUSE       = %s",
+			(pcvtinfo.compile_opts & CONF_EMU_MOUSE) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_INHIBIT_NUMLOCK = %s",
 			(pcvtinfo.compile_opts & CONF_INHIBIT_NUMLOCK) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_META_ESC        = %s\n",
-			(pcvtinfo.compile_opts & CONF_META_ESC) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_NOFASTSCROLL    = %s\t\t",
-			(pcvtinfo.compile_opts & CONF_NOFASTSCROLL) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_SLOW_INTERRUPT  = %s\n",
-			(pcvtinfo.compile_opts & CONF_SLOW_INTERRUPT) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_KBD_FIFO        = %s\t\t",
+		next();
+		fprintf(stderr,"PCVT_KEYBDID         = %s",
+			(pcvtinfo.compile_opts & CONF_KEYBDID) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_KBD_FIFO        = %s",
 			(pcvtinfo.compile_opts & CONF_KBD_FIFO) ? "ON" : "OFF");
-
-		fprintf(stderr,"PCVT_NO_LED_UPDATE   = %s\n\n",
+		next();
+		fprintf(stderr,"PCVT_META_ESC        = %s",
+			(pcvtinfo.compile_opts & CONF_META_ESC) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_NOFASTSCROLL    = %s",
+			(pcvtinfo.compile_opts & CONF_NOFASTSCROLL) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_NO_LED_UPDATE   = %s",
 			(pcvtinfo.compile_opts & CONF_NO_LED_UPDATE) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_NULLCHARS       = %s",
+			(pcvtinfo.compile_opts & CONF_NULLCHARS) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_PALFLICKER      = %s",
+			(pcvtinfo.compile_opts & CONF_PALFLICKER) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_PORTIO_DELAY    = %s",
+			(pcvtinfo.compile_opts & CONF_PORTIO_DELAY) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_PRETTYSCRNS     = %s",
+			(pcvtinfo.compile_opts & CONF_PRETTYSCRNS) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SCREENSAVER     = %s",
+			(pcvtinfo.compile_opts & CONF_SCREENSAVER) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SETCOLOR        = %s",
+			(pcvtinfo.compile_opts & CONF_SETCOLOR) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SHOWKEYS        = %s",
+			(pcvtinfo.compile_opts & CONF_SHOWKEYS) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SIGWINCH        = %s",
+			(pcvtinfo.compile_opts & CONF_SIGWINCH) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SLOW_INTERRUPT  = %s",
+			(pcvtinfo.compile_opts & CONF_SLOW_INTERRUPT) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_SW0CNOUTP       = %s",
+			(pcvtinfo.compile_opts & CONF_SW0CNOUTP) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_USEKBDSEC       = %s",
+			(pcvtinfo.compile_opts & CONF_USEKBDSEC) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_USL_VT_COMPAT   = %s",
+			(pcvtinfo.compile_opts & CONF_USL_VT_COMPAT) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_VT220KEYB       = %s",
+			((u_int)pcvtinfo.compile_opts & (u_int)CONF_VT220KEYB) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"PCVT_WAITRETRACE     = %s",
+			(pcvtinfo.compile_opts & CONF_WAITRETRACE) ? "ON" : "OFF");
+		next();
+		fprintf(stderr,"XSERVER              = %s",
+			(pcvtinfo.compile_opts & CONF_XSERVER) ? "ON" : "OFF");
+
+		fprintf(stderr,"\n\n");
 	}
 	else /* !verbose */
 	{
@@ -258,9 +289,20 @@ char *argv[];
 usage()
 {
 	fprintf(stderr,"\nispcvt - verify current video driver is the pcvt-driver\n");
-	fprintf(stderr,"usage: ispcvt [-v] [-c]\n");
-	fprintf(stderr,"       -v   be verbose\n");
-	fprintf(stderr,"       -c   print compile time configuration\n\n");	
+	fprintf(stderr,"  usage: ispcvt [-v] [-c] [-d device]\n");
+	fprintf(stderr,"options: -v         be verbose\n");
+	fprintf(stderr,"         -c         print compile time configuration\n");
+	fprintf(stderr,"         -d <name>  use devicefile <name> for verification\n\n");
 	exit(5);
 }
 
+next()
+{
+	static int i = 0;
+
+	fprintf(stderr, "%s", (i == 0) ? "\t\t" : "\n");
+
+	i = ~i;
+}
+
+/* EOF */

@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1992,1993,1994 Hellmuth Michaelis and Brian Dunford-Shore
+ * Copyright (c) 1992, 1995 Hellmuth Michaelis
+ *
+ * Copyright (c) 1992, 1994 Brian Dunford-Shore 
  *
  * All rights reserved.
  *
@@ -32,7 +34,7 @@
  */
 
 static char *id =
-	"@(#)loadfont.c, 3.20, Last Edit-Date: [Tue Dec 20 14:52:58 1994]";
+	"@(#)loadfont.c, 3.20, Last Edit-Date: [Fri Apr  7 10:13:16 1995]";
 
 /*---------------------------------------------------------------------------*
  *
@@ -40,10 +42,12 @@ static char *id =
  *
  *	-hm	removing explicit HGC support (same as MDA ..)
  *	-hm	new pcvt_ioctl.h SIZ_xxROWS
+ *	-hm	add -d option
  *
  *---------------------------------------------------------------------------*/
  
 #include <stdio.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <machine/pcvt_ioctl.h>
@@ -51,24 +55,24 @@ static char *id =
 #define FONT8X8		2048	/* filesize for 8x8 font              */
 #define HEIGHT8X8	8	/* 8 scan lines char cell height      */
 #define SSCAN8X8	143	/* 400 scan lines on screen - 256 - 1 */
-#define SROWS8X8	50	/* 50 character lines on screen       */
 
 #define FONT8X10	2560	/* filesize for 8x10 font             */
 #define HEIGHT8X10	10	/* 10 scan lines char cell height     */
 #define SSCAN8X10	143	/* 400 scan lines on screen - 256 - 1 */
-#define SROWS8X10	40	/* 50 character lines on screen       */
 
 #define FONT8X14	3584	/* filesize for 8x14 font             */
 #define HEIGHT8X14	14	/* 14 scan lines char cell height     */
 #define SSCAN8X14	135	/* 392 scan lines on screen - 256 - 1 */
-#define SROWS8X14	28	/* 28 character lines on screen       */
 
 #define FONT8X16	4096	/* filesize for 8x16 font             */
 #define HEIGHT8X16	16	/* 16 scan lines char cell height     */
 #define SSCAN8X16	143	/* 400 scan lines on screen - 256 - 1 */
-#define SROWS8X16	25	/* 25 character lines on screen       */
 
 struct screeninfo screeninfo;
+
+#define DEFAULTFD 0
+int fd;
+
 
 main(argc,argv)
 int argc;
@@ -90,8 +94,10 @@ char *argv[];
 	char *filename;
 	int fflag = -1;
 	int info = -1;
+	int dflag = 0;
+	char *device;
 	
-	while( (c = getopt(argc, argv, "c:f:i")) != EOF)
+	while( (c = getopt(argc, argv, "c:d:f:i")) != EOF)
 	{
 		switch(c)
 		{
@@ -99,6 +105,11 @@ char *argv[];
 				chr_set = atoi(optarg);
 				break;
 				
+			case 'd':
+				device = optarg;
+				dflag = 1;
+				break;
+
 			case 'f':
 				filename = optarg;
 				fflag = 1;
@@ -118,11 +129,27 @@ char *argv[];
 	if(chr_set == -1 || fflag == -1)
 		info = 1;
 
+	if(dflag)
+	{
+		if((fd = open(device, O_RDWR)) == -1)
+		{
+			char buffer[80];
+			strcpy(buffer,"ERROR opening ");
+			strcat(buffer,device);
+			perror(buffer);
+			exit(1);
+		}
+	}
+	else
+	{
+		fd = DEFAULTFD;
+	}
+
 	if(info == 1)
 	{
 		int i;
 	
-		if(ioctl(0, VGAGETSCREEN, &screeninfo) == -1)
+		if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
 		{
 		    perror("ioctl VGAGETSCREEN failed");
 		    exit(1);
@@ -234,7 +261,7 @@ int charset, fontloaded, charscan, scrscan, scrrow;
 	vfattr.screen_scanlines = scrscan;
 	vfattr.screen_size = scrrow;
 
-	if(ioctl(1, VGASETFONTATTR, &vfattr) == -1)
+	if(ioctl(fd, VGASETFONTATTR, &vfattr) == -1)
 	{
 		perror("loadfont - ioctl VGASETFONTATTR failed, error");
 		exit(1);
@@ -260,7 +287,7 @@ unsigned char *font_table;
 			vlc.char_table[j] = font_table[j];
 		}
 		font_table += charscanlines;
-		if(ioctl(1, VGALOADCHAR, &vlc) == -1)
+		if(ioctl(fd, VGALOADCHAR, &vlc) == -1)
 		{
 			perror("loadfont - ioctl VGALOADCHAR failed, error");
 			exit(1);
@@ -276,7 +303,7 @@ int charset;
 	
 	vfattr.character_set = charset;
 
-	if(ioctl(1, VGAGETFONTATTR, &vfattr) == -1)
+	if(ioctl(fd, VGAGETFONTATTR, &vfattr) == -1)
 	{
 		perror("loadfont - ioctl VGAGETFONTATTR failed, error");
 		exit(1);
@@ -309,8 +336,9 @@ printheader()
 usage()
 {
 	fprintf(stderr,"\nloadfont - load font into ega/vga font ram for pcvt video driver\n");
-	fprintf(stderr,"usage: loadfont -c<cset> -f<filename> -i\n");
+	fprintf(stderr,"usage: loadfont -c <cset> -d <dev> -f <name> -i\n");
 	fprintf(stderr,"       -c <cset> characterset to load (ega 0..3, vga 0..7)\n");
+	fprintf(stderr,"       -d <dev>  specify device\n");	
 	fprintf(stderr,"       -f <name> filename containing binary font data\n");
 	fprintf(stderr,"       -i        print status and types of loaded fonts (default)\n");
 	exit(1);
