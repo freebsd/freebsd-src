@@ -292,6 +292,7 @@ turned over should not be included.  The
 flag means nothing, but can be used as a placeholder when the
 .Ar path_to_pid_file
 field is specified.
+The
 .Ar G
 flag means that the specified
 .Ar logfile_name
@@ -302,6 +303,23 @@ options.
 See
 .Xr glob 3
 for details on syntax and matching rules.
+The
+.Ar W
+flag
+in conjunction with the
+.Ar Z
+flag or the
+.Ar J
+flag means that
+.Nm
+should wait for previously started compression jobs to complete before
+starting a new one for this entry.  When it is used along with the
+.Ar G
+flag, in the case when several logfiles match the pattern and should be
+compressed, the
+.Nm
+will compress logs one by one, ensuring that only one compression job
+is running at a time.
 .It Ar path_to_pid_file
 This optional field specifies
 the file name to read to find the daemon process id.  If this
