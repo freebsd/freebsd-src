@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2000
+ *	Poul-Henning Kamp.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -53,15 +55,19 @@ struct vnode;
 struct specinfo {
 	u_int		si_flags;
 #define SI_STASHED	0x0001	/* created in stashed storage */
+#define SI_ALIAS	0x0002	/* carrier of alias name */
 	udev_t		si_udev;
 	LIST_ENTRY(specinfo)	si_hash;
-	SLIST_HEAD(, vnode) si_hlist;
+	SLIST_HEAD(, vnode)	si_hlist;
+	LIST_HEAD(, specinfo)	si_names;
+	u_int		si_inode;
 	char		si_name[SPECNAMELEN + 1];
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
-	void 		*si_devfs;	/* save cookie for devfs operations */
-	void 		*si_bdevfs;	/* XXX block device (should go away) */
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
+	uid_t		si_uid;
+	gid_t		si_gid;
+	mode_t		si_mode;
 	union {
 		struct {
 			struct tty *__sit_tty;
@@ -127,7 +133,7 @@ typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
 
 /* This is type of the function DEVFS uses to hook into the kernel with */
-typedef void devfs_create_t __P((dev_t dev, uid_t uid, gid_t gid, int perms));
+typedef void devfs_create_t __P((dev_t dev));
 typedef void devfs_remove_t __P((dev_t dev));
 
 /*
@@ -285,6 +291,7 @@ void	freedev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
 dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
+dev_t	make_dev_alias __P((dev_t pdev, char *fmt, ...)) __printflike(2, 3);
 int	lminor __P((dev_t dev));
 void	setconf __P((void));
 dev_t	getdiskbyname(char *name);

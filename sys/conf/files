@@ -337,6 +337,9 @@ dev/vx/if_vx.c			count vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/xe/if_xe.c			optional xe
+fs/devfs/devfs_vnops.c		optional devfs
+fs/devfs/devfs_vfsops.c		optional devfs
+fs/devfs/devfs_devs.c		optional devfs
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
@@ -525,9 +528,6 @@ libkern/strtoq.c	standard
 libkern/strtoul.c	standard
 libkern/strtouq.c	standard
 miscfs/deadfs/dead_vnops.c	standard
-miscfs/devfs/devfs_tree.c	optional devfs
-miscfs/devfs/devfs_vfsops.c	optional devfs
-miscfs/devfs/devfs_vnops.c	optional devfs
 miscfs/fdesc/fdesc_vfsops.c	optional fdesc
 miscfs/fdesc/fdesc_vnops.c	optional fdesc
 miscfs/fifofs/fifo_vnops.c	standard

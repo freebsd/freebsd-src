@@ -41,6 +41,7 @@
  */
 
 #include "bpf.h"
+#include "opt_devfs.h"
 
 #ifndef __GNUC__
 #define inline
@@ -77,6 +78,11 @@
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
+#endif
 
 MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
@@ -1357,12 +1363,38 @@ bpfdetach(ifp)
 
 static void bpf_drvinit __P((void *unused));
 
+#ifdef DEVFS
+static void bpf_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static void
+bpf_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (devfs_stdclone(name, NULL, "bpf", &u) != 1)
+		return;
+	/* XXX: minor encoding if u > 255 */
+	*dev = make_dev(&bpf_cdevsw, u, 0, 0, 0600, "bpf%d", u);
+	return;
+}
+#endif
+
 static void
 bpf_drvinit(unused)
 	void *unused;
 {
 
+#ifdef DEVFS
+	EVENTHANDLER_REGISTER(devfs_clone, bpf_clone, 0, 1000);
+#else
 	cdevsw_add(&bpf_cdevsw);
+#endif
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)

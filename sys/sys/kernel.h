@@ -119,7 +119,6 @@ enum sysinit_sub_id {
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
 	SI_SUB_RUN_QUEUE	= 0x2400000,	/* set up run queue*/
 	SI_SUB_CREATE_INIT	= 0x2500000,	/* create init process*/
-	SI_SUB_DEVFS		= 0x3000000,	/* get DEVFS ready */
 	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
