@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.17 1998/05/10 18:47:50 hoek Exp $";
+	"$Id: newsyslog.c,v 1.18 1998/05/10 19:04:06 hoek Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -92,7 +92,6 @@ int     noaction = 0;           /* Don't do anything, just show it */
 int     force = 0;		/* Force the trim no matter what*/
 char    *conf = CONF;           /* Configuration file to use */
 time_t  timenow;
-pid_t   syslog_pid;             /* read in from /etc/syslog.pid */
 #define MIN_PID         5
 #define MAX_PID		30000   /* was 65534, see /usr/include/sys/proc.h */
 char    hostname[MAXHOSTNAMELEN+1]; /* hostname */
@@ -127,8 +126,6 @@ int main(argc,argv)
                 errx(1, "must have root privs");
         p = q = parse_file();
 
-	syslog_pid = needroot ? get_pid(PIDFILE) : 0;
-
         while (p) {
                 do_entry(p);
                 p=p->next;
@@ -143,6 +140,7 @@ static void do_entry(ent)
         
 {
         int     size, modtime;
+	char 	*pid_file;
         
         if (verbose) {
                 if (ent->flags & CE_COMPACT)
@@ -167,13 +165,22 @@ static void do_entry(ent)
                                 printf("--> trimming log....\n");
                         if (noaction && !verbose) {
                                 if (ent->flags & CE_COMPACT)
-                                        printf("%s <%dZ>: trimming",
+                                        printf("%s <%dZ>: trimming\n",
                                                ent->log,ent->numlogs);
                                 else
-                                        printf("%s <%d>: trimming",
+                                        printf("%s <%d>: trimming\n",
                                                ent->log,ent->numlogs);
                         }
-                        dotrim(ent->log, ent->pid_file, ent->numlogs,
+			if (ent->pid_file) {
+				pid_file = ent->pid_file;
+			} else {
+				/* Only try to notify syslog if we are root */
+				if (needroot)
+					pid_file = PIDFILE;
+				else
+					pid_file = NULL;
+			}
+                        dotrim(ent->log, pid_file, ent->numlogs,
 			    ent->flags, ent->permissions, ent->uid, ent->gid);
                 } else {
                         if (verbose)
@@ -205,8 +212,8 @@ static void PRS(argc,argv)
         while ((c=getopt(argc,argv,"nrvFf:t:")) != -1)
                 switch (c) {
                 case 'n':
-                        noaction++; /* This implies needroot as off */
-                        /* fall through */
+                        noaction++;
+			break;
                 case 'r':
                         needroot = 0;
                         break;
@@ -492,9 +499,6 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
 	if (pid_file != NULL) {
 		need_notification = 1;
 		pid = get_pid(pid_file);
-	} else if (needroot && !(flags & CE_BINARY)) {
-		need_notification = 1;
-		pid = syslog_pid;
 	}
 
 	if (pid) {
