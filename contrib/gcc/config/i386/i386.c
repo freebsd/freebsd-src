@@ -1244,7 +1244,6 @@ optimization_options (level, size)
      specifying them, we will set the defaults in override_options.  */
   if (optimize >= 1)
     flag_omit_frame_pointer = 2;
-  flag_pcc_struct_return = 2;
   flag_asynchronous_unwind_tables = 2;
 }
 
