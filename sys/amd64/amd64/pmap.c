@@ -2302,9 +2302,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 		}
 
-		srcmpte = vm_page_lookup(src_pmap->pm_pteobj, ptepindex);
-		if ((srcmpte == NULL) ||
-		    (srcmpte->hold_count == 0) || (srcmpte->flags & PG_BUSY))
+		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
+		if (srcmpte->hold_count == 0 || (srcmpte->flags & PG_BUSY))
 			continue;
 
 		if (pdnxt > end_addr)
