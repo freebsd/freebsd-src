@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.12 1997/08/21 04:53:27 smp Exp smp $
+ *	$Id: exception.s,v 1.17 1997/08/23 05:16:26 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -40,6 +40,19 @@
 #include <machine/trap.h>			/* trap codes */
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <machine/param.h>
+
+
+#if defined(SMP) && defined(REAL_ECPL)
+
+#define ECPL_LOCK	SCPL_LOCK
+#define ECPL_UNLOCK	SCPL_UNLOCK
+
+#else /* SMP */
+
+#define ECPL_LOCK
+#define ECPL_UNLOCK
+
+#endif /* SMP */
 
 #define	KCSEL		0x08			/* kernel code selector */
 #define	KDSEL		0x10			/* kernel data selector */
@@ -116,6 +129,7 @@ IDTVEC(mchk)
 	pushl $0; TRAP(T_MCHK)
 IDTVEC(rsvd)
 	pushl $0; TRAP(T_RESERVED)
+
 IDTVEC(fpu)
 #if NNPX > 0
 	/*
@@ -134,20 +148,33 @@ IDTVEC(fpu)
 	movl	%ax,%ds
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
+#ifdef SMP
+	MPLOCKED incl _cnt+V_TRAP
+	FPU_LOCK
+	ECPL_LOCK
+	movl	_cpl,%eax
+	pushl	%eax			/* save original cpl */
+	orl	$SWI_AST_MASK,%eax
+	movl	%eax,_cpl
+	ECPL_UNLOCK
+	pushl	$0			/* dummy unit to finish intr frame */
+	call	_npxintr
+#else
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0			/* dummy unit to finish intr frame */
-	MPLOCKED incl _cnt+V_TRAP
-	FPU_LOCK
+	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
 	call	_npxintr
+#endif /* SMP */
 	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 #else	/* NNPX > 0 */
 	pushl $0; TRAP(T_ARITHTRAP)
 #endif	/* NNPX > 0 */
+
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
 
@@ -163,10 +190,12 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
-	ALIGN_LOCK
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
 	MPLOCKED incl _cnt+V_TRAP
+	ALIGN_LOCK
+	ECPL_LOCK
 	orl	$SWI_AST_MASK,_cpl
+	ECPL_UNLOCK
 	call	_trap
 
 	/*
@@ -174,22 +203,36 @@ calltrap:
 	 * indirectly.  For traps from user mode it was 0, and for traps
 	 * from kernel mode Oring SWI_AST_MASK into it didn't change it.
 	 */
+#ifndef SMP
 	subl	%eax,%eax
+#endif
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	jne	1f
 #ifdef VM86
 	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jne	1f
 #endif /* VM86 */
+#ifdef SMP
+	ECPL_LOCK
+	/* XXX will this work??? */
+	pushl	_cpl
+	ECPL_UNLOCK
+	jmp	2f
+1:
+	pushl	$0			/* cpl to restore */
+2:
+#else
 	movl	_cpl,%eax
 1:
+	pushl	%eax
+#endif /* SMP */
+
 	/*
 	 * Return via _doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
-	pushl	%eax
-	subl	$4,%esp
-	incb	_intr_nesting_level
+	subl	$4,%esp			/* dummy unit to finish intr frame */
+	MPLOCKED incb _intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
@@ -217,15 +260,18 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
-	SYSCALL_LOCK
 	MPLOCKED incl _cnt+V_SYSCALL
+	SYSCALL_LOCK
+	ECPL_LOCK
 	movl	$SWI_AST_MASK,_cpl
+	ECPL_UNLOCK
 	call	_syscall
+
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
 	pushl	$0			/* cpl to restore */
-	subl	$4,%esp
+	subl	$4,%esp			/* dummy unit to finish intr frame */
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
@@ -244,15 +290,18 @@ IDTVEC(int0x80_syscall)
 	movl	%ax,%es
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
-	ALTSYSCALL_LOCK
 	MPLOCKED incl _cnt+V_SYSCALL
+	ALTSYSCALL_LOCK
+	ECPL_LOCK
 	movl	$SWI_AST_MASK,_cpl
+	ECPL_UNLOCK
 	call	_syscall
+
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
 	pushl	$0			/* cpl to restore */
-	subl	$4,%esp
+	subl	$4,%esp			/* dummy unit to finish intr frame */
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
@@ -272,14 +321,16 @@ ENTRY(fork_trampoline)
 	call	%esi			/* function */
 	addl	$4,%esp
 	/* cut from syscall */
+
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
 	pushl	$0			/* cpl to restore */
-	subl	$4,%esp
+	subl	$4,%esp			/* dummy unit to finish intr frame */
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
+
 
 /*
  * Include what was once config+isa-dependent code.

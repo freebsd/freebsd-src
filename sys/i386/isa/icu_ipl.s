@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: icu_ipl.s,v 1.1 1997/05/24 17:02:04 smp Exp smp $
+ *	$Id: icu_ipl.s,v 1.2 1997/08/22 05:05:05 smp Exp smp $
  */
 
 	.data
@@ -45,11 +45,78 @@ _vec:
 	.long	 vec0,  vec1,  vec2,  vec3,  vec4,  vec5,  vec6,  vec7
 	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 
+/* interrupt mask enable (all h/w off) */
+	.globl	_imen
+_imen:	.long	HWI_MASK
+
+
 /*
  * 
  */
 	.text
 	SUPERALIGN_TEXT
+
+/*
+ * Interrupt priority mechanism
+ *	-- soft splXX masks with group mechanism (cpl)
+ *	-- h/w masks for currently active or unused interrupts (imen)
+ *	-- ipending = active interrupts currently masked by cpl
+ */
+
+ENTRY(splz)
+	/*
+	 * The caller has restored cpl and checked that (ipending & ~cpl)
+	 * is nonzero.  We have to repeat the check since if there is an
+	 * interrupt while we're looking, _doreti processing for the
+	 * interrupt will handle all the unmasked pending interrupts
+	 * because we restored early.  We're repeating the calculation
+	 * of (ipending & ~cpl) anyway so that the caller doesn't have
+	 * to pass it, so this only costs one "jne".  "bsfl %ecx,%ecx"
+	 * is undefined when %ecx is 0 so we can't rely on the secondary
+	 * btrl tests.
+	 */
+	movl	_cpl,%eax
+splz_next:
+	/*
+	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
+	 * while we're looking at it - any interrupt will shrink it to 0.
+	 */
+	movl	%eax,%ecx
+	notl	%ecx
+	andl	_ipending,%ecx
+	jne	splz_unpend
+	ret
+
+	ALIGN_TEXT
+splz_unpend:
+	bsfl	%ecx,%ecx
+	btrl	%ecx,_ipending
+	jnc	splz_next
+	movl	ihandlers(,%ecx,4),%edx
+	testl	%edx,%edx
+	je	splz_next		/* "can't happen" */
+	cmpl	$NHWI,%ecx
+	jae	splz_swi
+	/*
+	 * We would prefer to call the intr handler directly here but that
+	 * doesn't work for badly behaved handlers that want the interrupt
+	 * frame.  Also, there's a problem determining the unit number.
+	 * We should change the interface so that the unit number is not
+	 * determined at config time.
+	 */
+	jmp	*_vec(,%ecx,4)
+
+	ALIGN_TEXT
+splz_swi:
+	cmpl	$SWI_AST,%ecx
+	je	splz_next		/* "can't happen" */
+	pushl	%eax
+	orl	imasks(,%ecx,4),%eax
+	movl	%eax,_cpl
+	call	%edx
+	popl	%eax
+	movl	%eax,_cpl
+	jmp	splz_next
 
 /*
  * Fake clock interrupt(s) so that they appear to come from our caller instead
