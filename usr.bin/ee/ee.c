@@ -204,9 +204,9 @@ unsigned char *d_line;		/* deleted line				*/
 char in_string[513];	/* buffer for reading a file		*/
 unsigned char *print_command = "lpr";	/* string to use for the print command 	*/
 unsigned char *start_at_line = NULL;	/* move to this line at start of session*/
-char *count_text;		/* buffer for current position display	*/
-const char *count_text_default = "===============================================================================";
-int count_text_len;		/* length of the line above		*/
+const char count_text_default[] = "===============================================================================";
+int count_text_len = sizeof(count_text_default);	/* length of the line above	*/
+char count_text[sizeof(count_text_default)];	/* buffer for current position display	*/
 int in;				/* input character			*/
 
 FILE *temp_fp;			/* temporary file pointer		*/
@@ -563,8 +563,6 @@ char *argv[];
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
 
-	count_text_len = strlen(count_text_default) + 1;
-	count_text = malloc(count_text_len);
 	d_char = malloc(3);	/* provide a buffer for multi-byte chars */
 	d_word = malloc(150);
 	*d_word = (char) NULL;
@@ -621,15 +619,15 @@ char *argv[];
 			snprintf(count_text, count_text_len, "L: %d C: %d %s", \
 				curr_line->line_number, scr_horz + 1, count_text_default);
 			wmove(count_win, 0, 0);
-			wclrtoeol(count_win);
 			if (!nohighlight)
 				wstandout(count_win);
 			wprintw(count_win, count_text);
 			wstandend(count_win);
-			wrefresh(count_win);
+			wnoutrefresh(count_win);
 		}
 
-		wrefresh(text_win);
+		wnoutrefresh(text_win);
+		doupdate();
 		in = wgetch(text_win);
 		if (in == -1)
 			exit(0);
@@ -2436,6 +2434,7 @@ int noverify;
 		recv_file = TRUE;
 		input_file = TRUE;
 		check_fp();
+		text_changes = FALSE;
 	}
 	return(0);
 }
@@ -3257,8 +3256,7 @@ set_up_term()		/* set up the terminal for operating with ae	*/
 		werase(info_win);
 		paint_info_win();
 		count_win = newwin(1, COLS, 5, 0);
-		keypad(count_win, TRUE);
-		idlok(count_win, TRUE);
+		leaveok(count_win, TRUE);
 		wrefresh(count_win);
 	}
 
