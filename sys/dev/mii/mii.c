@@ -65,11 +65,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int miibus_readreg	(device_t, int, int);
-static int miibus_writereg	(device_t, int, int, int);
-static void miibus_statchg	(device_t);
-static void miibus_linkchg	(device_t);
-static void miibus_mediainit	(device_t);
+static int miibus_readreg(device_t, int, int);
+static int miibus_writereg(device_t, int, int, int);
+static void miibus_statchg(device_t);
+static void miibus_linkchg(device_t);
+static void miibus_mediainit(device_t);
 
 static device_method_t miibus_methods[] = {
 	/* device interface */
@@ -105,7 +105,8 @@ driver_t miibus_driver = {
  * to the network interface driver parent.
  */
 
-int miibus_probe(dev)
+int
+miibus_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args	ma, *args;
@@ -158,7 +159,8 @@ int miibus_probe(dev)
 	return(0);
 }
 
-int miibus_attach(dev)
+int
+miibus_attach(dev)
 	device_t		dev;
 {
 	void			**v;
@@ -180,7 +182,8 @@ int miibus_attach(dev)
 	return(0);
 }
 
-int miibus_detach(dev)
+int
+miibus_detach(dev)
 	device_t		dev;
 {
 	struct mii_data		*mii;
@@ -193,7 +196,8 @@ int miibus_detach(dev)
 	return(0);
 }
 
-static int miibus_readreg(dev, phy, reg)
+static int
+miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -203,7 +207,8 @@ static int miibus_readreg(dev, phy, reg)
 	return(MIIBUS_READREG(parent, phy, reg));
 }
 
-static int miibus_writereg(dev, phy, reg, data)
+static int
+miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -213,7 +218,8 @@ static int miibus_writereg(dev, phy, reg, data)
 	return(MIIBUS_WRITEREG(parent, phy, reg, data));
 }
 
-static void miibus_statchg(dev)
+static void
+miibus_statchg(dev)
 	device_t		dev;
 {
 	device_t		parent;
@@ -253,7 +259,8 @@ miibus_linkchg(dev)
 	KNOTE(&ifp->if_klist, link);
 }
 
-static void miibus_mediainit(dev)
+static void
+miibus_mediainit(dev)
 	device_t		dev;
 {
 	struct mii_data		*mii;
@@ -275,7 +282,8 @@ static void miibus_mediainit(dev)
 	return;
 }
 
-int mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
+int
+mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
 	device_t		dev;
 	device_t		*child;
 	ifm_change_cb_t		ifmedia_upd;
