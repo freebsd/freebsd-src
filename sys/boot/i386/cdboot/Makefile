@@ -7,7 +7,6 @@ ORG=		0x7c00
 PROG=		cdboot
 NOMAN=
 STRIP=
-BINDIR?=	/boot
 
 ${PROG}: ${PROG}.o
 	${LD} -N -e start -Ttext ${ORG} -o ${PROG}.out ${PROG}.o
