@@ -203,7 +203,7 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	free(resp[num_msgs-1].resp);
 	free(resp);
 	while (num_msgs > 0)
-		free(msgs[--num_msgs].msg);
+		free(__DECONST(char *, msgs[--num_msgs].msg));
 	return (PAM_SUCCESS);
 }
 
