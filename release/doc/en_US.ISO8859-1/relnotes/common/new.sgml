@@ -119,7 +119,17 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para arch="i386">A bug that even when no AT keyboard is connected,
+      &man.atkbd.4; registers an AT keyboard during console initialization
+      has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
+      is no longer needed when only a USB keyboard is connected.</para>
+
+    <para arch="i386">The &man.safe.4; driver has been added
+      to support SafeNet 1141, 1741-based crypto accelerators.
+
+      <note>
+        <para>The public key support is not implemented.</para>
+      </note></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -129,17 +139,6 @@
       <para arch="i386">A bug which prevented the kernel from booting
 	on an Intel 80386 processor has been corrected.</para>
 
-      <para arch="i386">A bug that even when no AT keyboard is connected,
-        &man.atkbd.4; registers an AT keyboard during console initialization
-        has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
-        is no longer needed when only a USB keyboard is connected.</para>
-
-      <para arch="i386">The &man.safe.4; driver has been added
-        to support SafeNet 1141, 1741-based crypto accelerators.
-
-        <note>
-          <para>The public key support is not implemented.</para>
-        </note></para>
     </sect3>
 
     <sect3 id="boot">
