@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <limits.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -116,11 +117,11 @@ pass1(void)
 		if (preen && usedsoftdep) {
 			if (!cg_chkmagic(&cgrp))
 				pfatal("CG %d: BAD MAGIC NUMBER\n", c);
-			cp = &cg_inosused(&cgrp)[(inosused - 1) / NBBY];
-			for ( ; inosused > 0; inosused -= NBBY, cp--) {
+			cp = &cg_inosused(&cgrp)[(inosused - 1) / CHAR_BIT];
+			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
 				if (*cp == 0)
 					continue;
-				for (i = 1 << (NBBY - 1); i > 0; i >>= 1) {
+				for (i = 1 << (CHAR_BIT - 1); i > 0; i >>= 1) {
 					if (*cp & i)
 						break;
 					inosused--;

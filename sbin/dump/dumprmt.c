@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <limits.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

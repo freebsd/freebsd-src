@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/types.h>
+#include <limits.h>
 #include <string.h>
 #include "stand.h"
 
@@ -109,7 +110,7 @@ ksprintn(ul, base, lenp)
 	u_long ul;
 	int base, *lenp;
 {					/* A long in base 8, plus NULL. */
-	static char buf[sizeof(long) * NBBY / 3 + 2];
+	static char buf[sizeof(long) * CHAR_BIT / 3 + 2];
 	char *p;
 
 	p = buf;
