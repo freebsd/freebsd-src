@@ -67,7 +67,7 @@
  */
 struct g_gate_softc {
 	int			 sc_unit;		/* P: (read-only) */
-	uint16_t		 sc_ref;		/* P: g_gate_list_mtx */
+	int16_t			 sc_ref;		/* P: g_gate_list_mtx */
 	struct g_provider	*sc_provider;		/* P: (read-only) */
 	uint32_t		 sc_flags;		/* P: (read-only) */
 
