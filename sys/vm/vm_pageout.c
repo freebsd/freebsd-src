@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.11 1994/09/12 11:31:36 davidg Exp $
+ * $Id: vm_pageout.c,v 1.12 1994/09/12 15:06:14 davidg Exp $
  */
 
 /*
@@ -646,15 +646,16 @@ rescan1:
 		}
 
 		/*
-		 * if page is clean and but the page has been referenced,
-		 * then reactivate the page, but if we are very low on memory
-		 * or the page has not been referenced, then we free it to the
-		 * vm system.
+		 * NOTE: PG_CLEAN doesn't guarantee that the page is clean.
 		 */
 		if (m->flags & PG_CLEAN) {
-			if ((cnt.v_free_count > vm_pageout_free_min)			/* XXX */
-				&& ((pmap_is_referenced(VM_PAGE_TO_PHYS(m)) ||
-					(m->flags & PG_REFERENCED) != 0))) {
+			/*
+			 * If we're not low on memory and the page has been reference,
+			 * or if the page has been modified, then reactivate the page.
+			 */
+			if (((cnt.v_free_count > vm_pageout_free_min) &&
+			    (pmap_is_referenced(VM_PAGE_TO_PHYS(m)) || ((m->flags & PG_REFERENCED) != 0))) ||
+			    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
 				m->flags &= ~PG_REFERENCED;
 				vm_page_activate(m);
 			} else if (!m->act_count) {
