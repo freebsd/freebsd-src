@@ -26,11 +26,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	$Id: pim6sd.conf.5,v 1.7 1999/12/03 07:31:45 jinmei Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd Oct 6, 1999
 .Dt PIM6SD.CONF 5
-.Os KAME
+.Os
 .Sh NAME
 .Nm pim6sd.conf
 .Nd config file for pim6sd, PIM-SM daemon for IPv6
@@ -308,8 +308,8 @@ The default values are 50000 and 20, respectively.
 .\"
 .Sh EXAMPLE
 .Bd -literal -offset
-#phyint gif0 disable;
-#phyint ep0 preference 101;
+# phyint gif0 disable;
+# phyint ep0 preference 101;
 phyint de0 disable;
 #
 #followings are for a candidate Rendezvous Point, which should usually
@@ -331,5 +331,7 @@ which has also been derived from
 .Nm Mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
-.\" .Sh BUGS
-.\" (to be written)
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
