@@ -135,6 +135,7 @@ int
 main(int argc, char **argv)
 {
 	struct conf_entry *p, *q;
+	char *savglob;
 	glob_t pglob;
 	int i;
 
@@ -150,11 +151,13 @@ main(int argc, char **argv)
 			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
 				warn("can't expand pattern: %s", p->log);
 			} else {
+				savglob = p->log;
 				for (i = 0; i < pglob.gl_matchc; i++) {
 					p->log = pglob.gl_pathv[i];
 					do_entry(p);
 				}
 				globfree(&pglob);
+				p->log = savglob;
 			}
 		}
 		p = p->next;
