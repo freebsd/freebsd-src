@@ -575,7 +575,7 @@ ata_reset(struct ata_channel *ch)
 		}
 	    }
 	}
-	if (stat1 & ATA_S_BUSY) {
+	if (!((mask == 0x03) && (stat0 & ATA_S_BUSY)) && (stat1 & ATA_S_BUSY)) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
     	    err = ATA_IDX_INB(ch, ATA_ERROR);
