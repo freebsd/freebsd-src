@@ -44,6 +44,86 @@
 	 nop
 
 /*
+ * Invalidate a phsyical page in the data cache.
+ */
+ENTRY(tl_ipi_dcache_page_inval)
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_dcache_page_inval: pa=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ICA_PA], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	ldx	[%g5 + ICA_PA], %g6
+	srlx	%g6, PAGE_SHIFT - DC_TAG_SHIFT, %g6
+
+	SET(cache, %g3, %g2)
+	lduw	[%g2 + DC_SIZE], %g3
+	lduw	[%g2 + DC_LINESIZE], %g4
+	sub	%g3, %g4, %g2
+
+1:	ldxa	[%g2] ASI_DCACHE_TAG, %g1
+	srlx	%g1, DC_VALID_SHIFT, %g3
+	andcc	%g3, DC_VALID_MASK, %g0
+	bz,pt	%xcc, 2f
+	 set	DC_TAG_MASK, %g3
+	sllx	%g3, DC_TAG_SHIFT, %g3
+	and	%g1, %g3, %g1
+	cmp	%g1, %g6
+	bne,a,pt %xcc, 2f
+	 nop
+	stxa	%g1, [%g2] ASI_DCACHE_TAG
+	membar	#Sync
+
+2:	brgz,pt	%g2, 1b
+	 sub	%g2, %g4, %g2
+
+	IPI_WAIT(%g5, %g1, %g2, %g3)
+	retry
+END(tl_ipi_dcache_page_inval)
+
+/*
+ * Invalidate a phsyical page in the instruction cache.
+ */
+ENTRY(tl_ipi_icache_page_inval)
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_icache_page_inval: pa=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ICA_PA], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	ldx	[%g5 + ICA_PA], %g6
+	srlx	%g6, PAGE_SHIFT - IC_TAG_SHIFT, %g6
+
+	SET(cache, %g3, %g2)
+	lduw	[%g2 + IC_SIZE], %g3
+	lduw	[%g2 + IC_LINESIZE], %g4
+	sub	%g3, %g4, %g2
+
+1:	ldda	[%g2] ASI_ICACHE_TAG, %g0 /*, %g1 */
+	srlx	%g1, IC_VALID_SHIFT, %g3
+	andcc	%g3, IC_VALID_MASK, %g0
+	bz,pt	%xcc, 2f
+	 set	IC_TAG_MASK, %g3
+	sllx	%g3, IC_TAG_SHIFT, %g3
+	and	%g1, %g3, %g1
+	cmp	%g1, %g6
+	bne,a,pt %xcc, 2f
+	 nop
+	stxa	%g1, [%g2] ASI_ICACHE_TAG
+	membar	#Sync
+
+2:	brgz,pt	%g2, 1b
+	 sub	%g2, %g4, %g2
+
+	IPI_WAIT(%g5, %g1, %g2, %g3)
+	retry
+END(tl_ipi_icache_page_inval)
+
+/*
  * Trigger a softint at the desired level.
  */
 ENTRY(tl_ipi_level)
