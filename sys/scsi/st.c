@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.60 1996/02/03 13:31:13 joerg Exp $
+ * $Id: st.c,v 1.61 1996/02/08 06:23:49 pst Exp $
  */
 
 /*
@@ -176,31 +176,33 @@ static d_strategy_t	ststrategy;
 
 #define CDEV_MAJOR 14
 #define BDEV_MAJOR 5
+extern struct cdevsw st_cdevsw; /* hold off the complaints for a second */
 static struct bdevsw st_bdevsw = 
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  nodump,	nopsize,	0 };
+	  nodump,	nopsize,	0,	"st",	&st_cdevsw,	-1 };
 
 static struct cdevsw st_cdevsw = 
 	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
 	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
-	  seltrue,	nommap,		ststrategy };
+	  seltrue,	nommap,		ststrategy,	"st",
+	  &st_bdevsw,	-1 };
 
 SCSI_DEVICE_ENTRIES(st)
 
 static struct scsi_device st_switch =
 {
-    st_interpret_sense,		/* check errors with us first */
-    ststart,			/* we have a queue, and this is how we service it */
-    NULL,
-    NULL,			/* use the default 'done' routine */
-    "st",
-    0,
+	st_interpret_sense,	/* check errors with us first */
+	ststart,	 /* we have a queue, and this is how we service it */
+	NULL,
+	NULL,			/* use the default 'done' routine */
+	"st",
+	0,
 	{0, 0},
 	0,				/* Link flags */
 	stattach,
 	"Sequential-Access",
 	stopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_SEQUENTIAL,
 	stunit,
 	stsetunit,
