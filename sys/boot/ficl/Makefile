@@ -1,11 +1,13 @@
 # $FreeBSD$
 #
+.PATH:	${.CURDIR}/${MACHINE_ARCH}
+
 LIB=			ficl
 NOPROFILE=		yes
 INTERNALLIB=		yes
 INTERNALSTATICLIB=	yes
-BASE_SRCS=		dict.c ficl.c math64.c stack.c vm.c words.c
-SRCS=			${BASE_SRCS} ${MACHINE_ARCH}/sysdep.c softcore.c
+BASE_SRCS=		dict.c ficl.c math64.c stack.c sysdep.c vm.c words.c
+SRCS=			${BASE_SRCS} softcore.c
 CLEANFILES=		softcore.c testmain
 
 # Standard softwords
