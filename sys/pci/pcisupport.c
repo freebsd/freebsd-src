@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.98 1999/04/18 15:50:35 peter Exp $
+**  $Id: pcisupport.c,v 1.99 1999/04/18 18:44:21 jkh Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -944,6 +944,15 @@ isab_match(device_t dev)
 	/* SiS -- vendor 0x1039 */
 	case 0x00081039:
 		return ("SiS 85c503 PCI-ISA bridge");
+
+	/* NEC -- vendor 0x1033 */
+	/* The "C-bus" is 16-bits bus on PC98. */
+	case 0x00011033:
+		return ("NEC 0001 PCI to PC-98 C-bus bridge");
+	case 0x002c1033:
+		return ("NEC 002C PCI to PC-98 C-bus bridge");
+	case 0x003b1033:
+		return ("NEC 003B PCI to PC-98 C-bus bridge");
 	}
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1128,22 +1137,30 @@ chip_match(device_t dev)
 #endif
 
 	/* NEC -- vendor 0x1033 */
-	case 0x00011033:
-		return ("NEC 0001 PCI to PC-98 C-bus bridge");
 	case 0x00021033:
 		return ("NEC 0002 PCI to PC-98 local bus bridge");
 	case 0x00161033:
 		return ("NEC 0016 PCI to PC-98 local bus bridge");
-	case 0x002c1033:
-		return ("NEC 002C PCI to PC-98 C-bus bridge");
-	case 0x003b1033:
-		return ("NEC 003B PCI to PC-98 C-bus bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x154110b9:
 		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+
+	/* NEC -- vendor 0x1033 */
+
+	/* PCI to C-bus bridge */
+	/* The following chipsets are PCI to PC98 C-bus bridge.
+	 * The C-bus is the 16-bits bus on PC98 and it should be probed as
+	 * PCI to ISA bridge.  Because class of the C-bus is not defined,
+	 * C-bus bridges are recognized as "other bridge."  To make C-bus
+	 * bridge be recognized as ISA bridge, this function returns NULL.
+	 */
+	case 0x00011033:
+	case 0x002c1033:
+	case 0x003b1033:
+		return NULL;
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
