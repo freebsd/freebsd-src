@@ -143,10 +143,6 @@ spec_open(ap)
 	if (dev == NULL)
 		return (ENXIO);
 
-	dsw = devsw(dev);
-	if (dsw == NULL || dsw->d_open == NULL)
-		return (ENXIO);
-
 	/* Make this field valid before any I/O in d_open. */
 	if (dev->si_iosize_max == 0)
 		dev->si_iosize_max = DFLTPHYS;
@@ -183,14 +179,16 @@ spec_open(ap)
 			return (error);
 	}
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+
 	/* XXX: Special casing of ttys for deadfs.  Probably redundant. */
 	if (dsw->d_flags & D_TTY)
 		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
+
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
@@ -202,24 +200,13 @@ spec_open(ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+
+	dev_relthread(dev);
 
 	if (error)
 		return (error);
-
-	if (dsw->d_flags & D_TTY) {
-		if (dev->si_tty) {
-			struct tty *tp;
-			tp = dev->si_tty;
-			if (!tp->t_stop) {
-				printf("Warning:%s: no t_stop, using nottystop\n", devtoname(dev));
-				tp->t_stop = nottystop;
-			}
-		}
-	}
 
 	if (vn_isdisk(vp, NULL)) {
 		if (!dev->si_bsize_phys)
@@ -257,23 +244,20 @@ spec_read(ap)
 	if (resid == 0)
 		return (0);
 
-	dsw = devsw(dev);
-	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
 	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+	VOP_UNLOCK(vp, 0, td);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
 	return (error);
@@ -306,22 +290,20 @@ spec_write(ap)
 	td = uio->uio_td;
 	resid = uio->uio_resid;
 
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_write() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
@@ -349,12 +331,11 @@ spec_ioctl(ap)
 	struct cdevsw *dsw;
 
 	dev = ap->a_vp->v_rdev;
-	dsw = devsw(dev);
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_ioctl() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_ioctl(dev, ap->a_command,
@@ -363,9 +344,7 @@ spec_ioctl(ap)
 	} else 
 		error = dsw->d_ioctl(dev, ap->a_command,
 		    ap->a_data, ap->a_fflag, ap->a_td);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+	dev_relthread(dev);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);
@@ -386,21 +365,18 @@ spec_poll(ap)
 	int error;
 
 	dev = ap->a_vp->v_rdev;
-	dsw = devsw(dev);
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return(0);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_poll() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		/* XXX: not yet DROP_GIANT(); */
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
 		/* XXX: not yet PICKUP_GIANT(); */
 	} else
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+	dev_relthread(dev);
 	return(error);
 }
 
@@ -417,21 +393,18 @@ spec_kqfilter(ap)
 	int error;
 
 	dev = ap->a_vp->v_rdev;
-	dsw = devsw(dev);
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return(0);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_kqfilter() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_kqfilter(dev, ap->a_kn);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_kqfilter(dev, ap->a_kn);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+	dev_relthread(dev);
 	return (error);
 }
 
@@ -454,18 +427,6 @@ spec_fsync(ap)
 	return (vop_stdfsync(ap));
 }
 
-/*
- * Mutex to use when delaying niced I/O bound processes in spec_strategy().
- */
-static struct mtx strategy_mtx;
-static void
-strategy_init(void)
-{
-
-	mtx_init(&strategy_mtx, "strategy", NULL, MTX_DEF);
-}
-SYSINIT(strategy, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, strategy_init, NULL)
-
 static int doslowdown = 0;
 SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
 
@@ -473,11 +434,21 @@ SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
  * Just call the device strategy routine
  */
 static int
-spec_xstrategy(struct vnode *vp, struct buf *bp)
+spec_specstrategy(ap)
+	struct vop_specstrategy_args /* {
+		struct vnode *a_vp;
+		struct buf *a_bp;
+	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
+	struct buf *bp = ap->a_bp;
 	struct mount *mp;
 	struct thread *td = curthread;
 	
+	KASSERT(ap->a_vp->v_rdev == ap->a_bp->b_dev,
+	    ("%s, dev %s != %s", __func__,
+	    devtoname(ap->a_vp->v_rdev),
+	    devtoname(ap->a_bp->b_dev)));
 	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
 	    ("Wrong b_iocmd buf=%p cmd=%d", bp, bp->b_iocmd));
 
@@ -485,9 +456,7 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	 * Slow down disk requests for niced processes.
 	 */
 	if (doslowdown && td && td->td_proc->p_nice > 0) {
-		mtx_lock(&strategy_mtx);
-		msleep(&strategy_mtx, &strategy_mtx,
-		    PPAUSE | PCATCH | PDROP, "ioslow",
+		msleep(td, NULL, PPAUSE | PCATCH, "ioslow",
 		    td->td_proc->p_nice);
 	}
 	/*
@@ -512,22 +481,6 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 		
 	return (0);
 }
-
-static int
-spec_specstrategy(ap)
-	struct vop_specstrategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
-{
-
-	KASSERT(ap->a_vp->v_rdev == ap->a_bp->b_dev,
-	    ("%s, dev %s != %s", __func__,
-	    devtoname(ap->a_vp->v_rdev),
-	    devtoname(ap->a_bp->b_dev)));
-	return spec_xstrategy(ap->a_vp, ap->a_bp);
-}
-
 
 /*
  * Device close routine
@@ -563,7 +516,6 @@ spec_close(ap)
 	 * consideration.
 	 */
 
-	dsw = devsw(dev);
 	oldvp = NULL;
 	sx_xlock(&proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
@@ -588,6 +540,9 @@ spec_close(ap)
 	 * sum of the reference counts on all the aliased
 	 * vnodes descends to one, we are on last close.
 	 */
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		/* Forced close. */
@@ -595,23 +550,19 @@ spec_close(ap)
 		/* Keep device updated on status. */
 	} else if (count_dev(dev) > 1) {
 		VI_UNLOCK(vp);
+		dev_relthread(dev);
 		return (0);
 	}
 	VI_UNLOCK(vp);
 	KASSERT(dev->si_refcount > 0,
 	    ("spec_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dev_lock();
-	dev->si_threadcount++;
-	dev_unlock();
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
-	dev_lock();
-	dev->si_threadcount--;
-	dev_unlock();
+	dev_relthread(dev);
 	return (error);
 }
 
