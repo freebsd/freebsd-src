@@ -234,6 +234,7 @@ main(argc, argv)
 		if (vfslist != NULL)
 			usage();
 
+		rmslashes(*argv, *argv);
 		if (init_flags & MNT_UPDATE) {
 			mntfromname = NULL;
 			have_fstab = 0;
@@ -272,7 +273,6 @@ main(argc, argv)
 			    mntbuf->f_mntonname, init_flags, options, 0);
 			break;
 		}
-		rmslashes(*argv, *argv);
 		if ((fs = getfsfile(*argv)) == NULL &&
 		    (fs = getfsspec(*argv)) == NULL)
 			errx(1, "%s: unknown special file or file system",
