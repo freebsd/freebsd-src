@@ -55,7 +55,6 @@
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
 #ifdef _KERNEL
-void	proc_reparent __P((struct proc *child, struct proc *newparent));
 int	ptrace_set_pc __P((struct proc *p, unsigned long addr));
 int	ptrace_single_step __P((struct proc *p));
 int	ptrace_write_u __P((struct proc *p, vm_offset_t off, long data));
