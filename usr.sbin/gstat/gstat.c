@@ -228,5 +228,7 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+
+	endwin();
 	exit (0);
 }
