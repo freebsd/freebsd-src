@@ -1044,13 +1044,13 @@ mac_init_structmac(struct mac *mac)
 }
 
 int
-mac_init_mbuf(struct mbuf *m, int how)
+mac_init_mbuf(struct mbuf *m, int flag)
 {
 	KASSERT(m->m_flags & M_PKTHDR, ("mac_init_mbuf on non-header mbuf"));
 
-	/* "how" is one of M_(TRY|DONT)WAIT */
 	mac_init_label(&m->m_pkthdr.label);
-	MAC_PERFORM(init_mbuf_label, &m->m_pkthdr.label, how);
+
+	MAC_PERFORM(init_mbuf_label, &m->m_pkthdr.label, flag);
 #ifdef MAC_DEBUG
 	atomic_add_int(&nmacmbufs, 1);
 #endif
