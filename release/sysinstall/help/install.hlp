@@ -397,11 +397,11 @@ o Press F1.  You should see some basic usage instructions on
 o Select the Options item and set any special preferences you
   may have.
 
-o Select a Custom or Express install, depending on whether or not you'd
-  like the installation to give you a high degree of control over each
-  step of the installation or simply lead you through it, chosing
-  reasonable defaults when possible.  See details on both installation
-  types below.
+o Select a Novice, Express or Custom install depending on whether or not
+  you'd like the installation to give you a high degree of control over each
+  step of the installation, run through it as quickly as possible or simply
+  lead you through it, chosing reasonable defaults when possible.  See details
+  on the different installation types below.
 
 o The Configure menu choice allows you to furthur configure your FreeBSD
   installation by giving you menu-driven access to various system
@@ -429,9 +429,20 @@ up the right information for the screen you're in.
 
 Express installation:
 
-The express installation isn't too much different than the Custom one
+This installation will invoke all the appropriate steps in order as
+if you'd selected them one by one from the custom installation menu.
+It assumes that you *know what you are doing* and have run the
+installation at least once before.  If this is not the case, the
+Novice installation method is recommended.
+
+
+Novice installation:
+
+The Novice installation isn't too much different from the others
 except that it leads you through the required stages in the proper
-order and presents you with various helpful prompts along the way.
+order and presents you with various helpful prompts in between.
+
+A quick synopsis of the stages involved in a novice installation:
 
         o The first step is the `Partition Editor', which allows
           you to chose how your drives will be used for FreeBSD.
@@ -465,6 +476,9 @@ order and presents you with various helpful prompts along the way.
           Label Editor) and all selected distributions will be
           extracted.
 
+        o After the system is fully installed, you'll then have the
+          option to configure the system in various ways, install a
+          WEB server, etc.
 
 At this point, you're generally done with the sysinstall utility and
 can select the final `Quit'.  If you're running it as an installer
