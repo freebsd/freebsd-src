@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.22 1996/05/11 20:43:23 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.23 1996/05/12 07:48:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -378,7 +378,11 @@ m_copym(m, off0, len, wait)
 		n->m_len = min(len, m->m_len - off);
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data + off;
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			if(!m->m_ext.ext_ref)
+				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+			else
+				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
+							m->m_ext.ext_size);
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
 		} else
@@ -710,7 +714,11 @@ extpacket:
 	if (m->m_flags & M_EXT) {
 		n->m_flags |= M_EXT;
 		n->m_ext = m->m_ext;
-		mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+		if(!m->m_ext.ext_ref)
+			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
+		else
+			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
+						m->m_ext.ext_size);
 		m->m_ext.ext_size = 0; /* For Accounting XXXXXX danger */
 		n->m_data = m->m_data + len;
 	} else {
