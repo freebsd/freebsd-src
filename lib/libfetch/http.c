@@ -777,7 +777,6 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 	chunked = 0;
 	need_auth = 0;
 	offset = 0;
-	fd = -1;
     retry:
 	/* connect to server or proxy */
 	if ((fd = _http_connect(url, &proxy, flags)) == -1)
@@ -935,6 +934,7 @@ _http_request(struct url *URL, char *op, struct url_stat *us, char *flags)
 
 	/* we have a redirect */
 	close(fd);
+	fd = -1;
 	if (url != URL)
 	    fetchFreeURL(url);
 	url = new;
