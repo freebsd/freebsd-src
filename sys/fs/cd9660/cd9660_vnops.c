@@ -131,7 +131,7 @@ cd9660_access(ap)
 	struct iso_node *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
 
-	if (vp->v_type == VREG || vp->v_type == VBLK)
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	/*
@@ -231,7 +231,7 @@ cd9660_ioctl(ap)
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
 
-	if (vp->v_type == VREG || vp->v_type == VBLK)
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	switch (ap->a_command) {
@@ -267,7 +267,7 @@ cd9660_read(ap)
 	int seqcount;
 	long size, n, on;
 
-	if (vp->v_type == VREG || vp->v_type == VBLK)
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
