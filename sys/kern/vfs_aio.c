@@ -1330,8 +1330,9 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	}
 
 	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
-	if ((fp == NULL) || ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) ==
-	    0))) {
+	if ((fp == NULL) ||
+	    ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) == 0)) ||
+	    ((opcode == LIO_READ) && ((fp->f_flag & FREAD) == 0))) {
 		FILEDESC_UNLOCK(fdp);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
