@@ -95,7 +95,7 @@ kill_procs() {
 	proclist=`ps 2>/dev/null -U $login | grep -v '^\ *PID' | awk '{print $1}'`
 	for _pid in $proclist ; do
 		kill 2>/dev/null ${SIGKILL} $_pid
-		killcount=`expr $killcount + 1`
+		killcount=$(($killcount + 1))
 	done
 	echo " ${SIGKILL} signal sent to $killcount processes."
 }
@@ -112,7 +112,7 @@ rm_at_jobs() {
 	echo -n "Removing at(1) jobs owned by ($login):"
 	for _atjob in $atjoblist ; do
 		rm -f $_atjob
-		jobcount=`expr $jobcount + 1`
+		jobcount=$(($jobcount + 1))
 	done
 	echo " $jobcount removed."
 }
