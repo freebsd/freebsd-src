@@ -314,7 +314,7 @@ pcic_attach(device_t dev)
 	struct pcic_softc *sc;
 	struct slot	*slt;
 	struct pcic_slot *sp;
-	int		stat;
+	u_int8_t	stat;
 	
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	callout_handle_init(&sc->timeout_ch);
@@ -600,12 +600,16 @@ static void
 pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
+	u_int8_t stat;
 
 	pcic_do_mgt_irq(sp, slt->irq);
 	if (sp->controller == PCIC_PD672X) {
 		pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
+	stat = sp->getb(sp, PCIC_STATUS);
+	if ((stat & PCIC_CD) != PCIC_CD)
+		sp->slt->laststate = sp->slt->state = empty;
 }
 
 int
