@@ -1226,7 +1226,7 @@ pipeclose(cpipe)
 static int
 pipe_kqfilter(struct file *fp, struct knote *kn)
 {
-	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+	struct pipe *cpipe = (struct pipe *)kn->kn_fp->f_data;
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
@@ -1234,21 +1234,23 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		break;
 	case EVFILT_WRITE:
 		kn->kn_fop = &pipe_wfiltops;
+		cpipe = cpipe->pipe_peer;
 		break;
 	default:
 		return (1);
 	}
-	
-	SLIST_INSERT_HEAD(&rpipe->pipe_sel.si_note, kn, kn_selnext);
+	kn->kn_hook = (caddr_t)cpipe;
+
+	SLIST_INSERT_HEAD(&cpipe->pipe_sel.si_note, kn, kn_selnext);
 	return (0);
 }
 
 static void
 filt_pipedetach(struct knote *kn)
 {
-	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
+	struct pipe *cpipe = (struct pipe *)kn->kn_hook;
 
-	SLIST_REMOVE(&rpipe->pipe_sel.si_note, kn, knote, kn_selnext);
+	SLIST_REMOVE(&cpipe->pipe_sel.si_note, kn, knote, kn_selnext);
 }
 
 /*ARGSUSED*/
