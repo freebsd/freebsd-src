@@ -273,7 +273,6 @@ FTSENT *
 fts_read(sp)
 	FTS *sp;
 {
-	struct stat sb;
 	FTSENT *p, *tmp;
 	int instr;
 	char *t;
