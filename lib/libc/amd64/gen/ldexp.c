@@ -58,7 +58,7 @@ ldexp (double value, int exp)
 	double temp, texp, temp2;
 	texp = exp;
 #ifdef __GNUC__
-	asm ("fscale "
+	__asm ("fscale "
 		: "=u" (temp2), "=t" (temp)
 		: "0" (texp), "1" (value));
 #else
