@@ -1,5 +1,4 @@
 .\"	$NetBSD: getopt_long.3,v 1.8 2002/06/03 12:01:43 wiz Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1988, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -33,6 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getopt.3	8.5 (Berkeley) 4/27/95
+.\" $FreeBSD$
 .\"
 .Dd April 1, 2000
 .Dt GETOPT_LONG 3
@@ -43,23 +43,29 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include \*[Lt]getopt.h\*[Gt]
+.In getopt.h
 .Ft int
-.Fn getopt_long "int argc" "char * const *argv" "const char *optstring" "struct option *long options" "int *index"
+.Fo getopt_long
+.Fa "int argc" "char * const *argv" "const char *optstring"
+.Fa "struct option *long options" "int *index"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn getopt_long
 function is similar to
 .Xr getopt 3
-but it accepts options in two forms: words and characters. The
+but it accepts options in two forms: words and characters.
+The
 .Fn getopt_long
-function provides a superset of of the functionality of
+function provides a superset of the functionality of
 .Xr getopt 3 .
 .Fn getopt_long
-can be used in two ways. In the first way, every long option understood
+can be used in two ways.
+In the first way, every long option understood
 by the program has a corresponding short option, and the option
 structure is only used to translate from long options to short
-options. When used in this fashion,
+options.
+When used in this fashion,
 .Fn getopt_long
 behaves identically to
 .Xr getopt 3 .
@@ -67,32 +73,35 @@ This is a good way to add long option processing to an existing program
 with the minimum of rewriting.
 .Pp
 In the second mechanism, a long option sets a flag in the
-.Fa option
+.Vt option
 structure passed, or will store a pointer to the command line argument
 in the
-.Fa option
-structure passed to it for options that take arguments. Additionally,
+.Vt option
+structure passed to it for options that take arguments.
+Additionally,
 the long option's argument may be specified as a single argument with
-an equal sign, e.g.
-.Bd -literal
-myprogram --myoption=somevalue
-.Ed
+an equal sign, e.g.,
 .Pp
-When a long option is processed the call to
+.Dl "myprogram --myoption=somevalue"
+.Pp
+When a long option is processed, the call to
 .Fn getopt_long
-will return 0. For this reason, long option processing without
+will return 0.
+For this reason, long option processing without
 shortcuts is not backwards compatible with
 .Xr getopt 3 .
 .Pp
 It is possible to combine these methods, providing for long options
-processing with short option equivalents for some options. Less
+processing with short option equivalents for some options.
+Less
 frequently used options would be processed as long options only.
 .Pp
 The
 .Fn getopt_long
 call requires a structure to be initialized describing the long
-options. The structure is:
-.Bd -literal
+options.
+The structure is:
+.Bd -literal -offset indent
 struct option {
 	char *name;
 	int has_arg;
@@ -102,34 +111,43 @@ struct option {
 .Ed
 .Pp
 The
-.Fa name
+.Va name
 field should contain the option name without the leading double dash.
 .Pp
 The
-.Fa has_arg
+.Va has_arg
 field should be one of:
-.Bl -tag -width "optional_argument"
-.It Li no_argument
-no argument to the option is expect.
-.It Li required_argument
-an argument to the option is required.
+.Pp
+.Bl -tag -width ".Dv optional_argument" -offset indent -compact
+.It Dv no_argument
+no argument to the option is expect
+.It Dv required_argument
+an argument to the option is required
 .It Li optional_argument
 an argument to the option may be presented.
 .El
 .Pp
 If
-.Fa flag
-is non-NULL, then the integer pointed to by it will be set to the
+.Va flag
+is not
+.Dv NULL ,
+then the integer pointed to by it will be set to the
 value in the
-.Fa val
-field. If the
-.Fa flag
-field is NULL, then the
-.Fa val
-field will be returned. Setting
-.Fa flag
-to NULL and setting
-.Fa val
+.Va val
+field.
+If the
+.Va flag
+field is
+.Dv NULL ,
+then the
+.Va val
+field will be returned.
+Setting
+.Va flag
+to
+.Dv NULL
+and setting
+.Va val
 to the corresponding short option will make this function act just
 like
 .Xr getopt 3 .
@@ -175,101 +193,206 @@ argc -= optind;
 argv += optind;
 .Ed
 .Sh IMPLEMENTATION DIFFERENCES
-This section describes differences to the GNU implementation
+This section describes differences to the
+.Tn GNU
+implementation
 found in glibc-2.1.3:
-.Bl -tag -width "xxx"
-.It Li o
-handling of - as first char of option string in presence of
-environment variable POSIXLY_CORRECT:
-.Bl -tag -width "NetBSD"
-.It Li GNU
-ignores POSIXLY_CORRECT and returns non-options as
+.Bl -bullet
+.It
+Handling of
+.Ql -
+as first char of option string in presence of
+environment variable
+.Ev POSIXLY_CORRECT :
+.Bl -tag -width ".Nx"
+.It Tn GNU
+ignores
+.Ev POSIXLY_CORRECT
+and returns non-options as
 arguments to option '\e1'.
-.It Li NetBSD
-honors POSIXLY_CORRECT and stops at the first non-option.
+.It Nx
+honors
+.Ev POSIXLY_CORRECT
+and stops at the first non-option.
 .El
-.It Li o
-handling of :: in options string in presence of POSIXLY_CORRECT:
-.Bl -tag -width "NetBSD"
-.It Li Both
-GNU and NetBSD ignore POSIXLY_CORRECT here and take :: to
+.It
+Handling of
+.Ql ::
+in options string in presence of
+.Ev POSIXLY_CORRECT :
+.Bl -tag -width ".Nx"
+.It Both
+.Tn GNU
+and
+.Nx
+ignore
+.Ev POSIXLY_CORRECT
+here and take
+.Ql ::
+to
 mean the preceding option takes an optional argument.
 .El
-.It Li o
-return value in case of missing argument if first character
-(after + or -) in option string is not ':':
-.Bl -tag -width "NetBSD"
-.It Li GNU
-returns '?'
-.It NetBSD
-returns ':' (since NetBSD's getopt does).
+.It
+Return value in case of missing argument if first character
+(after
+.Ql +
+or
+.Ql - )
+in option string is not
+.Ql \&: :
+.Bl -tag -width ".Nx"
+.It Tn GNU
+returns
+.Ql \&?
+.It Nx
+returns
+.Ql \&:
+(since
+.Nx Ns 's
+.Fn getopt
+does).
 .El
-.It Li o
-handling of --a in getopt:
-.Bl -tag -width "NetBSD"
-.It Li GNU
-parses this as option '-', option 'a'.
-.It Li NetBSD
-parses this as '--', and returns -1 (ignoring the a).  (Because
-the original getopt does.)
+.It
+Handling of
+.Ql --a
+in getopt:
+.Bl -tag -width ".Nx"
+.It Tn GNU
+parses this as option
+.Ql - ,
+option
+.Ql a .
+.It Nx
+parses this as
+.Ql -- ,
+and returns \-1 (ignoring the
+.Ql a ) .
+(Because the original
+.Fn getopt
+does.)
 .El
-.It Li o
-setting of optopt for long options with flag != NULL:
-.Bl -tag -width "NetBSD"
-.It Li GNU
-sets optopt to val.
-.It Li NetBSD
-sets optopt to 0 (since val would never be returned).
+.It
+Setting of
+.Va optopt
+for long options with
+.Va flag
+!=
+.Dv NULL :
+.Bl -tag -width ".Nx"
+.It Tn GNU
+sets
+.Va optopt
+to
+.Va val .
+.It Nx
+sets
+.Va optopt
+to 0 (since
+.Va val
+would never be returned).
 .El
-.It Li o
-handling of -W with W; in option string in getopt (not getopt_long):
-.Bl -tag -width "NetBSD"
-.It Li GNU
+.It
+Handling of
+.Ql -W
+with
+.Ql W ;
+in option string in
+.Fn getopt
+(not
+.Fn getopt_long ) :
+.Bl -tag -width ".Nx"
+.It Tn GNU
 causes a segfault.
-.It Li NetBSD
-returns -1, with optind pointing past the argument of -W
-(as if `-W arg' were `--arg', and thus '--' had been found).
+.It Nx
+returns \-1, with
+.Va optind
+pointing past the argument of
+.Ql -W
+(as if
+.Ql "-W arg"
+were
+.Ql --arg ,
+and thus
+.Ql --
+had been found).
 .\" How should we treat W; in the option string when called via
 .\" getopt?  Ignore the ';' or treat it as a ':'? Issue a warning?
 .El
-.It Li o
-setting of optarg for long options without an argument that are
-invoked via -W (W; in option string):
-.Bl -tag -width "NetBSD"
-.It Li GNU
-sets optarg to the option name (the argument of -W).
-.It Li NetBSD
-sets optarg to NULL (the argument of the long option).
+.It
+Setting of
+.Va optarg
+for long options without an argument that are
+invoked via
+.Ql -W
+.Ql ( W ;
+in option string):
+.Bl -tag -width ".Nx"
+.It Tn GNU
+sets
+.Va optarg
+to the option name (the argument of
+.Ql -W ) .
+.It Nx
+sets
+.Va optarg
+to
+.Dv NULL
+(the argument of the long option).
 .El
-.It Li o
-handling of -W with an argument that is not (a prefix to) a known
-long option (W; in option string):
-.Bl -tag -width "NetBSD"
-.It Li GNU
-returns -W with optarg set to the unknown option.
-.It Li NetBSD
-treats this as an error (unknown option) and returns '?' with
-optopt set to 0 and optarg set to NULL (as GNU's man page
-documents).
+.It
+Handling of
+.Ql -W
+with an argument that is not (a prefix to) a known
+long option
+.Ql ( W ;
+in option string):
+.Bl -tag -width ".Nx"
+.It Tn GNU
+returns
+.Ql -W
+with
+.Va optarg
+set to the unknown option.
+.It Nx
+treats this as an error (unknown option) and returns
+.Ql \&?
+with
+.Va optopt
+set to 0 and
+.Va optarg
+set to
+.Dv NULL
+(as
+.Tn GNU Ns 's
+man page documents).
 .El
-.It Li o
+.It
 The error messages are different.
-.It Li o
-NetBSD does not permute the argument vector at the same points in
-the calling sequence as GNU does.  The aspects normally used by
-the caller (ordering after -1 is returned, value of optind relative
-to current positions) are the same, though.  (We do fewer variable
-swaps.)
+.It
+.Nx
+does not permute the argument vector at the same points in
+the calling sequence as
+.Tn GNU
+does.
+The aspects normally used by
+the caller (ordering after \-1 is returned, value of
+.Va optind
+relative
+to current positions) are the same, though.
+(We do fewer variable swaps.)
 .El
 .Sh SEE ALSO
 .Xr getopt 3
 .Sh HISTORY
 The
 .Fn getopt_long
-function first appeared in GNU libiberty. The first
+function first appeared in
+.Tn GNU
+libiberty.
+The first
 .Nx
 implementation appeared in 1.5.
 .Sh BUGS
-The implementation, can completelely replace
+The implementation can completely replace
 .Xr getopt 3 ,
 but right now we are using separate code.
