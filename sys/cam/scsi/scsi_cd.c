@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.4 1998/09/23 03:17:08 ken Exp $
+ *      $Id: scsi_cd.c,v 1.5 1998/10/07 02:57:57 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -162,6 +162,10 @@ static struct cd_quirk_entry cd_quirk_table[] =
 	{
 		{ T_CDROM, SIP_MEDIA_REMOVABLE, "PIONEER", "CD-ROM DRM-604X",
 		  "*"}, /* quirks */ CD_Q_CHANGER
+	},
+	{
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, "CHINON", "CD-ROM CDS-535","*"},
+		/* quirks */ CD_Q_BCD_TRACKS
 	}
 };
 
