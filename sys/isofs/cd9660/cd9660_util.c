@@ -47,6 +47,14 @@
 #include <isofs/cd9660/iso.h>
 
 /*
+ * XXX: limited support for loading of Unicode
+ * conversion routine as a kld at a run-time.
+ * Should be removed when native Unicode kernel
+ * interfaces have been introduced.
+ */
+u_char (*cd9660_wchar2char)(u_int32_t wchar) = NULL;
+
+/*
  * Get one character out of an iso filename
  * Obey joliet_level
  * Return number of bytes consumed
@@ -72,6 +80,10 @@ isochar(isofn, isoend, joliet_level, c)
               *c = *isofn;
               break;
       }
+      /* XXX: if Unicode conversion routine is loaded then use it */
+      if (cd9660_wchar2char != NULL)
+            *c = cd9660_wchar2char((*(isofn - 1) << 8) | *isofn);
+
       return 2;
 }
 
