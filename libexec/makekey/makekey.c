@@ -54,10 +54,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void get __P((char *, int));
+static void get(char *, int);
 
 int
-main()
+main(int argc __unused, char *argv[] __unused)
 {
 	int len;
 	char *r, key[9], salt[3];
@@ -71,11 +71,9 @@ main()
 }
 
 static void
-get(bp, len)
-	char *bp;
-	register int len;
+get(char *bp, int len)
 {
-	register int nr;
+	int nr;
 
 	bp[len] = '\0';
 	if ((nr = read(STDIN_FILENO, bp, len)) == len)
