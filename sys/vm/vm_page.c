@@ -414,20 +414,28 @@ vm_page_free_zero(vm_page_t m)
 int
 vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
+	vm_object_t object;
 	int is_object_locked;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
 		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
 		/*
+		 * It's possible that while we sleep, the page will get
+		 * unbusied and freed.  If we are holding the object
+		 * lock, we will assume we hold a reference to the object
+		 * such that even if m->object changes, we can re-lock
+		 * it.
+		 *
 		 * Remove mtx_owned() after vm_object locking is finished.
 		 */
-		if ((is_object_locked = m->object != NULL &&
-		     mtx_owned(&m->object->mtx)))
-			mtx_unlock(&m->object->mtx);
+		object = m->object;
+		if ((is_object_locked = object != NULL &&
+		     mtx_owned(&object->mtx)))
+			mtx_unlock(&object->mtx);
 		msleep(m, &vm_page_queue_mtx, PDROP | PVM, msg, 0);
 		if (is_object_locked)
-			mtx_lock(&m->object->mtx);
+			mtx_lock(&object->mtx);
 		return (TRUE);
 	}
 	return (FALSE);
