@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.43 1994/09/01 02:21:20 davidg Exp $
+#	$Id: files.i386,v 1.44 1994/09/02 15:49:48 paul Exp $
 #
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/conf.c		standard
@@ -69,7 +69,6 @@ i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/psm.c			optional	psm	device-driver
 i386/isa/sb.c			optional	sb	device-driver
 i386/isa/scd.c			optional	scd	device-driver
-i386/isa/sg.c			optional	sg	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/adlib_card.c	optional	snd	device-driver
 i386/isa/sound/audio.c		optional	snd	device-driver
