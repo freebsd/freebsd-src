@@ -560,8 +560,8 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
 	nam = dup_sockaddr((struct sockaddr *)sin, 1);
-	if ((error = mountnfs(args, mp, nam, which, path, vpp, td->td_ucred))
-	    != 0) {
+	if ((error = mountnfs(args, mp, nam, which, path, vpp,
+	    td->td_proc->p_ucred)) != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
@@ -789,7 +789,7 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 	if (error)
 		return (error);
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_proc->p_ucred);
 	return (error);
 }
 
