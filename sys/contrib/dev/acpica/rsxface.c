@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsxface - Public interfaces to the resource manager
- *              $Revision: 24 $
+ *              $Revision: 27 $
  *
  ******************************************************************************/
 
@@ -426,21 +426,20 @@ AcpiSetCurrentResources (
 }
 
 
-
-#define COPY_FIELD(Out, In, Field)  Out->Field = In->Field
-#define COPY_ADDRESS(Out, In)                      \
-    COPY_FIELD(Out, In, ResourceType);              \
-    COPY_FIELD(Out, In, ProducerConsumer);          \
-    COPY_FIELD(Out, In, Decode);                    \
-    COPY_FIELD(Out, In, MinAddressFixed);           \
-    COPY_FIELD(Out, In, MaxAddressFixed);           \
-    COPY_FIELD(Out, In, Attribute);                 \
-    COPY_FIELD(Out, In, Granularity);               \
-    COPY_FIELD(Out, In, MinAddressRange);           \
-    COPY_FIELD(Out, In, MaxAddressRange);           \
-    COPY_FIELD(Out, In, AddressTranslationOffset);  \
-    COPY_FIELD(Out, In, AddressLength);             \
-    COPY_FIELD(Out, In, ResourceSource);
+#define ACPI_COPY_FIELD(Out, In, Field)  ((Out)->Field = (In)->Field)
+#define ACPI_COPY_ADDRESS(Out, In)                      \
+    ACPI_COPY_FIELD(Out, In, ResourceType);              \
+    ACPI_COPY_FIELD(Out, In, ProducerConsumer);          \
+    ACPI_COPY_FIELD(Out, In, Decode);                    \
+    ACPI_COPY_FIELD(Out, In, MinAddressFixed);           \
+    ACPI_COPY_FIELD(Out, In, MaxAddressFixed);           \
+    ACPI_COPY_FIELD(Out, In, Attribute);                 \
+    ACPI_COPY_FIELD(Out, In, Granularity);               \
+    ACPI_COPY_FIELD(Out, In, MinAddressRange);           \
+    ACPI_COPY_FIELD(Out, In, MaxAddressRange);           \
+    ACPI_COPY_FIELD(Out, In, AddressTranslationOffset);  \
+    ACPI_COPY_FIELD(Out, In, AddressLength);             \
+    ACPI_COPY_FIELD(Out, In, ResourceSource);
 
 /******************************************************************************
  *
@@ -467,24 +466,30 @@ AcpiResourceToAddress64 (
 {
     ACPI_RESOURCE_ADDRESS16     *Address16;
     ACPI_RESOURCE_ADDRESS32     *Address32;
-    ACPI_RESOURCE_ADDRESS64     *Address64;
 
 
     switch (Resource->Id) {
     case ACPI_RSTYPE_ADDRESS16:
+
         Address16 = (ACPI_RESOURCE_ADDRESS16 *) &Resource->Data;
-        COPY_ADDRESS(Out, Address16);
+        ACPI_COPY_ADDRESS(Out, Address16);
         break;
+
 
     case ACPI_RSTYPE_ADDRESS32:
+
         Address32 = (ACPI_RESOURCE_ADDRESS32 *) &Resource->Data;
-        COPY_ADDRESS(Out, Address32);
+        ACPI_COPY_ADDRESS(Out, Address32);
         break;
 
+
     case ACPI_RSTYPE_ADDRESS64:
-        Address64 = (ACPI_RESOURCE_ADDRESS64 *) &Resource->Data;
-        COPY_ADDRESS(Out, Address64);
+
+        /* Simple copy for 64 bit source */
+
+        ACPI_MEMCPY (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
         break;
+
 
     default:
         return (AE_BAD_PARAMETER);

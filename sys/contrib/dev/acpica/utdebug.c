@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 108 $
+ *              $Revision: 109 $
  *
  *****************************************************************************/
 
@@ -648,8 +648,7 @@ AcpiUtDumpBuffer (
 
             case DB_WORD_DISPLAY:
 
-                ACPI_MOVE_UNALIGNED16_TO_32 (&Temp32,
-                                             &Buffer[i + j]);
+                ACPI_MOVE_16_TO_32 (&Temp32, &Buffer[i + j]);
                 AcpiOsPrintf ("%04X ", Temp32);
                 j += 2;
                 break;
@@ -657,8 +656,7 @@ AcpiUtDumpBuffer (
 
             case DB_DWORD_DISPLAY:
 
-                ACPI_MOVE_UNALIGNED32_TO_32 (&Temp32,
-                                             &Buffer[i + j]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j]);
                 AcpiOsPrintf ("%08X ", Temp32);
                 j += 4;
                 break;
@@ -666,12 +664,10 @@ AcpiUtDumpBuffer (
 
             case DB_QWORD_DISPLAY:
 
-                ACPI_MOVE_UNALIGNED32_TO_32 (&Temp32,
-                                             &Buffer[i + j]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j]);
                 AcpiOsPrintf ("%08X", Temp32);
 
-                ACPI_MOVE_UNALIGNED32_TO_32 (&Temp32,
-                                             &Buffer[i + j + 4]);
+                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[i + j + 4]);
                 AcpiOsPrintf ("%08X ", Temp32);
                 j += 8;
                 break;

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 47 $
+ *              $Revision: 53 $
  *
  *****************************************************************************/
 
@@ -150,7 +150,7 @@ AcpiHwEnableGpe (
      * to enable the GPE, and write out the new register.
      */
     Status = AcpiHwLowLevelRead (8, &InByte,
-                    &GpeEventInfo->RegisterInfo->EnableAddress, 0);
+                    &GpeEventInfo->RegisterInfo->EnableAddress);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -159,7 +159,7 @@ AcpiHwEnableGpe (
     /* Write with the new GPE bit enabled */
 
     Status = AcpiHwLowLevelWrite (8, (InByte | GpeEventInfo->BitMask),
-                    &GpeEventInfo->RegisterInfo->EnableAddress, 0);
+                    &GpeEventInfo->RegisterInfo->EnableAddress);
 
     return (Status);
 }
@@ -240,7 +240,7 @@ AcpiHwDisableGpe (
      * and write out the new register value to disable the GPE.
      */
     Status = AcpiHwLowLevelRead (8, &InByte,
-                    &GpeRegisterInfo->EnableAddress, 0);
+                    &GpeRegisterInfo->EnableAddress);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -249,7 +249,7 @@ AcpiHwDisableGpe (
     /* Write the byte with this GPE bit cleared */
 
     Status = AcpiHwLowLevelWrite (8, (InByte & ~(GpeEventInfo->BitMask)),
-                    &GpeRegisterInfo->EnableAddress, 0);
+                    &GpeRegisterInfo->EnableAddress);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -325,7 +325,7 @@ AcpiHwClearGpe (
      * clear this GPE.
      */
     Status = AcpiHwLowLevelWrite (8, GpeEventInfo->BitMask,
-                    &GpeEventInfo->RegisterInfo->StatusAddress, 0);
+                    &GpeEventInfo->RegisterInfo->StatusAddress);
 
     return (Status);
 }
@@ -345,13 +345,12 @@ AcpiHwClearGpe (
 
 ACPI_STATUS
 AcpiHwGetGpeStatus (
-    UINT32                  GpeNumber,
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
     ACPI_EVENT_STATUS       *EventStatus)
 {
     UINT32                  InByte;
     UINT8                   BitMask;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_STATUS             Status;
     ACPI_EVENT_STATUS       LocalEventStatus = 0;
 
@@ -360,12 +359,6 @@ AcpiHwGetGpeStatus (
 
 
     if (!EventStatus)
-    {
-        return (AE_BAD_PARAMETER);
-    }
-
-    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeNumber);
-    if (!GpeEventInfo)
     {
         return (AE_BAD_PARAMETER);
     }
@@ -380,10 +373,10 @@ AcpiHwGetGpeStatus (
 
     /* GPE Enabled? */
 
-    Status = AcpiHwLowLevelRead (8, &InByte, &GpeRegisterInfo->EnableAddress, 0);
+    Status = AcpiHwLowLevelRead (8, &InByte, &GpeRegisterInfo->EnableAddress);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        goto UnlockAndExit;
     }
 
     if (BitMask & InByte)
@@ -400,10 +393,10 @@ AcpiHwGetGpeStatus (
 
     /* GPE active (set)? */
 
-    Status = AcpiHwLowLevelRead (8, &InByte, &GpeRegisterInfo->StatusAddress, 0);
+    Status = AcpiHwLowLevelRead (8, &InByte, &GpeRegisterInfo->StatusAddress);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        goto UnlockAndExit;
     }
 
     if (BitMask & InByte)
@@ -414,6 +407,157 @@ AcpiHwGetGpeStatus (
     /* Set return value */
 
     (*EventStatus) = LocalEventStatus;
+
+
+UnlockAndExit:
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwDisableGpeBlock
+ *
+ * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
+ *              GpeBlock            - Gpe Block info
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Disable all GPEs within a GPE block
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwDisableGpeBlock (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    UINT32                  i;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    ACPI_STATUS             Status;
+
+
+    /* Get the register info for the entire GPE block */
+
+    GpeRegisterInfo = GpeBlock->RegisterInfo;
+
+    /* Examine each GPE Register within the block */
+
+    for (i = 0; i < GpeBlock->RegisterCount; i++)
+    {
+        Status = AcpiHwLowLevelWrite (8, 0x00,
+                    &GpeBlock->RegisterInfo[i].EnableAddress);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwClearGpeBlock
+ *
+ * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
+ *              GpeBlock            - Gpe Block info
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Clear all GPEs within a GPE block
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiHwClearGpeBlock (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    UINT32                  i;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    ACPI_STATUS             Status;
+
+
+    /* Get the register info for the entire GPE block */
+
+    GpeRegisterInfo = GpeBlock->RegisterInfo;
+
+    /* Examine each GPE Register within the block */
+
+    for (i = 0; i < GpeBlock->RegisterCount; i++)
+    {
+        Status = AcpiHwLowLevelWrite (8, 0xFF,
+                    &GpeBlock->RegisterInfo[i].StatusAddress);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwDisableNonWakeupGpeBlock
+ *
+ * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
+ *              GpeBlock            - Gpe Block info
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Disable all GPEs except wakeup GPEs in a GPE block
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiHwDisableNonWakeupGpeBlock (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    UINT32                  i;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    UINT32                  InValue;
+    ACPI_STATUS             Status;
+
+
+    /* Get the register info for the entire GPE block */
+
+    GpeRegisterInfo = GpeBlock->RegisterInfo;
+
+    /* Examine each GPE Register within the block */
+
+    for (i = 0; i < GpeBlock->RegisterCount; i++)
+    {
+        /*
+         * Read the enabled status of all GPEs. We
+         * will be using it to restore all the GPEs later.
+         */
+        Status = AcpiHwLowLevelRead (8, &InValue,
+                    &GpeRegisterInfo->EnableAddress);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        GpeRegisterInfo->Enable = (UINT8) InValue;
+
+        /*
+         * Disable all GPEs except wakeup GPEs.
+         */
+        Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->WakeEnable,
+                &GpeRegisterInfo->EnableAddress);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        GpeRegisterInfo++;
+    }
+
     return (AE_OK);
 }
 
@@ -427,7 +571,7 @@ AcpiHwGetGpeStatus (
  * RETURN:      None
  *
  * DESCRIPTION: Disable all non-wakeup GPEs
- *              Call with interrupts disabled. The interrupt handler also
+ *              Called with interrupts disabled. The interrupt handler also
  *              modifies GpeRegisterInfo->Enable, so it should not be
  *              given the chance to run until after non-wake GPEs are
  *              re-enabled.
@@ -438,57 +582,65 @@ ACPI_STATUS
 AcpiHwDisableNonWakeupGpes (
     void)
 {
-    UINT32                  i;
-    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
-    UINT32                  InValue;
     ACPI_STATUS             Status;
-    ACPI_GPE_BLOCK_INFO     *GpeBlock;
 
 
     ACPI_FUNCTION_ENTRY ();
 
 
-    GpeBlock = AcpiGbl_GpeBlockListHead;
-    while (GpeBlock)
+    Status = AcpiEvWalkGpeList (AcpiHwDisableNonWakeupGpeBlock);
+
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwEnableNonWakeupGpeBlock
+ *
+ * PARAMETERS:  GpeXruptInfo        - GPE Interrupt info
+ *              GpeBlock            - Gpe Block info
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable a single GPE.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiHwEnableNonWakeupGpeBlock (
+    ACPI_GPE_XRUPT_INFO     *GpeXruptInfo,
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    UINT32                  i;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    ACPI_STATUS             Status;
+
+
+    /* This callback processes one entire GPE block */
+
+    /* Get the register info for the entire GPE block */
+
+    GpeRegisterInfo = GpeBlock->RegisterInfo;
+
+    /* Examine each GPE register within the block */
+
+    for (i = 0; i < GpeBlock->RegisterCount; i++)
     {
-        /* Get the register info for the entire GPE block */
-
-        GpeRegisterInfo = GpeBlock->RegisterInfo;
-        if (!GpeRegisterInfo)
+        /*
+         * We previously stored the enabled status of all GPEs.
+         * Blast them back in.
+         */
+        Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->Enable,
+                    &GpeRegisterInfo->EnableAddress);
+        if (ACPI_FAILURE (Status))
         {
-            return (AE_BAD_PARAMETER);
+            return (Status);
         }
 
-        for (i = 0; i < GpeBlock->RegisterCount; i++)
-        {
-            /*
-             * Read the enabled status of all GPEs. We
-             * will be using it to restore all the GPEs later.
-             */
-            Status = AcpiHwLowLevelRead (8, &InValue,
-                        &GpeRegisterInfo->EnableAddress, 0);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
-
-            GpeRegisterInfo->Enable = (UINT8) InValue;
-
-            /*
-             * Disable all GPEs except wakeup GPEs.
-             */
-            Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->WakeEnable,
-                    &GpeRegisterInfo->EnableAddress, 0);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
-
-            GpeRegisterInfo++;
-        }
-
-        GpeBlock = GpeBlock->Next;
+        GpeRegisterInfo++;
     }
+
 
     return (AE_OK);
 }
@@ -510,44 +662,13 @@ ACPI_STATUS
 AcpiHwEnableNonWakeupGpes (
     void)
 {
-    UINT32                  i;
-    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     ACPI_STATUS             Status;
-    ACPI_GPE_BLOCK_INFO     *GpeBlock;
 
 
     ACPI_FUNCTION_ENTRY ();
 
 
-    GpeBlock = AcpiGbl_GpeBlockListHead;
-    while (GpeBlock)
-    {
-        /* Get the register info for the entire GPE block */
+    Status = AcpiEvWalkGpeList (AcpiHwEnableNonWakeupGpeBlock);
 
-        GpeRegisterInfo = GpeBlock->RegisterInfo;
-        if (!GpeRegisterInfo)
-        {
-            return (AE_BAD_PARAMETER);
-        }
-
-        for (i = 0; i < GpeBlock->RegisterCount; i++)
-        {
-            /*
-             * We previously stored the enabled status of all GPEs.
-             * Blast them back in.
-             */
-            Status = AcpiHwLowLevelWrite (8, GpeRegisterInfo->Enable,
-                        &GpeRegisterInfo->EnableAddress, 0);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
-
-            GpeRegisterInfo++;
-        }
-
-        GpeBlock = GpeBlock->Next;
-    }
-
-    return (AE_OK);
+    return (Status);
 }

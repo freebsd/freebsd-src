@@ -321,7 +321,7 @@ AcpiNsInstallNode (
     ACPI_NAMESPACE_NODE     *Node,          /* New Child*/
     ACPI_OBJECT_TYPE        Type)
 {
-    UINT16                  OwnerId = TABLE_ID_DSDT;
+    UINT16                  OwnerId = 0;
     ACPI_NAMESPACE_NODE     *ChildNode;
 #ifdef ACPI_ALPHABETIC_NAMESPACE
 
@@ -652,7 +652,7 @@ AcpiNsDeleteNamespaceSubtree (
  *
  ******************************************************************************/
 
-static void
+void
 AcpiNsRemoveReference (
     ACPI_NAMESPACE_NODE     *Node)
 {

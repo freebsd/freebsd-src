@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 98 $
+ *              $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,7 @@
 #include "acinterp.h"
 #include "acnamesp.h"
 #include "acdebug.h"
+#include "acdisasm.h"
 
 
 #define _COMPONENT          ACPI_DISPATCHER
@@ -763,7 +764,7 @@ Cleanup:
         AcpiDsDeleteResultIfNotUsed (Op, WalkState->ResultObj, WalkState);
     }
 
-#if _UNDER_DEVELOPMENT
+#ifdef _UNDER_DEVELOPMENT
 
     if (WalkState->ParserState.Aml == WalkState->ParserState.AmlEnd)
     {
@@ -774,6 +775,17 @@ Cleanup:
     /* Always clear the object stack */
 
     WalkState->NumOperands = 0;
+
+#ifdef ACPI_DISASSEMBLER
+
+    /* On error, display method locals/args */
+
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiDmDumpMethodInfo (Status, WalkState, Op);
+    }
+#endif
+
     return_ACPI_STATUS (Status);
 }
 
