@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.69 1998/05/17 21:03:35 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.70 1998/06/09 13:20:29 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -448,7 +448,7 @@ msdosfs_setattr(ap)
 				return EPERM;
 		}
 		if (vap->va_flags & ~SF_ARCHIVED)
-			return EINVAL;
+			return EOPNOTSUPP;
 		if (vap->va_flags & SF_ARCHIVED)
 			dep->de_Attributes &= ~ATTR_ARCHIVE;
 		else if (!(dep->de_Attributes & ATTR_DIRECTORY))
