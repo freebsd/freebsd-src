@@ -45,7 +45,6 @@
 #include <sys/queue.h>
 #include <sys/blist.h>
 #include <sys/conf.h>
-#include <sys/dkstat.h>
 #include <sys/exec.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>

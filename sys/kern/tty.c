@@ -93,7 +93,6 @@
 #undef	TTYDEFCHARS
 #include <sys/fcntl.h>
 #include <sys/conf.h>
-#include <sys/dkstat.h>
 #include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>

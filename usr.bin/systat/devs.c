@@ -68,7 +68,6 @@ static const char sccsid[] = "@(#)disks.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/devicestat.h>
-#include <sys/dkstat.h>
 
 #include <ctype.h>
 #include <devstat.h>
