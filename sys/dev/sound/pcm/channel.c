@@ -187,7 +187,7 @@ chn_dmaupdate(pcm_channel *c)
 
 	hwptr = chn_getptr(c);
 	delta = (b->bufsize + hwptr - b->hp) % b->bufsize;
-	if (delta >= ((b->bufsize * 3) / 4)) {
+	if (delta >= ((b->bufsize * 15) / 16)) {
 		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
 			device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", b->hp, hwptr);
 	}
