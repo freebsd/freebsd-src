@@ -9,34 +9,44 @@
 #define _NET_ETHERNET_H_
 
 /*
- * The number of bytes in an ethernet (MAC) address.
+ * Somce basic Ethernet constants.
  */
-#define	ETHER_ADDR_LEN		6
-
-/*
- * The number of bytes in the type field.
- */
-#define	ETHER_TYPE_LEN		2
-
-/*
- * The number of bytes in the trailing CRC field.
- */
-#define	ETHER_CRC_LEN		4
-
-/*
- * The length of the combined header.
- */
+#define	ETHER_ADDR_LEN		6	/* length of an Ethernet address */
+#define	ETHER_TYPE_LEN		2	/* length of the Ethernet type field */
+#define	ETHER_CRC_LEN		4	/* length of the Ethernet CRC */
 #define	ETHER_HDR_LEN		(ETHER_ADDR_LEN*2+ETHER_TYPE_LEN)
+#define	ETHER_MIN_LEN		64	/* minimum frame len, including CRC */
+#define	ETHER_MAX_LEN		1518	/* maximum frame len, including CRC */
+#define	ETHER_MAX_LEN_JUMBO	9018	/* max jumbo frame len, including CRC */
+
+#define	ETHER_VLAN_ENCAP_LEN	4	/* len of 802.1Q VLAN encapsulation */
+/*
+ * Mbuf adjust factor to force 32-bit alignment of IP header.
+ * Drivers should do m_adj(m, ETHER_ALIGN) when setting up a
+ * receive so the upper layers get the IP header properly aligned
+ * past the 14-byte Ethernet header.
+ */
+#define	ETHER_ALIGN		2	/* driver adjust for IP hdr alignment */
 
 /*
- * The minimum packet length.
+ * Compute the maximum frame size based on ethertype (i.e. possible
+ * encapsulation) and whether or not an FCS is present.
  */
-#define	ETHER_MIN_LEN		64
+#define	ETHER_MAX_FRAME(ifp, etype, hasfcs)				\
+	((ifp)->if_mtu + ETHER_HDR_LEN +				\
+	 ((hasfcs) ? ETHER_CRC_LEN : 0) +				\
+	 (((etype) == ETHERTYPE_VLAN) ? ETHER_VLAN_ENCAP_LEN : 0))
 
 /*
- * The maximum packet length.
+ * Ethernet-specific mbuf flags.
  */
-#define	ETHER_MAX_LEN		1518
+#define	M_HASFCS	M_PROTO5	/* FCS included at end of frame */
+
+/*
+ * Ethernet CRC32 polynomials (big- and little-endian verions).
+ */
+#define	ETHER_CRC_POLY_LE	0xedb88320
+#define	ETHER_CRC_POLY_BE	0x04c11db6
 
 /*
  * A macro to validate a length with
@@ -59,6 +69,8 @@ struct	ether_header {
 struct	ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 };
+
+#define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
 
 /*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
@@ -329,40 +341,23 @@ struct	ether_addr {
 
 #define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define	ETHERMTU_JUMBO	(ETHER_MAX_LEN_JUMBO - ETHER_HDR_LEN - ETHER_CRC_LEN)
 
 #ifdef _KERNEL
 
-/*
- * For device drivers to specify whether they support BPF or not
- */
-#define ETHER_BPF_UNSUPPORTED	0
-#define ETHER_BPF_SUPPORTED	1
-
 struct ifnet;
 struct mbuf;
+struct rtentry;
+struct sockaddr;
 
-extern	void (*ng_ether_input_p)(struct ifnet *ifp,
-		struct mbuf **mp, struct ether_header *eh);
-extern	void (*ng_ether_input_orphan_p)(struct ifnet *ifp,
-		struct mbuf *m, struct ether_header *eh);
-extern	int  (*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
-extern	void (*ng_ether_attach_p)(struct ifnet *ifp);
-extern	void (*ng_ether_detach_p)(struct ifnet *ifp);
-
-extern	int (*vlan_input_p)(struct ether_header *eh, struct mbuf *m);
-extern	int (*vlan_input_tag_p)(struct ether_header *eh, struct mbuf *m,
-		u_int16_t t);
-
-#define	VLAN_INPUT_TAG(eh, m, t) do {			\
-	/* XXX: lock */					\
-	if (vlan_input_tag_p != NULL) 			\
-		(*vlan_input_tag_p)(eh, m, t);		\
-	else {						\
-		(m)->m_pkthdr.rcvif->if_noproto++;	\
-		m_freem(m);				\
-	}						\
-	/* XXX: unlock */				\
-} while (0)
+extern	void ether_demux(struct ifnet *, struct mbuf *);
+extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
+extern	void ether_ifdetach(struct ifnet *);
+extern	int  ether_ioctl(struct ifnet *, int, caddr_t);
+extern	int  ether_output(struct ifnet *,
+		   struct mbuf *, struct sockaddr *, struct rtentry *);
+extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
+extern	char *ether_sprintf(const u_int8_t *);
 
 #else /* _KERNEL */
 
