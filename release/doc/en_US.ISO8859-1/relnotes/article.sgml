@@ -1458,6 +1458,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <programlisting role="historic">snd_maestro3_load="YES"</programlisting>
 
+      <para arch="i386">The VT8233 audio controller now has its own
+        driver to facilitate supporting all known revisions of the
+        hardware.  It is loadable at boot time by adding
+        <literal>device pcm</literal> to the kernel configuration or
+        by adding <literal>snd_via8233="YES"</literal> to
+        <filename>/boot/loader.conf</filename>.  Documentation to
+        support this work was provided by VIA. &merged;</para>
+
       <para role="historic">The &man.bktr.4; driver has been updated to 2.18.  This
 	update provides a number of new features.  New tuner types
 	have been added, and improvements to the KLD module and to
@@ -1484,6 +1492,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386" role="historic">The ich sound driver now support the SiS
 	7012 chipset. &merged;</para>
+
+      <para arch="i386">The ich sound driver now provides rudimentary
+	support for ich4 audio support. &merged;</para>
 
       <para arch="i386">Drivers have been added to support the Direct
         Rendering Infrastructure, which can used to provide 3D
@@ -3098,6 +3109,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <command>readonly</command> commands now support a
       <option>-p</option> flag to print their output in
       <quote>portable</quote> format. &merged;</para>
+
+    <para>&man.sh.1; no longer accepts invalid constructs as
+      <command><replaceable>command</replaceable> &amp; &amp;&amp;
+      <replaceable>command</replaceable></command>, <command>&amp;&amp;
+      <replaceable>command</replaceable></command>, or <command>||
+      <replaceable>command</replaceable></command>.</para>
 
     <para role="historic">&man.sockstat.1; now has <option>-c</option> and
       <option>-l</option> flags for listing connected and listening
