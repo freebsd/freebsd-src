@@ -1,4 +1,4 @@
-@(#) $Header: INSTALL,v 1.32 96/12/11 19:16:21 leres Exp $ (LBL)
+@(#) $Header: INSTALL,v 1.42 98/03/20 18:49:16 vern Exp $ (LBL)
 
 To build libpcap, first customize any paths in Makefile.in, then run
 "./configure" (a shell script). The configure script will determine
@@ -21,6 +21,15 @@ packet capture not supported by libpcap, please send us patches; don't
 forget to include an autoconf fragment suitable for use in
 configure.in.
 
+It is possible to override the default packet capture type, although
+the circumstance where this works are limited. For example if you have
+installed bpf under SunOS 4 and wish to build a snit libpcap:
+
+    ./configure --with-pcap=snit
+
+Another example is to force a supported packet capture type in the case
+where the configure scripts fails to detect it.
+
 You will need an ANSI C compiler to build libpcap. The configure script
 will abort if your compiler is not ANSI compliant. If this happens, use
 the GNU C compiler, available via anonymous ftp:
@@ -30,9 +39,13 @@ the GNU C compiler, available via anonymous ftp:
 Note well: If you use gcc, you may need to run its "fixincludes"
 script. Running fixincludes is not required with later versions of gcc
 and in some cases (e.g. Solaris 2.5) causes problems when run. The
-configure script will abort if it detects if the fixincludes needs to
-be run. If the fixincludes test in configure passes, you're probably
-ok.
+configure script will abort with:
+
+    checking for ANSI ioctl definitions... yes
+    configure: error: see the INSTALL for more info
+
+if it detects if the fixincludes needs to be run. If the fixincludes
+test in configure passes, you're probably ok.
 
 If you use flex, you must use version 2.4.6 or higher. The configure
 script automatically detects the version of flex and will not use it
@@ -48,8 +61,12 @@ If you use bison, you must use flex (and visa versa). The configure
 script automatically falls back to lex and yacc if both flex and bison
 are not found.
 
-If you use flex and bison, you may also have to use gcc to avoid
-undefined references for alloca.
+Sometimes the stock C compiler does not interact well with flex and
+bison. The list of problems includes undefined references for alloca.
+You can get around this by installing gcc or manually disabling flex
+and bison with:
+
+    ./configure --without-flex --without-bison
 
 If your system only has AT&T lex, this is okay unless your libpcap
 program uses other lex/yacc generated code. (Although it's possible to
@@ -93,6 +110,18 @@ Also note that "make depend" won't work; while all of the known
 universe uses -M, the SPARCompiler uses -xM to generate makefile
 dependencies.
 
+If you are trying to do packet capture with a FORE ATM card, you may or
+may not be able to. They usually only release their driver in object
+code so unless their driver supports packet capture, there's not much
+libpcap can do.
+
+If you get an error like:
+
+    tcpdump: recv_ack: bind error 0x???
+
+when using DLPI, look for the DL_ERROR_ACK error return values, usually
+in /usr/include/sys/dlpi.h, and find the corresponding value.
+
 Under OSF, packet capture must be enabled before it can be used. For
 instructions on how to enable packet filter support, see:
 
@@ -130,13 +159,9 @@ dlpi can provide information for determining the ppa. It does not seem
 to be possible to trace the loopback interface. Unlike other DLPI
 implementations, PHYS implies MULTI and SAP and you get an error if you
 try to enable more than one promiscous more than one promiscuous mode
-at a time. This results in error messages:
-
-    WARNING: DL_PROMISC_MULTI failed (recv_ack: promisc_multi: Invalid argument)
-    WARNING: DL_PROMISC_SAP failed (recv_ack: promisc_sap: Invalid argument)
-
-which may be safely ignored. Finally, testing shows that there can't be
-more than one simultaneous dlpi user per network interface.
+at a time. Finally, testing shows that there can't be more than one
+simultaneous dlpi user per network interface and you cannot capture
+outbound packets.
 
 If you use Linux, this version of libpcap is known to compile and run
 under Red Hat 4.0 with the 2.0.25 kernel. It may work with earlier 2.X
@@ -152,14 +177,23 @@ You should be advised that the Network Research Group at LBNL never
 generated a release with this version number. We note with interest
 that a standard cracker trick to get people to install trojans is to
 distribute bogus packages that have a version number higher than the
-current release.
+current release. We also note with annoyance that 90% of the Linux
+related bug reports we get are due to changes made to unofficial
+versions of our page. If you are having trouble but aren't using a
+version that came from ftp.ee.lbl.gov, please try that before
+submitting a bug report!
 
 If you use AIX, you may not be able to build libpcap from this release.
-We do not have an AIX system in house so it's impossible for us to test
-AIX patches submitted to us. We are told that you must like againt
-/lib/pse.exp, that you must use AIX cc or a GNU C compiler newer than
-2.7.2 and that you may need to run strload before running a libpcap
-application.
+Although AIX 4 ships with tcpdump, it is an old version that predates
+libpcap. We do not have an AIX system in house so it's impossible for
+us to test AIX patches submitted to us. We are told that you must link
+against /lib/pse.exp, that you must use AIX cc or a GNU C compiler
+newer than 2.7.2 and that you may need to run strload before running a
+libpcap application. Also, it may be necessary to run the configure
+script as root in order for it to detect that bpf is available. Another
+workaround is to use:
+
+    ./configure --with-pcap=bpf
 
 If you use NeXTSTEP, you will not be able to build libpcap from this
 release. We hope to support this operating system in some future
@@ -196,9 +230,6 @@ libpcap 0.0 (and tcpdump 3.0) in:
     ftp://ftp1.freebird.org/pub/mirror/freebird/internet/systools/
 
 UnixWare appears to use a hacked version of DLPI.
-
-If you use flex and bison and not gcc but the linker cannot find
-alloca(), you need to either use gcc or not use flex and bison.
 
 If linking tcpdump fails with "Undefined: _alloca" when using bison on
 a Sun4, your version of bison is broken. In any case version 1.16 or
@@ -255,7 +286,7 @@ Makefile.in	- compilation rules (input to the configure script)
 README		- description of distribution
 SUNOS4		- pre-SunOS 4.1 replacement kernel nit modules
 VERSION		- version of this release
-acsite.m4	- autoconf macros
+aclocal.m4	- autoconf macros
 bpf/net		- copies of bpf_filter.c and bpf.h
 bpf_filter.c	- symlink to bpf/net/bpf_filter.c
 bpf_image.c	- bpf disassembly routine
@@ -292,5 +323,6 @@ pcap-snoop.c	- Snoop network monitoring support
 pcap.3		- manual entry
 pcap.c		- pcap utility routines
 pcap.h		- public libpcap definitions
+ppp.h		- Point to Point Protocol definitions
 savefile.c	- offline support
 scanner.l	- filter string scanner

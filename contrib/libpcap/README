@@ -1,6 +1,6 @@
-@(#) $Header: README,v 1.17 96/11/29 01:14:24 leres Exp $ (LBL)
+@(#) $Header: README,v 1.18 97/06/12 14:23:56 leres Exp $ (LBL)
 
-LIBPCAP 0.3
+LIBPCAP 0.4
 Lawrence Berkeley National Laboratory
 Network Research Group
 libpcap@ee.lbl.gov
