@@ -172,7 +172,7 @@ void	fill_file_lock(struct file_lock *fl, const fhandle_t *fh,
     const u_int64_t offset, const u_int64_t len, const char *caller_name,
     const int state, const int status, const int flags, const int blocking);
 int	regions_overlap(const u_int64_t start1, const u_int64_t len1,
-    const u_int64_t start2, const u_int64_t len2);;
+    const u_int64_t start2, const u_int64_t len2);
 enum split_status  region_compare(const u_int64_t starte, const u_int64_t lene,
     const u_int64_t startu, const u_int64_t lenu,
     u_int64_t *start1, u_int64_t *len1, u_int64_t *start2, u_int64_t *len2);

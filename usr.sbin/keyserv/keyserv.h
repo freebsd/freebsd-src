@@ -3,7 +3,7 @@
  */
 extern void setmodulus __P((char *modx));
 
-extern keystatus pk_setkey __P(( uid_t, keybuf ));;
+extern keystatus pk_setkey __P(( uid_t, keybuf ));
 extern keystatus pk_encrypt __P(( uid_t, char *, netobj *, des_block * ));
 extern keystatus pk_decrypt __P(( uid_t, char *, netobj *, des_block * ));
 extern keystatus pk_netput __P(( uid_t, key_netstarg * ));

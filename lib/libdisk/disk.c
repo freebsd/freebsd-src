@@ -72,7 +72,7 @@ chunk_name(chunk_e type)
 	case apple:     return ("apple");
 	default:	return ("??");
 	}
-};
+}
 
 struct disk *
 Open_Disk(const char *name)
