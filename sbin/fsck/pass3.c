@@ -32,14 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)pass3.c	8.2 (Berkeley) 4/27/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 
 #include "fsck.h"
 
