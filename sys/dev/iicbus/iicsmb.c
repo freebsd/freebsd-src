@@ -138,7 +138,7 @@ static driver_t iicsmb_driver = {
 static void
 iicsmb_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "iicsmb", 0);
+	BUS_ADD_CHILD(parent, 0, "iicsmb", -1);
 }
 
 static int

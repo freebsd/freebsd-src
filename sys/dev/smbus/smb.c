@@ -101,7 +101,7 @@ static struct cdevsw smb_cdevsw = {
 static void
 smb_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "smb", 0);
+	BUS_ADD_CHILD(parent, 0, "smb", -1);
 }
 
 static int
