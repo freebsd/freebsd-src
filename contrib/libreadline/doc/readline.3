@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Wed Feb  5 14:13:22 EST 1997
+.\"	Last Change: Thu Feb 19 10:26:47 EST 1998
 .\"
-.TH READLINE 3 "1997 Feb 5" GNU
+.TH READLINE 3 "1998 Feb 19" GNU
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -159,7 +159,7 @@ command or the text of a macro and a key sequence to which
 it should be bound. The name may be specified in one of two ways:
 as a symbolic key name, possibly with \fIMeta\-\fP or \fIControl\-\fP
 prefixes, or as a key sequence.
-When using the form \fBkeyname\fP:\fIfunction-name\fP or \fImacro\fP,
+When using the form \fBkeyname\fP:\^\fIfunction-name\fP or \fImacro\fP,
 .I keyname
 is the name of a key spelled out in English.  For example:
 .sp
@@ -185,7 +185,7 @@ expressed on the right hand side (that is, to insert the text
 .I >&output
 into the line).
 .PP
-In the second form, \fB"keyseq"\fP:\fIfunction\-name\fP or \fImacro\fP,
+In the second form, \fB"keyseq"\fP:\^\fIfunction\-name\fP or \fImacro\fP,
 .B keyseq
 differs from
 .B keyname
@@ -213,8 +213,9 @@ and
 .I "ESC [ 1 1 ~"
 is bound to insert the text
 .BR "Function Key 1" .
-The full set of escape sequences is
+The full set of GNU Emacs style escape sequences is
 .RS
+.PD 0
 .TP
 .B \eC\-
 control prefix
@@ -234,11 +235,53 @@ literal "
 .B \e'
 literal '
 .RE
+.PD
+.PP
+In addition to the GNU Emacs style escape sequences, a second
+set of backslash escapes is available:
+.RS
+.PD 0
+.TP
+.B \ea
+alert (bell)
+.TP
+.B \eb
+backspace
+.TP
+.B \ed
+delete
+.TP
+.B \ef
+form feed
+.TP
+.B \en
+newline
+.TP
+.B \er
+carriage return
+.TP
+.B \et
+horizontal tab
+.TP
+.B \ev
+vertical tab
+.TP
+.B \e\fInnn\fP
+the character whose ASCII code is the octal value \fInnn\fP
+(one to three digits)
+.TP
+.B \ex\fInnn\fP
+the character whose ASCII code is the hexadecimal value \fInnn\fP
+(one to three digits)
+.RE
+.PD
 .PP
 When entering the text of a macro, single or double quotes should
 be used to indicate a macro definition.  Unquoted text
-is assumed to be a function name.  Backslash
-will quote any character in the macro text, including " and '.
+is assumed to be a function name.
+In the macro body, the backslash escapes described above are expanded.
+Backslash will quote any other character in the macro text,
+including " and '.
 .PP
 .B Bash
 allows the current readline key bindings to be displayed or modified
@@ -288,6 +331,10 @@ This command is bound to
 in emacs mode and to
 .B #
 in vi command mode.
+.TP 
+.B completion\-ignore\-case (Off)
+If set to \fBOn\fP, readline performs filename matching and completion
+in a case\-insensitive fashion.
 .TP
 .B completion\-query\-items (100)
 This determines when the user is queried about viewing
@@ -346,7 +393,7 @@ the value of
 also affects the default keymap.
 .TP
 .B mark\-directories (On)
-If set to \fBOn\fP, completed directory names have a slash
+If set to \fBOn\fP, complete<d directory names have a slash
 appended.
 .TP
 .B mark\-modified\-lines (Off)
@@ -362,6 +409,10 @@ regardless of what the terminal claims it can support.
 If set to \fBOn\fP, readline will display characters with the
 eighth bit set directly rather than as a meta-prefixed escape
 sequence.
+.TP
+.B print\-completions\-horizontally (Off)
+If set to \fBOn\fP, readline will display completions with matches
+sorted horizontally in alphabetical order, rather than down the screen.
 .TP
 .B show\-all\-if\-ambiguous (Off)
 This alters the default behavior of the completion functions.  If
@@ -380,7 +431,7 @@ completions.
 Readline implements a facility similar in spirit to the conditional
 compilation features of the C preprocessor which allows key
 bindings and variable settings to be performed as the result
-of tests.  There are three parser directives used.
+of tests.  There are four parser directives used.
 .IP \fB$if\fP
 The 
 .B $if
@@ -417,6 +468,7 @@ file can test for a particular value.
 This could be used to bind key sequences to functions useful for
 a specific program.  For instance, the following command adds a
 key sequence that quotes the current or previous word in Bash:
+.sp 1
 .RS
 .nf
 \fB$if\fP bash
@@ -427,11 +479,21 @@ key sequence that quotes the current or previous word in Bash:
 .RE
 .RE
 .IP \fB$endif\fP
-This command, as you saw in the previous example, terminates an
+This command, as seen in the previous example, terminates an
 \fB$if\fP command.
 .IP \fB$else\fP
 Commands in this branch of the \fB$if\fP directive are executed if
 the test fails.
+.IP \fB$include\fP
+This directive takes a single filename as an argument and reads commands
+and bindings from that file.  For example, the following directive
+would read \fI/etc/inputrc\fP:
+.sp 1
+.RS
+.nf
+\fB$include\fP \^ \fI/etc/inputrc\fP
+.fi 
+.RE
 .SH SEARCHING
 .PP
 Readline provides commands for searching through the command history
@@ -464,7 +526,7 @@ the line, thereby executing the command from the history list.
 .PP
 Non-incremental searches read the entire search string before starting
 to search for matching history lines.  The search string may be
-typed by the user or part of the contents of the current line.
+typed by the user or be part of the contents of the current line.
 .SH EDITING COMMANDS
 .PP
 The following is a list of the names of the commands and the default
@@ -567,6 +629,8 @@ yank\-last\-arg (M\-.\^, M\-_\^)
 Insert the last argument to the previous command (the last word of
 the previous history entry).  With an argument,
 behave exactly like \fByank\-nth\-arg\fP.
+Successive calls to \fByank\-last\-arg\fP move back through the history
+list, inserting the last argument of each line in turn.
 .PD
 .SS Commands for Changing Text
 .PP
@@ -575,9 +639,7 @@ behave exactly like \fByank\-nth\-arg\fP.
 .B delete\-char (C\-d)
 Delete the character under the cursor.  If point is at the
 beginning of the line, there are no characters in the line, and
-the last character typed was not
-.BR C\-d ,
-then return
+the last character typed was not bound to \fBBdelete\-char\fP, then return
 .SM
 .BR EOF .
 .TP
@@ -606,15 +668,15 @@ moving the cursor over that word as well.
 .TP
 .B upcase\-word (M\-u)
 Uppercase the current (or following) word.  With a negative argument,
-do the previous word, but do not move point.
+uppercase the previous word, but do not move point.
 .TP
 .B downcase\-word (M\-l)
 Lowercase the current (or following) word.  With a negative argument,
-do the previous word, but do not move point.
+lowercase the previous word, but do not move point.
 .TP
 .B capitalize\-word (M\-c)
 Capitalize the current (or following) word.  With a negative argument,
-do the previous word, but do not move point.
+capitalize the previous word, but do not move point.
 .PD
 .SS Killing and Yanking
 .PP
@@ -628,6 +690,7 @@ Kill backward to the beginning of the line.
 .TP
 .B unix\-line\-discard (C\-u)
 Kill backward from point to the beginning of the line.
+The killed text is saved on the kill-ring.
 .\" There is no real difference between this and backward-kill-line
 .TP
 .B kill\-whole\-line
@@ -660,9 +723,11 @@ Copy the text in the region to the kill buffer.
 .TP
 .B copy\-backward\-word
 Copy the word before point to the kill buffer.
+The word boundaries are the same as \fBbackward\-word\fP.
 .TP
 .B copy\-forward\-word
 Copy the word following point to the kill buffer.
+The word boundaries are the same as \fBforward\-word\fP.
 .TP
 .B yank (C\-y)
 Yank the top of the kill ring into the buffer at the cursor.
@@ -720,6 +785,19 @@ List the possible completions of the text before point.
 Insert all completions of the text before point
 that would have been generated by
 \fBpossible\-completions\fP.
+.TP
+.B menu\-complete
+Similar to \fBcomplete\fP, but replaces the word to be completed
+with a single match from the list of possible completions.
+Repeated execution of \fBmenu\-complete\fP steps through the list
+of possible completions, inserting each match in turn.
+At the end of the list of completions, the bell is rung and the
+original text is restored.
+An argument of \fIn\fP moves \fIn\fP positions forward in the list
+of matches; a negative argument may be used to move backward 
+through the list.
+This command is intended to be bound to \fBTAB\fP, but is unbound
+by default.
 .PD
 .SS Keyboard Macros
 .PP
@@ -765,7 +843,7 @@ is equivalent to
 Incremental undo, separately remembered for each line.
 .TP
 .B revert\-line (M\-r)
-Undo all changes made to this line.  This is like typing the
+Undo all changes made to this line.  This is like executing the
 .B undo
 command enough times to return the line to its initial state.
 .TP
@@ -794,15 +872,6 @@ The value of the readline
 variable is inserted at the beginning of the current line, and the line
 is accepted as if a newline had been typed.  This makes the current line
 a shell comment.
-.TP
-.B glob\-expand\-word (C\-x *)
-The word before point is treated as a pattern for pathname expansion,
-and the list of matching file names is inserted, replacing the word.
-.TP
-.B glob\-list\-expansions (C\-x g)
-The list of expansions that would have been generated by
-.B glob\-expand\-word
-is inserted into the line, replacing the word before point.
 .TP
 .B dump\-functions
 Print all of the functions and their key bindings to the
@@ -1097,10 +1166,10 @@ version of the
 library that you have.
 .PP
 Once you have determined that a bug actually exists, mail a
-bug report to \fIbug\-readline\fP@\fIprep.ai.MIT.Edu\fP.
+bug report to \fIbug\-readline\fP@\fIgnu.org\fP.
 If you have a fix, you are welcome to mail that
 as well!  Suggestions and `philosophical' bug reports may be mailed
-to \fPbug-readline\fP@\fIprep.ai.MIT.Edu\fP or posted to the Usenet
+to \fPbug-readline\fP@\fIgnu.org\fP or posted to the Usenet
 newsgroup
 .BR gnu.bash.bug .
 .PP

@@ -69,7 +69,8 @@ static char *legal_lang_values[] =
  "iso88598",
  "iso88599",
  "iso885910",
- "koi8r",   
+ "koi8r",
+ "koi8-r", 
   0
 };
 

@@ -35,6 +35,9 @@
 #endif /* HAVE_STDLIB_H */
 
 #if defined (HAVE_UNISTD_H)
+#  ifndef _MINIX
+#    include <sys/types.h>
+#  endif
 #  include <unistd.h>
 #endif
 
@@ -46,6 +49,9 @@
 
 #include "history.h"
 #include "histlib.h"
+
+#define HISTORY_WORD_DELIMITERS		" \t\n;&()|<>"
+#define HISTORY_QUOTE_CHARACTERS	"\"'`"
 
 static char error_pointer;
 
@@ -823,8 +829,8 @@ history_expand (hstring, output)
   only_printing = modified = 0;
   l = strlen (hstring);
 
-  /* Grovel the string.  Only backslash can quote the history escape
-     character.  We also handle arg specifiers. */
+  /* Grovel the string.  Only backslash and single quotes can quote the
+     history escape character.  We also handle arg specifiers. */
 
   /* Before we grovel forever, see if the history_expansion_char appears
      anywhere within the text. */
@@ -852,7 +858,18 @@ history_expand (hstring, output)
       for (i = 0; string[i]; i++)
 	{
 	  cc = string[i + 1];
-	  if (string[i] == history_expansion_char)
+	  /* The history_comment_char, if set, appearing that the beginning
+	     of a word signifies that the rest of the line should not have
+	     history expansion performed on it.
+	     Skip the rest of the line and break out of the loop. */
+	  if (history_comment_char && string[i] == history_comment_char &&
+	      (i == 0 || member (string[i - 1], HISTORY_WORD_DELIMITERS)))
+	    {
+	      while (string[i])
+		i++;
+	      break;
+	    }
+	  else if (string[i] == history_expansion_char)
 	    {
 	      if (!cc || member (cc, history_no_expand_chars))
 		continue;
@@ -867,6 +884,8 @@ history_expand (hstring, output)
 	      else
 		break;
 	    }
+	  /* XXX - at some point, might want to extend this to handle
+		   double quotes as well. */
 	  else if (history_quotes_inhibit_expansion && string[i] == '\'')
 	    {
 	      /* If this is bash, single quotes inhibit history expansion. */
@@ -904,6 +923,8 @@ history_expand (hstring, output)
 
       if (tchar == history_expansion_char)
 	tchar = -3;
+      else if (tchar == history_comment_char)
+	tchar = -2;
 
       switch (tchar)
 	{
@@ -938,6 +959,19 @@ history_expand (hstring, output)
 	      ADD_CHAR (string[i]);
 	    break;
 	  }
+
+	case -2:		/* history_comment_char */
+	  if (i == 0 || member (string[i - 1], HISTORY_WORD_DELIMITERS))
+	    {
+	      temp = xmalloc (l - i + 1);
+	      strcpy (temp, string + i);
+	      ADD_STRING (temp);
+	      free (temp);
+	      i = l;
+	    }
+	  else
+	    ADD_CHAR (string[i]);
+	  break;
 
 	case -3:		/* history_expansion_char */
 	  cc = string[i + 1];
@@ -1238,7 +1272,7 @@ history_tokenize_internal (string, wind, indp)
 
       /* Get word from string + i; */
 
-      if (member (string[i], "\"'`"))
+      if (member (string[i], HISTORY_QUOTE_CHARACTERS))
 	delimiter = string[i++];
 
       for (; string[i]; i++)
@@ -1262,10 +1296,10 @@ history_tokenize_internal (string, wind, indp)
 	      continue;
 	    }
 
-	  if (!delimiter && (member (string[i], " \t\n;&()|<>")))
+	  if (!delimiter && (member (string[i], HISTORY_WORD_DELIMITERS)))
 	    break;
 
-	  if (!delimiter && member (string[i], "\"'`"))
+	  if (!delimiter && member (string[i], HISTORY_QUOTE_CHARACTERS))
 	    delimiter = string[i];
 	}
 

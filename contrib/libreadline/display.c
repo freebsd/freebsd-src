@@ -72,7 +72,11 @@ extern int _rl_prefer_visible_bell;
 
 /* Variables and functions imported from terminal.c */
 extern void _rl_output_some_chars ();
+#ifdef _MINIX
+extern void _rl_output_character_function ();
+#else
 extern int _rl_output_character_function ();
+#endif
 extern int _rl_backspace ();
 
 extern char *term_clreol, *term_clrpag;

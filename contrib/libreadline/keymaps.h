@@ -39,9 +39,9 @@ typedef char **CPPFunction ();
 
 /* A keymap contains one entry for each key in the ASCII set.
    Each entry consists of a type and a pointer.
-   POINTER is the address of a function to run, or the
+   FUNCTION is the address of a function to run, or the
    address of a keymap to indirect through.
-   TYPE says which kind of thing POINTER is. */
+   TYPE says which kind of thing FUNCTION is. */
 typedef struct _keymap_entry {
   char type;
   Function *function;

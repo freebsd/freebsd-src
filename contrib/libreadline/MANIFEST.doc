@@ -1,0 +1,16 @@
+#
+# Master Manifest file for documentation-only distribution
+#
+doc	d
+MANIFEST.doc	f
+doc/readline.ps	f
+doc/history.ps	f
+doc/readline.dvi	f
+doc/history.dvi	f
+doc/readline.info	f
+doc/history.info	f
+doc/readline.html	f
+doc/readline_toc.html	f
+doc/history.html	f
+doc/history_toc.html	f
+doc/readline.0	f
