@@ -272,7 +272,6 @@ vm_pager_deallocate(object)
  *      called with no specific spl
  *      Execute strategy routine directly to pager.
  */
-
 void
 vm_pager_strategy(vm_object_t object, struct bio *bp)
 {
@@ -310,7 +309,6 @@ vm_pager_sync()
 		if (pgops && ((*pgops)->pgo_sync != NULL))
 			(*(*pgops)->pgo_sync) ();
 }
-
 #endif
 
 vm_offset_t

@@ -71,7 +71,6 @@
 
 #ifndef	_PMAP_VM_
 #define	_PMAP_VM_
-
 /*
  * Each machine dependent implementation is expected to
  * keep certain statistics.  They may do this anyway they
@@ -87,7 +86,6 @@ typedef struct pmap_statistics *pmap_statistics_t;
 #include <machine/pmap.h>
 
 #ifdef _KERNEL
-
 struct proc;
 struct thread;
 
@@ -147,7 +145,5 @@ void		 pmap_activate __P((struct thread *td));
 vm_offset_t	 pmap_addr_hint __P((vm_object_t obj, vm_offset_t addr, vm_size_t size));
 void		*pmap_kenter_temporary __P((vm_offset_t pa, int i));
 void		 pmap_init2 __P((void));
-
 #endif /* _KERNEL */
-
 #endif /* _PMAP_VM_ */

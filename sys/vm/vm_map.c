@@ -191,7 +191,7 @@ vm_init2(void)
 }
 
 static __inline void
-vmspace_dofree( struct vmspace *vm)
+vmspace_dofree(struct vmspace *vm)
 {
 	CTR1(KTR_VM, "vmspace_free: %p", vm);
 	/*
@@ -260,7 +260,7 @@ vmspace_swap_count(struct vmspace *vmspace)
 			}
 		}
 	}
-	return(count);
+	return (count);
 }
 
 u_char   
@@ -320,7 +320,7 @@ _vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
 int
 vm_map_lock_upgrade(vm_map_t map)
 {
-    return(_vm_map_lock_upgrade(map, curthread));
+    return (_vm_map_lock_upgrade(map, curthread));
 }
 
 void
@@ -349,19 +349,19 @@ vm_map_clear_recursive(vm_map_t map)
 vm_offset_t
 vm_map_min(vm_map_t map)
 {
-	return(map->min_offset);
+	return (map->min_offset);
 }
 
 vm_offset_t
 vm_map_max(vm_map_t map)
 {
-	return(map->max_offset);
+	return (map->max_offset);
 }
 
 struct pmap *
 vm_map_pmap(vm_map_t map)
 {
-	return(map->pmap);
+	return (map->pmap);
 }
 
 struct pmap *
@@ -454,7 +454,7 @@ vm_map_entry_create(vm_map_t map)
 		kmapentzone : mapentzone);
 	if (new_entry == NULL)
 	    panic("vm_map_entry_create: kernel resources exhausted");
-	return(new_entry);
+	return (new_entry);
 }
 
 /*
@@ -524,7 +524,6 @@ vm_map_lookup_entry(
 	/*
 	 * Start looking either from the head of the list, or from the hint.
 	 */
-
 	cur = map->hint;
 
 	if (cur == &map->header)
@@ -556,7 +555,6 @@ vm_map_lookup_entry(
 	/*
 	 * Search linearly
 	 */
-
 	while (cur != last) {
 		if (cur->end > address) {
 			if (address >= cur->start) {
@@ -564,7 +562,6 @@ vm_map_lookup_entry(
 				 * Save this lookup for future hints, and
 				 * return
 				 */
-
 				*entry = cur;
 				SAVE_HINT(map, cur);
 				return (TRUE);
@@ -605,7 +602,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
-
 	if ((start < map->min_offset) || (end > map->max_offset) ||
 	    (start >= end))
 		return (KERN_INVALID_ADDRESS);
@@ -614,7 +610,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Find the entry prior to the proposed starting address; if it's part
 	 * of an existing entry, this range is bogus.
 	 */
-
 	if (vm_map_lookup_entry(map, start, &temp_entry))
 		return (KERN_NO_SPACE);
 
@@ -623,7 +618,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Assert that the next entry doesn't overlap the end point.
 	 */
-
 	if ((prev_entry->next != &map->header) &&
 	    (prev_entry->next->start < end))
 		return (KERN_NO_SPACE);
@@ -698,7 +692,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Create a new entry
 	 */
-
 	new_entry = vm_map_entry_create(map);
 	new_entry->start = start;
 	new_entry->end = end;
@@ -716,7 +709,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Insert the new entry into the list
 	 */
-
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
 
@@ -958,7 +950,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	 * entry BEFORE this one, so that this entry has the specified
 	 * starting address.
 	 */
-
 	vm_map_simplify_entry(map, entry);
 
 	/*
@@ -968,7 +959,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	 * map.  This is a bit of a hack, but is also about the best place to
 	 * put this improvement.
 	 */
-
 	if (entry->object.vm_object == NULL && !map->system_map) {
 		vm_object_t object;
 		object = vm_object_allocate(OBJT_DEFAULT,
@@ -998,7 +988,6 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
  *	the specified address; if necessary,
  *	it splits the entry into two.
  */
-
 #define vm_map_clip_end(map, entry, endaddr) \
 { \
 	if (endaddr < entry->end) \
@@ -1021,7 +1010,6 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	 * map.  This is a bit of a hack, but is also about the best place to
 	 * put this improvement.
 	 */
-
 	if (entry->object.vm_object == NULL && !map->system_map) {
 		vm_object_t object;
 		object = vm_object_allocate(OBJT_DEFAULT,
@@ -1033,7 +1021,6 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	/*
 	 * Create a new entry and insert it AFTER the specified entry
 	 */
-
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
 
@@ -1145,7 +1132,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	/*
 	 * Make a first pass to check for protection violations.
 	 */
-
 	current = entry;
 	while ((current != &map->header) && (current->start < end)) {
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
@@ -1163,9 +1149,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 * Go back and fix up protections. [Note that clipping is not
 	 * necessary the second time.]
 	 */
-
 	current = entry;
-
 	while ((current != &map->header) && (current->start < end)) {
 		vm_prot_t old_prot;
 
@@ -1183,22 +1167,17 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * Update physical map if necessary. Worry about copy-on-write
 		 * here -- CHECK THIS XXX
 		 */
-
 		if (current->protection != old_prot) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
-
 			pmap_protect(map->pmap, current->start,
 			    current->end,
 			    current->protection & MASK(current));
 #undef	MASK
 		}
-
 		vm_map_simplify_entry(map, current);
-
 		current = current->next;
 	}
-
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1211,7 +1190,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	the vm_map_entry structure, or those effecting the underlying 
  *	objects.
  */
-
 int
 vm_map_madvise(
 	vm_map_t map,
@@ -1230,7 +1208,6 @@ vm_map_madvise(
 	 * various clipping operations.  Otherwise we only need a read-lock
 	 * on the map.
 	 */
-
 	switch(behav) {
 	case MADV_NORMAL:
 	case MADV_SEQUENTIAL:
@@ -1254,7 +1231,6 @@ vm_map_madvise(
 	/*
 	 * Locate starting entry and clip if necessary.
 	 */
-
 	VM_MAP_RANGE_CHECK(map, start, end);
 
 	if (vm_map_lookup_entry(map, start, &entry)) {
@@ -1358,7 +1334,7 @@ vm_map_madvise(
 		}
 		vm_map_unlock_read(map);
 	}
-	return(0);
+	return (0);
 }	
 
 
@@ -1593,7 +1569,6 @@ vm_map_pageable(
 	 * changing the pageability for the entire region.  We do so before
 	 * making any changes.
 	 */
-
 	if (vm_map_lookup_entry(map, start, &start_entry) == FALSE) {
 		vm_map_unlock(map);
 		return (KERN_INVALID_ADDRESS);
@@ -1604,9 +1579,7 @@ vm_map_pageable(
 	 * Actions are rather different for wiring and unwiring, so we have
 	 * two separate cases.
 	 */
-
 	if (new_pageable) {
-
 		vm_map_clip_start(map, entry, start);
 
 		/*
@@ -1614,7 +1587,6 @@ vm_map_pageable(
 		 * really wired down and that there are no holes.
 		 */
 		while ((entry != &map->header) && (entry->start < end)) {
-
 			if (entry->wired_count == 0 ||
 			    (entry->end < end &&
 				(entry->next == &map->header ||
@@ -1889,7 +1861,7 @@ vm_map_clean(
 		while (object && object->backing_object) {
 			object = object->backing_object;
 			offset += object->backing_object_offset;
-			if (object->size < OFF_TO_IDX( offset + size))
+			if (object->size < OFF_TO_IDX(offset + size))
 				size = IDX_TO_OFF(object->size) - offset;
 		}
 		if (object && (object->type == OBJT_VNODE) && 
@@ -1984,7 +1956,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	/*
 	 * Find the start of the region, and clip it
 	 */
-
 	if (!vm_map_lookup_entry(map, start, &first_entry))
 		entry = first_entry->next;
 	else {
@@ -2000,7 +1971,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	/*
 	 * Save the free space hint
 	 */
-
 	if (entry == &map->header) {
 		map->first_free = &map->header;
 	} else if (map->first_free->start >= start) {
@@ -2010,7 +1980,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	/*
 	 * Step through all entries in this region
 	 */
-
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_entry_t next;
 		vm_offset_t s, e;
@@ -2123,19 +2092,16 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		/*
 		 * No holes allowed!
 		 */
-
 		if (start < entry->start) {
 			return (FALSE);
 		}
 		/*
 		 * Check protection associated with entry.
 		 */
-
 		if ((entry->protection & protection) != protection) {
 			return (FALSE);
 		}
 		/* go to next entry */
-
 		start = entry->end;
 		entry = entry->next;
 	}
@@ -2389,14 +2355,12 @@ vmspace_fork(struct vmspace *vm1)
 			 * Insert the entry into the new map -- we know we're
 			 * inserting at the end of the new map.
 			 */
-
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
 
 			/*
 			 * Update the physical map
 			 */
-
 			pmap_copy(new_map->pmap, old_map->pmap,
 			    new_entry->start,
 			    (old_entry->end - old_entry->start),
@@ -2643,7 +2607,6 @@ Retry:
  * Unshare the specified VM space for exec.  If other processes are
  * mapped to it, then create a new one.  The new vmspace is null.
  */
-
 void
 vmspace_exec(struct proc *p) 
 {
@@ -2673,7 +2636,6 @@ vmspace_exec(struct proc *p)
  * Unshare the specified VM space for forcing COW.  This
  * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
  */
-
 void
 vmspace_unshare(struct proc *p)
 {
@@ -2690,7 +2652,6 @@ vmspace_unshare(struct proc *p)
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
 }
-	
 
 /*
  *	vm_map_lookup:
@@ -2731,28 +2692,23 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 
 	GIANT_REQUIRED;
 RetryLookup:;
-
 	/*
 	 * Lookup the faulting address.
 	 */
 
 	vm_map_lock_read(map);
-
 #define	RETURN(why) \
 		{ \
 		vm_map_unlock_read(map); \
-		return(why); \
+		return (why); \
 		}
 
 	/*
 	 * If the map has an interesting hint, try it before calling full
 	 * blown lookup routine.
 	 */
-
 	entry = map->hint;
-
 	*out_entry = entry;
-
 	if ((entry == &map->header) ||
 	    (vaddr < entry->start) || (vaddr >= entry->end)) {
 		vm_map_entry_t tmp_entry;
@@ -2771,7 +2727,6 @@ RetryLookup:;
 	/*
 	 * Handle submaps.
 	 */
-
 	if (entry->eflags & MAP_ENTRY_IS_SUB_MAP) {
 		vm_map_t old_map = map;
 
@@ -2786,17 +2741,14 @@ RetryLookup:;
 	 * pages with an override.  This is to implement a forced
 	 * COW for debuggers.
 	 */
-
 	if (fault_type & VM_PROT_OVERRIDE_WRITE)
 		prot = entry->max_protection;
 	else
 		prot = entry->protection;
-
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
 	if ((fault_type & prot) != fault_type) {
 			RETURN(KERN_PROTECTION_FAILURE);
 	}
-
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
 	    (fault_type & VM_PROT_WRITE) &&
@@ -2808,7 +2760,6 @@ RetryLookup:;
 	 * If this page is not pageable, we have to get it for all possible
 	 * accesses.
 	 */
-
 	*wired = (entry->wired_count != 0);
 	if (*wired)
 		prot = fault_type = entry->protection;
@@ -2816,7 +2767,6 @@ RetryLookup:;
 	/*
 	 * If the entry was copy-on-write, we either ...
 	 */
-
 	if (entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 		/*
 		 * If we want to write the page, we may as well handle that
@@ -2825,7 +2775,6 @@ RetryLookup:;
 		 * If we don't need to write the page, we just demote the
 		 * permissions allowed.
 		 */
-
 		if (fault_type & VM_PROT_WRITE) {
 			/*
 			 * Make a new object, and place it in the object
@@ -2833,15 +2782,12 @@ RetryLookup:;
 			 * -- one just moved from the map to the new
 			 * object.
 			 */
-
 			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
-
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
 			    atop(entry->end - entry->start));
-
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			vm_map_lock_downgrade(map);
 		} else {
@@ -2849,7 +2795,6 @@ RetryLookup:;
 			 * We're attempting to read a copy-on-write page --
 			 * don't allow writes.
 			 */
-
 			prot &= ~VM_PROT_WRITE;
 		}
 	}
@@ -2861,7 +2806,6 @@ RetryLookup:;
 	    !map->system_map) {
 		if (vm_map_lock_upgrade(map)) 
 			goto RetryLookup;
-
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    atop(entry->end - entry->start));
 		entry->offset = 0;
@@ -2872,14 +2816,12 @@ RetryLookup:;
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
-
 	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	/*
 	 * Return whether this is the only map sharing this data.
 	 */
-
 	*out_prot = prot;
 	return (KERN_SUCCESS);
 
@@ -2892,7 +2834,6 @@ RetryLookup:;
  *	Releases locks acquired by a vm_map_lookup
  *	(according to the handle returned by that lookup).
  */
-
 void
 vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 {
@@ -3052,18 +2993,17 @@ vm_uiomove(
 				}
 
 				/*
-   				* Force copy on write for mmaped regions
-   				*/
+   				 * Force copy on write for mmaped regions
+   				 */
 				vm_object_pmap_copy_1 (srcobject, oindex, oindex + osize);
 
 				/*
-   				* Point the object appropriately
-   				*/
+   				 * Point the object appropriately
+   				 */
 				if (oldobject != srcobject) {
-
-				/*
-   				* Set the object optimization hint flag
-   				*/
+					/*
+   					 * Set the object optimization hint flag
+   					 */
 					vm_object_set_flag(srcobject, OBJ_OPT);
 					vm_object_reference(srcobject);
 
@@ -3157,7 +3097,7 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 	if (object->shadow_count > object->ref_count)
 		panic("vm_freeze_copyopts: sc > rc");
 
-	while((robject = TAILQ_FIRST(&object->shadow_head)) != NULL) {
+	while ((robject = TAILQ_FIRST(&object->shadow_head)) != NULL) {
 		vm_pindex_t bo_pindex;
 		vm_page_t m_in, m_out;
 

@@ -66,9 +66,7 @@
  *
  * Overall memory utilization is about the same as the old swap structure.
  */
-
 #define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
-
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
@@ -106,6 +104,5 @@ void swap_pager_page_removed __P((vm_page_t, vm_object_t));
 struct buf;
 void swstrategy __P((struct buf *bp));	/* probably needs to move elsewhere */
 
-#endif
-
+#endif				/* _KERNEL */
 #endif				/* _SWAP_PAGER_ */
