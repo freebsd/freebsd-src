@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.13 1998/09/15 08:33:31 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.14 1998/09/15 22:05:40 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -359,6 +359,7 @@ dptallocccbs(dpt_softc_t *dpt)
 		next_ccb->eata_ccb.cp_busaddr = dpt->dpt_ccb_busend;
 
 		next_ccb->state = DCCB_FREE;
+		next_ccb->tag = dpt->total_dccbs;
 		SLIST_INSERT_HEAD(&dpt->free_dccb_list, next_ccb, links);
 		segs += dpt->sgsize;;
 		physaddr += (dpt->sgsize * sizeof(dpt_sg_t));
@@ -778,15 +779,14 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		eccb->cp_dispri = (ccb->ccb_h.flags & CAM_DIS_DISCONNECT)
 				? 0 : 1;
 		eccb->cp_identify = 1;
-		/*
-		 * XXX JGibbs
-		 * These are supposedly used for tagged queuing.
-		 * We should honor the tag type in the incoming CCB, but
-		 * I don't have DPT documentation to ensure that I do
-		 * this correctly.
-		 */
-		eccb->cp_msg[0] = 0;
-		eccb->cp_msg[1] = 0;
+
+		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
+			eccb->cp_msg[0] = csio->tag_action;
+			eccb->cp_msg[1] = dccb->tag;
+		} else {
+			eccb->cp_msg[0] = 0;
+			eccb->cp_msg[1] = 0;
+		}
 		eccb->cp_msg[2] = 0;
 
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
@@ -1261,6 +1261,12 @@ dpt_init(struct dpt_softc *dpt)
 	dpt->cppadlen = ntohs(conf.cppadlen);
 	dpt->max_dccbs = ntohs(conf.queuesiz);
 
+	if (dpt->max_dccbs > 256) {
+		printf("dpt%d: Max CCBs reduced from %d to "
+		       "256 due to tag algorithm\n", dpt->unit, dpt->max_dccbs);
+		dpt->max_dccbs = 256;
+	}
+
 	dpt->hostid[0] = conf.scsi_id0;
 	dpt->hostid[1] = conf.scsi_id1;
 	dpt->hostid[2] = conf.scsi_id2;
@@ -1446,7 +1452,7 @@ dpt_intr(void *arg)
 		if (dpt->sp->EOC == 0) {
 			printf("dpt%d ERROR: Request %d recieved with "
 			       "clear EOC.\n     Marking as LOST.\n",
-		       dpt->unit, dccb->transaction_id);
+			       dpt->unit, dccb->transaction_id);
 
 #ifdef DPT_HANDLE_TIMEOUTS
 			dccb->state |= DPT_CCB_STATE_MARKED_LOST;
@@ -1550,7 +1556,8 @@ dptprocesserror(dpt_softc_t *dpt, dpt_ccb_t *dccb, union ccb *ccb,
 	case HA_CP_RESET:	/* XXX ??? */
 	case HA_CP_ABORT_NA:	/* XXX ??? */
 	case HA_CP_RESET_NA:	/* XXX ??? */
-		ccb->ccb_h.status = CAM_REQ_ABORTED;
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
 		break;
 	case HA_PCI_PARITY:
 	case HA_PCI_MABORT:
@@ -1582,7 +1589,7 @@ dptprocesserror(dpt_softc_t *dpt, dpt_ccb_t *dccb, union ccb *ccb,
 		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
 		break;
 	default:
-		printf("dpt%d: Undocumented Error %x", dpt->unit, hba_stat);
+		printf("dpt%d: Undocumented Error %x\n", dpt->unit, hba_stat);
 		printf("Please mail this message to shimon@i-connect.net\n");
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
@@ -1603,14 +1610,14 @@ dpttimeout(void *arg)
 	ccb = dccb->ccb;
 	dpt = (struct dpt_softc *)ccb->ccb_h.ccb_dpt_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", (intptr_t)dccb);
+	printf("CCB %p - timed out\n", (void *)dccb);
 
 	s = splcam();
 
 	if ((dccb->state & DCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n",
-		       (intptr_t)dccb);
+		printf("CCB %p - timed out CCB already completed\n",
+		       (void *)dccb);
 		splx(s);
 		return;
 	}
@@ -1619,8 +1626,6 @@ dpttimeout(void *arg)
 	dpt_send_immediate(dpt, &dccb->eata_ccb, dccb->eata_ccb.cp_busaddr,
 			   /*retries*/20000, EATA_SPECIFIC_ABORT, 0, 0);
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
-	dptfreeccb(dpt, dccb);
-	xpt_done(ccb);
 	splx(s);
 }
 
