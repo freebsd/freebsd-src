@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 struct	int_entropy {
 	struct	proc *proc;
-	int	vector;
+	uintptr_t vector;
 };
 
 void	*vm_ih;
@@ -169,8 +169,8 @@ ithread_update(struct ithd *ithd)
 }
 
 int
-ithread_create(struct ithd **ithread, int vector, int flags,
-    void (*disable)(int), void (*enable)(int), const char *fmt, ...)
+ithread_create(struct ithd **ithread, uintptr_t vector, int flags,
+    void (*disable)(uintptr_t), void (*enable)(uintptr_t), const char *fmt, ...)
 {
 	struct ithd *ithd;
 	struct thread *td;
