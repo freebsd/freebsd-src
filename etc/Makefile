@@ -33,7 +33,8 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
 PPPCNF= ppp.deny ppp.shells.sample
 PPPCF2= ppp.conf
-NOSPAM=	Makefile README mailer.conf
+NOSPAM=	Makefile README mailer.conf access.sample virtusertable.sample \
+	mailertable.sample
 
 
 # Special top level files for FreeBSD
