@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.18 1997/05/27 10:00:08 peter Exp $
+.\"	$Id: style.9,v 1.19 1997/11/12 06:29:10 obrien Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -121,7 +121,30 @@ struct foo {
 	int	bar;
 };
 struct foo *foohead;		/* Head of global foo list */
-
+.Ed
+Use
+.Xr queue 3
+macros rather than rolling your own lists, whenever possible.  Thus,
+the previous example would be better written:
+.Bd -literal -offset 0i
+#include <sys/queue.h>
+struct	foo {
+	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
+	struct	mumble amumble;	/* Comment for mumble */
+	int	bar;
+};
+LIST_HEAD(, foo) foohead;	/* Head of global foo list */
+.Ed
+.Pp
+Avoid using typedefs for structure types.  This makes it impossible
+for applications to use pointers to such a structure opaquely, which
+is both possible and beneficial when using an ordinary struct tag.
+When convention requires a typedef, make its name match the struct
+tag.  Avoid typedefs ending in
+.Dq Li \&_t ,
+except as specified in Standard C or by
+.Tn POSIX .
+.Bd -literal -offset 0i
 /* Make the structure name match the typedef. */
 typedef struct _bar {
 	int	level;
