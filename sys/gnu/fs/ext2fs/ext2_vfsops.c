@@ -64,7 +64,7 @@
 
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
-static int ext2_reload(struct mount *mp, struct ucred *cred, struct thread *td);
+static int ext2_reload(struct mount *mp, struct thread *td);
 static int ext2_sbupdate(struct ext2mount *, int);
 
 static vfs_unmount_t		ext2_unmount;
@@ -175,7 +175,7 @@ ext2_mount(mp, td)
 			PICKUP_GIANT();
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
-			error = ext2_reload(mp, td->td_ucred, td);
+			error = ext2_reload(mp, td);
 		if (error)
 			return (error);
 		devvp = ump->um_devvp;
@@ -488,10 +488,7 @@ static int compute_sb_data(devvp, es, fs)
  *	6) re-read inode data for all active vnodes.
  */
 static int
-ext2_reload(mp, cred, td)
-	struct mount *mp;
-	struct ucred *cred;
-	struct thread *td;
+ext2_reload(struct mount *mp, struct thread *td)
 {
 	struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
