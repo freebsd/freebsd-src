@@ -577,7 +577,7 @@ static const char *long_help_msg[] = {
 	"  <patterns>  If specified, list only entries that match\n",
 	"Extract: %p -x [options] [<patterns>]\n",
 	"  <patterns>  If specified, extract only entries that match\n",
-	"  -k  	 Keep (don't overwrite) existing files\n",
+	"  -k    Keep (don't overwrite) existing files\n",
 	"  -m    Don't restore modification times\n",
 	"  -O    Write entries to stdout, don't restore to disk\n",
 	"  -p    Restore permissions (including ACLs, owner, file flags)\n",
