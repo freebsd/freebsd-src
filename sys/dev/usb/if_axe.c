@@ -810,7 +810,8 @@ axe_encap(struct axe_softc *sc, struct mbuf *m, int idx)
 	c->axe_mbuf = m;
 
 	usbd_setup_xfer(c->axe_xfer, sc->axe_ep[AXE_ENDPT_TX],
-	    c, c->axe_buf, m->m_pkthdr.len, 0, 10000, axe_txeof);
+	    c, c->axe_buf, m->m_pkthdr.len, USBD_FORCE_SHORT_XFER,
+	    10000, axe_txeof);
 
 	/* Transmit */
 	err = usbd_transfer(c->axe_xfer);
