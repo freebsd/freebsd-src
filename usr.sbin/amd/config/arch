@@ -38,7 +38,7 @@
 #
 #	@(#)arch	8.1 (Berkeley) 6/6/93
 #
-# $Id: arch,v 5.2.2.2 1992/05/31 16:45:35 jsp Exp $
+# $Id: arch,v 1.1.1.1 1994/05/26 05:22:08 rgrimes Exp $
 #
 # Figure out machine architecture
 #
@@ -63,6 +63,7 @@ then
 	ARCH="`uname`"
 	case "$ARCH" in
 		"HP-UX") echo hp9000; exit 0;;
+		"FreeBSD") echo FreeBSD; exit 0;;
 		AIX*) MACH="`uname -m`"
 			case "$MACH" in
 			00*) echo ibm6000; exit 0;;
