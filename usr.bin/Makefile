@@ -9,6 +9,7 @@
 #
 SUBDIR=	apply \
 	at \
+	awk \
 	banner \
 	basename \
 	biff \
