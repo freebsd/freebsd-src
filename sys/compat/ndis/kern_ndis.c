@@ -600,6 +600,7 @@ ndis_mtop(m0, p)
 	priv = &(*p)->np_private;
 	priv->npp_totlen = m0->m_pkthdr.len;
         priv->npp_packetooboffset = offsetof(ndis_packet, np_oob);
+	priv->npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
 
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len == 0)

@@ -1548,6 +1548,13 @@ ndis_alloc_packet(status, packet, pool)
 	pkt->np_private.npp_packetooboffset =
 	    offsetof(ndis_packet, np_oob);
 
+	/*
+	 * We must initialize the packet flags correctly in order
+	 * for the NDIS_SET_PACKET_MEDIA_SPECIFIC_INFO() and
+	 * NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO() to work correctly.
+	 */
+	pkt->np_private.npp_ndispktflags = NDIS_PACKET_ALLOCATED_BY_NDIS;
+
 	*packet = pkt;
 
 	head->np_private.npp_count++;
