@@ -98,8 +98,14 @@ svr4_getcontext(p, uc, mask, oonstack)
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
-	struct sigacts *psp = p->p_sigacts;
-	struct sigaltstack *sf = &p->p_sigstk;
+	struct sigacts *psp;
+	struct sigaltstack *sf;
+#endif
+
+	PROC_LOCK(p);
+#if defined(DONE_MORE_SIGALTSTACK_WORK)
+	psp = p->p_sigacts;
+	sf = &p->p_sigstk;
 #endif
 
 	memset(uc, 0, sizeof(struct svr4_ucontext));
@@ -154,6 +160,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	s->ss_size = 16384;
 	s->ss_flags = 0;
 #endif
+	PROC_UNLOCK(p);
 
 	/*
 	 * Set the signal mask
@@ -182,13 +189,19 @@ svr4_setcontext(p, uc)
 	struct svr4_ucontext *uc;
 {
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
-	struct sigacts *psp = p->p_sigacts;
+	struct sigacts *psp;
 #endif
 	register struct trapframe *tf;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
-	struct sigaltstack *sf = &p->p_sigstk;
+	struct sigaltstack *sf;
 	sigset_t mask;
+
+	PROC_LOCK(p);
+#if defined(DONE_MORE_SIGALTSTACK_WORK)
+	psp = p->p_sigacts;
+#endif
+	sf = &p->p_sigstk;
 
 	/*
 	 * XXX:
@@ -278,6 +291,7 @@ svr4_setcontext(p, uc)
 		SIG_CANTMASK(mask);
 		p->p_sigmask = mask;
 	}
+	PROC_UNLOCK(p);
 
 	return 0; /*EJUSTRETURN;*/
 }
@@ -396,12 +410,14 @@ svr4_sendsig(catcher, sig, mask, code)
 	register struct proc *p = curproc;
 	register struct trapframe *tf;
 	struct svr4_sigframe *fp, frame;
-	struct sigacts *psp = p->p_sigacts;
+	struct sigacts *psp;
 	int oonstack;
 
 #if defined(DEBUG_SVR4)
 	printf("svr4_sendsig(%d)\n", sig);
 #endif
+	PROC_LOCK(p);
+	psp = p->p_sigacts;
 
 	tf = p->p_md.md_regs;
 	oonstack = sigonstack(tf->tf_esp);
@@ -417,6 +433,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	} else {
 		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
 	}
+	PROC_UNLOCK(p);
 
 	/* 
 	 * Build the argument list for the signal handler.
@@ -487,7 +504,11 @@ svr4_sys_sysarch(p, v)
 {
 	struct svr4_sys_sysarch_args *uap = v;
 #ifdef USER_LDT
+#if defined(__NetBSD__)
 	caddr_t sg = stackgap_init(p->p_emul);
+#else
+	caddr_t sg = stackgap_init();
+#endif
 	int error;
 #endif
 	switch (uap->op) {
