@@ -132,7 +132,7 @@ static struct conf_entry *init_entry(const char *fname,
 static void PRS(int argc, char **argv);
 static void usage(void);
 static void dotrim(const struct conf_entry *ent, char *log,
-		int numdays, int flags, int perm, int sig);
+		int numdays, int flags);
 static int log_trim(const char *log, const struct conf_entry *log_ent);
 static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
@@ -358,8 +358,7 @@ do_entry(struct conf_entry * ent)
 					printf("%s <%d>: trimming\n",
 					    ent->log, ent->numlogs);
 			}
-			dotrim(ent, ent->log, ent->numlogs, ent->flags,
-			    ent->permissions, ent->sig);
+			dotrim(ent, ent->log, ent->numlogs, ent->flags);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -912,8 +911,7 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
-    int perm, int sig)
+dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
@@ -1009,13 +1007,14 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
 		}
 		if (noaction) {
 			printf("mv %s %s\n", zfile1, zfile2);
-			printf("chmod %o %s\n", perm, zfile2);
+			printf("chmod %o %s\n", ent->permissions, zfile2);
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				printf("chown %u:%u %s\n",
 				    ent->uid, ent->gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
-			(void) chmod(zfile2, perm);
+			if (chmod(zfile2, ent->permissions))
+				warn("can't chmod %s", file2);
 			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
 				if (chown(zfile2, ent->uid, ent->gid))
 					warn("can't chown %s", zfile2);
@@ -1036,7 +1035,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
 			printf("mv %s to %s\n", log, file1);
 		else {
 			if (archtodir)
-				movefile(log, file1, perm, ent->uid,
+				movefile(log, file1, ent->permissions, ent->uid,
 				    ent->gid);
 			else
 				(void) rename(log, file1);
@@ -1049,7 +1048,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
 		strlcpy(tfile, log, sizeof(tfile));
 		strlcat(tfile, ".XXXXXX", sizeof(tfile));
 		mkstemp(tfile);
-		fd = creat(tfile, perm);
+		fd = creat(tfile, ent->permissions);
 		if (fd < 0)
 			err(1, "can't start new log");
 		if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
@@ -1063,9 +1062,9 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
 		}
 	}
 	if (noaction)
-		printf("chmod %o %s...\n", perm, log);
+		printf("chmod %o %s...\n", ent->permissions, log);
 	else {
-		(void) chmod(tfile, perm);
+		(void) chmod(tfile, ent->permissions);
 		if (rename(tfile, log) < 0) {
 			err(1, "can't start new log");
 			(void) unlink(tfile);
@@ -1081,8 +1080,8 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags,
 	if (pid) {
 		if (noaction) {
 			notified = 1;
-			printf("kill -%d %d\n", sig, (int) pid);
-		} else if (kill(pid, sig))
+			printf("kill -%d %d\n", ent->sig, (int) pid);
+		} else if (kill(pid, ent->sig))
 			warn("can't notify daemon, pid %d", (int) pid);
 		else {
 			notified = 1;
