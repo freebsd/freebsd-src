@@ -134,6 +134,17 @@
 #define IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))
 
 /*
+ * Page size of the identity mappings in region 7.
+ */
+#ifndef LOG2_ID_PAGE_SIZE
+#define	LOG2_ID_PAGE_SIZE	28		/* 256M */
+#endif
+
+#define	IA64_ID_PAGE_SHIFT	(LOG2_ID_PAGE_SIZE)
+#define	IA64_ID_PAGE_SIZE	(1<<(LOG2_ID_PAGE_SIZE))
+#define	IA64_ID_PAGE_MASK	(IA64_ID_PAGE_SIZE-1)
+
+/*
  * Mach derived constants
  */
 
