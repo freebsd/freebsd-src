@@ -529,7 +529,7 @@ get_mcontext(struct thread *td, mcontext_t *mc)
 		pcb->pcb_flags |= PCB_FEF;
 	}
 	if ((pcb->pcb_flags & PCB_FEF) != 0) {
-		bcopy(pcb->pcb_ufp, mc->mc_fp, sizeof(*mc->mc_fp));
+		bcopy(pcb->pcb_ufp, mc->mc_fp, sizeof(mc->mc_fp));
 		mc->mc_fprs |= FPRS_FEF;
 	}
 	critical_exit();
@@ -553,7 +553,7 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	tf->tf_wstate = wstate;
 	if ((mc->mc_fprs & FPRS_FEF) != 0) {
 		tf->tf_fprs = 0;
-		bcopy(mc->mc_fp, pcb->pcb_ufp, sizeof(*pcb->pcb_ufp));
+		bcopy(mc->mc_fp, pcb->pcb_ufp, sizeof(pcb->pcb_ufp));
 		pcb->pcb_flags |= PCB_FEF;
 	}
 	return (0);
