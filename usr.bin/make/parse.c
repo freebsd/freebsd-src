@@ -723,7 +723,7 @@ ParseDoDependency (line)
 
     do {
 	for (cp = line;
-	     *cp && !isspace (*cp) &&
+	     *cp && !isspace ((unsigned char) *cp) &&
 	     (*cp != '!') && (*cp != ':') && (*cp != '(');
 	     cp++)
 	{
@@ -948,7 +948,7 @@ ParseDoDependency (line)
 		Parse_Error(PARSE_WARNING, "Extra target ignored");
 	    }
 	} else {
-	    while (*cp && isspace (*cp)) {
+	    while (*cp && isspace ((unsigned char) *cp)) {
 		cp++;
 	    }
 	}
@@ -1006,7 +1006,7 @@ ParseDoDependency (line)
     /*
      * Get to the first source
      */
-    while (*cp && isspace (*cp)) {
+    while (*cp && isspace ((unsigned char) *cp)) {
 	cp++;
     }
     line = cp;
@@ -1096,7 +1096,7 @@ ParseDoDependency (line)
 	     * has no valid suffix.
 	     */
 	    char  savec;
-	    while (*cp && !isspace (*cp)) {
+	    while (*cp && !isspace ((unsigned char) *cp)) {
 		cp++;
 	    }
 	    savec = *cp;
@@ -1124,7 +1124,7 @@ ParseDoDependency (line)
 	    if (savec != '\0') {
 		cp++;
 	    }
-	    while (*cp && isspace (*cp)) {
+	    while (*cp && isspace ((unsigned char) *cp)) {
 		cp++;
 	    }
 	    line = cp;
@@ -1139,7 +1139,7 @@ ParseDoDependency (line)
 	     * specifications (i.e. things with left parentheses in them)
 	     * and handle them accordingly.
 	     */
-	    while (*cp && !isspace (*cp)) {
+	    while (*cp && !isspace ((unsigned char) *cp)) {
 		if ((*cp == '(') && (cp > line) && (cp[-1] != '$')) {
 		    /*
 		     * Only stop for a left parenthesis if it isn't at the
@@ -1177,7 +1177,7 @@ ParseDoDependency (line)
 
 		ParseDoSrc (tOp, line, curSrcs);
 	    }
-	    while (*cp && isspace (*cp)) {
+	    while (*cp && isspace ((unsigned char) *cp)) {
 		cp++;
 	    }
 	    line = cp;
@@ -1350,7 +1350,7 @@ Parse_DoVar (line, ctxt)
      * Skip to operator character, nulling out whitespace as we go
      */
     for (cp = line + 1; *cp != '='; cp++) {
-	if (isspace (*cp)) {
+	if (isspace ((unsigned char) *cp)) {
 	    *cp = '\0';
 	}
     }
@@ -1406,7 +1406,7 @@ Parse_DoVar (line, ctxt)
 	    break;
     }
 
-    while (isspace (*cp)) {
+    while (isspace ((unsigned char) *cp)) {
 	cp++;
     }
 
@@ -1548,12 +1548,12 @@ static void
 ParseDoError(errmsg)
     char          *errmsg;	/* error message */
 {
-	if (!isspace(*errmsg)) {
+	if (!isspace((unsigned char) *errmsg)) {
 		Parse_Error(PARSE_WARNING, "invalid syntax: .error%s", errmsg);
 		return;
 	}
 	
-	while (isspace(*errmsg))
+	while (isspace((unsigned char) *errmsg))
 		errmsg++;
 	
 	errmsg = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
@@ -2391,7 +2391,7 @@ Parse_File(name, stream)
 		 * Lines that begin with the special character are either
 		 * include or undef directives.
 		 */
-		for (cp = line + 1; isspace (*cp); cp++) {
+		for (cp = line + 1; isspace ((unsigned char) *cp); cp++) {
 		    continue;
 		}
 		if (strncmp (cp, "include", 7) == 0) {
@@ -2430,7 +2430,7 @@ Parse_File(name, stream)
 #ifndef POSIX
 	    shellCommand:
 #endif
-		for (cp = line + 1; isspace (*cp); cp++) {
+		for (cp = line + 1; isspace ((unsigned char) *cp); cp++) {
 		    continue;
 		}
 		if (*cp) {

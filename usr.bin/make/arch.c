@@ -231,11 +231,11 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	 */
 	Boolean	doSubst = FALSE; /* TRUE if need to substitute in memName */
 
-	while (*cp != '\0' && *cp != ')' && isspace (*cp)) {
+	while (*cp != '\0' && *cp != ')' && isspace ((unsigned char) *cp)) {
 	    cp++;
 	}
 	memName = cp;
-	while (*cp != '\0' && *cp != ')' && !isspace (*cp)) {
+	while (*cp != '\0' && *cp != ')' && !isspace ((unsigned char) *cp)) {
 	    if (*cp == '$') {
 		/*
 		 * Variable spec, so call the Var module to parse the puppy
@@ -414,7 +414,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
      */
     do {
 	cp++;
-    } while (*cp != '\0' && isspace (*cp));
+    } while (*cp != '\0' && isspace ((unsigned char) *cp));
 
     *linePtr = cp;
     return (SUCCESS);
