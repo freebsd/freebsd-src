@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.189 1995/12/07 14:11:29 jkh Exp $
+# $Id: bsd.port.mk,v 1.190 1996/02/06 21:25:23 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1172,7 +1172,7 @@ fake-pkg:
 	else \
 		${ECHO_MSG} "===> ${PKGNAME} is already installed - perhaps an older version?"; \
 		${ECHO_MSG} "     If so, you may wish to \`\`pkg_delete ${PKGNAME}'' and install"; \
-		${ECHO_MSG} "     this port again to upgrade it properly."; \
+		${ECHO_MSG} "     this port again by \`\`make reinstall'' to upgrade it properly."; \
 	fi
 .endif
 
