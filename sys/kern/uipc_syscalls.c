@@ -1801,7 +1801,9 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	/*
 	 * Protect against multiple writers to the socket.
 	 */
+	SOCKBUF_LOCK(&so->so_snd);
 	(void) sblock(&so->so_snd, M_WAITOK);
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/*
 	 * Loop through the pages in the file, starting with the requested
@@ -1841,14 +1843,17 @@ retry_lookup:
 		 * Optimize the non-blocking case by looking at the socket space
 		 * before going to the extra work of constituting the sf_buf.
 		 */
+		SOCKBUF_LOCK(&so->so_snd);
 		if ((so->so_state & SS_NBIO) && sbspace(&so->so_snd) <= 0) {
 			if (so->so_snd.sb_state & SBS_CANTSENDMORE)
 				error = EPIPE;
 			else
 				error = EAGAIN;
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
+		SOCKBUF_UNLOCK(&so->so_snd);
 		VM_OBJECT_LOCK(obj);
 		/*
 		 * Attempt to look up the page.
@@ -1936,7 +1941,9 @@ retry_lookup:
 			}
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(obj);
+			SOCKBUF_LOCK(&so->so_snd);
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
 		vm_page_unlock_queues();
@@ -1952,7 +1959,9 @@ retry_lookup:
 			if (pg->wire_count == 0 && pg->object == NULL)
 				vm_page_free(pg);
 			vm_page_unlock_queues();
+			SOCKBUF_LOCK(&so->so_snd);
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			error = EINTR;
 			goto done;
 		}
@@ -1967,7 +1976,9 @@ retry_lookup:
 		if (m == NULL) {
 			error = ENOBUFS;
 			sf_buf_mext((void *)sf_buf_kva(sf), sf);
+			SOCKBUF_LOCK(&so->so_snd);
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
 		/*
@@ -1989,6 +2000,7 @@ retry_lookup:
 		 * Add the buffer to the socket buffer chain.
 		 */
 		s = splnet();
+		SOCKBUF_LOCK(&so->so_snd);
 retry_space:
 		/*
 		 * Make sure that the socket is still able to take more data.
@@ -2001,6 +2013,7 @@ retry_space:
 		 * blocks before the pru_send (or more accurately, any blocking
 		 * results in a loop back to here to re-check).
 		 */
+		SOCKBUF_LOCK_ASSERT(&so->so_snd);
 		if ((so->so_snd.sb_state & SBS_CANTSENDMORE) || so->so_error) {
 			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 				error = EPIPE;
@@ -2010,6 +2023,7 @@ retry_space:
 			}
 			m_freem(m);
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			splx(s);
 			goto done;
 		}
@@ -2022,6 +2036,7 @@ retry_space:
 			if (so->so_state & SS_NBIO) {
 				m_freem(m);
 				sbunlock(&so->so_snd);
+				SOCKBUF_UNLOCK(&so->so_snd);
 				splx(s);
 				error = EAGAIN;
 				goto done;
@@ -2035,20 +2050,26 @@ retry_space:
 			if (error) {
 				m_freem(m);
 				sbunlock(&so->so_snd);
+				SOCKBUF_UNLOCK(&so->so_snd);
 				splx(s);
 				goto done;
 			}
 			goto retry_space;
 		}
+		SOCKBUF_UNLOCK(&so->so_snd);
 		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, td);
 		splx(s);
 		if (error) {
+			SOCKBUF_LOCK(&so->so_snd);
 			sbunlock(&so->so_snd);
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
 		headersent = 1;
 	}
+	SOCKBUF_LOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
+	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/*
 	 * Send trailers. Wimp out and use writev(2).

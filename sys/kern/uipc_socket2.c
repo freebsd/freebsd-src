@@ -323,8 +323,10 @@ sbwait(sb)
 	struct sockbuf *sb;
 {
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	sb->sb_flags |= SB_WAIT;
-	return (tsleep(&sb->sb_cc,
+	return (msleep(&sb->sb_cc, &sb->sb_mtx,
 	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
 	    sb->sb_timeo));
 }
@@ -339,9 +341,11 @@ sb_lock(sb)
 {
 	int error;
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	while (sb->sb_flags & SB_LOCK) {
 		sb->sb_flags |= SB_WANT;
-		error = tsleep(&sb->sb_flags,
+		error = msleep(&sb->sb_flags, &sb->sb_mtx,
 		    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK|PCATCH,
 		    "sblock", 0);
 		if (error)
