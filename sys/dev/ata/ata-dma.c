@@ -43,16 +43,10 @@
 
 /* prototypes */
 static void ata_dmasetupc_cb(void *, bus_dma_segment_t *, int, int);
-static int ata_dmaalloc(struct ata_device *);
-static void ata_dmafree(struct ata_device *);
-static void ata_dmacreate(struct ata_channel *);
-static void ata_dmadestroy(struct ata_channel *);
+static int ata_dmaalloc(struct ata_channel *);
+static void ata_dmafree(struct ata_channel *);
 static void ata_dmasetupd_cb(void *, bus_dma_segment_t *, int, int);
 static int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
-/*
-static int ata_dmastart(struct ata_device *, caddr_t, int32_t, int);
-static int ata_dmastop(struct ata_device *);
-*/
 static int ata_dmastatus(struct ata_channel *);
 
 /* local vars */
@@ -72,10 +66,8 @@ int
 ata_dmainit(struct ata_channel *ch)
 {
     if (!(ch->dma = 
-	malloc(sizeof(struct ata_dma_funcs), M_ATADMA, M_NOWAIT | M_ZERO)))
+	malloc(sizeof(struct ata_dma_data), M_ATADMA, M_NOWAIT | M_ZERO)))
 	return ENOMEM;
-    ch->dma->create = ata_dmacreate;
-    ch->dma->destroy = ata_dmadestroy;
     ch->dma->alloc = ata_dmaalloc;
     ch->dma->free = ata_dmafree;
     ch->dma->setup = ata_dmasetup;
@@ -97,99 +89,83 @@ ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
-ata_dmaalloc(struct ata_device *atadev)
+ata_dmaalloc(struct ata_channel *ch)
 {
-    struct ata_channel *ch;
     struct ata_dc_cb_args ccba;
-    struct ata_dmastate *ds;
     int error;
 
-    ch = atadev->channel;
-    ds = &atadev->dmastate;
-    if (!ds->cdmatag) {
-	if ((error = bus_dma_tag_create(ch->dmatag, 1, PAGE_SIZE,
+    if (!ch->dma->dmatag) {
+	if (bus_dma_tag_create(NULL, 1, 0,
+			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
+			       BUS_SPACE_MAXSIZE_32BIT, 0, &ch->dma->dmatag)) {
+	    printf("DMA tag allocation failed, disabling DMA\n");
+	}
+    }
+    if (!ch->dma->cdmatag) {
+	if ((error = bus_dma_tag_create(ch->dma->dmatag, 1, PAGE_SIZE,
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXTABSZ, 1, MAXTABSZ,
-					BUS_DMA_ALLOCNOW, &ds->cdmatag)))
+					BUS_DMA_ALLOCNOW, &ch->dma->cdmatag)))
 	    return error;
     }
-    if (!ds->ddmatag) {
-	if ((error = bus_dma_tag_create(ch->dmatag, ch->dma->alignment, 0,
+    if (!ch->dma->ddmatag) {
+	if ((error = bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 0,
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
-					BUS_DMA_ALLOCNOW, &ds->ddmatag)))
+					BUS_DMA_ALLOCNOW, &ch->dma->ddmatag)))
 	    return error;
     }
-    if (!ds->mdmatab) {
-	if ((error = bus_dmamem_alloc(ds->cdmatag, (void **)&ds->dmatab, 0,
-				      &ds->cdmamap)))
+    if (!ch->dma->mdmatab) {
+	if ((error = bus_dmamem_alloc(ch->dma->cdmatag,
+				      (void **)&ch->dma->dmatab, 0,
+				      &ch->dma->cdmamap)))
 	    return error;
 
-	if ((error = bus_dmamap_load(ds->cdmatag, ds->cdmamap, ds->dmatab,
-				     MAXTABSZ, ata_dmasetupc_cb, &ccba,
-				     0)) != 0 || ccba.error != 0) {
-	    bus_dmamem_free(ds->cdmatag, ds->dmatab, ds->cdmamap);
+	if ((error = bus_dmamap_load(ch->dma->cdmatag, ch->dma->cdmamap,
+				     ch->dma->dmatab, MAXTABSZ,
+				     ata_dmasetupc_cb, &ccba, 0)) != 0 ||
+	    ccba.error != 0) {
+	    bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab,ch->dma->cdmamap);
 	    return error;
 	}
-	ds->mdmatab = ccba.maddr;
+	ch->dma->mdmatab = ccba.maddr;
     }
-    if (!ds->ddmamap) {
-	if ((error = bus_dmamap_create(ds->ddmatag, 0, &ds->ddmamap)) != 0)
+    if (!ch->dma->ddmamap) {
+	if ((error = bus_dmamap_create(ch->dma->ddmatag, 0,
+				       &ch->dma->ddmamap)) != 0)
 	    return error;
     }
     return 0;
 }
 
 static void
-ata_dmafree(struct ata_device *atadev)
+ata_dmafree(struct ata_channel *ch)
 {
-    struct ata_dmastate *ds;
-
-    ds = &atadev->dmastate;
-    if (ds->mdmatab) {
-	bus_dmamap_unload(ds->cdmatag, ds->cdmamap);
-	bus_dmamem_free(ds->cdmatag, ds->dmatab, ds->cdmamap);
-	ds->mdmatab = 0;
-	ds->cdmamap = NULL;
-	ds->dmatab = NULL;
+    if (ch->dma->mdmatab) {
+	bus_dmamap_unload(ch->dma->cdmatag, ch->dma->cdmamap);
+	bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab, ch->dma->cdmamap);
+	ch->dma->mdmatab = 0;
+	ch->dma->cdmamap = NULL;
+	ch->dma->dmatab = NULL;
     }
-    if (ds->ddmamap) {
-	bus_dmamap_destroy(ds->ddmatag, ds->ddmamap);
-	ds->ddmamap = NULL;
+    if (ch->dma->ddmamap) {
+	bus_dmamap_destroy(ch->dma->ddmatag, ch->dma->ddmamap);
+	ch->dma->ddmamap = NULL;
     }
-    if (ds->cdmatag) {
-	bus_dma_tag_destroy(ds->cdmatag);
-	ds->cdmatag = NULL;
+    if (ch->dma->cdmatag) {
+	bus_dma_tag_destroy(ch->dma->cdmatag);
+	ch->dma->cdmatag = NULL;
     }
-    if (ds->ddmatag) {
-	bus_dma_tag_destroy(ds->ddmatag);
-	ds->ddmatag = NULL;
+    if (ch->dma->ddmatag) {
+	bus_dma_tag_destroy(ch->dma->ddmatag);
+	ch->dma->ddmatag = NULL;
     }
-}
-
-static void
-ata_dmacreate(struct ata_channel *ch)
-{
-
-    if (!ch->dmatag) {
-	if (bus_dma_tag_create(NULL, 1, 0,
-			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
-			       BUS_SPACE_MAXSIZE_32BIT, 0, &ch->dmatag)) {
-	    printf("DMA tag allocation failed, disabling DMA\n");
-	}
-    }
-}
-
-static void
-ata_dmadestroy(struct ata_channel *ch)
-{
-
-    if (ch->dmatag) {
-	bus_dma_tag_destroy(ch->dmatag);
-	ch->dmatag = NULL;
+    if (ch->dma->dmatag) {
+	bus_dma_tag_destroy(ch->dma->dmatag);
+	ch->dma->dmatag = NULL;
     }
 }
 
@@ -243,62 +219,42 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
     return 0;
 }
 
-int
-ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
+static int
+ata_dmastatus(struct ata_channel *ch)
 {
-    struct ata_channel *ch = atadev->channel;
-    struct ata_dmastate *ds = &atadev->dmastate;
+    return ch->dma->flags & ATA_DMA_ACTIVE;
+}
+
+int
+ata_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
+{
     struct ata_dmasetup_data_cb_args cba;
 
-    if (ds->flags & ATA_DS_ACTIVE)
+    if (ch->dma->flags & ATA_DMA_ACTIVE)
 	    panic("ata_dmasetup: transfer active on this device!");
 
-    cba.dmatab = ds->dmatab;
-    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
-    if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
+    cba.dmatab = ch->dma->dmatab;
+    bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_PREWRITE);
+
+    if (bus_dmamap_load(ch->dma->ddmatag, ch->dma->ddmamap, data, count,
 			ata_dmasetupd_cb, &cba, 0) || cba.error)
 	return -1;
 
-    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_POSTWRITE);
-    bus_dmamap_sync(ds->ddmatag, ds->ddmamap, dir ? BUS_DMASYNC_PREREAD :
-		    BUS_DMASYNC_PREWRITE);
+    bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_POSTWRITE);
+    bus_dmamap_sync(ch->dma->ddmatag, ch->dma->ddmamap,
+		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 
-    ch->flags |= ATA_DMA_ACTIVE;
-    ds->flags = dir ? (ATA_DS_ACTIVE | ATA_DS_READ) : ATA_DS_ACTIVE;
-
-    ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
-    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
-    ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
-	     (ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) | 
-	     (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
-	     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    ch->dma->flags = dir ? (ATA_DMA_ACTIVE | ATA_DMA_READ) : ATA_DMA_ACTIVE;
     return 0;
 }
 
 int
-ata_dmastop(struct ata_device *atadev)
+ata_dmastop(struct ata_channel *ch)
 {
-    struct ata_channel *ch = atadev->channel;
-    struct ata_dmastate *ds = &atadev->dmastate;
-    int error;
-
-    error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
-    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
-	     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,ATA_BMSTAT_INTERRUPT|ATA_BMSTAT_ERROR);
-
-    bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
+    bus_dmamap_sync(ch->dma->ddmatag, ch->dma->ddmamap,
+		    (ch->dma->flags & ATA_DMA_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
-    bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
-
-    ch->flags &= ~ATA_DMA_ACTIVE;
-    ds->flags = 0;
-    return (error & ATA_BMSTAT_MASK);
-}
-
-static int
-ata_dmastatus(struct ata_channel *ch)
-{
-    return ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+    bus_dmamap_unload(ch->dma->ddmatag, ch->dma->ddmamap);
+    ch->dma->flags = 0;
+    return 0;
 }

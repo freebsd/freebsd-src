@@ -54,7 +54,8 @@ static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
 #define IOMASK			0xfffffffc
 
 /* prototypes */
-static int ata_pci_add_child(device_t, int);
+static int ata_pci_allocate(device_t, struct ata_channel *);
+static int ata_pci_dmainit(struct ata_channel *);
 static void ata_pci_locknoop(struct ata_channel *, int);
 
 static int
@@ -93,6 +94,7 @@ ata_pci_probe(device_t dev)
 
     case 0x16ca:
 	if (pci_get_devid(dev) == 0x000116ca) {
+	    ata_generic_ident(dev);
 	    device_set_desc(dev, "Cenatek Rocket Drive controller");
 	    return 0;
 	}
@@ -100,6 +102,7 @@ ata_pci_probe(device_t dev)
 
     case 0x1042:
 	if (pci_get_devid(dev)==0x10001042 || pci_get_devid(dev)==0x10011042) {
+	    ata_generic_ident(dev);
 	    device_set_desc(dev, 
 		"RZ 100? ATA controller !WARNING! buggy HW data loss possible");
 	    return 0;
@@ -118,10 +121,10 @@ ata_pci_probe(device_t dev)
 static int
 ata_pci_attach(device_t dev)
 {
-    struct ata_pci_controller *controller = device_get_softc(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
     u_int8_t class, subclass;
     u_int32_t type, cmd;
-    int rid;
+    int unit;
 
     /* set up vendor-specific stuff */
     type = pci_get_devid(dev);
@@ -134,61 +137,43 @@ ata_pci_attach(device_t dev)
 	return 0;
     }
 
+    /* do chipset specific setups only needed once */
+    if (ATA_MASTERDEV(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
+	ctlr->channels = 2;
+    else
+	ctlr->channels = 1;
+    ctlr->allocate = ata_pci_allocate;
+    ctlr->dmainit = ata_pci_dmainit;
+    ctlr->locking = ata_pci_locknoop;
+    ctlr->chipinit(dev);
+
 #ifdef __sparc64__
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
 	pci_write_config(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN, 2);
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     }
 #endif
-    /* is busmastering supported ? */
-    if ((cmd & (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) == 
-	(PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN)) {
+    /* is busmastering supported and configured ? */
+    if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
+	int rid = ATA_BMADDR_RID;
 
-	/* is there a valid port range to connect to ? */
-	rid = 0x20;
-	controller->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-						0, ~0, 1, RF_ACTIVE);
-	if (!controller->r_bmio)
-	    device_printf(dev, "Busmastering DMA not configured\n");
+	if (!ctlr->r_mem) {
+	    if (!(ctlr->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+						    0, ~0, 1, RF_ACTIVE)))
+		device_printf(dev, "Busmastering DMA not configured\n");
+	}
     }
     else
 	device_printf(dev, "Busmastering DMA not supported\n");
 
-    /* do chipset specific setups only needed once */
-    controller->dmainit = ata_dmainit;
-    controller->locking = ata_pci_locknoop;
-    controller->chipinit(dev);
-
-    if (controller->r_bmio) {
-	controller->bmaddr = rman_get_start(controller->r_bmio);
-	BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-			     SYS_RES_IOPORT, rid, controller->r_bmio);
-	controller->r_bmio = NULL;
-    }
-
-    ata_pci_add_child(dev, 0);
-
-    if (ATA_MASTERDEV(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
-	ata_pci_add_child(dev, 1);
+    /* attach all channels on this controller */
+    for (unit = 0; unit < ctlr->channels; unit++)
+	device_add_child(dev, "ata", ATA_MASTERDEV(dev) ?
+			 unit : devclass_find_free_unit(ata_devclass, 2));
 
     return bus_generic_attach(dev);
 }
 
-static int
-ata_pci_add_child(device_t dev, int unit)
-{
-    /* check if this is located at one of the std addresses */
-    if (ATA_MASTERDEV(dev)) {
-	if (!device_add_child(dev, "ata", unit))
-	    return ENOMEM;
-    }
-    else {
-	if (!device_add_child(dev, "ata",
-			      devclass_find_free_unit(ata_devclass, 2)))
-	    return ENOMEM;
-    }
-    return 0;
-}
 
 static int
 ata_pci_print_child(device_t dev, device_t child)
@@ -197,7 +182,7 @@ ata_pci_print_child(device_t dev, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
-    retval += printf(": at 0x%lx", rman_get_start(ch->r_io));
+    retval += printf(": at 0x%lx", rman_get_start(ch->r_io[0].res));
 
     if (ATA_MASTERDEV(dev))
 	retval += printf(" irq %d", 14 + ch->unit);
@@ -263,18 +248,6 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 	    }
 	    break;
-
-	case ATA_BMADDR_RID:
-	    if (controller->bmaddr) {
-		myrid = 0x20;
-		start = (unit == 0 ? 
-			 controller->bmaddr : controller->bmaddr+ATA_BMIOSIZE);
-		end = start + ATA_BMIOSIZE - 1;
-		count = ATA_BMIOSIZE;
-		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-					 SYS_RES_IOPORT, &myrid,
-					 start, end, count, flags);
-	    }
 	}
 	return res;
     }
@@ -322,10 +295,6 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					    SYS_RES_IOPORT, 0x14 + 8 * unit, r);
 	    break;
-
-	case ATA_BMADDR_RID:
-	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-					SYS_RES_IOPORT, 0x20, r);
 	default:
 	    return ENOENT;
 	}
@@ -393,17 +362,115 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return 0;
     }
 }
+    
+static int
+ata_pci_allocate(device_t dev, struct ata_channel *ch)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct resource *io = NULL, *altio = NULL;
+    int i, rid;
+
+    rid = ATA_IOADDR_RID;
+    io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			    0, ~0, ATA_IOSIZE, RF_ACTIVE);
+    if (!io)
+	return ENXIO;
+
+    rid = ATA_ALTADDR_RID;
+    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+			       0, ~0, ATA_ALTIOSIZE, RF_ACTIVE);
+    if (!altio) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	return ENXIO;
+    }
+
+    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+	ch->r_io[i].res = io;
+	ch->r_io[i].offset = i;
+    }
+    ch->r_io[ATA_ALTSTAT].res = altio;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
+
+    if (ctlr->r_bmio) {
+	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
+	    ch->r_io[i].res = ctlr->r_bmio;
+	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
+	}
+
+	/* if simplex controller, only allow DMA on primary channel */
+	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_IDX_INB(ch, ATA_BMSTAT_PORT) &
+		     (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
+	if (ch->unit > 0 &&
+	    (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_DMA_SIMPLEX))
+	    device_printf(dev, "simplex device, DMA on primary only\n");
+	else 
+	    ctlr->dmainit(ch);
+    }
+    return 0;
+}
+
+static int
+ata_pci_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
+{
+    int error;
+
+    if ((error = ata_dmastart(ch, data, count, dir)))
+	return error;
+
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
+	     (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
+	     ATA_IDX_INB(ch, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    return 0;
+}
+
+static int
+ata_pci_dmastop(struct ata_channel *ch)
+{
+    int error;
+
+    error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
+	     ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+
+    ata_dmastop(ch);
+
+    return (error & ATA_BMSTAT_MASK);
+}
+
+static int 
+ata_pci_dmastatus(struct ata_channel *ch)
+{
+    return ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
+}   
+
+static int
+ata_pci_dmainit(struct ata_channel *ch)
+{
+    int error;
+
+    if ((error = ata_dmainit(ch)))
+	return error;
+
+    ch->dma->start = ata_pci_dmastart;
+    ch->dma->stop = ata_pci_dmastop;
+    ch->dma->status = ata_pci_dmastatus;
+    return 0;
+}
 
 static void
 ata_pci_locknoop(struct ata_channel *ch, int flags)
 {
 }
 
-
 static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,		ata_pci_probe),
     DEVMETHOD(device_attach,		ata_pci_attach),
+    DEVMETHOD(device_detach,		ata_pci_attach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
     DEVMETHOD(device_resume,		bus_generic_resume),
@@ -445,24 +512,14 @@ ata_pcisub_probe(device_t dev)
     }
     free(children, M_TEMP);
 
+    if ((error = ctlr->allocate(dev, ch)))
+	return error;
+
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;
-    ch->chiptype = pci_get_devid(device_get_parent(dev));
-
-    if (!(error = ata_probe(dev)) && ch->r_bmio) {
-	/* if simplex controller, only allow DMA on primary channel */
-	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
-		 ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) &
-		 (ATA_BMSTAT_DMA_MASTER | ATA_BMSTAT_DMA_SLAVE));
-	if (ch->unit == 1 && ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT) &
-			     ATA_BMSTAT_DMA_SIMPLEX) {
-	    ata_printf(ch, -1, "simplex device, DMA on primary only\n");
-	    return error;
-	}
-	error = ctlr->dmainit(ch);
-    }
-    return error;
+    ch->chiptype = ctlr->chip->chipid;
+    return ata_probe(dev);
 }
 
 static device_method_t ata_pcisub_methods[] = {

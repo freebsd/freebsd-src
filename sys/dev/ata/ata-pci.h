@@ -30,30 +30,32 @@
 
 /* structure holding chipset config info */
 struct ata_chip_id {
-    u_int32_t	chiptype;
-    u_int8_t	chiprev;
-    int		cfg1;
-    int		cfg2;
-    u_int8_t	max_dma;
-    char	*text;
+    u_int32_t		 chipid;
+    u_int8_t		 chiprev;
+    int			 cfg1;
+    int			 cfg2;
+    u_int8_t		 max_dma;
+    char       		*text;
 };
 
 /* structure describing a PCI ATA controller */
 struct ata_pci_controller {
     struct resource	 *r_bmio;
-    int			  bmaddr;
+    struct resource	 *r_mem;
     struct resource	 *r_irq;
     void		 *handle;
     struct ata_chip_id	 *chip;
     int			(*chipinit)(device_t);
+    int			(*allocate)(device_t, struct ata_channel *);
     int			(*dmainit)(struct ata_channel *);
     void		(*setmode)(struct ata_device *, int);
     void		(*locking)(struct ata_channel *, int);
     int			  locked_ch;
+    int			  channels;
     struct {
     void		(*function)(void *);
     void		 *argument;
-    } interrupt[2];
+    } interrupt[4];	/* XXX SOS max ch# for now */
 };
 
 #define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
@@ -214,7 +216,7 @@ struct ata_pci_controller {
 #define PROLD		0
 #define PRNEW		1
 #define PRTX		2
-#define PRCH		3
+#define PRMEM		3
 #define PRTX4		0x01
 #define PRSX6K		0x02
 
@@ -246,8 +248,8 @@ struct ata_pci_controller {
 
 /* global prototypes */
 int ata_dmainit(struct ata_channel *);
-int ata_dmastart(struct ata_device *, caddr_t, int32_t, int);
-int ata_dmastop(struct ata_device *);
+int ata_dmastart(struct ata_channel *, caddr_t, int32_t, int);
+int ata_dmastop(struct ata_channel *);
 
 int ata_generic_ident(device_t);
 int ata_acard_ident(device_t);

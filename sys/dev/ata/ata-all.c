@@ -92,43 +92,16 @@ int
 ata_probe(device_t dev)
 {
     struct ata_channel *ch;
-    int rid;
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    if (ch->r_io || ch->r_altio || ch->r_irq)
+    if (ch->r_irq)
 	return EEXIST;
 
     /* initialize the softc basics */
     ch->active = ATA_IDLE;
     ch->dev = dev;
-
-    rid = ATA_IOADDR_RID;
-    ch->r_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
-				  ATA_IOSIZE, RF_ACTIVE);
-    if (!ch->r_io)
-	goto failure;
-
-    rid = ATA_ALTADDR_RID;
-    ch->r_altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				     ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!ch->r_altio)
-	goto failure;
-
-    rid = ATA_BMADDR_RID;
-    ch->r_bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				    ATA_BMIOSIZE, RF_ACTIVE);
-    if (bootverbose)
-	ata_printf(ch, -1, "iobase=0x%04x altiobase=0x%04x bmaddr=0x%04x\n", 
-		   (int)rman_get_start(ch->r_io),
-		   (int)rman_get_start(ch->r_altio),
-		   (ch->r_bmio) ? (int)rman_get_start(ch->r_bmio) : 0);
-
-    ch->locking(ch, ATA_LF_LOCK);
-    ata_reset(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
-
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
     ch->device[MASTER].mode = ATA_PIO;
@@ -137,18 +110,12 @@ ata_probe(device_t dev)
     ch->device[SLAVE].mode = ATA_PIO;
     TAILQ_INIT(&ch->ata_queue);
     TAILQ_INIT(&ch->atapi_queue);
+
+    /* initialise device(s) on this channel */
+    ch->locking(ch, ATA_LF_LOCK);
+    ata_reset(ch);
+    ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
-    
-failure:
-    if (ch->r_io)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ch->r_io);
-    if (ch->r_altio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ch->r_altio);
-    if (ch->r_bmio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, ch->r_bmio);
-    if (bootverbose)
-	ata_printf(ch, -1, "probe allocation failed\n");
-    return ENXIO;
 }
 
 int
@@ -174,7 +141,7 @@ ata_attach(device_t dev)
     }
 
     if (ch->dma)
-	ch->dma->create(ch);
+	ch->dma->alloc(ch);
 
     /*
      * do not attach devices if we are in early boot, this is done later 
@@ -221,8 +188,7 @@ ata_detach(device_t dev)
     struct ata_channel *ch;
     int s;
  
-    if (!dev || !(ch = device_get_softc(dev)) ||
-	!ch->r_io || !ch->r_altio || !ch->r_irq)
+    if (!dev || !(ch = device_get_softc(dev)) || !ch->r_irq)
 	return ENXIO;
 
     /* make sure channel is not busy */
@@ -261,17 +227,10 @@ ata_detach(device_t dev)
     ch->device[SLAVE].mode = ATA_PIO;
     ch->devices = 0;
     if (ch->dma)
-	ch->dma->destroy(ch);
+	ch->dma->free(ch);
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
-    if (ch->r_bmio)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, ch->r_bmio);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ch->r_altio);
-    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ch->r_io);
-    ch->r_io = NULL;
-    ch->r_altio = NULL;
-    ch->r_bmio = NULL;
     ch->r_irq = NULL;
     ATA_UNLOCK_CH(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
@@ -488,7 +447,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
     /* apparently some devices needs this repeated */
     do {
 	if (ata_command(atadev, command, 0, 0, 0,
-		dumping ? ATA_WAIT_READY : ATA_WAIT_INTR)) {
+		dumping ? ATA_WAIT_READY : ATA_WAIT_INTR)) { /* XXX */
 	    ata_prtdev(atadev, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    free(ata_parm, M_ATA);
@@ -502,7 +461,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	}
     } while (ata_wait(atadev, ((command == ATA_C_ATAPI_IDENTIFY) ?
 			       ATA_S_DRQ : (ATA_S_READY|ATA_S_DSC|ATA_S_DRQ))));
-    ATA_INSW(atadev->channel->r_io, ATA_DATA, (int16_t *)ata_parm,
+    ATA_IDX_INSW(atadev->channel, ATA_DATA, (int16_t *)ata_parm,
 	     sizeof(struct ata_params)/sizeof(int16_t));
 
     if (command == ATA_C_ATA_IDENTIFY ||
@@ -596,17 +555,17 @@ ata_intr(void *data)
     struct ata_channel *ch = (struct ata_channel *)data;
 
     /* if device is busy it didn't interrupt */
-    if (ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_BUSY) {
+    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
 	DELAY(100);
-	if (!(ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_DRQ))
+	if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DRQ))
 	    return;
     }
 
     /* clear interrupt and get status */
-    ch->status = ATA_INB(ch->r_io, ATA_STATUS);
+    ch->status = ATA_IDX_INB(ch, ATA_STATUS);
 
     if (ch->status & ATA_S_ERROR)
-	ch->error = ATA_INB(ch->r_io, ATA_ERROR);
+	ch->error = ATA_IDX_INB(ch, ATA_ERROR);
 
     /* find & call the responsible driver to process this interrupt */
     switch (ch->active) {
@@ -638,7 +597,7 @@ ata_intr(void *data)
     }
 
     if ((ch->flags & ATA_QUEUED) &&
-	ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_SERVICE) { 
+	ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_SERVICE) { 
 	ATA_FORCELOCK_CH(ch, ATA_ACTIVE);
 	if (ata_service(ch) == ATA_OP_CONTINUES)
 	    return;
@@ -716,16 +675,16 @@ ata_reset(struct ata_channel *ch)
     int mask = 0, timeout;
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
-    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
-    ostat0 = ATA_INB(ch->r_io, ATA_STATUS);
+    ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
     if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
-    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(10);	
-    ostat1 = ATA_INB(ch->r_io, ATA_STATUS);
+    ostat1 = ATA_IDX_INB(ch, ATA_STATUS);
     if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
 	stat1 = ATA_S_BUSY;
 	mask |= 0x02;
@@ -746,24 +705,24 @@ ata_reset(struct ata_channel *ch)
 		   mask, ostat0, ostat1);
 
     /* reset channel */
-    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
-    ATA_OUTB(ch->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
+    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
     DELAY(10000); 
-    ATA_OUTB(ch->r_altio, ATA_ALTSTAT, ATA_A_IDS);
+    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
     DELAY(100000);
-    ATA_INB(ch->r_io, ATA_ERROR);
+    ATA_IDX_INB(ch, ATA_ERROR);
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310000; timeout++) {
 	if (stat0 & ATA_S_BUSY) {
-	    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	    DELAY(10);
 
 	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
-	    msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
-	    stat0 = ATA_INB(ch->r_io, ATA_STATUS);
+	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
+	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
 	    if (!(stat0 & ATA_S_BUSY)) {
 		if (bootverbose)
 		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
@@ -772,13 +731,13 @@ ata_reset(struct ata_channel *ch)
 	    }
 	}
 	if (stat1 & ATA_S_BUSY) {
-	    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
 
 	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
-	    msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
-	    stat1 = ATA_INB(ch->r_io, ATA_STATUS);
+	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
+	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
 	    if (!(stat1 & ATA_S_BUSY)) {
 		if (bootverbose)
 		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
@@ -798,7 +757,7 @@ ata_reset(struct ata_channel *ch)
 	DELAY(100);
     }	
     DELAY(10);
-    ATA_OUTB(ch->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
+    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
 
     if (stat0 & ATA_S_BUSY)
 	mask &= ~0x01;
@@ -811,24 +770,24 @@ ata_reset(struct ata_channel *ch)
 	return;
 
     if (mask & 0x01 && ostat0 != 0x00 && !(ch->devices & ATA_ATAPI_MASTER)) {
-	ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	DELAY(10);
-	ATA_OUTB(ch->r_io, ATA_ERROR, 0x58);
-	ATA_OUTB(ch->r_io, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_INB(ch->r_io, ATA_ERROR);
-	msb = ATA_INB(ch->r_io, ATA_CYL_LSB);
+	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
+	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
+	lsb = ATA_IDX_INB(ch, ATA_ERROR);
+	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	if (bootverbose)
 	    ata_printf(ch, ATA_MASTER, "ATA %02x %02x\n", lsb, msb);
 	if (lsb != 0x58 && msb == 0xa5)
 	    ch->devices |= ATA_ATA_MASTER;
     }
     if (mask & 0x02 && ostat1 != 0x00 && !(ch->devices & ATA_ATAPI_SLAVE)) {
-	ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	DELAY(10);
-	ATA_OUTB(ch->r_io, ATA_ERROR, 0x58);
-	ATA_OUTB(ch->r_io, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_INB(ch->r_io, ATA_ERROR);
-	msb = ATA_INB(ch->r_io, ATA_CYL_LSB);
+	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
+	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
+	lsb = ATA_IDX_INB(ch, ATA_ERROR);
+	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	if (bootverbose)
 	    ata_printf(ch, ATA_SLAVE, "ATA %02x %02x\n", lsb, msb);
 	if (lsb != 0x58 && msb == 0xa5)
@@ -843,13 +802,11 @@ ata_reinit(struct ata_channel *ch)
 {
     int devices, misdev, newdev;
 
-    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
 
-    if (!ch->r_io || !ch->r_altio || !ch->r_irq) {
-	ATA_UNLOCK_CH(ch);
+    if (!ch->r_irq)
 	return ENXIO;
-    }
 
+    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
     ch->running = NULL;
     devices = ch->devices;
     ata_printf(ch, -1, "resetting devices ..\n");
@@ -937,11 +894,11 @@ ata_service(struct ata_channel *ch)
     /* do we have a SERVICE request from the drive ? */
     if ((ch->status & (ATA_S_SERVICE|ATA_S_ERROR|ATA_S_DRQ)) == ATA_S_SERVICE) {
 #if 0 /* XXX */
-	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
+	ATA_IDX_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
 		 ch->dma->status(ch) | ATA_BMSTAT_INTERRUPT);
 #endif
 #ifdef DEV_ATADISK
-	if ((ATA_INB(ch->r_io, ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
+	if ((ATA_IDX_INB(ch, ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
 	    if ((ch->devices & ATA_ATA_MASTER) && ch->device[MASTER].driver)
 		return ad_service((struct ad_softc *)
 				  ch->device[MASTER].driver, 0);
@@ -963,14 +920,14 @@ ata_wait(struct ata_device *atadev, u_int8_t mask)
     
     DELAY(1);
     while (timeout < 5000000) { /* timeout 5 secs */
-	atadev->channel->status = ATA_INB(atadev->channel->r_io, ATA_STATUS);
+	atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
 
 	/* if drive fails status, reselect the drive just to be sure */
 	if (atadev->channel->status == 0xff) {
 	    ata_prtdev(atadev, "no status, reselecting device\n");
-	    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM|atadev->unit);
+	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM|atadev->unit);
 	    DELAY(10);
-	    atadev->channel->status = ATA_INB(atadev->channel->r_io,ATA_STATUS);
+	    atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
 	    if (atadev->channel->status == 0xff)
 		return -1;
 	}
@@ -989,7 +946,7 @@ ata_wait(struct ata_device *atadev, u_int8_t mask)
 	}
     }	 
     if (atadev->channel->status & ATA_S_ERROR)
-	atadev->channel->error = ATA_INB(atadev->channel->r_io, ATA_ERROR);
+	atadev->channel->error = ATA_IDX_INB(atadev->channel, ATA_ERROR);
     if (timeout >= 5000000)	 
 	return -1;	    
     if (!mask)	   
@@ -998,10 +955,10 @@ ata_wait(struct ata_device *atadev, u_int8_t mask)
     /* Wait 50 msec for bits wanted. */	   
     timeout = 5000;
     while (timeout--) {	  
-	atadev->channel->status = ATA_INB(atadev->channel->r_io, ATA_STATUS);
+	atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
 	if ((atadev->channel->status & mask) == mask) {
 	    if (atadev->channel->status & ATA_S_ERROR)
-		atadev->channel->error=ATA_INB(atadev->channel->r_io,ATA_ERROR);
+		atadev->channel->error=ATA_IDX_INB(atadev->channel, ATA_ERROR);
 	    return (atadev->channel->status & ATA_S_ERROR);	      
 	}
 	DELAY (10);	   
@@ -1017,16 +974,16 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 #ifdef ATA_DEBUG
     ata_prtdev(atadev, "ata_command: addr=%04lx, cmd=%02x, "
 	       "lba=%jd, count=%d, feature=%d, flags=%02x\n",
-	       rman_get_start(atadev->channel->r_io), 
+	       rman_get_start(atadev->channel), 
 	       command, (intmax_t)lba, count, feature, flags);
 #endif
 
     /* select device */
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);
+    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);
 
     /* disable interrupt from device */
     if (atadev->channel->flags & ATA_QUEUED)
-	ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
+	ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
 
     /* ready to issue command ? */
     if (ata_wait(atadev, 0) < 0) { 
@@ -1038,17 +995,17 @@ ata_command(struct ata_device *atadev, u_int8_t command,
     /* only use 48bit addressing if needed because of the overhead */
     if ((lba > 268435455 || count > 256) && atadev->param &&
 	atadev->param->support.address48) {
-	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, (feature>>8) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, feature);
-	ATA_OUTB(atadev->channel->r_io, ATA_COUNT, (count>>8) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_COUNT, count & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, (lba>>24) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, lba & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba>>32) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba>>8) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_MSB, (lba>>40) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_MSB, (lba>>16) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_LBA | atadev->unit);
+	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, (feature>>8) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, feature);
+	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, (count>>8) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, count & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, (lba>>24) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, lba & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>32) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>8) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>40) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>16) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_LBA | atadev->unit);
 
 	/* translate command into 48bit version */
 	switch (command) {
@@ -1077,36 +1034,36 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	atadev->channel->flags |= ATA_48BIT_ACTIVE;
     }
     else {
-	ATA_OUTB(atadev->channel->r_io, ATA_FEATURE, feature);
-	ATA_OUTB(atadev->channel->r_io, ATA_COUNT, count);
-	ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, lba & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_LSB, (lba>>8) & 0xff);
-	ATA_OUTB(atadev->channel->r_io, ATA_CYL_MSB, (lba>>16) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, feature);
+	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, count);
+	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, lba & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>8) & 0xff);
+	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>16) & 0xff);
 	if (atadev->flags & ATA_D_USE_CHS)
-	    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE,
+	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE,
 		     ATA_D_IBM | atadev->unit | ((lba>>24) & 0xf));
 	else
-	    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE,
+	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE,
 		     ATA_D_IBM | ATA_D_LBA | atadev->unit | ((lba>>24) &0xf));
 	atadev->channel->flags &= ~ATA_48BIT_ACTIVE;
     }
 
     switch (flags & ATA_WAIT_MASK) {
     case ATA_IMMEDIATE:
-	ATA_OUTB(atadev->channel->r_io, ATA_CMD, command);
+	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
 
 	/* enable interrupt */
 	if (atadev->channel->flags & ATA_QUEUED)
-	    ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
+	    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 	break;
 
     case ATA_WAIT_INTR:
 	atadev->channel->active |= ATA_WAIT_INTR;
-	ATA_OUTB(atadev->channel->r_io, ATA_CMD, command);
+	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
 
 	/* enable interrupt */
 	if (atadev->channel->flags & ATA_QUEUED)
-	    ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
+	    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
 	if (tsleep(atadev->channel, PRIBIO, "atacmd", 10 * hz)) {
 	    ata_prtdev(atadev, "timeout waiting for interrupt\n");
@@ -1117,7 +1074,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
     
     case ATA_WAIT_READY:
 	atadev->channel->active |= ATA_WAIT_READY;
-	ATA_OUTB(atadev->channel->r_io, ATA_CMD, command);
+	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
 	if (ata_wait(atadev, ATA_S_READY) < 0) { 
 	    ata_prtdev(atadev, "timeout waiting for cmd=%02x s=%02x e=%02x\n",
 		       command, atadev->channel->status,atadev->channel->error);
@@ -1132,48 +1089,48 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 static void
 ata_enclosure_start(struct ata_device *atadev)
 {
-    ATA_INB(atadev->channel->r_io, ATA_DRIVE);	  
+    ATA_IDX_INB(atadev->channel, ATA_DRIVE);	  
     DELAY(1);
-    ATA_INB(atadev->channel->r_io, ATA_DRIVE);	  
+    ATA_IDX_INB(atadev->channel, ATA_DRIVE);	  
     DELAY(1);
-    ATA_INB(atadev->channel->r_io, ATA_CMD);	  
+    ATA_IDX_INB(atadev->channel, ATA_CMD);	  
     DELAY(1);
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
+    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
+    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
+    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
-    ATA_INB(atadev->channel->r_io, ATA_COUNT);
+    ATA_IDX_INB(atadev->channel, ATA_COUNT);
     DELAY(1);
-    ATA_INB(atadev->channel->r_io, ATA_DRIVE);
+    ATA_IDX_INB(atadev->channel, ATA_DRIVE);
     DELAY(1);
 }
 
 static void
 ata_enclosure_end(struct ata_device *atadev)
 {
-    ATA_OUTB(atadev->channel->r_io, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
+    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
     DELAY(1);
 }
 
 static void
 ata_enclosure_chip_start(struct ata_device *atadev)
 {
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0b);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0a);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0b);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0a);
     DELAY(25);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08);
 }
 
 static void
 ata_enclosure_chip_end(struct ata_device *atadev)
 {
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08);
     DELAY(64);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0a);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0a);
     DELAY(25);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x0b);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0b);
     DELAY(64);
 }
 
@@ -1182,11 +1139,11 @@ ata_enclosure_chip_rdbit(struct ata_device *atadev)
 {
     u_int8_t val;
 
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0);
     DELAY(64);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x02);
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x02);
     DELAY(25);
-    val = ATA_INB(atadev->channel->r_io, ATA_SECTOR) & 0x01;
+    val = ATA_IDX_INB(atadev->channel, ATA_SECTOR) & 0x01;
     DELAY(38);
     return val;
 }
@@ -1194,9 +1151,9 @@ ata_enclosure_chip_rdbit(struct ata_device *atadev)
 static void
 ata_enclosure_chip_wrbit(struct ata_device *atadev, u_int8_t data)
 {
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08 | (data & 0x01));
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08 | (data & 0x01));
     DELAY(64);
-    ATA_OUTB(atadev->channel->r_io, ATA_SECTOR, 0x08 | 0x02 | (data & 0x01));
+    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08 | 0x02 | (data & 0x01));
     DELAY(64);
 }
 
@@ -1283,9 +1240,9 @@ ata_enclosure_print(struct ata_device *atadev)
     atadev->channel->locking(atadev->channel, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     ata_enclosure_start(atadev);
-    id = ATA_INB(atadev->channel->r_io, ATA_DRIVE);
+    id = ATA_IDX_INB(atadev->channel, ATA_DRIVE);
     DELAY(1);
-    st = ATA_INB(atadev->channel->r_io, ATA_COUNT);
+    st = ATA_IDX_INB(atadev->channel, ATA_COUNT);
     DELAY(1);
     ata_enclosure_end(atadev);
     ATA_UNLOCK_CH(atadev->channel);
@@ -1323,9 +1280,9 @@ ata_enclosure_leds(struct ata_device *atadev, u_int8_t color)
 	u_int8_t reg;
 
 	ata_enclosure_start(atadev);
-	reg = ATA_INB(atadev->channel->r_io, ATA_COUNT);	  
+	reg = ATA_IDX_INB(atadev->channel, ATA_COUNT);	  
 	DELAY(1);
-	ATA_OUTB(atadev->channel->r_io, ATA_COUNT,
+	ATA_IDX_OUTB(atadev->channel, ATA_COUNT,
 		 (color & ATA_LED_MASK) | (reg & ~ATA_LED_MASK));	  
 	DELAY(1);
 	ata_enclosure_end(atadev);
