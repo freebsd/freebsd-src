@@ -178,7 +178,7 @@ minor(dev_t x)
 }
 
 int
-lminor(dev_t x)
+dev2unit(dev_t x)
 {
 	int i;
 
@@ -186,6 +186,13 @@ lminor(dev_t x)
 		return NOUDEV;
 	i = minor(x);
 	return ((i & 0xff) | (i >> 8));
+}
+
+int
+unit2minor(int unit)
+{
+
+	return ((unit & 0xff) | ((unit << 8) & ~0xffff));
 }
 
 dev_t
