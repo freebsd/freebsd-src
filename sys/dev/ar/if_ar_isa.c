@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.5 1996/02/06 18:50:32 wollman Exp $
+ * $Id: if_ar.c,v 1.6 1996/03/03 08:42:28 peter Exp $
  */
 
 /*
@@ -124,11 +124,19 @@ struct ar_softc {
 	int subunit;         /* With regards to this card */
 	struct ar_hardc *hc;
 
-	u_int txdesc;        /* On card address */
-	u_int txstart;       /* On card address */
-	u_int txend;         /* On card address */
-	u_int txtail;        /* Index of first unused buffer */
-	u_int txmax;         /* number of usable buffers/descriptors */
+	struct buf_block {
+		u_int txdesc;        /* On card address */
+		u_int txstart;       /* On card address */
+		u_int txend;         /* On card address */
+		u_int txtail;        /* Index of first unused buffer */
+		u_int txmax;         /* number of usable buffers/descriptors */
+		u_int txeda;         /* Error descriptor addresses */
+	}block[AR_TX_BLOCKS];
+
+	char  xmit_busy;     /* Transmitter is busy */
+	char  txb_inuse;     /* Number of tx blocks currently in use */
+	char  txb_new;       /* Index to where new buffer will be added */
+	char  txb_next_tx;    /* Index to next block ready to tx */
 
 	u_int rxdesc;        /* On card address */
 	u_int rxstart;       /* On card address */
@@ -194,6 +202,7 @@ static struct kern_devconf kdc_arc_template = {
 	DC_CLS_NETIF
 };
 
+static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
 static void arwatchdog(struct ifnet *ifp);
@@ -213,7 +222,8 @@ static void ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr);
 static void ar_msci_intr(struct ar_hardc *hc, int scano, u_char isr);
 static void ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr);
 
-static inline void ar_registerdev(int ctlr, int unit)
+static inline void
+ar_registerdev(int ctlr, int unit)
 {
 	struct ar_softc *sc;
 	
@@ -225,7 +235,8 @@ static inline void ar_registerdev(int ctlr, int unit)
 	dev_attach(&sc->kdc);
 }
 
-static inline void arc_registerdev(struct isa_device *dvp)
+static inline void
+arc_registerdev(struct isa_device *dvp)
 {
         int unit = dvp->id_unit;
 	struct ar_hardc *hc = &ar_hardc[dvp->id_unit];
@@ -427,7 +438,8 @@ arattach(struct isa_device *id)
  * See if there is other interrupts pending.
  * Repeat until there is no more interrupts.
  */
-void arintr(int unit)
+void
+arintr(int unit)
 {
 	struct ar_hardc *hc = &ar_hardc[unit];
 	sca_regs *sca = hc->sca;
@@ -460,7 +472,8 @@ void arintr(int unit)
 		sca->isr1 = isr1;
 		sca->isr2 = isr2;
 
-		TRC(printf("ARINTR %d, isr0 %x, isr1 %x, isr2 %x\n", intno++, 
+		TRC(printf("arc%d: ARINTR isr0 %x, isr1 %x, isr2 %x\n",
+			unit,
 			isr0,
 			isr1,
 			isr2));
@@ -488,11 +501,41 @@ void arintr(int unit)
 
 
 /*
+ * This will only start the transmitter. It is assumed that the data
+ * is already there. It is normally called from arstart() or ar_dmac_intr().
+ *
+ */
+static void
+ar_xmit(struct ar_softc *sc)
+{
+	struct ifnet *ifp = &sc->ifsppp.pp_if;
+	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)];
+
+	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	dmac->cda = (u_short)(sc->block[sc->txb_next_tx].txdesc & 0xffff);
+
+	dmac->eda = (u_short)(sc->block[sc->txb_next_tx].txeda & 0xffff);
+	dmac->dsr = SCA_DSR_DE;
+
+	sc->xmit_busy = 1;
+
+	sc->txb_next_tx++;
+	if(sc->txb_next_tx == AR_TX_BLOCKS)
+		sc->txb_next_tx = 0;
+
+	ifp->if_timer = 2; /* Value in seconds. */
+	ARC_SET_OFF(sc->hc->iobase);
+}
+
+/*
  * This function will be called from the upper level when a user add a
  * packet to be send, and from the interrupt handler after a finished
  * transmit.
  *
  * NOTE: it should run at spl_imp().
+ *
+ * This function only place the data in the oncard buffers. It does not
+ * start the transmition. ar_xmit() does that.
  *
  * Transmitter idle state is indicated by the IFF_OACTIVE flag. The function
  * that clears that should ensure that the transmitter and it's DMA is
@@ -506,36 +549,45 @@ arstart(struct ifnet *ifp)
 	struct mbuf *mtx;
 	u_char *txdata;
 	sca_descriptor *txdesc;
-	static int intno = 0;
+	struct buf_block *blkp;
 
 	if(!(ifp->if_flags & IFF_RUNNING))
 		return;
   
+top_arstart:
+
+	/*
+	 * See if we have space for more packets.
+	 */
+	if(sc->txb_inuse == AR_TX_BLOCKS) {
+		ifp->if_flags |= IFF_OACTIVE;
+		return;
+	}
+
 	mtx = sppp_dequeue(ifp);
 	if(!mtx)
 		return;
-
-	intno++;
 
 	/*
 	 * It is OK to set the memory window outside the loop because
 	 * all tx buffers and descriptors are assumed to be in the same
 	 * 16K window.
 	 */
-	ARC_SET_MEM(sc->hc->iobase, sc->txdesc);
+	ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
 
 	/*
 	 * We stay in this loop until there is nothing in the
 	 * TX queue left or the tx buffer is full.
 	 */
 	i = 0;
+	blkp = &sc->block[sc->txb_new];
 	txdesc = (sca_descriptor *)
-		(sc->hc->mem_start + (sc->txdesc & ARC_WIN_MSK));
-	txdata = (u_char *)(sc->hc->mem_start + (sc->txstart & ARC_WIN_MSK));
+		(sc->hc->mem_start + (blkp->txdesc & ARC_WIN_MSK));
+	txdata = (u_char *)(sc->hc->mem_start + (blkp->txstart & ARC_WIN_MSK));
 	for(;;) {
 		len = mtx->m_pkthdr.len;
 
-		TRC(printf("ar%d: ARstart %d, len %u\n", sc->unit, intno, len));
+		TRC(printf("ar%d: ARstart len %u\n", sc->unit, len));
 
 		/*
 		 * We can do this because the tx buffers don't wrap.
@@ -569,7 +621,7 @@ arstart(struct ifnet *ifp)
 		 * XXX This is hardcoded. A packet won't be larger
 		 * than 3 buffers (3 x 512).
 		 */
-		if((i + 3) >= sc->txmax)
+		if((i + 3) >= blkp->txmax)
 			break;
 
 		mtx = sppp_dequeue(ifp);
@@ -577,7 +629,7 @@ arstart(struct ifnet *ifp)
 			break;
 	}
 
-	sc->txtail = i;
+	blkp->txtail = i;
 
 	/*
 	 * Mark the last descriptor, so that the SCA know where
@@ -585,6 +637,9 @@ arstart(struct ifnet *ifp)
 	 */
 	txdesc--;
 	txdesc->stat |= SCA_DESC_EOT;
+
+	txdesc = (sca_descriptor *)blkp->txdesc;
+	blkp->txeda = (u_short)((u_int)&txdesc[i]);
 
 #if 0
 	printf("ARstart: %p desc->cp %x\n", &txdesc->cp, txdesc->cp);
@@ -594,24 +649,17 @@ arstart(struct ifnet *ifp)
 	printf("ARstart: %p desc->stat %x\n", &txdesc->stat, txdesc->stat);
 #endif
 
-	/*
-	 * Start DMA.
-	 * XXX For now we always start from the start.
-	 */
-	{
-		dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)];
+	sc->txb_inuse++;
+	sc->txb_new++;
+	if(sc->txb_new == AR_TX_BLOCKS)
+		sc->txb_new = 0;
 
-		ARC_SET_SCA(sc->hc->iobase, sc->scano);
-		dmac->cda = (u_short)(sc->txdesc & 0xffff);
+	if(sc->xmit_busy == 0)
+		ar_xmit(sc);
 
-		txdesc = (sca_descriptor *)sc->txdesc;
-		dmac->eda = (u_short)((u_int)&txdesc[i]);
-		dmac->dsr = SCA_DSR_DE;
-	}
-
-	ifp->if_flags |= IFF_OACTIVE;
-	ifp->if_timer = 2; /* Value in seconds. */
 	ARC_SET_OFF(sc->hc->iobase);
+
+	goto top_arstart;
 }
 
 static int
@@ -671,25 +719,39 @@ static void
 arwatchdog(struct ifnet *ifp)
 {
 	struct ar_softc *sc = ifp->if_softc;
+	msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
 
 	if(!(ifp->if_flags & IFF_RUNNING))
 		return;
 
-	/* XXX if(sc->ifsppp.pp_if.if_flags & IFF_DEBUG) */
-		printf("ar%d: transmit failed.\n", ifp->if_unit);
-
 	ARC_SET_SCA(sc->hc->iobase, sc->scano);
-	sc->hc->sca->msci[sc->scachan].cmd = SCA_CMD_TXABORT;
 
-	ar_down(sc);
-	ar_up(sc);
+	/* XXX if(sc->ifsppp.pp_if.if_flags & IFF_DEBUG) */
+		printf("ar%d: transmit failed, "
+			"ST0 %x, ST1 %x, ST3 %x, DSR %x.\n",
+			ifp->if_unit,
+			msci->st0,
+			msci->st1,
+			msci->st3,
+			sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)].dsr);
 
+	if(msci->st1 & SCA_ST1_UDRN) {
+		msci->cmd = SCA_CMD_TXABORT;
+		msci->cmd = SCA_CMD_TXENABLE;
+		msci->st1 = SCA_ST1_UDRN;
+	}
+
+	sc->xmit_busy = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
+	if(sc->txb_inuse && --sc->txb_inuse)
+		ar_xmit(sc);
 
 	arstart(ifp);
 }
 
-static void ar_up(struct ar_softc *sc)
+static void
+ar_up(struct ar_softc *sc)
 {
 	sca_regs *sca = sc->hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
@@ -733,7 +795,8 @@ static void ar_up(struct ar_softc *sc)
 	ARC_SET_OFF(sc->hc->iobase);
 }
 
-static void ar_down(struct ar_softc *sc)
+static void
+ar_down(struct ar_softc *sc)
 {
 	sca_regs *sca = sc->hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
@@ -774,7 +837,8 @@ static void ar_down(struct ar_softc *sc)
  * Initialize the card, allocate memory for the ar_softc structures
  * and fill in the pointers.
  */
-void arc_init(struct isa_device *id)
+static void
+arc_init(struct isa_device *id)
 {
 	struct ar_hardc *hc = &ar_hardc[id->id_unit];
 	struct ar_softc *sc;
@@ -834,22 +898,33 @@ void arc_init(struct isa_device *id)
 	next = 0;
 
 	for(x=0;x<hc->numports;x++, sc++) {
-		sc->txdesc = next;
-		bufmem = 16 * 1024;
-		descneeded = bufmem / AR_BUF_SIZ;
-		sc->txstart = sc->txdesc +
+		int blk;
+
+		for(blk = 0; blk < AR_TX_BLOCKS; blk++) {
+			sc->block[blk].txdesc = next;
+			bufmem = (16 * 1024) / AR_TX_BLOCKS;
+			descneeded = bufmem / AR_BUF_SIZ;
+			sc->block[blk].txstart = sc->block[blk].txdesc +
 				((((descneeded * sizeof(sca_descriptor)) /
 					AR_BUF_SIZ) + 1) * AR_BUF_SIZ);
-		sc->txend = next + bufmem;
-		sc->txmax = (sc->txend - sc->txstart) / AR_BUF_SIZ;
-		next += bufmem;
+			sc->block[blk].txend = next + bufmem;
+			sc->block[blk].txmax =
+				(sc->block[blk].txend - sc->block[blk].txstart)
+				/ AR_BUF_SIZ;
+			next += bufmem;
 
-		TRC(printf("ar%d: txdesc %x, txstart %x, txend %x, txmax %d\n",
-			x,
-			sc->txdesc, sc->txstart, sc->txend, sc->txmax));
+			TRC(printf("ar%d: blk %d: txdesc %x, txstart %x, "
+				   "txend %x, txmax %d\n",
+				   x,
+				   blk,
+				   sc->block[blk].txdesc,
+				   sc->block[blk].txstart,
+				   sc->block[blk].txend,
+				   sc->block[blk].txmax));
+		}
 
 		sc->rxdesc = next;
-		bufmem = chanmem - bufmem;
+		bufmem = chanmem - (bufmem * AR_TX_BLOCKS);
 		descneeded = bufmem / AR_BUF_SIZ;
 		sc->rxstart = sc->rxdesc +
 				((((descneeded * sizeof(sca_descriptor)) /
@@ -868,7 +943,8 @@ void arc_init(struct isa_device *id)
  *   Configure the global interrupt registers.
  *   Enable master dma enable.
  */
-static void ar_init_sca(struct ar_hardc *hc, int scano)
+static void
+ar_init_sca(struct ar_hardc *hc, int scano)
 {
 	sca_regs *sca = hc->sca;
 
@@ -901,7 +977,14 @@ static void ar_init_sca(struct ar_hardc *hc, int scano)
 	 */
 
 
-	sca->dmer = SCA_DMER_EN; /* Enable all dma channels. */
+	/*
+	 * Set the DMA channel priority to rotate between
+	 * all four channels.
+	 *
+	 * Enable all dma channels.
+	 */
+	sca->pcr = SCA_PCR_PR2;
+	sca->dmer = SCA_DMER_EN;
 }
 
 
@@ -910,7 +993,8 @@ static void ar_init_sca(struct ar_hardc *hc, int scano)
  *
  * NOTE: The serial port configuration is hardcoded at the moment.
  */
-void ar_init_msci(struct ar_softc *sc)
+static void
+ar_init_msci(struct ar_softc *sc)
 {
 	msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
 
@@ -972,7 +1056,8 @@ void ar_init_msci(struct ar_softc *sc)
 /*
  * Configure the rx dma controller.
  */
-void ar_init_rx_dmac(struct ar_softc *sc)
+static void
+ar_init_rx_dmac(struct ar_softc *sc)
 {
 	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)];
 	sca_descriptor *rxd;
@@ -1028,37 +1113,46 @@ void ar_init_rx_dmac(struct ar_softc *sc)
  * Configure the TX DMA descriptors.
  * Initialize the needed values and chain the descriptors.
  */
-void ar_init_tx_dmac(struct ar_softc *sc)
+static void
+ar_init_tx_dmac(struct ar_softc *sc)
 {
 	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)];
+	struct buf_block *blkp;
+	int blk;
 	sca_descriptor *txd;
 	u_int txbuf;
 	u_int txda;
 	u_int txda_d;
 
-	ARC_SET_MEM(sc->hc->iobase, sc->txdesc);
+	ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
 
-	txd = (sca_descriptor *)(sc->hc->mem_start + (sc->txdesc&ARC_WIN_MSK));
-	txda_d = (u_int)sc->hc->mem_start - (sc->txdesc & ~ARC_WIN_MSK);
+	for(blk = 0; blk < AR_TX_BLOCKS; blk++) {
+		blkp = &sc->block[blk];
+		txd = (sca_descriptor *)(sc->hc->mem_start +
+					(blkp->txdesc&ARC_WIN_MSK));
+		txda_d = (u_int)sc->hc->mem_start -
+				(blkp->txdesc & ~ARC_WIN_MSK);
 
-	for(txbuf=sc->txstart;txbuf<sc->txend;txbuf += AR_BUF_SIZ, txd++) {
-		txda = (u_int)&txd[1] - txda_d;
-		txd->cp = (u_short)(txda & 0xfffful);
+		txbuf=blkp->txstart;
+		for(;txbuf<blkp->txend;txbuf += AR_BUF_SIZ, txd++) {
+			txda = (u_int)&txd[1] - txda_d;
+			txd->cp = (u_short)(txda & 0xfffful);
 
-		txd->bp = (u_short)(txbuf & 0xfffful);
-		txd->bpb = (u_char)((txbuf >> 16) & 0xff);
-		TRC(printf("ar%d: txbuf %x, bpb %x, bp %x\n",
-			sc->unit, txbuf, txd->bpb, txd->bp));
-		txd->len = 0;
-		txd->stat = 0;
+			txd->bp = (u_short)(txbuf & 0xfffful);
+			txd->bpb = (u_char)((txbuf >> 16) & 0xff);
+			TRC(printf("ar%d: txbuf %x, bpb %x, bp %x\n",
+				sc->unit, txbuf, txd->bpb, txd->bp));
+			txd->len = 0;
+			txd->stat = 0;
+		}
+		txd--;
+		txd->cp = (u_short)(blkp->txdesc & 0xfffful);
+
+		blkp->txtail = (u_int)txd - (u_int)sc->hc->mem_start;
+		TRC(printf("TX Descriptors start %x, end %x.\n",
+			blkp->txhead,
+			blkp->txtail));
 	}
-	txd--;
-	txd->cp = (u_short)(sc->txdesc & 0xfffful);
-
-	sc->txtail = (u_int)txd - (u_int)sc->hc->mem_start;
-	TRC(printf("TX Descriptors start %x, end %x.\n",
-		sc->txhead,
-		sc->txtail));
 
 	ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
@@ -1067,7 +1161,7 @@ void ar_init_tx_dmac(struct ar_softc *sc)
 	dmac->dmr = SCA_DMR_TMOD | SCA_DMR_NF;
 	dmac->dir = SCA_DIR_EOT | SCA_DIR_BOF | SCA_DIR_COF;
 
-	dmac->sarb = (u_char)((sc->txdesc >> 16) & 0xff);
+	dmac->sarb = (u_char)((sc->block[0].txdesc >> 16) & 0xff);
 }
 
 
@@ -1218,27 +1312,28 @@ ar_get_packets(struct ar_softc *sc)
 	while(ar_packet_avail(sc, &len, &rxstat)) {
 		if((rxstat & SCA_DESC_ERRORS) == 0) {
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			if(m != NULL) {
-				MCLGET(m, M_DONTWAIT);
-				if((m->m_flags & M_EXT) != 0) {
-					m->m_pkthdr.rcvif = &sc->ifsppp.pp_if;
-					m->m_pkthdr.len = m->m_len = len;
-					ar_copy_rxbuf(m, sc, len);
-#if NBPFILTER > 0
-					if(sc->ifsppp.pp_if.if_bpf)
-						bpf_mtap(&sc->ifsppp.pp_if, m);
-#endif
-					sppp_input(&sc->ifsppp.pp_if, m);
-					sc->ifsppp.pp_if.if_ipackets++;
-				} else {
-					m_freem(m);
-					/* eat packet if get mbuf fail!! */
-					ar_eat_packet(sc);
-				}
-			} else {
+			if(m == NULL) {
 				/* eat packet if get mbuf fail!! */
 				ar_eat_packet(sc);
+				goto update_eda;
 			}
+			m->m_pkthdr.rcvif = &sc->ifsppp.pp_if;
+			m->m_pkthdr.len = m->m_len = len;
+			if(len > MHLEN) {
+				MCLGET(m, M_DONTWAIT);
+				if((m->m_flags & M_EXT) == 0) {
+					m_freem(m);
+					ar_eat_packet(sc);
+					goto update_eda;
+				}
+			}
+			ar_copy_rxbuf(m, sc, len);
+#if NBPFILTER > 0
+			if(sc->ifsppp.pp_if.if_bpf)
+				bpf_mtap(&sc->ifsppp.pp_if, m);
+#endif
+			sppp_input(&sc->ifsppp.pp_if, m);
+			sc->ifsppp.pp_if.if_ipackets++;
 		} else {
 			msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
 
@@ -1248,13 +1343,13 @@ ar_get_packets(struct ar_softc *sc)
 
 			ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
-			TRCL(printf("RX%d So this does happen :), stat %x, "
-					"ST2 %x, cda %x.\n",
+			TRCL(printf("ar%d: Receive error chan %d, "
+					"stat %x, msci st3 %x.\n",
+					sc->unit,
 					sc->scachan, 
-					rxstat, 
-					msci->st2,
-					sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda));
-
+					rxstat,
+					msci->st3));
+#ifdef notanymore
 			/*
 			 * Reset the rx unit.
 			 *
@@ -1266,8 +1361,10 @@ ar_get_packets(struct ar_softc *sc)
 
 			TRCL(printf("RX%d After reset: ST2 %x.\n",
 					sc->scachan, msci->st2));
+#endif
 		} /* else */
 
+update_eda:
 		i = (len + AR_BUF_SIZ - 1) / AR_BUF_SIZ;
 		sc->rxhind = (sc->rxhind + i) % sc->rxmax;
 
@@ -1293,9 +1390,11 @@ ar_get_packets(struct ar_softc *sc)
  * Interrupt A for errors and Interrupt B for normal stuff like end
  * of transmit or receive dmas.
  */
-static void ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
+static void
+ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 {
 	u_char dsr;
+	u_char dotxstart = isr1;
 	int mch;
 	struct ar_softc *sc;
 	sca_regs *sca = hc->sca;
@@ -1312,12 +1411,65 @@ static void ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 
 	do {
 		sc = &hc->sc[mch + (NCHAN * scano)];
-		dmac = &sca->dmac[DMAC_RXCH(mch)];
+
+		/*
+		 * Transmit channel
+		 */
+		if(isr1 & 0x0C) {
+			dmac = &sca->dmac[DMAC_TXCH(mch)];
+
+			ARC_SET_SCA(hc->iobase, scano);
+
+			dsr = dmac->dsr;
+			dmac->dsr = dsr;
+
+			/* Counter overflow */
+			if(dsr & SCA_DSR_COF) {
+				printf("ar%d: TX DMA Counter overflow, "
+					"txpacket no %lu.\n",
+					sc->unit,
+					sc->ifsppp.pp_if.if_opackets);
+				sc->ifsppp.pp_if.if_oerrors++;
+			}
+
+			/* Buffer overflow */
+			if(dsr & SCA_DSR_BOF) {
+				printf("ar%d: TX DMA Buffer overflow, "
+					"txpacket no %lu, dsr %02x, "
+					"cda %04x, eda %04x.\n",
+					sc->unit,
+					sc->ifsppp.pp_if.if_opackets,
+					dsr,
+					dmac->cda,
+					dmac->eda);
+				sc->ifsppp.pp_if.if_oerrors++;
+			}
+
+			/* End of Transfer */
+			if(dsr & SCA_DSR_EOT) {
+				/*
+				 * This should be the most common case.
+				 *
+				 * Clear the IFF_OACTIVE flag.
+				 *
+				 * Call arstart to start a new transmit if
+				 * there is data to transmit.
+				 */
+				sc->xmit_busy = 0;
+				sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
+				sc->ifsppp.pp_if.if_timer = 0;
+
+				if(sc->txb_inuse && --sc->txb_inuse)
+					ar_xmit(sc);
+			}
+		}
 
 		/*
 		 * Receive channel
 		 */
 		if(isr1 & 0x03) {
+			dmac = &sca->dmac[DMAC_RXCH(mch)];
+
 			ARC_SET_SCA(hc->iobase, scano);
 
 			dsr = dmac->dsr;
@@ -1365,72 +1517,32 @@ static void ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 			}
 		}
 
-		/*
-		 * We are finished with the 2 DMA status bits for RX now do TX.
-		 */
-		isr1 >>= 2;
-
-		/*
-		 * Transmit channel
-		 */
-		if(isr1 & 0x03) {
-			dmac = &sca->dmac[DMAC_TXCH(mch)];
-
-			ARC_SET_SCA(hc->iobase, scano);
-
-			dsr = dmac->dsr;
-			dmac->dsr = dsr;
-
-			/* Counter overflow */
-			if(dsr & SCA_DSR_COF) {
-				printf("ar%d: TX DMA Counter overflow, "
-					"txpacket no %lu.\n",
-					sc->unit,
-					sc->ifsppp.pp_if.if_opackets);
-				sc->ifsppp.pp_if.if_oerrors++;
-			}
-
-			/* Buffer overflow */
-			if(dsr & SCA_DSR_BOF) {
-				printf("ar%d: TX DMA Buffer overflow, "
-					"txpacket no %lu, dsr %02x, "
-					"cda %04x, eda %04x.\n",
-					sc->unit,
-					sc->ifsppp.pp_if.if_opackets,
-					dsr,
-					dmac->cda,
-					dmac->eda);
-				sc->ifsppp.pp_if.if_oerrors++;
-			}
-
-			/* End of Transfer */
-			if(dsr & SCA_DSR_EOT) {
-				/*
-				 * This should be the most common case.
-				 *
-				 * Clear the IFF_OACTIVE flag.
-				 *
-				 * Call arstart to start a new transmit if
-				 * there is data to transmit.
-				 */
-				sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
-				sc->ifsppp.pp_if.if_timer = 0;
-
-				arstart(&sc->ifsppp.pp_if);
-			}
-		}
-		isr1 >>= 2;
+		isr1 >>= 4;
 
 		mch++;
 	}while((mch<NCHAN) && isr1);
+
+	/*
+	 * Now that we have done all the urgent things, see if we
+	 * can fill the transmit buffers.
+	 */
+	for(mch = 0; mch < NCHAN; mch++) {
+		if(dotxstart & 0x0C) {
+			sc = &hc->sc[mch + (NCHAN * scano)];
+			arstart(&sc->ifsppp.pp_if);
+		}
+		dotxstart >>= 4;
+	}
 }
 
-static void ar_msci_intr(struct ar_hardc *hc, int scano, u_char isr0)
+static void
+ar_msci_intr(struct ar_hardc *hc, int scano, u_char isr0)
 {
 	printf("arc%d: ARINTR: MSCI\n", hc->cunit);
 }
 
-static void ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr2)
+static void
+ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr2)
 {
 	printf("arc%d: ARINTR: TIMER\n", hc->cunit);
 }
