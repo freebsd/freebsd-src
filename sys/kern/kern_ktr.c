@@ -88,6 +88,9 @@ int	ktr_mask = KTR_MASK;
 TUNABLE_INT("debug.ktr.mask", &ktr_mask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RW, &ktr_mask, 0, "");
 
+int	ktr_compile = KTR_COMPILE;
+SYSCTL_INT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD, &ktr_compile, 0, "");
+
 int	ktr_entries = KTR_ENTRIES;
 SYSCTL_INT(_debug_ktr, OID_AUTO, entries, CTLFLAG_RD, &ktr_entries, 0, "");
 
