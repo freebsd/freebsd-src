@@ -14,6 +14,11 @@ prior to 4.0 Release.
 20010421:
 	FreeBSD 4.3 RELEASE
 
+20010402:
+	It appears that PERL_THREADED=true in /etc/make.conf is not
+	compatible with mod_perl.  Not sure the exact date of this problem,
+	but it post dates 4.2 and predates 4.3.
+
 20010202:
 	The KERNEL variable for buildkernel and installkernel has been
 	deprecated in favor of KERNCONF.  make kernel now combines these
