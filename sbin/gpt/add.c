@@ -174,6 +174,10 @@ cmd_add(int argc, char *argv[])
 				} else if (strcmp(optarg, "ufs") == 0) {
 					uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 					type = ufs;
+				} else if ((strcmp(optarg, "linux") == 0)
+					  || (strcmp(optarg, "windows") == 0)) {
+					uuid_t ext = GPT_ENT_TYPE_MS_BASIC_DATA;
+					type = ext ;
 				} else
 					usage_add();
 			}
