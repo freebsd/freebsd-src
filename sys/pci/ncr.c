@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.147 1999/05/21 22:02:02 ken Exp $
+**  $Id: ncr.c,v 1.148 1999/05/26 23:01:53 gallatin Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -47,7 +47,6 @@
 #define NCR_GETCC_WITHMSG
 
 #if defined (__FreeBSD__) && defined(KERNEL)
-#include "opt_failsafe.h"
 #include "opt_ncr.h"
 #endif /* defined(KERNEL) */
 
@@ -1360,7 +1359,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.147 1999/05/21 22:02:02 ken Exp $\n";
+	"\n$Id: ncr.c,v 1.148 1999/05/26 23:01:53 gallatin Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
