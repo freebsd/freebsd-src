@@ -349,6 +349,9 @@ _thread_init(void)
 		SIGEMPTYSET(_thread_suspend_sigset);
 		SIGADDSET(_thread_suspend_sigset, SIGTHR);
 	}
+#ifdef _PTHREADS_INVARIANTS
+	SIGADDSET(_thread_suspend_sigset, SIGALRM);
+#endif
 
 	/* Get the kernel clockrate: */
 	mib[0] = CTL_KERN;

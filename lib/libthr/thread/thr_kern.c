@@ -77,6 +77,9 @@ _thread_sigblock()
 	 */
 	SIGFILLSET(set);
 	SIGADDSET(set, SIGTHR);
+#ifdef _PTHREADS_INVARIANTS
+	SIGDELSET(set, SIGABRT);
+#endif
 
 	/* If we have already blocked signals, just up the refcount */
 	if (++curthread->signest > 1)
