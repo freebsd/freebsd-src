@@ -99,6 +99,7 @@ struct ndis_req {
 struct ndisproc {
 	struct ndisqhead	*np_q;
 	struct proc		*np_p;
+	int			np_state;
 };
 
 static int ndis_create_kthreads(void);
@@ -214,6 +215,7 @@ ndis_runq(arg)
 		/* Look for any jobs on the work queue. */
 
 		mtx_pool_lock(ndis_mtxpool, ndis_thr_mtx);
+		p->np_state = NDIS_PSTATE_RUNNING;
 		while(STAILQ_FIRST(p->np_q) != NULL) {
 			r = STAILQ_FIRST(p->np_q);
 			STAILQ_REMOVE_HEAD(p->np_q, link);
@@ -232,6 +234,7 @@ ndis_runq(arg)
 			if (r->nr_exit == TRUE)
 				die = r;
 		}
+		p->np_state = NDIS_PSTATE_SLEEPING;
 		mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
 		/* Bail if we were told to shut down. */
@@ -267,12 +270,14 @@ ndis_create_kthreads()
 
 	if (error == 0) {
 		ndis_tproc.np_q = &ndis_ttodo;
+		ndis_tproc.np_state = NDIS_PSTATE_SLEEPING;
 		error = kthread_create(ndis_runq, &ndis_tproc,
 		    &ndis_tproc.np_p, RFHIGHPID, 0, "ndis taskqueue");
 	}
 
 	if (error == 0) {
 		ndis_iproc.np_q = &ndis_itodo;
+		ndis_iproc.np_state = NDIS_PSTATE_SLEEPING;
 		error = kthread_create(ndis_runq, &ndis_iproc,
 		    &ndis_iproc.np_p, RFHIGHPID, 0, "ndis swi");
 	}
@@ -408,6 +413,7 @@ ndis_sched(func, arg, t)
 	struct ndis_req		*r;
 	struct ndisqhead	*q;
 	struct proc		*p;
+	int			s;
 
 	if (t == NDIS_TASKQUEUE) {
 		q = &ndis_ttodo;
@@ -438,10 +444,21 @@ ndis_sched(func, arg, t)
 	r->nr_arg = arg;
 	r->nr_exit = FALSE;
 	STAILQ_INSERT_TAIL(q, r, link);
+	if (t == NDIS_TASKQUEUE)
+		s = ndis_tproc.np_state;
+	else
+		s = ndis_iproc.np_state;
 	mtx_pool_unlock(ndis_mtxpool, ndis_thr_mtx);
 
-	/* Post the job. */
-	kthread_resume(p);
+	/*
+	 * Post the job, but only if the thread is actually blocked
+	 * on its own suspend call. If a driver queues up a job with
+	 * NdisScheduleWorkItem() which happens to do a KeWaitForObject(),
+	 * it may suspend there, and in that case we don't want to wake
+	 * it up until KeWaitForObject() gets woken up on its own.
+	 */
+	if (s == NDIS_PSTATE_SLEEPING)
+		kthread_resume(p);
 
 	return(0);
 }
