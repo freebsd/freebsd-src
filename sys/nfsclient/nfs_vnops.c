@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.82 1998/03/28 12:04:40 bde Exp $
+ * $Id: nfs_vnops.c,v 1.83 1998/03/30 09:54:32 phk Exp $
  */
 
 
@@ -1212,12 +1212,10 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 		rdev = 0xffffffff;
 	else {
 		VOP_ABORTOP(dvp, cnp);
-		vput(dvp);
 		return (EOPNOTSUPP);
 	}
 	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
 		VOP_ABORTOP(dvp, cnp);
-		vput(dvp);
 		return (error);
 	}
 	nfsstats.rpccnt[NFSPROC_MKNOD]++;
@@ -1273,7 +1271,6 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
-	vput(dvp);
 	return (error);
 }
 
@@ -1337,7 +1334,6 @@ nfs_create(ap)
 
 	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
 		VOP_ABORTOP(dvp, cnp);
-		vput(dvp);
 		return (error);
 	}
 	if (vap->va_vaflags & VA_EXCLUSIVE)
@@ -1410,7 +1406,6 @@ again:
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
-	vput(dvp);
 	return (error);
 }
 
@@ -1479,11 +1474,6 @@ nfs_remove(ap)
 		error = nfs_sillyrename(dvp, vp, cnp);
 	zfree(namei_zone, cnp->cn_pnbuf);
 	np->n_attrstamp = 0;
-	vput(dvp);
-	if (vp == dvp)
-		vrele(vp);
-	else
-		vput(vp);
 	return (error);
 }
 
@@ -1686,10 +1676,6 @@ nfs_link(ap)
 
 	if (vp->v_mount != tdvp->v_mount) {
 		VOP_ABORTOP(vp, cnp);
-		if (tdvp == vp)
-			vrele(tdvp);
-		else
-			vput(tdvp);
 		return (EXDEV);
 	}
 
@@ -1718,7 +1704,6 @@ nfs_link(ap)
 		VTONFS(vp)->n_attrstamp = 0;
 	if (!wccflag)
 		VTONFS(tdvp)->n_attrstamp = 0;
-	vput(tdvp);
 	/*
 	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
 	 */
@@ -1788,7 +1773,6 @@ nfs_symlink(ap)
 	VTONFS(dvp)->n_flag |= NMODIFIED;
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
-	vput(dvp);
 	/*
 	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
 	 */
@@ -1829,7 +1813,6 @@ nfs_mkdir(ap)
 
 	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
 		VOP_ABORTOP(dvp, cnp);
-		vput(dvp);
 		return (error);
 	}
 	len = cnp->cn_namelen;
@@ -1882,7 +1865,6 @@ nfs_mkdir(ap)
 	} else
 		*ap->a_vpp = newvp;
 	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
 	return (error);
 }
 
@@ -1923,8 +1905,6 @@ nfs_rmdir(ap)
 		VTONFS(dvp)->n_attrstamp = 0;
 	cache_purge(dvp);
 	cache_purge(vp);
-	vput(vp);
-	vput(dvp);
 	/*
 	 * Kludge: Map ENOENT => 0 assuming that you have a reply to a retry.
 	 */
