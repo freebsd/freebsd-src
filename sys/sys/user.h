@@ -80,6 +80,8 @@ struct kinfo_proc {
 		struct	session *e_tsess;	/* tty session pointer */
 #define	WMESGLEN	7
 		char	e_wmesg[WMESGLEN+1];	/* wchan message */
+#define MTXNAMELEN	7
+		char	e_mtxname[MTXNAMELEN+1];/* blocked mutex */
 		segsz_t e_xsize;		/* text size */
 		short	e_xrssize;		/* text rss */
 		short	e_xccount;		/* text references */

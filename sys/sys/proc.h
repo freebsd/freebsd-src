@@ -213,6 +213,7 @@ struct	proc {
 	struct	klist p_klist;		/* knotes attached to this process */
 	LIST_HEAD(, mtx) p_heldmtx;	/* for debugging code */
 	struct mtx *p_blocked;		/* Mutex process is blocked on */
+	const char *p_mtxname;		/* Name of mutex blocked on */
 	LIST_HEAD(, mtx) p_contested;	/* contested locks */
 
 /* End area that is zeroed on creation. */
@@ -227,7 +228,7 @@ struct	proc {
 	int	p_magic;	/* Magic number. */
 	u_char	p_priority;	/* Process priority. */
 	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
-	u_char	p_nativepri;	/* Priority before propogation. */
+	u_char	p_nativepri;	/* Priority before propagation. */
 	char	p_nice;		/* Process "nice" value. */
 	char	p_comm[MAXCOMLEN+1];
 
