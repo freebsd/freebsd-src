@@ -88,14 +88,14 @@ char tbuf[1024];
 static void loginlist __P((void));
 static void userlist __P((int, char **));
 
-main(argc, argv)
+int
+option(argc, argv)
 	int argc;
 	char **argv;
 {
 	int ch;
 
-					/* delete this for sun behavior */
-	oflag = 1;			/* default to old behavior for now */
+	optind = 1;		/* reset getopt */
 
 	while ((ch = getopt(argc, argv, "lmpsho")) != EOF)
 		switch(ch) {
@@ -123,8 +123,33 @@ main(argc, argv)
 			    "usage: finger [-lmpsho] [login ...]\n");
 			exit(1);
 		}
-	argc -= optind;
-	argv += optind;
+
+	return optind;
+}
+
+main(argc, argv)
+	int argc;
+	char **argv;
+{
+	int ch, envargc, argcnt;
+	char *envargv[3];
+
+				/* remove this line to get remote host */
+	oflag = 1;		/* default to old "office" behavior */
+
+	/*
+	 * Process environment variables followed by command line arguments.
+	 */
+	if ((envargv[1] = getenv("FINGER"))) {
+		envargc = 2;
+		envargv[0] = "finger";
+		envargv[2] = NULL;
+		(void) option(envargc, envargv);
+	}
+
+	argcnt = option(argc, argv);
+	argc -= argcnt;
+	argv += argcnt;
 
 	(void)time(&now);
 	setpassent(1);
