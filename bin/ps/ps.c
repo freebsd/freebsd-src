@@ -1019,9 +1019,11 @@ pscomp(const void *a, const void *b)
 		return (getpcpu((const KINFO *)b) - getpcpu((const KINFO *)a));
 	if (sortby == SORTMEM)
 		return (VSIZE((const KINFO *)b) - VSIZE((const KINFO *)a));
-	i =  (int)((const KINFO *)a)->ki_p->ki_tdev - (int)((const KINFO *)b)->ki_p->ki_tdev;
+	i =  (int)((const KINFO *)a)->ki_p->ki_tdev -
+	    (int)((const KINFO *)b)->ki_p->ki_tdev;
 	if (i == 0)
-		i = ((const KINFO *)a)->ki_p->ki_pid - ((const KINFO *)b)->ki_p->ki_pid;
+		i = ((const KINFO *)a)->ki_p->ki_pid -
+		    ((const KINFO *)b)->ki_p->ki_pid;
 	return (i);
 }
 
