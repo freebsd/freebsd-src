@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.7 1995/02/02 12:36:19 davidg Exp $
+**  $Id: pcisupport.c,v 1.8 1995/02/02 13:12:18 davidg Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -99,13 +99,13 @@ static	char*	chipset_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {
 	case 0x04848086:
-		return ("intel 82378IB pci-isa bridge");
+		return ("Intel 82378IB PCI-ISA bridge");
 	case 0x04838086:
-		return ("intel 82424ZX cache dram controller");
+		return ("Intel 82424ZX cache DRAM controller");
 	case 0x04828086:
-		return ("intel 82375EB pci-eisa bridge");
+		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x04a38086:
-		return ("intel 82434LX pci cache memory controller");
+		return ("Intel 82434LX PCI cache memory controller");
 	};
 	return ((char*)0);
 }
@@ -323,7 +323,11 @@ static	char*	vga_probe (pcici_t tag, pcidi_t type)
 			break;
 
 	case PCI_CLASS_DISPLAY:
-		return ("display device");
+		if ((data & PCI_SUBCLASS_MASK)
+		    == PCI_SUBCLASS_DISPLAY_VGA)
+			return "VGA-compatible display device";
+		else
+			return ("Display device");
 	};
 	return ((char*)0);
 }
