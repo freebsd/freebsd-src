@@ -104,6 +104,38 @@ static struct timecounter acpi_timer_timecounter = {
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, acpi_timecounter, CTLFLAG_RD,
 	      &acpi_timer_timecounter, sizeof(acpi_timer_timecounter), "S,timecounter", "");
+static int test_counter(void);
+
+#define N 2000
+static int
+test_counter()
+{
+	int min, max, n, delta;
+	unsigned last, this;
+
+	min = 10000000;
+	max = 0;
+	last = TIMER_READ;
+	for (n = 0; n < N; n++) {
+		this = TIMER_READ;
+		delta = (this - last) & 0xffffff;
+		if (delta > max)
+			max = delta;
+		else if (delta < min)
+			min = delta;
+		last = this;
+	}
+	if (max - min > 2)
+		n = 0;
+	else if (min < 0)
+		n = 0;
+	else
+		n = 1;
+	printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
+		n ? "GOOD" : "BAD ",
+		min, max, max - min + 1);
+	return (n);
+}
 
 /*
  * Locate the ACPI timer using the FADT, set up and allocate the I/O resources
@@ -114,7 +146,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 {
     device_t	dev;
     char	desc[40];
-    int		rid;
+    int		rid, i, j;
 
     ACPI_FUNCTION_TRACE(__func__);
 
@@ -138,26 +170,21 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     if (getenv("debug.acpi.timer_test") != NULL)
 	acpi_timer_test();
 
-    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+    j = 0;
+    for(i = 0; i < 10; i++)
+	j += test_counter();
+    if (j == 10) {
+	acpi_timer_timecounter.tc_name = "ACPI-fast";
+	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+    } else {
+	acpi_timer_timecounter.tc_name = "ACPI-safe";
+	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
+    }
     tc_init(&acpi_timer_timecounter);
 
     sprintf(desc, "%d-bit timer at 3.579545MHz", AcpiGbl_FADT->TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
-
-#if 0    
-    {
-	u_int64_t	first;
-    
-	first = rdtsc();
-	acpi_timer_get_timecount(NULL);	
-	printf("acpi_timer_get_timecount %lld cycles\n", rdtsc() - first);
-
-	first = rdtsc();
-	acpi_timer_get_timecount_safe(NULL);
-	printf("acpi_timer_get_timecount_safe %lld cycles\n", rdtsc() - first);
-    }
-#endif
 
     return_VOID;
 }
@@ -200,7 +227,7 @@ acpi_timer_get_timecount_safe(struct timecounter *tc)
 	u1 = u2;
 	u2 = u3;
 	u3 = TIMER_READ;
-    } while (u1 > u2 || u2 > u3);
+    } while (u1 > u2 || u2 > u3 || (u3 - u1) > 15);
     return (u2);
 }
 
@@ -293,6 +320,7 @@ acpi_timer_test(void)
  * directions.  If we only cared about monosity two reads would be enough.
  */
 
+#if 0
 static int	acpi_timer_pci_probe(device_t dev);
 
 static device_method_t acpi_timer_pci_methods[] = {
@@ -335,3 +363,4 @@ acpi_timer_pci_probe(device_t dev)
 
     return(ENXIO);		/* we never match anything */
 }
+#endif
