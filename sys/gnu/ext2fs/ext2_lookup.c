@@ -111,9 +111,8 @@ static u_char dt_to_ext2_ft[] = {
     ((dt) > sizeof(dt_to_ext2_ft) / sizeof(dt_to_ext2_ft[0]) ?	\
     EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
 
-static int	ext2_dirbadentry(struct vnode *dp,
-				      struct ext2_dir_entry_2 *de,
-				      int entryoffsetinblock);
+static int	ext2_dirbadentry(struct vnode *dp, struct ext2_dir_entry_2 *de,
+		    int entryoffsetinblock);
 
 /*
  * Vnode op for reading directories.
