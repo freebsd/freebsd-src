@@ -190,6 +190,9 @@
         panics on PAE machines of certain large memory sizes has been
         corrected.</para>
 
+      <para arch="i368">Floating point emulation in the kernel has
+	been removed.</para>
+
     </sect3>
 
     <sect3 id="boot">
@@ -342,6 +345,10 @@
       operations only.  It should be useful on routers with numerous
       network interfaces. &merged;</para>
 
+    <para>The &man.atmconfig.8; program has been added for
+      configuration of the ATM drivers and IP-over-ATM
+      functionality.</para>
+
     <para>&man.chroot.8; now allows the optional setting of a user,
       primary group, or group list to use inside the chroot
       environment via the <option>-u</option>, <option>-g</option>,
@@ -444,7 +451,7 @@
       to 8.3.6.</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
-      3.3.1-prerelease (a 11 July 2003 snapshot).
+      3.3.1-release.
 
       <note>
         <para>Previous versions of <application>GCC</application>
