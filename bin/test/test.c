@@ -521,19 +521,21 @@ newerf (const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
-	return (stat (f1, &b1) == 0 &&
-		stat (f2, &b2) == 0 &&
-		b1.st_mtime > b2.st_mtime);
+	if (stat(f1, &b1) != 0 || stat(f2, &b2) != 0)
+		return 0;
+
+	if (b1.st_mtimespec.tv_sec > b2.st_mtimespec.tv_sec)
+		return 1;
+	if (b1.st_mtimespec.tv_sec < b2.st_mtimespec.tv_sec)
+		return 0;
+
+       return (b1.st_mtimespec.tv_nsec > b2.st_mtimespec.tv_nsec);
 }
 
 static int
 olderf (const char *f1, const char *f2)
 {
-	struct stat b1, b2;
-
-	return (stat (f1, &b1) == 0 &&
-		stat (f2, &b2) == 0 &&
-		b1.st_mtime < b2.st_mtime);
+	return (newerf(f2, f1));
 }
 
 static int
