@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.69 1996/12/19 21:51:48 ache Exp $
+#	$Id: termcap.src,v 1.70 1997/01/07 01:27:59 ache Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2353,7 +2353,7 @@ vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
 	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:\
 	:LE=\E[%dD:ct=\E[3g:st=\EH:tc=vt100-am:
-vt100-em|dec-vt100-em|vt100 emulation (without semigraphics and padding):\
+vt100-nac|dec-vt100-nac|vt100 without pseudographics and padding:\
 	:as@:ae@:ac@:tc=vt100-np:
 gt42|dec gt42:\
 	:do=^J:le=^H:bs:co#72:ns:li#40:os:
@@ -2447,7 +2447,7 @@ vt102-w-nam|dec-vt102-w-nam|dec vt102 132 cols (w/advanced video), no am:\
 	:is=\E>\E[?1;4;5;7l\E[?3;8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;4;5;7l\E[?3;8h:\
 	:co#132:vt@:tc=vt102-nam:
-vt102-em|dec-vt102-em|vt102 emulation (without semigraphics):\
+vt102-nac|dec-vt102-nac|vt102 without pseugraphics:\
 	:as@:ae@:ac@:tc=vt102:
 vt52|dec-vt52|dec vt52:\
 	:do=^J:le=^H:bs:cd=\EJ:ce=\EK:cl=\EH\EJ:cm=\EY%+ %+ :co#80:li#24:\
@@ -2469,15 +2469,51 @@ pro350|decpro|dec pro console:\
 	:se=\E^N:so=\E^H:us=\E^D:ue=\E^C:\
 	:ae=\EG:as=\EF:
 #
-vt200|vt220|vt220am|dec-vt220|dec vt200 series with jump scroll:\
+vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt200 series with jump scroll:\
 	:@7=\E[4~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kh=\E[1~:\
 	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
-	:ve=\E[?25h:vi=\E[?25l:k0@:k5@:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:ve=\E[?25h:vi=\E[?25l:k0@:\
 	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:tc=vt102:
+vt220-pf|vt200-pf|dec-vt220-pf|dec-vt200-pf|dec vt200 with PF1-PF4:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:tc=vt220:
+vt200-nam|dec-vt200-nam|vt200nam|vt200 w/no am:\
+	:tc=vt220nam:
+vt220-nam|dec-vt220-nam|vt220nam|vt220 w/no am:\
+	:am@:xn@:\
+	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
+	:rs=\E>\E[?1;3;4;5;7l\E[?8h:\
+	:tc=vt220am:
+vt200-ss|vt220-ss|dec-vt220-ss|dec vt200 series with smooth scroll:\
+	:is=\E>\E[?1;3;5l\E[?4;7;8h\E[1;24r\E[24;1H:\
+	:rs=\E>\E[?1;3;5l\E[?4;7;8h:\
+	:tc=vt200:
+vt200-w|vt220-w|dec-vt220-w|vt200-wj|vt220-wj|dec vt200 series; 132 col.; jump scroll:\
+	:is=\E>\E[?1;4;5l\E[?3;7;8h\E[1;24r\E[24;1H:\
+	:rs=\E>\E[?1;4;5l\E[?3;7;8h:\
+	:co#132:vt@:tc=vt200:
+vt200-ws|vt220-ws|dec-vt220-ws|dec vt200 series; 132 col.; smooth scroll:\
+	:is=\E>\E[?1;5l\E[?3;4;7;8h\E[1;24r\E[24;1H:\
+	:rs=\E>\E[?1;5l\E[?3;4;7;8h:\
+	:co#132:vt@:tc=vt200:
+vt200-nac|vt220-nac|dec-vt200-nac|dec-vt220-nac|dec vt200 without pseudographics:\
+	:as@:ae@:ac@:tc=vt200:
 #
-vt320|vt300|vt340|dec vt320 with status line:\
+vt320|vt300|vt340|vt320 with status line:\
 	:ds=\E[2$~\r\E[1$}\E[K\E[$}:ts=\E[2$~\E[1$}\E[1;%dH:\
 	:fs=\E[$}:tc=vt220:
+dec-vt320|dec-vt300|dec-vt340|dec vt320 with status line:\
+	:tc=vt320:
+vt320-pf|vt300-pf|vt340-pf|vt320 with PF1-PF4:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:tc=vt320:
+dec-vt320-pf|dec-vt300-pf|dec-vt340-pf|dec vt320 with PF1-PF4:\
+	:tc=vt320-pf:
+vt320-nac|vt300-nac|vt340-nac|vt320 without pseudographics:\
+	:as@:ae@:ac@:tc=vt320:
+dec-vt320-nac|dec-vt300-nac|dec-vt340-nac|dec vt320 without pseudographics:\
+	:tc=vt320-nac:
 #
 # SC,SW names needed for screen(1)        ache
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
@@ -2501,27 +2537,6 @@ SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
 SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
 	:co#132:tc=screen:
-vt200-nam|dec-vt200-nam|vt200nam|vt200 w/no am:\
-	:tc=vt220nam:
-vt220-nam|dec-vt220-nam|vt220nam|vt220 w/no am:\
-	:am@:xn@:\
-	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
-	:rs=\E>\E[?1;3;4;5;7l\E[?8h:\
-	:tc=vt220am:
-vt200-ss|vt220-ss|dec-vt220-ss|dec vt200 series with smooth scroll:\
-	:is=\E>\E[?1;3;5l\E[?4;7;8h\E[1;24r\E[24;1H:\
-	:rs=\E>\E[?1;3;5l\E[?4;7;8h:\
-	:tc=vt200:
-vt200-w|vt220-w|dec-vt220-w|vt200-wj|vt220-wj|dec vt200 series; 132 col.; jump scroll:\
-	:is=\E>\E[?1;4;5l\E[?3;7;8h\E[1;24r\E[24;1H:\
-	:rs=\E>\E[?1;4;5l\E[?3;7;8h:\
-	:co#132:vt@:tc=vt200:
-vt200-ws|vt220-ws|dec-vt220-ws|dec vt200 series; 132 col.; smooth scroll:\
-	:is=\E>\E[?1;5l\E[?3;4;7;8h\E[1;24r\E[24;1H:\
-	:rs=\E>\E[?1;5l\E[?3;4;7;8h:\
-	:co#132:vt@:tc=vt200:
-vt200-em|vt220-em|dec-vt200-em|dec-vt220-em|vt200 emulation (without semigraphics ):\
-	:as@:ae@:ac@:tc=vt200:
 xterm-r5|xterm X11R5 version:\
 	:am:km:ms:xn:\
 	:co#80:it#8:li#24:\
