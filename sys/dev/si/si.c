@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.80 1999/04/24 20:17:03 peter Exp $
+ *	$Id: si.c,v 1.81 1999/04/27 11:15:14 phk Exp $
  */
 
 #ifndef lint
@@ -2812,7 +2812,7 @@ si_modulename(host_type, uart_type)
 	return("");
 }
 
-static si_devsw_installed = 0;
+static int si_devsw_installed;
 
 static void 
 si_drvinit(void *unused)

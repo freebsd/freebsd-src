@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.24 1998/12/11 08:48:21 kato Exp $
+ *	$Id: lpt.c,v 1.25 1999/01/28 11:24:36 kato Exp $
  */
 
 /*
@@ -1422,7 +1422,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
 #endif /* INET */
 
-static lpt_devsw_installed = 0;
+static int lpt_devsw_installed;
 
 static void 	lpt_drvinit(void *unused)
 {

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.46 1998/10/22 05:58:41 bde Exp $
+ * $Id: wt.c,v 1.47 1998/12/18 18:07:10 bde Exp $
  *
  */
 
@@ -982,7 +982,7 @@ wtstatus (wtinfo_t *t)
 }
 
 
-static wt_devsw_installed = 0;
+static int wt_devsw_installed;
 
 static void 
 wt_drvinit(void *unused)

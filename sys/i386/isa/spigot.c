@@ -275,7 +275,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 }
 
 
-static spigot_devsw_installed = 0;
+static int spigot_devsw_installed;
 
 static void 	spigot_drvinit(void *unused)
 {

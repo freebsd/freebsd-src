@@ -2082,7 +2082,7 @@ meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
 
 
 #if !defined(METEOR_FreeBSD_210)	/* XXX */
-static meteor_devsw_installed = 0;
+static int meteor_devsw_installed;
 
 static void 	meteor_drvinit(void *unused)
 {

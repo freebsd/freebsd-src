@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.24 1999/01/30 12:17:33 phk Exp $
+ * $Id: istallion.c,v 1.25 1999/04/27 11:15:05 phk Exp $
  */
 
 /*****************************************************************************/
@@ -648,7 +648,7 @@ static	struct cdevsw	stli_cdevsw = {
 	D_TTY,
 };
 
-static stli_devsw_installed = 0;
+static int stli_devsw_installed;
 
 static void stli_drvinit(void *unused)
 {

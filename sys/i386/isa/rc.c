@@ -1495,7 +1495,7 @@ rc_wait0(nec, unit, chan, line)
 		      unit, chan, line);
 }
 
-static rc_devsw_installed = 0;
+static int rc_devsw_installed;
 
 static void 	rc_drvinit(void *unused)
 {

@@ -360,7 +360,7 @@ int cmd, ver;
 	DISPATCH(lkmtp, cmd, ver, iplaction, iplaction, iplaction);
 }
 # endif
-static ipl_devsw_installed = 0;
+static int ipl_devsw_installed;
 
 static void ipl_drvinit __P((void *unused))
 {

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.28 1998/06/14 10:52:52 bde Exp $
+ *	$Id: ctx.c,v 1.29 1998/12/09 02:56:48 eivind Exp $
  */
 
 /*
@@ -448,7 +448,7 @@ waitvb(int port)
 
 
 
-static ctx_devsw_installed = 0;
+static int ctx_devsw_installed;
 
 static void
 ctx_drvinit(void *unused)
