@@ -554,7 +554,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
     printf ("SMP %d cpus\n", ncpus);
   } else {
     ncpus = 0;
-    prv_space = 0;
+    prv_space = ksym_lookup("__globaldata");
     prv_space_size = 0;
   }
   cpuid = 0;
