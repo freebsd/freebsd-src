@@ -60,7 +60,9 @@ conff(char *file)
 	f = fopen(s, "w");
 	if (f == NULL)
 		err(1, s);
-	sb = g_conf();
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	g_confxml(sb);
 	fputs(sbuf_data(sb), f);
 	fclose(f);
 	free(s);
@@ -181,7 +183,9 @@ sdumpf(char *file)
 	f = fopen(s, "w");
 	if (f == NULL)
 		err(1, s);
-	sb = g_confdot();
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_clear(sb);
+	g_confdot(sb);
 	fprintf(f, "%s", sbuf_data(sb));
 	fclose(f);
 	free(s);
