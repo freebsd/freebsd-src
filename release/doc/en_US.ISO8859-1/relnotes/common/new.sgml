@@ -64,6 +64,12 @@
 	2.  Within each subsection (i.e. kernel, security, userland),
 	list items in alphabetical order by these keywords.
 
+	Some entries will have no obvious keywords to help with
+	ordering.  In sections containing these entries, put those
+	containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+	entries.
+
 -->
 
 <sect1>
@@ -94,14 +100,34 @@
     provide access to the system monitoring functions of the AMD 756
     chip set.</para>
 
+    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
+    can be used to reconfigure the size of the kernel virtual address
+    space.</para>
+
     <para arch="i386">The &man.loader.8; now has optional support
     (enabled at compile-time, off by default) for loading
     <application>bzip2</application>-compressed kernels and
     modules.</para>
 
+    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    along with the <varname>hw.physmem</varname> environment, can be
+    used to artificially reduce the memory size of a machine for
+    testing (or other purposes).</para>
+
+    <para>The kernel configuration parameters
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
+    all loader tunables.</para>
+
     <para arch="i386">The pmc driver, which supports the power
     management controller of the NEC PC-98NOTE, has been
     added.</para>
+
+    <para arch="alpha">The console driver has gained support for TGA-based
+    display adapters.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <para arch="i386">The load addresses of kernels has been exported
     to the symbol table and various hard-coded constants removed so
@@ -116,24 +142,6 @@
     per-process kernel state has been increased from 2 to 3, to reduce
     the likelihood of kernel stack overflow (and subsequent corruption
     of per-process data structures).</para>
-
-    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
-    can be used to reconfigure the size of the kernel virtual address
-    space.</para>
-
-    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment, can be
-    used to artificially reduce the memory size of a machine for
-    testing (or other purposes).</para>
-
-    <para arch="alpha">The console driver has gained support for TGA-based
-    display adapters.</para>
-
-    <para>The kernel configuration parameters
-    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
-    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
-    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
-    all loader tunables.</para>
 
     <para>The system load average computation now adds some jitter to
     the timing of samples, in order to avoid synchronization with
