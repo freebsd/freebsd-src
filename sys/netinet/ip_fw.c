@@ -320,11 +320,13 @@ ip_fw_chk(struct ip **pip, int hlen,
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
-		if ((src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
+		if ((f->fw_flg & IP_FW_F_INVSRC) != 0
+		  ^ (src.s_addr & f->fw_smsk.s_addr) != f->fw_src.s_addr)
 			continue;
 
 		/* If dest-addr doesn't match, not this rule. */
-		if ((dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
+		if ((f->fw_flg & IP_FW_F_INVDST) != 0
+		  ^ (dst.s_addr & f->fw_dmsk.s_addr) != f->fw_dst.s_addr)
 			continue;
 
 		/* If a i/f name was specified, and we don't know */
