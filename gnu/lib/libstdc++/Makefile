@@ -157,7 +157,7 @@ MARCHDIR=	${MACHINE_ARCH}
 .if exists(${SRCDIR}/config/cpu/${MARCHDIR}/${h})
 TARGETHDRS+=	${SRCDIR}/config/cpu/${MARCHDIR}/${h}
 .else
-TARGETHDRS+=	${SRCDIR}/config/cpu/generic/bits/${h}
+TARGETHDRS+=	${SRCDIR}/config/cpu/generic/${h}
 .endif
 .endfor
 
