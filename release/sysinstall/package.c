@@ -167,13 +167,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	pipe(pfd);
 	pid = fork();
 	if (!pid) {
-	    extern int _interactiveHack;
-
 	    dup2(pfd[0], 0); close(pfd[0]);
-	    if (!_interactiveHack) {
-		dup2(DebugFD, 1);
-		close(2);
-	    }
+	    dup2(DebugFD, 1); dup2(1, 2);
 	    close(pfd[1]);
 
 	    /* Prevent pkg_add from wanting to interact in bad ways */
