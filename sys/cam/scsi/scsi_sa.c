@@ -219,6 +219,7 @@ struct sa_softc {
 	int		buffer_mode;
 	int		filemarks;
 	union		ccb saved_ccb;
+	int		last_resid_was_io;
 
 	/*
 	 * Relative to BOT Location.
@@ -908,6 +909,24 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		g->mt_fileno = softc->fileno;
 		g->mt_blkno = softc->blkno;
 		g->mt_dsreg = (short) softc->dsreg;
+		/*
+		 * Yes, we know that this is likely to overflow
+		 */
+		if (softc->last_resid_was_io) {
+			if ((g->mt_resid = (short) softc->last_io_resid) != 0) {
+				if (SA_IS_CTRL(dev) == 0 || didlockperiph) {
+					softc->last_io_resid = 0;
+				}
+			}
+		} else {
+			if ((g->mt_resid = (short)softc->last_ctl_resid) != 0) {
+				if (SA_IS_CTRL(dev) == 0 || didlockperiph) {
+					softc->last_ctl_resid = 0;
+				}
+			}
+		}
+		if (g->mt_resid) {
+		}
 		error = 0;
 		break;
 	}
@@ -1197,6 +1216,26 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 	default:
 		error = cam_periph_ioctl(periph, cmd, arg, saerror);
 		break;
+	}
+
+	/*
+	 * Check to see if we cleared a frozen state
+	 */
+	if (error == 0 && (softc->flags & SA_FLAG_TAPE_FROZEN)) {
+		switch(cmd) {
+		case MTIOCRDSPOS:
+		case MTIOCRDHPOS:
+		case MTIOCSLOCATE:
+		case MTIOCHLOCATE:
+			softc->fileno = (daddr_t) -1;
+			softc->blkno = (daddr_t) -1;
+			softc->flags &= ~SA_FLAG_TAPE_FROZEN;
+			xpt_print_path(periph->path);
+			printf("tape state now unfrozen.\n");
+			break;
+		default:
+			break;
+		}
 	}
 	if (didlockperiph) {
 		cam_periph_unlock(periph);
@@ -2280,12 +2319,14 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_io_cdb,
 			    (int) csio->cdb_len);
 			softc->last_io_resid = resid;
+			softc->last_resid_was_io = 1;
 		} else {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_ctl_sense,
 			    sizeof (struct scsi_sense_data));
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_ctl_cdb,
 			    (int) csio->cdb_len);
 			softc->last_ctl_resid = resid;
+			softc->last_resid_was_io = 0;
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ "
 		    "0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
