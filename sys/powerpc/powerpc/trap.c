@@ -578,12 +578,13 @@ copyin(udaddr, kaddr, len)
 	void *kaddr;
 	size_t len;
 {
-	const char *up;
-	char *kp;
-	char *p;
-	size_t l;
-	faultbuf env;
-	uint segment;
+	const char	*up;
+	char		*kp, *p;
+	size_t		l;
+	faultbuf	env;
+	uint		segment;
+	struct thread	*td;
+	pmap_t		pm;
 
 	up = udaddr;
 	kp = kaddr;
@@ -594,13 +595,15 @@ copyin(udaddr, kaddr, len)
 		return EFAULT;
 	}
 #endif
+	td = PCPU_GET(curthread);
+	pm = &td->td_proc->p_vmspace->vm_pmap;
 	while (len > 0) {
 		p = (char *)USER_ADDR + ((u_int)up & ~SEGMENT_MASK);
 		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
 		if (l > len)
 			l = len;
 		segment = (uint)up >> ADDR_SR_SHFT;
-		setusr(PCPU_GET(curpcb)->pcb_pm->pm_sr[segment]);
+		setusr(pm->pm_sr[segment]);
 		bcopy(p, kp, l);
 		up += l;
 		kp += l;
@@ -616,12 +619,13 @@ copyout(kaddr, udaddr, len)
 	void *udaddr;
 	size_t len;
 {
-	const char *kp;
-	char *up;
-	char *p;
-	size_t l;
-	faultbuf env;
-	uint segment;
+	const char	*kp;
+	char		*up, *p;
+	size_t		l;
+	faultbuf	env;
+	unsigned int	segment;
+	struct thread	*td;
+	pmap_t		pm;
 
 	kp = kaddr;
 	up = udaddr;
@@ -632,13 +636,15 @@ copyout(kaddr, udaddr, len)
 		return EFAULT;
 	}
 #endif
+	td = PCPU_GET(curthread);
+	pm = &td->td_proc->p_vmspace->vm_pmap;
 	while (len > 0) {
 		p = (char *)USER_ADDR + ((u_int)up & ~SEGMENT_MASK);
 		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
 		if (l > len)
 			l = len;
 		segment = (u_int)up >> ADDR_SR_SHFT;
-		setusr(PCPU_GET(curpcb)->pcb_pm->pm_sr[segment]);
+		setusr(pm->pm_sr[segment]);
 		bcopy(kp, p, l);
 		up += l;
 		kp += l;
