@@ -1016,7 +1016,11 @@ static struct isa_pnp_id npxisa_ids[] = {
 static int
 npxisa_probe(device_t dev)
 {
-	return (ISA_PNP_PROBE(device_get_parent(dev), dev, npxisa_ids));
+	int result;
+	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, npxisa_ids)) <= 0) {
+		device_quiet(dev);
+	}
+	return(result);
 }
 
 static int
