@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: bpf_filter.c,v 1.3 1994/08/02 07:45:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -112,14 +112,14 @@ m_xword(m, k, err)
 	switch (len - k) {
 
 	case 1:
-		return (cp[k] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
+		return (cp[0] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
 
 	case 2:
-		return (cp[k] << 24) | (cp[k + 1] << 16) | (np[0] << 8) | 
+		return (cp[0] << 24) | (cp[1] << 16) | (np[0] << 8) | 
 			np[1];
 
 	default:
-		return (cp[k] << 24) | (cp[k + 1] << 16) | (cp[k + 2] << 8) |
+		return (cp[0] << 24) | (cp[1] << 16) | (cp[2] << 8) |
 			np[0];
 	}
     bad:
@@ -153,7 +153,7 @@ m_xhalf(m, k, err)
 	if (m0 == 0)
 		goto bad;
 	*err = 0;
-	return (cp[k] << 8) | mtod(m0, u_char *)[0];
+	return (cp[0] << 8) | mtod(m0, u_char *)[0];
  bad:
 	*err = 1;
 	return 0;
