@@ -176,10 +176,12 @@ devclass_t psm_devclass;
 #define PSM_CONFIG_IGNPORTERROR	0x1000  /* ignore error in aux port test */
 #define PSM_CONFIG_HOOKRESUME	0x2000	/* hook the system resume event */
 #define PSM_CONFIG_INITAFTERSUSPEND 0x4000 /* init the device at the resume event */
+#define PSM_CONFIG_SYNCHACK	0x8000 /* enable `out-of-sync' hack */
 
 #define PSM_CONFIG_FLAGS	(PSM_CONFIG_RESOLUTION 		\
 				    | PSM_CONFIG_ACCEL		\
 				    | PSM_CONFIG_NOCHECKSYNC	\
+				    | PSM_CONFIG_SYNCHACK	\
 				    | PSM_CONFIG_NOIDPROBE	\
 				    | PSM_CONFIG_NORESET	\
 				    | PSM_CONFIG_FORCETAP	\
@@ -1900,6 +1902,15 @@ psmintr(void *arg)
             log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
 		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
 	    sc->inputbytes = 0;
+	    if (sc->config & PSM_CONFIG_SYNCHACK) {
+		/*
+		 * XXX: this is a grotesque hack to get us out of
+		 * dreaded "out of sync" error.
+		 */
+		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
+		disable_aux_dev(sc->kbdc);
+		enable_aux_dev(sc->kbdc);
+	    }
             continue;
 	}
 
