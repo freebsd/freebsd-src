@@ -1327,8 +1327,9 @@ nge_tick_locked(sc)
 		if (!sc->nge_link) {
 			if (CSR_READ_4(sc, NGE_TBI_BMSR) 
 			    & NGE_TBIBMSR_ANEG_DONE) {
-				printf("nge%d: gigabit link up\n",
-				    sc->nge_unit);
+				if (bootverbose)
+					printf("nge%d: gigabit link up\n",
+					    sc->nge_unit);
 				nge_miibus_statchg(sc->nge_miibus);
 				sc->nge_link++;
 				if (ifp->if_snd.ifq_head != NULL)
@@ -1344,7 +1345,7 @@ nge_tick_locked(sc)
 			    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 				sc->nge_link++;
 				if (IFM_SUBTYPE(mii->mii_media_active) 
-				    == IFM_1000_T)
+				    == IFM_1000_T && bootverbose)
 					printf("nge%d: gigabit link up\n",
 					    sc->nge_unit);
 				if (ifp->if_snd.ifq_head != NULL)
