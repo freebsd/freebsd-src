@@ -49,8 +49,7 @@ net_write(str, len)
 	int len;
 {
 	if (nfrontp + len < netobuf + BUFSIZ) {
-		memmove((void *)nfrontp, (void *)str, len);
-		nfrontp += len;
+		output_datalen(str, len);
 		return(len);
 	}
 	return(0);
