@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.36 1995/05/14 22:25:11 davidg Exp $
+ *	$Id: cpufunc.h,v 1.37 1995/05/30 08:00:30 rgrimes Exp $
  */
 
 /*
@@ -101,6 +101,12 @@ ffs(int mask)
 #else /* __GNUC >= 2 */
 
 /*
+ * The following complications are to get around gcc not having a
+ * constraint letter for the range 0..255.  We still put "d" in the
+ * constraint because "i" isn't a valid constraint when the port
+ * isn't constant.  This only matters for -O0 because otherwise
+ * the non-working version gets optimized away.
+ * 
  * Use an expression-statement instead of a conditional expression
  * because gcc-2.6.0 would promote the operands of the conditional
  * and produce poor code for "if ((inb(var) & const1) == const2)".
@@ -122,14 +128,14 @@ inbc(u_int port)
 {
 	u_char	data;
 
-	__asm __volatile("inb %1,%0" : "=a" (data) : "i" (port));
+	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
 	return (data);
 }
 
 static __inline void
 outbc(u_int port, u_char data)
 {
-	__asm __volatile("outb %0,%1" : : "a" (data), "i" (port));
+	__asm __volatile("outb %0,%1" : : "a" (data), "id" ((u_short)(port)));
 }
 
 #endif /* __GNUC <= 2 */
