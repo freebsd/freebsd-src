@@ -63,6 +63,9 @@ static const char rcsid[] =
 #define _PATH_ELF_HINTS		"./ld-elf.so.hints"
 #endif
 
+#define	_PATH_LD32_HINTS	"/var/run/ld32.so.hints"
+#define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
+
 #undef major
 #undef minor
 
@@ -102,20 +105,31 @@ char	*argv[];
 {
 	int		i, c;
 	int		rval = 0;
-	int		is_aout;
+	int		is_aout = 0;
+	int		is_32 = 0;
 
-	is_aout = 0;
-	if (argc > 1 && strcmp(argv[1], "-aout") == 0) {
-		is_aout = 1;
-		argc--;
-		argv++;
-	} else if (argc > 1 && strcmp(argv[1], "-elf") == 0) {
-		/* skip over legacy -elf arg */
-		argc--;
-		argv++;
+	while (argc > 1) {
+		if (strcmp(argv[1], "-aout") == 0) {
+			is_aout = 1;
+			argc--;
+			argv++;
+		} else if (strcmp(argv[1], "-elf") == 0) {
+			is_aout = 0;
+			argc--;
+			argv++;
+		} else if (strcmp(argv[1], "-32") == 0) {
+			is_32 = 1;
+			argc--;
+			argv++;
+		} else {
+			break;
+		}
 	}
 
-	hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
+	if (is_32)
+		hints_file = is_aout ? _PATH_LD32_HINTS : _PATH_ELF32_HINTS;
+	else
+		hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;
 	if (argc == 1)
 		rescan = 1;
 	else while((c = getopt(argc, argv, "Rf:imrsv")) != -1) {
