@@ -45,6 +45,9 @@
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 int debug = 0;
+extern total_malloced;
+extern int malloccount;
+extern struct mc malloced[];
 #endif
 #include <dev/vinum/request.h>
 
@@ -74,11 +77,6 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 void
 vinumattach(void *dummy)
 {
-    char *buf;						    /* pointer to temporary buffer */
-    struct _ioctl_reply *ioctl_reply;			    /* struct to return */
-    struct uio uio;
-    struct iovec iovec;
-
     /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != NULL)
 	panic("vinum: already loaded");
@@ -93,19 +91,6 @@ vinumattach(void *dummy)
 #ifdef DEVFS
 #error DEVFS not finished yet
 #endif
-
-    uio.uio_iov = &iovec;
-    uio.uio_iovcnt = 1;					    /* just one buffer */
-    uio.uio_offset = 0;					    /* start at the beginning */
-    uio.uio_resid = 512;				    /* one sector */
-    uio.uio_segflg = UIO_SYSSPACE;			    /* we're in system space */
-    uio.uio_rw = UIO_READ;				    /* do we need this? */
-    uio.uio_procp = curproc;				    /* do it for our own process */
-
-    iovec.iov_len = 512;
-    buf = (char *) Malloc(iovec.iov_len);		    /* get a buffer */
-    CHECKALLOC(buf, "vinum: no memory\n");		    /* can't get 512 bytes? */
-    iovec.iov_base = buf;				    /* read into buf */
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
@@ -134,8 +119,6 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
-
-    ioctl_reply = NULL;					    /* no reply on longjmp */
 }
 
 /*
@@ -190,11 +173,8 @@ free_vinum(int cleardrive)
     }
     while ((vinum_conf.flags & (VF_STOPPING | VF_DAEMONOPEN))
 	== (VF_STOPPING | VF_DAEMONOPEN)) {		    /* at least one daemon open, we're stopping */
-	int timeout = 1;
-	while (timeout) {				    /* until the daemon sees sense */
-	    queue_daemon_request(daemonrq_return, (union daemoninfo) NULL); /* stop the daemon */
-	    timeout = tsleep(&vinumclose, PUSER, "vstop", 1); /* and wait for it */
-	}
+	queue_daemon_request(daemonrq_return, (union daemoninfo) NULL);	/* stop the daemon */
+	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
     }
     if (SD != NULL)
 	Free(SD);
@@ -230,6 +210,18 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	vinum_conf.flags |= VF_STOPPING;		    /* note that we want to stop */
 	sync(curproc, &dummyarg);			    /* write out buffers */
 	free_vinum(0);					    /* clean up */
+#ifdef VINUMDEBUG
+	if (total_malloced) {
+	    int i;
+
+	    for (i = 0; i < malloccount; i++)
+		log(LOG_WARNING,
+		    "vinum: exiting with %d bytes malloced from %s:%d\n",
+		    malloced[i].size,
+		    malloced[i].file,
+		    malloced[i].line);
+	}
+#endif
 	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
@@ -313,7 +305,7 @@ vinumopen(dev_t dev,
 	    return ENXIO;				    /* no such device */
 	index = Sdno(dev);				    /* get the subdisk number */
 	if ((index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
-	||(SD[index].state < sd_obsolete))		    /* or SD is not real */
+	||(SD[index].state < sd_init))			    /* or SD is not real */
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
 
