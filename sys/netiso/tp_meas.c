@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_meas.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: tp_meas.c,v 5.2 88/11/18 17:28:04 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_meas.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_meas.c,v 1.1.1.1 1994/05/24 10:06:52 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_meas.c,v $
  * 
  * tp_meas.c : create a performance measurement event
  * in the circular buffer tp_Meas[]

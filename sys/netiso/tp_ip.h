@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_ip.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_ip.h,v 5.1 88/10/12 12:19:47 root Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_ip.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.1.1.1 1994/05/24 10:06:53 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_ip.h,v $
  *
  * internet IP-dependent structures and include files
  *

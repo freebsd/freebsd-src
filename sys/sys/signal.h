@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #ifndef	_SYS_SIGNAL_H_

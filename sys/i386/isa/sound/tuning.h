@@ -1,3 +1,6 @@
+/*
+ * $Id$
+ */
 #ifdef SEQUENCER_C
 
 unsigned short semitone_tuning[24] = 

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
+ * $Id$
  */
 
 #include <sys/types.h>

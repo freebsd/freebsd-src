@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
+ * $Id$
  */
 
 #include <sys/param.h>

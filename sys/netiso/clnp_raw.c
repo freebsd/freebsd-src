@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_raw.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: clnp_raw.c,v 4.2 88/06/29 14:58:56 hagens Exp $ */
-/* $Source: /usr/argo/sys/netiso/RCS/clnp_raw.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_raw.c,v 1.1.1.1 1994/05/24 10:07:22 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/clnp_raw.c,v $ */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

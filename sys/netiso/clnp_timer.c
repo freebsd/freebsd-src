@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_timer.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: clnp_timer.c,v 4.2 88/06/29 14:59:05 hagens Exp $ */
-/* $Source: /usr/argo/sys/netiso/RCS/clnp_timer.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_timer.c,v 1.1.1.1 1994/05/24 10:07:20 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/clnp_timer.c,v $ */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.2 (Berkeley) 2/17/94
+ * $Id$
  */
 
 struct union_args {

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons_pcb.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: cons_pcb.h,v 4.2 88/06/29 14:59:08 hagens Exp $ */
-/* $Source: /usr/argo/sys/netiso/RCS/cons_pcb.h,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/cons_pcb.h,v 1.1.1.1 1994/05/24 10:07:17 rgrimes Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/cons_pcb.h,v $ */
 
 /*
  * protocol control block for the connection oriented network service

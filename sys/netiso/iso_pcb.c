@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_pcb.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -60,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: iso_pcb.c,v 4.5 88/06/29 14:59:56 hagens Exp $
- * $Source: /usr/argo/sys/netiso/RCS/iso_pcb.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/iso_pcb.c,v 1.1.1.1 1994/05/24 10:07:10 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/iso_pcb.c,v $
  *
  * Iso address family net-layer(s) pcb stuff. NEH 1/29/87
  */

@@ -1,4 +1,6 @@
-
+/*
+ * $Id$
+ */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_
 

@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)map.h	8.3 (Berkeley) 1/26/94
+ * $Id$
  */
 
 /*

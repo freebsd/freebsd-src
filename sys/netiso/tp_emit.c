@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_emit.c	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -62,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: tp_emit.c,v 5.5 88/11/18 17:27:20 nhall Exp $
- * $Source: /usr/argo/sys/netiso/RCS/tp_emit.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/tp_emit.c,v 1.1.1.1 1994/05/24 10:06:56 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/tp_emit.c,v $
  *
  * This file contains tp_emit() and tp_error_emit(), which
  * form TPDUs and hand them to ip.

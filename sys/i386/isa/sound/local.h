@@ -1,4 +1,7 @@
 /* for FreeBSD */
+/*
+ * $Id$
+ */
 #include "snd.h"
 
 #if NSND > 0

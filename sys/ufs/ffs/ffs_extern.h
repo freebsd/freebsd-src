@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
+ * $Id$
  */
 
 struct buf;

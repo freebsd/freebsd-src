@@ -37,8 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * static char rcsid[] =
- * "$Header: bpf_filter.c,v 1.16 91/10/27 21:22:35 mccanne Exp $";
+ * $Id$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
+# $Id$
 
 LIB=	kern
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/..

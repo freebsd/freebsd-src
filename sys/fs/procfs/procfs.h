@@ -36,8 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- * From:
- *	$Id: procfs.h,v 3.2 1993/12/15 09:40:17 jsp Exp $
+ *	$Id: procfs.h,v 1.1.1.1 1994/05/24 10:05:07 rgrimes Exp $
  */
 
 /*

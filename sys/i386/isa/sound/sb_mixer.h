@@ -29,6 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added defines for the Sound Galaxy NX Pro mixer.
  * 
+ * $Id$
  */
 
 #define SBPRO_RECORDING_DEVICES	(SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)

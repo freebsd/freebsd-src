@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)timeb.h	8.2 (Berkeley) 1/21/94
+ * $Id$
  */
 
 /* The ftime(2) system call structure -- deprecated. */

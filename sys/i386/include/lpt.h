@@ -11,6 +11,7 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
+ * $Id$
  */
 
 #ifndef _LPT_PRINTER_H_

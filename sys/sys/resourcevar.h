@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
+ * $Id$
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_

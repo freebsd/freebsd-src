@@ -36,6 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkstat.h	8.2 (Berkeley) 1/21/94
+ * $Id$
  */
 
 #define	CP_USER		0

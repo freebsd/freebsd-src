@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_var.h	8.1 (Berkeley) 6/10/93
+ * $Id$
  */
 
 /***********************************************************
@@ -59,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: iso_var.h,v 4.2 88/06/29 15:00:08 hagens Exp $
- * $Source: /usr/argo/sys/netiso/RCS/iso_var.h,v $
+/* $Header: /home/ncvs/src/sys/netiso/iso_var.h,v 1.1.1.1 1994/05/24 10:07:03 rgrimes Exp $
+ * $Source: /home/ncvs/src/sys/netiso/iso_var.h,v $
  */
 
 /*

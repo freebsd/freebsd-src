@@ -41,7 +41,7 @@
  *
  *	@(#)disk.h	8.1 (Berkeley) 6/2/93
  *
- * from: $Header: disk.h,v 1.5 92/11/19 04:33:03 torek Exp $ (LBL)
+ * $Id$
  */
 
 /*

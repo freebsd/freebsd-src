@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_pageout.c	7.4 (Berkeley) 5/7/91
+ *	from: @(#)vm_pageout.c	7.4 (Berkeley) 5/7/91
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.3 1994/06/06 11:56:27 davidg Exp $
+ * $Id: vm_pageout.c,v 1.4 1994/08/01 11:25:45 davidg Exp $
  */
 
 /*

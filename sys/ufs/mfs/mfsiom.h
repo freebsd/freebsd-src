@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsiom.h	8.1 (Berkeley) 6/11/93
+ * $Id$
  */
 
 #define MFS_MAPREG	(MAXPHYS/NBPG + 2) /* Kernel mapping pte's */
