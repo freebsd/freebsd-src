@@ -61,6 +61,7 @@ wctype(const char *property)
 		{ "ideogram",	_CTYPE_I },	/* BSD extension */
 		{ "special",	_CTYPE_T },	/* BSD extension */
 		{ "phonogram",	_CTYPE_Q },	/* BSD extension */
+		{ "rune",	0xFFFFFF00L },	/* BSD extension */
 		{ NULL,		0UL },		/* Default */
 	};
 	int i;
