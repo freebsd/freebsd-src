@@ -41,6 +41,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +63,8 @@ main(int argc, char **argv)
 	const char *dir;
 	struct ufs_args args;
 	struct group *grp;
+	struct stat stbuf;
+	int fd;
 
 	if (argc != 3)
 		usage();
@@ -73,9 +76,15 @@ main(int argc, char **argv)
 		errx(1, "Cannot retrieve operator gid");
 	if (mount("ffs", dir, MNT_UPDATE | MNT_SNAPSHOT, &args) < 0)
 		err(1, "Cannot create %s", args.fspec);
-	if (chown(args.fspec, -1, grp->gr_gid) != 0)
+	if ((fd = open(args.fspec, O_RDONLY)) < 0)
+		err(1, "Cannot open %s", args.fspec);
+	if (fstat(fd, &stbuf) != 0)
+		err(1, "Cannot stat %s", args.fspec);
+	if ((stbuf.st_flags & SF_SNAPSHOT) == 0)
+		errx(1, "File %s is not a snapshot", args.fspec);
+	if (fchown(fd, -1, grp->gr_gid) != 0)
 		err(1, "Cannot chown %s", args.fspec);
-	if (chmod(args.fspec, S_IRUSR | S_IRGRP) != 0)
+	if (fchmod(fd, S_IRUSR | S_IRGRP) != 0)
 		err(1, "Cannot chmod %s", args.fspec);
 
 	exit(EXIT_SUCCESS);
