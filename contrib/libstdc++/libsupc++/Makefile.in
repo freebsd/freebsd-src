@@ -68,37 +68,22 @@ AS = @AS@
 ATOMICITY_INC_SRCDIR = @ATOMICITY_INC_SRCDIR@
 AWK = @AWK@
 BASIC_FILE_H = @BASIC_FILE_H@
-BUILD_INCLUDED_LIBINTL = @BUILD_INCLUDED_LIBINTL@
-CATALOGS = @CATALOGS@
-CATOBJEXT = @CATOBJEXT@
 CCODECVT_C = @CCODECVT_C@
 CCODECVT_H = @CCODECVT_H@
 CLOCALE_H = @CLOCALE_H@
 CMESSAGES_H = @CMESSAGES_H@
 CPP = @CPP@
 CPU_LIMITS_INC_SRCDIR = @CPU_LIMITS_INC_SRCDIR@
-CSHADOW_FLAGS = @CSHADOW_FLAGS@
 CSTDIO_H = @CSTDIO_H@
 CXXCPP = @CXXCPP@
 C_INCLUDE_DIR = @C_INCLUDE_DIR@
-DATADIRNAME = @DATADIRNAME@
 DEBUG_FLAGS = @DEBUG_FLAGS@
 DLLTOOL = @DLLTOOL@
 EXEEXT = @EXEEXT@
 EXTRA_CXX_FLAGS = @EXTRA_CXX_FLAGS@
 GCJ = @GCJ@
 GCJFLAGS = @GCJFLAGS@
-GENCAT = @GENCAT@
-GLIBC21 = @GLIBC21@
 GLIBCPP_IS_CROSS_COMPILING = @GLIBCPP_IS_CROSS_COMPILING@
-GMOFILES = @GMOFILES@
-GMSGFMT = @GMSGFMT@
-INSTOBJEXT = @INSTOBJEXT@
-INTLBISON = @INTLBISON@
-INTLLIBS = @INTLLIBS@
-INTLOBJS = @INTLOBJS@
-INTL_LIBTOOL_SUFFIX_PREFIX = @INTL_LIBTOOL_SUFFIX_PREFIX@
-LIBICONV = @LIBICONV@
 LIBIO_INCLUDES = @LIBIO_INCLUDES@
 LIBMATHOBJS = @LIBMATHOBJS@
 LIBMATH_INCLUDES = @LIBMATH_INCLUDES@
@@ -108,25 +93,21 @@ LIBUNWIND_FLAG = @LIBUNWIND_FLAG@
 LN_S = @LN_S@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
-MKINSTALLDIRS = @MKINSTALLDIRS@
-MSGFMT = @MSGFMT@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 OPT_LDFLAGS = @OPT_LDFLAGS@
 OS_INC_SRCDIR = @OS_INC_SRCDIR@
 PACKAGE = @PACKAGE@
-POFILES = @POFILES@
-POSUB = @POSUB@
 RANLIB = @RANLIB@
 SECTION_FLAGS = @SECTION_FLAGS@
 SECTION_LDFLAGS = @SECTION_LDFLAGS@
 STRIP = @STRIP@
 TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
-USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
 WARN_FLAGS = @WARN_FLAGS@
 WERROR = @WERROR@
+baseline_file = @baseline_file@
 check_msgfmt = @check_msgfmt@
 enable_shared = @enable_shared@
 enable_static = @enable_static@
@@ -145,7 +126,6 @@ gxx_include_dir = @gxx_include_dir@
 ifGNUmake = @ifGNUmake@
 libio_la = @libio_la@
 libtool_VERSION = @libtool_VERSION@
-release_VERSION = @release_VERSION@
 toplevel_srcdir = @toplevel_srcdir@
 
 AUTOMAKE_OPTIONS = 1.3 cygnus
@@ -174,7 +154,7 @@ OPTIMIZE_CXXFLAGS = @OPTIMIZE_CXXFLAGS@
 # or configure.in to see how they are set. See GLIBCPP_EXPORT_FLAGS
 # NB: DEBUGFLAGS have to be at the end so that -O2 can be overridden.
 CONFIG_CXXFLAGS = \
-	@EXTRA_CXX_FLAGS@ @SECTION_FLAGS@ @CSHADOW_FLAGS@ @DEBUG_FLAGS@ 
+	@EXTRA_CXX_FLAGS@ @SECTION_FLAGS@ @DEBUG_FLAGS@ 
 
 
 # Warning flags to use.
@@ -185,23 +165,26 @@ WARN_CXXFLAGS = \
 # Use common includes from acinclude.m4/GLIBCPP_EXPORT_INCLUDES
 GLIBCPP_INCLUDES = @GLIBCPP_INCLUDES@
 LIBSUPCXX_INCLUDES = @LIBSUPCXX_INCLUDES@
+GCC_INCLUDES = -I$(toplevel_srcdir)/gcc -I$(toplevel_srcdir)/include
 
 INCLUDES = \
-	-I$(toplevel_srcdir)/gcc -I$(toplevel_srcdir)/include \
-	$(GLIBCPP_INCLUDES) $(LIBSUPCXX_INCLUDES)
+	$(GCC_INCLUDES) $(GLIBCPP_INCLUDES) $(LIBSUPCXX_INCLUDES)
 
 
 headers = \
 	exception new typeinfo cxxabi.h exception_defines.h 
 
 
-sources = \
+c_sources = \
 	cxa_demangle.c \
+	dyn-string.c 
+
+
+sources = \
 	del_op.cc \
 	del_opnt.cc \
 	del_opv.cc \
 	del_opvnt.cc \
-	dyn-string.c \
 	eh_alloc.cc \
 	eh_aux_runtime.cc \
 	eh_catch.cc \
@@ -222,18 +205,26 @@ sources = \
 	vec.cc
 
 
-libsupc___la_SOURCES = $(sources)
-libsupc__convenience_la_SOURCES = $(sources)
+libsupc___la_SOURCES = $(sources) $(c_sources)
+libsupc__convenience_la_SOURCES = $(sources) $(c_sources)
 
 glibcppinstalldir = @gxx_include_dir@
 glibcppinstall_HEADERS = $(headers)
 
 LIBSUPCXX_CXXFLAGS = $(LIBSUPCXX_PICFLAGS)
 
+# Use special rules for pulling things out of libiberty.  These
+# objects should be compiled with the "C" compiler, not the C++
+# compiler, and also should not use the C++ includes.
+C_COMPILE = \
+	$(CC) $(DEFS) $(GCC_INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+
+
 # LTCOMPILE is copied from LTCXXCOMPILE below.
-LTCOMPILE = $(LIBTOOL) --tag CC --tag disable-shared \
-               --mode=compile $(CC) $(INCLUDES) \
-               $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS) 
+LTCOMPILE = $(LIBTOOL) --tag CC --tag disable-shared --mode=compile $(CC) \
+	    $(DEFS) $(GCC_INCLUDES) \
+            $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS) 
 
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
@@ -296,18 +287,18 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 libsupc__convenience_la_LDFLAGS = 
 libsupc__convenience_la_LIBADD = 
-libsupc__convenience_la_OBJECTS =  cxa_demangle.lo del_op.lo del_opnt.lo \
-del_opv.lo del_opvnt.lo dyn-string.lo eh_alloc.lo eh_aux_runtime.lo \
-eh_catch.lo eh_exception.lo eh_globals.lo eh_personality.lo \
-eh_terminate.lo eh_throw.lo eh_type.lo new_handler.lo new_op.lo \
-new_opnt.lo new_opv.lo new_opvnt.lo pure.lo tinfo.lo tinfo2.lo vec.lo
+libsupc__convenience_la_OBJECTS =  del_op.lo del_opnt.lo del_opv.lo \
+del_opvnt.lo eh_alloc.lo eh_aux_runtime.lo eh_catch.lo eh_exception.lo \
+eh_globals.lo eh_personality.lo eh_terminate.lo eh_throw.lo eh_type.lo \
+new_handler.lo new_op.lo new_opnt.lo new_opv.lo new_opvnt.lo pure.lo \
+tinfo.lo tinfo2.lo vec.lo cxa_demangle.lo dyn-string.lo
 libsupc___la_LDFLAGS = 
 libsupc___la_LIBADD = 
-libsupc___la_OBJECTS =  cxa_demangle.lo del_op.lo del_opnt.lo del_opv.lo \
-del_opvnt.lo dyn-string.lo eh_alloc.lo eh_aux_runtime.lo eh_catch.lo \
-eh_exception.lo eh_globals.lo eh_personality.lo eh_terminate.lo \
-eh_throw.lo eh_type.lo new_handler.lo new_op.lo new_opnt.lo new_opv.lo \
-new_opvnt.lo pure.lo tinfo.lo tinfo2.lo vec.lo
+libsupc___la_OBJECTS =  del_op.lo del_opnt.lo del_opv.lo del_opvnt.lo \
+eh_alloc.lo eh_aux_runtime.lo eh_catch.lo eh_exception.lo eh_globals.lo \
+eh_personality.lo eh_terminate.lo eh_throw.lo eh_type.lo new_handler.lo \
+new_op.lo new_opnt.lo new_opv.lo new_opvnt.lo pure.lo tinfo.lo \
+tinfo2.lo vec.lo cxa_demangle.lo dyn-string.lo
 CXXFLAGS = @CXXFLAGS@
 CXXCOMPILE = $(CXX) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
 CXXLD = $(CXX)
@@ -560,21 +551,20 @@ mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
-# Use special rules for pulling things out of libiberty.
 cxa_demangle.c:
 	rm -f $@
 	$(LN_S) $(toplevel_srcdir)/libiberty/cp-demangle.c $@
 cxa_demangle.lo: cxa_demangle.c
 	$(LTCOMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
 cxa_demangle.o: cxa_demangle.c
-	$(COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
+	$(C_COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
 dyn-string.c:
 	rm -f $@
 	$(LN_S) $(toplevel_srcdir)/libiberty/dyn-string.c $@
 dyn-string.lo: dyn-string.c
 	$(LTCOMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
 dyn-string.o: dyn-string.c
-	$(COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
+	$(C_COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
 
 # We have to have rules modified from the default to counteract SUN make
 # prepending each of $(glibcppinstall_HEADERS) with VPATH below.
