@@ -611,8 +611,11 @@ ftp_close(FTP_t ftp)
 
     if (ftp->con_state == isopen) {
 	ftp->con_state = quit;
-	/* Debug("ftp_pkg: in ftp_close(), sending QUIT"); */
-	i = cmd(ftp, "QUIT");
+	/* If last operation timed out, don't try to quit - just close */
+	if (ftp->errno != FTP_TIMED_OUT)
+	    i = cmd(ftp, "QUIT");
+	else
+	    i = FTP_QUIT_HAPPY;
 	close(ftp->fd_ctrl);
 	ftp->fd_ctrl = -1;
 	if (check_code(ftp, i, FTP_QUIT_HAPPY)) {
