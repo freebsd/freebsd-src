@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.23 1997/02/22 09:36:21 peter Exp $
+ * $Id: if_edreg.h,v 1.24 1998/10/08 17:04:47 kato Exp $
  */
 /*
  * National Semiconductor DS8390 NIC register definitions
@@ -786,22 +786,9 @@ struct ed_ring	{
 #define ED_WD_ROM_CHECKSUM_TOTAL	0xFF
 #endif
 
-#ifdef PC98
-/*
- * SMC EtherEZ98(SMC8498BTA)
- */
-#define ED_WD_NIC_OFFSET	0x100		/* I/O base offset to NIC */
-#define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */
-/*
- * XXX - The I/O address range is fragmented in the EtherEZ98;
- *	this is the number of regs at iobase.
- */
-#define ED_WD_IO_PORTS		16		/* # of i/o addresses used */
-#else
 #define ED_WD_NIC_OFFSET	0x10		/* I/O base offset to NIC */
 #define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */
 #define ED_WD_IO_PORTS		32		/* # of i/o addresses used */
-#endif /* PC98 */
 
 #define ED_WD_PAGE_OFFSET	0	/* page offset for NIC access to mem */
 
