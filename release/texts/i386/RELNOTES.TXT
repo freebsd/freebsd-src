@@ -103,6 +103,8 @@ and reading new connections on listening sockets, has been added.
 
 The ata(4) driver now has support for ATA100 controllers. [MERGED]
 
+The ata(4) driver now has support for tagged queueing.
+
 The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
 Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
 
@@ -111,7 +113,7 @@ controllers with firmware 6.x and later, has been added.
 
 The asr(4) driver, which provides support for the Adaptec SCSI RAID
 controller family, as well as the DPT SmartRAID V and VI families, has
-been added.
+been added. [MERGED]
 
 SMP support has been largely reworked, incorporating code from BSD/OS
 5.0.
@@ -120,7 +122,7 @@ The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
 adapters used on some laptops. [MERGED]
 
 The boot loader has been updated.  The new default kernel is now 
-/boot/kernel/kernel.ko.  The new default module location is 
+/boot/kernel/kernel.  The new default module location is 
 /boot/kernel/.
 
 A filesystem snapshot capability has been added to FFS.  Details can 
@@ -132,6 +134,18 @@ been added, in the form of the aac(4) driver.
 The ng_mppc(4) and ng_bridge(4) node types have been added to the
 netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
 Miscellaneous bug fixes and enhancements have also been made. [MERGED]
+
+The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
+PCnet/Home, and HomePNA adapters, has been added.  Although these
+cards are already supported by the lnc(4) driver, the pcn driver runs
+these chips in 32-bit mode and uses the RX alignment feature to
+achieve zero-copy receive.  This driver is also machine-independent,
+so it will work on both the i386 and alpha platforms.  The lnc driver
+is still needed to support non-PCI cards.
+
+The i386 boot loader now has support for a "nullconsole" console type,
+for use on systems with neither a video console nor a serial
+port. [MERGED]
 
 
 1.2. SECURITY FIXES
@@ -266,6 +280,26 @@ The ifconfig(8) command can set the link-layer address of an interface.
 bktr(4) driver update to 2.1.5.  New tuner types have been added, 
 and improvememts to the KLD module and to memory allocation have been
 made. [MERGED]
+
+setproctitle(3) has been moved from libutil to libc. [MERGED]
+
+chio(1) now has the ability to specify elements by volume tag instead
+of by their physical location as well as the ability to return an
+element to its previous location.
+
+sed(1) now takes a -E option for extended regular expression
+support. [MERGED]
+
+ln(1) now takes an -i option to request user configuration before
+overwriting an existing file. [MERGED]
+
+Version numbers of installed packages have a new (backward-compatible)
+syntax, which supports the "PORTREVISION" and "PORTEPOCH" variables in
+ports collection makefiles.  These changes help keep track of changes
+in the ports collection entries such as security patches or
+FreeBSD-specific updates, which aren't reflected in the original,
+third-party software distributions.  pkg_version(1) can now compare
+these new-style version numbers.  [MERGED]
 
 
 2. Supported Configurations
@@ -459,6 +493,7 @@ chipsets, including the following:
   NEC Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
+AMD PCnet/FAST, PCnet/FAST+, PCnet/Home, and HomePNA.
 
 SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
