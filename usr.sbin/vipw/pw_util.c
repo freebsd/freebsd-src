@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: pw_util.c,v 1.13 1998/12/13 01:39:32 dillon Exp $";
+	"$Id: pw_util.c,v 1.14 1999/06/26 07:16:38 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -103,9 +103,6 @@ pw_init()
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGTERM, SIG_IGN);
 	(void)signal(SIGCONT, pw_cont);
-
-	/* Create with exact permissions. */
-	(void)umask(0);
 }
 
 int
