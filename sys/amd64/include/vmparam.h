@@ -79,7 +79,7 @@
 #define	MAXSLP 		20
 
 /*
- * We provide a machine specific single page allocator through the tuse
+ * We provide a machine specific single page allocator through the use
  * of the direct mapped segment.  This uses 2MB pages for reduced
  * TLB pressure.
  */
