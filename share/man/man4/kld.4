@@ -61,8 +61,8 @@ and
 emulators.
 .Nm
 modules are placed by default in the
-.Pa /modules
-directory.
+.Pa /boot/kernel
+directory along with their matching kernel.
 .Pp
 The
 .Nm
@@ -110,8 +110,9 @@ driver has been successfully loaded.
 .El
 .Sh FILES
 .Bl -tag -width /usr/include/sys/module.h -compact
-.It Pa /modules
-directory containing module binaries shipped with the system
+.It Pa /boot/kernel
+directory containing module binaries built for the kernel also
+residing in the directory.
 .It Pa /usr/include/sys/module.h
 file containing definitions required to compile a 
 .Nm
