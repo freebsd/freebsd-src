@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include "back.h"
 
 #define MVPAUSE	5				/* time to sleep when stuck */
