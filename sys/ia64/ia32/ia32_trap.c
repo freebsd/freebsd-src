@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <i386/include/psl.h>
 
+#ifdef WITNESS
+extern char *syscallnames[];
+#endif
+
 static void
 ia32_syscall(struct trapframe *tf)
 {
