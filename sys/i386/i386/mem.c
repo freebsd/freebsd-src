@@ -46,6 +46,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -56,7 +57,6 @@
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/signalvar.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <machine/frame.h>
