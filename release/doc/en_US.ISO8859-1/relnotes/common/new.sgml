@@ -187,7 +187,7 @@
 
     <para>An &man.orm.4; device has been added to claim the option
     ROMs in the ISA memory I/O space, to prevent other drivers from
-    mistakenly assigned address that conflict with these ROMs.</para>
+    mistakenly assigned address that conflict with these ROMs. &merged;</para>
 
     <para>The out-of-swap process termination code now begins killing
     processes earlier to avoid deadlocks; it now also takes into
@@ -320,13 +320,14 @@
       and DP83821 Gigabit Ethernet controller chips, including the
       D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
       FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
-      AEG320T.</para>
+      AEG320T.  This driver supports transmit and receive checksum
+      offloading. &merged;</para>
 
       <para>The &man.lge.4; driver has been added to support the Level
       1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
       device is used on some fiber optic GigE cards from SMC, D-Link
       and Addtron.  Jumbograms and TCP/IP checksum offload on receive
-      are supported, although hardware VLAN filtering is not.</para>
+      are supported, although hardware VLAN filtering is not. &merged;</para>
 
       <para>The &man.xl.4; driver now supports reception of VLAN
       tagged frames (on the <quote>Cyclone</quote> or newer
@@ -599,6 +600,9 @@
       &man.mount.8; so that <literal>msdos</literal> filesystem
       entries in &man.fstab.5; will work without changes.</para>
 
+      <para>pseudofs, a pseudo-filesystem framework, has been added.
+      &man.linprocfs.5; has been modified to use pseudofs.</para>
+
     </sect3>
 
     <sect3>
@@ -824,10 +828,11 @@
     <para>Initial sequence numbers in TCP are more thoroughly
     randomized (see security advisory FreeBSD-SA-01:39). &merged;</para>
 
-    <para>The new <varname>net.inet.ip.maxfragpackets</varname> sysctl
-    variable limits the amount of memory that can be consumed by IPv4
-    packet fragments, which defends against some denial of service
-    attacks.</para>
+    <para>The new <varname>net.inet.ip.maxfragpackets</varname> 
+    and <varname>net.inet.ip.maxfragpackets</varname> sysctl
+    variables limit the amount of memory that can be consumed by IPv4
+    and IPv6 packet fragments, which defends against some denial of service
+    attacks. &merged;</para>
 
     <para>A vulnerability in the &man.fts.3; routines (used by
     applications for recursively traversing a filesystem) could
@@ -1464,7 +1469,7 @@
     of bugs compared to its prior behavior.</para>
 
     <para>&man.df.1; now takes a <option>-l</option> option to only
-    display information about locally-mounted filesystems.</para>
+    display information about locally-mounted filesystems. &merged;</para>
 
     <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
     now compatable with that of other BSDs. &merged;</para>
@@ -1472,9 +1477,24 @@
     <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
     been cleaned up and updated.</para>
 
+    <para>&man.inetd.8; now has the ability to manage UNIX-domain
+    sockets.</para>
+
     <para>&man.du.1; now takes a <option>-I</option> command-line flag
     to ignore/skip files and subdirectories matching a specified
     shell-glob mask.</para>
+
+    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
+    which will be necessary when working with IPv6 transport-ready
+    resolvers/DNS servers. &merged;</para>
+
+    <para>&man.col.1; now takes a <option>-p</option> to force unknown
+    control sequences to be passed through unchanged.</para>
+
+    <para>The &man.mdmfs.8; command has been added; it is a wrapper
+    around &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8;, and
+    &man.mount.8; that mimics the command line option set of the
+    deprecated &man.mount.mfs.8;.</para>
 
     <sect3>
       <title>Contributed Software</title>
@@ -1488,6 +1508,10 @@
 
       <para><application>Binutils</application> have been upgraded to
       2.11.0. &merged;</para>
+
+      <para><application>bzip2</application> 1.0.1 has been imported; this
+      brings the &man.bzip2.1; program and the <filename>libbz2</filename>
+      library to the base system.</para>
 
       <para><application>cvs</application> has been updated to
       1.11. &merged;</para>
@@ -1526,7 +1550,7 @@
       limitations of its predecessor. &merged;</para>
 
       <para><application>Heimdal</application> has been updated to
-      0.3e. &merged;</para>
+      0.3f.</para>
 
       <para>The <application>ISC DHCP</application> client has been
       updated to 2.0pl5. &merged;</para>
@@ -1793,7 +1817,7 @@
 
       <para>&man.pkg.version.1; now takes a <option>-s</option> flag
       to limit its operation to ports/packages matching a given
-      string.</para>
+      string. &merged;</para>
 
       <para>When requested to delete multiple packages,
       &man.pkg.delete.1; will now attempt to remove them in dependency
