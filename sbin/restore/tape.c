@@ -545,6 +545,19 @@ extractfile(name)
 		}
 		return (linkit(lnkbuf, name, SYMLINK));
 
+	case IFIFO:
+		if (mkfifo(name, mode) < 0) {
+			fprintf(stderr, "%s: cannot create FIFO: %s\n",
+				name, strerror(errno));
+			skipfile();
+			return (FAIL);
+		}
+		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
+		(void) chmod(name, mode);
+		skipfile();
+		utimes(name, timep);
+		return (GOOD);
+
 	case IFCHR:
 	case IFBLK:
 		vprintf(stdout, "extract special file %s\n", name);
