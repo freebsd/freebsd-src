@@ -1167,7 +1167,7 @@
     <para>&man.growfs.8;, a utility for growing FFS filesystems, has
     been added.  &man.ffsinfo.8;, a utility for dump all the
     meta-information of an existing filesystem, has also been
-    added.</para>
+    added. &merged;</para>
 
     <para>&man.indent.1; has gained some new formatting
     options. &merged;</para>
@@ -1594,10 +1594,10 @@
     now compatable with that of other BSDs. &merged;</para>
 
     <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
-    been cleaned up and updated.</para>
+    been cleaned up and updated. &merged;</para>
 
     <para>&man.inetd.8; now has the ability to manage UNIX-domain
-    sockets.</para>
+    sockets. &merged;</para>
 
     <para>&man.du.1; now takes a <option>-I</option> command-line flag
     to ignore/skip files and subdirectories matching a specified
