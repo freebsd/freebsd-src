@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.93 1996/05/22 04:17:17 dyson Exp $
+ *	$Id: pmap.c,v 1.94 1996/05/22 17:07:14 peter Exp $
  */
 
 /*
@@ -624,15 +624,13 @@ pmap_pinit(pmap)
 	/*
 	 * allocate object for the ptes
 	 */
-	pmap->pm_pteobj = vm_object_allocate( OBJT_DEFAULT,
-		OFF_TO_IDX((KPT_MIN_ADDRESS + 1) - UPT_MIN_ADDRESS));
+	pmap->pm_pteobj = vm_object_allocate( OBJT_DEFAULT, PTDPTDI + 1);
 
 	/*
 	 * allocate the page directory page
 	 */
 retry:
-	ptdpg = vm_page_alloc( pmap->pm_pteobj, OFF_TO_IDX(KPT_MIN_ADDRESS),
-		VM_ALLOC_ZERO);
+	ptdpg = vm_page_alloc( pmap->pm_pteobj, PTDPTDI, VM_ALLOC_ZERO);
 	if (ptdpg == NULL) {
 		VM_WAIT;
 		goto retry;
@@ -687,7 +685,7 @@ pmap_release_free_page(pmap, p)
 	 * Page directory pages need to have the kernel
 	 * stuff cleared, so they can go into the zero queue also.
 	 */
-	if (p->pindex == OFF_TO_IDX(KPT_MIN_ADDRESS)) {
+	if (p->pindex == PTDPTDI) {
 		unsigned *pde = (unsigned *) pmap->pm_pdir;
 		bzero(pde + KPTDI, nkpt * PTESIZE);
 		pde[APTDPTDI] = 0;
@@ -720,7 +718,7 @@ pmap_release(pmap)
 retry:
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
 		n = TAILQ_NEXT(p, listq);
-		if (p->pindex == OFF_TO_IDX(KPT_MIN_ADDRESS)) {
+		if (p->pindex == PTDPTDI) {
 			ptdpg = p;
 			continue;
 		}
