@@ -50,7 +50,7 @@
 #include <dev/acpica/acpivar.h>
 
 UINT32
-AcpiOsGetLine(NATIVE_CHAR *Buffer)
+AcpiOsGetLine(char *Buffer)
 {
 #ifdef DDB
     char	*cp;
@@ -67,7 +67,7 @@ AcpiOsGetLine(NATIVE_CHAR *Buffer)
 }
 
 void
-AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber, NATIVE_CHAR *Message)
+AcpiOsDbgAssert(void *FailedAssertion, void *FileName, UINT32 LineNumber, char *Message)
 {
     printf("ACPI: %s:%d - %s\n", (char *)FileName, LineNumber, Message);
     printf("ACPI: assertion  %s\n", (char *)FailedAssertion);
@@ -79,7 +79,7 @@ AcpiOsSignal (
     void                    *Info)
 {
     ACPI_SIGNAL_FATAL_INFO	*fatal;
-    NATIVE_CHAR			*message;
+    char			*message;
     
     switch(Function) {
     case ACPI_SIGNAL_FATAL:
@@ -90,7 +90,7 @@ AcpiOsSignal (
 	break;
 	
     case ACPI_SIGNAL_BREAKPOINT:
-	message = (NATIVE_CHAR *)Info;
+	message = (char *)Info;
 	Debugger(message);
 	break;
 

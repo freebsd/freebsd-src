@@ -10,29 +10,28 @@ KMOD=	acpi
 
 # ACPI CA sources
 CFLAGS+=   -I${.CURDIR}/../../contrib/dev/acpica
-SRCS+=	dsfield.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
-SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
-SRCS+=	evevent.c evmisc.c evregion.c evrgnini.c evsci.c
-SRCS+=	evxface.c evxfevnt.c evxfregn.c
-SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c
-SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c
-SRCS+=	exoparg2.c exoparg3.c exoparg6.c exprep.c exregion.c
-SRCS+=	exresnte.c exresolv.c exresop.c exstore.c exstoren.c
-SRCS+=	exstorob.c exsystem.c exutils.c
+SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c
+SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c
+SRCS+=	dswscope.c dswstate.c evevent.c evgpe.c evgpeblk.c
+SRCS+=	evmisc.c evregion.c evrgnini.c evsci.c evxface.c
+SRCS+=	evxfevnt.c evxfregn.c exconfig.c exconvrt.c excreate.c
+SRCS+=	exdump.c exfield.c exfldio.c exmisc.c exmutex.c
+SRCS+=	exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c
+SRCS+=	exprep.c exregion.c exresnte.c exresolv.c exresop.c
+SRCS+=	exstore.c exstoren.c exstorob.c exsystem.c exutils.c
 SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c
-SRCS+=	nsload.c nsnames.c nsobject.c nssearch.c nsutils.c
-SRCS+=	nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
-SRCS+=	psargs.c psfind.c psopcode.c psparse.c psscope.c
+SRCS+=	nsload.c nsnames.c nsobject.c nsparse.c nssearch.c
+SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
+SRCS+=	psargs.c psopcode.c psparse.c psscope.c
 SRCS+=	pstree.c psutils.c pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsio.c
 SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsutils.c
-SRCS+=	rsxface.c
-SRCS+=	tbconvrt.c tbget.c tbgetall.c tbinstal.c tbrsdt.c
-SRCS+=	tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utclib.c utcopy.c utdebug.c utdelete.c
-SRCS+=	uteval.c utglobal.c utinit.c utmath.c utmisc.c
-SRCS+=	utobject.c utxface.c
+SRCS+=	rsxface.c tbconvrt.c tbget.c tbgetall.c tbinstal.c
+SRCS+=	tbrsdt.c tbutils.c tbxface.c tbxfroot.c utalloc.c
+SRCS+=	utclib.c utcopy.c utdebug.c utdelete.c uteval.c
+SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utobject.c
+SRCS+=	utxface.c
 
 # OSD layer
 SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
