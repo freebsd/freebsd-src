@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.6 1996/05/17 17:36:29 rich Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.7 1996/05/21 04:06:00 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -544,7 +544,7 @@ of what you need to run Mathematica.
 <p>For those who already have the student edition of
 Mathematica for DOS the cost of upgrading to the Linux
 version at the time this was written, March 1996, was
-$45.00.  It can be ordered directly from Wolfram at
+&dollar;45.00.  It can be ordered directly from Wolfram at
 (217) 398-6500 and paid for by credit card.
 
 <sect1><heading>Unpacking the Mathematica distribution</heading>
