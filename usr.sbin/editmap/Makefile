@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	gshapiro@FreeBSD.org
-
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/editmap
 
