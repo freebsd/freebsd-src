@@ -69,17 +69,19 @@
 
 #include <machine/stdarg.h>
 
-#ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+
+#ifdef INET
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-# if defined (__FreeBSD__) || defined (__OpenBSD__)
-#  include <netinet/if_ether.h>
-# else
-#  include <net/ethertypes.h>
-# endif
+#endif
+
+#if defined (__FreeBSD__) || defined (__OpenBSD__)
+# include <netinet/if_ether.h>
+#else
+# include <net/ethertypes.h>
 #endif
 
 #ifdef IPX
@@ -275,6 +277,7 @@ static struct callout_handle keepalive_ch;
 #define	SPP_ARGS(ifp)	(ifp)->if_xname
 #endif
 
+#ifdef INET
 /*
  * The following disgusting hack gets around the problem that IP TOS
  * can't be set yet.  We want to put "interactive" traffic on a high
@@ -288,6 +291,7 @@ static u_short interactive_ports[8] = {
 	0,	21,	0,	23,
 };
 #define INTERACTIVE(p) (interactive_ports[(p) & 7] == (p))
+#endif
 
 /* almost every function needs these */
 #define STDDCL							\
