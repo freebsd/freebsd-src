@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.8 1996/02/09 04:21:35 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.10 1996/02/24 21:41:15 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.8 1996/02/09 04:21:35 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.10 1996/02/24 21:41:15 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -93,6 +93,7 @@ int no_chfn = 0;
 int allow_additions = 0;
 int multidomain = 0;
 int verbose = 0;
+int resvport = 1;
 char *yp_dir = "/var/yp/";
 int yp_sock;
 
@@ -145,7 +146,13 @@ static void terminate(sig)
 	unlink(sockname);
 	exit(0);
 }
-	
+
+static void reload(sig)
+	int sig;
+{
+	load_securenets();
+}
+
 static void
 closedown(int sig)
 {
@@ -181,7 +188,7 @@ closedown(int sig)
 static void usage()
 {
 	fprintf(stderr, "Usage: %s [-t master.passwd file] [-d domain] \
-[-p path] [-s] [-f] [-m] [-a] [-v] [-h]\n",
+[-p path] [-s] [-f] [-m] [-a] [-v] [-u] [-h]\n",
 		progname);
 	exit(1);
 }
@@ -230,6 +237,9 @@ main(argc, argv)
 		case 'v':
 			verbose++;
 			break;
+		case 'u':
+			resvport = 0;
+			break;
 		default:
 		case 'h':
 			usage();
@@ -244,6 +254,8 @@ name isn't set -- aborting");
 		usage();
 		}
 	}
+
+	load_securenets();
 
 	if (getrpcport("localhost", YPPROG, YPVERS, IPPROTO_UDP) <= 0) {
 		yp_error("this host is not an NIS server -- aborting");
@@ -265,6 +277,8 @@ name isn't set -- aborting");
 		yp_error("this host is not an NIS master server -- aborting");
 		exit(1);
 	}
+
+	debug = 0;
 
 	if (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {
 		int ssize = sizeof (int);
@@ -343,12 +357,14 @@ name isn't set -- aborting");
 		(void) signal(SIGALRM, (SIG_PF) closedown);
 		(void) alarm(_RPCSVC_CLOSEDOWN/2);
 	}
-	/* set up resporce limits and block signals */
+	/* set up resource limits and block signals */
 	pw_init();
 
 	/* except SIGCHLD, which we need to catch */
 	install_reaper(1);
 	signal(SIGTERM, (SIG_PF) terminate);
+
+	signal(SIGHUP, (SIG_PF) reload);
 
 	unlink(sockname);
 	yp_sock = makeservsock();

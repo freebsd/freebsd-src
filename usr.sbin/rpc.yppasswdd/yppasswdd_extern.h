@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_extern.h,v 1.4 1996/02/01 04:38:39 wpaul Exp $
+ *	$Id: yppasswdd_extern.h,v 1.5 1996/02/24 21:41:36 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -65,7 +65,10 @@ extern int	no_chsh;
 extern int	no_chfn;
 extern int	allow_additions;
 extern int	multidomain;
+extern int	resvport;
 extern int	verbose;
 extern int	_rpc_dtablesize __P((void));
 extern void	yp_error __P((const char *, ...));
+extern void	load_securenets __P(( void ));
+extern int      yp_access __P((const char *, const struct svc_req * ));
 extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, int));
