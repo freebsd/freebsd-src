@@ -2052,13 +2052,8 @@ kern_stat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp)
 	struct stat sb;
 	int error, vfslocked;
 
-#ifdef LOOKUP_SHARED
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | NOOBJ | MPSAFE,
 	    pathseg, path, td);
-#else
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ | MPSAFE, pathseg, path,
-	    td);
-#endif
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -2106,8 +2101,7 @@ kern_lstat(struct thread *td, char *path, enum uio_seg pathseg, struct stat *sbp
 	struct nameidata nd;
 	int error, vfslocked;
 
-	/* XXX LOOKUP_SHARED? */
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ | MPSAFE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED | NOOBJ | MPSAFE,
 	    pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
