@@ -104,7 +104,6 @@ dev/ar/if_ar_pci.c		optional	ar pci
 dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
-dev/dgb/dgb.c			count		dgb
 dev/ed/if_ed_cbus.c		optional	ed isa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc

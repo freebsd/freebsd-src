@@ -609,7 +609,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
-# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # digi: Digiboard driver
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
@@ -668,15 +667,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #	Brumby:                      flags 2          msize 0x4000
 #	Stallion:                    flags 1          msize 0x10000
 
-# Notes on the Digiboard PC/Xi and PC/Xe series driver
-#               
-# The NDGBPORTS option specifies the number of ports controlled by the
-# dgb(4) driver.  The default value is 16 ports per device.
-#
-# The following flag values have special meanings in dgb:
-#	0x01 - alternate layout of pins
-#	0x02 - use the windowed PC/Xe in 64K mode
-
 device		wt	1
 hint.wt.0.at="isa"
 hint.wt.0.port="0x300"
@@ -701,11 +691,6 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
-device		dgb	  1
-options		NDGBPORTS=17
-hint.dgb.0.at="isa"
-hint.dgb.0.port="0x220"
-hint.dgb.0.maddr="0xfc000"
 device		digi
 hint.digi.0.at="isa"
 hint.digi.0.port="0x104"
