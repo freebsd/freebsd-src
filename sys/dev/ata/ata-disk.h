@@ -40,9 +40,9 @@ struct ata_params {
     int16_t	vendorunique0[3];
     int8_t	serial[20];			/* serial number */
     int16_t	buffertype;			/* buffer type */
-#define	ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
-#define	ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
-#define	ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
+#define ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
+#define ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
+#define ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
 
     int16_t	buffersize;			/* buf size, 512-byte units */
     int16_t	necc;				/* ecc bytes appended */
@@ -52,15 +52,15 @@ struct ata_params {
     int8_t	vendorunique1;
     int16_t	usedmovsd;			/* double word read/write? */
 
-    u_int8_t    vendorcap;                      /* vendor capabilities */
-    u_int8_t    dmaflag         :1;             /* DMA supported - always 1 */
-    u_int8_t    lbaflag         :1;             /* LBA supported - always 1 */
-    u_int8_t    iordydis        :1;             /* IORDY may be disabled */
-    u_int8_t    iordyflag       :1;             /* IORDY supported */
-    u_int8_t                    :1;
-    u_int8_t    standby		:1;		/* standby timer supported */
-    u_int8_t                    :1;
-    u_int8_t    		:1;
+    u_int8_t	vendorcap;			/* vendor capabilities */
+    u_int8_t	dmaflag		:1;		/* DMA supported - always 1 */
+    u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
+    u_int8_t	iordydis	:1;		/* IORDY may be disabled */
+    u_int8_t	iordyflag	:1;		/* IORDY supported */
+    u_int8_t			:1;
+    u_int8_t	standby		:1;		/* standby timer supported */
+    u_int8_t			:1;
+    u_int8_t			:1;
     int16_t	capvalidate;			/* validation for above */
 
     int8_t	vendorunique3;
@@ -69,8 +69,8 @@ struct ata_params {
     int8_t	odmamode;			/* old DMA modes, not ATA-3 */
 
     int16_t	atavalid;			/* fields valid */
-#define         ATA_FLAG_54_58        1         /* words 54-58 valid */
-#define         ATA_FLAG_64_70        2         /* words 64-70 valid */
+#define		ATA_FLAG_54_58	      1		/* words 54-58 valid */
+#define		ATA_FLAG_64_70	      2		/* words 64-70 valid */
 
     int16_t	currcyls;
     int16_t	currheads;
@@ -81,19 +81,19 @@ struct ata_params {
     int8_t	multsectvalid;
     int32_t	lbasize;
 
-    int16_t     sdmamodes;                      /* singleword DMA modes */ 
-    int16_t     wdmamodes;                      /* multiword DMA modes */ 
-    int16_t     apiomodes;                      /* advanced PIO modes */ 
+    int16_t	sdmamodes;			/* singleword DMA modes */ 
+    int16_t	wdmamodes;			/* multiword DMA modes */ 
+    int16_t	apiomodes;			/* advanced PIO modes */ 
 
-    u_int16_t   mwdmamin;                       /* min. M/W DMA time/word ns */
-    u_int16_t   mwdmarec;                       /* rec. M/W DMA time ns */
-    u_int16_t   pioblind;                       /* min. PIO cycle w/o flow */
-    u_int16_t   pioiordy;                       /* min. PIO cycle IORDY flow */
+    u_int16_t	mwdmamin;			/* min. M/W DMA time/word ns */
+    u_int16_t	mwdmarec;			/* rec. M/W DMA time ns */
+    u_int16_t	pioblind;			/* min. PIO cycle w/o flow */
+    u_int16_t	pioiordy;			/* min. PIO cycle IORDY flow */
 
     int16_t	reserved69;
     int16_t	reserved70;
-    u_int16_t   rlsovlap;                       /* rel time (us) for overlap */
-    u_int16_t   rlsservice;                     /* rel time (us) for service */
+    u_int16_t	rlsovlap;			/* rel time (us) for overlap */
+    u_int16_t	rlsservice;			/* rel time (us) for service */
     int16_t	reserved73;
     int16_t	reserved74;
     int16_t	queuelen;
@@ -125,7 +125,7 @@ struct ad_softc {
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
     int32_t			lun;		/* logical unit number */
     u_int16_t			cylinders;	/* disk geometry (probed) */
-    u_int8_t  			heads;
+    u_int8_t			heads;
     u_int8_t			sectors;
     u_int32_t			total_secs;	/* total # of sectors (LBA) */
     u_int32_t			transfersize;	/* size of each transfer */
@@ -137,18 +137,18 @@ struct ad_softc {
 #define		AD_F_DMA_ENABLED	0x0008
 #define		AD_F_TAG_ENABLED	0x0010
 
-    struct buf_queue_head 	queue;		/* head of request queue */
-    struct devstat 		stats;		/* devstat entry */
+    struct buf_queue_head	queue;		/* head of request queue */
+    struct devstat		stats;		/* devstat entry */
     struct disk			disk;		/* disklabel/slice stuff */
 };
 
 struct ad_request {
     struct ad_softc		*device;	/* ptr to parent device */
-    u_int32_t			blockaddr;      /* block number */
-    u_int32_t                   bytecount;      /* bytes to transfer */
-    u_int32_t                   donecount;      /* bytes transferred */
+    u_int32_t			blockaddr;	/* block number */
+    u_int32_t			bytecount;	/* bytes to transfer */
+    u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			currentsize;	/* size of current transfer */
-    u_int32_t                   result;		/* result code */
+    struct callout_handle       timeout_handle; /* handle for untimeout */ 
     int32_t			flags;
 #define		AR_F_READ		0x0001
 #define		AR_F_ERROR		0x0002
@@ -159,3 +159,7 @@ struct ad_request {
     u_int8_t			tag;		/* tag ID of this request */
     TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };
+
+void ad_transfer(struct ad_request *);
+int32_t ad_interrupt(struct ad_request *);
+void ad_reinit(struct ad_softc *);
