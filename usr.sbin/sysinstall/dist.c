@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.57 1996/06/12 07:03:44 jkh Exp $
+ * $Id: dist.c,v 1.58 1996/06/12 14:02:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -266,16 +266,16 @@ distMaybeSetDES(dialogMenuItem *self)
 
     dialog_clear();
     if (!msgYesNo("Do wish to install DES cryptographic software?\n\n"
-		  "FreeBSD will otherwise use an MD5 based password scheme which,\n"
-		  "while perhaps more secure, is not inter-operable with traditional\n"
-		  "UNIX password file formats.\n\n"
+		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
+		  "while perhaps more secure, is not interoperable with the traditional\n"
+		  "UNIX DES passwords on other non-FreeBSD systems.\n\n"
 		  "Please do NOT choose Yes at this point if you are outside the\n"
-		  "United States and Canada yet are installing from a U.S. FTP server\n"
-		  "as this will violate U.S. export restrictions and possibly get the\n"
-		  "server site into trouble.  In such cases, install everything but DES\n"
-		  "software from the U.S. server then change your media type to point to\n"
-		  "an international FTP server, then using the Custom menu to selected and\n"
-		  "extract the DES distribution(s) in a second pass.")) {
+		  "United States and Canada yet are installing from a U.S. FTP server.\n"
+		  "This will violate U.S. export restrictions and possibly get the\n"
+		  "server site into trouble!  In such cases, install everything but the\n"
+		  "DES distribution from the U.S. server then switch your media type to\n"
+		  "point to an international FTP server, using the Custom installation\n"
+		  "option to select and extract the DES distribution in a second pass.")) {
 	if (dmenuOpenSimple(&MenuDESDistributions)) {
 	    if (DESDists) {
 		if (DESDists & DIST_DES_KERBEROS)
