@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.10 1999/03/17 11:10:49 jkh Exp $
+#	$Id: Makefile,v 1.460.2.11 1999/04/03 20:54:00 gpalmer Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -145,7 +145,9 @@ rerelease release:
 	-mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	[ -f /etc/resolv.conf ] && cp -p /etc/resolv.conf ${CHROOTDIR}/etc
+	if [ -f /etc/resolv.conf ]; then \
+		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
+	fi
 	cd ${.CURDIR}/.. && ${MAKE} installworld DESTDIR=${CHROOTDIR} NOMAN=1
 	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
 	for i in ${BOOTSTRAPUTILS} ; do \
@@ -169,7 +171,9 @@ rerelease release:
 .endif
 .if !defined(NODOC)
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
-	[ -d ${DISTFILES}/ ] && cp -rp ${DISTFILES} ${CHROOTDIR}/usr/ports/distfiles
+	if [ -d ${DISTFILES}/ ]; then \
+		cp -rp ${DISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
+	fi
 .endif
 .endif
 .if make(rerelease)
