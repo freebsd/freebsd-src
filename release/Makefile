@@ -316,6 +316,8 @@ CVS_PORTSARGS=	-P
 CVS_PORTSARGS+=	-r ${PORTSRELEASETAG}
 .endif
 
+WORLDDIR?=	${.CURDIR}/..
+
 release rerelease:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
@@ -337,9 +339,9 @@ release rerelease:
 .endif
 	mkdir -p ${CHROOTDIR}
 	@echo ">>> make release for ${TARGET} started on `LC_ALL=C TZ=GMT date`"
-	cd ${.CURDIR}/.. && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
+	cd ${WORLDDIR} && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
 	    -DNOPROFILE installworld DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/../etc && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
+	cd ${WORLDDIR}/etc && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
