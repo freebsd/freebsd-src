@@ -172,7 +172,11 @@ lose
 
 #define	GNU_REGEX
 #ifdef GNU_REGEX
+#ifdef __FreeBSD__
+#include <gnuregex.h>
+#else
 #include "regex.h"
+#endif
 #include "dfa.h"
 typedef struct Regexp {
 	struct re_pattern_buffer pat;
