@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.32 1997/09/02 20:05:53 bde Exp $
+ * $Id: sys_pipe.c,v 1.33 1997/09/14 02:43:25 peter Exp $
  */
 
 /*
@@ -1002,8 +1002,8 @@ pipe_poll(fp, events, cred, p)
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
-			selrecord(p, &rpipe->pipe_sel);
-			rpipe->pipe_state |= PIPE_SEL;
+			selrecord(p, &wpipe->pipe_sel);
+			wpipe->pipe_state |= PIPE_SEL;
 		}
 	}
 
