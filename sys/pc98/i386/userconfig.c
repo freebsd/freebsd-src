@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.60 1998/12/05 09:22:05 kato Exp $
+ **      $Id: userconfig.c,v 1.61 1998/12/08 08:17:43 kato Exp $
  **/
 
 /**
@@ -160,7 +160,7 @@ getchar(void)
     static int		assize;		/* use of int for -ve magic value */
     static int		autocheck = 0;
     caddr_t		autoentry, autoattr;
-    int			c;
+    int			c = 0;
     static int		intro = 0;
     
     /* Look for loaded userconfig script */
@@ -2025,15 +2025,17 @@ static void
 helpscreen(void) 
 {
     int		topline = 0;			/* where we are in the text */
-    int		line, c, delta = 1;
+    int		c, delta = 1;
     char	prompt[80];
 
     for (;;)					/* loop until user quits */
     {
+	int line = 0;
+
 	/* display help text */
 	if (delta) 
 	{
-	    clear();					/* remove everything else */
+	    clear();				/* remove everything else */
 	    for (line = topline; 
 		 (line < (topline + 24)) && (helptext[line]); 
 		 line++)
@@ -2473,7 +2475,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.60 1998/12/05 09:22:05 kato Exp $
+ *      $Id: userconfig.c,v 1.61 1998/12/08 08:17:43 kato Exp $
  */
 
 #include "scbus.h"
