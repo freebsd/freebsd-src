@@ -1285,7 +1285,7 @@ static int
 resource_find_hard(const char *cp, const char *name, int unit,
 		   const char *resname, struct config_resource **result)
 {
-	static char match[100];
+	char match[256];
 	int matchlen;
 	char *op;
 	long val;
@@ -1307,7 +1307,7 @@ resource_find_hard(const char *cp, const char *name, int unit,
 		cp += matchlen;		/* skip over name and '=' */
 	else
 		return ENOENT;
-	val = strtol(cp, &op, 0);
+	val = strtoul(cp, &op, 0);
 	if (*cp != '\0' && *op == '\0') {
 		(*result)->type = RES_INT;
 		(*result)->u.intval = val;
@@ -1562,7 +1562,7 @@ hint_load(char *cp)
 	int	unit;
 	char	resname[255];
     
-	for (ep = cp; (*ep != '=') && (*ep != 0); ep++)
+	for (ep = cp; *ep != '=' && *ep != '\0'; ep++)
 		;
 	len = ep - cp;
 	if (*ep == '=')
@@ -1586,7 +1586,7 @@ hint_load(char *cp)
 		walker++;
 	if (*walker != '.')
 		return;
-	unit = strtol(op, &walker, 0);
+	unit = strtoul(op, &walker, 0);
 	if (*walker != '.')
 		return;
 	walker++;
@@ -1604,7 +1604,7 @@ hint_load(char *cp)
 		return;
 	if (bootverbose)
 		printf("Setting %s %d %s to ", name, unit, resname);
-	val = strtol(ep, &op, 0);
+	val = strtoul(ep, &op, 0);
 	if (*ep != '\0' && *op == '\0') {
 		resource_set_int(name, unit, resname, val);
 		if (bootverbose)
@@ -1625,19 +1625,19 @@ hints_load(void *dummy __unused)
 	cp = static_hints;
 	while (cp) {
 		hint_load(cp);
-		while (*cp != 0)
+		while (*cp != '\0')
 			cp++;
 		cp++;
-		if (*cp == 0)
+		if (*cp == '\0')
 			break;
 	}
 	cp = kern_envp;
 	while (cp) {
 		hint_load(cp);
-		while (*cp != 0)
+		while (*cp != '\0')
 			cp++;
 		cp++;
-		if (*cp == 0)
+		if (*cp == '\0')
 			break;
 	}
 	hints_loaded++;
