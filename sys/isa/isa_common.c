@@ -1115,3 +1115,4 @@ DRIVER_MODULE(isa, eisab, isa_driver, isa_devclass, 0, 0);
 #ifdef __i386__
 DRIVER_MODULE(isa, legacy, isa_driver, isa_devclass, 0, 0);
 #endif
+MODULE_VERSION(isa, 1);
