@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.13 1995/07/26 18:05:16 wollman Exp $
+ *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
+ *	$Id: ip_var.h,v 1.14 1995/09/18 15:51:37 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
