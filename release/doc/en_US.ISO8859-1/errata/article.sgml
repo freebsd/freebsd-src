@@ -11,14 +11,8 @@
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
-%mlists;
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
-%trademarks;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
@@ -47,7 +41,8 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
-      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+      <year>2005</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -58,7 +53,7 @@
   </articleinfo>
 
   <abstract>
-    <para>This document lists errata items for &os; 
+    <para>This document lists errata items for &os;
 <![ %release.type.snapshot [
       &release.prev;,
 ]]>
@@ -74,7 +69,7 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os; 
+    <para>This errata document for &os;
 <![ %release.type.snapshot [
       &release.prev;
 ]]>
@@ -139,36 +134,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>(20 May 2004) A security problem was discovered
-      in <application>CVS</application> but the release notes
-      did not state that since it was very late in the release cycle.
-      &os; &release.prev; includes a fix for it and is not vulnerable.
-      For the details, see the security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>.</para>
-
-    <para>(23 May 2004) As a side effect of closing a security problem
-      related to &man.msync.2;, the <literal>MS_INVALIDATE</literal>
-      flag no longer guarantees that all pages in the range are
-      invalidated.  This can cause problems when pages are backed by a remote file
-      (e.g. via NFS) where other machines can write to the permanent storage since
-      the local pages not being invalidated might then contain stale data.  The
-      security problem being addressed is a strictly local exploit, and only
-      allows a local user to block the writing of data to a file under certain
-      circumstances.  Users who require the old semantics of
-      <literal>MS_INVALIDATE</literal> and are not concerned with
-      the security issue being fixed can set the
-      <literal>vm.old_msync</literal> sysctl to <literal>1</literal>
-      which will revert to the old (insecure) behavior.</para>
-
-    <para>(25 May 2004) The &man.twe.4; driver was recently updated by the
-      vendor.  Problems have been reported in rare circumstances under
-      conditions that are hard to reproduce.  Work is ongoing to isolate
-      these problems and determine their source.</para>
-
-    <para>(27 May 2004) The &man.bfe.4; driver for Broadcom BCM4401
-      based Fast Ethernet adapters has been added but the release notes
-      did not mention that.</para>
+    <para>No news.</para>
 ]]>
   </sect1>
 </article>

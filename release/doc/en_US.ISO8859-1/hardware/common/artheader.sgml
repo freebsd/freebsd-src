@@ -3,7 +3,7 @@
 <articleinfo>
   <title>&os;/&arch; &release.current; Hardware Notes</title>
 
-  <corpauthor>The FreeBSD Documentation Project</corpauthor>
+  <corpauthor>The &os; Documentation Project</corpauthor>
 
   <copyright>
     <year>2000</year>
@@ -11,6 +11,7 @@
     <year>2002</year>
     <year>2003</year>
     <year>2004</year>
-    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    <year>2005</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 </articleinfo>
