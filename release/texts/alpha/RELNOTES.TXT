@@ -1,22 +1,22 @@
                                  RELEASE NOTES
-                            FreeBSD Release 4.0-SNAP
+                            FreeBSD Release 5.0-SNAP
 
-This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
+This is a 5.0-CURRENT release SNAPshot of FreeBSD, an active
 development branch which will produce its first release in early
-March 2000.  Those features which have also been back-ported to
-the 3.x-stable branch (the next release for which will be 3.5)
+March 2001.  Those features which have also been back-ported to
+the 4.x-stable branch (the next release for which will be 4.1)
 are marked [MERGED].
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.0-RELEASE
+For information about FreeBSD and the layout of the 5.0-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.0-current snapshots, you should always see:
+For the latest of these 5.0-current snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
@@ -47,7 +47,7 @@ Table of contents:
 
 1. What's new since the 3.1/4.0 branch
 --------------------------------------
-All changes described here are unique to the 4.0 branch unless
+All changes described here are unique to the 5.0 branch unless
 specifically marked as [MERGED] features.
 
 1.1. KERNEL CHANGES
