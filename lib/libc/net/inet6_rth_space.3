@@ -217,6 +217,12 @@ to obtain the number of segments in the Routing header.
 Upon an error the return value of the function is
 .Dv NULL .
 .\"
+.Sh EXAMPLES
+draft-ietf-ipngwg-rfc2292bis-08.txt
+gives comprehensive examples in Section 22.
+.Pp
+KAME also provides examples in the advapitest directory of its kit.
+.\"
 .Sh DIAGNOSTICS
 The
 .Fn inet6_rth_space
@@ -238,12 +244,6 @@ and
 functions
 return 0 on success, or \-1 upon an error.
 .\"
-.Sh EXAMPLES
-draft-ietf-ipngwg-rfc2292bis-08.txt
-gives comprehensive examples in Section 22.
-.Pp
-KAME also provides examples in the advapitest directory of its kit.
-.\"
 .Sh SEE ALSO
 .Rs
 .%A W. Stevens
@@ -261,13 +261,13 @@ KAME also provides examples in the advapitest directory of its kit.
 .%N RFC2460
 .%D December 1998
 .Re
-.Sh HISTORY
-The implementation first appeared in KAME advanced networking kit.
 .Sh STANDARDS
 The functions
 are documented in
 .Dq Advanced Sockets API for IPv6
 .Pq draft-ietf-ipngwg-rfc2292bis-08.txt .
 .\"
+.Sh HISTORY
+The implementation first appeared in KAME advanced networking kit.
 .Sh BUGS
 The text was shamelessly copied from internet-drafts for RFC2292bis.

@@ -399,17 +399,17 @@ function puts a 32-bit quantity
 .Fa src
 to a buffer pointed to by
 .Fa dst .
-.Sh RETURN VALUES
-The
-.Fn res_init
-function will return 0 on success, or \-1 in a threaded program if
-per-thread storage could not be allocated.
 .Sh IMPLEMENTATION NOTES
 This implementation of the resolver is thread-safe, but it will not
 function properly if the programmer attempts to declare his or her own
 .Va _res
 structure in an attempt to replace the per-thread version referred to
 by that macro.
+.Sh RETURN VALUES
+The
+.Fn res_init
+function will return 0 on success, or \-1 in a threaded program if
+per-thread storage could not be allocated.
 .Sh FILES
 .Bl -tag -width /etc/resolv.conf
 .It Pa /etc/resolv.conf

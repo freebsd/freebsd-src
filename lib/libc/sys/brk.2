@@ -152,6 +152,11 @@ to support the expansion of the data segment.
 .Xr end 3 ,
 .Xr free 3 ,
 .Xr malloc 3
+.Sh HISTORY
+The
+.Fn brk
+function appeared in
+.At v7 .
 .Sh BUGS
 Mixing
 .Fn brk
@@ -168,8 +173,3 @@ It is not possible to distinguish this
 from a failure caused by exceeding the maximum size of
 the data segment without consulting
 .Xr getrlimit 2 .
-.Sh HISTORY
-The
-.Fn brk
-function appeared in
-.At v7 .

@@ -164,6 +164,16 @@ function does not reliably set
 .Xr fopen 3 ,
 .Xr stdio 3 ,
 .Xr system 3
+.Sh HISTORY
+A
+.Fn popen
+and a
+.Fn pclose
+function appeared in
+.At v7 .
+.Pp
+Bidirectional functionality was added in
+.Fx 2.2.6 .
 .Sh BUGS
 Since the standard input of a command opened for reading
 shares its seek offset with the process that called
@@ -189,13 +199,3 @@ always calls
 .Xr sh 1 ,
 never calls
 .Xr csh 1 .
-.Sh HISTORY
-A
-.Fn popen
-and a
-.Fn pclose
-function appeared in
-.At v7 .
-.Pp
-Bidirectional functionality was added in
-.Fx 2.2.6 .

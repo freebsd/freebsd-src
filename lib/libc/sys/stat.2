@@ -317,13 +317,6 @@ represented correctly in the structure pointed to by
 .Xr utimes 2 ,
 .Xr symlink 7 ,
 .Xr sticky 8
-.Sh BUGS
-Applying
-.Fn fstat
-to a socket (and thus to a pipe)
-returns a zeroed buffer,
-except for the blocksize field,
-and a unique device and inode number.
 .Sh STANDARDS
 The
 .Fn stat
@@ -342,3 +335,10 @@ The
 .Fn lstat
 system call appeared in
 .Bx 4.2 .
+.Sh BUGS
+Applying
+.Fn fstat
+to a socket (and thus to a pipe)
+returns a zeroed buffer,
+except for the blocksize field,
+and a unique device and inode number.

@@ -87,12 +87,12 @@ process address space.
 .Xr bind 2 ,
 .Xr getpeername 2 ,
 .Xr socket 2
-.Sh BUGS
-Names bound to sockets in the UNIX domain are inaccessible;
-.Fn getsockname
-returns a zero length name.
 .Sh HISTORY
 The
 .Fn getsockname
 system call appeared in
 .Bx 4.2 .
+.Sh BUGS
+Names bound to sockets in the UNIX domain are inaccessible;
+.Fn getsockname
+returns a zero length name.

@@ -66,6 +66,11 @@ representable as an
 .Li unsigned char
 or the value of
 .Dv EOF .
+.Sh RETURN VALUES
+The
+.Fn isblank
+function returns zero if the character tests false and
+returns non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -76,11 +81,6 @@ and may not be supported in future releases.
 The
 .Fn iswblank
 function should be used instead.
-.Sh RETURN VALUES
-The
-.Fn isblank
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswblank 3 ,

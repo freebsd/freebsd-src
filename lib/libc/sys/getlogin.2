@@ -174,17 +174,16 @@ The size of the buffer is smaller than the result to be returned.
 .Sh SEE ALSO
 .Xr setsid 2 ,
 .Xr daemon 3
-.Sh BUGS
-In earlier versions of the system,
+.Sh STANDARDS
+The
 .Fn getlogin
-failed unless the process was associated with a login terminal.
-The current implementation (using
-.Fn setlogin )
-allows getlogin to succeed even when the process has no controlling terminal.
-In earlier versions of the system, the value returned by
-.Fn getlogin
-could not be trusted without checking the user ID.
-Portable programs should probably still make this check.
+system call
+and
+the
+.Fn getlogin_r
+function
+conform to
+.St -p1003.1-96 .
 .Sh HISTORY
 The
 .Fn getlogin
@@ -196,13 +195,14 @@ was changed from earlier versions of
 .Fx
 to be conformant with
 .St -p1003.1-96 .
-.Sh STANDARDS
-The
+.Sh BUGS
+In earlier versions of the system,
 .Fn getlogin
-system call
-and
-the
-.Fn getlogin_r
-function
-conform to
-.St -p1003.1-96 .
+failed unless the process was associated with a login terminal.
+The current implementation (using
+.Fn setlogin )
+allows getlogin to succeed even when the process has no controlling terminal.
+In earlier versions of the system, the value returned by
+.Fn getlogin
+could not be trusted without checking the user ID.
+Portable programs should probably still make this check.

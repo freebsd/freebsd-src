@@ -203,6 +203,18 @@ has been set on the socket).
 This typically means that the socket
 is not connected.
 .El
+.Sh SEE ALSO
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr recv 2 ,
+.Xr select 2 ,
+.Xr socket 2 ,
+.Xr write 2
+.Sh HISTORY
+The
+.Fn send
+function appeared in
+.Bx 4.2 .
 .Sh BUGS
 Because
 .Fn sendmsg
@@ -218,15 +230,3 @@ it before it has actually been sent, the result being that the receiver
 gets a closed file descriptor.
 It is left to the application to
 implement an acknowledgment mechanism to prevent this from happening.
-.Sh SEE ALSO
-.Xr fcntl 2 ,
-.Xr getsockopt 2 ,
-.Xr recv 2 ,
-.Xr select 2 ,
-.Xr socket 2 ,
-.Xr write 2
-.Sh HISTORY
-The
-.Fn send
-function appeared in
-.Bx 4.2 .

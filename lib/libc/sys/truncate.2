@@ -126,6 +126,11 @@ is not open for writing.
 .El
 .Sh SEE ALSO
 .Xr open 2
+.Sh HISTORY
+The
+.Fn truncate
+system call appeared in
+.Bx 4.2 .
 .Sh BUGS
 These calls should be generalized to allow ranges
 of bytes in a file to be discarded.
@@ -133,8 +138,3 @@ of bytes in a file to be discarded.
 Use of
 .Fn truncate
 to extend a file is not portable.
-.Sh HISTORY
-The
-.Fn truncate
-system call appeared in
-.Bx 4.2 .

@@ -58,17 +58,6 @@ library call did not produce an error.
 The string returned is stored in memory owned by
 .Xr kvm 3
 so the message should be copied out and saved elsewhere if necessary.
-.Sh BUGS
-This routine cannot be used to access error conditions due to a failed
-.Fn kvm_openfiles
-call, since failure is indicated by returning a
-.Dv NULL
-descriptor.
-Therefore, errors on open are output to the special error buffer
-passed to
-.Fn kvm_openfiles .
-This option is not available to
-.Fn kvm_open .
 .Sh SEE ALSO
 .Xr kvm 3 ,
 .Xr kvm_close 3 ,
@@ -80,3 +69,14 @@ This option is not available to
 .Xr kvm_openfiles 3 ,
 .Xr kvm_read 3 ,
 .Xr kvm_write 3
+.Sh BUGS
+This routine cannot be used to access error conditions due to a failed
+.Fn kvm_openfiles
+call, since failure is indicated by returning a
+.Dv NULL
+descriptor.
+Therefore, errors on open are output to the special error buffer
+passed to
+.Fn kvm_openfiles .
+This option is not available to
+.Fn kvm_open .

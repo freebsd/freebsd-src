@@ -603,6 +603,25 @@ An attempt is made to ignore or supply a handler for
 or
 .Dv SIGSTOP .
 .El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr kill 2 ,
+.Xr ptrace 2 ,
+.Xr sigaltstack 2 ,
+.Xr sigblock 2 ,
+.Xr sigpause 2 ,
+.Xr sigpending 2 ,
+.Xr sigprocmask 2 ,
+.Xr sigsetmask 2 ,
+.Xr sigsuspend 2 ,
+.Xr sigvec 2 ,
+.Xr wait 2 ,
+.Xr fpsetmask 3 ,
+.Xr setjmp 3 ,
+.Xr siginterrupt 3 ,
+.Xr sigsetops 3 ,
+.Xr ucontext 3 ,
+.Xr tty 4
 .Sh STANDARDS
 The
 .Fn sigaction
@@ -647,22 +666,3 @@ The flags are approved by
 .St -susv2 ,
 along with the option to avoid zombie creation by ignoring
 .Dv SIGCHLD .
-.Sh SEE ALSO
-.Xr kill 1 ,
-.Xr kill 2 ,
-.Xr ptrace 2 ,
-.Xr sigaltstack 2 ,
-.Xr sigblock 2 ,
-.Xr sigpause 2 ,
-.Xr sigpending 2 ,
-.Xr sigprocmask 2 ,
-.Xr sigsetmask 2 ,
-.Xr sigsuspend 2 ,
-.Xr sigvec 2 ,
-.Xr wait 2 ,
-.Xr fpsetmask 3 ,
-.Xr setjmp 3 ,
-.Xr siginterrupt 3 ,
-.Xr sigsetops 3 ,
-.Xr ucontext 3 ,
-.Xr tty 4

@@ -61,13 +61,13 @@ placed in the global location
 .Va errno .
 .Sh SEE ALSO
 .Xr sysctl 3
-.Sh BUGS
-If the boot blocks have not been modified to pass this information into
-the kernel at boot time, the static string
-.Dq Pa /boot/kernel/kernel
-is returned instead of the real boot file.
 .Sh HISTORY
 The
 .Fn getbootfile
 function appeared in
 .Fx 2.0 .
+.Sh BUGS
+If the boot blocks have not been modified to pass this information into
+the kernel at boot time, the static string
+.Dq Pa /boot/kernel/kernel
+is returned instead of the real boot file.

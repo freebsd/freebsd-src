@@ -45,12 +45,12 @@ The function
 returns the value associated with the field called
 .Fa name
 or NULL if no such field is found or the auth file cannot be opened.
+.Sh FILES
+.Pa /etc/auth.conf
+contains the name=value pairs looked up by
+.Fn auth_getval .
 .Sh SEE ALSO
 .Xr properties_free 3 ,
 .Xr properties_read 3 ,
 .Xr property_find 3 ,
 .Xr auth.conf 5
-.Sh FILES
-.Pa /etc/auth.conf
-contains the name=value pairs looked up by
-.Fn auth_getval .

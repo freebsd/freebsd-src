@@ -193,6 +193,13 @@ argument is filled with the
 pointer
 .Pq Fa "char *p" .
 .El
+.Sh RETURN VALUES
+The
+.Fn dlinfo
+function returns 0 on success, or \-1 if an error occurred.
+Whenever an error has been detected, a message detailing it can
+be retrieved via a call to
+.Xr dlerror 3 .
 .Sh EXAMPLES
 Example 1: Using
 .Fn dlinfo
@@ -244,13 +251,6 @@ for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
 	(void) printf("%2d: %s\\n", cnt, path->dls_name);
 }
 .Ed
-.Sh RETURN VALUES
-The
-.Fn dlinfo
-function returns 0 on success, or \-1 if an error occurred.
-Whenever an error has been detected, a message detailing it can
-be retrieved via a call to
-.Xr dlerror 3 .
 .Sh SEE ALSO
 .Xr rtld 1 ,
 .Xr dladdr 3 ,

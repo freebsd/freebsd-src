@@ -167,6 +167,8 @@ points to an invalid address.
 .It Bq Er EINTR
 The system call was interrupted by the delivery of a signal.
 .El
+.Sh HISTORY
+Message queues appeared in the first release of AT&T Unix System V.
 .Sh BUGS
 .Nx
 and
@@ -175,5 +177,3 @@ do not define the
 .Er EIDRM
 error value, which should be used
 in the case of a removed message queue.
-.Sh HISTORY
-Message queues appeared in the first release of AT&T Unix System V.
