@@ -38,6 +38,10 @@ RCSID("$OpenBSD: session.c,v 1.12 2000/05/03 18:03:07 markus Exp $");
 #include <login_cap.h>
 #endif /* LOGIN_CAP */
 
+#ifdef KRB5
+extern krb5_context ssh_context;
+#endif
+
 /* types */
 
 #define TTYSZ 64
