@@ -70,10 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_llc.h>
 
-#include <net80211/ieee80211.h>
-#include <net80211/ieee80211_crypto.h>
-#include <net80211/ieee80211_node.h>
-#include <net80211/ieee80211_proto.h>
 #include <net80211/ieee80211_var.h>
 
 #include <net/bpf.h>
