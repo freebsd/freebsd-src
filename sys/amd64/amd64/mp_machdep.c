@@ -46,6 +46,7 @@
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
