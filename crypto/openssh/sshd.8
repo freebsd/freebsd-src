@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.186 2002/06/22 16:45:29 stevesk Exp $
+.\" $OpenBSD: sshd.8,v 1.193 2002/09/24 20:59:44 todd Exp $
 .Dd September 25, 1999
 .Dt SSHD 8
 .Os
@@ -203,7 +203,7 @@ The default is
 refuses to start if there is no configuration file.
 .It Fl g Ar login_grace_time
 Gives the grace time for clients to authenticate themselves (default
-600 seconds).
+120 seconds).
 If the client fails to authenticate the user within
 this many seconds, the server disconnects and exits.
 A value of zero indicates no limit.
@@ -350,7 +350,11 @@ Sets up basic environment.
 .It
 Reads
 .Pa $HOME/.ssh/environment
-if it exists.
+if it exists and users are allowed to change their environment.
+See the
+.Cm PermitUserEnvironment
+option in
+.Xr sshd_config 5 .
 .It
 Changes to user's home directory.
 .It
@@ -385,9 +389,9 @@ Each RSA public key consists of the following fields, separated by
 spaces: options, bits, exponent, modulus, comment.
 Each protocol version 2 public key consists of:
 options, keytype, base64 encoded key, comment.
-The options fields
-are optional; its presence is determined by whether the line starts
-with a number or not (the option field never starts with a number).
+The options field
+is optional; its presence is determined by whether the line starts
+with a number or not (the options field never starts with a number).
 The bits, exponent, modulus and comment fields give the RSA key for
 protocol version 1; the
 comment field is not used for anything (but may be convenient for the
@@ -398,7 +402,7 @@ or
 .Dq ssh-rsa .
 .Pp
 Note that lines in this file are usually several hundred bytes long
-(because of the size of the RSA key modulus).
+(because of the size of the public key encoding).
 You don't want to type them in; instead, copy the
 .Pa identity.pub ,
 .Pa id_dsa.pub
@@ -417,7 +421,7 @@ The following option specifications are supported (note
 that option keywords are case-insensitive):
 .Bl -tag -width Ds
 .It Cm from="pattern-list"
-Specifies that in addition to RSA authentication, the canonical name
+Specifies that in addition to public key authentication, the canonical name
 of the remote host must be present in the comma-separated list of
 patterns
 .Pf ( Ql *
@@ -429,7 +433,7 @@ patterns negated by prefixing them with
 .Ql ! ;
 if the canonical host name matches a negated pattern, the key is not accepted.
 The purpose
-of this option is to optionally increase security: RSA authentication
+of this option is to optionally increase security: public key authentication
 by itself does not trust the network or name servers or anything (but
 the key); however, if somebody somehow steals the key, the key
 permits an intruder to log in from anywhere in the world.
@@ -447,7 +451,7 @@ one must not request a pty or should specify
 .Cm no-pty .
 A quote may be included in the command by quoting it with a backslash.
 This option might be useful
-to restrict certain RSA keys to perform just a specific operation.
+to restrict certain public keys to perform just a specific operation.
 An example might be a key that permits remote backups but nothing else.
 Note that the client may specify TCP/IP and/or X11
 forwarding unless they are explicitly prohibited.
@@ -458,6 +462,10 @@ logging in using this key.
 Environment variables set this way
 override other default environment values.
 Multiple options of this type are permitted.
+Environment processing is disabled by default and is
+controlled via the
+.Cm PermitUserEnvironment
+option.
 This option is automatically disabled if
 .Cm UseLogin
 is enabled.
@@ -578,6 +586,8 @@ These files are created using
 .Xr ssh-keygen 1 .
 .It Pa /etc/moduli
 Contains Diffie-Hellman groups used for the "Diffie-Hellman Group Exchange".
+The file format is described in
+.Xr moduli 5 .
 .It Pa /var/empty
 .Xr chroot 2
 directory used by
@@ -698,6 +708,10 @@ It can only contain empty lines, comment lines (that start with
 and assignment lines of the form name=value.
 The file should be writable
 only by the user; it need not be readable by anyone else.
+Environment processing is disabled by default and is
+controlled via the
+.Cm PermitUserEnvironment
+option.
 .It Pa $HOME/.ssh/rc
 If this file exists, it is run with /bin/sh after reading the
 environment files but before starting the user's shell or command.
@@ -723,12 +737,12 @@ something similar to:
 if read proto cookie && [ -n "$DISPLAY" ]; then
 	if [ `echo $DISPLAY | cut -c1-10` = 'localhost:' ]; then
 		# X11UseLocalhost=yes
-		xauth add unix:`echo $DISPLAY |
+		echo add unix:`echo $DISPLAY |
 		    cut -c11-` $proto $cookie
 	else
 		# X11UseLocalhost=no
-		xauth add $DISPLAY $proto $cookie
-	fi
+		echo add $DISPLAY $proto $cookie
+	fi | xauth -q -
 fi
 .Ed
 .Pp

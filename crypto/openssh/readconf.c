@@ -199,7 +199,7 @@ add_local_forward(Options *options, u_short port, const char *host,
 		  u_short host_port)
 {
 	Forward *fwd;
-#ifndef HAVE_CYGWIN
+#ifndef NO_IPPORT_RESERVED_CONCEPT
 	extern uid_t original_real_uid;
 	if (port < IPPORT_RESERVED && original_real_uid != 0)
 		fatal("Privileged ports can only be forwarded by root.");

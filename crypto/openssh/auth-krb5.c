@@ -28,7 +28,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb5.c,v 1.8 2002/03/19 10:49:35 markus Exp $");
+RCSID("$OpenBSD: auth-krb5.c,v 1.9 2002/09/09 06:48:06 itojun Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -73,18 +73,17 @@ krb5_init(void *context)
  * from the ticket
  */
 int
-auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client)
+auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client, krb5_data *reply)
 {
 	krb5_error_code problem;
 	krb5_principal server;
-	krb5_data reply;
 	krb5_ticket *ticket;
 	int fd, ret;
 
 	ret = 0;
 	server = NULL;
 	ticket = NULL;
-	reply.length = 0;
+	reply->length = 0;
 
 	problem = krb5_init(authctxt);
 	if (problem)
@@ -131,7 +130,7 @@ auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client)
 
 	/* if client wants mutual auth */
 	problem = krb5_mk_rep(authctxt->krb5_ctx, authctxt->krb5_auth_ctx,
-	    &reply);
+	    reply);
 	if (problem)
 		goto err;
 
@@ -144,19 +143,16 @@ auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client)
 		krb5_unparse_name(authctxt->krb5_ctx, authctxt->krb5_user,
 		    client);
 
-	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
-	packet_put_string((char *) reply.data, reply.length);
-	packet_send();
-	packet_write_wait();
-
 	ret = 1;
  err:
 	if (server)
 		krb5_free_principal(authctxt->krb5_ctx, server);
 	if (ticket)
 		krb5_free_ticket(authctxt->krb5_ctx, ticket);
-	if (reply.length)
-		xfree(reply.data);
+	if (!ret && reply->length) {
+		xfree(reply->data);
+		memset(reply, 0, sizeof(*reply));
+	}
 
 	if (problem) {
 		if (authctxt->krb5_ctx != NULL)

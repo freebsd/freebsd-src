@@ -35,13 +35,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.103 2002/06/24 14:33:27 markus Exp $");
+RCSID("$OpenBSD: serverloop.c,v 1.104 2002/09/19 16:03:15 stevesk Exp $");
 
 #include "xmalloc.h"
 #include "packet.h"
 #include "buffer.h"
 #include "log.h"
 #include "servconf.h"
+#include "canohost.h"
 #include "sshpty.h"
 #include "channels.h"
 #include "compat.h"
@@ -143,7 +144,9 @@ sigchld_handler(int sig)
 	int save_errno = errno;
 	debug("Received SIGCHLD.");
 	child_terminated = 1;
+#ifndef _UNICOS
 	mysignal(SIGCHLD, sigchld_handler);
+#endif
 	notify_parent();
 	errno = save_errno;
 }
@@ -347,14 +350,17 @@ process_input(fd_set * readset)
 	if (FD_ISSET(connection_in, readset)) {
 		len = read(connection_in, buf, sizeof(buf));
 		if (len == 0) {
-			verbose("Connection closed by remote host.");
+			verbose("Connection closed by %.100s",
+			    get_remote_ipaddr());
 			connection_closed = 1;
 			if (compat20)
 				return;
 			fatal_cleanup();
 		} else if (len < 0) {
 			if (errno != EINTR && errno != EAGAIN) {
-				verbose("Read error from remote host: %.100s", strerror(errno));
+				verbose("Read error from remote host "
+				    "%.100s: %.100s",
+				    get_remote_ipaddr(), strerror(errno));
 				fatal_cleanup();
 			}
 		} else {
@@ -972,8 +978,11 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 		/* check permissions */
 		if (!options.allow_tcp_forwarding ||
-		    no_port_forwarding_flag ||
-		    (listen_port < IPPORT_RESERVED && pw->pw_uid != 0)) {
+		    no_port_forwarding_flag
+#ifndef NO_IPPORT_RESERVED_CONCEPT
+		    || (listen_port < IPPORT_RESERVED && pw->pw_uid != 0)
+#endif
+		   ) {
 			success = 0;
 			packet_send_debug("Server has disabled port forwarding.");
 		} else {

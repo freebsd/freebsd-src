@@ -1,8 +1,4 @@
-/*	$OpenBSD: scard.h,v 1.11 2002/06/30 21:59:45 deraadt Exp $	*/
-
 /*
- * Copyright (c) 2001 Markus Friedl.  All rights reserved.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,17 +20,48 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SCARD_H
-#define SCARD_H
+#include "includes.h"
 
-#include "key.h"
-
-#define SCARD_ERROR_FAIL	-1
-#define SCARD_ERROR_NOCARD	-2
-#define SCARD_ERROR_APPLET	-3
-
-Key	**sc_get_keys(const char *, const char *);
-void	 sc_close(void);
-int	 sc_put_key(Key *, const char *);
-
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
 #endif
+
+#include "log.h"
+
+void *xmmap(size_t size)
+{
+	void *address;
+
+#ifdef HAVE_MMAP
+# ifdef MAP_ANON
+	address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_ANON|MAP_SHARED,
+	    -1, 0);
+# else
+	address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED,
+	    open("/dev/zero", O_RDWR), 0);
+# endif
+
+#define MM_SWAP_TEMPLATE "/var/run/sshd.mm.XXXXXXXX"
+	if (address == MAP_FAILED) {
+		char tmpname[sizeof(MM_SWAP_TEMPLATE)] = MM_SWAP_TEMPLATE;
+		int tmpfd;
+
+		tmpfd = mkstemp(tmpname);
+		if (tmpfd == -1)
+			fatal("mkstemp(\"%s\"): %s",
+			    MM_SWAP_TEMPLATE, strerror(errno));
+		unlink(tmpname);
+		ftruncate(tmpfd, size);
+		address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED,
+		    tmpfd, 0);
+		close(tmpfd);
+	}
+
+	return (address);
+#else
+	fatal("%s: UsePrivilegeSeparation=yes and Compression=yes not supported",
+	    __func__);
+#endif /* HAVE_MMAP */
+
+}
+

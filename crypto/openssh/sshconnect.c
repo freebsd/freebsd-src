@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.126 2002/06/23 03:30:17 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.135 2002/09/19 01:58:18 djm Exp $");
 
 #include <openssl/bn.h>
 
@@ -41,21 +41,13 @@ extern Options options;
 extern char *__progname;
 extern uid_t original_real_uid;
 extern uid_t original_effective_uid;
+extern pid_t proxy_command_pid;
 
 #ifndef INET6_ADDRSTRLEN		/* for non IPv6 machines */
 #define INET6_ADDRSTRLEN 46
 #endif
 
-static const char *
-sockaddr_ntop(struct sockaddr *sa, socklen_t salen)
-{
-	static char addrbuf[NI_MAXHOST];
-
-	if (getnameinfo(sa, salen, addrbuf, sizeof(addrbuf), NULL, 0,
-	    NI_NUMERICHOST) != 0)
-		fatal("sockaddr_ntop: getnameinfo NI_NUMERICHOST failed");
-	return addrbuf;
-}
+static int show_other_keys(const char *, Key *);
 
 /*
  * Connect to the given ssh server using a proxy command.
@@ -73,9 +65,16 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	/* Convert the port number into a string. */
 	snprintf(strport, sizeof strport, "%hu", port);
 
-	/* Build the final command string in the buffer by making the
-	   appropriate substitutions to the given proxy command. */
+	/*
+	 * Build the final command string in the buffer by making the
+	 * appropriate substitutions to the given proxy command.
+	 *
+	 * Use "exec" to avoid "sh -c" processes on some platforms 
+	 * (e.g. Solaris)
+	 */
 	buffer_init(&command);
+	buffer_append(&command, "exec ", 5);
+
 	for (cp = proxy_command; *cp; cp++) {
 		if (cp[0] == '%' && cp[1] == '%') {
 			buffer_append(&command, "%", 1);
@@ -143,6 +142,8 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	/* Parent. */
 	if (pid < 0)
 		fatal("fork failed: %.100s", strerror(errno));
+	else
+		proxy_command_pid = pid; /* save pid to clean up later */
 
 	/* Close child side of the descriptors. */
 	close(pin[0]);
@@ -238,7 +239,6 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	int sock = -1, attempt;
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	struct addrinfo hints, *ai, *aitop;
-	struct linger linger;
 	struct servent *sp;
 	/*
 	 * Did we get only other errors than "Connection refused" (which
@@ -307,9 +307,8 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 			} else {
 				if (errno == ECONNREFUSED)
 					full_failure = 0;
-				log("ssh: connect to address %s port %s: %s",
-				    sockaddr_ntop(ai->ai_addr, ai->ai_addrlen),
-				    strport, strerror(errno));
+				debug("connect to address %s port %s: %s",
+				    ntop, strport, strerror(errno));
 				/*
 				 * Close the failed socket; there appear to
 				 * be some problems when reusing a socket for
@@ -332,19 +331,13 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	freeaddrinfo(aitop);
 
 	/* Return failure if we didn't get a successful connection. */
-	if (attempt >= connection_attempts)
+	if (attempt >= connection_attempts) {
+		log("ssh: connect to host %s port %s: %s",
+		    host, strport, strerror(errno));
 		return full_failure ? ECONNABORTED : ECONNREFUSED;
+	}
 
 	debug("Connection established.");
-
-	/*
-	 * Set socket options.  We would like the socket to disappear as soon
-	 * as it has been closed for whatever reason.
-	 */
-	/* setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on)); */
-	linger.l_onoff = 1;
-	linger.l_linger = 5;
-	setsockopt(sock, SOL_SOCKET, SO_LINGER, (void *)&linger, sizeof(linger));
 
 	/* Set keepalives if requested. */
 	if (options.keepalives &&
@@ -476,7 +469,7 @@ confirm(const char *prompt)
 		    (p[0] == '\0') || (p[0] == '\n') ||
 		    strncasecmp(p, "no", 2) == 0)
 			ret = 0;
-		if (strncasecmp(p, "yes", 3) == 0)
+		if (p && strncasecmp(p, "yes", 3) == 0)
 			ret = 1;
 		if (p)
 			xfree(p);
@@ -503,7 +496,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
-	int len, host_line, ip_line;
+	int len, host_line, ip_line, has_keys;
 	const char *host_file = NULL, *ip_file = NULL;
 
 	/*
@@ -647,14 +640,19 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 			    "have requested strict checking.", type, host);
 			goto fail;
 		} else if (options.strict_host_key_checking == 2) {
+			has_keys = show_other_keys(host, host_key);
 			/* The default */
 			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
 			snprintf(msg, sizeof(msg),
 			    "The authenticity of host '%.200s (%s)' can't be "
-			    "established.\n"
+			    "established%s\n"
 			    "%s key fingerprint is %s.\n"
 			    "Are you sure you want to continue connecting "
-			    "(yes/no)? ", host, ip, type, fp);
+			    "(yes/no)? ",
+			     host, ip,
+			     has_keys ? ",\nbut keys of different type are already "
+			     "known for this host." : ".",
+			     type, fp);
 			xfree(fp);
 			if (!confirm(msg))
 				goto fail;
@@ -756,6 +754,9 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 		 * by that sentence, and ask the user if he/she whishes to
 		 * accept the authentication.
 		 */
+		break;
+	case HOST_FOUND:
+		fatal("internal error");
 		break;
 	}
 
@@ -867,4 +868,59 @@ ssh_put_password(char *password)
 	packet_put_string(padded, size);
 	memset(padded, 0, size);
 	xfree(padded);
+}
+
+static int
+show_key_from_file(const char *file, const char *host, int keytype)
+{
+	Key *found;
+	char *fp;
+	int line, ret;
+
+	found = key_new(keytype);
+	if ((ret = lookup_key_in_hostfile_by_type(file, host,
+	    keytype, found, &line))) {
+		fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
+		log("WARNING: %s key found for host %s\n"
+		    "in %s:%d\n"
+		    "%s key fingerprint %s.",
+		    key_type(found), host, file, line,
+		    key_type(found), fp);
+		xfree(fp);
+	}
+	key_free(found);
+	return (ret);
+}
+
+/* print all known host keys for a given host, but skip keys of given type */
+static int
+show_other_keys(const char *host, Key *key)
+{
+	int type[] = { KEY_RSA1, KEY_RSA, KEY_DSA, -1};
+	int i, found = 0;
+
+	for (i = 0; type[i] != -1; i++) {
+		if (type[i] == key->type)
+			continue;
+		if (type[i] != KEY_RSA1 &&
+		    show_key_from_file(options.user_hostfile2, host, type[i])) {
+			found = 1;
+			continue;
+		}
+		if (type[i] != KEY_RSA1 &&
+		    show_key_from_file(options.system_hostfile2, host, type[i])) {
+			found = 1;
+			continue;
+		}
+		if (show_key_from_file(options.user_hostfile, host, type[i])) {
+			found = 1;
+			continue;
+		}
+		if (show_key_from_file(options.system_hostfile, host, type[i])) {
+			found = 1;
+			continue;
+		}
+		debug2("no key of type %d for host %s", type[i], host);
+	}
+	return (found);
 }

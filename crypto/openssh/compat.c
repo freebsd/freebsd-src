@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: compat.c,v 1.63 2002/04/10 08:21:47 markus Exp $");
+RCSID("$OpenBSD: compat.c,v 1.65 2002/09/27 10:42:09 mickey Exp $");
 
 #include "buffer.h"
 #include "packet.h"
@@ -39,13 +39,13 @@ int datafellows = 0;
 void
 enable_compat20(void)
 {
-	verbose("Enabling compatibility mode for protocol 2.0");
+	debug("Enabling compatibility mode for protocol 2.0");
 	compat20 = 1;
 }
 void
 enable_compat13(void)
 {
-	verbose("Enabling compatibility mode for protocol 1.3");
+	debug("Enabling compatibility mode for protocol 1.3");
 	compat13 = 1;
 }
 /* datafellows bug compatibility */
@@ -146,6 +146,8 @@ compat_datafellows(const char *version)
 		  "OSU_1.5alpha3*",	SSH_BUG_PASSWORDPAD },
 		{ "*SSH_Version_Mapper*",
 					SSH_BUG_SCANNER },
+		{ "Probe-*",
+					SSH_BUG_PROBE },
 		{ NULL,			0 }
 	};
 

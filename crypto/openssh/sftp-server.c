@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.37 2002/06/24 17:57:20 deraadt Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.38 2002/09/11 22:41:50 djm Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -695,48 +695,6 @@ process_opendir(void)
 	xfree(path);
 }
 
-/*
- * drwxr-xr-x    5 markus   markus       1024 Jan 13 18:39 .ssh
- */
-static char *
-ls_file(char *name, struct stat *st)
-{
-	int ulen, glen, sz = 0;
-	struct passwd *pw;
-	struct group *gr;
-	struct tm *ltime = localtime(&st->st_mtime);
-	char *user, *group;
-	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
-
-	strmode(st->st_mode, mode);
-	if ((pw = getpwuid(st->st_uid)) != NULL) {
-		user = pw->pw_name;
-	} else {
-		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
-		user = ubuf;
-	}
-	if ((gr = getgrgid(st->st_gid)) != NULL) {
-		group = gr->gr_name;
-	} else {
-		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
-		group = gbuf;
-	}
-	if (ltime != NULL) {
-		if (time(NULL) - st->st_mtime < (365*24*60*60)/2)
-			sz = strftime(tbuf, sizeof tbuf, "%b %e %H:%M", ltime);
-		else
-			sz = strftime(tbuf, sizeof tbuf, "%b %e  %Y", ltime);
-	}
-	if (sz == 0)
-		tbuf[0] = '\0';
-	ulen = MAX(strlen(user), 8);
-	glen = MAX(strlen(group), 8);
-	snprintf(buf, sizeof buf, "%s %3d %-*s %-*s %8llu %s %s", mode,
-	    st->st_nlink, ulen, user, glen, group,
-	    (u_int64_t)st->st_size, tbuf, name);
-	return xstrdup(buf);
-}
-
 static void
 process_readdir(void)
 {
@@ -772,7 +730,7 @@ process_readdir(void)
 				continue;
 			stat_to_attrib(&st, &(stats[count].attrib));
 			stats[count].name = xstrdup(dp->d_name);
-			stats[count].long_name = ls_file(dp->d_name, &st);
+			stats[count].long_name = ls_file(dp->d_name, &st, 0);
 			count++;
 			/* send up to 100 entries in one message */
 			/* XXX check packet size instead */
