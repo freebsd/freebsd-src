@@ -864,8 +864,8 @@ fxp_release(struct fxp_softc *sc)
 	int i;
 
 	mtx_assert(&sc->sc_mtx, MA_NOTOWNED);
-	if (sc->ih)
-		panic("fxp_release() called with intr handle still active");
+	KASSERT(sc->ih == NULL,
+	    ("fxp_release() called with intr handle still active"));
 	if (sc->miibus)
 		device_delete_child(sc->dev, sc->miibus);
 	bus_generic_detach(sc->dev);
