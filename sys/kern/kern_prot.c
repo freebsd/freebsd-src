@@ -62,6 +62,9 @@
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
+SYSCTL_NODE(_kern, OID_AUTO, security, CTLFLAG_RW, 0,
+    "Kernel security policy");
+
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
@@ -1027,8 +1030,8 @@ groupmember(gid, cred)
 
 static int suser_permitted = 1;
 
-SYSCTL_INT(_kern, OID_AUTO, suser_permitted, CTLFLAG_RW, &suser_permitted, 0,
-    "processes with uid 0 have privilege");
+SYSCTL_INT(_kern_security, OID_AUTO, suser_permitted, CTLFLAG_RW,
+    &suser_permitted, 0, "processes with uid 0 have privilege");
 
 /*
  * Test whether the specified credentials imply "super-user"
@@ -1191,6 +1194,11 @@ p_cansched(struct proc *p1, struct proc *p2)
 	return (EPERM);
 }
 
+static int	kern_unprivileged_procdebug_permitted = 1;
+SYSCTL_INT(_kern_security, OID_AUTO, unprivileged_procdebug_permitted,
+    CTLFLAG_RW, &kern_unprivileged_procdebug_permitted, 0,
+    "Unprivileged processes may use process debugging facilities");
+
 int
 p_candebug(struct proc *p1, struct proc *p2)
 {
@@ -1207,7 +1215,7 @@ p_candebug(struct proc *p1, struct proc *p2)
 	if (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid ||
-	    p2->p_flag & P_SUGID)
+	    p2->p_flag & P_SUGID || !kern_unprivileged_procdebug_permitted)
 		if ((error = suser_xxx(0, p1, PRISON_ROOT)))
 			return (error);
 
