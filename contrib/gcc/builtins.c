@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 #include "system.h"
 #include "machmode.h"
@@ -2193,6 +2195,11 @@ expand_builtin_memset (exp, target, mode)
 	}
 
       len_rtx = expand_expr (len, NULL_RTX, VOIDmode, 0);
+
+      /* Give up for non-constant lengths.  They are broken on at least
+	 i386's.  */
+      if (GET_CODE (len_rtx) != CONST_INT)
+	return 0;
 
       dest_mem = get_memory_rtx (dest);
       set_mem_align (dest_mem, dest_align);
