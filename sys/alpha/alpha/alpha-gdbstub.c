@@ -284,7 +284,7 @@ putpacket (char *buffer)
       checksum = 0;
       count = 0;
 
-      while (ch=buffer[count])
+      while ((ch=buffer[count]) != 0)
 	{
 	  putDebugChar (ch);
 	  checksum += ch;

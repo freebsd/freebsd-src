@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.17 1999/04/07 03:34:32 msmith Exp $
+ *	$Id: pmap.c,v 1.18 1999/04/21 10:51:04 dt Exp $
  */
 
 /*
@@ -195,7 +195,7 @@
 #define PMAP_INLINE
 #endif
 
-#if 1
+#if 0
 
 static void
 pmap_break(void)
@@ -350,7 +350,7 @@ static struct pv_entry *pvinit;
  * All those kernel PT submaps that BSD is so fond of
  */
 pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP2, *ptmmap;
+static pt_entry_t *CMAP2;
 static pv_table_t *pv_table;
 caddr_t CADDR1;
 static caddr_t CADDR2;
@@ -368,7 +368,6 @@ static int pmap_remove_pte __P((pmap_t pmap, pt_entry_t* ptq, vm_offset_t sva));
 static void pmap_remove_page __P((struct pmap *pmap, vm_offset_t va));
 static int pmap_remove_entry __P((struct pmap *pmap, pv_table_t *pv,
 					vm_offset_t va));
-static boolean_t pmap_testbit __P((vm_offset_t pa, int bit));
 static void pmap_insert_entry __P((pmap_t pmap, vm_offset_t va,
 		vm_page_t mpte, vm_offset_t pa));
 
@@ -378,7 +377,6 @@ static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
-static vm_offset_t pmap_kmem_choose(vm_offset_t addr) ;
 void pmap_collect(void);
 
 
@@ -1121,7 +1119,6 @@ pmap_swapin_proc(p)
 static int 
 _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
-	int s;
 
 	while (vm_page_sleep_busy(m, FALSE, "pmuwpt"))
 		;
@@ -1129,7 +1126,6 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
 		pt_entry_t* pte;
-		int level;
 
 		/*
 		 * unmap the page table page
@@ -1255,7 +1251,6 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
-retry:
 	lev1pg = vm_page_grab(pmap->pm_pteobj, NUSERLEV3MAPS + NUSERLEV2MAPS,
 			      VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -1290,7 +1285,6 @@ retry:
 static int
 pmap_release_free_page(pmap_t pmap, vm_page_t p)
 {
-	int s;
 	pt_entry_t* pte;
 	pt_entry_t* l2map;
 
@@ -1364,7 +1358,7 @@ _pmap_allocpte(pmap, ptepindex)
 	unsigned ptepindex;
 {
 	pt_entry_t* pte;
-	vm_offset_t pteva, ptepa;
+	vm_offset_t ptepa;
 	vm_page_t m;
 
 	/*
@@ -1407,7 +1401,6 @@ _pmap_allocpte(pmap, ptepindex)
 		if (!pmap_pte_v(l1pte))
 			_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index);
 		else {
-			int l2ptepindex = NUSERLEV3MAPS + l1index;
 			vm_page_t l2page =
 				pmap_page_lookup(pmap->pm_pteobj,
 						 NUSERLEV3MAPS + l1index);
@@ -1439,7 +1432,6 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 {
 	unsigned ptepindex;
 	pt_entry_t* lev2pte;
-	vm_offset_t ptepa;
 	vm_page_t m;
 
 	/*
@@ -1949,7 +1941,7 @@ pmap_remove_all(vm_offset_t pa)
 		pv->pv_pmap->pm_stats.resident_count--;
 
 		if (pmap_pte_pa(pte) != pa)
-			panic("pmap_remove_all: pv_table for %x is inconsistent", pa);
+			panic("pmap_remove_all: pv_table for %lx is inconsistent", pa);
 
 		tpte = *pte;
 
@@ -1981,7 +1973,6 @@ void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pt_entry_t* pte;
-	vm_offset_t pdnxt, ptpaddr;
 	int newprot;
 
 	if (pmap == NULL)
@@ -2001,7 +1992,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		panic("pmap_protect: unaligned addresses");
 
 	while (sva < eva) {
-		pt_entry_t pbits;
 
 		/*
 		 * If level 1 pte is invalid, skip this segment
@@ -2691,48 +2681,6 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 	splx(s);
 	pmap_invalidate_all(pmap);
-}
-
-/*
- * pmap_testbit tests bits in pte's
- * note that the testbit/changebit routines are inline,
- * and a lot of things compile-time evaluate.
- */
-static boolean_t
-pmap_testbit(vm_offset_t pa, int bit)
-{
-	register pv_entry_t pv;
-	pv_table_t *ppv;
-	pt_entry_t *pte;
-	int s;
-
-	if (!pmap_is_managed(pa))
-		return FALSE;
-
-	ppv = pa_to_pvh(pa);
-	if (TAILQ_FIRST(&ppv->pv_list) == NULL)
-		return FALSE;
-
-	s = splvm();
-
-	for (pv = TAILQ_FIRST(&ppv->pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
-#if defined(PMAP_DIAGNOSTIC)
-		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
-			continue;
-		}
-#endif
-		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
-		if (*pte & bit) {
-			splx(s);
-			return TRUE;
-		}
-	}
-	splx(s);
-	return (FALSE);
 }
 
 /*
