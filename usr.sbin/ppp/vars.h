@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.24 1997/08/21 16:21:39 brian Exp $
+ * $Id: vars.h,v 1.25 1997/08/25 00:29:31 brian Exp $
  *
  *	TODO:
  */
@@ -74,6 +74,7 @@ struct pppvars {
   int open_mode;		/* LCP open mode */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
+#define LOCAL_DENY	0x03
   u_char lauth;			/* Local Authorized status */
   FILE *termfp;			/* The terminal */
 #define DIALUP_REQ	0x01
