@@ -95,6 +95,8 @@ struct  savefpu {
  * intermediate values are stored in memory or in FPU registers.
  */
 #define	__INITIAL_NPXCW__	0x127F
+#define	__INITIAL_MXCSR__	0x1F80
+#define	__INITIAL_MXCSR_MASK__	0xFFBF
 
 #ifdef _KERNEL
 int	npxdna(void);
