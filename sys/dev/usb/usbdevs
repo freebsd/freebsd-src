@@ -863,6 +863,7 @@ product FREECOM DVD		0xfc01	DVD drive
 /* Future Technology Devices products */
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
+product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
