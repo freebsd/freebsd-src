@@ -80,6 +80,8 @@ char *endest= strspace+STRSPMAX;/* end of string space	       */
 int sp; 			/* current m4  stack pointer   */
 int fp; 			/* m4 call frame pointer       */
 FILE *infile[MAXINP];		/* input file stack (0=stdin)  */
+char *inname[MAXINP];		/* names of these input files  */
+int inlineno[MAXINP];		/* current number in each input*/
 FILE *outfile[MAXOUT];		/* diversion array(0=bitbucket)*/
 FILE *active;			/* active output file pointer  */
 char *m4temp;			/* filename for diversions     */
@@ -92,6 +94,8 @@ char lquote = LQUOTE;		/* left quote character  (`)   */
 char rquote = RQUOTE;		/* right quote character (')   */
 char scommt = SCOMMT;		/* start character for comment */
 char ecommt = ECOMMT;		/* end character for comment   */
+int synccpp;			/* Line synchronisation for C preprocessor */
+int chscratch;			/* Scratch space for gpbc() macro */
 
 struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	"include",      INCLTYPE,
@@ -159,7 +163,7 @@ main(argc,argv)
 
 	initkwds();
 
-	while ((c = getopt(argc, argv, "tD:U:o:")) != -1)
+	while ((c = getopt(argc, argv, "D:U:s")) != -1)
 		switch(c) {
 
 		case 'D':               /* define something..*/
@@ -173,7 +177,9 @@ main(argc,argv)
 		case 'U':               /* undefine...       */
 			remhash(optarg, TOP);
 			break;
-		case 'o':		/* specific output   */
+		case 's':
+			synccpp = 1;
+			break;
 		case '?':
 			usage();
 		}
@@ -195,6 +201,10 @@ main(argc,argv)
  		sp = -1;		/* stack pointer initialized */
 		fp = 0; 		/* frame pointer initialized */
 		infile[0] = stdin;	/* default input (naturally) */
+		if ((inname[0] = strdup("-")) == NULL)
+			err(1, NULL);
+		inlineno[0] = 1;
+		emitline();
 		macro();
 	} else
 		for (; argc--; ++argv) {
@@ -206,6 +216,10 @@ main(argc,argv)
 			sp = -1;
 			fp = 0;
 			infile[0] = ifp;
+			if ((inname[0] = strdup(p)) == NULL)
+				err(1, NULL);
+			inlineno[0] = 1;
+			emitline();
 			macro();
 			if (ifp != stdin)
 				(void)fclose(ifp);
@@ -282,7 +296,9 @@ macro() {
 				break;			/* all done thanks.. */
 			--ilevel;
 			(void) fclose(infile[ilevel+1]);
+			free(inname[ilevel+1]);
 			bufbase = bbase[ilevel];
+			emitline();
 			continue;
 		}
 	/*
@@ -418,4 +434,13 @@ initkwds() {
 		p->defn = null;
 		p->type = keywrds[i].ktyp | STATIC;
 	}
+}
+
+/* Emit preprocessor #line directive if -s option used. */
+void
+emitline(void)
+{
+	if (synccpp)
+		fprintf(active, "#line %d \"%s\"\n", inlineno[ilevel],
+		    inname[ilevel]);
 }

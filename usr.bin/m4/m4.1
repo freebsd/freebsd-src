@@ -1,7 +1,7 @@
 .\"
 .\"	@(#) $FreeBSD$
 .\"
-.Dd January 26, 1993
+.Dd April 17, 2002
 .Dt M4 1
 .Os
 .Sh NAME
@@ -10,9 +10,9 @@
 .Sh SYNOPSIS
 .Nm
 .Oo
-.Fl D Ns Ar name Ns Op Ar =value
+.Fl D Ar name Ns Op Ar =value
 .Oc
-.Op Fl U Ns Ar name
+.Op Fl U Ar name
 .Op Ar filename
 \|.\|.\|.
 .Sh DESCRIPTION
@@ -41,13 +41,18 @@ the quote characters with the changequote built-in macro.
 .Pp
 The options are as follows:
 .Bl -tag -width "-Dname[=value]xxx"
-.It Fl D Ns Ar name Ns Oo
+.It Fl s
+Emit
+.Em #line
+directives for
+.Xr cpp 1 .
+.It Fl D Ar name Ns Oo
 .Ar =value
 .Oc
 Define the symbol
 .Ar name
 to have some value (or NULL).
-.It Fl "U" Ns Ar "name"
+.It Fl "U" Ar "name"
 Undefine the symbol
 .Ar name .
 .El
@@ -177,7 +182,35 @@ Flushes the named output queues (or all queues if no arguments).
 .It unix
 A pre-defined macro for testing the OS platform.
 .El
+.Sh DIAGNOSTICS
+.Ex -std
+.Pp
+The exit status can be specified by the input file using the
+.Em m4exit
+macro.
+.Sh "SEE ALSO"
+.Xr cpp 1
+.Sh STANDARDS
+The
+.Nm
+utility is compatible with the
+.St -p1003.1-2001
+specification with the exception of the
+.Em traceon
+and
+.Em traceoff
+built-in macros, which are not implemented.
+.Pp
+The
+.Em expr ,
+.Em paste ,
+.Em spaste
+and
+.Em unix
+built-in macros are extensions to the standard.
 .Sh AUTHORS
 .An Ozan Yigit Aq oz@sis.yorku.ca
 and
 .An Richard A. O'Keefe Aq ok@goanna.cs.rmit.OZ.AU
+.Sh BUGS
+The tracing macros are not implemented.

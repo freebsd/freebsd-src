@@ -584,7 +584,11 @@ char *ifile;
 		errx(1, "too many include files");
 	if ((infile[ilevel + 1] = fopen(ifile, "r")) != NULL) {
 		ilevel++;
+		if ((inname[ilevel] = strdup(ifile)) == NULL)
+			err(1, NULL);
+		inlineno[ilevel] = 1;
 		bbase[ilevel] = bufbase = bp;
+		emitline();
 		return (1);
 	}
 	else
@@ -604,9 +608,11 @@ char *pfile;
 	register int c;
 
 	if ((pf = fopen(pfile, "r")) != NULL) {
+		fprintf(active, "#line 1 \"%s\"\n", pfile);
 		while ((c = getc(pf)) != EOF)
 			putc(c, active);
 		(void) fclose(pf);
+		emitline();
 		return (1);
 	}
 	else

@@ -53,6 +53,7 @@ int	dopaste(char *);
 void	dopushdef(char *, char *);
 void	dosub(char *[], int);
 void	doundiv(char *[], int);
+void	emitline(void);
 void	eval(char *[], int, int);
 void	expand(char *[], int);
 void	getdiv(int);
@@ -72,6 +73,8 @@ extern ndptr hashtab[];		/* hash table for macros etc. */
 extern stae mstack[];		/* stack of m4 machine */
 extern FILE *active;		/* active output file pointer */
 extern FILE *infile[];		/* input file stack (0=stdin) */
+extern char *inname[];		/* names of these input files  */
+extern int inlineno[];		/* current number in each input*/
 extern FILE *outfile[];		/* diversion array(0=bitbucket) */
 extern int fp; 			/* m4 call frame pointer */
 extern int ilevel;		/* input file stack pointer */
@@ -92,3 +95,5 @@ extern char *m4wraps;		/* m4wrap string default. */
 extern char *null;		/* as it says.. just a null. */
 extern char rquote;		/* right quote character (') */
 extern char scommt;		/* start character for comment */
+extern int synccpp;		/* Line synchronisation for C preprocessor */
+extern int chscratch;		/* Scratch space for gpbc() macro */  
