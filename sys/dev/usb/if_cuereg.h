@@ -180,6 +180,7 @@ struct cue_softc {
 	struct callout_handle	cue_stat_ch;
 	struct mtx		cue_mtx;
 	char			cue_dying;
+	struct timeval		cue_rx_notice;
 };
 
 #if 0

@@ -653,6 +653,9 @@ USB_ATTACH(aue)
 	struct aue_type		*t;
 
 	bzero(sc, sizeof(struct aue_softc));
+
+	usbd_devinfo(uaa->device, 0, devinfo);
+
 	sc->aue_iface = uaa->iface;
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
@@ -673,7 +676,7 @@ USB_ATTACH(aue)
 		t++;
 	}
 
-	id = usbd_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(sc->aue_iface);
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	device_set_desc_copy(self, devinfo);
@@ -980,8 +983,9 @@ aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			AUE_UNLOCK(sc);
 			return;
 		}
-		printf("aue%d: usb error on rx: %s\n", sc->aue_unit,
-		    usbd_errstr(status));
+		if (usbd_ratecheck(&sc->aue_rx_notice))
+			printf("aue%d: usb error on rx: %s\n", sc->aue_unit,
+			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->aue_ep[AUE_ENDPT_RX]);
 		goto done;
