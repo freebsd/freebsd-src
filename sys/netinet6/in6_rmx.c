@@ -367,7 +367,7 @@ in6_rtqtimo(void *rock)
 	}
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop;
+	atv.tv_sec = arg.nextstop - time_second;
 	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
@@ -418,10 +418,10 @@ in6_mtutimo(void *rock)
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop;
-	if (atv.tv_sec < time_second) {
+	atv.tv_sec = arg.nextstop - time_second;
+	if (atv.tv_sec < 0) {
 		printf("invalid mtu expiration time on routing table\n");
-		arg.nextstop = time_second + 30;	/* last resort */
+		arg.nextstop = 30;	/* last resort */
 	}
 	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 }
