@@ -130,9 +130,6 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
-#ifndef intr_nesting_level
-extern u_char	intr_nesting_level;
-#endif
 
 void	fork_trampoline __P((void));
 void	fork_return __P((struct proc *, struct trapframe));
