@@ -1,6 +1,10 @@
 #!/bin/sh
 
-LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
+if [ -x /usr/bin/logger ]; then
+	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
+else
+	LOGGER=echo
+fi
 
 make_resolv_conf() {
   echo search $new_domain_name >/etc/resolv.conf
