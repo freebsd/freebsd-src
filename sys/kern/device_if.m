@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: device_if.m,v 1.1 1998/06/14 13:53:10 dfr Exp $
+#	$Id: device_if.m,v 1.2 1998/11/08 18:35:53 nsouch Exp $
 #
 
 INTERFACE device;
@@ -65,5 +65,19 @@ METHOD int detach {
 # hardware into a consistent state for rebooting the computer.
 #
 METHOD int shutdown {
+	device_t dev;
+};
+
+#
+# This is called by the power-management subsystem when a suspend has been
+# requested by the user or by some automatic mechanism.  This gives
+# drivers a chance to veto the suspend or save their configuration before
+# power is removed.
+#
+METHOD int suspend {
+	device_t dev;
+};
+
+METHOD int resume {
 	device_t dev;
 };
