@@ -464,6 +464,9 @@
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation. &merged;</para>
 
+      <para>The &man.dc.4; driver now supports NICs based on the Xircom
+      3201 and Conexant LANfinity RS7112 chips.</para>
+
       <para>The &man.de.4; driver now performs round-robin arbitration
       between the transmit and receive units of the 21143, instead of
       giving priority to the receive unit.  This gives a 10&ndash;15%
@@ -1132,6 +1135,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<emphasis>must</emphasis> now use &man.ispppcontrol.8; instead
 	of &man.spppcontrol.8; to configure and control these
 	network interfaces. &merged;</para>
+
+	<para>The &man.ifpi.4; driver for supporting the AVM
+	Fritz!Card PCI version 2 controller has been added.</para>
 
 	<para>The &man.ihfc.4; driver for supporting Cologne Chip
         Designs HFC devices under <application>isdn4bsd</application>
