@@ -32,8 +32,7 @@ LDIRS=	BSD_daemon \
 	slattach \
 	sliplogin \
 	startslip \
-	sunrpc \
-	worm
+	sunrpc
 
 XFILES=	BSD_daemon/FreeBSD.pfa \
 	BSD_daemon/README \
@@ -248,9 +247,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	sunrpc/sort/Makefile \
 	sunrpc/sort/rsort.c \
 	sunrpc/sort/sort.x \
-	sunrpc/sort/sort_proc.c \
-	worm/README \
-	worm/makecdfs.sh
+	sunrpc/sort/sort_proc.c
 
 BINDIR= ${SHAREDIR}/examples
 
