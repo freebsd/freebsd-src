@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2004
+.Dd August 25, 2004
 .Dt ALTQ 9
 .Os
 .\"
@@ -594,6 +594,36 @@ Queuing disciplines also need to guarantee that the same mbuf is returned if
 .Fn IFQ_DEQUEUE
 is called immediately after
 .Fn IFQ_POLL .
+.Sh SUPPORTED DEVICES
+The herein described modifications have been applied to the following
+hardware drivers
+.Xr an 4 ,
+.Xr ath 4 ,
+.Xr awi 4 ,
+.Xr bfe 4 ,
+.Xr em 4 ,
+.Xr fxp 4 ,
+.Xr hme 4 ,
+.Xr lnc 4 ,
+.Xr wi 4 ,
+.Xr de 4 ,
+.Xr rl 4 ,
+.Xr sis 4 ,
+.Xr vr 4
+and
+.Xr xl 4 .
+.Pp
+The
+.Xr ndis 4
+framework also has support for
+.Nm
+and thus all encapsulated drivers.
+.Pp
+The
+.Xr tun 4
+pseudo driver also does support
+.Nm
+and includes the required modifications.
 .Sh SEE ALSO
 .Xr pf 4 ,
 .Xr pf.conf 5 ,
