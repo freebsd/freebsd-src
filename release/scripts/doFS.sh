@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-set -e
+set -ex
 
 export BLOCKSIZE=512
 
@@ -26,15 +26,15 @@ FSLABEL=$1 ; shift
 # so we have to specifically specify -r when we don't have -B.
 # disklabel fails otherwise.
 #
-if [ -f "${RD}/trees/base/boot/boot1" ]; then
+if [ -f "${RD}/trees/base/boot/boot" ]; then
+	BOOT1="-B -b ${RD}/trees/base/boot/boot"
+elif [ -f "${RD}/trees/base/boot/boot1" ]; then
 	BOOT1="-B -b ${RD}/trees/base/boot/boot1"
+	if [ -f "${RD}/trees/base/boot/boot2" ]; then
+		BOOT2="-s ${RD}/trees/base/boot/boot2"
+	fi
 else
 	BOOT1="-r"
-fi
-if [ -f "${RD}/trees/base/boot/boot2" ]; then
-	BOOT2="-s ${RD}/trees/base/boot/boot2"
-else
-	BOOT2=""
 fi
 
 deadlock=20
@@ -107,12 +107,8 @@ dofs_md () {
 
 	MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
 	if [ ! -c /dev/${MDDEVICE} ] ; then
-		if [ -f /dev/MAKEDEV ] ; then
-			( cd /dev && sh MAKEDEV ${MDDEVICE} )
-		else
-			echo "No /dev/$MDDEVICE and no MAKEDEV" 1>&2
-			exit 1
-		fi
+		echo "No /dev/$MDDEVICE" 1>&2
+		exit 1
 	fi
 	disklabel -w ${BOOT1} ${BOOT2} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
