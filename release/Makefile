@@ -105,8 +105,13 @@ NOPORTSATALL=	YES
 # by the RELNOTES_LANG variable above.
 ALLLANG?=	yes
 DOCPORTS=	textproc/docproj
-# Set this to wherever the distfiles required by ${DOCPORTS} live.
-DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
+# Set this to wherever the distfiles required by release procedures.
+.if defined(DOCDISTFILES)
+# Respect DOCDISTFILES which is used before.
+RELEASEDISTFILES?=	${DOCDISTFILES}
+.else
+RELEASEDISTFILES?=	${.CURDIR}/../../ports/distfiles
+.endif
 # Set this to 1 if you want -P to be used for automatic keyboard detection
 # on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
 AUTO_KEYBOARD_DETECT?= 0
@@ -302,8 +307,8 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 .endif
-	if [ -d ${DOCDISTFILES}/ ]; then \
-		cp -rp ${DOCDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
+	if [ -d ${RELEASEDISTFILES}/ ]; then \
+		cp -rp ${RELEASEDISTFILES} ${CHROOTDIR}/usr/ports/distfiles; \
 	fi
 .endif
 .endif
