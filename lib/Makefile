@@ -79,7 +79,7 @@ _libdisk=	libdisk
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || \
+    defined(NOCRYPT) || defined(NO_OPENSSL) || \
     (defined(NOSECURE) && !defined(MAKE_KERBEROS5))
 _libtelnet=	libtelnet
 .endif
