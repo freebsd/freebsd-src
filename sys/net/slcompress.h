@@ -35,7 +35,7 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id$
+ * $Id: slcompress.h,v 1.11 1997/02/22 09:41:16 peter Exp $
  */
 
 #ifndef _NET_SLCOMPRESS_H_
@@ -117,7 +117,7 @@
  */
 struct cstate {
 	struct cstate *cs_next;	/* next most recently used cstate (xmit only) */
-	u_short cs_hlen;	/* size of hdr (receive only) */
+	u_int16_t cs_hlen;	/* size of hdr (receive only) */
 	u_char cs_id;		/* connection # associated with this state */
 	u_char cs_filler;
 	union {
@@ -136,7 +136,7 @@ struct slcompress {
 	struct cstate *last_cs;	/* most recently used tstate */
 	u_char last_recv;	/* last rcvd conn. id */
 	u_char last_xmit;	/* last sent conn. id */
-	u_short flags;
+	u_int16_t flags;
 #ifndef SL_NO_STATS
 	int sls_packets;	/* outbound packets */
 	int sls_compressed;	/* outbound compressed packets */

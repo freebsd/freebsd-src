@@ -1,6 +1,3 @@
-/*	from Id: ppp_defs.h,v 1.7 1995/08/10 06:49:35 paulus Exp */
-/*	$Id$	*/
-
 /*
  * ppp_defs.h - PPP definitions.
  *
@@ -26,6 +23,8 @@
  * ON AN "AS IS" BASIS, AND THE AUSTRALIAN NATIONAL UNIVERSITY HAS NO
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
+ *
+ * $Id$
  */
 
 #ifndef _PPP_DEFS_H_
@@ -56,17 +55,20 @@
  */
 #define PPP_IP		0x21	/* Internet Protocol */
 #define	PPP_XNS		0x25	/* Xerox NS */
+#define PPP_AT		0x29	/* AppleTalk Protocol */
 #define PPP_IPX		0x2b	/* IPX Datagram (RFC1552) */
 #define	PPP_VJC_COMP	0x2d	/* VJ compressed TCP */
 #define	PPP_VJC_UNCOMP	0x2f	/* VJ uncompressed TCP */
 #define PPP_COMP	0xfd	/* compressed packet */
 #define PPP_IPCP	0x8021	/* IP Control Protocol */
+#define PPP_ATCP	0x8029	/* AppleTalk Control Protocol */
 #define PPP_IPXCP	0x802b	/* IPX Control Protocol (RFC1552) */
 #define PPP_CCP		0x80fd	/* Compression Control Protocol */
 #define PPP_LCP		0xc021	/* Link Control Protocol */
 #define PPP_PAP		0xc023	/* Password Authentication Protocol */
 #define PPP_LQR		0xc025	/* Link Quality Report protocol */
 #define PPP_CHAP	0xc223	/* Cryptographic Handshake Auth. Protocol */
+#define PPP_CBCP	0xc029	/* Callback Control Protocol */
 
 /*
  * Values for FCS calculations.
@@ -74,17 +76,6 @@
 #define PPP_INITFCS	0xffff	/* Initial FCS value */
 #define PPP_GOODFCS	0xf0b8	/* Good final FCS value */
 #define PPP_FCS(fcs, c)	(((fcs) >> 8) ^ fcstab[((fcs) ^ (c)) & 0xff])
-
-/*
- * A 32-bit unsigned integral type.
- */
-#if !defined(__BIT_TYPES_DEFINED__) && !defined(_BITYPES) && !defined(__FreeBSD__)
-#ifdef	UINT32_T
-typedef UINT32_T	u_int32_t;
-#else
-typedef unsigned int	u_int32_t;
-#endif
-#endif
 
 /*
  * Extended asyncmap - allows any character to be escaped.
@@ -105,43 +96,43 @@ enum NPmode {
  * Statistics.
  */
 struct pppstat	{
-    u_int	ppp_ibytes;	/* bytes received */
-    u_int	ppp_ipackets;	/* packets received */
-    u_int	ppp_ierrors;	/* receive errors */
-    u_int	ppp_obytes;	/* bytes sent */
-    u_int	ppp_opackets;	/* packets sent */
-    u_int	ppp_oerrors;	/* transmit errors */
+    unsigned int ppp_ibytes;	/* bytes received */
+    unsigned int ppp_ipackets;	/* packets received */
+    unsigned int ppp_ierrors;	/* receive errors */
+    unsigned int ppp_obytes;	/* bytes sent */
+    unsigned int ppp_opackets;	/* packets sent */
+    unsigned int ppp_oerrors;	/* transmit errors */
 };
 
 struct vjstat {
-    u_int	vjs_packets;	/* outbound packets */
-    u_int	vjs_compressed;	/* outbound compressed packets */
-    u_int	vjs_searches;	/* searches for connection state */
-    u_int	vjs_misses;	/* times couldn't find conn. state */
-    u_int	vjs_uncompressedin; /* inbound uncompressed packets */
-    u_int	vjs_compressedin;   /* inbound compressed packets */
-    u_int	vjs_errorin;	/* inbound unknown type packets */
-    u_int	vjs_tossed;	/* inbound packets tossed because of error */
+    unsigned int vjs_packets;	/* outbound packets */
+    unsigned int vjs_compressed; /* outbound compressed packets */
+    unsigned int vjs_searches;	/* searches for connection state */
+    unsigned int vjs_misses;	/* times couldn't find conn. state */
+    unsigned int vjs_uncompressedin; /* inbound uncompressed packets */
+    unsigned int vjs_compressedin; /* inbound compressed packets */
+    unsigned int vjs_errorin;	/* inbound unknown type packets */
+    unsigned int vjs_tossed;	/* inbound packets tossed because of error */
 };
 
 struct ppp_stats {
-    struct pppstat	p;	/* basic PPP statistics */
-    struct vjstat	vj;	/* VJ header compression statistics */
+    struct pppstat p;		/* basic PPP statistics */
+    struct vjstat vj;		/* VJ header compression statistics */
 };
 
 struct compstat {
-    u_int	unc_bytes;	/* total uncompressed bytes */
-    u_int	unc_packets;	/* total uncompressed packets */
-    u_int	comp_bytes;	/* compressed bytes */
-    u_int	comp_packets;	/* compressed packets */
-    u_int	inc_bytes;	/* incompressible bytes */
-    u_int	inc_packets;	/* incompressible packets */
-    u_int	ratio;		/* recent compression ratio << 8 */
+    unsigned int unc_bytes;	/* total uncompressed bytes */
+    unsigned int unc_packets;	/* total uncompressed packets */
+    unsigned int comp_bytes;	/* compressed bytes */
+    unsigned int comp_packets;	/* compressed packets */
+    unsigned int inc_bytes;	/* incompressible bytes */
+    unsigned int inc_packets;	/* incompressible packets */
+    unsigned int ratio;		/* recent compression ratio << 8 */
 };
 
 struct ppp_comp_stats {
-    struct compstat	c;	/* packet compression statistics */
-    struct compstat	d;	/* packet decompression statistics */
+    struct compstat c;		/* packet compression statistics */
+    struct compstat d;		/* packet decompression statistics */
 };
 
 /*
