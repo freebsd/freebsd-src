@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.27 1995/05/21 18:24:32 jkh Exp $
+ * $Id: devices.c,v 1.28 1995/05/23 02:40:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,37 +74,38 @@ static struct {
     char *name;
     char *description;
 } device_names[] = {
-    { DEVICE_TYPE_CDROM, "cd0a",	"SCSI CDROM drive"					},
-    { DEVICE_TYPE_CDROM, "cd1a",	"SCSI CDROM drive (2nd unit)"				},
-    { DEVICE_TYPE_CDROM, "mcd0a",	"Mitsumi (old model) CDROM drive"			},
-    { DEVICE_TYPE_CDROM, "mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
-    { DEVICE_TYPE_CDROM, "scd0a",	"Sony CDROM drive - CDU31/33A type",			},
-    { DEVICE_TYPE_CDROM, "scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
-    { DEVICE_TYPE_CDROM, "matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
-    { DEVICE_TYPE_CDROM, "matcd1a",	"Matsushita CDROM (2nd unit)"				},
-    { DEVICE_TYPE_TAPE,  "rst0",	"SCSI tape drive"					},
-    { DEVICE_TYPE_TAPE,  "rst1",	"SCSI tape drive (2nd unit)"				},
-    { DEVICE_TYPE_TAPE,  "ft0",		"Floppy tape drive (QIC-02)"				},
-    { DEVICE_TYPE_TAPE,  "wt0",		"Wangtek tape drive"					},
-    { DEVICE_TYPE_DISK,  "sd",		"SCSI disk device"					},
-    { DEVICE_TYPE_DISK,  "wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_FLOPPY, "rfd0",	"Floppy disk drive (unit A)"				},
-    { DEVICE_TYPE_FLOPPY, "rfd1",	"Floppy disk drive (unit B)"				},
-    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"		},
-    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP device"		},
-    { DEVICE_TYPE_NETWORK, "lp0",	"Parallel Port IP (PLIP) using laplink cable"		},
-    { DEVICE_TYPE_NETWORK, "lo",	"Loop-back (local) network interface"			},
-    { DEVICE_TYPE_NETWORK, "sl",	"Serial-line IP (SLIP) interface"			},
-    { DEVICE_TYPE_NETWORK, "ppp",	"Point-to-Point Protocol (PPP) interface"		},
-    { DEVICE_TYPE_NETWORK, "ed",	"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
-    { DEVICE_TYPE_NETWORK, "ep",	"3Com 3C509 interface card"				},
-    { DEVICE_TYPE_NETWORK, "el",	"3Com 3C501 interface card"				},
-    { DEVICE_TYPE_NETWORK, "fe",	"Fujitsu MB86960A/MB86965A Ethernet"			},
-    { DEVICE_TYPE_NETWORK, "ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
-    { DEVICE_TYPE_NETWORK, "le",	"DEC EtherWorks 2 and 3"				},
-    { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
-    { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet"		},
-    { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
+    { DEVICE_TYPE_CDROM,	"cd0a",		"SCSI CDROM drive"					},
+    { DEVICE_TYPE_CDROM,	"cd1a",		"SCSI CDROM drive (2nd unit)"				},
+    { DEVICE_TYPE_CDROM,	"mcd0a",	"Mitsumi (old model) CDROM drive"			},
+    { DEVICE_TYPE_CDROM,	"mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
+    { DEVICE_TYPE_CDROM,	"scd0a",	"Sony CDROM drive - CDU31/33A type",			},
+    { DEVICE_TYPE_CDROM,	"scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
+    { DEVICE_TYPE_CDROM,	"matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
+    { DEVICE_TYPE_CDROM,	"matcd1a",	"Matsushita CDROM (2nd unit)"				},
+    { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
+    { DEVICE_TYPE_TAPE, 	"rst1",		"SCSI tape drive (2nd unit)"				},
+    { DEVICE_TYPE_TAPE, 	"ft0",		"Floppy tape drive (QIC-02)"				},
+    { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
+    { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
+    { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
+    { DEVICE_TYPE_FLOPPY,	"rfd0",		"Floppy disk drive (unit A)"				},
+    { DEVICE_TYPE_FLOPPY,	"rfd1",		"Floppy disk drive (unit B)"				},
+    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP device"		},
+    { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
+    { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
+    { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
+    { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
+    { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
+    { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 interface card"				},
+    { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 interface card"				},
+    { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A Ethernet"			},
+    { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
+    { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress"					},
+    { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 and 3"				},
+    { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
+    { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet"		},
+    { DEVICE_TYPE_NETWORK,	"zp",		"3Com PCMCIA Etherlink III"				},
     { NULL },
 };
 
@@ -144,7 +145,8 @@ deviceDiskFree(Device *dev)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), Boolean (*get)(char *), void (*close)(Device *), void *private)
+	       Boolean (*init)(Device *), int (*get)(char *), Boolean (*close)(Device *, int),
+	       void (*shutdown)(Device *), void *private)
 {
     Device *newdev;
 
@@ -158,12 +160,13 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
     newdev->init = init;
     newdev->get = get;
     newdev->close = close;
+    newdev->shutdown = shutdown;
     newdev->private = private;
     Devices[numDevs] = newdev;
     Devices[++numDevs] = NULL;
     return newdev;
 }
-		
+
 /* Get all device information for devices we have attached */
 void
 deviceGetAll(void)
@@ -187,7 +190,7 @@ deviceGetAll(void)
 		msgFatal("Unable to open disk %s", names[i]);
 
 	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
-				 mediaInitUFS, mediaGetUFS, deviceDiskFree, d);
+				 mediaInitUFS, mediaGetUFS, NULL, deviceDiskFree, d);
 	    msgDebug("Found a device of type disk named: %s\n", names[i]);
 	}
 	free(names);
@@ -206,7 +209,8 @@ deviceGetAll(void)
 	    if (fd >= 0) {
 		close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, mediaCloseCDROM, NULL);
+				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
+				     mediaShutdownCDROM, NULL);
 		msgDebug("Found a device of type CDROM named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -216,7 +220,7 @@ deviceGetAll(void)
 	    if (fd >= 0) {
 		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaCloseTape, NULL);
+			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, NULL, mediaShutdownTape, NULL);
 		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -226,7 +230,8 @@ deviceGetAll(void)
 	    if (fd >= 0) {
 		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, mediaCloseFloppy, NULL);
+			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, NULL,
+			       mediaShutdownFloppy, NULL);
 		msgDebug("Found a device of type floppy named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -237,7 +242,7 @@ deviceGetAll(void)
 		close(fd);
 		/* The only network devices that have fds associated are serial ones */
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, mediaCloseNetwork, NULL);
+			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
 		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -271,7 +276,7 @@ deviceGetAll(void)
 	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
 	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name,
-		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, mediaCloseNetwork, NULL);
+		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.49 1995/05/23 18:06:13 jkh Exp $
+ * $Id: install.c,v 1.50 1995/05/24 01:27:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -208,9 +208,9 @@ installFinal(void)
 
     if (alreadyDone)
 	return;
-    config_fstab();
-    config_sysconfig();
-    config_resolv();
+    configFstab();
+    configSysconfig();
+    configResolv();
     do_final_setup();
     alreadyDone = TRUE;
     SystemWasInstalled = TRUE;
@@ -346,7 +346,6 @@ cpio_extract(void)
     int i, j, zpid, cpid, pfd[2];
     Boolean onCDROM = FALSE;
 
-#if 0
     if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM) {
 	if (mediaDevice->init) {
 	    if ((*mediaDevice->init)(mediaDevice)) {
@@ -358,7 +357,7 @@ cpio_extract(void)
 	    }
 	}
     }
-#endif
+
  tryagain:
     while (CpioFD == -1) {
 	msgConfirm("Please Insert CPIO floppy in floppy drive 0");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.21 1995/05/22 14:10:20 jkh Exp $
+ * $Id: label.c,v 1.22 1995/05/23 02:41:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -560,6 +560,12 @@ diskLabelEditor(char *str)
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
 		    p->newfs = FALSE;
+		    if (label_chunk_info[here].type == PART_FAT
+			&& (!strcmp(p->mountpoint, "/") || !strcmp(p->mountpoint, "/usr")
+			    || !strcmp(p->mountpoint, "/var"))) {
+			msgConfirm("%s is an invalid mount point for a DOS partition!", p->mountpoint);
+			strcpy(p->mountpoint, "/bogus");
+		    }
 		    record_label_chunks();
 		}
 		break;
