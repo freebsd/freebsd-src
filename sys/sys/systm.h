@@ -180,8 +180,12 @@ int	copyout(const void *kaddr, void *udaddr, size_t len);
 int	fubyte(const void *base);
 int	subyte(void *base, int byte);
 int	suibyte(void *base, int byte);
+int32_t	fuword32(const void *base);
+int64_t	fuword64(const void *base);
 long	fuword(const void *base);
 int	suword(void *base, long word);
+int	suword32(void *base, int32_t word);
+int	suword64(void *base, int64_t word);
 int	fusword(void *base);
 int	susword(void *base, int word);
 

@@ -512,6 +512,18 @@ ENTRY(fuword)
 END(fuword)
 
 /*
+ * u_int64_t fuword64(const void *base)
+ */
+ENTRY(fuword64)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "fuword64: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	FU_BYTES(ldxa, 8, .Lfsfault)
+END(fuword64)
+
+/*
  * int subyte(const void *base, int byte)
  */
 ENTRY(subyte)
@@ -570,6 +582,18 @@ ENTRY(suword)
 #endif
 	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword)
+
+/*
+ * int suword64(const void *base, u_int64_t word)
+ */
+ENTRY(suword64)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "suword64: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+9:
+#endif
+	SU_BYTES(stxa, 8, .Lfsfault)
+END(suword64)
 
 	.align 16
 .Lfsalign:

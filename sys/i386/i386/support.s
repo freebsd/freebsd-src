@@ -1189,6 +1189,9 @@ ENTRY(fuword)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 
+ENTRY(fuword32)
+	jmp	fuword
+
 /*
  * These two routines are called from the profiling code, potentially
  * at interrupt time. If they fail, that's okay, good things will
@@ -1285,6 +1288,9 @@ ENTRY(suword)
 	movl	PCPU(CURPCB),%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
+
+ENTRY(suword32)
+	jmp	suword
 
 /*
  * susword - MP SAFE (if not I386_CPU)

@@ -265,6 +265,13 @@ suword(void *addr, long word)
 }
 
 int
+suword32(void *addr, u_int32_t word)
+{
+	return (suword(addr, word));
+}
+
+
+int
 fubyte(const void *addr)
 {
 	struct		thread *td;
@@ -313,4 +320,10 @@ fuword(const void *addr)
 
 	td->td_pcb->pcb_onfault = NULL;
 	return (val);
+}
+
+u_int32_t
+fuword32(const void *addr)
+{
+	return (fuword(addr));
 }
