@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -245,9 +247,9 @@ unused_rules()
 
     if (nunused)
 	if (nunused == 1)
-	    fprintf(stderr, "%s: 1 rule never reduced\n", myname);
+	    warnx("1 rule never reduced");
 	else
-	    fprintf(stderr, "%s: %d rules never reduced\n", myname, nunused);
+	    warnx("%d rules never reduced", nunused);
 }
 
 
@@ -330,21 +332,15 @@ remove_conflicts()
 static void
 total_conflicts()
 {
-    fprintf(stderr, "%s: ", myname);
     if (SRtotal == 1)
-	fprintf(stderr, "1 shift/reduce conflict");
+	warnx("1 shift/reduce conflict");
     else if (SRtotal > 1)
-	fprintf(stderr, "%d shift/reduce conflicts", SRtotal);
-
-    if (SRtotal && RRtotal)
-	fprintf(stderr, ", ");
+	warnx("%d shift/reduce conflicts", SRtotal);
 
     if (RRtotal == 1)
-	fprintf(stderr, "1 reduce/reduce conflict");
+	warnx("1 reduce/reduce conflict");
     else if (RRtotal > 1)
-	fprintf(stderr, "%d reduce/reduce conflicts", RRtotal);
-
-    fprintf(stderr, ".\n");
+	warnx("%d reduce/reduce conflicts", RRtotal);
 }
 
 

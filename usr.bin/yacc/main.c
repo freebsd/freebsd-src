@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: main.c,v 1.5 1997/01/12 21:29:47 steve Exp $
  */
 
 #ifndef lint
@@ -43,7 +41,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <signal.h>
@@ -60,7 +62,6 @@ char vflag;
 
 char *symbol_prefix;
 char *file_prefix = "y";
-char *myname = "yacc";
 char *temp_form = "yacc.XXXXXXX";
 
 int lineno;
@@ -156,7 +157,9 @@ set_signals()
 static void
 usage()
 {
-    fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-o output_file_name] [-p symbol_prefix] filename\n", myname);
+    fprintf(stderr, "%s\n%s\n",
+		"usage: yacc [-dlrtv] [-b file_prefix] [-o output_filename]",
+		"            [-p symbol_prefix] filename");
     exit(1);
 }
 
@@ -169,7 +172,6 @@ char *argv[];
     register int i;
     register char *s;
 
-    if (argc > 0) myname = argv[0];
     for (i = 1; i < argc; ++i)
     {
 	s = argv[i];
