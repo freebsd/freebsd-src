@@ -132,10 +132,30 @@ SGR	E[nm	Set character attributes:		--
 		   X=2 green	X=3 brown
 		   X=4 blue	X=5 magenta
 		   X=6 cyan 	X=7 white
+		   X=9 reset to	initial	ANSI value
 
 --	E[s	Save cursor position			sc
 
 --	E[u	Restore	saved cursor position		rc
+
+--	E[x	Reset initial colors and attributes	--
+		to their default values
+
+--	E[1;nx	Set initial ANSI background to n	--
+
+--	E[2;nx	Set initial ANSI foreground to n	--
+
+--	E[3;nx	Set initial ANSI attribute directly	--
+		to n
+
+--	E[5;nx	Set initial ANSI reverse background	--
+		to n
+
+--	E[6;nx	Set initial ANSI reverse foreground	--
+		to n
+
+--	E[7;nx	Set initial ANSI reverse attribute	--
+		directly to n
 
 --	E[=p;dB	Set bell pitch (p) and duration (d),	--
 			picth is in units of 840 nS, 
