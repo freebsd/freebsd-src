@@ -54,7 +54,6 @@ load_rc_config 'XXX'
 /etc/rc.d/isdnd start
 /etc/rc.d/ppp-user start
 /etc/rc.d/ipfw start
-/etc/rc.d/network2 start
 /etc/rc.d/ip6fw start
 /etc/rc.d/network_ipv6 start
 /etc/rc.d/mroute6d start
