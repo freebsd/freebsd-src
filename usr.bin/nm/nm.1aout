@@ -116,8 +116,8 @@ If the symbol is local (non-external) the type letter is in lower case.
 The output is sorted alphabetically.
 .Sh SEE ALSO
 .Xr ar 1 ,
-.Xr ar 5 ,
 .Xr a.out 5 ,
+.Xr ar 5 ,
 .Xr stab 5
 .Sh HISTORY
 An
