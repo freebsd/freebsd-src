@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.2 1994/01/11 19:01:09 nate Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.1 1994/08/07 23:04:55 wollman Exp $";
 #endif
 
 #include <sys/param.h>
@@ -472,7 +472,7 @@ again:
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_key_val, &yprkv, tv);
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_first: clnt_call");
-		ysd->dom_vers = -1;
+		ysd->dom_vers = 0;
 		goto again;
 	}
 	if( !(r=ypprot_err(yprkv.status)) ) {
