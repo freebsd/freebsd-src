@@ -956,7 +956,8 @@ urio*)
 
 usio*)
 	unit=`expr $i : 'usio\(.*\)'`
-	mknod usio$unit c 138 $unit
+   minor=$(($minor + 128))
+	mknod usio$unit c 138 $minor
 	;;
 
 lpt*)
