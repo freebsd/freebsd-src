@@ -48,7 +48,6 @@ struct datapoint {
 	u_int			ssig;
 	u_int64_t		epoch;
 	TAILQ_ENTRY(datapoint)	list;
-	u_char			status;
 	int			vco;
 	int			bounce;
 	pid_t			pid;
@@ -62,6 +61,13 @@ struct datapoint {
 	void			*ident;
 	int			index;
 	char			*name;
+
+
+	/* Fields used only in userland */
+	double			ival;
+	double			qval;
+	double			sval;
+	double			mval;
 
 };
 
@@ -88,7 +94,6 @@ struct datapoint {
 
 
 #define PGUARD 990             /* program guard time (cycle) (990!) */
-
 
 #ifdef KERNEL
 
@@ -198,9 +203,9 @@ struct datapoint {
 
 extern struct cdevsw loran_cdevsw;
 
-static dphead_t minors[NLORAN], working, holding;
+static dphead_t minors[NLORAN + 1], working;
 
-static struct datapoint dummy[NDUMMY];
+static struct datapoint dummy[NDUMMY], *first, *second;
 
 static u_int64_t ticker;
 
@@ -209,7 +214,7 @@ static u_char par;
 static MALLOC_DEFINE(M_LORAN, "Loran", "Loran datapoints");
 
 static int loranerror;
-static char lorantext[80];
+static char lorantext[160];
 
 static u_int vco_is;
 static u_int vco_should;
@@ -283,7 +288,7 @@ loranattach(struct isa_device *isdp)
 
 	printf("loran0: LORAN-C Receiver\n");
 
-	vco_should = VCO;
+	vco_want = vco_should = VCO;
 	vco_is = vco_should >> VCO_SHIFT;
 	LOAD_DAC(DACA, vco_is);
 	 
@@ -292,8 +297,7 @@ loranattach(struct isa_device *isdp)
 	init_timecounter(&loran_timecounter);
 
 	TAILQ_INIT(&working);
-	TAILQ_INIT(&holding);
-	for (i = 0; i < NLORAN; i++) {
+	for (i = 0; i < NLORAN + 1; i++) {
 		TAILQ_INIT(&minors[i]);
 		
 	}
@@ -302,10 +306,17 @@ loranattach(struct isa_device *isdp)
 		dummy[i].agc = 4095;
 		dummy[i].code = 0xac;
 		dummy[i].fri = PGUARD;
+		dummy[i].scheduled = PGUARD * 2 * i;
 		dummy[i].phase = 50;
 		dummy[i].width = 50;
-		dummy[i].priority = 9999;
-		TAILQ_INSERT_TAIL(&working, &dummy[i], list);
+		dummy[i].priority = NLORAN * 256;
+		dummy[i].home = &minors[NLORAN];
+		if (i == 0) 
+			first = &dummy[i];
+		else if (i == 1) 
+			second = &dummy[i];
+		else
+			TAILQ_INSERT_TAIL(&working, &dummy[i], list);
 	}
 
 	inb(ADC);		/* Flush any old result */
@@ -347,6 +358,7 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 	
 	if (loranerror) {
 		printf("Loran0: %s", lorantext);
+		loranerror = 0;
 		return(EIO);
 	}
 	if (TAILQ_EMPTY(&minors[idx])) 
@@ -368,90 +380,15 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 static void
 loranenqueue(struct datapoint *dp)
 {
-	struct datapoint *dpp, *dpn;
+	struct datapoint *dpp;
 
-	while(dp) {
-		/*
-		 * The first two elements on "working" are sacred,
-		 * they're already partly setup in hardware, so the
-		 * earliest slot we can use is #3
-		 */
-		dpp = TAILQ_FIRST(&working);
-		dpp = TAILQ_NEXT(dpp, list);
-		dpn = TAILQ_NEXT(dpp, list);
-		while (1) {
-			/* 
-			 * We cannot bump "dpp", so if "dp" overlaps it
-			 * skip a beat.
-			 * XXX: should use better algorithm ?
-			 */
-			if (dpp->scheduled + PGUARD > dp->scheduled) {
-				dp->scheduled += dp->fri;
-				continue;
-			}		
-
-			/*
-			 * If "dpn" will be done before "dp" wants to go,
-			 * we must look further down the list.
-			 */
-			if (dpn && dpn->scheduled + PGUARD < dp->scheduled) {
-				dpp = dpn;
-				dpn = TAILQ_NEXT(dpp, list);
-				continue;
-			}
-
-			/* 
-			 * If at end of list, put "dp" there
-			 */
-			if (!dpn) {
-				TAILQ_INSERT_AFTER(&working, dpp, dp, list);
-				break;
-			}
-
-			/*
-			 * If "dp" fits before "dpn", insert it there
-			 */
-			if (dpn->scheduled > dp->scheduled + PGUARD) {
-				TAILQ_INSERT_AFTER(&working, dpp, dp, list);
-				break;
-			}
-
-			/*
-			 * If "dpn" is less important, bump it.
-			 */
-			if (dp->priority < dpn->priority) {
-				TAILQ_REMOVE(&working, dpn, list);
-				TAILQ_INSERT_TAIL(&holding, dpn, list);
-				dpn = TAILQ_NEXT(dpp, list);
-				continue;
-			}
-
-			/*
-			 * "dpn" was more or equally important, "dp" must
-			 * take yet turn.
-			 */
-			dp->scheduled += dp->fri;
-		}
-
-		do {
-			/*
-			 * If anything was bumped, put it back as best we can
-			 */
-			if (TAILQ_EMPTY(&holding)) {
-				dp = 0;
-				break;
-			}
-			dp = TAILQ_FIRST(&holding);
-			TAILQ_REMOVE(&holding, dp, list);
-			if (dp->home) {
-				if (!--dp->bounce) {
-					TAILQ_INSERT_TAIL(dp->home, dp, list);
-					wakeup((caddr_t)dp->home);
-					dp = 0;
-				}
-			}
-		} while (!dp);
+	TAILQ_FOREACH(dpp, &working, list) {
+		if (dpp->priority <= dp->priority)
+			continue;
+		TAILQ_INSERT_BEFORE(dpp, dp, list);
+		return;
 	}
+	TAILQ_INSERT_TAIL(&working, dp, list);
 }
 
 static	int
@@ -462,32 +399,39 @@ loranwrite(dev_t dev, struct uio * uio, int ioflag)
 	struct datapoint *this;
 	int idx;
 	u_int64_t dt;
+	u_int64_t when;
 
 	idx = minor(dev);
 
 	MALLOC(this, struct datapoint *, sizeof *this, M_LORAN, M_WAITOK);
 	c = imin(uio->uio_resid, (int)sizeof *this);
 	err = uiomove((caddr_t)this, c, uio);        
-	if (!err && this->fri == 0)
-		err = EINVAL;
-	/* XXX more checks */
+	if (err) {
+		FREE(this, M_LORAN);
+		return (err);
+	}
+	if (this->fri == 0) {
+		FREE(this, M_LORAN);
+		return (EINVAL);
+	}
+	this->par &= INTEG|GATE;
+	/* XXX more checks needed! */
 	this->home = &minors[idx];
-	this->priority = idx;
-	if (ticker > this->scheduled) {
-		dt = ticker - this->scheduled;
+	this->priority &= 0xff;
+	this->priority += idx * 256;
+	this->bounce = 0;
+	when = second->scheduled + PGUARD;
+	if (when > this->scheduled) {
+		dt = when - this->scheduled;
 		dt -= dt % this->fri;
 		this->scheduled += dt;
 	}
-	if (!err) {
-		ef = read_eflags();
-		disable_intr();
-		loranenqueue(this);
-		write_eflags(ef);
-		if (this->vco >= 0)
-			vco_want = this->vco;
-	} else {
-		FREE(this, M_LORAN);
-	}
+	ef = read_eflags();
+	disable_intr();
+	loranenqueue(this);
+	write_eflags(ef);
+	if (this->vco >= 0)
+		vco_want = this->vco;
 	return(err);
 }
 
@@ -496,72 +440,89 @@ loranintr(int unit)
 {
 	u_long ef;
 	int status = 0, count = 0, i;
-	struct datapoint *this, *next;
 	int delay;
+	u_int64_t when;
+	struct timespec there, then;
+	struct datapoint *dp, *done;
 
 	ef = read_eflags();
 	disable_intr();
 
-	this = TAILQ_FIRST(&working);
-	TAILQ_REMOVE(&working, this, list);
+	/*
+	 * Pick up the measurement which just completed, and setup
+	 * the next measurement.  We have 1100 microseconds for this
+	 * of which some eaten by the A/D of the S channel and the 
+	 * interrupt to get us here.
+	 */
 
-	nanotime(&this->when);
-	this->ssig = inb(ADC);
+	done = first;
+
+	nanotime(&there);
+	done->ssig = inb(ADC);
 
 	par &= ~(ENG | IEN);
 	outb(PAR, par);
 
 	outb(ADC, ADC_I);
 	outb(ADCGO, ADC_START);
+
+	/* Interlude: while we wait: setup the next measurement */
+		LOAD_DAC(DACB, second->agc);
+		outb(CODE, second->code);
+		par &= ~(INTEG|GATE);
+		par |= second->par;
+		par |= ENG | IEN;
+
 	while (!(inb(ADCGO) & ADC_DONE))
 		continue;
-	this->isig = inb(ADC);
+	done->isig = inb(ADC);
 
 	outb(ADC, ADC_Q);
 	outb(ADCGO, ADC_START);
+	/* Interlude: while we wait: setup the next measurement */
+		/*
+		 * We need to load this from the opposite register due to some 
+		 * weirdness which you can read about in in the 9513 manual on 
+		 * page 1-26 under "LOAD"
+		 */
+		LOAD_9513(0x0c, second->phase);
+		LOAD_9513(0x14, second->phase);
+		outb(TGC, TG_LOADARM + 0x08);
+		LOAD_9513(0x14, second->width);
 	while (!(inb(ADCGO) & ADC_DONE))
 		continue;
-	this->qsig = inb(ADC);
+	done->qsig = inb(ADC);
 
 	outb(ADC, ADC_S);
 
-	this->epoch = ticker;
-	this->vco = vco_is;
+	outb(PAR, par);
 
-	if (this->home) {
-		TAILQ_INSERT_TAIL(this->home, this, list);
-		wakeup((caddr_t)this->home);
-	} else {
-		loranenqueue(this);
+	/*
+	 * End of VERY time critical stuff, we have 8 msec to find
+	 * the next measurement and program the delay.
+	 */
+	status = inb(TGC);
+	nanotime(&then);
+
+	first = second;
+	second = 0;
+	when = first->scheduled + PGUARD;
+	TAILQ_FOREACH(dp, &working, list) {
+		while (dp->scheduled < when)
+			dp->scheduled += dp->fri;
+		if (second && dp->scheduled + PGUARD >= second->scheduled)
+			continue;
+		second = dp;
 	}
 
-	this = TAILQ_FIRST(&working);
-	next = TAILQ_NEXT(this, list);
-
-	delay = next->scheduled - this->scheduled;
-	delay -= GRI;
-
-	/* load this->params */
-	par &= ~(INTEG|GATE);
-	par |= this->par & (INTEG|GATE);
-
-	LOAD_DAC(DACB, this->agc);
-
-	outb(CODE, this->code);
+	delay = (second->scheduled - first->scheduled) - GRI;
 
 	LOAD_9513(0x0a, delay);
 
-	/*
-	 * We need to load this from the opposite register * due to some 
-	 * weirdness which you can read about in in the 9513 manual on 
-	 * page 1-26 under "LOAD"
-	 */
-	LOAD_9513(0x0c, this->phase);
-	LOAD_9513(0x14, this->phase);
-	outb(TGC, TG_LOADARM + 0x08);
-	LOAD_9513(0x14, this->width);
+	/* Done, the rest is leisure work */
 
-	vco_error += ((vco_is << VCO_SHIFT) - vco_should) * (ticker - vco_when);
+	vco_error += ((vco_is << VCO_SHIFT) - vco_should) * 
+	    (ticker - vco_when);
 	vco_should = vco_want;
 	i = vco_should >> VCO_SHIFT;
 	if (vco_error < 0)
@@ -573,10 +534,9 @@ loranintr(int unit)
 	}
 	vco_when = ticker;
 
-	this->status = inb(TGC);
-#if 1
 	/* Check if we overran */
-	status = this->status & 0x1c;
+	status &= 0x0c;
+#if 0
 
 	if (status) {
 		outb(TGC, TG_SAVE + 2);		/* save counter #2 */
@@ -587,18 +547,39 @@ loranintr(int unit)
 	}
 #endif
 
-	par |= ENG | IEN;
-	outb(PAR, par);
-
 	if (status) {
-		snprintf(lorantext, sizeof(lorantext),
-		    "Missed: %02x %d %d this:%p next:%p (dummy=%p)\n", 
-		    status, count, delay, this, next, &dummy);
-		loranerror = 1;
+		printf( "Missed: %02x %d first:%p second:%p %.09ld\n",
+		    status, delay, first, second,
+		    then.tv_nsec - there.tv_nsec);
+		first->bounce++;
 	}
 
-	ticker = this->scheduled;
+	TAILQ_REMOVE(&working, second, list);
 
+	if (done->bounce) {
+		done->bounce = 0;
+		loranenqueue(done);
+	} else {
+		done->epoch = ticker;
+		done->vco = vco_is;
+		done->when = there;
+		TAILQ_INSERT_TAIL(done->home, done, list);
+		wakeup((caddr_t)done->home);
+	}
+
+	ticker = first->scheduled;
+
+	while (dp = TAILQ_FIRST(&minors[NLORAN])) {
+		TAILQ_REMOVE(&minors[NLORAN], dp, list);
+		TAILQ_INSERT_TAIL(&working, dp, list);
+	}
+
+	when = second->scheduled + PGUARD;
+
+	TAILQ_FOREACH(dp, &working, list) {
+		while (dp->scheduled < when)
+			dp->scheduled += dp->fri;
+	}
 	write_eflags(ef);
 }
 
