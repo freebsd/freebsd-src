@@ -669,7 +669,7 @@ ignoring request for server %s from client at %s address %s",
 		}
 		hlen = haddrlength(bp->bp_htype);
 		if (hlen != bp->bp_hlen) {
-			report(LOG_NOTICE, "bad addr len from from %s address %s",
+			report(LOG_NOTICE, "bad addr len from %s address %s",
 				   netname(bp->bp_htype),
 				   haddrtoa(bp->bp_chaddr, hlen));
 		}
@@ -1026,7 +1026,7 @@ sendreply(forward, dst_override)
 
 	/*
 	 * If the destination address was specified explicitly
-	 * (i.e. the broadcast address for HP compatiblity)
+	 * (i.e. the broadcast address for HP compatibility)
 	 * then send the response to that address.  Otherwise,
 	 * act in accordance with RFC951:
 	 *   If the client IP address is specified, use that
