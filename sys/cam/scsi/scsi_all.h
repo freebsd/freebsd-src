@@ -577,12 +577,7 @@ struct scsi_inquiry_data
 
 	u_int8_t reserved3[22];
 
-	/*
-	 * The specifcation allows for 256 bytes of data, total.
-	 * We avoid overflow problems with common usages of u_int8_t
-	 * sizes by not getting at the last 4 bytes.
-	 */
-#define	SID_VENDOR_SPECIFIC_1_SIZE	(256 - 96 - 4)
+#define	SID_VENDOR_SPECIFIC_1_SIZE	160
 	u_int8_t vendor_specific1[SID_VENDOR_SPECIFIC_1_SIZE];
 };
 
