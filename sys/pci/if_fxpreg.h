@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.12 1998/03/03 14:19:09 dg Exp $
+ *	$Id: if_fxpreg.h,v 1.13 1998/06/08 09:47:46 bde Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -331,11 +331,67 @@ struct fxp_stats {
 
 /*
  * PHY BMCR Basic Mode Control Register
+ * Should probably be in i82555.h.
+ * (Called "Management Data Interface Control Reg" in some Intel data books).
+ * (*) indicates bit ignored in auto negotiation mode.
  */
-#define FXP_PHY_BMCR			0x0
-#define FXP_PHY_BMCR_FULLDUPLEX		0x0100
-#define FXP_PHY_BMCR_AUTOEN		0x1000
-#define FXP_PHY_BMCR_SPEED_100M		0x2000
+#define FXP_PHY_BMCR			0x0 
+#define FXP_PHY_BMCR_FULLDUPLEX		0x0100 /* 1 = Fullduplex (*) */
+#define FXP_PHY_BMCR_RESTART_NEG	0x0200 /* ==> 1 to restart autoneg */
+#define FXP_PHY_BMCR_POWERDOWN		0x0800 /* 1 = low power mode */
+#define FXP_PHY_BMCR_AUTOEN		0x1000 /* 1 = for auto mode */
+#define FXP_PHY_BMCR_SPEED_100M		0x2000 /* 1 = for 100Mb/sec (*) */
+#define FXP_PHY_BMCR_LOOPBACK		0x4000 /* 1 = loopback at the PHY */
+#define FXP_PHY_BMCR_RESET		0x8000 /* ==> 1 sets to defaults */
+
+/*
+ * Management Data Interface Status reg.
+ */
+#define FXP_PHY_STS			0x1
+#define FXP_PHY_STS_EXND		0x0001 /* Extended regs enabled */
+#define FXP_PHY_STS_JABR		0x0002 /* Jabber detected */
+#define FXP_PHY_STS_LINK_STS		0x0004 /* Link valid */
+#define FXP_PHY_STS_CAN_AUTO		0x0008 /* Auto detection available */
+#define FXP_PHY_STS_REMT_FAULT		0x0010 /* remote fault detected */
+#define FXP_PHY_STS_AUTO_DONE		0x0020 /* auto negotiation completed */
+#define FXP_PHY_STS_MGMT_PREAMBLE	0x0040 /* real complicated */
+#define FXP_PHY_STS_10HDX_OK		0x1000 /* can do 10Mb HDX */
+#define FXP_PHY_STS_10FDX_OK		0x2000 /* can do 10Mb FDX */
+#define FXP_PHY_STS_100HDX_OK		0x4000 /* can do 100Mb HDX */
+#define FXP_PHY_STS_100FDX_OK		0x8000 /* can do 100Mb FDX */
+
+/*
+ * More Phy regs
+ */
+#define FXP_PHY_ID1			0x2
+#define FXP_PHY_ID2			0x3
+
+/*
+ * MDI Auto negotiation advertisement register.
+ * What we advertise we can do..
+ * The same bits are used to indicate the response too.
+ */
+#define FXP_PHY_ADVRT			0x4
+#define FXP_PHY_RMT_ADVRT		0x5 /* what the other end said */
+#define FXP_PHY_ADVRT_SELECT		0x001F /* real complicated */
+#define FXP_PHY_ADVRT_TECH_AVAIL	0x1FE0 /* can do 10Mb HDX */
+#define FXP_PHY_ADVRT_RMT_FAULT		0x2000 /* can do 10Mb FDX */
+#define FXP_PHY_ADVRT_ACK		0x4000 /* Acked */
+#define FXP_PHY_ADVRT_NXT_PAGE		0x8000 /* can do 100Mb FDX */
+
+/*
+ * Phy Unit Status and Control Register (another one)
+ */
+#define FXP_PHY_USC			0x10
+#define FXP_PHY_USC_DUPLEX		0x0001 /* in FDX mode */
+#define FXP_PHY_USC_SPEED		0x0002 /* 1 = in 100Mb mode */
+#define FXP_PHY_USC_POLARITY		0x0100 /* 1 = reverse polarity */
+#define FXP_PHY_USC_10_PWRDOWN		0x0200 /* 10Mb PHY powered down */
+#define FXP_PHY_USC_100_PWRDOWN		0x0400 /* 100Mb PHY powered down */
+#define FXP_PHY_USC_INSYNC		0x0800 /* 100Mb PHY is in sync */
+#define FXP_PHY_USC_TX_FLOWCNTRL	0x1000 /* TX FC mode in use */
+#define FXP_PHY_USC_PHY_FLOWCNTRL	0x8000 /* PHY FC mode in use */
+
 
 /*
  * DP84830 PHY, PCS Configuration Register
