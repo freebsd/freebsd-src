@@ -383,6 +383,12 @@ acpi_attach(device_t dev)
 	goto out;
     }
 
+    /*
+     * Call the ECDT probe function to provide EC functionality before
+     * the namespace has been evaluated.
+     */
+    acpi_ec_ecdt_probe(dev);
+
     if (ACPI_FAILURE(status = AcpiInitializeObjects(flags))) {
 	device_printf(dev, "could not initialize ACPI objects: %s\n", AcpiFormatException(status));
 	goto out;
