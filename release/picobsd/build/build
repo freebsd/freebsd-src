@@ -107,19 +107,26 @@ main() {
 }
 
 # check for existing custom config directory and ask user if they want to use it
+# 
+# Note that specifying an alternate directory is broken due to relative
+# path assumptions during the kernel compilation phase of the build.
+# For now just dialog-ify.
 
 check_for_old_custom() {
    KEEP_CUSTOM=no
    if [ ! -d ../custom ] ; then
        return
    fi
-   clear
-   echo "                   Custom directory setup"
-   echo ""
-   echo "There is an existing custom configuration linked to"
-   ls -l ../custom | awk -F\> '{ print $2 }' | awk '{ print $1 }'
-   echo ""
-   read -p "Do you wish to use the existing custom directory? (yes/no): " KEEP_CUSTOM
+   
+   CUSTOMLINK=`ls -l ../custom | awk -F\> '{ print $2 }' | awk '{ print $1 }'`
+   if dialog --title "Custom directory setup" --yesno "A custom configuration\n ${CUSTOMLINK}\nalready exists. Would you like to use it?" 7 50 ; then 
+       KEEP_CUSTOM=yes
+   else 
+       KEEP_CUSTOM=no
+   fi
+
+   # If custom is just a simple directory, assume the user wants it
+
 }
 
 # Ask for, and set the custom config directory
