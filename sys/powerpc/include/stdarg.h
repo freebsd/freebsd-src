@@ -28,12 +28,16 @@
  * $FreeBSD$
  */
 
-#ifndef _POWERPC_STDARG_H_
-#define	_POWERPC_STDARG_H_
+#ifndef _MACHINE_STDARG_H_
+#define	_MACHINE_STDARG_H_
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifndef _VA_LIST_DECLARED
+#define	_VA_LIST_DECLARED
 typedef	__va_list	va_list;
+#endif
 
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 
@@ -43,8 +47,10 @@ typedef	__va_list	va_list;
 #define	va_arg(ap, type) \
 	__builtin_va_arg((ap), type)
 
+#if __ISO_C_VISIBLE >= 1999
 #define	va_copy(dest, src) \
 	__builtin_va_copy((dest), (src))
+#endif
 
 #define	va_end(ap) \
 	__builtin_va_end(ap)
@@ -127,13 +133,15 @@ typedef	__va_list	va_list;
 
 #define	va_end(ap)	
 
+#if __ISO_C_VISIBLE >= 1999
 #if !defined(_ANSI_SOURCE) &&						\
     (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE) ||		\
      defined(_ISOC99_SOURCE) || (__STDC_VERSION__ - 0) >= 199901L)
 #define	va_copy(dest, src)						\
 	((dest) = (src))
 #endif
+#endif
 
 #endif /* __GNUC__ post GCC 2.95 */
 
-#endif /* _POWERPC_STDARG_H_ */
+#endif /* _MACHINE_STDARG_H_ */
