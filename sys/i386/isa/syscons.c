@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.6 1995/12/31 09:29:52 joerg Exp $
+ *  $Id: syscons.c,v 1.117.4.7 1996/02/08 06:32:45 pst Exp $
  */
 
 #include "sc.h"
@@ -1136,6 +1136,7 @@ void
 pccnputc(dev_t dev, int c)
 {
     u_char buf[1];
+    int s;
     scr_stat *scp = console[0];
     term_stat save = scp->term;
 
@@ -1148,7 +1149,8 @@ pccnputc(dev_t dev, int c)
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
-    if (scp == cur_console /* && scrn_timer not running */) {
+    s = splclock();		/* XXX stop scrn_timer */
+    if (scp == cur_console) {
 	if (scp->scr_buf != Crtat && (scp->start <= scp->end)) {
 	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
@@ -1158,6 +1160,7 @@ pccnputc(dev_t dev, int c)
 	}
 	draw_cursor(scp, TRUE);
     }
+    splx(s);
 }
 
 int
