@@ -1205,9 +1205,7 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 				nn = strlen(bp) + 1;	/* for the \0 */
 				bp += nn;
 			}
-			obp = bp; /* ALIGN rounds up */
 			bp = (char *)ALIGN(bp);
-			buflen -= (bp - obp);
 
 			DNS_FATAL(bp + n < ep);
 			DNS_ASSERT(hap < &h_addr_ptrs[MAXADDRS-1]);
