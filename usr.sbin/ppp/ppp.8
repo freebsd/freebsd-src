@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.63 1997/09/09 21:01:53 brian Exp $
+.\" $Id: ppp.8,v 1.64 1997/09/10 02:20:35 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1438,6 +1438,11 @@ in
 .Pa ppp.conf .
 CHAP is accepted by default.
 
+Some ppp implementations use MD4 rather than MD5 when encrypting the
+challenge.  Refer to the description of the
+.Dq set encrypt
+command for further details.
+
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
 Protocol.  Only one of PAP and CHAP (above) may be negotiated.  With
@@ -1671,6 +1676,13 @@ above).
 This specifies the chat script that will be used to reset the modem
 before it is closed.  It should not normally be necessary, but can
 be used for devices that fail to reset themselves properly on close.
+
+.It set encrypt MD4|MD5
+This specifies the encryption algorithm to use when encrypting the
+CHAP challenge string and defaults to MD5.
+Normally, CHAP authentication is done using MD5, but some ppp
+implementations (notably the RAS on Windows NT 3 & 4) use MD4
+instead.
 
 .It set escape value...
 This option is similar to the
