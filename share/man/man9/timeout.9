@@ -50,11 +50,17 @@
 .Ft struct callout_handle
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
-.Fn callout_handle_init "struct callout_handle *"
+.Fn callout_handle_init "struct callout_handle *handle"
 
 .Li struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft void
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
+.Ft void
+.Fn callout_init "struct callout *c"
+.Ft void
+.Fn callout_stop "struct callout *c"
+.Ft void
+.Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Sh DESCRIPTION
 The function
 .Fn timeout
@@ -62,7 +68,8 @@ schedules a call to the function given by the argument
 .Fa func
 to take place after
 .Fa ticks Ns No /hz
-seconds. Non-positive values of
+seconds.
+Non-positive values of
 .Fa ticks
 are silently converted to the value
 .Sq 1 .
@@ -74,7 +81,7 @@ Upon invocation,
 .Fa func
 will receive
 .Fa arg
-as it's only argument.
+as its only argument.
 The return value from
 .Fn timeout
 is a
@@ -134,7 +141,37 @@ and
 .Fn untimeout .
 Timeouts are executed from
 .Fn softclock
-at spl0 and are protected from re-entrancy.
+at
+.Fn splsoftclock .
+Thus they are protected from re-entrancy.
+.Pp
+The functions
+.Fn callout_init ,
+.Fn callout_stop 
+and
+.Fn callout_reset
+are low-level routines for clients who wish to allocate their own 
+callout structures.
+.Pp
+The function
+.Fn callout_init
+initializes a callout so it can be passed to
+.Fn callout_stop
+or
+.Fn callout_reset
+without any side effects.
+.Pp
+The function
+.Fn callout_stop
+cancels a callout if it is currently pending.
+.Pp
+The function
+.Fn callout_reset
+first calls
+.Fn callout_stop
+to disestablish the callout, and then establishes a new callout in the
+same manner as 
+.Fn timeout .
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 Adam M. Costello and George Varghese, published in a technical report entitled
