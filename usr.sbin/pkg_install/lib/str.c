@@ -35,6 +35,18 @@ basename_of(char *str)
     return basename;
 }
 
+char *
+strconcat(char *s1, char *s2)
+{
+    static char tmp[FILENAME_MAX];
+
+    tmp[0] = '\0';
+    strncpy(tmp, s1 ? s1 : s2, FILENAME_MAX);
+    if (s1 && s2)
+	strncat(tmp, s2, FILENAME_MAX - strlen(tmp));
+    return tmp;
+}
+
 /* Get a string parameter as a file spec or as a "contents follow -" spec */
 char *
 get_dash_string(char **str)
