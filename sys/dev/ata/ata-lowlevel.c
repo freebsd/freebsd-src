@@ -543,13 +543,17 @@ ata_reset(struct ata_channel *ch)
 		ata_printf(ch, ATA_MASTER,
 			   "stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
 			   stat0, err, lsb, msb);
-	    if (!(stat0 & ATA_S_BUSY) && err == ATA_E_ILI) {
-		if (stat0 & ATA_S_READY) {
-		    ch->devices |= ATA_ATA_MASTER;
+	    if (!(stat0 & ATA_S_BUSY)) {
+		if (err == ATA_E_ILI) {
+		    if (stat0 & ATA_S_READY) {
+			ch->devices |= ATA_ATA_MASTER;
+		    }
+		    else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+			ch->devices |= ATA_ATAPI_MASTER;
+		    }
 		}
-		else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
-		    ch->devices |= ATA_ATAPI_MASTER;
-		}
+		else if (err == lsb && err == msb) 
+		    stat0 |= ATA_S_BUSY;
 	    }
 	}
 	if (stat1 & ATA_S_BUSY) {
@@ -561,24 +565,28 @@ ata_reset(struct ata_channel *ch)
 	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
 	    if (bootverbose)
 		ata_printf(ch, ATA_SLAVE,
-			   "stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
-			   stat0, err, lsb, msb);
-	    if (!(stat1 & ATA_S_BUSY) && err == ATA_E_ILI) {
-		if (stat1 & ATA_S_READY) {
-		    ch->devices |= ATA_ATA_SLAVE;
+			   " stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
+			   stat1, err, lsb, msb);
+	    if (!(stat1 & ATA_S_BUSY)) {
+		if (err == ATA_E_ILI) {
+		    if (stat1 & ATA_S_READY) {
+			ch->devices |= ATA_ATA_SLAVE;
+		    }
+		    else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+			ch->devices |= ATA_ATAPI_SLAVE;
+		    }
 		}
-		else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
-		    ch->devices |= ATA_ATAPI_SLAVE;
-		}
+		else if (err == lsb && err == msb) 
+		    stat1 |= ATA_S_BUSY;
 	    }
 	}
-	if (mask == 0x01)      /* wait for master only */
+	if (mask == 0x01)	/* wait for master only */
 	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20))
 		break;
-	if (mask == 0x02)      /* wait for slave only */
+	if (mask == 0x02)	/* wait for slave only */
 	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20))
 		break;
-	if (mask == 0x03)      /* wait for both master & slave */
+	if (mask == 0x03)	/* wait for both master & slave */
 	    if ((!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20)) &&
 	        (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20)))
 		break;
