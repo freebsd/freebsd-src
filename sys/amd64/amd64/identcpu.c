@@ -73,6 +73,7 @@ static void print_AMD_features(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 
+int	cpu_feature2;		/* XXX change cpu_feature to long? */
 int	cpu_class;
 u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 char machine[] = "amd64";
@@ -218,6 +219,44 @@ printcpuinfo(void)
 			"\040PBE"	/* Pending Break Enable */
 			);
 
+			if (cpu_feature2 != 0) {
+				printf("\n  Features2=0x%b", cpu_feature2,
+				"\020"
+				"\001SSE3"	/* SSE3 */
+				"\002<b1>"
+				"\003RSVD2>"	/* "Reserved" bit 2 */
+				"\004MON"	/* MONITOR/MWAIT Instructions */
+				"\005DS_CPL"	/* CPL Qualified Debug Store */
+				"\006<b5>"	/* Machine specific registers */
+				"\007<b6>"	/* Physical address extension */
+				"\010EST"	/* Enhanced SpeedStep */
+				"\011TM2"	/* Thermal Monitor 2 */
+				"\012<b9>"
+				"\013CNTX-ID"	/* L1 context ID available */
+				"\014<b11>"
+				"\015<b12>"
+				"\016CX16"	/* CMPXCHG16B Instruction */
+				"\017<b14>"
+				"\020<b15>"
+				"\021<b16>"
+				"\022<b17>"
+				"\023<b18>"
+				"\024<b19>"
+				"\025<b20>"
+				"\026<b21>"
+				"\027<b22>"
+				"\030<b23>"
+				"\031<b24>"
+				"\032<b25>"
+				"\033<b26>"
+				"\034<b27>"
+				"\035<b28>"
+				"\036<b29>"
+				"\037<b30>"
+				"\040<b31>"
+				);
+			}
+
 			/*
 			 * If this CPU supports hyperthreading then mention
 			 * the number of logical CPU's it contains.
@@ -227,10 +266,8 @@ printcpuinfo(void)
 				printf("\n  Hyperthreading: %d logical CPUs",
 				    (cpu_procinfo & CPUID_HTT_CORES) >> 16);
 		}
-		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
-		    cpu_exthigh >= 0x80000001)
+		if (cpu_exthigh >= 0x80000001)
 			print_AMD_features();
-	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
@@ -285,6 +322,7 @@ identify_cpu(void)
 	cpu_id = regs[0];
 	cpu_procinfo = regs[1];
 	cpu_feature = regs[3];
+	cpu_feature2 = regs[2];
 
 	/* XXX */
 	cpu = CPU_CLAWHAMMER;
@@ -339,7 +377,7 @@ print_AMD_features(void)
 	 * http://www.amd.com/products/cpg/athlon/techdocs/pdf/20734.pdf
 	 */
 	do_cpuid(0x80000001, regs);
-	printf("\n  AMD Features=0x%b", regs[3] &~ cpu_feature,
+	printf("\n  AMD Features=0x%b", regs[3] & ~(cpu_feature & 0x0183f3ff),
 		"\020"		/* in hex */
 		"\001FPU"	/* Integral FPU */
 		"\002VME"	/* Extended VM86 mode support */
@@ -356,7 +394,7 @@ print_AMD_features(void)
 		"\015MTRR"	/* Memory Type Range Registers */
 		"\016PGE"	/* PG_G (global bit) support */
 		"\017MCA"	/* Machine Check Architecture */
-		"\020ICMOV"	/* CMOV instruction */
+		"\020CMOV"	/* CMOV instruction */
 		"\021PAT"	/* Page attributes table */
 		"\022PGE36"	/* 36 bit address space support */
 		"\023RSVD"	/* Reserved, unknown */
