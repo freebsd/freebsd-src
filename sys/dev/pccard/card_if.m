@@ -103,7 +103,6 @@ METHOD int reprobe_card {
 
 HEADER {
 	#define DETACH_FORCE 0x01
-	#define DETACH_NOWARN 0x02
 }
 
 #
