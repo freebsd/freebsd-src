@@ -1476,7 +1476,7 @@ ext2fifo_read(ap)
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
-	error = fifo_specops.vop_read(ap);
+	error = vop_read(&fifo_specops, ap);
 	ip = VTOI(ap->a_vp);
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
 	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
@@ -1502,7 +1502,7 @@ ext2fifo_write(ap)
 
 	uio = ap->a_uio;
 	resid = uio->uio_resid;
-	error = fifo_specops.vop_write(ap);
+	error = vop_write(&fifo_specops, ap);
 	ip = VTOI(ap->a_vp);
 	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
 		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -1529,7 +1529,7 @@ ext2fifo_close(ap)
 	if (vp->v_usecount > 1)
 		ext2_itimes(vp);
 	VI_UNLOCK(vp);
-	return (fifo_specops.vop_close(ap));
+	return (vop_close(&fifo_specops, ap));
 }
 
 /*
@@ -1543,7 +1543,7 @@ ext2fifo_kqfilter(ap)
 {
 	int error;
 
-	error = fifo_specops.vop_kqfilter(ap);
+	error = vop_kqfilter(&fifo_specops, ap);
 	if (error)
 		error = ext2_kqfilter(ap);
 	return (error);
