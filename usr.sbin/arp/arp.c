@@ -41,8 +41,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id: arp.c,v 1.10 1997/03/31 05:09:46 imp Exp $";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -69,14 +72,15 @@ static char const freebsdid[] = "$Id: arp.c,v 1.10 1997/03/31 05:09:46 imp Exp $
 
 #include <arpa/inet.h>
 
-#include <netdb.h>
+#include <err.h>
 #include <errno.h>
+#include <netdb.h>
 #include <nlist.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <strings.h>
-#include <paths.h>
+#include <unistd.h>
 
 void dump(u_long addr);
 int delete(char *host, char *info);
@@ -88,7 +92,6 @@ int file(char *name);
 void getsocket(void);
 int my_ether_aton(char *a, u_char *n);
 int rtmsg(int cmd);
-void quit(char *msg);
 int get_ether_addr(u_long ipaddr, u_char *hwaddr);
 
 static int pid;
@@ -147,10 +150,8 @@ file(char *name)
 	int i, retval;
 	char line[100], arg[5][50], *args[5];
 
-	if ((fp = fopen(name, "r")) == NULL) {
-		fprintf(stderr, "arp: cannot open %s\n", name);
-		exit(1);
-	}
+	if ((fp = fopen(name, "r")) == NULL)
+		errx(1, "cannot open %s", name);
 	args[0] = &arg[0][0];
 	args[1] = &arg[1][0];
 	args[2] = &arg[2][0];
@@ -161,7 +162,7 @@ file(char *name)
 		i = sscanf(line, "%s %s %s %s %s", arg[0], arg[1], arg[2],
 		    arg[3], arg[4]);
 		if (i < 2) {
-			fprintf(stderr, "arp: bad line: %s\n", line);
+			warnx("bad line: %s", line);
 			retval = 1;
 			continue;
 		}
@@ -177,10 +178,8 @@ getsocket(void)
 {
 	if (s < 0) {
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
-		if (s < 0) {
-			perror("arp: socket");
-			exit(1);
-		}
+		if (s < 0)
+			err(1, "socket");
 	}
 }
 
@@ -214,8 +213,7 @@ set(int argc, char **argv)
 	sin->sin_addr.s_addr = inet_addr(host);
 	if (sin->sin_addr.s_addr == -1) {
 		if (!(hp = gethostbyname(host))) {
-			fprintf(stderr, "arp: %s: ", host);
-			herror((char *)NULL);
+			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
 		}
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
@@ -249,7 +247,7 @@ set(int argc, char **argv)
 	}
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
-		perror(host);
+		warn("%s", host);
 		return (1);
 	}
 	sin = (struct sockaddr_inarp *)(rtm + 1);
@@ -296,11 +294,8 @@ get(char *host)
 	sin_m = blank_sin;
 	sin->sin_addr.s_addr = inet_addr(host);
 	if (sin->sin_addr.s_addr == -1) {
-		if (!(hp = gethostbyname(host))) {
-			fprintf(stderr, "arp: %s: ", host);
-			herror((char *)NULL);
-			exit(1);
-		}
+		if (!(hp = gethostbyname(host)))
+			errx(1, "%s: %s", host, hstrerror(h_errno));
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
 		    sizeof sin->sin_addr);
 	}
@@ -330,8 +325,7 @@ delete(char *host, char *info)
 	sin->sin_addr.s_addr = inet_addr(host);
 	if (sin->sin_addr.s_addr == -1) {
 		if (!(hp = gethostbyname(host))) {
-			fprintf(stderr, "arp: %s: ", host);
-			herror((char *)NULL);
+			warnx("%s: %s", host, hstrerror(h_errno));
 			return (1);
 		}
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
@@ -339,7 +333,7 @@ delete(char *host, char *info)
 	}
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
-		perror(host);
+		warn("%s", host);
 		return (1);
 	}
 	sin = (struct sockaddr_inarp *)(rtm + 1);
@@ -394,11 +388,11 @@ dump(u_long addr)
 	mib[4] = NET_RT_FLAGS;
 	mib[5] = RTF_LLINFO;
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		quit("route-sysctl-estimate");
+		errx(1, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
-		quit("malloc");
+		errx(1, "malloc");
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		quit("actual retrieval of routing table");
+		errx(1, "actual retrieval of routing table");
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
@@ -456,7 +450,7 @@ my_ether_aton(char *a, u_char *n)
 	i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o[0], &o[1], &o[2],
 					   &o[3], &o[4], &o[5]);
 	if (i != 6) {
-		fprintf(stderr, "arp: invalid Ethernet address '%s'\n", a);
+		warnx("invalid Ethernet address '%s'", a);
 		return (1);
 	}
 	for (i=0; i<6; i++)
@@ -467,12 +461,13 @@ my_ether_aton(char *a, u_char *n)
 void
 usage(void)
 {
-	printf("usage: arp hostname\n");
-	printf("       arp -a [kernel] [kernel_memory]\n");
-	printf("       arp -d hostname\n");
-	printf("       arp -s hostname ether_addr [temp] [pub]\n");
-	printf("       arp -S hostname ether_addr [temp] [pub]\n");
-	printf("       arp -f filename\n");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+		"usage: arp [-n] hostname",
+		"       arp [-n] -a [kernel] [kernel_memory]",
+		"       arp -d hostname",
+		"       arp -s hostname ether_addr [temp] [pub]",
+		"       arp -S hostname ether_addr [temp] [pub]",
+		"       arp -f filename");
 	exit(1);
 }
 
@@ -494,8 +489,7 @@ rtmsg(int cmd)
 
 	switch (cmd) {
 	default:
-		fprintf(stderr, "arp: internal wrong cmd\n");
-		exit(1);
+		errx(1, "internal wrong cmd");
 	case RTM_ADD:
 		rtm->rtm_addrs |= RTA_GATEWAY;
 		rtm->rtm_rmx.rmx_expire = expire_time;
@@ -529,7 +523,7 @@ doit:
 	rtm->rtm_type = cmd;
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
 		if (errno != ESRCH || cmd != RTM_DELETE) {
-			perror("writing to routing socket");
+			warn("writing to routing socket");
 			return (-1);
 		}
 	}
@@ -537,16 +531,8 @@ doit:
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
 	} while (l > 0 && (rtm->rtm_seq != seq || rtm->rtm_pid != pid));
 	if (l < 0)
-		(void) fprintf(stderr, "arp: read from routing socket: %s\n",
-		    strerror(errno));
+		warn("read from routing socket");
 	return (0);
-}
-
-void
-quit(char *msg)
-{
-	fprintf(stderr, "%s\n", msg);
-	exit(1);
 }
 
 /*
@@ -567,15 +553,13 @@ get_ether_addr(u_long ipaddr, u_char *hwaddr)
 	int s;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
-		perror("socket");
-		exit(1); 
-	}
+	if (s < 0)
+		err(1, "socket");
 
 	ifc.ifc_len = sizeof(ifs);
 	ifc.ifc_req = ifs;
 	if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-		fprintf(stderr, "ioctl(SIOCGIFCONF): \n");
+		warnx("ioctl(SIOCGIFCONF)");
 		close(s);
 		return 0;
 	}
