@@ -54,6 +54,13 @@ static const struct {
 		crypt_md5,
 		"$1$"
 	},
+#ifdef HAS_BLOWFISH
+	{
+		"blf",
+		crypt_blowfish,
+		"$2"
+	},
+#endif
 	{
 		NULL,
 		NULL
