@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: rwhod.c,v 1.8 1998/12/17 11:05:57 des Exp $";
+	"$Id: rwhod.c,v 1.9 1999/01/11 05:27:37 steve Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -117,6 +117,7 @@ static const char rcsid[] =
 
 int			insecure_mode;
 int			quiet_mode;
+int			iff_flag = IFF_POINTOPOINT;
 int			multicast_mode  = NO_MULTICAST;
 int			multicast_scope;
 struct sockaddr_in	multicast_addr  = { sizeof multicast_addr, AF_INET };
@@ -200,6 +201,8 @@ main(argc, argv)
 			insecure_mode = 1;
 		else if (strcmp(*argv, "-l") == 0)
 			quiet_mode = 1;
+		else if (strcmp(*argv, "-p") == 0)
+			iff_flag = 0;
 		else
 			usage();
 		argv++, argc--;
@@ -604,7 +607,7 @@ configure(s)
 		if ((flags & IFF_UP) == 0 ||
 		    (flags & (((multicast_mode == PER_INTERFACE_MULTICAST) ?
 				IFF_MULTICAST : 0) |
-				IFF_BROADCAST|IFF_POINTOPOINT)) == 0)
+				IFF_BROADCAST|iff_flag)) == 0)
 			continue;
 		if (ifm->ifm_type != RTM_NEWADDR)
 			quit("out of sync parsing NET_RT_IFLIST");
