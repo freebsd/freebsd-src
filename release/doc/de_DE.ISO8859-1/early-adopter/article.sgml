@@ -2,8 +2,8 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.7 2002/11/10 10:47:52 ue Exp $
-  basiert auf: 1.5
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.9 2002/12/01 11:58:09 ue Exp $
+  basiert auf: 1.7
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -191,7 +191,7 @@
 
       <listitem>
 	<para>GCC:  Der Compiler und die dazugeh&ouml;rigen Werkzeuge
-	  basieren jetzt auf GCC 3.<replaceable>X</replaceable> und
+	  basieren jetzt auf einer Vorabversion von GCC 3.2.1 und
 	  nicht mehr auf GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
@@ -252,8 +252,11 @@
 	<para>Durch die &Auml;nderungen in den Datenstrukturen des
 	  Kernels und der Schnittstellen f&uuml;r Anwendungen und
 	  Programmierer (ABI/API), m&uuml;ssen Treiber anderer
-	  Hersteller angepa&szlig;t werden, damit sie korrekt mit
-	  &os; 5.0 zusammenarbeiten.</para>
+	  Hersteller angepa&szlig;t werden, damit sie korrekt mit &os;
+	  5.0 zusammenarbeiten.  Es ist nicht ausgeschlossen,
+	  da&szlig; es bis zum Erscheinen des Entwicklungszweiges
+	  5-STABLE zu weiteren kleineren &Auml;nderungen an den
+	  ABI/API geben wird.</para>
       </listitem>
 
       <listitem>
@@ -298,6 +301,15 @@
 	  Der Entwicklungszweig 5-STABLE wird wahrscheinlich erst
 	  einige Zeit nach der Ver&ouml;ffentlichung von 5.1-RELEASE
 	  oder 5.2-RELEASE eingerichtet werden.</para>
+      </listitem>
+
+      <listitem>
+	<para>Die Dokumentation (wie z.B. das &os; <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.
+	  html">Handbuch</ulink> und der <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html"
+	  >FAQ</ulink>) sind teilweise noch nicht auf dem Stand von
+	  &os; 5.0.</para>
       </listitem>
     </itemizedlist>
 
@@ -376,15 +388,20 @@
 	ausf&uuml;hrlich getestet, ob und wie gut die
 	<quote>Upgrade</quote>-Option in &man.sysinstall.8; bei einem
 	Update von 4.0 zu 5.0 funktioniert.  Wir raten daher dringend
-	von der Verwendung dieser Funktion ab.</para>
+	von der Verwendung dieser Funktion ab.  Eines der
+	Hauptprobleme ist, da&szlig; bei dieser Variante diverse
+	Dateien nicht gel&ouml;scht werden, die zwar von
+	4.<replaceable>X</replaceable> genutzt wurden, aber in 5.0
+	nicht mehr vorhanden sind.  Diese Altlasten k&ouml;nnen zu
+	Problemen f&uuml;hren.</para>
 
       <para>Auf i386 und pc98 Systemen kann die Konfiguration von ISA
 	Ger&auml;ten beim Systemstart mit dem Werkzeug UserConfig
 	eingestellt werden, dies gilt auch beim Start von einem
 	Installations-Medium.  Dieses Programm wurde in &os; 5.0 durch
 	&man.device.hints.5; ersetzt; dieses stellt zwar die gleiche
-	Funktionalit&auml;t bereit, ist aber nicht interaktiv
-	nutzbar.</para>
+	Funktionalit&auml;t bereit, ist aber von der Bedienung her
+	v&ouml;llig verschieden.</para>
 
       <para>Bei einer Installation von Diskette kann es notwendig
 	werden, die neue Treiber-Diskette zu benutzen.  Das
@@ -430,6 +447,14 @@
 	ersatzlos entfernt (wenn sie &uuml;berfl&uuml;ssig
 	waren).</para>
 
+      <para>Einige Scripte verlassen sich darauf, da&szlig; der
+	Perl-Interpreter als <filename>/usr/bin/perl</filename>
+	verf&uuml;gbar ist.  Der Perl Port enth&auml;lt das Programm
+	<filename>use.perl</filename>, mit dem ein passender Satz
+	symbolischer Links f&uuml;r diese Scripte erzeugt werden kann.
+	Nach dem Aufruf von <command>use.perl port</command> sollte
+	alles wie erwartet funktionieren.</para>
+
       <para>Es ist zwar m&ouml;glich, Programme aus
 	4.<replaceable>X</replaceable> mit
 	5.<replaceable>X</replaceable> zu betreiben, allerdings
@@ -456,7 +481,8 @@
       aber es ist noch nicht f&uuml;r alle Anwender geeignet.  Aus
       diesem Grund haben wir in diesem Dokument Informationen
       &uuml;ber die Abl&auml;ufe bei der Ver&ouml;ffentlichung einer
-      neuen Version, die interessantesten Neuerungen und
+      neuen Version, die interessantesten Neuerungen in den
+      5.<replaceable>X</replaceable> Versionen und
       wahrscheinliche Probleme gegeben.  Weiterhin enthielt er einen
       Ausblick auf die Zukunft des Entwicklungszweiges 4-STABLE und
       Informationen f&uuml;r Anwender, die schon jetzt auf 5.0
