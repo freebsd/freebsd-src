@@ -642,9 +642,9 @@ configXDesktop(dialogMenuItem *self)
     else if (!strcmp(desk, "gnome")) {
 	ret = package_add("gnomecore");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
-	    ret = package_add("afterstep");
-	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("afterstep"))
-		write_root_xprofile("gnome-session &\nexec afterstep");
+	    ret = package_add("sawfish");
+	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("sawfish"))
+		write_root_xprofile("gnome-session &\nexec sawfish");
 	}
     }
     else if (!strcmp(desk, "enlightenment")) {
