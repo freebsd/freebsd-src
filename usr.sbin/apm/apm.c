@@ -311,12 +311,12 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 		args.ecx = 0x0002;
 		if (ioctl(fd, APMIO_BIOS, &args) == 0) {
 			printf("Resume on ring indicator: %sabled\n",
-			       args.ecx ? "en" : "dis");
+			    args.ecx ? "en" : "dis");
 		}
 	}
 
 	if (aip->ai_infoversion >= 1) {
-		printf("APM Capacities:\n", aip->ai_capabilities);
+		printf("APM Capabilities:\n");
 		if (aip->ai_capabilities == 0xff00)
 			printf("\tunknown\n");
 		if (aip->ai_capabilities & 0x01)
