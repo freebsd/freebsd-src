@@ -269,6 +269,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			error = acquire(&lkp, extflags, lockflags);
 			if (error)
 				break;
+			if (td != NULL)
+				td->td_locks++;
 			sharelock(lkp, 1);
 #if defined(DEBUG_LOCKS)
 			lkp->lk_slockholder = thr;
@@ -377,6 +379,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			if ((extflags & (LK_NOWAIT | LK_CANRECURSE)) == 0)
 				panic("lockmgr: locking against myself");
 			if ((extflags & LK_CANRECURSE) != 0) {
+				if (td != NULL)
+					td->td_locks++;
 				lkp->lk_exclusivecount++;
 				break;
 			}
@@ -411,6 +415,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
+		if (td != NULL)
+			td->td_locks++;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
 			lkp->lk_lineno = line;
@@ -419,6 +425,9 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		break;
 
 	case LK_RELEASE:
+		if (td != NULL && lkp->lk_lockholder != LK_KERNPROC &&
+		    lkp->lk_exclusivecount + lkp->lk_sharecount != 0)
+			td->td_locks--;
 		if (lkp->lk_exclusivecount != 0) {
 			if (lkp->lk_lockholder != thr &&
 			    lkp->lk_lockholder != LK_KERNPROC) {
@@ -455,6 +464,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = thr;
 		lkp->lk_exclusivecount = 1;
+		if (td != NULL)
+			td->td_locks++;
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
 			lkp->lk_lineno = line;
