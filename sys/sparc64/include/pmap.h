@@ -29,7 +29,6 @@
 #ifndef	_MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-#include <sys/kobj.h>
 #include <machine/tte.h>
 
 #define	PMAP_CONTEXT_MAX	8192
@@ -60,5 +59,11 @@ extern	struct pmap *kernel_pmap;
 extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
+
+static __inline int
+pmap_track_modified(vm_offset_t va)
+{
+	return ((va < clean_sva) || (va >= clean_eva));
+}
 
 #endif /* !_MACHINE_PMAP_H_ */
