@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.11 1998/02/18 09:30:31 jkh Exp $";
+	"$Id: mount_msdos.c,v 1.12 1998/02/22 15:28:06 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,7 @@ static uid_t	a_uid __P((char *));
 static mode_t	a_mask __P((char *));
 static void	usage __P((void)) __dead2;
 static void     load_u2wtable __P((u_int16_t *, char *));
+static void     load_ultable __P((u_int8_t *, char *));
 
 int
 main(argc, argv)
@@ -82,7 +84,7 @@ main(argc, argv)
 	(void)memset(&args, '\0', sizeof(args));
 	args.magic = MSDOSFS_ARGSMAGIC;
 
-	while ((c = getopt(argc, argv, "sl9u:g:m:o:w:")) != -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:o:L:W:")) != -1) {
 		switch (c) {
 #ifdef MSDOSFSMNT_GEMDOSFS
 		case 'G':
@@ -110,7 +112,11 @@ main(argc, argv)
 			args.mask = a_mask(optarg);
 			set_mask = 1;
 			break;
-		case 'w':
+		case 'L':
+			load_ultable(args.ul, optarg);
+			args.flags |= MSDOSFSMNT_ULTABLE;
+			break;
+		case 'W':
 			load_u2wtable(args.u2w, optarg);
 			args.flags |= MSDOSFSMNT_U2WTABLE;
 			break;
@@ -234,7 +240,7 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] [-s] [-l] [-9] [-w table] bdev dir\n");
+	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] [-s] [-l] [-9] [-L locale] [-W table] bdev dir\n");
 	exit(EX_USAGE);
 }
 
@@ -263,4 +269,17 @@ load_u2wtable (table, name)
 		table[i] = code;
 	}
 	fclose(f);
+}
+
+void
+load_ultable (table, name)
+	u_int8_t *table;
+	char *name;
+{
+	int i;
+
+	if (setlocale(LC_CTYPE, name) == NULL)
+		err(EX_CONFIG, name);
+	for (i = 0; i < 128; i++)
+		table[i] = tolower(i | 0x80);
 }
