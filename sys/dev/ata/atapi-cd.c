@@ -1590,7 +1590,7 @@ acd_send_cue(struct acd_softc *cdp, struct cdr_cuesheet *cuesheet)
 static int
 acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
 {
-    struct dvd_miscauth *d;
+    struct dvd_miscauth *d = NULL;
     u_int32_t lba = 0;
     int16_t length;
     int8_t ccb[16];
@@ -1629,8 +1629,10 @@ acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     ccb[9] = length & 0xff;
     ccb[10] = (ai->agid << 6) | ai->format;
 
-    d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
-    d->length = htons(length - 2);
+    if (length) {
+	d = malloc(length, M_ACD, M_NOWAIT | M_ZERO);
+	d->length = htons(length - 2);
+    }
 
     error = ata_atapicmd(cdp->device, ccb, (caddr_t)d, length,
 			 ai->format == DVD_INVALIDATE_AGID ? 0 : ATA_R_READ,10);
