@@ -1158,7 +1158,6 @@ vge_detach(dev)
 	if (sc->vge_parent_tag)
 		bus_dma_tag_destroy(sc->vge_parent_tag);
 
-	VGE_UNLOCK(sc);
 	mtx_destroy(&sc->vge_mtx);
 
 	return (0);
