@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999
+ * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -227,6 +227,12 @@
 #define XM_RXCMD_BIGPKTOK	0x0080
 #define XM_RXCMD_LENERROK	0x0100
 
+#define XM_GPIO_GP0_SET		0x0001
+#define XM_GPIO_RESETSTATS	0x0004
+#define XM_GPIO_RESETMAC	0x0008
+#define XM_GPIO_FORCEINT	0x0020
+#define XM_GPIO_ANEGINPROG	0x0040
+
 #define XM_IMR_RX_EOF		0x0001
 #define XM_IMR_TX_EOF		0x0002
 #define XM_IMR_TX_UNDERRUN	0x0004
@@ -244,7 +250,7 @@
 #define XM_IMR_LINKEVENT	0x4000
 
 #define XM_INTRS	\
-	(~(XM_IMR_LINKEVENT|XM_IMR_AUTONEG_DONE|XM_IMR_TX_UNDERRUN))
+	(~(XM_IMR_GP0_SET|XM_IMR_AUTONEG_DONE|XM_IMR_TX_UNDERRUN))
 
 #define XM_ISR_RX_EOF		0x0001
 #define XM_ISR_TX_EOF		0x0002
@@ -261,6 +267,10 @@
 #define XM_ISR_FORCEINTR	0x1000
 #define XM_ISR_TX_ABORT		0x2000
 #define XM_ISR_LINKEVENT	0x4000
+
+#define XM_HWCFG_GENEOP		0x0008
+#define XM_HWCFG_SIGSTATCKH	0x0004
+#define XM_HWCFG_GMIIMODE	0x0001
 
 #define XM_MODE_FLUSH_RXFIFO	0x00000001
 #define XM_MODE_FLUSH_TXFIFO	0x00000002
