@@ -220,12 +220,9 @@ static int pmap_ridbits = 18;
 static vm_zone_t pvzone;
 static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
-static vm_zone_t pvbootzone;
-static struct vm_zone pvbootzone_store;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 static int pmap_pagedaemon_waken = 0;
 static struct pv_entry *pvinit;
-static struct pv_entry *pvbootinit;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
@@ -271,7 +268,6 @@ void
 pmap_bootstrap()
 {
 	int i;
-	int boot_pvs;
 
 	/*
 	 * Setup RIDs. We use the bits above pmap_ridbits for a
@@ -318,19 +314,6 @@ pmap_bootstrap()
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 			 
-	/*
-	 * We need some PVs to cope with pmap_kenter() calls prior to
-	 * pmap_init(). This is all a bit flaky and needs to be
-	 * rethought, probably by avoiding the zone allocator
-	 * entirely.
-	 */
-  	boot_pvs = 32768;
-	pvbootzone = &pvbootzone_store;
-	pvbootinit = (struct pv_entry *)
-		pmap_steal_memory(boot_pvs * sizeof (struct pv_entry));
-	zbootinit(pvbootzone, "PV ENTRY", sizeof (struct pv_entry),
-		  pvbootinit, boot_pvs);
-
 	/*
 	 * Set up proc0's PCB.
 	 */
@@ -752,8 +735,23 @@ free_pv_entry(pv_entry_t pv)
 static pv_entry_t
 get_pv_entry(void)
 {
-	if (!pvinit)
-		return zalloc(pvbootzone);
+	/*
+	 * We can get called a few times really early before
+	 * pmap_init() has finished allocating the pvzone (mostly as a
+	 * result of the call to kmem_alloc() in pmap_init(). We allow
+	 * a small number of entries to be allocated statically to
+	 * cover this.
+	 */
+	if (!pvinit) {
+#define PV_BOOTSTRAP_NEEDED	512
+		static struct pv_entry pvbootentries[PV_BOOTSTRAP_NEEDED];
+		static int pvbootnext = 0;
+
+		if (pvbootnext == PV_BOOTSTRAP_NEEDED)
+			panic("get_pv_entry: called too many times"
+			      " before pmap_init is finished");
+		return &pvbootentries[pvbootnext++];
+	}
 
 	pv_entry_count++;
 	if (pv_entry_high_water &&
@@ -1115,22 +1113,18 @@ pmap_kremove(vm_offset_t va)
  *	Used to map a range of physical addresses into kernel
  *	virtual address space.
  *
- *	For now, VM is already on, we only need to map the
- *	specified memory.
+ *	The value passed in '*virt' is a suggested virtual address for
+ *	the mapping. Architectures which can support a direct-mapped
+ *	physical to virtual region can return the appropriate address
+ *	within that region, leaving '*virt' unchanged. Other
+ *	architectures should map the pages starting at '*virt' and
+ *	update '*virt' with the first usable address after the mapped
+ *	region.
  */
 vm_offset_t
-pmap_map(vm_offset_t virt, vm_offset_t start, vm_offset_t end, int prot)
+pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
-	/*
-	 * XXX We should really try to use larger pagesizes here to
-	 * cut down the number of PVs used.
-	 */
-	while (start < end) {
-		pmap_kenter(virt, start);
-		virt += PAGE_SIZE;
-		start += PAGE_SIZE;
-	}
-	return (virt);
+	return IA64_PHYS_TO_RR7(start);
 }
 
 /*
