@@ -32,7 +32,7 @@
 
 d_open_t	memopen;
 d_read_t	memrw;
-#define		memioctl	(d_ioctl_t *)NULL;
+#define		memioctl	(d_ioctl_t *)NULL
 d_mmap_t	memmmap;
 
 void		dev_mem_md_init(void);
