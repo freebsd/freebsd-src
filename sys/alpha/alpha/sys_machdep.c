@@ -66,6 +66,8 @@ struct sysarch_args {
 static int alpha_sethae(struct proc *p, char *args);
 static int alpha_get_fpmask(struct proc *p, char *args);
 static int alpha_set_fpmask(struct proc *p, char *args);
+static int alpha_set_uac(struct proc *p, char *args);
+static int alpha_get_uac(struct proc *p, char *args);
 
 int
 sysarch(p, uap)
@@ -83,6 +85,12 @@ sysarch(p, uap)
 		break;
 	case ALPHA_SET_FPMASK:
 		error = alpha_set_fpmask(p, uap->parms);
+		break;
+	case ALPHA_SET_UAC:
+		error = alpha_set_uac(p, uap->parms);
+		break;
+	case ALPHA_GET_UAC:
+		error = alpha_get_uac(p, uap->parms);
 		break;
 	    
 	default:
@@ -153,4 +161,44 @@ alpha_set_fpmask(struct proc *p, char *args)
 
 	error = copyout(&ua, args, sizeof(struct alpha_fpmask_args));
 	return (error);
+}
+
+static	int
+alpha_set_uac(struct proc *p, char *args)
+{
+	int error, s;
+	unsigned long uac;
+
+	error = copyin(args, &uac, sizeof(uac));
+	if (error)
+		return (error);
+
+	if (p->p_pptr) {
+		s = splimp();
+		if (p->p_pptr) {
+			p->p_pptr->p_md.md_flags &= ~MDP_UAC_MASK;
+			p->p_pptr->p_md.md_flags |= uac & MDP_UAC_MASK;
+		} else
+			error = ESRCH;
+		splx(s);
+	}
+	return error;
+}
+
+static	int
+alpha_get_uac(struct proc *p, char *args)
+{
+	int error, s;
+	unsigned long uac;
+
+	error = ESRCH;
+	if (p->p_pptr) {
+		s = splimp();
+		if (p->p_pptr) {
+			uac = p->p_pptr->p_md.md_flags & MDP_UAC_MASK;
+			error = copyout(&uac, args, sizeof(uac));
+		}
+		splx(s);
+	}
+	return error;
 }
