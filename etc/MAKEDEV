@@ -792,7 +792,7 @@ acd*|cd*|mcd*|scd*)
 	fi
 	if [ "${units}" -le 31 ]; then
 		i=0
-		while [ $i -lt $units ]; do
+		while [ $i -le $units ]; do
 			dname=$name$i
 			rm -rf ${dname}* r${dname}*
 			mknod ${dname}a c $chr $(($i * 8)) root:operator
