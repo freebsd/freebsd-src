@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $Id: vnode_pager.h,v 1.4 1995/01/09 16:06:02 davidg Exp $
+ * $Id: vnode_pager.h,v 1.5 1995/07/13 08:48:48 davidg Exp $
  */
 
 #ifndef	_VNODE_PAGER_
@@ -49,6 +49,7 @@ int vnode_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 int vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
 boolean_t vnode_pager_haspage __P((vm_object_t, vm_offset_t, int *, int *));
 struct vnode *vnode_pager_lock __P((vm_object_t));
+void vnode_pager_freepage __P((vm_page_t m));
 #endif
 
 #endif				/* _VNODE_PAGER_ */
