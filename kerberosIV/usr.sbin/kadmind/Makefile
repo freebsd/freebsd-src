@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kadmind
-MAN8=		${KRB4DIR}/man/kadmind.8
+MAN=		${KRB4DIR}/man/kadmind.8
 SRCS=		kadm_server.c kadm_funcs.c admin_server.c kadm_ser_wrap.c \
 		pw_check.c ${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
 CFLAGS+=	-I${KRB4DIR}/include \

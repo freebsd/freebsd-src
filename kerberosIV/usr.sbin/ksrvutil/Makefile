@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		ksrvutil
-MAN8=		${KRB4DIR}/man/ksrvutil.8
+MAN=		${KRB4DIR}/man/ksrvutil.8
 SRCS=		ksrvutil.c ksrvutil_get.c \
 		${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
 CFLAGS+=	-I${KRB4DIR}/include \

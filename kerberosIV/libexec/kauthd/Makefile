@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kauthd
-MAN8=		${KRB4DIR}/man/kauthd.8
+MAN=		${KRB4DIR}/man/kauthd.8
 SRCS=		kauthd.c encdata.c marshall.c
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

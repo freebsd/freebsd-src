@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 PROG=		kerberos
-MAN1=		${KRB4DIR}/man/kerberos.1
-MAN5=		${KRB4DIR}/man/krb.conf.5 ${KRB4DIR}/man/krb.realms.5 \
+MAN=		${KRB4DIR}/man/kerberos.1
+MAN+=		${KRB4DIR}/man/krb.conf.5 ${KRB4DIR}/man/krb.realms.5 \
 		${KRB4DIR}/man/krb.equiv.5
-MAN8=		${KRB4DIR}/man/kerberos.8
+MAN+=		${KRB4DIR}/man/kerberos.8
 SRCS=		kerberos.c
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
