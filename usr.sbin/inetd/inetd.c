@@ -317,7 +317,7 @@ main(argc, argv)
 	const char *servname;
 	int error;
 
-	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
+	openlog("inetd", LOG_PID | LOG_NOWAIT | LOG_PERROR, LOG_DAEMON);
 
 	while ((ch = getopt(argc, argv, "dlwWR:a:c:C:p:")) != -1)
 		switch(ch) {
@@ -434,6 +434,9 @@ main(argc, argv)
 		if (daemon(0, 0) < 0) {
 			syslog(LOG_WARNING, "daemon(0,0) failed: %m");
 		}
+		/* From now on we don't want syslog messages going to stderr. */
+		closelog();
+		openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 		/*
 		 * In case somebody has started inetd manually, we need to
 		 * clear the logname, so that old servers run as root do not
@@ -1611,7 +1614,7 @@ more:
 	}
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
 		if (no_v4bind != 0) {
-			syslog(LOG_INFO, "IPv4 bind is ignored for %s",
+			syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
 			       sep->se_service);
 			freeconfig(sep);
 			goto more;
@@ -1652,7 +1655,7 @@ more:
 #ifdef INET6
 		if (sep->se_proto[strlen(sep->se_proto) - 1] == '6') {
 			if (no_v6bind != 0) {
-				syslog(LOG_INFO, "IPv6 bind is ignored for %s",
+				syslog(LOG_NOTICE, "IPv6 bind is ignored for %s",
 				       sep->se_service);
 				freeconfig(sep);
 				goto more;
@@ -1684,7 +1687,7 @@ more:
 #endif
 	{ /* default to v4 bind if not v6 bind */
 		if (no_v4bind != 0) {
-			syslog(LOG_INFO, "IPv4 bind is ignored for %s",
+			syslog(LOG_NOTICE, "IPv4 bind is ignored for %s",
 			       sep->se_service);
 			freeconfig(sep);
 			goto more;
