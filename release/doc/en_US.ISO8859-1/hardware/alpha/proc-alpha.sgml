@@ -1223,7 +1223,7 @@ cpu             EV5</programlisting>
       you have the following line in your kernel config file:</para>
       <programlisting>device pcm</programlisting>
 
-      <para>The sound device uses port 0x530, IRQ 9 and drq 0. You also need
+      <para>The sound device uses port 0x530, IRQ 10 and drq 0. You also need
       to specify flags 0x10011 in the <filename>device.hints</filename> file.</para>
 
       <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
