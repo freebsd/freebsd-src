@@ -81,7 +81,7 @@ static int	mkdirpath_recursive(char *path);
 static int	mksubdir(char *path);
 #ifdef HAVE_POSIX_ACL
 static int	set_acl(struct archive *, struct archive_entry *,
-		    acl_type_t, int archive_entry_acl_type);
+		    acl_type_t, int archive_entry_acl_type, const char *tn);
 #endif
 static int	set_acls(struct archive *, struct archive_entry *);
 static int	set_extended_perm(struct archive *, struct archive_entry *,
@@ -845,18 +845,18 @@ set_acls(struct archive *a, struct archive_entry *entry)
 	int		 ret;
 
 	ret = set_acl(a, entry, ACL_TYPE_ACCESS,
-	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, "access");
 	if (ret != ARCHIVE_OK)
 		return (ret);
 	ret = set_acl(a, entry, ACL_TYPE_DEFAULT,
-	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, "default");
 	return (ret);
 }
 
 
 static int
 set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
-    int ae_requested_type)
+    int ae_requested_type, const char *typename)
 {
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
@@ -907,7 +907,7 @@ set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
 
 	name = archive_entry_pathname(entry);
 	if (acl_set_file(name, acl_type, acl) != 0) {
-		archive_set_error(a, errno, "Failed to set acl");
+		archive_set_error(a, errno, "Failed to set %s acl", typename);
 		ret = ARCHIVE_WARN;
 	}
 	acl_free(acl);
