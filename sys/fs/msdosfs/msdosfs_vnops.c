@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.56 1998/02/18 09:28:45 jkh Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.57 1998/02/22 15:09:50 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1703,8 +1703,8 @@ msdosfs_readdir(ap)
 					continue;
 				chksum = win2unixfn((struct winentry *)dentp,
 					&dirbuf, chksum,
-					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-					pmp->pm_u2w);
+					(pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
+					pmp->pm_u2w : NULL);
 				continue;
 			}
 
