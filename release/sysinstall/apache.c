@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.27.2.4 1997/01/15 04:50:00 jkh Exp $
+ * $Id: apache.c,v 1.27.2.5 1997/01/20 16:15:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -213,6 +213,7 @@ apacheOpenDialog(void)
     }
 
     /* Clear this crap off the screen */
+    delwin(ds_win);
     dialog_clear_norefresh();
     use_helpfile(NULL);
     
