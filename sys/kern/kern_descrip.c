@@ -469,10 +469,11 @@ do_dup(td, type, old, new, retval)
 	 * Verify we have a valid descriptor to dup from and possibly to
 	 * dup to.
 	 */
+	if (old < 0 || new < 0 || new >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
+	    new >= maxfilesperproc)
+		return (EBADF);
 	FILEDESC_LOCK(fdp);
-	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL ||
-	    new >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
-	    new >= maxfilesperproc) {
+	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
 		FILEDESC_UNLOCK(fdp);
 		return (EBADF);
 	}
