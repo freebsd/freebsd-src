@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.38 1994/08/24 22:37:56 ats Exp $
+#	$Id: files.i386,v 1.39 1994/08/30 17:18:34 bde Exp $
 #
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/conf.c		standard
@@ -108,34 +108,34 @@ i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-gnu/fpemul/div_small.s		optional	gpl_math_emulate
-gnu/fpemul/errors.c		optional	gpl_math_emulate
-gnu/fpemul/fpu_arith.c		optional	gpl_math_emulate
-gnu/fpemul/fpu_aux.c		optional	gpl_math_emulate
-gnu/fpemul/fpu_entry.c		optional	gpl_math_emulate
-gnu/fpemul/fpu_etc.c		optional	gpl_math_emulate
-gnu/fpemul/fpu_trig.c		optional	gpl_math_emulate
-gnu/fpemul/get_address.c	optional	gpl_math_emulate
-gnu/fpemul/load_store.c		optional	gpl_math_emulate
-gnu/fpemul/poly_2xm1.c		optional	gpl_math_emulate
-gnu/fpemul/poly_atan.c		optional	gpl_math_emulate
-gnu/fpemul/poly_div.s		optional	gpl_math_emulate
-gnu/fpemul/poly_l2.c		optional	gpl_math_emulate
-gnu/fpemul/poly_mul64.s		optional	gpl_math_emulate
-gnu/fpemul/poly_sin.c		optional	gpl_math_emulate
-gnu/fpemul/poly_tan.c		optional	gpl_math_emulate
-gnu/fpemul/polynomial.s		optional	gpl_math_emulate
-gnu/fpemul/reg_add_sub.c	optional	gpl_math_emulate
-gnu/fpemul/reg_compare.c	optional	gpl_math_emulate
-gnu/fpemul/reg_constant.c	optional	gpl_math_emulate
-gnu/fpemul/reg_div.s		optional	gpl_math_emulate
-gnu/fpemul/reg_ld_str.c		optional	gpl_math_emulate
-gnu/fpemul/reg_mul.c		optional	gpl_math_emulate
-gnu/fpemul/reg_norm.s		optional	gpl_math_emulate
-gnu/fpemul/reg_round.s		optional	gpl_math_emulate
-gnu/fpemul/reg_u_add.s		optional	gpl_math_emulate
-gnu/fpemul/reg_u_div.s		optional	gpl_math_emulate
-gnu/fpemul/reg_u_mul.s		optional	gpl_math_emulate
-gnu/fpemul/reg_u_sub.s		optional	gpl_math_emulate
-gnu/fpemul/wm_shrx.s		optional	gpl_math_emulate
-gnu/fpemul/wm_sqrt.s		optional	gpl_math_emulate
+gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
+gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
+gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
+gnu/i386/fpemul/fpu_aux.c	optional	gpl_math_emulate
+gnu/i386/fpemul/fpu_entry.c	optional	gpl_math_emulate
+gnu/i386/fpemul/fpu_etc.c	optional	gpl_math_emulate
+gnu/i386/fpemul/fpu_trig.c	optional	gpl_math_emulate
+gnu/i386/fpemul/get_address.c	optional	gpl_math_emulate
+gnu/i386/fpemul/load_store.c	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_2xm1.c	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_atan.c	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_div.s	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_l2.c	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_mul64.s	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_sin.c	optional	gpl_math_emulate
+gnu/i386/fpemul/poly_tan.c	optional	gpl_math_emulate
+gnu/i386/fpemul/polynomial.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_add_sub.c	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_compare.c	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_constant.c	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_div.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_ld_str.c	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_mul.c	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_norm.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_round.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_u_add.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_u_div.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
+gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
+gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
+gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
