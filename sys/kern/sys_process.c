@@ -561,7 +561,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 					PROC_UNLOCK(pp);
 				PROC_LOCK(p);
 				proc_reparent(p, pp);
-				p->p_sigparent = SIGCHLD;
+				if (pp == initproc)
+					p->p_sigparent = SIGCHLD;
 			}
 			p->p_flag &= ~(P_TRACED | P_WAITED);
 			p->p_oppid = 0;
