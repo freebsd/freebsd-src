@@ -1,0 +1,15 @@
+# Makefile.common for less
+#
+# $FreeBSD$
+
+LSDIR=	${.CURDIR}/../../contrib/less
+.PATH:	${LSDIR}
+
+CFLAGS+=-I. -I${.CURDIR}/../less -I${LSDIR}
+
+.SUFFIXES:	.man .1
+
+.man.1:
+	@${ECHO} Making $@ from $<
+	@-rm -f $@
+	@cp $< $@
