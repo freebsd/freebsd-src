@@ -142,6 +142,8 @@ msginit()
 	TUNABLE_INT_FETCH("kern.ipc.msgssz", &msginfo.msgssz);
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
 	TUNABLE_INT_FETCH("kern.ipc.msgmni", &msginfo.msgmni);
+	TUNABLE_INT_FETCH("kern.ipc.msgmnb", &msginfo.msgmnb);
+	TUNABLE_INT_FETCH("kern.ipc.msgtql", &msginfo.msgtql);
 
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	if (msgpool == NULL)
@@ -1144,8 +1146,8 @@ sysctl_msqids(SYSCTL_HANDLER_ARGS)
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgmax, CTLFLAG_RD, &msginfo.msgmax, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgmni, CTLFLAG_RDTUN, &msginfo.msgmni, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, msgmnb, CTLFLAG_RD, &msginfo.msgmnb, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, msgtql, CTLFLAG_RD, &msginfo.msgtql, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, msgmnb, CTLFLAG_RDTUN, &msginfo.msgmnb, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, msgtql, CTLFLAG_RDTUN, &msginfo.msgtql, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
