@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.11 1998/08/24 10:15:53 cracauer Exp $
+ *	$Id: compat.c,v 1.13 1999/07/31 20:38:22 hoek Exp $
  */
 
 #ifndef lint
@@ -330,7 +330,9 @@ CompatRunCommand (cmdp, gnp)
 	if (local) {
 	    execvp(av[0], av);
 	    (void) write (2, av[0], strlen (av[0]));
-	    (void) write (2, ": not found\n", sizeof(": not found"));
+	    (void) write (2, ":", 1);
+	    (void) write (2, strerror(errno), strlen(strerror(errno)));
+	    (void) write (2, "\n", 1);
 	} else {
 	    (void)execv(av[0], av);
 	}
