@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.33 1996/10/25 06:35:38 gibbs Exp $
+ *	$Id: aic7770.c,v 1.34 1996/10/28 06:06:42 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -121,8 +121,9 @@ static int
 aic7770probe(void)
 {
 	u_int32_t iobase;
-	char intdef;
 	u_int32_t irq;
+	u_int8_t intdef;
+	u_int8_t hcntrl;
 	struct eisa_device *e_dev = NULL;
 	int count;
 
@@ -130,7 +131,11 @@ aic7770probe(void)
 	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
 			 + AHC_EISA_SLOT_OFFSET;
-		ahc_reset(iobase);
+
+		/* Pause the card preseving the IRQ type */
+		hcntrl = inb(iobase + HCNTRL) & IRQMS;
+
+		outb(iobase + HCNTRL, hcntrl | PAUSE);
 
 		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
@@ -285,6 +290,8 @@ ahc_eisa_attach(parent, self, aux)
 		return -1;
 	}
 
+	ahc_reset(ahc);
+
 	/*
 	 * The IRQMS bit enables level sensitive interrupts. Only allow
 	 * IRQ sharing if it's set.
@@ -360,7 +367,7 @@ ahc_eisa_attach(parent, self, aux)
 	case AHC_AIC7770:
 	case AHC_274:
 	{
-		u_char biosctrl = AHC_INB(ahc, HA_274_BIOSCTRL);
+		u_int8_t biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
 
 		/* Get the primary channel information */
 		ahc->flags |= (biosctrl & CHANNEL_B_PRIMARY);
@@ -386,30 +393,29 @@ ahc_eisa_attach(parent, self, aux)
 		break;
 	}
 
-	/*      
+	/*
 	 * See if we have a Rev E or higher aic7770. Anything below a
 	 * Rev E will have a R/O autoflush disable configuration bit.
-	 * It's still not clear exactly what is differenent about the Rev E.
-	 * We think it allows 8 bit entries in the QOUTFIFO to support
+	 * The Rev E. cards allow 8 bit entries in the QOUTFIFO to support
 	 * "paging" SCBs so you can have more than 4 commands active at
 	 * once.
-	 */     
+	 */
 	{
 		char *id_string;
 		u_int8_t sblkctl;
 		u_int8_t sblkctl_orig;
 
-		sblkctl_orig = AHC_INB(ahc, SBLKCTL);
+		sblkctl_orig = ahc_inb(ahc, SBLKCTL);
 		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
-		AHC_OUTB(ahc, SBLKCTL, sblkctl);
-		sblkctl = AHC_INB(ahc, SBLKCTL);
+		ahc_outb(ahc, SBLKCTL, sblkctl);
+		sblkctl = ahc_inb(ahc, SBLKCTL);
 		if (sblkctl != sblkctl_orig) {
 			id_string = "aic7770 >= Rev E, ";
 			/*
 			 * Ensure autoflush is enabled
 			 */
 			sblkctl &= ~AUTOFLUSHDIS;
-			AHC_OUTB(ahc, SBLKCTL, sblkctl);
+			ahc_outb(ahc, SBLKCTL, sblkctl);
 
 			/* Allow paging on this adapter */
 			ahc->flags |= AHC_PAGESCBS;
@@ -421,9 +427,9 @@ ahc_eisa_attach(parent, self, aux)
 
 	/* Setup the FIFO threshold and the bus off time */
 	{
-		u_int8_t hostconf = AHC_INB(ahc, HOSTCONF);
-		AHC_OUTB(ahc, BUSSPD, hostconf & DFTHRSH);
-		AHC_OUTB(ahc, BUSTIME, (hostconf << 2) & BOFF);
+		u_int8_t hostconf = ahc_inb(ahc, HOSTCONF);
+		ahc_outb(ahc, BUSSPD, hostconf & DFTHRSH);
+		ahc_outb(ahc, BUSTIME, (hostconf << 2) & BOFF);
 	}
 
 	/*
@@ -447,7 +453,7 @@ ahc_eisa_attach(parent, self, aux)
 	/*
 	 * Enable the board's BUS drivers
 	 */
-	AHC_OUTB(ahc, BCTL, ENABLE);
+	ahc_outb(ahc, BCTL, ENABLE);
 
 #if defined(__FreeBSD__)
 	/*

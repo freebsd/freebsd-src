@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.1 1996/11/06 10:23:48 phk Exp $
+ **      $Id: userconfig.c,v 1.63.2.2 1996/11/07 08:52:16 joerg Exp $
  **/
 
 /**
@@ -259,6 +259,11 @@ static DEV_INFO device_info[] = {
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
+{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISBLE,	CLS_COMMS},
+{"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
+{"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
+{"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
+{"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
@@ -282,7 +287,9 @@ static DEV_INFO device_info[] = {
 {"pca",         "PC speaker PCM audio driver",		FLG_FIXED,	CLS_MMEDIA},
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
 {"spigot",      "Creative Labs Video Spigot video capture",	0,	CLS_MMEDIA},
+{"scc",         "IBM Smart Capture Card",		0,		CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
+{"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
 {"qcam",	"QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
@@ -673,11 +680,10 @@ savelist(DEV_LIST *list, int active)
 
     while (list)
     {
-	if ((list->comment == DEV_DEVICE) && list->changed)
-	{
-	    if ((list->iobase == -2) ||			/* is a PCI device; can't save */
-		(list->device == NULL))			/* no isa_device associated at all?! */
-		continue;		
+	if ((list->comment == DEV_DEVICE) &&		/* is a device */
+	    (list->changed) &&				/* has been changed */
+	    (list->iobase != -2) &&			/* is not a PCI device */
+	    (list->device != NULL)) {			/* has an isa_device structure */
 
 	    setdev(list,active);			/* set the device itself */
 
@@ -2217,7 +2223,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.1 1996/11/06 10:23:48 phk Exp $
+ *      $Id: userconfig.c,v 1.63.2.2 1996/11/07 08:52:16 joerg Exp $
  */
 
 #include "scbus.h"

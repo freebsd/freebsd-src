@@ -953,7 +953,7 @@ process_params (pc, func)
 	}
       else
 	{
-	      rt_error ("Parameter number mismatch");
+	    rt_error ("Parameter number mismatch");
 	    return;
 	}
       params = params->next;

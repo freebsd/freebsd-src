@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.128.2.1 1996/11/06 10:23:40 phk Exp $
+ *	$Id: pmap.c,v 1.128.2.2 1996/11/07 14:45:41 joerg Exp $
  */
 
 /*
@@ -97,6 +97,7 @@
 #include <machine/pcb.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
+#include <machine/specialreg.h>
 
 #define PMAP_KEEP_PDIRS
 
@@ -148,6 +149,7 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 static vm_offset_t vm_first_phys;
+static int pgeflag;		/* PG_G or-in */
 
 static int nkpt;
 static vm_page_t nkpg;
@@ -162,23 +164,23 @@ extern int cpu_class;
  * Data for the pv entry allocation mechanism
  */
 static int pv_freelistcnt;
-TAILQ_HEAD (,pv_entry) pv_freelist;
+TAILQ_HEAD (,pv_entry) pv_freelist = {0};
 static vm_offset_t pvva;
 static int npvvapg;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-pt_entry_t *CMAP1;
+pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP2, *ptmmap;
 static pv_table_t *pv_table;
-caddr_t CADDR1, ptvmmap;
+caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
-struct msgbuf *msgbufp;
+struct msgbuf *msgbufp=0;
 
-pt_entry_t *PMAP1;
-unsigned *PADDR1;
+pt_entry_t *PMAP1 = 0;
+unsigned *PADDR1 = 0;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
@@ -320,6 +322,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	*(int *) CMAP1 = *(int *) CMAP2 = *(int *) PTD = 0;
 	invltlb();
+	if (cpu_feature & CPUID_PGE)
+		pgeflag = PG_G;
+	else
+		pgeflag = 0;
 
 }
 
@@ -572,7 +578,7 @@ pmap_qenter(va, m, count)
 
 	for (i = 0; i < count; i++) {
 		vm_offset_t tva = va + i * PAGE_SIZE;
-		unsigned npte = VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V;
+		unsigned npte = VM_PAGE_TO_PHYS(m[i]) | PG_RW | PG_V | pgeflag;
 		unsigned opte;
 		pte = (unsigned *)vtopte(tva);
 		opte = *pte;
@@ -615,7 +621,7 @@ pmap_kenter(va, pa)
 	register unsigned *pte;
 	unsigned npte, opte;
 
-	npte = pa | PG_RW | PG_V;
+	npte = pa | PG_RW | PG_V | pgeflag;
 	pte = (unsigned *)vtopte(va);
 	opte = *pte;
 	*pte = npte;
@@ -873,18 +879,18 @@ retry:
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
-static int
-pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
+static int 
+_pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 	int s;
 
-	vm_page_unhold(m);
-
-	s = splvm();
-	while (m->flags & PG_BUSY) {
-		m->flags |= PG_WANTED;
-		tsleep(m, PVM, "pmuwpt", 0);
+	if (m->flags & PG_BUSY) {
+		s = splvm();
+		while (m->flags & PG_BUSY) {
+			m->flags |= PG_WANTED;
+			tsleep(m, PVM, "pmuwpt", 0);
+		}
+		splx(s);
 	}
-	splx(s);
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -925,6 +931,15 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		return 1;
 	}
 	return 0;
+}
+
+__inline static int
+pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
+	vm_page_unhold(m);
+	if (m->hold_count == 0)
+		return _pmap_unwire_pte_hold(pmap, m);
+	else
+		return 0;
 }
 
 /*
@@ -1570,6 +1585,12 @@ pmap_remove_pte(pmap, ptq, va)
 	*ptq = 0;
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
+	/*
+	 * Machines that don't support invlpg, also don't support
+	 * PG_G.
+	 */
+	if (oldpte & PG_G)
+		invlpg(va);
 	pmap->pm_stats.resident_count -= 1;
 	if (oldpte & PG_MANAGED) {
 		ppv = pa_to_pvh(oldpte);
@@ -1998,6 +2019,8 @@ validate:
 		newpte |= PG_W;
 	if (va < UPT_MIN_ADDRESS)
 		newpte |= PG_U;
+	if (pmap == kernel_pmap)
+		newpte |= pgeflag;
 
 	/*
 	 * if the mapping or permission bits are different, we need

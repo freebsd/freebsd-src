@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.1 1996/11/05 20:14:22 phk Exp $
+# $Id: Makefile,v 1.3.2.2 1996/11/06 22:46:26 joerg Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -54,25 +54,25 @@ SVLINKS= sv_SE
 CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/include
 
 .if !defined(TKNVI)
-DPADD+= ${LIBCURSES} ${LIBTERMCAP}
-LDADD+=	-lcurses -ltermcap
+DPADD+=		${LIBCURSES} ${LIBTERMCAP}
+LDADD+=		-lcurses -ltermcap
 .endif
 
 .if defined(TKNVI)
-.PATH:	${SRCDIR}/tk
+.PATH:		${SRCDIR}/tk
 LDADD+=		-L/usr/local/lib -L/usr/X11R6/lib -ltk41 -lX11
 CFLAGS+=	-I/usr/local/include -I/usr/X11R6/include
 .endif
 
 .if defined(TCLINTERP)
-.PATH:	${SRCDIR}/tcl_api
-DPADD+=	${LIBTCL} ${LIBM}
-LDADD+=	-ltcl -lm
+.PATH:		${SRCDIR}/tcl_api
+DPADD+=		${LIBTCL} ${LIBM}
+LDADD+=		-ltcl -lm
 CFLAGS+=	-DHAVE_TCL_INTERP
 .endif
 
 .if defined(PERLINTERP)
-.PATH:	${SRCDIR}/perl_api
+.PATH:		${SRCDIR}/perl_api
 LDADD+=	 /usr/local/lib/perl5/i386-freebsd/5.003/auto/DynaLoader/DynaLoader.a \
 	 -L/usr/local/lib/perl5/i386-freebsd/5.003/CORE -lperl -lcrypt
 CFLAGS+= -DHAVE_PERL_INTERP -I/usr/local/lib/perl5/i386-freebsd/5.003/CORE
@@ -181,7 +181,7 @@ afterinstall:
 		${SRCDIR}/perl_scripts/*.pl \
 		${DESTDIR}/usr/share/vi/perl
 .if defined(PERLINTERP)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm \
 		${DESTDIR}/usr/share/vi/perl
 .endif
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.1 1996/11/04 20:40:00 sos Exp $
+ *  $Id: syscons.c,v 1.182.2.2 1996/11/11 22:07:17 sos Exp $
  */
 
 #include "sc.h"
@@ -295,6 +295,7 @@ static int
 scprobe(struct isa_device *dev)
 {
     int i, j, retries = 5;
+    int xt_keyboard = 0;
     u_char val;
 
     /* Enable interrupts and keyboard controller */
@@ -341,13 +342,20 @@ gotack:
 	    goto fail;
 	}
     }
-#ifdef XT_KEYBOARD
-    kbd_wait();
-    outb(KB_DATA, 0xF0);
-    kbd_wait();
-    outb(KB_DATA, 1);
-    kbd_wait();
-#endif /* XT_KEYBOARD */
+    /*
+     * Allow us to set the XT_KEYBD flag in UserConfig so that keyboards
+     * such as those on the IBM ThinkPad laptop computers can be used
+     * with the standard console driver.
+     */
+    if ( dev->id_flags & XT_KEYBD )
+        xt_keyboard = 1;
+    if ( xt_keyboard ) {
+        kbd_wait();
+        outb(KB_DATA, 0xF0);
+        kbd_wait();
+        outb(KB_DATA, 1);
+        kbd_wait();
+    }
 
   succeed: 
     return (IO_KBDSIZE);

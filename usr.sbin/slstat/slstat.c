@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: slstat.c,v 1.7 1996/11/04 17:14:43 bde Exp $";
+	"$Id: slstat.c,v 1.6.2.1 1996/11/05 20:17:27 phk Exp $";
 #endif
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ main(argc, argv)
 			break;
 		}
 		if (i >= maxifno)
-		errx(1, "interface %s does not exist", interface);
+			errx(1, "interface %s does not exist", interface);
 	}
 
 	name[4] = indx;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_syscalls.c,v 1.14 1996/04/30 23:26:52 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.14.2.1 1996/11/09 21:10:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -780,10 +780,10 @@ nfssvc_iod(p)
 		else
 		    (void) nfs_doio(bp, bp->b_wcred, (struct proc *)0);
 
-		    /*
+		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
-		     */
+		 */
 		if (nfs_defect && nmp->nm_bufqiods > 1) {
 		    NFS_DPF(ASYNCIO,
 			    ("nfssvc_iod: iod %d defecting from mount %p\n",
@@ -791,7 +791,7 @@ nfssvc_iod(p)
 		    nfs_iodmount[myiod] = NULL;
 		    nmp->nm_bufqiods--;
 		    break;
-	    }
+		}
 	    }
 	}
 }

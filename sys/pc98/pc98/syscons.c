@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13 1996/10/30 22:40:15 asami Exp $
+ *  $Id: syscons.c,v 1.13.2.1 1996/11/09 21:14:27 phk Exp $
  */
 
 #include "sc.h"
@@ -706,31 +706,31 @@ scintr(int unit)
      */
     while ((c = scgetc(SCGETC_NONBLOCK)) != NOKEY) {
 
-    cur_tty = VIRTUAL_TTY(get_scr_num());
-    if (!(cur_tty->t_state & TS_ISOPEN))
-	if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
-	    return;
+	cur_tty = VIRTUAL_TTY(get_scr_num());
+	if (!(cur_tty->t_state & TS_ISOPEN))
+	    if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
+		return;
 
-    switch (c & 0xff00) {
-    case 0x0000: /* normal key */
-	(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	switch (c & 0xff00) {
+	case 0x0000: /* normal key */
+	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	    break;
+	case FKEY:  /* function key, return string */
+	    if (cp = get_fstr((u_int)c, (u_int *)&len)) {
+	    	while (len-- >  0)
+		    (*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
+	    }
 	break;
-    case FKEY:  /* function key, return string */
-	if (cp = get_fstr((u_int)c, (u_int *)&len)) {
-	    while (len-- >  0)
-		(*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
+	case MKEY:  /* meta is active, prepend ESC */
+	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
+	    break;
+	case BKEY:  /* backtab fixed sequence (esc [ Z) */
+	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
+	    (*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
+	    break;
 	}
-	break;
-    case MKEY:  /* meta is active, prepend ESC */
-	(*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
-	break;
-    case BKEY:  /* backtab fixed sequence (esc [ Z) */
-	(*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)('[', cur_tty);
-	(*linesw[cur_tty->t_line].l_rint)('Z', cur_tty);
-	break;
-    }
     }
 
     if (cur_console->status & MOUSE_ENABLED) {

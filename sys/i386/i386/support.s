@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41 1996/10/09 19:47:20 bde Exp $
+ *	$Id: support.s,v 1.41.2.1 1996/11/09 21:08:19 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -52,6 +52,12 @@ _bcopy_vector:
 	.globl	_bzero
 _bzero:
 	.long	_generic_bzero
+	.globl	_copyin_vector
+_copyin_vector:
+	.long	_generic_copyin
+	.globl	_copyout_vector
+_copyout_vector:
+	.long	_generic_copyout
 	.globl	_ovbcopy_vector
 _ovbcopy_vector:
 	.long	_generic_bcopy
@@ -184,7 +190,7 @@ do0:
 	ret
 #endif
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#ifdef I586_CPU
 ENTRY(i586_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
@@ -324,7 +330,7 @@ intreg_i586_bzero:
 	stosb
 	popl	%edi
 	ret
-#endif /* I586_CPU || I686_CPU */
+#endif /* I586_CPU */
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
@@ -427,6 +433,7 @@ ENTRY(generic_bcopy)
 	cld
 	ret
 
+#ifdef I586_CPU
 ENTRY(i586_bcopy)
 	pushl	%esi
 	pushl	%edi
@@ -562,6 +569,7 @@ small_i586_bcopy:
 	popl	%esi
 	cld
 	ret
+#endif /* I586_CPU */
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -604,8 +612,12 @@ ENTRY(memcpy)
  * returns to *curpcb->onfault instead of the function.
  */
 
+/* copyout(from_kernel, to_user, len) */
+ENTRY(copyout)
+	MEXITCOUNT
+	jmp	*_copyout_vector
 
-ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
+ENTRY(generic_copyout)
 	movl	_curpcb,%eax
 	movl	$copyout_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
@@ -691,23 +703,11 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	/* bcopy(%esi, %edi, %ebx) */
 3:
 	movl	%ebx,%ecx
-#if defined(I586_CPU)
-	cmpl	$1024,%ecx
-	jb	slow_copyout
 
-#if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_586,_cpu_class
-	jne	slow_copyout
-#endif /* I386_CPU || I486_CPU || I686_CPU */
-
-	pushl	%ecx
-	call	_fastmove
-	addl	$4,%esp
-	jmp	done_copyout
-
+#ifdef I586_CPU
 	ALIGN_TEXT
 slow_copyout:
-#endif /* I586_CPU */
+#endif
 	shrl	$2,%ecx
 	cld
 	rep
@@ -736,8 +736,66 @@ copyout_fault:
 	movl	$EFAULT,%eax
 	ret
 
+#ifdef I586_CPU
+ENTRY(i586_copyout)
+	/*
+	 * Duplicated from generic_copyout.  Could be done a bit better.
+	 */
+	movl	_curpcb,%eax
+	movl	$copyout_fault,PCB_ONFAULT(%eax)
+	pushl	%esi
+	pushl	%edi
+	pushl	%ebx
+	movl	16(%esp),%esi
+	movl	20(%esp),%edi
+	movl	24(%esp),%ebx
+	testl	%ebx,%ebx			/* anything to do? */
+	jz	done_copyout
+
+	/*
+	 * Check explicitly for non-user addresses.  If 486 write protection
+	 * is being used, this check is essential because we are in kernel
+	 * mode so the h/w does not provide any protection against writing
+	 * kernel addresses.
+	 */
+
+	/*
+	 * First, prevent address wrapping.
+	 */
+	movl	%edi,%eax
+	addl	%ebx,%eax
+	jc	copyout_fault
+/*
+ * XXX STOP USING VM_MAXUSER_ADDRESS.
+ * It is an end address, not a max, so every time it is used correctly it
+ * looks like there is an off by one error, and of course it caused an off
+ * by one error in several places.
+ */
+	cmpl	$VM_MAXUSER_ADDRESS,%eax
+	ja	copyout_fault
+
+	/* bcopy(%esi, %edi, %ebx) */
+3:
+	movl	%ebx,%ecx
+	/*
+	 * End of duplicated code.
+	 */
+
+	cmpl	$1024,%ecx
+	jb	slow_copyout
+
+	pushl	%ecx
+	call	_fastmove
+	addl	$4,%esp
+	jmp	done_copyout
+#endif /* I586_CPU */
+
 /* copyin(from_user, to_kernel, len) */
 ENTRY(copyin)
+	MEXITCOUNT
+	jmp	*_copyin_vector
+
+ENTRY(generic_copyin)
 	movl	_curpcb,%eax
 	movl	$copyin_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
@@ -755,23 +813,10 @@ ENTRY(copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#if defined(I586_CPU)
-	cmpl	$1024,%ecx
-	jb	slow_copyin
-
-#if defined(I386_CPU) || defined(I486_CPU) || defined(I686_CPU)
-	cmpl	$CPUCLASS_586,_cpu_class
-	jne	slow_copyin
-#endif /* I386_CPU || I486_CPU || I686_CPU */
-
-	pushl	%ecx
-	call	_fastmove
-	addl	$4,%esp
-	jmp	done_copyin
-
+#ifdef I586_CPU
 	ALIGN_TEXT
 slow_copyin:
-#endif /* I586_CPU */
+#endif
 	movb	%cl,%al
 	shrl	$2,%ecx				/* copy longword-wise */
 	cld
@@ -801,6 +846,40 @@ copyin_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
+
+#ifdef I586_CPU
+ENTRY(i586_copyin)
+	/*
+	 * Duplicated from generic_copyin.  Could be done a bit better.
+	 */
+	movl	_curpcb,%eax
+	movl	$copyin_fault,PCB_ONFAULT(%eax)
+	pushl	%esi
+	pushl	%edi
+	movl	12(%esp),%esi			/* caddr_t from */
+	movl	16(%esp),%edi			/* caddr_t to */
+	movl	20(%esp),%ecx			/* size_t  len */
+
+	/*
+	 * make sure address is valid
+	 */
+	movl	%esi,%edx
+	addl	%ecx,%edx
+	jc	copyin_fault
+	cmpl	$VM_MAXUSER_ADDRESS,%edx
+	ja	copyin_fault
+	/*
+	 * End of duplicated code.
+	 */
+
+	cmpl	$1024,%ecx
+	jb	slow_copyin
+
+	pushl	%ecx
+	call	_fastmove
+	addl	$4,%esp
+	jmp	done_copyin
+#endif /* I586_CPU */
 
 #if defined(I586_CPU)
 /* fastmove(src, dst, len)

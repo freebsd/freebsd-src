@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.32 1996/11/05 07:57:29 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.31.2.1 1996/11/09 13:52:30 jkh Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -54,26 +54,6 @@
 	SIMPLEQ_REMOVE_HEAD(head, (head)->sqh_first, field)
 #define	stqh_first		sqh_first
 #define	stqe_next		sqe_next
-#endif
-
-#if defined(__FreeBSD__)
-#define	AHC_INB(ahc, port)			\
-	(((ahc)->maddr != NULL) ?		\
-		((ahc)->maddr[port]) :		\
-		inb((ahc)->baseport+(port)))
-#define	AHC_OUTB(ahc, port, val)			\
-	(((ahc)->maddr != NULL) ?			\
-		((ahc)->maddr[port] = (val)) :		\
-		outb((ahc)->baseport+(port), val))
-#define	AHC_OUTSB(ahc, port, valp, size)	\
-	outsb((ahc)->baseport+(port), valp, size)
-#elif defined(__NetBSD__)
-#define	AHC_INB(ahc, port)	\
-	bus_io_read_1((ahc)->sc_bc, (ahc)->sc_ioh, port)
-#define	AHC_OUTB(ahc, port, val)	\
-	bus_io_write_1((ahc)->sc_bc, (ahc)->sc_ioh, port, val)
-#define	AHC_OUTSB(ahc, port, valp, size)	\
-	bus_io_write_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
 #endif
 
 #define	AHC_NSEG	256	/* number of dma segments supported */
@@ -312,7 +292,6 @@ extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
 
 char *ahc_name __P((struct ahc_softc *ahc));
 
-void ahc_reset __P((u_int32_t iobase));
 struct ahc_softc *ahc_alloc __P((int unit, u_int32_t io_base,
 				 vm_offset_t maddr, ahc_type type,
 				 ahc_flag flags, struct scb_data *scb_data));
@@ -320,9 +299,9 @@ struct ahc_softc *ahc_alloc __P((int unit, u_int32_t io_base,
 
 #define	ahc_name(ahc)	(ahc)->sc_dev.dv_xname
 
-void ahc_reset __P((char *devname, bus_chipset_tag_t bc, bus_io_handle_t ioh));
 void ahc_construct __P((struct ahc_softc *ahc, bus_chipset_tag_t bc, bus_io_handle_t ioh, ahc_type type, ahc_flag flags));
 #endif
+void ahc_reset __P((struct ahc_softc *ahc));
 void ahc_free __P((struct ahc_softc *));
 int ahc_init __P((struct ahc_softc *));
 int ahc_attach __P((struct ahc_softc *));
@@ -330,6 +309,65 @@ int ahc_attach __P((struct ahc_softc *));
 void ahc_intr __P((void *arg));
 #elif defined(__NetBSD__)
 int ahc_intr __P((void *arg));
+#endif
+
+#if defined(__FreeBSD__)
+static __inline u_int8_t ahc_inb __P((struct ahc_softc *ahc, u_int32_t port));
+static __inline void ahc_outb __P((struct ahc_softc *ahc, u_int32_t port,
+				   u_int8_t val));
+static __inline void ahc_outsb __P((struct ahc_softc *ahc, u_int32_t port,
+				     u_int8_t *valp, size_t size));
+
+static __inline u_int8_t
+ahc_inb(ahc, port)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+{
+	if (ahc->maddr != NULL)
+		return ahc->maddr[port];
+	else
+		return inb(ahc->baseport + port);
+}
+
+static __inline void
+ahc_outb(ahc, port, val)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+	u_int8_t val;
+{
+	if (ahc->maddr != NULL)
+		ahc->maddr[port] = val;
+	else
+		outb(ahc->baseport + port, val);
+}
+
+static __inline void
+ahc_outsb(ahc, port, valp, size)
+	struct ahc_softc *ahc;
+	u_int32_t port;
+	u_int8_t *valp;
+	size_t size;
+{
+	if (ahc->maddr != NULL) {
+		__asm __volatile("
+			cld;
+		1:	lodsb;
+			movb %%al,(%0);
+			loop 1b"			:
+							:
+			"r" ((ahc)->maddr + (port)),
+			"S" ((valp)), "c" ((size))	:
+			"%esi", "%ecx", "%eax");
+	} else
+		outsb(ahc->baseport + port, valp, size);
+}
+#elif defined(__NetBSD__)
+#define	ahc_inb(ahc, port)	\
+	bus_io_read_1((ahc)->sc_bc, (ahc)->sc_ioh, port)
+#define	ahc_outb(ahc, port, val)	\
+	bus_io_write_1((ahc)->sc_bc, (ahc)->sc_ioh, port, val)
+#define	ahc_outsb(ahc, port, valp, size)	\
+	bus_io_write_multi_1((ahc)->sc_bc, (ahc)->sc_ioh, port, valp, size)
 #endif
 
 #endif  /* _AIC7XXX_H_ */

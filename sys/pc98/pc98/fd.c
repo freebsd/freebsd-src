@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7 1996/10/23 07:25:15 asami Exp $
+ *	$Id: fd.c,v 1.7.2.1 1996/11/09 21:13:42 phk Exp $
  *
  */
 
@@ -1395,8 +1395,8 @@ fdstrategy(struct buf *bp)
 		} else {
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
-		goto bad;
-	}
+			goto bad;
+		}
 	}
  	bp->b_pblkno = bp->b_blkno;
 	s = splbio();

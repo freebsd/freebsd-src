@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.2 1996/11/04 23:57:40 wosch Exp $
+# $Id: ndcedit.awk,v 1.1.2.1 1996/11/05 20:16:00 phk Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
@@ -25,7 +25,7 @@ NR == 3 {
 		printf "\t\tfi\n"
 	} else {
 	        if (/PATH=/) {
-		gsub(":/usr/ucb:", ":", $0);
+			gsub(":/usr/ucb:", ":", $0);
 		      	if (!/export/) {
 				$0=$0"\nexport PATH";
 			}
