@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.45 1998/02/06 12:14:00 eivind Exp $
+ *	$Id: trap.c,v 1.46 1998/03/24 08:27:21 kato Exp $
  */
 
 /*
@@ -57,6 +57,7 @@
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <sys/uio.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
