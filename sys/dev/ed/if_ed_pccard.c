@@ -203,7 +203,7 @@ ed_pccard_match(device_t dev)
 			device_set_flags(dev, ED_FLAGS_AX88190);
 		return (0);
 	}
-	return (EIO);
+	return (ENXIO);
 }
 
 /* 
