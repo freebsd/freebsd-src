@@ -716,11 +716,11 @@ vm86_sysarch(p, args)
 	case VM86_INTCALL: {
 		struct vm86_intcall_args sa;
 
-		if (error = suser(p))
+		if ((error = suser(p)))
 			return (error);
-		if (error = copyin(ua.sub_args, &sa, sizeof(sa)))
+		if ((error = copyin(ua.sub_args, &sa, sizeof(sa))))
 			return (error);
-		if (error = vm86_intcall(sa.intnum, &sa.vmf))
+		if ((error = vm86_intcall(sa.intnum, &sa.vmf)))
 			return (error);
 		error = copyout(&sa, ua.sub_args, sizeof(sa));
 		}
