@@ -67,16 +67,14 @@ static const char rcsid[] =
 time_t tval;
 int retval;
 
-static void setthetime __P((const char *, const char *, int, int));
-static void badformat __P((void));
-static void usage __P((void));
+static void setthetime(const char *, const char *, int, int);
+static void badformat(void);
+static void usage(void);
 
-int logwtmp __P((char *, char *, char *));
+int logwtmp(char *, char *, char *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct timezone tz;
 	int ch, rflag;
@@ -182,12 +180,9 @@ main(argc, argv)
 #define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
 
 void
-setthetime(fmt, p, jflag, nflag)
-	const char *fmt;
-	register const char *p;
-	int jflag, nflag;
+setthetime(const char *fmt, const char *p, int jflag, int nflag)
 {
-	register struct tm *lt;
+	struct tm *lt;
 	struct timeval tv;
 	const char *dot, *t;
 	int century;
@@ -295,14 +290,14 @@ setthetime(fmt, p, jflag, nflag)
 }
 
 static void
-badformat()
+badformat(void)
 {
 	warnx("illegal time format");
 	usage();
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: date [-jnu] [-d dst] [-r seconds] [-t west] "

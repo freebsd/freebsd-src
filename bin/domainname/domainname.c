@@ -53,13 +53,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int main __P((int, char *[]));
-void usage __P((void));
+static void usage(void);
 
 int
-main(argc,argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	char domainname[MAXHOSTNAMELEN];
@@ -86,8 +83,8 @@ main(argc,argv)
 	exit(0);
 }
 
-void
-usage()
+static void
+usage(void)
 {
 	(void)fprintf(stderr, "usage: domainname [ypdomain]\n");
 	exit(1);

@@ -69,15 +69,14 @@ static const char rcsid[] =
 #include "dd.h"
 #include "extern.h"
 
-static void dd_close __P((void));
-static void dd_in __P((void));
-int main __P((int, char *[]));
-static void getfdtype __P((IO *));
-static void setup __P((void));
+static void dd_close(void);
+static void dd_in(void);
+static void getfdtype(IO *);
+static void setup(void);
 
 IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
-void	(*cfunc) __P((void));	/* conversion function */
+void	(*cfunc)(void);		/* conversion function */
 u_quad_t cpy_cnt;		/* # of blocks to copy */
 off_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
@@ -86,9 +85,7 @@ quad_t	files_cnt = 1;		/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
 
 int
-main(argc, argv)
-	int argc __unused;
-	char *argv[];
+main(int argc __unused, char *argv[])
 {
 	(void)setlocale(LC_CTYPE, "");
 	jcl(argv);
@@ -107,7 +104,7 @@ main(argc, argv)
 }
 
 static void
-setup()
+setup(void)
 {
 	u_int cnt;
 	struct timeval tv;
@@ -209,8 +206,7 @@ setup()
 }
 
 static void
-getfdtype(io)
-	IO *io;
+getfdtype(IO *io)
 {
 	struct stat sb;
 	int type;
@@ -246,7 +242,7 @@ getfdtype(io)
 }
 
 static void
-dd_in()
+dd_in(void)
 {
 	ssize_t n;
 
@@ -353,7 +349,7 @@ dd_in()
  * is truncated.
  */
 static void
-dd_close()
+dd_close(void)
 {
 	if (cfunc == def)
 		def_close();
@@ -373,8 +369,7 @@ dd_close()
 }
 
 void
-dd_out(force)
-	int force;
+dd_out(int force)
 {
 	u_char *outp;
 	size_t cnt, i, n;
