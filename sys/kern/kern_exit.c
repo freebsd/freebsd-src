@@ -63,7 +63,6 @@
 #include <sys/filedesc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <sys/aio.h>
 #include <sys/jail.h>
 
 #include <vm/vm.h>
@@ -139,8 +138,6 @@ exit1(td, rv)
 
 /* XXXXKSE */
 /* MUST abort all other threads before proceeding past this point */
-
-	aio_proc_rundown(p);
 
 	/* are we a task leader? */
 	PROC_LOCK(p);

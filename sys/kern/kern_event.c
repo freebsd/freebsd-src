@@ -122,7 +122,16 @@ SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
 
-extern struct filterops aio_filtops;
+static int
+filt_nullattach(struct knote *kn)
+{
+
+	return (ENXIO);
+};
+
+struct filterops null_filtops =
+	{ 0, filt_nullattach, NULL, NULL };
+
 extern struct filterops sig_filtops;
 
 /*
@@ -131,7 +140,7 @@ extern struct filterops sig_filtops;
 static struct filterops *sysfilt_ops[] = {
 	&file_filtops,			/* EVFILT_READ */
 	&file_filtops,			/* EVFILT_WRITE */
-	&aio_filtops,			/* EVFILT_AIO */
+	&null_filtops,			/* EVFILT_AIO */
 	&file_filtops,			/* EVFILT_VNODE */
 	&proc_filtops,			/* EVFILT_PROC */
 	&sig_filtops,			/* EVFILT_SIGNAL */
@@ -457,6 +466,36 @@ done:
 		fdrop(fp, td);
 	mtx_unlock(&Giant);
 	return (error);
+}
+
+int
+kqueue_add_filteropts(int filt, struct filterops *filtops)
+{
+
+	if (filt > 0)
+		panic("filt(%d) > 0", filt);
+	if (filt + EVFILT_SYSCOUNT < 0)
+		panic("filt(%d) + EVFILT_SYSCOUNT(%d) == %d < 0",
+		    filt, EVFILT_SYSCOUNT, filt + EVFILT_SYSCOUNT);
+	if (sysfilt_ops[~filt] != &null_filtops)
+		panic("sysfilt_ops[~filt(%d)] != &null_filtops", filt);
+	sysfilt_ops[~filt] = filtops;
+	return (0);
+}
+
+int
+kqueue_del_filteropts(int filt)
+{
+
+	if (filt > 0)
+		panic("filt(%d) > 0", filt);
+	if (filt + EVFILT_SYSCOUNT < 0)
+		panic("filt(%d) + EVFILT_SYSCOUNT(%d) == %d < 0",
+		    filt, EVFILT_SYSCOUNT, filt + EVFILT_SYSCOUNT);
+	if (sysfilt_ops[~filt] == &null_filtops)
+		panic("sysfilt_ops[~filt(%d)] != &null_filtops", filt);
+	sysfilt_ops[~filt] = &null_filtops;
+	return (0);
 }
 
 int

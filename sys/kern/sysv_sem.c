@@ -246,10 +246,10 @@ static moduledata_t sysvsem_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(semsys, 5);
-SYSCALL_MODULE_HELPER(__semctl, 4);
-SYSCALL_MODULE_HELPER(semget, 3);
-SYSCALL_MODULE_HELPER(semop, 3);
+SYSCALL_MODULE_HELPER(semsys);
+SYSCALL_MODULE_HELPER(__semctl);
+SYSCALL_MODULE_HELPER(semget);
+SYSCALL_MODULE_HELPER(semop);
 
 DECLARE_MODULE(sysvsem, sysvsem_mod,
 	SI_SUB_SYSV_SEM, SI_ORDER_FIRST);

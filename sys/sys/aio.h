@@ -153,8 +153,8 @@ struct aiocblist {
 struct socket;
 struct sockbuf;
 
-void	aio_proc_rundown(struct proc *p);
-void	aio_swake(struct socket *, struct sockbuf *);
+void	aio_swake_cb(struct socket *, struct sockbuf *);
+extern void (*aio_swake)(struct socket *, struct sockbuf *);
 
 #endif
 
