@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getport.c 1.9 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getport.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_getport.c,v 1.2 1995/05/30 05:41:24 rgrimes Exp $";
+static char *rcsid = "$Id: pmap_getport.c,v 1.3 1995/10/22 14:51:31 phk Exp $";
 #endif
 
 /*
@@ -84,7 +84,8 @@ pmap_getport(address, program, version, protocol)
 		}
 		CLNT_DESTROY(client);
 	}
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	address->sin_port = 0;
 	return (port);
 }
