@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.3 1998/07/05 10:14:32 dfr Exp $
+ *	$Id: bus.h,v 1.4 1998/07/12 16:20:48 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -137,6 +137,19 @@ device_t devclass_get_device(devclass_t dc, int unit);
 void *devclass_get_softc(devclass_t dc, int unit);
 int devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp);
 int devclass_get_maxunit(devclass_t dc);
+
+/*
+ * Access functions for device resources.
+ */
+int resource_int_value(const char *name, int unit,
+		       char *resname, int *result);
+int resource_long_value(const char *name, int unit,
+			char *resname, long *result);
+int resource_string_value(const char *name, int unit,
+			  char *resname, char **result);
+int resource_query_string(int i, char *resname, char *value);
+char *resource_query_name(int i);
+int resource_query_unit(int i);
 
 /*
  * Shorthand for constructing method tables.
