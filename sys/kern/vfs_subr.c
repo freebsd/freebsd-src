@@ -491,16 +491,10 @@ vfs_timestamp(tsp)
 /*
  * Get a mount option by its name.
  *
- * Return 0 if the option was found.
- * Return ENOENT if the option wasn't found.
- * If len is a non-NULL pointer and *len
- * a integer different from 0, then the size
- * of the option will be compared with *len and
- * if they doesn't match, EINVAL is returned.
- * If len is non-NULL and *len == 0, it will
- * be filled with the length of the option.
- * Finally, if buf is non-NULL, it will be
- * filled with the address of the option.
+ * Return 0 if the option was found, ENOENT otherwise.
+ * If len is non-NULL it will be filled with the length
+ * of the option. If buf is non-NULL, it will be filled
+ * with the address of the option.
  */
 int
 vfs_getopt(opts, name, buf, len)
@@ -516,11 +510,8 @@ vfs_getopt(opts, name, buf, len)
 	opt = opts->opt;
 	while (i++ < opts->optcnt) {
 		if (strcmp(name, opt->name) == 0) {
-			if (len != NULL) {
-			       	if ((*len != 0) && (*len != opt->len))
-					return (EINVAL);
+			if (len != NULL)
 				*len = opt->len;
-			}
 			if (buf != NULL)
 				*buf = opt->value;
 			return (0);
@@ -555,7 +546,7 @@ vfs_copyopt(opts, name, dest, len, done)
 		if (strcmp(name, opt->name) == 0) {
 			if (len < opt->len)
 				return (EINVAL);
-			bcopy(dest, opt->value, opt->len);
+			bcopy(opt->value, dest, opt->len);
 			if (done != NULL)
 				*done = opt->len;
 			return (0);
