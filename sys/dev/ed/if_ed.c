@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.97 1996/04/23 18:36:54 nate Exp $
+ *	$Id: if_ed.c,v 1.98 1996/05/18 17:56:25 se Exp $
  */
 
 /*
@@ -189,6 +189,8 @@ static int card_intr(struct pccard_dev *);	/* Interrupt handler */
 static void edunload(struct pccard_dev *);	/* Disable driver */
 static void edsuspend(struct pccard_dev *);	/* Suspend driver */
 static int edinit(struct pccard_dev *, int);	/* init device */
+
+void edintr_sc			__P((struct ed_softc *));
 
 static struct pccard_drv ed_info = {
 	"ed",
