@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.26.2.2 1997/03/15 21:17:22 bde Exp $
+#	$Id: bsd.doc.mk,v 1.26.2.3 1997/04/04 01:26:08 mpp Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -93,7 +93,9 @@ afterinstall:
 DISTRIBUTION?=	doc
 .if !target(distribute)
 distribute:
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 spell: ${SRCS}

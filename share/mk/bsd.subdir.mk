@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.11 1996/09/20 16:17:07 bde Exp $
+#	$Id: bsd.subdir.mk,v 1.11.2.1 1997/04/20 20:16:08 jkh Exp $
 
 .MAIN: all
 
@@ -72,6 +72,8 @@ DISTRIBUTION?=	bin
 afterdistribute:
 .endif
 .if !target(distribute)
-distribute: _SUBDIRUSE 
-	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${DISTRIBUTION}
+distribute: _SUBDIRUSE
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; ${MAKE} afterdistribute DESTDIR=${DISTDIR}/${dist}
+.endfor
 .endif
