@@ -47,7 +47,8 @@
 .Fn rtalloc1 "struct sockaddr *sa" "int report" "u_long flags"
 .Sh DESCRIPTION
 The kernel uses a radix tree structure to manage routes for the
-networking subsystem.  The
+networking subsystem.
+The
 .Fn rtalloc
 family of routines is used by protocols to query this structure for a
 route corresponding to a particular end-node address, and to cause
@@ -101,7 +102,8 @@ smaller than the default
 Before calling
 .Fn rtalloc
 for the first time, callers should ensure that unused bits of the
-structure are set to zero.  On subsequent calls,
+structure are set to zero.
+On subsequent calls,
 .Fn rtalloc
 returns without performing a lookup if
 .Fa ro->ro_rt
@@ -119,7 +121,8 @@ in the presence of the
 .Dv RTF_CLONING
 and
 .Dv RTF_PRCLONING
-flags are undesired.  The
+flags are undesired.
+The
 .Fa ro
 argument is the same as
 .Fn rtalloc ,
@@ -146,7 +149,8 @@ Instead, it takes a
 .Dq Li "struct sockaddr *"
 directly as the
 .Fa sa
-argument.  The second argument,
+argument.
+The second argument,
 .Fa report ,
 controls whether
 .Dv RTM_RESOLVE
@@ -154,7 +158,8 @@ requests are sent to the lower layers when an
 .Dv RTF_CLONING
 or
 .Dv RTF_PRCLONING
-route is cloned.  Ordinarily a value of one should be passed, except
+route is cloned.
+Ordinarily a value of one should be passed, except
 in the processing of those lower layers which use the cloning
 facility.
 The third argument,
@@ -166,10 +171,12 @@ The
 .Fn rtalloc
 and
 .Fn rtalloc_ign
-functions do not return a value.  The
+functions do not return a value.
+The
 .Fn rtalloc1
 function returns a pointer to a routing-table entry if it succeeds,
-otherwise a null pointer.  Lack of a route should in most cases be
+otherwise a null pointer.
+Lack of a route should in most cases be
 translated to the
 .Xr errno 2
 value
@@ -182,7 +189,8 @@ The
 .Nm
 facility first appeared in
 .Bx 4.2 ,
-although with much different internals.  The
+although with much different internals.
+The
 .Fn rtalloc_ign
 function and the
 .Fa flags
