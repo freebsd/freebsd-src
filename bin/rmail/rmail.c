@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: rmail.c,v 1.13 1997/08/07 15:41:51 steve Exp $";
+	"$Id: rmail.c,v 1.14 1997/08/07 22:33:01 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -100,6 +100,11 @@ main(argc, argv)
 	char *addrp, *domain, *p, *t;
 	char *from_path, *from_sys, *from_user;
 	char *args[100], buf[2048], lbuf[2048];
+
+#ifdef lint
+	fplen = fptlen = 0;
+	addrp = NULL;
+#endif
 
 	debug = 0;
 	domain = "UUCP";		/* Default "domain". */
