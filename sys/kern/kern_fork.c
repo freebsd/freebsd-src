@@ -202,7 +202,8 @@ fork1(td, flags, pages, procp)
 	struct proc *newproc;
 	int trypid;
 	int ok;
-	static int pidchecked = 0;
+	static int curfail, pidchecked = 0;
+	static struct timeval lastfail;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
 	struct proc *p1 = td->td_proc;
@@ -730,6 +731,9 @@ again:
 	*procp = p2;
 	return (0);
 fail:
+	if (ppsratecheck(&lastfail, &curfail, 1))
+		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
+			uid);
 	sx_xunlock(&allproc_lock);
 	uma_zfree(proc_zone, newproc);
 	if (p1->p_flag & P_SA) {
