@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#16 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#25 $
  *
  * $FreeBSD$
  */
@@ -57,7 +57,7 @@
 #define ID_AHA_284xB	0x04907756 /* BIOS enabled */
 #define ID_AHA_284x	0x04907757 /* BIOS disabled*/
 
-static void aha2840_load_seeprom(struct ahc_softc *ahc);
+static int aha2840_load_seeprom(struct ahc_softc *ahc);
 static ahc_device_setup_t ahc_aic7770_VL_setup;
 static ahc_device_setup_t ahc_aic7770_EISA_setup;;
 static ahc_device_setup_t ahc_aic7770_setup;
@@ -104,12 +104,15 @@ aic7770_find_device(uint32_t id)
 int
 aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 {
+	u_long	l;
 	int	error;
+	int	have_seeprom;
 	u_int	hostconf;
 	u_int   irq;
 	u_int	intdef;
 
 	error = entry->setup(ahc);
+	have_seeprom = 0;
 	if (error != 0)
 		return (error);
 
@@ -182,20 +185,21 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 					ahc->flags |= AHC_TERM_ENB_B;
 			}
 		}
-		/*
-		 * We have no way to tell, so assume extended
-		 * translation is enabled.
-		 */
-		ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B;
+		if ((ahc_inb(ahc, HA_274_BIOSGLOBAL) & HA_274_EXTENDED_TRANS))
+			ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B;
 		break;
 	}
 	case AHC_VL:
 	{
-		aha2840_load_seeprom(ahc);
+		have_seeprom = aha2840_load_seeprom(ahc);
 		break;
 	}
 	default:
 		break;
+	}
+	if (have_seeprom == 0) {
+		free(ahc->seep_config, M_DEVBUF);
+		ahc->seep_config = NULL;
 	}
 
 	/*
@@ -215,24 +219,22 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	if (error != 0)
 		return (error);
 
+	error = aic7770_map_int(ahc, irq);
+	if (error != 0)
+		return (error);
+
+	ahc_list_lock(&l);
 	/*
 	 * Link this softc in with all other ahc instances.
 	 */
 	ahc_softc_insert(ahc);
-
-	error = aic7770_map_int(ahc, irq);
-	if (error != 0)
-		return (error);
 
 	/*
 	 * Enable the board's BUS drivers
 	 */
 	ahc_outb(ahc, BCTL, ENABLE);
 
-	/*
-	 * Allow interrupts.
-	 */
-	ahc_intr_enable(ahc, TRUE);
+	ahc_list_unlock(&l);
 
 	return (0);
 }
@@ -240,13 +242,13 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 /*
  * Read the 284x SEEPROM.
  */
-static void
+static int
 aha2840_load_seeprom(struct ahc_softc *ahc)
 {
-	struct	  seeprom_descriptor sd;
-	struct	  seeprom_config sc;
-	uint8_t   scsi_conf;
-	int	  have_seeprom;
+	struct	seeprom_descriptor sd;
+	struct	seeprom_config *sc;
+	int	have_seeprom;
+	uint8_t scsi_conf;
 
 	sd.sd_ahc = ahc;
 	sd.sd_control_offset = SEECTL_2840;
@@ -259,6 +261,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 	sd.sd_CK = CK_2840;
 	sd.sd_DO = DO_2840;
 	sd.sd_DI = DI_2840;
+	sc = ahc->seep_config;
 
 	if (bootverbose)
 		printf("%s: Reading SEEPROM...", ahc_name(ahc));
@@ -267,7 +270,7 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 
 	if (have_seeprom) {
 
-		if (ahc_verify_cksum(&sc) == 0) {
+		if (ahc_verify_cksum(sc) == 0) {
 			if(bootverbose)
 				printf ("checksum error\n");
 			have_seeprom = 0;
@@ -285,41 +288,44 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		 * Put the data we've collected down into SRAM
 		 * where ahc_init will find it.
 		 */
-		int i;
-		int max_targ = (ahc->features & AHC_WIDE) != 0 ? 16 : 8;
+		int	 i;
+		int	 max_targ;
 		uint16_t discenable;
 
+		max_targ = (ahc->features & AHC_WIDE) != 0 ? 16 : 8;
 		discenable = 0;
 		for (i = 0; i < max_targ; i++){
-	                uint8_t target_settings;
-			target_settings = (sc.device_flags[i] & CFXFER) << 4;
-			if (sc.device_flags[i] & CFSYNCH)
+			uint8_t target_settings;
+
+			target_settings = (sc->device_flags[i] & CFXFER) << 4;
+			if (sc->device_flags[i] & CFSYNCH)
 				target_settings |= SOFS;
-			if (sc.device_flags[i] & CFWIDEB)
+			if (sc->device_flags[i] & CFWIDEB)
 				target_settings |= WIDEXFER;
-			if (sc.device_flags[i] & CFDISC)
+			if (sc->device_flags[i] & CFDISC)
 				discenable |= (0x01 << i);
 			ahc_outb(ahc, TARG_SCSIRATE + i, target_settings);
 		}
 		ahc_outb(ahc, DISC_DSB, ~(discenable & 0xff));
 		ahc_outb(ahc, DISC_DSB + 1, ~((discenable >> 8) & 0xff));
 
-		ahc->our_id = sc.brtime_id & CFSCSIID;
+		ahc->our_id = sc->brtime_id & CFSCSIID;
 
 		scsi_conf = (ahc->our_id & 0x7);
-		if (sc.adapter_control & CFSPARITY)
+		if (sc->adapter_control & CFSPARITY)
 			scsi_conf |= ENSPCHK;
-		if (sc.adapter_control & CFRESETB)
+		if (sc->adapter_control & CFRESETB)
 			scsi_conf |= RESET_SCSI;
 
-		if (sc.bios_control & CF284XEXTEND)		
+		if (sc->bios_control & CF284XEXTEND)		
 			ahc->flags |= AHC_EXTENDED_TRANS_A;
 		/* Set SCSICONF info */
 		ahc_outb(ahc, SCSICONF, scsi_conf);
 
-		if (sc.adapter_control & CF284XSTERM)
+		if (sc->adapter_control & CF284XSTERM)
 			ahc->flags |= AHC_TERM_ENB_A;
 	}
+	return (have_seeprom);
 }
 
 static int
