@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
 
 #if	defined(unix)
 #include <sys/param.h>
+#include <sys/un.h>
 #if	defined(CRAY) || defined(sysV88)
 #include <sys/types.h>
 #endif
@@ -2109,6 +2110,9 @@ sockaddr_ntop(sa)
     case AF_INET:
 	addr = &((struct sockaddr_in *)sa)->sin_addr;
 	break;
+    case AF_UNIX:
+	addr = &((struct sockaddr_un *)sa)->sun_path;
+	break;
 #ifdef INET6
     case AF_INET6:
 	addr = &((struct sockaddr_in6 *)sa)->sin6_addr;
@@ -2267,7 +2271,30 @@ tn(argc, argv)
 	}
 	src_res0 = src_res;
     }
-    if (hostp[0] == '@' || hostp[0] == '!') {
+    if (hostp[0] == '/') {
+	struct sockaddr_un su;
+	
+	if (strlen(hostp) >= sizeof(su.sun_path)) {
+	    fprintf(stderr, "hostname too long for unix domain socket: %s",
+		    hostp);
+		goto fail;
+	}
+	memset(&su, 0, sizeof su);
+	su.sun_family = AF_UNIX;
+	strncpy(su.sun_path, hostp, sizeof su.sun_path);
+	printf("Trying %s...\n", &su.sun_path);
+	net = socket(PF_UNIX, SOCK_STREAM, 0);
+	if ( net < 0) {
+	    perror("socket");
+	    goto fail;
+	}
+	if (connect(net, (struct sockaddr *)&su, sizeof su) == -1) {
+	    perror(su.sun_path);
+	    (void) NetClose(net);
+	    goto fail;
+	}
+	goto af_unix;
+    } else if (hostp[0] == '@' || hostp[0] == '!') {
 	if (
 #ifdef INET6
 	    family == AF_INET6 ||
@@ -2450,6 +2477,7 @@ tn(argc, argv)
     if (src_res0 != NULL)
         freeaddrinfo(src_res0);
     cmdrc(hostp, hostname);
+ af_unix:    
     if (autologin && user == NULL) {
 	struct passwd *pw;
 
