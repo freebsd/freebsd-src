@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id$
+ * $Id: uc_main.c,v 1.1 1996/10/03 06:01:41 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -39,6 +39,9 @@
 #include <tcl.h>
 
 #include "uc_main.h"
+
+extern int	isDebug(void);
+extern void	msgDebug(char *fmt, ...);
 
 struct nlist    nl[] = {
   {"_isa_devtab_bio"},
@@ -77,6 +80,8 @@ uc_open(char *name){
   } else {
     strncpy(kname, name, 79);
   }
+  if (isDebug())
+      msgDebug("Kernel name is %s, incore = %d\n", kname, incore);
 
   kern=(struct kernel *)malloc(sizeof(struct kernel));
 
@@ -88,6 +93,7 @@ uc_open(char *name){
     if((kd=open("/dev/kmem", O_RDONLY))<0){
       free(kern);
       kern=(struct kernel *)-3;
+      msgDebug("uc_open: Unable to open /dev/kmem.\n");
       return(kern);
     }
 
@@ -99,6 +105,7 @@ uc_open(char *name){
     if(stat(kname, &sb)<0){
       free(kern);
       kern=(struct kernel *)-1;
+      msgDebug("uc_open: Unable to stat %s.\n", kname);
       return(kern);
     }
     kern->size=sb.st_size;
@@ -107,12 +114,14 @@ uc_open(char *name){
     if (chflags(kname, 0)<0){
       free(kern);
       kern=(struct kernel *)-2;
+      msgDebug("uc_open: Unable to chflags %s.\n", kname);
       return(kern);
     }
 
     if((kd=open(kname, O_RDWR, 0644))<0){
       free(kern);
       kern=(struct kernel *)-3;
+      msgDebug("uc_open: Unable to open %s.\n", kname);
       return(kern);
     }
 
@@ -125,6 +134,7 @@ uc_open(char *name){
     if(kern->core == (caddr_t)0){
       free(kern);
       kern=(struct kernel *)-4;
+      msgDebug("uc_open: Unable to mmap from %s.\n", kname);
       return(kern);
     }
   }

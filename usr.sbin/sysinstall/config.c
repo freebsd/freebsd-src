@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.48 1996/10/02 10:32:28 jkh Exp $
+ * $Id: config.c,v 1.49 1996/10/02 10:44:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -376,16 +376,18 @@ configResolv(void)
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
 
-    if (!variable_get(VAR_NAMESERVER)) {
-	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
-	    msgConfirm("Warning:  Missing name server value - network operations\n"
-		       "may fail as a result!");
-	goto skip;
-    }
     if (Mkdir("/etc")) {
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
+    }
+
+    cp = variable_get(VAR_NAMESERVER);
+    if (!cp || !*cp) {
+	msgConfirm("Warning:  Missing name server value - be sure to refer\n"
+		   "to other hosts in any network operation by IP address\n"
+		   "rather than name (or go back and fill in a name server).");
+	goto skip;
     }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
@@ -394,32 +396,37 @@ configResolv(void)
     }
     if (variable_get(VAR_DOMAINNAME))
 	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
-    fprintf(fp, "nameserver\t%s\n", variable_get(VAR_NAMESERVER));
+    fprintf(fp, "nameserver\t%s\n", cp);
     fclose(fp);
     if (isDebug())
 	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
     /* Tack ourselves into /etc/hosts */
-    cp = variable_get(VAR_IPADDR);
+    fp = fopen("/etc/hosts", "w");
+
+    /* Add an entry for localhost */
     dp = variable_get(VAR_DOMAINNAME);
-    if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
+    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
+
+    /* Now the host entries, if applicable */
+    cp = variable_get(VAR_IPADDR);
+    hp = variable_get(VAR_HOSTNAME);
+    if (cp && cp[0] != '0' && hp) {
 	char cp2[255];
 
-	fp = fopen("/etc/hosts", "w");
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
 	else {
 	    strcpy(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
-	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
 	fprintf(fp, "%s\t\t%s.\n", cp, hp);
-	fclose(fp);
-	if (isDebug())
-	    msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
     }
+    fclose(fp);
+    if (isDebug())
+	msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
 }
 
 int
