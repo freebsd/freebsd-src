@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.18 1995/11/29 10:47:51 julian Exp $
+ *	$Id: si.c,v 1.19 1995/11/29 14:39:55 julian Exp $
  */
 
 #ifndef lint
@@ -2299,6 +2299,8 @@ si_mctl2str(cmd)
 	return("BAD");
 }
 
+#endif	/* DEBUG */
+
 
 #ifdef JREMOD
 struct cdevsw si_cdevsw = 
@@ -2337,5 +2339,3 @@ static void 	si_drvinit(void *unused)
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
 
 #endif /* JREMOD */
-
-#endif
