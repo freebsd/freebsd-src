@@ -64,7 +64,6 @@
 #include <sys/pioctl.h>
 
 extern struct vnode *procfs_findtextvp __P((struct proc *));
-extern int	procfs_kmemaccess __P((struct proc *));
 
 static int	linprocfs_access __P((struct vop_access_args *));
 static int	linprocfs_badop __P((void));
@@ -143,8 +142,7 @@ linprocfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if (p_trespass(p1, p2) &&
-		    !procfs_kmemaccess(p1))
+		if (p_trespass(p1, p2))
 			return (EPERM);
 
 		if (ap->a_mode & FWRITE)
@@ -455,21 +453,6 @@ linprocfs_getattr(ap)
 	vap->va_atime = vap->va_mtime = vap->va_ctime;
 
 	/*
-	 * If the process has exercised some setuid or setgid
-	 * privilege, then rip away read/write permission so
-	 * that only root can gain access.
-	 */
-	switch (pfs->pfs_type) {
-	case Pmem:
-		/* Retain group kmem readablity. */
-		if (procp->p_flag & P_SUGID)
-			vap->va_mode &= ~(VREAD|VWRITE);
-		break;
-	default:
-		break;
-	}
-
-	/*
 	 * now do the object specific fields
 	 *
 	 * The size could be set from struct reg, but it's hardly
@@ -545,7 +528,6 @@ linprocfs_getattr(ap)
 			vap->va_uid = 0;
 		else
 			vap->va_uid = procp->p_ucred->cr_uid;
-		vap->va_gid = KMEM_GROUP;
 		break;
 
 	case Pprocstat:
