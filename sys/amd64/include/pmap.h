@@ -117,7 +117,7 @@
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
 
-#define	KPDPI		(NPDPEPG-1)	/* kernbase at -1GB */
+#define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
 /*
  * XXX doesn't really belong here I guess...
