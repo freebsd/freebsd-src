@@ -22,10 +22,9 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
@@ -36,7 +35,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -53,8 +51,6 @@
 #include <signal.h>
 
 #include "libatm.h"
-
-__FBSDID("$FreeBSD$");
 
 Harp_timer	*harp_timer_head;
 int		harp_timer_exec;
