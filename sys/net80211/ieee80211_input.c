@@ -284,7 +284,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
 						m1 = m;
 						m = NULL;
 					}
-					ieee80211_unref_node(&ni);
+					ieee80211_free_node(ic, ni);
 				}
 			}
 			if (m1 != NULL) {
