@@ -54,13 +54,14 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 volatile cpumask_t stopped_cpus;
 volatile cpumask_t started_cpus;
-cpumask_t all_cpus;
 cpumask_t idle_cpus_mask;
 cpumask_t hlt_cpus_mask;
 cpumask_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
+/* amazingly enough this is used in non SMP code XXX BUG! */
+cpumask_t all_cpus;
 
 int mp_ncpus;
 /* export this for libkvm consumers. */
