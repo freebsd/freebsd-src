@@ -495,11 +495,12 @@ ess_calcspeed9(int *spd)
 	/* rate = source / (256 - divisor) */
 	/* divisor = 256 - (source / rate) */
 	speed = *spd;
-	t0 = 256 - (793800 / speed);
-	s0 = 793800 / (256 - t0);
+	t0 = 128 - (793800 / speed);
+	s0 = 793800 / (128 - t0);
 
-	t1 = 0x80 | (256 - (768000 / speed));
-	s1 = 768000 / (256 - t1);
+	t1 = 128 - (768000 / speed);
+	s1 = 768000 / (128 - t1);
+	t1 |= 0x80;
 
 	use0 = (ABS(speed - s0) < ABS(speed - s1))? 1 : 0;
 
