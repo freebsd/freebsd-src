@@ -57,11 +57,11 @@ ENTRY(_thread_switch)
 	cmpl	$0, %edx		/* check for null pointer */
 	jne	1f
 	movl	$-1, %eax
-	jmp	5f
+	jmp	9f
 1:	cmpl	$MC_SIZE, UC_MC_LEN_OFFSET(%edx) /* is context valid? */
 	je	2f
 	movl	$-1, %eax		/* bzzzt, invalid context */
-	jmp	5f
+	jmp	9f
 2:	movl	8(%esp), %ecx		/* get address of curthreadp */
 	movl	%edx, %ebx		/* save the pointer for later */
 	/*
