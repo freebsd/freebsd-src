@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.30 1995/01/09 16:04:40 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.31 1995/01/21 15:34:03 bde Exp $
  */
 
 #include "npx.h"
@@ -861,8 +861,8 @@ grow(p, sp)
 			v = vm->vm_maxsaddr;
 			grow_amount = MAXSSIZ - (vm->vm_ssize << PAGE_SHIFT);
 		}
-		if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
-		    grow_amount, FALSE) != KERN_SUCCESS) {
+		if ((grow_amount == 0) || (vm_map_find(&vm->vm_map, NULL, 0, (vm_offset_t *)&v,
+		    grow_amount, FALSE) != KERN_SUCCESS)) {
 			return (0);
 		}
 		vm->vm_ssize += grow_amount >> PAGE_SHIFT;

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.9 1994/09/25 19:33:31 phk Exp $
+ *	$Id: imgact_aout.c,v 1.10 1995/02/14 19:22:27 sos Exp $
  */
 
 #include <sys/param.h>
@@ -170,15 +170,17 @@ exec_aout_imgact(iparams)
 	if (error)
 		return (error);
 
-	/*
-	 * Allocate demand-zeroed area for uninitialized data
-	 * "bss" = 'block started by symbol' - named after the IBM 7090
-	 *	instruction of the same name.
-	 */
-	vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-	error = vm_allocate(&vmspace->vm_map, &vmaddr, bss_size, FALSE);
-	if (error)
-		return (error);
+	if (bss_size != 0) {
+		/*
+		 * Allocate demand-zeroed area for uninitialized data
+		 * "bss" = 'block started by symbol' - named after the IBM 7090
+		 *	instruction of the same name.
+		 */
+		vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, bss_size, FALSE);
+		if (error)
+			return (error);
+	}
 
 	/* Fill in process VM information */
 	vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;
