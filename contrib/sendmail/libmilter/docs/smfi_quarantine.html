@@ -1,0 +1,73 @@
+<html>
+<head><title>smfi_quarantine</title></head>
+<body>
+<!--
+$Id: smfi_quarantine.html,v 1.3 2003/03/05 19:57:54 ca Exp $
+-->
+<h1>smfi_quarantine</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_quarantine(
+	SMFICTX *ctx;
+	char *reason;
+);
+</pre>
+Quarantine the message using the given reason.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>smfi_quarantine quarantines the message using the given reason.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>reason</td>
+	<td>The quarantine reason, a non-NULL and non-empty null-terminated string.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_quarantine will fail and return MI_FAILURE if:
+<ul>
+    <li>reason is NULL or empty.
+    <li>A network error occurs.
+    <li>SMFIF_QUARANTINE was not set when <a href="smfi_register.html">smfi_register</a> was called.
+</ul>
+Otherwise, it will return MI_SUCCESS
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2002-2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

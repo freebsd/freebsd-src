@@ -1,11 +1,11 @@
-dnl $Id: Makefile.m4,v 8.91.2.4 2002/09/09 02:48:54 gshapiro Exp $
+dnl $Id: Makefile.m4,v 8.96 2003/08/08 20:31:17 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 define(`confREQUIRE_LIBSM', `true')
 bldPRODUCT_START(`executable', `sendmail')
 define(`bldBIN_TYPE', `G')
 define(`bldINSTALL_DIR', `')
-define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c readcf.c recipient.c sasl.c savemail.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
+define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c ratectrl.c readcf.c recipient.c sasl.c savemail.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
 PREPENDDEF(`confENVDEF', `confMAPDEF')
 bldPUSH_SMLIB(`sm')
 bldPUSH_SMLIB(`smutil')

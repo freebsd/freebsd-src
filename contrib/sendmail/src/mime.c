@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.130.2.3 2004/01/08 21:42:56 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.136 2004/03/22 18:21:34 ca Exp $")
 
 /*
 **  MIME support.
@@ -137,7 +137,7 @@ mime8to7(mci, header, e, boundaries, flags)
 	p = hvalue("Content-Transfer-Encoding", header);
 	if (p == NULL ||
 	    (pvp = prescan(p, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			   MimeTokenTab)) == NULL ||
+			   MimeTokenTab, false)) == NULL ||
 	    pvp[0] == NULL)
 	{
 		cte = NULL;
@@ -159,7 +159,7 @@ mime8to7(mci, header, e, boundaries, flags)
 	}
 	if (p != NULL &&
 	    (pvp = prescan(p, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			   MimeTokenTab)) != NULL &&
+			   MimeTokenTab, false)) != NULL &&
 	    pvp[0] != NULL)
 	{
 		if (tTd(43, 40))
@@ -768,11 +768,11 @@ mime_getchar(fp, boundaries, btp)
 			return SM_IO_EOF;
 		}
 
-		atbol = c == '\n';
-		if (c != SM_IO_EOF)
+		if (bp < &buf[sizeof buf - 2] && c != SM_IO_EOF)
 			*bp++ = c;
 	}
 
+	atbol = c == '\n';
 	buflen = bp - buf - 1;
 	if (buflen < 0)
 	{
@@ -990,7 +990,7 @@ mime7to8(mci, header, e)
 	p = hvalue("Content-Transfer-Encoding", header);
 	if (p == NULL ||
 	    (pvp = prescan(p, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			   MimeTokenTab)) == NULL ||
+			   MimeTokenTab, false)) == NULL ||
 	    pvp[0] == NULL)
 	{
 		/* "can't happen" -- upper level should have caught this */
