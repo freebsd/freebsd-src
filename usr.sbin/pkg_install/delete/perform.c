@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.6 1994/12/06 00:51:40 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.7.4.1 1995/11/10 06:44:47 jkh Exp $";
 #endif
 
 /*
@@ -120,10 +120,15 @@ pkg_do(char *pkg)
     }
     if (chdir(home) == FAIL)
 	barf("Toto!  This doesn't look like Kansas anymore!");
-    if (!Fake && delete_package(FALSE, CleanDirs, &Plist) != FAIL &&
-      vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
-	whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
-	return 1;
+    if (!Fake) {
+	/* Some packages aren't packed right, so we need to just ignore delete_package()'s status.  Ugh! :-( */
+	if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
+	    warn("Couldn't entirely delete package (perhaps the packing list is\n"
+		 "incorrectly specified?)\n");
+	if (vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
+	    whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
+	    return 1;
+	}
     }
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
