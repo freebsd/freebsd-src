@@ -1,6 +1,6 @@
 # kern.pre.mk
 #
-# Unified Makefile for building kenrels.  This includes all the definitions
+# Unified Makefile for building kernels.  This includes all the definitions
 # that need to be included before %BEFORE_DEPEND
 #
 # $FreeBSD$
