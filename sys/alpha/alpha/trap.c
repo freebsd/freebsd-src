@@ -73,7 +73,7 @@
 
 u_int32_t want_resched;
 
-void		userret __P((struct proc *, u_int64_t, u_quad_t));
+static int	userret __P((struct proc *, u_int64_t, u_quad_t, int));
 
 unsigned long	Sfloat_to_reg __P((unsigned int));
 unsigned int	reg_to_Sfloat __P((unsigned long));
@@ -93,17 +93,23 @@ static void printtrap __P((const unsigned long, const unsigned long,
  * Define the code needed before returning to user mode, for
  * trap and syscall.
  */
-void
-userret(p, pc, oticks)
+static int
+userret(p, pc, oticks, have_giant)
 	register struct proc *p;
 	u_int64_t pc;
 	u_quad_t oticks;
+	int have_giant;
 {
 	int sig, s;
 
 	/* take pending signals */
-	while ((sig = CURSIG(p)) != 0)
+	while ((sig = CURSIG(p)) != 0) {
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
+		}
 		postsig(sig);
+	}
 	p->p_priority = p->p_usrpri;
 	if (want_resched) {
 		/*
@@ -119,18 +125,28 @@ userret(p, pc, oticks)
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		splx(s);
-		while ((sig = CURSIG(p)) != 0)
+		while ((sig = CURSIG(p)) != 0) {
+			if (have_giant == 0) {
+				mtx_enter(&Giant, MTX_DEF);
+				have_giant = 1;
+			}
 			postsig(sig);
+		}
 	}
 
 	/*
 	 * If profiling, charge recent system time to the trapped pc.
 	 */
 	if (p->p_flag & P_PROFIL) {
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
+		}
 		addupc_task(p, pc, (int)(p->p_sticks - oticks) * psratio);
 	}
 
 	curpriority = p->p_priority;
+	return (have_giant);
 }
 
 static void
@@ -548,7 +564,8 @@ trap(a0, a1, a2, entry, framep)
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
-		userret(p, framep->tf_regs[FRAME_PC], sticks);
+		if (userret(p, framep->tf_regs[FRAME_PC], sticks, 0))
+			mtx_exit(&Giant, MTX_DEF);
 	}
 	return;
 
@@ -704,7 +721,7 @@ syscall(code, framep)
          */
 	p = curproc;
 
-	userret(p, framep->tf_regs[FRAME_PC], sticks);
+	userret(p, framep->tf_regs[FRAME_PC], sticks, 1);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
@@ -726,17 +743,26 @@ void
 child_return(p)
 	struct proc *p;
 {
+	int have_giant;
 
 	/*
 	 * Return values in the frame set by cpu_fork().
 	 */
 
-	userret(p, p->p_md.md_tf->tf_regs[FRAME_PC], 0);
+	have_giant = userret(p, p->p_md.md_tf->tf_regs[FRAME_PC], 0,
+			     mtx_owned(&Giant));
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (have_giant == 0) {
+			mtx_enter(&Giant, MTX_DEF);
+			have_giant = 1;
+		}
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
+	}
 #endif
-	mtx_exit(&Giant, MTX_DEF);
+
+	if (have_giant)
+		mtx_exit(&Giant, MTX_DEF);
 }
 
 /*
@@ -768,7 +794,7 @@ ast(framep)
 			    p->p_stats->p_prof.pr_ticks);
 	}
 
-	userret(p, framep->tf_regs[FRAME_PC], sticks);
+	userret(p, framep->tf_regs[FRAME_PC], sticks, 1);
 
 	mtx_exit(&Giant, MTX_DEF);
 }
