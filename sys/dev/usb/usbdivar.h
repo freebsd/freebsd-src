@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.58 2000/06/24 04:12:53 thorpej Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.60 2000/12/28 10:40:36 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -112,6 +112,7 @@ struct usbd_bus {
 #define USBREV_PRE_1_0	1
 #define USBREV_1_0	2
 #define USBREV_1_1	3
+#define USBREV_2_0	4
 #define USBREV_STR { "unknown", "pre 1.0", "1.0", "1.1" }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
