@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.130 1998/11/15 09:06:19 jkh Exp $
+ * $Id: dist.c,v 1.131 1998/11/27 00:30:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,6 @@ static Distribution SrcDistTable[] = {
 { "sinclude",	"/usr/src",		&SrcDists,	DIST_SRC_INCLUDE,	NULL		},
 { "slib",	"/usr/src",		&SrcDists,	DIST_SRC_LIB,		NULL		},
 { "slibexec",	"/usr/src",		&SrcDists,	DIST_SRC_LIBEXEC,	NULL		},
-{ "slkm",	"/usr/src",		&SrcDists,	DIST_SRC_LKM,		NULL		},
 { "srelease",	"/usr/src",		&SrcDists,	DIST_SRC_RELEASE,	NULL		},
 { "sbin",	"/usr/src",		&SrcDists,	DIST_SRC_BIN,		NULL		},
 { "ssbin",	"/usr/src",		&SrcDists,	DIST_SRC_SBIN,		NULL		},
