@@ -625,11 +625,11 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	case DT_INIT:
-	    obj->init = (InitFunc) (obj->relocbase + dynp->d_un.d_ptr);
+	    obj->init = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
 	case DT_FINI:
-	    obj->fini = (InitFunc) (obj->relocbase + dynp->d_un.d_ptr);
+	    obj->fini = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
 	case DT_DEBUG:
@@ -639,7 +639,8 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	default:
-	    dbg("Ignoring d_tag %d = %#x", dynp->d_tag, dynp->d_tag);
+	    dbg("Ignoring d_tag %ld = %#lx", (long)dynp->d_tag,
+	        (long)dynp->d_tag);
 	    break;
 	}
     }
@@ -1248,8 +1249,9 @@ objlist_call_fini(Objlist *list)
     saved_msg = errmsg_save();
     STAILQ_FOREACH(elm, list, link) {
 	if (elm->obj->refcount == 0) {
-	    dbg("calling fini function for %s", elm->obj->path);
-	    (*elm->obj->fini)();
+	    dbg("calling fini function for %s at %p", elm->obj->path,
+	        (void *)elm->obj->fini);
+	    call_initfini_pointer(elm->obj, elm->obj->fini);
 	}
     }
     errmsg_restore(saved_msg);
@@ -1272,8 +1274,9 @@ objlist_call_init(Objlist *list)
      */
     saved_msg = errmsg_save();
     STAILQ_FOREACH(elm, list, link) {
-	dbg("calling init function for %s", elm->obj->path);
-	(*elm->obj->init)();
+	dbg("calling init function for %s at %p", elm->obj->path,
+	    (void *)elm->obj->init);
+	call_initfini_pointer(elm->obj, elm->obj->init);
     }
     errmsg_restore(saved_msg);
 }

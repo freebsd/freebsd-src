@@ -145,8 +145,8 @@ typedef struct Struct_Obj_Entry {
     const char *rpath;		/* Search path specified in object */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
 
-    InitFunc init;		/* Initialization function to call */
-    InitFunc fini;		/* Termination function to call */
+    Elf_Addr init;		/* Initialization function to call */
+    Elf_Addr fini;		/* Termination function to call */
 
     bool mainprog;		/* True if this is the main program */
     bool rtld;			/* True if this is the dynamic linker */

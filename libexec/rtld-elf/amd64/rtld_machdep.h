@@ -49,6 +49,9 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)
 
+#define call_initfini_pointer(obj, target) \
+	(((InitFunc)(target))())
+
 static inline void
 atomic_decr_int(volatile int *p)
 {
