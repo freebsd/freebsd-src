@@ -1,4 +1,4 @@
-/*	$NetBSD: progressbar.c,v 1.3 2003/02/28 09:53:49 lukem Exp $	*/
+/*	$NetBSD: progressbar.c,v 1.4 2003/07/17 12:06:18 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
@@ -6,10 +6,6 @@
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Luke Mewburn.
- *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
- * NASA Ames Research Center.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,7 +38,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: progressbar.c,v 1.3 2003/02/28 09:53:49 lukem Exp $");
+__RCSID("$NetBSD: progressbar.c,v 1.4 2003/07/17 12:06:18 lukem Exp $");
 #endif /* not lint */
 
 /*
