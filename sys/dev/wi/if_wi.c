@@ -627,15 +627,11 @@ wi_init(void *arg)
 		return;
 	}
 
-	wasenabled = sc->sc_enabled;
-	if (!sc->sc_enabled) {
-		sc->sc_enabled = 1;
-	} else
-		wi_stop(ifp, 0);
-
 	/* Symbol firmware cannot be initialized more than once */
-	if (sc->sc_firmware_type != WI_SYMBOL || !wasenabled)
-		wi_reset(sc);
+	if ((wasenabled = sc->sc_enabled))
+		wi_stop(ifp, 0);
+	sc->sc_enabled = 1;
+	wi_reset(sc);
 
 	/* common 802.11 configuration */
 	ic->ic_flags &= ~IEEE80211_F_IBSSON;
@@ -956,6 +952,11 @@ wi_reset(struct wi_softc *sc)
 {
 #define WI_INIT_TRIES 5
 	int i, error;
+
+	/* Symbol firmware cannot be reset more than once. */
+	if (sc->sc_firmware_type == WI_SYMBOL && sc->sc_reset)
+		return (0);
+	sc->sc_reset = 1;
 
 	for (i = 0; i < WI_INIT_TRIES; i++) {
 		if ((error = wi_cmd(sc, WI_CMD_INI, 0, 0, 0)) == 0)

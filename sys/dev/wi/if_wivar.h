@@ -68,6 +68,7 @@ struct wi_softc	{
 	int			sc_unit;
 	int			wi_gone;
 	int			sc_enabled;
+	int			sc_reset;
 	int			sc_firmware_type;
 #define WI_NOTYPE	0
 #define	WI_LUCENT	1
