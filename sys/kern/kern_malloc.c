@@ -484,7 +484,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 			continue;
 
 		curline = linesize - 2;	/* Leave room for the \n */
-		len = snprintf(p, curline, "%13s%6ld%6ldK%7ldK%9llu",
+		len = snprintf(p, curline, "%13s%6lu%6luK%7luK%9llu",
 			type->ks_shortdesc,
 			type->ks_inuse,
 			(type->ks_memuse + 1023) / 1024,
