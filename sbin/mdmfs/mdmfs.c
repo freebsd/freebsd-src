@@ -116,8 +116,9 @@ main(int argc, char **argv)
 	newfs_arg = strdup("");
 	mount_arg = strdup("");
 
-	/* If we were started as mount_*, imply -C. */
-	if (strncmp(getprogname(), "mount_", 6) == 0)
+	/* If we were started as mount_mfs or mfs, imply -C. */
+	if (strcmp(getprogname(), "mount_mfs") == 0 ||
+	    strcmp(getprogname(), "mfs") == 0)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
