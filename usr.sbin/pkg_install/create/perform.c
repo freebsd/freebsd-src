@@ -75,7 +75,7 @@ pkg_perform(char **pkgs)
 	}
     }
     if (Zipper == BZIP2) {
-	suf = "tbz2";
+	suf = "tbz";
 	setenv("BZIP2", "-9", 0);
     } else if (Zipper == GZIP) {
 	suf = "tgz";
