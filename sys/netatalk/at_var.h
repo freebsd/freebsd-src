@@ -49,7 +49,7 @@ struct at_aliasreq {
 };
 
 #define AA_SAT(aa) \
-    ((struct sockaddr_at *)&((struct at_ifaddr *)(aa))->aa_addr)
+    (&(aa->aa_addr))
 #define satosat(sa)	((struct sockaddr_at *)(sa))
 
 #define AFA_ROUTE	0x0001
