@@ -201,13 +201,11 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	u_long tfps;
 	const char *symname;
 	struct pcb *pcbp;
-	char c, *cp = modif;
 	struct trapframe *tf = NULL;
 	boolean_t ra_from_tf = FALSE;
 	boolean_t ra_from_pcb;
 	u_long last_ipl = ~0L;
 	struct proc *p = NULL;
-	boolean_t trace_thread = FALSE;
 	boolean_t have_trapframe = FALSE;
 	pid_t pid;
 
