@@ -90,3 +90,4 @@ static scrn_saver_t apm_module = {
 };
 
 SAVER_MODULE(apm_saver, apm_module);
+MODULE_DEPEND(apm_saver, apm, 1, 1, 1);
