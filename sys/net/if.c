@@ -1214,10 +1214,10 @@ if_withname(sa)
 		return NULL;
 
 	/*
-	 * ifunit wants a null-terminated name.  It may not be null-terminated
-	 * in the sockaddr.  We don't want to change the caller's sockaddr,
-	 * and there might not be room to put the trailing null anyway, so we
-	 * make a local copy that we know we can null terminate safely.
+	 * ifunit wants a NUL-terminated string.  It may not be NUL-terminated
+	 * in the sockaddr, and we don't want to change the caller's sockaddr
+	 * (there might not be room to add the trailing NUL anyway), so we make
+	 * a local copy that we know we can NUL-terminate safely.
 	 */
 
 	bcopy(sdl->sdl_data, ifname, sdl->sdl_nlen);
