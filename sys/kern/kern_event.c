@@ -1331,8 +1331,6 @@ kqueue_close(struct file *fp, struct thread *td)
 	int i;
 	int error;
 
-	GIANT_REQUIRED;
-
 	if ((error = kqueue_aquire(fp, &kq)))
 		return error;
 
