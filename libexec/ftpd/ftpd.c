@@ -1800,9 +1800,13 @@ send_data(instr, outstr, blksize, filesize, isreg)
 			while (err != -1 && filesize > 0) {
 				err = sendfile(filefd, netfd, offset, 0,
 					(struct sf_hdtr *) NULL, &cnt, 0);
+				/*
+				 * Calculate byte_count before OOB processing.
+				 * It can be used in myoob() later.
+				 */
+				byte_count += cnt;
 				if (recvurg)
 					goto got_oob;
-				byte_count += cnt;
 				offset += cnt;
 				filesize -= cnt;
 
