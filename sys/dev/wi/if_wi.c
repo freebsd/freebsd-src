@@ -770,7 +770,7 @@ static int wi_cmd(sc, cmd, val)
 	int			i, s = 0;
 
 	/* wait for the busy bit to clear */
-	for (i = 200; i > 0; i--) {
+	for (i = 500; i > 0; i--) {	/* 5s */
 		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY)) {
 			break;
 		}
@@ -814,14 +814,15 @@ static int wi_cmd(sc, cmd, val)
 static void wi_reset(sc)
 	struct wi_softc		*sc;
 {
+#define WI_INIT_TRIES 5
 	int i;
 	
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < WI_INIT_TRIES; i++) {
 		if (wi_cmd(sc, WI_CMD_INI, 0) == 0)
 			break;
-		DELAY(100000);
+		DELAY(50 * 1000);	/* 50ms */
 	}
-	if (i == 5)
+	if (i == WI_INIT_TRIES)
 		device_printf(sc->dev, "init failed\n");
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
