@@ -341,6 +341,11 @@ struct aac_sg_entry {
 	u_int32_t	SgByteCount;
 } __packed;
 
+struct aac_sg_entry64 {
+	u_int64_t	SgAddress;
+	u_int32_t	SgByteCount;
+} __packed;
+
 struct aac_sg_table {
 	u_int32_t		SgCount;
 	struct aac_sg_entry	SgEntry[0];
@@ -350,10 +355,8 @@ struct aac_sg_table {
  * Host-side scatter/gather list for 64-bit commands.
  */
 struct aac_sg_table64 {
-	u_int8_t	SgCount;
-	u_int8_t	SgSectorsPerPage;
-	u_int16_t	SgByteOffset;
-	u_int64_t	SgEntry[0];
+	u_int32_t	SgCount;
+	struct aac_sg_entry64	SgEntry64[0];
 } __packed;
 
 /*
@@ -488,6 +491,13 @@ typedef enum
 #define AAC_SUPPORTED_64BIT_DATA	0x08
 #define AAC_SUPPORTED_HOST_TIME_FIB	0x10
 #define AAC_SUPPORTED_RAID50		0x20
+#define AAC_SUPPORTED_4GB_WINDOW	0x40
+#define AAC_SUPPORTED_SCSI_UPGRADEABLE	0x80
+#define AAC_SUPPORTED_SOFT_ERR_REPORT	0x100
+#define AAC_SUPPORTED_NOT_RECONDITION	0x200
+#define AAC_SUPPORTED_SGMAP_HOST64	0x400
+#define AAC_SUPPORTED_ALARM		0x800
+#define AAC_SUPPORTED_NONDASD		0x1000
 
 /* 
  * Structure used to respond to a RequestAdapterInfo fib.
@@ -526,6 +536,7 @@ struct aac_adapter_info {
 #define AAC_MONKER_INITSTRUCT	0x05
 #define AAC_MONKER_SYNCFIB	0x0c
 #define AAC_MONKER_GETKERNVER	0x11
+#define AAC_MONKER_GETINFO	0x19
 
 /*
  *  Adapter Status Register
@@ -961,6 +972,8 @@ typedef enum _VM_COMMANDS {
 	VM_CtBlockRead64,
 	VM_CtBlockWrite64,
 	VM_CtBlockVerify64,
+	VM_CtHostRead64,
+	VM_CtHostWrite64,
 } AAC_VMCommand;
 
 /*
@@ -1134,6 +1147,16 @@ struct aac_blockread {
 	struct aac_sg_table	SgMap;		/* variable size */
 } __packed;
 
+struct aac_blockread64 {
+	u_int32_t		Command;
+	u_int16_t		ContainerId;
+	u_int16_t		SectorCount;
+	u_int32_t		BlockNumber;
+	u_int16_t		Pad;
+	u_int16_t		Flags;
+	struct aac_sg_table64	SgMap64;
+} __packed;
+
 struct aac_blockread_response {
 	u_int32_t		Status;
 	u_int32_t		ByteCount;
@@ -1146,6 +1169,16 @@ struct aac_blockwrite {
 	u_int32_t		ByteCount;
 	u_int32_t		Stable;
 	struct aac_sg_table	SgMap;		/* variable size */
+} __packed;
+
+struct aac_blockwrite64 {
+	u_int32_t		Command;	/* not FSACommand! */
+	u_int16_t		ContainerId;
+	u_int16_t		SectorCount;
+	u_int32_t		BlockNumber;
+	u_int16_t		Pad;
+	u_int16_t		Flags;
+	struct aac_sg_table64	SgMap64;	/* variable size */
 } __packed;
 
 struct aac_blockwrite_response {
