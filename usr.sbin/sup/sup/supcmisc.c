@@ -27,6 +27,12 @@
  **********************************************************************
  * HISTORY
  * $Log: supcmisc.c,v $
+ * Revision 1.2  1996/10/30 23:58:08  ache
+ * 1) print only errors if -v not given, it allows non-verbose
+ * crontab runnig
+ * 2) use full path /usr/bin/mail for security reasons
+ * 3) Use time_t instead of long for time (in one place)
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:46  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -310,12 +316,10 @@ va_dcl
 			}
 		} else
 			noteF = stdout;
-		if (thisC->Cflags&CFVERBOSE) {
-			tloc = time ((time_t *)NULL);
-			fprintf (noteF,"SUP Upgrade of %s at %s",
-				collrelname,ctime (&tloc));
-			(void) fflush (noteF);
-		}
+		tloc = time ((time_t *)NULL);
+		fprintf (noteF,"SUP Upgrade of %s at %s",
+			collrelname,ctime (&tloc));
+		(void) fflush (noteF);
 	}
 	vfprintf(noteF,fmt,ap);
 	va_end(ap);
