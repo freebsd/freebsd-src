@@ -142,8 +142,8 @@ sbni_attach_isa(device_t dev)
 
 #else	/* SBNI_DUAL_COMPOUND */
 
-		sc->link = headlist;
-		headlist = sc;
+		sc->link = sbni_headlist;
+		sbni_headlist = sc;
 	} else {
 		struct sbni_softc  *master;
 

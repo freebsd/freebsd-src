@@ -126,7 +126,7 @@ void	sbni_attach(struct sbni_softc *, int, struct sbni_flags);
 extern u_int32_t next_sbni_unit;
 
 #ifdef SBNI_DUAL_COMPOUND
-extern struct sbni_softc *headlist;
+extern struct sbni_softc *sbni_headlist;
 
 struct sbni_softc	*connect_to_master(struct sbni_softc *);
 #endif
