@@ -2,7 +2,7 @@
 
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c rtld_lock.c map_object.c malloc.c \
-		xmalloc.c debug.c reloc.c
+		xmalloc.c debug.c reloc.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
@@ -13,15 +13,6 @@ BINDIR=		/libexec
 SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
-
-#
-# To enable the libmap.conf functionality please
-# add 'WITH_LIBMAP=yes' to /etc/make.conf, recompile
-# and reinstall rtld-elf.
-.ifdef WITH_LIBMAP
-CFLAGS+=	-DWITH_LIBMAP
-SRCS+=		libmap.c
-.endif
 
 .if exists(${.CURDIR}/${MACHINE_ARCH}/Makefile.inc)
 .include "${.CURDIR}/${MACHINE_ARCH}/Makefile.inc"
