@@ -65,7 +65,7 @@ extern struct mtx kse_zombie_lock;
 TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 	TAILQ_HEAD_INITIALIZER(zombie_upcalls);
 
-static int thread_update_usr_ticks(struct thread *td, int user);
+static int thread_update_usr_ticks(struct thread *td);
 static void thread_alloc_spare(struct thread *td);
 
 /* move to proc.h */
@@ -818,7 +818,7 @@ thread_export_context(struct thread *td, int willexit)
 	struct ksegrp *kg;
 	uintptr_t mbx;
 	void *addr;
-	int error = 0, temp, sig;
+	int error = 0, sig;
 	mcontext_t mc;
 
 	p = td->td_proc;
@@ -849,14 +849,6 @@ thread_export_context(struct thread *td, int willexit)
 	error = copyout(&mc, addr, sizeof(mcontext_t));
 	if (error)
 		goto bad;
-
-	/* Exports clock ticks in kernel mode */
-	addr = (caddr_t)(&td->td_mailbox->tm_sticks);
-	temp = fuword32(addr) + td->td_usticks;
-	if (suword32(addr, temp)) {
-		error = EFAULT;
-		goto bad;
-	}
 
 	addr = (caddr_t)(&td->td_mailbox->tm_lwp);
 	if (suword32(addr, 0)) {
@@ -938,13 +930,11 @@ int
 thread_statclock(int user)
 {
 	struct thread *td = curthread;
-	struct ksegrp *kg = td->td_ksegrp;
 
-	if (kg->kg_numupcalls == 0 || !(td->td_pflags & TDP_SA))
+	if (!(td->td_pflags & TDP_SA))
 		return (0);
 	if (user) {
 		/* Current always do via ast() */
-		td->td_pflags |= TDP_USTATCLOCK;
 		mtx_lock_spin(&sched_lock);
 		td->td_flags |= TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
@@ -958,47 +948,34 @@ thread_statclock(int user)
  * Export state clock ticks for userland
  */
 static int
-thread_update_usr_ticks(struct thread *td, int user)
+thread_update_usr_ticks(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	struct kse_thr_mailbox *tmbx;
-	struct kse_upcall *ku;
-	struct ksegrp *kg;
 	caddr_t addr;
 	u_int uticks;
 
-	if ((ku = td->td_upcall) == NULL)
+	if (td->td_mailbox == NULL)
 		return (-1);
 
-	if ((tmbx = td->td_mailbox) == NULL) {
-		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
-		if ((tmbx == NULL) || (tmbx == (void *)-1))
-			return (-1);
-	}
-	if (user) {
-		uticks = td->td_uuticks;
+	if ((uticks = td->td_uuticks) != 0) {
 		td->td_uuticks = 0;
-		addr = (caddr_t)&tmbx->tm_uticks;
-	} else {
-		uticks = td->td_usticks;
+		addr = (caddr_t)&td->td_mailbox->tm_uticks;
+		if (suword32(addr, uticks+fuword32(addr)))
+			goto error;
+	}
+	if ((uticks = td->td_usticks) != 0) {
 		td->td_usticks = 0;
-		addr = (caddr_t)&tmbx->tm_sticks;
-	}
-	if (uticks) {
-		if (suword32(addr, uticks+fuword32(addr))) {
-			PROC_LOCK(p);
-			psignal(p, SIGSEGV);
-			PROC_UNLOCK(p);
-			return (-2);
-		}
-	}
-	kg = td->td_ksegrp;
-	if (kg->kg_upquantum && ticks >= kg->kg_nextupcall) {
-		mtx_lock_spin(&sched_lock);
-		td->td_upcall->ku_flags |= KUF_DOUPCALL;
-		mtx_unlock_spin(&sched_lock);
+		addr = (caddr_t)&td->td_mailbox->tm_sticks;
+		if (suword32(addr, uticks+fuword32(addr)))
+			goto error;
 	}
 	return (0);
+
+error:
+	PROC_LOCK(p);
+	psignal(p, SIGSEGV);
+	PROC_UNLOCK(p);
+	return (-2);
 }
 
 /*
@@ -1222,25 +1199,24 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	struct timespec ts;
 	int error = 0, upcalls, uts_crit;
 
-	p = td->td_proc;
-	kg = td->td_ksegrp;
-	ku = td->td_upcall;
-
 	/* Nothing to do with bound thread */
 	if (!(td->td_pflags & TDP_SA))
 		return (0);
 
 	/*
-	 * Stat clock interrupt hit in userland, it
-	 * is returning from interrupt, charge thread's
-	 * userland time for UTS.
+	 * Update stat clock count for userland
 	 */
-	if (td->td_pflags & TDP_USTATCLOCK) {
-		thread_update_usr_ticks(td, 1);
-		td->td_pflags &= ~TDP_USTATCLOCK;
+	if (td->td_mailbox != NULL) {
+		thread_update_usr_ticks(td);
+		uts_crit = 0;
+	} else {
+		uts_crit = 1;
 	}
 
-	uts_crit = (td->td_mailbox == NULL);
+	p = td->td_proc;
+	kg = td->td_ksegrp;
+	ku = td->td_upcall;
+
 	/*
 	 * Optimisation:
 	 * This thread has not started any upcall.
@@ -1253,7 +1229,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
 		    (kg->kg_upquantum && ticks < kg->kg_nextupcall)) {
-			thread_update_usr_ticks(td, 0);
 			nanotime(&ts);
 			error = copyout(&ts,
 				(caddr_t)&ku->ku_mailbox->km_timeofday,
