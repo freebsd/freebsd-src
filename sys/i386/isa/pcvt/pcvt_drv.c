@@ -738,7 +738,8 @@ do_standard:
 #endif
 
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
-	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p)) >= 0)
+	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p))
+	    != ENOIOCTL)
 		return (error);
 #else
 	if((error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag)) >= 0)
@@ -749,7 +750,7 @@ do_standard:
 	if((error = ttioctl(tp, cmd, data, flag, p)) >= 0)
 		return (error);
 #else
-	if((error = ttioctl(tp, cmd, data, flag)) >= 0)
+	if((error = ttioctl(tp, cmd, data, flag)) != ENOIOCTL)
 		return (error);
 #endif /* PCVT_NETBSD > 9 */
 

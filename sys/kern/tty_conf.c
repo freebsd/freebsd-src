@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: tty_conf.c,v 1.10 1997/02/22 09:39:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -204,5 +204,5 @@ l_nullioctl(tp, cmd, data, flags, p)
 	struct proc *p;
 {
 
-	return (-1);
+	return (ENOIOCTL);
 }

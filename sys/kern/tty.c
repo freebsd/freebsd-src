@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.97 1997/10/12 20:24:05 phk Exp $
+ * $Id: tty.c,v 1.98 1997/11/07 08:53:01 phk Exp $
  */
 
 /*-
@@ -1027,7 +1027,7 @@ ttioctl(tp, cmd, data, flag)
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		return (ttcompat(tp, cmd, data, flag));
 #else
-		return (-1);
+		return (ENOIOCTL);
 #endif
 	}
 	return (0);

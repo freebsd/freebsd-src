@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.27 1997/10/18 01:20:28 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.28 1997/11/18 14:08:51 bde Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -473,7 +473,7 @@ ppptioctl(tp, cmd, data, flag, p)
     int error, s;
 
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
-	return -1;
+	return (ENOIOCTL);
 
     error = 0;
     switch (cmd) {

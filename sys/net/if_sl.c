@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.60 1997/09/21 22:01:03 gibbs Exp $
+ * $Id: if_sl.c,v 1.61 1997/10/07 09:13:06 ache Exp $
  */
 
 /*
@@ -444,7 +444,7 @@ sltioctl(tp, cmd, data, flag, p)
 
 	default:
 		splx(s);
-		return (-1);
+		return (ENOIOCTL);
 	}
 	splx(s);
 	return (0);
