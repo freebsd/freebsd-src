@@ -805,19 +805,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		}
 	    }
 
-	    if (cur_scp->mouse_signal) {
-    		/* has controlling process died? */
-		if (cur_scp->mouse_proc && 
-		    (cur_scp->mouse_proc != pfind(cur_scp->mouse_pid))){
-		    	cur_scp->mouse_signal = 0;
-			cur_scp->mouse_proc = NULL;
-			cur_scp->mouse_pid = 0;
-		}
-		else
-		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
-		break;
-	    }
-
 	    /* 
 	     * If any buttons are down or the mouse has moved a lot, 
 	     * stop the screen saver.
@@ -829,13 +816,28 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		sc_touch_scrn_saver();
 	    }
 
+#ifndef SC_NO_CUTPASTE
+	    if (!ISGRAPHSC(cur_scp) && (cur_scp->sc->flags & SC_MOUSE_ENABLED))
+		cur_scp->status |= MOUSE_VISIBLE;
+#endif /* SC_NO_CUTPASTE */
+
+	    if (cur_scp->mouse_signal) {
+    		/* has controlling process died? */
+		if (cur_scp->mouse_proc && 
+		    (cur_scp->mouse_proc != pfind(cur_scp->mouse_pid))){
+		    	cur_scp->mouse_signal = 0;
+			cur_scp->mouse_proc = NULL;
+			cur_scp->mouse_pid = 0;
+		} else {
+		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
+		    break;
+		}
+	    }
+
 	    if (ISGRAPHSC(cur_scp) || (cut_buffer == NULL))
 		break;
 
 #ifndef SC_NO_CUTPASTE
-	    if (cur_scp->sc->flags & SC_MOUSE_ENABLED)
-	    	cur_scp->status |= MOUSE_VISIBLE;
-
 	    if ((mouse->operation == MOUSE_ACTION) && f) {
 		/* process button presses */
 		if (cur_scp->mouse_buttons & MOUSE_BUTTON1DOWN)
@@ -884,29 +886,31 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    	    (*linesw[mtty->t_line].l_rint)(buf[i], mtty);
 	    }
 
+	    /* if a button is held down, stop the screen saver */
+	    if (mouse->u.event.value > 0)
+		sc_touch_scrn_saver();
+
+#ifndef SC_NO_CUTPASTE
+	    if (!ISGRAPHSC(cur_scp) && (cur_scp->sc->flags & SC_MOUSE_ENABLED))
+		cur_scp->status |= MOUSE_VISIBLE;
+#endif /* SC_NO_CUTPASTE */
+
 	    if (cur_scp->mouse_signal) {
 		if (cur_scp->mouse_proc && 
 		    (cur_scp->mouse_proc != pfind(cur_scp->mouse_pid))){
 		    	cur_scp->mouse_signal = 0;
 			cur_scp->mouse_proc = NULL;
 			cur_scp->mouse_pid = 0;
-		}
-		else
+		} else {
 		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
-		break;
+		    break;
+		}
 	    }
-
-	    /* if a button is held down, stop the screen saver */
-	    if (mouse->u.event.value > 0)
-		sc_touch_scrn_saver();
 
 	    if (ISGRAPHSC(cur_scp) || (cut_buffer == NULL))
 		break;
 
 #ifndef SC_NO_CUTPASTE
-	    if (cur_scp->sc->flags & SC_MOUSE_ENABLED)
-	    	cur_scp->status |= MOUSE_VISIBLE;
-
 	    switch (mouse->u.event.id) {
 	    case MOUSE_BUTTON1DOWN:
 	        switch (mouse->u.event.value % 4) {
