@@ -13,13 +13,13 @@ _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 
 EMS+=		ld_elf64_sparc_emulation
 LDSCRIPTS+=	elf64_sparc.x elf64_sparc.xbn elf64_sparc.xn elf64_sparc.xr \
-		elf64_sparc.xs elf64_sparc.xu
+		elf64_sparc.xs elf64_sparc.xu elf64_sparc.xc elf64_sparc.xsc
 SRCS+=		eelf64_sparc.c
 CLEANFILES+=	eelf64_sparc.c
 
 EMS+=		ld_elf32_sparc_emulation
 LDSCRIPTS+=	elf32_sparc.x elf32_sparc.xbn elf32_sparc.xn elf32_sparc.xr \
-		elf32_sparc.xs elf32_sparc.xu
+		elf32_sparc.xs elf32_sparc.xu elf32_sparc.xc elf32_sparc.xsc
 SRCS+=		eelf32_sparc.c
 CLEANFILES+=	eelf32_sparc.c
 

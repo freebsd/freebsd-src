@@ -22,31 +22,43 @@ LDSCRIPTS+=	elf32ppc.x		\
 		elf32ppc.xr		\
 		elf32ppc.xs		\
 		elf32ppc.xu		\
+		elf32ppc.xc		\
+		elf32ppc.xsc		\
 		ppcmacos.x		\
 		ppcmacos.xbn		\
 		ppcmacos.xn		\
 		ppcmacos.xr		\
 		ppcmacos.xu		\
+		ppcmacos.xc		\
+		ppcmacos.xsc		\
 		ppcnw.x			\
 		ppcnw.xbn		\
 		ppcnw.xn		\
 		ppcnw.xr		\
 		ppcnw.xu		\
+		ppcnw.xc		\
+		ppcnw.xsc		\
 		ppcpe.x			\
 		ppcpe.xbn		\
 		ppcpe.xn		\
 		ppcpe.xr		\
 		ppcpe.xu		\
+		ppcpe.xc		\
+		ppcpe.xsc		\
 		aixrs6.x		\
 		aixrs6.xbn		\
 		aixrs6.xn		\
 		aixrs6.xr		\
 		aixrs6.xu		\
+		aixrs6.xc		\
+		aixrs6.xsc		\
 		rs6000lynx.x		\
 		rs6000lynx.xbn		\
 		rs6000lynx.xn		\
 		rs6000lynx.xr		\
-		rs6000lynx.xu
+		rs6000lynx.xu		\
+		rs6000lynx.xc		\
+		rs6000lynx.xsc
 SRCS+=		eelf32ppc.c		\
 		eppcmacos.c		\
 		eppcnw.c		\
