@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.3
+     Original revision: 1.1.2.3
 -->
 
 
@@ -12,7 +12,7 @@
   <title>Instructions pour l'installation de &os;/&arch; &release.current; </title>
 
   <corpauthor>
-  Le projet  &os;
+  Le projet &os;
   </corpauthor>
 
   <copyright>
