@@ -48,6 +48,10 @@ struct lock_class lock_class_sx = {
 	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE
 };
 
+#ifndef INVARIANTS
+#define	_sx_assert(sx, what, file, line)
+#endif
+
 void
 sx_init(struct sx *sx, const char *description)
 {
@@ -294,6 +298,10 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 }
 
 #ifdef INVARIANT_SUPPORT
+#ifndef INVARIANTS
+#undef	_sx_assert
+#endif
+
 /*
  * In the non-WITNESS case, sx_assert() can only detect that at least
  * *some* thread owns an slock, but it cannot guarantee that *this*
