@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.34 1997/07/21 13:11:11 kato Exp $
+ *	$Id: pc98.c,v 1.35 1997/07/24 14:10:54 kato Exp $
  */
 
 /*
@@ -961,8 +961,9 @@ int
 isa_dmastatus(int chan)
 {
 	u_long	cnt = 0;
-	int	ffport, waport, s;
-	u_long	low, high, low2, high2;
+	int	ffport, waport;
+	u_long	low1, high1, low2, high2;
+	u_long	ef;
 
 	/* channel active? */
 	if (dma_inuse & (1 << chan) == 0) {
@@ -987,22 +988,25 @@ isa_dmastatus(int chan)
 		waport = DMA2_CHN(chan - 4) + 2;
 	}
 #endif
-	s = splhigh();			/* no interrupts Mr Jones! */
+	disable_intr();			/* no interrupts Mr Jones! */
 	outb(ffport, 0);		/* clear register LSB flipflop */
-	low = inb(waport);
-	high = inb(waport);
-	outb(ffport, 0);		/* clear again (paranoia?) */
+	low1 = inb(waport);
+	high1 = inb(waport);
+	outb(ffport, 0);		/* clear again */
 	low2 = inb(waport);
 	high2 = inb(waport);
-	splx(s);
+	enable_intr();			/* enable interrupts again */
 
-	/* now decide if a wrap has tried to skew our results */
-	if (low >= low2) {
-		cnt = low + (high << 8) + 1;
+	/* 
+	 * Now decide if a wrap has tried to skew our results.
+	 * Note that after TC, the count will read 0xffff, while we want 
+	 * to return zero, so we add and then mask to compensate.
+	 */
+	if (low1 >= low2) {
+		cnt = (low1 + (high1 << 8) + 1) & 0xffff;
 	} else {
-		cnt = low2 + (high2 << 8) + 1;
+		cnt = (low2 + (high2 << 8) + 1) & 0xffff;
 	}
-	cnt = (cnt + 1) & 0xffff;
 
 	if (chan >= 4)			/* high channels move words */
 		cnt *= 2;
