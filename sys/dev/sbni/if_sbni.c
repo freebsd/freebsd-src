@@ -1253,7 +1253,7 @@ calc_crc32(u_int32_t crc, caddr_t p, u_int len)
 #endif	/* ASM_CRC */
 
 
-static u_int32_t crc32tab[] __attribute__ ((aligned(8))) = {
+static u_int32_t crc32tab[] __aligned(8) = {
 	0xD202EF8D,  0xA505DF1B,  0x3C0C8EA1,  0x4B0BBE37,
 	0xD56F2B94,  0xA2681B02,  0x3B614AB8,  0x4C667A2E,
 	0xDCD967BF,  0xABDE5729,  0x32D70693,  0x45D03605,
