@@ -41,7 +41,6 @@
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/uniip_var.h>
 
-#include <netatm/uni/uni.h>
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>

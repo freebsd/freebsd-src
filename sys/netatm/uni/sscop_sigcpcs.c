@@ -37,7 +37,6 @@
 
 #include <netatm/kern_include.h>
 
-#include <netatm/uni/uni.h>
 #include <netatm/uni/sscop.h>
 #include <netatm/uni/sscop_misc.h>
 #include <netatm/uni/sscop_pdu.h>

@@ -39,7 +39,6 @@
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
-#include <dev/hea/eni_var.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
