@@ -84,7 +84,7 @@ popen(command, type)
 		return (NULL);
 	}
 
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:			/* Error. */
 		(void)close(pdes[0]);
 		(void)close(pdes[1]);
