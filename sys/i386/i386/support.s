@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41.2.1 1996/11/09 21:08:19 phk Exp $
+ *	$Id: support.s,v 1.41.2.2 1996/11/12 09:08:04 phk Exp $
  */
 
 #include "opt_cpu.h"
-#include "opt_temporary.h"			/* for I586_*_B* */
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
