@@ -417,7 +417,6 @@ proc0_post(dummy)
 
 	/*
 	 * Give the ``random'' number generator a thump.
-	 * XXX: Does read_random() contain enough bits to be used here ?
 	 */
 	nanotime(&ts);
 	srandom(ts.tv_sec ^ ts.tv_nsec);
