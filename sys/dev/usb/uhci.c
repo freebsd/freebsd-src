@@ -1370,6 +1370,7 @@ uhci_check_intr(uhci_softc_t *sc, uhci_intr_info_t *ii)
  done:
 	DPRINTFN(12, ("uhci_check_intr: ii=%p done\n", ii));
 	usb_uncallout(ii->xfer->timeout_handle, uhci_timeout, ii);
+	usb_rem_task(ii->xfer->pipe->device, &UXFER(ii->xfer)->abort_task);
 	uhci_idone(ii);
 }
 
@@ -1945,8 +1946,8 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
 		usb_uncallout(xfer->timeout_handle, uhci_timeout, xfer);
-		usb_transfer_complete(xfer);
 		usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
+		usb_transfer_complete(xfer);
 		splx(s);
 		return;
 	}
