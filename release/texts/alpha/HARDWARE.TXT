@@ -128,7 +128,7 @@ design is the 21064. It was produced in a chip process called MOS4,
 chips made in this process are nicknamed EV4. Newer CPUs are 21164, 21264
 etc. You will see designations like EV4S, EV45, EV5, EV56, EV6, EV67.
 The EVs with double digit numbers are slightly improved versions. For example
-EV45 has an improved FPU and 16 kByte onchip seperate I & D caches compared
+EV45 has an improved FPU and 16 kByte onchip separate I & D caches compared
 to the EV4 on which it is based. Rule of thumb: the higher the digit
 immediately following 'EV' the more desirable (read: faster / more modern).
 
@@ -398,7 +398,7 @@ bug. The SRM does not know about the ECO and will complain about unknown cards
 as before. So does the FreeBSD kernel by the way.
 
 EIDE:
-The Miata SRM can boot from IDE CDROM drives. Harddisk boot is known to work for
+The Miata SRM can boot from IDE CDROM drives. Hard disk boot is known to work for
 both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
 on MX5 are around 14 Mbytes/sec assuming a suitable drive. The CMD646 chip will
 support up to WDMA2 mode as the silicon is too buggy for use with UDMA.
@@ -409,8 +409,13 @@ some of the MX5 riser card versions. Some of the MX5 risers have the *same*
 chip as the MiataGL. All in all there is a lot of variation.
 
 Sound: 
-both MX5 and MiataGL have an onboard sound chip, an ESS1888.  
-I have yet to see/hear it work on my MiataGL. But it is being worked on.
+Both MX5 and MiataGL have an on-board sound chip, an ESS1888. It emulates
+a SoundBlaster and can be enabled by putting 
+
+	device pcm0                                                           
+	device sbc0    
+
+in your kernel configuration file.
 
 Cache: 
 in case your Miata has the optional cache board installed make sure
@@ -429,7 +434,7 @@ Does not currently seem to work on FreeBSD/alpha judging from the kernel
 probe messages.
 
 Power:
-disconnect the powercord before dismantling the machine, the soft-power
+disconnect the power cord before dismantling the machine, the soft-power
 switch keeps part of the logic powered even when the machine is switched
 off.
 
@@ -454,7 +459,7 @@ DEC3000/500-class are quite fast (considering their age) thanks to the
 good memory design. DEC3000/300 is crippled compared to DEC3000/500 because
 of its much narrower memory bus.
 
-They are called 'Birds' because their internal DEC codenames were bird
+They are called 'Birds' because their internal DEC code names were bird
 names:
 
 	DEC3000/400     'Sandpiper' 133MHz CPU, desktop
@@ -519,7 +524,7 @@ be mixed, as long as the pairs themselves are identical.
 When you find yourself in need of fixing 32Mbyte SIMMs that lack correct
 presence bits the following info might be of use:
 
-There are four presence detection bits on PS/2 simms.  Two of       
+There are four presence detection bits on PS/2 SIMMs.  Two of       
 the bits indicate the access time.  The other two indicate the memory size.
 
 At one end of the simm there are two rows of four solder pads.  One
@@ -617,7 +622,7 @@ ancient anyway.
 
 SCSI: 
 The EB64+ SRM can boot both 53C810 and Qlogic1040 SCSI adapters. Pitfall for
-the Qlogic is that the firmware that is downloaded by the SRM onto the
+the Qlogic is that the firmware that is down-loaded by the SRM onto the
 Qlogic chip is very old. There are no updates for the EB64+ SRM available. 
 So you are stuck with old Qlogic bits too. I have had quite some problems
 when I wanted to use Ultra-SCSI drives on the Alpine/Qlogic. The
@@ -705,11 +710,11 @@ For the EB164 class machines the kernel config file must contain:
 
 The Digital AlphaStation 200 and 400 series systems are early PCI based
 workstations for the lower end. The 200 series is a desktop box, the 400
-series is a deskside mini-tower.
+series is a desk-side mini-tower.
 
 Features:
 - 21064 or 21064A CPU
-- DECchip 21071-AA (core logic chipset) consisting of:
+- DECchip 21071-AA (core logic chip-set) consisting of:
     Cache/memory controller (one 21071-CA chip)
     PCI interface (one 21071-DA chip)
     Data path (two 21071-BA chips)
@@ -738,7 +743,10 @@ the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
 bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
 
 Sound:
-the sound interface is not supported by FreeBSD. 
+The AS200 sound hardware is reported to work OK assuming you have the following
+line in your kernel config file:
+
+	device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
 
 SCSI:
 AlphaStation 200 series has an automatic SCSI terminator. This means that as
@@ -761,13 +769,13 @@ For the AlphaStation-[24]00 machines the kernel config file must contain:
 *
 AS500 and 600 were the high-end EV5 / PCI based workstations. EV6 based
 machines have in the meantime taken their place as front runners. AS500 is
-a desktop in a dark blue case (TopGun blue), AS600 is a sturdy deskside box.
+a desktop in a dark blue case (TopGun blue), AS600 is a sturdy desk-side box.
 AS600 has a nice LCD panel to observe the early stages of SRM startup.
 
 Features:
 - 21164 EV5 CPU at 333, 400 or 500 MHz (AS500)
 		at 266 or 300 MHz (AS600)
-- 21171 or 21172 (Alcor) core logic chipset
+- 21171 or 21172 (Alcor) core logic chip-set
 - cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
 	 4 Mb L3 / Bcache (AS600 at 300 MHz)
 	 2 or 8 Mb L3 / Bcache (8 Mb on 500 MHz version only)
@@ -837,8 +845,8 @@ For the AlphaStation-[56]00 machines the kernel config file must contain:
 *
 * AlphaServer 1000 ("Mikasa"), 1000A ("Noritake") and 800 
 *
-The AlphaServer range of machines are aimed as departmental servers. They
-come in quite some variations in packaging and mainboard/cpu. Generally
+The AlphaServer 1000 and 800 range of machines is aimed as departmental servers.
+They come in quite some variations in packaging and mainboard/cpu. Generally
 speaking there are 21064 (EV4) CPU based machines and 21164 (EV5) based
 ones. The CPU is on a daughter card, and the type of CPU (EV4 or EV5) must
 match the mainboard in use. AlphaServer 800 is a much smaller mini tower
@@ -867,7 +875,7 @@ Features:
 - embedded SCSI based on NCR/Symbios 810 [AS1000] or Qlogic 1020 [AS1000A]
 	
 Box:
-AS1000 based machines come in multiple boxes. Floor standing, rackmount,
+AS1000 based machines come in multiple boxes. Floor standing, rack-mount,
 with or without StorageWorks SCSI chassis etc. The electronics are the
 same.
 
@@ -999,7 +1007,7 @@ Memory:
 For 500 MHz CPUs 83 MHz DIMMs will do. DIMMs are installed in sets of 4,
 starting with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
 DIMMs are installed 'physically interleaved', note the markings of the
-slots. Memory bandwith of Monet is twice that of Webbrick.
+slots. Memory bandwidth of Monet is twice that of Webbrick.
 
 EIDE:
 Is usable / bootable for system disk so FreeBSD can be rooted on an EIDE
@@ -1041,7 +1049,7 @@ Features:
 
 Case:
 DS20 is housed in a fat minitower-like enclosure. The enclosure also
-contains a StorageWorks SCSI hotswap shelf for a maximum of 7 3.5" SCSI
+contains a StorageWorks SCSI hot-swap shelf for a maximum of 7 3.5" SCSI
 devices. DS20E is a sleeker case, without the StorageWorks shelf.
 
 Embedded SCSI:
@@ -1098,7 +1106,7 @@ DP264 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable
 and will only use the primary CPU.
 
 Embedded SCSI:
-The onboard Adaptec is not bootable but works with FreeBSD 4.0 and later
+The on-board Adaptec is not bootable but works with FreeBSD 4.0 and later
 as a datadisk-only SCSI bus.
 
 Embedded IDE:
@@ -1111,13 +1119,100 @@ The kernel config file must contain:
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
+*
+* AlphaServer 8200 and 8400 ("TurboLaser")
+*
+The AlphaServer 8200 and 8400 machines are aimed as enterprise servers.
+Expect a tall 19" cabinet (8200) or fat (8400) 19" rack. This is big iron,
+not a hobbyist system. These are multi-CPU machines, up to 12 CPUs can be in
+a single machine. The TurboLaser System Bus (TLSB) allows 9 nodes on the
+AS8400 and 5 nodes on the AS8200. TLSB is 256 bit data, 40 bit address
+allowing 2.1 Gbytes/sec. Nodes on the TLSB can be CPUs, memory or I/O. A 
+maximum of 3 I/O ports are supported on a TLSB. Basic disk storage is housed
+in a StorageWorks shelf.
+
+Features: 
+- 21164 EV5 CPUs at up to 467 MHz
+  21264 EV67 CPUs at up to 625 MHz
+  one or two CPUs per CPU module
+- cache: 4Mbytes per CPU
+- memory bus: 256 bit with ECC
+- memory:
+	uses big memory modules that plug into the TLSB, which in turn
+	hold special SIMM modules.
+	memory modules come in varying sizes, up to 2 Gbytes a piece.
+	uses ECC (8 bites per 64 bits of data)
+	7 modules max for AS8400, 3 modules max for AS8200
+	maximum memory is 14 Gbytes
+- expansion:
+	3 system 'I/O ports' that allow up to 12 I/O channels
+	each I/O channel can connect to XMI, Futurebus+ or PCI boxes
+       
+Memory:
+FreeBSD supports (and has been tested with) up to 2 Gbytes of memory on 
+TurboLaser.
+
+CPU:
+TurboLaser is very much a multiprocessor machine. Currently FreeBSD only
+uses one CPU.
+
+Expansion:
+Only PCI expansion is supported on FreeBSD. XMI or Futurebus+ (which 
+are AS8400 only) are both unsupported.
+
+The I/O port modules are designated KFTIA or KFTHA. The I/O port modules
+supply so called 'hoses' that connect to up to 4 (KFTHA) PCI buses or 1
+PCI bus (KFTIA). KFTIA has embedded dual 10baseT Ethernet, single FDDI,
+3 SCSI Fast Wide Differential SCSI buses and a single Fast Wide Single Ended
+SCSI bus. The FWSE SCSI is intended for the systems CDROM.
+
+KFTHA can drive via each of its 4 hoses a DWLPA or DWLPB box. The DWLPx
+house a 12 slots 32 bit PCI backplane. Physically the 12 slots are 3 4-slot
+buses but to the software it appears as a single 12 slots PCI bus. A fully
+expanded AS8x00 can have 3 (I/O ports) times 4 (hoses) times 12 (PCI
+slots/DWLPx) = 144 PCI slots. The maximum bandwidth per KFTHA is 500
+Mbytes/second. DWLPA can also house 8 EISA cards, 2 slots are PCI-only, 2
+slots are EISA only. Of the 12 slots 2 are always occupied by an I/O and
+connector module.
+
+For best performance distribute high bandwidth (FibreChannel, Gigabit Ethernet)
+over multiple hoses and/or multiple KFTHA/KFTIA.
+
+Currently PCI expansion cards containing PCI bridges have not been tested.
+
+Embedded SCSI:
+The single ended SCSI bus on the KFTIA will turn up as the fourth (!) 
+SCSI bus. The 3 differential SCSI buses of the KFTIA precede it. 
+
+Console:
+AS8x00 are generally run with serial consoles. Some newer machines might
+have a graphical console of some sorts but FreeBSD has only been tested on
+a serial console.
+
+For serial console usage either change /etc/ttys to have:
+
+        console "/usr/libexec/getty std.9600"   unknown   on secure
+
+as the console entry, or add
+
+        zs0     "/usr/libexec/getty std.9600"   unknown   on secure
+
+and make the zs node:
+
+        mknod  /dev/zs0  c 135 0
+
+For the AlphaServer 8x00 machines the kernel config file must
+contain:
+	options         DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
+        cpu             EV5 
+
 Supported hardware overview
 ---------------------------
 
 Word of caution: the installed base for FreeBSD/alpha is not nearly as large
-as for FreeBSD/intel. This means that the enormous variation of PCI/ISA
+as for FreeBSD/Intel. This means that the enormous variation of PCI/ISA
 expansion cards out there has much less chance of having been tested on
-alpha than on intel. This is not to imply they are doomed to fail, just that
+alpha than on Intel. This is not to imply they are doomed to fail, just that
 the chance of running into something never tested before is much greater.
 GENERIC contains things that are known to work on Alpha only.
 
@@ -1148,7 +1243,7 @@ a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed
 to work by Compaq/DEC for each and every card type out there. When the SRM 
 thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
 works just like on a FreeBSD/intel machine. The TGA video graphics which 
-is builtin on for example Multia is reported to be not usable with FreeBSD.
+is built-in on for example Multia is reported to be not usable with FreeBSD.
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
@@ -1163,8 +1258,6 @@ Hardware support due soon
 -------------------------
 
 - Support for the AlphaServer 4100 ("Rawhide") machines (post-4.0)
-
-- Support for the AlphaServer 8200 ("TurboLaser") machines (post-4.0)
 
 Acknowledgments
 ----------------
