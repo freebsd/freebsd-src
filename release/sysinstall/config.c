@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.27 1995/10/27 01:22:52 jkh Exp $
+ * $Id: config.c,v 1.16.2.28 1995/10/27 02:12:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -319,7 +319,7 @@ void
 configResolv(void)
 {
     FILE *fp;
-    char *cp;
+    char *cp, *hp;
 
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
@@ -354,9 +354,10 @@ configResolv(void)
 skip:
     /* Tack ourselves at the end of /etc/hosts */
     cp = variable_get(VAR_IPADDR);
-    if (cp && *cp != '0' && variable_get(VAR_HOSTNAME)) {
+    if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
 	char cp2[255];
 
+	(void)vsystem("hostname %s", hp);
 	fp = fopen("/etc/hosts", "a");
 	if (!index(cp, '.'))
 	    cp2[0] = '\0';
@@ -364,7 +365,7 @@ skip:
 	    strcpy(cp2, cp);
 	    *(index(cp2, '.')) = '\0';
 	}
-	fprintf(fp, "%s\t\t%s %s\n", cp, variable_get(VAR_HOSTNAME), cp2);
+	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
