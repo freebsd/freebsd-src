@@ -188,8 +188,8 @@ onehost(char *host)
 	bzero((char *)&up, sizeof(up));
 	tv.tv_sec = 15;	/* XXX ?? */
 	tv.tv_usec = 0;
-	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL,
-	    xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
+	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
+	    (xdrproc_t)xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
 		errx(1, "%s", clnt_sperror(rusers_clnt, ""));
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
 	rusers_reply((caddr_t)&up, &addr);
@@ -204,8 +204,9 @@ allhosts(void)
 
 	bzero((char *)&up, sizeof(up));
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE,
-	    RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, (char *)&up,
-	    rusers_reply);
+	    RUSERSPROC_NAMES, (xdrproc_t)xdr_void, NULL,
+	    (xdrproc_t)xdr_utmpidlearr, (char *)&up,
+	    (resultproc_t)rusers_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
