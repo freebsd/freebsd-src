@@ -8,6 +8,9 @@
 # Lines that begin with 'hints.' are NOT for config(8), they go into your
 # hints file.  See /boot/device.hints and/or the 'hints' config(8) directive.
 #
+# Please use ``make LINT'' to create an old-style LINT file if you want to
+# do kernel test-builds.
+#
 # $FreeBSD$
 #
 
