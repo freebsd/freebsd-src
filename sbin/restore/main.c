@@ -52,11 +52,11 @@ static const char rcsid[] =
 #include <protocols/dumprestore.h>
 
 #include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "pathnames.h"
 #include "restore.h"
 #include "extern.h"
 
