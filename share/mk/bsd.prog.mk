@@ -5,8 +5,17 @@
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
-CFLAGS+=${COPTS} ${DEBUG_FLAGS}
+.if defined(COPTS)
+CFLAGS+=${COPTS}
+.endif
+
+.if defined(DEBUG_FLAGS)
+CFLAGS+=${DEBUG_FLAGS}
+.endif
+
+.if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
+.endif
 
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
@@ -79,7 +88,13 @@ all: objwarn ${PROG} ${SCRIPTS}
 all: _manpages
 .endif
 
-CLEANFILES+= ${PROG} ${OBJS}
+.if defined(PROG)
+CLEANFILES+= ${PROG}
+.endif
+
+.if defined(OBJS)
+CLEANFILES+= ${OBJS}
+.endif
 
 .if defined(PROG)
 _EXTRADEPEND:
