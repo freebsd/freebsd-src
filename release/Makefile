@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.340 1998/02/01 06:35:44 pst Exp $
+#	$Id: Makefile,v 1.341 1998/02/13 20:34:25 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -620,7 +620,7 @@ installCRUNCH:
 #
 doKERNEL:
 	rm -f ${RD}/kernels/${KERNEL}
-	cd ${.CURDIR}/../sys/i386/conf && config -n ${KERNEL}
+	cd ${.CURDIR}/../sys/i386/conf && config ${KERNEL}
 	cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
