@@ -87,8 +87,8 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 		   acpi_name(handle), AcpiFormatException(status));
 	return_ACPI_STATUS(status);
     }
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s - got %d bytes of resources\n",
-		      acpi_name(handle), buf.Length));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "%s - got %ld bytes of resources\n",
+		      acpi_name(handle), (long)buf.Length));
     set->set_init(dev, &context);
 
     /*
