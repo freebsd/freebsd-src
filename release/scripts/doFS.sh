@@ -1,9 +1,9 @@
-:
-#set -ex
+#!/bin/sh
+#
+# $FreeBSD$
+#
+set -e
 
-if [ "x$VNDEVICE" = "x" ] ; then
-	VNDEVICE=vn0
-fi
 export BLOCKSIZE=512
 
 if [ "$1" = "-s" ]; then
@@ -22,33 +22,35 @@ FSLABEL=$1 ; shift
 
 deadlock=20
 
-u=`expr $VNDEVICE : 'vn\([0-9]*\)' || true`
-rm -f /dev/*vnn*
-mknod /dev/vnn${u} c 43 `expr 65538 + $u '*' 8`
-mknod /dev/vnn${u}c c 43 `expr 2 + $u '*' 8`
-VNDEVICE=vnn$u
-
 while true 
 do
 	rm -f ${FSIMG}
 
-	umount /dev/${VNDEVICE} 2>/dev/null || true
-
-	umount ${MNT} 2>/dev/null || true
-
-	vnconfig -u /dev/${VNDEVICE} 2>/dev/null || true
+	if [ "x${MDDEVICE}" != "x" ] ; then
+		umount /dev/${MDDEVICE} 2>/dev/null || true
+		umount ${MNT} 2>/dev/null || true
+		mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
+	fi
 
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 	# this suppresses the `invalid primary partition table: no magic'
 	awk 'BEGIN {printf "%c%c", 85, 170}' |\
 	    dd of=${FSIMG} obs=1 seek=510 conv=notrunc 2>/dev/null
 
-	vnconfig -s labels -c /dev/${VNDEVICE} ${FSIMG}
-	disklabel -Brw /dev/${VNDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -T ${FSLABEL} -o space /dev/${VNDEVICE}c
-	tunefs -m 0 /dev/${VNDEVICE}c
+	MDDEVICE=`mdconfig -a -t vnode -f ${FSIMG}`
+	if [ ! -c /dev/${MDDEVICE} ] ; then
+		if [ -f /dev/MAKEDEV ] ; then
+			( cd /dev && sh MAKEDEV ${MDDEVICE} )
+		else
+			echo "No /dev/$MDDEVICE and no MAKEDEV" 1>&2
+			exit 1
+		fi
+	fi
+	disklabel -Brw /dev/${MDDEVICE} ${FSLABEL}
+	newfs -i ${FSINODE} -T ${FSLABEL} -o space /dev/${MDDEVICE}c
+	tunefs -m 0 /dev/${MDDEVICE}c
 
-	mount /dev/${VNDEVICE}c ${MNT}
+	mount /dev/${MDDEVICE}c ${MNT}
 
 	if [ -d ${FSPROTO} ]; then
 		(set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT})
@@ -61,7 +63,7 @@ do
 	set `df -ki ${MNT} | tail -1`
 
 	umount ${MNT}
-	vnconfig -u /dev/${VNDEVICE} 2>/dev/null || true
+	mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 
 	echo "*** Filesystem is ${FSSIZE} K, $4 left"
 	echo "***     ${FSINODE} bytes/inode, $7 left"
@@ -70,4 +72,3 @@ do
 	fi
 	break;
 done
-rm -f /dev/*vnn*
