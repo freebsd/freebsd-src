@@ -377,18 +377,13 @@ out:
 * Routing table ioctl interface.
 */
 int
-rtioctl(req, data, p)
+rtioctl(req, data)
 	int req;
 	caddr_t data;
-	struct proc *p;
 {
 #ifdef INET
 	/* Multicast goop, grrr... */
-#ifdef MROUTING
 	return mrt_ioctl(req, data);
-#else
-	return mrt_ioctl(req, data, p);
-#endif
 #else /* INET */
 	return ENXIO;
 #endif /* INET */
