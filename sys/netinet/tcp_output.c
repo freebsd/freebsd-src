@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.3 1994/09/15 10:36:55 davidg Exp $
+ * $Id: tcp_output.c,v 1.4 1995/01/23 17:58:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -157,6 +157,11 @@ again:
 		}
 	}
 	if (len > tp->t_maxseg) {
+		/*
+		 * If there is still more to send, don't close the connection.
+		 */
+		flags &= ~TH_FIN;
+
 		len = tp->t_maxseg;
 		sendalot = 1;
 	}
