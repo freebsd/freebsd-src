@@ -1,4 +1,4 @@
-/* ntptrace.h,v 3.1 1993/07/06 01:09:39 jbj Exp
+/*
  * ntptrace.h - declarations for the ntptrace program
  */
 

@@ -1,4 +1,4 @@
-/* ntp_io.c,v 3.1 1993/07/06 01:11:17 jbj Exp
+/*
  * xntp_io.c - input/output routines for xntpd.  The socket-opening code
  *	       was shamelessly stolen from ntpd.
  */
@@ -7,12 +7,13 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
-
-#ifdef MCAST
-#include "ntp_in.h"
-#endif /* MCAST */
+#ifndef __bsdi__
+#include <netinet/in.h>
+#endif
+#if defined(__bsdi__) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) || defined(SYS_AIX)
+#include <sys/ioctl.h>
+#endif
 
 #include "ntpd.h"
 #include "ntp_select.h"
@@ -20,6 +21,10 @@
 #include "ntp_refclock.h"
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
+
+#if defined(MCAST) && !defined(IP_ADD_MEMBERSHIP)
+#undef MCAST
+#endif
 
 #if defined(BSD)&&!defined(sun)&&!defined(SYS_SINIXM)
 #if BSD >= 199006
@@ -61,7 +66,7 @@
 #define BLOCKIO()   ((void) block_sigio())
 #define UNBLOCKIO() ((void) unblock_sigio())
 #else
-#define BLOCKIO()   
+#define BLOCKIO()
 #define UNBLOCKIO()
 #endif
 
@@ -76,15 +81,15 @@
 /*
  * Memory allocation
  */
-U_LONG full_recvbufs;	/* number of recvbufs on fulllist */
-U_LONG free_recvbufs;	/* number of recvbufs on freelist */
+u_long full_recvbufs;	/* number of recvbufs on fulllist */
+u_long free_recvbufs;	/* number of recvbufs on freelist */
 
 static	struct recvbuf *freelist;	/* free buffers */
 static	struct recvbuf *fulllist;	/* lifo buffers with data */
 static	struct recvbuf *beginlist;	/* fifo buffers with data */
 
-U_LONG total_recvbufs;	/* total recvbufs currently in use */
-U_LONG lowater_additions;	/* number of times we have added memory */
+u_long total_recvbufs;	/* total recvbufs currently in use */
+u_long lowater_additions;	/* number of times we have added memory */
 
 static	struct recvbuf initial_bufs[RECV_INIT];	/* initial allocation */
 
@@ -92,15 +97,15 @@ static	struct recvbuf initial_bufs[RECV_INIT];	/* initial allocation */
 /*
  * Other statistics of possible interest
  */
-U_LONG packets_dropped;	/* total number of packets dropped on reception */
-U_LONG packets_ignored;	/* packets received on wild card interface */
-U_LONG packets_received;	/* total number of packets received */
-U_LONG packets_sent;	/* total number of packets sent */
-U_LONG packets_notsent;	/* total number of packets which couldn't be sent */
+u_long packets_dropped;	/* total number of packets dropped on reception */
+u_long packets_ignored;	/* packets received on wild card interface */
+u_long packets_received;	/* total number of packets received */
+u_long packets_sent;	/* total number of packets sent */
+u_long packets_notsent;	/* total number of packets which couldn't be sent */
 
-U_LONG handler_calls;	/* number of calls to interrupt handler */
-U_LONG handler_pkts;	/* number of pkts received by handler */
-U_LONG io_timereset;	/* time counters were reset */
+u_long handler_calls;	/* number of calls to interrupt handler */
+u_long handler_pkts;	/* number of pkts received by handler */
+u_long io_timereset;	/* time counters were reset */
 
 /*
  * Interface stuff
@@ -128,16 +133,16 @@ int maxactivefd;
 /*
  * Imported from ntp_timer.c
  */
-extern U_LONG current_time;
+extern u_long current_time;
 
 extern int errno;
 extern int debug;
 
-static	int	create_sockets	P((unsigned int));
+static	int	create_sockets	P((u_int));
 static	int	open_socket	P((struct sockaddr_in *, int));
 static	void	close_socket	P((int));
 #ifdef HAVE_SIGNALED_IO
-static  int 	init_clock_sig	P(());
+static  int	init_clock_sig	P(());
 static  void	init_socket_sig P((int));
 static  void	set_signal	P(());
 static  RETSIGTYPE sigio_handler P((int));
@@ -202,7 +207,7 @@ init_io()
  */
 static int
 create_sockets(port)
-	unsigned int port;
+	u_int port;
 {
 #ifdef STREAMS_TLI
 	struct strioctl	ioc;
@@ -223,7 +228,7 @@ create_sockets(port)
 	 */
 	inter_list[0].sin.sin_family = AF_INET;
 	inter_list[0].sin.sin_port = port;
-	inter_list[0].sin.sin_addr.s_addr = INADDR_ANY;
+	inter_list[0].sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	(void) strncpy(inter_list[0].name, "wildcard",
 	     sizeof(inter_list[0].name));
 	inter_list[0].mask.sin_addr.s_addr = htonl(~0);
@@ -231,9 +236,6 @@ create_sockets(port)
 	inter_list[0].sent = 0;
 	inter_list[0].notsent = 0;
 	inter_list[0].flags = INT_BROADCAST;
-#ifdef MCAST
-	inter_list[0].flags |= INT_MULTICAST;
-#endif /* MCAST */
 
 #ifdef USE_STREAMS_DEVICE_FOR_IF_CONFIG
 	if ((vs = open("/dev/ip", O_RDONLY)) < 0) {
@@ -246,7 +248,7 @@ create_sockets(port)
 
 	i = 1;
 
-  	ifc.ifc_len = sizeof(buf);
+	ifc.ifc_len = sizeof(buf);
 #ifdef STREAMS_TLI
 	ioc.ic_cmd = SIOCGIFCONF;
 	ioc.ic_timout = 0;
@@ -382,13 +384,13 @@ create_sockets(port)
 		}
 		inter_list[i].mask = *(struct sockaddr_in *)&ifreq.ifr_addr;
 
-		/* 
+		/*
 		 * look for an already existing source interface address.  If
-		 * the machine has multiple point to point interfaces, then 
+		 * the machine has multiple point to point interfaces, then
 		 * the local address may appear more than once.
-		 */		   
+		 */
 		for (j=0; j < i; j++)
-			if (inter_list[j].sin.sin_addr.s_addr == 
+			if (inter_list[j].sin.sin_addr.s_addr ==
 			    inter_list[i].sin.sin_addr.s_addr) {
 				break;
 			}
@@ -406,6 +408,15 @@ create_sockets(port)
 		    inter_list[i].flags & INT_BROADCAST);
 	}
 
+#if defined(MCAST) && !defined(sun) && !defined(SYS_BSDI) && !defined(SYS_DECOSF1) && !defined(SYS_44BSD)
+	/*
+	 * enable possible multicast reception on the broadcast socket
+	 */
+	inter_list[0].bcast.sin_addr.s_addr = htonl(INADDR_ANY);
+	inter_list[0].bcast.sin_family = AF_INET;
+	inter_list[0].bcast.sin_port = port;
+#endif /* MCAST */
+
 	/*
 	 * Blacklist all bound interface addresses
 	 */
@@ -419,7 +430,7 @@ create_sockets(port)
 	if (debug > 2) {
 		printf("create_sockets: ninterfaces=%d\n", ninterfaces);
 		for (i = 0; i < ninterfaces; i++) {
-			printf("interface %d:  fd=%d,  bfd=%d,  name=%.8s,  flags=0x%x\n", 
+			printf("interface %d:  fd=%d,  bfd=%d,  name=%.8s,  flags=0x%x\n",
 				i,
 				inter_list[i].fd,
 				inter_list[i].bfd,
@@ -454,7 +465,7 @@ io_setbclient()
 		if (inter_list[i].flags & INT_BCASTOPEN)
 			continue;
 #ifdef	SOLARIS
-		inter_list[i].bcast.sin_addr.s_addr = INADDR_ANY;
+		inter_list[i].bcast.sin_addr.s_addr = htonl(INADDR_ANY);
 #endif
 #ifndef SYS_DOMAINOS
 		inter_list[i].bfd = open_socket(&inter_list[i].bcast, 0);
@@ -464,30 +475,85 @@ io_setbclient()
 }
 
 
-#ifdef MCAST
 /*
  * io_multicast_add() - add multicast group address
  */
 void
 io_multicast_add(addr)
-	U_LONG addr;
+	u_long addr;
 {
-	int fd = inter_list[0].fd;
+#ifdef MCAST
 	struct ip_mreq mreq;
+	int i = ninterfaces;	/* Use the next interface */
+	u_long haddr = ntohl(addr);
+	struct in_addr iaddr;
+	int s;
+	struct sockaddr_in *sinp;
 
-	if (!IN_CLASSD(addr))
+	iaddr.s_addr = addr;
+
+	if (!IN_CLASSD(haddr))
+	{	syslog(LOG_ERR,
+		    "cannot add multicast address %s as it is not class D",
+		    inet_ntoa(iaddr));
 		return;
+	}
+
+	for (i=0; i<ninterfaces; i++) {
+		/* Already have this address */
+		if (inter_list[i].sin.sin_addr.s_addr == addr) return;
+		/* found a free slot */
+		if (inter_list[i].sin.sin_addr.s_addr == 0 &&
+		    inter_list[i].fd <= 0 && inter_list[i].bfd <= 0 &&
+		    inter_list[i].flags == 0) break;
+	}
+	sinp = &(inter_list[i].sin);
+
+	memset((char *)&mreq, 0, sizeof(mreq));
+	memset((char *)&inter_list[i], 0, sizeof inter_list[0]);
+	sinp->sin_family = AF_INET;
+	sinp->sin_addr = iaddr;
+	sinp->sin_port = htons(123);
+
+	s = open_socket(sinp, 0);
+	/* Try opening a socket for the specified class D address */
+	/* This works under SunOS 4.x, but not OSF1 .. :-( */
+	if (s < 0) {
+		memset((char *)&inter_list[i], 0, sizeof inter_list[0]);
+		i = 0;
+		/* HACK ! -- stuff in an address */
+		inter_list[i].bcast.sin_addr.s_addr = addr;
+		syslog(LOG_ERR, "...multicast address %s using wildcard socket",
+		    inet_ntoa(iaddr));
+	}
+	else {
+		inter_list[i].fd = s;
+		inter_list[i].bfd = -1;
+		(void) strncpy(inter_list[i].name, "multicast",
+		sizeof(inter_list[i].name));
+		inter_list[i].mask.sin_addr.s_addr = htonl(~0);
+	}
+
 	/*
 	 * enable reception of multicast packets
 	 */
-	mreq.imr_multiaddr.s_addr = addr;
-	mreq.imr_interface.s_addr = INADDR_ANY;
-	if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+	mreq.imr_multiaddr = iaddr;
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+	if (setsockopt(inter_list[i].fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 	    (char *)&mreq, sizeof(mreq)) == -1)
-		syslog(LOG_ERR, "setsockopt IP_ADD_MEMBERSHIP fails: %m");
-}
+		syslog(LOG_ERR,
+		"setsockopt IP_ADD_MEMBERSHIP fails: %m for %x / %x (%s)",
+			mreq.imr_multiaddr, mreq.imr_interface.s_addr,
+			inet_ntoa(iaddr));
+	inter_list[i].flags |= INT_MULTICAST;
+	if (i >= ninterfaces) ninterfaces = i+1;	
+#else /* MCAST */
+	struct in_addr iaddr;
+	iaddr.s_addr = addr;
+	syslog(LOG_ERR, "cannot add multicast address %s as no MCAST support",
+	    inet_ntoa(iaddr));
 #endif /* MCAST */
-
+}
 
 /*
  * io_unsetbclient - close the broadcast client sockets
@@ -506,38 +572,66 @@ io_unsetbclient()
 }
 
 
-#ifdef MCAST
 /*
  * io_multicast_del() - delete multicast group address
  */
 void
 io_multicast_del(addr)
-	U_LONG addr;
+	u_long addr;
 {
-	int fd = inter_list[0].fd;
+#ifdef MCAST
+        int i;
 	struct ip_mreq mreq;
+	struct sockaddr_in sinaddr;
 
-	if (!IN_CLASSD(addr))
+	if (!IN_CLASSD(addr)) {
+		sinaddr.sin_addr.s_addr = addr;
+		syslog(LOG_ERR,
+		    "invalid multicast address %s", ntoa(&sinaddr));
 		return;
+	}
+
 	/*
-	 * disable reception of multicast packets
+	 * Disable reception of multicast packets
 	 */
 	mreq.imr_multiaddr.s_addr = addr;
-	mreq.imr_interface.s_addr = INADDR_ANY;
-	if (setsockopt(fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-	    (char *)&mreq, sizeof(mreq)) == -1)
-		syslog(LOG_ERR, "setsockopt IP_DROP_MEMBERSHIP fails: %m");
-}
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+	for (i = 0; i < ninterfaces; i++) {
+		if (!(inter_list[i].flags & INT_MULTICAST))
+			continue;
+		if (!(inter_list[i].fd < 0))
+			continue;
+		if (addr != inter_list[i].sin.sin_addr.s_addr)
+			continue;
+		if (i != 0) {
+			/* we have an explicit fd, so we can slose it */
+			close_socket(inter_list[i].fd);
+			memset((char *)&inter_list[i], 0, sizeof inter_list[0]);
+			inter_list[i].fd = -1;
+			inter_list[i].bfd = -1;
+		} else {
+			/* We are sharing "any address" port :-(  Don't close it! */
+			if (setsockopt(inter_list[i].fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+				(char *)&mreq, sizeof(mreq)) == -1)
+				syslog(LOG_ERR, "setsockopt IP_DROP_MEMBERSHIP fails: %m");
+			/* This is **WRONG** -- there may be others ! */
+			/* There should be a count of users ... */
+			inter_list[i].flags &= ~INT_MULTICAST;
+		}
+        }
+#else /* MCAST */
+	syslog(LOG_ERR, "this function requires multicast kernel");
 #endif /* MCAST */
+}
 
 
 /*
  * open_socket - open a socket, returning the file descriptor
  */
 static int
-open_socket(addr, bcast)
+open_socket(addr, flags)
 	struct sockaddr_in *addr;
-	int bcast;
+	int flags;
 {
 	int fd;
 	int on = 1, off = 0;
@@ -548,10 +642,6 @@ open_socket(addr, bcast)
 		exit(1);
 		/*NOTREACHED*/
 	}
-
-	if (fd > maxactivefd)
-		maxactivefd = fd;
-	FD_SET(fd, &activefds);
 
 	/* set SO_REUSEADDR since we will be binding the same port
 	   number on each interface */
@@ -566,15 +656,32 @@ open_socket(addr, bcast)
 	if (bind(fd, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
 		char buff[160];
 		sprintf(buff,
-		    "bind() fd %d, family %d, port %d, addr %08x, bcast=%d fails: %%m", 
-			fd,
-			addr->sin_family,
-			addr->sin_port,
-			addr->sin_addr.s_addr,
-			bcast);
+	"bind() fd %d, family %d, port %d, addr %08lx, in_classd=%d flags=%d fails: %%m",
+		    fd, addr->sin_family, (int)ntohs(addr->sin_port),
+		    (u_long)ntohl(addr->sin_addr.s_addr),
+		    IN_CLASSD(ntohl(addr->sin_addr.s_addr)), flags);
 		syslog(LOG_ERR, buff);
+		close(fd);
+
+		/*
+		 * soft fail if opening a class D address
+		 */
+		if (IN_CLASSD(ntohl(addr->sin_addr.s_addr)))
+			return -1;
 		exit(1);
 	}
+#ifdef DEBUG
+	if (debug)
+		printf("bind() fd %d, family %d, port %d, addr %08lx, flags=%d\n",
+			fd,
+			addr->sin_family,
+			(int)ntohs(addr->sin_port),
+			(u_long)ntohl(addr->sin_addr.s_addr),
+			flags);
+#endif
+	if (fd > maxactivefd)
+		maxactivefd = fd;
+	FD_SET(fd, &activefds);
 
 #ifdef HAVE_SIGNALED_IO
         init_socket_sig(fd);
@@ -613,23 +720,9 @@ Need non blocking I/O
 		syslog(LOG_ERR, "setsockopt SO_REUSEADDR off fails: %m");
 	}
 
-#ifdef MCAST
-	/* for the moment we use the bcast option to set multicast ttl */
-
-	if (bcast) {
-	    unsigned char mttl = 127;
-
-	    /* set the multicast ttl for outgoing packets */
-	    if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, 
-			   &mttl, sizeof(mttl)) == -1) {
-		syslog(LOG_ERR, "setsockopt IP_MULTICAST_TTL fails: %m");
-	    }
-	}
-#endif /* MCAST */
-
 #ifdef SO_BROADCAST
 	/* if this interface can support broadcast, set SO_BROADCAST */
-	if (bcast) {
+	if (flags & INT_BROADCAST) {
 		if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST,
 		    (char *)&on, sizeof(on))) {
 			syslog(LOG_ERR, "setsockopt(SO_BROADCAST): %m");
@@ -679,7 +772,7 @@ findbcastinter(addr)
 {
 #ifdef SIOCGIFCONF
 	register int i;
-	register U_LONG netnum;
+	register u_long netnum;
 
 	netnum = NSRCADR(addr);
 	for (i = 1; i < ninterfaces; i++) {
@@ -709,7 +802,7 @@ getrecvbufs()
 
 #ifdef DEBUG
 	if (debug > 4)
-		printf("getrecvbufs: %d handler interrupts, %d frames\n",
+		printf("getrecvbufs: %ld handler interrupts, %ld frames\n",
 		    handler_calls, handler_pkts);
 #endif
 
@@ -726,7 +819,7 @@ getrecvbufs()
 	 */
 #ifdef DEBUG
 	if (debug > 4)
-		printf("getrecvbufs returning %d buffers\n", full_recvbufs);
+		printf("getrecvbufs returning %ld buffers\n", full_recvbufs);
 #endif
 	rb = beginlist;
 	fulllist = 0;
@@ -787,9 +880,10 @@ freerecvbuf(rb)
  * destination is logged.
  */
 void
-sendpkt(dest, inter, pkt, len)
+sendpkt(dest, inter, ttl, pkt, len)
 	struct sockaddr_in *dest;
 	struct interface *inter;
+	int ttl;
 	struct pkt *pkt;
 	int len;
 {
@@ -802,6 +896,7 @@ sendpkt(dest, inter, pkt, len)
 		u_short	port;
 		struct	in_addr addr;
 	};
+
 #ifndef ERRORCACHESIZE
 #define ERRORCACHESIZE 8
 #endif
@@ -813,9 +908,25 @@ sendpkt(dest, inter, pkt, len)
 
 #ifdef DEBUG
 	if (debug)
-		printf("sendpkt(fd=%d %s, %s, %d)\n", inter->fd, ntoa(dest),
-			ntoa(&inter->sin), len);
+		printf("%ssendpkt(fd=%d %s, %s, ttl=%d, %d)\n",
+			(ttl >= 0) ? "\tMCAST\t*****" : "",
+			inter->fd, ntoa(dest),
+			ntoa(&inter->sin), ttl, len);
 #endif
+
+#ifdef MCAST
+	/* for the moment we use the bcast option to set multicast ttl */
+	if (ttl >= 0 && ttl != inter->last_ttl) {
+	    u_char mttl = ttl;
+
+	    /* set the multicast ttl for outgoing packets */
+	    if (setsockopt(inter->fd, IPPROTO_IP, IP_MULTICAST_TTL,
+			   &mttl, sizeof(mttl)) == -1) {
+		syslog(LOG_ERR, "setsockopt IP_MULTICAST_TTL fails: %m");
+	    }
+	    else inter->last_ttl = ttl;
+	}
+#endif /* MCAST */
 
 	for (slot = ERRORCACHESIZE; --slot >= 0; )
 		if (badaddrs[slot].port == dest->sin_port &&
@@ -924,7 +1035,7 @@ again:
 					read(fd, (char *)&rb->recv_space, i);
 
 				if (rb->recv_length == -1) {
-					syslog(LOG_ERR, "clock read: %m");
+					syslog(LOG_ERR, "clock read fd %d: %m",						    fd);
 					rb->next = freelist;
 					freelist = rb;
 					free_recvbufs++;
@@ -937,6 +1048,7 @@ again:
 				 */
 				rb->recv_srcclock = rp->srcclock;
 				rb->dstadr = 0;
+				rb->fd = fd;
 				rb->recv_time = ts;
 				rb->receiver = rp->clock_recv;
 
@@ -969,43 +1081,45 @@ again:
 					break;
 				fd = inter_list[i].bfd;
 			}
+			if (fd < 0) continue;
 			if (FD_ISSET(fd, &fds)) {
 				n--;
 
 				/*
 				 * Get a buffer and read the frame.  If we
 				 * haven't got a buffer, or this is received
-				 * on the wild card socket, just dump the packet.
+				 * on the wild card socket, just dump the
+				 * packet.
 				 */
-
-				if (!(free_recvbufs && i == 0 && 
+				if (!(free_recvbufs && i == 0 &&
 				    inter_list[i].flags & INT_MULTICAST)) {
-
 #ifdef UDP_WILDCARD_DELIVERY
-/*
- * these guys manage to put properly addressed packets into the wildcard queue
- */
+				/*
+				 * these guys manage to put properly addressed
+				 * packets into the wildcard queue
+				 */
 				if (free_recvbufs == 0) {
 #else
-				if (i == 0 || free_recvbufs == 0) {
+					if (i == 0 || free_recvbufs == 0) {
 #endif
-					char buf[RX_BUFF_SIZE];
-
-#ifndef UDP_WILDCARD_DELIVERY
-					(void) read(fd, buf, sizeof buf);
-#else
-				        fromlen = 0;
-				        (void) recvfrom(fd, buf, sizeof(buf), 0,
-				                        (struct sockaddr *)0,
-							&fromlen);
+						char buf[RX_BUFF_SIZE];
+						struct sockaddr from;
+						fromlen = sizeof from;
+						(void) recvfrom(fd, buf,
+						    sizeof(buf), 0,
+						    &from, &fromlen);
+#ifdef DEBUG
+	if (debug)
+		printf("ignore/drop on %d(%lu) fd=%d from %s\n",
+		    i, free_recvbufs, fd,
+		    inet_ntoa(((struct sockaddr_in *) &from)->sin_addr));
 #endif
-
-					if (i == 0)
-						packets_ignored++;
-					else
-						packets_dropped++;
-					continue;
-				}
+						if (i == 0)
+							packets_ignored++;
+						else
+							packets_dropped++;
+						continue;
+					}
 				}
 	
 				rb = freelist;
@@ -1024,14 +1138,17 @@ again:
 					freelist = rb;
 					free_recvbufs++;
 #ifdef DEBUG
-	  if (debug)
-		  printf("input_handler: fd=%d dropped (bad recvfrom)\n", fd);
+	if (debug)
+		printf("input_handler: fd=%d dropped (bad recvfrom)\n", fd);
 #endif
 					continue;
 				}
 #ifdef DEBUG
-	  if (debug)
-		  printf("input_handler: fd=%d length %d\n", fd, rb->recv_length);
+	if (debug)
+		printf("input_handler: fd=%d length %d from %08lx %s\n",
+		    fd, rb->recv_length,
+		    (u_long)ntohl(rb->recv_srcadr.sin_addr.s_addr) &
+		    0x00000000ffffffff, inet_ntoa(rb->recv_srcadr.sin_addr));
 #endif
 
 				/*
@@ -1039,6 +1156,7 @@ again:
 				 * put it on the full list and do bookkeeping.
 				 */
 				rb->dstadr = &inter_list[i];
+				rb->fd = fd;
 				rb->recv_time = ts;
 				rb->receiver = receive;
 	
@@ -1074,7 +1192,7 @@ findinterface(addr)
 	struct sockaddr_in *addr;
 {
 	register int i;
-	register U_LONG saddr;
+	register u_long saddr;
 
 	/*
 	 * Just match the address portion.
@@ -1107,7 +1225,7 @@ io_clr_stats()
 
 
 #ifdef REFCLOCK
-/* 
+/*
  * This is a hack so that I don't have to fool with these ioctls in the
  * pps driver ... we are already non-blocking and turn on SIGIO thru
  * another mechanisim
@@ -1243,7 +1361,7 @@ io_closeclock(rio)
  * Spical cases first!
  */
 #if defined(SYS_HPUX)
-#define CLOCK_DONE 
+#define CLOCK_DONE
 static int
 init_clock_sig(rio)
 	struct refclockio *rio;
@@ -1273,12 +1391,12 @@ init_clock_sig(rio)
         }
 	return 0;	
 }
-#endif /* SYS_HPUX */ 
+#endif /* SYS_HPUX */
 #if defined(SYS_AIX)&&!defined(_BSD)
 /*
  * SYSV compatibility mode under AIX.
  */
-#define CLOCK_DONE 
+#define CLOCK_DONE
 static int
 init_clock_sig(rio)
 	struct refclockio *rio;
@@ -1302,7 +1420,7 @@ init_clock_sig(rio)
 	return 0;
 }
 #endif /* AIX && !BSD */
-#ifndef  CLOCK_DONE 
+#ifndef  CLOCK_DONE
 static int
 init_clock_sig(rio)
 	struct refclockio *rio;
@@ -1328,7 +1446,7 @@ static init_clock_sig(rio)
 	if (ioctl(rio->fd, I_SETSIG, S_INPUT) < 0) {
                 syslog(LOG_ERR,
                     "ioctl(I_SETSIG, S_INPUT) fails for clock I/O: %m");
-        	return 1;
+		return 1;
 	}
         return 0;
 }
@@ -1342,7 +1460,7 @@ static init_clock_sig(rio)
  * Special cases first!
  */
 #if defined(SYS_HPUX) || defined(SYS_LINUX)
-#define SOCKET_DONE 
+#define SOCKET_DONE
 static void
 init_socket_sig(fd)
 	int fd;
@@ -1380,7 +1498,7 @@ init_socket_sig(fd)
 /*
  * SYSV compatibility mod under AIX
  */
-#define SOCKET_DONE 
+#define SOCKET_DONE
 static void
 init_socket_sig(fd)
 	int fd;
@@ -1408,9 +1526,9 @@ init_socket_sig(fd)
 #endif /* AIX && !BSD */
 #if defined(UDP_BACKWARDS_SETOWN)
 /*
- * SunOS 3.5 and Ultirx 2.0 
+ * SunOS 3.5 and Ultirx 2.0
  */
-#define SOCKET_DONE 
+#define SOCKET_DONE
 static void
 init_socket_sig(fd)
 	int fd;
@@ -1635,8 +1753,8 @@ block_io_and_alarm()
 {
 	int mask;
 
-    	mask = sigmask(SIGIO)|sigmask(SIGALRM);
-    	(void)sigblock(mask);
+	mask = sigmask(SIGIO)|sigmask(SIGALRM);
+	(void)sigblock(mask);
 }
 
 void
@@ -1659,7 +1777,7 @@ unblock_io_and_alarm()
 {
 	int mask, omask;
 
-    	mask = sigmask(SIGIO)|sigmask(SIGALRM);
+	mask = sigmask(SIGIO)|sigmask(SIGALRM);
 	omask = sigblock(0);
 	omask &= ~mask;
 	(void)sigsetmask(omask);
@@ -1668,9 +1786,9 @@ unblock_io_and_alarm()
 void
 unblock_sigio()
 {
-   	int mask, omask;
-    
-    	mask = sigmask(SIGIO);
+	int mask, omask;
+
+	mask = sigmask(SIGIO);
 	omask = sigblock(0);
 	omask &= ~mask;
 	(void)sigsetmask(omask);
@@ -1681,7 +1799,7 @@ wait_for_signal()
 {
 	int mask, omask;
 	
-    	mask = sigmask(SIGIO)|sigmask(SIGALRM);
+	mask = sigmask(SIGIO)|sigmask(SIGALRM);
         omask = sigblock(0);
         omask &= ~mask;
 	sigpause(omask);

@@ -15,16 +15,16 @@ Make a conversion module (parse/clk_*.c)
     You will have to convert the data from a string into a struct clocktime:
       struct clocktime                /* clock time broken up from time code */
       {
-	LONG day;
-	LONG month;
-	LONG year;
-	LONG hour;
-	LONG minute;
-	LONG second;
-	LONG usecond;
-	LONG utcoffset;       /* in seconds */
+	long day;
+	long month;
+	long year;
+	long hour;
+	long minute;
+	long second;
+	long usecond;
+	long utcoffset;       /* in seconds */
 	time_t utcoffset;     /* true utc time instead of date/time */
-	LONG flags;           /* current clock status */
+	long flags;           /* current clock status */
       };
 
      Conversion is usually simple and straight forward. For the flags following
@@ -87,14 +87,14 @@ Make a conversion module (parse/clk_*.c)
 
 struct clockformat
 {
-  unsigned LONG (*convert)();
+  u_long (*convert)();
   /* conversion routine - your routine - cvt_<yourclock> */
   void          (*syncevt)();
   /* routine for handling RS232 sync events (time stamps) - usually sync_simple */
-  unsigned LONG (*syncpps)(); 
+  u_long (*syncpps)(); 
   /* PPS input routine - usually pps_simple */
-  unsigned LONG (*synth)();
-  /* time code synthesizer - usually not used - (LONG (*)())0 */
+  u_long (*synth)();
+  /* time code synthesizer - usually not used - (long (*)())0 */
   void           *data;
   /* local parameters - any parameters/data/configuration info your conversion
      routine might need */
@@ -102,7 +102,7 @@ struct clockformat
   /* clock format name - Name of the time code */
   unsigned short  length;
   /* maximum length of data packet for your clock format */
-  unsigned LONG   flags;
+  u_long   flags;
  /* information for the parser what to look for */
   struct timeval  timeout;
  /* buffer restart after timeout (us) - some clocks preceede new data by
@@ -148,7 +148,7 @@ xntpd/refclock_parse.c
   (see all the other clocks for example)
   struct clockinfo
   {
-    U_LONG  cl_flags;             /* operation flags (io modes) */
+    u_long  cl_flags;             /* operation flags (io modes) */
     PARSE_F_NOPOLLONLY   always do async io - read whenever input comes
     PARSE_F_POLLONLY     never do async io - only read when expecting data
     PARSE_F_PPSPPS       use loopfilter PPS code (CIOGETEV)
@@ -166,10 +166,10 @@ xntpd/refclock_parse.c
     local data for polling routines
     u_fp    cl_rootdelay;         /* rootdelay */
     NTP rottdelay estimate (usually 0)
-    U_LONG  cl_basedelay;         /* current offset - unsigned l_fp fractional par
+    u_long  cl_basedelay;         /* current offset - unsigned l_fp fractional par
     time (fraction) by which the RS232 time code is delayed from the actual time.
   t */
-    U_LONG  cl_ppsdelay;          /* current PPS offset - unsigned l_fp fractional
+    u_long  cl_ppsdelay;          /* current PPS offset - unsigned l_fp fractional
     time (fraction) by which the PPS time stamp is delayed (usually 0)
    part */
     char   *cl_id;                /* ID code (usually "DCF") */
@@ -181,14 +181,14 @@ xntpd/refclock_parse.c
     as in clk_*.c clockformat.
     u_char  cl_type;              /* clock type (ntp control) */
     Type if clock as in clock status word (ntp control messages) - usually 0
-    U_LONG  cl_maxunsync;         /* time to trust oscillator after loosing synch
+    u_long  cl_maxunsync;         /* time to trust oscillator after loosing synch
   */
     seconds a clock can be trusted after loosing synchronisation.
 
-    U_LONG  cl_cflag;             /* terminal io flags */
-    U_LONG  cl_iflag;             /* terminal io flags */
-    U_LONG  cl_oflag;             /* terminal io flags */
-    U_LONG  cl_lflag;             /* terminal io flags */
+    u_long  cl_cflag;             /* terminal io flags */
+    u_long  cl_iflag;             /* terminal io flags */
+    u_long  cl_oflag;             /* terminal io flags */
+    u_long  cl_lflag;             /* terminal io flags */
     termio*.h tty modes.
   } clockinfo[] = {
   ...,<other clocks>,...

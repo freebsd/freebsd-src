@@ -1,5 +1,5 @@
 #
-# Makefile.tmpl,v 3.1 1993/07/06 01:11:10 jbj Exp
+# Makefile.tmpl
 #
 PROGRAM=	xntpd
 #
@@ -29,24 +29,28 @@ TOP=../
 SOURCE=	ntp_config.c ntp_control.c ntp_io.c ntp_leap.c \
 	ntp_loopfilter.c ntp_monitor.c ntp_peer.c ntp_proto.c \
 	ntp_refclock.c ntp_request.c ntp_restrict.c ntp_timer.c \
-	ntp_unixclock.c ntp_util.c ntpd.c refclock_chu.c \
-	refclock_conf.c refclock_local.c refclock_pst.c \
-	refclock_wwvb.c refclock_goes.c refclock_mx4200.c \
-	refclock_parse.c refclock_as2201.c refclock_omega.c \
-	refclock_tpro.c refclock_leitch.c refclock_irig.c \
-	refclock_msfees.c refclock_gpstm.c refclock_trak.c \
-	ntp_intres.c ntp_filegen.c
+	ntp_unixclock.c ntp_util.c ntp_intres.c ntp_filegen.c ntpd.c \
+	refclock_conf.c refclock_chu.c refclock_local.c \
+	refclock_pst.c refclock_wwvb.c refclock_goes.c \
+	refclock_mx4200.c refclock_parse.c refclock_as2201.c \
+	refclock_omega.c refclock_tpro.c refclock_leitch.c \
+	refclock_irig.c refclock_msfees.c refclock_gpstm.c \
+	refclock_trak.c refclock_datum.c refclock_acts.c \
+	refclock_heath.c, refclock_nmea.c refclock_moto.c \
+	refclock_atom.c
 
 OBJS=	ntp_config.o ntp_control.o ntp_io.o ntp_leap.o \
 	ntp_loopfilter.o ntp_monitor.o ntp_peer.o ntp_proto.o \
 	ntp_refclock.o ntp_request.o ntp_restrict.o ntp_timer.o \
-	ntp_unixclock.o ntp_util.o ntpd.o refclock_chu.o \
-	refclock_conf.o refclock_local.o refclock_pst.o \
-	refclock_wwvb.o refclock_goes.o refclock_mx4200.o \
-	refclock_parse.o refclock_as2201.o refclock_omega.o \
-	refclock_tpro.o refclock_leitch.o refclock_irig.o \
-	refclock_msfees.o refclock_gpstm.o refclock_trak.o \
-	ntp_intres.o ntp_filegen.o
+	ntp_unixclock.o ntp_util.o ntp_intres.o ntp_filegen.o ntpd.o \
+	refclock_conf.o refclock_chu.o refclock_local.o \
+	refclock_pst.o refclock_wwvb.o refclock_goes.o \
+	refclock_mx4200.o refclock_parse.o refclock_as2201.o \
+	refclock_omega.o refclock_tpro.o refclock_leitch.o \
+	refclock_irig.o refclock_msfees.o refclock_gpstm.o \
+	refclock_trak.o refclock_datum.o refclock_acts.o \
+	refclock_heath.o refclock_nmea.o refclock_moto.o \
+	refclock_atom.o
 
 all:	$(PROGRAM)
 
@@ -143,4 +147,22 @@ refclock_trak.o:	refclock_trak.c
 	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
 
 refclock_gpstm.o:	refclock_gpstm.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_datum.o:	refclock_datum.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_acts.o:	refclock_acts.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_heath.o:	refclock_heath.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_nmea.o:	refclock_nmea.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_moto.o:	refclock_moto.c
+	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c
+
+refclock_atom.o:	refclock_atom.c
 	$(CC) $(COPTS) $(DEFS) $(DEFS_LOCAL) $(CLOCKDEFS) $(INCL) -c $*.c

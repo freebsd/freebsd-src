@@ -1,4 +1,4 @@
-/* fptoa.c,v 3.1 1993/07/06 01:08:16 jbj Exp
+/*
  * fptoa - return an asciized representation of an s_fp number
  */
 #include "ntp_fp.h"

@@ -1,4 +1,4 @@
-/* atolfp.c,v 3.1 1993/07/06 01:07:40 jbj Exp
+/*
  * atolfp - convert an ascii string to an l_fp number
  */
 #include <stdio.h>
@@ -10,7 +10,7 @@
 /*
  * Powers of 10
  */
-static U_LONG ten_to_the_n[10] = {
+static u_long ten_to_the_n[10] = {
 		   0,
 		  10,
 		 100,
@@ -30,8 +30,8 @@ atolfp(str, lfp)
 	l_fp *lfp;
 {
 	register const char *cp;
-	register U_LONG dec_i;
-	register U_LONG dec_f;
+	register u_long dec_i;
+	register u_long dec_f;
 	char *ind;
 	int ndec;
 	int isneg;
@@ -87,9 +87,9 @@ atolfp(str, lfp)
 	}
 
 	if (ndec > 0) {
-		register U_LONG tmp;
-		register U_LONG bit;
-		register U_LONG ten_fact;
+		register u_long tmp;
+		register u_long bit;
+		register u_long ten_fact;
 
 		ten_fact = ten_to_the_n[ndec];
 

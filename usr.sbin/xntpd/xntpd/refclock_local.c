@@ -1,7 +1,8 @@
 /*
  * refclock_local - local pseudo-clock driver
  */
-#if	defined(REFCLOCK) && defined(LOCAL_CLOCK)
+#if defined(REFCLOCK) && defined(LOCAL_CLOCK)
+
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/time.h>
@@ -10,190 +11,129 @@
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
 
-static	void	local_init	P((void));
-static	int	local_start	P((u_int, struct peer *));
-static	void	local_shutdown	P((int));
-static	void	local_poll	P((int, struct peer *));
-static	void	local_control	P((u_int, struct refclockstat *, struct refclockstat *));
-#define	local_buginfo	noentry
-
-struct	refclock refclock_local = {
-	local_start, local_shutdown, local_poll,
-	local_control, local_init, local_buginfo, NOFLAGS
-};
-
 /*
- * This is a hack to allow a machine to use its own system clock as
- * a "reference clock", i.e. to free run against its own clock at
- * a non-infinity stratum.  This is certainly useful if you want to
- * use NTP in an isolated environment with no radio clock (not that
- * this is a good idea) to synchronize the machines together.  Pick
- * a machine that you figure has a good clock and configure it with
- * a local reference clock running at stratum 0 (i.e. 127.127.1.0).
- * Then point all the other machines at the one you're using as the
- * reference.
+ * This is a hack to allow a machine to use its own system clock as a
+ * reference clock, i.e., to free-run using no outside clock discipline
+ * source. This is useful if you want to use NTP in an isolated
+ * environment with no radio clock or NIST modem available. Pick a
+ * machine that you figure has a good clock oscillator and configure it
+ * with this driver. Set the clock using the best means available, like
+ * eyeball-and-wristwatch. Then, point all the other machines at this
+ * one or use broadcast (not multicast) mode to distribute time.
  *
- * The other thing this is good for is if you want to use a particular
- * server's clock as the last resort, when all radio time has gone
- * away.  This is especially good if that server has an ovenized
- * oscillator or something which will keep the time stable for extended
- * periods, since then all the other machines can benefit from this.
- * For this you would configure a local clock at a higher stratum (say
- * 3 or 4) to prevent the server's stratum from falling below here.
+ * Another application for this driver is if you want to use a
+ * particular server's clock as the clock of last resort when all other
+ * normal synchronization sources have gone away. This is especially
+ * useful if that server has an ovenized oscillator. For this you would
+ * configure this driver at a higher stratum (say 3 or 4) to prevent the
+ * server's stratum from falling below that.
+ *
+ * A third application for this driver is when an external discipline
+ * source is available, such as the NIST "lockclock" program, which
+ * synchronizes the local clock via a telephone modem and the NIST
+ * Automated Computer Time Service (ACTS), or the Digital Time
+ * Synchronization Service (DTSS), which runs on DCE machines. In this
+ * case the stratum should be set at zero, indicating a bona fide
+ * stratum-1 source. Exercise some caution with this, since there is no
+ * easy way to telegraph via NTP that something might be wrong in the
+ * discipline source itself. In the case of DTSS, the local clock can
+ * have a rather large jitter, depending on the interval between
+ * corrections and the intrinsic frequency error of the clock
+ * oscillator. In extreme cases, this can cause clients to exceed the
+ * 128-ms slew window and drop off the NTP subnet.
+ *
+ * In the default mode the behavior of the clock selection algorithm is
+ * modified when this driver is in use. The algorithm is designed so
+ * that this driver will never be selected unless no other discipline
+ * source is available. This can be overriden with the prefer keyword of
+ * the server configuration command, in which case only this driver will
+ * be selected for synchronization and all other discipline sources will
+ * be ignored. This behavior is intended for use when an external
+ * discipline source controls the system clock.
+ *
+ * Fudge Factors
+ *
+ * The stratum for this driver LCLSTRATUM is set at 3 by default, but
+ * can be changed by the fudge command and/or the xntpdc utility. The
+ * reference ID is "LCL" by default, but can be changed using the same
+ * mechanisms. *NEVER* configure this driver to operate at a stratum
+ * which might possibly disrupt a client with access to a bona fide
+ * primary server, unless athe local clock oscillator is reliably
+ * disciplined by another source. *NEVER NEVER* configure a server which
+ * might devolve to an undisciplined local clock to use multicast mode.
+ *
+ * This driver provides a mechanism to trim the local clock in both time
+ * and frequency, as well as a way to manipulate the leap bits. The
+ * fudge time1 parameter adjusts the time, in seconds, and the fudge
+ * time2 parameter adjusts the frequency, in ppm. Both parameters are
+ * additive; that is, they add increments in time or frequency to the
+ * present values. The fudge flag1 and fudge flag2 bits set the
+ * corresponding leap bits; for example, setting flag1 causes a leap
+ * second to be added at the end of the UTC day. These bits are not
+ * reset automatically when the leap takes place; they must be turned
+ * off manually after the leap event.
  */
 
 /*
- * Definitions
+ * Local interface definitions
  */
-#define	NUMUNITS	16	/* 127.127.1.[0-15] */
+#define	PRECISION	(-7)	/* about 10 ms precision */
+#define	REFID		"LCL\0"	/* reference ID */
+#define	DESCRIPTION	"Undisciplined local clock" /* WRU */
 
-/*
- * Some constant values we stick in the peer structure
- */
-#define	LCLDISPERSION	(FP_SECOND/5)	/* 200 ms dispersion */
-#define	LCLROOTDISPERSION (FP_SECOND/5)	/* 200 ms root dispersion */
-#define	LCLPRECISION	(-5)		/* what the heck */
-#define	LCLREFID	"LCL\0"
-#define	LCLREFOFFSET	20		/* reftime is 20s behind */
-#define	LCLHSREFID	0x7f7f0101	/* 127.127.1.1 refid for hi stratum */
-
-/*
- * Description of clock
- */
-#define	LCLDESCRIPTION	"Free running against local system clock"
-
-/*
- * Local clock unit control structure.
- */
-struct lclunit {
-	struct peer *peer;		/* associated peer structure */
-	u_char status;			/* clock status */
-	u_char lastevent;		/* last clock event */
-	u_char unit;			/* unit number */
-	u_char unused;
-	U_LONG lastupdate;		/* last time data received */
-	U_LONG polls;			/* number of polls */
-	U_LONG timestarted;		/* time we started this */
-};
-
-
-/*
- * Data space for the unit structures.  Note that we allocate these on
- * the fly, but never give them back.
- */
-static struct lclunit *lclunits[NUMUNITS];
-static u_char unitinuse[NUMUNITS];
+#define STRATUM		3	/* default stratum */
+#define DISPERSION	(FP_SECOND / 100) /* default dispersion (10 ms) */
 
 /*
  * Imported from the timer module
  */
-extern U_LONG current_time;
-
-extern l_fp sys_clock_offset;
+extern u_long current_time;
 
 /*
- * local_init - initialize internal local clock driver data
+ * Imported from ntp_proto
  */
-static void
-local_init()
-{
-	/*
-	 * Just zero the data arrays
-	 */
-	memset((char *)lclunits, 0, sizeof lclunits);
-	memset((char *)unitinuse, 0, sizeof unitinuse);
-}
+extern s_char sys_precision;
+
+/*
+ * Function prototypes
+ */
+static	int	local_start	P((int, struct peer *));
+static	void	local_poll	P((int, struct peer *));
+
+/*
+ * Transfer vector
+ */
+struct	refclock refclock_local = {
+	local_start,		/* start up driver */
+	noentry,		/* shut down driver (not used) */
+	local_poll,		/* transmit poll message */
+	noentry,		/* not used (old lcl_control) */
+	noentry,		/* initialize driver (not used) */
+	noentry,		/* not used (old lcl_buginfo) */
+	NOFLAGS			/* not used */
+};
 
 
 /*
- * local_start - start up a local reference clock
+ * local_start - start up the clock
  */
 static int
 local_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
-	register int i;
-	register struct lclunit *lcl;
+	register struct refclockproc *pp;
 
-	if (unit >= NUMUNITS) {
-		syslog(LOG_ERR, "local clock: unit number %d invalid (max 15)",
-		    unit);
-		return 0;
-	}
-	if (unitinuse[unit]) {
-		syslog(LOG_ERR, "local clock: unit number %d in use", unit);
-		return 0;
-	}
+	pp = peer->procptr;
 
 	/*
-	 * Looks like this might succeed.  Find memory for the structure.
-	 * Look to see if there are any unused ones, if not we malloc()
-	 * one.
+	 * Initialize miscellaneous variables
 	 */
-	if (lclunits[unit] != 0) {
-		lcl = lclunits[unit];	/* The one we want is okay */
-	} else {
-		for (i = 0; i < NUMUNITS; i++) {
-			if (!unitinuse[i] && lclunits[i] != 0)
-				break;
-		}
-		if (i < NUMUNITS) {
-			/*
-			 * Reclaim this one
-			 */
-			lcl = lclunits[i];
-			lclunits[i] = 0;
-		} else {
-			lcl = (struct lclunit *)emalloc(sizeof(struct lclunit));
-		}
-	}
-	memset((char *)lcl, 0, sizeof(struct lclunit));
-	lclunits[unit] = lcl;
-
-	/*
-	 * Set up the structure
-	 */
-	lcl->peer = peer;
-	lcl->unit = (u_char)unit;
-	lcl->timestarted = lcl->lastupdate = current_time;
-
-	/*
-	 * That was easy.  Diddle the peer variables and return success.
-	 */
-	peer->precision = LCLPRECISION;
-	peer->rootdelay = 0;
-	peer->rootdispersion = LCLROOTDISPERSION;
-	peer->stratum = (u_char)unit;
-	if (unit <= 1)
-		memmove((char *)&peer->refid, LCLREFID, 4);
-	else
-		peer->refid = htonl(LCLHSREFID);
-	unitinuse[unit] = 1;
-	return 1;
-}
-
-
-/*
- * local_shutdown - shut down a local clock
- */
-static void
-local_shutdown(unit)
-	int unit;
-{
-	if (unit >= NUMUNITS) {
-		syslog(LOG_ERR,
-		"local clock: INTERNAL ERROR, unit number %d invalid (max 15)",
-		    unit);
-		return;
-	}
-	if (!unitinuse[unit]) {
-		syslog(LOG_ERR,
-		"local clock: INTERNAL ERROR, unit number %d not in use", unit);
-		return;
-	}
-
-	unitinuse[unit] = 0;
+	peer->precision = sys_precision;
+	pp->clockdesc = DESCRIPTION;
+	peer->stratum = STRATUM;
+	memcpy((char *)&pp->refid, REFID, 4);
+	return (1);
 }
 
 
@@ -205,103 +145,26 @@ local_poll(unit, peer)
 	int unit;
 	struct peer *peer;
 {
-	l_fp off;
-	l_fp ts;
+	struct refclockproc *pp;
 
-	if (unit >= NUMUNITS) {
-		syslog(LOG_ERR, "local clock poll: INTERNAL: unit %d invalid",
-		    unit);
-		return;
-	}
-	if (!unitinuse[unit]) {
-		syslog(LOG_ERR, "local clock poll: INTERNAL: unit %d unused",
-		    unit);
-		return;
-	}
-	if (peer != lclunits[unit]->peer) {
-		syslog(LOG_ERR,
-		    "local clock poll: INTERNAL: peer incorrect for unit %d",
-		    unit);
-		return;
-	}
+	pp = peer->procptr;
+	pp->polls++;
+	pp->lasttime = current_time;
 
 	/*
-	 * Update clock stat counters
+	 * Ramble through the usual filtering and grooming code, which
+	 * is essentially a no-op and included mostly for pretty
+	 * billboards. We fudge flags as the leap indicators and allow a
+	 * one-time adjustment in time using fudge time1 (s) and
+	 * frequency using fudge time 2 (ppm).
 	 */
-	lclunits[unit]->polls++;
-	lclunits[unit]->lastupdate = current_time;
-
-	/*
-	 * This is pretty easy.  Give the reference clock support
-	 * a zero offset and our fixed dispersion.  Use peer->xmt for
-	 * our receive time.  Use peer->xmt - 20 seconds for our
-	 * reference time.
-	 */
-	off.l_ui = off.l_uf = 0;
-	ts = peer->xmt;
-	ts.l_ui -= LCLREFOFFSET;
-	refclock_receive(peer, &off, 0, LCLDISPERSION,
-	    &ts, &peer->xmt, 0);
+	pp->dispersion = DISPERSION;
+	gettstamp(&pp->lastrec);
+	refclock_receive(peer, &pp->fudgetime1, 0, pp->dispersion,
+	    &pp->lastrec, &pp->lastrec, pp->sloppyclockflag);
+	adj_frequency(LFPTOFP(&pp->fudgetime2));
+	L_CLR(&pp->fudgetime1);
+	L_CLR(&pp->fudgetime2);
 }
 
-
-
-/*
- * local_control - set fudge factors, return statistics
- */
-static void
-local_control(unit, in, out)
-	u_int unit;
-	struct refclockstat *in;
-	struct refclockstat *out;
-{
-	extern s_fp drift_comp;
-
-	if (unit >= NUMUNITS) {
-		syslog(LOG_ERR, "local clock: unit %d invalid (max %d)",
-		    unit, NUMUNITS-1);
-		return;
-	}
-
-	/*
-	 * The time1 fudge factor is the drift compensation register.
-	 * The time2 fudge factor is the offset of the system clock from
-	 * what the protocol has set it to be. Most useful when SLEWALWAYS
-	 * is defined.
-	 */
-	if (in != 0) {
-		if (in->haveflags & CLK_HAVETIME1)
-			drift_comp = LFPTOFP(&in->fudgetime1);
-		if (in->haveflags & CLK_HAVETIME2) {
-			sys_clock_offset.l_ui = in->fudgetime2.l_ui;
-			sys_clock_offset.l_uf = in->fudgetime2.l_uf;
-		}
-	}
-	if (out != 0) {
-		out->type = REFCLK_LOCALCLOCK;
-		out->flags = 0;
-		out->haveflags = CLK_HAVETIME1;
-		out->clockdesc = LCLDESCRIPTION;
-		FPTOLFP(drift_comp, &out->fudgetime1);
-		out->fudgetime2.l_ui = sys_clock_offset.l_ui;
-		out->fudgetime2.l_uf = sys_clock_offset.l_uf;
-		out->fudgeval1 = out->fudgeval2 = 0;
-		out->lencode = 0;
-		out->lastcode = "";
-		out->badformat = 0;
-		out->baddata = 0;
-		out->noresponse = 0;
-		if (unitinuse[unit]) {
-			out->polls = lclunits[unit]->polls;
-			out->timereset =
-			    current_time - lclunits[unit]->timestarted;
-			out->lastevent = lclunits[unit]->lastevent;
-			out->currentstatus = lclunits[unit]->status;
-		} else {
-			out->polls = 0;
-			out->timereset = 0;
-			out->currentstatus = out->lastevent = CEVNT_NOMINAL;
-		}
-	}
-}
 #endif	/* REFCLOCK */

@@ -1,4 +1,4 @@
-/* authparity.c,v 3.1 1993/07/06 01:07:55 jbj Exp
+/*
  * auth_parity - set parity on a key/check for odd parity
  */
 #include "ntp_stdlib.h"

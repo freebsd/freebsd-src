@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  */
 
-#if defined(REFCLOCK) && (defined(MX4200) || defined(MX4200CLK) || defined(MX4200PPS))
+#if defined(REFCLOCK) && defined(PPS) && (defined(MX4200) || defined(MX4200CLK) || defined(MX4200PPS))
 
 #if	!defined(lint) && !defined(__GNUC__)
 static char rcsid[] =
@@ -102,7 +102,6 @@ static char rcsid[] =
 #define	MX4200PRECISION	(-18)	/* precision assumed (about 4 us) */
 #define	MX4200REFID	"GPS"	/* reference id */
 #define	MX4200DESCRIPTION	"Magnavox MX4200 GPS Receiver" /* who we are */
-#define	MX4200HSREFID	0x7f7f0a0a /* 127.127.10.10 refid for hi strata */
 #define	DEFFUDGETIME	0	/* default fudge time (ms) */
 
 /* Leap stuff */
@@ -216,6 +215,7 @@ static u_char unitinuse[MAXUNITS];
 static	l_fp fudgefactor[MAXUNITS];
 static	u_char stratumtouse[MAXUNITS];
 static	u_char sloppyclockflag[MAXUNITS];
+static	U_LONG refid[MAXUNITS];
 
 static const char pmvxg[] = "PMVXG";
 
@@ -223,13 +223,13 @@ static const char pmvxg[] = "PMVXG";
  * Function prototypes
  */
 static	void	mx4200_init	P((void));
-static	int	mx4200_start	P((u_int, struct peer *));
-static	void	mx4200_shutdown	P((int));
+static	int	mx4200_start	P((int, struct peer *));
+static	void	mx4200_shutdown	P((int, struct peer *));
 static	void	mx4200_receive	P((struct recvbuf *));
 static	void	mx4200_process	P((struct mx4200unit *));
 static	void	mx4200_report_event	P((struct mx4200unit *, int));
 static	void	mx4200_poll	P((int, struct peer *));
-static	void	mx4200_control	P((u_int, struct refclockstat *, struct refclockstat *));
+static	void	mx4200_control	P((int, struct refclockstat *, struct refclockstat *));
 static	void	mx4200_buginfo	P((int, struct refclockbug *));
 
 static	char *	mx4200_parse	P((char *, struct calendar *, int *, int *));
@@ -273,6 +273,7 @@ mx4200_init()
 		fudgefactor[i].l_uf = DEFFUDGETIME;
 		stratumtouse[i] = 0;
 		sloppyclockflag[i] = 0;
+		memcpy((char *)&refid[i], MX4200REFID, 4);
 	}
 }
 
@@ -316,7 +317,7 @@ checkdfile()
  */
 static int
 mx4200_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
 	register struct mx4200unit *mx4200;
@@ -511,10 +512,7 @@ mx4200_start(unit, peer)
 	peer->rootdelay = 0;
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
-	if (stratumtouse[unit] <= 1)
-		memmove((char *)&peer->refid, MX4200REFID, 4);
-	else
-		peer->refid = htonl(MX4200HSREFID);
+	peer->refid = refid[unit];
 	unitinuse[unit] = 1;
 
 	/* Insure the receiver is properly configured */
@@ -537,8 +535,9 @@ screwed:
  * mx4200_shutdown - shut down a MX4200 clock
  */
 static void
-mx4200_shutdown(unit)
+mx4200_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
 	register struct mx4200unit *mx4200;
 
@@ -830,7 +829,7 @@ mx4200_receive(rbufp)
 		fprintf(df, "%s\t%s",
 		    umfptoa(tmp_ui, tmp_uf, 6), mfptoa(t.l_ui, t.l_uf, 6));
 		if (debug > 3)
-			fprintf(df, "\t(gps: %lu)", gpstime);
+			fprintf(df, "\t(gps: %lu)", (u_long)gpstime);
 		if (leapsec != 0)
 			fprintf(df, "\t(leap sec %+d)", leapsec);
 		if (!valid)
@@ -1024,7 +1023,7 @@ mx4200_process(mx4200)
  */
 static void
 mx4200_control(unit, in, out)
-	u_int unit;
+	int unit;
 	struct refclockstat *in;
 	struct refclockstat *out;
 {
@@ -1038,40 +1037,30 @@ mx4200_control(unit, in, out)
 	if (in != 0) {
 		if (in->haveflags & CLK_HAVETIME1)
 			fudgefactor[unit] = in->fudgetime1;
-		if (in->haveflags & CLK_HAVEVAL1) {
-			stratumtouse[unit] = (u_char)(in->fudgeval1 & 0xf);
-			if (unitinuse[unit]) {
-				struct peer *peer;
-
-				/*
-				 * Should actually reselect clock, but
-				 * will wait for the next timecode
-				 */
-				mx4200 = mx4200units[unit];
-				peer = mx4200->peer;
-				peer->stratum = stratumtouse[unit];
-				if (stratumtouse[unit] <= 1)
-					memmove((char *)&peer->refid,
-						MX4200REFID, 4);
-				else
-					peer->refid = htonl(MX4200HSREFID);
-			}
-		}
-		if (in->haveflags & CLK_HAVEFLAG1) {
+		if (in->haveflags & CLK_HAVEVAL1)
+			stratumtouse[unit] = (u_char)(in->fudgeval1);
+		if (in->haveflags & CLK_HAVEVAL2)
+			refid[unit] = in->fudgeval2;
+		if (in->haveflags & CLK_HAVEFLAG1)
 			sloppyclockflag[unit] = in->flags & CLK_FLAG1;
+		if (unitinuse[unit]) {
+			struct peer *peer;
+
+			peer = mx4200units[unit]->peer;
+			peer->stratum = stratumtouse[unit];
+			peer->refid = refid[unit];
 		}
 	}
 
 	if (out != 0) {
+		memset((char *)out, 0, sizeof (struct refclockstat));
 		out->type = REFCLK_GPS_MX4200;
-		out->haveflags
-		    = CLK_HAVETIME1|CLK_HAVEVAL1|CLK_HAVEVAL2|CLK_HAVEFLAG1;
+		out->haveflags = CLK_HAVETIME1 | CLK_HAVEVAL1 | CLK_HAVEVAL2 |
+		    CLK_HAVEFLAG1;
 		out->clockdesc = MX4200DESCRIPTION;
 		out->fudgetime1 = fudgefactor[unit];
-		out->fudgetime2.l_ui = 0;
-		out->fudgetime2.l_uf = 0;
 		out->fudgeval1 = (LONG)stratumtouse[unit];
-		out->fudgeval2 = 0;
+		out->fudgeval2 = refid[unit];;
 		out->flags = sloppyclockflag[unit];
 		if (unitinuse[unit]) {
 			mx4200 = mx4200units[unit];
@@ -1085,13 +1074,6 @@ mx4200_control(unit, in, out)
 			out->badformat = mx4200->badformat;
 			out->baddata = mx4200->baddata;
 			out->timereset = current_time - mx4200->timestarted;
-		} else {
-			out->lencode = 0;
-			out->lastcode = "";
-			out->polls = out->noresponse = 0;
-			out->badformat = out->baddata = 0;
-			out->timereset = 0;
-			out->currentstatus = out->lastevent = CEVNT_NOMINAL;
 		}
 	}
 }

@@ -13,14 +13,14 @@
 /*
  * irig ioctls
  */
-#if (defined(sun) || defined(ibm032)) && !defined(__GNUC__)
-#define AUDIO_IRIG_OPEN         _IO(A, 50)
-#define AUDIO_IRIG_CLOSE        _IO(A, 51)
-#define AUDIO_IRIG_SETFORMAT    _IOWR(A, 52, int)
-#else
+#if defined(__STDC__) || !(defined(ibm032) && !defined(__GNUC))
 #define AUDIO_IRIG_OPEN         _IO('A', 50)
 #define AUDIO_IRIG_CLOSE        _IO('A', 51)
 #define AUDIO_IRIG_SETFORMAT    _IOWR('A', 52, int)
+#else
+#define AUDIO_IRIG_OPEN         _IO(A, 50)
+#define AUDIO_IRIG_CLOSE        _IO(A, 51)
+#define AUDIO_IRIG_SETFORMAT    _IOWR(A, 52, int)
 #endif
 
 /*

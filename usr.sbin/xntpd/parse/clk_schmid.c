@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.16 1994/05/30 10:20:03 kardel Exp
  *  
- * clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
+ * clk_schmid.c,v 3.16 1994/05/30 10:20:03 kardel Exp
  *
  * Schmid clock support
  *
@@ -58,18 +58,20 @@
 #define   WS_MEST	0x04
 #define WS_LEAP		0x10
 
-static unsigned LONG cvt_schmid();
+static u_long cvt_schmid();
 
 clockformat_t clock_schmid =
 {
+  (unsigned LONG (*)())0,	/* no input handling */
   cvt_schmid,			/* Schmid conversion */
   syn_simple,			/* easy time stamps */
-  (unsigned LONG (*)())0,	/* not direct PPS monitoring */
-  (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
+  (u_long (*)())0,		/* not direct PPS monitoring */
+  (u_long (*)())0,		/* no time code synthesizer monitoring */
   (void *)0,			/* conversion configuration */
   "Schmid",			/* Schmid receiver */
   12,				/* binary data buffer */
   F_END|SYNC_START,		/* END packet delimiter / synchronisation */
+  0,				/* no private data (complete messages) */
   { 0, 0},
   '\0',
   (unsigned char)'\375',
@@ -77,21 +79,20 @@ clockformat_t clock_schmid =
 };
 
 
-static unsigned LONG
+static u_long
 cvt_schmid(buffer, size, format, clock)
-  register char          *buffer;
+  register unsigned char *buffer;
   register int            size;
   register struct format *format;
   register clocktime_t   *clock;
 {
-  if ((size != 11) || (buffer[10] != '\375'))
+  if ((size != 11) || (buffer[10] != (unsigned char)'\375'))
     {
       return CVT_NONE;
     }
   else
     {
-      if (buffer[0] > 23 || buffer[1] > 59 || buffer[2] > 59 || buffer[3] >  9 /* Time */
-	  ||  buffer[0] <  0 || buffer[1] <  0 || buffer[2] <  0 || buffer[3] <  0)
+      if (buffer[0] > 23 || buffer[1] > 59 || buffer[2] > 59 || buffer[3] >  9) /* Time */
 	{
 	  return CVT_FAIL|CVT_BADTIME;
 	}
@@ -168,6 +169,15 @@ cvt_schmid(buffer, size, format, clock)
  * History:
  *
  * clk_schmid.c,v
+ * Revision 3.16  1994/05/30  10:20:03  kardel
+ * LONG cleanup
+ *
+ * Revision 3.15  1994/05/12  12:34:48  kardel
+ * data type cleanup
+ *
+ * Revision 3.14  1994/04/12  14:56:31  kardel
+ * fix declaration
+ *
  * Revision 3.13  1994/02/20  13:04:41  kardel
  * parse add/delete second support
  *

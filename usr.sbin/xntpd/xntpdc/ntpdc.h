@@ -1,4 +1,4 @@
-/* ntpdc.h,v 3.1 1993/07/06 01:12:01 jbj Exp
+/*
  * ntpdc.h - definitions of interest to xntpdc
  */
 #include "ntp_fp.h"
@@ -18,7 +18,7 @@
 #define	OPT	0x80		/* this argument is optional, or'd with type */
 
 #define	NO	0x0
-#define	STR	0x1		/* string argument */
+#define	NTP_STR	0x1		/* string argument */
 #define	UINT	0x2		/* unsigned integer */
 #define	INT	0x3		/* signed integer */
 #define	ADD	0x4		/* IP network address */
@@ -28,9 +28,9 @@
  */
 typedef union {
 	char *string;
-	LONG ival;
-	U_LONG uval;
-	U_LONG netnum;
+	long ival;
+	u_long uval;
+	u_long netnum;
 } arg_v;
 
 /*
@@ -55,5 +55,5 @@ struct xcmd {
 	char *comment;
 };
 
-extern	int	doquery	P((int, int, int, int, int, char *, int *, int *, char **));
-extern	char *	nntohost	P((U_LONG));
+extern	int	doquery	P((int, int, int, int, int, char *, int *, int *, char **, int));
+extern	char *	nntohost	P((u_long));

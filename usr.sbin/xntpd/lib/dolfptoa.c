@@ -1,4 +1,4 @@
-/* dolfptoa.c,v 3.1 1993/07/06 01:08:14 jbj Exp
+/*
  * dolfptoa - do the grunge work of converting an l_fp number to decimal
  */
 #include <stdio.h>
@@ -10,14 +10,14 @@
 
 char *
 dolfptoa(fpi, fpv, neg, ndec, msec)
-	U_LONG fpi;
-	U_LONG fpv;
+	u_long fpi;
+	u_long fpv;
 	int neg;
 	int ndec;
 	int msec;
 {
 	register u_char *cp, *cpend;
-	register U_LONG work_i;
+	register u_long lwork;
 	register int dec;
 	u_char cbuf[24];
 	u_char *cpdec;
@@ -39,22 +39,22 @@ dolfptoa(fpi, fpv, neg, ndec, msec)
 	 * compiles fairly well for a 68000.
 	 */
 	cp = cpend = &cbuf[10];
-	work_i = fpi;
-	if (work_i & 0xffff0000) {
-		register U_LONG lten = 10;
-		register U_LONG ltmp;
+	lwork = fpi;
+	if (lwork & 0xffff0000) {
+		register u_long lten = 10;
+		register u_long ltmp;
 
 		do {
-			ltmp = work_i;
-			work_i /= lten;
-			ltmp -= (work_i<<3) + (work_i<<1);
+			ltmp = lwork;
+			lwork /= lten;
+			ltmp -= (lwork << 3) + (lwork << 1);
 			*--cp = (u_char)ltmp;
-		} while (work_i & 0xffff0000);
+		} while (lwork & 0xffff0000);
 	}
-	if (work_i != 0) {
+	if (lwork != 0) {
 		register u_short sten = 10;
 		register u_short stmp;
-		register u_short swork = (u_short)work_i;
+		register u_short swork = (u_short)lwork;
 
 		do {
 			stmp = swork;
@@ -86,12 +86,12 @@ dolfptoa(fpi, fpv, neg, ndec, msec)
 	 * If there's a fraction to deal with, do so.
 	 */
 	if (fpv != 0) {
-		register U_LONG work_f;
+		l_fp work;
 
-		work_f = fpv;
+		work.l_ui = 0;
+		work.l_uf = fpv;
 		while (dec > 0) {
-			register U_LONG tmp_i;
-			register U_LONG tmp_f;
+			l_fp ftmp;
 
 			dec--;
 			/*
@@ -100,22 +100,21 @@ dolfptoa(fpi, fpv, neg, ndec, msec)
 			 * a junk of BCD into the units part.
 			 * record that and iterate.
 			 */
-			work_i = 0;
-			M_LSHIFT(work_i, work_f);
-			tmp_i = work_i;
-			tmp_f = work_f;
-			M_LSHIFT(work_i, work_f);
-			M_LSHIFT(work_i, work_f);
-			M_ADD(work_i, work_f, tmp_i, tmp_f);
-			*cpend++ = (u_char)work_i;
-			if (work_f == 0)
+			work.l_ui = 0;
+			L_LSHIFT(&work);
+			ftmp = work;
+			L_LSHIFT(&work);
+			L_LSHIFT(&work);
+			L_ADD(&work, &ftmp);
+			*cpend++ = (u_char)work.l_ui;
+			if (work.l_uf == 0)
 				break;
 		}
 
 		/*
 		 * Rounding is rotten
 		 */
-		if (work_f & 0x80000000) {
+		if (work.l_uf & 0x80000000) {
 			register u_char *tp = cpend;
 
 			*(--tp) += 1;

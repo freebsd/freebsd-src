@@ -1,4 +1,4 @@
-/* calleapwhen.c,v 3.1 1993/07/06 01:08:02 jbj Exp
+/*
  * calleapwhen - determine the number of seconds to the next possible
  *		 leap occurance and the last one.
  */
@@ -11,7 +11,7 @@
 /*
  * calleaptab - leaps occur at the end of December and June
  */
-LONG calleaptab[10] = {
+long calleaptab[10] = {
 	-(JAN+FEBLEAP)*SECSPERDAY,	/* leap previous to cycle */
 	(MAR+APR+MAY+JUN)*SECSPERDAY,	/* end of June */
 	(MAR+APR+MAY+JUN+JUL+AUG+SEP+OCT+NOV+DEC)*SECSPERDAY, /* end of Dec */
@@ -27,11 +27,11 @@ LONG calleaptab[10] = {
 
 void
 calleapwhen(ntpdate, leaplast, leapnext)
-	U_LONG ntpdate;
-	U_LONG *leaplast;
-	U_LONG *leapnext;
+	u_long ntpdate;
+	u_long *leaplast;
+	u_long *leapnext;
 {
-	register U_LONG dateincycle;
+	register u_long dateincycle;
 	register int i;
 
 	/*
@@ -50,12 +50,12 @@ calleapwhen(ntpdate, leaplast, leapnext)
 	 * Find where we are with respect to the leap events.
 	 */
 	for (i = 1; i < 9; i++)
-		if (dateincycle < (U_LONG)calleaptab[i])
+		if (dateincycle < (u_long)calleaptab[i])
 			break;
 	
 	/*
 	 * i points at the next leap.  Compute the last and the next.
 	 */
-	*leaplast = (U_LONG)((LONG)dateincycle - calleaptab[i-1]);
-	*leapnext = (U_LONG)(calleaptab[i] - (LONG)dateincycle);
+	*leaplast = (u_long)((long)dateincycle - calleaptab[i-1]);
+	*leapnext = (u_long)(calleaptab[i] - (long)dateincycle);
 }

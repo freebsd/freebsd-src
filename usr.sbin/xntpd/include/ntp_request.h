@@ -1,4 +1,4 @@
-/* ntp_request.h,v 3.1 1993/07/06 01:06:57 jbj Exp
+/*
  * ntp_request.h - definitions for the xntpd remote query facility
  */
 
@@ -207,7 +207,6 @@ struct resp_pkt {
  * the receive time stamp by no more than 10 seconds.
  */
 #define	INFO_TS_MAXSKEW_UI	10
-#define	INFO_TS_MAXSKEW_UF	0
 
 /*
  * Universal request codes go here.  There aren't any.
@@ -257,21 +256,31 @@ struct resp_pkt {
 #define REQ_GET_KERNEL		38	/* get kernel pll/pps information */
 #define	REQ_GET_CLKBUGINFO	39	/* get clock debugging info */
 #define	REQ_SET_PRECISION	41	/* set clock precision */
-
+#define	REQ_MON_GETLIST_1	42	/* return data collected by monitor v1*/
 
 /*
- * Flags in the information returns
+ * Flags in the peer information returns
  */
 #define	INFO_FLAG_CONFIG	0x1
 #define	INFO_FLAG_SYSPEER	0x2
-#define	INFO_FLAG_MINPOLL	0x4
+#define INFO_FLAG_UNUSED	0x4
 #define	INFO_FLAG_REFCLOCK	0x8
-#define INFO_FLAG_MCLIENT	0x8	/* danger */
-#define	INFO_FLAG_BCLIENT	0x10
-#define	INFO_FLAG_PREFER	0x10	/* danger */
+#define	INFO_FLAG_PREFER	0x10
 #define	INFO_FLAG_AUTHENABLE	0x20
 #define	INFO_FLAG_SEL_CANDIDATE	0x40
 #define	INFO_FLAG_SHORTLIST	0x80
+
+/*
+ * Flags in the system information returns
+ */
+#define INFO_FLAG_BCLIENT	0x1
+#define INFO_FLAG_AUTHENTICATE	0x2
+#define INFO_FLAG_PLL		0x4
+#define INFO_FLAG_PPS		0x8	/* unused */
+#define INFO_FLAG_PLL_SYNC	0x10
+#define INFO_FLAG_PPS_SYNC	0x20
+#define INFO_FLAG_MONITOR	0x40
+#define INFO_FLAG_FILEGEN	0x80
 
 /*
  * Peer list structure.  Used to return raw lists of peers.  It goes
@@ -352,7 +361,7 @@ struct info_peer {
 	LONG unused5;
 	LONG unused6;
 	LONG unused7;
-	U_LONG estbdelay;	/* broadcast delay */
+	s_fp estbdelay;		/* broadcast offset */
 };
 
 
@@ -369,21 +378,21 @@ struct info_peer_stats {
 	U_LONG timetosend;	/* time until a packet sent */
 	U_LONG timereachable;	/* time peer has been reachable */
 	U_LONG sent;		/* number sent */
-	U_LONG received;	/* number received */
+	U_LONG unused1;		/* (unused) */
 	U_LONG processed;	/* number processed */
-	U_LONG badlength;	/* rejected due to bad length */
-	U_LONG badauth;		/* rejected due to bad auth */
-	U_LONG bogusorg;	/* funny org time stamps */
-	U_LONG oldpkt;		/* duplicate packets */
-	U_LONG baddelay;	/* dropped due to bad delays */
-	U_LONG seldelay;	/* not selected due to delay */
-	U_LONG seldisp;		/* not selected due to dispersion */
-	U_LONG selbroken;	/* not selected because of brokenness */
-	U_LONG selold;		/* not selected because too old */
-	u_char candidate;	/* order after falseticker candidate select */
-	u_char falseticker;	/* order after resort for falseticker */
-	u_char select;		/* order after select */
-	u_char select_total;	/* number who made it to selection */
+	U_LONG unused2;		/* (unused) */
+	U_LONG badauth;		/* bad authentication */
+	U_LONG bogusorg;	/* bogus origin */
+	U_LONG oldpkt;		/* duplicate */
+	U_LONG unused3;		/* (unused) */
+	U_LONG unused4;		/* (unused) */
+	U_LONG seldisp;		/* bad dispersion */
+	U_LONG selbroken;	/* bad reference time */
+	U_LONG unused5;		/* (unused) */
+	u_char candidate;	/* select order */
+	u_char unused6;		/* (unused) */
+	u_char unused7;		/* (unused) */
+	u_char unused8;		/* (unused) */
 };
 
 
@@ -417,9 +426,10 @@ struct info_sys {
 	u_char unused1;		/* unused */
 	u_char unused2;		/* unused */
 	u_char unused3;		/* unused */
-	l_fp bdelay;		/* default broadcast delay */
+	s_fp bdelay;		/* default broadcast offset */
+	s_fp frequency;		/* frequency residual (scaled ppm)  */
 	l_fp authdelay;		/* default authentication delay */
-	u_fp maxskew;		/* (obsolete) */
+	u_fp stability;		/* clock stability (scaled ppm) */
 };
 
 
@@ -518,8 +528,7 @@ struct conf_peer {
 };
 
 #define	CONF_FLAG_AUTHENABLE	0x1
-#define	CONF_FLAG_MINPOLL	0x2
-#define CONF_FLAG_PREFER	0x4
+#define CONF_FLAG_PREFER	0x2
 
 /*
  * Structure for passing peer deletion information.  Currently
@@ -529,7 +538,6 @@ struct conf_peer {
 struct conf_unpeer {
 	U_LONG peeraddr;	/* address of peer */
 };
-
 
 /*
  * Structure for carrying system flags.
@@ -543,7 +551,10 @@ struct conf_sys_flags {
  */
 #define	SYS_FLAG_BCLIENT	0x1
 #define	SYS_FLAG_AUTHENTICATE	0x2
-#define	SYS_FLAG_MCLIENT	0x4
+#define SYS_FLAG_PLL		0x4
+#define SYS_FLAG_PPS		0x8
+#define SYS_FLAG_MONITOR	0x10
+#define SYS_FLAG_FILEGEN	0x20
 
 /*
  * Structure used for returning restrict entries
@@ -565,6 +576,23 @@ struct conf_restrict {
 	U_LONG mask;			/* match mask */
 	u_short flags;			/* restrict flags */
 	u_short mflags;			/* match flags */
+};
+
+
+/*
+ * Structure used for returning monitor data
+ */
+struct info_monitor_1 {	
+	U_LONG lasttime;		/* last packet from this host */
+	U_LONG firsttime;		/* first time we received a packet */
+	U_LONG lastdrop;	        /* last time we rejected a packet due to client limitation policy */
+	U_LONG count;			/* count of packets received */
+	U_LONG addr;			/* host address */
+	U_LONG daddr;			/* destination host address */
+	U_LONG flags;			/* flags about destination */
+	u_short port;			/* port number of last reception */
+	u_char mode;			/* mode of last packet */
+	u_char version;			/* version number of last packet */
 };
 
 
@@ -626,7 +654,7 @@ struct info_auth {
 	U_LONG keynotfound;	/* requested key unknown */
 	U_LONG encryptions;	/* number of encryptions */
 	U_LONG decryptions;	/* number of decryptions */
-	U_LONG decryptok;	/* number of successful decryptions */
+	U_LONG unused;		/* (unused) */
 	U_LONG keyuncached;	/* calls to encrypt/decrypt with uncached key */
 };
 

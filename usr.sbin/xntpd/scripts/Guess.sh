@@ -4,7 +4,7 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 	set `uname -a | tr '[A-Z]' '[a-z]'`
 #	set `cat test | tr '[A-Z]' '[a-z]'`
 	case "$1" in
-		convexos) case "$3" in
+		convexos) case "$4" in
 			10.*) guess="convexos10" ;;
 		    	esac
 			;;
@@ -23,7 +23,8 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 			case "$3" in
 			4.1*) guess="sunos4" ;;
 			5.1)   guess="sunos5.1" ;;
-			5.*)   guess="sunos5.2" ;;
+			5.2)   guess="sunos5.2" ;;
+			5.*)   guess="sunos5.3" ;;
 			esac
 			;;
 		irix) case "$3" in
@@ -62,6 +63,9 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 			;;
 		"netbsd")
 			guess="netbsd"
+			;;
+		"4.4bsd")
+			guess="4.4bsd"
 			;;
 		# now the fun starts - there are vendors that
 		# do not really identify their OS in uname.

@@ -1,4 +1,4 @@
-/* fptoms.c,v 3.1 1993/07/06 01:08:17 jbj Exp
+/*
  * fptoms - return an asciized s_fp number in milliseconds
  */
 #include "ntp_fp.h"

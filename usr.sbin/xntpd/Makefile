@@ -62,7 +62,7 @@ CONF =	Config
 CONFL =	$(CONF).local
 CONFLD=	$(CONFL).dist
 TARGETS	= xntpd/xntpd xntpdc/xntpdc ntpq/ntpq ntpdate/ntpdate \
-	  ntptrace/ntptrace xntpres/xntpres authstuff/authspeed util/tickadj
+	  ntptrace/ntptrace authstuff/authspeed util/tickadj
 OPTTARG = adjtime/adjtimed util/ntptime util/precision
 REFCONF=
 COMPRESSOR=compress
@@ -139,11 +139,6 @@ authstuff/authspeed:	lib/libntp.a authstuff/Makefile FRC
 	@echo '###' creating AUTH utilities
 	@cd authstuff && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)"
 
-xntpres/xntpres:	lib/libntp.a xntpres/Makefile FRC
-	@echo
-	@echo '###' creating XNTPRES utility
-	@cd xntpres && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" 
-
 util/tickadj: util/Makefile lib/libntp.a FRC
 	@echo
 	@echo '###' creating TICKADJ utility
@@ -216,8 +211,6 @@ clean:	neat
 	@cd xntpd && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" $@
 	@echo '###' cleaning xntpdc
 	@cd xntpdc && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" $@
-	@echo '###' cleaning xntpres
-	@cd xntpres && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" $@
 	@echo '###' cleaning parse
 	@cd parse && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" $@
 
@@ -232,8 +225,6 @@ install:	all
 	@cd ntptrace && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" install
 	@echo installing from ntpdate
 	@cd ntpdate && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" install
-	@echo installing from xntpres
-	@cd xntpres && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" install
 	@echo installing from util
 	@cd util && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" install
 	@echo installing from parse
@@ -339,12 +330,6 @@ xntpdc/Makefile:	xntpdc/Makefile.tmpl ${CONF}.sed
 	@sed -f ${CONF}.sed < $@.tmpl > $@
 	@echo '###' cleaning in xntpdc
 	@cd xntpdc && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" clean
-xntpres/Makefile:	xntpres/Makefile.tmpl ${CONF}.sed
-	@echo
-	@echo '###' updating Makefile in xntpres
-	@sed -f ${CONF}.sed < $@.tmpl > $@
-	@echo '###' cleaning in xntpres
-	@cd xntpres && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" -f Makefile.tmpl MAKE="$(MAKE)" clean
 parse/util/Makefile:	parse/util/Makefile.tmpl ${CONF}.sed
 	@echo
 	@echo '###' updating Makefile in parse/util

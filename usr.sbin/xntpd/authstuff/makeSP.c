@@ -1,4 +1,4 @@
-/* makeSP.c,v 3.1 1993/07/06 01:05:02 jbj Exp
+/*
  * makeSP - build combination S and P tables for quick DES computation
  */
 
@@ -12,7 +12,7 @@
 char *progname;
 int debug;
 
-static	void	selperm	P((int, int, U_LONG *));
+static	void	selperm	P((int, int, u_long *));
 static	void	doit	P((void));
 
 /*
@@ -116,15 +116,15 @@ u_char bits[32];
 
 /*
  * selperm - run six bit data through the given selection table, then
- *           through the PT table to produce a LONG output.
+ *           through the PT table to produce a long output.
  */
 static void
 selperm(selnumber, sixbits, resp)
 	int selnumber;
 	int sixbits;
-	U_LONG *resp;
+	u_long *resp;
 {
-	register U_LONG res;
+	register u_long res;
 	register int selno;
 	register int i;
 	register int ind;
@@ -162,11 +162,11 @@ static void
 doit()
 {
 	int selno;
-	U_LONG result;
+	u_long result;
 	int sixbits;
 
 	memset((char *)bits, 0, sizeof bits);
-	printf("static U_LONG SP[8][64] = {");
+	printf("static u_long SP[8][64] = {");
 	for (selno = 0; selno < 8; selno++) {
 		for (sixbits = 0; sixbits < 64; sixbits++) {
 			selperm(selno, sixbits, &result);

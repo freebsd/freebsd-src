@@ -1,4 +1,4 @@
-/* ntpq.c,v 3.1 1993/07/06 01:09:29 jbj Exp
+/*
  * ntpq - query an NTP server using mode 6 commands
  */
 #include <stdio.h>
@@ -27,7 +27,7 @@ char *prompt = "ntpq> ";	/* prompt to ask him about */
 /*
  * Keyid used for authenticated requests.  Obtained on the fly.
  */
-U_LONG info_auth_keyid = -1;
+u_long info_auth_keyid = -1;
 
 /*
  * Type of key md5 or des
@@ -88,7 +88,7 @@ struct ctl_var sys_var[] = {
 	{ CS_LEAP,	LP,	"leap" },	/* 1 */
 	{ CS_STRATUM,	UI,	"stratum" },	/* 2 */
 	{ CS_PRECISION,	IN,	"precision" },	/* 3 */
-	{ CS_ROOTDELAY,	FU,	"rootdelay" },	/* 4 */
+	{ CS_ROOTDELAY,	FS,	"rootdelay" },	/* 4 */
 	{ CS_ROOTDISPERSION, FU, "rootdispersion" }, /* 5 */
 	{ CS_REFID,	RF,	"refid" },	/* 6 */
 	{ CS_REFTIME,	TS,	"reftime" },	/* 7 */
@@ -96,7 +96,7 @@ struct ctl_var sys_var[] = {
 	{ CS_PEERID,	UI,	"peer" },	/* 9 */
 	{ CS_OFFSET,	FL,	"phase" },	/* 10 */
 	{ CS_DRIFT,	FS,	"freq" },	/* 11 */
-	{ CS_COMPLIANCE, UI,	"compliance" },	/* 12 */
+	{ CS_COMPLIANCE, FU,	"error" },	/* 12 */
 	{ CS_CLOCK,	TS,	"clock" },	/* 13 */
 	{ CS_LEAPIND,	LP,	"leapindicator" },	/* 14 */
 	{ CS_LEAPWARNING, LP,	"leapwarning" },	/* 15 */
@@ -149,7 +149,7 @@ struct ctl_var peer_var[] = {
 	{ CP_FLASH,     TST,	"flash"},	/* 34 */ 
 	{ CP_DISP,      AR,	"disp" },	/* 35 */
 	/*
-	 * These are duplicate entires so that we can
+	 * These are duplicate entries so that we can
 	 * process deviant version of the xntp protocal.
 	 */
 	{ CP_SRCADR,	HA,	"peeraddr" },	/* 4 */
@@ -173,8 +173,8 @@ struct ctl_var clock_var[] = {
 	{ CC_BADDATA,	UI,	"baddata" },	/* 6 */
 	{ CC_FUDGETIME1, FL,	"fudgetime1" },	/* 7 */
 	{ CC_FUDGETIME2, FL,	"fudgetime2" },	/* 8 */
-	{ CC_FUDGEVAL1,	IN,	"fudgeval1" },	/* 9 */
-	{ CC_FUDGEVAL2,	IN,	"fudgeval2" },	/* 10 */
+	{ CC_FUDGEVAL1,	UI,	"stratum" },	/* 9 */
+	{ CC_FUDGEVAL2,	RF,	"refid" },	/* 10 */
 	{ CC_FLAGS,	UI,	"flags" },	/* 11 */
 	{ CC_DEVICE,	ST,	"device" },	/* 12 */
 	{ 0,		EOV,	""	}
@@ -308,11 +308,6 @@ static	void	tokenize	P((char *, char **, int *));
 static	int	findcmd		P((char *, struct xcmd *, struct xcmd *, struct xcmd **));
 static	int	getarg		P((char *, int, arg_v *));
 static	int	rtdatetolfp	P((char *, l_fp *));
-
-#ifdef	UNUSED
-static	int	decodereach	P((char *, U_LONG *));
-#endif	/* UNUSED */
-
 static	int	decodearr	P((char *, int *, l_fp *));
 static	char *	getcode		P((int, struct codestring *));
 static	void	help		P((struct parse *, FILE *));
@@ -339,7 +334,7 @@ static	void	authenticate	P((struct parse *, FILE *));
 static	void	ntpversion	P((struct parse *, FILE *));
 static	void	warning		P((char *, char *, char *));
 static	void	error		P((char *, char *, char *));
-static	U_LONG	getkeyid	P((char *));
+static	u_long	getkeyid	P((char *));
 static	void	atoascii	P((int, char *, char *));
 static	void	makeascii	P((int, char *, FILE *));
 static	char *	getevents	P((int));
@@ -424,7 +419,7 @@ struct xcmd builtins[] = {
 #define	DEFSTIMEOUT	(2)		/* 2 second time out after first */
 #define	DEFDELAY	0x51EB852	/* 20 milliseconds, l_fp fraction */
 #define	DEFHOST		"localhost"	/* default host name */
-#define	LENHOSTNAME	256		/* host name is 256 characters LONG */
+#define	LENHOSTNAME	256		/* host name is 256 characters long */
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	100		/* maximum hosts on cmd line */
 #define	MAXLINE		512		/* maximum line length */
@@ -454,12 +449,12 @@ struct servent *server_entry = NULL;		/* server entry for ntp */
 u_short sequence;
 
 /*
- * Holds data returned from queries.  Declare buffer LONG to be sure of
+ * Holds data returned from queries.  Declare buffer long to be sure of
  * alignment.
  */
 #define	MAXFRAGS	24		/* maximum number of fragments */
 #define	DATASIZE	(MAXFRAGS*480)	/* maximum amount of data */
-LONG pktdata[DATASIZE/sizeof(LONG)];
+long pktdata[DATASIZE/sizeof(long)];
 
 /*
  * Holds association data for use with the &n operator.
@@ -597,7 +592,7 @@ static int
 openhost(hname)
 	char *hname;
 {
-	U_LONG netnum;
+	u_long netnum;
 	char temphost[LENHOSTNAME];
 
 	if (server_entry == NULL) {
@@ -712,9 +707,9 @@ getresponse(opcode, associd, rstatus, rsize, rdata, timeo)
 	/*
 	 * This is pretty tricky.  We may get between 1 and MAXFRAG packets
 	 * back in response to the request.  We peel the data out of
-	 * each packet and collect it in one LONG block.  When the last
+	 * each packet and collect it in one long block.  When the last
 	 * packet in the sequence is received we'll know how much data we
-	 * should have had.  Note we use one LONG time out, should reconsider.
+	 * should have had.  Note we use one long time out, should reconsider.
 	 */
 	*rsize = 0;
 	if (rstatus)
@@ -879,8 +874,8 @@ again:
 
 	if (debug >= 3) {
 		int shouldbesize;
-		U_LONG key;
-		U_LONG *lpkt;
+		u_long key;
+		u_long *lpkt;
 		int maclen;
 
 		/*
@@ -898,15 +893,15 @@ again:
 			printf(
 "Packet shows signs of authentication (total %d, data %d, mac %d)\n",
 			    n, shouldbesize, maclen);
-			lpkt = (U_LONG *)&rpkt;
+			lpkt = (u_long *)&rpkt;
 			printf("%08lx %08lx %08lx %08lx %08lx %08lx\n",
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG) - 3]),
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG) - 2]),
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG) - 1]),
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG)]),
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG) + 1]),
-			    ntohl(lpkt[(n - maclen)/sizeof(U_LONG) + 2]));
-			key = ntohl(lpkt[(n - maclen) / sizeof(U_LONG)]);
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long) - 3]),
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long) - 2]),
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long) - 1]),
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long)]),
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long) + 1]),
+			    (u_long)ntohl(lpkt[(n - maclen)/sizeof(u_long) + 2]));
+			key = ntohl(lpkt[(n - maclen) / sizeof(u_long)]);
 			printf("Authenticated with keyid %lu\n", key);
 			if (key != 0 && key != info_auth_keyid) {
 				printf("We don't know that key\n");
@@ -1067,7 +1062,7 @@ sendrequest(opcode, associd, auth, qsize, qdata)
 	if (qsize > 0) {
 		memmove((char *)qpkt.data, qdata, qsize);
 		pktsize = qsize + CTL_HEADER_LEN;
-		while (pktsize & (sizeof(U_LONG)-1)) {
+		while (pktsize & (sizeof(u_long) - 1)) {
 			qpkt.data[qsize++] = 0;
 			pktsize++;
 		}
@@ -1118,7 +1113,7 @@ sendrequest(opcode, associd, auth, qsize, qdata)
 			 * cp currently points.  Cp should be aligned
 			 * properly.  Then do the encryptions.
 			 */
-			*(U_LONG *)(&qpkt.data[qsize]) = htonl(info_auth_keyid);
+			*(u_long *)(&qpkt.data[qsize]) = htonl(info_auth_keyid);
 			maclen = authencrypt(info_auth_keyid, (U_LONG *)&qpkt,
 					     pktsize);
 			return sendpkt((char *)&qpkt, pktsize + maclen);
@@ -1542,21 +1537,22 @@ getarg(str, code, argp)
 int
 getnetnum(host, num, fullhost)
 	char *host;
-	U_LONG *num;
+	u_long *num;
 	char *fullhost;
 {
 	struct hostent *hp;
 
 	if (decodenetnum(host, num)) {
 		if (fullhost != 0) {
-			(void) sprintf(fullhost,
-			    "%d.%d.%d.%d", ((htonl(*num)>>24)&0xff),
-			    ((htonl(*num)>>16)&0xff), ((htonl(*num)>>8)&0xff),
-			    (htonl(*num)&0xff));
+			(void) sprintf(fullhost, "%lu.%lu.%lu.%lu",
+			    (u_long)((htonl(*num) >> 24) & 0xff),
+			    (u_long)((htonl(*num) >> 16) & 0xff),
+			    (u_long)((htonl(*num) >> 8) & 0xff),
+			    (u_long)(htonl(*num) & 0xff));
 		}
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(u_long));
 		if (fullhost != 0)
 			(void) strcpy(fullhost, hp->h_name);
 		return 1;
@@ -1573,7 +1569,7 @@ getnetnum(host, num, fullhost)
  */
 char *
 nntohost(netnum)
-	U_LONG netnum;
+	u_long netnum;
 {
 	if (!showhostnames)
 		return numtoa(netnum);
@@ -1613,7 +1609,7 @@ rtdatetolfp(str, lfp)
 			/*
 			 * Catch special case
 			 */
-			lfp->l_ui = lfp->l_uf = 0;
+			L_CLR(lfp);
 			return 1;
 		}
 		return 0;
@@ -1654,7 +1650,7 @@ rtdatetolfp(str, lfp)
 	 * Catch special case.  If cal.year == 0 this is a zero timestamp.
 	 */
 	if (cal.year == 0) {
-		lfp->l_ui = lfp->l_uf = 0;
+		L_CLR(lfp);
 		return 1;
 	}
 
@@ -1748,49 +1744,18 @@ decodetime(str, lfp)
 }
 
 
-#ifdef	UNUSED
-/*
- * decodereach - decode a (possibly octal or hex, damn fuzzballs) reachability
- */
-static int
-decodereach(str, uval)
-	char *str;
-	U_LONG *uval;
-{
-	U_LONG u;
-
-	if (*str == '0') {
-		/*
-		 * Could be octal or hex
-		 */
-		if (*(str+1) == 'x' || *(str+1) == 'X')
-			return hextoint(str+2, uval);
-		return octtoint(str, uval);
-	}
-
-	if (!atouint(str, &u))
-		return 0;
-	
-	if (u > 255)
-		return octtoint(str, uval);
-	*uval = u;
-	return 1;
-}
-#endif	/* UNUSED */
-
-
 /*
  * decodeint - decode an integer
  */
 int
 decodeint(str, val)
 	char *str;
-	LONG *val;
+	long *val;
 {
 	if (*str == '0') {
 		if (*(str+1) == 'x' || *(str+1) == 'X')
-			return hextoint(str+2, (U_LONG *)val);
-		return octtoint(str, (U_LONG *)val);
+			return hextoint(str+2, (u_long *)&val);
+		return octtoint(str, (u_long *)&val);
 	}
 	return atoint(str, val);
 }
@@ -1802,7 +1767,7 @@ decodeint(str, val)
 int
 decodeuint(str, val)
 	char *str;
-	U_LONG *val;
+	u_long *val;
 {
 	if (*str == '0') {
 		if (*(str+1) == 'x' || *(str+1) == 'X')
@@ -2017,18 +1982,18 @@ delay(pcmd, fp)
 	FILE *fp;
 {
 	int isneg;
-	U_LONG val;
+	u_long val;
 
 	if (pcmd->nargs == 0) {
 		val = delay_time.l_ui * 1000 + delay_time.l_uf / 4294967;
-		(void) fprintf(fp, "delay %d ms\n", val);
+		(void) fprintf(fp, "delay %lu ms\n", val);
 	} else {
 		if (pcmd->argval[0].ival < 0) {
 			isneg = 1;
-			val = (U_LONG)(-pcmd->argval[0].ival);
+			val = (u_long)(-pcmd->argval[0].ival);
 		} else {
 			isneg = 0;
-			val = (U_LONG)pcmd->argval[0].ival;
+			val = (u_long)pcmd->argval[0].ival;
 		}
 
 		delay_time.l_ui = val / 1000;
@@ -2092,7 +2057,7 @@ keyid(pcmd, fp)
 		if (info_auth_keyid == -1)
 			(void) fprintf(fp, "no keyid defined\n");
 		else
-			(void) fprintf(fp, "keyid is %u\n", info_auth_keyid);
+			(void) fprintf(fp, "keyid is %lu\n", info_auth_keyid);
 	} else {
 		info_auth_keyid = pcmd->argval[0].uval;
 	}
@@ -2344,7 +2309,7 @@ error(fmt, st1, st2)
 /*
  * getkeyid - prompt the user for a keyid to use
  */
-static U_LONG
+static u_long
 getkeyid(prompt)
 char *prompt;
 {
@@ -2368,7 +2333,7 @@ char *prompt;
 	if (strcmp(pbuf, "0") == 0)
 	    return 0;
 
-	return (U_LONG) atoi(pbuf);
+	return (u_long) atoi(pbuf);
 }
 
 
@@ -2515,7 +2480,9 @@ statustoa(type, st)
 	case TYPE_SYS:
 		(void)strcpy(cb, getcode(CTL_SYS_LI(st), leap_codes));
 		(void)strcat(cb, ", ");
-		(void)strcat(cb, getcode(CTL_SYS_SOURCE(st), sync_codes));
+		(void)strcat(cb, getcode(CTL_SYS_SOURCE(st) & ~CTL_SST_TS_PPS, sync_codes));
+		if (CTL_SYS_SOURCE(st) & CTL_SST_TS_PPS)
+			(void)strcat(cb, "/PPS");
 		(void)strcat(cb, ", ");
 		(void)strcat(cb, getevents(CTL_SYS_NEVNT(st)));
 		(void)strcat(cb, ", ");
@@ -2853,7 +2820,7 @@ outputarr(fp, name, narr, lfp)
 
 static char *
 tstflags(val)
-  	U_LONG val;
+  	u_long val;
 {
   	register char *cb, *s;
   	register int i;
@@ -2865,7 +2832,7 @@ tstflags(val)
   	if (++nextcb >= NUMCB)
 	  	nextcb = 0;
 
-  	sprintf(cb, "0x%x", val);
+  	sprintf(cb, "0x%lx", val);
   	cb += strlen(cb);
   	if (val <= ((1<<8)-1)) {
     		if (!val) {
@@ -2909,8 +2876,9 @@ cookedprint(datatype, length, data, status, fp)
 	int fmt;
 	struct ctl_var *varlist;
 	l_fp lfp;
-	LONG ival;
-	U_LONG uval;
+	long ival;
+	u_long hval;
+	u_long uval;
 	l_fp lfparr[8];
 	int narr;
 
@@ -2986,12 +2954,12 @@ cookedprint(datatype, length, data, status, fp)
 
 			case HA:
 			case NA:
-				if (!decodenetnum(value, &uval))
+				if (!decodenetnum(value, &hval))
 					output_raw = '?';
 				else if (fmt == HA)
-					output(fp, name, nntohost(uval));
+					output(fp, name, nntohost(hval));
 				else
-					output(fp, name, numtoa(uval));
+					output(fp, name, numtoa(hval));
 				break;
 			
 			case ST:
@@ -2999,8 +2967,8 @@ cookedprint(datatype, length, data, status, fp)
 				break;
 			
 			case RF:
-				if (decodenetnum(value, &uval))
-					output(fp, name, nntohost(uval));
+				if (decodenetnum(value, &hval))
+					output(fp, name, nntohost(hval));
 				else if ((int)strlen(value) <= 4)
 					output(fp, name, value);
 				else
@@ -3028,7 +2996,7 @@ cookedprint(datatype, length, data, status, fp)
 				else {
 					char b[10];
 
-					(void) sprintf(b, "%03o", uval);
+					(void) sprintf(b, "%03lo", uval);
 					output(fp, name, b);
 				}
 				break;

@@ -1,4 +1,4 @@
-/* atouint.c,v 3.1 1993/07/06 01:07:42 jbj Exp
+/*
  * atouint - convert an ascii string to an unsigned long, with error checking
  */
 #include <sys/types.h>
@@ -9,9 +9,9 @@
 int
 atouint(str, uval)
 	const char *str;
-	U_LONG *uval;
+	u_long *uval;
 {
-	register U_LONG u;
+	register u_long u;
 	register const char *cp;
 
 	cp = str;

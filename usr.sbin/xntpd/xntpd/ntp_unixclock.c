@@ -1,4 +1,4 @@
-/* ntp_unixclock.c,v 3.1 1993/07/06 01:11:30 jbj Exp
+/*
  * ntp_unixclock.c - routines for reading and adjusting a 4BSD-style
  *		     system clock
  */
@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI)
+#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI) || defined(SYS_44BSD)
 #include <sys/param.h>
 #include <utmp.h>
 #endif
@@ -20,7 +20,7 @@
 #include "ntp_stdlib.h"
 
 #if defined(HAVE_LIBKVM)
-#ifdef	SYS_BSDI
+#if defined(SYS_BSDI) || defined(SYS_44BSD)
 #include <sys/proc.h>
 #endif	/* SYS_BSDI */
 #include <kvm.h>
@@ -61,19 +61,19 @@ extern int debug;
  * We also remember the clock precision we computed from the kernel in
  * case someone asks us.
  */
-extern	LONG adj_precision;	/* adj precision in usec (tickadj) */
-extern	LONG tvu_maxslew;	/* maximum adjust doable in 1<<CLOCK_ADJ sec (usec) */
+extern	long adj_precision;	/* adj precision in usec (tickadj) */
+extern	long tvu_maxslew;	/* maximum adjust doable in 1<<CLOCK_ADJ sec (usec) */
 
-extern	U_LONG tsf_maxslew;	/* same as above, as LONG format */
+extern	u_long tsf_maxslew;	/* same as above, as long format */
 
 extern	l_fp sys_clock_offset;	/* correction for current system time */
 
 /*
  * Import sys_clock (it is updated in get_systime)
  */
-extern LONG sys_clock;
+extern long sys_clock;
 
-static	void	clock_parms	P((U_LONG *, U_LONG *));
+static	void	clock_parms	P((u_long *, u_long *));
 
 /*
  * init_systime - initialize the system clock support code, return
@@ -97,9 +97,9 @@ static	void	clock_parms	P((U_LONG *, U_LONG *));
 void
 init_systime()
 {
-	U_LONG tickadj;
-	U_LONG tick;
-	U_LONG hz;
+	u_long tickadj;
+	u_long tick;
+	u_long hz;
 
 	/*
 	 * Obtain the values
@@ -107,7 +107,7 @@ init_systime()
 	clock_parms(&tickadj, &tick);
 #ifdef	DEBUG
 	if (debug)
-		printf("kernel vars: tickadj = %d, tick = %d\n", tickadj, tick);
+		printf("kernel vars: tickadj = %ld, tick = %ld\n", tickadj, tick);
 #endif
 
 	/*
@@ -162,14 +162,14 @@ init_systime()
 #ifdef DEBUG
 	if (debug)
 		printf(
-	"adj_precision = %d, tvu_maxslew = %d, tsf_maxslew = 0.%08x\n",
+	"adj_precision = %ld, tvu_maxslew = %ld, tsf_maxslew = 0.%08lx\n",
 		    adj_precision, tvu_maxslew, tsf_maxslew);
 #endif
 
 	/*
 	 * Set the current offset to 0
 	 */
-	sys_clock_offset.l_ui = sys_clock_offset.l_uf = 0;
+	L_CLR(&sys_clock_offset);
 }
 
 #ifdef HAVE_LIBKVM
@@ -180,8 +180,8 @@ init_systime()
  */
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 	static struct nlist nl[] = {
 #define N_TICKADJ 0
@@ -261,8 +261,8 @@ clock_parms(tickadj, tick)
  */
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 	*tick = 10000;		/* microseconds */
 	*tickadj = 80;		/* microseconds */
@@ -275,8 +275,13 @@ clock_parms(tickadj, tick)
 #endif
 
 #ifdef SYS_HPUX
+#if defined(hp9000s300)
 #define K_TICKADJ_NAME	"_tickadj"
 #define K_TICK_NAME		"_old_tick"
+#else
+#define K_TICKADJ_NAME	"tickadj"
+#define K_TICK_NAME		"old_tick"
+#endif
 #endif
 
 /* The defaults if not defined previously */
@@ -289,8 +294,8 @@ clock_parms(tickadj, tick)
 
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 	register int i;
 	int kmem;
@@ -377,8 +382,8 @@ clock_parms(tickadj, tick)
 	}
 	close(kmem);
 
-	*tickadj = (U_LONG)vars[K_TICKADJ];
-	*tick = (U_LONG)vars[K_TICK];
+	*tickadj = (u_long)vars[K_TICKADJ];
+	*tick = (u_long)vars[K_TICK];
 
 #undef	K_TICKADJ
 #undef	K_TICK
@@ -398,8 +403,8 @@ clock_parms(tickadj, tick)
  */
 static void
 clock_parms(tickadj, tick)
-        U_LONG *tickadj;
-        U_LONG *tick;
+        u_long *tickadj;
+        u_long *tick;
 {
         int hz;
 
@@ -427,8 +432,8 @@ clock_parms(tickadj, tick)
  */
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 	*tick = 10000;
 	*tickadj = 150;
@@ -448,8 +453,8 @@ clock_parms(tickadj, tick)
  */
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 #ifdef RS6000
 	*tickadj = 1000;
@@ -481,8 +486,8 @@ clock_parms(tickadj, tick)
  */
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
 	register int i;
 	int kmem;
@@ -560,8 +565,8 @@ clock_parms(tickadj, tick)
 	}
 	close(kmem);
 
-	*tickadj = (U_LONG)vars[K_TICKADJ];
-	*tick = (U_LONG)(1000000/sysconf(_SC_CLK_TCK));
+	*tickadj = (u_long)vars[K_TICKADJ];
+	*tick = (u_long)(1000000/sysconf(_SC_CLK_TCK));
 
 #undef	K_TICKADJ
 #undef	N_NAME
@@ -569,18 +574,18 @@ clock_parms(tickadj, tick)
 #endif /* SOLARIS */
 
 #ifdef SYS_LINUX
-#include <sys/timex.h>
+#include "sys/timex.h"
 static void
 clock_parms(tickadj, tick)
-	U_LONG *tickadj;
-	U_LONG *tick;
+	u_long *tickadj;
+	u_long *tick;
 {
   struct timex txc;
 
   txc.mode = 0;
   __adjtimex(&txc);
 
-  *tickadj = (U_LONG)1;		/* our adjtime is accurate */
-  *tick    = (U_LONG)txc.tick;
+  *tickadj = (u_long)1;		/* our adjtime is accurate */
+  *tick    = (u_long)txc.tick;
 }
 #endif /* SYS_LINUX */

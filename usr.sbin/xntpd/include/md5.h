@@ -1,4 +1,4 @@
-/* md5.h,v 3.1 1993/07/06 01:06:44 jbj Exp
+/*
  ***********************************************************************
  ** md5.h -- header file for implementation of MD5                    **
  ** RSA Data Security, Inc. MD5 Message-Digest Algorithm              **
