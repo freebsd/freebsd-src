@@ -85,8 +85,6 @@ extern struct ipxpcbhead ipxrawpcb_list;
 #define	IPXRCVQ		40960
 
 #ifdef _KERNEL
-extern struct ipxpcb ipxpcb;			/* head of list */
-
 int	ipx_pcballoc(struct socket *so, struct ipxpcbhead *head,
 			  struct thread *p);
 int	ipx_pcbbind(struct ipxpcb *ipxp, struct sockaddr *nam,
