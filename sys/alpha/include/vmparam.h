@@ -129,6 +129,12 @@
 					   protected against replacement */
 
 /*
+ * Alpha provides a machine specific single page allocator through the use
+ * of K0SEG.
+ */
+#define UMA_MD_SMALL_ALLOC
+
+/*
  * Mach derived constants
  */
 
