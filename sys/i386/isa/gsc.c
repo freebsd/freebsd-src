@@ -160,7 +160,9 @@ struct gsc_unit {
   void *devfs_gscd;
   void *devfs_gscpd;
 #endif
-} unittab[NGSC];
+};
+
+static struct gsc_unit unittab[NGSC];
 
 /* I could not find a reasonable buffer size limit other than by
  * experiments. MAXPHYS is obviously too much, while DEV_BSIZE and
