@@ -61,6 +61,7 @@
 #include <sys/sysent.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/condvar.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -74,7 +75,9 @@ static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollscan __P((struct proc *, struct pollfd *, u_int));
+static int	pollholddrop __P((struct proc *, struct pollfd *, u_int, int));
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
+static int	selholddrop __P((struct proc *, fd_mask *, fd_mask *, int, int));
 static int	dofileread __P((struct proc *, struct file *, int, void *,
 		    size_t, off_t, int));
 static int	dofilewrite __P((struct proc *, struct file *, int,
@@ -653,7 +656,7 @@ ioctl(p, uap)
 }
 
 static int	nselcoll;	/* Select collisions since boot */
-int	selwait;
+struct cv	selwait;
 SYSCTL_INT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
 
 /*
@@ -678,9 +681,10 @@ select(p, uap)
 	 * of 256.
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
-	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
+	fd_mask s_heldbits[howmany(2048, NFDBITS)];
+	fd_mask *ibits[3], *obits[3], *selbits, *sbp, *heldbits, *hibits, *hobits;
 	struct timeval atv, rtv, ttv;
-	int s, ncoll, error, timo;
+	int ncoll, error, timo, i;
 	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
@@ -705,6 +709,11 @@ select(p, uap)
 		selbits = &s_selbits[0];
 	else
 		selbits = malloc(nbufbytes, M_SELECT, M_WAITOK);
+	if (2 * ncpbytes <= sizeof s_heldbits) {
+		bzero(s_heldbits, sizeof(s_heldbits));
+		heldbits = &s_heldbits[0];
+	} else
+		heldbits = malloc(2 * ncpbytes, M_SELECT, M_WAITOK | M_ZERO);
 
 	/*
 	 * Assign pointers into the bit buffers and fetch the input bits.
@@ -712,6 +721,8 @@ select(p, uap)
 	 * together.
 	 */
 	sbp = selbits;
+	hibits = heldbits + ncpbytes / sizeof *heldbits;
+	hobits = heldbits;
 #define	getbits(name, x) \
 	do {								\
 		if (uap->name == NULL)					\
@@ -721,10 +732,12 @@ select(p, uap)
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
 			error = copyin(uap->name, ibits[x], ncpbytes);	\
-			if (error != 0)	{				\
-				PROC_LOCK(p);				\
-				goto done;				\
-			}						\
+			if (error != 0)					\
+				goto done_noproclock;			\
+			for (i = 0;					\
+			     i < ncpbytes / sizeof ibits[i][0];		\
+			     i++)					\
+				hibits[i] |= ibits[x][i];		\
 		}							\
 	} while (0)
 	getbits(in, 0);
@@ -737,14 +750,11 @@ select(p, uap)
 	if (uap->tv) {
 		error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
 			sizeof (atv));
-		if (error) {
-			PROC_LOCK(p);
-			goto done;
-		}
+		if (error)
+			goto done_noproclock;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			PROC_LOCK(p);
-			goto done;
+			goto done_noproclock;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -752,41 +762,39 @@ select(p, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
+	selholddrop(p, hibits, hobits, uap->nd, 1);
 	timo = 0;
 	PROC_LOCK(p);
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
 	error = selscan(p, ibits, obits, uap->nd);
-	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) 
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
-	s = splhigh();
-	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
-		splx(s);
-		goto retry;
-	}
 	p->p_flag &= ~P_SELECT;
 
-	error = msleep((caddr_t)&selwait, &p->p_mtx, PSOCK | PCATCH, "select",
-	    timo);
+	if (timo > 0)
+		error = cv_timedwait_sig(&selwait, &p->p_mtx, timo);
+	else
+		error = cv_wait_sig(&selwait, &p->p_mtx);
 	
-	splx(s);
 	if (error == 0)
 		goto retry;
+
 done:
 	p->p_flag &= ~P_SELECT;
 	PROC_UNLOCK(p);
+	selholddrop(p, hibits, hobits, uap->nd, 0);
+done_noproclock:
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -805,7 +813,43 @@ done:
 	}
 	if (selbits != &s_selbits[0])
 		free(selbits, M_SELECT);
+	if (heldbits != &s_heldbits[0])
+		free(heldbits, M_SELECT);
 	return (error);
+}
+
+static int
+selholddrop(p, ibits, obits, nfd, hold)
+	struct proc *p;
+	fd_mask *ibits, *obits;
+	int nfd, hold;
+{
+	struct filedesc *fdp = p->p_fd;
+	int i, fd;
+	fd_mask bits;
+	struct file *fp;
+
+	for (i = 0; i < nfd; i += NFDBITS) {
+		if (hold)
+			bits = ibits[i/NFDBITS];
+		else
+			bits = obits[i/NFDBITS];
+		/* ffs(int mask) not portable, fd_mask is long */
+		for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
+			if (!(bits & 1))
+				continue;
+			fp = fdp->fd_ofiles[fd];
+			if (fp == NULL)
+				return (EBADF);
+			if (hold) {
+				fhold(fp);
+				obits[(fd)/NFDBITS] |=
+				    ((fd_mask)1 << ((fd) % NFDBITS));
+			} else
+				fdrop(fp, p);
+		}
+	}
+	return (0);
 }
 
 static int
@@ -864,9 +908,11 @@ poll(p, uap)
 	caddr_t bits;
 	char smallbits[32 * sizeof(struct pollfd)];
 	struct timeval atv, rtv, ttv;
-	int s, ncoll, error = 0, timo;
+	int ncoll, error = 0, timo;
 	u_int nfds;
 	size_t ni;
+	struct pollfd p_heldbits[32];
+	struct pollfd *heldbits;
 
 	nfds = SCARG(uap, nfds);
 	/*
@@ -883,16 +929,22 @@ poll(p, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
+	if (ni > sizeof(p_heldbits))
+		heldbits = malloc(ni, M_TEMP, M_WAITOK);
+	else {
+		bzero(p_heldbits, sizeof(p_heldbits));
+		heldbits = p_heldbits;
+	}
 	error = copyin(SCARG(uap, fds), bits, ni);
-	PROC_LOCK(p);
 	if (error)
-		goto done;
+		goto done_noproclock;
+	bcopy(bits, heldbits, ni);
 	if (SCARG(uap, timeout) != INFTIM) {
 		atv.tv_sec = SCARG(uap, timeout) / 1000;
 		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done;
+			goto done_noproclock;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -900,13 +952,13 @@ poll(p, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
+	pollholddrop(p, heldbits, nfds, 1);
 	timo = 0;
+	PROC_LOCK(p);
 retry:
 	ncoll = nselcoll;
 	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
 	error = pollscan(p, (struct pollfd *)bits, nfds);
-	PROC_LOCK(p);
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
@@ -917,21 +969,20 @@ retry:
 		timevalsub(&ttv, &rtv);
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
-	} 
-	s = splhigh(); 
-	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
-		splx(s);
-		goto retry;
 	}
 	p->p_flag &= ~P_SELECT;
-	error = msleep((caddr_t)&selwait, &p->p_mtx, PSOCK | PCATCH, "poll",
-	    timo);
-	splx(s);
+	if (timo > 0)
+		error = cv_timedwait_sig(&selwait, &p->p_mtx, timo);
+	else
+		error = cv_wait_sig(&selwait, &p->p_mtx);
 	if (error == 0)
 		goto retry;
+
 done:
 	p->p_flag &= ~P_SELECT;
 	PROC_UNLOCK(p);
+	pollholddrop(p, heldbits, nfds, 0);
+done_noproclock:
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -945,7 +996,36 @@ done:
 out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
+	if (ni > sizeof(p_heldbits))
+		free(heldbits, M_TEMP);
 	return (error);
+}
+
+static int
+pollholddrop(p, fds, nfd, hold)
+	struct proc *p;
+	struct pollfd *fds;
+	u_int nfd;
+	int hold;
+{
+	register struct filedesc *fdp = p->p_fd;
+	int i;
+	struct file *fp;
+
+	for (i = 0; i < nfd; i++, fds++) {
+		if (0 <= fds->fd && fds->fd < fdp->fd_nfiles) {
+			fp = fdp->fd_ofiles[fds->fd];
+			if (hold) {
+				if (fp != NULL) {
+					fhold(fp);
+					fds->revents = 1;
+				} else
+					fds->revents = 0;
+			} else if(fp != NULL && fds->revents)
+				fdrop(fp, p);
+		}
+	}
+	return (0);
 }
 
 static int
@@ -1058,7 +1138,7 @@ selwakeup(sip)
 	if (sip->si_flags & SI_COLL) {
 		nselcoll++;
 		sip->si_flags &= ~SI_COLL;
-		wakeup((caddr_t)&selwait);
+		cv_broadcast(&selwait);
 	}
 	p = pfind(sip->si_pid);
 	sip->si_pid = 0;
@@ -1068,10 +1148,21 @@ selwakeup(sip)
 			if (p->p_stat == SSLEEP)
 				setrunnable(p);
 			else
-				unsleep(p);
+				cv_waitq_remove(p);
 		} else
 			p->p_flag &= ~P_SELECT;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
+}
+
+static void selectinit __P((void *));
+SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, selectinit, NULL)
+
+/* ARGSUSED*/
+static void
+selectinit(dummy)
+	void *dummy;
+{
+	cv_init(&selwait, "select");
 }
