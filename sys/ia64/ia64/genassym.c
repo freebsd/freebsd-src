@@ -112,36 +112,10 @@ ASSYM(TF_R_R14,		offsetof(struct trapframe, tf_r[FRAME_R14]));
 ASSYM(TF_R_R15,		offsetof(struct trapframe, tf_r[FRAME_R15]));
 ASSYM(TF_F,		offsetof(struct trapframe, tf_f));
 
-ASSYM(PCB_R4,		offsetof(struct pcb, pcb_r4));
-ASSYM(PCB_R5,		offsetof(struct pcb, pcb_r5));
-ASSYM(PCB_R6,		offsetof(struct pcb, pcb_r6));
-ASSYM(PCB_R7,		offsetof(struct pcb, pcb_r7));
-
-ASSYM(PCB_F2,		offsetof(struct pcb, pcb_f2));
-ASSYM(PCB_F3,		offsetof(struct pcb, pcb_f3));
-ASSYM(PCB_F4,		offsetof(struct pcb, pcb_f4));
-ASSYM(PCB_F5,		offsetof(struct pcb, pcb_f5));
-
-ASSYM(PCB_B0,		offsetof(struct pcb, pcb_b0));
-ASSYM(PCB_B1,		offsetof(struct pcb, pcb_b1));
-ASSYM(PCB_B2,		offsetof(struct pcb, pcb_b2));
-ASSYM(PCB_B3,		offsetof(struct pcb, pcb_b3));
-ASSYM(PCB_B4,		offsetof(struct pcb, pcb_b4));
-ASSYM(PCB_B5,		offsetof(struct pcb, pcb_b5));
-
-ASSYM(PCB_OLD_UNAT,	offsetof(struct pcb, pcb_old_unat));
-ASSYM(PCB_SP,		offsetof(struct pcb, pcb_sp));
-ASSYM(PCB_PFS,		offsetof(struct pcb, pcb_pfs));
-ASSYM(PCB_BSPSTORE,	offsetof(struct pcb, pcb_bspstore));
-
-ASSYM(PCB_UNAT,		offsetof(struct pcb, pcb_unat));
-ASSYM(PCB_RNAT,		offsetof(struct pcb, pcb_rnat));
-ASSYM(PCB_PR,		offsetof(struct pcb, pcb_pr));
-ASSYM(PCB_PMAP,		offsetof(struct pcb, pcb_pmap));
-
+ASSYM(PCB_CURRENT_PMAP,	offsetof(struct pcb, pcb_current_pmap));
 ASSYM(PCB_ONFAULT,	offsetof(struct pcb, pcb_onfault));
-
-ASSYM(PCB_HIGHFP,	offsetof(struct pcb, pcb_highfp));
+ASSYM(PCB_RP,		offsetof(struct pcb, pcb_rp));
+ASSYM(PCB_UNAT47,	offsetof(struct pcb, pcb_unat47));
 
 ASSYM(UC_MCONTEXT_MC_AR_BSP,  offsetof(ucontext_t, uc_mcontext.mc_ar_bsp));
 ASSYM(UC_MCONTEXT_MC_AR_RNAT, offsetof(ucontext_t, uc_mcontext.mc_ar_rnat));

@@ -33,46 +33,63 @@
  * PCB: process control block
  */
 struct pcb {
-	u_int64_t		pcb_r4;
-	u_int64_t		pcb_r5;
-	u_int64_t		pcb_r6;
-	u_int64_t		pcb_r7;
+	uint64_t		pcb_sp;
+	uint64_t		pcb_ar_unat;
+	uint64_t		pcb_rp;
+	uint64_t		pcb_pr;
+	struct ia64_fpreg	pcb_f[20];
+#define	PCB_F2		0
+#define	PCB_F3		1
+#define	PCB_F4		2
+#define	PCB_F5		3
+#define	PCB_F16		4
+#define	PCB_F17		5
+#define	PCB_F18		6
+#define	PCB_F19		7
+#define	PCB_F20		8
+#define	PCB_F21		9
+#define	PCB_F22		10
+#define	PCB_F23		11
+#define	PCB_F24		12
+#define	PCB_F25		13
+#define	PCB_F26		14
+#define	PCB_F27		15
+#define	PCB_F28		16
+#define	PCB_F29		17
+#define	PCB_F30		18
+#define	PCB_F31		19
+	uint64_t		pcb_r[4];
+#define	PCB_R4		0
+#define	PCB_R5		1
+#define	PCB_R6		2
+#define	PCB_R7		3
+	uint64_t		pcb_unat47;
+	uint64_t		pcb_b[5];
+#define	PCB_B1		0
+#define	PCB_B2		1
+#define	PCB_B3		2
+#define	PCB_B4		3
+#define	PCB_B5		4
+	uint64_t		pcb_ar_bsp;
+	uint64_t		pcb_ar_pfs;
+	uint64_t		pcb_ar_rnat;
+	uint64_t		pcb_ar_lc;
 
-	struct ia64_fpreg	pcb_f2;
-	struct ia64_fpreg	pcb_f3;
-	struct ia64_fpreg	pcb_f4;
-	struct ia64_fpreg	pcb_f5;
+	uint64_t		pcb_current_pmap;
 
-	u_int64_t		pcb_b0;		/* really restart address */
-	u_int64_t		pcb_b1;
-	u_int64_t		pcb_b2;
-	u_int64_t		pcb_b3;
-	u_int64_t		pcb_b4;
-	u_int64_t		pcb_b5;
+	uint64_t		pcb_ar_fcr;
+	uint64_t		pcb_ar_eflag;
+	uint64_t		pcb_ar_csd;
+	uint64_t		pcb_ar_ssd;
+	uint64_t		pcb_ar_fsr;
+	uint64_t		pcb_ar_fir;
+	uint64_t		pcb_ar_fdr;
 
-	u_int64_t		pcb_old_unat;	/* caller's ar.unat */
-	u_int64_t		pcb_sp;
-	u_int64_t		pcb_pfs;
-	u_int64_t		pcb_bspstore;
-	u_int64_t		pcb_lc;
-
-	u_int64_t		pcb_unat;	/* ar.unat for r4..r7 */
-	u_int64_t		pcb_rnat;
-	u_int64_t		pcb_pr;		/* predicates */
-	u_int64_t		pcb_pmap;	/* current pmap */
-
-	u_int64_t		pcb_fsr;
-	u_int64_t		pcb_fcr;
-	u_int64_t		pcb_fir;
-	u_int64_t		pcb_fdr;
-	u_int64_t		pcb_eflag;
-	u_int64_t		pcb_csd;
-	u_int64_t		pcb_ssd;
-
-	u_int64_t		pcb_onfault;	/* for copy faults */
-	u_int64_t		pcb_accessaddr;	/* for [fs]uswintr */
-
+	/* Aligned! */
 	struct ia64_fpreg	pcb_highfp[96];	/* f32-f127 */
+
+	uint64_t		pcb_onfault;	/* for copy faults */
+	uint64_t		pcb_accessaddr;	/* for [fs]uswintr */
 };
 
 #ifdef _KERNEL
