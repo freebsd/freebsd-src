@@ -47,6 +47,9 @@
 
 #include <sys/device_port.h>
 
+#include <dev/pccard/pccarddevs.h>
+#include <dev/pccard/pccardvar.h>
+
 #include <cam/scsi/scsi_low.h>
 #include <cam/scsi/scsi_low_pisa.h>
 
@@ -69,6 +72,14 @@ static int nspprobe(DEVPORT_PDEVICE devi);
 static int nspattach(DEVPORT_PDEVICE devi);
 
 static	void	nsp_card_unload	(DEVPORT_PDEVICE);
+
+const struct pccard_product nsp_products[] = {
+  	PCMCIA_CARD(IODATA3, CBSC16, 0),
+  	PCMCIA_CARD(PANASONIC, KME, 0),
+	PCMCIA_CARD(WORKBIT2, NINJA_SCSI3, 0),
+	PCMCIA_CARD(WORKBIT, ULTRA_NINJA_16, 0),
+  	{ NULL }
+};
 
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
@@ -159,6 +170,18 @@ nsp_alloc_resource(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
+static int nsp_pccard_match(device_t dev)
+{
+  	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, nsp_products,
+	    sizeof(nsp_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return(0);
+	}
+	return(EIO);
+}
+
 static int
 nsp_pccard_probe(DEVPORT_PDEVICE dev)
 {
@@ -217,9 +240,14 @@ nsp_pccard_detach(DEVPORT_PDEVICE dev)
 
 static device_method_t nsp_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		nsp_pccard_probe),
-	DEVMETHOD(device_attach,	nsp_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	nsp_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	nsp_pccard_match),
+	DEVMETHOD(card_compat_probe,	nsp_pccard_probe),
+	DEVMETHOD(card_compat_attach,	nsp_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -288,6 +316,11 @@ nspattach(DEVPORT_PDEVICE devi)
 	slp->sl_dev = devi;
 	sc->sc_iot = rman_get_bustag(sc->port_res);
 	sc->sc_ioh = rman_get_bushandle(sc->port_res);
+
+	if(sc->mem_res == NULL){
+	  printf("WARNING: CANNOT GET Memory RESOURCE going PIO mode");
+	  flags |= PIO_MODE;
+	}
 
 	if((flags & PIO_MODE) == 0) {
 		sc->sc_memt = rman_get_bustag(sc->mem_res);
