@@ -34,6 +34,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /* Sort sorts a file using an optional user-defined key.
@@ -46,8 +48,7 @@
 #include "pathnames.h"
 
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1993 The Regents of the University of California.  All rights reserved.");
 #endif /* not lint */
 
 #ifndef lint
@@ -112,8 +113,7 @@ main(argc, argv)
 
 	memset(fldtab, 0, (ND+2)*sizeof(struct field));
 	memset(d_mask, 0, NBINS);
-	d_mask[REC_D = '\n'] = REC_D_F;
-	SINGL_FLD = SEP_FLAG = 0;
+	d_mask[REC_D] = REC_D_F;
 	d_mask['\t'] = d_mask[' '] = BLANK | FLD_D;
 	ftpos = fldtab;
 	many_files();
@@ -172,7 +172,7 @@ main(argc, argv)
 		case 'R':
 			if (REC_D != '\n')
 				usage("multiple record delimiters");
-			if ('\n' == (REC_D = *optarg))
+			if ('\n' == (REC_D = (u_char)*optarg))
 				break;
 			d_mask['\n'] = d_mask[' '];
 			d_mask[REC_D] = REC_D_F;
@@ -252,7 +252,7 @@ main(argc, argv)
 	} else if (!(ch = access(outpath, 0)) &&
 	    strncmp(_PATH_DEV, outpath, 5)) {
 		static const struct sigaction act =
-		    { onsignal, {{0}}, SA_RESTART | SA_RESETHAND };
+		    { { onsignal }, SA_RESTART | SA_RESETHAND, { { 0 } } };
 		static const int sigtable[] = {SIGHUP, SIGINT, SIGPIPE,
 		    SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, 0};
 		int outfd;
