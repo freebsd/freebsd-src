@@ -6,9 +6,9 @@ SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
 MAN1=	gzexe.1 gzip.1 zdiff.1 zforce.1 zmore.1 znew.1
 CFLAGS+=-DASMV -DHAVE_UNISTD_H=1 -DDIRENT=1
 MLINKS= gzip.1 gunzip.1  gzip.1 zcat.1  gzip.1 gzcat.1
-LINKS+= ${DESTDIR}${BINDIR}/gzip ${DESTDIR}${BINDIR}/gunzip
-LINKS+= ${DESTDIR}${BINDIR}/gzip ${DESTDIR}${BINDIR}/gzcat
-LINKS+= ${DESTDIR}${BINDIR}/gzip ${DESTDIR}${BINDIR}/zcat
+LINKS+= ${BINDIR}/gzip ${BINDIR}/gunzip
+LINKS+= ${BINDIR}/gzip ${BINDIR}/gzcat
+LINKS+= ${BINDIR}/gzip ${BINDIR}/zcat
 
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
