@@ -1116,15 +1116,29 @@ syncache_respond(sc, m)
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(struct ip) >> 2;
-		ip->ip_tos = 0;
 		ip->ip_len = tlen;
 		ip->ip_id = 0;
 		ip->ip_off = 0;
-		ip->ip_ttl = ip_defttl;
 		ip->ip_sum = 0;
 		ip->ip_p = IPPROTO_TCP;
 		ip->ip_src = sc->sc_inc.inc_laddr;
 		ip->ip_dst = sc->sc_inc.inc_faddr;
+		ip->ip_ttl = sc->sc_tp->t_inpcb->inp_ip_ttl;   /* XXX */
+		ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
+
+		/*
+		 * See if we should do MTU discovery.  We do it only if the following
+		 * are true:
+		 *      1) we have a valid route to the destination
+		 *      2) the MTU is not locked (if it is, then discovery has been  
+		 *         disabled)
+		 */
+		if (path_mtu_discovery
+		    && (rt != NULL)
+		    && rt->rt_flags & RTF_UP
+		    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+		       ip->ip_off |= IP_DF;
+		}
 
 		th = (struct tcphdr *)(ip + 1);
 	}
