@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.8 1994/05/25 08:56:42 rgrimes Exp $
+ *	$Id: reg.h,v 1.9 1994/10/02 17:31:29 phk Exp $
  */
 
 #ifndef _MACHINE_REG_H_
-#define _MACHINE_REG_H_ 1
+#define	_MACHINE_REG_H_
 
 /*
  * Location of the users' stored
@@ -98,13 +98,20 @@ struct reg {
  * Register set accessible via /proc/$pid/fpreg
  */
 struct fpreg {
-#if 0
-	int	fpr_xxx;	/* not implemented */
-#endif
+	/*
+	 * XXX should get struct from npx.h.  Here we give a slightly
+	 * simplified struct.  This may be too much detail.  Perhaps
+	 * an array of unsigned longs is best.
+	 */
+	unsigned long	fpr_env[7];
+	unsigned char	fpr_acc[8][10];
+	unsigned long	fpr_ex_sw;
+	unsigned char	fpr_pad[64];
 };
 
 #ifdef KERNEL
 int	set_regs __P((struct proc *p, struct reg *regs));
 void	setregs __P((struct proc *, u_long, u_long));
 #endif
-#endif /* _MACHINE_REG_H_ */
+
+#endif /* !_MACHINE_REG_H_ */
