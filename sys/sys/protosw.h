@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.16 1997/03/14 16:51:28 wollman Exp $
+ *	$Id: protosw.h,v 1.17 1997/04/27 20:01:27 wollman Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -221,6 +221,8 @@ struct pr_usrreqs {
 };
 
 int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
+int	pru_connect_notsupp __P((struct socket *so, struct mbuf *nam,
+				 struct proc *p));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
 int	pru_control_notsupp __P((struct socket *so, int cmd, caddr_t data,
 				 struct ifnet *ifp, struct proc *p));

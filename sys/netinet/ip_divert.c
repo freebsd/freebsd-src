@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.7 1997/03/03 09:23:34 davidg Exp $
+ *	$Id: ip_divert.c,v 1.8 1997/04/03 05:14:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -252,113 +253,98 @@ cantsend:
 	return error;
 }
 
-/*ARGSUSED*/
-int
-div_usrreq(so, req, m, nam, control)
-	register struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *control;
+static int
+div_attach(struct socket *so, int proto, struct proc *p)
 {
-	register int error = 0;
-	register struct inpcb *inp = sotoinpcb(so);
-	int s = 0;
+	struct inpcb *inp;
+	int error;
 
-	if (inp == NULL && req != PRU_ATTACH) {
-		error = EINVAL;
-		goto release;
-	}
-	switch (req) {
+	inp  = sotoinpcb(so);
+	if (inp)
+		panic("div_attach");
+	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return error;
 
-	case PRU_ATTACH:
-		if (inp)
-			panic("div_attach");
-		if ((so->so_state & SS_PRIV) == 0) {
-			error = EACCES;
-			break;
-		}
-		if ((error = soreserve(so, div_sendspace, div_recvspace)) ||
-		    (error = in_pcballoc(so, &divcbinfo)))
-			break;
-		inp = (struct inpcb *)so->so_pcb;
-		inp->inp_ip_p = (int)nam;	/* XXX */
-		inp->inp_flags |= INP_HDRINCL;
-		/* The socket is always "connected" because
-		   we always know "where" to send the packet */
-		so->so_state |= SS_ISCONNECTED;
-		break;
-
-	case PRU_DISCONNECT:
-		if ((so->so_state & SS_ISCONNECTED) == 0) {
-			error = ENOTCONN;
-			break;
-		}
-		/* FALLTHROUGH */
-	case PRU_ABORT:
-		soisdisconnected(so);
-		/* FALLTHROUGH */
-	case PRU_DETACH:
-		if (inp == 0)
-			panic("div_detach");
-		in_pcbdetach(inp);
-		break;
-
-	case PRU_BIND:
-		s = splnet();
-		error = in_pcbbind(inp, nam);
-		splx(s);
-		break;
-
-	/*
-	 * Mark the connection as being incapable of further input.
-	 */
-	case PRU_SHUTDOWN:
-		socantsendmore(so);
-		break;
-
-	case PRU_SEND:
-		/* Packet must have a header (but that's about it) */
-		if (m->m_len < sizeof (struct ip) ||
-		    (m = m_pullup(m, sizeof (struct ip))) == 0) {
-			ipstat.ips_toosmall++;
-			error = EINVAL;
-			break;
-		}
-
-		/* Send packet */
-		error = div_output(so, m, nam, control); 
-		m = NULL;
-		break;
-
-	case PRU_SOCKADDR:
-		in_setsockaddr(so, nam);
-		break;
-
-	case PRU_SENSE:
-		/*
-		 * stat: don't bother with a blocksize.
-		 */
-		return (0);
-
-	/*
-	 * Not supported.
-	 */
-	case PRU_CONNECT:
-	case PRU_CONNECT2:
-	case PRU_CONTROL:
-	case PRU_RCVOOB:
-	case PRU_RCVD:
-	case PRU_LISTEN:
-	case PRU_ACCEPT:
-	case PRU_SENDOOB:
-	case PRU_PEERADDR:
-		error = EOPNOTSUPP;
-		break;
-
-	default:
-		panic("div_usrreq");
-	}
-release:
-	if (m)
-		m_freem(m);
-	return (error);
+	if ((error = soreserve(so, div_sendspace, div_recvspace)) ||
+	    (error = in_pcballoc(so, &divcbinfo, p)))
+		return error;
+	inp = (struct inpcb *)so->so_pcb;
+	inp->inp_ip_p = proto;
+	inp->inp_flags |= INP_HDRINCL;
+	/* The socket is always "connected" because
+	   we always know "where" to send the packet */
+	so->so_state |= SS_ISCONNECTED;
+	return 0;
 }
+
+static int
+div_detach(struct socket *so)
+{
+	struct inpcb *inp;
+
+	inp = sotoinpcb(so);
+	if (inp == 0)
+		panic("div_detach");
+	in_pcbdetach(inp);
+	return 0;
+}
+
+static int
+div_abort(struct socket *so)
+{
+	soisdisconnected(so);
+	return div_detach(so);
+}
+
+static int
+div_disconnect(struct socket *so)
+{
+	if ((so->so_state & SS_ISCONNECTED) == 0)
+		return ENOTCONN;
+	return div_abort(so);
+}
+
+static int
+div_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+{
+	struct inpcb *inp;
+	int s;
+	int error;
+
+	s = splnet();
+	error = in_pcbbind(inp, nam, p);
+	splx(s);
+	return 0;
+}
+
+static int
+div_shutdown(struct socket *so)
+{
+	socantsendmore(so);
+	return 0;
+}
+
+static int
+div_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+	 struct mbuf *control, struct proc *p)
+{
+	/* Packet must have a header (but that's about it) */
+	if (m->m_len < sizeof (struct ip) ||
+	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
+		ipstat.ips_toosmall++;
+		m_freem(m);
+		return EINVAL;
+	}
+
+	/* Send packet */
+	return div_output(so, m, nam, control);
+}
+
+struct pr_usrreqs div_usrreqs = {
+	div_abort, pru_accept_notsupp, div_attach, div_bind,
+	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
+	div_disconnect, pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
+	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
+	in_setsockaddr, sosend, soreceive, soselect
+};
+
