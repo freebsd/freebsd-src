@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.13 1997/12/16 02:43:26 pst Exp $
+# $Id: pccard.conf.sample,v 1.4.2.4 1997/12/17 01:57:57 pst Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -261,6 +261,13 @@ card "IBM" "Push/Pop Modem(14.4"
 	insert	echo IBM Push/Pop Modem inserted
 	remove	echo IBM Push/Pop Modem removed
 
+# Eiger PCCARD modem 
+# Apparently this modem does not work unless the recommended
+# init string (AT&F&C1&D2) is supplied.
+card "PCMCIA  " "33.6K Fax/Modem  "
+	config 23 "sio2" 5
+	insert echo Eiger 33.6K modem inserted
+	remove echo Eiger 33.6K modem removed
 
 # BUG Linkboy D64K (ISDN)
 card "BUG Inc." "Linkboy D64K"
