@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.8 1999/04/22 17:45:01 obrien Exp $ */
+/* $Id: freebsd-native.h,v 1.1 1999/04/28 18:48:05 obrien Exp $ */
 
 /* FREEBSD_NATIVE is defined when gcc is integrated into the FreeBSD
    source tree so it can be configured appropriately without using
@@ -38,3 +38,8 @@
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
+
+/* Tell gcc to locate libgcc.a for us according to the -m rules.  */
+#undef LIBGCC_SPEC
+#define LIBGCC_SPEC \
+ "%{!shared:%{!pthread:%{!kthread:libgcc.a%s}}%{pthread|kthread:libgcc_r.a%s}}"
