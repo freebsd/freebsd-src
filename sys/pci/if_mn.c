@@ -160,24 +160,24 @@ struct m32_mem {
 	vm_offset_t	ctxd[M32_CHAN];
 };
 
-struct softc;
+struct mn_softc;
 struct sockaddr;
 struct rtentry;
 
 static	int	mn_probe  (device_t self);
 static	int	mn_attach (device_t self);
-static	void	mn_create_channel(struct softc *sc, int chan);
-static	int	mn_reset(struct softc *sc);
+static	void	mn_create_channel(struct mn_softc *sc, int chan);
+static	int	mn_reset(struct mn_softc *sc);
 static	struct trxd * mn_alloc_desc(void);
 static	void	mn_free_desc(struct trxd *dp);
 static	void	mn_intr(void *xsc);
 static	u_int32_t mn_parse_ts(const char *s, int *nbit);
 #ifdef notyet
-static	void	m32_dump(struct softc *sc);
-static	void	f54_dump(struct softc *sc);
+static	void	m32_dump(struct mn_softc *sc);
+static	void	f54_dump(struct mn_softc *sc);
 static	void	mn_fmt_ts(char *p, u_int32_t ts);
 #endif /* notyet */
-static	void	f54_init(struct softc *sc);
+static	void	f54_init(struct mn_softc *sc);
 
 static	ng_constructor_t ngmn_constructor;
 static	ng_rcvmsg_t ngmn_rcvmsg;
@@ -208,7 +208,7 @@ static MALLOC_DEFINE(M_MN, "mn", "Mx driver related");
 
 struct schan {
 	enum {DOWN, UP} state;
-	struct softc	*sc;
+	struct mn_softc	*sc;
 	int		chan;
 	u_int32_t	ts;
 	char		name[8];
@@ -238,7 +238,7 @@ struct schan {
 
 enum framing {WHOKNOWS, E1, E1U, T1, T1U};
 
-struct softc {
+struct mn_softc {
 	int	unit;
 	device_t	dev;
 	struct resource *irq;
@@ -288,7 +288,7 @@ ngmn_shutdown(node_p nodep)
 static void
 ngmn_config(node_p node, char *set, char *ret)
 {
-	struct softc *sc;
+	struct mn_softc *sc;
 	enum framing wframing;
 
 	sc = NG_NODE_PRIVATE(node);
@@ -328,7 +328,7 @@ ngmn_config(node_p node, char *set, char *ret)
 static int
 ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct softc *sc;
+	struct mn_softc *sc;
 	struct ng_mesg *resp = NULL;
 	struct schan *sch;
 	char *s, *r;
@@ -455,7 +455,7 @@ static int
 ngmn_newhook(node_p node, hook_p hook, const char *name)
 {
 	u_int32_t ts, chan;
-	struct softc *sc;
+	struct mn_softc *sc;
 	int nbit;
 
 	sc = NG_NODE_PRIVATE(node);
@@ -584,7 +584,7 @@ ngmn_rcvdata(hook_p hook, item_p item)
 	struct mbuf  *m2;
 	struct trxd *dp, *dp2;
 	struct schan *sch;
-	struct softc *sc;
+	struct mn_softc *sc;
 	int chan, pitch, len;
 	struct mbuf *m;
 
@@ -664,7 +664,7 @@ ngmn_connect(hook_p hook)
 	int i, nts, chan;
 	struct trxd *dp, *dp2;
 	struct mbuf *m;
-	struct softc *sc;
+	struct mn_softc *sc;
 	struct schan *sch;
 	u_int32_t u;
 
@@ -778,7 +778,7 @@ static int
 ngmn_disconnect(hook_p hook)
 {
 	int chan, i;
-	struct softc *sc;
+	struct mn_softc *sc;
 	struct schan *sch;
 	struct trxd *dp, *dp2;
 	u_int32_t u;
@@ -834,7 +834,7 @@ ngmn_disconnect(hook_p hook)
  * Create a new channel.
  */
 static void
-mn_create_channel(struct softc *sc, int chan)
+mn_create_channel(struct mn_softc *sc, int chan)
 {
 	struct schan *sch;
 
@@ -852,7 +852,7 @@ mn_create_channel(struct softc *sc, int chan)
  * Dump Munich32x state
  */
 static void
-m32_dump(struct softc *sc)
+m32_dump(struct mn_softc *sc)
 {
 	u_int32_t *tp4;
 	int i, j;
@@ -884,7 +884,7 @@ m32_dump(struct softc *sc)
  * Dump Falch54 state
  */
 static void
-f54_dump(struct softc *sc)
+f54_dump(struct mn_softc *sc)
 {
 	u_int8_t *tp1;
 	int i, j;
@@ -904,7 +904,7 @@ f54_dump(struct softc *sc)
  * Init Munich32x
  */
 static void
-m32_init(struct softc *sc)
+m32_init(struct mn_softc *sc)
 {
 
 	sc->m32x->conf =  0x00000000;
@@ -926,7 +926,7 @@ m32_init(struct softc *sc)
  * Init the Falc54
  */
 static void
-f54_init(struct softc *sc)
+f54_init(struct mn_softc *sc)
 {
 	sc->f54w->ipc  = 0x07;
 
@@ -963,7 +963,7 @@ f54_init(struct softc *sc)
 }
 
 static int
-mn_reset(struct softc *sc)
+mn_reset(struct mn_softc *sc)
 {
 	u_int32_t u;
 	int i;
@@ -1020,7 +1020,7 @@ mn_reset(struct softc *sc)
  * FALC54 interrupt handling
  */
 static void
-f54_intr(struct softc *sc)
+f54_intr(struct mn_softc *sc)
 {
 	unsigned g, u, s;
 
@@ -1090,7 +1090,7 @@ f54_intr(struct softc *sc)
  * Transmit interrupt for one channel
  */
 static void
-mn_tx_intr(struct softc *sc, u_int32_t vector)
+mn_tx_intr(struct mn_softc *sc, u_int32_t vector)
 {
 	u_int32_t chan;
 	struct trxd *dp;
@@ -1127,7 +1127,7 @@ mn_tx_intr(struct softc *sc, u_int32_t vector)
  * Receive interrupt for one channel
  */
 static void
-mn_rx_intr(struct softc *sc, u_int32_t vector)
+mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 {
 	u_int32_t chan, err;
 	struct trxd *dp;
@@ -1216,7 +1216,7 @@ mn_rx_intr(struct softc *sc, u_int32_t vector)
 static void
 mn_intr(void *xsc)
 {
-	struct softc *sc;
+	struct mn_softc *sc;
 	u_int32_t stat, lstat, u;
 	int i, j;
 
@@ -1281,7 +1281,7 @@ static void
 mn_timeout(void *xsc)
 {
 	static int round = 0;
-	struct softc *sc;
+	struct mn_softc *sc;
 
 	mn_intr(xsc);
 	sc = xsc;
@@ -1327,7 +1327,7 @@ mn_probe (device_t self)
 static int
 mn_attach (device_t self)
 {
-	struct softc *sc;
+	struct mn_softc *sc;
 	u_int32_t u;
 	u_int32_t ver;
 	static int once;
@@ -1340,7 +1340,7 @@ mn_attach (device_t self)
 		once++;
 	}
 
-	sc = (struct softc *)malloc(sizeof *sc, M_MN, M_WAITOK | M_ZERO);
+	sc = (struct mn_softc *)malloc(sizeof *sc, M_MN, M_WAITOK | M_ZERO);
 	device_set_softc(self, sc);
 
 	sc->dev = self;
@@ -1353,6 +1353,7 @@ mn_attach (device_t self)
             0, ~0, 1, RF_ACTIVE);
         if (res == NULL) {
                 device_printf(self, "Could not map memory\n");
+		free(sc, M_MN);
                 return ENXIO;
         }
         sc->m0v = rman_get_virtual(res);
@@ -1363,6 +1364,7 @@ mn_attach (device_t self)
             0, ~0, 1, RF_ACTIVE);
         if (res == NULL) {
                 device_printf(self, "Could not map memory\n");
+		free(sc, M_MN);
                 return ENXIO;
         }
         sc->m1v = rman_get_virtual(res);
@@ -1375,6 +1377,7 @@ mn_attach (device_t self)
 
 	if (sc->irq == NULL) {
 		printf("couldn't map interrupt\n");
+		free(sc, M_MN);
 		return(ENXIO);
 	}
 
@@ -1382,6 +1385,7 @@ mn_attach (device_t self)
 
 	if (error) {
 		printf("couldn't set up irq\n");
+		free(sc, M_MN);
 		return(ENXIO);
 	}
 
