@@ -1868,6 +1868,12 @@ ip_mloopback(ifp, m, dst, hlen)
 		copym->m_pkthdr.rcvif = ifp;
 		ip_input(copym);
 #else
+		/* if the checksum hasn't been computed, mark it as valid */
+		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			copym->m_pkthdr.csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			copym->m_pkthdr.csum_data = 0xffff;
+		}
 		if_simloop(ifp, copym, dst->sin_family, 0);
 #endif
 	}
