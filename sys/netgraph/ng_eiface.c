@@ -520,10 +520,6 @@ ng_eiface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	/* Update interface stats */
 	ifp->if_ipackets++;
 
-	/* Berkeley packet filter */
-	if (ifp->if_bpf)
-	  bpf_mtap(ifp, m);
-
 	eh = mtod( m, struct ether_header * );
 	ether_type = ntohs(eh->ether_type);
 
