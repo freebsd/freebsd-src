@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.29 1998/04/19 23:32:12 julian Exp $
+ *	$Id: devfs_vfsops.c,v 1.30 1998/05/06 05:29:32 msmith Exp $
  *
  */
 
@@ -123,7 +123,7 @@ DBPRINT(("mount "));
 	 */
 	mp->mnt_data = (qaddr_t)devfs_mp_p;
 	mp->mnt_stat.f_type = MOUNT_DEVFS;
-	mp->mnt_stat.f_fsid.val[0] = (long)devfs_mp_p;
+	mp->mnt_stat.f_fsid.val[0] = (intptr_t)(void *)devfs_mp_p;
 	mp->mnt_stat.f_fsid.val[1] = MOUNT_DEVFS;
 	mp->mnt_flag |= MNT_LOCAL;
 
@@ -228,7 +228,7 @@ DBPRINT(("statfs "));
 	sbp->f_bavail = 0;
 	sbp->f_files  = 128;
 	sbp->f_ffree  = 0;		/* what to put in here? */
-	sbp->f_fsid.val[0] = (long)devfs_mp_p;
+	sbp->f_fsid.val[0] = (intptr_t)(void *)devfs_mp_p;
 	sbp->f_fsid.val[1] = MOUNT_DEVFS;
 
 /*-

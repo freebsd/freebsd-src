@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.29 1998/02/09 06:08:20 eivind Exp $
+ *	$Id: imgact_coff.c,v 1.30 1998/02/11 01:46:47 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -257,13 +257,13 @@ coff_load_file(struct proc *p, char *name)
   	}
 
   	if (error = load_coff_section(vmspace, vp, text_offset,
-				      (caddr_t)text_address,
+				      (caddr_t)(void *)(uintptr_t)text_address,
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) {
     		goto dealloc_and_fail;
   	}
   	if (error = load_coff_section(vmspace, vp, data_offset,
-				      (caddr_t)data_address,
+				      (caddr_t)(void *)(uintptr_t)data_address,
 				      data_size + bss_size, data_size,
 				      VM_PROT_ALL)) {
     		goto dealloc_and_fail;
@@ -417,7 +417,8 @@ exec_coff_imgact(imgp)
 		__FILE__, __LINE__, text_offset, text_address,
 		text_size, text_size, VM_PROT_READ | VM_PROT_EXECUTE));
 	if (error = load_coff_section(vmspace, imgp->vp,
-				      text_offset, (caddr_t)text_address,
+				      text_offset,
+				      (caddr_t)(void *)(uintptr_t)text_address,
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
@@ -433,7 +434,8 @@ exec_coff_imgact(imgp)
 		__FILE__, __LINE__, data_offset, data_address,
 		data_size + bss_size, data_size, VM_PROT_ALL));
 	if (error = load_coff_section(vmspace, imgp->vp,
-				      data_offset, (caddr_t)data_address,
+				      data_offset,
+				      (caddr_t)(void *)(uintptr_t)data_address,
 				      data_size + bss_size, data_size,
 				      VM_PROT_ALL)) {
 
@@ -446,8 +448,8 @@ exec_coff_imgact(imgp)
 
 	vmspace->vm_tsize = round_page(text_size) >> PAGE_SHIFT;
 	vmspace->vm_dsize = round_page(data_size + bss_size) >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t)text_address;
-	vmspace->vm_daddr = (caddr_t)data_address;
+	vmspace->vm_taddr = (caddr_t)(void *)(uintptr_t)text_address;
+	vmspace->vm_daddr = (caddr_t)(void *)(uintptr_t)data_address;
 
 	hole = (caddr_t)trunc_page(vmspace->vm_daddr) + ctob(vmspace->vm_dsize);
 

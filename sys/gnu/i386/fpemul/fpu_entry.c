@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.12 1997/06/14 15:11:03 bde Exp $
+ *  $Id: fpu_entry.c,v 1.13 1997/07/20 08:46:23 bde Exp $
  *
  */
 
@@ -395,7 +395,7 @@ do_another_FPU_instruction:
 
 reg_mem_instr_done:
 
-		data_operand_offset = (unsigned long) FPU_data_address;
+		data_operand_offset = (intptr_t) (void *) FPU_data_address;
 	} else {
 		/* None of these instructions access user memory */
 		unsigned char instr_index = (FPU_modrm & 0x38) | (code & 7);

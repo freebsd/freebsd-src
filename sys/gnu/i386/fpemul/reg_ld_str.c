@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_ld_str.c,v 1.10 1997/06/14 15:11:05 bde Exp $
+ *     $Id: reg_ld_str.c,v 1.11 1997/08/31 22:22:21 bde Exp $
  *
  */
 
@@ -1195,7 +1195,8 @@ fldenv(void)
 		}
 	}
 
-	FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+	/* We want no net effect: */
+	FPU_data_address = (void *) (intptr_t) data_operand_offset;
 	FPU_entry_eip = ip_offset;	/* We want no net effect */
 
 	return s + 0x1c;
@@ -1233,7 +1234,8 @@ frstor(void)
 	control_word = saved_control;
 	status_word = saved_status;
 
-	FPU_data_address = (void *) data_operand_offset;	/* We want no net effect */
+	/* We want no net effect: */
+	FPU_data_address = (void *) (intptr_t) data_operand_offset;
 }
 
 

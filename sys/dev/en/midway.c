@@ -579,7 +579,7 @@ u_int len, tx;
     }
 
     if (tx) {			/* byte burst? */
-      needalign = (((unsigned long) data) % sizeof(u_int32_t));
+      needalign = (((uintptr_t) (void *) data) % sizeof(u_int32_t));
       if (needalign) {
         result++;
         sz = min(len, sizeof(u_int32_t) - needalign);
@@ -589,7 +589,7 @@ u_int len, tx;
     }
 
     if (sc->alburst && len) {
-      needalign = (((unsigned long) data) & sc->bestburstmask);
+      needalign = (((uintptr_t) (void *) data) & sc->bestburstmask);
       if (needalign) {
 	result++;		/* alburst */
         sz = min(len, sc->bestburstlen - needalign);
@@ -896,8 +896,8 @@ struct en_softc *sc;
 
 #ifdef NBURSTS
   /* setup src and dst buf at the end of the boundary */
-  sp = (u_int8_t *)roundup((unsigned long)buffer, 64);
-  while (((unsigned long)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
+  sp = (u_int8_t *)roundup((uintptr_t)(void *)buffer, 64);
+  while (((uintptr_t)(void *)sp & (BOUNDARY - 1)) != (BOUNDARY - 64))
       sp += 64;
   dp = sp + BOUNDARY;
 
@@ -906,9 +906,9 @@ struct en_softc *sc;
    * boundary, move it to the next page.  but still either src or dst
    * will be at the boundary, which should be ok.
    */
-  if ((((unsigned long)sp + 64) & PAGE_MASK) == 0)
+  if ((((uintptr_t)(void *)sp + 64) & PAGE_MASK) == 0)
       sp += 64;
-  if ((((unsigned long)dp + 64) & PAGE_MASK) == 0)
+  if ((((uintptr_t)(void *)dp + 64) & PAGE_MASK) == 0)
       dp += 64;
 #else /* !NBURSTS */
   sp = (u_int8_t *) srcbuf;
@@ -1649,7 +1649,7 @@ struct ifnet *ifp;
       while (1) {
 	/* no DMA? */
         if ((!sc->is_adaptec && EN_ENIDMAFIX) || EN_NOTXDMA || !en_dma) {
-	  if ( (mtod(lastm, unsigned long) % sizeof(u_int32_t)) != 0 ||
+	  if ( ((uintptr_t)mtod(lastm, void *) % sizeof(u_int32_t)) != 0 ||
 	    ((lastm->m_len % sizeof(u_int32_t)) != 0 && lastm->m_next)) {
 	    first = (lastm == m);
 	    if (en_mfix(sc, &lastm, prev) == 0) {	/* failed? */
@@ -1920,7 +1920,7 @@ STATIC int en_makeexclusive(sc, mm, prev)
 	    /* the buffer is not shared, align the data offset using
 	       this buffer. */
 	    u_char *d = mtod(m, u_char *);
-	    int off = ((u_long)d) % sizeof(u_int32_t);
+	    int off = ((uintptr_t)(void *)d) % sizeof(u_int32_t);
 
 	    if (off > 0) {
 		bcopy(d, d - off, m->m_len);
@@ -1951,7 +1951,7 @@ struct mbuf **mm, *prev;
 #endif
 
   d = mtod(m, u_char *);
-  off = ((unsigned long) d) % sizeof(u_int32_t);
+  off = ((uintptr_t) (void *) d) % sizeof(u_int32_t);
 
   if (off) {
     if ((m->m_flags & M_EXT) == 0) {
@@ -2307,7 +2307,8 @@ struct en_launch *l;
 
     /* now, determine if we should copy it */
     if (l->nodma || (len < EN_MINDMA &&
-       (len % 4) == 0 && ((unsigned long) data % 4) == 0 && (cur % 4) == 0)) {
+       (len % 4) == 0 && ((uintptr_t) (void *) data % 4) == 0 &&
+       (cur % 4) == 0)) {
 
       /* 
        * roundup len: the only time this will change the value of len
@@ -2384,7 +2385,7 @@ struct en_launch *l;
      */
 
     /* do we need to do a DMA op to align to word boundary? */
-    needalign = (unsigned long) data % sizeof(u_int32_t);
+    needalign = (uintptr_t) (void *) data % sizeof(u_int32_t);
     if (needalign) {
       EN_COUNT(sc->headbyte);
       cnt = sizeof(u_int32_t) - needalign;
@@ -2412,7 +2413,7 @@ struct en_launch *l;
 
     /* do we need to do a DMA op to align? */
     if (sc->alburst && 
-	(needalign = (((unsigned long) data) & sc->bestburstmask)) != 0
+	(needalign = (((uintptr_t) (void *) data) & sc->bestburstmask)) != 0
 	&& len >= sizeof(u_int32_t)) {
       cnt = sc->bestburstlen - needalign;
       mx = len & ~(sizeof(u_int32_t)-1);	/* don't go past end */
@@ -3148,7 +3149,7 @@ defer:					/* defer processing */
 
     /* do we need to do a DMA op to align? */
     if (sc->alburst &&
-      (needalign = (((unsigned long) data) & sc->bestburstmask)) != 0) {
+      (needalign = (((uintptr_t) (void *) data) & sc->bestburstmask)) != 0) {
       cnt = sc->bestburstlen - needalign;
       if (cnt > tlen) {
         cnt = tlen;

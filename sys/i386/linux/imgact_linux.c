@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.27 1998/02/11 01:46:49 eivind Exp $
+ *	$Id: imgact_linux.c,v 1.28 1998/07/29 16:43:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -146,8 +146,8 @@ exec_linux_imgact(imgp)
 	if (error)
 	    return error;
 
-	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
-			a_out->a_text + a_out->a_data);
+	error = copyout((caddr_t)(void *)(uintptr_t)(buffer + file_offset),
+			(caddr_t)vmaddr, a_out->a_text + a_out->a_data);
 
 	vm_map_remove(kernel_map, buffer,
 		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
@@ -219,8 +219,9 @@ exec_linux_imgact(imgp)
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
     vmspace->vm_dsize = round_page(a_out->a_data + bss_size) >> PAGE_SHIFT;
-    vmspace->vm_taddr = (caddr_t)virtual_offset;
-    vmspace->vm_daddr = (caddr_t)virtual_offset + a_out->a_text;
+    vmspace->vm_taddr = (caddr_t)(void *)(uintptr_t)virtual_offset;
+    vmspace->vm_daddr = (caddr_t)(void *)(uintptr_t)
+	(virtual_offset + a_out->a_text);
 
     /* Fill in image_params */
     imgp->interpreted = 0;
