@@ -800,6 +800,7 @@ update_prefix(struct prefix * prefix)
 static int
 init_prefix(struct in6_prefixreq *ipr)
 {
+#if 0
 	int s;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -832,6 +833,13 @@ init_prefix(struct in6_prefixreq *ipr)
 
 	close(s);
 	return 0;
+#else
+	ipr->ipr_vltime = DEF_ADVVALIDLIFETIME;
+	ipr->ipr_pltime = DEF_ADVPREFERREDLIFETIME;
+	ipr->ipr_raf_onlink = 1;
+	ipr->ipr_raf_auto = 1;
+        return 0;
+#endif
 }
 
 void
