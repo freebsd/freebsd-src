@@ -102,86 +102,6 @@ bytes (frames) sent, number of bytes (frames) received and number of
 input (output) errors.
 .It Dv NGM_UBT_NODE_RESET_STAT
 Reset all statistic counters to zero.
-.It Dv NGM_UBT_NODE_DEV_NODES
-This command takes a single integer parameter.
-If the parameter's value is not zero, then the driver will create device nodes
-for the control, interrupt, bulk-in and bulk-out endpoints.
-If the parameter's value is zero, then the driver will destroy the device nodes
-for the endpoints.
-The device nodes interface is mutually exclusive with the Netgraph interface.
-.El
-.Sh DEVICE NODES INTERFACE
-The
-.Nm ubt
-driver can create or destroy endpoint device nodes on request.
-This feature can be used to implement an external firmware download utility.
-.Pp
-Control transfers can only happen on the control endpoint which
-is always endpoint 0.
-Control requests are issued by
-.Xr ioctl 2
-calls.
-.Pp
-Only incoming transfers are supported on an interrupt endpoint.
-To perform I/O on an interrupt endpoint,
-.Xr read 2
-should be used.
-All I/O operations on an interrupt endpoint are unbuffered.
-.Pp
-The bulk transfers can be in or out depending on the endpoint.
-To perform I/O on a bulk endpoint,
-.Xr read 2
-and
-.Xr write 2
-should be used.
-All I/O operations on a bulk endpoint are unbuffered.
-.Pp
-The control endpoint (endpoint 0) handles the following
-.Xr ioctl 2
-calls:
-.Bl -tag -width indent
-.It Dv USB_GET_DEVICE_DESC Pq Vt usb_device_descriptor_t
-Return the device descriptor.
-.It Dv USB_GET_STRING_DESC Pq Vt "struct usb_string_desc"
-Get a string descriptor for the given language ID and string index.
-.Bd -literal
-struct usb_string_desc {
-        int                     string_index;
-        int                     language_id;
-        usb_string_descriptor_t desc;
-};
-.Ed
-.It Dv USB_DO_REQUEST Pq Vt "struct usb_ctl_request"
-Send a USB request to the device on the control endpoint.
-Any data sent to/from the device is located at
-.Va data .
-The size of the transferred data is determined from the
-.Va request .
-The
-.Va addr
-field is ignored in this call.
-The
-.Va flags
-field can be used to flag that the request is allowed to
-be shorter than the requested size, and the
-.Va actlen
-will contain the actual size on completion.
-.Bd -literal
-struct usb_ctl_request {
-        int                  addr;
-        usb_device_request_t request;
-        void                 *data;
-        int                  flags;
-#define USBD_SHORT_XFER_OK   0x04    /* allow short reads */
-        int                  actlen; /* actual length transferred */
-};
-.Ed
-This is a dangerous operation in that it can perform arbitrary operations
-on the device.
-Some of the most dangerous (e.g., changing the device address) are not allowed.
-.It Dv USB_GET_DEVICEINFO Pq Vt "struct usb_device_info"
-Get an information summary for the device.
-This call will not issue any USB transactions.
 .El
 .Sh SHUTDOWN
 This node shuts down when the corresponding USB device is un-plugged.
@@ -189,14 +109,6 @@ This node shuts down when the corresponding USB device is un-plugged.
 Isochronous USB transfers are broken.
 This means that the USB device will not be able to transfer SCO data (voice).
 USB interrupt transfers are implemented as bulk-in transfers (not really a bug).
-.Sh FILES
-.Bl -tag -width ".Pa /dev/ubt Ns Ar N Ns Pa \&. Ns Ar EE" -compact
-.It Pa /dev/ubt Ns Ar N Ns Pa \&. Ns Ar EE
-Endpoint
-.Ar EE
-of device
-.Ar N .
-.El
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ugen 4 ,
