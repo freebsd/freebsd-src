@@ -246,7 +246,22 @@ static int forward_wakeup_use_htt = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
 	   &forward_wakeup_use_htt, 0,
 	   "account for htt");
+
 #endif
+static int sched_followon = 0;
+SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
+	   &sched_followon, 0,
+	   "allow threads to share a quantum");
+
+static int sched_pfollowons = 0;
+SYSCTL_INT(_kern_sched, OID_AUTO, pfollowons, CTLFLAG_RD,
+	   &sched_pfollowons, 0,
+	   "number of followons done to a different ksegrp");
+
+static int sched_kgfollowons = 0;
+SYSCTL_INT(_kern_sched, OID_AUTO, kgfollowons, CTLFLAG_RD,
+	   &sched_kgfollowons, 0,
+	   "number of followons done in a ksegrp");
 
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -732,10 +747,13 @@ sched_sleep(struct thread *td)
 	td->td_base_pri = td->td_priority;
 }
 
+static void remrunqueue(struct thread *td);
+
 void
-sched_switch(struct thread *td, struct thread *newtd)
+sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
 	struct kse *ke;
+	struct ksegrp *kg;
 	struct proc *p;
 
 	ke = td->td_kse;
@@ -746,16 +764,51 @@ sched_switch(struct thread *td, struct thread *newtd)
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
 	/* 
+	 * We are volunteering to switch out so we get to nominate
+	 * a successor for the rest of our quantum
+	 * First try another thread in our ksegrp, and then look for 
+	 * other ksegrps in our process.
+	 */
+	if (sched_followon &&
+	    (p->p_flag & P_HADTHREADS) &&
+	    (flags & SW_VOL) &&
+	    newtd == NULL) {
+		/* lets schedule another thread from this process */
+		 kg = td->td_ksegrp;
+		 if ((newtd = TAILQ_FIRST(&kg->kg_runq))) {
+			remrunqueue(newtd);
+			sched_kgfollowons++;
+		 } else {
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				if ((newtd = TAILQ_FIRST(&kg->kg_runq))) {
+					sched_pfollowons++;
+					remrunqueue(newtd);
+					break;
+				}
+			}
+		}
+	}
+
+	/* 
 	 * The thread we are about to run needs to be counted as if it had been 
 	 * added to the run queue and selected.
+	 * it came from:
+	 * A preemption
+	 * An upcall 
+	 * A followon
+	 * Do this before saving curthread so that the slot count 
+	 * doesn't give an overly optimistic view when that happens.
 	 */
 	if (newtd) {
+		KASSERT((newtd->td_inhibitors == 0),
+			("trying to run inhibitted thread"));
 		newtd->td_ksegrp->kg_avail_opennings--;
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
 			sched_tdcnt++;
 	}
+
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_pflags &= ~TDP_OWEPREEMPT;
@@ -977,6 +1030,7 @@ sched_add(struct thread *td, int flags)
 	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
+	td->td_ksegrp->kg_avail_opennings--;
 	runq_add(ke->ke_runq, ke);
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
@@ -997,12 +1051,17 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
+	td->td_ksegrp->kg_avail_opennings++;
 	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
-	ke->ke_ksegrp->kg_runq_kses--;
+	td->td_ksegrp->kg_runq_kses--;
 }
 
+/*
+ * Select threads to run.
+ * Notice that the running threads still consume a slot.
+ */
 struct kse *
 sched_choose(void)
 {

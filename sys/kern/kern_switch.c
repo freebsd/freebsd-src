@@ -192,7 +192,7 @@ retry:
  *  sched_thread_exit()  (local)
  *  sched_switch()  (local)
  *  sched_thread_exit()  (local)
- *  remrunqueue()  (local) (commented out)
+ *  remrunqueue()  (local)  (not at the moment)
  */
 static void
 slot_fill(struct ksegrp *kg)
@@ -214,7 +214,6 @@ slot_fill(struct ksegrp *kg)
 		 */
 		if (td) {
 			kg->kg_last_assigned = td;
-			kg->kg_avail_opennings--;
 			sched_add(td, SRQ_BORING);
 			CTR2(KTR_RUNQ, "slot_fill: td%p -> kg%p", td, kg);
 		} else {
@@ -224,7 +223,7 @@ slot_fill(struct ksegrp *kg)
 	}
 }
 
-#if 0
+#ifdef	SCHED_4BSD
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
@@ -248,9 +247,8 @@ remrunqueue(struct thread *td)
 	 * If it is not a threaded process, take the shortcut.
 	 */
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
-		/* Bring its kse with it, leave the thread attached */
+		/* remve from sys run queue and free up a slot */
 		sched_rem(td);
-		kg->kg_avail_opennings++;
 		ke->ke_state = KES_THREAD; 
 		return;
 	}
@@ -259,19 +257,18 @@ remrunqueue(struct thread *td)
 	kg->kg_runnable--;
 	if (ke->ke_state == KES_ONRUNQ) {
 		/*
-		 * This thread has been assigned to a KSE.
+		 * This thread has been assigned to the system run queue.
 		 * We need to dissociate it and try assign the
 		 * KSE to the next available thread. Then, we should
 		 * see if we need to move the KSE in the run queues.
 		 */
 		sched_rem(td);
-		kg->kg_avail_opennings++;
 		ke->ke_state = KES_THREAD; 
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
 		if (td2 == td) 
 			kg->kg_last_assigned = td3;
-		slot_fill(kg);
+		/* slot_fill(kg); */ /* will replace it with another */
 	}
 }
 #endif
@@ -305,17 +302,16 @@ adjustrunqueue( struct thread *td, int newpri)
 
 	/* It is a threaded process */
 	kg = td->td_ksegrp;
-	TD_SET_CAN_RUN(td);
 	if (ke->ke_state == KES_ONRUNQ) {
 		if (kg->kg_last_assigned == td) {
 			kg->kg_last_assigned =
 			    TAILQ_PREV(td, threadqueue, td_runq);
 		}
 		sched_rem(td);
-		kg->kg_avail_opennings++;
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	kg->kg_runnable--;
+	TD_SET_CAN_RUN(td);
 	td->td_priority = newpri;
 	setrunqueue(td, SRQ_BORING);
 }
@@ -326,11 +322,12 @@ setrunqueue(struct thread *td, int flags)
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct thread *tda;
-	int count;
 
 	CTR3(KTR_RUNQ, "setrunqueue: td:%p kg:%p pid:%d",
 	    td, td->td_ksegrp, td->td_proc->p_pid);
 	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT((td->td_inhibitors == 0),
+			("setrunqueue: trying to run inhibitted thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
@@ -350,14 +347,23 @@ setrunqueue(struct thread *td, int flags)
 			}
 			kg->kg_avail_opennings = 1;
 		}
-		kg->kg_avail_opennings--;
 		sched_add(td, flags);
 		return;
 	}
 
+	/* 
+	 * If the concurrency has reduced, and we would go in the 
+	 * assigned section, then keep removing entries from the 
+	 * system run queue, until we are not in that section 
+	 * or there is room for us to be put in that section.
+	 * What we MUST avoid is the case where there are threads of less
+	 * priority than the new one scheduled, but it can not
+	 * be scheduled itself. That would lead to a non contiguous set
+	 * of scheduled threads, and everything would break.
+	 */ 
 	tda = kg->kg_last_assigned;
-	if ((kg->kg_avail_opennings <= 0) &&
-	(tda && (tda->td_priority > td->td_priority))) {
+	while ((kg->kg_avail_opennings <= 0) &&
+	    (tda && (tda->td_priority > td->td_priority))) {
 		/*
 		 * None free, but there is one we can commandeer.
 		 */
@@ -373,17 +379,11 @@ setrunqueue(struct thread *td, int flags)
 	 * Add the thread to the ksegrp's run queue at
 	 * the appropriate place.
 	 */
-	count = 0;
 	TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
 		if (td2->td_priority > td->td_priority) {
 			kg->kg_runnable++;
 			TAILQ_INSERT_BEFORE(td2, td, td_runq);
 			break;
-		}
-		/* XXX Debugging hack */
-		if (++count > 10000) {
-			printf("setrunqueue(): corrupt kq_runq, td= %p\n", td);
-			panic("deadlock in setrunqueue");
 		}
 	}
 	if (td2 == NULL) {
@@ -395,12 +395,15 @@ setrunqueue(struct thread *td, int flags)
 	/*
 	 * If we have a slot to use, then put the thread on the system
 	 * run queue and if needed, readjust the last_assigned pointer.
+	 * it may be that we need to schedule something anyhow
+	 * even if the availabel slots are -ve so that
+	 * all the items < last_assigned are scheduled.
 	 */
 	if (kg->kg_avail_opennings > 0) {
 		if (tda == NULL) {
 			/*
 			 * No pre-existing last assigned so whoever is first
-			 * gets the KSE we brought in.. (maybe us)
+			 * gets the slot.. (maybe us)
 			 */
 			td2 = TAILQ_FIRST(&kg->kg_runq);
 			kg->kg_last_assigned = td2;
@@ -409,13 +412,12 @@ setrunqueue(struct thread *td, int flags)
 		} else {
 			/* 
 			 * We are past last_assigned, so 
-			 * gave the next slot to whatever is next,
+			 * give the next slot to whatever is next,
 			 * which may or may not be us.
 			 */
 			td2 = TAILQ_NEXT(tda, td_runq);
 			kg->kg_last_assigned = td2;
 		}
-		kg->kg_avail_opennings--;
 		sched_add(td2, flags);
 	} else {
 		CTR3(KTR_RUNQ, "setrunqueue: held: td%p kg%p pid%d",
@@ -504,6 +506,8 @@ maybe_preempt(struct thread *td)
 	ctd = curthread;
 	KASSERT ((ctd->td_kse != NULL && ctd->td_kse->ke_thread == ctd),
 	  ("thread has no (or wrong) sched-private part."));
+	KASSERT((td->td_inhibitors == 0),
+			("maybe_preempt: trying to run inhibitted thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (pri >= cpri || cold /* || dumping */ || TD_IS_INHIBITED(ctd) ||
@@ -524,8 +528,26 @@ maybe_preempt(struct thread *td)
 	/*
 	 * Our thread state says that we are already on a run queue, so
 	 * update our state as if we had been dequeued by choosethread().
+	 * However we must not actually be on the system run queue yet.
 	 */
 	MPASS(TD_ON_RUNQ(td));
+	MPASS(td->td_sched->ke_state != KES_ONRUNQ);
+	if (td->td_proc->p_flag & P_HADTHREADS) {
+		/*
+		 * If this is a threaded process we actually ARE on the
+		 * ksegrp run queue so take it off that first.
+		 * Also undo any damage done to the last_assigned pointer.
+		 * XXX Fix setrunqueue so this isn't needed
+		 */
+		struct ksegrp *kg;
+
+		kg = td->td_ksegrp;
+		if (kg->kg_last_assigned == td)
+			kg->kg_last_assigned =
+			    TAILQ_PREV(td, threadqueue, td_runq);
+		TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
+	}
+		
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);

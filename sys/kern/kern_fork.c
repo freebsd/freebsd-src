@@ -258,7 +258,7 @@ fork1(td, flags, pages, procp)
 	 * other side with the expectation that the process is about to
 	 * exec.
 	 */
-	if (p1->p_flag & P_SA) {
+	if (p1->p_flag & P_HADTHREADS) {
 		/*
 		 * Idle the other threads for a second.
 		 * Since the user space is copied, it must remain stable.
@@ -731,7 +731,7 @@ again:
 	/*
 	 * If other threads are waiting, let them continue now.
 	 */
-	if (p1->p_flag & P_SA) {
+	if (p1->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);
@@ -752,7 +752,7 @@ fail:
 	mac_destroy_proc(newproc);
 #endif
 	uma_zfree(proc_zone, newproc);
-	if (p1->p_flag & P_SA) {
+	if (p1->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);
