@@ -494,13 +494,17 @@ vnode_pager_input_smlfs(object, m)
 			if (error)
 				break;
 
+			VM_OBJECT_LOCK(object);
 			vm_page_lock_queues();
 			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(object);
 		} else {
+			VM_OBJECT_LOCK(object);
 			vm_page_lock_queues();
 			vm_page_set_validclean(m, (i * bsize) & PAGE_MASK, bsize);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(object);
 			bzero((caddr_t) kva + i * bsize, bsize);
 		}
 	}
