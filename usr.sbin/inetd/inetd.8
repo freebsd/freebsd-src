@@ -360,17 +360,36 @@ Currently, the only internal service to take arguments is
 .Dq auth .
 Without options, the service will always return
 .Dq ERROR\ : HIDDEN-USER .
-The available arguments to this service that alter its behaviour are:
+The available arguments to this service that alter its behavior are:
 .Bl -tag -width indent
+.It Fl d Ar fallback
+Instead of returning an error if getting the socket credentials or
+looking up the user name fails, return a default
+.Ar fallback
+user name to the requesting ident client.  This is primarily useful
+when running this service on a NAT machine.
+.It Fl t Ar sec[.usec]
+Specify a timeout for the service. The default timeout is 10.0 seconds.
 .It Fl r
 Offer a real
 .Dq auth
-service, as per RFC 1413. All the following flags apply only in this case.
+service, as per RFC 1413. All the remaining flags apply only in this case.
 .It Fl f
 If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
+.It Fl g
+Instead of returning the user's name to the ident requester, report a
+username made up of random alphanumeric characters, e.g.
+.Dq c0c993 .
+The
+.Fl g
+flag overrides not only the user names, but also any
+.Pa .fakeid
+or
+.Pa .noident
+files.
 .It Fl n
 If the file
 .Pa .noident
@@ -380,11 +399,8 @@ instead.
 .It Fl o Ar osname
 Use
 .Ar osname
-instead of the name of the system implementation
-returned by
+instead of the name of the system as reported by
 .Xr uname 3 .
-.It Fl t Ar sec[.usec]
-Specify a timeout for the service. The default timeout is 10.0 seconds.
 .El
 .Pp
 The
