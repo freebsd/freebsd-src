@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.14 1995/10/18 04:05:16 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.9.2.3 1995/10/22 00:50:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -41,7 +41,7 @@
 	  (IRQ) and IO port addresses. </item>
 
       <item>Download the <url
-	  url="ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-RELEASE/UPDATES/boot.flp"
+	  url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1-RELEASE/floppies/boot.flp"
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
@@ -191,12 +191,13 @@ Boot:
 	between MS-DOS and FreeBSD.
 
 
+<!-- XXX  Status???
 	<bf>Can I mount my MS-DOS extended partitions?</bf>
 
 	This feature isn't in FreeBSD 2.0.5 but should be in 2.1.
 	We've laid all the groundwork for making this happen, now
 	we just need to do the last 1 percent of the work involved.
-
+-->
 
 	<bf>Can I run MS-DOS binaries under FreeBSD?</bf>
 
@@ -238,7 +239,6 @@ Boot:
 	  <itemize>
 	    <item>WD1003 (any generic MFM/RLL)
 	    <item>WD1007 (any generic IDE/ESDI)
-	    <item>WD7000
 	    <item>IDE
 	    <item>ATA
 
@@ -246,7 +246,7 @@ Boot:
 	    <item>Adaptec 154x series ISA SCSI controllers
 	    <item>Adaptec 174x series EISA SCSI controller in
 	      standard and enhanced mode.
-	    <item>Adaptec 274X/284X/2940 <!-- 3940 (in 2.1) --> 
+	    <item>Adaptec 274x/284x/2940/3940
               (Narrow/Wide/Twin)
 	      series EISA/VLB/PCI SCSI controllers
 	    <item>Adaptec
@@ -275,7 +275,7 @@ Boot:
 	    <item>Buslogic 956c PCI SCSI controller
 
 	    <item>NCR 53C810 and 53C825 PCI SCSI controller.
-	    <item>NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+	    <item>NCR5380/NCR53400 (``ProAudio Spectrum'') SCSI controller. 
 
 	    <item>DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
@@ -284,6 +284,9 @@ Boot:
 	    <item>Seagate ST01/02 SCSI controllers.
 
 	    <item>Future Domain 8xx/950 series SCSI controllers.
+
+	    <item>WD7000 SCSI controllers.
+
 	  </itemize>
 
 	  With all supported SCSI controllers, full support is
@@ -295,38 +298,22 @@ Boot:
 	  time:
 
 	  <itemize>
-	    <item>Soundblaster SCSI and ProAudio Spectrum SCSI (cd)
-	    <item>Mitsumi (all models) proprietary interface (mcd)
+	    <item>Soundblaster SCSI and ProAudio Spectrum SCSI (<tt>cd</tt>)
+	    <item>Mitsumi (all models) proprietary interface (<tt>mcd</tt>)
 	    <item>Matsushita/Panasonic (Creative)
-	      CR-562/CR-563 proprietary interface (matcd) 
-	    <item>Sony proprietary interface (scd)
+	      CR-562/CR-563 proprietary interface (<tt>matcd</tt>) 
+	    <item>Sony proprietary interface (<tt>scd</tt>)
+	    <item>ATAPI IDE interface 
+                   (experimental and should be considered ALPHA quality!) 
+                   (<tt>wcd</tt>)
 	  </itemize>
-
-	  <bf>Note:</bf> CD-Drives with IDE interfaces are not
-	  supported at this time.
-
-	  Some controllers have limitations with the way they
-	  deal with &gt;16MB of memory, due to the fact that the
-	  ISA bus only has a DMA address space of 24 bits.  If
-	  you do your arithmetic, you'll see that this makes it
-	  impossible to do direct DMA to any address &gt;16MB.
-	  This limitation is even true of some EISA controllers
-	  (which are normally 32 bit) when they're configured to
-	  emulate an ISA card, which they then do in *all*
-	  respects.  This problem is avoided entirely by IDE
-	  controllers (which do not use DMA), true EISA
-	  controllers (like the UltraStor, Adaptec 1742A or
-	  Adaptec 2742) and most VLB (local bus) controllers.  In
-	  the cases where it's necessary, the system will use
-	  "bounce buffers" to talk to the controller so that you
-	  can still use more than 16Mb of memory without
-	  difficulty.
-
 
       <sect1><heading>Ethernet cards</heading>
 
 	<p>
 	  <itemize>
+
+            <item>Allied-Telesis AT1700 and RE2000 cards
 
 	    <item>SMC Elite 16 WD8013 ethernet interface, and
 	      most other WD8003E, WD8003EBT, WD8003W, WD8013W,
@@ -338,7 +325,7 @@ Boot:
 	    <item>DEC DC21140 based NICs (SMC???? DE???)
 	    <item>DEC FDDI (DEFPA/DEFEA) NICs
 
-	    <item>Fujitsu MB86960A family of NICs
+	    <item>Fujitsu FMV-181 and FMV-182
 
 	    <item>Intel EtherExpress
 
@@ -362,6 +349,10 @@ Boot:
 	    <item>PCMCIA ethernet cards from IBM and National
 	      Semiconductor are also supported.
 	  </itemize>
+
+        <p><em>Note:</em> FreeBSD does not currently suppport
+          PnP (plug-n-play) features present on some ethernet
+          cards.  If your card has PnP, it should be disabled.
 
       <sect1><heading>Miscellaneous devices</heading>
 
@@ -387,7 +378,7 @@ Boot:
 
 	  </itemize>
 
-	  FreeBSD currently does NOT support IBM's microchannel
+	  FreeBSD currently does not support IBM's microchannel
 	  (MCA) bus, but support is apparently close to
 	  materializing.  Details will be posted as the situation
 	  develops.
@@ -401,8 +392,8 @@ Boot:
       <sect1><heading>Before installing from CDROM</heading>
 
 	<p>If your CDROM is of an unsupported type, such as an
-	  IDE CDROM, then please skip to section 2.3: MS-DOS
-	  Preparation.
+	  IDE CDROM, then please skip to <ref id="install:msdos" 
+          name="MS-DOS Preparation">.
 
 	  There is not a lot of preparatory work that needs to be
 	  done to successfully install from one of Walnut Creek's
@@ -487,7 +478,7 @@ Boot:
 	  that.
 
 
-      <sect1><heading>Before installing from a MS-DOS partition</heading>
+      <sect1><heading>Before installing from a MS-DOS partition<label id="install:msdos"></heading>
 
 	<p>To prepare for installation from an MS-DOS partition,
 	  copy the files from the distribution into a directory
@@ -629,7 +620,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 
 	    In order for NFS installation to work, the server
 	    must support "subdir mounts", e.g. if your FreeBSD
-	    2.0.5 distribution directory lives on:
+	    2.1 distribution directory lives on:
 	    ziggy:/usr/archive/stuff/FreeBSD Then ziggy will have
 	    to allow the direct mounting of
 	    /usr/archive/stuff/FreeBSD, not just /usr or
@@ -647,7 +638,7 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 
 	  <p>FTP installation may be done from any mirror site
 	    containing a reasonably up-to-date version of FreeBSD
-	    2.0.5, a full menu of reasonable choices from almost
+	    2.1, a full menu of reasonable choices from almost
 	    anywhere in the world being provided by the FTP site
 	    menu.
 
@@ -658,11 +649,8 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 	    choice in that menu.  A URL can also be a direct IP
 	    address, so the following would work in the absence
 	    of a name server: <tscreen>
-	    ftp://192.216.222.4/pub/FreeBSD/2.0.5-RELEASE</tscreen>
+	    ftp://192.216.222.4/pub/FreeBSD/2.1-RELEASE</tscreen>
         
-	    <em><bf>NOTE:</bf> Substitute "ALPHA" for "RELEASE"
-	      during the ALPHA test period!</em>
-
 	    If you are installing through a firewall then you
 	    should probably select ``Passive mode'' ftp, which is
 	    the default.  If you are talking to a server which
