@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.29 1997/04/26 11:46:20 peter Exp $
+ * $Id: kernel.h,v 1.30 1997/05/07 19:43:28 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -65,7 +65,7 @@ extern char kernelname[MAXPATHLEN];
 extern volatile struct timeval mono_time;
 extern struct timeval boottime;
 #ifdef SMP
-extern struct timeval SMPruntime[NCPU];
+extern struct timeval SMPruntime[];
 #define runtime (SMPruntime[cpunumber()])
 #else /* !SMP */
 extern struct timeval runtime;
