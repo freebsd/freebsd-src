@@ -316,6 +316,7 @@ pci/pci.c		optional pci device-driver
 pci/pcisupport.c	optional pci
 pci/pdq.c		optional fea device-driver
 pci/pdq.c		optional fpa device-driver
+pci/tek390.c		optional amd device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/od.c		optional od
