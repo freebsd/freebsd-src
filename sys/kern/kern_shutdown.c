@@ -574,7 +574,9 @@ void
 panic(const char *fmt, ...)
 {
 	int bootopt;
+#if defined(DDB) && defined(RESTARTABLE_PANICS)
 	int holding_giant = 0;
+#endif
 	va_list ap;
 	static char buf[256];
 
@@ -609,6 +611,12 @@ panic(const char *fmt, ...)
 		bootopt |= RB_NOSYNC;
 	else
 		panicstr = fmt;
+
+	/* Test that the console is still working. */
+	printf("              \\|/ ____ \\|/\n"
+	       "              \"@'/ .. \\`@\"\n"
+	       "              /_| \\__/ |_\\\n"
+	       "                 \\__U_/\n");
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
