@@ -146,8 +146,8 @@ kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 	xt.data = NULL;
 	xt.size = 0;
 
-	src[2] = NULL;
-	dst[3] = NULL;
+	src[2] = '\0';
+	dst[3] = '\0';
 
 	ret = my_iconv_init();
 	if (ret)
