@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.32 1995/02/15 00:41:23 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.33 1995/02/15 20:57:01 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -76,6 +76,8 @@
             ..
             larn           
             ..
+            quiz.db
+	    ..
         ..
 /set type=dir uname=bin gname=bin mode=0755
         groff_font     
