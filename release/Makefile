@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.421 1998/10/16 10:17:29 jkh Exp $
+#	$Id: Makefile,v 1.422 1998/10/22 04:58:38 gpalmer Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -44,6 +44,9 @@ OBJFORMAT?=		elf
 ALLLANG= yes
 DOCPORTS= archivers/unzip textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
+
+DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
+           INSTALL.TXT RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -512,7 +515,7 @@ release.9:
 		${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
-	cp ${.CURDIR}/README.TXT ${RD}/floppies/README.TXT
+	cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
@@ -523,16 +526,7 @@ ftp.1:
 	mkdir -p ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	cp ${.CURDIR}/ABOUT.TXT ${FD}/ABOUT.TXT
-	cp ${.CURDIR}/ERRATA.TXT ${FD}/ERRATA.TXT
-	cp ${.CURDIR}/LAYOUT.TXT ${FD}/LAYOUT.TXT
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
-	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${FD}/TROUBLE.TXT
-	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${FD}/UPGRADE.TXT
-
+	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${FD}; done
 	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -561,16 +555,7 @@ cdrom.1:
 	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
-	cp ${.CURDIR}/ERRATA.TXT ${CD_DISC1}/ERRATA.TXT
-	cp ${.CURDIR}/LAYOUT.TXT ${CD_DISC1}/LAYOUT.TXT
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
-	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${CD_DISC1}/TROUBLE.TXT
-	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${CD_DISC1}/UPGRADE.TXT
-
+	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
 .if !defined(NOPORTS)
 	-rm -rf /usr/ports/distfiles/*
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
