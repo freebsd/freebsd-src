@@ -700,7 +700,7 @@ aac_startio(struct aac_softc *sc)
 				debug(1, "freezing queue\n");
 				sc->flags |= AAC_QUEUE_FRZN;
 				error = 0;
-			} else
+			} else if (error != 0)
 				panic("aac_startio: unexpected error %d from "
 				      "busdma\n", error);
 		} else
@@ -1815,18 +1815,18 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 		goto out;
 	}
 
+	/*
+	 * To avoid a race with its completion interrupt, place this command on
+	 * the busy queue prior to advertising it to the controller.
+	 */
+	aac_enqueue_busy(cm);
+
 	/* populate queue entry */
 	(sc->aac_qentries[queue] + pi)->aq_fib_size = fib_size;
 	(sc->aac_qentries[queue] + pi)->aq_fib_addr = fib_addr;
 
 	/* update producer index */
 	sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX] = pi + 1;
-
-	/*
-	 * To avoid a race with its completion interrupt, place this command on
-	 * the busy queue prior to advertising it to the controller.
-	 */
-	aac_enqueue_busy(cm);
 
 	/* notify the adapter if we know how */
 	if (aac_qinfo[queue].notify != 0)
