@@ -156,7 +156,7 @@
         &release.prev;, but was not mentioned in the release
         notes.)</para>
 
-      <para>The &man.trm.4; driver has been added to support SCSI adapters
+      <para>The trm driver has been added to support SCSI adapters
         using the Tekram TRM-S1040 SCSI chipset.</para>
 
     </sect3>
