@@ -159,21 +159,19 @@ static const char *pfkey_msgtypenames[] = {
 
 static struct ipsecstat ipsecstat;
 
-static void print_ipsecstats __P((void));
-static const char *pfkey_msgtype_names __P((int));
-static void ipsec_hist __P((const u_quad_t *, size_t, const struct val2str *,
-	size_t, const char *));
+static void print_ipsecstats (void);
+static const char *pfkey_msgtype_names (int);
+static void ipsec_hist (const u_quad_t *, size_t, const struct val2str *,
+	const char *);
 
 /*
  * Dump IPSEC statistics structure.
  */
 static void
-ipsec_hist(hist, histmax, name, namemax, title)
-	const u_quad_t *hist;
-	size_t histmax;
-	const struct val2str *name;
-	size_t namemax;
-	const char *title;
+ipsec_hist(const u_quad_t *hist,
+	   size_t histmax,
+	   const struct val2str *name,
+	   const char *title)
 {
 	int first;
 	size_t proto;
@@ -188,7 +186,7 @@ ipsec_hist(hist, histmax, name, namemax, title)
 			first = 0;
 		}
 		for (p = name; p && p->str; p++) {
-			if (p->val == proto)
+			if (p->val == (int)proto)
 				break;
 		}
 		if (p && p->str) {
@@ -201,12 +199,12 @@ ipsec_hist(hist, histmax, name, namemax, title)
 }
 
 static void
-print_ipsecstats()
+print_ipsecstats(void)
 {
 #define	p(f, m) if (ipsecstat.f || sflag <= 1) \
     printf(m, (CAST)ipsecstat.f, plural(ipsecstat.f))
 #define hist(f, n, t) \
-    ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), sizeof(n)/sizeof(n[0]), (t));
+    ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
 	p(in_success, "\t" LLU " inbound packet%s processed successfully\n");
 	p(in_polvio, "\t" LLU " inbound packet%s violated process security "
@@ -238,9 +236,7 @@ print_ipsecstats()
 }
 
 void
-ipsec_stats(off, name)
-	u_long off;
-	char *name;
+ipsec_stats(u_long off __unused, char *name, int af __unused)
 {
 	if (off == 0)
 		return;
@@ -251,8 +247,7 @@ ipsec_stats(off, name)
 }
 
 static const char *
-pfkey_msgtype_names(x)
-	int x;
+pfkey_msgtype_names(int x)
 {
 	const int max =
 	    sizeof(pfkey_msgtypenames)/sizeof(pfkey_msgtypenames[0]);
@@ -265,12 +260,10 @@ pfkey_msgtype_names(x)
 }
 
 void
-pfkey_stats(off, name)
-	u_long off;
-	char *name;
+pfkey_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct pfkeystat pfkeystat;
-	int first, type;
+	unsigned first, type;
 
 	if (off == 0)
 		return;
