@@ -194,9 +194,6 @@ ffs_rawread_readahead(struct vnode *vp,
 	}
 	
 	bp->b_lblkno = bp->b_blkno = blockno;
-	if (!useracc(bp->b_data, bp->b_bcount, VM_PROT_WRITE)) {
-		return EFAULT;
-	}
 	
 	error = VOP_BMAP(vp, bp->b_lblkno, &dp, &bp->b_blkno, &bforwards,
 			 NULL);
@@ -278,7 +275,6 @@ ffs_rawread_main(struct vnode *vp,
 			bp = getpbuf(&ffsrawbufcnt);
 			sa = bp->b_data;
 			bp->b_vp = vp; 
-			bp->b_error = 0;
 			error = ffs_rawread_readahead(vp, udata, offset,
 						     resid, p, bp, sa);
 			if (error != 0)
@@ -293,7 +289,6 @@ ffs_rawread_main(struct vnode *vp,
 				if (nbp != NULL) {
 					nsa = nbp->b_data;
 					nbp->b_vp = vp;
-					nbp->b_error = 0;
 					
 					nerror = ffs_rawread_readahead(vp, 
 								       udata +
