@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.201 1999/03/02 21:23:38 julian Exp $
+ * $Id: vfs_bio.c,v 1.202 1999/03/12 02:24:56 julian Exp $
  */
 
 /*
@@ -1433,8 +1433,8 @@ dosleep:
 
 			bp->b_kvabase = (caddr_t) addr;
 			bp->b_kvasize = maxsize;
-			bp->b_data = bp->b_kvabase;
 		}
+		bp->b_data = bp->b_kvabase;
 	}
 	
 	return (bp);
