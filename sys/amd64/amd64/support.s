@@ -216,8 +216,8 @@ ENTRY(i586_bzero)
 	 * complicated since we avoid it if possible at all levels.  We
 	 * want to localize the complications even when that increases them.
 	 * Here the extra work involves preserving CR0_TS in TS.
-	 * `npxthread != NULL' is supposed to be the condition that all the
-	 * FPU resources belong to an application, but npxthread and CR0_TS
+	 * `fpcurthread != NULL' is supposed to be the condition that all the
+	 * FPU resources belong to an application, but fpcurthread and CR0_TS
 	 * aren't set atomically enough for this condition to work in
 	 * interrupt handlers.
 	 *
@@ -241,7 +241,7 @@ ENTRY(i586_bzero)
 	 * method.  CR0_TS must be preserved although it is very likely to
 	 * always end up as clear.
 	 */
-	cmpl	$0,PCPU(NPXTHREAD)
+	cmpl	$0,PCPU(FPCURTHREAD)
 	je	i586_bz1
 
 	/*
@@ -303,7 +303,7 @@ fpureg_i586_bzero_loop:
 	cmpl	$8,%ecx
 	jae	fpureg_i586_bzero_loop
 
-	cmpl	$0,PCPU(NPXTHREAD)
+	cmpl	$0,PCPU(FPCURTHREAD)
 	je	i586_bz3
 
 	/* XXX check that the condition for cases 1-2 stayed false. */
@@ -517,7 +517,7 @@ ENTRY(i586_bcopy)
 
 	sarb	$1,kernel_fpu_lock
 	jc	small_i586_bcopy
-	cmpl	$0,PCPU(NPXTHREAD)
+	cmpl	$0,PCPU(FPCURTHREAD)
 	je	i586_bc1
 
 	/* XXX turn off handling of cases 1-2, as above. */
@@ -593,7 +593,7 @@ large_i586_bcopy_loop:
 	cmpl	$64,%ecx
 	jae	4b
 
-	cmpl	$0,PCPU(NPXTHREAD)
+	cmpl	$0,PCPU(FPCURTHREAD)
 	je	i586_bc2
 
 	/* XXX check that the condition for cases 1-2 stayed false. */
@@ -991,14 +991,14 @@ ENTRY(fastmove)
 	/* XXX grab FPU context atomically. */
 	cli
 
-/* if (npxthread != NULL) { */
-	cmpl	$0,PCPU(NPXTHREAD)
+/* if (fpcurthread != NULL) { */
+	cmpl	$0,PCPU(FPCURTHREAD)
 	je	6f
 /*    fnsave(&curpcb->pcb_savefpu); */
 	movl	PCPU(CURPCB),%eax
 	fnsave	PCB_SAVEFPU(%eax)
-/*   NPXTHREAD = NULL; */
-	movl	$0,PCPU(NPXTHREAD)
+/*   FPCURTHREAD = NULL; */
+	movl	$0,PCPU(FPCURTHREAD)
 /* } */
 6:
 /* now we own the FPU. */
@@ -1026,9 +1026,9 @@ ENTRY(fastmove)
 	movl	-4(%ebp),%edi
 /* stop_emulating(); */
 	clts
-/* npxthread = curthread; */
+/* fpcurthread = curthread; */
 	movl	PCPU(CURTHREAD),%eax
-	movl	%eax,PCPU(NPXTHREAD)
+	movl	%eax,PCPU(FPCURTHREAD)
 	movl	PCPU(CURPCB),%eax
 
 	/* XXX end of atomic FPU context grab. */
@@ -1113,8 +1113,8 @@ fastmove_loop:
 	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
-/* npxthread = NULL; */
-	movl	$0,PCPU(NPXTHREAD)
+/* fpcurthread = NULL; */
+	movl	$0,PCPU(FPCURTHREAD)
 
 	/* XXX end of atomic FPU context ungrab. */
 	sti
@@ -1154,7 +1154,7 @@ fastmove_fault:
 	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
-	movl	$0,PCPU(NPXTHREAD)
+	movl	$0,PCPU(FPCURTHREAD)
 
 	/* XXX end of atomic FPU context ungrab. */
 	sti

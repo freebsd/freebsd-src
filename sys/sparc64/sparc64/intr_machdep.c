@@ -75,7 +75,6 @@
 #include <sys/vmmeter.h>
 
 #include <machine/frame.h>
-#include <machine/globals.h>
 #include <machine/intr_machdep.h>
 
 #define	MAX_STRAY_LOG	5

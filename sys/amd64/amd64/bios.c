@@ -36,9 +36,9 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/pcpu.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/globals.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/stdarg.h>

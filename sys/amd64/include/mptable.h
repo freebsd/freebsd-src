@@ -71,7 +71,6 @@
 #include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
-#include <machine/globaldata.h>
 #include <machine/privatespace.h>
 
 #if defined(APIC_IO)
@@ -477,9 +476,9 @@ init_secondary(void)
 
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
 	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[myid].globaldata.gd_common_tss;
-	SMP_prvspace[myid].globaldata.gd_prvspace =
-		&SMP_prvspace[myid].globaldata;
+		(int) &SMP_prvspace[myid].pcpu.pc_common_tss;
+	SMP_prvspace[myid].pcpu.pc_prvspace =
+		&SMP_prvspace[myid].pcpu;
 
 	for (x = 0; x < NGDT; x++) {
 		ssdtosd(&gdt_segs[x], &gdt[myid * NGDT + x].sd);
@@ -1915,7 +1914,7 @@ start_all_aps(u_int boot_addr)
 	int     x, i, pg;
 	u_char  mpbiosreason;
 	u_long  mpbioswarmvec;
-	struct globaldata *gd;
+	struct pcpu *pc;
 	char *stack;
 	uintptr_t kptbase;
 
@@ -1955,10 +1954,10 @@ start_all_aps(u_int boot_addr)
 		pg = x * i386_btop(sizeof(struct privatespace));
 
 		/* allocate a new private data page */
-		gd = (struct globaldata *)kmem_alloc(kernel_map, PAGE_SIZE);
+		pc = (struct pcpu *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		/* wire it into the private page table page */
-		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(gd));
+		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(pc));
 
 		/* allocate and set up an idle stack data page */
 		stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE); /* XXXKSE */
@@ -1967,8 +1966,7 @@ start_all_aps(u_int boot_addr)
 			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
 		/* prime data page for it to use */
-		gd->gd_cpuid = x;
-		globaldata_register(gd);
+		pcpu_init(pc, x, sizeof(struct pcpu));
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;

@@ -105,7 +105,6 @@
 #include <machine/apic.h>
 #include <machine/segments.h>
 #include <machine/tss.h>
-#include <machine/globaldata.h>
 #endif /* SMP || APIC_IO */
 
 #define PMAP_KEEP_PDIRS

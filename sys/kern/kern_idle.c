@@ -37,18 +37,18 @@ static void
 idle_setup(void *dummy)
 {
 #ifdef SMP
-	struct globaldata *gd;
+	struct pcpu *pc;
 #endif
 	struct proc *p;
 	int error;
 
 #ifdef SMP
-	SLIST_FOREACH(gd, &cpuhead, gd_allcpu) {
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		error = kthread_create(idle_proc, NULL, &p,
-		    RFSTOPPED | RFHIGHPID, "idle: cpu%d", gd->gd_cpuid);
-		gd->gd_idlethread = &p->p_thread;
-		if (gd->gd_curthread == NULL)
-			gd->gd_curthread = gd->gd_idlethread;
+		    RFSTOPPED | RFHIGHPID, "idle: cpu%d", pc->pc_cpuid);
+		pc->pc_idlethread = &p->p_thread;
+		if (pc->pc_curthread == NULL)
+			pc->pc_curthread = pc->pc_idlethread;
 #else
 		error = kthread_create(idle_proc, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, "idle");

@@ -104,7 +104,6 @@
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/proc.h>
-#include <machine/globals.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -207,7 +206,7 @@ struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
 #ifndef SMP
-static struct globaldata __globaldata;
+static struct pcpu __pcpu;
 #endif
 
 struct mtx sched_lock;
@@ -262,7 +261,6 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-	globaldata_register(GLOBALDATA);
 #ifndef SMP
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
@@ -1670,6 +1668,7 @@ init386(first)
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 #endif
+	struct pcpu *pc;
 
 	proc_linkup(&proc0);
 	proc0.p_uarea = proc0uarea;
@@ -1706,20 +1705,16 @@ init386(first)
 	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
 #ifdef SMP
+	pc = &SMP_prvspace[0];
 	gdt_segs[GPRIV_SEL].ssd_limit =
 		atop(sizeof(struct privatespace) - 1);
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[0].globaldata.gd_common_tss;
-	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0].globaldata;
 #else
+	pc = &__pcpu;
 	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct globaldata) - 1);
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &__globaldata;
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &__globaldata.gd_common_tss;
-	__globaldata.gd_prvspace = &__globaldata;
+		atop(sizeof(struct pcpu) - 1);
 #endif
+	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
+	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
 	for (x = 0; x < NGDT; x++) {
 #ifdef BDE_DEBUGGER
@@ -1734,10 +1729,11 @@ init386(first)
 	r_gdt.rd_base =  (int) gdt;
 	lgdt(&r_gdt);
 
-	/* setup curproc so that mutexes work */
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	PCPU_SET(prvspace, pc);
 
+	/* setup curproc so that mutexes work */
 	PCPU_SET(curthread, thread0);
-	PCPU_SET(spinlocks, NULL);
 
 	LIST_INIT(&thread0->td_contested);
 
@@ -1905,6 +1901,11 @@ init386(first)
 	thread0->td_pcb->pcb_cr3 = (int)IdlePTD;
 	thread0->td_pcb->pcb_ext = 0;
 	thread0->td_frame = &proc0_tf;
+}
+
+void
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
+{
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)

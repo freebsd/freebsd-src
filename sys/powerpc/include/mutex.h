@@ -60,7 +60,7 @@
 	lwarx	r0, r11, lck;			\ /* load current lock value */
 	cmplwi	r0, r1, MTX_UNOWNED;		\ /* compare with unowned */
 	beq	1;				\ /* if owned, loop */
-	lwz	r0, PC_CURPROC(globalp);	\ /* load curproc */
+	lwz	r0, PC_CURPROC(pcpup);		\ /* load curproc */
 	stwcx.	r0, r11, lck;			\ /* attempt to store */
 	beq	1;				\ /* loop if failed */
 	sync;					\ /* sync */

@@ -36,8 +36,8 @@
  */
 struct privatespace {
 	/* page 0 - data page */
-	struct	globaldata globaldata;
-	char	__filler0[PAGE_SIZE - sizeof(struct globaldata)];
+	struct	pcpu pcpu;
+	char	__filler0[PAGE_SIZE - sizeof(struct pcpu)];
 
 	/* page 1 - idle stack (KSTACK_PAGES pages) */
 	char	idlekstack[KSTACK_PAGES * PAGE_SIZE];

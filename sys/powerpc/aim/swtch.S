@@ -72,8 +72,8 @@
  */
 ENTRY(cpu_switch)
 	mflr	%r30
-	mfsprg	%r3,%r0			/* Get the globaldata pointer */
-	lwz	%r4,GD_CURTHREAD(%r3)	/* Get the current thread */
+	mfsprg	%r3,%r0			/* Get the pcpu pointer */
+	lwz	%r4,PC_CURTHREAD(%r3)	/* Get the current thread */
 	lwz	%r3,TD_PCB(%r4)		/* Get a pointer to the PCB */
 
 	stmw	%r14,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
@@ -95,8 +95,8 @@ ENTRY(cpu_switch)
 	bl	pmap_activate		/* Activate the new address space */
 
 	mtlr	%r30
-	mfsprg	%r4,%r0			/* Get the globaldata pointer */
-	stw	%r14,GD_CURTHREAD(%r4)	/* Store new current thread */
+	mfsprg	%r4,%r0			/* Get the pcpu pointer */
+	stw	%r14,PC_CURTHREAD(%r4)	/* Store new current thread */
 	lwz	%r4,TD_PCB(%r14)	/* Grab the new PCB */
 
 	lwz	%r29, PCB_FLAGS(%r4)	/* Restore FPU regs if needed */

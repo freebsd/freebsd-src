@@ -101,7 +101,6 @@ static const char rcsid[] =
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/fpu.h>
-#include <machine/globaldata.h>
 #include <machine/vmparam.h>
 #include <machine/elf.h>
 #include <machine/trap.h>
@@ -352,7 +351,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 {
 	unsigned int		exc, scratch;
 	struct mem_region	*allmem, *availmem, *mp;
-	struct globaldata	*globalp;
+	struct pcpu	*pcpup;
 
 	/*
 	 * Set up BAT0 to only map the lowest 256 MB area
@@ -426,14 +425,14 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	thread0->td_pcb = (struct pcb *)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 
-	globalp = pmap_steal_memory(round_page(sizeof(struct globaldata)));
+	pcpup = pmap_steal_memory(round_page(sizeof(struct pcpu)));
 
 	/*
 	 * XXX: Pass 0 as CPU id.  This is bad.  We need to work out
 	 * XXX: which CPU we are somehow.
 	 */
-	globaldata_init(globalp, 0, sizeof(struct globaldata));
-	__asm ("mtsprg 0, %0" :: "r"(globalp));
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	__asm ("mtsprg 0, %0" :: "r"(pcpup));
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -442,7 +441,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	/* setup curproc so the mutexes work */
 
 	PCPU_SET(curthread, thread0);
-	PCPU_SET(spinlocks, NULL);
 
 	LIST_INIT(&thread0->td_contested);
 
@@ -457,13 +455,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	mtx_lock(&Giant);
 
 	/*
 	 * Initialise console.
 	 */
 	cninit();
-
-	mtx_lock(&Giant);
 
 #ifdef	__notyet__		/* Needs some rethinking regarding real/virtual OFW */
 	OF_set_callback(callback);
@@ -908,16 +905,13 @@ ptrace_clear_single_step(struct thread *td)
 }
 
 /*
- * Initialise a struct globaldata.
+ * Initialise a struct pcpu.
  */
 void
-globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
-{ 
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
+{
 
-        bzero(globaldata, sz);
-        globaldata->gd_cpuid = cpuid;
-        globaldata->gd_next_asn = 0;
-        globaldata->gd_current_asngen = 1;
+	pcpu->pc_current_asngen = 1;
 }
 
 void

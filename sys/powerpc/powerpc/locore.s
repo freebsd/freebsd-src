@@ -424,7 +424,7 @@ trapcode:
 	mtcr	31
 	bc	4,17,1f			/* branch if PSL_PR is clear */
 	mfsprg	1,0
-	lwz	1,GD_CURPCB(1)
+	lwz	1,PC_CURPCB(1)
 	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
@@ -447,7 +447,7 @@ alitrap:
 	mtcr	31
 	bc	4,17,1f			/* branch if PSL_PR is clear */
 	mfsprg	1,0
-	lwz	1,GD_CURPCB(1)
+	lwz	1,PC_CURPCB(1)
 	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
@@ -913,7 +913,7 @@ realtrap:
 					   overwritten) */
 	bc	4,17,s_trap		/* branch if PSL_PR is false */
 	mfsprg	1,0
-	lwz	1,GD_CURPCB(1)
+	lwz	1,PC_CURPCB(1)
 	addi	1,1,USPACE		/* stack is top of user struct */
 
 /*
@@ -1109,8 +1109,8 @@ intr_exit:
 /* Returning to user mode? */
 	mtcr	6			/* saved SRR1 */
 	bc	4,17,1f			/* branch if PSL_PR is false */
-	mfsprg	3,0			/* get globaldata */
-	lwz	3,GD_CURPCB(3)		/* get curpcb from globaldata */
+	mfsprg	3,0			/* get pcpu */
+	lwz	3,PC_CURPCB(3)		/* get curpcb from pcpu */
 	lwz	3,PCB_PMR(3)		/* get pmap real address from curpcb */
 	mtsr	KERNEL_SR,3
 /* Setup for entry to realtrap: */
@@ -1330,7 +1330,7 @@ setfault:
 	mflr	0
 	mfcr	12
 	mfsprg	4,0
-	lwz	4,GD_CURPCB(4)
+	lwz	4,PC_CURPCB(4)
 	stw	3,PCB_ONFAULT(4)
 	stw	0,0(3)
 	stw	1,4(3)

@@ -246,6 +246,11 @@ cpu_startup(dummy)
 	ia64_probe_sapics();
 }
 
+void
+cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
+{
+}
+
 static void
 identifycpu(void)
 {
@@ -671,9 +676,9 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	{
 		/* This is not a 'struct user' */
 		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
-		globalp = (struct globaldata *) pmap_steal_memory(sz);
-		globaldata_init(globalp, 0, sz);
-		ia64_set_k4((u_int64_t) globalp);
+		pcpup = (struct pcpu *) pmap_steal_memory(sz);
+		pcpu_init(pcpup, 0, sz);
+		ia64_set_k4((u_int64_t) pcpup);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 	}
 
@@ -697,7 +702,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 
 	/* Setup curproc so that mutexes work */
 	PCPU_SET(curthread, thread0);
-	PCPU_SET(spinlocks, NULL);
 
 	LIST_INIT(&thread0->td_contested);
 
@@ -1380,17 +1384,6 @@ ia64_fpstate_switch(struct thread *td)
 	td->td_frame->tf_cr_ipsr &= ~IA64_PSR_DFH;
 
 	td->td_md.md_flags |= MDP_FPUSED;
-}
-
-/*
- * Initialise a struct globaldata.
- */
-void
-globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
-{
-	bzero(globaldata, sz);
-	globaldata->gd_cpuid = cpuid;
-	globaldata_register(globaldata);
 }
 
 /*

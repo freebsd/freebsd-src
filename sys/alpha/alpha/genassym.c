@@ -54,7 +54,6 @@
 #include <sys/ktr.h>
 #include <machine/frame.h>
 #include <machine/chipset.h>
-#include <machine/globaldata.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -68,12 +67,12 @@
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
 
-ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
-ASSYM(GD_FPCURTHREAD, offsetof(struct globaldata, gd_fpcurthread));
-ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
-ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
-ASSYM(GD_IDLEPCBPHYS, offsetof(struct globaldata, gd_idlepcbphys));
+ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
+ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_SWITCHTIME, offsetof(struct pcpu, pc_switchtime));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_IDLEPCBPHYS, offsetof(struct pcpu, pc_idlepcbphys));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));

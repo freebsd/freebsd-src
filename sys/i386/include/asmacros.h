@@ -64,9 +64,9 @@
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
 #ifdef LOCORE
-#define	PCPU(member)	%fs:GD_ ## member
-#define	PCPU_ADDR(member, reg)	movl %fs:GD_PRVSPACE,reg; \
-			addl $GD_ ## member,reg
+#define	PCPU(member)	%fs:PC_ ## member
+#define	PCPU_ADDR(member, reg)	movl %fs:PC_PRVSPACE,reg; \
+			addl $PC_ ## member,reg
 #endif
 
 #ifdef GPROF

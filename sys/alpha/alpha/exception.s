@@ -139,7 +139,7 @@
 	beq	t1, exception_return
 
 	/* set the hae register if this process has specified a value */
-	ldq	s0, GD_CURTHREAD(globalp)
+	ldq	s0, PC_CURTHREAD(pcpup)
 	ldq	t1, TD_MD_FLAGS(s0)
 	and	t1, MDP_HAEUSED
 	beq	t1, 3f
@@ -255,7 +255,7 @@ LEAF(exception_return, 1)			/* XXX should be NESTED */
 	br	pv, Ler1
 Ler1:	LDGP(pv)
 
-	ldq	s0, GD_CURTHREAD(globalp)		/* save curthread in s0 */
+	ldq	s0, PC_CURTHREAD(pcpup)		/* save curthread in s0 */
 #ifdef SMP
 	ldl	s1, TD_MD_KERNNEST(s0)
 	subl	s1, 1, s1			/* decrement nesting level */
@@ -275,7 +275,7 @@ Ler1:	LDGP(pv)
 Lkernelret:
 #ifdef SMP
 	beq	s1, Lrestoreregs
-	stq	globalp, (FRAME_T7*8)(sp)	/* fixup globalp */
+	stq	pcpup, (FRAME_T7*8)(sp)		/* fixup pcpup */
 #endif
 
 Lrestoreregs:
