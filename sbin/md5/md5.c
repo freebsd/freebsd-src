@@ -26,10 +26,10 @@ static const char rcsid[] =
 #include <err.h>
 #include <md5.h>
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 /*
  * Length of test block, number of test blocks.
