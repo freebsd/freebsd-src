@@ -42,17 +42,20 @@ fp_rnd_t
 fpsetround(rnd_dir)
 	fp_rnd_t rnd_dir;
 {
-	double fpcrval;
+	union {
+		double fpcrval;
+		u_int64_t intval;
+	} u;
 	u_int64_t old, new;
 
-	GET_FPCR(fpcrval);
-	old = *(u_int64_t *)&fpcrval;
+	GET_FPCR(u.fpcrval);
 
+	old = u.intval;
 	new = old & (~FPCR_DYN_MASK);
 	new |= ((long) rnd_dir << FPCR_DYN_SHIFT) & FPCR_DYN_MASK;
 
-	*(u_int64_t *)&fpcrval = new;
-	SET_FPCR(fpcrval);
+	u.intval = new;
+	SET_FPCR(u.fpcrval);
 
 	return ((old & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT);
 }

@@ -57,10 +57,9 @@ void \
 _Qp_ ## qname ## toq(u_int *c, ntype n) \
 { \
 	struct fpemu fe; \
-	atype *a; \
+	union { atype a[2]; ntype n; } u = { .n = n }; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
-	a = (atype *)&n; \
-	fe.fe_f1.fp_sign = a[0] >> 31; \
+	fe.fe_f1.fp_sign = u.a[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_ ## fname ## tof(&fe.fe_f1, __VA_ARGS__); \
 	c[0] = __fpu_ftoq(&fe, &fe.fe_f1, c); \
@@ -72,15 +71,13 @@ type \
 _Qp_qto ## qname(u_int *c) \
 { \
 	struct fpemu fe; \
-	u_int *a; \
-	type n; \
+	union { u_int a; type n; } u; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
-	a = (u_int *)&n; \
 	fe.fe_f1.fp_sign = c[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
 	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, c[0], c[1], c[2], c[3]); \
-	a[0] = __fpu_fto ## fname(&fe, &fe.fe_f1, ## __VA_ARGS__); \
-	return (n); \
+	u.a = __fpu_fto ## fname(&fe, &fe.fe_f1, ## __VA_ARGS__); \
+	return (u.n); \
 }
 
 #define	FCC_EQ(fcc)	((fcc) == FSR_CC_EQ)
@@ -126,19 +123,19 @@ _QP_OP(div)
 _QP_OP(mul)
 _QP_OP(sub)
 
-_QP_TTOQ(d,	d,	double,	u_int,	a[0], a[1])
-_QP_TTOQ(i,	i,	int,	u_int,	a[0])
-_QP_TTOQ(s,	s,	float,	u_int,	a[0])
-_QP_TTOQ(x,	x,	long,	u_long,	a[0])
-_QP_TTOQ(ui,	i,	u_int,	u_int,	a[0])
-_QP_TTOQ(ux,	x,	u_long,	u_long,	a[0])
+_QP_TTOQ(d,	d,	double,	u_int,	u.a[0], u.a[1])
+_QP_TTOQ(i,	i,	int,	u_int,	u.a[0])
+_QP_TTOQ(s,	s,	float,	u_int,	u.a[0])
+_QP_TTOQ(x,	x,	long,	u_long,	u.a[0])
+_QP_TTOQ(ui,	i,	u_int,	u_int,	u.a[0])
+_QP_TTOQ(ux,	x,	u_long,	u_long,	u.a[0])
 
-_QP_QTOT(d,	d,	double,	a)
+_QP_QTOT(d,	d,	double,	&u.a)
 _QP_QTOT(i,	i,	int)
 _QP_QTOT(s,	s,	float)
-_QP_QTOT(x,	x,	long,	a)
+_QP_QTOT(x,	x,	long,	&u.a)
 _QP_QTOT(ui,	i,	u_int)
-_QP_QTOT(ux,	x,	u_long,	a)
+_QP_QTOT(ux,	x,	u_long,	&u.a)
 
 _QP_CMP(eq,	0,	FCC_EQ)
 _QP_CMP(ge,	0,	FCC_GE)

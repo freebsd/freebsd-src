@@ -42,16 +42,20 @@ fp_except_t
 fpsetsticky(sticky)
 	fp_except_t sticky;
 {
-	double fpcrval;
-	u_int64_t old,new ;
+	union {
+		double fpcrval;
+		u_int64_t intval;
+	} u;
+	u_int64_t old, new;
 
-	GET_FPCR(fpcrval);
-	old = *(u_int64_t *)&fpcrval;
+	GET_FPCR(u.fpcrval);
+
+	old = u.intval;
 	new = old & ~ (IEEE_STATUS_MASK << IEEE_STATUS_TO_FPCR_SHIFT);
 	new |= ((sticky << IEEE_STATUS_TO_EXCSUM_SHIFT) & IEEE_STATUS_MASK)
 					<< IEEE_STATUS_TO_FPCR_SHIFT;
-	*(u_int64_t *)&fpcrval = new;
-	SET_FPCR(fpcrval);
+	u.intval = new;
+	SET_FPCR(u.fpcrval);
 
 	return (((old >> IEEE_STATUS_TO_FPCR_SHIFT) & IEEE_STATUS_MASK)
 					>> IEEE_STATUS_TO_EXCSUM_SHIFT);
