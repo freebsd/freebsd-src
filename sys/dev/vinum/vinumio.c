@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: io.c,v 1.16 1998/08/10 23:47:21 grog Exp grog $
+ * $Id: io.c,v 1.19 1998/10/30 00:38:15 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -81,6 +81,12 @@ open_drive(struct drive *drive, struct proc *p)
     drive->p = p;
 
     if (drive->vp->v_usecount > 1) {			    /* already in use? */
+#if 1
+	printf("open_drive %s: use count %d, ignoring\n",   /* XXX where does this come from? */
+	    drive->devicename,
+	    drive->vp->v_usecount);
+	drive->vp->v_usecount = 1;			    /* will this work? */
+#else
 #if __FreeBSD__ == 2					    /* pre-4.4BSD Lite/2 parameters */
 	VOP_UNLOCK(drive->vp);
 #else
@@ -91,6 +97,7 @@ open_drive(struct drive *drive, struct proc *p)
 	drive->lasterror = EBUSY;
 	printf("vinum open_drive %s: Drive in use\n", drive->devicename); /* XXX */
 	return EBUSY;
+#endif
     }
     error = VOP_GETATTR(drive->vp, &va, NOCRED, p);
     if (error) {
@@ -218,6 +225,10 @@ close_drive(struct drive *drive)
 {
     if (drive->vp) {
 	vn_close(drive->vp, FREAD | FWRITE, NOCRED, drive->p);
+	if (drive->vp->v_usecount) {			    /* XXX shouldn't happen */
+	    printf("close_drive %s: use count still %d\n", drive->devicename, drive->vp->v_usecount);
+	    drive->vp->v_usecount = 0;			    /* will this work? */
+	}
 	drive->vp = NULL;
     }
 }
@@ -242,7 +253,6 @@ remove_drive(int driveno)
 }
 
 /* Transfer drive data.  Usually called from one of these defines;
-
  * #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
  * #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
  *
@@ -742,6 +752,11 @@ save_config(void)
     for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
 	drive = &vinum_conf.drive[driveno];		    /* point to drive */
 
+	if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
+	||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
+	    free_drive(drive);				    /* get rid of it */
+	    break;
+	}
 	if (drive->state != drive_down) {
 #if (__FreeBSD__ >= 3)
 	    getmicrotime(&drive->label.last_update);	    /* time of last update is now */
