@@ -40,7 +40,7 @@ struct ie_softc {
 	bus_space_tag_t		mem_bt;
 	bus_space_handle_t	mem_bh;
 
-	u_short	 port;		/* i/o base address for this interface */
+	u_int	 port;		/* i/o base address for this interface */
 	caddr_t	 iomem;		/* memory size */
 	caddr_t	 iomembot;	/* memory base address */
 	unsigned iosize;
