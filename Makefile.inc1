@@ -423,14 +423,6 @@ installcheck: ${SPECIAL_INSTALLCHECKS}
 		echo "ERROR: Required proxy user is missing, see /usr/src/UPDATING."; \
 		false; \
 	fi
-	@if ! `id -g proxy > /dev/null`; then \
-		echo "ERROR: Required proxy group is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
-	@if ! `id -g authpf > /dev/null`; then \
-		echo "ERROR: Required authpf group is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
 .endif
 
 #
