@@ -19,6 +19,7 @@ ETCOWN		?= ${USER}
 ETCGRP		?= ${USER}
 
 beforeinstall:
-	${INSTALL} -m 0644 -o ${ETCOWN} -g ${ETCGRP} ${RCFILES} ${ETCDIR}
+	(cd ${.CURDIR} &&\
+	    ${INSTALL} -m 0644 -o ${ETCOWN} -g ${ETCGRP} ${RCFILES} ${ETCDIR})
 
 .include <bsd.prog.mk>
