@@ -1329,11 +1329,15 @@ device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5
 
-# Luigi's snd code (use INSTEAD of snd0 and all VOXWARE drivers!).
+# The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
 # You may also wish to enable the pnp controller with this, for pnp
 # sound cards.
 #
+# For non-pnp sound cards only:
 #device pcm0 at isa? port ? irq 10 drq 1 flags 0x0
+#
+# For pnp sound cards:
+#device pcm0
 
 # Not controlled by `snd'
 device pca0 at isa? port IO_TIMER1
