@@ -1600,23 +1600,18 @@ acd_read_track_info(struct acd_softc *cdp,
 static int
 acd_get_progress(struct acd_softc *cdp, int *finished)
 {
-    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
-		       sizeof(struct atapi_reqsense), 0, 0, 0,
+    int8_t ccb[16] = { ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    struct atapi_reqsense sense;
-    int error;
+    struct atapi_reqsense *sense = cdp->device->result;
+    int8_t dummy[8];
 
-    error = atapi_queue_cmd(cdp->device, ccb,
-			    (caddr_t)&sense, sizeof(struct atapi_reqsense),
-			    ATPR_F_READ, 30, NULL, NULL);
-
-    if (error) {
-	if (error != EBUSY)
-	    *finished = 100;
-	return error;
+    if (atapi_queue_cmd(cdp->device, ccb, dummy, sizeof(dummy),
+			ATPR_F_READ, 30, NULL, NULL) != EBUSY) {
+	*finished = 100;
+	return 0;
     }
-    if (sense.sksv)
-	*finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100)/65535;
+    if (sense->sksv)
+	*finished = ((sense->sk_specific2|(sense->sk_specific1<<8))*100)/65535;
     else
 	*finished = 0;
     return 0;
