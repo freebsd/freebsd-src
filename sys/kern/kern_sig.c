@@ -2555,7 +2555,7 @@ coredump(struct thread *td)
 	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
 	if (limit == 0) {
 		PROC_UNLOCK(p);
-		return 0;
+		return EFBIG;
 	}
 	PROC_UNLOCK(p);
 
