@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id$
+ * $Id: mbuf.h,v 1.20 1997/02/22 09:45:32 peter Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -374,6 +374,13 @@ struct mbstat {
 	u_long	m_wait;		/* times waited for space */
 	u_long	m_drain;	/* times drained protocols for space */
 	u_short	m_mtypes[256];	/* type specific mbuf allocations */
+	u_long	m_mcfail;	/* times m_copym failed */
+	u_long	m_mpfail;	/* times m_pullup failed */
+	u_long	m_msize;	/* length of an mbuf */
+	u_long	m_mclbytes;	/* length of an mbuf cluster */
+	u_long	m_minclsize;	/* min length of data to allocate a cluster */
+	u_long	m_mlen;		/* length of data in an mbuf */
+	u_long	m_mhlen;	/* length of data in a header mbuf */
 };
 
 #ifdef	KERNEL
