@@ -73,6 +73,23 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
+typedef u_int16_t usb_vendor_id_t;
+typedef u_int16_t usb_product_id_t;
+
+/*
+ * Descriptions of of known vendors and devices ("products").
+ */
+struct usb_knowndev {
+        usb_vendor_id_t         vendor;
+        usb_product_id_t        product;
+        int                     flags; 
+        char                    *vendorname, *productname;
+};
+#define USB_KNOWNDEV_NOPROD     0x01            /* match on vendor only */
+
+#include <dev/usb/usbdevs_data.h>
+
+
 static usbd_status	usbd_set_config __P((usbd_device_handle, int));
 char *usbd_get_string __P((usbd_device_handle, int, char *));
 int usbd_getnewaddr __P((usbd_bus_handle bus));
@@ -160,10 +177,30 @@ usbd_devinfo_vp(dev, v, p)
 	char *v, *p;
 {
 	usb_device_descriptor_t *udd = &dev->ddesc;
-	char *vendor = 0, *product = 0;
+	char *vendor, *product;
+	struct usb_knowndev *kdp;
 
 	vendor = usbd_get_string(dev, udd->iManufacturer, v);
 	product = usbd_get_string(dev, udd->iProduct, p);
+
+	if (!vendor) {
+		for(kdp = usb_knowndevs;
+		    kdp->vendorname != NULL;
+		    kdp++) {
+			if (kdp->vendor == UGETW(udd->idVendor) && 
+			    (kdp->product == UGETW(udd->idProduct) ||
+			    (kdp->flags & USB_KNOWNDEV_NOPROD) != 0))
+				break;
+		}
+		if (kdp->vendorname == NULL) {
+			vendor = product = NULL;
+		} else {
+			vendor = kdp->vendorname;
+			product = (kdp->flags & USB_KNOWNDEV_NOPROD) == 0 ?
+			kdp->productname : NULL;
+		}
+	}
+
 
 	if (vendor)
 		strcpy(v, vendor);
