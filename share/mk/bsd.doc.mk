@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.5 1994/12/28 03:50:39 ache Exp $
+#	$Id: bsd.doc.mk,v 1.6 1995/01/04 21:34:13 ache Exp $
 
 PRINTER?=	ps
 
@@ -71,8 +71,8 @@ install:
         else \
                 true ; \
         fi
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${DOC}.* \
-	${DESTDIR}${BINDIR}/${VOLUME}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${DOC}.${PRINTER} ${DESTDIR}${BINDIR}/${VOLUME}
 
 DISTRIBUTION?=	bindist
 .if !target(distribute)
@@ -85,6 +85,4 @@ spell: ${SRCS}
 		comm -23 - ${.CURDIR}/spell.ok > ${DOC}.spell
 
 BINDIR?=	/usr/share/doc
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	444
+BINMODE=        444
