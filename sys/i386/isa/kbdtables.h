@@ -14,7 +14,7 @@
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
  *	@(#)kbdtables.h	1.3 940123
- *	$Id: kbdtables.h,v 1.9 1994/01/24 05:22:27 ache Exp $
+ *	$Id: kbdtables.h,v 1.10 1994/02/01 06:17:32 nate Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -540,7 +540,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=33 */  ',',   '<',   NOP,   NOP,  SET8|',',  SET8|'<',     NOP,       NOP,    0x33, 0x00,
 /* sc=34 */  '.',   '>',   NOP,   NOP,  SET8|'.',  SET8|'>',     NOP,       NOP,    0x33, 0x00,
 /* sc=35 */  '/',   '?',   NOP,   NOP,  SET8|'/',  SET8|'?',     NOP,       NOP,    0x33, 0x00,
-/* sc=36 */  ASH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
+/* sc=36 */  RSH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,  SET8|'*',  SET8|'*',  SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,    LALT,      LALT,      LALT,      LALT,    0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',   ' ',   ' ',  SET8|' ',  SET8|' ',  SET8|' ',  SET8|' ',  0x00, 0x00,
@@ -569,7 +569,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=50 */ F(58),  '2',   '2',   '2',  SET8|'2',  SET8|'2',  SET8|'2',  SET8|'2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',  SET8|'3',  SET8|'3',  SET8|'3',  SET8|'3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',  SET8|'0',  SET8|'0',  SET8|'0',  SET8|'0',  0x80, 0x02,
-/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F, SET8|0x7F, SET8|0x7F, 0x80, 0x02,
+/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x82, 0x02,
 /* sc=54 */  ALK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
@@ -578,7 +578,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=59 */ 0x0D,  0x0D,  0x0A,  0x0A,  SET8|0x0D, SET8|0x0D, SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,    RCTR,      RCTR,      RCTR,      RCTR,    0xFF, 0x00,
 /* sc=5b */  '/',   '/',   NOP,   NOP,  SET8|'/',  SET8|'/',     NOP,       NOP,    0x33, 0x00,
-/* sc=5c */  CLK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
+/* sc=5c */ NEXT,   NOP,   DBG,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,    RALT,      RALT,      RALT,      RALT,    0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49),   F(49),     F(49),     F(49),     F(49),   0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50),   F(50),     F(50),     F(50),     F(50),   0xFF, 0x00,
@@ -589,7 +589,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ F(54), F(54), 0x7F,  0x7F,  SET8|0x7F, SET8|0x7F, SET8|0x7F, SET8|0x7F, 0xC0, 0x00,
+/* sc=67 */ F(54), F(54), 0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0xC2, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 /* sc=69 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=6a */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
@@ -627,8 +627,8 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=09 */  '*',   '8',   NOP,   NOP,  SET8|'8',  SET8|'*',     NOP,       NOP,    0x33, 0x00,
 /* sc=0a */  '(',   '9',   NOP,   NOP,  SET8|'9',  SET8|'(',     NOP,       NOP,    0x33, 0x00,
 /* sc=0b */  ')',   '0',   NOP,   NOP,  SET8|'0',  SET8|')',     NOP,       NOP,    0x33, 0x00,
-/* sc=0c */  '_',   '-',  0x1F,  0x1F,  SET8|'-',  SET8|'_',  SET8|0x1F, SET8|0x1F, 0x00, 0x00,
-/* sc=0d */  '+',   '=',   NOP,   NOP,  SET8|'=',  SET8|'+',     NOP,       NOP,    0x33, 0x00,
+/* sc=0c */  '-',   '_',  0x1F,  0x1F,  SET8|'-',  SET8|'_',  SET8|0x1F, SET8|0x1F, 0x00, 0x00,
+/* sc=0d */  '=',   '+',   NOP,   NOP,  SET8|'=',  SET8|'+',     NOP,       NOP,    0x33, 0x00,
 /* sc=0e */ 0x08,  0x08,  0x7F,  0x7F,  SET8|0x08, SET8|0x08, SET8|0x7F, SET8|0x7F, 0x00, 0x00,
 /* sc=0f */ 0x09,  F(16),  NOP,   NOP,  SET8|0x09,   F(16),      NOP,       NOP,    0x77, 0x00,
 /* sc=10 */ 0xca,  0xea,  0x11,  0x11,  SET8|'q',  SET8|'Q',  SET8|0x11, SET8|0x11, 0x00, 0x01,
@@ -669,7 +669,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=33 */ 0xc2,  0xe2,   NOP,   NOP,  SET8|',',  SET8|'<',     NOP,       NOP,    0x33, 0x01,
 /* sc=34 */ 0xc0,  0xe0,   NOP,   NOP,  SET8|'.',  SET8|'>',     NOP,       NOP,    0x33, 0x01,
 /* sc=35 */  '/',   '?',   NOP,   NOP,  SET8|'/',  SET8|'?',     NOP,       NOP,    0x33, 0x00,
-/* sc=36 */  ASH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
+/* sc=36 */  RSH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,  SET8|'*',  SET8|'*',  SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,    LALT,      LALT,      LALT,      LALT,    0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',   ' ',   ' ',  SET8|' ',  SET8|' ',  SET8|' ',  SET8|' ',  0x00, 0x00,
@@ -698,7 +698,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=50 */ F(58),  '2',   '2',   '2',  SET8|'2',  SET8|'2',  SET8|'2',  SET8|'2',  0x80, 0x02,
 /* sc=51 */ F(59),  '3',   '3',   '3',  SET8|'3',  SET8|'3',  SET8|'3',  SET8|'3',  0x80, 0x02,
 /* sc=52 */ F(60),  '0',   '0',   '0',  SET8|'0',  SET8|'0',  SET8|'0',  SET8|'0',  0x80, 0x02,
-/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F, SET8|0x7F, SET8|0x7F, 0x80, 0x02,
+/* sc=53 */ F(54),  '.',  0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0x82, 0x02,
 /* sc=54 */  ALK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
 /* sc=55 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=56 */  NOP,   NOP,   NOP,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
@@ -707,7 +707,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=59 */ 0x0D,  0x0D,  0x0A,  0x0A,  SET8|0x0D, SET8|0x0D, SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=5a */ RCTR,  RCTR,  RCTR,  RCTR,    RCTR,      RCTR,      RCTR,      RCTR,    0xFF, 0x00,
 /* sc=5b */  '/',   '/',   NOP,   NOP,  SET8|'/',  SET8|'/',     NOP,       NOP,    0x33, 0x00,
-/* sc=5c */  CLK,   ALK,   ALK,   ALK,     ALK,       ALK,       ALK,       ALK,    0xFF, 0x00,
+/* sc=5c */ NEXT,   NOP,   DBG,   NOP,     NOP,       NOP,       NOP,       NOP,    0xFF, 0x00,
 /* sc=5d */ RALT,  RALT,  RALT,  RALT,    RALT,      RALT,      RALT,      RALT,    0xFF, 0x00,
 /* sc=5e */ F(49), F(49), F(49), F(49),   F(49),     F(49),     F(49),     F(49),   0xFF, 0x00,
 /* sc=5f */ F(50), F(50), F(50), F(50),   F(50),     F(50),     F(50),     F(50),   0xFF, 0x00,
@@ -718,7 +718,7 @@ keymap_t key_map = { 0xe9,        /* keys number */
 /* sc=64 */ F(58), F(58), F(58), F(58),   F(58),     F(58),     F(58),     F(58),   0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59),   F(59),     F(59),     F(59),     F(59),   0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60),   F(60),     F(60),     F(60),     F(60),   0xFF, 0x00,
-/* sc=67 */ F(54), F(54), 0x7F,  0x7F,  SET8|0x7F, SET8|0x7F, SET8|0x7F, SET8|0x7F, 0xC0, 0x00,
+/* sc=67 */ F(54), F(54), 0x7F,  0x7F,  SET8|0x7F, SET8|0x7F,    RBT,    SET8|0x7F, 0xC2, 0x00,
 /* sc=68 */  SLK,   SLK,   SLK,   SLK,     SLK,       SLK,       SLK,       SLK,    0xFF, 0x00,
 };
 
