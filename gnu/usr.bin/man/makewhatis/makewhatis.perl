@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.perl,v 1.6 1995/04/01 11:43:09 joerg Exp $
+# $Id: makewhatis.perl,v 1.7 1995/09/10 13:05:52 joerg Exp $
 #
 
 sub usage {
@@ -280,12 +280,14 @@ sub manpagename {
 	return if $name eq $_;
     }
 
-    $name =~ s=\[=\\\[=g;	# shit '['
+    local($f) = $file;
+    $f =~ s%/*[^/]+$%%;
+
     foreach (split(/,\s+/, $man)) {
 	s/\(.+//;
-	($f = $file) =~ s/$name/$_/;
+
 	# a keyword exist as file
-	return if -e "$f";    
+	return if -e "$f/$_";    
     }
 
     $man .= ", $name($extension)";
