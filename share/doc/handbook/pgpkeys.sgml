@@ -1,0 +1,79 @@
+<!-- $Id: contrib.sgml,v 1.71 1996/04/25 20:07:28 jkh Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<chapt><heading>PGP keys<label id="pgpkeys"></heading>
+	<p> In case you need to verify a signature or send encrypted
+	email to one of the officers or core team members a 
+	number of keys are provided here for your convenience.
+  <sect><heading>Officers</heading>
+  <sect1><heading>
+FreeBSD Security Officer &lt;security-officer@freebsd.org&gt;
+  </heading> <p>
+<tscreen><verb>
+FreeBSD Security Officer &lt;security-officer@freebsd.org&gt;
+Fingerprint = 41 08 4E BB DB 41 60 71  F9 E5 0E 98 73 AF 3F 11
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3i
+
+mQCNAzF7MY4AAAEEAK7qBgPuBejER5HQbQlsOldk3ZVWXlRj54raz3IbuAUrDrQL
+h3g57T9QY++f3Mot2LAf5lDJbsMfWrtwPrPwCCFRYQd6XH778a+l4ju5axyjrt/L
+Ciw9RrOC+WaPv3lIdLuqYge2QRC1LvKACIPNbIcgbnLeRGLovFUuHi5z0oilAAUR
+tDdGcmVlQlNEIFNlY3VyaXR5IE9mZmljZXIgPHNlY3VyaXR5LW9mZmljZXJAZnJl
+ZWJzZC5vcmc+iQCVAwUQMX6yrOJgpPLZnQjrAQHyowQA1Nv2AY8vJIrdp2ttV6RU
+tZBYnI7gTO3sFC2bhIHsCvfVU3JphfqWQ7AnTXcD2yPjGcchUfc/EcL1tSlqW4y7
+PMP4GHZp9vHog1NAsgLC9Y1P/1cOeuhZ0pDpZZ5zxTo6TQcCBjQA6KhiBFP4TJql
+3olFfPBh3B/Tu3dqmEbSWpuJAJUDBRAxez3C9RVb+45ULV0BAak8A/9JIG/jRJaz
+QbKom6wMw852C/Z0qBLJy7KdN30099zMjQYeC9PnlkZ0USjQ4TSpC8UerYv6IfhV
+nNY6gyF2Hx4CbEFlopnfA1c4yxtXKti1kSN6wBy/ki3SmqtfDhPQ4Q31p63cSe5A
+3aoHcjvWuqPLpW4ba2uHVKGP3g7SSt6AOYkAlQMFEDF8mz0ff6kIA1j8vQEBmZcD
+/REaUPDRx6qr1XRQlMs6pfgNKEwnKmcUzQLCvKBnYYGmD5ydPLxCPSFnPcPthaUb
+5zVgMTjfjS2fkEiRrua4duGRgqN4xY7VRAsIQeMSITBOZeBZZf2oa9Ntidr5PumS
+9uQ9bvdfWMpsemk2MaRG9BSoy5Wvy8VxROYYUwpT8Cf2iQCVAwUQMXsyqWtaZ42B
+sqd5AQHKjAQAvolI30Nyu3IyTfNeCb/DvOe9tlOn/o+VUDNJiE/PuBe1s2Y94a/P
+BfcohpKC2kza3NiW6lLTp00OWQsuu0QAPc02vYOyseZWy4y3Phnw60pWzLcFdemT
+0GiYS5Xm1o9nAhPFciybn9j1q8UadIlIq0wbqWgdInBT8YI/l4f5sf6JAJUDBRAx
+ezKXVS4eLnPSiKUBAc5OBACIXTlKqQC3B53qt7bNMV46m81fuw1PhKaJEI033mCD
+ovzyEFFQeOyRXeu25Jg9Bq0Sn37ynISucHSmt2tUD5W0+p1MUGyTqnfqejMUWBzO
+v4Xhp6a8RtDdUMBOTtro16iulGiRrCKxzVgEl4i+9Z0ZiE6BWlg5AetoF5n3mGk1
+lw==
+=ipyA
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect><heading>Core team members</heading>
+  <sect1><heading>
+Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
+  </heading> <p>
+
+<tscreen><verb>
+Poul-Henning Kamp &lt;phk@FreeBSD.org&gt;
+Fingerprint = A3 F3 88 28 2F 9B 99 A2  49 F4 E2 FA 5A 78 8B 3E
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.3i
+
+mQCNAzAdpMIAAAEEALHDgrFUwhZtb7PbXg3upELoDVEUPFRwnmpJH1rRqyROUGcI
+ooVe7u+FQlIs5OsXK8ECs/5Wpe2UrZSzHvjwBYOND5H42YtI5UULZLRCo5bFfTVA
+K9Rpo5icfTsYihrzU2nmnycwFMk+jYXyT/ZDYWDP/BM9iLjj0x9/qQgDWPy9AAUR
+tCNQb3VsLUhlbm5pbmcgS2FtcCA8cGhrQEZyZWVCU0Qub3JnPokAlQMFEDF+jX1r
+WmeNgbKneQEBCrID/i/ri8/eXUXRJp2fqJqzvrWGTP9Ix1O4vMguah9IILijgpYy
+OJYkezZKijjVCVmLX7EwfNXfYkqLAWUa08eov4QfJfJDgfe+Z/3/UoX7RcJoy2Aj
+TBZQzOI9JMkrzFdtFGYwMr/QXhOdVVpSGeZ/6Hkrs7pd2Z6MNNrRf81ZyJyYiQCV
+AwUQMXyV5/UVW/uOVC1dAQFyfAP/SujU+lS2WQuat4O2wZOQ1rswUt6CthG8MOsc
+7A9kfXnZbaM9Sdxj54CtAlqR4eJMOYk2kVqAtmCWETRuonJxr5TAJdf7q6kByVYc
+QEyDZvKJYwyrI9UQSelSgczWwiSB01aV9ACaKlEF9iHYvIKBa9HwJu3A9ggW9SYa
+AHcxHzuJAJUDBRAxSx5cH3+pCANY/L0BAY+TA/9YQPISXYaS+5r0I60wCJ+i3a9P
+C69Zak2ikgTHQi97LhpVtEsP3SAYInDw4YMS2oU9w1XxoiLLd9hUpcZlmO8Ip3vN
+F+E2ZCfR4sNzKarY5fdo+sxzatGWRPgnHjbm6RHWCw6qJACDD3VpaFjx2XD8QrOT
+yiObnbHhWBdoEAIyNokAlQMFEDE5Q6DvYbnpEdWO1QEBsvgD/0c6flBrSWr20oj8
+eRJ1zl8ZAP/rpV0IEBvb3ZFsHsJL8QzTsx1typFFghrT7SDBDc52xY90JWAflEiG
+n9aIL5Q+RHVxjw30yDaRPAl9ll82o34GBaWBEw83bsI6Fg2XxDfc2X0KkEutlYAE
+XjiM95PQS+9PM//llDtPvkSxgpiJiQCVAwUQMOavJADy2QnruxtBAQE92wQAsKPq
+/U4G4ksslOXGaauSoBk9XO3lB147cSpra1w9ZxTSeo+8dgzNlxnugWDnw1mxauFJ
+BAMgHl74rrlD+Hp0Ltb9oOyRl3riPG0TOdfaS3T8w6vw52wOKzUrZ/0pB+2sDHzU
+qZXBbhOq3OXs1ZMNe3jh8w62JsLBWry/YMWRMnI=
+=MDQ9
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+

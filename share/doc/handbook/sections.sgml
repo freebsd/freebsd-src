@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.9 1996/02/16 13:28:21 jkh Exp $ -->
+<!-- $Id: sections.sgml,v 1.10 1996/03/04 22:50:30 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -30,6 +30,7 @@
 <!ENTITY mirrors SYSTEM "mirrors.sgml">
 <!ENTITY nfs SYSTEM "nfs.sgml">
 <!ENTITY nutshell SYSTEM "nutshell.sgml">
+<!ENTITY pgpkeys SYSTEM "pgpkeys.sgml">
 <!ENTITY porting SYSTEM "porting.sgml">
 <!ENTITY ports SYSTEM "ports.sgml">
 <!ENTITY ppp SYSTEM "ppp.sgml">
