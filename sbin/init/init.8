@@ -119,6 +119,10 @@ This level precludes tampering with filesystems by unmounting them,
 but also inhibits running
 .Xr newfs 8
 while the system is multi-user.
+.Pp
+In addition, kernel time changes are restricted to less than or equal to one
+second.  Attempts to change the time by more than this will log the message
+.Dq Time adjustment clamped to +1 second .
 .It Ic 3
 Network secure mode \- same as highly secure mode, plus
 IP packet filter rules (see
