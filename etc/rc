@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.6 1997/04/01 00:59:48 pst Exp $
+#	$Id: rc,v 1.104.2.7 1997/04/09 20:30:58 guido Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -8,7 +8,7 @@
 # and the console is the controlling terminal.
 
 # Note that almost all the user-configurable behavior is no longer in
-# this file, but rather in /etc/sysconfig.  Please check this file
+# this file, but rather in /etc/rc.conf.  Please check this file
 # first before contemplating any changes here.
 
 stty status '^T'
@@ -23,15 +23,13 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export PATH
 
 # Configure ccd devices.
-if [ -f /etc/ccd.conf ]
-then
+if [ -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
 swapon -a
 
-if [ $1x = autobootx ]
-then
+if [ $1x = autobootx ]; then
 	echo Automatic reboot in progress...
 	fsck -p
 	case $? in
@@ -84,20 +82,27 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
+# If there is a global system configuration file, suck it in.
+if [ -f /etc/rc.conf ]; then
+    . /etc/rc.conf
+fi
+
+# If old file exists, whine until they fix it.
+if [ -f /etc/sysconfig ]; then
+	echo "Warning: /etc/sysconfig has been replaced by /etc/rc.conf."
+	echo "You should switch to /etc/rc.conf ASAP to eliminate this warning."
+fi
+
 adjkerntz -i
 
 # Keep a copy of the boot messages around
-/sbin/dmesg > /var/run/dmesg.boot
+dmesg > /var/run/dmesg.boot
 
-# If there is a global system configuration file, suck it in.
-if [ -f /etc/sysconfig ]; then
-	. /etc/sysconfig
-fi
 
 # Add additional swapfile, if configured.
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
 	echo "Adding $swapfile as additional swap."
-	/usr/sbin/vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
+	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
 fi
 
 # configure serial devices
@@ -110,9 +115,10 @@ if [ -f /etc/rc.pccard ]; then
 	. /etc/rc.pccard
 fi
 
-# start up the network
-if [ -f /etc/netstart ]; then
-	sh /etc/netstart
+# start up the initial network configuration.
+if [ -f /etc/rc.network ]; then
+	. /etc/rc.network	# We only need to do this once.
+	network_pass1
 fi
 
 mount -a -t nfs >/dev/null 2>&1
@@ -126,54 +132,26 @@ rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
-#
-# Clearing /tmp at boot-time is essentially stupid, but seems to have
-# a long tradition.  It doesn't help in any way for long-living systems,
-# and it might accidentally clobber files you would rather like to have
-# preserved after a crash (if not using mfs /tmp anyway).
-#
-# See also the commented out example of another cleanup policy in
-# /etc/daily.
-#
-echo clearing /tmp
-
-# prune quickly with one rm, then use find to clean up /tmp/[lq]*
-# (not needed with mfs /tmp, but doesn't hurt there...)
-(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
-
-# The above is even more stupid since it prevents you from restarting
-# X11 after a system crash.  If you disable the above, make sure to
-# uncomment the line below.
-#
-# clean up leftover X lock files and local connection sockets
-#rm -f /tmp/.X*-lock /tmp/.X11-unix/*
-
-
 # enable dumpdev so that savecore can see it
-if [ "X${dumpdev}" != X"NO" ]; then
+if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} ]; then
 	dumpon ${dumpdev}
 fi
 
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ "X${savecore}" = X"YES" -a -d /var/crash ]; then
+if [ "X${savecore_enable}" = X"YES" -a -d /var/crash ]; then
 	echo -n checking for core dump...
 	savecore /var/crash
 fi
 
 # snapshot any kernel -c changes back to disk
 echo 'recording kernel -c changes'
-/sbin/dset -q
+dset -q
 
 # start system logging and name service (named needs to start before syslogd
 # if you don't have a /etc/resolv.conf)
 #
-echo -n starting system daemons:
-
-# If syslogdflags == NO, syslog isn't run
-if [ "X${syslogdflags}" != X"NO" ] ; then
-
+if [ "X${syslogd_enable}" = X"YES" ]; then
 	# Transitional symlink (for the next couple of years :) until all
 	# binaries had a chance to move towards /var/run/log.
 	if [ ! -h /dev/log ] ; then
@@ -182,68 +160,12 @@ if [ "X${syslogdflags}" != X"NO" ] ; then
 	fi
 
 	rm -f /var/run/log
-	echo ' syslogd.';		syslogd ${syslogdflags}
+	echo 'Starting syslogd.';		syslogd ${syslogd_flags}
 fi
 
-echo -n starting early network daemons:
-
-# $namedflags is imported from /etc/sysconfig
-if [ "X${namedflags}" != X"NO" ]; then
-	echo -n ' named';		named $namedflags
+if [ -n "$network_pass1_done" ]; then
+    network_pass2
 fi
-
-# $ntpdate and $xntpdflags are imported from /etc/sysconfig.
-# If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
-# If $xntpdflags != NO, start xntpd.
-if [ "X${ntpdate}" != X"NO" -o "X${xntpdflags}" != X"NO" ]; then
-	if [ "X${tickadjflags}" != X"NO" ]; then
-		echo -n ' tickadj';	tickadj ${tickadjflags--Aq}
-	fi
-
-	if [ "X${ntpdate}" != X"NO" ]; then
-		echo -n ' ntpdate';	ntpdate ${ntpdate} >/dev/null 2>&1
-	fi
-
-	if [ "X${xntpdflags}" != X"NO" ]; then
-		echo -n ' xntpd';	xntpd ${xntpdflags}
-	fi
-fi
-
-# $timedflags is imported from /etc/sysconfig;
-# if $timedflags == NO, timed isn't run.
-if [ "X${timedflags}" != X"NO" ]; then
-	echo -n ' timed';		timed ${timedflags}
-fi
-
-# Portmapper should always be run, to provide RPC services for inetd.
-# if $portmapflags == NO, portmap isn't run.
-if [ -x /usr/sbin/portmap -a "X${portmapflags}" != X"NO" ]; then
-	echo -n ' portmap';		portmap ${portmapflags}
-fi
-
-# Start ypserv if we're an NIS server.
-# Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
-if [ "X${nis_serverflags}" != X"NO" ]; then
-	echo -n ' ypserv'; ypserv ${nis_serverflags}
-
-	if [ "X${ypxfrdflags}" != X"NO" ]; then
-		echo -n ' rpc.ypxfrd'; rpc.ypxfrd ${ypxfrdflags}
-	fi
-
-	if [ "X${yppasswddflags}" != X"NO" ]; then
-		echo -n ' rpc.yppasswdd'; rpc.yppasswdd ${yppasswddflags}
-	fi
-fi
-
-# Start ypbind if we're an NIS client
-if [ "X${nis_clientflags}" != X"NO" ]; then
-	echo -n ' ypbind'; ypbind ${nis_clientflags}
-	if [ "X${nis_ypsetflags}" != X"NO" ]; then
-		echo -n ' ypset'; ypset ${nis_ypsetflags}
-	fi
-fi
-
-echo '.'
 
 # Check the quotas (must be after ypbind if using NIS)
 if [ "X${check_quotas}" = X"YES" ]; then
@@ -253,53 +175,10 @@ if [ "X${check_quotas}" = X"YES" ]; then
 	quotaon -a
 fi
 
-echo -n starting other network daemons:
-
-if [ "X${nfs_server}" = X"YES" -a -r /etc/exports ]; then
-	echo -n ' mountd'
-	if [ "X${weak_mountd_authentication}" = X"YES" ]; then
-		mountd -n
-	else
-		mountd
-	fi
-	if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
-		sysctl -w vfs.nfs.nfs_privport=1
-	fi
-	echo -n ' nfsd';		nfsd -u -t 4
-# Warning: rpc.lockd is broken.
-# Only uncomment this line if the consequences are fully understood.
-#	echo -n ' rpc.lockd';		rpc.lockd
-	echo -n ' rpc.statd';		rpc.statd
+if [ -n "$network_pass2_done" ]; then
+    network_pass3
 fi
 
-if [ "X${nfs_client}" = X"YES" ]; then
-	echo -n ' nfsiod';		nfsiod -n 4
-fi
-
-if [ "X${amdflags}" != X"NO" ]; then
-	echo -n ' amd'
-	amd -p ${amdflags} > /var/run/amd.pid
-fi
-
-# $rwhod is imported from /etc/sysconfig;
-# if $rwhod is set to YES, rwhod is run.
-if [ "X${rwhod}" = X"YES" ]; then
-	echo -n ' rwhod';	rwhod
-fi
-
-# Kerberos runs ONLY on the Kerberos server machine
-if [ "X${kerberos_server}" = X"YES" ]; then
-	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
-	echo -n ' kadmind'; \
-		(sleep 20; kadmind -n >/dev/null 2>&1 &) &
-fi
-
-# IP multicast routing daemon
-if [ "X${mrouted}" != X"NO" -a -x /usr/sbin/mrouted ]; then
-	echo -n ' mrouted'; mrouted ${mrouted}
-fi
-
-echo '.'
 
 # build ps databases
 kvm_mkdb 
@@ -312,7 +191,7 @@ then
 	"password file may be incorrect -- /etc/ptmp exists"
 fi
 
-if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
+if [ "X${accounting_enable}" = X"YES" -a -d /var/account ]; then
 	echo 'turning on accounting'
 	if [ ! -e /var/account/acct ]; then
 		touch /var/account/acct
@@ -322,15 +201,12 @@ fi
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
-if [ -x /sbin/ldconfig ]; then
-	_LDC=/usr/lib
-	if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
-	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
-	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
-	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-	echo 'setting ldconfig path:' ${_LDC}
-	ldconfig ${_LDC}
-fi
+_LDC=/usr/lib
+if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
+if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
+if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+echo 'setting ldconfig path:' ${_LDC}
+ldconfig ${_LDC}
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
@@ -338,14 +214,12 @@ echo -n standard daemons:
 echo -n ' inetd';		inetd
 echo -n ' cron';		cron
 
-if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
+if [ "X${lpd_enable}" = X"YES" ]; then
 	echo -n ' printer';		lpd
 fi
 
-# $sendmail_flags is imported from /etc/sysconfig;
-# if $sendmail_flags is something other than NO, sendmail is run.
-if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';            /usr/sbin/sendmail ${sendmail_flags}
+if [ "X${sendmail_enable}" = X"YES" -a -r /etc/sendmail.cf ]; then
+	echo -n ' sendmail';	sendmail ${sendmail_flags}
 fi
 
 echo '.'

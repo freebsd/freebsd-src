@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.5 1996/08/19 15:34:29 wosch Exp $
+# $Id: rc.firewall,v 1.6 1996/09/05 11:22:09 adam Exp $
 
 ############
 #
@@ -12,9 +12,6 @@
 # ``open'' will allow anyone in, ``client'' will try to protect just one
 # machine and ``simple'' will try to protect a whole network (entries should
 # be customized appropriately below).  To let no one in, use NONE.
-
-firewall_type=NONE
-
 
 ############
 #
@@ -55,11 +52,11 @@ firewall_type=NONE
 
 
 # Prototype setups.
-if [ "${firewall_type}" = "open" ]; then
+if [ "${firewall}" = "open" ]; then
 
 	/sbin/ipfw add 65000 pass all from any to any
 
-elif [ "${firewall_type}" = "client" ]; then
+elif [ "${firewall}" = "client" ]; then
 
     ############
     # This is a prototype setup that will protect your system somewhat against
@@ -97,7 +94,7 @@ elif [ "${firewall_type}" = "client" ]; then
 
     # Everyting else is denied as default.
 
-elif [ "${firewall_type}" = "simple" ]; then
+elif [ "${firewall}" = "simple" ]; then
 
     ############
     # This is a prototype setup for a simple firewall.  Configure this machine 
