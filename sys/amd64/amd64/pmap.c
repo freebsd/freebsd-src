@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.230 1999/04/10 02:58:17 alc Exp $
+ *	$Id: pmap.c,v 1.231 1999/04/19 18:45:21 alc Exp $
  */
 
 /*
@@ -230,7 +230,6 @@ static unsigned * pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
-void pmap_collect(void);
 
 static unsigned pdir4mb;
 
