@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.17 1995/06/11 19:31:37 rgrimes Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.17.2.1 1995/08/25 01:54:39 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -397,7 +397,7 @@ msdosfs_setattr(ap)
 		if (cred->cr_uid != dep->de_pmp->pm_uid &&
 		    (error = suser(cred, &ap->a_p->p_acflag)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, &ap->a_p))))
+		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_p))))
 			return error;
 		dep->de_flag |= DE_UPDATE;
 		error = deupdat(dep, &vap->va_mtime, 1);
