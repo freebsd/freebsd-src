@@ -173,6 +173,8 @@ o The psm, mse and sysmouse drivers are improved to provide better mouse
 o Added support for SMC EtherPower II 10/100 Fast Ethernet card
   (aka SMC9432TX based on SMC83c170 EPIC chip).
 
+o Added support for ATAPI floppy drives (LS-120).
+
 
 SECURITY CHANGES:
 
