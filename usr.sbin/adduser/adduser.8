@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2002
+.Dd March 30, 2004
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -422,6 +422,7 @@ logfile for
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr passwd 1 ,
+.Xr adduser.conf 5 ,
 .Xr aliases 5 ,
 .Xr group 5 ,
 .Xr login.conf 5 ,
@@ -464,5 +465,6 @@ In addition, shell special characters and operators will have to be
 escaped when used in the message file.
 .Pp
 Also, password ageing and account expiry times are currently setable
-only in batch mode.
+only in batch mode or when specified in
+.Pa /etc/adduser.conf .
 The user should be able to set them in interactive mode as well.
