@@ -45,7 +45,6 @@
 #include <sys/bus.h> 
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>

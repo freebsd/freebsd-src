@@ -36,7 +36,6 @@
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
-#include <sys/ipl.h>
 #include <sys/mutex.h>
 #include <machine/atomic.h>
 #include <machine/psl.h>

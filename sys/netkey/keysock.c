@@ -49,8 +49,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <machine/ipl.h>
-
 #include <net/raw_cb.h>
 #include <net/route.h>
 
