@@ -273,6 +273,8 @@ extern Lst  	create;	    	/* The list of target names specified on the
 				 * make(...) statements */
 extern Lst     	dirSearchPath; 	/* The list of directories to search when
 				 * looking for targets */
+extern Lst	parseIncPath;	/* The list of directories to search when
+				 * looking for includes */
 
 extern Boolean	compatMake;	/* True if we are make compatible */
 extern Boolean	ignoreErrors;  	/* True if should ignore all errors */
