@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.4 1997/04/02 03:38:28 ache Exp $
+.\" $Id: uucplock.3,v 1.5 1997/04/02 05:52:22 mpp Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -34,6 +34,7 @@
 .Nm uu_lockerr
 .Nd acquire and release control of a serial device
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft int
 .Fn uu_lock "char *ttyname"
