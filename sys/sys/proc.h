@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.71 1999/02/25 14:28:46 newton Exp $
+ * $Id: proc.h,v 1.72 1999/02/28 10:53:29 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -329,6 +329,7 @@ extern struct proc proc0;		/* Process slot for swapper. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
+extern int sched_quantum;		/* Scheduling quantum in ticks */
 extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch */
 
