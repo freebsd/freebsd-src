@@ -91,8 +91,8 @@ Second, a flat profile is given,
 similar to that provided by
 .Xr prof  1  .
 This listing gives the total execution times, the call counts,
-the time in milleseconds the call spent in the routine itself, and
-the time in milleseconds the call spent in the routine itself including
+the time in msec or usec the call spent in the routine itself, and
+the time in msec or usec the call spent in the routine itself including
 its descendents.
 .Pp
 Finally, an index of the function names is provided.
@@ -205,6 +205,13 @@ executions of gprof (probably also with a
 to accumulate profile data across several runs of an
 .Pa a.out
 file.
+.It Fl u
+Suppresses the printing of functions whose name does not begin with
+an underscore.
+All relevant information about such functions belongs to the
+(non-suppressed) function with the next lowest address.
+This is useful for eliminating "functions" that are just labels
+inside other functions.
 .It Fl z
 Displays routines that have zero usage (as shown by call counts
 and accumulated time).
