@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.2 1995/06/04 07:07:25 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.3 1995/06/04 07:31:55 jkh Exp $
 
 Table of Contents
 -----------------
@@ -285,7 +285,7 @@ wds:    Western Digital WD7000 IDE
 --- end of list ---
 
 
-4.0     Known Hardware Problems, Q & A:
+4.      Known Hardware Problems, Q & A:
 ---     -------------------------------
 
 Q: mcd0 keeps thinking that it has found a device and this stops my Intel
