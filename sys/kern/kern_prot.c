@@ -63,9 +63,8 @@
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
-SYSCTL_NODE(_kern, OID_AUTO, security, CTLFLAG_RW, 0,
-    "Kernel security policy");
-SYSCTL_NODE(_kern_security, OID_AUTO, bsd, CTLFLAG_RW, 0,
+SYSCTL_DECL(_security);
+SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0,
     "BSD security policy");
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1190,7 +1189,7 @@ groupmember(gid, cred)
 }
 
 /*
- * `suser_enabled' (which can be set by the kern.security.suser_enabled
+ * `suser_enabled' (which can be set by the security.suser_enabled
  * sysctl) determines whether the system 'super-user' policy is in effect.
  * If it is nonzero, an effective uid of 0 connotes special privilege,
  * overriding many mandatory and discretionary protections.  If it is zero,
@@ -1200,9 +1199,9 @@ groupmember(gid, cred)
  * consideration of the consequences.
  */
 int	suser_enabled = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
-TUNABLE_INT("kern.security.bsd.suser_enabled", &suser_enabled);
+TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
 
 /*
  * Test whether the specified credentials imply "super-user" privilege.
@@ -1312,7 +1311,7 @@ securelevel_ge(struct ucred *cr, int level)
  * XXX: data declarations should be together near the beginning of the file.
  */
 static int	see_other_uids = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
+SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
     &see_other_uids, 0,
     "Unprivileged processes may see subjects/objects with different real uid");
 
@@ -1491,7 +1490,7 @@ p_cansched(struct proc *p1, struct proc *p2)
  * XXX: data declarations should be together near the beginning of the file.
  */
 static int	unprivileged_proc_debug = 1;
-SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_proc_debug, CTLFLAG_RW,
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_proc_debug, CTLFLAG_RW,
     &unprivileged_proc_debug, 0,
     "Unprivileged processes may use process debugging facilities");
 
