@@ -414,6 +414,9 @@ is listed as
 and a process which is blocked while trying
 to exit is listed as
 .Dq Li <exiting> .
+If the command vector cannot be located (usually because it has not
+been set, as is the case of system processes and/or kernel threads)
+the command name is printed within square brackets.
 The
 .Nm
 utility
