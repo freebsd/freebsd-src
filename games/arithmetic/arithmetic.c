@@ -110,9 +110,7 @@ void showstats(void);
  * so far are printed.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, cnt;
 
@@ -164,16 +162,16 @@ main(argc, argv)
 
 /* Handle interrupt character.  Print score and exit. */
 void
-intr(sig)
-	int sig;
+intr(int sig)
 {
+	sig = 0;
 	showstats();
 	exit(0);
 }
 
 /* Print score.  Original `arithmetic' had a delay after printing it. */
 void
-showstats()
+showstats(void)
 {
 	if (nright + nwrong > 0) {
 		(void)printf("\n\nRights %d; Wrongs %d; Score %d%%",
@@ -194,7 +192,7 @@ showstats()
  * more likely to appear in subsequent problems.
  */
 int
-problem()
+problem(void)
 {
 	char *p;
 	time_t start, finish;
@@ -309,8 +307,7 @@ struct penalty {
  * forget about the penalty (how likely is this, anyway?).
  */
 void
-penalise(value, op, operand)
-	int value, op, operand;
+penalise(int value, int op, int operand)
 {
 	struct penalty *p;
 
@@ -330,8 +327,7 @@ penalise(value, op, operand)
  * we find the corresponding value and return that, decreasing its penalty.
  */
 int
-getrandom(maxval, op, operand)
-	int maxval, op, operand;
+getrandom(int maxval, int op, int operand)
 {
 	int value;
 	struct penalty **pp, *p;
@@ -376,8 +372,7 @@ getrandom(maxval, op, operand)
 
 /* Return an index for the character op, which is one of [+-x/]. */
 int
-opnum(op)
-	int op;
+opnum(int op)
 {
 	char *p;
 
@@ -391,7 +386,7 @@ opnum(op)
 
 /* Print usage message and quit. */
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: arithmetic [-o +-x/] [-r range]\n");
 	exit(1);
