@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.28 1998/02/28 15:14:00 jraynard Exp $";
+	"$Id: syslogd.c,v 1.29 1998/04/22 06:28:18 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -247,7 +247,8 @@ int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
-int	SecureMode = 0;		/* when true, speak only unix domain socks */
+int	SecureMode = 0;		/* when true, receive only unix domain socks */
+int	Vogons = 0;		/* packets arriving in SecureMode */
 
 int     created_lsock = 0;      /* Flag if local socket created */
 char	bootfile[MAXLINE+1];	/* booted kernel file */
@@ -366,29 +367,28 @@ main(argc, argv)
 		created_lsock = 1;
 
 	inetm = 0;
-	if (!SecureMode) {
-		finet = socket(AF_INET, SOCK_DGRAM, 0);
-		if (finet >= 0) {
-			struct servent *sp;
+	finet = socket(AF_INET, SOCK_DGRAM, 0);
+	if (finet >= 0) {
+		struct servent *sp;
 
-			sp = getservbyname("syslog", "udp");
-			if (sp == NULL) {
-				errno = 0;
-				logerror("syslog/udp: unknown service");
+		sp = getservbyname("syslog", "udp");
+		if (sp == NULL) {
+			errno = 0;
+			logerror("syslog/udp: unknown service");
+			die(0);
+		}
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_port = LogPort = sp->s_port;
+
+		if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+			logerror("bind");
+			if (!Debug)
 				die(0);
-			}
-			memset(&sin, 0, sizeof(sin));
-			sin.sin_family = AF_INET;
-			sin.sin_port = LogPort = sp->s_port;
-
-			if (bind(finet, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-				logerror("bind");
-				if (!Debug)
-					die(0);
-				inetm = FDMASK(finet);
-			}
+			inetm = FDMASK(finet);
 		}
 	}
+
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
 		klogm = FDMASK(fklog);
 	else {
@@ -456,7 +456,15 @@ main(argc, argv)
 			len = sizeof(frominet);
 			i = recvfrom(finet, line, MAXLINE, 0,
 			    (struct sockaddr *)&frominet, &len);
-			if (i > 0) {
+			if (SecureMode) {
+				Vogons++;
+				if (Vogons & (Vogons + 1)) {
+					(void)snprintf(line, sizeof line,
+"syslogd: discarded %d unwanted packets in secure mode", Vogons);
+					logmsg(LOG_SYSLOG|LOG_AUTH, line,
+					    LocalHostName, ADDDATE);
+				}
+			} else if (i > 0) {
 				line[i] = '\0';
 				hname = cvthname(&frominet);
 				if (validate(&frominet, hname))
