@@ -54,6 +54,7 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <net/ethernet.h>
 
 #include <netgraph/ng_message.h>
@@ -244,23 +245,36 @@ struct ether_header eh_prototype =
 	 {0x00,0x00,0x00,0x00,0x00,0x00},
 	 ETHERTYPE_PPPOE_DISC};
 
-static int nonstandard;
+#define PPPOE_KEEPSTANDARD	-1	/* never switch to nonstandard mode */
+#define PPPOE_STANDARD		0	/* try standard mode (default) */
+#define PPPOE_NONSTANDARD	1	/* just be in nonstandard mode */
+static int pppoe_mode = PPPOE_STANDARD;
+
 static int
 ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int val;
 
-	val = nonstandard;
+	val = pppoe_mode;
 	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (val == 1) {
-		nonstandard = 1;
+	switch (val) {
+	case PPPOE_NONSTANDARD:
+		pppoe_mode = PPPOE_NONSTANDARD;
 		eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
-	} else {
-		nonstandard = 0;
+		break;
+	case PPPOE_STANDARD:
+		pppoe_mode = PPPOE_STANDARD;
 		eh_prototype.ether_type = ETHERTYPE_PPPOE_DISC;
+		break;
+	case PPPOE_KEEPSTANDARD:
+		pppoe_mode = PPPOE_KEEPSTANDARD;
+		eh_prototype.ether_type = ETHERTYPE_PPPOE_DISC;
+		break;
+	default:
+		return (EINVAL);
 	}
 	return (0);
 }
@@ -982,8 +996,21 @@ AAA
 		length = ntohs(wh->ph.length);
 		switch(wh->eh.ether_type) {
 		case	ETHERTYPE_PPPOE_STUPID_DISC:
-			nonstandard = 1;
-			eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
+			if (pppoe_mode == PPPOE_STANDARD) {
+				pppoe_mode = PPPOE_NONSTANDARD;
+				eh_prototype.ether_type =
+				    ETHERTYPE_PPPOE_STUPID_DISC;
+				log(LOG_NOTICE,
+				    "Switched to nonstandard PPPoE mode due to "
+				    "packet from %*D\n",
+				    sizeof(wh->eh.ether_shost),
+				    wh->eh.ether_shost, ":");
+			} else if (pppoe_mode == PPPOE_KEEPSTANDARD)
+				log(LOG_NOTICE,
+				    "Ignored nonstandard PPPoE packet "
+				    "from %*D\n",
+				    sizeof(wh->eh.ether_shost),
+				    wh->eh.ether_shost, ":");
 			/* fall through */
 		case	ETHERTYPE_PPPOE_DISC:
 			/*
@@ -1185,7 +1212,7 @@ AAA
 				 * from NEWCONNECTED to CONNECTED
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (nonstandard)
+				if (pppoe_mode == PPPOE_NONSTANDARD)
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_STUPID_SESS;
 				else
@@ -1237,7 +1264,7 @@ AAA
 				 * Keep a copy of the header we will be using.
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (nonstandard)
+				if (pppoe_mode == PPPOE_NONSTANDARD)
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_STUPID_SESS;
 				else
@@ -1519,7 +1546,7 @@ AAA
 			/* revert the stored header to DISC/PADT mode */
 		 	wh = &sp->pkt_hdr;
 			wh->ph.code = PADT_CODE;
-			if (nonstandard)
+			if (pppoe_mode == PPPOE_NONSTANDARD)
 				wh->eh.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
 			else
 				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
