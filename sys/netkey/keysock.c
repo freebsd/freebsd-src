@@ -1,4 +1,4 @@
-/*	$KAME: keysock.c,v 1.25 2001/08/13 20:07:41 itojun Exp $	*/
+/*	$KAME: keysock.c,v 1.32 2003/08/22 05:45:08 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -154,7 +154,6 @@ key_sendup0(rp, m, promisc)
 			m = m_pullup(m, sizeof(struct sadb_msg));
 		if (!m) {
 			pfkeystat.in_nomem++;
-			m_freem(m);
 			return ENOBUFS;
 		}
 		m->m_pkthdr.len += sizeof(*pmsg);
@@ -178,91 +177,6 @@ key_sendup0(rp, m, promisc)
 		error = 0;
 	sorwakeup(rp->rcb_socket);
 	return error;
-}
-
-/* XXX this interface should be obsoleted. */
-int
-key_sendup(so, msg, len, target)
-	struct socket *so;
-	struct sadb_msg *msg;
-	u_int len;
-	int target;	/*target of the resulting message*/
-{
-	struct mbuf *m, *n, *mprev;
-	int tlen;
-
-	/* sanity check */
-	if (so == 0 || msg == 0)
-		panic("key_sendup: NULL pointer was passed.");
-
-	KEYDEBUG(KEYDEBUG_KEY_DUMP,
-		printf("key_sendup: \n");
-		kdebug_sadb(msg));
-
-	/*
-	 * we increment statistics here, just in case we have ENOBUFS
-	 * in this function.
-	 */
-	pfkeystat.in_total++;
-	pfkeystat.in_bytes += len;
-	pfkeystat.in_msgtype[msg->sadb_msg_type]++;
-
-	/*
-	 * Get mbuf chain whenever possible (not clusters),
-	 * to save socket buffer.  We'll be generating many SADB_ACQUIRE
-	 * messages to listening key sockets.  If we simply allocate clusters,
-	 * sbappendaddr() will raise ENOBUFS due to too little sbspace().
-	 * sbspace() computes # of actual data bytes AND mbuf region.
-	 *
-	 * TODO: SADB_ACQUIRE filters should be implemented.
-	 */
-	tlen = len;
-	m = mprev = NULL;
-	while (tlen > 0) {
-		if (tlen == len) {
-			MGETHDR(n, M_DONTWAIT, MT_DATA);
-			n->m_len = MHLEN;
-		} else {
-			MGET(n, M_DONTWAIT, MT_DATA);
-			n->m_len = MLEN;
-		}
-		if (!n) {
-			pfkeystat.in_nomem++;
-			return ENOBUFS;
-		}
-		if (tlen >= MCLBYTES) {	/*XXX better threshold? */
-			MCLGET(n, M_DONTWAIT);
-			if ((n->m_flags & M_EXT) == 0) {
-				m_free(n);
-				m_freem(m);
-				pfkeystat.in_nomem++;
-				return ENOBUFS;
-			}
-			n->m_len = MCLBYTES;
-		}
-
-		if (tlen < n->m_len)
-			n->m_len = tlen;
-		n->m_next = NULL;
-		if (m == NULL)
-			m = mprev = n;
-		else {
-			mprev->m_next = n;
-			mprev = n;
-		}
-		tlen -= n->m_len;
-		n = NULL;
-	}
-	m->m_pkthdr.len = len;
-	m->m_pkthdr.rcvif = NULL;
-	m_copyback(m, 0, len, (caddr_t)msg);
-
-	/* avoid duplicated statistics */
-	pfkeystat.in_total--;
-	pfkeystat.in_bytes -= len;
-	pfkeystat.in_msgtype[msg->sadb_msg_type]--;
-
-	return key_sendup_mbuf(so, m, target);
 }
 
 /* so can be NULL if target != KEY_SENDUP_ONE */
@@ -350,10 +264,12 @@ key_sendup_mbuf(so, m, target)
 			return ENOBUFS;
 		}
 
-		if ((error = key_sendup0(rp, n, 0)) != 0) {
-			m_freem(m);
-			return error;
-		}
+		/*
+		 * ignore error even if queue is full.  PF_KEY does not
+		 * guarantee the delivery of the message.
+		 * this is important when target == KEY_SENDUP_ALL.
+		 */
+		key_sendup0(rp, n, 0);
 
 		n = NULL;
 	}
