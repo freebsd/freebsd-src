@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.64 1996/10/28 11:34:57 phk Exp $
+ * $Id: vfs_subr.c,v 1.64.2.1 1996/11/12 11:28:36 phk Exp $
  */
 
 /*
@@ -115,8 +115,8 @@ static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
 void
 vntblinit()
 {
-	desiredvnodes = maxproc + vm_object_cache_max + extravnodes;
 
+	desiredvnodes = maxproc + vm_object_cache_max;
 	TAILQ_INIT(&vnode_free_list);
 	CIRCLEQ_INIT(&mountlist);
 }
