@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.6 1994/10/10 10:39:09 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.7 1994/11/18 01:12:11 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -36,7 +36,7 @@ the most frequently asked questions about FreeBSD 2.0.
 If there's something you're having trouble with and you do not see it
 here, please send email to:
 
-    	            <FreeBSD-questions@FreeBSD.ORG>
+    	            <questions@FreeBSD.ORG>
 
 
 Some of the instructions here will also refer to auxiliary utilities
@@ -45,12 +45,12 @@ who've grabbed the FreeBSD 2.0 `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
 
-               ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current
+               ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current
 
 Or you can grab only those files you're interested in straight out of
 the FreeBSD-current distribution in:
 
-              ftp.FreeBSD.ORG:pub/FreeBSD/FreeBSD-current/src
+              ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src
 
 0.1:  What is FreeBSD?  
 
@@ -79,25 +79,24 @@ developers.  For more information, send to
 <majordomo@FreeBSD.ORG> and include a single line saying
 ``help'' in the body of your message.
 
-freebsd-announce:  For announcements about or on FreeBSD.
-freebsd-hackers:   Useful for persons wishing to work on the internals. 
-freebsd-questions: General questions on FreeBSD. 
-freebsd-bugs:      Where bugs should be sent.
-freebsd-SCSI:      Mailing list for SCSI developers. 
-freebsd-current:   This list is for persons wishing to run FreeBSD-current
-                   and carries announcements and discussions on current.
-freebsd-security:  For issues dealing with system security. 
-freebsd-platforms: Deals with ports to non-intel platforms
-freebsd-ports:     Discussion of /usr/ports/???
-freebsd-fs:        Discussion of FreeBSD Filesystems
-
+announce:  For announcements about or on FreeBSD.
+hackers:   Useful for persons wishing to work on the internals. 
+questions: General questions on FreeBSD. 
+bugs:      Where bugs should be sent.
+SCSI:      Mailing list for SCSI developers. 
+current:   This list is for persons wishing to run FreeBSD-current
+           and carries announcements and discussions on current.
+security:  For issues dealing with system security. 
+platforms: Deals with ports to non-Intel platforms
+ports:     Discussion of /usr/ports/???
+fs:        Discussion of FreeBSD Filesystems
+hardware:  Discussion on hardware requirements for FreeBSD.
 
 The FreeBSD-commit list has been broken up into groups dealing with different
-areas of intrest.  
+areas of interest.  Please see the FreeBSD mailing list FAQ in:
 
-Please see also the FreeBSD mailing list FAQ in:
+        /usr/src/share/FAQ/mailing-list.FAQ
 
-        /usr/src/share/FAQ/FreeBSD.mailing-list.FAQ
 
 0.3:  What are the various FreeBSD news groups? 
 
@@ -341,6 +340,9 @@ There is support for the following cards:
         3Com 3c503 
         And clones of the above
 
+`de' driver:
+	DEC and compatible PCI controllers.
+
 `ie' driver:
         AT&T EN100/StarLAN 10
         3Com 3c507 
@@ -357,9 +359,6 @@ There is support for the following cards:
 
 `ze' driver:
         IBM PCMCIA credit card adapter
-
-(*)The `ep' and `el' driver is known to have some problems; see the
-/usr/src/KNOWNBUGS file for more details.
 
 
 2.11:  I have a 386/486sx/486SLC machine without a math co-processor.
@@ -378,7 +377,7 @@ clones.
        want an idea of what other people are running.  Is there list
        of other systems anywhere? 
 
-Yes.  Please look at the file FAQ/OTHER-FAQS/Systems.FAQ.  This file
+Yes.  Please look at the file Systems.FAQ.  This file
 is a listing of hardware that people are running in their machines.
 Please note, this is a raw listing of equipment that other users
 have sent in.
@@ -397,8 +396,51 @@ viability).  We encourage commercial software vendors to send their
 entries here for inclusion.
 
 
-<XXX> 3.1:  Where can I get Motif for FreeBSD?
+3.1:  Where can I get Motif for FreeBSD?
 
+You can purchase Motif 1.2.3 for FreeBSD (SWiM) from the ACC Bookstore, 
+P.O. Box 3364, Westport CT. 06880.  1-800-546-7274 or FAX: 1-203-454-2582
+
+This software works flawlessly for for FreeBSD 1.1.5 but has shown
+one problem with 2.0 in that the "uil" program core dumps.  This is
+apparently because of the way uil is installed, and it's quite possible
+that ACC will have a fixed version by the time you read this.  No
+other compatibility problems with the programs or libraries have been
+found, and ACC can hardly be blamed for failing to work perfectly with
+a brand-new release they haven't even seen yet! :)
+
+
+3.2:  Are there any commercial X servers for some of the high-end
+      graphics cards like the Matrox or #9 I-128, or offering 8/16/24
+      bit deep pallettes?
+
+X-Inside, Inc. sells their "Xaccel" high-performance X Server for
+FreeBSD 1.1.5, which has been proven to work as reliably under 2.0 as
+well, provided that the `compat1xdist' is installed.  More info may be
+obtained by sending email to info@xinside.com or calling:
+
+Telephone:              (US Sales) 1(800)XINSIDE = 1(800)946-7433
+                        (Sales) +1(303)384-9999
+FAX:                    +1(303)384-9778
+
+More information is also available via http://www.xinside.com
+
+
+3.3:  Any other applications I might be interested in?
+
+Rendermorphics, Inc. sells a high-speed 3D rendering package for
+FreeBSD called "Reality Lab" (tm).  Send email to dfr@render.demon.co.uk
+or call: +44(0)71-251-4411 / FAX: +44(0)71-251-0939
+
+This package is also for FreeBSD 1.1.5 but has been tested and shown
+to run under FreeBSD 2.0 with the compat1xdist installed.
+
+Thanks must be extended to all of these companies for showing enough faith
+in FreeBSD to port their products to it.  While we get no direct benefit
+from the sales of these products, the indirect benefits of FreeBSD
+proving itself to be a successful platform for such commercial interests
+will be immense!  We wish these companies every measure of success, and
+can only hope that others are encouraged to follow suit.
 
 
 4 User Applications
@@ -412,8 +454,10 @@ the instructions for installation carefully. You may then wish to read
 the documentation for the ConfigXF86 tool, which assists you in
 configuring XFree86 for your particular graphics card/mouse/etc.
 
+You may also wish to investigate the Xaccel server, which is available
+at a very reasonable price.  See section 3.2 for more details.
 
-4.1:  I've been trying to run ghostscript on a 386 (or 486sx) with no
+4.2:  I've been trying to run ghostscript on a 386 (or 486sx) with no
       math co-processor and I keep getting errors.  What's up?
 
 You will need to add the alternate math emulator to your kernel, you do this

@@ -54,6 +54,51 @@ Solution:	There are several possible solutions.  The first,
 
 ---
 
+Summary:	I want to boot FreeBSD off the second drive.  It doesn't!
+
+Cause:		FreeBSD will actually install just fine on a drive other
+		than 0 (the first drive), and the boot manager will even
+		allow you to select it, but the boot blocks rather
+		pathologically assume 0.  This should be fixed in 2.1.
+
+Solution:	Easy - follow these steps:
+
+		1.  Select the first (0) drive from the (F)disk editor
+		    and write out the boot manager with the (B) option.
+		    This will enable the boot manager that allows you to
+		    actually boot off the other drive.
+
+		2.  Exit the fdisk editor for the first drive and and
+		    re-enter it again for the drive you wish to install
+		    on.  Set up a partition on this drive, or select
+		    (A)ll for the entire drive.
+
+		3.  Enter the disklabel editor and allocate space on
+		    your second drive as normal.  Proceed with the
+		    installation.
+
+		4.  Once you've installed on the disk and are going to
+		    reboot from the hard disk, enter the following at
+		    the boot prompt:
+
+				hd(1,a)/kernel
+
+		    This will ensure that you really boot from the second
+		    drive.  If you've actually installed on a drive other
+		    than 1 (the 3rd or 4th drive?), substitute that number
+		    in for the above.  You will need to enter this EVERY
+		    time you reboot from the hard disk.  If you're feeling
+		    brave and have a srcdist + the requisite experience,
+		    you can hack the boot blocks in:
+
+			/usr/src/sys/i386/boot/biosboot
+
+		    So that this drive you're booting from is hard-coded.
+		    Recompile the boot blocks and reinstall them on your
+		    drive with `disklabel -B ...'  You can then have the
+		    default Do The Right Thing.
+---
+
 Summary:	Newfs crashes, requesting that blocksize be 32K
 
 Cause:		You have your SCSI controller configured to translate
