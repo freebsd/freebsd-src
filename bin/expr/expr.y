@@ -4,11 +4,13 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Header: /b/source/CVS/src/bin/expr/expr.y,v 1.11 1993/08/17 16:01:23 jtc Exp $
+ * $Id : /b/source/CVS/src/bin/expr/expr.y,v 1.11 1993/08/17 16:01:23 jtc Exp $
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 #include <ctype.h>
 #include <err.h>
   
@@ -79,7 +81,6 @@ expr:	TOKEN
 	| expr '/' expr { $$ = op_div ($1, $3); }
 	| expr '%' expr { $$ = op_rem ($1, $3); }
 	| expr ':' expr { $$ = op_colon ($1, $3); }
-	| '-' expr %prec UNARY { $$ = op_minus (NULL, $2); }
 	;
 
 
@@ -232,6 +233,8 @@ main (argc, argv)
 int argc;
 char **argv;
 {
+	setlocale (LC_ALL, "");
+
 	av = argv + 1;
 
 	yyparse ();
@@ -241,10 +244,7 @@ char **argv;
 	else
 		printf ("%s\n", result->u.s);
 
-	if (is_zero_or_null (result))
-		exit (1);
-	else
-		exit (0);
+	exit (is_zero_or_null (result));
 }
 
 int
@@ -485,14 +485,13 @@ struct val *a, *b;
 }
 	
 #include <regex.h>
-#define SE_MAX	30
 
 struct val *
 op_colon (a, b)
 struct val *a, *b;
 {
 	regex_t rp;
-	regmatch_t rm[SE_MAX];
+	regmatch_t rm[2];
 	char errbuf[256];
 	int eval;
 	struct val *v;
@@ -515,7 +514,7 @@ struct val *a, *b;
 	free (newpat);
 
 	/* compare string against pattern */
-	if (regexec(&rp, a->u.s, SE_MAX, rm, 0) == 0) {
+	if (regexec(&rp, a->u.s, 2, rm, 0) == 0) {
 		if (rm[1].rm_so >= 0) {
 			*(a->u.s + rm[1].rm_eo) = '\0';
 			v = make_str (a->u.s + rm[1].rm_so);
