@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.115 1999/05/27 10:59:40 roger Exp $
+**  $Id: pcisupport.c,v 1.116 1999/05/27 12:26:50 yokota Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1285,6 +1285,14 @@ static const char* vga_match(device_t dev)
 		switch (id >> 16) {
 		case 0x0004:
 			chip = "NM2160 laptop";	break;
+		}
+		break;
+	case 0x121a:
+		vendor = "3Dfx";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x0003:
+			chip = "Voodoo Banshee"; break;
 		}
 		break;
 	case 0x102b:
