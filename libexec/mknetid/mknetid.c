@@ -34,9 +34,12 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- *	$Id: mknetid.c,v 1.4 1996/10/24 03:33:32 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 
@@ -46,17 +49,13 @@
 
 #include <err.h>
 #include <grp.h>
-#include <pwd.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "hash.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: mknetid.c,v 1.4 1996/10/24 03:33:32 wpaul Exp $";
-#endif
 
 #define LINSIZ 1024
 #define OPSYS "unix"
@@ -85,17 +84,19 @@ struct member_entry *dtable[TABLESIZE];
 extern struct group *_getgrent __P(( void ));
 extern int _setgrent __P(( void ));
 extern void _endgrent __P(( void ));
-void usage(prog)
-char *prog;
+
+static void
+usage()
 {
-	fprintf (stderr,"usage: %s [-q] [-g group file] [-p passwd file] \
-[-h hosts file]\n\t\t\t[-d netid file] [-d domain]\n",prog);
+	fprintf (stderr, "%s\n%s\n",
+	"usage: mknetid [-q] [-g group_file] [-p passwd_file] [-h hosts_file]",
+	"               [-d netid_file] [-d domain]");
 	exit(1);
 }
 
-extern char *optarg;
 extern FILE *_gr_fp;
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -132,7 +133,7 @@ main(argc, argv)
 			quiet++;
 			break;
 		default:
-			usage(argv[0]);
+			usage();
 			break;
 		}
 	}
