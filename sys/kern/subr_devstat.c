@@ -222,7 +222,7 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 	/*
 	 * Keep a count of the various tag types sent.
 	 */
-	if ((ds->flags & DEVSTAT_NO_ORDERED_TAGS == 0) &&
+	if ((ds->flags & DEVSTAT_NO_ORDERED_TAGS) == 0 &&
 	    tag_type != DEVSTAT_TAG_NONE)
 		ds->tag_types[tag_type]++;
 
