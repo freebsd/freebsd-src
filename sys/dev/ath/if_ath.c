@@ -1712,7 +1712,8 @@ ath_rx_proc(void *arg, int npending)
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 			memcpy(&whbuf, wh, sizeof(whbuf));
 			m_adj(m, IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN);
-			memcpy(mtod(m, caddr_t), &whbuf, sizeof(whbuf));
+			wh = mtod(m, struct ieee80211_frame *);
+			memcpy(wh, &whbuf, sizeof(whbuf));
 			/*
 			 * Also trim WEP ICV from the tail.
 			 */
