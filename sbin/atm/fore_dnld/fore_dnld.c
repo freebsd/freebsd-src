@@ -1036,7 +1036,7 @@ char *argv[];
 		 */
 		air = (struct air_cfg_rsp *)buf;
 
-		if (air->acp_vendor == VENDOR_FORE )
+		if (air->acp_vendapi == VENDAPI_FORE_1 && air->acp_ram != 0)
 		{
 			/*
 			 * Create /dev name
