@@ -1303,6 +1303,8 @@ crfree(cr)
 		 */
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
+		if (cr->cr_ruidinfo != NULL)
+			uifree(cr->cr_ruidinfo);
 		/*
 		 * Free a prison, if any.
 		 */
