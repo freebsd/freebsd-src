@@ -4,6 +4,5 @@
 PROG=	cp
 SRCS=	cp.c utils.c
 CFLAGS+= -DVM_AND_BUFFER_CACHE_SYNCHRONIZED
-WARNS=	0
 
 .include <bsd.prog.mk>

@@ -41,7 +41,6 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 #include <sys/mman.h>
 #endif
@@ -115,7 +114,7 @@ copy_file(FTSENT *entp, int dne)
 	if (to_fd == -1) {
 		warn("%s", to.p_path);
 		(void)close(from_fd);
-		return (1);;
+		return (1);
 	}
 
 	rval = 0;
@@ -191,19 +190,19 @@ int
 copy_link(FTSENT *p, int exists)
 {
 	int len;
-	char link[PATH_MAX];
+	char llink[PATH_MAX];
 
-	if ((len = readlink(p->fts_path, link, sizeof(link) - 1)) == -1) {
+	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
 		warn("readlink: %s", p->fts_path);
 		return (1);
 	}
-	link[len] = '\0';
+	llink[len] = '\0';
 	if (exists && unlink(to.p_path)) {
 		warn("unlink: %s", to.p_path);
 		return (1);
 	}
-	if (symlink(link, to.p_path)) {
-		warn("symlink: %s", link);
+	if (symlink(llink, to.p_path)) {
+		warn("symlink: %s", llink);
 		return (1);
 	}
 	return (0);
@@ -236,9 +235,6 @@ copy_special(struct stat *from_stat, int exists)
 	}
 	return (pflag ? setfile(from_stat, 0) : 0);
 }
-
-#define	RETAINBITS \
-	(S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
 
 int
 setfile(struct stat *fs, int fd)

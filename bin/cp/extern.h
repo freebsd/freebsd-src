@@ -35,15 +35,13 @@
  */
 
 typedef struct {
-	char *p_end;			/* pointer to NULL at end of path */
-	char *target_end;               /* pointer to end of target base */
-	char p_path[PATH_MAX];		/* pointer to the start of a path */
+	char *p_end;		/* pointer to NULL at end of path */
+	char *target_end;	/* pointer to end of target base */
+	char p_path[PATH_MAX];	/* pointer to the start of a path */
 } PATH_T;
 
 extern PATH_T to;
-extern int iflag, pflag, fflag, vflag;
-
-#include <sys/cdefs.h>
+extern int iflag, pflag, fflag;
 
 __BEGIN_DECLS
 int	copy_fifo(struct stat *, int);
