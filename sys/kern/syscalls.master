@@ -70,9 +70,9 @@
 18	COMPAT4	{ int getfsstat(struct ostatfs *buf, long bufsize, int flags); }
 19	COMPAT	{ long lseek(int fd, long offset, int whence); }
 20	MSTD	{ pid_t getpid(void); }
-21	MSTD	{ int mount(char *type, char *path, int flags, caddr_t data); }
+21	STD	{ int mount(char *type, char *path, int flags, caddr_t data); }
 ; XXX `path' should have type `const char *' but we're not ready for that.
-22	MSTD	{ int unmount(char *path, int flags); }
+22	STD	{ int unmount(char *path, int flags); }
 23	MSTD	{ int setuid(uid_t uid); }
 24	MSTD	{ uid_t getuid(void); }
 25	MSTD	{ uid_t geteuid(void); }
@@ -536,7 +536,7 @@
 375	NOIMPL	{ int nfsclnt(int flag, caddr_t argp); }
 376	MSTD	{ int eaccess(char *path, int flags); }
 377	UNIMPL	afs_syscall
-378	MSTD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
+378	STD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
 		    int flags); }
 379	MSTD	{ int kse_exit(void); }
 380	MSTD	{ int kse_wakeup(struct kse_mailbox *mbx); }
