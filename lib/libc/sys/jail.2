@@ -82,6 +82,12 @@ can be manipulated all the ways a root can normally do it, including
 .Dq Li "rm -rf /*"
 but new device special nodes cannot be created because they reference
 shared resources (the device drivers in the kernel).
+The effective
+.Dq securelevel
+for a process is the greater of the global
+.Dq securelevel
+or, if present, the per-jail
+.Dq securelevel .
 .Pp
 All IP activity will be forced to happen to/from the IP number specified,
 which should be an alias on one of the network interfaces.
