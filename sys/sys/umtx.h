@@ -35,11 +35,9 @@
  */
 
 #define	UMTX_UNOWNED	0x0
-#define	UMTX_CONTESTED	0x1
-
 
 struct umtx {
-	thr_id_t u_owner;	/* Owner of the mutex. */
+	void	*u_owner;	/* Owner of the mutex. */
 };
 
 #ifndef _KERNEL
@@ -55,28 +53,29 @@ int _umtx_unlock(struct umtx *mtx);
  * kernel to resolve failures.
  */
 static __inline int
-umtx_lock(struct umtx *umtx, thr_id_t id)
+umtx_lock(struct umtx *umtx, long id)
 {
-	if (atomic_cmpset_acq_ptr(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
+	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
+	    (void *)id) == 0)
 		if (_umtx_lock(umtx) == -1)
 			return (errno);
-
 	return (0);
 }
 
 static __inline int
-umtx_trylock(struct umtx *umtx, thr_id_t id)
+umtx_trylock(struct umtx *umtx, long id)
 {
-	if (atomic_cmpset_acq_ptr(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
+	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
+	    (void *)id) == 0)
 		return (EBUSY);
-
 	return (0);
 }
 
 static __inline int
-umtx_unlock(struct umtx *umtx, thr_id_t id)
+umtx_unlock(struct umtx *umtx, long id)
 {
-	if (atomic_cmpset_rel_ptr(&umtx->u_owner, id, UMTX_UNOWNED) == 0)
+	if (atomic_cmpset_rel_ptr(&umtx->u_owner, (void *)id,
+	    (void *)UMTX_UNOWNED) == 0)
 		if (_umtx_unlock(umtx) == -1)
 			return (errno);
 	return (0);

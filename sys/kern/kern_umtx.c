@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -62,6 +63,7 @@ MTX_SYSINIT(umtx, &umtx_lock, "umtx", MTX_DEF);
 #define	UMTX_LOCK()	mtx_lock(&umtx_lock);
 #define	UMTX_UNLOCK()	mtx_unlock(&umtx_lock);
 
+#define	UMTX_CONTESTED	LONG_MIN
 
 static struct umtx_q *umtx_lookup(struct thread *, struct umtx *umtx);
 static struct umtx_q *umtx_insert(struct thread *, struct umtx *umtx);
@@ -161,7 +163,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * Try the uncontested case.  This should be done in userland.
 		 */
 		owner = casuptr((intptr_t *)&umtx->u_owner,
-		    UMTX_UNOWNED, (intptr_t)td);
+		    UMTX_UNOWNED, td->td_tid);
 
 		/* The address was invalid. */
 		if (owner == -1)
@@ -174,7 +176,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		/* If no one owns it but it is contested try to acquire it. */
 		if (owner == UMTX_CONTESTED) {
 			owner = casuptr((intptr_t *)&umtx->u_owner,
-			    UMTX_CONTESTED, ((intptr_t)td | UMTX_CONTESTED));
+			    UMTX_CONTESTED, td->td_tid | UMTX_CONTESTED);
 
 			/* The address was invalid. */
 			if (owner == -1)
@@ -263,7 +265,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	if ((owner = fuword(&umtx->u_owner)) == -1)
 		return (EFAULT);
 
-	if ((struct thread *)(owner & ~UMTX_CONTESTED) != td)
+	if ((owner & ~UMTX_CONTESTED) != td->td_tid)
 		return (EPERM);
 
 	/* We should only ever be in here for contested locks */
