@@ -21,6 +21,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * A tar (tape archiver) program.
  *
  * Written by John Gilmore, ihnp4!hoptoad!gnu, starting 25 Aug 85.
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -172,7 +174,8 @@ struct option long_options[] =
   {"bzip2", 0, 0, 'y'},
   {"bunzip2", 0, 0, 'y'},
   {"gzip", 0, 0, 'z'},
-  {"ungzip", 0, 0, 'z'},
+  {"gunzip", 0, 0, 'z'},
+  {"ungzip", 0, 0, 'z'},  /* for backwards compatibility with former typo */
   {"use-compress-program", 1, 0, 18},
     
 
