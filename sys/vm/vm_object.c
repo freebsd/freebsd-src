@@ -146,6 +146,7 @@ extern int vm_pageout_page_count;
 
 static long object_collapses;
 static long object_bypasses;
+static int next_index;
 static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
@@ -188,7 +189,6 @@ vm_object_zinit(void *mem, int size)
 void
 _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 {
-	static int next_index;
 	static int object_hash_rand;
 	int exp, incr;
 
@@ -201,14 +201,14 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
-	do {
+	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
+		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
+	else
+		incr = size;
+	do
 		object->pg_color = next_index;
-		if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
-			incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
-		else
-			incr = size;
-	} while (!atomic_cmpset_int(&next_index, object->pg_color,
-				    (object->pg_color + incr) & PQ_L2_MASK));
+	while (!atomic_cmpset_int(&next_index, object->pg_color,
+				  (object->pg_color + incr) & PQ_L2_MASK));
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
@@ -1144,7 +1144,15 @@ vm_object_shadow(
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 		source->generation++;
-		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) & PQ_L2_MASK;
+		if (length < source->size)
+			length = source->size;
+		if (length > PQ_L2_SIZE / 3 + PQ_PRIME1 ||
+		    source->generation > 1)
+			length = PQ_L2_SIZE / 3 + PQ_PRIME1;
+		result->pg_color = (source->pg_color +
+		    length * source->generation) & PQ_L2_MASK;
+		next_index = (result->pg_color + PQ_L2_SIZE / 3 + PQ_PRIME1) &
+		    PQ_L2_MASK;
 	}
 
 	/*
