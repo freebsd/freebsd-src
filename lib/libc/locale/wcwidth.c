@@ -54,7 +54,7 @@ wcwidth(wc)
 {
 	int width;
 
-	if (wc == 0)
+	if (wc == L'\0')
 		return (0);
 
 	width = __maskrune(wc, _CTYPE_SWM);
