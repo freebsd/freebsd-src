@@ -2,7 +2,7 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.14 2003/01/14 23:20:53 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.15 2003/01/18 16:44:09 ue Exp $
   basiert auf: 1.12
 -->
 
@@ -255,8 +255,8 @@
 	  Hersteller angepa&szlig;t werden, damit sie korrekt mit &os;
 	  5.0 zusammenarbeiten.  Es ist nicht ausgeschlossen,
 	  da&szlig; es bis zum Erscheinen des Entwicklungszweiges
-	  5-STABLE zu weiteren kleineren &Auml;nderungen an den
-	  ABI/API geben wird.</para>
+	  5-STABLE weitere kleinere &Auml;nderungen am ABI/API geben
+	  wird.</para>
       </listitem>
 
       <listitem>
