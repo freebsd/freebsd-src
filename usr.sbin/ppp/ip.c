@@ -170,6 +170,15 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
 	    estab = syn = finrst = -1;
 	    sport = ntohs(0);
 	    break;
+#ifdef IPPROTO_GRE
+          case IPPROTO_GRE:
+            cproto = P_GRE;
+            if (datalen < 2)    /* GRE uses 2-octet+ messages */
+              return (1);
+            estab = syn = finrst = -1;
+            sport = ntohs(0);
+            break;
+#endif
 #ifdef IPPROTO_OSPFIGP
 	  case IPPROTO_OSPFIGP:
 	    cproto = P_OSPF;
@@ -359,6 +368,19 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+
+#ifdef IPPROTO_GRE
+  case IPPROTO_GRE:
+    if (logit && loglen < sizeof logbuf) {
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+          "GRE: %s ---> ", inet_ntoa(pip->ip_src));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+              "%s", inet_ntoa(pip->ip_dst));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+#endif
 
 #ifdef IPPROTO_OSPFIGP
   case IPPROTO_OSPFIGP:
