@@ -1556,7 +1556,6 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		}
 		break;
 	case CODE_REJ:
-	case PROTO_REJ:
 		/* XXX catastrophic rejects (RXJ-) aren't handled yet. */
 		log(LOG_INFO,
 		    SPP_FMT "%s: ignoring RXJ (%s) for proto 0x%x, "
@@ -1583,6 +1582,65 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			++ifp->if_ierrors;
 		}
 		break;
+	case PROTO_REJ:
+	    {
+		int catastrophic;
+		const struct cp *upper;
+		int i;
+		u_int16_t proto;
+
+		catastrophic = 0;
+		upper = NULL;
+		proto = ntohs(*((u_int16_t *)p));
+		for (i = 0; i < IDX_COUNT; i++) {
+			if (cps[i]->proto == proto) {
+				upper = cps[i];
+				break;
+			}
+		}
+		if (upper == NULL)
+			catastrophic++;
+
+		log(LOG_INFO,
+		    SPP_FMT "%s: RXJ%c (%s) for proto 0x%x (%s/%s)\n",
+		    SPP_ARGS(ifp), cp->name, catastrophic ? '-' : '+',
+		    sppp_cp_type_name(h->type), proto,
+		    upper ? upper->name : "unknown",
+		    upper ? sppp_state_name(sp->state[upper->protoidx]) : "?");
+
+		/*
+		 * if we got RXJ+ against conf-req, the peer does not implement
+		 * this particular protocol type.  terminate the protocol.
+		 */
+		if (upper && !catastrophic) {
+			if (sp->state[upper->protoidx] == STATE_REQ_SENT) {
+				upper->Close(sp);
+				break;
+			}
+		}
+
+		/* XXX catastrophic rejects (RXJ-) aren't handled yet. */
+		switch (sp->state[cp->protoidx]) {
+		case STATE_CLOSED:
+		case STATE_STOPPED:
+		case STATE_REQ_SENT:
+		case STATE_ACK_SENT:
+		case STATE_CLOSING:
+		case STATE_STOPPING:
+		case STATE_OPENED:
+			break;
+		case STATE_ACK_RCVD:
+			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
+			break;
+		default:
+			printf(SPP_FMT "%s illegal %s in state %s\n",
+			       SPP_ARGS(ifp), cp->name,
+			       sppp_cp_type_name(h->type),
+			       sppp_state_name(sp->state[cp->protoidx]));
+			++ifp->if_ierrors;
+		}
+		break;
+	    }
 	case DISC_REQ:
 		if (cp->proto != PPP_LCP)
 			goto illegal;
