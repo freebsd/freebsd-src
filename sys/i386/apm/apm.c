@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.89 1999/07/04 14:58:29 phk Exp $
+ *	$Id: apm.c,v 1.90 1999/07/10 18:08:48 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -1283,11 +1283,13 @@ apmpoll(dev_t dev, int events, struct proc *p)
 	struct apm_softc *sc = &apm_softc;
 	int revents = 0;
 
-	if (events & (POLLIN | POLLRDNORM))
-		if (sc->event_count)
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (sc->event_count) {
 			revents |= events & (POLLIN | POLLRDNORM);
-		else
+		} else {
 			selrecord(p, &sc->sc_rsel);
+		}
+	}
 
 	return (revents);
 }
