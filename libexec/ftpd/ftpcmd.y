@@ -673,7 +673,7 @@ cmd
 					    maxtimeout);
 				} else {
 					timeout = $6.i;
-					(void) alarm((unsigned) timeout);
+					(void) alarm(timeout);
 					reply(200,
 					    "Maximum IDLE time set to %d seconds",
 					    timeout);
@@ -1275,7 +1275,7 @@ yylex(void)
 
 		case CMD:
 			(void) signal(SIGALRM, toolong);
-			(void) alarm((unsigned) timeout);
+			(void) alarm(timeout);
 			if (getline(cbuf, sizeof(cbuf)-1, stdin) == NULL) {
 				reply(221, "You could at least say goodbye.");
 				dologout(0);
@@ -1494,7 +1494,7 @@ copy(char *s)
 {
 	char *p;
 
-	p = malloc((unsigned) strlen(s) + 1);
+	p = malloc(strlen(s) + 1);
 	if (p == NULL)
 		fatalerror("Ran out of memory.");
 	(void) strcpy(p, s);
