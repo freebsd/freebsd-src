@@ -1192,7 +1192,7 @@ strtod
 #endif
 {
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, dsign,
-		 e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
+		 e, e1, esign, i, j, k, n, nd, nd0, nf, nz, nz0, sign;
 	CONST char *s, *s0, *s1;
 	double aadj, aadj1, adj, rv, rv0;
 	long L;
@@ -1227,18 +1227,18 @@ strtod
 	}
 	s0 = s;
 	y = z = 0;
-	for (nd = nf = 0; isdigit(c = (unsigned char)*s); nd++, s++)
+	for (nd = nf = 0; isdigit(c = (unsigned char)*s) && (n = digitoint(c)) <= 9; nd++, s++)
 		if (nd < 9)
-			y = 10*y + digittoint(c);
+			y = 10*y + n;
 		else if (nd < 16)
-			z = 10*z + digittoint(c);
+			z = 10*z + n;
 	nd0 = nd;
 	if ((char)c == decimal_point) {
 		c = (unsigned char)*++s;
 		if (!nd) {
 			for (; isdigit(c) && digittoint(c) == 0; c = (unsigned char)*++s)
 				nz++;
-			if (isdigit(c)) {
+			if (isdigit(c) && (n = digittoint(c)) <= 9) {
 				s0 = s;
 				nf += nz;
 				nz = 0;
@@ -1246,10 +1246,10 @@ strtod
 			}
 			goto dig_done;
 		}
-		for (; isdigit(c); c = (unsigned char)*++s) {
+		for (; isdigit(c) && (n = digittoint(c)) <= 9; c = (unsigned char)*++s) {
  have_dig:
 			nz++;
-			if (digittoint(c) != 0) {
+			if (n > 0) {
 				nf += nz;
 				for (i = 1; i < nz; i++)
 					if (nd++ < 9)
@@ -1257,9 +1257,9 @@ strtod
 					else if (nd <= DBL_DIG + 1)
 						z *= 10;
 				if (nd++ < 9)
-					y = 10*y + digittoint(c);
+					y = 10*y + n;
 				else if (nd <= DBL_DIG + 1)
-					z = 10*z + digittoint(c);
+					z = 10*z + n;
 				nz = 0;
 			}
 		}
@@ -1279,14 +1279,14 @@ strtod
 			case '+':
 				c = (unsigned char)*++s;
 		}
-		if (isdigit(c)) {
+		if (isdigit(c) && digittoint(c) <= 9) {
 			while (isdigit(c) && digittoint(c) == 0)
 				c = (unsigned char)*++s;
-			if (isdigit(c)) {
-				L = digittoint(c);
+			if (isdigit(c) && (n = digittoint(c)) <= 9) {
+				L = n;
 				s1 = s;
-				while (isdigit(c = (unsigned char)*++s))
-					L = 10*L + digittoint(c);
+				while (isdigit(c = (unsigned char)*++s) && (n = digittoint(c)) <= 9)
+					L = 10*L + n;
 				if (s - s1 > 8 || L > 19999)
 					/* Avoid confusion from exponents
 					 * so large that e might overflow.
