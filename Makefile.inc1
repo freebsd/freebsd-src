@@ -243,46 +243,6 @@ LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		LIBCOMPATDIR=/usr/lib32/compat
 .endif
 
-.if ${MACHINE_ARCH} == amd64
-# 32 bit world
-LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
-
-LIB32PREFLAGS=	-m32 -march=athlon-xp -msse2 -mfancy-math-387 -DCOMPAT_32BIT
-LIB32POSTFLAGS=	-I${LIB32TMP}/usr/include \
-		-L${LIB32TMP}/usr/lib32 \
-		-B${LIB32TMP}/usr/lib32
-LIB32CC=	${LIB32PREFLAGS} \
-		${LIB32POSTFLAGS}
-LIB32CXX=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/c++/3.4 \
-		${LIB32POSTFLAGS}
-LIB32OBJC=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/objc \
-		${LIB32POSTFLAGS}
-
-# Yes, the flags are redundant.
-LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
-		_SHLIBDIRPREFIX=${LIB32TMP} \
-		MACHINE_ARCH=i386 \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		PATH=${TMPPATH} \
-		CC="cc ${LIB32CC}" \
-		CXX="c++ ${LIB32CXX}" \
-		OBJC="cc ${LIB32OBJC}" \
-		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="as --32" \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
-
-LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNOMAN -DNODOC -DNOINFO -DNOHTML \
-		CC="cc ${LIB32CC}" \
-		CXX="c++ ${LIB32CXX}" \
-		OBJC="cc ${LIB32OBJC}" \
-		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="as --32" \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
-.endif
-
 # install stage
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV=	${CROSSENV} \
