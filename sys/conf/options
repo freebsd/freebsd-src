@@ -1,4 +1,4 @@
-#	$Id: options,v 1.79 1998/06/30 03:01:29 jmg Exp $
+#	$Id: options,v 1.80 1998/06/30 07:36:33 jmg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -143,6 +143,7 @@ SCSIDEBUG		opt_scsi.h
 SCSI_DELAY		opt_scsi.h
 SCSI_REPORT_GEOMETRY	opt_scsi.h
 SCSI_2_DEF		opt_scsi.h
+NO_SCSI_SENSE		opt_scsi.h
 
 # Options used only in scsi/od.c.
 OD_AUTO_TURNOFF		opt_od.h
