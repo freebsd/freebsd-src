@@ -46,8 +46,9 @@ enum nss_status {
 	NSS_STATUS_RETURN
 };
 
-#define __nss_compat_result(rv)			\
-((rv == NSS_STATUS_TRYAGAIN) ? NS_TRYAGAIN :	\
+#define __nss_compat_result(rv, err)		\
+((rv == NSS_STATUS_TRYAGAIN && err == ERANGE) ? NS_RETURN : \
+ (rv == NSS_STATUS_TRYAGAIN) ? NS_TRYAGAIN :	\
  (rv == NSS_STATUS_UNAVAIL)  ? NS_UNAVAIL  :	\
  (rv == NSS_STATUS_NOTFOUND) ? NS_NOTFOUND :	\
  (rv == NSS_STATUS_SUCCESS)  ? NS_SUCCESS  :	\

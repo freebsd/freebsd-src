@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <errno.h>
 #include <nss.h>
 #include <pthread.h>
 #include <pthread_np.h>
@@ -96,9 +97,10 @@ __nss_compat_getgrnam_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(name, grp, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
@@ -120,9 +122,10 @@ __nss_compat_getgrgid_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(gid, grp, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
@@ -144,11 +147,12 @@ __nss_compat_getgrent_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(grp, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct group **)retval = grp;
-	else
+	else if (status != NS_RETURN)
 		SET_TERMINATOR(group, &terminator);
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
@@ -194,9 +198,10 @@ __nss_compat_getpwnam_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(name, pwd, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
@@ -218,9 +223,10 @@ __nss_compat_getpwuid_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(uid, pwd, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
@@ -242,11 +248,12 @@ __nss_compat_getpwent_r(void *retval, void *mdata, va_list ap)
 	bufsize = va_arg(ap, size_t);
 	errnop = va_arg(ap, int *);
 	status = fn(pwd, buffer, bufsize, errnop);
+	status = __nss_compat_result(status, *errnop);
 	if (status == NS_SUCCESS)
 		*(struct passwd **)retval = pwd;
-	else
+	else if (status != NS_RETURN)
 		SET_TERMINATOR(passwd, &terminator);
-	return (__nss_compat_result(status));
+	return (status);
 }
 
 
