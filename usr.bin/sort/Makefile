@@ -6,6 +6,6 @@ SRCDIR=	${.CURDIR}/../../contrib/sort
 PROG=	sort
 SRCS=	append.c fields.c files.c fsort.c init.c msort.c sort.c tmp.c
 MAN=	sort.1
-CFLAGS+= -I${SRCDIR} -include ${.CURDIR}/netbsd.h
+CFLAGS+= -I${SRCDIR} -DNO__RCSID -DNO__SCCSID
 
 .include <bsd.prog.mk>
