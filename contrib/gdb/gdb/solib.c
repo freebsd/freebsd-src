@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <a.out.h> 
 #else
 #include "elf/external.h"
+#include "elf/common.h"
 #endif
 
 #include <link.h>
@@ -452,6 +453,29 @@ bfd_lookup_symbol (abfd, symname)
       symbol_table = (asymbol **) xmalloc (storage_needed);
       back_to = make_cleanup (free, (PTR)symbol_table);
       number_of_symbols = bfd_canonicalize_symtab (abfd, symbol_table); 
+  
+      for (i = 0; i < number_of_symbols; i++)
+	{
+	  sym = *symbol_table++;
+	  if (STREQ (sym -> name, symname))
+	    {
+	      /* Bfd symbols are section relative. */
+	      symaddr = sym -> value + sym -> section -> vma;
+	      break;
+	    }
+	}
+      do_cleanups (back_to);
+    }
+
+  if (symaddr) return (symaddr);
+
+  storage_needed = bfd_get_dynamic_symtab_upper_bound (abfd);
+
+  if (storage_needed > 0)
+    {
+      symbol_table = (asymbol **) xmalloc (storage_needed);
+      back_to = make_cleanup (free, (PTR)symbol_table);
+      number_of_symbols = bfd_canonicalize_dynamic_symtab (abfd, symbol_table); 
   
       for (i = 0; i < number_of_symbols; i++)
 	{
