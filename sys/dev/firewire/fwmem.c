@@ -313,7 +313,6 @@ fwmem_strategy(struct bio *bp)
 	dev_t dev;
 	int unit, err=0, s, iolen;
 
-	KASSERT(BUF_REFCNT(bp) > 0, ("fwmem_strategy: bp %p not busy %d", bp, BUF_REFCNT(bp)));
 	dev = bp->bio_dev;
 	/* XXX check request length */
 
