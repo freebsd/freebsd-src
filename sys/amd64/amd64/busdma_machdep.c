@@ -170,11 +170,7 @@ busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
 static void
 dflt_lock(void *arg, bus_dma_lock_op_t op)
 {
-#ifdef INVARIANTS
 	panic("driver error: busdma dflt_lock called");
-#else
-	printf("DRIVER_ERROR: busdma dflt_lock called\n");
-#endif
 }
 
 #define BUS_DMA_MIN_ALLOC_COMP BUS_DMA_BUS4
