@@ -55,7 +55,7 @@
  *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 510100	/* Master, propagated to newvers */
+#define __FreeBSD_version 501100	/* Master, propagated to newvers */
 
 #ifndef NULL
 #define	NULL	0
