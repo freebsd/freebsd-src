@@ -170,10 +170,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	 * perform the dynamic initialization:
 	 */
 	else if (*cond != NULL ||
-	    (rval = pthread_cond_init(cond,NULL)) == 0) {
-
-		_thread_enter_cancellation_point();
-	
+	    (rval = pthread_cond_init(cond, NULL)) == 0) {
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
@@ -286,8 +283,6 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			if (_thread_run->continuation != NULL)
 				_thread_run->continuation((void *) _thread_run);
 		}
-
-		_thread_leave_cancellation_point();
 	}
 
 	_thread_leave_cancellation_point();
@@ -313,8 +308,6 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 * initialization.
 	 */
 	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
-		_thread_enter_cancellation_point();
-
 		/* Lock the condition variable structure: */
 		_SPINLOCK(&(*cond)->lock);
 
@@ -446,8 +439,6 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			if (_thread_run->continuation != NULL)
 				_thread_run->continuation((void *) _thread_run);
 		}
-
-		_thread_leave_cancellation_point();
 	}
 
 	_thread_leave_cancellation_point();
@@ -589,6 +580,48 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 	return (rval);
 }
 
+void
+_cond_wait_backout(pthread_t pthread)
+{
+	pthread_cond_t	cond;
+
+	cond = pthread->data.cond;
+	if (cond != NULL) {
+		/*
+		 * Defer signals to protect the scheduling queues
+		 * from access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
+
+		/* Lock the condition variable structure: */
+		_SPINLOCK(&cond->lock);
+
+		/* Process according to condition variable type: */
+		switch (cond->c_type) {
+		/* Fast condition variable: */
+		case COND_TYPE_FAST:
+			cond_queue_remove(cond, pthread);
+
+			/* Check for no more waiters: */
+			if (TAILQ_FIRST(&cond->c_queue) == NULL)
+				cond->c_mutex = NULL;
+			break;
+
+		default:
+			break;
+		}
+
+		/* Unlock the condition variable structure: */
+		_SPINUNLOCK(&cond->lock);
+
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
+		 */
+		_thread_kern_sig_undefer();
+	}
+}
+
 /*
  * Dequeue a waiting thread from the head of a condition queue in
  * descending priority order.
@@ -599,7 +632,7 @@ cond_queue_deq(pthread_cond_t cond)
 	pthread_t pthread;
 
 	while ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
-		TAILQ_REMOVE(&cond->c_queue, pthread, qe);
+		TAILQ_REMOVE(&cond->c_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_CONDQ;
 		if ((pthread->timeout == 0) && (pthread->interrupted == 0))
 			/*
@@ -628,7 +661,7 @@ cond_queue_remove(pthread_cond_t cond, pthread_t pthread)
 	 * it isn't in the queue.
 	 */
 	if (pthread->flags & PTHREAD_FLAGS_IN_CONDQ) {
-		TAILQ_REMOVE(&cond->c_queue, pthread, qe);
+		TAILQ_REMOVE(&cond->c_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_CONDQ;
 	}
 }
@@ -642,19 +675,22 @@ cond_queue_enq(pthread_cond_t cond, pthread_t pthread)
 {
 	pthread_t tid = TAILQ_LAST(&cond->c_queue, cond_head);
 
+	PTHREAD_ASSERT_NOT_IN_SYNCQ(pthread);
+
 	/*
 	 * For the common case of all threads having equal priority,
 	 * we perform a quick check against the priority of the thread
 	 * at the tail of the queue.
 	 */
 	if ((tid == NULL) || (pthread->active_priority <= tid->active_priority))
-		TAILQ_INSERT_TAIL(&cond->c_queue, pthread, qe);
+		TAILQ_INSERT_TAIL(&cond->c_queue, pthread, sqe);
 	else {
 		tid = TAILQ_FIRST(&cond->c_queue);
 		while (pthread->active_priority <= tid->active_priority)
-			tid = TAILQ_NEXT(tid, qe);
-		TAILQ_INSERT_BEFORE(tid, pthread, qe);
+			tid = TAILQ_NEXT(tid, sqe);
+		TAILQ_INSERT_BEFORE(tid, pthread, sqe);
 	}
 	pthread->flags |= PTHREAD_FLAGS_IN_CONDQ;
+	pthread->data.cond = cond;
 }
 #endif

@@ -43,7 +43,8 @@
 int
 pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	int ret = 0;
+	sigset_t	sigset;
+	int		ret = 0;
 
 	/* Check if the existing signal process mask is to be returned: */
 	if (oset != NULL) {
@@ -81,10 +82,18 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		}
 
 		/*
-		 * Dispatch signals to the running thread that are pending
-		 * and now unblocked:
+		 * Check if there are pending signals for the running
+		 * thread or process that aren't blocked:
 		 */
-		_dispatch_signals();
+		sigset = _thread_run->sigpend;
+		SIGSETOR(sigset, _process_sigpending);
+		SIGSETNAND(sigset, _thread_run->sigmask);
+		if (SIGNOTEMPTY(sigset))
+			/*
+			 * Call the kernel scheduler which will safely
+			 * install a signal frame for the running thread:
+			 */
+			_thread_kern_sched_sig();
 	}
 
 	/* Return the completion status: */

@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 int
-sigwait(const sigset_t * set, int *sig)
+sigwait(const sigset_t *set, int *sig)
 {
 	int		ret = 0;
 	int		i;
@@ -52,11 +52,9 @@ sigwait(const sigset_t * set, int *sig)
 	 * Specify the thread kernel signal handler.
 	 */
 	act.sa_handler = (void (*) ()) _thread_sig_handler;
-	act.sa_flags = SA_RESTART;
-	act.sa_mask = *set;
-
-	/* Ensure the scheduling signal is masked: */
-	sigaddset(&act.sa_mask, _SCHED_SIGNAL);
+	act.sa_flags = SA_RESTART | SA_SIGINFO;
+	/* Ensure the signal handler cannot be interrupted by other signals: */
+	sigfillset(&act.sa_mask);
 
 	/*
 	 * Initialize the set of signals that will be waited on:

@@ -295,9 +295,6 @@ _thread_fd_unlock(int fd, int lock_type)
 		 */
 		_thread_kern_sig_undefer();
 	}
-
-	/* Nothing to return. */
-	return;
 }
 
 int
@@ -326,7 +323,8 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 			 * Wait for the file descriptor to be locked
 			 * for read for the current thread: 
 			 */
-			if (_thread_fd_table[fd]->r_owner != _thread_run) {
+			while ((_thread_fd_table[fd]->r_owner != _thread_run) &&
+			    (_thread_run->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -404,7 +402,8 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 			 * Wait for the file descriptor to be locked
 			 * for write for the current thread: 
 			 */
-			if (_thread_fd_table[fd]->w_owner != _thread_run) {
+			while ((_thread_fd_table[fd]->w_owner != _thread_run) &&
+			    (_thread_run->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -608,9 +607,6 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 		 */
 		_thread_kern_sig_undefer();
 	}
-
-	/* Nothing to return. */
-	return;
 }
 
 int
@@ -640,7 +636,8 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 			 * Wait for the file descriptor to be locked
 			 * for read for the current thread: 
 			 */
-			if (_thread_fd_table[fd]->r_owner != _thread_run) {
+			while ((_thread_fd_table[fd]->r_owner != _thread_run) &&
+			    (_thread_run->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -727,7 +724,8 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 			 * Wait for the file descriptor to be locked
 			 * for write for the current thread: 
 			 */
-			if (_thread_fd_table[fd]->w_owner != _thread_run) {
+			while ((_thread_fd_table[fd]->w_owner != _thread_run) &&
+			    (_thread_run->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -900,6 +898,58 @@ _thread_fd_unlock_owned(pthread_t pthread)
 			_thread_kern_sig_undefer();
 		}
 	}
+}
+
+void
+_fd_lock_backout(pthread_t pthread)
+{
+	int	fd;
+
+	/*
+	 * Defer signals to protect the scheduling queues
+	 * from access by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	switch (pthread->state) {
+
+	case PS_FDLR_WAIT:
+		fd = pthread->data.fd.fd;
+
+		/*
+		 * Lock the file descriptor table entry to prevent
+		 * other threads for clashing with the current
+		 * thread's accesses:
+		 */
+		_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+		/* Remove the thread from the waiting queue: */
+		FDQ_REMOVE(&_thread_fd_table[fd]->r_queue, pthread);
+		break;
+
+	case PS_FDLW_WAIT:
+		fd = pthread->data.fd.fd;
+
+		/*
+		 * Lock the file descriptor table entry to prevent
+		 * other threads from clashing with the current
+		 * thread's accesses:
+		 */
+		_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+		/* Remove the thread from the waiting queue: */
+		FDQ_REMOVE(&_thread_fd_table[fd]->w_queue, pthread);
+		break;
+
+	default:
+		break;
+	}
+
+	/*
+	 * Undefer and handle pending signals, yielding if
+	 * necessary.
+	 */
+	_thread_kern_sig_undefer();
 }
 
 static inline pthread_t

@@ -41,53 +41,9 @@
 #include "pthread_private.h"
 
 int
-_sigprocmask(int how, const sigset_t * set, sigset_t * oset)
+_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	int ret = 0;
-
-	/* Check if the existing signal process mask is to be returned: */
-	if (oset != NULL) {
-		/* Return the current mask: */
-		*oset = _thread_run->sigmask;
-	}
-	/* Check if a new signal set was provided by the caller: */
-	if (set != NULL) {
-		/* Process according to what to do: */
-		switch (how) {
-		/* Block signals: */
-		case SIG_BLOCK:
-			/* Add signals to the existing mask: */
-			SIGSETOR(_thread_run->sigmask, *set);
-			break;
-
-		/* Unblock signals: */
-		case SIG_UNBLOCK:
-			/* Clear signals from the existing mask: */
-			SIGSETNAND(_thread_run->sigmask, *set);
-			break;
-
-		/* Set the signal process mask: */
-		case SIG_SETMASK:
-			/* Set the new mask: */
-			_thread_run->sigmask = *set;
-			break;
-
-		/* Trap invalid actions: */
-		default:
-			/* Return an invalid argument: */
-			errno = EINVAL;
-			ret = -1;
-			break;
-		}
-
-		/*
-		 * Dispatch signals to the running thread that are pending
-		 * and now unblocked:
-		 */
-		_dispatch_signals();
-	}
-	/* Return the completion status: */
-	return (ret);
+	return (pthread_sigmask(how, set, oset));
 }
 
 __strong_reference(_sigprocmask, sigprocmask);

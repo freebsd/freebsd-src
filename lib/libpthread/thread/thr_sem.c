@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <stdlib.h>
 #include <errno.h>
 #ifdef _THREAD_SAFE
 #include <semaphore.h>
