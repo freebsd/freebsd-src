@@ -289,6 +289,7 @@ ebus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	switch (which) {
 	case EBUS_IVAR_COMPAT:
 		*result = (uintptr_t)dinfo->edi_compat;
+		break;
 	case EBUS_IVAR_NAME:
 		*result = (uintptr_t)dinfo->edi_name;
 		break;
@@ -359,7 +360,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		panic("ebus_alloc_resource: unsupported resource type %d",
 		    type);
 	}
-			
+
 	/*
 	 * This inlines a modified resource_list_alloc(); this is needed
 	 * because the resources need to be mapped into the bus space.
@@ -434,7 +435,7 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 		 * that does not really matter.
 		 */
 		resource_list_add(&edi->edi_rl, SYS_RES_IOPORT, i,
-		    start, start + reg[i].size, reg[i].size);
+		    start, start + reg[i].size - 1, reg[i].size);
 	}
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
@@ -447,12 +448,13 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 		resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i,
 		    intr, intr, 1);
 	}
+	free(reg, M_OFWPROP);
 
 	return (edi);
 }
 
 /*
- * NOTE: This does not free the name member (it is needed afterwars in some
+ * NOTE: This does not free the name member (it is needed afterwards in some
  * cases).
  */
 static void
