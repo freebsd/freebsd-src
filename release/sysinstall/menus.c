@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41 1995/05/30 08:28:49 rgrimes Exp $
+ * $Id: menus.c,v 1.41.2.1 1995/05/31 07:13:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,7 +57,7 @@ DMenu MenuInitial = {
     "This is the main menu of the FreeBSD installation system.  Please\n\
 select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
-option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
+option by pressing [ENTER].  If you'd like a shell, press [ESC]",	/* prompt */
     "Press F1 for usage instructions",				/* help line */
     "usage.hlp",						/* help file */
     { { "Usage", "Quick start - How to use this menu system.",	/* U */
@@ -70,7 +70,7 @@ option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
 	DMENU_SUBMENU,	&MenuOptions, 0, 0		},
       { "Proceed", "Go to the installation menu",		/* P */
 	DMENU_SUBMENU,	&MenuInstall, 0, 0		},
-      { "Quit", "Exit this installation utility",		/* Q */
+      { "Quit", "Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
@@ -83,7 +83,7 @@ DMenu MenuDocumentation = {
 or are looking to build a system specifically for FreeBSD, read the\n\
 Hardware guide!  New users should also read the Install document for\n\
 a step-by-step tutorial on installing FreeBSD.  For general information,\n\
-consult the README file.  If you're having other problems, you may find\n\
+consult the README file.  If you are having other problems, you may find\n\
 answers in the FAQ.",
     "Confused?  Press F1 for help.",
     "usage.hlp",			/* help file */
@@ -106,13 +106,13 @@ answers in the FAQ.",
  * The language selection menu.
  *
  * Note:  The RADIO menus use a slightly different syntax.  If an item
- * name starts with `*', it's considered to be "ON" by default,
+ * name starts with `*', it is considered to be "ON" by default,
  * otherwise off.
  */
 DMenu MenuOptionsLanguage = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Natural language selection",	/* title */
-    "Please specify the language you'd like to use by default.\n\n\
+    "Please specify the language you would like to use by default.\n\n\
 While almost all of the system's documentation is still written\n\
 in english (and may never be translated), there are a few guides\n\
 and types of system documentation that may be written in your\n\
@@ -150,8 +150,8 @@ DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
     "FreeBSD can be installed directly from a CDROM containing a valid\n\
-FreeBSD 2.0.5 distribution.  If you are seeing this menu it's because\n\
-more than one CDROM drive on your system was found.  Please select one\n\
+FreeBSD 2.0.5 distribution.  If you are seeing this menu it is because\n\
+more than one CDROM drive was found on your system.  Please select one\n\
 of the following CDROM drives as your installation drive.",
     "Press F1 to read the installation guide",
     "install.hlp",
@@ -161,8 +161,8 @@ of the following CDROM drives as your installation drive.",
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-"You have more than one floppy drive.  Please chose the floppy\n\
-drive you'd like to use for this operation",
+"You have more than one floppy drive.  Please chose the drive\n\
+you would like to use for this operation",
     NULL,
     NULL,
     { { NULL } },
@@ -171,13 +171,14 @@ drive you'd like to use for this operation",
 DMenu MenuMediaDOS = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a DOS partition",
-"FreeBSD can be installed directly from a DOS partition,\n\
-assuming of course that you've copied the relevant distributions\n\
-into your DOS partition before starting this installation.  If\n\
-such is not the case, then you should reboot DOS at this time\n\
-and copy the distributions you want to install into a subdirectory\n\
-on one of your DOS partitions.  Otherwise, please select the\n\
-DOS partition containing the FreeBSD distribution files.",
+"FreeBSD can be installed directly from a DOS partition\n\
+assuming, of course, that you have copied the relevant\n\
+distributions into your DOS partition before starting this\n\
+installation.  If this is not the case then you should reboot\n\
+DOS at this time and copy the distributions you wish to install\n\
+into a \"FREEBSD\" subdirectory on one of your DOS partitions.\n\
+Otherwise, please select the DOS partition containing the FreeBSD\n\
+distribution files.",
     "Press F1 to read the installation guide",
     "install.hlp",
     { { NULL } },
@@ -530,7 +531,8 @@ space, though FreeBSD can be installed across several drives if you do\n\
 not have the required space on a single drive.  If you wish to boot\n\
 off a drive that's not a `zero drive', or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
-manager later.",
+manager later.  To select a drive, use the arrow keys to move to it\n\
+and press [SPACE].",
     "Press F1 for important information regarding geometry!",
     "drives.hlp",
     { { NULL } },

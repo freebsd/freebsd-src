@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.69 1995/05/30 05:50:53 jkh Exp $
+ * $Id: install.c,v 1.70 1995/05/30 08:28:41 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,11 +197,11 @@ installInitial(void)
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
     /* stick a helpful shell over on the 4th VTY */
-    msgDebug("Sticking a potentially helpful shell over on the 4th screen\n");
-    if (!fork()) {
+    if (!OnVTY && !fork()) {
 	int i, fd;
 	extern int login_tty(int);
 
+	msgDebug("Sticking a potentially helpful shell over on the 4th screen\n");
 	for (i = 0; i < 64; i++)
 	    close(i);
 	fd = open("/dev/ttyv3", O_RDWR);
@@ -209,9 +209,10 @@ installInitial(void)
 	dup2(0, 1);
 	dup2(0, 2);
 	if (login_tty(fd)==-1) {
-	    msgConfirm("Can't set controlling terminal");
+	    msgNotify("Can't set controlling terminal");
 	    exit(1);
 	}
+	printf("Warning: This shell is actually chroot()'d to /mnt\n");
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
