@@ -1,9 +1,9 @@
-#       $Id: Makefile,v 1.12 1998/01/09 01:01:17 eivind Exp $
+#       $Id: Makefile,v 1.13 1998/02/01 18:12:13 bde Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod
-SRCS=	bsd_comp.c if_ppp.c ppp_tty.c slcompress.c bpfilter.h ppp.h \
-	opt_inet.h opt_ipx.h opt_ppp.h
+SRCS=	if_ppp.c ppp_tty.c slcompress.c \
+	bpfilter.h ppp.h opt_inet.h opt_ipx.h opt_ppp.h
 NOMAN=
 PSEUDO_LKM=
 
@@ -15,6 +15,14 @@ PPP_INET?=	1	# 0/1 - requires INET to be configured in kernel
 PPP_IPX?=	0	# 0/1 - requires IPX to be configured in kernel
 
 CFLAGS+= ${PROTOS}
+
+.if ${PPP_BSDCOMP} > 0
+SRCS+=	bsd_comp.c
+.endif
+.if ${PPP_DEFLATE} > 0
+SRCS+=	ppp_deflate.c zlib.c
+.endif
+
 CLEANFILES+=	bpfilter.h opt_inet.h opt_ipx.h opt_ppp.h ppp.h
 
 bpfilter.h:
