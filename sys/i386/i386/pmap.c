@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.81 1996/03/13 00:39:45 dyson Exp $
+ *	$Id: pmap.c,v 1.82 1996/03/28 04:59:34 dyson Exp $
  */
 
 /*
@@ -182,8 +182,6 @@ static vm_page_t
 static boolean_t
 		pmap_testbit __P((vm_offset_t pa, int bit));
 static void *	pmap_getpdir __P((void));
-void	pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
-				   vm_map_entry_t entry, vm_object_t object));
 
 
 #if defined(PMAP_DIAGNOSTIC)
