@@ -140,6 +140,7 @@ MANUFACTURER:
 
 DATA SHEETS:
     http://www.creative.com sbhwpg.pdf or SBHWPG.EXE
+    ftp://www.creaf.com/pub/creative/devinfo/ctsbhwpg.exe
 
 PNP CONFIG:
     pnp 1 0 os enable port0 0x220 irq0 5 drq0 1 drq1 5
