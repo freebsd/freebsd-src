@@ -1155,7 +1155,7 @@ bwillwrite(void)
 			    (PRIBIO + 4), "flswai", 0);
 		}
 		splx(s);
-		mtx_lock(&nblock);
+		mtx_unlock(&nblock);
 		mtx_unlock(&Giant);
 	}
 }
