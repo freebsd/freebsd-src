@@ -487,3 +487,10 @@ use ^w to switch between the two.
 %
 sh (the default bourne shell in FreeBSD) supports command-line editing.  Just
 ``set -o emacs'' or ``set -o vi'' to enable it.
+%
+When you've made modifications to a file in vi(1) and then find that
+you can't write it, type ``<ESC>!rm -f %'' then ``:w!'' to force the
+write
+
+This won't work if you don't have write permissions to the directory
+and probably won't be suitable if you're editing through a symbolic link.
