@@ -1,3 +1,4 @@
+# $FreeBSD$
 PROG=	top
 
 TOPDIR=	${.CURDIR}/../../contrib/top
@@ -20,8 +21,6 @@ SRCS=	commands.c display.c machine.c screen.c top.c \
 CLEANFILES+= top.1
 DPADD=  ${LIBTERMCAP} ${LIBM} ${LIBKVM}
 LDADD=  -ltermcap -lm -lkvm
-BINGRP= kmem
-BINMODE=2555
 
 top.1:	${TOPDIR}/top.X top.local.1
 	cat ${.ALLSRC} > top.1
