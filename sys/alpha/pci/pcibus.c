@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.6 1998/11/15 18:25:16 dfr Exp $
+ * $Id: pcibus.c,v 1.7 1998/11/18 23:53:12 dfr Exp $
  *
  */
 
@@ -53,17 +53,14 @@ SYSCTL_STRING(_hw_chipset, OID_AUTO, type, CTLFLAG_RD, chipset_type, 0,
 	      "PCI chipset type");
 SYSCTL_INT(_hw_chipset, OID_AUTO, bwx, CTLFLAG_RD, &chipset_bwx, 0,
 	   "PCI chipset supports BWX access");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, ports, CTLFLAG_RD, &chipset_ports, 0,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, ports, CTLFLAG_RD, &chipset_ports,
 	    "PCI chipset port address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, memory, CTLFLAG_RD, &chipset_memory, 0,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, memory, CTLFLAG_RD, &chipset_memory,
 	    "PCI chipset memory address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense, 0,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, dense, CTLFLAG_RD, &chipset_dense,
 	    "PCI chipset dense memory address");
-SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask, 0,
+SYSCTL_LONG(_hw_chipset, OID_AUTO, hae_mask, CTLFLAG_RD, &chipset_hae_mask,
 	    "PCI chipset mask for HAE register");
-
-static int cfgmech;
-static int devmax;
 
 #ifdef notyet
 

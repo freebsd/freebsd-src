@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.6 1998/11/15 23:57:22 ken Exp $
+ *	$Id: subr_devstat.c,v 1.7 1998/12/04 22:54:51 archie Exp $
  */
 
 #include <sys/param.h>
@@ -243,6 +243,6 @@ SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
 SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, &devstat_num_devs,
 	  0, "Number of devices in the devstat list");
 SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
-	    &devstat_generation, 0, "Devstat list generation");
+	    &devstat_generation, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, &devstat_version,
 	  0, "Devstat list version number");
