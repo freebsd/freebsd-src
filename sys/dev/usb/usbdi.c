@@ -40,18 +40,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/kernel.h>
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #endif
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
-#include <machine/bus.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>

@@ -40,11 +40,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if defined(__NetBSD__)
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#if defined(__FreeBSD__)
-#include <sys/bus.h>
 #endif
+#include <sys/malloc.h>
  
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
