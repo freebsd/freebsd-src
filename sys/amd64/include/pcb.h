@@ -62,7 +62,7 @@ struct pcb {
 	int     pcb_dr7;
 
 	union	savefpu	pcb_save;
-	u_char	pcb_flags;
+	u_int	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_NPXTRAP	0x04	/* npx trap pending */
