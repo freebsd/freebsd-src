@@ -261,7 +261,6 @@ sodealloc(struct socket *so)
 	crfree(so->so_cred);
 	SOCKBUF_LOCK_DESTROY(&so->so_snd);
 	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
-	/* sx_destroy(&so->so_sxlock); */
 	uma_zfree(socket_zone, so);
 	mtx_lock(&so_global_mtx);
 	--numopensockets;
