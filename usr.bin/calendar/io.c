@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: io.c,v 1.10 1997/06/23 06:52:13 charnier Exp $
  */
 
 #ifndef lint
@@ -249,7 +249,7 @@ opencal()
 	}
 	if (pipe(pdes) < 0)
 		return (NULL);
-	switch (vfork()) {
+	switch (fork()) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
 		(void)close(pdes[1]);
@@ -311,7 +311,7 @@ closecal(fp)
 		goto done;
 	if (pipe(pdes) < 0)
 		goto done;
-	switch (vfork()) {
+	switch (fork()) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
 		(void)close(pdes[1]);
