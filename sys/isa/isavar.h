@@ -156,10 +156,6 @@ ISA_ACCESSOR(logicalid, LOGICALID, int)
 ISA_ACCESSOR(compatid, COMPATID, int)
 
 extern intrmask_t isa_irq_pending(void);
-extern intrmask_t isa_irq_mask(void);
-#ifdef __i386__
-extern void	 isa_wrap_old_drivers(void);
-#endif
 extern void	isa_probe_children(device_t dev);
 
 extern void	isa_dmacascade __P((int chan));
