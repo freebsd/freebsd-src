@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: ethers.5,v 1.4 1997/02/22 13:25:58 peter Exp $
+.\"     $Id: ethers.5,v 1.5 1998/01/04 17:34:42 steve Exp $
 .\"
 .Dd April 12, 1995
 .Dt ETHERS 5
@@ -52,7 +52,8 @@ tab characters. A ``#'' at the start of a line indicates the
 beginning of a comment that extends to the end of the line. A ``+'' at
 the start of a line will cause the
 .Xr ethers 3
-library functions to use data stored in the NIS
+library functions to use data stored in the
+.Xr NIS 4
 .Pa ethers.byname
 and
 .Pa ethers.byaddr
@@ -89,10 +90,8 @@ file resides in
 .Pa /etc .
 .El
 .Sh SEE ALSO
-.Xr ethers 3
-.Sh BUGS
-Use of this file is deprecated.
-A name server should be used instead of a static file.
+.Xr ethers 3 ,
+.Xr yp 4
 .Sh HISTORY
 The
 .Nm ethers
