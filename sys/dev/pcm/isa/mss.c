@@ -94,16 +94,6 @@ static int 		pnpmss_probe(device_t dev);
 static int 		pnpmss_attach(device_t dev);
 
 static driver_intr_t 	opti931_intr;
-static driver_intr_t 	ad1816_intr;
-
-/* IO primitives */
-static int      	ad1816_wait_init(struct mss_info *mss, int x);
-static u_short		ad1816_read(struct mss_info *mss, u_int reg);
-static void     	ad1816_write(struct mss_info *mss, u_int reg, u_short data);
-
-/* mixer set functions */
-static int      	ad1816_mixer_set(struct mss_info *mss, int dev, int left, int right);
-static int      	ad1816_set_recsrc(struct mss_info *mss, int mask);
 #endif
 
 static int mssmix_init(snd_mixer *m);
@@ -144,12 +134,6 @@ static pcmchan_caps mss_caps = {
 	AFMT_STEREO | AFMT_S16_LE
 };
 
-static pcmchan_caps ad1816_caps = {
-	4000, 55200,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
-	AFMT_STEREO | AFMT_S16_LE
-};
-
 static pcmchan_caps guspnp_caps = {
 	4000, 48000,
 	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE | AFMT_A_LAW,
@@ -157,7 +141,7 @@ static pcmchan_caps guspnp_caps = {
 };
 
 static pcmchan_caps opti931_caps = {
-	4000, 4800,
+	4000, 48000,
 	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE
 };
@@ -175,7 +159,6 @@ static pcm_channel mss_chantemplate = {
 
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
-#define MD_AD1816	0x93
 #define MD_CS4248	0xA1
 #define MD_CS4231	0xA2
 #define MD_CS4231A	0xA3
@@ -332,6 +315,10 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 static int
 mss_init(struct mss_info *mss, device_t dev)
 {
+       	u_char r6, r9;
+	struct resource *alt;
+	int rid, tmp;
+
 	mss->bd_flags |= BD_F_MCE_BIT;
 	switch(mss->bd_id) {
 #if NPNP > 0
@@ -343,10 +330,6 @@ mss_init(struct mss_info *mss, device_t dev)
 		break;
 
 	case MD_GUSPNP:
-	{
-		struct resource *alt;
-		int rid, tmp;
-
 		gus_wr(mss, 0x4c /* _URSTI */, 0);/* Pull reset */
     		DELAY(1000 * 30);
     		/* release reset  and enable DAC */
@@ -378,24 +361,9 @@ mss_init(struct mss_info *mss, device_t dev)
     		gus_wr(mss, 0x5b, tmp | 1);
     		BVDDB(printf("GUS: silicon rev %c\n", 'A' + ((tmp & 0xf) >> 4)));
 		break;
-	}
-
-	case MD_AD1816:
-    		ad1816_write(mss, 1, 0x2);	/* disable interrupts */
-    		ad1816_write(mss, 32, 0x90F0);	/* SoundSys Mode, split fmt */
-
-    		ad1816_write(mss, 5, 0x8080);	/* FM volume mute */
-    		ad1816_write(mss, 6, 0x8080);	/* I2S1 volume mute */
-    		ad1816_write(mss, 7, 0x8080);	/* I2S0 volume mute */
-    		ad1816_write(mss, 17, 0x8888);	/* VID Volume mute */
-    		ad1816_write(mss, 20, 0x5050);	/* recsrc mic, agc off */
-    		/* adc gain is set to 0 */
-		break;
 #endif
     	case MD_YM0020:
-	{
-        	u_char r6, r9;
-        	conf_wr(mss, OPL3SAx_DMACONF, 0xa9); /* dma-b rec, dma-a play */
+         	conf_wr(mss, OPL3SAx_DMACONF, 0xa9); /* dma-b rec, dma-a play */
         	r6 = conf_rd(mss, OPL3SAx_DMACONF);
         	r9 = conf_rd(mss, OPL3SAx_MISC); /* version */
         	BVDDB(printf("Yamaha: ver 0x%x DMA config 0x%x\n", r6, r9);)
@@ -404,8 +372,7 @@ mss_init(struct mss_info *mss, device_t dev)
 		conf_wr(mss, OPL3SAx_VOLUMER, 0);
 		conf_wr(mss, OPL3SAx_DMACONF, FULL_DUPLEX(mss)? 0xa9 : 0x8b);
 		break;
-	}
-	}
+ 	}
     	if (FULL_DUPLEX(mss) && mss->bd_id != MD_OPTI931)
     		ad_write(mss, 12, ad_read(mss, 12) | 0x40); /* mode 2 */
     	ad_write(mss, 9, FULL_DUPLEX(mss)? 0 : 4);
@@ -500,12 +467,13 @@ mss_probe(device_t dev)
     	if (tmpx & 0x80) {
 		/* 8-bit board: only drq1/3 and irq7/9 */
 		if (drq == 0) {
-	    	printf("MSS: Can't use DMA0 with a 8 bit card/slot\n");
-	    	goto no;
+		    	printf("MSS: Can't use DMA0 with a 8 bit card/slot\n");
+		    	goto no;
 		}
 		if (!(irq == 7 || irq == 9)) {
-	    	printf("MSS: Can't use IRQ%d with a 8 bit card/slot\n", irq);
-	    	goto no;
+		    	printf("MSS: Can't use IRQ%d with a 8 bit card/slot\n",
+			       irq);
+		    	goto no;
 		}
     	}
 	mss_probe_end:
@@ -821,10 +789,6 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	mixer_init(d, (mss->bd_id == MD_YM0020)? &yamaha_mixer : &mss_mixer, mss);
     	switch (mss->bd_id) {
 	#if NPNP > 0
-    	case MD_AD1816:
-		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, ad1816_intr, mss, &ih);
-		break;
-
     	case MD_OPTI931:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, opti931_intr, mss, &ih);
 		break;
@@ -981,6 +945,7 @@ ad_read(struct mss_info *mss, int reg)
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	x = io_rd(mss, MSS_IDATA);
     	splx(flags);
+	/* printf("ad_read %d, %x\n", reg, x); */
     	return x;
 }
 
@@ -990,6 +955,7 @@ ad_write(struct mss_info *mss, int reg, u_char data)
     	u_long   flags;
 
     	int x;
+	/* printf("ad_write %d, %x\n", reg, data); */
     	flags = spltty();
     	ad_wait_init(mss, 1002);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
@@ -1140,12 +1106,6 @@ mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
     	}
     	return 0; /* success */
 }
-
-/* mss_speed processes the value in play_speed finding the
- * matching one. As a side effect, it returns the value to
- * be written in the speed bits of the codec. It does _NOT_
- * set the speed of the device (but it should!)
- */
 
 static int
 mss_speed(struct mss_chinfo *ch, int speed)
@@ -1339,12 +1299,6 @@ pnpmss_attach(device_t dev)
 	mss->drq2_rid = 1;
 
 	switch (vend_id & 0xff00ffff) {
-	case 0x1100b250: /* terratec */
-	case 0x50009304: /* generic ad1815 */
-	    mss->io_rid = 2;
-	    mss->bd_id = MD_AD1816;
-	    break;
-
 	case 0x2000a865:	/* Yamaha SA2 */
 	case 0x3000a865:	/* Yamaha SA3 */
 	case 0x0000a865:	/* Yamaha YMF719 SA3 */
@@ -1371,7 +1325,6 @@ pnpmss_attach(device_t dev)
 	    break;
 
 	case 0x3100143e: 	/* opti931 */
-	case 0x1093143e:	/* OPT9310 */
             mss->bd_flags |= BD_F_MSS_OFFSET;
     	    mss->conf_rid = 3;
             mss->bd_id = MD_OPTI931;
@@ -1473,267 +1426,6 @@ opti931_intr(void *arg)
     	DEB(printf("xxx too many loops\n");)
 }
 
-static void
-ad1816_intr(void *arg)
-{
-    	struct mss_info *mss = (struct mss_info *)arg;
-    	unsigned char   c, served = 0;
-
-    	/* get interupt status */
-    	c = io_rd(mss, AD1816_INT);
-
-    	/* check for stray interupts */
-    	if (c & ~(AD1816_INTRCI | AD1816_INTRPI)) {
-		printf("pcm: stray int (%x)\n", c);
-		c &= AD1816_INTRCI | AD1816_INTRPI;
-    	}
-    	/* check for capture interupt */
-    	if (mss->rch.buffer->dl && (c & AD1816_INTRCI)) {
-		chn_intr(mss->rch.channel);
-		served |= AD1816_INTRCI;		/* cp served */
-    	}
-    	/* check for playback interupt */
-    	if (mss->pch.buffer->dl && (c & AD1816_INTRPI)) {
-		chn_intr(mss->pch.channel);
-		served |= AD1816_INTRPI;		/* pb served */
-    	}
-    	if (served == 0) {
-		/* this probably means this is not a (working) ad1816 chip, */
-		/* or an error in dma handling                              */
-		printf("pcm: int without reason (%x)\n", c);
-		c = 0;
-    	} else c &= ~served;
-    	io_wr(mss, AD1816_INT, c);
-    	c = io_rd(mss, AD1816_INT);
-    	if (c != 0) printf("pcm: int clear failed (%x)\n", c);
-}
-
-static int
-ad1816_wait_init(struct mss_info *mss, int x)
-{
-    	int             n = 0;	/* to shut up the compiler... */
-
-    	for (; x--;)
-		if ((n = (io_rd(mss, AD1816_ALE) & AD1816_BUSY)) == 0) DELAY(10);
-		else return n;
-    	printf("ad1816_wait_init failed 0x%02x.\n", n);
-    	return -1;
-}
-
-static unsigned short
-ad1816_read(struct mss_info *mss, unsigned int reg)
-{
-    	int             flags;
-    	u_short         x = 0;
-
-    	/* we don't want to be blocked here */
-    	flags = spltty();
-    	if (ad1816_wait_init(mss, 100) == -1) return 0;
-    	io_wr(mss, AD1816_ALE, 0);
-    	io_wr(mss, AD1816_ALE, (reg & AD1816_ALEMASK));
-    	if (ad1816_wait_init(mss, 100) == -1) return 0;
-    	x = (io_rd(mss, AD1816_HIGH) << 8) | io_rd(mss, AD1816_LOW);
-    	splx(flags);
-    	return x;
-}
-
-static void
-ad1816_write(struct mss_info *mss, unsigned int reg, unsigned short data)
-{
-    	int             flags;
-
-    	flags = spltty();
-    	if (ad1816_wait_init(mss, 100) == -1) return;
-    	io_wr(mss, AD1816_ALE, (reg & AD1816_ALEMASK));
-    	io_wr(mss, AD1816_LOW,  (data & 0x000000ff));
-    	io_wr(mss, AD1816_HIGH, (data & 0x0000ff00) >> 8);
-    	splx(flags);
-}
-
-/* only one rec source is possible */
-static int
-ad1816_set_recsrc(struct mss_info *mss, int mask)
-{
-    	int dev;
-
-    	switch (mask) {
-    	case SOUND_MASK_LINE:
-    	case SOUND_MASK_LINE3:
-		dev = 0x00;
-		break;
-
-    	case SOUND_MASK_CD:
-    	case SOUND_MASK_LINE1:
-		dev = 0x20;
-		break;
-
-    	case SOUND_MASK_MIC:
-    	default:
-		dev = 0x50;
-		mask = SOUND_MASK_MIC;
-    	}
-
-    	dev |= dev << 8;
-    	ad1816_write(mss, 20, (ad1816_read(mss, 20) & ~0x7070) | dev);
-    	return mask;
-}
-
-#define AD1816_MUTE 31		/* value for mute */
-
-static int
-ad1816_mixer_set(struct mss_info *mss, int dev, int left, int right)
-{
-    	u_short         reg = 0;
-
-    	/* Scale volumes */
-    	left = AD1816_MUTE - (AD1816_MUTE * left) / 100;
-    	right = AD1816_MUTE - (AD1816_MUTE * right) / 100;
-
-    	reg = (left << 8) | right;
-
-    	/* do channel selective muting if volume is zero */
-    	if (left == AD1816_MUTE)	reg |= 0x8000;
-    	if (right == AD1816_MUTE)	reg |= 0x0080;
-
-    	switch (dev) {
-    	case SOUND_MIXER_VOLUME:	/* Register 14 master volume */
-		ad1816_write(mss, 14, reg);
-		break;
-
-    	case SOUND_MIXER_CD:	/* Register 15 cd */
-    	case SOUND_MIXER_LINE1:
-		ad1816_write(mss, 15, reg);
-		break;
-
-    	case SOUND_MIXER_SYNTH:	/* Register 16 synth */
-		ad1816_write(mss, 16, reg);
-		break;
-
-    	case SOUND_MIXER_PCM:	/* Register 4 pcm */
-		ad1816_write(mss, 4, reg);
-		break;
-
-    	case SOUND_MIXER_LINE:
-    	case SOUND_MIXER_LINE3:	/* Register 18 line in */
-		ad1816_write(mss, 18, reg);
-		break;
-
-    	case SOUND_MIXER_MIC:	/* Register 19 mic volume */
-		ad1816_write(mss, 19, reg & ~0xff);	/* mic is mono */
-		break;
-
-    	case SOUND_MIXER_IGAIN:
-		/* and now to something completely different ... */
-		ad1816_write(mss, 20, ((ad1816_read(mss, 20) & ~0x0f0f)
-	      	| (((AD1816_MUTE - left) / 2) << 8) /* four bits of adc gain */
-	      	| ((AD1816_MUTE - right) / 2)));
-		break;
-
-    	default:
-		printf("ad1816_mixer_set(): unknown device.\n");
-		break;
-    	}
-
-    	return 0;			/* success */
-}
-
-static int
-ad1816_trigger(struct mss_chinfo *ch, int go)
-{
-    	int             wr, reg;
-    	struct mss_info *mss = ch->parent;
-
-    	wr = (ch->dir == PCMDIR_PLAY);
-    	reg = wr? AD1816_PLAY : AD1816_CAPT;
-
-    	switch (go) {
-    	case PCMTRIG_START:
-		/* start only if not already running */
-		if (!(io_rd(mss, reg) & AD1816_ENABLE)) {
-	    		int cnt = ((ch->buffer->dl) >> 2) - 1;
-	    		ad1816_write(mss, wr? 8 : 10, cnt); /* count */
-	    		ad1816_write(mss, 1, ad1816_read(mss, 1) |
-				     (wr? 0x8000 : 0x4000)); /* enable int */
-	    		/* enable playback */
-	    		io_wr(mss, reg, io_rd(mss, reg) | AD1816_ENABLE);
-	    		if (!(io_rd(mss, reg) & AD1816_ENABLE))
-				printf("ad1816: failed to start %s DMA!\n",
-				       wr? "play" : "rec");
-		}
-		break;
-
-    	case PCMTRIG_STOP:
-    	case PCMTRIG_ABORT:		/* XXX check this... */
-		/* we don't test here if it is running... */
-		if (wr) {
-	    		ad1816_write(mss, 1, ad1816_read(mss, 1) &
-				     ~(wr? 0x8000 : 0x4000));
-	    		/* disable int */
-	    		io_wr(mss, reg, io_rd(mss, reg) & ~AD1816_ENABLE);
-	    		/* disable playback */
-	    		if (io_rd(mss, reg) & AD1816_ENABLE)
-				printf("ad1816: failed to stop %s DMA!\n",
-				       wr? "play" : "rec");
-	    		ad1816_write(mss, wr? 8 : 10, 0); /* reset base cnt */
-	    		ad1816_write(mss, wr? 9 : 11, 0); /* reset cur cnt */
-		}
-		break;
-    	}
-    	return 0;
-}
-
-
-static int
-ad1816_speed(struct mss_chinfo *ch, u_int32_t speed)
-{
-    	struct mss_info *mss = ch->parent;
-
-    	RANGE(speed, 4000, 55200);
-    	ad1816_write(mss, (ch->dir == PCMDIR_PLAY)? 2 : 3, speed);
-    	return speed;
-}
-
-static int
-ad1816_format(struct mss_chinfo *ch, u_int32_t format)
-{
-    	struct mss_info *mss = ch->parent;
-
-    	int fmt = AD1816_U8, reg;
-    	if (ch->dir == PCMDIR_PLAY) {
-        	reg = AD1816_PLAY;
-        	ad1816_write(mss, 8, 0x0000);	/* reset base and current counter */
-        	ad1816_write(mss, 9, 0x0000);	/* for playback and capture */
-    	} else {
-        	reg = AD1816_CAPT;
-        	ad1816_write(mss, 10, 0x0000);
-        	ad1816_write(mss, 11, 0x0000);
-    	}
-    	switch (format & ~AFMT_STEREO) {
-    	case AFMT_A_LAW:
-        	fmt = AD1816_ALAW;
-		break;
-
-    	case AFMT_MU_LAW:
-		fmt = AD1816_MULAW;
-		break;
-
-    	case AFMT_S16_LE:
-		fmt = AD1816_S16LE;
-		break;
-
-    	case AFMT_S16_BE:
-		fmt = AD1816_S16BE;
-		break;
-
-    	case AFMT_U8:
-		fmt = AD1816_U8;
-		break;
-    	}
-    	if (format & AFMT_STEREO) fmt |= AD1816_STEREO;
-    	io_wr(mss, reg, fmt);
-    	return format;
-}
-
 #endif	/* NPNP > 0 */
 
 static int
@@ -1744,11 +1436,6 @@ mssmix_init(snd_mixer *m)
 	mix_setdevs(m, MODE2_MIXER_DEVICES);
 	mix_setrecdevs(m, MSS_REC_DEVICES);
 	switch(mss->bd_id) {
-	case MD_AD1816:
-		mix_setdevs(m, AD1816_MIXER_DEVICES);
-		mix_setrecdevs(m, AD1816_REC_DEVICES);
-		break;
-
 	case MD_OPTI931:
 		mix_setdevs(m, OPTI931_MIXER_DEVICES);
 		ad_write(mss, 20, 0x88);
@@ -1773,9 +1460,6 @@ mssmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
-#if NPNP > 0
-	if (mss->bd_id == MD_AD1816) ad1816_mixer_set(mss, dev, left, right); else
-#endif
 	mss_mixer_set(mss, dev, left, right);
 
 	return left | (right << 8);
@@ -1786,9 +1470,6 @@ mssmix_setrecsrc(snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
 
-#if NPNP > 0
-	if (mss->bd_id == MD_AD1816) src = ad1816_set_recsrc(mss, src); else
-#endif
 	src = mss_set_recsrc(mss, src);
 	return src;
 }
@@ -1879,9 +1560,6 @@ msschan_setformat(void *data, u_int32_t format)
 {
 	struct mss_chinfo *ch = data;
 
-#if NPNP > 0
-	if (ch->parent->bd_id == MD_AD1816) ad1816_format(ch, format); else
-#endif
 	mss_format(ch, format);
 	return 0;
 }
@@ -1891,9 +1569,6 @@ msschan_setspeed(void *data, u_int32_t speed)
 {
 	struct mss_chinfo *ch = data;
 
-#if NPNP > 0
-	if (ch->parent->bd_id == MD_AD1816) return ad1816_speed(ch, speed); else
-#endif
 	return mss_speed(ch, speed);
 }
 
@@ -1909,9 +1584,6 @@ msschan_trigger(void *data, int go)
 	struct mss_chinfo *ch = data;
 
 	buf_isadma(ch->buffer, go);
-#if NPNP > 0
-	if (ch->parent->bd_id == MD_AD1816) ad1816_trigger(ch, go); else
-#endif
 	mss_trigger(ch, go);
 	return 0;
 }
@@ -1935,10 +1607,6 @@ msschan_getcaps(void *data)
 
 	case MD_GUSPNP:
 		return &guspnp_caps;
-		break;
-
-	case MD_AD1816:
-		return &ad1816_caps;
 		break;
 
 	default:
