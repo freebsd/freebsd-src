@@ -14,6 +14,7 @@
 # $FreeBSD$
 
 PROG=	gifconfig
+MAN=	gifconfig.8
 
 CFLAGS+=-DINET6
 

@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	keyadmin
+MAN=	keyadmin.8
 
 .include <bsd.prog.mk>

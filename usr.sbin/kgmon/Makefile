@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	kgmon
+MAN=	kgmon.8
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 #

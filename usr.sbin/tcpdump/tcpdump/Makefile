@@ -2,7 +2,6 @@
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR}
-MAN1=	tcpdump.1
 SRCS =	version.c tcpdump.c \
 	addrtoname.c bpf_dump.c gmt2local.c machdep.c parsenfsfh.c \
 	print-ah.c print-arp.c print-ascii.c print-atalk.c print-atm.c \

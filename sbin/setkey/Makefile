@@ -56,6 +56,7 @@ DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
 
+MAN=	setkey.8
 LOCALPREFIX=	/usr/local
 
 scriptdump: scriptdump.pl

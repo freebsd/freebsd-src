@@ -30,6 +30,7 @@
 PROG=	atmarpd
 SRCS=	atmarpd.c atmarp_config.c atmarp_log.c atmarp_scsp.c \
 	atmarp_subr.c atmarp_timer.c
+MAN=	atmarpd.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm -lmd

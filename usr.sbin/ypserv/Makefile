@@ -4,7 +4,7 @@ PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
 
-MAN8=	ypserv.8 ypinit.8
+MAN=	ypserv.8 ypinit.8
 
 CFLAGS+= -I. -DDB_CACHE
 

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	mailwrapper
+MAN=	mailwrapper.8
 
 DPADD+=	${LIBUTIL}
 LDADD+=	-lutil

@@ -2,7 +2,7 @@
 
 .include "${.CURDIR}/../named/Makefile.inc"
 
-MAN8=	named.restart.8
+MAN=	named.restart.8
 CLEANFILES+= named.restart
 
 all:	named.restart

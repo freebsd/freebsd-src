@@ -4,8 +4,7 @@ PROG=	crontab
 CFLAGS+=-I${.CURDIR}/../cron
 DPADD=	${LIBCRON} ${LIBUTIL}
 LDADD=	${LIBCRON} -lutil
-MAN1=	crontab.1
-MAN5=	crontab.5
+MAN=	crontab.1 crontab.5
 
 BINDIR=	/usr/bin
 BINOWN=	root

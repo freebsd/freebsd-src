@@ -2,7 +2,7 @@
 
 MAINTAINER= wosch
 
-MAN8=	spkrtest.8
+MAN=	spkrtest.8
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
