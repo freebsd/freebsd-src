@@ -2325,7 +2325,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>A &man.check.utility.compat.3; library function has been
       added to <filename>libc</filename>, to determine 
-      whether a named utility should behave in &os; 4-compatible mode
+      whether certain &os; base system utilities should behave in &os; 4-compatible mode
       or in a <quote>standard</quote> mode (default standard).  The
       configuration is done &man.malloc.3;-style, with either an
       environment variable or a symbolic link.</para>
@@ -2468,13 +2468,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       maintainable.  These scripts now reside in
       <filename>/etc/periodic/security/</filename>. &merged;</para>
 
-    <para>&man.expr.1; is now compliant with the POSIX Utility Syntax
-      Guidelines.  Some programs depend on the old, historic behavior
+    <para>&man.expr.1; is now compliant with POSIX.2-1992 (and thus
+      also with POSIX.1-2001).  Some program depend on the old,
+      historic behavior and do not properly protect their arguments to
+      keep them from being misinterpreted as command-line options.
       (the <filename role="package">devel/libtool</filename>
-      port/package was/is a notable example).  In these situations,
-      the <envar>EXPR_COMPAT</envar> environment variable can be
-      defined, which causes &man.expr.1; to behave more like previous
-      versions.</para>
+      port/package, used by many GNU programs, is a notable example).
+      The old behavior can be requested by enabling compatibility mode
+      for &man.expr.1; as described in
+      &man.check.utility.compat.3;.</para>
 
     <para>&man.fbtab.5; now accepts glob matching patterns for target
       devices, not just individual devices and directories.</para>
@@ -3088,8 +3090,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       from NetBSD.  By creating an &man.nsswitch.conf.5; file, &os;
       can be configured so that various databases such as
       &man.passwd.5; and &man.group.5; can be looked up using flat
-      files, NIS, or Hesiod.  The old
-      <filename>hosts.conf</filename> file is no longer used.</para>
+      files, NIS, or Hesiod.  If <filename>/etc/nsswitch.conf</filename>
+      does not exist, it will be automatically generated from an existing
+      <filename>/etc/hosts.conf</filename> at system startup time.  The 
+      <filename>/etc/hosts.conf</filename> file may be used by old
+      executables; it will be automatically generated from
+      an existing <filename>/etc/nsswitch.conf</filename> during
+      system startup if it exists.</para>
 
     <para>&man.od.1; now supports the <option>-A</option> option to
       specify the input address base, the <option>-N</option> option to
