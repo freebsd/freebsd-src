@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTSIP)
 /*
- * $Header: /home/ncvs/src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.2 1995/05/30 03:54:13 rgrimes Exp $
+ * $FreeBSD$
  *
  * Trimble TSIP support - CURRENTLY VERY MUCH UNDER CONSTRUCTION
  */
@@ -468,6 +468,9 @@ getint(bp)
  * History:
  *
  * $Log: clk_trimtsip.c,v $
+ * Revision 1.3  1997/12/22 23:00:35  alex
+ * YTK fix.
+ *
  * Revision 1.2  1995/05/30 03:54:13  rgrimes
  * Remove trailing whitespace.
  *

@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.3 1997/02/13 21:10:45 jmg Exp $
+/* $FreeBSD$
  *
  * $Log: util.h,v $
+ * Revision 1.5  1998/01/21 14:37:25  ache
+ * Resurrect patch 2.1 without FreeBSD Index: hack
+ *
  * Revision 1.3  1997/02/13 21:10:45  jmg
  * Fix a problem with patch in that is will always default, even when the
  * controlling terminal is closed.  Now the function ask() will return 1 when th

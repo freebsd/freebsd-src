@@ -1,5 +1,5 @@
 /* config.h.  Generated automatically by configure.  */
-/* $Header: /home/daffy/u0/vern/flex/RCS/conf.in,v 1.2 95/01/09 12:11:51 vern Exp $ */
+/* $FreeBSD$ */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */

@@ -1,4 +1,4 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.20 1999/04/03 22:52:35 obrien Exp $
+# $FreeBSD$
 
 SUBDIR+= doc
 
