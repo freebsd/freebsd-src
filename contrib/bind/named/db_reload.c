@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_reload.c	4.22 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_reload.c,v 8.2 1996/08/05 08:31:30 vixie Exp $";
+static char rcsid[] = "$Id: db_reload.c,v 8.3 1996/08/27 08:33:23 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -98,7 +98,7 @@ db_reload()
 #if 0
 /* someday we'll need this.. (untested since before 1990) */
 void
-db_free(htp)
+ht_free(htp)
 	struct hashbuf *htp;
 {
 	register struct databuf *dp, *nextdp;
@@ -114,7 +114,7 @@ db_free(htp)
 		(void) free((char *)np->n_dname);
 		for (dp = np->n_data; dp != NULL; ) {
 			nextdp = dp->d_next;
-			(void) free((char *)dp);
+			db_free(dp);
 			dp = nextdp;
 		}
 		nextnp = np->n_next;

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.9 1996/05/20 15:10:01 vixie Exp $
+ *	$Id: ns_glob.h,v 8.11 1996/11/11 06:36:49 vixie Exp $
  */
 
 /*
@@ -123,15 +123,6 @@ DECL	int			needToChkpt	INIT(0);
 	/* need to dump statistics */
 DECL	int			needStatsDump	INIT(0);
 
-#ifdef ALLOW_UPDATES
-	/* need to exit (may need to doadump
-	 * first, if database has changed since
-	 * it was last dumped/booted). Gets
-	 * set by shutdown signal handler
-	 *  (onintr)
-	 */
-DECL	int			needToExit	INIT(0);
-#endif /* ALLOW_UPDATES */
 #ifdef XSTATS
 	/* need to exit 
 	 * set by shutdown signal handler
@@ -289,3 +280,5 @@ DECL	const char		*severity_strings[]
 	= { "ignore", "warn", "fail", NULL }
 #endif
 ;
+
+DECL	struct in_addr		inaddr_any;	/* Inits to 0.0.0.0 */

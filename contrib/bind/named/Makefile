@@ -1,6 +1,6 @@
 #
 #	@(#)Makefile.dist	5.4 (Berkeley) 8/15/90
-#	$Id: Makefile,v 8.7 1995/12/22 10:20:30 vixie Exp $
+#	$Id: Makefile,v 8.10 1996/09/22 00:13:10 vixie Exp $
 #
 
 ## ++Copyright++ 1987, 1988, 1990
@@ -89,7 +89,8 @@ CDEBUG= -g
 LIBS=
 COMPLIB= ../compat/lib/lib44bsd.a
 PATH_XFER = ${DESTEXEC}/${XFER_INDOT}named-xfer
-DEFS = -D_PATH_XFER=\"${PATH_XFER}\" -D_PATH_PIDFILE=\"${PIDDIR}/named.pid\"
+DEFS = -D_PATH_XFER=\"${PATH_XFER}\" -D_PATH_PIDFILE=\"${PIDDIR}/named.pid\" \
+	-DKSYMS=\"${KSYMS}\" -DKMEM=\"${KMEM}\" -DUDPSUM=\"${UDPSUM}\"
 INSTALL = install
 PS=ps
 IOT=ABRT
@@ -101,14 +102,14 @@ SRCS=	db_dump.c db_load.c db_lookup.c db_reload.c db_save.c db_update.c \
 	db_secure.c db_glue.c \
 	ns_forw.c ns_init.c ns_main.c ns_maint.c ns_req.c ns_resp.c \
 	ns_sort.c ns_stats.c ns_validate.c ns_ncache.c \
-	storage.c dmalloc.c tree.c
+	storage.c tree.c ns_udp.c
 OBJS=	db_dump.o db_load.o db_lookup.o db_reload.o db_save.o db_update.o \
 	db_secure.o db_glue.o \
 	ns_forw.o ns_init.o ns_main.o ns_maint.o ns_req.o ns_resp.o \
 	ns_sort.o ns_stats.o ns_validate.o ns_ncache.o \
-	storage.o dmalloc.o tree.o
+	storage.o tree.o ns_udp.o
 XFERSRCS=  named-xfer.c
-XFEROBJ=   named-xfer.o db_glue.o storage.o dmalloc.o version.o
+XFEROBJ=   named-xfer.o db_glue.o storage.o version.o
 
 all: named named-xfer named.reload named.restart ndc
 

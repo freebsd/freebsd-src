@@ -1,382 +1,513 @@
 Newsgroups: comp.protocols.tcp-ip.domains,comp.answers,news.answers
-Path: vixie!news1.digital.com!uunet!in1.uu.net!usc!rutgers!njitgw.njit.edu!hertz.njit.edu!cdp2582
-From: cdp@njit.edu (Chris Peckham)
+Path: vixie!news1.digital.com!su-news-hub1.bbnplanet.com!cpk-news-hub1.bbnplanet.com!news.bbnplanet.com!cam-news-hub1.bbnplanet.com!news.mathworks.com!news.kei.com!uhog.mit.edu!rutgers!njitgw.njit.edu!hertz.njit.edu!cdp2582
+From: cdp2582@hertz.njit.edu (Chris Peckham)
 Subject: comp.protocols.tcp-ip.domains Frequently Asked Questions (FAQ) (Part 1 of 2)
-Message-ID: <cptd-faq-1-810621452@njit.edu>
+Message-ID: <cptd-faq-1-849940949@njit.edu>
 Followup-To: comp.protocols.tcp-ip.domains
 Originator: cdp2582@hertz.njit.edu
 Keywords: BIND,DOMAIN,DNS
 Sender: news@njit.edu
-Supersedes: <cptd-faq-1-807632375@njit.edu>
+Supersedes: <cptd-faq-1-847336183@njit.edu>
 Nntp-Posting-Host: hertz.njit.edu
-X-Posting-Frequency: posted on the 1st of each month
+X-Posting-Frequency: posted during the first week of each month
 Reply-To: domain-faq@njit.edu (comp.protocols.tcp-ip.domains FAQ comments)
 Organization: NJIT.EDU - New Jersey Institute of Technology, Newark, NJ, USA
-Date: Sat, 9 Sep 1995 04:37:47 GMT
+Date: Sat, 7 Dec 1996 06:42:36 GMT
 Approved: news-answers-request@MIT.EDU
-Expires: Sat 14 Oct 95 00:37:32 EDT
-Lines: 1319
-Xref: vixie comp.protocols.tcp-ip.domains:6018 comp.answers:13881 news.answers:49918
+Expires: Sat 11 Jan 97 02:42:29 EDT
+Lines: 1582
+Xref: vixie comp.protocols.tcp-ip.domains:12904 comp.answers:22440 news.answers:85682
 
 Posted-By: auto-faq 3.1.1.2
 Archive-name: internet/tcp-ip/domains-faq/part1
-Revision: 1.6 1995/05/12 18:49:48
+Revision: 1.14 1996/12/07 06:42:05
 
 
-This FAQ is edited and maintained by Chris Peckham, <cdp@njit.edu>. 
-The latest version may always be found for anonymous ftp from
+Note that this posting has been split into two parts because of its size.
 
-    ftp://rtfm.mit.edu/pub/usenet/news.answers/internet/tcp-ip/domains-faq
-    ftp://ftp.njit.edu/pub/dns/Comp.protocols.tcp-ip.domains.FAQ
+$Id: FAQ.1of2,v 8.4 1996/12/18 04:09:47 vixie Exp $
+
+A new version of this document appears monthly.  If this copy is more
+than a month old it may be out of date.
+
+This FAQ is edited and maintained by Chris Peckham, <cdp@pfmc.net>.  The
+most recently posted version may be found for anonymous ftp from
+
+rtfm.mit.edu : /pub/usenet/news.answers/internet/tcp-ip/domains-faq
+
+It is also available in HTML from
+http://www.users.pfmc.net/~cdp/cptd-faq/.
 
 If you can contribute any answers for items in the TODO section, please do
-so by sending e-mail to domain-faq@njit.edu !  If you know of any items that 
-are not included and you feel that they should be,  send the relevant
-information to domain-faq@njit.edu.
+so by sending e-mail to <domain-faq@pfmc.net> !  If you know of any items
+that  are not included and you feel that they should be,  send the
+relevant information to <domain-faq@pfmc.net>.
 
+===============================================================================
 
-------------------------------
+Index
 
-Date: Fri May 12 14:41:47 EDT 1995
-Subject: Table of Contents
+ Section 1.  TO DO / UPDATES
+ Q1.1        Contributions needed 
+ Q1.2        UPDATES / Changes since last posting 
 
-Table of Contents
-=================
-Part 1
-------
-   0. TO DO
-   1. INTRODUCTION / MISCELLANEOUS
-      1.1  What is this newsgroup ?
-      1.2  More information
-      1.3  What is BIND and where is the latest version of BIND ?
-      1.4  How can I find the route between systems ?
-      1.5  Finding the hostname if you have the tcp-ip address
-      1.6  How to register a domain name
-      1.7  Change of Domain name
-      1.8  How memory and CPU does DNS use ?
-      1.9  Other things to consider when planning your servers  
-      1.10 Proper way to get NS and reverse IP records into DNS
-      1.11 How to get my address assign from NIC?
-      1.12 Is there a block of private IP addresses I can use?
-      1.13 Cache failed lookups
-      1.14 What does an NS record really do ?
-      1.15 DNS ports
-      1.16 Obtaining the latest cache file 
-   2. UTILITIES
-      2.1  Utilities to administer DNS zone files
-      2.2  DIG - Domain Internet Groper
-      2.3  DNS packet analyzer
-      2.4  host 
-      2.5  Programming with DNS
-      2.6  A source of information relating to DNS
-   3. DEFINITIONS
-      3.1  TCP/IP Host Naming Conventions
-      3.2  Slaves and servers with forwarders
-      3.3  When is a server authoritative?
-      3.4  Underscore in host-/domain names
-      3.5  Lame delegation
-      3.6  What does opt-class field do?
-      3.7  Top level domains
-      3.8  Classes of networks
-      3.9  What is CIDR ?
-      3.10 What is the rule for glue ?
+ Section 2.  INTRODUCTION / MISCELLANEOUS
+ Q2.1        What is this newsgroup ?
+ Q2.2        More information
+ Q2.3        What is BIND  ?
+ Q2.4        What is the difference between BIND and DNS ?
+ Q2.5        Where is the latest version of BIND located ?
+ Q2.6        How can I find the path taken between two systems/domains ?
+ Q2.7        How do you find the hostname given the TCP-IP address ?
+ Q2.8        How do I register a domain ?
+ Q2.9        How can I change the IP address of our server ?
+ Q2.10       Issues when changing your domain name
+ Q2.11       How memory and CPU does DNS use ?
+ Q2.12       Other things to consider when planning your servers  
+ Q2.13       Proper way to get NS and reverse IP records into DNS
+ Q2.14       How do I get my address assigned from the NIC ?
+ Q2.15       Is there a block of private IP addresses I can use?
+ Q2.16       Does BIND cache negative answers (failed DNS lookups) ?
+ Q2.17       What does an NS record really do ?
+ Q2.18       DNS ports
+ Q2.19       What is the cache file 
+ Q2.20       Obtaining the latest cache file
+ Q2.21       Selecting a nameserver/root cache
+ Q2.22       InterNIC and domain names
 
-Part 2
-------
-   4. CONFIGURATION
-      4.1  Changing a Secondary server to a Primary
-      4.2  How do I subnet a Class B Address ?
-      4.3  Subnetted domain name service
-      4.4  Recommended format/style of DNS files
-      4.5  DNS on a system not connected to the Internet
-      4.6  Multiple Domain configuration
-      4.7  wildcard MX records
-      4.8  How to identify a wildcard MX record
-      4.9  Why are fully qualified domain names recommended ?
-      4.10 Distributing load using named
-      4.11 Order of returned records
-      4.12 resolv.conf 
-      4.13 Delegating authority 
-      4.14 DNS instead of NIS on a Sun OS 4.1.x system
-   5. PROBLEMS
-      5.1  No address for root server
-      5.2  Error - No Root Nameservers for Class XX
-      5.3  Bind 4.9.x and MX querying?
-      5.4  Some root nameservers don't know localhost
-      5.5  MX records and CNAMES and separate A records for MX targets
-      5.6  NS is a CNAME
-      5.7  Nameserver forgets own A record
-      5.8  General problems (core dumps !)
-      5.9  malloc and DECstations
-   6. ACKNOWLEDGEMENTS
+ Section 3.  UTILITIES 
+ Q3.1        Utilities to administer DNS zone files
+ Q3.2        DIG - Domain Internet Groper
+ Q3.3        DNS packet analyser
+ Q3.4        host
+ Q3.5        How can I use DNS information in my program?
+ Q3.6        A source of information relating to DNS
 
-------------------------------
+ Section 4.  DEFINITIONS  
+ Q4.1        TCP/IP Host Naming Conventions
+ Q4.2        What are slaves and forwarders ?
+ Q4.3        When is a server authoritative?
+ Q4.4        My server does not consider itself authoritative !
+ Q4.5        NS records don't configure servers as authoritative ?
+ Q4.6        underscore in host-/domainnames
+ Q4.7        What is lame delegation ?
+ Q4.8        How can I see if the server is "lame" ?
+ Q4.9        What does opt-class field in a zone file do?
+ Q4.10       Top level domains
+ Q4.11       Classes of networks
+ Q4.12       What is CIDR ?
+ Q4.13       What is the rule for glue ?
 
-Date: Wed May  3 12:55:13 EDT 1995
-Subject: Q0 - TO DO list 
+ Section 5.  CONFIGURATION
+ Q5.1        Changing a Secondary server to a Primary server ?
+ Q5.2        Moving a Primary server to another server
+ Q5.3        How do I subnet a Class B Address ?
+ Q5.4        Subnetted domain name service
+ Q5.5        Recommended format/style of DNS files
+ Q5.6        DNS on a system not connected to the Internet
+ Q5.7        Multiple Domain configuration
+ Q5.8        wildcard MX records
+ Q5.9        How do you identify a wildcard MX record ?
+ Q5.10       Why are fully qualified domain names recommended ?
+ Q5.11       Distributing load using named
+ Q5.12       Order of returned records
+ Q5.13       resolv.conf
+ Q5.14       How do I delegate authority for sub-domains ?
+ Q5.15       DNS instead of NIS on a Sun OS 4.1.x system
+ Q5.16       Patches to add functionality to BIND 
+ Q5.17       How to serve multiple domains from one server
 
+ Section 6.  PROBLEMS
+ Q6.1        No address for root server
+ Q6.2        Error - No Root Nameservers for Class XX
+ Q6.3        Bind 4.9.x and MX querying?
+ Q6.4        Do I need to define an A record for localhost ?
+ Q6.5        MX records, CNAMES and A records for MX targets
+ Q6.6        Can an NS record point to a CNAME ?
+ Q6.7        Nameserver forgets own A record
+ Q6.8        General problems (core dumps !)
+ Q6.9        malloc and DECstations
+ Q6.10       Can't resolve names without a "."
+ Q6.11       Err/TO errors being reported
+ Q6.12       Why does swapping kill BIND ?
 
-* How to do an initial installation
-* How to change service providers (what happens)
-* Explain the difference between BIND (an implementation) and DNS (spec)
-* Expand the slave/forward section of Q 3.2
-* Add a definition of a "private domain" in discussion (or cut it out) 
-* mention mail-to-news gateways for newsgroup, mailing lists, anonymous
-  ftp, etc in what is newsgroup section
-* The evils of wildcard MX records
+ Section 7.  ACKNOWLEDGEMENTS
+ Q7.1        How is this FAQ generated ?
+ Q7.2        What formats are available ?
+ Q7.3        Contributors
 
+===============================================================================
 
+Section 1.  TO DO / UPDATES
 
--------------------------------
+ Q1.1        Contributions needed 
+ Q1.2        UPDATES / Changes since last posting 
+
+-----------------------------------------------------------------------------
+
+Question 1.1.  Contributions needed
+
+Date: Fri Dec  6 00:40:00 EST 1996
+
+* Expand the slave/forward section
+
+-----------------------------------------------------------------------------
+
+Question 1.2.  UPDATES / Changes since last posting
+
+Date: Fri Dec  6 00:40:00 EST 1996
+
+* The FAQ is now maintained in BFNN (Bizzare format with No Name).  This
+  allows me to create ASCII, HTML, and GNU info (postscript coming soon)
+  from one source file.
+* References to 4.9.4 changed to 4.9.5.
+* memory/CPU usage question - removed uunet map reference.  Not there...
+* Minor edits of information and questions for new format.
+* How do I delegate authority for sub-domains ? - edited answer
+
+===============================================================================
+
+Section 2.  INTRODUCTION / MISCELLANEOUS
+
+ Q2.1        What is this newsgroup ?
+ Q2.2        More information
+ Q2.3        What is BIND  ?
+ Q2.4        What is the difference between BIND and DNS ?
+ Q2.5        Where is the latest version of BIND located ?
+ Q2.6        How can I find the path taken between two systems/domains ?
+ Q2.7        How do you find the hostname given the TCP-IP address ?
+ Q2.8        How do I register a domain ?
+ Q2.9        How can I change the IP address of our server ?
+ Q2.10       Issues when changing your domain name
+ Q2.11       How memory and CPU does DNS use ?
+ Q2.12       Other things to consider when planning your servers  
+ Q2.13       Proper way to get NS and reverse IP records into DNS
+ Q2.14       How do I get my address assigned from the NIC ?
+ Q2.15       Is there a block of private IP addresses I can use?
+ Q2.16       Does BIND cache negative answers (failed DNS lookups) ?
+ Q2.17       What does an NS record really do ?
+ Q2.18       DNS ports
+ Q2.19       What is the cache file 
+ Q2.20       Obtaining the latest cache file
+ Q2.21       Selecting a nameserver/root cache
+ Q2.22       InterNIC and domain names
+
+-----------------------------------------------------------------------------
+
+Question 2.1.  What is this newsgroup ?
 
 Date: Thu Dec  1 11:08:28 EST 1994
-Subject: Q1.1 - What is this newsgroup ?
 
-comp.protocols.tcp-ip.domains is the usenet newsgroup for discussion
-on issues relating to the Domain Name System (DNS).
+comp.protocols.tcp-ip.domains is the usenet newsgroup for discussion on
+issues relating to the Domain Name System (DNS).
 
 This newsgroup is not for issues directly relating to IP routing and
 addressing.  Issues of that nature should be directed towards
 comp.protocols.tcp-ip.
 
+-----------------------------------------------------------------------------
 
--------------------------------
+Question 2.2.  More information
 
+Date: Fri Dec  6 00:41:03 EST 1996
 
-Date: Fri May 12 13:54:01 EDT 1995
-Subject: Q1.2 - More information
+You can find more information concerning DNS in the following places:
 
-   You can find more information concerning DNS in the following places:
- 
-   * The BOG (BIND Operations Guide) - in the BIND distribution
-   * The FAQ included with bind4.9.3 doc/misc/FAQ
-   * DNS and BIND by Albitz and Liu (an O'Reilly & Associates Nutshell 
-     handbook)
-   * A number of RFCs (920, 974, 1032, 1034, 1101, 1123, 1178, 1183, 1348,
-                       1535, 1536, 1537, 1591, 1706, 1712, 1713)
-   * The DNS Resource Directory (DNSRD) 
-         http://www.dns.net/dnsrd
-   * If you are having troubles relating to sendmail and DNS, you may wish to
-     refer to the USEnet newsgroup comp.mail.sendmail and/or the FAQ for that
-     newsgroup
-         ftp://rtfm.mit.edu/pub/usenet/news.answers/mail/sendmail-faq
-   * Information concerning some frequently asked questions relating to
-     the Internet (i.e., what is the InterNIC, what is an RFC, what is the
-     IETF, etc) may be found for anonymous ftp from
-         ftp://ds.internic.net/fyi/fyi4.txt
-     A version may also be obtained with the URL
-         gopher://ds.internic.net/00/fyi/fyi4.txt 
+* The BOG (BIND Operations Guide) - in the BIND distribution
+* The FAQ included with BIND 4.9.5 in doc/misc/FAQ
+* DNS and BIND by Albitz and Liu (an O'Reilly & Associates Nutshell
+  handbook)
+* A number of RFCs (920, 974, 1032, 1034, 1101, 1123, 1178, 1183, 1348,
+  1535, 1536, 1537, 1591, 1706, 1712, 1713, 1912, 1918)
+* The DNS Resources Directory (DNSRD) http://www.dns.net/dnsrd/
+* If you are having troubles relating to sendmail and DNS, you may wish to
+  refer to the USEnet newsgroup comp.mail.sendmail and/or the FAQ for that
+  newsgroup which may be found for anonymous ftp at rtfm.mit.edu :
+  /pub/usenet/news.answers/mail/sendmail-faq
+* Information concerning some frequently asked questions relating to the
+  Internet (i.e., what is the InterNIC, what is an RFC, what is the IETF,
+  etc) may be found for anonymous ftp from ds.internic.net : /fyi/fyi4.txt
+  A version may also be obtained with the URL
+  gopher://ds.internic.net/00/fyi/fyi4.txt.
+* Information on performing an initial installation of BIND may be found
+  using the DNS Resources Directory at
+  http://www.dns.net/dnsrd/docs/basic.txt
+* Three other USEnet newsgroups:
 
+  * comp.protocols.dns.bind
+  * comp.protocols.dns.ops
+  * comp.protocols.dns.std
 
--------------------------------
+-----------------------------------------------------------------------------
 
-Date: Fri Aug  4 10:18:58 EDT 1995
-Subject: Q1.3 - What is BIND and where is the latest version of BIND ?
+Question 2.3.  What is BIND  ?
 
-Q: What is BIND ?
+Date: Tue Sep 10 23:15:58 EDT 1996
 
-A: From the BOG Introduction -
+From the BOG Introduction -
 
-        The Berkeley Internet Name Domain (BIND)  implements
-   an  Internet  name  server  for the BSD operating system.
-   The BIND consists of  a  server  (or  ``daemon'')  and  a
-   resolver  library.   A  name  server is a network service
-   that enables clients to name  resources  or  objects  and
-   share this information with other objects in the network.
-   This in effect is a  distributed  data  base  system  for
-   objects  in a computer network.  BIND is fully integrated
-   into BSD (4.3 and later releases)  network  programs  for
-   use  in  storing  and  retrieving host names and address.
-   The system administrator can configure the system to  use
-   BIND  as  a replacement to the older host table lookup of
-   information in the network hosts  file  /etc/hosts.   The
-   default configuration for BSD uses BIND.
+The Berkeley Internet Name Domain (BIND)  implements an  Internet name
+server  for the BSD operating system.  The BIND consists of  a server (or
+``daemon'')  and  a resolver  library.   A  name server is a network
+service that enables clients to name  resources or  objects and share this
+information with other objects in the network.  This in effect is a
+distributed  data  base  system  for objects  in a computer network.  BIND
+is fully integrated into BSD (4.3 and later releases) network  programs
+for use  in  storing and  retrieving host names and address.  The system
+administrator can configure the system to  use BIND as  a replacement to
+the older host table lookup of information in the network hosts file
+/etc/hosts.   The default configuration for BSD uses BIND.
 
-Q: Where is the latest non-beta version of BIND ?
- 
-A: The latest non-beta version of BIND is version 4.9.2.  This can be
-   found for anonymous ftp from
- 
-         ftp://gatekeeper.dec.com/pub/misc/vixie/4.9.2-940221.tar.gz
- 
-Q: Where is the latest version of 4.9.3 located ?
+-----------------------------------------------------------------------------
 
-A: You can reference this URL:
- 
-        http://www.isc.org/isc/
- 
-   At this time, the latest version of 4.9.3 may be found for anonymous ftp 
-   from
- 
-        ftp://ftp.vix.com/pub/bind/testing/bind-4.9.3-BETA24.tar.gz
+Question 2.4.  What is the difference between BIND and DNS ?
 
-   You will need GNU zip, Larry Wall's patch program (if there are any
-   patch files), and a C compiler to get BIND running from the above
-   mentioned source.
+Date: Tue Sep 10 23:15:58 EDT 1996
 
-   GNU zip is available for anonymous ftp from
+(text provided by Andras Salamon) DNS is the Domain Name System, a set of
+protocols for a distributed database that was originally designed to
+replace /etc/hosts files.  DNS is most commonly used by applications to
+translate domain names of hosts to IP addresses.  A client of the DNS is
+called a resolver; resolvers are typically located in the application
+layer of the networking software of each TCP/IP capable machine.  Users
+typically do not interact directly with the resolver.  Resolvers query the
+DNS by directing queries at name servers that contain parts of the
+distributed database that is accessed by using the DNS protocols.  In
+common usage, `the DNS' usually refers just to the data in the database.
 
-        ftp://prep.ai.mit.edu/pub/gnu/gzip-1.2.4.tar
+BIND (Berkeley Internet Name Domain) is an implementation of DNS, both
+server and client.  Development of BIND is funded by the Internet Software
+Consortium and is coordinated by Paul Vixie.  BIND has been ported to
+Windows NT and VMS, but is most often found on Unix.  BIND source code is
+freely available and very complex; most of the development on the DNS
+protocols is based on this code; and most Unix vendors ship BIND-derived
+DNS implementations.  As a result, the BIND name server is the most widely
+used name server on the Internet.  In common usage, `BIND' usually refers
+to the name server that is part of the BIND distribution, and sometimes to
+name servers in general (whether BIND-derived or not).
 
-   patch is available for anonymous ftp from
+-----------------------------------------------------------------------------
 
-        ftp://prep.ai.mit.edu/pub/gnu/patch-2.1.tar.gz
+Question 2.5.  Where is the latest version of BIND located ?
 
-------------------------------
+Fri Dec  6 00:23:19 EST 1996
 
-Date: Mon Jan  2 13:27:27 EST 1995
-Subject: Q1.4 - How can I find the route between systems
+This information may be found at http://www.vix.com/isc/bind.html
 
-Q: How can I find the path taken by packets between two systems/domains ?
- 
-A: Get the source of the 'traceroute' command, compile it and install
-   it on your system.  
+At this time, BIND version of 4.9.5 may be found for anonymous ftp from
 
-   One version of this program with additional functionality may be found
-   for anonymous ftp from
+ftp.vix.com : /pub/bind/release/4.9.5/bind-4.9.5-REL.tar.gz
 
-       ftp://ftp.nikhef.nl/pub/network/traceroute.tar.Z
+Other sites that officially mirror the BIND distribution are
 
-   This package is mirrored at
+* bind.fit.qut.edu.au : /pub/bind
+* ftp.funet.fi : /pub/unix/tcpip/dns/bind
+* ftp.univ-lyon1.fr : /pub/mirrors/unix/bind
+* ftp.oleane.net : /pub/mirrors/unix/bind
+* ftp.ucr.ac.cr : /pub/Unix/dns/bind
+* ftp.luth.se : /pub/unix/dns/bind/beta
 
-       ftp://ftp.njit.edu/pub/dns/nikhef/traceroute.tar.Z 
+You may need GNU zip, Larry Wall's patch program (if there are any patch
+files), and a C compiler to get BIND running from the above mentioned
+source.
 
-   Another version may be found for anonymous ftp from
+GNU zip is available for anonymous ftp from
 
-       ftp://ftp.psc.edu/pub/net_tools/traceroute.tar
+prep.ai.mit.edu : /pub/gnu/gzip-1.2.4.tar
 
- 
-------------------------------
+patch is available for anonymous ftp from
+
+prep.ai.mit.edu : /pub/gnu/patch-2.1.tar.gz
+
+A version of BIND for Windows NT is available for anonymous ftp from
+
+ftp.vix.com : /pub/bind/release/4.9.5/contrib/ntdns495relbin.zip
+
+and
+
+ftp.vix.com : /pub/bind/release/4.9.5/contrib/ntbind495rel.zip
+
+-----------------------------------------------------------------------------
+
+Question 2.6.  How can I find the path taken between two systems/domains ?
+
+Date: Fri Dec  6 00:10:31 EST 1996
+
+On a Unix system, use traceroute.  If it is not available to you, you may
+obtain the source source for 'traceroute', compile it and install it on
+your system.
+
+One version of this program with additional functionality may be found for
+anonymous ftp from
+
+ftp.nikhef.nl : /pub/network/traceroute.tar.Z
+
+Another version may be found for anonymous ftp from
+
+ftp.psc.edu : /pub/net_tools/traceroute.tar
+
+-----------------------------------------------------------------------------
+
+Question 2.7.  How do you find the hostname given the TCP-IP address ?
 
 Date: Thu Dec  1 09:55:24 EST 1994
-Subject: Q1.5 - Finding the hostname if you have the tcp-ip address
 
-Q: Can someone tell me how can I find the name of the domain if I know the
-   tcp-ip address of the domain? Is there some kind of service for this?
- 
-A: For an address a.b.c.d you can always do:
- 
-% nslookup
-> set q=ptr
-> d.c.b.a.in-addr.arpa.
+For an address a.b.c.d you can always do:
 
-   Most newer version of nslookup (since 4.8.3) will recognize an address, 
-   so you can just say:
+         % nslookup
+         > set q=ptr
+         > d.c.b.a.in-addr.arpa.
 
-% nslookup a.b.c.d
- 
-   DiG will work like this also:
- 
-$ dig -x a.b.c.d
+Most newer version of nslookup (since 4.8.3) will recognize an address, so
+you can just say:
 
-   Host from the contrib/host from the bind distribution may also be used.
+         % nslookup a.b.c.d
 
--------------------------------
- 
-Date: Fri Apr 28 13:16:32 EDT 1995
-Subject: Q1.6 - How to register a domain name
+DiG will work like this also:
 
-Q: I would like to register a domain.  How do I do this ?   Can a name be
-   reserved, or must we already have an IP address and be hooked up to the
-   Internet before obtaining a domain name?
- 
-A: You can talk to your Internet Service Provider (ISP).  They can submit 
-   the registration for you.  If you are not going to be directly
-   connected, they should be able to offer MX records for your domain
-   for mail delivery (so that mail sent to the new domain will be sent
-   to your "standard" account).   In the case where the registration is
-   done by the organization itself, it still makes the whole process
-   much easier if the ISP is approached for secondary servers _before_
-   the InterNIC is approached for registration.
- 
-   For information about making the registration yourself, look to the
-   InterNIC !
+         % dig -x a.b.c.d
 
-        ftp://internic.net/templates/ 
-        gopher://rs.internic.net/
-        http://www.internic.net/infoguide.html
-        http://www.ripe.net
- 
-   You will need at least two domain name servers when you register your 
-   domain.  Many ISP's are willing to provide primary and/or secondary name 
-   service for their customers.
+host from the contrib/host from the bind distribution may also be used.
 
-   Many times, registration of a domain name can be initiated by sending 
-   e-mail to the zone contact. You can obtain the contact in the 
-   SOA record for the country, or in a whois server:
+-----------------------------------------------------------------------------
+
+Question 2.8.  How do I register a domain ?
+
+Date: Wed Sep  4 23:59:42 EDT 1996
+
+You can talk to your Internet Service Provider (ISP).  They can submit the
+registration for you.  If you are not going to be directly connected, they
+should be able to offer MX records for your domain for mail delivery (so
+that mail sent to the new domain will be sent to your "standard" account).
+In the case where the registration is done by the organization itself, it
+still makes the whole process much easier if the ISP is approached for
+secondary servers _before_ the InterNIC is approached for registration.
+
+For information about making the registration yourself, look to the
+InterNIC  (or other similar organization).
+
+* anonymout ftp from internic.net : /templates
+* gopher://rs.internic.net/
+* http://rs.internic.net/reg/reg-forms.html
+* http://www.ripe.net/
+
+You will need at least two domain name servers when you register your
+domain.  Many ISP's are willing to provide primary and/or secondary name
+service for their customers.
+
+Please note that the InterNIC is now charging a fee for domain names    in
+the "COM", "ORG", and "NET".  More information may be found from  the
+Internic at
+
+http://rs.internic.net/domain-info/fee-policy.html
+
+Many times, registration of a domain name can be initiated by sending
+e-mail to the zone contact. You can obtain the contact in the  SOA record
+for the country, or in a whois server:
 
          $ nslookup -type=SOA fr.
          origin = ns1.nic.fr
          mail addr = nic.nic.fr
          ...
- 
-   The mail address to contact in this case is 'nic@nic.fr' (you must 
-   substitute an '@' for the first dot in the mail addr field).
- 
-   An alternate method to obtain the e-mail address of the national NIC
-   is the 'whois' server at InterNIC.   
 
-   You may be requested to make your request to another email address or
-   using a certain information template/application.
+The mail address to contact in this case is 'nic@nic.fr' (you must
+substitute an '@' for the first dot in the mail addr field).
 
+An alternate method to obtain the e-mail address of the national NIC is
+the 'whois' server at InterNIC.
 
--------------------------------
+You may be requested to make your request to another email address or
+using a certain information template/application.
+
+-----------------------------------------------------------------------------
+
+Question 2.9.  How can I change the IP address of our server ?
+
+Date: Sun May  5 22:46:28 EDT 1996
+
+(From Mark Andrews) Before the move.
+
+* Ensure you are running a modern nameserver. BIND 4.9.3-REL + Patch1 is a
+  good choice.
+* Inform all your secondaries that you are going to change.  Have them
+  install both the current and new addresses in their named.boot's.
+* Drop the ttl of the A's associated with the nameserver to something
+  small (5 min is usually good).
+* Drop the refesh and retry times of the zone containing the  forward
+  records for the server.
+* Configure the new reverse zone before the move and make sure it is
+  operational.
+* On the day of the move add the new A record(s) for the server.  Don't
+  forget to have these added to parent domains. You will look like you are
+  multihomed with one interface dead.
+
+Move the machine after gracefully terminating any other services it is
+offering. Then,
+
+* Fixup the A's, ttl, refresh and retry counters.  (If you are running an
+  all server EDIT out all references to the old addresses in the cache
+  files).
+* Inform all the secondaries the move is complete.
+* Inform the parents of all zones you are primary of the new NS/A pairs
+  for the relevent zones.
+* Inform all the administators of zones you are secondaring that the
+  machine  has moved.
+* For good measure update the serial no for all zones you are primary for.
+  This will flush out old A's.
+
+-----------------------------------------------------------------------------
+
+Question 2.10.  Issues when changing your domain name
 
 Date: Sun Nov 27 23:32:41 EST 1994
-Subject: Q1.7 - Change of Domain name
- 
-Q: We are preparing for a change of our domain name:
-        abc.foobar.com -> foobar.net
- 
-   What are the tricks and caveats we should be aware of ?
- 
-A: The forward zones are easy and there are a number of ways to do it.  
-   One way is the following:
- 
-   Have a single db file for the 2 domains, and have a single machine
-   be the primary server for both abc.foobar.com and foobar.net.
- 
-   To resolve the host foo in both domains, use a single zone file which
-   merely uses this for the host:
- 
+
+If you are changing your domain name from abc.foobar.com to foobar.net,
+the forward zones are easy and there are a number of ways to do it.   One
+way is the following:
+
+Have a single db file for the 2 domains, and have a single machine be the
+primary server for both abc.foobar.com and foobar.net.
+
+To resolve the host foo in both domains, use a single zone file which
+merely uses this for the host:
+
 foo             IN      A       1.2.3.4
- 
-   Use a "@" wherever the domain would be used ie for the SOA:
+
+Use a "@" wherever the domain would be used ie for the SOA:
 
 @               IN      SOA     (...
- 
-   Then use this pair of lines in your named.boot:
+
+Then use this pair of lines in your named.boot:
 
 primary         abc.foobar.com  db.foobar
 primary         foobar.net      db.foobar
- 
-   The reverse zones should either contain PTRs to both names,
-   or to whichever name you believe to be canonical currently.
 
--------------------------------
+The reverse zones should either contain PTRs to both names, or to
+whichever name you believe to be canonical currently.
 
-Date: Fri Apr 28 13:52:20 EDT 1995
-Subject: Q1.8 - How memory and CPU does DNS use ?
- 
-Q: How much memory and CPU does DNS use ?
+-----------------------------------------------------------------------------
 
-A: It can use quite a bit !  The main thing that BIND needs is memory.  
-   It uses very little CPU or network bandwidth.   The main 
-   considerations to keep in mind when planning are:
+Question 2.11.  How memory and CPU does DNS use ?
 
-        1) How many zones do you have and how large are they ?
-        2) How many clients do you expect to serve and how active are they ?
+Date: Fri Dec  6 01:07:56 EST 1996
 
-   As an example, here is a snapshot of memory usage from CSIRO Division 
-   of Mathematics and Statistics, Australia
+It can use quite a bit !  The main thing that BIND needs is memory.   It
+uses very little CPU or network bandwidth.   The main  considerations to
+keep in mind when planning are:
+
+* How many zones do you have and how large are they ?
+* How many clients do you expect to serve and how active are they ?
+
+As an example, here is a snapshot of memory usage from CSIRO Division  of
+Mathematics and Statistics, Australia
 
       Named takes several days to stabalize its memory usage.
  
       Our main server stabalises at ~10Mb. It takes about 3 days to
       reach this size from 6 M at startup. This is under Sun OS 4.1.3U1.
 
-   As another example, here is the configuration of ns.uu.net (from late 
-   1994):
+As another example, here is the configuration of ns.uu.net (from late
+1994):
 
       ns.uu.net only does nameservice.  It is running a version of BIND
       4.9.3 on a Sun Classic with 96 MB of RAM, 220 MB of swap (remember
@@ -384,22 +515,17 @@ A: It can use quite a bit !  The main thing that BIND needs is memory.
       running Sun OS 4.1.3_U1.
 
       Joseph Malcolm, of Alternet, states that named generally hovers at 
-      5-10% of the CPU, except after a reload, when it eats it all.  He 
-      also states that if you are interested in the network connectivity 
-      around the system (ns.uu.net is located off of Falls-Church4), a 
-      PostScript map is available for anonymous ftp from
+      5-10% of the CPU, except after a reload, when it eats it all. 
 
-         ftp://ftp.uu.net/uunet-info/alternet.map.ps
+-----------------------------------------------------------------------------
 
-
--------------------------------
+Question 2.12.  Other things to consider when planning your servers
 
 Date: Mon Jan  2 14:24:51 EST 1995
-Subject: Q1.9 - Other things to consider when planning your servers  
- 
-  When making the plans to set up your servers, you may want to also 
-  consider the following issues:
- 
+
+When making the plans to set up your servers, you may want to also
+consider the following issues:
+
         A) Server O/S limitations/capacities (which tend to be widely
            divergent from vendor to vendor)
         B) Client resolver behavior (even more widely divergent)
@@ -424,147 +550,109 @@ Subject: Q1.9 - Other things to consider when planning your servers
   traffic among several machines strategically located, possibly larger ones,
   and/or subdividing your domain itself. There are many options, tradeoffs, 
   and DNS architectural paradigms from which to choose.
+-----------------------------------------------------------------------------
 
-
-------------------------------
+Question 2.13.  Proper way to get NS and reverse IP records into DNS
 
 Date: Mon Jan  2 13:03:53 EST 1995
-Subject: Q1.10 - Proper way to get NS and reverse IP records into DNS
 
- 
-Q: Reverse domain registration is separate from forward domain registration.
-   How do I get it updated ?
- 
-A: Blocks of network addresses have been delegated by the InterNIC.  Check
-   if your network a.b.c.0 is in such a block by using nslookup:
+Reverse domain registration is separate from forward domain registration.
+Blocks of network addresses have been delegated by the InterNIC.  Check if
+your network a.b.c.0 is in such a block by using nslookup:
 
    nslookup -type=soa c.b.a.in-addr.arpa.
    nslookup -type=soa b.a.in-addr.arpa.
    nslookup -type=soa a.in-addr.arpa.
 
-   One of the above should give you the information you are looking for
-   (the others will return with an error something like `*** No start of
-   authority (SOA) records available for ...')
-   This will give you the email address of the person to whom you should
-   address your change request.
- 
-   If none of these works, your network probably has not been delegated
-   by the InterNIC and you need to contact them directly.
+One of the above should give you the information you are looking for (the
+others will return with an error something like `*** No start of authority
+(SOA) records available for ...') This will give you the email address of
+the person to whom you should address your change request.
 
-   CIDR has meant that the registration is delegated, but registration
-   of in-addr.arpa has always been separate from forward zones - and
-   for good reason - in that the forward and reverse zones may have
-   different policies, contents etc, may be served by a different set
-   of nameservers, and exist at different times (usually only at point
-   of creation).  There isn't a one-to-one mapping between the two, so
-   merging the registration would probably cause more problems than
-   people forgetting/not-knowing that they had to register in-addr.arpa
-   zones separately.  For example, there are organizations that have
-   hundreds of networks and two or more domains, with a sprinkling of
-   machines from each network in each of the domains.
+If none of these works, your network probably has not been delegated by
+the InterNIC and you need to contact them directly.
 
- 
--------------------------------
- 
-Date: Mon Jan  2 13:08:38 EST 1995
-Subject: Q1.11 - How to get my address assign from NIC ?
+CIDR has meant that the registration is delegated, but registration of
+in-addr.arpa has always been separate from forward zones - and for good
+reason - in that the forward and reverse zones may have different
+policies, contents etc, may be served by a different set of nameservers,
+and exist at different times (usually only at point of creation).  There
+isn't a one-to-one mapping between the two, so merging the registration
+would probably cause more problems than people forgetting/not-knowing that
+they had to register in-addr.arpa zones separately.  For example, there
+are organizations that have hundreds of networks and two or more domains,
+with a sprinkling of machines from each network in each of the domains.
 
- 
-Q: Can anyone tell me how can I get the address from NIC?  How many subnets
-   will NIC give to me?
- 
-A: You should probably ask your Internet provider to give you an address.
-   These days, addresses are being distributed through the providers,
-   so that they can assign adjacent blocks of addresses to sites that
-   go through the same provider, to permit more efficient routing on
-   the backbones.
- 
-   Unless you have thousands of hosts, you probably won't be able to get a
-   class B these days.  Instead, you can get a series of class C networks.
-   Large requests will be queried, so be ready to provide a network plan if
-   you ask for more than 16 class C networks.
- 
-   If you can't do this through your Internet provider, you can look for a
-   subnet registration form on rs.internic.net.  See the answer in this FAQ
-   to the question "How to register a domain name" for a URL to these
-   forms.
- 
--------------------------------
+-----------------------------------------------------------------------------
 
-Date: Mon Jan  2 13:12:01 EST 1995
-Subject: Q1.12 -Is there a block of private IP addresses I can use?
+Question 2.14.  How do I get my address assigned from the NIC ?
 
+Date: Fri Dec  6 01:11:34 EST 1996
 
-Q: Is there a block of private IP addresses I can use?
- 
-A: This answer may be found in the FAQ for the newsgroup comp.dcom.sys.cisco
-   available for anonymous ftp from
+You should probably ask your Internet provider to give you an address.
+These days, addresses are being distributed through the providers, so that
+they can assign adjacent blocks of addresses to sites that go through the
+same provider, to permit more efficient routing on the backbones.
 
-        ftp://rtfm.mit.edu/pub/usenet/comp.dcom.sys.cisco
+Unless you have thousands of hosts, you probably won't be able to get a
+class B these days.  Instead, you can get a series of class C networks.
+Large requests will be queried, so be ready to provide a network plan if
+you ask for more than 16 class C networks.
 
-   There is a block of private IP addresses that you can use.  However 
-   whether you wish to do so is an issue of some debate.
+If you can't do this through your Internet provider, you can look for a
+subnet registration form on rs.internic.net.  See the answer in this FAQ
+to the question "How do I register a domain" for a URL to these forms.
+
+-----------------------------------------------------------------------------
+
+Question 2.15.  Is there a block of private IP addresses I can use?
+
+Date: Sun May  5 23:02:49 EDT 1996
+
+Yes there is.  Please refer to RFC 1918:
+
+   1918 Address Allocation for Private Internets. Y. Rekhter, B.
+        Moskowitz, D. Karrenberg, G. de Groot, & E. Lear. February 1996.
+        (Format: TXT=22270 bytes)
  
-   There are two RFCs which discuss this issue, and present opposing
-   views:
- 
-1597 Address Allocation for Private Internets. Y. Rekhter, B.
-     Moskowitz, D. Karrenberg & G. de Groot. March 1994. (Format:
-     TXT=17430 bytes)
- 
-1627 Network 10 Considered Harmful (Some Practices Shouldn't be
-     Codified). E. Lear, E. Fair, D. Crocker & T. Kessler. June 1994.
-     (Format: TXT=18823 bytes)
- 
-   Neither one of these RFCs is anything more than a set of informational
-   guidelines; they are *not* words to live by (remember that RFC stands
-   for Request For Comments). If you're seriously considering using
-   private IP addresses, please read them both.
- 
-   In any event, RFC 1597 documents the allocation of the following
-   addresses for use by ``private internets'':
- 
+RFC 1918 documents the allocation of the following addresses for use by
+``private internets'':
+
         10.0.0.0        -   10.255.255.255
         172.16.0.0      -   172.31.255.255
         192.168.0.0     -   192.168.255.255
- 
-   Most importantly, it is vital that nothing using these addresses
-   should ever connect to the global Internet, or have plans to do so.
-   Please read the above RFCs before considering implementing such
-   a policy.
 
+-----------------------------------------------------------------------------
 
--------------------------------
+Question 2.16.  Does BIND cache negative answers (failed DNS lookups) ?
 
 Date: Mon Jan  2 13:55:50 EST 1995
-Subject: Q1.13 - Cache failed lookups
 
-Q: Does BIND cache negative answers (failed DNS lookups) ?
+Yes, BIND 4.9.3 and more recent versions will cache negative answers.
 
-A: Yes, BIND 4.9.3 will cache negative answers.
+-----------------------------------------------------------------------------
 
- 
--------------------------------
+Question 2.17.  What does an NS record really do ?
 
-Date: Fri Feb 10 15:35:07 EST 1995
-Subject: Q1.14 - What does an NS record really do ?
+Date: Wed Sep  4 22:52:18 EDT 1996
 
-Q: What does a NS record really do ?
+The NS records in your zone data file pointing to the zone's name  servers
+(as opposed to the servers of delegated subdomains) don't do  much.
+They're essentially unused, though they are returned in the  authority
+section of reply packets from your name servers.
 
-A: The NS records in your zone data file pointing to the zone's name 
-   servers (as opposed to the servers of delegated subdomains) don't do 
-   much.  They're essentially unused, though they are returned in the 
-   authority section of reply packets from your name servers.
+However, the NS records in the zone file of the parent domain are used to
+find the right servers to query for the zone in question.  These records
+are more important than the records in the zone itself.
 
--------------------------------
+-----------------------------------------------------------------------------
+
+Question 2.18.  DNS ports
 
 Date: Fri Feb 10 15:40:10 EST 1995
-Subject: Q1.15 - DNS ports
 
-Q: Does anyone out there have any information/experience on exactly which 
-   TCP/UDP ports DNS uses to send and receive queries ?
-
-A: Use the following chart:
+The following table shows what TCP/UDP ports DNS uses to send and  receive
+queries:
 
    Prot Src   Dst   Use
    udp  53    53    Queries between servers (eg, recursive queries)
@@ -579,40 +667,36 @@ A: Use the following chart:
    Note: >1023 is for non-priv ports on Un*x clients. On other client 
          types, the limit may be more or less.
 
-   Another point to keep in mind when designing filters for DNS is that a
-   DNS server uses port 53 both as the source and destination for it's
-   queries.  So, a client queries an initial server from an unreserved
-   port number to UDP port 53.  If the server needs to query another
-   server to get the required info, it sends a UDP query to that server
-   with both source and destination ports set to 53.  The response is then
-   sent with the same src=53 dest=53 to the first server which then
-   responds to the original client from port 53 to the original source
-   port number.
- 
-   The point of all this is that putting in filters to only allow UDP
-   between a high port and port 53 will not work correctly, you must also
-   allow the port 53 to port 53 UDP to get through.
- 
-   Also, ALL versions of BIND use TCP for queries in some cases.  The
-   original query is tried using UDP.  If the response is longer than
-   the allocated buffer, the resolver will retry the query using a TCP
-   connection.  If you block access to TCP port 53 as suggested above,
-   you may find that some things don't work.
- 
-   Newer version of BIND allow you to configure a list of IP addresses
-   from which to allow zone transfers.  This mechanism can be used to
-   prevent people from outside downloading your entire namespace.
+Another point to keep in mind when designing filters for DNS is that a DNS
+server uses port 53 both as the source and destination for it's queries.
+So, a client queries an initial server from an unreserved port number to
+UDP port 53.  If the server needs to query another server to get the
+required info, it sends a UDP query to that server with both source and
+destination ports set to 53.  The response is then sent with the same
+src=53 dest=53 to the first server which then responds to the original
+client from port 53 to the original source port number.
 
+The point of all this is that putting in filters to only allow UDP between
+a high port and port 53 will not work correctly, you must also allow the
+port 53 to port 53 UDP to get through.
 
--------------------------------
+Also, ALL versions of BIND use TCP for queries in some cases.  The
+original query is tried using UDP.  If the response is longer than the
+allocated buffer, the resolver will retry the query using a TCP
+connection.  If you block access to TCP port 53 as suggested above, you
+may find that some things don't work.
 
+Newer version of BIND allow you to configure a list of IP addresses from
+which to allow zone transfers.  This mechanism can be used to prevent
+people from outside downloading your entire namespace.
 
-Date: Fri Apr 28 14:19:10 EDT 1995
-Subject: Q1.16 - Obtaining the latest cache file
+-----------------------------------------------------------------------------
 
-Q: What is the cache file and where can I obtain the latest version ? 
+Question 2.19.  What is the cache file
 
-A: From the "Name Server Operations Guide"
+Date: Fri Dec  6 01:15:22 EST 1996
+
+From the "Name Server Operations Guide"
 
       6.3.  Cache Initialization
  
@@ -625,13 +709,27 @@ A: From the "Name Server Operations Guide"
             higher authorities.  The location of this  file  is
             specified  in  the  boot  file. ...
 
-   A copy of the comments in the file available from the InterNIC follow:
+-----------------------------------------------------------------------------
 
-      ;       This file holds the information on root name servers needed to
-      ;       initialize cache of Internet domain name servers 
-      ;       (e.g. reference this file in the "cache  .  <file>"
-      ;       configuration file of BIND domain name servers).
-      ;
+Question 2.20.  Obtaining the latest cache file
+
+Date: Fri Dec  6 01:15:22 EST 1996
+
+If you have a version of dig running, you may obtain the information with
+the command
+
+      dig @a.root-servers.net. . ns
+
+A perl script to handle some possible problems when using this method
+from behind a firewall and that can also be used to periodically obtain
+the latest cache file was posted to comp.protocols.tcp-ip.domains  during
+early October, 1996.  It was posted with the subject "Keeping  db.cache
+current". It is available at
+http://www.users.pfmc.net/~cdp/cptd-faq/current_db_cache.txt.
+
+The latest cache file may also be obtained from the InterNIC via ftp  or
+gopher:
+
       ;       This file is made available by InterNIC registration services
       ;       under anonymous FTP as
       ;           file                /domain/named.root
@@ -640,84 +738,142 @@ A: From the "Name Server Operations Guide"
       ;           under menu          InterNIC Registration Services (NSI)
       ;              submenu          InterNIC Registration Archives
       ;           file                named.root
-      ;
-      ;       last update:    Oct 5, 1994
-      ;       related version of root zone:   1994100500
-      ;
 
-   If you have a version of dig running, you may obtain the information with
-   the command
+-----------------------------------------------------------------------------
 
-      dig @ns.internic.net . ns
- 
+Question 2.21.  Selecting a nameserver/root cache
 
--------------------------------
+Date: Mon Aug  5 22:54:11 EDT 1996
 
+Exactly how is the a root server selected from the root cache? Does the
+resolver attempt to pick the closest host or is it random or is it via
+sortlist-type workings?  If the root server selected is not available (for
+whatever reason), will the the query fail instead of attempting another
+root server in the list ?
 
-Date: Mon Jan  2 13:13:49 EST 1995
-Subject: Q2.1 - Utilities to administer DNS zone files
- 
-Q: I am wondering if there are utilities available to ease the 
-   administration of the zone files in the DNS.
- 
-A: There are a few.  Two common ones are h2n and makezones.  Both are perl
-   scripts.  h2n is used to convert host tables into zone data files.  It 
-   is available for anonymous ftp from 
+Every recursive BIND name server (that is, one which is willing to go out
+and find something for you if you ask it something it doesn't know) will
+remember the measured round trip time to each server it sends queries to.
+If it has a choice of several servers for some domain (like "." for
+example) it will use the one whose measured RTT is lowest.
 
-   ftp://ftp.uu.net/published/oreilly/nutshell/dnsbind/dns.tar.Z.
- 
-   makezones works from a single file that looks like a forward zone file,
-   with some additional syntax for special cases.  It is included in the 
-   current BIND distribution.  The newest version is always available for 
-   anonymous ftp from
+Since the measured RTT of all NS RRs starts at zero (0), every one gets
+tried one time.  Once all have responded, all RTT's will be nonzero, and
+the "fastest server" will get all queries henceforth, until it slows down
+for some reason.
 
-   ftp://ftp.cus.cam.ac.uk/pub/software/programs/DNS/makezones
-   
-   This package is mirrored at
+To promote dispersion and good recordkeeping, BIND will penalize the RTT
+by a little bit each time a server is reused, and it will penalize the RTT
+a _lot_ if it ever has to retransmit a query.  For a server to stay "#1",
+it has to keep on answering quickly and consistently.
 
-   ftp://ftp.njit.edu/pub/dns/cus.cam.ac/makezones
+Note that this is something BIND does that the DNS Specification does not
+mention at all.  So other servers, those not based on BIND, might behave
+very differently.
 
-   More information may be found using the DNS Resource Directory
+-----------------------------------------------------------------------------
 
-   http://www.dns.net/dnsrd
+Question 2.22.  InterNIC and domain names
 
+Date: Sun Jun  2 11:23:49 EDT 1996
 
--------------------------------
+The current InterNIC policy on what to do if someone wants to use a domain
+name that is already in use may be found at
+
+rs.internic.net : /policy/internic/internic-domain-4.txt
+
+or
+
+http://rs.internic.net/domain-info/internic-domain-4.html.
+
+The following information was submitted by Carl Oppedahl
+<oppedahl@patents.com> :
+
+If the jealous party happens to have a trademark registration, it is quite
+likely that the domain name owner will lose the domain name, even if they
+aren't infringing the trademark.  This presents a substantial risk of loss
+of a domain name on only 30 days' notice.  Anyone who is the manager of an
+Internet-connected site should be aware of this risk and should plan for
+it.
+
+See "How do I protect myself from loss of my domain name?" at
+http://www.patents.com/weblaw.sht#domloss.
+
+For an example of an ISP's battle to keep its domain name, see
+http://www.patents.com/nsi.sht.
+
+A compendium of information on the subject may be found at
+http://www.law.georgetown.edu/lc/internic/domain1.html.
+
+===============================================================================
+
+Section 3.  UTILITIES
+
+ Q3.1        Utilities to administer DNS zone files
+ Q3.2        DIG - Domain Internet Groper
+ Q3.3        DNS packet analyser
+ Q3.4        host
+ Q3.5        How can I use DNS information in my program?
+ Q3.6        A source of information relating to DNS
+
+-----------------------------------------------------------------------------
+
+Question 3.1.  Utilities to administer DNS zone files
+
+Date: Wed Sep  4 22:53:53 EDT 1996
+
+There are a few utilities available to ease the administration of zone
+files in the DNS.
+
+Two common ones are h2n and makezones.  Both are perl scripts.  h2n is
+used to convert host tables into zone data files.  It is available for
+anonymous ftp from
+
+ftp.uu.net : /published/oreilly/nutshell/dnsbind/dns.tar.Z
+
+makezones works from a single file that looks like a forward zone file,
+with some additional syntax for special cases.  It is included in the
+current BIND distribution.  The newest version is always available for
+anonymous ftp from
+
+ftp.cus.cam.ac.uk : /pub/software/programs/DNS/makezones
+
+More information may be found using the DNS Resources Directory
+
+http://www.dns.net/dnsrd/.
+
+-----------------------------------------------------------------------------
+
+Question 3.2.  DIG - Domain Internet Groper
 
 Date: Thu Dec  1 11:09:11 EST 1994
-Subject: Q2.2 - DIG - Domain Internet Groper
- 
-Q: Where can I find the latest version of DIG ?
- 
-A: The latest and greatest, official, accept-no-substitutes version of DiG
-   is the one that comes with BIND.  Get the latest kit.
 
--------------------------------
+The latest and greatest, official, accept-no-substitutes version of the
+Domain Internet Groper (DiG) is the one that comes with BIND.   Get the
+latest kit.
 
-Date: Mon May 15 12:57:42 EDT 1995
-Subject: Q2.3 -DNS packet analyser
+-----------------------------------------------------------------------------
 
-Q: I'm looking for a Ethernet packet analyser of public domain or standard
-   (like tcpdump, snoop, packetman) that is able to determine DNS data
-   field protocol
- 
-A: There is a free ethernet analyser called Ethload available for PC's 
-   running DOS. The latest filename is ETHLD104.ZIP. It understands lots 
-   of protocols including TCP/UDP. It'll look inside there and display 
-   DNS/BOOTP/ICMP packets etc. (Ed. note: something nice for someone to
-   add to tcpdump ;^) ).  Depending on the ethernet controller it's given 
-   it'll perform slightly differently. It handles NDIS/Novell/Packet 
-   drivers.  It works best with Novell's promiscuous mode drivers.  
-   A A SimTel mirror site should have the program available for anonymous
-   ftp.  As an example,
+Question 3.3.  DNS packet analyser
 
-      ftp://oak.oakland.edu/SimTel/msdos/lan/ethld104.zip
+Date: Wed Sep  4 23:43:57 EDT 1996
 
+There is a free ethernet analyser called Ethload available for PC's
+running DOS. The latest filename is ETHLD104.ZIP. It understands lots  of
+protocols including TCP/UDP. It'll look inside there and display
+DNS/BOOTP/ICMP packets etc. (Ed. note: something nice for someone to add
+to tcpdump ;^) ).  Depending on the ethernet controller it's given  it'll
+perform slightly differently. It handles NDIS/Novell/Packet  drivers.  It
+works best with Novell's promiscuous mode drivers.   A SimTel mirror site
+should have the program available for anonymous ftp.   One is
 
--------------------------------
+ftp.coast.net : /SimTel/msdos/lan/ethld104.zip
+
+-----------------------------------------------------------------------------
+
+Question 3.4.  host
 
 Date: Sun Dec  4 21:15:38 EST 1994
-Subject: Q2.4 - host
 
 A section from the host man page:
 
@@ -738,289 +894,369 @@ A section from the host man page:
      numeric Internet addresses.
 
 'host' is compatible with both BIND 4.9 and BIND 4.8
- 
+
 'host' may be found in contrib/host in the BIND distribution.  The latest
 version always available for anonymous ftp from
 
-    ftp://ftp.nikhef.nl/pub/network/host.tar.Z
+ftp.nikhef.nl : /pub/network/host.tar.Z
 
 It may also be found for anonymous ftp from
 
-    ftp://ftp.uu.net/networking/ip/dns/host.tar.Z
- 
--------------------------------
+ftp.uu.net : /networking/ip/dns/host.tar.Z
+
+-----------------------------------------------------------------------------
+
+Question 3.5.  How can I use DNS information in my program?
 
 Date: Fri Feb 10 15:25:11 EST 1995
-Subject: Q2.5 - Programming with DNS
 
-Q:  How can I use DNS information in my program?
- 
-A:  It depends on precisely what you want to do:
- 
-    a) Consider whether you need to write a program at all.  It may well 
-       be easier to write a shell program (e.g. using awk or perl) to parse 
-       the output of dig, host or nslookup.
- 
-    b) If all you need is names and addresses, there will probably be 
-       system routines 'gethostbyname' and 'gethostbyaddr' to provide this
-       information.
- 
-    c) If you need more details, then there are system routines (res_query 
-       and res_search) to assist with making and sending DNS queries.  
-       However, these do not include a routine to parse the resulting answer 
-       (although routines to assist in this task are provided).  There is a 
-       separate library available that will take a DNS response and unpick 
-       it into its constituent parts, returning a C structure that can be 
-       used by the program.  The source for this library is available for
-       anonymous ftp from
+It depends on precisely what you want to do:
 
-            ftp://hpux.csc.liv.ac.uk/hpux/Networking/Admin/resparse-*
+* Consider whether you need to write a program at all.  It may well be
+  easier to write a shell program (e.g. using awk or perl) to parse the
+  output of dig, host or nslookup.
+* If all you need is names and addresses, there will probably be system
+  routines 'gethostbyname' and 'gethostbyaddr' to provide this
+  information.
+* If you need more details, then there are system routines (res_query and
+  res_search) to assist with making and sending DNS queries.  However,
+  these do not include a routine to parse the resulting answer (although
+  routines to assist in this task are provided).  There is a separate
+  library available that will take a DNS response and unpick it into its
+  constituent parts, returning a C structure that can be used by the
+  program.  The source for this library is available for anonymous ftp at
 
+  hpux.csc.liv.ac.uk : /hpux/Networking/Admin/resparse-1.2
 
--------------------------------
+-----------------------------------------------------------------------------
 
+Question 3.6.  A source of information relating to DNS
 
-Date: Wed May  3 12:46:50 EDT 1995
-Subject: Q2.6 - A source of information relating to DNS
+Date: Tue Nov  5 23:42:21 EST 1996
 
-Q: Where can I find utilities and tools to help me manage my zone files ?
+You may find utilities and tools to help you manage your zone files
+(including WWW front-ends) in the "tools" section of the DNS  resources
+directory:
 
-A: There are several tools available.  Please refer to the "tools" section
-   of the DNS resources directory:
+http://www.dns.net/dnsrd/tools.html
 
-      http://www.dns.net/dnsrd/tools.html
+There are also a number of IP management tools available.  Data
+Communications had an article on the subject in Sept/Oct of 1996.  The
+tools mentioned in the article and a few others may be found at the
+following sites:
 
+* IP Address management, http://www.accugraph.com
+* IP-Track, http://www.on.com
+* NetID, http://www.isotro.com
+* QIP, http://www.quadritek.com
+* UName-It, http://www.esm.com
 
--------------------------------
+===============================================================================
 
+Section 4.  DEFINITIONS
 
-Date: Fri May 12 14:33:40 EDT 1995
-Subject: Q3.1 - TCP/IP Host Naming Conventions
+ Q4.1        TCP/IP Host Naming Conventions
+ Q4.2        What are slaves and forwarders ?
+ Q4.3        When is a server authoritative?
+ Q4.4        My server does not consider itself authoritative !
+ Q4.5        NS records don't configure servers as authoritative ?
+ Q4.6        underscore in host-/domainnames
+ Q4.7        What is lame delegation ?
+ Q4.8        How can I see if the server is "lame" ?
+ Q4.9        What does opt-class field in a zone file do?
+ Q4.10       Top level domains
+ Q4.11       Classes of networks
+ Q4.12       What is CIDR ?
+ Q4.13       What is the rule for glue ?
 
-Q: Is a guide available relating to naming systems ?
+-----------------------------------------------------------------------------
 
-A: One guide/resource is RFC 1178, "Choosing a Name for Your Computer", 
-   which is available via anonymous FTP from 
+Question 4.1.  TCP/IP Host Naming Conventions
 
-         ftp://ftp.internic.netrfc/rfc1178.txt
- 
-   RFCs (Request For Comments) are specifications and guidelines for how
-   many aspects of TCP/IP and the Internet (should) work.  Most RFCs are
-   fairly technical documents, and some have semantics that are hotly
-   contested in the newsgroups.  But a few, like RFC 1178, are actually
-   good to read for someone who's just starting along a TCP/IP path.
+Date: Mon Aug  5 22:49:46 EDT 1996
 
- 
--------------------------------
+One guide that may be used when naming hosts is RFC 1178, "Choosing a Name
+for Your Computer", which is available via anonymous FTP from
+
+ftp.internic.net : /rfc/rfc1178.txt
+
+RFCs (Request For Comments) are specifications and guidelines for how many
+aspects of TCP/IP and the Internet (should) work.  Most RFCs are fairly
+technical documents, and some have semantics that are hotly contested in
+the newsgroups.  But a few, like RFC 1178, are actually good to read for
+someone who's just starting along a TCP/IP path.
+
+-----------------------------------------------------------------------------
+
+Question 4.2.  What are slaves and forwarders ?
 
 Date: Thu Dec  1 10:32:43 EST 1994
-Subject: Q3.2 - What are slaves and forwarders ?
 
-Q: What are slaves and forwarders ?
+"forwarders" is a list of NS records that are _prepended_ to a list of NS
+records to query if the data is not available locally.  This allows a rich
+cache of records to be built up at a centralized location.  This is good
+for sites that have sporadic or very slow connections to the Internet.
+(demand dial-up, for example)  It's also just a good idea for very large
+distributed sites to increase the chance that you don't have to go off to
+the Internet to get an IP address. (sometimes for addresses across the
+street!)
 
-A: "forwarders" is a list of NS records that are _prepended_ to a list
-   of NS records to query if the data is not available locally.  This
-   allows a rich cache of records to be built up at a centralized
-   location.  This is good for sites that have sporadic or very slow
-   connections to the Internet.  (demand dial-up, for example)  It's
-   also just a good idea for very large distributed sites to increase
-   the chance that you don't have to go off to the Internet to get an
-   IP address. (sometimes for addresses across the street!)
- 
-   "slave" modifies this to say to replace the list of NS records
-   with the forwarders entry, instead of prepending to it.  This is
-   for firewalled environments, where the nameserver can't directly
-   get out to the Internet at all.
+"slave" modifies this to say to replace the list of NS records with the
+forwarders entry, instead of prepending to it.  This is for firewalled
+environments, where the nameserver can't directly get out to the Internet
+at all.
 
-   "slave" is meaningless (and invalid, in late-model BINDs) without
-   "forwarders".  "forwarders" is an entry in named.boot, and therefore
-   applies only to the nameserver (not to resolvers).
+"slave" is meaningless (and invalid, in late-model BINDs) without
+"forwarders".  "forwarders" is an entry in named.boot, and therefore
+applies only to the nameserver (not to resolvers).
 
--------------------------------
+-----------------------------------------------------------------------------
+
+Question 4.3.  When is a server authoritative?
 
 Date: Mon Jan  2 13:15:13 EST 1995
-Subject: Q3.3 - When is a server authoritative?
 
+In the case of BIND:
 
-Q: What criteria does a server use to determine if it is authoritative
-   for a domain?  
+* The server contains current data in files for the zone in question (Data
+  must be current for secondaries, as defined in the SOA)
+* The server is told that it is authoritative for the zone, by a 'primary'
+  or 'secondary' keyword in /etc/named.boot.
+* The server does an error-free load of the zone.
 
-A: In the case of BIND:
-        1) The server contains current data in files for the zone in 
-           question (Data must be current for secondaries, as defined 
-           in the SOA)
-        2) The server is told that it is authoritative for the zone, by
-           a 'primary' or 'secondary' keyword in /etc/named.boot.
-        3) The server does an error-free load of the zone.
+-----------------------------------------------------------------------------
 
-Q: I have set up a DNS where there is an SOA record for
-   the domain, but the server still does not consider itself
-   authoritative.  (I used nslookup and set server=the correct machine.)
-   It seems to me that something is not matching up somewhere.  I suspect
-   that this is because the service provider has not given us control
-   over the IP numbers in our own domain, and so while the machine listed
-   has an A record for an address, there is no corresponding PTR record.
+Question 4.4.  My server does not consider itself authoritative !
 
-A: That's possible too, but is unrelated to the first question.
-   You need to be delegated a zone before outside people will start
-   talking to your server.  However, a server can still be authoritative
-   for a zone even though it hasn't been delegated authority (it's just 
-   that only the people who use that as their server will see the data).
+Date: Mon Jan  2 13:15:13 EST 1995
+
+The question was:
+
+  What if I have set up a DNS where there is an SOA record for
+  the domain, but the server still does not consider itself
+  authoritative.  (when using nslookup and set server=the correct machine.)
+  It seems that something is not matching up somewhere.  I suspect
+  that this is because the service provider has not given us control
+  over the IP numbers in our own domain, and so while the machine listed
+  has an A record for an address, there is no corresponding PTR record.
+With the answer:
+
+  That's possible too, but is unrelated to the first question.
+  You need to be delegated a zone before outside people will start
+  talking to your server.  However, a server can still be authoritative
+  for a zone even though it hasn't been delegated authority (it's just 
+  that only the people who use that as their server will see the data).
     
-   A server may consider itself non-authoritative even though it's a
-   primary if there is a syntax error in the zone (see point 3 above).
+  A server may consider itself non-authoritative even though it's a
+  primary if there is a syntax error in the zone (see the list in the 
+  previous question).
+-----------------------------------------------------------------------------
 
-Q: I always believe that it was the NS record that defined authoritative
-   servers.
+Question 4.5.  NS records don't configure servers as authoritative ?
 
-A: Nope, delegation is a separate issue from authoritativeness.  
-   You can still be authoritative, but not delegated.  (you can also be 
-   delegated, but not authoritative -- that's a "lame delegation")
+Date: Fri Dec  6 16:13:34 EST 1996
 
-Q: We have had problems in the past from servers that were
-   authoritative (primary or secondary) but no NS, so other thought they
-   were not.  Some resolvers get very confused when they get non-
-   authoritative data from the primary server.
+Nope, delegation is a separate issue from authoritativeness.  You can
+still be authoritative, but not delegated.  (you can also be  delegated,
+but not authoritative -- that's a "lame delegation")
 
-A: Yes, that's a lame delegation.  That's not caused by what you said,
-   but rather by a server which is _not_ authoritative for a zone, yet
-   someone else (the parent) is saying that a server is authoritative
-   (via the NS records).
+-----------------------------------------------------------------------------
 
-   The set of NS records in the parent zone must be a subset of the
-   authoritative servers to avoid lame delegations.
+Question 4.6.  underscore in host-/domainnames
 
+Date: Mon Aug  5 22:39:02 EDT 1996
 
--------------------------------
-
-Date: Fri Apr 28 13:26:37 EDT 1995
-Subject: Q3.4 - underscore in host-/domainnames
-
-
-Q: I had a quick look on whether underscores are allowed in host- or 
-   domainnames.
-
+The question is "Are underscores are allowed in host- or domainnames" ?
         RFC 1033 allows them.
         RFC 1035 doesn't.
         RFC 1123 doesn't.
         dnswalk complains about them.
 
-   Which RFC is the final authority these days?
 
-A: Actually RFC 1035 deals with names of machines or names of
-   mail domains. i.e "_" is not permitted in a hostname or on the
-   RHS of the "@" in local@domain.
+Which RFC is the final authority these days?
 
-   Underscore is permitted where ever the domain is NOT one of
-   these types of addresses.
+Actually RFC 1035 deals with names of machines or names of mail domains.
+i.e "_" is not permitted in a hostname or on the RHS of the "@" in
+local@domain.
 
-   In general the DNS mostly contains hostnames and mail domainnames.
-   This will change as new resource record types for authenticating DNS 
-   queries start to appear.
+Underscore is permitted where ever the domain is NOT one of these types
+of addresses.
 
-   The latest version of 'host' checks for illegal characters in A/MX
-   record names and the NS/MX target names.
+In general the DNS mostly contains hostnames and mail domainnames.  This
+will change as new resource record types for authenticating DNS  queries
+start to appear.
 
-   After saying all of that, remember that RFC 1123 is a Required Internet 
-   Standard (per RFC 1720), and RFC 1033 isn't.  Even 1035 isn't a required 
-   standard.  Therefore, RFC 1123 wins, no contest.
+The latest version of 'host' checks for illegal characters in A/MX record
+names and the NS/MX target names.
 
+After saying all of that, remember that RFC 1123 is a Required Internet
+Standard (per RFC 1720), and RFC 1033 isn't.  Even  RFC 1035 isn't a
+required standard.  Therefore, RFC 1123 wins, no contest.
 
--------------------------------
+From RFC 1123, Section 2.1
 
-Date: Fri Dec  2 15:03:56 EST 1994
-Subject: Q3.5 - Lame delegation
+   2.1  Host Names and Numbers
 
-Q: What is lame delegation ?
+      The syntax of a legal Internet host name was specified in RFC-952
+      [DNS:4].  One aspect of host name syntax is hereby changed: the
+      restriction on the first character is relaxed to allow either a
+      letter or a digit.  Host software MUST support this more liberal
+      syntax.
 
-A: Two things are required for a lame delegation:
-        1) A nameserver X is delegated as authoritative for a zone.
-        2) Nameserver X is not performing nameservice for that zone.
+   And described by Dave Barr in RFC1912:
 
-   Try to think of a lame delegation as a long-term condition, brought
-   about by a misconfiguration somewhere.  Bryan Beecher's 1992 LISA
-   paper on lame delegations is good to read on this.  The problem
-   really lies in misconfigured nameservers, not "lameness" brought
-   about by transient outages.  The latter is common on the Internet
-   and hard to avoid, while the former is correctable.
+      Allowable characters in a label for a host name are only ASCII
+      letters, digits, and the `-' character.  Labels may not be all
+      numbers, but may have a leading digit  (e.g., 3com.com).  Labels must
+      end and begin only with a letter or digit.  See [RFC 1035] and [RFC
+      1123].  (Labels were initially restricted in [RFC 1035] to start with
+      a letter, and some older hosts still reportedly have problems with
+      the relaxation in [RFC 1123].)  Note there are some Internet
+      hostnames which violate this rule (411.org, 1776.com).
 
-   In order to be performing nameservice for a zone, it must have
-   (presumed correct) data for that zone, and it must be answering
-   authoritatively to resolver queries for that zone.  (The AA bit is
-   set in the flags section)
+Finally, one more piece of information (From Paul Vixie):
 
-   The "classic" lame delegation case is when nameserver X is delegated
-   as authoritative for domain Y, yet when you ask Y about X, it
-   returns non-authoritative data.
+   RFC 1034 says only that domain names have characters in them, though it
+   says so with enough fancy and indirection that it's hard to tell exactly.
 
-   Here's an example that shows what happens most often (using dig,
-   dnswalk, and doc to find).
+   Generally, for second level domains (i.e., something you would get from
+   InterNIC or from the US Domain Registrar and probably other ISO 3166
+   country code TLDs), RFC 952 is thought to apply.  RFC 952 was about host
+   names rather than domain names, but the rules seemed good enough.
 
-   Let's say the domain bogus.com gets registered at the NIC and they
-   have listed 2 primary name servers, both from their *upstream*
-   provider:
+        <domainname> ::= <hname>
+
+        <hname> ::= <name>*["."<name>]
+        <name>  ::= <let>[*[<let-or-digit-or-hyphen>]<let-or-digit>]
  
+There has been a recent update on this subject which may be found in
+
+ftp.internic.net : /internet-drafts/draft-andrews-dns-hostnames-03.txt.
+
+-----------------------------------------------------------------------------
+
+Question 4.7.  What is lame delegation ?
+
+Date: Mon Aug  5 22:45:02 EDT 1996
+
+Two things are required for a lame delegation:
+
+* A nameserver X is delegated as authoritative for a zone.
+* Nameserver X is not performing nameservice for that zone.
+
+Try to think of a lame delegation as a long-term condition, brought about
+by a misconfiguration somewhere.  Bryan Beecher's 1992 LISA paper on lame
+delegations is good to read on this.  The problem really lies in
+misconfigured nameservers, not "lameness" brought about by transient
+outages.  The latter is common on the Internet and hard to avoid, while
+the former is correctable.
+
+In order to be performing nameservice for a zone, it must have (presumed
+correct) data for that zone, and it must be answering authoritatively to
+resolver queries for that zone.  (The AA bit is set in the flags section)
+
+The "classic" lame delegation case is when nameserver X is delegated as
+authoritative for domain Y, yet when you ask Y about X, it returns
+non-authoritative data.
+
+Here's an example that shows what happens most often (using dig, dnswalk,
+and doc to find).
+
+Let's say the domain bogus.com gets registered at the NIC and they have
+listed 2 primary name servers, both from their *upstream* provider:
+
  bogus.com      IN      NS      ns.bogus.com
  bogus.com      IN      NS      upstream.com
  bogus.com      IN      NS      upstream1.com
 
-   So the root servers have this info.  But when the admins at
-   bogus.com actually set up their zone files they put something like:
- 
+So the root servers have this info.  But when the admins at bogus.com
+actually set up their zone files they put something like:
+
  bogus.com      IN      NS      upstream.com
  bogus.com      IN      NS      upstream1.com
 
-   So your name server may have the nameserver info cached (which it
-   may have gotten from the root).  The root says "go ask ns.bogus.com"
-   since they are authoritative
+So your name server may have the nameserver info cached (which it may have
+gotten from the root).  The root says "go ask ns.bogus.com" since they are
+authoritative
 
-   This is usually from stuff being registered at the NIC (either
-   nic.ddn.mil or rs.internic.net), and then updated later, but the
-   folks who make the updates later never let the folks at the NIC know
-   about it.
+This is usually from stuff being registered at the NIC (either nic.ddn.mil
+or rs.internic.net), and then updated later, but the folks who make the
+updates later never let the folks at the NIC know about it.
 
-Q: How can I see if the server is "lame" ?
+-----------------------------------------------------------------------------
 
-A: Go to the authoritative servers one level up, and ask them who
-   they think is authoritative, and then go ask each one of those
-   delegees if they think that they themselves are authoritative.  If any
-   responds "no", then you know who the lame delegation is, and who is
-   delegating lamely to them.  You can then send off a message to the
-   administrators of the level above.
+Question 4.8.  How can I see if the server is "lame" ?
 
-   The 'lamers' script from Byran Beecher really takes care of all this
-   for you.  It parses the lame delegation notices from BIND's syslog
-   and summarizes them for you.  It may be found in the contrib section
-   of the latest BIND distribution.  The latest version is available
-   for anonymous ftp from
+Date: Mon Aug  5 22:45:02 EDT 1996
 
-       ftp://terminator.cc.umich.edu/dns/lame-delegations/
+Go to the authoritative servers one level up, and ask them who they think
+is authoritative, and then go ask each one of those delegees if they think
+that they themselves are authoritative.  If any responds "no", then you
+know who the lame delegation is, and who is delegating lamely to them.
+You can then send off a message to the administrators of the level above.
+
+The 'lamers' script from Byran Beecher really takes care of all this for
+you.  It parses the lame delegation notices from BIND's syslog and
+summarizes them for you.  It may be found in the contrib section of the
+latest BIND distribution.  The latest version is available for anonymous
+ftp from
+
+terminator.cc.umich.edu : /dns/lame-delegations/
 
    If you want to actively check for lame delegations, you can use 'doc'
-   and 'dnswalk'.   You can check things manually with 'dig'.
+and 'dnswalk'.   You can check things manually with 'dig'.
 
--------------------------------
+The InterNIC recently announced a new lame delegation that will be in
+effect on 01 October, 1996.  Here is a summary:
+
+* After receipt/processing of a name registration template, and at random
+  intervals thereafter, the InterNIC will perform a DNS query  via UDP
+  Port 53 on domain names for an SOA response for the name  being
+  registered.
+* If the query of the domain name returns a non-authoritative response
+  from all the listed name servers, the query will be repeated four times
+  over the next 30 days at random intervals approximately 7 days apart,
+  with notification to all listed whois and nameserver contacts of the
+  possible pending deletion.  If at least one server answers correctly,
+  but one or more are lame, FYI notifications will be sent to all contacts
+  and checking will be discontinued.  Additionally, e-mail notices will be
+  provided to the contact for the name servers holding the delegation to
+  alert them to the "lame" condition.  Notifications will state explicitly
+  the consequences of not correcting the "lame" condition and will be
+  assigned a descriptive subject as follows:
+
+     Subject: Lame Delegation Notice: DOMAIN_NAME
+
+  The notification will include a timestamp for when the query was
+  performed.
+* If, following 30 days, the name servers still provide no SOA response,
+  the name will be placed in a "hold" status and the DNS information will
+  no longer be propagated.  The administrative contact will be notified by
+  postal mail and all whois contacts will be notified by e-mail, with
+  instructions for taking corrective action.
+* Following 60 days in a "hold" status, the name will be deleted and made
+  available for reregistration.  Notification of the final deletion will
+  be sent to the name server and domain name contacts  listed in the NIC
+  database.
+
+-----------------------------------------------------------------------------
+
+Question 4.9.  What does opt-class field in a zone file do?
 
 Date: Thu Dec  1 11:10:39 EST 1994
-Subject: Q3.6 - What does opt-class field do?
 
-Q: Just something I was wondering about: What does the opt-class
-   field in an name database do (the one that always says IN)?
-   What would happen if I put something else there instead?
-
-A: This field is the address class.  From the BOG -
+This field is the address class.  From the BOG -
 
       ...is the address class; currently, only one class
       is supported: IN  for  internet  addresses  and  other
       internet information.  Limited support is included for
       the HS  class,  which  is  for  MIT/Athena  ``Hesiod''
       information.
+-----------------------------------------------------------------------------
 
--------------------------------
+Question 4.10.  Top level domains
 
-Date: Fri Feb 10 14:49:54 EST 1995
-Subject: Q3.7 - Top level domains
-
+Date: Fri Dec  6 15:13:35 EST 1996
 
 A section from RFC 1591:
 
@@ -1033,12 +1269,35 @@ A section from RFC 1591:
    letter country codes from ISO-3166.  It is extremely unlikely that
    any other TLDs will be created.
 
-[ Ed note:  the ISO-3166 country codes may be found for anonymous ftp from:
+-----
 
-     ftp://ftp.isi.edu/in-notes/iana/assignments/country-codes
-     ftp://ftp.ripe.net/iso3166-codes
+[ Ed note:  the ISO-3166 country codes may be found for anonymous ftp
+from:
+
+* ftp.isi.edu : /in-notes/iana/assignments/country-codes
+* ftp.ripe.net : /iso3166-codes
+
 ]
 
+[ Ed note: Since the Internic started charging for registration services,
+(and for other reasons) there are a number of groups that want to offer
+an alternative to registering a domain under a "standard" TLD.  More
+information on some of these options may be found at:
+
+*      http://www.alternic.net/
+*      http://www.eu.org/
+*      http://www.ml.org/mljoin.html
+
+You may participate in one of the discussions on iTLD proposals at
+
+* To sign up: http://www.newdom.com/lists
+* Old postings: http://www.newdom.com/archive
+
+]
+
+-----
+
+   ...
    Under each TLD may be created a hierarchy of names.  Generally, under
    the generic TLDs the structure is very flat.  That is, many
    organizations are registered directly under the TLD, and any further
@@ -1208,43 +1467,44 @@ A section from RFC 1480:
        state-wide organizations, clubs, or domain parks.  For example:
        <org-name>.GEN.<state-code>.US.
 
-   The application form for the US domain may be found for anonymous ftp 
-   from:
+The application form for the US domain may be found:
 
-       ftp://internic.net/templates/us-domain-template.txt
+* for anonymous ftp from internic.net : /templates/us-domain-template.txt
+* http://www.isi.edu/us-domain/
 
-   The application form for the EDU, COM, NET, ORG, and  GOV domains may be 
-   found for anonymous ftp from:
+The application form for the EDU, COM, NET, ORG, and  GOV domains may be
+found for anonymous ftp from:
 
-       ftp://internic.net/templates/domain-template.txt
+internic.net : /templates/domain-template.txt
 
- 
--------------------------------
+-----------------------------------------------------------------------------
 
-Date: Sun Nov 27 23:32:41 EST 1994
-Subject: Q3.8 - Classes of networks
+Question 4.11.  Classes of networks
 
-Q: I am just kind of curious to what exactly the differences in classes
-   of networks are (class A, B, C).  
- 
-A: An Internet Protocol (IP) address is 32 bit in length, divided into 
-   two or three parts (the network address, the subnet address (if present),
-   and the host address.  The subnet addresses are only present if the
-   network has been divided into subnetworks.  The length of the network,
-   subnet, and host field are all variable. 
+Date: Wed Sep  4 22:59:27 EDT 1996
 
-   There are five different network classes.  The leftmost bits indicate 
-   the class of the network.
+The usage of 'classes of networks' (class A, B, C) are historical and have
+been replaced by CIDR blocks on the Internet.  That being said...
 
-      # bits in  # bits in
-       network     host
-Class   field     field   Internet Protocol address in binary  Ranges
+An Internet Protocol (IP) address is 32 bit in length, divided into  two
+or three parts (the network address, the subnet address (if present), and
+the host address.  The subnet addresses are only present if the network
+has been divided into subnetworks.  The length of the network, subnet, and
+host field are all variable.
+
+There are five different network classes.  The leftmost bits indicate  the
+class of the network.
+
+       # of     # of
+      bits in  bits in
+      network   host
+Class  field    field   Internet Protocol address in binary  Ranges
 ============================================================================
-  A       7         24    0NNNNNNN.HHHHHHHH.HHHHHHHH.HHHHHHHH    1-127.x.x.x
-  B      14         16    10NNNNNN.NNNNNNNN.HHHHHHHH.HHHHHHHH  128-191.x.x.x
-  C      22          8    110NNNNN.NNNNNNNN.NNNNNNNN.HHHHHHHH  192-223.x.x.x
-  D      NOTE 1           1110xxxx.xxxxxxxx.xxxxxxxx.xxxxxxxx  224-239.x.x.x
-  E      NOTE 2           11110xxx.xxxxxxxx.xxxxxxxx.xxxxxxxx  240-247.x.x.x
+  A      7       24      0NNNNNNN.HHHHHHHH.HHHHHHHH.HHHHHHHH    1-127.x.x.x
+  B     14       16      10NNNNNN.NNNNNNNN.HHHHHHHH.HHHHHHHH  128-191.x.x.x
+  C     22        8      110NNNNN.NNNNNNNN.NNNNNNNN.HHHHHHHH  192-223.x.x.x
+  D     NOTE 1           1110xxxx.xxxxxxxx.xxxxxxxx.xxxxxxxx  224-239.x.x.x
+  E     NOTE 2           11110xxx.xxxxxxxx.xxxxxxxx.xxxxxxxx  240-247.x.x.x
 
    where N represents part of the network address and H represents part of 
    the host address.   When the subnet address is defined, the needed bits 
@@ -1254,77 +1514,76 @@ Class   field     field   Internet Protocol address in binary  Ranges
    NOTE 2: Reserved for future use
 
    127.0.0.1 is reserved for local loopback.
- 
-   Under the current arrangements, many class A IP numbers will not be
-   assigned whereas class C usage will be at a premium.   
- 
--------------------------------
 
+-----------------------------------------------------------------------------
 
-Date: Fri Apr 28 13:31:24 EDT 1995
-Subject: Q3.9 - What is CIDR ?
+Question 4.12.  What is CIDR ?
 
-Q: What is CIDR ?
+Date: Tue Nov  5 23:47:29 EST 1996
 
-A: CIDR is "Classless Inter-Domain Routing (CIDR).  From RFC1517:
+CIDR is "Classless Inter-Domain Routing (CIDR).  From RFC 1517:
 
-      ...Classless Inter-Domain Routing (CIDR) attempts to deal with 
+      ...Classless Inter-Domain Routing (CIDR) attempts to deal with
       these problems by defining a mechanism to slow the growth of 
       routing tables and reduce the need to allocate new IP network 
       numbers.  
 
-   Much more information may be obtained in RFCs 1467, 1517, 1518, 1520; 
-   with primary reference 1519
+Much more information may be obtained in RFCs 1467, 1517, 1518, 1520;
+with primary reference 1519.
 
+Also please see the CIDR FAQ at
 
--------------------------------
+* http://www.ibm.net.il/~hank/cidr.html
+* http://www.rain.net/faqs/cidr.faq.html
+* http://www.lab.unisource.ch/services/internet/direct/cidr.html
 
+-----------------------------------------------------------------------------
+
+Question 4.13.  What is the rule for glue ?
 
 Date: Fri Apr 28 13:31:24 EDT 1995
-Subject: Q3.10 - What is the rule for glue ?
 
-Q: What is the rule for glue ?
+A glue record is an A record for a name that appears on the right-hand
+side of a NS record.  So, if you have this:
 
-A: A glue record is an A record for a name that appears on the right-hand 
-   side of a NS record.  So, if you have this:
  
         sub.foobar.com.        IN      NS      dns.sub.foobar.com.
         dns.sub.foobar.com.    IN      A       1.2.3.4
 
-   then the second record is a glue record (for the NS record above it).
- 
-   You need glue records when -- and only when -- you are delegating
-   authority to a nameserver that "lives" in the domain you are delegating 
-   *and* you aren't a secondary server for that domain.
+then the second record is a glue record (for the NS record above it).
 
-   In other words, in the example above, you need to add an A record
-   for dns.sub.foobar.com since it "lives" in the domain it serves.
-   This boot strapping information is necessary:  How are you supposed
-   to find out the IP address of the nameserver for domain FOO if the
-   nameserver for FOO "lives" in FOO?
- 
-   If you have this NS record:
- 
+You need glue records when -- and only when -- you are delegating
+authority to a nameserver that "lives" in the domain you are delegating
+*and* you aren't a secondary server for that domain.
+
+In other words, in the example above, you need to add an A record for
+dns.sub.foobar.com since it "lives" in the domain it serves.  This boot
+strapping information is necessary:  How are you supposed to find out the
+IP address of the nameserver for domain FOO if the nameserver for FOO
+"lives" in FOO?
+
+If you have this NS record:
+
         sub.foobar.com.         IN      NS      dns.xyz123.com.
 
-   you do NOT need a glue record, and, in fact, adding one is a very
-   bad idea.  If you add one, and then the folks at xyz123.com change
-   the address, then you will be passing out incorrect data.
- 
-   Also, unless you actually have a machine called something.IN-ADDR.ARPA, 
-   you will never have any glue records present in any of your "reverse" 
-   files.
+you do NOT need a glue record, and, in fact, adding one is a very bad
+idea.  If you add one, and then the folks at xyz123.com change the
+address, then you will be passing out incorrect data.
 
-   There is also a sort of implicit glue record that can be useful (or 
-   confusing :^) ).  If the parent server (abc.foobar.com domain in example
-   above) is a secondary server for the child, then the A record will be
-   fetched from the child server when the zone transfer is done.  The glue
-   is still there but it's a little different, it's in the ip address in 
-   the named.boot line instead of explicitly in the data.  In this case 
-   you can leave out the explicit glue A record and leave the manually 
-   configured "glue" in just the one place in the named.boot file. 
+Also, unless you actually have a machine called something.IN-ADDR.ARPA,
+you will never have any glue records present in any of your "reverse"
+files.
 
-   RFC 1537 says it quite nicely:
+There is also a sort of implicit glue record that can be useful (or
+confusing :^) ).  If the parent server (abc.foobar.com domain in example
+above) is a secondary server for the child, then the A record will be
+fetched from the child server when the zone transfer is done.  The glue is
+still there but it's a little different, it's in the ip address in  the
+named.boot line instead of explicitly in the data.  In this case  you can
+leave out the explicit glue A record and leave the manually  configured
+"glue" in just the one place in the named.boot file.
+
+RFC 1537 says it quite nicely:
 
       2. Glue records
  
@@ -1337,3 +1596,7 @@ A: A glue record is an A record for a name that appears on the right-hand
          Old BIND versions ("native" 4.8.3 and older versions) showed the
          problem that wrong glue records could enter secondary servers in
          a zone transfer.
+
+
+The remainder of the FAQ is in the next part (Part 2 of 2).
+

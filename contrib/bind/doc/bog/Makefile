@@ -62,6 +62,9 @@ ME=	-me
 NROFF=	nroff -rb3
 PRINTER= -Pdp
 TBL=	dtbl $(PRINTER)
+# For Linux:
+#PRINTER=
+#TBL=   tbl $(PRINTER)
 TROFF= ditroff $(PRINTER)
 GROFF= groff -Tps -t $(ME)
 
