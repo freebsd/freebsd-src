@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.23 1995/02/13 02:03:57 ache Exp $
+ * $Id: tty.c,v 1.21 1995/02/09 11:13:30 jkh Exp $
  */
+
+#include "snp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,7 +59,12 @@
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 
+#if (defined NSNP) && (NSNP > 0)
+#include <sys/snoop.h>
+#endif
+
 #include <vm/vm.h>
+
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
 static void	ttyblock __P((struct tty *tp));
@@ -1005,8 +1012,6 @@ ttywait(tp)
 				break;
 		}
 	}
-	if (!error && (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)))
-		error = EIO;
 	splx(s);
 	return (error);
 }
@@ -1138,8 +1143,10 @@ ttylclose(tp, flag)
 	int flag;
 {
 
-	if ((flag & IO_NDELAY) || ttywflush(tp))
+	if (flag & IO_NDELAY)
 		ttyflush(tp, FREAD | FWRITE);
+	else
+		ttywflush(tp);
 	return (0);
 }
 
@@ -1594,6 +1601,11 @@ loop:
 				cc = 0;
 				break;
 			}
+#if (defined NSNP)  &&  (NSNP > 0)
+		if (tp->t_state&TS_SNOOP && tp->t_sc!=NULL) {
+			snpin((struct snoop *)tp->t_sc,cp,cc);
+		}
+#endif
 		}
 		/*
 		 * If nothing fancy need be done, grab those characters we
