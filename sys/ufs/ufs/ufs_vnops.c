@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.93 1998/07/03 22:37:43 bde Exp $
+ * $Id: ufs_vnops.c,v 1.94 1998/07/04 20:45:40 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -1279,6 +1279,7 @@ ufs_mkdir(ap)
 	struct direct newdir;
 	struct timeval tv;
 	int error, dmode;
+	long blkoff;
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & HASBUF) == 0)
@@ -1402,6 +1403,20 @@ ufs_mkdir(ap)
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	vnode_pager_setsize(tvp, (u_long)ip->i_size);
 	bcopy((caddr_t)&dirtemplate, (caddr_t)bp->b_data, sizeof dirtemplate);
+	if (DOINGSOFTDEP(tvp)) {
+		/*
+		 * Ensure that the entire newly allocated block is a
+		 * valid directory so that future growth within the
+		 * block does not have to ensure that the block is
+		 * written before the inode.
+		 */
+		blkoff = DIRBLKSIZ;
+		while (blkoff < bp->b_bcount) {
+			((struct direct *)
+			   (bp->b_data + blkoff))->d_reclen = DIRBLKSIZ;
+			blkoff += DIRBLKSIZ;
+		}
+	}
 	if ((error = UFS_UPDATE(tvp, &tv, &tv, !DOINGSOFTDEP(tvp))) != 0) {
 		(void)VOP_BWRITE(bp);
 		goto bad;
