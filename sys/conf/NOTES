@@ -1924,6 +1924,15 @@ device		snd_vibes
 #device		"snd_vortex1"
 device		snd_uaudio
 
+#
+# IEEE-488 hardware:
+#	pcii:	PCIIA cards (uPD7210 based isa cards)
+device pcii
+hint.pcii.0.at="isa"
+hint.pcii.0.port="0x2e1"
+hint.pcii.0.irq="5"
+hint.pcii.0.drq="1"
+
 # For non-pnp sound cards:
 hint.pcm.0.at="isa"
 hint.pcm.0.irq="10"

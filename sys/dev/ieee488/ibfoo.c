@@ -83,7 +83,6 @@ struct handle {
 struct ibfoo {
 	struct upd7210		*u;
 	LIST_HEAD(,handle)	handles;
-	struct unrhdr		*unrhdr;
 	struct callout		callout;
 	struct handle		*h;
 	struct ibarg		*ap;
@@ -458,9 +457,10 @@ static int
 ibdev(struct ibfoo *ib)
 {	/* TBD */
 	struct handle *h;
+	static int unit;
 
 	h = malloc(sizeof *h, M_IBFOO, M_ZERO | M_WAITOK);
-	h->handle = alloc_unr(ib->unrhdr);
+	h->handle = unit++;
 	h->kind = H_DEV;
 	h->pad = ib->ap->pad;
 	h->sad = ib->ap->sad;
@@ -793,7 +793,7 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		mtx_lock(&Giant);
 		error = isa_dma_acquire(u->dmachan);
 		if (!error) {
-			error = isa_dma_init(u->dmachan, PAGE_SIZE, M_WAITOK);
+			isa_dmainit(u->dmachan, PAGE_SIZE);
 			if (error)
 				isa_dma_release(u->dmachan);
 		}
@@ -810,7 +810,6 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	ib = malloc(sizeof *ib, M_IBFOO, M_WAITOK | M_ZERO);
 	LIST_INIT(&ib->handles);
 	callout_init(&ib->callout, 1);
-	ib->unrhdr = new_unrhdr(0, INT_MAX, NULL);
 	dev->si_drv2 = ib;
 	ib->u = u;
 	u->ibfoo = ib;

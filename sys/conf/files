@@ -505,6 +505,9 @@ dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
 dev/ie/if_ie.c		optional ie isa nowerror
 dev/ie/if_ie_isa.c	optional ie isa
+dev/ieee488/ibfoo.c	optional pcii
+dev/ieee488/pcii.c	optional pcii
+dev/ieee488/upd7210.c	optional pcii
 dev/iicbus/iicbb_if.m	optional iicbb
 dev/iicbus/iicbus_if.m	optional iicbus
 dev/iicbus/if_ic.c	optional ic
