@@ -33,7 +33,8 @@
 #
 
 C|c:\
-	:pb=^\d?*?\d?\p\d?\(\a?\)(\d|{):bb={:be=}:cb=/*:ce=*/:sb=":se=\e":lb=':\
+	:pb=^\a?\d?*?\d?\p\d?\(\a?\)(\d|{):\
+	:bb={:be=}:cb=/*:ce=*/:sb=":se=\e":lb=':\
 	:le=\e':tl:\
 	:kw=asm auto break case char continue default do double else enum\
 	extern float for fortran goto if int long register return short\
@@ -134,7 +135,8 @@ yacc|Yacc|y:\
 	#else #endif #if #ifdef #ifndef #include #undef # define else endif\
 	if ifdef ifndef include undef:
 C++|c++:\
-	:pb=^\d?*?\d?\p\d?\(\a?\)(\d|{):bb={:be=}:cb=/*:ce=*/:ab=//:\
+	:pb=^\a?\d?*?\d?\p\d?\(\a?\)(\d|{):\
+	:bb={:be=}:cb=/*:ce=*/:ab=//:\
 	:ae=$:sb=":se=\e":lb=':\
 	:le=\e':tl:\
 	:kw=asm auto break case char continue default do double else enum\
