@@ -52,10 +52,6 @@ main(argc, argv)
 	register int c;
 	register char *p;
 
-	/* revoke */
-	setegid(getgid());
-	setgid(getgid());
-
 	(void) puts("___________");
 	if (argc > 1)
 		while (p = *++argv)
