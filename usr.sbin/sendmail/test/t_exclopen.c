@@ -19,6 +19,8 @@
 **	HP-UX 10.20	OK
 **	Irix 5.3	OK
 **	Irix 6.2	OK
+**	Irix 6.3	OK
+**	Irix 6.4	OK
 **	Linux		OK
 **	NeXT 2.1	OK
 **	Solaris 2.x	OK
