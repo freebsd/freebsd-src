@@ -442,10 +442,10 @@ linked(file)
 	register char *file;
 {
 	register char *cp;
-	static char buf[BUFSIZ];
+	static char buf[MAXPATHLEN];
 
 	if (*file != '/') {
-		if (getcwd(buf,sizeof(buf)) == NULL)
+		if (getcwd(buf, sizeof(buf)) == NULL)
 			return(NULL);
 		while (file[0] == '.') {
 			switch (file[1]) {
@@ -462,8 +462,8 @@ linked(file)
 			}
 			break;
 		}
-		strcat(buf, "/");
-		strcat(buf, file);
+		strncat(buf, "/", sizeof(buf) - strlen(buf) - 1);
+		strncat(buf, file, sizeof(buf) - strlen(buf) - 1);
 		file = buf;
 	}
 	return(symlink(file, dfname) ? NULL : file);
