@@ -186,7 +186,7 @@ mtx_pool_alloc(struct mtx_pool *pool)
  * The lockbuilder pool must be initialized early because the lockmgr
  * and sx locks depend on it.  The sx locks are used in the kernel
  * memory allocator.  The lockmgr subsystem is initialized by
- * SYSINIT(..., SI_SUB_LOCK, ...).
+ * SYSINIT(..., SI_SUB_LOCKMGR, ...).
  *
  * We can't call MALLOC() to dynamically allocate the sleep pool
  * until after kmeminit() has been called, which is done by
