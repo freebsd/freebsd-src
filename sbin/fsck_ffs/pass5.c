@@ -186,7 +186,7 @@ pass5(void)
 			dmax = fs->fs_size;
 		newcg->cg_time = cg->cg_time;
 		newcg->cg_cgx = c;
-		if (c == fs->fs_ncg - 1)
+		if (c == fs->fs_ncg - 1 && fs->fs_ncyl % fs->fs_cpg > 0)
 			newcg->cg_ncyl = fs->fs_ncyl % fs->fs_cpg;
 		else
 			newcg->cg_ncyl = fs->fs_cpg;
