@@ -36,9 +36,13 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)yacc.y	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$FreeBSD$";
+#endif /* 0 */
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
 
@@ -48,16 +52,25 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "ldef.h"
+#include "extern.h"
 
-char	*locale_file = "<stdout>";
+static void *xmalloc(unsigned int sz);
+static unsigned long *xlalloc(unsigned int sz);
+static void yyerror(const char *s);
+static unsigned long *xrelalloc(unsigned long *old, unsigned int sz);
+static void dump_tables(void);
 
-rune_map	maplower = { 0, };
-rune_map	mapupper = { 0, };
-rune_map	types = { 0, };
+const char	*locale_file = "<stdout>";
 
-_RuneLocale	new_locale = { 0, };
+rune_map	maplower = { { 0 }, NULL };
+rune_map	mapupper = { { 0 }, NULL };
+rune_map	types = { { 0 }, NULL };
+
+_RuneLocale	new_locale = { "", "", NULL, NULL, 0, {}, {}, {},
+	{0, NULL}, {0, NULL}, {0, NULL}, NULL, 0 };
 
 void set_map __P((rune_map *, rune_list *, unsigned long));
 void set_digitmap __P((rune_map *, rune_list *));
@@ -187,6 +200,7 @@ map	:	LBRK RUNE RUNE RBRK
 int debug = 0;
 FILE *fp;
 
+int
 main(ac, av)
 	int ac;
 	char *av[];
@@ -236,10 +250,13 @@ main(ac, av)
     memcpy(new_locale.magic, _RUNE_MAGIC_1, sizeof(new_locale.magic));
 
     yyparse();
+
+    return(0);
 }
 
+void
 yyerror(s)
-	char *s;
+	const char *s;
 {
     fprintf(stderr, "%s\n", s);
 }
@@ -538,7 +555,7 @@ dump_tables()
     for(list = types.root; list; list = list->next) {
 	list->map = list->types[0];
 	for (x = 1; x < list->max - list->min + 1; ++x) {
-	    if (list->types[x] != list->map) {
+	    if ((rune_t)list->types[x] != list->map) {
 		list->map = 0;
 		break;
 	    }

@@ -36,9 +36,13 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lex.l	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$FreeBSD$";
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <stdio.h>
@@ -46,6 +50,7 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "ldef.h"
 #include "y.tab.h"
+#include "extern.h"
 %}
 
 ODIGIT	[0-7]
@@ -160,6 +165,7 @@ ENCODING			{ return(ENCODING); }
 %%
 
 #if	!defined(yywrap)
+int
 yywrap()
 {
 	return(1);
