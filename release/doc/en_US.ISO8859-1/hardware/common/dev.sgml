@@ -632,6 +632,15 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">SCSI adapters utilizing the Command Interface
+    for SCSI-3 Support (ciss driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
