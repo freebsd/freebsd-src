@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.16 1996/04/13 13:32:00 jkh Exp $
+ * $Id: misc.c,v 1.17 1996/04/23 01:29:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -213,6 +213,7 @@ item_add(dialogMenuItem *list, char *prompt, char *title,
 	list = (dialogMenuItem *)realloc(list, sizeof(dialogMenuItem) * *max);
     }
     d = &list[(*curr)++];
+    bzero(d, sizeof(*d));
     d->prompt = prompt ? strdup(prompt) : NULL;
     d->title = title ? strdup(title) : NULL;
     d->checked = checked;
