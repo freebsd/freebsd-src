@@ -386,6 +386,15 @@ the stock public FSF source. [MERGED]
 
 BIND has been updated to v8.2.3-T6B.
 
+The threads library has gained some signal handling changes, bug
+fixes, and performance enhancements (including zero system call thread
+switching).  gdb(1) thread support has been updated to match these
+changes.  [MERGED]
+
+chflags(1) has moved from /usr/bin to /bin.
+
+Use of the CSMG_* macros no longer require inclusion of <sys/param.h>.
+
 
 2. Supported Configurations
 ---------------------------
