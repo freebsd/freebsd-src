@@ -837,13 +837,13 @@ does not contain symbols, you will not get an error message, but the stack trace
 will not show the symbols.  Check the module before starting
 .Nm gdb :
 .Bd -literal
-$ file /modules/vinum.ko
-/modules/vinum.ko: ELF 32-bit LSB shared object, Intel 80386,
+$ file /boot/kernel/vinum.ko
+/boot/kernel/vinum.ko: ELF 32-bit LSB shared object, Intel 80386,
   version 1 (FreeBSD), not stripped
 .Ed
 .Pp
 If the output shows that
-.Pa /modules/vinum.ko
+.Pa /boot/kernel/vinum.ko
 is stripped, you will have to find a version which is not.  Usually this will be
 either in
 .Pa /usr/obj/sys/modules/vinum/vinum.ko

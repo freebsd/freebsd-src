@@ -100,7 +100,7 @@ or the last operation on a semaphore.
 .It Fl C Ar system
 Extract the name list from the specified system instead of the
 default
-.Dq Pa /kernel .
+.Dq Pa /boot/kernel/kernel .
 Implies
 .Fl y .
 .It Fl M
@@ -154,10 +154,10 @@ This manual page is woefully incomplete, because it does not
 at all attempt to explain the information printed by
 .Nm .
 .Sh FILES
-.Bl -tag -width /etc/passwd -compact
+.Bl -tag -width /boot/kernel/kernel -compact
 .It Pa /dev/kmem
 default kernel memory
-.It Pa /kernel
+.It Pa /boot/kernel/kernel
 default system name list
 .El
 .Sh SEE ALSO
