@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.12 1994/01/14 16:23:58 davidg Exp $
+ *	$Id: param.h,v 1.13 1994/01/31 04:18:54 davidg Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -62,7 +62,7 @@
 #define PAGE_SIZE	(1 << PAGE_SHIFT)
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define PGOFSET		(NBPG-1)	/* byte offset into page */
-#define NPTEPG		(NBPG/(sizeof (struct pte)))
+#define NPTEPG		(NBPG/(sizeof (pt_entry_t)))
 
 /* XXX PDRSHIFT and PD_SHIFT are two names for the same thing */
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
@@ -103,7 +103,7 @@
 #endif	/* MSIZE */
 
 #ifndef	MCLSHIFT
-#define MCLSHIFT	11		/* convert bytes to m_buf clusters */
+#define MCLSHIFT	12		/* convert bytes to m_buf clusters */
 #endif	/* MCLSHIFT */
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
 #define MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */

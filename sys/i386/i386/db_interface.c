@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.4 1993/11/25 01:30:52 wollman Exp $
+ *	$Id: db_interface.c,v 1.5 1993/12/19 00:50:00 wollman Exp $
  */
 
 /*
@@ -177,8 +177,6 @@ db_read_bytes(addr, size, data)
 
 	db_nofault = 0;
 }
-
-struct pte *pmap_pte(pmap_t, vm_offset_t);
 
 /*
  * Write bytes to kernel address space for debugger.
