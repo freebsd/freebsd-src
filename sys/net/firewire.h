@@ -51,7 +51,7 @@ union fw_encap {
 #if BYTE_ORDER == BIG_ENDIAN
 			uint32_t lf		:2;
 			uint32_t reserved1	:2;
-			uint32_t datagram_size	:12
+			uint32_t datagram_size	:12;
 			uint32_t ether_type	:16;
 			uint32_t dgl		:16;
 			uint32_t reserved2	:16;
@@ -68,7 +68,7 @@ union fw_encap {
 #if BYTE_ORDER == BIG_ENDIAN
 			uint32_t lf		:2;
 			uint32_t reserved1	:2;
-			uint32_t datagram_size	:12
+			uint32_t datagram_size	:12;
 			uint32_t reserved2	:4;
 			uint32_t fragment_offset :12;
 			uint32_t dgl		:16;
