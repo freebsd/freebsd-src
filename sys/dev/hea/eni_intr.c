@@ -36,22 +36,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <net/if.h>
-#include <netinet/in.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
 #include <netatm/atm_sys.h>
-#include <netatm/atm_sap.h>
 #include <netatm/atm_cm.h>
 #include <netatm/atm_if.h>
-#include <netatm/atm_stack.h>
-#include <netatm/atm_pcb.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
