@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsxface - Public interfaces to the resource manager
- *              $Revision: 27 $
+ *              $Revision: 29 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -320,6 +320,7 @@ AcpiWalkResources (
     ACPI_STATUS                 Status;
     ACPI_BUFFER                 Buffer = {ACPI_ALLOCATE_BUFFER, NULL};
     ACPI_RESOURCE               *Resource;
+    ACPI_RESOURCE               *BufferEnd;
 
 
     ACPI_FUNCTION_TRACE ("AcpiWalkResources");
@@ -338,7 +339,13 @@ AcpiWalkResources (
         return_ACPI_STATUS (Status);
     }
 
-    Resource = (ACPI_RESOURCE *) Buffer.Pointer;
+    /* Setup pointers */
+
+    Resource  = (ACPI_RESOURCE *) Buffer.Pointer;
+    BufferEnd = (ACPI_RESOURCE *) ((UINT8 *) Buffer.Pointer + Buffer.Length);
+
+    /* Walk the resource list */
+
     for (;;)
     {
         if (!Resource || Resource->Id == ACPI_RSTYPE_END_TAG)
@@ -354,6 +361,7 @@ AcpiWalkResources (
         case AE_CTRL_DEPTH:
 
             /* Just keep going */
+
             Status = AE_OK;
             break;
 
@@ -371,7 +379,16 @@ AcpiWalkResources (
             goto Cleanup;
         }
 
+        /* Get the next resource descriptor */
+
         Resource = ACPI_NEXT_RESOURCE (Resource);
+
+        /* Check for end-of-buffer */
+
+        if (Resource >= BufferEnd)
+        {
+            goto Cleanup;
+        }
     }
 
 Cleanup:

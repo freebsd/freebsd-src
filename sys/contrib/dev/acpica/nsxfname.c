@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
- *              $Revision: 98 $
+ *              $Revision: 100 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -422,6 +422,14 @@ AcpiGetObjectInfo (
         if (ACPI_SUCCESS (Status))
         {
             Info.Valid |= ACPI_VALID_ADR;
+        }
+
+        /* Execute the Device._SxD methods */
+
+        Status = AcpiUtExecute_Sxds (Node, Info.HighestDstates);
+        if (ACPI_SUCCESS (Status))
+        {
+            Info.Valid |= ACPI_VALID_STA;
         }
 
         Status = AE_OK;

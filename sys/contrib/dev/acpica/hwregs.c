@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 152 $
+ *              $Revision: 154 $
  *
  ******************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -233,12 +233,12 @@ AcpiGetSleepTypeData (
     /*
      * Evaluate the namespace object containing the values for this state
      */
-    Status = AcpiNsEvaluateByName ((char *) AcpiGbl_DbSleepStates[SleepState],
+    Status = AcpiNsEvaluateByName ((char *) AcpiGbl_SleepStateNames[SleepState],
                     NULL, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s while evaluating SleepState [%s]\n",
-            AcpiFormatException (Status), AcpiGbl_DbSleepStates[SleepState]));
+            AcpiFormatException (Status), AcpiGbl_SleepStateNames[SleepState]));
 
         return_ACPI_STATUS (Status);
     }
@@ -289,7 +289,7 @@ AcpiGetSleepTypeData (
     if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "While evaluating SleepState [%s], bad Sleep object %p type %s\n",
-            AcpiGbl_DbSleepStates[SleepState], ObjDesc, AcpiUtGetObjectTypeName (ObjDesc)));
+            AcpiGbl_SleepStateNames[SleepState], ObjDesc, AcpiUtGetObjectTypeName (ObjDesc)));
     }
 
     AcpiUtRemoveReference (ObjDesc);

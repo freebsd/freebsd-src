@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 33 $
+ *       $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -283,7 +283,6 @@ typedef struct ec_boot_resources
     UINT8                   EcId[1];            /* Full namepath of the EC in the ACPI namespace */
 
 } EC_BOOT_RESOURCES;
-
 
 
 #pragma pack()

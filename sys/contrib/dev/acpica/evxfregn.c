@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -384,7 +384,7 @@ AcpiInstallAddressSpaceHandler (
                     ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler,
                     HandlerObj, NULL);
 
-    /* 
+    /*
      * Now we can run the _REG methods for all Regions for this
      * space ID.  This is a separate walk in order to handle any
      * interdependencies between regions and _REG methods.  (i.e. handlers

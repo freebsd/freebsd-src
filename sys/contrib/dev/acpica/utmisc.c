@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 97 $
+ *              $Revision: 99 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -391,7 +391,8 @@ AcpiUtValidAcpiName (
     UINT32                  Name)
 {
     char                    *NamePtr = (char *) &Name;
-    UINT32                  i;
+    char                    Character;
+    ACPI_NATIVE_UINT        i;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -399,9 +400,12 @@ AcpiUtValidAcpiName (
 
     for (i = 0; i < ACPI_NAME_SIZE; i++)
     {
-        if (!((NamePtr[i] == '_') ||
-              (NamePtr[i] >= 'A' && NamePtr[i] <= 'Z') ||
-              (NamePtr[i] >= '0' && NamePtr[i] <= '9')))
+        Character = *NamePtr;
+        NamePtr++;
+
+        if (!((Character == '_') ||
+              (Character >= 'A' && Character <= 'Z') ||
+              (Character >= '0' && Character <= '9')))
         {
             return (FALSE);
         }

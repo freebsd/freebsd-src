@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 262 $
+ *       $Revision: 264 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -968,7 +968,8 @@ typedef struct acpi_device_info
 {
     ACPI_COMMON_OBJ_INFO;
 
-    UINT32                      Valid;              /* Indicates which fields are valid */
+    UINT8                       HighestDstates[4];  /* _SxD values 0xFF indicates not valid */
+    UINT32                      Valid;              /* Indicates which fields below are valid */
     UINT32                      CurrentStatus;      /* _STA value */
     ACPI_INTEGER                Address;            /* _ADR value if any */
     ACPI_DEVICE_ID              HardwareId;         /* _HID value if any */

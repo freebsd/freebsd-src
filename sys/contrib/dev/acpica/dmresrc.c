@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 10 $
+ *              $Revision: 13 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -433,9 +433,16 @@ AcpiDmIsResourceDescriptor (
     ByteCount = (UINT32) NextOp->Common.Value.Integer;
     ByteData = NextOp->Named.Data;
 
-    /* The list must have a valid END_TAG */
+    /* Absolute minimum descriptor is an END_TAG (2 bytes) */
 
-    if (ByteData[ByteCount-1] != (ACPI_RDESC_TYPE_END_TAG | 1))
+    if (ByteCount < 2)
+    {
+        return (FALSE);
+    }
+
+    /* The list must have a valid 2-byte END_TAG */
+
+    if (ByteData[ByteCount-2] != (ACPI_RDESC_TYPE_END_TAG | 1))
     {
         return FALSE;
     }
@@ -444,7 +451,7 @@ AcpiDmIsResourceDescriptor (
      * Walk the byte list.  Abort on any invalid descriptor ID or
      * or length
      */
-    for (CurrentByteOffset = 0; CurrentByteOffset < ByteCount; )
+    for (CurrentByteOffset = 0; CurrentByteOffset < ByteCount;)
     {
         CurrentByte = ByteData[CurrentByteOffset];
 
@@ -479,6 +486,7 @@ AcpiDmIsResourceDescriptor (
         case ACPI_RDESC_TYPE_IO_PORT:
         case ACPI_RDESC_TYPE_FIXED_IO_PORT:
         case ACPI_RDESC_TYPE_SMALL_VENDOR:
+
         /*
          * "Large" type descriptors
          */
