@@ -57,7 +57,7 @@ LANG=de_DE.ISO8859-1
 08/26	Schlacht bei Tannenberg, 1914
 02/21	Schlacht um Verdun, 1916
 03/08	Ausbruch der Revolution in Rußland, Abdankung von Zar Nikolaus II, 1917
-04/06	Kriegserklärung der USA an Deutschland
+04/06	Kriegserklärung der USA an Deutschland, 1917
 12/15	Waffenstillstand zwisch Rußland und Deutschland, 1917
 03/03	Frieden von Brest-Litowsk, 1918
 11/03	Matrosenaufstand in Kiel, 1918
@@ -99,7 +99,7 @@ LANG=de_DE.ISO8859-1
 07/01	Rückzug der britischen und amerikanischen Truppen aus
 	Sachsen, Thüringen und Mecklenburg, Einmarsch westlicher
 	Truppen in Berlin, 1945
-07/17	Potsdammer Konferenz, 1945
+07/17	Potsdamer Konferenz, 1945
 09/01	Überfall auf Polen, Beginn des 2. Weltkrieges, 1939
 10/01	Verkündigung der Urteile im Nürnberger
 	Hauptkriegsverbrecherprozeß, 1946
@@ -110,18 +110,18 @@ LANG=de_DE.ISO8859-1
 12/07   Japan bombardiert Pearl Harbor, 1941
 
 /* Deutschland nach dem 2. Weltkrieg */
-04/11	Attentat auf Dutschke, Studentenunruhen, 1958
-04/26	GAU in Tschernobyl
+04/11	Attentat auf Dutschke, Studentenunruhen, 1968
+04/26	GAU in Tschernobyl, 1986
 05/05	Natobeitritt, Wiederbewaffnung, Souveränität der Bundesrepublik, 1955
 05/06	Rücktritt von Brandt, 1974
 05/16	Wahl von Schmidt (SPD) zum Bundeskanzler, 1974
-05/23	Verkündung des Grundgesetzes
+05/23	Verkündung des Grundgesetzes, 1949
 05/23	Wahl von Richard von Weizäcker zum Bundespräsidenten, 1984
 06/05	Marshallplan, 1947
 06/20	Währungsreform in den Westzonen, 1948
 06/24	Beginn der Berliner Blockade, 1948
 07/01	Wahl von Heinrich Lübke zum Bundespräsidenten, 1959
-07/01	Währungs- und Währungsunion, 1990
+07/01	Wirtschafts- und Währungsunion, 1990
 08/12	deutsch-sowjetischer Gewaltverzichtsvertrag, Moskau 1970
 08/14	Wahl zum ersten deutschen Bundestag, 1949
 09/03	Vier-Mächte-Abkommen über Berlin, 1971
@@ -182,8 +182,8 @@ LANG=de_DE.ISO8859-1
 06/25	Begin der Korea-Krieges, 1950
 08/13	Bau der Berliner Mauer, 1961
 08/21	Einmarsch des Warschauer Pakts in die Tschechoslowakei, 1968
-10/03	Offizielles Ende der DDR :-)
-10/07	Gründung der DDR 1949
+10/03	Offizielles Ende der DDR :-), 1990
+10/07	Gründung der DDR, 1949
 10/09	Massendemonstration in Leipzig, 1989
 10/14	Kuba-Krise, 1962
 10/18	Ablösung von Erich Honecker als SED-Generalsekretär, 1989
