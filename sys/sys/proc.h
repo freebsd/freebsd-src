@@ -522,7 +522,6 @@ struct proc {
 					/* Accumulated stats for all threads? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c) Process limits. */
-	struct vm_object *p_upages_obj; /* (a) Upages object. */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 
 	/*
@@ -596,7 +595,6 @@ struct proc {
 	int		p_numksegrps;	/* (c) Number of ksegrps. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
-	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU). */
 	u_short		p_acflag;	/* (c) Accounting flags. */
 	struct rusage	*p_ru;		/* (a) Exit information. XXX */
 	struct proc	*p_peers;	/* (r) */
@@ -860,6 +858,9 @@ void	pargs_hold(struct pargs *pa);
 void	procinit(void);
 void	proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td);
 void	proc_reparent(struct proc *child, struct proc *newparent);
+struct	pstats *pstats_alloc(void);
+void	pstats_fork(struct pstats *src, struct pstats *dst);
+void	pstats_free(struct pstats *ps);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	setrunnable(struct thread *);
