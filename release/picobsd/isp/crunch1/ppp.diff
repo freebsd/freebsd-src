@@ -1,12 +1,10 @@
-*** Makefile.orig	Sat Jul  4 10:20:02 1998
---- Makefile	Sat Aug  1 20:43:49 1998
-***************
-*** 12,17 ****
---- 12,18 ----
-  BINMODE=4554
-  BINOWN=	root
-  BINGRP=	network
-+ NOSECURE=yes
-  
-  OPSYS!=	uname -s
-  .if (${OPSYS} == "OpenBSD")
+--- Makefile.orig	Tue Sep  8 14:40:17 1998
++++ Makefile	Tue Sep  8 14:40:53 1998
+@@ -13,6 +13,7 @@
+ BINOWN=	root
+ BINGRP=	network
+ MAN8=	ppp.8
++NOSECURE=yes
+ LDADD+=	-lmd -lcrypt
+ DPADD+= ${LIBMD} ${LIBCRYPT}
+ 
