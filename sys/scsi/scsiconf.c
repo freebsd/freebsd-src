@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.64.2.8 1997/02/02 20:58:31 joerg Exp $
+ *      $Id: scsiconf.c,v 1.64.2.9 1997/02/08 13:27:56 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -305,7 +305,27 @@ static struct scsidevs knowndevs[] =
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "Quantum", "DLT*", "*",
 		"st", SC_MORE_LUS, 0
 	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "HP", "C1553A", "*",
+		"st", SC_MORE_LUS, 0
+	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "Python 28849-*", "*",
+		"st", SC_MORE_LUS, 0
+	},
 #endif	/* NST */
+#if NCH > 0
+	/*
+	 * The <ARCHIVE, Python 28849-XXX, 4.98> is a SCSI changer device
+	 * with an Archive Python DAT drive built-in.  The tape appears
+	 * at LUN 0 and the changer at LUN 1.
+	 * This entry should not be needed at all.
+	 */
+	{
+		T_CHANGER, T_CHANGER, T_REMOV, "ARCHIVE", "Python 28849-*", "*",
+		"ch", SC_MORE_LUS
+	},
+#endif /* NCH */
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	/*
@@ -407,9 +427,15 @@ static struct scsidevs knowndevs[] =
 	},
 #endif /* NST */
 #if NCH > 0
+	/*
+	 * Due to the way media changers are working, they are most
+	 * likely always on a different LUN than the transfer element
+	 * device.  Thus, it should be safe to always probe all LUNs
+	 * on them.
+	 */
 	{
 		T_CHANGER, T_CHANGER, T_REMOV, "*", "*", "*",
-		"ch", SC_ONE_LU
+		"ch", SC_MORE_LUS
 	},
 #endif	/* NCH */
 #if NCD > 0 && !defined(UKTEST)
