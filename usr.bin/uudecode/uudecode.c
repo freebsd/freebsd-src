@@ -304,6 +304,35 @@ decode2(void)
 }
 
 static int
+getline(char *buf, size_t size)
+{
+	if (fgets(buf, size, infp) != NULL)
+		return (2);
+	if (!rflag)
+		return (0);
+	warnx("%s: %s: short file", infile, outfile);
+	return (1);
+}
+
+static int
+checkend(const char *ptr, const char *end, const char *msg)
+{
+	size_t n;
+
+	n = strlen(end);
+	if (strncmp(ptr, end, n) != 0 ||
+	    strspn(ptr + n, " \t\r\n") != strlen(ptr + n)) {
+		warnx("%s: %s: %s", infile, outfile, msg);
+		return (1);
+	}
+	if (fclose(outfp) != 0) {
+		warn("%s: %s", infile, outfile);
+		return (1);
+	}
+	return (0);
+}
+
+static int
 uu_decode(void)
 {
 	int i, ch;
@@ -312,11 +341,9 @@ uu_decode(void)
 
 	/* for each input line */
 	for (;;) {
-		if (fgets(p = buf, sizeof(buf), infp) == NULL) {
-			if (rflag)
-				return (0);
-			warnx("%s: %s: short file", infile, outfile);
-			return (1);
+		switch (getline(buf, sizeof(buf))) {
+		case 0: return (0);
+		case 1: return (1);
 		}
 
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
@@ -332,6 +359,7 @@ uu_decode(void)
 		 * `i' is used to avoid writing out all the characters
 		 * at the end of the file.
 		 */
+		p = buf;
 		if ((i = DEC(*p)) <= 0)
 			break;
 		for (++p; i > 0; p += 4, i -= 3)
@@ -371,17 +399,11 @@ uu_decode(void)
 				}
 			}
 	}
-	if (fgets(buf, sizeof(buf), infp) == NULL ||
-	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
-	     strcmp(buf, "end\r\n"))) {
-		warnx("%s: no \"end\" line", infile);
-		return (1);
+	switch (getline(buf, sizeof(buf))) {
+	case 0:  return (0);
+	case 1:  return (1);
+	default: return (checkend(buf, "end", "no \"end\" line"));
 	}
-	if (fclose(outfp) != 0) {
-		warn("%s: %s", infile, outfile);
-		return (1);
-	}
-	return (0);
 }
 
 static int
@@ -392,31 +414,17 @@ base64_decode(void)
 	unsigned char outbuf[MAXPATHLEN * 4];
 
 	for (;;) {
-		if (fgets(inbuf, sizeof(inbuf), infp) == NULL) {
-			if (rflag)
-				return (0);
-			warnx("%s: %s: short file", infile, outfile);
-			return (1);
+		switch (getline(inbuf, sizeof(inbuf))) {
+		case 0: return (0);
+		case 1: return (1);
 		}
-		if (strcmp(inbuf, "====") == 0 ||
-		    strcmp(inbuf, "====\n") == 0 ||
-		    strcmp(inbuf, "====\r\n") == 0) {
-			if (fclose(outfp) != 0) {
-				warn("%s: %s", infile, outfile);
-				return (1);
-			}
-			return (0);
-		}
-		n = strlen(inbuf);
-		while (n > 0 && (inbuf[n-1] == '\n' || inbuf[n-1] == '\r'))
-			inbuf[--n] = '\0';
 		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
-		if (n < 0) {
-			warnx("%s: %s: error decoding base64 input stream", infile, outfile);
-			return (1);
-		}
+		if (n < 0)
+			break;
 		fwrite(outbuf, 1, n, outfp);
 	}
+	return (checkend(inbuf, "====",
+		    "error decoding base64 input stream"));
 }
 
 static void
