@@ -79,12 +79,20 @@
 #define PCI_VENDOR(d)           ((d) & 0xffff)
 #define PCI_DEVICE(d)           (((d) >> 8) & 0xffff)
 
+
 #define PCI_OHCI_VENDORID_ALI		0x10b9
+#define PCI_OHCI_VENDORID_NEC		0x1033
+#define PCI_OHCI_VENDORID_OPTI		0x1045
 #define PCI_OHCI_VENDORID_SIS		0x1039
 
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
-static const char ohci_device_aladdin_v[] = "AcerLabs M5237 (Aladdin-V) USB Host Controller";
-static const char ohci_device_generic[] = "OHCI USB Host Controller (generic)";
+static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB Host Controller";
+#define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
+static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB Host Controller";
+#define PCI_OHCI_DEVICEID_NEC		0x00351033
+static const char *ohci_device_nec	 = "NEC uPD 9210 USB Host Controller";
+static const char *ohci_device_generic   = "OHCI (generic) USB Host Controller";
+
 
 #define PCI_OHCI_BASE_REG	0x10
 
@@ -110,6 +118,10 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 
 	if (device_id == PCI_OHCI_DEVICEID_ALADDIN_V) {
 		return (ohci_device_aladdin_v);
+	} else if (device_id == PCI_OHCI_DEVICEID_FIRELINK) {
+		return (ohci_device_firelink);
+	} else if (device_id == PCI_OHCI_DEVICEID_NEC) {
+		return (ohci_device_nec);
 	} else {
 		class = pci_conf_read(config_id, PCI_CLASS_REG);
 		if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
@@ -155,23 +167,15 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	id = pci_conf_read(config_id, PCI_ID_REG);
 	if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_ALI)
 		sprintf(sc->sc_vendor, "AcerLabs");
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_NEC)
+		sprintf(sc->sc_vendor, "NEC");
+	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_OPTI)
+		sprintf(sc->sc_vendor, "OPTi");
 	else if (PCI_VENDOR(id) == PCI_OHCI_VENDORID_SIS)
 		sprintf(sc->sc_vendor, "SiS");
 	else
 		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
 
-	/* We add a child to the root bus. After PCI configuration
-	 * has completed the root bus will start to probe and
-	 * attach all the devices attached to it, including our new
-	 * kid.
-	 *
-	 * FIXME Sometime in the future the UHCI controller itself will
-	 * become a kid of PCI device and this device add will no longer
-	 * be necessary.
-	 *
-	 * See README for an elaborate description of the bus
-	 * structure in spe.
-	 */
 	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
 	if (!sc->sc_bus.bdev) {
 		printf("%s%d: could not add USB device to root bus\n",
@@ -180,20 +184,26 @@ ohci_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-	r = ohci_init(sc);
-	if (r != USBD_NORMAL_COMPLETION) {
-		printf("usb%d: init failed, error=%d\n", unit, r);
-		device_delete_child(root_bus, sc->sc_bus.bdev);
-		return;
-	}
-
 	switch(id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		device_set_desc(sc->sc_bus.bdev, ohci_device_aladdin_v);
 		break;
+	case PCI_OHCI_DEVICEID_FIRELINK:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_firelink);
+		break;
+	case PCI_OHCI_DEVICEID_NEC:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_nec);
+		break;
 	default:
 		printf("(New OHCI DeviceId=0x%08x)\n", id);
 		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
+	}
+
+	r = ohci_init(sc);
+	if (r != USBD_NORMAL_COMPLETION) {
+		printf("%s%d: init failed, error=%d\n",
+			device_get_name(sc->sc_bus.bdev), unit ,r);
+		device_delete_child(root_bus, sc->sc_bus.bdev);
 	}
 
 	return;
