@@ -471,8 +471,8 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
 
     n = name;
     end = ptr + len - 4;
-    if (end - ptr > MAXHOSTNAMELEN)
-      end = ptr + MAXHOSTNAMELEN;
+    if (end - ptr >= sizeof name)
+      end = ptr + sizeof name - 1;
     while (ptr < end) {
       len = *ptr++;
       if (len > end - ptr)
