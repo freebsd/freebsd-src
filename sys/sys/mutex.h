@@ -378,45 +378,11 @@ do {									\
 #define	mtx_assert(m, what)						\
 	_mtx_assert((m), (what), __FILE__, __LINE__)
 
-/*
- *  GIANT_IRRELEVANT	- empty place mark assertion for system startup code
- *			  where serialization is implied or utterly trivial
- *			  routines that do not need giant.
- *
- *  GIANT_REQUIRED	- Giant must be held on entry
- *
- *  *_GIANT_DEPRECATED	- Giant may or may not be held, we may hold giant here
- *			  based on a sysctl, and no deeper subroutine
- *			  may require giant.
- *
- *  *_GIANT_OPTIONAL	- Giant may or may not be held and no deeper subroutine
- *			  may require giant.
- */
-
-#define GIANT_IRRELEVANT
-#define GIANT_REQUIRED							\
-	do {								\
-		KASSERT(curproc->p_giant_optional == 0, ("Giant not optional at %s: %d", __FILE__, __LINE__));						\
-		mtx_assert(&Giant, MA_OWNED);				\
-	} while(0)
-#define START_GIANT_DEPRECATED(sysctlvar)				\
-	int __gotgiant = (curproc->p_giant_optional == 0 && sysctlvar) ? \
-		(mtx_lock(&Giant), 1) : 0
-#define END_GIANT_DEPRECATED						\
-	if (__gotgiant) mtx_unlock(&Giant)
-#define START_GIANT_OPTIONAL						\
-	++curproc->p_giant_optional
-#define END_GIANT_OPTIONAL						\
-	--curproc->p_giant_optional
+#define GIANT_REQUIRED	mtx_assert(&Giant, MA_OWNED)
 
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
-#define GIANT_IRRELEVANT
 #define GIANT_REQUIRED
-#define START_GIANT_DEPRECATED(sysctl)
-#define END_GIANT_DEPRECATED
-#define START_GIANT_OPTIONAL
-#define END_GIANT_OPTIONAL
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */
