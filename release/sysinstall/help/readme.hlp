@@ -3,7 +3,7 @@
    -----------------------------------------          /(        )`
                                                       \ \___   / |
 Welcome to the 2.2 BETA release of FreeBSD!           /- _  `-/  '
-This release preceeds our first full 2.2 release,    (/\/ \ \   /\
+This release precedes our first full 2.2 release,    (/\/ \ \   /\
 which is scheduled for an early January release.     / /   | `    \
 Your testing of this BETA will greatly help to       O O   ) /    |
 ensure that 2.2-RELEASE is of the highest possible   `-^--'`<     '
@@ -57,7 +57,7 @@ O'Reilly, we're just satisfied customers!
 
 If you're new to FreeBSD then you should also read EVERYTHING listed
 in the Documentation menu on the boot floppy.  It may seem like a lot
-to read, but you should at least aquaint yourself with the types of
+to read, but you should at least acquaint yourself with the types of
 information available should you later get stuck.  Once the system is
 installed, you can also revisit this menu and use a WEB browser to
 read the installed FAQ (Frequently Asked Questions) and Handbook HTML

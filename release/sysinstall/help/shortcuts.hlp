@@ -42,7 +42,7 @@ nfsHost                 Host portion of nfs path
 nfsSecure               Use NFS secure mount (-P flag)
 nfs_server              Configure this machine as an NFS server
 noConfirm               Don't ask for confirmation on non-fatal errors
-ntpDate                 Which ntp clock syncronization server to use
+ntpDate                 Which ntp clock synchronization server to use
 pcnfsd                  Install the PCNFSD package 
 ports                   Path to the ports collection
 releaseName             Which FreeBSD release to install
