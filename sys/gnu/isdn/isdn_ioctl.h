@@ -1,6 +1,6 @@
-static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.1 1995/02/14 15:00:35 jkh Exp $";
+static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.2 1995/03/28 07:54:45 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.1 1995/02/14 15:00
  *
  *******************************************************************************
  * $Log: isdn_ioctl.h,v $
+ * Revision 1.2  1995/03/28  07:54:45  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.1  1995/02/14  15:00:35  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
@@ -67,12 +72,17 @@ typedef struct
 	ncpd_t ncpd;
 	u_long timeout;
 	u_char prot;
-	int	(*PassUp)();	 /* pass data from isdn interface upstream to appl. */
-	int	(*PassUpInfo)(); /* pass info from isdn interface upstream to appl. */
-	int	(*PassDown)();	 /* get data from application */
-	int	(*Connect)();	 /* Connect Indikation */
-	int	(*DisConn)();	 /* Disconnect Indikation */
-	short drivno;		 /* Number of the high level Driver */
+	int	(*PassUp) __P((int no, int len, char *buf, int dir));
+				/* pass data from isdn interface upstream to appl. */
+	int	(*PassUpInfo_not_used) __P((void));
+				/* pass info from isdn interface upstream to appl. */
+	int	(*PassDown) __P((int no, char *buf, int len));
+				/* get data from application */
+	void	(*Connect) __P((int no));
+				/* Connect Indikation */
+	void	(*DisConn) __P((int no));
+				/* Disconnect Indikation */
+	short drivno;		/* Number of the high level Driver */
 	char ctrl;
 	char typ;
 	short state;
@@ -86,12 +96,15 @@ typedef struct
 	char islisten;
 	short unit;
 	short appl;
-	int	(*connect)();
-	int	(*listen)();
-	int	(*accept)();
-	int	(*disconnect)();
-	int	(*output)();
-	int	(*state)();
+	int	(*connect) __P((int cn, int ao, int b_channel, int inf_mask,
+				int out_serv, int out_serv_add, int src_subadr,
+				unsigned ad_len, char *dest_addr, int spv));
+	int	(*listen) __P((int cn, int ap, int inf_mask, int subadr_mask,
+			       int si_mask, int spv));
+	int	(*accept) __P((int cn, int an, int rea));
+	int	(*disconnect) __P((int cn, int rea));
+	int	(*output) __P((int cn));
+	int	(*state) __P((int cn));
 	short	o_len;
 	char	*o_buf;
 	time_t		lastact;
@@ -159,17 +172,31 @@ void	isdn_info __P((int an, int typ, int len, char *data));
 int	isdn_input __P((int an, int len, char *buf, int dir));
 int	isdn_msg __P((int an));
 int	isdn_output __P((int an));
+void	isdn_start_out __P((int cn));
 
 /* From if_ii.c. */
 int	iiattach __P((int ap));
+void	ii_connect __P((int no));
+void	ii_disconnect __P((int no));
+int	ii_input __P((int no, int len, char *buf, int dir));
+int	ii_out __P((int no, char *buf, int len));
 
 /* From iispy.c. */
 int	ispyattach __P((int ap));
+int 	ispy_input __P((int no, int len, char *buf, int out));
 
 /* From iitel.c. */
 int	itelattach __P((int ap));
+void	itel_connect __P((int no));
+void	itel_disconnect __P((int no));
+int	itel_input __P((int no, int len, char *buf, int dir));
+int	itel_out __P((int no, char *buf, int len));
 
 /* From iitty.c. */
 int	ityattach __P((int ap));
+void	ity_connect __P((int no));
+void	ity_disconnect __P((int no));
+int	ity_input __P((int no, int len, char *buf, int dir));
+int	ity_out __P((int no, char *buf, int len));
 
 #endif /* KERNEL */
