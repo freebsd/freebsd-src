@@ -300,10 +300,7 @@ ufs_access(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct ucred *cred = ap->a_cred;
-	mode_t mask, mode = ap->a_mode;
-	register gid_t *gp;
-	int i;
+	mode_t mode = ap->a_mode;
 #ifdef QUOTA
 	int error;
 #endif
@@ -334,43 +331,8 @@ ufs_access(ap)
 	if ((mode & VWRITE) && (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
 		return (EPERM);
 
-	/* Otherwise, user id 0 always gets access. */
-	if (cred->cr_uid == 0)
-		return (0);
-
-	mask = 0;
-
-	/* Otherwise, check the owner. */
-	if (cred->cr_uid == ip->i_uid) {
-		if (mode & VEXEC)
-			mask |= S_IXUSR;
-		if (mode & VREAD)
-			mask |= S_IRUSR;
-		if (mode & VWRITE)
-			mask |= S_IWUSR;
-		return ((ip->i_mode & mask) == mask ? 0 : EACCES);
-	}
-
-	/* Otherwise, check the groups. */
-	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
-		if (ip->i_gid == *gp) {
-			if (mode & VEXEC)
-				mask |= S_IXGRP;
-			if (mode & VREAD)
-				mask |= S_IRGRP;
-			if (mode & VWRITE)
-				mask |= S_IWGRP;
-			return ((ip->i_mode & mask) == mask ? 0 : EACCES);
-		}
-
-	/* Otherwise, check everyone else. */
-	if (mode & VEXEC)
-		mask |= S_IXOTH;
-	if (mode & VREAD)
-		mask |= S_IROTH;
-	if (mode & VWRITE)
-		mask |= S_IWOTH;
-	return ((ip->i_mode & mask) == mask ? 0 : EACCES);
+	return (vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
+	    ap->a_mode, ap->a_cred));
 }
 
 /* ARGSUSED */
