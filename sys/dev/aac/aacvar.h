@@ -255,12 +255,12 @@ TAILQ_HEAD(aac_container_tq, aac_container);
 #include <sys/mutex.h>
 typedef struct mtx aac_lock_t;
 #define AAC_LOCK_INIT(l, s)	mtx_init(l, s, MTX_DEF)
-#define AAC_LOCK_AQUIRE(l)	mtx_lock(l)
+#define AAC_LOCK_ACQUIRE(l)	mtx_lock(l)
 #define AAC_LOCK_RELEASE(l)	mtx_unlock(l)
 #else
 typedef struct simplelock aac_lock_t;
 #define AAC_LOCK_INIT(l, s)	simple_lock_init(l)
-#define AAC_LOCK_AQUIRE(l)	simple_lock(l)
+#define AAC_LOCK_ACQUIRE(l)	simple_lock(l)
 #define AAC_LOCK_RELEASE(l)	simple_unlock(l)
 #endif
 
