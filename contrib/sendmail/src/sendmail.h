@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.984 2004/07/14 21:54:22 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.990 2004/11/09 19:45:46 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -400,7 +400,7 @@ struct mailer
 #define M_ESMTP		'a'	/* run Extended SMTP */
 #define M_ALIASABLE	'A'	/* user can be LHS of an alias */
 #define M_BLANKEND	'b'	/* ensure blank line at end of message */
-#define M_STRIPBACKSL	'B'	/* strip leading backslash from user */
+#define M_STRIPBACKSL	'B'	/* strip all leading backslashes from user */
 #define M_NOCOMMENT	'c'	/* don't include comment part of address */
 #define M_CANONICAL	'C'	/* make addresses canonical "u@dom" */
 #define M_NOBRACKET	'd'	/* never angle bracket envelope route-addrs */
@@ -463,7 +463,7 @@ struct mailer
 extern void	initerrmailers __P((void));
 extern void	makemailer __P((char *));
 extern void	makequeue __P((char *, bool));
-extern void	runqueueevent __P((void));
+extern void	runqueueevent __P((int));
 #if _FFR_QUEUE_RUN_PARANOIA
 extern bool	checkqueuerunner __P((void));
 #endif /* _FFR_QUEUE_RUN_PARANOIA */
@@ -728,6 +728,7 @@ MCI
 
 /* functions */
 extern void	mci_cache __P((MCI *));
+extern void	mci_close __P((MCI *, char *where));
 extern void	mci_dump __P((SM_FILE_T *, MCI *, bool));
 extern void	mci_dump_all __P((SM_FILE_T *, bool));
 extern void	mci_flush __P((bool, MCI *));
@@ -1601,6 +1602,9 @@ extern void	set_delivery_mode __P((int, ENVELOPE *));
 #define PRIV_NOETRN		0x00080000	/* disallow ETRN command */
 #define PRIV_NOBODYRETN		0x00100000	/* do not return bodies on bounces */
 #define PRIV_NORECEIPTS		0x00200000	/* disallow return receipts */
+#if _FFR_PRIV_NOACTUALRECIPIENT
+# define PRIV_NOACTUALRECIPIENT	0x00400000 /* no X-Actual-Recipient in DSNs */
+#endif /* _FFR_PRIV_NOACTUALRECIPIENT */
 
 /* don't give no info, anyway, anyhow */
 #define PRIV_GOAWAY		0x0000ffff
@@ -1695,6 +1699,7 @@ struct milter
 /* MTA flags */
 # define SMF_REJECT		'R'	/* Reject connection on filter fail */
 # define SMF_TEMPFAIL		'T'	/* tempfail connection on failure */
+# define SMF_TEMPDROP		'4'	/* 421 connection on failure */
 
 /* states */
 # define SMFS_CLOSED		'C'	/* closed for all further actions */
@@ -2350,7 +2355,7 @@ extern void PRINTFLIKE(3, 4) sm_syslog __P((int, const char *, const char *, ...
 
 /* SMTP */
 extern void	giveresponse __P((int, char *, MAILER *, MCI *, ADDRESS *, time_t, ENVELOPE *, ADDRESS *));
-extern int	reply __P((MAILER *, MCI *, ENVELOPE *, time_t, void (*)(), char **, int));
+extern int	reply __P((MAILER *, MCI *, ENVELOPE *, time_t, void (*)__P((char *, bool, MAILER *, MCI *, ENVELOPE *)), char **, int));
 extern void	smtp __P((char *volatile, BITMAP256, ENVELOPE *volatile));
 #if SASL
 extern int	smtpauth __P((MAILER *, MCI *, ENVELOPE *));
@@ -2496,6 +2501,7 @@ extern void	makelower __P((char *));
 extern int	makeconnection_ds __P((char *, MCI *));
 extern int	makeconnection __P((char *, volatile unsigned int, MCI *, ENVELOPE *, time_t));
 extern void	makeworkgroups __P((void));
+extern void	markfailure __P((ENVELOPE *, ADDRESS *, MCI *, int, bool));
 extern void	mark_work_group_restart __P((int, int));
 extern char *	munchstring __P((char *, char **, int));
 extern struct hostent	*myhostname __P((char *, int));

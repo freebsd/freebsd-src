@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.95 2004/07/13 21:37:33 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.96 2004/08/04 21:17:58 ca Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -39,6 +39,9 @@ static int x509_verify_cb __P((int, X509_STORE_CTX *));
 #  define CONST097 const
 # endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 static void	apps_ssl_info_cb __P((CONST097 SSL *, int , int));
+static bool	tls_ok_f __P((char *, char *, int));
+static bool	tls_safe_f __P((char *, long, bool));
+static int	tls_verify_log __P((int, X509_STORE_CTX *, char *));
 
 # if !NO_DH
 static DH *get_dh512 __P((void));

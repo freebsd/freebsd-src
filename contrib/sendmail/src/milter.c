@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.225 2004/07/08 21:52:20 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.228 2004/11/09 18:54:55 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -29,7 +29,7 @@ SM_RCSID("@(#)$Id: milter.c,v 8.225 2004/07/08 21:52:20 ca Exp $")
 
 # include <sm/fdset.h>
 
-static void	milter_connect_timeout __P((void));
+static void	milter_connect_timeout __P((int));
 static void	milter_error __P((struct milter *, ENVELOPE *));
 static int	milter_open __P((struct milter *, bool, ENVELOPE *));
 static void	milter_parse_timeouts __P((char *, struct milter *));
@@ -75,6 +75,8 @@ static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 	} \
 	else if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
 		*state = SMFIR_TEMPFAIL; \
+	else if (bitnset(SMF_TEMPDROP, m->mf_flags)) \
+		*state = SMFIR_SHUTDOWN; \
 	else if (bitnset(SMF_REJECT, m->mf_flags)) \
 		*state = SMFIR_REJECT; \
 	else \
@@ -1127,7 +1129,8 @@ milter_open(m, parseonly, e)
 }
 
 static void
-milter_connect_timeout()
+milter_connect_timeout(ignore)
+	int ignore;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
@@ -2340,6 +2343,7 @@ milter_per_connection_check(e)
 **
 **	Parameters:
 **		m -- the broken filter.
+**		e -- current envelope.
 **
 **	Returns:
 **		none
@@ -2351,10 +2355,8 @@ milter_error(m, e)
 	ENVELOPE *e;
 {
 	/*
-	**  We could send a quit here but
-	**  we may have gotten here due to
-	**  an I/O error so we don't want
-	**  to try to make things worse.
+	**  We could send a quit here but we may have gotten here due to
+	**  an I/O error so we don't want to try to make things worse.
 	*/
 
 	if (m->mf_sock >= 0)
@@ -2832,13 +2834,21 @@ milter_changeheader(response, rlen, e)
 		if (*val == '\0')
 		{
 			if (tTd(64, 10))
-				sm_dprintf("Delete (noop) %s:\n", field);
+				sm_dprintf("Delete (noop) %s\n", field);
+			if (MilterLogLevel > 8)
+				sm_syslog(LOG_INFO, e->e_id,
+					"Milter delete (noop): header: %s"
+					, field);
 		}
 		else
 		{
 			/* treat modify value with no existing header as add */
 			if (tTd(64, 10))
 				sm_dprintf("Add %s: %s\n", field, val);
+			if (MilterLogLevel > 8)
+				sm_syslog(LOG_INFO, e->e_id,
+					"Milter change (add): header: %s: %s"
+					, field, val);
 			addheader(newstr(field), val, H_USER, e);
 		}
 		return;

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.641 2004/07/23 20:45:02 gshapiro Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.642 2004/08/04 21:17:57 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -29,6 +29,7 @@ static char	**makeargv __P((char *));
 static void	settimeout __P((char *, char *, bool));
 static void	toomany __P((int, int));
 static char	*extrquotstr __P((char *, char **, char *, bool *));
+static void	parse_class_words __P((int, char *));
 
 /*
 **  READCF -- read configuration file.

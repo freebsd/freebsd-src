@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb1.c,v 8.58 2002/05/24 23:09:11 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb1.c,v 8.59 2004/08/03 20:58:39 ca Exp $")
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -35,6 +35,24 @@ struct smdb_db1_cursor
 };
 typedef struct smdb_db1_cursor SMDB_DB1_CURSOR;
 
+static DBTYPE		smdb_type_to_db1_type __P((SMDB_DBTYPE));
+static unsigned int	smdb_put_flags_to_db1_flags __P((SMDB_FLAG));
+static int		smdb_cursor_get_flags_to_smdb1 __P((SMDB_FLAG));
+static SMDB_DB1_DATABASE *smdb1_malloc_database __P((void));
+static int		smdb1_close __P((SMDB_DATABASE *));
+static int		smdb1_del __P((SMDB_DATABASE *, SMDB_DBENT *, unsigned int));
+static int		smdb1_fd __P((SMDB_DATABASE *, int *));
+static int		smdb1_lockfd __P((SMDB_DATABASE *));
+static int		smdb1_get __P((SMDB_DATABASE *, SMDB_DBENT *, SMDB_DBENT *, unsigned int));
+static int		smdb1_put __P((SMDB_DATABASE *, SMDB_DBENT *, SMDB_DBENT *, unsigned int));
+static int		smdb1_set_owner __P((SMDB_DATABASE *, uid_t, gid_t));
+static int		smdb1_sync __P((SMDB_DATABASE *, unsigned int));
+static int		smdb1_cursor_close __P((SMDB_CURSOR *));
+static int		smdb1_cursor_del __P((SMDB_CURSOR *, unsigned int));
+static int		smdb1_cursor_get __P((SMDB_CURSOR *, SMDB_DBENT *, SMDB_DBENT *, SMDB_FLAG));
+static int		smdb1_cursor_put __P((SMDB_CURSOR *, SMDB_DBENT *, SMDB_DBENT *, SMDB_FLAG));
+static int		smdb1_cursor __P((SMDB_DATABASE *, SMDB_CURSOR **, unsigned int));
+
 /*
 **  SMDB_TYPE_TO_DB1_TYPE -- Translates smdb database type to db1 type.
 **
@@ -47,7 +65,7 @@ typedef struct smdb_db1_cursor SMDB_DB1_CURSOR;
 **
 */
 
-DBTYPE
+static DBTYPE
 smdb_type_to_db1_type(type)
 	SMDB_DBTYPE type;
 {
@@ -77,7 +95,7 @@ smdb_type_to_db1_type(type)
 **
 */
 
-unsigned int
+static unsigned int
 smdb_put_flags_to_db1_flags(flags)
 	SMDB_FLAG flags;
 {
@@ -104,7 +122,7 @@ smdb_put_flags_to_db1_flags(flags)
 **
 */
 
-int
+static int
 smdb_cursor_get_flags_to_smdb1(flags)
 	SMDB_FLAG flags;
 {
@@ -131,7 +149,7 @@ smdb_cursor_get_flags_to_smdb1(flags)
 **  The rest of these functions correspond to the interface laid out in smdb.h.
 */
 
-SMDB_DB1_DATABASE *
+static SMDB_DB1_DATABASE *
 smdb1_malloc_database()
 {
 	SMDB_DB1_DATABASE *db1;
@@ -147,7 +165,7 @@ smdb1_malloc_database()
 	return db1;
 }
 
-int
+static int
 smdb1_close(database)
 	SMDB_DATABASE *database;
 {
@@ -165,7 +183,7 @@ smdb1_close(database)
 	return result;
 }
 
-int
+static int
 smdb1_del(database, key, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -180,7 +198,7 @@ smdb1_del(database, key, flags)
 	return db->del(db, &dbkey, flags);
 }
 
-int
+static int
 smdb1_fd(database, fd)
 	SMDB_DATABASE *database;
 	int *fd;
@@ -194,7 +212,7 @@ smdb1_fd(database, fd)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb1_lockfd(database)
 	SMDB_DATABASE *database;
 {
@@ -204,7 +222,7 @@ smdb1_lockfd(database)
 }
 
 
-int
+static int
 smdb1_get(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -232,7 +250,7 @@ smdb1_get(database, key, data, flags)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb1_put(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -253,7 +271,7 @@ smdb1_put(database, key, data, flags)
 		       smdb_put_flags_to_db1_flags(flags));
 }
 
-int
+static int
 smdb1_set_owner(database, uid, gid)
 	SMDB_DATABASE *database;
 	uid_t uid;
@@ -276,7 +294,7 @@ smdb1_set_owner(database, uid, gid)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb1_sync(database, flags)
 	SMDB_DATABASE *database;
 	unsigned int flags;
@@ -286,7 +304,7 @@ smdb1_sync(database, flags)
 	return db->sync(db, flags);
 }
 
-int
+static int
 smdb1_cursor_close(cursor)
 	SMDB_CURSOR *cursor;
 {
@@ -302,7 +320,7 @@ smdb1_cursor_close(cursor)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb1_cursor_del(cursor, flags)
 	SMDB_CURSOR *cursor;
 	unsigned int flags;
@@ -314,7 +332,7 @@ smdb1_cursor_del(cursor, flags)
 	return db->del(db, NULL, R_CURSOR);
 }
 
-int
+static int
 smdb1_cursor_get(cursor, key, value, flags)
 	SMDB_CURSOR *cursor;
 	SMDB_DBENT *key;
@@ -344,7 +362,7 @@ smdb1_cursor_get(cursor, key, value, flags)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb1_cursor_put(cursor, key, value, flags)
 	SMDB_CURSOR *cursor;
 	SMDB_DBENT *key;
@@ -366,7 +384,7 @@ smdb1_cursor_put(cursor, key, value, flags)
 	return db->put(db, &dbkey, &dbdata, R_CURSOR);
 }
 
-int
+static int
 smdb1_cursor(database, cursor, flags)
 	SMDB_DATABASE *database;
 	SMDB_CURSOR **cursor;
