@@ -388,6 +388,7 @@ typedef struct callout usb_callout_t;
 #define usb_callout_init(h)     callout_init(&(h), 0)
 #define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
+#define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
 #else
 typedef struct proc *usb_proc_ptr;
 

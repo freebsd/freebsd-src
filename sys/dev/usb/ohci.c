@@ -998,6 +998,8 @@ ohci_allocx(struct usbd_bus *bus)
 	}
 	if (xfer != NULL) {
 		memset(xfer, 0, sizeof (struct ohci_xfer));
+		usb_init_task(&OXFER(xfer)->abort_task, ohci_timeout_task,
+		    OXFER(xfer));
 #ifdef DIAGNOSTIC
 		xfer->busy_free = XFER_BUSY;
 #endif
@@ -1397,6 +1399,13 @@ ohci_softintr(void *v)
 			 */
 			continue;
 		}
+		/* The timeout may have fired already but not yet run. */
+		if (xfer->timeout && !sc->sc_bus.use_polling &&
+		    usb_uncallout(xfer->timeout_handle, ohci_timeout,
+		    xfer) == 0) {
+			/* Ignore and let the timer handle it. */
+			xfer->status = USBD_TIMEOUT;
+		}
 		if (xfer->status == USBD_CANCELLED ||
 		    xfer->status == USBD_TIMEOUT) {
 			DPRINTF(("ohci_process_done: cancel/timeout %p\n",
@@ -1404,7 +1413,6 @@ ohci_softintr(void *v)
 			/* Handled by abort routine. */
 			continue;
 		}
-		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 
 		len = std->len;
 		if (std->td.td_cbp != 0)
@@ -1969,13 +1977,20 @@ ohci_timeout(void *addr)
 
 	DPRINTF(("ohci_timeout: oxfer=%p\n", oxfer));
 
+	/*
+	 * When a timeout happens concurrently with uhci_abort_xfer(), let
+	 * the non-timeout process do the completion.
+	 */
+	if (oxfer->xfer.status == USBD_CANCELLED)
+		return;
+
 	if (sc->sc_dying) {
 		ohci_abort_xfer(&oxfer->xfer, USBD_TIMEOUT);
 		return;
 	}
 
 	/* Execute the abort in a process context. */
-	usb_init_task(&oxfer->abort_task, ohci_timeout_task, addr);
+	oxfer->xfer.status = USBD_TIMEOUT;
 	usb_add_task(oxfer->xfer.pipe->device, &oxfer->abort_task);
 }
 
@@ -2251,27 +2266,37 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 
 	DPRINTF(("ohci_abort_xfer: xfer=%p pipe=%p sed=%p\n", xfer, opipe,sed));
 
+	/*
+	 * Step 1: Make interrupt routine, timers and hardware ignore xfer.
+	 */
+	s = splusb();
+	xfer->status = status;	/* make software ignore it */
+	if (!sc->sc_dying) {
+		DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
+		/* force hardware skip */
+		sed->ed.ed_flags |= htole32(OHCI_ED_SKIP);
+	}
+	if (status == USBD_CANCELLED) {
+		/*
+		 * Stop the timeout timer, waiting if required. We can
+		 * guarantee that interrupts or timeouts will not complete
+		 * the the xfer while we wait, because both ignore transfers
+		 * with a status of USBD_CANCELLED.
+		 */
+		usb_rem_task(xfer->pipe->device, &OXFER(xfer)->abort_task);
+		usb_uncallout_drain(xfer->timeout_handle, ohci_timeout, xfer);
+	}
+	splx(s);
+
 	if (sc->sc_dying) {
 		/* If we're dying, just do the software part. */
 		s = splusb();
-		xfer->status = status;	/* make software ignore it */
-		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 		usb_transfer_complete(xfer);
 		splx(s);
 	}
 
 	if (xfer->device->bus->intr_context || !curproc)
 		panic("ohci_abort_xfer: not in process context");
-
-	/*
-	 * Step 1: Make interrupt routine and hardware ignore xfer.
-	 */
-	s = splusb();
-	xfer->status = status;	/* make software ignore it */
-	usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
-	splx(s);
-	DPRINTFN(1,("ohci_abort_xfer: stop ed=%p\n", sed));
-	sed->ed.ed_flags |= htole32(OHCI_ED_SKIP); /* force hardware skip */
 
 	/*
 	 * Step 2: Wait until we know hardware has finished any possible
