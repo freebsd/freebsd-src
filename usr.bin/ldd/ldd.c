@@ -26,15 +26,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/resource.h>
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 #include <sys/wait.h>
 #include <a.out.h>
 #include <elf.h>
@@ -42,7 +40,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 extern void	dump_file __P((const char *));
@@ -73,7 +70,7 @@ char	*argv[];
 		case 'f':
 			if (fmt1) {
 				if (fmt2)
-					errx(1, "Too many formats");
+					errx(1, "too many formats");
 				fmt2 = optarg;
 			} else
 				fmt1 = optarg;
@@ -205,7 +202,7 @@ char	*argv[];
 			break;
 		case 0:
 			rval |= execl(*argv, *argv, NULL) != 0;
-			perror(*argv);
+			warn("%s", *argv);
 			_exit(1);
 		}
 	}
