@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.38 1998/06/07 17:11:39 dfr Exp $
+ *	$Id: sys_process.c,v 1.39 1998/07/15 04:43:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -420,7 +420,7 @@ ptrace(curp, uap)
 		if (p->p_flag & P_INMEM) {
 			p->p_addr->u_kproc.kp_proc = *p;
 			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-			curp->p_retval[0] = *(long *)
+			curp->p_retval[0] = *(int *)
 			    ((uintptr_t)p->p_addr + (uintptr_t)uap->addr);
 		} else {
 			curp->p_retval[0] = 0;
