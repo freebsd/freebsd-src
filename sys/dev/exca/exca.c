@@ -576,7 +576,6 @@ exca_wait_ready(struct exca_softc *sc)
 void
 exca_reset(struct exca_softc *sc, device_t child)
 {
-	int cardtype;
 	int win;
 
 	/* enable socket i/o */
@@ -595,11 +594,8 @@ exca_reset(struct exca_softc *sc, device_t child)
 	/* disable all address windows */
 	exca_putb(sc, EXCA_ADDRWIN_ENABLE, 0);
 
-	CARD_GET_TYPE(child, &cardtype);
-	exca_setb(sc, EXCA_INTR, (cardtype == PCCARD_IFTYPE_IO) ?
-	    EXCA_INTR_CARDTYPE_IO : EXCA_INTR_CARDTYPE_MEM);
-	DEVPRINTF(sc->dev, "card type is %s\n",
-	    (cardtype == PCCARD_IFTYPE_IO) ? "io" : "mem");
+	exca_setb(sc, EXCA_INTR, EXCA_INTR_CARDTYPE_IO);
+	DEVPRINTF(sc->dev, "card type is io\n");
 
 	/* reinstall all the memory and io mappings */
 	for (win = 0; win < EXCA_MEM_WINS; ++win)
