@@ -44,11 +44,11 @@ stopping and restarting the system
 .Nm halt
 .Op Fl nqp
 .Nm reboot
-.Op Fl nqp
+.Op Fl dnqp
 .Nm fasthalt
 .Op Fl nqp
 .Nm fastboot
-.Op Fl nqp
+.Op Fl dnqp
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -66,6 +66,11 @@ file.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl d
+The system is requested to create a crash dump.  This option is
+supported only when rebooting, and it has no effect unless a dump
+device has previously been specified with
+.Xr dumpon 8 .
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
@@ -101,6 +106,8 @@ specific programs.
 .Sh SEE ALSO
 .Xr wtmp 5 ,
 .Xr boot 8 ,
+.Xr dumpon 8 ,
+.Xr savecore 8 ,
 .Xr shutdown 8 ,
 .Xr sync 8
 .Sh HISTORY
