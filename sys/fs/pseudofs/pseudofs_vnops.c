@@ -821,9 +821,6 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *)pfs_readdir	},
 	{ &vop_readlink_desc,		(vop_t *)pfs_readlink	},
 	{ &vop_reclaim_desc,		(vop_t *)pfs_reclaim	},
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *)pfs_refreshlabel },
-#endif
 	{ &vop_remove_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_rename_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_rmdir_desc,		(vop_t *)vop_eopnotsupp	},
