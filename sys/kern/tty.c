@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.50 1995/07/21 14:15:09 bde Exp $
+ * $Id: tty.c,v 1.51 1995/07/21 14:41:43 bde Exp $
  */
 
 /*-
@@ -204,7 +204,6 @@ ttyopen(device, tp)
 		SET(tp->t_state, TS_ISOPEN);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
-	CLR(tp->t_state, TS_WOPEN);
 
 	/*
 	 * Initialize or restore a cblock allocation policy suitable for
@@ -833,7 +832,6 @@ ttioctl(tp, cmd, data, flag)
 				    !ISSET(t->c_cflag, CLOCAL)) {
 #if 0
 					CLR(tp->t_state, TS_ISOPEN);
-					SET(tp->t_state, TS_WOPEN);
 #endif
 					ttwakeup(tp);
 				}
@@ -1251,7 +1249,7 @@ ttymodem(tp, flag)
 	int flag;
 {
 
-	if (!ISSET(tp->t_state, TS_WOPEN) && ISSET(tp->t_cflag, MDMBUF)) {
+	if (ISSET(tp->t_state, TS_CARR_ON) && ISSET(tp->t_cflag, MDMBUF)) {
 		/*
 		 * MDMBUF: do flow control according to carrier flag
 		 */
