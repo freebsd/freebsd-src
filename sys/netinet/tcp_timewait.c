@@ -420,6 +420,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	nth->th_urp = 0;
 #ifdef INET6
 	if (isipv6) {
+		nth->th_sum = 0;
 		nth->th_sum = in6_cksum(m, IPPROTO_TCP,
 					sizeof(struct ip6_hdr),
 					tlen - sizeof(struct ip6_hdr));
