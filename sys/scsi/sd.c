@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.79 1995/12/10 01:47:33 bde Exp $
+ *      $Id: sd.c,v 1.80 1995/12/11 04:57:07 dyson Exp $
  */
 
 #define SPLSD splbio
@@ -445,7 +445,6 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-#define SDDISKSORT
 #ifdef SDDISKSORT
 	tqdisksort(&sd->buf_queue, bp);
 #else
