@@ -151,7 +151,18 @@ tar_mode_c(struct bsdtar *bsdtar)
 		}
 	}
 
-	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+	/*
+	 * If user explicitly set the block size, then assume they
+	 * want the last block padded as well.  Otherwise, use the
+	 * default block size and accept archive_write_open_file()'s
+	 * default padding decisions.
+	 */
+	if (bsdtar->bytes_per_block != 0) {
+		archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+		archive_write_set_bytes_in_last_block(a,
+		    bsdtar->bytes_per_block);
+	} else
+		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
 
 	switch (bsdtar->create_compression) {
 	case 'j': case 'y':
@@ -160,6 +171,10 @@ tar_mode_c(struct bsdtar *bsdtar)
 	case 'z':
 		archive_write_set_compression_gzip(a);
 		break;
+	default:
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Unrecognized compression option -%c",
+		    bsdtar->create_compression);
 	}
 
 	r = archive_write_open_file(a, bsdtar->filename);
@@ -262,7 +277,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
-	archive_read_open_fd(a, bsdtar->fd, bsdtar->bytes_per_block);
+	archive_read_open_fd(a, bsdtar->fd,
+	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
+	    DEFAULT_BYTES_PER_BLOCK);
 
 	/* Build a list of all entries and their recorded mod times. */
 	while (0 == archive_read_next_header(a, &entry)) {
@@ -293,7 +310,12 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
 		format = ARCHIVE_FORMAT_TAR_USTAR;
 	archive_write_set_format(a, format);
-	archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+	if (bsdtar->bytes_per_block != 0) {
+		archive_write_set_bytes_per_block(a, bsdtar->bytes_per_block);
+		archive_write_set_bytes_in_last_block(a,
+		    bsdtar->bytes_per_block);
+	} else
+		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
 	lseek(bsdtar->fd, end_offset, SEEK_SET);
 	ftruncate(bsdtar->fd, end_offset);
 	archive_write_open_fd(a, bsdtar->fd);
