@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldunload [-v] -i id\n");
-    fprintf(stderr, "       kldunload [-v] [-n] name\n");
+    fprintf(stderr, "usage: kldunload [-fv] -i id\n");
+    fprintf(stderr, "       kldunload [-fv] [-n] name\n");
     exit(1);
 }
 
