@@ -874,7 +874,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
     Boolean 	    haveModifier;/* TRUE if have modifiers for the variable */
     char	    endc;    	/* Ending character when variable in parens
 				 * or braces */
-    char	    startc=0;	/* Starting character when variable in parens
+    char	    startc;	/* Starting character when variable in parens
 				 * or braces */
     int             cnt;	/* Used to count brace pairs when variable in
 				 * in parens or braces */
@@ -891,7 +891,19 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
     dynamic = FALSE;
     start = str;
 
+    if (str[1] == '\0') {
+	/*
+	 * Error - there is only a dollar sign!
+	 */
+	*lengthPtr = 1;
+	return (err ? var_Error : varNoError);
+    }
+
     if (str[1] == OPEN_PAREN || str[1] == OPEN_BRACE) {
+	/*
+	 * Check if brackets contain a variable name.
+	 */
+
 	/* build up expanded variable name in this buffer */
 	Buffer	*buf = Buf_Init(MAKE_BSIZE);
 
@@ -901,8 +913,8 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	 */
 	startc = str[1];
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
-
 	tstr = str + 2;
+
 	while (*tstr != '\0' && *tstr != endc && *tstr != ':') {
 	    if (*tstr == '$') {
 		size_t	rlen;
@@ -939,7 +951,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	*tstr = '\0';			/* modify input string */
 
 	Buf_AddByte(buf, (Byte)'\0');
-	str = Buf_GetAll(buf, (size_t *)NULL);
+	str = Buf_GetAll(buf, (size_t *)NULL);	/* REPLACE str */
 	vlen = strlen(str);
 
 	v = VarFind(str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
@@ -1066,13 +1078,6 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	}
 	Buf_Destroy(buf, TRUE);
 
-    } else if (str[1] == '\0') {
-	/*
-	 * Error - there is only a dollar sign!
-	 */
-	*lengthPtr = 1;
-	return (err ? var_Error : varNoError);
-
     } else {
 	/*
 	 * If it's not bounded by braces of some sort, life is much simpler.
@@ -1116,11 +1121,11 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	     * Error
 	     */
 	    return (err ? var_Error : varNoError);
-	} else {
-	    haveModifier = FALSE;
-	    tstr = &str[1];
-	    endc = str[1];
 	}
+	haveModifier = FALSE;
+	startc = 0;
+	endc = str[1];
+	tstr = &str[1];
     }
 
     if (v->flags & VAR_IN_USE) {
