@@ -768,6 +768,10 @@ _cap_mkdb=	usr.bin/cap_mkdb
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} < 600016
+_mklocale=	usr.bin/mklocale
+.endif
+
 .if ${BOOTSTRAPPING} < 450005 || \
     ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034
 _uudecode=	usr.bin/uudecode
@@ -807,6 +811,7 @@ bootstrap-tools:
     ${_lex} \
     usr.bin/lorder \
     usr.bin/makewhatis \
+    ${_mklocale} \
     usr.bin/rpcgen \
     ${_uudecode} \
     ${_xargs} \
