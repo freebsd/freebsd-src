@@ -900,23 +900,14 @@ memsetw(void *d, int val, size_t size)
 #define	BUS_DMA_NOWAIT		0x001	/* not safe to sleep */
 #define	BUS_DMA_ALLOCNOW	0x002	/* perform resource allocation now */
 #define	BUS_DMA_COHERENT	0x004	/* hint: map memory in a coherent way */
-#define	BUS_DMA_NOWRITE		0x008
 #define	BUS_DMA_BUS1		0x010
 #define	BUS_DMA_BUS2		0x020
 #define	BUS_DMA_BUS3		0x040
 #define	BUS_DMA_BUS4		0x080
-/*
- * The following flags are from NetBSD, but are not implemented for all
- * architetures, and should therefore not be used in MI code.
- * Some have different values than under NetBSD.
- */
-#define	BUS_DMA_STREAMING	0x100	/* hint: sequential, unidirectional */
-#define	BUS_DMA_READ		0x200	/* mapping is device -> memory only */
-#define	BUS_DMA_WRITE		0x400	/* mapping is memory -> device only */
 
-#define	BUS_DMA_NOCACHE		BUS_DMA_BUS1
-/* Don't bother with alignment */
-#define	BUS_DMA_DVMA		BUS_DMA_BUS2
+/* The following two flags are non-standard. */
+#define	BUS_DMA_NOWRITE		0x100
+#define	BUS_DMA_NOCACHE		0x200
 
 /* Forwards needed by prototypes below. */
 struct mbuf;

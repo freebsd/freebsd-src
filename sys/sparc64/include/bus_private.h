@@ -54,12 +54,28 @@ struct bus_dmamap_res {
 	SLIST_ENTRY(bus_dmamap_res)	dr_link;
 };
 
+/*
+ * Callers of the bus_dma interfaces must always protect their tags and maps
+ * appropriately against concurrent access. However, when a map is on a LRU
+ * queue, there is a second access path to it; for this case, the locking rules
+ * are given in the parenthesized comments below:
+ *	q - locked by the mutex protecting the queue.
+ *	p - private to the owner of the map, no access through the queue.
+ *	* - comment refers to pointer target.
+ * Only the owner of the map is allowed to insert the map into a queue. Removal
+ * and repositioning (i.e. temporal removal and reinsertion) is allowed to all
+ * if the queue lock is held.
+ */
 struct bus_dmamap {
-	TAILQ_ENTRY(bus_dmamap)	dm_maplruq;
-	SLIST_HEAD(, bus_dmamap_res)	dm_reslist;
-	int			dm_onq;
-	int			dm_loaded;
+	TAILQ_ENTRY(bus_dmamap)	dm_maplruq;		/* (q) */
+	SLIST_HEAD(, bus_dmamap_res)	dm_reslist;	/* (q, *q) */
+	int			dm_onq;			/* (q) */
+	int			dm_flags;		/* (p) */
 };
+
+/* Flag values. */
+#define	DMF_LOADED	1	/* Map is loaded */
+#define	DMF_COHERENT	2	/* Coherent mapping requested */
 
 int sparc64_dma_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp);
 void sparc64_dma_free_map(bus_dma_tag_t dmat, bus_dmamap_t map);
