@@ -219,6 +219,7 @@ static int	in_ietint = 0;
 struct isa_driver iedriver = {
 	ieprobe, ieattach, "ie",
 };
+COMPAT_ISA_DRIVER(ie, iedriver);
 
 enum ie_hardware {
 	IE_STARLAN10,
@@ -825,6 +826,7 @@ ieattach(struct isa_device *dvp)
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	if (ie->hard_type == IE_EE16)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
