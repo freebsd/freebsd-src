@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.23 1997/08/02 14:33:20 bde Exp $
+ * $Id: lfs_segment.c,v 1.24 1997/08/31 07:32:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -237,9 +237,9 @@ lfs_writevnodes(fs, mp, sp, op)
 	struct vnode *vp;
 
 /* BEGIN HACK */
-#define	VN_OFFSET	(((void *)&vp->v_mntvnodes.le_next) - (void *)vp)
-#define	BACK_VP(VP)	((struct vnode *)(((void *)VP->v_mntvnodes.le_prev) - VN_OFFSET))
-#define	BEG_OF_VLIST	((struct vnode *)(((void *)&mp->mnt_vnodelist.lh_first) - VN_OFFSET))
+#define	VN_OFFSET	(((u_char *)&vp->v_mntvnodes.le_next) - (u_char *)vp)
+#define	BACK_VP(VP)	((struct vnode *)(((u_char *)VP->v_mntvnodes.le_prev) - VN_OFFSET))
+#define	BEG_OF_VLIST	((struct vnode *)(((u_char *)&mp->mnt_vnodelist.lh_first) - VN_OFFSET))
 
 /* Find last vnode. */
 loop:   for (vp = mp->mnt_vnodelist.lh_first;
@@ -617,9 +617,9 @@ lfs_gather(fs, sp, vp, match)
 	s = splbio();
 /* This is a hack to see if ordering the blocks in LFS makes a difference. */
 /* BEGIN HACK */
-#define	BUF_OFFSET	(((void *)&bp->b_vnbufs.le_next) - (void *)bp)
-#define	BACK_BUF(BP)	((struct buf *)(((void *)BP->b_vnbufs.le_prev) - BUF_OFFSET))
-#define	BEG_OF_LIST	((struct buf *)(((void *)&vp->v_dirtyblkhd.lh_first) - BUF_OFFSET))
+#define	BUF_OFFSET	(((u_char *)&bp->b_vnbufs.le_next) - (u_char *)bp)
+#define	BACK_BUF(BP)	((struct buf *)(((u_char *)BP->b_vnbufs.le_prev) - BUF_OFFSET))
+#define	BEG_OF_LIST	((struct buf *)(((u_char *)&vp->v_dirtyblkhd.lh_first) - BUF_OFFSET))
 
 
 /*loop:	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = bp->b_vnbufs.le_next) {*/
@@ -871,8 +871,6 @@ lfs_writeseg(fs, sp)
 	dev_t i_dev;
 	u_long *datap, *dp;
 	int do_again, i, nblocks, s;
-	int (*strategy)__P((struct vop_strategy_args *));
-	struct vop_strategy_args vop_strategy_a;
 	u_short ninos;
 	char *p;
 
@@ -929,7 +927,6 @@ lfs_writeseg(fs, sp)
 	fs->lfs_bfree -= (fsbtodb(fs, ninos) + LFS_SUMMARY_SIZE / DEV_BSIZE);
 
 	i_dev = VTOI(fs->lfs_ivnode)->i_dev;
-	strategy = VTOI(fs->lfs_ivnode)->i_devvp->v_op[VOFFSET(vop_strategy)];
 
 	/*
 	 * When we simply write the blocks we lose a rotation for every block
@@ -1007,9 +1004,7 @@ lfs_writeseg(fs, sp)
 		 * the buffer (yuk).
 		 */
 		cbp->b_saveaddr = (caddr_t)fs;
-		vop_strategy_a.a_desc = VDESC(vop_strategy);
-		vop_strategy_a.a_bp = cbp;
-		(strategy)(&vop_strategy_a);
+		VOP_STRATEGY(cbp);
 	}
 	/*
 	 * XXX
@@ -1039,12 +1034,9 @@ lfs_writesuper(fs)
 {
 	struct buf *bp;
 	dev_t i_dev;
-	int (*strategy) __P((struct vop_strategy_args *));
 	int s;
-	struct vop_strategy_args vop_strategy_a;
 
 	i_dev = VTOI(fs->lfs_ivnode)->i_dev;
-	strategy = VTOI(fs->lfs_ivnode)->i_devvp->v_op[VOFFSET(vop_strategy)];
 
 	/* Checksum the superblock and copy it into a buffer. */
 	fs->lfs_cksum = cksum(fs, sizeof(struct lfs) - sizeof(fs->lfs_cksum));
@@ -1062,12 +1054,10 @@ lfs_writesuper(fs)
 	}
 	bp->b_flags &= ~(B_DONE | B_ERROR | B_READ | B_DELWRI);
 	bp->b_iodone = lfs_supercallback;
-	vop_strategy_a.a_desc = VDESC(vop_strategy);
-	vop_strategy_a.a_bp = bp;
 	s = splbio();
 	++bp->b_vp->v_numoutput;
 	splx(s);
-	(strategy)(&vop_strategy_a);
+	VOP_STRATEGY(bp);
 }
 
 /*
@@ -1230,6 +1220,9 @@ lfs_vref(vp)
 /*
  * This is vrele except that we do not want to VOP_INACTIVE this vnode. We
  * inline vrele here to avoid the vn_lock and VOP_INACTIVE call at the end.
+ *
+ * XXX: this is positively disgusting and blatantly wrong, and may not
+ * even work these days :-(  /phk
  */
 void
 lfs_vunref(vp)
