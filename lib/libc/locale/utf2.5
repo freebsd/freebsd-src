@@ -35,7 +35,7 @@
 .\"	@(#)utf2.4	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 11, 2002
 .Dt UTF2 4
 .Os
 .Sh NAME
@@ -45,6 +45,11 @@
 .Nm ENCODING
 .Qq UTF2
 .Sh DESCRIPTION
+.Bf Em
+The UTF2 encoding has been deprecated in favour of UTF-8.
+.Ef
+New applications should not use UTF2.
+.Pp
 The
 .Nm UTF2
 encoding is based on a proposed X-Open multibyte
@@ -85,4 +90,5 @@ which provides for the entire proposed ISO-10646 31 bit standard are currently
 not implemented.
 .Sh "SEE ALSO"
 .Xr mklocale 1 ,
-.Xr setlocale 3
+.Xr setlocale 3 ,
+.Xr utf8 5
