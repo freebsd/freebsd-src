@@ -46,11 +46,11 @@
 #define	_QUAD_HIGHWORD 1
 #define	_QUAD_LOWWORD 0
 
+#ifndef _POSIX_SOURCE
 /*
  * Definitions for byte order, according to byte significance from low
  * address to high.
  */
-#ifndef _POSIX_SOURCE
 #define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
 #define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
@@ -58,35 +58,61 @@
 #define	BYTE_ORDER	LITTLE_ENDIAN
 #endif /* ! _POSIX_SOURCE */
 
-#ifdef _KERNEL
 #ifdef __GNUC__
 
-#define	_BSWAP32_DEFINED
-static __inline __uint32_t
-__bswap32(__uint32_t __x)
-{
+#define __word_swap_int(x) \
+__extension__ ({ register __uint32_t __X = (x); \
+   __asm ("rorl $16, %0" : "+r" (__X)); \
+   __X; })
+
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
-	__asm ("bswap %0" : "+r" (__x));
+
+#define __byte_swap_int(x) \
+__extension__ ({ register __uint32_t __X = (x); \
+   __asm ("bswap %0" : "+r" (__X)); \
+   __X; })
 #else
-	__asm ("xchgb %h0, %b0\n\t"
-	       "rorl $16, %0\n\t"
-	       "xchgb %h0, %b0"
-	       : "+q" (__x));
+
+#define __byte_swap_int(x) \
+__extension__ ({ register __uint32_t __X = (x); \
+   __asm ("xchgb %h0, %b0\n\trorl $16, %0\n\txchgb %h0, %b0" \
+       : "+q" (__X)); \
+   __X; })
 #endif
-	return __x;
-}
 
-#define	_BSWAP16_DEFINED
-static __inline __uint16_t
-__bswap16(__uint16_t __x)
+#define __byte_swap_word(x) \
+__extension__ ({ register __uint16_t __X = (x); \
+   __asm ("xchgb %h0, %b0" : "+q" (__X)); \
+   __X; })
+
+static __inline __uint64_t
+__bswap64(__uint64_t _x)
 {
-	__asm ("xchgb %h0, %b0" : "+q" (__x));
-
-	return __x;
+	return ((_x >> 56) | ((_x >> 40) & 0xff00) | ((_x >> 24) & 0xff0000) |
+	    ((_x >> 8) & 0xff000000) | ((_x << 8) & ((__uint64_t)0xff << 32)) |
+	    ((_x << 24) & ((__uint64_t)0xff << 40)) |
+	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
 }
 
-#endif /* _KERNEL */
+static __inline __uint32_t
+__bswap32(__uint32_t _x)
+{
+
+	return (__byte_swap_int(_x));
+}
+
+static __inline __uint16_t
+__bswap16(__uint16_t _x)
+{
+
+	return (__byte_swap_word(_x));
+}
 
 #endif /* __GNUC__ */
+
+#define	__htonl(x)	__bswap32(x)
+#define	__htons(x)	__bswap16(x)
+#define	__ntohl(x)	__bswap32(x)
+#define	__ntohs(x)	__bswap16(x)
 
 #endif /* !_MACHINE_ENDIAN_H_ */
