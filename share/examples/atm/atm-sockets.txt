@@ -148,15 +148,17 @@ o Multipoint connections
 
 Example ATM Socket Application
 ------------------------------
-The following is a simple example application using the ATM socket API.
+The following are simple example client and server applications using the ATM 
+socket API.
 
 /*
- * ATM API sample application
+ * ATM API sample client application
  *
- * This application will open an ATM socket, send a text string in a PDU
- * and then read one PDU from the socket and print its contents.
+ * This application will open an ATM socket to a server, send a text string 
+ * in a PDU and then read one PDU from the socket and print its contents.
  *
  */
+#include <stdio.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -165,17 +167,35 @@ The following is a simple example application using the ATM socket API.
 
 #define	MAX_LEN		4096	/* Maximum PDU length */
 #define	MY_ID		11	/* BLLI Layer 2 protocol */
-#define MY_APPL		"SAMPLE"
+#define MY_APPL		"Client"
 
 Atm_addr_nsap	dst_addr = {
 	0x47,
+#error FIX ME: Replace the 2 lines below with your nsap prefix and esi address
 	{0x00,0x05,0x80,0xff,0xdc,0x00,0x00,0x00,0x00,0x02,0xff,0xff},
 	{0x11,0x22,0x33,0x44,0x55,0x66},
 	0x00
 };
 
-static char	message[] = "Test message to send on connection";
+static char	message[] = "A message from the client";
 
+void
+print_cause(int s)
+{
+	struct	t_atm_cause	cause;
+	int	optlen;
+
+	optlen = sizeof(cause);
+	if (getsockopt(s, T_ATM_SIGNALING, T_ATM_CAUSE, &cause, &optlen) < 0) {
+		perror("getsockopt(cause)");
+		return;
+	}
+	
+	fprintf(stderr, "Cause: coding=%d loc=%d cause=%d diag=(%d,%d,%d,%d)\n",
+		cause.coding_standard, cause.location, cause.cause_value,
+		cause.diagnostics[0], cause.diagnostics[1], 
+		cause.diagnostics[2], cause.diagnostics[3]);
+}
 
 main(argc, argv)
 	int	argc;
@@ -285,6 +305,8 @@ main(argc, argv)
 		exit(1);
 	}
 
+#ifdef REMOVE_TO_USE_NET_INTF
+#error FIX ME: Replace the ni0 below with the local atm network interface name
 	strncpy(netintf.net_intf, "ni0", IFNAMSIZ);
 	optlen = sizeof(netintf);
 	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_NET_INTF, (caddr_t)&netintf,
@@ -292,6 +314,7 @@ main(argc, argv)
 		perror("setsockopt(net_intf)");
 		exit(1);
 	}
+#endif
 
 	strncpy(appname.app_name, MY_APPL, T_ATM_APP_NAME_LEN);
 	optlen = sizeof(appname);
@@ -306,6 +329,7 @@ main(argc, argv)
 	 */
 	if (connect(s, (struct sockaddr *) &satm, sizeof(satm)) < 0) {
 		perror("connect");
+		print_cause(s);
 		exit(1);
 	}
 
@@ -317,7 +341,7 @@ main(argc, argv)
 		exit(1);
 	}
 
-	if ((n = read(s, buffer, MAX_LEN) < 0)) {
+	if ((n = read(s, buffer, MAX_LEN)) < 0) {
 		perror("read");
 		exit(1);
 	}
@@ -336,5 +360,213 @@ main(argc, argv)
 	exit(0);
 }
 
-	@(#) $Id: atm_sockets,v 1.1 1998/08/26 21:52:01 mks Exp $
+
+
+/*
+ * ATM API sample server application
+ *
+ * This application will loop forever listening for connections on an ATM 
+ * socket.  When a new connection arrives, it will send a string in a PDU,
+ * read one PDU from the socket and print its contents.
+ *
+ */
+#include <stdio.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netatm/atm.h>
+
+#define	MAX_LEN		4096	/* Maximum PDU length */
+#define	MY_ID		11	/* BLLI Layer 2 protocol */
+#define MY_APPL		"Server"
+
+static char	message[] = "A message from the server";
+
+void
+print_cause(int s)
+{
+	struct	t_atm_cause	cause;
+	int	optlen;
+
+	optlen = sizeof(cause);
+	if (getsockopt(s, T_ATM_SIGNALING, T_ATM_CAUSE, &cause, &optlen) < 0) {
+		perror("getsockopt(cause)");
+		return;
+	}
+	
+	fprintf(stderr, "Cause: coding=%d loc=%d cause=%d diag=(%d,%d,%d,%d)\n",
+		cause.coding_standard, cause.location, cause.cause_value,
+		cause.diagnostics[0], cause.diagnostics[1], 
+		cause.diagnostics[2], cause.diagnostics[3]);
+}
+
+main(argc, argv)
+	int	argc;
+	char	**argv;
+{
+	struct sockaddr_atm	satm;
+	struct t_atm_aal5	aal5;
+	struct t_atm_traffic	traffic;
+	struct t_atm_bearer	bearer;
+	struct t_atm_qos	qos;
+	struct t_atm_net_intf	netintf;
+	struct t_atm_app_name	appname;
+	char	buffer[MAX_LEN+1];
+	int	s, n, optlen;
+
+	/*
+	 * Create socket
+	 */
+	s = socket(AF_ATM, SOCK_SEQPACKET, ATM_PROTO_AAL5);
+	if (s < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	/*
+	 * Set up destination SAP
+	 */
+	bzero((caddr_t) &satm, sizeof(satm));
+	satm.satm_family = AF_ATM;
+#if (defined(BSD) && (BSD >= 199103))
+	satm.satm_len = sizeof(satm);
+#endif
+	/* Destination ATM address */
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_addr = T_ATM_ANY;
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_selector = T_ATM_ANY;
+
+	/* BLLI Layer-2 protocol */
+	satm.satm_addr.t_atm_sap_layer2.SVE_tag = T_ATM_PRESENT;
+	satm.satm_addr.t_atm_sap_layer2.ID_type = T_ATM_USER_ID; 
+	satm.satm_addr.t_atm_sap_layer2.ID.user_defined_ID = MY_ID; 
+
+	/* BLLI Layer-3 protocol */
+	satm.satm_addr.t_atm_sap_layer3.SVE_tag = T_ATM_ABSENT;
+
+	/* BHLI protocol */
+	satm.satm_addr.t_atm_sap_appl.SVE_tag = T_ATM_ABSENT;
+
+	/*
+	 * Set up connection parameters
+	 */
+	aal5.forward_max_SDU_size = MAX_LEN;
+	aal5.backward_max_SDU_size = MAX_LEN;
+	aal5.SSCS_type = T_ATM_NULL;
+	optlen = sizeof(aal5);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_AAL5, (caddr_t)&aal5,
+			optlen) < 0) {
+		perror("setsockopt(aal5)");
+		exit(1);
+	}
+
+	traffic.forward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.PCR_all_traffic = 100000;
+	traffic.forward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.forward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.forward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.forward.tagging = T_NO;
+	traffic.backward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.PCR_all_traffic = 100000;
+	traffic.backward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.backward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.backward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.backward.tagging = T_NO;
+	traffic.best_effort = T_YES;
+	optlen = sizeof(traffic);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_TRAFFIC, (caddr_t)&traffic,
+			optlen) < 0) {
+		perror("setsockopt(traffic)");
+		exit(1);
+	}
+
+	bearer.bearer_class = T_ATM_CLASS_X;
+	bearer.traffic_type = T_ATM_NULL;
+	bearer.timing_requirements = T_ATM_NULL;
+	bearer.clipping_susceptibility = T_NO;
+	bearer.connection_configuration = T_ATM_1_TO_1;
+	optlen = sizeof(bearer);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_BEARER_CAP, (caddr_t)&bearer,
+			optlen) < 0) {
+		perror("setsockopt(bearer)");
+		exit(1);
+	}
+
+	qos.coding_standard = T_ATM_NETWORK_CODING;
+	qos.forward.qos_class = T_ATM_QOS_CLASS_0;
+	qos.backward.qos_class = T_ATM_QOS_CLASS_0;
+	optlen = sizeof(qos);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_QOS, (caddr_t)&qos,
+			optlen) < 0) {
+		perror("setsockopt(qos)");
+		exit(1);
+	}
+
+	strncpy(appname.app_name, MY_APPL, T_ATM_APP_NAME_LEN);
+	optlen = sizeof(appname);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_APP_NAME, (caddr_t)&appname,
+			optlen) < 0) {
+		perror("setsockopt(app_name)");
+		exit(1);
+	}
+
+	/*
+	 * Now try to bind/listen
+	 */
+	if (bind(s, (struct sockaddr *) &satm, sizeof(satm)) < 0) {
+		perror("bind");
+		exit(1);
+	}
+	if (listen(s, 4) < 0) {
+		perror("listen");
+		exit(1);
+	}
+
+	for (; ; ) {
+		struct sockaddr_atm	claddr;
+		int	clsock, cllen;
+
+		/* Wait for incoming call */
+		cllen = sizeof(claddr);
+		clsock = accept(s, (struct sockaddr *) &claddr, &cllen);
+		if (clsock < 0) {
+			perror("accept");
+			exit(1);
+		}
+		printf("Server: new connection\n");
+		
+		/*
+		 * Exchange message with peer
+		 */
+		if (write(clsock, message, sizeof(message)) != sizeof(message)) {
+			perror("write");
+			exit(1);
+		}
+
+		if ((n = read(clsock, buffer, MAX_LEN)) < 0) {
+			perror("read");
+			exit(1);
+		}
+
+		buffer[n] = '\0';
+		printf("received %d bytes: <%s>\n", n, buffer);
+
+		sleep(1);
+
+		/*
+		 * Finish up
+		 */
+		if (close(clsock) < 0) {
+			perror("close");
+			exit(1);
+		}
+	}
+
+	close(s);
+	exit(0);
+}
+
+	@(#) $Id: atm-sockets.txt,v 1.1 1998/09/15 08:22:49 phk Exp $
 
