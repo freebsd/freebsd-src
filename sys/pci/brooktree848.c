@@ -1,4 +1,4 @@
-/* BT848 1.35 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.36 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -259,6 +259,8 @@
                            which I previously added. (Unless someone else
                            wanted the 0.25 second tsleep).
 
+1.36                       added bt848.format sysctl variable. 
+                           1 denotes NTSC , 0 denotes PAL
 
 */
 
@@ -302,11 +304,13 @@
 static int bt848_card = -1;
 static int bt848_tuner = -1;
 static int bt848_reverse_mute = -1;
+static int bt848_format = -1;
 
 SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
 SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
 
 typedef u_long ioctl_cmd_t;
 #endif  /* __FreeBSD__ */
@@ -429,8 +433,12 @@ bktr_pci_match(pci_devaddr_t *pa)
 
 	id = pci_inl(pa, PCI_VENDOR_ID);
 
-	if (id == BROOKTREE_848_ID || id == BROOKTREE_849_ID   ) {
-	  return 1;
+	switch (id) {
+	   BROOKTREE_848_ID:
+	   BROOKTREE_849_ID:
+	   BROOKTREE_878_ID:
+	   BROOKTREE_879_ID:
+	     return 1;
 	}
 	aprint_debug("bktr_pci_match got %x\n", id);
 	return 0;
@@ -845,12 +853,12 @@ static const struct TUNER tuners[] = {
 	  { TSA552x_SCONTROL,			/* control byte for PLL */
 	    TSA552x_SCONTROL,
 	    TSA552x_SCONTROL,
-	    0x00},
+	    TSA552x_RADIO  },
           { 0x00, 0x00 },			/* band-switch crosspoints */
-	  { 0xa0, 0x90, 0x30,0x00 } },		/* the band-switch values */
+	  { 0xa0, 0x90, 0x30,0xa4 } },		/* the band-switch values */
 
 	/* PHILIPS_FR1216_PAL */
-	{ "Philips FR1216 PAL FM",		/* the 'name' */
+	{ "Philips FR1216 PAL" ,		/* the 'name' */
 	   TTYPE_PAL,				/* input type */
   	   PHILIPS_FR1216_PAL_WADDR,		/* PLL write address */
 	   { TSA552x_FCONTROL,			/* control byte for PLL */
@@ -1076,7 +1084,11 @@ bktr_probe( pcici_t tag, pcidi_t type )
 	case BROOKTREE_848_ID:
 		return("BrookTree 848");
         case BROOKTREE_849_ID:
-               return("BrookTree 849");
+                return("BrookTree 849");
+        case BROOKTREE_878_ID:
+                return("BrookTree 878");
+        case BROOKTREE_879_ID:
+                return("BrookTree 879");
 	};
 
 	return ((char *)0);
@@ -1115,6 +1127,8 @@ bktr_attach( ATTACH_ARGS )
 	bktr->tag = tag;
 	pci_map_mem( tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
 		     &bktr->phys_base );
+	fun = pci_conf_read(tag, 0x40);
+	pci_conf_write(tag, 0x40, fun | 1);
 
 
 #ifdef BROOKTREE_IRQ		/* from the configuration file */
@@ -1183,6 +1197,10 @@ bktr_attach( ATTACH_ARGS )
 
 	bktr->bigbuf = buf;
 	bktr->alloc_pages = BROOKTREE_ALLOC_PAGES;
+
+	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
+	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 2);
+
 	if ( buf != 0 ) {
 		bzero((caddr_t) buf, BROOKTREE_ALLOC);
 		buf = vtophys(buf);
@@ -1199,6 +1217,12 @@ bktr_attach( ATTACH_ARGS )
 		bt848->int_mask = ALL_INTS_DISABLED;
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 	}
+
+	/* save pci id */
+	fun = pci_conf_read(tag, PCI_ID_REG);
+	bktr->id = fun;
+
+
 
 	bktr->clr_on_start = FALSE;
 	/* defaults for the tuner section of the card */
@@ -1545,7 +1569,7 @@ static int
 video_open( bktr_ptr_t bktr )
 {
 	bt848_ptr_t bt848;
-	int frame_rate;
+	int frame_rate, video_format=0;
 
 	if (bktr->flags & METEOR_OPEN)		/* device is busy */
 		return( EBUSY );
@@ -1565,20 +1589,36 @@ video_open( bktr_ptr_t bktr )
 	bt848->adc = SYNC_LEVEL;
 
 #if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
-	bt848->iform = BT848_IFORM_M_MUX1 |
-		       BT848_IFORM_X_XT1  |
-		       BT848_IFORM_F_PALBDGHI;
-	bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
-	bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
-	bktr->format_params = BT848_IFORM_F_PALBDGHI;
-	frame_rate = 25;
+	video_format = 0;
 #else
-	bt848->iform = BT848_IFORM_M_MUX1 |
-		       BT848_IFORM_X_XT0  |
-		       BT848_IFORM_F_NTSCM;
-	bktr->format_params = BT848_IFORM_F_NTSCM;
-	frame_rate = 30;
+	video_format = 1;
 #endif
+
+	if (bt848_format == 0 ) 
+	  video_format = 0;
+
+	if (bt848_format == 1 ) 
+	  video_format = 1;
+
+	if (video_format == 1 ) {
+	  bt848->iform = BT848_IFORM_M_MUX1 |
+	    BT848_IFORM_X_XT0  |
+	    BT848_IFORM_F_NTSCM;
+	  bktr->format_params = BT848_IFORM_F_NTSCM;
+	  frame_rate = 30;
+
+	} else {
+	  bt848->iform = BT848_IFORM_M_MUX1 |
+	    BT848_IFORM_X_XT1  |
+	    BT848_IFORM_F_PALBDGHI;
+	  bt848->adelay = format_params[BT848_IFORM_F_PALBDGHI].adelay;
+	  bt848->bdelay = format_params[BT848_IFORM_F_PALBDGHI].bdelay;
+	  bktr->format_params = BT848_IFORM_F_PALBDGHI;
+	  frame_rate = 25;
+
+	}
+
+
 
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
@@ -1616,8 +1656,9 @@ video_open( bktr_ptr_t bktr )
 	bktr->format = METEOR_GEO_RGB16;
 	bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
 
-
-	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* what does this bit do ??? */
+	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* if you take this out triton
+                                                   based motherboards will 
+						   operate unreliably */
 
 	return( 0 );
 }
@@ -2753,6 +2794,20 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 			bt848->o_control |= BT848_O_CONTROL_COMP;
 			set_audio( bktr, AUDIO_EXTERN );
 			break;
+
+		case METEOR_INPUT_DEV3:
+		  if (bktr->id == BROOKTREE_878_ID ||
+		      bktr->id == BROOKTREE_879_ID ) {
+			bktr->flags = (bktr->flags & ~METEOR_DEV_MASK)
+				| METEOR_DEV3;
+			bt848->iform &= ~BT848_IFORM_MUXSEL;
+			bt848->iform |= BT848_IFORM_M_MUX3;
+			bt848->e_control &= ~BT848_E_CONTROL_COMP;
+			bt848->o_control &= ~BT848_O_CONTROL_COMP;
+			set_audio( bktr, AUDIO_EXTERN );
+
+			break;
+		  }	
 
 		default:
 			return( EINVAL );
@@ -3926,10 +3981,16 @@ static int oformat_meteor_to_bt( u_long format )
 
 /* */
 #define I2CBITTIME		(0x5<<4)	/* 5 * 0.48uS */
+#define I2CBITTIME_878              (1 << 7)
 #define I2C_READ		0x01
 #define I2C_COMMAND		(I2CBITTIME |			\
 				 BT848_DATA_CTL_I2CSCL |	\
 				 BT848_DATA_CTL_I2CSDA)
+
+#define I2C_COMMAND_878		(I2CBITTIME_878 |			\
+				 BT848_DATA_CTL_I2CSCL |	\
+				 BT848_DATA_CTL_I2CSDA)
+
 
 /*
  * 
@@ -3947,7 +4008,12 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* build the command datum */
-	data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
+	if (bktr->id == BROOKTREE_848_ID ||
+	    bktr->id == BROOKTREE_849_ID) {
+	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
+	} else {
+	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND_878;
+	}
 	if ( byte2 != -1 ) {
 		data |= ((byte2 & 0xff) << 8);
 		data |= BT848_DATA_CTL_I2CW3B;
@@ -3986,7 +4052,14 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	bt848->int_stat = (BT848_INT_RACK | BT848_INT_I2CDONE);
 
 	/* write the READ address */
-	bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
+	/* The Bt878 and Bt879  differed on the treatment of i2c commands */
+	   
+	if (bktr->id == BROOKTREE_848_ID ||
+	    bktr->id == BROOKTREE_849_ID) {
+	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND;
+	} else {
+	  bt848->i2c_data_ctl = ((addr & 0xff) << 24) | I2C_COMMAND_878;
+	}
 
 	/* wait for completion */
 	for ( x = 0x7fffffff; x; --x ) {	/* safety valve */
@@ -4184,11 +4257,12 @@ static void
 probeCard( bktr_ptr_t bktr, int verbose )
 {
 	int	card, i,j, card_found;
-	int	status;
+	int	status, *test;
 	bt848_ptr_t	bt848;
 	u_char probe_signature[128], *probe_temp;
         int   any_i2c_devices;
-
+	u_char probe_eeprom[128];
+	u_long code = 0;
 
         any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
@@ -4281,6 +4355,7 @@ checkTuner:
 	}
 
 	/* differentiate type of tuner */
+
 	switch (card) {
 	case CARD_MIRO:
 	    switch (((bt848->gpio_data >> 10)-1)&7) {
@@ -4300,20 +4375,50 @@ checkTuner:
 		goto checkDBX;
 	    }
 
-	    if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
-		bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
-		goto checkDBX;
+	}
+	if ( card == CARD_HAUPPAUGE ) {
+	  bktr->card.tuner = &tuners[ TEMIC_PAL ];
+	  readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
+
+
+	  if (probe_eeprom[0] == 0x84) {
+	    if (probe_eeprom[8] == 0x8) {
+	      code = 1; /* NTSC */
+	    } else if (probe_eeprom[8] == 0x4) {
+	      code = 2; /* PAL */
+	    }
+	    if (probe_eeprom[1] == 0x11 ||
+		probe_eeprom[1] == 0x12 ) {
+	      if (probe_eeprom[probe_eeprom[1]] == 1) {
+		code |= 1 << 8;
+	      }
+	    }
+		      
+
+	    switch (code) {
+	       case 0x1:
+		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
+		 goto checkDBX;
+	       case 0x11:
+		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
+		 goto checkDBX;
+
+	       case 0x2:
+		 bktr->card.tuner = &tuners[ TEMIC_PAL ];
+		 goto checkDBX;
+
+	       case 0x22:
+		 bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
+		 goto checkDBX;
 	    }
 
-	    if ( card == CARD_HAUPPAUGE ) {
-		if ( i2cRead( bktr, TEMIC_PALI_RADDR ) != ABSENT ) {
-		    bktr->card.tuner = &tuners[ TEMIC_PAL ];
-		    goto checkDBX;
-		}
-	    }
-	    /* no tuner found */
-	    bktr->card.tuner = &tuners[ NO_TUNER ];
+
+	  }
+
 	}
+	    /* no tuner found */
+	bktr->card.tuner = &tuners[ NO_TUNER ];
+
 
 checkDBX:
 #if defined( OVERRIDE_DBX )
