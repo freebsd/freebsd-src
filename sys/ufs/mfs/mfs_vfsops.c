@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.45 1998/09/14 19:56:42 sos Exp $
+ * $Id: mfs_vfsops.c,v 1.46 1998/10/08 23:34:44 jkh Exp $
  */
 
 
@@ -47,6 +47,7 @@
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/linker.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
