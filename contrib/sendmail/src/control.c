@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: control.c,v 8.125 2003/06/24 17:46:06 ca Exp $")
+SM_RCSID("@(#)$Id: control.c,v 8.126 2004/08/04 20:54:00 ca Exp $")
 
 #include <sm/fdset.h>
 
@@ -46,6 +46,7 @@ static struct cmd	CmdTab[] =
 
 
 
+static void	controltimeout __P((int));
 int ControlSocket = -1;
 
 /*
@@ -247,7 +248,7 @@ static jmp_buf	CtxControlTimeout;
 /* ARGSUSED0 */
 static void
 controltimeout(timeout)
-	time_t timeout;
+	int timeout;
 {
 	/*
 	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD

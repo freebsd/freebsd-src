@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.384 2004/07/26 18:03:55 ca Exp $
+#	$Id: README,v 8.385 2004/11/25 06:52:06 msk Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -624,7 +624,7 @@ STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
 TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
 MILTER		Turn on support for external filters using the Milter API;
 		this option is set by default, to turn it off use
-			APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER')
+			APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER=0')
 		in devtools/Site/site.config.m4 (see devtools/README).
 		See libmilter/README for more information about milter.
 REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
@@ -1823,4 +1823,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.384 $, last update $Date: 2004/07/26 18:03:55 $ )
+(Version $Revision: 8.385 $, last update $Date: 2004/11/25 06:52:06 $ )

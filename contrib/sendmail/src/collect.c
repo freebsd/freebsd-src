@@ -13,9 +13,9 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.254 2004/04/05 18:41:38 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.260 2004/11/30 23:29:15 ca Exp $")
 
-static void	collecttimeout __P((time_t));
+static void	collecttimeout __P((int));
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
 static SM_FILE_T *collect_dfopen __P((ENVELOPE *));
@@ -290,7 +290,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 {
 	register SM_FILE_T *volatile df;
 	volatile bool ignrdot;
-	volatile time_t dbto;
+	volatile int dbto;
 	register char *volatile bp;
 	volatile int c;
 	volatile bool inputerr;
@@ -308,7 +308,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 
 	df = NULL;
 	ignrdot = smtpmode ? false : IgnrDot;
-	dbto = smtpmode ? TimeOuts.to_datablock : 0;
+	dbto = smtpmode ? (int) TimeOuts.to_datablock : 0;
 	c = SM_IO_EOF;
 	inputerr = false;
 	headeronly = hdrp != NULL;
@@ -525,13 +525,12 @@ bufferchar:
 				continue;
 			}
 
+			SM_ASSERT(mstate == MS_UFROM || mstate == MS_HEADER);
+
 			/* header -- buffer up */
 			if (bp >= &buf[buflen - 2])
 			{
 				char *obuf;
-
-				if (mstate != MS_HEADER)
-					break;
 
 				/* out of space for header */
 				obuf = buf;
@@ -909,7 +908,7 @@ readerr:
 
 static void
 collecttimeout(timeout)
-	time_t timeout;
+	int timeout;
 {
 	int save_errno = errno;
 

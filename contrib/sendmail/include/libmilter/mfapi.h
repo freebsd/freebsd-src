@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.59 2004/07/07 21:41:31 ca Exp $
+ *	$Id: mfapi.h,v 8.60 2004/08/20 21:24:14 ca Exp $
  */
 
 /*
@@ -425,7 +425,6 @@ LIBMILTER_API int smfi_addrcpt __P((SMFICTX *, char *));
 
 LIBMILTER_API int smfi_delrcpt __P((SMFICTX *, char *));
 
-#if _FFR_SMFI_PROGRESS
 /*
 **  Send a "no-op" up to the MTA to tell it we're still alive, so long
 **  milter-side operations don't time out.
@@ -434,7 +433,6 @@ LIBMILTER_API int smfi_delrcpt __P((SMFICTX *, char *));
 */
 
 LIBMILTER_API int smfi_progress __P((SMFICTX *));
-#endif /* _FFR_SMFI_PROGRESS */
 
 /*
 **  Delete a recipient from the envelope

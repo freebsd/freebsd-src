@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-shm.c,v 1.19 2004/04/20 23:14:21 ca Exp $")
+SM_RCSID("@(#)$Id: t-shm.c,v 1.20 2004/08/03 20:51:36 ca Exp $")
 
 #include <stdio.h>
 
@@ -144,6 +144,8 @@ shmbig(owner, size)
 */
 
 # define MAX_CNT	10
+
+int shmtest __P((int));
 
 int
 shmtest(owner)

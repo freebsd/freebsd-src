@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: stdio.c,v 1.68 2004/03/03 19:20:29 ca Exp $")
+SM_RCSID("@(#)$Id: stdio.c,v 1.69 2004/08/03 20:46:34 ca Exp $")
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,6 +28,9 @@ SM_RCSID("@(#)$Id: stdio.c,v 1.68 2004/03/03 19:20:29 ca Exp $")
 #include <sm/conf.h>
 #include <sm/fdset.h>
 #include "local.h"
+
+static int	sm_stdsetmode __P((SM_FILE_T *, const int *));
+static int	sm_stdgetmode __P((SM_FILE_T *, int *));
 
 /*
 **  Overall:
@@ -260,7 +263,7 @@ sm_stdsetmode(fp, mode)
 **		Success: external mode value
 */
 
-int
+static int
 sm_stdgetmode(fp, mode)
 	SM_FILE_T *fp;
 	int *mode;

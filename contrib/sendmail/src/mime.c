@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.136 2004/03/22 18:21:34 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.137 2004/09/02 21:37:26 ca Exp $")
 
 /*
 **  MIME support.
@@ -848,7 +848,11 @@ mimeboundary(line, boundaries)
 		i--;
 
 	/* strip off trailing whitespace */
-	while (i > 0 && (line[i - 1] == ' ' || line[i - 1] == '\t'))
+	while (i > 0 && (line[i - 1] == ' ' || line[i - 1] == '\t'
+#if _FFR_MIME_CR_OK
+		|| line[i - 1] == '\r'
+#endif /* _FFR_MIME_CR_OK */
+	       ))
 		i--;
 	savec = line[i];
 	line[i] = '\0';

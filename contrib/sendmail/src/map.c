@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.664 2004/06/28 17:46:13 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.666 2004/08/17 16:50:19 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -4431,7 +4431,10 @@ ldapmap_parseargs(map, args)
 			}
 		}
 		lmap->ldap_attr[i] = NULL;
+
+		/* Set in case needed in future code */
 		attrssetup = true;
+
 		if (recurse && !normalseen)
 		{
 			syserr("LDAP recursion requested in %s but no returnable attribute given",
@@ -6469,6 +6472,9 @@ struct regex_map
 	int	*regex_subfields;	/* move to type MAP */
 	char	*regex_delim;		/* move to type MAP */
 };
+
+static int	parse_fields __P((char *, int *, int, int));
+static char	*regex_map_rewrite __P((MAP *, const char*, size_t, char **));
 
 static int
 parse_fields(s, ibuf, blen, nr_substrings)
