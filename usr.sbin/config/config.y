@@ -59,8 +59,7 @@
 %token	<val>	FPNUMBER
 
 %type	<str>	Save_id
-%type	<str>	Opt_name
-%type	<str>	Opt_string
+%type	<str>	Opt_value
 %type	<str>	Dev
 %type	<str>	device_name
 %type	<val>	major_minor
@@ -165,7 +164,7 @@ Spec:
 		;
 
 Config_spec:
-	MACHINE Opt_string
+	MACHINE Save_id
 	    = {
 		if (!strcmp($2, "i386")) {
 			machine = MACHINE_I386;
@@ -179,7 +178,7 @@ Config_spec:
 		} else
 			yyerror("Unknown machine type");
 	      } |
-	CPU Opt_string
+	CPU Save_id
 	      = {
 		struct cputype *cp =
 		    (struct cputype *)malloc(sizeof (struct cputype));
@@ -385,7 +384,7 @@ Opt_list:
 		;
 
 Option:
-	Opt_string
+	Save_id
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		char *s;
@@ -405,7 +404,7 @@ Option:
 			op->op_value = ns(s + 1);
 		}
 	      } |
-	Opt_string EQUALS Opt_string
+	Save_id EQUALS Opt_value
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
@@ -416,7 +415,7 @@ Option:
 		opt = op;
 	      } ;
 
-Opt_name:
+Opt_value:
 	ID
 		= { $$ = $1; } |
 	NUMBER
@@ -425,16 +424,6 @@ Opt_name:
 
 			(void) snprintf(buf, sizeof(buf), "%d", $1);
 			$$ = ns(buf);
-		} ;
-Opt_string:
-	Opt_name
-		= { $$ = $1; } |
-	Opt_name Opt_string
-		= {
-			char buf[80];
-
-			(void) snprintf(buf, sizeof(buf), "%s%s", $1, $2);
-			$$ = ns(buf); free($1); free($2);
 		} ;
 
 Save_id:
@@ -449,7 +438,7 @@ Mkopt_list:
 		;
 
 Mkoption:
-	Opt_string EQUALS Opt_string
+	Save_id EQUALS Opt_value
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
