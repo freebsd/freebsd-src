@@ -76,6 +76,7 @@ struct uio {
 
 struct vm_object;
 
+void	uio_yield __P((void));
 int	uiomove __P((caddr_t, int, struct uio *));
 int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
 int	uioread __P((int, struct uio *, struct vm_object *, int *));
