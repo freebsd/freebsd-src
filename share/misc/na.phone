@@ -3,7 +3,9 @@
 201:Ashbury Park:New Jersey:NJ
 201:Newark:New Jersey:NJ
 202::District of Columbia:DC
-203::Connecticut:CT
+203:Bridgeport:Connecticut:CT
+203:New Haven:Connecticut:CT
+203:Stanford:Connecticut:CT
 204:Winnipeg:Manitoba:MB
 205::Alabama:AL
 206:Seattle:Washington:WA
@@ -16,7 +18,6 @@
 210:San Antonio:Texas:TX
 212:Manhattan:New York:NY
 213:Beverly Hills:California:CA
-213:Long Beach:California:CA
 213:Los Angeles:California:CA
 214:Dallas:Texas:TX
 215:Bethlehem:Pennsylvania:PA
@@ -30,7 +31,11 @@
 219:Hammond:Indiana:IN
 219:Michigan City:Indiana:IN
 219:South Bend:Indiana:IN
+242::Bahamas:
+246::Barbados:
 250:Prince George:British Columbia:BC
+250:Victoria:British Columbia:BC
+268::Antigua and Barbuda:
 281:Houston Cellular and Pagers:Texas:TX
 301:Bethesda:Maryland:MD
 301:Hagerstown:Maryland:MD
@@ -53,7 +58,7 @@
 309:Bloomington:Illinois:IL
 309:Peoria:Illinois:IL
 309:Rock Island:Illinois:IL
-310:Los Angeles:California:LA
+310:Long Beach:California:LA
 312:Broadview:Illinois:IL
 312:Calumet Park:Illinois:IL
 312:Chicago:Illinois:IL
@@ -79,6 +84,8 @@
 330:Canton:Ohio:OH
 330:Youngstown:Ohio:OH
 334:Montgomery:Alabama:AL
+334:Mobile:Alabama:AL
+345::Cayman Islands:
 352:Gainsville:Florida:FL
 360:Olympia:Washington:WA
 360:Vancouver:Washington:WA
@@ -91,6 +98,7 @@
 403:Whitehorse:Yukon:YT
 403:Yellowknife:Northwest Territories:NT
 404:Atlanta(metro):Georgia:GA
+404:Decatur:Georgia:GA
 405:Ardmore:Oklahoma:OK
 405:Enid:Oklahoma:OK
 405:Oklahoma City:Oklahoma:OK
@@ -119,6 +127,7 @@
 423:Chattanooga:Tennessee:TN
 423:Johnson City:Tennessee:TN
 423:Knoxville:Tennessee:TN
+441::Bermuda:
 501::Arkansas:AR
 502:Frankfort:Kentucky:KY
 502:Louisville:Kentucky:KY
@@ -167,12 +176,13 @@
 541:Eugene:Oregon:OR
 541:Medford:Oregon:OR
 541:Pendleton:Oregon:OR
+561:Boca Raton:Florida:FL
+561:Sebastian:Florida:FL
 573:Jefferson City:Missouri:MO
 601::Mississippi:MS
 602:Phoenix (metro):Arizona:AZ
 603::New Hampshire:NH
 604:Vancouver:British Columbia:BC
-604:Victoria:British Columbia:BC
 605::South Dakota:SD
 606:Ashland:Kentucky:KY
 606:Winchester:Kentucky:KY
@@ -205,6 +215,7 @@
 618:Mt. Vernon:Illinois:IL
 619:San Diego:California:CA
 630:Chicago Suburbs (Cellular and Pagers):Illinois:IL
+664::Montserrat:
 701::North Dakota:ND
 702::Nevada:NV
 703:Alexandria:Virginia:VA
@@ -214,6 +225,7 @@
 704:Charlotte:North Carolina:NC
 705:North Bay:Ontario:ON
 705:Sault Ste. Marie:Ontario:ON
+706:Athens:Georgia:GA
 706:Augusta:Georgia:GA
 706:Columbus:Georgia:GA
 706:Rome:Georgia:GA
@@ -245,12 +257,13 @@
 719:Fairplay:Colorado:CO
 719:Lamar:Colorado:CO
 719:South Fork:Colorado:CO
-770:Athens:Georgia:GA
+757:Norfolk:Virginia:VI
+758::St Lucida:
 770:Atlanta(Metro) outside 285 beltway:Georgia:GA
-770:Decatur:Georgia:GA
 770:La Grange:Georgia:GA
 770:Marietta:Georgia:GA
 770:Norcross:Georgia:GA
+773:Chicago:Illinois:IL
 787::Puerto Rico:PR
 801::Utah:UT
 802::Vermont:VT
@@ -259,7 +272,6 @@
 803:Florence:South Carolina:SC
 804:Charlottesville:Virginia:VA
 804:Newport News:Virginia:VA
-804:Norfolk:Virginia:VA
 804:Richmond:Virginia:VA
 805:Bakersfield:California:CA
 806:Amarillo:Texas:TX
@@ -294,6 +306,7 @@
 860:Hartford:Connecticut:CT
 864:Greeville:South Carolina:SC
 864:Spartanburg:South Carolina:SC
+869::St Kitts and Nevis:
 901:Memphis:Tennessee:TN
 902:Charlottetown:Prince Edward Island:PE
 902:Halifax:Nova Scotia:NS
@@ -312,6 +325,8 @@
 906:Sault Ste. Marie:Michigan:MI
 907::Alaska:AK
 908:Asbury Park:New Jersey:NJ
+909:Riverside:California:CA
+909:San Bernardio:California:CA
 910:Fayetteville:North Carolina:NC
 910:Greensboro:North Carolina:NC
 910:Winston-Salem:North Carolina:NC
@@ -337,6 +352,7 @@
 919:Burlington:North Carolina:NC
 919:Durham:North Carolina:NC
 919:Raleigh:North Carolina:NC
+937::Ohio:OH
 941:Fort Myers:Florida:FL
 941:Naples:Florida:FL
 941:Sarasota:Florida:FL
@@ -346,3 +362,5 @@
 970:Ft. Collins:Colorado:CO
 970:Grand Junction:Colorado:CO
 970:Steamboat Sprints:Colorado:CO
+972:Irving:Texas:TX
+972:Dallas suburbs:Texas:TX
