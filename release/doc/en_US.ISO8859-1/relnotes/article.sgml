@@ -11,6 +11,10 @@
 -->
 
 <sect1>
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
   <title>What's New</title>
 
   <para>This section describes the most user-visible new or changed

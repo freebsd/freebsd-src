@@ -33,6 +33,10 @@
 -->
 
 <sect1>
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
   <title>Supported Devices</title>
 
   <para>This section describes the devices currently known to be
