@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.241 1999/07/16 11:13:09 jkh Exp $
+ * $Id: install.c,v 1.242 1999/07/18 10:18:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -754,6 +754,8 @@ installFixupBin(dialogMenuItem *self)
 			if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
 			    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
 			    fprintf(fp, "userconfig_script_load=\"YES\"\n");
+			    if (!OnVTY)
+				fprintf(fp, "console=\"serial\"\n");
 			    fclose(fp);
 			}
 		    }
