@@ -93,11 +93,7 @@ snc_alloc_port(dev, rid)
 		sc->sc_ioh = rman_get_bushandle(res);
 		return (0);
 	} else {
-		u_long start, count;
-
-		bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count);
-		printf("snc_alloc_port: can't assign port 0x%lx-0x%lx\n",
-		       start, start + count - 1);
+		device_printf(dev, "can't assign port\n");
 		return (ENOENT);
 	}
 }
@@ -122,11 +118,7 @@ snc_alloc_memory(dev, rid)
 		sc->sc_memh = rman_get_bushandle(res);
 		return (0);
 	} else {
-		u_long start, count;
-
-		bus_get_resource(dev, SYS_RES_MEMORY, rid, &start, &count);
-		printf("snc_alloc_memory: can't assign memory 0x%lx-0x%lx\n",
-		       start, start + count - 1);
+		device_printf(dev, "can't assign memory\n");
 		return (ENOENT);
 	}
 }
@@ -150,8 +142,7 @@ snc_alloc_irq(dev, rid, flags)
 		sc->irq_rid = rid;
 		return (0);
 	} else {
-		printf("snc_alloc_irq: can't assign irq %ld\n",
-		       bus_get_resource_start(dev, SYS_RES_IRQ, rid));
+		device_printf(dev, "can't assign irq\n");
 		return (ENOENT);
 	}
 }
