@@ -42,8 +42,6 @@ extern struct tlb_entry *itlb_store;
 
 extern int dtlb_slot;
 extern int itlb_slot;
-extern int dtlb_slot_max;
-extern int itlb_slot_max;
 
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
@@ -270,8 +268,6 @@ md_load(char *args, vm_offset_t *modulep)
     vm_offset_t			size;
     char			*rootdevname;
     int				howto;
-    int				dtlb_slots;
-    int				itlb_slots;
 
     howto = md_getboothowto(args);
 
@@ -309,20 +305,18 @@ md_load(char *args, vm_offset_t *modulep)
     addr = roundup(addr, PAGE_SIZE);
 
     kernend = 0;
-    dtlb_slots = dtlb_slot_max - dtlb_slot;
-    itlb_slots = itlb_slot_max - itlb_slot;
     kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
     file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
-    file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS, sizeof dtlb_slots, &dtlb_slots);
-    file_addmetadata(kfp, MODINFOMD_ITLB_SLOTS, sizeof itlb_slots, &itlb_slots);
+    file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS, sizeof dtlb_slot, &dtlb_slot);
+    file_addmetadata(kfp, MODINFOMD_ITLB_SLOTS, sizeof itlb_slot, &itlb_slot);
     file_addmetadata(kfp, MODINFOMD_DTLB,
-	dtlb_slots * sizeof(*dtlb_store), dtlb_store);
+	dtlb_slot * sizeof(*dtlb_store), dtlb_store);
     file_addmetadata(kfp, MODINFOMD_ITLB,
-	itlb_slots * sizeof(*itlb_store), itlb_store);
+	itlb_slot * sizeof(*itlb_store), itlb_store);
 
     *modulep = addr;
     size = md_copymodules(0);
