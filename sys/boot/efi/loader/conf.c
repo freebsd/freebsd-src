@@ -53,8 +53,8 @@ static const char rcsid[] =
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-	&netdev,
 	&efifs_dev,
+	&netdev,
 	NULL
 };
 
