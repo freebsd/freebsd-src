@@ -249,20 +249,6 @@ tf_init(char *tf_name, int rw)
 int
 tf_create(char *tf_name)
 {
-  struct stat statbuf;
-  char garbage[BUFSIZ];
-
-  fd = open(tf_name, O_RDWR | O_BINARY, 0);
-  if (fd >= 0) {
-    if (fstat (fd, &statbuf) == 0) {
-      int i;
-
-      for (i = 0; i < statbuf.st_size; i += sizeof(garbage))
-	write (fd, garbage, sizeof(garbage));
-    }
-    close (fd);
-  }
-
   if (unlink (tf_name) && errno != ENOENT)
     return TKT_FIL_ACC;
 
