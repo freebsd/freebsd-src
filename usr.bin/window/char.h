@@ -49,13 +49,13 @@
  * using unctrl() by wwwrite() if ww_unctrl is set.
  */
 
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+
 extern char *_unctrl[];
-extern char _cmap[];
 #define ctrl(c)		(c & 0x1f)
 #define unctrl(c)	(_unctrl[(unsigned char) (c)])
-#define _C		0x01
-#define _P		0x02
-#define _U		0x04
-#define isctrl(c)	(_cmap[(unsigned char) (c)] & _C)
-#define isprt(c)	(_cmap[(unsigned char) (c)] & _P)
-#define isunctrl(c)	(_cmap[(unsigned char) (c)] & _U)
+#define isctrl(c)       iscntrl((unsigned char)(c))
+#define isprt(c)        isprint((unsigned char)(c))
+#define isunctrl(c)     (strchr("\b\t\n\r", (c)) == NULL && isctrl(c))

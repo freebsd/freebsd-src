@@ -60,7 +60,7 @@ char *l;
 	register char *fmap;
 	register char *smap;
 	char touched;
-	char *p;
+	unsigned char *p;
 
 	if (f->ww_fmap == 0)
 		return;
