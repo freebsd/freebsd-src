@@ -603,6 +603,7 @@ struct txp_softc {
 	struct mtx		sc_mtx;
 	struct txp_ldata	*sc_ldata;
 	void			*sc_fwbuf;
+	int			sc_rxbufprod;
 	struct txp_cmd_ring	sc_cmdring;
 	struct txp_rsp_ring	sc_rspring;
 	struct txp_swdesc	sc_txd[TX_ENTRIES];
