@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.113 1999/01/30 12:17:36 phk Exp $
+ * $Id: tty.c,v 1.114 1999/02/19 14:25:34 luoqi Exp $
  */
 
 /*-
@@ -2269,7 +2269,6 @@ ttyinfo(tp)
 		ttyprintf(tp, "%ld.%02lds ",
 		    stime.tv_sec, stime.tv_usec / 10000);
 
-#define	pgtok(a)	(((a) * PAGE_SIZE) / 1024)
 		/* Print percentage cpu, resident set size. */
 		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
 		ttyprintf(tp, "%d%% %ldk\n",

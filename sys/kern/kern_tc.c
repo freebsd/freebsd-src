@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.86 1998/11/29 20:31:02 phk Exp $
+ * $Id: kern_clock.c,v 1.87 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -469,10 +469,10 @@ statclock(frame)
 		if ((pstats = p->p_stats) != NULL &&
 		    (ru = &pstats->p_ru) != NULL &&
 		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
-			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
-			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
-			rss = vmspace_resident_count(vm) * PAGE_SIZE / 1024;
+			ru->ru_ixrss += pgtok(vm->vm_tsize);
+			ru->ru_idrss += pgtok(vm->vm_dsize);
+			ru->ru_isrss += pgtok(vm->vm_ssize);
+			rss = pgtok(vmspace_resident_count(vm));
 			if (ru->ru_maxrss < rss)
 				ru->ru_maxrss = rss;
         	}
