@@ -92,6 +92,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x3800f91e, NULL},	/* GWY0038 - Telepath with v.90 */
 	{0x9062f91e, NULL},	/* GWY6290 - Telepath with x2 Technology */
 	{0x8100e425, NULL},	/* IOD0081 - I-O DATA DEVICE,INC. IFML-560 */
+	{0x71004d24, NULL},     /* IBM0071 - IBM ThinkPad 240 IrDA controller*/
 	{0x21002534, NULL},	/* MAE0021 - Jetstream Int V.90 56k Voice Series 2*/
 	{0x0000f435, NULL},	/* MOT0000 - Motorola ModemSURFR 33.6 Intern */
 	{0x5015f435, NULL},	/* MOT1550 - Motorola ModemSURFR 56K Modem */
@@ -108,6 +109,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
 	{0x1010104d, NULL},	/* SHP1010 - Rockwell 33600bps Modem */
+	{0x10f0a34d, NULL},	/* SMCF010 - SMC IrCC*/
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
 	{0x9012b04e, NULL},	/* SUP1290 - Supra ? */
 	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
