@@ -45,7 +45,7 @@ getextmem(void)
     extkb = v86.eax & 0xffff;
 
     /* Set memtop to actual top or 16M, whicheve is less */
-    memtop = min((0x100000 + (extkb + 1024)), (16 * 1024 * 1024));
+    memtop = min((0x100000 + (extkb * 1024)), (16 * 1024 * 1024));
     
     return(extkb);
 }
