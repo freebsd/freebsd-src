@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.44 1998/07/15 02:32:09 bde Exp $
+ * $Id: kern_sig.c,v 1.45 1998/07/28 22:33:47 joerg Exp $
  */
 
 #include "opt_compat.h"
@@ -76,11 +76,9 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 
-static int coredump     __P((struct proc *p));
 static int killpg1	__P((struct proc *cp, int signum, int pgid, int all));
 static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
-static char *expand_name	__P((const char*, int, int));
 
 static int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, "");
@@ -96,7 +94,7 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, 
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
 	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
 
-static int sugid_coredump;
+int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, &sugid_coredump, 0, "");
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1239,7 +1237,12 @@ sigexit(p, signum)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
-		if (coredump(p) == 0)
+
+		/* Use the correct function to dump core, as stored in
+		   the sysentvec struct.  This way we can do ELF and a.out
+		   dumps without breaking a sweat. */
+		if (p->p_sysent->sv_coredump != NULL &&
+		    (*p->p_sysent->sv_coredump)(p) == 0)
 			signum |= WCOREFLAG;
 		if (kern_logsigexit)
 			log(LOG_INFO,
@@ -1269,7 +1272,7 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
 
-static char *
+char *
 expand_name(name, uid, pid)
 const char *name; int uid; int pid; {
 	char *temp;
@@ -1332,73 +1335,6 @@ const char *name; int uid; int pid; {
 		}
 	}
 	return temp;
-}
-
-
-/*
- * Dump core, into a file named "progname.core", unless the process was
- * setuid/setgid.
- */
-static int
-coredump(p)
-	register struct proc *p;
-{
-	register struct vnode *vp;
-	register struct ucred *cred = p->p_cred->pc_ucred;
-	register struct vmspace *vm = p->p_vmspace;
-	struct nameidata nd;
-	struct vattr vattr;
-	int error, error1;
-	char *name;			/* name of corefile */
-
-	STOPEVENT(p, S_CORE, 0);
-
-	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
-		return (EFAULT);
-	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
-	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
-		return (EFAULT);
-	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
-	if (name == NULL)
-		return (EFAULT);	/* XXX -- not the best error */
-	
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
-	free(name, M_TEMP);
-	if (error)
-		return (error);
-	vp = nd.ni_vp;
-
-	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
-		error = EFAULT;
-		goto out;
-	}
-	VATTR_NULL(&vattr);
-	vattr.va_size = 0;
-	VOP_LEASE(vp, p, cred, LEASE_WRITE);
-	VOP_SETATTR(vp, &vattr, cred, p);
-	p->p_acflag |= ACORE;
-	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
-	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
-	error = cpu_coredump(p, vp, cred);
-	if (error == 0)
-		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
-		    (int)ctob(vm->vm_dsize), (off_t)ctob(UPAGES), UIO_USERSPACE,
-		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
-	if (error == 0)
-		error = vn_rdwr(UIO_WRITE, vp,
-		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
-		    round_page(ctob(vm->vm_ssize)),
-		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
-		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
-out:
-	VOP_UNLOCK(vp, 0, p);
-	error1 = vn_close(vp, FWRITE, cred, p);
-	if (error == 0)
-		error = error1;
-	return (error);
 }
 
 /*

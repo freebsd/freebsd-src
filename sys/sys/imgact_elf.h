@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.7 1998/06/07 17:13:01 dfr Exp $
+ *	$Id: imgact_elf.h,v 1.8 1998/09/07 07:30:44 dfr Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -99,6 +99,11 @@ int elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
 
 #endif
 
+struct proc;
+
+__BEGIN_DECLS
+int elf_coredump __P((struct proc *));
+__END_DECLS
 
 #endif /* KERNEL */
 
