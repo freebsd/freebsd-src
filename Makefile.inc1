@@ -14,6 +14,8 @@
 #	-DNOINFO do not make or install info files
 #	-DNOLIBC_R do not build libc_r.
 #	-DNO_FORTRAN do not build g77 and related libraries.
+#	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
+#	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
@@ -379,14 +381,20 @@ buildkernel:
 .for _kernel in ${BUILDKERNELS}
 	@echo "===> ${_kernel}"
 	mkdir -p ${KRNLOBJDIR}
+.if !defined(NO_KERNELCONFIG)
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
 		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
+.endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 		MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx \
-		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile; \
+		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile
+.if !defined(NO_KERNELDEPEND)
+	cd ${KRNLOBJDIR}/${_kernel}; \
 		${WMAKEENV} MACHINE=${MACHINE} KERNEL=${_kernel} \
-		    ${MAKE} depend; \
+		    ${MAKE} depend
+.endif
+	cd ${KRNLOBJDIR}/${_kernel}; \
 		${WMAKEENV} MACHINE=${MACHINE} KERNEL=${_kernel} ${MAKE} all
 .endfor
 
