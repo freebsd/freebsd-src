@@ -68,14 +68,14 @@
 .Nm ng_ip_input
 .Nd netgraph IP input node type
 .Sh SYNOPSIS
-.Fd #include <netgraph/ng_ip_input.h>
+.In netgraph/ng_ip_input.h
 .Sh DESCRIPTION
 The
 .Nm ip_input
-node type takes all recieved packets and queues them into the IP in
+node type takes all received packets and queues them into the IP in
 input processing subsystem.
 .Sh HOOKS
-A
+An
 .Nm
 node accepts any request to connect, regardless of the hook name,
 as long as the name is unique.
