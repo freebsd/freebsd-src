@@ -187,11 +187,18 @@ dkminor()
 }
 
 # Override mknod(2) to add extra handling to it.
+mknod=/sbin/mknod
+for i in `IFS=':'; echo $PATH`; do
+	if [ -x "${i}/mknod" ]; then
+		mknod="${i}/mknod"
+		break
+	fi
+done
 mknod() {
 	rm -f "$1" || exit 1
 	case $# in
-	4) /sbin/mknod "$@" root:wheel || die 2 "/sbin/mknod $@ failed";;
-	5) /sbin/mknod "$@"            || die 2 "/sbin/mknod $@ failed";;
+	4) "$mknod" "$@" root:wheel || die 2 "$mknod $@ failed";;
+	5) "$mknod" "$@"            || die 2 "$mknod $@ failed";;
 	*) die 2 "bad node: mknod $@";;
 	esac
 }
