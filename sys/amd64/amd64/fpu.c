@@ -37,8 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_isa.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -66,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <amd64/isa/intr_machdep.h>
-#ifdef DEV_ISA
-#include <isa/isavar.h>
-#endif
 
 /*
  * Floating point support.
@@ -106,10 +101,6 @@ void	stop_emulating(void);
 
 typedef u_char bool_t;
 
-static	int	fpu_attach(device_t dev);
-static	void	fpu_identify(driver_t *driver, device_t parent);
-static	int	fpu_probe(device_t dev);
-
 int	hw_float = 1;
 SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
@@ -119,100 +110,32 @@ static	struct savefpu		fpu_cleanstate;
 static	bool_t			fpu_cleanstate_ready;
 
 /*
- * Identify routine.  Create a connection point on our parent for probing.
- */
-static void
-fpu_identify(driver_t *driver, device_t parent)
-{
-	device_t child;
-
-	child = BUS_ADD_CHILD(parent, 0, "fpu", 0);
-	if (child == NULL)
-		panic("fpu_identify");
-}
-
-/*
- * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
- * whether the device exists or not (XXX should be elsewhere).
- * Modify device struct if fpu doesn't need to use interrupts.
- * Return 0 if device exists.
- */
-static int
-fpu_probe(device_t dev)
-{
-
-	/*
-	 * Prepare to trap all ESC (i.e., FPU) instructions and all WAIT
-	 * instructions.  We must set the CR0_MP bit and use the CR0_TS
-	 * bit to control the trap, because setting the CR0_EM bit does
-	 * not cause WAIT instructions to trap.  It's important to trap
-	 * WAIT instructions - otherwise the "wait" variants of no-wait
-	 * control instructions would degenerate to the "no-wait" variants
-	 * after FP context switches but work correctly otherwise.  It's
-	 * particularly important to trap WAITs when there is no FPU -
-	 * otherwise the "wait" variants would always degenerate.
-	 *
-	 * Try setting CR0_NE to get correct error reporting on 486DX's.
-	 * Setting it should fail or do nothing on lesser processors.
-	 */
-	load_cr0(rcr0() | CR0_MP | CR0_NE);
-	/*
-	 * But don't trap while we're probing.
-	 */
-	stop_emulating();
-	/*
-	 * Finish resetting the coprocessor.
-	 */
-	fninit();
-
-	device_set_desc(dev, "math processor");
-	device_quiet(dev);
-
-	return (0);
-}
-
-/*
- * Attach routine - announce which it is, and wire into system
- */
-static int
-fpu_attach(device_t dev)
-{
-	register_t s;
-
-	fpuinit(__INITIAL_FPUCW__);
-
-	if (fpu_cleanstate_ready == 0) {
-		s = intr_disable();
-		stop_emulating();
-		fxsave(&fpu_cleanstate);
-		start_emulating();
-		fpu_cleanstate_ready = 1;
-		intr_restore(s);
-	}
-	return (0);		/* XXX unused */
-}
-
-/*
  * Initialize floating point unit.
  */
 void
-fpuinit(u_short control)
+fpuinit()
 {
-	static struct savefpu dummy;
 	register_t savecrit;
+	u_short control;
 
 	/*
-	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
-	 * fnsave to throw away any junk in the fpu.  fpusave() initializes
-	 * the fpu and sets fpcurthread = NULL as important side effects.
+	 * fpusave() initializes the fpu and sets fpcurthread = NULL
 	 */
 	savecrit = intr_disable();
-	fpusave(&dummy);
+	fpusave(&fpu_cleanstate);	/* XXX borrow for now */
 	stop_emulating();
 	/* XXX fpusave() doesn't actually initialize the fpu in the SSE case. */
 	fninit();
+	control = __INITIAL_FPUCW__;
 	fldcw(&control);
 	start_emulating();
+	intr_restore(savecrit);
+
+	savecrit = intr_disable();
+	stop_emulating();
+	fxsave(&fpu_cleanstate);
+	start_emulating();
+	fpu_cleanstate_ready = 1;
 	intr_restore(savecrit);
 }
 
@@ -597,64 +520,43 @@ fpusetregs(struct thread *td, struct savefpu *addr)
 	curthread->td_pcb->pcb_flags |= PCB_FPUINITDONE;
 }
 
-static device_method_t fpu_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	fpu_identify),
-	DEVMETHOD(device_probe,		fpu_probe),
-	DEVMETHOD(device_attach,	fpu_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	
-	{ 0, 0 }
-};
-
-static driver_t fpu_driver = {
-	"fpu",
-	fpu_methods,
-	1,			/* no softc */
-};
-
-static devclass_t fpu_devclass;
-
 /*
- * We prefer to attach to the root nexus so that the usual case (exception 16)
- * doesn't describe the processor as being `on isa'.
+ * This really sucks.  We want the acpi version only, but it requires
+ * the isa_if.h file in order to get the definitions.
  */
-DRIVER_MODULE(fpu, nexus, fpu_driver, fpu_devclass, 0, 0);
-
+#include "opt_isa.h"
 #ifdef DEV_ISA
+#include <isa/isavar.h>
 /*
  * This sucks up the legacy ISA support assignments from PNPBIOS/ACPI.
  */
-static struct isa_pnp_id fpuisa_ids[] = {
+static struct isa_pnp_id fpupnp_ids[] = {
 	{ 0x040cd041, "Legacy ISA coprocessor support" }, /* PNP0C04 */
 	{ 0 }
 };
 
 static int
-fpuisa_probe(device_t dev)
+fpupnp_probe(device_t dev)
 {
 	int result;
 
-	result = ISA_PNP_PROBE(device_get_parent(dev), dev, fpuisa_ids);
+	result = ISA_PNP_PROBE(device_get_parent(dev), dev, fpupnp_ids);
 	if (result <= 0)
 		device_quiet(dev);
 	return (result);
 }
 
 static int
-fpuisa_attach(device_t dev)
+fpupnp_attach(device_t dev)
 {
 
 	return (0);
 }
 
-static device_method_t fpuisa_methods[] = {
+static device_method_t fpupnp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		fpuisa_probe),
-	DEVMETHOD(device_attach,	fpuisa_attach),
+	DEVMETHOD(device_probe,		fpupnp_probe),
+	DEVMETHOD(device_attach,	fpupnp_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -663,14 +565,13 @@ static device_method_t fpuisa_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t fpuisa_driver = {
-	"fpuisa",
-	fpuisa_methods,
+static driver_t fpupnp_driver = {
+	"fpupnp",
+	fpupnp_methods,
 	1,			/* no softc */
 };
 
-static devclass_t fpuisa_devclass;
+static devclass_t fpupnp_devclass;
 
-DRIVER_MODULE(fpuisa, isa, fpuisa_driver, fpuisa_devclass, 0, 0);
-DRIVER_MODULE(fpuisa, acpi, fpuisa_driver, fpuisa_devclass, 0, 0);
-#endif /* DEV_ISA */
+DRIVER_MODULE(fpupnp, acpi, fpupnp_driver, fpupnp_devclass, 0, 0);
+#endif	/* DEV_ISA */
