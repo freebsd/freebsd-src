@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/addr.h,v 1.2 2003/09/19 13:10:35 hbb Exp $
+ * $Begemot: libunimsg/netnatm/addr.h,v 1.3 2004/07/08 08:21:45 brandt Exp $
  */
 #ifndef _NETNATM_ADDR_H_
 #define _NETNATM_ADDR_H_

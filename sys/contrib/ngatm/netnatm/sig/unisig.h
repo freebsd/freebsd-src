@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/unisig.h,v 1.3 2003/09/19 12:03:34 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/unisig.h,v 1.4 2004/07/08 08:22:26 brandt Exp $
  *
  * Utility functions for signalling stuff
  */

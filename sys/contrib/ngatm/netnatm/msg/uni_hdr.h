@@ -26,12 +26,17 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/uni_hdr.h,v 1.3 2003/09/19 11:58:15 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/uni_hdr.h,v 1.6 2004/07/08 08:22:05 brandt Exp $
  */
 #ifndef _NETNATM_MSG_UNI_HDR_H_
 #define _NETNATM_MSG_UNI_HDR_H_
 
 #include <sys/types.h>
+#ifdef _KERNEL
+#include <sys/stdint.h>
+#else
+#include <stdint.h>
+#endif
 
 #include <netnatm/msg/uni_config.h>
 
