@@ -232,17 +232,16 @@ struct clockinfo {
 	int	profhz;		/* profiling clock frequency */
 };
 
-/* CLOCK_REALTIME and TIMER_ABSTIME are supposed to be in time.h */
-
+/* These macros are also in time.h. */
 #ifndef CLOCK_REALTIME
 #define CLOCK_REALTIME	0
-#endif
 #define CLOCK_VIRTUAL	1
 #define CLOCK_PROF	2
 #define CLOCK_MONOTONIC	4
+#endif
 
-#define TIMER_RELTIME	0x0	/* relative timer */
 #ifndef TIMER_ABSTIME
+#define TIMER_RELTIME	0x0	/* relative timer */
 #define TIMER_ABSTIME	0x1	/* absolute timer */
 #endif
 
