@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.17 1995/10/05 08:18:57 jkh Exp $
+ * $Id: install.c,v 1.71.2.18 1995/10/05 09:03:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -615,7 +615,7 @@ create_termcap(void)
 	}
 	cp = caps;
 	while (*cp)
-	    fputs(*(cp++), fp);
+	    fprintf(fp, "%s\n", *(cp++));
 	fclose(fp);
     }
 }
