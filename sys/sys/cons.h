@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.3 1993/11/07 17:41:33 wollman Exp $
+ *	$Id: cons.h,v 1.5 1994/05/25 08:53:05 rgrimes Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -46,6 +46,7 @@ struct consdev {
 	int	(*cn_probe)();	/* probe hardware and fill in consdev info */
 	int	(*cn_init)();	/* turn on as console */
 	int	(*cn_getc)();	/* kernel getchar interface */
+	int	(*cn_checkc)();	/* kernel "return char if available" interface */
 	int	(*cn_putc)();	/* kernel putchar interface */
 	struct	tty *cn_tp;	/* tty structure for console device */
 	dev_t	cn_dev;		/* major/minor of device */
@@ -79,6 +80,7 @@ extern int cnselect(dev_t, int, struct proc *);
 /* other kernel entry points */
 extern void cninit(void);
 extern int cngetc(void);
+extern int cncheckc(void);
 extern void cnputc(int /*char*/);
 extern int pg(const char *, ...);
 
