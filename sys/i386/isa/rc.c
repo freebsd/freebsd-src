@@ -760,8 +760,9 @@ again:
 					error = EBUSY;
 					goto out;
 				}
-				if (error = tsleep(&rc->rc_rcb,
-				     TTIPRI|PCATCH, "rcbi", 0))
+				error = tsleep(&rc->rc_rcb,
+				     TTIPRI|PCATCH, "rcbi", 0);
+				if (error)
 					goto out;
 				goto again;
 			}

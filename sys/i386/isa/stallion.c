@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.27 1999/04/27 11:15:19 phk Exp $
+ * $Id: stallion.c,v 1.28 1999/04/28 10:52:57 dt Exp $
  */
 
 /*****************************************************************************/
@@ -2053,7 +2053,8 @@ static void stl_rxprocess(stlport_t *portp)
 	} else {
 		while (portp->rx.tail != head) {
 			ch = (unsigned char) *(portp->rx.tail);
-			if (status = *(portp->rx.tail + STL_RXBUFSIZE)) {
+			status = *(portp->rx.tail + STL_RXBUFSIZE);
+			if (status) {
 				*(portp->rx.tail + STL_RXBUFSIZE) = 0;
 				if (status & ST_BREAK)
 					ch |= TTY_BI;

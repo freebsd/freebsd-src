@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.56 1998/12/07 21:58:21 archie Exp $
+ * $Id: if_ze.c,v 1.57 1999/05/06 18:12:27 peter Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -1167,7 +1167,7 @@ zeintr(unit)
 	/*
 	 * loop until there are no more new interrupts
 	 */
-	while (isr = inb(sc->nic_addr + ED_P0_ISR)) {
+	while ((isr = inb(sc->nic_addr + ED_P0_ISR)) != 0) {
 
 		/*
 		 * reset all the bits that we are 'acknowleging'

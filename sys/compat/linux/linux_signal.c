@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.13 1998/10/11 04:54:16 jdp Exp $
+ *  $Id: linux_signal.c,v 1.14 1998/12/21 19:21:36 sos Exp $
  */
 
 #include <sys/param.h>
@@ -123,23 +123,28 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
 
     if (args->nsa) {
 	nsa = (struct sigaction *)stackgap_alloc(&sg, sizeof(struct sigaction));
-	if (error = copyin(args->nsa, &linux_sa, sizeof(linux_sigaction_t)))
+	error = copyin(args->nsa, &linux_sa, sizeof(linux_sigaction_t));
+	if (error)
 	    return error;
 	linux_to_bsd_sigaction(&linux_sa, &bsd_sa);
-	if (error = copyout(&bsd_sa, nsa, sizeof(struct sigaction)))
+	error = copyout(&bsd_sa, nsa, sizeof(struct sigaction));
+	if (error)
 	    return error;
     }
     sa.signum = linux_to_bsd_signal[args->sig];
     sa.nsa = nsa;
     sa.osa = osa;
-    if ((error = sigaction(p, &sa)))
+    error = sigaction(p, &sa);
+    if (error)
 	return error;
 
     if (args->osa) {
-	if (error = copyin(osa, &bsd_sa, sizeof(struct sigaction)))
+	error = copyin(osa, &bsd_sa, sizeof(struct sigaction));
+	if (error)
 	    return error;
 	bsd_to_linux_sigaction(&bsd_sa, &linux_sa);
-	if (error = copyout(&linux_sa, args->osa, sizeof(linux_sigaction_t)))
+	error = copyout(&linux_sa, args->osa, sizeof(linux_sigaction_t));
+	if (error)
 	    return error;
     }
     return 0;
@@ -199,12 +204,14 @@ linux_sigprocmask(struct proc *p, struct linux_sigprocmask_args *args)
 
     if (args->omask != NULL) {
 	omask = bsd_to_linux_sigset(p->p_sigmask);
-	if (error = copyout(&omask, args->omask, sizeof(sigset_t)))
+	error = copyout(&omask, args->omask, sizeof(sigset_t));
+	if (error)
 	    return error;
     }
     if (!(args->mask))
 	return 0;
-    if (error = copyin(args->mask, &mask, sizeof(linux_sigset_t)))
+    error = copyin(args->mask, &mask, sizeof(linux_sigset_t));
+    if (error)
 	return error;
 
     mask = linux_to_bsd_sigset(mask);
