@@ -254,14 +254,9 @@ cpu_fork(p1, p2, flags)
 		 * Arrange for continuation at fork_return(), which
 		 * will return to exception_restore().  Note that the
 		 * child process doesn't stay in the kernel for long!
-		 *
-		 * We should really deal with the function descriptor
-		 * for fork_return() in fork_trampoline() so that a
-		 * kthread started from a loaded module can have the
-		 * right value for gp.
 		 */
 		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
-		up->u_pcb.pcb_r4 = FDESC_FUNC(fork_return);
+		up->u_pcb.pcb_r4 = (u_int64_t)fork_return;
 		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
 		up->u_pcb.pcb_b0 = FDESC_FUNC(fork_trampoline);
@@ -280,7 +275,7 @@ cpu_set_fork_handler(p, func, arg)
 	void (*func) __P((void *));
 	void *arg;
 {
-	p->p_addr->u_pcb.pcb_r4 = FDESC_FUNC(func);
+	p->p_addr->u_pcb.pcb_r4 = (u_int64_t) func;
 	p->p_addr->u_pcb.pcb_r6 = (u_int64_t) arg;
 }
 
