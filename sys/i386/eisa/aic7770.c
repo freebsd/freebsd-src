@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.30.2.1 1996/09/12 06:03:06 gibbs Exp $
+ *	$Id: aic7770.c,v 1.33 1996/10/25 06:35:38 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -166,7 +166,7 @@ void	ahc_eisa_attach __P((struct device *, struct device *, void *));
 
 struct cfattach ahc_eisa_ca =
 {
-	sizeof(struct ahc_data), ahc_eisa_match, ahc_eisa_attach
+	sizeof(struct ahc_softc), ahc_eisa_match, ahc_eisa_attach
 };
 
 /*
@@ -248,7 +248,7 @@ ahc_eisa_attach(parent, self, aux)
 	ahc_type type;
 
 #if defined(__FreeBSD__)
-	struct ahc_data *ahc;
+	struct ahc_softc *ahc;
 	resvaddr_t *iospace;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
@@ -275,7 +275,8 @@ ahc_eisa_attach(parent, self, aux)
 		break;
 	}
 
-	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL, type, AHC_FNONE)))
+	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL,
+			      type, AHC_FNONE, NULL)))
 		return -1;
 
 	eisa_reg_start(e_dev);
@@ -297,7 +298,7 @@ ahc_eisa_attach(parent, self, aux)
 
 #elif defined(__NetBSD__)
 
-	struct ahc_data *ahc = (void *)self;
+	struct ahc_softc *ahc = (void *)self;
 	struct eisa_attach_args *ea = aux;
 	bus_chipset_tag_t bc = ea->ea_bc;
 	bus_io_handle_t ioh;
