@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.5 1998/10/03 18:05:12 rnordier Exp $
+#	$Id: btx.s,v 1.6 1998/10/04 21:14:33 rnordier Exp $
 
 #
 # Memory layout.
@@ -459,7 +459,7 @@ v86mon.1:	lodsb				# Get opcode
 v86mon.2:	cmpb $0xf4,%al			# HLT?
 		jne v86mon.3			# No
 		cmpl $inthlt+0x1,%esi		# Is inthlt?
-		jne v86mon.4			# No
+		jne v86mon.6			# No
 		jmp intrtn			# Return to user mode
 v86mon.3:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
@@ -479,13 +479,13 @@ v86mon.3:	cmpb $0xfa,%al			# CLI?
 		cmpb $0xcf,%al			# IRET/IRETD?
 		je v86iret			# Yes
 		popl %ebx			# Restore
-v86mon.4:	popa				# Restore
+		popa				# Restore
 		jmp except			# Handle exception
-v86mon.5:	movl %edx,0x30(%ebp)		# Save V86 flags
-v86mon.6:	popl %edx			# V86 SS adjustment
+v86mon.4:	movl %edx,0x30(%ebp)		# Save V86 flags
+v86mon.5:	popl %edx			# V86 SS adjustment
 		subl %edx,%ebx			# Save V86
 		movl %ebx,0x34(%ebp)		#  SP
-v86mon.7:	subl %edi,%esi			# From linear
+v86mon.6:	subl %edi,%esi			# From linear
 		movl %esi,0x28(%ebp)		# Save V86 IP
 		popa				# Restore
 		leal 0x8(%esp,1),%esp		# Discard int no, error
@@ -494,12 +494,12 @@ v86mon.7:	subl %edi,%esi			# From linear
 # Emulate CLI.
 #
 v86cli: 	andb $~0x2,0x31(%ebp)		# Clear IF
-		jmp v86mon.7			# Finish up
+		jmp v86mon.6			# Finish up
 #
 # Emulate STI.
 #
 v86sti: 	orb $0x2,0x31(%ebp)		# Set IF
-		jmp v86mon.7			# Finish up
+		jmp v86mon.6			# Finish up
 #
 # Emulate PUSHF/PUSHFD.
 #
@@ -508,7 +508,7 @@ v86pushf:	subl %ecx,%ebx			# Adjust SP
 		je v86pushf.1			# Yes
 		o16				# 16-bit
 v86pushf.1:	movl %edx,(%ebx)		# Save flags
-		jmp v86mon.6			# Finish up
+		jmp v86mon.5			# Finish up
 #
 # Emulate IRET/IRETD.
 #
@@ -529,7 +529,7 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
 		andl $V86_FLG,%eax		# Merge
 		andl $~V86_FLG,%edx		#  the
 		orl %eax,%edx			#  flags
-		jmp v86mon.5			# Finish up
+		jmp v86mon.4			# Finish up
 #
 # Emulate INT imm8.
 #
@@ -546,7 +546,7 @@ v86intn:	lodsb				# Get int no
 		movl %edi,0x2c(%ebp)		# Save CS
 		xorl %edi,%edi			# No ESI adjustment
 		andb $~0x3,%dh			# Clear IF and TF
-		jmp v86mon.5			# Finish up
+		jmp v86mon.4			# Finish up
 #
 # Hardware interrupt jump table.
 #
