@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.113 1999/02/06 09:30:19 kato Exp $
+ *  $Id: syscons.c,v 1.114 1999/03/10 14:51:53 kato Exp $
  */
 
 #include "sc.h"
@@ -1030,9 +1030,11 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	mouse_info_t *mouse = (mouse_info_t*)data;
 	mouse_info_t buf;
 
+#ifndef PC98
 	/* FIXME: */
 	if (!ISMOUSEAVAIL(scp->adp->va_flags))
 	    return ENODEV;
+#endif
 	
 	if (cmd == OLD_CONS_MOUSECTL) {
 	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
@@ -4571,6 +4573,7 @@ set_mode(scr_stat *scp)
     }
 #endif
 
+#ifndef PC98
     if (!(scp->status & GRAPHICS_MODE)) {
 	/* load appropriate font */
 	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->adp->va_flags)) {
@@ -4599,6 +4602,7 @@ set_mode(scr_stat *scp)
     if (scp->status & PIXEL_MODE)
 	generic_bzero((u_char *)(scp->adp->va_window),
 		      scp->xpixel*scp->ypixel/8);
+#endif
     set_border(scp, scp->border);
 
 #ifndef PC98
