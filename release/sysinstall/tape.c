@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.1 1995/09/18 17:00:27 peter Exp $
+ * $Id: tape.c,v 1.6.2.2 1995/09/30 19:13:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,23 +49,30 @@
 
 static Boolean tapeInitted;
 
+char *
+mediaTapeBlocksize(void)
+{
+    char *cp = getenv(TAPE_BLOCKSIZE);
+
+    return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
+}
+
 Boolean
 mediaInitTape(Device *dev)
 {
     int i;
-
     if (tapeInitted)
 	return TRUE;
 
     Mkdir(dev->private, NULL);
     if (chdir(dev->private))
 	    return FALSE;
-    msgConfirm("Insert tape into %s and press return", dev->description);
+    /* We know the tape is already in the drive, so go for it */
     msgNotify("Attempting to extract from %s...", dev->description);
     if (!strcmp(dev->name, "ft0"))
-	i = vsystem("ft | cpio -iduvm -H tar");
+	i = vsystem("ft | cpio -idum %s -H tar --block-size %s", CPIO_VERBOSITY, mediaTapeBlocksize());
     else
-	i = vsystem("cpio -iduvm -H tar -I %s", dev->devname);
+	i = vsystem("cpio -idum %s -H tar --block-size %s -I %s", CPIO_VERBOSITY, mediaTapeBlocksize(), dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
 	return TRUE;

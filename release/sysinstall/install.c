@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.11 1995/09/29 05:16:58 jkh Exp $
+ * $Id: install.c,v 1.71.2.12 1995/09/30 19:13:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,22 +52,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-Boolean SystemWasInstalled = FALSE;
-
 static Boolean	copy_self(void);
 static Boolean	root_extract(void);
-
-static Chunk *rootdev;
+static void	create_termcap(void);
 
 static Boolean
-checkLabels(void)
+checkLabels(Chunk **rdev)
 {
     Device **devs;
     Disk *disk;
-    Chunk *c1, *c2, *swapdev, *usrdev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     int i;
 
-    rootdev = swapdev = usrdev = NULL;
+    *rdev = rootdev = swapdev = usrdev = NULL;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
     for (i = 0; devs[i]; i++) {
@@ -127,6 +124,7 @@ checkLabels(void)
 	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot code.  Please correct this and\ntry again.");
 	return FALSE;
     }
+    *rdev = rootdev;
     if (!swapdev) {
 	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
 	return FALSE;
@@ -154,7 +152,10 @@ installInitial(void)
     }
 
     /* If we refuse to proceed, bail. */
-    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
+    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
+		 "If you're running this on an existing system, we STRONGLY\n"
+		 "encourage you to make proper backups before proceeding.\n"
+		 "We take no responsibility for lost disk contents!"))
 	return FALSE;
 
     (void)diskPartitionWrite(NULL);
@@ -219,6 +220,12 @@ installFixit(char *str)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
+    /* Try to leach a big /tmp off the fixit floppy */
+    if (access("/tmp", X_OK))
+	(void)symlink("/mnt2/tmp", "/tmp");
+    /* Link the spwd.db file */
+    (void)symlink("/mnt2/etc/spwd.db", "/etc/spwd.db");
+    create_termcap();
     if ((child = fork()) != 0)
 	(void)waitpid(child, &waitstatus, 0);
     else {
@@ -257,12 +264,13 @@ installExpress(char *str)
 	       "You can also select a custom software set if none of the\n"
 	       "default configurations are suitable.");
     
-    while(!Dists) {
+    while (1) {
 	dmenuOpenSimple(&MenuInstallType);
+	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
+	    break;
     }
-    
+
     msgConfirm("Finally, you must specify an installation medium.");
-    
     dmenuOpenSimple(&MenuMedia);
     
     installCommit("express");
@@ -274,45 +282,58 @@ installExpress(char *str)
 /*
  * What happens when we select "Commit" in the custom installation menu.
  *
- * This is broken into multiple stages so that the user can do a full installation but come
- * back here again to load more distributions, perhaps from a different media type.
- * This would allow, for example, the user to load the majority of the system from CDROM
- * and then use ftp to load just the DES dist.
+ * This is broken into multiple stages so that the user can do a full installation but come back here
+ * again to load more distributions, perhaps from a different media type.  This would allow, for
+ * example, the user to load the majority of the system from CDROM and then use ftp to load just the
+ * DES dist.
  */
 int
 installCommit(char *str)
 {
-    Device **devs;
-    int i;
-
     if (!mediaVerify())
 	return 0;
 
-    if (RunningAsInit && !SystemWasInstalled) {
+    if (RunningAsInit) {
 	if (!installInitial())
 	    return 0;
 	configFstab();
     }
-    if (RunningAsInit && !SystemWasInstalled && !root_extract()) {
+    if (RunningAsInit && !root_extract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
 	return 0;
     }
 
-    /* If we're about to extract the bin dist again, reset the installed state */
-    if (Dists & DIST_BIN)
-	SystemWasInstalled = FALSE;
-
     (void)distExtractAll(NULL);
 
-    if (!SystemWasInstalled && access("/kernel", R_OK)) {
+    if (!installFixup())
+	return 0;
+
+    dialog_clear();
+    /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
+    if (str) {
+	if (Dists)
+	    msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+	else
+	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    }
+    return 0;
+}
+
+Boolean
+installFixup(void)
+{
+    Device **devs;
+    int i;
+
+    /* XXX At some point maybe we want to make the selection of kernel configurable here XXX */
+    if (access("/kernel", R_OK) && !access("/kernel.GENERIC", R_OK)) {
 	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
 	    msgConfirm("Unable to link /kernel into place!");
-	    return 0;
 	}
     }
 
     /* Resurrect /dev after bin distribution screws it up */
-    if (RunningAsInit && !SystemWasInstalled) {
+    if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all"))
 	    msgConfirm("MAKEDEV returned non-zero status");
@@ -326,13 +347,17 @@ installCommit(char *str)
 	    Disk *disk = (Disk *)devs[i]->private;
 	    Chunk *c1;
 
+	    if (!devs[i]->enabled)
+		continue;
 	    if (!disk->chunks)
 		msgFatal("No chunk list found for %s!", disk->name);
 	    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == freebsd) {
 		    msgNotify("Making slice entries for %s", c1->name);
-		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name))
+		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
 			msgConfirm("Unable to make slice entries for %s!", c1->name);
+			return 0;
+		    }
 		}
 	    }
 	}
@@ -345,17 +370,7 @@ installCommit(char *str)
 
     /* BOGON #2: We leave /etc in a bad state */
     chmod("/etc", 0755);
-
-    dialog_clear();
-    /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
-    if (str) {
-	if (Dists)
-	    msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
-	else
-	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
-    }
-    SystemWasInstalled = TRUE;
-    return 0;
+    return 1;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -364,18 +379,16 @@ installFilesystems(void)
 {
     int i;
     Disk *disk;
-    Chunk *c1, *c2;
+    Chunk *c1, *c2, *rootdev;
     Device **devs;
     char dname[40];
     PartInfo *p;
     Boolean RootReadOnly;
 
-    if (!checkLabels())
+    if (!checkLabels(&rootdev))
 	return FALSE;
-    /* checkLabels sets global rootdev so as to avoid a wasted extra search */
     p = (PartInfo *)rootdev->private;
     command_clear();
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 
     /* First, create and mount the root device */
     if (strcmp(p->mountpoint, "/"))
@@ -409,6 +422,7 @@ installFilesystems(void)
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
 	    continue;
@@ -551,4 +565,30 @@ loop_on_root_floppy(void)
 	}
     }
     return status;
+}
+
+static void
+create_termcap(void)
+{
+    FILE *fp;
+
+    const char *caps[] = {
+	termcap_vt100, termcap_cons25, termcap_cons25_m, termcap_cons25r,
+	termcap_cons25r_m, termcap_cons25l1, termcap_cons25l1_m, NULL,
+    };
+    const char **cp;
+
+    if (access("/usr/share/misc/termcap", R_OK)) {
+	system("mkdir -p /usr/share/misc");
+	fp = fopen("/usr/share/misc/termcap", "w");
+	if (!fp) {
+	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\n"
+		       "utilities may not work.");
+	    return;
+	}
+	cp = caps;
+	while (cp)
+	    fputs(*(cp++), fp);
+	fclose(fp);
+    }
 }

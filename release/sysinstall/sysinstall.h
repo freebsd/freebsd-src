@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.3 1995/09/23 22:03:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.4 1995/09/25 00:52:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,14 +83,16 @@
  */
 #define MAX_CHUNKS	50
 
-/* Internal flag variables */
+/* Internal environment variables */
 #define DISK_PARTITIONED	"_diskPartitioned"
 #define DISK_LABELLED		"_diskLabelled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
-
+#define TAPE_BLOCKSIZE		"_tapeBlocksize"
 #define FTP_USER		"_ftpUser"
 #define FTP_PASS		"_ftpPass"
+
+#define DEFAULT_TAPE_BLOCKSIZE	"10"
 
 #define OPT_NO_CONFIRM		0x0001
 #define OPT_NFS_SECURE		0x0002
@@ -102,6 +104,9 @@
 #define OPT_SLOW_ETHER		0x0080
 #define OPT_EXPLORATORY_GET	0x0100
 #define OPT_LEAVE_NETWORK_UP	0x0200
+#define OPT_CPIO_HIGH		0x0400
+
+#define OPT_DEFAULT_FLAGS	(OPT_FTP_PASSIVE | OPT_FTP_ABORT| OPT_CPIO_HIGH)
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -215,11 +220,24 @@ typedef struct _part_info {
     char newfs_cmd[NEWFS_CMD_MAX];
 } PartInfo;
 
+/* An option */
+typedef struct _opt {
+    char *name;
+    char *desc;
+    enum { OPT_IS_STRING, OPT_IS_INT, OPT_IS_FLAG, OPT_IS_FUNC } type;
+    void *data;
+    int aux;
+    char * (*check)();
+} Option;
+
 typedef int (*commandFunc)(char *key, void *data);
 
 #define HOSTNAME_FIELD_LEN	256
 #define IPADDR_FIELD_LEN	16
 #define EXTRAS_FIELD_LEN	256
+
+/* Verbosity levels for CPIO - yuck */
+#define CPIO_VERBOSITY		(optionIsSet(OPT_CPIO_HIGH) ? "-v" : "-V")
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {
@@ -374,7 +392,6 @@ extern Boolean	mediaCloseFTP(Device *dev, int fd);
 extern Boolean	mediaInitFTP(Device *dev);
 extern int	mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownFTP(Device *dev);
-extern int	mediaSetFtpUserPass(char *str);
 
 /* globals.c */
 extern void	globalsInit(void);
@@ -383,6 +400,7 @@ extern void	globalsInit(void);
 extern int	installCommit(char *str);
 extern int	installExpress(char *str);
 extern int	installFixit(char *str);
+extern Boolean	installFixup(void);
 extern Boolean	installFilesystems(void);
 
 /* lang.c */
@@ -426,6 +444,8 @@ extern int	mediaSetFTPActive(char *str);
 extern int	mediaSetFTPPassive(char *str);
 extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
+extern int	mediaSetFtpUserPass(char *str);
+extern int	mediaSetTapeBlocksize(char *str);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
@@ -471,6 +491,10 @@ extern Boolean	mediaInitNFS(Device *dev);
 extern int	mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownNFS(Device *dev);
 
+/* options.c */
+extern int	optionsEditor(char *str);
+extern Boolean	optionIsSet(int opt);
+
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
@@ -486,6 +510,7 @@ extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 
 /* tape.c */
+extern char *	mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
 extern int	mediaGetTape(Device *dev, char *file, Attribs *dist_attrs);
 extern void	mediaShutdownTape(Device *dev);

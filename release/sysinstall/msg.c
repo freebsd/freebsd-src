@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.28.2.2 1995/06/02 15:31:31 jkh Exp $
+ * $Id: msg.c,v 1.29 1995/06/11 19:30:06 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@
 Boolean
 isDebug(void)
 {
-    if (OptFlags & OPT_DEBUG)
+    if (optionIsSet(OPT_DEBUG))
 	return TRUE;
     return FALSE;
 }

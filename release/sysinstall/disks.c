@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.5 1995/09/22 23:35:17 jkh Exp $
+ * $Id: disks.c,v 1.31.2.6 1995/09/23 22:20:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,7 +80,11 @@ print_chunks(Disk *d)
     int i;
 
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64))
-	msgConfirm("WARNING:  The detected geometry is incorrect!  Please adjust it to\nthe correct values manually with the (G)eometry command.  If you are\nunsure about the correct geometry (which may be \"translated\"), please\nconsult the Hardware Guide in the Documentation submenu.");
+	msgConfirm("WARNING:  The detected geometry is incorrect!  Please adjust\n"
+		   "it to the correct values manually with the (G)eometry command.\n"
+		   "If you are unsure about the correct geometry (which may be\n"
+		   "\"translated\"), please consult the Hardware Guide in the\n"
+		   "Documentation submenu.");
 			  
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -111,7 +115,7 @@ print_command_summary()
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
-    mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
+    mvprintw(17, 0, "D = Delete Partition   G = Set Drive Geometry S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   Q = Finish             W = Write Changes");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
@@ -134,9 +138,9 @@ diskPartition(Disk *d)
 
     clear();
     record_chunks(d);
+    print_command_summary();
     while (chunking) {
 	print_chunks(d);
-	print_command_summary();
 	if (msg) {
 	    standout(); mvprintw(23, 0, msg); standend();
 	    beep();
@@ -148,6 +152,7 @@ diskPartition(Disk *d)
 
 	case '\014':	/* ^L */
 	    clear();
+	    print_command_summary();
 	    continue;
 
 	case KEY_UP:
@@ -179,23 +184,21 @@ diskPartition(Disk *d)
 	    break;
 
 	case 'A':
-	    if(!msgYesNo("Do you want to use the regular way to keep the disk\n"
-			 "cooperative with the usual BIOS partitioning schemes?"))
+	    if(!msgYesNo("Do you want to do this with a true partition entry\n"
+			 "so as to keep this cooperative with any future poss-\n"
+			 "ible operating systems on the drive(s)?"))
 		All_FreeBSD(d, 0);
 	    else {
 		int rv;
-		rv = !msgYesNo("This is dangerous in that it will make the drive absolutely\n"
-			       "uncooperative to other potential operating systems on the\n"
-			       "same disk.  It will rather lead to a totally dedicated disk,\n"
+		rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
+			       "uncooperative with other potential operating systems on the\n"
+			       "same disk.  It will lead instead to a totally dedicated disk,\n"
 			       "starting at the very first sector, bypassing all BIOS geometry\n"
 			       "considerations.\n"
-			       "You will run into serious troubles for ST-506 and ESDI drives,\n"
-			       "and you might suffer a great pain when applying this to some\n"
-			       "IDE drives (e.g. drives running under control of some sort of\n"
-			       "a disk manager).  SCSI drives are considered less harmful.\n"
-			       "Whenever you'll get this disk within the reach of some DOS\n"
-			       "\"fdisk\" utility, little red daemons will jump out of your\n"
-			       "drive and eat you up!\n\n"
+			       "You will run into serious trouble with ST-506 and ESDI drives\n"
+			       "and possibly some IDE drives (e.g. drives running under the\n"
+			       "control of sort of disk manager).  SCSI drives are considerably\n"
+			       "less at risk.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 		if(rv)
 		    msgInfo("Well OK, but you can't say you haven't been warned!");
@@ -271,7 +274,11 @@ diskPartition(Disk *d)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure you want to write this now?  You do also\nhave the option of not modifying the disk until *all*\nconfiguration information has been entered, at which\npoint you can do it all at once.  If you're unsure, then\nchoose No at this dialog."))
+	    if (!msgYesNo("Are you sure you want to write this now?  You do also\n"
+			  "have the option of not modifying the disk until *all*\n"
+			  "configuration information has been entered, at which\n"
+			  "point you can do it all at once.  If you're unsure, then\n"
+			  "choose No at this dialog."))
 	      diskPartitionWrite(NULL);
 	    break;
 
@@ -352,7 +359,9 @@ diskPartitionEditor(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No disks found!  Please verify that your disk controller is being\nproperly probed at boot time.  See the Hardware Guide on the Documentation menu\nfor clues on diagnosing this type of problem.");
+	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
+		   "properly probed at boot time.  See the Hardware Guide on the\n"
+		   "Documentation menu for clues on diagnosing this type of problem.");
 	return 0;
     }
     else if (cnt == 1) {
@@ -362,7 +371,11 @@ diskPartitionEditor(char *str)
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
 	if (!menu)
-	    msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+	    msgConfirm("No devices suitable for installation found!\n\n"
+		       "Please verify that your disk controller (and attached drives)\n"
+		       "were detected properly.  This can be done by selecting the\n"
+		       "``Bootmsg'' option on the main menu and reviewing the boot\n"
+		       "messages carefully.");
 	else {
 	    dmenuOpenSimple(menu);
 	    free(menu);
