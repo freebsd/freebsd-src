@@ -703,10 +703,10 @@ MALLOC_DECLARE(M_ZOMBIE);
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
 
 /* XXXKSE the lines below should probably only be used in 1:1 code */
-#define	FIRST_THREAD_IN_PROC(p) TAILQ_FIRST(&p->p_threads)
-#define	FIRST_KSEGRP_IN_PROC(p) TAILQ_FIRST(&p->p_ksegrps)
-#define	FIRST_KSE_IN_KSEGRP(kg) TAILQ_FIRST(&kg->kg_kseq)
-#define	FIRST_KSE_IN_PROC(p) FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
+#define	FIRST_THREAD_IN_PROC(p)	TAILQ_FIRST(&(p)->p_threads)
+#define	FIRST_KSEGRP_IN_PROC(p)	TAILQ_FIRST(&(p)->p_ksegrps)
+#define	FIRST_KSE_IN_KSEGRP(kg)	TAILQ_FIRST(&(kg)->kg_kseq)
+#define	FIRST_KSE_IN_PROC(p)	FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
 
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
@@ -730,10 +730,9 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	_STOPEVENT(p, e, v) do {					\
 	PROC_LOCK_ASSERT(p, MA_OWNED);					\
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, &p->p_mtx.mtx_object, \
- 	    "checking stopevent %d", (e));				\
-	if ((p)->p_stops & (e)) {					\
+	    "checking stopevent %d", (e));				\
+	if ((p)->p_stops & (e))						\
 		stopevent((p), (e), (v));				\
-	}								\
 } while (0)
 
 /* Lock and unlock a process. */
@@ -749,17 +748,14 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	PGRP_LOCKED(pg)	mtx_owned(&(pg)->pg_mtx)
 #define	PGRP_LOCK_ASSERT(pg, type)	mtx_assert(&(pg)->pg_mtx, (type))
 
-#define	PGRP_LOCK_PGSIGNAL(pg)						\
-	do {								\
-		if ((pg) != NULL)					\
-			PGRP_LOCK(pg);					\
-	} while (0);
-
-#define	PGRP_UNLOCK_PGSIGNAL(pg)					\
-	do {								\
-		if ((pg) != NULL)					\
-			PGRP_UNLOCK(pg);				\
-	} while (0);
+#define	PGRP_LOCK_PGSIGNAL(pg) do {					\
+	if ((pg) != NULL)						\
+		PGRP_LOCK(pg);						\
+} while (0)
+#define	PGRP_UNLOCK_PGSIGNAL(pg) do {					\
+	if ((pg) != NULL)						\
+		PGRP_UNLOCK(pg);					\
+} while (0)
 
 /* Lock and unlock a session. */
 #define	SESS_LOCK(s)	mtx_lock(&(s)->s_mtx)
