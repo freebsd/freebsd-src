@@ -48,6 +48,8 @@
 #endif
 #endif
 
+struct mrtstat	mrtstat;
+
 #ifndef MROUTING
 /*
  * Dummy routines and globals used when multicast routing is not compiled in.
@@ -57,7 +59,7 @@ struct socket  *ip_mrouter  = NULL;
 u_int		ip_mrtproto = 0;
 
 int
-ip_mrouter_cmd(cmd, so, m)
+_ip_mrouter_cmd(cmd, so, m)
 	int cmd;
 	struct socket *so;
 	struct mbuf *m;
@@ -65,20 +67,43 @@ ip_mrouter_cmd(cmd, so, m)
 	return(EOPNOTSUPP);
 }
 
+int (*ip_mrouter_cmd)(int, struct socket *, struct mbuf *) = _ip_mrouter_cmd;
+
 int
-ip_mrouter_done()
+_ip_mrouter_done()
 {
 	return(0);
 }
 
+int (*ip_mrouter_done)(void) = _ip_mrouter_done;
+
 int
-ip_mforward(ip, ifp, m)
+_ip_mforward(ip, ifp, m, imo)
 	struct ip *ip;
 	struct ifnet *ifp;
 	struct mbuf *m;
+	struct ip_moptions *imo;
 {
 	return(0);
 }
+
+int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+		   struct ip_moptions *) = _ip_mforward;
+
+int
+_mrt_ioctl(int req, caddr_t data, struct proc *p)
+{
+	return EOPNOTSUPP;
+}
+
+int (*mrt_ioctl)(int, caddr_t, struct proc *) = _mrt_ioctl;
+
+void multiencap_decap(struct mbuf *m) { /* XXX must fixup manually */
+	rip_input(m);
+}
+
+int (*legal_vif_num)(int) = 0;
+
 #else
 
 #define INSIZ		sizeof(struct in_addr)
@@ -99,7 +124,6 @@ int		ip_mrtproto = IGMP_DVMRP;    /* for netstat only */
 
 struct mbuf    *mfctable[MFCTBLSIZ];
 struct vif	viftable[MAXVIFS];
-struct mrtstat	mrtstat;
 u_int		mrtdebug = 0;	  /* debug level 	*/
 u_int       	tbfdebug = 0;     /* tbf debug level 	*/
 
@@ -129,7 +153,7 @@ struct ifnet multicast_decap_if[MAXVIFS];
 
 /* prototype IP hdr for encapsulated packets */
 struct ip multicast_encap_iphdr = {
-#if defined(ultrix) || defined(i386)
+#if BYTE_ORDER == LITTLE_ENDIAN
 	sizeof(struct ip) >> 2, IPVERSION,
 #else
 	IPVERSION, sizeof(struct ip) >> 2,
@@ -166,7 +190,7 @@ static int del_mfc(struct delmfcctl *);
 static void cleanup_cache(void *);
 static int ip_mdq(struct mbuf *, struct ifnet *, u_long, struct mfc *,
 		  struct ip_moptions *);
-int legal_vif_num(int);
+extern int (*legal_vif_num)(int);
 static void phyint_send(struct ip *, struct vif *, struct mbuf *);
 static void srcrt_send(struct ip *, struct vif *, struct mbuf *);
 static void encap_send(struct ip *, struct vif *, struct mbuf *);
@@ -285,7 +309,7 @@ mfcfind(origin, mcastgrp)
  * Handle DVMRP setsockopt commands to modify the multicast routing tables.
  */
 int
-ip_mrouter_cmd(cmd, so, m)
+_ip_mrouter_cmd(cmd, so, m)
     int cmd;
     struct socket *so;
     struct mbuf *m;
@@ -303,12 +327,13 @@ ip_mrouter_cmd(cmd, so, m)
     }
 }
 
+int (*ip_mrouter_cmd)(int, struct socket *, struct mbuf *) = _ip_mrouter_cmd;
 
 /*
  * Handle ioctl commands to obtain information from the cache
  */
 int
-mrt_ioctl(cmd, data)
+_mrt_ioctl(cmd, data)
     int cmd;
     caddr_t data;
 {
@@ -330,6 +355,8 @@ mrt_ioctl(cmd, data)
     }
     return error;
 }
+
+int (*mrt_ioctl)(int, caddr_t, struct proc *) = _mrt_ioctl;
 
 /*
  * returns the packet count for the source group provided
@@ -429,7 +456,7 @@ ip_mrouter_init(so)
  * Disable multicast routing
  */
 int
-ip_mrouter_done()
+_ip_mrouter_done()
 {
     vifi_t vifi;
     int i;
@@ -508,6 +535,8 @@ ip_mrouter_done()
 
     return 0;
 }
+
+int (*ip_mrouter_done)(void) = _ip_mrouter_done;
 
 /*
  * Add a vif to the vif table
@@ -869,10 +898,10 @@ del_mfc(mfccp)
 #define TUNNEL_LEN  12  /* # bytes of IP option for tunnel encapsulation  */
 
 int
-ip_mforward(ip, ifp, m, imo)
-    struct mbuf *m;
+_ip_mforward(ip, ifp, m, imo)
     register struct ip *ip;
     struct ifnet *ifp;
+    struct mbuf *m;
     struct ip_moptions *imo;
 {
     register struct mfc *rt;
@@ -1090,6 +1119,9 @@ ip_mforward(ip, ifp, m, imo)
     }		
 }
 
+int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+		   struct ip_moptions *) = _ip_mforward;
+
 /*
  * Clean up the cache entry if upcall is not serviced
  */
@@ -1225,13 +1257,15 @@ ip_mdq(m, ifp, tunnel_src, rt, imo)
  * numvifs there, 
  */
 int
-legal_vif_num(vif)
+_legal_vif_num(vif)
     int vif;
 {   if (vif>=0 && vif<=numvifs)
        return(1);
     else
        return(0);
 }
+
+int (*legal_vif_num)(int) = _legal_vif_num;
 
 static void
 phyint_send(ip, vifp, m)

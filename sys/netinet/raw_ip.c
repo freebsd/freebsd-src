@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.2 1994/08/02 07:48:49 davidg Exp $
+ * $Id: raw_ip.c,v 1.3 1994/09/06 22:42:26 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -217,7 +217,6 @@ rip_ctloutput(op, so, level, optname, m)
 	case DVMRP_DEL_VIF:
 	case DVMRP_ADD_MFC:
 	case DVMRP_DEL_MFC:
-#ifdef MROUTING
 		if (op == PRCO_SETOPT) {
 			error = ip_mrouter_cmd(optname, so, *m);
 			if (*m)
@@ -225,11 +224,6 @@ rip_ctloutput(op, so, level, optname, m)
 		} else
 			error = EINVAL;
 		return (error);
-#else
-		if (op == PRCO_SETOPT && *m)
-			(void)m_free(*m);
-		return (EOPNOTSUPP);
-#endif
 	}
 	return (ip_ctloutput(op, so, level, optname, m));
 }
@@ -274,10 +268,8 @@ rip_usrreq(so, req, m, nam, control)
 	case PRU_DETACH:
 		if (inp == 0)
 			panic("rip_detach");
-#ifdef MROUTING
 		if (so == ip_mrouter)
 			ip_mrouter_done();
-#endif
 		in_pcbdetach(inp);
 		break;
 

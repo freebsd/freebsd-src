@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.3 1994/08/02 07:48:04 davidg Exp $
+ * $Id: igmp.c,v 1.4 1994/09/06 22:42:16 wollman Exp $
  */
 
 /*
@@ -607,11 +607,7 @@ igmp_sendpkt(inm, type)
          * Request loopback of the report if we are acting as a multicast
          * router, so that the process-level routing demon can hear it.
          */
-#ifdef MROUTING
         imo->imo_multicast_loop = (ip_mrouter != NULL);
-#else
-        imo->imo_multicast_loop = 0;
-#endif 
 
         ip_output(m, (struct mbuf *)0, (struct route *)0, 0, imo);
 
