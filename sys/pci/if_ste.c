@@ -1043,7 +1043,10 @@ static int ste_attach(dev)
 	if (ste_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 	    STE_EEADDR_NODE0, 3, 0)) {
 		printf("ste%d: failed to read station address\n", unit);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
+		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
+		error = ENXIO;;
 		goto fail;
 	}
 
@@ -1060,8 +1063,11 @@ static int ste_attach(dev)
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ste_ldata == NULL) {
-		free(sc, M_DEVBUF);
 		printf("ste%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
+		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
+		error = ENXIO;
 		goto fail;
 	}
 
