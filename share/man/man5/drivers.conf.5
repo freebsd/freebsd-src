@@ -49,13 +49,13 @@ kernel modules to supplement the boot kernel.
 Once the system has booted,
 the modules present in the
 .Pa /stand/modules
-directory of the MFSROOT floppy will automatically be loaded by
+directory of the mfsroot floppy will automatically be loaded by
 .Xr sysinstall 8 .
 .Pp
 The
 .Pa /usr/src/release/${arch}/drivers.conf
 file contains a list of drivers that should be omitted from the boot
-kernel and installed as kernel modules on the MFSROOT floppy.
+kernel and installed as kernel modules on the mfsroot floppy.
 Each driver is described on a separate line; fields on each line are
 separated by tabs or spaces.
 .Pp
@@ -65,7 +65,7 @@ is the name of the driver in the kernel configuration file.
 This is used by
 .Pa driver-remove.pl
 to remove drivers from the boot floppy kernel configuration
-file that are included as modules on the MFSROOT floppy.
+file that are included as modules on the mfsroot floppy.
 .Pp
 The second field,
 .Ar filename ,
