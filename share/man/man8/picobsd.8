@@ -20,6 +20,13 @@ which typically fits on one floppy disk, or can be downloaded as a
 single image file from some media such as CDROM, flash memory, or through
 .Xr etherboot .
 .Pp
+.Nm picobsd
+has been originally created to build simple standalone systems
+such as firewalls or bridges, but because of the ability to
+cross-build images with different source trees than the one
+in the server, it can be extremely useful to developers to
+test their code without having to reinstall the system.
+.Pp
 The boot media (typically a floppy disk) contains a boot loader and a
 compressed kernel which includes a memory file system.
 Depending on the media, it might also contain a number of
@@ -40,30 +47,73 @@ The following options are available (but also check the
 .Nm
 script for more details):
 .Pp
-.Bl -tag -width "--floppy_size" -compact
-.It Fl c
-.It Fl clean
-Clean the product of previous builds.
+.Bl -tag -width "xxxxxx" -compact
+.It Fl -src Ar SRC_PATH
+Use the source tree at
+.Ar SRC_PATH
+instead the one at
+.Ar /usr/src .
+Can be useful for cross-building floppy images.
+When using this option, you must also create initialize the subtree at
+.Ar SRC_PATH/../usr
+with the correct include files, libraries and tools (such as the
+.Xr config 8
+program) that are necessary for the cross-build (see the
+.Fl -init
+option below).
+The source files are unmodified by the
+.Nm picobsd
+script. However the source tree is not completely readonly,
+because
+.Xr config 8
+expects the kernel configuration file to be in one of
+its subdirectories, and also the process of initializing the
+.Ar usr
+subtree touches some parts of the source tree (this is a bug
+in the release build scripts which might go away with time).
+.Pp
+.It Fl -init
+When used together with the
+.Fl -src
+option, it initializes the
+.Ar SRC_PATH/../usr
+subtree as necessary to subsequently build picobsd images.
+.Pp
+.It Fl -modules
+Also build kernel modules. They are not stored on the floppy
+image but are left available in the build directory.
+.Pp
 .It Fl n
 Make the script non interactive. Do not show the initial menu, and
 proceed in the build process without requiring user input.
+.Pp
 .It Fl v
 Make the script verbose, showing the various commands to execute and
 waiting for user input before each of them. Useful when debugging.
+.Pp
+.It Fl -all_in_mfs
+Puts the entire content of the filesystem in the memory filesystem
+image which is contained in the kernel. This is the default behaviour,
+and is extremely useful as the kernel itself can be loaded using
+.Xr etherboot
+or
+.Xr pxeboot
+to have a fully functional system.
+.Pp
+.It Fl -no_all_in_mfs
+Leaves files contained into the
+.Ar floppy.tree
+on the floppy image, so they can be loaded separately from the kernel
+(and updated individually to customize the floppy image).
+.Pp
 .It Fl -floppy_size Ar size
 Set the size of the floppy image. Values other than 1440 can
-be used for images that are burned into a CDROM, or downloaded
-using
+be used for images that are burned into a CDROM.
+.Pp
+.It Fl c
+.It Fl clean
+Clean the product of previous builds.
 .Xr etherboot
-.It Fl -src Ar pathname
-Use the source tree at
-.Ar pathname
-instead the one at
-.Ar /usr/src .
-Can be useful for cross-building floppy images, but you must be
-careful in that there are dependencies with the
-.Xr config 8
-program, and also with include files and libraries.
 .El
 .Sh ENVIRONMENT
 As a result of the extreme size limitations, the
@@ -102,17 +152,27 @@ build process has changed slightly over time, in order to cope
 with the unavoidable increase of code size, which requires more and more
 tricks to cram as much as possible on
 to the floppies.
-In
+Starting from
 .Fx 4.3 ,
 the supported build script is
 .Pa /usr/src/release/picobsd/build/picobsd
 which can be run from anywhere.
-This interactive script will ask for parameter entries and then build the
-appropriate single floppy version.
-The following kinds of floppy are envisaged:
+When run in interactive mode (the default without the
+.Fl -n
+option), the script will let you configure the various parameters
+used to build the floppy image.
+The following kinds of floppy are envisaged, and we try to keep them
+functional and fitting in the 1.44MB floppy despite the unavoidable
+increases in the size of the kernel and its applications:
 .Bl -hang -width "install  "
 .It bridge
 is a configuration suitable for bridges, routers and firewalls
+.El
+.Pp
+The following configurations are also present but for reference
+only. Many of them are irrimediably out of date and no effort
+is done to keep them in good shape:
+.Bl -hang -width "install  "
 .It dial
 is a configuration suitable for dial-out (ppp) networking.
 .It install
@@ -133,25 +193,56 @@ the available disk space as code size increases.
 .Pp
 You can define your own floppy type, by creating a directory
 with a name of your choice (e.g. FOO) which contains
+some of the following files and directories. For more
+information on how to construct these files, look at one
+of the standard
+.Nm picobsd
+configurations as a reference.
 .Pp
-.Bl -tag -width "floppy.tree.exclude" -compact
+.Bl -tag -width "xxxxx" -compact
 .It Pa PICOBSD
-the kernel configuration file (required).
+The kernel configuration file (required). This is a mostly standard
+kernel configuration file, possibly stripped down by removing
+unnecessary drivers and options to reduce the kernel's size.
+.Pp
+To be recognised as a
+.Nm
+kernel config file, the file must also contain the line
+beginning with #PicoBSD below, and a matching MD_ROOT_SIZE
+option:
+.Pp
+.Bd -literal -offset indent
+
+#marker    def_sz  init   MFS_inodes    floppy_inodes
+#PicoBSD   4200    init   8192          32768
+options MD_ROOT_SIZE=4200      # same as def_sz
+.Ed
+.Pp
+to inform the script on the size of the memory filesystem and
+a few other information on how to build the image.
+.Pp
 .It Pa crunch.conf
-crunchgen configuration (required).
+crunchgen configuration (required). See the
+.Xr crunchgen 1
+manpage for the syntax.
+.Pp
 .It Pa config
 shell variables, sourced by the
 .Pa picobsd
-script (optional).
+script (optional). Again, look at the standard
+.Pp
 .It Pa floppy.tree.exclude
 files from the standard floppy tree which are not needed (optional).
+.Pp
 .It Pa floppy.tree/
 local additions to the standard floppy tree (optional).
+.Pp
 .It Pa floppy.tree. Ns ${site}
 same as above, site-specific (optional).
 .El
 .Pp
 More information on the build process can be found in the
+comments in the
 .Pa picobsd
 script.
 Sample configurations can be found in
@@ -159,15 +250,44 @@ Sample configurations can be found in
 .Sh USING ALTERNATE SOURCE TREES
 The build script can be instructed use an alternate source tree
 using the
-.Fl -src Ar pathname
+.Fl -src Ar SRC_PATH
 option.
 The tree that you specify must contain full sources for the kernel
 and for all programs that you want to include in your image.
-This option must be used with great care though, because different
-source trees might refer to different include files, libraries
-or versions of the
-.Xr config 8
-program.
+As an example, to cross-build the "bridge" floppy
+using RELENG_4 sources, you can do the following:
+.Bd -literal -offset indent
+  cd <some_empty_directory>
+  mkdir FOO
+  (cd FOO; cvs -d <my_repository> co -r RELENG_4 src )
+  picobsd --src FOO/src --init	# this is needed only once
+  picobsd --src FOO/src -n -v bridge
+.Ed
+.Pp
+If the build is successful, the directory
+.Ar build_dir-bridge/
+will contain a
+.Ar kernel
+that can be downloaded with
+.Xr etherboot 8 ,
+a floppy image called
+.Ar picobsd.bin ,
+plus the products of the compilation in other directories.
+If you want to modify the source tree in
+.Ar FOO/src ,
+a new image can be produced by simply running
+.Bd -literal -offset indent
+  picobsd --src FOO/src -n -v bridge
+.Ed
+.Pp
+whereas if the change affects include files or libraries
+you first need to update them e.g. by running first
+.Bd -literal -offset indent
+  picobsd --src FOO/src --init  # this is needed only once
+.Ed
+.Pp
+as you would normally do for any change of this kind.
+.Pp
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
