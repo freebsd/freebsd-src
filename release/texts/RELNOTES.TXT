@@ -1,9 +1,9 @@
                                  RELEASE NOTES
-                          FreeBSD Release 3.0-SNAP
+                            FreeBSD Release 3.0-SNAP
 
 This is a 3.0-CURRENT release SNAPshot of FreeBSD, currently
-on its way to a follow-on release for 3.0 which was released
-on October 16th, 1998.
+on its way to the next release after 3.0-RELEASE, which was
+released on October 16th, 1998.
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
