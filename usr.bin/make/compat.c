@@ -160,7 +160,7 @@ CompatInterrupt (int signo)
     if (signo == SIGINT) {
 	gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
+	    Lst_ForEach(&gn->commands, Compat_RunCommand, (void *)gn);
 	}
     }
 
@@ -245,7 +245,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     errCheck = !(gn->type & OP_IGNORE);
     doit = FALSE;
 
-    cmdNode = Lst_Member(gn->commands, cmd);
+    cmdNode = Lst_Member(&gn->commands, cmd);
     cmdStart = Var_Subst(NULL, cmd, gn, FALSE);
 
     /*
@@ -265,7 +265,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     Lst_Replace (cmdNode, cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
-	Lst_AtEnd(ENDNode->commands, cmdStart);
+	Lst_AtEnd(&ENDNode->commands, cmdStart);
 	return (0);
     } else if (strcmp(cmdStart, "...") == 0) {
 	gn->type |= OP_SAVE_CMDS;
@@ -481,14 +481,14 @@ CompatMake(void *gnp, void *pgnp)
 	gn->make = TRUE;
 	gn->made = BEINGMADE;
 	Suff_FindDeps(gn);
-	Lst_ForEach(gn->children, CompatMake, gn);
+	Lst_ForEach(&gn->children, CompatMake, gn);
 	if (!gn->make) {
 	    gn->made = ABORTED;
 	    pgn->make = FALSE;
 	    return (0);
 	}
 
-	if (Lst_Member(gn->iParents, pgn) != NULL) {
+	if (Lst_Member(&gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
@@ -542,7 +542,7 @@ CompatMake(void *gnp, void *pgnp)
 	     */
 	    if (!touchFlag) {
 		curTarg = gn;
-		Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
+		Lst_ForEach(&gn->commands, Compat_RunCommand, (void *)gn);
 		curTarg = NULL;
 	    } else {
 		Job_Touch(gn, gn->type & OP_SILENT);
@@ -586,7 +586,7 @@ CompatMake(void *gnp, void *pgnp)
 	     * To force things that depend on FRC to be made, so we have to
 	     * check for gn->children being empty as well...
 	     */
-	    if (!Lst_IsEmpty(gn->commands) || Lst_IsEmpty(gn->children)) {
+	    if (!Lst_IsEmpty(&gn->commands) || Lst_IsEmpty(gn->children)) {
 		gn->mtime = now;
 	    }
 #else
@@ -635,7 +635,7 @@ CompatMake(void *gnp, void *pgnp)
 	 */
 	pgn->make = FALSE;
     } else {
-	if (Lst_Member(gn->iParents, pgn) != NULL) {
+	if (Lst_Member(&gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
@@ -708,7 +708,7 @@ Compat_Run(Lst *targs)
     if (!queryFlag) {
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(gn->commands, Compat_RunCommand, gn);
+	    Lst_ForEach(&gn->commands, Compat_RunCommand, gn);
             if (gn->made == ERROR) {
                 printf("\n\nStop.\n");
                 exit(1);
@@ -743,6 +743,6 @@ Compat_Run(Lst *targs)
      * If the user has defined a .END target, run its commands.
      */
     if (errors == 0) {
-	Lst_ForEach(ENDNode->commands, Compat_RunCommand, gn);
+	Lst_ForEach(&ENDNode->commands, Compat_RunCommand, gn);
     }
 }

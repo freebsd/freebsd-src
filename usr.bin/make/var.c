@@ -247,7 +247,7 @@ VarFind(char *name, GNode *ctxt, int flags)
      * Note whether this is one of the specific variables we were told through
      * the -E flag to use environment-variable-override for.
      */
-    if (Lst_Find(envFirstVars, name, (CompareProc *)strcmp) != NULL) {
+    if (Lst_Find(&envFirstVars, name, (CompareProc *)strcmp) != NULL) {
 	localCheckEnvFirst = TRUE;
     } else {
 	localCheckEnvFirst = FALSE;
@@ -258,15 +258,15 @@ VarFind(char *name, GNode *ctxt, int flags)
      * look for it in VAR_CMD, VAR_GLOBAL and the environment, in that order,
      * depending on the FIND_* flags in 'flags'
      */
-    var = Lst_Find(ctxt->context, name, VarCmp);
+    var = Lst_Find(&ctxt->context, name, VarCmp);
 
     if ((var == NULL) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
-	var = Lst_Find(VAR_CMD->context, name, VarCmp);
+	var = Lst_Find(&VAR_CMD->context, name, VarCmp);
     }
     if ((var == NULL) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
 	!checkEnvFirst && !localCheckEnvFirst)
     {
-	var = Lst_Find(VAR_GLOBAL->context, name, VarCmp);
+	var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
     }
     if ((var == NULL) && (flags & FIND_ENV)) {
 	char *env;
@@ -287,7 +287,7 @@ VarFind(char *name, GNode *ctxt, int flags)
 	} else if ((checkEnvFirst || localCheckEnvFirst) &&
 		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
 	{
-	    var = Lst_Find(VAR_GLOBAL->context, name, VarCmp);
+	    var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
 	    if (var == NULL) {
 		return (NULL);
 	    } else {
@@ -333,7 +333,7 @@ VarAdd(char *name, char *val, GNode *ctxt)
 
     v->flags = 0;
 
-    Lst_AtFront(ctxt->context, v);
+    Lst_AtFront(&ctxt->context, v);
     DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
 }
 
@@ -378,10 +378,10 @@ Var_Delete(char *name, GNode *ctxt)
     LstNode *ln;
 
     DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
-    ln = Lst_Find(ctxt->context, name, VarCmp);
+    ln = Lst_Find(&ctxt->context, name, VarCmp);
     if (ln != NULL) {
 	VarDelete(Lst_Datum(ln));
-	Lst_Remove(ctxt->context, ln);
+	Lst_Remove(&ctxt->context, ln);
     }
 }
 
@@ -483,7 +483,7 @@ Var_Append(char *name, char *val, GNode *ctxt)
 	     * export other variables...)
 	     */
 	    v->flags &= ~VAR_FROM_ENV;
-	    Lst_AtFront(ctxt->context, v);
+	    Lst_AtFront(&ctxt->context, v);
 	}
     }
     free(name);
@@ -1949,5 +1949,5 @@ void
 Var_Dump(GNode *ctxt)
 {
 
-    Lst_ForEach (ctxt->context, VarPrintVar, (void *)NULL);
+    Lst_ForEach(&ctxt->context, VarPrintVar, (void *)NULL);
 }

@@ -164,9 +164,11 @@ __FBSDID("$FreeBSD$");
  *	in a cache for when Dir_MTime was actually called.
  */
 
-Lst *dirSearchPath;		/* main search path */
+/* main search path */
+Lst dirSearchPath = Lst_Initializer(dirSearchPath);
 
-static Lst *openDirectories;	/* the list of all open directories */
+/* the list of all open directories */
+static Lst openDirectories = Lst_Initializer(openDirectories);
 
 /*
  * Variables for gathering statistics on the efficiency of the hashing
@@ -208,8 +210,6 @@ void
 Dir_Init(void)
 {
 
-	dirSearchPath = Lst_Init();
-	openDirectories = Lst_Init();
 	Hash_InitTable(&mtimes, 0);
 }
 
@@ -230,8 +230,8 @@ Dir_InitDot(void)
 {
 	LstNode *ln;
 
-	Dir_AddDir(openDirectories, ".");
-	if ((ln = Lst_Last(openDirectories)) == NULL)
+	Dir_AddDir(&openDirectories, ".");
+	if ((ln = Lst_Last(&openDirectories)) == NULL)
 		err(1, "cannot open current directory");
 	dot = Lst_Datum(ln);
 
@@ -260,10 +260,10 @@ Dir_End(void)
 
 	dot->refCount -= 1;
 	Dir_Destroy(dot);
-	Dir_ClearPath(dirSearchPath);
-	Lst_Destroy(dirSearchPath, NOFREE);
-	Dir_ClearPath(openDirectories);
-	Lst_Destroy(openDirectories, NOFREE);
+	Dir_ClearPath(&dirSearchPath);
+	Lst_Destroy(&dirSearchPath, NOFREE);
+	Dir_ClearPath(&openDirectories);
+	Lst_Destroy(&openDirectories, NOFREE);
 	Hash_DeleteTable(&mtimes);
 }
 
@@ -611,14 +611,14 @@ Dir_Expand(char *word, Lst *path, Lst *expansions)
 						char *dp =
 						    &dirpath[strlen(dirpath)
 						    - 1];
+						Lst tp = Lst_Initializer(tp);
 
 						if (*dp == '/')
 							*dp = '\0';
-						path = Lst_Init();
-						Dir_AddDir(path, dirpath);
-						DirExpandInt(cp + 1, path,
+						Dir_AddDir(&tp, dirpath);
+						DirExpandInt(cp + 1, &tp,
 						    expansions);
-						Lst_Destroy(path, NOFREE);
+						Lst_Destroy(&tp, NOFREE);
 					}
 				} else {
 					/*
@@ -942,7 +942,7 @@ Dir_MTime(GNode *gn)
 		return (Arch_MTime(gn));
 
     	else if (gn->path == NULL)
-		fullName = Dir_FindFile(gn->name, dirSearchPath);
+		fullName = Dir_FindFile(gn->name, &dirSearchPath);
 	else
 		fullName = gn->path;
 
@@ -1000,7 +1000,7 @@ Dir_AddDir(Lst *path, char *name)
 	DIR *d;			/* for reading directory */
 	struct dirent *dp;	/* entry in directory */
 
-	ln = Lst_Find(openDirectories, name, DirFindName);
+	ln = Lst_Find(&openDirectories, name, DirFindName);
 	if (ln != NULL) {
 		p = Lst_Datum(ln);
 		if (Lst_Member(path, p) == NULL) {
@@ -1043,8 +1043,8 @@ Dir_AddDir(Lst *path, char *name)
 				    (Boolean *)NULL);
 			}
 			closedir(d);
-			Lst_AtEnd(openDirectories, p);
-			if (path != openDirectories)
+			Lst_AtEnd(&openDirectories, p);
+			if (path != &openDirectories)
 				Lst_AtEnd(path, p);
 		}
 		DEBUGF(DIR, ("done\n"));
@@ -1139,8 +1139,8 @@ Dir_Destroy(void *pp)
 	if (p->refCount == 0) {
 		LstNode *ln;
 
-		if ((ln = Lst_Member(openDirectories, p)) != NULL)
-			Lst_Remove(openDirectories, ln);
+		if ((ln = Lst_Member(&openDirectories, p)) != NULL)
+			Lst_Remove(&openDirectories, ln);
 
 		Hash_DeleteTable(&p->files);
 		free(p->name);
@@ -1216,7 +1216,7 @@ Dir_PrintDirectories(void)
 	    (hits + bigmisses + nearmisses ?
 	    hits * 100 / (hits + bigmisses + nearmisses) : 0));
 	printf("# %-20s referenced\thits\n", "directory");
-	for (ln = Lst_First(openDirectories); ln != NULL; ln = Lst_Succ(ln)) {
+	for (ln = Lst_First(&openDirectories); ln != NULL; ln = Lst_Succ(ln)) {
 		p = Lst_Datum(ln);
 		printf("# %-20s %10d\t%4d\n", p->name, p->refCount, p->hits);
 	}

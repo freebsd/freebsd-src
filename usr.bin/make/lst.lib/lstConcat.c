@@ -96,6 +96,7 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
 	    list1->firstPtr = list2->firstPtr;
 	list1->lastPtr = list2->lastPtr;
 
+	Lst_Init(list2);
     } else {
 	/*
 	 * The loop simply goes through the entire
