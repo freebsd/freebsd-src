@@ -31,10 +31,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+
 #include <machine/critical.h>
+#include <machine/psl.h>
 
 /*
  * cpu_critical_fork_exit() - cleanup after fork
+ *
+ *	Enable interrupts in the saved copy of eflags.
  */
 void
 cpu_critical_fork_exit(void)
