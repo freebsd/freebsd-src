@@ -61,14 +61,16 @@ If any of these checks fail, then the kernel will panic.
 .Pp
 The flag that controls whether or not the kernel debugger is entered when a
 lock order violation is detected can be set in a variety of ways.
-By default, the flag is off, but if the "WITNESS_DDB" kernel option is
+By default, the flag is off, but if the
+.Qq Dv WITNESS_DDB
+kernel option is
 specified, then the flag will default to on.
 It can also be set from the
 .Xr loader 8
 via the
-.Sy debug.witness_ddb
+.Va debug.witness_ddb
 environment variable or after the kernel has booted via the
-.Sy debug.witness_ddb
+.Va debug.witness_ddb
 sysctl.
 If the flag is set to zero, then the debugger will not be entered.
 If the flag is non-zero, then the debugger will be entered.
@@ -77,15 +79,17 @@ The
 .Nm
 code can also be configured to skip all checks on spin mutexes.
 By default, this flag defaults to off, but it can be turned on by
-specifying the "WITNESS_SKIPSPIN" kernel option.
+specifying the
+.Qq Dv WITNESS_SKIPSPIN
+kernel option.
 The flag can also be set via the
 .Xr loader 8
 environment variable
-.Sy debug.witness.skipspin .
+.Va debug.witness.skipspin .
 If the variable is set to a non-zero value, then spin mutexes are skipped.
 Once the kernel has booted, the status of this flag can be examined but not
 set via the read-only sysctl
-.Sy debug.witness_skipspin .
+.Va debug.witness_skipspin .
 .Pp
 The
 .Nm
@@ -115,11 +119,11 @@ The
 .Nm
 code first appeared in
 .Tn BSD/OS
-5.0 and were imported from there into
+5.0 and was imported from there into
 .Fx 5.0 .
 .Sh BUGS
 The
 .Nm
-code currently doesn't handle recursion of shared
+code currently does not handle recursion of shared
 .Xr sx 9
 locks properly.
