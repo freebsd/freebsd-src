@@ -1331,7 +1331,7 @@ ffs_vget(mp, ino, flags, vpp)
 		ip->i_gen = arc4random() / 2 + 1;
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			ip->i_flag |= IN_MODIFIED;
-			DIP(ip, i_gen) = ip->i_gen;
+			DIP_SET(ip, i_gen, ip->i_gen);
 		}
 	}
 	/*

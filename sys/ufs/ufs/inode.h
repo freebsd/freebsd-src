@@ -136,6 +136,12 @@ struct inode {
 #define	DIP(ip, field) \
 	(((ip)->i_ump->um_fstype == UFS1) ? \
 	(ip)->i_din1->d##field : (ip)->i_din2->d##field)
+#define	DIP_SET(ip, field, val) do { \
+	if ((ip)->i_ump->um_fstype == UFS1) \
+		(ip)->i_din1->d##field = (val); \
+	else \
+		(ip)->i_din2->d##field = (val); \
+	} while (0)
 
 #define	MAXSYMLINKLEN(ip) \
 	((ip)->i_ump->um_fstype == UFS1) ? \
