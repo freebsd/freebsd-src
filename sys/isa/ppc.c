@@ -1785,8 +1785,10 @@ ppc_probe(device_t dev)
 
 		ppc->rid_extraio = 0;
 
-		device_printf(dev, "This ppc chipset does not support the extended I/O port range...no problem\n");
-}
+		if (bootverbose)
+			device_printf(dev,
+"This ppc chipset does not support the extended I/O port range...no problem\n");
+	}
 
  	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
