@@ -1081,7 +1081,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		 */
 		sdl = (struct sockaddr_dl *)sa;
 		e_addr = LLADDR(sdl);
-		if ((e_addr[0] & 1) != 1)
+		if (!ETHER_IS_MULTICAST(e_addr))
 			return EADDRNOTAVAIL;
 		*llsa = 0;
 		return 0;
