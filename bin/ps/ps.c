@@ -123,24 +123,23 @@ static int forceuread = 1;
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
-static const	 char *fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
-		    KINFO *, char *, int);
-static char	*kludge_oldps_options(char *);
-static int	 pscomp(const void *, const void *);
-static void	 saveuser(KINFO *);
-static void	 scanvars(void);
-static void	 dynsizevars(KINFO *);
-static void	 sizevars(void);
-static void	 usage(void);
-
 static int	 addelem_gid(struct listinfo *, const char *);
 static int	 addelem_pid(struct listinfo *, const char *);
 static int	 addelem_tty(struct listinfo *, const char *);
 static int	 addelem_uid(struct listinfo *, const char *);
 static void	 add_list(struct listinfo *, const char *);
+static void	 dynsizevars(KINFO *);
 static void	*expand_list(struct listinfo *);
+static const char *fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
+		    KINFO *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
+static char	*kludge_oldps_options(char *);
+static int	 pscomp(const void *, const void *);
+static void	 saveuser(KINFO *);
+static void	 scanvars(void);
+static void	 sizevars(void);
+static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
 static char jfmt[] = "user,pid,ppid,pgid,jobc,state,tt,time,command";
