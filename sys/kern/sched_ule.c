@@ -1623,6 +1623,7 @@ sched_add(struct thread *td)
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
 
+#if 0
 #ifdef SMP
 	/*
 	 * Only try to preempt if the thread is unpinned or pinned to the
@@ -1632,6 +1633,7 @@ sched_add(struct thread *td)
 #endif
 	if (maybe_preempt(td))
 		return;
+#endif
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
