@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.104 1995/02/10 05:41:10 phk Exp $
+#	$Id: Makefile,v 1.105 1995/02/10 05:51:01 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -9,12 +9,10 @@ FLOPPY=		fd0
 .if !defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
 DDBS=		15k
-SECT=		15
 DDCOUNT=	80
 .else
 FDLABEL=	fd1440
 DDBS=		18k
-SECT=		18
 DDCOUNT=	80
 .endif
 
@@ -94,7 +92,7 @@ boot.flp: kernel.BOOTFLP
 	disklabel -w -r -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
 		/dev/r${FLOPPY} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -t 2 -u ${SECT} \
+	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -t 0 -u 0 \
 		-o space -T ${FDLABEL} /dev/r${FLOPPY}
 	mount -o async /dev/${FLOPPY} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
