@@ -206,9 +206,9 @@ isp_sbus_attach(device_t dev)
 		 */
 		freq = (freq + 500000)/1000000;
 	} else {
-		freq = 25000000;
+		freq = 25;
 	}
-	sbs->sbus_mdvec.dv_clock = freq;
+	sbs->sbus_mdvec.dv_clock = freq << 8;
 
 	/*
 	 * Now figure out what the proper burst sizes, etc., to use.
@@ -240,8 +240,15 @@ isp_sbus_attach(device_t dev)
 	 */
 	if (strcmp("PTI,ptisp", sbus_get_name(dev)) == 0 ||
 	    strcmp("ptisp", sbus_get_name(dev)) == 0) {
-		sbs->sbus_mdvec.dv_ispfw = NULL;
+		isp->isp_confopts |= ISP_CFG_NORELOAD;
 	}
+
+	/*
+	 * We don't trust NVRAM on SBus cards
+	 */
+	isp->isp_confopts |= ISP_CFG_NONVRAM;
+
+
 	/*
 	 * Try and find firmware for this device.
 	 */
@@ -263,10 +270,19 @@ isp_sbus_attach(device_t dev)
             "fwload_disable", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
 	}
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "ignore_nvram", &tval) == 0 && tval != 0) {
-		isp->isp_confopts |= ISP_CFG_NONVRAM;
+
+	isp->isp_osinfo.default_id = -1;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "iid", &tval) == 0) {
+		isp->isp_osinfo.default_id = tval;
+		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
+	}
+	if (isp->isp_osinfo.default_id == -1) {
+		/*
+		 * XXX: should be a way to get properties w/o having
+		 * XXX: to call OF_xxx functions
+		 */
+		isp->isp_osinfo.default_id = 7;
 	}
 
 	isp_debug = 0;
