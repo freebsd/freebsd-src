@@ -271,14 +271,14 @@ trap(frame)
 		/*
 		 * First check that we shouldn't just abort.
 		 * But check if we are the single thread first!
-		 * XXX p_singlethread not locked, but should be safe.
 		 */
+		PROC_LOCK(p);
 		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
-			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
 			thread_exit();
 			/* NOTREACHED */
 		}
+		PROC_UNLOCK(p);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
