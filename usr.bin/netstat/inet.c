@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.25 1997/02/22 19:56:21 peter Exp $";
+	"$Id: inet.c,v 1.26 1997/08/25 16:57:05 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -67,15 +67,14 @@ static const char rcsid[] =
 #include <netinet/udp_var.h>
 
 #include <arpa/inet.h>
+#include <err.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "netstat.h"
-
-struct	inpcb inpcb;
-struct	tcpcb tcpcb;
-struct	socket sockb;
 
 char	*inetname __P((struct in_addr *));
 void	inetprint __P((struct in_addr *, int, char *, int));
@@ -87,50 +86,83 @@ void	inetprint __P((struct in_addr *, int, char *, int));
  * -a (all) flag is specified.
  */
 void
-protopr(off, name)
-	u_long off;
+protopr(proto, name)
+	u_long proto;		/* for sysctl version we pass proto # */
 	char *name;
 {
-	struct inpcbhead head;
-	register struct inpcb *prev, *next;
 	int istcp;
 	static int first = 1;
+	char *buf;
+	const char *mibvar;
+	struct tcpcb *tp;
+	struct inpcb *inp;
+	struct xinpgen *xig, *oxig;
+	struct xsocket *so;
+	size_t len;
 
-	if (off == 0)
+	istcp = 0;
+	switch (proto) {
+	case IPPROTO_TCP:
+		istcp = 1;
+		mibvar = "net.inet.tcp.pcblist";
+		break;
+	case IPPROTO_UDP:
+		mibvar = "net.inet.udp.pcblist";
+		break;
+	case IPPROTO_DIVERT:
+		mibvar = "net.inet.divert.pcblist";
+		break;
+	default:
+		mibvar = "net.inet.raw.pcblist";
+		break;
+	}
+	len = 0;
+	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
+		if (errno != ENOENT)
+			warn("sysctl: %s", mibvar);
 		return;
+	}
+	if ((buf = malloc(len)) == 0) {
+		warn("malloc %lu bytes", (u_long)len);
+		return;
+	}
+	if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {
+		warn("sysctl: %s", mibvar);
+		free(buf);
+		return;
+	}
 
-	istcp = strcmp(name, "tcp") == 0;
-	kread(off, (char *)&head, sizeof (struct inpcbhead));
-	prev = (struct inpcb *)off;
-
-	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
-		if (kread((u_long)next, (char *)&inpcb, sizeof (inpcb))) {
-			printf("???\n");
-			break;
-		}
-		if (!aflag &&
-		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
-			prev = next;
-			continue;
-		}
-		if (kread((u_long)inpcb.inp_socket, (char *)&sockb, sizeof (sockb))) {
-			printf("???\n");
-			break;
-		};
+	oxig = xig = (struct xinpgen *)buf;
+	for (xig = (struct xinpgen *)((char *)xig + xig->xig_len);
+	     xig->xig_len > sizeof(struct xinpgen);
+	     xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
 		if (istcp) {
-			if (kread((u_long)inpcb.inp_ppcb,
-			    (char *)&tcpcb, sizeof (tcpcb))) {
-				printf("???\n");
-				break;
-			};
+			tp = &((struct xtcpcb *)xig)->xt_tp;
+			inp = &((struct xtcpcb *)xig)->xt_inp;
+			so = &((struct xtcpcb *)xig)->xt_socket;
+		} else {
+			inp = &((struct xinpcb *)xig)->xi_inp;
+			so = &((struct xinpcb *)xig)->xi_socket;
 		}
+
+		/* Ignore sockets for protocols other than the desired one. */
+		if (so->xso_protocol != proto)
+			continue;
+
+		/* Ignore PCBs which were freed during copyout. */
+		if (inp->inp_gencnt > oxig->xig_gen)
+			continue;
+
+		if (!aflag && inet_lnaof(inp->inp_laddr) == INADDR_ANY)
+			continue;
+
 		if (first) {
 			printf("Active Internet connections");
 			if (aflag)
 				printf(" (including servers)");
 			putchar('\n');
 			if (Aflag)
-				printf("%-8.8s ", "PCB");
+				printf("%-8.8s ", "Socket");
 			printf(Aflag ?
 				"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
 				"%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s %s\n",
@@ -139,43 +171,52 @@ protopr(off, name)
 			first = 0;
 		}
 		if (Aflag)
-			if (istcp)
-				printf("%8x ", (int)inpcb.inp_ppcb);
-			else
-				printf("%8x ", (int)next);
-		printf("%-5.5s %6ld %6ld ", name, sockb.so_rcv.sb_cc,
-			sockb.so_snd.sb_cc);
+			printf("%8lx ", (u_long)so->so_pcb);
+		printf("%-5.5s %6ld %6ld ", name, so->so_rcv.sb_cc,
+			so->so_snd.sb_cc);
 		if (nflag) {
-			inetprint(&inpcb.inp_laddr, (int)inpcb.inp_lport,
+			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 			    name, 1);
-			inetprint(&inpcb.inp_faddr, (int)inpcb.inp_fport,
+			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
 			    name, 1);
-		} else if (inpcb.inp_flags & INP_ANONPORT) {
-			inetprint(&inpcb.inp_laddr, (int)inpcb.inp_lport,
+		} else if (inp->inp_flags & INP_ANONPORT) {
+			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 			    name, 1);
-			inetprint(&inpcb.inp_faddr, (int)inpcb.inp_fport,
+			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
 			    name, 0);
 		} else {
-			inetprint(&inpcb.inp_laddr, (int)inpcb.inp_lport,
+			inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 			    name, 0);
-			inetprint(&inpcb.inp_faddr, (int)inpcb.inp_fport,
-			    name, inpcb.inp_lport != inpcb.inp_fport);
+			inetprint(&inp->inp_faddr, (int)inp->inp_fport,
+			    name, inp->inp_lport != inp->inp_fport);
 		}
 		if (istcp) {
-			if (tcpcb.t_state < 0 || tcpcb.t_state >= TCP_NSTATES)
-				printf(" %d", tcpcb.t_state);
+			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
+				printf(" %d", tp->t_state);
                       else {
-				printf(" %s", tcpstates[tcpcb.t_state]);
+				printf(" %s", tcpstates[tp->t_state]);
 #if defined(TF_NEEDSYN) && defined(TF_NEEDFIN)
                               /* Show T/TCP `hidden state' */
-                              if (tcpcb.t_flags & (TF_NEEDSYN|TF_NEEDFIN))
+                              if (tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN))
                                       putchar('*');
 #endif /* defined(TF_NEEDSYN) && defined(TF_NEEDFIN) */
                       }
 		}
 		putchar('\n');
-		prev = next;
 	}
+	if (xig != oxig && xig->xig_gen != oxig->xig_gen) {
+		if (oxig->xig_count > xig->xig_count) {
+			printf("Some %s sockets may have been deleted.\n",
+			       name);
+		} else if (oxig->xig_count < xig->xig_count) {
+			printf("Some %s sockets may have been created.\n",
+			       name);
+		} else {
+			printf("Some %s sockets may have been created or deleted",
+			       name);
+		}
+	}
+	free(buf);
 }
 
 /*
@@ -187,11 +228,14 @@ tcp_stats(off, name)
 	char *name;
 {
 	struct tcpstat tcpstat;
-
-	if (off == 0)
+	size_t len = sizeof tcpstat;
+	
+	if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len, 0, 0) < 0) {
+		warn("sysctl: net.inet.tcp.stats");
 		return;
+	}
+
 	printf ("%s:\n", name);
-	kread(off, (char *)&tcpstat, sizeof (tcpstat));
 
 #define	p(f, m) if (tcpstat.f || sflag <= 1) \
     printf(m, tcpstat.f, plural(tcpstat.f))
@@ -271,11 +315,14 @@ udp_stats(off, name)
 	char *name;
 {
 	struct udpstat udpstat;
+	size_t len = sizeof udpstat;
 	u_long delivered;
 
-	if (off == 0)
+	if (sysctlbyname("net.inet.udp.stats", &udpstat, &len, 0, 0) < 0) {
+		warn("sysctl: net.inet.udp.stats");
 		return;
-	kread(off, (char *)&udpstat, sizeof (udpstat));
+	}
+
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
     printf(m, udpstat.f, plural(udpstat.f))
@@ -309,10 +356,13 @@ ip_stats(off, name)
 	char *name;
 {
 	struct ipstat ipstat;
+	size_t len = sizeof ipstat;
 
-	if (off == 0)
+	if (sysctlbyname("net.inet.ip.stats", &ipstat, &len, 0, 0) < 0) {
+		warn("sysctl: net.inet.ip.stats");
 		return;
-	kread(off, (char *)&ipstat, sizeof (ipstat));
+	}
+
 	printf("%s:\n", name);
 
 #define	p(f, m) if (ipstat.f || sflag <= 1) \
@@ -444,10 +494,13 @@ igmp_stats(off, name)
 	char *name;
 {
 	struct igmpstat igmpstat;
+	size_t len = sizeof igmpstat;
 
-	if (off == 0)
+	if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len, 0, 0) < 0) {
+		warn("sysctl: net.inet.igmp.stats");
 		return;
-	kread(off, (char *)&igmpstat, sizeof (igmpstat));
+	}
+
 	printf("%s:\n", name);
 
 #define	p(f, m) if (igmpstat.f || sflag <= 1) \

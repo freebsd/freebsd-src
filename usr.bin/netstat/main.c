@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.19 1997/07/29 06:51:40 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -67,82 +67,62 @@ static const char rcsid[] =
 #include "netstat.h"
 
 struct nlist nl[] = {
-#define	N_MBSTAT	0
-	{ "_mbstat" },
-#define	N_IPSTAT	1
-	{ "_ipstat" },
-#define	N_TCB		2
-	{ "_tcb" },
-#define	N_TCPSTAT	3
-	{ "_tcpstat" },
-#define	N_UDB		4
-	{ "_udb" },
-#define	N_UDPSTAT	5
-	{ "_udpstat" },
-#define	N_IFNET		6
+#define	N_IFNET		0
 	{ "_ifnet" },
-#define	N_IMP		7
+#define	N_IMP		1
 	{ "_imp_softc" },
-#define	N_ICMPSTAT	8
-	{ "_icmpstat" },
-#define	N_RTSTAT	9
+#define	N_RTSTAT	2
 	{ "_rtstat" },
-#define	N_UNIXSW	10
+#define	N_UNIXSW	3
 	{ "_localsw" },
-#define N_IDP		11
+#define N_IDP		4
 	{ "_nspcb"},
-#define N_IDPSTAT	12
+#define N_IDPSTAT	5
 	{ "_idpstat"},
-#define N_SPPSTAT	13
+#define N_SPPSTAT	6
 	{ "_spp_istat"},
-#define N_NSERR		14
+#define N_NSERR		7
 	{ "_ns_errstat"},
-#define	N_CLNPSTAT	15
+#define	N_CLNPSTAT	8
 	{ "_clnp_stat"},
-#define	IN_NOTUSED	16
+#define	IN_NOTUSED	9
 	{ "_tp_inpcb" },
-#define	ISO_TP		17
+#define	ISO_TP		10
 	{ "_tp_refinfo" },
-#define	N_TPSTAT	18
+#define	N_TPSTAT	11
 	{ "_tp_stat" },
-#define	N_ESISSTAT	19
+#define	N_ESISSTAT	12
 	{ "_esis_stat"},
-#define N_NIMP		20
+#define N_NIMP		13
 	{ "_nimp"},
-#define N_RTREE		21
+#define N_RTREE		14
 	{ "_rt_tables"},
-#define N_CLTP		22
+#define N_CLTP		15
 	{ "_cltb"},
-#define N_CLTPSTAT	23
+#define N_CLTPSTAT	16
 	{ "_cltpstat"},
-#define	N_NFILE		24
+#define	N_NFILE		17
 	{ "_nfile" },
-#define	N_FILE		25
+#define	N_FILE		18
 	{ "_file" },
-#define N_IGMPSTAT	26
-	{ "_igmpstat" },
-#define N_MRTPROTO	27
+#define N_MRTPROTO	19
 	{ "_ip_mrtproto" },
-#define N_MRTSTAT	28
+#define N_MRTSTAT	20
 	{ "_mrtstat" },
-#define N_MFCTABLE	29
+#define N_MFCTABLE	21
 	{ "_mfctable" },
-#define N_VIFTABLE	30
+#define N_VIFTABLE	22
 	{ "_viftable" },
-#define N_IPX		31
+#define N_IPX		23
 	{ "_ipxpcb"},
-#define N_IPXSTAT	32
+#define N_IPXSTAT	24
 	{ "_ipxstat"},
-#define N_SPXSTAT	33
+#define N_SPXSTAT	25
 	{ "_spx_istat"},
-#define N_DDPSTAT	34
+#define N_DDPSTAT	26
 	{ "_ddpstat"},
-#define N_DDPCB		35
+#define N_DDPCB		27
 	{ "_ddpcb"},
-#define N_DIVPCB	36
-	{ "_divcb"},
-#define N_DIVSTAT	37
-	{ "_divstat"},
 	{ "" },
 };
 
@@ -153,19 +133,20 @@ struct protox {
 	void	(*pr_cblocks)();	/* control blocks printing routine */
 	void	(*pr_stats)();		/* statistics printing routine */
 	char	*pr_name;		/* well-known name */
+	int	pr_usesysctl;		/* true if we use sysctl, not kvm */
 } protox[] = {
-	{ N_TCB,	N_TCPSTAT,	1,	protopr,
-	  tcp_stats,	"tcp" },
-	{ N_UDB,	N_UDPSTAT,	1,	protopr,
-	  udp_stats,	"udp" },
-	{ N_DIVPCB,	N_DIVSTAT,	1,	protopr,
-	  NULL,		"divert" }, 	/* no stat structure yet */
-	{ -1,		N_IPSTAT,	1,	0,
-	  ip_stats,	"ip" },
-	{ -1,		N_ICMPSTAT,	1,	0,
-	  icmp_stats,	"icmp" },
-	{ -1,		N_IGMPSTAT,	1,	0,
-	  igmp_stats,	"igmp" },
+	{ -1,		-1,		1,	protopr,
+	  tcp_stats,	"tcp",		IPPROTO_TCP },
+	{ -1,		-1,		1,	protopr,
+	  udp_stats,	"udp",		IPPROTO_UDP },
+	{ -1,		-1,		1,	protopr,
+	  NULL,		"divert",	IPPROTO_DIVERT },
+	{ -1,		-1,		1,	protopr,
+	  ip_stats,	"ip",		IPPROTO_RAW },
+	{ -1,		-1,		1,	protopr,
+	  icmp_stats,	"icmp",		IPPROTO_ICMP },
+	{ -1,		-1,		1,	protopr,
+	  igmp_stats,	"igmp",		IPPROTO_IGMP },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
@@ -362,31 +343,37 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
+	/*
+	 * XXX.
+	 */
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
-	if (kvmd == NULL) {
-		errx(1, "kvm_open: %s", buf);
-	}
-	if (kvm_nlist(kvmd, nl) < 0) {
-		if(nlistf)
-			errx(1, "%s: kvm_nlist: %s", nlistf, kvm_geterr(kvmd));
-		else
-			errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-	}
+	if (kvmd != NULL) {
+		if (kvm_nlist(kvmd, nl) < 0) {
+			if(nlistf)
+				errx(1, "%s: kvm_nlist: %s", nlistf,
+				     kvm_geterr(kvmd));
+			else
+				errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+		}
 
-	if (nl[0].n_type == 0) {
-		if(nlistf)
-			errx(1, "%s: no namelist", nlistf);
-		else
-			errx(1, "no namelist");
+		if (nl[0].n_type == 0) {
+			if(nlistf)
+				errx(1, "%s: no namelist", nlistf);
+			else
+				errx(1, "no namelist");
+		}
+	} else {
+		errx(1, "%s", buf);
 	}
 	if (mflag) {
-		mbpr(nl[N_MBSTAT].n_value);
+		mbpr();
 		exit(0);
 	}
 	if (pflag) {
 		if (tp->pr_stats)
-			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
-				tp->pr_name);
+			(*tp->pr_stats)(tp->pr_usesysctl ? tp->pr_usesysctl
+					: nl[tp->pr_sindex].n_value,
+					tp->pr_name);
 		else
 			printf("%s: no stats routine\n", tp->pr_name);
 		exit(0);
@@ -457,7 +444,7 @@ main(argc, argv)
 			printproto(tp, tp->pr_name);
 #endif
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !sflag)
-		unixpr(nl[N_UNIXSW].n_value);
+		unixpr();
 	exit(0);
 }
 
@@ -476,10 +463,12 @@ printproto(tp, name)
 
 	if (sflag) {
 		pr = tp->pr_stats;
-		off = nl[tp->pr_sindex].n_value;
+		off = tp->pr_usesysctl ? tp->pr_usesysctl 
+			: nl[tp->pr_sindex].n_value;
 	} else {
 		pr = tp->pr_cblocks;
-		off = nl[tp->pr_index].n_value;
+		off = tp->pr_usesysctl ? tp->pr_usesysctl
+			: nl[tp->pr_index].n_value;
 	}
 	if (pr != NULL && (off || af != AF_UNSPEC))
 		(*pr)(off, name);
@@ -494,7 +483,10 @@ kread(addr, buf, size)
 	char *buf;
 	int size;
 {
-
+	if (kvmd == 0) {
+		warnx("KVM is not open");
+		return -1;
+	}
 	if (kvm_read(kvmd, addr, buf, size) != size) {
 		warnx("%s", kvm_geterr(kvmd));
 		return (-1);
