@@ -108,6 +108,17 @@ chkdepend NFS nfs_server_enable portmap portmap_enable
 chkdepend NIS nis_server_enable portmap portmap_enable
 chkdepend NIS nis_client_enable portmap portmap_enable
 
+# Enable dumpdev early so that a crash during the boot process can be caught.
+#
+case ${dumpdev} in
+[Nn][Oo] | '')
+	dumpdev='NO'
+	;;
+*)
+	/sbin/dumpon -v ${dumpdev}
+	;;
+esac
+
 # Enable harvesting of entropy via devices.  The sooner this happens the
 # better so that we can take advantage of the boot process.
 #
@@ -540,14 +551,10 @@ else
 	dev_mkdb
 fi
 
-# Enable dumpdev so that savecore can see it.
-# /var/crash should be a directory or a symbolic link
+# $dumpdir should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
 #
-case ${dumpdev} in
-[Nn][Oo] | '')
-	;;
-*)
+if [ "${dumpdev}" != 'NO' ]; then
 	case ${dumpdir} in
 	'')
 		dumpdir='/var/crash'
@@ -557,15 +564,11 @@ case ${dumpdev} in
 		;;
 	esac
 
-	if [ -e "${dumpdev}" ]; then
-		/sbin/dumpon -v ${dumpdev}
-		if [ "$dumpdir" != 'NO' ]; then
-			echo -n 'Checking for core dump: '
-			/sbin/savecore ${savecore_flags} "${dumpdir}"
-		fi
+	if [ "${dumpdir}" != 'NO' ]; then
+		echo -n 'Checking for core dump: '
+		/sbin/savecore ${savecore_flags} "${dumpdir}"
 	fi
-	;;
-esac
+fi
 
 if [ -n "${network_pass1_done}" ]; then
 	network_pass2
