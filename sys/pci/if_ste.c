@@ -727,7 +727,7 @@ ste_rxeof(sc)
 		 * If not, something truly strange has happened.
 		 */
 		if (!(rxstat & STE_RXSTAT_DMADONE)) {
-			printf("ste%d: bad receive status -- packet dropped",
+			printf("ste%d: bad receive status -- packet dropped\n",
 							sc->ste_unit);
 			ifp->if_ierrors++;
 			cur_rx->ste_ptr->ste_status = 0;
