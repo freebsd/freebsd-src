@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.16 1995/10/28 13:28:16 peter Exp $
+#	$Id: Makefile,v 1.17 1995/10/28 17:46:03 peter Exp $
 
-SUBDIR=	atapi cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \
+SUBDIR=	atapi cd9660 coff fdesc fpu gnufpu ibcs2 if_disc if_ppp if_sl if_tun \
 	ipfw kernfs linux msdos nfs nullfs \
 	pcic portal procfs syscons umapfs union wcd
 #
