@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.63 1996/01/19 04:00:02 dyson Exp $
+ * $Id: vm_object.c,v 1.64 1996/03/02 02:54:22 dyson Exp $
  */
 
 /*
@@ -1344,7 +1344,7 @@ vm_object_in_map( object)
 	vm_object_t object;
 {
 	struct proc *p;
-	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
 /*

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.41 1996/03/02 02:54:19 dyson Exp $
+ * $Id: vm_glue.c,v 1.42 1996/03/09 06:57:53 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -446,7 +446,7 @@ loop:
 
 	pp = NULL;
 	ppri = INT_MIN;
-	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_stat == SRUN &&
 			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
 			int mempri;
@@ -505,7 +505,7 @@ swapout_procs()
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
 retry:
-	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (!swappable(p))
 			continue;
 		switch (p->p_stat) {
