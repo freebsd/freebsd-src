@@ -418,6 +418,20 @@ installcheck: ${SPECIAL_INSTALLCHECKS}
 		false; \
 	fi
 .endif
+.if !defined(NO_PF)
+	@if ! `id -u proxy > /dev/null`; then \
+		echo "ERROR: Required proxy user is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+	@if ! `id -g proxy > /dev/null`; then \
+		echo "ERROR: Required proxy group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+	@if ! `id -g authpf > /dev/null`; then \
+		echo "ERROR: Required authpf group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endif
 
 #
 # distributeworld
