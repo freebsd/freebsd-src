@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.231 1999/04/19 18:45:21 alc Exp $
+ *	$Id: pmap.c,v 1.232 1999/04/23 20:29:58 dt Exp $
  */
 
 /*
@@ -970,9 +970,10 @@ pmap_dispose_proc(p)
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
-
+#if defined(I386_CPU)
 	if (cpu_class <= CPUCLASS_386)
 		invltlb();
+#endif
 }
 
 /*
@@ -2126,7 +2127,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 		if ((prot & VM_PROT_WRITE) && (origpte & PG_V)) {
 			if ((origpte & PG_RW) == 0) {
 				*pte |= PG_RW;
+#ifdef SMP
+				cpu_invlpg((void *)va);
+				if (pmap->pm_active & other_cpus)
+					smp_invltlb();
+#else
 				invltlb_1pg(va);
+#endif
 			}
 			return;
 		}
@@ -2194,8 +2201,15 @@ validate:
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		*pte = newpte | PG_A;
-		if (origpte)
+		if (origpte) {
+#ifdef SMP
+			cpu_invlpg((void *)va);
+			if (pmap->pm_active & other_cpus)
+				smp_invltlb();
+#else
 			invltlb_1pg(va);
+#endif
+		}
 	}
 }
 
@@ -2742,11 +2756,7 @@ pmap_zero_page(phys)
 #endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	if (cpu_class == CPUCLASS_386) {
-		invltlb();
-	} else {
-		invlpg((u_int)CADDR2);
-	}
+	invltlb_1pg((vm_offset_t)CADDR2);
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686)
@@ -2794,11 +2804,7 @@ pmap_zero_page_area(phys, off, size)
 #endif
 
 	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	if (cpu_class == CPUCLASS_386) {
-		invltlb();
-	} else {
-		invlpg((u_int)CADDR2);
-	}
+	invltlb_1pg((vm_offset_t)CADDR2);
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
@@ -2847,9 +2853,12 @@ pmap_copy_page(src, dst)
 
 	*(int *) CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
+#if defined(I386_CPU)
 	if (cpu_class == CPUCLASS_386) {
 		invltlb();
-	} else {
+	} else
+#endif
+	{
 		invlpg((u_int)CADDR1);
 		invlpg((u_int)CADDR2);
 	}
