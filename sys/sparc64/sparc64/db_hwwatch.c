@@ -53,11 +53,11 @@ watch_phys_set_mask(vm_offset_t pa, u_long mask)
 {
 	u_long lsucr;
 
-	stxa(AA_DMMU_PWPR, ASI_DMMU, pa & (((2UL << 38) - 1) << 3));
+	stxa_sync(AA_DMMU_PWPR, ASI_DMMU, pa & (((2UL << 38) - 1) << 3));
 	lsucr = ldxa(0, ASI_LSU_CTL_REG);
 	lsucr = ((lsucr | LSU_PW) & ~LSU_PM_MASK) |
 	    (mask << LSU_PM_SHIFT);
-	stxa(0, ASI_LSU_CTL_REG, lsucr);
+	stxa_sync(0, ASI_LSU_CTL_REG, lsucr);
 	return (0);
 }
 
@@ -92,7 +92,7 @@ watch_phys_get(int *bm)
 void
 watch_phys_clear()
 {
-	stxa(0, ASI_LSU_CTL_REG,
+	stxa_sync(0, ASI_LSU_CTL_REG,
 	    ldxa(0, ASI_LSU_CTL_REG) & ~LSU_PW);
 }
 
@@ -108,11 +108,11 @@ watch_virt_set_mask(vm_offset_t va, u_long mask)
 {
 	u_long lsucr;
 
-	stxa(AA_DMMU_VWPR, ASI_DMMU, va & (((2UL << 41) - 1) << 3));
+	stxa_sync(AA_DMMU_VWPR, ASI_DMMU, va & (((2UL << 41) - 1) << 3));
 	lsucr = ldxa(0, ASI_LSU_CTL_REG);
 	lsucr = ((lsucr | LSU_VW) & ~LSU_VM_MASK) |
 	    (mask << LSU_VM_SHIFT);
-	stxa(0, ASI_LSU_CTL_REG, lsucr);
+	stxa_sync(0, ASI_LSU_CTL_REG, lsucr);
 	return (0);
 }
 
@@ -147,7 +147,7 @@ watch_virt_get(int *bm)
 void
 watch_virt_clear()
 {
-	stxa(0, ASI_LSU_CTL_REG,
+	stxa_sync(0, ASI_LSU_CTL_REG,
 	    ldxa(0, ASI_LSU_CTL_REG) & ~LSU_VW);
 }
 
