@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -19,7 +20,7 @@ main(int argc, char **argv)
     printf("BRK(0)=%x ",sbrk(0));
     foo = malloc (sizeof *foo * NBUCKETS);
     memset(foo,0,sizeof *foo * NBUCKETS);
-    for (i = 1; i <= 4096; i+=i) {
+    for (i = 1; i <= 4096; i *= 2) {
         for (j = 0 ; j < 40960/i && j < NBUCKETS; j++) {
 	    foo[j] = malloc(i);
         }
@@ -31,8 +32,15 @@ main(int argc, char **argv)
 
     for (i = 0 ; i < NOPS ; i++) {
 	j = random() % NBUCKETS;
-        k = random() % NSIZE;
+	k = random() % NSIZE;
 	foo[j] = realloc(foo[j], k & 1 ? 0 : k);
+	if (k & 1 || k == 0) {
+		/*
+		 * Workaround because realloc return bogus pointer rather than
+		 * NULL if passed zero length.
+		 */
+		foo[j] = 0;
+	}
 	if (foo[j])
 	    foo[j][0] = 1;
     }
