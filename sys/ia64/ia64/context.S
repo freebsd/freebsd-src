@@ -168,14 +168,14 @@ END(restorectx)
 
 ENTRY(swapctx, 2)
 {	.mmi
-	flushrs
+	mov		ar.rsc=0
 	mov		r16=ar.unat
 	add		r31=8,r32
 	;;
 }
 {	.mmi
+	flushrs
 	st8		[r32]=sp,16		// sp
-	mov		ar.rsc=0
 	mov		r17=rp
 	;;
 }
