@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.54 1998/05/19 07:11:24 peter Exp $
+ *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
+ * $Id: nfs_subs.c,v 1.55 1998/05/24 14:41:53 peter Exp $
  */
 
 /*
@@ -2128,5 +2128,46 @@ nfsrv_object_create(vp)
 		return (1);
 	return (vfs_object_create(vp, curproc,
 				  curproc ? curproc->p_ucred : NULL, 1));
+}
+
+/*
+ * Sort the group list in increasing numerical order.
+ * (Insertion sort by Chris Torek, who was grossed out by the bubble sort
+ *  that used to be here.)
+ */
+void
+nfsrvw_sort(list, num)
+        register gid_t *list;
+        register int num;
+{
+	register int i, j;
+	gid_t v;
+
+	/* Insertion sort. */
+	for (i = 1; i < num; i++) {
+		v = list[i];
+		/* find correct slot for value v, moving others up */
+		for (j = i; --j >= 0 && v < list[j];)
+			list[j + 1] = list[j];
+		list[j + 1] = v;
+	}
+}
+
+/*
+ * copy credentials making sure that the result can be compared with bcmp().
+ */
+void
+nfsrv_setcred(incred, outcred)
+	register struct ucred *incred, *outcred;
+{
+	register int i;
+
+	bzero((caddr_t)outcred, sizeof (struct ucred));
+	outcred->cr_ref = 1;
+	outcred->cr_uid = incred->cr_uid;
+	outcred->cr_ngroups = incred->cr_ngroups;
+	for (i = 0; i < incred->cr_ngroups; i++)
+		outcred->cr_groups[i] = incred->cr_groups[i];
+	nfsrvw_sort(outcred->cr_groups, outcred->cr_ngroups);
 }
 #endif /* NFS_NOSERVER */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.15 1998/03/30 09:54:41 phk Exp $
+ * $Id: nfsm_subs.h,v 1.16 1998/05/16 15:11:24 bde Exp $
  */
 
 
@@ -105,7 +105,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		if (t1 >= (s)) { \
 			(a) = (c)(dpos); \
 			dpos += (s); \
-		} else if (t1 = nfsm_disct(&md, &dpos, (s), t1, &cp2)) { \
+		} else if ((t1 = nfsm_disct(&md, &dpos, (s), t1, &cp2)) != 0){ \
 			error = t1; \
 			m_freem(mrep); \
 			goto nfsmout; \
@@ -122,8 +122,9 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 				*(tl + ((t2>>2) - 2)) = 0; \
 				bcopy((caddr_t)VTONFS(v)->n_fhp,(caddr_t)tl, \
 					VTONFS(v)->n_fhsize); \
-			} else if (t2 = nfsm_strtmbuf(&mb, &bpos, \
-				(caddr_t)VTONFS(v)->n_fhp, VTONFS(v)->n_fhsize)) { \
+			} else if ((t2 = nfsm_strtmbuf(&mb, &bpos, \
+				(caddr_t)VTONFS(v)->n_fhp, \
+				VTONFS(v)->n_fhsize)) != 0) { \
 				error = t2; \
 				m_freem(mreq); \
 				goto nfsmout; \
@@ -159,8 +160,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			(f) = 1; \
 		if (f) { \
 			nfsm_getfh(ttfhp, ttfhsize, (v3)); \
-			if (t1 = nfs_nget((d)->v_mount, ttfhp, ttfhsize, \
-				&ttnp)) { \
+			if ((t1 = nfs_nget((d)->v_mount, ttfhp, ttfhsize, \
+				&ttnp)) != 0) { \
 				error = t1; \
 				m_freem(mrep); \
 				goto nfsmout; \
@@ -193,7 +194,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 
 #define	nfsm_loadattr(v, a) \
 		{ struct vnode *ttvp = (v); \
-		if (t1 = nfs_loadattrcache(&ttvp, &md, &dpos, (a))) { \
+		if ((t1 = nfs_loadattrcache(&ttvp, &md, &dpos, (a))) != 0) { \
 			error = t1; \
 			m_freem(mrep); \
 			goto nfsmout; \
@@ -204,8 +205,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		{ struct vnode *ttvp = (v); \
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED); \
 		if ((f) = fxdr_unsigned(int, *tl)) { \
-			if (t1 = nfs_loadattrcache(&ttvp, &md, &dpos, \
-				(struct vattr *)0)) { \
+			if ((t1 = nfs_loadattrcache(&ttvp, &md, &dpos, \
+				(struct vattr *)0)) != 0) { \
 				error = t1; \
 				(f) = 0; \
 				m_freem(mrep); \
@@ -275,14 +276,14 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 
 #define nfsm_mtouio(p,s) \
 		if ((s) > 0 && \
-		   (t1 = nfsm_mbuftouio(&md,(p),(s),&dpos))) { \
+		   (t1 = nfsm_mbuftouio(&md,(p),(s),&dpos)) != 0) { \
 			error = t1; \
 			m_freem(mrep); \
 			goto nfsmout; \
 		}
 
 #define nfsm_uiotom(p,s) \
-		if (t1 = nfsm_uiotombuf((p),&mb,(s),&bpos)) { \
+		if ((t1 = nfsm_uiotombuf((p),&mb,(s),&bpos)) != 0) { \
 			error = t1; \
 			m_freem(mreq); \
 			goto nfsmout; \
@@ -297,8 +298,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 #define nfsm_rndup(a)	(((a)+3)&(~0x3))
 
 #define	nfsm_request(v, t, p, c)	\
-		if (error = nfs_request((v), mreq, (t), (p), \
-		   (c), &mrep, &md, &dpos)) { \
+		if ((error = nfs_request((v), mreq, (t), (p), \
+		   (c), &mrep, &md, &dpos)) != 0) { \
 			if (error & NFSERR_RETERR) \
 				error &= ~NFSERR_RETERR; \
 			else \
@@ -317,7 +318,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			*tl++ = txdr_unsigned(s); \
 			*(tl+((t2>>2)-2)) = 0; \
 			bcopy((caddr_t)(a), (caddr_t)tl, (s)); \
-		} else if (t2 = nfsm_strtmbuf(&mb, &bpos, (a), (s))) { \
+		} else if ((t2 = nfsm_strtmbuf(&mb, &bpos, (a), (s))) != 0) { \
 			error = t2; \
 			m_freem(mreq); \
 			goto nfsmout; \
@@ -358,7 +359,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		{ t1 = mtod(md, caddr_t)+md->m_len-dpos; \
 		if (t1 >= (s)) { \
 			dpos += (s); \
-		} else if (t1 = nfs_adv(&md, &dpos, (s), t1)) { \
+		} else if ((t1 = nfs_adv(&md, &dpos, (s), t1)) != 0) { \
 			error = t1; \
 			m_freem(mrep); \
 			goto nfsmout; \
