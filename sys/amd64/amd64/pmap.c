@@ -1103,19 +1103,6 @@ pmap_pinit(pmap)
 }
 
 /*
- * Wire in kernel global address entries.  To avoid a race condition
- * between pmap initialization and pmap_growkernel, this procedure
- * should be called after the vmspace is attached to the process
- * but before this pmap is activated.
- */
-void
-pmap_pinit2(pmap)
-	struct pmap *pmap;
-{
-	/* XXX: Remove this stub when no longer called */
-}
-
-/*
  * this routine is called if the page table page is not
  * mapped correctly.
  *
