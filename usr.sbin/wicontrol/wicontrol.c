@@ -423,7 +423,7 @@ wi_printkeys(struct wi_req *wreq)
 	}
 
 	return;
-};
+}
 
 void
 wi_printwords(struct wi_req *wreq)
