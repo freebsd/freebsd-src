@@ -964,43 +964,24 @@ mode_code
 pathname
 	: pathstring
 		{
-			/*
-			 * Problem: this production is used for all pathname
-			 * processing, but only gives a 550 error reply.
-			 * This is a valid reply in some cases but not in others.
-			 */
 			if (logged_in && $1) {
-				glob_t gl;
-				char *p, **pp;
-				int flags =
-				 GLOB_BRACE|GLOB_NOCHECK|GLOB_TILDE;
-				int n;
+				char *p;
 
-				memset(&gl, 0, sizeof(gl));
-				flags |= GLOB_LIMIT;
-				gl.gl_matchc = MAXGLOBARGS;
-				if (glob($1, flags, NULL, &gl) ||
-				    gl.gl_pathc == 0) {
-					reply(550, "wildcard expansion error");
+				/*
+				 * Expand ~user manually since glob(3)
+				 * will return the unexpanded pathname
+				 * if the corresponding file/directory
+				 * doesn't exist yet.  Using sole glob(3)
+				 * would break natural commands like
+				 * MKD ~user/newdir
+				 * or
+				 * RNTO ~/newfile
+				 */
+				if ((p = exptilde($1)) != NULL) {
+					$$ = expglob(p);
+					free(p);
+				} else
 					$$ = NULL;
-				} else {
-					n = 0;
-					for (pp = gl.gl_pathv; *pp; pp++)
-						if (strcspn(*pp, "\r\n") ==
-						    strlen(*pp)) {
-							p = *pp;
-							n++;
-						}
-					if (n == 0)
-						$$ = strdup($1);
-					else if (n == 1)
-						$$ = strdup(p);
-					else {
-						reply(550, "ambiguous");
-						$$ = NULL;
-					}
-				}
-				globfree(&gl);
 				free($1);
 			} else
 				$$ = $1;
@@ -1158,6 +1139,8 @@ struct tab sitetab[] = {
 };
 
 static char	*copy(char *);
+static char	*expglob(char *);
+static char	*exptilde(char *);
 static void	 help(struct tab *, char *);
 static struct tab *
 		 lookup(struct tab *, char *);
@@ -1667,6 +1650,86 @@ check_login1(void)
 		reply(530, "Please login with USER and PASS.");
 		return 0;
 	}
+}
+
+/*
+ * Replace leading "~user" in a pathname by the user's login directory.
+ * Returned string will be in a freshly malloced buffer unless it's NULL.
+ */
+static char *
+exptilde(char *s)
+{
+	char *p, *q;
+	char *path, *user;
+	struct passwd *ppw;
+
+	if ((p = strdup(s)) == NULL)
+		return (NULL);
+	if (*p != '~')
+		return (p);
+
+	user = p + 1;	/* skip tilde */
+	if ((path = strchr(p, '/')) != NULL)
+		*(path++) = '\0'; /* separate ~user from the rest of path */
+	ppw = *user ? getpwnam(user) : pw;
+	if (ppw) {
+		/* user found, substitute login directory for ~user */
+		if (path)
+			asprintf(&q, "%s/%s", ppw->pw_dir, path);
+		else
+			q = strdup(ppw->pw_dir);
+		free(p);
+		p = q;
+	} else {
+		/* user not found, undo the damage */
+		if (path)
+			path[-1] = '/';
+	}
+	return (p);
+}
+
+/*
+ * Expand glob(3) patterns possibly present in a pathname.
+ * Avoid expanding to a pathname including '\r' or '\n' in order to
+ * not disrupt the FTP protocol.
+ * The expansion found must be unique.
+ * Return the result as a malloced string, or NULL if an error occured.
+ *
+ * Problem: this production is used for all pathname
+ * processing, but only gives a 550 error reply.
+ * This is a valid reply in some cases but not in others.
+ */
+static char *
+expglob(char *s)
+{
+	char *p, **pp, *rval;
+	int flags = GLOB_BRACE | GLOB_NOCHECK;
+	int n;
+	glob_t gl;
+
+	memset(&gl, 0, sizeof(gl));
+	flags |= GLOB_LIMIT;
+	gl.gl_matchc = MAXGLOBARGS;
+	if (glob(s, flags, NULL, &gl) == 0 && gl.gl_pathc != 0) {
+		for (pp = gl.gl_pathv, p = NULL, n = 0; *pp; pp++)
+			if (*(*pp + strcspn(*pp, "\r\n")) == '\0') {
+				p = *pp;
+				n++;
+			}
+		if (n == 0)
+			rval = strdup(s);
+		else if (n == 1)
+			rval = strdup(p);
+		else {
+			reply(550, "ambiguous");
+			rval = NULL;
+		}
+	} else {
+		reply(550, "wildcard expansion error");
+		rval = NULL;
+	}
+	globfree(&gl);
+	return (rval);
 }
 
 #ifdef INET6
