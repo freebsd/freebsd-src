@@ -47,6 +47,8 @@ CRUNCH_BUILDOPTS+= -DRESCUE
 # Define compile-time RESCUE symbol when compiling components
 CRUNCH_BUILDOPTS+= CRUNCH_CFLAGS=-DRESCUE
 
+# An experiment that failed: try overriding bsd.lib.mk and bsd.prog.mk
+# rather than incorporating rescue-specific logic into standard files.
 #MAKEFLAGS= -m ${.CURDIR} ${.MAKEFLAGS}
 
 # Hackery:  'librescue' exists merely as a tool for appropriately
@@ -244,13 +246,19 @@ $(CONF): Makefile
 $(OUTPUTS): $(CONF)
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) -c $(OUTC) $(CONF)
 
-# -m here forces make to treat the bsd.prog.mk and bsd.lib.mk in
-# this directory as overrides for the standard shared ones.
 $(PROG): $(OUTPUTS)
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) 
 
 objs:
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) objs
+
+# <sigh> Someone should replace the bin/csh and bin/sh build-tools with
+# shell scripts so we can remove this nonsense.
+build-tools:
+.for _tool in bin/csh bin/sh 
+	cd ${.CURDIR}/../../${_tool}; \
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make DIRPRFX=rescue/${_tool} build-tools
+.endfor
 
 # Use a separate build tree to hold files compiled for this crunchgen binary
 # Yes, this does seem to partly duplicate bsd.subdir.mk, but I can't
