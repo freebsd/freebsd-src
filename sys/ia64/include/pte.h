@@ -59,6 +59,11 @@
 #define	PTE_MANAGED	0x0040000000000000
 #define	PTE_PROT_MASK	0x0700000000000000
 
+#define	ITIR__RV1_	0x0000000000000003
+#define	ITIR_PS_MASK	0x00000000000000FC
+#define	ITIR_KEY_MASK	0x00000000FFFFFF00
+#define	ITIR__RV2_	0xFFFFFFFF00000000
+
 #ifndef LOCORE
 
 typedef uint64_t pt_entry_t;
@@ -76,21 +81,11 @@ pte_atomic_set(pt_entry_t *ptep, uint64_t val)
 }
 
 /*
- * Layout of cr.itir.
- */
-struct ia64_itir {
-	uint64_t	__rv1__	:2;	/* bits 0..1 */
-	uint64_t	ps	:6;	/* bits 2..7 */
-	uint64_t	key	:24;	/* bits 8..31 */
-	uint64_t	__rv2__	:32;	/* bits 32..63 */
-};
-
-/*
  * A long-format VHPT entry.
  */
 struct ia64_lpte {
 	pt_entry_t	pte;
-	struct ia64_itir itir;
+	uint64_t	itir;
 	uint64_t	tag;		/* includes ti */
 	uint64_t	chain;		/* pa of collision chain */
 };
