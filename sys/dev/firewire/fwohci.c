@@ -113,37 +113,37 @@ static struct tcode_info tinfo[] = {
 #define OWRITE(sc, r, x) bus_space_write_4((sc)->bst, (sc)->bsh, (r), (x))
 #define OREAD(sc, r) bus_space_read_4((sc)->bst, (sc)->bsh, (r))
 
-static void fwohci_ibr __P((struct firewire_comm *));
-static void fwohci_db_init __P((struct fwohci_softc *, struct fwohci_dbch *));
-static void fwohci_db_free __P((struct fwohci_dbch *));
-static void fwohci_arcv __P((struct fwohci_softc *, struct fwohci_dbch *, int));
-static void fwohci_txd __P((struct fwohci_softc *, struct fwohci_dbch *));
-static void fwohci_start_atq __P((struct firewire_comm *));
-static void fwohci_start_ats __P((struct firewire_comm *));
-static void fwohci_start __P((struct fwohci_softc *, struct fwohci_dbch *));
-static u_int32_t fwphy_wrdata __P(( struct fwohci_softc *, u_int32_t, u_int32_t));
-static u_int32_t fwphy_rddata __P(( struct fwohci_softc *, u_int32_t));
-static int fwohci_rx_enable __P((struct fwohci_softc *, struct fwohci_dbch *));
-static int fwohci_tx_enable __P((struct fwohci_softc *, struct fwohci_dbch *));
-static int fwohci_irx_enable __P((struct firewire_comm *, int));
-static int fwohci_irx_disable __P((struct firewire_comm *, int));
+static void fwohci_ibr (struct firewire_comm *);
+static void fwohci_db_init (struct fwohci_softc *, struct fwohci_dbch *);
+static void fwohci_db_free (struct fwohci_dbch *);
+static void fwohci_arcv (struct fwohci_softc *, struct fwohci_dbch *, int);
+static void fwohci_txd (struct fwohci_softc *, struct fwohci_dbch *);
+static void fwohci_start_atq (struct firewire_comm *);
+static void fwohci_start_ats (struct firewire_comm *);
+static void fwohci_start (struct fwohci_softc *, struct fwohci_dbch *);
+static u_int32_t fwphy_wrdata ( struct fwohci_softc *, u_int32_t, u_int32_t);
+static u_int32_t fwphy_rddata ( struct fwohci_softc *, u_int32_t);
+static int fwohci_rx_enable (struct fwohci_softc *, struct fwohci_dbch *);
+static int fwohci_tx_enable (struct fwohci_softc *, struct fwohci_dbch *);
+static int fwohci_irx_enable (struct firewire_comm *, int);
+static int fwohci_irx_disable (struct firewire_comm *, int);
 #if BYTE_ORDER == BIG_ENDIAN
-static void fwohci_irx_post __P((struct firewire_comm *, u_int32_t *));
+static void fwohci_irx_post (struct firewire_comm *, u_int32_t *);
 #endif
-static int fwohci_itxbuf_enable __P((struct firewire_comm *, int));
-static int fwohci_itx_disable __P((struct firewire_comm *, int));
-static void fwohci_timeout __P((void *));
-static void fwohci_set_intr __P((struct firewire_comm *, int));
+static int fwohci_itxbuf_enable (struct firewire_comm *, int);
+static int fwohci_itx_disable (struct firewire_comm *, int);
+static void fwohci_timeout (void *);
+static void fwohci_set_intr (struct firewire_comm *, int);
 
-static int fwohci_add_rx_buf __P((struct fwohci_dbch *, struct fwohcidb_tr *, int, struct fwdma_alloc *));
-static int fwohci_add_tx_buf __P((struct fwohci_dbch *, struct fwohcidb_tr *, int));
-static void	dump_db __P((struct fwohci_softc *, u_int32_t));
-static void 	print_db __P((struct fwohcidb_tr *, struct fwohcidb *, u_int32_t , u_int32_t));
-static void	dump_dma __P((struct fwohci_softc *, u_int32_t));
-static u_int32_t fwohci_cyctimer __P((struct firewire_comm *));
-static void fwohci_rbuf_update __P((struct fwohci_softc *, int));
-static void fwohci_tbuf_update __P((struct fwohci_softc *, int));
-void fwohci_txbufdb __P((struct fwohci_softc *, int , struct fw_bulkxfer *));
+static int fwohci_add_rx_buf (struct fwohci_dbch *, struct fwohcidb_tr *, int, struct fwdma_alloc *);
+static int fwohci_add_tx_buf (struct fwohci_dbch *, struct fwohcidb_tr *, int);
+static void	dump_db (struct fwohci_softc *, u_int32_t);
+static void 	print_db (struct fwohcidb_tr *, struct fwohcidb *, u_int32_t , u_int32_t);
+static void	dump_dma (struct fwohci_softc *, u_int32_t);
+static u_int32_t fwohci_cyctimer (struct firewire_comm *);
+static void fwohci_rbuf_update (struct fwohci_softc *, int);
+static void fwohci_tbuf_update (struct fwohci_softc *, int);
+void fwohci_txbufdb (struct fwohci_softc *, int , struct fw_bulkxfer *);
 #if FWOHCI_TASKQUEUE
 static void fwohci_complete(void *, int);
 #endif
