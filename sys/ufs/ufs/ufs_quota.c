@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
@@ -57,6 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+
+SYSCTL_DECL(_security_bsd);
+
+static int unprivileged_get_quota = 0;
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
+    &unprivileged_get_quota, 0,
+    "Unprivileged processes may retrieve quotas for other uids and gids");
 
 static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
 
@@ -404,6 +412,10 @@ quotaon(td, mp, type, fname)
 	int error, flags;
 	struct nameidata nd;
 
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		return (error);
+
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
@@ -491,6 +503,10 @@ quotaoff(td, mp, type)
 	struct inode *ip;
 	int error;
 
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		return (error);
+
 	if ((qvp = ump->um_quotas[type]) == NULLVP)
 		return (0);
 	ump->um_qflags[type] |= QTF_CLOSING;
@@ -546,7 +562,8 @@ again:
  * Q_GETQUOTA - return current values in a dqblk structure.
  */
 int
-getquota(mp, id, type, addr)
+getquota(td, mp, id, type, addr)
+	struct thread *td;
 	struct mount *mp;
 	u_long id;
 	int type;
@@ -554,6 +571,27 @@ getquota(mp, id, type, addr)
 {
 	struct dquot *dq;
 	int error;
+
+	switch (type) {
+	case USRQUOTA:
+		if ((td->td_ucred->cr_uid != id) && !unprivileged_get_quota) {
+			error = suser_cred(td->td_ucred, PRISON_ROOT);
+			if (error)
+				return (error);
+		}
+		break;  
+
+	case GRPQUOTA:
+		if (!groupmember(id, td->td_ucred) && !unprivileged_get_quota) {
+			error = suser_cred(td->td_ucred, PRISON_ROOT);
+			if (error)
+				return (error);
+		}
+		break;
+
+	default:
+		return (EINVAL);
+	}
 
 	error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq);
 	if (error)
@@ -567,7 +605,8 @@ getquota(mp, id, type, addr)
  * Q_SETQUOTA - assign an entire dqblk structure.
  */
 int
-setquota(mp, id, type, addr)
+setquota(td, mp, id, type, addr)
+	struct thread *td;
 	struct mount *mp;
 	u_long id;
 	int type;
@@ -578,6 +617,10 @@ setquota(mp, id, type, addr)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct dqblk newlim;
 	int error;
+
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		return (error);
 
 	error = copyin(addr, (caddr_t)&newlim, sizeof (struct dqblk));
 	if (error)
@@ -628,7 +671,8 @@ setquota(mp, id, type, addr)
  * Q_SETUSE - set current inode and block usage.
  */
 int
-setuse(mp, id, type, addr)
+setuse(td, mp, id, type, addr)
+	struct thread *td;
 	struct mount *mp;
 	u_long id;
 	int type;
@@ -639,6 +683,10 @@ setuse(mp, id, type, addr)
 	struct dquot *ndq;
 	struct dqblk usage;
 	int error;
+
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		return (error);
 
 	error = copyin(addr, (caddr_t)&usage, sizeof (struct dqblk));
 	if (error)
