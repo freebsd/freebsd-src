@@ -1,0 +1,71 @@
+# '@(#)WWW	7.3'
+
+# From Paul Eggert <eggert@twinsun.com> (1995-11-03)
+#
+# The Web has several other sources for time zone and daylight savings data.
+# Here are some recent links that may be of interest.
+#
+# Date and Time Gateway
+#	http://www.bsdi.com/date
+# A text-based source for tables of current time throughout the world.
+# Its point-and-click interface accesses a recent version of the tz data.
+#
+# Local Times Around the World
+#	http://www.hilink.com.au/times/
+# This text-based system contains links to local time servers
+# throughout the world, and though the coverage is limited,
+# the live data provide a nice way to check one's tables.
+#
+# World Time Zones
+#	http://tycho.usno.navy.mil/tzones.html
+# US Naval Observatory data, used as the source for `usno1995'.
+#
+# Standard Time Zones of the World
+#	http://www.odci.gov/cia/publications/95fact/802389.gif	[54 kB]
+#	http://www.odci.gov/cia/publications/95fact/802389h.gif	[1317 kB]
+# A static time zone map, available in both low-resolution and
+# high-resolution versions. The quality is good, but the map does not
+# indicate summer time, and parts of the data are a few years out of date.
+#
+# VIBE's World Map
+#	http://pathfinder.com/vibe/vibeworld
+# An active time zone map. You can point to the map and find out what
+# time it is at that location. The map and data are not as good as
+# other sources.
+
+###############################################################################
+
+# From Manavendra Thakur <Manavendra_Thakur@NeXT.COM> (1995-11-06)
+# 
+# To Paul's list of time zone information on the web, I would add the
+# following URL:
+#	http://www.dhl.com/dhl/dhlinfo/1bb.html
+# or more simply:
+#	http://www.dhl.com/
+# 
+# This is run by DHL (the courier company), and it presents a list of the  
+# countries served by that company.  If you then click on a particular  
+# country, here's an example of what you'll see (graphics stripped out):
+# 
+# United Kingdom
+# 
+# HOLIDAYS: Jan 1, 2, Apr 14, 17, May 1, 29, Aug 28, Dec 25, 26
+# 
+# INTERNATIONAL DIALING CODE: +44
+# 
+# CURRENT LOCAL TIME: 09:41 Monday 6 November 1995
+# 
+# I find this rather handy, and given that DHL covers 217 countries and  
+# territories, it's pretty comprehensive coverage.
+# 
+# (I have no idea what system DHL is using to calculate the local time, but  
+# it's been accurate so far.)
+
+###############################################################################
+
+
+# From Arthur David Olson <arthur_david_olson@nih.gov> (1996-01-04)
+#
+# A good source of information about ISO 8601 seems to be
+#	http://www.ft.uni-erlangen.de/~mskuhn/iso-time.html
+# maintained by Markus Kuhn.
