@@ -1589,8 +1589,8 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 	zone->uz_fills++;
 
 	/* Try to keep the buckets totally full */
-	while ((slab = uma_zone_slab(zone, flags)) != NULL &&
-	    bucket->ub_ptr < zone->uz_count) {
+	while (bucket->ub_ptr < zone->uz_count &&
+	    (slab = uma_zone_slab(zone, flags)) != NULL) {
 		while (slab->us_freecount &&
 		    bucket->ub_ptr < zone->uz_count) {
 			bucket->ub_bucket[++bucket->ub_ptr] =
