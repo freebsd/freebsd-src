@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: i386-fbsd.c,v 1.3 1998/01/05 07:30:24 charnier Exp $";
+	"$Id: i386-fbsd.c,v 1.4 1998/01/09 00:39:07 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -51,8 +51,8 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
-#include <i386/include/reg.h>
-#include <i386/include/psl.h>
+#include <machine/reg.h>
+#include <machine/psl.h>
 #include <sys/syscall.h>
 
 #include "syscall.h"
