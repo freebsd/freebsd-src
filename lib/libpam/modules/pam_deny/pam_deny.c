@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #define PAM_SM_AUTH
 #define PAM_SM_ACCOUNT
