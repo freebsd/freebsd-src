@@ -19,7 +19,7 @@ NIS=	-DNIS
 MAPS=	-DMAP_REGEX
 
 CFLAGS+=-I${SMDIR} -I${SENDMAIL_DIR}/include
-CFLAGS+=${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
+CFLAGS+=${DBMDEF} ${NIS} -DNETINET6 -DTCPWRAPPERS ${MAPS}
 
 SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c \
