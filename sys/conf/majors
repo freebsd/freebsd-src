@@ -190,6 +190,8 @@ chrdev	name		comments
 172	mided		LSI MegaRAID IDE (disk device)
 173	devctl		Devd control device <imp>
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
+175	ips		IBM/Adaptec ServeRAID (control device)
+176	ipsd		IBM/Adaptec ServeRAID (disk device)
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
