@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -18,24 +18,30 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/interface.h,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp $ (LBL)
+ * @(#) $Header: interface.h,v 1.66 94/06/14 20:21:37 leres Exp $ (LBL)
  */
 
 #ifdef __GNUC__
-#ifndef inline
 #define inline __inline
+#ifndef __dead
+#define __dead volatile
 #endif
 #else
 #define inline
+#define __dead
 #endif
 
 #include "os.h"			/* operating system stuff */
 #include "md.h"			/* machine dependent stuff */
 
-#ifndef __STDC__
-extern char *malloc();
-extern char *calloc();
+#ifndef SIGRET
+#define SIGRET void		/* default */
 #endif
+
+struct token {
+	int v;			/* value */
+	char *s;		/* string */
+};
 
 extern int dflag;		/* print filter code */
 extern int eflag;		/* print ethernet header */
@@ -51,55 +57,86 @@ extern char *program_name;	/* used to generate self-identifying messages */
 
 extern int snaplen;
 /* global pointers to beginning and end of current packet (during printing) */
-extern unsigned char *packetp;
-extern unsigned char *snapend;
+extern const u_char *packetp;
+extern const u_char *snapend;
 
-extern long thiszone;			/* gmt to local correction */
+extern int fddipad;	/* alignment offset for FDDI headers, in bytes */
 
-extern void ts_print();
-extern int clock_sigfigs();
+/* Eliminate some bogus warnings. */
+struct timeval;
 
-extern char *lookup_device();
+typedef void (*printfunc)(u_char *, struct timeval *, int, int);
 
-extern void error();
-extern void warning();
+extern void ts_print(const struct timeval *);
+extern int clock_sigfigs(void);
+int gmt2local(void);
 
-extern char *read_infile();
-extern char *copy_argv();
+extern int fn_print(const u_char *, const u_char *);
+extern int fn_printn(const u_char *, u_int, const u_char *);
+extern const char *tok2str(const struct token *, const char *, int);
+extern char *dnaddr_string(u_short);
+extern char *savestr(const char *);
 
-extern void usage();
-extern void show_code();
-extern void init_addrtoname();
+extern int initdevice(char *, int, int *);
+extern void wrapup(int);
+
+extern __dead void error(char *, ...);
+extern void warning(char *, ...);
+
+extern char *read_infile(char *);
+extern char *copy_argv(char **);
+
+extern void usage(void);
+extern char *isonsap_string(const u_char *);
+extern char *llcsap_string(u_char);
+extern char *protoid_string(const u_char *);
+extern char *dnname_string(u_short);
+extern char *dnnum_string(u_short);
 
 /* The printer routines. */
 
-extern void ether_if_print();
-extern void arp_print();
-extern void ip_print();
-extern void tcp_print();
-extern void udp_print();
-extern void icmp_print();
-extern void default_print();
+struct pcap_pkthdr;
 
-extern void ntp_print();
-extern void nfsreq_print();
-extern void nfsreply_print();
-extern void ns_print();
-extern void ddp_print();
-extern void rip_print();
-extern void tftp_print();
-extern void bootp_print();
-extern void snmp_print();
-extern void sl_if_print();
-extern void ppp_if_print();
-extern void fddi_if_print();
-extern void null_if_print();
-extern void egp_print();
+extern void ether_if_print(u_char *, const struct pcap_pkthdr *,
+			   const u_char *);
+extern void fddi_if_print(u_char *, const struct pcap_pkthdr *, const u_char*);
+extern void null_if_print(u_char *, const struct pcap_pkthdr *, const u_char*);
+extern void ppp_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
+extern void sl_if_print(u_char *, const struct pcap_pkthdr *, const u_char *);
+
+extern void arp_print(const u_char *, int, int);
+extern void ip_print(const u_char *, int);
+extern void tcp_print(const u_char *, int, const u_char *);
+extern void udp_print(const u_char *, int, const u_char *);
+extern void icmp_print(const u_char *, const u_char *);
+extern void default_print(const u_char *, int);
+extern void default_print_unaligned(const u_char *, int);
+
+extern void aarp_print(const u_char *, int);
+extern void atalk_print(const u_char *, int);
+extern void bootp_print(const u_char *, int, u_short, u_short);
+extern void decnet_print(const u_char *, int, int);
+extern void egp_print(const u_char *, int, const u_char *);
+extern int ether_encap_print(u_short, const u_char *, int, int);
+extern void ipx_print(const u_char *, int length);
+extern void isoclns_print(const u_char *, int, int,
+			  const u_char *, const u_char *);
+extern int llc_print(const u_char *, int, int, const u_char *, const u_char *);
+extern void nfsreply_print(const u_char *, int, const u_char *);
+extern void nfsreq_print(const u_char *, int, const u_char *);
+extern void ns_print(const u_char *, int);
+extern void ntp_print(const u_char *, int);
+extern void ospf_print(const u_char *, int, const u_char *);
+extern void rip_print(const u_char *, int);
+extern void snmp_print(const u_char *, int);
+extern void sunrpcrequest_print(const u_char *, int, const u_char *);
+extern void tftp_print(const u_char *, int);
+extern void wb_print(const void *, int);
 
 #define min(a,b) ((a)>(b)?(b):(a))
 #define max(a,b) ((b)>(a)?(b):(a))
 
-/* 
+/*
  * The default snapshot length.  This value allows most printers to print
  * useful information while keeping the amount of unwanted data down.
  * In particular, it allows for an ethernet header, tcp/ip header, and

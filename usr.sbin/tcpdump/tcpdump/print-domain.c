@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,13 +21,16 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-domain.c,v 1.16 92/05/25 14:28:59 mccanne Exp $ (LBL)";
+    "@(#) $Header: print-domain.c,v 1.23 94/06/14 20:17:38 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
@@ -37,7 +40,11 @@ static char rcsid[] =
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
+
+#undef NOERROR					/* Solaris sucks */
 #include <arpa/nameser.h>
+
+#include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -55,11 +62,9 @@ static char *ns_resp[] = {
 	" Resp12", " Resp13", " Resp14", " NoChange",
 };
 
-
 /* skip over a domain name */
-static u_char *
-ns_nskip(cp)
-	register u_char *cp;
+static const u_char *
+ns_nskip(register const u_char *cp)
 {
 	register u_char i;
 
@@ -74,15 +79,13 @@ ns_nskip(cp)
 
 /* print a domain name */
 static void
-ns_nprint(cp, bp, ep)
-	register u_char *cp;
-	register u_char *bp;
-	register u_char *ep;
+ns_nprint(register const u_char *cp, register const u_char *bp,
+	  register const u_char *ep)
 {
 	register u_int i;
 
 	putchar(' ');
-	if (i = *cp++)
+	if ((i = *cp++) != 0)
 		while (i && cp < ep) {
 			if ((i & 0xc0) == 0xc0) {
 				cp = bp + (((i << 8) | *cp) & 0x3fff);
@@ -99,15 +102,41 @@ ns_nprint(cp, bp, ep)
 		putchar('.');
 }
 
+static struct token type2str[] = {
+	{ T_A,		"A" },
+	{ T_NS,		"NS" },
+	{ T_MD,		"MD" },
+	{ T_MF,		"MF" },
+	{ T_CNAME,	"CNAME" },
+	{ T_SOA,	"SOA" },
+	{ T_MB,		"MB" },
+	{ T_MG,		"MG" },
+	{ T_MR,		"MR" },
+	{ T_NULL,	"NULL" },
+	{ T_WKS,	"WKS" },
+	{ T_PTR,	"PTR" },
+	{ T_HINFO,	"HINFO" },
+	{ T_MINFO,	"MINFO" },
+	{ T_MX,		"MX" },
+	{ T_UINFO,	"UINFO" },
+	{ T_UID,	"UID" },
+	{ T_GID,	"GID" },
+#ifdef T_UNSPEC
+	{ T_UNSPEC,	"UNSPEC" },
+#endif
+	{ T_AXFR,	"AXFR" },
+	{ T_MAILB,	"MAILB" },
+	{ T_MAILA,	"MAILA" },
+	{ T_ANY,	"ANY" },
+	{ 0,		NULL }
+};
 
 /* print a query */
 static void
-ns_qprint(cp, bp, ep)
-	register u_char *cp;
-	register u_char *bp;
-	register u_char *ep;
+ns_qprint(register const u_char *cp, register const u_char *bp,
+	  register const u_char *ep)
 {
-	u_char *np = cp;
+	const u_char *np = cp;
 	register u_int i;
 
 	cp = ns_nskip(cp);
@@ -117,34 +146,8 @@ ns_qprint(cp, bp, ep)
 
 	/* print the qtype and qclass (if it's not IN) */
 	i = *cp++ << 8;
-	switch (i |= *cp++) {
-	case T_A:	printf(" A"); break;
-	case T_NS:	printf(" NS"); break;
-	case T_MD:	printf(" MD"); break;
-	case T_MF:	printf(" MF"); break;
-	case T_CNAME:	printf(" CNAME"); break;
-	case T_SOA:	printf(" SOA"); break;
-	case T_MB:	printf(" MB"); break;
-	case T_MG:	printf(" MG"); break;
-	case T_MR:	printf(" MR"); break;
-	case T_NULL:	printf(" NULL"); break;
-	case T_WKS:	printf(" WKS"); break;
-	case T_PTR:	printf(" PTR"); break;
-	case T_HINFO:	printf(" HINFO"); break;
-	case T_MINFO:	printf(" MINFO"); break;
-	case T_MX:	printf(" MX"); break;
-	case T_UINFO:	printf(" UINFO"); break;
-	case T_UID:	printf(" UID"); break;
-	case T_GID:	printf(" GID"); break;
-#ifdef T_UNSPEC
-	case T_UNSPEC:	printf(" UNSPEC"); break;
-#endif
-	case T_AXFR:	printf(" AXFR"); break;
-	case T_MAILB:	printf(" MAILB"); break;
-	case T_MAILA:	printf(" MAILA"); break;
-	case T_ANY:	printf(" ANY"); break;
-	default:	printf(" Type%d", i); break;
-	}
+	i |= *cp++;
+	printf(" %s", tok2str(type2str, "Type%d", i));
 	i = *cp++ << 8;
 	if ((i |= *cp++) != C_IN)
 		if (i == C_ANY)
@@ -159,10 +162,8 @@ ns_qprint(cp, bp, ep)
 
 /* print a reply */
 static void
-ns_rprint(cp, bp, ep)
-	register u_char *cp;
-	register u_char *bp;
-	register u_char *ep;
+ns_rprint(register const u_char *cp, register const u_char *bp,
+	  register const u_char *ep)
 {
 	register u_int i;
 	u_short typ;
@@ -184,104 +185,92 @@ ns_rprint(cp, bp, ep)
 
 	/* ignore ttl & len */
 	cp += 6;
+	printf(" %s", tok2str(type2str, "Type%d", typ));
 	switch (typ) {
-	case T_A:	printf(" A %s", ipaddr_string(cp)); break;
-	case T_NS:	printf(" NS"); ns_nprint(cp, bp, ep); break;
-	case T_MD:	printf(" MD"); break;
-	case T_MF:	printf(" MF"); break;
-	case T_CNAME:	printf(" CNAME"); ns_nprint(cp, bp, ep); break;
-	case T_SOA:	printf(" SOA"); break;
-	case T_MB:	printf(" MB"); break;
-	case T_MG:	printf(" MG"); break;
-	case T_MR:	printf(" MR"); break;
-	case T_NULL:	printf(" NULL"); break;
-	case T_WKS:	printf(" WKS"); break;
-	case T_PTR:	printf(" PTR"); ns_nprint(cp, bp, ep); break;
-	case T_HINFO:	printf(" HINFO"); break;
-	case T_MINFO:	printf(" MINFO"); break;
-	case T_MX:	printf(" MX"); ns_nprint(cp+2, bp, ep);
+
+	case T_A:
+		printf(" %s", ipaddr_string(cp));
+		break;
+
+	case T_NS:
+	case T_CNAME:
+	case T_PTR:
+		ns_nprint(cp, bp, ep);
+		break;
+
+	case T_MX:
+		ns_nprint(cp+2, bp, ep);
 #ifndef TCPDUMP_ALIGN
-			printf(" %d", *(short *)cp);
+		printf(" %d", *(short *)cp);
 #else
-			{
-			    u_short x = *cp | cp[1] << 8; 
-			    printf(" %d", ntohs(x));
-			}
+		{
+		    u_short x = *cp | cp[1] << 8;
+		    printf(" %d", ntohs(x));
+		}
 #endif
-			break;
-	case T_UINFO:	printf(" UINFO"); break;
-	case T_UID:	printf(" UID"); break;
-	case T_GID:	printf(" GID"); break;
-#ifdef T_UNSPEC
-	case T_UNSPEC:	printf(" UNSPEC"); break;
-#endif
-	case T_AXFR:	printf(" AXFR"); break;
-	case T_MAILB:	printf(" MAILB"); break;
-	case T_MAILA:	printf(" MAILA"); break;
-	case T_ANY:	printf(" ANY"); break;
-	default:	printf(" Type%d", typ); break;
+		break;
 	}
 }
 
 void
-ns_print(np, length)
-	register HEADER *np;
-	int length;
+ns_print(register const u_char *bp, int length)
 {
-	u_char *ep = (u_char *)snapend;
+	register const HEADER *np;
+	int qdcount, ancount, nscount, arcount;
+	const u_char *ep = snapend;
 
+	np = (const HEADER *)bp;
 	/* get the byte-order right */
-	NTOHS(np->id);
-	NTOHS(np->qdcount);
-	NTOHS(np->ancount);
-	NTOHS(np->nscount);
-	NTOHS(np->arcount);
+	qdcount = ntohs(np->qdcount);
+	ancount = ntohs(np->ancount);
+	nscount = ntohs(np->nscount);
+	arcount = ntohs(np->arcount);
 
 	if (np->qr) {
 		/* this is a response */
 		printf(" %d%s%s%s%s%s",
-			np->id,
+			ntohs(np->id),
 			ns_ops[np->opcode],
 			ns_resp[np->rcode],
 			np->aa? "*" : "",
 			np->ra? "" : "-",
 			np->tc? "|" : "");
-		if (np->qdcount != 1)
-			printf(" [%dq]", np->qdcount);
-		printf(" %d/%d/%d", np->ancount, np->nscount, np->arcount);
-		if (np->ancount)
-			ns_rprint(ns_nskip((u_char *)(np + 1)) + 4,
-				  (u_char *)np, ep);
+		if (qdcount != 1)
+			printf(" [%dq]", qdcount);
+		printf(" %d/%d/%d", ancount, nscount, arcount);
+		if (ancount)
+			ns_rprint(ns_nskip((const u_char *)(np + 1)) + 4,
+				  (const u_char *)np, ep);
 	}
 	else {
 		/* this is a request */
 		printf(" %d%s%s",
-			np->id,
+		        ntohs(np->id),
 			ns_ops[np->opcode],
 			np->rd? "+" : "");
 
 		/* any weirdness? */
- 		if (*(((u_short *)np)+1) & htons(0x6ff))
- 			printf(" [b2&3=0x%x]", ntohs(*(((u_short *)np)+1)));
+		if (*(((u_short *)np)+1) & htons(0x6ff))
+			printf(" [b2&3=0x%x]", ntohs(*(((u_short *)np)+1)));
 
 		if (np->opcode == IQUERY) {
-			if (np->qdcount)
-				printf(" [%dq]", np->qdcount);
-			if (np->ancount != 1)
-				printf(" [%da]", np->ancount);
+			if (qdcount)
+				printf(" [%dq]", qdcount);
+			if (ancount != 1)
+				printf(" [%da]", ancount);
 		}
 		else {
-			if (np->ancount)
-				printf(" [%da]", np->ancount);
-			if (np->qdcount != 1)
-				printf(" [%dq]", np->qdcount);
+			if (ancount)
+				printf(" [%da]", ancount);
+			if (qdcount != 1)
+				printf(" [%dq]", qdcount);
 		}
-		if (np->nscount)
-			printf(" [%dn]", np->nscount);
-		if (np->arcount)
-			printf(" [%dau]", np->arcount);
+		if (nscount)
+			printf(" [%dn]", nscount);
+		if (arcount)
+			printf(" [%dau]", arcount);
 
-		ns_qprint((u_char *)(np + 1), (u_char *)np, ep);
+		ns_qprint((const u_char *)(np + 1), (const u_char *)np, ep);
 	}
 	printf(" (%d)", length);
 }

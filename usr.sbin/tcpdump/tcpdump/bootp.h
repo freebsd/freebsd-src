@@ -1,4 +1,4 @@
-/* @(#) $Header: bootp.h,v 1.2 90/05/29 21:29:16 leres Exp $ (LBL) */
+/* @(#) $Header: bootp.h,v 1.6 94/01/13 19:06:29 leres Exp $ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *
@@ -25,7 +25,7 @@ struct bootp {
 	unsigned char	bp_htype;	/* hardware addr type */
 	unsigned char	bp_hlen;	/* hardware addr length */
 	unsigned char	bp_hops;	/* gateway hops */
-	unsigned long	bp_xid;		/* transaction ID */
+	u_int32		bp_xid;		/* transaction ID */
 	unsigned short	bp_secs;	/* seconds since boot began */
 	unsigned short	bp_unused;
 	struct in_addr	bp_ciaddr;	/* client IP address */
@@ -80,6 +80,12 @@ struct bootp {
 #define TAG_HOSTNAME		((unsigned char)  12)
 #define TAG_BOOTSIZE		((unsigned char)  13)
 #define TAG_END			((unsigned char) 255)
+/* RFC1497 tags */
+#define	TAG_DUMPPATH		((unsigned char)  14)
+#define	TAG_DOMAINNAME		((unsigned char)  15)
+#define	TAG_SWAP_SERVER		((unsigned char)  16)
+#define	TAG_ROOTPATH		((unsigned char)  17)
+#define	TAG_EXTPATH		((unsigned char)  18)
 
 
 
@@ -89,13 +95,13 @@ struct bootp {
 
 struct cmu_vend {
 	unsigned char	v_magic[4];	/* magic number */
-	unsigned long	v_flags;	/* flags/opcodes, etc. */
-	struct in_addr 	v_smask;	/* Subnet mask */
-	struct in_addr 	v_dgate;	/* Default gateway */
+	u_int32		v_flags;	/* flags/opcodes, etc. */
+	struct in_addr	v_smask;	/* Subnet mask */
+	struct in_addr	v_dgate;	/* Default gateway */
 	struct in_addr	v_dns1, v_dns2; /* Domain name servers */
 	struct in_addr	v_ins1, v_ins2; /* IEN-116 name servers */
 	struct in_addr	v_ts1, v_ts2;	/* Time servers */
-	unsigned char	v_unused[25];	/* currently unused */
+	unsigned char	v_unused[24];	/* currently unused */
 };
 
 

@@ -1,7 +1,7 @@
-.\" @(#) $Header: /home/cvs/386BSD/src/contrib/tcpdump/tcpdump/tcpdump.1,v 1.1.1.1 1993/06/12 14:42:05 rgrimes Exp $ (LBL)
+.\" @(#) $Header: tcpdump.1,v 1.45 94/06/20 18:54:27 leres Exp $ (LBL)
 .\"
-.\" Copyright (c) 1988, 1989, 1990, 1991, 1992
-.\" The Regents of the University of California.
+.\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994
+.\"	The Regents of the University of California.  All rights reserved.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "4 Jan 1992"
+.TH TCPDUMP 1  "20 Jun 1994"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -159,6 +159,10 @@ Print an unformatted timestamp on each dump line.
 (Slightly more) verbose output.  For example, the time to live
 and type of service information in an IP packet is printed.
 .TP
+.B \-vv
+Even more verbose output.  For example, additional fields are
+printed from NFS reply packets.
+.TP
 .B \-w
 Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.  They can later be printed with the \-r option.
@@ -200,7 +204,8 @@ Possible directions are
 .BR dst ,
 .B "src or dst"
 and
-.BR "src and dst" .
+.B "src and"
+.BR dst .
 E.g., `src foo', `dst net 128.3', `src or dst port ftp-data'.  If
 there is no dir qualifier,
 .B "src or dst"
@@ -209,9 +214,14 @@ is assumed.
 qualifiers restrict the match to a particular protocol.  Possible
 protos are:
 .BR ether ,
+.BR fddi ,
 .BR ip ,
 .BR arp ,
 .BR rarp ,
+.BR decnet ,
+.BR lat ,
+.BR moprc ,
+.BR mopdl ,
 .B tcp
 and
 .BR udp .
@@ -220,6 +230,14 @@ no proto qualifier, all protocols consistent with the type are
 assumed.  E.g., `src foo' means `(ip or arp or rarp) src foo'
 (except the latter is not legal syntax), `net bar' means `(ip or
 arp or rarp) net bar' and `port 53' means `(tcp or udp) port 53'.
+.LP
+[`fddi' is actually an alias for `ether'; the parser treats them
+identically as meaning ``the data link level used on the specified
+network interface.''  FDDI headers contain Ethernet-like source
+and destination addresses, and often contain Ethernet-like packet
+types, so you can filter on these FDDI fields just as with the
+analogous Ethernet fields.  FDDI headers also contain other fields,
+but you cannot name them explicitly in a filter expression.]
 .LP
 In addition to the above, there are some special `primitive' keywords
 that don't follow the pattern:
@@ -359,7 +377,25 @@ True if the packet is of ether type \fIprotocol\fR.
 \fIip\fP, \fIarp\fP, or \fIrarp\fP.
 Note these identifiers are also keywords
 and must be escaped via backslash (\\).
-.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR"
+[In the case of FDDI (e.g., `\fBfddi protocol arp\fR'), the
+protocol identification comes from the 802.2 Logical Link Control
+(LLC) header, which is usually layered on top of the FDDI header.
+\fItcpdump\fP assumes, when filtering on the protocol identifier,
+that all FDDI packets include an LLC header, and that the LLC header
+is in so-called SNAP format.]
+.IP "\fBdecnet src \fIhost\fR"
+True if the DECNET source address is
+.IR host ,
+which may be an address of the form ``10.123'', or a DECNET host
+name.  [DECNET host name support is only available on Ultrix systems
+that are configured to run DECNET.]
+.IP "\fBdecnet dst \fIhost\fR"
+True if the DECNET destination address is
+.IR host .
+.IP "\fBdecnet host \fIhost\fR"
+True if either the DECNET source or destination address is
+.IR host .
+.IP "\fBip\fR, \fBarp\fR, \fBrarp\fR, \fBdecnet\fR"
 Abbreviations for:
 .in +.5i
 .nf
@@ -367,6 +403,16 @@ Abbreviations for:
 .fi
 .in -.5i
 where \fIp\fR is one of the above protocols.
+.IP "\fBlat\fR, \fBmoprc\fR, \fBmopdl\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBether proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+Note that
+\fItcpdump\fP does not currently know how to parse these protocols.
 .IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
 Abbreviations for:
 .in +.5i
@@ -387,7 +433,8 @@ data inside the packet, use the following syntax:
 \fIproto\fB [ \fIexpr\fB : \fIsize\fB ]\fR
 .fi
 .in -.5i
-\fIProto\fR is one of \fBether, ip, arp, rarp, tcp, udp, \fRor \fBicmp\fR, and
+\fIProto\fR is one of \fBether, fddi,
+ip, arp, rarp, tcp, udp, \fRor \fBicmp\fR, and
 indicates the protocol layer for the index operation.
 The byte offset, relative to the indicated protocol layer, is
 given by \fIexpr\fR.
@@ -399,10 +446,10 @@ length of the packet.
 For example, `\fBether[0] & 1 != 0\fP' catches all multicast traffic.
 The expression `\fBip[0] & 0xf != 5\fP'
 catches all IP packets with options. The expression
-`\fBip[2:2] & 0x1fff = 0\fP'
+`\fBip[6:2] & 0x1fff = 0\fP'
 catches only unfragmented datagrams and frag zero of fragmented datagrams.
 This check is implicitly applied to the \fBtcp\fP and \fBudp\fP
-index opertations.
+index operations.
 For instance, \fBtcp[0]\fP always means the first
 byte of the TCP \fIheader\fP, and never means the first byte of an
 intervening fragment.
@@ -414,9 +461,9 @@ A parenthesized group of primitives and operators
 .IP
 Negation (`\fB!\fP' or `\fBnot\fP').
 .IP
-Concatenation (`\fBand\fP').
+Concatenation (`\fB&&\fP' or `\fBand\fP').
 .IP
-Alternation (`\fBor\fP').
+Alternation (`\fB||\fP' or `\fBor\fP').
 .LP
 Negation has highest precedence.
 Alternation and concatenation have equal precedence and associate
@@ -549,6 +596,16 @@ Link Level Headers
 If the '-e' option is given, the link level header is printed out.
 On ethernets, the source and destination addresses, protocol,
 and packet length are printed.
+.LP
+On FDDI networks, the  '-e' option causes \fItcpdump\fP to print
+the `frame control' field,  the source and destination addresses,
+and the packet length.  (The `frame control' field governs the
+interpretation of the rest of the packet.  Normal packets (such
+as those containing IP datagrams) are `async' packets, with a priority
+value between 0 and 7; for example, `\fBasync4\fR'.  Such packets
+are assumed to contain an 802.2 Logical Link Control (LLC) packet;
+the LLC header is printed if it is \fInot\fR an ISO datagram or a
+so-called SNAP packet.
 .LP
 \fI(N.B.: The following description assumes familiarity with
 the SLIP compression algorithm described in RFC-1144.)\fP
@@ -806,40 +863,78 @@ need to seriously investigate name server traffic.  `\fB\-s 128\fP'
 has worked well for me.
 
 .HD
-NFS Requests
+NFS Requests and Replies
 .LP
 Sun NFS (Network File System) requests and replies are printed as:
 .RS
 .nf
 .sp .5
 \fIsrc.xid > dst.nfs: len op args\fP
-\fIsrc.nfs > dst.xid: reply stat len\fP
+\fIsrc.nfs > dst.xid: reply stat len op results\fP
 .sp .5
-\f(CWvs.e2766 > helios.nfs: 136 readdir fh 6.5197 8192 bytes @ 0
-helios.nfs > vs.e2766: reply ok 384
-vs.e2767 > helios.nfs: 136 lookup fh 6.5197 `RCS'\fP
+\f(CW
+sushi.6709 > wrl.nfs: 112 readlink fh 21,24/10.73165
+wrl.nfs > sushi.6709: reply ok 40 readlink "../var"
+sushi.201b > wrl.nfs:
+	144 lookup fh 9,74/4096.6878 "xcolors"
+wrl.nfs > sushi.201b:
+	reply ok 128 lookup fh 9,74/4134.3150
+\fP
 .sp .5
 .fi
 .RE
-In the first line, host \fIvs\fP sends a transaction with id \fIe2766\fP
-to \fIhelios\fP (note that the number following the src host is a
-transaction id, \fInot\fP the source port).  The request was 136 bytes,
-excluding the UDP and IP headers.  The operation was a \fIreaddir\fP
-(read directory) on file handle (\fIfh\fP) 6.5197.  8192 bytes are
-read, starting at offset 0.  \fIHelios\fP replies `ok' with 384
-bytes of data.  (The design of Sun's RPC protocol makes it difficult to
-interpret replies.  I don't bother.)
+In the first line, host \fIsushi\fP sends a transaction with id \fI6709\fP
+to \fIwrl\fP (note that the number following the src host is a
+transaction id, \fInot\fP the source port).  The request was 112 bytes,
+excluding the UDP and IP headers.  The operation was a \fIreadlink\fP
+(read symbolic link) on file handle (\fIfh\fP) 21,24/10.731657119.
+(If one is lucky, as in this case, the file handle can be interpreted
+as a major,minor device number pair, followed by the inode number and
+generation number.)
+\fIWrl\fP replies `ok' with the contents of the link.
 .LP
-In the third line, \fIvs\fP asks \fIhelios\fP to lookup the name
-`\fIRCS\fP' in directory file 6.5197.  Note that the data printed
+In the third line, \fIsushi\fP asks \fIwrl\fP to lookup the name
+`\fIxcolors\fP' in directory file 9,74/4096.6878.  Note that the data printed
 depends on the operation type.  The format is intended to be self
-explanatory (at least, to me) if read in conjunction with
+explanatory if read in conjunction with
 an NFS protocol spec.
 .LP
-Note that NFS requests are very large and the above won't be printed
-unless \fIsnaplen\fP is increased.  I use `\fB\-s 192\fP' to watch
+If the \-v (verbose) flag is given, additional information is printed.
+For example:
+.RS
+.nf
+.sp .5
+\f(CW
+sushi.1372a > wrl.nfs:
+	148 read fh 21,11/12.195 8192 bytes @ 24576
+wrl.nfs > sushi.1372a:
+	reply ok 1472 read REG 100664 ids 417/0 sz 29388
+\fP
+.sp .5
+.fi
+.RE
+(\-v also prints the IP header TTL, ID, and fragmentation fields,
+which have been omitted from this example.)  In the first line,
+\fIsushi\fP asks \fIwrl\fP to read 8192 bytes from file 21,11/12.195,
+at byte offset 24576.  \fIWrl\fP replies `ok'; the packet shown on the
+second line is the first fragment of the reply, and hence is only 1472
+bytes long (the other bytes will follow in subsequent fragments, but
+these fragments do not have NFS or even UDP headers and so might not be
+printed, depending on the filter expression used).  Because the \-v flag
+is given, some of the file attributes (which are returned in addition
+to the file data) are printed: the file type (``REG'', for regular file),
+the file mode (in octal), the uid and gid, and the file size.
+.LP
+If the \-v flag is given more than once, even more details are printed.
+.LP
+Note that NFS requests are very large and much of the detail won't be printed
+unless \fIsnaplen\fP is increased.  Try using `\fB\-s 192\fP' to watch
 NFS traffic.
-
+.LP
+NFS reply packets do not explicitly identify the RPC operation.  Instead,
+\fItcpdump\fP keeps track of ``recent'' requests, and matches them to the
+replies using the transaction ID.  If a reply does not closely follow the
+corresponding request, it might not be parseble.
 .HD
 KIP Appletalk (DDP in UDP)
 .LP
@@ -1039,8 +1134,11 @@ We recommend that you use the latter.
 has to have been built with the \fIpacketfilter\fP pseudo-device driver
 (see
 .IR packetfilter (4)).
-As of this writing, Ultrix does not let you
-watch either your own outbound or inbound traffic.
+In order to watch either your own outbound or inbound traffic,
+you will need to use Ultrix version 4.2 or later, and you will have
+to have used the
+.IR pfconfig (8)
+command to enable ``copyall'' mode.
 .LP
 Under SunOS 4.1, the packet capture code (or Streams NIT) is not what
 you'd call efficient.  Don't plan on doing much with your Sun while
@@ -1065,3 +1163,9 @@ networks so we'd would have no way of testing this code.
 .LP
 A packet trace that crosses a daylight savings time change will give
 skewed time stamps (the time change is ignored).
+.LP
+Filters expressions that manipulate FDDI headers assume that all FDDI
+packets are encapsulated Ethernet packets.  This is true for IP, ARP,
+and DECNET Phase IV, but is not true for protocols such as ISO CLNS.
+Therefore, the filter may inadvertently accept certain packets that
+do not properly match the filter expression.

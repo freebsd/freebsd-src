@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1989, 1990, 1991, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,23 +21,17 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: print-sl.c,v 1.17 91/10/07 20:18:35 leres Exp $ (LBL)";
+	"@(#)$Header: print-sl.c,v 1.28 94/06/10 17:01:38 mccanne Exp $ (LBL)";
 #endif
 
 #ifdef CSLIP
-#include <stdio.h>
-#include <netdb.h>
-#include <ctype.h>
-#include <signal.h>
-#include <errno.h>
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
-#include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/mbuf.h>
 #include <sys/ioctl.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -52,7 +46,13 @@ static  char rcsid[] =
 
 #include <net/slcompress.h>
 #include <net/slip.h>
-#include <net/bpf.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <netdb.h>
+#include <pcap.h>
+#include <signal.h>
+#include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -60,18 +60,17 @@ static  char rcsid[] =
 static int lastlen[2][256];
 static int lastconn = 255;
 
-static void compressed_sl_print();
+static void sliplink_print(const u_char *, const struct ip *, int);
+static void compressed_sl_print(const u_char *, const struct ip *, int, int);
 
 void
-sl_if_print(p, tvp, length, caplen)
-	u_char *p;
-	struct timeval *tvp;
-	int length;
-	int caplen;
+sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
-	struct ip *ip;
+	register int caplen = h->caplen;
+	register int length = h->len;
+	register const struct ip *ip;
 
-	ts_print(tvp);
+	ts_print(&h->ts);
 
 	if (caplen < SLIP_HDRLEN) {
 		printf("[|slip]");
@@ -82,8 +81,8 @@ sl_if_print(p, tvp, length, caplen)
 	 * and/or check that they're not walking off the end of the packet.
 	 * Rather than pass them all the way down, we set these globals.
 	 */
-	packetp = (u_char *)p;
-	snapend = (u_char *)p + caplen;
+	packetp = p;
+	snapend = p + caplen;
 
 	length -= SLIP_HDRLEN;
 
@@ -92,18 +91,17 @@ sl_if_print(p, tvp, length, caplen)
 	if (eflag)
 		sliplink_print(p, ip, length);
 
-	ip_print(ip, length);
+	ip_print((u_char *)ip, length);
 
 	if (xflag)
-		default_print((u_short *)ip, caplen - SLIP_HDRLEN);
+		default_print((u_char *)ip, caplen - SLIP_HDRLEN);
  out:
 	putchar('\n');
 }
 
-sliplink_print(p, ip, length)
-	u_char *p;
-	struct ip *ip;
-	int length;
+static void
+sliplink_print(register const u_char *p, register const struct ip *ip,
+	       register int length)
 {
 	int dir;
 	int hlen;
@@ -140,17 +138,16 @@ sliplink_print(p, ip, length)
 
 	default:
 		if (p[SLX_CHDR] & TYPE_COMPRESSED_TCP) {
-			compressed_sl_print(&p[SLX_CHDR], ip, length, dir);
+			compressed_sl_print(&p[SLX_CHDR], ip,
+			    length, dir);
 			printf(": ");
 		} else
 			printf("slip-%d!: ", p[SLX_CHDR]);
 	}
 }
 
-static u_char *
-print_sl_change(str, cp)
-	char *str;
-	register u_char *cp;
+static const u_char *
+print_sl_change(const char *str, register const u_char *cp)
 {
 	register u_int i;
 
@@ -162,9 +159,8 @@ print_sl_change(str, cp)
 	return (cp);
 }
 
-static u_char *
-print_sl_winchange(cp)
-	register u_char *cp;
+static const u_char *
+print_sl_winchange(register const u_char *cp)
 {
 	register short i;
 
@@ -180,16 +176,13 @@ print_sl_winchange(cp)
 }
 
 static void
-compressed_sl_print(chdr, ip, length, dir)
-	u_char *chdr;
-	int length;
-	struct ip *ip;
-	int dir;
+compressed_sl_print(const u_char *chdr, const struct ip *ip,
+		    int length, int dir)
 {
-	register u_char *cp = chdr;
+	register const u_char *cp = chdr;
 	register u_int flags;
 	int hlen;
-	
+
 	flags = *cp++;
 	if (flags & NEW_C) {
 		lastconn = *cp++;
@@ -224,21 +217,25 @@ compressed_sl_print(chdr, ip, length, dir)
 		cp = print_sl_change("I+", cp);
 
 	/*
-	 * 'hlen' is the length of the uncompressed TCP/IP header (in longs).
+	 * 'hlen' is the length of the uncompressed TCP/IP header (in words).
 	 * 'cp - chdr' is the length of the compressed header.
 	 * 'length - hlen' is the amount of data in the packet.
 	 */
 	hlen = ip->ip_hl;
-	hlen += ((struct tcphdr *)&((long *)ip)[hlen])->th_off;
+	hlen += ((struct tcphdr *)&((int32 *)ip)[hlen])->th_off;
 	lastlen[dir][lastconn] = length - (hlen << 2);
 	printf(" %d (%d)", lastlen[dir][lastconn], cp - chdr);
 }
 #else
+#include <sys/types.h>
+#include <sys/time.h>
+
 #include <stdio.h>
+
+#include "interface.h"
 void
-sl_if_print()
+sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
-	void error();
 
 	error("not configured for slip");
 	/* NOTREACHED */

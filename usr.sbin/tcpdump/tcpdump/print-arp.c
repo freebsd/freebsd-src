@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,63 +21,82 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-arp.c,v 1.16 91/04/19 10:45:56 mccanne Exp $ (LBL)";
+    "@(#) $Header: print-arp.c,v 1.28 94/06/14 20:17:36 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+
+#include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 
+static u_char ezero[6];
+
 void
-arp_print(ap, length, caplen)
-	register struct ether_arp *ap;
-	int length;
-	int caplen;
+arp_print(register const u_char *bp, int length, int caplen)
 {
+	register const struct ether_arp *ap;
+	register const struct ether_header *eh;
+	const u_char *p;
+	int pro, hrd, op;
+
+	ap = (struct ether_arp *)bp;
 	if ((u_char *)(ap + 1) > snapend) {
 		printf("[|arp]");
 		return;
 	}
 	if (length < sizeof(struct ether_arp)) {
 		(void)printf("truncated-arp");
-		default_print((u_short *)ap, length);
+		default_print((u_char *)ap, length);
 		return;
 	}
+	/*
+	 * Don't assume alignment.
+	 */
+	p = (u_char*)&ap->arp_pro;
+	pro = (p[0] << 8) | p[1];
+	p = (u_char*)&ap->arp_hrd;
+	hrd = (p[0] << 8) | p[1];
+	p = (u_char*)&ap->arp_op;
+	op = (p[0] << 8) | p[1];
 
-	NTOHS(ap->arp_hrd);
-	NTOHS(ap->arp_pro);
-	NTOHS(ap->arp_op);
-
-	if (ap->arp_hrd != ARPHRD_ETHER
-	    || (ap->arp_pro != ETHERTYPE_IP
-		&& ap->arp_pro != ETHERTYPE_TRAIL)
+	if ((pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
 	    || ap->arp_hln != sizeof(SHA(ap))
 	    || ap->arp_pln != sizeof(SPA(ap))) {
-		(void)printf("arp-req #%d for proto #%d (%d) hardware %d (%d)",
-				ap->arp_op, ap->arp_pro, ap->arp_pln,
-				ap->arp_hrd, ap->arp_hln);
+		(void)printf("arp-#%d for proto #%d (%d) hardware #%d (%d)",
+				op, pro, ap->arp_pln,
+				hrd, ap->arp_hln);
 		return;
 	}
-	if (ap->arp_pro == ETHERTYPE_TRAIL)
-		(void)printf("trailer");
-	switch (ap->arp_op) {
+	if (pro == ETHERTYPE_TRAIL)
+		(void)printf("trailer-");
+	eh = (struct ether_header *)packetp;
+	switch (op) {
 
 	case ARPOP_REQUEST:
-		(void)printf("arp who-has %s tell %s",
-			ipaddr_string(TPA(ap)),
-			ipaddr_string(SPA(ap)));
+		(void)printf("arp who-has %s", ipaddr_string(TPA(ap)));
+		if (bcmp((char *)ezero, (char *)THA(ap), 6) != 0)
+			(void)printf(" (%s)", etheraddr_string(THA(ap)));
+		(void)printf(" tell %s", ipaddr_string(SPA(ap)));
+		if (bcmp((char *)ESRC(eh), (char *)SHA(ap), 6) != 0)
+			(void)printf(" (%s)", etheraddr_string(SHA(ap)));
 		break;
 
 	case ARPOP_REPLY:
-		(void)printf("arp reply %s is-at %s",
-			ipaddr_string(SPA(ap)),
-			etheraddr_string(SHA(ap)));
+		(void)printf("arp reply %s", ipaddr_string(SPA(ap)));
+		if (bcmp((char *)ESRC(eh), (char *)SHA(ap), 6) != 0)
+			(void)printf(" (%s)", etheraddr_string(SHA(ap)));
+		(void)printf(" is-at %s", etheraddr_string(SHA(ap)));
+		if (bcmp((char *)EDST(eh), (char *)THA(ap), 6) != 0)
+			(void)printf(" (%s)", etheraddr_string(THA(ap)));
 		break;
 
 	case REVARP_REQUEST:
@@ -93,8 +112,10 @@ arp_print(ap, length, caplen)
 		break;
 
 	default:
-		(void)printf("arp-%d", ap->arp_op);
-		default_print((u_short *)ap, caplen);
-		break;
+		(void)printf("arp-#%d", op);
+		default_print((u_char *)ap, caplen);
+		return;
 	}
+	if (hrd != ARPHRD_ETHER)
+		printf(" hardware #%d", ap->arp_hrd);
 }

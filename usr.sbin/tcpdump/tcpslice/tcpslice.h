@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990, 1991, 1993, 1994
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1987-1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -17,44 +17,43 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: os-bsd.h,v 1.18 94/06/14 20:15:17 leres Exp $ (LBL)
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 
-#ifndef BSD
-#define BSD
-#endif
+#include <net/bpf.h>
 
-#define SHA(ap) ((ap)->arp_sha)
-#define SPA(ap) ((ap)->arp_spa)
-#define THA(ap) ((ap)->arp_tha)
-#define TPA(ap) ((ap)->arp_tpa)
+#include <ctype.h>
+#ifdef SOLARIS
+#include <fcntl.h>
+#endif
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
+#include <stdio.h>
+#if __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include <string.h>
+#include <unistd.h>
 
-#define EDST(ep) ((ep)->ether_dhost)
-#define ESRC(ep) ((ep)->ether_shost)
+#include "pcap.h"
+#include "version.h"
 
-#ifndef ETHERTYPE_REVARP
-#define ETHERTYPE_REVARP 0x8035
-#endif
 
-#ifndef	IPPROTO_ND
-/* From <netinet/in.h> on a Sun somewhere. */
-#define	IPPROTO_ND	77
-#endif
+time_t	gwtm2secs( struct tm *tm );
 
-#ifndef REVARP_REQUEST
-#define REVARP_REQUEST 3
-#endif
-#ifndef REVARP_REPLY
-#define REVARP_REPLY 4
-#endif
+int	sf_find_end( struct pcap *p, struct timeval *first_timestamp,
+			struct timeval *last_timestamp );
+int	sf_timestamp_less_than( struct timeval *t1, struct timeval *t2 );
+int	sf_find_packet( struct pcap *p,
+		struct timeval *min_time, long min_pos,
+		struct timeval *max_time, long max_pos,
+		struct timeval *desired_time );
 
-/* newish RIP commands */
-#ifndef	RIPCMD_POLL
-#define	RIPCMD_POLL 5
-#endif
-#ifndef	RIPCMD_POLLENTRY
-#define	RIPCMD_POLLENTRY 6
-#endif
+void	error(const char *fmt, ...);

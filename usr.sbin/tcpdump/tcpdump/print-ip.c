@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -21,12 +21,14 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ip.c,v 1.2 1994/09/08 02:29:12 wollman Exp $ (LBL)";
+    "@(#) $Header: print-ip.c,v 1.38 94/06/14 20:17:40 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -35,134 +37,66 @@ static char rcsid[] =
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
-#include <netinet/igmp.h>
+
+#include <stdio.h>
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
+#include <unistd.h>
 
 #include "interface.h"
 #include "addrtoname.h"
-#include "dvmrp.h"		/* in mrouted directory */
 
-void
-igmp_print(cp, len, ip)
-	register u_char *cp;
-	register int len;
-	register struct ip *ip;
+static void
+igmp_print(register const u_char *bp, register int len,
+	   register const u_char *bp2)
 {
-	register u_char *ep = (u_char *)snapend;
-	struct igmp *igmp = (struct igmp *)cp;
+	register const struct ip *ip;
+	register const u_char *ep;
 
+	ip = (const struct ip *)bp2;
+	ep = (const u_char *)snapend;
         (void)printf("%s > %s: ",
 		ipaddr_string(&ip->ip_src),
 		ipaddr_string(&ip->ip_dst));
 
-	if (cp + 7 > ep) {
+	if (bp + 7 > ep) {
 		(void)printf("[|igmp]");
 		return;
 	}
-	switch (igmp->igmp_type) {
-	case IGMP_HOST_MEMBERSHIP_QUERY:
+	switch (bp[0] & 0xf) {
+	case 1:
 		(void)printf("igmp query");
-		if (igmp->igmp_code)
-		  printf(" max delay %d", igmp->igmp_code);
-
-		if (igmp->igmp_group.s_addr)
-			(void)printf(" [gaddr %s]", 
-				     ipaddr_string(&igmp->igmp_group));
-		if (len != IGMP_MINLEN)
+		if (*(int *)&bp[4])
+			(void)printf(" [gaddr %s]", ipaddr_string(&bp[4]));
+		if (len != 8)
 			(void)printf(" [len %d]", len);
 		break;
-	case IGMP_HOST_MEMBERSHIP_REPORT:
-		(void)printf("igmp report %s", ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
-		if (len != IGMP_MINLEN)
+	case 2:
+		(void)printf("igmp report %s", ipaddr_string(&bp[4]));
+		if (len != 8)
 			(void)printf(" [len %d]", len);
 		break;
-	case IGMP_HOST_NEW_MEMBERSHIP_REPORT:
-		printf("igmp new report %s", ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
-		if (len != IGMP_MINLEN)
-			(void)printf(" [len %d]", len);
-		break;
-
-	case IGMP_HOST_LEAVE_MESSAGE:
-		printf("igmp leave %s", ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
-		if (len != IGMP_MINLEN)
-			(void)printf(" [len %d]", len);
-		break;
-
-	case IGMP_DVMRP:
-		(void)printf("igmp dvmrp");
-		switch(igmp->igmp_code) {
-		      case DVMRP_PROBE:
-			printf(" probe");
-			break;
-		      case DVMRP_REPORT:
-			printf(" report");
-			break;
-		      case DVMRP_ASK_NEIGHBORS:
-			printf(" neighbor list request");
-			break;
-		      case DVMRP_NEIGHBORS:
-			printf(" neighbor list reply");
-			break;
-		      case DVMRP_ASK_NEIGHBORS2:
-			printf(" neighbor list request v2");
-			break;
-		      case DVMRP_NEIGHBORS2:
-			printf(" neighbor list reply v2");
-			break;
-		      case DVMRP_PRUNE:
-			printf(" prune");
-			break;
-		      case DVMRP_GRAFT:
-			printf(" graft");
-			break;
-		      case DVMRP_GRAFT_ACK:
-			printf(" graft ack");
-			break;
-		      default:
-			printf("-%d", igmp->igmp_code);
-			break;
-		}
-
-		if (len != IGMP_MINLEN)
-			(void)printf(" [len %d]", len);
-		break;
-	case IGMP_MTRACE:
-		(void)printf("igmp traceroute %s", 
-			     ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
-		if (len != IGMP_MINLEN)
-			(void)printf(" [len %d]", len);
-		break;
-	case IGMP_MTRACE_RESP:
-		(void)printf("igmp traceroute resp %s", 
-			     ipaddr_string(&igmp->igmp_group));
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
-		if (len != IGMP_MINLEN)
+	case 3:
+		(void)printf("igmp dvmrp %s", ipaddr_string(&bp[4]));
+		if (len < 8)
 			(void)printf(" [len %d]", len);
 		break;
 	default:
-		(void)printf("igmp-%x", igmp->igmp_type);
-		if (igmp->igmp_code)
-		  printf(" [code %d]", igmp->igmp_code);
+		(void)printf("igmp-%d", bp[0] & 0xf);
 		break;
 	}
+	if ((bp[0] >> 4) != 1)
+		(void)printf(" [v%d]", bp[0] >> 4);
+	if (bp[1])
+		(void)printf(" [b1=0x%x]", bp[1]);
 }
 
 /*
  * print the recorded route in an IP RR, LSRR or SSRR option.
  */
 static void
-ip_printroute(type, cp, length)
-	char *type;
-	register u_char *cp;
-	int length;
+ip_printroute(const char *type, register const u_char *cp, int length)
 {
 	int ptr = cp[2] - 1;
 	int len;
@@ -195,9 +129,7 @@ ip_printroute(type, cp, length)
  * print IP options.
  */
 static void
-ip_optprint(cp, length)
-	register u_char *cp;
-	int length;
+ip_optprint(register const u_char *cp, int length)
 {
 	int len;
 
@@ -250,25 +182,50 @@ ip_optprint(cp, length)
 }
 
 /*
+ * compute an IP header checksum.
+ * don't modifiy the packet.
+ */
+static int
+in_cksum(const struct ip *ip)
+{
+	register const u_short *sp = (u_short *)ip;
+	register u_int32 sum = 0;
+	register int count;
+
+	/*
+	 * No need for endian conversions.
+	 */
+	for (count = ip->ip_hl * 2; --count >= 0; )
+		sum += *sp++;
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum = ~sum & 0xffff;
+
+	return (sum);
+}
+
+/*
  * print an IP datagram.
  */
 void
-ip_print(ip, length)
-	register struct ip *ip;
-	register int length;
+ip_print(register const u_char *bp, register int length)
 {
+	register const struct ip *ip;
 	register int hlen;
 	register int len;
-	register unsigned char *cp;
+	register int off;
+	register const u_char *cp;
 
+	ip = (const struct ip *)bp;
 #ifdef TCPDUMP_ALIGN
-	static u_char *abuf;
 	/*
 	 * The IP header is not word aligned, so copy into abuf.
 	 * This will never happen with BPF.  It does happen raw packet
 	 * dumps from -r.
 	 */
 	if ((int)ip & (sizeof(long)-1)) {
+		static u_char *abuf;
+
 		if (abuf == 0)
 			abuf = (u_char *)malloc(snaplen);
 		bcopy((char *)ip, (char *)abuf, min(length, snaplen));
@@ -286,41 +243,30 @@ ip_print(ip, length)
 		return;
 	}
 	hlen = ip->ip_hl * 4;
-	if (hlen < sizeof (struct ip)) {
-		printf("invalid ip header length %d", hlen);
-		return;
-	}
 
-	if (ip->ip_v != 4) {
-		printf("unknown ip version %d", ip->ip_v);
-		return;
-	}
-
-	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_off);
-	NTOHS(ip->ip_id);
-
-	len = ip->ip_len - hlen;
-	if (length < ip->ip_len)
+	len = ntohs(ip->ip_len);
+	if (length < len)
 		(void)printf("truncated-ip - %d bytes missing!",
-			ip->ip_len - length);
+			len - length);
+	len -= hlen;
 
 	/*
 	 * If this is fragment zero, hand it to the next higher
 	 * level protocol.
 	 */
-	if ((ip->ip_off & 0x1fff) == 0) {
-		cp = (unsigned char *)ip + hlen;
+	off = ntohs(ip->ip_off);
+	if ((off & 0x1fff) == 0) {
+		cp = (const u_char *)ip + hlen;
 		switch (ip->ip_p) {
 
 		case IPPROTO_TCP:
-			tcp_print((struct tcphdr *)cp, len, ip);
+			tcp_print(cp, len, (const u_char *)ip);
 			break;
 		case IPPROTO_UDP:
-			udp_print((struct udphdr *)cp, len, ip);
+			udp_print(cp, len, (const u_char *)ip);
 			break;
 		case IPPROTO_ICMP:
-			icmp_print((struct icmp *)cp, ip);
+			icmp_print(cp, (const u_char *)ip);
 			break;
 		case IPPROTO_ND:
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
@@ -328,19 +274,34 @@ ip_print(ip, length)
 			(void)printf(" nd %d", len);
 			break;
 		case IPPROTO_EGP:
-			egp_print((struct egp_packet *)cp, len, ip);
+			egp_print(cp, len, (const u_char *)ip);
 			break;
 #ifndef IPPROTO_OSPF
 #define IPPROTO_OSPF 89
 #endif
 		case IPPROTO_OSPF:
-			ospf_print((struct ospfhdr *)cp, len, ip);
+			ospf_print(cp, len, (const u_char *)ip);
 			break;
 #ifndef IPPROTO_IGMP
 #define IPPROTO_IGMP 2
 #endif
 		case IPPROTO_IGMP:
-			igmp_print(cp, len, ip);
+			igmp_print(cp, len, (const u_char *)ip);
+			break;
+#ifndef IPPROTO_ENCAP
+#define IPPROTO_ENCAP 4
+#endif
+		case IPPROTO_ENCAP:
+			/* ip-in-ip encapsulation */
+			if (vflag)
+				(void)printf("%s > %s: ",
+					     ipaddr_string(&ip->ip_src),
+					     ipaddr_string(&ip->ip_dst));
+			ip_print(cp, len);
+			if (! vflag) {
+				printf(" (encap)");
+				return;
+			}
 			break;
 		default:
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
@@ -354,18 +315,18 @@ ip_print(ip, length)
 	 * but the last stick a "+".  For unfragmented datagrams, note
 	 * the don't fragment flag.
 	 */
-	if (ip->ip_off & 0x3fff) {
+	if (off & 0x3fff) {
 		/*
 		 * if this isn't the first frag, we're missing the
 		 * next level protocol header.  print the ip addr.
 		 */
-		if (ip->ip_off & 0x1fff)
+		if (off & 0x1fff)
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
 				      ipaddr_string(&ip->ip_dst));
-		(void)printf(" (frag %d:%d@%d%s)", ip->ip_id, len,
-			(ip->ip_off & 0x1fff) * 8,
-			(ip->ip_off & IP_MF)? "+" : "");
-	} else if (ip->ip_off & IP_DF)
+		(void)printf(" (frag %d:%d@%d%s)", ntohs(ip->ip_id), len,
+			(off & 0x1fff) * 8,
+			(off & IP_MF)? "+" : "");
+	} else if (off & IP_DF)
 		(void)printf(" (DF)");
 
 	if (ip->ip_tos)
@@ -374,6 +335,7 @@ ip_print(ip, length)
 		(void)printf(" [ttl %d]", (int)ip->ip_ttl);
 
 	if (vflag) {
+		int sum;
 		char *sep = "";
 
 		printf(" (");
@@ -381,8 +343,14 @@ ip_print(ip, length)
 			(void)printf("%sttl %d", sep, (int)ip->ip_ttl);
 			sep = ", ";
 		}
-		if ((ip->ip_off & 0x3fff) == 0) {
-			(void)printf("%sid %d", sep, (int)ip->ip_id);
+		if ((off & 0x3fff) == 0) {
+			(void)printf("%sid %d", sep, (int)ntohs(ip->ip_id));
+			sep = ", ";
+		}
+		sum = in_cksum(ip);
+		if (sum != 0) {
+			(void)printf("%sbad cksum %x!", sep,
+				     ntohs(ip->ip_sum));
 			sep = ", ";
 		}
 		if ((hlen -= sizeof(struct ip)) > 0) {
