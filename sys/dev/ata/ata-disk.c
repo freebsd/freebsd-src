@@ -67,13 +67,6 @@ static int ad_version(u_int16_t);
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 static u_int32_t adp_lun_map = 0;
 
-/* sysctl vars */
-SYSCTL_DECL(_hw_ata);
-SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
-	   "ATA disk DMA mode control");
-SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
-	   "ATA disk write caching");
-
 void
 ad_attach(struct ata_device *atadev)
 {
