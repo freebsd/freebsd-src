@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.77 1996/02/25 05:08:57 dyson Exp $
+ *	$Id: pmap.c,v 1.79 1996/03/10 23:06:00 dyson Exp $
  */
 
 /*
@@ -641,7 +641,7 @@ pmap_growkernel(vm_offset_t addr)
 		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_KW);
 		nkpg = NULL;
 
-		for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			if (p->p_vmspace) {
 				pmap = &p->p_vmspace->vm_pmap;
 				*pmap_pde(pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
@@ -2221,7 +2221,7 @@ pmap_pid_dump(int pid) {
 	struct proc *p;
 	int npte = 0;
 	int index;
-	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != NULL; p = p->p_list.le_next) {
 		if (p->p_pid != pid)
 			continue;
 

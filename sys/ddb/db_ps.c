@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.9 1995/12/07 12:44:56 davidg Exp $
+ *	$Id: db_ps.c,v 1.10 1995/12/10 19:08:08 bde Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -53,8 +53,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 
 	np = nprocs;
 
-	if (allproc != NULL)
-		p = allproc;
+	if (allproc.lh_first != NULL)
+		p = allproc.lh_first;
 	else
 		p = &proc0;
 
@@ -98,8 +98,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		}
 		db_printf(" %s\n", p->p_comm ? p->p_comm : "");
 
-		p = p->p_next;
+		p = p->p_list.le_next;
 		if (p == NULL && np > 0)
-			p = zombproc;
+			p = zombproc.lh_first;
     	}
 }
