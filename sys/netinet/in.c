@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.38 1998/06/07 17:12:13 dfr Exp $
+ *	$Id: in.c,v 1.39 1998/12/07 05:41:10 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -576,19 +576,25 @@ in_delmulti(inm)
 	register struct in_multi *inm;
 {
 	struct ifmultiaddr *ifma = inm->inm_ifma;
+	struct in_multi my_inm;
 	int s = splnet();
 
+	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
 	if (ifma->ifma_refcount == 1) {
 		/*
 		 * No remaining claims to this record; let IGMP know that
 		 * we are leaving the multicast group.
+		 * But do it after the if_delmulti() which might reset
+		 * the interface and nuke the packet.
 		 */
-		igmp_leavegroup(inm);
+		my_inm = *inm ;
 		ifma->ifma_protospec = 0;
 		LIST_REMOVE(inm, inm_link);
 		free(inm, M_IPMADDR);
 	}
 	/* XXX - should be separate API for when we have an ifma? */
 	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
+	if (my_inm.inm_ifp != NULL)
+		igmp_leavegroup(&my_inm);
 	splx(s);
 }
