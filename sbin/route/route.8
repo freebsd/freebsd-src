@@ -117,6 +117,7 @@ will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
 .Fl osi ,
 .Fl xns ,
+.Fl atalk ,
 or
 .Fl inet
 modifiers, only routes having destinations with addresses in the
@@ -180,11 +181,14 @@ indicating the interface to be used for transmission.
 The optional modifiers
 .Fl xns ,
 .Fl osi ,
+.Fl atalk ,
 and
 .Fl link 
 specify that all subsequent addresses are in the
-.Tn XNS
-.Tn OSI
+.Tn XNS ,
+.Tn OSI ,
+or
+.Tn AppleTalk
 address families,
 or are specified as link-level addresses,
 and the names must be numeric specifications rather than
