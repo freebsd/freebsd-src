@@ -1,4 +1,3 @@
-#define ATA_FLUSHCACHE_ON 
 /*-
  * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
@@ -86,6 +85,9 @@ MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 /* defines */
 #define	AD_MAX_RETRIES	3
 #define AD_PARAM	ATA_PARAM(adp->controller, adp->unit)
+
+/* experimental cache flush on BIO_ORDERED */
+#define ATA_FLUSHCACHE_ON 
 
 void
 ad_attach(struct ata_softc *scp, int device)
@@ -790,6 +792,7 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 static int
 ad_tagsupported(struct ad_softc *adp)
 {
+#ifdef ATA_ENABLE_TAGS
     const char *drives[] = {"IBM-DPTA", "IBM-DTLA", NULL};
     int i = 0;
 
@@ -805,6 +808,7 @@ ad_tagsupported(struct ad_softc *adp)
 	    i++;
 	}
     }
+#endif
     return 0;
 }
 
