@@ -203,11 +203,11 @@ struct rt_msghdr {
     u_char  rtm_version; /* future binary compatibility */
     u_char  rtm_type;    /* message type */
     u_short rmt_index;   /* index for associated ifp */
-    pid_t   rmt_pid;     /* identify sender */
+    int     rtm_flags;   /* flags, incl kern & message, e.g. DONE */
     int     rtm_addrs;   /* bitmask identifying sockaddrs in msg */
+    pid_t   rmt_pid;     /* identify sender */
     int     rtm_seq;     /* for sender to identify action */
     int     rtm_errno;   /* why failed */
-    int     rtm_flags;   /* flags, incl kern & message, e.g. DONE */
     int     rtm_use;     /* from rtentry */
     u_long  rtm_inits;   /* which values we are initializing */
     struct  rt_metrics rtm_rmx;	/* metrics themselves */
