@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.20 1995/05/19 16:58:57 jkh Exp $
+ * $Id: sysinstall.h,v 1.21 1995/05/20 00:13:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,6 +297,7 @@ extern FILE	*mediaOpen(char *parent, char *me);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(FILE *fp);
 extern Boolean	mediaVerify(void);
+extern void	mediaClose(void);
 
 /* media_strategy.c */
 extern Boolean	mediaInitUFS(Device *dev);
