@@ -88,7 +88,7 @@ cdcmd(int argc, char **argv)
 	int ch, phys, print = 0;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
-	phys = 0;
+	phys = Pflag;
 	while ((ch = getopt(argc, argv, "LP")) != -1) {
 		switch (ch) {
 		case 'L':
@@ -324,7 +324,7 @@ pwdcmd(int argc, char **argv)
 	int ch, phys;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
-	phys = 0;
+	phys = Pflag;
 	while ((ch = getopt(argc, argv, "LP")) != -1) {
 		switch (ch) {
 		case 'L':
