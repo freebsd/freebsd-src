@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.32 1997/08/21 08:23:52 kato Exp $
+ *	$Id: clock.c,v 1.33 1997/08/22 08:12:14 kato Exp $
  */
 
 /*
@@ -69,9 +69,9 @@
 #include <machine/frame.h>
 #include <machine/ipl.h>
 #include <machine/limits.h>
-#ifdef APIC_IO
+#if defined(SMP) || defined(APIC_IO)
 #include <machine/smp.h>
-#endif /* APIC_IO */
+#endif /* SMP || APIC_IO */
 
 #include <i386/isa/icu.h>
 #ifdef PC98
@@ -86,6 +86,34 @@
 
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
+
+#ifdef SMP
+#include <machine/smptests.h>
+
+#ifdef SIMPLE_MPINTRLOCK
+#define DISABLE_INTR()					\
+	__asm __volatile("cli" : : : "memory");		\
+ 	s_lock(&clock_lock);
+
+#define ENABLE_INTR()					\
+ 	s_unlock(&clock_lock);				\
+	__asm __volatile("sti");
+
+#define CLOCK_UNLOCK()					\
+ 	s_unlock(&clock_lock);
+#else /* SIMPLE_MPINTRLOCK */
+#define DISABLE_INTR()	disable_intr()
+#define ENABLE_INTR()	enable_intr()
+#define CLOCK_UNLOCK()
+#endif /* SIMPLE_MPINTRLOCK */
+
+#else /* SMP */
+
+#define DISABLE_INTR()	disable_intr()
+#define ENABLE_INTR()	enable_intr()
+#define CLOCK_UNLOCK()
+
+#endif /* SMP */
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -216,11 +244,11 @@ clkintr(struct clockframe frame)
 		timer0_max_count = TIMER_DIV(new_rate);
 		timer0_overflow_threshold =
 			timer0_max_count - TIMER0_LATCH_COUNT;
-		disable_intr();
+		DISABLE_INTR();
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
-		enable_intr();
+		ENABLE_INTR();
 		timer0_prescaler_count = 0;
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
@@ -234,12 +262,12 @@ clkintr(struct clockframe frame)
 			timer0_max_count = hardclock_max_count;
 			timer0_overflow_threshold =
 				timer0_max_count - TIMER0_LATCH_COUNT;
-			disable_intr();
+			DISABLE_INTR();
 			outb(TIMER_MODE,
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
 			outb(TIMER_CNTR0, timer0_max_count >> 8);
-			enable_intr();
+			ENABLE_INTR();
 			/*
 			 * See microtime.s for this magic.
 			 */
@@ -453,7 +481,7 @@ getit(void)
 	int high, low;
 
 	ef = read_eflags();
-	disable_intr();
+	DISABLE_INTR();
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -461,6 +489,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
+	CLOCK_UNLOCK();
 	write_eflags(ef);
 	return ((high << 8) | low);
 }
@@ -598,10 +627,10 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-	disable_intr();
+	DISABLE_INTR();
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
-	enable_intr();
+	ENABLE_INTR();
 	if (!beeping) {
 		/* enable counter2 output to speaker */
 		outb(IO_PPI, inb(IO_PPI) | 3);
@@ -768,13 +797,14 @@ set_timer_freq(u_int freq, int intr_freq)
 	u_long ef;
 
 	ef = read_eflags();
-	disable_intr();
+	DISABLE_INTR();
 	timer_freq = freq;
 	timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
 	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
+	CLOCK_UNLOCK();
 	write_eflags(ef);
 }
 
@@ -1310,10 +1340,11 @@ set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq)
 			<< I586_CTR_COMULTIPLIER_SHIFT) / i8254_freq;
 	multiplier = (1000000LL << I586_CTR_MULTIPLIER_SHIFT) / i586_freq;
 	ef = read_eflags();
-	disable_intr();
+	DISABLE_INTR();
 	i586_ctr_freq = i586_freq;
 	i586_ctr_comultiplier = comultiplier;
 	i586_ctr_multiplier = multiplier;
+	CLOCK_UNLOCK();
 	write_eflags(ef);
 }
 
