@@ -478,7 +478,7 @@ _kse_critical_enter(void)
 {
 	kse_critical_t crit;
 
-	crit = _ksd_readandclear_tmbx;
+	crit = _ksd_readandclear_tmbx();
 	return (crit);
 }
 
@@ -1815,14 +1815,14 @@ kse_wakeup_multi(struct kse *curkse)
 struct pthread *
 _get_curthread(void)
 {
-	return (_ksd_curthread);
+	return (_ksd_curthread());
 }
 
 /* This assumes the caller has disabled upcalls. */
 struct kse *
 _get_curkse(void)
 {
-	return (_ksd_curkse);
+	return (_ksd_curkse());
 }
 
 void
