@@ -597,7 +597,7 @@ wx_attach(device_t dev)
 	}
 
 #ifdef	SMPNG
-	mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 #endif
 
 	WX_LOCK(sc);

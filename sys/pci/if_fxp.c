@@ -316,7 +316,7 @@ fxp_attach(device_t dev)
 	u_long val;
 	int rid;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	callout_handle_init(&sc->stat_ch);
 
 	FXP_LOCK(sc);
