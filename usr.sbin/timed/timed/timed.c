@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision$"
 #endif /* sgi */
 
 #define TSPTYPES
@@ -452,7 +452,7 @@ main(argc, argv)
 		ntp->dest_addr.sin_port = port;
 
 		for (nt = nets; nt; nt = nt->next) {
-			if (ntp->net.s_addr == nt->net)
+			if (ntp->net.s_addr == htonl(nt->net))
 				break;
 		}
 		if (nflag && !nt || iflag && nt)
