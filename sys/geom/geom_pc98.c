@@ -200,11 +200,6 @@ g_pc98_start(struct bio *bp)
 	gio = (struct g_ioctl *)bp->bio_data;
 
 	switch (gio->cmd) {
-	case DIOCGPC98:
-		/* Return a copy of the disklabel to userland. */
-		bcopy(mp->sec, gio->data, 8192);
-		g_io_deliver(bp, 0);
-		return (1);
 	case DIOCSPC98:
 		/*
 		 * These we cannot do without the topology lock and some
