@@ -443,8 +443,6 @@ begin:
 #endif
 #ifdef CX586_IO
 	orb	$CX586_IO, %al
-#else
-	orb	$0x02, %al		# 4-clock I/O delay
 #endif
 	outb	%al,$0x23
 	movb	$0x020,%al		# PCR0
