@@ -176,11 +176,11 @@ void	 ip_stripoptions(struct mbuf *, struct mbuf *);
 u_int16_t	
 	 ip_randomid(void);
 #endif
-int	 rip_ctloutput(struct socket *, struct sockopt *);
-void	 rip_ctlinput(int, struct sockaddr *, void *);
-void	 rip_init(void);
-void	 rip_input(struct mbuf *, int);
-int	 rip_output(struct mbuf *, struct socket *, u_long);
+int	rip_ctloutput(struct socket *, struct sockopt *);
+void	rip_ctlinput(int, struct sockaddr *, void *);
+void	rip_init(void);
+void	rip_input(struct mbuf *, int);
+int	rip_output(struct mbuf *, struct socket *, u_long);
 void	ipip_input(struct mbuf *, int);
 void	rsvp_input(struct mbuf *, int);
 int	ip_rsvp_init(struct socket *);
@@ -195,8 +195,6 @@ void	div_input(struct mbuf *, int);
 void	divert_packet(struct mbuf *m, int incoming, int port, int rule);
 extern struct pr_usrreqs div_usrreqs;
 #endif
-
-extern struct sockaddr_in *ip_fw_fwd_addr;
 
 void	in_delayed_cksum(struct mbuf *m);
 
