@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.4 1997/09/20 07:41:55 dyson Exp $
+ *	$Id: ide_pci.c,v 1.5 1997/11/07 08:53:27 phk Exp $
  */
 
 #include "pci.h"
@@ -714,7 +714,7 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 		u_long word40;
 
 		/* can drive do PIO 4 and MW DMA 2? */
-		if (!(mwdma_mode(wp) >= 4 && pio_mode(wp) >= 4)) 
+		if (!(mwdma_mode(wp) >= 2 && pio_mode(wp) >= 4)) 
 			return 0;
 
 		word40 = pci_conf_read(cookie->tag, 0x40);
