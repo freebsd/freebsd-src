@@ -48,7 +48,7 @@
 .Ft FILE *
 .Fn fropen "void  *cookie" "int  (*readfn)(void *, char *, int)"
 .Ft FILE *
-.Fn fwopen "void  *cookie" "int  (*writefn)(void *, char *, int)"
+.Fn fwopen "void  *cookie" "int  (*writefn)(void *, const char *, int)"
 .Sh DESCRIPTION
 The
 .Fn funopen
