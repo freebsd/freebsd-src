@@ -2,12 +2,10 @@
 # X startup file .xsession
 #
 
-# PATH und MANPATH Grundeinstellung
 PATH="/sbin:/bin:/usr/bin:/usr/sbin:/usr/games:/usr/local/bin:/usr/X11R6/bin:$HOME/bin"
 MANPATH="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 export PATH MANPATH
 
-# Einstellungen fuer Interviews
 CPU="FREEBSD"
 PATH="$PATH:/usr/local/interviews/bin/$CPU"
 MANPATH="$MANPATH:/usr/local/interviews/man"
