@@ -14,13 +14,13 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.2, Tue Nov 22 18:57:27 MSK 1994
+ * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  */
 #undef DEBUG
 
 #include "cx.h"
 #if NCX > 0
-#include "bpfilter.h"
+#include <bpfilter.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,6 +44,7 @@
 #   if __FreeBSD__ < 2
 #      include <machine/pio.h>
 #   else
+#      include <machine/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
 #   define init_func_t     void(*)(int)
@@ -81,10 +82,10 @@ struct cxsoftc {
 #ifdef DEBUG
 #   define print(s)     printf s
 #else
-#   define print(s)     /*void*/
+#   define print(s)     {/*void*/}
 #endif
 
-#define TXTIMEOUT       2               /* transmit timeout in seconds */
+#define TXTIMEOUT       10              /* transmit timeout in seconds */
 #define DMABUFSZ        (6*256)         /* buffer size */
 #define PPP_HEADER_LEN  4               /* size of PPP header */
 
@@ -103,7 +104,6 @@ struct cxsoftc {
 #endif
 #define IFNETSZ         (sizeof (struct ifnet))
 
-int cxoutput (struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt);
 int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data);
 void cxinit (int unit);
 void cxstart (struct ifnet *ifp);
@@ -113,6 +113,8 @@ int cxrinta (cx_chan_t *c);
 void cxtinta (cx_chan_t *c);
 void cxmint (cx_chan_t *c);
 void cxtimeout (caddr_t a);
+void cxdown (cx_chan_t *c);
+void cxup (cx_chan_t *c);
 
 cx_board_t cxboard [NCX];               /* adapter state structures */
 cx_chan_t *cxchan [NCX*NCHAN];          /* unit to channel struct pointer */
@@ -321,10 +323,12 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 				c->type = T_NONE;
 				continue;
 			}
+			bzero (c->ifp, IFSTRUCTSZ);
+			c->master = c->ifp;
 			c->ifp->if_unit = u;
 			c->ifp->if_name = "cx";
 			c->ifp->if_mtu = PP_MTU;
-			c->ifp->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
+			c->ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 			c->ifp->if_ioctl = cxsioctl;
 			c->ifp->if_start = (start_func_t) cxstart;
 			c->ifp->if_watchdog = (watchdog_func_t) cxwatchdog;
@@ -380,62 +384,106 @@ struct cfdriver cxcd = { 0, "cx", cxprobe, cxattach, sizeof (struct cxsoftc) };
  */
 int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
 {
-	cx_chan_t *c = cxchan[ifp->if_unit];
-	int error, s;
+	cx_chan_t *q, *c = cxchan[ifp->if_unit];
+	int error, s, was_up, should_be_up;
 
+	/*
+	 * No socket ioctls while the channel is in async mode.
+	 */
 	if (c->type==T_NONE || c->mode==M_ASYNC)
 		return (EINVAL);
+
+	/*
+	 * Socket ioctls on slave subchannels are not allowed.
+	 */
+	if (c->master != c->ifp)
+		return (EBUSY);
+
+	was_up = (ifp->if_flags & IFF_RUNNING) != 0;
 #ifdef __bsdi__
-	if (c->sopt.ext) {
-		/* Save RUNNING flag. */
-		int running = (ifp->if_flags & IFF_RUNNING);
+	if (c->sopt.ext)
 		error = p2p_ioctl (ifp, cmd, data);
-		ifp->if_flags &= ~IFF_RUNNING;
-		ifp->if_flags |= running;
-	} else
+	else
 #endif
 	error = sppp_ioctl (ifp, cmd, data);
 	if (error)
 		return (error);
-	if (cmd != SIOCSIFFLAGS)
-		return (0);
 
+	print (("cxioctl (%d.%d, ", c->board->num, c->num));
+	switch (cmd) {
+	default:
+		print (("0x%x)\n", cmd));
+		return (0);
+	case SIOCADDMULTI:
+		print (("SIOCADDMULTI)\n"));
+		return (0);
+	case SIOCDELMULTI:
+		print (("SIOCDELMULTI)\n"));
+		return (0);
+	case SIOCSIFFLAGS:
+		print (("SIOCSIFFLAGS)\n"));
+		break;
+	case SIOCSIFADDR:
+		print (("SIOCSIFADDR)\n"));
+		break;
+	}
+
+	/* We get here only in case of SIFFLAGS or SIFADDR. */
 	s = splimp ();
-	if (! (ifp->if_flags & IFF_UP) && (ifp->if_flags & IFF_RUNNING))
-		/* Interface is down and running -- stop it. */
-		cxinit (ifp->if_unit);
-	else if ((ifp->if_flags & IFF_UP) && ! (ifp->if_flags & IFF_RUNNING))
-		/* Interface is up and not running -- start it. */
-		cxinit (ifp->if_unit);
+	should_be_up = (ifp->if_flags & IFF_RUNNING) != 0;
+	if (!was_up && should_be_up) {
+		/* Interface goes up -- start it. */
+		cxup (c);
+
+		/* Start all slave subchannels. */
+		for (q=c->slaveq; q; q=q->slaveq)
+			cxup (q);
+
+		cxstart (c->ifp);
+	} else if (was_up && !should_be_up) {
+		/* Interface is going down -- stop it. */
+		cxdown (c);
+
+		/* Stop all slave subchannels. */
+		for (q=c->slaveq; q; q=q->slaveq)
+			cxdown (q);
+
+		/* Flush the interface output queue */
+		if (! c->sopt.ext)
+			sppp_flush (c->ifp);
+	}
 	splx (s);
 	return (0);
 }
 
 /*
- * Initialization of interface.
+ * Stop the interface.  Called on splimp().
  */
-void cxinit (int unit)
+void cxdown (cx_chan_t *c)
 {
-	cx_chan_t *c = cxchan[unit];
 	unsigned short port = c->chip->port;
-	int s;
 
-	print (("cx%d.%d: cxinit\n", c->board->num, c->num));
+	print (("cx%d.%d: cxdown\n", c->board->num, c->num));
 
-	/* Disable interrupts */
-	s = splimp();
+	/* The interface is down, stop it */
+	c->ifp->if_flags &= ~IFF_OACTIVE;
 
 	/* Reset the channel (for sync modes only) */
-	if (c->ifp->if_flags & IFF_OACTIVE) {
 		outb (CAR(port), c->num & 3);
 		outb (STCR(port), STC_ABORTTX | STC_SNDSPC);
-	}
-	cx_setup_chan (c);
-	c->ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
-	if (c->ifp->if_flags & IFF_UP) {
+	cx_setup_chan (c);
+}
+
+/*
+ * Start the interface.  Called on splimp().
+ */
+void cxup (cx_chan_t *c)
+{
+	unsigned short port = c->chip->port;
+
 		/* The interface is up, start it */
-		c->ifp->if_flags |= IFF_RUNNING;
+	print (("cx%d.%d: cxup\n", c->board->num, c->num));
 
 #if __FreeBSD__ >= 2
 		/* Mark the board busy on the first startup.
@@ -459,13 +507,31 @@ void cxinit (int unit)
 
 		/* Enable interrupts */
 		outb (IER(port), IER_RXD | IER_TXD);
+}
 
-		cxstart (c->ifp);
+/*
+ * Initialization of interface.
+ */
+void cxinit (int unit)
+{
+	cx_chan_t *q, *c = cxchan[unit];
+	int s = splimp();
 
-	} else if (! c->sopt.ext)
-		/* Flush the interface output queue, if it is down */
-		sppp_flush (c->ifp);
+	print (("cx%d.%d: cxinit\n", c->board->num, c->num));
 
+	cxdown (c);
+
+	/* Stop all slave subchannels. */
+	for (q=c->slaveq; q; q=q->slaveq)
+		cxdown (q);
+
+	if (c->ifp->if_flags & IFF_RUNNING) {
+		cxup (c);
+
+		/* Start all slave subchannels. */
+		for (q=c->slaveq; q; q=q->slaveq)
+			cxup (q);
+	}
 	splx (s);
 }
 
@@ -491,28 +557,37 @@ void cxput (cx_chan_t *c, char b)
 
 	/* Is it busy? */
 	if (inb (sts_port) & BSTS_OWN24) {
-		c->ifp->if_flags |= IFF_OACTIVE;
-		return;
+		if (c->ifp->if_flags & IFF_DEBUG)
+			print (("cx%d.%d: tbuf %c already busy, bsts=%b\n",
+				c->board->num, c->num, b,
+				inb (sts_port), BSTS_BITS));
+		goto ret;
 	}
 
 	/* Get the packet to send. */
 #ifdef __bsdi__
 	if (c->sopt.ext) {
-		struct p2pcom *p = (struct p2pcom*) c->ifp;
+		struct p2pcom *p = (struct p2pcom*) c->master;
 		int s = splimp ();
 
 		IF_DEQUEUE (&p->p2p_isnd, m)
 		if (! m)
-			IF_DEQUEUE (&c->ifp->if_snd, m)
+			IF_DEQUEUE (&c->master->if_snd, m)
 		splx (s);
 	} else
 #endif
-	m = sppp_dequeue (c->ifp);
+	m = sppp_dequeue (c->master);
 	if (! m)
 		return;
 	len = m->m_pkthdr.len;
+
+	/* Count the transmitted bytes to the subchannel, not the master. */
+	c->master->if_obytes -= len + 3;
+	c->ifp->if_obytes += len + 3;
+	c->stat->obytes += len + 3;
+
 	if (len >= DMABUFSZ) {
-		printf ("cx%d.%d: too long packet: %d bytes\n",
+		printf ("cx%d.%d: too long packet: %d bytes: ",
 			c->board->num, c->num, len);
 		printmbuf (m);
 		m_freem (m);
@@ -528,26 +603,28 @@ void cxput (cx_chan_t *c, char b)
 	/* Start transmitter. */
 	outw (cnt_port, len);
 	outb (sts_port, BSTS_EOFR | BSTS_INTR | BSTS_OWN24);
-#ifdef DEBUG
+
 	if (c->ifp->if_flags & IFF_DEBUG)
-		printf ("cx%d.%d: enqueue %d bytes to %c\n",
-			c->board->num, c->num, len, buf==c->atbuf ? 'A' : 'B');
-#endif
+		print (("cx%d.%d: enqueue %d bytes to %c\n",
+			c->board->num, c->num, len, buf==c->atbuf ? 'A' : 'B'));
+ret:
 	c->ifp->if_flags |= IFF_OACTIVE;
 }
 
 /*
- * Start output on interface.  Get another datagram to send
+ * Start output on the (slave) interface.  Get another datagram to send
  * off of the interface queue, and copy it to the interface
  * before starting the output.
  */
-void cxstart (struct ifnet *ifp)
+void cxsend (cx_chan_t *c)
 {
-	cx_chan_t *c = cxchan[ifp->if_unit];
 	unsigned short port = c->chip->port;
 
+	if (c->ifp->if_flags & IFF_DEBUG)
+		print (("cx%d.%d: cxsend\n", c->board->num, c->num));
+
 	/* No output if the interface is down. */
-	if (! (ifp->if_flags & IFF_RUNNING))
+	if (! (c->ifp->if_flags & IFF_RUNNING))
 		return;
 
 	/* Set the current channel number. */
@@ -563,8 +640,8 @@ void cxstart (struct ifnet *ifp)
 	}
 
 	/* Set up transmit timeout. */
-	if (c->ifp->if_flags & IFF_OACTIVE)
-		c->ifp->if_timer = TXTIMEOUT;
+	if (c->master->if_flags & IFF_OACTIVE)
+		c->master->if_timer = TXTIMEOUT;
 
 	/*
 	 * Enable TXMPTY interrupt,
@@ -578,17 +655,50 @@ void cxstart (struct ifnet *ifp)
 }
 
 /*
+ * Start output on the (master) interface and all slave interfaces.
+ * Always called on splimp().
+ */
+void cxstart (struct ifnet *ifp)
+{
+	cx_chan_t *q, *c = cxchan[ifp->if_unit];
+
+	if (c->ifp->if_flags & IFF_DEBUG)
+		print (("cx%d.%d: cxstart\n", c->board->num, c->num));
+
+	/* Start the master subchannel. */
+	cxsend (c);
+
+	/* Start all slave subchannels. */
+	if (c->slaveq && ! sppp_isempty (c->master))
+		for (q=c->slaveq; q; q=q->slaveq)
+			if ((q->ifp->if_flags & IFF_RUNNING) &&
+			    ! (q->ifp->if_flags & IFF_OACTIVE))
+				cxsend (q);
+}
+
+/*
  * Handle transmit timeouts.
  * Recover after lost transmit interrupts.
+ * Always called on splimp().
  */
 void cxwatchdog (int unit)
 {
-	cx_chan_t *c = cxchan[unit];
+	cx_chan_t *q, *c = cxchan[unit];
 
-	if (c->ifp->if_flags & IFF_OACTIVE) {
-		c->ifp->if_flags &= ~IFF_OACTIVE;
+	if (! (c->ifp->if_flags & IFF_RUNNING))
+		return;
+	if (c->ifp->if_flags & IFF_DEBUG)
+		printf ("cx%d.%d: device timeout\n", c->board->num, c->num);
+
+	cxdown (c);
+	for (q=c->slaveq; q; q=q->slaveq)
+		cxdown (q);
+
+	cxup (c);
+	for (q=c->slaveq; q; q=q->slaveq)
+		cxup (q);
+
 		cxstart (c->ifp);
-	}
 }
 
 /*
@@ -600,21 +710,26 @@ void cxrinth (cx_chan_t *c)
 	unsigned short port = c->chip->port;
 	unsigned short len, risr = inw (RISR(port));
 
-	print (("cx%d.%d: hdlc receive interrupt, risr=%b, arbsts=%b, brbsts=%b\n",
-		c->board->num, c->num, risr, RISH_BITS,
-		inb (ARBSTS(port)), BSTS_BITS, inb (BRBSTS(port)), BSTS_BITS));
-
 	/* Receive errors. */
 	if (risr & (RIS_BUSERR | RIS_OVERRUN | RISH_CRCERR | RISH_RXABORT)) {
 		if (c->ifp->if_flags & IFF_DEBUG)
 			printf ("cx%d.%d: receive error, risr=%b\n",
 				c->board->num, c->num, risr, RISH_BITS);
 		++c->ifp->if_ierrors;
+		++c->stat->ierrs;
 		if (risr & RIS_OVERRUN)
 			++c->ifp->if_collisions;
 	} else if (risr & RIS_EOBUF) {
+		if (c->ifp->if_flags & IFF_DEBUG)
+			print (("cx%d.%d: hdlc receive interrupt, risr=%b, arbsts=%b, brbsts=%b\n",
+				c->board->num, c->num, risr, RISH_BITS,
+				inb (ARBSTS(port)), BSTS_BITS,
+				inb (BRBSTS(port)), BSTS_BITS));
+		++c->stat->ipkts;
+
 		/* Handle received data. */
 		len = (risr & RIS_BB) ? inw(BRBCNT(port)) : inw(ARBCNT(port));
+		c->stat->ibytes += len;
 		if (len > DMABUFSZ) {
 			/* Fatal error: actual DMA transfer size
 			 * exceeds our buffer size.  It could be caused
@@ -633,11 +748,16 @@ void cxrinth (cx_chan_t *c)
 			++c->ifp->if_ierrors;
 		} else {
 			/* Valid frame received. */
-			print (("cx%d.%d: HDLC: %d bytes received\n",
+			if (c->ifp->if_flags & IFF_DEBUG)
+				print (("cx%d.%d: hdlc received %d bytes\n",
 				c->board->num, c->num, len));
 			cxinput (c, (risr & RIS_BB) ? c->brbuf : c->arbuf, len);
 			++c->ifp->if_ipackets;
 		}
+	} else if (c->ifp->if_flags & IFF_DEBUG) {
+		print (("cx%d.%d: unknown hdlc receive interrupt, risr=%b\n",
+			c->board->num, c->num, risr, RISH_BITS));
+		++c->stat->ierrs;
 	}
 
 	/* Restart receiver. */
@@ -660,22 +780,35 @@ int cxtinth (cx_chan_t *c)
 	unsigned char tisr = inb (TISR(port));
 	unsigned char teoir = 0;
 
-	print (("cx%d.%d: hdlc transmit interrupt, tisr=%b, atbsts=%b, btbsts=%b\n",
-		c->board->num, c->num, tisr, TIS_BITS,
-		inb (ATBSTS(port)), BSTS_BITS, inb (BTBSTS(port)), BSTS_BITS));
+	c->ifp->if_flags &= ~IFF_OACTIVE;
+	if (c->ifp == c->master)
+		c->ifp->if_timer = 0;
 
 	if (tisr & (TIS_BUSERR | TIS_UNDERRUN)) {
-		if (c->ifp->if_flags & IFF_DEBUG)
-			printf ("cx%d.%d: transmit error, tisr=%b\n",
-				c->board->num, c->num, tisr, TIS_BITS);
+		/* if (c->ifp->if_flags & IFF_DEBUG) */
+			print (("cx%d.%d: transmit error, tisr=%b, atbsts=%b, btbsts=%b\n",
+				c->board->num, c->num, tisr, TIS_BITS,
+				inb (ATBSTS(port)), BSTS_BITS,
+				inb (BTBSTS(port)), BSTS_BITS));
 		++c->ifp->if_oerrors;
-		/* Terminate the failed buffer. */
-		teoir |= TEOI_TERMBUFF;
-	} else if (tisr & (TIS_EOFR))
-		++c->ifp->if_opackets;
+		++c->stat->oerrs;
 
-	c->ifp->if_flags &= ~IFF_OACTIVE;
-	cxstart (c->ifp);
+		/* Terminate the failed buffer. */
+		/* teoir = TEOI_TERMBUFF; */
+	} else if (c->ifp->if_flags & IFF_DEBUG)
+		print (("cx%d.%d: hdlc transmit interrupt, tisr=%b, atbsts=%b, btbsts=%b\n",
+			c->board->num, c->num, tisr, TIS_BITS,
+			inb (ATBSTS(port)), BSTS_BITS,
+			inb (BTBSTS(port)), BSTS_BITS));
+
+	if (tisr & TIS_EOFR) {
+		++c->ifp->if_opackets;
+		++c->stat->opkts;
+	}
+
+	/* Start output on the (sub-) channel. */
+	cxsend (c);
+
 	return (teoir);
 }
 
@@ -715,6 +848,7 @@ void cxintr (cx_board_t *b)
 		switch (livr & 3) {
 		case LIV_EXCEP:         /* receive exception */
 		case LIV_RXDATA:        /* receive interrupt */
+			++c->stat->rintr;
 			switch (c->mode) {
 			case M_ASYNC: eoi = cxrinta (c); break;
 			case M_HDLC:  cxrinth (c);       break;
@@ -722,6 +856,7 @@ void cxintr (cx_board_t *b)
 			}
 			break;
 		case LIV_TXDATA:        /* transmit interrupt */
+			++c->stat->tintr;
 			eoiport = TEOIR(port);
 			switch (c->mode) {
 			case M_ASYNC: cxtinta (c);       break;
@@ -730,6 +865,7 @@ void cxintr (cx_board_t *b)
 			}
 			break;
 		case LIV_MODEM:         /* modem/timer interrupt */
+			++c->stat->mintr;
 			eoiport = MEOIR(port);
 			cxmint (c);
 			break;
@@ -746,6 +882,18 @@ void cxintr (cx_board_t *b)
 
 		/* Exit from interrupt context. */
 		outb (eoiport, eoi);
+
+		/* Master channel - start output on all idle subchannels. */
+		if (c->master == c->ifp && c->slaveq &&
+		    (livr & 3) == LIV_TXDATA && c->mode == M_HDLC &&
+		    ! sppp_isempty (c->ifp)) {
+			cx_chan_t *q;
+
+			for (q=c->slaveq; q; q=q->slaveq)
+				if ((q->ifp->if_flags & IFF_RUNNING) &&
+				    ! (q->ifp->if_flags & IFF_OACTIVE))
+					cxsend (q);
+		}
 	}
 }
 
@@ -763,8 +911,9 @@ void cxinput (cx_chan_t *c, void *buf, unsigned len)
 		++c->ifp->if_iqdrops;
 		return;
 	}
-	m->m_pkthdr.rcvif = c->ifp;
+	m->m_pkthdr.rcvif = c->master;
 #ifdef DEBUG
+	if (c->ifp->if_flags & IFF_DEBUG)
 	printmbuf (m);
 #endif
 
@@ -776,13 +925,18 @@ void cxinput (cx_chan_t *c, void *buf, unsigned len)
 	if (c->bpf)
 		bpf_tap (c->bpf, buf, len);
 #endif
+
+	/* Count the received bytes to the subchannel, not the master. */
+	c->master->if_ibytes -= len + 3;
+	c->ifp->if_ibytes += len + 3;
+
 #ifdef __bsdi__
 	if (c->sopt.ext) {
-		struct p2pcom *p = (struct p2pcom*) c->ifp;
+		struct p2pcom *p = (struct p2pcom*) c->master;
 		(*p->p2p_input) (p, m);
 	} else
 #endif
-	sppp_input (c->ifp, m);
+	sppp_input (c->master, m);
 }
 
 void cxswitch (cx_chan_t *c, cx_soft_opt_t new)
