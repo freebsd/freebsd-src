@@ -152,9 +152,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_EC
 ACPI_MODULE_NAME("EC")
 
@@ -268,11 +266,10 @@ struct acpi_ec_softc {
 
     int			ec_glk;
     int			ec_glkhandle;
-    struct sx		ec_sxlock;
 };
 
 /*
- * XXX
+ * XXX njl
  * I couldn't find it in the spec but other implementations also use a
  * value of 1 ms for the time to acquire global lock.
  */
@@ -293,19 +290,22 @@ struct acpi_ec_softc {
 static int	ec_poll_timeout = EC_POLL_TIMEOUT;
 TUNABLE_INT("hw.acpi.ec.poll_timeout", &ec_poll_timeout);
 
+ACPI_SERIAL_DECL(ec, "ACPI embedded controller");
+
 static __inline ACPI_STATUS
 EcLock(struct acpi_ec_softc *sc)
 {
-    ACPI_STATUS	status = AE_OK;
+    ACPI_STATUS	status;
 
-    /* Always acquire this EC's mutex. */
-    sx_xlock(&sc->ec_sxlock);
+    /* Always acquire the exclusive lock. */
+    status = AE_OK;
+    ACPI_SERIAL_BEGIN(ec);
 
     /* If _GLK is non-zero, also acquire the global lock. */
     if (sc->ec_glk) {
 	status = AcpiAcquireGlobalLock(EC_LOCK_TIMEOUT, &sc->ec_glkhandle);
 	if (ACPI_FAILURE(status))
-	    sx_xunlock(&sc->ec_sxlock);
+	    ACPI_SERIAL_END(ec);
     }
 
     return (status);
@@ -316,7 +316,7 @@ EcUnlock(struct acpi_ec_softc *sc)
 {
     if (sc->ec_glk)
 	AcpiReleaseGlobalLock(sc->ec_glkhandle);
-    sx_xunlock(&sc->ec_sxlock);
+    ACPI_SERIAL_END(ec);
 }
 
 static uint32_t		EcGpeHandler(void *Context);
@@ -549,7 +549,6 @@ acpi_ec_attach(device_t dev)
     params = acpi_get_private(dev);
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
-    sx_init(&sc->ec_sxlock, "ACPI embedded controller");
 
     /* Retrieve previously probed values via device ivars. */
     sc->ec_glk = params->glk;
@@ -632,7 +631,6 @@ error:
     if (sc->ec_data_res)
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
-    sx_destroy(&sc->ec_sxlock);
     return (ENXIO);
 }
 
@@ -783,12 +781,12 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
     EcAddr = Address;
     Status = AE_ERROR;
 
+    Status = EcLock(sc);
+    if (ACPI_FAILURE(Status))
+	return_ACPI_STATUS (Status);
+
     /* Perform the transaction(s), based on width. */
     for (i = 0; i < width; i += 8, EcAddr++) {
-	Status = EcLock(sc);
-	if (ACPI_FAILURE(Status))
-	    break;
-
 	switch (Function) {
 	case ACPI_READ:
 	    Status = EcRead(sc, EcAddr, &EcData);
@@ -805,11 +803,11 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	    Status = AE_BAD_PARAMETER;
 	    break;
 	}
-	EcUnlock(sc);
 	if (ACPI_FAILURE(Status))
 	    break;
     }
 
+    EcUnlock(sc);
     return_ACPI_STATUS (Status);
 }
 
@@ -821,7 +819,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     int		count, i, period, retval, slp_ival;
     static int	EcDbgMaxDelay;
 
-    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
+    ACPI_SERIAL_ASSERT(ec);
     Status = AE_NO_HARDWARE_RESPONSE;
 
     /* 
@@ -892,7 +890,7 @@ EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd)
     ACPI_STATUS	Status;
     EC_EVENT	Event;
 
-    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
+    ACPI_SERIAL_ASSERT(ec);
 
     /* Decide what to wait for based on command type. */
     switch (cmd) {
@@ -927,7 +925,7 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
+    ACPI_SERIAL_ASSERT(ec);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
@@ -964,7 +962,7 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 {
     ACPI_STATUS	Status;
 
-    sx_assert(&sc->ec_sxlock, SX_XLOCKED);
+    ACPI_SERIAL_ASSERT(ec);
 
 #ifdef notyet
     /* If we can't start burst mode, continue anyway. */
