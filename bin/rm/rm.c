@@ -95,11 +95,14 @@ main(int argc, char *argv[])
 	else
 		++p;
 	if (strcmp(p, "unlink") == 0) {
-		if (argc == 2) {
-			rm_file(&argv[1]);
-			exit(eval);
-		} else 
+		while (getopt(argc, argv, "") != -1)
 			usage();
+		argc -= optind;
+		argv += optind;
+		if (argc == 0)
+			usage();
+		rm_file(&argv[0]);
+		exit(eval);
 	}
 
 	Pflag = rflag = 0;
