@@ -165,6 +165,18 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Ultra-320 SCSI controllers based on the Adaptec AIC7901,
+      AIC7901A, and AIC7902 Ultra320 controller chips (&man.ahd.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
+        </listitem>
+        <listitem>
+	  <para>Adaptec 39320, 39320D</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Adaptec 2100S/32x0S/34x0S SCSI RAID
     controllers (&man.asr.4; driver)</para>
 
