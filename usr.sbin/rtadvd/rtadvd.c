@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: rtadvd.c,v 1.30 2000/06/22 20:16:12 itojun Exp $	*/
 
 /*
@@ -27,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
