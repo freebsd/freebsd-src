@@ -984,7 +984,6 @@ modifier_C(VarParser *vp, char value[], Var *v)
 {
 	VarPattern	patt;
 	char		delim;
-	char		*re;
 	int		error;
 	char		*newValue;
 
@@ -996,8 +995,8 @@ modifier_C(VarParser *vp, char value[], Var *v)
 
 	vp->ptr++;		/* consume 1st delim */
 
-	re = VarGetPattern(vp, delim, NULL, NULL, NULL);
-	if (re == NULL) {
+	patt.lhs = VarGetPattern(vp, delim, NULL, NULL, NULL);
+	if (patt.lhs == NULL) {
 		Fatal("Unclosed substitution for %s (%c missing)",
 		     v->name, delim);
 	}
@@ -1025,11 +1024,11 @@ modifier_C(VarParser *vp, char value[], Var *v)
 		break;
 	}
 
-	error = regcomp(&patt.re, re, REG_EXTENDED);
+	error = regcomp(&patt.re, patt.lhs, REG_EXTENDED);
 	if (error) {
 		VarREError(error, &patt.re, "RE substitution error");
 		free(patt.rhs);
-		free(re);
+		free(patt.lhs);
 		return (var_Error);
 	}
 
@@ -1045,7 +1044,7 @@ modifier_C(VarParser *vp, char value[], Var *v)
 	regfree(&patt.re);
 	free(patt.matches);
 	free(patt.rhs);
-	free(re);
+	free(patt.lhs);
 
 	return (newValue);
 }
