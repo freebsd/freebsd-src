@@ -1,9 +1,8 @@
 #
-#	$Id: Makefile,v 1.125 1997/05/13 18:11:38 peter Exp $
+#	$Id: Makefile,v 1.126 1997/05/21 19:41:16 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
-#	-DLOCAL_DIRS to add additional dirs to the SUBDIR list
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #	-DALLLANG to build documentation for all languages
 #	  (where available -- see share/doc/Makefile)
@@ -19,6 +18,7 @@
 #	-DNOSHARE do not go into share subdir
 #       -DNOINFO do not make or install info files
 #       -DNOLIBC_R do not build libc_r.
+#	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
 # The intended user-driven targets are:
