@@ -39,7 +39,7 @@ static const char rcsid[] =
 
 #include <dev/ofw/openfirm.h>
 
-#define	OFW_POLL_HZ	50
+#define	OFW_POLL_HZ	4
 
 static d_open_t		ofw_dev_open;
 static d_close_t	ofw_dev_close;
@@ -286,7 +286,7 @@ ofw_cons_checkc(dev_t dev)
 {
 	unsigned char ch;
 
-	if (OF_read(stdin, &ch, 1) != 0) {
+	if (OF_read(stdin, &ch, 1) > 0) {
 		return (ch);
 	}
 
