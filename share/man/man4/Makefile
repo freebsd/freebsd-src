@@ -109,7 +109,6 @@ MAN=	aac.4 \
 	kue.4 \
 	led.4 \
 	lge.4 \
-	lmc.4 \
 	lo.4 \
 	lomac.4 \
 	lp.4 \
