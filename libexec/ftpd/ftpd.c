@@ -871,7 +871,7 @@ sgetpwnam(name)
 
 static int login_attempts;	/* number of failed login attempts */
 static int askpasswd;		/* had user command, ask for passwd */
-static char curname[10];	/* current USER name */
+static char curname[MAXLOGNAME];	/* current USER name */
 
 /*
  * USER command.
