@@ -51,6 +51,7 @@
 #include <machine/sal.h>
 #include <machine/smp.h>
 #include <machine/fpu.h>
+#include <i386/include/specialreg.h>
 
 void ia64_ap_startup(void);
 
@@ -82,6 +83,12 @@ ia64_ap_startup(void)
 	    "r" (vhpt_base + (1<<8) + (vhpt_size<<2) + 1));
 
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+	/*
+	 * Set ia32 control registers.
+	 */
+	ia64_set_cflg((CR0_PE | CR0_PG)
+		      | ((long)(CR4_XMM | CR4_FXSR) << 32));
 
 	ap_awake = 1;
 	ap_delay = 0;

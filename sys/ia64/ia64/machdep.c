@@ -81,6 +81,7 @@
 #include <machine/inst.h>
 #include <machine/rse.h>
 #include <machine/unwind.h>
+#include <i386/include/specialreg.h>
 
 #ifdef SKI
 extern void ia64_ski_init(void);
@@ -671,6 +672,12 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	pcpu_init(pcpup, 0, PAGE_SIZE);
 	ia64_set_k4((u_int64_t) pcpup);
 	PCPU_SET(curthread, &thread0);
+
+	/*
+	 * Set ia32 control registers.
+	 */
+	ia64_set_cflg((CR0_PE | CR0_PG)
+		      | ((long)(CR4_XMM | CR4_FXSR) << 32));
 
 	/* We pretend to own FP state so that ia64_fpstate_check() works */
 	PCPU_SET(fpcurthread, &thread0);
