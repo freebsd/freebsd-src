@@ -27,19 +27,85 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 #include "mblocal.h"
 
 size_t
-mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
-    mbstate_t * __restrict ps)
+wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t nwc,
+    size_t len, mbstate_t * __restrict ps)
 {
 	static mbstate_t mbs;
 
 	if (ps == NULL)
 		ps = &mbs;
-	return (__mbsnrtowcs(dst, src, SIZE_T_MAX, len, ps));
+	return (__wcsnrtombs(dst, src, nwc, len, ps));
+}
+
+size_t
+__wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
+    size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	mbstate_t mbsbak;
+	char buf[MB_LEN_MAX];
+	const wchar_t *s;
+	size_t nbytes;
+	size_t nb;
+
+	s = *src;
+	nbytes = 0;
+
+	if (dst == NULL) {
+		while (nwc-- > 0) {
+			if ((nb = __wcrtomb(buf, *s, ps)) == (size_t)-1)
+				/* Invalid character - wcrtomb() sets errno. */
+				return ((size_t)-1);
+			else if (*s == L'\0')
+				break;
+			s++;
+			nbytes += nb;
+		}
+		return (nbytes + nb - 1);
+	}
+
+	while (len > 0 && nwc-- > 0) {
+		if (len > (size_t)MB_CUR_MAX) {
+			/* Enough space to translate in-place. */
+			if ((nb = (int)__wcrtomb(dst, *s, ps)) < 0) {
+				*src = s;
+				return ((size_t)-1);
+			}
+		} else {
+			/*
+			 * May not be enough space; use temp. buffer.
+			 *
+			 * We need to save a copy of the conversion state
+			 * here so we can restore it if the multibyte
+			 * character is too long for the buffer.
+			 */
+			mbsbak = *ps;
+			if ((nb = (int)__wcrtomb(buf, *s, ps)) < 0) {
+				*src = s;
+				return ((size_t)-1);
+			}
+			if (nb > (int)len) {
+				/* MB sequence for character won't fit. */
+				*ps = mbsbak;
+				break;
+			}
+			memcpy(dst, buf, nb);
+		}
+		if (*s == L'\0') {
+			*src = NULL;
+			return (nbytes + nb - 1);
+		}
+		s++;
+		dst += nb;
+		len -= nb;
+		nbytes += nb;
+	}
+	*src = s;
+	return (nbytes);
 }
