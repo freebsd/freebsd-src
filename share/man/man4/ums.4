@@ -51,10 +51,12 @@ or
 must be configured in the kernel as well.
 .Pp
 The /dev/ums device presents the mouse as a
-.Nm sysmouse
-type device, and can be used through
+.Ar sysmouse
+or
+.Ar mousesystems
+type device. See
 .Nm moused
-(see example below).
+for an explanation of these mouse types.
 .Sh FILES
 .Bl -tag -width /dev/ums0 -compact
 .It Pa /dev/ums0
@@ -81,17 +83,19 @@ to the following
 .Pp
 to be able to use the USB mouse under X. When using the XiG accelerated X
 server, change the mouse device to /dev/ums0 and the mouse type to
-Mouse Systems.
+"MouseSystems".
 .Pp
 If you want to be able to use the mouse in both virtual consoles as well
-as in X change the "Pointer" section in
-.Nm XF86Config
-to the following:
+as in X change it to:
 .Pp
 .Dl Device "/dev/sysmouse"
 .Dl Protocol "Auto"
 .Pp
-For XFree86 3.3.1 the mouse type should not be "Auto" but "MouseSystems".
+For XFree86 3.3.1 the entry should be:
+.Pp
+.Dl Device "/dev/sysmouse"
+.Dl Protocol "MouseSystems"
+.Pp
 .Sh SEE ALSO
 .Xr uhci 4 ,
 .Xr ohci 4 ,
