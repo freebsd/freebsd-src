@@ -46,20 +46,20 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/signal.h>
 #include <sys/sysctl.h>
-#include <stdlib.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <err.h>
-#include <stdio.h>
 #include <errno.h>
 #include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <signal.h>
 
 static int getstathz(void);
 static void humantime(FILE *, long, long);
@@ -70,14 +70,14 @@ static char decimal_point;
 int
 main(int argc, char **argv)
 {
-	int pid;
 	int aflag, ch, hflag, lflag, status, pflag;
-	struct timeval before, after;
+	int exitonsig;
+	pid_t pid;
 	struct rlimit rl;
 	struct rusage ru;
-	FILE *out = stderr;
+	struct timeval before, after;
 	char *ofn = NULL;
-	int exitonsig = 0; /* Die with same signal as child */
+	FILE *out = stderr;
 
 	(void) setlocale(LC_NUMERIC, "");
 	decimal_point = localeconv()->decimal_point[0];
@@ -132,8 +132,7 @@ main(int argc, char **argv)
 	gettimeofday(&after, (struct timezone *)NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
-	if (WIFSIGNALED(status))
-		exitonsig = WTERMSIG(status);
+	exitonsig = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
 	after.tv_sec -= before.tv_sec;
 	after.tv_usec -= before.tv_usec;
 	if (after.tv_usec < 0)
@@ -212,9 +211,14 @@ main(int argc, char **argv)
 		fprintf(out, "%10ld  %s\n",
 			ru.ru_nivcsw, "involuntary context switches");
 	}
+	/*
+	 * If the child has exited on a signal, exit on the same
+	 * signal, too, in order to reproduce the child's exit status.
+	 * However, avoid actually dumping core from the current process.
+	 */
 	if (exitonsig) {
 		if (signal(exitonsig, SIG_DFL) == SIG_ERR)
-			perror("signal");
+			warn("signal");
 		else {
 			rl.rlim_max = rl.rlim_cur = 0;
 			if (setrlimit(RLIMIT_CORE, &rl) == -1)
@@ -239,9 +243,9 @@ usage(void)
 static int
 getstathz(void)
 {
-	struct clockinfo clockrate;
 	int mib[2];
 	size_t size;
+	struct clockinfo clockrate;
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_CLOCKRATE;
