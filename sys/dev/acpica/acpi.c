@@ -790,7 +790,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * leave it disabled (so that we have a device_t attached to
 	     * the handle, but we don't probe it).
 	     */
-	    if (!acpi_DeviceIsPresent(child)) {
+	    if ((type == ACPI_TYPE_DEVICE) && (!acpi_DeviceIsPresent(child))) {
 		device_disable(child);
 		break;
 	    }
