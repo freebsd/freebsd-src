@@ -58,9 +58,20 @@ ${SUBDIR}::
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
-    depend distribute includes incsinstall lint maninstall \
+    depend distribute lint maninstall \
     obj objlink realinstall regress tags
 ${__target}: _SUBDIR
+.endfor
+
+.for __target in includes
+.for __stage in build install
+${__stage}${__target}:
+.if make(${__stage}${__target})
+${__stage}${__target}: _SUBDIR
+.endif
+.endfor
+${__target}:
+	cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endfor
 
 .if !target(install)

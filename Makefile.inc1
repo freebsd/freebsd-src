@@ -299,7 +299,7 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} includes; ${WMAKE} SHARED=symlinks incsinstall
+	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -749,7 +749,7 @@ _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
 
-.for __target in clean cleandepend cleandir depend obj
+.for __target in clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
 	@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
