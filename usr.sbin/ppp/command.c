@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.44 1997/10/24 23:15:37 brian Exp $
+ * $Id: command.c,v 1.24.2.45 1997/11/09 23:42:57 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -798,8 +798,6 @@ CloseCommand(struct cmdtab const * list, int argc, char **argv)
 {
   reconnect(RECON_FALSE);
   LcpClose();
-  if (mode & MODE_BACKGROUND)
-    Cleanup(EX_NORMAL);
   return 0;
 }
 
