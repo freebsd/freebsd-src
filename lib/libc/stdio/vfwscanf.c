@@ -148,6 +148,8 @@ __vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 	char *mbp;		/* multibyte string pointer for %c %s %[ */
 	size_t nconv;		/* number of bytes in mb. conversion */
 	char mbbuf[MB_LEN_MAX];	/* temporary mb. character buffer */
+	static const mbstate_t initial;
+	mbstate_t mbs;
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
@@ -379,16 +381,17 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
+				mbs = initial;
 				while (width != 0 &&
 				    (wi = __fgetwc(fp)) != WEOF) {
 					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, NULL);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    NULL);
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width) {
@@ -443,16 +446,17 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
+				mbs = initial;
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 && INCCL(wi)) {
 					if (width >= MB_CUR_MAX &&
 					   !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, NULL);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    NULL);
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
@@ -503,17 +507,18 @@ literal:
 			} else {
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
+				mbs = initial;
 				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 &&
 				    !iswspace(wi)) {
 					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, NULL);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
 						nconv = wcrtomb(mbbuf, wi,
-						    NULL);
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
