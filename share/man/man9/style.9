@@ -232,9 +232,11 @@ Avoid typedefs ending in
 except as specified in Standard C or by \*[Px].
 .Bd -literal
 /* Make the structure name match the typedef. */
-typedef struct bar {
+typedef	struct bar {
 	int	level;
 } BAR;
+typedef	int		foo;		/* This is foo. */
+typedef	const long	baz;		/* This is baz. */
 .Ed
 .Pp
 All functions are prototyped somewhere.
