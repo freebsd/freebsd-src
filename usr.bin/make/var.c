@@ -436,7 +436,7 @@ Var_Set(const char *name, const char *val, GNode *ctxt)
     if (v == NULL) {
 	VarAdd(n, val, ctxt);
     } else {
-	Buf_Discard(v->val, Buf_Size(v->val));
+	Buf_Clear(v->val);
 	Buf_AddBytes(v->val, strlen(val), (const Byte *)val);
 
 	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, val));

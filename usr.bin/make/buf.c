@@ -165,31 +165,6 @@ Buf_GetAll(Buffer *bp, size_t *numBytesPtr)
 
 /*-
  *-----------------------------------------------------------------------
- * Buf_Discard --
- *	Throw away bytes in a buffer.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The bytes are discarded.
- *
- *-----------------------------------------------------------------------
- */
-void
-Buf_Discard(Buffer *bp, size_t numBytes)
-{
-
-	if ((size_t)(bp->inPtr - bp->outPtr) <= numBytes) {
-		bp->inPtr = bp->outPtr = bp->buffer;
-		bp->left = bp->size;
-		*bp->inPtr = 0;
-	} else
-		bp->outPtr += numBytes;
-}
-
-/*-
- *-----------------------------------------------------------------------
  * Buf_Size --
  *	Returns the number of bytes in the given buffer. Doesn't include
  *	the null-terminating byte.
@@ -286,3 +261,13 @@ Buf_ReplaceLastByte(Buffer *buf, Byte byte)
 	else
 		*(buf->inPtr - 1) = byte;
 }
+
+void
+Buf_Clear(Buffer *bp)
+{
+	bp->inPtr	= bp->buffer;
+	bp->outPtr	= bp->buffer;
+	bp->left	= bp->size;
+	bp->inPtr[0]	= '\0';
+}
+
