@@ -13,19 +13,15 @@
  *      other than his own.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/file.h>
 #include <sys/time.h>
 #include <err.h>
 #include <errno.h>
 #include <langinfo.h>
 #include <locale.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,7 +52,7 @@ struct user_list {
 struct tty_list {
 	struct tty_list *next;
 	char	name[UT_LINESIZE+3];
-	int	len;
+	size_t	len;
 	int	ret;
 };
 
@@ -267,7 +263,7 @@ main(argc, argv)
 		 * initialize user list
 		 */
 		for (; optind < argc; optind++) {
-			Users = update_user(Users, argv[optind], 0L);
+			Users = update_user(Users, argv[optind], (time_t)0);
 		}
 		Flags |= AC_U;			/* freeze user list */
 	}
