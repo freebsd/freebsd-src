@@ -306,7 +306,7 @@ int enable_pnp_card(void);
 /*
  * used by autoconfigure to actually probe and attach drivers
  */
-void pnp_configure __P((void));
+void pnp_configure(void);
 
 #endif /* _KERNEL */
 

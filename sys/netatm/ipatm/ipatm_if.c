@@ -68,7 +68,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	ipatm_closenif __P((struct ip_nif *));
+static void	ipatm_closenif(struct ip_nif *);
 
 
 /*

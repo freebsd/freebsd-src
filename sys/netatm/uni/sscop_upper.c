@@ -67,7 +67,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static caddr_t	sscop_pdu_receive __P((KBuffer *, struct sscop *, int *));
+static caddr_t	sscop_pdu_receive(KBuffer *, struct sscop *, int *);
 
 
 /*
@@ -210,8 +210,8 @@ sscop_upper(cmd, tok, arg1, arg2)
 	int	arg2;
 {
 	struct sscop	*sop = (struct sscop *)tok;
-	void		(**ptab) __P((struct sscop *, KBuffer *, caddr_t));
-	void		(*func) __P((struct sscop *, KBuffer *, caddr_t));
+	void		(**ptab)(struct sscop *, KBuffer *, caddr_t);
+	void		(*func)(struct sscop *, KBuffer *, caddr_t);
 	caddr_t		trlr;
 	int		type;
 

@@ -53,27 +53,27 @@ struct ip_vccparm {
 struct ip_serv {
 /* Interfaces to IP/ATM interface services */
 	int		(*is_ifact)		/* Interface activation */
-				__P((struct ip_nif *));
+				(struct ip_nif *);
 	int		(*is_ifdact)		/* Interface deactivation */
-				__P((struct ip_nif *));
+				(struct ip_nif *);
 	int		(*is_ioctl)		/* Interface ioctl */
-				__P((int, caddr_t, caddr_t));
+				(int, caddr_t, caddr_t);
 
 /* Interfaces to IP/ATM ARP services */
 	int		(*is_arp_pvcopen)	/* IP creating dynamic PVC */
-				__P((struct ipvcc *));
+				(struct ipvcc *);
 	int		(*is_arp_svcout)	/* IP creating outgoing SVC */
-				__P((struct ipvcc *, struct in_addr *));
+				(struct ipvcc *, struct in_addr *);
 	int		(*is_arp_svcin)		/* IP creating incoming SVC */
-				__P((struct ipvcc *, Atm_addr *, Atm_addr *));
+				(struct ipvcc *, Atm_addr *, Atm_addr *);
 	int		(*is_arp_svcact)	/* IP SVC is active */
-				__P((struct ipvcc *));
+				(struct ipvcc *);
 	void		(*is_arp_close)		/* IP closing VCC */
-				__P((struct ipvcc *));
+				(struct ipvcc *);
 
 /* Interfaces to IP/ATM broadcast services */
 	int		(*is_bcast_output)	/* IP broadcast packet output */
-				__P((struct ip_nif *, KBuffer *));
+				(struct ip_nif *, KBuffer *);
 
 /* Interfaces to IP/ATM multicast services */
 

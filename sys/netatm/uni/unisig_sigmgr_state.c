@@ -69,21 +69,21 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	unisig_sigmgr_invalid __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act01 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act02 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act03 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act04 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act05 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act06 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act07 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act08 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act09 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act10 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act11 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act12 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act13 __P((struct unisig *, KBuffer *));
-static int	unisig_sigmgr_act14 __P((struct unisig *, KBuffer *));
+static int	unisig_sigmgr_invalid(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act01(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act02(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act03(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act04(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act05(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act06(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act07(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act08(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act09(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act10(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act11(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act12(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act13(struct unisig *, KBuffer *);
+static int	unisig_sigmgr_act14(struct unisig *, KBuffer *);
 
 
 /*
@@ -108,7 +108,7 @@ static int	sigmgr_state_table[10][7] = {
  */
 #define	MAX_ACTION	15
 static int (*unisig_sigmgr_act_vec[MAX_ACTION])
-		 __P((struct unisig *, KBuffer *)) = {
+		(struct unisig *, KBuffer *) = {
 	unisig_sigmgr_invalid,
 	unisig_sigmgr_act01,
 	unisig_sigmgr_act02,

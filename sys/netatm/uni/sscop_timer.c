@@ -66,15 +66,15 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	sscop_poll_expire __P((struct sscop *));
-static void	sscop_noresponse_expire __P((struct sscop *));
-static void	sscop_cc_expire __P((struct sscop *));
-static void	sscop_idle_expire __P((struct sscop *));
+static void	sscop_poll_expire(struct sscop *);
+static void	sscop_noresponse_expire(struct sscop *);
+static void	sscop_cc_expire(struct sscop *);
+static void	sscop_idle_expire(struct sscop *);
 
 /*
  * Local variables
  */
-static void	(*sscop_expired[SSCOP_T_NUM]) __P((struct sscop *)) = {
+static void	(*sscop_expired[SSCOP_T_NUM])(struct sscop *) = {
 	sscop_poll_expire,
 	sscop_noresponse_expire,
 	sscop_cc_expire,

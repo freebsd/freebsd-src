@@ -53,7 +53,7 @@ struct	unisig {
 	struct siginst	us_inst;	/* Header */
 	struct atm_time	us_time;	/* Timer controls */
 	void		(*us_lower)	/* Lower command handler */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	Atm_connection	*us_conn;	/* Signalling connection */
 	int		us_cref;	/* Call reference allocation */
 	u_int		us_retry;	/* Protocol retry count */
@@ -215,100 +215,100 @@ struct usfmt;
 struct unisig_msg;
 
 	/* unisig_decode.c */
-int		usf_dec_msg __P((struct usfmt *, struct unisig_msg *));
+int		usf_dec_msg(struct usfmt *, struct unisig_msg *);
 
 	/* unisig_encode.c */
-int		usf_enc_msg __P((struct usfmt *, struct unisig_msg *));
+int		usf_enc_msg(struct usfmt *, struct unisig_msg *);
 
 	/* unisig_if.c */
-int		unisig_start __P((void));
-int		unisig_stop __P((void));
-int		unisig_free __P((struct vccb *));
+int		unisig_start(void);
+int		unisig_stop(void);
+int		unisig_free(struct vccb *);
 
 	/* unisig_mbuf.c */
-int		usf_init __P((struct usfmt *, struct unisig *, KBuffer *, int, int));
-int		usf_byte __P((struct usfmt *, u_char *));
-int		usf_short __P((struct usfmt *, u_short *));
-int		usf_int3 __P((struct usfmt *, u_int *));
-int		usf_int __P((struct usfmt *, u_int *));
-int		usf_ext __P((struct usfmt *, u_int *));
-int		usf_count __P((struct usfmt *));
-int		usf_byte_mark __P((struct usfmt *, u_char *, u_char **));
+int		usf_init(struct usfmt *, struct unisig *, KBuffer *, int, int);
+int		usf_byte(struct usfmt *, u_char *);
+int		usf_short(struct usfmt *, u_short *);
+int		usf_int3(struct usfmt *, u_int *);
+int		usf_int(struct usfmt *, u_int *);
+int		usf_ext(struct usfmt *, u_int *);
+int		usf_count(struct usfmt *);
+int		usf_byte_mark(struct usfmt *, u_char *, u_char **);
 
 	/* unisig_msg.c */
 struct		ie_generic;
-void		unisig_cause_from_attr __P((struct ie_generic *,
-				Atm_attributes *));
-void		unisig_cause_from_msg __P((struct ie_generic *,
-				struct unisig_msg *, int));
-int		unisig_send_msg __P((struct unisig *,
-				struct unisig_msg *));
-int		unisig_send_setup __P((struct unisig *,
-				struct unisig_vccb *));
-int		unisig_send_release __P((struct unisig *,
+void		unisig_cause_from_attr(struct ie_generic *,
+				Atm_attributes *);
+void		unisig_cause_from_msg(struct ie_generic *,
+				struct unisig_msg *, int);
+int		unisig_send_msg(struct unisig *,
+				struct unisig_msg *);
+int		unisig_send_setup(struct unisig *,
+				struct unisig_vccb *);
+int		unisig_send_release(struct unisig *,
 				struct unisig_vccb *,
 				struct unisig_msg *,
-				int));
-int		unisig_send_release_complete __P((struct unisig *,
+				int);
+int		unisig_send_release_complete(struct unisig *,
 				struct unisig_vccb *,
 				struct unisig_msg *,
-				int));
-int		unisig_send_status __P((struct unisig *,
+				int);
+int		unisig_send_status(struct unisig *,
 				struct unisig_vccb *,
 				struct unisig_msg *,
-				int));
-int		unisig_rcv_msg __P((struct unisig *, KBuffer *));
+				int);
+int		unisig_rcv_msg(struct unisig *, KBuffer *);
 
 	/* unisig_print.c */
-void		usp_print_msg __P((struct unisig_msg *, int));
+void		usp_print_msg(struct unisig_msg *, int);
 
 	/* unisig_proto.c */
-void		unisig_timer __P((struct atm_time *));
-void		unisig_vctimer __P((struct atm_time *));
-void		unisig_saal_ctl __P((int, void *, void *));
-void		unisig_saal_data __P((void *, KBuffer *));
-caddr_t		unisig_getname __P((void *));
-void		unisig_connected __P((void *));
-void		unisig_cleared __P((void *, struct t_atm_cause *));
+void		unisig_timer(struct atm_time *);
+void		unisig_vctimer(struct atm_time *);
+void		unisig_saal_ctl(int, void *, void *);
+void		unisig_saal_data(void *, KBuffer *);
+caddr_t		unisig_getname(void *);
+void		unisig_connected(void *);
+void		unisig_cleared(void *, struct t_atm_cause *);
 
 	/* unisig_sigmgr_state.c */
-int		unisig_sigmgr_state __P((struct unisig *, int,
-				KBuffer *));
+int		unisig_sigmgr_state(struct unisig *, int,
+				KBuffer *);
 
 	/* unisig_subr.c */
-void		unisig_cause_attr_from_user __P((Atm_attributes *, int));
-void		unisig_cause_attr_from_ie __P((Atm_attributes *,
-				struct ie_generic *));
-int		unisig_open_vcc __P((struct unisig *, Atm_connvc *));
-int		unisig_close_vcc __P((struct unisig *,
-				struct unisig_vccb *));
-int		unisig_clear_vcc __P((struct unisig *,
-				struct unisig_vccb *, int));
-void		unisig_switch_reset __P((struct unisig *, int));
-void		unisig_save_attrs __P((struct unisig *, struct unisig_msg *,
-				Atm_attributes *));
-int		unisig_set_attrs __P((struct unisig *, struct unisig_msg *,
-				Atm_attributes *));
+void		unisig_cause_attr_from_user(Atm_attributes *, int);
+void		unisig_cause_attr_from_ie(Atm_attributes *,
+				struct ie_generic *);
+int		unisig_open_vcc(struct unisig *, Atm_connvc *);
+int		unisig_close_vcc(struct unisig *,
+				struct unisig_vccb *);
+int		unisig_clear_vcc(struct unisig *,
+				struct unisig_vccb *, int);
+void		unisig_switch_reset(struct unisig *, int);
+void		unisig_save_attrs(struct unisig *, struct unisig_msg *,
+				Atm_attributes *);
+int		unisig_set_attrs(struct unisig *, struct unisig_msg *,
+				Atm_attributes *);
 
 	/* unisig_util.c */
-void		unisig_free_msg __P((struct unisig_msg *));
-int		unisig_verify_vccb __P((struct unisig *,
-				struct unisig_vccb *));
+void		unisig_free_msg(struct unisig_msg *);
+int		unisig_verify_vccb(struct unisig *,
+				struct unisig_vccb *);
 struct unisig_vccb *
-		unisig_find_conn __P((struct unisig *, u_int));
+		unisig_find_conn(struct unisig *, u_int);
 struct unisig_vccb *
-		unisig_find_vpvc __P((struct unisig *, int, int,
-				u_char));
-int		unisig_alloc_call_ref __P((struct unisig *));
-char *		unisig_addr_print __P((Atm_addr *));
-void		unisig_print_mbuf __P((KBuffer *));
-void		unisig_print_buffer __P((KBuffer *));
+		unisig_find_vpvc(struct unisig *, int, int,
+				u_char);
+int		unisig_alloc_call_ref(struct unisig *);
+char *		unisig_addr_print(Atm_addr *);
+void		unisig_print_mbuf(KBuffer *);
+void		unisig_print_buffer(KBuffer *);
 
 	/* unisig_vc_state.c */
-int		unisig_vc_state __P((struct unisig *,
+int		unisig_vc_state(struct unisig *,
 				struct unisig_vccb *,
 				int,
-				struct unisig_msg *));
+				struct unisig_msg *);
 
 
 /*

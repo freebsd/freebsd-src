@@ -66,8 +66,8 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	uniarp_svc_oldage __P((struct uniarp *));
-static void	uniarp_pvc_oldage __P((struct uniarp *));
+static void	uniarp_svc_oldage(struct uniarp *);
+static void	uniarp_pvc_oldage(struct uniarp *);
 
 
 /*

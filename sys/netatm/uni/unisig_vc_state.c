@@ -68,74 +68,74 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	unisig_vc_invalid __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act01 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act02 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act03 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act04 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act05 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act06 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act07 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act08 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act09 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act10 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act11 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act12 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act13 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act14 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act15 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act16 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act17 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act18 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act19 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act20 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act21 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act22 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act23 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act24 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act25 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act26 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act27 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act28 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act29 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act30 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_act31 __P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *));
-static int	unisig_vc_clear_call __P((struct unisig *,
+static int	unisig_vc_invalid(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act01(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act02(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act03(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act04(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act05(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act06(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act07(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act08(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act09(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act10(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act11(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act12(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act13(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act14(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act15(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act16(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act17(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act18(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act19(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act20(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act21(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act22(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act23(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act24(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act25(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act26(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act27(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act28(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act29(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act30(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_act31(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *);
+static int	unisig_vc_clear_call(struct unisig *,
 			struct unisig_vccb *,
 			struct unisig_msg *,
-			int));
+			int);
 
 
 /*
@@ -176,8 +176,8 @@ static int	unisig_vc_states[21][17] = {
  */
 #define	MAX_ACTION	32
 static int (*unisig_vc_act_vec[MAX_ACTION])
-		__P((struct unisig *, struct unisig_vccb *,
-			struct unisig_msg *)) = {
+		(struct unisig *, struct unisig_vccb *,
+			struct unisig_msg *) = {
 	unisig_vc_invalid,
 	unisig_vc_act01,	
 	unisig_vc_act02,

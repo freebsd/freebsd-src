@@ -69,8 +69,8 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	unisig_rcv_restart __P((struct unisig *, struct unisig_msg *));
-static void	unisig_rcv_setup __P((struct unisig *, struct unisig_msg *));
+static void	unisig_rcv_restart(struct unisig *, struct unisig_msg *);
+static void	unisig_rcv_setup(struct unisig *, struct unisig_msg *);
 
 
 /*
