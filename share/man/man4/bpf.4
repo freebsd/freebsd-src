@@ -20,7 +20,7 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
-.\"	$Id$
+.\"	$Id: bpf.4,v 1.5 1996/10/05 18:37:21 wosch Exp $
 .\"
 .Dd January 16, 1996
 .Dt BPF 4
@@ -115,6 +115,8 @@ Additionally,
 and
 .Dv BIOCSETIF
 require
+.Aq Pa sys/socket.h
+and
 .Aq Pa net/if.h .
 
 In addition to
