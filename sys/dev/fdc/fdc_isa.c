@@ -65,7 +65,6 @@ fdc_isa_probe(device_t dev)
 	struct	fdc_data *fdc;
 
 	fdc = device_get_softc(dev);
-	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
 	fdc->fdctl_wr = fdctl_wr_isa;
 
