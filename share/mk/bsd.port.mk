@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.81 1994/12/14 05:53:09 ache Exp $
+# $Id: bsd.port.mk,v 1.82 1994/12/17 01:58:11 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -121,6 +121,9 @@ PKGDIR?=		${.CURDIR}/pkg
 PREFIX?=		${X11BASE}
 .else
 PREFIX?=		/usr/local
+.endif
+.if defined(USE_GMAKE)
+DEPENDS+=               ${PORTSDIR}/devel/gmake
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
