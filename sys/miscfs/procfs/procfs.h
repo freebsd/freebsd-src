@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.23 1999/04/28 11:37:18 phk Exp $
+ *	$Id: procfs.h,v 1.24 1999/04/30 13:04:20 phk Exp $
  */
 
 /*
@@ -94,10 +94,11 @@ struct pfsnode {
  */
 #define CHECKIO(p1, p2) \
      (PRISON_CHECK(p1, p2) && \
-       (((p1)->p_cred->pc_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
+       ((((p1)->p_cred->pc_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_ruid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_svuid == (p2)->p_cred->p_ruid) && \
-       ((p2)->p_flag & P_SUGID) == 0) || (suser((p1)) == 0))
+       ((p2)->p_flag & P_SUGID) == 0) || \
+       (suser_xxx(0, (p1), PRISON_ROOT) == 0)))
       
 /*
  * Format of a directory entry in /proc, ...
