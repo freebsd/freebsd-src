@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_update.c,v 8.39 1999/10/15 19:48:59 vixie Exp $";
+static const char rcsid[] = "$Id: db_update.c,v 8.45 2000/12/23 08:14:36 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_update.c,v 8.39 1999/10/15 19:48:59 vixie E
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -168,10 +168,6 @@ findMyZone(struct namebuf *np, int class) {
 	/* The cache has not yet been primed. */
 	return (DB_Z_CACHE);
 }
-
-
-#define ISVALIDGLUE(xdp) ((xdp)->d_type == T_NS || (xdp)->d_type == T_A \
-			 || (xdp)->d_type == T_AAAA)
 
 /* int
  * db_update(name, odp, newdp, savedpp, flags, htp, from)
@@ -587,16 +583,17 @@ db_update(const char *name,
 					goto delete;
 				if (dp->d_type == T_CNAME &&
 				    !NS_OPTION_P(OPTION_MULTIPLE_CNAMES) &&
-				    db_cmp(dp, odp) != 0)
+				    db_cmp(dp, odp) != 0) {
 					if ((flags & DB_REPLACE) == 0 &&
 					     zones[dp->d_zone].z_type ==
 							Z_PRIMARY) {
-						ns_info(ns_log_db,
+						ns_warning(ns_log_db,
 						      "%s has multiple CNAMES",
-							name);
+							   name);
 						return (CNAMEANDOTHER);
 					} else
 						goto delete;
+				}
 #if 0
 /* BEW - this _seriously_ breaks DNSSEC.  Is it necessary for dynamic update? */
 #ifdef BIND_UPDATE
@@ -755,10 +752,9 @@ db_update(const char *name,
 	ns_debug(ns_log_db, 3, "db_update: adding%s %#x",
 		 (newdp->d_flags&DB_F_HINT) ? " hint":"", newdp);
 
-	if (NS_OPTION_P(OPTION_HOSTSTATS) &&
-	    newdp->d_zone == DB_Z_CACHE &&
+	if (newdp->d_zone == DB_Z_CACHE &&
 	    (newdp->d_flags & DB_F_HINT) == 0)
-		newdp->d_ns = nameserFind(from.sin_addr, NS_F_INSERT);
+		newdp->d_addr = from.sin_addr;
 
 	/* Add to end of list, generally preserving order */
 	newdp->d_next = NULL;
@@ -941,10 +937,8 @@ db_cmp(const struct databuf *dp1, const struct databuf *dp2) {
 		cp1 += t1; cp2 += t2;
 
 		/* Replacement */
-		t1 = strlen((char *)cp1); t2 = strlen((char *)cp2);
-		if (t1 != t2 || memcmp(cp1, cp2, t1))
+		if (ns_samename((char *)cp1, (char *)cp2) != 1)
 			return (1);
-		cp1 += t1 + 1; cp2 += t2 + 1;
 
 		/* they all checked out! */
 		return (0);

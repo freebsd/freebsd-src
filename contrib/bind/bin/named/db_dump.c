@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: db_dump.c,v 8.40 1999/10/13 16:39:01 vixie Exp $";
+static const char rcsid[] = "$Id: db_dump.c,v 8.48 2000/12/23 08:14:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static const char rcsid[] = "$Id: db_dump.c,v 8.40 1999/10/13 16:39:01 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -125,15 +125,20 @@ static const char rcsid[] = "$Id: db_dump.c,v 8.40 1999/10/13 16:39:01 vixie Exp
 
 #include "named.h"
 
+#ifdef HITCOUNTS
+u_int32_t	db_total_hits;
+#endif /* HITCOUNTS */
+
 static const char	*MkCredStr(int);
+
+static int fwd_dump(FILE *fp);
 
 /*
  * Dump current data base in a format similar to RFC 883.
  */
 
 void
-doadump()
-{
+doadump(void) {
 	FILE *fp;
 
 	ns_notice(ns_log_db, "dumping nameserver data");
@@ -141,9 +146,15 @@ doadump()
 	if ((fp = write_open(server_options->dump_filename)) == NULL)
 		return;
 	gettime(&tt);
+#ifdef HITCOUNTS
+	if (NS_OPTION_P(OPTION_HITCOUNT))
+		fprintf(fp, "; Total hits: %d\n",db_total_hits);
+#endif /* HITCOUNTS */
 	fprintf(fp, "; Dumped at %s", ctimel(tt.tv_sec));
 	if (zones != NULL && nzones != 0)
 		zt_dump(fp);
+	if (fwddata != NULL && fwddata_count != 0)
+		fwd_dump(fp);
 	fputs(
 "; Note: Cr=(auth,answer,addtnl,cache) tag only shown for non-auth RR's\n",
 	      fp);
@@ -200,6 +211,19 @@ zt_dump(FILE *fp) {
 				inet_ntoa(zp->z_axfr_src));
 	}
 	fprintf(fp, ";; --zone table--\n");
+	return (0);
+}
+
+static int
+fwd_dump(FILE *fp) {
+	int i;
+	fprintf(fp, ";; ++forwarders table++\n");
+	for (i=0;i<fwddata_count;i++) {
+		fprintf(fp,"; %s rtt=%d\n",
+			inet_ntoa(fwddata[i]->fwdaddr.sin_addr),
+			fwddata[i]->nsdata->d_nstime);
+	}
+	fprintf(fp, ";; --forwarders table--\n");
 	return (0);
 }
 
@@ -276,9 +300,9 @@ db_dump(struct hashbuf *htp, FILE *fp, int zone, char *origin) {
 				    fprintf(fp, "%d\t",
 					(int)(dp->d_ttl - tt.tv_sec));
 			} else if (dp->d_ttl != USE_MINIMUM)
-				fprintf(fp, "%d\t", (int)dp->d_ttl);
+				fprintf(fp, "%u\t", dp->d_ttl);
 			else
-				fprintf(fp, "%d\t",
+				fprintf(fp, "%u\t",
 				        zones[dp->d_zone].z_minimum);
 			fprintf(fp, "%s\t%s\t",
 				p_class(dp->d_class),
@@ -457,18 +481,18 @@ db_dump(struct hashbuf *htp, FILE *fp, int zone, char *origin) {
 				NS_GET16(preference, cp);
 				fprintf(fp, "%u", preference);
 
-				if ((n = *cp++) != 0) {
-					fprintf(fp, "\"%.*s\"", (int)n, cp);
-					cp += n;
-				}
-				if ((n = *cp++) != 0) {
-					fprintf(fp, "\"%.*s\"", (int)n, cp);
-					cp += n;
-				}
-				if ((n = *cp++) != 0) {
-					fprintf(fp, " \"%.*s\"", (int)n, cp);
-					cp += n;
-				}
+				n = *cp++;
+				fprintf(fp, "\"%.*s\"", (int)n, cp);
+				cp += n;
+
+				n = *cp++;
+				fprintf(fp, "\"%.*s\"", (int)n, cp);
+				cp += n;
+
+				n = *cp++;
+				fprintf(fp, " \"%.*s\"", (int)n, cp);
+				cp += n;
+
 				fprintf(fp, " %s.", cp);
 
 				break;
@@ -613,18 +637,24 @@ db_dump(struct hashbuf *htp, FILE *fp, int zone, char *origin) {
 				getname(np, dname, sizeof(dname));
 				when = db_lame_find(dname, dp);
 				if (when != 0 && when > tt.tv_sec) {
-					fprintf(fp, "%sLAME=%d",
+					fprintf(fp, "%sLAME=%ld",
 						sep, when - tt.tv_sec);
 					sep = " ";
 				}
 			}
 
  eoln:
-			if (dp->d_ns != NULL){
+			if (dp->d_addr.s_addr != htonl(0)) {
 				fprintf(fp, "%s[%s]",
-					sep, inet_ntoa(dp->d_ns->addr));
+					sep, inet_ntoa(dp->d_addr));
 				sep = " ";
 			}
+#ifdef HITCOUNTS
+			if (NS_OPTION_P(OPTION_HITCOUNT)) {
+				fprintf(fp, "%shits=%d", sep, dp->d_hitcnt);
+				sep=" ";
+			}
+#endif /* HITCOUNTS */
 			putc('\n', fp);
 		}
 	    }

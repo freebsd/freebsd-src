@@ -1,10 +1,10 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.51 1999/11/12 05:29:18 vixie Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.63 2000/12/23 08:14:41 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,6 +25,7 @@ static char rcsid[] = "$Id: ns_parser.y,v 8.51 1999/11/12 05:29:18 vixie Exp $";
 #include "port_before.h"
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -70,10 +71,10 @@ static int should_install;
 
 static options current_options;
 static int seen_options;
+static int logged_options_error;
 
 static controls current_controls;
 
-static topology_config current_topology;
 static int seen_topology;
 
 static server_config current_server;
@@ -131,6 +132,7 @@ int yyparse();
 %token			T_DIRECTORY T_PIDFILE T_NAMED_XFER
 %token			T_DUMP_FILE T_STATS_FILE T_MEMSTATS_FILE
 %token			T_FAKE_IQUERY T_RECURSION T_FETCH_GLUE 
+%token			T_HITCOUNT
 %token			T_QUERY_SOURCE T_LISTEN_ON T_PORT T_ADDRESS
 %token			T_RRSET_ORDER T_ORDER T_NAME T_CLASS
 %token			T_CONTROLS T_INET T_UNIX T_PERM T_OWNER T_GROUP T_ALLOW
@@ -142,7 +144,7 @@ int yyparse();
 %token			T_DATASIZE T_STACKSIZE T_CORESIZE
 %token			T_DEFAULT T_UNLIMITED
 %token			T_FILES T_VERSION
-%token			T_HOSTSTATS T_DEALLOC_ON_EXIT
+%token			T_HOSTSTATS T_HOSTSTATSMAX T_DEALLOC_ON_EXIT
 %token			T_TRANSFERS_IN T_TRANSFERS_OUT T_TRANSFERS_PER_NS
 %token			T_TRANSFER_FORMAT T_MAX_TRANSFER_TIME_IN
 %token			T_SERIAL_QUERIES T_ONE_ANSWER T_MANY_ANSWERS
@@ -349,6 +351,11 @@ option: /* Empty */
 		set_global_boolean_option(current_options,
 			OPTION_NOFETCHGLUE, !$2);
 	}
+	| T_HITCOUNT yea_or_nay
+	{
+		set_global_boolean_option(current_options, 
+			OPTION_HITCOUNT, $2);
+	}
 	| T_NOTIFY yea_or_nay
 	{
 		set_global_boolean_option(current_options, 
@@ -375,8 +382,6 @@ option: /* Empty */
 	}
 	| T_HAS_OLD_CLIENTS yea_or_nay
 	{
-		set_global_boolean_option(current_options,
-					  OPTION_MAINTAIN_IXFR_BASE, $2);
 		set_global_boolean_option(current_options,
 					  OPTION_NORFC2308_TYPE1, $2);
 		set_global_boolean_option(current_options,
@@ -531,7 +536,11 @@ option: /* Empty */
 	{
 		current_options->stats_interval = $2 * 60;
 	}
-	| T_MAX_LOG_SIZE_IXFR L_NUMBER
+	| T_HOSTSTATSMAX L_NUMBER
+	{
+		current_options->max_host_stats = $2;
+	}
+	| T_MAX_LOG_SIZE_IXFR size_spec
 	{
 		current_options->max_log_size_ixfr = $2;
 	}
@@ -589,7 +598,9 @@ control: /* Empty */
 	}
 	| T_UNIX L_QSTRING T_PERM L_NUMBER T_OWNER L_NUMBER T_GROUP L_NUMBER
 	{
+#ifndef NO_SOCKADDR_UN
 		ns_ctl_add(&current_controls, ns_ctl_new_unix($2, $4, $6, $8));
+#endif
 	}
 	| error
 	;
@@ -960,6 +971,8 @@ logging_opt: T_CATEGORY category
 							     chan_name, NULL,
 							     chan_versions,
 							     chan_max_size);
+				log_set_file_owner(current_channel,
+						   user_id, group_id);
 				freestr(chan_name);
 				chan_name = NULL;
 				break;
@@ -1122,7 +1135,6 @@ channel_name: any_string
 channel: channel_name
 	{
 		log_channel channel;
-		symbol_value value;
 
 		if (current_category >= 0) {
 			channel = lookup_channel($1);
@@ -1459,9 +1471,11 @@ zone_stmt: T_ZONE L_QSTRING optional_class
 		symbol_value value;
 		char *zone_name;
 
-		if (!seen_options)
+		if (!seen_options && !logged_options_error) {
 			parser_error(0,
              "no options statement before first zone; using previous/default");
+			logged_options_error = 1;
+		}
 		sym_type = SYM_ZONE | ($3 & 0xffff);
 		value.pointer = NULL;
 		zone_name = canonical_name($2);
@@ -1553,17 +1567,17 @@ zone_option: T_TYPE zone_type
 				       "zone filename already set; skipping");
 	}
 	| T_FILE_IXFR L_QSTRING
-    {
-                if (!set_zone_ixfr_file(current_zone, $2))
-                        parser_warning(0,
-                                       "zone ixfr data base already set; skipping");
-    }
+	{
+		if (!set_zone_ixfr_file(current_zone, $2))
+			parser_warning(0,
+				       "zone ixfr data base already set; skipping");
+	}
 	| T_IXFR_TMP L_QSTRING
-    {
-                if (!set_zone_ixfr_tmp(current_zone, $2))
-                        parser_warning(0,
-                                       "zone ixfr temp filename already set; skipping");
-    }
+	{
+		if (!set_zone_ixfr_tmp(current_zone, $2))
+			parser_warning(0,
+				       "zone ixfr temp filename already set; skipping");
+	}
 	| T_MASTERS maybe_zero_port '{' master_in_addr_list '}'
 	{
 		set_zone_master_port(current_zone, $2);
@@ -1613,7 +1627,7 @@ zone_option: T_TYPE zone_type
 			parser_warning(0,
 		       "zone max transfer time (in) already set; skipping");
 	}
-	| T_MAX_LOG_SIZE_IXFR L_NUMBER
+	| T_MAX_LOG_SIZE_IXFR size_spec
 	{
 		set_zone_max_log_size_ixfr(current_zone, $2);
         }
@@ -1870,6 +1884,7 @@ define_builtin_channels() {
 static void
 parser_setup() {
 	seen_options = 0;
+	logged_options_error = 0;
 	seen_topology = 0;
 	symtab = new_symbol_table(SYMBOL_TABLE_SIZE, NULL);
 	if (authtab != NULL)
@@ -1939,13 +1954,16 @@ define_key(char *name, struct dst_key *dst_key) {
 	dprint_key_info(dst_key);
 }
 
-void
+time_t
 parse_configuration(const char *filename) {
 	FILE *config_stream;
+	struct stat sb;
 
 	config_stream = fopen(filename, "r");
 	if (config_stream == NULL)
 		ns_panic(ns_log_parser, 0, "can't open '%s'", filename);
+	if (fstat(fileno(config_stream), &sb) == -1)
+		ns_panic(ns_log_parser, 0, "can't stat '%s'", filename);
 
 	lexer_setup();
 	parser_setup();
@@ -1953,6 +1971,7 @@ parse_configuration(const char *filename) {
 	(void)yyparse();
 	lexer_end_file();
 	parser_cleanup();
+	return (sb.st_mtime);
 }
 
 void

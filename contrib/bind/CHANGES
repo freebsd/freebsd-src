@@ -1,16 +1,587 @@
-	--- 8.2.2-P7 released ---
+	--- 8.2.3-REL released ---
+
+1139.	[bug]		inet_{net_,}ntop() had an off-by-one error.
+
+1138.	[bug]		purge_nonglue() should only be fatal on master
+			servers.
+
+1138.	[port]		add include/errs.h to various ports.
+			winnt: #1130 caused linkage failures.
+
+	--- 8.2.3-RC5 released ---
+
+1137.	[bug]		rfc1034 escape sequences not processed when replaying
+			updates.
+
+1136.	[port]		winnt: named nolonger creates resolv.conf.
+
+1135.	[bug]		fixup from #1130/1132.
+
+1134.	[port]		winnt: SIOCGIFADDR, SIOCGIFFLAGS, SIOCGIFDSTADDR and
+			mkstemp() fixes.
+
+1133.	[bug]		sorting of SIG/non-SIG records prior to rrset ordering
+			of was broken.
+
+	--- 8.2.3-RC4 released ---
+
+1132.	[lint]		more #1130.
+
+1131.	[support]	TTL 0 is now allowed in zone files.
+
+1130.	[lint]		massive, massive delinting from "gcc -Wall".
+
+1129.	[support]	"max_log_size_ixfr" is now a scaled number (4m, etc).
+
+1128.	[contrib]	updated mdnkit.
+
+1127.	[port]		winnt: support for more interfaces, dnskeygen.
+
+1126.	[bug]		resolver: close cached file descriptors when socket()
+			fails.
+
+1125.	[bug]		when ns_addr_list is rotated, rotate cached file
+			descriptors.
+
+1124.	[bug]		the select() timeout was not always being correctly
+			computed.
+
+1123.	[bug]		changes to ns_addr_list were not being reflected into
+			our private copy.
+
+1122.	[port]		sco: DESTRUN and DESTSBIN can't be the same.
+
+1121.	[cleanup]	re-word "server is ??? priming" status message.
+
+1120.	[bug]		more #1108 fine tuning.
+
+1119.	[bug]		"delete all" RRs were not being printed correctly.
+
+1118.	[port]		winnt: always install the named executable
+
+1117.	[port]		linux: turn off returning ICMP port unreachables.
+
+1116.	[bug]		minor tweak to #1108
+
+1115.	[bug]		fail if tsig transfers are requested but we can't
+			communicate the keys to named-xfer.
+
+1114.	[bug]		remove extraneous semi-colon from ns_parser.y
+
+	--- 8.2.3-T9B released ---
+
+1113.	[support]	show config file name and age in "ndc status"
+
+1112.	[support]	"ndc status" no longer mentions loading of config.
+
+1111.	[port]		some versions of sunos don't have _POSIX_PATH_MAX
+
+1110.	[bug]		zones with Null keys at delegation incorreclty rejected.
+
+1109.	[support]	named-xfer was bombing on non-TSIG'd zones
+
+1108.	[support]	ignore queries that come in during long synch ops
+
+1107.	[func]		allow the default syslog facility to be set by
+			adding -DISC_FACILITY=<value> to CDEBUG in Makefile.set.
+
+1106.	[func]		host statistics can now be cleared after they are
+			dumped.  Use "ndc stats clear".
+
+1105.	[func]		host-statistics-max can be used to set a upper bound
+			on the number hosts we collect statistics against.
+
+1104.	[func]		the source of a record is no longer dependent on
+			setting "host-statistics yes;"
+
+1103.	[doc]		winnt: updated port specific notes.
+
+1102.	[port]		winnt: BINDctrl fixes
+
+1101.	[port]		winnt: install fixes
+
+1100.	[bug]		named-xfer some memory allocations were not checked.
+
+1099.	[bug]		more missing INIT_LINK's.
+
+1098.	[support]	force gmake to fail if the sub-shell fails.
+
+1097.	[port]		winnt: lower the logging level so that BINDCtrl status
+			checks do not cause the eventlog to fillup.
+
+1096.	[bug]		don't pass '-i' to named-xfer unless we are going
+			to attempt a IXFR.
+			
+1095.	[bug]		dig: report missing arguements.
+
+1094.	[port]		winnt: more cylink fixes, updated install.
+
+1093.	[bug]		winnt: build lib cylink correctly
+
+1092.	[cleanup]	winnt: snmpmib.c is nolonger required
+
+1091.	[support]	winnt: workout the install directory.
+
+1090.	[bug]		winnt: install was copying old over new.
+
+1089.	[bug]		winnt: fix copyright for nameserver.c
+			winnt: snmpmib.c not needed in libbind.dsp
+
+1088.	[bug]		#1053 still contained NAPTR problems.
+
+	--- 8.2.3-T8B released ---
+
+1087.	[port]		sunos/gcc _POSIX_PATH_MAX isn't defined when it should
+			be.
+
+1086.	[doc]		malformed man page for heap.
+
+1085.	[bug]		ixfr responses to zones we don't server were malformed.
+
+1084.	[bug]		INIT_LINK before APPEND in four more places.
+
+1083.	[support]	only log "no options before zone" config error
+			before FIRST zone [kjd].
+
+1082.	[bug]		have client-side IXFR work in single answer mode [kjd].
+
+1081.	[bug]		have server-side IXFR work in single answer mode [kjd].
+
+1080.	[support]	still do IXFR's even when a file name is not specified
+			for zone [kjd].
+
+1079.	[support]	need to have a file name for a hints zone [kjd].
+
+1078.	[port]		WinNT interface enumeration fixes from Danny Mayer.
+
+1077.	[support]	format string audit.
+
+1076.	[port]		now recognize RH7.0's "strndup()"
+
+1075.	[contrib]	add contrib/resparse-1.3 [Henning Schulzrinne @CU]
+
+1074.	[support]	INSIST that lists are correctly managed.
+
+1073.	[port]		Win/NT port work from Danny Mayer.  Dig, host and
+			nslookup have been added.
+
+1072.	[port]		work around a gcc bug on solaris.
+
+1071.	[bug]		memory leak in res_nsendsigned().
+
+1070.	[bug]		We were accepting non syntactically valis SOA records.
+
+1069.	[port]		movefile() is now part of libbind as isc_movefile(),
+			remaining rename() calls converted to isc_movefile().
+
+1068.	[bug]		purge the zone from memory if an error is detected
+			on loading.
+
+1067.	[bug]		reload the parent zone if loading the child zone fails,
+			the parent zone may otherwise be corrupted.
+
+1066.	[bug]		refresh/retry timer need to be reset after IXFR
+
+1065.	[bug]		IXFR change list could be freed to early.
+
+1064.	[bug]		unchecked memget in sx_send_ixfr().
+
+1063.	[bug]		fix #1041 was incomplete. 
+
+1062.	[bug]		host printed out address records multiple times if
+			they were at the end of a CNAME chain.
+ 
+1061.	[bug]		host failed to look for A records for the second an
+			subsequent entries in the search list when using
+			the default lookup.
+
+1060.	[bug]		$GENERATE did not reject a out of zone LHS.
+
+1059.	[bug]		res_findzonecut() contained a bad debugging printf.
+
+1058.	[bug]		possible NULL pointer de-reference in
+			dst_key_to_buffer().
+	
+1057.	[doc]		document that bogus causes anti-alias processing.
+
+1056.	[bug]		ns_sprintrrf() could incorrectly print "." as "@".
+
+1055.	[bug]		aa was being cleared on notify "queries" prior to
+			testing.
+
+1054.	[bug]		NAPTR records were using name compression.
+
+1053.	[bug]		NAPTR records were not being printed correctly.
+
+1052.	[bug]		UPDATES w/ NAPTR records were failing.
+
+1051.	[contrib]	YADDAS: Yet another DNS database awk script.
+
+1050.	[bug]		named-bootconf did not handle cacheless secondary/stub
+			zones.  NOTE cacheless secondary/stub zones are not
+			recommended.
+
+1049.	[bug]		buffer overruns by 1 in getnameinfo().
 
 1048.	[bug]		ns_ctl_install() was corrupting the server_controls
 			list.
 
-1007.	[bug]		only set STREAM_AXFRIXFR if the original query is   
+1047.	[bug]		req_iquery() wasn't doing a final update on buflenp.
+
+1046.	[port]		Win/NT port improved by its author.
+
+	--- 8.2.3-T7B released ---
+
+1045.	[bug]		forwarded and initiated TCP queries weren't affected
+			by the "query-source" config option, and weren't being
+			set nonblocking.
+
+1044.	[support]	add HITCOUNTS compile-time option (from lamont@hp.com).
+
+1043.	[bug]		dnsquery's command line args could overflow buffers.
+
+1042.	[doc]		maintain-ixfr-base had wrong description in
+			named.conf(5).
+
+1041.	[bug]		host assumed axfr returned "one-answer" responses.
+
+1040.	[bug]		add d_rcnt processing to update processing.
+
+1039.	[bug]		qcomp wasn't stable.
+
+1038.	[port]		solaris needs a strerror that does not return NULL,
+			call isc_strerror instead.
+
+1037.	[support]	soften #1025 -- continue to accept !AA notify req's.
+
+1036.	[debug]		add TKEY debugging support.
+
+1035.	[bug]		ndc's "help" command worked in signal but not channel
+			mode.
+
+1034.	[bug]		loc_ntoa() failed to correctly print altitudes in the
+			range [-0.99 .. -0.01].
+
+1033.	[port]		Win/NT portability infusion from Larry @NortelNetworks.
+
+1032.	[bug]		fix minor signal buglet introduced in #1029.
+
+1031.	[bug]		nslookup now correctly refuses to accept qtypes AXFR
+			or IXFR.  (use nslookup "ls", not queries, for this.)
+
+1030.	[protocol]	nslookup "ls" command now uses writev() rather than two
+			write()'s, to get msglen and query into same tcp seg.
+
+	--- 8.2.3-T6B released ---
+
+1029.	[bug]		incredibly busy systems could starve handle_needs().
+
+1028.	[protocol]	unrecognized TSIG was returning NOERROR (now NOTAUTH).
+
+1027.	[support]	INSIST(), ENSURE(), et al, now always have sideeffects.
+
+1026.	[port]		some kernels bogusly return tv_usec>1000000 from
+			gettimeofday().  panic and dump core when this happens.
+
+1025.	[proto]		NOTIFY messages should have AA.
+
+1024.	[bug]		we were unwilling to use the last 10 octets of a
+			response buffer in certain transaction types.
+
+1023.	[port]		HP-UX 10.20 was looping inside contrib/dnssigner.
+
+1022.	[port]		ensure that all handled signals are unblocked.
+
+1021.	[bug]		the "host" command wasn't properly printing SRV RR's.
+
+1020.	[contrib]	new "updatehosts" (V1.1.0) contributed by author.
+
+1019.	[port]		separate CFLAGS and CPPFLAGS for unusual builds.
+
+1018.	[bug]		When maintain_ixfr_base is set to "no" a zones IXFR
+			file was still being written too.
+
+1017.	[doc]		resolver(3) was out of date with respect to recent API
+			changes.
+
+1016.	[bug]		nslookup wasn't properly printing SIG RR's.
+
+1015.	[bug]		when merging group information gr_name and gr_passwd
+			could be left pointing at freed memory.
+
+1014.	[bug]		iquery: DoS (potential), information leak.
+
+1013.	[bug]		mangled hostent structures returned by
+			gethostbyname_r() and friends.
+
+1012.	[doc]		add named-bootconf example to INSTALL.
+
+1011.	[bug]		if spawnxfer() fails we should return immediately.
+
+1010.	[bug]		bad responses to the initial IXFR/SOA query could
+			result in using an uninitalised variable.
+		
+1009.	[port]		Add support for darwin / Mac OS X
+
+1008.	[doc]		specify allow-query default in named.conf.
+
+1007.	[bug]		only set STREAM_AXFRIXFR if the original query is
 			an IXFR.
+
+	--- 8.2.3-T5B (RC3) released ---
+
+1006.	[port]		Windows/NT does not have fchown().
+
+1005.	[bug]		RD was sometimes left set, inappropriately.
+
+1004.	[bug]		cached NXT's were corrupted.
+
+1003.	[bug]		correction to #997.
+
+1002.	[bug]		file descriptor leak in res_nclose().
+
+1001.	[port]		some builds were too fast.
+
+	--- 8.2.3-T4B (RC2) released ---
+
+1000.	[bug]		#996 was wrongly implemented; replacement fix.
+
+	--- 8.2.3-T3B released ---
+
+ 999.	[support]	named now makes an effort to create its files with
+			ownership as specified by -u and -g command options.
+
+ 998.	[support]	show version number in NOTIFY log messages.
+
+ 997.	[support]	forwarders are now used in order by measured RTT.
+
+ 996.	[protocol]	if answering ixfr with full zone, used qtype axfr.
+
+ 995.	[bug]		"dig -b" was broken due to missing switch "break;"
+
+ 994.	[bug]		named-xfer did not handle empty question sections.
+
+ 993.	[bug]		TSIG AXFR was completely broken in DiG.
+
+ 992.	[bug]		OPTION_USE_IXFR and OPTION_MAINTAIN_IXFR_BASE had
+			non-single-bit flag values in src/bin/named/ns_defs.h.
+
+ 991.	[protocol]	send A6 glue records in xfr.
+
+ 990.	[bug]		we could loose track of a bottom of zone cut if the
+			write buffer filled up at just the correct moment.
+
+ 989.	[bug]		apply to "fetch-glue no;" to notify processing.  need
+			to add A records that would be found this way w/
+			also-notify.
+
+ 988.	[support]	report expired zones when detected in maintainence
+			pass.
+
+ 987.	[feature]	"ndc reconfig -noexpired" skip attempts to load
+			expired zoned when reconfiguring.
+
+ 986.	[bug]		pushlev only needs to be called for axfr/zxfr not ixfr.
+
+	--- 8.2.3-T2B released ---
+
+ 985.	[support]	remove "view" command from nslookup (it used mktemp()).
+
+ 984.	[bug]		always restart processing query from scratch if we
+			have chased a CNAME as we might still have the answer
+			in the cache once the CNAME has been resolved.
+
+ 983.	[support]	"notify from non-master server" is now debug, not info.
 
  982.	[bug]		rollback the compression pointers array when a
 			RRset/RR does not fit.
 
+ 981.	[port]		decunix: typedef (u_)int#m_t
+
+ 980.	[bug]		mishandled memget failure w/ TCP connections.
+
+ 979.	[bug]		we were failing to call ns_stopxfrs() before calling
+			purge_zone() in some cases.
+
+ 978.	[port]		sco50: setsockopt(SO_REUSEADDR) fails on unix domain
+			sockets
+
+ 977.	[bug]		we should be returning notimpl for update forwarding
+			rather than refused.  a client receiving refused
+			should terminate the update attempt.  notimpl should
+			just cause the client to skip to the next server.
+
+ 976.	[bug]		some stats weren't getting incremented, & added a few.
+
+ 975.	[support]	SLAVE_FORWARD is now redundant and has been removed.
+
+ 974.	[port]		ultrix with vendor's y2k patch explicitly desupported.
+
+ 973.	[bug]		some field names added in #935 conflicted with macros.
+
+ 972.	[support]	restore heartbeat notifies.
+
+ 971.	[bug]		out of order updates in log.
+
+ 970.	[port]		solaris: add ipv6 interface scanning support.
+
+ 969.	[bug]		post process a zone load to remove any non-glue at
+			or below bottom of zone.
+
+ 968.	[bug]		TSIGs failed to verify if the key name was compressed.
+
+ 967.	[bug]		zones signed by the BIND 9 signer failed to load.
+
+	--- 8.2.3-T1A released ---
+
+ 966.	[bug]		nslookup and dig misprinted root zone in $ORIGIN.
+
+ 965.	[feature]	dig's command line input buffer was rather small.
+
+ 964.	[bug]		make res_nsearch() behave like res_search() of olde.
+
+ 963.	[bug]		res_debug::do_section() can no longer spin all VM.
+
  962.	[bug]		another almost-complete rewrite of IXFR from kjd (462)
-			[incorporate ZXFR DoS fix from #962]
+
+ 961.	[bug]		acl "none" now fails to match but doesn't end search.
+
+ 960.	[bug]		more hesiod library fixes from danny.
+
+ 959.	[doc]		christos fixed several man page typos and brainos.
+
+ 958.	[bug]		getnameinfo() should accept experimental/multicast.
+
+ 957.	[port]		ultrix again.  "cd" now presumed to be silent again.
+
+ 956.	[bug]		multiline was not being cleared correctly.
+
+ 955.	[bug]		explicit TTL on SOA records were being replaced with
+			soa minimum.
+
+ 954.	[bug]		cannot load a signed root zone.
+
+ 953.	[bug]		memory overrun in set_zone_ixfr_file().
+
+ 952.	[bug]		errs was not being correctly adjusted if the included
+			master file did not exist in db_load().
+
+ 951.	[bug]		contrib/dns_signer/signer: write_trim_name
+			array bounds write error.
+
+ 950.	[bug]		hesiod: ctx->res was not being initalised.
+
+ 949.	[port]		aix32: add prand_conf.h and define WCOREDUMP
+
+ 948.	[bug]		fixed logic error in a number of expressions causing
+			res_ninit() not to be called when it should be.
+
+ 947.	[bug]		sanity check in dst_read_key() wasn't.
+
+ 946.	[port]		freebsd: threaded library support.
+
+ 945.	[bug]		wrong file name logged in ixfr_have_log().
+
+ 944.	[doc]		add forwarders to zone types  master/slave/stub in 
+			named.conf man page.
+
+ 943.	[bug]		raise CNAME and OTHER / multiple CNAME logging to 
+			warning.
+
+ 942.	[bug]		bad referrals logged for forwarders.
+
+ 941.	[bug]		lame server detection wasn't checking for SOA record.
+
+ 940.	[clarity]	unapproved -> denied in log messages.
+
+ 939.	[bug]		reload_master and purgeandload should write the zone
+			if it has been updated.
+
+ 938.	[bug]		update and ixfr logs could get corrupted.  fseek()
+			before ftell() on fopen(, "a+") file.
+
+ 937.	[support]	allow parallel makes to work.
+
+ 936.	[protocol]	add preliminary A6 glue recognition in ns_req.
+
+ 935.	[cleanup]	res_nsend() segmented into multiple functions for
+			readability.  also fixed two file descriptor leaks.
+			CAN_RECONNECT is gone, keep one socket per nameserver.
+
+ 934.	[bug]		Perror and Aerror where incorrect if DEBUG is not
+			defined.
+
+ 933.	[port]		cygwin port added
+
+ 932.	[port]		sco42 does not have unix domain sockets or gethostid.
+
+ 931.	[bug]		eventlib was not handling unix domain sockets
+			correctly.
+
+ 930.	[bug]		we wern't using all the potential compression pointers
+			in the question section.
+
+ 929.	[bug]		we were accepting updates (adds) with illegal ttls.
+
+ 928.	[bug]		if we manage to get a illegal ttl stored, print it
+			unsigened.
+
+ 927.	[port]		hpux: (11.* 10.30) Makefile.set.gcc
+
+ 926.	[port]		hpux10: gcc needs -D_HPUX_SOURCE and -fPIC
+
+ 925.	[protocol]	when a slave loads it should notify others (RFC 1996).
+
+ 924.	[port]		sunos solaris: #define NEED_SECURE_DIRECTORY to
+			secure the directory containing unix domain socket
+			rather than the socket itself.
+
+ 923.	[support]	shutup "make clean" about missing threaded directories.
+
+ 922.	[bug]		removing an cached zone file then performing a 
+			"ndc reload zone" should force a zone transfer.
+
+ 921.	[bug]		nsupdate: listuprec was not being initalised.
+
+ 920.	[port]		aix4: Makefile.set.gcc
+ 			aix4: __P was being defined by <net/radix.h>
+
+ 919	[port]		linux: remove one level of symbolic linkage when
+			performing make links on port/linux/include
+
+ 918.	[bug]		update prerequisite could match w/ wildcard.
+
+ 917.	[port]		irix: make the current IRIX release (6.5) work by
+			not patching res_debug.c. see INSTALL if you have
+			problems with 6.3.
+
+ 916.	[bug]		removing / changing a zone type could result in
+			Z_NOTIFY being cleared / tested against the wrong zone.
+
+ 915.	[bug]		evNewWaitList() was not maintaining the prev chain.
+
+ 914.	[bug]		signal EWOULDBLOCK if EV_POLL'ing with no timers.
+
+ 913.	[bug]		input could get lost on the server side of a ctl sock.
+
+ 912.	[bug]		nsupdate now allows explicit 0 TTL's on added RR's.
+
+ 911.	[bug]		gethostbyname() should not return duplicate addresses.
+
+ 910.	[bug]		address-sorting logic was exiting early.
+
+ 909.	[bug]		dig wasn't respecting the +ti and +ret arguments.
+
+ 908.	[contrib]	Tony Stoneley sent us an updated misc/makezones.
+
+ 907.	[port]		winnt fixes from Larry at Nortel.
+
+ 906.	[bug]		res_findzonecut() failed if the NS referred to a CNAME.
+
+ 905.	[doc]		Minor fix to doc/man/Makefile for getnameinfo
+
+ 904.	[bug]		bin/host wasn't looking up MX records if no
+			-t flags were passed to it.
 
 	--- 8.2.2-P6 released ---
 

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ncache.c,v 8.26 1999/10/13 16:39:10 vixie Exp $";
+static const char rcsid[] = "$Id: ns_ncache.c,v 8.27 2000/04/21 06:54:09 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

@@ -110,7 +110,6 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 #endif
 	int family, i;
 	char *addr, *p;
-	u_long v4a;
 	u_char pfx;
 	static int firsttime = 1;
 	static char numserv[512];
@@ -166,14 +165,14 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	if (serv == NULL || servlen == 0) {
 		/* what we should do? */
 	} else if (flags & NI_NUMERICSERV) {
-		snprintf(numserv, strlen(numserv), "%d", ntohs(port));
+		snprintf(numserv, sizeof(numserv), "%d", ntohs(port));
 		if (strlen(numserv) > servlen)
 			return ENI_MEMORY;
 		strcpy(serv, numserv);
 	} else {
 		sp = getservbyport(port, (flags & NI_DGRAM) ? "udp" : "tcp");
 		if (sp) {
-			if (strlen(sp->s_name) > servlen)
+			if (strlen(sp->s_name) + 1 > servlen)
 				return ENI_MEMORY;
 			strcpy(serv, sp->s_name);
 		} else
@@ -182,15 +181,11 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		v4a = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
-		if (IN_MULTICAST(v4a) || IN_EXPERIMENTAL(v4a))
-			flags |= NI_NUMERICHOST;
-		v4a >>= IN_CLASSA_NSHIFT;
-		if (v4a == 0 || v4a == IN_LOOPBACKNET)
+		if (ntohl(*(u_long *)addr) >> IN_CLASSA_NSHIFT == 0)
 			flags |= NI_NUMERICHOST;			
 		break;
 	case AF_INET6:
-		pfx = ((struct sockaddr_in6 *)sa)->sin6_addr.s6_addr[0];
+		pfx = *addr;
 		if (pfx == 0 || pfx == 0xfe || pfx == 0xff)
 			flags |= NI_NUMERICHOST;
 		break;
@@ -201,7 +196,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 		if (inet_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
 		    == NULL)
 			return ENI_SYSTEM;
-		if (strlen(numaddr) > hostlen)
+		if (strlen(numaddr) + 1 > hostlen)
 			return ENI_MEMORY;
 		strcpy(host, numaddr);
 	} else {
@@ -212,7 +207,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				p = strchr(hp->h_name, '.');
 				if (p) *p = '\0';
 			}
-			if (strlen(hp->h_name) > hostlen)
+			if (strlen(hp->h_name) + 1 > hostlen)
 				return ENI_MEMORY;
 			strcpy(host, hp->h_name);
 		} else {
@@ -221,7 +216,7 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			if (inet_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
 			    == NULL)
 				return ENI_NOHOSTNAME;
-			if (strlen(numaddr) > hostlen)
+			if (strlen(numaddr) + 1 > hostlen)
 				return ENI_MEMORY;
 			strcpy(host, numaddr);
 		}

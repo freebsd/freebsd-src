@@ -78,7 +78,7 @@ char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: main.c,v 8.13 1999/10/13 16:39:19 vixie Exp $";
+static const char rcsid[] = "$Id: main.c,v 8.16 2000/12/23 08:14:47 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -115,11 +115,14 @@ static const char rcsid[] = "$Id: main.c,v 8.13 1999/10/13 16:39:19 vixie Exp $"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "port_after.h"
 
 #include "res.h"
 #include "pathnames.h"
+
+int yylex(void);
 
 /*
  * Name of a top-level name server. Can be changed with 
@@ -127,7 +130,7 @@ static const char rcsid[] = "$Id: main.c,v 8.13 1999/10/13 16:39:19 vixie Exp $"
  */
 
 #ifndef ROOT_SERVER
-#define		ROOT_SERVER "a.root-servers.net."
+#define		ROOT_SERVER "f.root-servers.net."
 #endif
 char		rootServerName[NAME_LEN] = ROOT_SERVER;
 
@@ -172,7 +175,7 @@ jmp_buf		env;
 
 
 /*
- * Browser command for help and view.
+ * Browser command for help.
  */
 char		*pager;
 
@@ -182,10 +185,10 @@ static void ReadRC();
 /*
  * Forward declarations.
  */
-void LocalServer(HostInfo *defaultPtr);
-void res_re_init(void);
-void res_dnsrch(char *cp);
-
+static void LocalServer(HostInfo *defaultPtr);
+static void res_re_init(void);
+static void res_dnsrch(char *cp);
+static void Usage(void);
 
 /*
  ******************************************************************************
@@ -199,10 +202,8 @@ void res_dnsrch(char *cp);
  ******************************************************************************
  */
 
-main(argc, argv)
-    int		argc;
-    char	**argv;
-{
+int
+main(int argc, char **argv) {
     char	*wantedHost = NULL;
     Boolean	useLocalServer;
     int		result;
@@ -300,8 +301,8 @@ main(argc, argv)
 		break;
 	    } else {
 		result = GetHostInfoByAddr(&(res.nsaddr_list[i].sin_addr), 
-				    &(res.nsaddr_list[i].sin_addr), 
-				    defaultPtr);
+					   &(res.nsaddr_list[i].sin_addr), 
+					   defaultPtr);
 		if (result != SUCCESS) {
 		    fprintf(stderr,
 		    "*** Can't find server name for address %s: %s\n", 
@@ -403,8 +404,8 @@ LocalServer(defaultPtr)
  ******************************************************************************
  */
 
-Usage()
-{
+static void
+Usage(void) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr,
 "   nslookup [-opt ...]             # interactive mode using default server\n");
@@ -778,10 +779,7 @@ LookupHost(string, putToFile)
  */
 
 int
-LookupHostWithServer(string, putToFile)
-    char	*string;
-    Boolean	putToFile;
-{
+LookupHostWithServer(char *string, Boolean putToFile) {
     char	file[PATH_MAX];
     char	host[NAME_LEN];
     char	server[NAME_LEN];
@@ -952,7 +950,13 @@ SetOption(option)
 		    return(ERROR);
 		}
 
-		queryType = StringToType(type, queryType, stderr);
+		i = StringToType(type, queryType, stderr);
+		if (ns_t_xfr_p(i)) {
+		    fprintf(stderr, "*** qtype may not be a zone transfer\n");
+		    return(ERROR);
+		}
+
+		queryType = i;
 	    }
 	} else if (strncmp(option, "cl", 2) == 0) {	/* query class */
 	    ptr = strchr(option, '=');

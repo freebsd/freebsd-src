@@ -15,12 +15,12 @@
 # SOFTWARE.
 #
 
-# $Id: Makefile,v 8.16 1999/09/07 08:47:28 vixie Exp $
+# $Id: Makefile,v 8.21 2000/12/23 08:03:02 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
 # this Makefile will be invoked with a lot of overrides for the following:
-SYSTYPE= bsdos
+SYSTYPE= freebsd
 DESTDIR =
 DESTLIB = /usr/local/lib
 O=o
@@ -28,13 +28,14 @@ A=a
 CC= cc
 LD= ld
 SHELL= /bin/sh
-CDEBUG= -g
+CDEBUG= -g -Wall
 TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
 LIBBINDR = ../${TOP}/lib/libbind_r.${A}
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 LD_LIBFLAGS= -x -r
 AR= ar cru
 RANLIB= ranlib
@@ -59,14 +60,15 @@ ${LIBBIND}: ${OBJS}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	if test ! -d ${THREADED} ;  then mkdir ${THREADED} ; fi
+	if test ! -d ${THREADED} ;  then mkdir ${THREADED} ; else true ; fi
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
 	 -o ${THREADED}/$*.${O}
-	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} -o a.out && \
-	 ${LDS} mv a.out ${THREADED}/$*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} \
+	 -o ${THREADED}/$*.out && \
+	 ${LDS} mv ${THREADED}/$*.out ${THREADED}/$*.${O}
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
-	 ${LDS} mv a.out $*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o $*.out && \
+	 ${LDS} mv $*.out $*.${O}
 
 distclean: clean
 
@@ -74,7 +76,7 @@ clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
 	rm -f ${THREADED}/*.${O}
-	-rmdir ${THREADED}
+	-if test -d ${THREADED} ; then rmdir ${THREADED}; else true; fi
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}

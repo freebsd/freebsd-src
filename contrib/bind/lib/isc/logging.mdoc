@@ -36,6 +36,7 @@
 .Nm log_category_is_active ,
 .Nm log_new_syslog_channel ,
 .Nm log_new_file_channel ,
+.Nm log_set_file_owner ,
 .Nm log_new_null_channel ,
 .Nm log_inc_references ,
 .Nm log_dec_references ,
@@ -80,6 +81,8 @@
 .Fn log_new_file_channel "unsigned int flags" "int level" \
     "char *name" "FILE *stream" "unsigned int versions" \
     "unsigned long max_size"
+.Ft int
+.Fn log_set_file_owner "log_channel chan" "uid_t owner" "gid_t group"
 .Ft log_channel 
 .Fn log_new_null_channel "void"
 .Ft int 
@@ -187,7 +190,12 @@ filename.  The
 and
 .Fn log_get_filename
 functions return the stream or filename, respectively, of such a logging 
-channel.  
+channel.  Also unique to logging channels of type
+.Dv log_file
+is the
+.Fn log_set_file_owner
+function, which tells the logging system what user and group ought to own
+newly created files (which is only effective if the caller is privileged.)
 .Pp
 Callers provide
 .Dq Nm categories ,

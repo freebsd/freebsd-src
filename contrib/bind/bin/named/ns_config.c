@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_config.c,v 8.105 1999/11/16 06:01:37 vixie Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.118 2000/12/23 08:14:37 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -431,7 +431,6 @@ begin_zone(char *name, int class) {
 	zp->z_origin = name;
 	zp->z_class = class;
 	zp->z_checknames = not_set;
-	zp->z_log_size_ixfr = 0;
 	if (server_options->flags & OPTION_MAINTAIN_IXFR_BASE)
 		 zp->z_maintain_ixfr_base = 1;
 	else
@@ -478,7 +477,6 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 	new_zp->z_origin = NULL;
 	zp->z_maintain_ixfr_base = new_zp->z_maintain_ixfr_base;
 	zp->z_max_log_size_ixfr = new_zp->z_max_log_size_ixfr;
-	zp->z_log_size_ixfr = new_zp->z_log_size_ixfr;
 	zp->z_class = new_zp->z_class;
 	zp->z_type = new_zp->z_type;
 	zp->z_checknames = new_zp->z_checknames;
@@ -557,6 +555,7 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 		/* File has changed, or hasn't been loaded yet. */
 		if (zp->z_source) {
 			freestr(zp->z_source);
+			ns_stopxfrs(zp);
 			purge_zone(zp->z_origin, fcachetab, zp->z_class);
 		}
 		zp->z_source = new_zp->z_source;
@@ -684,7 +683,8 @@ update_zone_info(struct zoneinfo *zp, struct zoneinfo *new_zp) {
 		zp->z_ixfr_tmp = new_zp->z_ixfr_tmp;
 		new_zp->z_ixfr_tmp = NULL;
 
-		if ((zp->z_flags & Z_AUTH) == 0)
+		if ((!noexpired || ((zp->z_flags & Z_EXPIRED) == 0)) &&
+		    ((zp->z_flags & Z_AUTH) == 0))
 			zoneinit(zp);
 		else {
 			/* 
@@ -833,7 +833,7 @@ set_zone_ixfr_file(zone_config zh, char *filename) {
 		return (0);
 	zp->z_ixfr_base = filename;
 	if (zp->z_ixfr_tmp == NULL) {
-		int len = strlen(zp->z_ixfr_base) + (sizeof ".tmp" - 1);
+		int len = strlen(zp->z_ixfr_base) + (sizeof ".tmp");
 		char *str = (char *) memget(len);
 
 		sprintf(str, "%s.tmp", zp->z_ixfr_base);
@@ -1134,6 +1134,7 @@ new_options() {
 	op->stats_interval = 3600;
 	op->ordering = NULL;
 	op->max_ncache_ttl = DEFAULT_MAX_NCACHE_TTL;
+	op->max_host_stats = 0;
 	op->lame_ttl = NTTL;
 	op->heartbeat_interval = 3600;
 	op->max_log_size_ixfr = 20;
@@ -1189,6 +1190,9 @@ set_boolean_option(u_int *op_flags, int bool_opt, int value) {
 	INSIST(op_flags != NULL);
 
 	switch (bool_opt) {
+#ifdef HITCOUNTS
+	case OPTION_HITCOUNT:
+#endif /* HITCOUNTS */
 	case OPTION_NORECURSE:
 	case OPTION_NOFETCHGLUE:
 	case OPTION_FORWARD_ONLY:
@@ -1450,6 +1454,7 @@ write_open(char *filename) {
 		  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 	if (fd < 0)
 		return (NULL);
+	(void) fchown(fd, user_id, group_id);
 	stream = fdopen(fd, "w");
 	if (stream == NULL)
 		(void)close(fd);
@@ -1741,7 +1746,6 @@ free_rrset_order_list(rrset_order_list rol) {
 	}
 	memput(rol, sizeof (*rol));
 }
-
 
 void
 add_to_rrset_order_list(rrset_order_list rol, rrset_order_element roe) {
@@ -2067,7 +2071,7 @@ ip_match_addr_or_key(ip_match_list iml, struct in_addr address,
 		if (indirect) {
 			ret = ip_match_addr_or_key(ime->u.indirect.list,
 						   address, key);
-			if (ret >= 0) {
+			if (ret > 0) {
 				if (ime->flags & IP_MATCH_NEGATE)
 					ret = (ret) ? 0 : 1;
 				return (ret);
@@ -2246,7 +2250,79 @@ ip_match_is_none(ip_match_list iml) {
 	return (0);
 }
 
+/*
+ * find_forwarder finds the fwddata structure for an address,
+ * allocating one if we can't find one already existing.
+ */
 
+static struct fwddata *
+find_forwarder(struct in_addr address)
+{
+	struct fwddata *fdp;
+	struct databuf *ns, *nsdata;
+	register int i;
+
+	for (i=0;i<fwddata_count; i++) {
+		fdp=fwddata[i];
+		if (memcmp(&fdp->fwdaddr.sin_addr,&address,sizeof(address))==0) {
+			fdp->ref_count++;
+			return fdp;
+		}
+	}
+
+	fdp = (struct fwddata *)memget(sizeof(struct fwddata));
+	if (!fdp)
+		panic("memget failed in find_forwarder", NULL);
+	fdp->fwdaddr.sin_family = AF_INET;
+	fdp->fwdaddr.sin_addr = address;
+	fdp->fwdaddr.sin_port = ns_port;
+	ns = fdp->ns = (struct databuf *)memget(sizeof(*ns));
+	if (!ns)
+		panic("memget failed in find_forwarder", NULL);
+	memset(ns,0,sizeof(*ns));
+	nsdata = fdp->nsdata = (struct databuf *)memget(sizeof(*nsdata));
+	if (!nsdata)
+		panic("memget failed in find_forwarder", NULL);
+	memset(nsdata,0,sizeof(*nsdata));
+	ns->d_type = T_NS; 
+	ns->d_class = C_IN;
+	ns->d_rcnt=1;
+	nsdata->d_type = T_A;
+	nsdata->d_class = C_IN;
+	nsdata->d_nstime = 1 + (int)(25.0*rand()/(RAND_MAX + 1.0));
+	nsdata->d_rcnt=1;
+	fdp->ref_count=1;
+	
+	i=0;
+	if (fwddata == NULL) {
+		fwddata = memget(sizeof *fwddata);
+		if (fwddata == NULL)
+			i = 1;
+	} else {
+		register size_t size;
+		register struct fwddata **an_tmp;
+		size = fwddata_count * sizeof *fwddata;
+		an_tmp = memget(size + sizeof *fwddata);
+		if (an_tmp == NULL) {
+			i = 1;
+		} else {
+			memcpy(an_tmp, fwddata, size);
+			memput(fwddata, size);
+			fwddata = an_tmp;
+		}
+	}
+
+	if (i == 0) {
+		fwddata[fwddata_count] = fdp;
+		fwddata_count++;
+	} else {
+		ns_warning(ns_log_config,
+		     "forwarder add failed (memget) [%s]",
+			inet_ntoa(address));
+	}
+
+	return fdp;
+}
 /*
  * Forwarder glue
  *
@@ -2257,25 +2333,25 @@ ip_match_is_none(ip_match_list iml) {
 static void
 add_forwarder(struct fwdinfo **fipp, struct in_addr address) {
 	struct fwdinfo *fip = *fipp, *ftp = NULL;
+	struct fwddata *fdp;
+
+#ifdef FWD_LOOP
+	if (aIsUs(address)) {
+		ns_error(ns_log_config, "forwarder '%s' ignored, my address",
+			 inet_ntoa(address));
+		return;
+	}
+#endif /* FWD_LOOP */
 
 	/* On multiple forwarder lines, move to end of the list. */
 	while (fip != NULL && fip->next != NULL)
 		fip = fip->next;
 
+	fdp = find_forwarder(address);
 	ftp = (struct fwdinfo *)memget(sizeof(struct fwdinfo));
 	if (!ftp)
 		panic("memget failed in add_forwarder", NULL);
-	ftp->fwdaddr.sin_family = AF_INET;
-	ftp->fwdaddr.sin_addr = address;
-	ftp->fwdaddr.sin_port = ns_port;
-#ifdef FWD_LOOP
-	if (aIsUs(ftp->fwdaddr.sin_addr)) {
-		ns_error(ns_log_config, "forwarder '%s' ignored, my address",
-			 inet_ntoa(address));
-		memput(ftp, sizeof *ftp);
-		return;
-	}
-#endif /* FWD_LOOP */
+	ftp->fwddata = fdp;
 	ftp->next = NULL;
 	if (fip == NULL)
 		*fipp = ftp;		/* First time only */
@@ -2346,10 +2422,6 @@ add_global_also_notify(options op, struct in_addr address) {
 
 void
 add_global_forwarder(options op, struct in_addr address) {
-#ifdef SLAVE_FORWARD
-	struct fwdinfo *fip;
-	int forward_count;
-#endif
 
 	INSIST(op != NULL);
 
@@ -2357,20 +2429,6 @@ add_global_forwarder(options op, struct in_addr address) {
 		 inet_ntoa(address));
 
 	add_forwarder(&op->fwdtab, address);
-
-#ifdef SLAVE_FORWARD
-	/*
-	** Set the slave retry time to 60 seconds total divided
-	** between each forwarder
-	*/
-	for (forward_count = 0, fip = op->fwdtab; fip != NULL; fip = fip->next)
-		forward_count++;
-	if (forward_count != 0) {
-		slave_retry = (int) (60 / forward_count);
-		if(slave_retry <= 0)
-			slave_retry = 1;
-	}
-#endif
 }
 
 void
@@ -2405,6 +2463,12 @@ free_forwarders(struct fwdinfo *fwdtab) {
 
 	for (ftp = fwdtab; ftp != NULL; ftp = fnext) {
 		fnext = ftp->next;
+		if (!--ftp->fwddata->ref_count) {
+			memput(ftp->fwddata->ns, sizeof *ftp->fwddata->ns);
+			memput(ftp->fwddata->nsdata,
+					sizeof *ftp->fwddata->nsdata);
+			memput(ftp->fwddata,sizeof *ftp->fwddata);
+		}
 		memput(ftp, sizeof *ftp);
 	}
 	fwdtab = NULL;
@@ -2895,7 +2959,7 @@ init_default_log_channels() {
 	char *name;
 	FILE *stream;
 
-	syslog_channel = log_new_syslog_channel(0, log_info, LOG_DAEMON);
+	syslog_channel = log_new_syslog_channel(0, log_info, ISC_FACILITY);
 	if (syslog_channel == NULL || log_inc_references(syslog_channel) < 0)
 		ns_panic(ns_log_config, 0, "couldn't create syslog_channel");
 
@@ -2911,16 +2975,19 @@ init_default_log_channels() {
 					     0, ULONG_MAX);
 	if (debug_channel == NULL || log_inc_references(debug_channel) < 0)
 		ns_panic(ns_log_config, 0, "couldn't create debug_channel");
+	log_set_file_owner(debug_channel, user_id, group_id);
 
 	stderr_channel = log_new_file_channel(0, log_info, NULL, stderr,
 					      0, ULONG_MAX);
 	if (stderr_channel == NULL || log_inc_references(stderr_channel) < 0)
 		ns_panic(ns_log_config, 0, "couldn't create stderr_channel");
+	log_set_file_owner(stderr_channel, user_id, group_id);
 
 	null_channel = log_new_file_channel(LOG_CHANNEL_OFF, log_info,
 					    _PATH_DEVNULL, NULL, 0, ULONG_MAX);
 	if (null_channel == NULL || log_inc_references(null_channel) < 0)
 		ns_panic(ns_log_config, 0, "couldn't create null_channel");
+	log_set_file_owner(null_channel, user_id, group_id);
 }
 
 static void
@@ -3006,8 +3073,10 @@ shutdown_configuration() {
 	config_initialized = 0;
 }
 
-void
+time_t
 load_configuration(const char *filename) {
+	time_t mtime;
+
 	REQUIRE(config_initialized);
 
 	ns_debug(ns_log_config, 3, "load configuration %s", filename);
@@ -3025,7 +3094,7 @@ load_configuration(const char *filename) {
 	options_installed = 0;
 	logging_installed = 0;
 
-	parse_configuration(filename);
+	mtime = parse_configuration(filename);
 
 	/*
 	 * If the user didn't specify logging or options, but they previously
@@ -3059,4 +3128,5 @@ load_configuration(const char *filename) {
 	loading = 0;
 	/* release queued notifies */
 	notify_afterload();
+	return (mtime);
 }

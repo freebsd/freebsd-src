@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_p.c,v 8.6 1999/10/13 16:39:34 vixie Exp $";
+static const char rcsid[] = "$Id: ctl_p.c,v 8.7 2000/02/04 08:28:33 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -125,6 +125,7 @@ ctl_sa_ntop(const struct sockaddr *sa,
 		(void) sprintf(buf, "[%s].%u", tmp, ntohs(in->sin_port));
 		return (buf);
 	    }
+#ifndef NO_SOCKADDR_UN
 	case AF_UNIX: {
 		const struct sockaddr_un *un = (struct sockaddr_un *) sa;
 		int x = sizeof un->sun_path;
@@ -135,6 +136,7 @@ ctl_sa_ntop(const struct sockaddr *sa,
 		buf[x - 1] = '\0';
 		return (buf);
 	    }
+#endif
 	default:
 		return (punt);
 	}
@@ -146,9 +148,11 @@ ctl_sa_copy(const struct sockaddr *src, struct sockaddr *dst) {
 	case AF_INET:
 		*((struct sockaddr_in *)dst) =  *((struct sockaddr_in *)src);
 		break;
+#ifndef NO_SOCKADDR_UN
 	case AF_UNIX:
 		*((struct sockaddr_un *)dst) =  *((struct sockaddr_un *)src);
 		break;
+#endif
 	default:
 		*dst = *src;
 		break;

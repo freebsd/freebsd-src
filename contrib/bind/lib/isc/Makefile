@@ -13,12 +13,12 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.22 1999/02/22 02:47:58 vixie Exp $
+# $Id: Makefile,v 8.28 2000/12/23 08:03:00 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
 # this Makefile will be invoked with a lot of overrides for the following:
-SYSTYPE= bsdos
+SYSTYPE= freebsd
 DESTDIR =
 DESTLIB = /usr/local/lib
 O=o
@@ -26,13 +26,14 @@ A=a
 CC= cc
 LD= ld
 SHELL= /bin/sh
-CDEBUG= -g
+CDEBUG= -g -Wall
 TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
 LIBBINDR = ../${TOP}/lib/libbind_r.${A}
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 # -Wimplicit
 LD_LIBFLAGS= -x -r
 AR= ar cru
@@ -46,13 +47,15 @@ SRCS=	tree.c base64.c bitncmp.c assertions.c \
 	memcluster.c logging.c heap.c \
 	ctl_p.c ctl_srvr.c ctl_clnt.c \
 	eventlib.c ev_connects.c ev_files.c \
-	ev_timers.c ev_streams.c ev_waits.c
+	ev_timers.c ev_streams.c ev_waits.c \
+	movefile.c
 
 OBJS=	tree.${O} base64.${O} bitncmp.${O} assertions.${O} \
 	memcluster.${O} logging.${O} heap.${O} \
 	ctl_p.${O} ctl_srvr.${O} ctl_clnt.${O} \
 	eventlib.${O} ev_connects.${O} ev_files.${O} \
-	ev_timers.${O} ev_streams.${O} ev_waits.${O}
+	ev_timers.${O} ev_streams.${O} ev_waits.${O} \
+	movefile.${O}
 
 all: ${LIBBIND}
 
@@ -64,14 +67,15 @@ ${LIBBIND}: ${OBJS}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; fi
+	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; else true ; fi
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
 	 -o ${THREADED}/$*.${O}
-	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} -o a.out && \
-	 ${LDS} mv a.out ${THREADED}/$*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} \
+	 -o ${THREADED}/$*.out && \
+	 ${LDS} mv ${THREADED}/$*.out ${THREADED}/$*.${O}
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
-	 ${LDS} mv a.out $*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o $*.out && \
+	 ${LDS} mv $*.out $*.${O}
 
 distclean: clean
 
@@ -79,7 +83,7 @@ clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
 	rm -f ${THREADED}/*.${O}
-	-rmdir ${THREADED}
+	-if test -d ${THREADED} ; then rmdir ${THREADED}; else true; fi
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}

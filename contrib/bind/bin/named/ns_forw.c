@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.69 1999/11/16 06:01:38 vixie Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.78 2000/12/23 08:14:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_forw.c,v 8.69 1999/11/16 06:01:38 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -208,11 +208,6 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 	hp->rd = (qp->q_addr[0].forwarder ? 1 : 0);
 	qp->q_addr[0].stime = tt;
 
-#ifdef SLAVE_FORWARD
-	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
-		schedretry(qp, (time_t)slave_retry);
-	else
-#endif /* SLAVE_FORWARD */
 	schedretry(qp, retrytime(qp));
 
 	nsa = Q_NEXTADDR(qp, 0);
@@ -288,8 +283,7 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 		hp = (HEADER *) qp->q_msg;
 	}
 
-	if (NS_OPTION_P(OPTION_HOSTSTATS))
-		nameserIncr(from.sin_addr, nssRcvdFwdQ);
+	nameserIncr(from.sin_addr, nssRcvdFwdQ);
 	nameserIncr(nsa->sin_addr, nssSentFwdQ);
 	if (qpp)
 		*qpp = qp;
@@ -381,6 +375,8 @@ nslookupComplain(const char *sysloginfo, const char *queryname,
 	ns_debug(ns_log_default, 2, "NS '%s' %s", dname, complaint);
 	if (sysloginfo && queryname && !haveComplained((u_long)queryname,
 						       (u_long)complaint)) {
+		char nsbuf[20], abuf[20];
+
 		a = ns = (char *)NULL;
 		print_a = (a_rr->d_type == T_A);
 		a_type = p_type(a_rr->d_type);
@@ -395,24 +391,20 @@ nslookupComplain(const char *sysloginfo, const char *queryname,
 				break;
 			}
 		}
-		if (NS_OPTION_P(OPTION_HOSTSTATS)) {
-			char nsbuf[20], abuf[20];
-
-			if (nsdp != NULL) {
-				if (nsdp->d_ns != NULL) {
-					strcpy(nsbuf,
-					       inet_ntoa(nsdp->d_ns->addr));
-					ns = nsbuf;
-				} else {
-					ns = zones[nsdp->d_zone].z_origin;
-				}
-			}
-			if (a_rr->d_ns != NULL) {
-				strcpy(abuf, inet_ntoa(a_rr->d_ns->addr));
-				a = abuf;
+		if (nsdp != NULL) {
+			if (nsdp->d_addr.s_addr != htonl(0)) {
+				strcpy(nsbuf,
+				       inet_ntoa(nsdp->d_addr));
+				ns = nsbuf;
 			} else {
-				a = zones[a_rr->d_zone].z_origin;
+				ns = zones[nsdp->d_zone].z_origin;
 			}
+		}
+		if (a_rr->d_addr.s_addr != htonl(0)) {
+			strcpy(abuf, inet_ntoa(a_rr->d_addr));
+			a = abuf;
+		} else {
+			a = zones[a_rr->d_zone].z_origin;
 		}
 		if (a != NULL || ns != NULL)
 			ns_info(ns_log_default, 
@@ -470,7 +462,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	lame_ns = potential_ns = 0;
 	naddr = n = qp->q_naddr;
 	curtime = (u_long) tt.tv_sec;
-	while ((nsdp = *nsp++) != NULL) {
+	while ((nsdp = *nsp++) != NULL && n < NSMAX) {
 		class = nsdp->d_class;
 		dname = (char *)nsdp->d_data;
 		ns_debug(ns_log_default, 3,
@@ -668,7 +660,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 
 			n++;
 			if (n >= NSMAX)
-				goto out;
+				break;
  skipaddr:
 			(void)NULL;
 		}
@@ -683,7 +675,6 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
  skipserver:
 		(void)NULL;
 	}
- out:
 	ns_debug(ns_log_default, 3, "nslookup: %d ns addrs total", n);
 	qp->q_naddr = n;
 	if (n == 0 && potential_ns == 0 && !NS_ZFWDTAB(qp->q_fzone)) {
@@ -703,8 +694,11 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 		DRCNTINC(qp->q_addr[i].nsdata);
 		DRCNTINC(qp->q_addr[i].ns);
 	}
-	if (n > 1) {
-		qsort((char *)qp->q_addr, n, sizeof(struct qserv),
+	/* Just sort the NS RR's we added, since the forwarders may
+	 * be ahead of us (naddr > 0)
+	 */
+	if (n > naddr) {
+		qsort((char *)(qp->q_addr+naddr), n-naddr, sizeof(struct qserv),
 		      (int (*)(const void *, const void *))qcomp);
 	}
 	return (n - naddr);
@@ -761,51 +755,54 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
  * RTT delta deemed to be significant, in milliseconds.  With the current
  * definition of RTTROUND it must be a power of 2.
  */
-#define NOISE 128		/* milliseconds; 0.128 seconds */
+#define NOISE 64
 
-#define sign(x) (((x) < 0) ? -1 : ((x) > 0) ? 1 : 0)
 #define RTTROUND(rtt) (((rtt) + (NOISE >> 1)) & ~(NOISE - 1))
 
 int
 qcomp(struct qserv *qs1, struct qserv *qs2) {
-	int pos1, pos2, pdiff;
-	u_long rtt1, rtt2;
-	long tdiff;
+	u_int rtt1, rtt2, rttr1, rttr2;
 
-	if ((!qs1->nsdata) || (!qs2->nsdata))
-		return 0;
-	rtt1 = qs1->nsdata->d_nstime;
-	rtt2 = qs2->nsdata->d_nstime;
+	if (qs1->nsdata == NULL) {
+		rtt1 = 0;
+		rttr1 = 0;
+	} else {
+		rtt1 = qs1->nsdata->d_nstime;
+		rttr1 = RTTROUND(rtt1);
+	}
+	if (qs2->nsdata == NULL) {
+		rtt2 = 0;
+		rttr2 = 0;
+	} else {
+		rtt2 = qs2->nsdata->d_nstime;
+		rttr2 = RTTROUND(rtt2);
+	}
 
 #ifdef DEBUG
 	if (debug >= 10) {
-		char a1[sizeof "255.255.255.255"],
-		     a2[sizeof "255.255.255.255"];
+		char t[sizeof "255.255.255.255"];
 
-		strcpy(a1, inet_ntoa(qs1->ns_addr.sin_addr));
-		strcpy(a2, inet_ntoa(qs2->ns_addr.sin_addr));
+		strcpy(t, inet_ntoa(qs1->ns_addr.sin_addr));
 		ns_debug(ns_log_default, 10,
 			 "qcomp(%s, %s) %lu (%lu) - %lu (%lu) = %lu",
-			 a1, a2,
-			 rtt1, RTTROUND(rtt1),
-			 rtt2, RTTROUND(rtt2),
-			 rtt1 - rtt2);
+			 t, inet_ntoa(qs2->ns_addr.sin_addr),
+			 rtt1, rttr1, rtt2, rttr2, rtt1 - rtt2);
 	}
 #endif
-	if (RTTROUND(rtt1) == RTTROUND(rtt2)) {
+	if (rttr1 == rttr2) {
+		int pos1, pos2, pdiff;
+
 		pos1 = distance_of_address(server_options->topology,
 					   qs1->ns_addr.sin_addr);
 		pos2 = distance_of_address(server_options->topology,
 					   qs2->ns_addr.sin_addr);
 		pdiff = pos1 - pos2;
 		ns_debug(ns_log_default, 10, "\tpos1=%d, pos2=%d", pos1, pos2);
-		if (pdiff)
+		if (pdiff != 0)
 			return (pdiff);
 	}
-	tdiff = rtt1 - rtt2;
-	return (sign(tdiff));
+	return (rtt1 - rtt2);
 }
-#undef sign
 #undef RTTROUND
 
 /*
@@ -982,7 +979,7 @@ retry(struct qinfo *qp) {
 #ifdef DEBUG
 		if (debug >= 10)
 			res_pquery(&res, qp->q_msg, n,
-				   log_get_stream(packet_channel));
+				    log_get_stream(packet_channel));
 #endif
 		if (send_msg((u_char *)hp, n, qp)) {
 			ns_debug(ns_log_default, 1,
@@ -1016,7 +1013,7 @@ retry(struct qinfo *qp) {
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qp->q_msg, qp->q_msglen,
-			  log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif
 	key = tsig_key_from_addr(nsa->sin_addr);
 	if (key != NULL) {
@@ -1076,11 +1073,6 @@ retry(struct qinfo *qp) {
 		schedretry(qp, (time_t) 0);
 		return;
 	}
-#ifdef SLAVE_FORWARD
-	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
-		schedretry(qp, (time_t)slave_retry);
-	else
-#endif /* SLAVE_FORWARD */
 	schedretry(qp, retrytime(qp));
 }
 
@@ -1251,20 +1243,30 @@ nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
 	struct qserv *qs;
 
 	n = qp->q_naddr;
-	while (fwd != NULL && n < MAXNS) {
+	while (fwd != NULL && n < NSMAX) {
 		qs = qp->q_addr;
 		for (i = 0; i < (u_int)n; i++, qs++)
 			if (ina_equal(qs->ns_addr.sin_addr,
-				      fwd->fwdaddr.sin_addr))
+				      fwd->fwddata->fwdaddr.sin_addr))
 				goto nextfwd;
-		qs->ns_addr = fwd->fwdaddr;
-		qs->ns = NULL;
-		qs->nsdata = NULL;
+		qs->ns_addr = fwd->fwddata->fwdaddr;
+		qs->ns = fwd->fwddata->ns;
+		qs->nsdata = fwd->fwddata->nsdata;
 		qs->forwarder = 1;
 		qs->nretry = 0;
 		n++;
  nextfwd:
 		fwd = fwd->next;
 	}
+
+	/* Update the refcounts before the sort. */
+	for (i = qp->q_naddr; i < (u_int)n; i++) {
+		DRCNTINC(qp->q_addr[i].nsdata);
+		DRCNTINC(qp->q_addr[i].ns);
+	}
 	qp->q_naddr = n;
+	if (n > 1) {
+		qsort((char *)qp->q_addr, n, sizeof(struct qserv),
+		      (int (*)(const void *, const void *))qcomp);
+	}
 }

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char     rcsid[] = "$Id: db_ixfr.c,v 8.18 1999/10/15 19:48:57 vixie Exp $";
-#endif                /* not lint */
+static char     rcsid[] = "$Id: db_ixfr.c,v 8.23 2000/12/23 08:14:35 vixie Exp $";
+#endif
 
 /*
  * Portions Copyright (c) 1999 by Check Point Software Technologies, Inc.
@@ -51,81 +51,137 @@ static char     rcsid[] = "$Id: db_ixfr.c,v 8.18 1999/10/15 19:48:57 vixie Exp $
 
 #include <isc/eventlib.h>
 #include <isc/logging.h>
+#include <isc/memcluster.h>
 
 #include "port_after.h"
 
 #include "named.h"
 
-#define DBIXFR_ERROR            -1
-#define DBIXFR_FOUND_RR         2
-#define DBIXFR_END              3
+#define DBIXFR_ERROR		(-1)
+#define DBIXFR_FOUND_RR		2
+#define DBIXFR_END		3
 
-static int ixfr_getrr(struct zoneinfo *, FILE *, const char *, char *,
-		      ns_updrec **, u_int32_t *, u_int32_t *);
+static int ixfr_getdelta(struct zoneinfo *, FILE *, const char *, char *,
+			 ns_updque *, u_int32_t *, u_int32_t *);
 
-ns_updrec *
+ns_deltalist *
 ixfr_get_change_list(struct zoneinfo *zp,
 		     u_int32_t from_serial, u_int32_t to_serial)
 {
-	FILE *		fp;
+	FILE *		fp = NULL;
 	u_int32_t	old_serial, new_serial;
 	char		origin[MAXDNAME];
-	struct namebuf *np, *listnp, *finlistnp;
-	LIST(ns_updrec)	listuprec;
-	int		ret, mode;
+	ns_deltalist *dlhead = NULL;
+	int		ret;
 	ns_updrec	*uprec;
+	ns_delta *dl;
 
 	if (SEQ_GT(from_serial, to_serial))
 		return (NULL);
-	listnp = finlistnp = NULL;
-	INIT_LIST(listuprec);
+
+	dlhead = memget(sizeof(*dlhead));
+	if (dlhead == NULL)
+		return (NULL);
+	INIT_LIST(*dlhead);
+
 	if ((fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
 		ns_warning(ns_log_db, "%s: %s",
 			   zp->z_ixfr_base, strerror(errno));
-		return (NULL);
+		goto cleanup;
 	}
 	strcpy(origin, zp->z_origin);
 	lineno = 1;
-	np = NULL;
-	mode = 0;
 	old_serial = new_serial = 0;
+
 	for (;;) {
-		ret = ixfr_getrr(zp, fp, zp->z_ixfr_base, origin, &uprec,
-				 &old_serial, &new_serial);
+		dl = memget(sizeof *dl);
+		if (dl == NULL) {
+				ns_warning(ns_log_db,
+					   "ixfr_get_change_list: out of memory");
+				goto cleanup;
+		}
+		INIT_LINK(dl, d_link);
+		INIT_LIST(dl->d_changes);
+		ret = ixfr_getdelta(zp, fp, zp->z_ixfr_base, origin, &dl->d_changes,
+				    &old_serial, &new_serial);
 		switch (ret) {
 		case DBIXFR_ERROR:
-			(void) my_fclose(fp);
-			ns_warning(ns_log_db, "Logical error in %s line %d", 
-				   zp->z_ixfr_base, lineno);
-			return (NULL);
+			ns_warning(ns_log_db, "Logical error in %s: unlinking", 
+				   zp->z_ixfr_base);
+			unlink(zp->z_ixfr_base);
+			goto cleanup;
+
 		case DBIXFR_FOUND_RR:
-			if (EMPTY(listuprec)) {
+				ns_debug(ns_log_default, 4, "ixfr_getdelta DBIXFR_FOUND_RR (%s)",
+					zp->z_origin);
+			if (EMPTY(*dlhead)) {
 				/* skip updates prior to the one we want */
-				if (uprec->r_zone != from_serial) {
-					while (uprec != NULL) {
-						ns_updrec *prev;
+				uprec = HEAD(dl->d_changes);
+				INSIST(uprec != NULL);
+				if ((uprec->r_zone < from_serial) || 	
+					(uprec->r_zone > to_serial))  
+				{
+					while ((uprec = HEAD(dl->d_changes)) != NULL) {
+						UNLINK(dl->d_changes, uprec, r_link);
 
 						if (uprec->r_dp != NULL)
-						      db_freedata(uprec->r_dp);
+							db_freedata(uprec->r_dp);
 						uprec->r_dp = NULL;
-						prev = PREV(uprec, r_link);
 						res_freeupdrec(uprec);
-						uprec = prev;
 					}
+					memput(dl, sizeof *dl);
 					break;
 				}
+				else if (uprec->r_zone > from_serial) {
+					/* missed the boat */
+					ns_debug(ns_log_default, 3, 
+			    "ixfr_getdelta first SOA is %d, asked for %d (%s)",
+						 uprec->r_zone,
+						 from_serial,
+						 zp->z_origin);
+					goto cleanup;
+				}
 			}
-			APPEND(listuprec, uprec, r_link);
-			/* continue; */
+			ns_debug(ns_log_default, 4,
+				 "adding to change list (%s)",
+				 zp->z_origin);
+			APPEND(*dlhead, dl, d_link);
 			break;
+
 		case DBIXFR_END:
+			ns_debug(ns_log_default, 4,
+				 "ixfr_getdelta DBIXFR_END (%s)",
+				 zp->z_origin);
 			(void) my_fclose(fp);
-			return (HEAD(listuprec));
+			memput(dl, sizeof *dl);
+			return (dlhead);
+
 		default:
 			(void) my_fclose(fp);
+			if (dl != NULL)
+				memput(dl, sizeof *dl);
 			return (NULL);
 		}
 	}
+
+ cleanup:
+	if (fp != NULL)
+		(void) my_fclose(fp);
+
+	while ((dl = HEAD(*dlhead)) != NULL) {
+		UNLINK(*dlhead, dl, d_link);
+		while ((uprec = HEAD(dl->d_changes)) != NULL) {
+			UNLINK(dl->d_changes, uprec, r_link);
+
+			if (uprec->r_dp != NULL)
+				db_freedata(uprec->r_dp);
+			uprec->r_dp = NULL;
+			res_freeupdrec(uprec);
+		}
+		memput(dl, sizeof *dl);
+	}
+	memput(dlhead, sizeof *dlhead);
+	return (NULL);
 }
 
 /*
@@ -137,7 +193,7 @@ ixfr_get_change_list(struct zoneinfo *zp,
  * 
  * returns: 
  *         0 = serial number is up to date
- *         1 = transision is possible 
+ *         1 = transmission is possible 
  *        -1 = error while opening the ixfr transaction log
  *        -2 = error in parameters
  *        -3 = logical error in the history file 
@@ -147,14 +203,17 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 {
 	FILE           *fp;
 	u_int32_t       old_serial = 0, new_serial = 0;
+	u_int32_t       last_serial = 0;
+	u_int32_t       first_serial = 0;
 	char            buf[BUFSIZ];
 	char           *cp;
 	struct stat     st;
 	int             nonempty_lineno = -1, prev_pktdone = 0, cont = 0,
 			inside_next = 0;
 	int             err;
+	int             first = 0;
+	int             rval = 0;
 	int             id, rcode = NOERROR;
-
 	if (SEQ_GT(from_serial, to_serial))
 		return (-2);
 	if (from_serial == to_serial)
@@ -162,6 +221,10 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 	/* If there is no log file, just return. */
 	if (zp->z_ixfr_base == NULL || zp->z_updatelog == NULL)
 		return (-1);
+	if (zp->z_serial_ixfr_start > 0) {
+		if (from_serial >= zp->z_serial_ixfr_start)
+			return (1);
+	}
 	if (stat(zp->z_ixfr_base, &st) < 0) {
 		if (errno != ENOENT)
 			ns_error(ns_log_db,
@@ -176,17 +239,18 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 	}
 	if (fgets(buf, sizeof(buf), fp) == NULL) {
 		ns_error(ns_log_update, "fgets() from %s failed: %s",
-			 zp->z_updatelog, strerror(errno));
+			 zp->z_ixfr_base, strerror(errno));
 		fclose(fp);
 		return (-1);
 	}
 	if (strcmp(buf, LogSignature) != 0) {
 		ns_error(ns_log_update, "invalid log file %s",
-			 zp->z_updatelog);
+			 zp->z_ixfr_base);
 		fclose(fp);
 		return (-3);
 	}
 	lineno = 1;
+	first = 1;
 	for (;;) {
 		if (getword(buf, sizeof buf, fp, 0)) {
 			nonempty_lineno = lineno;
@@ -214,12 +278,13 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 			if (cp != NULL)
 				lineno++;
 			if (sscanf((char *) cp, "%u", &old_serial)) {
+				if (first == 1) {
+					first = 0;
+					first_serial = old_serial;
+				}
+				last_serial = old_serial;
 				if (from_serial >= old_serial) {
-					fclose(fp);
-					return (1);
-				} else {
-					fclose(fp);
-					return (-1);
+				    rval = 1;
 				}
 			}
 			prev_pktdone = 1;
@@ -232,14 +297,16 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 			if (cp == NULL ||
 			    sscanf((char *) cp, "from %u to %u",
 				    &old_serial, &new_serial) != 2) {
-				fclose(fp);
-				return (-3);
+			    rval = -3;
+				break;
 			} else if (from_serial >= old_serial) {
-				fclose(fp);
-				return (1);
+				if (first == 1) {
+					first = 0;
+					first_serial = old_serial;
+				}
+				last_serial = old_serial;
+				rval = 1;
 			}
-			fclose(fp);
-			return (-1);
 		}
 		if (prev_pktdone) {
 			prev_pktdone = 0;
@@ -248,7 +315,19 @@ ixfr_have_log(struct zoneinfo *zp, u_int32_t from_serial, u_int32_t to_serial)
 		}
 	}
 	fclose(fp);
-	return (0);
+	if (last_serial +1 < zp->z_serial) {
+		ns_warning(ns_log_db,
+			   "%s: File Deleted. Found gap between serial:"
+			   " %d and current serial: %d", 
+			   zp->z_ixfr_base, last_serial, zp->z_serial);
+		(void) unlink(zp->z_ixfr_base);
+		rval = -3;
+	} 
+	if (from_serial < first_serial || from_serial > last_serial)
+		rval = -3;
+	if (rval == 1)
+		zp->z_serial_ixfr_start = first_serial;
+	return (rval);
 }
 
 /* from db_load.c */
@@ -278,12 +357,7 @@ static struct map m_opcode[] = {
 #define M_TYPE_CNT m_type_cnt
 
 /*
- * int
- * ixfr_getrr(struct zoneinfo *zp, FILE *fp,
- *            const char *filename, char *origin, struct namebuf **np,
- *            u_int32_t *old_serial, u_int32_t *new_serial)
- * 
- * read a line from the historic of a zone.
+ * read a line from the history of a zone.
  * 
  * returns:
  * 
@@ -292,20 +366,17 @@ static struct map m_opcode[] = {
  *         DBIXFR_END = end of file
  */
 static int
-ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
-	   ns_updrec **uprec, u_int32_t *old_serial,
+ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
+	   ns_updque *listuprec, u_int32_t *old_serial,
 	   u_int32_t *new_serial)
 {
-	static int      read_soa, read_ns, rrcount;
-
 	char            data[MAXDATA], dnbuf[MAXDNAME], sclass[3];
-	const char     *errtype = "Database";
 	char           *dname, *cp, *cp1;
 	char            buf[MAXDATA];
 	u_int32_t       serial, ttl;
 	int             nonempty_lineno = -1, prev_pktdone = 0, cont = 0,
 			inside_next = 0;
-	int             id, rcode = NOERROR;
+	int             id;
 	int             i, c, section, opcode, matches, zonenum, err, multiline;
 	int             type, class;
 	u_int32_t       n;
@@ -314,9 +385,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	int             zonelist[MAXDNAME];
 	struct databuf *dp;
 	struct in_addr  ina;
-	struct sockaddr_in empty_from;
 	int             datasize;
-	ns_updque	listuprec;
 	ns_updrec *	rrecp;
 	u_long		l;
 
@@ -325,7 +394,6 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	err = 0;
 	transport = primary_trans;
 	lineno = 1;
-	INIT_LIST(listuprec);
 	for (;;) {
 		if (!getword(buf, sizeof buf, fp, 0)) {
 			if (lineno == (nonempty_lineno + 1) && !(feof(fp))) {
@@ -337,11 +405,10 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			}
 			/*
 			 * Empty line or EOF.
-			 * 
-			 * Marks completion of current update packet.
 			 */
+			if (feof(fp))
+				break;
 			inside_next = 0;
-			prev_pktdone = 1;
 			cont = 1;
 		} else {
 			nonempty_lineno = lineno;
@@ -349,15 +416,12 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 
 		if (!strcasecmp(buf, "[DYNAMIC_UPDATE]") ||
 		    !strcasecmp(buf, "[IXFR_UPDATE]")) {
-			err = 0;
-			rcode = NOERROR;
 			cp = fgets(buf, sizeof buf, fp);
 			if (cp != NULL)
 				lineno++;
 			if (cp == NULL || !sscanf((char *) cp, "id %d", &id))
 				id = -1;
 			inside_next = 1;
-			prev_pktdone = 1;
 			cont = 1;
 		} else if (!strcasecmp(buf, "[INCR_SERIAL]")) {
 			/* XXXRTH not enough error checking here */
@@ -380,14 +444,11 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			lineno++;
 		}
 		if (prev_pktdone) {
-			if (!EMPTY(listuprec)) {
+			if (!EMPTY(*listuprec)) {
 				n++;
-				*uprec = TAIL(listuprec);
 				return (DBIXFR_FOUND_RR);
 			}
 			prev_pktdone = 0;
-			if (feof(fp))
-				break;
 		}
 		if (cont) {
 			cont = 0;
@@ -418,7 +479,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			cp = fgets(buf, sizeof buf, fp);
 			if (!cp)
 				*buf = '\0';
-			n = sscanf(cp, "origin %s class %s serial %ul",
+			n = sscanf(cp, "origin %s class %s serial %lu",
 				   origin, sclass, &serial);
 			if (n != 3 || ns_samename(origin, zp->z_origin) != 1)
 				err++;
@@ -573,14 +634,15 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 					err++;
 					break;
 				}
-				c = getnonblank(fp, zp->z_updatelog);
+				c = getnonblank(fp, zp->z_updatelog, 0);
 				if (c == '(') {
 					multiline = 1;
 				} else {
 					multiline = 0;
 					ungetc(c, fp);
 				}
-				n = getnum(fp, zp->z_updatelog, GETNUM_SERIAL);
+				n = getnum(fp, zp->z_updatelog, GETNUM_SERIAL,
+					   &multiline);
 				if (getnum_error) {
 					err++;
 					break;
@@ -600,11 +662,13 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 					n = l;
 					PUTLONG(n, cp);
 				}
-				if (multiline &&
-				    getnonblank(fp, zp->z_updatelog) != ')')
-				{
-					err++;
-					break;
+				if (multiline) {
+					c = getnonblank(fp, zp->z_updatelog, 1);
+					if (c != ')') {
+						ungetc(c, fp);
+						err++;
+						break;
+					}
 				}
 				endline(fp);
 				n = cp - data;
@@ -800,9 +864,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			ns_debug(ns_log_update, 1,
 			"merge of update id %d failed due to error at line %d",
 				 id, lineno);
-			memset(&empty_from, 0, sizeof empty_from);
-			free_rrecp(&listuprec, rcode, empty_from);
-			continue;
+			return (DBIXFR_ERROR);
 		}
 		rrecp = res_mkupdrec(section, dname, class, type, ttl);
 		if (section != S_ZONE) {
@@ -822,7 +884,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			ns_updrec *arp;
 			int foundmatch;
 
-			arp = TAIL(listuprec);
+			arp = TAIL(*listuprec);
 			foundmatch = 0;
 			while (arp) {
 				if (arp->r_section == S_UPDATE &&
@@ -837,7 +899,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				     db_cmp(arp->r_dp, dp) == 0) {
 					db_freedata(dp);
 					db_freedata(arp->r_dp);
-					UNLINK(listuprec, arp, r_link);
+					UNLINK(*listuprec, arp, r_link);
 					res_freeupdrec(arp);
 					res_freeupdrec(rrecp);
 					foundmatch = 1;
@@ -849,7 +911,7 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				continue;
 		}
 
-		APPEND(listuprec, rrecp, r_link);
+		APPEND(*listuprec, rrecp, r_link);
 		/* Override zone number with current zone serial number */
 		rrecp->r_zone = serial;
 	}   
@@ -859,3 +921,4 @@ ixfr_getrr(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 
 	return (DBIXFR_END);
 }
+

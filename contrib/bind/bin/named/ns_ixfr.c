@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ixfr.c,v 8.17 1999/11/05 04:48:28 vixie Exp $";
+static const char rcsid[] = "$Id: ns_ixfr.c,v 8.25 2000/12/27 06:56:03 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -46,6 +46,7 @@ static const char rcsid[] = "$Id: ns_ixfr.c,v 8.17 1999/11/05 04:48:28 vixie Exp
 #include <isc/eventlib.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+#include <isc/misc.h>
 
 #include "port_after.h"
 
@@ -58,7 +59,6 @@ static int	sx_flush(struct qstream * qsp),
 		sx_addrr(struct qstream * qsp,
 			 const char *dname,
 			 struct databuf * dp);
-extern void	sx_sendsoa(struct qstream * qsp);
 
 /*
  * u_char * sx_new_ixfrmsg(msg) init the header of a message, reset the
@@ -68,7 +68,6 @@ extern void	sx_sendsoa(struct qstream * qsp);
 static void
 sx_new_ixfrmsg(struct qstream *qsp) {
 	HEADER *	hp = (HEADER *) qsp->xfr.msg;
-	ns_updrec *	up;
 
 	memset(hp, 0, HFIXEDSZ);
 	hp->id = htons(qsp->xfr.id);
@@ -87,14 +86,10 @@ sx_new_ixfrmsg(struct qstream *qsp) {
 		struct namebuf *np;
 		struct hashbuf *htp;
 		struct zoneinfo *zp;
-		struct databuf *dp;
 		const char *	fname;
-		u_char **	edp = qsp->xfr.ptrs +
-				      sizeof qsp->xfr.ptrs / sizeof(u_char *);
 
 		qsp->xfr.ixfr_zone = qsp->xfr.zone;
 		zp = &zones[qsp->xfr.zone];
-		up = qsp->xfr.top.ixfr;
 		n = dn_comp(zp->z_origin, qsp->xfr.cp,
 		   XFER_BUFSIZE - (qsp->xfr.cp - qsp->xfr.msg), NULL, NULL);
 		qsp->xfr.cp += n;
@@ -105,17 +100,15 @@ sx_new_ixfrmsg(struct qstream *qsp) {
 		htp = hashtab;
 		np = nlookup(zp->z_origin, &htp, &fname, 0);
 		buflen = XFER_BUFSIZE;
-		foreach_rr(dp, np, T_SOA, qsp->xfr.class, qsp->xfr.zone) {
-			n = make_rr(zp->z_origin, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp, 0, qsp->xfr.ptrs, edp, 0);
-			qsp->xfr.cp += n;
-			hp->ancount = htons(ntohs(hp->ancount) + 1);
-		}
 	}
 }
 
 /*
- * int sx_flush(qsp) flush the intermediate buffer out to the stream IO
- * system. return: passed through from sq_write().
+ * int
+ * sx_flush(qsp)
+ *	flush the intermediate buffer out to the stream IO system.
+ * return:
+ *	passed through from sq_write().
  */
 static int
 sx_flush(struct qstream *qsp) {
@@ -126,12 +119,34 @@ sx_flush(struct qstream *qsp) {
 		fp_nquery(qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg,
 			  log_get_stream(packet_channel));
 #endif
-	ret = sq_write(qsp, qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg);
-	if (ret >= 0)
+	if (qsp->xfr.tsig_state != NULL && qsp->xfr.tsig_skip == 0) {
+		int msglen = qsp->xfr.cp - qsp->xfr.msg;
+
+		ns_sign_tcp(qsp->xfr.msg, &msglen, qsp->xfr.eom - qsp->xfr.msg,
+			    NOERROR, qsp->xfr.tsig_state,
+			    qsp->xfr.state == s_x_done);
+
+		if (qsp->xfr.state == s_x_done) {
+			memput(qsp->xfr.tsig_state, sizeof(ns_tcp_tsig_state));
+			qsp->xfr.tsig_state = NULL;
+		}
+		qsp->xfr.cp = qsp->xfr.msg + msglen;
+	
+	}
+	if (qsp->xfr.cp - qsp->xfr.msg > 0)
+		ret = sq_write(qsp, qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg);
+	else {
+		ns_debug(ns_log_default, 3, " Flush negative number *********");
+		ret = -1;
+	}
+	if (ret >= 0) {
 		qsp->xfr.cp = NULL;
+		qsp->xfr.tsig_skip = 0;
+	}
+	else
+		qsp->xfr.tsig_skip = 1;
 	return (ret);
 }
-
 /*
  * int sx_addrr(qsp, name, dp) add name/dp's RR to the current assembly
  * message.  if it won't fit, write current message out, renew the message,
@@ -172,12 +187,11 @@ sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
 void
 sx_send_ixfr(struct qstream *qsp) {
 	char *		cp;
-	u_int32_t	serial = 0;
 	struct zoneinfo *zp = NULL;
 	struct databuf *soa_dp;
 	struct databuf *old_soadp;
-	ns_updrec *	rp;
-	ns_updrec *	trp;
+	ns_delta *dp;
+	ns_updrec *rp;
 	int		foundsoa;
 
 	zp = &zones[qsp->xfr.zone];
@@ -188,26 +202,29 @@ sx_send_ixfr(struct qstream *qsp) {
 			 "sx_send_ixfr: unable to locate soa");
 	}
 	old_soadp = memget(DATASIZE(soa_dp->d_size));
+	if (old_soadp == NULL)
+		ns_panic(ns_log_update, 1, "sx_send_ixfr: out of memory");
 	memcpy(old_soadp, soa_dp, DATASIZE(soa_dp->d_size));
 
  again:
 	switch (qsp->xfr.state) {
 	case s_x_firstsoa:
-		/*
-		 * The current SOA has been emited already.
-		 * It would be cleaner if the first one was emited here...
-		 *
-		 * if (sx_addrr(qsp, zp->z_origin, soa_dp) < 0)
-		 *	goto cleanup;
-		 */
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_firstsoa (%s)", zp->z_origin);
+		if (sx_addrr(qsp, zp->z_origin, soa_dp) < 0)
+		 	goto cleanup;
 		qsp->xfr.state = s_x_deletesoa;
 		/* FALLTHROUGH */
 	case s_x_deletesoa:
-		if (qsp->xfr.top.ixfr) {
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_deletesoa (%s)", zp->z_origin);
+		dp = NULL;
+		if (qsp->xfr.top.ixfr != NULL && !EMPTY(*qsp->xfr.top.ixfr))
+			dp = HEAD(*qsp->xfr.top.ixfr);
+		if (dp != NULL) {
 			foundsoa = 0;
-			rp = qsp->xfr.top.ixfr;
-			while (PREV(rp, r_link) != NULL)
-				rp = PREV(rp, r_link);
+
+			rp = HEAD(dp->d_changes);
 			while (rp != NULL) {
 				if (rp->r_opcode == DELETE &&
 				    rp->r_dp != NULL &&
@@ -220,13 +237,12 @@ sx_send_ixfr(struct qstream *qsp) {
 					foundsoa = 1;
 					break;
 				}
-				trp = rp;
 				rp = NEXT(rp, r_link);
 			} 
 
 			if (!foundsoa) {
 				cp = (char *)findsoaserial(old_soadp->d_data);
-				PUTLONG(qsp->xfr.top.ixfr->r_zone, cp);
+				PUTLONG(HEAD(dp->d_changes)->r_zone, cp);
 
 				if (sx_addrr(qsp, zp->z_origin, old_soadp) < 0)
 					goto cleanup;
@@ -235,15 +251,13 @@ sx_send_ixfr(struct qstream *qsp) {
 		qsp->xfr.state = s_x_deleting;
 		/* FALLTHROUGH */
 	case s_x_deleting:
-		if (qsp->xfr.top.ixfr) {
-			/*
-			 * The order s important here.
-			 * Go to start of this update via PREV(r_link)
-			 * then extract all deletions.
-			 */
-			rp = qsp->xfr.top.ixfr;
-			while (PREV(rp, r_link) != NULL)
-				rp = PREV(rp, r_link);
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_deleting (%s)", zp->z_origin);
+		dp = NULL;
+		if (qsp->xfr.top.ixfr != NULL && !EMPTY(*qsp->xfr.top.ixfr))
+			dp = HEAD(*qsp->xfr.top.ixfr);
+		if (dp != NULL) {
+			rp = HEAD(dp->d_changes);
 			while (rp != NULL) {
 				if (rp->r_opcode == DELETE &&
 				    rp->r_dp != NULL) {
@@ -257,18 +271,20 @@ sx_send_ixfr(struct qstream *qsp) {
 					db_freedata(rp->r_dp);
 					rp->r_dp = NULL;
 				}
-				trp = rp;
 				rp = NEXT(rp, r_link);
 			}
 		}
 		qsp->xfr.state = s_x_addsoa;
 		/* FALLTHROUGH */
 	case s_x_addsoa:
-		if (qsp->xfr.top.ixfr) {
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_addsoa (%s)", zp->z_origin);
+		dp = NULL;
+		if (qsp->xfr.top.ixfr != NULL && !EMPTY(*qsp->xfr.top.ixfr))
+			dp = HEAD(*qsp->xfr.top.ixfr);
+		if (dp != NULL) {
 			foundsoa = 0;
-			rp = qsp->xfr.top.ixfr;
-			while (PREV(rp, r_link) != NULL)
-				rp = PREV(rp, r_link);
+			rp = HEAD(dp->d_changes);
 			while (rp != NULL) {
 				if (rp->r_opcode == ADD &&
 				    rp->r_dp != NULL &&
@@ -281,15 +297,13 @@ sx_send_ixfr(struct qstream *qsp) {
 					foundsoa = 1;
 					break;
 				}
-				trp = rp;
 				rp = NEXT(rp, r_link);
 			}
 
 			if (!foundsoa) {
 				cp = (char *)findsoaserial(old_soadp->d_data);
-				if (NEXT(qsp->xfr.top.ixfr, r_link) != NULL) {
-					trp = qsp->xfr.top.ixfr;
-					PUTLONG(NEXT(trp, r_link)->r_zone, cp);
+				if (NEXT(dp, d_link) != NULL) {
+					PUTLONG(HEAD(dp->d_changes)->r_zone, cp);
 					if (sx_addrr(qsp, zp->z_origin,
 						     old_soadp) < 0)
 						goto cleanup;
@@ -303,51 +317,78 @@ sx_send_ixfr(struct qstream *qsp) {
 		qsp->xfr.state = s_x_adding;
 		/* FALLTHROUGH */
 	case s_x_adding:
-		if (qsp->xfr.top.ixfr) {
-			/* see s_x_deleting */
-			rp = qsp->xfr.top.ixfr;
-			while (PREV(rp, r_link) != NULL)
-				rp = PREV(rp, r_link);
-			while (rp != NULL) {
-				if (rp->r_opcode == ADD &&
-				    rp->r_dp != NULL &&
-				    rp->r_dp->d_type != T_SOA) {
-					if (sx_addrr(qsp, rp->r_dname,
-						     rp->r_dp) < 0)
-						goto cleanup;
-					db_freedata(rp->r_dp);
-					rp->r_dp = NULL;
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_adding (%s)", zp->z_origin);
+		dp = NULL;
+		if (qsp->xfr.top.ixfr != NULL && !EMPTY(*qsp->xfr.top.ixfr)) {
+			dp = HEAD(*qsp->xfr.top.ixfr);
+			if (dp != NULL) {
+				/* see s_x_deleting */
+				rp = HEAD(dp->d_changes);
+				while (rp != NULL) {
+					if (rp->r_opcode == ADD &&
+					    rp->r_dp != NULL &&
+					    rp->r_dp->d_type != T_SOA) {
+						if (sx_addrr(qsp, rp->r_dname,
+							     rp->r_dp) < 0)
+							goto cleanup;
+						db_freedata(rp->r_dp);
+						rp->r_dp = NULL;
+					}
+					rp = NEXT(rp, r_link);
 				}
-				trp = rp;
-				rp = NEXT(rp, r_link);
-			}
-			/* move to next update */
-			rp = qsp->xfr.top.ixfr;
-			qsp->xfr.top.ixfr = NEXT(rp, r_link);
-			PREV(rp, r_link) = NULL;
 
-			/* clean up old update */
-			while (rp != NULL) {
-				trp = PREV(rp, r_link);
-				if (rp->r_dp != NULL) {
-					db_freedata(rp->r_dp);
-					rp->r_dp = NULL;
+				/* move to next update */
+				UNLINK(*qsp->xfr.top.ixfr, dp, d_link);
+
+				/* clean up old update */
+				while ((rp = HEAD(dp->d_changes)) != NULL) {
+					UNLINK(dp->d_changes, rp, r_link);
+					if (rp->r_dp != NULL) {
+						db_freedata(rp->r_dp);
+						rp->r_dp = NULL;
+					}
+					res_freeupdrec(rp);
 				}
-				res_freeupdrec(rp);
-				rp = trp;
+				memput(dp, sizeof (*dp));
+				if (HEAD(*qsp->xfr.top.ixfr) != NULL) {
+					qsp->xfr.state = s_x_deletesoa;
+					goto again;
+				}
 			}
 		}
 		qsp->xfr.state = s_x_lastsoa;
 		/* FALLTHROUGH */
 	case s_x_lastsoa:
-		if (qsp->xfr.ixfr_zone != 0) {
+		ns_debug(ns_log_default, 3,
+			 "IXFR: s_x_lastsoa (%s)", zp->z_origin);
+		if (qsp->xfr.ixfr_zone != 0)
 			sx_addrr(qsp, zp->z_origin, soa_dp);
-		}
+		break;
+	default:
 		break;
 	}
+	ns_debug(ns_log_default, 3, "IXFR: flushing %s", zp->z_origin);
 	qsp->xfr.state = s_x_done;
 	sx_flush(qsp);
 	sq_writeh(qsp, sq_flushw);
+	if (qsp->xfr.top.ixfr != NULL) {
+		if(!EMPTY(*qsp->xfr.top.ixfr)) {
+			while ((dp = HEAD(*qsp->xfr.top.ixfr)) != NULL)  {
+				UNLINK(*qsp->xfr.top.ixfr, dp, d_link);
+				while ((rp = HEAD(dp->d_changes)) != NULL) {
+					UNLINK(dp->d_changes, rp, r_link);
+					if (rp->r_dp != NULL)
+						db_freedata(rp->r_dp);
+					rp->r_dp = NULL;
+					res_freeupdrec(rp);
+				} 
+				memput(dp, sizeof *dp);
+			}
+		}
+		memput(qsp->xfr.top.ixfr, sizeof *qsp->xfr.top.ixfr);
+		qsp->xfr.top.ixfr = NULL;
+	}
  cleanup:
 	memput(old_soadp, DATASIZE(old_soadp->d_size));
 }
@@ -358,9 +399,17 @@ sx_send_ixfr(struct qstream *qsp) {
 #endif
 
 
-int ixfr_log_maint(struct zoneinfo *zp) {
-	int fd, rcount, wcount, rval;
-	int found = 0, seek = 0;
+/*
+ * int ixfr_log_maint(struct zoneinfo *zp, int fast_trim)
+ *
+ * zp - pointer to the zone information
+ */
+int
+ixfr_log_maint(struct zoneinfo *zp) {
+	int fd, rcount, wcount;
+	int found = 0;
+	int error = 0;
+	long seek = 0;
 	FILE *to_fp, *from_fp, *db_fp;
 	static char   *tmpname;
 	struct stat db_sb;
@@ -368,6 +417,62 @@ int ixfr_log_maint(struct zoneinfo *zp) {
 	static char buf[MAXBSIZE];
 
 	ns_debug(ns_log_default, 3, "ixfr_log_maint(%s)", zp->z_origin);
+
+	/* find out how big the zone db file is */
+	if ((db_fp = fopen(zp->z_source, "r")) == NULL) {
+		ns_warning(ns_log_db, "%s: %s",
+			   zp->z_source, strerror(errno));
+	 	return (-1);
+	}
+	if (fstat(fileno(db_fp), &db_sb) < 0) {
+		ns_warning(ns_log_db, "%s: %s",
+			   zp->z_source, strerror(errno));
+		(void) my_fclose(db_fp);
+		return (-1);
+	}
+	(void) my_fclose(db_fp);
+	ns_debug(ns_log_default, 3, "%s, size %d blk %d", 
+	     zp->z_source, db_sb.st_size, 
+	     db_sb.st_size);
+
+	/* open up the zone ixfr log */
+	if ((from_fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
+		ns_warning(ns_log_db, "%s: %s",
+			   zp->z_ixfr_base, strerror(errno));
+	 	return (-1);
+	}
+
+	if (fstat(fileno(from_fp), &sb) < 0) {
+		ns_warning(ns_log_db, "%s: %s",
+			   zp->z_ixfr_base, strerror(errno));
+		(void) my_fclose(from_fp);
+		return (-1);
+	}
+	ns_debug(ns_log_default, 3, "%s, size %d max %d\n", 
+	     zp->z_ixfr_base, 
+	     sb.st_size, 
+	     zp->z_max_log_size_ixfr);
+	if (zp->z_max_log_size_ixfr) {
+		if (sb.st_size > zp->z_max_log_size_ixfr)
+			seek = sb.st_size -
+				(size_t)(zp->z_max_log_size_ixfr + 
+				(zp->z_max_log_size_ixfr * 0.10) );
+		else
+			seek = 0;
+	} else {
+		if (sb.st_size > (db_sb.st_size * 0.50))
+			seek = sb.st_size - (size_t)((db_sb.st_size * 0.50)
+			 + ((db_sb.st_size * zp->z_max_log_size_ixfr) * 0.10));
+		else 
+			 seek = 0;
+	}
+	ns_debug(ns_log_default, 3, "seek: %d", seek);
+	if (seek < 1) {
+		ns_debug(ns_log_default, 3, "%s does not need to be reduced", 
+			zp->z_ixfr_base);
+		(void) my_fclose(from_fp);
+		return (-1);
+	}
 
 	tmpname = memget(strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1);
 	if (!tmpname) {
@@ -395,111 +500,23 @@ int ixfr_log_maint(struct zoneinfo *zp) {
 		(void) close(fd);
 	 	return (-1);
 	}
-	/* find out how big the zone db file is */
-	if ((db_fp = fopen(zp->z_source, "r")) == NULL) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_source, strerror(errno));
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-	 	return (-1);
-	}
-	if (fstat(fileno(db_fp), &db_sb) < 0) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_source, strerror(errno));
-		(void) my_fclose(to_fp);
-		(void) my_fclose(db_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		return (-1);
-	}
-	(void) my_fclose(db_fp);
-	ns_debug(ns_log_default, 3, "%s, size %d blk %d", 
-	     zp->z_source, db_sb.st_size, 
-	     db_sb.st_size);
-
-	/* open up the zone ixfr log */
-    if ((from_fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_ixfr_base, strerror(errno));
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-	 	return (-1);
-	}
-
-	if (fstat(fileno(from_fp), &sb) < 0) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_ixfr_base, strerror(errno));
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		(void) my_fclose(from_fp);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		return (-1);
-	}
-	ns_debug(ns_log_default, 3, "%s, size %d log_s %d max %d\n", 
-	     zp->z_ixfr_base, 
-	     sb.st_size, 
-	     zp->z_log_size_ixfr, 
-	     zp->z_max_log_size_ixfr);
-	if (zp->z_max_log_size_ixfr) {
-		if (sb.st_size > zp->z_max_log_size_ixfr)
-			seek = sb.st_size - (zp->z_max_log_size_ixfr + (zp->z_max_log_size_ixfr *.10));
-		else
-			seek = 0;
-	} else {
-		if (sb.st_size > (db_sb.st_size * .50))
-			seek = sb.st_size - ((db_sb.st_size * .50)
-			 + ((db_sb.st_size * zp->z_max_log_size_ixfr) *.10));
-		else 
-			 seek = 0;
-	}
-	ns_debug(ns_log_default, 3, "seek: %d", seek);
-	if (seek < 1)
-	{
-		ns_debug(ns_log_default, 3, "%s does not need to be reduced", 
-			zp->z_ixfr_base);
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		(void) my_fclose(from_fp);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		return (-1);
-	}
-
 
 	if (fgets(buf, sizeof(buf), from_fp) == NULL) {
 		ns_error(ns_log_update, "fgets() from %s failed: %s",
 			 zp->z_ixfr_base, strerror(errno));
-		(void) my_fclose(from_fp);
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		return (-1);
+		error++;
+		goto clean_up;
 	}
 	if (strcmp(buf, LogSignature) != 0) {
 		ns_error(ns_log_update, "invalid log file %s",
 			 zp->z_ixfr_base);
-		(void) my_fclose(from_fp);
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-		return (-3);
+		error++;
+		goto clean_up;
 	}
 
-    if (fseek( from_fp, seek, 0) < 0) {
-		(void) my_fclose(from_fp);
-		(void) my_fclose(to_fp);
-		(void) close(fd);
-		(void) unlink(tmpname);
-		memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-	 	return (-1);
+	if (fseek( from_fp, seek, 0) < 0) {
+		error++;
+		goto clean_up;
 	}
 
 	found = 0;
@@ -517,47 +534,61 @@ int ixfr_log_maint(struct zoneinfo *zp) {
 	if (found) {
 		ns_debug(ns_log_default, 1, "ixfr_log_maint(): found [END_DELTA]");
 	
+		fprintf(to_fp, "%s", LogSignature);
+
 		while ((rcount = fread(buf, sizeof(char), MAXBSIZE, from_fp)) > 0) {
 			wcount = fwrite(buf, sizeof(char), rcount, to_fp);
 			if (rcount != wcount || wcount == -1) {
 					ns_warning(ns_log_default, "ixfr_log_maint: error in writting copy");
-					rval = 1;
 					break;
 			}
-    	}
-    	if (rcount < 0) {
-			ns_warning(ns_log_default, "ixfr_log_maint: error in reading copy");
-	   		rval = 1;
 		}
+		if (rcount < 0)
+			ns_warning(ns_log_default,
+				   "ixfr_log_maint: error in reading copy");
 	}
+	clean_up:
 	(void) my_fclose(to_fp);
 	(void) close(fd);
 	(void) my_fclose(from_fp);
-	if (rename(tmpname, zp->z_ixfr_base) == -1) {
-		ns_warning(ns_log_default, "can not rename %s to %s :%s",
-				tmpname, zp->z_ixfr_base, strerror(errno));
+	if (error == 0) {
+		if (isc_movefile(tmpname, zp->z_ixfr_base) == -1) {
+			ns_warning(ns_log_default, "can not rename %s to %s :%s",
+				   tmpname, zp->z_ixfr_base, strerror(errno));
+		}
+		if ((from_fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
+			ns_warning(ns_log_db, "%s: %s",
+				   zp->z_ixfr_base, strerror(errno));
+			return (-1);
+		}
+		if (fstat(fileno(from_fp), &sb) < 0) {
+			ns_warning(ns_log_db, "%s: %s",
+				   zp->z_ixfr_base, strerror(errno));
+			(void) my_fclose(from_fp);
+			return (-1);
+		}
+		if (sb.st_size <= 0)
+			(void) unlink(zp->z_ixfr_base);
+		else if (chmod(zp->z_ixfr_base, 0644) < 0)
+				ns_error(ns_log_update,
+					"chmod(%s,%o) failed, pressing on: %s",
+					 zp->z_source, sb.st_mode,
+					 strerror(errno));
 	}
 	(void) unlink(tmpname);
 	memput(tmpname, (strlen(zp->z_ixfr_base) + sizeof(".XXXXXX") + 1));
-	if ((from_fp = fopen(zp->z_ixfr_base, "r")) == NULL) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_ixfr_base, strerror(errno));
-	 	return (-1);
-	}
-	if (fstat(fileno(from_fp), &sb) < 0) {
-		ns_warning(ns_log_db, "%s: %s",
-			   zp->z_ixfr_base, strerror(errno));
-		(void) my_fclose(from_fp);
-		return (-1);
-	}
-	if (sb.st_size <= 0)
-		(void) unlink(zp->z_ixfr_base);
 	(void) my_fclose(from_fp);
 
-	ns_debug(ns_log_default, 3, "%s, size %d log_s %d max %d\n", 
+	zp->z_serial_ixfr_start = 0; /* signal to read for lowest serial number */	
+
+	ns_debug(ns_log_default, 3, "%s, size %d max %d\n", 
 	     zp->z_ixfr_base, 
 	     sb.st_size, 
-	     zp->z_log_size_ixfr, 
 	     zp->z_max_log_size_ixfr);
-	return (0);
+
+	if (error)
+	 	return(-1);
+	else
+	    return (0);
 }
+

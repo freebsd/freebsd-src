@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.21 1999/10/19 22:22:59 cyarnell Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.26 2000/12/23 08:14:48 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -141,15 +141,10 @@ int dns_findprimary (res_state, char *, struct ns_tsig_key *, char *,
  * zone to which a resource record belongs
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
-{
+main(int argc, char **argv) {
 	FILE *fp = NULL;
-	char buf[BUFSIZ], buf2[BUFSIZ], hostbuf[100], filebuf[100];
+	char buf[BUFSIZ], buf2[BUFSIZ];
 	char dnbuf[MAXDNAME], data[MAXDATA];
-	u_char packet[PACKETSZ], answer[PACKETSZ];
-	char *host = hostbuf, *batchfile = filebuf;
 	char *r_dname, *cp, *startp, *endp, *svstartp;
 	char section[15], opcode[10];
 	int i, c, n, n1, inside, lineno = 0, vc = 0,
@@ -160,13 +155,11 @@ main(argc, argv)
 	struct map *mp;
 	ns_updrec *rrecp;
 	ns_updque listuprec;
-	struct in_addr hostaddr;
 	extern int getopt();
 	extern char *optarg;
 	extern int optind, opterr, optopt;
 	ns_tsig_key key;
-	char *keyfile=NULL, *keyname=NULL, *p, *pp;
-	int file_major, file_minor, alg;
+	char *keyfile=NULL, *keyname=NULL;
 
 
 
@@ -196,13 +189,15 @@ main(argc, argv)
 			*colon='\0';
 			break;
 		}
-		 case 'n':
+		case 'n':
 			keyname=optarg;
 			break;
 		default:
 			usage();
 		}
 	}
+
+	INIT_LIST(listuprec);
 
 	if (keyfile) {
 #ifdef PARSE_KEYFILE
@@ -397,7 +392,7 @@ main(argc, argv)
 		    exit (1);
 		}
 		r_dname = dnbuf;
-		r_ttl = 0;
+		r_ttl = (r_opcode == ADD) ? -1 : 0;
 		r_type = -1;
 		r_class = C_IN; /* default to IN */
 		r_size = 0;
@@ -429,8 +424,8 @@ main(argc, argv)
 		switch (r_section) {
 		case S_PREREQ:
 		    if (r_ttl) {
-			fprintf(stderr, "nonzero ttl in prereq section: %ul\n",
-				r_ttl);
+			fprintf(stderr, "nonzero ttl in prereq section: %lu\n",
+				(u_long)r_ttl);
 			r_ttl = 0;
 		    }
 		    switch (r_opcode) {
@@ -500,7 +495,7 @@ main(argc, argv)
 			r_size = endp - cp + 1;
 			break;
 		    case ADD:
-			if (r_ttl == 0) {
+			if (r_ttl == -1) {
 			    fprintf (stderr,
 		"ttl must be specified for record to be added: %s\n", buf);
 			    exit (1);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_srvr.c,v 8.21 1999/10/17 08:41:57 cyarnell Exp $";
+static const char rcsid[] = "$Id: ctl_srvr.c,v 8.24 2000/11/14 01:10:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -73,7 +73,9 @@ enum state {
 
 union sa_un {
 	struct sockaddr_in in;
+#ifndef NO_SOCKADDR_UN
 	struct sockaddr_un un;
+#endif
 };
 
 struct ctl_sess {
@@ -229,8 +231,12 @@ ctl_server(evContext lev, const struct sockaddr *sap, size_t sap_len,
 				       me, strerror(errno));
 		}
 	if (bind(ctx->sock, sap, sap_len) < 0) {
+		char tmp[MAX_NTOP];
 		save_errno = errno;
-		(*ctx->logger)(ctl_error, "%s: bind: %s", me, strerror(errno));
+		(*ctx->logger)(ctl_error, "%s: bind: %s: %s",
+			       me, ctl_sa_ntop((struct sockaddr *)sap,
+			       tmp, sizeof tmp, ctx->logger),
+			       strerror(save_errno));
 		close(ctx->sock);
 		memput(ctx, sizeof *ctx);
 		errno = save_errno;
@@ -416,6 +422,7 @@ ctl_accept(evContext lev, void *uap, int fd,
 			       strerror(errno));
 	}
 	ctx->cur_sess++;
+	INIT_LINK(sess, link);
 	APPEND(ctx->sess, sess, link);
 	sess->ctx = ctx;
 	sess->sock = fd;
@@ -561,7 +568,8 @@ ctl_readable(evContext lev, void *uap, int fd, int evmask) {
 		ctl_close(sess);
 		return;
 	}
-	n = read(sess->sock, sess->inbuf.text, MAX_LINELEN - sess->inbuf.used);
+	n = read(sess->sock, sess->inbuf.text + sess->inbuf.used,
+		 MAX_LINELEN - sess->inbuf.used);
 	if (n <= 0) {
 		(*ctx->logger)(ctl_debug, "%s: %s: read: %s",
 			       me, address_expr,

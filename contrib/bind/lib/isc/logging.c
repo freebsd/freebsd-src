@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 8.24 1999/10/13 16:39:34 vixie Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.28 2000/12/23 08:14:54 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -39,6 +39,7 @@ static const char rcsid[] = "$Id: logging.c,v 8.24 1999/10/13 16:39:34 vixie Exp
 #include <isc/assertions.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+#include <isc/misc.h>
 
 #include "port_after.h"
 
@@ -78,10 +79,10 @@ version_rename(log_channel chan) {
 	for (ver--; ver > 0; ver--) {
 		sprintf(old_name, "%s.%d", chan->out.file.name, ver-1);
 		sprintf(new_name, "%s.%d", chan->out.file.name, ver);
-		(void)rename(old_name, new_name);
+		(void)isc_movefile(old_name, new_name);
 	}
 	sprintf(new_name, "%s.0", chan->out.file.name);
-	(void)rename(chan->out.file.name, new_name);
+	(void)isc_movefile(chan->out.file.name, new_name);
 }
 
 FILE *
@@ -127,7 +128,7 @@ log_open_stream(log_channel chan) {
 
 	flags = O_WRONLY|O_CREAT|O_APPEND;
 
-	if (chan->flags & LOG_TRUNCATE) {
+	if ((chan->flags & LOG_TRUNCATE) != 0) {
 		if (regular) {
 			(void)unlink(chan->out.file.name);
 			flags |= O_EXCL;
@@ -155,6 +156,7 @@ log_open_stream(log_channel chan) {
 		chan->flags |= LOG_CHANNEL_BROKEN;
 		return (NULL);
 	}
+	(void) fchown(fd, chan->out.file.owner, chan->out.file.group);
 
 	chan->out.file.stream = stream;
 	return (stream);
@@ -617,8 +619,21 @@ log_new_file_channel(unsigned int flags, int level,
 	chan->out.file.stream = stream;
 	chan->out.file.versions = versions;
 	chan->out.file.max_size = max_size;
+	chan->out.file.owner = getuid();
+	chan->out.file.group = getgid();
 	chan->references = 0;
 	return (chan);
+}
+
+int
+log_set_file_owner(log_channel chan, uid_t owner, gid_t group) {
+	if (chan->type != log_file) {
+		errno = EBADF;
+		return (-1);
+	}
+	chan->out.file.owner = owner;
+	chan->out.file.group = group;
+	return (0);
 }
 
 log_channel

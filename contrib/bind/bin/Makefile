@@ -13,16 +13,16 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.27 1999/08/08 17:13:24 vixie Exp $
+# $Id: Makefile,v 8.30 2000/12/23 08:02:48 vixie Exp $
 
 DESTDIR=
 CC= cc
 SHELL= /bin/sh
 
-CDEBUG= -g
+CDEBUG= -g -Wall
 
 #(net2 and its descendents)
-SYSTYPE = bsdos
+SYSTYPE = freebsd
 TOP = ..
 O=o
 A=a
@@ -54,11 +54,12 @@ MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"RANLIB=${RANLIB}" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \
 	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" "EXE=${EXE}" \
 	"LIBBIND=../${LIBBIND}" "LIBPORT=../${LIBPORT}" \
-	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}" \
+	"INSTALL=${INSTALL}" "TOP=../${TOP}" \
 	"VER=${VER}" "STRIP=${STRIP}" "PS=${PS}" "INSTALL_LIB=${INSTALL_LIB}" \
 	"INSTALL_EXEC=${INSTALL_EXEC}" "BOUNDS=${BOUNDS}"
 
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 
 SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate \
 	mkservdb irpd dnskeygen named-bootconf
@@ -66,11 +67,11 @@ SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate \
 all: ${SUBDIRS}
 
 ${SUBDIRS}: FRC
-	@(cd $@; pwd; ${MAKE} ${MARGS})
+	@(cd $@; pwd; ${MAKE} ${MARGS}) || exit 1
 
 install depend tags clean distclean::
 	@for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 distclean:: clean
@@ -84,7 +85,7 @@ links: FRC
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		  cp SRC/Makefile Makefile; chmod +w Makefile; \
 		  $(MAKE) $(MARGS) links; \
-		); \
+		) || exit 1; \
 	done
 
 FRC:

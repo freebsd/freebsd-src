@@ -64,7 +64,7 @@ MARGS= DESTDIR="${DESTDIR}" DESTINC="${DESTINC}" INSTALL="${INSTALL}"
 
 all depend clean distclean install::
 	@for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 prand_conf.h: prand_conf.c 
@@ -82,7 +82,7 @@ links: FRC
 	@set -e; for x in ${SUBDIRS}; do \
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		cp SRC/Makefile Makefile; chmod +w Makefile; \
-		${MAKE} ${MARGS} links ); \
+		${MAKE} ${MARGS} links ) || exit 1; \
 	done
 
 install:: ${DESTDIR}${DESTINC}

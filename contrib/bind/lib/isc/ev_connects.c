@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_connects.c,v 8.25 1999/10/07 20:44:04 vixie Exp $";
+static const char rcsid[] = "$Id: ev_connects.c,v 8.27 2000/11/14 01:10:37 vixie Exp $";
 #endif
 
 /* Import. */
@@ -235,7 +235,7 @@ evTryAccept(evContext opaqueCtx, evConnID id, int *sys_errno) {
 	OKNEW(new);
 	new->conn = conn;
 	new->ralen = sizeof new->ra;
-	new->fd = accept(conn->fd, &new->ra, &new->ralen);
+	new->fd = accept(conn->fd, &new->ra.sa, &new->ralen);
 	if (new->fd > ctx->highestFD) {
 		close(new->fd);
 		new->fd = -1;
@@ -243,7 +243,7 @@ evTryAccept(evContext opaqueCtx, evConnID id, int *sys_errno) {
 	}
 	if (new->fd >= 0) {
 		new->lalen = sizeof new->la;
-		if (GETXXXNAME(getsockname, new->fd, new->la, new->lalen) < 0) {
+		if (GETXXXNAME(getsockname, new->fd, new->la.sa, new->lalen) < 0) {
 			new->ioErrno = errno;
 			(void) close(new->fd);
 			new->fd = -1;
@@ -256,6 +256,7 @@ evTryAccept(evContext opaqueCtx, evConnID id, int *sys_errno) {
 			return (-1);
 		}
 	}
+	INIT_LINK(new, link);
 	APPEND(ctx->accepts, new, link);
 	*sys_errno = new->ioErrno;
 	return (0);
@@ -267,12 +268,18 @@ static void
 listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 	evContext_p *ctx = opaqueCtx.opaque;
 	evConn *conn = uap;
-	struct sockaddr la, ra;
-	int new, lalen, ralen;
+	union {
+		struct sockaddr    sa;
+		struct sockaddr_in in;
+#ifndef NO_SOCKADDR_UN
+		struct sockaddr_un un;
+#endif
+	} la, ra;
+	int new, lalen = 0, ralen;
 
 	REQUIRE((evmask & EV_READ) != 0);
 	ralen = sizeof ra;
-	new = accept(fd, &ra, &ralen);
+	new = accept(fd, &ra.sa, &ralen);
 	if (new > ctx->highestFD) {
 		close(new);
 		new = -1;
@@ -280,7 +287,7 @@ listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 	}
 	if (new >= 0) {
 		lalen = sizeof la;
-		if (GETXXXNAME(getsockname, new, la, lalen) < 0) {
+		if (GETXXXNAME(getsockname, new, la.sa, lalen) < 0) {
 			int save = errno;
 
 			(void) close(new);
@@ -289,13 +296,19 @@ listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 		}
 	} else if (errno == EAGAIN || errno == EWOULDBLOCK)
 		return;
-	(*conn->func)(opaqueCtx, conn->uap, new, &la, lalen, &ra, ralen);
+	(*conn->func)(opaqueCtx, conn->uap, new, &la.sa, lalen, &ra.sa, ralen);
 }
 
 static void
 connector(evContext opaqueCtx, void *uap, int fd, int evmask) {
 	evConn *conn = uap;
-	struct sockaddr la, ra;
+	union {
+		struct sockaddr    sa;
+		struct sockaddr_in in;
+#ifndef NO_SOCKADDR_UN
+		struct sockaddr_un un;
+#endif
+	} la, ra;
 	int lalen, ralen;
 	char buf[1];
 	void *conn_uap;
@@ -325,13 +338,13 @@ connector(evContext opaqueCtx, void *uap, int fd, int evmask) {
 #else
 	    read(fd, buf, 0) < 0 ||
 #endif
-	    GETXXXNAME(getsockname, fd, la, lalen) < 0 ||
-	    GETXXXNAME(getpeername, fd, ra, ralen) < 0) {
+	    GETXXXNAME(getsockname, fd, la.sa, lalen) < 0 ||
+	    GETXXXNAME(getpeername, fd, ra.sa, ralen) < 0) {
 		int save = errno;
 
 		(void) close(fd);	/* XXX closing caller's fd */
 		errno = save;
 		fd = -1;
 	}
-	(*conn_func)(opaqueCtx, conn_uap, fd, &la, lalen, &ra, ralen);
+	(*conn_func)(opaqueCtx, conn_uap, fd, &la.sa, lalen, &ra.sa, ralen);
 }

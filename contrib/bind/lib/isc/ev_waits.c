@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_waits.c,v 8.9 1999/10/13 17:11:20 vixie Exp $";
+static const char rcsid[] = "$Id: ev_waits.c,v 8.11 2000/07/20 18:17:52 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -49,7 +49,7 @@ static evWaitList *	evGetWaitList(evContext_p *, const void *, int);
  */
 int
 evWaitFor(evContext opaqueCtx, const void *tag,
-       evWaitFunc func, void *uap, evWaitID *id)
+	  evWaitFunc func, void *uap, evWaitID *id)
 {
 	evContext_p *ctx = opaqueCtx.opaque;
 	evWait *new;
@@ -60,11 +60,10 @@ evWaitFor(evContext opaqueCtx, const void *tag,
 	new->uap = uap;
 	new->tag = tag;
 	new->next = NULL;
-	if (wl->last != NULL) {
+	if (wl->last != NULL)
 		wl->last->next = new;
-	} else {
+	else
 		wl->first = new;
-	}
 	wl->last = new;
 	if (id != NULL)
 		id->opaque = new;
@@ -212,6 +211,8 @@ evNewWaitList(evContext_p *ctx) {
 	new->first = new->last = NULL;
 	new->prev = NULL;
 	new->next = ctx->waitLists;
+	if (new->next != NULL)
+		new->next->prev = new;
 	ctx->waitLists = new;
 	return (new);
 }

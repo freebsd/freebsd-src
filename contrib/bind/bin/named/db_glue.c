@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static const char rcsid[] = "$Id: db_glue.c,v 8.39 1999/10/15 19:48:57 vixie Exp $";
+static const char rcsid[] = "$Id: db_glue.c,v 8.42 2000/12/23 08:14:35 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_glue.c,v 8.39 1999/10/15 19:48:57 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -345,17 +345,14 @@ rm_datum(struct databuf *dp, struct namebuf *np, struct databuf *pdp,
 		np->n_data = ndp;
 	else
 		pdp->d_next = ndp;
-#ifdef BIND_UPDATE
 	if (savedpp != NULL) {
 		/* mark deleted or pending deletion */
 		dp->d_mark |= D_MARK_DELETED; 
 		dp->d_next = *savedpp;
+		DRCNTINC(dp);
 		*savedpp = dp;
 	} else
 		dp->d_next = NULL;
-#else
-	dp->d_next = NULL;
-#endif
 	dp->d_flags &= ~DB_F_ACTIVE;
 	DRCNTDEC(dp);
 	if (dp->d_rcnt) {
@@ -381,10 +378,7 @@ rm_datum(struct databuf *dp, struct namebuf *np, struct databuf *pdp,
 				 "rm_datum: rcnt = %d", dp->d_rcnt);
 		}
 	} else
-#ifdef BIND_UPDATE
-		if (savedpp == NULL)
-#endif
-		        db_freedata(dp);
+		db_freedata(dp);
 	return (ndp);
 }
 
@@ -439,9 +433,6 @@ getname(struct namebuf *np, char *buf, int buflen) {
 	while (np != NULL) {
 		i = (int) NAMELEN(*np);
 		if (i + 1 >= buflen) {
-			*cp = '\0';
-			ns_info(ns_log_db, 
-				"domain name too long: %s...", buf);
 			strcpy(buf, "Name_Too_Long");
 			return;
 		}

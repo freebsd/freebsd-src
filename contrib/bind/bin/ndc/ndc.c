@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ndc.c,v 1.13 1999/10/13 16:39:16 vixie Exp $";
+static const char rcsid[] = "$Id: ndc.c,v 1.16 2000/12/23 08:14:45 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -31,6 +31,7 @@ static const char rcsid[] = "$Id: ndc.c,v 1.13 1999/10/13 16:39:16 vixie Exp $";
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -47,7 +48,9 @@ static const char rcsid[] = "$Id: ndc.c,v 1.13 1999/10/13 16:39:16 vixie Exp $";
 
 typedef union {
 	struct sockaddr_in in;
+#ifndef NO_SOCKADDR_UN
 	struct sockaddr_un un;
+#endif
 } sockaddr_t;
 
 typedef void (*closure)(void *, const char *, int);
@@ -294,8 +297,20 @@ builtincmd(void) {
 
 static void
 builtinhelp(void) {
-	printf(helpfmt, "start", "start the server");
-	printf(helpfmt, "restart", "stop server if any, start a new one");
+	const char *fmt;
+
+	switch (mode) {
+	case e_channel:
+		fmt = "(builtin) %s - %s\n";
+		break;
+	case e_signals:
+		fmt = helpfmt;
+		break;
+	default:
+		abort();
+	}
+	printf(fmt, "start", "start the server");
+	printf(fmt, "restart", "stop server if any, start a new one");
 }
 
 static void
@@ -369,8 +384,10 @@ command_channel(void) {
 	int helping = (strcasecmp(cmd, "help") == 0);
 	int save_quiet = quiet;
 
-	if (helping)
+	if (helping) {
 		quiet = 0;
+		builtinhelp();
+	}
 	channel_loop(cmd, !quiet, NULL, NULL);
 	quiet = save_quiet;
 }
@@ -494,7 +511,6 @@ static void
 command_signals(void) {
 	struct cmdsig *cmdsig;
 	pid_t pid;
-	int sig;
 
 	if (strcasecmp(cmd, "help") == 0) {
 		printf(helpfmt, "help", "this output");
@@ -603,22 +619,29 @@ static int
 get_sockaddr(char *name, sockaddr_t *addr) {
 	char *slash;
 
+#ifndef NO_SOCKADDR_UN
 	if (name[0] == '/') {
 		memset(&addr->un, '\0', sizeof addr->un);
 		addr->un.sun_family = AF_UNIX;
 		strncpy(addr->un.sun_path, name, sizeof addr->un.sun_path - 1);
 		addr->un.sun_path[sizeof addr->un.sun_path - 1] = '\0';
-	} else if ((slash = strrchr(name, '/')) != NULL) {
-		*slash = '\0';
+	} else
+#endif
+	if ((slash = strrchr(name, '/')) != NULL) {
+		char *ibuf = malloc(slash - name + 1);
+		if (!ibuf)
+			usage("no memory for IP address (%s)", name);
+		memcpy(ibuf, name, slash - name);
+		ibuf[slash - name] = '\0';
 		memset(&addr->in, '\0', sizeof addr->in);
-		if (!inet_pton(AF_INET, name, &addr->in.sin_addr))
+		if (!inet_pton(AF_INET, ibuf, &addr->in.sin_addr))
 			usage("bad ip address (%s)", name);
 		if ((addr->in.sin_port = htons(atoi(slash+1))) == 0)
 			usage("bad ip port (%s)", slash+1);
 		addr->in.sin_family = AF_INET;
-		*slash = ':';
-	} else {
-		return (0);
+		free (ibuf);
+	  } else {
+		  return (0);
 	}
 	return (1);
 }
@@ -630,8 +653,10 @@ impute_addrlen(const struct sockaddr *sa) {
 	switch (sa->sa_family) {
 	case AF_INET:
 		return (sizeof(struct sockaddr_in));
+#ifndef NO_SOCKADDR_UN
 	case AF_UNIX:
 		return (sizeof(struct sockaddr_un));
+#endif
 	default:
 		abort();
 	}

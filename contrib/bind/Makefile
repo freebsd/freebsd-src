@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.51 1999/11/06 03:24:02 vixie Exp $
+# $Id: Makefile,v 8.52 2000/11/21 12:54:37 marka Exp $
 
 TOP=
 SUBDIRS= include port lib bin
@@ -37,7 +37,7 @@ all clean depend install distclean:: FRC
 			  eval "${MAKE} $$settings ${MARGS} SYSTYPE=$$systype \
 				VER=$$version \
 				$@"; \
-			); \
+			) || exit 1; \
 		done \
 	fi
 
@@ -52,7 +52,7 @@ links: FRC
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		  cp SRC/Makefile Makefile; chmod +w Makefile; \
 		  ${MAKE} ${MARGS} SYSTYPE=$$systype links; \
-		); \
+		) || exit 1; \
 	done
 
 stdlinks: FRC

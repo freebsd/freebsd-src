@@ -26,7 +26,7 @@ MARGS= DESTDIR="${DESTDIR}" DESTINC="${DESTINC}" INSTALL="${INSTALL}" \
 
 all depend clean distclean install::
 	@for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 distclean:: clean
@@ -48,7 +48,7 @@ links:: FRC
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		  cp SRC/Makefile Makefile; chmod +w Makefile; \
 		  $(MAKE) $(MARGS) links; \
-		); \
+		) || exit 1; \
 	done
 
 FRC:

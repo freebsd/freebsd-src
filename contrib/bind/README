@@ -1,5 +1,5 @@
-This is the source portion of BIND version 8.2.2, Patchlevel 7.  Its
-companions are "doc" and "contrib" so you are probably not missing anything.
+This is the source portion of BIND version 8.  Its companions are "doc" and
+"contrib" so you are probably not missing anything.
 
 See the CHANGES file for a detailed listing of all changes.  See the INSTALL
 file for information on building and installing BIND.
@@ -7,17 +7,19 @@ file for information on building and installing BIND.
 See the SUPPORT file for information on obtaining commercial support for ISC
 artifacts including BIND, INN, and DHCP.
 
-SECURITY NOTE:
+Note that BIND 8 is in "end-of-life", having been replaced by BIND 9.  See
+http://www.isc.org/ for more details.
 
-	Solaris and other pre-4.4BSD kernels do not respect ownership or
-	protections on UNIX-domain sockets.  This means that the default
-	path for the NDC control socket (/var/run/ndc) is such that any
-	user (root or other) on such systems can issue any NDC command
-	except "start" and "restart".  The short term fix for this is to
-	override the default path and put such control sockets into root-
-	owned directories which do not permit non-root to r/w/x through them.
-	The medium term fix is for BIND to enforce this requirement internally.
-	The long term fix is for all kernels to upgrade to 4.4BSD semantics.
+BIND 8.2.3 Highlights
+
+	Improved support for Windows NT and Windows 2000.
+	Host stats are no longer required to track the source of a record.
+	IXFR improvements.
+	Forwarders track and use RTT to select fastest.
+	Unix domain sockets implementions that require the directory
+	to be secure, are now secured.
+	Many minor problems fixed.
+	Linux DoS removed.
 
 BIND 8.2.2 patchlevel 5 Highlights
 
@@ -47,7 +49,6 @@ BIND 8.2.2 Highlights
 	New global options for "transfer-source" and "also-notify".
 	$GENERATE now supports more record types, and options.
 
-
 BIND 8.2.1 Highlights
 
 	Bug fixes, especially to DNSSEC, TSIG, IXFR, and selective forwarding.
@@ -71,7 +72,6 @@ BIND 8.2 Highlights
 	Many bug fixes
 	Documentation improvements
 	Performance enhancements
-
 
 BIND 8.1.2 Highlights
 
@@ -133,7 +133,6 @@ BIND 8.1.2 Highlights
 	Experimental -u (set user id), -g (set group id), and -t (chroot)
 	command line options.  See the INSTALL file for details.
 
-
 BIND 8 Features
 
 	-> DNS Dynamic Updates (RFC 2136)
@@ -154,7 +153,6 @@ BIND 8 Features
 	-> The server no longer forks for outbound zone transfers
 
 	-> Many bug fixes
-
 
 File and Directory Overview
 
@@ -196,7 +194,6 @@ Kits, Questions, Comments, and Bug Reports
     <URL:http://www.isc.org/bind.html>		    the BIND home page
     <URL:mailto:bind-bugs@isc.org>		    bug reports
 
-
 To Support the Effort
 
 	Note that BIND is supported by the Internet Software Consortium, and
@@ -208,6 +205,6 @@ To Support the Effort
 
 	The Internet Software Consortium has also commissioned a DHCP server
 	implementation, has taken over official support/release of the INN
-	system, and supports the Kerberos Version 5 effort at MIT.  You can
-	learn more about the ISC's goals and accomplishments from the web page
-	at <URL:http://www.isc.org/>.
+	system, and has supported the Kerberos Version 5 effort at MIT.  You
+	can learn more about the ISC's goals and accomplishments from the web
+	page at <URL:http://www.isc.org/>.

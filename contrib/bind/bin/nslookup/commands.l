@@ -96,6 +96,8 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 #include "port_before.h"
 #include <sys/types.h>
 #include <histedit.h>
+#include <netinet/in.h>
+#include <histedit.h>
 #include "port_after.h"
 #include "res.h"
 
@@ -159,7 +161,7 @@ nslookup_yy_input(buf, result, max_size, intr)
 %}
 WS	[ \t]
 FLET	[A-Za-z0-9.*\\_]
-LET	[A-Za-z0-9.*]
+LET	[A-Za-z0-9.*_]
 NAME	[A-Za-z0-9.*=_/-]
 %%
 ^{WS}*server{WS}+{LET}{NAME}*{WS}*$	{
@@ -194,10 +196,6 @@ NAME	[A-Za-z0-9.*=_/-]
 					}
 ^{WS}*finger({WS}+{LET}{NAME}*)?{WS}*$	{
 					    Finger(yytext, 0);
-					    return(1);
-					}
-^{WS}*view{WS}+{NAME}+{WS}*$	{
-					    ViewList((char *)yytext);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{

@@ -13,16 +13,16 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.3 1999/02/22 02:47:55 vixie Exp $
+# $Id: Makefile,v 1.7 2000/12/23 08:02:52 vixie Exp $
 
 DESTDIR=
 CC= cc
 SHELL= /bin/sh
 
-CDEBUG= -g
+CDEBUG= -g -Wall
 
 #(net2 and its descendents)
-SYSTYPE = bsdos
+SYSTYPE = freebsd
 TOP = ../..
 INCL =  ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
@@ -46,7 +46,8 @@ STRIP=-s
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} -I${TOP}/lib/irs ${DEFS}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL} -I${TOP}/lib/irs ${DEFS}
 
 VER= LOCAL-`date +%y%m%d.%H%M%S`
 HOSTNAMECMD= hostname || uname -n
@@ -61,6 +62,8 @@ all: ${PROG}${EXE}
 ${PROG}${EXE}: irpd.${O} tmp_version.${O} ${LIBBIND}
 	${CC} ${CDEBUG} ${LDFLAGS} -o ${PROG}${EXE} ${OBJS} tmp_version.${O} \
 		${LIBBIND} ${SYSLIBS}
+.c.${O}:
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
 
 tmp_version.${O}: tmp_version.c
 
@@ -68,7 +71,7 @@ tmp_version.c: version.c Makefile ../Makefile ${SRCS} ${HDRS}
 	(u=$${USER-root} d=`pwd` h=`${HOSTNAMECMD}` t=`date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
-	    < version.c > tmp_version.c)
+	    < version.c > tmp_version.c); sleep 1
 
 distclean: clean
 

@@ -13,16 +13,16 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.1 1999/01/07 02:09:37 vixie Exp $
+# $Id: Makefile,v 1.3 2000/12/23 08:02:53 vixie Exp $
 
 DESTDIR=
 CC= cc
 SHELL= /bin/sh
 
-CDEBUG= -g
+CDEBUG= -g -Wall
 
 #(net2 and its descendents)
-SYSTYPE = bsdos
+SYSTYPE = freebsd
 TOP = ../..
 INCL =  ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
@@ -41,7 +41,8 @@ INSTALL_EXEC=
 INSTALL_LIB=-o bin -g bin
 
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 
 PROG= named-bootconf
 

@@ -1,4 +1,4 @@
-## Copyright (c) 1996-1999 by Internet Software Consortium
+## Copyright (c) 1996-2000 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,17 +13,17 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.47 1999/08/26 18:42:31 vixie Exp $
+# $Id: Makefile,v 8.51 2000/12/23 08:02:53 vixie Exp $
 # $FreeBSD$
 
 DESTDIR=
 CC= cc
 SHELL= /bin/sh
 
-CDEBUG= -g
+CDEBUG= -g -Wall
 
 #(net2 and its descendents)
-SYSTYPE = bsdos
+SYSTYPE = freebsd
 TOP = ../..
 INCL =  ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
@@ -48,7 +48,8 @@ INSTALL_LIB=-o bin -g bin
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} ${DEFS}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL} ${DEFS}
 
 VER= LOCAL-`date +%Y%m%d.%H%M%S`
 HOSTNAMECMD= hostname || uname -n
@@ -87,7 +88,7 @@ tmp_version.c: version.c Makefile ../Makefile ${SRCS} ${HDRS}
 	(u=$${USER-root} d=`pwd` h=`${HOSTNAMECMD}` t=`date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
-	    < version.c > tmp_version.c)
+	    < version.c > tmp_version.c); sleep 1
 
 pathnames.h: ${TOP}/.settings Makefile pathtemplate.h
 	rm -f pathnames.h

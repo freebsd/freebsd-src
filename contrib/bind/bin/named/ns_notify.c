@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.5 1999/11/16 06:01:39 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.12 2000/12/23 08:14:40 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1994-1999 by Internet Software Consortium.
+ * Copyright (c) 1994-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -101,6 +101,13 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 			   p_class(class), p_type(type));
 		return;
 	}
+	if (ns_samename(dname, zp->z_origin) != 1) {
+		ns_warning(ns_log_notify,
+			   "notify not called with top of zone (\"%s\" %s %s)",
+			   (dname && *dname) ? dname : ".",
+			   p_class(class), p_type(type));
+		return;
+	}
 	if ((zp->z_flags & Z_NOTIFY) != 0) {
 		ns_info(ns_log_notify,
 			"suppressing duplicate notify (\"%s\" %s %s)",
@@ -122,6 +129,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	}
 	ni->class = class;
 	ni->type = type;
+	INIT_LINK(ni, link);
 	evInitID(&ni->timer);
 
 	if (loading != 0) {
@@ -180,6 +188,25 @@ ns_unnotify(void) {
 	}
 }
 
+/*
+ * ns_stopnotify(const char *dname, ns_class class)
+ *	stop notifies for this particular zone.
+ */
+void
+ns_stopnotify(const char *dname, ns_class class) {
+	struct notify *ni;
+
+	ni = HEAD(pending_notifies);
+	while (ni != NULL &&
+	       (ni->class != class || ns_samename(ni->name, dname) != 1))
+		ni = NEXT(ni, link);
+
+	if (ni != NULL) {
+		UNLINK(pending_notifies, ni, link);
+		free_notify(ni);
+	}
+}
+
 /* Private. */
 
 /*
@@ -189,7 +216,8 @@ ns_unnotify(void) {
  */
 static void
 sysnotify(const char *dname, ns_class class, ns_type type) {
-	const char *zname, *fname;
+	const char *zname;
+	u_int32_t zserial;
 	int nns, na, i;
 	struct zoneinfo *zp;
 	struct in_addr *also_addr;
@@ -217,10 +245,9 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 		return;
 	}
 	zname = zp->z_origin;
+	zserial = zp->z_serial;
 	nns = na = 0;
-	if (zp->z_type == z_master)
-		sysnotify_slaves(dname, zname, class, type,
-				 zp - zones, &nns, &na);
+	sysnotify_slaves(dname, zname, class, type, zp - zones, &nns, &na);
 
 	/*
 	 * Handle any global or zone-specific also-notify clauses
@@ -258,8 +285,8 @@ sysnotify(const char *dname, ns_class class, ns_type type) {
 
 	if (nns != 0 || na != 0)
 		ns_info(ns_log_notify,
-			"Sent NOTIFY for \"%s %s %s\" (%s); %d NS, %d A",
-			dname, p_class(class), p_type(type), zname, nns, na);
+			"Sent NOTIFY for \"%s %s %s %u\" (%s); %d NS, %d A",
+			dname, p_class(class), p_type(type), zserial, zname, nns, na);
 }
 
 static void
@@ -347,7 +374,7 @@ sysnotify_ns(const char *dname, const char *aname,
 				nss[nsc++] = ina;
 		} /*next A*/
 	if (nsc == 0) {
-		if (!is_us) {
+		if (!is_us && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
 			struct qinfo *qp;
 
 			qp = sysquery(aname, class, ns_t_a, 0, 0, ns_port,
@@ -368,7 +395,7 @@ free_notify(struct notify *ni) {
 
 	INSIST(!LINKED(ni, link));
 	zp = find_auth_zone(ni->name, ni->class);
-	if (zp != NULL) {
+	if (zp != NULL && ns_samename(ni->name, zp->z_origin) == 1) {
 		INSIST((zp->z_flags & Z_NOTIFY) != 0);
 		zp->z_flags &= ~Z_NOTIFY;
 	}

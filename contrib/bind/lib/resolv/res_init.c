@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 8.13 1999/10/13 16:39:40 vixie Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 8.17 2000/11/08 06:47:37 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -95,7 +95,6 @@ static const char rcsid[] = "$Id: res_init.c,v 8.13 1999/10/13 16:39:40 vixie Ex
 
 /* Options.  Should all be left alone. */
 #define RESOLVSORT
-#define RFC1535
 #define DEBUG
 
 static void res_setoptions __P((res_state, const char *, const char *));
@@ -156,9 +155,7 @@ __res_vinit(res_state statp, int preinit) {
 	int nsort = 0;
 	char *net;
 #endif
-#ifndef RFC1535
 	int dots;
-#endif
 
 	if (!preinit) {
 		statp->retrans = RES_TIMEOUT;
@@ -177,10 +174,11 @@ __res_vinit(res_state statp, int preinit) {
 	statp->nscount = 1;
 	statp->ndots = 1;
 	statp->pfcode = 0;
-	statp->_sock = -1;
+	statp->_vcsock = -1;
 	statp->_flags = 0;
 	statp->qhook = NULL;
 	statp->rhook = NULL;
+	statp->_u._ext.nscount = 0;
 
 	/* Allow user to override the local domain definition */
 	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
@@ -352,6 +350,15 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	    (void) fclose(fp);
 	}
+/*
+ * Last chance to get a nameserver.  This should not normally
+ * be necessary
+ */
+#ifdef NO_RESOLV_CONF
+	if(nserv == 0)
+		nserv = get_nameservers(statp);
+#endif
+
 	if (statp->defdname[0] == 0 &&
 	    gethostname(buf, sizeof(statp->defdname) - 1) == 0 &&
 	    (cp = strchr(buf, '.')) != NULL)
@@ -363,7 +370,6 @@ __res_vinit(res_state statp, int preinit) {
 		*pp++ = statp->defdname;
 		*pp = NULL;
 
-#ifndef RFC1535
 		dots = 0;
 		for (cp = statp->defdname; *cp; cp++)
 			dots += (*cp == '.');
@@ -385,7 +391,6 @@ __res_vinit(res_state statp, int preinit) {
 			printf(";;\t..END..\n");
 		}
 #endif
-#endif /* !RFC1535 */
 	}
 
 	if ((cp = getenv("RES_OPTIONS")) != NULL)
@@ -478,4 +483,29 @@ res_randomid(void) {
 
 	gettimeofday(&now, NULL);
 	return (0xffff & (now.tv_sec ^ now.tv_usec ^ getpid()));
+}
+
+/*
+ * This routine is for closing the socket if a virtual circuit is used and
+ * the program wants to close it.  This provides support for endhostent()
+ * which expects to close the socket.
+ *
+ * This routine is not expected to be user visible.
+ */
+void
+res_nclose(res_state statp) {
+	int ns;
+
+	if (statp->_vcsock >= 0) { 
+		(void) close(statp->_vcsock);
+		statp->_vcsock = -1;
+		statp->_flags &= ~(RES_F_VC | RES_F_CONN);
+	}
+	for (ns = 0; ns < statp->_u._ext.nscount; ns++) {
+		if (statp->_u._ext.nssocks[ns] != -1) {
+			(void) close(statp->_u._ext.nssocks[ns]);
+			statp->_u._ext.nssocks[ns] = -1;
+		}
+	}
+	statp->_u._ext.nscount = 0;
 }

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_glue.c,v 8.14 1999/10/19 02:06:26 gson Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.18 2000/11/08 06:16:36 marka Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Copyright (c) 1996-2000 by Internet Software Consortium, Inc.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -73,15 +73,13 @@ ina_put(struct in_addr ina, u_char *data) {
 }
 
 /*
- * XXX: sin_ntoa() should probably be in libc.
+ * IP address to presentation format.
  */
 const char *
 sin_ntoa(struct sockaddr_in sin) {
 	static char ret[sizeof "[111.222.333.444].55555"];
 
-	sprintf(ret, "[%s].%u",
-		inet_ntoa(sin.sin_addr),
-		ntohs(sin.sin_port));
+	sprintf(ret, "[%s].%u", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	return (ret);
 }
 
@@ -180,7 +178,7 @@ ns_assertion_failed(char *file, int line, assertion_type type, char *cond,
 }
 
 /*
- * XXX This is for compatibility and will eventually be removed.
+ * XXX This is for compatibility and should eventually be removed.
  */
 void
 panic(const char *msg, const void *arg) {
@@ -192,7 +190,7 @@ panic(const char *msg, const void *arg) {
  * Note: the root label is not included in the count.
  */
 int
-nlabels (const char *dname) {
+nlabels(const char *dname) {
 	int count, i, found, escaped;
 	const char *tmpdname, *end_tmpdname;
 	int tmpdnamelen, c;
@@ -215,9 +213,8 @@ nlabels (const char *dname) {
 					escaped = 0;
 				else
 					escaped = 1;
-			} else {
+			} else
 				break;
-			}
 		if (!escaped)
 			tmpdnamelen--;
 	}
@@ -244,8 +241,7 @@ nlabels (const char *dname) {
 		}
 	}
 	
-	ns_debug(ns_log_default, 12, "nlabels of \"%s\" -> %d", dname,
-		 count);
+	ns_debug(ns_log_default, 12, "nlabels of \"%s\" -> %d", dname, count);
 	return (count);
 }
 
@@ -256,6 +252,7 @@ void
 gettime(struct timeval *ttp) {
 	if (gettimeofday(ttp, NULL) < 0)
 		ns_error(ns_log_default, "gettimeofday: %s", strerror(errno));
+	INSIST(ttp->tv_usec >= 0 && ttp->tv_usec < 1000000);
 }
 
 /*
@@ -438,13 +435,19 @@ ctimel(long l) {
 	return (checked_ctime(&t));
 }
 
+#ifdef ultrix
 /*
- * rename() is lame (can't overwrite an existing file) on some systems.
- * use movefile() instead, and let lame OS ports do what they need to.
+ * Some library routines in libc need to be able to see the res_send
+ * and res_close symbols with out __ prefix otherwise we get multiply
+ * defined symbol errors when linking named.
  */
-#ifndef HAVE_MOVEFILE
-int
-movefile(const char *oldname, const char *newname) {
-	return (rename(oldname, newname));
+
+#undef res_send
+int res_send(const u_char *buf, int buflen, u_char *ans, int anssiz) {
+	return __res_send(buf, buflen, ans, anssiz);
+}
+#undef _res_close
+void _res_close(void) {
+	__res_close();
 }
 #endif

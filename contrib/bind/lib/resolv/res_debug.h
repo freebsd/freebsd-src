@@ -21,8 +21,8 @@
 #ifndef DEBUG
 #   define Dprint(cond, args) /*empty*/
 #   define DprintQ(cond, args, query, size) /*empty*/
-#   define Aerror(file, string, error, address) /*empty*/
-#   define Perror(file, string, error) /*empty*/
+#   define Aerror(statp, file, string, error, address) /*empty*/
+#   define Perror(statp, file, string, error) /*empty*/
 #else
 #   define Dprint(cond, args) if (cond) {fprintf args;} else {}
 #   define DprintQ(cond, args, query, size) if (cond) {\

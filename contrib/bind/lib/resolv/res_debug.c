@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_debug.c,v 8.33 1999/11/16 05:48:25 vixie Exp $";
+static const char rcsid[] = "$Id: res_debug.c,v 8.37 2000/11/13 05:22:53 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -166,7 +166,6 @@ do_section(const res_state statp,
 		fprintf(file, ";; memory allocation failure\n");
 		return;
 	}
-		
 
 	opcode = (ns_opcode) ns_msg_getflag(*handle, ns_f_opcode);
 	rrnum = 0;
@@ -194,7 +193,9 @@ do_section(const res_state statp,
 			if (n < 0) {
 				if (errno == ENOSPC) {
 					free(buf);
-					buf = malloc(buflen += 1024);
+					buf = NULL;
+					if (buflen < 131072)
+						buf = malloc(buflen += 1024);
 					if (buf == NULL) {
 						fprintf(file,
 				              ";; memory allocation failure\n");
@@ -441,6 +442,7 @@ const struct res_sym __p_type_syms[] = {
 	{ns_t_nimloc,	"NIMLOC",	"NIMROD locator (unimplemented)"},
 	{ns_t_srv,	"SRV",		"server selection"},
 	{ns_t_atma,	"ATMA",		"ATM address (unimplemented)"},
+	{ns_t_tkey,	"TKEY",		"tkey"},
 	{ns_t_tsig,	"TSIG",		"transaction signature"},
 	{ns_t_ixfr,	"IXFR",		"incremental zone transfer"},
 	{ns_t_axfr,	"AXFR",		"zone transfer"},
@@ -628,7 +630,7 @@ precsize_ntoa(prec)
 
 	val = mantissa * poweroften[exponent];
 
-	(void) sprintf(retbuf, "%ld.%.2ld", val/100, val%100);
+	(void) sprintf(retbuf, "%lu.%.2lu", val/100, val%100);
 	return (retbuf);
 }
 
@@ -897,8 +899,8 @@ loc_ntoa(binary, ascii)
 
 	int latdeg, latmin, latsec, latsecfrac;
 	int longdeg, longmin, longsec, longsecfrac;
-	char northsouth, eastwest;
-	int altmeters, altfrac, altsign;
+	char northsouth, eastwest, *altsign;
+	int altmeters, altfrac;
 
 	const u_int32_t referencealt = 100000 * 100;
 
@@ -932,10 +934,10 @@ loc_ntoa(binary, ascii)
 	GETLONG(templ, cp);
 	if (templ < referencealt) { /* below WGS 84 spheroid */
 		altval = referencealt - templ;
-		altsign = -1;
+		altsign = "-";
 	} else {
 		altval = templ - referencealt;
-		altsign = 1;
+		altsign = "";
 	}
 
 	if (latval < 0) {
@@ -967,7 +969,7 @@ loc_ntoa(binary, ascii)
 	longdeg = longval;
 
 	altfrac = altval % 100;
-	altmeters = (altval / 100) * altsign;
+	altmeters = (altval / 100);
 
 	if ((sizestr = strdup(precsize_ntoa(sizeval))) == NULL)
 		sizestr = error;
@@ -977,10 +979,10 @@ loc_ntoa(binary, ascii)
 		vpstr = error;
 
 	sprintf(ascii,
-	      "%d %.2d %.2d.%.3d %c %d %.2d %.2d.%.3d %c %d.%.2dm %sm %sm %sm",
+	    "%d %.2d %.2d.%.3d %c %d %.2d %.2d.%.3d %c %s%d.%.2dm %sm %sm %sm",
 		latdeg, latmin, latsec, latsecfrac, northsouth,
 		longdeg, longmin, longsec, longsecfrac, eastwest,
-		altmeters, altfrac, sizestr, hpstr, vpstr);
+		altsign, altmeters, altfrac, sizestr, hpstr, vpstr);
 
 	if (sizestr != error)
 		free(sizestr);

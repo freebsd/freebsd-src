@@ -49,7 +49,7 @@
  */
 
 /*
- *	$Id: nameser.h,v 8.36.2.1 2000/11/09 23:15:31 vixie Exp $
+ *	$Id: nameser.h,v 8.41 2000/12/23 08:14:50 vixie Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -127,10 +127,7 @@ struct _ns_flagdata {  int mask, shift;  };
 extern struct _ns_flagdata _ns_flagdata[];
 
 /* Accessor macros - this is part of the public interface. */
-#define ns_msg_getflag(handle, flag) ( \
-			((handle)._flags & _ns_flagdata[flag].mask) \
-			 >> _ns_flagdata[flag].shift \
-			)
+
 #define ns_msg_id(handle) ((handle)._id + 0)
 #define ns_msg_base(handle) ((handle)._msg + 0)
 #define ns_msg_end(handle) ((handle)._eom + 0)
@@ -295,6 +292,7 @@ typedef enum __ns_type {
 	ns_t_dname = 39,	/* Non-terminal DNAME (for IPv6) */
 	ns_t_sink = 40,		/* Kitchen sink (experimentatl) */
 	ns_t_opt = 41,		/* EDNS0 option (meta-RR) */
+	ns_t_tkey = 249,	/* Transaction key */
 	ns_t_tsig = 250,	/* Transaction signature. */
 	ns_t_ixfr = 251,	/* Incremental zone transfer. */
 	ns_t_axfr = 252,	/* Transfer zone of authority. */
@@ -469,6 +467,7 @@ typedef enum __ns_cert_types {
 /*
  * ANSI C identifier hiding for bind's lib/nameser.
  */
+#define	ns_msg_getflag		__ns_msg_getflag
 #define ns_get16		__ns_get16
 #define ns_get32		__ns_get32
 #define ns_put16		__ns_put16
@@ -503,6 +502,7 @@ typedef enum __ns_cert_types {
 #define	ns_samename		__ns_samename
 
 __BEGIN_DECLS
+int		ns_msg_getflag __P((ns_msg, int));
 u_int		ns_get16 __P((const u_char *));
 u_long		ns_get32 __P((const u_char *));
 void		ns_put16 __P((u_int, u_char *));

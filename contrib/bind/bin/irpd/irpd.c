@@ -37,7 +37,7 @@ seem to be so for getnetbyaddr
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irpd.c,v 1.7 1999/10/13 16:26:23 vixie Exp $";
+static const char rcsid[] = "$Id: irpd.c,v 1.10 2000/12/23 08:14:33 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -144,7 +144,6 @@ static struct response_buff *newbuffer(u_int length);
 static void release_buffer(struct response_buff *b);
 static struct arg_s *split_string(const char *string);
 static void free_args(struct arg_s *args);
-static int is_all_digits(char *p);
 static struct client_ctx *make_cli_ctx(void);
 static struct net_data *get_net_data(struct ctl_sess *sess);
 
@@ -248,8 +247,6 @@ static void irpd_abort(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		       const struct ctl_verb *verb, const char *rest,
 		       u_int respflags, void *respctx, void *uctx);
 
-static void irpd_done(struct ctl_sctx *ctx, struct ctl_sess *sess,
-		      void *param);
 static void response_done(struct ctl_sctx *ctx, struct ctl_sess *sess,
 			  void *uap);
 static void logger(enum ctl_severity, const char *fmt, ...);
@@ -329,9 +326,10 @@ int
 main(int argc, char **argv) {
 	struct ctl_sctx *ctx;
 	struct sockaddr *addr;
+#ifndef NO_SOCKADDR_UN
 	struct sockaddr_un uaddr;
+#endif
 	struct sockaddr_in iaddr;
-	log_channel chan;
 	short port = IRPD_PORT;
 	char *prog = argv[0];
 	char *sockname = IRPD_PATH;
@@ -342,7 +340,7 @@ main(int argc, char **argv) {
 	addr = (struct sockaddr *)&iaddr;
 	socksize = sizeof iaddr;
 
-	openlog("iprd", LOG_CONS|LOG_PID, LOG_DAEMON);
+	openlog("iprd", LOG_CONS|LOG_PID, ISC_FACILITY);
 	while ((ch = getopt(argc, argv, "u:p:c:")) != -1) {
 		switch(ch) {
 		case 'c':
@@ -358,11 +356,13 @@ main(int argc, char **argv) {
 			}
 			break;
 
+#ifndef NO_SOCKADDR_UN
 		case 'u':
 			sockname = optarg;
 			addr = (struct sockaddr *)&uaddr;
 			socksize = sizeof uaddr;
 			break;
+#endif
 
 		case 'h':
 		case '?':
@@ -374,7 +374,6 @@ main(int argc, char **argv) {
 	argc -= optind;
 	argv += optind;
 
-	memset(&uaddr, 0, sizeof uaddr);
 	memset(&iaddr, 0, sizeof iaddr);
 
 #ifdef HAVE_SA_LEN
@@ -384,17 +383,21 @@ main(int argc, char **argv) {
 	iaddr.sin_port = htons(IRPD_PORT);
 	iaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	uaddr.sun_family = AF_UNIX;
-	strncpy(uaddr.sun_path, sockname, sizeof uaddr.sun_path);
+#ifndef NO_SOCKADDR_UN
+	memset(&uaddr, 0, sizeof uaddr);
+	if (addr == (struct sockaddr *)&uaddr) {
+		uaddr.sun_family = AF_UNIX;
+		strncpy(uaddr.sun_path, sockname, sizeof uaddr.sun_path);
 #ifdef HAVE_SA_LEN
-	uaddr.sun_len = SUN_LEN(&uaddr);
+		uaddr.sun_len = SUN_LEN(&uaddr);
 #endif
 
-	if (addr == (struct sockaddr *)&uaddr)
 		socksize = SUN_LEN(&uaddr);
 
-	/* XXX what if this file is not currently a socket? */
-	unlink(sockname);
+		/* XXX what if this file is not currently a socket? */
+		unlink(sockname);
+	}
+#endif
 
 	evCreate(&ev);
 
@@ -441,7 +444,6 @@ send_hostent(struct ctl_sess *sess, struct hostent *ho) {
 	if (ho == NULL)
 		simple_response(sess, IRPD_GETHOST_NONE, "No such host");
 	else {
-		size_t need;
 		struct response_buff *b = newbuffer(0);
 
 		if (irp_marshall_ho(ho, &b->buff, &b->bufflen) != 0) {
@@ -493,7 +495,6 @@ irpd_gethostbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 {
 	char hname[MAXHOSTNAMELEN];
 	struct arg_s *args;
-	int i;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -532,7 +533,6 @@ irpd_gethostbyname2(struct ctl_sctx *ctx, struct ctl_sess *sess,
 {
 	char hname[MAXHOSTNAMELEN];
 	struct arg_s *args;
-	int i;
 	int af;
 	struct net_data *netdata = get_net_data(sess);
 	
@@ -584,7 +584,6 @@ irpd_gethostbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	char haddr[MAXHOSTNAMELEN];
 	char tmpaddr[NS_IN6ADDRSZ];
 	struct arg_s *args;
-	int i;
 	int af;
 	int addrlen;
 	struct net_data *netdata = get_net_data(sess);
@@ -650,9 +649,6 @@ irpd_gethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		u_int respflags, void *respctx, void *uctx)
 {
 	struct hostent *ho;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -676,10 +672,6 @@ irpd_sethostent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
 		u_int respflags, void *respctx, void *uctx)
 {
-	struct hostent *ho;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -735,8 +727,6 @@ irpd_getpwnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct passwd *pw;
 	char username[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -779,8 +769,6 @@ irpd_getpwuid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct passwd *pw;
 	char userid[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -840,9 +828,6 @@ irpd_getpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      u_int respflags, void *respctx, void *uctx)
 {
 	struct passwd *pw;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -865,10 +850,6 @@ irpd_setpwent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
 	      u_int respflags, void *respctx, void *uctx)
 {
-	struct passwd *pw;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -910,34 +891,6 @@ send_nwent(struct ctl_sess *sess, struct nwent *nw) {
 
 /*
  * static void
- * send_netent(struct ctl_sess *sess, struct netent *ne);
- *	Sends a NETENT structure over the wire, or "No such
- *	Network" error if NE is NULL.
- */
-static void
-send_netent(struct ctl_sess *sess, struct netent *ne) {
-	if (ne == NULL) {
-		simple_response(sess, IRPD_GETNET_NONE, "No such net");
-	} else {
-		struct response_buff *b = newbuffer(0);
-
-		if (irp_marshall_ne(ne, &b->buff,
-				    &b->bufflen) != 0) {
-			simple_response(sess, IRPD_GETNET_ERROR,
-					"Internal error");
-			logger(ctl_warning, "Cant marshall ne\n");
-			return;
-		}
-
-		strcat(b->buff, "\r\n");
-
-		ctl_response(sess, IRPD_GETNET_OK, "Network found", 0, 0,
-			     response_done, b, b->buff, strlen(b->buff));
-	}
-}
-
-/*
- * static void
  * irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
  *		     const struct ctl_verb *verb, const char *rest,
  *		     u_int respflags, void *respctx, void *uctx);
@@ -952,8 +905,6 @@ irpd_getnetbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct netent *ne;
 	struct nwent *nw;
 	char netname[MAXNETNAMELEN];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1008,7 +959,6 @@ irpd_getnetbyaddr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	char haddr[MAXHOSTNAMELEN];
 	long tmpaddr;
 	struct arg_s *args;
-	int i;
 	int af;
 	int addrlen;
 	int bits;
@@ -1098,9 +1048,6 @@ irpd_getnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 {
 	struct netent *ne;
 	struct nwent *nw;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1129,11 +1076,6 @@ irpd_setnetent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
 	       u_int respflags, void *respctx, void *uctx)
 {
-	struct netent *ne;
-	struct nwent *nw;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1188,8 +1130,6 @@ irpd_getgrnam(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct group *gr;
 	char groupname[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1232,8 +1172,6 @@ irpd_getgrgid(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct group *gr;
 	char groupid[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1293,9 +1231,6 @@ irpd_getgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      u_int respflags, void *respctx, void *uctx)
 {
 	struct group *gr;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1318,10 +1253,6 @@ irpd_setgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
 	      u_int respflags, void *respctx, void *uctx)
 {
-	struct group *gr;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1365,8 +1296,6 @@ irpd_getservbyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct servent *serv;
 	char servicename[64];
 	char protoname[10];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1418,8 +1347,6 @@ irpd_getservbyport(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct servent *sv;
 	char portnum[64];
 	char protoname[10];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1487,9 +1414,6 @@ irpd_getservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       u_int respflags, void *respctx, void *uctx)
 {
 	struct servent *sv;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1512,10 +1436,6 @@ irpd_setservent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	       const struct ctl_verb *verb, const char *rest,
 	       u_int respflags, void *respctx, void *uctx)
 {
-	struct servent *sv;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1570,8 +1490,6 @@ irpd_getprotobyname(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct protoent *pr;
 	char protoname[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1614,8 +1532,6 @@ irpd_getprotobynumber(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	struct arg_s *args;
 	struct protoent *pr;
 	char protonum[64];
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1675,9 +1591,6 @@ irpd_getprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		u_int respflags, void *respctx, void *uctx)
 {
 	struct protoent *pr;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1700,10 +1613,6 @@ irpd_setprotoent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		const struct ctl_verb *verb, const char *rest,
 		u_int respflags, void *respctx, void *uctx)
 {
-	struct protoent *pr;
-	size_t need;
-	size_t need_total = 0;
-	struct response_buff *b;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1750,9 +1659,6 @@ irpd_getnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
 		 u_int respflags, void *respctx, void *uctx)
 {
-	char netgroupname[64];
-	struct response_buff *b = NULL;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1787,8 +1693,6 @@ irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 u_int respflags, void *respctx, void *uctx)
 {
 	struct arg_s *args;
-	struct response_buff *b;
-	size_t need;
 	struct net_data *netdata = get_net_data(sess);
 	char *host;
 	char *user;
@@ -1830,7 +1734,6 @@ irpd_innetgr(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		memput(ngtmp, args->iov[1].iov_len + 1);
 	}
 	
-  untimely:
 	free_args(args);
 }
 
@@ -1863,7 +1766,6 @@ irpd_setnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 				"setnetgrent ok");
 	}
 	
-  untimely:
 	free_args(args);
 }
 
@@ -1879,7 +1781,6 @@ irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 		 const struct ctl_verb *verb, const char *rest,
 		 u_int respflags, void *respctx, void *uctx)
 {
-	struct arg_s *args;
 	struct net_data *netdata = get_net_data(sess);
 	
 	INSIST(netdata != NULL);
@@ -1896,20 +1797,6 @@ irpd_endnetgrent(struct ctl_sctx *ctx, struct ctl_sess *sess,
 	}
 }
 
-/*
- * static void
- * irpd_done(struct ctl_sctx *ctx, struct ctl_sess *sess, void *param)
- *	Callback for when QUIT respnse is sent out.
- */
-static void
-irpd_done(struct ctl_sctx *ctx, struct ctl_sess *sess, void *param) {
-	struct net_data *netdata = get_net_data(sess);
-
-	INSIST(netdata != NULL);
-	
-	net_data_destroy(netdata);
-}
-	
 /*
  * static void
  * irpd_quit(struct ctl_sctx *ctx, struct ctl_sess *sess,
@@ -2232,15 +2119,6 @@ make_cli_ctx(void) {
 	return (p);
 }
 
-static void
-release_cli_ctx(struct client_ctx *ctx) {
-	INSIST(ctx != NULL);
-	INSIST(ctx->net_data != NULL);
-
-	net_data_destroy(ctx->net_data);
-	memput(ctx, sizeof *ctx);
-}
-		
 static struct net_data *
 get_net_data(struct ctl_sess *sess) {
 	struct client_ctx *ctx = ctl_getcsctx(sess);

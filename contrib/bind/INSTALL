@@ -1,23 +1,26 @@
 Systems it is known to compile and run on:
 
 	BSD/OS 3.1, 4.0.1
-	FreeBSD 3.1, 3.2, 3.3
+	FreeBSD 3.3, 3.4
 	RH Linux 5.2 (don't use "make links" when building, though)
 	Debian GNU/Linux 2.2.9 ("unreleased")
 	Digital UNIX 3.2C, 4.0, 5.0
 	NetBSD/i386 1.3.2, 1.4
+	Darwin 1.x (Mac OS X)
 	SunOS 5.6 (Solaris 2.6), SunOS 5.7 (Solaris 7)
 	SCO UnixWare 7.0, 7.0.1, 7.1
+	IRIX 6.5
 
 Systems it has been known in the past to compile and run on:
 
 	AIX 4.x
 	A/UX 3.1.1
-	Digital ULTRIX 4.5
+	Digital ULTRIX 4.5 (without Compaq's Y2K kit installed)
 	HP MPE
 	HP-UX 9.x, 10.20
 	IRIX 5.3, 6.2, 6.4
 	LynxOS
+	FreeBSD 3.1, 3.2
 	NetBSD 1.2, 1.3
 	OpenBSD 2.1
 	QNX
@@ -139,6 +142,12 @@ Operating System Notes
 		The kit should compile even if you have intalled the KAME
 		IPv6 kit.
 
+	IRIX
+		build problems have been reported w/ IRIX 6.3, res_debug.c
+		and #include <stdlib.h>.  You may need to comment out
+		the #include <stdlib.h> and declare
+		"void *malloc(size_t size)" to get named to compile on 6.3.
+
 	Linux
 
 		"make links" and "make stdlinks" cause problems on
@@ -166,7 +175,7 @@ Operating System Notes
 		"port/solaris/Makefile.set.gcc" to "port/solaris/Makefile.set".
 
 		If you're using a Solaris release earlier than 2.5 and you have
-		a large number of interfaces on your system, you many need
+		a large number of interfaces on your system, you many need to
 		use a script to "limit descriptors N" (where 'N' is a
 		suitably large number) before execing "named".  On Solaris
 		2.5 and later, the server will do this itself.
@@ -257,8 +266,11 @@ Using the Server
 	there are lots of {curly braces} and it takes some getting used to.
 	You may get a lot more help from the example file (which is
 	bin/named/named.conf) than from the documentation (see ../doc/html).
-	You can convert your named.boot file to a named.conf file if you have
-	Perl; see bin/named/named-bootconf.pl.
+	You can convert your named.boot file to a named.conf file using
+	bin/named-bootconf/named-bootconf.
+
+	e.g.
+		named-bootconf < /etc/named.boot > /etc/named.conf
 
 	All the files that used to be created in /var/tmp, e.g. named.run,
 	will now be created in the directory specified in the options

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: dnsquery.c,v 8.13 1999/10/13 16:38:59 vixie Exp $";
+static const char rcsid[] = "$Id: dnsquery.c,v 8.15 2000/12/23 08:14:32 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -55,7 +55,6 @@ main(int argc, char *argv[]) {
 	struct hostent *q_nsname;
 	extern int optind, opterr;
 	extern char *optarg;
-	HEADER *hp;
 	int stream = 0, debug = 0;
 
 	/* set defaults */
@@ -80,7 +79,12 @@ main(int argc, char *argv[]) {
 		case 'p' :	res.retrans = atoi(optarg);
 				break;
 
-		case 'h' :	strcpy(name, optarg);
+		case 'h' :	if (strlen(optarg) >= sizeof(name)) {
+					fprintf(stderr,
+						"Domain name too long (%s)\n", optarg);
+					exit(-1);
+				} else
+					strcpy(name, optarg);
 				break;
 
 		case 'c' : {
@@ -157,8 +161,15 @@ main(int argc, char *argv[]) {
 				exit(-1);
 		}
 	}
-	if (optind < argc)
-		strcpy(name, argv[optind]);
+	if (optind < argc) {
+		if (strlen(argv[optind]) >= sizeof(name)) {
+			fprintf(stderr,
+				"Domain name too long (%s)\n", argv[optind]);
+			exit(-1);
+		} else {
+			strcpy(name, argv[optind]);
+		}
+	}
 
 	len = sizeof(answer);
 

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_save.c,v 8.26 1999/10/13 16:39:02 vixie Exp $";
+static const char rcsid[] = "$Id: db_save.c,v 8.28 2000/11/29 06:55:48 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_save.c,v 8.26 1999/10/13 16:39:02 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -156,7 +156,7 @@ savedata(class, type, ttl, data, size)
 	dp->d_clev = 0;
 	dp->d_secure = DB_S_INSECURE;
 	dp->d_rcode = NOERROR;
-	dp->d_ns = NULL;
+	dp->d_addr.s_addr = htonl(0);
 	dp->d_nstime = 0;
 	memcpy(dp->d_data, data, dp->d_size);
 	return (dp);
