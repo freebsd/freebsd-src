@@ -327,14 +327,14 @@ main_dialog() {
 	    fi
 	done
 	log $l
-	(dialog --menu "Setup the type of configuration" 12 70 5 $l \
-		2> ${c_reply} && set_type "`cat ${c_reply}`" ${SITE} ) || true
+	{ dialog --menu "Setup the type of configuration" 12 70 5 $l \
+		2> ${c_reply} && set_type "`cat ${c_reply}`" ${SITE} ; } || true
 	;;
     I)
-	(dialog --menu "Choose your init(8) program" \
+	{ dialog --menu "Choose your init(8) program" \
 	10 70 2 init "Standard init (requires getty)" \
 	oinit "small init from TinyWare" 2> ${c_reply} \
-		&& init_name=`cat ${c_reply}` ) || true
+		&& init_name=`cat ${c_reply}` ; } || true
 	;;
 
     K) ${EDITOR} ${MY_TREE}/PICOBSD ;;
@@ -342,23 +342,23 @@ main_dialog() {
     E) ${EDITOR} ${MY_TREE}/crunch.conf ;;
 
     S)
-	( dialog --title "MFS Size setup" --inputbox \
+	{ dialog --title "MFS Size setup" --inputbox \
 "MFS size depends on what you need to put on the MFS image. Typically \
 ranges between 820kB (for very small bridge/router images) to \
 as much as 2500kB kB for a densely packed image. \
 Keep in mind that this memory is \
 totally lost to other programs. Usually you want to keep \
 this as small as possible. " 10 70 2> ${c_reply} \
-	&& MFS_SIZE=`cat ${c_reply}` ) || true
+	&& MFS_SIZE=`cat ${c_reply}` ; } || true
 	;;
 
     \$)
-	(dialog --title "Site info setup" --inputbox \
+	{ dialog --title "Site info setup" --inputbox \
 	"Please enter the full path to the directory \
 	containing site-specific setup. \
 	This directory tree must contain files that replace \
 	standard ones in floppy.tree/ and mfs.tree/ . " \
-	10 70 2> ${c_reply} && SITE=`cat ${c_reply}` ) || true
+	10 70 2> ${c_reply} && SITE=`cat ${c_reply}` ; } || true
 	;;
 
     F)
