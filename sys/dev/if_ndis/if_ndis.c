@@ -288,6 +288,19 @@ ndis_attach(dev)
 
 	sc->ndis_rescnt++;
 
+        /*
+	 * Hook interrupt early, since calling the driver's
+	 * init routine may trigger an interrupt.
+	 */
+	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET,
+	    ndis_intr, sc, &sc->ndis_intrhand);
+
+	if (error) {
+		printf("ndis%d: couldn't register interrupt\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
@@ -544,10 +557,6 @@ ndis_attach(dev)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
 		ifmedia_set(&sc->ifmedia, IFM_ETHER|IFM_AUTO);
 	}
-
-	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET,
-	    ndis_intr, sc, &sc->ndis_intrhand);
 
 	/* Override the status handler so we can detect link changes. */
 	sc->ndis_block.nmb_status_func = ndis_linksts;
