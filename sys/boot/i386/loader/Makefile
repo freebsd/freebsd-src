@@ -11,7 +11,6 @@ BINDIR?=	/boot
 
 # architecture-specific loader code
 SRCS=		main.c conf.c
-.PATH:		${.CURDIR}/../libi386
 
 # Enable PXE TFTP or NFS support, not both.
 CFLAGS+=	-DLOADER_NFS_SUPPORT
