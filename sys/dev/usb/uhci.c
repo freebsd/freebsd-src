@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.85 2000/02/22 11:30:55 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.88 2000/03/16 12:40:51 tsutsui Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
