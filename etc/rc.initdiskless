@@ -49,12 +49,18 @@
 # /<sub_directory_name>.  For example, if /conf/base/etc exists then a
 # memory filesystem will be created for /etc.
 #
+# If a subdirectory contains the file 'remount' the contents of the file
+# is a mount command used to remount the subdirectory prior to it being
+# copied.  An example contents could be: "mount -o ro /dev/ad0s3".  Note
+# that the directory to be mounted on is supplied by this script.
+#
 # If a subdirectory contains the file 'diskless_remount' the contents of
 # the file is used to remount the subdirectory prior to it being copied to
 # the memory filesystem.  For example, if /conf/base/etc/diskless_remount
 # contains the string 'my.server.com:/etc' then my.server.com:/etc will be
 # mounted in place of the subdirectory.  This allows you to avoid making
-# duplicates of system directories in /conf.
+# duplicates of system directories in /conf.  Special processing is done
+# to allow specifications relative to the root filesystem.
 #
 # If a subdirectory contains the file 'md_size', the contents of the
 # file is used to determine the size of the memory filesystem, in 512
@@ -79,7 +85,7 @@
 # Those filesystems should not be specified in /conf.  At least not yet.
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
-[ ${dlv:=0} -eq 0 ] && exit 0
+[ ${dlv:=0} -eq 0 ] && [ ! -f /etc/diskless ] && exit 0
 
 # chkerr:
 #
@@ -130,23 +136,25 @@ create_md() {
 bootp_ifc=""
 bootp_ipa=""
 bootp_ipbca=""
-iflist=`ifconfig -l`
-for i in ${iflist} ; do
-    set `ifconfig ${i}`
-    while [ $# -ge 1 ] ; do
-        if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
-            bootp_ifc=${i} ; bootp_ipa=${2} ; shift
-        fi
-        if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ] ; then
-            bootp_ipbca=$2; shift
-        fi
-        shift
-    done
-    if [ "${bootp_ifc}" != "" ] ; then
-        break
-    fi
-done
-echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
+if [ ${dlv:=0} -ne 0 ] ; then
+	iflist=`ifconfig -l`
+	for i in ${iflist} ; do
+	    set `ifconfig ${i}`
+	    while [ $# -ge 1 ] ; do
+		if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
+		    bootp_ifc=${i} ; bootp_ipa=${2} ; shift
+		fi
+		if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ] ; then
+		    bootp_ipbca=$2; shift
+		fi
+		shift
+	    done
+	    if [ "${bootp_ifc}" != "" ] ; then
+		break
+	    fi
+	done
+	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
+fi
 
 # Figure out our NFS root path
 #
@@ -186,6 +194,14 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	subdir=${j##*/}
 	if [ -d $j -a -f $j/md_size ]; then
 	    eval md_size_$subdir=`cat $j/md_size`
+	fi
+
+	# remount
+	#
+	if [ -d $j -a -f $j/remount ]; then
+	    nfspt=`/bin/cat $j/remount`
+	    $nfspt $j
+	    chkerr $? "$nfspt $j"
 	fi
 
 	# NFS remount
