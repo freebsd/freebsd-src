@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * "import" checks in the vendor release located in the current directory into
  * the CVS source repository.  The CVS vendor branch support is utilized.
@@ -19,39 +19,29 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)import.c 1.52 92/03/31";
+static char rcsid[] = "$CVSid: @(#)import.c 1.63 94/09/30 $";
+USE(rcsid)
 #endif
 
 #define	FILE_HOLDER	".#cvsxxx"
 
-#if __STDC__
-static char *get_comment (char *user);
-static int add_rcs_file (char *message, char *rcs, char *user, char *vtag,
-		         int targc, char *targv[]);
-static int expand_at_signs (char *buf, off_t size, FILE *fp);
-static int add_rev (char *message, char *rcs, char *vfile, char *vers);
-static int add_tags (char *rcs, char *vfile, char *vtag, int targc,
-		     char *targv[]);
-static int import_descend (char *message, char *vtag, int targc, char *targv[]);
-static int import_descend_dir (char *message, char *dir, char *vtag,
-			       int targc, char *targv[]);
-static int process_import_file (char *message, char *vfile, char *vtag,
-				int targc, char *targv[]);
-static int update_rcs_file (char *message, char *vfile, char *vtag, int targc,
-			    char *targv[]);
-static void add_log (int ch, char *fname);
-#else
-static int import_descend ();
-static int process_import_file ();
-static int update_rcs_file ();
-static int add_rev ();
-static int add_tags ();
-static char *get_comment ();
-static int add_rcs_file ();
-static int expand_at_signs ();
-static void add_log ();
-static int import_descend_dir ();
-#endif				/* __STDC__ */
+static char *get_comment PROTO((char *user));
+static int add_rcs_file PROTO((char *message, char *rcs, char *user, char *vtag,
+		         int targc, char *targv[]));
+static int expand_at_signs PROTO((char *buf, off_t size, FILE *fp));
+static int add_rev PROTO((char *message, char *rcs, char *vfile, char *vers));
+static int add_tags PROTO((char *rcs, char *vfile, char *vtag, int targc,
+		     char *targv[]));
+static int import_descend PROTO((char *message, char *vtag, int targc, char *targv[]));
+static int import_descend_dir PROTO((char *message, char *dir, char *vtag,
+			       int targc, char *targv[]));
+static int process_import_file PROTO((char *message, char *vfile, char *vtag,
+				int targc, char *targv[]));
+static int update_rcs_file PROTO((char *message, char *vfile, char *vtag, int targc,
+			    char *targv[], int inattic));
+static void add_log PROTO((int ch, char *fname));
+static int str2expmode PROTO((char const* expstring));
+static int strn2expmode PROTO((char const* expstring, size_t n));
 
 static int repos_len;
 static char vhead[50];
@@ -59,25 +49,42 @@ static char vbranch[50];
 static FILE *logfp;
 static char repository[PATH_MAX];
 static int conflicts;
+static int use_file_modtime;
+static char *keyword_opt = NULL;
 
 static char *import_usage[] =
 {
-    "Usage: %s %s [-Qq] [-I ign] [-m msg] [-b branch]\n",
+    "Usage: %s %s [-Qq] [-d] [-k subst] [-I ign] [-m msg] [-b branch]\n",
     "    repository vendor-tag release-tags...\n",
     "\t-Q\tReally quiet.\n",
     "\t-q\tSomewhat quiet.\n",
+    "\t-d\tUse the file's modification time as the time of import.\n",
+    "\t-k sub\tSet default RCS keyword substitution mode.\n",
     "\t-I ign\tMore files to ignore (! to reset).\n",
     "\t-b bra\tVendor branch id.\n",
     "\t-m msg\tLog message.\n",
     NULL
 };
 
+static char *keyword_usage[] =
+{
+  "%s %s: invalid RCS keyword expansion mode\n",
+  "Valid expansion modes include:\n",
+  "   -kkv\tGenerate keywords using the default form.\n",
+  "   -kkvl\tLike -kkv, except locker's name inserted.\n",
+  "   -kk\tGenerate only keyword names in keyword strings.\n",
+  "   -kv\tGenerate only keyword values in keyword strings.\n",
+  "   -ko\tGenerate the old keyword string (no changes from checked in file).\n",
+  NULL,
+};
+
+
 int
 import (argc, argv)
     int argc;
     char *argv[];
 {
-    char message[MAXMESGLEN];
+    char *message = NULL;
     char tmpfile[L_tmpnam+1];
     char *cp;
     int i, c, msglen, err;
@@ -90,9 +97,8 @@ import (argc, argv)
     ign_setup ();
 
     (void) strcpy (vbranch, CVSBRANCH);
-    message[0] = '\0';
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "Qqb:m:I:")) != -1)
+    while ((c = getopt (argc, argv, "Qqdb:m:I:k:")) != -1)
     {
 	switch (c)
 	{
@@ -101,6 +107,9 @@ import (argc, argv)
 		/* FALL THROUGH */
 	    case 'q':
 		quiet = 1;
+		break;
+	    case 'd':
+		use_file_modtime = 1;
 		break;
 	    case 'b':
 		(void) strcpy (vbranch, optarg);
@@ -111,17 +120,16 @@ import (argc, argv)
 #else
 		use_editor = FALSE;
 #endif
-		if (strlen (optarg) >= (sizeof (message) - 1))
-		{
-		    error (0, 0, "warning: message too long; truncated!");
-		    (void) strncpy (message, optarg, sizeof (message));
-		    message[sizeof (message) - 2] = '\0';
-		}
-		else
-		    (void) strcpy (message, optarg);
+		message = xstrdup(optarg);
 		break;
 	    case 'I':
 		ign_add (optarg, 0);
+		break;
+            case 'k':
+		if (str2expmode(optarg) != -1)
+		  keyword_opt = optarg;
+		else
+		  usage (keyword_usage);
 		break;
 	    case '?':
 	    default:
@@ -167,15 +175,25 @@ import (argc, argv)
     if (numdots (vbranch) != 2)
 	error (1, 0, "Only branches with two dots are supported: %s", vbranch);
     (void) strcpy (vhead, vbranch);
-    cp = rindex (vhead, '.');
+    cp = strrchr (vhead, '.');
     *cp = '\0';
     if (use_editor)
-	do_editor ((char *) NULL, message, repository, (List *) NULL);
-    msglen = strlen (message);
+    {
+	do_editor ((char *) NULL, &message, repository,
+		   (List *) NULL); 
+    }
+
+    msglen = message == NULL ? 0 : strlen (message);
     if (msglen == 0 || message[msglen - 1] != '\n')
     {
-	message[msglen] = '\n';
-	message[msglen + 1] = '\0';
+	char *nm = xmalloc (msglen + 2);
+	if (message != NULL)
+	{
+	    (void) strcpy (nm, message);
+	    free (message);
+	}
+	(void) strcat (nm + msglen, "\n");
+	message = nm;
     }
 
     /*
@@ -235,6 +253,10 @@ import (argc, argv)
     Update_Logfile (repository, message, vbranch, logfp, ulist);
     dellist (&ulist);
     (void) fclose (logfp);
+
+    if (message)
+	free (message);
+
     return (err);
 }
 
@@ -249,10 +271,9 @@ import_descend (message, vtag, targc, targv)
     char *targv[];
 {
     DIR *dirp;
-    struct direct *dp;
+    struct dirent *dp;
     int err = 0;
     int has_dirs = 0;
-    FILE *links = (FILE *)0;
 
     /* first, load up any per-directory ignore lists */
     ign_add_file (CVSDOTIGNORE, 1);
@@ -280,38 +301,8 @@ import_descend (message, vtag, targc, targv)
 	    {
 		if (islink (dp->d_name))
 		{
-#ifdef DO_LINKS
-		    char lnbuf[PATH_MAX];
-		    int lln;
-
-		    add_log ('L', dp->d_name);
-		    if ((lln = readlink(dp->d_name, lnbuf, PATH_MAX)) == -1) {
-			error(0, errno, "Can't read contents of symlink %s",
-			      dp->d_name);
-			return (1);
-		    }
-		    else {
-			if (!links) {
-			    char lnrep[PATH_MAX];
-
-			    sprintf(lnrep, "%s/SymLinks", repository);
-			    links = fopen(lnrep, "a+");
-			    if (!links) {
-				error (0, errno,
-				       "Can't open SymLinks file %s", lnrep);
-				return (1);
-			    }
-			}
-			lnbuf[lln] = '\0';
-			fputs(dp->d_name, links);
-			fputc('\n', links);
-			fputs(lnbuf, links);
-			fputc('\n', links);
-		    }
-#else
 		    add_log ('L', dp->d_name);
 		    err++;
-#endif
 		}
 		else
 		{
@@ -342,8 +333,6 @@ import_descend (message, vtag, targc, targv)
 	    (void) closedir (dirp);
 	}
     }
-    if (links)
-	fclose(links);
     return (err);
 }
 
@@ -360,6 +349,7 @@ process_import_file (message, vfile, vtag, targc, targv)
 {
     char attic_name[PATH_MAX];
     char rcs[PATH_MAX];
+    int inattic = 0;
 
     (void) sprintf (rcs, "%s/%s%s", repository, vfile, RCSEXT);
     if (!isfile (rcs))
@@ -376,12 +366,13 @@ process_import_file (message, vfile, vtag, targc, targv)
 	    add_log ('N', vfile);
 	    return (add_rcs_file (message, rcs, vfile, vtag, targc, targv));
 	}
+	inattic = 1;
     }
 
     /*
      * an rcs file exists. have to do things the official, slow, way.
      */
-    return (update_rcs_file (message, vfile, vtag, targc, targv));
+    return (update_rcs_file (message, vfile, vtag, targc, targv, inattic));
 }
 
 /*
@@ -389,27 +380,32 @@ process_import_file (message, vfile, vtag, targc, targv)
  * (possibly already existing) vendor branch.
  */
 static int
-update_rcs_file (message, vfile, vtag, targc, targv)
+update_rcs_file (message, vfile, vtag, targc, targv, inattic)
     char *message;
     char *vfile;
     char *vtag;
     int targc;
     char *targv[];
+    int inattic;
 {
     Vers_TS *vers;
-    char letter;
+    int letter;
     int ierrno;
+    char *tmpdir;
 
     vers = Version_TS (repository, (char *) NULL, vbranch, (char *) NULL, vfile,
 		       1, 0, (List *) NULL, (List *) NULL);
     if (vers->vn_rcs != NULL)
     {
-	char xtmpfile[50];
+	char xtmpfile[PATH_MAX];
 	int different;
 	int retcode = 0;
 
-	/* XXX - should be more unique */
-	(void) sprintf (xtmpfile, "/tmp/%s", FILE_HOLDER);
+	tmpdir = getenv ("TMPDIR");
+	if (tmpdir == NULL || tmpdir[0] == '\0') 
+	  tmpdir = "/tmp";
+
+	(void) sprintf (xtmpfile, "%s/cvs-imp%d", tmpdir, getpid());
 
 	/*
 	 * The rcs file does have a revision on the vendor branch. Compare
@@ -459,15 +455,15 @@ update_rcs_file (message, vfile, vtag, targc, targv)
     }
 
     /* We may have failed to parse the RCS file; check just in case */
-    if (vers->srcfile == NULL || add_rev (message, vers->srcfile->path,
-					  vfile, vers->vn_rcs) ||
+    if (vers->srcfile == NULL ||
+	add_rev (message, vers->srcfile->path, vfile, vers->vn_rcs) ||
 	add_tags (vers->srcfile->path, vfile, vtag, targc, targv))
     {
 	freevers_ts (&vers);
 	return (1);
     }
 
-    if (vers->srcfile->branch == NULL ||
+    if (vers->srcfile->branch == NULL || inattic ||
 	strcmp (vers->srcfile->branch, vbranch) != 0)
     {
 	conflicts++;
@@ -527,6 +523,8 @@ add_rev (message, rcs, vfile, vers)
     }
     run_setup ("%s%s -q -f -r%s", Rcsbin, RCS_CI, vbranch);
     run_args ("-m%s", message);
+    if (use_file_modtime)
+	run_arg ("-d");
     run_arg (rcs);
     status = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
     ierrno = errno;
@@ -620,8 +618,11 @@ struct compair comtable[] =
  */
     "a", "-- ",				/* Ada		 */
     "ada", "-- ",
+    "adb", "-- ",
     "asm", ";; ",			/* assembler (MS-DOS) */
+    "ads", "-- ",			/* Ada		 */
     "bat", ":: ",			/* batch (MS-DOS) */
+    "body", "-- ",			/* Ada		 */
     "c", " * ",				/* C		 */
     "c++", "// ",			/* C++ in all its infinite guises */
     "cc", "// ",
@@ -633,6 +634,8 @@ struct compair comtable[] =
     "cs", " * ",			/* C*		 */
     "csh", "# ",			/* shell	 */
     "e", "# ",				/* efl		 */
+    "epsf", "% ",			/* encapsulated postscript */
+    "epsi", "% ",			/* encapsulated postscript */
     "el", "; ",				/* Emacs Lisp	 */
     "f", "c ",				/* Fortran	 */
     "for", "c ",
@@ -683,6 +686,7 @@ struct compair comtable[] =
 #endif
     "sh", "# ",				/* shell	 */
     "sl", "% ",				/* psl		 */
+    "spec", "-- ",			/* Ada		 */
     "tex", "% ",			/* tex		 */
     "y", " * ",				/* yacc		 */
     "ye", " * ",			/* yacc-efl	 */
@@ -700,7 +704,7 @@ get_comment (user)
     char suffix_path[PATH_MAX];
     int i;
 
-    cp = rindex (user, '.');
+    cp = strrchr (user, '.');
     if (cp != NULL)
     {
 	cp++;
@@ -739,7 +743,10 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     struct stat sb;
     struct tm *ftm;
     time_t now;
-    char altdate1[50], altdate2[50];
+    char altdate1[50];
+#ifndef HAVE_RCS5
+    char altdate2[50];
+#endif
     char *author, *buf;
     int i, mode, ierrno, err = 0;
 
@@ -767,15 +774,29 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     if (fprintf (fprcs, "%s:%s;\n", vtag, vbranch) == EOF ||
 	fprintf (fprcs, "locks    ; strict;\n") == EOF ||
 	/* XXX - make sure @@ processing works in the RCS file */
-	fprintf (fprcs, "comment  @%s@;\n\n", get_comment (user)) == EOF)
+	fprintf (fprcs, "comment  @%s@;\n", get_comment (user)) == EOF)
     {
 	goto write_error;
     }
 
+    if (keyword_opt != NULL)
+      if (fprintf (fprcs, "expand   @%s@;\n", keyword_opt) == EOF)
+	{
+	  goto write_error;
+	}
+
+    if (fprintf (fprcs, "\n") == EOF)
+      goto write_error;
+
     /*
      * puttree()
      */
-    (void) time (&now);
+    if (fstat (fileno (fpuser), &sb) < 0)
+	error (1, errno, "cannot fstat %s", user);
+    if (use_file_modtime)
+	now = sb.st_mtime;
+    else
+	(void) time (&now);
 #ifdef HAVE_RCS5
     ftm = gmtime (&now);
 #else
@@ -785,16 +806,20 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 		    ftm->tm_year + (ftm->tm_year < 100 ? 0 : 1900),
 		    ftm->tm_mon + 1, ftm->tm_mday, ftm->tm_hour,
 		    ftm->tm_min, ftm->tm_sec);
-    now++;
 #ifdef HAVE_RCS5
-    ftm = gmtime (&now);
+#define	altdate2 altdate1
 #else
+    /*
+     * If you don't have RCS V5 or later, you need to lie about the ci
+     * time, since RCS V4 and earlier insist that the times differ.
+     */
+    now++;
     ftm = localtime (&now);
-#endif
     (void) sprintf (altdate2, DATEFORM,
 		    ftm->tm_year + (ftm->tm_year < 100 ? 0 : 1900),
 		    ftm->tm_mon + 1, ftm->tm_mday, ftm->tm_hour,
 		    ftm->tm_min, ftm->tm_sec);
+#endif
     author = getcaller ();
 
     if (fprintf (fprcs, "\n%s\n", vhead) == EOF ||
@@ -823,8 +848,6 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 	goto write_error;
     }
 
-    if (fstat (fileno (fpuser), &sb) < 0)
-	error (1, errno, "cannot fstat %s", user);
     if (sb.st_size > 0)
     {
 	off_t size;
@@ -834,7 +857,10 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 	if (fread (buf, (int) size, 1, fpuser) != 1)
 	    error (1, errno, "cannot read file %s for copying", user);
 	if (expand_at_signs (buf, size, fprcs) == EOF)
+	{
+	    free (buf);
 	    goto write_error;
+	}
 	free (buf);
     }
     if (fprintf (fprcs, "@\n\n") == EOF ||
@@ -911,7 +937,7 @@ expand_at_signs (buf, size, fp)
  */
 static void
 add_log (ch, fname)
-    char ch;
+    int ch;
     char *fname;
 {
     if (!really_quiet)			/* write to terminal */
@@ -1001,7 +1027,7 @@ import_descend_dir (message, dir, vtag, targc, targv)
     }
     err = import_descend (message, vtag, targc, targv);
   out:
-    if ((cp = rindex (repository, '/')) != NULL)
+    if ((cp = strrchr (repository, '/')) != NULL)
 	*cp = '\0';
     else
 	repository[0] = '\0';
@@ -1009,3 +1035,36 @@ import_descend_dir (message, dir, vtag, targc, targv)
 	error (1, errno, "cannot chdir to %s", cwd);
     return (err);
 }
+
+/* the following code is taken from code in rcs/src/rcssyn.c, and returns a
+ * positive value if 'expstring' contains a valid RCS expansion token for
+ * the -k option.  If an invalid expansion is named, then return -1.
+ */
+
+char const *const expand_names[] = {
+	/* These must agree with *_EXPAND in rcs/src/rcsbase.h.  */
+	"kv","kvl","k","v","o",
+	0
+};
+
+static int
+str2expmode(s)
+     char const *s;
+/* Yield expand mode corresponding to S, or -1 if bad.  */
+{
+	return strn2expmode(s, strlen(s));
+}
+
+static int
+strn2expmode(s, n)
+     char const *s;
+     size_t n;
+{
+  char const *const *p;
+  
+  for (p = expand_names;  *p;  ++p)
+    if (memcmp(*p,s,n) == 0  &&  !(*p)[n])
+      return p - expand_names;
+  return -1;
+}
+
