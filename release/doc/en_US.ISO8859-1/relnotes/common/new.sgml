@@ -121,6 +121,10 @@
 	added; this requires the <literal>CPU_ELAN</literal> option in
 	the kernel configuration file.</para>
 
+      <para arch="alpha">Support for the AlphaServer 8200/8400 TurboLaser
+	is broken, the install kernel causes a machine check during 
+        startup.</para>
+
     </sect3>
 
     <sect3>
