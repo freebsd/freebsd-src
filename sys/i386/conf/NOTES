@@ -683,7 +683,8 @@ options 	SOFTUPDATES
 # Extended attributes allow additional data to be associated with files,
 # and is used for ACLs, Capabilities, and MAC labels
 #
-options	FFS_EXTATTR
+options		UFS_EXTATTR
+options		UFS_EXTATTR_AUTOSTART
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
