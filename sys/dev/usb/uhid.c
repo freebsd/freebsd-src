@@ -72,6 +72,10 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/hid.h>
 
+#if defined(__FreeBSD__) && defined(__i386__)
+#include <i386/isa/intr_machdep.h>
+#endif
+
 #ifdef UHID_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
 #define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
