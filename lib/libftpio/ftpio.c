@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.29 1997/12/20 04:06:05 jb Exp $
+ * $Id: ftpio.c,v 1.31 1999/03/30 22:06:08 nsayer Exp $
  *
  */
 
@@ -809,7 +809,16 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	*fp = fdopen(s, mode);
     }
     else {
-	int fd;
+	int fd,portrange;
+
+#ifdef IP_PORTRANGE
+	portrange = IP_PORTRANGE_HIGH;
+	if (setsockopt(s, IPPROTO_IP, IP_PORTRANGE, (char *)
+	    &portrange, sizeof(portrange)) < 0) {
+		close(s);   
+		return FAILURE;
+       };
+#endif
 
 	i = sizeof sin;
 	getsockname(ftp->fd_ctrl, (struct sockaddr *)&sin, &i);
