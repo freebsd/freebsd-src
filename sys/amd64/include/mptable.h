@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.27 1997/07/13 01:22:43 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.28 1997/07/17 19:44:56 dyson Exp $
  */
 
 #include "opt_smp.h"
@@ -350,7 +350,7 @@ mp_announce(void)
 	POSTCODE(MP_ANNOUNCE_POST);
 
 	printf("FreeBSD/SMP: Multiprocessor motherboard\n");
-	printf(" cpu0 (BSP): apic id: %d", CPU_TO_ID(0));
+	printf(" cpu0 (BSP): apic id: %2d", CPU_TO_ID(0));
 	printf(", version: 0x%08x", cpu_apic_versions[0]);
 	printf(", at 0x%08x\n", cpu_apic_address);
 	for (x = 1; x <= mp_naps; ++x) {
@@ -361,7 +361,7 @@ mp_announce(void)
 
 #if defined(APIC_IO)
 	for (x = 0; x < mp_napics; ++x) {
-		printf(" io%d (APIC): apic id: %d", x, IO_TO_ID(x));
+		printf(" io%d (APIC): apic id: %2d", x, IO_TO_ID(x));
 		printf(", version: 0x%08x", io_apic_versions[x]);
 		printf(", at 0x%08x\n", io_apic_address[x]);
 	}
