@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.19 1995/04/28 18:47:28 ache Exp $
+ * $Id: if_sl.c,v 1.20 1995/05/30 08:08:11 rgrimes Exp $
  */
 
 /*
@@ -236,7 +236,6 @@ slinit(sc)
 			sc->sc_ep = (u_char *)p + SLBUFSIZE;
 		else {
 			printf("sl%d: can't allocate buffer\n", sc - sl_softc);
-			sc->sc_if.if_flags &= ~IFF_UP;
 			return (0);
 		}
 	}
@@ -294,6 +293,7 @@ slopen(dev, tp)
 					    sc->sc_if.if_mtu + SLIP_HIWAT);
 			clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
+			if_up(&sc->sc_if);
 			return (0);
 		}
 	return (ENXIO);
@@ -438,9 +438,9 @@ sloutput(ifp, m, dst, rtp)
 		return (EAFNOSUPPORT);
 	}
 
-	if (sc->sc_ttyp == NULL) {
+	if (sc->sc_ttyp == NULL || !(ifp->if_flags & IFF_UP)) {
 		m_freem(m);
-		return (ENETDOWN);	/* sort of */
+		return (ENETDOWN);
 	}
 	if ((sc->sc_ttyp->t_state & TS_CARR_ON) == 0 &&
 	    (sc->sc_ttyp->t_cflag & CLOCAL) == 0) {
@@ -853,6 +853,12 @@ slinput(c, tp)
 
 		sc->sc_if.if_ipackets++;
 		sc->sc_if.if_lastchange = time;
+
+		if ((sc->sc_if.if_flags & IFF_UP) == 0) {
+			m_freem(m);
+			goto newpack;
+		}
+
 		s = splimp();
 		if (IF_QFULL(&ipintrq)) {
 			IF_DROP(&ipintrq);
@@ -901,9 +907,7 @@ slioctl(ifp, cmd, data)
 	switch (cmd) {
 
 	case SIOCSIFADDR:
-		if (ifa->ifa_addr->sa_family == AF_INET)
-			ifp->if_flags |= IFF_UP;
-		else
+		if (ifa->ifa_addr->sa_family != AF_INET)
 			error = EAFNOSUPPORT;
 		break;
 
