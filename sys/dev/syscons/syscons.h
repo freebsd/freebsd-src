@@ -120,7 +120,7 @@
 #define PCBURST		128
 
 #ifndef BELL_DURATION
-#define BELL_DURATION	5
+#define BELL_DURATION	((5 * hz + 99) / 100)
 #define BELL_PITCH	800
 #endif
 
