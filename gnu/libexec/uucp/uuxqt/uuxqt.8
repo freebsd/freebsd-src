@@ -1,4 +1,4 @@
-''' $Id: uuxqt.8,v 1.7 1993/09/11 22:25:50 ian Rel $
+''' $Id: uuxqt.8,v 1.2 1994/05/07 18:14:41 ache Exp $
 .TH uuxqt 8 "Taylor UUCP 1.05"
 .SH NAME
 uuxqt \- UUCP execution daemon
@@ -64,8 +64,8 @@ is equivalent to
 .B \-\-debug abnormal,chat.
 
 The debugging output is sent to the debugging file, usually one of
-/usr/spool/uucp/Debug, /usr/spool/uucp/DEBUG, or
-/usr/spool/uucp/.Admin/audit.local.
+/var/spool/uucp/Debug, /var/spool/uucp/DEBUG, or
+/var/spool/uucp/.Admin/audit.local.
 .TP 5
 .B \-I file, \-\-config 
 Set configuration file to use.  This option may not be available,
@@ -83,18 +83,18 @@ The file names may be changed at compilation time or by the
 configuration file, so these are only approximations.
 
 .br
-/usr/lib/uucp/config - Configuration file.
+/etc/uucp/config - Configuration file.
 .br
-/usr/spool/uucp -
+/var/spool/uucp -
 UUCP spool directory.
 .br
-/usr/spool/uucp/Log -
+/var/spool/uucp/Log -
 UUCP log file.
 .br
-/usr/spool/uucppublic -
+/var/spool/uucppublic -
 Default UUCP public directory.
 .br
-/usr/spool/uucp/Debug -
+/var/spool/uucp/Debug -
 Debugging file.
 .SH SEE ALSO
 uucp(1), uux(1), uucico(8)
