@@ -546,6 +546,10 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	int error;
 	int s;
 	int d;
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	u_long oldcmd;
+	struct termios term;
+#endif
 
 	USB_GET_SC(ucom, UCOMUNIT(dev), sc);
 	tp = sc->sc_tty;
@@ -555,15 +559,28 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 
 	DPRINTF(("ucomioctl: cmd = 0x%08lx\n", cmd));
 
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	term = tp->t_termios;
+	oldcmd = cmd;
+	error = ttsetcompat(tp, &cmd, data, &term);
+	if (error != 0)
+		return (error);
+	if (cmd != oldcmd)
+		data = (caddr_t)&term;
+#endif
+
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
 		DPRINTF(("ucomioctl: l_ioctl: error = %d\n", error));
 		return (error);
 	}
 
+	s = spltty();
+
 	error = ttioctl(tp, cmd, data, flag);
 	disc_optim(tp, &tp->t_termios, sc);
-	if (error >= 0) {
+	if (error != ENOIOCTL) {
+		splx(s);
 		DPRINTF(("ucomioctl: ttioctl: error = %d\n", error));
 		return (error);
 	}
@@ -579,8 +596,6 @@ ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	error = 0;
 
 	DPRINTF(("ucomioctl: our cmd = 0x%08lx\n", cmd));
-
-	s = spltty();
 
 	switch (cmd) {
 	case TIOCSBRK:
