@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.12 2000/06/19 02:38:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.17 2000/08/08 16:01:03 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -180,7 +180,7 @@ static ips_stat_t *fr_statetstats()
  * flush state tables.  two actions currently defined:
  * which == 0 : flush all state table entries
  * which == 1 : flush TCP connections which have started to close but are
- *              stuck for some reason.
+ *	        stuck for some reason.
  */
 static int fr_state_flush(which)
 int which;
@@ -371,8 +371,8 @@ caddr_t data;
 		      sizeof(ips.ips_fr));
 	error = IWCOPY((caddr_t)&ips, ipsp, sizeof(ips));
 	if (error)
-		return EFAULT;
-	return 0;
+		error = EFAULT;
+	return error;
 }
 
 
@@ -477,6 +477,7 @@ register ipstate_t *is;
 	is->is_phnext = ips_table + hv;
 	is->is_hnext = ips_table[hv];
 	ips_table[hv] = is;
+	ips_num++;
 }
 
 
@@ -556,7 +557,6 @@ u_int flags;
 		case ND_ROUTER_SOLICIT :
 		case ND_NEIGHBOR_SOLICIT :
 			is->is_icmp.ics_type = ic->icmp_type + 1;
-			break;
 			break;
 #endif
 		case ICMP_ECHO :
@@ -669,11 +669,10 @@ u_int flags;
 	if (pass & FR_LOGFIRST)
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 	fr_stinsert(is);
-	ips_num++;
 	if (is->is_p == IPPROTO_TCP) {
 		MUTEX_ENTER(&is->is_lock);
 		fr_tcp_age(&is->is_age, is->is_state, fin,
-			   tcp->th_sport == is->is_sport);
+			   0); /* 0 = packet from the source */
 		MUTEX_EXIT(&is->is_lock);
 	}
 #ifdef	IPFILTER_LOG
@@ -785,7 +784,8 @@ tcphdr_t *tcp;
 		 * Nearing end of connection, start timeout.
 		 */
 		MUTEX_ENTER(&is->is_lock);
-		fr_tcp_age(&is->is_age, is->is_state, fin, source);
+		/* source ? 0 : 1 -> !source */
+		fr_tcp_age(&is->is_age, is->is_state, fin, !source);
 		MUTEX_EXIT(&is->is_lock);
 		ret = 1;
 	}
@@ -970,12 +970,12 @@ fr_info_t *fin;
 	union i6addr dst, src;
 	struct icmp *ic;
 	u_short savelen;
-	fr_info_t ofin;
-	tcphdr_t *tcp;
 	icmphdr_t *icmp;
+	fr_info_t ofin;
+	int type, len;
+	tcphdr_t *tcp;
 	frentry_t *fr;
 	ip_t *oip;
-	int type;
 	u_int hv;
 
 	/*
@@ -999,6 +999,46 @@ fr_info_t *fin;
 	oip = (ip_t *)((char *)ic + ICMPERR_ICMPHLEN);
 	if (fin->fin_plen < ICMPERR_MAXPKTLEN + ((oip->ip_hl - 5) << 2))
 		return NULL;
+
+	/*
+	 * Sanity checks.
+	 */
+	len = fin->fin_dlen - ICMPERR_ICMPHLEN;
+	if ((len <= 0) || ((oip->ip_hl << 2) > len))
+		return NULL;
+
+	/*
+	 * Is the buffer big enough for all of it ?  It's the size of the IP
+	 * header claimed in the encapsulated part which is of concern.  It
+	 * may be too big to be in this buffer but not so big that it's
+	 * outside the ICMP packet, leading to TCP deref's causing problems.
+	 * This is possible because we don't know how big oip_hl is when we
+	 * do the pullup early in fr_check() and thus can't gaurantee it is
+	 * all here now.
+	 */
+#ifdef  _KERNEL
+	{
+	mb_t *m;
+
+# if SOLARIS
+	m = fin->fin_qfm;
+	if ((char *)oip + len > (char *)m->b_wptr)
+		return NULL;
+# else
+	m = *(mb_t **)fin->fin_mp;
+	if ((char *)oip + len > (char *)ip + m->m_len)
+		return NULL;
+# endif
+	}
+#endif
+
+	/*
+	 * in the IPv4 case we must zero the i6addr union otherwise
+	 * the IP6EQ and IP6NEQ macros produce the wrong results because
+	 * of the 'junk' in the unused part of the union
+	 */
+	bzero(&src, sizeof(src));
+	bzero(&dst, sizeof(dst));
 
 	if (oip->ip_p == IPPROTO_ICMP) {
 		icmp = (icmphdr_t *)((char *)oip + (oip->ip_hl << 2));
@@ -1028,9 +1068,11 @@ fr_info_t *fin;
 		hv += icmp->icmp_seq;
 		hv %= fr_statesize;
 
-		oip->ip_len = ntohs(oip->ip_len);
+		savelen = oip->ip_len;
+		oip->ip_len = len;
+		ofin.fin_v = 4;
 		fr_makefrip(oip->ip_hl << 2, oip, &ofin);
-		oip->ip_len = htons(oip->ip_len);
+		oip->ip_len = savelen;
 		ofin.fin_ifp = fin->fin_ifp;
 		ofin.fin_out = !fin->fin_out;
 		ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
@@ -1077,7 +1119,8 @@ fr_info_t *fin;
 	 * order. Any change we make must be undone afterwards.
 	 */
 	savelen = oip->ip_len;
-	oip->ip_len = ip->ip_len - (ip->ip_hl << 2) - ICMPERR_ICMPHLEN;
+	oip->ip_len = len;
+	ofin.fin_v = 4;
 	fr_makefrip(oip->ip_hl << 2, oip, &ofin);
 	oip->ip_len = savelen;
 	ofin.fin_ifp = fin->fin_ifp;
@@ -1198,7 +1241,15 @@ fr_info_t *fin;
 	case IPPROTO_TCP :
 	    {
 		register u_short dport = tcp->th_dport, sport = tcp->th_sport;
+		register int i;
 
+		i = tcp->th_flags;
+		/*
+		 * Just plain ignore RST flag set with either FIN or SYN.
+		 */
+		if ((i & TH_RST) &&
+		    ((i & (TH_FIN|TH_SYN|TH_RST)) != TH_RST))
+			break;
 		tryagain = 0;
 retry_tcp:
 		hvm = hv % fr_statesize;
@@ -1384,6 +1435,27 @@ void fr_timeoutstate()
 /*
  * Original idea freom Pradeep Krishnan for use primarily with NAT code.
  * (pkrishna@netcom.com)
+ *
+ * Rewritten by Arjan de Vet <Arjan.deVet@adv.iae.nl>, 2000-07-29:
+ *
+ * - (try to) base state transitions on real evidence only,
+ *   i.e. packets that are sent and have been received by ipfilter;
+ *   diagram 18.12 of TCP/IP volume 1 by W. Richard Stevens was used.
+ *
+ * - deal with half-closed connections correctly;
+ *
+ * - store the state of the source in state[0] such that ipfstat
+ *   displays the state as source/dest instead of dest/source; the calls
+ *   to fr_tcp_age have been changed accordingly.
+ *
+ * Parameters:
+ *
+ *    state[0] = state of source (host that initiated connection)
+ *    state[1] = state of dest   (host that accepted the connection)
+ *
+ *    dir == 0 : a packet from source to dest
+ *    dir == 1 : a packet from dest to source
+ *
  */
 void fr_tcp_age(age, state, fin, dir)
 u_long *age;
@@ -1410,67 +1482,192 @@ int dir;
 		return;
 	}
 
-	*age = fr_tcptimeout; /* 1 min */
+	*age = fr_tcptimeout; /* default 4 mins */
 
 	switch(state[dir])
 	{
-	case TCPS_CLOSED:
-		if ((flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
-			state[dir] = TCPS_ESTABLISHED;
-			*age = fr_tcpidletimeout;
-		}
-	case TCPS_FIN_WAIT_2:
-		if ((flags & TH_OPENING) == TH_OPENING)
+	case TCPS_CLOSED: /* 0 */
+		if ((flags & TH_OPENING) == TH_OPENING) {
+			/*
+			 * 'dir' received an S and sends SA in response,
+			 * CLOSED -> SYN_RECEIVED
+			 */
 			state[dir] = TCPS_SYN_RECEIVED;
-		else if (flags & TH_SYN)
+			*age = fr_tcptimeout;
+		} else if ((flags & (TH_SYN|TH_ACK)) == TH_SYN) {
+			/* 'dir' sent S, CLOSED -> SYN_SENT */
 			state[dir] = TCPS_SYN_SENT;
-		break;
-	case TCPS_SYN_RECEIVED:
-	case TCPS_SYN_SENT:
-		if ((flags & (TH_FIN|TH_ACK)) == TH_ACK) {
+			*age = fr_tcptimeout;
+		}
+		/*
+		 * The next piece of code makes it possible to get
+		 * already established connections into the state table
+		 * after a restart or reload of the filter rules; this
+		 * does not work when a strict 'flags S keep state' is
+		 * used for tcp connections of course
+		 */
+		if ((flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
+			/* we saw an A, guess 'dir' is in ESTABLISHED mode */
 			state[dir] = TCPS_ESTABLISHED;
 			*age = fr_tcpidletimeout;
-		} else if ((flags & (TH_FIN|TH_ACK)) == (TH_FIN|TH_ACK)) {
-			state[dir] = TCPS_CLOSE_WAIT;
-			if (!(flags & TH_PUSH) && !dlen &&
-			    ostate > TCPS_ESTABLISHED)
-				*age  = fr_tcplastack;
-			else
-				*age  = fr_tcpclosewait;
+		}
+		/*
+		 * TODO: besides regular ACK packets we can have other
+		 * packets as well; it is yet to be determined how we
+		 * should initialize the states in those cases
+		 */
+		break;
+
+	case TCPS_LISTEN: /* 1 */
+		/* NOT USED */
+		break;
+
+	case TCPS_SYN_SENT: /* 2 */
+		if ((flags & (TH_SYN|TH_FIN|TH_ACK)) == TH_ACK) {
+			/*
+			 * We see an A from 'dir' which is in SYN_SENT
+			 * state: 'dir' sent an A in response to an SA
+			 * which it received, SYN_SENT -> ESTABLISHED
+			 */
+			state[dir] = TCPS_ESTABLISHED;
+			*age = fr_tcpidletimeout;
+		} else if (flags & TH_FIN) {
+			/*
+			 * We see an F from 'dir' which is in SYN_SENT
+			 * state and wants to close its side of the
+			 * connection; SYN_SENT -> FIN_WAIT_1
+			 */
+			state[dir] = TCPS_FIN_WAIT_1;
+			*age = fr_tcpidletimeout; /* or fr_tcptimeout? */
+		} else if ((flags & TH_OPENING) == TH_OPENING) {
+			/*
+			 * We see an SA from 'dir' which is already in
+			 * SYN_SENT state, this means we have a
+			 * simultaneous open; SYN_SENT -> SYN_RECEIVED
+			 */
+			state[dir] = TCPS_SYN_RECEIVED;
+			*age = fr_tcptimeout;
 		}
 		break;
-	case TCPS_ESTABLISHED:
+
+	case TCPS_SYN_RECEIVED: /* 3 */
+		if ((flags & (TH_SYN|TH_FIN|TH_ACK)) == TH_ACK) {
+			/*
+			 * We see an A from 'dir' which was in SYN_RECEIVED
+			 * state so it must now be in established state,
+			 * SYN_RECEIVED -> ESTABLISHED
+			 */
+			state[dir] = TCPS_ESTABLISHED;
+			*age = fr_tcpidletimeout;
+		} else if (flags & TH_FIN) {
+			/*
+			 * We see an F from 'dir' which is in SYN_RECEIVED
+			 * state and wants to close its side of the connection;
+			 * SYN_RECEIVED -> FIN_WAIT_1
+			 */
+			state[dir] = TCPS_FIN_WAIT_1;
+			*age = fr_tcpidletimeout; /* or fr_tcptimeout? */
+		}
+		break;
+
+	case TCPS_ESTABLISHED: /* 4 */
 		if (flags & TH_FIN) {
-			state[dir] = TCPS_CLOSE_WAIT;
-			if (!(flags & TH_PUSH) && !dlen &&
-			    ostate > TCPS_ESTABLISHED)
-				*age  = fr_tcplastack;
-			else
-				*age  = fr_tcpclosewait;
-		} else {
-			if (ostate < TCPS_CLOSE_WAIT)
+			/*
+			 * 'dir' closed its side of the connection; this
+			 * gives us a half-closed connection;
+			 * ESTABLISHED -> FIN_WAIT_1
+			 */
+			state[dir] = TCPS_FIN_WAIT_1;
+			*age = fr_tcpidletimeout;
+		} else if (flags & TH_ACK) {
+			/* an ACK, should we exclude other flags here? */
+			if (ostate == TCPS_FIN_WAIT_1) {
+				/*
+				 * We know the other side did an active close,
+				 * so we are ACKing the recvd FIN packet (does
+				 * the window matching code guarantee this?)
+				 * and go into CLOSE_WAIT state; this gives us
+				 * a half-closed connection
+				 */
+				state[dir] = TCPS_CLOSE_WAIT;
+				*age = fr_tcpidletimeout;
+			} else if (ostate < TCPS_CLOSE_WAIT)
+				/*
+				 * Still a fully established connection,
+				 * reset timeout
+				 */
 				*age = fr_tcpidletimeout;
 		}
 		break;
-	case TCPS_CLOSE_WAIT:
-		if ((flags & TH_FIN) && !(flags & TH_PUSH) && !dlen &&
-		    ostate > TCPS_ESTABLISHED) {
+
+	case TCPS_CLOSE_WAIT: /* 5 */
+		if (flags & TH_FIN) {
+			/*
+			 * Application closed and 'dir' sent a FIN, we're now
+			 * going into LAST_ACK state
+			 */
 			*age  = fr_tcplastack;
 			state[dir] = TCPS_LAST_ACK;
-		} else
-			*age  = fr_tcpclosewait;
-		break;
-	case TCPS_LAST_ACK:
-		if (flags & TH_ACK) {
-			state[dir] = TCPS_FIN_WAIT_2;
-			if (!(flags & TH_PUSH) && !dlen &&
-			    ostate > TCPS_ESTABLISHED)
-				*age  = fr_tcplastack;
-			else {
-				*age  = fr_tcpclosewait;
-				state[dir] = TCPS_CLOSE_WAIT;
-			}
+		} else {
+			/*
+			 * We remain in CLOSE_WAIT because the other side has
+			 * closed already and we did not close our side yet;
+			 * reset timeout
+			 */
+			*age  = fr_tcpidletimeout;
 		}
+		break;
+
+	case TCPS_FIN_WAIT_1: /* 6 */
+		if ((flags & TH_ACK) && ostate > TCPS_CLOSE_WAIT) {
+			/*
+			 * If the other side is not active anymore it has sent
+			 * us a FIN packet that we are ack'ing now with an ACK;
+			 * this means both sides have now closed the connection
+			 * and we go into TIME_WAIT
+			 */
+			/*
+			 * XXX: how do we know we really are ACKing the FIN
+			 * packet here? does the window code guarantee that?
+			 */
+			state[dir] = TCPS_TIME_WAIT;
+			*age = fr_tcptimeout;
+		} else
+			/*
+			 * We closed our side of the connection already but the
+			 * other side is still active (ESTABLISHED/CLOSE_WAIT);
+			 * continue with this half-closed connection
+			 */
+			*age = fr_tcpidletimeout;
+		break;
+
+	case TCPS_CLOSING: /* 7 */
+		/* NOT USED */
+		break;
+
+	case TCPS_LAST_ACK: /* 8 */
+		if (flags & TH_ACK) {
+			if ((flags & TH_PUSH) || dlen)
+				/*
+				 * There is still data to be delivered, reset
+				 * timeout
+				 */
+				*age  = fr_tcplastack;
+		}
+		/*
+		 * We cannot detect when we go out of LAST_ACK state to CLOSED
+		 * because that is based on the reception of ACK packets;
+		 * ipfilter can only detect that a packet has been sent by a
+		 * host
+		 */
+		break;
+
+	case TCPS_FIN_WAIT_2: /* 9 */
+		/* NOT USED */
+		break;
+
+	case TCPS_TIME_WAIT: /* 10 */
+		/* we're in 2MSL timeout now */
 		break;
 	}
 }
@@ -1579,6 +1776,7 @@ fr_info_t *fin;
 		hv %= fr_statesize;
 
 		oip->ip6_plen = ntohs(oip->ip6_plen);
+		ofin.fin_v = 6;
 		fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
 		oip->ip6_plen = htons(oip->ip6_plen);
 		ofin.fin_ifp = fin->fin_ifp;

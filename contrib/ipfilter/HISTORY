@@ -20,6 +20,32 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.9	08/08/2000 - Released
+
+implement new aging mechanism in fr_tcp_age()
+
+fix icmp state checking bug
+
+revamp buildsunos script and build both sparcv7/sparcv9 for Solaris
+if on an Ultra with a 64bit system & compiler (Caseper Dik)
+
+open ipfilter device read only if we know we can
+
+print out better information for ICMP packets in ipmon
+
+move checking for source spoofed packets to a point where we can generate
+logs of them
+
+return EFAULT from ircopyptr/iwcopyptr
+
+don't do ioctl(SIOCGETFS) for auth stats
+
+fix up freeing mbufs for post-4.3BSD
+
+fix returning of inc from ftp proxy
+
+fix bugs with ipfs -R/-W (Caseper Dik)
+
 3.4.8	19/07/2000 - Released
 
 create fake opt_inet6.h for FreeBSD-4 compile as LKM
