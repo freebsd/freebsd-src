@@ -117,7 +117,7 @@ sendsig(catcher, sig, mask, code)
 	fp--;
 	
 	/* make the stack aligned */
-	(u_int)fp = _ALIGN(fp);
+	fp = (struct sigframe *)_ALIGN(fp);
 	/* Populate the siginfo frame. */
 	frame.sf_si.si_signo = sig;
 	frame.sf_si.si_code = code;
