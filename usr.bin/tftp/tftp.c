@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 
@@ -93,9 +93,9 @@ xmitfile(fd, name, mode)
 	char *name;
 	char *mode;
 {
-	register struct tftphdr *ap;	   /* data and ack packets */
-	struct tftphdr *r_init(), *dp;
-	register int n;
+	struct tftphdr *ap;	   /* data and ack packets */
+	struct tftphdr *dp;
+	int n;
 	volatile unsigned short block;
 	volatile int size, convert;
 	volatile unsigned long amount;
@@ -199,9 +199,9 @@ recvfile(fd, name, mode)
 	char *name;
 	char *mode;
 {
-	register struct tftphdr *ap;
-	struct tftphdr *dp, *w_init();
-	register int n;
+	struct tftphdr *ap;
+	struct tftphdr *dp;
+	int n;
 	volatile unsigned short block;
 	volatile int size, firsttrip;
 	volatile unsigned long amount;
@@ -310,7 +310,7 @@ makerequest(request, name, tp, mode)
 	struct tftphdr *tp;
 	const char *mode;
 {
-	register char *cp;
+	char *cp;
 
 	tp->th_opcode = htons((u_short)request);
 	cp = tp->th_stuff;
@@ -325,7 +325,7 @@ makerequest(request, name, tp, mode)
 
 struct errmsg {
 	int	e_code;
-	char	*e_msg;
+	const char	*e_msg;
 } errmsgs[] = {
 	{ EUNDEF,	"Undefined error code" },
 	{ ENOTFOUND,	"File not found" },
@@ -348,10 +348,9 @@ static void
 nak(error)
 	int error;
 {
-	register struct errmsg *pe;
-	register struct tftphdr *tp;
+	struct errmsg *pe;
+	struct tftphdr *tp;
 	int length;
-	char *strerror();
 
 	tp = (struct tftphdr *)ackbuf;
 	tp->th_opcode = htons((u_short)ERROR);
@@ -378,11 +377,10 @@ tpacket(s, tp, n)
 	struct tftphdr *tp;
 	int n;
 {
-	static char *opcodes[] =
+	static const char *opcodes[] =
 	   { "#0", "RRQ", "WRQ", "DATA", "ACK", "ERROR" };
-	register char *cp, *file;
+	char *cp, *file;
 	u_short op = ntohs(tp->th_opcode);
-	char *index();
 
 	if (op < RRQ || op > ERROR)
 		printf("%s opcode=%x ", s, op);
@@ -439,7 +437,7 @@ printstats(direction, amount)
 	delta = ((tstop.tv_sec*10.)+(tstop.tv_usec/100000)) -
 		((tstart.tv_sec*10.)+(tstart.tv_usec/100000));
 	delta = delta/10.;      /* back to seconds */
-	printf("%s %d bytes in %.1f seconds", direction, amount, delta);
+	printf("%s %ld bytes in %.1f seconds", direction, amount, delta);
 	if (verbose)
 		printf(" [%.0f bits/sec]", (amount*8.)/delta);
 	putchar('\n');
@@ -447,7 +445,7 @@ printstats(direction, amount)
 
 static void
 timer(sig)
-	int sig;
+	int sig __unused;
 {
 
 	timeout += rexmtval;
