@@ -133,6 +133,7 @@ ata_isaprobe(device_t dev)
     if (res) {
 	isa_set_portsize(dev, res);
 	*(int *)device_get_softc(dev) = lun;
+        atadevices[lun]->flags |= ATA_USE_16BIT;
 	return 0;
     }
     return ENXIO;
@@ -196,6 +197,12 @@ ata_pcimatch(device_t dev)
     case 0x71118086:
     case 0x71998086:
 	return "Intel PIIX4 ATA-33 controller";
+
+    case 0x24118086:
+	return "Intel ICH ATA-66 controller";
+
+    case 0x24218086:
+	return "Intel ICH0 ATA-33 controller";
 
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA-33 controller";
@@ -363,7 +370,18 @@ ata_pciattach(device_t dev)
 	/* set sector size */
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
+	
+	/* prepare for ATA-66 on the 82C686 */
+	if (ata_find_dev(dev, 0x06861106))
+	    pci_write_config(dev, 0x50, 
+			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
 	break;
+
+    case 0x00041103: /* HighPoint HPT366 controller */
+	printf("hpt366: cache_line_size=0x%02x latency_timer=0x%02x min_grant=0x%02x max_latency=0x%02x\n",
+	pci_read_config(dev, 0x0c, 1), pci_read_config(dev, 0x0d, 1),
+	pci_read_config(dev, 0x3e, 1), pci_read_config(dev, 0x3f, 1));
+
     }
 	
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
@@ -809,30 +827,25 @@ ata_reinit(struct ata_softc *scp)
 int32_t
 ata_wait(struct ata_softc *scp, int32_t device, u_int8_t mask)
 {
-    u_int8_t status;
     u_int32_t timeout = 0;
-
+    
     DELAY(1);
-    while (timeout <= 5000000) {	/* timeout 5 secs */
-	status = inb(scp->ioaddr + ATA_STATUS);
+    while (timeout < 5000000) {	/* timeout 5 secs */
+	scp->status = inb(scp->ioaddr + ATA_STATUS);
 
 	/* if drive fails status, reselect the drive just to be sure */
-	if (status == 0xff) {
-	    printf("ata%d: %s: no status, reselecting device\n",
+	if (scp->status == 0xff) {
+	    printf("ata%d-%s: no status, reselecting device\n",
 		   scp->lun, device?"slave":"master");
 	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
 	    DELAY(1);
-	    status = inb(scp->ioaddr + ATA_STATUS);
+	    scp->status = inb(scp->ioaddr + ATA_STATUS);
 	}
-	if (status == 0xff)
-	    return -1;
-	scp->status = status;
-	if (!(status & ATA_S_BUSY)) {
-	    if (status & ATA_S_ERROR)
-		scp->error = inb(scp->ioaddr + ATA_ERROR);
-	    if ((status & mask) == mask) 
-		return (status & ATA_S_ERROR);
-	}
+
+	/* are we done ? */
+	if (!(scp->status & ATA_S_BUSY))
+	    break;	      
+
 	if (timeout > 1000) {
 	    timeout += 1000;
 	    DELAY(1000);
@@ -841,9 +854,27 @@ ata_wait(struct ata_softc *scp, int32_t device, u_int8_t mask)
 	    timeout += 10;
 	    DELAY(10);
 	}
-    }
-    return -1;
-}
+    }	 
+    if (scp->status & ATA_S_ERROR)
+	scp->error = inb(scp->ioaddr + ATA_ERROR);
+    if (timeout >= 5000000)	 
+	return -1;	    
+    if (!mask)	   
+	return (scp->status & ATA_S_ERROR);	 
+    
+    /* Wait 50 msec for bits wanted. */	   
+    timeout = 5000;
+    while (timeout--) {	  
+	scp->status = inb(scp->ioaddr + ATA_STATUS);
+	if ((scp->status & mask) == mask) {
+	    if (scp->status & ATA_S_ERROR)
+		scp->error = inb(scp->ioaddr + ATA_ERROR);
+	    return (scp->status & ATA_S_ERROR);	      
+	}
+	DELAY (10);	   
+    }	  
+    return -1;	    
+}   
 
 int32_t
 ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
@@ -876,8 +907,9 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	if (scp->active != ATA_IDLE)
 	    printf("WARNING: WAIT_INTR active=%s\n", active2str(scp->active));
 	scp->active = ATA_WAIT_INTR;
+	asleep((caddr_t)scp, PRIBIO, "atacmd", 500);
 	outb(scp->ioaddr + ATA_CMD, command);
-	if (tsleep((caddr_t)scp, PRIBIO, "atacmd", 500)) {
+	if (await(PRIBIO, 500)) {
 	    printf("ata_command: timeout waiting for interrupt\n");
 	    scp->active = ATA_IDLE;
 	    return -1;
