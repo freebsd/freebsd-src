@@ -85,17 +85,17 @@
  * Machine independent bits of the mutex implementation
  */
 /* All mutexes in system (used for debug/panic) */
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 static struct mtx_debug all_mtx_debug = { NULL, {NULL, NULL}, NULL, 0,
 	"All mutexes queue head" };
 static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, &all_mtx_debug,
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
-#else	/* MUTEX_DEBUG */
+#else	/* WITNESS */
 static struct mtx all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx };
-#endif	/* MUTEX_DEBUG */
+#endif	/* WITNESS */
 
 static int	mtx_cur_cnt;
 static int	mtx_max_cnt;
@@ -578,7 +578,7 @@ mtx_validate(struct mtx *m, int when)
 void
 mtx_init(struct mtx *m, const char *t, int flag)
 {
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 	struct mtx_debug *debug;
 #endif
 
@@ -586,6 +586,8 @@ mtx_init(struct mtx *m, const char *t, int flag)
 #ifdef MUTEX_DEBUG
 	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
 		return;
+#endif
+#ifdef WITNESS
 	if (flag & MTX_COLD)
 		debug = m->mtx_debug;
 	else
@@ -604,7 +606,7 @@ mtx_init(struct mtx *m, const char *t, int flag)
 #endif
 	bzero((void *)m, sizeof *m);
 	TAILQ_INIT(&m->mtx_blocked);
-#ifdef MUTEX_DEBUG
+#ifdef WITNESS
 	m->mtx_debug = debug;
 #endif
 	m->mtx_description = t;
@@ -650,6 +652,8 @@ mtx_destroy(struct mtx *m)
 	m->mtx_prev->mtx_next = m->mtx_next;
 #ifdef MUTEX_DEBUG
 	m->mtx_next = m->mtx_prev = NULL;
+#endif
+#ifdef WITNESS
 	free(m->mtx_debug, M_DEVBUF);
 	m->mtx_debug = NULL;
 #endif
@@ -659,10 +663,9 @@ mtx_destroy(struct mtx *m)
 
 /*
  * The non-inlined versions of the mtx_*() functions are always built (above),
- * but the witness code depends on the MUTEX_DEBUG and WITNESS kernel options
- * being specified.
+ * but the witness code depends on the WITNESS kernel option being specified.
  */
-#if (defined(MUTEX_DEBUG) && defined(WITNESS))
+#ifdef WITNESS
 
 #define WITNESS_COUNT 200
 #define	WITNESS_NCHILDREN 2
@@ -1377,4 +1380,4 @@ witness_restore(struct mtx *m, const char *file, int line)
 	m->mtx_witness->w_line = line;
 }
 
-#endif	/* (defined(MUTEX_DEBUG) && defined(WITNESS)) */
+#endif	/* WITNESS */
