@@ -24,8 +24,8 @@ MAN9=	CONDSPLASSERT.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	mi_switch.9 mutex.9 \
 	namei.9 \
 	panic.9 pfil.9 physio.9 posix4.9 psignal.9 \
-	random.9 resettodr.9 rtalloc.9 rtentry.9 \
-	sleep.9 spl.9 store.9 style.9 suser.9 swi.9 \
+	random.9 resettodr.9 rtalloc.9 rtentry.9 runqueue.9 \
+	scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 style.9 suser.9 swi.9 \
 	time.9 timeout.9 tvtohz.9 \
 	uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
@@ -102,7 +102,7 @@ MLINKS+=kthread.9 kthread_resume.9 kthread.9 kthread_suspend.9
 MLINKS+=kthread.9 kthread_suspend_check.9
 MLINKS+=make_dev.9 destroy_dev.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
-MLINKS+=mi_switch.9 cpu_switch.9
+MLINKS+=mi_switch.9 cpu_switch.9 mi_switch.9 cpu_throw.9
 MLINKS+=namei.9 NDINIT.9
 MLINKS+=namei.9 NDFREE.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
@@ -110,8 +110,17 @@ MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
+MLINKS+=runqueue.9 chooseproc.9 runqueue.9 procrunnable.9
+MLINKS+=runqueue.9 remrunqueue.9 runqueue.9 setrunqueue.9
+MLINKS+=scheduler.9 curpriority_cmp.9 scheduler.9 maybe_resched.9
+MLINKS+=scheduler.9 resetpriority.9 scheduler.9 roundrobin.9
+MLINKS+=scheduler.9 roundrobin_interval.9 scheduler.9 sched_setup.9
+MLINKS+=scheduler.9 schedclock.9 scheduler.9 schedcpu.9
+MLINKS+=scheduler.9 setrunnable.9 scheduler.9 updatepri.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
 MLINKS+=sleep.9 asleep.9 sleep.9 await.9 sleep.9 msleep.9
+MLINKS+=sleepqueue.9 endtsleep.9 sleepqueue.9 sleepinit.9
+MLINKS+=sleepqueue.9 unsleep.9
 MLINKS+=buf.9 bp.9
 MLINKS+=spl.9 spl0.9
 MLINKS+=spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
