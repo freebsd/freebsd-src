@@ -64,8 +64,8 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
 # Similarly, you can specify make flags for make readmes via PORTREADMES_FLAGS.
-#WORLD_FLAGS=-j4
-#KERNEL_FLAGS=-j4
+WORLD_FLAGS=-j8 -s
+KERNEL_FLAGS=-j8 -s
 #PORTREADMES_FLAGS=-j4
 
 TARGET_ARCH?=	${MACHINE_ARCH}
@@ -736,7 +736,7 @@ release.9:
 	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > ${RD}/mfsroot/mfsroot.gz
-	@rm mfsroot mfsroot-small
+	@rm -f mfsroot mfsroot-small
 	touch ${.TARGET}
 
 release.10:
