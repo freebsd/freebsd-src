@@ -445,7 +445,7 @@ osf1_kill(td, uap)
 
 	ka.pid = uap->pid;
 	ka.signum = uap->signum;
-	return kill(td, &ka);
+	return kern_kill(td, &ka, 0);
 }
 
 
