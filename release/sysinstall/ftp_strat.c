@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: ftp_strat.c,v 1.1 1995/05/27 10:38:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,8 +59,8 @@ Boolean
 mediaInitFTP(Device *dev)
 {
     int i;
-    char *url, *hostname, *dir;
-    char *my_name, email[BUFSIZ];
+    char *cp, *hostname, *dir;
+    char *my_name, email[BUFSIZ], url[BUFSIZE];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
@@ -75,15 +75,15 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
-    url = getenv("ftp");
-    if (!url)
+    cp = getenv("ftp");
+    if (!cp)
 	return FALSE;
     my_name = getenv(VAR_HOSTNAME);
-    if (strncmp("ftp://", url, 6) != NULL) {
+    if (strncmp("ftp://", cp, 6) != NULL) {
 	msgConfirm("Invalid URL (`%s') passed to FTP routines!\n(must start with `ftp://')", url);
 	return FALSE;
     }
-
+    strncpy(url, cp, BUFSIZ);
     msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
     if ((dir = index(hostname, '/')) != NULL)
@@ -128,7 +128,7 @@ mediaGetFTP(char *dist, char *path)
     int		pfd[2], numchunks;
     const char *tmp;
     Attribs	*dist_attr;
-
+    
     if (!path)
 	path = "";
     msgNotify("Attempting to retreive `%s' over FTP", dist);
@@ -176,6 +176,7 @@ mediaGetFTP(char *dist, char *path)
     if (!ftppid) {
 	int		chunk;
 	int		retval;
+	Boolean		needEOF = FALSE;
 
 	dup2(pfd[1], 1); close(pfd[1]);
 	close(pfd[0]);
@@ -183,7 +184,11 @@ mediaGetFTP(char *dist, char *path)
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    char buffer[10240];
 	    int n;
-	    
+
+	    if (needEOF) {
+		FtpEOF(ftp);
+		needEOF = FALSE;
+	    }
 	    snprintf(buf, 512, "%s%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = FtpGet(ftp, buf);
 
@@ -192,8 +197,9 @@ mediaGetFTP(char *dist, char *path)
 		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
 		exit(1);
 	    }
-	    
-	    while ((n = read(fd, buffer, 10240))>0)
+	    else
+		needEOF = TRUE;
+	    while ((n = read(fd, buffer, 10240)) > 0)
 	    {
 		retval = write(1, buffer, n);
 		if (retval != n)
@@ -203,9 +209,6 @@ mediaGetFTP(char *dist, char *path)
 		}
 		
 	    }
-	    /* Close all but the last, since the last will get closed by mediaCloseFTP */
-	    if (chunk + 1 != numchunks)
-		FtpEOF(ftp);
 	    close(fd);
 	}
 	close(1);
