@@ -504,6 +504,10 @@ DEC3000/300 has 5Mbytes/sec SCSI on-board. This bus is used for both internal
 and external devices. DEC3000/500 has 2 SCSI buses. One is for internal 
 devices only, the other one is for external devices only.
 
+Floppy devices found in the DEC3000s are attached to the SCSI bus (via a
+bridge card). This makes it possible to boot from them using the same device
+names as ordinary SCSI harddisks (>>> BOOT DKA300 for example).
+
 Expansion:
 The 3000/300 series has a half-speed TurboChannel compared to the other
 3000 machines. Some TC expansion cards have troubles with the half-speed
