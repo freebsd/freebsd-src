@@ -37,7 +37,6 @@
 #include <sys/time.h>
 #endif
 
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -61,9 +60,6 @@ ACPI_MODULE_NAME("TIMER")
 
 static device_t	acpi_timer_dev;
 struct resource	*acpi_timer_reg;
-#define TIMER_READ	bus_space_read_4(rman_get_bustag(acpi_timer_reg),	\
-					 rman_get_bushandle(acpi_timer_reg),	\
-					 0)
 
 static u_int	acpi_timer_frequency = 14318182/4;
 
@@ -74,6 +70,9 @@ static unsigned	acpi_timer_get_timecount(struct timecounter *tc);
 static unsigned	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_test(void);
+
+static u_int32_t read_counter(void);
+static int test_counter(void);
 
 /*
  * Driver hung off ACPI.
@@ -106,7 +105,20 @@ static struct timecounter acpi_timer_timecounter = {
     "ACPI"
 };
 
-static int test_counter(void);
+
+static u_int32_t
+read_counter()
+{
+	bus_space_handle_t bsh;
+	bus_space_tag_t bst;
+	u_int32_t tv;
+
+	bsh = rman_get_bushandle(acpi_timer_reg);
+	bst = rman_get_bustag(acpi_timer_reg);
+	tv = bus_space_read_4(bst, bsh, 0);
+	bus_space_barrier(bst, bsh, 0, 4, BUS_SPACE_BARRIER_READ);
+	return (tv);
+}
 
 #define N 2000
 static int
@@ -117,9 +129,9 @@ test_counter()
 
 	min = 10000000;
 	max = 0;
-	last = TIMER_READ;
+	last = read_counter();
 	for (n = 0; n < N; n++) {
-		this = TIMER_READ;
+		this = read_counter();
 		delta = (this - last) & 0xffffff;
 		if (delta > max)
 			max = delta;
@@ -129,14 +141,14 @@ test_counter()
 	}
 	if (max - min > 2)
 		n = 0;
-	else if (min < 0)
+	else if (min < 0 || max == 0)
 		n = 0;
 	else
 		n = 1;
 	if (bootverbose)
 		printf("ACPI timer looks %s min = %d, max = %d, width = %d\n",
 			n ? "GOOD" : "BAD ",
-			min, max, max - min + 1);
+			min, max, max - min);
 	return (n);
 }
 
@@ -149,7 +161,8 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 {
     device_t	dev;
     char	desc[40];
-    int		rid, i, j;
+    u_long	rlen, rstart;
+    int		i, j, rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -164,10 +177,17 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 	return_VOID;
     }
     acpi_timer_dev = dev;
+
     rid = 0;
-    bus_set_resource(dev, SYS_RES_IOPORT, rid, AcpiGbl_FADT->V1_PmTmrBlk, sizeof(u_int32_t));
-    if ((acpi_timer_reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE)) == NULL) {
-	device_printf(dev, "couldn't allocate I/O resource (port 0x%x)\n", AcpiGbl_FADT->V1_PmTmrBlk);
+    rlen = AcpiGbl_FADT->PmTmLen;
+    rtype = (AcpiGbl_FADT->XPmTmrBlk.AddressSpaceId)
+      ? SYS_RES_IOPORT : SYS_RES_MEMORY;
+    rstart = AcpiGbl_FADT->XPmTmrBlk.Address;
+    bus_set_resource(dev, rtype, rid, rstart, rlen);
+    acpi_timer_reg = bus_alloc_resource(dev, rtype, &rid, 0, ~0, 1, RF_ACTIVE);
+    if (acpi_timer_reg == NULL) {
+	device_printf(dev, "couldn't allocate I/O resource (%s 0x%lx)\n",
+	  (rtype == SYS_RES_IOPORT) ? "port" : "mem", rstart);
 	return_VOID;
     }
     if (testenv("debug.acpi.timer_test"))
@@ -186,7 +206,8 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     }
     tc_init(&acpi_timer_timecounter);
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz", AcpiGbl_FADT->TmrValExt ? 32 : 24);
+    sprintf(desc, "%d-bit timer at 3.579545MHz", (AcpiGbl_FADT->TmrValExt)
+      ? 32 : 24);
     device_set_desc_copy(dev, desc);
 
     return_VOID;
@@ -212,7 +233,7 @@ acpi_timer_attach(device_t dev)
 static unsigned
 acpi_timer_get_timecount(struct timecounter *tc)
 {
-    return(TIMER_READ);
+    return (read_counter());
 }
 
 /*
@@ -224,12 +245,12 @@ acpi_timer_get_timecount_safe(struct timecounter *tc)
 {
     unsigned u1, u2, u3;
 
-    u2 = TIMER_READ;
-    u3 = TIMER_READ;
+    u2 = read_counter();
+    u3 = read_counter();
     do {
 	u1 = u2;
 	u2 = u3;
-	u3 = TIMER_READ;
+	u3 = read_counter();
     } while (u1 > u2 || u2 > u3 || (u3 - u1) > 15);
     return (u2);
 }
@@ -266,9 +287,9 @@ acpi_timer_test(void)
 {
     u_int32_t	u1, u2, u3;
     
-    u1 = TIMER_READ;
-    u2 = TIMER_READ;
-    u3 = TIMER_READ;
+    u1 = read_counter();
+    u2 = read_counter();
+    u3 = read_counter();
     
     device_printf(acpi_timer_dev, "timer test in progress, reboot to quit.\n");
     for (;;) {
@@ -283,7 +304,7 @@ acpi_timer_test(void)
 	}
 	u1 = u2;
 	u2 = u3;
-	u3 = TIMER_READ;
+	u3 = read_counter();
     }
 }
 
