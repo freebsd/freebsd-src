@@ -226,10 +226,5 @@ _pthread_setspecific_stub(pthread_key_t key, const void *value)
 int
 _pthread_sigmask_stub(int how, const sigset_t *set, sigset_t *oset)
 {
-	/*
-	* No need to use _sigprocmask, since we know that the threads
-	* library is not linked in.
-	*
-	*/
-	return (sigprocmask(how, set, oset));
+	return (0);
 }
