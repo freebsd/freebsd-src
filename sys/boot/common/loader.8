@@ -151,6 +151,11 @@ if necessary.
 Any flags or arguments are passed to the kernel, but they
 must precede the kernel name, if a kernel name is provided.
 .Pp
+.Em WARNING:
+The behavior of this builtin is changed if
+.Xr loader.4th 8
+is loaded.
+.Pp
 .It Ic echo Xo
 .Op Fl n
 .Op Aq message
