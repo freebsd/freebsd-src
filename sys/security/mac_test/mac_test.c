@@ -553,6 +553,30 @@ mac_test_destroy_vnode_label(struct label *label)
 	}
 }
 
+static void
+mac_test_copy_mbuf_label(struct label *src, struct label *dest)
+{
+
+	ASSERT_MBUF_LABEL(src);
+	ASSERT_MBUF_LABEL(dest);
+}
+
+static void
+mac_test_copy_pipe_label(struct label *src, struct label *dest)
+{
+
+	ASSERT_PIPE_LABEL(src);
+	ASSERT_PIPE_LABEL(dest);
+}
+
+static void
+mac_test_copy_vnode_label(struct label *src, struct label *dest)
+{
+
+	ASSERT_VNODE_LABEL(src);
+	ASSERT_VNODE_LABEL(dest);
+}
+
 static int
 mac_test_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
@@ -1779,6 +1803,9 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_destroy_socket_label = mac_test_destroy_socket_label,
 	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
 	.mpo_destroy_vnode_label = mac_test_destroy_vnode_label,
+	.mpo_copy_mbuf_label = mac_test_copy_mbuf_label,
+	.mpo_copy_pipe_label = mac_test_copy_pipe_label,
+	.mpo_copy_vnode_label = mac_test_copy_vnode_label,
 	.mpo_externalize_cred_label = mac_test_externalize_label,
 	.mpo_externalize_ifnet_label = mac_test_externalize_label,
 	.mpo_externalize_pipe_label = mac_test_externalize_label,
