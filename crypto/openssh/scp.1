@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.14 2001/02/04 11:11:53 djm Exp $
+.\" $OpenBSD: scp.1,v 1.23 2002/06/22 16:41:57 stevesk Exp $
 .\"
 .Dd September 25, 1999
 .Dt SCP 1
@@ -19,12 +19,13 @@
 .Nd secure copy (remote file copy program)
 .Sh SYNOPSIS
 .Nm scp
-.Op Fl pqrvC46
+.Op Fl pqrvBC46
+.Op Fl F Ar ssh_config
 .Op Fl S Ar program
 .Op Fl P Ar port
 .Op Fl c Ar cipher
 .Op Fl i Ar identity_file
-.Op Fl o Ar option
+.Op Fl o Ar ssh_option
 .Sm off
 .Oo
 .Op Ar user@
@@ -92,6 +93,12 @@ Passes the
 flag to
 .Xr ssh 1
 to enable compression.
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Nm ssh .
+This option is directly passed to
+.Xr ssh 1 .
 .It Fl P Ar port
 Specifies the port to connect to on the remote host.
 Note that this option is written with a capital
@@ -107,9 +114,17 @@ to use for the encrypted connection.
 The program must understand
 .Xr ssh 1
 options.
-.It Fl o Ar option
-The given option is directly passed to
-.Xr ssh 1 .
+.It Fl o Ar ssh_option
+Can be used to pass options to
+.Nm ssh
+in the format used in
+.Xr ssh_config 5 .
+This is useful for specifying options
+for which there is no separate
+.Nm scp
+command-line flag.  For example, forcing the use of protocol
+version 1 is specified using
+.Ic scp -oProtocol=1 .
 .It Fl 4
 Forces
 .Nm
@@ -119,6 +134,9 @@ Forces
 .Nm
 to use IPv6 addresses only.
 .El
+.Sh DIAGNOSTICS
+.Nm
+exits with 0 on success or >0 if an error occurred.
 .Sh AUTHORS
 Timo Rinne <tri@iki.fi> and Tatu Ylonen <ylo@cs.hut.fi>
 .Sh HISTORY
@@ -134,4 +152,5 @@ California.
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
 .Xr ssh-keygen 1 ,
+.Xr ssh_config 5 ,
 .Xr sshd 8

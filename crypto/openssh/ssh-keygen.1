@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.40 2001/04/23 21:57:07 markus Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.54 2002/06/19 00:27:55 deraadt Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -47,7 +47,7 @@
 .Nm ssh-keygen
 .Op Fl q
 .Op Fl b Ar bits
-.Op Fl t Ar type
+.Fl t Ar type
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
@@ -76,15 +76,21 @@
 .Nm ssh-keygen
 .Fl B
 .Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl D Ar reader
+.Nm ssh-keygen
+.Fl U Ar reader
+.Op Fl f Ar input_keyfile
 .Sh DESCRIPTION
 .Nm
 generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
-defaults to generating a RSA1 key for use by SSH protocol version 1.
-specifying the
+can create RSA keys for use by SSH protocol version 1 and RSA or DSA
+keys for use by SSH protocol version 2. The type of key to be generated
+is specified with the
 .Fl t
-option allows you to create a key for use by SSH protocol version 2.
+option.
 .Pp
 Normally each user wishing to use SSH
 with RSA or DSA authentication runs this once to create the authentication
@@ -106,17 +112,21 @@ The program also asks for a passphrase.
 The passphrase may be empty to indicate no passphrase
 (host keys must have an empty passphrase), or it may be a string of
 arbitrary length.
-Good passphrases are 10-30 characters long and are
+A passphrase is similar to a password, except it can be a phrase with a
+series of words, punctuation, numbers, whitespace, or any string of
+characters you want.
+Good passphrases are 10-30 characters long, are
 not simple sentences or otherwise easily guessable (English
-prose has only 1-2 bits of entropy per word, and provides very bad
-passphrases).
+prose has only 1-2 bits of entropy per character, and provides very bad
+passphrases), and contain a mix of upper and lowercase letters,
+numbers, and non-alphanumeric characters.
 The passphrase can be changed later by using the
 .Fl p
 option.
 .Pp
 There is no way to recover a lost passphrase.
 If the passphrase is
-lost or forgotten, you will have to generate a new key and copy the
+lost or forgotten, a new key must be generated and copied to the
 corresponding public key to other machines.
 .Pp
 For RSA1 keys,
@@ -142,8 +152,9 @@ above that no longer improve security but make things slower.
 The default is 1024 bits.
 .It Fl c
 Requests changing the comment in the private and public key files.
+This operation is only supported for RSA1 keys.
 The program will prompt for the file containing the private keys, for
-passphrase if the key has one, and for the new comment.
+the passphrase if the key has one, and for the new comment.
 .It Fl e
 This option will read a private or public OpenSSH key file and
 print the key in a
@@ -151,7 +162,7 @@ print the key in a
 to stdout.
 This option allows exporting keys for use by several commercial
 SSH implementations.
-.It Fl f
+.It Fl f Ar filename
 Specifies the filename of the key file.
 .It Fl i
 This option will read an unencrypted private (or public) key file
@@ -163,7 +174,11 @@ also reads the
 This option allows importing keys from several commercial
 SSH implementations.
 .It Fl l
-Show fingerprint of specified private or public key file.
+Show fingerprint of specified public key file.
+Private RSA1 keys are also supported.
+For RSA and DSA keys
+.Nm
+tries to find the matching public key file and prints its fingerprint.
 .It Fl p
 Requests changing the passphrase of a private key file instead of
 creating a new private key.
@@ -188,16 +203,20 @@ for protocol version 1 and
 or
 .Dq dsa
 for protocol version 2.
-The default is
-.Dq rsa1 .
 .It Fl B
 Show the bubblebabble digest of specified private or public key file.
 .It Fl C Ar comment
 Provides the new comment.
+.It Fl D Ar reader
+Download the RSA public key stored in the smartcard in
+.Ar reader .
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
+.It Fl U Ar reader
+Upload an existing RSA private key into the smartcard in
+.Ar reader .
 .El
 .Sh FILES
 .Bl -tag -width Ds
@@ -210,14 +229,14 @@ used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
-.Xr sshd 8
+.Xr ssh 1
 will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/identity.pub
 Contains the protocol version 1 RSA public key for authentication.
 The contents of this file should be added to
 .Pa $HOME/.ssh/authorized_keys
 on all machines
-where you wish to log in using RSA authentication.
+where the user wishes to log in using RSA authentication.
 There is no need to keep the contents of this file secret.
 .It Pa $HOME/.ssh/id_dsa
 Contains the protocol version 2 DSA authentication identity of the user.
@@ -228,14 +247,14 @@ used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
-.Xr sshd 8
+.Xr ssh 1
 will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/id_dsa.pub
 Contains the protocol version 2 DSA public key for authentication.
 The contents of this file should be added to
-.Pa $HOME/.ssh/authorized_keys2
+.Pa $HOME/.ssh/authorized_keys
 on all machines
-where you wish to log in using public key authentication.
+where the user wishes to log in using public key authentication.
 There is no need to keep the contents of this file secret.
 .It Pa $HOME/.ssh/id_rsa
 Contains the protocol version 2 RSA authentication identity of the user.
@@ -246,14 +265,14 @@ used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
-.Xr sshd 8
+.Xr ssh 1
 will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/id_rsa.pub
 Contains the protocol version 2 RSA public key for authentication.
 The contents of this file should be added to
-.Pa $HOME/.ssh/authorized_keys2
+.Pa $HOME/.ssh/authorized_keys
 on all machines
-where you wish to log in using public key authentication.
+where the user wishes to log in using public key authentication.
 There is no need to keep the contents of this file secret.
 .El
 .Sh AUTHORS

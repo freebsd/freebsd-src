@@ -1,5 +1,4 @@
-/*	$OpenBSD: sshconnect.h,v 1.9 2001/04/12 19:15:25 markus Exp $	*/
-/*	$FreeBSD$	*/
+/*	$OpenBSD: sshconnect.h,v 1.17 2002/06/19 00:27:55 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -27,30 +26,44 @@
 #ifndef SSHCONNECT_H
 #define SSHCONNECT_H
 
+typedef struct Sensitive Sensitive;
+struct Sensitive {
+	Key	**keys;
+	int	nkeys;
+	int	external_keysign;
+};
+
 int
-ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
-    u_short port, int connection_attempts,
-    int anonymous, struct passwd *pw,
-    const char *proxy_command);
+ssh_connect(const char *, struct sockaddr_storage *, u_short, int, int,
+    int, const char *);
 
 void
-ssh_login(Key **keys, int nkeys, const char *orighost,
-    struct sockaddr *hostaddr, struct passwd *pw);
+ssh_login(Sensitive *, const char *, struct sockaddr *, struct passwd *);
 
-void
-check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
-    const char *user_hostfile, const char *system_hostfile);
+int	 verify_host_key(char *, struct sockaddr *, Key *);
 
-void	ssh_kex(char *host, struct sockaddr *hostaddr);
-void	ssh_kex2(char *host, struct sockaddr *hostaddr);
+void	 ssh_kex(char *, struct sockaddr *);
+void	 ssh_kex2(char *, struct sockaddr *);
 
-void
-ssh_userauth1(const char *local_user, const char *server_user, char *host,
-    Key **keys, int nkeys);
-void
-ssh_userauth2(const char *local_user, const char *server_user, char *host,
-    Key **keys, int nkeys);
+void	 ssh_userauth1(const char *, const char *, char *, Sensitive *);
+void	 ssh_userauth2(const char *, const char *, char *, Sensitive *);
 
-void	ssh_put_password(char *password);
+void	 ssh_put_password(char *);
+
+
+/*
+ * Macros to raise/lower permissions.
+ */
+#define PRIV_START do {				\
+	int save_errno = errno;			\
+	(void)seteuid(original_effective_uid);	\
+	errno = save_errno;			\
+} while (0)
+
+#define PRIV_END do {				\
+	int save_errno = errno;			\
+	(void)seteuid(original_real_uid);	\
+	errno = save_errno;			\
+} while (0)
 
 #endif

@@ -1,3 +1,6 @@
+/*	$OpenBSD: channels.h,v 1.70 2002/06/24 14:33:27 markus Exp $	*/
+/*	$FreeBSD$	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -10,7 +13,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,16 +35,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* RCSID("$OpenBSD: channels.h,v 1.31 2001/04/13 22:46:53 beck Exp $"); */
-/* RCSID("$FreeBSD$"); */
 
-#ifndef CHANNELS_H
-#define CHANNELS_H
+#ifndef CHANNEL_H
+#define CHANNEL_H
 
 #include "buffer.h"
 
 /* Definitions for channel types. */
-#define SSH_CHANNEL_FREE		0	/* This channel is free (unused). */
 #define SSH_CHANNEL_X11_LISTENER	1	/* Listening for inet X11 conn. */
 #define SSH_CHANNEL_PORT_LISTENER	2	/* Listening on a port. */
 #define SSH_CHANNEL_OPENING		3	/* waiting for confirmation */
@@ -55,57 +55,56 @@
 #define SSH_CHANNEL_RPORT_LISTENER	11	/* Listening to a R-style port  */
 #define SSH_CHANNEL_CONNECTING		12
 #define SSH_CHANNEL_DYNAMIC		13
-#define SSH_CHANNEL_MAX_TYPE		14
+#define SSH_CHANNEL_ZOMBIE		14	/* Almost dead. */
+#define SSH_CHANNEL_MAX_TYPE		15
 
-/*
- * Data structure for channel data.  This is iniailized in channel_allocate
- * and cleared in channel_free.
- */
+#define SSH_CHANNEL_PATH_LEN		256
+
 struct Channel;
 typedef struct Channel Channel;
 
-typedef void channel_callback_fn(int id, void *arg);
-typedef int channel_filter_fn(struct Channel *c, char *buf, int len);
+typedef void channel_callback_fn(int, void *);
+typedef int channel_filter_fn(struct Channel *, char *, int);
 
 struct Channel {
 	int     type;		/* channel type/state */
 	int     self;		/* my own channel identifier */
 	int     remote_id;	/* channel identifier for remote peer */
-	/* peer can be reached over encrypted connection, via packet-sent */
-	int     istate;		/* input from channel (state of receive half) */
-	int     ostate;		/* output to channel  (state of transmit half) */
+	u_int   istate;		/* input from channel (state of receive half) */
+	u_int   ostate;		/* output to channel  (state of transmit half) */
 	int     flags;		/* close sent/rcvd */
 	int     rfd;		/* read fd */
 	int     wfd;		/* write fd */
 	int     efd;		/* extended fd */
 	int     sock;		/* sock fd */
 	int     isatty;		/* rfd is a tty */
+	int     force_drain;	/* force close on iEOF */
+	int     delayed;		/* fdset hack */
 	Buffer  input;		/* data read from socket, to be sent over
 				 * encrypted connection */
 	Buffer  output;		/* data received over encrypted connection for
 				 * send on socket */
 	Buffer  extended;
-	char    path[200];	/* path for unix domain sockets, or host name
-				 * for forwards */
+	char    path[SSH_CHANNEL_PATH_LEN];
+		/* path for unix domain sockets, or host name for forwards */
 	int     listening_port;	/* port being listened for forwards */
 	int     host_port;	/* remote port to connect for forwards */
 	char   *remote_name;	/* remote hostname */
 
-	int	remote_window;
-	int	remote_maxpacket;
-	int	local_window;
-	int	local_window_max;
-	int	local_consumed;
-	int	local_maxpacket;
+	u_int	remote_window;
+	u_int	remote_maxpacket;
+	u_int	local_window;
+	u_int	local_window_max;
+	u_int	local_consumed;
+	u_int	local_maxpacket;
 	int     extended_usage;
+	int	single_connection;
 
 	char   *ctype;		/* type */
 
 	/* callback */
-	channel_callback_fn	*cb_fn;
-	void	*cb_arg;
-	int	cb_event;
-	channel_callback_fn	*dettach_user;
+	channel_callback_fn	*confirm;
+	channel_callback_fn	*detach_user;
 
 	/* filter */
 	channel_filter_fn	*input_filter;
@@ -116,199 +115,120 @@ struct Channel {
 #define CHAN_EXTENDED_WRITE		2
 
 /* default window/packet sizes for tcp/x11-fwd-channel */
-#define CHAN_SES_WINDOW_DEFAULT	(32*1024)
-#define CHAN_SES_PACKET_DEFAULT	(CHAN_SES_WINDOW_DEFAULT/2)
-#define CHAN_TCP_WINDOW_DEFAULT	(32*1024)
-#define CHAN_TCP_PACKET_DEFAULT	(CHAN_TCP_WINDOW_DEFAULT/2)
-#define CHAN_X11_WINDOW_DEFAULT	(4*1024)
-#define CHAN_X11_PACKET_DEFAULT	(CHAN_X11_WINDOW_DEFAULT/2)
+#define CHAN_SES_PACKET_DEFAULT	(32*1024)
+#define CHAN_SES_WINDOW_DEFAULT	(4*CHAN_SES_PACKET_DEFAULT)
+#define CHAN_TCP_PACKET_DEFAULT	(32*1024)
+#define CHAN_TCP_WINDOW_DEFAULT	(4*CHAN_TCP_PACKET_DEFAULT)
+#define CHAN_X11_PACKET_DEFAULT	(16*1024)
+#define CHAN_X11_WINDOW_DEFAULT	(4*CHAN_X11_PACKET_DEFAULT)
 
+/* possible input states */
+#define CHAN_INPUT_OPEN			0
+#define CHAN_INPUT_WAIT_DRAIN		1
+#define CHAN_INPUT_WAIT_OCLOSE		2
+#define CHAN_INPUT_CLOSED		3
 
-void	channel_open(int id);
-void	channel_request(int id, char *service, int wantconfirm);
-void	channel_request_start(int id, char *service, int wantconfirm);
-void	channel_register_callback(int id, int mtype, channel_callback_fn *fn, void *arg);
-void	channel_register_cleanup(int id, channel_callback_fn *fn);
-void	channel_register_filter(int id, channel_filter_fn *fn);
-void	channel_cancel_cleanup(int id);
-Channel	*channel_lookup(int id);
+/* possible output states */
+#define CHAN_OUTPUT_OPEN		0
+#define CHAN_OUTPUT_WAIT_DRAIN		1
+#define CHAN_OUTPUT_WAIT_IEOF		2
+#define CHAN_OUTPUT_CLOSED		3
 
-int
-channel_new(char *ctype, int type, int rfd, int wfd, int efd,
-    int window, int maxpack, int extended_usage, char *remote_name,
-    int nonblock);
-void
-channel_set_fds(int id, int rfd, int wfd, int efd,
-    int extusage, int nonblock);
+#define CHAN_CLOSE_SENT			0x01
+#define CHAN_CLOSE_RCVD			0x02
+#define CHAN_EOF_SENT			0x04
+#define CHAN_EOF_RCVD			0x08
 
-void	deny_input_open(int type, int plen, void *ctxt);
+/* check whether 'efd' is still in use */
+#define CHANNEL_EFD_INPUT_ACTIVE(c) \
+	(compat20 && c->extended_usage == CHAN_EXTENDED_READ && \
+	(c->efd != -1 || \
+	buffer_len(&c->extended) > 0))
+#define CHANNEL_EFD_OUTPUT_ACTIVE(c) \
+	(compat20 && c->extended_usage == CHAN_EXTENDED_WRITE && \
+	((c->efd != -1 && !(c->flags & (CHAN_EOF_RCVD|CHAN_CLOSE_RCVD))) || \
+	buffer_len(&c->extended) > 0))
 
-void	channel_input_channel_request(int type, int plen, void *ctxt);
-void	channel_input_close(int type, int plen, void *ctxt);
-void	channel_input_close_confirmation(int type, int plen, void *ctxt);
-void	channel_input_data(int type, int plen, void *ctxt);
-void	channel_input_extended_data(int type, int plen, void *ctxt);
-void	channel_input_ieof(int type, int plen, void *ctxt);
-void	channel_input_oclose(int type, int plen, void *ctxt);
-void	channel_input_open_confirmation(int type, int plen, void *ctxt);
-void	channel_input_open_failure(int type, int plen, void *ctxt);
-void	channel_input_port_open(int type, int plen, void *ctxt);
-void	channel_input_window_adjust(int type, int plen, void *ctxt);
+/* channel management */
 
-/* Sets specific protocol options. */
-void    channel_set_options(int hostname_in_open);
+Channel	*channel_lookup(int);
+Channel *channel_new(char *, int, int, int, int, u_int, u_int, int, char *, int);
+void	 channel_set_fds(int, int, int, int, int, int, u_int);
+void	 channel_free(Channel *);
+void	 channel_free_all(void);
+void	 channel_stop_listening(void);
 
-/*
- * Allocate a new channel object and set its type and socket.  Remote_name
- * must have been allocated with xmalloc; this will free it when the channel
- * is freed.
- */
-int     channel_allocate(int type, int sock, char *remote_name);
+void	 channel_send_open(int);
+void	 channel_request_start(int, char *, int);
+void	 channel_register_cleanup(int, channel_callback_fn *);
+void	 channel_register_confirm(int, channel_callback_fn *);
+void	 channel_register_filter(int, channel_filter_fn *);
+void	 channel_cancel_cleanup(int);
+int	 channel_close_fd(int *);
 
-/* Free the channel and close its socket. */
-void    channel_free(int channel);
+/* protocol handler */
 
-/*
- * Allocate/update select bitmasks and add any bits relevant to channels in
- * select bitmasks.
- */
-void
-channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    int rekeying);
+void	 channel_input_close(int, u_int32_t, void *);
+void	 channel_input_close_confirmation(int, u_int32_t, void *);
+void	 channel_input_data(int, u_int32_t, void *);
+void	 channel_input_extended_data(int, u_int32_t, void *);
+void	 channel_input_ieof(int, u_int32_t, void *);
+void	 channel_input_oclose(int, u_int32_t, void *);
+void	 channel_input_open_confirmation(int, u_int32_t, void *);
+void	 channel_input_open_failure(int, u_int32_t, void *);
+void	 channel_input_port_open(int, u_int32_t, void *);
+void	 channel_input_window_adjust(int, u_int32_t, void *);
 
-/*
- * After select, perform any appropriate operations for channels which have
- * events pending.
- */
-void    channel_after_select(fd_set * readset, fd_set * writeset);
+/* file descriptor handling (read/write) */
 
-/* If there is data to send to the connection, send some of it now. */
-void    channel_output_poll(void);
+void	 channel_prepare_select(fd_set **, fd_set **, int *, int*, int);
+void     channel_after_select(fd_set *, fd_set *);
+void     channel_output_poll(void);
 
-/* Returns true if no channel has too much buffered data. */
-int     channel_not_very_much_buffered_data(void);
+int      channel_not_very_much_buffered_data(void);
+void     channel_close_all(void);
+int      channel_still_open(void);
+char	*channel_open_message(void);
+int	 channel_find_open(void);
 
-/* This closes any sockets that are listening for connections; this removes
-   any unix domain sockets. */
-void    channel_stop_listening(void);
+/* tcp forwarding */
+void	 channel_set_af(int af);
+void     channel_permit_all_opens(void);
+void	 channel_add_permitted_opens(char *, int);
+void	 channel_clear_permitted_opens(void);
+void     channel_input_port_forward_request(int, int);
+int	 channel_connect_to(const char *, u_short);
+int	 channel_connect_by_listen_address(u_short);
+void	 channel_request_remote_forwarding(u_short, const char *, u_short);
+int	 channel_setup_local_fwd_listener(u_short, const char *, u_short, int);
+int	 channel_setup_remote_fwd_listener(const char *, u_short, int);
 
-/*
- * Closes the sockets of all channels.  This is used to close extra file
- * descriptors after a fork.
- */
-void    channel_close_all(void);
+/* x11 forwarding */
 
-/* Returns true if there is still an open channel over the connection. */
-int     channel_still_open(void);
+int	 x11_connect_display(void);
+int	 x11_create_display_inet(int, int, int, u_int *);
+void     x11_input_open(int, u_int32_t, void *);
+void	 x11_request_forwarding_with_spoofing(int, const char *, const char *);
+void	 deny_input_open(int, u_int32_t, void *);
 
-/*
- * Returns a string containing a list of all open channels.  The list is
- * suitable for displaying to the user.  It uses crlf instead of newlines.
- * The caller should free the string with xfree.
- */
-char   *channel_open_message(void);
+/* agent forwarding */
 
-/*
- * Initiate forwarding of connections to local port "port" through the secure
- * channel to host:port from remote side.
- */
-int
-channel_request_local_forwarding(u_short listen_port,
-    const char *host_to_connect, u_short port_to_connect, int gateway_ports);
-int
-channel_request_forwarding(const char *listen_address, u_short listen_port,
-    const char *host_to_connect, u_short port_to_connect, int gateway_ports,
-    int remote_fwd);
+void	 auth_request_forwarding(void);
+void	 auth_input_open_request(int, u_int32_t, void *);
 
-/*
- * Initiate forwarding of connections to port "port" on remote host through
- * the secure channel to host:port from local side.  This never returns if
- * there was an error.  This registers that open requests for that port are
- * permitted.
- */
-void
-channel_request_remote_forwarding(u_short port, const char *host,
-    u_short remote_port);
+/* channel close */
 
-/*
- * Permits opening to any host/port if permitted_opens[] is empty.  This is
- * usually called by the server, because the user could connect to any port
- * anyway, and the server has no way to know but to trust the client anyway.
- */
-void    channel_permit_all_opens(void);
+int	 chan_is_dead(Channel *, int);
+void	 chan_mark_dead(Channel *);
 
-/* Add host/port to list of allowed targets for port forwarding */
-void	channel_add_permitted_opens(char *host, int port);
+/* channel events */
 
-/* Flush list */
-void	channel_clear_permitted_opens(void);
+void	 chan_rcvd_oclose(Channel *);
+void	 chan_read_failed(Channel *);
+void	 chan_ibuf_empty(Channel *);
 
-/*
- * This is called after receiving CHANNEL_FORWARDING_REQUEST.  This initates
- * listening for the port, and sends back a success reply (or disconnect
- * message if there was an error).  This never returns if there was an error.
- */
-void    channel_input_port_forward_request(int is_root, int gateway_ports);
-
-/*
- * Creates a port for X11 connections, and starts listening for it. Returns
- * the display name, or NULL if an error was encountered.
- */
-char   *x11_create_display(int screen);
-
-/*
- * Creates an internet domain socket for listening for X11 connections.
- * Returns a suitable value for the DISPLAY variable, or NULL if an error
- * occurs.
- */
-char   *x11_create_display_inet(int screen, int x11_display_offset);
-
-/*
- * This is called when SSH_SMSG_X11_OPEN is received.  The packet contains
- * the remote channel number.  We should do whatever we want, and respond
- * with either SSH_MSG_OPEN_CONFIRMATION or SSH_MSG_OPEN_FAILURE.
- */
-void    x11_input_open(int type, int plen, void *ctxt);
-
-/*
- * Requests forwarding of X11 connections.  This should be called on the
- * client only.
- */
-void    x11_request_forwarding(void);
-
-/*
- * Requests forwarding for X11 connections, with authentication spoofing.
- * This should be called in the client only.
- */
-void
-x11_request_forwarding_with_spoofing(int client_session_id,
-    const char *proto, const char *data);
-
-/* Sends a message to the server to request authentication fd forwarding. */
-void    auth_request_forwarding(void);
-
-/*
- * Returns the name of the forwarded authentication socket.  Returns NULL if
- * there is no forwarded authentication socket.  The returned value points to
- * a static buffer.
- */
-char   *auth_get_socket_name(void);
-
-/*
- * This is called to process SSH_CMSG_AGENT_REQUEST_FORWARDING on the server.
- * This starts forwarding authentication requests.
- */
-int     auth_input_request_forwarding(struct passwd * pw);
-
-/* This is called to process an SSH_SMSG_AGENT_OPEN message. */
-void    auth_input_open_request(int type, int plen, void *ctxt);
-
-/* XXX */
-void	auth_sock_cleanup_proc(void *pw);
-int	channel_connect_to(const char *host, u_short host_port);
-int	channel_connect_by_listen_adress(u_short listen_port);
-int	x11_connect_display(void);
-
-int	channel_find_open(void);
+void	 chan_rcvd_ieof(Channel *);
+void	 chan_write_failed(Channel *);
+void	 chan_obuf_empty(Channel *);
 
 #endif

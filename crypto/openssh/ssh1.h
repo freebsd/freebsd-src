@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh1.h,v 1.2 2001/01/29 01:58:18 niklas Exp $	*/
+/*	$OpenBSD: ssh1.h,v 1.3 2001/05/30 12:55:13 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -66,6 +66,10 @@
 #define SSH_CMSG_HAVE_KERBEROS_TGT		44	/* credentials (s) */
 #define SSH_CMSG_HAVE_AFS_TOKEN			65	/* token (s) */
 
+/* protocol version 1.5 overloads some version 1.3 message types */
+#define SSH_MSG_CHANNEL_INPUT_EOF	SSH_MSG_CHANNEL_CLOSE
+#define SSH_MSG_CHANNEL_OUTPUT_CLOSE	SSH_MSG_CHANNEL_CLOSE_CONFIRMATION
+
 /*
  * Authentication methods.  New types can be added, but old types should not
  * be removed for compatibility.  The maximum allowed value is 31.
@@ -83,4 +87,3 @@
 /* Protocol flags.  These are bit masks. */
 #define SSH_PROTOFLAG_SCREEN_NUMBER	1	/* X11 forwarding includes screen */
 #define SSH_PROTOFLAG_HOST_IN_FWD_OPEN	2	/* forwarding opens contain host */
-
