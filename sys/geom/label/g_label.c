@@ -48,6 +48,8 @@ TUNABLE_INT("kern.geom.label.debug", &g_label_debug);
 SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RW, &g_label_debug, 0,
     "Debug level");
 
+static int g_label_destroy_geom(struct gctl_req *req, struct g_class *mp,
+    struct g_geom *gp);
 static int g_label_destroy(struct g_geom *gp, boolean_t force);
 static struct g_geom *g_label_taste(struct g_class *mp, struct g_provider *pp,
     int flags __unused);
@@ -58,7 +60,8 @@ struct g_class g_label_class = {
 	.name = G_LABEL_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_label_config,
-	.taste = g_label_taste
+	.taste = g_label_taste,
+	.destroy_geom = g_label_destroy_geom
 };
 
 /*
@@ -75,6 +78,18 @@ const struct g_label_desc *g_labels[] = {
 	NULL
 };
 
+
+static int
+g_label_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
+    struct g_geom *gp __unused)
+{
+
+	/*
+	 * XXX: Unloading a class which is using geom_slice:1.56 is currently
+	 * XXX: broken, so we deny unloading when we have geoms.
+	 */
+	return (EOPNOTSUPP);
+}
 
 static void
 g_label_orphan(struct g_consumer *cp __unused)
