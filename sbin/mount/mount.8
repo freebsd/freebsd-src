@@ -363,22 +363,8 @@ is replaced by the type name.
 For example, nfs filesystems are mounted by the program
 .Pa /sbin/mount_nfs .
 .Pp
-Most filesystems will be dynamically loaded by their
-.Nm
-programs
-if not already present in the kernel, using the
-.Xr vfsload 3
-subroutine.
-Because this mechanism requires writable temporary space,
-the filesystem type containing
-.Pa /tmp
-must be compiled into the kernel, and the filesystems containing
-.Pa /tmp
-and
-.Pa /usr/bin/ld
-must be listed in
-.Pa /etc/fstab
-before any filesystems which might be dynamically loaded.
+Most filesystems will be dynamically loaded by the kernel
+if not already present, and if the kernel module is available.
 .It Fl u
 The
 .Fl u
@@ -417,13 +403,6 @@ Note that
 support for a particular filesystem might be provided either on a static
 (kernel compile-time), or dynamic basis (loaded as a kernel module by
 .Xr kldload 8 ) .
-Normally,
-.Nm
-or its subprocesses attempt to dynamically load a filesystem module if
-it has not been configured statically, using
-.Xr vfsload 3 .
-In this case, the above error message can also mean that you did not
-have permission to load the module.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
@@ -431,7 +410,6 @@ filesystem table
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
-.Xr vfsload 3 ,
 .Xr fstab 5 ,
 .Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
