@@ -259,10 +259,12 @@ fetch(char *URL, char *path)
      * sure the local file was a truncated copy of the remote file; we
      * can drop the connection later if we change our minds.
      */
-    if (r_flag && !o_stdout && stat(path, &sb) != -1)
-	url->offset = sb.st_size;
-    else
-	sb.st_size = 0;
+    if ((r_flag  || m_flag) && !o_stdout && stat(path, &sb) != -1) {
+	if (r_flag)
+	    url->offset = sb.st_size;
+    } else {
+	sb.st_size = -1;
+    }
      
     /* start the transfer */
     if ((f = fetchXGet(url, &us, flags)) == NULL) {
@@ -294,16 +296,18 @@ fetch(char *URL, char *path)
     }
 
     if (v_level > 1) {
-	if (sb.st_size)
-	    warnx("local: %lld / %ld", sb.st_size, sb.st_mtime);
-	warnx("remote: %lld / %ld", us.size, us.mtime);
+	if (sb.st_size != -1)
+	    fprintf(stderr, "local size / mtime: %lld / %ld\n",
+		    sb.st_size, sb.st_mtime);
+	fprintf(stderr, "remote size / mtime: %lld / %ld\n",
+		us.size, us.mtime);
     }
     
     /* open output file */
     if (o_stdout) {
 	/* output to stdout */
 	of = stdout;
-    } else if (sb.st_size) {
+    } else if (sb.st_size != -1) {
 	/* resume mode, local file exists */
 	if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
 	    /* no match! have to refetch */
@@ -341,7 +345,7 @@ fetch(char *URL, char *path)
 	    }
 	}
     }
-    if (m_flag && stat(path, &sb) != -1) {
+    if (m_flag && sb.st_size != -1) {
 	/* mirror mode, local file exists */
 	if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 	    goto success;
@@ -384,7 +388,7 @@ fetch(char *URL, char *path)
 
     stat_end(&xs);
 
-    /* Set mtime of local file */
+    /* set mtime of local file */
     if (!n_flag && us.mtime && !o_stdout
 	&& (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 	struct timeval tv[2];
@@ -420,6 +424,15 @@ fetch(char *URL, char *path)
     if (us.size != -1 && count < us.size) {
 	warnx("%s appears to be truncated: %lld/%lld bytes",
 	      path, count, us.size);
+	goto failure_keep;
+    }
+    
+    /*
+     * If the transfer timed out and we didn't know how much to
+     * expect, assume the worst (i.e. we didn't get all of it)
+     */
+    if (sigalrm && us.size == -1) {
+	warnx("%s may be truncated", path);
 	goto failure_keep;
     }
     
@@ -596,7 +609,7 @@ main(int argc, char *argv[])
 	    errx(1, "invalid hostname");
 	if (asprintf(argv, "ftp://%s/%s/%s", h_hostname,
 		     c_dirname ? c_dirname : "", f_filename) == -1)
-	    errx(1, strerror(ENOMEM));
+	    errx(1, "%s", strerror(ENOMEM));
 	argc++;
     }
 
@@ -609,7 +622,7 @@ main(int argc, char *argv[])
     if (B_size < MINBUFSIZE)
 	B_size = MINBUFSIZE;
     if ((buf = malloc(B_size)) == NULL)
-	errx(1, strerror(ENOMEM));
+	errx(1, "%s", strerror(ENOMEM));
 
     /* timeouts */
     if ((s = getenv("FTP_TIMEOUT")) != NULL) {
