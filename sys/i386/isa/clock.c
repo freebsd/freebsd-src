@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.43 1995/12/24 08:10:52 davidg Exp $
+ *	$Id: clock.c,v 1.44 1996/01/04 21:11:33 wollman Exp $
  */
 
 /*
@@ -529,27 +529,25 @@ resettodr()
 
 	/* We have now the days	since 01-01-1970 in tm */
 	writertc(RTC_WDAY, (tm+4)%7);			/* Write back Weekday */
-	for (y=1970;; y++)
-		if ((tm	- DAYSPERYEAR -	LEAPYEAR(y)) > tm)
-			break;
-		else
-			tm -= DAYSPERYEAR + LEAPYEAR(y);
+	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
+	     tm >= m;
+	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
+	     tm -= m;
 
 	/* Now we have the years in y and the day-of-the-year in tm */
-	writertc(RTC_YEAR, int2bcd(y%100));		/* Write back Year    */
 #ifdef USE_RTC_CENTURY
+	writertc(RTC_YEAR, int2bcd(y%100));		/* Write back Year    */
 	writertc(RTC_CENTURY, int2bcd(y/100));		/* ... and Century    */
+#else
+	writertc(RTC_YEAR, int2bcd(y - 1900));          /* Write back Year    */
 #endif
 	if (LEAPYEAR(y)	&& (tm >= 31+29))
 		tm--;					/* Subtract Feb-29 */
-	for (m=1;; m++)
-		if (tm - daysinmonth[m-1] > tm)
-			break;
-		else
-			tm -= daysinmonth[m-1];
+	for (m = 0; tm >= daysinmonth[m]; m++)
+		tm -= daysinmonth[m];
 
-	writertc(RTC_MONTH, int2bcd(m));		/* Write back Month   */
-	writertc(RTC_DAY, int2bcd(tm+1));		/* Write back Day     */
+	writertc(RTC_MONTH, int2bcd(m + 1));            /* Write back Month   */
+	writertc(RTC_DAY, int2bcd(tm + 1));             /* Write back Month Day */
 
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
