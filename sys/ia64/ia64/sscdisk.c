@@ -224,8 +224,7 @@ sscstrategy(struct bio *bp)
 			off += t;
 		}
 		bp->bio_resid = 0;
-		devstat_end_transaction_bio(&sc->stats, bp);
-		biodone(bp);
+		biofinish(bp, &sc->stats, 0);
 		s = splbio();
 	}
 

@@ -103,13 +103,21 @@ biodone(struct bio *bp)
 	bp->bio_done(bp);
 }
 
+#ifndef _DEVICESTAT_H
+struct devstat;
+void devstat_end_transaction_bio(struct devstat *, struct bio *);
+#endif
+
 static __inline__ void
-bioerror(struct bio *bp, int error, int complete)
+biofinish(struct bio *bp, struct devstat *stat, int error)
 {
-	if (complete)
-		bp->bio_resid = bp->bio_bcount;
-	bp->bio_error = error;
-	bp->bio_flags |= BIO_ERROR;
+	
+	if (error) {
+		bp->bio_error = error;
+		bp->bio_flags |= BIO_ERROR;
+	}
+	if (stat != NULL)
+		devstat_end_transaction_bio(stat, bp);
 	biodone(bp);
 }
 

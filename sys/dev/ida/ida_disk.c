@@ -252,8 +252,7 @@ idad_intr(struct bio *bp)
 	else
 		bp->bio_resid = 0;
 
-	devstat_end_transaction_bio(&drv->stats, bp);
-	biodone(bp);
+	biofinish(bp, &drv->stats, 0);
 }
 
 static int

@@ -200,9 +200,7 @@ acddetach(struct atapi_softc *atp)
 	    if (cdp->driver[subdev] == cdp)
 		continue;
 	    while ((bp = bioq_first(&cdp->driver[subdev]->queue))) {
-        	bp->bio_error = ENXIO;
-        	bp->bio_flags |= BIO_ERROR;
-        	biodone(bp);
+        	biofinish(bp, NULL, ENXIO);
 	    }
 	    destroy_dev(cdp->driver[subdev]->dev1);
 	    destroy_dev(cdp->driver[subdev]->dev2);
@@ -220,9 +218,7 @@ acddetach(struct atapi_softc *atp)
 	free(cdp->changer_info, M_ACD);
     }
     while ((bp = bioq_first(&cdp->queue))) {
-        bp->bio_error = ENXIO;
-        bp->bio_flags |= BIO_ERROR;
-        biodone(bp);
+        biofinish(bp, NULL, ENXIO);
     }
     destroy_dev(cdp->dev1);
     destroy_dev(cdp->dev2);
@@ -1061,9 +1057,7 @@ acdstrategy(struct bio *bp)
     int s;
 
     if (cdp->atp->flags & ATAPI_F_DETACHING) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
 	return;
     }
 
@@ -1116,9 +1110,7 @@ acd_start(struct atapi_softc *atp)
 
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
-	bp->bio_error = EIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, EIO);
 	return;
     }
 
@@ -1194,8 +1186,7 @@ acd_done(struct atapi_request *request)
     }	
     else
 	bp->bio_resid = bp->bio_bcount - request->donecount;
-    devstat_end_transaction_bio(cdp->stats, bp);
-    biodone(bp);
+    biofinish(bp, cdp->stats, 0);
     return 0;
 }
 
