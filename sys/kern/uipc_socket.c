@@ -148,18 +148,13 @@ struct socket *
 soalloc(int mflags)
 {
 	struct socket *so;
-#ifdef MAC
-	int error;
-#endif
 
 	so = uma_zalloc(socket_zone, mflags | M_ZERO);
 	if (so != NULL) {
 #ifdef MAC
-		error = mac_init_socket(so, mflags);
-		if (error != 0) {
+		if (mac_init_socket(so, mflags) != 0) {
 			uma_zfree(socket_zone, so);
-			so = NULL;
-			return so;
+			return (NULL);
 		}
 #endif
 		SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
@@ -171,7 +166,7 @@ soalloc(int mflags)
 		++numopensockets;
 		mtx_unlock(&so_global_mtx);
 	}
-	return so;
+	return (so);
 }
 
 /*
@@ -275,12 +270,6 @@ sodealloc(struct socket *so)
 	SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	/* sx_destroy(&so->so_sxlock); */
 	uma_zfree(socket_zone, so);
-	/*
-	 * XXXRW: Seems like a shame to grab the mutex again down here, but
-	 * we don't want to decrement the socket count until after we free
-	 * the socket, and we can't increment the gencnt on the socket after
-	 * we free, it so...
-	 */
 	mtx_lock(&so_global_mtx);
 	--numopensockets;
 	mtx_unlock(&so_global_mtx);
