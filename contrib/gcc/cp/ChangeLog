@@ -1,3 +1,191 @@
+2002-11-19  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-19  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-18  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-11  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR c++/7788
+	* rtti.c (unemitted_tinfo_decl_p): Check it has a field.
+
+2002-11-02  Zack Weinberg  <zack@codesourcery.com>
+
+	PR c/7353 redux
+	* decl2.c (grokfield): Reject TYPE_DECLs with initializers.
+
+2002-11-01  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	PR C++/2521
+	* typeck.c (build_x_unary_op): Handle pointer-to-member.
+
+2002-10-30  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8160
+	* typeck2.c (process_init_constructor): Call complete_array_type.
+
+	PR c++/8149
+	* decl.c (make_typename_type): Issue errors about invalid results.
+
+2002-10-29  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8287
+	* decl.c (finish_destructor_body): Create the label to jump to
+	when returning from a destructor here.
+	(finish_function_body): Rather than here.
+
+	* semantics.c (finish_alignof): Call complete_type before calling
+	c_alignof.
+	* decl2.c (build_expr_from_tree): Use
+	finish_sizeof/finish_alignof.
+
+2002-10-10  Jim Wilson  <wilson@redhat.com>
+
+	* decl.c (duplicate_decls): Don't call decl_attributes.
+
+2002-10-25  Zack Weinberg  <zack@codesourcery.com>
+
+	PR middle-end/6994
+	* cp-lang.c (cp_var_mod_type_p): New: C++ hook for
+	variably_modified_type_p.
+	* cp-tree.h: Remove prototype of variably_modified_type_p.
+	* tree.c (variably_modified_type_p): Remove; now implemented
+	in language-independent code.
+
+	PR c++/7266
+	* decl.c (grokdeclarator): Check that TREE_OPERAND 0 of a
+	SCOPE_REF is not null before dereferencing it.
+
+2002-10-24  David Edelsohn  <edelsohn@gnu.org>
+
+	PR c++/7228
+	* cp-tree.h (CLASSTYPE_READONLY_FIELDS_NEED_INIT): Check that
+	lang_type structure exists before accessing field.
+	(SET_CLASSTYPE_READONLY_FIELDS_NEED_INIT): New macro.
+	(CLASSTYPE_REF_FIELDS_NEED_INIT): Similar.
+	(SET_CLASSTYPE_REF_FIELDS_NEED_INIT): New macro.
+	* class.c (check_field_decls): Use new macros.
+	* typeck2.c (process_init_constructor): Remove redundant check for
+	existence of lang_type structure.
+
+2002-10-23  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8067
+	* decl.c (maybe_inject_for_scope_var): Ignore __FUNCTION__ and
+	related variables.
+
+2002-10-23  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7679
+	* spew.c (next_token): Do not return an endless stream of
+	END_OF_SAVED_INPUT tokens.
+	(snarf_method): Add three END_OF_SAVED_INPUT tokens to the end of
+	the cached token stream.
+	(snarf_defarg): Likewise.
+
+2002-10-22  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/6579
+	* spew.c (snarf_parenthesized_expression): New function.
+	(snarf_block): Use it.
+
+2002-10-21  Matthias Klose  <doko@debian.org>
+
+	* Backport, without whitespace change:
+	2002-06-19 Akim Demaille  <akim@epita.fr>
+	* parse.y (TYPENAME): Rename as tTYPENAME to avoid the clash with
+	decl.h's TYPENAME.
+	* spew.c, lex.c: Adjust.
+	* parse.y (explicit_instantiation): Add empty action to override
+	the default $$ = $1 where it introduces a type clash.
+
+2002-10-21  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/8218
+	* cp-tree.h (lang_type_class): Add contains_empty_class_p.
+	(CLASSTYPE_CONTAINS_EMPTY_CLASS_P): New macro.
+	* class.c (check_bases): Update CLASSTYPE_CONTAINS_EMPTY_CLASS_P.
+	(check_field_decls): Likewise.
+	(layout_class_type): Likewise.
+	(finish_struct_1): Initialize it.
+	(walk_subobject_offsets): Use it to prune searches.
+
+2002-10-18  Zack Weinberg  <zack@codesourcery.com>
+
+	* decl.c (start_decl): Point users of the old initialized-
+	typedef extension at __typeof__.
+
+2002-10-18  Nathan Sidwell  <nathan@codesourcery.com>
+
+	PR c++/7676
+	* class.c (add_method): Compare template parms too.
+
+2002-10-17  Mark Mitchell  <mark@codesourcery.com>
+
+	* mangle.c (globals): Add entity and need_abi_warning.
+	(write_prefix): Likewise.
+	(write_template_prefix): Likewise.
+	(start_mangling): Add entity parameter.
+	(finish_mangling): Warn about names whose mangling will change.
+	(mangle_decl_string): Adjust.
+	(mangle_type_string): Likewise.
+	(mangle_special_for_type): Likewise.
+	(mangle_ctor_vtbl_for_type): Likewise.
+	(mangle_thunk): Likewise.
+	(mangle_guard_variable): Likewise.
+	(mangle_ref_init_variable): Likewise.
+
+	PR c++/7584
+	* class.c (handle_using_decl): Allow the declaration used to be
+	from an ambiguous base.
+
+2002-10-16  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7478
+	* cvt.c (convert_to_reference): Allow references as the incoming
+	type.
+
+	PR c++/8134
+	* tree.c (zero_init_p): Always return 1.
+
+	PR c++/7524
+	* method.c (do_build_assign_ref): Use cp_build_qualified_type, not
+	build_qualified_type.
+
+2002-10-14  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7176
+	* lex.c (do_identifier): Add another option for the parsing
+	parameter.
+	* parse.y (do_id): Use it.
+
+2002-10-11  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/5661
+	* cp-tree.h (variably_modified_type_p): New function.
+	(grokdeclarator) Tighten check for variably modified types as
+	fields.
+	* pt.c (convert_template_argument): Do not allow variably modified
+	types as template arguments.
+	* tree.c (variably_modified_type_p): New function.
+
+2002-10-11  Jason Molenda  <jmolenda@apple.com>
+
+	* init.c (build_field_list): Provide uses_unions_p with a default
+	value.
+
+2002-10-10  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	PRs C++/6803, C++/7721 and C++/7803
+	* decl.c (grokdeclarator): Gracefully handle template-name as
+	decl-specifier.
+
 2002-10-09  Zack Weinberg  <zack@codesourcery.com>
 
 	PR c/7353
