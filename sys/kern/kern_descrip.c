@@ -800,6 +800,7 @@ nfstat(td, uap)
 	struct nstat nub;
 	int error;
 
+	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
 	error = fo_stat(fp, &ub, td);
