@@ -572,7 +572,7 @@ printcpuinfo(void)
 			"\010MCE"	/* Machine Check support */
 			"\011CX8"	/* CMPEXCH8 instruction */
 			"\012APIC"	/* SMP local APIC */
-			"\013oldMTRR"
+			"\013oldMTRR"	/* Previous implementation of MTRR */
 			"\014SEP"	/* Fast System Call */
 			"\015MTRR"	/* Memory Type Range Registers */
 			"\016PGE"	/* PG_G (global bit) support */
@@ -590,6 +590,8 @@ printcpuinfo(void)
 			"\032SSE"	/* Streaming SIMD Extensions */
 			"\033SSE2"	/* Streaming SIMD Extensions #2 */
 			"\034SS"	/* Self snoop */
+			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
+			"\036TM"	/* Thermal Monintor clock slowdown */
 			"\035<b28>"
 			"\036ACC"	/* Auto Clock Correction (TCC/ACPI) */
 			"\037<b30>"
@@ -1003,8 +1005,8 @@ print_AMD_features(u_int *regs)
 		"\020ICMOV"	/* CMOV instruction */
 		"\021PAT"	/* Page attributes table */
 		"\022PGE36"	/* 36 bit address space support */
-		"\023<b18>"
-		"\024<b19>"
+		"\023RSVD"	/* Reserved, unknown */
+		"\024MP"	/* Multiprocessor Capable */
 		"\025<b20>"
 		"\026<b21>"
 		"\027AMIE"	/* AMD MMX Instruction Extensions */
