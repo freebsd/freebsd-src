@@ -358,9 +358,9 @@ EXPORT(intrnames)
 intr_n = 0
 .rept INTRCNT_COUNT - 1
 	.ascii "#"
-	.byte intr_n / 100 + '0
-	.byte (intr_n % 100) / 10 + '0
-	.byte intr_n % 10 + '0
+	.byte intr_n / 100 + '0'
+	.byte (intr_n % 100) / 10 + '0'
+	.byte intr_n % 10 + '0'
 	.fill INTRNAME_LEN - 1 - 3 - 1, 1, ' '
 	.byte 0
 	intr_n = intr_n + 1
