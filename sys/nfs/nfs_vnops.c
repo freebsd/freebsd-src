@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.66 1997/10/15 13:23:35 phk Exp $
+ * $Id: nfs_vnops.c,v 1.67 1997/10/16 10:49:01 phk Exp $
  */
 
 
@@ -98,7 +98,6 @@ static int	nfsfifo_read __P((struct vop_read_args *));
 static int	nfsfifo_write __P((struct vop_write_args *));
 static int	nfsspec_close __P((struct vop_close_args *));
 static int	nfsfifo_close __P((struct vop_close_args *));
-static int	nfs_ioctl __P((struct vop_ioctl_args *));
 #define nfs_poll vop_nopoll
 static int	nfs_flush __P((struct vnode *,struct ucred *,int,struct proc *,int));
 static int	nfs_setattrrpc __P((struct vnode *,struct vattr *,struct ucred *,struct proc *));
@@ -127,7 +126,6 @@ static	int	nfs_sillyrename __P((struct vnode *,struct vnode *,struct componentna
 static int	nfsspec_access __P((struct vop_access_args *));
 static int	nfs_readlink __P((struct vop_readlink_args *));
 static int	nfs_print __P((struct vop_print_args *));
-static int	nfs_pathconf __P((struct vop_pathconf_args *));
 static int	nfs_advlock __P((struct vop_advlock_args *));
 static int	nfs_bwrite __P((struct vop_bwrite_args *));
 /*
@@ -147,7 +145,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_ioctl_desc,		(vop_t *) nfs_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) nullop },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
@@ -157,7 +154,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) nfs_mknod },
 	{ &vop_mmap_desc,		(vop_t *) nfs_mmap },
 	{ &vop_open_desc,		(vop_t *) nfs_open },
-	{ &vop_pathconf_desc,		(vop_t *) nfs_pathconf },
 	{ &vop_poll_desc,		(vop_t *) nfs_poll },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfs_read },
@@ -167,7 +163,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_remove_desc,		(vop_t *) nfs_remove },
 	{ &vop_rename_desc,		(vop_t *) nfs_rename },
 	{ &vop_rmdir_desc,		(vop_t *) nfs_rmdir },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) nfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) nfs_symlink },
@@ -2932,25 +2927,6 @@ done:
 }
 
 /*
- * Return POSIX pathconf information applicable to nfs.
- *
- * The NFS V2 protocol doesn't support this, so just return EINVAL
- * for V2.
- */
-/* ARGSUSED */
-static int
-nfs_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	return (EINVAL);
-}
-
-/*
  * NFS advisory byte-level locks.
  * Currently unsupported.
  */
@@ -3311,16 +3287,4 @@ nfsfifo_close(ap)
 		}
 	}
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
-}
-
-static int
-nfs_ioctl(ap)
-	struct vop_ioctl_args *ap;
-{
-
-	/*
-	 * XXX we were once bogusly enoictl() which returned this (ENOTTY).
-	 * Probably we should return ENODEV.
-	 */
-	return (ENOTTY);
 }

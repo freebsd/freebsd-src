@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.17 1997/10/15 10:04:03 phk Exp $
+ * $Id: dead_vnops.c,v 1.18 1997/10/16 10:48:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,9 +61,7 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) dead_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) dead_ebadf },
 	{ &vop_bmap_desc,		(vop_t *) dead_bmap },
-	{ &vop_close_desc,		(vop_t *) nullop },
 	{ &vop_create_desc,		(vop_t *) dead_badop },
-	{ &vop_fsync_desc,		(vop_t *) nullop },
 	{ &vop_getattr_desc,		(vop_t *) dead_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) nullop },
 	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
@@ -75,7 +73,7 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_mknod_desc,		(vop_t *) dead_badop },
 	{ &vop_mmap_desc,		(vop_t *) dead_badop },
 	{ &vop_open_desc,		(vop_t *) dead_open },
-	{ &vop_pathconf_desc,		(vop_t *) dead_ebadf },
+	{ &vop_pathconf_desc,		(vop_t *) dead_ebadf },	/* per pathconf(2) */
 	{ &vop_print_desc,		(vop_t *) dead_print },
 	{ &vop_read_desc,		(vop_t *) dead_read },
 	{ &vop_readdir_desc,		(vop_t *) dead_ebadf },
@@ -84,11 +82,9 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_remove_desc,		(vop_t *) dead_badop },
 	{ &vop_rename_desc,		(vop_t *) dead_badop },
 	{ &vop_rmdir_desc,		(vop_t *) dead_badop },
-	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) dead_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) dead_badop },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
-	{ &vop_update_desc,		(vop_t *) nullop },
 	{ &vop_write_desc,		(vop_t *) dead_write },
 	{ NULL, NULL }
 };

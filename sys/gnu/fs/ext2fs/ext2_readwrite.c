@@ -314,7 +314,7 @@ WRITE(ap)
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
 		gettime(&tv);
-		error = VOP_UPDATE(vp, &tv, &tv, 1);
+		error = UFS_UPDATE(vp, &tv, &tv, 1);
 	}
 	return (error);
 }

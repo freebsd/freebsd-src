@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.9 (Berkeley) 5/8/95
- * $Id: lfs_inode.c,v 1.18 1997/09/02 20:06:48 bde Exp $
+ * $Id: lfs_inode.c,v 1.19 1997/10/16 10:49:47 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -73,15 +73,12 @@ lfs_ifind(fs, ino, dip)
 }
 
 int
-lfs_update(ap)
-	struct vop_update_args /* {
-		struct vnode *a_vp;
-		struct timeval *a_access;
-		struct timeval *a_modify;
-		int a_waitfor;
-	} */ *ap;
+lfs_update(vp, access, modify, waitfor)
+	struct vnode *vp;
+	struct timeval *access;
+	struct timeval *modify;
+	int waitfor;
 {
-	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
 	int error;
 
@@ -104,9 +101,9 @@ lfs_update(ap)
 		return(0);
 
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime = ap->a_access->tv_sec;
+		ip->i_atime = access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime = ap->a_modify->tv_sec;
+		ip->i_mtime = modify->tv_sec;
 		(ip)->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
@@ -118,8 +115,8 @@ lfs_update(ap)
 	ip->i_flag |= IN_MODIFIED;
 
 	/* If sync, push back the vnode and any dirty blocks it may have. */
-	error = (ap->a_waitfor & LFS_SYNC ? lfs_vflush(vp) : 0);
-	if(ap->a_waitfor &  LFS_SYNC && vp->v_dirtyblkhd.lh_first != NULL)
+	error = (waitfor & LFS_SYNC ? lfs_vflush(vp) : 0);
+	if(waitfor &  LFS_SYNC && vp->v_dirtyblkhd.lh_first != NULL)
 	       panic("lfs_update: dirty bufs");
 	return( error );
 
@@ -186,7 +183,7 @@ lfs_truncate(vp, length, flags, cred, p)
 		bzero((char *)&ip->i_shortlink, (u_int)ip->i_size);
 		ip->i_size = 0;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(vp, &tv, &tv, 0));
+		return (UFS_UPDATE(vp, &tv, &tv, 0));
 	}
 	vnode_pager_setsize(vp, (u_long)length);
 
@@ -195,7 +192,7 @@ lfs_truncate(vp, length, flags, cred, p)
 	/* If length is larger than the file, just update the times. */
 	if (ip->i_size <= length) {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(vp, &tv, &tv, 0));
+		return (UFS_UPDATE(vp, &tv, &tv, 0));
 	}
 
 	/*
@@ -376,6 +373,6 @@ lfs_truncate(vp, length, flags, cred, p)
 	fs->lfs_avail += fragstodb(fs, a_released);
 	e1 = vinvalbuf(vp, (length > 0) ? V_SAVE : 0, cred, p,
 	    0, 0);
-	e2 = VOP_UPDATE(vp, &tv, &tv, 0);
+	e2 = UFS_UPDATE(vp, &tv, &tv, 0);
 	return (e1 ? e1 : e2 ? e2 : 0);
 }

@@ -63,6 +63,7 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <gnu/ext2fs/ext2_fs.h>
@@ -89,13 +90,11 @@ ext2_init(struct vfsconf *vfsp)
  * complete.
  */
 int
-ext2_update(ap)
-	struct vop_update_args /* {
-		struct vnode *a_vp;
-		struct timeval *a_access;
-		struct timeval *a_modify;
-		int a_waitfor;
-	} */ *ap;
+ext2_update(vp, access, modify, waitfor)
+	struct vnode *vp;
+	struct timeval *access;
+	struct timeval *modify;
+	int waitfor;
 {
 	register struct ext2_sb_info *fs;
 	struct buf *bp;
@@ -105,8 +104,8 @@ ext2_update(ap)
 	struct timeval time;
 #endif
 
-	ip = VTOI(ap->a_vp);
-	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY) {
+	ip = VTOI(vp);
+	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
 		ip->i_flag &=
 		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 		return (0);
@@ -115,9 +114,9 @@ ext2_update(ap)
 	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
 		return (0);
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime = ap->a_access->tv_sec;
+		ip->i_atime = access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime = ap->a_modify->tv_sec;
+		ip->i_mtime = modify->tv_sec;
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE) {
@@ -137,7 +136,7 @@ ext2_update(ap)
 	ext2_di2ei( &ip->i_din, (struct ext2_inode *) ((char *)bp->b_data + EXT2_INODE_SIZE *
 	    ino_to_fsbo(fs, ip->i_number)));
 /*
-	if (ap->a_waitfor && (ap->a_vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
+	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
 */
@@ -196,11 +195,11 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 0));
+		return (UFS_UPDATE(ovp, &tv, &tv, 0));
 	}
 #if QUOTA
 	if (error = getinoquota(oip))
@@ -233,7 +232,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (VOP_UPDATE(ovp, &tv, &tv, 1));
+		return (UFS_UPDATE(ovp, &tv, &tv, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -292,7 +291,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	if (error = VOP_UPDATE(ovp, &tv, &tv, MNT_WAIT))
+	if (error = UFS_UPDATE(ovp, &tv, &tv, MNT_WAIT))
 		allerror = error;
 	/*
 	 * Having written the new inode to disk, save its new configuration

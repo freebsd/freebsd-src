@@ -41,9 +41,9 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 
-int vop_notsupp __P((struct vop_generic_args *ap));
 static int vop_nostrategy __P((struct vop_strategy_args *));
 
 /*
@@ -56,11 +56,20 @@ static int vop_nostrategy __P((struct vop_strategy_args *));
 
 vop_t **default_vnodeop_p;
 static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_notsupp },
+	{ &vop_default_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_abortop_desc,		(vop_t *) nullop },
+	{ &vop_advlock_desc,		(vop_t *) vop_einval },
 	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
+	{ &vop_close_desc,		(vop_t *) vop_null },
+	{ &vop_fsync_desc,		(vop_t *) vop_null },
+	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_lease_desc,		(vop_t *) lease_check },
+	{ &vop_mmap_desc,		(vop_t *) vop_einval },
+	{ &vop_open_desc,		(vop_t *) vop_null },
+	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
 	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
+	{ &vop_readlink_desc,		(vop_t *) vop_einval },
+	{ &vop_reallocblks_desc,	(vop_t *) vop_eopnotsupp },
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
 	{ NULL, NULL }
@@ -72,22 +81,49 @@ static struct vnodeopv_desc default_vnodeop_opv_desc =
 VNODEOP_SET(default_vnodeop_opv_desc);
 
 int
-vop_notsupp(struct vop_generic_args *ap)
+vop_eopnotsupp(struct vop_generic_args *ap)
 {
 	/*
-	printf("vn_notsupp[%s]\n", ap->a_desc->vdesc_name);
+	printf("vop_notsupp[%s]\n", ap->a_desc->vdesc_name);
 	*/
 
 	return (EOPNOTSUPP);
 }
 
 int
-vn_defaultop(struct vop_generic_args *ap)
+vop_ebadf(struct vop_generic_args *ap)
+{
+
+	return (EBADF);
+}
+
+int
+vop_enotty(struct vop_generic_args *ap)
+{
+
+	return (ENOTTY);
+}
+
+int
+vop_einval(struct vop_generic_args *ap)
+{
+
+	return (EINVAL);
+}
+
+int
+vop_null(struct vop_generic_args *ap)
+{
+
+	return (0);
+}
+
+int
+vop_defaultop(struct vop_generic_args *ap)
 {
 
 	return (VOCALL(default_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
-
 
 static int
 vop_nostrategy (struct vop_strategy_args *ap)
@@ -98,4 +134,38 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	ap->a_bp->b_error = EOPNOTSUPP;
 	biodone(ap->a_bp);
 	return (EOPNOTSUPP);
+}
+
+int
+vop_stdpathconf(ap)
+	struct vop_pathconf_args /* {
+	struct vnode *a_vp;
+	int a_name;
+	int *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+		case _PC_LINK_MAX:
+			*ap->a_retval = LINK_MAX;
+			return (0);
+		case _PC_MAX_CANON:
+			*ap->a_retval = MAX_CANON;
+			return (0);
+		case _PC_MAX_INPUT:
+			*ap->a_retval = MAX_INPUT;
+			return (0);
+		case _PC_PIPE_BUF:
+			*ap->a_retval = PIPE_BUF;
+			return (0);
+		case _PC_CHOWN_RESTRICTED:
+			*ap->a_retval = 1;
+			return (0);
+		case _PC_VDISABLE:
+			*ap->a_retval = _POSIX_VDISABLE;
+			return (0);
+		default:
+			return (EINVAL);
+	}
+	/* NOTREACHED */
 }
