@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.24 1998/02/17 01:05:43 brian Exp $
+ * $Id: main.c,v 1.121.2.25 1998/02/17 19:28:29 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -123,6 +123,7 @@ AbortProgram(int excode)
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   prompt_TtyOldMode(&prompt);
+  bundle_Close(SignalBundle, NULL, 1);
   bundle_Destroy(SignalBundle);
   LogClose();
   exit(excode);

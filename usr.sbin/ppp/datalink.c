@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.9 1998/02/17 19:28:45 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.10 1998/02/17 19:29:09 brian Exp $
  */
 
 #include <sys/param.h>
@@ -124,10 +124,14 @@ datalink_HangupDone(struct datalink *dl)
 static void
 datalink_LoginDone(struct datalink *dl)
 {
-  dl->dial_tries = 0;
-  if (modem_Raw(dl->physical, dl->bundle) < 0) {
+  if (!dl->script.packetmode) { 
+    dl->dial_tries = -1;
+    LogPrintf(LogPHASE, "%s: Entering READY state\n", dl->name);
+    dl->state = DATALINK_READY;
+  } else if (modem_Raw(dl->physical, dl->bundle) < 0) {
+    dl->dial_tries = 0;
     LogPrintf(LogWARN, "datalink_LoginDone: Not connected.\n");
-    if (dl->script.run) {
+    if (dl->script.run) { 
       LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
       modem_Offline(dl->physical);
@@ -136,19 +140,14 @@ datalink_LoginDone(struct datalink *dl)
       datalink_HangupDone(dl);
   } else {
     dl->dial_tries = -1;
-    if (dl->script.packetmode) {
-      LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
-      dl->state = DATALINK_OPEN;
+    LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
+    dl->state = DATALINK_OPEN;
 
-      LcpInit(dl->bundle, dl->physical);
-      CcpInit(dl->bundle, &dl->physical->link);
-      FsmUp(&LcpInfo.fsm);
-      LcpInfo.fsm.open_mode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
-      FsmOpen(&LcpInfo.fsm);
-    } else {
-      LogPrintf(LogPHASE, "%s: Entering READY state\n", dl->name);
-      dl->state = DATALINK_READY;
-    }
+    LcpInit(dl->bundle, dl->physical);
+    CcpInit(dl->bundle, &dl->physical->link);
+    FsmUp(&LcpInfo.fsm);
+    LcpInfo.fsm.open_mode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
+    FsmOpen(&LcpInfo.fsm);
   }
 }
 

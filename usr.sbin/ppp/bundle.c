@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.12 1998/02/17 19:27:45 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.13 1998/02/17 19:28:19 brian Exp $
  */
 
 #include <sys/param.h>
@@ -234,14 +234,17 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
    * If isn't the last datalink, just Close that datalink.
    */
 
-  bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
-  FsmClose(&IpcpInfo.fsm);
-  if (staydown) {
-    struct datalink *dl;
+  struct datalink *dl;
 
+  if (IpcpInfo.fsm.state > ST_CLOSED || IpcpInfo.fsm.state == ST_STARTING) {
+    bundle_NewPhase(bundle, NULL, PHASE_TERMINATE);
+    FsmClose(&IpcpInfo.fsm);
+    if (staydown)
+      for (dl = bundle->links; dl; dl = dl->next)
+        datalink_StayDown(dl);
+  } else
     for (dl = bundle->links; dl; dl = dl->next)
-      datalink_StayDown(dl);
-  }
+      datalink_Close(dl, staydown);
 }
 
 /*
