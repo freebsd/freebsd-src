@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.14 1999/05/20 09:12:02 sos Exp $
+ *  $Id: ata-all.c,v 1.15 1999/06/25 09:02:56 sos Exp $
  */
 
 #include "ata.h"
@@ -174,7 +174,8 @@ ata_pcimatch(device_t dev)
     data = pci_read_config(dev, PCI_CLASS_REG, 4);
     if (pci_get_class(dev) == PCIC_STORAGE &&
 	(pci_get_subclass(dev) == PCIS_STORAGE_IDE ||
-	 pci_get_subclass(dev) == PCIS_STORAGE_RAID)) {
+	 pci_get_subclass(dev) == PCIS_STORAGE_RAID ||
+	 pci_get_subclass(dev) == PCIS_STORAGE_OTHER)) {
 	switch (pci_get_devid(dev)) {
 	case 0x12308086:
 	    return "Intel PIIX IDE controller";
@@ -184,6 +185,8 @@ ata_pcimatch(device_t dev)
 	    return "Intel PIIX4 IDE controller";
 	case 0x4d33105a:
 	    return "Promise Ultra/33 IDE controller";
+	case 0x4d38105a:
+	    return "Promise Ultra/66 IDE controller";
 	case 0x522910b9:
 	    return "AcerLabs Aladdin IDE controller";
 #if 0
@@ -241,7 +244,7 @@ ata_pciattach(device_t dev)
 #endif
 
     /* if this is a Promise controller handle it specially */
-    if (type == 0x4d33105a) { 
+    if (type == 0x4d33105a || type == 0x4d38105a) { 
 	iobase_1 = pci_read_config(dev, 0x10, 4) & 0xfffc;
 	altiobase_1 = pci_read_config(dev, 0x14, 4) & 0xfffc;
 	iobase_2 = pci_read_config(dev, 0x18, 4) & 0xfffc;
@@ -318,7 +321,7 @@ ata_pciattach(device_t dev)
 	    if (!irq)
 		printf("ata_pciattach: Unable to alloc interrupt\n");
 
-    	    if (type == 0x4d33105a)
+    	    if (type == 0x4d33105a || type == 0x4d38105a)
 		bus_setup_intr(dev, irq, INTR_TYPE_BIO, promise_intr, scp, &ih);
 	    else
 		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
@@ -342,7 +345,7 @@ ata_pciattach(device_t dev)
 	    int rid = 0;
 	    void *ih;
 
-    	    if (type != 0x4d33105a) {
+    	    if (type != 0x4d33105a && type != 0x4d38105a) {
 	        irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 					 RF_SHAREABLE | RF_ACTIVE);
 	        if (!irq)
