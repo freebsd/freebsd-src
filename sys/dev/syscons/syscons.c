@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.297 1999/01/30 12:17:30 phk Exp $
+ *	$Id: syscons.c,v 1.298 1999/02/05 11:52:11 yokota Exp $
  */
 
 #include "sc.h"
@@ -263,6 +263,8 @@ static const int	nsccons = MAXCONS+2;
 		(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
 #define kbd_get_fkeystr(kbd, fkey, len)					\
 		(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
+#define kbd_poll(kbd, on)						\
+		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 /* prototypes */
 static kbd_callback_func_t sckbdevent;
@@ -1566,10 +1568,16 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	*(int *)data = scp->status & LOCK_MASK;
 	return 0;
 
-    case KDSETRAD:      	/* set keyboard repeat & delay rates */
+    case KDSETREPEAT:      	/* set keyboard repeat & delay rates (new) */
+	error = kbd_ioctl(kbd, cmd, data);
+	if (error == ENOIOCTL)
+	    error = ENODEV;
+	return error;
+
+    case KDSETRAD:      	/* set keyboard repeat & delay rates (old) */
 	if (*(int *)data & ~0x7f)
 	    return EINVAL;
-	error = kbd_ioctl(kbd, KDSETRAD, data);
+	error = kbd_ioctl(kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1996,7 +2004,9 @@ sccngetch(int flags)
     cur_console->kbd_mode = K_XLATE;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);
 
+    kbd_poll(kbd, TRUE);
     c = scgetc(kbd, SCGETC_CN | flags);
+    kbd_poll(kbd, FALSE);
 
     cur_console->kbd_mode = cur_mode;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);

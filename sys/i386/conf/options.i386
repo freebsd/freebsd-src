@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.107 1999/03/09 20:20:02 phk Exp $
+#	$Id: options.i386,v 1.108 1999/03/10 10:11:42 julian Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -89,6 +89,10 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+UKBD_DFLT_KEYMAP	opt_ukbd.h
+
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
