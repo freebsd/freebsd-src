@@ -280,6 +280,11 @@ setit:
 				    BRGPHY_1000CTL_MSE);
 			}
 			break;
+#ifdef foo
+		case IFM_NONE:
+			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
+			break;
+#endif
 		case IFM_100_T4:
 		default:
 			return (EINVAL);
@@ -407,12 +412,20 @@ brgphy_mii_phy_auto(mii, waitfor)
 	struct mii_softc *mii;
 	int waitfor;
 {
-	int bmsr, i;
+	int bmsr, ktcr = 0, i;
 
 	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		PHY_WRITE(mii, BRGPHY_MII_1000CTL,
+		mii_phy_reset(mii);
+		PHY_WRITE(mii, BRGPHY_MII_BMCR, 0);
+		DELAY(1000);
+		ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
+		PHY_WRITE(mii, BRGPHY_MII_1000CTL, ktcr |
 		    BRGPHY_1000CTL_AFD|BRGPHY_1000CTL_AHD);
-		PHY_WRITE(mii, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
+		ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
+		DELAY(1000);
+		PHY_WRITE(mii, BRGPHY_MII_ANAR,
+		    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
+		DELAY(1000);
 		PHY_WRITE(mii, BRGPHY_MII_BMCR,
 		    BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
 		PHY_WRITE(mii, BRGPHY_MII_IMR, 0xFF00);
