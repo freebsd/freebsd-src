@@ -41,10 +41,10 @@ The
 function reads from one cylinder group, specified by
 .Fa c
 into the
-.Fa d_cg
+.Va d_cg
 field of a userland UFS disk structure.
 It sets the
-.Fa d_lcg
+.Va d_lcg
 field to the cylinder group number
 .Fa c .
 .Pp
@@ -54,15 +54,15 @@ function operates on sequential cylinder groups.
 Calling the
 .Fn cgread
 function is equivalent to calling
-.Nm cgread1
+.Fn cgread1
 with a cylinder group specifier equivalent to the value of the current
-.Fa d_ccg
+.Va d_ccg
 field, and then incrementing the
-.Fa d_ccg
+.Va d_ccg
 field.
-.Pp
+.Sh RETURN VALUES
 Both functions return 0 if there are no more cylinder groups to read,
-1 if there are more cylinder groups, and -1 on error.
+1 if there are more cylinder groups, and \-1 on error.
 .Sh ERRORS
 The function
 .Fn cgread
