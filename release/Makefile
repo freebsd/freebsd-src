@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.409 1998/10/08 10:02:28 jkh Exp $
+#	$Id: Makefile,v 1.410 1998/10/08 10:18:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -716,11 +716,18 @@ doMFSKERN:
 	@mkdir  ${RD}/boot.${FSIMAGE}
 	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
-	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
 .if exists(/boot/loader) && !defined(_MFSKERN)
+	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
 	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
+	@echo "load /kernel" > ${RD}/boot.${FSIMAGE}/boot/boot.conf
+	@echo "echo Please insert MFS root floppy and press enter." >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
+	@echo "read" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
+	@echo "load -t mfs_root /mfsroot" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
+	@echo "boot" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
+.if ${MACHINE_ARCH} != "alpha"
+	@echo "/boot/loader" >${RD}/boot.${FSIMAGE}/boot.config
 .endif
-.if defined(BOOT_CONFIG)
+.elif defined(BOOT_CONFIG)
 	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
 .endif
 	@vnconfig /dev/${VNDEVICE} fs-image.${FSIMAGE}
