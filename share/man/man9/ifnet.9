@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtalloc.9,v 1.3 1996/12/01 00:25:05 mpp Exp $
+.\"	$Id: ifnet.9,v 1.1 1996/12/17 20:21:01 wollman Exp $
 .Dd December 16, 1996
 .Os FreeBSD 2.2
 .Dt IFNET 9
@@ -156,7 +156,7 @@ Interfaces are also associated with an output queue, defined as a
 .Li "struct ifqueue" ;
 this structure is used to hold packets while the interface is in the
 process of sending another.  The current implementation implements a
-drop-tail queueing discipline, but in the future a Random Early Drop
+drop-tail queuing discipline, but in the future a Random Early Drop
 discipline is expected to be used.  For this reason, kernel code
 should not depend on the internals of the queue structure; in
 particular, only the
@@ -492,7 +492,7 @@ Number of packets received for unknown network-layer protocol.
 .\" section, below.
 .It Li ifi_lastchange
 .Pq Li "struct timeval"
-The time of the last administative change to the interface (as required
+The time of the last administrative change to the interface (as required
 for
 .Tn SNMP ) .
 .El
