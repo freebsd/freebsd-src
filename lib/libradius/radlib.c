@@ -472,6 +472,7 @@ rad_open(void)
 		memset(h->pass, 0, sizeof h->pass);
 		h->pass_len = 0;
 		h->pass_pos = 0;
+		h->chap_pass = 0;
 	}
 	return h;
 }
@@ -485,9 +486,17 @@ rad_put_addr(struct rad_handle *h, int type, struct in_addr addr)
 int
 rad_put_attr(struct rad_handle *h, int type, const void *value, size_t len)
 {
-	return type == RAD_USER_PASSWORD ?
-	    put_password_attr(h, type, value, len) :
-	    put_raw_attr(h, type, value, len);
+	int result;
+
+	if (type == RAD_USER_PASSWORD)
+		result = put_password_attr(h, type, value, len);
+	else {
+		result = put_raw_attr(h, type, value, len);
+		if (result == 0 && type == RAD_CHAP_PASSWORD)
+			h->chap_pass = 1;
+	}
+
+	return result;
 }
 
 int
@@ -540,8 +549,13 @@ rad_send_request(struct rad_handle *h)
 	}
 
 	/* Make sure the user gave us a password */
-	if (h->pass_pos == 0) {
-		generr(h, "No User-Password attribute given");
+	if (h->pass_pos == 0 && !h->chap_pass) {
+		generr(h, "No User or Chap Password attributes given");
+		return -1;
+	}
+
+	if (h->pass_pos != 0 && h->chap_pass) {
+		generr(h, "Both User and Chap Password attributes given");
 		return -1;
 	}
 
@@ -580,7 +594,8 @@ rad_send_request(struct rad_handle *h)
 				srv = 0;
 
 		/* Insert the scrambled password into the request */
-		insert_scrambled_password(h, srv);
+		if (h->pass_pos != 0)
+			insert_scrambled_password(h, srv);
 
 		/* Send the request */
 		n = sendto(h->fd, h->request, h->req_len, 0,
