@@ -1335,6 +1335,8 @@ pci_chip_match(device_t dev)
 		return ("OPTi 82C822 host to PCI Bridge");
 
 	/* Texas Instruments -- vendor 0x104c */
+	case 0x8009104c:
+		return ("Texas Instruments TSB12LV22 OHCI IEEE 1394 Host Controller");
 	case 0xac1c104c:
 		return ("Texas Instruments PCI1225 CardBus controller");
 	case 0xac50104c:
