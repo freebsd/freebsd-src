@@ -386,7 +386,7 @@ sub nroff_device {
           $dev_name = "koi8-r";
      }
      # Use "nroff -Tlatin1 -man" to format ISO 8859-1 manpages
-     elsif ($local_suffix =~ '\.ISO_8859-1$') {
+     elsif ($local_suffix =~ '\.ISO_?8859-15?$') {
 	  $dev_name = "latin1";
     }
   }
