@@ -1,3 +1,0 @@
-Initially, PROCINFO["FS"] = FS
-After assign to FIELDWIDTHS, PROCINFO["FS"] = FIELDWIDTHS
-After assign to FS, PROCINFO["FS"] = FS

@@ -1,2 +1,0 @@
-BEGIN { RS = "" }
-{ print }

@@ -1,1 +1,0 @@
-gawk: fnasgnm.awk:14: (FILENAME=- FNR=1) fatal: can't use function name `ShowMe' as variable or array
