@@ -176,7 +176,7 @@ pmap_kextract(vm_offset_t va)
 	if ((pa = (vm_offset_t) PTD[va >> PDRSHIFT]) & PG_PS) {
 		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 	} else {
-		pa = *(vm_offset_t *)vtopte(va);
+		pa = *vtopte(va);
 		pa = (pa & PG_FRAME) | (va & PAGE_MASK);
 	}
 	return pa;
