@@ -22,7 +22,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -128,7 +128,7 @@ vinumattach(void *dummy)
  *
  * Return 0 if not inactive, 1 if inactive.
  */
-int 
+int
 vinum_inactive(int confopen)
 {
     int i;
@@ -155,7 +155,7 @@ vinum_inactive(int confopen)
  *
  * Before coming here, ensure that no volumes are open.
  */
-void 
+void
 free_vinum(int cleardrive)
 {
     int i;
@@ -194,7 +194,7 @@ free_vinum(int cleardrive)
     bzero(&vinum_conf, sizeof(vinum_conf));
 }
 
-STATIC int 
+STATIC int
 vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 {
     struct sync_args dummyarg =
@@ -257,7 +257,7 @@ DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
 /* ARGSUSED */
 /* Open a vinum object */
-int 
+int
 vinumopen(dev_t dev,
     int flags,
     int fmt,
@@ -332,8 +332,8 @@ vinumopen(dev_t dev,
 	sd = &SD[index];
 
 	/*
-	 * Opening a subdisk is always a special operation, so we 
-	 * ignore the state as long as it represents a real subdisk 
+	 * Opening a subdisk is always a special operation, so we
+	 * ignore the state as long as it represents a real subdisk
 	 */
 	switch (sd->state) {
 	case sd_unallocated:
@@ -366,7 +366,7 @@ vinumopen(dev_t dev,
 }
 
 /* ARGSUSED */
-int 
+int
 vinumclose(dev_t dev,
     int flags,
     int fmt,
@@ -404,6 +404,9 @@ vinumclose(dev_t dev,
     case VINUM_PLEX_TYPE:
 	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
+	/* FALLTHROUGH */
+
+    case VINUM_RAWPLEX_TYPE:
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
@@ -414,6 +417,9 @@ vinumclose(dev_t dev,
 	if ((Volno(dev) >= vinum_conf.volumes_allocated) || /* no such volume */
 	    (Plexno(dev) >= vinum_conf.plexes_allocated))   /* or no such plex */
 	    return ENXIO;				    /* no such device */
+	/* FALLTHROUGH */
+
+    case VINUM_RAWSD_TYPE:
 	index = Sdno(dev);				    /* get the subdisk number */
 	if (index >= vinum_conf.subdisks_allocated)
 	    return ENXIO;				    /* no such device */
@@ -441,7 +447,7 @@ vinumclose(dev_t dev,
 }
 
 /* size routine */
-int 
+int
 vinumsize(dev_t dev)
 {
     struct volume *vol;
@@ -457,7 +463,7 @@ vinumsize(dev_t dev)
     return size;
 }
 
-int 
+int
 vinumdump(dev_t dev)
 {
     /* Not implemented. */
