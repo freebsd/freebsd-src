@@ -102,6 +102,14 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
+
+void
+elf64_dump_thread(struct thread *td __unused, void *dst __unused,
+    size_t *off __unused)
+{
+}
+
+
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,

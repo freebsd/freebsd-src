@@ -1204,8 +1204,11 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		    sizeof *status);
 		__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
 		    sizeof *fpregset);
-
-		/* XXX allow for MD specific notes. */
+		/*
+		 * Allow for MD specific notes, as well as any MD
+		 * specific preparations for writing MI notes.
+		 */
+		__elfN(dump_thread)(thr, dst, off);
 
 		thr = (thr == td) ? TAILQ_FIRST(&p->p_threads) :
 		    TAILQ_NEXT(thr, td_plist);
