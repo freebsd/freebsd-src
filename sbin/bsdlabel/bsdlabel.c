@@ -445,12 +445,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 				cksum ^= *sp1++;
 			sl->sl_cksum = cksum;
 #endif
-			/*
-			 * write enable label sector before write (if necessary),
-			 * disable after writing.
-			 */
-			flag = 1;
-			(void)ioctl(f, DIOCWLABEL, &flag);
 			if (write(f, boot, lp->d_bbsize) != (int)lp->d_bbsize) {
 				warn("write");
 				return (1);
@@ -464,8 +458,6 @@ writelabel(int f, const char *boot, struct disklabel *lp)
 				return(1);
 			}
 #endif
-			flag = 0;
-			(void) ioctl(f, DIOCWLABEL, &flag);
 		} else if (ioctl(f, DIOCWDINFO, lp) < 0) {
 			l_perror("ioctl DIOCWDINFO");
 			return (1);
