@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kldunload.c,v 1.1 1997/05/07 18:19:54 dfr Exp $
+ *	$Id: kldunload.c,v 1.2 1997/10/19 11:15:45 jmg Exp $
  */
 
 #include <err.h>
@@ -33,35 +33,31 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 
-extern char *optarg;
-extern int optind;
-
-static char* progname;
-
-static void usage()
+static void
+usage(void)
 {
     fprintf(stderr, "usage: modunload [-i id] [-n filename]\n");
     exit(1);
 }
 
-int main(int argc, char** argv)
+int
+main(int argc, char** argv)
 {
     int c;
     int verbose = 0;
     int fileid = 0;
     char* filename = 0;
 
-    progname = argv[0];
-    while ((c = getopt(argc, argv, "vi:n:")) != -1)
+    while ((c = getopt(argc, argv, "i:n:v")) != -1)
 	switch (c) {
-	case 'v':
-	    verbose = 1;
-	    break;
 	case 'i':
 	    fileid = atoi(optarg);
 	    break;
 	case 'n':
 	    filename = optarg;
+	    break;
+	case 'v':
+	    verbose = 1;
 	    break;
 	default:
 	    usage();
@@ -76,8 +72,7 @@ int main(int argc, char** argv)
 	usage();
 
     if (filename) {
-	fileid = kldfind(filename);
-	if (fileid < 0)
+	if ((fileid = kldfind(filename)) < 0)
 	    err(1, "Can't find file %s", filename);
     }
 

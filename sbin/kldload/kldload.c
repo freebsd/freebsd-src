@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kldload.c,v 1.1 1997/05/07 18:19:21 dfr Exp $
+ *	$Id: kldload.c,v 1.2 1997/10/19 11:15:42 jmg Exp $
  */
 
 #include <err.h>
@@ -33,23 +33,20 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 
-extern int optind;
-
-static char* progname;
-
-static void usage()
+static void
+usage(void)
 {
-    fprintf(stderr, "usage: %s filename\n", progname);
+    fprintf(stderr, "usage: kldload filename\n");
     exit(1);
 }
 
-int main(int argc, char** argv)
+int
+main(int argc, char** argv)
 {
     int c;
     int verbose = 0;
     int fileid;
 
-    progname = argv[0];
     while ((c = getopt(argc, argv, "v")) != -1)
 	switch (c) {
 	case 'v':
