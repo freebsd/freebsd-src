@@ -80,7 +80,7 @@
 _cpl:	.long	0xffff			# current priority (all off)
 	.globl	_imen
 _imen:	.long	0xffff			# interrupt mask enable (all off)
-#	.globl	_highmask
+/* 	.globl	_highmask	*/
 _highmask:	.long	HIGHMASK
 	.globl	_ttymask
 _ttymask:	.long	0
