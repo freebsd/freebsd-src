@@ -3247,8 +3247,14 @@ vbusy(vp)
 void
 v_addpollinfo(struct vnode *vp)
 {
+	struct vpollinfo *vi;
 
-	vp->v_pollinfo = uma_zalloc(vnodepoll_zone, M_WAITOK);
+	vi = uma_zalloc(vnodepoll_zone, M_WAITOK);
+	if (vp->v_pollinfo != NULL) {
+		uma_zfree(vnodepoll_zone, vi);
+		return;
+	}
+	vp->v_pollinfo = vi;
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 }
 
