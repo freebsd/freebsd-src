@@ -74,6 +74,7 @@ void	cvt_time(time_t, char *);
 void	sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vec);
 void	kget(int idx, void *addr, size_t size);
 void	usage(void);
+uid_t	user2uid(char *username);
 
 static struct nlist symbols[] = {
 	{"sema"},
@@ -188,11 +189,12 @@ main(argc, argv)
 {
 	int     display = SHMINFO | MSGINFO | SEMINFO;
 	int     option = 0;
-	char   *core = NULL, *namelist = NULL;
+	char   *core = NULL, *user = NULL, *namelist = NULL;
 	char	kvmoferr[_POSIX2_LINE_MAX];  /* Error buf for kvm_openfiles. */
 	int     i;
+	uid_t   uid;
 
-	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optTy")) != -1)
+	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optTu:y")) != -1)
 		switch (i) {
 		case 'M':
 			display = SHMTOTAL;
@@ -241,6 +243,10 @@ main(argc, argv)
 			break;
 		case 'y':
 			use_sysctl = 0;
+			break;
+		case 'u':
+			user = optarg;
+			uid = user2uid(user);
 			break;
 		default:
 			usage();
@@ -320,6 +326,9 @@ main(argc, argv)
 					        ctime_buf[100];
 					struct msqid_ds *msqptr = &xmsqids[i];
 
+					if (user)
+						if (uid != msqptr->msg_perm.uid)
+							continue;
 					cvt_time(msqptr->msg_stime, stime_buf);
 					cvt_time(msqptr->msg_rtime, rtime_buf);
 					cvt_time(msqptr->msg_ctime, ctime_buf);
@@ -409,6 +418,9 @@ main(argc, argv)
 					        ctime_buf[100];
 					struct shmid_ds *shmptr = &xshmids[i];
 
+					if (user)
+						if (uid != shmptr->shm_perm.uid)
+							continue;
 					cvt_time(shmptr->shm_atime, atime_buf);
 					cvt_time(shmptr->shm_dtime, dtime_buf);
 					cvt_time(shmptr->shm_ctime, ctime_buf);
@@ -502,6 +514,9 @@ main(argc, argv)
 					char    ctime_buf[100], otime_buf[100];
 					struct semid_ds *semaptr = &xsema[i];
 
+					if (user)
+						if (uid != semaptr->sem_perm.uid)
+							continue;
 					cvt_time(semaptr->sem_otime, otime_buf);
 					cvt_time(semaptr->sem_ctime, ctime_buf);
 
@@ -649,11 +664,27 @@ kget(idx, addr, size)
 	}
 }
 
+uid_t 
+user2uid(char *username)
+{
+	struct passwd *pwd;
+	uid_t uid;
+	char *r;
+
+	uid = strtoul(username, &r, 0);
+	if (!*r && r != username)
+		return (uid);
+	if ((pwd = getpwnam(username)) == NULL)
+		errx(1, "getpwnam failed: No such user");
+	endpwent();
+	return (pwd->pw_uid);
+}
+
 void
 usage()
 {
 
 	fprintf(stderr,
-	    "usage: ipcs [-abcmopqstyMQST] [-C corefile] [-N namelist]\n");
+	    "usage: ipcs [-abcmopqstyMQST] [-C corefile] [-N namelist] [-u user]\n");
 	exit(1);
 }
