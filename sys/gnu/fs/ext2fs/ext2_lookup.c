@@ -54,6 +54,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dir.h>
 
@@ -63,14 +64,21 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
+#ifdef DIAGNOSTIC
+static int dirchk = 1;
+#else
+static int dirchk = 0;
+#endif
+
+SYSCTL_NODE(_vfs, OID_AUTO, e2fs, CTLFLAG_RD, 0, "EXT2FS filesystem");
+SYSCTL_INT(_vfs_e2fs, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
+
 /* 
    DIRBLKSIZE in ffs is DEV_BSIZE (in most cases 512)
    while it is the native blocksize in ext2fs - thus, a #define
    is no longer appropriate
 */
 #undef  DIRBLKSIZ
-
-extern	int dirchk;
 
 static u_char ext2_ft_to_dt[] = {
 	DT_UNKNOWN,		/* EXT2_FT_UNKNOWN */
@@ -407,8 +415,8 @@ searchloop:
 		 * Get pointer to next entry.
 		 * Full validation checks are slow, so we only check
 		 * enough to insure forward progress through the
-		 * directory. Complete checks can be run by patching
-		 * "dirchk" to be true.
+		 * directory. Complete checks can be run by setting
+		 * "vfs.e2fs.dirchk" to be true.
 		 */
 		ep = (struct ext2_dir_entry_2 *)
 			((char *)bp->b_data + entryoffsetinblock);
