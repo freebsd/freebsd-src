@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.14 1995/01/10 07:32:48 davidg Exp $
+ *	$Id: vm_page.c,v 1.15 1995/01/10 09:19:46 davidg Exp $
  */
 
 /*
@@ -411,13 +411,13 @@ vm_page_insert(mem, object, offset)
 	simple_lock(&bucket_lock);
 	TAILQ_INSERT_TAIL(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
-	(void) splx(s);
 
 	/*
 	 * Now link into the object's list of backed pages.
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, mem, listq);
+	(void) splx(s);
 	mem->flags |= PG_TABLED;
 
 	/*
@@ -459,13 +459,13 @@ vm_page_remove(mem)
 	simple_lock(&bucket_lock);
 	TAILQ_REMOVE(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
-	(void) splx(s);
 
 	/*
 	 * Now remove from the object's list of backed pages.
 	 */
 
 	TAILQ_REMOVE(&mem->object->memq, mem, listq);
+	(void) splx(s);
 
 	/*
 	 * And show that the object has one fewer resident page.
