@@ -125,6 +125,14 @@ struct nlist nl[] = {
 	{ "_mfctable" },
 #define N_VIFTABLE	30
 	{ "_viftable" },
+#define N_IPX		31
+	{ "_ipxpcb"},
+#define N_IPXSTAT	32
+	{ "_ipxstat"},
+#define N_SPXSTAT	33
+	{ "_spx_istat"},
+#define N_IPXERR	34
+	{ "_ipx_errstat"},
 	"",
 };
 
@@ -146,6 +154,17 @@ struct protox {
 	  icmp_stats,	"icmp" },
 	{ -1,		N_IGMPSTAT,	1,	0,
 	  igmp_stats,	"igmp" },
+	{ -1,		-1,		0,	0,
+	  0,		0 }
+};
+
+struct protox ipxprotox[] = {
+	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
+	  ipx_stats,	"ipx" },
+	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
+	  spx_stats,	"spx" },
+	{ -1,		N_IPXERR,	1,	0,
+	  ipxerr_stats,	"ipx_err" },
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
@@ -174,7 +193,7 @@ struct protox isoprotox[] = {
 	  0,		0 }
 };
 
-struct protox *protoprotox[] = { protox, nsprotox, isoprotox, NULL };
+struct protox *protoprotox[] = { protox, ipxprotox, nsprotox, isoprotox, NULL };
 
 static void printproto __P((struct protox *, char *));
 static void usage __P((void));
@@ -221,6 +240,8 @@ main(argc, argv)
 		case 'f':
 			if (strcmp(optarg, "ns") == 0)
 				af = AF_NS;
+			else if (strcmp(optarg, "ipx") == 0)
+				af = AF_IPX;
 			else if (strcmp(optarg, "inet") == 0)
 				af = AF_INET;
 			else if (strcmp(optarg, "unix") == 0)
@@ -384,6 +405,9 @@ main(argc, argv)
 		}
 		endprotoent();
 	}
+	if (af == AF_IPX || af == AF_UNSPEC)
+		for (tp = ipxprotox; tp->pr_name; tp++)
+			printproto(tp, tp->pr_name);
 	if (af == AF_NS || af == AF_UNSPEC)
 		for (tp = nsprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);

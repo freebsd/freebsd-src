@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.205 1995/10/10 04:03:12 bde Exp $
+#	$Id: LINT,v 1.206 1995/10/25 16:43:01 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -128,6 +128,12 @@ options		UCONSOLE
 options		INET			#Internet communications protocols
 options		CCITT			#X.25 network layer
 options		NS			#Xerox NS communications protocols
+
+options		IPX			#IPX/SPX communications protocols
+options		IPXIP			#IPX in IP encapsulation (not available)
+options		IPTUNNEL		#IP in IPX encapsulation (not available)
+#options	"IPXPRINTFS=0"		#Console Debugging Information
+#options	"IPX_ERRPRINTFS=0"	#Console Debugging Information
 
 # These are currently broken and don't compile
 #options		ISO

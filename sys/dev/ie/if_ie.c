@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.26 1995/09/19 18:55:09 bde Exp $
+ *	$Id: if_ie.c,v 1.27 1995/10/13 19:47:47 wollman Exp $
  */
 
 /*
@@ -131,6 +131,11 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -1890,6 +1895,28 @@ ieioctl(ifp, command, data)
       arp_ifinit((struct arpcom *)ifp, ifa);
       break;
 #endif /* INET */
+
+#ifdef IPX
+      /* This magic copied from if_is.c; I don't use XNS, so I have no
+       * way of telling if this actually works or not.
+       */
+    case AF_IPX:
+      {
+	struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+
+	if(ipx_nullhost(*ina)) {
+	  ina->x_host = *(union ipx_host *)(ie->arpcom.ac_enaddr);
+	} else {
+	  ifp->if_flags &= ~IFF_RUNNING;
+	  bcopy((caddr_t)ina->x_host.c_host,
+		(caddr_t)ie->arpcom.ac_enaddr,
+		sizeof ie->arpcom.ac_enaddr);
+	}
+
+	ieinit(ifp->if_unit);
+      }
+      break;
+#endif /* IPX */
 
 #ifdef NS
       /* This magic copied from if_is.c; I don't use XNS, so I have no

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.4 1995/05/30 08:02:02 rgrimes Exp $
+ * $Id: if_eg.c,v 1.5 1995/10/13 19:47:42 wollman Exp $
  */
 
 /* To do:
@@ -56,6 +56,11 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -724,6 +729,23 @@ egioctl(ifp, command, data)
 			eginit(sc);
 			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
+#endif
+#ifdef IPX
+		case AF_IPX:
+		    {
+			register struct ipx_addr *ina = &IA_SIPX(ifa)->sipx_addr;
+
+			if (ipx_nullhost(*ina))
+				ina->x_host =
+				    *(union ipx_host *)(sc->sc_arpcom.ac_enaddr);
+			else
+				bcopy(ina->x_host.c_host,
+				    sc->sc_arpcom.ac_enaddr,
+				    sizeof(sc->sc_arpcom.ac_enaddr));
+			/* Set new address. */
+			eginit(sc);
+			break;
+		    }
 #endif
 #ifdef NS
 		case AF_NS:
