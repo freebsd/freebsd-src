@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.44 1998/03/30 09:50:23 phk Exp $
+ * $Id: kern_time.c,v 1.45 1998/04/04 13:25:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -536,12 +536,9 @@ setitimer(p, uap)
 	if (uap->which == ITIMER_REAL) {
 		if (timerisset(&p->p_realtimer.it_value))
 			untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-		if (timerisset(&aitv.it_value)) {
-			getmicrotime(&ctv);
-			timevaladd(&aitv.it_value, &ctv);
+		if (timerisset(&aitv.it_value)) 
 			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
-						hzto(&aitv.it_value));
-		}
+						tvtohz(&aitv.it_value));
 		p->p_realtimer = aitv;
 	} else
 		p->p_stats->p_timer[uap->which] = aitv;

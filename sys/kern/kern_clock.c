@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.62 1998/03/31 10:47:01 phk Exp $
+ * $Id: kern_clock.c,v 1.63 1998/04/04 13:25:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -532,7 +532,7 @@ microtime(struct timeval *tv)
 	    ((u_int64_t)tc->get_timedelta(tc) * tc->scale_micro) >> 32;
 	tv->tv_usec += boottime.tv_usec;
 	tv->tv_sec += boottime.tv_sec;
-	if (tv->tv_usec >= 1000000) {
+	while (tv->tv_usec >= 1000000) {
 		tv->tv_usec -= 1000000;
 		tv->tv_sec++;
 	}
@@ -554,7 +554,7 @@ nanotime(struct timespec *tv)
 	delta += ((u_int64_t)count * tc->scale_nano_i);
 	delta += boottime.tv_usec * 1000;
 	tv->tv_sec += boottime.tv_sec;
-	if (delta >= 1000000000) {
+	while (delta >= 1000000000) {
 		delta -= 1000000000;
 		tv->tv_sec++;
 	}
