@@ -39,12 +39,16 @@ show_file(const char *title, const char *fname)
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
-    if (!fp)
+    if (fp == (FILE *) NULL)
 	printf("ERROR: show_file: Can't open '%s' for reading!\n", fname);
     else {
+	int append_nl = 0;
 	while ((n = fread(line, 1, 1024, fp)) != 0)
 	    fwrite(line, 1, n, stdout);
 	fclose(fp);
+	append_nl = (line[n - 1] != '\n');	/* Do we have a trailing \n ? */
+	if (append_nl)
+	   printf("\n");
     }
     printf("\n");	/* just in case */
 }
@@ -55,20 +59,25 @@ show_index(const char *title, const char *fname)
     FILE *fp;
     char line[MAXINDEXSIZE+2];
 
+    strlcpy(line, "???\n", sizeof(line));
+
     if (!Quiet)
         printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
-    if (!fp) {
+    if (fp == (FILE *) NULL) {
         warnx("show_file: can't open '%s' for reading", fname);
-        return;
+    } else {
+    	if(fgets(line, MAXINDEXSIZE + 1, fp)) {
+		size_t line_length = strlen(line);
+
+		if (line[line_length - 1] != '\n') {	/* Do we have a trailing \n ? */
+			line[line_length] = '\n';	/* Add a trailing \n */
+			line[line_length + 1] = '\0';	/* Terminate string */
+		}
+	}
+	fclose(fp);
     }
-    if(fgets(line, MAXINDEXSIZE+1, fp)) {
-	if(line[MAXINDEXSIZE-1] != '\n')
-          line[MAXINDEXSIZE] = '\n';
-	line[MAXINDEXSIZE+1] = 0;
-	fputs(line, stdout);
-    }
-    fclose(fp);
+    fputs(line, stdout);
 }
 
 /* Show a packing list item type.  If showall is TRUE, show all */
