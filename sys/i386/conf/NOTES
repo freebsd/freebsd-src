@@ -892,6 +892,9 @@ options 	SPX_HACK
 # Enable Linux ABI emulation
 options 	COMPAT_LINUX
 
+# Enable i386 a.out binary support
+options 	COMPAT_AOUT
+
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
 options 	LINPROCFS
