@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 13:57:45 2001]
+ *      last edit-date: [Wed Dec 26 12:51:00 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -775,8 +775,11 @@ reopenfiles(int dummy)
 	{
 		/* close file */
 		
-	        fflush(acctfp);
-	        fclose(acctfp);
+		if(acctfp)
+		{
+		        fflush(acctfp);
+		        fclose(acctfp);
+		}
 
 	        /* if user specified a suffix, rename the old file */
 	        
