@@ -472,6 +472,12 @@
       <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
       been increased to 32K and 64K respectively.</para>
 
+      <para>TCP now supports RFC 1948 (Defending Against Sequence
+      Number Attacks).  This functionality is controlled by the 
+      <varname>net.inet.tcp.strict_rfc1948</varname> and
+      <varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
+      variables. &merged;</para>
+
       <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
       which is on by default, causes IP to verify that an incoming
       packet arrives on an interface that has an address matching the
