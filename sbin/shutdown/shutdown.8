@@ -172,6 +172,9 @@ created will be removed automatically.
 .It Pa /var/run/nologin
 tells login not to let anyone log in
 .El
+.Sh COMPATIBILITY
+The hours and minutes in the second time format may be separated by
+a colon (``:'') for backward compatibility.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr login 1 ,
@@ -180,9 +183,6 @@ tells login not to let anyone log in
 .Xr halt 8 ,
 .Xr init 8 ,
 .Xr reboot 8
-.Sh BACKWARD COMPATIBILITY
-The hours and minutes in the second time format may be separated by
-a colon (``:'') for backward compatibility.
 .Sh HISTORY
 The
 .Nm
