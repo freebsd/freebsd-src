@@ -64,8 +64,8 @@ static LIST_HEAD(nwnode_hash_head,nwnode) *nwhashtbl;
 static u_long nwnodehash;
 static struct lock nwhashlock;
 
-MALLOC_DEFINE(M_NWNODE, "NWFS node", "NWFS vnode private part");
-MALLOC_DEFINE(M_NWFSHASH, "NWFS hash", "NWFS has table");
+static MALLOC_DEFINE(M_NWNODE, "NWFS node", "NWFS vnode private part");
+static MALLOC_DEFINE(M_NWFSHASH, "NWFS hash", "NWFS has table");
 
 static int nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS);
 
@@ -100,7 +100,7 @@ nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
 		nhpp = &nwhashtbl[i];
 		LIST_FOREACH(np, nhpp, n_hash) {
 			vp = NWTOV(np);
-			vprint(NULL, vp);
+			vprint("", vp);
 			printf("%s:%d:%d:%d:%d\n",np->n_name,vrefcnt(vp),
 			    vp->v_holdcnt,np->n_fid.f_id, np->n_fid.f_parent);
 		}
