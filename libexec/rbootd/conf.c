@@ -1,3 +1,5 @@
+/*	$NetBSD: conf.c,v 1.5 1995/10/06 05:12:13 thorpej Exp $	*/
+
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -38,14 +40,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.c	8.1 (Berkeley) 6/4/93
+ *	from: @(#)conf.c	8.1 (Berkeley) 6/4/93
  *
- * Utah $Hdr: conf.c 3.1 92/07/06$
+ * From: Utah Hdr: conf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
+/*static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";*/
+static char rcsid[] = "$NetBSD: conf.c,v 1.5 1995/10/06 05:12:13 thorpej Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,9 +68,8 @@ static char sccsid[] = "@(#)conf.c	8.1 (Berkeley) 6/4/93";
 **	simplify the boot file search code.
 */
 
-char	*ProgName;				/* path-stripped argv[0] */
 char	MyHost[MAXHOSTNAMELEN+1];		/* host name */
-int	MyPid;					/* process id */
+pid_t	MyPid;					/* process id */
 int	DebugFlg = 0;				/* set true if debugging */
 int	BootAny = 0;				/* set true if we boot anyone */
 
@@ -80,11 +82,11 @@ char	*DbgFile = _PATH_RBOOTDDBG;		/* debug output file */
 FILE	*DbgFp = NULL;				/* debug file pointer */
 char	*IntfName = NULL;			/* intf we are attached to */
 
-u_short	SessionID = 0;				/* generated session ID */
+u_int16_t SessionID = 0;			/* generated session ID */
 
 char	*BootFiles[C_MAXFILE];			/* list of boot files */
 
 CLIENT	*Clients = NULL;			/* list of addrs we'll accept */
 RMPCONN	*RmpConns = NULL;			/* list of active connections */
 
-char	RmpMcastAddr[RMP_ADDRLEN] = RMP_ADDR;	/* RMP multicast address */
+u_int8_t RmpMcastAddr[RMP_ADDRLEN] = RMP_ADDR;	/* RMP multicast address */
