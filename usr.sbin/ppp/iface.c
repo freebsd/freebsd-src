@@ -94,7 +94,7 @@ bitsinmask(struct in_addr mask)
 struct iface *
 iface_Create(const char *name)
 {
-  int mib[6], s;
+  int mib[6], s, maxtries, err;
   size_t needed, namelen;
   char *buf, *ptr, *end;
   struct if_msghdr *ifm;
@@ -117,25 +117,34 @@ iface_Create(const char *name)
   mib[4] = NET_RT_IFLIST;
   mib[5] = 0;
 
-  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
-              strerror(errno));
-    close(s);
-    return NULL;
-  }
+  maxtries = 20;
+  err = 0;
+  do {
+    if (maxtries-- == 0 || (err && err != ENOMEM)) {
+      fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(err));
+      close(s);
+      return NULL;
+    }
 
-  if ((buf = (char *)malloc(needed)) == NULL) {
-    fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
-    close(s);
-    return NULL;
-  }
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+      fprintf(stderr, "iface_Create: sysctl: estimate: %s\n",
+                strerror(errno));
+      close(s);
+      return NULL;
+    }
 
-  if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
-    fprintf(stderr, "iface_Create: sysctl: %s\n", strerror(errno));
-    free(buf);
-    close(s);
-    return NULL;
-  }
+    if ((buf = (char *)malloc(needed)) == NULL) {
+      fprintf(stderr, "iface_Create: malloc failed: %s\n", strerror(errno));
+      close(s);
+      return NULL;
+    }
+
+    if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+      err = errno;
+      free(buf);
+      buf = NULL;
+    }
+  } while (buf == NULL);
 
   ptr = buf;
   end = buf + needed;
@@ -252,7 +261,7 @@ int
 iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
             struct in_addr brd, int how)
 {
-  int slot, s, chg;
+  int slot, s, chg, nochange;
   struct ifaliasreq ifra;
   struct sockaddr_in *me, *peer, *msk;
   struct iface_addr *addr;
@@ -274,12 +283,6 @@ iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
   }
   iface->in_addr = addr;
 
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    log_Printf(LogERROR, "iface_inAdd: socket(): %s\n", strerror(errno));
-    return 0;
-  }
-
   /*
    * We've gotta be careful here.  If we try to add an address with the
    * same destination as an existing interface, nothing will work.
@@ -288,9 +291,31 @@ iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
    * There *may* be more than one - if the user has ``iface add''ed
    * stuff previously.
    */
+  nochange = 0;
+  s = -1;
   for (chg = 0; chg < iface->in_addrs; chg++) {
     if ((iface->in_addr[chg].brd.s_addr == brd.s_addr &&
          brd.s_addr != INADDR_BROADCAST) || chg == slot) {
+      /*
+       * If we've found an entry that exactly matches what we want to add,
+       * don't remove it and then add it again.  If we do, it's possible
+       * that the kernel will (correctly) ``tidy up'' any routes that use
+       * the IP number as a destination.
+       */
+      if (chg == slot && iface->in_addr[chg].mask.s_addr == mask.s_addr) {
+        if (brd.s_addr == iface->in_addr[slot].brd.s_addr)
+          nochange = 1;
+        /*
+         * If only the destination address has changed, the SIOCAIFADDR
+         * we do after the current loop will change it.
+         */
+        continue;
+      }
+      if (s == -1 && (s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        log_Printf(LogERROR, "iface_inAdd: socket(): %s\n", strerror(errno));
+        return 0;
+      }
+
       memset(&ifra, '\0', sizeof ifra);
       strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
       me = (struct sockaddr_in *)&ifra.ifra_addr;
@@ -325,35 +350,43 @@ iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
     }
   }
 
-  memset(&ifra, '\0', sizeof ifra);
-  strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
-  me = (struct sockaddr_in *)&ifra.ifra_addr;
-  msk = (struct sockaddr_in *)&ifra.ifra_mask;
-  peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-  me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
-  me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
-  me->sin_addr = ifa;
-  msk->sin_addr = mask;
-  peer->sin_addr = brd;
+  if (!nochange) {
+    if (s == -1 && (s = ID0socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+      log_Printf(LogERROR, "iface_inAdd: socket(): %s\n", strerror(errno));
+      return 0;
+    }
+    memset(&ifra, '\0', sizeof ifra);
+    strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
+    me = (struct sockaddr_in *)&ifra.ifra_addr;
+    msk = (struct sockaddr_in *)&ifra.ifra_mask;
+    peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+    me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
+    me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
+    me->sin_addr = ifa;
+    msk->sin_addr = mask;
+    peer->sin_addr = brd;
 
-  if (log_IsKept(LogDEBUG)) {
-    char buf[16];
+    if (log_IsKept(LogDEBUG)) {
+      char buf[16];
 
-    strncpy(buf, inet_ntoa(brd), sizeof buf-1);
-    buf[sizeof buf - 1] = '\0';
-    log_Printf(LogDEBUG, "Add %s -> %s\n", inet_ntoa(ifa), buf);
+      strncpy(buf, inet_ntoa(brd), sizeof buf-1);
+      buf[sizeof buf - 1] = '\0';
+      log_Printf(LogDEBUG, "Add %s -> %s\n", inet_ntoa(ifa), buf);
+    }
+
+    /* An EEXIST failure w/ brd == INADDR_BROADCAST is ok (and works!) */
+    if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 &&
+        (brd.s_addr != INADDR_BROADCAST || errno != EEXIST)) {
+      log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
+                 inet_ntoa(ifa), strerror(errno));
+      ID0ioctl(s, SIOCDIFADDR, &ifra);	/* EEXIST ? */
+      close(s);
+      return 0;
+    }
   }
 
-  /* An EEXIST failure w/ brd == INADDR_BROADCAST is ok (and works!) */
-  if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 &&
-      (brd.s_addr != INADDR_BROADCAST || errno != EEXIST)) {
-    log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
-               inet_ntoa(ifa), strerror(errno));
-    ID0ioctl(s, SIOCDIFADDR, &ifra);	/* EEXIST ? */
+  if (s != -1)
     close(s);
-    return 0;
-  }
-  close(s);
 
   if (slot == iface->in_addrs) {
     /* We're adding a new interface address */

@@ -162,7 +162,15 @@ static void
 BringDownServer(int signo)
 {
   /* Drops all child prompts too ! */
-  server_Close(SignalBundle);
+  if (server_Close(SignalBundle))
+    log_Printf(LogPHASE, "Closed server socket\n");
+}
+
+static void
+RestartServer(int signo)
+{
+  /* Drops all child prompts and re-opens the socket */
+  server_Reopen(SignalBundle);
 }
 
 static void
@@ -319,7 +327,7 @@ main(int argc, char **argv)
   if (ID0realuid() != 0) {
     char conf[200], *ptr;
 
-    snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
+    snprintf(conf, sizeof conf, "%s/%s", PPP_CONFDIR, CONFFILE);
     do {
       struct stat sb;
 
@@ -371,6 +379,7 @@ main(int argc, char **argv)
   if (sw.mode == PHYS_INTERACTIVE)
     sig_signal(SIGTSTP, TerminalStop);
 
+  sig_signal(SIGUSR1, RestartServer);
   sig_signal(SIGUSR2, BringDownServer);
 
   lastlabel = argv[argc - 1];
@@ -425,8 +434,10 @@ main(int argc, char **argv)
             while ((ret = read(bgpipe[0], &c, 1)) == 1) {
               switch (c) {
                 case EX_NORMAL:
-	          prompt_Printf(prompt, "PPP enabled\n");
-	          log_Printf(LogPHASE, "Parent: PPP enabled\n");
+                  if (!sw.quiet) {
+	            prompt_Printf(prompt, "PPP enabled\n");
+	            log_Printf(LogPHASE, "Parent: PPP enabled\n");
+                  }
 	          break;
                 case EX_REDIAL:
                   if (!sw.quiet)

@@ -45,7 +45,7 @@ OpenSecret(const char *file)
   FILE *fp;
   char line[100];
 
-  snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
+  snprintf(line, sizeof line, "%s/%s", PPP_CONFDIR, file);
   fp = ID0fopen(line, "r");
   if (fp == NULL)
     log_Printf(LogWARN, "OpenSecret: Can't open %s.\n", line);
@@ -313,7 +313,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   char *cp;
   int n, len;
   char line[LINE_LEN];
-  char filename[MAXPATHLEN];
+  char filename[PATH_MAX];
   int linenum;
   int argc;
   char *argv[MAXARGS];
@@ -325,7 +325,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   if (*file == '/')
     snprintf(filename, sizeof filename, "%s", file);
   else
-    snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
+    snprintf(filename, sizeof filename, "%s/%s", PPP_CONFDIR, file);
   fp = ID0fopen(filename, "r");
   if (fp == NULL) {
     log_Printf(LogDEBUG, "ReadSystem: Can't open %s.\n", filename);
@@ -448,7 +448,7 @@ system_IsValid(const char *name, struct prompt *prompt, int mode)
       return "Configuration label not found";
 
     if (rs == -2)
-      return _PATH_PPP "/" CONFFILE ": File not found";
+      return PPP_CONFDIR "/" CONFFILE " : File not found";
   }
 
   if (userok == -1)

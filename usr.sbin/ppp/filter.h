@@ -30,10 +30,11 @@
 #endif
 #define	P_IGMP	5
 #ifdef IPPROTO_GRE
-#define P_GRE   6
+#define P_GRE	6
 #endif
-#define P_ESP   7
-#define P_AH    8
+#define P_ESP	7
+#define P_AH	8
+#define P_IPIP	9
 
 /* Operations - f_srcop, f_dstop */
 #define	OP_NONE	0

@@ -279,11 +279,16 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
             estab = syn = finrst = -1;
             sport = ntohs(0);
             break;
-          case IPPROTO_UDP:
           case IPPROTO_IPIP:
+            cproto = P_IPIP;
+            sport = dport = 0;
+            estab = syn = finrst = -1;
+            break;
+          case IPPROTO_UDP:
             cproto = P_UDP;
             if (datalen < 8) {	/* UDP header is 8 octets */
-              log_Printf(LogFILTER, " error: UDP must be at least 8 octets\n");
+              log_Printf(LogFILTER, " error: UDP/IPIP"
+                         " must be at least 8 octets\n");
               return 1;
             }
 
@@ -465,19 +470,19 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
 
   if (header.opcode == OPCODE_QUERY && header.qr == 0) {
     /* rfc1035 */
-    char name[MAXHOSTNAMELEN + 1], *n;
+    char namewithdot[MAXHOSTNAMELEN + 1], *n;
     const char *qtype, *qclass;
     const u_char *end;
 
-    n = name;
+    n = namewithdot;
     end = ptr + len - 4;
-    if (end - ptr > MAXHOSTNAMELEN)
-      end = ptr + MAXHOSTNAMELEN;
+    if (end - ptr >= sizeof namewithdot)
+      end = ptr + sizeof namewithdot - 1;
     while (ptr < end) {
       len = *ptr++;
       if (len > end - ptr)
         len = end - ptr;
-      if (n != name)
+      if (n != namewithdot)
         *n++ = '.';
       memcpy(n, ptr, len);
       ptr += len;
@@ -488,7 +493,7 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
     qclass = dns_Qclass2Txt(ntohs(*(const u_short *)(end + 2)));
 
     log_Printf(LogDNS, "%sbound query %s %s %s\n",
-               direction, qclass, qtype, name);
+               direction, qclass, qtype, namewithdot);
   }
 }
 
@@ -635,14 +640,20 @@ PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
 
   case IPPROTO_IPIP:
     if (logit && loglen < sizeof logbuf) {
-      uh = (struct udphdr *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-               "IPIP: %s:%d ---> ", inet_ntoa(pip->ip_src),
-               ntohs(uh->uh_sport));
+               "IPIP: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+               "%s", inet_ntoa(pip->ip_dst));
       loglen += strlen(logbuf + loglen);
+
+      if (((struct ip *)ptop)->ip_v == 4) {
+        snprintf(logbuf + loglen, sizeof logbuf - loglen, " contains ");
+        result = PacketCheck(bundle, ptop, nb - (ptop - cp), filter,
+                             logbuf, psecs);
+        if (result != -2)
+          return result;
+      }
     }
     break;
 

@@ -315,17 +315,17 @@ physical_Lock(struct physical *p)
 static void
 physical_Unlock(struct physical *p)
 {
-  char fn[MAXPATHLEN];
   if (*p->name.full == '/' && p->type != PHYS_DIRECT &&
       ID0uu_unlock(p->name.base) == -1)
-    log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name, fn);
+    log_Printf(LogALERT, "%s: Can't uu_unlock %s\n", p->link.name,
+               p->name.base);
 }
 
 void
 physical_Close(struct physical *p)
 {
   int newsid;
-  char fn[MAXPATHLEN];
+  char fn[PATH_MAX];
 
   if (p->fd < 0)
     return;
@@ -951,7 +951,7 @@ static void
 physical_Found(struct physical *p)
 {
   FILE *lockfile;
-  char fn[MAXPATHLEN];
+  char fn[PATH_MAX];
 
   if (*p->name.full == '/') {
     snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, p->name.base);
