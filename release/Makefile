@@ -206,7 +206,8 @@ K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
-FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
+FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
+		lib/libfetch usr.bin/fetch
 .if !defined(NO_SENDMAIL)
 FIXCRYPTO+=	usr.sbin/sendmail
 .endif
