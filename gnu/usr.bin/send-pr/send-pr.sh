@@ -58,8 +58,8 @@ GNATS_SITE=freefall
 # host-dependent.
 MAIL_AGENT="${MAIL_AGENT:-/usr/sbin/sendmail -oi -t}"
 
-# How to read the passwd database.
-PASSWD="cat /etc/passwd"
+# Path to pw(8)
+PW="/usr/sbin/pw"
 
 ECHON=bsd
 
@@ -97,7 +97,7 @@ else
   PTEMP=`mktemp -t p` || exit 1
   # Must use temp file due to incompatibilities in quoting behavior
   # and to protect shell metacharacters in the expansion of $LOGNAME
-  $PASSWD | grep "^$LOGNAME:" | awk -F: '{print $5}' | sed -e 's/,.*//' > $PTEMP
+  $PW usershow $LOGNAME | awk -F: '{ print $8 }' | sed -e 's/,.*//' > $PTEMP
   ORIGINATOR="`cat $PTEMP`"
   rm -f $PTEMP
 fi
