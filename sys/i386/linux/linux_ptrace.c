@@ -31,23 +31,19 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
-#include <sys/user.h>
+#include <sys/systm.h>
 
 #include <machine/md_var.h>
-#include <machine/npx.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
-#include <compat/linux/linux_util.h>
 
 #if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
