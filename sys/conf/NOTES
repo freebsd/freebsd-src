@@ -1830,6 +1830,7 @@ hint.pca.0.port="0x040"
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
+# pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
@@ -1951,7 +1952,7 @@ hint.spigot.0.irq="15"
 hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
-device		pmtimer
+device		pmtimer			# Adjust system timer at wakeup time
 hint.pmtimer.0.at="isa"
 device		gp
 hint.gp.0.at="isa"
