@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.11 1996/05/30 02:19:43 pst Exp $
+**  $Id: ncrcontrol.c,v 1.12 1996/10/25 15:36:42 bde Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -403,7 +403,7 @@ do_info(void)
 				} else {
 					printf ("   ?");
 				}
-			} else printf ("                                                        ");
+			} else printf ("%42s", "");
 
 			if (!tip->lp[l]) {
 				printf ("   no\n");
