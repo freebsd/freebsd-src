@@ -221,7 +221,7 @@ VarCmp (v, name)
  *
  * Results:
  *	A pointer to the structure describing the desired variable or
- *	NIL if the variable does not exist.
+ *	NULL if the variable does not exist.
  *
  * Side Effects:
  *	None
@@ -283,7 +283,7 @@ VarFind (name, ctxt, flags)
      * the -E flag to use environment-variable-override for.
      */
     if (Lst_Find (envFirstVars, (ClientData)name,
-		  (int (*)(ClientData, ClientData)) strcmp) != NILLNODE)
+		  (int (*)(ClientData, ClientData)) strcmp) != NULL)
     {
 	localCheckEnvFirst = TRUE;
     } else {
@@ -297,15 +297,15 @@ VarFind (name, ctxt, flags)
      */
     var = Lst_Find (ctxt->context, (ClientData)name, VarCmp);
 
-    if ((var == NILLNODE) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
+    if ((var == NULL) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
 	var = Lst_Find (VAR_CMD->context, (ClientData)name, VarCmp);
     }
-    if ((var == NILLNODE) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
+    if ((var == NULL) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
 	!checkEnvFirst && !localCheckEnvFirst)
     {
 	var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
     }
-    if ((var == NILLNODE) && (flags & FIND_ENV)) {
+    if ((var == NULL) && (flags & FIND_ENV)) {
 	char *env;
 
 	if ((env = getenv (name)) != NULL) {
@@ -325,16 +325,16 @@ VarFind (name, ctxt, flags)
 		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
 	{
 	    var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
-	    if (var == NILLNODE) {
-		return ((Var *) NIL);
+	    if (var == NULL) {
+		return ((Var *) NULL);
 	    } else {
 		return ((Var *)Lst_Datum(var));
 	    }
 	} else {
-	    return((Var *)NIL);
+	    return((Var *)NULL);
 	}
-    } else if (var == NILLNODE) {
-	return ((Var *) NIL);
+    } else if (var == NULL) {
+	return ((Var *) NULL);
     } else {
 	return ((Var *) Lst_Datum (var));
     }
@@ -429,7 +429,7 @@ Var_Delete(name, ctxt)
 	printf("%s:delete %s\n", ctxt->name, name);
     }
     ln = Lst_Find(ctxt->context, (ClientData)name, VarCmp);
-    if (ln != NILLNODE) {
+    if (ln != NULL) {
 	register Var 	  *v;
 
 	v = (Var *)Lst_Datum(ln);
@@ -475,7 +475,7 @@ Var_Set (name, val, ctxt)
      * point in searching them all just to save a bit of memory...
      */
     v = VarFind (name, ctxt, 0);
-    if (v == (Var *) NIL) {
+    if (v == (Var *) NULL) {
 	VarAdd (name, val, ctxt);
     } else {
 	Buf_Discard(v->val, Buf_Size(v->val));
@@ -526,7 +526,7 @@ Var_Append (name, val, ctxt)
 
     v = VarFind (name, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
 
-    if (v == (Var *) NIL) {
+    if (v == (Var *) NULL) {
 	VarAdd (name, val, ctxt);
     } else {
 	Buf_AddByte(v->val, (Byte)' ');
@@ -572,7 +572,7 @@ Var_Exists(name, ctxt)
 
     v = VarFind(name, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
 
-    if (v == (Var *)NIL) {
+    if (v == (Var *)NULL) {
 	return(FALSE);
     } else if (v->flags & VAR_FROM_ENV) {
 	free(v->name);
@@ -604,7 +604,7 @@ Var_Value (name, ctxt, frp)
 
     v = VarFind (name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
     *frp = NULL;
-    if (v != (Var *) NIL) {
+    if (v != (Var *) NULL) {
 	char *p = ((char *)Buf_GetAll(v->val, (int *)NULL));
 	if (v->flags & VAR_FROM_ENV) {
 	    Buf_Destroy(v->val, FALSE);
@@ -1494,7 +1494,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	name[1] = '\0';
 
 	v = VarFind (name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-	if (v == (Var *)NIL) {
+	if (v == (Var *)NULL) {
 	    *lengthPtr = 2;
 
 	    if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
@@ -1574,7 +1574,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	vlen = strlen(str);
 
 	v = VarFind (str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-	if ((v == (Var *)NIL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
+	if ((v == (Var *)NULL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
 	{
 	    /*
@@ -1599,7 +1599,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    vname[1] = '\0';
 		    v = VarFind(vname, ctxt, 0);
 
-		    if (v != (Var *)NIL) {
+		    if (v != (Var *)NULL) {
 			/*
 			 * No need for nested expansion or anything, as we're
 			 * the only one who sets these things and we sure don't
@@ -1627,7 +1627,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    }
 	}
 
-	if (v == (Var *)NIL) {
+	if (v == (Var *)NULL) {
 	    if (((vlen == 1) ||
 		 (((vlen == 2) && (str[1] == 'F' ||
 					 str[1] == 'D')))) &&

@@ -69,8 +69,8 @@ Lst_Init(circ)
 
     PAlloc (nList, List);
 
-    nList->firstPtr = NilListNode;
-    nList->lastPtr = NilListNode;
+    nList->firstPtr = NULL;
+    nList->lastPtr = NULL;
     nList->isOpen = FALSE;
     nList->isCirc = circ;
     nList->atEnd = Unknown;

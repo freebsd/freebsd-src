@@ -128,8 +128,8 @@ void 	List_Move();    /* move an element elsewhere in a list */
  * ----------------------------------------------------------------------------
  */
 #define List_InitElement(elementPtr) \
-    (elementPtr)->prevPtr = (List_Links *) NIL; \
-    (elementPtr)->nextPtr = (List_Links *) NIL;
+    (elementPtr)->prevPtr = (List_Links *) NULL; \
+    (elementPtr)->nextPtr = (List_Links *) NULL;
 
 /*
  * Macros for stepping through or selecting parts of lists

@@ -322,7 +322,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		 */
 		gn = Targ_FindNode(buf, TARG_CREATE);
 
-		if (gn == NILGNODE) {
+		if (gn == NULL) {
 		    free(buf);
 		    return(FAILURE);
 		} else {
@@ -358,7 +358,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		snprintf(nameBuf, sz, "%s(%s)", libName, member);
 		free(member);
 		gn = Targ_FindNode (nameBuf, TARG_CREATE);
-		if (gn == NILGNODE) {
+		if (gn == NULL) {
 		    free(nameBuf);
 		    return (FAILURE);
 		} else {
@@ -381,7 +381,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    snprintf(nameBuf, sz, "%s(%s)", libName, memName);
 	    gn = Targ_FindNode (nameBuf, TARG_CREATE);
 	    free(nameBuf);
-	    if (gn == NILGNODE) {
+	    if (gn == NULL) {
 		return (FAILURE);
 	    } else {
 		/*
@@ -492,7 +492,7 @@ ArchStatMember (archive, member, hash)
 	member = cp + 1;
 
     ln = Lst_Find (archives, (ClientData) archive, ArchFindArchive);
-    if (ln != NILLNODE) {
+    if (ln != NULL) {
 	ar = (Arch *) Lst_Datum (ln);
 
 	he = Hash_FindEntry (&ar->members, member);
@@ -1051,7 +1051,7 @@ Arch_MemMTime (gn)
 	gn->mtime = 0;
 	return (0);
     }
-    while ((ln = Lst_Next (gn->parents)) != NILLNODE) {
+    while ((ln = Lst_Next (gn->parents)) != NULL) {
 	pgn = (GNode *) Lst_Datum (ln);
 
 	if (pgn->type & OP_ARCHV) {

@@ -57,8 +57,8 @@ Lst_Member (l, d)
     register ListNode	lNode;
 
     lNode = list->firstPtr;
-    if (lNode == NilListNode) {
-	return NILLNODE;
+    if (lNode == NULL) {
+	return NULL;
     }
 
     do {
@@ -66,7 +66,7 @@ Lst_Member (l, d)
 	    return (LstNode)lNode;
 	}
 	lNode = lNode->nextPtr;
-    } while (lNode != NilListNode && lNode != list->firstPtr);
+    } while (lNode != NULL && lNode != list->firstPtr);
 
-    return NILLNODE;
+    return NULL;
 }

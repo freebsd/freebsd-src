@@ -67,8 +67,8 @@ LstNode
 Lst_Succ (ln)
     LstNode	ln;
 {
-    if (ln == NILLNODE) {
-	return (NILLNODE);
+    if (ln == NULL) {
+	return (NULL);
     } else {
 	return ((LstNode) ((ListNode) ln)->nextPtr);
     }

@@ -54,7 +54,7 @@ __RCSID("$FreeBSD$");
  *	Return the datum stored in the given node.
  *
  * Results:
- *	The datum or (ick!) NIL if the node is invalid.
+ *	The datum or (ick!) NULL if the node is invalid.
  *
  * Side Effects:
  *	None.
@@ -65,10 +65,10 @@ ClientData
 Lst_Datum (ln)
     LstNode	ln;
 {
-    if (ln != NILLNODE) {
+    if (ln != NULL) {
 	return (((ListNode)ln)->datum);
     } else {
-	return ((ClientData) NIL);
+	return ((ClientData) NULL);
     }
 }
 

@@ -183,7 +183,7 @@ static ParseSpecial specType;
 static int waiting;
 
 /*
- * Predecessor node for handling .ORDER. Initialized to NILGNODE when .ORDER
+ * Predecessor node for handling .ORDER. Initialized to NULL when .ORDER
  * seen, then set to each successive source on the line.
  */
 static GNode	*predecessor;
@@ -365,7 +365,7 @@ ParseLinkSrc (pgnp, cgnp)
 {
     GNode          *pgn = (GNode *) pgnp;
     GNode          *cgn = (GNode *) cgnp;
-    if (Lst_Member (pgn->children, (ClientData)cgn) == NILLNODE) {
+    if (Lst_Member (pgn->children, (ClientData)cgn) == NULL) {
 	(void)Lst_AtEnd (pgn->children, (ClientData)cgn);
 	if (specType == Not) {
 	    (void)Lst_AtEnd (cgn->parents, (ClientData)pgn);
@@ -556,7 +556,7 @@ ParseDoSrc (tOp, src, allsrc)
 	 * source and the current one.
 	 */
 	gn = Targ_FindNode(src, TARG_CREATE);
-	if (predecessor != NILGNODE) {
+	if (predecessor != NULL) {
 	    (void)Lst_AtEnd(predecessor->successors, (ClientData)gn);
 	    (void)Lst_AtEnd(gn->preds, (ClientData)predecessor);
 	}
@@ -588,7 +588,7 @@ ParseDoSrc (tOp, src, allsrc)
 	    register GNode  	*cohort;
 	    register LstNode	ln;
 
-	    for (ln=Lst_First(gn->cohorts); ln != NILLNODE; ln = Lst_Succ(ln)){
+	    for (ln=Lst_First(gn->cohorts); ln != NULL; ln = Lst_Succ(ln)){
 		cohort = (GNode *)Lst_Datum(ln);
 		if (tOp) {
 		    cohort->type |= tOp;
@@ -843,7 +843,7 @@ ParseDoDependency (line)
 		 *			main target.
 		 *  	.NOTPARALLEL	Make only one target at a time.
 		 *  	.SINGLESHELL	Create a shell for each command.
-		 *  	.ORDER	    	Must set initial predecessor to NIL
+		 *  	.ORDER	    	Must set initial predecessor to NULL
 		 */
 		switch (specType) {
 		    case ExPath:
@@ -881,7 +881,7 @@ ParseDoDependency (line)
 			compatMake = 1;
 			break;
 		    case Order:
-			predecessor = NILGNODE;
+			predecessor = NULL;
 			break;
 		    default:
 			break;
@@ -896,7 +896,7 @@ ParseDoDependency (line)
 
 		specType = ExPath;
 		path = Suff_GetPath (&line[5]);
-		if (path == NILLST) {
+		if (path == NULL) {
 		    Parse_Error (PARSE_FATAL,
 				 "Suffix '%s' not defined (yet)",
 				 &line[5]);
@@ -1204,7 +1204,7 @@ ParseDoDependency (line)
 	}
     }
 
-    if (mainNode == NILGNODE) {
+    if (mainNode == NULL) {
 	/*
 	 * If we have yet to decide on a main target to make, in the
 	 * absence of any user input, we want the first target on
@@ -2578,7 +2578,7 @@ Parse_File(name, stream)
 void
 Parse_Init ()
 {
-    mainNode = NILGNODE;
+    mainNode = NULL;
     parseIncPath = Lst_Init (FALSE);
     sysIncPath = Lst_Init (FALSE);
     includes = Lst_Init (FALSE);
@@ -2618,7 +2618,7 @@ Parse_MainName()
 
     listmain = Lst_Init (FALSE);
 
-    if (mainNode == NILGNODE) {
+    if (mainNode == NULL) {
 	Punt ("no target to make.");
     	/*NOTREACHED*/
     } else if (mainNode->type & OP_DOUBLEDEP) {

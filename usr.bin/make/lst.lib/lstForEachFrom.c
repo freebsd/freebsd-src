@@ -101,7 +101,7 @@ Lst_ForEachFrom (l, ln, proc, d)
 	 *    doesn't exist.
 	 */
 	done = (next == tln->nextPtr &&
-		(next == NilListNode || next == list->firstPtr));
+		(next == NULL || next == list->firstPtr));
 
 	next = tln->nextPtr;
 

@@ -969,7 +969,7 @@ JobFinish(job, status)
 	 * the parents. In addition, any saved commands for the node are placed
 	 * on the .END target.
 	 */
-	if (job->tailCmds != NILLNODE) {
+	if (job->tailCmds != NULL) {
 	    Lst_ForEachFrom(job->node->commands, job->tailCmds,
 			     JobSaveCommand,
 			    (ClientData)job->node);
@@ -1101,7 +1101,7 @@ Job_CheckCommands(gn, abortProc)
 	 * No commands. Look for .DEFAULT rule from which we might infer
 	 * commands
 	 */
-	if ((DEFAULT != NILGNODE) && !Lst_IsEmpty(DEFAULT->commands)) {
+	if ((DEFAULT != NULL) && !Lst_IsEmpty(DEFAULT->commands)) {
 	    char *p1;
 	    /*
 	     * Make only looks for a .DEFAULT if the node was never the
@@ -1687,7 +1687,7 @@ JobStart(gn, flags, previous)
     }
 
     job->node = gn;
-    job->tailCmds = NILLNODE;
+    job->tailCmds = NULL;
 
     /*
      * Set the initial value of the flags for this job based on the global
@@ -1762,7 +1762,7 @@ JobStart(gn, flags, previous)
 	    } else {
 		LstNode	ln = Lst_Next(gn->commands);
 
-		if ((ln == NILLNODE) ||
+		if ((ln == NULL) ||
 		    JobPrintCommand((ClientData) Lst_Datum(ln),
 				    (ClientData) job))
 		{
@@ -1853,7 +1853,7 @@ JobStart(gn, flags, previous)
 	 */
 	if (cmdsOK) {
 	    if (aborting == 0) {
-		if (job->tailCmds != NILLNODE) {
+		if (job->tailCmds != NULL) {
 		    Lst_ForEachFrom(job->node->commands, job->tailCmds,
 				    JobSaveCommand,
 				   (ClientData)job->node);
@@ -2254,10 +2254,10 @@ Job_CatchChildren(block)
 
 	jnode = Lst_Find(jobs, (ClientData)&pid, JobCmpPid);
 
-	if (jnode == NILLNODE) {
+	if (jnode == NULL) {
 	    if (WIFSIGNALED(status) && (WTERMSIG(status) == SIGCONT)) {
 		jnode = Lst_Find(stoppedJobs, (ClientData) &pid, JobCmpPid);
-		if (jnode == NILLNODE) {
+		if (jnode == NULL) {
 		    Error("Resumed child (%d) not in table", pid);
 		    continue;
 		}
@@ -2358,7 +2358,7 @@ Job_CatchOutput()
 	    if (Lst_Open(jobs) == FAILURE) {
 		Punt("Cannot open job table");
 	    }
-	    while (nfds && (ln = Lst_Next(jobs)) != NILLNODE) {
+	    while (nfds && (ln = Lst_Next(jobs)) != NULL) {
 		job = (Job *) Lst_Datum(ln);
 		if (FD_ISSET(job->inPipe, &readfds)) {
 		    JobDoOutput(job, FALSE);
@@ -2424,7 +2424,7 @@ Job_Init(maxproc, maxlocal)
     aborting = 	  0;
     errors = 	  0;
 
-    lastNode =	  NILGNODE;
+    lastNode =	  NULL;
 
     if (maxJobs == 1 || beVerbose == 0
 #ifdef REMOTE
@@ -2498,7 +2498,7 @@ Job_Init(maxproc, maxlocal)
 
     begin = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 
-    if (begin != NILGNODE) {
+    if (begin != NULL) {
 	JobStart(begin, JOB_SPECIAL, (Job *)0);
 	while (nJobs) {
 	    Job_CatchOutput();
@@ -2793,7 +2793,7 @@ JobInterrupt(runINTERRUPT, signo)
     aborting = ABORT_INTERRUPT;
 
    (void) Lst_Open(jobs);
-    while ((ln = Lst_Next(jobs)) != NILLNODE) {
+    while ((ln = Lst_Next(jobs)) != NULL) {
 	job = (Job *) Lst_Datum(ln);
 
 	if (!Targ_Precious(job->node)) {
@@ -2838,7 +2838,7 @@ JobInterrupt(runINTERRUPT, signo)
 
 #ifdef REMOTE
    (void)Lst_Open(stoppedJobs);
-    while ((ln = Lst_Next(stoppedJobs)) != NILLNODE) {
+    while ((ln = Lst_Next(stoppedJobs)) != NULL) {
 	job = (Job *) Lst_Datum(ln);
 
 	if (job->flags & JOB_RESTART) {
@@ -2899,7 +2899,7 @@ JobInterrupt(runINTERRUPT, signo)
 
     if (runINTERRUPT && !touchFlag) {
 	interrupt = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
-	if (interrupt != NILGNODE) {
+	if (interrupt != NULL) {
 	    ignoreErrors = FALSE;
 
 	    JobStart(interrupt, JOB_IGNDOTS, (Job *)0);
@@ -2926,7 +2926,7 @@ JobInterrupt(runINTERRUPT, signo)
 int
 Job_End()
 {
-    if (postCommands != NILGNODE && !Lst_IsEmpty(postCommands->commands)) {
+    if (postCommands != NULL && !Lst_IsEmpty(postCommands->commands)) {
 	if (errors) {
 	    Error("Errors reported so .END ignored");
 	} else {
@@ -2996,7 +2996,7 @@ Job_AbortAll()
     if (nJobs) {
 
 	(void) Lst_Open(jobs);
-	while ((ln = Lst_Next(jobs)) != NILLNODE) {
+	while ((ln = Lst_Next(jobs)) != NULL) {
 	    job = (Job *) Lst_Datum(ln);
 
 	    /*
@@ -3053,9 +3053,9 @@ JobFlagForMigration(hostID)
     }
     jnode = Lst_Find(jobs, (ClientData)hostID, JobCmpRmtID);
 
-    if (jnode == NILLNODE) {
+    if (jnode == NULL) {
 	jnode = Lst_Find(stoppedJobs, (ClientData)hostID, JobCmpRmtID);
-		if (jnode == NILLNODE) {
+		if (jnode == NULL) {
 		    if (DEBUG(JOB)) {
 			Error("Evicting host(%d) not in table", hostID);
 		    }

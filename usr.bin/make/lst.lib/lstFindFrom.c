@@ -56,7 +56,7 @@ __RCSID("$FreeBSD$");
  *	determine when it has been found.
  *
  * Results:
- *	The found node or NILLNODE
+ *	The found node or NULL
  *
  * Side Effects:
  *	None.
@@ -74,7 +74,7 @@ Lst_FindFrom (l, ln, d, cProc)
     Boolean		found = FALSE;
 
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
-	return (NILLNODE);
+	return (NULL);
     }
 
     tln = (ListNode)ln;
@@ -86,12 +86,12 @@ Lst_FindFrom (l, ln, d, cProc)
 	} else {
 	    tln = tln->nextPtr;
 	}
-    } while (tln != (ListNode)ln && tln != NilListNode);
+    } while (tln != (ListNode)ln && tln != NULL);
 
     if (found) {
 	return ((LstNode)tln);
     } else {
-	return (NILLNODE);
+	return (NULL);
     }
 }
 
