@@ -424,7 +424,7 @@ hints.ai_family = PF_UNSPEC;
 hints.ai_socktype = SOCK_STREAM;
 error = getaddrinfo("www.kame.net", "http", &hints, &res0);
 if (error) {
-	err1(1, "%s", gai_strerror(error));
+	errx(1, "%s", gai_strerror(error));
 	/*NOTREACHED*/
 }
 s = -1;
@@ -468,7 +468,7 @@ hints.ai_socktype = SOCK_STREAM;
 hints.ai_flags = AI_PASSIVE;
 error = getaddrinfo(NULL, "http", &hints, &res0);
 if (error) {
-	err1(1, "%s", gai_strerror(error));
+	errx(1, "%s", gai_strerror(error));
 	/*NOTREACHED*/
 }
 nsock = 0;
