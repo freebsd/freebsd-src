@@ -545,7 +545,8 @@ show_ipfw(struct ip_fw *chain)
 		for (i = 0; i < IP_FW_ICMPTYPES_DIM; ++i)
 			for (j = 0; j < sizeof(unsigned) * 8; ++j)
 				if (chain->fw_uar.fw_icmptypes[i] & (1 << j)) {
-					printf("%c%d", first ? ' ' : ',', i);
+					printf("%c%d", first ? ' ' : ',',
+					    i * sizeof(unsigned) * 8 + j);
 					first = 0;
 				}
 	}
