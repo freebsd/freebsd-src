@@ -115,8 +115,9 @@ display(fd, pw)
 #endif /* YP */
 		(void)fprintf(fp, "Login: %s\n", pw->pw_name);
 		(void)fprintf(fp, "Password: %s\n", pw->pw_passwd);
-		(void)fprintf(fp, "Uid [#]: %d\n", pw->pw_uid);
-		(void)fprintf(fp, "Gid [# or name]: %d\n", pw->pw_gid);
+		(void)fprintf(fp, "Uid [#]: %lu\n", (unsigned long)pw->pw_uid);
+		(void)fprintf(fp, "Gid [# or name]: %lu\n",
+		    (unsigned long)pw->pw_gid);
 		(void)fprintf(fp, "Change [month day year]: %s\n",
 		    ttoa(pw->pw_change));
 		(void)fprintf(fp, "Expire [month day year]: %s\n",
@@ -255,9 +256,10 @@ bad:					(void)fclose(fp);
 		pw->pw_gecos[len - 1] = '\0';
 
 	if (snprintf(buf, sizeof(buf),
-	    "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s",
-	    pw->pw_name, pw->pw_passwd, pw->pw_uid, pw->pw_gid, pw->pw_class,
-	    pw->pw_change, pw->pw_expire, pw->pw_gecos, pw->pw_dir,
+	    "%s:%s:%lu:%lu:%s:%ld:%ld:%s:%s:%s",
+	    pw->pw_name, pw->pw_passwd, (unsigned long)pw->pw_uid, 
+	    (unsigned long)pw->pw_gid, pw->pw_class, (long)pw->pw_change,
+	    (long)pw->pw_expire, pw->pw_gecos, pw->pw_dir,
 	    pw->pw_shell) >= sizeof(buf)) {
 		warnx("entries too long");
 		free(p);
