@@ -35,211 +35,13 @@ hit ESC twice.  Hitting TAB will move the focus to different controls.
 If you've ever dealt with a DOS installation, you'll know how to deal
 with this.
 
-=============================================
-WHAT'S NEW IN THIS RELEASE (preliminary list)
-=============================================
+For a more complete description of what's new in this release, please
+see the release notes.
 
-4.4 Lite
---------
-As previously stated, this release is based entirely on CSRG's
-latest (and last) BSD release - 4.4 Lite.  This features as number
-of improvements over 4.2BSD (Net/2), not least of which are:
-
-o	Legal approval of Novell & U.C. Berkeley.  After the settlement
-	of the longstanding lawsuit between USL/UCB/Novell/BSDI, all
-	parties were (strongly) encouraged to move to 4.4 Lite in order
-	to avoid future legal entanglements.  The fact that we've now done
-	so should make this release much more attractive to potential
-	commercial users.
-
-o	Many new filesystem types, such as stackable filesystems, union
-	filesystems, "portals", kernfs, a simple log-structured filesystem, a
-	new version of NFS (NQNFS), etc.  While some of these new filesystems
-	are also rather unpolished and will require significant additional
-	work to be truly robust, they're a good start.
-
-o	64bit offsets, allowing filesystems of up to 2^63 bytes in size.
-
-o	Further work towards full POSIX compliance.
-
-
-And many many other features.  For more documentation, it is recommended
-that you purchase the 4.4BSD Document Set from O'Reilly Associates and the
-USENIX Association.  ISBN 1-56592-082-1
-
-
-IP multicast support
---------------------
-
-The IP multicast support has been upgraded from the woefully ancient
-1.x code in 4.4-Lite to the most current and up-to-date 3.3 release
-from Steve D. and Ajit.  The non-forwarding code is known to work (for
-some limited test cases).  The multicast forwarder and user-mode
-multicast routing process are known to compile, but have not been
-significantly tested (hopefully this will happen before 2.0 release).
-
-Owner:			wollman
-Sources involved:	sys/netinet, usr.sbin/mrouted
-
-
-Loadable Kernel Modules
------------------------
-
-David Greenman incorporated NetBSD's port of Terry Lambert's loadable
-kernel module support.  Garrett Wollman wrote the support for loadable
-file systems, and Søren Schmidt did the same for loadable execution
-classes.
-
-Owner:			core
-Sources involved:	sys/kern, sbin/modload, sbin/modunload,
-			usr.bin/modstat
-
-
-Loadable filesystems
---------------------
-
-Most filesystems are now dynamically loadable on demand, with the
-exception of the UFS family (FFS, LFS, and MFS).  With the exception
-of NFS, all such filestystems can be unloaded when all references are
-unmounted.  To support this functionality, the getvfsbyname(3)
-family of functions has been added to the C library and the lsvfs(1)
-command provides the same information at the shell level.  Be aware of
-the following current restrictions:
-
-	- /usr/bin may not reside on a dynamically loaded filesystem.
-	- There must be a writable /tmp directory available
-	  before filesystems are loaded (moving / to the top of your
-	  /etc/fstab file will accomplish this).
-	- Some of the more esoteric filesystems simply don't work when loaded
-	  dynamically (though they often don't work "static", either.)
-
-Owner:			wollman
-Sources involved:	sys/*fs, lkm/*fs, usr.bin/lsvfs, lib/libc/gen
-
-
-S/Key
------
-
-Since version 1.1.5, FreeBSD has supported the S/Key one time password scheme.
-The version used is derived from the logdaemon package of Wietse Venema.
-Some of the features new in 2.0 are:
-	- New access control table format to impose the use of S/Keys
-	  based on: hostname, ip address, port, username, group id.
-	- S/Key support can be disabled by not having the access control
-	  table.
-The second item explains the absence of skey.access in the installed /etc.
-To enable S/Key support, create a file skey.access in /etc and fill it
-according to your needs. See also skey.access(5) and the example in
-/usr/share/examples/etc/skey.access.
-
-Owner:			pst, guido
-Sources involved:	lib/libskey, usr.bin/key* (plus patches to others)
-
-
-TCP/IP over parallel (printer) port
------------------------------------
-
-You can now run TCP/IP over a standard LapLink(tm) cable, if both ends
-have a interrupt-driven printerport.  The interface is named "lp0"
-where '0' is the same as the lpt# unit number.  This is not compatible
-with PLIP.  If you run NFS, try setting MTU to 9180, otherwise leave
-it at 1500 unless you have a good reason to change it.  Speed varies
-with the CPU-type, with up to 70 kbyte/sec having been seen and 50
-kbyte/sec being the norm.
-
-Owner:			phk
-Sources involved:	isa/lpt.c
-
-
-ProAudioSpectrum SCSI-driver
-----------------------------
-
-If you have a PAS board with a CD-ROM, and the MS-DOS driver is called
-TSLCDR.SYS, then the "pas" driver should work on your card.  You can
-attach disks, cdroms and tapes, but due to the nature of the hardware
-involved, the transfer rate is limited to < 690 kbyte/sec.  For CD-ROM
-use, this is generally more than enough.
-
-Owner:			phk
-Sources involved:	isa/pas.c
-
-
-Gzip'ed binaries
-----------------
-
-We have an experimental implementation for direct execution of gzip'ed
-binaries in this release.  When enabled, it allows you to simply gzip
-your binaries, remove the '.gz' extension and make the file
-executable.  There is a big speed and memory consumption penalty for
-doing this, but for laptop users it may be worthwhile.  The maximum
-savings are generally around 10 Mb of disk space.
-
-Owner:			phk
-Sources involved:	kern/imgact_gzip.c kern/inflate.c
-
-
-Diskless booting
-----------------
-
-Diskless booting it in 2.0 and much improved since 1.1.5.  The boot-program
-is in src/sys/i386/boot/netboot, and can be run from a MSDOS system or 
-burned into an EPROM.  Local swapping is possible.  Presently WD, SMC and
-Novell cards are supported.
-
-Owner:			Martin Renters & phk
-Sources involved:	i386/boot/netboot, sys/nfs/nfs_vfsops.h
-
-
-Device configuration database
------------------------------
-
-The kernel now keeps better track of which device drivers are active and
-where the devices are attached; this information is made available to
-user programs via the new sysctl(3) management interface.  Current
-applications include lsdev(8), which lists the currently configured
-devices.  In the future, we expect to use this code to automatically
-generate a configuration file for you at installation time.
-
-Owner:			wollman
-Sources involved:	sys/i386, sys/scsi, sys/kern/kern_devconf.c,
-			sys/sys/devconf.h, usr.sbin/lsdev
-
-
-Kernel management interface
----------------------------
-
-With 4.4-Lite, we now have a better management interface for the endless
-series of kernel variables and parameters which were previously manipulated
-by reading and writing /dev/kmem.  Many programs have been rewritten to
-use this interface, although many old-style programs still remain.  Some
-variables which were never accessible before are now available through
-the sysctl(1) program.  In addition to the standard 4.4BSD MIB variables,
-we have added support for YP/NIS domains (kern.domainname), controlling
-the update daemon (kern.update), retrieving the OS release date
-(kern.osreldate), determining the name of the booted kernel (kern.bootfile),
-and checking for hardware floating-point support (hw.floatingpoint).
-We have also added support to make management queries of devices and
-filesystems.
-
-Owner:			core
-Sources involved:	sys, usr.bin/sysctl
-
-
-iBCS2 support
--------------
-
-FreeBSD now supports running iBCS2 compatible binaries (currently
-SCO UNIX 3.2.2 & 3.2.4 and ISC 2.2 COFF format are supported).
-The iBCS2 emulator is in its early stages, but it is functional, we
-havn't been able to do exhaustive testing (lack of commercial apps),
-but allmost all of SCO's 3.2.2 binaries are working, so is an old
-INFORMIX-2.10 for SCO. Further testing is nessesary to complete this
-project. There is also work under way for ELF & XOUT loaders, and
-most of the svr4 syscall wrappers have been written.
-
-Owner:			Soren Schmidt (sos) & Sean Eric Fagan (sef)
-Sources involved:	sys/i386/ibcs2/* + misc kernel changes.
-
+For more documentation on this system, it is recommended that you purchase
+the 4.4BSD Document Set from O'Reilly Associates and the USENIX Association.
+ISBN 1-56592-082-1  We have no connection with O'Reilly, we're just
+satisfied customers!
 
 Have fun, and please let us know of any problems you encounter with
 this release!
@@ -249,7 +51,7 @@ Comments should be sent to:
 	hackers@FreeBSD.org
 
 Bug reports should be sent using the `send-pr' utility, if you
-were able to get the system installed; otherwise send mail to:
+were able to get the system installed, otherwise to:
 
 	bugs@FreeBSD.org
 
@@ -264,4 +66,4 @@ are often strained to the limit (if not somewhat past!).
 
 Thanks!
 
-				The FreeBSD Project team
+				The FreeBSD Project
