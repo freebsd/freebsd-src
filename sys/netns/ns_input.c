@@ -50,6 +50,7 @@
 #include <net/route.h>
 #include <net/raw_cb.h>
 #include <net/netisr.h>
+#include <net/intrq.h>
 
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -73,11 +74,12 @@ static u_short allones[] = {-1, -1, -1};
 struct nspcb nspcb;
 struct nspcb nsrawpcb;
 
-struct ifqueue	nsintrq;
 int	nsqmaxlen = IFQ_MAXLEN;
 
 int	idpcksum = 1;
 long	ns_pexseq;
+
+const int	nsintrq_present = 1;
 
 ns_init()
 {

@@ -17,9 +17,11 @@
  */
 
 #include "opt_atalk.h"
+#include "opt_atm.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
+#include "opt_natm.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -42,6 +44,13 @@
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/intrq.h>
+
+#ifdef ATM_CORE
+#include <netatm/kern_include.h>
+#include <netatm/atm.h>
+#include <netatm/atm_var.h>
+#endif
 
 #ifdef INET
 #include <netinet/in.h>
@@ -53,20 +62,24 @@
 #include <netinet6/in6_var.h>
 #endif
 
-#ifdef NS
-/* This will never be defined by config(8), or for the if_tun module ! */
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 #ifdef IPX
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #endif
 
+#ifdef NATM
+#include <netnatm/natm.h>
+#endif
+
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
+#endif
+
+#ifdef NS
+/* This will never be defined by config(8), or for the if_tun module ! */
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #include <net/bpf.h>
@@ -700,38 +713,69 @@ tunwrite(dev, uio, flag)
 	} else
 		family = AF_INET;
 
+	q = NULL;
+	isr = 0;
+
 	switch (family) {
+#ifdef ATM_CORE
+	case AF_ATM:
+		if (atmintrq_present) {
+			q = &atm_intrq;
+			isr = NETISR_ATM;
+		}
+		break;
+#endif
 #ifdef INET
 	case AF_INET:
-		q = &ipintrq;
-		isr = NETISR_IP;
+		if (ipintrq_present) {
+			q = &ipintrq;
+			isr = NETISR_IP;
+		}
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		q = &ip6intrq;
-		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef NS
-	case AF_NS:
-		q = &nsintrq;
-		isr = NETISR_NS;
+		if (ip6intrq_present) {
+			q = &ip6intrq;
+			isr = NETISR_IPV6;
+		}
 		break;
 #endif
 #ifdef IPX
 	case AF_IPX:
-		q = &ipxintrq;
-		isr = NETISR_IPX;
+		if (ipxintrq_present) {
+			q = &ipxintrq;
+			isr = NETISR_IPX;
+		}
+		break;
+#endif
+#ifdef NATM
+	case AF_NATM:
+		if (natmintrq_present) {
+			q = &natmintrq;
+			isr = NETISR_NATM;
+		}
 		break;
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK:
-		q = &atintrq2;
-		isr = NETISR_ATALK;
+		if (atintrq2_present) {
+			q = &atintrq2;
+			isr = NETISR_ATALK;
+		}
 		break;
 #endif
-	default:
+#ifdef NS
+	case AF_NS:
+		if (nsintrq_present) {
+			q = &nsintrq;
+			isr = NETISR_NS;
+		}
+		break;
+#endif
+	}
+
+	if (!q) {
 		m_freem(top);
 		return EAFNOSUPPORT;
 	}

@@ -47,6 +47,7 @@
 #include <net/if.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/intrq.h>
 
 #include <netipx/ipx.h>
 #include <netipx/spx.h>
@@ -86,10 +87,10 @@ static	u_short allones[] = {-1, -1, -1};
 struct	ipxpcb ipxpcb;
 struct	ipxpcb ipxrawpcb;
 
-struct	ifqueue	ipxintrq;
 static int ipxqmaxlen = IFQ_MAXLEN;
 
 long	ipx_pexseq;
+const int ipxintrq_present = 1;
 
 NETISR_SET(NETISR_IPX, ipxintr);
 
