@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.156 1995/05/09 00:31:54 asami Exp $
+# $Id: bsd.port.mk,v 1.157 1995/05/10 09:30:09 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -945,9 +945,12 @@ do-package:
 				fi; \
 			fi; \
 		fi; \
-		${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; \
-		if [ -d ${PACKAGES} ]; then \
-			${MAKE} ${.MAKEFLAGS} package-links; \
+		if ${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; then \
+			if [ -d ${PACKAGES} ]; then \
+				${MAKE} ${.MAKEFLAGS} package-links; \
+			fi; \
+		else \
+			${MAKE} ${.MAKEFLAGS} delete-package; \
 		fi; \
 	fi
 .endif
