@@ -61,6 +61,7 @@
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-4.4    4.4
+.ds doc-operating-system-FreeBSD-4.5    4.5
 .
 .\" Locale support
 .if d doc-lang \{\
