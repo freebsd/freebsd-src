@@ -8,6 +8,8 @@
 # USE THIS CODE AT YOUR OWN RISK.  IT IS EXPERIMENTAL AND WILL LIKELY NOT
 # EVEN COMPILE FOR A WHILE.  YOU HAVE BEEN WARNED. -- imp
 #
+# CURRENT STATUS OF CODE: NOT WORKING.  Use PCCARD instead.
+#
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
