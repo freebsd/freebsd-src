@@ -432,6 +432,31 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
 }
 
 int
+linux_rt_sigsuspend(p, uap)
+	struct proc *p;
+	struct linux_rt_sigsuspend_args *uap;
+{
+	linux_new_sigset_t lmask;
+	struct sigsuspend_args bsd;
+	int error;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
+	    (void *)uap->newset, uap->sigsetsize);
+#endif
+
+	if (uap->sigsetsize != sizeof(linux_new_sigset_t))
+		return (EINVAL);
+
+	error = copyin(uap->newset, &lmask, sizeof(linux_new_sigset_t));
+	if (error)
+		return (error);
+
+	bsd.mask = linux_to_bsd_sigset(lmask.sig[0]);
+	return (sigsuspend(p, &bsd));
+}
+
+int
 linux_pause(struct proc *p, struct linux_pause_args *args)
 {
     struct sigsuspend_args tmp;
